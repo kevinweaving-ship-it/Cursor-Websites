@@ -1297,14 +1297,8 @@
             
             <!-- Signed In Sailor View -->
             <div id="sailor-view" style="display: none;">
-                <!-- Congratulations section - space for new content -->
-                <div id="congratulations-section" style="margin-top: 2rem;">
-                    <h2 style="display: inline-flex; align-items: center; gap: 0.5rem;">
-                        Congratulations
-                        <span style="font-size: 1em; line-height: 1;">🎉</span>
-                    </h2>
-                    <!-- New content will be added here -->
-                </div>
+                <!-- Congratulations section - removed for later re-add; id kept for JS -->
+                <div id="congratulations-section" style="margin-top: 2rem; display: none;"></div>
                 
                 <!-- Personal Sailing Profile Section -->
                 <section id="personal-profile-section" style="margin-top: 2rem;">
@@ -3093,16 +3087,17 @@
          * Load congratulations message for podium finishes
          */
         async function loadCongratulations(sasId) {
-            console.log('[DEBUG] loadCongratulations: Loading data for SAS ID:', sasId);
+            // Congratulations message removed for later re-add; section kept hidden
             const congratsSection = document.getElementById('congratulations-section');
-            
+            if (congratsSection) congratsSection.style.display = 'none';
+            return;
+            /* RE-ADD LATER: uncomment from here
+            console.log('[DEBUG] loadCongratulations: Loading data for SAS ID:', sasId);
             if (!congratsSection) {
                 console.warn('[DEBUG] loadCongratulations: congratulations-section not found');
                 return;
             }
-            
             try {
-                // Fetch sailor's results
                 const resultsResponse = await fetch(`${window.API_BASE || API_BASE}/api/member/${encodeURIComponent(sasId)}/results`);
                 
                 if (!resultsResponse.ok) {
@@ -3247,6 +3242,7 @@
                 console.error('[DEBUG] loadCongratulations: Error:', error);
                 congratsSection.style.display = 'none';
             }
+            */  // RE-ADD: remove early return in loadCongratulations and delete this line
         }
         
         // Make function globally available
