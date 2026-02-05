@@ -549,6 +549,7 @@ def health():
     return {"ok": True}
 
 # ---------- Sailing news feed (RSS) for Latest News banner ----------
+# Cache ts=0 so first request after deploy gets real source URLs (no news.google.com)
 _sailing_news_cache = {"items": [], "ts": 0}
 SAILING_NEWS_CACHE_SEC = 1800  # 30 min
 
@@ -629,8 +630,11 @@ def _fetch_sailing_news() -> list:
                         raw_url = item.get("url") or ""
                         if not raw_url:
                             continue
-                        # Resolve Google News article URL to real source URL (decode article ID)
+                        # Use real source URL only (decode Google News article ID → e.g. iol.co.za, sail-world.com)
                         real_url = _resolve_google_news_url(raw_url)
+                        # Never expose news.google.com: only add if we have a direct source URL
+                        if "news.google.com" in (real_url or ""):
+                            continue
                         item["url"] = real_url
                         if real_url not in seen_urls:
                             seen_urls.add(real_url)
