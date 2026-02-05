@@ -119,6 +119,7 @@
             .regatta-search-input { border-radius: 4px; }
             #sailor-search-form.sailor-search-form, #regatta-search-form.regatta-search-form { gap: 0.35rem; }
         }
+        .search-to-profile-separator { margin: 0.75rem 0 0.5rem 0; border: 0; border-top: 2px solid #e0e0e0; }
         .sailor-search-results { margin-top: 0.5rem; display: flex; flex-direction: column; max-height: 85vh; overflow-y: auto; padding-bottom: 2.5rem; }
         .sailor-search-results[role="list"] { list-style: none; }
         .sailor-search-results .profile-card { margin-bottom: 0.875rem; }
@@ -1251,7 +1252,7 @@
                     </form>
                 </section>
             </div>
-            
+            <hr class="search-to-profile-separator" aria-hidden="true">
             <!-- Sailor Profile - always visible; populated when a sailor is selected or logged-in profile -->
             <div class="search-row-container">
                 <div id="sailor-search-results" class="sailor-search-results" role="list">
