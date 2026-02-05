@@ -120,8 +120,8 @@
             #sailor-search-form.sailor-search-form, #regatta-search-form.regatta-search-form { gap: 0.35rem; }
         }
         .search-to-profile-separator { margin: 0.75rem 0 0.5rem 0; border: 0; border-top: 2px solid #e0e0e0; }
-        .news-header { min-height: 44px; padding: 12px 16px; font-size: 1.125rem; font-weight: 700; color: #001f3f; box-sizing: border-box; display: flex; align-items: center; width: 100%; }
-        @media (max-width: 480px) { .news-header { min-height: 48px; padding: 14px 16px; font-size: 1rem; } }
+        .news-header { min-height: 44px; padding: 12px 16px; font-size: 1.125rem; font-weight: 700; color: #1e3a8a; box-sizing: border-box; display: flex; align-items: center; justify-content: center; width: 100%; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 1rem; }
+        @media (max-width: 480px) { .news-header { min-height: 48px; padding: 14px 16px; font-size: 1rem; border-radius: 6px; } }
         .sailor-search-results { margin-top: 0.5rem; display: flex; flex-direction: column; max-height: 85vh; overflow-y: auto; padding-bottom: 2.5rem; }
         .sailor-search-results[role="list"] { list-style: none; }
         .sailor-search-results .profile-card { margin-bottom: 0.875rem; }
@@ -1255,7 +1255,7 @@
                 </section>
             </div>
             <hr class="search-to-profile-separator" aria-hidden="true">
-            <div class="news-header" role="heading" aria-level="2">News</div>
+            <div class="news-header" role="heading" aria-level="2">Latest News</div>
             <!-- Sailor Profile - always visible; populated when a sailor is selected or logged-in profile -->
             <div class="search-row-container">
                 <div id="sailor-search-results" class="sailor-search-results" role="list">
