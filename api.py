@@ -555,8 +555,8 @@ SAILING_NEWS_CACHE_SEC = 1800  # 30 min
 def _fetch_sailing_news() -> list:
     """Fetch sailing news from RSS; return list of {title, url, image_url, source, published}."""
     out = []
-    # Google News RSS (query sailing; ZA locale)
-    rss_url = "https://news.google.com/rss/search?q=sailing&hl=en-ZA&gl=ZA&ceid=ZA:en"
+    # Google News RSS: South African sailing only (ZA locale + SA sailing query)
+    rss_url = "https://news.google.com/rss/search?q=South+African+sailing&hl=en-ZA&gl=ZA&ceid=ZA:en"
     headers = {"User-Agent": "Mozilla/5.0 (compatible; SailingSA/1.0; +https://sailingsa.co.za)"}
     try:
         with httpx.Client(timeout=15.0, follow_redirects=True, headers=headers) as client:
