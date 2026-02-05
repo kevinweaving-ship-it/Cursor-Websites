@@ -3270,14 +3270,20 @@
                 // Show loading state
                 profileBoxes.innerHTML = '<div style="grid-column: 1 / -1; padding: 1rem; text-align: center; color: #666;">Loading profile...</div>';
                 
-                // Fetch member profile and results in parallel
-                const [memberResponse, resultsResponse] = await Promise.all([
-                    fetch(`${window.API_BASE || API_BASE}/api/search?sas_id=${encodeURIComponent(sasId)}`).catch(() => null),
-                    fetch(`${window.API_BASE || API_BASE}/api/member/${encodeURIComponent(sasId)}/results`).catch(() => null)
+                // Fetch member profile, results, and clubs in parallel (clubs for province fallback)
+                const API = window.API_BASE || API_BASE;
+                const [memberResponse, resultsResponse, clubsResponse] = await Promise.all([
+                    fetch(`${API}/api/search?sas_id=${encodeURIComponent(sasId)}`).catch(() => null),
+                    fetch(`${API}/api/member/${encodeURIComponent(sasId)}/results`).catch(() => null),
+                    fetch(`${API}/api/clubs`).catch(() => null)
                 ]);
                 
                 const members = memberResponse?.ok ? await memberResponse.json() : [];
                 const resultsData = resultsResponse?.ok ? await resultsResponse.json() : { results: [] };
+                let clubsList = [];
+                try { clubsList = clubsResponse?.ok ? await clubsResponse.json() : []; } catch (_) {}
+                const clubsByCode = {};
+                if (Array.isArray(clubsList)) clubsList.forEach(function(c) { const code = (c.code || '').toString().trim().toUpperCase(); if (code) clubsByCode[code] = (c.province || c.province_code || '').toString().trim(); });
                 
                 const member = Array.isArray(members) ? members[0] : members;
                 const results = resultsData.results || [];
@@ -3312,6 +3318,14 @@
                 }
                 const club = (member.club || member.primary_club || member.club_1 || 'N/A').toString().trim();
                 const clubDisplay = club && club !== 'N/A' ? club.toUpperCase() : club;
+                
+                // Province: same resolution as searched sailor profiles (m.province, fallback to club province)
+                let provinceVal = (member.province || member.province_name || '').toString().trim();
+                if (!provinceVal && clubDisplay && clubDisplay !== 'N/A' && clubsByCode[clubDisplay]) provinceVal = clubsByCode[clubDisplay];
+                const provinceNameToCode = { 'Western Cape': 'WC', 'Eastern Cape': 'EC', 'Northern Cape': 'NC', 'Free State': 'FS', 'KwaZulu-Natal': 'KZN', 'KwaZulu Natal': 'KZN', 'Gauteng': 'GP', 'Mpumalanga': 'MP', 'Limpopo': 'LP', 'North West': 'NW', 'Western cape': 'WC', 'Eastern cape': 'EC', 'Northern cape': 'NC', 'Free state': 'FS', 'North west': 'NW' };
+                let provinceCode = (provinceVal && provinceVal.length <= 4) ? String(provinceVal).toUpperCase() : (provinceNameToCode[provinceVal] || (provinceVal ? provinceVal.replace(/\s+/g, ' ').trim() : ''));
+                if (provinceCode && provinceCode.length > 4) provinceCode = provinceNameToCode[provinceVal] || '';
+                const provinceDisplay = provinceVal ? (typeof toProperCase === 'function' ? toProperCase(provinceVal) : provinceVal) : '';
                 
                 // Calculate sailing statistics
                 const regattaIds = new Set();
@@ -3412,6 +3426,16 @@
                         <span style="font-weight: 700;">Club:</span> <span style="font-weight: 700;">${club}</span>
                     </div>
                 `);
+                
+                // Box: Province (same badge style as searched sailor; only show when we have a value)
+                if (provinceVal && provinceDisplay) {
+                    const provinceLabel = (provinceCode && provinceCode.length <= 4) ? provinceCode : provinceDisplay;
+                    boxes.push(`
+                        <div class="sailor-province-icon-box" style="background: #e3f2fd !important; border: 1px solid #90caf9 !important; border-radius: 6px; padding: 2px 6px; width: auto; height: auto; font-size: 11px; font-weight: 700; color: #000080 !important; box-sizing: border-box; display: inline-flex; align-items: center; line-height: 1.1; margin: 0; white-space: nowrap;" title="${(provinceDisplay || '').replace(/"/g, '&quot;')}">
+                            <span style="font-weight: 700;">Province:</span> <span style="font-weight: 700;">${(provinceLabel || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')}</span>
+                        </div>
+                    `);
+                }
                 
                 // Box 5: Sailing Duration
                 boxes.push(`
