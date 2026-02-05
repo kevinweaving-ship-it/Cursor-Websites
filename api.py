@@ -552,26 +552,14 @@ def health():
 _sailing_news_cache = {"items": [], "ts": 0}
 SAILING_NEWS_CACHE_SEC = 1800  # 30 min
 
-def _fetch_sailing_news() -> list:
-    """Fetch sailing news from RSS; return list of {title, url, image_url, source, published}."""
+def _parse_rss_entries(feed) -> list:
+    """Parse feedparser feed into list of {title, url, image_url, source, published}."""
     out = []
-    # Google News RSS: South African sailing only (ZA locale + SA sailing query)
-    rss_url = "https://news.google.com/rss/search?q=South+African+sailing&hl=en-ZA&gl=ZA&ceid=ZA:en"
-    headers = {"User-Agent": "Mozilla/5.0 (compatible; SailingSA/1.0; +https://sailingsa.co.za)"}
-    try:
-        with httpx.Client(timeout=15.0, follow_redirects=True, headers=headers) as client:
-            r = client.get(rss_url)
-            r.raise_for_status()
-            feed = feedparser.parse(r.content)
-    except Exception as e:
-        print(f"[sailing-news] RSS fetch failed: {e}")
-        return out
-    for e in getattr(feed, "entries", [])[:15]:
+    for e in getattr(feed, "entries", []):
         title = (e.get("title") or "").strip()
         url = (e.get("link") or "").strip()
         if not title or not url:
             continue
-        # Image: media_content / enclosure / first image in summary
         image_url = None
         if e.get("media_content"):
             image_url = e["media_content"][0].get("url")
@@ -593,6 +581,40 @@ def _fetch_sailing_news() -> list:
             "published": published,
         })
     return out
+
+def _fetch_sailing_news() -> list:
+    """Fetch South African sailing news from multiple RSS queries; merge, dedupe by URL, sort by date."""
+    # Multiple queries so we get: general SA sailing, Cape to Rio, youth nationals, etc.
+    queries = [
+        "South+African+sailing",
+        "Cape+to+Rio+sailing",
+        "SA+youth+sailing+nationals",
+        "youth+nationals+sailing+South+Africa",
+    ]
+    base = "https://news.google.com/rss/search?q={}&hl=en-ZA&gl=ZA&ceid=ZA:en"
+    headers = {"User-Agent": "Mozilla/5.0 (compatible; SailingSA/1.0; +https://sailingsa.co.za)"}
+    seen_urls = set()
+    merged = []
+    try:
+        with httpx.Client(timeout=15.0, follow_redirects=True, headers=headers) as client:
+            for q in queries:
+                try:
+                    r = client.get(base.format(q))
+                    r.raise_for_status()
+                    feed = feedparser.parse(r.content)
+                    for item in _parse_rss_entries(feed):
+                        url = item.get("url") or ""
+                        if url and url not in seen_urls:
+                            seen_urls.add(url)
+                            merged.append(item)
+                except Exception as e:
+                    print(f"[sailing-news] RSS query '{q}' failed: {e}")
+    except Exception as e:
+        print(f"[sailing-news] RSS fetch failed: {e}")
+        return []
+    # Sort by published date (most recent first); ISO-like strings sort correctly
+    merged.sort(key=lambda x: (x.get("published") or "").strip(), reverse=True)
+    return merged[:20]
 
 @app.get("/api/sailing-news")
 def api_sailing_news(limit: int = Query(10, ge=1, le=20)):
