@@ -4858,9 +4858,8 @@
             var q = sailorSearchInput ? sailorSearchInput.value.trim() : '';
             var publicRegattasList = document.getElementById('public-regattas-list');
             if (!publicRegattasList) return;
-            var hint = '<p style="color:#666;font-size:0.9rem;">Enter at least 3 characters to search, or type <strong>all</strong> for the full list.</p>';
             if (!q) {
-                publicRegattasList.innerHTML = hint;
+                publicRegattasList.innerHTML = '';
                 return;
             }
             if (q.toLowerCase() === 'all') {
@@ -4875,7 +4874,7 @@
                 return;
             }
             if (q.length < 3) {
-                publicRegattasList.innerHTML = hint;
+                publicRegattasList.innerHTML = '';
                 return;
             }
             publicRegattasList.innerHTML = '<p>Loading…</p>';
