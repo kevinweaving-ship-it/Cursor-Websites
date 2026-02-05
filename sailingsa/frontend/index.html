@@ -4858,7 +4858,7 @@
             var q = sailorSearchInput ? sailorSearchInput.value.trim() : '';
             var publicRegattasList = document.getElementById('public-regattas-list');
             if (!publicRegattasList) return;
-            var hint = '<p style="color:#666;font-size:0.9rem;">3+ characters or type <strong>all</strong> for full list.</p>';
+            var hint = '<p style="color:#666;font-size:0.9rem;">Enter at least 3 characters to search, or type <strong>all</strong> for the full list.</p>';
             if (!q) {
                 publicRegattasList.innerHTML = hint;
                 return;
