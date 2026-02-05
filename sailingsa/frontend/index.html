@@ -1496,12 +1496,28 @@
         async function loadSailingNews() {
             const el = document.getElementById('sailing-news-list');
             if (!el) return;
-            const base = (typeof window.API_BASE !== 'undefined' && window.API_BASE) ? window.API_BASE : window.location.origin;
             var data = { items: [] };
+            var tried = [];
+            function tryUrl(base) {
+                var u = (base || '').replace(/\/$/, '') + '/api/sailing-news?limit=10';
+                if (tried.indexOf(u) !== -1) return null;
+                tried.push(u);
+                return u;
+            }
+            const origin = window.location.origin;
+            const bases = [window.API_BASE, origin];
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                bases.push(origin.replace(/:[\d]+$/, '') + ':8081', origin.replace(/:[\d]+$/, '') + ':8082');
+            }
             try {
-                var r = await fetch(base + '/api/sailing-news?limit=10');
-                if (!r.ok && base !== window.location.origin) { r = await fetch(window.location.origin + '/api/sailing-news?limit=10'); }
-                data = await r.json().catch(function() { return { items: [] }; });
+                var r = null;
+                for (var i = 0; i < bases.length; i++) {
+                    var url = tryUrl(bases[i]);
+                    if (!url) continue;
+                    r = await fetch(url);
+                    if (r.ok) break;
+                }
+                if (r && r.ok) { data = await r.json().catch(function() { return { items: [] }; }); }
                 const items = data.items || [];
                 if (items.length === 0) {
                     el.innerHTML = '<p class="sailing-news-empty">No sailing news at the moment. Check back later.</p>';

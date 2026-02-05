@@ -630,14 +630,13 @@ def _fetch_sailing_news() -> list:
                         raw_url = item.get("url") or ""
                         if not raw_url:
                             continue
-                        # Use real source URL only (decode Google News article ID → e.g. iol.co.za, sail-world.com)
+                        # Prefer real source URL (decode Google News article ID when it contains embedded URL)
                         real_url = _resolve_google_news_url(raw_url)
-                        # Never expose news.google.com: only add if we have a direct source URL
-                        if "news.google.com" in (real_url or ""):
-                            continue
-                        item["url"] = real_url
-                        if real_url not in seen_urls:
-                            seen_urls.add(real_url)
+                        # Use decoded URL if we got a direct source; else keep raw (Google redirect) so link still works
+                        item["url"] = real_url if real_url and "news.google.com" not in real_url else raw_url
+                        dedupe_key = item["url"]
+                        if dedupe_key not in seen_urls:
+                            seen_urls.add(dedupe_key)
                             merged.append(item)
                 except Exception as e:
                     print(f"[sailing-news] RSS query '{q}' failed: {e}")
