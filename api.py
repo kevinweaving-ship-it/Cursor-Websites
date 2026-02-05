@@ -552,6 +552,29 @@ def health():
 _sailing_news_cache = {"items": [], "ts": 0}
 SAILING_NEWS_CACHE_SEC = 1800  # 30 min
 
+def _resolve_google_news_url(url: str) -> str:
+    """If url is a Google News /rss/articles/ URL, decode the article ID to get the real source URL; else return url."""
+    if not url or "news.google.com/rss/articles/" not in url:
+        return url
+    try:
+        # Article ID is base64url-encoded and contains the real URL
+        import base64 as b64
+        path = url.split("/rss/articles/")[-1].split("?")[0]
+        if not path:
+            return url
+        pad = 4 - len(path) % 4
+        if pad != 4:
+            path += "=" * pad
+        raw = b64.urlsafe_b64decode(path)
+        text = raw.decode("utf-8", errors="ignore")
+        # First occurrence of https?:// is the real article URL
+        m = re.search(r"https?://[^\s\x00-\x1f\"\']+", text)
+        if m:
+            return m.group(0).rstrip(")\"'")
+    except Exception:
+        pass
+    return url
+
 def _parse_rss_entries(feed) -> list:
     """Parse feedparser feed into list of {title, url, image_url, source, published}."""
     out = []
@@ -603,9 +626,14 @@ def _fetch_sailing_news() -> list:
                     r.raise_for_status()
                     feed = feedparser.parse(r.content)
                     for item in _parse_rss_entries(feed):
-                        url = item.get("url") or ""
-                        if url and url not in seen_urls:
-                            seen_urls.add(url)
+                        raw_url = item.get("url") or ""
+                        if not raw_url:
+                            continue
+                        # Resolve Google News article URL to real source URL (decode article ID)
+                        real_url = _resolve_google_news_url(raw_url)
+                        item["url"] = real_url
+                        if real_url not in seen_urls:
+                            seen_urls.add(real_url)
                             merged.append(item)
                 except Exception as e:
                     print(f"[sailing-news] RSS query '{q}' failed: {e}")
