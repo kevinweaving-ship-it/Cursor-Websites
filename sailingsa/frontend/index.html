@@ -1300,19 +1300,6 @@
                 <!-- Congratulations section - removed for later re-add; id kept for JS -->
                 <div id="congratulations-section" style="margin-top: 2rem; display: none;"></div>
                 
-                <!-- Personal Sailing Profile Section -->
-                <section id="personal-profile-section" style="margin-top: 2rem;">
-                    <h2 style="margin-bottom: 1rem; color: #1e3a8a; font-size: 1.3em; border-bottom: 2px solid #1e3a8a; padding-bottom: 8px;">Your Personal Sailing Profile</h2>
-                    <div id="personal-profile-boxes" style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 1rem; overflow-x: auto; -webkit-overflow-scrolling: touch;">
-                        <!-- Profile boxes will be populated by JavaScript -->
-                    </div>
-                </section>
-                
-                <!-- Per-Class Results Tables (shown when logged in) -->
-                <div id="per-class-results-container" style="margin-top: 2rem; display: none;">
-                    <!-- Per-class results tables will be populated by JavaScript -->
-                </div>
-                
                 <!-- Full Profile Link (shown when logged in) -->
                 <div id="full-profile-link-container" style="margin-top: 1.5rem; margin-bottom: 0.5rem; display: none;">
                     <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
@@ -3002,8 +2989,6 @@
                     
                     if (sasId) {
                         await loadCongratulations(sasId);
-                        await loadPersonalProfile(sasId);
-                        await loadPerClassResults(sasId);
                         
                         // Show and set full profile link
                         const fullProfileLinkContainer = document.getElementById('full-profile-link-container');
@@ -3032,14 +3017,10 @@
                             fullProfileLink.href = searchUrl;
                         }
                     } else {
-                        // Hide full profile link and per-class results if not logged in
+                        // Hide full profile link if not logged in
                         const fullProfileLinkContainer = document.getElementById('full-profile-link-container');
-                        const perClassResultsContainer = document.getElementById('per-class-results-container');
                         if (fullProfileLinkContainer) {
                             fullProfileLinkContainer.style.display = 'none';
-                        }
-                        if (perClassResultsContainer) {
-                            perClassResultsContainer.style.display = 'none';
                         }
                     }
                     
