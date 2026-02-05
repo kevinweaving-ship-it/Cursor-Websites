@@ -122,6 +122,16 @@
         .search-to-profile-separator { margin: 0.75rem 0 0.5rem 0; border: 0; border-top: 2px solid #e0e0e0; }
         .news-header { min-height: 44px; padding: 12px 16px; font-size: 1.125rem; font-weight: 700; color: #1e3a8a; box-sizing: border-box; display: flex; align-items: center; justify-content: center; width: 100%; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 1rem; }
         @media (max-width: 480px) { .news-header { min-height: 48px; padding: 14px 16px; font-size: 1rem; border-radius: 6px; } }
+        .sailing-news-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .sailing-news-card { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid #e5e7eb; }
+        .sailing-news-card a { text-decoration: none; color: inherit; display: block; }
+        .sailing-news-card-image { width: 100%; aspect-ratio: 16/10; object-fit: cover; background: #f3f4f6; }
+        .sailing-news-card-body { padding: 0.75rem 1rem; }
+        .sailing-news-card-title { font-size: 1rem; font-weight: 600; color: #001f3f; line-height: 1.35; margin: 0 0 0.25rem 0; }
+        .sailing-news-card-title:hover { text-decoration: underline; color: #1e3a8a; }
+        .sailing-news-card-source { font-size: 0.8rem; color: #6b7280; }
+        .sailing-news-loading { padding: 1rem; text-align: center; color: #6b7280; font-size: 0.9rem; }
+        .sailing-news-empty { padding: 1rem; text-align: center; color: #6b7280; font-size: 0.9rem; }
         .sailor-search-results { margin-top: 0.5rem; display: flex; flex-direction: column; max-height: 85vh; overflow-y: auto; padding-bottom: 2.5rem; }
         .sailor-search-results[role="list"] { list-style: none; }
         .sailor-search-results .profile-card { margin-bottom: 0.875rem; }
@@ -1285,6 +1295,9 @@
             </div>
             <hr class="search-to-profile-separator" aria-hidden="true">
             <div class="news-header" role="heading" aria-level="2">Latest News</div>
+            <div id="sailing-news-list" class="sailing-news-list" aria-live="polite">
+                <p class="sailing-news-loading">Loading news…</p>
+            </div>
             <!-- Regatta Search Results (above Welcome; source of truth from search) -->
             <section id="public-regattas-section" aria-label="Regatta search results">
                 <div id="public-regattas-list">
@@ -1480,9 +1493,38 @@
         }
         window.closePopupAndReturnToPage = closePopupAndReturnToPage;
 
+        async function loadSailingNews() {
+            const el = document.getElementById('sailing-news-list');
+            if (!el) return;
+            const base = (typeof window.API_BASE !== 'undefined' && window.API_BASE) ? window.API_BASE : window.location.origin;
+            var data = { items: [] };
+            try {
+                var r = await fetch(base + '/api/sailing-news?limit=10');
+                if (!r.ok && base !== window.location.origin) { r = await fetch(window.location.origin + '/api/sailing-news?limit=10'); }
+                data = await r.json().catch(function() { return { items: [] }; });
+                const items = data.items || [];
+                if (items.length === 0) {
+                    el.innerHTML = '<p class="sailing-news-empty">No sailing news at the moment. Check back later.</p>';
+                    return;
+                }
+                function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+                el.innerHTML = items.map(function(item) {
+                    var img = item.image_url ? '<img class="sailing-news-card-image" src="' + esc(item.image_url) + '" alt="" loading="lazy">' : '<div class="sailing-news-card-image" style="background:#e5e7eb;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:0.9rem;">No image</div>';
+                    var title = esc(item.title);
+                    var url = esc(item.url);
+                    var source = esc(item.source || 'News');
+                    return '<article class="sailing-news-card"><a href="' + url + '" target="_blank" rel="noopener noreferrer">' + img + '<div class="sailing-news-card-body"><h3 class="sailing-news-card-title">' + title + '</h3><p class="sailing-news-card-source">' + source + '</p></div></a></article>';
+                }).join('');
+            } catch (err) {
+                console.warn('[sailing-news]', err);
+                el.innerHTML = '<p class="sailing-news-empty">News unavailable. Try again later.</p>';
+            }
+        }
+
         // Initialize popup handlers
         document.addEventListener('DOMContentLoaded', async function() {
             console.log('[DEBUG] index.html: DOMContentLoaded fired');
+            loadSailingNews();
             console.log('[DEBUG] index.html: Current cookies:', document.cookie);
             console.log('[DEBUG] index.html: localStorage session:', localStorage.getItem('session'));
             

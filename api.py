@@ -13,6 +13,8 @@ from datetime import datetime, timedelta
 import uuid
 from collections import defaultdict
 import logging
+import feedparser
+import httpx
 import traceback
 import hashlib
 import json
@@ -545,6 +547,63 @@ def qf(sql, *args):
 @app.get("/api/health")
 def health():
     return {"ok": True}
+
+# ---------- Sailing news feed (RSS) for Latest News banner ----------
+_sailing_news_cache = {"items": [], "ts": 0}
+SAILING_NEWS_CACHE_SEC = 1800  # 30 min
+
+def _fetch_sailing_news() -> list:
+    """Fetch sailing news from RSS; return list of {title, url, image_url, source, published}."""
+    out = []
+    # Google News RSS (query sailing; ZA locale)
+    rss_url = "https://news.google.com/rss/search?q=sailing&hl=en-ZA&gl=ZA&ceid=ZA:en"
+    headers = {"User-Agent": "Mozilla/5.0 (compatible; SailingSA/1.0; +https://sailingsa.co.za)"}
+    try:
+        with httpx.Client(timeout=15.0, follow_redirects=True, headers=headers) as client:
+            r = client.get(rss_url)
+            r.raise_for_status()
+            feed = feedparser.parse(r.content)
+    except Exception as e:
+        print(f"[sailing-news] RSS fetch failed: {e}")
+        return out
+    for e in getattr(feed, "entries", [])[:15]:
+        title = (e.get("title") or "").strip()
+        url = (e.get("link") or "").strip()
+        if not title or not url:
+            continue
+        # Image: media_content / enclosure / first image in summary
+        image_url = None
+        if e.get("media_content"):
+            image_url = e["media_content"][0].get("url")
+        if not image_url and e.get("enclosures"):
+            enc = e["enclosures"][0]
+            if enc.get("type", "").startswith("image/"):
+                image_url = enc.get("href") or enc.get("url")
+        if not image_url and e.get("summary"):
+            m = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', e["summary"])
+            if m:
+                image_url = m.group(1)
+        source = (e.get("source", {}) or {}).get("title", "") if isinstance(e.get("source"), dict) else (getattr(e.get("source"), "title", None) or "")
+        published = e.get("published") or e.get("updated") or ""
+        out.append({
+            "title": title,
+            "url": url,
+            "image_url": image_url or None,
+            "source": source or "News",
+            "published": published,
+        })
+    return out
+
+@app.get("/api/sailing-news")
+def api_sailing_news(limit: int = Query(10, ge=1, le=20)):
+    """Return recent sailing news for Latest News banner. Headlines link to source. Cached 30 min."""
+    global _sailing_news_cache
+    now = time.time()
+    if now - _sailing_news_cache["ts"] > SAILING_NEWS_CACHE_SEC:
+        _sailing_news_cache["items"] = _fetch_sailing_news()
+        _sailing_news_cache["ts"] = now
+    items = _sailing_news_cache["items"][:limit]
+    return {"items": items}
 
 # ---------- Minimal support endpoints for Member Finder ----------
 def table_exists(name: str) -> bool:
