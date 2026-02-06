@@ -929,6 +929,142 @@ def _flatten_serp_news_results(data: dict) -> list:
             })
     return out
 
+# Authoritative SA sailing sources: try RSS first, else scrape HTML (headline, link, date, og:image).
+PRIMARY_SA_SOURCES = [
+    {"base": "https://www.sailingsa.org.za", "rss_paths": ["/feed", "/rss", "/news/feed", "/announcements/feed", "/feed/"], "name": "Sailing SA"},
+    {"base": "https://www.royalcapeyachtclub.co.za", "rss_paths": ["/feed", "/rss", "/news/feed", "/feed/"], "name": "Royal Cape YC"},
+    {"base": "https://www.hyc.co.za", "rss_paths": ["/feed", "/rss", "/news/feed", "/feed/"], "name": "HYC"},
+    {"base": "https://www.zvyc.co.za", "rss_paths": ["/feed", "/rss", "/news/feed", "/feed/"], "name": "ZVYC"},
+    {"base": "https://www.rnyc.org.za", "rss_paths": ["/feed", "/rss", "/news/feed", "/feed/"], "name": "RNYC"},
+    {"base": "https://www.sail-world.com", "rss_paths": ["/news/rss", "/rss", "/feed", "/AUS/rss", "/news/rss/"], "name": "Sail-World"},
+]
+
+
+def _try_primary_rss(feed_url: str, source_name: str, client: httpx.Client) -> list:
+    """Fetch RSS at feed_url; return list of {headline, excerpt, url, image, source, published_at} or []."""
+    out = []
+    try:
+        r = client.get(feed_url, timeout=10.0)
+        if r.status_code != 200:
+            return []
+        feed = feedparser.parse(r.content)
+        entries = getattr(feed, "entries", [])
+        if not entries:
+            return []
+        for e in entries:
+            title = (e.get("title") or "").strip()
+            link = (e.get("link") or "").strip()
+            if not title or not link:
+                continue
+            published = e.get("published") or e.get("updated") or ""
+            raw_summary = e.get("summary") or ""
+            excerpt = re.sub(r"<[^>]+>", " ", raw_summary).strip()[:500] if raw_summary else ""
+            img = None
+            if e.get("media_content"):
+                img = e["media_content"][0].get("url")
+            if not img and e.get("media_thumbnail"):
+                t = e["media_thumbnail"][0] if isinstance(e["media_thumbnail"], list) else e["media_thumbnail"]
+                img = t.get("url") or t.get("href") if isinstance(t, dict) else None
+            out.append({
+                "headline": title,
+                "excerpt": excerpt,
+                "url": link,
+                "image": img,
+                "source": source_name.strip(),
+                "published_at": published,
+                "_source_origin": "primary",
+            })
+        return out
+    except Exception:
+        return []
+
+
+def _scrape_primary_html(page_url: str, source_name: str, client: httpx.Client) -> list:
+    """Fetch HTML; extract headline, link, date (best-effort), og:image. Return list of items or []."""
+    out = []
+    try:
+        r = client.get(page_url, timeout=12.0)
+        if r.status_code != 200:
+            return []
+        text = r.text or ""
+        # og:image from page (once)
+        og_img = None
+        m = re.search(r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']', text, re.I)
+        if m:
+            og_img = m.group(1).strip()
+        if not og_img:
+            m = re.search(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']', text, re.I)
+            og_img = m.group(1).strip() if m else None
+        if og_img and _is_image_logo(og_img):
+            og_img = None
+        from urllib.parse import urljoin, urlparse
+        base_netloc = urlparse(page_url).netloc or ""
+        # Links that look like articles: same-host, substantial text (avoid nav/footer)
+        link_re = re.compile(r'<a\s+href=["\']([^"\']+)["\'][^>]*>([^<]{10,200})</a>', re.I)
+        for m in link_re.finditer(text):
+            href, link_text = m.group(1).strip(), (m.group(2) or "").strip()
+            if not href or not link_text or link_text.startswith("http"):
+                continue
+            full_url = urljoin(page_url, href)
+            try:
+                p = urlparse(full_url)
+                if (p.netloc or "").lower() != base_netloc.lower():
+                    continue
+            except Exception:
+                continue
+            if any(x in href.lower() for x in ("#", "javascript:", "mailto:", "tel:", "login", "register", "privacy", "cookie")):
+                continue
+            # Best-effort date: look for <time datetime="..."> or article:published_time nearby (simplified: use empty)
+            date_str = ""
+            out.append({
+                "headline": _sanitise_news_text(link_text[:200]),
+                "excerpt": "",
+                "url": full_url,
+                "image": og_img,
+                "source": source_name.strip(),
+                "published_at": date_str,
+                "_source_origin": "primary",
+            })
+        # Dedupe by url
+        seen = set()
+        deduped = []
+        for it in out:
+            u = (it.get("url") or "").strip()
+            if u and u not in seen:
+                seen.add(u)
+                deduped.append(it)
+        return deduped[:15]
+    except Exception:
+        return []
+
+
+def _fetch_primary_sources() -> list:
+    """Fetch from authoritative SA sailing sources: RSS if present, else HTML scrape. Items tagged _source_origin=primary."""
+    headers = {"User-Agent": "Mozilla/5.0 (compatible; SailingSA/1.0; +https://sailingsa.co.za)"}
+    out = []
+    try:
+        with httpx.Client(timeout=15.0, follow_redirects=True, headers=headers) as client:
+            for src in PRIMARY_SA_SOURCES:
+                base = (src.get("base") or "").rstrip("/")
+                name = src.get("name") or "News"
+                rss_paths = src.get("rss_paths") or []
+                got_rss = False
+                for path in rss_paths:
+                    feed_url = base + path if path.startswith("/") else base + "/" + path
+                    items = _try_primary_rss(feed_url, name, client)
+                    if items:
+                        out.extend(items)
+                        got_rss = True
+                        break
+                if not got_rss:
+                    items = _scrape_primary_html(base, name, client)
+                    if items:
+                        out.extend(items)
+    except Exception as e:
+        print(f"[news] primary sources fetch failed: {e}")
+    return out
+
+
 def _fetch_news_serpapi() -> list:
     """Fetch from SerpAPI Google News (gl=za, hl=en). Returns list of normalized items or [] if no key/fail."""
     api_key = os.getenv("SERPAPI_KEY", "").strip()
@@ -1138,23 +1274,35 @@ def _is_sa_news_item_accept(item: dict, sailor_names: list) -> bool:
     return accept
 
 def _fetch_latest_news_pipeline() -> list:
-    """SerpAPI first, RSS fallback, dedupe by url, SA filter, sailor match, image resolution, sort. Max 20."""
+    """Primary SA sources first; if ≥1 item skip Google. Else SerpAPI + RSS. SA filter, sailor match, image, sort. Max 20."""
     seen_urls = set()
     merged = []
-    # 1) SerpAPI (primary)
-    serp = _fetch_news_serpapi()
-    for it in serp:
+    sources_used = []
+    # 1) Primary authoritative SA sources (MUST RUN FIRST)
+    primary = _fetch_primary_sources()
+    for it in primary:
         u = (it.get("url") or "").strip()
         if u and u not in seen_urls:
             seen_urls.add(u)
+            it["_source_origin"] = "primary"
             merged.append(it)
-    # 2) RSS (secondary, dedupe)
-    rss = _fetch_news_rss_fallback()
-    for it in rss:
-        u = (it.get("url") or "").strip()
-        if u and u not in seen_urls:
-            seen_urls.add(u)
-            merged.append(it)
+    primary_count = len(merged)
+    # 2) If primary returned ≥1 item: skip Google News entirely for this refresh
+    if primary_count == 0:
+        serp = _fetch_news_serpapi()
+        for it in serp:
+            u = (it.get("url") or "").strip()
+            if u and u not in seen_urls:
+                seen_urls.add(u)
+                it["_source_origin"] = "google"
+                merged.append(it)
+        rss = _fetch_news_rss_fallback()
+        for it in rss:
+            u = (it.get("url") or "").strip()
+            if u and u not in seen_urls:
+                seen_urls.add(u)
+                it["_source_origin"] = "google"
+                merged.append(it)
     # 2b) Resolve Google News redirect → final publisher URL. If host is news.google.com, resolve; if fail → drop item. Frontend must never receive news.google.com URL.
     from urllib.parse import urlparse
     google_items = [(i, it) for i, it in enumerate(merged) if "news.google.com" in (urlparse((it.get("url") or "").strip()).netloc or "").lower()]
@@ -1186,16 +1334,19 @@ def _fetch_latest_news_pipeline() -> list:
     for it in resolved_merged:
         it.pop("_drop", None)
     merged = resolved_merged
-    # 3) Sailor names and SA filter; podium sailors (1st/2nd/3rd in last 6 months) for prioritisation
+    # 3) Sailor names and SA filter; primary-source items accepted as authoritative (no filter loosening)
     sailor_names = _load_sailor_names_for_news()
     podium_names_6m = _load_podium_sailor_names_6m()
     podium_set = {n.lower() for n in podium_names_6m}
     filtered = []
     for it in merged:
-        accept, reason = _is_sa_news_item(it, sailor_names)
-        if not accept:
-            continue
-        it["_sa_accept_reason"] = reason
+        if it.get("_source_origin") == "primary":
+            it["_sa_accept_reason"] = "primary"
+        else:
+            accept, reason = _is_sa_news_item(it, sailor_names)
+            if not accept:
+                continue
+            it["_sa_accept_reason"] = reason
         text = (it.get("headline") or "") + " " + (it.get("excerpt") or "")
         matched = _match_sailors_in_text(text, sailor_names)
         it["matched_sailors"] = matched
@@ -1274,14 +1425,14 @@ def _fetch_latest_news_pipeline() -> list:
             "source": _sanitise_news_text(it.get("source") or "News").strip(),
             "published_at": it.get("published_at") or "",
         })
-    reasons = sorted(set(it.get("_sa_accept_reason") for it in merged[:20] if it.get("_sa_accept_reason")))
+    sources_used = sorted(set(it.get("_source_origin") for it in merged[:20] if it.get("_source_origin")))
     # 8) Floor: if pipeline yielded 0 items, run one extra RSS "SA Sailing", accept up to 5 keyword-matched.
     if len(out) == 0:
         floor_items = _fetch_floor_news(sailor_names)
         out = floor_items
         if out:
-            reasons = ["floor"]
-    print(f"[news] refresh: {len(out)} items, reasons={reasons}")
+            sources_used = ["floor"]
+    print(f"[news] refresh: {len(out)} items, sources={sources_used}")
     return out
 
 def _news_cache_refresh_loop():
