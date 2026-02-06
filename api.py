@@ -17,7 +17,10 @@ import feedparser
 import httpx
 import traceback
 import hashlib
+import html as html_module
 import json
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
 
 NAME_SIM_THRESHOLD = 0.75
 
@@ -576,8 +579,63 @@ def _resolve_google_news_url(url: str) -> str:
         pass
     return url
 
+def _resolve_google_news_redirect(url: str) -> Optional[str]:
+    """Resolve Google News redirect to final publisher URL. HEAD first, fallback GET. allow_redirects=True, timeout ≤3s. Returns final response.url or None if fail/still Google."""
+    if not url or "news.google.com" not in url:
+        return url
+    headers = {"User-Agent": "Mozilla/5.0 (compatible; SailingSA/1.0; +https://sailingsa.co.za)"}
+    try:
+        with httpx.Client(timeout=3.0, follow_redirects=True, headers=headers) as client:
+            try:
+                r = client.head(url)
+            except Exception:
+                r = client.get(url)
+            final = (r.url and str(r.url)) or ""
+            if not final or "news.google.com" in final:
+                return None
+            return final.strip()
+    except Exception:
+        return None
+
+def _is_image_logo(url: str) -> bool:
+    """Reject og:image if SVG, or URL contains /logo, /icon, /brand, /favicon. Do not show logos as article image."""
+    if not url:
+        return True
+    u = url.lower().strip()
+    if ".svg" in u:
+        return True
+    for bad in ("/logo", "/icon", "/brand", "/favicon"):
+        if bad in u:
+            return True
+    return False
+
+def _fetch_og_image(url: str, validate_no_logo: bool = True) -> Optional[str]:
+    """Fetch article page and extract og:image URL. Timeout ≤3s. Returns None on failure or if image is logo."""
+    if not url or "news.google.com" in url:
+        return None
+    try:
+        with httpx.Client(timeout=3.0, follow_redirects=True, headers={"User-Agent": "Mozilla/5.0 (compatible; SailingSA/1.0)"}) as client:
+            r = client.get(url)
+            if r.status_code != 200:
+                return None
+            # <meta property="og:image" content="...">
+            m = re.search(r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']', r.text, re.I)
+            if m:
+                img_url = m.group(1).strip()
+            else:
+                m = re.search(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']', r.text, re.I)
+                img_url = m.group(1).strip() if m else None
+            if not img_url:
+                return None
+            if validate_no_logo and _is_image_logo(img_url):
+                return None
+            return img_url
+    except Exception:
+        pass
+    return None
+
 def _parse_rss_entries(feed) -> list:
-    """Parse feedparser feed into list of {title, url, image_url, source, published}."""
+    """Parse feedparser feed into list of {title, url, image_url, source, source_href, published}."""
     out = []
     for e in getattr(feed, "entries", []):
         title = (e.get("title") or "").strip()
@@ -587,21 +645,36 @@ def _parse_rss_entries(feed) -> list:
         image_url = None
         if e.get("media_content"):
             image_url = e["media_content"][0].get("url")
+        if not image_url and e.get("media_thumbnail"):
+            thumb = e["media_thumbnail"][0] if isinstance(e["media_thumbnail"], list) else e["media_thumbnail"]
+            image_url = thumb.get("url") or thumb.get("href") if isinstance(thumb, dict) else None
         if not image_url and e.get("enclosures"):
             enc = e["enclosures"][0]
             if enc.get("type", "").startswith("image/"):
                 image_url = enc.get("href") or enc.get("url")
+        if not image_url and e.get("links"):
+            for link in e["links"]:
+                if isinstance(link, dict):
+                    t = (link.get("type") or "").lower()
+                    if t.startswith("image/"):
+                        image_url = link.get("href") or link.get("url")
+                        break
         if not image_url and e.get("summary"):
             m = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', e["summary"])
             if m:
                 image_url = m.group(1)
-        source = (e.get("source", {}) or {}).get("title", "") if isinstance(e.get("source"), dict) else (getattr(e.get("source"), "title", None) or "")
+        src_obj = e.get("source")
+        source = (src_obj or {}).get("title", "") if isinstance(src_obj, dict) else (getattr(src_obj, "title", None) or "")
+        source_href = (src_obj or {}).get("href", "") if isinstance(src_obj, dict) else (getattr(src_obj, "href", None) or "")
+        if source_href:
+            source_href = (source_href or "").strip()
         published = e.get("published") or e.get("updated") or ""
         out.append({
             "title": title,
             "url": url,
             "image_url": image_url or None,
             "source": source or "News",
+            "source_href": source_href or None,
             "published": published,
         })
     return out
@@ -630,10 +703,13 @@ def _fetch_sailing_news() -> list:
                         raw_url = item.get("url") or ""
                         if not raw_url:
                             continue
-                        # Prefer real source URL (decode Google News article ID when it contains embedded URL)
+                        # Prefer real article URL (decode Google News article ID when it contains embedded URL)
                         real_url = _resolve_google_news_url(raw_url)
-                        # Use decoded URL if we got a direct source; else keep raw (Google redirect) so link still works
-                        item["url"] = real_url if real_url and "news.google.com" not in real_url else raw_url
+                        # Use decoded direct article URL when we have it; else keep raw Google News link so click goes to the actual article (Google redirects)
+                        if real_url and "news.google.com" not in real_url:
+                            item["url"] = real_url
+                        else:
+                            item["url"] = raw_url  # Google News URL – click takes user to the article via redirect, not publisher homepage
                         dedupe_key = item["url"]
                         if dedupe_key not in seen_urls:
                             seen_urls.add(dedupe_key)
@@ -645,7 +721,22 @@ def _fetch_sailing_news() -> list:
         return []
     # Sort by published date (most recent first); ISO-like strings sort correctly
     merged.sort(key=lambda x: (x.get("published") or "").strip(), reverse=True)
-    return merged[:20]
+    merged = merged[:20]
+    # Prefer full image from article URL (og:image) over RSS thumbnail for every item
+    def _task(tup):
+        i, item = tup
+        url = _fetch_og_image(item.get("url") or "")
+        return (i, url)
+    try:
+        with ThreadPoolExecutor(max_workers=10) as ex:
+            futs = {ex.submit(_task, (i, m)): i for i, m in enumerate(merged)}
+            for fut in as_completed(futs, timeout=10):
+                i, url = fut.result()
+                if url:
+                    merged[i]["image_url"] = url
+    except Exception as e:
+        print(f"[sailing-news] og:image fetch failed: {e}")
+    return merged
 
 @app.get("/api/sailing-news")
 def api_sailing_news(limit: int = Query(10, ge=1, le=20)):
@@ -657,6 +748,578 @@ def api_sailing_news(limit: int = Query(10, ge=1, le=20)):
         _sailing_news_cache["ts"] = now
     items = _sailing_news_cache["items"][:limit]
     return {"items": items}
+
+# ---------- Latest News (BETA V1): SerpAPI + RSS, SA filter, SAS-ID sailor match ----------
+# Spec: News24-style editorial cards, mobile-first, SA sailing only, actual article URL, main article image.
+LATEST_NEWS_CACHE: dict = {"items": [], "ts": 0}
+LATEST_NEWS_CACHE_SEC = 1800  # 30 min
+SERPAPI_QUERIES = [
+    "South African sailing",
+    "SA Youth Sailing",
+    "Cape to Rio Yacht Race",
+    "Optimist Nationals South Africa",
+    "ILCA South Africa sailing",
+]
+# Keep only if: .co.za, SA keywords, domain allowlist + SA signal, or SAS-ID sailor match.
+SA_KEYWORDS = re.compile(
+    r"(?:South\s+Africa|\bSA\b|\bRSA\b|SA\s+Sailing|Sailing\s+SA|"
+    r"Cape\s+Town|Durban|Port\s+Elizabeth|Gqeberha|Simonstown|False\s+Bay|Hermanus|"
+    r"Western\s+Cape|Eastern\s+Cape|KwaZulu|Gauteng|"
+    r"Cape\s+to\s+Rio|Lipton|Youth\s+Nationals|SA\s+Nationals|SA\s+youth|SA\s+nationals|"
+    r"yacht\s+club|regatta|sailing\s+nationals|"
+    r"Royal\s+Cape|RCYC|HYC|ZVYC|RNYC|Hout\s+Bay|Saldanha|V&A|Table\s+Bay)",
+    re.I
+)
+# Domain allowlist: only accept if domain in list AND text has an SA signal (keyword or sailor). Domain alone is NOT sufficient.
+SA_DOMAIN_ALLOWLIST = frozenset([
+    "sail-world.com", "www.sail-world.com",
+    "yachtsandyachting.com", "www.yachtsandyachting.com",
+    "sailing.org", "www.sailing.org", "worldsailing.org",
+])
+# Host substrings for class/association sites (allowlist when combined with SA signal)
+SA_DOMAIN_ALLOWLIST_SUBSTR = ("optimist", "ilca", "29er", "49er", "nacra", "sailing.org", "sail-world", "yachtsandyachting")
+LOGOS_IN_URL = re.compile(r"/logo|/icon|/brand|/favicon|\.svg", re.I)
+FRESHNESS_DAYS = 180
+FRESHNESS_DAYS_SAILOR = 365
+
+def _sanitise_news_text(s: str) -> str:
+    """Decode HTML entities, strip tags, collapse whitespace."""
+    if not s:
+        return ""
+    t = html_module.unescape(s)
+    t = re.sub(r"<[^>]+>", " ", t)
+    t = re.sub(r"\s+", " ", t).strip()
+    return t
+
+def _excerpt_from(headline: str, raw_excerpt: str, max_len: int = 140) -> str:
+    """Sanitise excerpt: remove headline from start, max 140 chars, end at word boundary. Must not repeat headline."""
+    excerpt = _sanitise_news_text(raw_excerpt or "")
+    headline_clean = _sanitise_news_text(headline or "").lower()
+    prefix = headline_clean[:50].strip()
+    if prefix and excerpt.lower().startswith(prefix):
+        excerpt = excerpt[len(prefix):].lstrip(" .–—:")
+    if len(excerpt) <= max_len:
+        return excerpt
+    cut = excerpt[:max_len].rsplit(" ", 1)
+    return (cut[0] + "...") if len(cut) > 1 else (excerpt[: max_len - 3] + "...")
+
+def _parse_news_date(s: str):
+    """Parse published_at (ISO or RSS date). Return datetime or None."""
+    if not s or not isinstance(s, str):
+        return None
+    s = s.strip()
+    try:
+        from datetime import datetime
+        t = s.replace("Z", "+00:00")
+        return datetime.fromisoformat(t)
+    except Exception:
+        pass
+    try:
+        from email.utils import parsedate_to_datetime
+        return parsedate_to_datetime(s)
+    except Exception:
+        pass
+    return None
+
+def _load_sailor_names_for_news() -> list:
+    """Return list of 'First Last' from sas_id_personal (or sailors table) for SAS-ID matching."""
+    try:
+        if table_exists("sas_id_personal"):
+            rows = q("""
+                SELECT COALESCE(TRIM(full_name), TRIM(first_name || ' ' || last_name)) AS name
+                FROM sas_id_personal
+                WHERE (first_name IS NOT NULL AND first_name != '') OR (full_name IS NOT NULL AND full_name != '')
+            """)
+            names = []
+            seen = set()
+            for r in rows:
+                n = (r.get("name") or "").strip()
+                if n and len(n) > 2 and n.lower() not in seen:
+                    seen.add(n.lower())
+                    names.append(n)
+            return names[:500]  # cap for performance
+    except Exception as e:
+        print(f"[news] sailor names load failed: {e}")
+    return []
+
+def _load_podium_sailor_names_6m() -> list:
+    """Return list of 'First Last' for sailors who placed 1st/2nd/3rd in a regatta ending in the last 6 months (SAS-ID only)."""
+    try:
+        if not table_exists("sas_id_personal") or not table_exists("results") or not table_exists("regattas"):
+            return []
+        rows = q("""
+            SELECT DISTINCT COALESCE(TRIM(s.full_name), TRIM(s.first_name || ' ' || s.last_name)) AS name
+            FROM (
+                SELECT r.helm_sa_sailing_id AS sa_id FROM results r
+                JOIN regattas reg ON reg.regatta_id = r.regatta_id
+                WHERE r.rank IN (1, 2, 3) AND reg.end_date >= (CURRENT_DATE - INTERVAL '6 months')
+                  AND r.helm_sa_sailing_id IS NOT NULL
+                UNION
+                SELECT r.crew_sa_sailing_id AS sa_id FROM results r
+                JOIN regattas reg ON reg.regatta_id = r.regatta_id
+                WHERE r.rank IN (1, 2, 3) AND reg.end_date >= (CURRENT_DATE - INTERVAL '6 months')
+                  AND r.crew_sa_sailing_id IS NOT NULL
+            ) ids
+            JOIN sas_id_personal s ON s.sa_sailing_id = ids.sa_id
+            WHERE (s.first_name IS NOT NULL AND s.first_name != '') OR (s.full_name IS NOT NULL AND s.full_name != '')
+        """)
+        names = []
+        seen = set()
+        for r in rows:
+            n = (r.get("name") or "").strip()
+            if n and len(n) > 2 and n.lower() not in seen:
+                seen.add(n.lower())
+                names.append(n)
+        return names[:500]
+    except Exception as e:
+        print(f"[news] podium sailor names (6m) load failed: {e}")
+    return []
+
+def _match_sailors_in_text(text: str, sailor_names: list) -> list:
+    """Case-insensitive, word-boundary safe match of sailor names in text. Returns list of matched full names."""
+    if not text or not sailor_names:
+        return []
+    text_lower = " " + (text or "").lower() + " "
+    matched = []
+    for name in sailor_names:
+        # Word-boundary style: " timothy weaving " or " timothy weaving." etc.
+        pattern = r"\b" + re.escape(name.lower()) + r"\b"
+        if re.search(pattern, text_lower):
+            matched.append(name)
+    return matched
+
+def _flatten_serp_news_results(data: dict) -> list:
+    """Extract flat list of {headline, excerpt, url, image, source, published_at} from SerpAPI Google News response."""
+    out = []
+    results = data.get("news_results") or []
+    for item in results:
+        # Top-level story (direct link)
+        link = item.get("link") or (item.get("highlight") or {}).get("link")
+        title = item.get("title") or (item.get("highlight") or {}).get("title")
+        if not link or not title:
+            continue
+        src = item.get("source") or item.get("highlight") or {}
+        src_name = src.get("name") if isinstance(src, dict) else ""
+        thumb = item.get("thumbnail") or (item.get("highlight") or {}).get("thumbnail")
+        snippet = item.get("snippet") or (item.get("highlight") or {}).get("snippet") or ""
+        iso_date = item.get("iso_date") or (item.get("highlight") or {}).get("iso_date") or ""
+        out.append({
+            "headline": (title or "").strip(),
+            "excerpt": (snippet or "").strip()[:500],
+            "url": (link or "").strip(),
+            "image": (thumb or "").strip() or None,
+            "source": (src_name or "News").strip(),
+            "published_at": iso_date.strip() or None,
+        })
+        # Nested stories (same topic, different links)
+        for s in item.get("stories") or []:
+            slink = s.get("link")
+            stitle = s.get("title")
+            if not slink or not stitle:
+                continue
+            ssrc = s.get("source") or {}
+            sname = ssrc.get("name") if isinstance(ssrc, dict) else ""
+            out.append({
+                "headline": (stitle or "").strip(),
+                "excerpt": (s.get("snippet") or "").strip()[:500],
+                "url": (slink or "").strip(),
+                "image": (s.get("thumbnail") or "").strip() or None,
+                "source": (sname or "News").strip(),
+                "published_at": (s.get("iso_date") or "").strip() or None,
+            })
+    return out
+
+def _fetch_news_serpapi() -> list:
+    """Fetch from SerpAPI Google News (gl=za, hl=en). Returns list of normalized items or [] if no key/fail."""
+    api_key = os.getenv("SERPAPI_KEY", "").strip()
+    if not api_key:
+        return []
+    items = []
+    with httpx.Client(timeout=20.0) as client:
+        for q in SERPAPI_QUERIES:
+            try:
+                r = client.get(
+                    "https://serpapi.com/search",
+                    params={"engine": "google_news", "q": q, "gl": "za", "hl": "en", "api_key": api_key},
+                )
+                r.raise_for_status()
+                data = r.json()
+                items.extend(_flatten_serp_news_results(data))
+            except Exception as e:
+                print(f"[news] SerpAPI query '{q}' failed: {e}")
+    return items
+
+def _fetch_news_rss_fallback() -> list:
+    """RSS fallback: same shape as SerpAPI (headline, excerpt, url, image, source, published_at)."""
+    base = "https://news.google.com/rss/search?q={}&hl=en-ZA&gl=ZA&ceid=ZA:en"
+    headers = {"User-Agent": "Mozilla/5.0 (compatible; SailingSA/1.0; +https://sailingsa.co.za)"}
+    out = []
+    try:
+        with httpx.Client(timeout=15.0, follow_redirects=True, headers=headers) as client:
+            for q in ["South+African+sailing", "Cape+to+Rio+sailing", "SA+youth+sailing+nationals", "Royal+Cape+Yacht+Club+sailing", "South+Africa+yacht+racing", "Sailing+South+Africa+regatta", "Hermanus+yacht+club+sailing"]:
+                try:
+                    r = client.get(base.format(q))
+                    r.raise_for_status()
+                    feed = feedparser.parse(r.content)
+                    for e in getattr(feed, "entries", []):
+                        title = (e.get("title") or "").strip()
+                        link = (e.get("link") or "").strip()
+                        if not title or not link:
+                            continue
+                        real_url = _resolve_google_news_url(link)
+                        if real_url and "news.google.com" not in real_url:
+                            link = real_url
+                        src = e.get("source")
+                        src_name = (src or {}).get("title") if isinstance(src, dict) else getattr(src, "title", "") or "News"
+                        published = e.get("published") or e.get("updated") or ""
+                        # excerpt from summary (strip tags)
+                        raw_summary = e.get("summary") or ""
+                        excerpt = re.sub(r"<[^>]+>", " ", raw_summary).strip()[:500] if raw_summary else ""
+                        img = None
+                        if e.get("media_content"):
+                            img = e["media_content"][0].get("url")
+                        if not img and e.get("media_thumbnail"):
+                            t = e["media_thumbnail"][0] if isinstance(e["media_thumbnail"], list) else e["media_thumbnail"]
+                            img = t.get("url") or t.get("href") if isinstance(t, dict) else None
+                        out.append({
+                            "headline": title,
+                            "excerpt": excerpt,
+                            "url": link,
+                            "image": img,
+                            "source": (src_name or "News").strip(),
+                            "published_at": published,
+                        })
+                except Exception as ex:
+                    print(f"[news] RSS '{q}' failed: {ex}")
+    except Exception as e:
+        print(f"[news] RSS fallback failed: {e}")
+    return out
+
+
+def _fetch_floor_news(sailor_names: list) -> list:
+    """If pipeline yields 0 items: run ONE extra RSS query 'SA Sailing', accept up to 5 newest that match SA keywords (no allowlist-only). Same API shape."""
+    from urllib.parse import urlparse
+    base = "https://news.google.com/rss/search?q={}&hl=en-ZA&gl=ZA&ceid=ZA:en"
+    headers = {"User-Agent": "Mozilla/5.0 (compatible; SailingSA/1.0; +https://sailingsa.co.za)"}
+    raw = []
+    try:
+        with httpx.Client(timeout=15.0, follow_redirects=True, headers=headers) as client:
+            r = client.get(base.format("SA+Sailing"))
+            r.raise_for_status()
+            feed = feedparser.parse(r.content)
+            for e in getattr(feed, "entries", []):
+                title = (e.get("title") or "").strip()
+                link = (e.get("link") or "").strip()
+                if not title or not link:
+                    continue
+                real_url = _resolve_google_news_url(link)
+                if real_url and "news.google.com" not in real_url:
+                    link = real_url
+                if "news.google.com" in (urlparse(link).netloc or "").lower():
+                    continue
+                src = e.get("source")
+                src_name = (src or {}).get("title") if isinstance(src, dict) else getattr(src, "title", "") or "News"
+                published = e.get("published") or e.get("updated") or ""
+                raw_summary = e.get("summary") or ""
+                excerpt = re.sub(r"<[^>]+>", " ", raw_summary).strip()[:500] if raw_summary else ""
+                img = None
+                if e.get("media_content"):
+                    img = e["media_content"][0].get("url")
+                if not img and e.get("media_thumbnail"):
+                    t = e["media_thumbnail"][0] if isinstance(e["media_thumbnail"], list) else e["media_thumbnail"]
+                    img = t.get("url") or t.get("href") if isinstance(t, dict) else None
+                raw.append({
+                    "headline": title,
+                    "excerpt": excerpt,
+                    "url": link,
+                    "image": img,
+                    "source": (src_name or "News").strip(),
+                    "published_at": published,
+                })
+    except Exception as e:
+        print(f"[news] floor RSS 'SA Sailing' failed: {e}")
+        return []
+    # Resolve any remaining Google redirects
+    for it in raw:
+        u = (it.get("url") or "").strip()
+        if "news.google.com" in (urlparse(u).netloc or "").lower():
+            final = _resolve_google_news_redirect(u)
+            if final and "news.google.com" not in final:
+                it["url"] = final
+            else:
+                it["_drop"] = True
+        else:
+            it["_drop"] = False
+    raw = [it for it in raw if not it.get("_drop")]
+    for it in raw:
+        it.pop("_drop", None)
+    # Keep only: SA keyword, .co.za, or sailor match (no allowlist-only)
+    text_items = []
+    for it in raw:
+        url = (it.get("url") or "").strip()
+        text = ((it.get("headline") or "") + " " + (it.get("excerpt") or ""))
+        try:
+            host = (urlparse(url).netloc or "").lower()
+        except Exception:
+            host = ""
+        if _match_sailors_in_text(text, sailor_names):
+            text_items.append(it)
+            continue
+        if host.endswith(".co.za") or ".co.za" in url.lower():
+            text_items.append(it)
+            continue
+        if SA_KEYWORDS.search(text):
+            text_items.append(it)
+    # Sort by published_at newest first, take 5
+    def _floor_sort_key(x):
+        pub = _parse_news_date(x.get("published_at"))
+        if pub is None:
+            return ""
+        return pub.isoformat() if hasattr(pub, "isoformat") else str(pub)
+    text_items.sort(key=_floor_sort_key, reverse=True)
+    out = []
+    for it in text_items[:5]:
+        url = (it.get("url") or "").strip()
+        if "news.google.com" in url:
+            continue
+        title = _sanitise_news_text(it.get("headline") or "")
+        excerpt = _excerpt_from(title, it.get("excerpt") or "", 140)
+        img = (it.get("image") or "").strip() or None
+        if img and _is_image_logo(img):
+            img = None
+        out.append({
+            "title": title,
+            "excerpt": excerpt,
+            "url": url,
+            "image": img if img else "",
+            "source": _sanitise_news_text(it.get("source") or "News").strip(),
+            "published_at": it.get("published_at") or "",
+        })
+    return out
+
+
+def _domain_in_sa_allowlist(host: str) -> bool:
+    """True if host is in SA domain allowlist or matches class/association substring. Used only with an SA signal."""
+    if not host:
+        return False
+    h = host.lower().strip()
+    if h in SA_DOMAIN_ALLOWLIST:
+        return True
+    for sub in SA_DOMAIN_ALLOWLIST_SUBSTR:
+        if sub in h:
+            return True
+    return False
+
+
+def _is_sa_news_item(item: dict, sailor_names: list) -> tuple:
+    """Accept if: (1) sailor match, (2) .co.za, (3) SA keywords, (4) domain allowlist + SA signal. Returns (accept: bool, reason: str)."""
+    url = (item.get("url") or "").strip()
+    text = ((item.get("headline") or "") + " " + (item.get("excerpt") or ""))
+    try:
+        from urllib.parse import urlparse
+        host = (urlparse(url).netloc or "").lower()
+    except Exception:
+        host = ""
+
+    if _match_sailors_in_text(text, sailor_names):
+        return (True, "sailor")
+    if host.endswith(".co.za") or ".co.za" in url.lower():
+        return (True, "co_za")
+    if SA_KEYWORDS.search(text):
+        return (True, "keyword")
+    if _domain_in_sa_allowlist(host) and SA_KEYWORDS.search(text):
+        return (True, "allowlist+keyword")
+    return (False, "")
+
+
+def _is_sa_news_item_accept(item: dict, sailor_names: list) -> bool:
+    """Keep only if SA signal (sailor, .co.za, keyword, or allowlist+keyword)."""
+    accept, _ = _is_sa_news_item(item, sailor_names)
+    return accept
+
+def _fetch_latest_news_pipeline() -> list:
+    """SerpAPI first, RSS fallback, dedupe by url, SA filter, sailor match, image resolution, sort. Max 20."""
+    seen_urls = set()
+    merged = []
+    # 1) SerpAPI (primary)
+    serp = _fetch_news_serpapi()
+    for it in serp:
+        u = (it.get("url") or "").strip()
+        if u and u not in seen_urls:
+            seen_urls.add(u)
+            merged.append(it)
+    # 2) RSS (secondary, dedupe)
+    rss = _fetch_news_rss_fallback()
+    for it in rss:
+        u = (it.get("url") or "").strip()
+        if u and u not in seen_urls:
+            seen_urls.add(u)
+            merged.append(it)
+    # 2b) Resolve Google News redirect → final publisher URL. If host is news.google.com, resolve; if fail → drop item. Frontend must never receive news.google.com URL.
+    from urllib.parse import urlparse
+    google_items = [(i, it) for i, it in enumerate(merged) if "news.google.com" in (urlparse((it.get("url") or "").strip()).netloc or "").lower()]
+    if google_items:
+        def resolve_task(t):
+            i, it = t
+            u = (it.get("url") or "").strip()
+            final = _resolve_google_news_redirect(u)
+            return (i, it, final)
+        resolved = {}
+        try:
+            with ThreadPoolExecutor(max_workers=5) as ex:
+                futs = {ex.submit(resolve_task, t): t for t in google_items}
+                for fut in as_completed(futs, timeout=15):
+                    i, it, final = fut.result()
+                    resolved[i] = (it, final)
+        except Exception as e:
+            print(f"[news] Google redirect resolve failed: {e}")
+            resolved = {}
+        for (i, it) in google_items:
+            if i not in resolved:
+                it["_drop"] = True
+        for i, (it, final) in resolved.items():
+            if final and "news.google.com" not in final:
+                it["url"] = final
+            else:
+                it["_drop"] = True
+    resolved_merged = [it for it in merged if not it.get("_drop")]
+    for it in resolved_merged:
+        it.pop("_drop", None)
+    merged = resolved_merged
+    # 3) Sailor names and SA filter; podium sailors (1st/2nd/3rd in last 6 months) for prioritisation
+    sailor_names = _load_sailor_names_for_news()
+    podium_names_6m = _load_podium_sailor_names_6m()
+    podium_set = {n.lower() for n in podium_names_6m}
+    filtered = []
+    for it in merged:
+        accept, reason = _is_sa_news_item(it, sailor_names)
+        if not accept:
+            continue
+        it["_sa_accept_reason"] = reason
+        text = (it.get("headline") or "") + " " + (it.get("excerpt") or "")
+        matched = _match_sailors_in_text(text, sailor_names)
+        it["matched_sailors"] = matched
+        it["matched_podium_sailors"] = [m for m in matched if m.lower() in podium_set]
+        filtered.append(it)
+    merged = filtered
+    # 4) Freshness: drop if published_at < now - 180 days; exception matched_sailors allow 365 days
+    from datetime import datetime, timezone, timedelta
+    now_utc = datetime.now(timezone.utc)
+    cutoff_180 = now_utc - timedelta(days=FRESHNESS_DAYS)
+    cutoff_365 = now_utc - timedelta(days=FRESHNESS_DAYS_SAILOR)
+    fresh = []
+    for it in merged:
+        pub = _parse_news_date(it.get("published_at"))
+        if pub is None:
+            fresh.append(it)
+            continue
+        if pub.tzinfo is None:
+            pub = pub.replace(tzinfo=timezone.utc)
+        if pub >= cutoff_180:
+            fresh.append(it)
+        elif (it.get("matched_sailors") or []) and pub >= cutoff_365:
+            fresh.append(it)
+    merged = fresh
+    # 5) Image: 1) og:image from article (PRIMARY, required); 2) SerpAPI only if og missing; 3) RSS only if both missing; 4) null. Reject logos.
+    def task_og(t):
+        i, it = t
+        img = _fetch_og_image(it.get("url") or "", validate_no_logo=True)
+        return (i, img)
+    og_results = {}
+    try:
+        with ThreadPoolExecutor(max_workers=10) as ex:
+            futs = {ex.submit(task_og, (i, m)): i for i, m in enumerate(merged)}
+            for fut in as_completed(futs, timeout=12):
+                i, img = fut.result()
+                og_results[i] = img
+    except Exception as e:
+        print(f"[news] og:image fetch: {e}")
+    for i, it in enumerate(merged):
+        og_img = og_results.get(i)
+        if og_img and not _is_image_logo(og_img):
+            it["image"] = og_img
+        else:
+            serp_rss = it.get("image") or ""
+            if serp_rss and _is_image_logo(serp_rss):
+                it["image"] = None
+            elif serp_rss:
+                it["image"] = serp_rss
+            else:
+                it["image"] = None
+        if it.get("image") and _is_image_logo(it["image"]):
+            it["image"] = None
+    # 6) Sort: podium (1st/2nd/3rd in last 6m) first, then any SAS-ID sailor, then published_at (newest first).
+    def sort_key(x):
+        has_podium = 1 if (x.get("matched_podium_sailors") or []) else 0
+        has_sailor = 1 if (x.get("matched_sailors") or []) else 0
+        pub = x.get("published_at") or ""
+        return (0 if has_podium else 1, 0 if has_sailor else 1, pub)
+    merged.sort(key=sort_key, reverse=True)
+    # 7) Normalise: exact API format { title, excerpt, url, image, source, published_at }. Max 20. No news.google.com URL.
+    out = []
+    for it in merged[:20]:
+        url = (it.get("url") or "").strip()
+        if "news.google.com" in url:
+            continue
+        title = _sanitise_news_text(it.get("headline") or "")
+        excerpt = _excerpt_from(title, it.get("excerpt") or "", 140)
+        img = (it.get("image") or "").strip() or None
+        if img and _is_image_logo(img):
+            img = None
+        out.append({
+            "title": title,
+            "excerpt": excerpt,
+            "url": url,
+            "image": img if img else "",
+            "source": _sanitise_news_text(it.get("source") or "News").strip(),
+            "published_at": it.get("published_at") or "",
+        })
+    reasons = sorted(set(it.get("_sa_accept_reason") for it in merged[:20] if it.get("_sa_accept_reason")))
+    # 8) Floor: if pipeline yielded 0 items, run one extra RSS "SA Sailing", accept up to 5 keyword-matched.
+    if len(out) == 0:
+        floor_items = _fetch_floor_news(sailor_names)
+        out = floor_items
+        if out:
+            reasons = ["floor"]
+    print(f"[news] refresh: {len(out)} items, reasons={reasons}")
+    return out
+
+def _news_cache_refresh_loop():
+    """Background thread: refresh news cache so no request ever runs the heavy pipeline."""
+    time.sleep(15)  # let server and other routes respond first
+    while True:
+        try:
+            items = _fetch_latest_news_pipeline()
+            LATEST_NEWS_CACHE["items"] = items
+            LATEST_NEWS_CACHE["ts"] = time.time()
+        except Exception as e:
+            print(f"[news] background refresh failed: {e}")
+            traceback.print_exc()
+        time.sleep(LATEST_NEWS_CACHE_SEC)
+
+
+_news_background_started = False
+
+
+@app.get("/api/news/latest")
+def api_news_latest():
+    """South African sailing news only. Max 20 items. Cache 30 min. Response: [{ title, excerpt, url, image, source, published_at }]. Backend only; no UI wired."""
+    global _news_background_started
+    if not _news_background_started:
+        _news_background_started = True
+        _t = threading.Thread(target=_news_cache_refresh_loop, daemon=True)
+        _t.start()
+    items = LATEST_NEWS_CACHE["items"]
+    cache_ts = LATEST_NEWS_CACHE.get("ts") or 0
+    if len(items) == 0 and cache_ts == 0:
+        try:
+            items = _fetch_latest_news_pipeline()
+            LATEST_NEWS_CACHE["items"] = items
+            LATEST_NEWS_CACHE["ts"] = time.time()
+        except Exception as e:
+            print(f"[news] force refresh failed: {e}")
+            traceback.print_exc()
+    return LATEST_NEWS_CACHE["items"]
 
 # ---------- Minimal support endpoints for Member Finder ----------
 def table_exists(name: str) -> bool:
@@ -737,6 +1400,22 @@ def api_sa_id_stats():
         "after_scrape": None,
         "added_count": None,
     }
+
+# ---------- Member profile: public-mentions, highlights, activity (stub until implemented) ----------
+@app.get("/api/member/{sa_id}/public-mentions")
+def api_member_public_mentions(sa_id: str, name: str = Query(None)):
+    """Public mentions for sailor profile. Returns empty list until implemented."""
+    return {"items": []}
+
+@app.get("/api/member/{sa_id}/highlights")
+def api_member_highlights(sa_id: str):
+    """Highlights for sailor profile. Returns empty list until implemented."""
+    return {"highlights": []}
+
+@app.get("/api/member/{sa_id}/activity")
+def api_member_activity(sa_id: str):
+    """Activity feed for sailor profile. Returns empty list until implemented."""
+    return {"years": []}
 
 # ---------- Normalized Roles API ----------
 @app.get("/api/member/{sa_id}/roles")
@@ -5925,5 +6604,13 @@ def class_sailors(class_name: str):
         conn.close()
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+@app.get("/sailingsa/news")
+def redirect_sailingsa_news():
+    """Redirect /sailingsa/news to /sailingsa/news/ so the placeholder page loads."""
+    return RedirectResponse("/sailingsa/news/")
+
+
 app.mount("/", StaticFiles(directory=BASE_DIR, html=True), name="static")
 
