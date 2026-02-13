@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <base href="/">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About SailingSA – South African Sailing Results & Regatta Database</title>
+    <meta name="description" content="SailingSA is a searchable database of South African sailing results, regatta results, sailor profiles, and class standings including Optimist, ILCA, 420 and keelboat results across South Africa.">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://sailingsa.co.za/about">
+    <script type="application/ld+json">
+    {"@context":"https://schema.org","@type":"SportsOrganization","name":"SailingSA","url":"https://sailingsa.co.za","description":"South African sailing results and regatta database including sailor profiles, club results and class standings."}
+    </script>
+    <script type="application/ld+json">
+    {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How do I find sailing results in South Africa?","acceptedAnswer":{"@type":"Answer","text":"Use the SailingSA search function to find regatta results, sailor profiles and class standings."}},{"@type":"Question","name":"Does SailingSA include Optimist results?","acceptedAnswer":{"@type":"Answer","text":"Yes. SailingSA includes Optimist A and B fleet results across South African regattas."}},{"@type":"Question","name":"Does SailingSA include ILCA results?","acceptedAnswer":{"@type":"Answer","text":"Yes. ILCA 4, ILCA 6 and ILCA 7 results are searchable by sailor and regatta."}},{"@type":"Question","name":"Can I view Hermanus Yacht Club results?","acceptedAnswer":{"@type":"Answer","text":"Yes. Results from Hermanus Yacht Club and other South African clubs are indexed where available."}}]}
+    </script>
+    <link rel="icon" type="image/png" href="assets/logos/sailingsa-logo.png">
+    <link rel="stylesheet" href="css/main.css">
+    <style>
+        .about-page { max-width: 950px; margin: 0 auto; padding: 40px 20px; line-height: 1.6; font-size: 16px; }
+        .about-page h1 { font-size: 1.75rem; color: #001f3f; margin-bottom: 1rem; }
+        .about-page h3 { font-size: 1.05rem; color: #001f3f; margin: 1.25rem 0 0.4rem; }
+        .about-page a { color: #001f3f; font-weight: 600; text-decoration: underline; }
+        .about-page a:hover { color: #e65100; }
+        .about-page h2 { font-size: 1.2rem; color: #001f3f; margin: 1.5rem 0 0.5rem; border-bottom: 2px solid #e65100; padding-bottom: 0.25rem; }
+        .about-page p { margin-bottom: 1rem; line-height: 1.6; color: #333; }
+        .about-page ul { margin: 0.5rem 0 1rem 1.5rem; }
+        .about-page li { margin-bottom: 0.35rem; }
+        .site-footer-about { text-align: center; padding: 2rem 1rem; font-size: 0.9rem; color: #666; border-top: 1px solid #e0e0e0; margin-top: 2rem; }
+        .site-footer-about a { color: #001f3f; font-weight: 600; text-decoration: none; }
+        .site-footer-about a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <header class="site-header">
+        <div class="container">
+            <a href="/" class="logo js-go-home" id="headerLogoLink" title="Home">
+                <img src="assets/logos/sailingsa-logo.png" alt="SailingSA Logo">
+            </a>
+            <div class="header-auth" id="headerAuth"></div>
+            <button class="menu-btn" id="menuBtn" aria-label="Open menu">
+                <span class="menu-icon"></span>
+            </button>
+        </div>
+        <nav id="navMenuOverlay" class="nav-menu-overlay" aria-hidden="true" style="display:none;">
+            <a href="/">Sailor</a>
+            <a href="/" data-mode="regatta">Regatta</a>
+            <a href="/about">About</a>
+        </nav>
+    </header>
+
+    <main class="main-content">
+        <div class="about-page">
+            <h1>South African Sailing Results, Regatta Results &amp; Sailor Profiles</h1>
+
+            <p>
+            SailingSA is South Africa's searchable sailing results database.
+            We provide regatta results, sailor profiles, class standings,
+            and historical race results across Optimist, ILCA (Laser),
+            420, keelboat and youth sailing events in South Africa.
+            </p>
+
+            <h2>Search South African Sailing Results By:</h2>
+            <ul>
+            <li>Individual sailor name (first name or surname)</li>
+            <li>Regatta name (Youth Nationals, Cape Classic, GIMCO, etc.)</li>
+            <li>Class (Optimist, ILCA 4, ILCA 6, ILCA 7, 420, L26, Dabchick)</li>
+            <li>Club (Hermanus Yacht Club, RCYC, Saldanha Bay Yacht Club)</li>
+            <li>Province or region</li>
+            </ul>
+
+            <p>
+            SailingSA is a searchable database of South African sailing results.
+            Unlike static PDF result pages, SailingSA allows users to search and filter
+            results by sailor, regatta, class or club.
+            </p>
+
+            <p>
+            <a href="/?mode=sailor">Search Sailor Profiles</a> |
+            <a href="/?mode=regatta">Browse Regatta Results</a>
+            </p>
+
+            <h2>What We Provide</h2>
+            <ul>
+            <li><a href="/">Search Sailing Results</a></li>
+            <li><a href="/?mode=regatta">Search Regattas</a></li>
+            <li><a href="/?mode=sailor">Search Sailors</a></li>
+            <li>South African sailing results</li>
+            <li>Regatta results by class and year</li>
+            <li>Sailor performance profiles</li>
+            <li>Optimist results South Africa</li>
+            <li>ILCA (Laser) results South Africa</li>
+            <li>420 sailing results</li>
+            <li>L26 keelboat regatta results</li>
+            <li>Youth Nationals results</li>
+            <li>Club regatta results including Hermanus Yacht Club and Royal Cape Yacht Club</li>
+            </ul>
+
+            <h2>How To Use Search</h2>
+            <p>
+            Use the Sailor tab to search by sailor name or SAS ID.
+            Use the Regatta tab to search by event name.
+            Results include position, fleet, event, and historical performance data.
+            </p>
+
+            <h2>Public vs Logged In Access</h2>
+            <p>
+            Public users can search sailor profiles and view regatta results.
+            Logged-in users access extended race breakdowns, analytics, and historical comparisons.
+            </p>
+
+            <h2>Who Uses SailingSA</h2>
+            <ul>
+            <li>Youth sailors</li>
+            <li>Parents</li>
+            <li>Coaches</li>
+            <li>Yacht clubs</li>
+            <li>Sailing academies</li>
+            <li>Selection committees</li>
+            </ul>
+
+            <h2>Our Coverage</h2>
+            <p>
+            We cover Optimist, ILCA 4, ILCA 6, ILCA 7, 420, Dabchick, Mirror,
+            Hobie 16, L26 keelboats, and major South African national and regional regattas.
+            </p>
+
+            <h2>Why SailingSA Exists</h2>
+            <p>
+            SailingSA is the searchable sailing results database for South Africa.
+            We built it to provide a centralised, searchable database of South African sailing results.
+            Unlike static PDF archives, SailingSA connects regatta results directly to sailor profiles,
+            making performance data structured, searchable, and transparent.
+            </p>
+
+            <h2>Frequently Asked Questions</h2>
+
+            <h3>How do I find sailing results in South Africa?</h3>
+            <p>Use the SailingSA search bar to search by sailor name, regatta name, class or club.</p>
+
+            <h3>Does SailingSA include Optimist results?</h3>
+            <p>Yes. SailingSA includes Optimist A and B fleet results across South African regattas.</p>
+
+            <h3>Does SailingSA include ILCA results?</h3>
+            <p>Yes. ILCA 4, ILCA 6 and ILCA 7 results are searchable by sailor and regatta.</p>
+
+            <h3>Can I view Hermanus Yacht Club results?</h3>
+            <p>Yes. Results from Hermanus Yacht Club and other South African clubs are indexed where available.</p>
+
+            <h2>Start Searching South African Sailing Results</h2>
+            <p>
+            Use the SailingSA search bar above to find sailing results by sailor name,
+            regatta name, class, or club. SailingSA is the searchable sailing results database for South Africa —
+            all results are indexed and searchable.
+            </p>
+
+            <footer class="site-footer-about">
+                <a href="/about">SailingSA – South African Sailing Results Database</a> © 2025
+            </footer>
+        </div>
+    </main>
+
+    <script>
+        (function() {
+            var logo = document.getElementById('headerLogoLink');
+            if (logo) logo.setAttribute('href', '/');
+            var menuBtn = document.getElementById('menuBtn');
+            var overlay = document.getElementById('navMenuOverlay');
+            if (menuBtn && overlay) {
+                menuBtn.addEventListener('click', function() {
+                    var hidden = overlay.style.display === 'none';
+                    overlay.style.display = hidden ? 'flex' : 'none';
+                    overlay.setAttribute('aria-hidden', hidden ? 'false' : 'true');
+                });
+                overlay.addEventListener('click', function(e) {
+                    if (e.target.tagName === 'A') overlay.style.display = 'none';
+                });
+            }
+            var regattaLink = overlay && overlay.querySelector('a[data-mode="regatta"]');
+            if (regattaLink) {
+                regattaLink.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    window.location.href = '/?mode=regatta';
+                });
+            }
+        })();
+    </script>
+</body>
+</html>

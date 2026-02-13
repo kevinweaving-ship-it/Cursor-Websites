@@ -1,11 +1,11 @@
 from fastapi import FastAPI, HTTPException, Body, Query, Request
-from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Union, Optional, List
-import os, psycopg2, psycopg2.extras, psycopg2.pool, re
+import os, sys, subprocess, psycopg2, psycopg2.extras, psycopg2.pool, re
 from unidecode import unidecode
 import time
 from functools import lru_cache, wraps, cmp_to_key
@@ -442,6 +442,95 @@ def bulk_auto_match_regatta(regatta_id: str) -> dict:
     return stats
 
 app = FastAPI(title="Regatta API")
+
+
+@app.middleware("http")
+async def _redirect_sas_id_before_routing(request: Request, call_next):
+    """Run before route matching. Fix wrong /sailor/regatta/... (old frontend bug) -> /regatta/... then sas_id redirect."""
+    path = request.url.path or ""
+    if path.startswith("/sailor/regatta/"):
+        # Old frontend requested e.g. /sailor/regatta/class/class-results.html -> serve /regatta/class/class-results.html
+        fix = "/regatta/" + path[len("/sailor/regatta/"):]
+        query = str(request.url.query)
+        new_url = fix + ("?" + query if query else "")
+        return RedirectResponse(url=new_url, status_code=301)
+    if path not in ("/", "/index.html"):
+        return await call_next(request)
+    sas_id = request.query_params.get("sas_id") or request.query_params.get("sas-id")
+    if not (sas_id and str(sas_id).strip().isdigit()):
+        return await call_next(request)
+    full_name, canonical_slug = _get_sailor_by_sas_id_for_redirect(str(sas_id).strip())
+    if canonical_slug:
+        return RedirectResponse(url=f"/sailor/{canonical_slug}", status_code=301)
+    return RedirectResponse(url="/", status_code=302)
+
+
+# Redirect/SPA routes (also needed for requests without sas_id)
+@app.get("/")
+def _root_redirect(request: Request):
+    sas_id = request.query_params.get("sas_id") or request.query_params.get("sas-id")
+    return root_maybe_redirect_sas_id(request, sas_id=sas_id, sas_id_alt=None)
+@app.get("/index.html")
+def _index_redirect(request: Request):
+    sas_id = request.query_params.get("sas_id") or request.query_params.get("sas-id")
+    return index_html_maybe_redirect_sas_id(request, sas_id=sas_id, sas_id_alt=None)
+@app.get("/sailor/{slug}")
+@app.head("/sailor/{slug}")
+def _sailor_spa(slug: str): return serve_sailor_spa(slug)
+
+
+def _static_dir():
+    return os.getenv("STATIC_DIR") or (os.path.join(os.path.dirname(os.path.abspath(__file__)), "sailingsa", "frontend") if os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), "sailingsa", "frontend")) else os.path.dirname(os.path.abspath(__file__)))
+
+
+@app.get("/regatta/results.html")
+def _regatta_results_html():
+    """Serve actual regatta results page so iframe shows results, not SPA landing page."""
+    path = os.path.join(_static_dir(), "regatta", "results.html")
+    if os.path.isfile(path):
+        return FileResponse(path, media_type="text/html")
+    raise HTTPException(status_code=404, detail="regatta/results.html not found")
+
+
+@app.get("/regatta/class/class-results.html")
+def _regatta_class_results_html():
+    path = os.path.join(_static_dir(), "regatta", "class", "class-results.html")
+    if os.path.isfile(path):
+        return FileResponse(path, media_type="text/html")
+    raise HTTPException(status_code=404, detail="regatta/class/class-results.html not found")
+
+
+@app.get("/regatta/class/podium/podium.html")
+def _regatta_podium_html():
+    path = os.path.join(_static_dir(), "regatta", "class", "podium", "podium.html")
+    if os.path.isfile(path):
+        return FileResponse(path, media_type="text/html")
+    raise HTTPException(status_code=404, detail="regatta/class/podium/podium.html not found")
+
+
+@app.get("/about")
+def _about_html():
+    """Serve About SailingSA page at /about."""
+    path = os.path.join(_static_dir(), "about.html")
+    if os.path.isfile(path):
+        return FileResponse(path, media_type="text/html")
+    raise HTTPException(status_code=404, detail="about.html not found")
+
+
+@app.get("/regatta/{slug}")
+@app.head("/regatta/{slug}")
+def _regatta_standalone(slug: str): return serve_regatta_standalone(slug)
+
+
+@app.get("/club/{slug}")
+@app.head("/club/{slug}")
+def _club_standalone(slug: str): return serve_club_page(slug)
+
+
+@app.get("/sailing/{slug}")
+def _sailing_to_sailor_redirect(slug: str):
+    return RedirectResponse(url=f"/sailor/{slug}", status_code=301)
+# CORS: allow all origins (includes http://192.168.0.130:8081 for local dev pages)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 app.add_middleware(GZipMiddleware, minimum_size=500)
 
@@ -550,6 +639,198 @@ def qf(sql, *args):
 @app.get("/api/health")
 def health():
     return {"ok": True}
+
+
+@app.get("/api/site-stats")
+def api_site_stats():
+    """Site stats for dashboard. Uses same sources as search: sailors in sas_id_personal with results, regattas with results. Cached 5min for instant response."""
+    cached = get_cached("site_stats", ttl_seconds=300)
+    if cached is not None:
+        return cached
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        # Sailors: sas_id_personal with at least one result (matches search universe)
+        cur.execute("""
+            SELECT COUNT(DISTINCT s.sa_sailing_id::text) AS active_sailors
+            FROM sas_id_personal s
+            WHERE EXISTS (
+                SELECT 1 FROM results r
+                WHERE r.raced = TRUE
+                  AND (r.helm_sa_sailing_id::text = s.sa_sailing_id::text OR r.crew_sa_sailing_id::text = s.sa_sailing_id::text)
+            )
+        """)
+        row = cur.fetchone()
+        val = row.get("active_sailors") if row else None
+        active_sailors = int(val) if val is not None else 0
+        cur.execute("""
+            SELECT COUNT(DISTINCT LOWER(TRIM(r.class_canonical))) AS classes_sailed
+            FROM results r
+            WHERE r.raced = TRUE
+              AND r.class_canonical IS NOT NULL
+              AND TRIM(r.class_canonical) != ''
+        """)
+        row2 = cur.fetchone()
+        val2 = row2.get("classes_sailed") if row2 else None
+        classes_sailed = int(val2) if val2 is not None else 0
+        # Regattas: only those with results (matches regattas/with-counts list)
+        cur.execute("""
+            SELECT COUNT(DISTINCT r.regatta_id) AS regattas_sailed
+            FROM regattas r
+            JOIN results res ON res.regatta_id = r.regatta_id
+            WHERE res.raced = TRUE
+        """)
+        row3 = cur.fetchone()
+        val3 = row3.get("regattas_sailed") if row3 else None
+        regattas_sailed = int(val3) if val3 is not None else 0
+        cur.execute("SELECT COUNT(*) AS races_raced FROM results r WHERE r.raced = TRUE")
+        row4 = cur.fetchone()
+        val4 = row4.get("races_raced") if row4 else None
+        races_raced = int(val4) if val4 is not None else 0
+        cur.close()
+        result = {"active_sailors": active_sailors, "classes_sailed": classes_sailed, "regattas_sailed": regattas_sailed, "races_raced": races_raced}
+        set_cached("site_stats", result, ttl_seconds=300)
+        return result
+    except Exception as e:
+        if conn:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        return {"active_sailors": None, "classes_sailed": None, "regattas_sailed": None, "races_raced": None, "error": str(e)}
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+
+@app.get("/api/site-stats-audit")
+def api_site_stats_audit():
+    """Compare site-stats counts with search-aligned counts. Same sources as /api/search and /api/regattas/with-counts."""
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        # Current site-stats: distinct helm/crew from results (includes temp IDs, excludes sailors not in results)
+        cur.execute("""
+            SELECT COUNT(DISTINCT COALESCE(r.helm_sa_sailing_id::text, r.crew_sa_sailing_id::text)) AS active_sailors
+            FROM results r
+            WHERE COALESCE(r.helm_sa_sailing_id::text, r.crew_sa_sailing_id::text) IS NOT NULL
+              AND COALESCE(r.helm_sa_sailing_id::text, r.crew_sa_sailing_id::text) != ''
+              AND r.raced = TRUE
+        """)
+        row = cur.fetchone()
+        active_from_results = int(row["active_sailors"]) if row else 0
+        # Search-aligned: sailors in sas_id_personal who have at least one result (helm or crew)
+        cur.execute("""
+            SELECT COUNT(DISTINCT s.sa_sailing_id::text) AS cnt
+            FROM sas_id_personal s
+            WHERE EXISTS (
+                SELECT 1 FROM results r
+                WHERE r.raced = TRUE
+                  AND (r.helm_sa_sailing_id::text = s.sa_sailing_id::text OR r.crew_sa_sailing_id::text = s.sa_sailing_id::text)
+            )
+        """)
+        row = cur.fetchone()
+        searchable_sailors_with_results = int(row["cnt"]) if row else 0
+        # Current: all regattas
+        cur.execute("SELECT COUNT(*) AS cnt FROM regattas")
+        row = cur.fetchone()
+        regattas_total = int(row["cnt"]) if row else 0
+        # Search-aligned: regattas with at least one result (matches regattas/with-counts)
+        cur.execute("""
+            SELECT COUNT(DISTINCT r.regatta_id) AS cnt
+            FROM regattas r
+            JOIN results res ON res.regatta_id = r.regatta_id
+            WHERE res.raced = TRUE
+        """)
+        row = cur.fetchone()
+        regattas_with_results = int(row["cnt"]) if row else 0
+        cur.close()
+        return {
+            "site_stats": {"active_sailors": active_from_results, "regattas_sailed": regattas_total},
+            "search_aligned": {"sailors_with_results": searchable_sailors_with_results, "regattas_with_results": regattas_with_results},
+            "match": active_from_results == searchable_sailors_with_results and regattas_total == regattas_with_results,
+        }
+    except Exception as e:
+        if conn:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        return {"error": str(e)}
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+
+THUMBNAIL_PROXY_MAX_BYTES = 2 * 1024 * 1024  # 2MB
+
+
+def _thumbnail_fetch_image(url: str, headers: dict) -> tuple:
+    """Fetch URL; if response is image/* return (content, content_type). Else (None, None)."""
+    try:
+        r = httpx.get(url, timeout=10, follow_redirects=True, headers=headers)
+        if r.status_code != 200:
+            return (None, None)
+        ct = (r.headers.get("content-type") or "").split(";")[0].strip().lower()
+        if ct.startswith("image/"):
+            body = r.content
+            if len(body) > THUMBNAIL_PROXY_MAX_BYTES:
+                return (None, None)
+            return (body, ct or "image/jpeg")
+        return (None, None)
+    except Exception:
+        return (None, None)
+
+
+@app.get("/api/thumbnail")
+def api_thumbnail(url: str = Query(..., description="Image URL to proxy (any http(s); fetches image or og:image from HTML)")):
+    """Proxy thumbnail so it loads (avoids CORS). Fetches URL; if HTML, tries og:image and returns that image."""
+    u = (url or "").strip().replace("&amp;", "&").replace("&#38;", "&")
+    if not u or not u.startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="Invalid url")
+    ul = u.lower()
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; rv:91.0) Gecko/20100101 Firefox/91.0"}
+    if "fbcdn" in ul or "facebook" in ul:
+        headers["Referer"] = "https://www.facebook.com/"
+    if "instagram" in ul:
+        headers["Referer"] = "https://www.instagram.com/"
+    content, content_type = _thumbnail_fetch_image(u, headers)
+    if content is not None:
+        return Response(content=content, media_type=content_type or "image/jpeg")
+    try:
+        r = httpx.get(u, timeout=10, follow_redirects=True, headers=headers)
+        if r.status_code != 200:
+            raise HTTPException(status_code=404, detail="Image not found")
+        ct = (r.headers.get("content-type") or "").split(";")[0].strip().lower()
+        if ct.startswith("image/"):
+            body = r.content
+            if len(body) <= THUMBNAIL_PROXY_MAX_BYTES:
+                return Response(content=body, media_type=ct or "image/jpeg")
+        html = r.text
+        for pattern in (
+            r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']',
+            r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']',
+        ):
+            m = re.search(pattern, html, re.I)
+            if m:
+                img_url = m.group(1).strip()
+                if img_url and not img_url.startswith("http"):
+                    base = str(r.url).rstrip("/")
+                    img_url = (base + "/" + img_url.lstrip("/")) if base else img_url
+                if img_url and img_url.startswith("http"):
+                    content, content_type = _thumbnail_fetch_image(img_url, headers)
+                    if content is not None:
+                        return Response(content=content, media_type=content_type or "image/jpeg")
+                break
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+    # No image found (e.g. Facebook/Instagram login page). Return placeholder so img doesn't 404.
+    _placeholder_svg = b'<svg xmlns="http://www.w3.org/2000/svg" width="160" height="90" viewBox="0 0 160 90"><rect fill="#e5e7eb" width="160" height="90"/><text x="80" y="52" fill="#9ca3af" font-family="sans-serif" font-size="14" text-anchor="middle">Media</text></svg>'
+    return Response(content=_placeholder_svg, media_type="image/svg+xml")
 
 # ---------- Sailing news feed (RSS) for Latest News banner ----------
 # Cache ts=0 so first request after deploy gets real source URLs (no news.google.com)
@@ -751,8 +1032,168 @@ def api_sailing_news(limit: int = Query(10, ge=1, le=20)):
 
 # ---------- Latest News (BETA V1): SerpAPI + RSS, SA filter, SAS-ID sailor match ----------
 # Spec: News24-style editorial cards, mobile-first, SA sailing only, actual article URL, main article image.
+_NEWS_CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "var")
+_NEWS_CACHE_FILE = os.path.join(_NEWS_CACHE_DIR, "news_latest_cache.json")
+
+def _load_news_cache_from_disk():
+    """Load news cache from disk on startup so restart doesn't show empty list."""
+    global LATEST_NEWS_CACHE
+    try:
+        if os.path.isfile(_NEWS_CACHE_FILE):
+            with open(_NEWS_CACHE_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            items = data.get("items") if isinstance(data, dict) else []
+            ts = data.get("ts", 0) if isinstance(data, dict) else 0
+            if isinstance(items, list):
+                LATEST_NEWS_CACHE["items"] = items
+                LATEST_NEWS_CACHE["ts"] = ts
+                print(f"[news] loaded {len(items)} items from disk (ts={ts})")
+    except Exception as e:
+        print(f"[news] load cache from disk failed: {e}")
+
+def _save_news_cache_to_disk():
+    """Write current cache to disk after successful background refresh."""
+    try:
+        os.makedirs(_NEWS_CACHE_DIR, exist_ok=True)
+        with open(_NEWS_CACHE_FILE, "w", encoding="utf-8") as f:
+            json.dump({"items": LATEST_NEWS_CACHE["items"], "ts": LATEST_NEWS_CACHE.get("ts") or 0}, f, ensure_ascii=False)
+    except Exception as e:
+        print(f"[news] save cache to disk failed: {e}")
+
 LATEST_NEWS_CACHE: dict = {"items": [], "ts": 0}
 LATEST_NEWS_CACHE_SEC = 1800  # 30 min
+_load_news_cache_from_disk()
+
+
+def _warm_site_stats_cache():
+    """Warm site-stats cache in background so first page load is instant."""
+    def _run():
+        try:
+            conn = get_db_connection()
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute("""SELECT COUNT(DISTINCT s.sa_sailing_id::text) AS active_sailors FROM sas_id_personal s
+                WHERE EXISTS (SELECT 1 FROM results r WHERE r.raced = TRUE AND (r.helm_sa_sailing_id::text = s.sa_sailing_id::text OR r.crew_sa_sailing_id::text = s.sa_sailing_id::text))""")
+            a = int(cur.fetchone().get("active_sailors") or 0)
+            cur.execute("SELECT COUNT(DISTINCT LOWER(TRIM(r.class_canonical))) AS classes_sailed FROM results r WHERE r.raced = TRUE AND r.class_canonical IS NOT NULL AND TRIM(r.class_canonical) != ''")
+            b = int(cur.fetchone().get("classes_sailed") or 0)
+            cur.execute("SELECT COUNT(DISTINCT r.regatta_id) AS regattas_sailed FROM regattas r JOIN results res ON res.regatta_id = r.regatta_id WHERE res.raced = TRUE")
+            c = int(cur.fetchone().get("regattas_sailed") or 0)
+            cur.execute("SELECT COUNT(*) AS races_raced FROM results r WHERE r.raced = TRUE")
+            d = int(cur.fetchone().get("races_raced") or 0)
+            cur.close()
+            return_db_connection(conn)
+            set_cached("site_stats", {"active_sailors": a, "classes_sailed": b, "regattas_sailed": c, "races_raced": d}, ttl_seconds=300)
+            print("[site-stats] cache warmed successfully")
+        except Exception as e:
+            print(f"[site-stats] warm failed: {e}")
+    threading.Thread(target=_run, daemon=True).start()
+
+
+_warm_site_stats_cache()
+
+# ---------- Sailing Magazine (sailing.co.za) – latest 2–3 posts for landing news top ----------
+SAILING_MAG_CACHE: dict = {"items": [], "ts": 0}
+SAILING_MAG_CACHE_SEC = 3600  # 1 hour
+SAILING_MAG_URL = "https://sailing.co.za/category/news/"
+SAILING_MAG_MAX_ITEMS = 3
+
+
+def _fetch_sailing_magazine_news() -> list:
+    """Fetch 2–3 most recent posts from sailing.co.za/category/news/. Returns list of {title, url, excerpt, published_at, image?, source}."""
+    out = []
+    try:
+        from bs4 import BeautifulSoup
+        resp = httpx.get(SAILING_MAG_URL, follow_redirects=True, timeout=12)
+        resp.raise_for_status()
+        soup = BeautifulSoup(resp.text, "html.parser")
+        # Common patterns: article, .post, .entry (WordPress-style)
+        articles = (
+            soup.select("article") or soup.select(".post") or soup.select(".entry")
+            or soup.select("[class*='entry']") or soup.select("[class*='post']")
+        )
+        if not articles:
+            # Fallback: collect links in main that look like article links (substantial text, not nav/category)
+            main = soup.find("main") or soup.find(class_=re.compile(r"content|main", re.I)) or soup.body
+            if main:
+                seen = set()
+                for a in main.select("a[href*='sailing.co.za']"):
+                    href = (a.get("href") or "").strip().split("?")[0]
+                    if not href or "/category/" in href or "/author/" in href or href in seen:
+                        continue
+                    text = (a.get_text(separator=" ", strip=True) or "").strip()
+                    if len(text) < 20:
+                        continue
+                    seen.add(href)
+                    parent = a.find_parent("article") or a.find_parent(class_=re.compile(r"entry|post", re.I))
+                    articles.append(parent if parent else a)
+                    if len(articles) >= 5:
+                        break
+        seen_urls = set()
+        for node in articles[:10]:  # scan a few
+            if len(out) >= SAILING_MAG_MAX_ITEMS:
+                break
+            # Get link
+            a = node if node.name == "a" else node.find("a", href=True)
+            if not a or not a.get("href"):
+                continue
+            url = a.get("href", "").strip()
+            if not url or url in seen_urls:
+                continue
+            if "sailing.co.za" not in url:
+                continue
+            seen_urls.add(url)
+            # Title: from link text, or h2/h3 inside node
+            title_el = (node.find("h2") or node.find("h3") or node.find(class_=re.compile(r"title|entry-title|headline", re.I))) or a
+            title = (title_el.get_text(separator=" ", strip=True) or "").strip() or (a.get_text(separator=" ", strip=True) or "").strip()
+            if not title or len(title) < 5:
+                continue
+            # Excerpt: first paragraph or summary
+            excerpt_el = node.find("p") or node.find(class_=re.compile(r"excerpt|summary|description", re.I))
+            excerpt = (excerpt_el.get_text(separator=" ", strip=True) if excerpt_el else "").strip()[:300]
+            # Date: look for time, date class
+            date_el = node.find("time") or node.find(class_=re.compile(r"date|time|published", re.I))
+            published_at = None
+            if date_el:
+                dt = date_el.get("datetime") or date_el.get_text(strip=True)
+                if dt:
+                    published_at = dt
+            # Optional image
+            img = node.find("img", src=True)
+            image = (img.get("src") or "").strip() if img else ""
+            if image and not image.startswith("http"):
+                image = "https://sailing.co.za" + image if image.startswith("/") else ""
+            out.append({
+                "title": title[:200],
+                "url": url,
+                "excerpt": excerpt[:400] if excerpt else "",
+                "published_at": published_at,
+                "image": image or None,
+                "source": "Sailing Magazine",
+                "category": "sailing_magazine",
+            })
+    except Exception as e:
+        print(f"[news] sailing magazine fetch failed: {e}")
+        traceback.print_exc()
+    return out
+
+
+@app.get("/api/news/sailing-magazine")
+def api_news_sailing_magazine():
+    """Latest 2–3 posts from sailing.co.za/category/news/. Cached 1 hour. Never errors → []."""
+    global SAILING_MAG_CACHE
+    try:
+        now = time.time()
+        if (SAILING_MAG_CACHE.get("items") and (now - (SAILING_MAG_CACHE.get("ts") or 0)) < SAILING_MAG_CACHE_SEC):
+            return SAILING_MAG_CACHE["items"]
+        items = _fetch_sailing_magazine_news()
+        SAILING_MAG_CACHE["items"] = items
+        SAILING_MAG_CACHE["ts"] = now
+        return items
+    except Exception as e:
+        print(f"[news] api_news_sailing_magazine: {e}")
+        return SAILING_MAG_CACHE.get("items") or []
+
+
 SERPAPI_QUERIES = [
     "South African sailing",
     "SA Youth Sailing",
@@ -781,6 +1222,48 @@ SA_DOMAIN_ALLOWLIST_SUBSTR = ("optimist", "ilca", "29er", "49er", "nacra", "sail
 LOGOS_IN_URL = re.compile(r"/logo|/icon|/brand|/favicon|\.svg", re.I)
 FRESHNESS_DAYS = 180
 FRESHNESS_DAYS_SAILOR = 365
+# Low-signal: infrastructure / admin notices (parking, maintenance, etc.) — exclude from feed entirely; not sailing news.
+LOW_SIGNAL_KEYWORDS = re.compile(
+    r"\b(?:parking|maintenance|office\s+hours|membership\s+fees|working\s+bee|facility|upgrade\s+progress)\b",
+    re.I
+)
+# Must be relevant to sailing: drop item if headline+excerpt don't contain at least one of these (no parking areas, no off-topic).
+SAILING_RELEVANCE_KEYWORDS = re.compile(
+    r"\b(?:sailing|sail|regatta|yacht|dinghy|laser|ilca|optimist|470|49er|29er|nacra|foiling|"
+    r"championship|nationals|worlds|race|racing|fleet|class|helm|crew|results|podium|"
+    r"club\s+sailing|yacht\s+club|sailing\s+club|sailor|sailors)\b",
+    re.I
+)
+# News pipeline: exclude invites/promotions. No placeholders: must have thumbnail or item is dropped.
+# Recency (all applied): Local = max 5 months AND prefer ~50% from last 45 days. International = max 1 month.
+NEWS_PIPELINE_MAX_AGE_DAYS = 60  # legacy; use _LOCAL / _INTL below
+NEWS_PIPELINE_MAX_AGE_DAYS_LOCAL = 150   # 5 months max for local (and 45-day preference for ordering)
+NEWS_PIPELINE_MAX_AGE_DAYS_INTL = 30     # 1 month max for international
+NEWS_PIPELINE_LOCAL_PREFERRED_DAYS = 45  # prefer ~50% of local from this window (used with 5-month max)
+NEWS_PIPELINE_MIN_LOCAL_FOR_INTL = 5     # Do NOT backfill with International if Local < 5
+INVITE_KEYWORDS = re.compile(
+    r"\b(?:invitation|invite|register|host|welcome|entry\s+open|tickets)\b",
+    re.I
+)
+
+
+def _is_invite_item(item: dict) -> bool:
+    """True if headline or excerpt matches INVITE_KEYWORDS (event invites, promos). Exclude from news feed."""
+    text = ((item.get("headline") or "") + " " + (item.get("excerpt") or "")).strip()
+    return bool(INVITE_KEYWORDS.search(text))
+
+
+def _is_low_signal_item(item: dict) -> bool:
+    """True if headline or excerpt matches LOW_SIGNAL_KEYWORDS (admin/infra notices)."""
+    text = ((item.get("headline") or "") + " " + (item.get("excerpt") or "")).strip()
+    return bool(LOW_SIGNAL_KEYWORDS.search(text))
+
+
+def _is_sailing_relevant(item: dict) -> bool:
+    """True if headline or excerpt contains at least one sailing-relevant term (feed is sailing only, not parking/off-topic)."""
+    text = ((item.get("headline") or "") + " " + (item.get("excerpt") or "")).strip()
+    return bool(SAILING_RELEVANCE_KEYWORDS.search(text))
+
 
 def _sanitise_news_text(s: str) -> str:
     """Decode HTML entities, strip tags, collapse whitespace."""
@@ -820,6 +1303,45 @@ def _parse_news_date(s: str):
     except Exception:
         pass
     return None
+
+
+def _parse_media_date(raw: str):
+    """Parse date for Add/Edit media. Returns (datetime or None, error_message or None).
+    If user provided non-empty string but parsing failed, error_message explains why and suggests formats."""
+    if not raw or not isinstance(raw, str):
+        return (None, None)
+    raw = raw.strip()[:50]
+    if not raw:
+        return (None, None)
+    from datetime import datetime as dt
+    # Strip timezone suffix for strptime (e.g. "2025-10-21T12:00:00Z" -> "2025-10-21T12:00:00")
+    raw_clean = raw.split(".")[0].replace("Z", "").strip()
+    formats = [
+        "%Y-%m-%d",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d %H:%M",
+        "%d %b %Y",           # 21 Oct 2025
+        "%d %B %Y",           # 21 October 2025
+        "%B %d, %Y",          # October 21, 2025
+        "%B %d %Y",           # October 21 2025
+        "%b %d, %Y",          # Oct 21, 2025
+        "%b %d %Y",           # Oct 21 2025
+        "%d/%m/%Y",
+        "%m/%d/%Y",
+        "%d-%m-%Y",
+        "%B %d, %Y %H:%M",    # October 21, 2025 14:30
+    ]
+    for fmt in formats:
+        try:
+            return (dt.strptime(raw_clean, fmt), None)
+        except ValueError:
+            continue
+    err = (
+        "Date could not be parsed. Use a format like: 2025-10-21, 21 Oct 2025, October 21, 2025, or 21 October 2025."
+    )
+    return (None, err)
+
 
 def _load_sailor_names_for_news() -> list:
     """Return list of 'First Last' from sas_id_personal (or sailors table) for SAS-ID matching."""
@@ -875,6 +1397,170 @@ def _load_podium_sailor_names_6m() -> list:
         print(f"[news] podium sailor names (6m) load failed: {e}")
     return []
 
+
+def _load_podium_sailors_from_large_regattas() -> list:
+    """Podium (1st–3rd) sailor names from 'large' regattas in last 5 months.
+    Large = multi-fleet/class >= 50 entries total, or single fleet/class >= 10 entries.
+    Used as 2nd search set for local news (sailor names in headlines/posts)."""
+    try:
+        if not table_exists("results") or not table_exists("regatta_blocks") or not table_exists("regattas"):
+            return []
+        rows = q("""
+            WITH reg_stats AS (
+                SELECT rb.regatta_id,
+                    COUNT(DISTINCT rb.block_id) AS num_blocks,
+                    COUNT(res.result_id) AS total_entries
+                FROM regatta_blocks rb
+                LEFT JOIN results res ON res.block_id = rb.block_id
+                JOIN regattas r ON r.regatta_id = rb.regatta_id
+                WHERE r.end_date >= (CURRENT_DATE - INTERVAL '5 months') AND r.end_date IS NOT NULL
+                GROUP BY rb.regatta_id
+            ),
+            large AS (
+                SELECT regatta_id FROM reg_stats
+                WHERE (num_blocks >= 2 AND total_entries >= 50) OR (num_blocks = 1 AND total_entries >= 10)
+            )
+            SELECT DISTINCT TRIM(COALESCE(res.helm_name, '')) AS name FROM results res
+            WHERE res.regatta_id IN (SELECT regatta_id FROM large) AND res.rank IN (1, 2, 3) AND TRIM(COALESCE(res.helm_name, '')) != ''
+            UNION
+            SELECT DISTINCT TRIM(COALESCE(res.crew_name, '')) AS name FROM results res
+            WHERE res.regatta_id IN (SELECT regatta_id FROM large) AND res.rank IN (1, 2, 3) AND TRIM(COALESCE(res.crew_name, '')) != ''
+        """)
+        names = []
+        seen = set()
+        for r in (rows or []):
+            n = (r.get("name") if isinstance(r, dict) else (r[0] if r else "") or "").strip()
+            if n and len(n) > 2 and n.lower() not in seen:
+                seen.add(n.lower())
+                names.append(n)
+        return names[:300]
+    except Exception as e:
+        print(f"[news] _load_podium_sailors_from_large_regattas failed: {e}")
+    return []
+
+
+def get_recent_podium_sailors(limit_regattas: int = 5) -> list:
+    """Query DB: last N completed regattas, top 3 sailors per class; return unique full sailor names (normalised)."""
+    try:
+        if not table_exists("sas_id_personal") or not table_exists("results") or not table_exists("regattas"):
+            return []
+        rows = q("""
+            SELECT DISTINCT COALESCE(TRIM(s.full_name), TRIM(s.first_name || ' ' || s.last_name)) AS name
+            FROM (
+                SELECT r.helm_sa_sailing_id AS sa_id FROM results r
+                WHERE r.regatta_id IN (
+                    SELECT regatta_id FROM regattas
+                    WHERE end_date IS NOT NULL
+                    ORDER BY end_date DESC NULLS LAST
+                    LIMIT %s
+                ) AND r.rank IN (1, 2, 3) AND r.helm_sa_sailing_id IS NOT NULL
+                UNION
+                SELECT r.crew_sa_sailing_id AS sa_id FROM results r
+                WHERE r.regatta_id IN (
+                    SELECT regatta_id FROM regattas
+                    WHERE end_date IS NOT NULL
+                    ORDER BY end_date DESC NULLS LAST
+                    LIMIT %s
+                ) AND r.rank IN (1, 2, 3) AND r.crew_sa_sailing_id IS NOT NULL
+            ) ids
+            JOIN sas_id_personal s ON s.sa_sailing_id = ids.sa_id
+            WHERE (s.first_name IS NOT NULL AND s.first_name != '') OR (s.full_name IS NOT NULL AND s.full_name != '')
+        """, limit_regattas, limit_regattas)
+        names = []
+        seen = set()
+        for r in (rows or []):
+            n = (r.get("name") if isinstance(r, dict) else (r[0] if r else "") or "").strip()
+            if n and len(n) > 2 and n.lower() not in seen:
+                seen.add(n.lower())
+                names.append(n)
+        return names[:500]
+    except Exception as e:
+        print(f"[news] get_recent_podium_sailors failed: {e}")
+    return []
+
+
+def _get_media_relevant_sailor_urls(threshold: int = 4):
+    """Cheap query path for News: sailors with media_score >= threshold and their persisted URLs.
+    No new search/crawl/API. Reads sailor_media_score + sailor_public_mentions only.
+    Returns list of {sailor_name, sa_id, media_score, urls: [{url, headline, source}]};
+    URLs are ordered to prefer sailing keywords and authoritative domains."""
+    try:
+        if not table_exists("sailor_media_score") or not table_exists("sailor_public_mentions"):
+            return []
+        rows = q("""
+            SELECT s.sa_id, s.sailor_name, s.media_score, m.url, m.headline, m.snippet, m.source
+            FROM sailor_media_score s
+            JOIN sailor_public_mentions m ON s.sa_id = m.sa_id
+            WHERE s.media_score >= %s
+        """, threshold)
+        # Group by sailor
+        by_sailor = {}
+        for r in (rows or []):
+            d = r if isinstance(r, dict) else {}
+            sa_id = d.get("sa_id")
+            name = (d.get("sailor_name") or "").strip()
+            score = d.get("media_score")
+            url = (d.get("url") or "").strip()
+            headline = (d.get("headline") or "").strip()
+            source = (d.get("source") or "").strip()
+            if not sa_id or not url:
+                continue
+            key = (sa_id, name, score)
+            if key not in by_sailor:
+                by_sailor[key] = []
+            by_sailor[key].append({"url": url, "headline": headline, "source": source})
+        # Prefer URLs with sailing/results/regattas and authoritative domains
+        _sailing_keywords = ("sailing", "regatta", "championship", "results", "470", "laser", "dinghy", "yacht", "worlds", "olympic")
+        _auth_domains = ("worldsailing.org", "sailing.org", "sailing.org.za", "sailingsa.org", "worldsailing.com", "sailwave.com", "470.org")
+        out = []
+        for (sa_id, name, score), urls in by_sailor.items():
+            def _rank(u):
+                h = ((u.get("headline") or "") + " " + (u.get("source") or "")).lower()
+                d = (u.get("source") or "").lower()
+                kw = sum(1 for k in _sailing_keywords if k in h)
+                auth = 2 if any(a in d for a in _auth_domains) else 0
+                return -(kw + auth)
+            urls_sorted = sorted(urls, key=_rank)
+            out.append({"sailor_name": name, "sa_id": sa_id, "media_score": score, "urls": urls_sorted})
+        return out
+    except Exception as e:
+        print(f"[news] _get_media_relevant_sailor_urls failed: {e}")
+    return []
+
+
+# Domains that always count as LOCAL (SA sailing authorities).
+LOCAL_SA_DOMAINS = frozenset([
+    "sailingsa.org.za", "www.sailingsa.org.za",
+    "royalcapeyachtclub.co.za", "www.royalcapeyachtclub.co.za",
+    "hyc.co.za", "www.hyc.co.za",
+    "zvyc.co.za", "www.zvyc.co.za",
+    "rnyc.org.za", "www.rnyc.org.za",
+])
+
+
+def _news_category(item: dict, podium_names: list, host: str) -> str:
+    """Return 'local' or 'international'. LOCAL if: .co.za, LOCAL_SA_DOMAINS, headline/excerpt has podium sailor, or source_origin is facebook."""
+    if not host:
+        pass
+    else:
+        h = host.lower().strip()
+        if h.endswith(".co.za"):
+            return "local"
+        if h in LOCAL_SA_DOMAINS:
+            return "local"
+        # strip www for set check
+        if h.startswith("www."):
+            h = h[4:]
+        if h in LOCAL_SA_DOMAINS or h.endswith(".co.za"):
+            return "local"
+    if item.get("_source_origin") == "facebook":
+        return "local"
+    text = ((item.get("headline") or "") + " " + (item.get("excerpt") or "")).strip()
+    if podium_names and _match_sailors_in_text(text, podium_names):
+        return "local"
+    return "international"
+
+
 def _match_sailors_in_text(text: str, sailor_names: list) -> list:
     """Case-insensitive, word-boundary safe match of sailor names in text. Returns list of matched full names."""
     if not text or not sailor_names:
@@ -887,6 +1573,61 @@ def _match_sailors_in_text(text: str, sailor_names: list) -> list:
         if re.search(pattern, text_lower):
             matched.append(name)
     return matched
+
+
+# First-name variants for media URL mention check: allow Tim/Timothy, Josh/Joshua, Tom/Thomas, etc.
+_FIRST_NAME_LONG_TO_SHORT = {
+    "timothy": "tim", "joshua": "josh", "thomas": "tom", "william": "will", "robert": "rob",
+    "christopher": "chris", "daniel": "dan", "matthew": "matt", "michael": "mike", "james": "jim",
+    "alexander": "alex", "benjamin": "ben", "samuel": "sam", "jonathan": "jon", "nicholas": "nick",
+    "andrew": "andy", "joseph": "joe", "david": "dave", "richard": "rick", "charles": "charlie",
+    "anthony": "tony", "patrick": "pat", "stephen": "steve", "nathan": "nate",
+}
+_FIRST_NAME_SHORT_TO_LONG = {v: k for k, v in _FIRST_NAME_LONG_TO_SHORT.items()}
+
+
+def _name_variants_for_mention_check(full_name: str) -> list:
+    """Return list of name strings to match in page text: full name plus short/long first-name variants (e.g. Tim/Timothy, Josh/Joshua)."""
+    if not full_name or not (full_name := full_name.strip()):
+        return []
+    variants = [full_name]
+    parts = full_name.split()
+    if len(parts) >= 2:
+        first, rest = parts[0], " ".join(parts[1:])
+        fl = first.lower()
+        if fl in _FIRST_NAME_LONG_TO_SHORT:
+            variants.append(_FIRST_NAME_LONG_TO_SHORT[fl].capitalize() + " " + rest)
+        if fl in _FIRST_NAME_SHORT_TO_LONG:
+            variants.append(_FIRST_NAME_SHORT_TO_LONG[fl].capitalize() + " " + rest)
+    return variants
+
+
+def _sa_ids_mentioned_in_text(conn, text: str, exclude_sa_id: str, limit: int = 8000) -> set:
+    """Return set of sa_id (as str) for sailors whose name (or variant) appears in text. Excludes exclude_sa_id."""
+    if not text or not (text := text.strip()):
+        return set()
+    out = set()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            SELECT sa_sailing_id::text, COALESCE(TRIM(full_name), TRIM(first_name || ' ' || COALESCE(last_name, ''))) AS full_name
+            FROM sas_id_personal
+            WHERE (full_name IS NOT NULL AND TRIM(full_name) != '') OR (first_name IS NOT NULL AND TRIM(first_name || ' ' || COALESCE(last_name, '')) != '')
+            LIMIT %s
+        """, (limit,))
+        for row in cur.fetchall() or []:
+            sa_id_val = (row[0] or "").strip()
+            full_name = (row[1] or "").strip()
+            if not sa_id_val or sa_id_val == str(exclude_sa_id):
+                continue
+            variants = _name_variants_for_mention_check(full_name)
+            if variants and _match_sailors_in_text(text, variants):
+                out.add(sa_id_val)
+    except Exception:
+        pass
+    finally:
+        cur.close()
+    return out
 
 def _flatten_serp_news_results(data: dict) -> list:
     """Extract flat list of {headline, excerpt, url, image, source, published_at} from SerpAPI Google News response."""
@@ -1065,14 +1806,136 @@ def _fetch_primary_sources() -> list:
     return out
 
 
+# Facebook: page IDs come from trusted_facebook_pages (resolved by jobs/resolve_facebook_page_ids.py).
+# Fallback hardcoded list only if table missing/empty (e.g. before one-off resolution).
+def _get_trusted_fb_pages() -> list:
+    """Return [(page_id, display_name)] from trusted_facebook_pages where active=true. Fallback to empty or legacy list."""
+    try:
+        if not table_exists("trusted_facebook_pages"):
+            return []
+        rows = q("SELECT page_id, page_name FROM trusted_facebook_pages WHERE active = true ORDER BY page_id")
+        out = []
+        for r in (rows or []):
+            row = r if isinstance(r, dict) else {}
+            pid = (row.get("page_id") or "").strip()
+            name = (row.get("page_name") or "").strip() or pid
+            if pid:
+                out.append((pid, name))
+        return out
+    except Exception:
+        return []
+
+
+def _get_recent_regatta_names(limit: int = 50) -> list:
+    """Return list of event_name for regattas in last 5 months (for FB post matching and 3rd news search)."""
+    try:
+        if not table_exists("regattas"):
+            return []
+        rows = q("""
+            SELECT event_name FROM regattas
+            WHERE end_date IS NOT NULL AND end_date >= (CURRENT_DATE - INTERVAL '5 months')
+              AND event_name IS NOT NULL AND TRIM(event_name) != ''
+            ORDER BY end_date DESC NULLS LAST
+            LIMIT %s
+        """, limit)
+        names = []
+        seen = set()
+        for r in (rows or []):
+            n = (r.get("event_name") if isinstance(r, dict) else (r[0] if r else "") or "").strip()
+            if n and n.lower() not in seen:
+                seen.add(n.lower())
+                names.append(n)
+        return names
+    except Exception:
+        return []
+
+
+def _fetch_facebook_news(podium_names: list, regatta_names: list) -> list:
+    """Fetch public posts from trusted_facebook_pages (14 days). LOCAL only. DB-backed pages only; 5s timeout; drop posts with no image."""
+    app_id = os.getenv("FACEBOOK_APP_ID", "").strip()
+    app_secret = os.getenv("FACEBOOK_APP_SECRET", "").strip()
+    if not app_id or not app_secret:
+        return []
+    pages = _get_trusted_fb_pages()
+    if not pages:
+        return []  # SAFETY: skip Facebook fetch instantly when table empty (no delay)
+    token = f"{app_id}|{app_secret}"
+    since_ts = int(time.time()) - (60 * 24 * 3600)
+    headers = {"User-Agent": "SailingSA/1.0"}
+    FB_HTTP_TIMEOUT = 5.0  # hard max 5s per call
+    out = []
+    try:
+        with httpx.Client(timeout=FB_HTTP_TIMEOUT, headers=headers) as client:
+            for page_id, display_name in pages:
+                try:
+                    r = client.get(
+                        f"https://graph.facebook.com/v18.0/{page_id}/posts",
+                        params={
+                            "access_token": token,
+                            "fields": "message,created_time,permalink_url,full_picture",
+                            "since": since_ts,
+                            "limit": 25,
+                        },
+                    )
+                    if r.status_code != 200:
+                        continue
+                    data = r.json()
+                    for post in data.get("data") or []:
+                        msg = (post.get("message") or "").strip()
+                        if not msg:
+                            continue
+                        msg_lower = msg.lower()
+                        has_podium = any(
+                            (name or "").lower() in msg_lower
+                            for name in (podium_names or [])
+                            if name and len(name) > 2
+                        )
+                        has_regatta = any(
+                            (rn or "").lower() in msg_lower
+                            for rn in (regatta_names or [])
+                            if rn and len(rn) > 2
+                        )
+                        has_sailing = bool(SAILING_RELEVANCE_KEYWORDS.search(msg)) or bool(SA_KEYWORDS.search(msg))
+                        if not has_podium and not has_regatta and not has_sailing:
+                            continue
+                        link = (post.get("permalink_url") or "").strip() or f"https://www.facebook.com/{page_id}"
+                        created = (post.get("created_time") or "").strip()
+                        img = (post.get("full_picture") or "").strip() or None
+                        if img and _is_image_logo(img):
+                            img = None
+                        if not img:
+                            continue  # drop posts with no image
+                        out.append({
+                            "headline": _sanitise_news_text(msg[:300]),
+                            "excerpt": "",
+                            "url": link,
+                            "image": img,
+                            "source": f"{display_name} (Facebook)",
+                            "published_at": created,
+                            "_source_origin": "facebook",
+                        })
+                except Exception:
+                    continue
+    except Exception as e:
+        print(f"[news] Facebook fetch failed: {e}")
+    return out
+
+
 def _fetch_news_serpapi() -> list:
     """Fetch from SerpAPI Google News (gl=za, hl=en). Returns list of normalized items or [] if no key/fail."""
+    return _fetch_news_serpapi_with_queries(SERPAPI_QUERIES)
+
+
+def _fetch_news_serpapi_with_queries(queries: list) -> list:
+    """Fetch from SerpAPI with given query list (base + sailor/regatta names for local news)."""
     api_key = os.getenv("SERPAPI_KEY", "").strip()
     if not api_key:
         return []
     items = []
     with httpx.Client(timeout=20.0) as client:
-        for q in SERPAPI_QUERIES:
+        for q in (queries or []):
+            if not (q and str(q).strip()):
+                continue
             try:
                 r = client.get(
                     "https://serpapi.com/search",
@@ -1085,14 +1948,26 @@ def _fetch_news_serpapi() -> list:
                 print(f"[news] SerpAPI query '{q}' failed: {e}")
     return items
 
+_RSS_BASE_QUERIES = [
+    "South+African+sailing", "Cape+to+Rio+sailing", "SA+youth+sailing+nationals",
+    "Royal+Cape+Yacht+Club+sailing", "South+Africa+yacht+racing", "Sailing+South+Africa+regatta",
+    "Hermanus+yacht+club+sailing",
+]
+
+
 def _fetch_news_rss_fallback() -> list:
     """RSS fallback: same shape as SerpAPI (headline, excerpt, url, image, source, published_at)."""
+    return _fetch_news_rss_fallback_with_queries(_RSS_BASE_QUERIES)
+
+
+def _fetch_news_rss_fallback_with_queries(url_encoded_queries: list) -> list:
+    """RSS fallback with given list of URL-encoded query strings (e.g. 'Name+sailing')."""
     base = "https://news.google.com/rss/search?q={}&hl=en-ZA&gl=ZA&ceid=ZA:en"
     headers = {"User-Agent": "Mozilla/5.0 (compatible; SailingSA/1.0; +https://sailingsa.co.za)"}
     out = []
     try:
         with httpx.Client(timeout=15.0, follow_redirects=True, headers=headers) as client:
-            for q in ["South+African+sailing", "Cape+to+Rio+sailing", "SA+youth+sailing+nationals", "Royal+Cape+Yacht+Club+sailing", "South+Africa+yacht+racing", "Sailing+South+Africa+regatta", "Hermanus+yacht+club+sailing"]:
+            for q in (url_encoded_queries or []):
                 try:
                     r = client.get(base.format(q))
                     r.raise_for_status()
@@ -1274,11 +2149,27 @@ def _is_sa_news_item_accept(item: dict, sailor_names: list) -> bool:
     return accept
 
 def _fetch_latest_news_pipeline() -> list:
-    """Primary SA sources first; if ≥1 item skip Google. Else SerpAPI + RSS. SA filter, sailor match, image, sort. Max 20."""
+    """Order: Primary SA websites → Facebook trusted pages (LOCAL) → Google RSS / Sail-World → Floor. LOCAL then INTERNATIONAL sort; cap international at 5 when local ≥ 3."""
+    from urllib.parse import urlparse, quote_plus
     seen_urls = set()
     merged = []
-    sources_used = []
-    # 1) Primary authoritative SA sources (MUST RUN FIRST)
+    podium_5 = get_recent_podium_sailors(5)
+    regatta_names = _get_recent_regatta_names(50)  # last 5 months (filter in SQL)
+    sailor_names = _load_sailor_names_for_news()
+    sailor_names_with_podium = list(sailor_names)
+    for n in (podium_5 or []):
+        if n and n.lower() not in {x.lower() for x in sailor_names_with_podium}:
+            sailor_names_with_podium.append(n)
+    # Large-regatta podium sailors (2nd search set) and regatta names (3rd search set) for local news
+    sailor_names_large = _load_podium_sailors_from_large_regattas()
+    for n in (sailor_names_large or []):
+        if n and n.lower() not in {x.lower() for x in sailor_names_with_podium}:
+            sailor_names_with_podium.append(n)
+    sailor_queries = [f"{n} sailing" for n in (sailor_names_large or [])[:5]]
+    regatta_queries = [f"{n} sailing" for n in (regatta_names or [])[:5]]
+    serp_queries = SERPAPI_QUERIES + sailor_queries + regatta_queries
+    rss_queries = list(_RSS_BASE_QUERIES) + [quote_plus(f"{n} sailing") for n in (sailor_names_large or [])[:5]] + [quote_plus(f"{n} sailing") for n in (regatta_names or [])[:5]]
+    # 1) Primary SA sailing websites (MUST RUN FIRST)
     primary = _fetch_primary_sources()
     for it in primary:
         u = (it.get("url") or "").strip()
@@ -1286,25 +2177,29 @@ def _fetch_latest_news_pipeline() -> list:
             seen_urls.add(u)
             it["_source_origin"] = "primary"
             merged.append(it)
-    primary_count = len(merged)
-    # 2) If primary returned ≥1 item: skip Google News entirely for this refresh
-    if primary_count == 0:
-        serp = _fetch_news_serpapi()
-        for it in serp:
-            u = (it.get("url") or "").strip()
-            if u and u not in seen_urls:
-                seen_urls.add(u)
-                it["_source_origin"] = "google"
-                merged.append(it)
-        rss = _fetch_news_rss_fallback()
-        for it in rss:
-            u = (it.get("url") or "").strip()
-            if u and u not in seen_urls:
-                seen_urls.add(u)
-                it["_source_origin"] = "google"
-                merged.append(it)
-    # 2b) Resolve Google News redirect → final publisher URL. If host is news.google.com, resolve; if fail → drop item. Frontend must never receive news.google.com URL.
-    from urllib.parse import urlparse
+    # 2) Facebook trusted pages (LOCAL only)
+    fb_items = _fetch_facebook_news(podium_5, regatta_names)
+    for it in fb_items:
+        u = (it.get("url") or "").strip()
+        if u and u not in seen_urls:
+            seen_urls.add(u)
+            merged.append(it)
+    # 3) Google SerpAPI + sailor/regatta name queries (2nd/3rd search for local news)
+    serp = _fetch_news_serpapi_with_queries(serp_queries)
+    for it in serp:
+        u = (it.get("url") or "").strip()
+        if u and u not in seen_urls:
+            seen_urls.add(u)
+            it["_source_origin"] = "google"
+            merged.append(it)
+    rss = _fetch_news_rss_fallback_with_queries(rss_queries)
+    for it in rss:
+        u = (it.get("url") or "").strip()
+        if u and u not in seen_urls:
+            seen_urls.add(u)
+            it["_source_origin"] = "google"
+            merged.append(it)
+    # 3b) Resolve Google News redirect → final publisher URL. If host is news.google.com, resolve; if fail → drop item. Frontend must never receive news.google.com URL.
     google_items = [(i, it) for i, it in enumerate(merged) if "news.google.com" in (urlparse((it.get("url") or "").strip()).netloc or "").lower()]
     if google_items:
         def resolve_task(t):
@@ -1334,42 +2229,47 @@ def _fetch_latest_news_pipeline() -> list:
     for it in resolved_merged:
         it.pop("_drop", None)
     merged = resolved_merged
-    # 3) Sailor names and SA filter; primary-source items accepted as authoritative (no filter loosening)
-    sailor_names = _load_sailor_names_for_news()
+    # 4) Sailor names and SA filter; primary/Facebook accepted; Google/RSS use sailor_names + podium_5
     podium_names_6m = _load_podium_sailor_names_6m()
     podium_set = {n.lower() for n in podium_names_6m}
     filtered = []
     for it in merged:
         if it.get("_source_origin") == "primary":
             it["_sa_accept_reason"] = "primary"
+        elif it.get("_source_origin") == "facebook":
+            it["_sa_accept_reason"] = "facebook"
         else:
-            accept, reason = _is_sa_news_item(it, sailor_names)
+            accept, reason = _is_sa_news_item(it, sailor_names_with_podium)
             if not accept:
                 continue
             it["_sa_accept_reason"] = reason
         text = (it.get("headline") or "") + " " + (it.get("excerpt") or "")
-        matched = _match_sailors_in_text(text, sailor_names)
+        matched = _match_sailors_in_text(text, sailor_names_with_podium)
         it["matched_sailors"] = matched
         it["matched_podium_sailors"] = [m for m in matched if m.lower() in podium_set]
         filtered.append(it)
     merged = filtered
-    # 4) Freshness: drop if published_at < now - 180 days; exception matched_sailors allow 365 days
+    # 4) Freshness + sailing-only: exclude invites, low-signal (parking etc.), and anything not sailing-relevant; keep local up to 5 months
     from datetime import datetime, timezone, timedelta
     now_utc = datetime.now(timezone.utc)
-    cutoff_180 = now_utc - timedelta(days=FRESHNESS_DAYS)
-    cutoff_365 = now_utc - timedelta(days=FRESHNESS_DAYS_SAILOR)
+    cutoff_local = now_utc - timedelta(days=NEWS_PIPELINE_MAX_AGE_DAYS_LOCAL)
     fresh = []
     for it in merged:
+        if _is_invite_item(it):
+            continue
+        if _is_low_signal_item(it):
+            continue
+        if not _is_sailing_relevant(it):
+            continue
         pub = _parse_news_date(it.get("published_at"))
         if pub is None:
             fresh.append(it)
             continue
         if pub.tzinfo is None:
             pub = pub.replace(tzinfo=timezone.utc)
-        if pub >= cutoff_180:
-            fresh.append(it)
-        elif (it.get("matched_sailors") or []) and pub >= cutoff_365:
-            fresh.append(it)
+        if pub < cutoff_local:
+            continue
+        fresh.append(it)
     merged = fresh
     # 5) Image: 1) og:image from article (PRIMARY, required); 2) SerpAPI only if og missing; 3) RSS only if both missing; 4) null. Reject logos.
     def task_og(t):
@@ -1399,16 +2299,92 @@ def _fetch_latest_news_pipeline() -> list:
                 it["image"] = None
         if it.get("image") and _is_image_logo(it["image"]):
             it["image"] = None
-    # 6) Sort: podium (1st/2nd/3rd in last 6m) first, then any SAS-ID sailor, then published_at (newest first).
-    def sort_key(x):
+    # 5b) No placeholders: DROP any item without a valid thumbnail (must have image or exclude)
+    merged = [it for it in merged if (it.get("image") or "").strip()]
+    # 6) Assign category: local | international (domain .co.za, LOCAL_SA_DOMAINS, podium in text, or facebook = local)
+    for it in merged:
+        url = (it.get("url") or "").strip()
+        try:
+            host = (urlparse(url).netloc or "").lower()
+        except Exception:
+            host = ""
+        it["_category"] = _news_category(it, podium_5, host)
+    # 7) INTERNATIONAL: drop items older than 1 month. LOCAL: prefer ~50% from last 45 days; sort (podium > fb > other, then 45d-pref, newest); club cap.
+    local_items = [it for it in merged if it.get("_category") == "local"]
+    intl_items = [it for it in merged if it.get("_category") == "international"]
+    now_utc = datetime.now(timezone.utc)
+    cutoff_intl = now_utc - timedelta(days=NEWS_PIPELINE_MAX_AGE_DAYS_INTL)
+    cutoff_preferred = now_utc - timedelta(days=NEWS_PIPELINE_LOCAL_PREFERRED_DAYS)
+
+    def _intl_ok(it):
+        pub = _parse_news_date(it.get("published_at") or "")
+        if pub is None:
+            return True
+        if pub.tzinfo is None:
+            pub = pub.replace(tzinfo=timezone.utc)
+        return pub >= cutoff_intl
+    intl_items = [it for it in intl_items if _intl_ok(it)]
+
+    def _has_image(it):
+        return bool((it.get("image") or "").strip())
+
+    def _in_preferred_window(it):
+        pub = _parse_news_date(it.get("published_at") or "")
+        if pub is None:
+            return False
+        if pub.tzinfo is None:
+            pub = pub.replace(tzinfo=timezone.utc)
+        return pub >= cutoff_preferred
+
+    def _local_sort_key(x):
         has_podium = 1 if (x.get("matched_podium_sailors") or []) else 0
-        has_sailor = 1 if (x.get("matched_sailors") or []) else 0
+        is_fb = 1 if x.get("_source_origin") == "facebook" else 0
         pub = x.get("published_at") or ""
-        return (0 if has_podium else 1, 0 if has_sailor else 1, pub)
-    merged.sort(key=sort_key, reverse=True)
-    # 7) Normalise: exact API format { title, excerpt, url, image, source, published_at }. Max 20. No news.google.com URL.
+        priority = 2 if has_podium else (1 if is_fb else 0)
+        in_45d = 1 if _in_preferred_window(x) else 0
+        image_score = 1 if _has_image(x) else 0
+        return (priority, in_45d, image_score, pub)
+    local_items.sort(key=_local_sort_key, reverse=True)
+
+    def _host_for_item(it):
+        u = (it.get("url") or "").strip()
+        try:
+            return (urlparse(u).netloc or "").lower()
+        except Exception:
+            return ""
+    # Per-domain cap: max 2 per host so we get multiple websites and social, not one site dominating
+    host_count = {}
+    local_capped = []
+    for it in local_items:
+        h = _host_for_item(it)
+        host_count[h] = host_count.get(h, 0) + 1
+        if host_count[h] <= 2:
+            local_capped.append(it)
+    local_items = local_capped
+
+    if local_items and not _has_image(local_items[0]):
+        j = None
+        for idx in range(len(local_items)):
+            if _has_image(local_items[idx]):
+                j = idx
+                break
+        if j is not None:
+            lead = local_items[j]
+            rest = [local_items[i] for i in range(len(local_items)) if i != j]
+            local_items = [lead] + rest
+
+    def _intl_sort_key(x):
+        image_score = 1 if _has_image(x) else 0
+        pub = x.get("published_at") or ""
+        return (image_score, pub)
+    intl_items.sort(key=_intl_sort_key, reverse=True)
+    # Always show international when we have any (target ~40%); cap at 8 so local can be ~60% of 20
+    intl_items = intl_items[:8]
+    combined = local_items + intl_items
+    combined = combined[:20]
+    # 8) Normalise: API format { title, excerpt, url, image, source, published_at, category }. No news.google.com URL.
     out = []
-    for it in merged[:20]:
+    for it in combined:
         url = (it.get("url") or "").strip()
         if "news.google.com" in url:
             continue
@@ -1417,6 +2393,7 @@ def _fetch_latest_news_pipeline() -> list:
         img = (it.get("image") or "").strip() or None
         if img and _is_image_logo(img):
             img = None
+        cat = it.get("_category") or "international"
         out.append({
             "title": title,
             "excerpt": excerpt,
@@ -1424,25 +2401,33 @@ def _fetch_latest_news_pipeline() -> list:
             "image": img if img else "",
             "source": _sanitise_news_text(it.get("source") or "News").strip(),
             "published_at": it.get("published_at") or "",
+            "category": cat,
         })
-    sources_used = sorted(set(it.get("_source_origin") for it in merged[:20] if it.get("_source_origin")))
-    # 8) Floor: if pipeline yielded 0 items, run one extra RSS "SA Sailing", accept up to 5 keyword-matched.
+    sources_used = sorted(set(it.get("_source_origin") for it in combined if it.get("_source_origin")))
+    # 9) Floor: if pipeline yielded 0 items, run one extra RSS "SA Sailing", accept up to 5 keyword-matched.
     if len(out) == 0:
-        floor_items = _fetch_floor_news(sailor_names)
+        floor_items = _fetch_floor_news(sailor_names_with_podium)
+        for it in floor_items:
+            it["category"] = "local"
         out = floor_items
         if out:
             sources_used = ["floor"]
-    print(f"[news] refresh: {len(out)} items, sources={sources_used}")
+    # HARD RULE: No news.google.com URL may reach frontend. Drop any remaining.
+    out = [it for it in out if "news.google.com" not in (it.get("url") or "").lower()]
+    local_count = sum(1 for it in out if it.get("category") == "local")
+    intl_count = len(out) - local_count
+    print(f"[news] refresh: {len(out)} items | local={local_count} international={intl_count} | sources={sources_used}")
     return out
 
 def _news_cache_refresh_loop():
-    """Background thread: refresh news cache so no request ever runs the heavy pipeline."""
+    """Background thread: auto-update news feed regularly so no request runs the heavy pipeline."""
     time.sleep(15)  # let server and other routes respond first
     while True:
         try:
             items = _fetch_latest_news_pipeline()
             LATEST_NEWS_CACHE["items"] = items
             LATEST_NEWS_CACHE["ts"] = time.time()
+            _save_news_cache_to_disk()
         except Exception as e:
             print(f"[news] background refresh failed: {e}")
             traceback.print_exc()
@@ -1454,23 +2439,42 @@ _news_background_started = False
 
 @app.get("/api/news/latest")
 def api_news_latest():
-    """South African sailing news only. Max 20 items. Cache 30 min. Response: [{ title, excerpt, url, image, source, published_at }]. Backend only; no UI wired."""
+    """South African sailing news only. Never errors. Returns from cache; if empty or fail → []."""
     global _news_background_started
-    if not _news_background_started:
-        _news_background_started = True
-        _t = threading.Thread(target=_news_cache_refresh_loop, daemon=True)
-        _t.start()
-    items = LATEST_NEWS_CACHE["items"]
-    cache_ts = LATEST_NEWS_CACHE.get("ts") or 0
-    if len(items) == 0 and cache_ts == 0:
-        try:
-            items = _fetch_latest_news_pipeline()
-            LATEST_NEWS_CACHE["items"] = items
-            LATEST_NEWS_CACHE["ts"] = time.time()
-        except Exception as e:
-            print(f"[news] force refresh failed: {e}")
-            traceback.print_exc()
-    return LATEST_NEWS_CACHE["items"]
+    try:
+        if not _news_background_started:
+            _news_background_started = True
+            _t = threading.Thread(target=_news_cache_refresh_loop, daemon=True)
+            _t.start()
+        if not LATEST_NEWS_CACHE.get("items") and os.path.isfile(_NEWS_CACHE_FILE):
+            _load_news_cache_from_disk()
+        return LATEST_NEWS_CACHE.get("items") or []
+    except Exception as e:
+        print(f"[news] api_news_latest: {e}")
+        return []
+
+
+@app.post("/api/news/refresh")
+def api_news_refresh(request: Request):
+    """Force one news cache refresh. Protected: localhost or Admin-Token/Authorization header with ADMIN_TOKEN env."""
+    admin_token = (os.getenv("ADMIN_TOKEN") or "").strip()
+    client_host = (request.client.host if request.client else "") or ""
+    auth_header = (request.headers.get("Authorization") or request.headers.get("Admin-Token") or "").strip()
+    if auth_header.lower().startswith("bearer "):
+        auth_header = auth_header[7:].strip()
+    is_local = client_host in ("127.0.0.1", "localhost", "::1")
+    if not is_local and (not admin_token or auth_header != admin_token):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    try:
+        items = _fetch_latest_news_pipeline()
+        LATEST_NEWS_CACHE["items"] = items
+        LATEST_NEWS_CACHE["ts"] = time.time()
+        _save_news_cache_to_disk()
+        return {"ok": True, "count": len(items)}
+    except Exception as e:
+        print(f"[news] manual refresh failed: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ---------- Minimal support endpoints for Member Finder ----------
 def table_exists(name: str) -> bool:
@@ -1552,11 +2556,764 @@ def api_sa_id_stats():
         "added_count": None,
     }
 
-# ---------- Member profile: public-mentions, highlights, activity (stub until implemented) ----------
+# ---------- Member profile: public-mentions, highlights, activity ----------
+# Media tab: display ALL rows from sailor_public_mentions for sa_id. No relevance/age/invite filters.
+def _media_display_source(source: str, url: str) -> str:
+    """For social URLs, append (Facebook)/(Instagram)/(YouTube). Display only."""
+    u = (url or "").lower()
+    if "facebook.com" in u:
+        return (source or "Facebook").strip() + (" (Facebook)" if "(Facebook)" not in (source or "") else "")
+    if "instagram.com" in u:
+        return (source or "Instagram").strip() + (" (Instagram)" if "(Instagram)" not in (source or "") else "")
+    if "youtube.com" in u or "youtu.be" in u:
+        return (source or "YouTube").strip() + (" (YouTube)" if "(YouTube)" not in (source or "") else "")
+    return (source or "").strip()
+
+def _public_mention_row_to_dict(row) -> dict:
+    """Convert a DB row (dict or tuple) to a safe dict. Never raises."""
+    if not isinstance(row, dict):
+        try:
+            rl = len(row)
+            if rl >= 10:
+                row = {"id": row[0], "headline": row[1], "snippet": row[2], "source": row[3], "url": row[4], "published_at": row[5], "thumb_url": row[6], "type": row[7], "created_at": row[8], "source_added": row[9] or "system"}
+            elif rl >= 8:
+                row = {"id": row[0] if rl > 8 else None, "headline": row[0] if rl == 8 else row[1], "snippet": row[1] if rl == 8 else row[2], "source": row[2] if rl == 8 else row[3], "url": row[3] if rl == 8 else row[4], "published_at": row[4] if rl == 8 else row[5], "thumb_url": row[5] if rl == 8 else row[6], "type": row[6] if rl == 8 else row[7], "created_at": row[7] if rl == 8 else row[8], "source_added": (row[9] if rl > 9 else None) or "system"}
+            else:
+                row = {}
+        except (IndexError, TypeError):
+            row = {}
+    row = dict(row)
+    row.setdefault("id", None)
+    row.setdefault("source_added", "system")
+    pub = row.get("published_at")
+    headline = (row.get("headline") or "").strip()
+    snippet = (row.get("snippet") or "").strip()
+    url = (row.get("url") or "").strip()
+    source = _media_display_source((row.get("source") or "").strip(), url)
+    date_iso = ""
+    date_time_display = ""
+    time_ago = ""
+    if pub:
+        try:
+            if hasattr(pub, "strftime"):
+                date_iso = pub.strftime("%Y-%m-%d")
+                date_time_display = pub.strftime("%d %b %Y")
+                if getattr(pub, "hour", 0) or getattr(pub, "minute", 0):
+                    date_time_display = pub.strftime("%d %b %Y, %H:%M")
+                try:
+                    now = datetime.utcnow()
+                    pub_naive = pub.replace(tzinfo=None) if getattr(pub, "tzinfo", None) else pub
+                    delta = now - pub_naive
+                    d = getattr(delta, "days", 0) or 0
+                    if d == 0:
+                        time_ago = "today"
+                    elif d == 1:
+                        time_ago = "1 day ago"
+                    elif d < 7:
+                        time_ago = f"{d} days ago"
+                    elif d < 30:
+                        time_ago = f"{d // 7} weeks ago"
+                    elif d < 365:
+                        time_ago = f"{d // 30} months ago"
+                    else:
+                        time_ago = f"{d // 365} years ago"
+                except Exception:
+                    pass
+            else:
+                date_iso = str(pub)[:10]
+                date_time_display = date_iso
+        except Exception:
+            date_iso = str(pub)[:20] if pub else ""
+            date_time_display = date_iso
+    try:
+        published_serial = pub.isoformat() if pub and hasattr(pub, "isoformat") else (str(pub) if pub else None)
+    except Exception:
+        published_serial = str(pub)[:30] if pub else None
+    item_type = (row.get("type") or "article").strip().lower()
+    thumb_url = (row.get("thumb_url") or "").strip() or None
+    engagement = {"likes": None, "comments": None, "shares": None}
+    return {
+        "id": row.get("id"),
+        "headline": headline or None,
+        "snippet": snippet or None,
+        "source": source or None,
+        "url": url or None,
+        "published_at": published_serial,
+        "thumb_url": thumb_url,
+        "type": item_type,
+        "date_iso": date_iso or None,
+        "date_time_display": date_time_display or None,
+        "time_ago": time_ago or None,
+        "engagement": engagement,
+        "source_added": (row.get("source_added") or "system").strip().lower() if isinstance(row.get("source_added"), str) else "system",
+    }
+
+
+# Rate limit: don't trigger discovery for same sa_id more than once per hour
+_media_discovery_triggered = {}
+_MEDIA_DISCOVERY_COOLDOWN = 3600
+
+
+def _trigger_media_discovery(sa_id: str):
+    """Fire-and-forget: run discovery job for this sailor in background (rate-limited)."""
+    now = time.time()
+    if sa_id in _media_discovery_triggered and (now - _media_discovery_triggered[sa_id]) < _MEDIA_DISCOVERY_COOLDOWN:
+        return
+    _media_discovery_triggered[sa_id] = now
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    script = os.path.join(base_dir, "jobs", "refresh_sailor_media_by_score.py")
+    if not os.path.isfile(script):
+        return
+    try:
+        subprocess.Popen(
+            [sys.executable, script, "--sa-id", sa_id],
+            cwd=base_dir,
+            env=os.environ,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except Exception:
+        pass
+
+
 @app.get("/api/member/{sa_id}/public-mentions")
-def api_member_public_mentions(sa_id: str, name: str = Query(None)):
-    """Public mentions for sailor profile. Returns empty list until implemented."""
-    return {"items": []}
+def api_member_public_mentions(sa_id: str):
+    """Public media mentions for sailor profile. Fetch by sa_id only (no slug, name, session).
+    If sa_id missing or invalid → 400. Read-only from sailor_public_mentions."""
+    sa_id_safe = (sa_id or "").strip()
+    if not sa_id_safe:
+        raise HTTPException(status_code=400, detail="sa_id is required")
+    try:
+        int(sa_id_safe)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="sa_id must be a valid numeric SAS ID")
+    items = []
+    media_score = None
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            try:
+                cur.execute("""
+                    SELECT id, headline, snippet, source, url, published_at, thumb_url, type, created_at,
+                           COALESCE(source_added, 'system') AS source_added
+                    FROM sailor_public_mentions
+                    WHERE sa_id::text = %s
+                      AND (is_valid IS NULL OR is_valid = true)
+                    ORDER BY published_at DESC NULLS LAST, created_at DESC
+                    LIMIT 500
+                """, (sa_id_safe,))
+            except Exception:
+                try:
+                    cur.execute("""
+                        SELECT id, headline, snippet, source, url, published_at, thumb_url, type, created_at
+                        FROM sailor_public_mentions
+                        WHERE sa_id::text = %s
+                        ORDER BY published_at DESC NULLS LAST, created_at DESC
+                        LIMIT 500
+                    """, (sa_id_safe,))
+                except Exception:
+                    cur.execute("""
+                        SELECT id, headline, snippet, source, url, published_at, thumb_url, type, created_at
+                        FROM sailor_public_mentions
+                        WHERE sa_id::text = %s
+                        ORDER BY published_at DESC NULLS LAST, created_at DESC
+                        LIMIT 500
+                    """, (sa_id_safe,))
+            rows = cur.fetchall()
+            for r in (rows or []):
+                try:
+                    items.append(_public_mention_row_to_dict(r))
+                except Exception:
+                    continue
+        finally:
+            cur.close()
+        try:
+            cur2 = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            try:
+                cur2.execute("SELECT media_score FROM sailor_media_score WHERE sa_id::text = %s LIMIT 1", (sa_id_safe,))
+                ms_row = cur2.fetchone()
+                if ms_row:
+                    media_score = ms_row.get("media_score")
+            finally:
+                cur2.close()
+        except Exception:
+            pass
+        # Automatic backfill: if this sailor has media_score >= 2 but 0 mentions, trigger discovery in background (rate-limited)
+        if len(items) == 0 and media_score is not None and media_score >= 2:
+            if os.environ.get("SERPAPI_API_KEY"):
+                _trigger_media_discovery(sa_id_safe)
+            else:
+                logging.getLogger("uvicorn.error").info("[media] sa_id=%s has 0 items and media_score>=2 but SERPAPI_API_KEY not set; discovery not triggered.", sa_id_safe)
+        return {"items": items, "media_score": media_score}
+    except Exception as e:
+        print(f"[api] public-mentions for {sa_id}: {e}")
+        traceback.print_exc()
+        return {"items": [], "media_score": None}
+    finally:
+        if conn:
+            try:
+                return_db_connection(conn)
+            except Exception:
+                pass
+
+
+def _get_session_sas_id(request: Request) -> Optional[str]:
+    """Return sas_id for valid session from cookie, else None."""
+    try:
+        token = request.cookies.get("session") or (request.query_params.get("session") if request.query_params else None)
+        if not token:
+            return None
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            cur.execute("""
+                SELECT sas_id FROM public.user_sessions
+                WHERE session_id = %s AND expires_at > NOW()
+            """, (token,))
+            row = cur.fetchone()
+            return str(row["sas_id"]).strip() if row and row.get("sas_id") else None
+        finally:
+            cur.close()
+            return_db_connection(conn)
+    except Exception:
+        return None
+
+
+def _fetch_og_metadata(url: str) -> dict:
+    """Fetch URL and extract og:title, og:description, og:image. Also try first <h2> as headline when page title is long (section heading often more relevant)."""
+    out = {"headline": None, "snippet": None, "thumb_url": None}
+    try:
+        with httpx.Client(follow_redirects=True, timeout=12) as client:
+            r = client.get(url)
+            if r.status_code != 200:
+                return out
+            html = r.text
+            base = str(r.url)
+    except Exception:
+        return out
+    for prop, key in (("og:title", "headline"), ("og:description", "snippet"), ("og:image", "thumb_url")):
+        for pattern in (
+            rf'<meta[^>]+property=["\']{re.escape(prop)}["\'][^>]+content=["\']([^"\']+)["\']',
+            rf'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']{re.escape(prop)}["\']',
+        ):
+            m = re.search(pattern, html, re.I)
+            if m:
+                val = m.group(1).strip()
+                if key == "thumb_url" and val and not val.startswith("http"):
+                    val = (base.rstrip("/") + "/" + val.lstrip("/")) if base else val
+                out[key] = val[:500] if key == "headline" else (val[:1000] if key == "snippet" else val)
+                break
+    if not out["headline"]:
+        t = re.search(r"<title[^>]*>([^<]+)</title>", html, re.I)
+        out["headline"] = (t.group(1).strip()[:500] if t else "Untitled") or "Untitled"
+    # Prefer first <h2> (section heading) when page title is long or looks like full article title (e.g. "… report 2024/25 – Alistair Keytel")
+    h2 = re.search(r"<h2[^>]*>([^<]+)</h2>", html, re.I)
+    if h2:
+        h2_text = html_module.unescape(h2.group(1)).strip()[:500]
+        if h2_text and (not out["headline"] or out["headline"] == "Untitled" or len(out["headline"]) > 55):
+            out["headline"] = h2_text
+    return out
+
+
+@app.post("/api/member/{sa_id}/add-media")
+async def api_member_add_media(sa_id: str, request: Request, body: dict = Body(default=None)):
+    """Logged-in sailor can add one URL to their own media tab. Body: { \"url\": \"https://...\" }; optional: headline, snippet, thumb_url. Validates URL, fetches metadata, inserts into sailor_public_mentions."""
+    sa_id_safe = (sa_id or "").strip()
+    if not sa_id_safe:
+        raise HTTPException(status_code=400, detail="sa_id is required")
+    try:
+        int(sa_id_safe)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="sa_id must be a valid numeric SAS ID")
+    session_sas_id = _get_session_sas_id(request)
+    if not session_sas_id or str(session_sas_id) != str(sa_id_safe):
+        raise HTTPException(status_code=403, detail="You can only add media to your own profile. Log in as this sailor.")
+    url = (body or {}).get("url") if isinstance(body, dict) else None
+    if not url or not str(url).strip().startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="Body must contain a valid url (http or https)")
+    url = str(url).strip()
+    try:
+        from jobs.sailor_media_fetch import validate_url
+        is_valid, final_url = validate_url(url)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"URL validation failed: {e}")
+    if not is_valid or not final_url:
+        raise HTTPException(status_code=400, detail="URL is not reachable (404, 410, or invalid)")
+    body = body or {}
+    meta = _fetch_og_metadata(final_url)
+    headline = (body.get("headline") or meta.get("headline") or "Untitled")[:500]
+    snippet = (body.get("snippet") or meta.get("snippet") or "")[:1000]
+    thumb_url = (body.get("thumb_url") or meta.get("thumb_url") or "").strip() or None
+    if thumb_url and len(thumb_url) > 2048:
+        thumb_url = thumb_url[:2048]
+    # Require the sailor to be mentioned in the URL content (headline/snippet); allow name variants e.g. Tim/Timothy, Josh/Joshua
+    conn = get_db_connection()
+    try:
+        from jobs.sailor_media_fetch import get_sailor_name
+        sailor_name = (get_sailor_name(conn, sa_id_safe) or "").strip()
+        text_to_check = ((body.get("headline") or meta.get("headline") or "") + " " + (body.get("snippet") or meta.get("snippet") or "")).strip()
+        if sailor_name and text_to_check:
+            variants = _name_variants_for_mention_check(sailor_name)
+            if variants and not _match_sailors_in_text(text_to_check, variants):
+                return_db_connection(conn)
+                raise HTTPException(
+                    status_code=400,
+                    detail="This URL does not appear to mention you. Only add media that refers to you (your name or common variant e.g. Tim/Timothy, Josh/Joshua).",
+                )
+    except HTTPException:
+        raise
+    except Exception:
+        pass  # If we can't resolve name or check, allow the add
+    try:
+        parsed = __import__("urllib.parse", fromlist=["urlparse"]).urlparse(final_url)
+        source = (parsed.netloc or "").replace("www.", "")[:200] or "Web"
+    except Exception:
+        source = "Web"
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT 1 FROM sailor_public_mentions WHERE sa_id::text = %s AND url = %s LIMIT 1", (sa_id_safe, final_url))
+        if cur.fetchone():
+            return_db_connection(conn)
+            raise HTTPException(status_code=409, detail="This URL is already in your media list.")
+        published_at_val = None
+        if body.get("published_at"):
+            raw = str(body.get("published_at")).strip()
+            parsed, err = _parse_media_date(raw)
+            if err:
+                return_db_connection(conn)
+                raise HTTPException(status_code=400, detail=err)
+            if parsed is not None:
+                published_at_val = parsed
+        if published_at_val is None:
+            published_at_val = datetime.utcnow()
+        try:
+            cur.execute("""
+                INSERT INTO sailor_public_mentions (sa_id, headline, snippet, source, url, type, published_at, thumb_url, source_added)
+                VALUES (%s, %s, %s, %s, %s, 'article', %s, %s, 'sailor')
+            """, (sa_id_safe, headline, snippet, source, final_url, published_at_val, thumb_url))
+            conn.commit()
+            # Add this post to every other sailor mentioned in the text (same URL, so they see it on their media tab)
+            text_for_mention = (headline or "") + " " + (snippet or "")
+            other_sa_ids = _sa_ids_mentioned_in_text(conn, text_for_mention, sa_id_safe)
+            for other_id in other_sa_ids:
+                try:
+                    cur.execute("""
+                        INSERT INTO sailor_public_mentions (sa_id, headline, snippet, source, url, type, published_at, thumb_url, source_added)
+                        VALUES (%s, %s, %s, %s, %s, 'article', %s, %s, 'system')
+                        ON CONFLICT (sa_id, url) DO NOTHING
+                    """, (other_id, headline, snippet, source, final_url, published_at_val, thumb_url))
+                except Exception:
+                    pass
+            conn.commit()
+        except psycopg2.IntegrityError:
+            conn.rollback()
+            return_db_connection(conn)
+            raise HTTPException(status_code=409, detail="This URL is already in your media list.")
+        cur.close()
+    finally:
+        return_db_connection(conn)
+    return {"success": True, "url": final_url, "headline": headline}
+
+
+@app.post("/api/member/{sa_id}/refresh-media-item")
+async def api_member_refresh_media_item(sa_id: str, request: Request, body: dict = Body(default=None)):
+    """Re-fetch Heading / URL (and snippet, thumb) from the page and update this sailor's media row. For audit: returns fetched headline and url."""
+    sa_id_safe = (sa_id or "").strip()
+    if not sa_id_safe:
+        raise HTTPException(status_code=400, detail="sa_id is required")
+    try:
+        int(sa_id_safe)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="sa_id must be a valid numeric SAS ID")
+    session_sas_id = _get_session_sas_id(request)
+    if not session_sas_id or str(session_sas_id) != str(sa_id_safe):
+        raise HTTPException(status_code=403, detail="You can only refresh your own media. Log in as this sailor.")
+    url = (body or {}).get("url") if isinstance(body, dict) else None
+    if not url or not str(url).strip().startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="Body must contain a valid url (http or https)")
+    url = str(url).strip()
+    try:
+        from jobs.sailor_media_fetch import validate_url
+        is_valid, final_url = validate_url(url)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"URL validation failed: {e}")
+    if not is_valid or not final_url:
+        raise HTTPException(status_code=400, detail="URL is not reachable (404, 410, or invalid)")
+    meta = _fetch_og_metadata(final_url)
+    headline = (meta.get("headline") or "Untitled")[:500]
+    snippet = (meta.get("snippet") or "")[:1000]
+    thumb_url = (meta.get("thumb_url") or "").strip() or None
+    if thumb_url and len(thumb_url) > 2048:
+        thumb_url = thumb_url[:2048]
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE sailor_public_mentions
+            SET headline = %s, snippet = %s, thumb_url = COALESCE(NULLIF(TRIM(%s), ''), thumb_url)
+            WHERE sa_id::text = %s AND (url = %s OR url = %s)
+            RETURNING url
+        """, (headline, snippet, thumb_url or "", sa_id_safe, url, final_url))
+        row = cur.fetchone()
+        conn.commit()
+        cur.close()
+        if not row:
+            return_db_connection(conn)
+            raise HTTPException(status_code=404, detail="This URL is not in your media list.")
+    finally:
+        return_db_connection(conn)
+    return {"success": True, "headline": headline, "url": final_url, "snippet": (snippet or "")[:200]}
+
+
+@app.patch("/api/member/{sa_id}/media")
+async def api_member_edit_media(sa_id: str, request: Request, body: dict = Body(default=None)):
+    """Edit media item: headline, snippet, thumb_url, published_at (URL cannot be changed). Logged-in sailor only."""
+    conn = None
+    try:
+        sa_id_safe = (sa_id or "").strip()
+        if not sa_id_safe:
+            raise HTTPException(status_code=400, detail="sa_id is required")
+        try:
+            int(sa_id_safe)
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=400, detail="sa_id must be a valid numeric SAS ID")
+        session_sas_id = _get_session_sas_id(request)
+        if not session_sas_id or str(session_sas_id) != str(sa_id_safe):
+            raise HTTPException(status_code=403, detail="You can only edit your own media.")
+        body = body or {}
+        url = (body.get("url") or "").strip()
+        media_id = body.get("id")
+        if media_id is not None:
+            try:
+                media_id = int(media_id)
+                if media_id <= 0:
+                    media_id = None
+            except (TypeError, ValueError):
+                media_id = None
+        if not media_id and (not url or not url.startswith(("http://", "https://"))):
+            raise HTTPException(status_code=400, detail="Body must contain id (media row id) or url of the media item to edit.")
+        headline = body.get("headline")
+        snippet = body.get("snippet")
+        thumb_url = body.get("thumb_url")
+        published_at_raw = body.get("published_at")
+        try:
+            headline = (str(headline).strip()[:500] if headline is not None else None)
+        except (TypeError, AttributeError):
+            headline = None
+        try:
+            snippet = (str(snippet).strip()[:1000] if snippet is not None else None)
+        except (TypeError, AttributeError):
+            snippet = None
+        try:
+            thumb_url = (str(thumb_url).strip()[:2048] if thumb_url else None) or None
+        except (TypeError, AttributeError):
+            thumb_url = None
+        published_at_val = None
+        if published_at_raw is not None and str(published_at_raw).strip():
+            raw = str(published_at_raw).strip()
+            parsed, err = _parse_media_date(raw)
+            if err:
+                raise HTTPException(status_code=400, detail=err)
+            if parsed is not None:
+                published_at_val = parsed
+        conn = get_db_connection()
+        cur = conn.cursor()
+        updates = []
+        params = []
+        if headline is not None:
+            updates.append("headline = %s")
+            params.append(headline)
+        if snippet is not None:
+            updates.append("snippet = %s")
+            params.append(snippet)
+        if thumb_url is not None:
+            updates.append("thumb_url = %s")
+            params.append(thumb_url)
+        if published_at_val is not None:
+            updates.append("published_at = %s")
+            params.append(published_at_val)
+        if not updates:
+            return_db_connection(conn)
+            conn = None
+            raise HTTPException(status_code=400, detail="Provide at least one of: headline, snippet, thumb_url, published_at")
+        row = None
+        try:
+            if media_id:
+                params.extend([sa_id_safe, media_id])
+                cur.execute("""
+                    UPDATE sailor_public_mentions
+                    SET """ + ", ".join(updates) + """
+                    WHERE sa_id::text = %s AND id = %s
+                    RETURNING headline, url
+                """, params)
+                row = cur.fetchone()
+            else:
+                params.extend([sa_id_safe, url])
+                url_variants = [url]
+                if url.rstrip("/") != url:
+                    url_variants.append(url.rstrip("/"))
+                elif url and not url.endswith("/"):
+                    url_variants.append(url + "/")
+                for u in url_variants:
+                    params[-1] = u
+                    cur.execute("""
+                        UPDATE sailor_public_mentions
+                        SET """ + ", ".join(updates) + """
+                        WHERE sa_id::text = %s AND url = %s
+                        RETURNING headline, url
+                    """, params)
+                    row = cur.fetchone()
+                    if row:
+                        break
+            conn.commit()
+        except Exception as e:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            return_db_connection(conn)
+            conn = None
+            raise HTTPException(status_code=400, detail="Update failed: " + str(e))
+        cur.close()
+        if not row:
+            return_db_connection(conn)
+            conn = None
+            raise HTTPException(status_code=404, detail="Media item not found or not yours. Check the URL matches exactly (copy from the card below).")
+        try:
+            h = row[0] if isinstance(row, (list, tuple)) else row.get("headline")
+            u = row[1] if isinstance(row, (list, tuple)) else row.get("url")
+        except (IndexError, KeyError, TypeError):
+            h, u = "", ""
+        return {"success": True, "headline": str(h) if h is not None else "", "url": str(u) if u is not None else ""}
+    except HTTPException:
+        raise
+    except Exception as e:
+        if conn:
+            try:
+                return_db_connection(conn)
+            except Exception:
+                pass
+        import traceback
+        err_msg = getattr(e, "message", None) or str(e) or type(e).__name__
+        try:
+            traceback.print_exc()
+        except Exception:
+            pass
+        raise HTTPException(status_code=400, detail="Edit failed: " + (err_msg if err_msg else type(e).__name__))
+    finally:
+        if conn is not None:
+            try:
+                return_db_connection(conn)
+            except Exception:
+                pass
+
+
+@app.delete("/api/member/{sa_id}/media")
+async def api_member_delete_media(sa_id: str, request: Request, body: dict = Body(default=None)):
+    """Delete media: only URLs added by the sailor (source_added=sailor). Double-confirm via body.confirm.
+    For system-added URLs, use body.reason to submit a delete request (sent to admin); no direct delete."""
+    sa_id_safe = (sa_id or "").strip()
+    if not sa_id_safe:
+        raise HTTPException(status_code=400, detail="sa_id is required")
+    try:
+        int(sa_id_safe)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="sa_id must be a valid numeric SAS ID")
+    session_sas_id = _get_session_sas_id(request)
+    if not session_sas_id or str(session_sas_id) != str(sa_id_safe):
+        raise HTTPException(status_code=403, detail="You can only delete your own media.")
+    body = body or {}
+    url = (body.get("url") or "").strip()
+    if not url or not url.startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="Body must contain url of the media item.")
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            cur.execute("""
+                SELECT url, COALESCE(source_added, 'system') AS source_added FROM sailor_public_mentions
+                WHERE sa_id::text = %s AND url = %s
+            """, (sa_id_safe, url))
+        except Exception:
+            cur.execute("""
+                SELECT url FROM sailor_public_mentions WHERE sa_id::text = %s AND url = %s
+            """, (sa_id_safe, url))
+        row = cur.fetchone()
+        if not row:
+            return_db_connection(conn)
+            raise HTTPException(status_code=404, detail="Media item not found.")
+        source_added = (row.get("source_added") or "system") if isinstance(row, dict) else "system"
+        if isinstance(row, (list, tuple)) and len(row) >= 2:
+            source_added = row[1] or "system"
+        if source_added != "sailor":
+            reason = (body.get("reason") or "").strip()
+            if not reason:
+                return_db_connection(conn)
+                raise HTTPException(
+                    status_code=403,
+                    detail="This URL was added by the system. You cannot delete it directly. To request removal, submit a reason (reason field) and an admin will review.",
+                )
+            cur.execute("""
+                SELECT headline, snippet, published_at, thumb_url, source
+                FROM sailor_public_mentions WHERE sa_id::text = %s AND url = %s
+            """, (sa_id_safe, url))
+            media_row = cur.fetchone()
+            headline = (media_row.get("headline") or "").strip() if isinstance(media_row, dict) else ""
+            snippet = (media_row.get("snippet") or "").strip() if isinstance(media_row, dict) else ""
+            published_at = media_row.get("published_at") if isinstance(media_row, dict) else None
+            thumb_url = (media_row.get("thumb_url") or "").strip() if isinstance(media_row, dict) else ""
+            source = (media_row.get("source") or "").strip() if isinstance(media_row, dict) else ""
+            post_date_str = ""
+            if published_at:
+                try:
+                    if hasattr(published_at, "strftime"):
+                        post_date_str = published_at.strftime("%d %b %Y")
+                        if getattr(published_at, "hour", 0) or getattr(published_at, "minute", 0):
+                            post_date_str = published_at.strftime("%d %b %Y, %H:%M")
+                    else:
+                        post_date_str = str(published_at)[:16]
+                except Exception:
+                    post_date_str = str(published_at)[:16] if published_at else ""
+            sailor_name = ""
+            try:
+                from jobs.sailor_media_fetch import get_sailor_name
+                sailor_name = (get_sailor_name(conn, sa_id_safe) or "").strip()
+            except Exception:
+                pass
+            token = hashlib.sha256(os.urandom(32)).hexdigest()[:32]
+            try:
+                cur.execute("""
+                    INSERT INTO sailor_media_delete_requests (sa_id, url, reason, confirm_token)
+                    VALUES (%s, %s, %s, %s)
+                """, (sa_id_safe, url, reason[:2000], token))
+                conn.commit()
+            except Exception as e:
+                conn.rollback()
+                return_db_connection(conn)
+                raise HTTPException(status_code=500, detail="Could not save delete request. Table may not exist.")
+            cur.close()
+            admin_email = os.getenv("ADMIN_EMAIL", "")
+            if admin_email:
+                try:
+                    import smtplib
+                    from email.mime.text import MIMEText
+                    base_url = (os.getenv("BASE_URL") or "https://sailingsa.co.za").rstrip("/")
+                    confirm_link = f"{base_url}/api/admin/confirm-media-delete?token={token}"
+                    body_lines = [
+                        "A sailor has requested removal of a system-added media item. Details below so you can see what will be deleted.",
+                        "",
+                        "--- SAILOR ---",
+                        "Name: " + (sailor_name or "(unknown)"),
+                        "SA Sailing ID: " + str(sa_id_safe),
+                        "",
+                        "--- MEDIA (as shown on Sailor Media tab) ---",
+                        "Heading: " + (headline or "(none)"),
+                        "Post date: " + (post_date_str or "(none)"),
+                        "Source: " + (source or "(none)"),
+                        "URL: " + url,
+                        "Thumbnail: " + (thumb_url or "(none)"),
+                        "",
+                        "Lead content (snippet):",
+                        (snippet[:800] + ("..." if len(snippet) > 800 else "")) if snippet else "(none)",
+                        "",
+                        "--- SAILOR'S REASON FOR REMOVAL ---",
+                        reason,
+                        "",
+                        "--- AUTHORIZE DELETE ---",
+                        "Click the link below to authorize deletion of this media post. This cannot be undone.",
+                        confirm_link,
+                    ]
+                    msg = MIMEText("\n".join(body_lines))
+                    msg["Subject"] = "Media delete request – " + (sailor_name or sa_id_safe) + " – " + (headline[:50] + "..." if len(headline or "") > 50 else (headline or "media"))
+                    msg["From"] = os.getenv("MAIL_FROM", "noreply@sailingsa.co.za")
+                    msg["To"] = admin_email
+                    s = smtplib.SMTP(os.getenv("SMTP_HOST", "localhost"), int(os.getenv("SMTP_PORT", "25")))
+                    s.send_message(msg)
+                    s.quit()
+                except Exception:
+                    pass
+            return_db_connection(conn)
+            return {"success": True, "message": "Delete request submitted. An admin will review.", "request_submitted": True}
+        if not body.get("confirm"):
+            return_db_connection(conn)
+            raise HTTPException(status_code=400, detail="Add confirm: true to confirm deletion.")
+        cur.execute("DELETE FROM sailor_public_mentions WHERE sa_id::text = %s AND url = %s RETURNING url", (sa_id_safe, url))
+        deleted = cur.fetchone()
+        conn.commit()
+        cur.close()
+        if not deleted:
+            return_db_connection(conn)
+            raise HTTPException(status_code=404, detail="Media item not found.")
+    finally:
+        return_db_connection(conn)
+    return {"success": True, "deleted": url}
+
+
+@app.get("/api/admin/confirm-media-delete")
+async def api_admin_confirm_media_delete(token: str = Query(None)):
+    """Admin: confirm a sailor's request to delete a system-added media URL. Link sent by email. One click authorizes delete."""
+    if not token or not token.strip():
+        raise HTTPException(status_code=400, detail="Missing token.")
+    token = token.strip()
+    conn = get_db_connection()
+    sailor_name = ""
+    headline = ""
+    url = ""
+    reason = ""
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            cur.execute("""
+                SELECT id, sa_id, url, reason FROM sailor_media_delete_requests
+                WHERE confirm_token = %s AND resolved_at IS NULL
+            """, (token,))
+        except Exception:
+            return_db_connection(conn)
+            return HTMLResponse("<html><body><p>Delete requests table not available.</p></body></html>", status_code=503)
+        row = cur.fetchone()
+        if not row:
+            return_db_connection(conn)
+            return HTMLResponse("<html><body><p>Invalid or already used token.</p></body></html>", status_code=404)
+        sa_id = row["sa_id"]
+        url = row["url"] or ""
+        reason = (row.get("reason") or "").strip()
+        cur.execute("SELECT headline FROM sailor_public_mentions WHERE sa_id::text = %s AND url = %s", (sa_id, url))
+        m = cur.fetchone()
+        headline = (m.get("headline") or "").strip() if isinstance(m, dict) else ""
+        try:
+            from jobs.sailor_media_fetch import get_sailor_name
+            sailor_name = (get_sailor_name(conn, sa_id) or "").strip()
+        except Exception:
+            pass
+        cur.execute("DELETE FROM sailor_public_mentions WHERE sa_id::text = %s AND url = %s", (sa_id, url))
+        cur.execute("""
+            UPDATE sailor_media_delete_requests SET resolved_at = NOW(), resolved_by = 'email_confirm' WHERE confirm_token = %s
+        """, (token,))
+        conn.commit()
+        cur.close()
+    finally:
+        return_db_connection(conn)
+    esc = lambda s: (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+    html = (
+        "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Media deleted</title></head><body style='font-family:sans-serif;max-width:600px;margin:2rem auto;padding:1rem;'>"
+        "<h1>Media post deleted</h1>"
+        "<p>The following media has been removed from the sailor's Media tab as requested.</p>"
+        "<p><strong>Sailor:</strong> " + esc(sailor_name or "—") + " (ID: " + esc(str(sa_id)) + ")</p>"
+        "<p><strong>Heading:</strong> " + esc(headline or "—") + "</p>"
+        "<p><strong>URL:</strong> <a href='" + esc(url) + "'>" + esc(url) + "</a></p>"
+        + ("<p><strong>Reason given:</strong> " + esc(reason) + "</p>" if reason else "")
+        + "<p>You can close this page.</p></body></html>"
+    )
+    return HTMLResponse(html)
+
+
+@app.get("/api/sailors/{sa_id}/media")
+def api_sailors_media(sa_id: str):
+    """Sailor media mentions (same data as /api/member/{sa_id}/public-mentions). Fetch by sa_id only."""
+    return api_member_public_mentions(sa_id)
+
 
 @app.get("/api/member/{sa_id}/highlights")
 def api_member_highlights(sa_id: str):
@@ -1820,6 +3577,63 @@ def api_member_results(sa_id: str, request: Request = None):
         if 'conn' in locals():
             return_db_connection(conn)
 
+@app.get("/api/results/lite")
+def api_results_lite(request: Request, sa_id: str = Query(..., description="SA Sailing ID")):
+    """Alias for /api/member/{sa_id}/results - frontend compatibility."""
+    return api_member_results(sa_id, request)
+
+@app.get("/api/results/full")
+def api_results_full(request: Request, sa_id: str = Query(..., description="SA Sailing ID")):
+    """Alias for /api/member/{sa_id}/results - frontend compatibility."""
+    return api_member_results(sa_id, request)
+
+
+def _resolve_regatta_id_for_results(regatta_id: str):
+    """If regatta_id is numeric, try to resolve to string regatta_id from regattas.regatta_number."""
+    if not regatta_id or not str(regatta_id).strip().isdigit():
+        return str(regatta_id).strip()
+    try:
+        rows = q("SELECT regatta_id FROM regattas WHERE regatta_number::text = %s LIMIT 1", (str(regatta_id).strip(),))
+        if rows and rows[0]:
+            return (rows[0].get("regatta_id") or regatta_id)
+    except Exception:
+        pass
+    return str(regatta_id).strip()
+
+
+def _resolve_class_id_for_results(class_id: str):
+    """If class_id is numeric, try to resolve to class_name from classes (id or class_id column if present)."""
+    if not class_id or not str(class_id).strip().isdigit():
+        return str(class_id).strip()
+    try:
+        for col in ("id", "class_id"):
+            try:
+                rows = q(f"SELECT class_name FROM classes WHERE {col}::text = %s LIMIT 1", (str(class_id).strip(),))
+                if rows and rows[0] and rows[0].get("class_name"):
+                    return rows[0]["class_name"]
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return str(class_id).strip()
+
+
+@app.get("/api/results/regatta/{regatta_id}/class/{class_id}")
+@app.get("/api/results/regatta/{regatta_id}/class/{class_id}/")
+def api_results_regatta_class(regatta_id: str, class_id: str):
+    """Return class results for regatta. Matches frontend GET /api/results/regatta/1321/class/112/."""
+    resolved_regatta = _resolve_regatta_id_for_results(regatta_id)
+    resolved_class = _resolve_class_id_for_results(class_id)
+    try:
+        rows = api_regatta(resolved_regatta)
+    except HTTPException:
+        raise
+    filtered = _filter_regatta_rows_by_class(rows, resolved_class)
+    if not filtered:
+        raise HTTPException(status_code=404, detail="Class not found or no results")
+    return filtered
+
+
 @app.get("/api/sa-id-stats")
 def api_sa_id_stats():
     try:
@@ -1915,7 +3729,12 @@ def api_list_clubs():
       WHERE COALESCE(TRIM({code_col or name_col}), '') <> ''
       ORDER BY {order_col}
     """
-    return q(sql)
+    rows = q(sql)
+    # Add slug for /club/{slug} links
+    for r in rows or []:
+        name = (r.get("name") or r.get("code") or "").strip()
+        r["slug"] = _club_slug_from_name(name) if name else ""
+    return rows
 
 @app.get("/api/member/search")
 def api_search_members(
@@ -3285,10 +5104,9 @@ def _result_row_term_match_sql(term: str, params: list, escape: bool = True) -> 
     # sail_number (cast to text for ILIKE), boat_name
     conds.append("(res.sail_number::text ILIKE %s OR LOWER(COALESCE(res.boat_name, '')) LIKE %s)")
     params.extend([pat, pat])
-    # club: sailor's club (linked club c OR raw club on result) and regatta name/host (r2)
-    # So "HYC" matches: regatta with HYC in name, or any regatta with a sailor from HYC (club_id or club_raw)
-    conds.append("(LOWER(COALESCE(c.club_abbrev, '')) LIKE %s OR LOWER(COALESCE(c.club_fullname, '')) LIKE %s OR LOWER(COALESCE(res.club_raw, '')) LIKE %s OR LOWER(COALESCE(r2.host_club_name, '')) LIKE %s OR LOWER(COALESCE(r2.event_name, '')) LIKE %s)")
-    params.extend([pat, pat, pat, pat, pat])
+    # regatta host/name only: "HYC" matches regattas HOSTED by HYC or with HYC in event name, NOT where a sailor from HYC sailed
+    conds.append("(LOWER(COALESCE(r2.host_club_name, '')) LIKE %s OR LOWER(COALESCE(r2.event_name, '')) LIKE %s)")
+    params.extend([pat, pat])
     # class: match any alias
     for a in class_aliases:
         apat = f"%{(_escape_like(a) if escape else a)}%"
@@ -3490,16 +5308,90 @@ def api_regattas_with_counts(
                         d["match_reason"] = detail["match_reason"]
                         d["match_reason_term"] = detail.get("match_reason_term")
                     else:
-                        club_like = [t for t in terms_for_reason if 2 <= len(t) <= 6 and t.isalpha()]
-                        if club_like:
-                            d["match_reason"] = "Contains " + club_like[0].upper() + " Club sailors"
-                        else:
-                            d["match_reason"] = "Contains matching sailors or clubs"
+                        d["match_reason"] = "Host or event name match"
                         d["match_reason_term"] = None
             else:
                 d["match_reason"] = None
                 d["match_reason_term"] = None
             out.append(d)
+
+        # Deduplicate by regatta_number: each regatta number appears once. Entries = full regatta total (all classes).
+        total_entries_by_num = {}
+        for d in out:
+            num = d.get("regatta_number")
+            key = num if num is not None else d.get("regatta_id", "")
+            total_entries_by_num[key] = total_entries_by_num.get(key, 0) + (d.get("entries_count") or 0)
+        by_regatta_number = {}
+        for d in out:
+            num = d.get("regatta_number")
+            key = num if num is not None else d.get("regatta_id", "")
+            name_len = len((d.get("event_name") or "").strip())
+            is_best = d.get("match_reason") == "Best match"
+            if key not in by_regatta_number:
+                chosen = dict(d)
+                chosen["entries_count"] = total_entries_by_num.get(key, d.get("entries_count") or 0)
+                by_regatta_number[key] = chosen
+            else:
+                cur = by_regatta_number[key]
+                cur_best = cur.get("match_reason") == "Best match"
+                cur_len = len((cur.get("event_name") or "").strip())
+                if (is_best and not cur_best) or (is_best == cur_best and name_len < cur_len):
+                    chosen = dict(d)
+                    chosen["entries_count"] = total_entries_by_num.get(key, d.get("entries_count") or 0)
+                    by_regatta_number[key] = chosen
+        out = list(by_regatta_number.values())
+
+        # Overwrite entries_count with actual total from results (full regatta, all classes) so Entries is never 0 when regatta has results
+        if out:
+            regatta_numbers = [r["regatta_number"] for r in out if r.get("regatta_number") is not None]
+            null_num_ids = [r["regatta_id"] for r in out if r.get("regatta_id") and r.get("regatta_number") is None]
+            total_by_num = {}
+            total_by_id = {}
+            try:
+                if regatta_numbers:
+                    cur.execute("""
+                        SELECT r.regatta_number, COUNT(DISTINCT res.result_id) AS cnt
+                        FROM regattas r
+                        LEFT JOIN results res ON res.regatta_id = r.regatta_id
+                        WHERE r.regatta_number = ANY(%s)
+                        GROUP BY r.regatta_number
+                    """, (regatta_numbers,))
+                    for r in cur.fetchall():
+                        total_by_num[r["regatta_number"]] = r.get("cnt") or 0
+                if null_num_ids:
+                    cur.execute("""
+                        SELECT regatta_id, COUNT(DISTINCT result_id) AS cnt
+                        FROM results
+                        WHERE regatta_id = ANY(%s)
+                        GROUP BY regatta_id
+                    """, (null_num_ids,))
+                    for r in cur.fetchall():
+                        total_by_id[r["regatta_id"]] = r.get("cnt") or 0
+                for d in out:
+                    num = d.get("regatta_number")
+                    rid = d.get("regatta_id")
+                    if num is not None:
+                        d["entries_count"] = total_by_num.get(num, d.get("entries_count") or 0)
+                    else:
+                        d["entries_count"] = total_by_id.get(rid, d.get("entries_count") or 0)
+            except Exception:
+                pass
+
+        # Sort: best match first, then by regatta_number desc, year desc
+        if name_match_sql is not None and terms_for_reason:
+            out.sort(key=lambda x: (0 if x.get("match_reason") == "Best match" else 1, -(x.get("regatta_number") or 0), -(x.get("year") or 0), str(x.get("start_date") or "")))
+        else:
+            out.sort(key=lambda x: (-(x.get("regatta_number") or 0), -(x.get("year") or 0), str(x.get("start_date") or "")))
+
+        # Add slug for /regatta/{slug} URLs (same logic as _get_regatta_by_slug)
+        for d in out:
+            name = (d.get("event_name") or "").strip()
+            if name:
+                s = re.sub(r"[^\w\s\-]", "", name).strip().lower()
+                d["slug"] = re.sub(r"\s+", "-", s).strip("-")
+            else:
+                d["slug"] = ""
+
         return out
     except Exception as e:
         print(f"Error fetching regattas: {e}")
@@ -3574,6 +5466,7 @@ def api_regatta(regatta_id: str):
                 res.club_raw,
                 res.club_id,
                 c2.club_abbrev as club_abbrev,
+                COALESCE(c2.club_fullname, c2.club_abbrev) as club_fullname,
                 res.race_scores,
                 res.total_points_raw,
                 res.nett_points_raw,
@@ -3586,6 +5479,8 @@ def api_regatta(regatta_id: str):
                 res.bow_no,
                 res.hull_no,
                 res.raced,
+                res.class_canonical as result_class_canonical,
+                res.class_original as result_class_original,
                 COALESCE(cls.class_name, rb.class_canonical, rb.class_original) as class_name
             FROM regattas r
             LEFT JOIN clubs c ON c.club_id = r.host_club_id
@@ -3597,6 +5492,38 @@ def api_regatta(regatta_id: str):
             ORDER BY rb.block_id, COALESCE(res.rank, 99999), res.result_id
         """, (regatta_id,))
         
+        # If slug-like regatta_id (e.g. from sailor profile "334-2025-overberg-champs"), try regatta_number
+        if not rows and regatta_id and "-" in str(regatta_id).strip():
+            try:
+                first_part = str(regatta_id).strip().split("-")[0]
+                if first_part.isdigit():
+                    rows = q("""
+                        SELECT r.regatta_id FROM regattas r WHERE r.regatta_number::text = %s LIMIT 1
+                    """, (first_part,))
+                    if rows and rows[0]:
+                        resolved_id = str(rows[0].get("regatta_id") or first_part)
+                        rows = q("""
+                            SELECT 
+                                r.regatta_id, r.event_name, r.year, r.regatta_number, r.result_status, r.as_at_time, r.host_club_id,
+                                c.club_abbrev as host_club_code, COALESCE(c.club_fullname, c.club_abbrev) as host_club_name,
+                                rb.block_id, rb.fleet_label, rb.class_canonical, rb.class_original, rb.races_sailed, rb.discard_count, rb.to_count, rb.scoring_system,
+                                res.result_id, res.rank, res.helm_name, res.crew_name, res.sail_number, res.club_raw, res.club_id, c2.club_abbrev as club_abbrev,
+                                COALESCE(c2.club_fullname, c2.club_abbrev) as club_fullname,
+                                res.race_scores, res.total_points_raw, res.nett_points_raw, res.helm_sa_sailing_id, res.crew_sa_sailing_id, res.helm_temp_id, res.crew_temp_id,
+                                res.boat_name, res.jib_no, res.bow_no, res.hull_no, res.raced,
+                                res.class_canonical as result_class_canonical, res.class_original as result_class_original,
+                                COALESCE(cls.class_name, rb.class_canonical, rb.class_original) as class_name
+                            FROM regattas r
+                            LEFT JOIN clubs c ON c.club_id = r.host_club_id
+                            LEFT JOIN regatta_blocks rb ON rb.regatta_id = r.regatta_id
+                            LEFT JOIN results res ON res.block_id = rb.block_id
+                            LEFT JOIN clubs c2 ON c2.club_id = res.club_id
+                            LEFT JOIN classes cls ON cls.class_name = rb.class_canonical OR LOWER(cls.class_name) = LOWER(rb.class_canonical)
+                            WHERE r.regatta_id = %s
+                            ORDER BY rb.block_id, COALESCE(res.rank, 99999), res.result_id
+                        """, (resolved_id,))
+            except Exception:
+                pass
         if not rows:
             raise HTTPException(status_code=404, detail="Regatta not found")
         
@@ -3735,16 +5662,275 @@ def api_regatta(regatta_id: str):
         first_row['helms_total'] = helms_total
         first_row['crews_total'] = crews_total
         first_row['sailors_total'] = sailors_total
-        
+
+        # Add club_slug and host_club_slug for /club/{slug} links
+        host_club_slug = _get_club_slug_by_id(first_row.get('host_club_id')) if first_row.get('host_club_id') else ''
+        for r in rows:
+            name = (r.get('club_fullname') or r.get('club_abbrev') or r.get('club_raw') or '').strip()
+            r['club_slug'] = _club_slug_from_name(name) if name else ''
+            r['host_club_slug'] = host_club_slug or ''
+
         return rows
     except Exception as e:
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@app.get("/api/regatta/{regatta_id}/podium.png")
+def api_regatta_podium_png(regatta_id: str, class_name: str = Query(..., alias="class")):
+    """Generate podium PNG for regatta class (overlays top 3 on master-podium.png)."""
+    _proj = os.path.dirname(os.path.abspath(__file__))
+    if _proj not in sys.path:
+        sys.path.insert(0, _proj)
+    try:
+        from scripts.generate_podium import render_podium_to_bytes, regatta_rows_to_podium_data
+    except ImportError as e:
+        print(f"[podium] Import error: {e}")
+        raise HTTPException(status_code=503, detail=f"Podium generation unavailable: {e}")
+
+    try:
+        rows = api_regatta(regatta_id)
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[podium] api_regatta error: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to load regatta: {e}")
+
+    data_by_place = regatta_rows_to_podium_data(rows, class_name)
+    if not data_by_place:
+        raise HTTPException(status_code=404, detail=f"No podium data for class '{class_name}'")
+
+    try:
+        png_bytes = render_podium_to_bytes(data_by_place)
+    except FileNotFoundError as e:
+        print(f"[podium] FileNotFoundError: {e}")
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        print(f"[podium] render_podium_to_bytes error: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Podium image generation failed: {e}")
+
+    return Response(content=png_bytes, media_type="image/png")
+
+
+def _filter_regatta_rows_by_class(rows: list, class_id: str):
+    """Filter regatta rows (from api_regatta) to those matching class_id (block_id or class name)."""
+    if not rows or not class_id:
+        return []
+    class_id = str(class_id).strip()
+    class_id_lower = class_id.lower()
+    out = []
+    for r in rows:
+        if not r.get("result_id"):
+            continue
+        block_id = (r.get("block_id") or "").strip()
+        class_canonical = (r.get("class_canonical") or r.get("class_original") or r.get("class_name") or "").strip()
+        if block_id == class_id:
+            out.append(r)
+            continue
+        if class_canonical.lower() == class_id_lower:
+            out.append(r)
+            continue
+        if class_id_lower in class_canonical.lower() or class_canonical.lower() in class_id_lower:
+            out.append(r)
+    out.sort(key=lambda x: (int(x.get("rank")) if x.get("rank") is not None and str(x.get("rank")).isdigit() else 9999, x.get("result_id") or 0))
+    return out
+
+
+@app.get("/api/regattas/{regatta_id}/classes/{class_id}/results")
+def api_regattas_class_results(regatta_id: str, class_id: str):
+    """Return class results for a regatta. Matches frontend getClassResults(regattaId, classId)."""
+    try:
+        rows = api_regatta(regatta_id)
+    except HTTPException:
+        raise
+    filtered = _filter_regatta_rows_by_class(rows, class_id)
+    if not filtered:
+        raise HTTPException(status_code=404, detail="Class not found or no results")
+    return filtered
+
+
+@app.get("/api/regattas/{regatta_id}/classes/{class_id}/podium")
+def api_regattas_class_podium(regatta_id: str, class_id: str):
+    """Return top 3 (podium) for a regatta class. Matches frontend getPodium(regattaId, classId)."""
+    try:
+        rows = api_regatta(regatta_id)
+    except HTTPException:
+        raise
+    filtered = _filter_regatta_rows_by_class(rows, class_id)
+    podium = [r for r in filtered[:3] if r.get("result_id")]
+    if not podium:
+        raise HTTPException(status_code=404, detail="Class not found or no podium results")
+    return podium
+
+
+@app.get("/api/regattas/class/podium/overall/{overall_id}/class/{class_id}/regatta/{regatta_id}")
+def api_regattas_class_podium_alt(overall_id: str, class_id: str, regatta_id: str):
+    """Alternate path: class/podium/overall/.../class/{class_id}/regatta/{regatta_id}. Returns podium JSON."""
+    return api_regattas_class_podium(regatta_id, class_id)
+
+
+@app.get("/api/regattas/class/results/overall/{overall_id}/class/{class_id}/regatta/{regatta_id}")
+def api_regattas_class_results_alt(overall_id: str, class_id: str, regatta_id: str):
+    """Alternate path: class/results/overall/.../class/{class_id}/regatta/{regatta_id}. Returns results JSON."""
+    return api_regattas_class_results(regatta_id, class_id)
+
+
+# Must be before /api/sailor/{sailor_id} so "resolve" is not matched as sailor_id
+@app.get("/api/sailor/resolve")
+def api_sailor_resolve(
+    slug: Optional[str] = Query(None, alias="slug"),
+    sas_id: Optional[str] = Query(None, alias="sas_id"),
+):
+    """Resolve /sailor/<slug> to sailor identity, or get canonical slug for sas_id. Returns { sas_id, name, slug, canonical_url }."""
+    base_url = (os.getenv("BASE_URL") or "https://sailingsa.co.za").rstrip("/")
+    if sas_id and str(sas_id).strip().isdigit():
+        full_name, canonical_slug = _get_sailor_by_sas_id_for_redirect(str(sas_id).strip())
+        if full_name is not None and canonical_slug:
+            return {
+                "sas_id": str(sas_id).strip(),
+                "name": full_name,
+                "slug": canonical_slug,
+                "canonical_url": f"{base_url}/sailor/{canonical_slug}",
+            }
+        raise HTTPException(status_code=404, detail="sailor not found")
+    if not slug or not slug.strip():
+        raise HTTPException(status_code=400, detail="slug or sas_id required")
+    slug = slug.strip()
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            m = re.match(r"^(.+)-(\d+)$", slug)
+            if m:
+                name_part, sid = m.group(1), m.group(2)
+                cur.execute("""
+                    SELECT sa_sailing_id::text AS sas_id,
+                        COALESCE(TRIM(full_name), TRIM(first_name || ' ' || COALESCE(last_name, ''))) AS full_name
+                    FROM public.sas_id_personal WHERE sa_sailing_id::text = %s LIMIT 1
+                """, (sid,))
+                row = cur.fetchone()
+                if row:
+                    name = (row.get("full_name") or "").strip()
+                    canonical_slug = _sailor_canonical_slug(name, sid, True)
+                    return {"sas_id": sid, "name": name, "slug": canonical_slug, "canonical_url": f"{base_url}/sailor/{canonical_slug}"}
+            # Normalize slug to comparable name: hyphens and spaces both become single space (so "mia-strydom-wallis" matches "Mia Strydom-Wallis")
+            name_from_slug = re.sub(r"\s+", " ", slug.replace("-", " ").strip()).lower()
+            if not name_from_slug:
+                raise HTTPException(status_code=404, detail="sailor not found")
+            cur.execute("""
+                SELECT sa_sailing_id::text AS sas_id,
+                    COALESCE(TRIM(full_name), TRIM(first_name || ' ' || COALESCE(last_name, ''))) AS full_name
+                FROM public.sas_id_personal
+                WHERE REGEXP_REPLACE(LOWER(TRIM(REPLACE(COALESCE(full_name, first_name || ' ' || COALESCE(last_name, '')), '-', ' '))), '\\s+', ' ', 'g') = %s
+                LIMIT 2
+            """, (name_from_slug,))
+            rows = cur.fetchall()
+            if not rows:
+                raise HTTPException(status_code=404, detail="sailor not found")
+            if len(rows) == 1:
+                r = rows[0]
+                sid = str(r.get("sas_id") or "")
+                name = (r.get("full_name") or "").strip()
+                canonical_slug = _sailor_canonical_slug(name, sid, False)
+                return {"sas_id": sid, "name": name, "slug": canonical_slug, "canonical_url": f"{base_url}/sailor/{canonical_slug}"}
+            for r in rows:
+                sid = str(r.get("sas_id") or "")
+                name = (r.get("full_name") or "").strip()
+                cand = _sailor_canonical_slug(name, sid, True)
+                if cand == slug:
+                    return {"sas_id": sid, "name": name, "slug": cand, "canonical_url": f"{base_url}/sailor/{cand}"}
+            r = rows[0]
+            sid = str(r.get("sas_id") or "")
+            name = (r.get("full_name") or "").strip()
+            canonical_slug = _sailor_canonical_slug(name, sid, True)
+            return {"sas_id": sid, "name": name, "slug": canonical_slug, "canonical_url": f"{base_url}/sailor/{canonical_slug}"}
+        finally:
+            cur.close()
+            conn.close()
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[SEO] api_sailor_resolve: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="resolve failed")
+
+
+def _get_sas_id_by_slug(slug: str):
+    """Return sas_id for slug or None. Used by /api/sailor/results/{slug} and /api/regatta/results/{slug}."""
+    if not slug or not slug.strip():
+        return None
+    slug = slug.strip()
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            m = re.match(r"^(.+)-(\d+)$", slug)
+            if m:
+                sid = m.group(2)
+                cur.execute(
+                    "SELECT sa_sailing_id::text AS sas_id FROM public.sas_id_personal WHERE sa_sailing_id::text = %s LIMIT 1",
+                    (sid,),
+                )
+                row = cur.fetchone()
+                if row:
+                    return str(row.get("sas_id") or "")
+                return None
+            name_from_slug = re.sub(r"\s+", " ", slug.replace("-", " ").strip()).lower()
+            if not name_from_slug:
+                return None
+            cur.execute("""
+                SELECT sa_sailing_id::text AS sas_id FROM public.sas_id_personal
+                WHERE REGEXP_REPLACE(LOWER(TRIM(REPLACE(COALESCE(full_name, first_name || ' ' || COALESCE(last_name, '')), '-', ' '))), '\\s+', ' ', 'g') = %s
+                LIMIT 1
+            """, (name_from_slug,))
+            row = cur.fetchone()
+            if row:
+                return str(row.get("sas_id") or "")
+            return None
+        finally:
+            cur.close()
+            conn.close()
+    except Exception as e:
+        print(f"[api] _get_sas_id_by_slug: {e}")
+        return None
+
+
+@app.get("/api/sailor/results/{slug}")
+def api_sailor_results_by_slug(slug: str, request: Request):
+    """Results by sailor slug – used by result sheet popup. Resolves slug to sas_id then returns member results."""
+    sas_id = _get_sas_id_by_slug(slug)
+    if not sas_id:
+        raise HTTPException(status_code=404, detail="sailor not found")
+    return api_member_results(sas_id, request)
+
+
+@app.get("/api/results/sailor/{slug}")
+@app.get("/api/results/sailor/{slug}/")
+def api_results_sailor_by_slug(slug: str, request: Request):
+    """Alias for /api/sailor/results/{slug} – frontend/iframe may call /api/results/sailor/{slug}/."""
+    return api_sailor_results_by_slug(slug, request)
+
+
+@app.get("/api/regatta/results/{slug}")
+def api_regatta_results_by_slug(slug: str, request: Request):
+    """Results by sailor slug (same as sailor/results) – frontend result sheet popup may call either URL."""
+    sas_id = _get_sas_id_by_slug(slug)
+    if not sas_id:
+        raise HTTPException(status_code=404, detail="sailor not found")
+    return api_member_results(sas_id, request)
+
+
 @app.get("/api/sailor/{sailor_id}")
 def api_sailor_details(sailor_id: str):
-    """Get full sailor details by SA ID or Temp ID for tooltip display"""
+    """Get full sailor details by SA ID, Temp ID, or slug (e.g. tristan-gress) for tooltip/profile."""
+    # If not numeric and not TMP, treat as slug so /api/sailor/tristan-gress works like /api/sailor/8612
+    if sailor_id and not sailor_id.isdigit() and not sailor_id.upper().startswith("TMP"):
+        resolved_id = _get_sas_id_by_slug(sailor_id)
+        if resolved_id:
+            sailor_id = resolved_id
     with psycopg2.connect(DB_URL) as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             # Check if it's a temp ID
@@ -5885,7 +8071,7 @@ async def facebook_auth(request: Request):
     # Remove port if present and use 8082 for HTTPS
     if ":" in host:
         host = host.split(":")[0]
-    redirect_uri = f"https://{host}:8082/auth/facebook/callback"
+    redirect_uri = f"https://{host}/auth/facebook/callback"
     
     # Detect mobile
     user_agent = request.headers.get("user-agent", "").lower()
@@ -5904,13 +8090,13 @@ async def facebook_auth(request: Request):
 async def facebook_callback(request: Request, code: Optional[str] = None, state: Optional[str] = None, error: Optional[str] = None):
     """Handle Facebook OAuth callback"""
     if error:
-        return RedirectResponse(f"/sailingsa/frontend/login.html?error=facebook_login_failed")
+        return RedirectResponse(f"/login.html?error=facebook_login_failed")
     
     if not code:
-        return RedirectResponse(f"/sailingsa/frontend/login.html?error=facebook_no_code")
+        return RedirectResponse(f"/login.html?error=facebook_no_code")
     
     if not FACEBOOK_APP_ID or not FACEBOOK_APP_SECRET:
-        return RedirectResponse(f"/sailingsa/frontend/login.html?error=facebook_not_configured")
+        return RedirectResponse(f"/login.html?error=facebook_not_configured")
     
     try:
         # Exchange code for access token - Facebook requires HTTPS
@@ -5919,7 +8105,7 @@ async def facebook_callback(request: Request, code: Optional[str] = None, state:
         # Remove port if present and use 8082 for HTTPS
         if ":" in host:
             host = host.split(":")[0]
-        redirect_uri = f"https://{host}:8082/auth/facebook/callback"
+        redirect_uri = f"https://{host}/auth/facebook/callback"
         
         import requests
         token_url = "https://graph.facebook.com/v18.0/oauth/access_token"
@@ -5933,7 +8119,7 @@ async def facebook_callback(request: Request, code: Optional[str] = None, state:
         token_data = token_response.json()
         
         if "access_token" not in token_data:
-            return RedirectResponse(f"/sailingsa/frontend/login.html?error=facebook_token_failed")
+            return RedirectResponse(f"/login.html?error=facebook_token_failed")
         
         access_token = token_data["access_token"]
         
@@ -5951,7 +8137,7 @@ async def facebook_callback(request: Request, code: Optional[str] = None, state:
         picture_url = profile_data.get("picture", {}).get("data", {}).get("url") if profile_data.get("picture") else None
         
         if not facebook_id:
-            return RedirectResponse(f"/sailingsa/frontend/login.html?error=facebook_no_id")
+            return RedirectResponse(f"/login.html?error=facebook_no_id")
         
         # Parse name
         name_parts = facebook_name.split(" ", 1) if facebook_name else ["", ""]
@@ -5986,7 +8172,7 @@ async def facebook_callback(request: Request, code: Optional[str] = None, state:
                 conn.close()
                 
                 # Redirect to confirmation page to link to real SAS ID
-                confirm_url = f"/sailingsa/frontend/facebook-confirm.html?first_names={account_details['first_name'] or first_name}&surname={account_details['last_name'] or last_name}&facebook_id={facebook_id}&facebook_name={account_details['full_name'] or facebook_name}"
+                confirm_url = f"/facebook-confirm.html?first_names={account_details['first_name'] or first_name}&surname={account_details['last_name'] or last_name}&facebook_id={facebook_id}&facebook_name={account_details['full_name'] or facebook_name}"
                 return RedirectResponse(confirm_url)
             
             # Real SAS ID - create session and redirect directly to landing page
@@ -6005,7 +8191,7 @@ async def facebook_callback(request: Request, code: Optional[str] = None, state:
             
             # Redirect directly to landing page with session token
             # Use HTTP (8081) for the landing page
-            landing_url = f"http://192.168.0.130:8081/sailingsa/frontend/index.html?session={session_token}"
+            landing_url = f"http://192.168.0.130:8081/index.html?session={session_token}"
             return RedirectResponse(landing_url)
         else:
             # New user - redirect to confirmation page to search for real SAS ID
@@ -6031,13 +8217,13 @@ async def facebook_callback(request: Request, code: Optional[str] = None, state:
             # Redirect to confirmation page to search for real SAS ID
             # Store profile picture path in URL if saved (will be used when account is created)
             pic_param = f"&profile_pic={profile_pic_path}" if profile_pic_path else ""
-            confirm_url = f"/sailingsa/frontend/facebook-confirm.html?first_names={first_name}&surname={last_name}&facebook_id={facebook_id}&facebook_name={facebook_name}{pic_param}"
+            confirm_url = f"/facebook-confirm.html?first_names={first_name}&surname={last_name}&facebook_id={facebook_id}&facebook_name={facebook_name}{pic_param}"
             return RedirectResponse(confirm_url)
             
     except Exception as e:
         print(f"Facebook callback error: {e}")
         traceback.print_exc()
-        return RedirectResponse(f"/sailingsa/frontend/login.html?error=facebook_callback_error")
+        return RedirectResponse(f"/login.html?error=facebook_callback_error")
 
 @app.post("/profiles/search")
 async def profiles_search(request: Request):
@@ -6755,6 +8941,142 @@ def class_sailors(class_name: str):
         conn.close()
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Serve frontend from sailingsa/frontend so /index.html, /login.html match cloud. On server set STATIC_DIR=/var/www/sailingsa.
+FRONTEND_DIR = os.path.join(BASE_DIR, "sailingsa", "frontend")
+STATIC_DIR = os.getenv("STATIC_DIR") or (FRONTEND_DIR if os.path.isdir(FRONTEND_DIR) else BASE_DIR)
+
+CLUB_LOGO_DIR = os.path.join(BASE_DIR, "artwork", "Club Logo")
+
+# ---------- SEO: clean /sailor/<slug> URLs (name-first), 301 from ?sas_id= ----------
+def _slug_from_name(full_name: str) -> str:
+    """Build URL slug from sailor full name: lowercase, trim, & -> and, remove punctuation, spaces -> hyphens, collapse hyphens."""
+    if not full_name or not isinstance(full_name, str):
+        return ""
+    s = full_name.strip().lower().replace("&", " and ")
+    s = re.sub(r"[^\w\s\-]", "", s)
+    s = re.sub(r"\s+", "-", s)
+    s = re.sub(r"-+", "-", s).strip("-")
+    return s
+
+
+def _sailor_canonical_slug(full_name: str, sas_id: str, has_duplicate: bool) -> str:
+    """Canonical slug: name-only unless duplicate names exist, then name-sas_id."""
+    base = _slug_from_name(full_name)
+    if not base:
+        return f"sailor-{sas_id}" if sas_id else "sailor"
+    if has_duplicate and sas_id:
+        return f"{base}-{sas_id}"
+    return base
+
+
+def _get_sailor_by_sas_id_for_redirect(sas_id: str):
+    """Return (full_name, canonical_slug) for sailor or (None, None) if not found. Used for 301 redirect."""
+    if not sas_id or not str(sas_id).strip().isdigit():
+        return None, None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            cur.execute("""
+                SELECT sa_sailing_id::text AS sas_id,
+                    COALESCE(TRIM(full_name), TRIM(first_name || ' ' || COALESCE(last_name, ''))) AS full_name
+                FROM public.sas_id_personal
+                WHERE sa_sailing_id::text = %s
+                LIMIT 1
+            """, (str(sas_id).strip(),))
+            row = cur.fetchone()
+            if not row:
+                return None, None
+            full_name = (row.get("full_name") or "").strip()
+            if not full_name:
+                return None, None
+            # Check for duplicate names (same name slug)
+            name_slug = _slug_from_name(full_name)
+            cur.execute("""
+                SELECT COUNT(*) AS cnt FROM public.sas_id_personal
+                WHERE LOWER(TRIM(COALESCE(full_name, first_name || ' ' || COALESCE(last_name, '')))) = LOWER(%s)
+            """, (full_name,))
+            cnt = cur.fetchone().get("cnt", 0) or 0
+            has_dup = cnt > 1
+            canonical = _sailor_canonical_slug(full_name, str(row.get("sas_id") or sas_id), has_dup)
+            return full_name, canonical
+        finally:
+            cur.close()
+            conn.close()
+    except Exception as e:
+        print(f"[SEO] _get_sailor_by_sas_id_for_redirect: {e}")
+        return None, None
+
+
+def _get_sailor_name_by_slug(slug: str):
+    """Return (full_name, canonical_slug) for sailor or (None, None). Used for server-side SEO HTML."""
+    if not slug or not slug.strip():
+        return None, None
+    slug = slug.strip()
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            # Fast path: slug ends with -<digits>
+            m = re.match(r"^(.+)-(\d+)$", slug)
+            if m:
+                sid = m.group(2)
+                cur.execute("""
+                    SELECT sa_sailing_id::text AS sas_id,
+                        COALESCE(TRIM(full_name), TRIM(first_name || ' ' || COALESCE(last_name, ''))) AS full_name
+                    FROM public.sas_id_personal WHERE sa_sailing_id::text = %s LIMIT 1
+                """, (sid,))
+                row = cur.fetchone()
+                if row:
+                    name = (row.get("full_name") or "").strip()
+                    if name:
+                        return name, _sailor_canonical_slug(name, sid, True)
+                    return None, None
+            # By name: normalize slug (hyphens and spaces -> single space) so "mia-strydom-wallis" matches "Mia Strydom-Wallis"
+            name_from_slug = re.sub(r"\s+", " ", slug.replace("-", " ").strip()).lower()
+            if not name_from_slug:
+                return None, None
+            cur.execute("""
+                SELECT sa_sailing_id::text AS sas_id,
+                    COALESCE(TRIM(full_name), TRIM(first_name || ' ' || COALESCE(last_name, ''))) AS full_name
+                FROM public.sas_id_personal
+                WHERE REGEXP_REPLACE(LOWER(TRIM(REPLACE(COALESCE(full_name, first_name || ' ' || COALESCE(last_name, '')), '-', ' '))), '\\s+', ' ', 'g') = %s
+                LIMIT 2
+            """, (name_from_slug,))
+            rows = cur.fetchall()
+            if not rows:
+                return None, None
+            r = rows[0]
+            name = (r.get("full_name") or "").strip()
+            sid = str(r.get("sas_id") or "")
+            has_dup = len(rows) > 1
+            canonical = _sailor_canonical_slug(name, sid, has_dup)
+            return name, canonical
+        finally:
+            cur.close()
+            conn.close()
+    except Exception as e:
+        print(f"[SEO] _get_sailor_name_by_slug: {e}")
+        return None, None
+
+
+# 1x1 transparent PNG so club-logo returns 200 when no file exists (no 404 in console)
+_CLUB_LOGO_PLACEHOLDER = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+
+
+@app.get("/api/club-logo/{code}")
+def api_club_logo(code: str):
+    """Serve club logo: try jpg, png, jpeg. If none exist, return 200 with 1x1 transparent PNG (no 404)."""
+    if not (code and code.strip()):
+        raise HTTPException(status_code=400, detail="code required")
+    safe = re.sub(r"[^\w\-]", "", (code or "").strip())
+    if not safe:
+        raise HTTPException(status_code=400, detail="invalid code")
+    for ext in ("jpg", "png", "jpeg"):
+        path = os.path.join(CLUB_LOGO_DIR, safe + "." + ext)
+        if os.path.isfile(path):
+            return FileResponse(path, media_type="image/" + ("jpeg" if ext == "jpg" else ext))
+    return Response(content=_CLUB_LOGO_PLACEHOLDER, media_type="image/png")
 
 
 @app.get("/sailingsa/news")
@@ -6763,5 +9085,1100 @@ def redirect_sailingsa_news():
     return RedirectResponse("/sailingsa/news/")
 
 
-app.mount("/", StaticFiles(directory=BASE_DIR, html=True), name="static")
+@app.get("/sailingsa")
+@app.get("/sailingsa/")
+@app.get("/sailingsa/frontend")
+@app.get("/sailingsa/frontend/")
+def redirect_sailingsa_root():
+    """Redirect legacy /sailingsa paths to / so old bookmarks work."""
+    return RedirectResponse("/")
+
+
+# Admin/tool pages (project root). Change ADMIN_BASE when relocating to cloud (e.g. /v7/).
+ADMIN_BASE = "/admin"
+
+@app.get(f"{ADMIN_BASE}/regatta_viewer.html")
+def serve_admin_regatta_viewer():
+    return FileResponse(os.path.join(BASE_DIR, "regatta_viewer.html"))
+
+@app.get(f"{ADMIN_BASE}/search.html")
+def serve_admin_search():
+    return FileResponse(os.path.join(BASE_DIR, "search.html"))
+
+@app.get(f"{ADMIN_BASE}/boat_pedigree.html")
+def serve_admin_boat_pedigree():
+    return FileResponse(os.path.join(BASE_DIR, "boat_pedigree.html"))
+
+# Legacy redirects (root → admin) so old URLs still work
+@app.get("/regatta_viewer.html")
+def redirect_regatta_viewer(request: Request):
+    q = str(request.url.query)
+    return RedirectResponse(f"{ADMIN_BASE}/regatta_viewer.html" + ("?" + q if q else ""))
+
+@app.get("/search.html")
+def redirect_search(request: Request):
+    q = str(request.url.query)
+    return RedirectResponse(f"{ADMIN_BASE}/search.html" + ("?" + q if q else ""))
+
+@app.get("/boat_pedigree.html")
+def redirect_boat_pedigree(request: Request):
+    q = str(request.url.query)
+    return RedirectResponse(f"{ADMIN_BASE}/boat_pedigree.html" + ("?" + q if q else ""))
+
+
+# ---------- SEO: clean /sailor/<slug> URLs; 301 from ?sas_id=; serve SPA for /sailor/:slug and /regatta/:slug ----------
+_INDEX_HTML_PATH = os.path.join(STATIC_DIR, "index.html")
+
+
+def root_maybe_redirect_sas_id(
+    request: Request,
+    sas_id: Optional[str] = None,
+    sas_id_alt: Optional[str] = None,
+):
+    """If ?sas_id= present, 301 to /sailor/<slug>. Else serve index.html."""
+    sas_id = sas_id or sas_id_alt or request.query_params.get("sas_id") or request.query_params.get("sas-id")
+    if sas_id and str(sas_id).strip():
+        full_name, canonical_slug = _get_sailor_by_sas_id_for_redirect(str(sas_id).strip())
+        if canonical_slug:
+            return RedirectResponse(url=f"/sailor/{canonical_slug}", status_code=301)
+        return RedirectResponse(url="/", status_code=302)
+    if os.path.isfile(_INDEX_HTML_PATH):
+        return FileResponse(_INDEX_HTML_PATH, media_type="text/html")
+    raise HTTPException(status_code=404, detail="index.html not found")
+
+
+def index_html_maybe_redirect_sas_id(
+    request: Request,
+    sas_id: Optional[str] = None,
+    sas_id_alt: Optional[str] = None,
+):
+    """If ?sas_id= present, 301 to /sailor/<slug>. Else serve index.html."""
+    sas_id = sas_id or sas_id_alt or request.query_params.get("sas_id") or request.query_params.get("sas-id")
+    if sas_id and str(sas_id).strip():
+        full_name, canonical_slug = _get_sailor_by_sas_id_for_redirect(str(sas_id).strip())
+        if canonical_slug:
+            return RedirectResponse(url=f"/sailor/{canonical_slug}", status_code=301)
+        return RedirectResponse(url="/", status_code=302)
+    if os.path.isfile(_INDEX_HTML_PATH):
+        return FileResponse(_INDEX_HTML_PATH, media_type="text/html")
+    raise HTTPException(status_code=404, detail="index.html not found")
+
+
+def _get_sailor_regattas_for_seo(sas_id: str, limit: int = 30):
+    """Return list of (event_name, regatta_slug) for sailor's regattas. Real anchors for crawlers."""
+    if not sas_id:
+        return []
+    out = []
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            cur.execute("""
+                SELECT r.event_name, r.regatta_id
+                FROM results res
+                JOIN regattas r ON r.regatta_id = res.regatta_id
+                WHERE res.helm_sa_sailing_id::text = %s
+                  AND r.event_name IS NOT NULL AND TRIM(r.event_name) != ''
+                ORDER BY r.end_date DESC NULLS LAST, r.start_date DESC NULLS LAST
+                LIMIT %s
+            """, (str(sas_id), limit))
+            for row in cur.fetchall() or []:
+                ev_name = (row.get("event_name") or "").strip()
+                if ev_name:
+                    slug = re.sub(r"[^\w\s\-]", "", ev_name).strip().lower()
+                    slug = re.sub(r"\s+", "-", slug).strip("-")
+                    if slug:
+                        out.append((ev_name, slug))
+        finally:
+            cur.close()
+            conn.close()
+    except Exception:
+        pass
+    return out
+
+
+def _get_sailor_club_for_seo(sas_id: str) -> str:
+    """Return most common club name for sailor from results, or empty string."""
+    if not sas_id:
+        return ""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            cur.execute("""
+                SELECT COALESCE(c.club_fullname, c.club_abbrev, r.club_raw) AS club_name
+                FROM results r
+                LEFT JOIN clubs c ON c.club_id = r.club_id
+                WHERE r.helm_sa_sailing_id::text = %s AND (c.club_fullname IS NOT NULL OR c.club_abbrev IS NOT NULL OR r.club_raw IS NOT NULL)
+                GROUP BY COALESCE(c.club_fullname, c.club_abbrev, r.club_raw)
+                ORDER BY COUNT(*) DESC
+                LIMIT 1
+            """, (str(sas_id),))
+            row = cur.fetchone()
+            return (row.get("club_name") or "").strip() if row else ""
+        finally:
+            cur.close()
+            conn.close()
+    except Exception:
+        return ""
+
+
+def _get_sailor_sas_id_from_slug(slug: str) -> str:
+    """Return sas_id for sailor slug or empty string. Used for SEO extras."""
+    if not slug or not slug.strip():
+        return ""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            m = re.match(r"^(.+)-(\d+)$", slug.strip())
+            if m:
+                cur.execute("SELECT sa_sailing_id::text FROM sas_id_personal WHERE sa_sailing_id::text = %s LIMIT 1", (m.group(2),))
+                row = cur.fetchone()
+                return (row.get("sa_sailing_id") or "") if row else ""
+            name_from_slug = re.sub(r"\s+", " ", slug.replace("-", " ").strip()).lower()
+            cur.execute("""
+                SELECT sa_sailing_id::text FROM sas_id_personal
+                WHERE REGEXP_REPLACE(LOWER(TRIM(REPLACE(COALESCE(full_name, first_name || ' ' || COALESCE(last_name, '')), '-', ' '))), '\\s+', ' ', 'g') = %s
+                LIMIT 1
+            """, (name_from_slug,))
+            row = cur.fetchone()
+            return (row.get("sa_sailing_id") or "") if row else ""
+        finally:
+            cur.close()
+            conn.close()
+    except Exception:
+        return ""
+
+
+def serve_sailor_spa(slug: str):
+    """Serve SPA with server-side SEO: inject title, meta, canonical, h1, JSON-LD for crawlers; SPA loads normally. 404 if unknown slug."""
+    if not os.path.isfile(_INDEX_HTML_PATH):
+        raise HTTPException(status_code=404, detail="index.html not found")
+    name, canonical_slug = _get_sailor_name_by_slug(slug)
+    base_url = (os.getenv("BASE_URL") or "https://sailingsa.co.za").rstrip("/")
+    if not name or not canonical_slug:
+        raise HTTPException(status_code=404, detail="Sailor not found")
+    try:
+        with open(_INDEX_HTML_PATH, "r", encoding="utf-8", errors="replace") as f:
+            html = f.read()
+    except Exception as e:
+        print(f"[SEO] serve_sailor_spa read index: {e}")
+        return FileResponse(_INDEX_HTML_PATH, media_type="text/html")
+    escaped_name = html_module.escape(name)
+    seo_title = f"{escaped_name} | SailingSA"
+    seo_desc = f"Official SailingSA profile for {escaped_name}. Results, rankings and regattas."
+    canonical_url = f"{base_url}/sailor/{canonical_slug}"
+    # Replace title (first occurrence)
+    html = re.sub(r"<title>[^<]*</title>", f"<title>{seo_title}</title>", html, count=1)
+    # Replace first meta name="description" (allow /> or >)
+    html = re.sub(
+        r'<meta\s+name="description"\s+content="[^"]*"\s*/?>',
+        f'<meta name="description" content="{html_module.escape(seo_desc)}">',
+        html,
+        count=1,
+    )
+    # Replace canonical link (allow /> or >)
+    html = re.sub(
+        r'<link\s+rel="canonical"\s+href="[^"]*"\s*/?>',
+        f'<link rel="canonical" href="{html_module.escape(canonical_url)}">',
+        html,
+        count=1,
+    )
+    # Regatta links (real anchors for crawlers - no popup/JS only)
+    sas_id = _get_sailor_sas_id_from_slug(canonical_slug)
+    regattas = _get_sailor_regattas_for_seo(sas_id, 30) if sas_id else []
+    regatta_links = "".join(
+        f'<li><a href="/regatta/{html_module.escape(rslug)}">{html_module.escape(ev_name)}</a></li>'
+        for ev_name, rslug in regattas
+    )
+    regattas_block = f'<nav class="seo-regattas" aria-label="Regattas"><h2 style="font-size:1rem;margin:0.5rem 0;">Regattas</h2><ul style="list-style:none;padding:0;">{regatta_links or "<li>No regattas</li>"}</ul></nav>'
+
+    # Inject h1 + regattas for crawlers only - visually hidden so SPA main header displays first
+    seo_hidden_css = '<style id="seo-sailor-hidden">.seo-sailor-block{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>'
+    inject_html = f'<div class="seo-sailor-block" aria-hidden="true"><h1 class="seo-sailor-name">{escaped_name}</h1>{regattas_block}</div>'
+    html = re.sub(r"(<body[^>]*>)", f'\\1\n  {inject_html}', html, count=1)
+    html = re.sub(r"</head>", f'{seo_hidden_css}\n</head>', html, count=1)
+
+    # Inject JSON-LD Person schema before </head>
+    sas_id = _get_sailor_sas_id_from_slug(canonical_slug)
+    club_name = _get_sailor_club_for_seo(sas_id) if sas_id else ""
+    json_ld = {"@context": "https://schema.org", "@type": "Person", "name": name, "sport": "Sailing"}
+    if club_name:
+        json_ld["affiliation"] = {"@type": "SportsOrganization", "name": club_name}
+    html = re.sub(r"</head>", f'<script type="application/ld+json">{json.dumps(json_ld)}</script>\n</head>', html, count=1)
+    return HTMLResponse(html)
+
+
+def _club_slug_from_name(name: str) -> str:
+    """Generate URL slug from club name. Same logic as regatta."""
+    if not name or not isinstance(name, str):
+        return ""
+    s = re.sub(r"[^\w\s\-]", "", name).strip().lower()
+    return re.sub(r"\s+", "-", s).strip("-")
+
+
+# Slug aliases: alternate spellings/variants -> canonical slug (from club_fullname or club_abbrev)
+CLUB_SLUG_ALIASES = {
+    "zeekoevlei": "zeekoe-vlei-yacht-club",
+    "zandvlei": "zeekoe-vlei-yacht-club",
+    "hermanus": "hermanus-yacht-club",
+    "algoa-bay": "algoa-bay-yacht-club",
+    "falsebay": "false-bay-yacht-club",
+    "theewater": "theewater-sports-club",
+    "milnerton": "milnerton-aquatic-club",
+    "mossel-bay": "mossel-bay-yacht-club",
+    "knysna": "knysna-yacht-club",
+    "langebaan": "langebaan-yacht-club",
+    "saldanha": "saldanha-bay-yacht-club",
+    "hout-bay": "hout-bay-yacht-club",
+    "east-london": "east-london-yacht-club",
+    "george-lakes": "george-lakes-yacht-club",
+    "gordons-bay": "gordons-bay-yacht-club",
+    "fish-hoek": "fish-hoek-yacht-club",
+    "plettenberg": "plettenberg-bay-yacht-club",
+}
+
+
+def _get_club_by_slug(slug: str):
+    """Return (club_id, club_name, club_abbrev) for club slug or None."""
+    if not slug or not slug.strip():
+        return None
+    slug = slug.strip().lower()
+    slug = CLUB_SLUG_ALIASES.get(slug, slug)
+    try:
+        if not table_exists("clubs"):
+            return None
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            cur.execute("""
+                SELECT club_id, COALESCE(club_fullname, club_abbrev, '') AS club_name, club_abbrev
+                FROM clubs
+                WHERE (club_fullname IS NOT NULL AND TRIM(club_fullname) != '')
+                   OR (club_abbrev IS NOT NULL AND TRIM(club_abbrev) != '')
+            """)
+            for r in cur.fetchall() or []:
+                for name_field in ("club_name", "club_abbrev"):
+                    name = (r.get(name_field) or "").strip()
+                    if not name:
+                        continue
+                    cand = _club_slug_from_name(name)
+                    if cand == slug:
+                        return (
+                            int(r.get("club_id") or 0),
+                            (r.get("club_name") or "").strip(),
+                            (r.get("club_abbrev") or "").strip(),
+                        )
+        finally:
+            cur.close()
+            conn.close()
+    except Exception as e:
+        print(f"[SEO] _get_club_by_slug: {e}")
+    return None
+
+
+def _get_regatta_by_slug(slug: str):
+    """Return (regatta_id, event_name, start_date, end_date, host_club_name, host_club_id) for regatta slug or None."""
+    if not slug or not slug.strip():
+        return None
+    slug = slug.strip().lower()
+    try:
+        if not table_exists("regattas"):
+            return None
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            cur.execute("""
+                SELECT r.regatta_id, r.event_name, r.start_date, r.end_date,
+                       COALESCE(c.club_fullname, c.club_abbrev, '') AS host_club_name
+                FROM regattas r
+                LEFT JOIN clubs c ON c.club_id = r.host_club_id
+                WHERE r.event_name IS NOT NULL AND TRIM(r.event_name) != ''
+            """)
+            for r in cur.fetchall() or []:
+                name = (r.get("event_name") or "").strip()
+                if not name:
+                    continue
+                cand = re.sub(r"[^\w\s\-]", "", name).strip().lower()
+                cand = re.sub(r"\s+", "-", cand).strip("-")
+                if cand == slug:
+                    return (
+                        str(r.get("regatta_id") or ""),
+                        name,
+                        r.get("start_date"),
+                        r.get("end_date"),
+                        (r.get("host_club_name") or "").strip(),
+                        r.get("host_club_id"),
+                    )
+        finally:
+            cur.close()
+            conn.close()
+    except Exception as e:
+        print(f"[SEO] _get_regatta_by_slug: {e}")
+    return None
+
+
+def _format_rank(rank):
+    """Format rank as 1st, 2nd, 3rd, 4th, ..."""
+    if rank is None:
+        return ""
+    try:
+        num = int(rank)
+    except (TypeError, ValueError):
+        return str(rank)
+    if num % 100 in (11, 12, 13):
+        return f"{num}th"
+    if num % 10 == 1:
+        return f"{num}st"
+    if num % 10 == 2:
+        return f"{num}nd"
+    if num % 10 == 3:
+        return f"{num}rd"
+    return f"{num}th"
+
+
+def _get_regatta_full_page_data(regatta_id: str):
+    """Return (event_name, host_club_name, start_date, end_date, fleets, result_status, as_at_time) for standalone regatta page.
+    fleets = [{name, races_sailed, discard_count, to_count, scoring_system, entries, rows}].
+    Each row = {rank, sail_number, helm_name, club, total, nett, race_scores, raced, class_name}.
+    result_status: 'Provisional' or 'Final' from regattas.result_status.
+    as_at_time: timestamp from regattas.as_at_time for status line date/time."""
+    if not regatta_id or not table_exists("regattas") or not table_exists("regatta_blocks") or not table_exists("results"):
+        return None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            try:
+                cur.execute("""
+                    SELECT r.event_name, r.start_date, r.end_date,
+                           COALESCE(c.club_fullname, c.club_abbrev, '') AS host_club_name,
+                           r.result_status, r.as_at_time
+                    FROM regattas r
+                    LEFT JOIN clubs c ON c.club_id = r.host_club_id
+                    WHERE r.regatta_id = %s
+                """, (regatta_id,))
+            except Exception:
+                cur.execute("""
+                    SELECT r.event_name, r.start_date, r.end_date,
+                           COALESCE(c.club_fullname, c.club_abbrev, '') AS host_club_name
+                    FROM regattas r
+                    LEFT JOIN clubs c ON c.club_id = r.host_club_id
+                    WHERE r.regatta_id = %s
+                """, (regatta_id,))
+            row = cur.fetchone()
+            if not row:
+                return None
+            event_name = (row.get("event_name") or "").strip()
+            host_club_name = (row.get("host_club_name") or "").strip()
+            start_date = row.get("start_date")
+            end_date = row.get("end_date")
+            result_status = (row.get("result_status") or "").strip() or "Final"
+            as_at_time = row.get("as_at_time")
+
+            cur.execute("""
+                SELECT rb.block_id,
+                       COALESCE(TRIM(rb.fleet_label), TRIM(rb.class_canonical), TRIM(rb.class_original), 'Fleet') AS fleet_name,
+                       rb.fleet_label, rb.class_canonical,
+                       rb.races_sailed, rb.discard_count, rb.to_count, rb.scoring_system,
+                       res.rank, res.sail_number, res.helm_name, res.crew_name,
+                       res.boat_name, res.jib_no, res.bow_no, res.hull_no,
+                       COALESCE(TRIM(c.club_abbrev), TRIM(res.club_raw), '') AS club,
+                       res.club_id, c.club_fullname,
+                       res.helm_sa_sailing_id,
+                       res.total_points_raw, res.nett_points_raw, res.race_scores, res.raced,
+                       COALESCE(TRIM(res.class_canonical), TRIM(res.class_original), '') AS class_name
+                FROM regatta_blocks rb
+                JOIN results res ON res.block_id = rb.block_id AND res.regatta_id = rb.regatta_id
+                LEFT JOIN clubs c ON c.club_id = res.club_id
+                WHERE rb.regatta_id = %s
+                ORDER BY rb.block_id, COALESCE(res.rank, 99999), res.result_id
+            """, (regatta_id,))
+            raw = cur.fetchall() or []
+            dup_names = set()
+            cur.execute("""
+                SELECT LOWER(TRIM(COALESCE(full_name, first_name || ' ' || COALESCE(last_name, '')))) AS n
+                FROM sas_id_personal WHERE full_name IS NOT NULL OR first_name IS NOT NULL OR last_name IS NOT NULL
+                GROUP BY LOWER(TRIM(COALESCE(full_name, first_name || ' ' || COALESCE(last_name, ''))))
+                HAVING COUNT(*) > 1
+            """)
+            for row in cur.fetchall() or []:
+                if row.get("n"):
+                    dup_names.add(row["n"])
+        finally:
+            cur.close()
+            conn.close()
+    except Exception as e:
+        print(f"[regatta standalone] _get_regatta_full_page_data: {e}")
+        return None
+    fleets = []
+    by_block = {}
+    for r in raw:
+        bid = r.get("block_id")
+        rs = r.get("race_scores")
+        if isinstance(rs, str) and rs:
+            try:
+                rs = json.loads(rs)
+            except Exception:
+                rs = {}
+        if not isinstance(rs, dict):
+            rs = {}
+        if bid not in by_block:
+            by_block[bid] = {
+                "name": (r.get("fleet_name") or "Fleet").strip(),
+                "fleet_label": (r.get("fleet_label") or r.get("class_canonical") or "").strip(),
+                "races_sailed": r.get("races_sailed"),
+                "discard_count": r.get("discard_count"),
+                "to_count": r.get("to_count"),
+                "scoring_system": r.get("scoring_system") or "Appendix A",
+                "rows": [],
+            }
+        club_fn = (r.get("club_fullname") or "").strip()
+        club_slug = _club_slug_from_name(club_fn or r.get("club") or "") if (r.get("club_id") and (club_fn or r.get("club"))) else None
+        helm_name = r.get("helm_name")
+        helm_sas_id = str(r.get("helm_sa_sailing_id") or "") if r.get("helm_sa_sailing_id") is not None else ""
+        helm_norm = (helm_name or "").strip().lower() if helm_name else ""
+        has_dup = helm_norm in dup_names
+        helm_slug = _sailor_canonical_slug(helm_name or "", helm_sas_id, has_dup) if helm_name else None
+        by_block[bid]["rows"].append({
+            "rank": r.get("rank"),
+            "sail_number": r.get("sail_number"),
+            "helm_name": helm_name,
+            "helm_slug": helm_slug,
+            "crew_name": r.get("crew_name"),
+            "boat_name": r.get("boat_name"),
+            "jib_no": r.get("jib_no"),
+            "bow_no": r.get("bow_no"),
+            "hull_no": r.get("hull_no"),
+            "club": r.get("club"),
+            "club_slug": club_slug,
+            "total": r.get("total_points_raw"),
+            "nett": r.get("nett_points_raw"),
+            "race_scores": rs,
+            "raced": r.get("raced"),
+            "class_name": (r.get("class_name") or "").strip(),
+        })
+    for bid in sorted(by_block.keys()):
+        bl = by_block[bid]
+        bl["entries"] = len(bl["rows"])
+        fleets.append(bl)
+    return (event_name, host_club_name, start_date, end_date, fleets, result_status, as_at_time)
+
+
+def _get_club_slug_by_id(club_id):
+    """Return club slug for club_id or None."""
+    if not club_id:
+        return None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            cur.execute(
+                "SELECT COALESCE(club_fullname, club_abbrev) AS name FROM clubs WHERE club_id = %s",
+                (club_id,),
+            )
+            row = cur.fetchone()
+            if row and row.get("name"):
+                return _club_slug_from_name(str(row["name"]))
+        finally:
+            cur.close()
+            return_db_connection(conn)
+    except Exception:
+        pass
+    return None
+
+
+def _get_regatta_seo_preview(regatta_id: str):
+    """Return dict with num_classes, num_sailors, class_names[], top_results[] for server-rendered SEO block."""
+    out = {"num_classes": 0, "num_sailors": 0, "class_names": [], "top_results": []}
+    if not regatta_id or not table_exists("regattas") or not table_exists("regatta_blocks") or not table_exists("results"):
+        return out
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            cur.execute("""
+                SELECT COALESCE(TRIM(rb.fleet_label), TRIM(rb.class_canonical), TRIM(rb.class_original), 'Class') AS class_name
+                FROM regatta_blocks rb
+                WHERE rb.regatta_id = %s
+                ORDER BY rb.block_id
+            """, (regatta_id,))
+            rows = cur.fetchall() or []
+            seen = set()
+            for r in rows:
+                name = (r.get("class_name") or "Class").strip()
+                if name and name not in seen:
+                    seen.add(name)
+                    out["class_names"].append(name)
+            out["num_classes"] = len(out["class_names"])
+
+            cur.execute("""
+                SELECT COUNT(DISTINCT res.helm_sa_sailing_id::text) AS cnt
+                FROM results res
+                WHERE res.regatta_id = %s AND res.helm_sa_sailing_id IS NOT NULL
+            """, (regatta_id,))
+            row = cur.fetchone()
+            if row and row.get("cnt") is not None:
+                out["num_sailors"] = int(row["cnt"])
+            if out["num_sailors"] == 0:
+                cur.execute("SELECT COUNT(*) AS cnt FROM results res WHERE res.regatta_id = %s", (regatta_id,))
+                row = cur.fetchone()
+                if row and row.get("cnt") is not None:
+                    out["num_sailors"] = int(row["cnt"])
+
+            cur.execute("""
+                SELECT DISTINCT ON (res.block_id, res.rank)
+                       COALESCE(TRIM(res.helm_name), '') AS helm_name,
+                       COALESCE(TRIM(rb.fleet_label), TRIM(rb.class_canonical), TRIM(rb.class_original), '') AS class_name,
+                       res.rank
+                FROM results res
+                JOIN regatta_blocks rb ON rb.block_id = res.block_id AND rb.regatta_id = res.regatta_id
+                WHERE res.regatta_id = %s AND res.rank IN (1, 2, 3)
+                ORDER BY res.block_id, res.rank
+                LIMIT 15
+            """, (regatta_id,))
+            for r in cur.fetchall() or []:
+                out["top_results"].append({
+                    "class_name": (r.get("class_name") or "").strip() or "—",
+                    "rank": r.get("rank") or 0,
+                    "helm_name": (r.get("helm_name") or "").strip() or "—",
+                })
+        finally:
+            cur.close()
+            conn.close()
+    except Exception as e:
+        print(f"[SEO] _get_regatta_seo_preview: {e}")
+    return out
+
+
+# Same CSS as admin regatta_viewer.html result sheet popup, with mobile-friendly widths so headers match tables
+_RESULT_SHEET_CSS = (
+    "*{box-sizing:border-box}"
+    "html,body{background:#ffffff;color:#1a2750;font-family:system-ui,sans-serif;margin:0;padding:0;width:100%;max-width:100%;overflow-x:hidden}"
+    ".regatta-page{width:100%;max-width:100%;padding:16px;margin:0 auto}"
+    ".header{text-align:center;margin-bottom:30px;position:relative;display:flex;align-items:center;justify-content:center;border:2px solid #1a2750;border-radius:10px;padding:6px;background:#ffffff;width:100%}"
+    ".regatta-name{font-size:24px;font-weight:bold;color:#1a2750;margin-bottom:8px}"
+    ".host-club{font-size:18px;color:#1a2750;margin-bottom:8px}"
+    ".status-line{font-size:14px;color:#1a2750;margin-top:20px}"
+    ".fleet-section{width:100%;margin-top:40px}"
+    ".class-header{font-size:20px;font-weight:bold;color:#1a2750;text-align:center;margin-top:0;margin-bottom:0;border:2px solid #1a2750;border-radius:10px;padding:15px;background:#ffffff;width:100%}"
+    ".sailed-line{font-size:12px;color:#1a2750;text-align:center;margin-top:10px;margin-bottom:0}"
+    ".table-wrapper{overflow-x:auto;overflow-y:visible;width:100%;-webkit-overflow-scrolling:touch;margin-top:20px}"
+    ".table-wrapper table{width:100%;min-width:600px}"
+    "table{border-collapse:collapse;background:#ffffff;margin:0}"
+    "th,td{border:1px solid #1d294d;padding:8px;text-align:center}"
+    "th{background:#e9eefb;color:#1a2750}"
+    "td{color:#1a2750}"
+    ".rank-col,.sail-col,.club-col,.helm-col,.nett-col{font-weight:bold}"
+    ".score-counts{font-weight:bold}"
+    ".medal-gold{background-color:#D4AF37}"
+    ".medal-silver{background-color:#D7D7D7}"
+    ".medal-bronze{background-color:#CE8946}"
+    ".code{color:#c62828;font-weight:bold}"
+    ".code.disc{color:#c62828;font-weight:bold}"
+    ".disc{color:#6a1b9a;font-weight:bold;text-decoration:line-through;opacity:0.8}"
+    ".strike-out{text-decoration:line-through;opacity:0.6}"
+    ".action-buttons{display:flex;gap:10px;justify-content:flex-end;margin-top:30px;margin-bottom:20px;padding:10px;width:100%}"
+    "@media print{.action-buttons{display:none!important}}"
+    ".action-button{padding:12px 24px;border:2px solid #1a2750;border-radius:6px;background:#ffffff;color:#1a2750;font-weight:bold;font-size:14px;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,0.2);min-width:120px}"
+    ".action-button:hover{background:#1a2750;color:#ffffff}"
+    ".back-to-home{position:fixed;top:20px;left:20px;background:#0b2c4d;color:white;padding:8px 14px;border-radius:20px;font-size:14px;text-decoration:none;z-index:9999}"
+    ".back-to-home:hover{background:#ff6a00}"
+    "@media (max-width:768px){"
+    ".regatta-page{padding:12px;width:100%;min-width:0}"
+    ".header{width:100%!important;max-width:100%!important;margin-bottom:20px;padding:12px;margin-left:0;margin-right:0}"
+    ".regatta-name{font-size:18px}"
+    ".host-club{font-size:14px}"
+    ".status-line{font-size:12px}"
+    ".fleet-section{width:100%;margin-top:24px}"
+    ".class-header{width:100%!important;max-width:100%!important;padding:12px;font-size:16px;margin-left:0;margin-right:0}"
+    ".sailed-line{font-size:11px;margin-top:6px}"
+    ".table-wrapper{width:100%;max-width:100%;margin-top:12px;margin-left:0;margin-right:0}"
+    ".table-wrapper table{min-width:500px}"
+    "th,td{padding:6px;font-size:13px}"
+    "}"
+    "@media (orientation:landscape) and (max-height:600px){"
+    ".regatta-page{padding:6px}"
+    ".header{margin-bottom:10px;padding:6px}"
+    ".regatta-name{font-size:12px}"
+    ".host-club{font-size:10px}"
+    ".status-line{font-size:9px}"
+    ".fleet-section{margin-top:10px}"
+    ".class-header{padding:6px;font-size:11px}"
+    ".sailed-line{font-size:8px;margin-top:3px}"
+    ".table-wrapper{margin-top:6px}"
+    ".table-wrapper table{min-width:360px}"
+    "th,td{padding:3px;font-size:9px}"
+    ".action-button{padding:5px 12px;font-size:10px;min-width:70px}"
+    ".back-to-home{font-size:10px;padding:5px 8px}"
+    "}"
+)
+
+
+def _render_result_sheet_fleet(fleet: dict) -> str:
+    """Render one fleet as HTML using the same structure and class names as admin regatta_viewer result sheet popup."""
+    fname = (fleet.get("name") or "Fleet").strip()
+    fleet_label = fleet.get("fleet_label") or ""
+    races_sailed = fleet.get("races_sailed") or 0
+    discard_count = fleet.get("discard_count") or 0
+    to_count = fleet.get("to_count")
+    if to_count is None and races_sailed is not None and discard_count is not None:
+        to_count = max(0, int(races_sailed) - int(discard_count))
+    entries = fleet.get("entries") or 0
+    scoring_system = fleet.get("scoring_system") or "Appendix A"
+    sailed_line = f"Sailed: {races_sailed}, Discards: {discard_count}, To count: {to_count}, Entries: {entries}, Scoring system: {scoring_system}"
+    rows = fleet.get("rows") or []
+    has_crew = any((r.get("crew_name") or "").strip() for r in rows)
+    has_boat_name = any((r.get("boat_name") or "").strip() for r in rows)
+    has_jib_no = any((r.get("jib_no") or "").strip() for r in rows)
+    has_bow_no = any((r.get("bow_no") or "").strip() for r in rows)
+    has_hull_no = any((r.get("hull_no") or "").strip() for r in rows)
+    race_columns = []
+    for i in range(1, int(races_sailed) + 1 if races_sailed else 0):
+        rkey = f"R{i}"
+        if any((r.get("race_scores") or {}).get(rkey, "").strip() for r in rows):
+            race_columns.append(rkey)
+    thead = '<th class="rank-col">Rank</th><th>Fleet</th><th>Class</th><th class="sail-col">Sail No</th>'
+    if has_boat_name:
+        thead += "<th>Boat Name</th>"
+    if has_jib_no:
+        thead += "<th>Jib No</th>"
+    if has_bow_no:
+        thead += "<th>Bow No</th>"
+    if has_hull_no:
+        thead += "<th>Hull No</th>"
+    thead += '<th class="club-col">Club</th><th class="helm-col">Helm</th>'
+    if has_crew:
+        thead += "<th>Crew</th>"
+    for r in race_columns:
+        thead += f"<th>{html_module.escape(r)}</th>"
+    thead += "<th>Total</th><th class=\"nett-col\">Nett</th>"
+    trs = []
+    for r in rows:
+        race_scores = r.get("race_scores") or {}
+        rank_num = int(r.get("rank")) if r.get("rank") is not None else 0
+        medal_class = ""
+        if rank_num == 1:
+            medal_class = "medal-gold"
+        elif rank_num == 2:
+            medal_class = "medal-silver"
+        elif rank_num == 3:
+            medal_class = "medal-bronze"
+        did_not_race = r.get("raced") is False or r.get("raced") == 0
+        strike_class = "strike-out" if did_not_race else ""
+        row_classes = " ".join(c for c in (medal_class, strike_class) if c)
+        rank_str = _format_rank(r.get("rank"))
+        fleet_str = html_module.escape(fleet_label)
+        class_str = html_module.escape(r.get("class_name") or "")
+        sail_str = html_module.escape(str(r.get("sail_number") or ""))
+        club_raw = str(r.get("club") or "")
+        club_slug = r.get("club_slug")
+        club_str = f'<a href="/club/{html_module.escape(club_slug)}">{html_module.escape(club_raw)}</a>' if club_slug and club_raw else html_module.escape(club_raw)
+        helm_raw = str(r.get("helm_name") or "")
+        helm_slug = r.get("helm_slug")
+        helm_str = f'<a href="/sailor/{html_module.escape(helm_slug)}">{html_module.escape(helm_raw)}</a>' if helm_slug and helm_raw else html_module.escape(helm_raw)
+        total_str = html_module.escape(str(r.get("total") if r.get("total") is not None else ""))
+        nett_str = html_module.escape(str(r.get("nett") if r.get("nett") is not None else ""))
+        row_html = f'<tr class="{row_classes}"><td class="rank-col">{html_module.escape(rank_str)}</td><td>{fleet_str}</td><td>{class_str}</td><td class="sail-col">{sail_str}</td>'
+        if has_boat_name:
+            row_html += f'<td>{html_module.escape(str(r.get("boat_name") or ""))}</td>'
+        if has_jib_no:
+            row_html += f'<td>{html_module.escape(str(r.get("jib_no") or ""))}</td>'
+        if has_bow_no:
+            row_html += f'<td>{html_module.escape(str(r.get("bow_no") or ""))}</td>'
+        if has_hull_no:
+            row_html += f'<td>{html_module.escape(str(r.get("hull_no") or ""))}</td>'
+        row_html += f'<td class="club-col">{club_str}</td><td class="helm-col">{helm_str}</td>'
+        if has_crew:
+            row_html += f'<td>{html_module.escape(str(r.get("crew_name") or ""))}</td>'
+        for rkey in race_columns:
+            score = (race_scores.get(rkey) or "").strip()
+            is_discarded = score.startswith("(") and score.endswith(")")
+            has_penalty = bool(re.search(r"\b(DNC|DNS|DNF|RET|DSQ|UFD|BFD|DPI|OCS)\b", score, re.I)) if score else False
+            cell_class = "code" if has_penalty else ("disc" if is_discarded else ("score-counts" if score else ""))
+            row_html += f'<td class="{cell_class}">{html_module.escape(score)}</td>'
+        row_html += f'<td class="{strike_class}">{total_str}</td><td class="nett-col {strike_class}">{nett_str}</td></tr>'
+        trs.append(row_html)
+    table_html = f"<table><thead><tr>{thead}</tr></thead><tbody>{''.join(trs)}</tbody></table>"
+    return (
+        f'<div class="fleet-section">'
+        f'<div class="class-header"><div style="font-size:20px;font-weight:bold;margin-bottom:10px">{html_module.escape(fname)} Fleet</div>'
+        f'<div class="sailed-line">{html_module.escape(sailed_line)}</div></div>'
+        f'<div class="table-wrapper">{table_html}</div></div>'
+    )
+
+
+_REGATTA_404_HTML = """<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Regatta not found | SailingSA</title><style>body{font-family:system-ui,sans-serif;margin:2rem;color:#1a2750;} a{color:#1a2750;}</style></head><body><h1>Regatta not found</h1><p>There is no regatta at this address.</p><p><a href="/">Return to SailingSA home</a></p></body></html>"""
+
+
+_CLUB_404_HTML = """<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Club not found | SailingSA</title><style>body{font-family:system-ui,sans-serif;margin:2rem;color:#1a2750;} a{color:#1a2750;}</style></head><body><h1>Club not found</h1><p>There is no club at this address.</p><p><a href="/">Return to SailingSA home</a></p></body></html>"""
+
+
+def serve_club_page(slug: str):
+    """Serve standalone HTML page for /club/{slug}. SEO: JSON-LD, canonical, links to sailors and regattas."""
+    club = _get_club_by_slug(slug)
+    if not club:
+        return HTMLResponse(content=_CLUB_404_HTML, status_code=404, media_type="text/html")
+    club_id, club_name, club_abbrev = club
+    base_url = (os.getenv("BASE_URL") or "https://sailingsa.co.za").rstrip("/")
+    canonical_url = f"{base_url}/club/{slug}"
+    escaped_name = html_module.escape(club_name or club_abbrev or "Club")
+
+    sailors = []
+    regattas_hosted = []
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            cur.execute("""
+                SELECT DISTINCT s.sa_sailing_id::text AS sas_id,
+                       COALESCE(TRIM(s.full_name), TRIM(s.first_name || ' ' || COALESCE(s.last_name, ''))) AS full_name,
+                       COALESCE(TRIM(s.first_name), '') AS first_name,
+                       COALESCE(TRIM(s.last_name), '') AS last_name,
+                       COALESCE(s.last_name, '') AS ord_ln,
+                       COALESCE(s.first_name, '') AS ord_fn
+                FROM sas_id_personal s
+                JOIN results r ON (
+                    r.helm_sa_sailing_id::text = s.sa_sailing_id::text
+                    OR r.crew_sa_sailing_id::text = s.sa_sailing_id::text
+                )
+                WHERE r.club_id = %s
+                  AND (s.full_name IS NOT NULL OR s.first_name IS NOT NULL OR s.last_name IS NOT NULL)
+                ORDER BY ord_ln ASC, ord_fn ASC
+            """, (club_id,))
+            rows = cur.fetchall() or []
+            by_name = {}
+            for r in rows:
+                full = (r.get("full_name") or "").strip()
+                if not full:
+                    continue
+                ln = (r.get("last_name") or "").strip()
+                fn = (r.get("first_name") or "").strip()
+                display = f"{ln}, {fn}".strip(", ") if (ln or fn) else full
+                sid = str(r.get("sas_id") or "")
+                if full not in by_name:
+                    by_name[full] = {"display": display, "sids": []}
+                by_name[full]["sids"].append(sid)
+            def _surname_key(item):
+                full = item[0]
+                data = item[1]
+                ln = (data["display"].split(",", 1)[0] or "").strip()
+                return (ln.upper(), full)
+
+            for full, data in sorted(by_name.items(), key=_surname_key):
+                sids = data["sids"]
+                display = data["display"]
+                has_dup = len(sids) > 1
+                s = _sailor_canonical_slug(full, sids[0], has_dup)
+                sailors.append((display, s))
+
+            cur.execute("""
+                SELECT DISTINCT reg.regatta_id, reg.event_name, reg.start_date
+                FROM regattas reg
+                JOIN results r ON r.regatta_id = reg.regatta_id
+                WHERE reg.host_club_id = %s
+                ORDER BY reg.start_date DESC NULLS LAST
+            """, (club_id,))
+            for r in cur.fetchall() or []:
+                ev_name = (r.get("event_name") or "").strip()
+                if ev_name:
+                    reg_slug = re.sub(r"[^\w\s\-]", "", ev_name).strip().lower()
+                    reg_slug = re.sub(r"\s+", "-", reg_slug).strip("-")
+                    sd = r.get("start_date")
+                    date_str = sd.strftime("%d %b %Y") if sd and hasattr(sd, "strftime") else ""
+                    regattas_hosted.append((ev_name, reg_slug, date_str))
+        finally:
+            cur.close()
+            conn.close()
+    except Exception as e:
+        print(f"[club page] fetch data: {e}")
+
+    json_ld = {
+        "@context": "https://schema.org",
+        "@type": "SportsOrganization",
+        "name": club_name or club_abbrev,
+        "sport": "Sailing",
+    }
+
+    sailors_html = "".join(
+        f'<li>{i}. <a href="/sailor/{html_module.escape(slug)}">{html_module.escape(name)}</a></li>'
+        for i, (name, slug) in enumerate(sailors, 1)
+    )
+    regattas_html = "".join(
+        f'<li>{i}. <a href="/regatta/{html_module.escape(rslug)}">{html_module.escape(name)}</a>'
+        + (f' <span style="color:#64748b;font-size:0.9em">({date})</span>' if date else '')
+        + '</li>'
+        for i, (name, rslug, date) in enumerate(regattas_hosted, 1)
+    )
+
+    body = (
+        '<a href="/" class="back-to-home">← Back to Search</a>'
+        f'<div class="header"><h1>{escaped_name}</h1></div>'
+        '<div class="club-content" style="margin:1.5rem 0;">'
+        f'<h2>Sailors ({len(sailors)})</h2><ul style="list-style:none;padding:0;">{sailors_html or "<li>No sailors found</li>"}</ul>'
+        f'<h2>Regattas hosted ({len(regattas_hosted)})</h2><ul style="list-style:none;padding:0;">{regattas_html or "<li>No regattas found</li>"}</ul>'
+        "</div>"
+    )
+    doc = (
+        "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
+        f"{escaped_name} | SailingSA</title>"
+        "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+        f"<meta name=\"description\" content=\"Sailing club: {html_module.escape(escaped_name)}. Sailors and regattas.\">"
+        f"<link rel=\"canonical\" href=\"{html_module.escape(canonical_url)}\">"
+        f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
+        "<style>body{font-family:system-ui,sans-serif;margin:2rem;color:#1a2750;}a{color:#1a2750;}</style></head><body>"
+        f"<div class=\"club-page\">{body}</div></body></html>"
+    )
+    return HTMLResponse(doc)
+
+
+def serve_regatta_standalone(slug: str):
+    """Serve one full standalone HTML result sheet for /regatta/{slug}: same rendering and CSS as admin regatta_viewer Prov/Final popup. All fleets stacked; no SPA, no index.html, no JSON. Unknown slug returns HTML 404 page."""
+    reg = _get_regatta_by_slug(slug)
+    if not reg:
+        return HTMLResponse(content=_REGATTA_404_HTML, status_code=404, media_type="text/html")
+    regatta_id, event_name, start_date, end_date, host_club_name, host_club_id = reg
+    data = _get_regatta_full_page_data(regatta_id)
+    if not data:
+        return HTMLResponse(content=_REGATTA_404_HTML, status_code=404, media_type="text/html")
+    ev_name, host_club, start_d, end_d, fleets, result_status, as_at_time = data
+    base_url = (os.getenv("BASE_URL") or "https://sailingsa.co.za").rstrip("/")
+    canonical_url = f"{base_url}/regatta/{slug}"
+    escaped_title = html_module.escape(ev_name or event_name)
+    status_word = (result_status or "Final").strip() or "Final"
+    if as_at_time and hasattr(as_at_time, "strftime"):
+        status_date = as_at_time.strftime("%d %B %Y at %H:%M")
+    else:
+        status_date = datetime.utcnow().strftime("%d %B %Y at %H:%M") if hasattr(datetime, "utcnow") else "—"
+    host_club_slug = _get_club_slug_by_id(host_club_id) if host_club_id else None
+    host_club_text = host_club or host_club_name or ""
+    host_club_html = f'<a href="/club/{html_module.escape(host_club_slug)}">{html_module.escape(host_club_text)}</a>' if host_club_slug and host_club_text else html_module.escape(host_club_text)
+    back_link = '<a href="/" class="back-to-home">← Back to Search</a>'
+    header_html = (
+        back_link
+        + '<div class="header">'
+        f'<div><div class="regatta-name">{escaped_title}</div>'
+        f'<div class="host-club">Host: {host_club_html}</div>'
+        f'<div class="status-line">Results are {html_module.escape(status_word)} as at {html_module.escape(status_date)}</div></div>'
+        "</div>"
+    )
+    json_ld = {"@context": "https://schema.org", "@type": "SportsEvent", "name": ev_name or event_name, "sport": "Sailing"}
+    if host_club_text:
+        json_ld["location"] = {"@type": "Place", "name": host_club_text}
+    fleet_sections = [_render_result_sheet_fleet(f) for f in fleets]
+    print_btn = '<div class="action-buttons"><button class="action-button" onclick="window.print()">Print</button></div>'
+    body_html = header_html + "\n".join(fleet_sections) + "\n" + print_btn
+    doc = (
+        "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
+        f"{escaped_title} | SailingSA</title>"
+        f"<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+        f"<link rel=\"canonical\" href=\"{html_module.escape(canonical_url)}\">"
+        f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
+        f"<style>{_RESULT_SHEET_CSS}</style></head><body>"
+        f"<div class=\"regatta-page\">{body_html}</div>"
+        "</body></html>"
+    )
+    return HTMLResponse(doc)
+
+
+def _sitemap_sailor_slugs():
+    """Return list of canonical sailor slugs for sitemap: only sailors with at least one result (DISTINCT helm_sa_sailing_id from results, joined to get names)."""
+    out = []
+    try:
+        if not table_exists("results") or not table_exists("sas_id_personal"):
+            return out
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            cur.execute("""
+                SELECT DISTINCT r.helm_sa_sailing_id::text AS sas_id,
+                    COALESCE(TRIM(s.full_name), TRIM(s.first_name || ' ' || COALESCE(s.last_name, ''))) AS full_name
+                FROM results r
+                JOIN public.sas_id_personal s ON s.sa_sailing_id::text = r.helm_sa_sailing_id::text
+                WHERE r.helm_sa_sailing_id IS NOT NULL
+                  AND (s.full_name IS NOT NULL AND TRIM(s.full_name) != ''
+                       OR s.first_name IS NOT NULL OR s.last_name IS NOT NULL)
+                ORDER BY full_name, sas_id
+            """)
+            rows = cur.fetchall()
+            by_name = defaultdict(list)
+            for r in rows:
+                name = (r.get("full_name") or "").strip()
+                if not name:
+                    continue
+                sid = str(r.get("sas_id") or "")
+                by_name[name].append(sid)
+            for name, sids in by_name.items():
+                has_dup = len(sids) > 1
+                for sid in sids:
+                    slug = _sailor_canonical_slug(name, sid, has_dup)
+                    out.append(slug)
+        finally:
+            cur.close()
+            conn.close()
+    except Exception as e:
+        print(f"[sitemap] sailor slugs: {e}")
+    return out
+
+
+def _sitemap_club_slugs():
+    """Return list of (slug, lastmod_iso) for clubs that have results or host regattas."""
+    out = []
+    try:
+        if not table_exists("clubs"):
+            return out
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            cur.execute("""
+                SELECT DISTINCT c.club_id, COALESCE(c.club_fullname, c.club_name, c.club_abbrev) AS club_name
+                FROM clubs c
+                WHERE (EXISTS (SELECT 1 FROM results r WHERE r.club_id = c.club_id)
+                       OR EXISTS (SELECT 1 FROM regattas r WHERE r.host_club_id = c.club_id))
+                  AND (c.club_fullname IS NOT NULL AND TRIM(c.club_fullname) != ''
+                       OR c.club_name IS NOT NULL AND TRIM(c.club_name) != ''
+                       OR c.club_abbrev IS NOT NULL AND TRIM(c.club_abbrev) != '')
+            """)
+            today = datetime.utcnow().strftime("%Y-%m-%d")
+            for r in cur.fetchall() or []:
+                name = (r.get("club_name") or "").strip()
+                if not name:
+                    continue
+                slug = _club_slug_from_name(name)
+                if slug:
+                    out.append((slug, today))
+        finally:
+            cur.close()
+            conn.close()
+    except Exception as e:
+        print(f"[sitemap] club slugs: {e}")
+    return out
+
+
+def _sitemap_regatta_slugs():
+    """Return list of (slug, lastmod_iso) for sitemap. lastmod from end_date or start_date."""
+    out = []
+    try:
+        if not table_exists("regattas"):
+            return out
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            cur.execute("""
+                SELECT event_name, regatta_id, end_date, start_date FROM regattas
+                WHERE event_name IS NOT NULL AND TRIM(event_name) != ''
+                ORDER BY regatta_id
+            """)
+            for r in cur.fetchall() or []:
+                name = (r.get("event_name") or "").strip()
+                if not name:
+                    continue
+                slug = re.sub(r"[^\w\s\-]", "", name).strip().lower()
+                slug = re.sub(r"\s+", "-", slug).strip("-")
+                if not slug:
+                    continue
+                end_date = r.get("end_date")
+                start_date = r.get("start_date")
+                d = end_date or start_date
+                if d and hasattr(d, "strftime"):
+                    lastmod = d.strftime("%Y-%m-%d")
+                else:
+                    lastmod = datetime.utcnow().strftime("%Y-%m-%d")
+                out.append((slug, lastmod))
+        finally:
+            cur.close()
+            conn.close()
+    except Exception as e:
+        print(f"[sitemap] regatta slugs: {e}")
+    return out
+
+
+def _sitemap_escape_loc(url: str) -> str:
+    """Escape loc for sitemap XML: & -> &amp;, < -> &lt;, > -> &gt;, ' -> &apos;, \" -> &quot;."""
+    if not url:
+        return ""
+    return (
+        url.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+        .replace("'", "&apos;")
+    )
+
+
+@app.get("/sitemap.xml")
+def serve_sitemap_xml():
+    """Dynamic sitemap: valid sitemaps.org schema, no duplicates, strict <url> blocks. Content-Type: application/xml."""
+    base = (os.getenv("BASE_URL") or "https://sailingsa.co.za").rstrip("/")
+    if base.startswith("http://") or "localhost" in base or "127.0.0.1" in base or base.startswith("http://192."):
+        base = "https://sailingsa.co.za"
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+
+    # Collect (loc, lastmod) and dedupe by loc so each URL appears once
+    entries = []
+    seen_loc = set()
+
+    def add(loc: str, lastmod: str):
+        if loc in seen_loc:
+            return
+        seen_loc.add(loc)
+        entries.append((loc, lastmod))
+
+    add(f"{base}/", today)
+
+    sailor_slugs = list(set(_sitemap_sailor_slugs()))
+    for slug in sorted(sailor_slugs):
+        add(f"{base}/sailor/{slug}", today)
+    num_sailors = len(sailor_slugs)
+
+    regatta_list = _sitemap_regatta_slugs()
+    regatta_by_slug = {}
+    for slug, lastmod in regatta_list:
+        if slug not in regatta_by_slug:
+            regatta_by_slug[slug] = lastmod
+    num_regattas = 0
+    for slug in sorted(regatta_by_slug.keys()):
+        # Only include regatta URL if it resolves in DB (avoid sitemap listing 404s)
+        if _get_regatta_by_slug(slug) is not None:
+            add(f"{base}/regatta/{slug}", regatta_by_slug[slug])
+            num_regattas += 1
+
+    print(f"[sitemap] sailors included: {num_sailors}, regattas included: {num_regattas}, total URLs: {len(entries)}")
+
+    # Build XML: every <url> block strictly:
+    #   <url>
+    #   <loc>...</loc>
+    #   <lastmod>YYYY-MM-DD</lastmod>
+    #   <changefreq>weekly</changefreq>
+    #   </url>
+    lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ]
+    for loc, lastmod in entries:
+        esc_loc = _sitemap_escape_loc(loc)
+        lines.append("  <url>")
+        lines.append(f"    <loc>{esc_loc}</loc>")
+        lines.append(f"    <lastmod>{lastmod}</lastmod>")
+        lines.append("    <changefreq>weekly</changefreq>")
+        lines.append("  </url>")
+    lines.append("</urlset>")
+    body = "\n".join(lines)
+    return Response(content=body, media_type="application/xml")
+
+
+@app.get("/robots.txt")
+def serve_robots_txt():
+    """Serve robots.txt: Allow all, point to sitemap. Content-Type: text/plain."""
+    base = (os.getenv("BASE_URL") or "https://sailingsa.co.za").rstrip("/")
+    body = f"User-agent: *\nAllow: /\nSitemap: {base}/sitemap.xml\n"
+    return Response(content=body, media_type="text/plain")
+
+# Serve /artwork/ from project artwork dir (e.g. TimAdvisor logo) so same-origin requests work
+ARTWORK_DIR = os.path.join(BASE_DIR, "artwork")
+if os.path.isdir(ARTWORK_DIR):
+    app.mount("/artwork", StaticFiles(directory=ARTWORK_DIR, html=False), name="artwork")
+
+app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
 
