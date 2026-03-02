@@ -1,15 +1,17 @@
 from fastapi import FastAPI, HTTPException, Body, Query, Request
-from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response, FileResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response, FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Union, Optional, List
-import os, sys, subprocess, psycopg2, psycopg2.extras, psycopg2.pool, re
+import os, sys, subprocess, socket, psycopg2, psycopg2.extras, psycopg2.pool, re
+from pathlib import Path
 from unidecode import unidecode
 import time
 from functools import lru_cache, wraps, cmp_to_key
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 import uuid
 from collections import defaultdict
 import logging
@@ -26,6 +28,10 @@ NAME_SIM_THRESHOLD = 0.75
 
 # Align default with config.postgres.env (sailors_user)
 DB_URL = os.getenv("DB_URL", "postgresql://sailors_user:change_me_strong@localhost:5432/sailors_master")
+
+# API process start time for admin dashboard uptime (since last restart)
+_api_start_time = time.time()
+SERVER_START_TS = int(time.time())
 
 # ============================================================================
 # STAGE 11: DIAGNOSTIC INSTRUMENTATION
@@ -144,6 +150,45 @@ def trace_query(cur, request_id: str = None):
 # Global connection pool for better performance
 DB_POOL = None
 
+# Per-request DB query count (Step 2) and connection timing (Step 1)
+_db_tls = threading.local()
+
+class _CursorWrapper:
+    """Wraps cursor to time execute() and fetchall() for pool/query diagnostics."""
+    def __init__(self, real_cursor):
+        self._cur = real_cursor
+    def execute(self, query, *args, **kwargs):
+        t0 = time.time()
+        out = self._cur.execute(query, *args, **kwargs)
+        exec_time = time.time() - t0
+        print(f"DB: exec={exec_time:.3f}", flush=True)
+        if exec_time > 1.0:
+            q = (query.decode("utf-8", errors="replace") if isinstance(query, bytes) else query) or ""
+            print(f"DB SQL: {q[:300]}", flush=True)
+            print(f"DB exec time: {exec_time:.3f}", flush=True)
+        return out
+    def fetchall(self):
+        t0 = time.time()
+        out = self._cur.fetchall()
+        print(f"DB: fetch={time.time() - t0:.3f}", flush=True)
+        return out
+    def __enter__(self):
+        return self
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._cur.close()
+        return False
+    def __getattr__(self, name):
+        return getattr(self._cur, name)
+
+class _ConnectionWrapper:
+    """Wraps connection so cursor() returns timed cursor; unwrap for putconn."""
+    def __init__(self, real_conn):
+        self._conn = real_conn
+    def cursor(self, *args, **kwargs):
+        return _CursorWrapper(self._conn.cursor(*args, **kwargs))
+    def __getattr__(self, name):
+        return getattr(self._conn, name)
+
 def init_db_pool():
     """Initialize database connection pool"""
     global DB_POOL
@@ -160,9 +205,13 @@ def init_db_pool():
 def get_db_connection(request_id: str = None):
     """Get a connection from the pool with optional request ID for tracing"""
     pool = init_db_pool()
+    t0 = time.time()
     try:
         conn = pool.getconn()
-        return conn
+        wait = time.time() - t0
+        print(f"DB: getconn_wait={wait:.3f}", flush=True)
+        _db_tls.db_query_count = getattr(_db_tls, "db_query_count", 0) + 1
+        return _ConnectionWrapper(conn)
     except Exception as e:
         print(f"[DB] Error getting connection from pool: {e}")
         # Fallback to direct connection
@@ -170,18 +219,21 @@ def get_db_connection(request_id: str = None):
 
 def return_db_connection(conn):
     """Return a connection to the pool"""
-    if DB_POOL:
+    real = getattr(conn, "_conn", conn)
+    from_pool = hasattr(conn, "_conn")
+    if from_pool and DB_POOL:
         try:
-            DB_POOL.putconn(conn)
+            DB_POOL.putconn(real)
+            print("DB: putconn=OK", flush=True)
         except Exception as e:
             print(f"[DB] Error returning connection to pool: {e}")
             try:
-                conn.close()
+                real.close()
             except:
                 pass
     else:
         try:
-            conn.close()
+            real.close()
         except:
             pass
 
@@ -365,6 +417,21 @@ def update_sailor_club_affiliations():
             """)
             return cur.rowcount
 
+def _ensure_snapshot_integrity(conn, regatta_id, result_ids=None):
+    """Enforce: result rows with NULL as_at_time get NOW(). Regattas.as_at_time is NOT auto-set (leave NULL or use real snapshot time)."""
+    with conn.cursor() as cur:
+        if result_ids:
+            cur.execute(
+                "UPDATE results SET as_at_time = NOW() WHERE result_id = ANY(%s) AND as_at_time IS NULL",
+                (result_ids,),
+            )
+        else:
+            cur.execute(
+                "UPDATE results SET as_at_time = NOW() WHERE regatta_id = %s AND as_at_time IS NULL",
+                (regatta_id,),
+            )
+        # Do NOT overwrite regattas.as_at_time with NOW() — use NULL or set explicitly to real snapshot time (e.g. UPDATE regattas SET as_at_time='...' WHERE regatta_id=...).
+
 def bulk_auto_match_regatta(regatta_id: str) -> dict:
     stats = dict(checked=0, helm_sas=0, helm_tmp=0, crew_sas=0, crew_tmp=0, clubs_mapped=0)
     with psycopg2.connect(DB_URL) as conn:
@@ -439,9 +506,31 @@ def bulk_auto_match_regatta(regatta_id: str) -> dict:
                              WHERE result_id=%s
                         """, (tmp, result_id))
                         stats['crew_tmp'] += 1
+            _ensure_snapshot_integrity(conn, regatta_id)
+        conn.commit()
     return stats
 
 app = FastAPI(title="Regatta API")
+
+
+def _get_client_ip(request: Request) -> str:
+    """Client IP: X-Forwarded-For first (when behind proxy), then request.client.host."""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    if request.client:
+        return str(request.client.host) if getattr(request.client, "host", None) else ""
+    return ""
+
+
+def _derive_device_type(user_agent: str) -> str:
+    """Derive device_type from User-Agent: mobile or desktop."""
+    if not user_agent:
+        return "desktop"
+    ua = user_agent.lower()
+    if any(x in ua for x in ("mobile", "android", "iphone", "ipod", "webos", "blackberry", "windows phone")):
+        return "mobile"
+    return "desktop"
 
 
 @app.middleware("http")
@@ -454,6 +543,32 @@ async def _redirect_sas_id_before_routing(request: Request, call_next):
         query = str(request.url.query)
         new_url = fix + ("?" + query if query else "")
         return RedirectResponse(url=new_url, status_code=301)
+    # Update session last_activity and last_path for logged-in users (each request)
+    session_token = request.cookies.get("session")
+    if session_token and table_exists("user_sessions"):
+        conn = None
+        try:
+            conn = get_db_connection()
+            cur = conn.cursor()
+            path = (request.url.path or "")[:500]
+            if column_exists("user_sessions", "last_path"):
+                cur.execute("""
+                    UPDATE public.user_sessions
+                    SET last_activity = NOW(), last_path = %s
+                    WHERE session_id = %s AND expires_at > NOW()
+                """, (path, session_token))
+            else:
+                cur.execute("""
+                    UPDATE public.user_sessions
+                    SET last_activity = NOW()
+                    WHERE session_id = %s AND expires_at > NOW()
+                """, (session_token,))
+            conn.commit()
+        except Exception:
+            pass
+        finally:
+            if conn:
+                return_db_connection(conn)
     if path not in ("/", "/index.html"):
         return await call_next(request)
     sas_id = request.query_params.get("sas_id") or request.query_params.get("sas-id")
@@ -479,8 +594,27 @@ def _index_redirect(request: Request):
 def _sailor_spa(slug: str): return serve_sailor_spa(slug)
 
 
+@app.get("/class/{slug}")
+@app.head("/class/{slug}")
+def _class_page_or_redirect(slug: str):
+    """If URL is /class/<slug> with no leading ID: lookup by class_name, 301 to /class/{class_id}-{canonical_slug} or 404. If slug is already id-slug (e.g. 7-420), serve SPA."""
+    if not slug or not slug.strip():
+        raise HTTPException(status_code=404, detail="Class not found")
+    slug = slug.strip()
+    # Canonical form: starts with digits and a hyphen (e.g. 7-420, 62-optimist-a) — serve SPA with canonical in initial HTML
+    if re.match(r"^\d+-", slug):
+        return serve_class_spa(slug)
+    class_id, class_name = _get_class_by_name_slug(slug)
+    if not class_id or not class_name:
+        raise HTTPException(status_code=404, detail="Class not found")
+    canonical = _class_canonical_slug(class_name)
+    target = f"/class/{class_id}-{canonical}" if canonical else f"/class/{class_id}"
+    return RedirectResponse(url=target, status_code=301)
+
+
 def _static_dir():
-    return os.getenv("STATIC_DIR") or (os.path.join(os.path.dirname(os.path.abspath(__file__)), "sailingsa", "frontend") if os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), "sailingsa", "frontend")) else os.path.dirname(os.path.abspath(__file__)))
+    """Return absolute static dir (same as STATIC_DIR) so worker cwd does not affect paths."""
+    return STATIC_DIR
 
 
 @app.get("/regatta/results.html")
@@ -517,6 +651,1815 @@ def _about_html():
     raise HTTPException(status_code=404, detail="about.html not found")
 
 
+def _format_uptime(seconds: int) -> str:
+    """Single canonical formatter: always "{d}d {h}h {m}m {s}s". Invalid/NaN -> 0d 0h 0m 0s."""
+    try:
+        sec = int(seconds) if seconds is not None else 0
+    except (TypeError, ValueError):
+        sec = 0
+    sec = max(0, sec)
+    d = sec // 86400
+    h = (sec % 86400) // 3600
+    m = (sec % 3600) // 60
+    s = sec % 60
+    return f"{d}d {h}h {m}m {s}s"
+
+
+def _format_dt_sast(dt):
+    """Format datetime as YYYY-MM-DD HH:MM SAST (Africa/Johannesburg)."""
+    if not dt:
+        return "—"
+    try:
+        from datetime import timezone
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(ZoneInfo("Africa/Johannesburg")).strftime("%Y-%m-%d %H:%M SAST")
+    except Exception:
+        return str(dt) if dt else "—"
+
+
+def _render_signed_in_table(signed_in_rows: list) -> str:
+    """Render one row per active user. Name clickable for session history. Active column: ✓ online."""
+    h = '<table class="admin-table" id="online-users-table"><thead><tr><th>name</th><th>sas_id</th><th>IP</th><th>device</th><th>login time</th><th>session duration</th><th>current page</th><th>Active</th></tr></thead><tbody>'
+    for row in signed_in_rows:
+        m = row if isinstance(row, dict) else {}
+        sas_id = m.get("sas_id") or "—"
+        name = m.get("name") or "—"
+        login_iso = m.get("login_time_iso") or ""
+        session_start = m.get("_created_at")
+        if not login_iso and session_start and getattr(session_start, "isoformat", None):
+            login_iso = session_start.isoformat()
+        session_id = m.get("session_id") or ""
+        tr_attrs = f' data-sas-id="{html_module.escape(str(sas_id))}"' if sas_id else ""
+        if session_id:
+            tr_attrs += f' data-session-id="{html_module.escape(session_id)}"'
+        if login_iso:
+            tr_attrs += f' data-login-time="{html_module.escape(login_iso)}"'
+        if m.get("session_start_unix") is not None:
+            tr_attrs += f' data-session-start-unix="{int(m["session_start_unix"])}"'
+        name_attrs = f' class="session-history-link" data-sas-id="{html_module.escape(str(sas_id))}" data-name="{html_module.escape(str(name))}"' if sas_id and sas_id != "—" else ""
+        name_cell = f'<td><span role="button" tabindex="0"{name_attrs}>{html_module.escape(str(name))}</span></td>' if name_attrs else f'<td>{html_module.escape(str(name))}</td>'
+        active_cell = '<td class="active-cell"><span class="active-yes">✓</span></td>'
+        h += f'<tr{tr_attrs}>{name_cell}<td>{html_module.escape(str(sas_id))}</td><td class="ip-cell">{html_module.escape(str(m.get("ip_address", "—")))}</td><td class="device-cell">{html_module.escape(str(m.get("device", "—")))}</td><td>{html_module.escape(str(m.get("login_time", "—")))}</td><td class="session-duration">{m.get("session_duration", "—")}</td><td class="current-page">{html_module.escape(str(m.get("last_path", "—")))}</td>{active_cell}</tr>'
+    h += "</tbody></table>"
+    return h
+
+
+def _admin_online_users_light(cur) -> list:
+    """Legacy: sas_id, login_time (ISO), last_path. Prefer _admin_online_users_full for dashboard poll."""
+    full = _admin_online_users_full(cur)
+    return [{"sas_id": u["sas_id"], "login_time": u.get("login_time_iso", ""), "last_path": u.get("current_page", "—")} for u in full]
+
+
+def _admin_online_users_full(cur) -> list:
+    """Full list for /admin/dashboard-data online_users: one row per active session (same sas_id can appear multiple times). Keys: session_id, sas_id, name, login_time_iso, session_start_unix, current_page, device, ip_address."""
+    if not table_exists("user_sessions"):
+        return []
+    try:
+        has_path = column_exists("user_sessions", "last_path")
+        has_activity = column_exists("user_sessions", "last_activity")
+        has_logout = column_exists("user_sessions", "logout_time")
+        has_ip = column_exists("user_sessions", "ip_address")
+        has_ua = column_exists("user_sessions", "user_agent")
+        has_dt = column_exists("user_sessions", "device_type")
+        if has_logout and has_activity:
+            where_clause = "s.logout_time IS NULL AND s.last_activity >= NOW() - INTERVAL '30 minutes'"
+        elif has_logout:
+            where_clause = "s.logout_time IS NULL AND s.created_at >= NOW() - INTERVAL '30 minutes'"
+        else:
+            where_30min = "s.last_activity >= NOW() - INTERVAL '30 minutes' OR (s.last_activity IS NULL AND s.created_at >= NOW() - INTERVAL '30 minutes')" if has_activity else "s.created_at >= NOW() - INTERVAL '30 minutes'"
+            where_clause = "s.expires_at > NOW() AND (" + where_30min + ")"
+        order_col = "COALESCE(s.last_activity, s.created_at)" if has_activity else "s.created_at"
+        path_col = "s.last_path" if has_path else "''"
+        cols = ["s.session_id", "s.sas_id", "s.created_at AS login_at", path_col + " AS last_path"]
+        if has_ip:
+            cols.append("s.ip_address")
+        if has_ua:
+            cols.append("s.user_agent")
+        if has_dt:
+            cols.append("s.device_type")
+        cur.execute("""
+            SELECT """ + ", ".join(cols) + """,
+                COALESCE(TRIM(p.full_name), TRIM(p.first_name || ' ' || COALESCE(p.last_name, ''))) AS name
+            FROM public.user_sessions s
+            LEFT JOIN public.sas_id_personal p ON p.sa_sailing_id::text = s.sas_id
+            WHERE """ + where_clause + """
+            ORDER BY """ + order_col + """ DESC NULLS LAST
+        """)
+        rows = cur.fetchall() or []
+        out = []
+        for r in rows:
+            login_at = r.get("login_at")
+            session_start_unix = int(login_at.timestamp()) if login_at and getattr(login_at, "timestamp", None) else None
+            device = (r.get("device_type") or "").strip() if r.get("device_type") else ""
+            if not device and r.get("user_agent"):
+                device = _derive_device_type(r.get("user_agent") or "")
+            out.append({
+                "session_id": str(r.get("session_id") or ""),
+                "sas_id": str(r.get("sas_id") or ""),
+                "name": (r.get("name") or "—") if r else "—",
+                "login_time_iso": login_at.isoformat() if login_at and getattr(login_at, "isoformat", None) else "",
+                "session_start_unix": session_start_unix,
+                "current_page": (r.get("last_path") or "—") if r else "—",
+                "device": device or "—",
+                "ip_address": (r.get("ip_address") or "—") if r else "—",
+            })
+        return out
+    except Exception:
+        return []
+
+
+def _admin_offline_sessions(cur, limit: int = 50) -> list:
+    """Sessions that are not online: explicit logout (logout_time set) or stale (inactive 30+ min). Same sas_id can appear if different devices. Keys: session_id, sas_id, name, ip_address, device, login_time_iso, logout_time_iso, duration_seconds."""
+    if not table_exists("user_sessions"):
+        return []
+    try:
+        has_logout = column_exists("user_sessions", "logout_time")
+        has_activity = column_exists("user_sessions", "last_activity")
+        has_dt = column_exists("user_sessions", "device_type")
+        has_ip = column_exists("user_sessions", "ip_address")
+        has_ua = column_exists("user_sessions", "user_agent")
+        cols = ["s.session_id", "s.sas_id", "s.created_at AS login_at"]
+        if has_logout:
+            cols.append("s.logout_time AS logout_at")
+        if has_activity:
+            cols.append("s.last_activity AS last_activity_at")
+        if has_ip:
+            cols.append("s.ip_address")
+        if has_ua:
+            cols.append("s.user_agent")
+        if has_dt:
+            cols.append("s.device_type")
+        # Offline = logged out OR no longer in 30-min active window (so not in Online list)
+        if has_logout and has_activity:
+            where = "(s.logout_time IS NOT NULL) OR (s.last_activity < NOW() - INTERVAL '30 minutes') OR (s.last_activity IS NULL AND s.created_at < NOW() - INTERVAL '30 minutes')"
+            order = "COALESCE(s.logout_time, s.last_activity, s.created_at) DESC"
+        elif has_logout:
+            where = "s.logout_time IS NOT NULL"
+            order = "s.logout_time DESC"
+        else:
+            return []
+        cur.execute("""
+            SELECT """ + ", ".join(cols) + """,
+                COALESCE(TRIM(p.full_name), TRIM(p.first_name || ' ' || COALESCE(p.last_name, ''))) AS name
+            FROM public.user_sessions s
+            LEFT JOIN public.sas_id_personal p ON p.sa_sailing_id::text = s.sas_id
+            WHERE """ + where + """
+            ORDER BY """ + order + """
+            LIMIT %s
+        """, (limit,))
+        rows = cur.fetchall() or []
+        out = []
+        for r in rows:
+            login_at = r.get("login_at")
+            logout_at = r.get("logout_at") if has_logout else None
+            last_act = r.get("last_activity_at")
+            # "Offline since" = logout_time if set, else last_activity, else created_at
+            end_at = logout_at or last_act or login_at
+            duration_seconds = None
+            if login_at and end_at and getattr(login_at, "timestamp", None) and getattr(end_at, "timestamp", None):
+                duration_seconds = int(end_at.timestamp() - login_at.timestamp())
+            device = (r.get("device_type") or "").strip() if r.get("device_type") else ""
+            if not device and r.get("user_agent"):
+                device = _derive_device_type(r.get("user_agent") or "")
+            out.append({
+                "session_id": str(r.get("session_id") or ""),
+                "sas_id": str(r.get("sas_id") or ""),
+                "name": (r.get("name") or "—") if r else "—",
+                "login_time_iso": login_at.isoformat() if login_at and getattr(login_at, "isoformat", None) else "",
+                "logout_time_iso": (logout_at.isoformat() if logout_at and getattr(logout_at, "isoformat", None) else (end_at.isoformat() if end_at and getattr(end_at, "isoformat", None) else "")),
+                "duration_seconds": duration_seconds,
+                "device": device or "—",
+                "ip_address": (r.get("ip_address") or "—") if r else "—",
+            })
+        return out
+    except Exception:
+        return []
+
+
+def _render_offline_table(offline_rows: list) -> str:
+    """Render one row per ended session. Columns: name, sas_id, IP, device, login time, time online, offline since."""
+    h = '<table class="admin-table" id="offline-users-table"><thead><tr><th>name</th><th>sas_id</th><th>IP</th><th>device</th><th>login time</th><th>time online</th><th>offline since</th></tr></thead><tbody>'
+    for row in offline_rows:
+        m = row if isinstance(row, dict) else {}
+        name = m.get("name") or "—"
+        sas_id = m.get("sas_id") or "—"
+        login_iso = m.get("login_time_iso") or ""
+        logout_iso = m.get("logout_time_iso") or ""
+        dur = m.get("duration_seconds")
+        if dur is not None:
+            if dur < 60:
+                dur_str = str(dur) + " s"
+            elif dur < 3600:
+                dur_str = str(dur // 60) + " m " + str(dur % 60) + " s"
+            elif dur < 86400:
+                hh, r = divmod(dur, 3600)
+                mm, ss = divmod(r, 60)
+                dur_str = f"{hh} h {mm} m {ss} s"
+            else:
+                dd, r = divmod(dur, 86400)
+                hh, r = divmod(r, 3600)
+                mm, ss = divmod(r, 60)
+                dur_str = f"{dd} d {hh} h {mm} m {ss} s"
+        else:
+            dur_str = "—"
+        login_dt = _parse_iso_to_dt(login_iso)
+        login_display = _format_dt_sast(login_dt) if login_dt else (login_iso[:19] if login_iso else "—")
+        logout_dt = _parse_iso_to_dt(logout_iso)
+        logout_display = _format_dt_sast(logout_dt) if logout_dt else (logout_iso[:19] if logout_iso else "—")
+        name_attrs = f' class="session-history-link" data-sas-id="{html_module.escape(str(sas_id))}" data-name="{html_module.escape(str(name))}"' if sas_id and sas_id != "—" else ""
+        name_cell = f'<td><span role="button" tabindex="0"{name_attrs}>{html_module.escape(str(name))}</span></td>' if name_attrs else f'<td>{html_module.escape(str(name))}</td>'
+        h += f'<tr>{name_cell}<td>{html_module.escape(str(sas_id))}</td><td>{html_module.escape(str(m.get("ip_address", "—")))}</td><td>{html_module.escape(str(m.get("device", "—")))}</td><td>{html_module.escape(str(login_display))}</td><td>{dur_str}</td><td>{html_module.escape(str(logout_display))}</td></tr>'
+    if not offline_rows:
+        h += '<tr><td colspan="7">No recently ended sessions.</td></tr>'
+    h += "</tbody></table>"
+    return h
+
+
+def _parse_iso_to_dt(iso: str):
+    """Parse ISO datetime string to datetime for formatting; return None on failure."""
+    if not iso:
+        return None
+    try:
+        from datetime import datetime
+        return datetime.fromisoformat(iso.replace("Z", "+00:00"))
+    except Exception:
+        return None
+
+
+def _admin_user_session_history(cur, sas_id: str) -> dict:
+    """Build session history for GET /admin/user-session-history/{sas_id}. Returns ok, sessions, active_session, total_sessions_count, total_duration_seconds, last_login_iso, device, ip_address, user_agent."""
+    out = {"ok": True, "sessions": [], "active_session": None, "total_sessions_count": 0, "total_duration_seconds": 0, "last_login_iso": "", "device": "", "ip_address": "", "user_agent": ""}
+    if not table_exists("user_sessions"):
+        return out
+    has_logout = column_exists("user_sessions", "logout_time")
+    has_activity = column_exists("user_sessions", "last_activity")
+    has_ip = column_exists("user_sessions", "ip_address")
+    has_ua = column_exists("user_sessions", "user_agent")
+    has_dt = column_exists("user_sessions", "device_type")
+    cols = ["session_id", "created_at", "expires_at"]
+    if has_logout:
+        cols.append("logout_time")
+    if has_activity:
+        cols.append("last_activity")
+    if has_ip:
+        cols.append("ip_address")
+    if has_ua:
+        cols.append("user_agent")
+    if has_dt:
+        cols.append("device_type")
+    try:
+        cur.execute(
+            "SELECT " + ", ".join(cols) + " FROM public.user_sessions WHERE sas_id = %s ORDER BY created_at DESC",
+            (sas_id,),
+        )
+        rows = cur.fetchall() or []
+    except Exception:
+        return out
+    now_ts = time.time()
+    sessions = []
+    total_sec = 0
+    active_session = None
+    has_analytics = table_exists("analytics_events")
+    for r in rows:
+        sid = r.get("session_id")
+        created = r.get("created_at")
+        logout_time = r.get("logout_time") if has_logout else None
+        last_activity = r.get("last_activity") if has_activity else None
+        created_ts = created.timestamp() if created and getattr(created, "timestamp", None) else None
+        login_iso = created.isoformat() if created and getattr(created, "isoformat", None) else ""
+        logout_iso = logout_time.isoformat() if logout_time and getattr(logout_time, "isoformat", None) else None
+        if logout_time and getattr(logout_time, "timestamp", None) and created_ts is not None:
+            duration_sec = int(logout_time.timestamp() - created_ts)
+        elif created_ts is not None:
+            duration_sec = int(now_ts - created_ts)
+        else:
+            duration_sec = 0
+        duration_sec = max(0, duration_sec)
+        total_sec += duration_sec
+        device = (r.get("device_type") or "").strip() if has_dt and r.get("device_type") else ""
+        if not device and r.get("user_agent"):
+            device = _derive_device_type(r.get("user_agent") or "")
+        pages = []
+        if has_analytics and sid:
+            try:
+                cur.execute(
+                    "SELECT metadata->>'path' AS path, created_at FROM public.analytics_events WHERE session_id = %s AND event_type = 'page_view' ORDER BY created_at",
+                    (str(sid),),
+                )
+                pv_rows = cur.fetchall() or []
+                for i, pv in enumerate(pv_rows):
+                    path = (pv.get("path") or "").strip() or "—"
+                    ct = pv.get("created_at")
+                    ct_ts = ct.timestamp() if ct and getattr(ct, "timestamp", None) else None
+                    if i + 1 < len(pv_rows):
+                        next_ct = pv_rows[i + 1].get("created_at")
+                        next_ts = next_ct.timestamp() if next_ct and getattr(next_ct, "timestamp", None) else None
+                        time_seconds = int(next_ts - ct_ts) if ct_ts is not None and next_ts is not None else None
+                    else:
+                        end_ts = (logout_time.timestamp() if logout_time and getattr(logout_time, "timestamp", None) else
+                                  last_activity.timestamp() if last_activity and getattr(last_activity, "timestamp", None) else now_ts)
+                        time_seconds = int(end_ts - ct_ts) if ct_ts is not None else None
+                    pages.append({"path": path, "time_seconds": max(0, time_seconds) if time_seconds is not None else None})
+            except Exception:
+                pass
+        sess_obj = {
+            "session_id": sid,
+            "login_time_iso": login_iso,
+            "logout_time_iso": logout_iso,
+            "duration_seconds": duration_sec,
+            "device": device or "—",
+            "ip_address": (r.get("ip_address") or "—") if has_ip else "—",
+            "user_agent": (r.get("user_agent") or "—") if has_ua else "—",
+            "pages": pages,
+        }
+        sessions.append(sess_obj)
+        last_act_ts = last_activity.timestamp() if last_activity and getattr(last_activity, "timestamp", None) else None
+        is_active = logout_time is None and (last_act_ts is None or (now_ts - last_act_ts < 1800))
+        if is_active and active_session is None:
+            active_session = sess_obj
+    out["sessions"] = sessions
+    out["total_sessions_count"] = len(sessions)
+    out["total_duration_seconds"] = total_sec
+    out["last_login_iso"] = sessions[0]["login_time_iso"] if sessions else ""
+    ref = active_session or (sessions[0] if sessions else None)
+    if ref:
+        out["device"] = ref.get("device") or ""
+        out["ip_address"] = ref.get("ip_address") or ""
+        out["user_agent"] = ref.get("user_agent") or ""
+    return out
+
+
+ADMIN_LIVE_HOSTNAME = "vm103zuex.yourlocaldomain.com"
+
+
+@app.get("/admin/dashboard", response_class=HTMLResponse)
+def admin_dashboard(request: Request):
+    if socket.gethostname() != ADMIN_LIVE_HOSTNAME:
+        raise HTTPException(status_code=403, detail="Admin dashboard disabled on local environment.")
+    role = _get_session_role(request)
+    if not role or role not in ("super_admin", "admin"):
+        raise HTTPException(status_code=403, detail="Admin access required.")
+    # One source per metric: each tile count = len(rows) from the same query that feeds the modal list. No separate count query.
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # --- System Status ---
+        # API uptime: time since process start. Source: process (no table).
+        uptime_seconds = int(time.time() - _api_start_time)
+        uptime_str = _format_uptime(uptime_seconds)
+
+        # --- Online Users (Currently signed-in, active in last 30 min only). One row per sas_id, sorted by last_activity DESC. Table: user_sessions.
+        signed_in_rows = []
+        signed_in_msg = ""
+        if table_exists("user_sessions"):
+            try:
+                has_ip = column_exists("user_sessions", "ip_address")
+                has_ua = column_exists("user_sessions", "user_agent")
+                has_dt = column_exists("user_sessions", "device_type")
+                has_path = column_exists("user_sessions", "last_path")
+                has_activity = column_exists("user_sessions", "last_activity")
+                has_logout = column_exists("user_sessions", "logout_time")
+                cols = ["s.session_id", "s.sas_id", "s.expires_at", "s.created_at"]
+                if has_ip:
+                    cols.append("s.ip_address")
+                if has_ua:
+                    cols.append("s.user_agent")
+                if has_dt:
+                    cols.append("s.device_type")
+                if has_path:
+                    cols.append("s.last_path")
+                if has_activity:
+                    cols.append("s.last_activity")
+                # Active = logout_time IS NULL AND last_activity in last 30 min. If no logout_time column, fall back to expires_at + 30 min.
+                if has_logout and has_activity:
+                    where_clause = "s.logout_time IS NULL AND s.last_activity >= NOW() - INTERVAL '30 minutes'"
+                elif has_logout:
+                    where_clause = "s.logout_time IS NULL AND s.created_at >= NOW() - INTERVAL '30 minutes'"
+                else:
+                    where_30min = "s.last_activity >= NOW() - INTERVAL '30 minutes' OR (s.last_activity IS NULL AND s.created_at >= NOW() - INTERVAL '30 minutes')" if has_activity else "s.created_at >= NOW() - INTERVAL '30 minutes'"
+                    where_clause = "s.expires_at > NOW() AND (" + where_30min + ")"
+                order_col = "COALESCE(s.last_activity, s.created_at)" if has_activity else "s.created_at"
+                cur.execute("""
+                    SELECT """ + ", ".join(cols) + """,
+                        COALESCE(TRIM(p.full_name), TRIM(p.first_name || ' ' || COALESCE(p.last_name, ''))) AS name
+                    FROM public.user_sessions s
+                    LEFT JOIN public.sas_id_personal p ON p.sa_sailing_id::text = s.sas_id
+                    WHERE """ + where_clause + """
+                    ORDER BY """ + order_col + """ DESC NULLS LAST
+                """)
+                raw = cur.fetchall()
+                now_ts = time.time()
+                def row_from_r(r):
+                    login_at = r.get("created_at")
+                    dur_str = "—"
+                    if login_at:
+                        try:
+                            login_ts = login_at.timestamp()
+                            dur_str = _format_uptime(int(now_ts - login_ts))
+                        except Exception:
+                            pass
+                    device = (r.get("device_type") or "").strip() if r.get("device_type") else ""
+                    if not device and r.get("user_agent"):
+                        device = _derive_device_type(r.get("user_agent") or "")
+                    row = {
+                        "name": (r.get("name") or "—") if r else "—",
+                        "sas_id": r.get("sas_id") or "—",
+                        "session_id": str(r.get("session_id") or ""),
+                        "ip_address": r.get("ip_address") or "—",
+                        "device": device or "—",
+                        "login_time": (_format_dt_sast(login_at) if login_at else "—"),
+                        "session_duration": dur_str,
+                        "last_path": (r.get("last_path") or "—") if r else "—",
+                        "_created_at": login_at,
+                        "login_time_iso": login_at.isoformat() if login_at and getattr(login_at, "isoformat", None) else "",
+                    }
+                    if login_at:
+                        try:
+                            row["session_start_unix"] = int(login_at.timestamp())
+                        except Exception:
+                            pass
+                    return row
+                # One row per session (same sas_id can appear multiple times if multiple devices).
+                signed_in_rows = [row_from_r(r) for r in (raw or [])]
+                def _login_sort_key(row):
+                    t = row.get("_created_at")
+                    return t.timestamp() if t is not None else 0.0
+                signed_in_rows.sort(key=_login_sort_key, reverse=True)
+            except Exception as e:
+                signed_in_msg = f"user_sessions query failed: {e}"
+        else:
+            cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name")
+            tables = [r["table_name"] for r in cur.fetchall()]
+            signed_in_msg = "user_sessions not found. Public tables: " + ", ".join(tables[:30]) + ("..." if len(tables) > 30 else "")
+
+        # --- Offline (recently ended sessions; same sas_id can appear if different device from online).
+        offline_rows = _admin_offline_sessions(cur) if table_exists("user_sessions") else []
+
+        # --- Registered Users. Count = number of distinct sas_id rows in list. Table: user_accounts (one row per distinct sas_id).
+        registered_rows = []
+        registered_msg = ""
+        if table_exists("user_accounts"):
+            registered_rows = _admin_list_registered_users(cur, include_whatsapp=True)
+            # Count shown equals number of rows displayed; no separate count query.
+        else:
+            cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name")
+            tables = [r["table_name"] for r in cur.fetchall()]
+            registered_msg = "user_accounts not found. Public tables: " + ", ".join(tables[:30]) + ("..." if len(tables) > 30 else "")
+        registered_count = len(registered_rows) if not registered_msg else None
+
+        # --- Core Metrics: one query per metric; count = len(rows). Same dataset populates modal.
+        # Total Sailors: distinct sas_id_personal records. Table: sas_id_personal.
+        sailors_rows = _admin_list_sailors(cur)
+        total_sailors = len(sailors_rows)
+        # Total Clubs: clubs table count. Table: clubs.
+        clubs_rows = _admin_list_clubs(cur)
+        total_clubs = len(clubs_rows)
+        # Total Regattas: regattas table count. Table: regattas.
+        regattas_rows = _admin_list_regattas(cur)
+        total_regattas = len(regattas_rows)
+        # Total Races: race records (one per race/fleet). Table: regatta_blocks.
+        races_rows = _admin_list_races(cur)
+        total_races = len(races_rows)
+
+        now = datetime.now(ZoneInfo("Africa/Johannesburg")).strftime("%Y-%m-%d %H:%M SAST (UTC+2)")
+
+        return HTMLResponse(content=f"""
+    <html>
+    <head>
+        <title>Admin Dashboard</title>
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                background: #0f172a;
+                color: white;
+                margin: 0;
+                padding: 0;
+            }}
+            .header {{
+                background: #1e293b;
+                padding: 20px 24px;
+                font-size: 24px;
+                font-weight: bold;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }}
+            .header-left {{ display: flex; flex-direction: column; gap: 4px; }}
+            .header-left .live {{
+                font-size: 14px;
+                font-weight: normal;
+            }}
+            .container {{
+                padding: 32px;
+            }}
+            .section {{
+                margin-top: 32px;
+            }}
+            .status-card {{
+                background: #1e293b;
+                padding: 16px 20px;
+                border-radius: 8px;
+            }}
+            .status-good {{
+                color: #22c55e;
+                font-weight: bold;
+            }}
+            .metrics-row {{
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 20px;
+            }}
+            .metric-tile {{
+                background: #1e293b;
+                padding: 20px;
+                border-radius: 8px;
+            }}
+            .metric-tile .title {{
+                font-size: 12px;
+                color: #94a3b8;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }}
+            .metric-tile .value {{
+                font-size: 28px;
+                font-weight: bold;
+                margin-top: 8px;
+            }}
+            .metric-tile {{
+                cursor: pointer;
+            }}
+            .metric-tile:hover {{
+                background: #334155;
+            }}
+            .section-title {{
+                font-size: 18px;
+                color: #38bdf8;
+                margin-bottom: 12px;
+            }}
+            .admin-table {{
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 14px;
+            }}
+            .admin-table th, .admin-table td {{
+                padding: 8px 12px;
+                text-align: left;
+                border-bottom: 1px solid #334155;
+            }}
+            .admin-table th {{ color: #38bdf8; }}
+            .admin-table .active-yes {{ color: #22c55e; font-weight: bold; }}
+            .admin-table .active-no {{ color: #94a3b8; }}
+            .admin-table .active-logout {{ color: #ef4444; font-weight: bold; }}
+            .admin-table tr.logout-row {{ transition: opacity 3s ease-out; }}
+            .admin-table tr.logout-row.fade-out {{ opacity: 0; }}
+            .active-sailors-table a {{ color: #7dd3fc; font-weight: 600; }}
+            .restart-spinner {{
+                display: inline-block;
+                width: 14px;
+                height: 14px;
+                border: 2px solid #94a3b8;
+                border-top-color: #38bdf8;
+                border-radius: 50%;
+                animation: restart-spin 0.8s linear infinite;
+            }}
+            @keyframes restart-spin {{ to {{ transform: rotate(360deg); }} }}
+            .session-history-link {{
+                cursor: pointer;
+                color: #38bdf8;
+                text-decoration: underline;
+            }}
+            .session-history-link:hover {{ color: #7dd3fc; }}
+            #sessionHistoryModal {{
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,0.7);
+                z-index: 1001;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+            }}
+            #sessionHistoryModal.show {{ display: flex; }}
+            #sessionHistoryModal .modal-inner {{
+                background: #1e293b;
+                border-radius: 12px;
+                max-width: 90vw;
+                max-height: 85vh;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+            }}
+            #sessionHistoryModal .modal-body {{ overflow: auto; padding: 16px; font-size: 14px; }}
+            #sessionHistoryModal .close-btn {{ background: #334155; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }}
+            #sessionHistoryModal table {{ width: 100%; border-collapse: collapse; margin-top: 8px; }}
+            #sessionHistoryModal th, #sessionHistoryModal td {{ padding: 6px 10px; text-align: left; border-bottom: 1px solid #334155; }}
+            .admin-restart-btn {{
+                cursor: pointer;
+                padding: 8px 16px;
+                border-radius: 6px;
+                background: #dc2626;
+                color: white;
+                border: none;
+                font-size: 14px;
+                font-weight: bold;
+            }}
+            .admin-restart-btn:hover {{
+                background: #b91c1c;
+            }}
+            #adminRestartModal {{
+                display: none;
+                position: fixed;
+                z-index: 10000;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.6);
+                align-items: center;
+                justify-content: center;
+            }}
+            #adminRestartModal.show {{ display: flex; }}
+            #adminRestartModal .modal-box {{
+                background: #1e293b;
+                padding: 24px;
+                border-radius: 8px;
+                max-width: 400px;
+            }}
+            #adminRestartModal .modal-actions {{ margin-top: 16px; }}
+            #adminRestartModal .modal-actions button {{ margin-right: 8px; padding: 8px 16px; cursor: pointer; border-radius: 6px; border: none; }}
+            #adminModal {{
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,0.7);
+                z-index: 1000;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+            }}
+            #adminModal.show {{ display: flex; }}
+            #adminModal .modal-inner {{
+                background: #1e293b;
+                border-radius: 12px;
+                max-width: 90vw;
+                max-height: 85vh;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+            }}
+            #adminModal .modal-header {{
+                padding: 16px 20px;
+                border-bottom: 1px solid #334155;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }}
+            #adminModal .modal-body {{ overflow: auto; padding: 16px; }}
+            #adminModal table {{ width: 100%; border-collapse: collapse; font-size: 14px; }}
+            #adminModal th, #adminModal td {{ padding: 8px 12px; text-align: left; border-bottom: 1px solid #334155; }}
+            #adminModal th {{ color: #38bdf8; }}
+            #adminModal .close-btn {{ background: #334155; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }}
+            #adminModal .close-btn:hover {{ background: #475569; }}
+            #adminModal .loading {{ color: #94a3b8; }}
+            #adminModal .err {{ color: #f87171; }}
+            #adminModal .active-yes {{ color: #22c55e; font-weight: bold; }}
+            #adminModal .active-no {{ color: #94a3b8; }}
+            #adminModal #adminModalSearch {{ margin-bottom: 12px; padding: 8px 12px; width: 100%; max-width: 400px; box-sizing: border-box; }}
+            .stat-cards-row {{ display: flex; flex-direction: row; flex-wrap: wrap; gap: 18px; align-items: flex-start; justify-content: center; }}
+            .stat-card {{ display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 18px; background: #001f3f; border-radius: 14px; margin-bottom: 18px; width: fit-content; }}
+            .stat-value-wrap {{ flex-shrink: 0; width: 83px; height: 83px; position: relative; display: flex; align-items: center; justify-content: center; overflow: visible; margin: 0; transform: translateY(-8px); }}
+            .stat-ring {{ position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }}
+            .stat-ring circle {{ fill: none; stroke-width: 14; stroke-linecap: round; stroke-dasharray: 440; transform: rotate(-90deg); transform-origin: 50% 50%; }}
+            .stat-ring .ring-track {{ stroke: #3a3d42; stroke-dashoffset: 0; }}
+            .stat-ring .ring-fill {{ stroke: #B3E5FC; stroke-dashoffset: 440; }}
+            .stat-ring .ring-fill.ring-fill-green {{ stroke: #00E676; }}
+            .stat-ring .ring-fill.ring-fill-orange {{ stroke: #FF9500; }}
+            .stat-ring .ring-fill.ring-fill-red {{ stroke: #FF3B30; }}
+            .stat-value-inner {{ position: absolute; inset: 0; z-index: 1; display: flex; align-items: center; justify-content: center; font-size: 1.01rem; font-weight: 800; color: #fff; line-height: 1; text-align: center; transform: translateY(9px); }}
+            .stat-label-above {{ font-size: 0.81rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #fff; text-align: center; }}
+            .stat-label-below {{ font-size: 0.81rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #fff; text-align: center; }}
+            @media (max-width: 640px) {{
+                .stat-cards-row {{ flex-wrap: nowrap; gap: 7px; justify-content: space-between; }}
+                .stat-card {{ padding: 7px 5px; margin-bottom: 0; border-radius: 9px; gap: 2px; flex: 1 1 0; min-width: 0; }}
+                .stat-value-wrap {{ width: 51px; height: 51px; transform: translateY(-3px); }}
+                .stat-ring circle {{ stroke-width: 9; }}
+                .stat-value-inner {{ font-size: 0.69rem; transform: translateY(5px); }}
+                .stat-label-above, .stat-label-below {{ font-size: 0.58rem; letter-spacing: 0.02em; }}
+            }}
+            #admin-stat-card-1 {{ cursor: pointer; }}
+            #active-sailors-panel-wrap {{ margin-top: 8px; }}
+            #active-sailors-search {{ margin-bottom: 10px; padding: 8px 12px; width: 100%; max-width: 320px; box-sizing: border-box; }}
+        </style>
+    </head>
+    <body>
+
+        <div class="header">
+            <div class="header-left">
+                <span>SailingSA Admin Dashboard</span>
+                <span class="live">LIVE • <span id="liveClock">—</span></span>
+                <span style="font-size:12px;color:#94a3b8;margin-top:4px;">HOST: {html_module.escape(socket.gethostname())} &nbsp;|&nbsp; PID: {os.getpid()} &nbsp;|&nbsp; server_start_timestamp: {int(_api_start_time)}</span>
+            </div>
+        </div>
+
+        <div class="container">
+
+            <div class="section">
+                <div class="status-card" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;">
+                    <span>
+                        <span>API uptime (since last restart): </span><span class="status-good" id="apiUptime" data-start-ts="{SERVER_START_TS}"></span>
+                        <span id="restartStatus" style="display:none;margin-left:8px;"></span>
+                        <span style="display:block;font-size:12px;color:#94a3b8;margin-top:4px;">Last restarted: <span id="apiRestartTime"></span></span>
+                    </span>
+                    <button type="button" class="admin-restart-btn" id="adminRestartBtn">Restart API</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="stat-cards-row">
+                    <div class="stat-card" id="admin-stat-card-1">
+                        <div class="stat-label-above">Active</div>
+                        <div class="stat-value-wrap">
+                            <svg class="stat-ring" viewBox="-8 -8 156 156">
+                                <circle class="ring-track" cx="70" cy="70" r="70"/>
+                                <circle class="ring-fill" id="admin-stat-1-ring" cx="70" cy="70" r="70"/>
+                            </svg>
+                            <div class="stat-value-inner" id="admin-stat-1-circle"><span id="admin-stat-1-value">0</span></div>
+                        </div>
+                        <div class="stat-label-below">Sailors</div>
+                    </div>
+                    <div class="stat-card" id="admin-stat-card-2" data-endpoint="/admin/list/classes" data-title="Classes" style="cursor:pointer;">
+                        <div class="stat-label-above">Classes</div>
+                        <div class="stat-value-wrap">
+                            <svg class="stat-ring" viewBox="-8 -8 156 156">
+                                <circle class="ring-track" cx="70" cy="70" r="70"/>
+                                <circle class="ring-fill ring-fill-green" id="admin-stat-2-ring" cx="70" cy="70" r="70"/>
+                            </svg>
+                            <div class="stat-value-inner" id="admin-stat-2-circle"><span id="admin-stat-2-value">0</span></div>
+                        </div>
+                        <div class="stat-label-below">Sailed</div>
+                    </div>
+                    <div class="stat-card" id="admin-stat-card-3">
+                        <div class="stat-label-above">Regatta's</div>
+                        <div class="stat-value-wrap">
+                            <svg class="stat-ring" viewBox="-8 -8 156 156">
+                                <circle class="ring-track" cx="70" cy="70" r="70"/>
+                                <circle class="ring-fill ring-fill-orange" id="admin-stat-3-ring" cx="70" cy="70" r="70"/>
+                            </svg>
+                            <div class="stat-value-inner" id="admin-stat-3-circle"><span id="admin-stat-3-value">0</span></div>
+                        </div>
+                        <div class="stat-label-below">Sailed</div>
+                    </div>
+                    <div class="stat-card" id="admin-stat-card-4">
+                        <div class="stat-label-above">Races</div>
+                        <div class="stat-value-wrap">
+                            <svg class="stat-ring" viewBox="-8 -8 156 156">
+                                <circle class="ring-track" cx="70" cy="70" r="70"/>
+                                <circle class="ring-fill ring-fill-red" id="admin-stat-4-ring" cx="70" cy="70" r="70"/>
+                            </svg>
+                            <div class="stat-value-inner" id="admin-stat-4-circle"><span id="admin-stat-4-value">0</span></div>
+                        </div>
+                        <div class="stat-label-below">raced</div>
+                    </div>
+                </div>
+                <div class="section" id="active-sailors-panel-wrap" style="display:none;">
+                    <div class="section-title">Active Sailors (by total races)</div>
+                    <input type="text" id="active-sailors-search" placeholder="Search rank, SAS ID, races, regattas, date…" class="admin-search" />
+                    <table class="admin-table active-sailors-table" id="active-sailors-table">
+                        <thead><tr><th data-sort="rank" style="cursor:pointer;">Rank</th><th data-sort="full_name" style="cursor:pointer;">Name</th><th data-sort="sas_id" style="cursor:pointer;">SAS ID</th><th data-sort="races_count" style="cursor:pointer;">Races</th><th data-sort="regattas_count" style="cursor:pointer;">Regattas</th><th data-sort="last_active_date" style="cursor:pointer;">Last active</th><th data-sort="last_regatta_name" style="cursor:pointer;">Regatta</th><th data-sort="last_class_sailed" style="cursor:pointer;">Class</th><th data-sort="last_regatta_rank" style="cursor:pointer;">Result (7/9)</th></tr></thead>
+                        <tbody><tr><td colspan="9">Loading…</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="metrics-row">
+                    <div class="metric-tile" data-endpoint="/admin/list/registered-users" data-title="Registered Users">
+                        <div class="title">Registered Users</div>
+                        <div class="value">{registered_count if not registered_msg else "—"}</div>
+                    </div>
+                    <div class="metric-tile" data-scroll-to="online-users">
+                        <div class="title">Online Users</div>
+                        <div class="value">{len(signed_in_rows)}</div>
+                    </div>
+                    <div class="metric-tile" data-endpoint="/admin/list/regattas" data-title="Total Regattas">
+                        <div class="title">Total Regattas</div>
+                        <div class="value">{total_regattas}</div>
+                    </div>
+                    <div class="metric-tile" data-endpoint="/admin/list/races" data-title="Total Races">
+                        <div class="title">Total Races</div>
+                        <div class="value">{total_races}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section" id="online-users">
+                <div class="section-title">Online Users</div>
+                {_render_signed_in_table(signed_in_rows) if signed_in_rows else '<table class="admin-table" id="online-users-table"><thead><tr><th>name</th><th>sas_id</th><th>IP</th><th>device</th><th>login time</th><th>session duration</th><th>current page</th><th>Active</th></tr></thead><tbody><tr><td colspan="8">No one currently signed in.</td></tr></tbody></table>'}
+            </div>
+
+            <div class="section" id="offline-users">
+                <div class="section-title">Offline</div>
+                {_render_offline_table(offline_rows)}
+            </div>
+
+            <div id="adminModal">
+                <div class="modal-inner">
+                    <div class="modal-header">
+                        <h2 id="adminModalTitle">—</h2>
+                        <button type="button" class="close-btn" id="adminModalClose">Close</button>
+                    </div>
+                    <div class="modal-body" id="adminModalBody"><span class="loading">Loading…</span></div>
+                </div>
+            </div>
+            <div id="sessionHistoryModal">
+                <div class="modal-inner">
+                    <div class="modal-header">
+                        <h2 id="sessionHistoryModalTitle">—</h2>
+                        <button type="button" class="close-btn" id="sessionHistoryModalClose">Close</button>
+                    </div>
+                    <div class="modal-body" id="sessionHistoryModalBody"><span class="loading">Loading…</span></div>
+                </div>
+            </div>
+            <div id="adminRestartModal">
+                <div class="modal-box">
+                    <p>Restart API? This will briefly interrupt service.</p>
+                    <div class="modal-actions">
+                        <button type="button" id="adminRestartConfirm">Confirm</button>
+                        <button type="button" id="adminRestartCancel">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <script>
+            (function() {{
+                function pad2(x) {{ return (x != null && String(x).length === 1) ? '0' + x : (x != null ? String(x) : '00'); }}
+                function formatSAST() {{
+                    var d = new Date();
+                    var opts = {{ timeZone: 'Africa/Johannesburg', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }};
+                    var parts = new Intl.DateTimeFormat('en-CA', opts).formatToParts(d);
+                    var y = '', mo = '', day = '', h = '', mi = '', s = '';
+                    parts.forEach(function(p) {{
+                        if (p.type === 'year') y = p.value;
+                        if (p.type === 'month') mo = p.value;
+                        if (p.type === 'day') day = p.value;
+                        if (p.type === 'hour') h = p.value;
+                        if (p.type === 'minute') mi = p.value;
+                        if (p.type === 'second') s = p.value;
+                    }});
+                    return y + '-' + pad2(mo) + '-' + pad2(day) + ' ' + pad2(h) + ':' + pad2(mi) + ':' + pad2(s) + ' SAST (UTC+2)';
+                }}
+                var liveClock = document.getElementById('liveClock');
+                if (liveClock) {{
+                    liveClock.textContent = formatSAST();
+                    setInterval(function() {{ if (liveClock) liveClock.textContent = formatSAST(); }}, 1000);
+                }}
+                function formatDurationSeconds(sec) {{
+                    if (sec == null || isNaN(sec)) return '0d 0h 0m 0s';
+                    sec = Math.max(0, Math.floor(sec));
+                    var d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+                    return d + 'd ' + h + 'h ' + m + 'm ' + s + 's';
+                }}
+                function formatDuration(sec) {{ return formatDurationSeconds(sec); }}
+                function tickDurations() {{
+                    var table = document.getElementById('online-users-table');
+                    if (!table) return;
+                    var now = Date.now() / 1000;
+                    table.querySelectorAll('tbody tr').forEach(function(tr) {{
+                        if (tr.getAttribute('data-logout-row') === '1') return;
+                        var cell = tr.querySelector('td.session-duration');
+                        if (!cell) return;
+                        var t = null;
+                        var startUnix = tr.getAttribute('data-session-start-unix');
+                        if (startUnix != null && startUnix !== '') t = parseInt(startUnix, 10);
+                        if (t == null || isNaN(t)) {{
+                            var iso = tr.getAttribute('data-login-time');
+                            if (iso) t = new Date(iso).getTime() / 1000;
+                        }}
+                        if (t == null || isNaN(t)) {{ cell.textContent = '0d 0h 0m 0s'; return; }}
+                        var sec = Math.max(0, Math.floor(now - t));
+                        cell.textContent = formatDuration(sec);
+                    }});
+                }}
+                setInterval(tickDurations, 1000);
+                tickDurations();
+                function formatUptime(seconds) {{ return formatDurationSeconds(seconds); }}
+                function tickUptime() {{
+                    var el = document.getElementById('apiUptime');
+                    if (!el) return;
+                    var startTs = parseInt(el.dataset.startTs, 10);
+                    var now = Math.floor(Date.now() / 1000);
+                    var elapsed = (startTs != null && !isNaN(startTs)) ? Math.max(0, now - startTs) : 0;
+                    el.innerText = formatDurationSeconds(elapsed);
+                }}
+                function formatRestartTime(unixSec) {{
+                    if (unixSec == null || isNaN(unixSec)) return '—';
+                    var d = new Date(unixSec * 1000);
+                    return d.toLocaleString(undefined, {{ year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }});
+                }}
+                function updateRestartTime(overrideTs) {{
+                    var target = document.getElementById('apiRestartTime');
+                    if (!target) return;
+                    var startTs = overrideTs != null ? (typeof overrideTs === 'number' ? overrideTs : parseInt(overrideTs, 10)) : null;
+                    if (startTs == null || isNaN(startTs)) {{
+                        var el = document.getElementById('apiUptime');
+                        if (el) startTs = parseInt(el.dataset.startTs, 10);
+                    }}
+                    target.textContent = formatRestartTime(startTs);
+                }}
+                setInterval(tickUptime, 1000);
+                tickUptime();
+                updateRestartTime();
+                function updateStatCardsFromData(data) {{
+                    var v1 = document.getElementById('admin-stat-1-value');
+                    var v2 = document.getElementById('admin-stat-2-value');
+                    var v3 = document.getElementById('admin-stat-3-value');
+                    var v4 = document.getElementById('admin-stat-4-value');
+                    if (v1) v1.textContent = (data.active_sailors != null && data.active_sailors !== '') ? Number(data.active_sailors) : '0';
+                    if (v2) v2.textContent = (data.classes_sailed != null && data.classes_sailed !== '') ? Number(data.classes_sailed) : '0';
+                    if (v3) v3.textContent = (data.regattas_sailed != null && data.regattas_sailed !== '') ? Number(data.regattas_sailed) : '0';
+                    if (v4) v4.textContent = (data.races_raced != null && data.races_raced !== '') ? Number(data.races_raced) : '0';
+                }}
+                var apiUptimeEl = document.getElementById('apiUptime');
+                fetch('/admin/dashboard-data', {{ credentials: 'same-origin' }}).then(function(r) {{ return r.json(); }}).then(function(data) {{ updateStatCardsFromData(data); }}).catch(function() {{}});
+                setInterval(function() {{
+                    fetch('/admin/dashboard-data', {{ credentials: 'same-origin' }}).then(function(r) {{ return r.json(); }}).then(function(data) {{
+                        updateStatCardsFromData(data);
+                        var table = document.getElementById('online-users-table');
+                        if (!table) return;
+                        var list = data.online_users || [];
+                        var byId = {{}};
+                        list.forEach(function(u) {{ var k = (u.session_id != null && u.session_id !== '') ? String(u.session_id) : String(u.sas_id || ''); byId[k] = u; }});
+                        var tbody = table.querySelector('tbody');
+                        if (!tbody) return;
+                        if (list.length > 0) {{
+                            tbody.querySelectorAll('tr td[colspan="8"]').forEach(function(td) {{ var tr = td.closest('tr'); if (tr) tr.parentNode.removeChild(tr); }});
+                        }}
+                        var trs = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+                        var seenIds = {{}};
+                        trs.forEach(function(tr) {{
+                            if (tr.getAttribute('data-logout-row') === '1') return;
+                            var sessionId = tr.getAttribute('data-session-id') || tr.getAttribute('data-sas-id');
+                            if (!sessionId) return;
+                            var u = byId[sessionId];
+                            if (u) {{
+                                seenIds[sessionId] = true;
+                                var cp = tr.querySelector('td.current-page');
+                                var dev = tr.querySelector('td.device-cell');
+                                var ip = tr.querySelector('td.ip-cell');
+                                if (cp) cp.textContent = u.current_page != null ? u.current_page : '—';
+                                if (dev) dev.textContent = u.device != null ? u.device : '—';
+                                if (ip) ip.textContent = u.ip_address != null ? u.ip_address : '—';
+                            }} else {{
+                                var nameTd = tr.querySelector('td:first-child');
+                                var activeTd = tr.querySelector('td.active-cell');
+                                if (nameTd && activeTd) {{
+                                    tr.setAttribute('data-logout-row', '1');
+                                    tr.removeAttribute('data-login-time');
+                                    tr.removeAttribute('data-session-start-unix');
+                                    tr.classList.add('logout-row');
+                                    var nameText = (nameTd.textContent || '').trim();
+                                    nameTd.textContent = nameText + ' — Logged out ✖';
+                                    activeTd.innerHTML = '<span class="active-logout">✖</span>';
+                                    tr.querySelectorAll('td.session-duration, td.current-page').forEach(function(c) {{ if (c) c.textContent = '—'; }});
+                                    setTimeout(function() {{
+                                        tr.classList.add('fade-out');
+                                        setTimeout(function() {{
+                                            if (tr.parentNode) tr.parentNode.removeChild(tr);
+                                            if (tbody && tbody.querySelectorAll('tr[data-session-id]:not([data-logout-row])').length === 0) {{
+                                                tbody.querySelectorAll('tr td[colspan="8"]').forEach(function(td) {{ var r = td.closest('tr'); if (r) r.parentNode.removeChild(r); }});
+                                                var empty = document.createElement('tr');
+                                                empty.innerHTML = '<td colspan="8">No one currently signed in.</td>';
+                                                tbody.appendChild(empty);
+                                                var countEl = document.querySelector('.metric-tile[data-scroll-to="online-users"] .value');
+                                                if (countEl) countEl.textContent = '0';
+                                            }}
+                                        }}, 2000);
+                                    }}, 0);
+                                }}
+                            }}
+                        }});
+                        list.forEach(function(u) {{
+                            var sid = String(u.sas_id || '');
+                            var sessionId = (u.session_id != null && u.session_id !== '') ? String(u.session_id) : sid;
+                            if (seenIds[sessionId]) return;
+                            var loginIso = u.login_time_iso || '';
+                            var startUnix = u.session_start_unix;
+                            var dataAttrs = ' data-sas-id="' + (sid.replace(/"/g, '&quot;')) + '" data-session-id="' + (sessionId.replace(/"/g, '&quot;')) + '"';
+                            if (loginIso) dataAttrs += ' data-login-time="' + (loginIso.replace(/"/g, '&quot;')) + '"';
+                            if (startUnix != null) dataAttrs += ' data-session-start-unix="' + startUnix + '"';
+                            var name = (u.name != null ? String(u.name) : '—').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+                            var nameCell = '<td><span class="session-history-link" role="button" tabindex="0" data-sas-id="' + (sid.replace(/"/g, '&quot;')) + '" data-name="' + name + '">' + name + '</span></td>';
+                            var loginDisplay = loginIso ? new Date(loginIso).toLocaleString() : '—';
+                            var newTr = document.createElement('tr');
+                            newTr.setAttribute('data-sas-id', sid);
+                            newTr.setAttribute('data-session-id', sessionId);
+                            if (loginIso) newTr.setAttribute('data-login-time', loginIso);
+                            if (startUnix != null) newTr.setAttribute('data-session-start-unix', String(startUnix));
+                            newTr.innerHTML = nameCell + '<td>' + (sid.replace(/</g, '&lt;')) + '</td><td class="ip-cell">' + (u.ip_address != null ? String(u.ip_address).replace(/</g, '&lt;') : '—') + '</td><td class="device-cell">' + (u.device != null ? String(u.device).replace(/</g, '&lt;') : '—') + '</td><td>' + loginDisplay + '</td><td class="session-duration">0d 0h 0m 0s</td><td class="current-page">' + (u.current_page != null ? String(u.current_page).replace(/</g, '&lt;') : '—') + '</td><td class="active-cell"><span class="active-yes">✓</span></td>';
+                            tbody.insertBefore(newTr, tbody.firstChild);
+                        }});
+                        if (tbody.querySelectorAll('tr').length === 0) {{
+                            var empty = document.createElement('tr');
+                            empty.innerHTML = '<td colspan="8">No one currently signed in.</td>';
+                            tbody.appendChild(empty);
+                        }}
+                        var countEl = document.querySelector('.metric-tile[data-scroll-to="online-users"] .value');
+                        if (countEl) countEl.textContent = list.length;
+                        var offlineList = data.offline_sessions || [];
+                        var offTbody = document.querySelector('#offline-users-table tbody');
+                        if (offTbody) {{
+                            offTbody.innerHTML = '';
+                            function formatDurSec(sec) {{ return formatDurationSeconds(sec); }}
+                            function fmtIso(iso) {{
+                                if (!iso) return '—';
+                                var d = new Date(iso);
+                                return isNaN(d.getTime()) ? iso.substring(0, 19) : d.toLocaleString();
+                            }}
+                            if (offlineList.length === 0) {{
+                                var empty = document.createElement('tr');
+                                empty.innerHTML = '<td colspan="7">No recently ended sessions.</td>';
+                                offTbody.appendChild(empty);
+                            }} else {{
+                                offlineList.forEach(function(o) {{
+                                    var name = (o.name != null ? String(o.name) : '—').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+                                    var sid = (o.sas_id != null ? String(o.sas_id) : '—').replace(/</g, '&lt;');
+                                    var ip = (o.ip_address != null ? String(o.ip_address) : '—').replace(/</g, '&lt;');
+                                    var dev = (o.device != null ? String(o.device) : '—').replace(/</g, '&lt;');
+                                    var nameCell = '<td><span class="session-history-link" role="button" tabindex="0" data-sas-id="' + sid.replace(/"/g, '&quot;') + '" data-name="' + name.replace(/"/g, '&quot;') + '">' + name + '</span></td>';
+                                    var tr = document.createElement('tr');
+                                    tr.innerHTML = nameCell + '<td>' + sid + '</td><td>' + ip + '</td><td>' + dev + '</td><td>' + fmtIso(o.login_time_iso) + '</td><td>' + formatDurSec(o.duration_seconds) + '</td><td>' + fmtIso(o.logout_time_iso) + '</td>';
+                                    offTbody.appendChild(tr);
+                                }});
+                            }}
+                        }}
+                    }}).catch(function() {{}});
+                }}, 10000);
+                var modal = document.getElementById('adminModal');
+                var titleEl = document.getElementById('adminModalTitle');
+                var bodyEl = document.getElementById('adminModalBody');
+                var closeBtn = document.getElementById('adminModalClose');
+                function closeModal() {{ modal.classList.remove('show'); }}
+                if (closeBtn) closeBtn.addEventListener('click', closeModal);
+                if (modal) modal.addEventListener('click', function(e) {{ if (e.target === modal) closeModal(); }});
+                function openListModal(endpoint, title) {{
+                    modal.classList.add('show');
+                    titleEl.textContent = title;
+                    bodyEl.innerHTML = '<span class="loading">Loading…</span>';
+                    fetch(endpoint).then(function(r) {{ return r.json(); }}).then(function(data) {{
+                        if (!data.ok) {{ bodyEl.innerHTML = '<span class="err">' + (data.error || 'Error') + '</span>'; return; }}
+                        var rows = data.rows || [];
+                        if (rows.length === 0) {{ bodyEl.innerHTML = '<p>No rows.</p>'; return; }}
+                        var keys = Object.keys(rows[0]);
+                        var labels = data.column_labels || {{}};
+                        var isRegistered = (endpoint || '').indexOf('registered-users') !== -1;
+                        var h = '';
+                        if (isRegistered) h += '<p><input type="text" id="adminModalSearch" placeholder="Search name, SAS ID, email, whatsapp" style="margin-bottom:12px;padding:8px 12px;width:100%;max-width:400px;box-sizing:border-box;"></p>';
+                        h += '<table id="adminModalTable"><thead><tr>' + keys.map(function(k) {{ return '<th>' + (labels[k] || k.replace(/_/g, ' ')) + '</th>'; }}).join('') + '</tr></thead><tbody>';
+                        rows.forEach(function(row) {{
+                            h += '<tr>';
+                            keys.forEach(function(k) {{
+                                if (k === 'active') {{
+                                    h += '<td>' + (row[k] ? '<span class="active-yes">✓</span>' : '<span class="active-no">–</span>') + '</td>';
+                                }} else if (k === 'class_name' && row.class_id != null && row.class_id !== '') {{
+                                    var slug = (row.class_name || '').toString().toLowerCase().trim().replace(/\\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+                                    var esc = (row.class_name != null ? String(row.class_name) : '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                                    h += '<td><a href="/class/' + row.class_id + '-' + slug + '">' + esc + '</a></td>';
+                                }} else {{
+                                    h += '<td>' + (row[k] != null ? String(row[k]) : '') + '</td>';
+                                }}
+                            }});
+                            h += '</tr>';
+                        }});
+                        h += '</tbody></table>';
+                        bodyEl.innerHTML = h;
+                        if (isRegistered) {{
+                            var searchInput = document.getElementById('adminModalSearch');
+                            var table = document.getElementById('adminModalTable');
+                            if (searchInput && table) {{
+                                searchInput.addEventListener('input', function() {{
+                                    var q = (this.value || '').toLowerCase().trim();
+                                    var tbody = table.querySelector('tbody');
+                                    if (!tbody) return;
+                                    var trs = tbody.querySelectorAll('tr');
+                                    trs.forEach(function(tr) {{
+                                        var text = (tr.textContent || '').toLowerCase();
+                                        tr.style.display = q === '' || text.indexOf(q) !== -1 ? '' : 'none';
+                                    }});
+                                }});
+                            }}
+                        }}
+                    }}).catch(function(err) {{ bodyEl.innerHTML = '<span class="err">' + (err.message || 'Error') + '</span>'; }});
+                }}
+                document.querySelectorAll('.metric-tile').forEach(function(tile) {{
+                    tile.addEventListener('click', function() {{
+                        var scrollTo = this.getAttribute('data-scroll-to');
+                        var endpoint = this.getAttribute('data-endpoint');
+                        var title = this.getAttribute('data-title') || '';
+                        if (scrollTo) {{
+                            var el = document.getElementById(scrollTo);
+                            if (el) el.scrollIntoView({{ behavior: 'smooth' }});
+                        }} else if (endpoint) openListModal(endpoint, title);
+                    }});
+                }});
+                var classesCard = document.getElementById('admin-stat-card-2');
+                if (classesCard) {{
+                    var classesEndpoint = classesCard.getAttribute('data-endpoint');
+                    var classesTitle = classesCard.getAttribute('data-title') || 'Classes';
+                    if (classesEndpoint) classesCard.addEventListener('click', function() {{ openListModal(classesEndpoint, classesTitle); }});
+                }}
+                var activeSailorsPanel = document.getElementById('active-sailors-panel-wrap');
+                var activeSailorsTable = document.getElementById('active-sailors-table');
+                var activeSailorsSearch = document.getElementById('active-sailors-search');
+                var activeSailorsData = null;
+                var activeSailorsSortKey = 'races_count';
+                var activeSailorsSortAsc = false;
+                function renderActiveSailorsBody() {{
+                    var data = activeSailorsData;
+                    if (!data || !activeSailorsTable) return;
+                    var tbody = activeSailorsTable.querySelector('tbody');
+                    if (!tbody) return;
+                    var sortKey = activeSailorsSortKey;
+                    var asc = activeSailorsSortAsc;
+                    var sorted = data.slice().sort(function(a, b) {{
+                        var va = a[sortKey]; var vb = b[sortKey];
+                        var numericKeys = ['rank', 'races_count', 'regattas_count', 'last_regatta_rank', 'fleet_size'];
+                        if (numericKeys.indexOf(sortKey) !== -1) {{
+                            va = Number(va) || 0; vb = Number(vb) || 0;
+                            return asc ? (va - vb) : (vb - va);
+                        }}
+                        va = (va != null ? String(va) : ''); vb = (vb != null ? String(vb) : '');
+                        var c = va.localeCompare(vb, undefined, {{ numeric: true }});
+                        return asc ? c : -c;
+                    }});
+                    var searchQ = (activeSailorsSearch && activeSailorsSearch.value ? activeSailorsSearch.value : '').toLowerCase().trim();
+                    tbody.innerHTML = '';
+                    sorted.forEach(function(row) {{
+                        var tr = document.createElement('tr');
+                        tr.setAttribute('data-rank', String(row.rank));
+                        tr.setAttribute('data-sas-id', String(row.sas_id || ''));
+                        var lastResultDisplay = (row.last_result_display != null ? String(row.last_result_display) : '');
+                        tr.setAttribute('data-search', (String(row.rank) + ' ' + (row.full_name || '') + ' ' + (row.sas_id || '') + ' ' + (row.races_count || '') + ' ' + (row.regattas_count || '') + ' ' + (row.last_active_date || '') + ' ' + (row.last_regatta_name || '') + ' ' + (row.regatta_slug || '') + ' ' + (row.last_class_sailed || '') + ' ' + lastResultDisplay).toLowerCase());
+                        var nameEsc = (row.full_name != null ? String(row.full_name).replace(/</g, '&lt;').replace(/"/g, '&quot;') : '');
+                        var slug = (row.slug != null && row.slug !== '') ? String(row.slug) : '';
+                        var nameCell = slug ? '<a href=\"/sailor/' + slug.replace(/"/g, '&quot;') + '\">' + nameEsc + '</a>' : nameEsc;
+                        var regattaEsc = (row.last_regatta_name != null ? String(row.last_regatta_name).replace(/</g, '&lt;').replace(/\"/g, '&quot;') : '');
+                        var regattaSlug = (row.regatta_slug != null && row.regatta_slug !== '') ? String(row.regatta_slug).replace(/\"/g, '&quot;') : '';
+                        var regattaCell = regattaSlug ? '<a href=\"/regatta/' + regattaSlug + '\">' + regattaEsc + '</a>' : regattaEsc;
+                        var classEsc = (row.last_class_sailed != null ? String(row.last_class_sailed).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;') : '');
+                        var classSlug = (row.last_class_sailed || '').toString().toLowerCase().trim().replace(/\\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+                        var classCell = (row.last_class_id != null && row.last_class_id !== '') ? '<a href="/class/' + String(row.last_class_id).replace(/</g, '&lt;') + '-' + classSlug + '">' + classEsc + '</a>' : classEsc;
+                        var resultEsc = (lastResultDisplay ? lastResultDisplay.replace(/</g, '&lt;').replace(/\"/g, '&quot;') : '');
+                        tr.innerHTML = '<td>' + (row.rank != null ? row.rank : '') + '</td><td>' + nameCell + '</td><td>' + (row.sas_id != null ? String(row.sas_id).replace(/</g, '&lt;') : '') + '</td><td>' + (row.races_count != null ? row.races_count : '') + '</td><td>' + (row.regattas_count != null ? row.regattas_count : '') + '</td><td>' + (row.last_active_date != null ? String(row.last_active_date).replace(/</g, '&lt;') : '') + '</td><td>' + regattaCell + '</td><td>' + classCell + '</td><td>' + resultEsc + '</td>';
+                        if (searchQ && (tr.getAttribute('data-search') || '').indexOf(searchQ) === -1) tr.style.display = 'none';
+                        tbody.appendChild(tr);
+                    }});
+                }}
+                var card1 = document.getElementById('admin-stat-card-1');
+                if (card1 && activeSailorsPanel) {{
+                    card1.addEventListener('click', function() {{
+                        var visible = activeSailorsPanel.style.display !== 'none';
+                        activeSailorsPanel.style.display = visible ? 'none' : 'block';
+                        if (!visible && activeSailorsData === null && activeSailorsTable) {{
+                            var tbody = activeSailorsTable.querySelector('tbody');
+                            if (tbody) tbody.innerHTML = '<tr><td colspan="9">Loading…</td></tr>';
+                            fetch('/admin/api/active-sailors', {{ credentials: 'same-origin' }}).then(function(r) {{ return r.json(); }}).then(function(data) {{
+                                activeSailorsData = (data.sailors || []);
+                                if (!tbody) return;
+                                renderActiveSailorsBody();
+                                if (activeSailorsSearch) activeSailorsSearch.dispatchEvent(new Event('input'));
+                            }}).catch(function() {{
+                                var tb = activeSailorsTable && activeSailorsTable.querySelector('tbody');
+                                if (tb) tb.innerHTML = '<tr><td colspan="9">Failed to load.</td></tr>';
+                            }});
+                        }}
+                    }});
+                }}
+                if (activeSailorsTable) {{
+                    var asThead = activeSailorsTable.querySelector('thead');
+                    if (asThead) asThead.addEventListener('click', function(e) {{
+                        var th = e.target && e.target.closest && e.target.closest('th[data-sort]');
+                        if (!th || !activeSailorsData) return;
+                        var key = th.getAttribute('data-sort');
+                        if (key === activeSailorsSortKey) activeSailorsSortAsc = !activeSailorsSortAsc;
+                        else {{ activeSailorsSortKey = key; activeSailorsSortAsc = true; }}
+                        renderActiveSailorsBody();
+                    }});
+                }}
+                if (activeSailorsSearch && activeSailorsTable) {{
+                    activeSailorsSearch.addEventListener('input', function() {{
+                        var q = (this.value || '').toLowerCase().trim();
+                        var tbody = activeSailorsTable.querySelector('tbody');
+                        if (!tbody) return;
+                        var trs = tbody.querySelectorAll('tr[data-search]');
+                        trs.forEach(function(tr) {{
+                            var text = tr.getAttribute('data-search') || '';
+                            tr.style.display = (q === '' || text.indexOf(q) !== -1) ? '' : 'none';
+                        }});
+                    }});
+                }}
+                var shModal = document.getElementById('sessionHistoryModal');
+                var shTitle = document.getElementById('sessionHistoryModalTitle');
+                var shBody = document.getElementById('sessionHistoryModalBody');
+                var shClose = document.getElementById('sessionHistoryModalClose');
+                function closeSessionHistoryModal() {{ if (shModal) shModal.classList.remove('show'); }}
+                if (shClose) shClose.addEventListener('click', closeSessionHistoryModal);
+                if (shModal) shModal.addEventListener('click', function(e) {{ if (e.target === shModal) closeSessionHistoryModal(); }});
+                document.addEventListener('click', function(e) {{
+                    var link = e.target && e.target.closest && e.target.closest('.session-history-link');
+                    if (!link) return;
+                    e.preventDefault();
+                    var sasId = link.getAttribute('data-sas-id');
+                    var name = link.getAttribute('data-name') || 'User';
+                    if (!sasId) return;
+                    shTitle.textContent = name + ' – Session History';
+                    shBody.innerHTML = '<span class="loading">Loading…</span>';
+                    shModal.classList.add('show');
+                    fetch('/admin/user-session-history/' + encodeURIComponent(sasId), {{ credentials: 'same-origin' }})
+                        .then(function(r) {{ return r.json(); }})
+                        .then(function(data) {{
+                            if (!data.ok) {{ shBody.innerHTML = '<span class="err">' + (data.error || 'Error') + '</span>'; return; }}
+                            var h = '';
+                            if (data.total_sessions_count != null) h += '<p><strong>Total sessions:</strong> ' + data.total_sessions_count + '</p>';
+                            if (data.total_duration_seconds != null) h += '<p><strong>Total time (all sessions):</strong> ' + formatDuration(data.total_duration_seconds) + '</p>';
+                            if (data.last_login_iso) h += '<p><strong>Last login:</strong> ' + data.last_login_iso + '</p>';
+                            if (data.device) h += '<p><strong>Device:</strong> ' + (data.device || '—') + '</p>';
+                            if (data.ip_address) h += '<p><strong>IP:</strong> ' + (data.ip_address || '—') + '</p>';
+                            if (data.user_agent) h += '<p><strong>User agent:</strong> <code style="word-break:break-all;font-size:12px;">' + (data.user_agent || '').replace(/</g, '&lt;') + '</code></p>';
+                            if (data.active_session) {{
+                                var s = data.active_session;
+                                h += '<h3 style="margin-top:16px;">Current active session</h3>';
+                                h += '<p>Login: ' + (s.login_time_iso || '—') + '</p>';
+                                h += '<p>Duration: ' + (s.duration_seconds != null ? formatDuration(s.duration_seconds) : '—') + '</p>';
+                                if (s.pages && s.pages.length) {{
+                                    h += '<p><strong>Pages visited:</strong></p><table><thead><tr><th>Page</th><th>Time</th></tr></thead><tbody>';
+                                    s.pages.forEach(function(p) {{ h += '<tr><td>' + (p.path || '').replace(/</g, '&lt;') + '</td><td>' + (p.time_seconds != null ? formatDuration(p.time_seconds) : '—') + '</td></tr>'; }});
+                                    h += '</tbody></table>';
+                                }}
+                            }}
+                            if (data.sessions && data.sessions.length) {{
+                                h += '<h3 style="margin-top:16px;">All sessions</h3><table><thead><tr><th>Login</th><th>Logout</th><th>Duration</th><th>Device</th><th>IP</th></tr></thead><tbody>';
+                                data.sessions.forEach(function(s) {{
+                                    h += '<tr><td>' + (s.login_time_iso || '—') + '</td><td>' + (s.logout_time_iso || '—') + '</td><td>' + (s.duration_seconds != null ? formatDuration(s.duration_seconds) : '—') + '</td><td>' + (s.device || '—').replace(/</g, '&lt;') + '</td><td>' + (s.ip_address || '—').replace(/</g, '&lt;') + '</td></tr>';
+                                    if (s.pages && s.pages.length) {{
+                                        h += '<tr><td colspan="5"><small>Pages: ' + s.pages.map(function(p) {{ return (p.path || '').replace(/</g, '&lt;'); }}).join(' → ') + '</small></td></tr>';
+                                    }}
+                                }});
+                                h += '</tbody></table>';
+                            }}
+                            if (!h) h = '<p>No session data.</p>';
+                            shBody.innerHTML = h;
+                        }})
+                        .catch(function(err) {{ shBody.innerHTML = '<span class="err">' + (err.message || 'Error') + '</span>'; }});
+                }});
+                var restartModal = document.getElementById('adminRestartModal');
+                var restartBtn = document.getElementById('adminRestartBtn');
+                var restartConfirm = document.getElementById('adminRestartConfirm');
+                var restartCancel = document.getElementById('adminRestartCancel');
+                var restartStatusEl = document.getElementById('restartStatus');
+                if (restartBtn) restartBtn.addEventListener('click', function() {{
+                    if (restartModal) restartModal.classList.add('show');
+                }});
+                if (restartCancel) restartCancel.addEventListener('click', function() {{
+                    if (restartModal) {{ restartModal.classList.remove('show'); restartModal.style.display = 'none'; }}
+                    document.querySelectorAll('.modal-backdrop').forEach(function(e) {{ e.remove(); }});
+                }});
+                if (restartConfirm) restartConfirm.addEventListener('click', function() {{
+                    if (restartModal) {{ restartModal.classList.remove('show'); restartModal.style.display = 'none'; }}
+                    document.querySelectorAll('.modal-backdrop').forEach(function(e) {{ e.remove(); }});
+                    restartBtn.disabled = true;
+                    restartBtn.textContent = 'Restarting...';
+                    if (restartStatusEl) {{ restartStatusEl.textContent = 'Restarting service...'; restartStatusEl.style.display = 'inline'; }}
+                    var initialStart = apiUptimeEl ? parseInt(apiUptimeEl.dataset.startTs, 10) : null;
+                    fetch('/admin/api/restart', {{ method: 'POST', headers: {{ 'Content-Type': 'application/json' }}, credentials: 'same-origin' }}).catch(function() {{}});
+                    var pollStart = Date.now();
+                    var poll = setInterval(function() {{
+                        if (Date.now() - pollStart > 90000) {{
+                            clearInterval(poll);
+                            if (restartStatusEl) {{ restartStatusEl.innerText = 'Timed out'; restartStatusEl.style.display = 'inline'; }}
+                            restartBtn.disabled = false;
+                            restartBtn.innerText = 'Restart API';
+                            setTimeout(function() {{ if (restartStatusEl) {{ restartStatusEl.style.display = 'none'; restartStatusEl.textContent = ''; }} }}, 3000);
+                            return;
+                        }}
+                        fetch('/admin/dashboard-data?t=' + Date.now(), {{ credentials: 'same-origin', cache: 'no-store' }}).then(function(r) {{
+                            if (!r.ok) return;
+                            return r.json();
+                        }}).then(function(d) {{
+                            if (!d) return;
+                            var serverTs = d.server_start_timestamp != null ? Number(d.server_start_timestamp) : NaN;
+                            if (!isNaN(serverTs) && initialStart != null && serverTs !== initialStart) {{
+                                clearInterval(poll);
+                                var newTs = serverTs;
+                                if (apiUptimeEl) {{
+                                    apiUptimeEl.dataset.startTs = String(newTs);
+                                    tickUptime();
+                                    updateRestartTime(newTs);
+                                }}
+                                if (restartStatusEl) {{ restartStatusEl.innerText = 'API restarted'; restartStatusEl.style.display = 'inline'; }}
+                                restartBtn.disabled = false;
+                                restartBtn.innerText = 'Restart API';
+                                setTimeout(function() {{ if (restartStatusEl) {{ restartStatusEl.style.display = 'none'; restartStatusEl.textContent = ''; }} }}, 3000);
+                            }}
+                        }}).catch(function() {{}});
+                    }}, 2000);
+                }});
+            }})();
+            </script>
+
+        </div>
+
+    </body>
+    </html>
+    """)
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+
+def _admin_list_sailors(cur) -> list:
+    """Live DB: all rows from sas_id_personal (one per sailor). Metric: Total Sailors = distinct sas_id_personal records. Table: sas_id_personal. No cache."""
+    cur.execute("""
+        SELECT COALESCE(TRIM(s.full_name), TRIM(s.first_name || ' ' || COALESCE(s.last_name, ''))) AS name,
+               s.sa_sailing_id::text AS sas_id
+        FROM public.sas_id_personal s
+        ORDER BY name NULLS LAST, s.sa_sailing_id
+    """)
+    rows = cur.fetchall()
+    return [dict(r) for r in (rows or [])]
+
+
+def _admin_list_clubs(cur) -> list:
+    """Live DB: all rows from clubs. Metric: Total Clubs = clubs table count. Table: clubs. No cache."""
+    cur.execute("""
+        SELECT club_id, COALESCE(TRIM(club_abbrev), '') AS club_abbrev,
+               COALESCE(TRIM(club_fullname), TRIM(club_abbrev), '') AS name
+        FROM public.clubs
+        ORDER BY name NULLS LAST, club_id
+    """)
+    rows = cur.fetchall()
+    return [dict(r) for r in (rows or [])]
+
+
+def _admin_list_classes(cur) -> list:
+    """Live DB: class_name, sailor_count. No cache. Uses results r JOIN classes c ON c.class_id = r.class_id."""
+    cur.execute("""
+        SELECT c.class_id, c.class_name, COUNT(DISTINCT sailor_id) AS sailor_count
+        FROM (
+            SELECT r.class_id, r.helm_sa_sailing_id AS sailor_id FROM results r WHERE r.class_id IS NOT NULL AND r.helm_sa_sailing_id IS NOT NULL
+            UNION
+            SELECT r.class_id, r.crew_sa_sailing_id AS sailor_id FROM results r WHERE r.class_id IS NOT NULL AND r.crew_sa_sailing_id IS NOT NULL
+        ) t
+        JOIN classes c ON c.class_id = t.class_id
+        GROUP BY c.class_id, c.class_name
+        ORDER BY sailor_count DESC
+    """)
+    rows = cur.fetchall()
+    return [dict(r) for r in (rows or [])]
+
+
+def _admin_list_regattas(cur) -> list:
+    """Live DB: all rows from regattas. Metric: Total Regattas = regattas table count. Table: regattas. No cache."""
+    cur.execute("""
+        SELECT regatta_id, event_name, COALESCE(end_date, start_date)::text AS date
+        FROM regattas
+        ORDER BY COALESCE(end_date, start_date) DESC NULLS LAST
+    """)
+    rows = cur.fetchall()
+    return [dict(r) for r in (rows or [])]
+
+
+def _admin_list_races(cur) -> list:
+    """Live DB: all rows from regatta_blocks (one row per race/fleet). Metric: Total Races = regatta_blocks table count. Table: regatta_blocks. No cache."""
+    cur.execute("""
+        SELECT rb.regatta_id, rb.block_id AS race_no, COALESCE(TRIM(rb.fleet_label), TRIM(rb.class_canonical), '') AS fleet,
+               COALESCE(r.end_date, r.start_date)::text AS regatta_date
+        FROM regatta_blocks rb
+        LEFT JOIN regattas r ON r.regatta_id = rb.regatta_id
+        ORDER BY COALESCE(r.end_date, r.start_date) DESC NULLS LAST, rb.block_id
+    """)
+    rows = cur.fetchall()
+    return [dict(r) for r in (rows or [])]
+
+
+def _admin_list_registered_users(cur, include_whatsapp: bool = True) -> list:
+    """Live DB: one row per distinct sas_id. Sort: ONLINE first (active session last 30 min), then OFFLINE; within each last_login DESC.
+    login_count = COUNT of user_sessions for that sas_id. Dates formatted YYYY-MM-DD HH:MM SAST. active = True if currently online."""
+    has_sessions = table_exists("user_sessions")
+    if not has_sessions:
+        online_expr = "FALSE AS online"
+        order_online = "1"
+        login_count_expr = "0 AS login_count"
+    else:
+        has_logout = column_exists("user_sessions", "logout_time")
+        has_activity = column_exists("user_sessions", "last_activity")
+        if has_logout and has_activity:
+            online_expr = "EXISTS (SELECT 1 FROM public.user_sessions s WHERE s.sas_id = u.sas_id AND s.logout_time IS NULL AND s.last_activity >= NOW() - INTERVAL '30 minutes') AS online"
+            order_online = "EXISTS (SELECT 1 FROM public.user_sessions s WHERE s.sas_id = u.sas_id AND s.logout_time IS NULL AND s.last_activity >= NOW() - INTERVAL '30 minutes')"
+        elif has_logout:
+            online_expr = "EXISTS (SELECT 1 FROM public.user_sessions s WHERE s.sas_id = u.sas_id AND s.logout_time IS NULL AND s.created_at >= NOW() - INTERVAL '30 minutes') AS online"
+            order_online = "EXISTS (SELECT 1 FROM public.user_sessions s WHERE s.sas_id = u.sas_id AND s.logout_time IS NULL AND s.created_at >= NOW() - INTERVAL '30 minutes')"
+        else:
+            online_expr = "EXISTS (SELECT 1 FROM public.user_sessions s WHERE s.sas_id = u.sas_id AND s.expires_at > NOW() AND (s.last_activity >= NOW() - INTERVAL '30 minutes' OR (s.last_activity IS NULL AND s.created_at >= NOW() - INTERVAL '30 minutes'))) AS online"
+            order_online = "EXISTS (SELECT 1 FROM public.user_sessions s WHERE s.sas_id = u.sas_id AND s.expires_at > NOW())"
+        login_count_expr = "(SELECT COUNT(*) FROM public.user_sessions us WHERE us.sas_id = u.sas_id) AS login_count"
+    whatsapp_expr = "MAX(u.provider_id) FILTER (WHERE u.login_method = 'whatsapp') AS whatsapp_provider_id" if include_whatsapp else "NULL::text AS whatsapp_provider_id"
+    cur.execute("""
+        SELECT
+            COALESCE(TRIM(MAX(p.full_name)), TRIM(MAX(p.first_name) || ' ' || COALESCE(MAX(p.last_name), ''))) AS name,
+            u.sas_id,
+            MAX(u.email) AS email,
+            """ + whatsapp_expr + """,
+            MIN(u.created_at) AS date_registered,
+            MAX(u.last_login) AS last_login,
+            """ + login_count_expr + """,
+            CASE WHEN BOOL_OR(u.is_active) = TRUE THEN 'active' ELSE 'inactive' END AS status,
+            """ + online_expr + """
+        FROM public.user_accounts u
+        LEFT JOIN public.sas_id_personal p ON p.sa_sailing_id::text = u.sas_id
+        GROUP BY u.sas_id
+        ORDER BY """ + order_online + """ DESC NULLS LAST, MAX(u.last_login) DESC NULLS LAST
+    """)
+    rows = cur.fetchall()
+    out = []
+    for r in (rows or []):
+        d = dict(r)
+        dr = d.get("date_registered")
+        ll = d.get("last_login")
+        d["date_registered"] = _format_dt_sast(dr) if dr is not None else "—"
+        d["last_login"] = _format_dt_sast(ll) if ll is not None else "—"
+        d["login_count"] = str(d.get("login_count") or 0)
+        d["active"] = bool(d.pop("online", False))
+        out.append(d)
+    return out
+
+
+def _admin_dashboard_data_base():
+    """Base fields for dashboard-data: server_start_timestamp, uptime_seconds, now_timestamp (all Unix)."""
+    now = int(time.time())
+    return {
+        "server_start_timestamp": SERVER_START_TS,
+        "uptime_seconds": now - SERVER_START_TS,
+        "now_timestamp": now,
+    }
+
+
+# No-cache headers so restart poll always gets fresh server_start_timestamp after API restart
+_DASHBOARD_DATA_HEADERS = {"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache"}
+
+
+@app.get("/admin/dashboard-data")
+def admin_dashboard_data():
+    """JSON for live Online Users table and restart poll: online_users, offline_sessions, server_start_timestamp, uptime_seconds, now_timestamp; plus same 4 stats as homepage (active_sailors, classes_sailed, regattas_sailed, races_raced) from _get_site_stats()."""
+    base = _admin_dashboard_data_base()
+    site_stats = _get_site_stats()
+    if not table_exists("user_sessions"):
+        return JSONResponse(content={**base, **site_stats, "online_users": [], "offline_sessions": []}, headers=_DASHBOARD_DATA_HEADERS)
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        online_data = _admin_online_users_full(cur)
+        offline_data = _admin_offline_sessions(cur)
+        return JSONResponse(content={**base, **site_stats, "online_users": online_data, "offline_sessions": offline_data}, headers=_DASHBOARD_DATA_HEADERS)
+    except Exception as e:
+        return JSONResponse(content={**base, **site_stats, "online_users": [], "offline_sessions": [], "error": str(e)}, headers=_DASHBOARD_DATA_HEADERS)
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+
+def _admin_active_sailors(cur) -> list:
+    """Active sailors: UNION of helm + crew (distinct sailor_id); aggregation per DISTINCT sailor_id. Returns 1095 rows. races_count = sum(races_sailed or R* keys), regattas_count = COUNT(DISTINCT regatta_id)."""
+    cur.execute("""
+        WITH block_counts AS (
+            SELECT block_id, COUNT(*)::int AS count FROM results WHERE block_id IS NOT NULL GROUP BY block_id
+        ),
+        sailor_results AS (
+            SELECT r.helm_sa_sailing_id AS sailor_id, r.result_id, r.regatta_id, r.block_id, r.rank,
+                   reg.event_name, COALESCE(reg.end_date, reg.start_date) AS regatta_date,
+                   reg.regatta_id AS regatta_slug,
+                   c.class_id,
+                   COALESCE(NULLIF(TRIM(r.fleet_label), ''), NULLIF(TRIM(c.class_name), ''), '') AS class_name,
+                   COALESCE(rb.entries_raced, bc.count)::int AS entries,
+                   COALESCE(NULLIF(r.races_sailed, 0), (SELECT COUNT(*) FROM jsonb_object_keys(COALESCE(r.race_scores, '{}'::jsonb)) k WHERE k ~ '^R[0-9]'))::int AS race_entries
+            FROM results r
+            JOIN regattas reg ON reg.regatta_id = r.regatta_id
+            LEFT JOIN classes c ON c.class_id = r.class_id
+            LEFT JOIN regatta_blocks rb ON rb.block_id = r.block_id
+            LEFT JOIN block_counts bc ON bc.block_id = r.block_id
+            WHERE r.raced = TRUE AND r.helm_sa_sailing_id IS NOT NULL AND r.helm_sa_sailing_id::text != ''
+              AND (reg.end_date IS NOT NULL OR reg.start_date IS NOT NULL)
+            UNION ALL
+            SELECT r.crew_sa_sailing_id AS sailor_id, r.result_id, r.regatta_id, r.block_id, r.rank,
+                   reg.event_name, COALESCE(reg.end_date, reg.start_date) AS regatta_date,
+                   reg.regatta_id AS regatta_slug,
+                   c.class_id,
+                   COALESCE(NULLIF(TRIM(r.fleet_label), ''), NULLIF(TRIM(c.class_name), ''), '') AS class_name,
+                   COALESCE(rb.entries_raced, bc.count)::int AS entries,
+                   COALESCE(NULLIF(r.races_sailed, 0), (SELECT COUNT(*) FROM jsonb_object_keys(COALESCE(r.race_scores, '{}'::jsonb)) k WHERE k ~ '^R[0-9]'))::int AS race_entries
+            FROM results r
+            JOIN regattas reg ON reg.regatta_id = r.regatta_id
+            LEFT JOIN classes c ON c.class_id = r.class_id
+            LEFT JOIN regatta_blocks rb ON rb.block_id = r.block_id
+            LEFT JOIN block_counts bc ON bc.block_id = r.block_id
+            WHERE r.raced = TRUE AND r.crew_sa_sailing_id IS NOT NULL AND r.crew_sa_sailing_id::text != ''
+              AND (reg.end_date IS NOT NULL OR reg.start_date IS NOT NULL)
+        ),
+        agg AS (
+            SELECT sailor_id,
+                   SUM(race_entries)::int AS races_count,
+                   COUNT(DISTINCT regatta_id)::int AS regattas_count,
+                   MAX(regatta_date) AS last_active_date
+            FROM sailor_results
+            GROUP BY sailor_id
+        ),
+        last_row AS (
+            SELECT DISTINCT ON (sr.sailor_id) sr.sailor_id, sr.event_name AS last_regatta_name, sr.regatta_date,
+                   sr.regatta_slug, sr.class_id AS last_class_id, sr.class_name AS last_class_sailed, sr.rank::int AS last_regatta_rank, sr.entries AS fleet_size
+            FROM sailor_results sr
+            JOIN agg a ON a.sailor_id = sr.sailor_id AND sr.regatta_date = a.last_active_date
+            ORDER BY sr.sailor_id, sr.result_id
+        )
+        SELECT a.sailor_id::text AS sas_id,
+               COALESCE(NULLIF(TRIM(s.full_name), ''), NULLIF(TRIM(s.first_name || ' ' || COALESCE(s.last_name, '')), ''), '') AS full_name,
+               a.races_count,
+               a.regattas_count,
+               a.last_active_date::text AS last_active_date,
+               lr.last_regatta_name,
+               lr.regatta_slug,
+               lr.last_class_id,
+               lr.last_class_sailed,
+               lr.last_regatta_rank,
+               lr.fleet_size
+        FROM agg a
+        LEFT JOIN sas_id_personal s ON s.sa_sailing_id::text = a.sailor_id::text
+        JOIN last_row lr ON lr.sailor_id = a.sailor_id
+        ORDER BY a.races_count DESC
+    """)
+    rows = cur.fetchall() or []
+    out = []
+    for rank, row in enumerate(rows, start=1):
+        d = dict(row)
+        d["rank"] = rank
+        out.append(d)
+    return out
+
+
+def _ordinal(n):
+    """Format integer as ordinal: 1 -> '1st', 2 -> '2nd', 3 -> '3rd', 7 -> '7th', 21 -> '21st'."""
+    if n is None:
+        return ""
+    try:
+        n = int(n)
+    except (TypeError, ValueError):
+        return ""
+    s = str(n)
+    if 10 <= n % 100 <= 20:
+        suffix = "th"
+    else:
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return s + suffix
+
+
+@app.get("/admin/api/active-sailors")
+def admin_api_active_sailors(request: Request):
+    """Returns sailors with raw sortable fields: races_count, regattas_count, last_active_date (ISO), last_regatta_name, last_class_sailed, last_regatta_rank (numeric), fleet_size (numeric). last_result_display is preformatted for UI only (e.g. '7th/9'). Admin-only."""
+    if socket.gethostname() != ADMIN_LIVE_HOSTNAME:
+        raise HTTPException(status_code=403, detail="Admin dashboard disabled on local environment.")
+    role = _get_session_role(request)
+    if not role or role not in ("super_admin", "admin"):
+        raise HTTPException(status_code=403, detail="Admin access required.")
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        rows = _admin_active_sailors(cur)
+        sas_ids = [r.get("sas_id") for r in rows if r.get("sas_id")]
+        slug_map = _batch_sailor_slugs_for_sas_ids(sas_ids) if sas_ids else {}
+        for r in rows:
+            r["slug"] = slug_map.get(r.get("sas_id")) or r.get("sas_id") or ""
+            rank_val = r.get("last_regatta_rank")
+            fleet_val = r.get("fleet_size")
+            if rank_val is not None and fleet_val is not None:
+                r["last_result_display"] = _ordinal(rank_val) + "/" + str(fleet_val)
+            elif rank_val is not None:
+                r["last_result_display"] = _ordinal(rank_val)
+            else:
+                r["last_result_display"] = ""
+        return {"ok": True, "sailors": rows}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "sailors": []}
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+
+@app.get("/admin/user-session-history/{sas_id}")
+def admin_user_session_history(sas_id: str):
+    """Session history for one user (modal). Returns sessions, active_session, total_sessions_count, total_duration_seconds, last_login_iso, device, ip_address, user_agent."""
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        return _admin_user_session_history(cur, sas_id)
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+
+@app.get("/admin/list/sailors")
+def admin_list_sailors():
+    """Live DB list for admin dashboard. No cache."""
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        data = _admin_list_sailors(cur)
+        return {"ok": True, "rows": data}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "rows": []}
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+
+@app.get("/admin/list/clubs")
+def admin_list_clubs():
+    """Live DB list: clubs table. Same dataset as Total Clubs tile. No cache."""
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        data = _admin_list_clubs(cur)
+        return {"ok": True, "rows": data}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "rows": []}
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+
+@app.get("/admin/list/classes")
+def admin_list_classes():
+    """Live DB list: class_id, class_name, sailor_count. No cache."""
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        data = _admin_list_classes(cur)
+        return {"ok": True, "rows": data}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "rows": []}
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+
+@app.get("/admin/list/regattas")
+def admin_list_regattas():
+    """Live DB list for admin dashboard. No cache."""
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        data = _admin_list_regattas(cur)
+        return {"ok": True, "rows": data}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "rows": []}
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+
+@app.get("/admin/list/races")
+def admin_list_races():
+    """Live DB list for admin dashboard. No cache."""
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        data = _admin_list_races(cur)
+        return {"ok": True, "rows": data}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "rows": []}
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+
+def _get_table_columns_schema(cur, table: str) -> str:
+    """Return comma-separated list of column names for table (public schema)."""
+    cur.execute("""
+        SELECT column_name FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = %s
+        ORDER BY ordinal_position
+    """, (table,))
+    rows = cur.fetchall() or []
+    cols = [r["column_name"] for r in rows]
+    return ", ".join(cols) if cols else "(none)"
+
+
+@app.get("/admin/list/top-search-sailor")
+def admin_list_top_search_sailor():
+    """Top 10 sailor searches (last 30 days). Group by lower(trim(query)), order by count DESC. From analytics_events."""
+    if not table_exists("analytics_events"):
+        return {"ok": False, "error": "analytics_events table not found", "rows": []}
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("""
+            SELECT LOWER(TRIM(metadata->>'query')) AS query, COUNT(*) AS count
+            FROM public.analytics_events
+            WHERE event_type = 'search' AND metadata->>'search_type' = 'sailor'
+              AND created_at >= NOW() - INTERVAL '30 days'
+              AND TRIM(COALESCE(metadata->>'query', '')) != ''
+            GROUP BY LOWER(TRIM(metadata->>'query'))
+            ORDER BY count DESC
+            LIMIT 10
+        """)
+        rows = [dict(r) for r in (cur.fetchall() or [])]
+        return {"ok": True, "rows": rows}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "rows": []}
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+
+@app.get("/admin/list/top-search-regatta")
+def admin_list_top_search_regatta():
+    """Top 10 regatta searches (last 30 days). Group by lower(trim(query)), order by count DESC. From analytics_events."""
+    if not table_exists("analytics_events"):
+        return {"ok": False, "error": "analytics_events table not found", "rows": []}
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("""
+            SELECT LOWER(TRIM(metadata->>'query')) AS query, COUNT(*) AS count
+            FROM public.analytics_events
+            WHERE event_type = 'search' AND metadata->>'search_type' = 'regatta'
+              AND created_at >= NOW() - INTERVAL '30 days'
+              AND TRIM(COALESCE(metadata->>'query', '')) != ''
+            GROUP BY LOWER(TRIM(metadata->>'query'))
+            ORDER BY count DESC
+            LIMIT 10
+        """)
+        rows = [dict(r) for r in (cur.fetchall() or [])]
+        return {"ok": True, "rows": rows}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "rows": []}
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+
+@app.get("/admin/list/registered-users")
+def admin_list_registered_users():
+    """Live DB list: name, sas_id, email, whatsapp, date_registered, last_login, login_count, status. No cache.
+    If user_accounts has no column named 'whatsapp', response includes schema_report (columns list); whatsapp value is derived from provider_id."""
+    if not table_exists("user_accounts"):
+        return {"ok": False, "error": "user_accounts table not found", "rows": []}
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        has_whatsapp_col = column_exists("user_accounts", "whatsapp")
+        data = _admin_list_registered_users(cur, include_whatsapp=True)
+        out = {"ok": True, "rows": data}
+        if not has_whatsapp_col:
+            out["schema_report"] = "user_accounts columns (no 'whatsapp' column): " + _get_table_columns_schema(cur, "user_accounts")
+        out["column_labels"] = {"whatsapp_provider_id": "WhatsApp (provider_id)", "active": "Active"}
+        return out
+    except Exception as e:
+        return {"ok": False, "error": str(e), "rows": []}
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+
+@app.post("/admin/api/restart")
+def restart_api(request: Request):
+    """LIVE only: trigger systemctl restart via sudo. Hostname must be vm103zuex.yourlocaldomain.com."""
+    if socket.gethostname() != ADMIN_LIVE_HOSTNAME:
+        raise HTTPException(status_code=403, detail="Admin dashboard disabled on local environment.")
+    role = _get_session_role(request)
+    if not role or role not in ("super_admin", "admin"):
+        raise HTTPException(status_code=403, detail="Admin access required.")
+    subprocess.Popen(
+        ["/usr/bin/sudo", "systemctl", "restart", "sailingsa-api"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    return {"ok": True}
+
+
 @app.get("/regatta/{slug}")
 @app.head("/regatta/{slug}")
 def _regatta_standalone(slug: str): return serve_regatta_standalone(slug)
@@ -544,20 +2487,25 @@ async def profile_requests(request: Request, call_next):
     req_id = get_request_id()
     endpoint = f"{request.method} {request.url.path}"
     start = time.time()
-    
+    _db_tls.db_query_count = 0
+
     # Store request ID in request state for use in endpoints
     request.state.request_id = req_id
-    
+
     print(f"[REQ {req_id}] → {endpoint}")
-    
+
     try:
         response = await call_next(request)
         duration = time.time() - start
         status_code = response.status_code if hasattr(response, 'status_code') else 200
+        n_queries = getattr(_db_tls, "db_query_count", 0)
+        print(f"REQ {req_id}: total_db_queries={n_queries}", flush=True)
         log_endpoint_timing(req_id, endpoint, duration, status_code)
         return response
     except Exception as e:
         duration = time.time() - start
+        n_queries = getattr(_db_tls, "db_query_count", 0)
+        print(f"REQ {req_id}: total_db_queries={n_queries}", flush=True)
         log_endpoint_timing(req_id, f"{endpoint} [EXCEPTION: {str(e)}]", duration, status_code=500)
         raise
 
@@ -641,9 +2589,8 @@ def health():
     return {"ok": True}
 
 
-@app.get("/api/site-stats")
-def api_site_stats():
-    """Site stats for dashboard. Uses same sources as search: sailors in sas_id_personal with results, regattas with results. Cached 5min for instant response."""
+def _get_site_stats():
+    """Single source for the 4 homepage stats. Cached 5min. Returns active_sailors, classes_sailed, regattas_sailed, races_raced. Used by /api/site-stats and /admin/dashboard-data."""
     cached = get_cached("site_stats", ttl_seconds=300)
     if cached is not None:
         return cached
@@ -651,25 +2598,28 @@ def api_site_stats():
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        # Sailors: sas_id_personal with at least one result (matches search universe)
+        # Sailors: same filter as admin_active_sailors (regatta must have a date so badge count = table rows)
         cur.execute("""
-            SELECT COUNT(DISTINCT s.sa_sailing_id::text) AS active_sailors
-            FROM sas_id_personal s
-            WHERE EXISTS (
-                SELECT 1 FROM results r
-                WHERE r.raced = TRUE
-                  AND (r.helm_sa_sailing_id::text = s.sa_sailing_id::text OR r.crew_sa_sailing_id::text = s.sa_sailing_id::text)
-            )
+            SELECT COUNT(DISTINCT sailor_id) AS active_sailors
+            FROM (
+                SELECT r.helm_sa_sailing_id AS sailor_id FROM results r
+                JOIN regattas reg ON reg.regatta_id = r.regatta_id
+                WHERE r.raced = TRUE AND r.helm_sa_sailing_id IS NOT NULL AND r.helm_sa_sailing_id::text != ''
+                  AND (reg.end_date IS NOT NULL OR reg.start_date IS NOT NULL)
+                UNION ALL
+                SELECT r.crew_sa_sailing_id AS sailor_id FROM results r
+                JOIN regattas reg ON reg.regatta_id = r.regatta_id
+                WHERE r.raced = TRUE AND r.crew_sa_sailing_id IS NOT NULL AND r.crew_sa_sailing_id::text != ''
+                  AND (reg.end_date IS NOT NULL OR reg.start_date IS NOT NULL)
+            ) u
         """)
         row = cur.fetchone()
         val = row.get("active_sailors") if row else None
         active_sailors = int(val) if val is not None else 0
         cur.execute("""
-            SELECT COUNT(DISTINCT LOWER(TRIM(r.class_canonical))) AS classes_sailed
+            SELECT COUNT(DISTINCT r.class_id) AS classes_sailed
             FROM results r
-            WHERE r.raced = TRUE
-              AND r.class_canonical IS NOT NULL
-              AND TRIM(r.class_canonical) != ''
+            WHERE r.raced = TRUE AND r.class_id IS NOT NULL
         """)
         row2 = cur.fetchone()
         val2 = row2.get("classes_sailed") if row2 else None
@@ -704,6 +2654,12 @@ def api_site_stats():
             return_db_connection(conn)
 
 
+@app.get("/api/site-stats")
+def api_site_stats():
+    """Site stats for dashboard. Uses same sources as search. Cached 5min. Delegates to _get_site_stats()."""
+    return _get_site_stats()
+
+
 @app.get("/api/site-stats-audit")
 def api_site_stats_audit():
     """Compare site-stats counts with search-aligned counts. Same sources as /api/search and /api/regattas/with-counts."""
@@ -711,13 +2667,20 @@ def api_site_stats_audit():
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        # Current site-stats: distinct helm/crew from results (includes temp IDs, excludes sailors not in results)
+        # Current site-stats: same as _get_site_stats (regatta date filter)
         cur.execute("""
-            SELECT COUNT(DISTINCT COALESCE(r.helm_sa_sailing_id::text, r.crew_sa_sailing_id::text)) AS active_sailors
-            FROM results r
-            WHERE COALESCE(r.helm_sa_sailing_id::text, r.crew_sa_sailing_id::text) IS NOT NULL
-              AND COALESCE(r.helm_sa_sailing_id::text, r.crew_sa_sailing_id::text) != ''
-              AND r.raced = TRUE
+            SELECT COUNT(DISTINCT sailor_id) AS active_sailors
+            FROM (
+                SELECT r.helm_sa_sailing_id AS sailor_id FROM results r
+                JOIN regattas reg ON reg.regatta_id = r.regatta_id
+                WHERE r.raced = TRUE AND r.helm_sa_sailing_id IS NOT NULL AND r.helm_sa_sailing_id::text != ''
+                  AND (reg.end_date IS NOT NULL OR reg.start_date IS NOT NULL)
+                UNION ALL
+                SELECT r.crew_sa_sailing_id AS sailor_id FROM results r
+                JOIN regattas reg ON reg.regatta_id = r.regatta_id
+                WHERE r.raced = TRUE AND r.crew_sa_sailing_id IS NOT NULL AND r.crew_sa_sailing_id::text != ''
+                  AND (reg.end_date IS NOT NULL OR reg.start_date IS NOT NULL)
+            ) u
         """)
         row = cur.fetchone()
         active_from_results = int(row["active_sailors"]) if row else 0
@@ -1071,10 +3034,22 @@ def _warm_site_stats_cache():
         try:
             conn = get_db_connection()
             cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            cur.execute("""SELECT COUNT(DISTINCT s.sa_sailing_id::text) AS active_sailors FROM sas_id_personal s
-                WHERE EXISTS (SELECT 1 FROM results r WHERE r.raced = TRUE AND (r.helm_sa_sailing_id::text = s.sa_sailing_id::text OR r.crew_sa_sailing_id::text = s.sa_sailing_id::text))""")
+            cur.execute("""
+                SELECT COUNT(DISTINCT sailor_id) AS active_sailors
+                FROM (
+                    SELECT r.helm_sa_sailing_id AS sailor_id FROM results r
+                    JOIN regattas reg ON reg.regatta_id = r.regatta_id
+                    WHERE r.raced = TRUE AND r.helm_sa_sailing_id IS NOT NULL AND r.helm_sa_sailing_id::text != ''
+                      AND (reg.end_date IS NOT NULL OR reg.start_date IS NOT NULL)
+                    UNION ALL
+                    SELECT r.crew_sa_sailing_id AS sailor_id FROM results r
+                    JOIN regattas reg ON reg.regatta_id = r.regatta_id
+                    WHERE r.raced = TRUE AND r.crew_sa_sailing_id IS NOT NULL AND r.crew_sa_sailing_id::text != ''
+                      AND (reg.end_date IS NOT NULL OR reg.start_date IS NOT NULL)
+                ) u
+            """)
             a = int(cur.fetchone().get("active_sailors") or 0)
-            cur.execute("SELECT COUNT(DISTINCT LOWER(TRIM(r.class_canonical))) AS classes_sailed FROM results r WHERE r.raced = TRUE AND r.class_canonical IS NOT NULL AND TRIM(r.class_canonical) != ''")
+            cur.execute("SELECT COUNT(DISTINCT r.class_id) AS classes_sailed FROM results r WHERE r.raced = TRUE AND r.class_id IS NOT NULL")
             b = int(cur.fetchone().get("classes_sailed") or 0)
             cur.execute("SELECT COUNT(DISTINCT r.regatta_id) AS regattas_sailed FROM regattas r JOIN results res ON res.regatta_id = r.regatta_id WHERE res.raced = TRUE")
             c = int(cur.fetchone().get("regattas_sailed") or 0)
@@ -2491,6 +4466,59 @@ def column_exists(table: str, col: str) -> bool:
     except Exception:
         return False
 
+
+# ---------- Internal analytics (no external tools; minimal overhead) ----------
+def _log_analytics_event(event_type: str, metadata: dict, session_id: Optional[str] = None, sas_id: Optional[str] = None):
+    """Log to analytics_events. Dedupe: do not log same page_view/regatta_view for same session+key within 5 seconds."""
+    if not table_exists("analytics_events"):
+        return
+    metadata = dict(metadata or {})
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        key_col = "path" if event_type == "page_view" else "regatta_id" if event_type == "regatta_view" else None
+        if session_id and key_col and metadata.get(key_col) is not None:
+            cur.execute("""
+                SELECT 1 FROM public.analytics_events
+                WHERE session_id = %s AND event_type = %s AND metadata->>%s = %s AND created_at > NOW() - INTERVAL '5 seconds' LIMIT 1
+            """, (session_id, event_type, key_col, str(metadata[key_col])))
+            if cur.fetchone():
+                return
+        cur.execute(
+            "INSERT INTO public.analytics_events (event_type, metadata, session_id, sas_id) VALUES (%s, %s::jsonb, %s, %s)",
+            (event_type, json.dumps(metadata), session_id, sas_id)
+        )
+        conn.commit()
+    except Exception as e:
+        if conn:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        print(f"[analytics] log failed: {e}", flush=True)
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+
+@app.post("/api/analytics/event")
+def api_analytics_event(payload: dict = Body(...), request: Request = None):
+    """Log analytics event (internal only). event_type: page_view, regatta_view, search. Dedupe: no duplicate page_view/regatta_view within 5s per session."""
+    event_type = (payload.get("event_type") or "").strip()
+    metadata = payload.get("metadata")
+    if isinstance(metadata, dict):
+        metadata = dict(metadata)
+    else:
+        metadata = {}
+    session_id = request.cookies.get("session") if request else None
+    sas_id = payload.get("sas_id") or None
+    if event_type not in ("page_view", "regatta_view", "search"):
+        raise HTTPException(status_code=400, detail="event_type must be page_view, regatta_view, or search")
+    _log_analytics_event(event_type, metadata, session_id=session_id, sas_id=sas_id)
+    return {"ok": True}
+
+
 # Removed duplicate /api/clubs - using api_list_clubs below instead
 
 @app.get("/api/classes")
@@ -2774,6 +4802,32 @@ def _get_session_sas_id(request: Request) -> Optional[str]:
             """, (token,))
             row = cur.fetchone()
             return str(row["sas_id"]).strip() if row and row.get("sas_id") else None
+        finally:
+            cur.close()
+            return_db_connection(conn)
+    except Exception:
+        return None
+
+
+def _get_session_role(request: Request) -> Optional[str]:
+    """Return user_accounts.role for valid session, else None. Requires role column to exist."""
+    try:
+        if not table_exists("user_accounts") or not column_exists("user_accounts", "role"):
+            return None
+        token = request.cookies.get("session") or (request.query_params.get("session") if request.query_params else None)
+        if not token:
+            return None
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            where_extra = " AND s.logout_time IS NULL" if column_exists("user_sessions", "logout_time") else ""
+            cur.execute("""
+                SELECT ua.role FROM public.user_sessions s
+                JOIN public.user_accounts ua ON ua.account_id = s.account_id
+                WHERE s.session_id = %s AND s.expires_at > NOW()
+            """ + where_extra, (token,))
+            row = cur.fetchone()
+            return str(row["role"]).strip() if row and row.get("role") else None
         finally:
             cur.close()
             return_db_connection(conn)
@@ -3400,7 +5454,8 @@ def api_member_results(sa_id: str, request: Request = None):
                         r.block_id,
                         r.fleet_label,
                         r.class_original,
-                        r.class_canonical,
+                        r.class_id,
+                        c_class.class_name AS class_canonical,
                         r.rank,
                         r.sail_number,
                         r.boat_name,
@@ -3423,6 +5478,7 @@ def api_member_results(sa_id: str, request: Request = None):
                         COALESCE(rb.entries_raced, bc.count) as entries
                     FROM results r
                     LEFT JOIN clubs c ON c.club_id = r.club_id
+                    LEFT JOIN classes c_class ON c_class.class_id = r.class_id
                     LEFT JOIN regattas reg ON reg.regatta_id = r.regatta_id
                     LEFT JOIN regatta_blocks rb ON rb.block_id = r.block_id
                     LEFT JOIN block_counts bc ON bc.block_id = r.block_id
@@ -3447,7 +5503,7 @@ def api_member_results(sa_id: str, request: Request = None):
                             SELECT block_id, COUNT(*) as count FROM results WHERE block_id IS NOT NULL GROUP BY block_id
                         )
                         SELECT 
-                            r.result_id, r.regatta_id, r.block_id, r.fleet_label, r.class_original, r.class_canonical,
+                            r.result_id, r.regatta_id, r.block_id, r.fleet_label, r.class_original, r.class_id, c_class.class_name AS class_canonical,
                             r.rank, r.sail_number, r.boat_name, r.bow_no,
                             COALESCE(c.club_abbrev, r.club_raw) as club, c.club_fullname as club_fullname,
                             r.helm_name, r.helm_sa_sailing_id, r.crew_name, r.crew_sa_sailing_id,
@@ -3456,6 +5512,7 @@ def api_member_results(sa_id: str, request: Request = None):
                             COALESCE(rb.entries_raced, bc.count) as entries
                         FROM results r
                         LEFT JOIN clubs c ON c.club_id = r.club_id
+                        LEFT JOIN classes c_class ON c_class.class_id = r.class_id
                         LEFT JOIN regattas reg ON reg.regatta_id = r.regatta_id
                         LEFT JOIN regatta_blocks rb ON rb.block_id = r.block_id
                         LEFT JOIN block_counts bc ON bc.block_id = r.block_id
@@ -3471,7 +5528,7 @@ def api_member_results(sa_id: str, request: Request = None):
                             SELECT block_id, COUNT(*) as count FROM results WHERE block_id IS NOT NULL GROUP BY block_id
                         )
                         SELECT 
-                            r.result_id, r.regatta_id, r.block_id, r.fleet_label, r.class_original, r.class_canonical,
+                            r.result_id, r.regatta_id, r.block_id, r.fleet_label, r.class_original, r.class_id, c_class.class_name AS class_canonical,
                             r.rank, r.sail_number, r.boat_name, r.bow_no,
                             COALESCE(c.club_abbrev, r.club_raw) as club, c.club_fullname as club_fullname,
                             r.helm_name, r.helm_sa_sailing_id, r.crew_name, r.crew_sa_sailing_id,
@@ -3480,6 +5537,7 @@ def api_member_results(sa_id: str, request: Request = None):
                             COALESCE(rb.entries_raced, bc.count) as entries
                         FROM results r
                         LEFT JOIN clubs c ON c.club_id = r.club_id
+                        LEFT JOIN classes c_class ON c_class.class_id = r.class_id
                         LEFT JOIN regattas reg ON reg.regatta_id = r.regatta_id
                         LEFT JOIN regatta_blocks rb ON rb.block_id = r.block_id
                         LEFT JOIN block_counts bc ON bc.block_id = r.block_id
@@ -3662,11 +5720,11 @@ def api_sa_id_stats():
 def api_list_classes():
     rows = q(
         """
-        SELECT class_canonical AS code,
-               COALESCE(class_full_name, class_canonical) AS name
+        SELECT class_id::text AS code,
+               class_name AS name
         FROM public.classes
         WHERE COALESCE(is_active, TRUE) IS TRUE
-        ORDER BY class_canonical
+        ORDER BY class_name
         """
     )
     return rows
@@ -3988,6 +6046,11 @@ def patch_result(result_id: int, p: ResultPatch):
             if p.boat_name   is not None: fields.append("boat_name=%s");  vals.append(p.boat_name)
             if fields:
                 cur.execute(f"UPDATE results SET {', '.join(fields)} WHERE result_id=%s", (*vals, result_id))
+            cur.execute("SELECT regatta_id FROM results WHERE result_id = %s", (result_id,))
+            row = cur.fetchone()
+            if row:
+                regatta_id = row[0]
+                _ensure_snapshot_integrity(conn, regatta_id, [result_id])
         conn.commit()
     return {"ok": True}
 
@@ -4273,6 +6336,7 @@ def patch_race_score(result_id: int, body: dict):
                 WHERE r.result_id = ranked.result_id
             """, (block_id,))
             
+            _ensure_snapshot_integrity(conn, regatta_id)
             conn.commit()
             
             # Return updated result data
@@ -4377,6 +6441,190 @@ def list_classes():
         ORDER BY class_name
     """)
     return {"classes": [r['class_name'] for r in rows]}
+
+
+@app.head("/api/class/{class_id}")
+def api_class_by_id_head(class_id: int):
+    """HEAD support so curl -sI returns 200 when class exists."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT 1 FROM classes WHERE class_id = %s", (class_id,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Class not found")
+        return Response(status_code=200)
+    finally:
+        cur.close()
+        return_db_connection(conn)
+
+
+@app.get("/api/class/{class_id}")
+def api_class_by_id(class_id: int):
+    """
+    Read-only: class header + totals + regattas + sailors for class_id.
+    All data derived from results.class_id (FK to classes). No class_canonical.
+    Zero results -> still return class header with 0s and empty arrays.
+    """
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        # 1) Class header (always from classes)
+        cur.execute("""
+            SELECT class_id, class_name, COALESCE(_sailors_in_class, 0) AS active_sailors
+            FROM classes
+            WHERE class_id = %s
+        """, (class_id,))
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Class not found")
+        class_name = row["class_name"] or ""
+        active_sailors = int(row["active_sailors"] or 0)
+
+        # 2) Totals from results
+        cur.execute("""
+            SELECT COUNT(DISTINCT regatta_id) AS total_regattas
+            FROM results
+            WHERE class_id = %s
+        """, (class_id,))
+        total_regattas = int((cur.fetchone() or {}).get("total_regattas") or 0)
+        cur.execute("""
+            SELECT COUNT(*) AS total_races
+            FROM results
+            WHERE class_id = %s AND raced = TRUE
+        """, (class_id,))
+        total_races = int((cur.fetchone() or {}).get("total_races") or 0)
+
+        # 3) Regattas list (from results -> regattas)
+        cur.execute("""
+            SELECT
+                reg.regatta_id,
+                reg.event_name AS regatta_name,
+                reg.regatta_id AS regatta_slug,
+                reg.start_date,
+                reg.end_date,
+                COALESCE(reg.end_date, reg.start_date) AS event_date,
+                COALESCE(c.club_fullname, c.club_abbrev) AS club_name,
+                rb.entries_raced AS fleet_size,
+                rb.races_sailed AS races
+            FROM (
+                SELECT DISTINCT regatta_id
+                FROM results
+                WHERE class_id = %s
+            ) t
+            JOIN regattas reg ON reg.regatta_id = t.regatta_id
+            LEFT JOIN clubs c ON c.club_id = reg.host_club_id
+            LEFT JOIN regatta_blocks rb ON rb.regatta_id = reg.regatta_id AND rb.class_id = %s
+            ORDER BY COALESCE(reg.end_date, reg.start_date) DESC NULLS LAST, reg.regatta_id DESC
+        """, (class_id, class_id))
+        regatta_rows = cur.fetchall() or []
+        def _date_iso(d):
+            if d is None:
+                return None
+            return d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d)
+
+        regattas = []
+        for r in regatta_rows:
+            regattas.append({
+                "regatta_id": r.get("regatta_id"),
+                "regatta_name": r.get("regatta_name") or "",
+                "regatta_slug": r.get("regatta_slug") or "",
+                "start_date": _date_iso(r.get("start_date")),
+                "end_date": _date_iso(r.get("end_date")),
+                "event_date": _date_iso(r.get("event_date")),
+                "club_name": r.get("club_name"),
+                "fleet_size": int(r["fleet_size"]) if r.get("fleet_size") is not None else None,
+                "races": int(r["races"]) if r.get("races") is not None else None,
+            })
+
+        # 4) Sailors list (from results only; names/slugs from sas_id_personal)
+        cur.execute("""
+            WITH base AS (
+                SELECT
+                    COALESCE(r.helm_sa_sailing_id, r.crew_sa_sailing_id)::text AS sas_id,
+                    r.regatta_id,
+                    r.block_id,
+                    r.rank AS rank_in_regatta
+                FROM results r
+                WHERE r.class_id = %s
+                  AND r.raced = TRUE
+                  AND COALESCE(r.helm_sa_sailing_id, r.crew_sa_sailing_id) IS NOT NULL
+            ),
+            races AS (
+                SELECT sas_id,
+                       COUNT(*) AS races_in_class,
+                       COUNT(DISTINCT regatta_id) AS regattas_in_class
+                FROM base
+                GROUP BY sas_id
+            ),
+            last_regatta AS (
+                SELECT DISTINCT ON (b.sas_id)
+                    b.sas_id,
+                    reg.regatta_id AS last_regatta_slug,
+                    reg.event_name AS last_regatta_name,
+                    b.rank_in_regatta AS last_result_rank,
+                    rb.entries_raced AS last_fleet_size
+                FROM base b
+                JOIN regattas reg ON reg.regatta_id = b.regatta_id
+                LEFT JOIN regatta_blocks rb ON rb.block_id = b.block_id AND rb.regatta_id = b.regatta_id
+                ORDER BY b.sas_id, COALESCE(reg.end_date, reg.start_date) DESC NULLS LAST, b.regatta_id DESC
+            )
+            SELECT
+                r.sas_id,
+                r.races_in_class,
+                r.regattas_in_class,
+                lr.last_regatta_slug,
+                lr.last_regatta_name,
+                lr.last_result_rank,
+                lr.last_fleet_size
+            FROM races r
+            LEFT JOIN last_regatta lr ON lr.sas_id = r.sas_id
+            ORDER BY r.races_in_class DESC, r.regattas_in_class DESC, r.sas_id ASC
+            LIMIT 5000
+        """, (class_id,))
+        sailor_rows = cur.fetchall() or []
+        sas_ids = [s["sas_id"] for s in sailor_rows if s.get("sas_id")]
+        slug_map = _batch_sailor_slugs_for_sas_ids(sas_ids) if sas_ids else {}
+        # Names and club from sas_id_personal (and clubs if we have club_id there)
+        name_map = {}
+        club_map = {}
+        if sas_ids:
+            cur.execute("""
+                SELECT p.sa_sailing_id::text AS sas_id,
+                       COALESCE(TRIM(p.full_name), TRIM(p.first_name || ' ' || COALESCE(p.last_name, ''))) AS sailor_name
+                FROM sas_id_personal p
+                WHERE p.sa_sailing_id::text = ANY(%s)
+            """, (sas_ids,))
+            for r in cur.fetchall() or []:
+                name_map[r["sas_id"]] = (r.get("sailor_name") or "").strip()
+        sailors = []
+        for s in sailor_rows:
+            sid = s.get("sas_id")
+            sailors.append({
+                "sas_id": int(sid) if sid and str(sid).isdigit() else sid,
+                "sailor_name": name_map.get(sid, ""),
+                "sailor_slug": slug_map.get(sid) if slug_map else None,
+                "club_name": club_map.get(sid) if club_map else None,
+                "races_in_class": int(s.get("races_in_class") or 0),
+                "regattas_in_class": int(s.get("regattas_in_class") or 0),
+                "last_regatta_slug": s.get("last_regatta_slug"),
+                "last_regatta_name": s.get("last_regatta_name"),
+                "last_result_rank": int(s["last_result_rank"]) if s.get("last_result_rank") is not None else None,
+                "last_fleet_size": int(s["last_fleet_size"]) if s.get("last_fleet_size") is not None else None,
+            })
+
+        return {
+            "class_id": class_id,
+            "class_name": class_name,
+            "active_sailors": active_sailors,
+            "total_regattas": total_regattas,
+            "total_races": total_races,
+            "regattas": regattas,
+            "sailors": sailors,
+        }
+    finally:
+        cur.close()
+        return_db_connection(conn)
+
 
 @app.get("/api/sa-id-stats")
 def sa_id_stats():
@@ -4645,6 +6893,13 @@ def api_search(
     if not request_id:
         request_id = get_request_id()
     
+    # Search analytics: log sailor search when q present
+    if q and (q_ := (q or "").strip()):
+        try:
+            _log_analytics_event("search", {"search_type": "sailor", "query": q_}, session_id=request.cookies.get("session") if request else None, sas_id=None)
+        except Exception:
+            pass
+    
     # STAGE 12 OPTIMIZATION: Enforce maximum limit and minimum query length
     limit = min(limit, 200)  # Cap at 200 to prevent huge result sets
     
@@ -4894,7 +7149,7 @@ def api_search(
                 
                 if class_name:
                     # Filter by class from results table
-                    temp_conditions.append("EXISTS (SELECT 1 FROM public.results res WHERE (res.helm_temp_id = 'TMP:' || t.temp_id::text OR res.crew_temp_id = 'TMP:' || t.temp_id::text OR res.crew2_temp_id = 'TMP:' || t.temp_id::text OR res.crew3_temp_id = 'TMP:' || t.temp_id::text) AND LOWER(res.class_canonical) LIKE LOWER(%s))")
+                    temp_conditions.append("EXISTS (SELECT 1 FROM public.results res JOIN public.classes c ON c.class_id = res.class_id WHERE (res.helm_temp_id = 'TMP:' || t.temp_id::text OR res.crew_temp_id = 'TMP:' || t.temp_id::text OR res.crew2_temp_id = 'TMP:' || t.temp_id::text OR res.crew3_temp_id = 'TMP:' || t.temp_id::text) AND LOWER(c.class_name) LIKE LOWER(%s))")
                     temp_params.append(f"%{class_name}%")
                 
                     temp_where = " AND " + " AND ".join(temp_conditions) if temp_conditions else ""
@@ -5110,7 +7365,7 @@ def _result_row_term_match_sql(term: str, params: list, escape: bool = True) -> 
     # class: match any alias
     for a in class_aliases:
         apat = f"%{(_escape_like(a) if escape else a)}%"
-        conds.append("(LOWER(COALESCE(res.class_canonical, '')) LIKE %s OR LOWER(COALESCE(res.class_original, '')) LIKE %s)")
+        conds.append("(LOWER(COALESCE(c_class.class_name, res.class_original, '')) LIKE %s OR LOWER(COALESCE(res.class_original, '')) LIKE %s)")
         params.extend([apat, apat])
     return "(" + " OR ".join(conds) + ")"
 
@@ -5122,6 +7377,7 @@ def _match_reason_from_row(row: dict, terms: list) -> tuple:
     # Only result-row fields that explain why this regatta matched; do NOT use event_name/host_club_name (redundant with regatta title)
     fields = [
         ("boat_name", "Boat"),
+        ("class_name", "Class"),
         ("class_canonical", "Class"),
         ("class_original", "Class"),
         ("club_abbrev", "Club"),
@@ -5150,8 +7406,15 @@ def api_regattas_with_counts(
     search_q: Optional[str] = Query(None, alias="q"),
     year: Optional[int] = None,
     class_name: Optional[str] = Query(None, description="Filter regattas that sailed this class (e.g. 'Optimist A')"),
+    request: Request = None,
 ):
     """Return regattas with entry counts. q = Google-like: any word matches event name, host, or class (with aliases e.g. Laser=ILCA)."""
+    # Search analytics: log regatta search when q present
+    if search_q and (q_ := (search_q or "").strip()):
+        try:
+            _log_analytics_event("search", {"search_type": "regatta", "query": q_}, session_id=request.cookies.get("session") if request else None, sas_id=None)
+        except Exception:
+            pass
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     
@@ -5178,6 +7441,7 @@ def api_regattas_with_counts(
                 results_subquery = """r.regatta_id IN (
                     SELECT DISTINCT res.regatta_id FROM results res
                     LEFT JOIN clubs c ON c.club_id = res.club_id
+                    LEFT JOIN classes c_class ON c_class.class_id = res.class_id
                     JOIN regattas r2 ON r2.regatta_id = res.regatta_id
                     WHERE """
                 results_subquery += " AND ".join(term_conds) + ")"
@@ -5199,7 +7463,8 @@ def api_regattas_with_counts(
         if class_name and class_name.strip():
             conditions.append("""r.regatta_id IN (
                 SELECT res.regatta_id FROM results res
-                WHERE LOWER(COALESCE(res.class_canonical, '')) LIKE %s
+                LEFT JOIN classes c ON c.class_id = res.class_id
+                WHERE LOWER(COALESCE(c.class_name, res.class_original, '')) LIKE %s
                    OR LOWER(COALESCE(res.class_original, '')) LIKE %s
             )""")
             class_pattern = f"%{class_name.strip().lower()}%"
@@ -5236,10 +7501,10 @@ def api_regattas_with_counts(
         """ + exclude_series + """
         """
         
-        # Include regattas with 0 results when they matched by name (so "SA Youth Nationals Dec 2025" always shows)
-        having_clause = "HAVING COUNT(DISTINCT res.result_id) > 0"
+        # Include regattas with 0 results when they matched by name, or when regatta_number >= 375 (recent batch: 377-385)
+        having_clause = "HAVING (COUNT(DISTINCT res.result_id) > 0 OR r.regatta_number >= 375)"
         if name_match_sql is not None:
-            having_clause = "HAVING (COUNT(DISTINCT res.result_id) > 0 OR " + name_match_sql + ")"
+            having_clause = "HAVING (COUNT(DISTINCT res.result_id) > 0 OR " + name_match_sql + " OR r.regatta_number >= 375)"
             params.extend(name_match_params)
         # Sort best match (regatta name matches all terms) first, then by regatta number/date
         order_best_first = ""
@@ -5278,10 +7543,11 @@ def api_regattas_with_counts(
                 try:
                     match_sql = """
                     SELECT DISTINCT ON (res.regatta_id) res.regatta_id,
-                        res.boat_name, res.class_canonical, res.class_original, res.club_raw,
+                        res.boat_name, c_class.class_name AS class_canonical, res.class_original, res.club_raw,
                         c.club_abbrev, c.club_fullname, r2.event_name, r2.host_club_name
                     FROM results res
                     LEFT JOIN clubs c ON c.club_id = res.club_id
+                    LEFT JOIN classes c_class ON c_class.class_id = res.class_id
                     JOIN regattas r2 ON r2.regatta_id = res.regatta_id
                     WHERE res.regatta_id = ANY(%s) AND """ + " AND ".join(match_conds) + """
                     ORDER BY res.regatta_id
@@ -5332,9 +7598,9 @@ def api_regattas_with_counts(
                 chosen["entries_count"] = total_entries_by_num.get(key, d.get("entries_count") or 0)
                 by_regatta_number[key] = chosen
             else:
-                cur = by_regatta_number[key]
-                cur_best = cur.get("match_reason") == "Best match"
-                cur_len = len((cur.get("event_name") or "").strip())
+                existing = by_regatta_number[key]
+                cur_best = existing.get("match_reason") == "Best match"
+                cur_len = len((existing.get("event_name") or "").strip())
                 if (is_best and not cur_best) or (is_best == cur_best and name_len < cur_len):
                     chosen = dict(d)
                     chosen["entries_count"] = total_entries_by_num.get(key, d.get("entries_count") or 0)
@@ -5412,9 +7678,9 @@ def api_regatta_class_entries(regatta_id: str):
             COUNT(DISTINCT res.result_id) as entries
         FROM regatta_blocks rb
         LEFT JOIN results res ON res.block_id = rb.block_id AND res.raced = TRUE
-        LEFT JOIN classes c ON c.class_name = rb.class_canonical OR LOWER(c.class_name) = LOWER(rb.class_canonical)
+        LEFT JOIN classes c ON c.class_id = rb.class_id
         WHERE rb.regatta_id = %s
-        GROUP BY COALESCE(c.class_name, rb.class_canonical, rb.class_original)
+        GROUP BY COALESCE(c.class_id, 0), COALESCE(c.class_name, rb.class_canonical, rb.class_original)
         HAVING COUNT(DISTINCT res.result_id) > 0
         ORDER BY COALESCE(c.class_name, rb.class_canonical, rb.class_original)
     """, (regatta_id,))
@@ -5434,7 +7700,7 @@ def api_regatta_class_entries(regatta_id: str):
     return result
 
 @app.get("/api/regatta/{regatta_id}")
-def api_regatta(regatta_id: str):
+def api_regatta(regatta_id: str, request: Request = None):
     """Return all regatta data including blocks and results"""
     t0 = time.time()
     print(f"[TRACE] getRegatta({regatta_id}) START")
@@ -5445,8 +7711,11 @@ def api_regatta(regatta_id: str):
                 r.event_name,
                 r.year,
                 r.regatta_number,
-                r.result_status,
-                r.as_at_time,
+                r.start_date,
+                r.end_date,
+                r.regatta_type,
+                COALESCE(NULLIF(TRIM(r.result_status), ''), NULLIF(TRIM(res.result_status), ''), 'Final') AS result_status,
+                COALESCE(r.as_at_time::timestamptz, res.as_at_time::timestamptz) AS as_at_time,
                 r.host_club_id,
             c.club_abbrev as host_club_code,
             COALESCE(c.club_fullname, c.club_abbrev) as host_club_name,
@@ -5479,15 +7748,15 @@ def api_regatta(regatta_id: str):
                 res.bow_no,
                 res.hull_no,
                 res.raced,
-                res.class_canonical as result_class_canonical,
+                COALESCE(res.class_id, rb.class_id) as result_class_id,
                 res.class_original as result_class_original,
-                COALESCE(cls.class_name, rb.class_canonical, rb.class_original) as class_name
+                COALESCE(cls_res.class_name, res.class_original, rb.class_canonical, rb.class_original) as class_name
             FROM regattas r
             LEFT JOIN clubs c ON c.club_id = r.host_club_id
             LEFT JOIN regatta_blocks rb ON rb.regatta_id = r.regatta_id
             LEFT JOIN results res ON res.block_id = rb.block_id
             LEFT JOIN clubs c2 ON c2.club_id = res.club_id
-            LEFT JOIN classes cls ON cls.class_name = rb.class_canonical OR LOWER(cls.class_name) = LOWER(rb.class_canonical)
+            LEFT JOIN classes cls_res ON cls_res.class_id = COALESCE(res.class_id, rb.class_id)
             WHERE r.regatta_id = %s
             ORDER BY rb.block_id, COALESCE(res.rank, 99999), res.result_id
         """, (regatta_id,))
@@ -5504,21 +7773,24 @@ def api_regatta(regatta_id: str):
                         resolved_id = str(rows[0].get("regatta_id") or first_part)
                         rows = q("""
                             SELECT 
-                                r.regatta_id, r.event_name, r.year, r.regatta_number, r.result_status, r.as_at_time, r.host_club_id,
+                                r.regatta_id, r.event_name, r.year, r.regatta_number,
+                                COALESCE(NULLIF(TRIM(r.result_status), ''), NULLIF(TRIM(res.result_status), ''), 'Final') AS result_status,
+                                COALESCE(r.as_at_time::timestamptz, res.as_at_time::timestamptz) AS as_at_time,
+                                r.host_club_id,
                                 c.club_abbrev as host_club_code, COALESCE(c.club_fullname, c.club_abbrev) as host_club_name,
                                 rb.block_id, rb.fleet_label, rb.class_canonical, rb.class_original, rb.races_sailed, rb.discard_count, rb.to_count, rb.scoring_system,
                                 res.result_id, res.rank, res.helm_name, res.crew_name, res.sail_number, res.club_raw, res.club_id, c2.club_abbrev as club_abbrev,
                                 COALESCE(c2.club_fullname, c2.club_abbrev) as club_fullname,
                                 res.race_scores, res.total_points_raw, res.nett_points_raw, res.helm_sa_sailing_id, res.crew_sa_sailing_id, res.helm_temp_id, res.crew_temp_id,
                                 res.boat_name, res.jib_no, res.bow_no, res.hull_no, res.raced,
-                                res.class_canonical as result_class_canonical, res.class_original as result_class_original,
-                                COALESCE(cls.class_name, rb.class_canonical, rb.class_original) as class_name
+                                COALESCE(res.class_id, rb.class_id) as result_class_id, res.class_original as result_class_original,
+                                COALESCE(cls_res.class_name, res.class_original, rb.class_canonical, rb.class_original) as class_name
                             FROM regattas r
                             LEFT JOIN clubs c ON c.club_id = r.host_club_id
                             LEFT JOIN regatta_blocks rb ON rb.regatta_id = r.regatta_id
                             LEFT JOIN results res ON res.block_id = rb.block_id
                             LEFT JOIN clubs c2 ON c2.club_id = res.club_id
-                            LEFT JOIN classes cls ON cls.class_name = rb.class_canonical OR LOWER(cls.class_name) = LOWER(rb.class_canonical)
+                            LEFT JOIN classes cls_res ON cls_res.class_id = COALESCE(res.class_id, rb.class_id)
                             WHERE r.regatta_id = %s
                             ORDER BY rb.block_id, COALESCE(res.rank, 99999), res.result_id
                         """, (resolved_id,))
@@ -5538,7 +7810,7 @@ def api_regatta(regatta_id: str):
             for row in rows:
                 if row.get('result_id'):  # Only process result rows, not header rows
                     block_id = row.get('block_id')
-                    class_name = (row.get('class_canonical') or row.get('class_original') or '').strip()
+                    class_name = (row.get('class_name') or row.get('class_original') or '').strip()
                     if not class_name:
                         other_rows.append(row)
                         continue
@@ -5665,11 +7937,30 @@ def api_regatta(regatta_id: str):
 
         # Add club_slug and host_club_slug for /club/{slug} links
         host_club_slug = _get_club_slug_by_id(first_row.get('host_club_id')) if first_row.get('host_club_id') else ''
+        # Add helm_slug and crew_slug so frontend can render real /sailor/<slug> links. Only sailors in sas_id_personal get a slug (no broken URLs for Google crawl).
+        sailor_ids = []
+        for r in rows:
+            if r.get('helm_sa_sailing_id') is not None:
+                sailor_ids.append(r['helm_sa_sailing_id'])
+            if r.get('crew_sa_sailing_id') is not None:
+                sailor_ids.append(r['crew_sa_sailing_id'])
+        slug_map = _batch_sailor_slugs_for_sas_ids(sailor_ids) if sailor_ids else {}
         for r in rows:
             name = (r.get('club_fullname') or r.get('club_abbrev') or r.get('club_raw') or '').strip()
             r['club_slug'] = _club_slug_from_name(name) if name else ''
             r['host_club_slug'] = host_club_slug or ''
+            hid = r.get('helm_sa_sailing_id')
+            r['helm_slug'] = slug_map.get(str(hid)) if hid is not None else None
+            cid = r.get('crew_sa_sailing_id')
+            r['crew_slug'] = slug_map.get(str(cid)) if cid is not None else None
 
+        # Internal analytics: regatta_view (dedupe 5s per session)
+        try:
+            rid = str(first_row.get("regatta_id") or regatta_id or "")
+            if rid:
+                _log_analytics_event("regatta_view", {"regatta_id": rid}, session_id=request.cookies.get("session") if request else None, sas_id=None)
+        except Exception:
+            pass
         return rows
     except Exception as e:
         import traceback
@@ -5726,7 +8017,7 @@ def _filter_regatta_rows_by_class(rows: list, class_id: str):
         if not r.get("result_id"):
             continue
         block_id = (r.get("block_id") or "").strip()
-        class_canonical = (r.get("class_canonical") or r.get("class_original") or r.get("class_name") or "").strip()
+        class_canonical = (r.get("class_name") or r.get("class_original") or "").strip()
         if block_id == class_id:
             out.append(r)
             continue
@@ -5795,6 +8086,15 @@ def api_sailor_resolve(
                 "slug": canonical_slug,
                 "canonical_url": f"{base_url}/sailor/{canonical_slug}",
             }
+        # Fallback: sailor in results but not sas_id_personal
+        name_from_res, canon_from_res = _get_sailor_name_from_results(str(sas_id).strip())
+        if name_from_res and canon_from_res:
+            return {
+                "sas_id": str(sas_id).strip(),
+                "name": name_from_res,
+                "slug": canon_from_res,
+                "canonical_url": f"{base_url}/sailor/{canon_from_res}",
+            }
         raise HTTPException(status_code=404, detail="sailor not found")
     if not slug or not slug.strip():
         raise HTTPException(status_code=400, detail="slug or sas_id required")
@@ -5816,6 +8116,10 @@ def api_sailor_resolve(
                     name = (row.get("full_name") or "").strip()
                     canonical_slug = _sailor_canonical_slug(name, sid, True)
                     return {"sas_id": sid, "name": name, "slug": canonical_slug, "canonical_url": f"{base_url}/sailor/{canonical_slug}"}
+                # Fallback: sailor in results but not sas_id_personal
+                name_from_res, canon_from_res = _get_sailor_name_from_results(sid)
+                if name_from_res and canon_from_res:
+                    return {"sas_id": sid, "name": name_from_res, "slug": canon_from_res, "canonical_url": f"{base_url}/sailor/{canon_from_res}"}
             # Normalize slug to comparable name: hyphens and spaces both become single space (so "mia-strydom-wallis" matches "Mia Strydom-Wallis")
             name_from_slug = re.sub(r"\s+", " ", slug.replace("-", " ").strip()).lower()
             if not name_from_slug:
@@ -5829,6 +8133,11 @@ def api_sailor_resolve(
             """, (name_from_slug,))
             rows = cur.fetchall()
             if not rows:
+                # Fallback: name-only slug from results (regatta page links)
+                name_from_res, sid_from_res = _get_sailor_by_name_slug_from_results(slug)
+                if name_from_res and sid_from_res:
+                    canon = _sailor_canonical_slug(name_from_res, sid_from_res, True)
+                    return {"sas_id": sid_from_res, "name": name_from_res, "slug": canon, "canonical_url": f"{base_url}/sailor/{canon}"}
                 raise HTTPException(status_code=404, detail="sailor not found")
             if len(rows) == 1:
                 r = rows[0]
@@ -5858,8 +8167,148 @@ def api_sailor_resolve(
         raise HTTPException(status_code=500, detail="resolve failed")
 
 
+def _normalize_name_for_slug_match(name: str) -> str:
+    """Normalize name to match slug lookup (same logic as _slug_from_name but space-separated)."""
+    if not name or not isinstance(name, str):
+        return ""
+    s = name.strip().lower().replace("&", " and ")
+    s = re.sub(r"[^\w\s\-]", "", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
+# First-name variants for slug/name match (Tom/Thomas, Tim/Timothy, spelling variants like Simamkele/Simankele)
+_FIRST_NAME_VARIANTS = {"tom": "thomas", "thomas": "tom", "tim": "timothy", "timothy": "tim", "jim": "james", "james": "jim", "mike": "michael", "michael": "mike", "simamkele": "simankele", "simankele": "simamkele"}
+
+
+def _get_name_from_sas_id_personal(sas_id: str) -> str:
+    """Return canonical name from sas_id_personal so slugs match official name. Empty if not found."""
+    if not sas_id or not str(sas_id).strip().isdigit():
+        return ""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            cur.execute("""
+                SELECT COALESCE(TRIM(full_name), TRIM(first_name || ' ' || COALESCE(last_name, ''))) AS full_name
+                FROM sas_id_personal WHERE sa_sailing_id::text = %s LIMIT 1
+            """, (str(sas_id).strip(),))
+            row = cur.fetchone()
+            return (row.get("full_name") or "").strip() if row else ""
+        finally:
+            cur.close()
+            conn.close()
+    except Exception:
+        return ""
+
+
+def _get_sailor_by_name_slug_from_results(slug: str):
+    """Fallback: resolve name-only slug from results (helm/crew) when not in sas_id_personal.
+    Returns (name, sas_id) or (None, None). Tries sas_id_personal with first-name variants if results have no SA ID."""
+    if not slug or not slug.strip():
+        return None, None
+    norm = _normalize_name_for_slug_match(slug.replace("-", " "))
+    if not norm:
+        return None, None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            # Helm with SA ID
+            cur.execute("""
+                SELECT TRIM(helm_name) AS name, helm_sa_sailing_id::text AS sas_id
+                FROM results WHERE helm_sa_sailing_id IS NOT NULL AND helm_name IS NOT NULL AND TRIM(helm_name) != ''
+                  AND REGEXP_REPLACE(REGEXP_REPLACE(LOWER(TRIM(REPLACE(REPLACE(helm_name,'/',' '),'&',' and '))),'[^a-z0-9 ]',' ','g'),'\\s+',' ','g') = %s
+                LIMIT 1
+            """, (norm,))
+            row = cur.fetchone()
+            if row and row.get("name") and row.get("sas_id"):
+                sid = str(row.get("sas_id") or "")
+                name = _get_name_from_sas_id_personal(sid) or (row.get("name") or "").strip()
+                return name, sid
+            # Crew with SA ID
+            cur.execute("""
+                SELECT TRIM(crew_name) AS name, crew_sa_sailing_id::text AS sas_id
+                FROM results WHERE crew_sa_sailing_id IS NOT NULL AND crew_name IS NOT NULL AND TRIM(crew_name) != ''
+                  AND REGEXP_REPLACE(REGEXP_REPLACE(LOWER(TRIM(REPLACE(REPLACE(crew_name,'/',' '),'&',' and '))),'[^a-z0-9 ]',' ','g'),'\\s+',' ','g') = %s
+                LIMIT 1
+            """, (norm,))
+            row = cur.fetchone()
+            if row and row.get("name") and row.get("sas_id"):
+                sid = str(row.get("sas_id") or "")
+                name = _get_name_from_sas_id_personal(sid) or (row.get("name") or "").strip()
+                return name, sid
+            # Helm/crew in results but no SA ID: try sas_id_personal with first-name variant (Tom<->Thomas)
+            cur.execute("SELECT 1 FROM results WHERE helm_name IS NOT NULL AND helm_name != '' AND REGEXP_REPLACE(REGEXP_REPLACE(LOWER(TRIM(REPLACE(REPLACE(helm_name,'/',' '),'&',' and '))),'[^a-z0-9 ]',' ','g'),'\\s+',' ','g') = %s UNION SELECT 1 FROM results WHERE crew_name IS NOT NULL AND crew_name != '' AND REGEXP_REPLACE(REGEXP_REPLACE(LOWER(TRIM(REPLACE(REPLACE(crew_name,'/',' '),'&',' and '))),'[^a-z0-9 ]',' ','g'),'\\s+',' ','g') = %s LIMIT 1", (norm, norm))
+            if cur.fetchone() and len(norm.split()) >= 2:
+                first, last = norm.split()[0], " ".join(norm.split()[1:])
+                variant = _FIRST_NAME_VARIANTS.get(first)
+                if variant:
+                    cur.execute("""
+                        SELECT sa_sailing_id::text AS sas_id, COALESCE(TRIM(full_name), TRIM(first_name||' '||COALESCE(last_name,''))) AS full_name
+                        FROM sas_id_personal
+                        WHERE LOWER(COALESCE(last_name,'')) = LOWER(%s)
+                          AND (LOWER(COALESCE(first_name,'')) IN (LOWER(%s),LOWER(%s)) OR LOWER(COALESCE(nickname,'')) IN (LOWER(%s),LOWER(%s)))
+                        ORDER BY (LOWER(COALESCE(first_name,'')) = LOWER(%s) OR LOWER(COALESCE(nickname,'')) = LOWER(%s)) DESC
+                        LIMIT 1
+                    """, (last, first, variant, first, variant, first, first))
+                    row = cur.fetchone()
+                    if row and row.get("sas_id"):
+                        return (row.get("full_name") or "").strip(), str(row.get("sas_id") or "")
+        finally:
+            cur.close()
+            conn.close()
+    except Exception as e:
+        print(f"[api] _get_sailor_by_name_slug_from_results: {e}")
+    return None, None
+
+
+def _get_sailor_name_from_results(sas_id: str):
+    """Fallback: get sailor name from results (helm/crew) when not in sas_id_personal. Returns (name, slug) or (None, None).
+    Prefers name from sas_id_personal when available so slug matches official name."""
+    if not sas_id or not str(sas_id).strip().isdigit():
+        return None, None
+    sid = str(sas_id).strip()
+    name = _get_name_from_sas_id_personal(sid)
+    if name:
+        return name, _sailor_canonical_slug(name, sid, True)
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            cur.execute("""
+                SELECT COALESCE(TRIM(helm_name), '') AS helm_name
+                FROM results
+                WHERE helm_sa_sailing_id::text = %s AND helm_name IS NOT NULL AND TRIM(helm_name) != ''
+                LIMIT 1
+            """, (sid,))
+            row = cur.fetchone()
+            if row and row.get("helm_name"):
+                name = (row.get("helm_name") or "").strip()
+                if name:
+                    return name, _sailor_canonical_slug(name, sid, True)
+            cur.execute("""
+                SELECT COALESCE(TRIM(crew_name), '') AS crew_name
+                FROM results
+                WHERE crew_sa_sailing_id::text = %s AND crew_name IS NOT NULL AND TRIM(crew_name) != ''
+                LIMIT 1
+            """, (sid,))
+            row = cur.fetchone()
+            if row and row.get("crew_name"):
+                name = (row.get("crew_name") or "").strip()
+                if name:
+                    return name, _sailor_canonical_slug(name, sid, True)
+        finally:
+            cur.close()
+            conn.close()
+    except Exception as e:
+        print(f"[api] _get_sailor_name_from_results: {e}")
+    return None, None
+
+
 def _get_sas_id_by_slug(slug: str):
-    """Return sas_id for slug or None. Used by /api/sailor/results/{slug} and /api/regatta/results/{slug}."""
+    """Return sas_id for slug or None. Used by /api/sailor/results/{slug} and /api/regatta/results/{slug}.
+    Falls back to results table when sailor not in sas_id_personal (links from regatta pages)."""
     if not slug or not slug.strip():
         return None
     slug = slug.strip()
@@ -5877,6 +8326,13 @@ def _get_sas_id_by_slug(slug: str):
                 row = cur.fetchone()
                 if row:
                     return str(row.get("sas_id") or "")
+                # Fallback: sailor in results but not sas_id_personal
+                cur.execute(
+                    "SELECT 1 FROM results WHERE helm_sa_sailing_id::text = %s OR crew_sa_sailing_id::text = %s LIMIT 1",
+                    (sid, sid),
+                )
+                if cur.fetchone():
+                    return sid
                 return None
             name_from_slug = re.sub(r"\s+", " ", slug.replace("-", " ").strip()).lower()
             if not name_from_slug:
@@ -5889,7 +8345,9 @@ def _get_sas_id_by_slug(slug: str):
             row = cur.fetchone()
             if row:
                 return str(row.get("sas_id") or "")
-            return None
+            # Fallback: name-only slug from results (regatta page links)
+            _, sid = _get_sailor_by_name_slug_from_results(slug)
+            return sid if sid else None
         finally:
             cur.close()
             conn.close()
@@ -7617,9 +10075,10 @@ def api_regatta_participants_classes(regatta_id: str):
                 sql = """
                     SELECT DISTINCT
                         COALESCE(r.helm_sa_sailing_id::text, r.helm_temp_id) as sailor_id,
-                        COALESCE(rb.class_canonical, rb.fleet_label) as class_name
+                        COALESCE(c.class_name, rb.fleet_label) as class_name
                     FROM results r
-                    JOIN regatta_blocks rb ON rb.block_id = r.block_id
+                    LEFT JOIN classes c ON c.class_id = r.class_id
+                    LEFT JOIN regatta_blocks rb ON rb.block_id = r.block_id
                     WHERE r.regatta_id = %s
                 """
                 cur.execute(sql, (regatta_id,))
@@ -7982,15 +10441,18 @@ async def login(request: Request):
                         if first_name or last_name:
                             full_name = f"{first_name or ''} {last_name or ''}".strip()
         
-        # Create session
+        # Create session (store IP, user_agent, device_type for admin dashboard)
         session_token = str(uuid.uuid4())
         expires_at = datetime.now() + timedelta(days=30)
-        
-        cur.execute("""
-            INSERT INTO public.user_sessions
-            (session_id, account_id, sas_id, login_method, expires_at)
-            VALUES (%s, %s, %s, %s, %s)
-        """, (session_token, account['account_id'], account['sas_id'], account['login_method'] or 'username', expires_at))
+        client_ip = _get_client_ip(request)
+        user_agent = (request.headers.get("user-agent") or "")[:500]
+        device_type = _derive_device_type(user_agent)
+        cols = ["session_id", "account_id", "sas_id", "login_method", "expires_at", "ip_address", "user_agent"]
+        vals = [session_token, account['account_id'], account['sas_id'], account['login_method'] or 'username', expires_at, client_ip or None, user_agent or None]
+        if table_exists("user_sessions") and column_exists("user_sessions", "device_type"):
+            cols.append("device_type")
+            vals.append(device_type)
+        cur.execute("INSERT INTO public.user_sessions (" + ", ".join(cols) + ") VALUES (" + ", ".join(["%s"] * len(vals)) + ")", vals)
         
         conn.commit()
         cur.close()
@@ -8016,40 +10478,56 @@ async def login(request: Request):
 
 @app.post("/auth/logout")
 async def logout(request: Request):
-    """Logout user by clearing session"""
+    """Logout user by clearing session. Prefer session_token from body so logout works when cookie is not sent."""
     conn = get_db_connection()
     cur = conn.cursor()
-    
     try:
-        # Get session token from cookie or request body
-        session_token = request.cookies.get("session")
-        body = await request.json() if request.method == "POST" else {}
-        session_token = session_token or body.get("session_token")
-        
-        if session_token:
-            # Delete the session
+        body = {}
+        try:
+            if request.method == "POST":
+                body = await request.json() or {}
+        except Exception:
+            pass
+        session_token = (body.get("session_token") or request.cookies.get("session") or "").strip()
+        if not session_token:
+            cur.close()
+            return_db_connection(conn)
+            return {"success": True, "message": "No session to log out", "marked": False}
+
+        rows_updated = 0
+        if table_exists("user_sessions") and column_exists("user_sessions", "logout_time"):
+            cur.execute("""
+                UPDATE public.user_sessions
+                SET logout_time = NOW()
+                WHERE session_id = %s AND logout_time IS NULL
+            """, (session_token,))
+            rows_updated = cur.rowcount
+        elif table_exists("user_sessions"):
             cur.execute("""
                 DELETE FROM public.user_sessions
                 WHERE session_id = %s
             """, (session_token,))
-            conn.commit()
-        
-        # Also clean up expired sessions
+            rows_updated = cur.rowcount
+        conn.commit()
+
         cur.execute("""
             DELETE FROM public.user_sessions
             WHERE expires_at <= NOW()
         """)
         conn.commit()
-        
-        return {"success": True, "message": "Logged out successfully"}
-        
+
+        cur.close()
+        return_db_connection(conn)
+        return {"success": True, "message": "Logged out successfully", "marked": rows_updated > 0}
     except Exception as e:
         print(f"Error during logout: {e}")
         traceback.print_exc()
-        return {"success": False, "error": str(e)}
-    finally:
-        cur.close()
-        conn.close()
+        try:
+            cur.close()
+        except Exception:
+            pass
+        return_db_connection(conn)
+        return {"success": False, "error": str(e), "marked": False}
 
 @app.get("/auth/facebook")
 async def facebook_auth(request: Request):
@@ -8178,12 +10656,15 @@ async def facebook_callback(request: Request, code: Optional[str] = None, state:
             # Real SAS ID - create session and redirect directly to landing page
             session_token = str(uuid.uuid4())
             expires_at = datetime.now() + timedelta(days=30)
-            
-            cur.execute("""
-                INSERT INTO public.user_sessions
-                (session_id, account_id, sas_id, login_method, expires_at)
-                VALUES (%s, %s, %s, 'facebook', %s)
-            """, (session_token, account_id, sas_id, expires_at))
+            client_ip = _get_client_ip(request)
+            user_agent = (request.headers.get("user-agent") or "")[:500]
+            device_type = _derive_device_type(user_agent)
+            cols = ["session_id", "account_id", "sas_id", "login_method", "expires_at", "ip_address", "user_agent"]
+            vals = [session_token, account_id, sas_id, expires_at, client_ip or None, user_agent or None]
+            if table_exists("user_sessions") and column_exists("user_sessions", "device_type"):
+                cols.append("device_type")
+                vals.append(device_type)
+            cur.execute("INSERT INTO public.user_sessions (" + ", ".join(cols) + ") VALUES (" + ", ".join(["%s"] * len(vals)) + ")", vals)
             
             conn.commit()
             cur.close()
@@ -8327,27 +10808,29 @@ def _perform_sailor_search(sas_id: Optional[str] = None, first_names: Optional[s
             WITH class_data AS (
                 SELECT 
                     r.helm_sa_sailing_id::text as sailor_id,
-                    r.class_canonical as class_name,
+                    c.class_name as class_name,
                     r.regatta_id,
                     reg.end_date,
                     reg.event_name
                 FROM public.results r
                 JOIN public.regattas reg ON reg.regatta_id = r.regatta_id
+                JOIN public.classes c ON c.class_id = r.class_id
                 WHERE r.helm_sa_sailing_id IS NOT NULL
                   AND r.raced = TRUE
-                  AND r.class_canonical IS NOT NULL
+                  AND r.class_id IS NOT NULL
                 UNION ALL
                 SELECT 
                     r.crew_sa_sailing_id::text as sailor_id,
-                    r.class_canonical as class_name,
+                    c.class_name as class_name,
                     r.regatta_id,
                     reg.end_date,
                     reg.event_name
                 FROM public.results r
                 JOIN public.regattas reg ON reg.regatta_id = r.regatta_id
+                JOIN public.classes c ON c.class_id = r.class_id
                 WHERE r.crew_sa_sailing_id IS NOT NULL
                   AND r.raced = TRUE
-                  AND r.class_canonical IS NOT NULL
+                  AND r.class_id IS NOT NULL
             ),
             class_aggregated AS (
                 SELECT 
@@ -8617,15 +11100,18 @@ async def facebook_confirm_link(request: Request):
                     ON CONFLICT (sas_id, login_method, provider_id) DO NOTHING
                 """, (sas_id, whatsapp_clean))
         
-        # Create session
+        # Create session (store IP, user_agent, device_type)
         session_token = str(uuid.uuid4())
         expires_at = datetime.now() + timedelta(days=30)
-        
-        cur.execute("""
-            INSERT INTO public.user_sessions
-            (session_id, account_id, sas_id, login_method, expires_at)
-            VALUES (%s, %s, %s, 'facebook', %s)
-        """, (session_token, account_id, sas_id, expires_at))
+        client_ip = _get_client_ip(request)
+        user_agent = (request.headers.get("user-agent") or "")[:500]
+        device_type = _derive_device_type(user_agent)
+        cols = ["session_id", "account_id", "sas_id", "login_method", "expires_at", "ip_address", "user_agent"]
+        vals = [session_token, account_id, sas_id, expires_at, client_ip or None, user_agent or None]
+        if table_exists("user_sessions") and column_exists("user_sessions", "device_type"):
+            cols.append("device_type")
+            vals.append(device_type)
+        cur.execute("INSERT INTO public.user_sessions (" + ", ".join(cols) + ") VALUES (" + ", ".join(["%s"] * len(vals)) + ")", vals)
         
         conn.commit()
         cur.close()
@@ -8730,15 +11216,18 @@ async def register_account(request: Request):
             DO UPDATE SET password_hash = EXCLUDED.password_hash
         """, (sas_id, sas_id, password_hash))
         
-        # Create session
+        # Create session (store IP, user_agent, device_type)
         session_token = str(uuid.uuid4())
         expires_at = datetime.now() + timedelta(days=30)
-        
-        cur.execute("""
-            INSERT INTO public.user_sessions
-            (session_id, account_id, sas_id, login_method, expires_at)
-            VALUES (%s, %s, %s, 'email', %s)
-        """, (session_token, account_id, sas_id, expires_at))
+        client_ip = _get_client_ip(request)
+        user_agent = (request.headers.get("user-agent") or "")[:500]
+        device_type = _derive_device_type(user_agent)
+        cols = ["session_id", "account_id", "sas_id", "login_method", "expires_at", "ip_address", "user_agent"]
+        vals = [session_token, account_id, sas_id, expires_at, client_ip or None, user_agent or None]
+        if table_exists("user_sessions") and column_exists("user_sessions", "device_type"):
+            cols.append("device_type")
+            vals.append(device_type)
+        cur.execute("INSERT INTO public.user_sessions (" + ", ".join(cols) + ") VALUES (" + ", ".join(["%s"] * len(vals)) + ")", vals)
         
         conn.commit()
         cur.close()
@@ -8796,9 +11285,10 @@ def api_regatta_participants_classes(regatta_id: str):
                 sql = """
                     SELECT DISTINCT
                         COALESCE(r.helm_sa_sailing_id::text, r.helm_temp_id) as sailor_id,
-                        COALESCE(rb.class_canonical, rb.fleet_label) as class_name
+                        COALESCE(c.class_name, rb.fleet_label) as class_name
                     FROM results r
-                    JOIN regatta_blocks rb ON rb.block_id = r.block_id
+                    LEFT JOIN classes c ON c.class_id = r.class_id
+                    LEFT JOIN regatta_blocks rb ON rb.block_id = r.block_id
                     WHERE r.regatta_id = %s
                 """
                 cur.execute(sql, (regatta_id,))
@@ -8832,12 +11322,12 @@ def boat_classes(sail_number: str):
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     try:
         cur.execute("""
-            SELECT DISTINCT rb.class_canonical as class_name
+            SELECT DISTINCT c.class_name
             FROM results r
-            JOIN regatta_blocks rb ON rb.block_id = r.block_id
+            JOIN classes c ON c.class_id = r.class_id
             WHERE r.sail_number::text = %s
-              AND rb.class_canonical IS NOT NULL
-            ORDER BY rb.class_canonical
+              AND r.class_id IS NOT NULL
+            ORDER BY c.class_name
         """, (sail_number,))
         classes = [row['class_name'] for row in cur.fetchall()]
         return {"classes": classes}
@@ -8859,13 +11349,13 @@ def boat_info(sail_number: str, class_name: str):
             SELECT DISTINCT
                 r.sail_number,
                 r.boat_name,
-                rb.class_canonical as class_name,
+                c.class_name,
                 COUNT(DISTINCT r.regatta_id) as regatta_count
             FROM results r
-            JOIN regatta_blocks rb ON rb.block_id = r.block_id
+            JOIN classes c ON c.class_id = r.class_id
             WHERE r.sail_number::text = %s
-              AND rb.class_canonical = %s
-            GROUP BY r.sail_number, r.boat_name, rb.class_canonical
+              AND c.class_name = %s
+            GROUP BY r.sail_number, r.boat_name, c.class_name
             LIMIT 1
         """, (sail_number, class_name))
         row = cur.fetchone()
@@ -8895,10 +11385,10 @@ def boat_pedigree(sail_number: str, class_name: str):
                 reg.start_date,
                 reg.end_date
             FROM results r
-            JOIN regatta_blocks rb ON rb.block_id = r.block_id
+            JOIN classes c ON c.class_id = r.class_id
             JOIN regattas reg ON reg.regatta_id = r.regatta_id
             WHERE r.sail_number::text = %s
-              AND rb.class_canonical = %s
+              AND c.class_name = %s
               AND r.helm_name IS NOT NULL
             ORDER BY reg.start_date DESC
             LIMIT 50
@@ -8924,8 +11414,8 @@ def class_sailors(class_name: str):
                 COALESCE(r.helm_sa_sailing_id::text, r.helm_temp_id) as sailor_id,
                 r.helm_name as name
             FROM results r
-            JOIN regatta_blocks rb ON rb.block_id = r.block_id
-            WHERE rb.class_canonical = %s
+            JOIN classes c ON c.class_id = r.class_id
+            WHERE c.class_name = %s
               AND COALESCE(r.helm_sa_sailing_id::text, r.helm_temp_id) IS NOT NULL
             ORDER BY r.helm_name
             LIMIT 500
@@ -8941,9 +11431,15 @@ def class_sailors(class_name: str):
         conn.close()
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Resolve from __file__ so path is absolute and worker cwd cannot break it.
+_API_DIR = Path(__file__).resolve().parent
 # Serve frontend from sailingsa/frontend so /index.html, /login.html match cloud. On server set STATIC_DIR=/var/www/sailingsa.
-FRONTEND_DIR = os.path.join(BASE_DIR, "sailingsa", "frontend")
-STATIC_DIR = os.getenv("STATIC_DIR") or (FRONTEND_DIR if os.path.isdir(FRONTEND_DIR) else BASE_DIR)
+FRONTEND_DIR = _API_DIR / "sailingsa" / "frontend"
+STATIC_DIR = os.getenv("STATIC_DIR")
+if STATIC_DIR:
+    STATIC_DIR = str(Path(STATIC_DIR).resolve())
+else:
+    STATIC_DIR = str(FRONTEND_DIR if FRONTEND_DIR.is_dir() else _API_DIR)
 
 CLUB_LOGO_DIR = os.path.join(BASE_DIR, "artwork", "Club Logo")
 
@@ -8969,6 +11465,53 @@ def _sailor_canonical_slug(full_name: str, sas_id: str, has_duplicate: bool) -> 
     return base
 
 
+def _batch_sailor_slugs_for_sas_ids(sas_ids: list):
+    """Return dict sas_id -> canonical_slug for regatta rows. Enables real /sailor/<slug> links."""
+    if not sas_ids:
+        return {}
+    ids = list({str(i).strip() for i in sas_ids if i is not None and str(i).strip().isdigit()})
+    if not ids:
+        return {}
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            cur.execute("""
+                SELECT sa_sailing_id::text AS sas_id,
+                    COALESCE(TRIM(full_name), TRIM(first_name || ' ' || COALESCE(last_name, ''))) AS full_name
+                FROM public.sas_id_personal
+                WHERE sa_sailing_id::text = ANY(%s)
+            """, (ids,))
+            rows = cur.fetchall()
+            if not rows:
+                return {}
+            names_lower = list({(r.get("full_name") or "").strip().lower() for r in rows if (r.get("full_name") or "").strip()})
+            name_count = {}
+            if names_lower:
+                cur.execute("""
+                    SELECT LOWER(TRIM(COALESCE(full_name, first_name || ' ' || COALESCE(last_name, '')))) AS n, COUNT(*) AS c
+                    FROM public.sas_id_personal
+                    WHERE LOWER(TRIM(COALESCE(full_name, first_name || ' ' || COALESCE(last_name, '')))) = ANY(%s)
+                    GROUP BY 1
+                """, (names_lower,))
+                name_count = {r["n"]: r["c"] for r in cur.fetchall()}
+            out = {}
+            for r in rows:
+                sid = str(r.get("sas_id") or "")
+                full_name = (r.get("full_name") or "").strip()
+                if not full_name:
+                    continue
+                has_dup = (name_count.get(full_name.lower()) or 0) > 1
+                out[sid] = _sailor_canonical_slug(full_name, sid, has_dup)
+            return out
+        finally:
+            cur.close()
+            return_db_connection(conn)
+    except Exception as e:
+        print(f"[api] _batch_sailor_slugs_for_sas_ids: {e}")
+        return {}
+
+
 def _get_sailor_by_sas_id_for_redirect(sas_id: str):
     """Return (full_name, canonical_slug) for sailor or (None, None) if not found. Used for 301 redirect."""
     if not sas_id or not str(sas_id).strip().isdigit():
@@ -8986,7 +11529,9 @@ def _get_sailor_by_sas_id_for_redirect(sas_id: str):
             """, (str(sas_id).strip(),))
             row = cur.fetchone()
             if not row:
-                return None, None
+                # Fallback: sailor in results but not sas_id_personal
+                name_from_res, canon_from_res = _get_sailor_name_from_results(str(sas_id).strip())
+                return (name_from_res, canon_from_res) if (name_from_res and canon_from_res) else (None, None)
             full_name = (row.get("full_name") or "").strip()
             if not full_name:
                 return None, None
@@ -9032,6 +11577,10 @@ def _get_sailor_name_by_slug(slug: str):
                     if name:
                         return name, _sailor_canonical_slug(name, sid, True)
                     return None, None
+                # Fallback: sailor in results but not sas_id_personal (links from regatta pages)
+                name_from_results, canon_from_results = _get_sailor_name_from_results(sid)
+                if name_from_results and canon_from_results:
+                    return name_from_results, canon_from_results
             # By name: normalize slug (hyphens and spaces -> single space) so "mia-strydom-wallis" matches "Mia Strydom-Wallis"
             name_from_slug = re.sub(r"\s+", " ", slug.replace("-", " ").strip()).lower()
             if not name_from_slug:
@@ -9045,6 +11594,10 @@ def _get_sailor_name_by_slug(slug: str):
             """, (name_from_slug,))
             rows = cur.fetchall()
             if not rows:
+                # Fallback: name-only slug from results (regatta page links)
+                name_from_res, sid_from_res = _get_sailor_by_name_slug_from_results(slug)
+                if name_from_res and sid_from_res:
+                    return name_from_res, _sailor_canonical_slug(name_from_res, sid_from_res, True)
                 return None, None
             r = rows[0]
             name = (r.get("full_name") or "").strip()
@@ -9127,7 +11680,68 @@ def redirect_boat_pedigree(request: Request):
 
 
 # ---------- SEO: clean /sailor/<slug> URLs; 301 from ?sas_id=; serve SPA for /sailor/:slug and /regatta/:slug ----------
-_INDEX_HTML_PATH = os.path.join(STATIC_DIR, "index.html")
+# Absolute path so FileResponse works in worker context regardless of cwd.
+_INDEX_HTML_PATH = str(Path(STATIC_DIR).resolve() / "index.html")
+print(f"[STATIC DEBUG] STATIC_DIR = {STATIC_DIR}")
+print(f"[STATIC DEBUG] INDEX_PATH = {_INDEX_HTML_PATH}")
+
+
+def _normalise_class_slug_for_lookup(slug: str) -> str:
+    """Normalise URL slug for class_name lookup: lowercase, hyphen to space."""
+    if not slug or not isinstance(slug, str):
+        return ""
+    return slug.strip().lower().replace("-", " ")
+
+
+def _class_canonical_slug(class_name: str) -> str:
+    """Build canonical URL slug from class_name: lowercase, spaces to hyphens, alphanumeric + hyphen only."""
+    if not class_name or not isinstance(class_name, str):
+        return ""
+    s = class_name.strip().lower().replace(" ", "-")
+    s = re.sub(r"[^a-z0-9-]", "", s)
+    return s.strip("-") or ""
+
+
+def _get_class_by_name_slug(slug: str):
+    """Lookup class by name-only slug (no leading id). Returns (class_id, class_name) or (None, None)."""
+    norm = _normalise_class_slug_for_lookup(slug)
+    if not norm:
+        return (None, None)
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(
+            "SELECT class_id, class_name FROM classes WHERE LOWER(TRIM(class_name)) = %s LIMIT 1",
+            (norm,),
+        )
+        row = cur.fetchone()
+        if row:
+            return (row["class_id"], row["class_name"])
+    except Exception:
+        pass
+    finally:
+        if conn:
+            return_db_connection(conn)
+    return (None, None)
+
+
+def _get_class_name_by_id(class_id) -> Optional[str]:
+    """Return class_name for class_id from classes table, or None."""
+    if class_id is None:
+        return None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            cur.execute("SELECT class_name FROM classes WHERE class_id = %s LIMIT 1", (int(class_id),))
+            row = cur.fetchone()
+            return (row.get("class_name") or "").strip() or None if row else None
+        finally:
+            cur.close()
+            return_db_connection(conn)
+    except Exception:
+        return None
 
 
 def root_maybe_redirect_sas_id(
@@ -9224,7 +11838,7 @@ def _get_sailor_club_for_seo(sas_id: str) -> str:
 
 
 def _get_sailor_sas_id_from_slug(slug: str) -> str:
-    """Return sas_id for sailor slug or empty string. Used for SEO extras."""
+    """Return sas_id for sailor slug or empty string. Used for SEO extras. Falls back to results when not in sas_id_personal."""
     if not slug or not slug.strip():
         return ""
     try:
@@ -9233,9 +11847,14 @@ def _get_sailor_sas_id_from_slug(slug: str) -> str:
         try:
             m = re.match(r"^(.+)-(\d+)$", slug.strip())
             if m:
-                cur.execute("SELECT sa_sailing_id::text FROM sas_id_personal WHERE sa_sailing_id::text = %s LIMIT 1", (m.group(2),))
+                sid = m.group(2)
+                cur.execute("SELECT sa_sailing_id::text FROM sas_id_personal WHERE sa_sailing_id::text = %s LIMIT 1", (sid,))
                 row = cur.fetchone()
-                return (row.get("sa_sailing_id") or "") if row else ""
+                if row:
+                    return (row.get("sa_sailing_id") or "") if row else ""
+                # Fallback: sailor in results but not sas_id_personal
+                cur.execute("SELECT 1 FROM results WHERE helm_sa_sailing_id::text = %s OR crew_sa_sailing_id::text = %s LIMIT 1", (sid, sid))
+                return sid if cur.fetchone() else ""
             name_from_slug = re.sub(r"\s+", " ", slug.replace("-", " ").strip()).lower()
             cur.execute("""
                 SELECT sa_sailing_id::text FROM sas_id_personal
@@ -9243,7 +11862,11 @@ def _get_sailor_sas_id_from_slug(slug: str) -> str:
                 LIMIT 1
             """, (name_from_slug,))
             row = cur.fetchone()
-            return (row.get("sa_sailing_id") or "") if row else ""
+            if row:
+                return (row.get("sa_sailing_id") or "")
+            # Fallback: name-only slug from results
+            _, sid = _get_sailor_by_name_slug_from_results(slug)
+            return sid or ""
         finally:
             cur.close()
             conn.close()
@@ -9259,6 +11882,9 @@ def serve_sailor_spa(slug: str):
     base_url = (os.getenv("BASE_URL") or "https://sailingsa.co.za").rstrip("/")
     if not name or not canonical_slug:
         raise HTTPException(status_code=404, detail="Sailor not found")
+    # 301 to canonical URL when slug differs (e.g. tom-henshilwood -> tom-henshilwood-16401) for SEO
+    if canonical_slug and slug.strip().lower() != canonical_slug.lower():
+        return RedirectResponse(url=f"/sailor/{canonical_slug}", status_code=301)
     try:
         with open(_INDEX_HTML_PATH, "r", encoding="utf-8", errors="replace") as f:
             html = f.read()
@@ -9307,6 +11933,36 @@ def serve_sailor_spa(slug: str):
     if club_name:
         json_ld["affiliation"] = {"@type": "SportsOrganization", "name": club_name}
     html = re.sub(r"</head>", f'<script type="application/ld+json">{json.dumps(json_ld)}</script>\n</head>', html, count=1)
+    return HTMLResponse(html)
+
+
+def serve_class_spa(slug: str):
+    """Serve SPA for /class/{id}-{slug} with server-side canonical and optional title. Used when slug is id-slug (e.g. 7-420)."""
+    if not os.path.isfile(_INDEX_HTML_PATH):
+        raise HTTPException(status_code=404, detail="index.html not found")
+    base_url = (os.getenv("BASE_URL") or "https://sailingsa.co.za").rstrip("/")
+    canonical_url = f"{base_url}/class/{slug}"
+    try:
+        with open(_INDEX_HTML_PATH, "r", encoding="utf-8", errors="replace") as f:
+            html = f.read()
+    except Exception as e:
+        print(f"[SEO] serve_class_spa read index: {e}")
+        return FileResponse(_INDEX_HTML_PATH, media_type="text/html")
+    # Replace canonical link (allow /> or >)
+    html = re.sub(
+        r'<link\s+rel="canonical"\s+href="[^"]*"\s*/?>',
+        f'<link rel="canonical" href="{html_module.escape(canonical_url)}">',
+        html,
+        count=1,
+    )
+    # Optional: set title from class name (parse id from id-slug e.g. 7-420 -> 7)
+    m = re.match(r"^(\d+)-", slug.strip())
+    if m:
+        cid = m.group(1)
+        class_name = _get_class_name_by_id(int(cid))
+        if class_name:
+            seo_title = f"{html_module.escape(class_name)} – Class | SailingSA"
+            html = re.sub(r"<title>[^<]*</title>", f"<title>{seo_title}</title>", html, count=1)
     return HTMLResponse(html)
 
 
@@ -9378,11 +12034,22 @@ def _get_club_by_slug(slug: str):
     return None
 
 
-def _get_regatta_by_slug(slug: str):
-    """Return (regatta_id, event_name, start_date, end_date, host_club_name, host_club_id) for regatta slug or None."""
-    if not slug or not slug.strip():
+def _slugify_event_name(name: str) -> str:
+    """Safe slugify for event_name: strip, remove non-word (keep hyphen), lower, collapse spaces to single hyphen. No DB."""
+    if not name:
+        return ""
+    s = (name or "").strip().lower()
+    s = re.sub(r"[^\w\s\-]", "", s)
+    s = re.sub(r"\s+", "-", s)
+    s = re.sub(r"-{2,}", "-", s).strip("-")
+    return s
+
+
+def _get_regatta_by_regatta_id(param: str):
+    """Return (regatta_id, event_name, start_date, end_date, host_club_name, host_club_id) when param equals regatta_id, else None."""
+    if not param or not str(param).strip():
         return None
-    slug = slug.strip().lower()
+    param = str(param).strip()
     try:
         if not table_exists("regattas"):
             return None
@@ -9391,6 +12058,45 @@ def _get_regatta_by_slug(slug: str):
         try:
             cur.execute("""
                 SELECT r.regatta_id, r.event_name, r.start_date, r.end_date,
+                       r.host_club_id,
+                       COALESCE(c.club_fullname, c.club_abbrev, '') AS host_club_name
+                FROM regattas r
+                LEFT JOIN clubs c ON c.club_id = r.host_club_id
+                WHERE r.regatta_id = %s
+            """, (param,))
+            row = cur.fetchone()
+        finally:
+            cur.close()
+            conn.close()
+        if not row:
+            return None
+        return (
+            str(row.get("regatta_id") or ""),
+            (row.get("event_name") or "").strip(),
+            row.get("start_date"),
+            row.get("end_date"),
+            (row.get("host_club_name") or "").strip(),
+            row.get("host_club_id"),
+        )
+    except Exception as e:
+        print(f"[SEO] _get_regatta_by_regatta_id: {e}")
+    return None
+
+
+def _get_regatta_by_event_name_slug(slug: str):
+    """Return (regatta_id, event_name, ...) when slugified event_name matches slug; else None. Used for 301 fallback only."""
+    if not slug or not slug.strip():
+        return None
+    slug_norm = slug.strip().lower()
+    try:
+        if not table_exists("regattas"):
+            return None
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            cur.execute("""
+                SELECT r.regatta_id, r.event_name, r.start_date, r.end_date,
+                       r.host_club_id,
                        COALESCE(c.club_fullname, c.club_abbrev, '') AS host_club_name
                 FROM regattas r
                 LEFT JOIN clubs c ON c.club_id = r.host_club_id
@@ -9400,9 +12106,8 @@ def _get_regatta_by_slug(slug: str):
                 name = (r.get("event_name") or "").strip()
                 if not name:
                     continue
-                cand = re.sub(r"[^\w\s\-]", "", name).strip().lower()
-                cand = re.sub(r"\s+", "-", cand).strip("-")
-                if cand == slug:
+                cand = _slugify_event_name(name)
+                if cand == slug_norm:
                     return (
                         str(r.get("regatta_id") or ""),
                         name,
@@ -9415,8 +12120,20 @@ def _get_regatta_by_slug(slug: str):
             cur.close()
             conn.close()
     except Exception as e:
-        print(f"[SEO] _get_regatta_by_slug: {e}")
+        print(f"[SEO] _get_regatta_by_event_name_slug: {e}")
     return None
+
+
+def _get_regatta_by_slug(slug: str):
+    """Return (regatta_id, event_name, start_date, end_date, host_club_name, host_club_id) for regatta slug or None."""
+    if not slug or not slug.strip():
+        return None
+    # Prefer direct regatta_id match (existing routing)
+    reg = _get_regatta_by_regatta_id(slug.strip())
+    if reg:
+        return reg
+    # Else match by slugified event_name (used by sitemap / callers that want any match)
+    return _get_regatta_by_event_name_slug(slug.strip())
 
 
 def _format_rank(rank):
@@ -9442,8 +12159,10 @@ def _get_regatta_full_page_data(regatta_id: str):
     """Return (event_name, host_club_name, start_date, end_date, fleets, result_status, as_at_time) for standalone regatta page.
     fleets = [{name, races_sailed, discard_count, to_count, scoring_system, entries, rows}].
     Each row = {rank, sail_number, helm_name, club, total, nett, race_scores, raced, class_name}.
-    result_status: 'Provisional' or 'Final' from regattas.result_status.
-    as_at_time: timestamp from regattas.as_at_time for status line date/time."""
+    result_status: from regattas.result_status.
+    as_at_time: for status line; from results table (one row) per Result rule, fallback to regattas.as_at_time."""
+    t0 = time.time()
+    print(f"REGATTA_DATA: step=start time={time.time() - t0:.3f}", flush=True)
     if not regatta_id or not table_exists("regattas") or not table_exists("regatta_blocks") or not table_exists("results"):
         return None
     try:
@@ -9454,6 +12173,7 @@ def _get_regatta_full_page_data(regatta_id: str):
                 cur.execute("""
                     SELECT r.event_name, r.start_date, r.end_date,
                            COALESCE(c.club_fullname, c.club_abbrev, '') AS host_club_name,
+                           c.province AS host_club_province,
                            r.result_status, r.as_at_time
                     FROM regattas r
                     LEFT JOIN clubs c ON c.club_id = r.host_club_id
@@ -9462,7 +12182,8 @@ def _get_regatta_full_page_data(regatta_id: str):
             except Exception:
                 cur.execute("""
                     SELECT r.event_name, r.start_date, r.end_date,
-                           COALESCE(c.club_fullname, c.club_abbrev, '') AS host_club_name
+                           COALESCE(c.club_fullname, c.club_abbrev, '') AS host_club_name,
+                           c.province AS host_club_province
                     FROM regattas r
                     LEFT JOIN clubs c ON c.club_id = r.host_club_id
                     WHERE r.regatta_id = %s
@@ -9472,10 +12193,22 @@ def _get_regatta_full_page_data(regatta_id: str):
                 return None
             event_name = (row.get("event_name") or "").strip()
             host_club_name = (row.get("host_club_name") or "").strip()
+            host_club_province = (row.get("host_club_province") or "").strip() or None
             start_date = row.get("start_date")
             end_date = row.get("end_date")
             result_status = (row.get("result_status") or "").strip() or "Final"
             as_at_time = row.get("as_at_time")
+            print(f"REGATTA_DATA: step=after_regatta_meta time={time.time() - t0:.3f}", flush=True)
+            # Status-line timestamp: prefer results table (per Result rule), fallback to regattas.as_at_time
+            cur.execute("""
+                SELECT as_at_time FROM results
+                WHERE regatta_id = %s AND as_at_time IS NOT NULL
+                ORDER BY result_id LIMIT 1
+            """, (regatta_id,))
+            res_row = cur.fetchone()
+            if res_row and res_row.get("as_at_time"):
+                as_at_time = res_row["as_at_time"]
+            print(f"REGATTA_DATA: step=after_as_at_time time={time.time() - t0:.3f}", flush=True)
 
             cur.execute("""
                 SELECT rb.block_id,
@@ -9486,16 +12219,18 @@ def _get_regatta_full_page_data(regatta_id: str):
                        res.boat_name, res.jib_no, res.bow_no, res.hull_no,
                        COALESCE(TRIM(c.club_abbrev), TRIM(res.club_raw), '') AS club,
                        res.club_id, c.club_fullname,
-                       res.helm_sa_sailing_id,
+                       res.helm_sa_sailing_id, res.crew_sa_sailing_id,
                        res.total_points_raw, res.nett_points_raw, res.race_scores, res.raced,
-                       COALESCE(TRIM(res.class_canonical), TRIM(res.class_original), '') AS class_name
+                       COALESCE(TRIM(c_res.class_name), TRIM(res.class_original), '') AS class_name
                 FROM regatta_blocks rb
                 JOIN results res ON res.block_id = rb.block_id AND res.regatta_id = rb.regatta_id
                 LEFT JOIN clubs c ON c.club_id = res.club_id
+                LEFT JOIN classes c_res ON c_res.class_id = res.class_id
                 WHERE rb.regatta_id = %s
                 ORDER BY rb.block_id, COALESCE(res.rank, 99999), res.result_id
             """, (regatta_id,))
             raw = cur.fetchall() or []
+            print(f"REGATTA_DATA: step=after_main_join time={time.time() - t0:.3f}", flush=True)
             dup_names = set()
             cur.execute("""
                 SELECT LOWER(TRIM(COALESCE(full_name, first_name || ' ' || COALESCE(last_name, '')))) AS n
@@ -9506,12 +12241,37 @@ def _get_regatta_full_page_data(regatta_id: str):
             for row in cur.fetchall() or []:
                 if row.get("n"):
                     dup_names.add(row["n"])
+            # Batch name and slug lookups: one query for all sailor names, then slug in Python (no per-row DB)
+            sas_ids = set()
+            for r in raw:
+                h, c = r.get("helm_sa_sailing_id"), r.get("crew_sa_sailing_id")
+                if h is not None and str(h).strip().isdigit():
+                    sas_ids.add(str(h).strip())
+                if c is not None and str(c).strip().isdigit():
+                    sas_ids.add(str(c).strip())
+            name_map = {}
+            slug_map = {}
+            if sas_ids:
+                cur.execute("""
+                    SELECT sa_sailing_id::text AS sas_id,
+                           COALESCE(TRIM(full_name), TRIM(first_name || ' ' || COALESCE(last_name, ''))) AS full_name
+                    FROM sas_id_personal
+                    WHERE sa_sailing_id::text = ANY(%s)
+                """, (list(sas_ids),))
+                for row in cur.fetchall() or []:
+                    sid = str(row.get("sas_id") or "")
+                    name_map[sid] = (row.get("full_name") or "").strip()
+                for sid, nm in name_map.items():
+                    has_dup = (nm.lower() in dup_names) if nm else False
+                    slug_map[sid] = _sailor_canonical_slug(nm, sid, has_dup) if nm else None
+            print(f"REGATTA_DATA: step=after_dup_names time={time.time() - t0:.3f}", flush=True)
         finally:
             cur.close()
             conn.close()
     except Exception as e:
         print(f"[regatta standalone] _get_regatta_full_page_data: {e}")
         return None
+    print(f"REGATTA_DATA: step=after_db_calls time={time.time() - t0:.3f}", flush=True)
     fleets = []
     by_block = {}
     for r in raw:
@@ -9539,14 +12299,28 @@ def _get_regatta_full_page_data(regatta_id: str):
         helm_name = r.get("helm_name")
         helm_sas_id = str(r.get("helm_sa_sailing_id") or "") if r.get("helm_sa_sailing_id") is not None else ""
         helm_norm = (helm_name or "").strip().lower() if helm_name else ""
-        has_dup = helm_norm in dup_names
-        helm_slug = _sailor_canonical_slug(helm_name or "", helm_sas_id, has_dup) if helm_name else None
+        has_dup = helm_norm in dup_names or (helm_sas_id and helm_sas_id.isdigit())
+        helm_slug = slug_map.get(helm_sas_id) if (helm_sas_id and helm_sas_id.isdigit()) else None
+        if helm_slug is None and helm_sas_id and helm_sas_id.isdigit():
+            nm = name_map.get(helm_sas_id) or helm_name
+            if nm:
+                helm_slug = _sailor_canonical_slug(nm, helm_sas_id, has_dup)
+        crew_name = r.get("crew_name")
+        crew_sas_id = str(r.get("crew_sa_sailing_id") or "") if r.get("crew_sa_sailing_id") is not None else ""
+        crew_norm = (crew_name or "").strip().lower() if crew_name else ""
+        crew_has_dup = crew_norm in dup_names or (crew_sas_id and crew_sas_id.isdigit())
+        crew_slug = slug_map.get(crew_sas_id) if (crew_sas_id and crew_sas_id.isdigit()) else None
+        if crew_slug is None and crew_sas_id and crew_sas_id.isdigit():
+            nm = name_map.get(crew_sas_id) or crew_name
+            if nm:
+                crew_slug = _sailor_canonical_slug(nm, crew_sas_id, crew_has_dup)
         by_block[bid]["rows"].append({
             "rank": r.get("rank"),
             "sail_number": r.get("sail_number"),
             "helm_name": helm_name,
             "helm_slug": helm_slug,
-            "crew_name": r.get("crew_name"),
+            "crew_name": crew_name,
+            "crew_slug": crew_slug,
             "boat_name": r.get("boat_name"),
             "jib_no": r.get("jib_no"),
             "bow_no": r.get("bow_no"),
@@ -9563,7 +12337,8 @@ def _get_regatta_full_page_data(regatta_id: str):
         bl = by_block[bid]
         bl["entries"] = len(bl["rows"])
         fleets.append(bl)
-    return (event_name, host_club_name, start_date, end_date, fleets, result_status, as_at_time)
+    print(f"REGATTA_DATA: step=before_return time={time.time() - t0:.3f}", flush=True)
+    return (event_name, host_club_name, start_date, end_date, fleets, result_status, as_at_time, host_club_province)
 
 
 def _get_club_slug_by_id(club_id):
@@ -9719,7 +12494,15 @@ _RESULT_SHEET_CSS = (
 def _render_result_sheet_fleet(fleet: dict) -> str:
     """Render one fleet as HTML using the same structure and class names as admin regatta_viewer result sheet popup."""
     fname = (fleet.get("name") or "Fleet").strip()
-    fleet_label = fleet.get("fleet_label") or ""
+    fleet_label = (fleet.get("fleet_label") or "").strip()
+    class_canonical = (fleet.get("class_canonical") or "").strip()
+    # Header title: must show e.g. "420 Fleet" not just "Fleet". Use fleet_label or class_canonical from block/rows when name is fallback.
+    if fname == "Fleet" and (fleet_label or class_canonical):
+        fleet_header_title = (fleet_label or class_canonical) + (" Fleet" if not (fleet_label or class_canonical).endswith(" Fleet") else "")
+    elif fname.endswith(" Fleet") or fname == "Fleet":
+        fleet_header_title = fname
+    else:
+        fleet_header_title = fname + " Fleet" if not fname.endswith(" Fleet") else fname
     races_sailed = fleet.get("races_sailed") or 0
     discard_count = fleet.get("discard_count") or 0
     to_count = fleet.get("to_count")
@@ -9789,9 +12572,12 @@ def _render_result_sheet_fleet(fleet: dict) -> str:
             row_html += f'<td>{html_module.escape(str(r.get("bow_no") or ""))}</td>'
         if has_hull_no:
             row_html += f'<td>{html_module.escape(str(r.get("hull_no") or ""))}</td>'
+        crew_raw = str(r.get("crew_name") or "")
+        crew_slug = r.get("crew_slug")
+        crew_str = f'<a href="/sailor/{html_module.escape(crew_slug)}">{html_module.escape(crew_raw)}</a>' if crew_slug and crew_raw else html_module.escape(crew_raw)
         row_html += f'<td class="club-col">{club_str}</td><td class="helm-col">{helm_str}</td>'
         if has_crew:
-            row_html += f'<td>{html_module.escape(str(r.get("crew_name") or ""))}</td>'
+            row_html += f'<td>{crew_str}</td>'
         for rkey in race_columns:
             score = (race_scores.get(rkey) or "").strip()
             is_discarded = score.startswith("(") and score.endswith(")")
@@ -9803,16 +12589,16 @@ def _render_result_sheet_fleet(fleet: dict) -> str:
     table_html = f"<table><thead><tr>{thead}</tr></thead><tbody>{''.join(trs)}</tbody></table>"
     return (
         f'<div class="fleet-section">'
-        f'<div class="class-header"><div style="font-size:20px;font-weight:bold;margin-bottom:10px">{html_module.escape(fname)} Fleet</div>'
+        f'<div class="class-header"><div style="font-size:20px;font-weight:bold;margin-bottom:10px">{html_module.escape(fleet_header_title)}</div>'
         f'<div class="sailed-line">{html_module.escape(sailed_line)}</div></div>'
         f'<div class="table-wrapper">{table_html}</div></div>'
     )
 
 
-_REGATTA_404_HTML = """<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Regatta not found | SailingSA</title><style>body{font-family:system-ui,sans-serif;margin:2rem;color:#1a2750;} a{color:#1a2750;}</style></head><body><h1>Regatta not found</h1><p>There is no regatta at this address.</p><p><a href="/">Return to SailingSA home</a></p></body></html>"""
+_REGATTA_404_HTML = """<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Regatta not found | SailingSA</title><link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png"><link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png"><style>body{font-family:system-ui,sans-serif;margin:2rem;color:#1a2750;} a{color:#1a2750;}</style></head><body><h1>Regatta not found</h1><p>There is no regatta at this address.</p><p><a href="/">Return to SailingSA home</a></p></body></html>"""
 
 
-_CLUB_404_HTML = """<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Club not found | SailingSA</title><style>body{font-family:system-ui,sans-serif;margin:2rem;color:#1a2750;} a{color:#1a2750;}</style></head><body><h1>Club not found</h1><p>There is no club at this address.</p><p><a href="/">Return to SailingSA home</a></p></body></html>"""
+_CLUB_404_HTML = """<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Club not found | SailingSA</title><link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png"><link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png"><style>body{font-family:system-ui,sans-serif;margin:2rem;color:#1a2750;} a{color:#1a2750;}</style></head><body><h1>Club not found</h1><p>There is no club at this address.</p><p><a href="/">Return to SailingSA home</a></p></body></html>"""
 
 
 def serve_club_page(slug: str):
@@ -9926,6 +12712,8 @@ def serve_club_page(slug: str):
         "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
         f"<meta name=\"description\" content=\"Sailing club: {html_module.escape(escaped_name)}. Sailors and regattas.\">"
         f"<link rel=\"canonical\" href=\"{html_module.escape(canonical_url)}\">"
+        "<link rel=\"icon\" type=\"image/png\" sizes=\"48x48\" href=\"/favicon-48.png\">"
+        "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
         f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
         "<style>body{font-family:system-ui,sans-serif;margin:2rem;color:#1a2750;}a{color:#1a2750;}</style></head><body>"
         f"<div class=\"club-page\">{body}</div></body></html>"
@@ -9933,24 +12721,61 @@ def serve_club_page(slug: str):
     return HTMLResponse(doc)
 
 
+def _format_regatta_status_line(status_word: str, as_at_time) -> str:
+    """Format status line per RESULTS_HTML_STATUS_LINE_RULE. as_at_time from API (results table then regattas). No datetime.now/start_date.
+    If as_at_time exists and is formattable: 'Results are <Status> as at DD Month YYYY at HH:MM'.
+    If as_at_time is NULL or invalid: 'Results are <Status> (snapshot time not recorded)'."""
+    word = (status_word or "Final").strip() or "Final"
+    escaped_word = html_module.escape(word)
+    if not as_at_time:
+        return f"Results are {escaped_word} (snapshot time not recorded)"
+    if hasattr(as_at_time, "strftime"):
+        status_date = as_at_time.strftime("%d %B %Y at %H:%M")
+        return f"Results are {escaped_word} as at {html_module.escape(status_date)}"
+    if isinstance(as_at_time, str) and as_at_time.strip():
+        try:
+            from datetime import datetime as _dt
+            s = as_at_time.strip()
+            s2 = s[:19].replace("Z", "").replace("+00:00", "").strip()
+            if "T" in s2:
+                t = _dt.strptime(s2, "%Y-%m-%dT%H:%M:%S")
+            elif len(s2) >= 16 and (" " in s2 or "-" in s2):
+                t = _dt.strptime(s2[:16], "%Y-%m-%d %H:%M")
+            else:
+                t = _dt.strptime(s[:10], "%Y-%m-%d")
+            status_date = t.strftime("%d %B %Y at %H:%M")
+            return f"Results are {escaped_word} as at {html_module.escape(status_date)}"
+        except Exception:
+            pass
+    return f"Results are {escaped_word} (snapshot time not recorded)"
+
+
 def serve_regatta_standalone(slug: str):
-    """Serve one full standalone HTML result sheet for /regatta/{slug}: same rendering and CSS as admin regatta_viewer Prov/Final popup. All fleets stacked; no SPA, no index.html, no JSON. Unknown slug returns HTML 404 page."""
-    reg = _get_regatta_by_slug(slug)
+    """Serve one full standalone HTML result sheet for /regatta/{slug}: same rendering and CSS as admin regatta_viewer Prov/Final popup. All fleets stacked; no SPA, no index.html, no JSON. Unknown slug returns HTML 404 page.
+    Routing: (1) If param matches regatta_id, serve page. (2) Else if slugified event_name matches param, 301 redirect to /regatta/{regatta_id}. (3) Else 404."""
+    start_time = time.time()
+    reg = _get_regatta_by_regatta_id(slug)
     if not reg:
+        reg = _get_regatta_by_event_name_slug(slug)
+        if reg:
+            canonical_regatta_id = reg[0]
+            return RedirectResponse(url=f"/regatta/{canonical_regatta_id}", status_code=301)
         return HTMLResponse(content=_REGATTA_404_HTML, status_code=404, media_type="text/html")
     regatta_id, event_name, start_date, end_date, host_club_name, host_club_id = reg
+    print("REGATTA: before DB query")
+    t0 = time.time()
     data = _get_regatta_full_page_data(regatta_id)
+    print("LIVE REGATTA DB TIME:", time.time() - t0, flush=True)
     if not data:
         return HTMLResponse(content=_REGATTA_404_HTML, status_code=404, media_type="text/html")
-    ev_name, host_club, start_d, end_d, fleets, result_status, as_at_time = data
+    ev_name, host_club, start_d, end_d, fleets, result_status, as_at_time, host_club_province = (
+        data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7] if len(data) > 7 else None
+    )
     base_url = (os.getenv("BASE_URL") or "https://sailingsa.co.za").rstrip("/")
-    canonical_url = f"{base_url}/regatta/{slug}"
+    canonical_url = f"{base_url}/regatta/{regatta_id}"
     escaped_title = html_module.escape(ev_name or event_name)
     status_word = (result_status or "Final").strip() or "Final"
-    if as_at_time and hasattr(as_at_time, "strftime"):
-        status_date = as_at_time.strftime("%d %B %Y at %H:%M")
-    else:
-        status_date = datetime.utcnow().strftime("%d %B %Y at %H:%M") if hasattr(datetime, "utcnow") else "—"
+    status_line_text = _format_regatta_status_line(status_word, as_at_time)
     host_club_slug = _get_club_slug_by_id(host_club_id) if host_club_id else None
     host_club_text = host_club or host_club_name or ""
     host_club_html = f'<a href="/club/{html_module.escape(host_club_slug)}">{html_module.escape(host_club_text)}</a>' if host_club_slug and host_club_text else html_module.escape(host_club_text)
@@ -9960,12 +12785,45 @@ def serve_regatta_standalone(slug: str):
         + '<div class="header">'
         f'<div><div class="regatta-name">{escaped_title}</div>'
         f'<div class="host-club">Host: {host_club_html}</div>'
-        f'<div class="status-line">Results are {html_module.escape(status_word)} as at {html_module.escape(status_date)}</div></div>'
+        f'<div class="status-line">{status_line_text}</div></div>'
         "</div>"
     )
-    json_ld = {"@context": "https://schema.org", "@type": "SportsEvent", "name": ev_name or event_name, "sport": "Sailing"}
+    def _iso_date(d):
+        if d is None:
+            return None
+        if hasattr(d, "strftime"):
+            return d.strftime("%Y-%m-%d")
+        return str(d)[:10] if str(d) else None
+
+    # SportsEvent JSON-LD: startDate required (ISO 8601 YYYY-MM-DD); rest for rich result eligibility
+    start_iso = _iso_date(start_d)
+    json_ld = {
+        "@context": "https://schema.org",
+        "@type": "SportsEvent",
+        "name": ev_name or event_name,
+        "sport": "Sailing",
+        "eventStatus": "https://schema.org/EventScheduled",
+        "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
+    }
+    if start_iso:
+        json_ld["startDate"] = start_iso
+    end_iso = _iso_date(end_d)
+    if end_iso:
+        json_ld["endDate"] = end_iso
+    description = ev_name or event_name or ""
+    if description:
+        json_ld["description"] = description
+    organizer_name = host_club_text or "SailingSA"
+    json_ld["organizer"] = {"@type": "Organization", "name": organizer_name}
     if host_club_text:
-        json_ld["location"] = {"@type": "Place", "name": host_club_text}
+        address = {"@type": "PostalAddress", "addressCountry": "ZA"}
+        if host_club_province:
+            address["addressLocality"] = host_club_province
+        json_ld["location"] = {
+            "@type": "Place",
+            "name": host_club_text,
+            "address": address,
+        }
     fleet_sections = [_render_result_sheet_fleet(f) for f in fleets]
     print_btn = '<div class="action-buttons"><button class="action-button" onclick="window.print()">Print</button></div>'
     body_html = header_html + "\n".join(fleet_sections) + "\n" + print_btn
@@ -9974,16 +12832,19 @@ def serve_regatta_standalone(slug: str):
         f"{escaped_title} | SailingSA</title>"
         f"<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
         f"<link rel=\"canonical\" href=\"{html_module.escape(canonical_url)}\">"
+        "<link rel=\"icon\" type=\"image/png\" sizes=\"48x48\" href=\"/favicon-48.png\">"
+        "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
         f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
         f"<style>{_RESULT_SHEET_CSS}</style></head><body>"
         f"<div class=\"regatta-page\">{body_html}</div>"
         "</body></html>"
     )
+    print("REGATTA: total route time", round(time.time() - start_time, 3))
     return HTMLResponse(doc)
 
 
 def _sitemap_sailor_slugs():
-    """Return list of canonical sailor slugs for sitemap: only sailors with at least one result (DISTINCT helm_sa_sailing_id from results, joined to get names)."""
+    """Return list of canonical sailor slugs for sitemap. Only sailors in sas_id_personal with at least one result (helm or crew). No broken URLs for crawlers."""
     out = []
     try:
         if not table_exists("results") or not table_exists("sas_id_personal"):
@@ -9991,6 +12852,7 @@ def _sitemap_sailor_slugs():
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         try:
+            # Helm and crew: every sailor we might link to from regatta results must be in sitemap (avoid crawl 404s)
             cur.execute("""
                 SELECT DISTINCT r.helm_sa_sailing_id::text AS sas_id,
                     COALESCE(TRIM(s.full_name), TRIM(s.first_name || ' ' || COALESCE(s.last_name, ''))) AS full_name
@@ -9999,15 +12861,28 @@ def _sitemap_sailor_slugs():
                 WHERE r.helm_sa_sailing_id IS NOT NULL
                   AND (s.full_name IS NOT NULL AND TRIM(s.full_name) != ''
                        OR s.first_name IS NOT NULL OR s.last_name IS NOT NULL)
+                UNION
+                SELECT DISTINCT r.crew_sa_sailing_id::text AS sas_id,
+                    COALESCE(TRIM(s.full_name), TRIM(s.first_name || ' ' || COALESCE(s.last_name, ''))) AS full_name
+                FROM results r
+                JOIN public.sas_id_personal s ON s.sa_sailing_id::text = r.crew_sa_sailing_id::text
+                WHERE r.crew_sa_sailing_id IS NOT NULL
+                  AND (s.full_name IS NOT NULL AND TRIM(s.full_name) != ''
+                       OR s.first_name IS NOT NULL OR s.last_name IS NOT NULL)
                 ORDER BY full_name, sas_id
             """)
             rows = cur.fetchall()
-            by_name = defaultdict(list)
+            by_sid = {}  # sas_id -> full_name (dedupe so helm+crew same sailor once)
             for r in rows:
+                sid = str(r.get("sas_id") or "")
+                if not sid or sid in by_sid:
+                    continue
                 name = (r.get("full_name") or "").strip()
                 if not name:
                     continue
-                sid = str(r.get("sas_id") or "")
+                by_sid[sid] = name
+            by_name = defaultdict(list)
+            for sid, name in by_sid.items():
                 by_name[name].append(sid)
             for name, sids in by_name.items():
                 has_dup = len(sids) > 1
@@ -10053,6 +12928,78 @@ def _sitemap_club_slugs():
             conn.close()
     except Exception as e:
         print(f"[sitemap] club slugs: {e}")
+    return out
+
+
+def _sitemap_class_ids():
+    """Return list of class_id (int) for sitemap. Only classes with _sailors_in_class > 0."""
+    return [cid for cid, _ in _sitemap_class_entries()]
+
+
+def _sitemap_class_entries():
+    """Return list of (class_id, class_name) for sitemap. From classes table; fallback to results if empty."""
+    out = []
+    try:
+        if table_exists("classes"):
+            conn = get_db_connection()
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            try:
+                cur.execute("""
+                    SELECT class_id, class_name FROM classes
+                    WHERE class_id IS NOT NULL
+                    ORDER BY class_id
+                """)
+                for r in cur.fetchall() or []:
+                    cid = r.get("class_id")
+                    name = (r.get("class_name") or "").strip()
+                    if cid is not None:
+                        out.append((int(cid), name))
+            finally:
+                cur.close()
+                return_db_connection(conn)
+        # Fallback 1: distinct class_id from results
+        if len(out) == 0 and table_exists("results"):
+            conn = get_db_connection()
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            try:
+                cur.execute("SELECT DISTINCT class_id FROM results WHERE class_id IS NOT NULL ORDER BY class_id")
+                ids_from_results = [int(r["class_id"]) for r in (cur.fetchall() or []) if r.get("class_id") is not None]
+                if ids_from_results and table_exists("classes"):
+                    placeholders = ",".join(["%s"] * len(ids_from_results))
+                    cur.execute(
+                        f"SELECT class_id, class_name FROM classes WHERE class_id IN ({placeholders}) ORDER BY class_id",
+                        ids_from_results,
+                    )
+                    name_by_id = {r["class_id"]: (r.get("class_name") or "").strip() for r in (cur.fetchall() or [])}
+                    out = [(cid, name_by_id.get(cid, "")) for cid in ids_from_results]
+                else:
+                    out = [(cid, "") for cid in ids_from_results]
+            finally:
+                cur.close()
+                return_db_connection(conn)
+        # Fallback 2: distinct class_id from regatta_blocks (block-level class data)
+        if len(out) == 0 and table_exists("regatta_blocks"):
+            conn = get_db_connection()
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            try:
+                cur.execute("SELECT DISTINCT class_id FROM regatta_blocks WHERE class_id IS NOT NULL ORDER BY class_id")
+                ids = [int(r["class_id"]) for r in (cur.fetchall() or []) if r.get("class_id") is not None]
+                if ids and table_exists("classes"):
+                    placeholders = ",".join(["%s"] * len(ids))
+                    cur.execute(
+                        f"SELECT class_id, class_name FROM classes WHERE class_id IN ({placeholders}) ORDER BY class_id",
+                        ids,
+                    )
+                    name_by_id = {r["class_id"]: (r.get("class_name") or "").strip() for r in (cur.fetchall() or [])}
+                    out = [(cid, name_by_id.get(cid, "")) for cid in ids]
+                else:
+                    out = [(cid, "") for cid in ids]
+            finally:
+                cur.close()
+                return_db_connection(conn)
+    except Exception as e:
+        print(f"[sitemap] class entries: {e}")
+    print(f"[sitemap] classes: {len(out)}")
     return out
 
 
@@ -10107,15 +13054,17 @@ def _sitemap_escape_loc(url: str) -> str:
     )
 
 
-@app.get("/sitemap.xml")
-def serve_sitemap_xml():
-    """Dynamic sitemap: valid sitemaps.org schema, no duplicates, strict <url> blocks. Content-Type: application/xml."""
+# In-memory sitemap cache: global var + timestamp, 10–30 min TTL (avoids DB load on every request).
+_SITEMAP_CACHE_TTL_SEC = 1200  # 20 min
+_sitemap_cache = {"body": None, "expires_at": 0.0}
+
+
+def _build_sitemap_xml() -> str:
+    """Generate full sitemap XML string. Called on cache miss."""
     base = (os.getenv("BASE_URL") or "https://sailingsa.co.za").rstrip("/")
     if base.startswith("http://") or "localhost" in base or "127.0.0.1" in base or base.startswith("http://192."):
         base = "https://sailingsa.co.za"
     today = datetime.utcnow().strftime("%Y-%m-%d")
-
-    # Collect (loc, lastmod) and dedupe by loc so each URL appears once
     entries = []
     seen_loc = set()
 
@@ -10126,12 +13075,16 @@ def serve_sitemap_xml():
         entries.append((loc, lastmod))
 
     add(f"{base}/", today)
-
     sailor_slugs = list(set(_sitemap_sailor_slugs()))
     for slug in sorted(sailor_slugs):
         add(f"{base}/sailor/{slug}", today)
     num_sailors = len(sailor_slugs)
-
+    class_entries = _sitemap_class_entries()
+    for cid, class_name in sorted(class_entries, key=lambda x: x[0]):
+        slug = _class_canonical_slug(class_name) if class_name else ""
+        loc = f"{base}/class/{cid}-{slug}" if slug else f"{base}/class/{cid}"
+        add(loc, today)
+    num_classes = len(class_entries)
     regatta_list = _sitemap_regatta_slugs()
     regatta_by_slug = {}
     for slug, lastmod in regatta_list:
@@ -10139,19 +13092,11 @@ def serve_sitemap_xml():
             regatta_by_slug[slug] = lastmod
     num_regattas = 0
     for slug in sorted(regatta_by_slug.keys()):
-        # Only include regatta URL if it resolves in DB (avoid sitemap listing 404s)
         if _get_regatta_by_slug(slug) is not None:
             add(f"{base}/regatta/{slug}", regatta_by_slug[slug])
             num_regattas += 1
+    print(f"[sitemap] sailors: {num_sailors}, classes: {num_classes}, regattas: {num_regattas}, total URLs: {len(entries)}")
 
-    print(f"[sitemap] sailors included: {num_sailors}, regattas included: {num_regattas}, total URLs: {len(entries)}")
-
-    # Build XML: every <url> block strictly:
-    #   <url>
-    #   <loc>...</loc>
-    #   <lastmod>YYYY-MM-DD</lastmod>
-    #   <changefreq>weekly</changefreq>
-    #   </url>
     lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
@@ -10160,11 +13105,23 @@ def serve_sitemap_xml():
         esc_loc = _sitemap_escape_loc(loc)
         lines.append("  <url>")
         lines.append(f"    <loc>{esc_loc}</loc>")
-        lines.append(f"    <lastmod>{lastmod}</lastmod>")
         lines.append("    <changefreq>weekly</changefreq>")
         lines.append("  </url>")
     lines.append("</urlset>")
-    body = "\n".join(lines)
+    return "\n".join(lines)
+
+
+@app.api_route("/sitemap.xml", methods=["GET", "HEAD"])
+def serve_sitemap_xml():
+    """Dynamic sitemap: valid sitemaps.org schema. If cache valid → return cached XML; else regenerate and store."""
+    now = time.time()
+    if _sitemap_cache["body"] is not None and now < _sitemap_cache["expires_at"]:
+        print("[sitemap] cache HIT")
+        return Response(content=_sitemap_cache["body"], media_type="application/xml")
+    print("[sitemap] cache MISS")
+    body = _build_sitemap_xml()
+    _sitemap_cache["body"] = body
+    _sitemap_cache["expires_at"] = now + _SITEMAP_CACHE_TTL_SEC
     return Response(content=body, media_type="application/xml")
 
 
@@ -10180,5 +13137,5 @@ ARTWORK_DIR = os.path.join(BASE_DIR, "artwork")
 if os.path.isdir(ARTWORK_DIR):
     app.mount("/artwork", StaticFiles(directory=ARTWORK_DIR, html=False), name="artwork")
 
-app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
