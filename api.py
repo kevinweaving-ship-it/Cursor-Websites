@@ -1879,12 +1879,24 @@ document.getElementById("year").textContent = new Date().getFullYear();
     var hostLink = e.club_slug ? '<a href="/club/' + esc(e.club_slug) + '">' + esc(e.host_code || e.host_club) + '</a>' : esc(e.host_code || e.host_club);
     var hostFullname = (e.host_club_fullname && e.host_club_fullname.trim() && String(e.host_club_fullname).trim() !== String(e.host_code || e.host_club).trim()) ? ' (' + esc(e.host_club_fullname) + ')' : '';
     var hostFlag = (e.host_unmatched) ? ' <span class="event-host-unmatched" title="Host not in club list — add to clubs table">⚠</span>' : '';
+    var typeHtml = e.event_type ? '<div class="event-type-line"><span class="event-type">' + esc(e.event_type) + '</span></div>' : '';
     var locHtml = e.location ? '<span class="event-location">' + esc(e.location) + '</span>' : '';
+    var resultHtml = (e.show_result_line === true)
+      ? (e.result_yes
+          ? '<div class="event-result-line">Result: <a href="' + esc(e.result_url || '') + '" class="event-result-yes">&#10003;</a></div>'
+          : '<div class="event-result-line">Result: <span class="event-result-no">&#10007;</span></div>')
+      : '';
     var hasDetails = e.details_url && e.details_url !== '#';
     var ext = hasDetails && e.details_url.indexOf('/') !== 0;
     var btn = hasDetails ? '<a href="' + esc(e.details_url) + '" class="event-details-btn"' + (ext ? ' target="_blank" rel="noopener"' : '') + '>Details</a>' : '';
     var header = '<div class="event-card-header"><h3>' + titleHtml + '</h3><span class="event-date">' + esc(e.date_display) + '</span></div>';
-    var body = '<div class="event-card-body"><span class="event-club">' + hostLabel + hostLink + hostFullname + hostFlag + '</span>' + locHtml + btn + '</div>';
+    var body = '<div class="event-card-body">'
+      + typeHtml
+      + '<span class="event-club">' + hostLabel + hostLink + hostFullname + hostFlag + '</span>'
+      + locHtml
+      + resultHtml
+      + btn
+      + '</div>';
     return '<div class="' + cardClass + '">' + header + body + '</div>';
   }
   function fillPanel(id, list){
@@ -2018,12 +2030,24 @@ document.getElementById("year").textContent = new Date().getFullYear();
     var hostLink = e.club_slug ? '<a href="/club/' + esc(e.club_slug) + '">' + esc(e.host_code || e.host_club) + '</a>' : esc(e.host_code || e.host_club);
     var hostFullname = (e.host_club_fullname && e.host_club_fullname.trim() && String(e.host_club_fullname).trim() !== String(e.host_code || e.host_club).trim()) ? ' (' + esc(e.host_club_fullname) + ')' : '';
     var hostFlag = (e.host_unmatched) ? ' <span class="event-host-unmatched" title="Host not in club list">&#9888;</span>' : '';
+    var typeHtml = e.event_type ? '<div class="event-type-line"><span class="event-type">' + esc(e.event_type) + '</span></div>' : '';
     var locHtml = e.location ? '<span class="event-location">' + esc(e.location) + '</span>' : '';
+    var resultHtml = (e.show_result_line === true)
+      ? (e.result_yes
+          ? '<div class="event-result-line">Result: <a href="' + esc(e.result_url || '') + '" class="event-result-yes">&#10003;</a></div>'
+          : '<div class="event-result-line">Result: <span class="event-result-no">&#10007;</span></div>')
+      : '';
     var hasDetails = e.details_url && e.details_url !== '#';
     var ext = hasDetails && e.details_url.indexOf('/') !== 0;
     var btn = hasDetails ? '<a href="' + esc(e.details_url) + '" class="event-details-btn"' + (ext ? ' target="_blank" rel="noopener"' : '') + '>Details</a>' : '';
     var header = '<div class="event-card-header"><h3>' + titleHtml + '</h3><span class="event-date">' + esc(e.date_display) + '</span></div>';
-    var body = '<div class="event-card-body"><span class="event-club">' + hostLabel + hostLink + hostFullname + hostFlag + '</span>' + locHtml + btn + '</div>';
+    var body = '<div class="event-card-body">'
+      + typeHtml
+      + '<span class="event-club">' + hostLabel + hostLink + hostFullname + hostFlag + '</span>'
+      + locHtml
+      + resultHtml
+      + btn
+      + '</div>';
     return '<div class="' + cardClass + '">' + header + body + '</div>';
   }}
   function fillPanel(id, list){{
