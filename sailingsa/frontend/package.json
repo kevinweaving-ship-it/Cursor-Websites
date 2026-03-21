@@ -1,0 +1,25 @@
+{
+  "name": "sailingsa-frontend",
+  "version": "1.0.0",
+  "description": "SailingSA frontend — HTML, CSS, JS; Prettier, ESLint, Storybook",
+  "private": true,
+  "scripts": {
+    "format": "prettier --write \"**/*.{html,css,js,json,md}\"",
+    "format:check": "prettier --check \"**/*.{html,css,js,json,md}\"",
+    "lint": "eslint \"js/**/*.js\" --max-warnings 0",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
+  },
+  "devDependencies": {
+    "@storybook/addon-essentials": "^8.4.0",
+    "@storybook/addon-links": "^8.4.0",
+    "@storybook/blocks": "^8.4.0",
+    "@storybook/html": "^8.4.0",
+    "@storybook/html-vite": "^8.4.0",
+    "eslint": "^9.15.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.3.3",
+    "storybook": "^8.4.0",
+    "tailwindcss": "^3.4.14"
+  }
+}

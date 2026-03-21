@@ -1,0 +1,6 @@
+# Daily SAS ID Registry scrape at 02:00 UTC (writes to scrape_runs + sas_id_personal).
+# Install: sudo cp sailingsa/deploy/sailingsa_registry_scrape.cron /etc/cron.d/sailingsa_registry_scrape
+# Ensure root (or cron user) has DB_URL; script uses /var/www/sailingsa/deploy/run-sas-id-registry-scrape.sh --on-server
+SHELL=/bin/bash
+PATH=/usr/bin:/bin
+0 2 * * * root /var/www/sailingsa/deploy/run-sas-id-registry-scrape.sh --on-server

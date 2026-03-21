@@ -1,0 +1,15 @@
+#!/usr/bin/expect -f
+# Fix DB_URL password (add !) and restart sailingsa-api
+set timeout 30
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "sed -i 's/SailSA_Pg_Beta2026@/SailSA_Pg_Beta2026!@/g' /etc/systemd/system/sailingsa-api.service && systemctl daemon-reload && systemctl restart sailingsa-api && sleep 2 && systemctl status sailingsa-api --no-pager"
+expect {
+    "password:" { send "$password\r"; exp_continue }
+    eof { }
+    timeout { puts "ERROR: timeout"; exit 1 }
+}
+wait
+puts "\nDone. Verify: curl https://sailingsa.co.za/api/search?q=smith"

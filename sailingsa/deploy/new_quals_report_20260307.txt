@@ -1,0 +1,952 @@
+New quals added (were not already in member_roles table)
+Run: 2026-03-07T16:23:08.019157+00:00Z
+Count: 947
+
+SAS_ID	role_code	role_label
+59	APPT_EXAM	Appointed Examiner
+66	APPT_EXAM	Appointed Examiner
+119	APPT_EXAM	Appointed Examiner
+157	APPT_EXAM	Appointed Examiner
+158	APPT_EXAM	Appointed Examiner
+236	APPT_EXAM	Appointed Examiner
+363	APPT_EXAM	Appointed Examiner
+600	APPT_EXAM	Appointed Examiner
+615	APPT_EXAM	Appointed Examiner
+1401	APPT_EXAM	Appointed Examiner
+1641	APPT_EXAM	Appointed Examiner
+1655	APPT_EXAM	Appointed Examiner
+1661	APPT_EXAM	Appointed Examiner
+1687	APPT_EXAM	Appointed Examiner
+1929	APPT_EXAM	Appointed Examiner
+2132	APPT_EXAM	Appointed Examiner
+2671	APPT_EXAM	Appointed Examiner
+2750	APPT_EXAM	Appointed Examiner
+3165	APPT_EXAM	Appointed Examiner
+3217	APPT_EXAM	Appointed Examiner
+3360	APPT_EXAM	Appointed Examiner
+4684	APPT_EXAM	Appointed Examiner
+6511	APPT_EXAM	Appointed Examiner
+8778	APPT_EXAM	Appointed Examiner
+8936	APPT_EXAM	Appointed Examiner
+9358	APPT_EXAM	Appointed Examiner
+9482	APPT_EXAM	Appointed Examiner
+17137	APPT_EXAM	Appointed Examiner
+25675	APPT_EXAM	Appointed Examiner
+11901	APPT_EXAM	Appointed Examiner
+1744	APPT_EXAM	Appointed Examiner
+2616	APPT_EXAM	Appointed Examiner
+121	APPT_EXAM	Appointed Examiner
+1685	APPT_EXAM	Appointed Examiner
+1691	APPT_EXAM	Appointed Examiner
+1710	APPT_EXAM	Appointed Examiner
+3752	APPT_EXAM	Appointed Examiner
+5083	APPT_EXAM	Appointed Examiner
+9013	APPT_EXAM	Appointed Examiner
+19804	APPT_EXAM	Appointed Examiner
+1928	APPT_EXAM	Appointed Examiner
+59	NAT_SE_EXAM	National Senior Examiner
+363	NAT_SE_EXAM	National Senior Examiner
+1641	NAT_SE_EXAM	National Senior Examiner
+11901	NAT_SE_EXAM	National Senior Examiner
+66	NAT_SE_SAF	National Senior Safety Officer
+236	NAT_SE_SAF	National Senior Safety Officer
+384	NAT_SE_SAF	National Senior Safety Officer
+1655	NAT_SE_SAF	National Senior Safety Officer
+3165	NAT_SE_SAF	National Senior Safety Officer
+8518	NAT_SE_SAF	National Senior Safety Officer
+59	VSO	SA Sailing Vessel Safety Officer
+66	VSO	SA Sailing Vessel Safety Officer
+81	VSO	SA Sailing Vessel Safety Officer
+157	VSO	SA Sailing Vessel Safety Officer
+158	VSO	SA Sailing Vessel Safety Officer
+236	VSO	SA Sailing Vessel Safety Officer
+384	VSO	SA Sailing Vessel Safety Officer
+549	VSO	SA Sailing Vessel Safety Officer
+600	VSO	SA Sailing Vessel Safety Officer
+1401	VSO	SA Sailing Vessel Safety Officer
+1655	VSO	SA Sailing Vessel Safety Officer
+1661	VSO	SA Sailing Vessel Safety Officer
+1663	VSO	SA Sailing Vessel Safety Officer
+1672	VSO	SA Sailing Vessel Safety Officer
+1675	VSO	SA Sailing Vessel Safety Officer
+1698	VSO	SA Sailing Vessel Safety Officer
+1699	VSO	SA Sailing Vessel Safety Officer
+1763	VSO	SA Sailing Vessel Safety Officer
+1894	VSO	SA Sailing Vessel Safety Officer
+1927	VSO	SA Sailing Vessel Safety Officer
+3165	VSO	SA Sailing Vessel Safety Officer
+5173	VSO	SA Sailing Vessel Safety Officer
+5913	VSO	SA Sailing Vessel Safety Officer
+6811	VSO	SA Sailing Vessel Safety Officer
+8518	VSO	SA Sailing Vessel Safety Officer
+9250	VSO	SA Sailing Vessel Safety Officer
+9418	VSO	SA Sailing Vessel Safety Officer
+9507	VSO	SA Sailing Vessel Safety Officer
+9508	VSO	SA Sailing Vessel Safety Officer
+9509	VSO	SA Sailing Vessel Safety Officer
+9510	VSO	SA Sailing Vessel Safety Officer
+9654	VSO	SA Sailing Vessel Safety Officer
+9693	VSO	SA Sailing Vessel Safety Officer
+9804	VSO	SA Sailing Vessel Safety Officer
+10434	VSO	SA Sailing Vessel Safety Officer
+14257	VSO	SA Sailing Vessel Safety Officer
+14573	VSO	SA Sailing Vessel Safety Officer
+18643	VSO	SA Sailing Vessel Safety Officer
+19093	VSO	SA Sailing Vessel Safety Officer
+45	VSO	SA Sailing Vessel Safety Officer
+659	VSO	SA Sailing Vessel Safety Officer
+1695	VSO	SA Sailing Vessel Safety Officer
+1710	VSO	SA Sailing Vessel Safety Officer
+1766	VSO	SA Sailing Vessel Safety Officer
+1905	VSO	SA Sailing Vessel Safety Officer
+2551	VSO	SA Sailing Vessel Safety Officer
+2561	VSO	SA Sailing Vessel Safety Officer
+2583	VSO	SA Sailing Vessel Safety Officer
+5003	VSO	SA Sailing Vessel Safety Officer
+5201	VSO	SA Sailing Vessel Safety Officer
+7280	VSO	SA Sailing Vessel Safety Officer
+9277	VSO	SA Sailing Vessel Safety Officer
+363	VSO	SA Sailing Vessel Safety Officer
+1655	SAMSA_SURV	SAMSA Vessel Surveyor
+384	SAMSA_SURV	SAMSA Vessel Surveyor
+236	SAMSA_SURV	SAMSA Vessel Surveyor
+1663	SAMSA_SURV	SAMSA Vessel Surveyor
+1675	SAMSA_SURV	SAMSA Vessel Surveyor
+600	SAMSA_SURV	SAMSA Vessel Surveyor
+1401	SAMSA_SURV	SAMSA Vessel Surveyor
+9509	SAMSA_SURV	SAMSA Vessel Surveyor
+1763	SAMSA_SURV	SAMSA Vessel Surveyor
+1738	SAMSA_SURV	SAMSA Vessel Surveyor
+31	ASSIST_INSTR	Assistant Instructor
+53	ASSIST_INSTR	Assistant Instructor
+196	ASSIST_INSTR	Assistant Instructor
+531	ASSIST_INSTR	Assistant Instructor
+1340	ASSIST_INSTR	Assistant Instructor
+1378	ASSIST_INSTR	Assistant Instructor
+1387	ASSIST_INSTR	Assistant Instructor
+1422	ASSIST_INSTR	Assistant Instructor
+1426	ASSIST_INSTR	Assistant Instructor
+1439	ASSIST_INSTR	Assistant Instructor
+1447	ASSIST_INSTR	Assistant Instructor
+1574	ASSIST_INSTR	Assistant Instructor
+2512	ASSIST_INSTR	Assistant Instructor
+2728	ASSIST_INSTR	Assistant Instructor
+3033	ASSIST_INSTR	Assistant Instructor
+3102	ASSIST_INSTR	Assistant Instructor
+3111	ASSIST_INSTR	Assistant Instructor
+3139	ASSIST_INSTR	Assistant Instructor
+3141	ASSIST_INSTR	Assistant Instructor
+3143	ASSIST_INSTR	Assistant Instructor
+3147	ASSIST_INSTR	Assistant Instructor
+3319	ASSIST_INSTR	Assistant Instructor
+3403	ASSIST_INSTR	Assistant Instructor
+5138	ASSIST_INSTR	Assistant Instructor
+5265	ASSIST_INSTR	Assistant Instructor
+5788	ASSIST_INSTR	Assistant Instructor
+5806	ASSIST_INSTR	Assistant Instructor
+5982	ASSIST_INSTR	Assistant Instructor
+6034	ASSIST_INSTR	Assistant Instructor
+6232	ASSIST_INSTR	Assistant Instructor
+6234	ASSIST_INSTR	Assistant Instructor
+6253	ASSIST_INSTR	Assistant Instructor
+6564	ASSIST_INSTR	Assistant Instructor
+7161	ASSIST_INSTR	Assistant Instructor
+7574	ASSIST_INSTR	Assistant Instructor
+7630	ASSIST_INSTR	Assistant Instructor
+8023	ASSIST_INSTR	Assistant Instructor
+8046	ASSIST_INSTR	Assistant Instructor
+8162	ASSIST_INSTR	Assistant Instructor
+8173	ASSIST_INSTR	Assistant Instructor
+8443	ASSIST_INSTR	Assistant Instructor
+8514	ASSIST_INSTR	Assistant Instructor
+8515	ASSIST_INSTR	Assistant Instructor
+8545	ASSIST_INSTR	Assistant Instructor
+8701	ASSIST_INSTR	Assistant Instructor
+8789	ASSIST_INSTR	Assistant Instructor
+9023	ASSIST_INSTR	Assistant Instructor
+9050	ASSIST_INSTR	Assistant Instructor
+9051	ASSIST_INSTR	Assistant Instructor
+9053	ASSIST_INSTR	Assistant Instructor
+9056	ASSIST_INSTR	Assistant Instructor
+9074	ASSIST_INSTR	Assistant Instructor
+9527	ASSIST_INSTR	Assistant Instructor
+9817	ASSIST_INSTR	Assistant Instructor
+10133	ASSIST_INSTR	Assistant Instructor
+12610	ASSIST_INSTR	Assistant Instructor
+13508	ASSIST_INSTR	Assistant Instructor
+13509	ASSIST_INSTR	Assistant Instructor
+13769	ASSIST_INSTR	Assistant Instructor
+14205	ASSIST_INSTR	Assistant Instructor
+15300	ASSIST_INSTR	Assistant Instructor
+15579	ASSIST_INSTR	Assistant Instructor
+15593	ASSIST_INSTR	Assistant Instructor
+15614	ASSIST_INSTR	Assistant Instructor
+15673	ASSIST_INSTR	Assistant Instructor
+15710	ASSIST_INSTR	Assistant Instructor
+18473	ASSIST_INSTR	Assistant Instructor
+21375	ASSIST_INSTR	Assistant Instructor
+21384	ASSIST_INSTR	Assistant Instructor
+22967	ASSIST_INSTR	Assistant Instructor
+23007	ASSIST_INSTR	Assistant Instructor
+23145	ASSIST_INSTR	Assistant Instructor
+1295	ASSIST_INSTR	Assistant Instructor
+27	ASST_COACH	Assistant Race Coach
+28	ASST_COACH	Assistant Race Coach
+99	ASST_COACH	Assistant Race Coach
+172	ASST_COACH	Assistant Race Coach
+197	ASST_COACH	Assistant Race Coach
+354	ASST_COACH	Assistant Race Coach
+444	ASST_COACH	Assistant Race Coach
+735	ASST_COACH	Assistant Race Coach
+1154	ASST_COACH	Assistant Race Coach
+1266	ASST_COACH	Assistant Race Coach
+1270	ASST_COACH	Assistant Race Coach
+1313	ASST_COACH	Assistant Race Coach
+1387	ASST_COACH	Assistant Race Coach
+1492	ASST_COACH	Assistant Race Coach
+1512	ASST_COACH	Assistant Race Coach
+1576	ASST_COACH	Assistant Race Coach
+1651	ASST_COACH	Assistant Race Coach
+1699	ASST_COACH	Assistant Race Coach
+1771	ASST_COACH	Assistant Race Coach
+1852	ASST_COACH	Assistant Race Coach
+2562	ASST_COACH	Assistant Race Coach
+2914	ASST_COACH	Assistant Race Coach
+3394	ASST_COACH	Assistant Race Coach
+4976	ASST_COACH	Assistant Race Coach
+5313	ASST_COACH	Assistant Race Coach
+6510	ASST_COACH	Assistant Race Coach
+9390	ASST_COACH	Assistant Race Coach
+11644	ASST_COACH	Assistant Race Coach
+187	ASST_COACH	Assistant Race Coach
+672	ASST_COACH	Assistant Race Coach
+1525	ASST_COACH	Assistant Race Coach
+9606	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+9777	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+14234	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+19051	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+21375	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+10196	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+1481	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+8508	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+9168	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+3709	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+15579	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+15593	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+1313	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+8173	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+9050	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+18074	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+19213	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+19214	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+19223	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+26072	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+26296	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+7284	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+9994	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+28	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+1482	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+12680	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+17228	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+14788	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+22967	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+21530	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+24283	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+24285	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+17768	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+23633	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+3184	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+10164	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+22862	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+8499	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+12822	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+197	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+9254	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+444	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+3360	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+9513	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+9772	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+9224	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+9252	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+9817	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+6234	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+6581	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+4681	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+8178	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+8382	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+8384	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+18426	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+1563	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+1492	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+27	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+3033	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+5173	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+13058	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+1631	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+3281	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+3481	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+9186	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+17358	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+695	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+3440	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+502	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+12895	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+395	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+10108	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+8524	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+12575	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+13906	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+6193	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+9390	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+8776	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+9066	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+12859	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+8701	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+9509	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+9714	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+9767	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+12821	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+80	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+355	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+505	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+6461	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+9906	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+1385	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+2281	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+4180	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+9484	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+9140	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+1387	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+5806	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+1439	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+380	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+3721	INSTR_DINGHY	Instructor (Dinghy/Multihull)
+14205	INSTR_KEEL	Instructor (Keelboat)
+24286	INSTR_KEEL	Instructor (Keelboat)
+9074	INSTR_KEEL	Instructor (Keelboat)
+21375	INSTR_KEEL	Instructor (Keelboat)
+1313	INSTR_KEEL	Instructor (Keelboat)
+1482	INSTR_KEEL	Instructor (Keelboat)
+12680	INSTR_KEEL	Instructor (Keelboat)
+8499	INSTR_KEEL	Instructor (Keelboat)
+14000	INSTR_KEEL	Instructor (Keelboat)
+15093	INSTR_KEEL	Instructor (Keelboat)
+17087	INSTR_KEEL	Instructor (Keelboat)
+19477	INSTR_KEEL	Instructor (Keelboat)
+21107	INSTR_KEEL	Instructor (Keelboat)
+12674	INSTR_KEEL	Instructor (Keelboat)
+14229	INSTR_KEEL	Instructor (Keelboat)
+14234	INSTR_KEEL	Instructor (Keelboat)
+9254	INSTR_KEEL	Instructor (Keelboat)
+9513	INSTR_KEEL	Instructor (Keelboat)
+9772	INSTR_KEEL	Instructor (Keelboat)
+9224	INSTR_KEEL	Instructor (Keelboat)
+9252	INSTR_KEEL	Instructor (Keelboat)
+1492	INSTR_KEEL	Instructor (Keelboat)
+27	INSTR_KEEL	Instructor (Keelboat)
+1485	INSTR_KEEL	Instructor (Keelboat)
+1491	INSTR_KEEL	Instructor (Keelboat)
+3440	INSTR_KEEL	Instructor (Keelboat)
+100	INSTR_KEEL	Instructor (Keelboat)
+8701	INSTR_KEEL	Instructor (Keelboat)
+43	JUDGE_DIST	Judge (District)
+143	JUDGE_DIST	Judge (District)
+295	JUDGE_DIST	Judge (District)
+658	JUDGE_DIST	Judge (District)
+681	JUDGE_DIST	Judge (District)
+1048	JUDGE_DIST	Judge (District)
+1142	JUDGE_DIST	Judge (District)
+1154	JUDGE_DIST	Judge (District)
+1852	JUDGE_DIST	Judge (District)
+1894	JUDGE_DIST	Judge (District)
+2712	JUDGE_DIST	Judge (District)
+5804	JUDGE_DIST	Judge (District)
+1852	JUDGE_INT	Judge (International IJ)
+143	JUDGE_INT	Judge (International IJ)
+295	JUDGE_INT	Judge (International IJ)
+1142	JUDGE_INT	Judge (International IJ)
+1894	JUDGE_INT	Judge (International IJ)
+43	JUDGE_CLUB	Judge (Club)
+143	JUDGE_CLUB	Judge (Club)
+295	JUDGE_CLUB	Judge (Club)
+658	JUDGE_CLUB	Judge (Club)
+681	JUDGE_CLUB	Judge (Club)
+1048	JUDGE_CLUB	Judge (Club)
+1142	JUDGE_CLUB	Judge (Club)
+1154	JUDGE_CLUB	Judge (Club)
+1852	JUDGE_CLUB	Judge (Club)
+1894	JUDGE_CLUB	Judge (Club)
+2712	JUDGE_CLUB	Judge (Club)
+5804	JUDGE_CLUB	Judge (Club)
+1852	JUDGE_NAT	Judge (National NJ)
+143	JUDGE_NAT	Judge (National NJ)
+295	JUDGE_NAT	Judge (National NJ)
+504	JUDGE_NAT	Judge (National NJ)
+43	JUDGE_NAT	Judge (National NJ)
+90	JUDGE_NAT	Judge (National NJ)
+1142	JUDGE_NAT	Judge (National NJ)
+658	JUDGE_NAT	Judge (National NJ)
+1894	JUDGE_NAT	Judge (National NJ)
+5804	JUDGE_NAT	Judge (National NJ)
+1154	JUDGE_NAT	Judge (National NJ)
+2712	JUDGE_NAT	Judge (National NJ)
+681	JUDGE_NAT	Judge (National NJ)
+1048	JUDGE_NAT	Judge (National NJ)
+182	JUDGE_NAT	Judge (National NJ)
+1266	JUDGE_NAT	Judge (National NJ)
+3389	JUDGE_NAT	Judge (National NJ)
+672	JUDGE_NAT	Judge (National NJ)
+43	JUDGE_REG	Judge (Regional)
+143	JUDGE_REG	Judge (Regional)
+182	JUDGE_REG	Judge (Regional)
+295	JUDGE_REG	Judge (Regional)
+658	JUDGE_REG	Judge (Regional)
+681	JUDGE_REG	Judge (Regional)
+1048	JUDGE_REG	Judge (Regional)
+1142	JUDGE_REG	Judge (Regional)
+1154	JUDGE_REG	Judge (Regional)
+1852	JUDGE_REG	Judge (Regional)
+1894	JUDGE_REG	Judge (Regional)
+2712	JUDGE_REG	Judge (Regional)
+5804	JUDGE_REG	Judge (Regional)
+16332	RACE_COACH	Race Coach
+1313	RACE_COACH	Race Coach
+9224	RACE_COACH	Race Coach
+14234	RACE_COACH	Race Coach
+14785	RACE_COACH	Race Coach
+19051	RACE_COACH	Race Coach
+21107	RACE_COACH	Race Coach
+3709	RACE_COACH	Race Coach
+15348	RACE_COACH	Race Coach
+1481	RACE_COACH	Race Coach
+197	RACE_COACH	Race Coach
+444	RACE_COACH	Race Coach
+3394	RACE_COACH	Race Coach
+1492	RACE_COACH	Race Coach
+27	RACE_COACH	Race Coach
+28	RACE_COACH	Race Coach
+172	RACE_COACH	Race Coach
+9390	RACE_COACH	Race Coach
+354	RACE_COACH	Race Coach
+1387	RACE_COACH	Race Coach
+2738	RACE_COACH	Race Coach
+1270	RACE_COACH	Race Coach
+1699	RACE_COACH	Race Coach
+1154	RACE_COACH	Race Coach
+672	RACE_COACH	Race Coach
+1525	RACE_COACH	Race Coach
+2914	RACE_COACH	Race Coach
+4976	RACE_COACH	Race Coach
+5313	RACE_COACH	Race Coach
+99	RACE_COACH	Race Coach
+735	RACE_COACH	Race Coach
+1266	RACE_COACH	Race Coach
+1512	RACE_COACH	Race Coach
+1576	RACE_COACH	Race Coach
+1651	RACE_COACH	Race Coach
+1771	RACE_COACH	Race Coach
+1852	RACE_COACH	Race Coach
+2562	RACE_COACH	Race Coach
+6510	RACE_COACH	Race Coach
+11644	RACE_COACH	Race Coach
+187	RACE_COACH	Race Coach
+444	COACH_DEV	Race Coach Developer
+27	COACH_DEV	Race Coach Developer
+672	COACH_DEV	Race Coach Developer
+2914	COACH_DEV	Race Coach Developer
+1144	RO_ASST	Race Officer (Assistant)
+529	RO_ASST	Race Officer (Assistant)
+7726	RO_ASST	Race Officer (Assistant)
+13948	RO_ASST	Race Officer (Assistant)
+14664	RO_ASST	Race Officer (Assistant)
+14681	RO_ASST	Race Officer (Assistant)
+208	RO_ASST	Race Officer (Assistant)
+457	RO_ASST	Race Officer (Assistant)
+559	RO_ASST	Race Officer (Assistant)
+275	RO_ASST	Race Officer (Assistant)
+6925	RO_ASST	Race Officer (Assistant)
+8825	RO_ASST	Race Officer (Assistant)
+12607	RO_ASST	Race Officer (Assistant)
+12838	RO_ASST	Race Officer (Assistant)
+38	RO_ASST	Race Officer (Assistant)
+39	RO_ASST	Race Officer (Assistant)
+43	RO_ASST	Race Officer (Assistant)
+89	RO_ASST	Race Officer (Assistant)
+97	RO_ASST	Race Officer (Assistant)
+165	RO_ASST	Race Officer (Assistant)
+197	RO_ASST	Race Officer (Assistant)
+293	RO_ASST	Race Officer (Assistant)
+453	RO_ASST	Race Officer (Assistant)
+456	RO_ASST	Race Officer (Assistant)
+592	RO_ASST	Race Officer (Assistant)
+681	RO_ASST	Race Officer (Assistant)
+694	RO_ASST	Race Officer (Assistant)
+1142	RO_ASST	Race Officer (Assistant)
+1149	RO_ASST	Race Officer (Assistant)
+1221	RO_ASST	Race Officer (Assistant)
+1232	RO_ASST	Race Officer (Assistant)
+1324	RO_ASST	Race Officer (Assistant)
+1391	RO_ASST	Race Officer (Assistant)
+1567	RO_ASST	Race Officer (Assistant)
+1595	RO_ASST	Race Officer (Assistant)
+1680	RO_ASST	Race Officer (Assistant)
+1894	RO_ASST	Race Officer (Assistant)
+2614	RO_ASST	Race Officer (Assistant)
+2757	RO_ASST	Race Officer (Assistant)
+3389	RO_ASST	Race Officer (Assistant)
+5742	RO_ASST	Race Officer (Assistant)
+6709	RO_ASST	Race Officer (Assistant)
+6787	RO_ASST	Race Officer (Assistant)
+6834	RO_ASST	Race Officer (Assistant)
+6903	RO_ASST	Race Officer (Assistant)
+8583	RO_ASST	Race Officer (Assistant)
+9358	RO_ASST	Race Officer (Assistant)
+9384	RO_ASST	Race Officer (Assistant)
+9493	RO_ASST	Race Officer (Assistant)
+10284	RO_ASST	Race Officer (Assistant)
+12604	RO_ASST	Race Officer (Assistant)
+12719	RO_ASST	Race Officer (Assistant)
+12788	RO_ASST	Race Officer (Assistant)
+14066	RO_ASST	Race Officer (Assistant)
+15232	RO_ASST	Race Officer (Assistant)
+15516	RO_ASST	Race Officer (Assistant)
+16076	RO_ASST	Race Officer (Assistant)
+20996	RO_ASST	Race Officer (Assistant)
+1257	RO_ASST	Race Officer (Assistant)
+2683	RO_ASST	Race Officer (Assistant)
+672	RO_ASST	Race Officer (Assistant)
+1567	RO_FAC	Race Officer (Facilitator)
+3389	RO_FAC	Race Officer (Facilitator)
+1391	RO_FAC	Race Officer (Facilitator)
+1680	RO_FAC	Race Officer (Facilitator)
+97	RO_FAC	Race Officer (Facilitator)
+1144	RO_CLUB	Race Officer (Club/District)
+9433	RO_CLUB	Race Officer (Club/District)
+208	RO_CLUB	Race Officer (Club/District)
+457	RO_CLUB	Race Officer (Club/District)
+559	RO_CLUB	Race Officer (Club/District)
+38	RO_CLUB	Race Officer (Club/District)
+39	RO_CLUB	Race Officer (Club/District)
+43	RO_CLUB	Race Officer (Club/District)
+89	RO_CLUB	Race Officer (Club/District)
+97	RO_CLUB	Race Officer (Club/District)
+143	RO_CLUB	Race Officer (Club/District)
+165	RO_CLUB	Race Officer (Club/District)
+182	RO_CLUB	Race Officer (Club/District)
+197	RO_CLUB	Race Officer (Club/District)
+293	RO_CLUB	Race Officer (Club/District)
+453	RO_CLUB	Race Officer (Club/District)
+456	RO_CLUB	Race Officer (Club/District)
+592	RO_CLUB	Race Officer (Club/District)
+681	RO_CLUB	Race Officer (Club/District)
+1142	RO_CLUB	Race Officer (Club/District)
+1198	RO_CLUB	Race Officer (Club/District)
+1221	RO_CLUB	Race Officer (Club/District)
+1249	RO_CLUB	Race Officer (Club/District)
+1391	RO_CLUB	Race Officer (Club/District)
+1545	RO_CLUB	Race Officer (Club/District)
+1567	RO_CLUB	Race Officer (Club/District)
+1680	RO_CLUB	Race Officer (Club/District)
+1852	RO_CLUB	Race Officer (Club/District)
+1894	RO_CLUB	Race Officer (Club/District)
+2614	RO_CLUB	Race Officer (Club/District)
+2630	RO_CLUB	Race Officer (Club/District)
+2757	RO_CLUB	Race Officer (Club/District)
+3360	RO_CLUB	Race Officer (Club/District)
+3389	RO_CLUB	Race Officer (Club/District)
+5424	RO_CLUB	Race Officer (Club/District)
+6726	RO_CLUB	Race Officer (Club/District)
+6787	RO_CLUB	Race Officer (Club/District)
+6834	RO_CLUB	Race Officer (Club/District)
+6903	RO_CLUB	Race Officer (Club/District)
+7902	RO_CLUB	Race Officer (Club/District)
+8583	RO_CLUB	Race Officer (Club/District)
+8863	RO_CLUB	Race Officer (Club/District)
+9228	RO_CLUB	Race Officer (Club/District)
+9358	RO_CLUB	Race Officer (Club/District)
+12286	RO_CLUB	Race Officer (Club/District)
+12606	RO_CLUB	Race Officer (Club/District)
+12781	RO_CLUB	Race Officer (Club/District)
+14066	RO_CLUB	Race Officer (Club/District)
+14231	RO_CLUB	Race Officer (Club/District)
+14594	RO_CLUB	Race Officer (Club/District)
+15386	RO_CLUB	Race Officer (Club/District)
+15516	RO_CLUB	Race Officer (Club/District)
+16124	RO_CLUB	Race Officer (Club/District)
+16159	RO_CLUB	Race Officer (Club/District)
+1257	RO_CLUB	Race Officer (Club/District)
+2683	RO_CLUB	Race Officer (Club/District)
+735	RO_NAT	Race Officer (National)
+3360	RO_NAT	Race Officer (National)
+197	RO_NAT	Race Officer (National)
+1567	RO_NAT	Race Officer (National)
+1894	RO_NAT	Race Officer (National)
+6834	RO_NAT	Race Officer (National)
+1142	RO_NAT	Race Officer (National)
+9358	RO_NAT	Race Officer (National)
+38	RO_NAT	Race Officer (National)
+39	RO_NAT	Race Officer (National)
+453	RO_NAT	Race Officer (National)
+89	RO_NAT	Race Officer (National)
+8583	RO_NAT	Race Officer (National)
+165	RO_NAT	Race Officer (National)
+456	RO_NAT	Race Officer (National)
+2614	RO_NAT	Race Officer (National)
+43	RO_NAT	Race Officer (National)
+293	RO_NAT	Race Officer (National)
+592	RO_NAT	Race Officer (National)
+1680	RO_NAT	Race Officer (National)
+3389	RO_NAT	Race Officer (National)
+182	RO_NAT	Race Officer (National)
+16416	RO_NAT	Race Officer (National)
+6787	RO_NAT	Race Officer (National)
+1391	RO_NAT	Race Officer (National)
+1852	RO_NAT	Race Officer (National)
+2423	RO_NAT	Race Officer (National)
+143	RO_NAT	Race Officer (National)
+681	RO_NAT	Race Officer (National)
+1221	RO_NAT	Race Officer (National)
+6709	RO_NAT	Race Officer (National)
+208	RO_NAT	Race Officer (National)
+97	RO_NAT	Race Officer (National)
+1144	RO_NAT	Race Officer (National)
+1257	RO_NAT	Race Officer (National)
+2757	RO_NAT	Race Officer (National)
+457	RO_NAT	Race Officer (National)
+559	RO_NAT	Race Officer (National)
+2683	RO_NAT	Race Officer (National)
+26090	RO_REG	Race Officer (Regional)
+9358	RO_REG	Race Officer (Regional)
+38	RO_REG	Race Officer (Regional)
+39	RO_REG	Race Officer (Regional)
+1894	RO_REG	Race Officer (Regional)
+453	RO_REG	Race Officer (Regional)
+89	RO_REG	Race Officer (Regional)
+1567	RO_REG	Race Officer (Regional)
+6834	RO_REG	Race Officer (Regional)
+8583	RO_REG	Race Officer (Regional)
+43	RO_REG	Race Officer (Regional)
+165	RO_REG	Race Officer (Regional)
+197	RO_REG	Race Officer (Regional)
+293	RO_REG	Race Officer (Regional)
+456	RO_REG	Race Officer (Regional)
+592	RO_REG	Race Officer (Regional)
+1680	RO_REG	Race Officer (Regional)
+2614	RO_REG	Race Officer (Regional)
+3389	RO_REG	Race Officer (Regional)
+5424	RO_REG	Race Officer (Regional)
+6787	RO_REG	Race Officer (Regional)
+6903	RO_REG	Race Officer (Regional)
+182	RO_REG	Race Officer (Regional)
+16350	RO_REG	Race Officer (Regional)
+10816	RO_REG	Race Officer (Regional)
+8863	RO_REG	Race Officer (Regional)
+9228	RO_REG	Race Officer (Regional)
+14231	RO_REG	Race Officer (Regional)
+15386	RO_REG	Race Officer (Regional)
+1391	RO_REG	Race Officer (Regional)
+3360	RO_REG	Race Officer (Regional)
+12606	RO_REG	Race Officer (Regional)
+681	RO_REG	Race Officer (Regional)
+1221	RO_REG	Race Officer (Regional)
+208	RO_REG	Race Officer (Regional)
+457	RO_REG	Race Officer (Regional)
+559	RO_REG	Race Officer (Regional)
+1142	RO_REG	Race Officer (Regional)
+97	RO_REG	Race Officer (Regional)
+1144	RO_REG	Race Officer (Regional)
+1257	RO_REG	Race Officer (Regional)
+2757	RO_REG	Race Officer (Regional)
+2683	RO_REG	Race Officer (Regional)
+28	RTP_AUTH	Return to Play Authorisation
+31	RTP_AUTH	Return to Play Authorisation
+38	RTP_AUTH	Return to Play Authorisation
+39	RTP_AUTH	Return to Play Authorisation
+41	RTP_AUTH	Return to Play Authorisation
+43	RTP_AUTH	Return to Play Authorisation
+45	RTP_AUTH	Return to Play Authorisation
+47	RTP_AUTH	Return to Play Authorisation
+52	RTP_AUTH	Return to Play Authorisation
+59	RTP_AUTH	Return to Play Authorisation
+60	RTP_AUTH	Return to Play Authorisation
+62	RTP_AUTH	Return to Play Authorisation
+66	RTP_AUTH	Return to Play Authorisation
+76	RTP_AUTH	Return to Play Authorisation
+80	RTP_AUTH	Return to Play Authorisation
+86	RTP_AUTH	Return to Play Authorisation
+89	RTP_AUTH	Return to Play Authorisation
+90	RTP_AUTH	Return to Play Authorisation
+92	RTP_AUTH	Return to Play Authorisation
+94	RTP_AUTH	Return to Play Authorisation
+96	RTP_AUTH	Return to Play Authorisation
+97	RTP_AUTH	Return to Play Authorisation
+99	RTP_AUTH	Return to Play Authorisation
+100	RTP_AUTH	Return to Play Authorisation
+104	RTP_AUTH	Return to Play Authorisation
+108	RTP_AUTH	Return to Play Authorisation
+111	RTP_AUTH	Return to Play Authorisation
+114	RTP_AUTH	Return to Play Authorisation
+117	RTP_AUTH	Return to Play Authorisation
+118	RTP_AUTH	Return to Play Authorisation
+129	RTP_AUTH	Return to Play Authorisation
+143	RTP_AUTH	Return to Play Authorisation
+148	RTP_AUTH	Return to Play Authorisation
+149	RTP_AUTH	Return to Play Authorisation
+152	RTP_AUTH	Return to Play Authorisation
+158	RTP_AUTH	Return to Play Authorisation
+159	RTP_AUTH	Return to Play Authorisation
+164	RTP_AUTH	Return to Play Authorisation
+165	RTP_AUTH	Return to Play Authorisation
+172	RTP_AUTH	Return to Play Authorisation
+175	RTP_AUTH	Return to Play Authorisation
+177	RTP_AUTH	Return to Play Authorisation
+181	RTP_AUTH	Return to Play Authorisation
+182	RTP_AUTH	Return to Play Authorisation
+188	RTP_AUTH	Return to Play Authorisation
+197	RTP_AUTH	Return to Play Authorisation
+200	RTP_AUTH	Return to Play Authorisation
+211	RTP_AUTH	Return to Play Authorisation
+219	RTP_AUTH	Return to Play Authorisation
+222	RTP_AUTH	Return to Play Authorisation
+223	RTP_AUTH	Return to Play Authorisation
+228	RTP_AUTH	Return to Play Authorisation
+229	RTP_AUTH	Return to Play Authorisation
+238	RTP_AUTH	Return to Play Authorisation
+265	RTP_AUTH	Return to Play Authorisation
+266	RTP_AUTH	Return to Play Authorisation
+271	RTP_AUTH	Return to Play Authorisation
+272	RTP_AUTH	Return to Play Authorisation
+273	RTP_AUTH	Return to Play Authorisation
+275	RTP_AUTH	Return to Play Authorisation
+279	RTP_AUTH	Return to Play Authorisation
+280	RTP_AUTH	Return to Play Authorisation
+286	RTP_AUTH	Return to Play Authorisation
+287	RTP_AUTH	Return to Play Authorisation
+292	RTP_AUTH	Return to Play Authorisation
+295	RTP_AUTH	Return to Play Authorisation
+296	RTP_AUTH	Return to Play Authorisation
+297	RTP_AUTH	Return to Play Authorisation
+302	RTP_AUTH	Return to Play Authorisation
+303	RTP_AUTH	Return to Play Authorisation
+305	RTP_AUTH	Return to Play Authorisation
+306	RTP_AUTH	Return to Play Authorisation
+308	RTP_AUTH	Return to Play Authorisation
+310	RTP_AUTH	Return to Play Authorisation
+314	RTP_AUTH	Return to Play Authorisation
+315	RTP_AUTH	Return to Play Authorisation
+316	RTP_AUTH	Return to Play Authorisation
+321	RTP_AUTH	Return to Play Authorisation
+324	RTP_AUTH	Return to Play Authorisation
+328	RTP_AUTH	Return to Play Authorisation
+339	RTP_AUTH	Return to Play Authorisation
+342	RTP_AUTH	Return to Play Authorisation
+344	RTP_AUTH	Return to Play Authorisation
+358	RTP_AUTH	Return to Play Authorisation
+360	RTP_AUTH	Return to Play Authorisation
+366	RTP_AUTH	Return to Play Authorisation
+369	RTP_AUTH	Return to Play Authorisation
+382	RTP_AUTH	Return to Play Authorisation
+384	RTP_AUTH	Return to Play Authorisation
+385	RTP_AUTH	Return to Play Authorisation
+395	RTP_AUTH	Return to Play Authorisation
+439	RTP_AUTH	Return to Play Authorisation
+443	RTP_AUTH	Return to Play Authorisation
+445	RTP_AUTH	Return to Play Authorisation
+451	RTP_AUTH	Return to Play Authorisation
+453	RTP_AUTH	Return to Play Authorisation
+455	RTP_AUTH	Return to Play Authorisation
+456	RTP_AUTH	Return to Play Authorisation
+467	RTP_AUTH	Return to Play Authorisation
+484	RTP_AUTH	Return to Play Authorisation
+3360	SBI	Safety Boat Instructor
+9384	SBI	Safety Boat Instructor
+27	SBI	Safety Boat Instructor
+172	SBI	Safety Boat Instructor
+28	SBI	Safety Boat Instructor
+1313	SBI	Safety Boat Instructor
+3440	SBI	Safety Boat Instructor
+80	SBI	Safety Boat Instructor
+6581	SBI	Safety Boat Instructor
+6193	SBI	Safety Boat Instructor
+197	SBI	Safety Boat Instructor
+672	SBI	Safety Boat Instructor
+27	SBO	Safety Boat Operator
+28	SBO	Safety Boat Operator
+33	SBO	Safety Boat Operator
+45	SBO	Safety Boat Operator
+56	SBO	Safety Boat Operator
+58	SBO	Safety Boat Operator
+61	SBO	Safety Boat Operator
+66	SBO	Safety Boat Operator
+80	SBO	Safety Boat Operator
+90	SBO	Safety Boat Operator
+99	SBO	Safety Boat Operator
+100	SBO	Safety Boat Operator
+133	SBO	Safety Boat Operator
+143	SBO	Safety Boat Operator
+165	SBO	Safety Boat Operator
+172	SBO	Safety Boat Operator
+185	SBO	Safety Boat Operator
+188	SBO	Safety Boat Operator
+195	SBO	Safety Boat Operator
+196	SBO	Safety Boat Operator
+221	SBO	Safety Boat Operator
+228	SBO	Safety Boat Operator
+241	SBO	Safety Boat Operator
+324	SBO	Safety Boat Operator
+339	SBO	Safety Boat Operator
+354	SBO	Safety Boat Operator
+355	SBO	Safety Boat Operator
+380	SBO	Safety Boat Operator
+385	SBO	Safety Boat Operator
+395	SBO	Safety Boat Operator
+410	SBO	Safety Boat Operator
+444	SBO	Safety Boat Operator
+445	SBO	Safety Boat Operator
+475	SBO	Safety Boat Operator
+499	SBO	Safety Boat Operator
+502	SBO	Safety Boat Operator
+504	SBO	Safety Boat Operator
+505	SBO	Safety Boat Operator
+518	SBO	Safety Boat Operator
+520	SBO	Safety Boat Operator
+534	SBO	Safety Boat Operator
+546	SBO	Safety Boat Operator
+549	SBO	Safety Boat Operator
+555	SBO	Safety Boat Operator
+656	SBO	Safety Boat Operator
+658	SBO	Safety Boat Operator
+694	SBO	Safety Boat Operator
+695	SBO	Safety Boat Operator
+709	SBO	Safety Boat Operator
+711	SBO	Safety Boat Operator
+723	SBO	Safety Boat Operator
+725	SBO	Safety Boat Operator
+732	SBO	Safety Boat Operator
+735	SBO	Safety Boat Operator
+756	SBO	Safety Boat Operator
+888	SBO	Safety Boat Operator
+1090	SBO	Safety Boat Operator
+1134	SBO	Safety Boat Operator
+1136	SBO	Safety Boat Operator
+1154	SBO	Safety Boat Operator
+1198	SBO	Safety Boat Operator
+1202	SBO	Safety Boat Operator
+1232	SBO	Safety Boat Operator
+1249	SBO	Safety Boat Operator
+1250	SBO	Safety Boat Operator
+1270	SBO	Safety Boat Operator
+1278	SBO	Safety Boat Operator
+1313	SBO	Safety Boat Operator
+1324	SBO	Safety Boat Operator
+1330	SBO	Safety Boat Operator
+1366	SBO	Safety Boat Operator
+1385	SBO	Safety Boat Operator
+1387	SBO	Safety Boat Operator
+1422	SBO	Safety Boat Operator
+1433	SBO	Safety Boat Operator
+1439	SBO	Safety Boat Operator
+1457	SBO	Safety Boat Operator
+1481	SBO	Safety Boat Operator
+1482	SBO	Safety Boat Operator
+1485	SBO	Safety Boat Operator
+1491	SBO	Safety Boat Operator
+1492	SBO	Safety Boat Operator
+1505	SBO	Safety Boat Operator
+1533	SBO	Safety Boat Operator
+1545	SBO	Safety Boat Operator
+1563	SBO	Safety Boat Operator
+1574	SBO	Safety Boat Operator
+1590	SBO	Safety Boat Operator
+1631	SBO	Safety Boat Operator
+1658	SBO	Safety Boat Operator
+1699	SBO	Safety Boat Operator
+2030	SBO	Safety Boat Operator
+2073	SBO	Safety Boat Operator
+2167	SBO	Safety Boat Operator
+2252	SBO	Safety Boat Operator
+2267	SBO	Safety Boat Operator
+2278	SBO	Safety Boat Operator
+2281	SBO	Safety Boat Operator
+2319	SBO	Safety Boat Operator
+2380	SBO	Safety Boat Operator
+1481	SENIOR_INSTR	Senior Instructor
+8508	SENIOR_INSTR	Senior Instructor
+3709	SENIOR_INSTR	Senior Instructor
+13058	SENIOR_INSTR	Senior Instructor
+26072	SENIOR_INSTR	Senior Instructor
+1313	SENIOR_INSTR	Senior Instructor
+28	SENIOR_INSTR	Senior Instructor
+8499	SENIOR_INSTR	Senior Instructor
+197	SENIOR_INSTR	Senior Instructor
+6234	SENIOR_INSTR	Senior Instructor
+9254	SENIOR_INSTR	Senior Instructor
+9772	SENIOR_INSTR	Senior Instructor
+444	SENIOR_INSTR	Senior Instructor
+3360	SENIOR_INSTR	Senior Instructor
+9224	SENIOR_INSTR	Senior Instructor
+9252	SENIOR_INSTR	Senior Instructor
+6581	SENIOR_INSTR	Senior Instructor
+1563	SENIOR_INSTR	Senior Instructor
+1492	SENIOR_INSTR	Senior Instructor
+27	SENIOR_INSTR	Senior Instructor
+3440	SENIOR_INSTR	Senior Instructor
+502	SENIOR_INSTR	Senior Instructor
+9767	SENIOR_INSTR	Senior Instructor
+6193	SENIOR_INSTR	Senior Instructor
+5805	SENIOR_INSTR	Senior Instructor
+9906	SENIOR_INSTR	Senior Instructor
+1387	SENIOR_INSTR	Senior Instructor
+354	SENIOR_INSTR	Senior Instructor
+7161	SENIOR_INSTR	Senior Instructor
+385	SENIOR_INSTR	Senior Instructor
+546	SENIOR_INSTR	Senior Instructor
+1270	SENIOR_INSTR	Senior Instructor
+1330	SENIOR_INSTR	Senior Instructor
+1366	SENIOR_INSTR	Senior Instructor
+1699	SENIOR_INSTR	Senior Instructor
+5316	SENIOR_INSTR	Senior Instructor
+6890	SENIOR_INSTR	Senior Instructor
+1154	SENIOR_INSTR	Senior Instructor
+672	SENIOR_INSTR	Senior Instructor
+3985	SENIOR_INSTR	Senior Instructor
+6461	SENIOR_INSTR	Senior Instructor
+9484	SENIOR_INSTR	Senior Instructor
+1439	SENIOR_INSTR	Senior Instructor
+9691	SENIOR_INSTR	Senior Instructor
+187	SENIOR_INSTR	Senior Instructor
+324	SENIOR_INSTR	Senior Instructor
+2703	SENIOR_INSTR	Senior Instructor
+4175	SENIOR_INSTR	Senior Instructor
+6476	SENIOR_INSTR	Senior Instructor
+3984	SENIOR_INSTR	Senior Instructor
+61	SENIOR_INSTR	Senior Instructor
+99	SENIOR_INSTR	Senior Instructor
+195	SENIOR_INSTR	Senior Instructor
+410	SENIOR_INSTR	Senior Instructor
+676	SENIOR_INSTR	Senior Instructor
+735	SENIOR_INSTR	Senior Instructor
+756	SENIOR_INSTR	Senior Instructor
+1136	SENIOR_INSTR	Senior Instructor
+1202	SENIOR_INSTR	Senior Instructor
+1457	SENIOR_INSTR	Senior Instructor
+2267	SENIOR_INSTR	Senior Instructor
+2935	SENIOR_INSTR	Senior Instructor
+3623	SENIOR_INSTR	Senior Instructor
+11644	SENIOR_INSTR	Senior Instructor
+15348	SENIOR_COACH	Senior Race Coach
+28	SENIOR_COACH	Senior Race Coach
+197	SENIOR_COACH	Senior Race Coach
+444	SENIOR_COACH	Senior Race Coach
+27	SENIOR_COACH	Senior Race Coach
+1154	SENIOR_COACH	Senior Race Coach
+2914	SENIOR_COACH	Senior Race Coach
+672	SENIOR_COACH	Senior Race Coach
+735	SENIOR_COACH	Senior Race Coach
+1852	SENIOR_COACH	Senior Race Coach
+1142	UMPIRE_NAT	Umpire (National)
+1852	UMPIRE_NAT	Umpire (National)
+295	UMPIRE_NAT	Umpire (National)
+1894	UMPIRE_NAT	Umpire (National)
+143	UMPIRE_NAT	Umpire (National)
+504	UMPIRE_NAT	Umpire (National)

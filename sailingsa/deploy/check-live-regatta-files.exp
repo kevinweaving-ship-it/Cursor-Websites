@@ -1,0 +1,14 @@
+#!/usr/bin/expect -f
+# List and hash regatta frontend files on LIVE. Run from project root.
+set timeout 25
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+set web_root "/var/www/sailingsa"
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "echo '=== LIST ===' && ls -la ${web_root}/regatta 2>/dev/null || echo 'no regatta dir'; ls -la ${web_root}/regatta/class 2>/dev/null; ls -la ${web_root}/regatta/class/podium 2>/dev/null; ls -la ${web_root}/regatta_viewer.html 2>/dev/null; echo '=== HASH ===' && sha256sum ${web_root}/regatta/results.html ${web_root}/regatta/class/class-results.html ${web_root}/regatta/class/podium/podium.html ${web_root}/regatta_viewer.html 2>/dev/null || true"
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+    timeout { puts "ERROR: timeout"; exit 1 }
+}
+wait

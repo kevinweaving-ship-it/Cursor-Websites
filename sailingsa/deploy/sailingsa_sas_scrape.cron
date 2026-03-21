@@ -1,0 +1,7 @@
+# Daily SAS member-finder scrape → sas_id_personal (02:30 SAST)
+# Install: sudo cp sailingsa/deploy/sailingsa_sas_scrape.cron /etc/cron.d/sailingsa_sas_scrape
+# Ensure www-data has DB_URL (e.g. in /var/www/sailingsa/.env or systemd env).
+# Log: /var/log/sailingsa_sas_scrape.log
+SHELL=/bin/bash
+PATH=/usr/bin:/bin
+30 2 * * * www-data /var/www/sailingsa/api/venv/bin/python3 /var/www/sailingsa/scripts/sas_member_scrape.py >> /var/log/sailingsa_sas_scrape.log 2>&1

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News Debug – SailingSA</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: system-ui, sans-serif; background: #f8fafc; padding: 1rem; font-size: 0.9rem; color: #334155; }
+        .debug-page { max-width: 640px; margin: 0 auto; }
+        h1 { font-size: 1.1rem; color: #001f3f; margin-bottom: 0.5rem; }
+        p { margin: 0.5rem 0; }
+        #debug-out { white-space: pre-wrap; word-break: break-all; background: #fff; border: 1px solid #e2e8f0; padding: 0.75rem; margin-top: 0.5rem; font-size: 0.8rem; max-height: 50vh; overflow-y: auto; }
+        .muted { color: #64748b; }
+    </style>
+</head>
+<body>
+    <div class="debug-page">
+        <h1>News – Debug only</h1>
+        <p class="muted">Primary feed is on the main site: <a href="/">SailingSA Frontend</a>.</p>
+        <p>API: <code>/api/news/latest</code> – count: <span id="news-count">—</span></p>
+        <div id="debug-out">Loading…</div>
+    </div>
+    <script>
+        (function() {
+            var out = document.getElementById('debug-out');
+            var countEl = document.getElementById('news-count');
+            var apiUrl = (window.location.origin || '') + '/api/news/latest';
+            fetch(apiUrl).then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); }).then(function(data) {
+                var items = Array.isArray(data) ? data : (data && data.items) ? data.items : [];
+                if (countEl) countEl.textContent = items.length;
+                if (out) out.textContent = 'Items: ' + items.length + '\n' + (items.length ? JSON.stringify(items.slice(0, 2), null, 2) : '[]');
+            }).catch(function(e) {
+                if (countEl) countEl.textContent = 'error';
+                if (out) out.textContent = 'Fetch failed: ' + (e && (e.message || e));
+            });
+        })();
+    </script>
+</body>
+</html>

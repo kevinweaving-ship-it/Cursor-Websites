@@ -1,0 +1,274 @@
+# Environment variables (NEVER commit passwords)
+.env
+config.postgres.env
+*.env
+
+# Deploy D/R host (do not commit real IP)
+sailingsa/deploy/DR_HOST
+
+# Sitemap audit scratch
+tmp_sitemap_audit.xml
+sitemap_url_report.txt
+
+# Logs
+*.log
+logs/
+api_server.log
+slow_queries.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Database
+*.db
+*.sqlite
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backups
+*.sql
+backups/
+BACKUP_*/
+ARCHIVE_*/
+BU_PROOF_*/
+BU_PAGE_PROOF_*/
+*_PROOF*.txt
+*_PROOF*.md
+*.BU_*
+*.BROKEN_*
+
+# Cursor/IDE (avoid index bloat)
+.cursor/
+
+# Temp outputs / audits (regenerate as needed)
+AUDIT_*.txt
+AUDIT_*.md
+SAILOR_NAMES_NO_SAS_ID.txt
+*_COUNTS.txt
+chat_transcript_*.txt
+*_report.txt
+main_score_report.txt
+CODE_FOR_GPT.txt
+ALL_MEDIA_SEARCH_CODE.txt
+deployment_fastapi.txt
+cursor-*.txt
+
+# One-off proof/output dirs
+*_PROOF/
+*_BU_*/
+
+# Root scratch docs (setup notes, debug output, status)
+FACEBOOK_*.md
+DEBUG_*.md
+*_COMPARISON.md
+*_STATUS.md
+*_SUMMARY.md
+CHECK_*.md
+CRASH_*.md
+ICLOUD_*.md
+URGENT_*.md
+ADD_*.md
+FIND_*.md
+FIXED_*.md
+FIX_*.md
+FINAL_*.md
+HOW_TO_*.md
+MOBILE_*.md
+NAVIGATE_*.md
+PRODUCTION_*.md
+QUICK_*.md
+SCROLL_*.md
+SET_*.md
+STEPS_*.md
+SUBSCRIPTION_*.md
+USE_*.md
+RULES_*.md
+DEPLOY_TO_CLOUD.md
+FETCH_*.md
+INDEX_*.md
+LIGHTHOUSE_*.md
+LOCAL_*.md
+LOGIN_*.md
+MEDIA_SEARCH_*.md
+RECOVERY_UI_*.md
+REGATTA_DATABASE_*.md
+SEARCH_API_*.md
+SECURITY_*.md
+SIMPLE_USER_*.md
+STAGE_*.md
+STANDINGS_*.md
+TIMOTHY_*.md
+URI_*.md
+USER_ACCESS_*.md
+YOUR_*.md
+YOUTUBE_*.md
+
+# One-off project folders (not part of sailingsa)
+My Fourth Project/
+NEW_ESTATE_PROJECT/
+Project NEW Estate/
+
+# Cursor/diagnostic outputs
+cursor-crash-*.txt
+cursor-support-*.txt
+
+# Temp data files (root-level outputs)
+*_COUNTS.txt
+*_report.txt
+chat_transcript_*.txt
+H2H_*.txt
+ILCA*.txt
+TOP10_*.txt
+hobie16_*.txt
+
+# Regatta audit/output (regenerate via scripts)
+SAILOR_NAMES_NO_SAS_ID.txt
+AUDIT_RESULTS_MISSING_SAS_IDS.txt
+
+# Root scratch/notes (keep in docs/ if needed)
+*_ANALYSIS.md
+*_PARITY*.md
+*_AUDIT*.md
+*AUDIT_*.md
+API_COLUMN_MAPPING.md
+API_PORT.md
+AI_OVERVIEW_*.md
+BUG_*.md
+backend_optimization_*.md
+maintenance_guide.md
+README_CLEAN_STACK.md
+README_DEPLOYMENT.md
+README_SAILINGSA.md
+README_SEO_URLS.md
+REQUIREMENTS.md
+
+# Sailingsa scratch docs (not core)
+sailingsa/frontend/*.md
+sailingsa/README*.md
+
+# Root standalone HTML (tools, not app)
+420-*.html
+boat_pedigree.html
+header_test.html
+member-finder.html
+page-template.html
+regatta-admin-*.html
+regatta-live-*.html
+regatta_search.html
+regatta_viewer.html
+search.html
+test_mobile_view.html
+timothy_mobile_profile.html
+viewer.html
+sailingsa_placeholder.html
+
+# Pending – defer (see PENDING_ITEMS.md). Only one-off scripts/temp, no core app.
+add_regatta_*.py
+amend_regatta_*.py
+add_regattas_*.py
+audit_*.py
+fix_*.py
+check_*.py
+build_*.py
+calculate_*.py
+compare_*.py
+count_*.py
+debug_*.py
+diagnose_*.py
+ensure_*.py
+fetch_*.py
+find_*.py
+get_*.py
+list_*.py
+manual_*.py
+monitor_*.py
+process_*.py
+rebuild_*.py
+recalc_*.py
+refactor_*.py
+report_*.py
+scrape_*.py
+show_*.py
+test_*.py
+update_*.py
+remove_*.py
+insert_*.py
+checksum_*.py
+verify_*.py
+h2h_*.py
+ilca6_*.py
+optimist_*.py
+regatta_385_*.py
+second_pass_*.py
+third_pass_*.py
+top10_*.py
+standings_common.py
+sailor_*_report.py
+auto_update_*.py
+FIX_MAIL_NOW.txt
+QUICK_*.txt
+QUICK_*.py
+output/
+var/
+icloud_cleanup_report_*.txt
+*.zip
+api_optimized.py
+build.sh
+deploy.sh
+*_icloud*.sh
+*.BU.20*
+main_scores_example.json
+standings_top21.json
+
+# Shell scripts (dev/setup – see PENDING_ITEMS)
+SET_*.sh
+SETUP_*.sh
+START_*.sh
+*_icloud*.sh
+compare_*.sh
+deploy_slug_*.sh
+restart_*.sh
+run_*.sh
+update_site.sh
+verify_*.sh
+
+# Aux dirs (data, build outputs – not core app)
+build/
+dist/
+output/
+admin/
+artwork/
+assets/
+class_engine/
+projection_engine/
+ranking_engine/
+data/
+results/
+profile_images/
+jobs/
+/deploy/
+/templates/
+/scripts/
+/timadvisor/
+/search/
+
+# Secrets
+secrets/
+*.key
+*.pem
+!public/*.pem

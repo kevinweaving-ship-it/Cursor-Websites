@@ -1,0 +1,9 @@
+# SailingSA — Cursor UI rules
+
+- **Never modify header or navigation layout.** Header (`.site-header`) and all nav links must stay as-is; header links must remain white on dark background.
+- **Always reuse existing components.** Use `.container`, `.card`, `.table`, `.table-container`, `.section-title`; use `buildMasterPageLayout(container, opts)` for Regatta/Sailor/Class/Club pages.
+- **Do not invent new CSS frameworks or styles.** Follow **`docs/design_system.md`** and **`sailingsa/frontend/css/main.css`** strictly.
+- **Modify only components or page sections, not global layout.** Do not add extra wrappers, change order of Back/Title/Stats/Data cards, or remove `.table-container` from the master template.
+- **Allowed classes:** container, card, table, tabs, section. **Forbidden:** raw ol/ul for results, inline CSS, custom page-level fonts or colours.
+
+See: `docs/UI_COMPONENTS_README.md`, `docs/design_system.md`, `.cursor/rules/theme-layout-mandatory.mdc`.

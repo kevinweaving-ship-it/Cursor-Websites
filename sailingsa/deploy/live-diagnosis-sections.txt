@@ -1,0 +1,96 @@
+spawn ssh -o StrictHostKeyChecking=no root@102.218.215.253 echo '=== LIVE index API_BASE (1688-1698) ===' && sed -n '1686,1700p' /var/www/sailingsa/index.html && echo '' && echo '=== LIVE navigateToClassResults (4470-4482) ===' && sed -n '4470,4482p' /var/www/sailingsa/index.html && echo '' && echo '=== LIVE openResultPageInModal (4502-4515) ===' && sed -n '4502,4515p' /var/www/sailingsa/index.html && echo '' && echo '=== LIVE class-results.html script API and fetch (111-155) ===' && sed -n '111,155p' /var/www/sailingsa/regatta/class/class-results.html
+root@102.218.215.253's password: 
+=== LIVE index API_BASE (1688-1698) ===
+        window.DEBUG_MODE = false;
+        function _dbg() { if (window.DEBUG_MODE) console.log.apply(console, arguments); }
+        // Set API_BASE before loading other scripts
+        _dbg('[DEBUG] index.html: Setting API_BASE...');
+        const currentHost = window.location.hostname;
+        const currentProtocol = window.location.protocol;
+        
+        // README: API and frontend on same host:port (8081). Use origin.
+        window.API_BASE = window.location.origin;
+        
+        _dbg('[DEBUG] index.html: API_BASE set to:', window.API_BASE);
+        
+        window.AGE_REFERENCE_YEAR = 2025;
+        
+        // Check for session token or sas_id in URL
+
+=== LIVE navigateToClassResults (4470-4482) ===
+        /**
+         * Open Class Results page in POPUP MODAL (stays on Sailor Profile page)
+         */
+        function navigateToClassResults(regattaId, className, regattaName) {
+            window._regattaResultBackContext = { regattaId: regattaId || '', regattaName: regattaName || regattaId || '', className: className || '' };
+            const regattaSlug = generateSlug(regattaName || regattaId);
+            const classSlug = generateSlug(className);
+            const url = `/regatta/class/class-results.html?regatta_id=${encodeURIComponent(regattaId)}&class=${encodeURIComponent(className)}&regatta_slug=${encodeURIComponent(regattaSlug)}&class_slug=${encodeURIComponent(classSlug)}`;
+            openResultPageInModal(url);
+        }
+        
+        /**
+         * Open Full Regatta Results page in POPUP MODAL (stays on Sailor Profile page).
+
+=== LIVE openResultPageInModal (4502-4515) ===
+         * Open result page in modal iframe (POPUP - does NOT navigate away)
+         */
+        function openResultPageInModal(pageUrl) {
+            // Build absolute URL from site root only (never use current path - fixes /sailor/regatta/... 404)
+            let absoluteUrl = pageUrl;
+            if (!pageUrl.startsWith('http://') && !pageUrl.startsWith('https://') && !pageUrl.startsWith('//')) {
+                var path = pageUrl.startsWith('/') ? pageUrl : '/' + pageUrl;
+                absoluteUrl = window.location.origin + path;
+            }
+            // Safeguard: if URL wrongly contains /sailor/regatta/ (old basePath bug), fix it
+            if (absoluteUrl.indexOf('/sailor/regatta/') !== -1) {
+                absoluteUrl = absoluteUrl.replace(/\/sailor\/regatta\//g, '/regatta/');
+            }
+            
+
+=== LIVE class-results.html script API and fetch (111-155) ===
+    </div>
+    <script>
+        const API = window.API_BASE || (window.location.origin || '');
+        const urlParams = new URLSearchParams(window.location.search);
+        const regattaId = urlParams.get('regatta_id') || urlParams.get('regatta-id');
+        const className = urlParams.get('class');
+        const regattaSlug = urlParams.get('regatta_slug') || urlParams.get('regatta-slug');
+        const classSlug = urlParams.get('class_slug') || urlParams.get('class-slug');
+        
+        document.addEventListener('click', function(e) {
+            var crewLink = e.target && e.target.closest ? e.target.closest('.sailor-link-crew') : null;
+            var row = e.target && e.target.closest ? (e.target.closest('tr.sailor-row-clickable') || e.target.closest('tr[data-helm-name]')) : null;
+            if (!row) return;
+            var sid, name;
+            if (crewLink) {
+                sid = (crewLink.getAttribute('data-sailor-id') || '').trim();
+                name = (crewLink.getAttribute('data-name') || '').trim();
+            } else {
+                sid = (row.getAttribute('data-sailor-id') || '').trim();
+                name = (row.getAttribute('data-helm-name') || '').trim();
+            }
+            if (!name && !sid) return;
+            var club = (row.getAttribute('data-club') || '').trim();
+            var cls = (row.getAttribute('data-class') || '').trim();
+            var target = window.opener || window.parent;
+            target.postMessage({ type: 'showSailorProfile', sid: sid, name: name, club: club, cls: cls }, '*');
+            if (window.opener) window.close();
+        });
+        if (!regattaId || !className) {
+            document.getElementById('content').innerHTML = '<div class="error">Regatta ID and Class required</div>';
+        } else {
+            loadClassResults();
+        }
+        
+        async function loadClassResults() {
+            try {
+                const regattaDataResponse = await fetch(`${API}/api/regatta/${encodeURIComponent(regattaId)}?t=${Date.now()}`);
+                if (!regattaDataResponse.ok) throw new Error('Failed to load regatta data');
+                const regattaData = await regattaDataResponse.json();
+                if (!regattaData || regattaData.length === 0) throw new Error('No regatta data found');
+                
+                const h0 = regattaData[0];
+                const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                let dateTimeStr = 'Unknown';
+                if (h0.as_at_time) {

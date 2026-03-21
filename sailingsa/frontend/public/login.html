@@ -1,0 +1,1610 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <base href="/">
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login / Register - SailingSA</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Audiowide&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/main.css?v=15">
+    <style>
+        .login-page {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #e9edf3;
+            padding: 10px;
+            margin-top: -60px;
+        }
+        .login-container {
+            background: white;
+            border-radius: 12px;
+            padding: 1rem;
+            max-width: 420px;
+            width: 100%;
+            max-height: calc(100vh - 20px);
+            box-shadow: 0 18px 60px rgba(0,0,0,.45);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        @media (max-width: 767px) {
+            .login-container {
+                padding: 0.75rem;
+            }
+            .logo-section {
+                margin: -0.75rem -0.75rem 0.4rem -0.75rem !important;
+                padding: 0.3rem 0.6rem 0.4rem 0.6rem !important;
+                width: calc(100% + 1.5rem) !important;
+                text-align: center !important;
+            }
+            .login-logo-full {
+                max-height: 35px !important;
+                margin-left: auto !important;
+                margin-right: auto !important;
+                margin-top: 0 !important;
+                margin-bottom: 0 !important;
+                display: block !important;
+                left: 50% !important;
+                transform: translateX(-50%) !important;
+            }
+            .logo-section p {
+                font-size: 11px;
+                padding-top: 0.25rem;
+            }
+            .btn-group {
+                gap: 6px;
+                margin-top: 0.5rem;
+            }
+            .btn-login {
+                padding: 9px 14px;
+                min-height: 38px;
+                font-size: 13px;
+            }
+            .form-group {
+                margin-bottom: 0.6rem;
+            }
+            .form-group input,
+            .form-group select {
+                padding: 9px 11px;
+                font-size: 14px;
+            }
+            .divider {
+                margin: 0.6rem 0;
+            }
+        }
+        @media (min-width: 768px) {
+            .login-container {
+                max-width: 420px;
+                padding: 2.5rem;
+                max-height: none;
+            }
+        }
+        .login-header {
+            text-align: center;
+            margin-bottom: 0.75rem;
+        }
+        .logo-section {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            margin: -1rem -1rem 0.5rem -1rem !important;
+            padding: 0.4rem 0.75rem 0.5rem 0.75rem !important;
+            background: #1a365d !important;
+            border-radius: 12px 12px 0 0 !important;
+            width: calc(100% + 2rem) !important;
+            box-sizing: border-box !important;
+            text-align: center !important;
+        }
+        .login-logo-full {
+            width: auto !important;
+            max-width: 75% !important;
+            height: auto !important;
+            max-height: 40px !important;
+            display: block !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
+            padding: 0 !important;
+            position: relative !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+        }
+        .login-header h1 {
+            color: #1a365d;
+            margin-bottom: 0.5rem;
+            font-size: 24px;
+        }
+        .login-header h2 {
+            color: #1a365d;
+            margin-bottom: 0.5rem;
+            font-size: 20px;
+            font-weight: 600;
+        }
+        .login-header p {
+            color: white;
+            font-weight: bold;
+            margin: 0;
+            padding-top: 0.75rem;
+        }
+        .logo-section p {
+            color: white !important;
+            font-weight: bold;
+            margin: 0;
+            padding-top: 0.35rem;
+            text-align: center;
+            font-size: 12px;
+            line-height: 1.2;
+        }
+        .login-section {
+            display: none;
+        }
+        .login-section.active {
+            display: block;
+        }
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 0.75rem;
+        }
+        .divider {
+            text-align: center;
+            margin: 0.75rem 0;
+            position: relative;
+            color: #666;
+            font-size: 13px;
+        }
+        .divider::before,
+        .divider::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 45%;
+            height: 1px;
+            background: #ddd;
+        }
+        .divider::before {
+            left: 0;
+        }
+        .divider::after {
+            right: 0;
+        }
+        .forgot-password-link {
+            text-align: center;
+            margin-top: 0.5rem;
+        }
+        .forgot-password-link a {
+            color: #1a365d;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .forgot-password-link a:hover {
+            text-decoration: underline;
+        }
+        .register-link {
+            text-align: center;
+            margin-top: 0.75rem;
+        }
+        .register-link a {
+            color: #1a365d;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .register-link a:hover {
+            text-decoration: underline;
+        }
+        .btn-login {
+            padding: 10px 16px;
+            border-radius: 8px;
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            width: 100%;
+            min-height: 40px;
+        }
+        .btn-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+        }
+        .btn-login:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+        .btn-google { 
+            background: white; 
+            color: #333;
+            border: 1px solid #ddd;
+        }
+        .btn-google:hover {
+            background: #f5f5f5;
+        }
+        .btn-google:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        .btn-google:disabled:hover {
+            background: white;
+            transform: none;
+        }
+        .btn-facebook { background: #1877F2; }
+        .btn-register { background: #4a3d99; color: #fff !important; font-weight: 700; }
+        .btn-group-signup { margin-bottom: 1.75rem; }
+        .btn-email { background: #808080; }
+        .btn-username { background: #1a365d; }
+        .btn-primary { background: #1a365d; color: white; }
+        .btn-secondary { background: transparent; color: #1a365d; border: 1px solid #1a365d; }
+        .btn-back {
+            background: #ccc;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        .form-group {
+            margin-bottom: 0.75rem;
+            display: flex;
+            flex-direction: column;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0;
+            margin-top: 0;
+            color: #1a365d;
+            font-weight: bold;
+            font-size: 14px;
+            text-align: center;
+            width: 100%;
+            order: 1;
+            line-height: 1;
+            padding-bottom: 0.25rem;
+        }
+        .form-group input {
+            order: 2;
+        }
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+            order: 2;
+        }
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #1a365d;
+        }
+        .loading {
+            text-align: center;
+            padding: 2rem;
+        }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #1a365d;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        .error-message.show {
+            display: block;
+        }
+        .success-message {
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-page">
+        <div class="login-container">
+            <div class="logo-section">
+                <img src="assets/logos/sailingsa-results-logo.png" alt="SailingSA Results" class="login-logo-full" style="display: block !important; margin-left: auto !important; margin-right: auto !important; position: relative !important; left: 50% !important; transform: translateX(-50%) !important;">
+                <p style="color: white; font-weight: bold; margin: 0; padding-top: 0.75rem; text-align: center;">Access your personal sailing history here</p>
+            </div>
+
+            <!-- 1st Time Here (icon) Sign Up -->
+            <div class="btn-group btn-group-signup">
+                <button class="btn-login btn-register" onclick="showRegistrationForm(event)">
+                    1st Time Here
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                    </svg>
+                    Sign Up
+                </button>
+            </div>
+
+            <!-- Error Message -->
+            <div id="errorMessage" class="error-message"></div>
+
+            <!-- Main Login Form (Canonical Structure) -->
+            <div id="initialChoice" class="login-section active">
+                <form id="usernamePasswordForm" onsubmit="handleUsernamePasswordLogin(event)">
+                    <div class="form-group" style="position: relative;">
+                        <label for="usernameInput">WA no / SAS ID</label>
+                        <input type="text" id="usernameInput" name="username" autocomplete="username" placeholder="WhatsApp No (e.g. 082 123) or SAS ID" required>
+                    </div>
+                    <div class="form-group" style="position: relative;">
+                        <label for="passwordInput" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <span style="font-weight: bold;">Password</span>
+                            <label for="showPasswordCheckbox" style="display: inline-flex; align-items: center; font-size: 14px; font-weight: normal; cursor: pointer; user-select: none; color: #333; margin: 0;">
+                                <span style="font-weight: normal; margin-right: 0.5rem;">- Show</span>
+                                <input type="checkbox" id="showPasswordCheckbox" style="cursor: pointer; width: 16px; height: 16px; flex-shrink: 0; margin: 0;" onchange="togglePasswordVisibility()">
+                            </label>
+                        </label>
+                        <input type="password" id="passwordInput" name="password" autocomplete="current-password" placeholder="Password" required>
+                    </div>
+                    <div class="form-group" style="margin-top: 0.5rem;">
+                        <label for="rememberCredentials" style="display: inline-flex; align-items: center; font-size: 14px; font-weight: normal; cursor: pointer; user-select: none; color: #333;">
+                            <input type="checkbox" id="rememberCredentials" style="margin-right: 0.5rem; cursor: pointer; width: 16px; height: 16px; flex-shrink: 0;" checked>
+                            <span>Remember credentials on this device</span>
+                        </label>
+                    </div>
+                    <div class="btn-group">
+                        <button type="submit" class="btn-login btn-primary">Sign In</button>
+                    </div>
+                    <div class="forgot-password-link">
+                        <a href="#" onclick="handleForgotPassword(event)">Forgot password?</a>
+                    </div>
+                </form>
+
+                <div class="divider">OR</div>
+
+                <div class="btn-group">
+                    <button class="btn-login btn-google" type="button" disabled onclick="loginWithGoogle()">
+                        <svg class="btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                        </svg>
+                        <span>Sign in with Google</span>
+                    </button>
+                    <button class="btn-login btn-facebook" onclick="loginWithFacebook()">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                        </svg>
+                        Sign in with Facebook
+                    </button>
+                </div>
+
+                <div class="divider">OR</div>
+
+            <!-- Back to landing: return to main site without signing in (same on local and cloud) -->
+            <div style="margin-bottom: 1rem; text-align: center;">
+                <a href="/index.html" id="backToLandingLink" class="btn-login btn-back" style="display: inline-block; text-decoration: none;">Back to landing</a>
+            </div>
+            </div>
+
+            <!-- Registration: Find Profile -->
+            <div id="registrationForm" class="login-section">
+                <h2>Find Your Profile</h2>
+                <p>Search by SAS ID or Name & Surname</p>
+                <form id="searchProfileForm" onsubmit="handleProfileSearch(event)">
+                    <div class="form-group">
+                        <label for="searchInput">SAS ID or Name & Surname</label>
+                        <input type="text" id="searchInput" placeholder="SAS ID or Name & Surname" required>
+                    </div>
+                    <div class="btn-group">
+                        <button type="submit" class="btn-login btn-primary">Search</button>
+                        <button type="button" class="btn-login btn-back" onclick="showInitialChoice()">Back</button>
+                    </div>
+                </form>
+                <div id="searchResults"></div>
+            </div>
+
+            <!-- Confirm Profile -->
+            <div id="confirmProfile" class="login-section">
+                <h2>Confirm Your Profile</h2>
+                <div id="profileDetails"></div>
+                <div class="btn-group" id="profileConfirmButtons">
+                    <button class="btn-login btn-primary" onclick="handleProfileConfirm('me', currentProfile?.sas_id || '')">This is me</button>
+                    <button class="btn-login btn-secondary" onclick="handleProfileConfirm('child', currentProfile?.sas_id || '')">This is my child / family member</button>
+                    <button class="btn-login btn-back" onclick="showRegistrationForm()">Not me</button>
+                </div>
+            </div>
+
+            <!-- Relationship Form -->
+            <div id="relationshipForm" class="login-section">
+                <h2>Relationship</h2>
+                <form id="relationshipFormElement" onsubmit="handleRelationshipSubmit(event)">
+                    <div class="form-group">
+                        <label for="relationshipSelect">Relationship</label>
+                        <select id="relationshipSelect" required>
+                            <option value="">Select relationship</option>
+                            <option value="parent">Parent / Guardian</option>
+                            <option value="child">Child</option>
+                            <option value="sibling">Sibling</option>
+                            <option value="grandparent">Grandparent</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="consentCheckbox" required>
+                            I have consent to manage this profile
+                        </label>
+                    </div>
+                    <div class="btn-group">
+                        <button type="submit" class="btn-login btn-primary">Continue</button>
+                        <button type="button" class="btn-login btn-back" onclick="showConfirmProfile()">Back</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Registration Data Form (Email, WhatsApp, Password) -->
+            <div id="registrationDataForm" class="login-section">
+                <h2>Complete Your Registration</h2>
+                <p style="color: #666; margin-bottom: 1rem; font-size: 0.9rem;">Please provide the following information to complete your account setup:</p>
+                
+                <form id="regDataForm" onsubmit="handleRegistrationData(event)">
+                    <div class="form-group">
+                        <label for="regEmail">Email Address <span style="color: red;">*</span></label>
+                        <input type="email" id="regEmail" name="email" required 
+                               placeholder="Email address"
+                               oninput="validateRegistrationEmail()">
+                        <div id="reg-email-error" style="margin-top: 0.4rem; font-size: 0.75rem; color: #dc3545; display: none;">
+                            Not valid email address
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="regPassword">Password <span style="color: red;">*</span></label>
+                        <input type="password" id="regPassword" name="password" required 
+                               placeholder="Enter password" oninput="validateRegistrationPassword()">
+                        <div id="reg-password-rules" style="margin-top: 0.4rem; font-size: 0.75rem; color: #666; line-height: 1.3;">
+                            <div id="reg-rule-length" style="color: #999;">✓ At least 7 characters</div>
+                            <div id="reg-rule-capital" style="color: #999;">✓ One capital letter</div>
+                            <div id="reg-rule-special" style="color: #999;">✓ One special character (#, @, !, etc.)</div>
+                            <div id="reg-rule-number" style="color: #999;">✓ One number</div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="regPasswordConfirm">Confirm Password <span style="color: red;">*</span></label>
+                        <input type="password" id="regPasswordConfirm" name="passwordConfirm" required 
+                               placeholder="Re-enter password" oninput="checkRegistrationPasswordMatch()">
+                        <div id="reg-password-match" style="margin-top: 0.4rem; font-size: 0.75rem; display: none;"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="regWhatsApp">WhatsApp Number <span style="color: red;">*</span></label>
+                        <input type="text" id="regWhatsApp" name="whatsapp" required 
+                               placeholder="082 123 4567" 
+                               oninput="formatRegistrationWhatsApp(this)">
+                        <div style="margin-top: 0.4rem; font-size: 0.75rem; color: #666;">
+                            Format: 082 123 4567 (10 digits)
+                        </div>
+                    </div>
+                    
+                    <div class="btn-group">
+                        <button type="submit" id="regSubmitBtn" class="btn-login btn-primary" disabled
+                                onclick="if(this.disabled) { event.preventDefault(); showError('Please complete all required fields correctly'); return false; }">
+                            Complete Registration
+                        </button>
+                        <button type="button" class="btn-login btn-back" onclick="showConfirmProfile()">Back</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Verification Options (kept for backward compatibility, but not used for new registrations) -->
+            <div id="verificationOptions" class="login-section" style="display: none;">
+                <h2>Verify Your Account</h2>
+                <p>Choose a verification method:</p>
+                <div class="btn-group">
+                    <button class="btn-login btn-google" onclick="handleGoogleVerification()">
+                        <svg class="btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                        </svg>
+                        Google
+                    </button>
+                    <button class="btn-login btn-facebook" onclick="handleFacebookVerification()">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                        </svg>
+                        Facebook
+                    </button>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="login-section">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading...</p>
+                </div>
+            </div>
+
+            <!-- Success State -->
+            <div id="successState" class="login-section">
+                <div class="success-message">
+                    <h3>Success!</h3>
+                    <p>Redirecting to SailingSA...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+        // API and redirects use same origin (works on Mac and cloud)
+        (function() {
+            window.API_BASE = window.location.origin;
+            window.BASE_URL = window.location.origin;
+        })();
+        // Redirect old legacy URL to canonical login (fixes mobile/cache going to /sailingsa/frontend/login.html)
+        (function() {
+            var p = (window.location.pathname || '');
+            if (p.indexOf('sailingsa/frontend') !== -1 || (p.indexOf('frontend') !== -1 && p.indexOf('login') !== -1)) {
+                window.location.replace((window.location.origin || '') + '/login.html' + (window.location.search || ''));
+                return;
+            }
+        })();
+        let currentProfile = null;
+        let registrationRelationship = null;
+
+        // Debug logging initialization
+        console.log('[DEBUG] login.html: Script loading...');
+        console.log('[DEBUG] login.html: Current URL:', window.location.href);
+        console.log('[DEBUG] login.html: API_BASE:', window.API_BASE || API_BASE);
+        
+        // Check if already logged in on page load
+        window.addEventListener('DOMContentLoaded', async function() {
+            console.log('[DEBUG] login.html: DOMContentLoaded fired');
+            try {
+                var params = new URLSearchParams(window.location.search);
+                var urlReturnTo = params.get('returnTo');
+                if (urlReturnTo) sessionStorage.setItem('auth_returnTo', urlReturnTo);
+            } catch (e) {}
+            // Load stored credentials and auto-populate
+            loadStoredCredentials();
+            
+            // Check for existing session
+            await checkExistingSession();
+            
+            // Try auto-login if credentials are stored and no valid session
+            await tryAutoLogin();
+        });
+        
+        // Toggle password visibility
+        function togglePasswordVisibility() {
+            const passwordInput = document.getElementById('passwordInput');
+            const showPasswordCheckbox = document.getElementById('showPasswordCheckbox');
+            if (passwordInput && showPasswordCheckbox) {
+                passwordInput.type = showPasswordCheckbox.checked ? 'text' : 'password';
+            }
+        }
+        
+        // Make function globally accessible
+        window.togglePasswordVisibility = togglePasswordVisibility;
+        
+        // Store credentials in localStorage
+        function storeCredentials(username, password) {
+            const rememberCredentials = document.getElementById('rememberCredentials');
+            if (rememberCredentials && rememberCredentials.checked) {
+                try {
+                    // Store credentials (in production, consider encrypting the password)
+                    localStorage.setItem('saved_username', username);
+                    localStorage.setItem('saved_password', password); // Note: In production, consider encryption
+                    localStorage.setItem('remember_credentials', 'true');
+                    console.log('[DEBUG] Credentials stored in localStorage');
+                } catch (error) {
+                    console.error('[DEBUG] Failed to store credentials:', error);
+                }
+            } else {
+                // Clear stored credentials if "Remember" is unchecked
+                clearStoredCredentials();
+            }
+        }
+        
+        // Load stored credentials and populate form
+        function loadStoredCredentials() {
+            try {
+                const rememberCredentials = localStorage.getItem('remember_credentials');
+                if (rememberCredentials === 'true') {
+                    const savedUsername = localStorage.getItem('saved_username');
+                    const savedPassword = localStorage.getItem('saved_password');
+                    
+                    if (savedUsername && document.getElementById('usernameInput')) {
+                        document.getElementById('usernameInput').value = savedUsername;
+                    }
+                    
+                    if (savedPassword && document.getElementById('passwordInput')) {
+                        document.getElementById('passwordInput').value = savedPassword;
+                    }
+                    
+                    // Check the "Remember credentials" checkbox
+                    const rememberCheckbox = document.getElementById('rememberCredentials');
+                    if (rememberCheckbox) {
+                        rememberCheckbox.checked = true;
+                    }
+                    
+                    console.log('[DEBUG] Stored credentials loaded and populated');
+                }
+            } catch (error) {
+                console.error('[DEBUG] Failed to load stored credentials:', error);
+            }
+        }
+        
+        // Clear stored credentials
+        function clearStoredCredentials() {
+            try {
+                localStorage.removeItem('saved_username');
+                localStorage.removeItem('saved_password');
+                localStorage.removeItem('remember_credentials');
+                console.log('[DEBUG] Stored credentials cleared');
+            } catch (error) {
+                console.error('[DEBUG] Failed to clear stored credentials:', error);
+            }
+        }
+        
+        // Try auto-login with stored credentials
+        async function tryAutoLogin() {
+            try {
+                // Check if we should try auto-login (only if credentials are stored)
+                const rememberCredentials = localStorage.getItem('remember_credentials');
+                if (rememberCredentials !== 'true') {
+                    return; // Don't auto-login if credentials aren't stored
+                }
+                
+                const savedUsername = localStorage.getItem('saved_username');
+                const savedPassword = localStorage.getItem('saved_password');
+                
+                if (!savedUsername || !savedPassword) {
+                    return; // No stored credentials
+                }
+                
+                // Check if there's already a valid session
+                const session = await checkSession();
+                if (session && session.valid) {
+                    console.log('[DEBUG] Valid session exists, skipping auto-login');
+                    return;
+                }
+                
+                console.log('[DEBUG] Attempting auto-login with stored credentials');
+                
+                // Try to login with stored credentials
+                const result = await loginWithUsernamePassword(savedUsername, savedPassword);
+                
+                if (result.success) {
+                    console.log('[DEBUG] Auto-login successful');
+                    storeSession(result.session || result.session_token);
+                    redirectToLandingPage();
+                } else {
+                    console.log('[DEBUG] Auto-login failed:', result.error);
+                    // Clear invalid credentials
+                    clearStoredCredentials();
+                }
+            } catch (error) {
+                console.error('[DEBUG] Auto-login error:', error);
+                // Clear credentials on error
+                clearStoredCredentials();
+            }
+        }
+
+        function storeSession(sessionToken) {
+            // Store session token in cookie and localStorage
+            if (sessionToken) {
+                document.cookie = `session=${sessionToken}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
+                localStorage.setItem('session', sessionToken);
+                console.log('[DEBUG] Session stored:', sessionToken);
+            }
+        }
+        
+        function clearSession() {
+            // Clear session from cookie and localStorage
+            document.cookie = "session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+            localStorage.removeItem('session');
+            console.log('[DEBUG] Session cleared');
+        }
+        
+        async function checkExistingSession() {
+            try {
+                // Check for session in URL parameter first (from Facebook redirect)
+                const urlParams = new URLSearchParams(window.location.search);
+                const sessionToken = urlParams.get('session');
+                
+                if (sessionToken) {
+                    // New session from redirect - store it
+                    storeSession(sessionToken);
+                    // Remove from URL
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    // Check if valid and redirect
+                    const session = await checkSession();
+                    if (session && session.valid) {
+                        redirectToLandingPage();
+                        return;
+                    }
+                }
+                
+                // Check existing session from cookie/storage
+                const existingToken = document.cookie.split('; ').find(row => row.startsWith('session='))?.split('=')[1] || localStorage.getItem('session');
+                
+                if (existingToken) {
+                    // Check if session is still valid
+                    const session = await checkSession();
+                    if (session && session.valid) {
+                        redirectToLandingPage();
+                        return;
+                    } else {
+                        // Session expired or invalid - clear it
+                        clearSession();
+                    }
+                }
+                
+                // No valid session - show login form
+                console.log('[DEBUG] No valid session, showing login form');
+            } catch (error) {
+                console.warn('[DEBUG] Session check failed:', error);
+                // On error, clear any stored session and show login form
+                clearSession();
+            }
+        }
+
+        function showSection(sectionId) {
+            console.log('[DEBUG] showSection: Showing section:', sectionId);
+            document.querySelectorAll('.login-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            const section = document.getElementById(sectionId);
+            if (section) {
+                section.classList.add('active');
+                console.log('[DEBUG] showSection: Section', sectionId, 'is now active');
+            } else {
+                console.error('[DEBUG] showSection: Section', sectionId, 'not found!');
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.classList.add('show');
+            setTimeout(() => errorDiv.classList.remove('show'), 5000);
+        }
+
+        function showInitialChoice() {
+            showSection('initialChoice');
+        }
+
+        function showLoginOptions() {
+            showSection('loginOptions');
+        }
+
+        function showUsernamePasswordLogin() {
+            showSection('usernamePasswordLogin');
+        }
+
+        function showRegistrationForm(e) {
+            if (e) e.preventDefault();
+            showSection('registrationForm');
+        }
+
+        function handleForgotPassword(e) {
+            e.preventDefault();
+            // TODO: Implement forgot password flow
+            showError('Content for this section is currently being expanded.');
+        }
+
+        function showConfirmProfile() {
+            showSection('confirmProfile');
+        }
+
+        function showRelationshipForm() {
+            showSection('relationshipForm');
+        }
+
+        function showVerificationOptions() {
+            showSection('verificationOptions');
+        }
+
+        function showLoading() {
+            showSection('loadingState');
+        }
+        
+        function hideLoading() {
+            // Hide loading by showing the appropriate section
+            // Don't hide if we're about to show another section
+        }
+
+        function showSuccess() {
+            showSection('successState');
+            setTimeout(() => {
+                redirectToLandingPage();
+            }, 2000);
+        }
+        
+        function hideError() {
+            const errorDiv = document.getElementById('errorMessage');
+            if (errorDiv) {
+                errorDiv.classList.remove('show');
+                errorDiv.textContent = '';
+            }
+        }
+
+        function goBackToReturnUrl() {
+            var returnTo = null;
+            try {
+                returnTo = sessionStorage.getItem('auth_returnTo');
+                if (!returnTo && typeof URLSearchParams !== 'undefined') {
+                    var params = new URLSearchParams(window.location.search);
+                    returnTo = params.get('returnTo') || null;
+                }
+            } catch (err) {}
+            try { sessionStorage.removeItem('auth_returnTo'); } catch (e) {}
+            var target = returnTo;
+            if (target) {
+                try {
+                    var u = new URL(target);
+                    if (u.origin !== window.location.origin) target = null;
+                } catch (err) { target = null; }
+            }
+            if (!target) {
+                var ref = document.referrer;
+                if (ref && (ref.indexOf('login') === -1)) target = ref;
+            }
+            if (!target) {
+                target = window.location.origin + '/index.html';
+            }
+            window.location.replace(target);
+        }
+
+        function redirectToLandingPage() {
+            console.log('[DEBUG] redirectToLandingPage: Called');
+            try { sessionStorage.removeItem('auth_returnTo'); } catch (e) {}
+            const landingUrl = window.location.origin + '/index.html';
+            console.log('[DEBUG] redirectToLandingPage: Redirecting to:', landingUrl);
+            window.location.replace(landingUrl);
+        }
+
+        // Login functions
+        function loginWithGoogle() {
+            // Google login not yet active; button is disabled, no-op to avoid any error flash
+            return;
+        }
+
+        function loginWithFacebook() {
+            console.log('[DEBUG] loginWithFacebook() function called');
+            try {
+                const oauthUrl = window.location.origin + '/auth/facebook';
+                console.log('[DEBUG] Redirecting to:', oauthUrl);
+                window.location.href = oauthUrl;
+            } catch (error) {
+                console.error('[ERROR] Failed to redirect:', error);
+                showError('Failed to start Facebook login. Please try again.');
+            }
+        }
+        
+        // Make function globally accessible for onclick handlers
+        window.loginWithFacebook = loginWithFacebook;
+
+
+        async function handleUsernamePasswordLogin(e) {
+            e.preventDefault();
+            const username = document.getElementById('usernameInput').value.trim();
+            const password = document.getElementById('passwordInput').value;
+
+            if (!username || !password) {
+                showError('Please enter both WhatsApp No or SAS ID and password');
+                return;
+            }
+
+            // Store credentials if "Remember" is checked
+            storeCredentials(username, password);
+
+            // Auto-detect if input is SAS ID (numeric) or WhatsApp number (starts with +)
+            // The backend will handle the lookup
+
+            showLoading();
+
+            try {
+                console.log('[DEBUG] handleUsernamePasswordLogin: Calling loginWithUsernamePassword');
+                const result = await loginWithUsernamePassword(username, password);
+                console.log('[DEBUG] handleUsernamePasswordLogin: Login result:', result);
+
+                if (result.success) {
+                    console.log('[DEBUG] handleUsernamePasswordLogin: Login successful, storing session');
+                    storeSession(result.session || result.session_token);
+                    console.log('[DEBUG] handleUsernamePasswordLogin: Session stored, showing success');
+                    showSuccess();
+                } else {
+                    console.error('[DEBUG] handleUsernamePasswordLogin: Login failed:', result.error);
+                    showError(result.error || 'Login failed. Please check your credentials.');
+                }
+            } catch (error) {
+                console.error('[DEBUG] handleUsernamePasswordLogin: Exception caught:', error);
+                console.error('[DEBUG] handleUsernamePasswordLogin: Stack trace:', error.stack);
+                showError('Login failed. Please try again.');
+            }
+        }
+
+        // Registration functions
+        async function handleProfileSearch(e) {
+            e.preventDefault();
+            const query = document.getElementById('searchInput').value.trim();
+
+            if (!query) {
+                showError('Please enter a SAS ID or Name & Surname');
+                return;
+            }
+
+            console.log('[DEBUG] handleProfileSearch: Starting search with query:', query);
+            showLoading();
+            hideError();
+
+            try {
+                const results = await searchProfiles(query);
+                console.log('[DEBUG] handleProfileSearch: Search results:', results);
+                console.log('[DEBUG] handleProfileSearch: Results length:', results ? results.length : 0);
+                console.log('[DEBUG] handleProfileSearch: First result:', results && results.length > 0 ? results[0] : 'none');
+
+                // Hide loading before showing results
+                const loadingSection = document.getElementById('loadingState');
+                if (loadingSection) {
+                    loadingSection.classList.remove('active');
+                }
+
+                if (!results || results.length === 0) {
+                    console.log('[DEBUG] handleProfileSearch: No results, showing error');
+                    showError('No profiles found. Please try again or create a new account.');
+                    showRegistrationForm();
+                } else if (results.length === 1) {
+                    currentProfile = results[0];
+                    console.log('[DEBUG] handleProfileSearch: Single result found, displaying confirmation');
+                    console.log('[DEBUG] handleProfileSearch: Profile data:', JSON.stringify(currentProfile, null, 2));
+                    displayProfileConfirmation(currentProfile);
+                } else {
+                    console.log('[DEBUG] handleProfileSearch: Multiple results found, displaying list');
+                    displayProfileResults(results);
+                }
+            } catch (error) {
+                console.error('[DEBUG] handleProfileSearch: Search failed:', error);
+                console.error('[DEBUG] handleProfileSearch: Error details:', error.message, error.stack);
+                
+                // Hide loading on error
+                const loadingSection = document.getElementById('loadingState');
+                if (loadingSection) {
+                    loadingSection.classList.remove('active');
+                }
+                
+                showError('Search failed. Please try again.');
+                showRegistrationForm();
+            }
+        }
+
+        function displayProfileConfirmation(profile) {
+            console.log('[DEBUG] displayProfileConfirmation: Called with profile:', profile);
+            currentProfile = profile;
+            
+            // Check if profile already has a login account
+            if (profile.has_existing_login) {
+                console.log('[DEBUG] displayProfileConfirmation: Profile has existing login, showing message');
+                displayExistingAccountMessage(profile);
+                return;
+            }
+            
+            console.log('[DEBUG] displayProfileConfirmation: Profile does not have existing login, showing confirmation');
+            const detailsDiv = document.getElementById('profileDetails');
+            
+            // Get name - handle both API formats
+            const fullName = profile.full_name || 
+                           (profile.first_name && profile.last_name ? `${profile.first_name} ${profile.last_name}` : '') ||
+                           (profile.firstName && profile.surname ? `${profile.firstName} ${profile.surname}` : '') ||
+                           'Name not available';
+            
+            // Get SAS ID - handle both formats
+            const sasId = profile.sas_id || profile.sasId || 'N/A';
+            
+            // Format age - show "15/15" when only year of birth available
+            let ageDisplay = '';
+            if (profile.age !== undefined && profile.age !== null) {
+                if (profile.year_of_birth && !profile.date_of_birth) {
+                    // Only year of birth - show as "15/15" format
+                    const currentYear = new Date().getFullYear();
+                    const age = currentYear - profile.year_of_birth;
+                    ageDisplay = `${age}/${age + 1}`;
+                } else {
+                    // Exact age available
+                    ageDisplay = String(profile.age);
+                }
+            } else if (profile.year_of_birth) {
+                // Calculate from year of birth
+                const currentYear = new Date().getFullYear();
+                const age = currentYear - profile.year_of_birth;
+                ageDisplay = `${age}/${age + 1}`;
+            }
+            
+            // Format classes - show all classes in compact format (smaller, one line, first 3 words of regatta)
+            let classesHtml = '';
+            if (profile.classes && Array.isArray(profile.classes) && profile.classes.length > 0) {
+                classesHtml = '<div class="classes-list"><strong>Classes:</strong>';
+                profile.classes.forEach(cls => {
+                    const className = cls.class_name || cls.class || '';
+                    const count = cls.count || 0;
+                    const lastDate = cls.last_date ? new Date(cls.last_date).toLocaleDateString('en-GB') : '';
+                    const classId = cls.class_id != null && cls.class_id !== '' ? cls.class_id : null;
+                    const slug = (className || '').toString().toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+                    const classDisplay = classId && slug ? `<a href="/class/${classId}-${encodeURIComponent(slug)}">${(className || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')}</a>` : (className || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                    
+                    // Truncate regatta name to first 3 words only
+                    let regattaName = cls.last_event || '';
+                    if (regattaName) {
+                        const words = regattaName.trim().split(/\s+/).filter(w => w.length > 0);
+                        if (words.length > 3) {
+                            regattaName = words.slice(0, 3).join(' ');
+                        }
+                    }
+                    
+                    // Compact one-line format with smaller font
+                    classesHtml += `
+                        <div class="class-item" style="font-size: 0.7rem; line-height: 1.2; padding: 0.25rem 0.3rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            <strong>${classDisplay}</strong>${count > 0 ? ` (X${count})` : ''}${lastDate ? ` - Last: ${lastDate}` : ''}${regattaName ? ` - ${regattaName}` : ''}
+                        </div>
+                    `;
+                });
+                classesHtml += '</div>';
+            } else {
+                classesHtml = '<div class="classes-list"><strong>Classes:</strong> N/A</div>';
+            }
+            
+            // Display format matching the image (light purple box with detailed classes)
+            detailsDiv.innerHTML = `
+                <div style="padding: 1rem; background: #f0e6ff; border: 2px solid #6B2C91; border-radius: 8px; margin-bottom: 1rem;">
+                    <div style="color: #6B2C91; font-size: 1.1rem; font-weight: bold; margin-bottom: 0.5rem;">${fullName}</div>
+                    <div style="margin: 0.25rem 0;"><strong>SAS ID:</strong> ${sasId}</div>
+                    ${ageDisplay ? `<div style="margin: 0.25rem 0;"><strong>Age:</strong> ${ageDisplay}</div>` : ''}
+                    ${classesHtml}
+                </div>
+            `;
+            console.log('[DEBUG] displayProfileConfirmation: Profile HTML set, showing confirm section');
+            showConfirmProfile();
+        }
+        
+        function displayExistingAccountMessage(profile) {
+            console.log('[DEBUG] displayExistingAccountMessage: Called with profile:', profile);
+            const detailsDiv = document.getElementById('profileDetails');
+            if (!detailsDiv) {
+                console.error('[DEBUG] displayExistingAccountMessage: profileDetails div not found!');
+                return;
+            }
+            
+            const fullName = profile.full_name || 
+                           (profile.first_name && profile.last_name ? `${profile.first_name} ${profile.last_name}` : '') ||
+                           'Name not available';
+            const sasId = profile.sas_id || profile.sasId || 'N/A';
+            
+            detailsDiv.innerHTML = `
+                <div style="padding: 1.5rem; background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; margin-bottom: 1rem; text-align: center;">
+                    <h3 style="margin: 0 0 1rem 0; color: #856404;">You seem to have a profile already</h3>
+                    <p style="margin: 0.5rem 0; color: #856404;"><strong>${fullName}</strong></p>
+                    <p style="margin: 0.5rem 0; color: #856404;">SAS ID: ${sasId}</p>
+                    <p style="margin: 1rem 0 0 0; color: #856404;">Is this you?</p>
+                    <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1rem;">
+                        <button class="btn-login btn-primary" onclick="redirectToLogin()" style="padding: 0.75rem 2rem;">Yes</button>
+                        <button class="btn-login btn-back" onclick="showRegistrationForm()" style="padding: 0.75rem 2rem;">No</button>
+                    </div>
+                </div>
+            `;
+            console.log('[DEBUG] displayExistingAccountMessage: HTML set, showing confirm section');
+            showConfirmProfile();
+        }
+        
+        function redirectToLogin() {
+            window.location.href = (window.location.origin || '') + '/login.html';
+        }
+
+        function displayProfileResults(results) {
+            console.log('[DEBUG] displayProfileResults: Called with', results.length, 'results');
+            
+            // Hide loading
+            const loadingSection = document.getElementById('loadingState');
+            if (loadingSection) {
+                loadingSection.classList.remove('active');
+            }
+            
+            // Show registration form section (which contains searchResults)
+            showRegistrationForm();
+            
+            const resultsDiv = document.getElementById('searchResults');
+            if (!resultsDiv) {
+                console.error('[DEBUG] displayProfileResults: searchResults div not found!');
+                return;
+            }
+            
+            resultsDiv.innerHTML = '<h3>Select your profile:</h3>';
+            
+            results.forEach((profile, index) => {
+                console.log(`[DEBUG] displayProfileResults: Processing result ${index}:`, profile);
+                
+                // Get name - handle both API formats
+                const fullName = profile.full_name || 
+                               (profile.first_name && profile.last_name ? `${profile.first_name} ${profile.last_name}` : '') ||
+                               (profile.firstName && profile.surname ? `${profile.firstName} ${profile.surname}` : '') ||
+                               'Name not available';
+                
+                // Get SAS ID
+                const sasId = profile.sas_id || profile.sasId || 'N/A';
+                
+                // Format classes - show all classes
+                let classesDisplay = 'N/A';
+                if (profile.classes && Array.isArray(profile.classes) && profile.classes.length > 0) {
+                    const classNames = profile.classes.map(cls => {
+                        const className = cls.class_name || cls.class || '';
+                        const count = cls.count || 0;
+                        return count > 0 ? `${className} (${count})` : className;
+                    }).filter(Boolean);
+                    classesDisplay = classNames.length > 0 ? classNames.join(', ') : 'N/A';
+                } else if (profile.class) {
+                    classesDisplay = profile.class;
+                }
+                
+                const div = document.createElement('div');
+                div.style.cssText = 'padding: 1rem; margin: 0.5rem 0; background: #f5f5f5; border-radius: 8px; cursor: pointer;';
+                div.innerHTML = `
+                    <p><strong>${fullName}</strong></p>
+                    <p>SAS ID: ${sasId}</p>
+                    <p>Class: ${classesDisplay}</p>
+                `;
+                div.onclick = () => {
+                    console.log('[DEBUG] displayProfileResults: Profile clicked:', profile);
+                    displayProfileConfirmation(profile);
+                };
+                resultsDiv.appendChild(div);
+            });
+            
+            console.log('[DEBUG] displayProfileResults: Finished displaying', results.length, 'results');
+        }
+
+        function handleThisIsMe() {
+            // This function is kept for backward compatibility but now uses handleProfileConfirm
+            handleProfileConfirm('me', currentProfile?.sas_id || '');
+        }
+
+        function handleProfileConfirm(relationship, sasId) {
+            console.log('[DEBUG] handleProfileConfirm: Called with', { relationship, sasId });
+            
+            if (!currentProfile && sasId) {
+                // If we have sasId but no currentProfile, try to use it
+                currentProfile = { sas_id: sasId };
+            }
+            
+            if (!currentProfile) {
+                showError('No profile selected. Please try again.');
+                return;
+            }
+            
+            // Set relationship
+            registrationRelationship = relationship === 'me' ? 'self' : relationship;
+            
+            // If "This is me", skip relationship form and go straight to registration data
+            if (relationship === 'me') {
+                console.log('[DEBUG] handleProfileConfirm: This is me - showing registration data form');
+                showRegistrationDataForm();
+            } else {
+                // For child/family member, show relationship form first
+                console.log('[DEBUG] handleProfileConfirm: Child/family - showing relationship form');
+                showRelationshipForm();
+            }
+        }
+
+        function showRegistrationDataForm() {
+            console.log('[DEBUG] showRegistrationDataForm: Showing registration data form');
+            showSection('registrationDataForm');
+            
+            // Reset form
+            const form = document.getElementById('regDataForm');
+            if (form) {
+                form.reset();
+            }
+            
+            // Reset submit button state
+            const submitBtn = document.getElementById('regSubmitBtn');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+            }
+            
+            // Clear any validation messages
+            const matchDiv = document.getElementById('reg-password-match');
+            if (matchDiv) {
+                matchDiv.style.display = 'none';
+            }
+            
+            // Clear email error message
+            const emailErrorDiv = document.getElementById('reg-email-error');
+            if (emailErrorDiv) {
+                emailErrorDiv.style.display = 'none';
+            }
+            
+            // Reset email field border
+            const emailInput = document.getElementById('regEmail');
+            if (emailInput) {
+                emailInput.style.borderColor = '#ddd';
+            }
+            
+            // Reset password rule colors
+            const rules = ['reg-rule-length', 'reg-rule-capital', 'reg-rule-special', 'reg-rule-number'];
+            rules.forEach(ruleId => {
+                const rule = document.getElementById(ruleId);
+                if (rule) {
+                    rule.style.color = '#999';
+                }
+            });
+            
+            // Trigger initial validation check after a short delay to ensure DOM is ready
+            setTimeout(() => {
+                updateRegistrationSubmitButton();
+            }, 100);
+        }
+
+        function handleRelationshipSubmit(e) {
+            e.preventDefault();
+            const relationship = document.getElementById('relationshipSelect').value;
+            const consent = document.getElementById('consentCheckbox').checked;
+
+            if (!consent) {
+                showError('You must provide consent to manage this profile');
+                return;
+            }
+
+            registrationRelationship = relationship;
+            console.log('[DEBUG] handleRelationshipSubmit: Setting relationship to', relationship, ', showing registration form');
+            showRegistrationDataForm();
+        }
+
+        function validateRegistrationEmail() {
+            const email = document.getElementById('regEmail')?.value || '';
+            const errorDiv = document.getElementById('reg-email-error');
+            const emailInput = document.getElementById('regEmail');
+            
+            // Check if email is valid
+            const isValid = isValidEmail(email);
+            
+            if (errorDiv) {
+                if (email.length > 0 && !isValid) {
+                    errorDiv.style.display = 'block';
+                    if (emailInput) {
+                        emailInput.style.borderColor = '#dc3545';
+                    }
+                } else {
+                    errorDiv.style.display = 'none';
+                    if (emailInput) {
+                        emailInput.style.borderColor = isValid && email.length > 0 ? '#28a745' : '#ddd';
+                    }
+                }
+            }
+            
+            updateRegistrationSubmitButton();
+        }
+        
+        function isValidEmail(email) {
+            if (!email || email.length === 0) {
+                return false;
+            }
+            
+            // Cannot be numbers only
+            if (/^\d+$/.test(email)) {
+                return false;
+            }
+            
+            // Must contain @
+            if (!email.includes('@')) {
+                return false;
+            }
+            
+            // Must contain at least one .
+            if (!email.includes('.')) {
+                return false;
+            }
+            
+            // @ must not be at start or end
+            const atIndex = email.indexOf('@');
+            if (atIndex === 0 || atIndex === email.length - 1) {
+                return false;
+            }
+            
+            // . must come after @
+            const dotIndex = email.lastIndexOf('.');
+            if (dotIndex <= atIndex) {
+                return false;
+            }
+            
+            // Must have characters before @
+            if (email.substring(0, atIndex).trim().length === 0) {
+                return false;
+            }
+            
+            // Must have characters between @ and .
+            if (email.substring(atIndex + 1, dotIndex).trim().length === 0) {
+                return false;
+            }
+            
+            // Must have characters after last .
+            if (email.substring(dotIndex + 1).trim().length === 0) {
+                return false;
+            }
+            
+            // Basic email regex pattern
+            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailPattern.test(email)) {
+                return false;
+            }
+            
+            return true;
+        }
+        
+        function validateRegistrationPassword() {
+            const password = document.getElementById('regPassword')?.value || '';
+            const rules = {
+                length: password.length >= 7,
+                capital: /[A-Z]/.test(password),
+                special: /[#@!$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password),
+                number: /[0-9]/.test(password)
+            };
+            
+            const ruleLength = document.getElementById('reg-rule-length');
+            const ruleCapital = document.getElementById('reg-rule-capital');
+            const ruleSpecial = document.getElementById('reg-rule-special');
+            const ruleNumber = document.getElementById('reg-rule-number');
+            
+            if (ruleLength) ruleLength.style.color = rules.length ? '#28a745' : '#999';
+            if (ruleCapital) ruleCapital.style.color = rules.capital ? '#28a745' : '#999';
+            if (ruleSpecial) ruleSpecial.style.color = rules.special ? '#28a745' : '#999';
+            if (ruleNumber) ruleNumber.style.color = rules.number ? '#28a745' : '#999';
+            
+            checkRegistrationPasswordMatch();
+            updateRegistrationSubmitButton();
+        }
+        
+        function checkRegistrationPasswordMatch() {
+            const password = document.getElementById('regPassword')?.value || '';
+            const confirm = document.getElementById('regPasswordConfirm')?.value || '';
+            const matchDiv = document.getElementById('reg-password-match');
+            
+            if (!matchDiv) return;
+            
+            if (confirm.length === 0) {
+                matchDiv.style.display = 'none';
+                return;
+            }
+            
+            matchDiv.style.display = 'block';
+            if (password === confirm) {
+                matchDiv.textContent = '✓ Passwords match';
+                matchDiv.style.color = '#28a745';
+            } else {
+                matchDiv.textContent = '✗ Passwords do not match';
+                matchDiv.style.color = '#dc3545';
+            }
+            
+            updateRegistrationSubmitButton();
+        }
+        
+        function formatRegistrationWhatsApp(input) {
+            // Remove all non-digits
+            let value = input.value.replace(/\D/g, '');
+            
+            // Limit to 10 digits
+            if (value.length > 10) {
+                value = value.substring(0, 10);
+            }
+            
+            // Format as 082 123 4567
+            if (value.length >= 3) {
+                value = value.substring(0, 3) + ' ' + value.substring(3);
+            }
+            if (value.length >= 7) {
+                value = value.substring(0, 7) + ' ' + value.substring(7);
+            }
+            
+            input.value = value;
+            updateRegistrationSubmitButton();
+        }
+        
+        function updateRegistrationSubmitButton() {
+            const password = document.getElementById('regPassword')?.value || '';
+            const confirm = document.getElementById('regPasswordConfirm')?.value || '';
+            const whatsapp = document.getElementById('regWhatsApp')?.value || '';
+            const email = document.getElementById('regEmail')?.value || '';
+            
+            console.log('[DEBUG] updateRegistrationSubmitButton: Current values:', {
+                passwordLength: password.length,
+                confirmLength: confirm.length,
+                whatsapp: whatsapp,
+                email: email
+            });
+            
+            const passwordValid = password.length >= 7 &&
+                                 /[A-Z]/.test(password) &&
+                                 /[#@!$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password) &&
+                                 /[0-9]/.test(password) &&
+                                 password === confirm;
+            
+            const whatsappValid = whatsapp.replace(/\D/g, '').length === 10;
+            // Use the same email validation function
+            const emailValid = isValidEmail(email);
+            
+            const allValid = passwordValid && whatsappValid && emailValid;
+            
+            console.log('[DEBUG] updateRegistrationSubmitButton: Validation results:', {
+                passwordValid,
+                whatsappValid,
+                emailValid,
+                allValid: allValid
+            });
+            
+            const submitBtn = document.getElementById('regSubmitBtn');
+            if (submitBtn) {
+                const wasDisabled = submitBtn.disabled;
+                submitBtn.disabled = !allValid;
+                console.log('[DEBUG] updateRegistrationSubmitButton: Button state changed from', wasDisabled, 'to', submitBtn.disabled, '(disabled=' + submitBtn.disabled + ', allValid=' + allValid + ')');
+            } else {
+                console.error('[DEBUG] updateRegistrationSubmitButton: Submit button not found!');
+            }
+        }
+        
+        async function handleRegistrationData(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            console.log('[DEBUG] handleRegistrationData: Called');
+            
+            // Double-check button state
+            const submitBtn = document.getElementById('regSubmitBtn');
+            if (submitBtn && submitBtn.disabled) {
+                console.warn('[DEBUG] handleRegistrationData: Button is disabled, preventing submission');
+                showError('Please complete all required fields correctly');
+                return;
+            }
+            
+            if (!currentProfile) {
+                showError('No profile selected. Please try again.');
+                return;
+            }
+            
+            const email = document.getElementById('regEmail')?.value || '';
+            const password = document.getElementById('regPassword')?.value || '';
+            const whatsapp = document.getElementById('regWhatsApp')?.value || '';
+            const whatsappDigits = whatsapp.replace(/\D/g, '');
+            
+            console.log('[DEBUG] handleRegistrationData: Form values:', {
+                email,
+                passwordLength: password.length,
+                whatsapp,
+                whatsappDigits,
+                sasId: currentProfile.sas_id,
+                relationship: registrationRelationship || 'self'
+            });
+            
+            // Validate
+            if (password.length < 7 || !/[A-Z]/.test(password) || !/[#@!$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password) || !/[0-9]/.test(password)) {
+                showError('Password does not meet requirements');
+                return;
+            }
+            
+            if (whatsappDigits.length !== 10) {
+                showError('WhatsApp number must be 10 digits');
+                return;
+            }
+            
+            if (!isValidEmail(email)) {
+                showError('Please enter a valid email address');
+                return;
+            }
+            
+            if (!currentProfile.sas_id) {
+                showError('No SAS ID selected. Please try again.');
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                // Call API to create account (same as Facebook but without Facebook ID)
+                const API_BASE = window.location.origin;
+                
+                console.log('[DEBUG] handleRegistrationData: Calling API:', `${API_BASE}/api/register-account`);
+                
+                const response = await fetch(`${API_BASE}/api/register-account`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        sas_id: currentProfile.sas_id,
+                        relationship: registrationRelationship || 'self',
+                        email: email,
+                        password: password,
+                        whatsapp: whatsappDigits
+                    })
+                });
+                
+                console.log('[DEBUG] handleRegistrationData: Response status:', response.status);
+                const data = await response.json();
+                console.log('[DEBUG] handleRegistrationData: Response data:', data);
+                
+                if (data.error) {
+                    showError(data.error);
+                    return;
+                }
+                
+                if (data.success) {
+                    // Store session and redirect
+                    if (data.session_token) {
+                        storeSession(data.session_token);
+                    }
+                    showSuccess();
+                } else {
+                    showError('Registration failed. Please try again.');
+                }
+            } catch (error) {
+                console.error('[DEBUG] handleRegistrationData: Error:', error);
+                showError('Failed to complete registration. Please try again.');
+            }
+        }
+
+        function handleEmailVerification() {
+            // TODO: Implement email verification
+            showError('Content for this section is currently being expanded.');
+        }
+
+        function handleGoogleVerification() {
+            // TODO: Implement Google OAuth for registration
+            showError('Content for this section is currently being expanded.');
+        }
+
+        function handleFacebookVerification() {
+            // Use same Facebook login flow for registration
+            console.log('[DEBUG] handleFacebookVerification() function called');
+            loginWithFacebook();
+        }
+
+        // Make functions globally accessible
+        window.handleProfileConfirm = handleProfileConfirm;
+        window.showRegistrationDataForm = showRegistrationDataForm;
+        window.validateRegistrationEmail = validateRegistrationEmail;
+        window.isValidEmail = isValidEmail;
+        window.validateRegistrationPassword = validateRegistrationPassword;
+        window.checkRegistrationPasswordMatch = checkRegistrationPasswordMatch;
+        window.formatRegistrationWhatsApp = formatRegistrationWhatsApp;
+        window.updateRegistrationSubmitButton = updateRegistrationSubmitButton;
+    </script>
+</body>
+</html>

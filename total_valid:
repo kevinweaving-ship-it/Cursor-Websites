@@ -1,0 +1,26 @@
+Timing is off.
+ sa_ids_total 
+--------------
+        27700
+(1 row)
+
+ min_id | max_id 
+--------+--------
+      1 |  27700
+(1 row)
+
+ gaps_1_to_max 
+---------------
+             0
+(1 row)
+
+ mismatches 
+------------
+          0
+(1 row)
+
+ counter_no | max_sas 
+------------+---------
+      27746 |   27700
+(1 row)
+

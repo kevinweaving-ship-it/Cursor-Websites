@@ -1,0 +1,28 @@
+<!--
+  Public Mention Card — reusable stub for regatta and sailor public pages.
+  Used by: regatta public page (regatta-level mentions), sailor public page (inherited via participation).
+  Data: regatta-level only; sailors inherit at read time. No sailor-level storage.
+
+  Facebook handling (guardrails for future work):
+  - Facebook URLs may be stored only at regatta level.
+  - Only Facebook Pages allow engagement; Groups and personal profiles are record-only.
+  - No automated Facebook actions will ever be implemented.
+-->
+<template id="public-mention-card-tpl">
+  <article class="public-mention-card" data-mention-id="">
+    <!-- Optional thumbnail -->
+    <div class="public-mention-card__thumb" aria-hidden="true">
+      <img src="" alt="" width="120" height="90" loading="lazy" />
+    </div>
+    <!-- Content type icon (results / article / photo / video) -->
+    <span class="public-mention-card__icon" aria-hidden="true" data-content-type=""></span>
+    <div class="public-mention-card__body">
+      <!-- Title -->
+      <h3 class="public-mention-card__title"><a href="" target="_blank" rel="noopener noreferrer"></a></h3>
+      <!-- One-line context -->
+      <p class="public-mention-card__context"></p>
+      <!-- External link -->
+      <a class="public-mention-card__link" href="" target="_blank" rel="noopener noreferrer">View source</a>
+    </div>
+  </article>
+</template>

@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <base href="/">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png">
+    <title>Confirm Your Profile - SailingSA</title>
+    <link rel="stylesheet" href="css/main.css?v=15">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #e9edf3;
+            margin: 0;
+            padding: 10px;
+            min-height: 100vh;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            overflow-y: auto;
+        }
+        .confirm-container {
+            background: white;
+            border-radius: 12px;
+            padding: 1rem;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 18px 60px rgba(0,0,0,.45);
+            margin: 10px 0;
+        }
+        .confirm-header {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        .confirm-header h1 {
+            color: white;
+            margin: 0 0 0.5rem 0;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        .confirm-header p {
+            color: rgba(255,255,255,0.9);
+            margin: 0;
+            font-size: 0.9rem;
+        }
+        .flag-icon {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            background: white;
+            margin: 0 0.25rem;
+            vertical-align: middle;
+        }
+        .flag-icon-triangle {
+            display: inline-block;
+            width: 0;
+            height: 0;
+            border-left: 10px solid white;
+            border-top: 10px solid transparent;
+            border-bottom: 10px solid transparent;
+            margin: 0 0.25rem;
+            vertical-align: middle;
+        }
+        .profile-box {
+            background: #f8f9fa;
+            border: 2px solid #6B2C91;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .profile-name {
+            color: #6B2C91;
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 0.25rem;
+        }
+        .profile-detail {
+            margin: 0.25rem 0;
+            color: #333;
+            font-size: 0.9rem;
+        }
+        .profile-detail strong {
+            color: #6B2C91;
+        }
+        .classes-list {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #ddd;
+        }
+        .class-item {
+            margin: 0.25rem 0;
+            padding: 0.3rem;
+            background: white;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            line-height: 1.2;
+        }
+        .class-item strong {
+            color: #6B2C91;
+        }
+        .buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .btn {
+            padding: 0.75rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: #6B2C91;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #5a2474;
+        }
+        .btn-secondary {
+            background: white;
+            color: #6B2C91;
+            border: 2px solid #6B2C91;
+        }
+        .btn-secondary:hover {
+            background: #f8f9fa;
+        }
+        .btn-gray {
+            background: #e2e8f0;
+            color: #1a365d;
+            border: 1px solid #cbd5e0;
+        }
+        .btn-gray:hover {
+            background: #cbd5e0;
+        }
+        .loading {
+            text-align: center;
+            padding: 1rem;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-bottom: 0.75rem;
+            font-size: 0.9rem;
+        }
+        .close-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #999;
+        }
+        .close-btn:hover {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="confirm-container">
+        <div class="confirm-header" style="background: #1a365d; color: white; padding: 1.5rem; border-radius: 12px 12px 0 0; text-align: center; margin: -1rem -1rem 1rem -1rem;">
+            <h1 style="margin: 0 0 0.5rem 0; font-size: 1.5rem; color: white; font-weight: bold;">
+                <span>Sailing</span>
+                <span class="flag-icon"></span>
+                <span class="flag-icon-triangle"></span>
+                <span>Results</span>
+            </h1>
+            <p style="margin: 0; font-size: 0.9rem; color: rgba(255,255,255,0.9);">Access your personal sailing history here</p>
+        </div>
+        
+        <!-- Search Form (Initial State) -->
+        <div id="search-form-container">
+            <h2 style="color: #1a365d; margin-bottom: 0.5rem; font-size: 1.3rem; font-weight: bold;">Find Your Profile</h2>
+            <p style="color: #666; margin-bottom: 1.5rem; font-size: 0.9rem;">Search by SAS ID or Name & Surname</p>
+            
+            <form id="searchForm" onsubmit="return handleSearch(event)">
+                <div style="margin-bottom: 1rem;">
+                    <label for="searchInput" style="display: block; margin-bottom: 0.5rem; color: #1a365d; font-size: 0.9rem; font-weight: 500;">SAS ID or Name & Surname</label>
+                    <input type="text" id="searchInput" name="query" 
+                           style="width: 100%; padding: 0.75rem; border: 2px solid #cbd5e0; border-radius: 8px; font-size: 1rem; box-sizing: border-box; background: #e6f2ff;"
+                           placeholder="Enter SAS ID or Name & Surname" 
+                           autocomplete="off"
+                           value="">
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.875rem; font-size: 1rem; font-weight: bold;">
+                        Search
+                    </button>
+                    <button type="button" class="btn btn-gray" onclick="window.location.href='/login.html'" style="width: 100%; padding: 0.875rem; font-size: 1rem;">
+                        Back
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Loading State -->
+        <div id="loading" class="loading" style="display: none;">Searching for your profile...</div>
+        
+        <!-- Error State -->
+        <div id="error" class="error" style="display: none;"></div>
+        
+        <!-- Profile Results -->
+        <div id="profile-results" style="display: none;"></div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script>
+        console.log('[DEBUG] facebook-confirm.html: Script loading...');
+        
+        // Get URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const firstNames = urlParams.get('first_names') || urlParams.get('first_name');
+        const surname = urlParams.get('surname') || urlParams.get('last_name');
+        const facebookId = urlParams.get('facebook_id');
+        const facebookName = urlParams.get('facebook_name');
+        
+        console.log('[DEBUG] URL Parameters:', { firstNames, surname, facebookId, facebookName });
+        
+        // API same origin (works on Mac and cloud)
+        const API_BASE = window.location.origin;
+        
+        console.log('[DEBUG] API_BASE:', API_BASE);
+        
+        // Pre-fill search input with name from Facebook if available
+        if (facebookName) {
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.value = facebookName;
+            }
+        } else if (firstNames && surname) {
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.value = `${firstNames} ${surname}`;
+            }
+        }
+        
+        async function handleSearch(event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            
+            const searchInput = document.getElementById('searchInput');
+            const query = searchInput ? searchInput.value.trim() : '';
+            
+            console.log('[DEBUG] handleSearch: Query =', query);
+            
+            if (!query) {
+                showError('Please enter a SAS ID or Name & Surname');
+                document.getElementById('error').style.display = 'block';
+                return false;
+            }
+            
+            // Hide search form, show loading
+            document.getElementById('search-form-container').style.display = 'none';
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('profile-results').style.display = 'none';
+            
+            await searchSailors(query);
+            return false;
+        }
+        
+        async function searchSailors(query) {
+            console.log('[DEBUG] searchSailors: Starting search with query:', query);
+            try {
+                // Use query parameter for flexible search (SAS ID or name)
+                const searchUrl = `${API_BASE}/api/facebook/search-sailors?query=${encodeURIComponent(query)}`;
+                console.log('[DEBUG] searchSailors: Fetching URL:', searchUrl);
+                
+                const response = await fetch(searchUrl);
+                console.log('[DEBUG] searchSailors: Response status:', response.status, response.statusText);
+                
+                const data = await response.json();
+                console.log('[DEBUG] searchSailors: Response data:', data);
+                
+                document.getElementById('loading').style.display = 'none';
+                
+                if (data.error) {
+                    console.error('[DEBUG] searchSailors: Error in response:', data.error);
+                    showError(data.error);
+                    // Show search form again on error
+                    document.getElementById('search-form-container').style.display = 'block';
+                    return;
+                }
+                
+                if (!data.results || data.results.length === 0) {
+                    console.warn('[DEBUG] searchSailors: No results found');
+                    showError('No matching profiles found. Please try a different search or continue with a new account.');
+                    // Show search form again
+                    document.getElementById('search-form-container').style.display = 'block';
+                    return;
+                }
+                
+                console.log('[DEBUG] searchSailors: Found', data.results.length, 'results');
+                // Show first result (best match)
+                displayProfile(data.results[0]);
+                
+            } catch (error) {
+                console.error('[DEBUG] searchSailors: Exception caught:', error);
+                console.error('[DEBUG] searchSailors: Stack trace:', error.stack);
+                document.getElementById('loading').style.display = 'none';
+                showError('Failed to search for profiles. Please try again.');
+                // Show search form again on error
+                document.getElementById('search-form-container').style.display = 'block';
+            }
+        }
+        
+        function displayProfile(profile) {
+            console.log('[DEBUG] displayProfile: Displaying profile:', profile);
+            const resultsDiv = document.getElementById('profile-results');
+            resultsDiv.style.display = 'block';
+            
+            // Hide search form and loading
+            document.getElementById('search-form-container').style.display = 'none';
+            document.getElementById('loading').style.display = 'none';
+            
+            // Check if profile already has a login account
+            if (profile.has_existing_login) {
+                displayExistingAccountMessageFB(profile);
+                return;
+            }
+            
+            // Format age - show "15/15" when only year of birth available
+            let ageText = '';
+            if (profile.age !== undefined && profile.age !== null) {
+                if (profile.year_of_birth && !profile.date_of_birth) {
+                    // Only year of birth - show as "15/15" format
+                    const currentYear = new Date().getFullYear();
+                    const age = currentYear - profile.year_of_birth;
+                    ageText = `${age}/${age + 1}`;
+                } else {
+                    // Exact age available
+                    ageText = String(profile.age);
+                }
+            } else if (profile.year_of_birth) {
+                // Calculate from year of birth
+                const currentYear = new Date().getFullYear();
+                const age = currentYear - profile.year_of_birth;
+                ageText = `${age}/${age + 1}`;
+            }
+            console.log('[DEBUG] displayProfile: Age text:', ageText);
+            
+            // Format classes - show all classes in compact format (smaller, one line, first 3 words of regatta)
+            let classesHtml = '';
+            if (profile.classes && Array.isArray(profile.classes) && profile.classes.length > 0) {
+                console.log('[DEBUG] displayProfile: Found', profile.classes.length, 'classes');
+                classesHtml = '<div class="classes-list"><strong>Classes Sailed:</strong>';
+                profile.classes.forEach(cls => {
+                    const className = cls.class_name || cls.class || '';
+                    const count = cls.count || 0;
+                    const lastDate = cls.last_date ? new Date(cls.last_date).toLocaleDateString('en-GB') : '';
+                    
+                    // Truncate regatta name to first 3 words only
+                    let regattaName = cls.last_event || '';
+                    if (regattaName) {
+                        const words = regattaName.trim().split(/\s+/).filter(w => w.length > 0);
+                        if (words.length > 3) {
+                            regattaName = words.slice(0, 3).join(' ');
+                        }
+                    }
+                    
+                    // Compact one-line format with smaller font
+                    classesHtml += `
+                        <div class="class-item" style="font-size: 0.7rem; line-height: 1.2; padding: 0.25rem 0.3rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            <strong>${className}</strong>${count > 0 ? ` (X${count})` : ''}${lastDate ? ` - Last: ${lastDate}` : ''}${regattaName ? ` - ${regattaName}` : ''}
+                        </div>
+                    `;
+                });
+                classesHtml += '</div>';
+            } else {
+                console.log('[DEBUG] displayProfile: No classes found');
+                classesHtml = '<div class="classes-list"><strong>Classes Sailed:</strong> N/A</div>';
+            }
+            
+            resultsDiv.innerHTML = `
+                <div class="profile-box">
+                    <div class="profile-name">${profile.full_name || `${profile.first_name} ${profile.last_name}`}</div>
+                    <div class="profile-detail"><strong>SAS ID:</strong> ${profile.sas_id}</div>
+                    ${ageText ? `<div class="profile-detail"><strong>Age:</strong> ${ageText}</div>` : ''}
+                    ${profile.primary_club ? `<div class="profile-detail"><strong>Club:</strong> ${profile.primary_club}</div>` : ''}
+                    ${classesHtml}
+                </div>
+                
+                <div class="buttons">
+                    <button class="btn btn-primary" onclick="confirmLink('me', '${profile.sas_id}')">
+                        This is me
+                    </button>
+                    <button class="btn btn-secondary" onclick="confirmLink('child', '${profile.sas_id}')">
+                        This is my child / family member
+                    </button>
+                    <button class="btn btn-gray" onclick="showSearchForm()" style="margin-top: 0.5rem;">
+                        Search Again
+                    </button>
+                    <button class="btn btn-gray" onclick="confirmLink('not_me', '')">
+                        Not me - Create New Account
+                    </button>
+                </div>
+            `;
+            console.log('[DEBUG] displayProfile: Profile displayed successfully');
+        }
+        
+        function displayExistingAccountMessageFB(profile) {
+            const resultsDiv = document.getElementById('profile-results');
+            const fullName = profile.full_name || 
+                           (profile.first_name && profile.last_name ? `${profile.first_name} ${profile.last_name}` : '') ||
+                           'Name not available';
+            const sasId = profile.sas_id || 'N/A';
+            
+            resultsDiv.innerHTML = `
+                <div style="padding: 1.5rem; background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; margin-bottom: 1rem; text-align: center;">
+                    <h3 style="margin: 0 0 1rem 0; color: #856404;">You seem to have a profile already</h3>
+                    <p style="margin: 0.5rem 0; color: #856404;"><strong>${fullName}</strong></p>
+                    <p style="margin: 0.5rem 0; color: #856404;">SAS ID: ${sasId}</p>
+                    <p style="margin: 1rem 0 0 0; color: #856404;">Is this you?</p>
+                    <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1rem;">
+                        <button class="btn btn-primary" onclick="window.location.href='/login.html'" style="padding: 0.75rem 2rem;">Yes</button>
+                        <button class="btn btn-gray" onclick="showSearchForm()" style="padding: 0.75rem 2rem;">No</button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        let selectedSasId = '';
+        let selectedRelationship = '';
+        
+        async function confirmLink(relationship, sasId) {
+            console.log('[DEBUG] confirmLink: Called with', { relationship, sasId });
+            selectedSasId = sasId;
+            selectedRelationship = relationship;
+            console.log('[DEBUG] confirmLink: Set selectedSasId =', selectedSasId, 'selectedRelationship =', selectedRelationship);
+            
+            if (relationship === 'not_me') {
+                console.log('[DEBUG] confirmLink: Not me - calling completeLink()');
+                // Not me - just link and continue
+                await completeLink();
+            } else {
+                console.log('[DEBUG] confirmLink: This is me/child - showing registration form');
+                // This is me or child - show form to collect email, password, WhatsApp
+                showRegistrationForm(sasId);
+            }
+        }
+        
+        function showRegistrationForm(sasId) {
+            console.log('[DEBUG] showRegistrationForm: Called with sasId =', sasId);
+            const resultsDiv = document.getElementById('profile-results');
+            const profileBox = resultsDiv.querySelector('.profile-box');
+            console.log('[DEBUG] showRegistrationForm: Profile box found:', !!profileBox);
+            
+            resultsDiv.innerHTML = `
+                ${profileBox.outerHTML}
+                <div id="registration-form" style="margin-top: 1rem;">
+                    <h2 style="color: #6B2C91; margin-bottom: 0.5rem; font-size: 1.1rem;">Complete Your Registration</h2>
+                    <p style="color: #666; margin-bottom: 1rem; font-size: 0.9rem;">Please provide the following information to complete your account setup:</p>
+                    
+                    <form id="regForm" onsubmit="handleRegistration(event)">
+                        <div style="margin-bottom: 1rem;">
+                            <label for="email" style="display: block; margin-bottom: 0.25rem; color: #333; font-weight: bold; font-size: 0.9rem;">
+                                Email Address <span style="color: red;">*</span>
+                            </label>
+                            <input type="email" id="email" name="email" required 
+                                   style="width: 100%; padding: 0.6rem; border: 2px solid #ddd; border-radius: 6px; font-size: 0.9rem; box-sizing: border-box;"
+                                   placeholder="Email address"
+                                   oninput="validateEmail()">
+                            <div id="email-error" style="margin-top: 0.4rem; font-size: 0.75rem; color: #dc3545; display: none;">
+                                Not valid email address
+                            </div>
+                        </div>
+                        
+                        <div style="margin-bottom: 1rem;">
+                            <label for="password" style="display: block; margin-bottom: 0.25rem; color: #333; font-weight: bold; font-size: 0.9rem;">
+                                Password <span style="color: red;">*</span>
+                            </label>
+                            <input type="password" id="password" name="password" required 
+                                   style="width: 100%; padding: 0.6rem; border: 2px solid #ddd; border-radius: 6px; font-size: 0.9rem; box-sizing: border-box;"
+                                   placeholder="Enter password" oninput="validatePassword()">
+                            <div id="password-rules" style="margin-top: 0.4rem; font-size: 0.75rem; color: #666; line-height: 1.3;">
+                                <div id="rule-length" style="color: #999;">✓ At least 7 characters</div>
+                                <div id="rule-capital" style="color: #999;">✓ One capital letter</div>
+                                <div id="rule-special" style="color: #999;">✓ One special character (#, @, !, etc.)</div>
+                                <div id="rule-number" style="color: #999;">✓ One number</div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-bottom: 1rem;">
+                            <label for="passwordConfirm" style="display: block; margin-bottom: 0.25rem; color: #333; font-weight: bold; font-size: 0.9rem;">
+                                Confirm Password <span style="color: red;">*</span>
+                            </label>
+                            <input type="password" id="passwordConfirm" name="passwordConfirm" required 
+                                   style="width: 100%; padding: 0.6rem; border: 2px solid #ddd; border-radius: 6px; font-size: 0.9rem; box-sizing: border-box;"
+                                   placeholder="Re-enter password" oninput="checkPasswordMatch()">
+                            <div id="password-match" style="margin-top: 0.4rem; font-size: 0.75rem; display: none;"></div>
+                        </div>
+                        
+                        <div style="margin-bottom: 1rem;">
+                            <label for="whatsapp" style="display: block; margin-bottom: 0.25rem; color: #333; font-weight: bold; font-size: 0.9rem;">
+                                WhatsApp Number <span style="color: red;">*</span>
+                            </label>
+                            <input type="text" id="whatsapp" name="whatsapp" required 
+                                   style="width: 100%; padding: 0.6rem; border: 2px solid #ddd; border-radius: 6px; font-size: 0.9rem; box-sizing: border-box;"
+                                   placeholder="082 123 4567" 
+                                   oninput="formatWhatsApp(this)">
+                            <div id="whatsapp-error" style="margin-top: 0.4rem; font-size: 0.75rem; color: #dc3545; display: none;">
+                                WhatsApp number must start with 0 and be 10 digits
+                            </div>
+                            <div style="margin-top: 0.4rem; font-size: 0.75rem; color: #666;">
+                                Format: 082 123 4567 (10 digits, must start with 0)
+                            </div>
+                        </div>
+                        
+                        <button type="submit" id="submitBtn" class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;" disabled>
+                            Complete Registration
+                        </button>
+                    </form>
+                </div>
+            `;
+            console.log('[DEBUG] showRegistrationForm: Form HTML inserted');
+            
+            // Re-attach event listeners after innerHTML
+            const form = document.getElementById('regForm');
+            if (form) {
+                console.log('[DEBUG] showRegistrationForm: Form found, attaching submit handler');
+                form.addEventListener('submit', handleRegistration);
+            } else {
+                console.error('[DEBUG] showRegistrationForm: Form not found after insertion!');
+            }
+            
+            // Also attach to button directly as backup
+            const submitBtn = document.getElementById('submitBtn');
+            if (submitBtn) {
+                console.log('[DEBUG] showRegistrationForm: Submit button found');
+                submitBtn.addEventListener('click', function(e) {
+                    console.log('[DEBUG] Submit button clicked directly');
+                    const form = document.getElementById('regForm');
+                    if (form) {
+                        console.log('[DEBUG] Triggering form submit');
+                        form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                    }
+                });
+            } else {
+                console.error('[DEBUG] showRegistrationForm: Submit button not found!');
+            }
+            
+            // Clear error messages
+            const emailError = document.getElementById('email-error');
+            const whatsappError = document.getElementById('whatsapp-error');
+            if (emailError) emailError.style.display = 'none';
+            if (whatsappError) whatsappError.style.display = 'none';
+            
+            // Reset input borders
+            const emailInput = document.getElementById('email');
+            const whatsappInput = document.getElementById('whatsapp');
+            if (emailInput) emailInput.style.borderColor = '#ddd';
+            if (whatsappInput) whatsappInput.style.borderColor = '#ddd';
+            
+            // Initial validation check
+            setTimeout(() => {
+                console.log('[DEBUG] showRegistrationForm: Running initial validation check');
+                updateSubmitButton();
+            }, 100);
+        }
+        
+        function isValidEmail(email) {
+            if (!email || email.length === 0) {
+                return false;
+            }
+            
+            // Cannot be numbers only
+            if (/^\d+$/.test(email)) {
+                return false;
+            }
+            
+            // Must contain @
+            if (!email.includes('@')) {
+                return false;
+            }
+            
+            // Must contain at least one .
+            if (!email.includes('.')) {
+                return false;
+            }
+            
+            // @ must not be at start or end
+            const atIndex = email.indexOf('@');
+            if (atIndex === 0 || atIndex === email.length - 1) {
+                return false;
+            }
+            
+            // . must come after @
+            const dotIndex = email.lastIndexOf('.');
+            if (dotIndex <= atIndex) {
+                return false;
+            }
+            
+            // Must have characters before @
+            if (email.substring(0, atIndex).trim().length === 0) {
+                return false;
+            }
+            
+            // Must have characters between @ and .
+            if (email.substring(atIndex + 1, dotIndex).trim().length === 0) {
+                return false;
+            }
+            
+            // Must have characters after last .
+            if (email.substring(dotIndex + 1).trim().length === 0) {
+                return false;
+            }
+            
+            // Basic email regex pattern
+            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailPattern.test(email)) {
+                return false;
+            }
+            
+            return true;
+        }
+        
+        function validateEmail() {
+            const email = document.getElementById('email')?.value || '';
+            const errorDiv = document.getElementById('email-error');
+            const emailInput = document.getElementById('email');
+            
+            // Check if email is valid
+            const isValid = isValidEmail(email);
+            
+            if (errorDiv) {
+                if (email.length > 0 && !isValid) {
+                    errorDiv.style.display = 'block';
+                    if (emailInput) {
+                        emailInput.style.borderColor = '#dc3545';
+                    }
+                } else {
+                    errorDiv.style.display = 'none';
+                    if (emailInput) {
+                        emailInput.style.borderColor = isValid && email.length > 0 ? '#28a745' : '#ddd';
+                    }
+                }
+            }
+            
+            updateSubmitButton();
+        }
+        
+        function validatePassword() {
+            const password = document.getElementById('password')?.value || '';
+            console.log('[DEBUG] validatePassword: Called, password length =', password.length);
+            const rules = {
+                length: password.length >= 7,
+                capital: /[A-Z]/.test(password),
+                special: /[#@!$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password),
+                number: /[0-9]/.test(password)
+            };
+            
+            document.getElementById('rule-length').style.color = rules.length ? '#28a745' : '#999';
+            document.getElementById('rule-capital').style.color = rules.capital ? '#28a745' : '#999';
+            document.getElementById('rule-special').style.color = rules.special ? '#28a745' : '#999';
+            document.getElementById('rule-number').style.color = rules.number ? '#28a745' : '#999';
+            
+            checkPasswordMatch();
+            updateSubmitButton();
+        }
+        
+        function checkPasswordMatch() {
+            const password = document.getElementById('password').value;
+            const confirm = document.getElementById('passwordConfirm').value;
+            const matchDiv = document.getElementById('password-match');
+            
+            if (confirm.length === 0) {
+                matchDiv.style.display = 'none';
+                return;
+            }
+            
+            matchDiv.style.display = 'block';
+            if (password === confirm) {
+                matchDiv.textContent = '✓ Passwords match';
+                matchDiv.style.color = '#28a745';
+            } else {
+                matchDiv.textContent = '✗ Passwords do not match';
+                matchDiv.style.color = '#dc3545';
+            }
+            
+            updateSubmitButton();
+        }
+        
+        function formatWhatsApp(input) {
+            // Remove all non-digits
+            let value = input.value.replace(/\D/g, '');
+            
+            // Limit to 10 digits
+            if (value.length > 10) {
+                value = value.substring(0, 10);
+            }
+            
+            // Format as 082 123 4567
+            if (value.length >= 3) {
+                value = value.substring(0, 3) + ' ' + value.substring(3);
+            }
+            if (value.length >= 7) {
+                value = value.substring(0, 7) + ' ' + value.substring(7);
+            }
+            
+            input.value = value;
+            
+            // Validate WhatsApp (must start with 0 and be 10 digits)
+            const whatsappDigits = value.replace(/\D/g, '');
+            const errorDiv = document.getElementById('whatsapp-error');
+            const isValid = whatsappDigits.length === 10 && whatsappDigits.startsWith('0');
+            
+            if (errorDiv) {
+                if (whatsappDigits.length > 0 && !isValid) {
+                    errorDiv.style.display = 'block';
+                    input.style.borderColor = '#dc3545';
+                } else {
+                    errorDiv.style.display = 'none';
+                    input.style.borderColor = isValid && whatsappDigits.length === 10 ? '#28a745' : '#ddd';
+                }
+            }
+            
+            updateSubmitButton();
+        }
+        
+        function updateSubmitButton() {
+            const password = document.getElementById('password')?.value || '';
+            const confirm = document.getElementById('passwordConfirm')?.value || '';
+            const whatsapp = document.getElementById('whatsapp')?.value || '';
+            const email = document.getElementById('email')?.value || '';
+            
+            console.log('[DEBUG] updateSubmitButton: Current values:', {
+                passwordLength: password.length,
+                confirmLength: confirm.length,
+                whatsapp: whatsapp,
+                email: email
+            });
+            
+            const passwordValid = password.length >= 7 &&
+                                 /[A-Z]/.test(password) &&
+                                 /[#@!$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password) &&
+                                 /[0-9]/.test(password) &&
+                                 password === confirm;
+            
+            // WhatsApp validation: must start with 0 and be exactly 10 digits
+            const whatsappDigits = whatsapp.replace(/\D/g, '');
+            const whatsappValid = whatsappDigits.length === 10 && whatsappDigits.startsWith('0');
+            
+            // Use proper email validation
+            const emailValid = isValidEmail(email);
+            
+            console.log('[DEBUG] updateSubmitButton: Validation results:', {
+                passwordValid,
+                whatsappValid,
+                emailValid,
+                allValid: passwordValid && whatsappValid && emailValid
+            });
+            
+            const submitBtn = document.getElementById('submitBtn');
+            if (submitBtn) {
+                const wasDisabled = submitBtn.disabled;
+                submitBtn.disabled = !(passwordValid && whatsappValid && emailValid);
+                console.log('[DEBUG] updateSubmitButton: Button state changed from', wasDisabled, 'to', submitBtn.disabled);
+            } else {
+                console.error('[DEBUG] updateSubmitButton: Submit button not found!');
+            }
+        }
+        
+        async function handleRegistration(e) {
+            console.log('[DEBUG] handleRegistration: Called');
+            if (e) {
+                console.log('[DEBUG] handleRegistration: Preventing default');
+                e.preventDefault();
+            }
+            
+            const email = document.getElementById('email')?.value || '';
+            const password = document.getElementById('password')?.value || '';
+            const whatsapp = document.getElementById('whatsapp')?.value || '';
+            const whatsappDigits = whatsapp.replace(/\D/g, '');
+            
+            console.log('[DEBUG] handleRegistration: Form values:', {
+                email,
+                passwordLength: password.length,
+                whatsapp,
+                whatsappDigits,
+                selectedSasId,
+                selectedRelationship,
+                facebookId
+            });
+            
+            // Validate
+            if (password.length < 7 || !/[A-Z]/.test(password) || !/[#@!$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password) || !/[0-9]/.test(password)) {
+                console.error('[DEBUG] handleRegistration: Password validation failed');
+                showError('Password does not meet requirements');
+                return;
+            }
+            
+            // Validate WhatsApp: must start with 0 and be 10 digits
+            if (whatsappDigits.length !== 10 || !whatsappDigits.startsWith('0')) {
+                console.error('[DEBUG] handleRegistration: WhatsApp validation failed, length =', whatsappDigits.length, 'starts with 0 =', whatsappDigits.startsWith('0'));
+                showError('WhatsApp number must start with 0 and be 10 digits');
+                return;
+            }
+            
+            if (!isValidEmail(email)) {
+                console.error('[DEBUG] handleRegistration: Email validation failed');
+                showError('Please enter a valid email address');
+                return;
+            }
+            
+            if (!selectedSasId) {
+                console.error('[DEBUG] handleRegistration: No SAS ID selected');
+                showError('No profile selected. Please try again.');
+                return;
+            }
+            
+            if (!facebookId) {
+                console.error('[DEBUG] handleRegistration: No Facebook ID');
+                showError('Facebook ID missing. Please try logging in again.');
+                return;
+            }
+            
+            console.log('[DEBUG] handleRegistration: All validations passed, sending request to API');
+            
+            try {
+                const requestBody = {
+                    facebook_id: facebookId,
+                    sas_id: selectedSasId,
+                    relationship: selectedRelationship,
+                    email: email,
+                    password: password,
+                    whatsapp: whatsappDigits
+                };
+                
+                console.log('[DEBUG] handleRegistration: Request body:', { ...requestBody, password: '***' });
+                console.log('[DEBUG] handleRegistration: API URL:', `${API_BASE}/api/facebook/confirm-link`);
+                
+                const response = await fetch(`${API_BASE}/api/facebook/confirm-link`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                console.log('[DEBUG] handleRegistration: Response status:', response.status, response.statusText);
+                
+                const data = await response.json();
+                console.log('[DEBUG] handleRegistration: Response data:', data);
+                
+                if (data.error) {
+                    console.error('[DEBUG] handleRegistration: Error in response:', data.error);
+                    showError(data.error);
+                    return;
+                }
+                
+                if (data.success) {
+                    console.log('[DEBUG] handleRegistration: Success! Redirecting with session token');
+                    // Redirect to login page with session
+                    window.location.href = (window.location.origin || '') + '/login.html?session=' + (data.session_token || '');
+                } else {
+                    console.error('[DEBUG] handleRegistration: Response not successful:', data);
+                    showError('Registration failed. Please try again.');
+                }
+                
+            } catch (error) {
+                console.error('[DEBUG] handleRegistration: Exception caught:', error);
+                console.error('[DEBUG] handleRegistration: Stack trace:', error.stack);
+                showError('Failed to complete registration. Please try again.');
+            }
+        }
+        
+        async function completeLink() {
+            try {
+                const response = await fetch(`${API_BASE}/api/facebook/confirm-link`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        facebook_id: facebookId,
+                        sas_id: selectedSasId,
+                        relationship: selectedRelationship
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    showError(data.error);
+                    return;
+                }
+                
+                if (data.success) {
+                    window.location.href = (window.location.origin || '') + '/login.html?session=' + (data.session_token || '');
+                }
+                
+            } catch (error) {
+                console.error('Link error:', error);
+                showError('Failed to complete. Please try again.');
+            }
+        }
+        
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+        
+        function showSearchForm() {
+            document.getElementById('search-form-container').style.display = 'block';
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('profile-results').style.display = 'none';
+        }
+        
+        // Page loaded - show search form (no auto-search)
+        console.log('[DEBUG] Page loaded, showing search form');
+        
+        // Attach form submit handler directly (in addition to onsubmit attribute)
+        const searchForm = document.getElementById('searchForm');
+        if (searchForm) {
+            searchForm.addEventListener('submit', function(e) {
+                console.log('[DEBUG] Form submit event caught');
+                handleSearch(e);
+            });
+            console.log('[DEBUG] Form submit handler attached');
+        } else {
+            console.error('[DEBUG] Search form not found!');
+        }
+        
+        // Make functions globally available for onclick handlers
+        window.confirmLink = confirmLink;
+        window.handleRegistration = handleRegistration;
+        window.validateEmail = validateEmail;
+        window.isValidEmail = isValidEmail;
+        window.validatePassword = validatePassword;
+        window.checkPasswordMatch = checkPasswordMatch;
+        window.formatWhatsApp = formatWhatsApp;
+        window.handleSearch = handleSearch;
+        window.showSearchForm = showSearchForm;
+        
+        console.log('[DEBUG] All functions attached to window object');
+    </script>
+</body>
+</html>

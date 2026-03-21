@@ -1,0 +1,49 @@
+# iCloud Exclusion List
+# Add directories and files here that should NOT sync to iCloud
+# Note: This file is informational. To actually exclude from iCloud,
+# you need to use macOS Finder: Right-click folder > Get Info > Uncheck "Sync to iCloud"
+
+# Large backup directories (15MB+)
+backups/
+BACKUP_*/
+*_BU_*/
+*_PROOF_*/
+
+# Build and distribution files (can be regenerated)
+build/
+dist/
+node_modules/
+
+# Python cache (can be regenerated)
+__pycache__/
+*.pyc
+*.pyo
+
+# Log files (can be regenerated)
+*.log
+slow_queries.log
+api_live.log
+uvicorn.log
+standings_calculation.log
+
+# Temporary files
+temp_*.png
+temp_*.jpg
+temp_*.jpeg
+temp_*.txt
+
+# Database dumps (keep locally, don't sync to iCloud)
+*.dump
+
+# Large project directories (consider excluding if not actively working on them)
+# NEW_ESTATE_PROJECT/  # 4.1GB - Uncomment if you want to exclude
+# My Fourth Project/   # 3.7MB - Uncomment if you want to exclude
+
+# Backup HTML files in root
+*.backup*
+*_BU_*.html
+*_PROOF_*.html
+
+# Large image files in timadvisor (if not needed in iCloud)
+timadvisor/*.JPG
+timadvisor/*.jpg

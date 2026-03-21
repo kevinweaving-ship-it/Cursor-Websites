@@ -1,0 +1,17 @@
+Quals checksum report
+Run: 2026-03-07T16:01:43Z
+
+OUR TABLE (member_roles)
+  count: 225
+  checksum_sha256: 9702e9d1e8c21c09fea9ba3d250c8dd287d5e595c36d3893ddd578596ae1defd
+
+SCRAPED/SOURCE (CSV or fetch)
+  count: 2
+  checksum_sha256: 3f72acf61290f3782b0ff66e41735ec42c5dde92a68909f662a46ff0af93ebe1
+
+NEW (we did not have – to add)
+  count: 0
+  (none)
+
+Note: Scraped/source used the example CSV (2 rows). The SAS accreditation finder site does not return data to automated requests. To get "all quals" and a full "what new we did not have" list, export a full CSV from https://www.sailing.org.za/accreditation-finder/ and run:
+  python3 sailingsa/deploy/scrape_accreditation_quals.py --checksum-only --csv path/to/full_export.csv --db-url "postgresql://..."

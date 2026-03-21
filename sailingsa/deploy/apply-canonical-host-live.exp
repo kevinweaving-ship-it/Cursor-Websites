@@ -1,0 +1,30 @@
+#!/usr/bin/expect -f
+set timeout 30
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+set script_dir [file dirname [info script]]
+
+# Upload patch script
+spawn scp -o StrictHostKeyChecking=no $script_dir/apply-canonical-host.py ${user}@${server}:/tmp/apply-canonical-host.py
+expect "password:"
+send "$password\r"
+expect eof
+
+# Apply: backup, patch, replace, test, reload
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "rm -f /etc/nginx/sites-enabled/timadvisor.bak.* 2>/dev/null; cp /etc/nginx/sites-enabled/timadvisor /tmp/timadvisor.bak.canonical && python3 /tmp/apply-canonical-host.py < /etc/nginx/sites-enabled/timadvisor > /tmp/timadvisor.new && cp /tmp/timadvisor.new /etc/nginx/sites-enabled/timadvisor && nginx -t && systemctl reload nginx && echo APPLIED_OK"
+expect "password:"
+send "$password\r"
+expect {
+    "APPLIED_OK" { puts "Config applied, nginx reloaded" }
+    "syntax is ok" { expect "APPLIED_OK"; puts "Config applied, nginx reloaded" }
+    "failed" { puts "ERROR: nginx -t or reload failed"; exit 1 }
+    timeout { puts "ERROR: timeout"; exit 1 }
+}
+expect eof
+
+# Verify with curl
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "echo '=== http://www.sailingsa.co.za ===' && curl -sI -o /dev/null -w '%{http_code} %{redirect_url}\n' http://www.sailingsa.co.za/ && echo '=== https://www.sailingsa.co.za ===' && curl -sI -o /dev/null -w '%{http_code} %{redirect_url}\n' https://www.sailingsa.co.za/ && echo '=== https://sailingsa.co.za ===' && curl -sI -o /dev/null -w '%{http_code}\n' https://sailingsa.co.za/"
+expect "password:"
+send "$password\r"
+expect eof

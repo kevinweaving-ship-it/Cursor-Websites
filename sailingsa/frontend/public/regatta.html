@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Regatta — Public</title>
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png">
+</head>
+<body>
+    <!-- Route: /regatta/{slug} — slug from pathname or query when wired -->
+    <div id="regatta-public-root">
+
+        <!-- Welcome — e.g. "Welcome!" or "Welcome to [Regatta Name]!" when bound -->
+        <section id="welcome" aria-label="Welcome">
+            <h1 id="welcome-heading">Welcome!</h1>
+        </section>
+
+        <!-- PLACEHOLDER: Regatta summary -->
+        <!-- Will show: event name, host club, dates, status, etc. -->
+        <section id="regatta-summary" aria-label="Regatta summary">
+            <h1>Regatta summary</h1>
+            <p>(Placeholder — no data binding yet)</p>
+        </section>
+
+        <!-- PLACEHOLDER: Results summary -->
+        <!-- Will show: link to full results, class list, entry counts -->
+        <section id="results-summary" aria-label="Results summary">
+            <h2>Results summary</h2>
+            <p>(Placeholder — no data binding yet)</p>
+        </section>
+
+        <!-- PLACEHOLDER: Public Sailing Mentions (count + list) -->
+        <!-- Uses shared Public Mention Card component; regatta-level only -->
+        <section id="public-mentions" aria-label="Public Sailing Mentions">
+            <h2>Public Sailing Mentions</h2>
+            <p>Count: <span id="mentions-count">—</span></p>
+            <div id="mentions-list"><!-- Public Mention Cards go here --></div>
+        </section>
+
+        <!-- PLACEHOLDER: Gated CTA section -->
+        <!-- e.g. "Sign in to see your results" or similar -->
+        <section id="gated-cta" aria-label="Call to action">
+            <h2>CTA</h2>
+            <p>(Placeholder — gated CTA, no logic yet)</p>
+        </section>
+
+    </div>
+    <script>
+        // Slug for /regatta/{slug} — when server or SPA routing is wired, set from pathname or route param
+        (function () {
+            var path = window.location.pathname || '';
+            var match = path.match(/\/regatta\/([^/]+)/);
+            window.REGATTA_SLUG = (match && match[1]) ? match[1] : (new URLSearchParams(window.location.search).get('slug') || '');
+        })();
+    </script>
+</body>
+</html>

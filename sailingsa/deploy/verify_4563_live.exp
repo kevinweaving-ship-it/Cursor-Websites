@@ -1,0 +1,18 @@
+#!/usr/bin/expect -f
+# Check what's stored for result 4563 on live. Gordon's SAS ID must NOT be there.
+set timeout 25
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+
+puts "=== Live DB: result 4563 (Sail 1311 Optimist B) ==="
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "psql postgresql://sailors_user:SailSA_Pg_Beta2026!@localhost:5432/sailors_master -t -c \"SELECT result_id, helm_name, helm_sa_sailing_id, fleet_label, class_canonical FROM results WHERE result_id = 4563;\""
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    "4563" { }
+    "0 rows" { }
+    eof { }
+    timeout { puts "ERROR: timeout"; exit 1 }
+}
+wait
+puts "\n(Expect: helm_name = Mason Guthrie, helm_sa_sailing_id = empty/NULL. If 5820 appears, run apply-patch-4563-live.exp)"

@@ -1,0 +1,9 @@
+#!/usr/bin/expect -f
+set timeout 15
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "grep -E 'server_name|location|proxy_pass|root' /etc/nginx/sites-enabled/* 2>/dev/null || grep -E 'server_name|location|proxy_pass|root' /etc/nginx/nginx.conf /etc/nginx/conf.d/*.conf 2>/dev/null; echo '---'; ls -la /etc/nginx/sites-enabled/ 2>/dev/null; ls -la /etc/nginx/conf.d/ 2>/dev/null"
+expect "password:"
+send "$password\r"
+expect eof

@@ -1,0 +1,2 @@
+#!/bin/sh
+printf '%s' 'TimAdd#072082'

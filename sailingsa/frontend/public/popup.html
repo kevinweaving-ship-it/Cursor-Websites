@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png">
+    <title>Your Sailing Results</title>
+    <link rel="stylesheet" href="css/main.css?v=15">
+</head>
+<body>
+    <div class="popup-overlay" id="popupOverlay">
+        <div class="popup-container">
+            <button class="popup-close" id="popupClose">&times;</button>
+            
+            <!-- State 1: Login Choice -->
+            <div id="state-login-choice" class="popup-state">
+                <h2>Your Sailing Results</h2>
+                <p>Access your personal sailing history and results</p>
+                <div class="auth-buttons">
+                    <button class="btn-google" id="btnGoogle">Continue with Google</button>
+                    <button class="btn-facebook" id="btnFacebook">Continue with Facebook</button>
+                    <button class="btn-email" id="btnEmail">Continue with Email</button>
+                    <button class="btn-username" id="btnUsernamePassword">Login with SAS ID & Password</button>
+                    <button class="btn-secondary" id="btnRegister">Register</button>
+                </div>
+            </div>
+
+            <!-- State 1b: Username/Password Login -->
+            <div id="state-username-password" class="popup-state" style="display: none;">
+                <h2>Login</h2>
+                <p>Enter your SAS ID and password</p>
+                <form id="usernamePasswordForm">
+                    <input type="text" id="usernameInput" placeholder="SAS ID" required>
+                    <input type="password" id="passwordInput" placeholder="Password" required>
+                    <button type="submit" class="btn-primary">Login</button>
+                    <button type="button" class="btn-secondary" onclick="showState('login-choice')">Back</button>
+                </form>
+            </div>
+
+            <!-- State 2: Registration – Find Profile -->
+            <div id="state-find-profile" class="popup-state" style="display: none;">
+                <h2>Find Your Profile</h2>
+                <p>Search by SAS ID or Name & Surname</p>
+                <form id="searchProfileForm">
+                    <input type="text" id="searchInput" placeholder="SAS ID or Name & Surname" required>
+                    <button type="submit" class="btn-primary">Search</button>
+                </form>
+                <div id="searchResults"></div>
+            </div>
+
+            <!-- State 3: Confirm Profile -->
+            <div id="state-confirm-profile" class="popup-state" style="display: none;">
+                <h2>Confirm Your Profile</h2>
+                <div id="profileDetails">
+                    <!-- Populated by JavaScript -->
+                </div>
+                <div class="profile-actions">
+                    <button class="btn-primary" id="btnThisIsMe">This is me</button>
+                    <button class="btn-secondary" id="btnFamilyMember">This is my child / family member</button>
+                    <button class="btn-tertiary" id="btnNotMe">Not me</button>
+                </div>
+            </div>
+
+            <!-- State 4: Relationship -->
+            <div id="state-relationship" class="popup-state" style="display: none;">
+                <h2>Relationship</h2>
+                <form id="relationshipForm">
+                    <select id="relationshipSelect" required>
+                        <option value="">Select relationship</option>
+                        <option value="parent">Parent / Guardian</option>
+                        <option value="child">Child</option>
+                        <option value="sibling">Sibling</option>
+                        <option value="grandparent">Grandparent</option>
+                        <option value="other">Other</option>
+                    </select>
+                    <label>
+                        <input type="checkbox" id="consentCheckbox" required>
+                        I have consent to manage this profile
+                    </label>
+                    <button type="submit" class="btn-primary">Continue</button>
+                </form>
+            </div>
+
+            <!-- State 5: Verification -->
+            <div id="state-verification" class="popup-state" style="display: none;">
+                <h2>Verify Your Account</h2>
+                <p>Choose a verification method:</p>
+                <div class="verification-options">
+                    <button class="btn-email" id="btnVerifyEmail">Verify by Email</button>
+                    <button class="btn-google" id="btnVerifyGoogle">Continue with Google</button>
+                    <button class="btn-facebook" id="btnVerifyFacebook">Continue with Facebook</button>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="state-loading" class="popup-state" style="display: none;">
+                <div class="loading-spinner"></div>
+                <p>Loading...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/session.js"></script>
+    <script src="js/popup.js"></script>
+    <script src="js/auth.js"></script>
+</body>
+</html>

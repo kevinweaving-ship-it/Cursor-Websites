@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}SailingSA{% endblock %}</title>
+  {% block meta %}{% endblock %}
+  <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png">
+  <link rel="stylesheet" href="/css/main.css?v=18">
+  <link rel="stylesheet" href="/css/app.css?v=2">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  {% include "components/header.html" %}
+  {% include "components/tab_bar.html" %}
+  <div class="app-container">
+    {% block content %}{% endblock %}
+  </div>
+  {% include "components/bottom_nav.html" %}
+  <script src="/js/session.js?v=20260207_mobile_login"></script>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png">
+    <base href="/" id="regatta-base">
+    <title id="pageTitle">Full Regatta Results</title>
+    <meta name="description" content="Complete regatta results with all classes and entries">
+    <style>
+        body { background:#ffffff; color:#1a2750; font-family:system-ui, sans-serif; margin:0; padding:0; font-size:8px; }
+        #content { padding: 0 14px; box-sizing: border-box; }
+        .header{text-align:center;margin-bottom:12px;position:relative;display:flex;align-items:center;justify-content:center;border:2px solid #1a2750;border-radius:10px;padding:4px;background:#ffffff}
+        .header-logo-wrap{position:absolute;left:10px;top:58%;transform:translateY(calc(-50% - 5px));display:inline-flex;align-items:center;justify-content:center;padding:1px}
+        .header-logo-wrap .header-logo{position:static;height:29px;width:auto;display:block;object-fit:contain}
+        .header-club-logo{position:absolute;right:4px;height:40px;width:auto;object-fit:contain}
+        .regatta-name{font-size:10px;font-weight:bold;color:#1a2750;margin:0;padding:0}
+        .host-club{font-size:8px;color:#1a2750;margin:0;padding:0}
+        .status-line{font-size:7px;color:#1a2750;margin:0;padding:0}
+        .entries-box{margin:8px;border:2px solid #1a2750;border-radius:10px;padding:8px;background:#f8f9fa;font-size:7px}
+        .entries-box-inner{display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap}
+        .entries-cols{display:flex;gap:1rem;flex:1;min-width:0}
+        .entries-cols>div{font-size:7px;color:#1a2750;line-height:1.3}
+        .entries-totals{text-align:right;font-size:7px;color:#1a2750;line-height:1.3;font-weight:600}
+        .class-header{font-size:10px;font-weight:bold;color:#1a2750;text-align:center;margin-top:12px;margin-bottom:8px;border:2px solid #1a2750;border-radius:10px;padding:6px;background:#ffffff}
+        .sailed-line{font-size:7px;color:#1a2750;text-align:center;margin:2px 0;padding:0}
+        .table-wrapper{overflow-x:auto;overflow-y:visible;width:100%;-webkit-overflow-scrolling:touch}
+        table{border-collapse:collapse;width:100%;background:#ffffff;margin:0;font-size:7px;min-width:600px;table-layout:auto}
+        th,td{border:1px solid #ccc;padding:3px 4px;text-align:center;font-size:7px;line-height:1.2;white-space:nowrap}
+        th{background:#1a2750;color:#ffffff;font-weight:bold;font-size:7px;padding:4px 3px;position:sticky;top:0;z-index:1}
+        td{color:#1a2750;font-size:7px;padding:3px 4px}
+        .rank-col,.sail-col,.club-col,.helm-col,.nett-col{font-weight:bold}
+        .score-counts{font-weight:bold}
+        .medal-gold{background-color:#D4AF37!important}
+        .medal-silver{background-color:#D7D7D7!important}
+        .medal-bronze{background-color:#CE8946!important}
+        tr:nth-child(even):not(.medal-gold):not(.medal-silver):not(.medal-bronze){background-color:#f5f5f5}
+        tr:nth-child(odd):not(.medal-gold):not(.medal-silver):not(.medal-bronze){background-color:#ffffff}
+        tr.sailor-row-clickable{cursor:pointer}
+        tr.sailor-row-clickable:hover{background-color:#e8ecf7!important}
+        .sailor-link-helm,.sailor-link-crew{text-decoration:underline;color:#1a2750;cursor:pointer}
+        .sailor-link-helm:hover,.sailor-link-crew:hover{color:#0d47a1}
+        .sailor-link-helm:visited,.sailor-link-crew:visited{color:#1a2750}
+        .strike-out{text-decoration:line-through;opacity:0.6}
+        .result-name-unmatched{color:#c62828;font-weight:500}
+        .result-name-unmatched:hover{text-decoration:underline}
+        .code{color:#d32f2f;font-weight:bold;font-size:6px}
+        .disc{text-decoration:line-through;opacity:0.7}
+        .loading{text-align:center;padding:20px;color:#666;font-size:8px}
+        .error{text-align:center;padding:20px;color:#d32f2f;font-size:8px}
+        .view-toggle{margin:8px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+        .view-toggle button{padding:4px 10px;font-size:7px;font-weight:600;cursor:pointer;border:1px solid #1a2750;border-radius:4px;background:#fff;color:#1a2750}
+        .view-toggle button.active{background:#1a2750;color:#fff}
+        .view-toggle button:hover:not(.active){background:#f0f4ff}
+        .results-table-view{display:none}
+        .results-table-view.active{display:block}
+        #sections-lite .table-wrapper table{font-size:10px;min-width:auto}
+        #sections-lite th,#sections-lite td{font-size:10px;padding:3px 4px;line-height:1.25}
+        #sections-lite th.rank-col,#sections-lite td.rank-col,#sections-lite th.sail-col,#sections-lite td.sail-col,#sections-lite th.club-col,#sections-lite td.club-col,#sections-lite th.class-col,#sections-lite td.class-col{padding-left:2px;padding-right:2px}
+        #sections-lite th.rank-col,#sections-lite td.rank-col{width:36px;max-width:36px;box-sizing:border-box}
+        #sections-lite th.class-col,#sections-lite td.class-col{width:64px;max-width:64px;box-sizing:border-box}
+        #sections-lite th.sail-col,#sections-lite td.sail-col{width:48px;max-width:48px;box-sizing:border-box}
+        #sections-lite th.club-col,#sections-lite td.club-col{width:46px;max-width:46px;box-sizing:border-box}
+        #sections-lite th.helm-col,#sections-lite td.helm-col{min-width:260px}
+        #sections-expanded .table-expanded-wrap{display:flex;width:100%;align-items:stretch;min-height:0}
+        #sections-expanded .table-expanded-left{flex-shrink:0;overflow:hidden;border-right:2px solid #1a2750;min-width:180px;max-width:70%}
+        #sections-expanded .table-expanded-right{flex:1;min-width:0;overflow-x:auto;-webkit-overflow-scrolling:touch}
+        #sections-expanded .table-expanded-left table,#sections-expanded .table-expanded-right table{font-size:10px;border-collapse:collapse;background:#fff;margin:0;box-sizing:border-box}
+        #sections-expanded .table-expanded-left table{width:100%;min-width:0;table-layout:fixed}
+        #sections-expanded .table-expanded-left th,#sections-expanded .table-expanded-left td{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px}
+        #sections-expanded .table-expanded-left th.rank-col,#sections-expanded .table-expanded-left td.rank-col{width:36px;max-width:36px;box-sizing:border-box}
+        #sections-expanded .table-expanded-left th.fleet-col,#sections-expanded .table-expanded-left td.fleet-col{width:64px;max-width:64px;box-sizing:border-box}
+        #sections-expanded .table-expanded-left th.class-col,#sections-expanded .table-expanded-left td.class-col{width:64px;max-width:64px;box-sizing:border-box}
+        #sections-expanded .table-expanded-left th.sail-col,#sections-expanded .table-expanded-left td.sail-col{width:48px;max-width:48px;box-sizing:border-box}
+        #sections-expanded .table-expanded-left th.club-col,#sections-expanded .table-expanded-left td.club-col{width:46px;max-width:46px;box-sizing:border-box}
+        #sections-expanded .table-expanded-left th.helm-col,#sections-expanded .table-expanded-left td.helm-col{width:auto;min-width:260px;max-width:none;box-sizing:border-box}
+        #sections-expanded .table-expanded-right table{min-width:max-content;width:100%}
+        #sections-expanded th,#sections-expanded td{font-size:10px;padding:3px 4px;line-height:1.25;border:1px solid #ccc;text-align:center;white-space:nowrap}
+        #sections-expanded th.rank-col,#sections-expanded td.rank-col,#sections-expanded th.sail-col,#sections-expanded td.sail-col,#sections-expanded th.club-col,#sections-expanded td.club-col{padding-left:2px;padding-right:2px}
+        #sections-expanded .table-expanded-right th:first-child,#sections-expanded .table-expanded-right td:first-child{border-left:none}
+        @media (max-width:768px){
+            html,body{max-width:100%;box-sizing:border-box}
+            #content{max-width:100%;padding:0 10px;box-sizing:border-box}
+            .view-toggle{margin:4px 0;gap:4px}
+            .view-toggle button{padding:2px 6px;font-size:6px}
+            #sections-lite{max-width:100%;box-sizing:border-box}
+            #sections-lite .table-wrapper{margin:0 -2px;max-width:100%;box-sizing:border-box;overflow-x:visible}
+            #sections-lite .table-wrapper table{font-size:9px;width:100%;min-width:0;table-layout:fixed}
+            #sections-lite th.rank-col,#sections-lite td.rank-col{width:9%}
+            #sections-lite th.class-col,#sections-lite td.class-col{width:16%}
+            #sections-lite th.sail-col,#sections-lite td.sail-col{width:11%}
+            #sections-lite th.club-col,#sections-lite td.club-col{width:10%}
+            #sections-lite th.helm-col,#sections-lite td.helm-col{width:44%;min-width:0}
+            #sections-lite th.nett-col,#sections-lite td.nett-col{width:10%}
+            #sections-lite table.lite-has-crew th.rank-col,#sections-lite table.lite-has-crew td.rank-col{width:8%}
+            #sections-lite table.lite-has-crew th.class-col,#sections-lite table.lite-has-crew td.class-col{width:14%}
+            #sections-lite table.lite-has-crew th.sail-col,#sections-lite table.lite-has-crew td.sail-col{width:10%}
+            #sections-lite table.lite-has-crew th.club-col,#sections-lite table.lite-has-crew td.club-col{width:9%}
+            #sections-lite table.lite-has-crew th.helm-col,#sections-lite table.lite-has-crew td.helm-col{width:34%}
+            #sections-lite table.lite-has-crew th.nett-col,#sections-lite table.lite-has-crew td.nett-col{width:12%}
+            #sections-lite table.lite-has-crew th:nth-child(6),#sections-lite table.lite-has-crew td:nth-child(6){width:13%;min-width:0}
+            #sections-lite th,#sections-lite td{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;box-sizing:border-box}
+            #sections-lite th,#sections-lite td{font-size:9px;padding:2px 3px;line-height:1.2;border-width:1px}
+            #sections-lite th.rank-col,#sections-lite td.rank-col,#sections-lite th.sail-col,#sections-lite td.sail-col,#sections-lite th.club-col,#sections-lite td.club-col{padding-left:1px;padding-right:1px}
+            #sections-expanded{max-width:100%;box-sizing:border-box}
+            #sections-expanded .table-expanded-wrap{max-width:100%;min-width:0}
+            #sections-expanded .table-expanded-left{min-width:140px;max-width:65%}
+            #sections-expanded .table-expanded-left table,#sections-expanded .table-expanded-right table{font-size:9px}
+            #sections-expanded th,#sections-expanded td{font-size:9px;padding:2px 3px;line-height:1.2;border-width:1px}
+            #sections-expanded th.rank-col,#sections-expanded td.rank-col,#sections-expanded th.sail-col,#sections-expanded td.sail-col,#sections-expanded th.club-col,#sections-expanded td.club-col{padding-left:1px;padding-right:1px}
+            #sections-lite .class-header{margin-top:4px;margin-bottom:2px;padding:4px;font-size:8px}
+            #sections-lite .sailed-line{margin:1px 0;font-size:6px}
+        }
+            </style>
+</head>
+<body>
+    <div id="content">
+        <div class="loading">Loading regatta results...</div>
+    </div>
+    <script>
+        (function(){ var b = document.querySelector('base'); if (b) b.href = (window.location.origin || '') + '/'; })();
+        const API = (window.parent && window.parent.API_BASE ? window.parent.API_BASE : (window.API_BASE || window.location.origin || '')).replace(/\/$/, '');
+        function formatRegattaHostDisplay(h0) {
+            const isSeries = h0.regatta_type === 'SERIES' || h0.regatta_number === 'S';
+            const full = String(h0.host_club_fullname || '').trim();
+            const leg = String(h0.host_club_name || '').trim();
+            let code = String(h0.host_club_code || '').trim();
+            if (!code && leg && full && leg.toLowerCase() !== full.toLowerCase()) code = leg;
+            if (isSeries) {
+                if (leg && leg.indexOf('/') !== -1) return leg;
+                if (code && full && code.toLowerCase() !== full.toLowerCase()) return code + ' - ' + full;
+                return leg || code || full || 'Unknown';
+            }
+            if (code && full) {
+                if (code.toLowerCase() === full.toLowerCase()) return full;
+                return code + ' - ' + full;
+            }
+            if (full) return full;
+            if (code) return code;
+            return leg || 'Unknown';
+        }
+        const urlParams = new URLSearchParams(window.location.search);
+        const regattaId = urlParams.get('regatta_id') || urlParams.get('regatta-id');
+        const regattaSlug = urlParams.get('regatta_slug') || urlParams.get('regatta-slug');
+        
+        document.addEventListener('click', function(e) {
+            if (e.target && e.target.closest && e.target.closest('a[href]')) return;
+            var crewLink = e.target && e.target.closest ? e.target.closest('.sailor-link-crew') : null;
+            var row = e.target && e.target.closest ? (e.target.closest('tr.sailor-row-clickable') || e.target.closest('tr[data-helm-name]')) : null;
+            if (!row) return;
+            var sid, name;
+            if (crewLink) {
+                sid = (crewLink.getAttribute('data-sailor-id') || '').trim();
+                name = (crewLink.getAttribute('data-name') || '').trim();
+            } else {
+                sid = (row.getAttribute('data-sailor-id') || '').trim();
+                name = (row.getAttribute('data-helm-name') || '').trim();
+            }
+            var validId = sid && (/^\d+$/.test(String(sid)) || String(sid).toUpperCase().startsWith('TMP'));
+            if (!validId) return;
+            var club = (row.getAttribute('data-club') || '').trim();
+            var cls = (row.getAttribute('data-class') || '').trim();
+            var target = window.opener || window.parent;
+            target.postMessage({ type: 'showSailorProfile', sid: sid, name: name, club: club, cls: cls }, '*');
+            if (window.opener) window.close();
+        });
+        if (!regattaId) {
+            document.getElementById('content').innerHTML = '<div class="error">Regatta ID required</div>';
+        } else {
+            loadFullRegattaResults();
+        }
+        
+        async function loadFullRegattaResults() {
+            try {
+                const apiUrl = `${API}/api/regatta/${encodeURIComponent(regattaId)}?t=${Date.now()}`;
+                const regattaDataResponse = await fetch(apiUrl);
+                if (!regattaDataResponse.ok) throw new Error('Failed to load regatta data (HTTP ' + regattaDataResponse.status + '). Local: run from project root: python3 -m uvicorn api:app --host 0.0.0.0 --port 8081 then open http://' + (window.location.hostname || 'localhost') + ':8081');
+                const regattaData = await regattaDataResponse.json();
+                if (!regattaData || regattaData.length === 0) throw new Error('No regatta data found');
+                
+                const h0 = regattaData[0];
+                const statusText = (h0.result_status || 'Final').charAt(0).toUpperCase() + (h0.result_status || 'Final').slice(1);
+                const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                let statusLineText;
+                if (h0.as_at_time) {
+                    const asAtDate = new Date(h0.as_at_time);
+                    if (!isNaN(asAtDate.getTime())) {
+                        const day = String(asAtDate.getDate()).padStart(2, '0');
+                        const month = months[asAtDate.getMonth()];
+                        const year = asAtDate.getFullYear();
+                        const hours = String(asAtDate.getHours()).padStart(2, '0');
+                        const minutes = String(asAtDate.getMinutes()).padStart(2, '0');
+                        statusLineText = 'Results are ' + statusText + ' as at ' + `${day} ${month} ${year} at ${hours}:${minutes}`;
+                    } else {
+                        statusLineText = 'Results are ' + statusText + ' (snapshot time not recorded)';
+                    }
+                } else {
+                    statusLineText = 'Results are ' + statusText + ' (snapshot time not recorded)';
+                }
+                const hostClubCode = h0.host_club_code || '';
+                const hostClub = formatRegattaHostDisplay(h0);
+                const sailingsaLogoHtml = '<div class="header-logo-wrap"><img src="/assets/logos/sailingsa-with-flags-below-nobg.png" alt="SailingSA" class="header-logo"></div>';
+                let clubLogoHtml = '';
+                if (hostClubCode) {
+                    clubLogoHtml = `<img id="clubLogoImg" alt="${hostClubCode}" class="header-club-logo" style="display:none;height:60px;width:auto;object-fit:contain"><script>(function(){var img=document.getElementById("clubLogoImg");var ex=["jpg","png","jpeg"];var i=0;function next(){if(i<ex.length){img.src="${API}/artwork/Club Logo/${hostClubCode}."+ex[i];img.onload=function(){img.style.display="block";};img.onerror=function(){i++;next();};}} next();})();<\/script>`;
+                }
+                const regattaNameDisplay = h0.event_name || 'Unknown Regatta';
+                document.getElementById('pageTitle').textContent = `${regattaNameDisplay} – Full Results`;
+                
+                function formatRank(rank) {
+                    if (!rank || isNaN(rank)) return rank;
+                    const num = parseInt(rank);
+                    const lastDigit = num % 10;
+                    const lastTwoDigits = num % 100;
+                    if (lastTwoDigits >= 11 && lastTwoDigits <= 13) return num + 'th';
+                    switch (lastDigit) { case 1: return num + 'st'; case 2: return num + 'nd'; case 3: return num + 'rd'; default: return num + 'th'; }
+                }
+                
+                const byBlock = {};
+                regattaData.forEach(r => { if (r.block_id) { if (!byBlock[r.block_id]) byBlock[r.block_id] = []; byBlock[r.block_id].push(r); } });
+                const blockIds = Object.keys(byBlock);
+                
+                let classEntries = {};
+                try {
+                    const entriesResponse = await fetch(`${API}/api/regatta/${encodeURIComponent(regattaId)}/class-entries?t=${Date.now()}`);
+                    if (entriesResponse.ok) classEntries = await entriesResponse.json();
+                } catch (e) { console.error('Class entries:', e); }
+                function formatClassName(key) {
+                    const m = { 'dabchick':'Dabchick','ilca 4':'ILCA 4','ilca 4.7':'ILCA 4.7','ilca 6':'ILCA 6','mirror':'Mirror','open':'Open','optimist a':'Optimist A','optimist b':'Optimist B','rs tera':'RS Tera','topaz':'Topaz','topper 5.3':'Topper 5.3' };
+                    return m[(key || '').toLowerCase()] || key;
+                }
+                const classesWithEntries = Object.entries(classEntries)
+                    .filter(([k, d]) => { const e = typeof d === 'object' ? d.entries : d; return e && e > 0; })
+                    .map(([k, d]) => typeof d === 'object' && d.name ? [k, d.name, d.entries] : [k, formatClassName(k), d])
+                    .sort((a, b) => a[1].localeCompare(b[1]));
+                const colsPerCol = Math.ceil(classesWithEntries.length / 3) || 1;
+                const col1 = classesWithEntries.slice(0, colsPerCol);
+                const col2 = classesWithEntries.slice(colsPerCol, colsPerCol * 2);
+                const col3 = classesWithEntries.slice(colsPerCol * 2);
+                const entriesTotal = h0.entries_total != null ? h0.entries_total : classesWithEntries.reduce((s, [, , c]) => s + (c || 0), 0);
+                const helmsTotal = h0.helms_total || 0;
+                const crewsTotal = h0.crews_total || 0;
+                const sailorsTotal = h0.sailors_total != null ? h0.sailors_total : (helmsTotal + crewsTotal);
+                const classEntriesBoxHtml = classesWithEntries.length > 0
+                    ? '<div class="entries-box"><div class="entries-box-inner"><div class="entries-cols"><div>' + col1.map(([, name, count]) => '<div><strong>' + (name || '').replace(/</g, '&lt;') + '</strong> &gt; Entries = ' + count + '</div>').join('') + '</div><div>' + col2.map(([, name, count]) => '<div><strong>' + (name || '').replace(/</g, '&lt;') + '</strong> &gt; Entries = ' + count + '</div>').join('') + '</div><div>' + col3.map(([, name, count]) => '<div><strong>' + (name || '').replace(/</g, '&lt;') + '</strong> &gt; Entries = ' + count + '</div>').join('') + '</div></div><div class="entries-totals"><div><strong>Entries Total</strong> = ' + entriesTotal + '</div><div><strong>Sailors Total</strong> = ' + sailorsTotal + '</div></div></div></div>'
+                    : '';
+                
+                let classSectionsHtmlLite = '';
+                let classSectionsHtmlExpanded = '';
+                const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fleet\s*$/i, '').toLowerCase();
+                blockIds.forEach(blockId => {
+                    const items = byBlock[blockId];
+                    const blockData = items[0];
+                    const isResultRow = (r) => r.result_id != null || (r.rank != null && r.rank !== '') || (r.helm_name && String(r.helm_name).trim() !== '');
+                    const fleetResults = items.filter(r => isResultRow(r)).sort((a, b) => (parseInt(a.rank) || 9999) - (parseInt(b.rank) || 9999));
+                    if (fleetResults.length === 0) return;
+                    const blockFleet = (blockData.fleet_label || '').trim();
+                    const blockClass = (blockData.class_canonical || blockData.class_original || '').trim();
+                    const fleetCount = fleetResults.filter(r => {
+                        const rc = (r.result_class_canonical || r.result_class_original || r.class_name || r.class_canonical || r.class_original || '').trim();
+                        return normalizeClass(rc) === normalizeClass(blockFleet);
+                    }).length;
+                    const classCount = fleetResults.filter(r => {
+                        const rc = (r.result_class_canonical || r.result_class_original || r.class_name || r.class_canonical || r.class_original || '').trim();
+                        return normalizeClass(rc) === normalizeClass(blockClass);
+                    }).length;
+                    let fleetName = (classCount > fleetCount && blockClass) ? blockClass : (blockFleet || blockClass || blockData.class_original || 'Fleet');
+                    const counts = {};
+                    fleetResults.forEach(r => {
+                        const rc = (r.result_class_canonical || r.result_class_original || r.class_name || r.class_canonical || r.class_original || '').trim();
+                        const key = normalizeClass(rc);
+                        if (key) counts[key] = (counts[key] || 0) + 1;
+                    });
+                    const best = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+                    if (best && best[1] > fleetCount) {
+                        const firstMatch = fleetResults.find(r => normalizeClass((r.result_class_canonical || r.result_class_original || r.class_name || r.class_canonical || r.class_original || '').trim()) === best[0]);
+                        fleetName = (firstMatch && (firstMatch.result_class_canonical || firstMatch.result_class_original || firstMatch.class_name || firstMatch.class_canonical || firstMatch.class_original || '').trim()) || fleetName;
+                    }
+                    const racesSailed = blockData.races_sailed || 0;
+                    const discardCount = blockData.discard_count || 0;
+                    const toCount = Math.max(0, racesSailed - discardCount);
+                    const entriesCount = fleetResults.length;
+                    const scoringSystem = blockData.scoring_system || 'Appendix A';
+                    const sailedLine = `Sailed: ${racesSailed}, Discards: ${discardCount}, To count: ${toCount}, Entries: ${entriesCount}, Scoring system: ${scoringSystem}`;
+                    const hasCrew = fleetResults.some(r => r.crew_name && r.crew_name.trim() !== '');
+                    const hasBoatName = fleetResults.some(r => r.boat_name && r.boat_name.trim() !== '');
+                    const hasJibNo = fleetResults.some(r => r.jib_no && r.jib_no.trim() !== '');
+                    const hasBowNo = fleetResults.some(r => r.bow_no && r.bow_no.trim() !== '');
+                    const hasHullNo = fleetResults.some(r => r.hull_no && r.hull_no.trim() !== '');
+                    let raceColumns = [];
+                    if (isSeries && racesSailed === 3) {
+                        raceColumns = ['HYC', 'ZVYC', 'TSC'];
+                    } else {
+                        for (let i = 1; i <= racesSailed; i++) {
+                            const rk = 'R' + i;
+                            if (fleetResults.some(r => (r.race_scores || {})[rk] && (r.race_scores || {})[rk].trim() !== ''))
+                                raceColumns.push(rk);
+                        }
+                    }
+                    var anchoredHeaders = '<th class="rank-col">Rank</th><th class="fleet-col">Fleet</th><th class="class-col">Class</th><th class="sail-col">Sail No</th>';
+                    if (hasBoatName) anchoredHeaders += '<th>Boat Name</th>';
+                    if (hasJibNo) anchoredHeaders += '<th>Jib No</th>';
+                    if (hasBowNo) anchoredHeaders += '<th>Bow No</th>';
+                    if (hasHullNo) anchoredHeaders += '<th>Hull No</th>';
+                    anchoredHeaders += '<th class="club-col">Club</th><th class="helm-col">Helm</th>';
+                    if (hasCrew) anchoredHeaders += '<th>Crew</th>';
+                    var raceHeaders = '';
+                    raceColumns.forEach(r => { raceHeaders += '<th>' + r + '</th>'; });
+                    raceHeaders += '<th>Total</th><th class="nett-col">Nett</th>';
+                    var liteHeaders = '<th class="rank-col">Rank</th><th class="class-col">Class</th><th class="sail-col">Sail No</th><th class="club-col">Club</th><th class="helm-col">Helm</th>';
+                    if (hasCrew) liteHeaders += '<th>Crew</th>';
+                    liteHeaders += '<th class="nett-col">Nett</th>';
+                    function esc(s) {
+                        if (s == null || s === undefined) return '';
+                        var t = String(s);
+                        return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                    }
+                    function classLink(classId, displayName) {
+                        var name = (displayName || '').toString().trim();
+                        var escName = (name ? esc(name) : '') || '—';
+                        var slug = (name || '').toString().toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+                        if (!slug) return escName;
+                        if (classId != null && classId !== '' && name)
+                            return '<a href="/class/' + String(classId) + '-' + encodeURIComponent(slug) + '" target="_top">' + escName + '</a>';
+                        return '<a href="/class/' + encodeURIComponent(slug) + '" target="_top">' + escName + '</a>';
+                    }
+                    const liteRows = fleetResults.map(r => {
+                        const rankNum = parseInt(r.rank) || 0;
+                        let medalClass = rankNum === 1 ? 'medal-gold' : rankNum === 2 ? 'medal-silver' : rankNum === 3 ? 'medal-bronze' : '';
+                        const didNotRace = r.raced === false || r.raced === 0;
+                        const strikeOutClass = didNotRace ? 'strike-out' : '';
+                        const rowClasses = [medalClass, strikeOutClass].filter(c => c).join(' ');
+                        const sid = (r.helm_sa_sailing_id != null ? String(r.helm_sa_sailing_id) : (r.helm_temp_id != null ? String(r.helm_temp_id) : ''));
+                        const helmName = (r.helm_name || '').trim();
+                        const helmSlug = (r.helm_slug || '').trim();
+                        const crewSlug = (r.crew_slug || '').trim();
+                        const hasValidLink = helmSlug || (crewSlug && hasCrew) || (sid && /^\d+$/.test(sid));
+                        const rowClass = r.result_class_canonical || r.result_class_original || r.class_name || r.class_canonical || r.class_original || '';
+                        const classCell = classLink(r.result_class_id, r.class_name || rowClass);
+                        const trAttrs = hasValidLink ? ' class="' + rowClasses + ' sailor-row-clickable" style="cursor:pointer" data-sailor-id="' + esc(sid) + '" data-helm-name="' + esc(helmName) + '" data-club="' + esc(r.club_abbrev || r.club_raw || '') + '" data-class="' + esc(rowClass) + '" title="Click to view sailor profile"' : ' class="' + rowClasses + '"';
+                        const crewSid = (r.crew_sa_sailing_id != null ? String(r.crew_sa_sailing_id) : (r.crew_temp_id != null ? String(r.crew_temp_id) : ''));
+                        const crewName = (r.crew_name || '').trim();
+                        const crewHtml = hasCrew ? (crewSlug ? '<td><a href="/sailor/' + esc(crewSlug) + '" class="sailor-link-crew" data-sailor-id="' + esc(crewSid) + '" data-name="' + esc(crewName) + '" title="View crew profile">' + esc(r.crew_name || '') + '</a></td>' : (crewSid ? '<td><span class="sailor-link-crew" data-sailor-id="' + esc(crewSid) + '" data-name="' + esc(crewName) + '" title="Click to view crew profile">' + esc(r.crew_name || '') + '</span></td>' : '<td><span class="result-name-unmatched" title="No SAS ID match – track as issue">' + esc(r.crew_name || '') + '</span></td>')) : '';
+                        const helmDisplay = helmSlug ? '<a href="/sailor/' + esc(helmSlug) + '" class="sailor-link-helm" data-sailor-id="' + esc(sid) + '" title="View sailor profile">' + esc(r.helm_name || '') + '</a>' : (sid ? esc(r.helm_name || '') : (helmName ? '<span class="result-name-unmatched" title="No SAS ID match – track as issue">' + esc(r.helm_name || '') + '</span>' : ''));
+                        let row = '<tr' + trAttrs + '><td class="rank-col">' + esc(formatRank(r.rank)) + '</td><td class="class-col">' + classCell + '</td><td class="sail-col">' + esc(r.sail_number || '') + '</td><td class="club-col">' + esc(r.club_abbrev || r.club_raw || '') + '</td><td class="helm-col">' + helmDisplay + '</td>';
+                        row += crewHtml;
+                        row += '<td class="nett-col ' + (didNotRace ? 'strike-out' : '') + '">' + esc(r.nett_points_raw ?? '') + '</td></tr>';
+                        return row;
+                    }).join('');
+                    const anchoredRows = fleetResults.map(r => {
+                        const rankNum = parseInt(r.rank) || 0;
+                        let medalClass = rankNum === 1 ? 'medal-gold' : rankNum === 2 ? 'medal-silver' : rankNum === 3 ? 'medal-bronze' : '';
+                        const didNotRace = r.raced === false || r.raced === 0;
+                        const strikeOutClass = didNotRace ? 'strike-out' : '';
+                        const rowClasses = [medalClass, strikeOutClass].filter(c => c).join(' ');
+                        const sid = (r.helm_sa_sailing_id != null ? String(r.helm_sa_sailing_id) : (r.helm_temp_id != null ? String(r.helm_temp_id) : ''));
+                        const helmName = (r.helm_name || '').trim();
+                        const helmSlug2 = (r.helm_slug || '').trim();
+                        const crewSlug2 = (r.crew_slug || '').trim();
+                        const hasValidLink2 = helmSlug2 || (crewSlug2 && hasCrew) || (sid && /^\d+$/.test(sid));
+                        const rowClass = r.result_class_canonical || r.result_class_original || r.class_name || r.class_canonical || r.class_original || '';
+                        const classCell2 = classLink(r.result_class_id, r.class_name || rowClass);
+                        const fleetCell = classLink(fleetResults[0] && fleetResults[0].result_class_id, fleetName);
+                        const trAttrs = hasValidLink2 ? ' class="' + rowClasses + ' sailor-row-clickable" style="cursor:pointer" data-sailor-id="' + esc(sid) + '" data-helm-name="' + esc(helmName) + '" data-club="' + esc(r.club_abbrev || r.club_raw || '') + '" data-class="' + esc(rowClass) + '" title="Click to view sailor profile"' : ' class="' + rowClasses + '"';
+                        let row = '<tr' + trAttrs + '><td class="rank-col">' + esc(formatRank(r.rank)) + '</td><td class="fleet-col">' + fleetCell + '</td><td class="class-col">' + classCell2 + '</td><td class="sail-col">' + esc(r.sail_number || '') + '</td>';
+                        if (hasBoatName) row += '<td>' + esc(r.boat_name || '') + '</td>';
+                        if (hasJibNo) row += '<td>' + esc(r.jib_no || '') + '</td>';
+                        if (hasBowNo) row += '<td>' + esc(r.bow_no || '') + '</td>';
+                        if (hasHullNo) row += '<td>' + esc(r.hull_no || '') + '</td>';
+                        const crewSid2 = (r.crew_sa_sailing_id != null ? String(r.crew_sa_sailing_id) : (r.crew_temp_id != null ? String(r.crew_temp_id) : ''));
+                        const crewName2 = (r.crew_name || '').trim();
+                        const crewHtml2 = hasCrew ? (crewSlug2 ? '<td><a href="/sailor/' + esc(crewSlug2) + '" class="sailor-link-crew" data-sailor-id="' + esc(crewSid2) + '" data-name="' + esc(crewName2) + '" title="View crew profile">' + esc(r.crew_name || '') + '</a></td>' : (crewSid2 ? '<td><span class="sailor-link-crew" data-sailor-id="' + esc(crewSid2) + '" data-name="' + esc(crewName2) + '" title="Click to view crew profile">' + esc(r.crew_name || '') + '</span></td>' : '<td><span class="result-name-unmatched" title="No SAS ID match – track as issue">' + esc(r.crew_name || '') + '</span></td>')) : '';
+                        const helmDisplay2 = helmSlug2 ? '<a href="/sailor/' + esc(helmSlug2) + '" class="sailor-link-helm" data-sailor-id="' + esc(sid) + '" title="View sailor profile">' + esc(r.helm_name || '') + '</a>' : (sid ? esc(r.helm_name || '') : (helmName ? '<span class="result-name-unmatched" title="No SAS ID match – track as issue">' + esc(r.helm_name || '') + '</span>' : ''));
+                        row += '<td class="club-col">' + esc(r.club_abbrev || r.club_raw || '') + '</td><td class="helm-col">' + helmDisplay2 + '</td>';
+                        row += crewHtml2;
+                        return row + '</tr>';
+                    }).join('');
+                    const raceRows = fleetResults.map(r => {
+                        const raceScores = r.race_scores || {};
+                        const rankNum = parseInt(r.rank) || 0;
+                        let medalClass = rankNum === 1 ? 'medal-gold' : rankNum === 2 ? 'medal-silver' : rankNum === 3 ? 'medal-bronze' : '';
+                        const didNotRace = r.raced === false || r.raced === 0;
+                        const strikeOutClass = didNotRace ? 'strike-out' : '';
+                        const rowClasses = [medalClass, strikeOutClass].filter(c => c).join(' ');
+                        const sid = (r.helm_sa_sailing_id != null ? String(r.helm_sa_sailing_id) : (r.helm_temp_id != null ? String(r.helm_temp_id) : ''));
+                        const helmName = (r.helm_name || '').trim();
+                        const hasValidLinkR = (r.helm_slug || '').trim() || ((r.crew_slug || '').trim() && hasCrew) || (sid && /^\d+$/.test(sid));
+                        const rowClass = r.result_class_canonical || r.result_class_original || r.class_name || r.class_canonical || r.class_original || '';
+                        const trAttrs = hasValidLinkR ? ' class="' + rowClasses + ' sailor-row-clickable" style="cursor:pointer" data-sailor-id="' + esc(sid) + '" data-helm-name="' + esc(helmName) + '" data-club="' + esc(r.club_abbrev || r.club_raw || '') + '" data-class="' + esc(rowClass) + '" title="Click to view sailor profile"' : ' class="' + rowClasses + '"';
+                        let row = '<tr' + trAttrs + '>';
+                        raceColumns.forEach(displayKey => {
+                            const dataKey = isSeries && displayKey === 'HYC' ? 'R1' : isSeries && displayKey === 'ZVYC' ? 'R2' : isSeries && displayKey === 'TSC' ? 'R3' : displayKey;
+                            const score = raceScores[dataKey] || '';
+                            const isDiscarded = typeof score === 'string' && score.startsWith('(') && score.endsWith(')');
+                            const hasPenalty = typeof score === 'string' && /\b(DNC|DNS|DNF|RET|DSQ|UFD|BFD|DPI|OCS)\b/i.test(score);
+                            let cellClass = hasPenalty ? 'code' : isDiscarded ? 'disc' : (String(score).trim() !== '' ? 'score-counts' : '');
+                            row += '<td class="' + cellClass + '">' + esc(score) + '</td>';
+                        });
+                        row += '<td class="' + (didNotRace ? 'strike-out' : '') + '">' + esc(r.total_points_raw ?? '') + '</td><td class="nett-col ' + (didNotRace ? 'strike-out' : '') + '">' + esc(r.nett_points_raw ?? '') + '</td></tr>';
+                        return row;
+                    }).join('');
+                    const fleetHeaderHtml = classLink(fleetResults[0] && fleetResults[0].result_class_id, fleetName);
+                    var liteTableClass = hasCrew ? ' lite-has-crew' : '';
+                    classSectionsHtmlLite += '<div class="class-header">' + fleetHeaderHtml + ' Fleet</div><div class="sailed-line">' + sailedLine + '</div><div class="table-wrapper"><table class="' + liteTableClass.trim() + '"><thead><tr>' + liteHeaders + '</tr></thead><tbody>' + liteRows + '</tbody></table></div>';
+                    classSectionsHtmlExpanded += '<div class="class-header">' + fleetHeaderHtml + ' Fleet</div><div class="sailed-line">' + sailedLine + '</div><div class="table-expanded-wrap"><div class="table-expanded-left"><table><thead><tr>' + anchoredHeaders + '</tr></thead><tbody>' + anchoredRows + '</tbody></table></div><div class="table-expanded-right"><table><thead><tr>' + raceHeaders + '</tr></thead><tbody>' + raceRows + '</tbody></table></div></div>';
+                });
+                
+                var defaultExpanded = (urlParams.get('view') || '').toLowerCase() === 'expanded';
+                var liteActive = defaultExpanded ? '' : ' active';
+                var expandedActive = defaultExpanded ? ' active' : '';
+                var sectionsLiteHtml = '<div id="sections-lite" class="results-table-view' + liteActive + '">' + classSectionsHtmlLite + '</div>';
+                var sectionsExpandedHtml = '<div id="sections-expanded" class="results-table-view' + expandedActive + '">' + classSectionsHtmlExpanded + '</div>';
+                var content = document.getElementById('content');
+                if (content) content.innerHTML = '<div class="header">' + sailingsaLogoHtml + clubLogoHtml + '<div style="flex:1;text-align:center"><div class="regatta-name">' + regattaNameDisplay.replace(/</g, '&lt;') + '</div><div class="host-club">' + hostClub.replace(/</g, '&lt;') + '</div><div class="status-line">' + statusLineText + '</div></div></div>' + classEntriesBoxHtml + sectionsLiteHtml + sectionsExpandedHtml;
+            } catch (error) {
+                console.error('Error:', error);
+                var content = document.getElementById('content');
+                if (content) content.innerHTML = '<div class="error">Failed to load regatta results: ' + (error && error.message ? error.message : 'Unknown error') + '</div>';
+            }
+        }
+        (function() {
+            var h2cLoaded = false;
+            function loadHtml2Canvas(cb) {
+                if (typeof html2canvas !== 'undefined') { cb(); return; }
+                if (h2cLoaded) { setTimeout(cb, 100); return; }
+                var s = document.createElement('script');
+                s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+                s.onload = function() { h2cLoaded = true; cb(); };
+                document.head.appendChild(s);
+            }
+            window.addEventListener('message', function(e) {
+                if (e.data && e.data.type === 'setView') {
+                    var view = e.data.view;
+                    var lite = document.getElementById('sections-lite');
+                    var expanded = document.getElementById('sections-expanded');
+                    if (!lite || !expanded) return;
+                    if (view === 'lite') {
+                        lite.classList.add('active');
+                        expanded.classList.remove('active');
+                    } else if (view === 'expanded') {
+                        expanded.classList.add('active');
+                        lite.classList.remove('active');
+                    }
+                    return;
+                }
+                if (e.data && e.data.type === 'captureSheet' && e.source) {
+                    var target = e.source;
+                    var requestedView = (e.data.view === 'expanded') ? 'expanded' : 'lite';
+                    loadHtml2Canvas(function() {
+                        var el = document.getElementById('content');
+                        if (!el) { target.postMessage({ type: 'captureResult', dataUrl: null }, '*'); return; }
+                        var clone = el.cloneNode(true);
+                        clone.id = '';
+                        var cs = window.getComputedStyle(el);
+                        clone.style.cssText = 'padding:' + cs.paddingTop + ' ' + cs.paddingRight + ' ' + cs.paddingBottom + ' ' + cs.paddingLeft + ';box-sizing:border-box;background:' + cs.backgroundColor + ';color:' + cs.color + ';font-family:' + cs.fontFamily + ';font-size:' + cs.fontSize + ';';
+                        var expanded = requestedView === 'expanded';
+                        var liteBlock = clone.querySelector('#sections-lite');
+                        var expandedBlock = clone.querySelector('#sections-expanded');
+                        if (requestedView === 'lite') {
+                            if (liteBlock) liteBlock.classList.add('active');
+                            if (expandedBlock) expandedBlock.classList.remove('active');
+                        } else {
+                            if (expandedBlock) expandedBlock.classList.add('active');
+                            if (liteBlock) liteBlock.classList.remove('active');
+                        }
+                        clone.style.overflow = 'visible';
+                        clone.style.height = 'auto';
+                        clone.style.maxHeight = 'none';
+                        clone.style.width = 'max-content';
+                        clone.style.maxWidth = 'none';
+                        clone.style.paddingTop = '32px';
+                        clone.style.paddingBottom = '32px';
+                        if (expanded) {
+                            var wrappers = clone.querySelectorAll('#sections-expanded .table-expanded-right');
+                            for (var i = 0; i < wrappers.length; i++) wrappers[i].style.overflow = 'visible';
+                        } else {
+                            var liteWrappers = clone.querySelectorAll('#sections-lite .table-wrapper');
+                            for (var i = 0; i < liteWrappers.length; i++) {
+                                liteWrappers[i].style.overflow = 'visible';
+                                liteWrappers[i].style.width = 'max-content';
+                                liteWrappers[i].style.maxWidth = 'none';
+                            }
+                        }
+                        var container = document.createElement('div');
+                        container.style.cssText = 'position:fixed;left:-99999px;top:0;width:1px;height:1px;overflow:hidden;pointer-events:none;';
+                        document.body.appendChild(container);
+                        container.appendChild(clone);
+                        var w = clone.scrollWidth;
+                        var h = clone.scrollHeight;
+                        var opts = { scale: 2, useCORS: true, allowTaint: true, logging: false };
+                        if (w && h) { opts.width = w; opts.height = h; opts.windowWidth = w; opts.windowHeight = h; opts.scrollX = 0; opts.scrollY = 0; }
+                        html2canvas(clone, opts).then(function(canvas) {
+                            document.body.removeChild(container);
+                            target.postMessage({ type: 'captureResult', dataUrl: canvas.toDataURL('image/png') }, '*');
+                        }).catch(function() {
+                            document.body.removeChild(container);
+                            target.postMessage({ type: 'captureResult', dataUrl: null }, '*');
+                        });
+                    });
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

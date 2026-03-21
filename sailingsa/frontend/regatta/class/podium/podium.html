@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png">
+    <base href="/" id="regatta-base">
+    <title id="pageTitle">Class Podium</title>
+    <meta name="description" content="Regatta class podium - top 3 finishers">
+    <style>
+        body { background:#ffffff; color:#1a2750; font-family:system-ui, sans-serif; margin:0; padding:0; font-size:8px; }
+        #content { padding: 0 14px; box-sizing: border-box; }
+        .header{text-align:center;margin-bottom:12px;position:relative;display:flex;align-items:center;justify-content:center;border:2px solid #1a2750;border-radius:10px;padding:5px;background:#ffffff}
+        .header-logo-wrap{position:absolute;left:11px;top:58%;transform:translateY(calc(-50% - 5px));display:inline-flex;align-items:center;justify-content:center;padding:1px}
+        .header-logo-wrap .header-logo{position:static;height:34px;width:auto;display:block;object-fit:contain}
+        .header-club-logo{position:absolute;right:5px;height:48px;width:auto;object-fit:contain}
+        .regatta-name{font-size:10px;font-weight:bold;color:#1a2750;margin:0;padding:0}
+        .host-club{font-size:8px;color:#1a2750;margin:0;padding:0}
+        .status-line{font-size:7px;color:#1a2750;margin:0;padding:0}
+        .class-header{font-size:10px;font-weight:bold;color:#1a2750;text-align:center;margin-top:12px;margin-bottom:8px;border:2px solid #1a2750;border-radius:10px;padding:8px;background:#ffffff}
+        .podium-container{display:flex;justify-content:center;align-items:flex-end;gap:12px;margin:20px auto;min-height:250px;position:relative;max-width:700px;padding:0 10px}
+        .podium-base{position:absolute;bottom:-15px;left:50%;transform:translateX(-50%);width:calc(100% + 60px);height:15px;background:#666;border-radius:8px 8px 3px 3px;box-shadow:0 4px 10px rgba(0,0,0,0.2);z-index:0}
+        .podium-item{text-align:center;flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;position:relative;z-index:2}
+        .podium-place{font-size:22px;font-weight:700;margin-bottom:8px;color:#1a2750;letter-spacing:1px;position:relative;z-index:3;line-height:1}
+        .podium-box{width:160px;padding:12px 10px;border-radius:6px;margin:0 auto;position:relative;box-shadow:0 4px 12px rgba(0,0,0,0.15),0 2px 4px rgba(0,0,0,0.1);transition:transform 0.2s ease;border:2px solid}
+        .podium-box::after{content:'';position:absolute;bottom:-15px;left:50%;transform:translateX(-50%);width:calc(100% + 20px);height:15px;background:inherit;border-radius:0 0 8px 8px;box-shadow:0 3px 8px rgba(0,0,0,0.2);z-index:-1;border:inherit;border-top:none}
+        .podium-1st-item{height:100%}
+        .podium-2nd-item{height:100%}
+        .podium-3rd-item{height:100%}
+        .podium-1st{background:#E8D5A3;border-color:#C9B882;min-height:220px;height:auto;box-shadow:0 6px 16px rgba(0,0,0,0.2),0 2px 6px rgba(0,0,0,0.15)}
+        .podium-2nd{background:#E0E0E0;border-color:#BDBDBD;min-height:180px;height:auto;box-shadow:0 5px 14px rgba(0,0,0,0.18),0 2px 5px rgba(0,0,0,0.12)}
+        .podium-3rd{background:#D4A574;border-color:#B8935F;min-height:140px;height:auto;box-shadow:0 4px 12px rgba(0,0,0,0.16),0 2px 4px rgba(0,0,0,0.1)}
+        .podium-name{font-size:11px;font-weight:600;color:#1a2750;margin-bottom:6px}
+        .podium-sail{font-size:10px;color:#1a2750;margin-bottom:6px}
+        .podium-club{font-size:10px;color:#1a2750;font-weight:600;margin-bottom:8px}
+        .podium-stats{font-size:8px;color:#1a2750;margin-top:6px;line-height:1.4}
+        .podium-stats div{margin-bottom:3px}
+        .podium-stats div:last-child{font-weight:bold}
+        .podium-empty{opacity:0.4;color:#999}
+        .podium-box:hover{transform:translateY(-3px);box-shadow:0 6px 18px rgba(0,0,0,0.25),0 3px 8px rgba(0,0,0,0.15)}
+        @media (max-width: 768px) {
+            #content { padding: 0 10px; }
+            .podium-container{max-width:280px;gap:5px;margin:8px auto;min-height:100px;padding:0 4px}
+            .podium-box{width:64px;padding:5px 4px;border:1px solid;border-radius:4px}
+            .podium-box::after{bottom:-6px;height:6px;width:calc(100% + 8px);border-radius:0 0 4px 4px}
+            .podium-place{font-size:9px;margin-bottom:3px;letter-spacing:0.5px}
+            .podium-1st{min-height:88px}
+            .podium-2nd{min-height:72px}
+            .podium-3rd{min-height:56px}
+            .podium-name{font-size:4.5px;margin-bottom:2px}
+            .podium-sail{font-size:4px;margin-bottom:2px}
+            .podium-club{font-size:4px;margin-bottom:3px}
+            .podium-stats{font-size:3px;margin-top:2px;line-height:1.2}
+            .podium-base{bottom:-6px;height:6px;width:calc(100% + 24px);border-radius:4px 4px 2px 2px}
+        }
+        .loading{text-align:center;padding:15px;color:#666;font-size:8px}
+        .error{text-align:center;padding:15px;color:#d32f2f;font-size:8px}
+            </style>
+</head>
+<body>
+    <div id="content">
+        <div class="loading">Loading podium...</div>
+    </div>
+    <script>
+        (function(){ var b = document.querySelector('base'); if (b) b.href = (window.location.origin || '') + '/'; })();
+        const API = ((window.parent && window.parent.API_BASE) || window.API_BASE || window.location.origin || '').replace(/\/$/, '');
+        function formatRegattaHostDisplay(h0) {
+            const isSeries = h0.regatta_type === 'SERIES' || h0.regatta_number === 'S';
+            const full = String(h0.host_club_fullname || '').trim();
+            const leg = String(h0.host_club_name || '').trim();
+            let code = String(h0.host_club_code || '').trim();
+            if (!code && leg && full && leg.toLowerCase() !== full.toLowerCase()) code = leg;
+            if (isSeries) {
+                if (leg && leg.indexOf('/') !== -1) return leg;
+                if (code && full && code.toLowerCase() !== full.toLowerCase()) return code + ' - ' + full;
+                return leg || code || full || 'Unknown';
+            }
+            if (code && full) {
+                if (code.toLowerCase() === full.toLowerCase()) return full;
+                return code + ' - ' + full;
+            }
+            if (full) return full;
+            if (code) return code;
+            return leg || 'Unknown';
+        }
+        const urlParams = new URLSearchParams(window.location.search);
+        const regattaId = urlParams.get('regatta_id') || urlParams.get('regatta-id');
+        const className = urlParams.get('class');
+        const regattaSlug = urlParams.get('regatta_slug') || urlParams.get('regatta-slug');
+        const classSlug = urlParams.get('class_slug') || urlParams.get('class-slug');
+        
+        if (!regattaId || !className) {
+            document.getElementById('content').innerHTML = '<div class="error">Regatta ID and Class required</div>';
+        } else {
+            loadPodium();
+        }
+        
+        async function loadPodium() {
+            try {
+                const regattaDataResponse = await fetch(`${API}/api/regatta/${encodeURIComponent(regattaId)}?t=${Date.now()}`);
+                if (!regattaDataResponse.ok) throw new Error('Failed to load regatta data');
+                const regattaData = await regattaDataResponse.json();
+                if (!regattaData || regattaData.length === 0) throw new Error('No regatta data found');
+                
+                const h0 = regattaData[0];
+                const statusText = (h0.result_status || 'Final').charAt(0).toUpperCase() + (h0.result_status || 'Final').slice(1);
+                const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                let statusLineText;
+                if (h0.as_at_time) {
+                    const asAtDate = new Date(h0.as_at_time);
+                    if (!isNaN(asAtDate.getTime())) {
+                        const day = String(asAtDate.getDate()).padStart(2, '0');
+                        const month = months[asAtDate.getMonth()];
+                        const year = asAtDate.getFullYear();
+                        const hours = String(asAtDate.getHours()).padStart(2, '0');
+                        const minutes = String(asAtDate.getMinutes()).padStart(2, '0');
+                        statusLineText = 'Results are ' + statusText + ' as at ' + `${day} ${month} ${year} at ${hours}:${minutes}`;
+                    } else {
+                        statusLineText = 'Results are ' + statusText + ' (snapshot time not recorded)';
+                    }
+                } else {
+                    statusLineText = 'Results are ' + statusText + ' (snapshot time not recorded)';
+                }
+                const hostClubCode = h0.host_club_code || '';
+                const hostClub = formatRegattaHostDisplay(h0);
+                const sailingsaLogoHtml = '<div class="header-logo-wrap"><img src="/assets/logos/sailingsa-with-flags-below-nobg.png" alt="SailingSA" class="header-logo"></div>';
+                let clubLogoHtml = '';
+                if (hostClubCode) {
+                    clubLogoHtml = `<img id="clubLogoImg" alt="${hostClubCode}" class="header-club-logo" style="display:none;height:60px;width:auto;object-fit:contain"><script>(function(){var img=document.getElementById("clubLogoImg");var ex=["jpg","png","jpeg"];var i=0;function next(){if(i<ex.length){img.src="${API}/artwork/Club Logo/${hostClubCode}."+ex[i];img.onload=function(){img.style.display="block";};img.onerror=function(){i++;next();};}} next();})();<\/script>`;
+                }
+                const regattaNameDisplay = h0.event_name || 'Unknown Regatta';
+                document.getElementById('pageTitle').textContent = `${regattaNameDisplay} – ${className} Podium`;
+                
+                // Fleet = broad category (Open, Windsurfer). Class = boat sailed (Sonnet, Bic).
+                const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fleet\s*$/i, '').toLowerCase();
+                const want = normalizeClass(className);
+                const isResultRow = (r) => r.result_id != null || (r.rank != null && r.rank !== '') || (r.helm_name && String(r.helm_name).trim() !== '');
+                const classMatches = (r) => {
+                    if (!r.block_id) return false;
+                    const blockClass = (r.class_canonical || r.class_original || r.fleet_label || '').trim();
+                    const rowClass = (r.result_class_canonical || r.result_class_original || r.class_name || '').trim();
+                    const norm = normalizeClass(blockClass);
+                    const normRow = normalizeClass(rowClass);
+                    return norm === want || normRow === want || norm.indexOf(want) === 0 || want.indexOf(norm) === 0 || normRow.indexOf(want) === 0 || want.indexOf(normRow) === 0;
+                };
+                let blockData = regattaData.find(r => classMatches(r) && isResultRow(r));
+                if (!blockData) blockData = regattaData.find(r => classMatches(r));
+                if (!blockData || !blockData.block_id) throw new Error(`Class "${className}" not found in this regatta`);
+                
+                const blockId = blockData.block_id;
+                let fleetResults = regattaData.filter(r => r.block_id === blockId && isResultRow(r));
+                const blockNorm = normalizeClass(blockData.fleet_label || blockData.class_canonical || '');
+                if (blockNorm !== want) {
+                    fleetResults = fleetResults.filter(r => {
+                        const rc = (r.result_class_canonical || r.result_class_original || r.class_name || '').trim();
+                        const nrc = normalizeClass(rc);
+                        return nrc === want || nrc.indexOf(want) === 0 || want.indexOf(nrc) === 0;
+                    });
+                }
+                const blockFleet = (blockData.fleet_label || '').trim();
+                const blockClass = (blockData.class_canonical || blockData.class_original || '').trim();
+                const fleetCount = fleetResults.filter(r => {
+                    const rc = (r.result_class_canonical || r.result_class_original || r.class_name || r.class_canonical || r.class_original || '').trim();
+                    return normalizeClass(rc) === normalizeClass(blockFleet);
+                }).length;
+                let fleetName = blockData.fleet_label || blockData.class_canonical || blockData.class_original || className;
+                const counts = {};
+                fleetResults.forEach(r => {
+                    const rc = (r.result_class_canonical || r.result_class_original || r.class_name || r.class_canonical || r.class_original || '').trim();
+                    const key = normalizeClass(rc);
+                    if (key) counts[key] = (counts[key] || 0) + 1;
+                });
+                const best = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+                if (best && best[1] > fleetCount) {
+                    const firstMatch = fleetResults.find(r => normalizeClass((r.result_class_canonical || r.result_class_original || r.class_name || r.class_canonical || r.class_original || '').trim()) === best[0]);
+                    fleetName = (firstMatch && (firstMatch.result_class_canonical || firstMatch.result_class_original || firstMatch.class_name || firstMatch.class_canonical || firstMatch.class_original || '').trim()) || fleetName;
+                }
+                
+                const podium = [
+                    fleetResults.find(r => parseInt(r.rank) === 1),
+                    fleetResults.find(r => parseInt(r.rank) === 2),
+                    fleetResults.find(r => parseInt(r.rank) === 3)
+                ];
+                
+                function formatRank(rank) {
+                    if (!rank || isNaN(rank)) return rank;
+                    const num = parseInt(rank);
+                    const lastDigit = num % 10;
+                    const lastTwoDigits = num % 100;
+                    if (lastTwoDigits >= 11 && lastTwoDigits <= 13) return num + 'th';
+                    switch (lastDigit) { case 1: return num + 'st'; case 2: return num + 'nd'; case 3: return num + 'rd'; default: return num + 'th'; }
+                }
+                
+                const escapedFleetName = (fleetName || '').replace(/"/g, '&quot;');
+                const apiBase = (API && API.length) ? API.replace(/\/$/, '') : window.location.origin;
+                const podiumImgUrl = apiBase + '/api/regatta/' + encodeURIComponent(regattaId) + '/podium.png?class=' + encodeURIComponent(className) + '&t=' + Date.now();
+                const podiumHtml = '<div class="podium-image-wrap" style="max-width:100%;overflow:auto;margin:12px 0;"><img src="' + podiumImgUrl + '" alt="Podium - ' + escapedFleetName + '" class="podium-generated-img" style="width:100%;max-width:800px;height:auto;display:block;margin:0 auto;" onerror="this.parentNode.innerHTML=\'<div class=\\'error\\' style=\\'padding:20px\\'>Podium image could not be loaded.</div>\'"></div>';
+                document.getElementById('content').innerHTML = '<div class="header">' + sailingsaLogoHtml + clubLogoHtml + '<div style="flex:1;text-align:center"><div class="regatta-name">' + regattaNameDisplay.replace(/</g, '&lt;') + '</div><div class="host-club">' + hostClub.replace(/</g, '&lt;') + '</div><div class="status-line">' + statusLineText + '</div></div></div><div class="class-header">' + escapedFleetName + ' Fleet - Podium</div>' + podiumHtml;
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('content').innerHTML = '<div class="error">Failed to load podium: ' + error.message + '</div>';
+            }
+        }
+        (function() {
+            var h2cLoaded = false;
+            function loadHtml2Canvas(cb) {
+                if (typeof html2canvas !== 'undefined') { cb(); return; }
+                if (h2cLoaded) { setTimeout(cb, 100); return; }
+                var s = document.createElement('script');
+                s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+                s.onload = function() { h2cLoaded = true; cb(); };
+                document.head.appendChild(s);
+            }
+            window.addEventListener('message', function(e) {
+                if (e.data && e.data.type === 'captureSheet' && e.source) {
+                    var target = e.source;
+                    loadHtml2Canvas(function() {
+                        var el = document.getElementById('content');
+                        if (!el) { target.postMessage({ type: 'captureResult', dataUrl: null }, '*'); return; }
+                        html2canvas(el, { scale: 2, useCORS: true, allowTaint: true, logging: false }).then(function(canvas) {
+                            target.postMessage({ type: 'captureResult', dataUrl: canvas.toDataURL('image/png') }, '*');
+                        }).catch(function() { target.postMessage({ type: 'captureResult', dataUrl: null }, '*'); });
+                    });
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

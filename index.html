@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        (function() {
+            var q = window.location.search || '';
+            if (q.indexOf('profile=') !== -1) {
+                window.location.replace('/index.html' + q);
+            }
+        })();
+    </script>
+    <title>SailingSA.co.za - South African Sailing Results</title>
+    <link rel="icon" type="image/png" href="artwork/sailing-flags-only-sa.png">
+    <link href="https://fonts.googleapis.com/css2?family=Audiowide&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            min-height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+        }
+
+        .logo-container {
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+        }
+
+        .header-tagline {
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: #1a365d;
+            padding: 1.5rem 2rem;
+            background: white;
+            margin-bottom: 20px;
+        }
+
+        .upcoming-event {
+            text-align: center;
+            margin: 20px auto;
+            max-width: 1200px;
+        }
+
+        .upcoming-event img {
+            width: 100%;
+            max-width: 1200px;
+            height: auto;
+        }
+
+        .facebook-link {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+        }
+
+        .facebook-icon {
+            width: 100px;
+            height: 100px;
+        }
+
+        .header-logo {
+            height: 100%;
+            max-height: 120px;
+            width: auto;
+            display: block;
+        }
+
+        /* SailingSA Logo - Similar style to TimAdvisor */
+        .sailing-logo {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .sailing-flag {
+            width: 40px;
+            height: 40px;
+            position: relative;
+            border-radius: 3px;
+            flex-shrink: 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        /* S Flag - South African flag colors (vertical stripes) */
+        .sailing-s {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-radius: 3px;
+        }
+
+        .sailing-stripe {
+            flex: 1;
+            width: 100%;
+        }
+
+        .sailing-green { background: #007A4D; }
+        .sailing-white { background: #FFFFFF; }
+        .sailing-blue { background: #002395; }
+        .sailing-red { background: #DE3831; }
+        .sailing-yellow { background: #FFB612; }
+
+        /* A Flag - Triangle design (South African flag triangle) */
+        .sailing-a {
+            background: #002395;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .sailing-triangle {
+            width: 0;
+            height: 0;
+            border-left: 12px solid transparent;
+            border-right: 12px solid transparent;
+            border-bottom: 20px solid #FFB612;
+            position: relative;
+        }
+
+        .sailing-triangle:after {
+            content: "";
+            position: absolute;
+            top: 4px;
+            left: -8px;
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 14px solid #DE3831;
+        }
+
+        .sailing-logo-img {
+            max-height: 200px;
+            max-width: 600px;
+            width: auto;
+            height: auto;
+            display: block;
+        }
+
+        .class-entries-header {
+            background: #f8f9fa;
+            padding: 1.5rem 2rem;
+            border-bottom: 2px solid #dee2e6;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .class-entries-container {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .class-entries-column {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .class-entry-item {
+            padding: 0.5rem 0;
+            font-size: 1rem;
+            color: #333;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .class-entry-item:last-child {
+            border-bottom: none;
+        }
+
+        .class-entry-item strong {
+            color: #1a365d;
+            font-weight: 600;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .hero {
+            text-align: center;
+            color: #002395;
+            margin-bottom: 4rem;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            color: #002395;
+        }
+
+        .tagline {
+            font-size: 1.5rem;
+            font-weight: 300;
+            font-style: italic;
+            opacity: 0.95;
+        }
+
+        .content {
+            background: white;
+            border-radius: 20px;
+            padding: 3rem;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 600px;
+        }
+
+        h2 {
+            font-size: 1.8rem;
+            color: #667eea;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 0.5rem;
+        }
+
+        .contact-info {
+            font-size: 1.1rem;
+            color: #555;
+        }
+
+        footer {
+            background: #f5f5f5;
+            color: #333;
+            text-align: center;
+            padding: 1.5rem;
+        }
+
+        /* Purple Button Styles */
+        .btn-sailing-results {
+            background: #6B2C91 !important;
+            background-color: #6B2C91 !important;
+            color: white;
+            padding: 16px 32px;
+            font-size: 18px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(107, 44, 145, 0.3);
+            transition: all 0.2s;
+            -webkit-tap-highlight-color: rgba(107, 44, 145, 0.3);
+            touch-action: manipulation;
+        }
+
+        .btn-sailing-results:hover {
+            background: #5a1f7a !important;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(107, 44, 145, 0.4);
+        }
+
+        .btn-sailing-results:active {
+            transform: translateY(0);
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 10000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .modal-content {
+            background-color: #ffffff;
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+
+        .modal-close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 20px;
+            position: absolute;
+            right: 15px;
+            top: 15px;
+            -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+        }
+
+        .modal-close:hover {
+            color: #000;
+        }
+
+        .modal-content h2 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #001f3f;
+        }
+
+        .modal-content p {
+            margin-bottom: 20px;
+            color: #666;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 20px;
+        }
+
+        .form-group label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .form-group input[type="radio"] {
+            cursor: pointer;
+        }
+
+        .form-field {
+            margin-bottom: 20px;
+        }
+
+        .form-field input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+
+        .form-field input:focus {
+            outline: none;
+            border-color: #6B2C91;
+        }
+
+        #nameFields {
+            display: flex;
+            gap: 10px;
+        }
+
+        #nameFields input {
+            flex: 1;
+        }
+
+        .modal-submit-btn {
+            width: 100%;
+            padding: 12px;
+            background: #6B2C91;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .modal-submit-btn:hover {
+            background: #5a2474;
+        }
+
+        .modal-back-btn {
+            width: 100%;
+            padding: 10px;
+            background: #ccc;
+            color: #333;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .modal-back-btn:hover {
+            background: #bbb;
+        }
+
+        #searchResultsList {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+        }
+
+        .result-item {
+            margin-bottom: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 12px;
+            transition: border-color 0.2s;
+        }
+
+        .result-item:hover {
+            border-color: #6B2C91;
+        }
+
+        .result-label {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            margin: 0;
+        }
+
+        .result-label input[type="radio"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .result-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+        }
+
+        .result-info strong {
+            color: #001f3f;
+            font-size: 16px;
+        }
+
+        .result-id {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .result-label input[type="radio"]:checked ~ .result-info strong {
+            color: #6B2C91;
+        }
+
+        .result-item:has(input[type="radio"]:checked) {
+            border-color: #6B2C91;
+            background-color: #f5f0fa;
+        }
+
+        @media (max-width: 768px) {
+            header {
+                padding: 1rem;
+            }
+
+            .logo-container {
+                height: 100px;
+            }
+
+            .header-logo {
+                height: 80px;
+            }
+
+            .facebook-icon {
+                width: 80px;
+                height: 80px;
+            }
+
+            .header-tagline {
+                font-size: 1rem;
+                padding: 1rem 1.5rem;
+            }
+
+            .class-entries-header {
+                padding: 1rem;
+            }
+
+            .class-entries-container {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .class-entries-column {
+                min-width: 100%;
+            }
+
+            .upcoming-event {
+                margin: 15px auto;
+                padding: 0 1rem;
+            }
+
+            .container {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            .tagline {
+                font-size: 1rem;
+            }
+
+            .hero {
+                margin-bottom: 2rem;
+            }
+
+            .content {
+                padding: 2rem 1.5rem;
+                margin: 0 1rem;
+            }
+
+            h2 {
+                font-size: 1.5rem;
+            }
+
+            .contact-info {
+                font-size: 0.9rem;
+            }
+
+            .btn-sailing-results {
+                width: 100%;
+                max-width: 100%;
+            }
+
+            .modal {
+                z-index: 10000;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .modal-content {
+                margin: 10px auto;
+                padding: 20px;
+                width: 95%;
+                max-width: none;
+                max-height: 90vh;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            #nameFields {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .form-group {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .modal-close {
+                font-size: 32px;
+                right: 10px;
+                top: 10px;
+                z-index: 10001;
+            }
+
+            .modal-submit-btn,
+            .modal-back-btn {
+                padding: 14px;
+                font-size: 16px;
+                -webkit-tap-highlight-color: rgba(107, 44, 145, 0.3);
+            }
+        }
+
+        @media (max-width: 480px) {
+            header {
+                padding: 0.75rem;
+            }
+
+            .logo-container {
+                height: 80px;
+            }
+
+            .header-logo {
+                height: 60px;
+            }
+
+            .facebook-icon {
+                width: 70px;
+                height: 70px;
+            }
+
+            .header-tagline {
+                font-size: 0.85rem;
+                padding: 0.75rem 1rem;
+            }
+
+            .upcoming-event {
+                margin: 10px auto;
+                padding: 0 0.75rem;
+            }
+
+            .facebook-icon {
+                width: 28px;
+                height: 28px;
+            }
+
+            h1 {
+                font-size: 1.75rem;
+            }
+
+            .tagline {
+                font-size: 0.9rem;
+            }
+
+            .content {
+                padding: 1.5rem 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo-container">
+            <img src="artwork/sailingsa-results-logo.png" alt="SailingSA Logo" class="sailing-logo-img">
+        </div>
+    </header>
+    <div class="class-entries-header">
+        <div class="class-entries-container" id="class-entries-container">
+            <div class="class-entries-column">
+                <div class="class-entry-item"><strong>Dabchick</strong> > Entries = <span id="entries-dabchick">-</span></div>
+                <div class="class-entry-item"><strong>ILCA 4</strong> > Entries = <span id="entries-ilca-4">-</span></div>
+                <div class="class-entry-item"><strong>ILCA 6</strong> > Entries = <span id="entries-ilca-6">-</span></div>
+            </div>
+            <div class="class-entries-column">
+                <div class="class-entry-item"><strong>Mirror</strong> > Entries = <span id="entries-mirror">-</span></div>
+                <div class="class-entry-item"><strong>Optimist A</strong> > Entries = <span id="entries-optimist-a">-</span></div>
+                <div class="class-entry-item"><strong>Optimist B</strong> > Entries = <span id="entries-optimist-b">-</span></div>
+            </div>
+            <div class="class-entries-column">
+                <div class="class-entry-item"><strong>RS Tera</strong> > Entries = <span id="entries-rs-tera">-</span></div>
+                <div class="class-entry-item"><strong>Topaz</strong> > Entries = <span id="entries-topaz">-</span></div>
+                <div class="class-entry-item"><strong>Topper 5.3</strong> > Entries = <span id="entries-topper-5-3">-</span></div>
+            </div>
+        </div>
+    </div>
+    <div class="upcoming-event">
+        <img src="artwork/upcoming-events-grunge-stamp-vector-20849911.avif" alt="Upcoming Events">
+    </div>
+    <div class="upcoming-event">
+        <img src="artwork/Youth Wed 03 Dec.png" alt="Youth Wed 03 Dec">
+    </div>
+    <div class="upcoming-event">
+        <img src="artwork/TSC Cape Classic 2025.png" alt="TSC Cape Classic">
+    </div>
+    <div class="upcoming-event">
+        <img src="artwork/Youth Wed 09 Dec .png" alt="Youth Wed 09 Dec">
+    </div>
+    <div class="upcoming-event">
+        <img src="artwork/YN 14 Dec 2025.jpeg" alt="YN 14 Dec 2025">
+    </div>
+    <div class="container">
+        <div class="hero">
+            <h1>South African Sailing Results</h1>
+            <p class="tagline">Comprehensive regatta results and sailor profiles</p>
+        </div>
+        <div class="content">
+            <h2>Welcome to SailingSA.co.za</h2>
+            <p class="contact-info">
+                Search for regatta results, view sailor profiles, and track sailing statistics across South Africa.
+            </p>
+            <p style="margin-top: 30px; text-align: center;">
+                <button type="button" class="btn-sailing-results" id="sailingResultsBtn" onclick="showSailingResultsModal(event); return false;" style="background: #6B2C91 !important; background-color: #6B2C91 !important; color: white; padding: 16px 32px; font-size: 18px; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 6px rgba(107, 44, 145, 0.3); transition: all 0.2s; -webkit-tap-highlight-color: rgba(107, 44, 145, 0.3); touch-action: manipulation; width: 100%; max-width: 400px;">
+                    Your Sailing Results
+                </button>
+            </p>
+            <p style="margin-top: 20px; text-align: center; display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                <a href="regatta_search.html" style="display: inline-block; padding: 12px 24px; background: #1a365d; color: white; text-decoration: none; border-radius: 6px; font-weight: 600;">Search Regattas</a>
+                <a href="search.html" style="display: inline-block; padding: 12px 24px; background: #002395; color: white; text-decoration: none; border-radius: 6px; font-weight: 600;">Search Sailors (Admin)</a>
+            </p>
+        </div>
+    </div>
+    <footer>
+        <p>Copyright © 2025 SailingSA.co.za - All Rights Reserved.</p>
+    </footer>
+
+    <!-- Sailing Results Modal -->
+    <div id="sailingResultsModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeSailingResultsModal()" style="cursor: pointer; -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);">&times;</span>
+            <h2>Access Your Sailing Results</h2>
+            
+            <!-- Search Form -->
+            <div id="searchFormContainer">
+                <p>Please provide your identification:</p>
+                <form id="sailingResultsForm" onsubmit="handleSailingResultsSubmit(event)">
+                    <div class="form-group">
+                        <label>
+                            <input type="radio" name="searchType" value="sasid" checked onchange="toggleSearchFields()">
+                            SAS ID Number
+                        </label>
+                        <label>
+                            <input type="radio" name="searchType" value="name" onchange="toggleSearchFields()">
+                            Name & Surname
+                        </label>
+                    </div>
+                    <div id="sasidField" class="form-field">
+                        <input type="text" id="sasId" name="sasId" placeholder="Enter your SAS ID Number" 
+                               autocomplete="off" 
+                               autocapitalize="off"
+                               spellcheck="false"
+                               required>
+                    </div>
+                    <div id="nameFields" class="form-field" style="display: none;">
+                        <input type="text" id="firstName" name="firstName" 
+                               placeholder="First Name (exact match required)"
+                               autocomplete="given-name"
+                               autocapitalize="words"
+                               list="firstNameSuggestions">
+                        <input type="text" id="surname" name="surname" 
+                               placeholder="Surname (exact match required)"
+                               autocomplete="family-name"
+                               autocapitalize="words"
+                               list="surnameSuggestions">
+                        <datalist id="firstNameSuggestions"></datalist>
+                        <datalist id="surnameSuggestions"></datalist>
+                        <p style="font-size: 12px; color: #666; margin-top: 5px;">Both first name and surname must match exactly in the database.</p>
+                    </div>
+                    <button type="submit" class="modal-submit-btn">Search</button>
+                </form>
+            </div>
+
+            <!-- Search Results -->
+            <div id="searchResultsContainer" style="display: none;">
+                <p><strong>Exact match found:</strong></p>
+                <p style="font-size: 14px; color: #666; margin-bottom: 15px;">Only exact matches from SA ID database are shown for privacy.</p>
+                <div id="searchResultsList"></div>
+                <button type="button" class="modal-submit-btn" onclick="confirmSelection()" id="confirmBtn" style="display: none; margin-top: 15px;">Confirm Selection</button>
+                <button type="button" class="modal-back-btn" onclick="backToSearch()" style="margin-top: 10px;">Back to Search</button>
+            </div>
+
+            <!-- Loading Indicator -->
+            <div id="loadingIndicator" style="display: none; text-align: center; padding: 20px;">
+                <p>Searching database...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Class name mapping for display
+        const classMapping = {
+            'dabchick': 'entries-dabchick',
+            'ilca 4': 'entries-ilca-4',
+            'ilca 6': 'entries-ilca-6',
+            'mirror': 'entries-mirror',
+            'optimist a': 'entries-optimist-a',
+            'optimist b': 'entries-optimist-b',
+            'rs tera': 'entries-rs-tera',
+            'topaz': 'entries-topaz',
+            'topper 5.3': 'entries-topper-5-3'
+        };
+
+        // Fetch class entries from API
+        async function loadClassEntries() {
+            try {
+                const regattaId = '375-2025-hyc-sa-youth-nationals';
+                const response = await fetch(`/api/regatta/${encodeURIComponent(regattaId)}/class-entries`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const entries = await response.json();
+                
+                // Update each class entry count
+                for (const [classKey, elementId] of Object.entries(classMapping)) {
+                    const count = entries[classKey] || 0;
+                    const element = document.getElementById(elementId);
+                    if (element) {
+                        element.textContent = count;
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading class entries:', error);
+                // Set all to '?' on error
+                Object.values(classMapping).forEach(elementId => {
+                    const element = document.getElementById(elementId);
+                    if (element) {
+                        element.textContent = '?';
+                    }
+                });
+            }
+        }
+
+        // Load entries on page load
+        document.addEventListener('DOMContentLoaded', loadClassEntries);
+        
+        // Auto-refresh every 30 seconds
+        setInterval(loadClassEntries, 30000);
+
+        // ===== SAILING RESULTS MODAL FUNCTIONS =====
+        
+        function showSailingResultsModal(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+            }
+            var modal = document.getElementById('sailingResultsModal');
+            if (modal) {
+                modal.style.display = 'block';
+                document.body.style.overflow = 'hidden';
+                // Reset form to initial state
+                document.getElementById('searchFormContainer').style.display = 'block';
+                document.getElementById('searchResultsContainer').style.display = 'none';
+                document.getElementById('loadingIndicator').style.display = 'none';
+                // Focus first input for mobile
+                setTimeout(function() {
+                    var firstInput = document.getElementById('sasId');
+                    if (firstInput && firstInput.offsetParent !== null) {
+                        firstInput.focus();
+                    }
+                }, 100);
+            }
+        }
+        
+        function closeSailingResultsModal() {
+            var modal = document.getElementById('sailingResultsModal');
+            if (modal) {
+                modal.style.display = 'none';
+                document.body.style.overflow = '';
+            }
+            const form = document.getElementById('sailingResultsForm');
+            if (form) {
+                form.reset();
+            }
+            document.getElementById('searchFormContainer').style.display = 'block';
+            document.getElementById('searchResultsContainer').style.display = 'none';
+            document.getElementById('loadingIndicator').style.display = 'none';
+            toggleSearchFields();
+        }
+
+        // Attach event listeners
+        window.addEventListener('DOMContentLoaded', function() {
+            var btn = document.getElementById('sailingResultsBtn');
+            if (btn) {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    showSailingResultsModal(e);
+                }, { passive: false });
+                
+                btn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    showSailingResultsModal(e);
+                }, { passive: false });
+            }
+            
+            // Close modal when clicking outside
+            var modal = document.getElementById('sailingResultsModal');
+            if (modal) {
+                modal.addEventListener('click', function(e) {
+                    if (e.target === modal) {
+                        closeSailingResultsModal();
+                    }
+                });
+            }
+
+            // Load autocomplete data
+            loadAutocompleteData();
+        });
+        
+        // Make functions globally available
+        window.showSailingResultsModal = showSailingResultsModal;
+        window.closeSailingResultsModal = closeSailingResultsModal;
+
+        function loadAutocompleteData() {
+            const savedData = localStorage.getItem('sailingResultsFormData');
+            if (savedData) {
+                try {
+                    const data = JSON.parse(savedData);
+                    if (data.firstName) document.getElementById('firstName').value = data.firstName;
+                    if (data.surname) document.getElementById('surname').value = data.surname;
+                    if (data.sasId) document.getElementById('sasId').value = data.sasId;
+                } catch (e) {
+                    console.log('No saved form data');
+                }
+            }
+            
+            // Fetch common names from database for autocomplete
+            (async function() {
+                try {
+                    const response = await fetch('/api/autocomplete/names');
+                    if (response.ok) {
+                        const data = await response.json();
+                        populateAutocompleteLists(data.firstNames || [], data.surnames || []);
+                    }
+                } catch (e) {
+                    console.log('Autocomplete suggestions not available');
+                }
+            })();
+        }
+
+        function populateAutocompleteLists(firstNames, surnames) {
+            const firstNameList = document.getElementById('firstNameSuggestions');
+            const surnameList = document.getElementById('surnameSuggestions');
+            
+            firstNameList.innerHTML = '';
+            surnameList.innerHTML = '';
+            
+            firstNames.forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                firstNameList.appendChild(option);
+            });
+            
+            surnames.forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                surnameList.appendChild(option);
+            });
+        }
+
+        function saveFormData() {
+            const formData = {
+                firstName: document.getElementById('firstName').value,
+                surname: document.getElementById('surname').value,
+                sasId: document.getElementById('sasId').value
+            };
+            localStorage.setItem('sailingResultsFormData', JSON.stringify(formData));
+        }
+
+        function toggleSearchFields() {
+            const searchType = document.querySelector('input[name="searchType"]:checked').value;
+            const sasidField = document.getElementById('sasidField');
+            const nameFields = document.getElementById('nameFields');
+            const sasIdInput = document.getElementById('sasId');
+            const firstNameInput = document.getElementById('firstName');
+            const surnameInput = document.getElementById('surname');
+
+            if (searchType === 'sasid') {
+                sasidField.style.display = 'block';
+                nameFields.style.display = 'none';
+                sasIdInput.required = true;
+                firstNameInput.required = false;
+                surnameInput.required = false;
+                setTimeout(() => sasIdInput.focus(), 100);
+            } else {
+                sasidField.style.display = 'none';
+                nameFields.style.display = 'block';
+                sasIdInput.required = false;
+                firstNameInput.required = true;
+                surnameInput.required = true;
+                setTimeout(() => firstNameInput.focus(), 100);
+            }
+            
+            firstNameInput.addEventListener('input', saveFormData);
+            surnameInput.addEventListener('input', saveFormData);
+            sasIdInput.addEventListener('input', saveFormData);
+        }
+
+        function handleSailingResultsSubmit(event) {
+            event.preventDefault();
+            const searchType = document.querySelector('input[name="searchType"]:checked').value;
+            const formData = new FormData(event.target);
+            
+            document.getElementById('searchFormContainer').style.display = 'none';
+            document.getElementById('searchResultsContainer').style.display = 'none';
+            document.getElementById('loadingIndicator').style.display = 'block';
+            
+            (async function() {
+                try {
+                    let response;
+                    if (searchType === 'sasid') {
+                        const sasId = formData.get('sasId').trim();
+                        if (!sasId) {
+                            showError('Please enter a SAS ID Number');
+                            return;
+                        }
+                        response = await fetch('/api/search', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ search_type: 'sasid', sas_id: sasId })
+                        });
+                    } else {
+                        const firstName = formData.get('firstName').trim();
+                        const surname = formData.get('surname').trim();
+                        
+                        if (!firstName || !surname) {
+                            showError('Please enter both First Name and Surname');
+                            return;
+                        }
+                        response = await fetch('/api/search', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ search_type: 'name', first_name: firstName, surname: surname })
+                        });
+                    }
+                    
+                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(data.detail || 'Search failed');
+                    }
+                    
+                    displaySearchResults(data.results || []);
+                } catch (error) {
+                    document.getElementById('loadingIndicator').style.display = 'none';
+                    document.getElementById('searchFormContainer').style.display = 'block';
+                    showError('Search error: ' + error.message);
+                }
+            })();
+        }
+
+        function showError(message) {
+            document.getElementById('loadingIndicator').style.display = 'none';
+            document.getElementById('searchFormContainer').style.display = 'block';
+            alert(message);
+        }
+
+        function displaySearchResults(results) {
+            document.getElementById('loadingIndicator').style.display = 'none';
+            document.getElementById('searchResultsContainer').style.display = 'block';
+            
+            const resultsList = document.getElementById('searchResultsList');
+            resultsList.innerHTML = '';
+            
+            if (results.length === 0) {
+                resultsList.innerHTML = '<p style="color: #d32f2f; text-align: center; padding: 20px; background: #ffebee; border-radius: 8px;"><strong>No exact match found.</strong><br>Please verify your information and try again, or use your SAS ID Number for more accurate results.</p>';
+                return;
+            }
+            
+            if (results.length > 1) {
+                console.warn('Multiple exact matches found - database query may need review');
+            }
+            
+            results.forEach((person, index) => {
+                const resultItem = document.createElement('div');
+                resultItem.className = 'result-item';
+                resultItem.innerHTML = `
+                    <label class="result-label">
+                        <input type="radio" name="selectedPerson" value="${person.id}" onchange="enableConfirmButton()" ${results.length === 1 ? 'checked' : ''}>
+                        <div class="result-info">
+                            <strong>${escapeHtml(person.firstName)} ${escapeHtml(person.surname)}</strong>
+                            <span class="result-id">SAS ID: ${escapeHtml(person.sasId)}</span>
+                        </div>
+                    </label>
+                `;
+                resultsList.appendChild(resultItem);
+            });
+            
+            if (results.length === 1) {
+                enableConfirmButton();
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function enableConfirmButton() {
+            const selected = document.querySelector('input[name="selectedPerson"]:checked');
+            document.getElementById('confirmBtn').style.display = selected ? 'block' : 'none';
+        }
+
+        function confirmSelection() {
+            const selected = document.querySelector('input[name="selectedPerson"]:checked');
+            if (!selected) return;
+            
+            const selectedId = selected.value;
+            // TODO: Redirect to sailingsa.co.za profile page
+            // window.location.href = `https://sailingsa.co.za/profile/${selectedId}`;
+            
+            console.log('Selected person ID:', selectedId);
+            // For now, just close modal
+            closeSailingResultsModal();
+        }
+
+        function backToSearch() {
+            document.getElementById('searchResultsContainer').style.display = 'none';
+            document.getElementById('searchFormContainer').style.display = 'block';
+            document.getElementById('loadingIndicator').style.display = 'none';
+            document.getElementById('sailingResultsForm').reset();
+            toggleSearchFields();
+        }
+    </script>
+</body>
+</html>
