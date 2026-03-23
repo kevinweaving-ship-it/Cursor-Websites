@@ -24,7 +24,7 @@ echo ""
 # Step 1: Build frontend zip
 echo "Step 1: Building frontend zip..."
 cd "$PROJECT_ROOT/sailingsa/frontend"
-zip -r "$ZIP_PATH" . -x "*.DS_Store" -x "__MACOSX" -x "*.BU_*" -x "*.bu_*" -x "*.bak" -x "*.md" 2>/dev/null || true
+rm -f "$ZIP_PATH"
 zip -r "$ZIP_PATH" . -x "*.DS_Store" -x "__MACOSX" -x "*.BU_*" -x "*.bu_*" -x "*.bak" -x "*.md"
 echo "  Built: $ZIP_PATH"
 echo ""

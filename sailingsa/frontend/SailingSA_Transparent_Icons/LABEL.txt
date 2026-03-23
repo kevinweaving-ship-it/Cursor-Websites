@@ -1,0 +1,7 @@
+SailingSA transparent PNG icons (alpha background).
+Same filenames as ../SailingSA_Icon_Set/ (solid backgrounds).
+Use: site header, hero, cards, panels, any coloured or photo background.
+URLs (HTTPS): https://sailingsa.co.za/SailingSA_Transparent_Icons/<name>.png
+Solid (default UI): https://sailingsa.co.za/SailingSA_Icon_Set/<name>.png
+
+Files: boat, classes, club, event, results, sail_number, sailor

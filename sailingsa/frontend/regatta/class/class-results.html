@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en-US">
 <head>
+    <script src="/js/results.js?v=FORCE_CLEAN_1"></script>
+    <script>console.log('CLASS RESULTS FILE VERSION: 20260323 FIXED');</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
-    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png">
     <base href="/" id="regatta-base">
     <title id="pageTitle">Class Results</title>
     <meta name="description" content="Regatta class results">
@@ -115,25 +115,6 @@
     <script>
         (function(){ var b = document.querySelector('base'); if (b) b.href = (window.location.origin || '') + '/'; })();
         const API = (window.parent && window.parent.API_BASE ? window.parent.API_BASE : (window.API_BASE || window.location.origin || '')).replace(/\/$/, '');
-        function formatRegattaHostDisplay(h0) {
-            const isSeries = h0.regatta_type === 'SERIES' || h0.regatta_number === 'S';
-            const full = String(h0.host_club_fullname || '').trim();
-            const leg = String(h0.host_club_name || '').trim();
-            let code = String(h0.host_club_code || '').trim();
-            if (!code && leg && full && leg.toLowerCase() !== full.toLowerCase()) code = leg;
-            if (isSeries) {
-                if (leg && leg.indexOf('/') !== -1) return leg;
-                if (code && full && code.toLowerCase() !== full.toLowerCase()) return code + ' - ' + full;
-                return leg || code || full || 'Unknown';
-            }
-            if (code && full) {
-                if (code.toLowerCase() === full.toLowerCase()) return full;
-                return code + ' - ' + full;
-            }
-            if (full) return full;
-            if (code) return code;
-            return leg || 'Unknown';
-        }
         const urlParams = new URLSearchParams(window.location.search);
         const regattaId = urlParams.get('regatta_id') || urlParams.get('regatta-id');
         const className = urlParams.get('class');
@@ -141,7 +122,6 @@
         const classSlug = urlParams.get('class_slug') || urlParams.get('class-slug');
         
         document.addEventListener('click', function(e) {
-            if (e.target && e.target.closest && e.target.closest('a[href]')) return;
             var crewLink = e.target && e.target.closest ? e.target.closest('.sailor-link-crew') : null;
             var row = e.target && e.target.closest ? (e.target.closest('tr.sailor-row-clickable') || e.target.closest('tr[data-helm-name]')) : null;
             if (!row) return;
@@ -172,9 +152,16 @@
                 const regattaDataResponse = await fetch(apiUrl);
                 if (!regattaDataResponse.ok) throw new Error('Failed to load regatta data (HTTP ' + regattaDataResponse.status + '). Local: run from project root: python3 -m uvicorn api:app --host 0.0.0.0 --port 8081 then open http://' + (window.location.hostname || 'localhost') + ':8081');
                 const regattaData = await regattaDataResponse.json();
-                if (!regattaData || regattaData.length === 0) throw new Error('No regatta data found');
+                if (!Array.isArray(regattaData) || regattaData.length === 0) {
+                    var pt = document.getElementById('pageTitle');
+                    if (pt) pt.textContent = 'Class Results';
+                    var elEmpty = document.getElementById('content');
+                    if (elEmpty) elEmpty.innerHTML = '<div class="error">No results yet for this regatta</div>';
+                    return;
+                }
                 
                 const h0 = regattaData[0];
+                const isSeries = h0 && (h0.regatta_type === 'SERIES' || h0.regatta_number === 'S');
                 const statusText = (h0.result_status || 'Final').charAt(0).toUpperCase() + (h0.result_status || 'Final').slice(1);
                 const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
                 let statusLineText;
@@ -194,7 +181,15 @@
                     statusLineText = 'Results are ' + statusText + ' (snapshot time not recorded)';
                 }
                 const hostClubCode = h0.host_club_code || '';
-                const hostClub = formatRegattaHostDisplay(h0);
+                const hostClubName = h0.host_club_name || '';
+                let hostClub = 'Unknown';
+                if (isSeries) {
+                    hostClub = hostClubName || hostClubCode || 'Unknown';
+                } else {
+                    if (hostClubCode && hostClubName) hostClub = `${hostClubCode} - ${hostClubName}`;
+                    else if (hostClubCode) hostClub = hostClubCode;
+                    else if (hostClubName) hostClub = hostClubName;
+                }
                 const sailingsaLogoHtml = '<div class="header-logo-wrap"><img src="/assets/logos/sailingsa-with-flags-below-nobg.png" alt="SailingSA" class="header-logo"></div>';
                 let clubLogoHtml = '';
                 if (hostClubCode) {
@@ -229,6 +224,7 @@
                         return nrc === want || nrc.indexOf(want) === 0 || want.indexOf(nrc) === 0;
                     });
                 }
+                fleetResults.sort((a, b) => (parseInt(a.rank) || 9999) - (parseInt(b.rank) || 9999));
                 // Fleet = broader category (Windsurfer LT). Class = boat sailed (BIC, Windsurfer LT). When fleet_label is a minority class, prefer class_canonical for Fleet.
                 const blockFleet = (blockData.fleet_label || '').trim();
                 const blockClass = (blockData.class_canonical || blockData.class_original || '').trim();
@@ -302,15 +298,6 @@
                     var t = String(s);
                     return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
                 }
-                function classLink(classId, displayName) {
-                    var name = (displayName || '').toString().trim();
-                    var escName = (name ? esc(name) : '') || '—';
-                    var slug = (name || '').toString().toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-                    if (!slug) return escName;
-                    if (classId != null && classId !== '' && name)
-                        return '<a href="/class/' + String(classId) + '-' + encodeURIComponent(slug) + '" target="_top">' + escName + '</a>';
-                    return '<a href="/class/' + encodeURIComponent(slug) + '" target="_top">' + escName + '</a>';
-                }
                 
                 const liteRows = fleetResults.map(r => {
                     const rankNum = parseInt(r.rank) || 0;
@@ -324,13 +311,12 @@
                     const crewSlug = (r.crew_slug || '').trim();
                     const hasValidLink = helmSlug || (crewSlug && hasCrew) || (sid && /^\d+$/.test(sid));
                     const rowClass = r.result_class_canonical || r.result_class_original || r.class_name || r.class_canonical || r.class_original || '';
-                    const classCell = classLink(r.result_class_id, r.class_name || rowClass);
                     const trAttrs = hasValidLink ? ' class="' + rowClasses + ' sailor-row-clickable" style="cursor:pointer" data-sailor-id="' + esc(sid) + '" data-helm-name="' + esc(helmName) + '" data-club="' + esc(r.club_abbrev || r.club_raw || '') + '" data-class="' + esc(rowClass) + '" title="Click to view sailor profile"' : ' class="' + rowClasses + '"';
                     const crewSid = (r.crew_sa_sailing_id != null ? String(r.crew_sa_sailing_id) : (r.crew_temp_id != null ? String(r.crew_temp_id) : ''));
                     const crewName = (r.crew_name || '').trim();
                     const helmDisplay = helmSlug ? '<a href="/sailor/' + esc(helmSlug) + '" class="sailor-link-helm" data-sailor-id="' + esc(sid) + '" title="View sailor profile">' + esc(r.helm_name || '') + '</a>' : (sid ? esc(r.helm_name || '') : (helmName ? '<span class="result-name-unmatched" title="No SAS ID match">' + esc(r.helm_name || '') + '</span>' : ''));
                     const crewHtml = hasCrew ? (crewSlug ? '<td><a href="/sailor/' + esc(crewSlug) + '" class="sailor-link-crew" data-sailor-id="' + esc(crewSid) + '" data-name="' + esc(crewName) + '" title="View crew profile">' + esc(r.crew_name || '') + '</a></td>' : (crewSid ? '<td><span class="sailor-link-crew" data-sailor-id="' + esc(crewSid) + '" data-name="' + esc(crewName) + '" title="Click to view crew profile">' + esc(r.crew_name || '') + '</span></td>' : '<td><span class="result-name-unmatched" title="No SAS ID match">' + esc(r.crew_name || '') + '</span></td>')) : '';
-                    let row = '<tr' + trAttrs + '><td class="rank-col">' + esc(formatRank(r.rank)) + '</td><td class="class-col">' + classCell + '</td><td class="sail-col">' + esc(r.sail_number) + '</td><td class="club-col">' + esc(r.club_abbrev || r.club_raw) + '</td><td class="helm-col">' + helmDisplay + '</td>';
+                    let row = '<tr' + trAttrs + '><td class="rank-col">' + esc(formatRank(r.rank)) + '</td><td class="class-col">' + esc(rowClass) + '</td><td class="sail-col">' + esc(r.sail_number) + '</td><td class="club-col">' + esc(r.club_abbrev || r.club_raw) + '</td><td class="helm-col">' + helmDisplay + '</td>';
                     row += crewHtml;
                     row += '<td class="nett-col ' + (didNotRace ? 'strike-out' : '') + '">' + esc(r.nett_points_raw) + '</td></tr>';
                     return row;
@@ -348,10 +334,8 @@
                     const crewSlug2 = (r.crew_slug || '').trim();
                     const hasValidLink2 = helmSlug2 || (crewSlug2 && hasCrew) || (sid && /^\d+$/.test(sid));
                     const rowClass = r.result_class_canonical || r.result_class_original || r.class_name || r.class_canonical || r.class_original || '';
-                    const classCell2 = classLink(r.result_class_id, r.class_name || rowClass);
-                    const fleetCell = classLink(fleetResults[0] && fleetResults[0].result_class_id, fleetName);
                     const trAttrs = hasValidLink2 ? ' class="' + rowClasses + ' sailor-row-clickable" style="cursor:pointer" data-sailor-id="' + esc(sid) + '" data-helm-name="' + esc(helmName) + '" data-club="' + esc(r.club_abbrev || r.club_raw || '') + '" data-class="' + esc(rowClass) + '" title="Click to view sailor profile"' : ' class="' + rowClasses + '"';
-                    let row = '<tr' + trAttrs + '><td class="rank-col">' + esc(formatRank(r.rank)) + '</td><td class="fleet-col">' + fleetCell + '</td><td class="class-col">' + classCell2 + '</td><td class="sail-col">' + esc(r.sail_number) + '</td>';
+                    let row = '<tr' + trAttrs + '><td class="rank-col">' + esc(formatRank(r.rank)) + '</td><td class="fleet-col">' + esc(fleetName) + '</td><td class="class-col">' + esc(rowClass) + '</td><td class="sail-col">' + esc(r.sail_number) + '</td>';
                     if (hasBoatName) row += '<td>' + esc(r.boat_name) + '</td>';
                     if (hasJibNo) row += '<td>' + esc(r.jib_no) + '</td>';
                     if (hasBowNo) row += '<td>' + esc(r.bow_no) + '</td>';
@@ -378,6 +362,7 @@
                     const trAttrs = hasValidLinkR ? ' class="' + rowClasses + ' sailor-row-clickable" style="cursor:pointer" data-sailor-id="' + esc(sid) + '" data-helm-name="' + esc(helmName) + '" data-club="' + esc(r.club_abbrev || r.club_raw || '') + '" data-class="' + esc(rowClass) + '" title="Click to view sailor profile"' : ' class="' + rowClasses + '"';
                     let row = '<tr' + trAttrs + '>';
                     raceColumns.forEach(displayKey => {
+                        const isSeries = h0 && (h0.regatta_type === 'SERIES' || h0.regatta_number === 'S');
                         const dataKey = isSeries && displayKey === 'HYC' ? 'R1' : isSeries && displayKey === 'ZVYC' ? 'R2' : isSeries && displayKey === 'TSC' ? 'R3' : displayKey;
                         const score = raceScores[dataKey] || '';
                         const isDiscarded = typeof score === 'string' && score.startsWith('(') && score.endsWith(')');
@@ -389,7 +374,7 @@
                     return row;
                 }).join('');
                 
-                const fleetHeaderHtml = classLink(fleetResults[0] && fleetResults[0].result_class_id, fleetName);
+                const escapedFleetName = (fleetName || '').replace(/"/g, '&quot;');
                 var liteTableClass = 'results-table-view active' + (hasCrew ? ' lite-has-crew' : '');
                 var liteTableHtml = '<div id="table-lite" class="' + liteTableClass + '"><div class="table-wrapper"><table><thead><tr>' + liteHeaders + '</tr></thead><tbody>' + liteRows + '</tbody></table></div></div>';
                 var expandedWrap = '<div id="table-expanded" class="results-table-view"><div class="table-expanded-wrap"><div class="table-expanded-left"><table><thead><tr>' + anchoredHeaders + '</tr></thead><tbody>' + anchoredRows + '</tbody></table></div><div class="table-expanded-right"><table><thead><tr>' + raceHeaders + '</tr></thead><tbody>' + raceRows + '</tbody></table></div></div></div>';
@@ -451,9 +436,8 @@
                             const helmName = (r.helm_name || '').trim();
                             const hasValidLinkOpen = (r.helm_slug || '').trim() || ((r.crew_slug || '').trim() && allOpenFleetHasCrew) || (sid && /^\d+$/.test(sid));
                             const rowClass = r.result_class_canonical || r.result_class_original || r.class_name || r.class_canonical || r.class_original || '';
-                            const classCellOpen = classLink(r.result_class_id, r.class_name || rowClass);
                             const trAttrs = hasValidLinkOpen ? ' class="' + rowClasses + ' sailor-row-clickable" style="cursor:pointer" data-sailor-id="' + esc(sid) + '" data-helm-name="' + esc(helmName) + '" data-club="' + esc(r.club_abbrev || r.club_raw || '') + '" data-class="' + esc(rowClass) + '" title="Click to view sailor profile"' : ' class="' + rowClasses + '"';
-                            let row = '<tr' + trAttrs + '><td class="rank-col">' + esc(formatRank(r.rank)) + '</td><td class="class-col">' + classCellOpen + '</td><td class="sail-col">' + esc(r.sail_number) + '</td><td class="club-col">' + esc(r.club_abbrev || r.club_raw) + '</td><td class="helm-col">' + esc(r.helm_name) + '</td>';
+                            let row = '<tr' + trAttrs + '><td class="rank-col">' + esc(formatRank(r.rank)) + '</td><td class="class-col">' + esc(rowClass) + '</td><td class="sail-col">' + esc(r.sail_number) + '</td><td class="club-col">' + esc(r.club_abbrev || r.club_raw) + '</td><td class="helm-col">' + esc(r.helm_name) + '</td>';
                             if (allOpenFleetHasCrew) row += '<td>' + esc(r.crew_name) + '</td>';
                             row += '<td class="nett-col ' + (didNotRace ? 'strike-out' : '') + '">' + esc(r.nett_points_raw) + '</td></tr>';
                             return row;
@@ -469,10 +453,8 @@
                             const helmName = (r.helm_name || '').trim();
                             const hasValidLinkOpen2 = (r.helm_slug || '').trim() || ((r.crew_slug || '').trim() && allOpenFleetHasCrew) || (sid && /^\d+$/.test(sid));
                             const rowClass = r.result_class_canonical || r.result_class_original || r.class_name || r.class_canonical || r.class_original || '';
-                            const classCellOpen2 = classLink(r.result_class_id, r.class_name || rowClass);
-                            const fleetCellOpen = classLink(allOpenFleetResults[0] && allOpenFleetResults[0].result_class_id, fleetName);
                             const trAttrs = hasValidLinkOpen2 ? ' class="' + rowClasses + ' sailor-row-clickable" style="cursor:pointer" data-sailor-id="' + esc(sid) + '" data-helm-name="' + esc(helmName) + '" data-club="' + esc(r.club_abbrev || r.club_raw || '') + '" data-class="' + esc(rowClass) + '" title="Click to view sailor profile"' : ' class="' + rowClasses + '"';
-                            let row = '<tr' + trAttrs + '><td class="rank-col">' + esc(formatRank(r.rank)) + '</td><td class="fleet-col">' + fleetCellOpen + '</td><td class="class-col">' + classCellOpen2 + '</td><td class="sail-col">' + esc(r.sail_number) + '</td>';
+                            let row = '<tr' + trAttrs + '><td class="rank-col">' + esc(formatRank(r.rank)) + '</td><td class="fleet-col">' + esc(fleetName) + '</td><td class="class-col">' + esc(rowClass) + '</td><td class="sail-col">' + esc(r.sail_number) + '</td>';
                             if (allOpenFleetHasBoatName) row += '<td>' + esc(r.boat_name) + '</td>';
                             if (allOpenFleetHasJibNo) row += '<td>' + esc(r.jib_no) + '</td>';
                             if (allOpenFleetHasBowNo) row += '<td>' + esc(r.bow_no) + '</td>';
@@ -496,6 +478,7 @@
                             const trAttrs = hasValidLinkOpenR ? ' class="' + rowClasses + ' sailor-row-clickable" style="cursor:pointer" data-sailor-id="' + esc(sid) + '" data-helm-name="' + esc(helmName) + '" data-club="' + esc(r.club_abbrev || r.club_raw || '') + '" data-class="' + esc(rowClass) + '" title="Click to view sailor profile"' : ' class="' + rowClasses + '"';
                             let row = '<tr' + trAttrs + '>';
                             raceColumns.forEach(displayKey => {
+                                const isSeries = h0 && (h0.regatta_type === 'SERIES' || h0.regatta_number === 'S');
                                 const dataKey = isSeries && displayKey === 'HYC' ? 'R1' : isSeries && displayKey === 'ZVYC' ? 'R2' : isSeries && displayKey === 'TSC' ? 'R3' : displayKey;
                                 const score = raceScores[dataKey] || '';
                                 const isDiscarded = typeof score === 'string' && score.startsWith('(') && score.endsWith(')');
@@ -519,7 +502,7 @@
                 }
                 
                 var content = document.getElementById('content');
-                if (content) content.innerHTML = '<div class="header">' + sailingsaLogoHtml + clubLogoHtml + '<div style="flex:1;text-align:center"><div class="regatta-name">' + regattaNameDisplay.replace(/</g, '&lt;') + '</div><div class="host-club">' + hostClub.replace(/</g, '&lt;') + '</div><div class="status-line">' + statusLineText + '</div></div></div><div class="class-header">' + fleetHeaderHtml + ' Fleet</div><div class="sailed-line">' + sailedLine + '</div>' + liteTableHtml + expandedWrap + openFleetFullResultsHtml;
+                if (content) content.innerHTML = '<div class="header">' + sailingsaLogoHtml + clubLogoHtml + '<div style="flex:1;text-align:center"><div class="regatta-name">' + regattaNameDisplay.replace(/</g, '&lt;') + '</div><div class="host-club">' + hostClub.replace(/</g, '&lt;') + '</div><div class="status-line">' + statusLineText + '</div></div></div><div class="class-header">' + escapedFleetName + ' Fleet</div><div class="sailed-line">' + sailedLine + '</div>' + liteTableHtml + expandedWrap + openFleetFullResultsHtml;
             } catch (error) {
                 console.error('Error:', error);
                 var content = document.getElementById('content');

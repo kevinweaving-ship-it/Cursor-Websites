@@ -66,12 +66,12 @@
         (function(){ var b = document.querySelector('base'); if (b) b.href = (window.location.origin || '') + '/'; })();
         const API = ((window.parent && window.parent.API_BASE) || window.API_BASE || window.location.origin || '').replace(/\/$/, '');
         function formatRegattaHostDisplay(h0) {
-            const isSeries = h0.regatta_type === 'SERIES' || h0.regatta_number === 'S';
+            const regattaIsSeries = h0.regatta_type === 'SERIES' || h0.regatta_number === 'S';
             const full = String(h0.host_club_fullname || '').trim();
             const leg = String(h0.host_club_name || '').trim();
             let code = String(h0.host_club_code || '').trim();
             if (!code && leg && full && leg.toLowerCase() !== full.toLowerCase()) code = leg;
-            if (isSeries) {
+            if (regattaIsSeries) {
                 if (leg && leg.indexOf('/') !== -1) return leg;
                 if (code && full && code.toLowerCase() !== full.toLowerCase()) return code + ' - ' + full;
                 return leg || code || full || 'Unknown';

@@ -942,8 +942,7 @@
                 if (result.success) {
                     console.log('[DEBUG] handleUsernamePasswordLogin: Login successful, storing session');
                     storeSession(result.session || result.session_token);
-                    console.log('[DEBUG] handleUsernamePasswordLogin: Session stored, showing success');
-                    showSuccess();
+                    goBackToReturnUrl();
                 } else {
                     console.error('[DEBUG] handleUsernamePasswordLogin: Login failed:', result.error);
                     showError(result.error || 'Login failed. Please check your credentials.');
@@ -951,7 +950,7 @@
             } catch (error) {
                 console.error('[DEBUG] handleUsernamePasswordLogin: Exception caught:', error);
                 console.error('[DEBUG] handleUsernamePasswordLogin: Stack trace:', error.stack);
-                showError('Login failed. Please try again.');
+                showError(error.message && error.message.indexOf('HTTP') === -1 ? error.message : 'Login failed. Please try again.');
             }
         }
 

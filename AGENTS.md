@@ -29,6 +29,7 @@ This project uses **split tasks** to avoid agent resource limits and crashes.
 
 ## For agents
 
+- **Regatta iframe sheets (locked):** Do **not** edit `sailingsa/frontend/regatta/class/class-results.html`, `regatta/results.html`, or the same paths under `public/` unless the user explicitly requests it. See **`.cursor/rules/regatta-results-sheets-readonly.mdc`**.
 - Follow the rule in **`.cursor/rules/task-splitting-and-resources.mdc`**: one logical task per session, use todos for multi-step work, narrow scope, targeted reads.
 - If the user’s request is large, propose a short list of steps and do **only the first step** unless they ask for more.
 

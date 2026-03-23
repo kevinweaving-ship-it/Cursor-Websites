@@ -1,5 +1,28 @@
 // Session Management
 
+/** True when URL is any SPA class page under /class/… (avoid re-running landing/sailor updatePageContent). */
+function sailingsaIsClassSpaPath() {
+    try {
+        var p = (window.location.pathname || '').replace(/\/+$/, '') || '/';
+        return p.indexOf('/class/') === 0;
+    } catch (e) {
+        return false;
+    }
+}
+
+/** Skip updatePageContent on class routes — header-triggered updates must not replace class view with sailor home. */
+function safeUpdatePageContentSync() {
+    if (typeof updatePageContent !== 'function') return;
+    if (sailingsaIsClassSpaPath()) return;
+    updatePageContent();
+}
+
+async function safeUpdatePageContentAsync() {
+    if (typeof updatePageContent !== 'function') return;
+    if (sailingsaIsClassSpaPath()) return;
+    return await updatePageContent();
+}
+
 /**
  * Check session and show popup if needed
  * After login, redirects to landing page (not profile)
@@ -98,7 +121,7 @@ function clearSession() {
  * Redirect to landing page after successful login/registration
  */
 function redirectToLandingPage() {
-    // Redirect to landing page (index.html) - same page, just refresh
+    // Redirect to current path on same origin (canonical home is / not /index.html)
     window.location.href = window.location.origin + window.location.pathname;
 }
 
@@ -206,9 +229,7 @@ async function updateHeaderAuthStatus() {
             // "Your Sailing Results" button removed - no longer needed
             
             // Trigger page content update if function exists
-            if (typeof updatePageContent === 'function') {
-                updatePageContent();
-            }
+            safeUpdatePageContentSync();
         } else {
             console.log('[DEBUG] updateHeaderAuthStatus: No valid session, showing login box');
             // Show login box or "Your Sailing Results" button
@@ -314,9 +335,7 @@ async function updateHeaderAuthStatus() {
                         console.log('[DEBUG] Sign In: Valid session found, auto-signing in');
                         // Update header and page content
                         await updateHeaderAuthStatus();
-                        if (typeof updatePageContent === 'function') {
-                            await updatePageContent();
-                        }
+                        await safeUpdatePageContentAsync();
                         // Refresh to show signed-in view
                         window.location.reload();
                     } else {
@@ -338,9 +357,7 @@ async function updateHeaderAuthStatus() {
                                         localStorage.setItem('session', loginResult.session || loginResult.session_token);
                                         // Update header and reload
                                         await updateHeaderAuthStatus();
-                                        if (typeof updatePageContent === 'function') {
-                                            await updatePageContent();
-                                        }
+                                        await safeUpdatePageContentAsync();
                                         window.location.reload();
                                         return;
                                     }
@@ -352,7 +369,7 @@ async function updateHeaderAuthStatus() {
                         
                         // No valid session or auto-login failed - redirect to login page
                         try { sessionStorage.setItem('auth_returnTo', window.location.href); } catch (err) {}
-                        const loginUrl = `http://192.168.0.130:8081/sailingsa/frontend/login.html`;
+                        const loginUrl = (window.location.origin || '') + '/login.html';
                         console.log('[DEBUG] Sign In: No valid session, redirecting to:', loginUrl);
                         window.location.href = loginUrl;
                     }
@@ -360,7 +377,7 @@ async function updateHeaderAuthStatus() {
                     console.error('[DEBUG] Sign In: Error checking session:', error);
                     // On error, redirect to login page
                     try { sessionStorage.setItem('auth_returnTo', window.location.href); } catch (err) {}
-                    const loginUrl = `http://192.168.0.130:8081/sailingsa/frontend/login.html`;
+                    const loginUrl = (window.location.origin || '') + '/login.html';
                     window.location.href = loginUrl;
                 }
             });
@@ -368,9 +385,7 @@ async function updateHeaderAuthStatus() {
             // "Your Sailing Results" button removed - no longer needed
             
             // Trigger page content update if function exists
-            if (typeof updatePageContent === 'function') {
-                updatePageContent();
-            }
+            safeUpdatePageContentSync();
         }
     } catch (error) {
         console.error('[DEBUG] updateHeaderAuthStatus: Error:', error);
@@ -478,9 +493,7 @@ async function updateHeaderAuthStatus() {
                     console.log('[DEBUG] Sign In (error state): Valid session found, auto-signing in');
                     // Update header and page content
                     await updateHeaderAuthStatus();
-                    if (typeof updatePageContent === 'function') {
-                        await updatePageContent();
-                    }
+                    await safeUpdatePageContentAsync();
                     // Refresh to show signed-in view
                     window.location.reload();
                 } else {
@@ -502,9 +515,7 @@ async function updateHeaderAuthStatus() {
                                     localStorage.setItem('session', loginResult.session || loginResult.session_token);
                                     // Update header and reload
                                     await updateHeaderAuthStatus();
-                                    if (typeof updatePageContent === 'function') {
-                                        await updatePageContent();
-                                    }
+                                    await safeUpdatePageContentAsync();
                                     window.location.reload();
                                     return;
                                 }
@@ -516,7 +527,7 @@ async function updateHeaderAuthStatus() {
                     
                     // No valid session or auto-login failed - redirect to login page
                     try { sessionStorage.setItem('auth_returnTo', window.location.href); } catch (err) {}
-                    const loginUrl = `http://192.168.0.130:8081/sailingsa/frontend/login.html`;
+                    const loginUrl = (window.location.origin || '') + '/login.html';
                     console.log('[DEBUG] Sign In (error state): No valid session, redirecting to:', loginUrl);
                     window.location.href = loginUrl;
                 }
@@ -524,7 +535,7 @@ async function updateHeaderAuthStatus() {
                 console.error('[DEBUG] Sign In (error state): Error checking session:', error);
                 // On error, redirect to login page
                 try { sessionStorage.setItem('auth_returnTo', window.location.href); } catch (err) {}
-                const loginUrl = `http://192.168.0.130:8081/sailingsa/frontend/login.html`;
+                const loginUrl = (window.location.origin || '') + '/login.html';
                 window.location.href = loginUrl;
             }
         });
@@ -680,7 +691,8 @@ async function handleLogout() {
         
         // Call logout endpoint to end session on server
         try {
-            const response = await fetch(`${API_BASE}/auth/logout`, {
+            const apiBase = (window.API_BASE || window.location.origin || '').replace(/\/$/, '');
+            const response = await fetch(`${apiBase}/auth/logout`, {
                 method: 'POST',
                 credentials: 'include'
             });
@@ -706,16 +718,16 @@ async function handleLogout() {
             localStorage.removeItem('saved_password');
             localStorage.removeItem('remember_credentials');
             
-            // Redirect to public page (index.html), not login.html
-            const indexUrl = `${window.location.protocol}//${window.location.host}/sailingsa/frontend/index.html`;
+            // Canonical home: / (not /index.html)
+            const indexUrl = `${window.location.protocol}//${window.location.host}/`;
             console.log('[DEBUG] handleLogout: Redirecting to public page (no auto-login):', indexUrl);
             window.location.href = indexUrl;
         } else {
             // User chose to enable auto-login - keep credentials stored
             console.log('[DEBUG] handleLogout: User chose to enable auto-login, keeping credentials');
             
-            // Redirect to public index page
-            const indexUrl = `${window.location.protocol}//${window.location.host}/sailingsa/frontend/index.html`;
+            // Canonical home on live: / (not /sailingsa/frontend/ — that path is dev-only / not on server)
+            const indexUrl = `${window.location.protocol}//${window.location.host}/`;
             console.log('[DEBUG] handleLogout: Redirecting to public page:', indexUrl);
             window.location.href = indexUrl;
         }
@@ -754,8 +766,7 @@ async function handleLogout() {
             loggedInDiv.style.display = 'none';
         }
         
-        // Redirect to public page (index.html) on error, not login.html
-        const indexUrl = `${window.location.protocol}//${window.location.host}/sailingsa/frontend/index.html`;
+        const indexUrl = `${window.location.protocol}//${window.location.host}/`;
         console.log('[DEBUG] handleLogout: Redirecting to public page (error):', indexUrl);
         window.location.href = indexUrl;
     }
@@ -854,6 +865,7 @@ window.showPopup = showPopup;
 window.hidePopup = hidePopup;
 window.handleLogout = handleLogout;
 window.showAutoLoginPopup = showAutoLoginPopup;
+window.sailingsaIsClassSpaPath = sailingsaIsClassSpaPath;
 
 // Export for use in other modules
 if (typeof module !== 'undefined' && module.exports) {

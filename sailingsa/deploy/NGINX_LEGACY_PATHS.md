@@ -17,6 +17,14 @@ location = /home {
 location = /home/ {
     return 301 https://sailingsa.co.za/;
 }
+
+location = /index {
+    return 301 https://sailingsa.co.za/;
+}
+
+location = /index/ {
+    return 301 https://sailingsa.co.za/;
+}
 ```
 
 Reference full block: `sailingsa/deploy/nginx-timadvisor-patched.conf` (SailingSA server block).
@@ -45,6 +53,7 @@ Reference full block: `sailingsa/deploy/nginx-timadvisor-patched.conf` (SailingS
 4. **Verify redirects**
    ```bash
    curl -I https://sailingsa.co.za/index.html
+   curl -I https://sailingsa.co.za/index
    curl -I https://sailingsa.co.za/home
    ```
    Expected:

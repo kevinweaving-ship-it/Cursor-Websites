@@ -1,6 +1,5 @@
 // API Configuration and Helper Functions
-// API_BASE will be overridden by login.html based on hostname
-// Default fallback (will be overridden)
+// Same origin as the page; index.html / login.html set window.API_BASE = window.location.origin
 let API_BASE = (typeof window !== 'undefined' && window.location) ? (window.location.origin || '') : '';
 
 /**
@@ -106,14 +105,14 @@ async function loginWithProvider(provider, providerData) {
 }
 
 /**
- * Login with username (SAS ID) and password
+ * Login with identifier (email, SAS ID, or WhatsApp) and password.
+ * Backend expects password + identifier as `email` or `username` (both accepted).
  */
-async function loginWithUsernamePassword(username, password) {
+async function loginWithUsernamePassword(identifier, password) {
     return apiRequest('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ 
-            provider: 'username',
-            username: username,
+        body: JSON.stringify({
+            email: identifier,
             password: password
         })
     });

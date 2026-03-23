@@ -16,6 +16,9 @@ logs/
 api_server.log
 slow_queries.log
 
+# Node (local tooling only; never commit)
+node_modules/
+
 # Python
 __pycache__/
 *.py[cod]
@@ -171,6 +174,7 @@ regatta-admin-*.html
 regatta-live-*.html
 regatta_search.html
 regatta_viewer.html
+!sailingsa/frontend/regatta_viewer.html
 search.html
 test_mobile_view.html
 timothy_mobile_profile.html

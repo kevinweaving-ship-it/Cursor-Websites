@@ -551,14 +551,7 @@
 
     <script src="js/api.js"></script>
     <script>
-        // Use local network IP for API (works on mobile devices on same network)
-        // Override API_BASE from js/api.js (don't redeclare - use window.API_BASE)
-        (function() {
-            const currentHost = window.location.hostname;
-            window.API_BASE = (currentHost === '192.168.0.130' || currentHost === 'localhost' || currentHost === '127.0.0.1')
-                ? 'http://192.168.0.130:8081'  // Local network API
-                : 'http://localhost:3001';     // Fallback for local dev
-        })();
+        window.API_BASE = window.location.origin;
         let currentProfile = null;
         let registrationRelationship = null;
 
@@ -862,11 +855,7 @@
                 if (ref && (ref.indexOf('login') === -1)) target = ref;
             }
             if (!target) {
-                if (window.location.hostname === '192.168.0.130' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                    target = 'http://192.168.0.130:8081/sailingsa/frontend/index.html';
-                } else {
-                    target = '/sailingsa/frontend/index.html';
-                }
+                target = window.location.origin + '/';
             }
             window.location.replace(target);
         }
@@ -886,19 +875,9 @@
                 fullUrl: window.location.href
             });
             
-            if (currentHost === '192.168.0.130' || currentHost === 'localhost' || currentHost === '127.0.0.1') {
-                // Local testing - redirect to sailingsa frontend
-                // Use HTTP (8081) for the landing page (index.html)
-                const landingUrl = `http://192.168.0.130:8081/sailingsa/frontend/index.html`;
-                console.log('[DEBUG] redirectToLandingPage: Redirecting to:', landingUrl);
-                // Use replace instead of href to avoid back button issues
-                window.location.replace(landingUrl);
-            } else {
-                // Production or other environments
-                const landingUrl = '/sailingsa/frontend/index.html';
-                console.log('[DEBUG] redirectToLandingPage: Redirecting to:', landingUrl);
-                window.location.replace(landingUrl);
-            }
+            const landingUrl = window.location.origin + '/';
+            console.log('[DEBUG] redirectToLandingPage: Redirecting to:', landingUrl);
+            window.location.replace(landingUrl);
         }
 
         // Login functions
@@ -909,9 +888,8 @@
 
         function loginWithFacebook() {
             console.log('[DEBUG] loginWithFacebook() function called');
-            // Redirect to Facebook OAuth endpoint on HTTPS port 8082 (required by Facebook)
             try {
-                const oauthUrl = 'https://192.168.0.130:8082/auth/facebook';
+                const oauthUrl = (window.location.origin || '') + '/auth/facebook';
                 console.log('[DEBUG] Redirecting to:', oauthUrl);
                 window.location.href = oauthUrl;
             } catch (error) {
@@ -950,8 +928,7 @@
                 if (result.success) {
                     console.log('[DEBUG] handleUsernamePasswordLogin: Login successful, storing session');
                     storeSession(result.session || result.session_token);
-                    console.log('[DEBUG] handleUsernamePasswordLogin: Session stored, showing success');
-                    showSuccess();
+                    goBackToReturnUrl();
                 } else {
                     console.error('[DEBUG] handleUsernamePasswordLogin: Login failed:', result.error);
                     showError(result.error || 'Login failed. Please check your credentials.');
@@ -959,7 +936,7 @@
             } catch (error) {
                 console.error('[DEBUG] handleUsernamePasswordLogin: Exception caught:', error);
                 console.error('[DEBUG] handleUsernamePasswordLogin: Stack trace:', error.stack);
-                showError('Login failed. Please try again.');
+                showError(error.message && error.message.indexOf('HTTP') === -1 ? error.message : 'Login failed. Please try again.');
             }
         }
 
@@ -1132,7 +1109,7 @@
         }
         
         function redirectToLogin() {
-            window.location.href = '/sailingsa/frontend/login.html';
+            window.location.href = (window.location.origin || '') + '/login.html';
         }
 
         function displayProfileResults(results) {
@@ -1542,13 +1519,8 @@
             showLoading();
             
             try {
-                // Call API to create account (same as Facebook but without Facebook ID)
-                const API_BASE = window.location.protocol === 'https:' 
-                    ? `https://${window.location.hostname}:8082`
-                    : `http://${window.location.hostname}:8081`;
-                
+                const API_BASE = window.location.origin;
                 console.log('[DEBUG] handleRegistrationData: Calling API:', `${API_BASE}/api/register-account`);
-                
                 const response = await fetch(`${API_BASE}/api/register-account`, {
                     method: 'POST',
                     headers: {

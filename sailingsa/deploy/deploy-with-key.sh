@@ -16,6 +16,7 @@ fi
 
 echo "Build frontend zip..."
 cd "$PROJECT_ROOT/sailingsa/frontend"
+rm -f ../../sailingsa-frontend.zip
 zip -r ../../sailingsa-frontend.zip . -x "*.DS_Store" -x "__MACOSX" -x "*.BU_*" -x "*.bu_*" -x "*.bak" -x "*.md"
 cd "$PROJECT_ROOT"
 

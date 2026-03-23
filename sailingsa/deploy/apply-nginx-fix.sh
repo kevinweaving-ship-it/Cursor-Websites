@@ -13,15 +13,32 @@ sed -i '/location \/frontend\//,/}/d' "$NGCFG" 2>/dev/null || true
 sed -i '/alias.*sailingsa\/frontend/d' "$NGCFG" 2>/dev/null || true
 sed -i '/rewrite.*sailingsa\/frontend/d' "$NGCFG" 2>/dev/null || true
 
-echo "Step 2: Add hard-fail blocks before location /..."
-# Insert before first "location /" that's not already our block
+echo "Step 2: Legacy /sailingsa/ 404; exact /login.html static (before location /)..."
 if ! grep -q 'location \^~ /sailingsa/' "$NGCFG"; then
     sed -i '/location \/ {/i\
     location ^~ /sailingsa/ {\
         return 404;\
     }\
-    location ^~ /frontend/ {\
-        return 404;\
+' "$NGCFG"
+fi
+if ! grep -q 'location = /login.html' "$NGCFG"; then
+    sed -i '/location \/ {/i\
+    location = /login.html {\
+        try_files /login.html =404;\
+    }\
+' "$NGCFG"
+fi
+if ! grep -q 'location = /signup.html' "$NGCFG"; then
+    sed -i '/location \/ {/i\
+    location = /signup.html {\
+        return 301 /login.html;\
+    }\
+' "$NGCFG"
+fi
+if ! grep -q 'location = /regatta_viewer.html' "$NGCFG"; then
+    sed -i '/location \/ {/i\
+    location = /regatta_viewer.html {\
+        try_files /regatta_viewer.html =404;\
     }\
 ' "$NGCFG"
 fi

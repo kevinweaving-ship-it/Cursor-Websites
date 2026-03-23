@@ -3,6 +3,19 @@
 <head>
     <base href="/">
     <script>
+        (function() {
+            var rawPath = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
+            var pl = rawPath.toLowerCase();
+            if (pl === '/index.html' || pl === '/index' || pl === '/home') {
+                window.location.replace(window.location.origin + '/' + (window.location.search || '') + (window.location.hash || ''));
+                return;
+            }
+            var h = (window.location.hostname || '').toLowerCase();
+            if (h === 'sailingsa.org.za' || h === 'www.sailingsa.org.za') {
+                window.location.replace('https://sailingsa.co.za' + (window.location.pathname || '/') + (window.location.search || '') + (window.location.hash || ''));
+                return;
+            }
+        })();
         window.SAILINGSA_HOME_URL = (function(){ var h = window.location.hostname; if (h === 'sailingsa.co.za' || h === 'www.sailingsa.co.za') return 'https://sailingsa.co.za/'; return window.location.origin + '/'; })();
         document.addEventListener('DOMContentLoaded', function() {
             var home = window.SAILINGSA_HOME_URL;
@@ -15,7 +28,7 @@
         });
         (function() {
             function pathIsHome() {
-                var p = (window.location.pathname || '/').replace(/^\/index\.html$/i, '/');
+                var p = (window.location.pathname || '/').replace(/^\/index\.html$/i, '/').replace(/^\/index$/i, '/').replace(/^\/home$/i, '/');
                 return p === '/' || p === '';
             }
             function normalizeNavPath(path) {
@@ -23,6 +36,7 @@
                 if (!p) return '/';
                 p = p.replace(/^https?:\/\/[^/]+/i, '');
                 p = p.replace(/^\/index\.html$/i, '/');
+                p = p.replace(/^\/index$/i, '/');
                 p = p.replace(/^\/home$/i, '/');
                 if (p.length > 1) p = p.replace(/\/+$/, '');
                 return p || '/';
@@ -1885,7 +1899,8 @@
     </script>
     <script src="js/config.js"></script>
     <script src="js/api.js?v=8081fix"></script>
-    <script src="js/session.js?v=20260207_mobile_login"></script>
+    <script src="js/results.js?v=FORCE_CLEAN_1"></script>
+    <script src="js/session.js?v=20260321_class_spa_guard"></script>
     <script src="js/popup.js"></script>
     <script src="js/auth.js"></script>
     
@@ -1986,7 +2001,11 @@
         }
         window.renderClassPage = function(data) {
             var cv = document.getElementById('class-view');
-            if (!cv || !data) return;
+            if (!cv) return;
+            if (!data || typeof data !== 'object') {
+                cv.innerHTML = '<div class="container"><p class="card">No data available</p></div>';
+                return;
+            }
             var name = escapeClassHtml(data.class_name || 'Class');
             var active = data.active_sailors != null ? Number(data.active_sailors) : 0;
             var regattasCount = data.total_regattas != null ? Number(data.total_regattas) : 0;
@@ -2053,6 +2072,101 @@
             attachSortableTables(cv);
         };
 
+        function setMainColumnMode(mode) {
+            var isClass = mode === 'class';
+            function show(el, on) { if (el) el.style.display = on ? '' : 'none'; }
+            show(document.getElementById('site-stats-embed'), !isClass);
+            show(document.querySelector('.search-header-container'), !isClass);
+            show(document.getElementById('public-regattas-section'), !isClass);
+            show(document.querySelector('.search-row-container'), !isClass);
+            var hr = document.querySelector('.search-to-profile-separator');
+            if (hr) hr.style.display = isClass ? 'none' : '';
+            show(document.getElementById('landing-news-embed'), !isClass);
+            var browse = document.querySelector('section.browse-sailingsa');
+            if (browse) show(browse, !isClass);
+            show(document.getElementById('public-view'), !isClass);
+            show(document.getElementById('sailor-view'), !isClass);
+            var cv = document.getElementById('class-view');
+            if (cv) cv.style.display = isClass ? 'block' : 'none';
+            var sailorResults = document.getElementById('sailor-search-results');
+            if (sailorResults && isClass) {
+                sailorResults.style.display = 'none';
+                sailorResults.innerHTML = '';
+            }
+        }
+        window.setMainColumnMode = setMainColumnMode;
+
+        function sailingsaIsClassRoutePath(p) {
+            try {
+                var path = (p != null && p !== '') ? String(p) : String((window.location && window.location.pathname) || '/');
+                path = path.replace(/\/+$/, '') || '/';
+                return path.indexOf('/class/') === 0;
+            } catch (e) { return false; }
+        }
+        window.sailingsaIsClassRoutePath = sailingsaIsClassRoutePath;
+
+        function finishClassPageLoad() {
+            setMainColumnMode('class');
+            setTimeout(function() {
+                try {
+                    var p = (window.location.pathname || '').replace(/\/+$/, '') || '/';
+                    if (sailingsaIsClassRoutePath(p)) setMainColumnMode('class');
+                } catch (e) {}
+            }, 0);
+            setTimeout(function() {
+                try {
+                    var p = (window.location.pathname || '').replace(/\/+$/, '') || '/';
+                    if (sailingsaIsClassRoutePath(p)) setMainColumnMode('class');
+                } catch (e) {}
+            }, 200);
+        }
+
+        window.loadClassPageRoute = async function(classSlug) {
+            if (!classSlug) return;
+            console.log('CLASS SLUG:', classSlug);
+            if (window.__sailingClassSsrPainted) return;
+            var ssrEl = document.getElementById('sailing-class-ssr-data');
+            if (ssrEl) {
+                try {
+                    var ssrData = JSON.parse(ssrEl.textContent);
+                    if (ssrData && typeof ssrData === 'object') {
+                        console.log('CLASS DATA:', ssrData);
+                        if (typeof window.renderClassPage === 'function') window.renderClassPage(ssrData);
+                        if (typeof setClassPageSEO === 'function') setClassPageSEO(window.location.pathname || '', ssrData);
+                        finishClassPageLoad();
+                        return;
+                    }
+                } catch (err) {
+                    console.error('[class] SSR parse failed', err);
+                }
+            }
+            var API = (window.API_BASE || '').replace(/\/$/, '');
+            var classRes = await fetch(API + '/api/class/' + encodeURIComponent(classSlug) + '?t=' + Date.now(), { cache: 'no-store' }).then(function(r) { return r.ok ? r.json() : null; }).catch(function() { return null; });
+            console.log('CLASS DATA:', classRes);
+            if (!classRes || typeof classRes !== 'object') {
+                var cv0 = document.getElementById('class-view');
+                if (cv0) cv0.innerHTML = '<div class="container"><p class="card">Failed to load class. Try again or <a href="/classes">browse classes</a>.</p></div>';
+                setMainColumnMode('class');
+                return;
+            }
+            if (classRes.class_id == null && !(classRes.class_name && String(classRes.class_name).trim())) {
+                var cvEmpty = document.getElementById('class-view');
+                if (cvEmpty) cvEmpty.innerHTML = '<div class="container"><p class="card">No data available</p></div>';
+                setMainColumnMode('class');
+                return;
+            }
+            try {
+                if (typeof window.renderClassPage === 'function') window.renderClassPage(classRes);
+                if (typeof setClassPageSEO === 'function') setClassPageSEO(window.location.pathname || '', classRes);
+            } catch (err) {
+                console.error('[class] render failed', err);
+                var cvErr = document.getElementById('class-view');
+                if (cvErr) cvErr.innerHTML = '<div class="container"><p class="card">Could not display this class.</p></div>';
+            } finally {
+                finishClassPageLoad();
+            }
+        };
+
         // Initialize popup handlers
         document.addEventListener('DOMContentLoaded', async function() {
             _dbg('[DEBUG] index.html: DOMContentLoaded fired');
@@ -2102,14 +2216,32 @@
                 });
             }
             
-            // Check session and update header
+            // Class URLs: load after other DOMContentLoaded boot; header after class fetch completes (no home re-mount over class).
             _dbg('[DEBUG] index.html: Checking session and updating header...');
             try {
-                await updateHeaderAuthStatus();
+                var pnormBoot = (window.location.pathname || '').replace(/\/+$/, '') || '/';
+                var classSlugBoot = (pnormBoot.indexOf('/class/') === 0) ? pnormBoot.slice('/class/'.length).split('/')[0] : '';
+                if (classSlugBoot && typeof window.loadClassPageRoute === 'function') {
+                    setMainColumnMode('class');
+                    setTimeout(function() {
+                        Promise.resolve(window.loadClassPageRoute(classSlugBoot))
+                            .then(function() { return updateHeaderAuthStatus(); })
+                            .catch(function(eClass) {
+                                console.error('[class] loadClassPageRoute failed', eClass);
+                                return updateHeaderAuthStatus();
+                            });
+                    }, 0);
+                    return;
+                }
                 await updatePageContent();
+                await updateHeaderAuthStatus();
             } catch (error) {
                 console.error('[DEBUG] index.html: Error updating header:', error);
-                await updatePageContent();
+                var pnormE = (window.location.pathname || '').replace(/\/+$/, '') || '/';
+                if (pnormE.indexOf('/class/') !== 0) {
+                    await updatePageContent();
+                }
+                try { await updateHeaderAuthStatus(); } catch (e2) {}
             }
 
             // Sailor Search (above Welcome) — works for both public and logged-in
@@ -2142,6 +2274,10 @@
                     '<p style="padding:1rem 16px;color:#64748b;font-size:0.9rem;">Select a sailor from search or sign in to see your profile here.</p>' +
                     '</div></div>';
                 function showSailorProfilePlaceholder() {
+                    try {
+                        var _clsPathPh = (window.location.pathname || '').replace(/\/+$/, '') || '/';
+                        if (typeof sailingsaIsClassRoutePath === 'function' && sailingsaIsClassRoutePath(_clsPathPh)) return;
+                    } catch (_) {}
                     // Hide profile section when no sailor is logged in or selected
                     sailorSearchResults.style.display = 'none';
                     sailorSearchResults.innerHTML = '';
@@ -2151,6 +2287,10 @@
                         return s.trim().replace(/\w+/g, function(w) { return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(); });
                     }
                     showSailorStatsInResultsFn = async function(sid, name, club, classesSailed, options) {
+                        try {
+                            var _clsPath = (window.location.pathname || '').replace(/\/+$/, '') || '/';
+                            if (typeof sailingsaIsClassRoutePath === 'function' && sailingsaIsClassRoutePath(_clsPath)) return;
+                        } catch (_) {}
                         options = options || {};
                         var isLoggedInUser = options.isLoggedInUser === true;
                         // Check if ANY user is logged in (not just if viewing own profile)
@@ -3472,6 +3612,10 @@
                         }
                     };
                 function runSailorSearch() {
+                    try {
+                        var _clsPathRs = (window.location.pathname || '').replace(/\/+$/, '') || '/';
+                        if (typeof sailingsaIsClassRoutePath === 'function' && sailingsaIsClassRoutePath(_clsPathRs)) return;
+                    } catch (_) {}
                     // Auto-close regatta results modal when showing sailor content (mirrors sailor results hiding when doing regatta search)
                     if (typeof window.closeRegattaResultSheetModal === 'function') window.closeRegattaResultSheetModal();
                     const q = (sailorSearchInput.value || '').trim();
@@ -3736,6 +3880,8 @@
                             // If logged in, show their profile; otherwise show placeholder
                             (async function() {
                                 try {
+                                    var _clsPathClk = (window.location.pathname || '').replace(/\/+$/, '') || '/';
+                                    if (typeof sailingsaIsClassRoutePath === 'function' && sailingsaIsClassRoutePath(_clsPathClk)) return;
                                     var session = typeof checkSession === 'function' ? await checkSession() : { valid: false };
                                     var sasId = session.valid && (session.sas_id || (session.user && session.user.sas_id)) ? (session.sas_id || session.user.sas_id) : null;
                                     if (sasId && typeof window.showSailorStatsInResults === 'function') {
@@ -3830,24 +3976,8 @@
                             }
                             return;
                         }
-                        var classSlugMatch = pathname.match(/^\/class\/(\d+)-/);
-                        if (classSlugMatch) {
-                            var classId = classSlugMatch[1];
-                            var API = window.API_BASE || '';
-                            var classRes = await fetch(API + '/api/class/' + encodeURIComponent(classId) + '?t=' + Date.now(), { cache: 'no-store' }).then(function(r) { return r.ok ? r.json() : null; }).catch(function() { return null; });
-                            if (classRes && typeof window.renderClassPage === 'function') {
-                                window.renderClassPage(classRes);
-                                if (typeof setClassPageSEO === 'function') setClassPageSEO(pathname, classRes);
-                                var classView = document.getElementById('class-view');
-                                var container = classView && classView.parentNode;
-                                if (container) {
-                                    var c = container;
-                                    for (var i = 0; i < c.children.length; i++) {
-                                        var ch = c.children[i];
-                                        ch.style.display = (ch.id === 'class-view') ? 'block' : 'none';
-                                    }
-                                }
-                            }
+                        var pathNorm = (pathname || '').replace(/\/+$/, '') || '/';
+                        if (typeof sailingsaIsClassRoutePath === 'function' && sailingsaIsClassRoutePath(pathNorm)) {
                             return;
                         }
                         var session = typeof checkSession === 'function' ? await checkSession() : { valid: false };
@@ -3892,6 +4022,13 @@
          */
         async function updatePageContent() {
             _dbg('[DEBUG] updatePageContent: Called');
+            var pathname = (typeof window !== 'undefined' && window.location && window.location.pathname) ? String(window.location.pathname).replace(/\/+$/, '') || '/' : '';
+            if (typeof sailingsaIsClassRoutePath === 'function' && sailingsaIsClassRoutePath(pathname)) {
+                return;
+            }
+            if (typeof window.setMainColumnMode === 'function') {
+                window.setMainColumnMode('landing');
+            }
             try {
                 const session = await checkSession();
                 const publicView = document.getElementById('public-view');
@@ -3977,6 +4114,10 @@
                 }
             } catch (error) {
                 console.error('[DEBUG] updatePageContent: Error:', error);
+                var pathErr = (typeof window !== 'undefined' && window.location && window.location.pathname) ? String(window.location.pathname).replace(/\/+$/, '') || '/' : '';
+                if (typeof sailingsaIsClassRoutePath === 'function' && sailingsaIsClassRoutePath(pathErr)) {
+                    return;
+                }
                 // Default to public view on error
                 const publicView = document.getElementById('public-view');
                 const sailorView = document.getElementById('sailor-view');
@@ -3993,6 +4134,15 @@
         
         // Make updatePageContent globally available
         window.updatePageContent = updatePageContent;
+        window.addEventListener('popstate', function() {
+            var p = (window.location.pathname || '').replace(/\/+$/, '') || '/';
+            var classSlugPop = (p.indexOf('/class/') === 0) ? p.slice('/class/'.length).split('/')[0] : '';
+            if (classSlugPop && typeof window.loadClassPageRoute === 'function') {
+                window.loadClassPageRoute(classSlugPop);
+                return;
+            }
+            if (typeof updatePageContent === 'function') updatePageContent();
+        });
         
         /**
          * Load congratulations message for podium finishes
@@ -4756,10 +4906,17 @@
          * Open Class Results page in POPUP MODAL (stays on Sailor Profile page)
          */
         function navigateToClassResults(regattaId, className, regattaName) {
-            window._regattaResultBackContext = { regattaId: regattaId || '', regattaName: regattaName || regattaId || '', className: className || '' };
-            const regattaSlug = generateSlug(regattaName || regattaId);
-            const classSlug = generateSlug(className);
-            const url = `/regatta/class/class-results.html?regatta_id=${encodeURIComponent(regattaId)}&class=${encodeURIComponent(className)}&regatta_slug=${encodeURIComponent(regattaSlug)}&class_slug=${encodeURIComponent(classSlug)}`;
+            const rid = regattaId != null && regattaId !== '' ? String(regattaId).trim() : '';
+            const cname = className != null && className !== '' ? String(className).trim() : '';
+            if (!rid || !cname) {
+                console.error('navigateToClassResults: missing regatta_id or class', { regattaId, className });
+                if (typeof window.showError === 'function') window.showError('Cannot open class results: missing regatta or class.');
+                return;
+            }
+            window._regattaResultBackContext = { regattaId: rid, regattaName: regattaName || rid || '', className: cname };
+            const regattaSlug = generateSlug(regattaName || rid);
+            const classSlug = generateSlug(cname);
+            const url = '/regatta/class/class-results.html?regatta_id=' + encodeURIComponent(rid) + '&class=' + encodeURIComponent(cname) + '&regatta_slug=' + encodeURIComponent(regattaSlug) + '&class_slug=' + encodeURIComponent(classSlug) + '&v=20260323_final_fix';
             openResultPageInModal(url);
         }
         
@@ -4787,6 +4944,12 @@
          * Open result page in modal iframe (POPUP - does NOT navigate away)
          */
         function openResultPageInModal(pageUrl) {
+            const engine = typeof window.resolveResultsEngine === 'function' ? window.resolveResultsEngine() : null;
+            if (!engine) {
+                console.error('Results engine missing');
+                if (typeof window.showError === 'function') window.showError('Results engine not loaded');
+                return;
+            }
             // Build absolute URL from site root only (never use current path - fixes /sailor/regatta/... 404)
             let absoluteUrl = pageUrl;
             if (!pageUrl.startsWith('http://') && !pageUrl.startsWith('https://') && !pageUrl.startsWith('//')) {
@@ -4884,7 +5047,9 @@
             } else if (view === 'podium' && className) {
                 url = '/regatta/class/podium/podium.html?regatta_id=' + encodeURIComponent(regattaId) + '&class=' + encodeURIComponent(className) + (regattaSlug ? '&regatta_slug=' + encodeURIComponent(regattaSlug) : '') + (classSlug ? '&class_slug=' + encodeURIComponent(classSlug) : '');
             } else if (view === 'class' && className) {
-                url = '/regatta/class/class-results.html?regatta_id=' + encodeURIComponent(regattaId) + '&class=' + encodeURIComponent(className) + (regattaSlug ? '&regatta_slug=' + encodeURIComponent(regattaSlug) : '') + (classSlug ? '&class_slug=' + encodeURIComponent(classSlug) : '');
+                var cn = String(className).trim();
+                if (!regattaId || !cn) return;
+                url = '/regatta/class/class-results.html?regatta_id=' + encodeURIComponent(regattaId) + '&class=' + encodeURIComponent(cn) + (regattaSlug ? '&regatta_slug=' + encodeURIComponent(regattaSlug) : '') + (classSlug ? '&class_slug=' + encodeURIComponent(classSlug) : '') + '&v=20260323_final_fix';
             } else return;
             loadResultPageInIframe(url);
         }
@@ -4915,6 +5080,12 @@
          * Load a result page into the existing result sheet iframe (switches view within modal)
          */
         function loadResultPageInIframe(pageUrl) {
+            const engine = typeof window.resolveResultsEngine === 'function' ? window.resolveResultsEngine() : null;
+            if (!engine) {
+                console.error('Results engine missing');
+                if (typeof window.showError === 'function') window.showError('Results engine not loaded');
+                return;
+            }
             const iframe = document.getElementById('regattaResultSheetIframe');
             if (!iframe) return;
             let absoluteUrl = pageUrl;
@@ -5215,6 +5386,12 @@
          * Uses the regatta's actual date instead of current date
          */
         async function openRegattaResultSheet(regattaId, className, regattaName) {
+            const engine = typeof window.resolveResultsEngine === 'function' ? window.resolveResultsEngine() : null;
+            if (!engine) {
+                console.error('Results engine missing');
+                if (typeof window.showError === 'function') window.showError('Results engine not loaded');
+                return;
+            }
             try {
                 const API = window.API_BASE || window.location.origin || '';
                 
@@ -5523,6 +5700,12 @@
          * Open full regatta result sheet (all classes/fleets) in popup or modal.
          */
         async function openFullRegattaResultSheet(regattaId, regattaName) {
+            const engine = typeof window.resolveResultsEngine === 'function' ? window.resolveResultsEngine() : null;
+            if (!engine) {
+                console.error('Results engine missing');
+                if (typeof window.showError === 'function') window.showError('Results engine not loaded');
+                return;
+            }
             try {
                 const API = window.API_BASE || window.location.origin || '';
                 const regattaDataResponse = await fetch(`${API}/api/regatta/${regattaId}?t=${Date.now()}`);

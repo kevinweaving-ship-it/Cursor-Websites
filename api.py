@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from typing import Union, Optional, List
+from typing import Union, Optional, List, Dict, Set
 import os, sys, subprocess, socket, psycopg2, psycopg2.extras, psycopg2.pool, re
 from pathlib import Path
 from unidecode import unidecode
@@ -21,6 +21,8 @@ import traceback
 import hashlib
 import html as html_module
 import json
+import difflib
+import unicodedata
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 
@@ -536,18 +538,16 @@ def _canonical_base_url() -> str:
 
 @app.middleware("http")
 async def _canonical_redirect_middleware(request: Request, call_next):
-    """Force canonical URL: http→https, www→non-www, /index.html→/, /home→/. 301 redirects for SEO."""
+    """Force canonical URL: http→https, www→non-www. Do not redirect /index.html, /index, /login.html, /signup, /admin (SPA/static)."""
     path = (request.url.path or "").strip() or "/"
     query = request.url.query
     qs = ("?" + query) if query else ""
 
-    if path == "/index.html" or path == "/home":
-        return RedirectResponse(url=CANONICAL_BASE + "/" + qs, status_code=301)
-
     # Use X-Forwarded-Proto / Host when behind nginx so we still redirect wrong URLs
     netloc = (request.headers.get("host") or request.url.netloc or "").lower().split(":")[0]
     scheme = (request.headers.get("x-forwarded-proto") or request.url.scheme or "http").lower()
-    if netloc == "www.sailingsa.co.za" or scheme != "https":
+    # Legacy / alternate host: always use canonical sailingsa.co.za (SSR + API match production deploy)
+    if netloc in ("sailingsa.org.za", "www.sailingsa.org.za") or netloc == "www.sailingsa.co.za" or scheme != "https":
         target = CANONICAL_BASE + path + qs
         return RedirectResponse(url=target, status_code=301)
 
@@ -651,13 +651,64 @@ def events_page(request: Request):
     return HTMLResponse(_events_page_html())
 
 
+@app.head("/events")
+def events_page_head():
+    """HEAD for crawlers / health checks (GET-only routes return 405 without this)."""
+    return Response(status_code=200)
+
+
 @app.get("/events/type/{slug}", response_class=HTMLResponse)
 def events_type_page(request: Request, slug: str):
     """Event type page: /events/type/{slug} e.g. regional-championships, nationals. Same card layout as /events, filtered by category."""
     data = _get_events_by_type_slug(slug)
     if not data.get("display_name"):
-        raise HTTPException(status_code=404, detail="Event type not found")
+        return RedirectResponse(url="/events", status_code=301)
     return HTMLResponse(_events_type_page_html(slug, data["display_name"], data))
+
+
+@app.get("/sailor")
+def _redirect_sailor_directory():
+    """Singular /sailor → directory (SEO / legacy links)."""
+    return RedirectResponse(url="/sailors", status_code=301)
+
+
+@app.get("/sailor/")
+def _redirect_sailor_directory_trailing_slash():
+    return RedirectResponse(url="/sailors", status_code=301)
+
+
+@app.get("/regatta")
+def _redirect_regatta_directory():
+    """Singular /regatta → events listing (SEO / legacy links)."""
+    return RedirectResponse(url="/events", status_code=301)
+
+
+@app.get("/regatta/")
+def _redirect_regatta_directory_trailing_slash():
+    """Nginx often 301s /regatta → /regatta/; send that to /events as well."""
+    return RedirectResponse(url="/events", status_code=301)
+
+
+@app.get("/club")
+def _redirect_club_directory():
+    """Singular /club → directory (SEO / legacy links)."""
+    return RedirectResponse(url="/clubs", status_code=301)
+
+
+@app.get("/club/")
+def _redirect_club_directory_trailing_slash():
+    return RedirectResponse(url="/clubs", status_code=301)
+
+
+@app.get("/class")
+def _redirect_class_directory():
+    """Singular /class → directory (SEO / legacy links)."""
+    return RedirectResponse(url="/classes", status_code=301)
+
+
+@app.get("/class/")
+def _redirect_class_directory_trailing_slash():
+    return RedirectResponse(url="/classes", status_code=301)
 
 
 @app.get("/sailor/{slug}")
@@ -665,22 +716,7 @@ def events_type_page(request: Request, slug: str):
 def _sailor_spa(slug: str): return serve_sailor_spa(slug)
 
 
-@app.get("/class/{slug}")
-@app.head("/class/{slug}")
-def _class_page_or_redirect(slug: str):
-    """If URL is /class/<slug> with no leading ID: lookup by class_name, 301 to /class/{class_id}-{canonical_slug} or 404. If slug is already id-slug (e.g. 7-420), serve SPA."""
-    if not slug or not slug.strip():
-        raise HTTPException(status_code=404, detail="Class not found")
-    slug = slug.strip()
-    # Canonical form: starts with digits and a hyphen (e.g. 7-420, 62-optimist-a) — serve SPA with canonical in initial HTML
-    if re.match(r"^\d+-", slug):
-        return serve_class_spa(slug)
-    class_id, class_name = _get_class_by_name_slug(slug)
-    if not class_id or not class_name:
-        raise HTTPException(status_code=404, detail="Class not found")
-    canonical = _class_canonical_slug(class_name)
-    target = f"/class/{class_id}-{canonical}" if canonical else f"/class/{class_id}"
-    return RedirectResponse(url=target, status_code=301)
+# /class/{slug} — nginx serves try_files → index.html; SPA handles routing (not FastAPI).
 
 
 def _static_dir():
@@ -813,8 +849,10 @@ def _directory_clubs():
         try:
             cur.execute("""
                 SELECT club_fullname, club_abbrev FROM clubs
-                WHERE (club_fullname IS NOT NULL AND TRIM(club_fullname) != '')
-                   OR (club_abbrev IS NOT NULL AND TRIM(club_abbrev) != '')
+                WHERE ((club_fullname IS NOT NULL AND TRIM(club_fullname) != '')
+                   OR (club_abbrev IS NOT NULL AND TRIM(club_abbrev) != ''))
+                  AND lower(trim(COALESCE(club_abbrev, ''))) != 'unassigned'
+                  AND lower(trim(COALESCE(club_fullname, ''))) != 'unassigned'
                 ORDER BY COALESCE(NULLIF(TRIM(club_fullname), ''), club_abbrev) ASC
             """)
             for r in cur.fetchall() or []:
@@ -884,7 +922,7 @@ def _directory_page_html(title: str, items: list, href_key: str, page_title: str
 """
     _footer = '<footer class="site-footer-about" style="text-align:center;padding:2rem 1rem;font-size:0.9rem;color:#666;border-top:1px solid #e0e0e0;margin-top:2rem;">SailingSA – South African Sailing Results Database © <span id="year"></span></footer><script>document.getElementById("year").textContent=new Date().getFullYear();</script>'
     if not items:
-        header += "<p>No entries.</p></div></div></main>" + _footer + "</body></html>"
+        header += "<p>No entries.</p>" + _seo_discovery_block_html() + "</div></div></main>" + _footer + "</body></html>"
         return header
     # Group by first letter for sailors; for others use single list
     if href_key == "sailor":
@@ -908,7 +946,7 @@ def _directory_page_html(title: str, items: list, href_key: str, page_title: str
             path = slug_or_path if slug_or_path.startswith("/") else f"/{href_key}/{slug_or_path}"
             header += f'<li><a href="{html_module.escape(path)}">{html_module.escape(name)}</a></li>'
         header += "</ul>"
-    header += "</div></div></main>" + _footer + "</body></html>"
+    header += _seo_discovery_block_html() + "</div></div></main>" + _footer + "</body></html>"
     return header
 
 
@@ -1007,6 +1045,88 @@ def _host_display_from_row(r) -> str:
     return part or ""
 
 
+def _best_club_substring_match(event_lower: str, club_rows, unassigned_id):
+    """If event_lower contains a club abbrev or fullname as substring, return (club_id, club_abbrev, club_fullname) for the longest match (same idea as load_events_csv_to_db.resolve_club_from_event_name). Excludes virtual Unassigned."""
+    if not event_lower or not event_lower.strip():
+        return None
+    event_lower = event_lower.strip().lower()
+    candidates = []
+    for row in club_rows:
+        cid = row.get("club_id")
+        if cid is None:
+            continue
+        if unassigned_id is not None and int(cid) == int(unassigned_id):
+            continue
+        abbr_l = (row.get("abbr_l") or "").strip()
+        full_l = (row.get("full_l") or "").strip()
+        if abbr_l and abbr_l in event_lower:
+            candidates.append((cid, len(abbr_l)))
+        if full_l and full_l in event_lower:
+            candidates.append((cid, len(full_l)))
+    if not candidates:
+        return None
+    by_club = {}
+    for cid, length in candidates:
+        by_club[cid] = max(by_club.get(cid, 0), length)
+    best_cid = max(by_club.items(), key=lambda x: x[1])[0]
+    for row in club_rows:
+        if row.get("club_id") == best_cid:
+            abbr = (row.get("club_abbrev") or "").strip()
+            full = (row.get("club_fullname") or "").strip()
+            return (best_cid, abbr, full)
+    return None
+
+
+def _apply_event_title_club_match(cur, upcoming_rows, past_rows):
+    """After host/venue equality match: if host_club_id still NULL, resolve club from club name/abbrev appearing inside event_name (then venue/location), same as CSV loader. Reduces spurious Unassigned when SAS omits host but title names the club."""
+    if not table_exists("clubs"):
+        return
+    uid = _get_unassigned_club_id()
+    cur.execute(
+        """
+        SELECT club_id,
+               trim(lower(coalesce(club_abbrev, ''))) AS abbr_l,
+               trim(lower(coalesce(club_fullname, ''))) AS full_l,
+               club_abbrev, club_fullname
+        FROM clubs
+        WHERE ((club_abbrev IS NOT NULL AND trim(club_abbrev) != '')
+            OR (club_fullname IS NOT NULL AND trim(club_fullname) != ''))
+          AND lower(trim(coalesce(club_abbrev, ''))) != 'unassigned'
+        """
+    )
+    club_rows = list(cur.fetchall() or [])
+    if not club_rows:
+        return
+    for r in upcoming_rows + past_rows:
+        if r.get("host_club_id"):
+            continue
+        name = (r.get("event_name") or "").strip()
+        if not name:
+            continue
+        blob = " ".join(
+            x
+            for x in (
+                name,
+                (r.get("venue_raw") or "").strip(),
+                (r.get("location_raw") or "").strip(),
+            )
+            if x
+        ).strip()
+        matched = None
+        for text in (name.lower(), blob.lower()):
+            if not text.strip():
+                continue
+            matched = _best_club_substring_match(text, club_rows, uid)
+            if matched:
+                break
+        if matched:
+            cid, abbr, full = matched
+            r["host_club_id"] = cid
+            r["club_abbrev"] = abbr
+            r["club_fullname"] = full
+            r["club_slug"] = _club_slug_from_name(full or abbr)
+
+
 def _category_to_slug(category: str) -> str:
     """Slug from category: lower, replace spaces with '-', remove non-word characters. Example: Regional Championships → regional-championships."""
     if not category or not isinstance(category, str):
@@ -1017,10 +1137,252 @@ def _category_to_slug(category: str) -> str:
     return s or ""
 
 
-def _get_upcoming_events():
-    """Events for /events page from events table only. Returns {"upcoming": [...], "past": [...]}. Each item: event_name, date_display, host_club, club_slug, event_type, details_url, location. Upcoming: start_date >= CURRENT_DATE. Past: start_date < CURRENT_DATE. Details: upcoming -> external_url; past -> /regatta/{slug} if regatta_id else external_url."""
+def _event_date_to_iso(d):
+    if d is None:
+        return ""
+    if hasattr(d, "strftime"):
+        try:
+            return d.strftime("%Y-%m-%d")
+        except Exception:
+            return str(d)[:10]
+    return str(d)[:10]
+
+
+def _event_date_only(d):
+    """Normalize DB date / datetime to date for comparisons."""
+    if d is None:
+        return None
+    if hasattr(d, "date") and callable(d.date):
+        try:
+            return d.date()
+        except Exception:
+            pass
+    if hasattr(d, "year"):
+        from datetime import date as _date
+
+        try:
+            return _date(d.year, d.month, d.day)
+        except Exception:
+            pass
+    return None
+
+
+def _derive_sanction_level(r) -> str:
+    """SAS = SA Sailing calendar / official source; CLUB = other. OTHER reserved for edge cases."""
+    src = (r.get("source") or "").strip().lower()
+    url = ((r.get("source_url") or "") + " " + (r.get("organiser") or "")).lower()
+    if src == "sas":
+        return "SAS"
+    if "sailing.org.za" in url or "sa-sailing" in url.replace(" ", ""):
+        return "SAS"
+    if "worldsailing" in url or "sailing.org" in url and "sailing.org.za" not in url:
+        return "OTHER"
+    return "CLUB"
+
+
+def _derive_event_state(r, is_past_panel: bool) -> str:
+    """ACTIVE = today within [start_date, end_date] (inclusive); UPCOMING = future start; PAST = past panel only."""
+    from datetime import date as _date
+
+    today = _date.today()
+    if is_past_panel:
+        return "PAST"
+    st = _event_date_only(r.get("start_date"))
+    en = _event_date_only(r.get("end_date")) or st
+    if not st:
+        return "UPCOMING"
+    if st <= today <= (en or st):
+        return "ACTIVE"
+    if st > today:
+        return "UPCOMING"
+    return "UPCOMING"
+
+
+def _sort_live_event_cards(cards: list) -> list:
+    """ACTIVE (in-range) events for the Live tab; SAS before CLUB, then by start date."""
+    order_san = {"SAS": 0, "CLUB": 1, "OTHER": 2}
+
+    def date_key(c):
+        return c.get("start_date_iso") or ""
+
+    sub = list(cards)
+    sub.sort(key=lambda c: (order_san.get(c.get("sanction_level") or "CLUB", 1), date_key(c)))
+    return sub
+
+
+def _sort_upcoming_event_cards(cards: list) -> list:
+    """Future UPCOMING-only cards (ACTIVE moved to live)."""
+    order_san = {"SAS": 0, "CLUB": 1, "OTHER": 2}
+
+    def date_key(c):
+        return c.get("start_date_iso") or ""
+
+    sub = list(cards)
+    sub.sort(key=lambda c: (order_san.get(c.get("sanction_level") or "CLUB", 1), date_key(c)))
+    return sub
+
+
+def _sort_past_event_cards(cards: list) -> list:
+    order_san = {"SAS": 0, "CLUB": 1, "OTHER": 2}
+
+    def date_key(c):
+        return c.get("start_date_iso") or ""
+
+    out = []
+    for s in ("SAS", "CLUB", "OTHER"):
+        sub = [c for c in cards if (c.get("sanction_level") or "CLUB") == s]
+        sub.sort(key=date_key, reverse=True)
+        out.extend(sub)
+    return out
+
+
+# Tailwind-aligned hex: ACTIVE/UPCOMING/PAST × SAS/CLUB/OTHER — /events + club events (identical).
+_EVENTS_CARD_MATRIX_CSS = """
+.event-card { display: flex; flex-direction: column; gap: 0.35rem; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.5rem; box-shadow: 0 1px 2px rgba(0,0,0,0.08); border-width: 2px; border-style: solid; }
+.event-card.ec-active-sas { background: #ea580c; border-color: #c2410c; color: #fff; }
+.event-card.ec-active-sas h3, .event-card.ec-active-sas .event-date { color: #fff; }
+.event-card.ec-active-sas .event-club a { color: #ffedd5; }
+.event-card.ec-active-sas .event-location { color: #ffedd5; }
+.event-card.ec-active-sas .event-type { background: #fff; color: #ea580c; font-weight: 700; }
+.event-card.ec-active-sas .event-details-btn { background: #fff; color: #9a3412; }
+.event-card.ec-active-sas .event-title-link { color: #fff; }
+.event-card.ec-active-sas .event-host-unmatched { color: #fef3c7; }
+.event-card.ec-active-club { background: #4ade80; border-color: #22c55e; color: #14532d; }
+.event-card.ec-active-club h3, .event-card.ec-active-club .event-date { color: #14532d; }
+.event-card.ec-active-club .event-club a { color: #1e3a8a; }
+.event-card.ec-active-club .event-location { color: #166534; }
+.event-card.ec-active-club .event-type { background: #14532d; color: #fff; }
+.event-card.ec-active-club .event-details-btn { background: #14532d; color: #fff; }
+.event-card.ec-active-other { background: #16a34a; border-color: #15803d; color: #ecfdf5; }
+.event-card.ec-active-other h3, .event-card.ec-active-other .event-date { color: #f0fdf4; }
+.event-card.ec-active-other .event-club a { color: #e0f2fe; }
+.event-card.ec-active-other .event-type { background: rgba(0,0,0,0.2); color: #fff; }
+.event-card.ec-active-other .event-details-btn { background: #f0fdf4; color: #14532d; }
+.event-card.ec-upcoming-sas { background: #39C768; border-color: #2ea854; color: #fff; }
+.event-card.ec-upcoming-sas h3, .event-card.ec-upcoming-sas .event-date { color: #fff; }
+.event-card.ec-upcoming-sas .event-club a { color: #ecfdf5; }
+.event-card.ec-upcoming-sas .event-location { color: #d1fae5; }
+.event-card.ec-upcoming-sas .event-type { background: #fff; color: #39C768; font-weight: 700; }
+.event-card.ec-upcoming-sas .event-details-btn { background: #fff; color: #166534; }
+.event-card.ec-upcoming-sas .event-title-link { color: #fff; }
+.event-card.ec-upcoming-club { background: #39C768; border-color: #2ea854; color: #fff; }
+.event-card.ec-upcoming-club h3, .event-card.ec-upcoming-club .event-date { color: #fff; }
+.event-card.ec-upcoming-club .event-club a { color: #ecfdf5; }
+.event-card.ec-upcoming-club .event-location { color: #d1fae5; }
+.event-card.ec-upcoming-club .event-type { background: #fff; color: #39C768; font-weight: 700; }
+.event-card.ec-upcoming-club .event-details-btn { background: #fff; color: #166534; }
+.event-card.ec-upcoming-club .event-title-link { color: #fff; }
+.event-card.ec-upcoming-other { background: #f97316; border-color: #ea580c; color: #fff; }
+.event-card.ec-upcoming-other h3, .event-card.ec-upcoming-other .event-date { color: #fff; }
+.event-card.ec-upcoming-other .event-club a { color: #ffedd5; }
+.event-card.ec-upcoming-other .event-type { background: rgba(0,0,0,0.2); color: #fff; }
+.event-card.ec-upcoming-other .event-details-btn { background: #fff; color: #9a3412; }
+.event-card.ec-past-sas { background: #7f1d1d; border-color: #991b1b; color: #fef2f2; }
+.event-card.ec-past-sas h3, .event-card.ec-past-sas .event-date { color: #fff; }
+.event-card.ec-past-sas .event-club a { color: #fecaca; }
+.event-card.ec-past-sas .event-location { color: #fecaca; }
+.event-card.ec-past-sas .event-type { background: #fff; color: #7f1d1d; font-weight: 700; }
+.event-card.ec-past-sas .event-details-btn { background: #fef2f2; color: #7f1d1d; }
+.event-card.ec-past-sas .event-title-link { color: #fff; }
+.event-card.ec-past-club { background: #f87171; border-color: #ef4444; color: #450a0a; }
+.event-card.ec-past-club h3, .event-card.ec-past-club .event-date { color: #450a0a; }
+.event-card.ec-past-club .event-club a { color: #1e3a8a; }
+.event-card.ec-past-club .event-location { color: #7f1d1d; }
+.event-card.ec-past-club .event-type { background: #fff; color: #f87171; font-weight: 700; }
+.event-card.ec-past-club .event-details-btn { background: #450a0a; color: #fff; }
+.event-card.ec-past-other { background: #dc2626; border-color: #b91c1c; color: #fff; }
+.event-card.ec-past-other h3, .event-card.ec-past-other .event-date { color: #fff; }
+.event-card.ec-past-other .event-club a { color: #fecaca; }
+.event-card.ec-past-other .event-type { background: #fff; color: #dc2626; font-weight: 700; }
+.event-card.ec-past-other .event-details-btn { background: #fff; color: #991b1b; }
+.event-card .event-type.event-type--empty { font-style: italic; opacity: 0.9; }
+.event-card { box-sizing: border-box; }
+.event-card-body { display: flex; flex-direction: column; align-items: stretch; gap: 0.35rem; flex: 0 1 auto; min-height: 0; width: 100%; }
+.event-card-body-inner { display: flex; flex-direction: column; align-items: flex-start; flex-wrap: wrap; gap: 0.35rem 0.75rem; flex: 0 1 auto; min-height: 0; width: 100%; }
+.event-card-result-row { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; justify-content: space-between; gap: 0.5rem; width: 100%; margin: 0; padding: 0; flex-shrink: 0; box-sizing: border-box; min-height: 0; }
+.event-result-slot { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; }
+.event-card-result-row .event-result-line { margin: 0; padding: 0; display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 0; font-size: 0.7rem; font-weight: 600; line-height: 1; min-height: 0; box-sizing: border-box; }
+.event-card-actions { display: inline-flex; flex-direction: row; align-items: center; justify-content: flex-end; gap: 0.35rem; width: auto; margin: 0; padding: 0; flex-shrink: 0; flex-wrap: nowrap; flex: 0 0 auto; }
+.event-card-actions .event-details-btn { margin: 0; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; height: 1.5rem; min-height: 1.5rem; max-height: 1.5rem; padding: 0 0.4rem; font-size: 0.7rem; font-weight: 600; line-height: 1; border-radius: 6px; border: none; text-decoration: none; cursor: pointer; }
+.event-card-index { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; flex: 0 0 auto; height: 1.5rem; min-height: 1.5rem; max-height: 1.5rem; min-width: 0; padding: 0 0.28rem; font-size: 0.7rem; font-weight: 600; line-height: 1; border-radius: 6px; width: auto; }
+.event-result-chip { display: inline-flex; flex-direction: row; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 0.3rem; padding: 0.22rem 0.45rem; min-height: 1.5rem; height: 1.5rem; max-height: 1.5rem; background: #fff; border: 1px solid rgba(0,0,0,0.2); border-radius: 6px; box-sizing: border-box; font-size: 0.7rem; font-weight: 600; line-height: 1; text-decoration: none; color: #1e293b; }
+.event-card .event-result-chip .event-result-label { color: #334155; flex-shrink: 0; }
+.event-result-chip--reserved { visibility: hidden; pointer-events: none; }
+.event-result-chip.event-result-yes .event-result-glyph { color: #16a34a; font-weight: 700; }
+.event-result-chip.event-result-no .event-result-glyph { color: #dc2626; font-weight: 700; }
+a.event-result-chip.event-result-yes:hover { background: #f8fafc; border-color: rgba(0,0,0,0.22); }
+a.event-result-chip.event-result-yes:hover .event-result-glyph { color: #15803d; }
+a.event-result-chip.event-result-yes .event-result-label { color: #2563eb; text-decoration: underline; text-underline-offset: 2px; }
+a.event-result-chip.event-result-yes:hover .event-result-label { color: #1d4ed8; }
+a.event-result-chip.event-result-pick .event-result-pick-label { color: #2563eb; text-decoration: underline; text-underline-offset: 2px; }
+a.event-result-chip.event-result-pick:hover .event-result-pick-label { color: #1d4ed8; }
+.event-card .event-card-result-row .event-result-line.event-result-line-multi { flex-wrap: wrap; gap: 0.35rem; align-items: flex-start; }
+.event-result-line-multi { flex-wrap: wrap; gap: 0.35rem; align-items: flex-start; }
+.event-result-multi-details { margin: 0; padding: 0; width: 100%; max-width: 100%; min-width: 0; }
+.event-result-multi-summary {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+  list-style: none;
+  padding: 0.22rem 0.45rem;
+  min-height: 44px;
+  min-width: 44px;
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.2);
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #1e293b;
+  box-sizing: border-box;
+}
+.event-result-multi-summary::-webkit-details-marker { display: none; }
+.event-result-multi-summary .event-result-label { color: #2563eb; text-decoration: underline; text-underline-offset: 2px; }
+.event-result-multi-summary .event-result-glyph { color: #16a34a; font-weight: 700; }
+.event-result-multi-summary:hover { background: #f8fafc; border-color: rgba(0,0,0,0.22); }
+.event-result-multi-summary:hover .event-result-glyph { color: #15803d; }
+.event-result-multi-summary:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.club-page .event-result-multi-summary { border-color: #22c55e; background: #f0fdf4; min-height: 1.5rem; height: auto; max-height: none; padding: 0.2rem 0.45rem; }
+.event-result-dropdown-panel { margin-top: 0.4rem; display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: flex-start; width: 100%; }
+a.event-result-chip.event-result-pick { padding: 0.18rem 0.4rem; min-height: 1.5rem; height: auto; max-height: none; }
+.event-result-pick-label { font-size: 0.65rem; font-weight: 600; line-height: 1.2; max-width: 10rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.club-page .event-result-chip.event-result-yes:not(.event-result-pick) { background: #f0fdf4; border: 1px solid rgba(0,0,0,0.2); box-shadow: inset 0 0 0 1px #22c55e; height: 1.5rem; min-height: 1.5rem; max-height: 1.5rem; padding: 0.2rem 0.4rem; }
+.club-page a.event-result-chip.event-result-yes { outline: none; }
+.club-page a.event-result-chip.event-result-yes:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.event-details-btn--empty { visibility: hidden; pointer-events: none; user-select: none; }
+.event-card.ec-active-sas .event-card-index { background: #fff; color: #9a3412; }
+.event-card.ec-active-club .event-card-index { background: #14532d; color: #fff; }
+.event-card.ec-active-other .event-card-index { background: #f0fdf4; color: #14532d; }
+.event-card.ec-upcoming-sas .event-card-index { background: #fff; color: #166534; }
+.event-card.ec-upcoming-club .event-card-index { background: #fff; color: #166534; }
+.event-card.ec-upcoming-other .event-card-index { background: #fff; color: #9a3412; }
+.event-card.ec-past-sas .event-card-index { background: #fef2f2; color: #7f1d1d; }
+.event-card.ec-past-club .event-card-index { background: #450a0a; color: #fff; }
+.event-card.ec-past-other .event-card-index { background: #fff; color: #991b1b; }
+"""
+
+
+def _results_regatta_ids_in_batches(cur, regatta_ids: list) -> set:
+    """Which regatta_ids have ≥1 results row. Batched IN() avoids huge single queries on /events."""
+    if not regatta_ids:
+        return set()
+    out = set()
+    step = 400
+    for i in range(0, len(regatta_ids), step):
+        chunk = regatta_ids[i : i + step]
+        cur.execute(
+            "SELECT DISTINCT regatta_id FROM results WHERE regatta_id IN (%s)" % (",".join(["%s"] * len(chunk))),
+            chunk,
+        )
+        out.update(row["regatta_id"] for row in (cur.fetchall() or []))
+    return out
+
+
+def _get_upcoming_events(host_club_id=None):
+    """Events from events table. Optional host_club_id limits to that host. Returns upcoming (future), live (ACTIVE/in-range), past. Cards include event_state, sanction_level, start_date_iso."""
     t0 = time.time()
-    out = {"upcoming": [], "past": []}
+    out = {"upcoming": [], "live": [], "past": []}
     conn = None
     cur = None
     try:
@@ -1035,6 +1397,8 @@ def _get_upcoming_events():
         has_address = column_exists("events", "address")
         has_start_time = column_exists("events", "start_time")
         has_end_time = column_exists("events", "end_time")
+        has_source = column_exists("events", "source")
+        source_sel = "e.source" if has_source else "NULL::text AS source"
         reg_col = "e.regatta_id" if has_regatta_id else "NULL::text AS regatta_id"
         map_col = "e.map_url" if has_map_url else "NULL::text AS map_url"
         img_col = "e.image_url" if has_image_url else "NULL::text AS image_url"
@@ -1048,25 +1412,42 @@ def _get_upcoming_events():
             else "NULL::text AS club_slug"
         )
         club_cols = "e.host_club_id, c.club_abbrev AS club_abbrev, c.club_fullname AS club_fullname, " + club_slug_sql + "," if has_host_club_id else "NULL::int AS host_club_id, NULL::text AS club_abbrev, NULL::text AS club_fullname, NULL::text AS club_slug,"
-        cur.execute(f"""
-            SELECT e.event_id, e.event_name, e.start_date, e.end_date, {time_cols}, e.source_url,
+        hf = ""
+        qparams = []
+        if host_club_id is not None:
+            hf = " AND e.host_club_id = %s "
+            qparams = [host_club_id]
+        sql_up = f"""
+            SELECT e.event_id, e.event_name, e.start_date, e.end_date, {time_cols}, e.source_url, {source_sel},
                    e.venue_raw, e.host_club_name_raw, e.location_raw, e.category, {reg_col},
                    {club_cols} {map_col}, {img_col}, {addr_col}
             FROM events e {club_join}
-            WHERE e.start_date >= CURRENT_DATE
+            WHERE ( (e.end_date IS NOT NULL AND e.end_date >= CURRENT_DATE)
+                 OR (e.end_date IS NULL AND e.start_date >= CURRENT_DATE) )
+            {hf}
             ORDER BY e.start_date ASC NULLS LAST
-        """)
+        """
+        if qparams:
+            cur.execute(sql_up, tuple(qparams))
+        else:
+            cur.execute(sql_up)
         upcoming_rows = list(cur.fetchall() or [])
         t1 = time.time()
         print("EVENTS: upcoming query", round(t1 - t0, 3))
-        cur.execute(f"""
-            SELECT e.event_id, e.event_name, e.start_date, e.end_date, {time_cols}, e.source_url,
+        sql_past = f"""
+            SELECT e.event_id, e.event_name, e.start_date, e.end_date, {time_cols}, e.source_url, {source_sel},
                    e.venue_raw, e.host_club_name_raw, e.location_raw, e.category, {reg_col},
                    {club_cols} {map_col}, {img_col}, {addr_col}
             FROM events e {club_join}
-            WHERE e.start_date < CURRENT_DATE
+            WHERE ( (e.end_date IS NOT NULL AND e.end_date < CURRENT_DATE)
+                 OR (e.end_date IS NULL AND e.start_date < CURRENT_DATE) )
+            {hf}
             ORDER BY e.start_date DESC NULLS LAST
-        """)
+        """
+        if qparams:
+            cur.execute(sql_past, tuple(qparams))
+        else:
+            cur.execute(sql_past)
         past_rows = list(cur.fetchall() or [])
         t2 = time.time()
         print("EVENTS: past query", round(t2 - t1, 3))
@@ -1109,27 +1490,39 @@ def _get_upcoming_events():
                         r["club_slug"] = _club_slug_from_name(full or abbr)
         t3 = time.time()
         print("EVENTS: club resolution", round(t3 - t2, 3))
+        _apply_event_title_club_match(cur, upcoming_rows, past_rows)
+        _apply_unassigned_host_fallback(upcoming_rows, past_rows)
+        up_cards = []
         for r in upcoming_rows:
-            out["upcoming"].append(_event_row_to_card(r, has_regatta_id, has_host_club_id, is_upcoming=True))
+            up_cards.append(_event_row_to_card(r, has_regatta_id, has_host_club_id, is_upcoming=True))
+        live_cards = [c for c in up_cards if (c.get("event_state") or "") == "ACTIVE"]
+        upcoming_only = [c for c in up_cards if (c.get("event_state") or "") != "ACTIVE"]
+        out["live"] = _sort_live_event_cards(live_cards)
+        out["upcoming"] = _sort_upcoming_event_cards(upcoming_only)
         # Real results detection: which regattas have at least one result row
         regattas_with_results = set()
         if past_rows and table_exists("results"):
             regatta_ids = [str(r.get("regatta_id")).strip() for r in past_rows if r.get("regatta_id")]
-            if regatta_ids:
-                cur.execute(
-                    "SELECT DISTINCT regatta_id FROM results WHERE regatta_id IN (%s)" % (",".join(["%s"] * len(regatta_ids))),
-                    regatta_ids,
-                )
-                regattas_with_results = {row["regatta_id"] for row in (cur.fetchall() or [])}
+            regattas_with_results = _results_regatta_ids_in_batches(cur, regatta_ids)
         t4 = time.time()
         print("EVENTS: results detection", round(t4 - t3, 3))
         # Likely classes disabled for now
         for r in past_rows:
             out["past"].append(_event_row_to_card(r, has_regatta_id, has_host_club_id, is_upcoming=False, regattas_with_results=regattas_with_results))
+        # Automatic calendar↔regatta linking: global date pool for /events and type filters only.
+        # Club pages (host_club_id set) re-match in serve_club_page against Regattas hosted only.
+        if out["past"] and past_rows and host_club_id is None:
+            pool = _regatta_match_pool_for_past_rows(cur, past_rows)
+            if pool:
+                _club_past_events_match_hosted(out["past"], pool, None)
+        out["past"] = _sort_past_event_cards(out["past"])
         t5 = time.time()
-        print("EVENTS: rows upcoming:", len(out["upcoming"]), "past:", len(out["past"]))
+        print("EVENTS: rows upcoming:", len(out["upcoming"]), "live:", len(out["live"]), "past:", len(out["past"]))
         print("EVENTS: total", round(t5 - t0, 3))
-    except Exception:
+        out["_past_rows"] = past_rows
+    except Exception as e:
+        print(f"[events] _get_upcoming_events failed: {e}")
+        traceback.print_exc()
         if conn:
             try:
                 conn.rollback()
@@ -1146,9 +1539,21 @@ def _get_upcoming_events():
     return out
 
 
+def _events_cards_unassigned_only():
+    """Same event rows as /events where the host card is Unassigned (club_slug unassigned). Includes host_club_id NULL rows after in-memory fallback — not only DB rows with host_club_id = virtual Unassigned."""
+    data = _get_upcoming_events()
+    data.pop("_past_rows", None)
+    pred = lambda x: (x.get("club_slug") or "").strip().lower() == "unassigned"
+    return {
+        "upcoming": [x for x in data["upcoming"] if pred(x)],
+        "live": [x for x in (data.get("live") or []) if pred(x)],
+        "past": [x for x in data["past"] if pred(x)],
+    }
+
+
 def _get_events_by_type_slug(slug: str):
-    """Events filtered by category slug. Returns {"upcoming": [...], "past": [...], "display_name": str|None}. Same card structure and result/likely-class logic as _get_upcoming_events."""
-    out = {"upcoming": [], "past": [], "display_name": None}
+    """Events filtered by category slug. Returns {"upcoming": [...], "live": [...], "past": [...], "display_name": str|None}. Same card structure as _get_upcoming_events."""
+    out = {"upcoming": [], "live": [], "past": [], "display_name": None}
     if not slug or not re.match(r"^[a-z0-9\-]+$", slug.strip()):
         return out
     slug = slug.strip().lower()
@@ -1165,6 +1570,8 @@ def _get_events_by_type_slug(slug: str):
         has_address = column_exists("events", "address")
         has_start_time = column_exists("events", "start_time")
         has_end_time = column_exists("events", "end_time")
+        has_source = column_exists("events", "source")
+        source_sel = "e.source" if has_source else "NULL::text AS source"
         reg_col = "e.regatta_id" if has_regatta_id else "NULL::text AS regatta_id"
         map_col = "e.map_url" if has_map_url else "NULL::text AS map_url"
         img_col = "e.image_url" if has_image_url else "NULL::text AS image_url"
@@ -1180,7 +1587,7 @@ def _get_events_by_type_slug(slug: str):
         cat_slug_sql = "trim(both '-' from regexp_replace(regexp_replace(lower(trim(COALESCE(e.category,''))), '[^a-z0-9\\s\\-]', '', 'g'), '\\s+', '-', 'g'))"
         where_slug = f" AND {cat_slug_sql} = %s"
         cur.execute(f"""
-            SELECT e.event_id, e.event_name, e.start_date, e.end_date, {time_cols}, e.source_url,
+            SELECT e.event_id, e.event_name, e.start_date, e.end_date, {time_cols}, e.source_url, {source_sel},
                    e.venue_raw, e.host_club_name_raw, e.location_raw, e.category, {reg_col},
                    {club_cols} {map_col}, {img_col}, {addr_col}
             FROM events e {club_join}
@@ -1189,7 +1596,7 @@ def _get_events_by_type_slug(slug: str):
         """, (slug,))
         upcoming_rows = list(cur.fetchall() or [])
         cur.execute(f"""
-            SELECT e.event_id, e.event_name, e.start_date, e.end_date, {time_cols}, e.source_url,
+            SELECT e.event_id, e.event_name, e.start_date, e.end_date, {time_cols}, e.source_url, {source_sel},
                    e.venue_raw, e.host_club_name_raw, e.location_raw, e.category, {reg_col},
                    {club_cols} {map_col}, {img_col}, {addr_col}
             FROM events e {club_join}
@@ -1244,8 +1651,15 @@ def _get_events_by_type_slug(slug: str):
                         r["club_abbrev"] = abbr
                         r["club_fullname"] = full
                         r["club_slug"] = _club_slug_from_name(full or abbr)
+        _apply_event_title_club_match(cur, upcoming_rows, past_rows)
+        _apply_unassigned_host_fallback(upcoming_rows, past_rows)
+        up_cards = []
         for r in upcoming_rows:
-            out["upcoming"].append(_event_row_to_card(r, has_regatta_id, has_host_club_id, is_upcoming=True))
+            up_cards.append(_event_row_to_card(r, has_regatta_id, has_host_club_id, is_upcoming=True))
+        live_cards = [c for c in up_cards if (c.get("event_state") or "") == "ACTIVE"]
+        upcoming_only = [c for c in up_cards if (c.get("event_state") or "") != "ACTIVE"]
+        out["live"] = _sort_live_event_cards(live_cards)
+        out["upcoming"] = _sort_upcoming_event_cards(upcoming_only)
         regattas_with_results = set()
         if past_rows and table_exists("results"):
             regatta_ids = [str(r.get("regatta_id")).strip() for r in past_rows if r.get("regatta_id")]
@@ -1258,6 +1672,11 @@ def _get_events_by_type_slug(slug: str):
         # Likely classes disabled for now
         for r in past_rows:
             out["past"].append(_event_row_to_card(r, has_regatta_id, has_host_club_id, is_upcoming=False, regattas_with_results=regattas_with_results))
+        if out["past"]:
+            pool = _regatta_match_pool_for_past_rows(cur, past_rows)
+            if pool:
+                _club_past_events_match_hosted(out["past"], pool, None)
+        out["past"] = _sort_past_event_cards(out["past"])
         cur.close()
         return_db_connection(conn)
     except Exception:
@@ -1370,6 +1789,7 @@ def _event_row_to_card(r, has_regatta_id, has_host_club_id, is_upcoming, regatta
         and host_club not in ("—", "TBC", "Unk")
     )
     likely_classes = r.get("_likely_classes") or []
+    ev_state = "PAST" if not is_upcoming else _derive_event_state(r, is_past_panel=False)
     return {
         "event_name": event_name,
         "display_title": display_title,
@@ -1391,6 +1811,11 @@ def _event_row_to_card(r, has_regatta_id, has_host_club_id, is_upcoming, regatta
         "host_unmatched": host_unmatched,
         "result_url": result_url or "",
         "likely_classes": likely_classes,
+        "event_state": ev_state,
+        "sanction_level": _derive_sanction_level(r),
+        "start_date_iso": _event_date_to_iso(start),
+        "end_date_iso": _event_date_to_iso(end),
+        "regatta_id": (r.get("regatta_id") or "").strip() if has_regatta_id else "",
     }
 
 
@@ -1781,21 +2206,225 @@ document.getElementById("year").textContent = new Date().getFullYear();
   });
 })();
 </script></body></html>"""
-    return header + body + footer
+    return header + body + _seo_discovery_block_html() + footer
+
+
+_EVENTS_TOOLBAR_SEARCH_CSS = """
+/* Buffer below global header — avoid title/search row tight under dark bar (mobile + desktop) */
+main#events-dashboard { padding-top: 1rem; box-sizing: border-box; }
+@media (min-width: 640px) { main#events-dashboard { padding-top: 1.25rem; } }
+/* .events-section-heading-row: use _SECTION_HEADING_ROW_UNIFIED_CSS (align-items: center) — do not override here; */
+/* club pages load it via _CLUB_PAGE_CSS; /events pages inject it next to this block. */
+.events-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 0.5rem; margin-bottom: 0.75rem; }
+.events-toolbar .events-tabs { margin-bottom: 0; flex: 0 1 auto; }
+.events-dashboard-search { flex: 0 1 auto; min-width: min(100%, 7.5rem); max-width: 18rem; padding: 0.45rem 0.85rem; font-size: 0.9rem; border: 2px solid #001f3f; border-radius: 9999px; background: #fff; color: #001f3f; box-sizing: border-box; min-height: 44px; width: auto; }
+.events-dashboard-search::placeholder { color: #94a3b8; }
+.events-dashboard-search:focus { outline: none; border-color: #001f3f; box-shadow: 0 0 0 2px rgba(0,31,63,0.15); }
+@media (min-width: 640px) {
+  .events-toolbar { margin-bottom: 1rem; }
+}
+"""
+
+_EVENTS_DASHBOARD_SEARCH_INPUT = (
+    '<input type="search" class="events-dashboard-search" id="events-dashboard-search" '
+    'placeholder="Search…" aria-label="Search events" autocomplete="off" autocapitalize="off" spellcheck="false" />'
+)
+
+
+def _events_section_heading_row_html(heading_text: str) -> str:
+    """Title row like 'Events (12)' or 'Sailors (80)' + pill search — not in the tabs toolbar."""
+    return (
+        '<div class="events-section-heading-row">\n'
+        f'<h2 class="section-title">{html_module.escape(heading_text)}</h2>\n'
+        + _EVENTS_DASHBOARD_SEARCH_INPUT
+        + "\n</div>\n"
+    )
+
+
+_EVENTS_TAB_COUNT_CSS = """
+/* Mobile: each tab width = text + count (not equal columns); padding hugs content */
+.events-tabs { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 0.35rem; margin-bottom: 0.75rem; }
+.events-tabs button { flex: 0 0 auto; width: auto; max-width: 100%; padding: 0.55rem 0.45rem; font-size: clamp(0.95rem, 0.72rem + 1.5vw, 1.125rem); line-height: 1.2; border-radius: 6px; min-height: unset; box-sizing: border-box; font-weight: 600; }
+.events-tabs .events-tab { display: inline-flex; align-items: center; justify-content: flex-start; gap: 0.4rem; flex: 0 0 auto; width: auto; box-sizing: border-box; }
+.events-tabs .events-tab .events-tab-label { flex: 0 1 auto; text-align: left; font-size: 1em; font-weight: 600; letter-spacing: -0.02em; white-space: nowrap; }
+.events-tabs .events-tab .events-tab-count { flex: 0 0 auto; font-weight: 700; font-size: 1em; line-height: 1.2; opacity: 0.95; font-variant-numeric: tabular-nums; }
+@media (min-width: 640px) {
+  .events-tabs { flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+  .events-tabs button { padding: 0.6rem 1.2rem; font-size: 1rem; line-height: 1.2; border-radius: 8px; min-height: 0; flex: initial; min-width: auto; letter-spacing: normal; }
+  .events-tabs .events-tab { gap: 0.5rem; min-width: 7.25rem; flex: initial; }
+  .events-tabs .events-tab .events-tab-label { overflow: visible; text-overflow: clip; white-space: normal; letter-spacing: normal; }
+  .events-tabs .events-tab .events-tab-count { font-size: 0.88em; min-width: 1.25em; }
+}
+"""
+
+
+def _events_tab_button_html(tab_id: str, label: str, count: Optional[int] = None) -> str:
+    """Single events tab button; optional event count on the right inside the tab."""
+    esc = html_module.escape
+    tid = esc(tab_id)
+    label_h = esc(label)
+    if count is None:
+        return (
+            f'<button type="button" class="events-tab" role="tab" aria-selected="false" data-tab="{tid}">{label_h}</button>\n'
+        )
+    c = max(0, int(count))
+    n = esc(str(c))
+    return (
+        f'<button type="button" class="events-tab" role="tab" aria-selected="false" data-tab="{tid}">'
+        f'<span class="events-tab-label">{label_h}</span>'
+        f'<span class="events-tab-count" aria-label="{n} events">{n}</span></button>\n'
+    )
+
+
+def _events_club_carousel_panel_html(panel_id: str) -> str:
+    """Single tab panel: one event card per swipe screen + dots/arrows; no Show More."""
+    return (
+        f'<div id="panel-{panel_id}" class="events-panel" role="tabpanel">'
+        f'<div id="events-controls-{panel_id}" class="events-carousel-controls" style="display:none">'
+        '<p class="events-swipe-hint">Swipe Right or Left for more events</p>'
+        '<div class="events-pagination" role="navigation" aria-label="Events pages">'
+        f'<button type="button" class="events-arrow-btn" id="events-prev-{panel_id}" aria-label="Previous page of events" disabled>←</button>'
+        f'<div class="events-dots" id="events-dots-{panel_id}" role="tablist" aria-label="Page"></div>'
+        f'<button type="button" class="events-arrow-btn" id="events-next-{panel_id}" aria-label="Next page of events">→</button>'
+        "</div></div>"
+        f'<div id="events-wrap-{panel_id}" class="events-carousel-wrap">'
+        f'<div id="cards-{panel_id}" class="events-carousel"></div>'
+        "</div></div>\n"
+    )
+
+
+def _test_class_carousel_controls_html(panel_id: str) -> str:
+    """Swipe carousel strip matching club events (uses .club-events-dashboard CSS)."""
+    return (
+        f'<div id="events-controls-{panel_id}" class="events-carousel-controls" style="display:none">'
+        '<p class="events-swipe-hint">Swipe right or left for more</p>'
+        '<div class="events-pagination" role="navigation" aria-label="Pages">'
+        f'<button type="button" class="events-arrow-btn" id="events-prev-{panel_id}" aria-label="Previous page" disabled>←</button>'
+        f'<div class="events-dots" id="events-dots-{panel_id}" role="tablist" aria-label="Page"></div>'
+        f'<button type="button" class="events-arrow-btn" id="events-next-{panel_id}" aria-label="Next page">→</button>'
+        "</div></div>"
+        f'<div id="events-wrap-{panel_id}" class="events-carousel-wrap">'
+        f'<div id="cards-{panel_id}" class="events-carousel"></div>'
+        "</div>"
+    )
+
+
+def _test_class_list_section_html(section_id: str, heading: str, count: int, placeholder: str) -> str:
+    """Search + swipe carousel with 5 list rows per page (same shell as club events)."""
+    ph = html_module.escape(placeholder)
+    sid = html_module.escape(section_id)
+    pid = f"test-{section_id}"
+    return (
+        '<div class="card stats-section club-events-dashboard class-test-list-section">'
+        '<div class="events-section-heading-row">'
+        f'<h2 class="section-title">{html_module.escape(heading)} ({count})</h2>'
+        f'<input type="search" class="events-dashboard-search" id="test-search-{sid}" '
+        f'placeholder="{ph}" aria-label="{ph}" autocomplete="off" autocapitalize="off" spellcheck="false" />'
+        "</div>"
+        + _test_class_carousel_controls_html(pid)
+        + '<p class="class-test-intro class-test-list-footer">5 per screen — swipe or use arrows for more.</p>'
+        + "</div>"
+    )
+
+
+def _events_tabs_and_panels_html(
+    show_live: bool,
+    club_carousel: bool = False,
+    tab_counts: Optional[Dict[str, int]] = None,
+) -> str:
+    """Tabs + panels for events dashboard. When show_live: Live tab/panel first, then Upcoming, Past. Otherwise Upcoming, Past only.
+    When club_carousel: one event per swipe screen, dots + arrows (no Show More).
+    tab_counts: optional keys live, upcoming, past — shown as a number on the right inside each tab button."""
+
+    def _n(key: str) -> Optional[int]:
+        if tab_counts is None:
+            return None
+        return int(tab_counts.get(key, 0))
+
+    if club_carousel:
+        if show_live:
+            return (
+                '<div class="events-toolbar">\n'
+                '<div class="events-tabs" role="tablist">\n'
+                + _events_tab_button_html("live", "Live", _n("live"))
+                + _events_tab_button_html("upcoming", "Upcoming", _n("upcoming"))
+                + _events_tab_button_html("past", "Past", _n("past"))
+                + "</div>\n"
+                + "\n</div>\n"
+                + _events_club_carousel_panel_html("live")
+                + _events_club_carousel_panel_html("upcoming")
+                + _events_club_carousel_panel_html("past")
+            )
+        return (
+            '<div class="events-toolbar">\n'
+            '<div class="events-tabs" role="tablist">\n'
+            + _events_tab_button_html("upcoming", "Upcoming", _n("upcoming"))
+            + _events_tab_button_html("past", "Past", _n("past"))
+            + "</div>\n"
+                + "\n</div>\n"
+            + _events_club_carousel_panel_html("upcoming")
+            + _events_club_carousel_panel_html("past")
+        )
+    if show_live:
+        return (
+            '<div class="events-toolbar">\n'
+            '<div class="events-tabs" role="tablist">\n'
+            + _events_tab_button_html("live", "Live", _n("live"))
+            + _events_tab_button_html("upcoming", "Upcoming", _n("upcoming"))
+            + _events_tab_button_html("past", "Past", _n("past"))
+            + "</div>\n"
+                + "\n</div>\n"
+            + '<div id="panel-live" class="events-panel" role="tabpanel"><div class="events-cards" id="cards-live"></div><div class="events-show-more" id="show-more-live"><button type="button" id="btn-more-live">Show More</button></div></div>\n'
+            + '<div id="panel-upcoming" class="events-panel" role="tabpanel"><div class="events-cards" id="cards-upcoming"></div><div class="events-show-more" id="show-more-upcoming"><button type="button" id="btn-more-upcoming">Show More</button></div></div>\n'
+            + '<div id="panel-past" class="events-panel" role="tabpanel"><div class="events-cards" id="cards-past"></div><div class="events-show-more" id="show-more-past"><button type="button" id="btn-more-past">Show More</button></div></div>\n'
+        )
+    return (
+        '<div class="events-toolbar">\n'
+        '<div class="events-tabs" role="tablist">\n'
+        + _events_tab_button_html("upcoming", "Upcoming", _n("upcoming"))
+        + _events_tab_button_html("past", "Past", _n("past"))
+        + "</div>\n"
+                + "\n</div>\n"
+        + '<div id="panel-upcoming" class="events-panel" role="tabpanel"><div class="events-cards" id="cards-upcoming"></div><div class="events-show-more" id="show-more-upcoming"><button type="button" id="btn-more-upcoming">Show More</button></div></div>\n'
+        + '<div id="panel-past" class="events-panel" role="tabpanel"><div class="events-cards" id="cards-past"></div><div class="events-show-more" id="show-more-past"><button type="button" id="btn-more-past">Show More</button></div></div>\n'
+    )
+
+
+_CLUB_EVENTS_CAROUSEL_CSS = """
+.club-events-dashboard .events-carousel-controls { margin-bottom: 0.5rem; }
+.club-events-dashboard .events-swipe-hint { font-size: 0.9rem; color: #475569; margin: 0 0 0.65rem 0; line-height: 1.4; text-align: center; }
+.club-events-dashboard .events-pagination { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 0.75rem; }
+.club-events-dashboard .events-arrow-btn { flex-shrink: 0; min-width: 44px; min-height: 44px; padding: 0 0.5rem; border: 1px solid #cbd5e1; background: #f8fafc; color: #001f3f; font-size: 1.1rem; font-weight: 600; border-radius: 6px; cursor: pointer; line-height: 1; }
+.club-events-dashboard .events-arrow-btn:hover:not(:disabled) { background: #e2e8f0; border-color: #94a3b8; }
+.club-events-dashboard .events-arrow-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.club-events-dashboard .events-dots { display: flex; flex-wrap: nowrap; flex-direction: row; align-items: center; gap: 0.5rem; flex: 1 1 auto; min-width: 0; max-width: min(100%, 20rem); overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; line-height: 0; }
+.club-events-dashboard .events-dots::-webkit-scrollbar { display: none; }
+.club-events-dashboard .events-dot { display: block; flex: 0 0 8px; width: 8px; height: 8px; min-width: 8px; min-height: 8px; max-width: 8px; max-height: 8px; padding: 0; margin: 0; border: none; border-radius: 9999px; background: rgba(0, 31, 63, 0.22); cursor: pointer; appearance: none; -webkit-appearance: none; line-height: 0; font-size: 0; color: transparent; overflow: hidden; box-sizing: border-box; }
+.club-events-dashboard .events-dot.is-active { background: #001f3f; box-shadow: 0 0 0 2px rgba(0, 31, 63, 0.15); }
+.club-events-dashboard .events-carousel-wrap { overflow: hidden; width: 100%; max-width: 100%; box-sizing: border-box; }
+.club-events-dashboard .events-carousel { display: flex; flex-direction: row; flex-wrap: nowrap; gap: 0; width: 100%; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: thin; box-sizing: border-box; }
+.club-events-dashboard .events-page { flex: 0 0 100%; min-width: 100%; max-width: 100%; scroll-snap-align: start; scroll-snap-stop: always; box-sizing: border-box; padding: 0 0.2rem; display: flex; flex-direction: column; align-items: stretch; }
+.club-events-dashboard .events-page .event-card { margin-bottom: 0; flex: 0 0 auto; align-self: stretch; min-height: 0; }
+"""
 
 
 def _events_page_html() -> str:
-    """Build /events page: two tabs (Upcoming default, Past), event cards, Show More. Data from events table only. SAS model structure."""
+    """Build /events page: Upcoming, Live (in-range), Past tabs; one event per swipe (same as club)."""
     from urllib.parse import quote
     import json
     title = "Events – SailingSA"
     desc = "Upcoming and past sailing events. South African Sailing calendar."
     data = _get_upcoming_events()
+    data.pop("_past_rows", None)
     upcoming = data.get("upcoming") or []
+    live = data.get("live") or []
     past = data.get("past") or []
+    show_live = len(live) > 0
     nav_links = '<a href="/">Home</a><a href="/sailors">Sailors</a><a href="/regattas">Regattas</a><a href="/classes">Classes</a><a href="/clubs">Clubs</a><a href="https://sailingsa.co.za/events">Events</a><a href="/stats">Statistics</a><a href="/about">About</a>'
-    events_json = json.dumps({"upcoming": upcoming, "past": past}).replace("</", "<\\/")
-    header = f"""<!DOCTYPE html>
+    events_json = json.dumps({"upcoming": upcoming, "live": live, "past": past}).replace("</", "<\\/")
+    tab_counts = {"live": len(live), "upcoming": len(upcoming), "past": len(past)}
+    header = (
+        f"""<!DOCTYPE html>
 <html lang="en-US">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>{html_module.escape(title)}</title>
@@ -1806,23 +2435,22 @@ def _events_page_html() -> str:
 <style>
 .events-tabs {{ display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }}
 .events-tabs button {{ padding: 0.6rem 1.2rem; font-size: 1rem; font-weight: 600; border: 2px solid transparent; border-radius: 8px; cursor: pointer; }}
-.events-tabs button[data-tab="upcoming"] {{ background: #dcfce7; color: #166534; }}
-.events-tabs button[data-tab="upcoming"]:hover {{ background: #bbf7d0; }}
-.events-tabs button[data-tab="upcoming"].active {{ background: #22c55e; color: #fff; border-color: #15803d; }}
-.events-tabs button[data-tab="past"] {{ background: #fee2e2; color: #991b1b; }}
-.events-tabs button[data-tab="past"]:hover {{ background: #fecaca; }}
-.events-tabs button[data-tab="past"].active {{ background: #ef4444; color: #fff; border-color: #b91c1c; }}
+.events-tabs button[data-tab="upcoming"] {{ background: #9ce3b4; color: #fff; }}
+.events-tabs button[data-tab="upcoming"]:hover {{ background: #74d895; color: #fff; }}
+.events-tabs button[data-tab="upcoming"].active {{ background: #39C768; color: #fff; border-color: #2ea854; }}
+.events-tabs button[data-tab="live"] {{ background: #f5ac86; color: #fff; }}
+.events-tabs button[data-tab="live"]:hover {{ background: #f08a55; color: #fff; }}
+.events-tabs button[data-tab="live"].active {{ background: #ea580c; color: #fff; border-color: #c2410c; }}
+.events-tabs button[data-tab="past"] {{ background: #bf8e8e; color: #fff; }}
+.events-tabs button[data-tab="past"]:hover {{ background: #a56161; color: #fff; }}
+.events-tabs button[data-tab="past"].active {{ background: #7f1d1d; color: #fff; border-color: #991b1b; }}
 .events-panel {{ display: none; }}
 .events-panel.active {{ display: block; }}
-#panel-upcoming .event-card {{ background: #dcfce7; border: 2px solid #22c55e; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.5rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 0.35rem; }}
-#panel-past .event-card {{ background: #fee2e2; border: 2px solid #fecaca; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.5rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 0.35rem; }}
-#panel-past .event-card.event-card-has-results {{ background: #7a1c1c; border-color: #ef4444; }}
+""" + _EVENTS_TAB_COUNT_CSS + _SECTION_HEADING_ROW_UNIFIED_CSS + _EVENTS_TOOLBAR_SEARCH_CSS + _EVENTS_CARD_MATRIX_CSS + f"""
 .event-card .event-likely-classes {{ font-size: 0.8rem; color: #475569; margin: 0.2rem 0 0 0; }}
-.event-card {{ border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.5rem; }}
 .event-card .event-card-header {{ display: block; }}
-.event-card h3 {{ font-size: 0.95rem; font-weight: 700; color: #001f3f; margin: 0 0 0.2rem 0; line-height: 1.25; }}
-.event-card .event-date {{ font-size: 0.8rem; color: #475569; margin: 0; display: block; }}
-.event-card .event-card-body {{ display: flex; flex-direction: column; align-items: flex-start; flex-wrap: wrap; gap: 0.35rem 0.75rem; }}
+.event-card[class*="ec-"] h3 {{ font-size: 0.95rem; font-weight: 700; margin: 0 0 0.2rem 0; line-height: 1.25; }}
+.event-card[class*="ec-"] .event-date {{ font-size: 0.8rem; margin: 0; display: block; }}
 .event-card .event-club {{ font-size: 0.8rem; margin: 0; }}
 .event-card .event-club a {{ color: #2563eb; font-weight: 600; text-decoration: underline; }}
 .event-card .event-club a:hover {{ color: #e65100; }}
@@ -1830,18 +2458,31 @@ def _events_page_html() -> str:
 .event-card .event-host-unmatched[title]:hover {{ cursor: help; }}
 .event-card .event-type-line {{ display: block; margin: 0.2rem 0 0 0; width: 100%; }}
 .event-card .event-type {{ display: inline-block; font-size: 0.85rem; font-weight: 700; padding: 0.25rem 0.5rem; background: #001f3f; color: #fff; border-radius: 4px; margin: 0; }}
-.event-card .event-result-line {{ display: block; font-size: 0.8rem; margin: 0.2rem 0 0 0; }}
-.event-card .event-result-yes {{ display: inline-block; width: 1.1rem; height: 1.1rem; background: #22c55e; color: #fff; text-align: center; line-height: 1.1rem; font-weight: 700; border-radius: 2px; text-decoration: none; }}
-.event-card .event-result-yes:hover {{ background: #16a34a; color: #fff; }}
-.event-card .event-result-no {{ display: inline-block; width: 1.1rem; height: 1.1rem; background: #ef4444; color: #fff; text-align: center; line-height: 1.1rem; font-size: 0.75rem; font-weight: 700; border-radius: 2px; }}
+.event-card .event-card-result-row .event-result-line {{ display: flex; flex-wrap: nowrap; align-items: center; gap: 0.35rem; font-size: 0.7rem; font-weight: 600; margin: 0; padding: 0; }}
+.event-card .event-result-chip {{ border-radius: 6px; background: #fff; color: #1e293b; border: 1px solid rgba(0,0,0,0.2); }}
+.event-card .event-result-chip .event-result-label {{ color: #334155; }}
+.event-card a.event-result-chip.event-result-yes:hover {{ background: #f8fafc; border-color: rgba(0,0,0,0.25); }}
+.event-card a.event-result-chip.event-result-yes:hover .event-result-glyph {{ color: #15803d; }}
+.event-card a.event-result-chip.event-result-yes .event-result-label {{ color: #2563eb; text-decoration: underline; text-underline-offset: 2px; }}
+.event-card a.event-result-chip.event-result-yes:hover .event-result-label {{ color: #1d4ed8; }}
+.event-card a.event-result-chip.event-result-pick .event-result-pick-label {{ color: #2563eb; text-decoration: underline; text-underline-offset: 2px; }}
+.event-card a.event-result-chip.event-result-pick:hover .event-result-pick-label {{ color: #1d4ed8; }}
+.event-card .event-card-result-row .event-result-line.event-result-line-multi {{ flex-wrap: wrap; align-items: center; gap: 0.35rem; }}
+.event-card .event-result-line-multi {{ flex-wrap: wrap; align-items: center; gap: 0.35rem; }}
+.event-card .event-result-line-multi .event-result-pick-group {{ display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }}
+.event-card a.event-result-chip.event-result-pick {{ padding: 0.18rem 0.4rem; min-height: 1.5rem; height: auto; max-height: none; }}
+.event-card .event-result-pick-label {{ font-size: 0.65rem; font-weight: 600; max-width: 10rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+.club-page .event-result-chip.event-result-yes:not(.event-result-pick) {{ border-color: #22c55e; background: #f0fdf4; }}
 .event-card .event-location {{ font-size: 0.75rem; color: #64748b; margin: 0; }}
-.event-card .event-details-btn {{ display: inline-block; padding: 0.25rem 0.5rem; font-size: 0.8rem; font-weight: 600; background: #001f3f; color: #fff; border-radius: 4px; text-decoration: none; border: none; cursor: pointer; margin-left: auto; }}
-.event-card .event-details-btn:hover {{ background: #e65100; color: #fff; }}
+.event-card .event-card-actions .event-details-btn {{ display: inline-flex; align-items: center; justify-content: center; height: 1.5rem; min-height: 1.5rem; max-height: 1.5rem; padding: 0 0.4rem; font-size: 0.7rem; font-weight: 600; line-height: 1; border-radius: 6px; text-decoration: none; border: none; cursor: pointer; margin: 0; box-sizing: border-box; }}
+.event-card .event-card-index {{ border-radius: 6px; }}
+.event-card .event-card-actions .event-details-btn:hover {{ opacity: 0.92; }}
 .event-card .event-thumb {{ width: 48px; height: 48px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }}
 .events-show-more {{ margin-top: 0.5rem; }}
 .events-show-more button {{ padding: 0.5rem 1rem; font-size: 0.95rem; background: #f1f5f9; border: 2px solid #001f3f; border-radius: 6px; cursor: pointer; color: #001f3f; font-weight: 600; }}
 .events-show-more button:hover {{ background: #e2e8f0; }}
 .events-show-more button.hidden {{ display: none; }}
+{_CLUB_EVENTS_CAROUSEL_CSS}
 </style>
 </head>
 <body>
@@ -1851,100 +2492,640 @@ def _events_page_html() -> str:
 <div class="header-auth" style="margin-left:auto;"></div>
 </div></header>
 <main class="main-content" id="events-dashboard"><div class="container">
-<div class="card stats-section">
-<h2 class="section-title">Events</h2>
-<div class="events-tabs" role="tablist">
-<button type="button" class="events-tab active" role="tab" aria-selected="true" data-tab="upcoming">Upcoming</button>
-<button type="button" class="events-tab" role="tab" aria-selected="false" data-tab="past">Past</button>
-</div>
-<div id="panel-upcoming" class="events-panel active" role="tabpanel"><div class="events-cards" id="cards-upcoming"></div><div class="events-show-more" id="show-more-upcoming"><button type="button" id="btn-more-upcoming">Show More</button></div></div>
-<div id="panel-past" class="events-panel" role="tabpanel"><div class="events-cards" id="cards-past"></div><div class="events-show-more" id="show-more-past"><button type="button" id="btn-more-past">Show More</button></div></div>
-</div></div></main>
+<div class="card stats-section club-events-dashboard">
+"""
+    + _events_section_heading_row_html(
+        f"Events ({len(upcoming) + len(live) + len(past)})"
+    )
+    + _events_tabs_and_panels_html(show_live, club_carousel=True, tab_counts=tab_counts)
+    + """
+</div></div>"""
+    + _seo_discovery_block_html()
+    + """
+</main>
 <footer class="site-footer-about" style="text-align:center;padding:2rem 1rem;font-size:0.9rem;color:#666;border-top:1px solid #e0e0e0;margin-top:2rem;">SailingSA – South African Sailing Results Database © <span id="year"></span></footer>
 <script type="application/json" id="events-data">""" + events_json + """</script>
 <script>
 document.getElementById("year").textContent = new Date().getFullYear();
 (function(){
+  var CLUB_EVENTS_CAROUSEL = true;
   var raw = document.getElementById("events-data");
-  var DATA = raw ? JSON.parse(raw.textContent) : { upcoming: [], past: [] };
+  var DATA = raw ? JSON.parse(raw.textContent) : { upcoming: [], live: [], past: [] };
+  if (!DATA.live) DATA.live = [];
+  function eventFilterHaystack(e){
+    return [e.event_name, e.display_title, e.event_type, e.location, e.host_code, e.host_club, e.host_club_fullname, e.date_display]
+      .filter(function(x){ return x != null && String(x).trim() !== ""; })
+      .map(function(x){ return String(x).toLowerCase(); })
+      .join(" ");
+  }
+  function filterEventsList(list, q){
+    q = (q || "").trim().toLowerCase();
+    if(!q) return list.slice();
+    return list.filter(function(ev){ return eventFilterHaystack(ev).indexOf(q) !== -1; });
+  }
+  function updateTabCounts(fu, fl, fp){
+    var map = { upcoming: fu.length, live: fl.length, past: fp.length };
+    document.querySelectorAll(".events-tab").forEach(function(btn){
+      var k = btn.getAttribute("data-tab");
+      var span = btn.querySelector(".events-tab-count");
+      if(span && map[k] !== undefined) span.textContent = String(map[k]);
+    });
+  }
+  function hasLiveTab(){ return !!document.getElementById("cards-live"); }
+  function firstTabWithEvents(){
+    if (hasLiveTab() && DATA.live && DATA.live.length) return "live";
+    if (DATA.upcoming && DATA.upcoming.length) return "upcoming";
+    if (DATA.past && DATA.past.length) return "past";
+    return hasLiveTab() ? "live" : "upcoming";
+  }
+  function firstTabWithEventsFromFiltered(fu, fl, fp){
+    if (hasLiveTab() && fl.length) return "live";
+    if (fu.length) return "upcoming";
+    if (fp.length) return "past";
+    return hasLiveTab() ? "live" : "upcoming";
+  }
+  function activateTab(tab){
+    document.querySelectorAll(".events-tab").forEach(function(x){
+      var on = x.getAttribute("data-tab") === tab;
+      x.classList.toggle("active", on);
+      x.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    document.querySelectorAll(".events-panel").forEach(function(p){
+      p.classList.toggle("active", p.id === "panel-" + tab);
+    });
+    if (CLUB_EVENTS_CAROUSEL) {
+      window.setTimeout(function(){
+        var c = document.getElementById("cards-" + tab);
+        if (c) c.dispatchEvent(new Event("scroll"));
+      }, 60);
+    }
+  }
+  var CLUB_EVENT_PAGE = 1;
   var INITIAL = 10;
   function esc(s){ var d=document.createElement("div"); d.textContent=s||""; return d.innerHTML; }
-  function renderCard(e, isPast){
-    var cardClass = 'event-card' + (isPast && e.result_yes ? ' event-card-has-results' : '');
+  function eventMatrixClass(e, panelId){
+    var sl = String(e.sanction_level || 'CLUB').toLowerCase();
+    if (sl !== 'sas' && sl !== 'club') sl = 'other';
+    var es = String(e.event_state || '').toUpperCase();
+    var st;
+    if (es === 'PAST' || (!es && panelId === 'past')) st = 'past';
+    else if (es === 'ACTIVE' || (!es && panelId === 'live')) st = 'active';
+    else st = 'upcoming';
+    return 'ec-' + st + '-' + sl;
+  }
+  function renderCard(e, panelId, index1, totalN){
+    var cardClass = 'event-card ' + eventMatrixClass(e, panelId);
     var titleText = (e.display_title != null && e.display_title !== '') ? e.display_title : e.event_name;
-    var titleHtml = (isPast && e.has_regatta_link && e.details_url && e.details_url.indexOf('/regatta/') === 0)
+    var titleHtml = (panelId === 'past' && e.has_regatta_link && e.details_url && e.details_url.indexOf('/regatta/') === 0)
       ? '<a href="' + esc(e.details_url) + '" class="event-title-link">' + esc(titleText) + '</a>'
       : esc(titleText);
     var hostLabel = 'Host: ';
     var hostLink = e.club_slug ? '<a href="/club/' + esc(e.club_slug) + '">' + esc(e.host_code || e.host_club) + '</a>' : esc(e.host_code || e.host_club);
     var hostFullname = (e.host_club_fullname && e.host_club_fullname.trim() && String(e.host_club_fullname).trim() !== String(e.host_code || e.host_club).trim()) ? ' (' + esc(e.host_club_fullname) + ')' : '';
     var hostFlag = (e.host_unmatched) ? ' <span class="event-host-unmatched" title="Host not in club list — add to clubs table">⚠</span>' : '';
-    var typeHtml = e.event_type ? '<div class="event-type-line"><span class="event-type">' + esc(e.event_type) + '</span></div>' : '';
+    var rawType = (e.event_type != null && String(e.event_type).trim()) ? String(e.event_type).trim() : '';
+    var typeHtml = '<div class="event-type-line"><span class="event-type' + (rawType ? '' : ' event-type--empty') + '"' + (rawType ? '' : ' title="Event type not set"') + '>' + (rawType ? esc(rawType) : '\u2014') + '</span></div>';
     var locHtml = e.location ? '<span class="event-location">' + esc(e.location) + '</span>' : '';
     var resultHtml = (e.show_result_line === true)
       ? (e.result_yes
-          ? '<div class="event-result-line">Result: <a href="' + esc(e.result_url || '') + '" class="event-result-yes">&#10003;</a></div>'
-          : '<div class="event-result-line">Result: <span class="event-result-no">&#10007;</span></div>')
-      : '';
+          ? (e.result_multi && e.result_options && e.result_options.length
+          ? '<details class="event-result-line event-result-line-multi event-result-multi-details"><summary class="event-result-multi-summary" aria-label="Choose which results to open">' +
+          '<span class="event-result-label">Results:</span><span class="event-result-glyph" aria-hidden="true">&#10003;</span></summary>' +
+          '<div class="event-result-dropdown-panel">' + e.result_options.map(function(o){ return '<a href="' + esc(o.url || '') + '" class="event-result-chip event-result-yes event-result-pick"><span class="event-result-glyph" aria-hidden="true">&#10003;</span><span class="event-result-pick-label">' + esc(o.label || 'Results') + '</span></a>'; }).join('') + '</div></details>'
+          : '<div class="event-result-line"><a href="' + esc(e.result_url || '') + '" class="event-result-chip event-result-yes"><span class="event-result-label">Result:</span><span class="event-result-glyph" aria-hidden="true">&#10003;</span></a></div>')
+          : '<div class="event-result-line"><span class="event-result-chip event-result-no"><span class="event-result-label">Result:</span><span class="event-result-glyph" aria-hidden="true">&#10007;</span></span></div>')
+      : '<div class="event-result-line"><span class="event-result-chip event-result-chip--reserved" aria-hidden="true"><span class="event-result-label">Result:</span><span class="event-result-glyph">&#10003;</span></span></div>';
     var hasDetails = e.details_url && e.details_url !== '#';
     var ext = hasDetails && e.details_url.indexOf('/') !== 0;
-    var btn = hasDetails ? '<a href="' + esc(e.details_url) + '" class="event-details-btn"' + (ext ? ' target="_blank" rel="noopener"' : '') + '>Details</a>' : '';
+    var btn = hasDetails ? '<a href="' + esc(e.details_url) + '" class="event-details-btn"' + (ext ? ' target="_blank" rel="noopener"' : '') + '>Details</a>' : '<span class="event-details-btn event-details-btn--empty" aria-hidden="true">Details</span>';
+    var idxAria = (typeof totalN === "number" && totalN > 0) ? ' aria-label="Event ' + index1 + ' of ' + totalN + '"' : "";
+    var indexBadge = '<span class="event-card-index"' + idxAria + '>' + String(index1) + '</span>';
     var header = '<div class="event-card-header"><h3>' + titleHtml + '</h3><span class="event-date">' + esc(e.date_display) + '</span></div>';
     var body = '<div class="event-card-body">'
+      + '<div class="event-card-body-inner">'
       + typeHtml
       + '<span class="event-club">' + hostLabel + hostLink + hostFullname + hostFlag + '</span>'
+      + '<div class="event-card-result-row">'
+      + '<div class="event-result-slot">' + resultHtml + '</div>'
+      + '<div class="event-card-actions">' + indexBadge + btn + '</div>'
+      + '</div>'
       + locHtml
-      + resultHtml
-      + btn
+      + '</div>'
       + '</div>';
     return '<div class="' + cardClass + '">' + header + body + '</div>';
   }
+  function wireEventsCarousel(panelId){
+    var carousel = document.getElementById("cards-" + panelId);
+    var controls = document.getElementById("events-controls-" + panelId);
+    var prevBtn = document.getElementById("events-prev-" + panelId);
+    var nextBtn = document.getElementById("events-next-" + panelId);
+    var dotsWrap = document.getElementById("events-dots-" + panelId);
+    if(!carousel || !prevBtn || !nextBtn || !dotsWrap) return;
+    function pageCount(){ return carousel.querySelectorAll(".events-page").length; }
+    function currentPage(){
+      var w = carousel.clientWidth || 1;
+      var n = pageCount();
+      if (n <= 1) return 0;
+      var idx = Math.floor((carousel.scrollLeft + w * 0.25) / w);
+      if (idx < 0) idx = 0;
+      if (idx > n - 1) idx = n - 1;
+      return idx;
+    }
+    function syncNav(){
+      var n = pageCount();
+      if (n <= 1) { if(controls) controls.style.display = "none"; return; }
+      if(controls) controls.style.display = "";
+      var cur = currentPage();
+      prevBtn.disabled = (cur <= 0);
+      nextBtn.disabled = (cur >= n - 1);
+      dotsWrap.querySelectorAll(".events-dot").forEach(function(d, i){
+        d.classList.toggle("is-active", i === cur);
+      });
+    }
+    function scrollToPage(idx){
+      var n = pageCount();
+      idx = Math.max(0, Math.min(idx, n - 1));
+      carousel.scrollTo({ left: idx * carousel.clientWidth, behavior: "smooth" });
+    }
+    prevBtn.onclick = function(){ scrollToPage(currentPage() - 1); };
+    nextBtn.onclick = function(){ scrollToPage(currentPage() + 1); };
+    carousel.addEventListener("scroll", function(){ syncNav(); }, { passive: true });
+    window.addEventListener("resize", function(){ syncNav(); });
+    dotsWrap.addEventListener("click", function(ev){
+      var t = ev.target;
+      if(t && t.getAttribute && t.getAttribute("data-page") !== null)
+        scrollToPage(parseInt(t.getAttribute("data-page"), 10));
+    });
+    syncNav();
+  }
+  function fillPanelClub(id, list){
+    var carousel = document.getElementById("cards-" + id);
+    var controls = document.getElementById("events-controls-" + id);
+    var dotsWrap = document.getElementById("events-dots-" + id);
+    if(!carousel) return;
+    if(!list.length){
+      carousel.innerHTML = "";
+      if(controls) controls.style.display = "none";
+      return;
+    }
+    carousel.innerHTML = "";
+    var PAGE = CLUB_EVENT_PAGE;
+    for(var i = 0; i < list.length; i += PAGE){
+      var pageEl = document.createElement("div");
+      pageEl.className = "events-page";
+      pageEl.setAttribute("role", "group");
+      for(var j = i; j < Math.min(i + PAGE, list.length); j++){
+        pageEl.insertAdjacentHTML("beforeend", renderCard(list[j], id, j + 1, list.length));
+      }
+      carousel.appendChild(pageEl);
+    }
+    var npage = carousel.querySelectorAll(".events-page").length;
+    if(dotsWrap){
+      dotsWrap.innerHTML = "";
+      for(var k = 0; k < npage; k++){
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "events-dot" + (k === 0 ? " is-active" : "");
+        b.setAttribute("data-page", String(k));
+        b.setAttribute("aria-label", "Event " + (k+1) + " of " + npage);
+        dotsWrap.appendChild(b);
+      }
+    }
+    if(npage <= 1){ if(controls) controls.style.display = "none"; }
+    else { if(controls) controls.style.display = ""; }
+    wireEventsCarousel(id);
+  }
   function fillPanel(id, list){
+    if (CLUB_EVENTS_CAROUSEL) {
+      fillPanelClub(id, list);
+      return;
+    }
     var container = document.getElementById("cards-" + id);
     var btnWrap = document.getElementById("show-more-" + id);
     var btn = document.getElementById("btn-more-" + id);
-    if(!container || !list.length){ if(btnWrap) btnWrap.classList.add("hidden"); return; }
+    if(!container){ return; }
+    if(!list.length){
+      container.innerHTML = "";
+      if(btnWrap) btnWrap.classList.add("hidden");
+      return;
+    }
     container.innerHTML = "";
     var show = INITIAL;
     function add(){
       var end = Math.min(show, list.length);
-      var isPast = (id === 'past');
       for(var i = container.children.length; i < end; i++)
-        container.insertAdjacentHTML("beforeend", renderCard(list[i], isPast));
+        container.insertAdjacentHTML("beforeend", renderCard(list[i], id, i + 1, list.length));
       if(btnWrap) btnWrap.classList.toggle("hidden", end >= list.length);
       show = end;
     }
     add();
     if(btn) btn.onclick = function(){ show += INITIAL; add(); };
   }
-  fillPanel("upcoming", DATA.upcoming);
-  fillPanel("past", DATA.past);
+  function applyEventsFilter(){
+    var inp = document.getElementById("events-dashboard-search");
+    var q = inp ? inp.value : "";
+    var fu = filterEventsList(DATA.upcoming || [], q);
+    var fl = filterEventsList(DATA.live || [], q);
+    var fp = filterEventsList(DATA.past || [], q);
+    updateTabCounts(fu, fl, fp);
+    fillPanel("upcoming", fu);
+    fillPanel("live", fl);
+    fillPanel("past", fp);
+    var cur = document.querySelector(".events-tab.active");
+    var curTab = cur ? cur.getAttribute("data-tab") : null;
+    var curMap = { upcoming: fu, live: fl, past: fp };
+    var pick = (curTab && curMap[curTab] && curMap[curTab].length) ? curTab : firstTabWithEventsFromFiltered(fu, fl, fp);
+    activateTab(pick);
+  }
+  applyEventsFilter();
+  var searchEl = document.getElementById("events-dashboard-search");
+  if(searchEl) searchEl.addEventListener("input", function(){ applyEventsFilter(); });
   document.querySelectorAll(".events-tab").forEach(function(t){
     t.addEventListener("click", function(){
       var tab = t.getAttribute("data-tab");
-      document.querySelectorAll(".events-tab").forEach(function(x){ x.classList.remove("active"); x.setAttribute("aria-selected","false"); });
-      t.classList.add("active"); t.setAttribute("aria-selected","true");
-      document.querySelectorAll(".events-panel").forEach(function(p){ p.classList.remove("active"); });
-      var panel = document.getElementById("panel-" + tab);
-      if(panel) panel.classList.add("active");
+      activateTab(tab);
     });
   });
 })();
 </script></body></html>"""
+    )
     return header
 
 
+def _events_dashboard_fragment(
+    events_json: str,
+    *,
+    include_year_script: bool = False,
+    section_title: str = "Events",
+    intro_html: Optional[str] = None,
+    show_live: bool = False,
+    club_events_carousel: bool = False,
+) -> str:
+    """Same events dashboard as /events (for club pages). show_live=False omits Live tab/panel. events_json is JSON for #events-data.
+    club_events_carousel=True: one event card per swipe screen (same cards as /events), dots + arrows."""
+    year_line = (
+        'document.getElementById("year").textContent = new Date().getFullYear();\n'
+        if include_year_script
+        else ""
+    )
+    intro = intro_html or ""
+    club_js = "true" if club_events_carousel else "false"
+    club_extra_css = _CLUB_EVENTS_CAROUSEL_CSS if club_events_carousel else ""
+    card_wrap_class = "card stats-section club-events-dashboard" if club_events_carousel else "card stats-section"
+    try:
+        _ev_parsed = json.loads(events_json)
+    except Exception:
+        _ev_parsed = {}
+    tab_counts = {
+        "live": len(_ev_parsed.get("live") or []),
+        "upcoming": len(_ev_parsed.get("upcoming") or []),
+        "past": len(_ev_parsed.get("past") or []),
+    }
+    total_ev = tab_counts["live"] + tab_counts["upcoming"] + tab_counts["past"]
+    title_h = _events_section_heading_row_html(f"{section_title} ({total_ev})")
+    return (
+        '<link rel="stylesheet" href="/css/main.css?v=13">\n'
+        "<style>\n"
+        ".club-events-intro { color: #475569; font-size: 0.95rem; margin: 0 0 1rem 0; }\n"
+        ".club-events-intro a { color: #1a2750; font-weight: 600; }\n"
+        ".events-tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }\n"
+        ".events-tabs button { padding: 0.6rem 1.2rem; font-size: 1rem; font-weight: 600; border: 2px solid transparent; border-radius: 8px; cursor: pointer; }\n"
+        + _EVENTS_TAB_COUNT_CSS
+        + "\n"
+        + _EVENTS_TOOLBAR_SEARCH_CSS
+        + "\n"
+        ".events-tabs button[data-tab='upcoming'] { background: #9ce3b4; color: #fff; }\n"
+        ".events-tabs button[data-tab='upcoming']:hover { background: #74d895; color: #fff; }\n"
+        ".events-tabs button[data-tab='upcoming'].active { background: #39C768; color: #fff; border-color: #2ea854; }\n"
+        ".events-tabs button[data-tab='live'] { background: #f5ac86; color: #fff; }\n"
+        ".events-tabs button[data-tab='live']:hover { background: #f08a55; color: #fff; }\n"
+        ".events-tabs button[data-tab='live'].active { background: #ea580c; color: #fff; border-color: #c2410c; }\n"
+        ".events-tabs button[data-tab='past'] { background: #bf8e8e; color: #fff; }\n"
+        ".events-tabs button[data-tab='past']:hover { background: #a56161; color: #fff; }\n"
+        ".events-tabs button[data-tab='past'].active { background: #7f1d1d; color: #fff; border-color: #991b1b; }\n"
+        ".events-panel { display: none; }\n"
+        ".events-panel.active { display: block; }\n"
+        + _EVENTS_CARD_MATRIX_CSS
+        + "\n"
+        ".event-card .event-likely-classes { font-size: 0.8rem; color: #475569; margin: 0.2rem 0 0 0; }\n"
+        ".event-card .event-card-header { display: block; }\n"
+        '.event-card[class*="ec-"] h3 { font-size: 0.95rem; font-weight: 700; margin: 0 0 0.2rem 0; line-height: 1.25; }\n'
+        '.event-card[class*="ec-"] .event-date { font-size: 0.8rem; margin: 0; display: block; }\n'
+        ".event-card .event-card-body-inner { align-items: flex-start; }\n"
+        ".event-card .event-club { font-size: 0.8rem; margin: 0; }\n"
+        ".event-card .event-club a { color: #2563eb; font-weight: 600; text-decoration: underline; }\n"
+        ".event-card .event-club a:hover { color: #e65100; }\n"
+        ".event-card .event-host-unmatched { color: #b45309; font-size: 0.85em; margin-left: 0.2rem; }\n"
+        ".event-card .event-host-unmatched[title]:hover { cursor: help; }\n"
+        ".event-card .event-type-line { display: block; margin: 0.2rem 0 0 0; width: 100%; }\n"
+        ".event-card .event-type { display: inline-block; font-size: 0.85rem; font-weight: 700; padding: 0.25rem 0.5rem; background: #001f3f; color: #fff; border-radius: 4px; margin: 0; }\n"
+        ".event-card .event-card-result-row .event-result-line { display: flex; flex-wrap: nowrap; align-items: center; gap: 0.35rem; font-size: 0.7rem; font-weight: 600; margin: 0; padding: 0; }\n"
+        ".event-card .event-result-chip { border-radius: 6px; background: #fff; color: #1e293b; border: 1px solid rgba(0,0,0,0.2); }\n"
+        ".event-card .event-result-chip .event-result-label { color: #334155; }\n"
+        ".event-card a.event-result-chip.event-result-yes:hover { background: #f8fafc; border-color: rgba(0,0,0,0.25); }\n"
+        ".event-card a.event-result-chip.event-result-yes:hover .event-result-glyph { color: #15803d; }\n"
+        ".event-card a.event-result-chip.event-result-yes .event-result-label { color: #2563eb; text-decoration: underline; text-underline-offset: 2px; }\n"
+        ".event-card a.event-result-chip.event-result-yes:hover .event-result-label { color: #1d4ed8; }\n"
+        ".event-card a.event-result-chip.event-result-pick .event-result-pick-label { color: #2563eb; text-decoration: underline; text-underline-offset: 2px; }\n"
+        ".event-card a.event-result-chip.event-result-pick:hover .event-result-pick-label { color: #1d4ed8; }\n"
+        ".event-card .event-card-result-row .event-result-line.event-result-line-multi { flex-wrap: wrap; align-items: center; gap: 0.35rem; }\n"
+        ".event-card .event-result-line-multi { flex-wrap: wrap; align-items: center; gap: 0.35rem; }\n"
+        ".event-card .event-result-line-multi .event-result-pick-group { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }\n"
+        ".event-card a.event-result-chip.event-result-pick { padding: 0.18rem 0.4rem; min-height: 1.5rem; height: auto; max-height: none; }\n"
+        ".event-card .event-result-pick-label { font-size: 0.65rem; font-weight: 600; max-width: 10rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }\n"
+        ".club-page .event-result-chip.event-result-yes:not(.event-result-pick) { border-color: #22c55e; background: #f0fdf4; }\n"
+        ".event-card .event-location { font-size: 0.75rem; color: #64748b; margin: 0; }\n"
+        ".event-card .event-card-actions .event-details-btn { display: inline-flex; align-items: center; justify-content: center; height: 1.5rem; min-height: 1.5rem; max-height: 1.5rem; padding: 0 0.4rem; font-size: 0.7rem; font-weight: 600; line-height: 1; border-radius: 6px; text-decoration: none; border: none; cursor: pointer; margin: 0; box-sizing: border-box; }\n"
+        ".event-card .event-card-index { border-radius: 6px; }\n"
+        ".event-card .event-card-actions .event-details-btn:hover { opacity: 0.92; }\n"
+        ".event-card .event-thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }\n"
+        ".events-show-more { margin-top: 0.5rem; }\n"
+        ".events-show-more button { padding: 0.5rem 1rem; font-size: 0.95rem; background: #f1f5f9; border: 2px solid #001f3f; border-radius: 6px; cursor: pointer; color: #001f3f; font-weight: 600; }\n"
+        ".events-show-more button:hover { background: #e2e8f0; }\n"
+        ".events-show-more button.hidden { display: none; }\n"
+        + club_extra_css
+        + "</style>\n"
+        + f'<div class="{card_wrap_class}">\n'
+        + title_h
+        + intro
+        + _events_tabs_and_panels_html(
+            show_live, club_carousel=club_events_carousel, tab_counts=tab_counts
+        )
+        + "</div>\n"
+        + '<script type="application/json" id="events-data">'
+        + events_json
+        + "</script>\n"
+        + "<script>\n"
+        + year_line
+        + """(function(){
+  var CLUB_EVENTS_CAROUSEL = """
+        + club_js
+        + """;
+  var raw = document.getElementById("events-data");
+  var DATA = raw ? JSON.parse(raw.textContent) : { upcoming: [], live: [], past: [] };
+  if (!DATA.live) DATA.live = [];
+  function eventFilterHaystack(e){
+    return [e.event_name, e.display_title, e.event_type, e.location, e.host_code, e.host_club, e.host_club_fullname, e.date_display]
+      .filter(function(x){ return x != null && String(x).trim() !== ""; })
+      .map(function(x){ return String(x).toLowerCase(); })
+      .join(" ");
+  }
+  function filterEventsList(list, q){
+    q = (q || "").trim().toLowerCase();
+    if(!q) return list.slice();
+    return list.filter(function(ev){ return eventFilterHaystack(ev).indexOf(q) !== -1; });
+  }
+  function updateTabCounts(fu, fl, fp){
+    var map = { upcoming: fu.length, live: fl.length, past: fp.length };
+    document.querySelectorAll(".events-tab").forEach(function(btn){
+      var k = btn.getAttribute("data-tab");
+      var span = btn.querySelector(".events-tab-count");
+      if(span && map[k] !== undefined) span.textContent = String(map[k]);
+    });
+  }
+  function hasLiveTab(){ return !!document.getElementById("cards-live"); }
+  function firstTabWithEvents(){
+    if (hasLiveTab() && DATA.live && DATA.live.length) return "live";
+    if (DATA.upcoming && DATA.upcoming.length) return "upcoming";
+    if (DATA.past && DATA.past.length) return "past";
+    return hasLiveTab() ? "live" : "upcoming";
+  }
+  function firstTabWithEventsFromFiltered(fu, fl, fp){
+    if (hasLiveTab() && fl.length) return "live";
+    if (fu.length) return "upcoming";
+    if (fp.length) return "past";
+    return hasLiveTab() ? "live" : "upcoming";
+  }
+  function activateTab(tab){
+    document.querySelectorAll(".events-tab").forEach(function(x){
+      var on = x.getAttribute("data-tab") === tab;
+      x.classList.toggle("active", on);
+      x.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    document.querySelectorAll(".events-panel").forEach(function(p){
+      p.classList.toggle("active", p.id === "panel-" + tab);
+    });
+    if (CLUB_EVENTS_CAROUSEL) {
+      window.setTimeout(function(){
+        var c = document.getElementById("cards-" + tab);
+        if (c) c.dispatchEvent(new Event("scroll"));
+      }, 60);
+    }
+  }
+  var CLUB_EVENT_PAGE = 1;
+  var INITIAL = 10;
+  function esc(s){ var d=document.createElement("div"); d.textContent=s||""; return d.innerHTML; }
+  function eventMatrixClass(e, panelId){
+    var sl = String(e.sanction_level || 'CLUB').toLowerCase();
+    if (sl !== 'sas' && sl !== 'club') sl = 'other';
+    var es = String(e.event_state || '').toUpperCase();
+    var st;
+    if (es === 'PAST' || (!es && panelId === 'past')) st = 'past';
+    else if (es === 'ACTIVE' || (!es && panelId === 'live')) st = 'active';
+    else st = 'upcoming';
+    return 'ec-' + st + '-' + sl;
+  }
+  function renderCard(e, panelId, index1, totalN){
+    var cardClass = 'event-card ' + eventMatrixClass(e, panelId);
+    var titleText = (e.display_title != null && e.display_title !== '') ? e.display_title : e.event_name;
+    var titleHtml = (panelId === 'past' && e.has_regatta_link && e.details_url && e.details_url.indexOf('/regatta/') === 0)
+      ? '<a href="' + esc(e.details_url) + '" class="event-title-link">' + esc(titleText) + '</a>'
+      : esc(titleText);
+    var hostLabel = 'Host: ';
+    var hostLink = e.club_slug ? '<a href="/club/' + esc(e.club_slug) + '">' + esc(e.host_code || e.host_club) + '</a>' : esc(e.host_code || e.host_club);
+    var hostFullname = (e.host_club_fullname && e.host_club_fullname.trim() && String(e.host_club_fullname).trim() !== String(e.host_code || e.host_club).trim()) ? ' (' + esc(e.host_club_fullname) + ')' : '';
+    var hostFlag = (e.host_unmatched) ? ' <span class="event-host-unmatched" title="Host not in club list — add to clubs table">⚠</span>' : '';
+    var rawType = (e.event_type != null && String(e.event_type).trim()) ? String(e.event_type).trim() : '';
+    var typeHtml = '<div class="event-type-line"><span class="event-type' + (rawType ? '' : ' event-type--empty') + '"' + (rawType ? '' : ' title="Event type not set"') + '>' + (rawType ? esc(rawType) : '\u2014') + '</span></div>';
+    var locHtml = e.location ? '<span class="event-location">' + esc(e.location) + '</span>' : '';
+    var resultHtml = (e.show_result_line === true)
+      ? (e.result_yes
+          ? (e.result_multi && e.result_options && e.result_options.length
+          ? '<details class="event-result-line event-result-line-multi event-result-multi-details"><summary class="event-result-multi-summary" aria-label="Choose which results to open">' +
+          '<span class="event-result-label">Results:</span><span class="event-result-glyph" aria-hidden="true">&#10003;</span></summary>' +
+          '<div class="event-result-dropdown-panel">' + e.result_options.map(function(o){ return '<a href="' + esc(o.url || '') + '" class="event-result-chip event-result-yes event-result-pick"><span class="event-result-glyph" aria-hidden="true">&#10003;</span><span class="event-result-pick-label">' + esc(o.label || 'Results') + '</span></a>'; }).join('') + '</div></details>'
+          : '<div class="event-result-line"><a href="' + esc(e.result_url || '') + '" class="event-result-chip event-result-yes"><span class="event-result-label">Result:</span><span class="event-result-glyph" aria-hidden="true">&#10003;</span></a></div>')
+          : '<div class="event-result-line"><span class="event-result-chip event-result-no"><span class="event-result-label">Result:</span><span class="event-result-glyph" aria-hidden="true">&#10007;</span></span></div>')
+      : '<div class="event-result-line"><span class="event-result-chip event-result-chip--reserved" aria-hidden="true"><span class="event-result-label">Result:</span><span class="event-result-glyph">&#10003;</span></span></div>';
+    var hasDetails = e.details_url && e.details_url !== '#';
+    var ext = hasDetails && e.details_url.indexOf('/') !== 0;
+    var btn = hasDetails ? '<a href="' + esc(e.details_url) + '" class="event-details-btn"' + (ext ? ' target="_blank" rel="noopener"' : '') + '>Details</a>' : '<span class="event-details-btn event-details-btn--empty" aria-hidden="true">Details</span>';
+    var idxAria = (typeof totalN === "number" && totalN > 0) ? ' aria-label="Event ' + index1 + ' of ' + totalN + '"' : "";
+    var indexBadge = '<span class="event-card-index"' + idxAria + '>' + String(index1) + '</span>';
+    var header = '<div class="event-card-header"><h3>' + titleHtml + '</h3><span class="event-date">' + esc(e.date_display) + '</span></div>';
+    var body = '<div class="event-card-body">'
+      + '<div class="event-card-body-inner">'
+      + typeHtml
+      + '<span class="event-club">' + hostLabel + hostLink + hostFullname + hostFlag + '</span>'
+      + '<div class="event-card-result-row">'
+      + '<div class="event-result-slot">' + resultHtml + '</div>'
+      + '<div class="event-card-actions">' + indexBadge + btn + '</div>'
+      + '</div>'
+      + locHtml
+      + '</div>'
+      + '</div>';
+    return '<div class="' + cardClass + '">' + header + body + '</div>';
+  }
+  function wireEventsCarousel(panelId){
+    var carousel = document.getElementById("cards-" + panelId);
+    var controls = document.getElementById("events-controls-" + panelId);
+    var prevBtn = document.getElementById("events-prev-" + panelId);
+    var nextBtn = document.getElementById("events-next-" + panelId);
+    var dotsWrap = document.getElementById("events-dots-" + panelId);
+    if(!carousel || !prevBtn || !nextBtn || !dotsWrap) return;
+    function pageCount(){ return carousel.querySelectorAll(".events-page").length; }
+    function currentPage(){
+      var w = carousel.clientWidth || 1;
+      var n = pageCount();
+      if (n <= 1) return 0;
+      var idx = Math.floor((carousel.scrollLeft + w * 0.25) / w);
+      if (idx < 0) idx = 0;
+      if (idx > n - 1) idx = n - 1;
+      return idx;
+    }
+    function syncNav(){
+      var n = pageCount();
+      if (n <= 1) { if(controls) controls.style.display = "none"; return; }
+      if(controls) controls.style.display = "";
+      var cur = currentPage();
+      prevBtn.disabled = (cur <= 0);
+      nextBtn.disabled = (cur >= n - 1);
+      dotsWrap.querySelectorAll(".events-dot").forEach(function(d, i){
+        d.classList.toggle("is-active", i === cur);
+      });
+    }
+    function scrollToPage(idx){
+      var n = pageCount();
+      idx = Math.max(0, Math.min(idx, n - 1));
+      carousel.scrollTo({ left: idx * carousel.clientWidth, behavior: "smooth" });
+    }
+    prevBtn.onclick = function(){ scrollToPage(currentPage() - 1); };
+    nextBtn.onclick = function(){ scrollToPage(currentPage() + 1); };
+    carousel.addEventListener("scroll", function(){ syncNav(); }, { passive: true });
+    window.addEventListener("resize", function(){ syncNav(); });
+    dotsWrap.addEventListener("click", function(ev){
+      var t = ev.target;
+      if(t && t.getAttribute && t.getAttribute("data-page") !== null)
+        scrollToPage(parseInt(t.getAttribute("data-page"), 10));
+    });
+    syncNav();
+  }
+  function fillPanelClub(id, list){
+    var carousel = document.getElementById("cards-" + id);
+    var controls = document.getElementById("events-controls-" + id);
+    var dotsWrap = document.getElementById("events-dots-" + id);
+    if(!carousel) return;
+    if(!list.length){
+      carousel.innerHTML = "";
+      if(controls) controls.style.display = "none";
+      return;
+    }
+    carousel.innerHTML = "";
+    var PAGE = CLUB_EVENT_PAGE;
+    for(var i = 0; i < list.length; i += PAGE){
+      var pageEl = document.createElement("div");
+      pageEl.className = "events-page";
+      pageEl.setAttribute("role", "group");
+      for(var j = i; j < Math.min(i + PAGE, list.length); j++){
+        pageEl.insertAdjacentHTML("beforeend", renderCard(list[j], id, j + 1, list.length));
+      }
+      carousel.appendChild(pageEl);
+    }
+    var npage = carousel.querySelectorAll(".events-page").length;
+    if(dotsWrap){
+      dotsWrap.innerHTML = "";
+      for(var k = 0; k < npage; k++){
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "events-dot" + (k === 0 ? " is-active" : "");
+        b.setAttribute("data-page", String(k));
+        b.setAttribute("aria-label", "Event " + (k+1) + " of " + npage);
+        dotsWrap.appendChild(b);
+      }
+    }
+    if(npage <= 1){ if(controls) controls.style.display = "none"; }
+    else { if(controls) controls.style.display = ""; }
+    wireEventsCarousel(id);
+  }
+  function fillPanel(id, list){
+    if (CLUB_EVENTS_CAROUSEL) {
+      fillPanelClub(id, list);
+      return;
+    }
+    var container = document.getElementById("cards-" + id);
+    var btnWrap = document.getElementById("show-more-" + id);
+    var btn = document.getElementById("btn-more-" + id);
+    if(!container){ return; }
+    if(!list.length){
+      container.innerHTML = "";
+      if(btnWrap) btnWrap.classList.add("hidden");
+      return;
+    }
+    container.innerHTML = "";
+    var show = INITIAL;
+    function add(){
+      var end = Math.min(show, list.length);
+      for(var i = container.children.length; i < end; i++)
+        container.insertAdjacentHTML("beforeend", renderCard(list[i], id, i + 1, list.length));
+      if(btnWrap) btnWrap.classList.toggle("hidden", end >= list.length);
+      show = end;
+    }
+    add();
+    if(btn) btn.onclick = function(){ show += INITIAL; add(); };
+  }
+  function applyEventsFilter(){
+    var inp = document.getElementById("events-dashboard-search");
+    var q = inp ? inp.value : "";
+    var fu = filterEventsList(DATA.upcoming || [], q);
+    var fl = filterEventsList(DATA.live || [], q);
+    var fp = filterEventsList(DATA.past || [], q);
+    updateTabCounts(fu, fl, fp);
+    fillPanel("upcoming", fu);
+    fillPanel("live", fl);
+    fillPanel("past", fp);
+    var cur = document.querySelector(".events-tab.active");
+    var curTab = cur ? cur.getAttribute("data-tab") : null;
+    var curMap = { upcoming: fu, live: fl, past: fp };
+    var pick = (curTab && curMap[curTab] && curMap[curTab].length) ? curTab : firstTabWithEventsFromFiltered(fu, fl, fp);
+    activateTab(pick);
+  }
+  applyEventsFilter();
+  var searchEl = document.getElementById("events-dashboard-search");
+  if(searchEl) searchEl.addEventListener("input", function(){ applyEventsFilter(); });
+  document.querySelectorAll(".events-tab").forEach(function(t){
+    t.addEventListener("click", function(){
+      var tab = t.getAttribute("data-tab");
+      activateTab(tab);
+    });
+  });
+})();
+</script>\n"""
+    )
+
+
 def _events_type_page_html(slug: str, display_name: str, data: dict) -> str:
-    """Build /events/type/{slug} page: same card layout as /events, Upcoming / Past tabs, result indicators (green tick, dark red for past with results)."""
+    """Build /events/type/{slug} page: same card layout as /events, Upcoming / Live / Past tabs."""
     from urllib.parse import quote
     import json
     title = f"Events: {html_module.escape(display_name)} – SailingSA"
     desc = f"Upcoming and past {html_module.escape(display_name)} sailing events."
     upcoming = data.get("upcoming") or []
+    live = data.get("live") or []
     past = data.get("past") or []
     nav_links = '<a href="/">Home</a><a href="/sailors">Sailors</a><a href="/regattas">Regattas</a><a href="/classes">Classes</a><a href="/clubs">Clubs</a><a href="https://sailingsa.co.za/events">Events</a><a href="/stats">Statistics</a><a href="/about">About</a>'
-    events_json = json.dumps({"upcoming": upcoming, "past": past}).replace("</", "<\\/")
+    events_json = json.dumps({"upcoming": upcoming, "live": live, "past": past}).replace("</", "<\\/")
     canonical = f"https://sailingsa.co.za/events/type/{quote(slug, safe='')}"
+    tab_counts = {"live": len(live), "upcoming": len(upcoming), "past": len(past)}
+    tabs_row = (
+        '<div class="events-toolbar">\n'
+        '<div class="events-tabs" role="tablist">\n'
+        + _events_tab_button_html("upcoming", "Upcoming", tab_counts["upcoming"])
+        + _events_tab_button_html("live", "Live", tab_counts["live"])
+        + _events_tab_button_html("past", "Past", tab_counts["past"])
+        + "</div>\n"
+        + _EVENTS_DASHBOARD_SEARCH_INPUT
+        + "\n</div>\n"
+    )
     header = f"""<!DOCTYPE html>
 <html lang="en-US">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
@@ -1956,23 +3137,22 @@ def _events_type_page_html(slug: str, display_name: str, data: dict) -> str:
 <style>
 .events-tabs {{ display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }}
 .events-tabs button {{ padding: 0.6rem 1.2rem; font-size: 1rem; font-weight: 600; border: 2px solid transparent; border-radius: 8px; cursor: pointer; }}
-.events-tabs button[data-tab="upcoming"] {{ background: #dcfce7; color: #166534; }}
-.events-tabs button[data-tab="upcoming"]:hover {{ background: #bbf7d0; }}
-.events-tabs button[data-tab="upcoming"].active {{ background: #22c55e; color: #fff; border-color: #15803d; }}
-.events-tabs button[data-tab="past"] {{ background: #fee2e2; color: #991b1b; }}
-.events-tabs button[data-tab="past"]:hover {{ background: #fecaca; }}
-.events-tabs button[data-tab="past"].active {{ background: #ef4444; color: #fff; border-color: #b91c1c; }}
+.events-tabs button[data-tab="upcoming"] {{ background: #9ce3b4; color: #fff; }}
+.events-tabs button[data-tab="upcoming"]:hover {{ background: #74d895; color: #fff; }}
+.events-tabs button[data-tab="upcoming"].active {{ background: #39C768; color: #fff; border-color: #2ea854; }}
+.events-tabs button[data-tab="live"] {{ background: #f5ac86; color: #fff; }}
+.events-tabs button[data-tab="live"]:hover {{ background: #f08a55; color: #fff; }}
+.events-tabs button[data-tab="live"].active {{ background: #ea580c; color: #fff; border-color: #c2410c; }}
+.events-tabs button[data-tab="past"] {{ background: #bf8e8e; color: #fff; }}
+.events-tabs button[data-tab="past"]:hover {{ background: #a56161; color: #fff; }}
+.events-tabs button[data-tab="past"].active {{ background: #7f1d1d; color: #fff; border-color: #991b1b; }}
 .events-panel {{ display: none; }}
 .events-panel.active {{ display: block; }}
-#panel-upcoming .event-card {{ background: #dcfce7; border: 2px solid #22c55e; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.5rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 0.35rem; }}
-#panel-past .event-card {{ background: #fee2e2; border: 2px solid #fecaca; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.5rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 0.35rem; }}
-#panel-past .event-card.event-card-has-results {{ background: #7a1c1c; border-color: #ef4444; }}
+""" + _EVENTS_TAB_COUNT_CSS + _SECTION_HEADING_ROW_UNIFIED_CSS + _EVENTS_TOOLBAR_SEARCH_CSS + _EVENTS_CARD_MATRIX_CSS + f"""
 .event-card .event-likely-classes {{ font-size: 0.8rem; color: #475569; margin: 0.2rem 0 0 0; }}
-.event-card {{ border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.5rem; }}
 .event-card .event-card-header {{ display: block; }}
-.event-card h3 {{ font-size: 0.95rem; font-weight: 700; color: #001f3f; margin: 0 0 0.2rem 0; line-height: 1.25; }}
-.event-card .event-date {{ font-size: 0.8rem; color: #475569; margin: 0; display: block; }}
-.event-card .event-card-body {{ display: flex; flex-direction: column; align-items: flex-start; flex-wrap: wrap; gap: 0.35rem 0.75rem; }}
+.event-card[class*="ec-"] h3 {{ font-size: 0.95rem; font-weight: 700; margin: 0 0 0.2rem 0; line-height: 1.25; }}
+.event-card[class*="ec-"] .event-date {{ font-size: 0.8rem; margin: 0; display: block; }}
 .event-card .event-club {{ font-size: 0.8rem; margin: 0; }}
 .event-card .event-club a {{ color: #2563eb; font-weight: 600; text-decoration: underline; }}
 .event-card .event-club a:hover {{ color: #e65100; }}
@@ -1980,13 +3160,25 @@ def _events_type_page_html(slug: str, display_name: str, data: dict) -> str:
 .event-card .event-host-unmatched[title]:hover {{ cursor: help; }}
 .event-card .event-type-line {{ display: block; margin: 0.2rem 0 0 0; width: 100%; }}
 .event-card .event-type {{ display: inline-block; font-size: 0.85rem; font-weight: 700; padding: 0.25rem 0.5rem; background: #001f3f; color: #fff; border-radius: 4px; margin: 0; }}
-.event-card .event-result-line {{ display: block; font-size: 0.8rem; margin: 0.2rem 0 0 0; }}
-.event-card .event-result-yes {{ display: inline-block; width: 1.1rem; height: 1.1rem; background: #22c55e; color: #fff; text-align: center; line-height: 1.1rem; font-weight: 700; border-radius: 2px; text-decoration: none; }}
-.event-card .event-result-yes:hover {{ background: #16a34a; color: #fff; }}
-.event-card .event-result-no {{ display: inline-block; width: 1.1rem; height: 1.1rem; background: #ef4444; color: #fff; text-align: center; line-height: 1.1rem; font-size: 0.75rem; font-weight: 700; border-radius: 2px; }}
+.event-card .event-card-result-row .event-result-line {{ display: flex; flex-wrap: nowrap; align-items: center; gap: 0.35rem; font-size: 0.7rem; font-weight: 600; margin: 0; padding: 0; }}
+.event-card .event-result-chip {{ border-radius: 6px; background: #fff; color: #1e293b; border: 1px solid rgba(0,0,0,0.2); }}
+.event-card .event-result-chip .event-result-label {{ color: #334155; }}
+.event-card a.event-result-chip.event-result-yes:hover {{ background: #f8fafc; border-color: rgba(0,0,0,0.25); }}
+.event-card a.event-result-chip.event-result-yes:hover .event-result-glyph {{ color: #15803d; }}
+.event-card a.event-result-chip.event-result-yes .event-result-label {{ color: #2563eb; text-decoration: underline; text-underline-offset: 2px; }}
+.event-card a.event-result-chip.event-result-yes:hover .event-result-label {{ color: #1d4ed8; }}
+.event-card a.event-result-chip.event-result-pick .event-result-pick-label {{ color: #2563eb; text-decoration: underline; text-underline-offset: 2px; }}
+.event-card a.event-result-chip.event-result-pick:hover .event-result-pick-label {{ color: #1d4ed8; }}
+.event-card .event-card-result-row .event-result-line.event-result-line-multi {{ flex-wrap: wrap; align-items: center; gap: 0.35rem; }}
+.event-card .event-result-line-multi {{ flex-wrap: wrap; align-items: center; gap: 0.35rem; }}
+.event-card .event-result-line-multi .event-result-pick-group {{ display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }}
+.event-card a.event-result-chip.event-result-pick {{ padding: 0.18rem 0.4rem; min-height: 1.5rem; height: auto; max-height: none; }}
+.event-card .event-result-pick-label {{ font-size: 0.65rem; font-weight: 600; max-width: 10rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+.club-page .event-result-chip.event-result-yes:not(.event-result-pick) {{ border-color: #22c55e; background: #f0fdf4; }}
 .event-card .event-location {{ font-size: 0.75rem; color: #64748b; margin: 0; }}
-.event-card .event-details-btn {{ display: inline-block; padding: 0.25rem 0.5rem; font-size: 0.8rem; font-weight: 600; background: #001f3f; color: #fff; border-radius: 4px; text-decoration: none; border: none; cursor: pointer; margin-left: auto; }}
-.event-card .event-details-btn:hover {{ background: #e65100; color: #fff; }}
+.event-card .event-card-actions .event-details-btn {{ display: inline-flex; align-items: center; justify-content: center; height: 1.5rem; min-height: 1.5rem; max-height: 1.5rem; padding: 0 0.4rem; font-size: 0.7rem; font-weight: 600; line-height: 1; border-radius: 6px; text-decoration: none; border: none; cursor: pointer; margin: 0; box-sizing: border-box; }}
+.event-card .event-card-index {{ border-radius: 6px; }}
+.event-card .event-card-actions .event-details-btn:hover {{ opacity: 0.92; }}
 .event-card .event-thumb {{ width: 48px; height: 48px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }}
 .events-show-more {{ margin-top: 0.5rem; }}
 .events-show-more button {{ padding: 0.5rem 1rem; font-size: 0.95rem; background: #f1f5f9; border: 2px solid #001f3f; border-radius: 6px; cursor: pointer; color: #001f3f; font-weight: 600; }}
@@ -2004,83 +3196,164 @@ def _events_type_page_html(slug: str, display_name: str, data: dict) -> str:
 <div class="card stats-section">
 <p style="margin:0 0 0.5rem 0;"><a href="/events">Events</a> &rarr; {html_module.escape(display_name)}</p>
 <h2 class="section-title">Events: {html_module.escape(display_name)}</h2>
-<div class="events-tabs" role="tablist">
-<button type="button" class="events-tab active" role="tab" aria-selected="true" data-tab="upcoming">Upcoming</button>
-<button type="button" class="events-tab" role="tab" aria-selected="false" data-tab="past">Past</button>
-</div>
-<div id="panel-upcoming" class="events-panel active" role="tabpanel"><div class="events-cards" id="cards-upcoming"></div><div class="events-show-more" id="show-more-upcoming"><button type="button" id="btn-more-upcoming">Show More</button></div></div>
+""" + tabs_row + f"""
+<div id="panel-upcoming" class="events-panel" role="tabpanel"><div class="events-cards" id="cards-upcoming"></div><div class="events-show-more" id="show-more-upcoming"><button type="button" id="btn-more-upcoming">Show More</button></div></div>
+<div id="panel-live" class="events-panel" role="tabpanel"><div class="events-cards" id="cards-live"></div><div class="events-show-more" id="show-more-live"><button type="button" id="btn-more-live">Show More</button></div></div>
 <div id="panel-past" class="events-panel" role="tabpanel"><div class="events-cards" id="cards-past"></div><div class="events-show-more" id="show-more-past"><button type="button" id="btn-more-past">Show More</button></div></div>
-</div></div></main>
+</div></div>"""
+    + _seo_discovery_block_html()
+    + """
+</main>
 <footer class="site-footer-about" style="text-align:center;padding:2rem 1rem;font-size:0.9rem;color:#666;border-top:1px solid #e0e0e0;margin-top:2rem;">SailingSA – South African Sailing Results Database © <span id="year"></span></footer>
 <script type="application/json" id="events-data">""" + events_json + """</script>
 <script>
 document.getElementById("year").textContent = new Date().getFullYear();
 (function(){
   var raw = document.getElementById("events-data");
-  var DATA = raw ? JSON.parse(raw.textContent) : {{ upcoming: [], past: [] }};
+  var DATA = raw ? JSON.parse(raw.textContent) : { upcoming: [], live: [], past: [] };
+  if (!DATA.live) DATA.live = [];
+  function eventFilterHaystack(e){
+    return [e.event_name, e.display_title, e.event_type, e.location, e.host_code, e.host_club, e.host_club_fullname, e.date_display]
+      .filter(function(x){ return x != null && String(x).trim() !== ""; })
+      .map(function(x){ return String(x).toLowerCase(); })
+      .join(" ");
+  }
+  function filterEventsList(list, q){
+    q = (q || "").trim().toLowerCase();
+    if(!q) return list.slice();
+    return list.filter(function(ev){ return eventFilterHaystack(ev).indexOf(q) !== -1; });
+  }
+  function updateTabCounts(fu, fl, fp){
+    var map = { upcoming: fu.length, live: fl.length, past: fp.length };
+    document.querySelectorAll(".events-tab").forEach(function(btn){
+      var k = btn.getAttribute("data-tab");
+      var span = btn.querySelector(".events-tab-count");
+      if(span && map[k] !== undefined) span.textContent = String(map[k]);
+    });
+  }
+  function firstTabWithEvents(){
+    if (DATA.upcoming && DATA.upcoming.length) return "upcoming";
+    if (DATA.live && DATA.live.length) return "live";
+    if (DATA.past && DATA.past.length) return "past";
+    return "upcoming";
+  }
+  function firstTabWithEventsFromFiltered(fu, fl, fp){
+    if (fu.length) return "upcoming";
+    if (fl.length) return "live";
+    if (fp.length) return "past";
+    return "upcoming";
+  }
+  function activateTab(tab){
+    document.querySelectorAll(".events-tab").forEach(function(x){
+      var on = x.getAttribute("data-tab") === tab;
+      x.classList.toggle("active", on);
+      x.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    document.querySelectorAll(".events-panel").forEach(function(p){
+      p.classList.toggle("active", p.id === "panel-" + tab);
+    });
+  }
   var INITIAL = 10;
-  function esc(s){{ var d=document.createElement("div"); d.textContent=s||""; return d.innerHTML; }}
-  function renderCard(e, isPast){{
-    var cardClass = 'event-card' + (isPast && e.result_yes ? ' event-card-has-results' : '');
+  function esc(s){ var d=document.createElement("div"); d.textContent=s||""; return d.innerHTML; }
+  function eventMatrixClass(e, panelId){
+    var sl = String(e.sanction_level || 'CLUB').toLowerCase();
+    if (sl !== 'sas' && sl !== 'club') sl = 'other';
+    var es = String(e.event_state || '').toUpperCase();
+    var st;
+    if (es === 'PAST' || (!es && panelId === 'past')) st = 'past';
+    else if (es === 'ACTIVE' || (!es && panelId === 'live')) st = 'active';
+    else st = 'upcoming';
+    return 'ec-' + st + '-' + sl;
+  }
+  function renderCard(e, panelId, index1, totalN){
+    var cardClass = 'event-card ' + eventMatrixClass(e, panelId);
     var titleText = (e.display_title != null && e.display_title !== '') ? e.display_title : e.event_name;
-    var titleHtml = (isPast && e.has_regatta_link && e.details_url && e.details_url.indexOf('/regatta/') === 0)
+    var titleHtml = (panelId === 'past' && e.has_regatta_link && e.details_url && e.details_url.indexOf('/regatta/') === 0)
       ? '<a href="' + esc(e.details_url) + '" class="event-title-link">' + esc(titleText) + '</a>'
       : esc(titleText);
     var hostLabel = 'Host: ';
     var hostLink = e.club_slug ? '<a href="/club/' + esc(e.club_slug) + '">' + esc(e.host_code || e.host_club) + '</a>' : esc(e.host_code || e.host_club);
     var hostFullname = (e.host_club_fullname && e.host_club_fullname.trim() && String(e.host_club_fullname).trim() !== String(e.host_code || e.host_club).trim()) ? ' (' + esc(e.host_club_fullname) + ')' : '';
     var hostFlag = (e.host_unmatched) ? ' <span class="event-host-unmatched" title="Host not in club list">&#9888;</span>' : '';
-    var typeHtml = e.event_type ? '<div class="event-type-line"><span class="event-type">' + esc(e.event_type) + '</span></div>' : '';
+    var rawType = (e.event_type != null && String(e.event_type).trim()) ? String(e.event_type).trim() : '';
+    var typeHtml = '<div class="event-type-line"><span class="event-type' + (rawType ? '' : ' event-type--empty') + '"' + (rawType ? '' : ' title="Event type not set"') + '>' + (rawType ? esc(rawType) : '\u2014') + '</span></div>';
     var locHtml = e.location ? '<span class="event-location">' + esc(e.location) + '</span>' : '';
     var resultHtml = (e.show_result_line === true)
       ? (e.result_yes
-          ? '<div class="event-result-line">Result: <a href="' + esc(e.result_url || '') + '" class="event-result-yes">&#10003;</a></div>'
-          : '<div class="event-result-line">Result: <span class="event-result-no">&#10007;</span></div>')
-      : '';
+          ? (e.result_multi && e.result_options && e.result_options.length
+          ? '<details class="event-result-line event-result-line-multi event-result-multi-details"><summary class="event-result-multi-summary" aria-label="Choose which results to open">' +
+          '<span class="event-result-label">Results:</span><span class="event-result-glyph" aria-hidden="true">&#10003;</span></summary>' +
+          '<div class="event-result-dropdown-panel">' + e.result_options.map(function(o){ return '<a href="' + esc(o.url || '') + '" class="event-result-chip event-result-yes event-result-pick"><span class="event-result-glyph" aria-hidden="true">&#10003;</span><span class="event-result-pick-label">' + esc(o.label || 'Results') + '</span></a>'; }).join('') + '</div></details>'
+          : '<div class="event-result-line"><a href="' + esc(e.result_url || '') + '" class="event-result-chip event-result-yes"><span class="event-result-label">Result:</span><span class="event-result-glyph" aria-hidden="true">&#10003;</span></a></div>')
+          : '<div class="event-result-line"><span class="event-result-chip event-result-no"><span class="event-result-label">Result:</span><span class="event-result-glyph" aria-hidden="true">&#10007;</span></span></div>')
+      : '<div class="event-result-line"><span class="event-result-chip event-result-chip--reserved" aria-hidden="true"><span class="event-result-label">Result:</span><span class="event-result-glyph">&#10003;</span></span></div>';
     var hasDetails = e.details_url && e.details_url !== '#';
     var ext = hasDetails && e.details_url.indexOf('/') !== 0;
-    var btn = hasDetails ? '<a href="' + esc(e.details_url) + '" class="event-details-btn"' + (ext ? ' target="_blank" rel="noopener"' : '') + '>Details</a>' : '';
+    var btn = hasDetails ? '<a href="' + esc(e.details_url) + '" class="event-details-btn"' + (ext ? ' target="_blank" rel="noopener"' : '') + '>Details</a>' : '<span class="event-details-btn event-details-btn--empty" aria-hidden="true">Details</span>';
+    var idxAria = (typeof totalN === "number" && totalN > 0) ? ' aria-label="Event ' + index1 + ' of ' + totalN + '"' : "";
+    var indexBadge = '<span class="event-card-index"' + idxAria + '>' + String(index1) + '</span>';
     var header = '<div class="event-card-header"><h3>' + titleHtml + '</h3><span class="event-date">' + esc(e.date_display) + '</span></div>';
     var body = '<div class="event-card-body">'
+      + '<div class="event-card-body-inner">'
       + typeHtml
       + '<span class="event-club">' + hostLabel + hostLink + hostFullname + hostFlag + '</span>'
+      + '<div class="event-card-result-row">'
+      + '<div class="event-result-slot">' + resultHtml + '</div>'
+      + '<div class="event-card-actions">' + indexBadge + btn + '</div>'
+      + '</div>'
       + locHtml
-      + resultHtml
-      + btn
+      + '</div>'
       + '</div>';
     return '<div class="' + cardClass + '">' + header + body + '</div>';
-  }}
-  function fillPanel(id, list){{
+  }
+  function fillPanel(id, list){
     var container = document.getElementById("cards-" + id);
     var btnWrap = document.getElementById("show-more-" + id);
     var btn = document.getElementById("btn-more-" + id);
-    if(!container || !list.length){{ if(btnWrap) btnWrap.classList.add("hidden"); return; }}
+    if(!container){ return; }
+    if(!list.length){
+      container.innerHTML = "";
+      if(btnWrap) btnWrap.classList.add("hidden");
+      return;
+    }
     container.innerHTML = "";
     var show = INITIAL;
-    function add(){{
+    function add(){
       var end = Math.min(show, list.length);
-      var isPast = (id === 'past');
       for(var i = container.children.length; i < end; i++)
-        container.insertAdjacentHTML("beforeend", renderCard(list[i], isPast));
+        container.insertAdjacentHTML("beforeend", renderCard(list[i], id, i + 1, list.length));
       if(btnWrap) btnWrap.classList.toggle("hidden", end >= list.length);
       show = end;
-    }}
+    }
     add();
-    if(btn) btn.onclick = function(){{ show += INITIAL; add(); }};
-  }}
-  fillPanel("upcoming", DATA.upcoming);
-  fillPanel("past", DATA.past);
-  document.querySelectorAll(".events-tab").forEach(function(t){{
-    t.addEventListener("click", function(){{
+    if(btn) btn.onclick = function(){ show += INITIAL; add(); };
+  }
+  function applyEventsFilter(){
+    var inp = document.getElementById("events-dashboard-search");
+    var q = inp ? inp.value : "";
+    var fu = filterEventsList(DATA.upcoming || [], q);
+    var fl = filterEventsList(DATA.live || [], q);
+    var fp = filterEventsList(DATA.past || [], q);
+    updateTabCounts(fu, fl, fp);
+    fillPanel("upcoming", fu);
+    fillPanel("live", fl);
+    fillPanel("past", fp);
+    var cur = document.querySelector(".events-tab.active");
+    var curTab = cur ? cur.getAttribute("data-tab") : null;
+    var curMap = { upcoming: fu, live: fl, past: fp };
+    var pick = (curTab && curMap[curTab] && curMap[curTab].length) ? curTab : firstTabWithEventsFromFiltered(fu, fl, fp);
+    activateTab(pick);
+  }
+  applyEventsFilter();
+  var searchEl = document.getElementById("events-dashboard-search");
+  if(searchEl) searchEl.addEventListener("input", function(){ applyEventsFilter(); });
+  document.querySelectorAll(".events-tab").forEach(function(t){
+    t.addEventListener("click", function(){
       var tab = t.getAttribute("data-tab");
-      document.querySelectorAll(".events-tab").forEach(function(x){{ x.classList.remove("active"); x.setAttribute("aria-selected","false"); }});
-      t.classList.add("active"); t.setAttribute("aria-selected","true");
-      document.querySelectorAll(".events-panel").forEach(function(p){{ p.classList.remove("active"); }});
-      var panel = document.getElementById("panel-" + tab);
-      if(panel) panel.classList.add("active");
-    }});
-  }});
-}})();
+      activateTab(tab);
+    });
+  });
+})();
 </script></body></html>"""
     return header
 
@@ -2593,6 +3866,12 @@ def admin_dashboard_v2(request: Request):
 </html>""",
         headers={"Cache-Control": "no-store"},
     )
+
+
+@app.get("/admin/dashboard-restore")
+def admin_dashboard_restore_redirect():
+    """Alias for bookmarks; nginx may also proxy this to a backup port (see deploy/setup-dashboard-restore-on-live.sh)."""
+    return RedirectResponse(url="/admin/dashboard", status_code=307)
 
 
 @app.get("/admin/dashboard", response_class=HTMLResponse)
@@ -6059,6 +7338,148 @@ def admin_review_resolve_fleet(request: Request):
             return_db_connection(conn)
 
 
+@app.post("/admin/review/assign-event-host")
+def admin_review_assign_event_host(request: Request):
+    """Assign events.host_club_id from virtual Unassigned to a real club (admin)."""
+    _admin_review_guard(request)
+    conn = None
+    try:
+        body = request.json() or {}
+        event_id = body.get("event_id")
+        new_club_id = body.get("new_club_id")
+        if event_id is None or new_club_id is None:
+            return JSONResponse(status_code=400, content={"ok": False, "error": "event_id and new_club_id required"})
+        event_id = int(event_id)
+        new_club_id = int(new_club_id)
+        uid = _get_unassigned_club_id()
+        if uid and new_club_id == uid:
+            return JSONResponse(status_code=400, content={"ok": False, "error": "Choose a real club, not Unassigned"})
+        if not table_exists("events"):
+            return JSONResponse(status_code=400, content={"ok": False, "error": "events table missing"})
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT host_club_id FROM events WHERE event_id = %s", (event_id,))
+        er = cur.fetchone()
+        if not er:
+            return JSONResponse(status_code=404, content={"ok": False, "error": "event not found"})
+        prev_hid = er.get("host_club_id")
+        if uid is not None and prev_hid is not None and int(prev_hid) != int(uid):
+            return JSONResponse(
+                status_code=400,
+                content={"ok": False, "error": "Only events currently on Unassigned host can be reassigned here"},
+            )
+        cur.execute("SELECT club_id FROM clubs WHERE club_id = %s", (new_club_id,))
+        if not cur.fetchone():
+            return JSONResponse(status_code=400, content={"ok": False, "error": "invalid new_club_id"})
+        cur.execute("UPDATE events SET host_club_id = %s WHERE event_id = %s", (new_club_id, event_id))
+        updated = cur.rowcount
+        if table_exists("review_audit_log"):
+            cur.execute(
+                "INSERT INTO review_audit_log (action, entity_type, entity_key, result_ids, new_value) VALUES ('assign_event_host', 'event', %s, NULL, %s::jsonb)",
+                (str(event_id), json.dumps({"event_id": event_id, "new_club_id": new_club_id})),
+            )
+        conn.commit()
+        return {"ok": True, "updated": updated}
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+
+@app.get("/admin/review/events-host", response_class=HTMLResponse)
+def admin_review_events_host_page(request: Request):
+    """List SAS events still on Unassigned host; assign to real club."""
+    _admin_review_guard(request)
+    uid = _get_unassigned_club_id()
+    rows_html = "<p>No Unassigned club row — restart API or apply sql/unassigned_host_club.sql.</p>"
+    club_options = '<option value="">— club —</option>'
+    if uid and table_exists("events"):
+        conn = None
+        cur = None
+        try:
+            conn = get_db_connection()
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute(
+                """
+                SELECT event_id, event_name, start_date, category, source_url
+                FROM events
+                WHERE host_club_id = %s
+                ORDER BY start_date DESC NULLS LAST
+                LIMIT 500
+                """,
+                (uid,),
+            )
+            ev_rows = cur.fetchall() or []
+            clubs = _admin_list_clubs(cur)
+            for c in clubs:
+                cid = c.get("club_id")
+                if cid == uid:
+                    continue
+                nm = html_module.escape((c.get("name") or str(cid)).strip())
+                club_options += f'<option value="{int(cid)}">{nm}</option>'
+            trs = []
+            for r in ev_rows:
+                eid = int(r["event_id"])
+                en = html_module.escape((r.get("event_name") or "").strip() or "—")
+                sd = r.get("start_date")
+                ds = sd.strftime("%Y-%m-%d") if sd and hasattr(sd, "strftime") else "—"
+                cat = html_module.escape((r.get("category") or "").strip())
+                su = (r.get("source_url") or "").strip()
+                link = f'<a href="{html_module.escape(su)}" target="_blank" rel="noopener">SAS</a>' if su else "—"
+                trs.append(
+                    f"<tr><td>{eid}</td><td>{en}</td><td>{ds}</td><td>{cat}</td><td>{link}</td>"
+                    f'<td><select id="club-{eid}" class="ev-club-sel">{club_options}</select> '
+                    f'<button type="button" class="btn-save" data-eid="{eid}">Assign</button></td></tr>'
+                )
+            rows_html = (
+                '<table class="review-table"><thead><tr><th>ID</th><th>Event</th><th>Start</th><th>Category</th><th>Link</th><th>Assign to club</th></tr></thead><tbody>'
+                + ("".join(trs) if trs else '<tr><td colspan="6">No events on Unassigned host.</td></tr>')
+                + "</tbody></table>"
+            )
+        except Exception as e:
+            rows_html = f'<p class="err">{html_module.escape(str(e))}</p>'
+        finally:
+            if cur:
+                try:
+                    cur.close()
+                except Exception:
+                    pass
+            if conn:
+                return_db_connection(conn)
+    doc = f"""<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Events host assignment</title>
+<style>table.review-table {{ border-collapse: collapse; width: 100%; font-size: 13px; }}
+table.review-table th, table.review-table td {{ padding: 6px 10px; border-bottom: 1px solid #cbd5e1; text-align: left; }}
+.err {{ color: #c00; }} .btn-save {{ padding: 4px 10px; cursor: pointer; }}</style></head>
+<body>
+<h1>Assign SAS event hosts</h1>
+<p>Events with host <strong>Unassigned</strong> (no matched club). Pick a club and click Assign.</p>
+<p><a href="/admin/review">← Data Review</a> · <a href="/club/unassigned">Public /club/unassigned</a></p>
+{rows_html}
+<script>
+document.querySelectorAll('button.btn-save').forEach(function(btn) {{
+  btn.addEventListener('click', function() {{
+    var eid = btn.getAttribute('data-eid');
+    var sel = document.getElementById('club-' + eid);
+    var cid = sel && sel.value;
+    if (!cid) {{ alert('Select a club'); return; }}
+    fetch('/admin/review/assign-event-host', {{
+      method: 'POST', credentials: 'same-origin',
+      headers: {{ 'Content-Type': 'application/json' }},
+      body: JSON.stringify({{ event_id: parseInt(eid, 10), new_club_id: parseInt(cid, 10) }})
+    }}).then(function(r) {{ return r.json(); }}).then(function(d) {{
+      if (d.ok) {{ btn.closest('tr').remove(); }} else {{ alert(d.error || 'Failed'); }}
+    }}).catch(function(e) {{ alert(e); }});
+  }});
+}});
+</script>
+</body></html>"""
+    return HTMLResponse(content=doc, headers={"Cache-Control": "no-store"})
+
+
 @app.get("/admin/api/fleets-for-regatta")
 def admin_api_fleets_for_regatta(request: Request, regatta_id: str = ""):
     """List block_id and fleet_label for a regatta (for Data Review fleet dropdown)."""
@@ -6116,6 +7537,7 @@ def _admin_review_html() -> str:
         <nav class="main-nav">
           <a href="/admin/dashboard">Dashboard</a>
           <a href="/admin/review">Data Review</a>
+          <a href="/admin/review/events-host">SAS event hosts</a>
         </nav>
       </div>
     </header>
@@ -6371,6 +7793,7 @@ def admin_review_sailors(request: Request):
             table_rows += f"<tr><td>{helm}</td><td>{sail}</td><td>{cnt}</td></tr>"
     else:
         table_rows = f"<tr><td colspan=\"3\" class=\"err\">{html_module.escape(err)}</td></tr>"
+    empty_sailors = '<tr><td colspan="3">No rows</td></tr>'
     html = f"""<!DOCTYPE html>
 <html><head><title>Data Review – Unresolved Sailors</title>
 <style>table{{border-collapse:collapse;width:100%;}} th,td{{padding:8px 12px;text-align:left;border-bottom:1px solid #334155;}} .err{{color:#f87171;}}</style></head>
@@ -6390,7 +7813,7 @@ def admin_review_sailors(request: Request):
 <h1>Data Review: Unresolved Sailors</h1>
 <p>Results with no <code>helm_sa_sailing_id</code>, excluding identity_status = 'invalid'.</p>
 <table><thead><tr><th>helm_name</th><th>sail_number</th><th>results</th></tr></thead>
-<tbody>{table_rows or "<tr><td colspan=\"3\">No rows</td></tr>"}</tbody></table>
+<tbody>{table_rows or empty_sailors}</tbody></table>
 </main>
 </div>
 </body></html>"""
@@ -6438,6 +7861,7 @@ def admin_review_classes(request: Request):
             table_rows += f"<tr><td>{i}</td><td>{reg}</td><td>{src}</td><td>{raw}</td><td>{st}</td><td>{ca_str}</td><td>{sample_str}</td></tr>"
     else:
         table_rows = f"<tr><td colspan=\"7\" class=\"err\">{html_module.escape(err)}</td></tr>"
+    empty_classes = '<tr><td colspan="7">No rows</td></tr>'
     html = f"""<!DOCTYPE html>
 <html><head><title>Data Review – Unknown Classes</title>
 <style>table{{border-collapse:collapse;width:100%;font-size:13px;}} th,td{{padding:8px 12px;text-align:left;border-bottom:1px solid #334155;}} .err{{color:#f87171;}}</style></head>
@@ -6457,7 +7881,7 @@ def admin_review_classes(request: Request):
 <h1>Data Review: Unknown Class Issues</h1>
 <p>Rows in <code>ingestion_issues</code> with status = OPEN (blocked ingestion).</p>
 <table><thead><tr><th>id</th><th>regatta_id</th><th>source_file</th><th>raw_class_label</th><th>status</th><th>created_at</th><th>sample</th></tr></thead>
-<tbody>{table_rows or "<tr><td colspan=\"7\">No rows</td></tr>"}</tbody></table>
+<tbody>{table_rows or empty_classes}</tbody></table>
 </main>
 </div>
 </body></html>"""
@@ -6495,6 +7919,7 @@ def admin_review_clubs(request: Request):
             table_rows += f"<tr><td>{club}</td><td>{cnt}</td></tr>"
     else:
         table_rows = f"<tr><td colspan=\"2\" class=\"err\">{html_module.escape(err)}</td></tr>"
+    empty_clubs = '<tr><td colspan="2">No rows</td></tr>'
     html = f"""<!DOCTYPE html>
 <html><head><title>Data Review – Unknown Clubs</title>
 <style>table{{border-collapse:collapse;width:100%;}} th,td{{padding:8px 12px;text-align:left;border-bottom:1px solid #334155;}} .err{{color:#f87171;}}</style></head>
@@ -6514,7 +7939,7 @@ def admin_review_clubs(request: Request):
 <h1>Data Review: Unknown Club References</h1>
 <p>Distinct <code>club_raw</code> in results where <code>club_id</code> is NULL or 0.</p>
 <table><thead><tr><th>club_raw</th><th>results</th></tr></thead>
-<tbody>{table_rows or "<tr><td colspan=\"2\">No rows</td></tr>"}</tbody></table>
+<tbody>{table_rows or empty_clubs}</tbody></table>
 </main>
 </div>
 </body></html>"""
@@ -6643,7 +8068,9 @@ def _regatta_standalone(slug: str): return serve_regatta_standalone(slug)
 
 @app.get("/club/{slug}")
 @app.head("/club/{slug}")
-def _club_standalone(slug: str): return serve_club_page(slug)
+def _club_standalone(slug: str):
+    """Every club slug (after 301 to canonical) is served by serve_club_page — one matching pipeline for all clubs."""
+    return serve_club_page(slug)
 
 
 @app.get("/sailing/{slug}")
@@ -10656,9 +12083,23 @@ def list_classes():
     return {"classes": [r['class_name'] for r in rows]}
 
 
-@app.head("/api/class/{class_id}")
-def api_class_by_id_head(class_id: int):
+def _parse_class_api_ref(class_ref: str) -> int:
+    """Resolve /api/class/{ref} where ref is numeric id, id-slug (5-dabchick), or name slug."""
+    s = (class_ref or "").strip()
+    if not s:
+        raise HTTPException(status_code=404, detail="Class not found")
+    if s.isdigit():
+        return int(s)
+    cid, _ = _resolve_class_slug_to_class_id(s)
+    if not cid:
+        raise HTTPException(status_code=404, detail="Class not found")
+    return int(cid)
+
+
+@app.head("/api/class/{class_ref}")
+def api_class_by_id_head(class_ref: str):
     """HEAD support so curl -sI returns 200 when class exists."""
+    class_id = _parse_class_api_ref(class_ref)
     conn = get_db_connection()
     cur = conn.cursor()
     try:
@@ -10671,13 +12112,15 @@ def api_class_by_id_head(class_id: int):
         return_db_connection(conn)
 
 
-@app.get("/api/class/{class_id}")
-def api_class_by_id(class_id: int):
+@app.get("/api/class/{class_ref}")
+def api_class_by_id(class_ref: str):
     """
     Read-only: class header + totals + regattas + sailors for class_id.
     All data derived from results.class_id (FK to classes). No class_canonical.
     Zero results -> still return class header with 0s and empty arrays.
+    class_ref may be a numeric id, id-slug (e.g. 5-dabchick), or name slug.
     """
+    class_id = _parse_class_api_ref(class_ref)
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     try:
@@ -10984,6 +12427,519 @@ def api_class_by_id(class_id: int):
     finally:
         cur.close()
         return_db_connection(conn)
+
+
+@app.get("/test/class/{class_id}", response_class=HTMLResponse)
+def test_class_aggregate_page(class_id: int):
+    """
+    Internal test HTML: sailors (helm/crew via result_crew when present), clubs, boat/sail numbers,
+    regattas — all with links per URL_STANDARD (relative /sailor/, /club/, /regatta/.../class-...).
+    Example: /test/class/7 for International 420 when class_id=7 (check DB for your 420 row).
+    Layout matches club/events: event-card matrix + swipe carousel (club-events-dashboard).
+    """
+    from urllib.parse import quote
+
+    try:
+        data = api_class_by_id(str(class_id))
+    except HTTPException as e:
+        return HTMLResponse(
+            f"<html><body><p>{html_module.escape(str(e.detail or 'Not found'))}</p></body></html>",
+            status_code=int(getattr(e, "status_code", 404) or 404),
+        )
+
+    class_name = (data.get("class_name") or "").strip()
+    cslug = _class_canonical_slug(class_name)
+    class_path = f"/class/{class_id}-{cslug}" if cslug else f"/class/{class_id}"
+    base = _canonical_base_url()
+
+    def a(rel: str, label: str) -> str:
+        return f'<a href="{html_module.escape(rel)}">{html_module.escape(label)}</a>'
+
+    regattas_j: list = []
+    for rg in data.get("regattas") or []:
+        slug = (rg.get("regatta_slug") or rg.get("regatta_id") or "").strip()
+        rname = (rg.get("regatta_name") or "").strip()
+        ed = (rg.get("event_date") or rg.get("end_date") or "").strip()
+        club = (rg.get("club_name") or "").strip()
+        fs = rg.get("fleet_size")
+        rc = rg.get("races")
+        if slug and cslug:
+            href = f"/regatta/{quote(str(slug), safe='')}/class-{quote(cslug, safe='')}"
+        elif slug:
+            href = f"/regatta/{quote(str(slug), safe='')}"
+        else:
+            href = ""
+        regattas_j.append({
+            "title": rname or "—",
+            "href": href,
+            "date": ed or "—",
+            "host": club or "—",
+            "entries": str(fs if fs is not None else "—"),
+            "races": str(rc if rc is not None else "—"),
+        })
+
+    clubs_j: list = []
+    for c in data.get("clubs_sailing_class") or []:
+        cslug_u = (c.get("club_slug") or "").strip()
+        lab = (c.get("club_code") or "") + (" — " + c.get("club_name") if c.get("club_name") else "")
+        lab = lab.strip(" —") or "—"
+        lr_slug = (c.get("last_regatta_slug") or "").strip()
+        lr_name = (c.get("last_regatta_name") or "").strip()
+        club_href = f"/club/{quote(cslug_u, safe='')}" if cslug_u else ""
+        last_href = ""
+        if lr_slug and cslug and lr_name:
+            last_href = f"/regatta/{quote(lr_slug, safe='')}/class-{quote(cslug, safe='')}"
+        elif lr_slug and lr_name:
+            last_href = f"/regatta/{quote(lr_slug, safe='')}"
+        clubs_j.append({
+            "title": lab,
+            "href": club_href,
+            "sailors": str(c.get("sailors") if c.get("sailors") is not None else "—"),
+            "races": str(c.get("races") if c.get("races") is not None else "—"),
+            "last_name": lr_name,
+            "last_href": last_href,
+            "last_date": str(c.get("last_regatta_date") or "—"),
+        })
+
+    sailors_j: list = []
+    for s in data.get("sailors") or []:
+        name = (s.get("sailor_name") or "").strip() or str(s.get("sas_id") or "")
+        sslug = (s.get("sailor_slug") or "").strip()
+        lr_slug = (s.get("last_regatta_slug") or "").strip()
+        lr_name = (s.get("last_regatta_name") or "").strip()
+        sailor_href = f"/sailor/{quote(sslug, safe='')}" if sslug else ""
+        last_href = ""
+        if lr_slug and cslug and lr_name:
+            last_href = f"/regatta/{quote(lr_slug, safe='')}/class-{quote(cslug, safe='')}"
+        elif lr_slug and lr_name:
+            last_href = f"/regatta/{quote(lr_slug, safe='')}"
+        sailors_j.append({
+            "title": name,
+            "href": sailor_href,
+            "races": str(s.get("races_in_class") if s.get("races_in_class") is not None else "—"),
+            "regattas": str(s.get("regattas_in_class") if s.get("regattas_in_class") is not None else "—"),
+            "last_name": lr_name,
+            "last_href": last_href,
+        })
+
+    helm_j: list = []
+    helm_error: Optional[str] = None
+    show_helm = bool(table_exists("result_crew"))
+    if show_helm:
+        conn_h = None
+        try:
+            conn_h = get_db_connection()
+            cur = conn_h.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute(
+                """
+                SELECT rc.role::text AS role, rc.sas_id::text AS sas_id,
+                       COUNT(DISTINCT r.regatta_id)::int AS regattas_in_class
+                FROM result_crew rc
+                INNER JOIN results r ON r.result_id = rc.result_id
+                WHERE r.class_id = %s AND r.raced = TRUE AND rc.sas_id IS NOT NULL
+                GROUP BY rc.role, rc.sas_id
+                ORDER BY role NULLS LAST, regattas_in_class DESC
+                LIMIT 5000
+                """,
+                (class_id,),
+            )
+            role_rows = cur.fetchall() or []
+            cur.close()
+            sas_ids = list({r["sas_id"] for r in role_rows if r.get("sas_id")})
+            slug_m = _batch_sailor_slugs_for_sas_ids(sas_ids) if sas_ids else {}
+            cur = conn_h.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            name_m: Dict[str, str] = {}
+            if sas_ids:
+                cur.execute(
+                    """
+                    SELECT p.sa_sailing_id::text AS sas_id,
+                           COALESCE(TRIM(p.full_name), TRIM(p.first_name || ' ' || COALESCE(p.last_name, ''))) AS sailor_name
+                    FROM sas_id_personal p
+                    WHERE p.sa_sailing_id::text = ANY(%s)
+                    """,
+                    (sas_ids,),
+                )
+                for row in cur.fetchall() or []:
+                    name_m[row["sas_id"]] = (row.get("sailor_name") or "").strip()
+            cur.close()
+            for r in role_rows:
+                sid = r.get("sas_id")
+                role = (r.get("role") or "—").strip()
+                nm = name_m.get(sid, "") or str(sid or "")
+                sl = slug_m.get(sid) if slug_m else None
+                sailor_href = f"/sailor/{quote(str(sl), safe='')}" if sl else ""
+                helm_j.append({
+                    "role": role,
+                    "title": nm,
+                    "href": sailor_href,
+                    "regattas": str(r.get("regattas_in_class") or "—"),
+                })
+        except Exception as ex:
+            helm_error = str(ex)
+        finally:
+            if conn_h:
+                return_db_connection(conn_h)
+
+    boats_j: list = []
+    boat_err: Optional[str] = None
+    conn_b = None
+    try:
+        conn_b = get_db_connection()
+        cur = conn_b.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(
+            """
+            SELECT COALESCE(NULLIF(TRIM(sail_number::text), ''), '') AS sn,
+                   COALESCE(NULLIF(TRIM(boat_name::text), ''), '') AS bn,
+                   COUNT(*)::int AS result_rows,
+                   COUNT(DISTINCT regatta_id)::int AS regattas,
+                   MAX(regatta_id) AS sample_regatta_id
+            FROM results
+            WHERE class_id = %s
+            GROUP BY sail_number, boat_name
+            ORDER BY COUNT(*) DESC
+            LIMIT 500
+            """,
+            (class_id,),
+        )
+        boat_rows = cur.fetchall() or []
+        cur.close()
+        for b in boat_rows:
+            sn = (b.get("sn") or "").strip() or "—"
+            bn = (b.get("bn") or "").strip() or "—"
+            samp = b.get("sample_regatta_id")
+            if samp and cslug:
+                samp_href = f"/regatta/{quote(str(samp), safe='')}/class-{quote(cslug, safe='')}"
+            elif samp:
+                samp_href = f"/regatta/{quote(str(samp), safe='')}"
+            else:
+                samp_href = ""
+            boats_j.append({
+                "title": f"{bn} · {sn}",
+                "boat": bn,
+                "sail": sn,
+                "result_rows": str(b.get("result_rows") or 0),
+                "regattas": str(b.get("regattas") or 0),
+                "sample_href": samp_href,
+                "sample_label": str(samp) if samp else "—",
+            })
+    except Exception as ex:
+        boat_err = str(ex)
+    finally:
+        if conn_b:
+            return_db_connection(conn_b)
+
+    payload = {
+        "regattas": regattas_j,
+        "clubs": clubs_j,
+        "sailors": sailors_j,
+        "helm": helm_j,
+        "helm_error": helm_error,
+        "show_helm": show_helm,
+        "boats": boats_j,
+        "boat_error": boat_err,
+    }
+    json_safe = json.dumps(payload).replace("</", "<\\/")
+
+    css_block = (
+        _SECTION_HEADING_ROW_UNIFIED_CSS
+        + _EVENTS_TOOLBAR_SEARCH_CSS
+        + _EVENTS_CARD_MATRIX_CSS
+        + _CLUB_EVENTS_CAROUSEL_CSS
+        + """
+.class-test-page .event-card .event-title-link { font-weight: 700; text-decoration: underline; }
+.class-test-page .event-card h3 { font-size: 0.95rem; font-weight: 700; margin: 0 0 0.2rem 0; line-height: 1.25; }
+.class-test-page .event-card .event-date { font-size: 0.8rem; margin: 0; display: block; }
+.class-test-page .test-card-line { font-size: 0.8rem; margin: 0.15rem 0 0 0; line-height: 1.35; }
+.class-test-page .test-card-line a { color: #1e3a8a; font-weight: 600; text-decoration: underline; }
+.class-test-intro { font-size: 0.9rem; color: #475569; margin: 0 0 0.75rem 0; line-height: 1.4; }
+.class-test-list-footer { margin: 0.75rem 0 0 0 !important; padding-top: 0.25rem; border-top: 1px solid #e5e7eb; clear: both; }
+.class-test-list-section { margin-bottom: 0.5rem; padding-bottom: 0.75rem; }
+/* List carousels: do not clip tall rows (sample regatta link etc.) */
+.class-test-page .club-events-dashboard .events-carousel-wrap { overflow-x: hidden; overflow-y: visible; max-height: none; }
+.class-test-page .club-events-dashboard .events-carousel { overflow-x: auto; overflow-y: visible; -webkit-overflow-scrolling: touch; }
+.class-test-page .club-events-dashboard .events-page { min-height: auto; overflow: visible; align-items: stretch; }
+.class-test-page .club-events-dashboard .events-page .class-test-list { list-style: none; margin: 0; padding: 0; width: 100%; box-sizing: border-box; }
+.class-test-list { list-style: none; margin: 0; padding: 0; }
+.class-test-list li { border-bottom: 1px solid #e5e7eb; padding: 0.65rem 0; font-size: 0.95rem; line-height: 1.45; color: #1a2750; word-wrap: break-word; overflow-wrap: anywhere; }
+.class-test-list li:last-child { border-bottom: none; }
+.class-test-list .test-num { color: #64748b; font-weight: 600; margin-right: 0.35rem; }
+.class-test-list a { color: #1e3a8a; font-weight: 600; text-decoration: underline; }
+"""
+    )
+
+    parts = [
+        '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">',
+        f"<title>Test — {html_module.escape(class_name)} | SailingSA</title>",
+        '<link rel="stylesheet" href="/css/main.css?v=13">',
+        '<style>',
+        css_block,
+        "</style></head><body class=\"class-test-page\">",
+        '<div class="container">',
+        '<div class="card"><h1 class="section-title">Class test aggregate</h1>',
+        f"<p><strong>{html_module.escape(class_name)}</strong> (class_id={class_id}) · "
+        f"{a(class_path, 'Canonical class page')} · "
+        f"{a('/classes', 'Directory')}</p>",
+        "<p>Internal test page — not linked from site nav. <strong>Regattas</strong>: swipe cards. "
+        "<strong>Lists</strong>: 5 rows per screen, search + swipe. Data from <code>GET /api/class/{id}</code> plus boat/sail and helm/crew queries.</p>",
+        "</div>",
+        '<div class="card stats-section club-events-dashboard">'
+        '<div class="events-section-heading-row">'
+        f'<h2 class="section-title">Regattas ({len(regattas_j)})</h2>'
+        '<input type="search" class="events-dashboard-search" id="test-search-regattas" placeholder="Search…" '
+        'aria-label="Search regattas" autocomplete="off" autocapitalize="off" spellcheck="false" />'
+        "</div>"
+        '<p class="class-test-intro">Regatta events for this class (swipe for more).</p>'
+        + _test_class_carousel_controls_html("test-regattas")
+        + "</div>",
+        _test_class_list_section_html("clubs", "Clubs (sailors in this class)", len(clubs_j), "Search clubs…"),
+        _test_class_list_section_html("sailors", "Sailors (aggregated)", len(sailors_j), "Search sailors…"),
+    ]
+    if show_helm:
+        parts.append(
+            _test_class_list_section_html("helm", "Helm / crew (result_crew)", len(helm_j), "Search helm / crew…"),
+        )
+    parts.extend(
+        [
+            _test_class_list_section_html("boats", "Boat / sail (from results)", len(boats_j), "Search boat / sail…"),
+            f'<script type="application/json" id="test-class-data">{json_safe}</script>',
+            """
+<script>
+(function(){
+  var MATRIX = ['ec-past-club','ec-past-sas','ec-past-other','ec-upcoming-club','ec-upcoming-sas'];
+  function matrixClass(i){ return MATRIX[i % MATRIX.length]; }
+  function esc(s){ var d=document.createElement("div"); d.textContent=s==null?"":String(s); return d.innerHTML; }
+  function wireEventsCarousel(panelId){
+    var carousel = document.getElementById("cards-" + panelId);
+    var controls = document.getElementById("events-controls-" + panelId);
+    var prevBtn = document.getElementById("events-prev-" + panelId);
+    var nextBtn = document.getElementById("events-next-" + panelId);
+    var dotsWrap = document.getElementById("events-dots-" + panelId);
+    if(!carousel || !prevBtn || !nextBtn || !dotsWrap) return;
+    function pageCount(){ return carousel.querySelectorAll(".events-page").length; }
+    function currentPage(){
+      var w = carousel.clientWidth || 1;
+      var n = pageCount();
+      if (n <= 1) return 0;
+      var idx = Math.floor((carousel.scrollLeft + w * 0.25) / w);
+      if (idx < 0) idx = 0;
+      if (idx > n - 1) idx = n - 1;
+      return idx;
+    }
+    function syncNav(){
+      var n = pageCount();
+      if (n <= 1) { if(controls) controls.style.display = "none"; return; }
+      if(controls) controls.style.display = "";
+      var cur = currentPage();
+      prevBtn.disabled = (cur <= 0);
+      nextBtn.disabled = (cur >= n - 1);
+      dotsWrap.querySelectorAll(".events-dot").forEach(function(d, i){
+        d.classList.toggle("is-active", i === cur);
+      });
+    }
+    function scrollToPage(idx){
+      var n = pageCount();
+      idx = Math.max(0, Math.min(idx, n - 1));
+      carousel.scrollTo({ left: idx * carousel.clientWidth, behavior: "smooth" });
+    }
+    prevBtn.onclick = function(){ scrollToPage(currentPage() - 1); };
+    nextBtn.onclick = function(){ scrollToPage(currentPage() + 1); };
+    carousel.addEventListener("scroll", function(){ syncNav(); }, { passive: true });
+    window.addEventListener("resize", function(){ syncNav(); });
+    dotsWrap.addEventListener("click", function(ev){
+      var t = ev.target;
+      if(t && t.getAttribute && t.getAttribute("data-page") !== null)
+        scrollToPage(parseInt(t.getAttribute("data-page"), 10));
+    });
+    syncNav();
+  }
+  function fillCarousel(panelId, list, renderOne){
+    var carousel = document.getElementById("cards-" + panelId);
+    var controls = document.getElementById("events-controls-" + panelId);
+    var dotsWrap = document.getElementById("events-dots-" + panelId);
+    if(!carousel) return;
+    if(!list || !list.length){
+      carousel.innerHTML = '<div class="events-page" role="group"><div class="event-card ec-past-other"><div class="event-card-header"><h3>No data</h3><span class="event-date">—</span></div></div></div>';
+      if(controls) controls.style.display = "none";
+      return;
+    }
+    carousel.innerHTML = "";
+    var n = list.length;
+    for(var i = 0; i < n; i++){
+      var pageEl = document.createElement("div");
+      pageEl.className = "events-page";
+      pageEl.setAttribute("role", "group");
+      pageEl.innerHTML = renderOne(list[i], i, n);
+      carousel.appendChild(pageEl);
+    }
+    if(dotsWrap){
+      dotsWrap.innerHTML = "";
+      for(var k = 0; k < n; k++){
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "events-dot" + (k === 0 ? " is-active" : "");
+        b.setAttribute("data-page", String(k));
+        b.setAttribute("aria-label", "Item " + (k+1) + " of " + n);
+        dotsWrap.appendChild(b);
+      }
+    }
+    if(n <= 1){ if(controls) controls.style.display = "none"; }
+    else { if(controls) controls.style.display = ""; }
+    wireEventsCarousel(panelId);
+  }
+  function cardShell(mc, titleHtml, dateLine, innerHtml, index1, totalN){
+    var idxAria = totalN > 0 ? ' aria-label="Item ' + index1 + ' of ' + totalN + '"' : "";
+    var indexBadge = '<span class="event-card-index"' + idxAria + '">' + index1 + '</span>';
+    var footer = '<div class="event-card-result-row"><div class="event-result-slot"></div><div class="event-card-actions">' + indexBadge + '</div></div>';
+    return '<div class="event-card ' + mc + '"><div class="event-card-header"><h3>' + titleHtml + '</h3><span class="event-date">' + esc(dateLine) + '</span></div><div class="event-card-body"><div class="event-card-body-inner">' + innerHtml + footer + '</div></div></div>';
+  }
+  var raw = document.getElementById("test-class-data");
+  var DATA = raw ? JSON.parse(raw.textContent) : {};
+  var ALL_REGATTAS = DATA.regattas || [];
+  function filterByQuery(list, q, haystackFn){
+    q = (q || "").trim().toLowerCase();
+    if(!q) return list.slice();
+    return list.filter(function(item){ return haystackFn(item).toLowerCase().indexOf(q) !== -1; });
+  }
+  function getSearchQ(inputId){
+    var e = document.getElementById(inputId);
+    return e ? (e.value || "") : "";
+  }
+  function renderRegattaCards(list){
+    fillCarousel("test-regattas", list, function(r, i, n){
+      var mc = matrixClass(i);
+      var titleH = r.href ? '<a href="'+esc(r.href)+'" class="event-title-link">'+esc(r.title)+'</a>' : esc(r.title);
+      var inner = '<div class="event-type-line"><span class="event-type">Regatta</span></div>'
+        + '<span class="event-club"><strong>Host:</strong> '+esc(r.host)+'</span>'
+        + '<p class="test-card-line">Entries: '+esc(r.entries)+' · Races: '+esc(r.races)+'</p>';
+      return cardShell(mc, titleH, r.date, inner, i + 1, n);
+    });
+  }
+  function regattaHaystack(r){ return [r.title, r.date, r.host, r.entries, r.races].join(" "); }
+  renderRegattaCards(ALL_REGATTAS);
+  var regSearchEl = document.getElementById("test-search-regattas");
+  if(regSearchEl) regSearchEl.addEventListener("input", function(){
+    renderRegattaCards(filterByQuery(ALL_REGATTAS, getSearchQ("test-search-regattas"), regattaHaystack));
+  });
+
+  var LIST_PAGE = 5;
+  function fillListPaged(panelId, list, renderLi){
+    var carousel = document.getElementById("cards-" + panelId);
+    var controls = document.getElementById("events-controls-" + panelId);
+    var dotsWrap = document.getElementById("events-dots-" + panelId);
+    if(!carousel) return;
+    if(!list || !list.length){
+      carousel.innerHTML = '<div class="events-page" role="group"><ol class="class-test-list"><li><span class="test-num">—</span> No matches</li></ol></div>';
+      if(controls) controls.style.display = "none";
+      return;
+    }
+    carousel.innerHTML = "";
+    var pages = [];
+    for(var p = 0; p < list.length; p += LIST_PAGE) pages.push(list.slice(p, p + LIST_PAGE));
+    for(var pi = 0; pi < pages.length; pi++){
+      var chunk = pages[pi];
+      var lis = [];
+      for(var j = 0; j < chunk.length; j++){
+        var globalIdx = pi * LIST_PAGE + j;
+        lis.push(renderLi(chunk[j], globalIdx));
+      }
+      var pageEl = document.createElement("div");
+      pageEl.className = "events-page";
+      pageEl.setAttribute("role", "group");
+      pageEl.innerHTML = '<ol class="class-test-list">' + lis.join("") + '</ol>';
+      carousel.appendChild(pageEl);
+    }
+    var n = pages.length;
+    if(dotsWrap){
+      dotsWrap.innerHTML = "";
+      for(var k = 0; k < n; k++){
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "events-dot" + (k === 0 ? " is-active" : "");
+        b.setAttribute("data-page", String(k));
+        b.setAttribute("aria-label", "Page " + (k+1) + " of " + n);
+        dotsWrap.appendChild(b);
+      }
+    }
+    if(n <= 1){ if(controls) controls.style.display = "none"; }
+    else { if(controls) controls.style.display = ""; }
+    wireEventsCarousel(panelId);
+  }
+  var ALL_CLUBS = DATA.clubs || [];
+  function clubHaystack(c){ return [c.title,c.sailors,c.races,c.last_name,c.last_date].join(" "); }
+  function clubLi(c, idx){
+    var title = c.href ? '<a href="'+esc(c.href)+'">'+esc(c.title)+'</a>' : esc(c.title);
+    var last = '';
+    if (c.last_name && c.last_href) last = ' · Last: <a href="'+esc(c.last_href)+'">'+esc(c.last_name)+'</a> ('+esc(c.last_date)+')';
+    else if (c.last_name) last = ' · Last: '+esc(c.last_name)+' ('+esc(c.last_date)+')';
+    return '<li><span class="test-num">'+(idx+1)+'.</span> '+title+' · Sailors '+esc(c.sailors)+' · Races '+esc(c.races)+last+'</li>';
+  }
+  function paintClubs(){ fillListPaged("test-clubs", filterByQuery(ALL_CLUBS, getSearchQ("test-search-clubs"), clubHaystack), clubLi); }
+  paintClubs();
+  var cs = document.getElementById("test-search-clubs");
+  if(cs) cs.addEventListener("input", paintClubs);
+
+  var ALL_SAILORS = DATA.sailors || [];
+  function sailorHaystack(s){ return [s.title,s.races,s.regattas,s.last_name].join(" "); }
+  function sailorLi(s, idx){
+    var name = s.href ? '<a href="'+esc(s.href)+'">'+esc(s.title)+'</a>' : esc(s.title);
+    var last = '';
+    if (s.last_name && s.last_href) last = ' · Last: <a href="'+esc(s.last_href)+'">'+esc(s.last_name)+'</a>';
+    else if (s.last_name) last = ' · Last: '+esc(s.last_name);
+    return '<li><span class="test-num">'+(idx+1)+'.</span> '+name+' · Races '+esc(s.races)+' · Regattas '+esc(s.regattas)+last+'</li>';
+  }
+  function paintSailors(){ fillListPaged("test-sailors", filterByQuery(ALL_SAILORS, getSearchQ("test-search-sailors"), sailorHaystack), sailorLi); }
+  paintSailors();
+  var ss = document.getElementById("test-search-sailors");
+  if(ss) ss.addEventListener("input", paintSailors);
+
+  if (DATA.show_helm) {
+    if (DATA.helm_error) {
+      var hcar = document.getElementById("cards-test-helm");
+      var hctl = document.getElementById("events-controls-test-helm");
+      if(hcar) hcar.innerHTML = '<div class="events-page" role="group"><ol class="class-test-list"><li><span class="test-num">!</span> '+esc(DATA.helm_error)+' (helm/crew query failed)</li></ol></div>';
+      if(hctl) hctl.style.display = "none";
+    } else {
+      var ALL_HELM = DATA.helm || [];
+      function helmHaystack(h){ return [h.title,h.role,h.regattas].join(" "); }
+      function helmLi(h, idx){
+        var name = h.href ? '<a href="'+esc(h.href)+'">'+esc(h.title)+'</a>' : esc(h.title);
+        return '<li><span class="test-num">'+(idx+1)+'.</span> '+esc(h.role)+' — '+name+' · Regattas '+esc(h.regattas)+'</li>';
+      }
+      function paintHelm(){ fillListPaged("test-helm", filterByQuery(ALL_HELM, getSearchQ("test-search-helm"), helmHaystack), helmLi); }
+      paintHelm();
+      var hs = document.getElementById("test-search-helm");
+      if(hs) hs.addEventListener("input", paintHelm);
+    }
+  }
+
+  var boatErr = DATA.boat_error || '';
+  if (boatErr) {
+    var bcar = document.getElementById("cards-test-boats");
+    var bctl = document.getElementById("events-controls-test-boats");
+    if(bcar) bcar.innerHTML = '<div class="events-page" role="group"><ol class="class-test-list"><li><span class="test-num">!</span> '+esc(boatErr)+' (boat/sail query failed)</li></ol></div>';
+    if(bctl) bctl.style.display = "none";
+  } else {
+    var ALL_BOATS = DATA.boats || [];
+    function boatHaystack(b){ return [b.boat,b.sail,b.result_rows,b.regattas,b.sample_label].join(" "); }
+    function boatLi(b, idx){
+      var samp = b.sample_href ? '<a href="'+esc(b.sample_href)+'">'+esc(b.sample_label)+'</a>' : esc(b.sample_label);
+      return '<li><span class="test-num">'+(idx+1)+'.</span> Boat '+esc(b.boat)+' · Sail '+esc(b.sail)
+        +' · Rows '+esc(b.result_rows)+' · Regattas '+esc(b.regattas)+' · Sample '+samp+'</li>';
+    }
+    function paintBoats(){ fillListPaged("test-boats", filterByQuery(ALL_BOATS, getSearchQ("test-search-boats"), boatHaystack), boatLi); }
+    paintBoats();
+    var bs = document.getElementById("test-search-boats");
+    if(bs) bs.addEventListener("input", paintBoats);
+  }
+})();
+</script>""",
+            f'<p class="card"><small>Canonical base for reference: {html_module.escape(base)}</small></p>',
+            "</div></body></html>",
+        ]
+    )
+
+    return HTMLResponse("".join(parts))
 
 
 @app.get("/api/sa-id-stats")
@@ -12154,8 +14110,13 @@ def api_regatta(regatta_id: str, request: Request = None):
             except Exception:
                 pass
         if not rows:
-            raise HTTPException(status_code=404, detail="Regatta not found")
-        
+            # Safe empty response: class-results iframe and other clients must not trigger 500 from indexing [0].
+            print(
+                f"[api_regatta] no data for regatta_id={regatta_id!r} (no matching regatta row; returning empty list)",
+                flush=True,
+            )
+            return []
+
         # SPECIAL CASE: For Regatta 374, sort by master standings for all classes that have standings
         first_row = rows[0]
         regatta_number = first_row.get('regatta_number')
@@ -14686,7 +16647,7 @@ async def login(request: Request):
     """Login with SAS ID/WhatsApp and password"""
     try:
         body = await request.json()
-        username = body.get("username") or body.get("username")
+        username = body.get("username") or body.get("email")
         password = body.get("password")
         provider = body.get("provider", "username")
         
@@ -16139,7 +18100,7 @@ def index_html_maybe_redirect_sas_id(
 
 
 def _get_sailor_regattas_for_seo(sas_id: str, limit: int = 30):
-    """Return list of (event_name, regatta_slug) for sailor's regattas. Real anchors for crawlers."""
+    """Return list of (event_name, regatta_id) for sailor's regattas. Real anchors for crawlers (canonical /regatta/{id})."""
     if not sas_id:
         return []
     out = []
@@ -16148,21 +18109,19 @@ def _get_sailor_regattas_for_seo(sas_id: str, limit: int = 30):
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         try:
             cur.execute("""
-                SELECT r.event_name, r.regatta_id
+                SELECT DISTINCT r.event_name, r.regatta_id
                 FROM results res
                 JOIN regattas r ON r.regatta_id = res.regatta_id
-                WHERE res.helm_sa_sailing_id::text = %s
+                WHERE (res.helm_sa_sailing_id::text = %s OR res.crew_sa_sailing_id::text = %s)
                   AND r.event_name IS NOT NULL AND TRIM(r.event_name) != ''
                 ORDER BY r.end_date DESC NULLS LAST, r.start_date DESC NULLS LAST
                 LIMIT %s
-            """, (str(sas_id), limit))
+            """, (str(sas_id), str(sas_id), limit))
             for row in cur.fetchall() or []:
                 ev_name = (row.get("event_name") or "").strip()
-                if ev_name:
-                    slug = re.sub(r"[^\w\s\-]", "", ev_name).strip().lower()
-                    slug = re.sub(r"\s+", "-", slug).strip("-")
-                    if slug:
-                        out.append((ev_name, slug))
+                rid = str(row.get("regatta_id") or "").strip()
+                if ev_name and rid:
+                    out.append((ev_name, rid))
         finally:
             cur.close()
             conn.close()
@@ -16195,6 +18154,237 @@ def _get_sailor_club_for_seo(sas_id: str) -> str:
             conn.close()
     except Exception:
         return ""
+
+
+def _get_sailor_club_slug_for_seo(sas_id: str) -> str:
+    """Return canonical club slug for /club/{slug} from most common club_id in results (helm or crew), or empty."""
+    if not sas_id:
+        return ""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            cur.execute("""
+                SELECT COALESCE(c.club_abbrev, c.club_fullname) AS club_name
+                FROM results r
+                LEFT JOIN clubs c ON c.club_id = r.club_id
+                WHERE (r.helm_sa_sailing_id::text = %s OR r.crew_sa_sailing_id::text = %s)
+                  AND r.club_id IS NOT NULL
+                  AND (c.club_abbrev IS NOT NULL OR c.club_fullname IS NOT NULL)
+                GROUP BY COALESCE(c.club_abbrev, c.club_fullname)
+                ORDER BY COUNT(*) DESC
+                LIMIT 1
+            """, (str(sas_id), str(sas_id)))
+            row = cur.fetchone()
+            if not row:
+                return ""
+            name = (row.get("club_name") or "").strip()
+            return _club_slug_from_name(name) if name else ""
+        finally:
+            cur.close()
+            conn.close()
+    except Exception:
+        return ""
+
+
+def _get_regatta_sailors_for_seo(regatta_id: str, limit: int = 150):
+    """Return list of (display_name, sailor_slug) for distinct sailors in regatta results (helm + crew)."""
+    if not regatta_id or not table_exists("results"):
+        return []
+    out = []
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            cur.execute("""
+                SELECT DISTINCT s.sa_sailing_id::text AS sas_id,
+                       COALESCE(TRIM(s.full_name), TRIM(s.first_name || ' ' || COALESCE(s.last_name, ''))) AS full_name
+                FROM results r
+                JOIN sas_id_personal s ON (
+                    r.helm_sa_sailing_id::text = s.sa_sailing_id::text
+                    OR r.crew_sa_sailing_id::text = s.sa_sailing_id::text
+                )
+                WHERE r.regatta_id = %s
+                  AND (s.full_name IS NOT NULL OR s.first_name IS NOT NULL OR s.last_name IS NOT NULL)
+                ORDER BY full_name
+                LIMIT %s
+            """, (str(regatta_id), limit))
+            rows = cur.fetchall() or []
+            sas_ids = [str(r.get("sas_id") or "") for r in rows if r.get("sas_id")]
+            slug_map = _batch_sailor_slugs_for_sas_ids(sas_ids) if sas_ids else {}
+            for r in rows:
+                nm = (r.get("full_name") or "").strip()
+                sid = str(r.get("sas_id") or "")
+                sl = slug_map.get(sid) if slug_map else None
+                if nm and sl:
+                    out.append((nm, sl))
+        finally:
+            cur.close()
+            conn.close()
+    except Exception as e:
+        print(f"[seo] _get_regatta_sailors_for_seo: {e}")
+    return out
+
+
+def _regatta_seo_sailors_nav_html(regatta_id: str) -> str:
+    """Visually hidden sailor links for regatta standalone pages (crawlers)."""
+    rows = _get_regatta_sailors_for_seo(regatta_id, 150)
+    if not rows:
+        return ""
+    items = "".join(
+        f'<li><a href="/sailor/{html_module.escape(sl)}">{html_module.escape(nm)}</a></li>' for nm, sl in rows
+    )
+    return (
+        '<div class="seo-regatta-sailors" aria-hidden="true" style="position:absolute;width:1px;height:1px;padding:0;'
+        'margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0">'
+        f'<nav aria-label="Sailors"><h2 style="font-size:1rem;margin:0;">Sailors</h2><ul style="list-style:none;padding:0;">{items}</ul></nav></div>'
+    )
+
+
+_SEO_DISCOVERY_CACHE = {"at": 0.0, "pairs": []}
+_SEO_DISCOVERY_TTL_SEC = 120.0
+
+
+def _dedupe_html_canonical_links(html: str) -> str:
+    """Keep first <link rel=\"canonical\">; remove duplicates (SPA + server injections)."""
+    pattern = re.compile(r"<link\s[^>]*\brel\s*=\s*[\"']canonical[\"'][^>]*>", re.I)
+    parts = []
+    pos = 0
+    first = True
+    for m in pattern.finditer(html):
+        parts.append(html[pos : m.start()])
+        if first:
+            parts.append(m.group(0))
+            first = False
+        pos = m.end()
+    parts.append(html[pos:])
+    return "".join(parts)
+
+
+def _seo_discovery_pairs_fetch():
+    """Build mixed (href, label) for crawl discovery; relative paths only."""
+    pairs = []
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            if table_exists("regattas"):
+                cur.execute("""
+                    SELECT regatta_id, event_name FROM regattas
+                    WHERE event_name IS NOT NULL AND TRIM(event_name) != ''
+                    ORDER BY COALESCE(end_date, start_date) DESC NULLS LAST
+                    LIMIT 5
+                """)
+                for r in cur.fetchall() or []:
+                    rid = str(r.get("regatta_id") or "").strip()
+                    if not rid:
+                        continue
+                    lab = (r.get("event_name") or "").strip() or rid
+                    pairs.append((f"/regatta/{rid}", lab[:100]))
+            if table_exists("results") and table_exists("sas_id_personal"):
+                cur.execute("""
+                    SELECT DISTINCT s.sa_sailing_id::text AS sas_id,
+                           COALESCE(TRIM(s.full_name), TRIM(s.first_name || ' ' || COALESCE(s.last_name, ''))) AS full_name
+                    FROM results r2
+                    JOIN sas_id_personal s ON s.sa_sailing_id::text = r2.helm_sa_sailing_id::text
+                    WHERE (s.full_name IS NOT NULL AND TRIM(s.full_name) != ''
+                           OR s.first_name IS NOT NULL OR s.last_name IS NOT NULL)
+                    ORDER BY s.sa_sailing_id::text
+                    LIMIT 8
+                """)
+                srows = cur.fetchall() or []
+                sids = [str(x.get("sas_id") or "") for x in srows if x.get("sas_id")]
+                smap = _batch_sailor_slugs_for_sas_ids(sids) if sids else {}
+                for r in srows:
+                    sid = str(r.get("sas_id") or "")
+                    nm = (r.get("full_name") or "").strip()
+                    sl = smap.get(sid) if smap else None
+                    if sid and nm and sl:
+                        pairs.append((f"/sailor/{sl}", nm[:100]))
+            if table_exists("clubs"):
+                cur.execute("""
+                    SELECT club_abbrev, club_fullname FROM clubs
+                    WHERE (club_fullname IS NOT NULL AND TRIM(club_fullname) != ''
+                           OR club_abbrev IS NOT NULL AND TRIM(club_abbrev) != '')
+                      AND lower(trim(COALESCE(club_abbrev, ''))) != 'unassigned'
+                    ORDER BY club_id
+                    LIMIT 5
+                """)
+                for r in cur.fetchall() or []:
+                    ab = (r.get("club_abbrev") or "").strip()
+                    fn = (r.get("club_fullname") or "").strip()
+                    disp = (ab + " – " + fn).strip(" –") if (ab and fn) else (ab or fn)
+                    slug = _club_slug_from_name(ab) if ab else _club_slug_from_name(fn)
+                    if slug and disp:
+                        pairs.append((f"/club/{slug}", disp[:100]))
+            if table_exists("classes"):
+                cur.execute(
+                    "SELECT class_id, class_name FROM classes WHERE class_id IS NOT NULL ORDER BY class_id LIMIT 5"
+                )
+                for r in cur.fetchall() or []:
+                    cid = r.get("class_id")
+                    name = (r.get("class_name") or "").strip()
+                    if cid is None or not name:
+                        continue
+                    cslug = _class_canonical_slug(name)
+                    path = f"/class/{cid}-{cslug}" if cslug else f"/class/{cid}"
+                    pairs.append((path, name[:100]))
+        finally:
+            cur.close()
+            return_db_connection(conn)
+            conn = None
+    except Exception as e:
+        print(f"[seo] _seo_discovery_pairs_fetch: {e}")
+        if conn:
+            try:
+                return_db_connection(conn)
+            except Exception:
+                pass
+    return pairs
+
+
+def _seo_discovery_pairs(min_count: int = 12, max_count: int = 20):
+    """Cached discovery pairs; pad with safe directory links so every page has ≥min_count anchors."""
+    import time
+
+    t = time.time()
+    raw = []
+    if _SEO_DISCOVERY_CACHE["pairs"] and (t - _SEO_DISCOVERY_CACHE["at"]) < _SEO_DISCOVERY_TTL_SEC:
+        raw = list(_SEO_DISCOVERY_CACHE["pairs"])
+    else:
+        raw = _seo_discovery_pairs_fetch()
+        _SEO_DISCOVERY_CACHE["at"] = t
+        _SEO_DISCOVERY_CACHE["pairs"] = list(raw)
+    fillers = [
+        ("/events", "Events"),
+        ("/sailors", "Sailors"),
+        ("/regattas", "Regattas"),
+        ("/clubs", "Clubs"),
+        ("/classes", "Classes"),
+        ("/stats", "Statistics"),
+        ("/about", "About"),
+        ("/", "Home"),
+    ]
+    out = raw[:max_count]
+    i = 0
+    while len(out) < min_count and i < 80:
+        out.append(fillers[i % len(fillers)])
+        i += 1
+    return out[:max_count]
+
+
+def _seo_discovery_block_html(min_links: int = 12, max_links: int = 20) -> str:
+    """Hidden block: 10–20 crawlable links (mixed entity types). Repeats safe links if DB sample is small."""
+    pairs = _seo_discovery_pairs(min_links, max_links)
+    inner = "".join(
+        f'<a href="{html_module.escape(h)}">{html_module.escape(lab)}</a> ' for h, lab in pairs
+    )
+    css = (
+        '<style id="seo-discovery-css">.seo-discovery-block{position:absolute;width:1px;height:1px;'
+        "padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>"
+    )
+    return f'{css}<nav class="seo-discovery-block" aria-hidden="true">{inner}</nav>'
 
 
 def _get_sailor_bio_data(sas_id: str, full_name: str, club_name: str) -> dict:
@@ -16380,99 +18570,81 @@ def serve_sailor_spa(slug: str):
     try:
         with open(_INDEX_HTML_PATH, "r", encoding="utf-8", errors="replace") as f:
             html = f.read()
+        escaped_name = html_module.escape(name)
+        seo_title = f"{escaped_name} | SailingSA"
+        seo_desc = f"Official SailingSA profile for {escaped_name}. Results, rankings and regattas."
+        canonical_url = f"{base_url}/sailor/{canonical_slug}"
+        # Replace title (first occurrence)
+        html = re.sub(r"<title>[^<]*</title>", f"<title>{seo_title}</title>", html, count=1)
+        # Replace first meta name="description" (allow /> or >)
+        html = re.sub(
+            r'<meta\s+name="description"\s+content="[^"]*"\s*/?>',
+            f'<meta name="description" content="{html_module.escape(seo_desc)}">',
+            html,
+            count=1,
+        )
+        # Replace canonical link (allow /> or >)
+        html = re.sub(
+            r'<link\s+rel="canonical"\s+href="[^"]*"\s*/?>',
+            f'<link rel="canonical" href="{html_module.escape(canonical_url)}">',
+            html,
+            count=1,
+        )
+        # Regatta links (real anchors for crawlers - no popup/JS only)
+        sas_id = _get_sailor_sas_id_from_slug(canonical_slug)
+        regattas = _get_sailor_regattas_for_seo(sas_id, 30) if sas_id else []
+        regatta_links = "".join(
+            f'<li><a href="/regatta/{html_module.escape(rid)}">{html_module.escape(ev_name)}</a></li>'
+            for ev_name, rid in regattas
+        )
+        regattas_block = f'<nav class="seo-regattas" aria-label="Regattas"><h2 style="font-size:1rem;margin:0.5rem 0;">Regattas</h2><ul style="list-style:none;padding:0;">{regatta_links or "<li>No regattas</li>"}</ul></nav>'
+        club_slug_seo = _get_sailor_club_slug_for_seo(sas_id) if sas_id else ""
+        club_name_seo = _get_sailor_club_for_seo(sas_id) if sas_id else ""
+        club_block = ""
+        if club_slug_seo and club_name_seo:
+            club_block = f'<nav class="seo-club" aria-label="Club"><a href="/club/{html_module.escape(club_slug_seo)}">{html_module.escape(club_name_seo)}</a></nav>'
+
+        # Inject h1 + regattas for crawlers only - visually hidden so SPA main header displays first
+        seo_hidden_css = '<style id="seo-sailor-hidden">.seo-sailor-block{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>'
+        inject_html = f'<div class="seo-sailor-block" aria-hidden="true"><h1 class="seo-sailor-name">{escaped_name}</h1>{club_block}{regattas_block}</div>'
+        html = re.sub(r"(<body[^>]*>)", f'\\1\n  {inject_html}', html, count=1)
+        html = re.sub(r"</head>", f'{seo_hidden_css}\n</head>', html, count=1)
+
+        # Inject JSON-LD Person schema before </head>
+        club_name = _get_sailor_club_for_seo(sas_id) if sas_id else ""
+        json_ld = {"@context": "https://schema.org", "@type": "Person", "name": name, "sport": "Sailing"}
+        if club_name:
+            json_ld["affiliation"] = {"@type": "SportsOrganization", "name": club_name}
+        html = re.sub(r"</head>", f'<script type="application/ld+json">{json.dumps(json_ld)}</script>\n</head>', html, count=1)
+
+        # Sailor bio: above stats section (after sailor-profile-header, before sailor-profile-tabs)
+        if build_sailor_bio_from_db and sas_id:
+            try:
+                bio_text = build_sailor_bio_from_db(sas_id)
+                bio_escaped = html_module.escape(bio_text)
+                bio_block = f'<div class="sailor-bio"><p>{bio_escaped}</p></div>'
+                # Insert after </section> that closes sailor-profile-header, before <div class="sailor-profile-tabs">
+                html = re.sub(
+                    r"(</section>\s*)(<div class=\"sailor-profile-tabs\"[^>]*>)",
+                    r"\1" + bio_block + r"\n                        \2",
+                    html,
+                    count=1,
+                )
+            except Exception:
+                pass  # omit bio on error; page still works
+
+        html = _dedupe_html_canonical_links(html)
+        _bod = html.rfind("</body>")
+        if _bod != -1:
+            html = html[:_bod] + _seo_discovery_block_html() + "\n" + html[_bod:]
+        return HTMLResponse(html)
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"[SEO] serve_sailor_spa read index: {e}")
-        return FileResponse(_INDEX_HTML_PATH, media_type="text/html")
-    escaped_name = html_module.escape(name)
-    seo_title = f"{escaped_name} | SailingSA"
-    seo_desc = f"Official SailingSA profile for {escaped_name}. Results, rankings and regattas."
-    canonical_url = f"{base_url}/sailor/{canonical_slug}"
-    # Replace title (first occurrence)
-    html = re.sub(r"<title>[^<]*</title>", f"<title>{seo_title}</title>", html, count=1)
-    # Replace first meta name="description" (allow /> or >)
-    html = re.sub(
-        r'<meta\s+name="description"\s+content="[^"]*"\s*/?>',
-        f'<meta name="description" content="{html_module.escape(seo_desc)}">',
-        html,
-        count=1,
-    )
-    # Replace canonical link (allow /> or >)
-    html = re.sub(
-        r'<link\s+rel="canonical"\s+href="[^"]*"\s*/?>',
-        f'<link rel="canonical" href="{html_module.escape(canonical_url)}">',
-        html,
-        count=1,
-    )
-    # Regatta links (real anchors for crawlers - no popup/JS only)
-    sas_id = _get_sailor_sas_id_from_slug(canonical_slug)
-    regattas = _get_sailor_regattas_for_seo(sas_id, 30) if sas_id else []
-    regatta_links = "".join(
-        f'<li><a href="/regatta/{html_module.escape(rslug)}">{html_module.escape(ev_name)}</a></li>'
-        for ev_name, rslug in regattas
-    )
-    regattas_block = f'<nav class="seo-regattas" aria-label="Regattas"><h2 style="font-size:1rem;margin:0.5rem 0;">Regattas</h2><ul style="list-style:none;padding:0;">{regatta_links or "<li>No regattas</li>"}</ul></nav>'
-
-    # Inject h1 + regattas for crawlers only - visually hidden so SPA main header displays first
-    seo_hidden_css = '<style id="seo-sailor-hidden">.seo-sailor-block{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>'
-    inject_html = f'<div class="seo-sailor-block" aria-hidden="true"><h1 class="seo-sailor-name">{escaped_name}</h1>{regattas_block}</div>'
-    html = re.sub(r"(<body[^>]*>)", f'\\1\n  {inject_html}', html, count=1)
-    html = re.sub(r"</head>", f'{seo_hidden_css}\n</head>', html, count=1)
-
-    # Inject JSON-LD Person schema before </head>
-    sas_id = _get_sailor_sas_id_from_slug(canonical_slug)
-    club_name = _get_sailor_club_for_seo(sas_id) if sas_id else ""
-    json_ld = {"@context": "https://schema.org", "@type": "Person", "name": name, "sport": "Sailing"}
-    if club_name:
-        json_ld["affiliation"] = {"@type": "SportsOrganization", "name": club_name}
-    html = re.sub(r"</head>", f'<script type="application/ld+json">{json.dumps(json_ld)}</script>\n</head>', html, count=1)
-
-    # Sailor bio: above stats section (after sailor-profile-header, before sailor-profile-tabs)
-    if build_sailor_bio_from_db and sas_id:
-        try:
-            bio_text = build_sailor_bio_from_db(sas_id)
-            bio_escaped = html_module.escape(bio_text)
-            bio_block = f'<div class="sailor-bio"><p>{bio_escaped}</p></div>'
-            # Insert after </section> that closes sailor-profile-header, before <div class="sailor-profile-tabs">
-            html = re.sub(
-                r"(</section>\s*)(<div class=\"sailor-profile-tabs\"[^>]*>)",
-                r"\1" + bio_block + r"\n                        \2",
-                html,
-                count=1,
-            )
-        except Exception:
-            pass  # omit bio on error; page still works
-
-    return HTMLResponse(html)
-
-
-def serve_class_spa(slug: str):
-    """Serve SPA for /class/{id}-{slug} with server-side canonical and optional title. Used when slug is id-slug (e.g. 7-420)."""
-    if not os.path.isfile(_INDEX_HTML_PATH):
-        raise HTTPException(status_code=404, detail="index.html not found")
-    base_url = _canonical_base_url()
-    canonical_url = f"{base_url}/class/{slug}"
-    try:
-        with open(_INDEX_HTML_PATH, "r", encoding="utf-8", errors="replace") as f:
-            html = f.read()
-    except Exception as e:
-        print(f"[SEO] serve_class_spa read index: {e}")
-        return FileResponse(_INDEX_HTML_PATH, media_type="text/html")
-    # Replace canonical link (allow /> or >)
-    html = re.sub(
-        r'<link\s+rel="canonical"\s+href="[^"]*"\s*/?>',
-        f'<link rel="canonical" href="{html_module.escape(canonical_url)}">',
-        html,
-        count=1,
-    )
-    # Optional: set title from class name (parse id from id-slug e.g. 7-420 -> 7)
-    m = re.match(r"^(\d+)-", slug.strip())
-    if m:
-        cid = m.group(1)
-        class_name = _get_class_name_by_id(int(cid))
-        if class_name:
-            seo_title = f"{html_module.escape(class_name)} – Class | SailingSA"
-            html = re.sub(r"<title>[^<]*</title>", f"<title>{seo_title}</title>", html, count=1)
-    return HTMLResponse(html)
+        print(f"[serve_sailor_spa] {e}", flush=True)
+        if os.path.isfile(_INDEX_HTML_PATH):
+            return FileResponse(_INDEX_HTML_PATH, media_type="text/html")
+        return HTMLResponse(content=_HTML_SOFT_FAIL_200, status_code=200, media_type="text/html")
 
 
 def _club_slug_from_name(name: str) -> str:
@@ -16503,6 +18675,100 @@ CLUB_SLUG_ALIASES = {
     "fish-hoek": "fish-hoek-yacht-club",
     "plettenberg": "plettenberg-bay-yacht-club",
 }
+
+# Virtual club for SAS calendar events with no matched host (slug /club/unassigned)
+_UNASSIGNED_CLUB_ABBREV = "Unassigned"
+_UNASSIGNED_CLUB_FULLNAME = "Unassigned (SAS calendar)"
+
+
+def _get_unassigned_club_id():
+    """Return clubs.club_id for virtual Unassigned host; INSERT row if missing."""
+    if not table_exists("clubs"):
+        return None
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(
+            """
+            SELECT club_id FROM clubs
+            WHERE lower(trim(COALESCE(club_abbrev, ''))) = 'unassigned'
+               OR lower(trim(COALESCE(club_fullname, ''))) = 'unassigned'
+            LIMIT 1
+            """
+        )
+        r = cur.fetchone()
+        if r and r.get("club_id") is not None:
+            cid = int(r["club_id"])
+            cur.close()
+            return_db_connection(conn)
+            return cid
+        try:
+            cur.execute(
+                """
+                INSERT INTO clubs (club_abbrev, club_fullname)
+                VALUES (%s, %s)
+                RETURNING club_id
+                """,
+                (_UNASSIGNED_CLUB_ABBREV, _UNASSIGNED_CLUB_FULLNAME),
+            )
+            r = cur.fetchone()
+            conn.commit()
+            cid = int(r["club_id"]) if r and r.get("club_id") is not None else None
+            cur.close()
+            return_db_connection(conn)
+            return cid
+        except Exception as inserr:
+            conn.rollback()
+            cur.execute(
+                """
+                SELECT club_id FROM clubs
+                WHERE lower(trim(COALESCE(club_abbrev, ''))) = 'unassigned'
+                LIMIT 1
+                """
+            )
+            r2 = cur.fetchone()
+            cur.close()
+            return_db_connection(conn)
+            if r2 and r2.get("club_id") is not None:
+                return int(r2["club_id"])
+            print(f"[events] _get_unassigned_club_id insert failed: {inserr}")
+            return None
+    except Exception as e:
+        print(f"[events] _get_unassigned_club_id: {e}")
+        if conn:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            return_db_connection(conn)
+    return None
+
+
+def _unassigned_club_display_row(unassigned_id: int):
+    """club_abbrev, club_fullname, club_slug for virtual unassigned host."""
+    slug = _club_slug_from_name(_UNASSIGNED_CLUB_ABBREV)
+    return {
+        "host_club_id": unassigned_id,
+        "club_abbrev": _UNASSIGNED_CLUB_ABBREV,
+        "club_fullname": _UNASSIGNED_CLUB_FULLNAME,
+        "club_slug": slug or "unassigned",
+    }
+
+
+def _apply_unassigned_host_fallback(upcoming_rows, past_rows):
+    """After name resolution, set host_club_id to Unassigned for rows still without a club."""
+    uid = _get_unassigned_club_id()
+    if not uid:
+        return
+    urow = _unassigned_club_display_row(uid)
+    for r in upcoming_rows + past_rows:
+        if r.get("host_club_id"):
+            continue
+        r["host_club_id"] = urow["host_club_id"]
+        r["club_abbrev"] = urow["club_abbrev"]
+        r["club_fullname"] = urow["club_fullname"]
+        r["club_slug"] = urow["club_slug"]
 
 
 def _get_club_by_slug(slug: str):
@@ -16570,7 +18836,7 @@ def _get_regatta_by_regatta_id(param: str):
                        COALESCE(c.club_abbrev, c.club_fullname, '') AS host_club_name
                 FROM regattas r
                 LEFT JOIN clubs c ON c.club_id = r.host_club_id
-                WHERE r.regatta_id = %s
+                WHERE LOWER(TRIM(r.regatta_id::text)) = LOWER(TRIM(%s))
             """, (param,))
             row = cur.fetchone()
         finally:
@@ -16612,6 +18878,16 @@ def _get_regatta_by_event_name_slug(slug: str):
             """)
             for r in cur.fetchall() or []:
                 name = (r.get("event_name") or "").strip()
+                rid = str(r.get("regatta_id") or "").strip()
+                if rid and _slugify_event_name(rid) == slug_norm:
+                    return (
+                        rid,
+                        name or rid,
+                        r.get("start_date"),
+                        r.get("end_date"),
+                        (r.get("host_club_name") or "").strip(),
+                        r.get("host_club_id"),
+                    )
                 if not name:
                     continue
                 cand = _slugify_event_name(name)
@@ -17137,12 +19413,1158 @@ _REGATTA_404_HTML = """<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8
 
 _CLUB_404_HTML = """<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Club not found | SailingSA</title><link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png"><link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png"><style>body{font-family:system-ui,sans-serif;margin:2rem;color:#1a2750;} a{color:#1a2750;}</style></head><body><h1>Club not found</h1><p>There is no club at this address.</p><p><a href="/">Return to SailingSA home</a></p></body></html>"""
 
+# Soft fallback for unexpected HTML route errors (avoid 5xx; noindex so soft pages are not indexed).
+_HTML_SOFT_FAIL_200 = """<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Temporarily unavailable | SailingSA</title><link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png"><link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png"><style>body{font-family:system-ui,sans-serif;margin:2rem;color:#1a2750;} a{color:#1a2750;}</style></head><body><h1>Temporarily unavailable</h1><p>Please try again later.</p><p><a href="/">Return to SailingSA home</a></p></body></html>"""
+
+
+# Shared by /events, club Events fragment, club Sailors, club Regattas — one label style, one bubble, vertically centred.
+_SECTION_HEADING_ROW_UNIFIED_CSS = """
+.section-heading-row,
+.events-section-heading-row,
+.club-section-heading-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem 0.75rem;
+  width: 100%;
+  min-width: 0;
+  margin-bottom: 0.5rem;
+  box-sizing: border-box;
+}
+.section-heading-row .section-title,
+.events-section-heading-row .section-title,
+.club-section-heading-row .section-title,
+.club-page .section-heading-row .section-title {
+  margin: 0 !important;
+  padding: 0 !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+  font-size: 1rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.02em !important;
+  line-height: 1.25 !important;
+  color: #001f3f !important;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.section-heading-row input[type="search"],
+.events-section-heading-row input.events-dashboard-search,
+.club-section-heading-row input.club-sailors-filter-input {
+  flex: 1 1 0;
+  min-width: 5rem;
+  max-width: 14rem;
+  margin: 0 !important;
+  height: 2.25rem;
+  min-height: 2.25rem;
+  max-height: 2.25rem;
+  padding: 0 0.65rem;
+  font-size: 0.875rem;
+  line-height: 1.2;
+  border: 2px solid #001f3f !important;
+  border-radius: 9999px;
+  background: #fff;
+  color: #001f3f;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.section-heading-row input[type="search"]::placeholder,
+.events-section-heading-row input.events-dashboard-search::placeholder,
+.club-section-heading-row input.club-sailors-filter-input::placeholder {
+  color: #94a3b8;
+}
+.section-heading-row input[type="search"]:focus,
+.events-section-heading-row input.events-dashboard-search:focus,
+.club-section-heading-row input.club-sailors-filter-input:focus {
+  outline: none;
+  border-color: #001f3f !important;
+  box-shadow: 0 0 0 2px rgba(0,31,63,0.12);
+}
+@media (min-width: 640px) {
+  .section-heading-row,
+  .events-section-heading-row,
+  .club-section-heading-row {
+    flex-wrap: wrap;
+    margin-bottom: 0.65rem;
+  }
+  .section-heading-row .section-title,
+  .events-section-heading-row .section-title,
+  .club-section-heading-row .section-title,
+  .club-page .section-heading-row .section-title {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+  .section-heading-row input[type="search"],
+  .events-section-heading-row input.events-dashboard-search,
+  .club-section-heading-row input.club-sailors-filter-input {
+    flex: 0 1 auto;
+    min-width: min(100%, 7.5rem);
+    max-width: 18rem;
+    height: auto;
+    min-height: 44px;
+    max-height: none;
+    padding: 0.45rem 0.85rem;
+    font-size: 0.9rem;
+  }
+}
+"""
+
+_CLUB_PAGE_CSS = """
+.club-page .card.stats-section { background: #fff; border: 2px solid #001f3f; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
+.club-page .section-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; border-bottom: 2px solid #001f3f; padding-bottom: 0.35rem; margin-bottom: 0.75rem; color: #001f3f; }
+""" + _SECTION_HEADING_ROW_UNIFIED_CSS + """
+.club-sailors-filter-input { padding: 0.5rem 1rem; border: 2px solid #001f3f; border-radius: 999px; font-size: 1rem; box-sizing: border-box; min-height: 44px; }
+.club-sailors-carousel-controls { margin-bottom: 0.5rem; }
+.club-sailors-swipe-hint { font-size: 0.9rem; color: #475569; margin: 0 0 0.65rem 0; line-height: 1.4; text-align: center; }
+.club-sailors-pagination { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 0.75rem; }
+.club-sailors-arrow-btn { flex-shrink: 0; min-width: 44px; min-height: 44px; padding: 0 0.5rem; border: 1px solid #cbd5e1; background: #f8fafc; color: #001f3f; font-size: 1.1rem; font-weight: 600; border-radius: 6px; cursor: pointer; line-height: 1; }
+.club-sailors-arrow-btn:hover:not(:disabled) { background: #e2e8f0; border-color: #94a3b8; }
+.club-sailors-arrow-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.club-sailors-dots { display: flex; flex-wrap: nowrap; flex-direction: row; align-items: center; align-content: center; justify-content: flex-start; gap: 0.5rem; flex: 1 1 auto; min-width: 0; max-width: min(100%, 20rem); overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; line-height: 0; }
+.club-sailors-dots::-webkit-scrollbar { display: none; }
+.club-page .club-sailors-dot { display: block; flex: 0 0 8px; align-self: center; width: 8px; height: 8px; min-width: 8px; min-height: 8px; max-width: 8px; max-height: 8px; padding: 0; margin: 0; border: none; border-radius: 9999px; background: rgba(0, 31, 63, 0.22); cursor: pointer; appearance: none; -webkit-appearance: none; line-height: 0; font-size: 0; color: transparent; overflow: hidden; box-sizing: border-box; transition: background 0.2s ease, box-shadow 0.2s ease; }
+.club-page .club-sailors-dot:hover { background: rgba(0, 31, 63, 0.38); }
+.club-page .club-sailors-dot.is-active { background: #001f3f; box-shadow: 0 0 0 2px rgba(0, 31, 63, 0.15); }
+.club-page .club-sailors-dot:focus-visible { outline: 2px solid #001f3f; outline-offset: 2px; }
+.club-sailors-carousel-wrap { overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: thin; margin: 0 -0.25rem; padding: 0 0.25rem; }
+.club-sailors-carousel { display: flex; flex-direction: row; gap: 0; }
+.club-sailors-page { flex: 0 0 100%; scroll-snap-align: start; scroll-snap-stop: always; box-sizing: border-box; padding-right: 0.5rem; display: flex; flex-direction: column; gap: 0; }
+.club-sailor-card { display: flex; flex-direction: row; align-items: center; gap: 0.15rem; padding: 0.35rem 0; min-height: 44px; box-sizing: border-box; width: 100%; max-width: 100%; text-decoration: none; color: #001f3f; border-bottom: 1px solid #e2e8f0; }
+.club-sailors-page .club-sailor-card:last-child { border-bottom: none; }
+.club-sailor-card:hover .club-sailor-card-name { text-decoration: underline; }
+.club-sailor-card[data-hidden="1"] { display: none !important; }
+.club-sailor-card-num { font-size: 0.75rem; color: #64748b; flex-shrink: 0; width: 1.45rem; text-align: right; padding-right: 0.05rem; }
+.club-sailor-card-name { font-size: 0.875rem; font-weight: 600; line-height: 1.25; min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (min-width: 640px) {
+.club-sailor-card { gap: 0.35rem; }
+.club-sailor-card-num { font-size: 0.8rem; width: 1.85rem; }
+.club-sailor-card-name { font-size: 0.95rem; }
+}
+.club-sailors-filter-stack { display: none; flex-direction: column; gap: 0; max-height: min(70vh, 28rem); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.club-sailors-filter-stack .club-sailor-card { flex-shrink: 0; border-bottom: 1px solid #e2e8f0; }
+.club-sailors-filter-stack .club-sailor-card:last-child { border-bottom: none; }
+#club-sailors-empty { display: none; padding: 0.75rem; color: #64748b; }
+.club-regattas-carousel-controls { margin-bottom: 0.5rem; }
+.club-regattas-swipe-hint { font-size: 0.9rem; color: #475569; margin: 0 0 0.65rem 0; line-height: 1.4; text-align: center; }
+.club-regattas-pagination { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 0.75rem; }
+.club-regattas-arrow-btn { flex-shrink: 0; min-width: 44px; min-height: 44px; padding: 0 0.5rem; border: 1px solid #cbd5e1; background: #f8fafc; color: #001f3f; font-size: 1.1rem; font-weight: 600; border-radius: 6px; cursor: pointer; line-height: 1; }
+.club-regattas-arrow-btn:hover:not(:disabled) { background: #e2e8f0; border-color: #94a3b8; }
+.club-regattas-arrow-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.club-regattas-dots { display: flex; flex-wrap: nowrap; flex-direction: row; align-items: center; align-content: center; justify-content: flex-start; gap: 0.5rem; flex: 1 1 auto; min-width: 0; max-width: min(100%, 20rem); overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; line-height: 0; }
+.club-regattas-dots::-webkit-scrollbar { display: none; }
+.club-page .club-regattas-dot { display: block; flex: 0 0 8px; align-self: center; width: 8px; height: 8px; min-width: 8px; min-height: 8px; max-width: 8px; max-height: 8px; padding: 0; margin: 0; border: none; border-radius: 9999px; background: rgba(0, 31, 63, 0.22); cursor: pointer; appearance: none; -webkit-appearance: none; line-height: 0; font-size: 0; color: transparent; overflow: hidden; box-sizing: border-box; transition: background 0.2s ease, box-shadow 0.2s ease; }
+.club-page .club-regattas-dot:hover { background: rgba(0, 31, 63, 0.38); }
+.club-page .club-regattas-dot.is-active { background: #001f3f; box-shadow: 0 0 0 2px rgba(0, 31, 63, 0.15); }
+.club-page .club-regattas-dot:focus-visible { outline: 2px solid #001f3f; outline-offset: 2px; }
+.club-regattas-carousel-wrap { overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: thin; margin: 0 -0.25rem; padding: 0 0.25rem; }
+.club-regattas-carousel { display: flex; flex-direction: row; gap: 0; }
+.club-regattas-page { flex: 0 0 100%; scroll-snap-align: start; scroll-snap-stop: always; box-sizing: border-box; padding-right: 0.5rem; display: flex; flex-direction: column; gap: 0; }
+.club-regatta-row { display: flex; flex-direction: row; align-items: center; gap: 0.15rem; flex-wrap: nowrap; padding: 0.35rem 0; min-height: 44px; box-sizing: border-box; width: 100%; max-width: 100%; text-decoration: none; color: #001f3f; border-bottom: 1px solid #e2e8f0; }
+.club-regattas-page .club-regatta-row:last-child { border-bottom: none; }
+.club-regatta-row:hover .club-regatta-row-name { text-decoration: underline; }
+.club-regatta-row[data-hidden="1"] { display: none !important; }
+.club-regatta-row-num { font-size: 0.75rem; color: #64748b; flex-shrink: 0; width: 1.45rem; text-align: right; padding-right: 0.05rem; }
+.club-regatta-row-name { font-size: 0.875rem; font-weight: 600; line-height: 1.25; min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.club-regatta-row-date { font-size: 0.72rem; color: #64748b; flex-shrink: 0; }
+@media (min-width: 640px) {
+.club-regatta-row { gap: 0.35rem; }
+.club-regatta-row-num { font-size: 0.8rem; width: 1.85rem; }
+.club-regatta-row-name { font-size: 0.95rem; }
+.club-regatta-row-date { font-size: 0.8rem; }
+}
+.club-regattas-filter-stack { display: none; flex-direction: column; gap: 0; max-height: min(70vh, 28rem); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.club-regattas-filter-stack .club-regatta-row { flex-shrink: 0; border-bottom: 1px solid #e2e8f0; }
+.club-regattas-filter-stack .club-regatta-row:last-child { border-bottom: none; }
+#club-regattas-empty { display: none; padding: 0.75rem; color: #64748b; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+"""
+
+_CLUB_SAILORS_FILTER_SCRIPT = r"""(function(){
+  var wrap = document.getElementById('club-sailors-carousel-wrap');
+  var carousel = document.getElementById('club-sailors-carousel');
+  var input = document.getElementById('club-sailors-filter');
+  var filterStack = document.getElementById('club-sailors-filter-stack');
+  var emptyEl = document.getElementById('club-sailors-empty');
+  var controlsEl = document.getElementById('club-sailors-carousel-controls');
+  var prevBtn = document.getElementById('club-sailors-prev');
+  var nextBtn = document.getElementById('club-sailors-next');
+  var dotsWrap = document.getElementById('club-sailors-dots');
+  if (!wrap || !carousel || !input || !filterStack) return;
+  var allCards = carousel.querySelectorAll('.club-sailor-card');
+  function pageCount(){
+    return carousel.querySelectorAll('.club-sailors-page').length;
+  }
+  function currentPage(){
+    var w = wrap.clientWidth || 1;
+    var n = pageCount();
+    if (n <= 1) return 0;
+    var idx = Math.floor((wrap.scrollLeft + w * 0.25) / w);
+    if (idx < 0) idx = 0;
+    if (idx > n - 1) idx = n - 1;
+    return idx;
+  }
+  function syncNav(){
+    if (!prevBtn || !nextBtn || !dotsWrap) return;
+    var n = pageCount();
+    if (n <= 1) return;
+    var cur = Math.max(0, Math.min(currentPage(), n - 1));
+    prevBtn.disabled = (cur <= 0);
+    nextBtn.disabled = (cur >= n - 1);
+    dotsWrap.querySelectorAll('.club-sailors-dot').forEach(function(d, i){
+      if (i === cur) d.classList.add('is-active'); else d.classList.remove('is-active');
+    });
+  }
+  function scrollToPage(idx){
+    var n = pageCount();
+    if (n <= 0) return;
+    idx = Math.max(0, Math.min(idx, n - 1));
+    var w = wrap.clientWidth;
+    wrap.scrollTo({ left: idx * w, behavior: 'smooth' });
+  }
+  if (prevBtn && nextBtn && wrap) {
+    prevBtn.addEventListener('click', function(){ scrollToPage(currentPage() - 1); });
+    nextBtn.addEventListener('click', function(){ scrollToPage(currentPage() + 1); });
+    wrap.addEventListener('scroll', function(){ syncNav(); }, { passive: true });
+    window.addEventListener('resize', function(){ syncNav(); });
+    if (dotsWrap) {
+      dotsWrap.addEventListener('click', function(ev){
+        var t = ev.target;
+        if (!t || !t.getAttribute) return;
+        var p = t.getAttribute('data-page');
+        if (p !== null) scrollToPage(parseInt(p, 10));
+      });
+    }
+    syncNav();
+  }
+  function filter(){
+    var q = (input.value || '').trim().toLowerCase();
+    var words = q.split(/\s+/).filter(Boolean);
+    if (!q) {
+      wrap.style.display = '';
+      filterStack.style.display = 'none';
+      filterStack.innerHTML = '';
+      if (controlsEl) controlsEl.style.display = '';
+      allCards.forEach(function(c){ c.setAttribute('data-hidden','0'); });
+      if (emptyEl) emptyEl.style.display = 'none';
+      syncNav();
+      return;
+    }
+    wrap.style.display = 'none';
+    if (controlsEl) controlsEl.style.display = 'none';
+    filterStack.style.display = 'flex';
+    filterStack.innerHTML = '';
+    var nvisible = 0;
+    allCards.forEach(function(card){
+      var name = card.getAttribute('data-search') || '';
+      var show = words.every(function(w){ return name.indexOf(w) >= 0; });
+      if (show) {
+        nvisible++;
+        var clone = card.cloneNode(true);
+        clone.removeAttribute('data-hidden');
+        filterStack.appendChild(clone);
+      }
+    });
+    if (emptyEl) emptyEl.style.display = (nvisible === 0) ? 'block' : 'none';
+  }
+  input.addEventListener('input', filter);
+})();"""
+
+_CLUB_SAILORS_PAGE_SIZE = 5
+_CLUB_REGATTAS_PAGE_SIZE = 5
+
+_CLUB_REGATTAS_FILTER_SCRIPT = r"""(function(){
+  var wrap = document.getElementById('club-regattas-carousel-wrap');
+  var carousel = document.getElementById('club-regattas-carousel');
+  var input = document.getElementById('club-regattas-filter');
+  var filterStack = document.getElementById('club-regattas-filter-stack');
+  var emptyEl = document.getElementById('club-regattas-empty');
+  var controlsEl = document.getElementById('club-regattas-carousel-controls');
+  var prevBtn = document.getElementById('club-regattas-prev');
+  var nextBtn = document.getElementById('club-regattas-next');
+  var dotsWrap = document.getElementById('club-regattas-dots');
+  if (!wrap || !carousel || !input || !filterStack) return;
+  var allRows = carousel.querySelectorAll('.club-regatta-row');
+  function pageCount(){
+    return carousel.querySelectorAll('.club-regattas-page').length;
+  }
+  function currentPage(){
+    var w = wrap.clientWidth || 1;
+    var n = pageCount();
+    if (n <= 1) return 0;
+    var idx = Math.floor((wrap.scrollLeft + w * 0.25) / w);
+    if (idx < 0) idx = 0;
+    if (idx > n - 1) idx = n - 1;
+    return idx;
+  }
+  function syncNav(){
+    if (!prevBtn || !nextBtn || !dotsWrap) return;
+    var n = pageCount();
+    if (n <= 1) return;
+    var cur = Math.max(0, Math.min(currentPage(), n - 1));
+    prevBtn.disabled = (cur <= 0);
+    nextBtn.disabled = (cur >= n - 1);
+    dotsWrap.querySelectorAll('.club-regattas-dot').forEach(function(d, i){
+      if (i === cur) d.classList.add('is-active'); else d.classList.remove('is-active');
+    });
+  }
+  function scrollToPage(idx){
+    var n = pageCount();
+    if (n <= 0) return;
+    idx = Math.max(0, Math.min(idx, n - 1));
+    var w = wrap.clientWidth;
+    wrap.scrollTo({ left: idx * w, behavior: 'smooth' });
+  }
+  if (prevBtn && nextBtn && wrap) {
+    prevBtn.addEventListener('click', function(){ scrollToPage(currentPage() - 1); });
+    nextBtn.addEventListener('click', function(){ scrollToPage(currentPage() + 1); });
+    wrap.addEventListener('scroll', function(){ syncNav(); }, { passive: true });
+    window.addEventListener('resize', function(){ syncNav(); });
+    if (dotsWrap) {
+      dotsWrap.addEventListener('click', function(ev){
+        var t = ev.target;
+        if (!t || !t.getAttribute) return;
+        var p = t.getAttribute('data-page');
+        if (p !== null) scrollToPage(parseInt(p, 10));
+      });
+    }
+    syncNav();
+  }
+  function filter(){
+    var q = (input.value || '').trim().toLowerCase();
+    var words = q.split(/\s+/).filter(Boolean);
+    if (!q) {
+      wrap.style.display = '';
+      filterStack.style.display = 'none';
+      filterStack.innerHTML = '';
+      if (controlsEl) controlsEl.style.display = '';
+      allRows.forEach(function(c){ c.setAttribute('data-hidden','0'); });
+      if (emptyEl) emptyEl.style.display = 'none';
+      syncNav();
+      return;
+    }
+    wrap.style.display = 'none';
+    if (controlsEl) controlsEl.style.display = 'none';
+    filterStack.style.display = 'flex';
+    filterStack.innerHTML = '';
+    var nvisible = 0;
+    allRows.forEach(function(row){
+      var name = row.getAttribute('data-search') || '';
+      var show = words.every(function(w){ return name.indexOf(w) >= 0; });
+      if (show) {
+        nvisible++;
+        var clone = row.cloneNode(true);
+        clone.removeAttribute('data-hidden');
+        filterStack.appendChild(clone);
+      }
+    });
+    if (emptyEl) emptyEl.style.display = (nvisible === 0) ? 'block' : 'none';
+  }
+  input.addEventListener('input', filter);
+})();"""
+
+
+def _club_sailors_section_html(sailors: list) -> str:
+    """Club page sailors: plain list, 5 per swipe page; search shows a single scrollable list."""
+    if not sailors:
+        return (
+            '<div class="card stats-section club-sailors-section">'
+            '<h2 class="section-title">Sailors (0)</h2>'
+            "<p>No sailors found.</p></div>"
+        )
+    n = len(sailors)
+    psz = _CLUB_SAILORS_PAGE_SIZE
+    pages_html_parts = []
+    for start in range(0, n, psz):
+        chunk = sailors[start : start + psz]
+        lo = start + 1
+        hi = start + len(chunk)
+        page_cards = []
+        for j, (name, sslug) in enumerate(chunk):
+            i = start + j + 1
+            dn = html_module.escape(name)
+            ds = html_module.escape(name.lower(), quote=True)
+            page_cards.append(
+                f'<a href="/sailor/{html_module.escape(sslug)}" class="club-sailor-card" data-search="{ds}">'
+                f'<span class="club-sailor-card-num">{i}.</span>'
+                f'<span class="club-sailor-card-name">{dn}</span></a>'
+            )
+        pages_html_parts.append(
+            f'<div class="club-sailors-page" role="group" aria-label="Sailors {lo} to {hi} of {n}">'
+            f'{"".join(page_cards)}</div>'
+        )
+    carousel_inner = "".join(pages_html_parts)
+    npages = len(pages_html_parts)
+    swipe_hint = ""
+    if npages > 1:
+        dots = "".join(
+            f'<button type="button" class="club-sailors-dot{" is-active" if i == 0 else ""}" '
+            f'data-page="{i}" aria-label="Sailors page {i + 1} of {npages}"></button>'
+            for i in range(npages)
+        )
+        swipe_hint = (
+            '<div id="club-sailors-carousel-controls" class="club-sailors-carousel-controls">'
+            '<p class="club-sailors-swipe-hint" id="club-sailors-swipe-hint">'
+            "Swipe Right or Left for more names"
+            "</p>"
+            '<div class="club-sailors-pagination" role="navigation" aria-label="Sailors list pages">'
+            '<button type="button" id="club-sailors-prev" class="club-sailors-arrow-btn" aria-label="Previous page of sailors" disabled>←</button>'
+            f'<div class="club-sailors-dots" id="club-sailors-dots" role="tablist" aria-label="Page">{dots}</div>'
+            '<button type="button" id="club-sailors-next" class="club-sailors-arrow-btn" aria-label="Next page of sailors">→</button>'
+            "</div></div>"
+        )
+    script_tag = f"<script>{_CLUB_SAILORS_FILTER_SCRIPT}</script>"
+    return (
+        f'<div class="card stats-section club-sailors-section">'
+        '<div class="club-section-heading-row">'
+        f'<h2 class="section-title">Sailors ({n})</h2>'
+        '<label for="club-sailors-filter" class="sr-only">Filter sailors by name</label>'
+        '<input type="search" id="club-sailors-filter" class="club-sailors-filter-input" placeholder="Search sailors name…" autocomplete="off">'
+        "</div>"
+        f"{swipe_hint}"
+        '<div id="club-sailors-carousel-wrap" class="club-sailors-carousel-wrap">'
+        f'<div id="club-sailors-carousel" class="club-sailors-carousel">{carousel_inner}</div>'
+        "</div>"
+        '<div id="club-sailors-filter-stack" class="club-sailors-filter-stack"></div>'
+        '<p id="club-sailors-empty" role="status">No sailors match your search.</p>'
+        "</div>"
+        + script_tag
+    )
+
+
+def _club_regattas_section_html(regattas: list) -> str:
+    """Club page regattas: plain list, 5 per swipe page; search shows one scrollable list (like sailors)."""
+    if not regattas:
+        return (
+            '<div class="card stats-section club-regattas-section">'
+            '<h2 class="section-title">Regattas hosted (0)</h2>'
+            "<p>No regattas found.</p></div>"
+        )
+    n = len(regattas)
+    psz = _CLUB_REGATTAS_PAGE_SIZE
+    pages_html_parts = []
+    for start in range(0, n, psz):
+        chunk = regattas[start : start + psz]
+        lo = start + 1
+        hi = start + len(chunk)
+        page_rows = []
+        for j, row in enumerate(chunk):
+            name, regatta_id, date = row[0], row[1], row[2]
+            i = start + j + 1
+            dn = html_module.escape(name)
+            ds_raw = f"{name} {date}".strip().lower()
+            ds = html_module.escape(ds_raw, quote=True)
+            date_html = ""
+            if date:
+                date_html = f'<span class="club-regatta-row-date">({html_module.escape(date)})</span>'
+            page_rows.append(
+                f'<a href="/regatta/{html_module.escape(regatta_id)}" class="club-regatta-row" data-search="{ds}">'
+                f'<span class="club-regatta-row-num">{i}.</span>'
+                f'<span class="club-regatta-row-name">{dn}</span>{date_html}</a>'
+            )
+        pages_html_parts.append(
+            f'<div class="club-regattas-page" role="group" aria-label="Regattas {lo} to {hi} of {n}">'
+            f'{"".join(page_rows)}</div>'
+        )
+    carousel_inner = "".join(pages_html_parts)
+    npages = len(pages_html_parts)
+    swipe_controls = ""
+    if npages > 1:
+        dots = "".join(
+            f'<button type="button" class="club-regattas-dot{" is-active" if i == 0 else ""}" '
+            f'data-page="{i}" aria-label="Regattas page {i + 1} of {npages}"></button>'
+            for i in range(npages)
+        )
+        swipe_controls = (
+            '<div id="club-regattas-carousel-controls" class="club-regattas-carousel-controls">'
+            '<p class="club-regattas-swipe-hint" id="club-regattas-swipe-hint">'
+            "Swipe Right or Left for more regattas"
+            "</p>"
+            '<div class="club-regattas-pagination" role="navigation" aria-label="Regattas list pages">'
+            '<button type="button" id="club-regattas-prev" class="club-regattas-arrow-btn" aria-label="Previous page of regattas" disabled>←</button>'
+            f'<div class="club-regattas-dots" id="club-regattas-dots" role="tablist" aria-label="Page">{dots}</div>'
+            '<button type="button" id="club-regattas-next" class="club-regattas-arrow-btn" aria-label="Next page of regattas">→</button>'
+            "</div></div>"
+        )
+    script_tag = f"<script>{_CLUB_REGATTAS_FILTER_SCRIPT}</script>"
+    return (
+        f'<div class="card stats-section club-regattas-section">'
+        '<div class="club-section-heading-row">'
+        f'<h2 class="section-title">Regattas hosted ({n})</h2>'
+        '<label for="club-regattas-filter" class="sr-only">Filter regattas by name or date</label>'
+        '<input type="search" id="club-regattas-filter" class="club-sailors-filter-input" placeholder="Search regattas…" autocomplete="off">'
+        "</div>"
+        f"{swipe_controls}"
+        '<div id="club-regattas-carousel-wrap" class="club-regattas-carousel-wrap">'
+        f'<div id="club-regattas-carousel" class="club-regattas-carousel">{carousel_inner}</div>'
+        "</div>"
+        '<div id="club-regattas-filter-stack" class="club-regattas-filter-stack"></div>'
+        '<p id="club-regattas-empty" role="status">No regattas match your search.</p>'
+        "</div>"
+        + script_tag
+    )
+
+
+def _parse_iso_date_only(s: str):
+    """Parse YYYY-MM-DD prefix to date; None if invalid."""
+    from datetime import datetime as _dt
+
+    if not s or len(s) < 10:
+        return None
+    try:
+        return _dt.strptime(s[:10], "%Y-%m-%d").date()
+    except Exception:
+        return None
+
+
+def _normalize_event_name_for_fuzzy(s: str) -> str:
+    """Lowercase, strip punctuation, drop filler words for difflib comparison."""
+    s = re.sub(r"[^a-zA-Z0-9\s]", " ", (s or "").lower())
+    stop = {
+        "the",
+        "a",
+        "an",
+        "and",
+        "or",
+        "at",
+        "for",
+        "in",
+        "on",
+        "of",
+        "to",
+        "hosted",
+        "by",
+        "results",
+        "result",
+    }
+    parts = [p for p in s.split() if p and p not in stop and len(p) > 1]
+    return " ".join(parts)
+
+
+def _club_name_fuzzy_ratio(calendar_name: str, regatta_event_name: str) -> float:
+    """0..1 similarity: sequence + token-sorted order (handles word-order differences)."""
+    na = _normalize_event_name_for_fuzzy(calendar_name)
+    nb = _normalize_event_name_for_fuzzy(regatta_event_name)
+    if not na or not nb:
+        return 0.0
+    r1 = difflib.SequenceMatcher(None, na, nb).ratio()
+    sa = " ".join(sorted(na.split()))
+    sb = " ".join(sorted(nb.split()))
+    r2 = difflib.SequenceMatcher(None, sa, sb).ratio() if sa and sb else 0.0
+    return max(r1, r2)
+
+
+def _club_event_name_match_score(calendar_name: str, regatta_event_name: str, regatta_id: str = "") -> float:
+    """Combined name score for calendar vs regatta: token rules + fuzzy ratio."""
+    fuzzy = _club_name_fuzzy_ratio(calendar_name, regatta_event_name)
+    if _club_event_name_tokens_match(calendar_name, regatta_event_name, regatta_id):
+        return max(fuzzy, 0.72)
+    na = _normalize_event_name_for_fuzzy(calendar_name)
+    nb = _normalize_event_name_for_fuzzy(regatta_event_name)
+    if not nb and regatta_id:
+        nb = _normalize_event_name_for_fuzzy(_fallback_event_name_from_regatta_id(regatta_id))
+    if na and nb and min(len(na), len(nb)) >= 6:
+        if na in nb or nb in na:
+            return max(fuzzy, 0.55)
+    return fuzzy
+
+
+def _fallback_event_name_from_regatta_id(rid: str) -> str:
+    """When regattas.event_name is blank, derive a label from slug segments after id-year."""
+    if not rid:
+        return ""
+    parts = str(rid).strip().split("-")
+    if len(parts) >= 2 and parts[1].isdigit() and len(parts[1]) == 4:
+        rest = parts[2:]
+    else:
+        rest = parts
+    if not rest:
+        return ""
+    return " ".join(rest).replace("-", " ").strip()
+
+
+def _regatta_slug_tokens_for_match(rid: str) -> set:
+    """Tokens from regatta_id slug (after numeric id + year) so class + 'nationals' match when event_name omits them."""
+    out = set()
+    if not rid:
+        return out
+    parts = str(rid).lower().strip().split("-")
+    if len(parts) >= 2 and parts[1].isdigit() and len(parts[1]) == 4:
+        parts = parts[2:]
+    for part in parts:
+        if len(part) < 3:
+            continue
+        if part.isdigit():
+            if len(part) == 4 and part.startswith("20"):
+                continue
+            out.add(part)
+        elif re.match(r"^[a-z0-9]{3,}$", part):
+            out.add(part)
+    return out
+
+
+def _club_event_name_tokens_match(calendar_name: str, regatta_event_name: str, regatta_id: str = "") -> bool:
+    """Loose match for SA calendar title vs regattas.event_name (e.g. '420 Nationals' vs '420 National Championship Results')."""
+    def _tok(s: str):
+        s = unicodedata.normalize("NFKC", (s or ""))
+        s = re.sub(r"[^a-zA-Z0-9\s]", " ", s.lower())
+        stop = {
+            "the",
+            "a",
+            "an",
+            "and",
+            "or",
+            "at",
+            "results",
+            "result",
+            "hosted",
+            "club",
+            "bay",
+            "yacht",
+        }
+        toks = [t for t in s.split() if t and t not in stop and len(t) > 1]
+        tset = set(toks)
+        for x in list(tset):
+            if x == "nationals":
+                tset.add("national")
+            if x == "national":
+                tset.add("nationals")
+            if x == "championships":
+                tset.add("championship")
+            if x == "championship":
+                tset.add("championships")
+        return tset
+
+    A = _tok(calendar_name)
+    B = _tok(regatta_event_name)
+    if regatta_id:
+        B |= _regatta_slug_tokens_for_match(regatta_id)
+    if not A or not B:
+        return False
+    inter = A & B
+    # Class numbers / boat names shared (420, 29er, ilca, …)
+    if any(t.isdigit() or (len(t) <= 5 and any(c.isdigit() for c in t)) for t in inter):
+        if inter - {"national", "nationals", "championship", "championships"}:
+            return True
+        if len(inter) >= 2:
+            return True
+    if len(inter) >= 2:
+        return True
+    if len(inter) == 1:
+        w = list(inter)[0]
+        if w in (
+            "420",
+            "29er",
+            "470",
+            "ilca",
+            "laser",
+            "optimist",
+            "sonnet",
+            "hobie",
+            "mirror",
+            "dabchick",
+            "windsurfer",
+            "foiling",
+        ):
+            return True
+    # Calendar title vs regatta title often differ (e.g. "Sonnet Nationals" vs "HYC Cape Classic Sonnet"); same keyword + date window
+    cl = (calendar_name or "").lower()
+    rl = (regatta_event_name or "").lower()
+    if regatta_id:
+        rl = rl + " " + regatta_id.lower().replace("-", " ")
+    for kw in (
+        "sonnet",
+        "dabchick",
+        "mirror",
+        "hobie",
+        "windsurfer",
+        "optimist",
+        "ilca",
+        "laser",
+        "420",
+        "470",
+        "29er",
+        "classic",
+    ):
+        if len(kw) < 3:
+            continue
+        if (len(kw) >= 4 or kw.isdigit()) and kw in cl and kw in rl:
+            return True
+    # Sponsor / branding phrases (calendar vs DB wording differs)
+    if "north" in cl and "north" in rl and "sail" in cl and "sail" in rl:
+        return True
+    return False
+
+
+def _distance_days_to_event_window(rd, es, ee):
+    """0 if rd in [es, ee]; else days from rd to nearest edge of inclusive window."""
+    if es <= rd <= ee:
+        return 0
+    if rd < es:
+        return (es - rd).days
+    return (rd - ee).days
+
+
+def _event_years_span(es, ee):
+    """Inclusive calendar years touched by date range [es, ee]."""
+    if not es or not ee:
+        return set()
+    if ee < es:
+        es, ee = ee, es
+    return set(range(es.year, ee.year + 1))
+
+
+def _regatta_date_is_slug_year_placeholder(regatta_day_key: str, rid: str) -> bool:
+    """True when effective date is synthetic YYYY-01-15 from slug (no real start/end in DB yet)."""
+    rd = _parse_iso_date_only(regatta_day_key)
+    if not rd or not rid:
+        return False
+    if rd.month != 1 or rd.day != 15:
+        return False
+    parts = str(rid).strip().split("-")
+    if len(parts) < 2 or not parts[1].isdigit() or len(parts[1]) != 4:
+        return False
+    try:
+        y = int(parts[1])
+    except ValueError:
+        return False
+    return rd.year == y
+
+
+# Expand SAS calendar [start,end] by this many days each side: regatta DB dates are often first/last race day vs calendar weekend block.
+_CALENDAR_REGATTA_MATCH_PAD_DAYS = 2
+
+
+def _club_regatta_date_matches_event(
+    regatta_day_key: str, start_iso: str, end_iso: str, name_score: float, rid: str = ""
+) -> bool:
+    """Date alignment: calendar window padded ±_CALENDAR_REGATTA_MATCH_PAD_DAYS (multi-day events, DB vs calendar drift);
+    if regatta still falls outside unpadded window, allow slack by name_score (fuzzy date).
+
+    Calendar rows often omit end_date — single-day start is expanded by +7 days before padding.
+
+    Yearly recurring regattas: if day-level checks fail but the regatta year matches the calendar row year,
+    accept when name_score is strong enough, or when the regatta has only slug-year (Jan 15 placeholder) and the years align."""
+    from datetime import timedelta
+
+    rd = _parse_iso_date_only(regatta_day_key)
+    es = _parse_iso_date_only(start_iso)
+    ee = _parse_iso_date_only(end_iso) or es
+    if not rd or not es:
+        return False
+    if ee < es:
+        es, ee = ee, es
+    if ee == es:
+        ee = es + timedelta(days=7)
+    es0, ee0 = es, ee
+    pad = timedelta(days=_CALENDAR_REGATTA_MATCH_PAD_DAYS)
+    es = es0 - pad
+    ee = ee0 + pad
+    if es <= rd <= ee:
+        return True
+    dist = _distance_days_to_event_window(rd, es0, ee0)
+    if name_score >= 0.82 and dist <= 14:
+        return True
+    if name_score >= 0.72 and dist <= 10:
+        return True
+    if name_score >= 0.60 and dist <= 6:
+        return True
+    if name_score >= 0.50 and dist <= 4:
+        return True
+    if name_score >= 0.45 and dist <= 2:
+        return True
+    span = _event_years_span(es0, ee0)
+    if rd.year in span:
+        if _regatta_date_is_slug_year_placeholder(regatta_day_key, rid) and name_score >= 0.48:
+            return True
+        if name_score >= 0.54 and dist <= 160:
+            return True
+    return False
+
+
+def _regatta_date_key_from_rid_slug(rid: str) -> str:
+    """YYYY-MM-DD for date alignment when DB dates are NULL; year from slug (e.g. 380-2026-hyc-cape-classic → 2026-01-15)."""
+    if not rid:
+        return ""
+    parts = str(rid).strip().split("-")
+    if len(parts) >= 2 and parts[1].isdigit() and len(parts[1]) == 4:
+        try:
+            y = int(parts[1])
+            return f"{y}-01-15"
+        except (ValueError, TypeError):
+            pass
+    return ""
+
+
+def _regatta_sql_rows_to_match_tuples(rows) -> list:
+    """Convert regatta query rows to (event_name, regatta_id, date_str, start_key) for calendar↔regatta matching."""
+    out = []
+    for r in rows or []:
+        ev_name = (r.get("event_name") or "").strip()
+        rid = (r.get("regatta_id") or "").strip()
+        if not rid:
+            continue
+        if not ev_name:
+            ev_name = _fallback_event_name_from_regatta_id(rid)
+        if not ev_name:
+            continue
+        sd = r.get("start_date")
+        if sd is None and rid:
+            parts = rid.split("-")
+            if len(parts) >= 2 and parts[1].isdigit() and len(parts[1]) == 4:
+                try:
+                    from datetime import date as _date
+
+                    y = int(parts[1])
+                    sd = _date(y, 1, 15)
+                except (ValueError, TypeError):
+                    pass
+        date_str = sd.strftime("%d %b %Y") if sd and hasattr(sd, "strftime") else ""
+        start_key = ""
+        if sd is not None and hasattr(sd, "strftime"):
+            start_key = sd.strftime("%Y-%m-%d")
+        elif isinstance(sd, str) and sd.strip():
+            start_key = sd.strip()[:10]
+        if not start_key:
+            start_key = _regatta_date_key_from_rid_slug(rid)
+            if start_key and not date_str:
+                pd = _parse_iso_date_only(start_key)
+                if pd and hasattr(pd, "strftime"):
+                    date_str = pd.strftime("%d %b %Y")
+        out.append((ev_name, rid, date_str, start_key))
+    return out
+
+
+def _regatta_match_pool_for_past_rows(cur, past_rows) -> list:
+    """Single automatic pool: all regattas with results whose effective date falls in the span of these calendar rows (±slack, slug-year when DB dates NULL). Used for every past-events view (/events, club, type filter)."""
+    from datetime import date as _date, timedelta
+
+    if not past_rows or not table_exists("regattas") or not table_exists("results"):
+        return []
+    ds = []
+    for r in past_rows:
+        st = _event_date_only(r.get("start_date"))
+        en = _event_date_only(r.get("end_date")) or st
+        if st:
+            ds.append(st)
+        if en:
+            ds.append(en)
+    if not ds:
+        return []
+    pad_x = timedelta(days=_CALENDAR_REGATTA_MATCH_PAD_DAYS)
+    min_d = min(ds) - timedelta(days=120) - pad_x
+    max_d = max(ds) + timedelta(days=120) + pad_x
+    if (max_d - min_d).days > 365 * 5:
+        max_d = _date.today()
+        min_d = max_d - timedelta(days=365 * 6)
+    try:
+        # EXISTS instead of JOIN results: avoids row explosion (one per result row) and full-table scans.
+        cur.execute(
+            """
+            SELECT DISTINCT ON (sub.regatta_id) sub.regatta_id, sub.event_name, sub.sd AS start_date
+            FROM (
+                SELECT reg.regatta_id,
+                       reg.event_name,
+                       COALESCE(
+                         reg.start_date,
+                         reg.end_date,
+                         CASE
+                           WHEN reg.regatta_id ~ '^[0-9]+-[0-9]{4}-' THEN
+                             make_date((substring(reg.regatta_id from '^[0-9]+-([0-9]{4})-'))::int, 1, 15)
+                           ELSE NULL
+                         END
+                       ) AS sd
+                FROM regattas reg
+                WHERE EXISTS (SELECT 1 FROM results r WHERE r.regatta_id = reg.regatta_id)
+            ) sub
+            WHERE sub.sd IS NOT NULL AND sub.sd >= %s AND sub.sd <= %s
+            ORDER BY sub.regatta_id, sub.sd DESC NULLS LAST
+            """,
+            (min_d, max_d),
+        )
+        return _regatta_sql_rows_to_match_tuples(cur.fetchall() or [])
+    except Exception as e:
+        print(f"[events] global regatta pool: {e}")
+        return []
+
+
+def _event_calendar_years_from_card(card: dict) -> set:
+    """Integer years from YYYY-MM-DD on card. Empty = unknown — do not filter by year."""
+    ys = set()
+    for key in ("start_date_iso", "end_date_iso"):
+        s = (card.get(key) or "").strip()
+        if len(s) >= 4 and s[:4].isdigit():
+            try:
+                ys.add(int(s[:4]))
+            except ValueError:
+                pass
+    return ys
+
+
+def _rid_slug_year(rid: str) -> Optional[int]:
+    """Year from regatta_id slug (e.g. 385-2026-hyc-... → 2026)."""
+    parts = str(rid).strip().split("-")
+    if len(parts) >= 2 and parts[1].isdigit() and len(parts[1]) == 4:
+        try:
+            return int(parts[1])
+        except ValueError:
+            pass
+    return None
+
+
+def _club_fallback_match_past_to_hosted(card: dict, regattas_hosted: list) -> list:
+    """When events.regatta_id is NULL, match calendar row to hosted regattas by fuzzy name score + date (strict or slack)."""
+    en = (card.get("event_name") or "").strip()
+    start_iso = (card.get("start_date_iso") or "").strip()
+    end_iso = (card.get("end_date_iso") or "").strip() or start_iso
+    event_years = _event_calendar_years_from_card(card)
+    candidates = []
+    seen = set()
+    for t in regattas_hosted:
+        if len(t) < 4:
+            continue
+        hname, rid, _, dk = t[0], str(t[1]).strip(), t[2], t[3]
+        if not rid:
+            continue
+        ry = _rid_slug_year(rid)
+        if event_years and ry is not None and ry not in event_years:
+            continue
+        dk = (dk or "").strip() or _regatta_date_key_from_rid_slug(rid)
+        if not dk:
+            continue
+        if rid in seen:
+            continue
+        name_score = _club_event_name_match_score(en, hname, rid)
+        if name_score < 0.38:
+            continue
+        if not _club_regatta_date_matches_event(dk, start_iso, end_iso, name_score, rid):
+            continue
+        seen.add(rid)
+        candidates.append({"regatta_id": rid, "event_name": hname, "_score": name_score})
+    candidates.sort(key=lambda x: (-(x.get("_score") or 0), (x.get("event_name") or "").lower(), x.get("regatta_id") or ""))
+    for c in candidates:
+        c.pop("_score", None)
+    return candidates
+
+
+def _club_has_results(rid: str, regatta_ids_with_results: Optional[Set[str]]) -> bool:
+    """When regatta_ids_with_results is None (global /events pool), treat as results-backed. Otherwise green tick only if id is in set."""
+    rid = (rid or "").strip()
+    if not rid:
+        return False
+    if regatta_ids_with_results is None:
+        return True
+    return rid in regatta_ids_with_results
+
+
+def _club_sync_past_card_regatta_url(card: dict, rid: str) -> None:
+    """Point past card title + Details button at /regatta/{rid}; align display_title with _event_row_to_card when linked."""
+    card["regatta_id"] = rid
+    card["details_url"] = "/regatta/" + rid
+    card["has_regatta_link"] = True
+    en = (card.get("event_name") or "").strip()
+    if not en:
+        en = (card.get("display_title") or "").strip()
+    if "\n" in en:
+        en = en.split("\n", 1)[0].strip()
+    year = ""
+    if rid and "-" in rid:
+        parts = rid.split("-", 2)
+        if len(parts) >= 2 and parts[1].isdigit():
+            year = parts[1]
+    if year:
+        card["display_title"] = f"{en} {year} Results".strip()
+    else:
+        card["display_title"] = f"{en} Results".strip()
+
+
+def _club_apply_matched_card(
+    card: dict,
+    rid: str,
+    hosted_by_date_lists: dict,
+    rid_to_datekey: dict,
+    regatta_ids_with_results: Optional[Set[str]] = None,
+) -> None:
+    rid = str(rid).strip()
+    dk = rid_to_datekey.get(rid) or ""
+    sibs = hosted_by_date_lists.get(dk, []) if dk else []
+    if dk and len(sibs) > 1:
+        if regatta_ids_with_results is None:
+            any_res = True
+        else:
+            any_res = any(
+                _club_has_results(str(x.get("regatta_id") or "").strip(), regatta_ids_with_results) for x in sibs
+            )
+        if not any_res:
+            card["result_yes"] = False
+            card["result_multi"] = False
+            card["result_url"] = ""
+            card.pop("result_options", None)
+        else:
+            card["result_yes"] = True
+            card["result_multi"] = True
+            card["result_options"] = [
+                {"url": "/regatta/" + x["regatta_id"], "label": (x.get("event_name") or "Results")[:120]} for x in sibs
+            ]
+            card["result_url"] = "/regatta/" + rid
+    else:
+        has_res = _club_has_results(rid, regatta_ids_with_results)
+        card["result_yes"] = has_res
+        card["result_multi"] = False
+        card["result_url"] = "/regatta/" + rid if has_res else ""
+        card.pop("result_options", None)
+    _club_sync_past_card_regatta_url(card, rid)
+
+
+def _club_past_events_match_hosted(pa: list, regattas_hosted: list, regatta_ids_with_results: Optional[Set[str]] = None) -> list:
+    """Align past event cards with a regatta tuple pool: /events uses _regatta_match_pool_for_past_rows; club pages use Regattas hosted.
+    Green tick (result_yes) when the regatta has results rows (club: regatta_ids_with_results; global pool: None = all treated as having results).
+    Title/Details link to /regatta/{id} when matched. Same calendar day with multiple regattas yields result_options when any has results."""
+    hosted_ids = set()
+    rid_to_datekey = {}
+    hosted_by_date = defaultdict(dict)
+    for t in regattas_hosted:
+        if len(t) < 4:
+            continue
+        name, rid, _, dk = t[0], str(t[1]).strip(), t[2], t[3]
+        if rid:
+            dk = (dk or "").strip() or _regatta_date_key_from_rid_slug(rid)
+            hosted_ids.add(rid)
+            rid_to_datekey[rid] = dk
+        if dk and rid:
+            hosted_by_date[dk][rid] = name
+    hosted_by_date_lists = {}
+    for dk, nm_by_rid in hosted_by_date.items():
+        hosted_by_date_lists[dk] = [
+            {"regatta_id": r, "event_name": nm_by_rid[r]}
+            for r in sorted(nm_by_rid.keys(), key=lambda x: (nm_by_rid.get(x) or "").lower())
+        ]
+    unmatched_rows = []
+    for card in pa:
+        rid = str(card.get("regatta_id") or "").strip()
+        if rid and rid in hosted_ids:
+            _club_apply_matched_card(card, rid, hosted_by_date_lists, rid_to_datekey, regatta_ids_with_results)
+        else:
+            fb = _club_fallback_match_past_to_hosted(card, regattas_hosted)
+            if len(fb) == 1:
+                _club_apply_matched_card(
+                    card, fb[0]["regatta_id"], hosted_by_date_lists, rid_to_datekey, regatta_ids_with_results
+                )
+            elif len(fb) > 1:
+                if regatta_ids_with_results is None:
+                    any_res = True
+                else:
+                    any_res = any(
+                        _club_has_results(str(x.get("regatta_id") or "").strip(), regatta_ids_with_results) for x in fb
+                    )
+                if any_res:
+                    card["result_yes"] = True
+                    card["result_multi"] = True
+                    card["result_options"] = [
+                        {"url": "/regatta/" + x["regatta_id"], "label": (x.get("event_name") or "Results")[:120]} for x in fb
+                    ]
+                    card["result_url"] = "/regatta/" + fb[0]["regatta_id"]
+                else:
+                    card["result_yes"] = False
+                    card["result_multi"] = False
+                    card["result_url"] = ""
+                    card.pop("result_options", None)
+                _club_sync_past_card_regatta_url(card, fb[0]["regatta_id"])
+            else:
+                card["result_yes"] = False
+                card["result_multi"] = False
+                card["result_url"] = ""
+                card.pop("result_options", None)
+                note = "No regatta link" if not rid else "No matching regatta"
+                unmatched_rows.append(
+                    {
+                        "event_name": card.get("event_name") or card.get("display_title") or "—",
+                        "date_display": card.get("date_display") or "",
+                        "note": note,
+                    }
+                )
+    return unmatched_rows
+
+
+def _club_unmatched_rows_from_past_cards(pa: list) -> list:
+    """On club pages, after matching past cards to Regattas hosted, list rows still without a /regatta/ link."""
+    rows = []
+    for card in pa or []:
+        du = (card.get("details_url") or "").strip()
+        if du.startswith("/regatta/"):
+            continue
+        rows.append(
+            {
+                "event_name": card.get("event_name") or card.get("display_title") or "—",
+                "date_display": card.get("date_display") or "",
+                "note": "No regatta link",
+            }
+        )
+    return rows
+
+
+def _club_page_match_past_calendar_to_hosted(
+    regattas_hosted: list, evd: dict, is_unassigned: bool, regatta_ids_with_results: Optional[Set[str]] = None
+) -> list:
+    """Match past SAS calendar cards to this club’s Regattas hosted (host_club_id; includes regattas without results).
+    regatta_ids_with_results drives the green tick; /events global pool passes None (results-backed pool)."""
+    if isinstance(evd, dict):
+        evd.pop("_past_rows", None)
+    if is_unassigned:
+        return []
+    pa = (evd or {}).get("past") or []
+    if not pa:
+        return []
+    if regattas_hosted:
+        _club_past_events_match_hosted(pa, regattas_hosted, regatta_ids_with_results)
+    return _club_unmatched_rows_from_past_cards(pa)
+
+
+def _club_unmatched_past_section_html(rows: list) -> str:
+    if not rows:
+        return ""
+    n = len(rows)
+    trs = []
+    for i, row in enumerate(rows, 1):
+        en = html_module.escape(str(row.get("event_name") or "—"))
+        dd = html_module.escape(str(row.get("date_display") or ""))
+        nt = html_module.escape(str(row.get("note") or ""))
+        trs.append(f"<tr><td>{i}</td><td>{en}</td><td>{dd}</td><td>{nt}</td></tr>")
+    return (
+        '<div class="card stats-section club-unmatched-past-section">'
+        f'<h2 class="section-title">Past calendar events not linked to a hosted regatta ({n})</h2>'
+        "<p>These past SA Sailing calendar rows could not be matched to a <strong>Regattas hosted</strong> entry "
+        "for this club (name + date vs that list). Training, meetings, or events not hosted here stay here. "
+        "Refresh after new regattas or calendar data — matching uses the current database.</p>"
+        '<div class="table-container"><table class="table">'
+        "<thead><tr><th>#</th><th>Event</th><th>Date</th><th>Note</th></tr></thead>"
+        f"<tbody>{''.join(trs)}</tbody></table></div></div>"
+    )
+
 
 def serve_club_page(slug: str):
-    """Serve standalone HTML page for /club/{slug}. SEO: JSON-LD, canonical, links to sailors and regattas. Redirect name/alias slugs to canonical club_code (301)."""
+    """Serve standalone HTML page for /club/{slug}. SEO: JSON-LD, canonical, links to sailors and regattas. Redirect name/alias slugs to canonical club_code (301).
+    All club URLs use the same calendar↔results flow: _club_page_match_past_calendar_to_hosted (past rows vs Regattas hosted)."""
+    if slug and slug.strip().lower() == "unassigned":
+        _get_unassigned_club_id()
     club = _get_club_by_slug(slug)
     if not club:
         return HTMLResponse(content=_CLUB_404_HTML, status_code=404, media_type="text/html")
+    try:
+        return _serve_club_page_impl(slug, club)
+    except Exception as e:
+        print(f"[serve_club_page] {e}", flush=True)
+        return HTMLResponse(content=_HTML_SOFT_FAIL_200, status_code=200, media_type="text/html")
+
+
+def _serve_club_page_impl(slug: str, club: tuple):
     club_id, club_name, club_abbrev = club
     base_url = _canonical_base_url()
     club_code = _club_slug_from_name(club_abbrev) if (club_abbrev and str(club_abbrev).strip()) else _club_slug_from_name(club_name or "")
@@ -17150,10 +20572,22 @@ def serve_club_page(slug: str):
     if slug_is_name:
         return RedirectResponse(url=f"{base_url}/club/{club_code}", status_code=301)
     canonical_url = f"{base_url}/club/{slug}"
-    escaped_name = html_module.escape(club_name or club_abbrev or "Club")
+    ca = (club_abbrev or "").strip()
+    cn = (club_name or "").strip()
+    if ca and cn and ca.lower() != cn.lower():
+        club_heading_html = f"{html_module.escape(ca)} - {html_module.escape(cn)}"
+    elif cn:
+        club_heading_html = html_module.escape(cn)
+    elif ca:
+        club_heading_html = html_module.escape(ca)
+    else:
+        club_heading_html = "Club"
 
     sailors = []
     regattas_hosted = []
+    regatta_ids_with_results: Set[str] = set()
+    unassigned_id = _get_unassigned_club_id()
+    is_unassigned = unassigned_id is not None and int(club_id) == int(unassigned_id)
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -17172,7 +20606,7 @@ def serve_club_page(slug: str):
                 )
                 WHERE r.club_id = %s
                   AND (s.full_name IS NOT NULL OR s.first_name IS NOT NULL OR s.last_name IS NOT NULL)
-                ORDER BY ord_ln ASC, ord_fn ASC
+                ORDER BY ord_fn ASC, ord_ln ASC
             """, (club_id,))
             rows = cur.fetchall() or []
             by_name = {}
@@ -17182,39 +20616,65 @@ def serve_club_page(slug: str):
                     continue
                 ln = (r.get("last_name") or "").strip()
                 fn = (r.get("first_name") or "").strip()
-                display = f"{ln}, {fn}".strip(", ") if (ln or fn) else full
+                # Display: given name, surname (e.g. "Ross, Walton")
+                parts = [x for x in (fn, ln) if x]
+                display = ", ".join(parts) if parts else full
                 sid = str(r.get("sas_id") or "")
                 if full not in by_name:
-                    by_name[full] = {"display": display, "sids": []}
+                    by_name[full] = {"display": display, "sids": [], "fn": fn, "ln": ln}
                 by_name[full]["sids"].append(sid)
-            def _surname_key(item):
-                full = item[0]
-                data = item[1]
-                ln = (data["display"].split(",", 1)[0] or "").strip()
-                return (ln.upper(), full)
+            def _given_then_surname_key(item):
+                full, data = item[0], item[1]
+                fn = (data.get("fn") or "").strip()
+                ln = (data.get("ln") or "").strip()
+                if not fn and not ln:
+                    d = (data.get("display") or "").strip()
+                    if "," in d:
+                        fn = (d.split(",", 1)[0] or "").strip()
+                        ln = (d.split(",", 1)[1] or "").strip()
+                return (fn.upper(), ln.upper(), full.upper())
 
-            for full, data in sorted(by_name.items(), key=_surname_key):
+            for full, data in sorted(by_name.items(), key=_given_then_surname_key):
                 sids = data["sids"]
                 display = data["display"]
                 has_dup = len(sids) > 1
                 s = _sailor_canonical_slug(full, sids[0], has_dup)
                 sailors.append((display, s))
 
-            cur.execute("""
-                SELECT DISTINCT reg.regatta_id, reg.event_name, reg.start_date
+            cur.execute(
+                """
+                SELECT DISTINCT reg.regatta_id, reg.event_name,
+                       COALESCE(
+                         reg.start_date,
+                         reg.end_date,
+                         CASE
+                           WHEN reg.regatta_id ~ '^[0-9]+-[0-9]{4}-' THEN
+                             make_date((substring(reg.regatta_id from '^[0-9]+-([0-9]{4})-'))::int, 1, 15)
+                           ELSE NULL
+                         END
+                       ) AS start_date
                 FROM regattas reg
-                JOIN results r ON r.regatta_id = reg.regatta_id
                 WHERE reg.host_club_id = %s
-                ORDER BY reg.start_date DESC NULLS LAST
-            """, (club_id,))
-            for r in cur.fetchall() or []:
-                ev_name = (r.get("event_name") or "").strip()
-                if ev_name:
-                    reg_slug = re.sub(r"[^\w\s\-]", "", ev_name).strip().lower()
-                    reg_slug = re.sub(r"\s+", "-", reg_slug).strip("-")
-                    sd = r.get("start_date")
-                    date_str = sd.strftime("%d %b %Y") if sd and hasattr(sd, "strftime") else ""
-                    regattas_hosted.append((ev_name, reg_slug, date_str))
+                ORDER BY COALESCE(
+                  reg.start_date,
+                  reg.end_date,
+                  CASE
+                    WHEN reg.regatta_id ~ '^[0-9]+-[0-9]{4}-' THEN
+                      make_date((substring(reg.regatta_id from '^[0-9]+-([0-9]{4})-'))::int, 1, 15)
+                    ELSE NULL
+                  END
+                ) DESC NULLS LAST
+                """,
+                (club_id,),
+            )
+            regattas_hosted = _regatta_sql_rows_to_match_tuples(cur.fetchall() or [])
+            rids = [str(t[1]).strip() for t in regattas_hosted if len(t) > 1 and t[1]]
+            if rids:
+                cur.execute(
+                    "SELECT DISTINCT regatta_id::text AS regatta_id FROM results WHERE regatta_id = ANY(%s)",
+                    (rids,),
+                )
+                regatta_ids_with_results = {str(r.get("regatta_id") or "").strip() for r in (cur.fetchall() or [])}
         finally:
             cur.close()
             conn.close()
@@ -17224,40 +20684,70 @@ def serve_club_page(slug: str):
     json_ld = {
         "@context": "https://schema.org",
         "@type": "SportsOrganization",
-        "name": club_name or club_abbrev,
+        "name": (f"{ca} - {cn}" if (ca and cn) else (cn or ca or "Club")),
         "sport": "Sailing",
     }
 
-    sailors_html = "".join(
-        f'<li>{i}. <a href="/sailor/{html_module.escape(slug)}">{html_module.escape(name)}</a></li>'
-        for i, (name, slug) in enumerate(sailors, 1)
-    )
-    regattas_html = "".join(
-        f'<li>{i}. <a href="/regatta/{html_module.escape(rslug)}">{html_module.escape(name)}</a>'
-        + (f' <span style="color:#64748b;font-size:0.9em">({date})</span>' if date else '')
-        + '</li>'
-        for i, (name, rslug, date) in enumerate(regattas_hosted, 1)
-    )
+    sailors_section_html = _club_sailors_section_html(sailors)
+    regattas_section_html = _club_regattas_section_html(regattas_hosted)
+
+    sas_calendar_html = ""
+    unmatched_past_html = ""
+    if table_exists("events"):
+        try:
+            if is_unassigned:
+                evd = _events_cards_unassigned_only()
+                ev_title = "SAS calendar — host not matched yet"
+                ev_intro = (
+                    '<p class="club-events-intro">These events are linked from the SA Sailing calendar until a host club is assigned. '
+                    '<a href="/admin/review/events-host">Admin: assign host club</a></p>'
+                )
+            else:
+                evd = _get_upcoming_events(host_club_id=int(club_id))
+                ev_title = "Events"
+                ev_intro = '<p class="club-events-intro">SA Sailing calendar events hosted at this club.</p>'
+            up = evd.get("upcoming") or []
+            lv = evd.get("live") or []
+            pa = evd.get("past") or []
+            unmatched_rows = _club_page_match_past_calendar_to_hosted(
+                regattas_hosted, evd, is_unassigned, regatta_ids_with_results
+            )
+            unmatched_past_html = _club_unmatched_past_section_html(unmatched_rows)
+            if up or lv or pa:
+                ej = json.dumps({"upcoming": up, "live": lv, "past": pa}).replace("</", "<\\/")
+                sas_calendar_html = _events_dashboard_fragment(
+                    ej,
+                    include_year_script=False,
+                    section_title=ev_title,
+                    intro_html=ev_intro,
+                    show_live=len(lv) > 0,
+                    club_events_carousel=True,
+                )
+        except Exception as ex:
+            print(f"[club page] events dashboard: {ex}")
 
     body = (
         '<a href="/" class="back-to-home">← Back to Search</a>'
-        f'<div class="header"><h1>{escaped_name}</h1></div>'
+        f'<div class="header"><h1>{club_heading_html}</h1></div>'
+        f"{sas_calendar_html}"
         '<div class="club-content" style="margin:1.5rem 0;">'
-        f'<h2>Sailors ({len(sailors)})</h2><ul style="list-style:none;padding:0;">{sailors_html or "<li>No sailors found</li>"}</ul>'
-        f'<h2>Regattas hosted ({len(regattas_hosted)})</h2><ul style="list-style:none;padding:0;">{regattas_html or "<li>No regattas found</li>"}</ul>'
+        f"{sailors_section_html}"
+        f"{regattas_section_html}"
+        f"{unmatched_past_html}"
         "</div>"
     )
     doc = (
         "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
-        f"{escaped_name} | SailingSA</title>"
+        f"{club_heading_html} | SailingSA</title>"
         "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
-        f"<meta name=\"description\" content=\"Sailing club: {html_module.escape(escaped_name)}. Sailors and regattas.\">"
+        f"<meta name=\"description\" content=\"Sailing club: {html_module.escape(cn or ca or 'Club')}. Sailors and regattas.\">"
         f"<link rel=\"canonical\" href=\"{html_module.escape(canonical_url)}\">"
         "<link rel=\"icon\" type=\"image/png\" sizes=\"48x48\" href=\"/favicon-48.png\">"
         "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
         f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
-        "<style>body{font-family:system-ui,sans-serif;margin:2rem;color:#1a2750;}a{color:#1a2750;}</style></head><body>"
-        f"<div class=\"club-page\">{body}</div></body></html>"
+        "<link rel=\"stylesheet\" href=\"/css/main.css?v=13\">"
+        f"<style>body{{font-family:system-ui,sans-serif;margin:2rem;color:#1a2750;}}a{{color:#1a2750;}}{_CLUB_PAGE_CSS}</style></head><body>"
+        f"<div class=\"club-page\">{body}</div>{_seo_discovery_block_html()}</body></html>"
     )
     return HTMLResponse(doc)
 
@@ -17305,6 +20795,19 @@ def _resolve_class_slug_to_class_id(class_slug: str):
             return (None, None)
     class_id, class_name = _get_class_by_name_slug(s)
     return (class_id, class_name)
+
+
+@app.get("/api/class/resolve-slug/{slug}")
+def api_class_resolve_slug(slug: str):
+    """Resolve name-only slug (e.g. dabchick) or id-slug segment to canonical path for SPA when nginx serves static index."""
+    if not slug or not str(slug).strip():
+        raise HTTPException(status_code=404, detail="Class not found")
+    class_id, class_name = _resolve_class_slug_to_class_id(slug.strip())
+    if not class_id:
+        raise HTTPException(status_code=404, detail="Class not found")
+    canon = _class_canonical_slug(class_name or "")
+    canonical_path = f"/class/{class_id}-{canon}" if canon else f"/class/{class_id}"
+    return {"class_id": int(class_id), "canonical_path": canonical_path}
 
 
 def _get_regatta_class_page_data(regatta_id: str, class_id: int):
@@ -17479,178 +20982,189 @@ def _get_regatta_class_page_data(regatta_id: str, class_id: int):
 
 def serve_regatta_class_standalone(slug: str, class_slug: str):
     """Serve single-class regatta page at /regatta/{slug}/class-{class_slug}. Reuses regatta header and fleet renderer."""
-    reg = _get_regatta_by_regatta_id(slug)
+    reg = _get_regatta_by_slug(slug)
     if not reg:
-        reg = _get_regatta_by_event_name_slug(slug)
-        if reg:
-            canonical_regatta_id = reg[0]
-            return RedirectResponse(url=f"/regatta/{canonical_regatta_id}/class-{class_slug.strip()}", status_code=301)
-        return HTMLResponse(content=_REGATTA_404_HTML, status_code=404, media_type="text/html")
+        return RedirectResponse(url="/events", status_code=301)
     regatta_id = reg[0]
     cid, class_name = _resolve_class_slug_to_class_id(class_slug.strip())
     if not cid or not class_name:
-        return HTMLResponse(content=_REGATTA_404_HTML, status_code=404, media_type="text/html")
+        return RedirectResponse(url="/events", status_code=301)
     canonical_class_slug = _class_canonical_slug(class_name)
+    if str(slug).strip() != str(regatta_id):
+        tail = canonical_class_slug if canonical_class_slug else class_slug.strip()
+        return RedirectResponse(url=f"/regatta/{regatta_id}/class-{tail}", status_code=301)
     if canonical_class_slug and class_slug.strip().lower() != canonical_class_slug.lower():
         return RedirectResponse(url=f"/regatta/{regatta_id}/class-{canonical_class_slug}", status_code=301)
     data = _get_regatta_class_page_data(regatta_id, cid)
     if not data:
-        return HTMLResponse(content=_REGATTA_404_HTML, status_code=404, media_type="text/html")
+        return RedirectResponse(url="/events", status_code=301)
     ev_name, host_club_name, start_d, end_d, fleets, result_status, as_at_time, host_club_province = data
     if len(fleets) != 1:
-        return HTMLResponse(content=_REGATTA_404_HTML, status_code=404, media_type="text/html")
-    event_name = ev_name or reg[1]
-    base_url = _canonical_base_url()
-    canonical_url = f"{base_url}/regatta/{regatta_id}/class-{_class_canonical_slug(class_name)}"
-    escaped_title = html_module.escape(event_name or "")
-    status_word = (result_status or "Final").strip() or "Final"
-    status_line_text = _format_regatta_status_line(status_word, as_at_time)
-    host_club_id = reg[5] if len(reg) > 5 else None
-    host_club_slug = _get_club_slug_by_id(host_club_id) if host_club_id else None
-    host_club_text = host_club_name or ""
-    host_club_html = f'<a href="/club/{html_module.escape(host_club_slug)}">{html_module.escape(host_club_text)}</a>' if host_club_slug and host_club_text else html_module.escape(host_club_text)
-    back_link = f'<a href="/regatta/{html_module.escape(regatta_id)}" class="back-to-home">← Back to full regatta</a>'
-    header_html = (
-        back_link
-        + '<div class="header">'
-        f'<div><div class="regatta-name">{escaped_title}</div>'
-        f'<div class="host-club">Host: {host_club_html}</div>'
-        f'<div class="status-line">{status_line_text}</div></div>'
-        "</div>"
-    )
-    def _iso_date(d):
-        if d is None:
-            return None
-        if hasattr(d, "strftime"):
-            return d.strftime("%Y-%m-%d")
-        return str(d)[:10] if str(d) else None
-    start_iso = _iso_date(start_d)
-    json_ld = {
-        "@context": "https://schema.org",
-        "@type": "SportsEvent",
-        "name": event_name or "",
-        "sport": "Sailing",
-        "eventStatus": "https://schema.org/EventScheduled",
-        "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
-    }
-    if start_iso:
-        json_ld["startDate"] = start_iso
-    end_iso = _iso_date(end_d)
-    if end_iso:
-        json_ld["endDate"] = end_iso
-    if event_name:
-        json_ld["description"] = event_name
-    if host_club_text:
-        json_ld["organizer"] = {"@type": "Organization", "name": host_club_text}
-    fleet_sections = [_render_result_sheet_fleet(f, standalone_class_page=True) for f in fleets]
-    print_btn = '<div class="action-buttons"><button class="action-button" onclick="window.print()">Print</button></div>'
-    body_html = header_html + "\n".join(fleet_sections) + "\n" + print_btn
-    doc = (
-        "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
-        f"{html_module.escape(class_name)} – {escaped_title} | SailingSA</title>"
-        f"<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
-        f"<link rel=\"canonical\" href=\"{html_module.escape(canonical_url)}\">"
-        "<link rel=\"icon\" type=\"image/png\" sizes=\"48x48\" href=\"/favicon-48.png\">"
-        "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
-        f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
-        f"<style>{_RESULT_SHEET_CSS}</style></head><body>"
-        f"<div class=\"regatta-page\">{body_html}</div>"
-        "</body></html>"
-    )
-    return HTMLResponse(doc)
+        return RedirectResponse(url="/events", status_code=301)
+    try:
+        event_name = ev_name or reg[1]
+        base_url = _canonical_base_url()
+        canonical_url = f"{base_url}/regatta/{regatta_id}/class-{_class_canonical_slug(class_name)}"
+        escaped_title = html_module.escape(event_name or "")
+        status_word = (result_status or "Final").strip() or "Final"
+        status_line_text = _format_regatta_status_line(status_word, as_at_time)
+        host_club_id = reg[5] if len(reg) > 5 else None
+        host_club_slug = _get_club_slug_by_id(host_club_id) if host_club_id else None
+        host_club_text = host_club_name or ""
+        host_club_html = f'<a href="/club/{html_module.escape(host_club_slug)}">{html_module.escape(host_club_text)}</a>' if host_club_slug and host_club_text else html_module.escape(host_club_text)
+        back_link = f'<a href="/regatta/{html_module.escape(regatta_id)}" class="back-to-home">← Back to full regatta</a>'
+        header_html = (
+            back_link
+            + '<div class="header">'
+            f'<div><div class="regatta-name">{escaped_title}</div>'
+            f'<div class="host-club">Host: {host_club_html}</div>'
+            f'<div class="status-line">{status_line_text}</div></div>'
+            "</div>"
+        )
+
+        def _iso_date(d):
+            if d is None:
+                return None
+            if hasattr(d, "strftime"):
+                return d.strftime("%Y-%m-%d")
+            return str(d)[:10] if str(d) else None
+
+        start_iso = _iso_date(start_d)
+        json_ld = {
+            "@context": "https://schema.org",
+            "@type": "SportsEvent",
+            "name": event_name or "",
+            "sport": "Sailing",
+            "eventStatus": "https://schema.org/EventScheduled",
+            "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
+        }
+        if start_iso:
+            json_ld["startDate"] = start_iso
+        end_iso = _iso_date(end_d)
+        if end_iso:
+            json_ld["endDate"] = end_iso
+        if event_name:
+            json_ld["description"] = event_name
+        if host_club_text:
+            json_ld["organizer"] = {"@type": "Organization", "name": host_club_text}
+        fleet_sections = [_render_result_sheet_fleet(f, standalone_class_page=True) for f in fleets]
+        print_btn = '<div class="action-buttons"><button class="action-button" onclick="window.print()">Print</button></div>'
+        body_html = header_html + "\n".join(fleet_sections) + "\n" + print_btn
+        seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
+        seo_disc = _seo_discovery_block_html()
+        doc = (
+            "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
+            f"{html_module.escape(class_name)} – {escaped_title} | SailingSA</title>"
+            f"<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+            f"<link rel=\"canonical\" href=\"{html_module.escape(canonical_url)}\">"
+            "<link rel=\"icon\" type=\"image/png\" sizes=\"48x48\" href=\"/favicon-48.png\">"
+            "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
+            f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
+            f"<style>{_RESULT_SHEET_CSS}</style></head><body>"
+            f"<div class=\"regatta-page\">{body_html}</div>{seo_sailors}{seo_disc}"
+            "</body></html>"
+        )
+        return HTMLResponse(doc)
+    except Exception as e:
+        print(f"[serve_regatta_class_standalone] {e}", flush=True)
+        return HTMLResponse(content=_HTML_SOFT_FAIL_200, status_code=200, media_type="text/html")
 
 
 def serve_regatta_standalone(slug: str):
-    """Serve one full standalone HTML result sheet for /regatta/{slug}: same rendering and CSS as admin regatta_viewer Prov/Final popup. All fleets stacked; no SPA, no index.html, no JSON. Unknown slug returns HTML 404 page.
-    Routing: (1) If param matches regatta_id, serve page. (2) Else if slugified event_name matches param, 301 redirect to /regatta/{regatta_id}. (3) Else 404."""
+    """Serve one full standalone HTML result sheet for /regatta/{slug}. Unknown regatta → 301 /events (not 404)."""
     start_time = time.time()
-    reg = _get_regatta_by_regatta_id(slug)
+    reg = _get_regatta_by_slug(slug)
     if not reg:
-        reg = _get_regatta_by_event_name_slug(slug)
-        if reg:
-            canonical_regatta_id = reg[0]
-            return RedirectResponse(url=f"/regatta/{canonical_regatta_id}", status_code=301)
-        return HTMLResponse(content=_REGATTA_404_HTML, status_code=404, media_type="text/html")
+        return RedirectResponse(url="/events", status_code=301)
     regatta_id, event_name, start_date, end_date, host_club_name, host_club_id = reg
+    if str(slug).strip() != str(regatta_id):
+        return RedirectResponse(url=f"/regatta/{regatta_id}", status_code=301)
     print("REGATTA: before DB query")
     t0 = time.time()
     data = _get_regatta_full_page_data(regatta_id)
     print("LIVE REGATTA DB TIME:", time.time() - t0, flush=True)
     if not data:
-        return HTMLResponse(content=_REGATTA_404_HTML, status_code=404, media_type="text/html")
-    ev_name, host_club, start_d, end_d, fleets, result_status, as_at_time, host_club_province = (
-        data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7] if len(data) > 7 else None
-    )
-    base_url = _canonical_base_url()
-    canonical_url = f"{base_url}/regatta/{regatta_id}"
-    escaped_title = html_module.escape(ev_name or event_name)
-    status_word = (result_status or "Final").strip() or "Final"
-    status_line_text = _format_regatta_status_line(status_word, as_at_time)
-    host_club_slug = _get_club_slug_by_id(host_club_id) if host_club_id else None
-    host_club_text = host_club or host_club_name or ""
-    host_club_html = f'<a href="/club/{html_module.escape(host_club_slug)}">{html_module.escape(host_club_text)}</a>' if host_club_slug and host_club_text else html_module.escape(host_club_text)
-    back_link = '<a href="/" class="back-to-home">← Back to Search</a>'
-    header_html = (
-        back_link
-        + '<div class="header">'
-        f'<div><div class="regatta-name">{escaped_title}</div>'
-        f'<div class="host-club">Host: {host_club_html}</div>'
-        f'<div class="status-line">{status_line_text}</div></div>'
-        "</div>"
-    )
-    def _iso_date(d):
-        if d is None:
-            return None
-        if hasattr(d, "strftime"):
-            return d.strftime("%Y-%m-%d")
-        return str(d)[:10] if str(d) else None
+        return RedirectResponse(url="/events", status_code=301)
+    try:
+        ev_name, host_club, start_d, end_d, fleets, result_status, as_at_time, host_club_province = (
+            data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7] if len(data) > 7 else None
+        )
+        base_url = _canonical_base_url()
+        canonical_url = f"{base_url}/regatta/{regatta_id}"
+        escaped_title = html_module.escape(ev_name or event_name)
+        status_word = (result_status or "Final").strip() or "Final"
+        status_line_text = _format_regatta_status_line(status_word, as_at_time)
+        host_club_slug = _get_club_slug_by_id(host_club_id) if host_club_id else None
+        host_club_text = host_club or host_club_name or ""
+        host_club_html = f'<a href="/club/{html_module.escape(host_club_slug)}">{html_module.escape(host_club_text)}</a>' if host_club_slug and host_club_text else html_module.escape(host_club_text)
+        back_link = '<a href="/" class="back-to-home">← Back to Search</a>'
+        header_html = (
+            back_link
+            + '<div class="header">'
+            f'<div><div class="regatta-name">{escaped_title}</div>'
+            f'<div class="host-club">Host: {host_club_html}</div>'
+            f'<div class="status-line">{status_line_text}</div></div>'
+            "</div>"
+        )
 
-    # SportsEvent JSON-LD: startDate required (ISO 8601 YYYY-MM-DD); rest for rich result eligibility
-    start_iso = _iso_date(start_d)
-    json_ld = {
-        "@context": "https://schema.org",
-        "@type": "SportsEvent",
-        "name": ev_name or event_name,
-        "sport": "Sailing",
-        "eventStatus": "https://schema.org/EventScheduled",
-        "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
-    }
-    if start_iso:
-        json_ld["startDate"] = start_iso
-    end_iso = _iso_date(end_d)
-    if end_iso:
-        json_ld["endDate"] = end_iso
-    description = ev_name or event_name or ""
-    if description:
-        json_ld["description"] = description
-    organizer_name = host_club_text or "SailingSA"
-    json_ld["organizer"] = {"@type": "Organization", "name": organizer_name}
-    if host_club_text:
-        address = {"@type": "PostalAddress", "addressCountry": "ZA"}
-        if host_club_province:
-            address["addressLocality"] = host_club_province
-        json_ld["location"] = {
-            "@type": "Place",
-            "name": host_club_text,
-            "address": address,
+        def _iso_date(d):
+            if d is None:
+                return None
+            if hasattr(d, "strftime"):
+                return d.strftime("%Y-%m-%d")
+            return str(d)[:10] if str(d) else None
+
+        # SportsEvent JSON-LD: startDate required (ISO 8601 YYYY-MM-DD); rest for rich result eligibility
+        start_iso = _iso_date(start_d)
+        json_ld = {
+            "@context": "https://schema.org",
+            "@type": "SportsEvent",
+            "name": ev_name or event_name,
+            "sport": "Sailing",
+            "eventStatus": "https://schema.org/EventScheduled",
+            "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
         }
-    fleet_sections = [_render_result_sheet_fleet(f) for f in fleets]
-    print_btn = '<div class="action-buttons"><button class="action-button" onclick="window.print()">Print</button></div>'
-    body_html = header_html + "\n".join(fleet_sections) + "\n" + print_btn
-    doc = (
-        "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
-        f"{escaped_title} | SailingSA</title>"
-        f"<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
-        f"<link rel=\"canonical\" href=\"{html_module.escape(canonical_url)}\">"
-        "<link rel=\"icon\" type=\"image/png\" sizes=\"48x48\" href=\"/favicon-48.png\">"
-        "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
-        f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
-        f"<style>{_RESULT_SHEET_CSS}</style></head><body>"
-        f"<div class=\"regatta-page\">{body_html}</div>"
-        "</body></html>"
-    )
-    print("REGATTA: total route time", round(time.time() - start_time, 3))
-    return HTMLResponse(doc)
+        if start_iso:
+            json_ld["startDate"] = start_iso
+        end_iso = _iso_date(end_d)
+        if end_iso:
+            json_ld["endDate"] = end_iso
+        description = ev_name or event_name or ""
+        if description:
+            json_ld["description"] = description
+        organizer_name = host_club_text or "SailingSA"
+        json_ld["organizer"] = {"@type": "Organization", "name": organizer_name}
+        if host_club_text:
+            address = {"@type": "PostalAddress", "addressCountry": "ZA"}
+            if host_club_province:
+                address["addressLocality"] = host_club_province
+            json_ld["location"] = {
+                "@type": "Place",
+                "name": host_club_text,
+                "address": address,
+            }
+        fleet_sections = [_render_result_sheet_fleet(f) for f in fleets]
+        print_btn = '<div class="action-buttons"><button class="action-button" onclick="window.print()">Print</button></div>'
+        body_html = header_html + "\n".join(fleet_sections) + "\n" + print_btn
+        seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
+        seo_disc = _seo_discovery_block_html()
+        doc = (
+            "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
+            f"{escaped_title} | SailingSA</title>"
+            f"<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+            f"<link rel=\"canonical\" href=\"{html_module.escape(canonical_url)}\">"
+            "<link rel=\"icon\" type=\"image/png\" sizes=\"48x48\" href=\"/favicon-48.png\">"
+            "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
+            f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
+            f"<style>{_RESULT_SHEET_CSS}</style></head><body>"
+            f"<div class=\"regatta-page\">{body_html}</div>{seo_sailors}{seo_disc}"
+            "</body></html>"
+        )
+        print("REGATTA: total route time", round(time.time() - start_time, 3))
+        return HTMLResponse(doc)
+    except Exception as e:
+        print(f"[serve_regatta_standalone] {e}", flush=True)
+        return HTMLResponse(content=_HTML_SOFT_FAIL_200, status_code=200, media_type="text/html")
 
 
 def _sitemap_sailor_slugs():
@@ -18013,4 +21527,20 @@ if os.path.isdir(ARTWORK_DIR):
     app.mount("/artwork", StaticFiles(directory=ARTWORK_DIR, html=False), name="artwork")
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+# Icon sets under web root (deploy zip extracts next to index.html). Solid = default; transparent = header/cards/on coloured backgrounds.
+_ICON_SET_DIR = os.path.join(STATIC_DIR, "SailingSA_Icon_Set")
+if os.path.isdir(_ICON_SET_DIR):
+    app.mount(
+        "/SailingSA_Icon_Set",
+        StaticFiles(directory=_ICON_SET_DIR, html=False),
+        name="sailing_sa_icon_set",
+    )
+_TRANSPARENT_ICON_DIR = os.path.join(STATIC_DIR, "SailingSA_Transparent_Icons")
+if os.path.isdir(_TRANSPARENT_ICON_DIR):
+    app.mount(
+        "/SailingSA_Transparent_Icons",
+        StaticFiles(directory=_TRANSPARENT_ICON_DIR, html=False),
+        name="sailing_sa_transparent_icons",
+    )
 

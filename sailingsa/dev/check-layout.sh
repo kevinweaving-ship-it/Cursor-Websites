@@ -9,6 +9,8 @@ do
         # Skip auth/popup/minimal pages that don't use card layout
         base=$(basename "$file")
         [[ "$base" == "login.html" ]] || [[ "$base" == "popup.html" ]] || [[ "$base" == "facebook-confirm.html" ]] && continue
+        # Standalone regatta result sheets (iframe / new tab) — not SPA card layout
+        [[ "$base" == "class-results.html" ]] || [[ "$base" == "results.html" ]] || [[ "$base" == "podium.html" ]] && continue
 
         if ! grep -qE 'class="[^"]*container' "$file"; then
             echo "Layout error: container missing in $file"

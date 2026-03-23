@@ -59,6 +59,40 @@ except ImportError:
     from sailingsa.utils.host_normalizer import normalize_host_for_resolution, host_resolution_candidates
 
 
+def get_or_create_unassigned_club_id(cur):
+    """Virtual host for SAS events when no club matches. Same row as api._get_unassigned_club_id."""
+    try:
+        cur.execute(
+            """
+            SELECT club_id FROM clubs
+            WHERE lower(trim(COALESCE(club_abbrev, ''))) = 'unassigned'
+            LIMIT 1
+            """
+        )
+        r = cur.fetchone()
+        if r and r[0] is not None:
+            return int(r[0])
+        cur.execute(
+            """
+            INSERT INTO clubs (club_abbrev, club_fullname)
+            VALUES ('Unassigned', 'Unassigned (SAS calendar)')
+            RETURNING club_id
+            """
+        )
+        r = cur.fetchone()
+        return int(r[0]) if r and r[0] is not None else None
+    except Exception:
+        cur.execute(
+            """
+            SELECT club_id FROM clubs
+            WHERE lower(trim(COALESCE(club_abbrev, ''))) = 'unassigned'
+            LIMIT 1
+            """
+        )
+        r = cur.fetchone()
+        return int(r[0]) if r and r[0] is not None else None
+
+
 def resolve_host_to_club_id(cur, host_val: str):
     """
     Return clubs.club_id when host_val matches one club. Uses exact match then
@@ -295,6 +329,8 @@ def main():
                     club_id = resolve_club_from_event_name(cur, r["event_name"])
                 if club_id is not None:
                     resolved += 1
+                if club_id is None:
+                    club_id = get_or_create_unassigned_club_id(cur)
                 cur.execute("""
                     INSERT INTO events (
                         source, source_event_id, source_url,

@@ -1,5 +1,6 @@
 #!/bin/bash
-# Add nginx location ~ ^/class/ proxy to FastAPI — run ON server. Proxies /class/* before try_files/SPA fallback.
+# Ensure /class/* is served by nginx as SPA (try_files → index.html), not proxied to FastAPI.
+# Run ON server as root after backing up nginx config.
 set -e
 
 NGCFG=$(grep -l "sailingsa.co.za" /etc/nginx/sites-enabled/* 2>/dev/null | head -1)
@@ -15,13 +16,18 @@ path = sys.argv[1]
 with open(path) as f:
     content = f.read()
 
+# Remove old proxy-to-API class block if present
+import re
+content = re.sub(
+    r"\n\s*location ~ \^/class/ \{[^}]*proxy_pass[^}]*\}\s*",
+    "\n",
+    content,
+    flags=re.DOTALL,
+)
+
 class_block = """
     location ~ ^/class/ {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        try_files $uri $uri/ /index.html;
     }
 """
 
@@ -31,7 +37,6 @@ if idx == -1:
 if idx == -1:
     print("ERROR: Could not find sailingsa server block"); sys.exit(1)
 
-# Insert before first "location /" or "location / {" or "try_files"
 loc = content.find("location / {", idx)
 if loc == -1:
     loc = content.find("location /{", idx)
@@ -42,11 +47,16 @@ if loc == -1:
 if loc == -1:
     print("ERROR: Could not find location / or try_files"); sys.exit(1)
 
-if "location ~ ^/class/" in content[idx:idx+2000]:
-    print("location ~ ^/class/ already present")
+snippet = "location ~ ^/class/"
+if snippet in content[idx:idx + 8000]:
+    # Already have a /class/ block — replace try_files block only
+    if "try_files $uri $uri/ /index.html" in content and snippet in content:
+        print("location ~ ^/class/ with SPA try_files already present")
+    else:
+        print("WARN: /class/ block exists but not SPA try_files; edit manually")
 else:
     content = content[:loc] + class_block + "\n" + content[loc:]
-    print("Added location ~ ^/class/")
+    print("Added location ~ ^/class/ { try_files ... /index.html; }")
 
 with open(path, 'w') as f:
     f.write(content)
