@@ -2,9 +2,3410 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title></title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Search — SailingSA</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html { overflow-x: hidden; -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: #f0f4f8;
+      color: #1a1a1a;
+      overflow-x: hidden;
+      min-width: 0;
+    }
+    body.blank-landing-page {
+      --blank-border-blue: #0a6cff;
+    }
+    /* Mobile-first shell: full width up to 480px cap, safe areas for notches */
+    .blank-app.container {
+      width: 100%;
+      max-width: 480px;
+      margin: 0 auto;
+      min-height: 100dvh;
+      min-height: 100vh;
+      padding-top: max(0px, env(safe-area-inset-top, 0px));
+      padding-right: max(10px, env(safe-area-inset-right, 0px));
+      /* Nav row + Discover FAB overlap above bar + safe area */
+      padding-bottom: calc(56px + max(8px, env(safe-area-inset-bottom, 0px)));
+      padding-left: max(10px, env(safe-area-inset-left, 0px));
+    }
+    .blank-app .card {
+      background: #fff;
+      border: 1px solid var(--blank-border-blue);
+      border-radius: 10px;
+      padding: 10px;
+      margin-bottom: 10px;
+      box-shadow: 0 1px 3px rgba(0,31,63,.08);
+      min-width: 0;
+    }
+    @media (min-width: 400px) {
+      .blank-app .card { padding: 12px; border-radius: 12px; margin-bottom: 12px; }
+    }
+    .blank-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 52px;
+      margin-left: calc(-1 * max(10px, env(safe-area-inset-left, 0px)));
+      margin-right: calc(-1 * max(10px, env(safe-area-inset-right, 0px)));
+      margin-bottom: 10px;
+      padding: 10px max(12px, env(safe-area-inset-left, 0px)) 10px max(12px, env(safe-area-inset-right, 0px));
+      background: #001f3f;
+      color: #fff;
+    }
+    .blank-header a { color: #fff; text-decoration: none; }
+    .blank-header-brand {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .blank-brand-text {
+      font-weight: 800;
+      font-size: 0.98rem;
+      letter-spacing: -0.02em;
+      line-height: 1;
+    }
+    @media (min-width: 380px) {
+      .blank-brand-text { font-size: 1.05rem; }
+    }
+    .blank-header-brand img { width: 34px; height: auto; display: block; border-radius: 2px; }
+    .blank-header-user {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      background: rgba(0,0,0,.22);
+      border-radius: 12px;
+      font-size: 0.8rem;
+      line-height: 1.2;
+    }
+    .blank-header-avatar {
+      flex-shrink: 0;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 0.85rem;
+      overflow: hidden;
+    }
+    .blank-header-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .blank-header-user-text { min-width: 0; }
+    .blank-header-user .name {
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .blank-header-user .sas { color: rgba(255,255,255,.75); font-size: 0.7rem; margin-top: 2px; }
+    .blank-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .blank-btn-logout {
+      background: #e10600;
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.72rem;
+      padding: 0 12px;
+      min-height: 44px;
+      min-width: 44px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      white-space: nowrap;
+      touch-action: manipulation;
+    }
+    .blank-btn-logout:active { filter: brightness(0.92); }
+    .blank-btn-menu {
+      min-width: 44px;
+      min-height: 44px;
+      padding: 0;
+      border: 1px solid rgba(255,255,255,.4);
+      background: #0d3a6e;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: manipulation;
+    }
+    .blank-btn-menu img { width: 22px; height: 22px; display: block; }
+    .blank-btn-menu:active { background: #0a2f5c; }
+    .blank-search-row {
+      margin-bottom: 14px;
+    }
+    .blank-search-results-card[hidden] {
+      display: none !important;
+    }
+    .blank-search-results-card .blank-results-meta {
+      margin-top: 0;
+      min-height: 0;
+    }
+    /* Stat tiles: single column (order can be changed in HTML next) */
+    .blank-stats-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 10px;
+    }
+    .blank-stat {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 6px;
+      background: #fff;
+      border: 1px solid var(--blank-border-blue);
+      border-radius: 9px;
+      padding: 8px 8px;
+      min-height: 48px;
+      text-decoration: none;
+      color: inherit;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .blank-stat--link:active { background: #f0f5fa; }
+    .blank-stats-mode-note {
+      font-size: 0.72rem;
+      color: #64748b;
+      margin: 0 0 12px 0;
+      line-height: 1.4;
+    }
+    /* Same rendered icon size for every tile; Events gets a larger cell for LIVE badge */
+    .blank-stat:not(.blank-stat--events) .blank-stat-icon-cell {
+      position: relative;
+      flex: 0 0 36px;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .blank-stat:not(.blank-stat--events) .blank-stat-icon-cell img {
+      width: 28px;
+      height: 28px;
+      max-width: 28px;
+      max-height: 28px;
+      display: block;
+      object-fit: contain;
+      object-position: center;
+    }
+    .blank-stat--events .blank-stat-icon-cell {
+      position: relative;
+      flex: 0 0 46px;
+      width: 46px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding-right: 2px;
+    }
+    .blank-stat--events .blank-stat-icon-cell img {
+      width: 28px;
+      height: 28px;
+      max-width: 28px;
+      max-height: 28px;
+      display: block;
+      object-fit: contain;
+      object-position: left center;
+      margin-left: 2px;
+    }
+    .blank-live-badge {
+      position: absolute;
+      top: -3px;
+      right: -2px;
+      z-index: 1;
+      font-size: 0.45rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      background: #ff3b30;
+      color: #fff;
+      padding: 2px 4px;
+      border-radius: 3px;
+      line-height: 1;
+      animation: blank-live-flash 1.1s ease-in-out infinite;
+      box-shadow: 0 0 0 1px rgba(255,255,255,.4);
+    }
+    .blank-live-badge[hidden] { display: none !important; }
+    @keyframes blank-live-flash {
+      0%, 100% { opacity: 1; filter: brightness(1); }
+      50% { opacity: 0.72; filter: brightness(1.12); }
+    }
+    .blank-stat-copy {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 1px;
+    }
+    .blank-stat-val {
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: #001f3f;
+      line-height: 1.1;
+      word-break: break-word;
+    }
+    .blank-stat-lbl {
+      font-size: 0.58rem;
+      font-weight: 700;
+      color: #001f3f;
+      line-height: 1.15;
+      max-width: 100%;
+      word-break: break-word;
+    }
+    @media (min-width: 420px) {
+      .blank-stat-val { font-size: 0.9rem; }
+      .blank-stat-lbl { font-size: 0.6rem; }
+    }
+    .blank-search-hint {
+      font-size: 0.72rem;
+      color: #64748b;
+      margin: 0 0 8px 0;
+      line-height: 1.35;
+    }
+    .blank-search-wrap {
+      position: relative;
+      margin-bottom: 0;
+    }
+    .blank-search-wrap img {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 20px;
+      height: 20px;
+      pointer-events: none;
+      opacity: .55;
+    }
+    .blank-search-wrap input {
+      width: 100%;
+      min-height: 48px;
+      padding: 12px 12px 12px 44px;
+      border: 1px solid var(--blank-border-blue);
+      border-radius: 12px;
+      font-size: 16px; /* iOS: avoids focus zoom */
+      background: #eef1f6;
+      box-shadow: 0 1px 3px rgba(0,31,63,.06);
+    }
+    .blank-search-wrap input:focus {
+      outline: 1px solid var(--blank-border-blue);
+      outline-offset: 0;
+      border-color: var(--blank-border-blue);
+    }
+    .blank-results-meta {
+      font-size: 0.8rem;
+      color: #555;
+      margin-bottom: 8px;
+      min-height: 1.25em;
+    }
+    .blank-results-list { display: flex; flex-direction: column; gap: 8px; }
+    .blank-hub-section-title {
+      font-size: 0.8rem;
+      font-weight: 800;
+      color: #001f3f;
+      margin: 20px 0 10px;
+      letter-spacing: 0.02em;
+    }
+    .blank-hub-section-title:first-child { margin-top: 0; }
+    .blank-hub-note {
+      font-size: 0.72rem;
+      color: #64748b;
+      margin: -4px 0 12px;
+      line-height: 1.35;
+    }
+    .blank-hub-empty-line {
+      font-size: 0.85rem;
+      padding: 8px 0;
+      color: #64748b;
+    }
+    .blank-news-wrap { margin-bottom: 14px; }
+    .blank-news-heading {
+      font-size: 0.92rem;
+      font-weight: 800;
+      color: #001f3f;
+      margin: 0 0 10px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .blank-news-heading img { width: 22px; height: 22px; flex-shrink: 0; }
+    .blank-news-list { display: flex; flex-direction: column; gap: 10px; }
+    .blank-news-item {
+      border: 1px solid var(--blank-border-blue);
+      border-radius: 10px;
+      padding: 12px 14px;
+      background: #fff;
+    }
+    a.blank-news-item--event {
+      display: block;
+      text-decoration: none;
+      color: inherit;
+      -webkit-tap-highlight-color: transparent;
+    }
+    a.blank-news-item--event:active { background: #f7f9fc; }
+    .blank-news-item--live-featured {
+      border-color: var(--blank-border-blue);
+      box-shadow: 0 0 0 2px rgba(10, 108, 255, 0.18);
+      background: linear-gradient(180deg, #f0f7ff 0%, #fff 55%);
+    }
+    .blank-event-day {
+      font-weight: 800;
+      font-size: 0.72rem;
+      color: #0d47a1;
+      margin-top: 8px;
+      letter-spacing: 0.02em;
+    }
+    .blank-podium {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #e2e8f0;
+    }
+    .blank-podium-line {
+      font-size: 0.76rem;
+      line-height: 1.45;
+      color: #334155;
+      margin-top: 4px;
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+    .blank-podium-line:first-child { margin-top: 0; }
+    .blank-podium-medal {
+      display: inline-flex;
+      width: 1.1em;
+      justify-content: center;
+      flex: 0 0 1.1em;
+    }
+    .blank-podium-medal--none {
+      display: inline-flex;
+      width: 1.1em;
+      flex: 0 0 1.1em;
+    }
+    .blank-podium-place {
+      font-weight: 700;
+      color: #001f3f;
+      display: inline-block;
+      min-width: 2.3em;
+      flex: 0 0 2.3em;
+    }
+    .blank-podium-names { flex: 1 1 auto; min-width: 0; }
+    .blank-podium-names a { color: inherit; text-decoration: underline; }
+    .blank-podium-names a:hover { text-decoration-thickness: 2px; }
+    .blank-podium-nett {
+      font-weight: 700;
+      color: #0f766e;
+      white-space: nowrap;
+      flex: 0 0 auto;
+    }
+    .blank-news-item a {
+      font-weight: 700;
+      color: #001f3f;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      font-size: 0.88rem;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+    .blank-news-item a:hover { text-decoration: none; }
+    .blank-event-headline {
+      font-weight: 700;
+      color: #001f3f;
+      font-size: 0.88rem;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+    .blank-event-live { font-weight: 800; color: #dc2626; margin-right: 4px; }
+    .blank-news-meta { font-size: 0.7rem; color: #64748b; margin-top: 6px; }
+    .blank-news-section-title {
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: #001f3f;
+      margin: 14px 0 8px 0;
+    }
+    .blank-news-section-title:first-child { margin-top: 0; }
+    .blank-news-section-subtitle {
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: #64748b;
+      margin: 14px 0 8px 0;
+      letter-spacing: 0.02em;
+    }
+    .blank-news-section-subtitle:first-child { margin-top: 0; }
+    .blank-live-awaiting-details {
+      margin-top: 10px;
+      border: 1px solid var(--blank-border-blue);
+      border-radius: 10px;
+      background: #f8fafc;
+      overflow: hidden;
+    }
+    .blank-live-awaiting-details summary {
+      list-style: none;
+      cursor: pointer;
+      min-height: 48px;
+      padding: 12px 14px;
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: #64748b;
+      letter-spacing: 0.02em;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .blank-live-awaiting-details summary::-webkit-details-marker { display: none; }
+    .blank-live-awaiting-details summary::after {
+      content: '▸';
+      font-size: 0.85rem;
+      color: #001f3f;
+      transition: transform 0.15s ease;
+    }
+    .blank-live-awaiting-details[open] summary::after {
+      transform: rotate(90deg);
+    }
+    .blank-live-awaiting-details summary:active { background: #eef2f7; }
+    .blank-live-awaiting-inner {
+      padding: 0 10px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .blank-live-awaiting-details .blank-news-item {
+      background: #fff;
+    }
+    .blank-live-awaiting-count {
+      font-size: 0.65rem;
+      font-weight: 800;
+      color: #001f3f;
+      background: #e2e8f0;
+      border-radius: 999px;
+      padding: 2px 8px;
+      min-width: 1.5rem;
+      text-align: center;
+    }
+    /* Breaking-style hero (news layout); events list stays below */
+    .blank-hub-hero-section {
+      overflow: hidden;
+      border: 1px solid var(--blank-border-blue);
+    }
+    .blank-hub-subcards-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    @media (min-width: 400px) {
+      .blank-hub-subcards-row {
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+    }
+    .blank-app .blank-hub-subcards-row .blank-hub-subcard {
+      margin-bottom: 0;
+      min-height: 160px;
+      min-width: 0;
+    }
+    .blank-app .blank-hub-subcards-row .blank-hub-subcard--prior-hero {
+      min-height: 0;
+    }
+    .blank-hub-prior-toolbar {
+      display: flex;
+      justify-content: flex-end;
+      margin: 0 0 6px 0;
+    }
+    .blank-hub-prior-toolbar[hidden] {
+      display: none !important;
+    }
+    .blank-hub-prior-expand {
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: #0d47a1;
+      background: transparent;
+      border: none;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      cursor: pointer;
+      min-height: 44px;
+      padding: 6px 4px;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .blank-hub-prior-expand:active {
+      opacity: 0.85;
+    }
+    .blank-hub-prior-hero-wrap--limited {
+      max-height: 280px;
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .blank-hub-subcards-row.blank-hub-subcards-row--prior-expanded .blank-hub-subcard--prior-hero {
+      grid-column: 1 / -1;
+    }
+    .blank-hub-subcards-row.blank-hub-subcards-row--prior-expanded #blankHubSubcardRight {
+      display: none;
+    }
+    .blank-hub-subcards-row.blank-hub-subcards-row--prior-expanded .blank-hub-prior-hero-wrap--limited {
+      max-height: none;
+      overflow: visible;
+    }
+    /* Prior “News” box: smaller image so card fits under main hero without huge scroll */
+    #blankHubPriorHeroWrap.blank-hub-prior-hero-wrap--limited .blank-hub-hero-img-wrap {
+      aspect-ratio: 16 / 9;
+      min-height: 88px;
+      max-height: 120px;
+    }
+    #blankHubPriorHeroWrap.blank-hub-prior-hero-wrap--limited .blank-hub-hero-img-wrap--placeholder {
+      min-height: 88px;
+      max-height: 120px;
+    }
+    @media (min-width: 380px) {
+      #blankHubPriorHeroWrap.blank-hub-prior-hero-wrap--limited .blank-hub-hero-img-wrap {
+        flex: 0 0 36%;
+        max-width: 40%;
+        max-height: 140px;
+        min-height: 96px;
+      }
+      #blankHubPriorHeroWrap.blank-hub-prior-hero-wrap--limited .blank-hub-hero-img-wrap--placeholder {
+        max-height: 140px;
+        min-height: 96px;
+      }
+    }
+    .blank-hub-subcards-row--prior-expanded #blankHubPriorHeroWrap .blank-hub-hero-img-wrap {
+      aspect-ratio: 16 / 10;
+      min-height: 160px;
+      max-height: none;
+    }
+    .blank-hub-subcards-row--prior-expanded #blankHubPriorHeroWrap .blank-hub-hero-img-wrap--placeholder {
+      min-height: 160px;
+      max-height: none;
+    }
+    @media (min-width: 380px) {
+      .blank-hub-subcards-row--prior-expanded #blankHubPriorHeroWrap .blank-hub-hero-img-wrap {
+        flex: 0 0 44%;
+        max-width: none;
+      }
+    }
+    /* Prior News — limited: badge, time, headline, image only (no Past/Day, stats, podium, host lines) */
+    .blank-hub-subcards-row:not(.blank-hub-subcards-row--prior-expanded)
+      #blankHubPriorHeroWrap.blank-hub-prior-hero-wrap--limited
+      .blank-hub-hero-subline,
+    .blank-hub-subcards-row:not(.blank-hub-subcards-row--prior-expanded)
+      #blankHubPriorHeroWrap.blank-hub-prior-hero-wrap--limited
+      .blank-hub-hero-text {
+      display: none !important;
+    }
+    .blank-hub-subcards-row:not(.blank-hub-subcards-row--prior-expanded)
+      #blankHubPriorHeroWrap.blank-hub-prior-hero-wrap--limited
+      .blank-hub-hero-cols {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 8px;
+    }
+    .blank-hub-subcards-row:not(.blank-hub-subcards-row--prior-expanded)
+      #blankHubPriorHeroWrap.blank-hub-prior-hero-wrap--limited
+      .blank-hub-hero-img-wrap,
+    .blank-hub-subcards-row:not(.blank-hub-subcards-row--prior-expanded)
+      #blankHubPriorHeroWrap.blank-hub-prior-hero-wrap--limited
+      .blank-hub-hero-img-wrap--placeholder {
+      flex: none !important;
+      width: 100% !important;
+      max-width: none !important;
+    }
+    #blank-hub-hero-section[hidden] ~ #blankHubSubcardsRow {
+      display: none;
+    }
+    .blank-hub-hero-link {
+      display: block;
+      text-decoration: none;
+      color: inherit;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .blank-hub-hero-nolink { display: block; }
+    .blank-hub-hero-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    /* Prior News limited: [News][time] tight left, Full View right (same row) */
+    .blank-hub-hero-top--prior-limited {
+      justify-content: flex-start;
+      gap: 0.35rem;
+      flex-wrap: nowrap;
+    }
+    .blank-hub-hero-top--prior-limited .blank-hub-hero-top-cluster {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .blank-hub-hero-top--prior-limited .blank-hub-hero-top-cluster .blank-hub-hero-time {
+      margin-left: 0;
+      flex-shrink: 0;
+    }
+    .blank-hub-prior-expand-host {
+      flex: 0 0 auto;
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      min-height: 44px;
+      padding-left: 4px;
+    }
+    .blank-hub-prior-expand-host .blank-hub-prior-expand {
+      margin: 0;
+      padding: 6px 2px 6px 8px;
+    }
+    .blank-hub-subcards-row--prior-expanded #blankHubPriorHeroWrap .blank-hub-hero-top--prior-limited {
+      justify-content: space-between;
+    }
+    .blank-hub-subcards-row--prior-expanded #blankHubPriorHeroWrap .blank-hub-hero-top--prior-limited .blank-hub-hero-top-cluster {
+      display: contents;
+    }
+    .blank-hub-subcards-row--prior-expanded #blankHubPriorHeroWrap .blank-hub-hero-top--prior-limited .blank-hub-prior-expand-host:empty {
+      display: none;
+    }
+    .blank-hub-subcards-row--prior-expanded #blankHubPriorHeroWrap .blank-hub-hero-top--prior-limited .blank-hub-hero-time {
+      margin-left: auto;
+    }
+    .blank-hub-hero-badge {
+      display: inline-block;
+      font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #fff;
+      background: #0d47a1;
+      padding: 4px 10px;
+      border-radius: 999px;
+    }
+    .blank-hub-hero-badge--live {
+      background: #ff6a00;
+      color: #fff;
+    }
+    .blank-hub-hero-badge--past {
+      background: #7a1f2b;
+      color: #fff;
+    }
+    .blank-hub-hero-badge--lower-news {
+      background: var(--blank-border-blue);
+      color: #fff;
+    }
+    button.blank-hub-hero-badge.blank-hub-hero-badge--sa-open {
+      font: inherit;
+      font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      border: none;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      line-height: inherit;
+    }
+    button.blank-hub-hero-badge.blank-hub-hero-badge--sa-open:active {
+      filter: brightness(1.08);
+    }
+    .blank-hub-hero-time {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #64748b;
+      flex-shrink: 0;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+      margin-left: auto;
+    }
+    .blank-hub-hero-headline {
+      margin: 0 0 2px 0;
+      font-size: 0.98rem;
+      font-weight: 800;
+      line-height: 1.25;
+      letter-spacing: -0.02em;
+    }
+    .blank-hub-hero-subline {
+      margin: 0 0 4px 0;
+      font-size: 0.56rem;
+      font-weight: 800;
+      line-height: 1.25;
+      letter-spacing: -0.01em;
+      color: #0d47a1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    @media (min-width: 400px) {
+      .blank-hub-hero-headline { font-size: 1.08rem; }
+    }
+    .blank-hub-hero-cols {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    @media (min-width: 380px) {
+      .blank-hub-hero-cols {
+        flex-direction: row;
+        align-items: stretch;
+      }
+      .blank-hub-hero-img-wrap {
+        flex: 0 0 44%;
+        min-width: 0;
+      }
+      .blank-hub-hero-text { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
+    }
+    .blank-hub-hero-img-wrap {
+      position: relative;
+      width: 100%;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #e2e8f0;
+      aspect-ratio: 16 / 10;
+      min-height: 160px;
+    }
+    .blank-hub-hero-img-wrap--placeholder { min-height: 160px; }
+    .blank-hub-hero-img-wrap--upload {
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .blank-hub-hero-img-wrap--upload:focus-visible {
+      outline: 2px solid #0d47a1;
+      outline-offset: 2px;
+    }
+    .blank-hub-hero-ph-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #64748b;
+      text-align: center;
+      padding: 12px;
+      line-height: 1.35;
+      max-width: 12rem;
+    }
+    .blank-hub-hero-headline-link {
+      text-decoration: none;
+      color: inherit;
+    }
+    .blank-hub-hero-headline-link .blank-hub-hero-headline {
+      color: #0d47a1;
+    }
+    .blank-hub-hero-file-input {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 0.01px;
+      height: 0.01px;
+      opacity: 0;
+      pointer-events: none;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      font-size: 0;
+    }
+    label.blank-hub-hero-img-wrap--upload {
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .blank-hub-hero-img {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+      object-position: center;
+    }
+    .blank-hub-hero-teaser {
+      margin: 0;
+      font-size: 0.8rem;
+      line-height: 1.45;
+      color: #475569;
+    }
+    .blank-hub-hero-text .blank-news-meta {
+      margin-top: 0;
+      margin-bottom: 0;
+    }
+    .blank-hub-hero-live-day-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 0.35rem 0.65rem;
+      font-size: 0.8rem;
+      line-height: 1.45;
+      color: #475569;
+      margin: 0 0 4px 0;
+    }
+    .blank-hub-hero-day-inline {
+      font-weight: 800;
+      font-size: 0.72rem;
+      color: #0d47a1;
+      letter-spacing: 0.02em;
+    }
+    .blank-hub-hero-stats-line {
+      margin: 0;
+      font-size: 0.8rem;
+      line-height: 1.45;
+      color: #475569;
+    }
+    .blank-status-chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      padding: 1px 8px;
+      border: none;
+      font-size: 0.74rem;
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: 0.01em;
+      text-transform: none;
+      vertical-align: baseline;
+    }
+    .blank-status-chip--live {
+      background: #ff6a00;
+      color: #fff;
+    }
+    .blank-status-chip--past {
+      background: #7a1f2b;
+      color: #fff;
+    }
+    .blank-podium--hub-hero {
+      margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+    }
+    .blank-podium-pages {
+      display: flex;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      gap: 10px;
+      flex: 1;
+      min-height: 0;
+    }
+    .blank-podium-pages::-webkit-scrollbar {
+      display: none;
+    }
+    .blank-podium-page {
+      min-width: 100%;
+      scroll-snap-align: start;
+    }
+    .blank-podium-dots {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 5px;
+      margin-top: auto;
+      padding-top: 6px;
+    }
+    .blank-podium-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #b9c4d4;
+      opacity: 0.85;
+      transition: background-color 120ms ease, transform 120ms ease;
+    }
+    .blank-podium-dot.is-active {
+      background: #001f3f;
+      transform: scale(1.15);
+    }
+    @media (min-width: 900px) {
+      .blank-hub-hero-text {
+        padding-bottom: 0;
+      }
+      .blank-podium--hub-hero {
+        margin-top: 6px;
+      }
+      .blank-hub-hero-text .blank-news-meta,
+      .blank-hub-hero-stats-line,
+      .blank-hub-hero-live-day-row {
+        font-size: 0.98rem;
+        line-height: 1.5;
+      }
+      .blank-hub-hero-live-day-row .blank-status-chip {
+        font-size: 0.88rem;
+        padding: 2px 10px;
+      }
+      .blank-hub-hero-day-inline {
+        font-size: 0.98rem;
+      }
+      .blank-podium-page {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 100%;
+      }
+      .blank-podium-line {
+        font-size: 0.98rem;
+        line-height: 1.48;
+        margin-top: 0;
+      }
+      .blank-podium-place,
+      .blank-podium-nett {
+        font-size: 1rem;
+      }
+      .blank-podium-dots {
+        padding-top: 2px;
+      }
+    }
+    .blank-hub-hero-admin {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #e2e8f0;
+    }
+    .blank-hub-hero-admin-hint {
+      font-size: 0.72rem;
+      color: #64748b;
+      margin: 0 0 10px 0;
+      line-height: 1.35;
+    }
+    .blank-hub-hero-admin label {
+      display: block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #334155;
+      margin-bottom: 6px;
+    }
+    .blank-hub-hero-field-note {
+      font-weight: 600;
+      color: #64748b;
+    }
+    .blank-hub-hero-input,
+    .blank-hub-hero-textarea {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      font: inherit;
+      font-size: 0.85rem;
+      padding: 10px 12px;
+      border: 1px solid var(--blank-border-blue);
+      border-radius: 8px;
+      margin-bottom: 10px;
+      min-height: 44px;
+    }
+    .blank-hub-hero-textarea { min-height: 88px; resize: vertical; }
+    .blank-hub-hero-drop-active .blank-hub-hero-img-wrap,
+    #blankHubPriorHeroWrap.blank-hub-hero-drop-active .blank-hub-hero-img-wrap {
+      outline: 2px dashed #0d47a1;
+      outline-offset: 2px;
+    }
+    .blank-hub-hero-admin-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .blank-hub-hero-admin-actions button {
+      font: inherit;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 10px 14px;
+      min-height: 44px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    #blank-hub-hero-save {
+      background: #001f3f;
+      color: #fff;
+    }
+    #blank-hub-hero-clear {
+      background: #e2e8f0;
+      color: #334155;
+    }
+    .blank-hub-hero-choose-file {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 12px;
+      min-height: 44px;
+      padding: 0 16px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #fff;
+      background: #0d47a1;
+      border-radius: 8px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .blank-hub-hero-msg {
+      font-size: 0.72rem;
+      margin: 8px 0 0 0;
+      min-height: 1.2em;
+    }
+    .blank-hub-hero-msg--ok { color: #166534; }
+    .blank-hub-hero-msg--err { color: #b91c1c; }
+    .blank-news-excerpt {
+      font-size: 0.76rem;
+      color: #475569;
+      line-height: 1.4;
+      margin-top: 6px;
+    }
+    .blank-news-more { font-size: 0.76rem; margin: 12px 0 0 0; }
+    .blank-news-more a { color: #001f3f; font-weight: 700; text-decoration: underline; }
+    .blank-news-more a:hover { text-decoration: none; }
+    .blank-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,31,63,.1);
+      cursor: pointer;
+      text-align: left;
+      width: 100%;
+      border: 1px solid var(--blank-border-blue);
+      font: inherit;
+      color: inherit;
+      min-height: 56px;
+      touch-action: manipulation;
+    }
+    .blank-card:active { background: #f7f9fc; }
+    .blank-card.blank-card--static {
+      cursor: default;
+      opacity: 0.95;
+    }
+    .blank-card.blank-card--static:active { background: #fff; }
+    .blank-card-icon {
+      flex-shrink: 0;
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      background: #eef3f9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .blank-card-icon img {
+      width: 32px;
+      height: 32px;
+      object-fit: contain;
+      object-position: center;
+    }
+    .blank-card-body { min-width: 0; flex: 1; }
+    .blank-card-title { font-weight: 600; color: #001f3f; word-break: break-word; }
+    .blank-card-sub { font-size: 0.8rem; color: #555; margin-top: 4px; word-break: break-word; }
+    .blank-card-type { font-size: 0.65rem; text-transform: uppercase; letter-spacing: .06em; color: #888; margin-bottom: 4px; }
+    .blank-empty, .blank-loading {
+      text-align: center;
+      padding: 32px 16px;
+      color: #666;
+      font-size: 0.95rem;
+    }
+    .blank-loading { color: #001f3f; }
+    .blank-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,31,63,.45);
+      z-index: 100;
+    }
+    .blank-overlay.open { display: block; }
+    .blank-drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: min(280px, 86vw);
+      height: 100dvh;
+      min-height: 100%;
+      background: #001f3f;
+      z-index: 101;
+      padding: max(56px, calc(env(safe-area-inset-top, 0px) + 44px)) max(20px, env(safe-area-inset-right, 0px)) max(20px, env(safe-area-inset-bottom, 0px)) 20px;
+      transform: translateX(100%);
+      transition: transform .2s ease;
+    }
+    .blank-drawer.open { transform: translateX(0); }
+    .blank-drawer a {
+      display: flex;
+      align-items: center;
+      min-height: 44px;
+      padding: 10px 0;
+      color: #fff;
+      font-weight: 600;
+      text-decoration: none;
+      border-bottom: 1px solid rgba(255,255,255,.12);
+      touch-action: manipulation;
+    }
+    .blank-drawer a:hover { text-decoration: underline; }
+
+    /* Compact fixed bottom nav — minimal height; content scrolls underneath */
+    .blank-bottom-nav {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 90;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 0;
+      margin: 0 auto;
+      max-width: 480px;
+      padding: 0 2px calc(1px + env(safe-area-inset-bottom, 0px));
+      background: #fff;
+      border-top: 1px solid var(--blank-border-blue);
+      box-shadow: 0 -1px 3px rgba(0, 31, 63, 0.06);
+      overflow: visible;
+    }
+    .blank-bottom-nav__item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 1px;
+      min-width: 0;
+      padding: 3px 1px 4px;
+      margin: 0;
+      border: none;
+      background: transparent;
+      color: #001f3f;
+      font-size: 0.5625rem;
+      font-weight: 600;
+      line-height: 1;
+      letter-spacing: -0.01em;
+      text-decoration: none;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .blank-bottom-nav__item:active {
+      opacity: 0.85;
+    }
+    .blank-bottom-nav__item svg {
+      width: 17px;
+      height: 17px;
+      flex-shrink: 0;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.75;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .blank-bottom-nav__item--center {
+      position: relative;
+      z-index: 2;
+      padding-bottom: 5px;
+    }
+    /* Overlaps the bar like typical “Discover” centre actions (half the pill above the strip) */
+    .blank-bottom-nav__fab {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #001f3f;
+      border: 1px solid var(--blank-border-blue);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 0;
+      transform: translateY(-12px);
+      box-shadow: 0 4px 14px rgba(0, 31, 63, 0.28);
+    }
+    .blank-bottom-nav__fab svg {
+      width: 17px;
+      height: 17px;
+      stroke: #fff;
+    }
+    .blank-bottom-nav__label {
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      padding: 0 1px;
+    }
+  </style>
+  <link rel="stylesheet" href="/css/main.css">
+  <script src="/js/api.js"></script>
+  <script src="/js/session.js"></script>
 </head>
-<body>
+<body class="blank-landing-page admin-dashboard-v10">
+  <!-- Single navy header (replaces former .site-header on this page): brand, session.js login slot, user row, menu -->
+  <div class="admin-v10-second-header" aria-label="Site header">
+    <div class="admin-v10-second-header__inner">
+      <div class="admin-v10-second-header__top-row">
+        <div class="admin-v10-second-header__brand-block">
+          <a href="/" class="admin-v10-second-header__brand-link js-go-home" id="headerLogoLink" title="Home – SailingSA" aria-label="Home – SailingSA">
+            <span class="admin-v10-second-header__brand-slice admin-v10-second-header__brand-slice--word" aria-hidden="true"></span>
+            <span class="admin-v10-second-header__brand-slice admin-v10-second-header__brand-slice--flags" aria-hidden="true"></span>
+          </a>
+        </div>
+        <div class="admin-v10-second-header__right">
+          <div class="header-auth admin-v10-second-header__auth" id="headerAuth">
+            <div id="loginBox" style="display: none;"></div>
+            <div class="admin-v10-header-auth-sr-only" aria-hidden="true">
+              <div id="loggedInStatus" style="display: none;">
+                <img id="userAvatarImg"
+                     alt="Avatar"
+                     style="width:28px;height:28px;border-radius:50%;object-fit:cover;display:none;">
+                <div class="user-info">
+                  <span class="user-name" id="userNameDisplay"></span>
+                  <span class="user-sas-id" id="userSasIdDisplay"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="admin-v10-second-header__user" id="adminV10SecondHeaderUser" hidden>
+            <div class="admin-v10-second-header__user-text">
+              <span class="admin-v10-second-header__name" id="adminV10SecondHeaderName"></span>
+              <span class="admin-v10-second-header__sas" id="adminV10SecondHeaderSas"></span>
+            </div>
+            <img class="admin-v10-second-header__avatar" id="adminV10SecondHeaderAvatar" alt="" width="72" height="72" decoding="async">
+            <button type="button" class="btn-logout admin-v10-second-header__logout" id="adminV10SecondHeaderLogoutBtn">Logout</button>
+          </div>
+          <button type="button" class="menu-btn" id="menuBtn" aria-label="Open menu">
+            <span class="menu-icon"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <nav id="navMenuOverlay" class="nav-menu-overlay" aria-hidden="true" style="display:none;">
+      <a href="/">Sailor</a>
+      <a href="/" data-mode="regatta">Regatta</a>
+      <a href="/about">About</a>
+    </nav>
+  </div>
+
+  <div class="blank-app container" id="blankApp">
+
+    <div class="blank-search-row">
+      <div class="blank-search-wrap">
+        <img src="/assets/icons/search.svg" alt="">
+        <input type="search" id="searchInput" placeholder="Search" autocomplete="off" enterkeyhint="search">
+      </div>
+    </div>
+
+    <section class="card blank-search-results-card" id="blankSearchResultsCard" hidden aria-label="Search results">
+      <div class="blank-results-meta" id="resultsMeta" aria-live="polite"></div>
+      <div id="resultsArea"></div>
+    </section>
+
+    <section class="card blank-hub-hero-section" id="blank-hub-hero-section" hidden aria-label="Featured event">
+      <!-- Outside admin panel: hidden ancestors block file picker on iOS / some browsers -->
+      <input type="file" id="blank-hub-hero-file" class="blank-hub-hero-file-input" accept="image/*" aria-label="Upload hero image from photos or camera">
+      <div id="blank-hub-hero-inner"></div>
+      <div class="blank-hub-hero-admin" id="blank-hub-hero-admin" hidden>
+        <p class="blank-hub-hero-admin-hint">Super Admin only: tap the badge on the <strong>featured</strong> or <strong>News</strong> card, or drag an image onto either hero, to open this panel. Guests and sailors never see it. Work top to bottom like a short wizard: image → headline → day → teaser (entries &amp; races) → link → badge.</p>
+        <label for="blank-hub-hero-file" class="blank-hub-hero-choose-file">1 · Choose image</label>
+        <label for="blank-hub-hero-in-headline">2 · Headline <span class="blank-hub-hero-field-note">(defaults to top live event)</span></label>
+        <input type="text" id="blank-hub-hero-in-headline" class="blank-hub-hero-input" autocomplete="off" maxlength="500">
+        <label for="blank-hub-hero-in-day">3 · Day <span class="blank-hub-hero-field-note">(shown next to LIVE, e.g. Day 1 — leave blank to use calendar day)</span></label>
+        <input type="text" id="blank-hub-hero-in-day" class="blank-hub-hero-input" autocomplete="off" maxlength="80" placeholder="Day 1">
+        <label for="blank-hub-hero-in-teaser">4 · Teaser <span class="blank-hub-hero-field-note">(entries &amp; races — line below LIVE &amp; day)</span></label>
+        <textarea id="blank-hub-hero-in-teaser" class="blank-hub-hero-textarea" maxlength="2000" rows="3"></textarea>
+        <label for="blank-hub-hero-in-link">5 · Link path</label>
+        <input type="text" id="blank-hub-hero-in-link" class="blank-hub-hero-input" placeholder="/regatta/…" autocomplete="off" maxlength="500">
+        <label for="blank-hub-hero-in-badge">6 · Badge</label>
+        <input type="text" id="blank-hub-hero-in-badge" class="blank-hub-hero-input" placeholder="Breaking news" autocomplete="off" maxlength="80">
+        <div class="blank-hub-hero-admin-actions">
+          <button type="button" id="blank-hub-hero-save">Save hero</button>
+          <button type="button" id="blank-hub-hero-clear">Clear manual hero</button>
+        </div>
+        <p class="blank-hub-hero-msg" id="blank-hub-hero-msg" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <div class="blank-hub-subcards-row" id="blankHubSubcardsRow" aria-label="Panels below featured event">
+      <div class="card blank-hub-subcard blank-hub-subcard--prior-hero" id="blankHubSubcardLeft" aria-label="Previous featured story">
+        <div class="blank-hub-prior-toolbar" id="blankHubPriorToolbar" hidden>
+          <button type="button" class="blank-hub-prior-expand" id="blankHubPriorExpandBtn" aria-expanded="false">Full View</button>
+        </div>
+        <div class="blank-hub-prior-hero-wrap blank-hub-prior-hero-wrap--limited" id="blankHubPriorHeroWrap">
+          <div id="blank-hub-hero-inner-prev"></div>
+        </div>
+      </div>
+      <div class="card blank-hub-subcard" id="blankHubSubcardRight" aria-label="Right panel (placeholder)"></div>
+    </div>
+
+    <section class="card blank-news-wrap" id="blank-news-section" aria-label="Calendar events from database">
+      <h2 class="blank-news-heading">
+        <img src="/assets/icons/events.png" alt="">
+        Events
+      </h2>
+      <div id="blank-news-list" class="blank-news-list"></div>
+      <p class="blank-news-more"><a href="/events">Full calendar →</a></p>
+    </section>
+
+    <section class="card blank-stats-wrap" aria-label="Site statistics">
+      <p class="blank-stats-mode-note" role="note"><strong>Public</strong> (guest) · <strong>Sailor logged in</strong> — two modes; card behaviour will differ later.</p>
+      <div class="blank-stats-grid" id="statsGrid">
+        <a class="blank-stat blank-stat--link" href="#blank-news-section" title="Jump to calendar events">
+          <div class="blank-stat-icon-cell"><img src="/assets/icons/events.png" alt=""></div>
+          <div class="blank-stat-copy">
+            <div class="blank-stat-val" id="stNewsStats">—</div>
+            <div class="blank-stat-lbl">Live events</div>
+          </div>
+        </a>
+        <a class="blank-stat blank-stat--link" href="/sailors">
+          <div class="blank-stat-icon-cell"><img src="/assets/icons/sailors.png" alt=""></div>
+          <div class="blank-stat-copy">
+            <div class="blank-stat-val" id="stSailors">—</div>
+            <div class="blank-stat-lbl">Sailors</div>
+          </div>
+        </a>
+        <a class="blank-stat blank-stat--link" href="/stats">
+          <div class="blank-stat-icon-cell"><img src="/assets/icons/results.png" alt=""></div>
+          <div class="blank-stat-copy">
+            <div class="blank-stat-val" id="stResults">—</div>
+            <div class="blank-stat-lbl">Results</div>
+          </div>
+        </a>
+        <a class="blank-stat blank-stat--link blank-stat--events" href="/events">
+          <div class="blank-stat-icon-cell">
+            <span class="blank-live-badge" id="liveEventPill" hidden>LIVE</span>
+            <img src="/assets/icons/events.png" alt="">
+          </div>
+          <div class="blank-stat-copy">
+            <div class="blank-stat-val" id="stEvents">—</div>
+            <div class="blank-stat-lbl">Events</div>
+          </div>
+        </a>
+        <a class="blank-stat blank-stat--link" href="/clubs">
+          <div class="blank-stat-icon-cell"><img src="/assets/icons/clubs.png" alt=""></div>
+          <div class="blank-stat-copy">
+            <div class="blank-stat-val" id="stClubs">—</div>
+            <div class="blank-stat-lbl">Clubs</div>
+          </div>
+        </a>
+        <a class="blank-stat blank-stat--link" href="/classes">
+          <div class="blank-stat-icon-cell"><img src="/assets/icons/classes.png" alt=""></div>
+          <div class="blank-stat-copy">
+            <div class="blank-stat-val" id="stClasses">—</div>
+            <div class="blank-stat-lbl">Classes</div>
+          </div>
+        </a>
+        <a class="blank-stat blank-stat--link" href="/sail-numbers" title="Sail numbers by class — expanding soon">
+          <div class="blank-stat-icon-cell"><img src="/assets/icons/sail-numbers.png" alt=""></div>
+          <div class="blank-stat-copy">
+            <div class="blank-stat-val" id="stSailNo">—</div>
+            <div class="blank-stat-lbl">SailNo</div>
+          </div>
+        </a>
+        <a class="blank-stat blank-stat--link" href="/boat_pedigree.html" title="Boat pedigree search">
+          <div class="blank-stat-icon-cell"><img src="/assets/icons/boats.png" alt=""></div>
+          <div class="blank-stat-copy">
+            <div class="blank-stat-val" id="stBoats">—</div>
+            <div class="blank-stat-lbl">Boats</div>
+          </div>
+        </a>
+      </div>
+    </section>
+  </div>
+
+  <div class="blank-overlay" id="navOverlay"></div>
+  <nav class="blank-drawer" id="navDrawer" aria-label="Site menu">
+    <a href="/">Home</a>
+    <a href="/sailors">Sailors</a>
+    <a href="/regattas">Regattas</a>
+    <a href="/classes">Classes</a>
+    <a href="/clubs">Clubs</a>
+    <a href="/about">About</a>
+  </nav>
+
+  <nav class="blank-bottom-nav" id="blankBottomNav" aria-label="Primary">
+    <a class="blank-bottom-nav__item" href="/" data-blank-nav="home">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z"/></svg>
+      <span class="blank-bottom-nav__label">Home</span>
+    </a>
+    <button type="button" class="blank-bottom-nav__item" data-blank-nav="search" aria-label="Search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M16 16l5 5"/></svg>
+      <span class="blank-bottom-nav__label">Search</span>
+    </button>
+    <button type="button" class="blank-bottom-nav__item blank-bottom-nav__item--center" data-blank-nav="discover" aria-label="Discover">
+      <span class="blank-bottom-nav__fab">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg>
+      </span>
+      <span class="blank-bottom-nav__label">Discover</span>
+    </button>
+    <button type="button" class="blank-bottom-nav__item" data-blank-nav="bookmarks" aria-label="Bookmarks">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12v16l-6-4-6 4V4z"/></svg>
+      <span class="blank-bottom-nav__label">Bookmarks</span>
+    </button>
+    <button type="button" class="blank-bottom-nav__item" data-blank-nav="profile" aria-label="Profile">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M6 19c0-3.5 3-5.5 6-5.5s6 2 6 5.5"/></svg>
+      <span class="blank-bottom-nav__label">Profile</span>
+    </button>
+  </nav>
+
+  <script>
+(function () {
+  window.API_BASE = (window.location && window.location.origin) ? window.location.origin.replace(/\/$/, '') : '';
+  /** Top live-with-results event: headline/teaser defaults + photo upload merge. */
+  var blankHubFeaturedEvent = null;
+  /** Super Admin: show full hero form (vs public-style card only). */
+  var blankHubHeroAdminOpen = false;
+
+  function generateSlug(text) {
+    if (!text) return '';
+    return String(text).toLowerCase().trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  }
+
+  function fmtNum(n) {
+    if (n == null || n === '') return '—';
+    var x = Number(n);
+    if (!isFinite(x)) return String(n);
+    return x.toLocaleString();
+  }
+
+  /** Compact display for stat tiles (e.g. 12.4k) — same numeric sources as APIs */
+  function fmtCompact(n) {
+    if (n == null || n === '') return '—';
+    var x = Number(n);
+    if (!isFinite(x)) return '—';
+    if (x >= 1e6) {
+      var m = x / 1e6;
+      return (m >= 10 ? Math.round(m) : Math.round(m * 10) / 10).toString().replace(/\.0$/, '') + 'M';
+    }
+    if (x >= 1000) {
+      var k = x / 1000;
+      return (k >= 100 ? Math.round(k) : Math.round(k * 10) / 10).toString().replace(/\.0$/, '') + 'k';
+    }
+    return String(Math.round(x));
+  }
+
+  function setUserAvatar(name, guest) {
+    var av = document.getElementById('userAvatar');
+    if (!av) return;
+    av.textContent = '';
+    if (guest) {
+      av.textContent = 'G';
+      return;
+    }
+    var parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+    var a = (parts[0] && parts[0][0]) ? parts[0][0] : '';
+    var b = (parts.length > 1 && parts[parts.length - 1][0]) ? parts[parts.length - 1][0] : '';
+    av.textContent = (a + b).toUpperCase() || '?';
+  }
+
+  async function loadSession() {
+    var nameEl = document.getElementById('userName');
+    var sasEl = document.getElementById('userSas');
+    try {
+      var pathQs = '';
+      try {
+        if (window.location && window.location.pathname) {
+          pathQs = '?path=' + encodeURIComponent(window.location.pathname || '/');
+        }
+      } catch (e) { /* ignore */ }
+      var r = await fetch(window.API_BASE + '/auth/session' + pathQs, { credentials: 'include' });
+      var s = await r.json();
+      if (s && s.valid) {
+        var u = s.user || {};
+        var nm = (u.full_name || [u.first_name, u.last_name].filter(Boolean).join(' ') || 'Member').trim();
+        nameEl.textContent = nm;
+        sasEl.textContent = s.sas_id != null ? ('SAS ID: ' + String(s.sas_id)) : 'SAS ID: —';
+        setUserAvatar(nm, false);
+        return;
+      }
+    } catch (e) {}
+    nameEl.textContent = 'Guest';
+    sasEl.textContent = 'SAS ID: —';
+    setUserAvatar('', true);
+  }
+
+  /** When calendar row has no events.regatta_id yet, still show results for known live regattas. */
+  var BLANK_EVENT_REGATTA_FALLBACK = [
+    {
+      regatta_id: 'live-2026-29er-rsa-nationals-sbyc',
+      podium_class_id: 3,
+      match: function (e) {
+        var n = String(e.event_name || '').toLowerCase();
+        return /\b29er\b/.test(n) && (n.indexOf('national') !== -1 || n.indexOf('sa ') !== -1 || n.indexOf('championship') !== -1);
+      }
+    }
+  ];
+
+  function blankApplyRegattaFallback(events) {
+    (events || []).forEach(function (e) {
+      if (e.regatta_id) return;
+      for (var i = 0; i < BLANK_EVENT_REGATTA_FALLBACK.length; i++) {
+        var f = BLANK_EVENT_REGATTA_FALLBACK[i];
+        if (f.match(e)) {
+          e.regatta_id = f.regatta_id;
+          e.podium_class_id = f.podium_class_id;
+          return;
+        }
+      }
+    });
+  }
+
+  function blankEventDayLabel(sd, ed, today) {
+    if (!sd) return '';
+    var t0 = new Date(String(sd).slice(0, 10) + 'T12:00:00').getTime();
+    var t1 = new Date(String(today).slice(0, 10) + 'T12:00:00').getTime();
+    var tEnd = ed ? new Date(String(ed).slice(0, 10) + 'T12:00:00').getTime() : t0;
+    if (isNaN(t0) || isNaN(t1) || t1 < t0 || t1 > tEnd) return '';
+    var diff = Math.round((t1 - t0) / 864e5);
+    return 'Day ' + (diff + 1);
+  }
+
+  function blankSeriesKeyFromEventName(name) {
+    var s = String(name || '').toLowerCase();
+    if (!s) return '';
+    // Strip years and common noise so yearly repeats group together.
+    s = s.replace(/\b(19|20)\d{2}\b/g, ' ');
+    s = s.replace(/\b(results|result|#live|live|sa|rsa)\b/g, ' ');
+    s = s.replace(/[#()\-_/]/g, ' ');
+    s = s.replace(/\s+/g, ' ').trim();
+    return s;
+  }
+
+  function blankBuildSeriesCounts(events, today) {
+    var counts = {};
+    (events || []).forEach(function (e) {
+      var eEnd = String(e.end_date || e.start_date || '').slice(0, 10);
+      if (!eEnd || eEnd >= today) return;
+      if (!(e.has_results || e.entries > 0 || e.races_sailed > 0)) return;
+      var k = blankSeriesKeyFromEventName(e.event_name);
+      if (!k) return;
+      counts[k] = (counts[k] || 0) + 1;
+    });
+    return counts;
+  }
+
+  function blankFmtNett(v) {
+    if (v == null || v === '') return '—';
+    var n = Number(v);
+    if (!isFinite(n)) return String(v);
+    return Math.abs(n - Math.round(n)) < 1e-9 ? String(Math.round(n)) : String(n);
+  }
+
+  function blankSlugFromName(name) {
+    var s = String(name || '').trim().toLowerCase();
+    s = s.replace(/[^a-z0-9\s-]/g, '');
+    s = s.replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    return s;
+  }
+
+  function blankSailorHref(name, sasId) {
+    var base = blankSlugFromName(name);
+    if (!base) return '';
+    var sid = String(sasId || '').trim();
+    return '/sailor/' + encodeURIComponent(/^\d+$/.test(sid) ? (base + '-' + sid) : base);
+  }
+
+  function blankSailorLinkHtml(name, sasId) {
+    var nm = String(name || '').trim();
+    if (!nm) return '';
+    var href = blankSailorHref(nm, sasId);
+    var safe = escapeHtml(nm);
+    return href ? ('<a href="' + href + '">' + safe + '</a>') : safe;
+  }
+
+  function blankFmtResultsAsAtLine(status, asAtIso) {
+    var st = String(status || '').trim() || 'Provisional';
+    if (!asAtIso) return 'Results ' + st;
+    var dt = new Date(asAtIso);
+    if (isNaN(dt.getTime())) return 'Results ' + st;
+    var wk = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    var mon = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    var day = dt.getDate();
+    var month = mon[dt.getMonth()];
+    var year = dt.getFullYear();
+    var hh = String(dt.getHours()).padStart(2, '0');
+    var mm = String(dt.getMinutes()).padStart(2, '0');
+    return 'Results ' + st + ' - ' + wk[dt.getDay()] + ' ' + day + ' ' + month + ' ' + year + ' at ' + hh + ':' + mm;
+  }
+
+  async function blankEnrichEventFromRegatta(e, base) {
+    var rid = e.regatta_id && String(e.regatta_id).trim();
+    if (!rid) return;
+    if ((e.entries || 0) > 0 || (e.races_sailed || 0) > 0) return;
+    try {
+      var r = await fetch(base + '/api/regatta/' + encodeURIComponent(rid), { cache: 'no-store' });
+      if (!r.ok) return;
+      var rows = await r.json();
+      if (!Array.isArray(rows) || !rows.length) return;
+      var n = 0;
+      rows.forEach(function (row) {
+        if (row.result_id != null && row.result_id !== '' && row.rank != null) n++;
+      });
+      if (n) e.entries = n;
+      var rs = 0;
+      rows.forEach(function (row) {
+        var x = parseInt(row.races_sailed, 10);
+        if (!isNaN(x) && x > rs) rs = x;
+      });
+      if (rs) e.races_sailed = rs;
+    } catch (err) { /* ignore */ }
+  }
+
+  /** Session / DB may use different casing or spacing for role. */
+  function sailingsaIsSuperAdminRole(r) {
+    var s = String(r == null ? '' : r)
+      .trim()
+      .toLowerCase()
+      .replace(/[\s-]+/g, '_');
+    return s === 'super_admin' || s === 'superadmin';
+  }
+
+  /** iOS often gives picked photos with empty file.type — do not reject those. */
+  function blankHubHeroFileLooksLikeImage(file) {
+    if (!file || !file.size) return false;
+    var t = String(file.type || '').toLowerCase();
+    if (t.indexOf('image/') === 0) return true;
+    var n = String(file.name || '').toLowerCase();
+    return /\.(jpe?g|png|gif|webp|heic|heif|bmp)$/i.test(n);
+  }
+
+  function blankHubHeroFormatApiErr(j, r) {
+    var d = j && j.detail;
+    if (Array.isArray(d)) {
+      return d
+        .map(function (x) {
+          return typeof x === 'object' && x != null ? x.msg || JSON.stringify(x) : String(x);
+        })
+        .join(' ');
+    }
+    if (d != null && d !== '') return String(d);
+    if (j && j.error) return String(j.error);
+    return r && r.status ? 'HTTP ' + r.status : 'Request failed';
+  }
+
+  function blankHubHeroSetMsg(text, kind) {
+    var el = document.getElementById('blank-hub-hero-msg');
+    if (!el) return;
+    el.textContent = text || '';
+    el.className =
+      'blank-hub-hero-msg' +
+      (kind === 'ok' ? ' blank-hub-hero-msg--ok' : kind === 'err' ? ' blank-hub-hero-msg--err' : '');
+  }
+
+  /** Second hero line only: entries · races (day is separate hub.day_label / LIVE row). */
+  function blankHubStatsLineFromEvent(ev) {
+    if (!ev) return '';
+    var ent = 'Entries: ' + ((ev.entries || 0) ? String(ev.entries) : '—');
+    var n = ev.races_sailed || 0;
+    if (n > 0) return ent + ' · ' + String(n) + ' races';
+    return ent;
+  }
+
+  /** Match live event cards: medals, rank, names, Nett. */
+  function blankFormatPodiumHtml(podium, extraClass) {
+    if (!podium || !podium.length) return '';
+    var cls = 'blank-podium' + (extraClass ? ' ' + String(extraClass).trim() : '');
+    var medals = ['🥇', '🥈', '🥉'];
+    var rows = podium.filter(function (r) {
+      return !!(r && (r.result_id || r.rank));
+    });
+    if (!rows.length) return '';
+    var desktopPaged = false;
+    try {
+      desktopPaged = window.matchMedia && window.matchMedia('(min-width: 900px)').matches;
+    } catch (e) {}
+    var pageSize = desktopPaged ? 10 : 3;
+    var pageCount = Math.ceil(rows.length / pageSize);
+    var html = '<div class="' + cls + '"><div class="blank-podium-pages">';
+    for (var i = 0; i < rows.length; i += pageSize) {
+      html += '<div class="blank-podium-page">';
+      for (var pi = i; pi < Math.min(i + pageSize, rows.length); pi++) {
+        var row = rows[pi];
+        var rankNum = parseInt(row.rank, 10);
+        if (!isFinite(rankNum) || rankNum <= 0) rankNum = pi + 1;
+        var suffix = rankNum % 100 >= 11 && rankNum % 100 <= 13 ? 'th' : (rankNum % 10 === 1 ? 'st' : (rankNum % 10 === 2 ? 'nd' : (rankNum % 10 === 3 ? 'rd' : 'th')));
+        var place = String(rankNum) + suffix;
+        var medalHtml =
+          rankNum <= 3
+            ? '<span class="blank-podium-medal" aria-hidden="true">' + medals[rankNum - 1] + '</span>'
+            : '<span class="blank-podium-medal blank-podium-medal--none" aria-hidden="true"></span>';
+        var helm = blankSailorLinkHtml(String(row.helm_name || '').trim(), row.helm_sa_sailing_id || row.helm_sas_id || row.helm_id);
+        var crew = String(row.crew_name || '').trim();
+        var crewHtml = crew ? blankSailorLinkHtml(crew, row.crew_sa_sailing_id || row.crew_sas_id || row.crew_id) : '';
+        var pair = crew ? helm + ' / ' + crewHtml : helm;
+        var nett = row.nett_points_raw != null ? row.nett_points_raw : row.total_points_raw;
+        html +=
+          '<div class="blank-podium-line">' +
+          medalHtml +
+          '<span class="blank-podium-place">' +
+          place +
+          '</span> <span class="blank-podium-names">' +
+          pair +
+          '</span> <span class="blank-podium-nett">· Nett ' +
+          escapeHtml(blankFmtNett(nett)) +
+          '</span></div>';
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+    if (pageCount > 1) {
+      html += '<div class="blank-podium-dots" aria-hidden="true">';
+      for (var di = 0; di < pageCount; di++) {
+        html += '<span class="blank-podium-dot' + (di === 0 ? ' is-active' : '') + '" data-dot-idx="' + di + '"></span>';
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function blankInitPodiumDots(scope) {
+    var root = scope || document;
+    var carousels = root.querySelectorAll('.blank-podium-pages');
+    carousels.forEach(function (el) {
+      if (el.dataset.dotsBound === '1') return;
+      var dotsWrap = el.parentElement && el.parentElement.querySelector('.blank-podium-dots');
+      if (!dotsWrap) return;
+      var dots = dotsWrap.querySelectorAll('.blank-podium-dot');
+      if (!dots.length) return;
+      function sync() {
+        var page = Math.round(el.scrollLeft / Math.max(1, el.clientWidth));
+        if (page < 0) page = 0;
+        if (page > dots.length - 1) page = dots.length - 1;
+        dots.forEach(function (d, i) {
+          if (i === page) d.classList.add('is-active');
+          else d.classList.remove('is-active');
+        });
+      }
+      el.addEventListener('scroll', sync, { passive: true });
+      el.dataset.dotsBound = '1';
+      sync();
+    });
+  }
+
+  function blankHubHasSavedHeroConfig(hub) {
+    var h = hub || {};
+    return !!(
+      String(h.image_url || '').trim() ||
+      String(h.headline || '').trim() ||
+      String(h.day_label || '').trim() ||
+      String(h.subtext || '').trim() ||
+      String(h.link_href || '').trim() ||
+      String(h.badge_label || '').trim()
+    );
+  }
+
+  function blankFormatRelativeShortMs(tsMs) {
+    var now = Date.now();
+    var s = Math.floor((now - tsMs) / 1000);
+    if (s < 0) s = 0;
+    if (s < 60) return '1m';
+    if (s < 3600) return Math.floor(s / 60) + 'm';
+    if (s < 86400) return Math.floor(s / 3600) + 'h';
+    if (s < 30 * 86400) return Math.floor(s / 86400) + 'd';
+    if (s < 365 * 86400) return Math.max(1, Math.floor(s / (30 * 86400))) + 'mo';
+    return Math.max(1, Math.floor(s / (365 * 86400))) + 'y';
+  }
+
+  function blankSyncHeroFreshnessIntoEl(el) {
+    if (!el) return;
+    var iso = window.blankHubFreshnessIso;
+    if (!iso || !String(iso).trim()) {
+      el.textContent = '—';
+      el.removeAttribute('datetime');
+      el.setAttribute('title', 'Last updated — no data yet');
+      el.setAttribute('aria-label', el.getAttribute('title'));
+      return;
+    }
+    var ts = Date.parse(String(iso).trim());
+    if (isNaN(ts)) {
+      el.textContent = '—';
+      return;
+    }
+    el.setAttribute('datetime', String(iso).trim());
+    var full = '';
+    try {
+      full = new Date(ts).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+    } catch (eFull) {
+      full = String(iso);
+    }
+    el.textContent = blankFormatRelativeShortMs(ts) + ' ago';
+    el.setAttribute('title', 'Last updated ' + full);
+    el.setAttribute('aria-label', 'Last updated ' + full);
+  }
+
+  function blankSyncHeroFreshnessDom() {
+    blankSyncHeroFreshnessIntoEl(document.getElementById('blankHubHeroFreshness'));
+    blankSyncHeroFreshnessIntoEl(document.getElementById('blankHubHeroFreshness_prev'));
+  }
+
+  function blankHubCloneHeroOpts(o) {
+    if (!o) return null;
+    var hub = o.hub && typeof o.hub === 'object' ? Object.assign({}, o.hub) : {};
+    var he = o.heroEvent && typeof o.heroEvent === 'object' ? Object.assign({}, o.heroEvent) : null;
+    var tf = o.teaserFallback && typeof o.teaserFallback === 'object' ? Object.assign({}, o.teaserFallback) : null;
+    var podium = Array.isArray(o.podium) ? o.podium.map(function (r) { return r && typeof r === 'object' ? Object.assign({}, r) : r; }) : null;
+    var hm = o.heroMeta && typeof o.heroMeta === 'object' ? Object.assign({}, o.heroMeta) : {};
+    return {
+      hub: hub,
+      heroEvent: he,
+      teaserFallback: tf,
+      podium: podium,
+      heroMeta: hm,
+      role: o.role,
+      showHero: o.showHero
+    };
+  }
+
+  function blankHubHeroFingerprint(opts) {
+    if (!opts || !opts.showHero) return '';
+    var h = opts.hub || {};
+    var e = opts.heroEvent || {};
+    return [
+      String(e.regatta_id != null ? e.regatta_id : ''),
+      String(h.headline || '').slice(0, 240),
+      String(h.image_url || ''),
+      String(e.event_name || '').slice(0, 160),
+      String(h.badge_label || '')
+    ].join('\x1f');
+  }
+
+  /**
+   * Same hero layout as main; guestOnly = no SA upload / no badge editor.
+   * lowerSlot: prior/right “News” card — label Top News → News, blue badge (--lower-news).
+   * timeId: e.g. blankHubHeroFreshness or blankHubHeroFreshness_prev
+   */
+  function blankHubHeroBuildInnerHtml(opts, guestOnly, timeId, imgFetchPriority, lowerSlot) {
+    var imgPri = imgFetchPriority || 'low';
+    var hub = opts.hub || {};
+    var heroEvent = opts.heroEvent;
+    var teaserFallback = opts.teaserFallback;
+    var podiumRows = opts.podium;
+    var heroMeta = opts.heroMeta || {};
+    var role = opts.role;
+    var isSa = !guestOnly && sailingsaIsSuperAdminRole(role);
+
+    var autoBadge = heroEvent && !heroEvent.is_live ? 'Top News' : 'Breaking news';
+    var badgeRaw = String(hub.badge_label || autoBadge).trim() || autoBadge;
+    if (lowerSlot && /^\s*top\s+news\s*$/i.test(badgeRaw)) {
+      badgeRaw = 'News';
+    }
+    var displayIsNews = /^\s*news\s*$/i.test(badgeRaw);
+    var badgeLooksPast = /\btop\b|\bpast\b/i.test(badgeRaw) || displayIsNews;
+    var badgeMode;
+    if (lowerSlot && displayIsNews) {
+      badgeMode = 'lower-news';
+    } else if (badgeLooksPast) {
+      badgeMode = 'past';
+    } else if (heroEvent && heroEvent.is_live) {
+      badgeMode = 'live';
+    } else {
+      badgeMode = 'past';
+    }
+    var badge = escapeHtml(badgeRaw);
+    var headlineText =
+      String(hub.headline || '').trim() || (heroEvent && heroEvent.event_name) || '';
+    if (!headlineText) headlineText = 'Featured';
+    var headline = escapeHtml(headlineText);
+    var imgUrl = String(hub.image_url || '').trim();
+    var hubToday = '';
+    try {
+      hubToday = new Date().toISOString().slice(0, 10);
+    } catch (eHubDay) {}
+    var statsBody = String(hub.subtext || '').trim();
+    if (!statsBody && teaserFallback) {
+      statsBody = blankHubStatsLineFromEvent(teaserFallback);
+    }
+    var statsEsc = escapeHtml(statsBody);
+    var dayFromHub = String(hub.day_label || '').trim();
+    var dayAuto =
+      teaserFallback && teaserFallback.has_results
+        ? blankEventDayLabel(teaserFallback.start_date, teaserFallback.end_date, hubToday) || ''
+        : '';
+    var dayShow = dayFromHub || dayAuto;
+    var dayEsc = dayShow ? escapeHtml(dayShow) : '';
+    var link = String(hub.link_href || '').trim();
+    if (!link && heroEvent && heroEvent.regatta_id) {
+      link = '/regatta/' + encodeURIComponent(String(heroEvent.regatta_id).trim());
+    }
+
+    var imgBlock;
+    if (imgUrl) {
+      if (isSa) {
+        imgBlock =
+          '<label class="blank-hub-hero-img-wrap blank-hub-hero-img-wrap--upload" for="blank-hub-hero-file">' +
+          '<img src="' +
+          escapeHtml(imgUrl) +
+          '" alt="Change hero image" class="blank-hub-hero-img" fetchpriority="' +
+          escapeHtml(imgPri) +
+          '"></label>';
+      } else {
+        imgBlock =
+          '<div class="blank-hub-hero-img-wrap"><img src="' +
+          escapeHtml(imgUrl) +
+          '" alt="" class="blank-hub-hero-img" fetchpriority="' +
+          escapeHtml(imgPri) +
+          '"></div>';
+      }
+    } else {
+      var phClass = 'blank-hub-hero-img-wrap blank-hub-hero-img-wrap--placeholder';
+      if (isSa) phClass += ' blank-hub-hero-img-wrap--upload';
+      var phText = isSa
+        ? '<span class="blank-hub-hero-ph-label">Tap to add a photo from your library or camera</span>'
+        : '';
+      if (isSa) {
+        imgBlock =
+          '<label class="' +
+          phClass +
+          '" for="blank-hub-hero-file">' +
+          phText +
+          '</label>';
+      } else {
+        imgBlock =
+          '<div class="' +
+          phClass +
+          '" role="presentation">' +
+          phText +
+          '</div>';
+      }
+    }
+
+    var headBlock = link
+      ? '<a class="blank-hub-hero-headline-link" href="' +
+        escapeHtml(link) +
+        '"><h3 class="blank-hub-hero-headline">' +
+        headline +
+        '</h3></a>'
+      : '<h3 class="blank-hub-hero-headline">' + headline + '</h3>';
+    var hostLine = '';
+    var resultsLine = '';
+    var combinedLine = '';
+    if (heroMeta.host_label && heroMeta.results_label) {
+      combinedLine =
+        '<div class="blank-hub-hero-subline">' +
+        escapeHtml(heroMeta.host_label + ' - ' + heroMeta.results_label) +
+        '</div>';
+    } else {
+      if (heroMeta.host_label) {
+        hostLine = '<div class="blank-hub-hero-subline">' + escapeHtml(heroMeta.host_label) + '</div>';
+      }
+      if (heroMeta.results_label) {
+        resultsLine = '<div class="blank-hub-hero-subline">' + escapeHtml(heroMeta.results_label) + '</div>';
+      }
+    }
+
+    var badgeEl = isSa
+      ? '<button type="button" class="blank-hub-hero-badge blank-hub-hero-badge--' + badgeMode + ' blank-hub-hero-badge--sa-open" aria-label="Open hero editor (super admin)">' +
+        badge +
+        '</button>'
+      : '<span class="blank-hub-hero-badge blank-hub-hero-badge--' + badgeMode + '">' + badge + '</span>';
+
+    var isHeroLive = !!(heroEvent && heroEvent.is_live);
+    var hasHeroResults = !!(heroEvent && heroEvent.has_results);
+    var podiumHtml = blankFormatPodiumHtml(podiumRows, 'blank-podium--hub-hero');
+    var textCol = '<div class="blank-hub-hero-text">';
+    if (isHeroLive) {
+      textCol +=
+        '<div class="blank-hub-hero-live-day-row">' +
+        '<span class="blank-status-chip blank-status-chip--live" aria-hidden="true">Live</span>' +
+        (dayEsc ? '<span class="blank-hub-hero-day-inline">' + dayEsc + '</span>' : '') +
+        '</div>' +
+        (statsEsc ? '<p class="blank-hub-hero-stats-line">' + statsEsc + '</p>' : '');
+    } else if (hasHeroResults) {
+      textCol +=
+        '<div class="blank-hub-hero-live-day-row">' +
+        '<span class="blank-status-chip blank-status-chip--past" aria-hidden="true">Past</span>' +
+        (dayEsc ? '<span class="blank-hub-hero-day-inline">' + dayEsc + '</span>' : '') +
+        '</div>' +
+        (statsEsc ? '<p class="blank-hub-hero-stats-line">' + statsEsc + '</p>' : '');
+    } else {
+      textCol += '<p class="blank-hub-hero-teaser">' + statsEsc + '</p>';
+    }
+    textCol += podiumHtml + '</div>';
+
+    var tid = timeId || 'blankHubHeroFreshness';
+    var topBlock;
+    if (lowerSlot) {
+      topBlock =
+        '<div class="blank-hub-hero-top blank-hub-hero-top--prior-limited">' +
+        '<div class="blank-hub-hero-top-cluster">' +
+        badgeEl +
+        '<time class="blank-hub-hero-time" id="' +
+        escapeHtml(tid) +
+        '"></time>' +
+        '</div>' +
+        '<span class="blank-hub-prior-expand-host" id="blankHubPriorExpandHost"></span>' +
+        '</div>';
+    } else {
+      topBlock =
+        '<div class="blank-hub-hero-top">' +
+        badgeEl +
+        '<time class="blank-hub-hero-time" id="' +
+        escapeHtml(tid) +
+        '"></time>' +
+        '</div>';
+    }
+    return (
+      '<div class="blank-hub-hero-nolink">' +
+      topBlock +
+      headBlock +
+      combinedLine +
+      hostLine +
+      resultsLine +
+      '<div class="blank-hub-hero-cols">' +
+      imgBlock +
+      textCol +
+      '</div></div>'
+    );
+  }
+
+  function blankHubPriorExpandDetachButton() {
+    var btn = document.getElementById('blankHubPriorExpandBtn');
+    var toolbar = document.getElementById('blankHubPriorToolbar');
+    if (btn && toolbar) toolbar.appendChild(btn);
+  }
+
+  function blankHubPriorExpandPlaceButton() {
+    var btn = document.getElementById('blankHubPriorExpandBtn');
+    var host = document.getElementById('blankHubPriorExpandHost');
+    var toolbar = document.getElementById('blankHubPriorToolbar');
+    if (!btn || !toolbar) return;
+    var row = document.getElementById('blankHubSubcardsRow');
+    var expanded = row && row.classList.contains('blank-hub-subcards-row--prior-expanded');
+    if (expanded) {
+      toolbar.appendChild(btn);
+      toolbar.hidden = false;
+    } else {
+      if (host) host.appendChild(btn);
+      toolbar.hidden = true;
+    }
+  }
+
+  function blankHubWirePriorExpandOnce() {
+    if (window.__blankHubPriorExpandWired) return;
+    window.__blankHubPriorExpandWired = true;
+    var row = document.getElementById('blankHubSubcardsRow');
+    if (!row) return;
+    row.addEventListener('click', function (ev) {
+      var t = ev.target;
+      if (!t || !t.closest) return;
+      var btn = t.closest('#blankHubPriorExpandBtn');
+      if (!btn) return;
+      var expanded = row.classList.toggle('blank-hub-subcards-row--prior-expanded');
+      btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      btn.textContent = expanded ? 'Hide — limited view' : 'Full View';
+      blankHubPriorExpandPlaceButton();
+    });
+  }
+
+  function blankEnsureHeroFreshnessTick() {
+    if (window.blankHubFreshnessTickId != null) return;
+    window.blankHubFreshnessTickId = setInterval(function () {
+      blankSyncHeroFreshnessDom();
+    }, 60000);
+  }
+
+  function renderBlankHubHero(opts) {
+    var hub = opts.hub || {};
+    var heroEvent = opts.heroEvent;
+    var teaserFallback = opts.teaserFallback;
+    var role = opts.role;
+    var showHero = opts.showHero;
+    var section = document.getElementById('blank-hub-hero-section');
+    var inner = document.getElementById('blank-hub-hero-inner');
+    var innerPrev = document.getElementById('blank-hub-hero-inner-prev');
+    var admin = document.getElementById('blank-hub-hero-admin');
+    var isSa = sailingsaIsSuperAdminRole(role);
+    if (!section || !inner) return;
+
+    if (!showHero) {
+      section.hidden = true;
+      inner.innerHTML = '';
+      if (innerPrev) {
+        blankHubPriorExpandDetachButton();
+        innerPrev.innerHTML = '';
+      }
+      if (admin) admin.hidden = true;
+      window.blankHubLastHeroOpts = null;
+      window.blankHubLastHeroFingerprint = '';
+      return;
+    }
+
+    var fp = blankHubHeroFingerprint(opts);
+    var prevOpts;
+    if (!window.blankHubLastHeroOpts) {
+      prevOpts = blankHubCloneHeroOpts(opts);
+    } else if (fp === window.blankHubLastHeroFingerprint) {
+      prevOpts = blankHubCloneHeroOpts(opts);
+    } else {
+      prevOpts = blankHubCloneHeroOpts(window.blankHubLastHeroOpts);
+    }
+
+    var rowSub = document.getElementById('blankHubSubcardsRow');
+    var btnPrior = document.getElementById('blankHubPriorExpandBtn');
+    if (rowSub) rowSub.classList.remove('blank-hub-subcards-row--prior-expanded');
+    if (btnPrior) {
+      btnPrior.setAttribute('aria-expanded', 'false');
+      btnPrior.textContent = 'Full View';
+    }
+
+    inner.innerHTML = blankHubHeroBuildInnerHtml(opts, false, 'blankHubHeroFreshness', 'high');
+    blankInitPodiumDots(inner);
+
+    if (innerPrev) {
+      blankHubPriorExpandDetachButton();
+      innerPrev.innerHTML = blankHubHeroBuildInnerHtml(prevOpts, !isSa, 'blankHubHeroFreshness_prev', 'low', true);
+      blankInitPodiumDots(innerPrev);
+      blankHubPriorExpandPlaceButton();
+    }
+
+    blankSyncHeroFreshnessDom();
+    blankEnsureHeroFreshnessTick();
+    blankHubWirePriorExpandOnce();
+
+    window.blankHubLastHeroOpts = blankHubCloneHeroOpts(opts);
+    window.blankHubLastHeroFingerprint = fp;
+
+    section.hidden = false;
+
+    var hasCfg = blankHubHasSavedHeroConfig(hub);
+    var showAdminPanel = isSa && (!hasCfg || blankHubHeroAdminOpen);
+
+    if (admin) {
+      admin.hidden = !showAdminPanel;
+      if (isSa) {
+        var evForForm = heroEvent || teaserFallback;
+        var stdHead = evForForm ? String(evForForm.event_name || '').trim() : '';
+        var formToday = '';
+        try {
+          formToday = new Date().toISOString().slice(0, 10);
+        } catch (eFt) {}
+        var stdTease = evForForm ? blankHubStatsLineFromEvent(evForForm) : '';
+        var stdDay =
+          evForForm && evForForm.has_results
+            ? blankEventDayLabel(evForForm.start_date, evForForm.end_date, formToday) || ''
+            : '';
+        document.getElementById('blank-hub-hero-in-headline').value =
+          String(hub.headline || '').trim() ? String(hub.headline) : stdHead;
+        document.getElementById('blank-hub-hero-in-day').value = String(hub.day_label || '').trim()
+          ? String(hub.day_label)
+          : stdDay;
+        document.getElementById('blank-hub-hero-in-teaser').value =
+          String(hub.subtext || '').trim() ? String(hub.subtext) : stdTease;
+        document.getElementById('blank-hub-hero-in-link').value =
+          String(hub.link_href || '').trim()
+            ? String(hub.link_href)
+            : evForForm && evForForm.regatta_id
+              ? '/regatta/' + String(evForForm.regatta_id)
+              : '';
+        document.getElementById('blank-hub-hero-in-badge').value = hub.badge_label || '';
+      }
+    }
+  }
+
+  async function blankHubHeroDoUpload(file, base) {
+    if (!blankHubHeroFileLooksLikeImage(file)) {
+      blankHubHeroSetMsg('Choose a photo (JPEG, PNG, HEIC, etc.).', 'err');
+      return;
+    }
+    blankHubHeroSetMsg('Uploading…', '');
+    var fd = new FormData();
+    fd.append('file', file, file.name || 'upload');
+    try {
+      var r = await fetch(base + '/api/admin/hub/hero/upload', {
+        method: 'POST',
+        body: fd,
+        credentials: 'include'
+      });
+      var j = await r.json().catch(function () {
+        return {};
+      });
+      if (!r.ok) {
+        blankHubHeroSetMsg(blankHubHeroFormatApiErr(j, r), 'err');
+        return;
+      }
+      var url = j.image_url;
+      if (!url) {
+        blankHubHeroSetMsg('Upload did not return a URL.', 'err');
+        return;
+      }
+      var ev = blankHubFeaturedEvent;
+      var hIn = document.getElementById('blank-hub-hero-in-headline');
+      var tIn = document.getElementById('blank-hub-hero-in-teaser');
+      var lIn = document.getElementById('blank-hub-hero-in-link');
+      var merge = { image_url: url };
+      if (ev) {
+        var stdHead = String(ev.event_name || '').trim();
+        var upToday = '';
+        try {
+          upToday = new Date().toISOString().slice(0, 10);
+        } catch (eUp) {}
+        var stdTease = blankHubStatsLineFromEvent(ev);
+        var stdDay =
+          ev.has_results
+            ? blankEventDayLabel(ev.start_date, ev.end_date, upToday) || ''
+            : '';
+        var dIn = document.getElementById('blank-hub-hero-in-day');
+        var dTrim = dIn && dIn.value.trim();
+        var stdLink = ev.regatta_id ? '/regatta/' + String(ev.regatta_id) : '';
+        merge.headline = (hIn && hIn.value.trim()) || stdHead || 'Featured';
+        merge.subtext = (tIn && tIn.value.trim()) || stdTease;
+        if (dTrim) merge.day_label = dTrim;
+        else if (stdDay) merge.day_label = stdDay;
+        if (stdLink) merge.link_href = (lIn && lIn.value.trim()) || stdLink;
+      }
+      var r2 = await fetch(base + '/api/admin/hub/hero', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(merge)
+      });
+      var j2 = await r2.json().catch(function () {
+        return {};
+      });
+      if (!r2.ok) {
+        blankHubHeroSetMsg(blankHubHeroFormatApiErr(j2, r2), 'err');
+        return;
+      }
+      blankHubHeroSetMsg('Image saved.', 'ok');
+      blankHubHeroAdminOpen = false;
+      await loadBlankNews();
+    } catch (err) {
+      blankHubHeroSetMsg(err && err.message ? String(err.message) : 'Upload failed (network).', 'err');
+    }
+  }
+
+  function blankHubHeroWireOnce() {
+    if (window.__blankHubHeroWired) return;
+    window.__blankHubHeroWired = true;
+    var baseFn = function () {
+      return (window.API_BASE || (window.location && window.location.origin) || '').replace(/\/$/, '');
+    };
+    var fi = document.getElementById('blank-hub-hero-file');
+    if (fi) {
+      fi.addEventListener('change', function () {
+        var f = fi.files && fi.files[0];
+        fi.value = '';
+        if (f) blankHubHeroDoUpload(f, baseFn());
+      });
+    }
+    var sec = document.getElementById('blank-hub-hero-section');
+    var heroInner = document.getElementById('blank-hub-hero-inner');
+    var heroInnerPrev = document.getElementById('blank-hub-hero-inner-prev');
+    var priorWrap = document.getElementById('blankHubPriorHeroWrap');
+    var blankAppEl = document.getElementById('blankApp');
+    function heroDropHasFiles(dt) {
+      if (!dt || !dt.types) return false;
+      try {
+        for (var i = 0; i < dt.types.length; i++) {
+          if (dt.types[i] === 'Files') return true;
+        }
+      } catch (e) { /* ignore */ }
+      return false;
+    }
+    function blankHubHeroDropTargetContains(el) {
+      if (!el) return false;
+      return (
+        (heroInner && heroInner.contains(el)) ||
+        (heroInnerPrev && heroInnerPrev.contains(el))
+      );
+    }
+    function blankHubHeroClearDropHighlight() {
+      if (sec) sec.classList.remove('blank-hub-hero-drop-active');
+      if (priorWrap) priorWrap.classList.remove('blank-hub-hero-drop-active');
+    }
+    if (blankAppEl) {
+      blankAppEl.addEventListener('click', function (ev) {
+        if (!sailingsaIsSuperAdminRole(window.SAILINGSA_SESSION_ROLE)) return;
+        if (!ev.target.closest('.blank-hub-hero-badge--sa-open')) return;
+        ev.preventDefault();
+        blankHubHeroAdminOpen = true;
+        var adm = document.getElementById('blank-hub-hero-admin');
+        if (adm) adm.hidden = false;
+        try {
+          adm && adm.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        } catch (e) { /* ignore */ }
+      });
+      blankAppEl.addEventListener('dragover', function (ev) {
+        if (!sailingsaIsSuperAdminRole(window.SAILINGSA_SESSION_ROLE)) return;
+        if (!blankHubHeroDropTargetContains(ev.target)) {
+          blankHubHeroClearDropHighlight();
+          return;
+        }
+        if (!heroDropHasFiles(ev.dataTransfer)) return;
+        blankHubHeroAdminOpen = true;
+        var adm = document.getElementById('blank-hub-hero-admin');
+        if (adm) adm.hidden = false;
+        ev.preventDefault();
+        ev.dataTransfer.dropEffect = 'copy';
+        blankHubHeroClearDropHighlight();
+        if (heroInner && heroInner.contains(ev.target) && sec) {
+          sec.classList.add('blank-hub-hero-drop-active');
+        } else if (heroInnerPrev && heroInnerPrev.contains(ev.target) && priorWrap) {
+          priorWrap.classList.add('blank-hub-hero-drop-active');
+        }
+      });
+      blankAppEl.addEventListener('drop', function (ev) {
+        blankHubHeroClearDropHighlight();
+        if (!sailingsaIsSuperAdminRole(window.SAILINGSA_SESSION_ROLE)) return;
+        if (!blankHubHeroDropTargetContains(ev.target)) return;
+        ev.preventDefault();
+        var f = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];
+        if (f) blankHubHeroDoUpload(f, baseFn());
+      });
+    }
+    var btnSave = document.getElementById('blank-hub-hero-save');
+    var btnClear = document.getElementById('blank-hub-hero-clear');
+    if (btnSave) {
+      btnSave.addEventListener('click', async function () {
+        var b = baseFn();
+        var payload = {
+          headline: document.getElementById('blank-hub-hero-in-headline').value.trim() || null,
+          day_label: document.getElementById('blank-hub-hero-in-day').value.trim() || null,
+          subtext: document.getElementById('blank-hub-hero-in-teaser').value.trim() || null,
+          link_href: document.getElementById('blank-hub-hero-in-link').value.trim() || null,
+          badge_label: document.getElementById('blank-hub-hero-in-badge').value.trim() || null
+        };
+        try {
+          var r = await fetch(b + '/api/admin/hub/hero', {
+            method: 'PUT',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          var j = await r.json().catch(function () {
+            return {};
+          });
+          if (!r.ok) {
+            var msg = j.detail || j.error || 'Save failed.';
+            if (typeof msg === 'object') msg = JSON.stringify(msg);
+            blankHubHeroSetMsg(String(msg), 'err');
+            return;
+          }
+          blankHubHeroSetMsg('Saved.', 'ok');
+          blankHubHeroAdminOpen = false;
+          await loadBlankNews();
+        } catch (e) {
+          blankHubHeroSetMsg('Save failed.', 'err');
+        }
+      });
+    }
+    if (btnClear) {
+      btnClear.addEventListener('click', async function () {
+        var b = baseFn();
+        try {
+          var r = await fetch(b + '/api/admin/hub/hero', {
+            method: 'PUT',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              headline: null,
+              day_label: null,
+              subtext: null,
+              image_url: null,
+              link_href: null,
+              badge_label: null
+            })
+          });
+          if (!r.ok) {
+            blankHubHeroSetMsg('Could not clear.', 'err');
+            return;
+          }
+          blankHubHeroSetMsg('Manual hero cleared.', 'ok');
+          blankHubHeroAdminOpen = true;
+          await loadBlankNews();
+        } catch (e) {
+          blankHubHeroSetMsg('Clear failed.', 'err');
+        }
+      });
+    }
+  }
+
+  async function loadBlankNews() {
+    var listEl = document.getElementById('blank-news-list');
+    var statEl = document.getElementById('stNewsStats');
+    if (!listEl) return;
+    listEl.innerHTML = '<p class="blank-hub-empty-line">Loading calendar from database…</p>';
+    var base = (window.API_BASE || (window.location && window.location.origin) || '').replace(/\/$/, '');
+
+    function cardLive(e, opts) {
+      opts = opts || {};
+      var podium = opts.podium;
+      var featured = !!opts.featured;
+      var name = escapeHtml(e.event_name || 'Event');
+      var rs = (e.races_sailed || 0) > 0 ? escapeHtml(String(e.races_sailed)) + ' races · ' : '';
+      var ent = 'Entries: ' + ((e.entries || 0) ? escapeHtml(String(e.entries)) : '—');
+      var day = opts.dayLabel ? '<div class="blank-event-day">' + escapeHtml(opts.dayLabel) + '</div>' : '';
+      var podiumHtml = blankFormatPodiumHtml(podium);
+      var statusChip = e.is_live
+        ? '<span class="blank-status-chip blank-status-chip--live" aria-hidden="true">Live</span>'
+        : '<span class="blank-status-chip blank-status-chip--past" aria-hidden="true">Past</span>';
+      var inner =
+        '<div class="blank-event-headline">' +
+        statusChip +
+        ' ' +
+        name +
+        '</div><div class="blank-news-meta">' +
+        rs +
+        ent +
+        '</div>' +
+        day +
+        podiumHtml;
+      var cls =
+        'blank-news-item blank-news-item--event' + (featured ? ' blank-news-item--live-featured' : '');
+      var rid = e.regatta_id && String(e.regatta_id).trim();
+      if (rid) {
+        return (
+          '<a class="' +
+          cls +
+          '" href="/regatta/' +
+          encodeURIComponent(rid) +
+          '">' +
+          inner +
+          '</a>'
+        );
+      }
+      return '<div class="' + cls + '">' + inner + '</div>';
+    }
+
+    function cardUpcoming(e) {
+      var name = escapeHtml(e.event_name || 'Event');
+      return '<div class="blank-news-item blank-news-item--event"><div class="blank-event-headline">' + name + '</div><div class="blank-news-meta">Starts ' + escapeHtml(String(e.start_date || '')) + '</div></div>';
+    }
+
+    try {
+      var pathQs = '';
+      try {
+        if (window.location && window.location.pathname) {
+          pathQs = '?path=' + encodeURIComponent(window.location.pathname || '/');
+        }
+      } catch (ePath) {
+        pathQs = '';
+      }
+      function fetchJsonOr(res, fallback) {
+        return res && res.ok ? res.json() : Promise.resolve(fallback);
+      }
+      var rSess = null;
+      var rHub = null;
+      var rEv = null;
+      var rFresh = null;
+      try {
+        var quad = await Promise.all([
+          fetch(base + '/auth/session' + pathQs, { credentials: 'include' }),
+          fetch(base + '/api/hub/hero', { cache: 'no-store' }),
+          fetch(base + '/api/events?blank_hub=1', { cache: 'no-store' }),
+          fetch(base + '/api/hub/blank-freshness', { cache: 'no-store' })
+        ]);
+        rSess = quad[0];
+        rHub = quad[1];
+        rEv = quad[2];
+        rFresh = quad[3];
+      } catch (eNet) {
+        rSess = { ok: false };
+        rHub = { ok: false };
+        rEv = { ok: false };
+        rFresh = { ok: false };
+      }
+      var sessHubRaw = await Promise.all([
+        fetchJsonOr(rSess, {}),
+        fetchJsonOr(rHub, {}),
+        fetchJsonOr(rEv, []),
+        fetchJsonOr(rFresh, {})
+      ]);
+      var sess = sessHubRaw[0] || {};
+      var hub = sessHubRaw[1] || {};
+      if (!hub || typeof hub !== 'object') hub = {};
+      var role = sess && sess.valid && sess.role ? sess.role : null;
+      window.SAILINGSA_SESSION_ROLE = role;
+
+      var freshPayload = sessHubRaw[3] || {};
+      window.blankHubFreshnessIso =
+        typeof freshPayload.updated_at === 'string' && freshPayload.updated_at.trim()
+          ? freshPayload.updated_at.trim()
+          : null;
+
+      var raw = Array.isArray(sessHubRaw[2]) ? sessHubRaw[2] : [];
+      var events = Array.isArray(raw) ? raw : [];
+      var today = new Date().toISOString().slice(0, 10);
+
+      blankApplyRegattaFallback(events);
+
+      events.forEach(function (e) {
+        e.races_sailed = e.races_sailed || 0;
+        e.entries = e.entries || 0;
+        var sd = String(e.start_date || '').slice(0, 10);
+        var ed = String(e.end_date || e.start_date || '').slice(0, 10);
+        e.start_date = sd;
+        e.end_date = ed;
+        e.is_live = sd !== '' && ed !== '' && sd <= today && today <= ed;
+        e.has_results = e.races_sailed > 0 || e.entries > 0 ? 1 : 0;
+      });
+
+      var live = events.filter(function (e) {
+        return e.is_live;
+      });
+
+      await Promise.all(live.map(function (e) {
+        return blankEnrichEventFromRegatta(e, base);
+      }));
+
+      var recentPast = events
+        .filter(function (e) {
+          return !e.is_live && String(e.end_date || e.start_date || '').slice(0, 10) < today;
+        })
+        .sort(function (a, b) {
+          return String(b.end_date || b.start_date || '').localeCompare(String(a.end_date || a.start_date || ''));
+        })
+        .slice(0, 6);
+      await Promise.all(recentPast.map(function (e) {
+        return blankEnrichEventFromRegatta(e, base);
+      }));
+
+      events.forEach(function (e) {
+        e.has_results = e.races_sailed > 0 || e.entries > 0 ? 1 : 0;
+      });
+
+      live.sort(function (a, b) {
+        return (
+          (b.has_results - a.has_results) ||
+          (b.entries - a.entries) ||
+          (b.races_sailed - a.races_sailed)
+        );
+      });
+
+      var liveWith = live.filter(function (e) {
+        return e.has_results;
+      });
+      var pastWith = events
+        .filter(function (e) {
+          var eEnd = String(e.end_date || e.start_date || '').slice(0, 10);
+          return !e.is_live && e.has_results && eEnd && eEnd < today;
+        })
+        .sort(function (a, b) {
+          return String(b.end_date || b.start_date || '').localeCompare(String(a.end_date || a.start_date || ''));
+        });
+      var featuredEvent = liveWith[0] || pastWith[0] || null;
+      blankHubFeaturedEvent = featuredEvent;
+
+      var podiumMap = {};
+      await Promise.all(
+        live.slice(0, 8).map(function (e) {
+          var rid = e.regatta_id && String(e.regatta_id).trim();
+          var cid = e.podium_class_id;
+          if (!rid || cid == null || cid === '') return Promise.resolve();
+          if (!e.has_results) return Promise.resolve();
+          var url =
+            base +
+            '/api/regattas/' +
+            encodeURIComponent(rid) +
+            '/classes/' +
+            encodeURIComponent(String(cid)) +
+            '/podium';
+          return fetch(url, { cache: 'no-store' })
+            .then(function (pr) {
+              if (!pr.ok) return;
+              return pr.json().then(function (arr) {
+                if (Array.isArray(arr) && arr.length) podiumMap[rid] = arr;
+              });
+            })
+            .catch(function () {});
+        })
+      );
+
+      var heroRid = featuredEvent && featuredEvent.regatta_id ? String(featuredEvent.regatta_id).trim() : '';
+      var heroCid = featuredEvent && featuredEvent.podium_class_id;
+      var heroResultsRows = null;
+      if (heroRid && heroCid != null && heroCid !== '' && featuredEvent && featuredEvent.has_results) {
+        try {
+          var rrHero = await fetch(
+            base +
+              '/api/regattas/' +
+              encodeURIComponent(heroRid) +
+              '/classes/' +
+              encodeURIComponent(String(heroCid)) +
+              '/results',
+            { cache: 'no-store' }
+          );
+          if (rrHero.ok) {
+            var arrRes = await rrHero.json();
+            if (Array.isArray(arrRes) && arrRes.length) heroResultsRows = arrRes;
+          }
+        } catch (eHeroRes) {}
+      }
+      if (
+        heroRid &&
+        heroCid != null &&
+        heroCid !== '' &&
+        featuredEvent.has_results &&
+        !podiumMap[heroRid]
+      ) {
+        try {
+          var prHero = await fetch(
+            base +
+              '/api/regattas/' +
+              encodeURIComponent(heroRid) +
+              '/classes/' +
+              encodeURIComponent(String(heroCid)) +
+              '/podium',
+            { cache: 'no-store' }
+          );
+          if (prHero.ok) {
+            var arrHero = await prHero.json();
+            if (Array.isArray(arrHero) && arrHero.length) podiumMap[heroRid] = arrHero;
+          }
+        } catch (eHeroPod) {}
+      }
+
+      var seriesCounts = blankBuildSeriesCounts(events, today);
+      var upcoming = events
+        .filter(function (e) {
+          return !e.is_live && String(e.start_date || '').slice(0, 10) >= today;
+        })
+        .sort(function (a, b) {
+          var ka = blankSeriesKeyFromEventName(a.event_name);
+          var kb = blankSeriesKeyFromEventName(b.event_name);
+          var ca = seriesCounts[ka] || 0;
+          var cb = seriesCounts[kb] || 0;
+          return (
+            (cb - ca) ||
+            String(a.start_date || '').localeCompare(String(b.start_date || ''))
+          );
+        })
+        .slice(0, 12);
+
+      var hasManual = !!(
+        String(hub.headline || '').trim() ||
+        String(hub.image_url || '').trim() ||
+        String(hub.day_label || '').trim() ||
+        String(hub.subtext || '').trim() ||
+        String(hub.link_href || '').trim() ||
+        String(hub.badge_label || '').trim()
+      );
+      var showHero = !!(hasManual || featuredEvent);
+      var hubHeadTrim = String(hub.headline || '').trim();
+      var evName = featuredEvent ? String(featuredEvent.event_name || '').trim() : '';
+      var skipRid = '';
+      if (featuredEvent && featuredEvent.regatta_id) {
+        if (!hubHeadTrim || hubHeadTrim === evName) {
+          skipRid = String(featuredEvent.regatta_id).trim();
+        }
+      }
+      var liveForGrid = skipRid
+        ? liveWith.filter(function (e) {
+            return String(e.regatta_id || '').trim() !== skipRid;
+          })
+        : liveWith.slice();
+      var liveWithShow = liveForGrid.slice(0, 8);
+
+      var heroPodium =
+        heroResultsRows && heroResultsRows.length
+          ? heroResultsRows
+          : (heroRid && podiumMap[heroRid] ? podiumMap[heroRid] : null);
+      var heroMeta = {};
+      if (heroResultsRows && heroResultsRows.length) {
+        var h0 = heroResultsRows[0] || {};
+        var hostCode = String(h0.host_club_code || '').trim();
+        var hostName = String(h0.host_club_name || '').trim();
+        var hostLabel = '';
+        if (hostCode && hostName) {
+          hostLabel = hostCode.toLowerCase() === hostName.toLowerCase() ? hostCode : hostCode;
+        } else {
+          hostLabel = hostCode || hostName;
+        }
+        if (hostLabel) {
+          heroMeta.host_label = 'Host: ' + hostLabel;
+        }
+        var rsLine = blankFmtResultsAsAtLine(h0.result_status, h0.as_at_time);
+        if (rsLine) heroMeta.results_label = rsLine;
+      }
+
+      renderBlankHubHero({
+        hub: hub,
+        heroEvent: featuredEvent,
+        teaserFallback: featuredEvent,
+        podium: heroPodium,
+        heroMeta: heroMeta,
+        role: role,
+        showHero: showHero
+      });
+
+      var html = '';
+      if (live.length) {
+        html += '<h3 class="blank-news-section-title">Live now</h3>';
+        if (liveWithShow.length) {
+          liveWithShow.forEach(function (e, i) {
+            var rid = e.regatta_id && String(e.regatta_id).trim();
+            html += cardLive(e, {
+              featured: !showHero && i === 0,
+              dayLabel: blankEventDayLabel(e.start_date, e.end_date, today),
+              podium: rid ? podiumMap[rid] : null
+            });
+          });
+        }
+      }
+      if (upcoming.length) {
+        html += '<h3 class="blank-news-section-title">Upcoming</h3>' + upcoming.map(cardUpcoming).join('');
+      }
+
+      if (statEl) {
+        statEl.textContent = live.length ? String(live.length > 99 ? '99+' : live.length) : '—';
+      }
+
+      if (!html) {
+        listEl.innerHTML =
+          '<p class="blank-hub-empty-line">No calendar rows in the database for live or upcoming dates.</p>';
+        if (statEl) statEl.textContent = '—';
+        if (!showHero) {
+          var secEmpty = document.getElementById('blank-hub-hero-section');
+          if (secEmpty) secEmpty.hidden = true;
+        }
+        return;
+      }
+      listEl.innerHTML = html;
+    } catch (e) {
+      listEl.innerHTML = '<p class="blank-hub-empty-line">Could not load calendar.</p>';
+      if (statEl) statEl.textContent = '—';
+    }
+  }
+
+  async function loadLivePill() {
+    var pill = document.getElementById('liveEventPill');
+    if (!pill) return;
+    try {
+      var r = await fetch(window.API_BASE + '/api/events/live-summary', { credentials: 'include' });
+      var d = await r.json();
+      pill.hidden = !(d && d.has_live);
+    } catch (e) {
+      pill.hidden = true;
+    }
+  }
+
+  async function loadStats() {
+    var statIds = ['stNewsStats', 'stSailors', 'stResults', 'stEvents', 'stClubs', 'stClasses', 'stSailNo', 'stBoats'];
+    function clearStats() {
+      statIds.forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.textContent = '—';
+      });
+    }
+    loadLivePill();
+    function applySiteStatTiles(site) {
+      var siteBad = !site || site.error;
+      function S(key) {
+        if (siteBad) return '—';
+        var v = site[key];
+        return v != null ? fmtCompact(v) : '—';
+      }
+      var el;
+      el = document.getElementById('stSailors');
+      if (el) el.textContent = S('active_sailors');
+      el = document.getElementById('stResults');
+      if (el) el.textContent = S('races_raced');
+      el = document.getElementById('stEvents');
+      if (el) el.textContent = S('regattas_sailed');
+      el = document.getElementById('stClasses');
+      if (el) el.textContent = S('classes_sailed');
+    }
+    function applyPubStatTiles(pub) {
+      var el;
+      el = document.getElementById('stClubs');
+      if (el) el.textContent = pub && pub.total_clubs != null ? fmtCompact(pub.total_clubs) : '—';
+      el = document.getElementById('stSailNo');
+      if (el) el.textContent = pub && pub.total_distinct_sail_numbers != null ? fmtCompact(pub.total_distinct_sail_numbers) : '—';
+      el = document.getElementById('stBoats');
+      if (el) el.textContent = pub && pub.total_distinct_boats != null ? fmtCompact(pub.total_distinct_boats) : '—';
+    }
+    try {
+      var siteRes = await fetch(window.API_BASE + '/api/site-stats', { credentials: 'include' })
+        .then(function (x) { return x.json(); })
+        .catch(function () { return null; });
+      applySiteStatTiles(siteRes || {});
+      var pub = await fetch(window.API_BASE + '/api/stats', { credentials: 'include' })
+        .then(function (x) { return x.json(); })
+        .catch(function () { return null; });
+      applyPubStatTiles(pub || {});
+    } catch (e) {
+      clearStats();
+    }
+  }
+
+  var clubsCache = [];
+  var classesCache = [];
+  var lastSailorRows = [];
+
+  async function preloadDirectories() {
+    try {
+      var cr = await fetch(window.API_BASE + '/api/clubs', { credentials: 'include' });
+      clubsCache = await cr.json();
+      if (!Array.isArray(clubsCache)) clubsCache = [];
+    } catch (e) { clubsCache = []; }
+    try {
+      var lr = await fetch(window.API_BASE + '/api/classes/list', { credentials: 'include' });
+      var lj = await lr.json();
+      classesCache = (lj && lj.classes) ? lj.classes : [];
+    } catch (e) { classesCache = []; }
+  }
+
+  function filterClubs(q) {
+    var t = q.trim().toLowerCase();
+    if (!t) return [];
+    return clubsCache.filter(function (c) {
+      var code = String(c.code || '').toLowerCase();
+      var name = String(c.name || '').toLowerCase();
+      var slug = String(c.slug || '').toLowerCase();
+      return name.indexOf(t) !== -1 || code.indexOf(t) !== -1 || slug.indexOf(t) !== -1;
+    }).slice(0, 25);
+  }
+
+  function filterClasses(q) {
+    var t = q.trim().toLowerCase();
+    if (!t) return [];
+    return classesCache.filter(function (c) {
+      return String(c.class_name || '').toLowerCase().indexOf(t) !== -1;
+    }).slice(0, 25);
+  }
+
+  async function fetchJson(url) {
+    var r = await fetch(url, { credentials: 'include' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }
+
+  function isoDatePart(v) {
+    if (v == null || v === '') return '';
+    var s = String(v);
+    return s.length >= 10 ? s.slice(0, 10) : s;
+  }
+
+  function clubSlugFromDisplay(disp) {
+    var t = String(disp || '').trim();
+    if (!t) return '';
+    var low = t.toLowerCase();
+    for (var i = 0; i < clubsCache.length; i++) {
+      var c = clubsCache[i];
+      var code = String(c.code || '').toLowerCase();
+      var name = String(c.name || '').toLowerCase();
+      if (code && code === low) return String(c.slug || '').trim() || generateSlug(String(c.name || c.code || t));
+      if (name && name === low) return String(c.slug || '').trim() || generateSlug(String(c.name || t));
+    }
+    return generateSlug(t);
+  }
+
+  /** Build the same shape as GET /api/member/{id}/hub-summary from /results rows (works when hub-summary is not deployed). */
+  function aggregateHubFromMemberResults(results, sailorRow) {
+    var sid = String((sailorRow && sailorRow.sas_id) || '').trim();
+    var out = {
+      sa_id: sid,
+      regattas: [],
+      events: [],
+      clubs: [],
+      classes: [],
+      sail_numbers: [],
+      boats: []
+    };
+    var regMap = {};
+    var seenSail = {};
+    var seenBoat = {};
+    var classMap = {};
+    var clubByKey = {};
+
+    (results || []).forEach(function (r) {
+      var rid = r.regatta_id;
+      if (rid != null && rid !== '' && regMap[rid] === undefined) {
+        var ed = isoDatePart(r.end_date || r.regatta_date);
+        var sd = isoDatePart(r.start_date);
+        var yr = r.year;
+        if (yr == null && ed.length >= 4) yr = parseInt(ed.slice(0, 4), 10);
+        regMap[rid] = {
+          regatta_id: rid,
+          event_name: r.event_name || '',
+          start_date: sd,
+          end_date: ed,
+          year: yr != null && !isNaN(yr) ? yr : null,
+          regatta_number: r.regatta_number
+        };
+      }
+      var cn = String(r.class_canonical || r.class_original || '').trim();
+      var cid = r.class_id;
+      if (cn || (cid != null && cid !== '')) {
+        var ck = String(cid != null ? cid : '') + '|' + cn.toLowerCase();
+        if (classMap[ck] === undefined) {
+          classMap[ck] = { class_id: cid != null && cid !== '' ? cid : null, class_name: cn || 'Class', from_profile: false };
+        }
+      }
+      var sn = r.sail_number != null ? String(r.sail_number).trim() : '';
+      if (sn && !seenSail[sn]) {
+        seenSail[sn] = true;
+        out.sail_numbers.push(sn);
+      }
+      var bn = String(r.boat_name || '').trim();
+      if (bn && !seenBoat[bn]) {
+        seenBoat[bn] = true;
+        out.boats.push(bn);
+      }
+      var cabbr = String(r.club || '').trim();
+      var cfull = String(r.club_fullname || '').trim();
+      var dis = cabbr || cfull;
+      if (dis) {
+        var k = dis.toLowerCase();
+        if (clubByKey[k] === undefined) {
+          clubByKey[k] = {
+            display: dis,
+            slug: clubSlugFromDisplay(dis),
+            club_abbrev: cabbr || null,
+            club_fullname: cfull || null
+          };
+        }
+      }
+    });
+
+    out.regattas = Object.keys(regMap).map(function (k) { return regMap[k]; });
+    out.regattas.sort(function (a, b) {
+      return (b.end_date || b.start_date || '').localeCompare(a.end_date || a.start_date || '');
+    });
+    out.regattas = out.regattas.slice(0, 100);
+
+    out.clubs = Object.keys(clubByKey).map(function (k) { return clubByKey[k]; });
+    var prim = sailorRow && String(sailorRow.club || '').trim();
+    if (prim) {
+      var pk = prim.toLowerCase();
+      out.clubs = out.clubs.filter(function (c) { return String(c.display || '').toLowerCase() !== pk; });
+      out.clubs.unshift({
+        display: prim,
+        slug: clubSlugFromDisplay(prim),
+        club_abbrev: null,
+        club_fullname: null
+      });
+    }
+
+    out.classes = Object.keys(classMap).map(function (k) { return classMap[k]; });
+    var pc = sailorRow && String(sailorRow.class_name || '').trim();
+    if (pc) {
+      var hasC = out.classes.some(function (c) { return String(c.class_name || '').toLowerCase() === pc.toLowerCase(); });
+      if (!hasC) {
+        out.classes.unshift({ class_id: null, class_name: pc, from_profile: true });
+      }
+    }
+
+    out.sail_numbers.sort(function (a, b) { return String(a).localeCompare(String(b), undefined, { numeric: true }); });
+    out.boats.sort(function (a, b) { return String(a).localeCompare(String(b)); });
+    return out;
+  }
+
+  async function runSearch(q) {
+    var area = document.getElementById('resultsArea');
+    var meta = document.getElementById('resultsMeta');
+    var trimmed = (q || '').trim();
+
+    if (!trimmed) {
+      meta.textContent = '';
+      /* TEMP: hide empty-state “Start typing…” block */
+      area.innerHTML = '';
+      return;
+    }
+
+    meta.textContent = 'Searching…';
+    area.innerHTML = '<div class="blank-loading">Loading…</div>';
+
+    var sailorsP = fetchJson(window.API_BASE + '/api/search?q=' + encodeURIComponent(trimmed) + '&hub=1&limit=500').catch(function () { return []; });
+    var regattasP = fetchJson(window.API_BASE + '/api/regattas/with-counts?q=' + encodeURIComponent(trimmed)).catch(function () { return []; });
+
+    var sailors, regattas;
+    try {
+      sailors = await sailorsP;
+      regattas = await regattasP;
+    } catch (e) {
+      sailors = [];
+      regattas = [];
+    }
+    if (!Array.isArray(sailors)) sailors = [];
+    if (!Array.isArray(regattas)) regattas = [];
+
+    var clubs = filterClubs(trimmed);
+    var classes = filterClasses(trimmed);
+
+    var hubSid = null;
+    if (sailors.length > 0) {
+      var s0 = String(sailors[0].sas_id || '').trim();
+      if (/^\d+$/.test(s0) || /^TMP:/i.test(s0)) hubSid = s0;
+    }
+    var hubData = null;
+    if (hubSid) {
+      try {
+        hubData = await fetchJson(window.API_BASE + '/api/member/' + encodeURIComponent(hubSid) + '/hub-summary');
+      } catch (e) {
+        hubData = null;
+      }
+      if (!hubData || typeof hubData !== 'object') hubData = null;
+      var hubOk = !!(hubData && hubData.sa_id != null && String(hubData.sa_id).length > 0 && Array.isArray(hubData.regattas));
+      if (hubOk) {
+        var nonempty =
+          (hubData.regattas && hubData.regattas.length > 0) ||
+          (hubData.classes && hubData.classes.length > 0) ||
+          (hubData.sail_numbers && hubData.sail_numbers.length > 0) ||
+          (hubData.boats && hubData.boats.length > 0) ||
+          (hubData.clubs && hubData.clubs.length > 0) ||
+          (hubData.events && hubData.events.length > 0);
+        if (!nonempty) hubOk = false;
+      }
+      if (!hubOk) {
+        try {
+          var pack = await fetchJson(window.API_BASE + '/api/member/' + encodeURIComponent(hubSid) + '/results');
+          hubData = aggregateHubFromMemberResults(pack.results, sailors[0]);
+        } catch (e2) {
+          hubData = null;
+        }
+      }
+    }
+    var useHub = !!(hubSid && hubData);
+
+    function card(type, icon, title, sub, extraClass) {
+      return '<button type="button" class="blank-card" data-type="' + type + '" ' + (extraClass || '') + '>' +
+        '<span class="blank-card-icon"><img src="/assets/icons/' + icon + '" alt=""></span>' +
+        '<span class="blank-card-body"><span class="blank-card-type">' + type + '</span>' +
+        '<div class="blank-card-title">' + escapeHtml(title) + '</div>' +
+        '<div class="blank-card-sub">' + escapeHtml(sub) + '</div></span></button>';
+    }
+
+    function classHrefFromRow(row) {
+      var cid = row.class_id;
+      var name = row.class_name || '';
+      var slug = generateSlug(name);
+      if (cid != null && cid !== '') {
+        return slug ? ('/class/' + encodeURIComponent(String(cid) + '-' + slug)) : ('/class/' + encodeURIComponent(String(cid)));
+      }
+      var low = String(name).toLowerCase();
+      for (var ci = 0; ci < classesCache.length; ci++) {
+        var c = classesCache[ci];
+        if (String(c.class_name || '').toLowerCase() === low && c.class_id != null) {
+          var sg = generateSlug(c.class_name);
+          return '/class/' + encodeURIComponent(String(c.class_id) + '-' + sg);
+        }
+      }
+      return '';
+    }
+
+    function bindCardClicks(root) {
+      root.querySelectorAll('.blank-card').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var t = btn.getAttribute('data-type');
+          if (t === 'regatta') {
+            var rid = btn.getAttribute('data-regatta-id');
+            if (rid) window.location.href = '/regatta/' + encodeURIComponent(rid);
+            return;
+          }
+          if (t === 'club') {
+            var sl = (btn.getAttribute('data-club-slug') || '').trim();
+            if (sl) window.location.href = '/club/' + encodeURIComponent(sl);
+            return;
+          }
+          if (t === 'class') {
+            var ch = btn.getAttribute('data-class-href');
+            if (ch) window.location.href = ch;
+            return;
+          }
+          if (t === 'event') {
+            var u = btn.getAttribute('data-event-url');
+            if (u && /^https?:\/\//i.test(u)) {
+              window.open(u, '_blank', 'noopener,noreferrer');
+              return;
+            }
+            window.location.href = '/events';
+            return;
+          }
+          if (t === 'sail') {
+            window.location.href = '/boat_pedigree.html';
+            return;
+          }
+          if (t === 'boat') {
+            return;
+          }
+          if (t === 'sailor') {
+            var si = parseInt(btn.getAttribute('data-sailor-idx'), 10);
+            if (!isNaN(si) && lastSailorRows[si]) goSailor(lastSailorRows[si]);
+          }
+        });
+      });
+    }
+
+    var totalCount;
+    var html;
+
+    if (useHub) {
+      var hr = hubData.regattas || [];
+      var hev = hubData.events || [];
+      var hcl = hubData.clubs || [];
+      var hcls = hubData.classes || [];
+      var hsail = hubData.sail_numbers || [];
+      var hboats = hubData.boats || [];
+
+      totalCount = sailors.length + hr.length + hev.length + hcl.length + hcls.length + hsail.length + hboats.length;
+      meta.textContent = totalCount + ' result(s)' + (sailors.length > 1 ? ' · first sailor’s activity' : '');
+
+      html = '';
+      if (sailors.length > 1) {
+        html += '<p class="blank-hub-note">Regattas, calendar events, clubs, classes, sail numbers, and boats are for the first sailor below. Tap a sailor to open their full profile.</p>';
+      }
+
+      html += '<div class="blank-hub-section-title">Sailors</div><div class="blank-results-list">';
+      lastSailorRows = sailors.slice();
+      sailors.forEach(function (row, i) {
+        var title = [row.first_names, row.surname].filter(Boolean).join(' ').trim() || (row.first_names || 'Sailor');
+        var sub = [row.sas_id ? ('ID ' + row.sas_id) : '', row.class_name, row.club].filter(Boolean).join(' · ');
+        html += card('sailor', 'sailors.png', title, sub, 'data-sailor-idx="' + i + '"');
+      });
+      html += '</div>';
+
+      html += '<div class="blank-hub-section-title">Results · Regattas sailed</div><div class="blank-results-list">';
+      if (hr.length === 0) {
+        html += '<div class="blank-hub-empty-line">No regatta results in the database for this sailor yet.</div>';
+      } else {
+        hr.forEach(function (row) {
+          var title = row.event_name || 'Regatta';
+          var y = row.year != null ? String(row.year) : '';
+          var ds = row.end_date || row.start_date || '';
+          var sub = [y, ds].filter(Boolean).join(' · ');
+          var rid = String(row.regatta_id || '').trim();
+          html += card('regatta', 'results.png', title, sub, 'data-regatta-id="' + escapeHtml(rid) + '"');
+        });
+      }
+      html += '</div>';
+
+      html += '<div class="blank-hub-section-title">Events · Calendar</div><div class="blank-results-list">';
+      if (hev.length === 0) {
+        html += '<div class="blank-hub-empty-line">No linked calendar rows (SAS events with this regatta) yet.</div>';
+      } else {
+        hev.forEach(function (row) {
+          var title = row.event_name || 'Event';
+          var rgs = row.regatta_id ? ('Regatta ' + String(row.regatta_id)) : '';
+          var ds = [row.start_date, row.end_date].filter(Boolean).join(' – ');
+          var sub = [ds, rgs].filter(Boolean).join(' · ');
+          var url = (row.source_url && String(row.source_url).trim()) || '';
+          html += card('event', 'events.png', title, sub, 'data-event-url="' + escapeHtml(url) + '"');
+        });
+      }
+      html += '</div>';
+
+      html += '<div class="blank-hub-section-title">Clubs</div><div class="blank-results-list">';
+      if (hcl.length === 0) {
+        html += '<div class="blank-hub-empty-line">No club on file from results or profile.</div>';
+      } else {
+        hcl.forEach(function (row) {
+          var title = row.display || 'Club';
+          var sub = [row.club_abbrev, row.club_fullname].filter(Boolean).join(' · ') || 'Member / results club';
+          var slug = String(row.slug || '').trim();
+          html += card('club', 'clubs.png', title, sub, 'data-club-slug="' + escapeHtml(slug) + '"');
+        });
+      }
+      html += '</div>';
+
+      html += '<div class="blank-hub-section-title">Classes</div><div class="blank-results-list">';
+      if (hcls.length === 0) {
+        html += '<div class="blank-hub-empty-line">No classes from results.</div>';
+      } else {
+        hcls.forEach(function (row) {
+          var title = row.class_name || 'Class';
+          var ch = classHrefFromRow(row);
+          var sub = row.from_profile ? 'From profile' : (row.class_id != null ? ('Class · ID ' + row.class_id) : 'From results');
+          if (!ch) {
+            html += '<div class="blank-card blank-card--static"><span class="blank-card-icon"><img src="/assets/icons/classes.png" alt=""></span><span class="blank-card-body"><span class="blank-card-type">class</span><div class="blank-card-title">' + escapeHtml(title) + '</div><div class="blank-card-sub">' + escapeHtml(sub) + '</div></span></div>';
+          } else {
+            html += card('class', 'classes.png', title, sub, 'data-class-href="' + escapeHtml(ch) + '"');
+          }
+        });
+      }
+      html += '</div>';
+
+      html += '<div class="blank-hub-section-title">Sail numbers</div><div class="blank-results-list">';
+      if (hsail.length === 0) {
+        html += '<div class="blank-hub-empty-line">No sail numbers in results.</div>';
+      } else {
+        hsail.forEach(function (sn) {
+          html += card('sail', 'sail-numbers.png', String(sn), 'Open boat pedigree to search this sail number', '');
+        });
+      }
+      html += '</div>';
+
+      html += '<div class="blank-hub-section-title">Boats</div><div class="blank-results-list">';
+      if (hboats.length === 0) {
+        html += '<div class="blank-hub-empty-line">No boat names in results.</div>';
+      } else {
+        hboats.forEach(function (bn) {
+          html += card('boat', 'boats.png', String(bn), 'From results', '');
+        });
+      }
+      html += '</div>';
+
+      area.innerHTML = html;
+      bindCardClicks(area);
+      return;
+    }
+
+    totalCount = sailors.length + regattas.length + clubs.length + classes.length;
+    meta.textContent = totalCount + ' result(s)';
+
+    if (sailors.length === 0 && regattas.length === 0 && clubs.length === 0 && classes.length === 0) {
+      area.innerHTML = '<div class="blank-empty">No results for “' + escapeHtml(trimmed) + '”. Try another name, event, club, or class.</div>';
+      return;
+    }
+
+    html = '<div class="blank-results-list">';
+
+    lastSailorRows = sailors.slice();
+    sailors.forEach(function (row, i) {
+      var title = [row.first_names, row.surname].filter(Boolean).join(' ').trim() || (row.first_names || 'Sailor');
+      var sub = [row.sas_id ? ('ID ' + row.sas_id) : '', row.class_name, row.club].filter(Boolean).join(' · ');
+      html += card('sailor', 'sailors.png', title, sub, 'data-sailor-idx="' + i + '"');
+    });
+
+    regattas.forEach(function (row) {
+      var title = row.event_name || 'Regatta';
+      var y = row.year != null ? String(row.year) : '';
+      var sub = [row.host_club_name || row.host_club_code, y, row.entries_count != null ? (row.entries_count + ' entries') : ''].filter(Boolean).join(' · ');
+      var rid = String(row.regatta_id || '').trim();
+      html += card('regatta', 'events.png', title, sub, 'data-regatta-id="' + escapeHtml(rid) + '"');
+    });
+
+    clubs.forEach(function (row) {
+      var title = (row.name || row.code || 'Club').trim();
+      var sub = [row.code, row.province].filter(Boolean).join(' · ');
+      var slug = String(row.slug || '').trim();
+      html += card('club', 'clubs.png', title, sub, 'data-club-slug="' + escapeHtml(slug) + '"');
+    });
+
+    classes.forEach(function (row) {
+      var title = row.class_name || 'Class';
+      var cid = row.class_id;
+      var slug = generateSlug(row.class_name);
+      var path = slug ? ('/class/' + encodeURIComponent(String(cid) + '-' + slug)) : ('/class/' + encodeURIComponent(String(cid)));
+      html += card('class', 'classes.png', title, 'Class · ID ' + String(cid), 'data-class-href="' + escapeHtml(path) + '"');
+    });
+
+    html += '</div>';
+    area.innerHTML = html;
+
+    bindCardClicks(area);
+  }
+
+  async function goSailor(row) {
+    var id = String(row.sas_id || '').trim();
+    if (/^\d+$/.test(id)) {
+      try {
+        var r = await fetch(window.API_BASE + '/api/sailor/resolve?sas_id=' + encodeURIComponent(id), { credentials: 'include' });
+        if (r.ok) {
+          var j = await r.json();
+          if (j && j.slug) {
+            window.location.href = '/sailor/' + encodeURIComponent(j.slug);
+            return;
+          }
+        }
+      } catch (e) {}
+    }
+    var name = [row.first_names, row.surname].filter(Boolean).join(' ').trim();
+    var base = generateSlug(name);
+    if (base) {
+      window.location.href = '/sailor/' + encodeURIComponent(/^\d+$/.test(id) ? (base + '-' + id) : base);
+      return;
+    }
+    window.location.href = '/';
+  }
+
+  function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  var debounceTimer;
+  var input = document.getElementById('searchInput');
+  var blankNewsSection = document.getElementById('blank-news-section');
+  var blankHubHeroSection = document.getElementById('blank-hub-hero-section');
+  var blankSearchResultsCard = document.getElementById('blankSearchResultsCard');
+  var blankHubSubcardsRow = document.getElementById('blankHubSubcardsRow');
+  function syncBlankNewsVisibility() {
+    var searching = String(input && input.value ? input.value : '').trim().length > 0;
+    if (blankNewsSection) blankNewsSection.style.display = searching ? 'none' : '';
+    if (blankHubHeroSection) blankHubHeroSection.style.display = searching ? 'none' : '';
+    if (blankHubSubcardsRow) blankHubSubcardsRow.style.display = searching ? 'none' : '';
+    if (blankSearchResultsCard) {
+      if (searching) blankSearchResultsCard.removeAttribute('hidden');
+      else blankSearchResultsCard.setAttribute('hidden', '');
+    }
+  }
+  if (input) {
+    input.addEventListener('input', function () {
+      syncBlankNewsVisibility();
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(function () { runSearch(input.value); }, 300);
+    });
+  }
+  syncBlankNewsVisibility();
+
+  blankHubHeroWireOnce();
+  loadStats();
+  loadBlankNews();
+  setInterval(loadLivePill, 90000);
+  function runPreloadDirectories() {
+    preloadDirectories().then(function () {
+      var ra = document.getElementById('resultsArea');
+      if (ra) ra.innerHTML = '';
+    });
+  }
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(runPreloadDirectories);
+  } else {
+    setTimeout(runPreloadDirectories, 0);
+  }
+})();
+  </script>
+  <script src="/js/blank-landing-header.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  function watchAvatarSrc(id) {
+    var avatar = document.getElementById(id);
+    if (!avatar) return;
+    var observer = new MutationObserver(function () {
+      if (avatar.src && avatar.src !== window.location.href) {
+        avatar.style.display = "block";
+      }
+    });
+    observer.observe(avatar, { attributes: true, attributeFilter: ["src"] });
+  }
+  watchAvatarSrc("userAvatarImg");
+  watchAvatarSrc("adminV10SecondHeaderAvatar");
+
+  var bnav = document.getElementById("blankBottomNav");
+  if (bnav) {
+    bnav.addEventListener("click", function (ev) {
+      var t = ev.target.closest("[data-blank-nav]");
+      if (!t) return;
+      var k = t.getAttribute("data-blank-nav");
+      if (k === "search") {
+        ev.preventDefault();
+        var inp = document.getElementById("searchInput");
+        if (inp) {
+          inp.focus();
+          try {
+            inp.scrollIntoView({ behavior: "smooth", block: "center" });
+          } catch (e) {}
+        }
+      }
+    });
+  }
+});
+</script>
 </body>
 </html>
