@@ -1,19 +1,19 @@
-from fastapi import FastAPI, HTTPException, Body, Query, Request
+from fastapi import FastAPI, HTTPException, Body, Query, Request, File, UploadFile
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response, FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Union, Optional, List, Dict, Set
-import os, sys, subprocess, socket, psycopg2, psycopg2.extras, psycopg2.pool, re
+import os, shutil, sys, subprocess, socket, psycopg2, psycopg2.extras, psycopg2.pool, re
 from pathlib import Path
 from unidecode import unidecode
 import time
 from functools import lru_cache, wraps, cmp_to_key
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date
 from zoneinfo import ZoneInfo
 import uuid
-from collections import defaultdict
+from collections import Counter, defaultdict
 import logging
 import feedparser
 import httpx
@@ -22,6 +22,7 @@ import hashlib
 import html as html_module
 import json
 import difflib
+from urllib.parse import urlparse, unquote
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
@@ -574,6 +575,69 @@ def _derive_device_type(user_agent: str) -> str:
     return "desktop"
 
 
+def _sanitize_session_path(p: Optional[str], max_len: int = 500) -> str:
+    """Store client path for last_path; must start with /, no NUL."""
+    if not p or not str(p).strip():
+        return "/"
+    s = str(p).strip()[:max_len].replace("\x00", "")
+    if not s.startswith("/"):
+        s = "/" + s
+    return s or "/"
+
+
+def _client_path_for_session_touch(request: Request) -> str:
+    """Path to record for SPA users: explicit ?path= from client, else Referer path (same host), else request path."""
+    raw = (request.query_params.get("path") or request.query_params.get("current_path") or "").strip()
+    if raw:
+        try:
+            raw = unquote(raw)
+        except Exception:
+            pass
+        return _sanitize_session_path(raw)
+    ref = (request.headers.get("referer") or request.headers.get("referrer") or "").strip()
+    if ref:
+        try:
+            pu = urlparse(ref)
+            host_req = (request.url.hostname or "").lower()
+            host_ref = (pu.hostname or "").lower()
+            if host_ref and host_req and host_ref.split(":")[0] == host_req.split(":")[0]:
+                combined = pu.path or "/"
+                if pu.query:
+                    combined = combined + "?" + pu.query[:200]
+                return _sanitize_session_path(combined)
+        except Exception:
+            pass
+    return _sanitize_session_path(request.url.path or "/")
+
+
+def _session_touch_user_activity(cur, session_token: str, path: str) -> None:
+    """Set last_activity = now and last_path for this session (DB-backed). No-op if no table/token."""
+    if not session_token or not table_exists("user_sessions"):
+        return
+    p = _sanitize_session_path(path)
+    try:
+        if column_exists("user_sessions", "last_path"):
+            cur.execute(
+                """
+                UPDATE public.user_sessions
+                SET last_activity = NOW(), last_path = %s
+                WHERE session_id = %s AND expires_at > NOW()
+                """,
+                (p, session_token),
+            )
+        else:
+            cur.execute(
+                """
+                UPDATE public.user_sessions
+                SET last_activity = NOW()
+                WHERE session_id = %s AND expires_at > NOW()
+                """,
+                (session_token,),
+            )
+    except Exception:
+        pass
+
+
 @app.middleware("http")
 async def _redirect_sas_id_before_routing(request: Request, call_next):
     """Run before route matching. Fix wrong /sailor/regatta/... (old frontend bug) -> /regatta/... then sas_id redirect."""
@@ -584,26 +648,15 @@ async def _redirect_sas_id_before_routing(request: Request, call_next):
         query = str(request.url.query)
         new_url = fix + ("?" + query if query else "")
         return RedirectResponse(url=new_url, status_code=301)
-    # Update session last_activity and last_path for logged-in users (each request)
+    # Update session last_activity and last_path for logged-in users (every API request)
     session_token = request.cookies.get("session")
     if session_token and table_exists("user_sessions"):
         conn = None
         try:
             conn = get_db_connection()
             cur = conn.cursor()
-            path = (request.url.path or "")[:500]
-            if column_exists("user_sessions", "last_path"):
-                cur.execute("""
-                    UPDATE public.user_sessions
-                    SET last_activity = NOW(), last_path = %s
-                    WHERE session_id = %s AND expires_at > NOW()
-                """, (path, session_token))
-            else:
-                cur.execute("""
-                    UPDATE public.user_sessions
-                    SET last_activity = NOW()
-                    WHERE session_id = %s AND expires_at > NOW()
-                """, (session_token,))
+            req_path = _client_path_for_session_touch(request)
+            _session_touch_user_activity(cur, session_token, req_path)
             conn.commit()
         except Exception:
             pass
@@ -655,6 +708,786 @@ def events_page(request: Request):
 def events_page_head():
     """HEAD for crawlers / health checks (GET-only routes return 405 without this)."""
     return Response(status_code=200)
+
+
+def _yearly_canonical_display_for_key(series_key: str) -> str | None:
+    """Stable card title for a normalized series key (overrides noisy regatta names)."""
+    if series_key == "dabchick wc regionals":
+        return "Dabchick WC Regionals"
+    if series_key == "w cape championships dinghy classes":
+        return "W. Cape Championships - Dinghy Classes"
+    if series_key == "wc regionals":
+        return "WC Regionals"
+    if series_key == "df95 wc regionals":
+        return "DF95 WC Regional Championships"
+    return None
+
+
+def _yearly_initial_display_for_key(series_key: str, fallback_name: str) -> tuple:
+    """(display_name, display_name_score) for a new series group."""
+    canon = _yearly_canonical_display_for_key(series_key)
+    if canon:
+        return canon, (-1, 0)
+    t = _yearly_event_series_title(fallback_name)
+    return t, _yearly_event_title_score(t)
+
+
+def _yearly_event_series_key(name: str) -> str:
+    s = (name or "").strip().lower()
+    if not s:
+        return ""
+    # Merge naming drift for the same Western Cape dinghy championship event family.
+    if (
+        ("wc" in s or "western cape" in s or "w. cape" in s or "w cape" in s)
+        and "dinghy" in s
+        and ("champ" in s or "regional championship" in s or "championship" in s)
+    ):
+        return "w cape championships dinghy classes"
+    # Own event: Dabchick WC Regionals (multi-class); not WC Regionals umbrella, not Dabchick WC Champs.
+    if (
+        "dabchick" in s
+        and "regional" in s
+        and (
+            " wc " in f" {s} "
+            or "western cape" in s
+            or "w. cape" in s
+            or "w cape" in s
+        )
+    ):
+        return "dabchick wc regionals"
+    # DF95 / Dragonflite WC regional (single fleet). Not W. Cape multi-class champs, not generic WC Regionals.
+    wc_geo = (
+        " wc " in f" {s} "
+        or "western cape" in s
+        or "w. cape" in s
+        or "w cape" in s
+    )
+    if (
+        wc_geo
+        and "regional" in s
+        and (
+            re.search(r"\bdf\s*95\b", s)
+            or "df95" in s.replace(" ", "")
+            or "dragonflite" in s
+        )
+    ):
+        return "df95 wc regionals"
+    # Other WC regional events (no Dabchick / not DF95 single-fleet carve-out above).
+    if "regional" in s and wc_geo:
+        return "wc regionals"
+    # Dabchick WC Championship — not Regionals (handled above).
+    if "dabchick" in s and (" wc " in f" {s} " or "western cape" in s):
+        return "dabchick wc championship"
+    # Collapse class-split sheets for same event family.
+    if "cape classic" in s:
+        if "hermanus" in s:
+            return "hermanus cape classic"
+        if "hyc" in s:
+            return "hyc cape classic"
+        if "tsc" in s:
+            return "tsc cape classic"
+        return "cape classic"
+    if "youth nationals" in s:
+        return "sa sailing youth nationals"
+    if "29er" in s and ("national" in s or "yn" in s):
+        return "29er nationals"
+    # MACS @ ZVYC club champs — calendar titles often drop "Shipping" / wording differs.
+    if "macs" in s and "zvyc" in s and ("champ" in s or "club" in s):
+        return "macs zvyc club champs"
+    s = re.sub(r"\b(19|20)\d{2}\b", " ", s)
+    s = re.sub(r"\b(results|result|#live|live|rsa|sa|championship|championships|regionals|provincials|final)\b", " ", s)
+    s = re.sub(r"[-_/()#]", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
+def _yearly_series_distinct_year_counts_map() -> dict[str, int]:
+    """series_key -> number of distinct calendar years (same grouping as /yearly-events)."""
+    year_sets: dict[str, set] = {}
+
+    def _add(name: str, sd, ed, rid) -> None:
+        name = (name or "").strip()
+        key = _yearly_event_series_key(name)
+        if not key:
+            return
+        d = ed or sd
+        year = int(getattr(d, "year", 0) or 0) if d else 0
+        rid_raw = str(rid or "").strip().lower()
+        if year <= 0 and rid_raw:
+            m = re.search(r"-(19|20)\d{2}-", f"-{rid_raw}-")
+            if m:
+                year = int(m.group(0).strip("-").split("-")[0])
+        if year <= 0:
+            m2 = re.search(r"\b(19|20)\d{2}\b", name)
+            if m2:
+                year = int(m2.group(0))
+        if year <= 0:
+            return
+        year_sets.setdefault(key, set()).add(year)
+
+    conn = None
+    try:
+        if not table_exists("regattas"):
+            return {}
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(
+            """
+            SELECT r.event_name, r.start_date, COALESCE(r.end_date, r.start_date) AS end_date, r.regatta_id::text AS regatta_id
+            FROM regattas r
+            WHERE r.event_name IS NOT NULL AND TRIM(r.event_name) <> ''
+            """
+        )
+        for row in cur.fetchall() or []:
+            _add(row.get("event_name"), row.get("start_date"), row.get("end_date"), row.get("regatta_id"))
+        if table_exists("events"):
+            has_events_regatta_id = column_exists("events", "regatta_id")
+            reg_sql = "e.regatta_id::text" if has_events_regatta_id else "NULL::text"
+            cur.execute(
+                f"""
+                SELECT e.event_name, e.start_date, COALESCE(e.end_date, e.start_date) AS end_date, {reg_sql} AS regatta_id
+                FROM events e
+                WHERE e.event_name IS NOT NULL AND TRIM(e.event_name) <> ''
+                  AND (
+                    (e.end_date IS NOT NULL AND e.end_date >= CURRENT_DATE)
+                    OR (e.end_date IS NULL AND e.start_date >= CURRENT_DATE)
+                  )
+                """
+            )
+            for row in cur.fetchall() or []:
+                _add(row.get("event_name"), row.get("start_date"), row.get("end_date"), row.get("regatta_id"))
+        cur.close()
+        return {k: len(v) for k, v in year_sets.items()}
+    except Exception as e:
+        print(f"[yearly_series_distinct_year_counts_map] {e}")
+        traceback.print_exc()
+        return {}
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+
+def _yearly_event_series_title(name: str) -> str:
+    raw = (name or "").strip()
+    if not raw:
+        return "Event"
+    raw = re.sub(r"\b(19|20)\d{2}\b", " ", raw)
+    raw = re.sub(r"\bResults?\b", " ", raw, flags=re.IGNORECASE)
+    raw = re.sub(r"\s+", " ", raw).strip(" -")
+    return raw or "Event"
+
+
+def _yearly_event_title_score(title: str) -> tuple:
+    """Lower is better: prefer event-level names over class-split sheet titles."""
+    t = (title or "").strip().lower()
+    # Penalize likely class/result sheet labels.
+    penalty = 0
+    if re.search(r"\b(results?|final|provisional)\b", t):
+        penalty += 3
+    if re.search(r"\b(optimist|ilca|dabchick|mirror|hobie|sonnet|topper|finn|laser|fleet|multihull)\b", t):
+        penalty += 2
+    if " - " in (title or ""):
+        penalty += 1
+    # Prefer concise, cleaner event names once penalties are equal.
+    return (penalty, len(t))
+
+
+def _yearly_series_row_sort_key(r: dict) -> tuple:
+    """/yearly-events: same priority as /events cards (max history entries, series depth, first-year last)."""
+    cy = int(r.get("count_years") or 0)
+    est = 0 if cy >= 2 else 1
+    max_ent = 0
+    for h in r.get("history") or []:
+        max_ent = max(max_ent, int(h.get("entries_count") or 0))
+    nud = r.get("next_upcoming_date")
+    if nud is None:
+        nud_sort = date.max
+    else:
+        if hasattr(nud, "date") and not isinstance(nud, date):
+            try:
+                nud_sort = nud.date()
+            except Exception:
+                nud_sort = date.max
+        elif isinstance(nud, date):
+            nud_sort = nud
+        else:
+            nud_sort = date.max
+    return (est, -max_ent, -cy, nud_sort, str(r.get("display_name") or "").lower())
+
+
+def _get_yearly_event_series() -> list[dict]:
+    """Recurring event series from regattas table, ordered from current month cycle."""
+    out = []
+    if not table_exists("regattas") or not table_exists("results"):
+        return out
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(
+            """
+            SELECT
+              r.regatta_id::text AS regatta_id,
+              r.event_name,
+              r.start_date,
+              COALESCE(r.end_date, r.start_date) AS end_date,
+              r.as_at_time,
+              EXISTS (
+                SELECT 1 FROM results rs
+                WHERE rs.regatta_id = r.regatta_id
+                  AND rs.raced IS TRUE
+              ) AS has_results
+            FROM regattas r
+            WHERE r.event_name IS NOT NULL
+              AND TRIM(r.event_name) <> ''
+            """
+        )
+        rows = list(cur.fetchall() or [])
+        upcoming_rows = []
+        if table_exists("events"):
+            has_events_regatta_id = column_exists("events", "regatta_id")
+            reg_col = "e.regatta_id::text AS regatta_id," if has_events_regatta_id else "NULL::text AS regatta_id,"
+            cur.execute(
+                f"""
+                SELECT
+                  {reg_col}
+                  e.event_name,
+                  e.start_date,
+                  COALESCE(e.end_date, e.start_date) AS end_date
+                FROM events e
+                WHERE e.event_name IS NOT NULL
+                  AND TRIM(e.event_name) <> ''
+                  AND (
+                    (e.end_date IS NOT NULL AND e.end_date >= CURRENT_DATE)
+                    OR (e.end_date IS NULL AND e.start_date >= CURRENT_DATE)
+                  )
+                """
+            )
+            upcoming_rows = list(cur.fetchall() or [])
+        regatta_ids = [str(x.get("regatta_id") or "").strip() for x in rows if x.get("regatta_id")]
+        stats_map = {}
+        if regatta_ids:
+            if (
+                table_exists("classes")
+                and column_exists("classes", "class_name")
+                and column_exists("results", "class_id")
+            ):
+                cls_join = "LEFT JOIN classes ycls ON ycls.class_id = rr.class_id"
+                cls_expr = "COALESCE(ycls.class_name::text, rr.class_original, rb.class_canonical, rb.class_original, '')"
+            else:
+                cls_join = ""
+                cls_expr = "COALESCE(rr.class_original, rb.class_canonical, rb.class_original, '')"
+            cur.execute(
+                f"""
+                SELECT
+                  rr.regatta_id::text AS regatta_id,
+                  COUNT(*)::int AS entries_count,
+                  ARRAY_REMOVE(ARRAY_AGG(DISTINCT COALESCE(rr.class_id::text, rb.class_id::text)), NULL) AS class_keys,
+                  ARRAY_REMOVE(ARRAY_AGG(DISTINCT NULLIF(TRIM({cls_expr}), '')), NULL) AS class_labels_raw,
+                  ARRAY_REMOVE(ARRAY_AGG(DISTINCT NULLIF(TRIM(COALESCE(rr.helm_sa_sailing_id::text, rr.helm_name, '')), '')), NULL) AS helm_keys,
+                  ARRAY_REMOVE(ARRAY_AGG(DISTINCT NULLIF(TRIM(COALESCE(rr.crew_sa_sailing_id::text, rr.crew_name, '')), '')), NULL) AS crew_keys
+                FROM results rr
+                LEFT JOIN regatta_blocks rb ON rb.block_id = rr.block_id
+                {cls_join}
+                WHERE rr.raced IS TRUE
+                  AND rr.regatta_id::text = ANY(%s)
+                GROUP BY rr.regatta_id
+                """,
+                (regatta_ids,),
+            )
+            for s in (cur.fetchall() or []):
+                class_keys = set(str(x).strip() for x in (s.get("class_keys") or []) if str(x).strip())
+                sailor_keys = set(str(x).strip().lower() for x in (s.get("helm_keys") or []) if str(x).strip())
+                sailor_keys.update(str(x).strip().lower() for x in (s.get("crew_keys") or []) if str(x).strip())
+                raw_labs = s.get("class_labels_raw") or []
+                class_labels = sorted(
+                    {str(x).strip() for x in raw_labs if x is not None and str(x).strip()}
+                )
+                stats_map[str(s.get("regatta_id") or "").strip()] = {
+                    "entries_count": int(s.get("entries_count") or 0),
+                    "classes_count": len(class_keys),
+                    "sailors_count": len(sailor_keys),
+                    "class_keys": class_keys,
+                    "sailor_keys": sailor_keys,
+                    "class_labels": class_labels,
+                }
+    except Exception as e:
+        print(f"[yearly-events] query failed: {e}")
+        rows = []
+        upcoming_rows = []
+        stats_map = {}
+    finally:
+        if conn:
+            try:
+                return_db_connection(conn)
+            except Exception:
+                pass
+
+    now = datetime.now().date()
+    cur_month = int(now.month)
+    groups: dict[str, dict] = {}
+    for r in rows:
+        name = (r.get("event_name") or "").strip()
+        key = _yearly_event_series_key(name)
+        if not key:
+            continue
+        sd = r.get("start_date")
+        ed = r.get("end_date")
+        as_at = r.get("as_at_time")
+        d = ed or sd
+        rid_raw = str(r.get("regatta_id") or "").strip().lower()
+        year = int(getattr(d, "year", 0) or 0)
+        if year <= 0:
+            m = re.search(r"-(19|20)\d{2}-", f"-{rid_raw}-")
+            if m:
+                year = int(m.group(0).strip("-").split("-")[0])
+        if year <= 0:
+            m2 = re.search(r"\b(19|20)\d{2}\b", name)
+            if m2:
+                year = int(m2.group(0))
+        month = int(getattr(sd or d, "month", 0) or 0)
+        if year <= 0:
+            continue
+        g = groups.get(key)
+        if not g:
+            dn, ds = _yearly_initial_display_for_key(key, name)
+            g = {
+                "series_key": key,
+                "display_name": dn,
+                "display_name_score": ds,
+                "years": set(),
+                "month": month or 1,
+                "latest_date": d,
+                "latest_regatta_id": (r.get("regatta_id") or "").strip(),
+                "history": [],
+            }
+            groups[key] = g
+        g["years"].add(year)
+        rid = (r.get("regatta_id") or "").strip()
+        st = stats_map.get(rid, {})
+        canon = _yearly_canonical_display_for_key(key)
+        if canon:
+            g["display_name"] = canon
+            g["display_name_score"] = (-1, 0)
+        else:
+            cand_title = _yearly_event_series_title(name)
+            cand_score = _yearly_event_title_score(cand_title)
+            if cand_title and cand_score < g.get("display_name_score", (999, 999)):
+                g["display_name"] = cand_title
+                g["display_name_score"] = cand_score
+        g["history"].append(
+            {
+                "year": year,
+                "regatta_id": rid,
+                "has_results": bool(r.get("has_results")),
+                "entries_count": int(st.get("entries_count") or 0),
+                "classes_count": int(st.get("classes_count") or 0),
+                "sailors_count": int(st.get("sailors_count") or 0),
+                "class_keys": set(st.get("class_keys") or set()),
+                "sailor_keys": set(st.get("sailor_keys") or set()),
+                "class_labels": set(st.get("class_labels") or []),
+                "result_date": as_at or ed or sd,
+                "end_date": d,
+            }
+        )
+        if d and (g["latest_date"] is None or d > g["latest_date"]):
+            g["latest_date"] = d
+            g["latest_regatta_id"] = rid
+            if month:
+                g["month"] = month
+
+    # Pull in upcoming events so known series show future years even before results exist.
+    for e in (upcoming_rows or []):
+        name = (e.get("event_name") or "").strip()
+        key = _yearly_event_series_key(name)
+        if not key:
+            continue
+        sd = e.get("start_date")
+        ed = e.get("end_date")
+        d = ed or sd
+        rid_raw = str(e.get("regatta_id") or "").strip().lower()
+        year = int(getattr(d, "year", 0) or 0)
+        if year <= 0:
+            m = re.search(r"-(19|20)\d{2}-", f"-{rid_raw}-")
+            if m:
+                year = int(m.group(0).strip("-").split("-")[0])
+        if year <= 0:
+            m2 = re.search(r"\b(19|20)\d{2}\b", name)
+            if m2:
+                year = int(m2.group(0))
+        if year <= 0:
+            continue
+        month = int(getattr(sd or d, "month", 0) or 0)
+        g = groups.get(key)
+        if not g:
+            dn, ds = _yearly_initial_display_for_key(key, name)
+            g = {
+                "series_key": key,
+                "display_name": dn,
+                "display_name_score": ds,
+                "years": set(),
+                "month": month or 1,
+                "latest_date": d,
+                "latest_regatta_id": "",
+                "history": [],
+            }
+            groups[key] = g
+        if year in g["years"]:
+            continue
+        g["years"].add(year)
+        ev_rid = (str(e.get("regatta_id") or "").strip() if e.get("regatta_id") is not None else "") or ""
+        g["history"].append(
+            {
+                "year": year,
+                "regatta_id": ev_rid,
+                "has_results": False,
+                "entries_count": 0,
+                "classes_count": 0,
+                "sailors_count": 0,
+                "class_keys": set(),
+                "sailor_keys": set(),
+                "class_labels": set(),
+                "result_date": None,
+                "scheduled_date": d,
+                "end_date": d,
+            }
+        )
+        if d and (g["latest_date"] is None or d > g["latest_date"]):
+            g["latest_date"] = d
+            if month:
+                g["month"] = month
+
+    cy = int(now.year)
+    for g in groups.values():
+        ys = g.get("years") or set()
+        # Established series (2+ years): if current calendar year has no row yet, show a placeholder
+        # so readers see where the next edition should appear on the Events calendar.
+        if len(ys) >= 2 and cy not in ys:
+            g["years"].add(cy)
+            g["history"].append(
+                {
+                    "year": cy,
+                    "regatta_id": "",
+                    "has_results": False,
+                    "entries_count": 0,
+                    "classes_count": 0,
+                    "sailors_count": 0,
+                    "class_keys": set(),
+                    "sailor_keys": set(),
+                    "class_labels": set(),
+                    "result_date": None,
+                    "scheduled_date": None,
+                    "end_date": None,
+                    "missing_calendar_listing": True,
+                }
+            )
+        # Merge all sheets in the same event-year into one yearly total.
+        by_year = {}
+        for h in g["history"]:
+            y = int(h.get("year") or 0)
+            if y <= 0:
+                continue
+            agg = by_year.get(y)
+            if not agg:
+                by_year[y] = {
+                    "year": y,
+                    "regatta_id": h.get("regatta_id") or "",
+                    "has_results": bool(h.get("has_results")),
+                    "entries_count": int(h.get("entries_count") or 0),
+                    "class_keys": set(h.get("class_keys") or set()),
+                    "sailor_keys": set(h.get("sailor_keys") or set()),
+                    "class_label_set": set(h.get("class_labels") or set()),
+                    "result_date": h.get("result_date"),
+                    "scheduled_date": h.get("scheduled_date"),
+                    "end_date": h.get("end_date"),
+                    "missing_calendar_listing": bool(h.get("missing_calendar_listing")),
+                }
+                continue
+            agg["has_results"] = bool(agg.get("has_results")) or bool(h.get("has_results"))
+            agg["entries_count"] += int(h.get("entries_count") or 0)
+            agg["class_keys"].update(h.get("class_keys") or set())
+            agg["sailor_keys"].update(h.get("sailor_keys") or set())
+            agg["class_label_set"].update(h.get("class_labels") or set())
+            if (
+                (h.get("regatta_id") or "").strip()
+                or h.get("scheduled_date")
+                or bool(h.get("has_results"))
+                or int(h.get("entries_count") or 0) > 0
+            ):
+                agg["missing_calendar_listing"] = False
+            agg_date = agg.get("end_date")
+            cur_date = h.get("end_date")
+            if cur_date and (not agg_date or cur_date > agg_date):
+                agg["end_date"] = cur_date
+                agg["regatta_id"] = h.get("regatta_id") or agg.get("regatta_id") or ""
+                agg["result_date"] = h.get("result_date") or agg.get("result_date")
+                agg["scheduled_date"] = h.get("scheduled_date") or agg.get("scheduled_date")
+            h_rid = (h.get("regatta_id") or "").strip()
+            if h_rid and not (agg.get("regatta_id") or "").strip():
+                agg["regatta_id"] = h_rid
+            if h.get("scheduled_date") and not agg.get("scheduled_date"):
+                agg["scheduled_date"] = h.get("scheduled_date")
+        g["history"] = sorted(
+            [
+                {
+                    "year": yy,
+                    "regatta_id": v.get("regatta_id") or "",
+                    "has_results": bool(v.get("has_results")),
+                    "entries_count": int(v.get("entries_count") or 0),
+                    "classes_count": len(v.get("class_keys") or set()),
+                    "sailors_count": len(v.get("sailor_keys") or set()),
+                    "class_labels": sorted(v.get("class_label_set") or set()),
+                    "result_date": v.get("result_date"),
+                    "scheduled_date": v.get("scheduled_date"),
+                    "end_date": v.get("end_date"),
+                    "missing_calendar_listing": bool(v.get("missing_calendar_listing")),
+                }
+                for yy, v in by_year.items()
+            ],
+            key=lambda x: x["year"],
+            reverse=True,
+        )
+        # Earliest upcoming scheduled date for this series (from events feed roll-ins).
+        next_upcoming_date = None
+        for h in g["history"]:
+            sd = h.get("scheduled_date")
+            if not sd:
+                continue
+            if hasattr(sd, "date") and callable(getattr(sd, "date", None)):
+                try:
+                    sd = sd.date()
+                except Exception:
+                    pass
+            if next_upcoming_date is None or sd < next_upcoming_date:
+                next_upcoming_date = sd
+        years_sorted = sorted(g["years"], reverse=True)
+        month = int(g["month"] or 1)
+        month_offset = (month - cur_month) % 12
+        out.append(
+            {
+                "series_key": g.get("series_key") or "",
+                "display_name": g["display_name"],
+                "count_years": len(years_sorted),
+                "years": years_sorted,
+                "month": month,
+                "month_offset": month_offset,
+                "next_upcoming_date": next_upcoming_date,
+                "latest_regatta_id": g["latest_regatta_id"],
+                "history": g["history"],
+            }
+        )
+    # Month cycle first; within month same rules as /events (entries + series depth + first-year last).
+    out.sort(key=lambda x: (x["month_offset"],) + _yearly_series_row_sort_key(x))
+    return out
+
+
+def _yearly_series_max_and_history_maps() -> tuple[dict[str, int], dict[str, list]]:
+    """Single pass over /yearly-events data: max entries per series_key (same as yearly row sort) + history rows."""
+    max_by_sk: dict[str, int] = {}
+    hist_by_sk: dict[str, list] = {}
+    for r in _get_yearly_event_series():
+        sk = (r.get("series_key") or "").strip() or _yearly_event_series_key(
+            (r.get("display_name") or "").strip()
+        )
+        if not sk:
+            continue
+        hist = r.get("history") or []
+        hist_by_sk[sk] = hist
+        mx = 0
+        for h in hist:
+            mx = max(mx, int(h.get("entries_count") or 0))
+        max_by_sk[sk] = mx
+    return max_by_sk, hist_by_sk
+
+
+def _event_year_from_public_event_item(item: dict) -> int:
+    sd = item.get("start_date")
+    if sd is None:
+        return 0
+    if hasattr(sd, "year"):
+        try:
+            return int(sd.year)
+        except Exception:
+            pass
+    s = str(sd)[:10]
+    if len(s) >= 4 and s[:4].isdigit():
+        return int(s[:4])
+    return 0
+
+
+def _prior_year_entries_from_hist(hist: list | None, event_year: int) -> tuple[int | None, int | None]:
+    """Latest calendar year strictly before event_year with positive entries (label for hub / API)."""
+    if not hist or event_year <= 0:
+        return None, None
+    best_y: int | None = None
+    best_e = 0
+    for h in hist:
+        y = int(h.get("year") or 0)
+        if y <= 0 or y >= event_year:
+            continue
+        ec = int(h.get("entries_count") or 0)
+        if ec <= 0:
+            continue
+        if best_y is None or y > best_y:
+            best_y = y
+            best_e = ec
+    if best_y is None:
+        return None, None
+    return best_y, best_e
+
+
+def _yearly_events_page_html() -> str:
+    rows = _get_yearly_event_series()
+    month_names = ("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December")
+    by_month: dict[int, list[dict]] = {}
+    for r in rows:
+        m = max(1, min(12, int(r.get("month") or 1)))
+        by_month.setdefault(m, []).append(r)
+    body_parts = []
+    if not rows:
+        body_parts.append('<p class="yl-empty">No recurring yearly events found yet.</p>')
+    else:
+        for m in sorted(by_month.keys(), key=lambda mm: ((mm - datetime.now().month) % 12, mm)):
+            body_parts.append(f'<section class="card yl-month-box"><h2 class="yl-month-title">{month_names[m-1]}</h2>')
+            month_rows = sorted(by_month[m], key=_yearly_series_row_sort_key)
+            for i, r in enumerate(month_rows, start=1):
+                years_line = "/".join(str(y) for y in r["years"])
+                count_txt = f"({r['count_years']} years)"
+                hist = []
+                for h in (r.get("history") or []):
+                    year_txt = str(int(h.get("year") or 0))
+                    h_has_results = bool(h.get("has_results"))
+                    h_rid = (h.get("regatta_id") or "").strip()
+                    if bool(h.get("missing_calendar_listing")):
+                        stats_txt = html_module.escape(
+                            "No upcoming event listed for this year yet · Not on the Events calendar — add it when dates are known"
+                        )
+                        card_inner = (
+                            f'<span class="yl-year">{html_module.escape(year_txt)}</span>'
+                            f'<span class="yl-stats">{stats_txt}</span>'
+                        )
+                        hist.append(
+                            f'<div class="yl-year-card yl-year-card--pending">{card_inner}</div>'
+                        )
+                        continue
+                    lbls = h.get("class_labels") or []
+                    cls_names_html = ""
+                    if lbls:
+                        lim = 24
+                        shown = lbls[:lim]
+                        extra = " …" if len(lbls) > lim else ""
+                        cls_names_html = " · " + html_module.escape("Class names: " + ", ".join(shown) + extra)
+                    if h_has_results:
+                        rd = h.get("result_date")
+                        if hasattr(rd, "strftime"):
+                            rd_txt = rd.strftime("%d %b %Y")
+                        elif rd:
+                            rd_txt = str(rd)[:10]
+                        else:
+                            rd_txt = ""
+                        stats_txt = (
+                            f'Entries: {int(h.get("entries_count") or 0)} · '
+                            f'Classes: {int(h.get("classes_count") or 0)} · '
+                            f'Sailors: {int(h.get("sailors_count") or 0)}'
+                        )
+                        if rd_txt:
+                            stats_txt += f' · Result date: {html_module.escape(rd_txt)}'
+                        stats_txt += cls_names_html
+                    else:
+                        sd = h.get("scheduled_date")
+                        if hasattr(sd, "strftime"):
+                            sd_txt = sd.strftime("%d %b %Y")
+                        elif sd:
+                            sd_txt = str(sd)[:10]
+                        else:
+                            sd_txt = ""
+                        stats_txt = f'Results pending{(" · Scheduled: " + html_module.escape(sd_txt)) if sd_txt else ""}'
+                        stats_txt += cls_names_html
+                    card_inner = (
+                        f'<span class="yl-year">{html_module.escape(year_txt)}</span>'
+                        f'<span class="yl-stats">{stats_txt}</span>'
+                    )
+                    if h_has_results and h_rid:
+                        hist.append(
+                            f'<a class="yl-year-card yl-year-card--has-results" href="/regatta/{html_module.escape(h_rid)}">{card_inner}</a>'
+                        )
+                    elif h_rid:
+                        hist.append(
+                            f'<a class="yl-year-card yl-year-card--pending yl-year-card--linked" href="/regatta/{html_module.escape(h_rid)}">{card_inner}</a>'
+                        )
+                    else:
+                        hist.append(
+                            f'<div class="yl-year-card yl-year-card--pending">{card_inner}</div>'
+                        )
+                hist_html = '<div class="yl-years-list">' + "".join(hist) + "</div>" if hist else ""
+                body_parts.append(
+                    '<div class="yl-card">'
+                    f'<div class="yl-title">{i}. {html_module.escape(r["display_name"])}</div>'
+                    f'<div class="yl-meta">{count_txt} - {html_module.escape(years_line)}</div>'
+                    f'{hist_html}'
+                    '</div>'
+                )
+            body_parts.append('</section>')
+    body = "\n".join(body_parts)
+    return f"""<!DOCTYPE html>
+<html lang="en-US">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Yearly Events – SailingSA</title>
+  <link rel="canonical" href="https://sailingsa.co.za/yearly-events">
+  <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+    .yl-wrap{{max-width:980px;margin:0 auto;padding:1rem;}}
+    .yl-month-box{{background:#f8fbff;border:1px solid #7fb3e8;border-radius:12px;padding:10px 10px 6px 10px;margin-bottom:10px;}}
+    .yl-month-title{{font-size:1rem;font-weight:800;color:#001f3f;margin:0 0 8px 0;}}
+    .yl-card{{background:#fff;border:1px solid #7fb3e8;border-radius:10px;padding:10px 12px;margin-bottom:8px;}}
+    .yl-title{{font-weight:800;color:#001f3f;font-size:0.95rem;}}
+    .yl-meta{{font-size:0.82rem;color:#334155;margin-top:2px;}}
+    .yl-years-list{{margin:6px 0 0 0;padding:0;display:grid;gap:6px;}}
+    .yl-year-card{{display:flex;justify-content:space-between;gap:8px;font-size:0.8rem;padding:8px 10px;border:1px solid #7fb3e8;border-radius:8px;}}
+    .yl-year-card--has-results{{background:#b7ff4a;color:#0f172a;text-decoration:none;}}
+    .yl-year-card--has-results:hover{{filter:brightness(0.98);}}
+    .yl-year-card--pending{{background:#f9fcff;color:#334155;}}
+    .yl-year-card--linked{{text-decoration:none;color:#001f3f;}}
+    .yl-year-card--linked:hover{{text-decoration:underline;}}
+    .yl-year-card--has-results .yl-year{{color:#0b2f07;}}
+    .yl-year-card--has-results .yl-stats{{color:#1f3d1a;}}
+    .yl-year{{font-weight:700;color:#001f3f;}}
+    .yl-stats{{color:#475569;}}
+    .yl-empty{{color:#64748b;}}
+    .yl-sub{{font-size:0.82rem;color:#64748b;margin:0 0 10px 0;}}
+  </style>
+</head>
+<body>
+<header class="site-header">
+  <div class="container" style="display:flex;align-items:center;flex-wrap:wrap;gap:0.75rem;">
+    <a href="/" class="logo" title="Home"><img src="/assets/logos/sailingsa-logo.png" alt="SailingSA Logo"></a>
+    <nav class="nav-inline" aria-label="Main" style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-right:auto;">
+      <a href="/">Home</a><a href="/sailors">Sailors</a><a href="/regattas">Regattas</a><a href="/classes">Classes</a><a href="/clubs">Clubs</a><a href="/events">Events</a><a href="/about">About</a>
+    </nav>
+    <div class="header-auth" style="margin-left:auto;"></div>
+  </div>
+</header>
+<main class="main-content">
+  <div class="yl-wrap">
+    <div class="card">
+      <h1 class="section-title">Yearly Events</h1>
+      <p class="yl-sub">Ordered from current month onward. Past-in-year months roll lower as next cycle items. Each year with results lists class names from the database for quick audits (single-fleet vs multi-class).</p>
+      {body}
+    </div>
+  </div>
+</main>
+<footer class="site-footer-about" style="text-align:center;padding:2rem 1rem;font-size:0.9rem;color:#666;border-top:1px solid #e0e0e0;margin-top:2rem;">SailingSA – South African Sailing Results Database © <span id="year-ye"></span></footer>
+<script>document.getElementById('year-ye').textContent = new Date().getFullYear();</script>
+</body>
+</html>"""
+
+
+@app.get("/yearly-events", response_class=HTMLResponse)
+def yearly_events_page():
+    return HTMLResponse(_yearly_events_page_html())
 
 
 @app.get("/events/type/{slug}", response_class=HTMLResponse)
@@ -716,7 +1549,9 @@ def _redirect_class_directory_trailing_slash():
 def _sailor_spa(slug: str): return serve_sailor_spa(slug)
 
 
-# /class/{slug} — nginx serves try_files → index.html; SPA handles routing (not FastAPI).
+@app.get("/class/{class_slug}")
+@app.head("/class/{class_slug}")
+def _class_spa(class_slug: str): return serve_class_spa(class_slug)
 
 
 def _static_dir():
@@ -903,6 +1738,13 @@ def _directory_classes():
 
 def _directory_page_html(title: str, items: list, href_key: str, page_title: str):
     """Build full HTML for a directory page. items = [(display_name, slug_or_path), ...]. href_key = 'sailor'|'regatta'|'club'|'class' (for link path)."""
+    about_by_page = {
+        "sailor": "Search all South African sailors with complete regatta results, rankings, and performance history. SailingSA is the most comprehensive South African sailing results database for sailors.",
+        "regatta": "Explore all South African sailing regattas with full race results, rankings, and performance history. SailingSA is the most complete South African regatta results database.",
+        "club": "View all South African sailing clubs and their hosted events, sailors, and regatta results. SailingSA provides a complete directory of South African sailing activity and performance.",
+        "class": "Browse all South African sailing classes with regatta results, sailor rankings, and fleet performance. SailingSA tracks all major South African sailing classes and results.",
+    }
+    about_text = about_by_page.get(href_key, "")
     header = """<!DOCTYPE html>
 <html lang="en-US">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
@@ -910,7 +1752,7 @@ def _directory_page_html(title: str, items: list, href_key: str, page_title: str
 <link rel="canonical" href="https://sailingsa.co.za""" + html_module.escape(title) + """">
 <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
 <link rel="stylesheet" href="/css/main.css">
-<style>.dir-page{max-width:950px;margin:0 auto;padding:40px 20px;}.dir-page h1{font-size:1.5rem;color:#001f3f;margin-bottom:1rem;}.dir-page h2{font-size:1.1rem;color:#001f3f;margin:1rem 0 0.4rem;}.dir-page ul{list-style:none;padding:0;margin:0;}.dir-page li{margin:0.25rem 0;}.dir-page a{color:#001f3f;font-weight:600;text-decoration:underline;}.dir-page a:hover{color:#e65100;}</style>
+<style>.dir-page{max-width:950px;margin:0 auto;padding:40px 20px;}.dir-page h1{font-size:1.5rem;color:#001f3f;margin-bottom:0.75rem;}.dir-page h2{font-size:1.1rem;color:#001f3f;margin:1rem 0 0.4rem;}.dir-page ul{list-style:none;padding:0;margin:0;}.dir-page li{margin:0.25rem 0;}.dir-page a{color:#001f3f;font-weight:600;text-decoration:underline;}.dir-page a:hover{color:#e65100;}.page-about-block{margin:0 0 1rem 0;padding:0.85rem 1rem;border:1px solid #dbe5ef;border-radius:8px;background:#f8fbff;color:#1e293b;line-height:1.45;font-size:0.95rem;}</style>
 </head>
 <body>
 <header class="site-header"><div class="container" style="display:flex;align-items:center;flex-wrap:wrap;gap:0.75rem;">
@@ -918,7 +1760,7 @@ def _directory_page_html(title: str, items: list, href_key: str, page_title: str
 <nav class="nav-inline" aria-label="Main" style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-right:auto;"><a href="/">Home</a><a href="/sailors">Sailors</a><a href="/regattas">Regattas</a><a href="/classes">Classes</a><a href="/clubs">Clubs</a><a href="https://sailingsa.co.za/events">Events</a><a href="/stats">Statistics</a><a href="/about">About</a></nav>
 <div class="header-auth" style="margin-left:auto;"></div>
 </div></header>
-<main class="main-content"><div class="container"><div class="card dir-page"><h1>""" + html_module.escape(page_title) + """</h1>
+<main class="main-content"><div class="container"><div class="card dir-page"><h1>""" + html_module.escape(page_title) + """</h1>""" + (f'<div class="page-about-block">{html_module.escape(about_text)}</div>' if about_text else "") + """
 """
     _footer = '<footer class="site-footer-about" style="text-align:center;padding:2rem 1rem;font-size:0.9rem;color:#666;border-top:1px solid #e0e0e0;margin-top:2rem;">SailingSA – South African Sailing Results Database © <span id="year"></span></footer><script>document.getElementById("year").textContent=new Date().getFullYear();</script>'
     if not items:
@@ -972,10 +1814,16 @@ def _directory_clubs_page():
 
 
 @app.get("/classes", response_class=HTMLResponse)
-def _directory_classes_page():
-    """Directory: all classes. Links to /class/{id}-{slug}."""
+def _directory_classes_page(request: Request):
+    """Directory: all classes rendered by API route. Links to /class/{id}-{slug}."""
     items = _directory_classes()
     return HTMLResponse(_directory_page_html("/classes", items, "class", "Classes"))
+
+
+@app.head("/classes")
+def _directory_classes_page_head():
+    """HEAD support for crawlers / health checks."""
+    return Response(status_code=200)
 
 
 def _format_event_date_range(start_date, end_date, start_time=None, end_time=None):
@@ -1198,28 +2046,183 @@ def _derive_event_state(r, is_past_panel: bool) -> str:
     return "UPCOMING"
 
 
-def _sort_live_event_cards(cards: list) -> list:
-    """ACTIVE (in-range) events for the Live tab; SAS before CLUB, then by start date."""
-    order_san = {"SAS": 0, "CLUB": 1, "OTHER": 2}
+def _event_time_to_sort_seconds(t) -> int:
+    """Seconds since midnight for sorting; missing/invalid time sorts after real times same day."""
+    if t is None:
+        return 999999
+    s = str(t).strip()
+    if not s:
+        return 999999
+    try:
+        parts = s.replace(".", ":").split(":")
+        h = int(float(parts[0])) if parts else 0
+        m = int(float(parts[1])) if len(parts) > 1 else 0
+        sec = int(float(parts[2])) if len(parts) > 2 else 0
+        return h * 3600 + m * 60 + sec
+    except Exception:
+        return 999999
 
-    def date_key(c):
-        return c.get("start_date_iso") or ""
 
+# Shared with /blank hub, /events, /events/type/*, club pages, /yearly-events, GET /api/events/upcoming-window.
+UPCOMING_DISPLAY_SORT_VERSION = "upcoming_display_v2"
+
+
+def _batch_entries_by_regatta_ids(cur, regatta_ids: list) -> dict[str, int]:
+    """COUNT(*) raced rows per regatta_id for sort weighting (same idea as public /api/events entries)."""
+    if not regatta_ids or not table_exists("results"):
+        return {}
+    uniq = list({str(r).strip() for r in regatta_ids if r and str(r).strip()})
+    if not uniq:
+        return {}
+    cur.execute(
+        """
+        SELECT regatta_id::text AS rid, COUNT(*)::int AS n
+        FROM results
+        WHERE raced IS TRUE AND regatta_id::text = ANY(%s)
+        GROUP BY regatta_id
+        """,
+        (uniq,),
+    )
+    return {str(row["rid"]): int(row["n"] or 0) for row in (cur.fetchall() or [])}
+
+
+def _attach_event_card_display_sort_fields(
+    cur,
+    cards: list,
+    *,
+    series_max_entries_by_key: dict | None = None,
+) -> None:
+    """Mutate cards with entries_for_sort + series_years_count (same series keys as /yearly-events).
+
+    entries_for_sort = max(current regatta entries, best historical entries for this series), matching
+    yearly-events row ordering (max history entries).
+    """
+    if not cards:
+        return
+    if series_max_entries_by_key is None:
+        series_max_entries_by_key, _ = _yearly_series_max_and_history_maps()
+    rids = [(c.get("regatta_id") or "").strip() for c in cards if (c.get("regatta_id") or "").strip()]
+    ent_map = _batch_entries_by_regatta_ids(cur, rids)
+    series_map = _yearly_series_distinct_year_counts_map()
+    for c in cards:
+        rid = (c.get("regatta_id") or "").strip()
+        regatta_e = int(ent_map.get(rid, 0))
+        key = _yearly_event_series_key((c.get("event_name") or "").strip())
+        c["series_years_count"] = int(series_map.get(key, 0)) if key else 0
+        smax = int(series_max_entries_by_key.get(key, 0)) if key else 0
+        c["entries_for_sort"] = max(regatta_e, smax)
+
+
+def _sort_event_cards_display_order(cards: list, *, use_start_time: bool) -> list:
+    """Established series (≥2 years) first, then entries, series depth, date; live tab ties on start_time."""
     sub = list(cards)
-    sub.sort(key=lambda c: (order_san.get(c.get("sanction_level") or "CLUB", 1), date_key(c)))
+    sub.sort(
+        key=lambda c: (
+            0 if int(c.get("series_years_count") or 0) >= 2 else 1,
+            -int(c.get("entries_for_sort") or 0),
+            -int(c.get("series_years_count") or 0),
+            c.get("start_date_iso") or "",
+            (_event_time_to_sort_seconds(c.get("start_time")) if use_start_time else 0),
+            (c.get("event_name") or "").lower(),
+            int(c.get("event_id") or 0),
+        )
+    )
     return sub
 
 
-def _sort_upcoming_event_cards(cards: list) -> list:
-    """Future UPCOMING-only cards (ACTIVE moved to live)."""
-    order_san = {"SAS": 0, "CLUB": 1, "OTHER": 2}
+def _apply_upcoming_display_sort(
+    cur,
+    upcoming_only_cards: list,
+    *,
+    series_max_entries_by_key: dict | None = None,
+) -> list:
+    """Upcoming tab: same rules on /events, /events/type/*, club SAS calendar."""
+    if not upcoming_only_cards:
+        return []
+    if series_max_entries_by_key is None:
+        series_max_entries_by_key, _ = _yearly_series_max_and_history_maps()
+    _attach_event_card_display_sort_fields(
+        cur, upcoming_only_cards, series_max_entries_by_key=series_max_entries_by_key
+    )
+    return _sort_event_cards_display_order(upcoming_only_cards, use_start_time=False)
 
-    def date_key(c):
-        return c.get("start_date_iso") or ""
 
-    sub = list(cards)
-    sub.sort(key=lambda c: (order_san.get(c.get("sanction_level") or "CLUB", 1), date_key(c)))
-    return sub
+def _apply_live_display_sort(
+    cur,
+    live_cards: list,
+    *,
+    series_max_entries_by_key: dict | None = None,
+) -> list:
+    """Live tab: same weighting as upcoming; same-day ties on start_time."""
+    if not live_cards:
+        return []
+    if series_max_entries_by_key is None:
+        series_max_entries_by_key, _ = _yearly_series_max_and_history_maps()
+    _attach_event_card_display_sort_fields(
+        cur, live_cards, series_max_entries_by_key=series_max_entries_by_key
+    )
+    return _sort_event_cards_display_order(live_cards, use_start_time=True)
+
+
+def _compute_hub_upcoming_window_payload(
+    items: list[dict],
+    today_iso: str | None = None,
+    window_days: int = 5,
+    limit: int = 10,
+) -> dict:
+    """Next upcoming anchor + window_days; same ordering as /events upcoming (entries + series years)."""
+    today_iso = today_iso or date.today().isoformat()
+
+    def _sd(e: dict) -> str:
+        return (e.get("start_date") or "")[:10]
+
+    def _live(e: dict) -> bool:
+        s, ed = _sd(e), (e.get("end_date") or e.get("start_date") or "")[:10]
+        return bool(s and ed and s <= today_iso <= ed)
+
+    cand = [e for e in items if not _live(e) and _sd(e) >= today_iso]
+    empty_sig = hashlib.sha256((UPCOMING_DISPLAY_SORT_VERSION + "\nempty").encode("utf-8")).hexdigest()[:24]
+    if not cand:
+        return {
+            "sort_version": UPCOMING_DISPLAY_SORT_VERSION,
+            "sort_signature": empty_sig,
+            "anchor_date": None,
+            "window_end": None,
+            "items": [],
+        }
+    anchor = min(_sd(e) for e in cand)
+    ad = datetime.strptime(anchor, "%Y-%m-%d").date()
+    window_end = (ad + timedelta(days=window_days)).isoformat()
+    windowed = [e for e in cand if anchor <= _sd(e) <= window_end]
+
+    def _hub_ent(e: dict) -> int:
+        if e.get("entries_for_sort") is not None:
+            return int(e["entries_for_sort"])
+        return max(int(e.get("entries") or 0), int(e.get("entries_max_series") or 0))
+
+    windowed.sort(
+        key=lambda e: (
+            0 if int(e.get("series_years_count") or 0) >= 2 else 1,
+            -_hub_ent(e),
+            -int(e.get("series_years_count") or 0),
+            _sd(e),
+            (e.get("event_name") or "").lower(),
+            str(e.get("regatta_id") or ""),
+        )
+    )
+    sl = windowed[:limit]
+    sig_src = UPCOMING_DISPLAY_SORT_VERSION + "\n" + "\n".join(
+        f"{_sd(e)}|{e.get('event_name') or ''}|{e.get('regatta_id') or ''}|{_hub_ent(e)}|{int(e.get('series_years_count') or 0)}"
+        for e in sl
+    )
+    sig = hashlib.sha256(sig_src.encode("utf-8")).hexdigest()[:24]
+    return {
+        "sort_version": UPCOMING_DISPLAY_SORT_VERSION,
+        "sort_signature": sig,
+        "anchor_date": anchor,
+        "window_end": window_end,
+        "items": sl,
+    }
 
 
 def _sort_past_event_cards(cards: list) -> list:
@@ -1404,6 +2407,16 @@ def _get_upcoming_events(host_club_id=None):
         img_col = "e.image_url" if has_image_url else "NULL::text AS image_url"
         addr_col = "e.address" if has_address else "NULL::text AS address"
         time_cols = "e.start_time, e.end_time" if (has_start_time and has_end_time) else "NULL::time AS start_time, NULL::time AS end_time"
+        order_upcoming_sql = (
+            "ORDER BY e.start_date ASC NULLS LAST, e.start_time ASC NULLS LAST, e.event_id ASC"
+            if (has_start_time and has_end_time)
+            else "ORDER BY e.start_date ASC NULLS LAST, e.event_id ASC"
+        )
+        order_past_sql = (
+            "ORDER BY e.start_date DESC NULLS LAST, e.start_time DESC NULLS LAST, e.event_id DESC"
+            if (has_start_time and has_end_time)
+            else "ORDER BY e.start_date DESC NULLS LAST, e.event_id DESC"
+        )
         club_join = "LEFT JOIN clubs c ON c.club_id = e.host_club_id" if has_host_club_id else ""
         # Slug from JOIN (no per-row _club_slug_from_name): match Python _club_slug_from_name logic
         club_slug_sql = (
@@ -1425,7 +2438,7 @@ def _get_upcoming_events(host_club_id=None):
             WHERE ( (e.end_date IS NOT NULL AND e.end_date >= CURRENT_DATE)
                  OR (e.end_date IS NULL AND e.start_date >= CURRENT_DATE) )
             {hf}
-            ORDER BY e.start_date ASC NULLS LAST
+            {order_upcoming_sql}
         """
         if qparams:
             cur.execute(sql_up, tuple(qparams))
@@ -1442,7 +2455,7 @@ def _get_upcoming_events(host_club_id=None):
             WHERE ( (e.end_date IS NOT NULL AND e.end_date < CURRENT_DATE)
                  OR (e.end_date IS NULL AND e.start_date < CURRENT_DATE) )
             {hf}
-            ORDER BY e.start_date DESC NULLS LAST
+            {order_past_sql}
         """
         if qparams:
             cur.execute(sql_past, tuple(qparams))
@@ -1497,8 +2510,11 @@ def _get_upcoming_events(host_club_id=None):
             up_cards.append(_event_row_to_card(r, has_regatta_id, has_host_club_id, is_upcoming=True))
         live_cards = [c for c in up_cards if (c.get("event_state") or "") == "ACTIVE"]
         upcoming_only = [c for c in up_cards if (c.get("event_state") or "") != "ACTIVE"]
-        out["live"] = _sort_live_event_cards(live_cards)
-        out["upcoming"] = _sort_upcoming_event_cards(upcoming_only)
+        _series_max_map, _ = _yearly_series_max_and_history_maps()
+        out["live"] = _apply_live_display_sort(cur, live_cards, series_max_entries_by_key=_series_max_map)
+        out["upcoming"] = _apply_upcoming_display_sort(
+            cur, upcoming_only, series_max_entries_by_key=_series_max_map
+        )
         # Real results detection: which regattas have at least one result row
         regattas_with_results = set()
         if past_rows and table_exists("results"):
@@ -1577,6 +2593,16 @@ def _get_events_by_type_slug(slug: str):
         img_col = "e.image_url" if has_image_url else "NULL::text AS image_url"
         addr_col = "e.address" if has_address else "NULL::text AS address"
         time_cols = "e.start_time, e.end_time" if (has_start_time and has_end_time) else "NULL::time AS start_time, NULL::time AS end_time"
+        order_upcoming_sql = (
+            "ORDER BY e.start_date ASC NULLS LAST, e.start_time ASC NULLS LAST, e.event_id ASC"
+            if (has_start_time and has_end_time)
+            else "ORDER BY e.start_date ASC NULLS LAST, e.event_id ASC"
+        )
+        order_past_sql = (
+            "ORDER BY e.start_date DESC NULLS LAST, e.start_time DESC NULLS LAST, e.event_id DESC"
+            if (has_start_time and has_end_time)
+            else "ORDER BY e.start_date DESC NULLS LAST, e.event_id DESC"
+        )
         club_join = "LEFT JOIN clubs c ON c.club_id = e.host_club_id" if has_host_club_id else ""
         club_slug_sql = (
             "trim(both '-' from regexp_replace(regexp_replace(lower(trim(COALESCE(c.club_abbrev, c.club_fullname, ''))), '[^a-zA-Z0-9_\\s\\-]', '', 'g'), '\\s+', '-', 'g')) AS club_slug"
@@ -1592,7 +2618,7 @@ def _get_events_by_type_slug(slug: str):
                    {club_cols} {map_col}, {img_col}, {addr_col}
             FROM events e {club_join}
             WHERE e.start_date >= CURRENT_DATE {where_slug}
-            ORDER BY e.start_date ASC NULLS LAST
+            {order_upcoming_sql}
         """, (slug,))
         upcoming_rows = list(cur.fetchall() or [])
         cur.execute(f"""
@@ -1601,7 +2627,7 @@ def _get_events_by_type_slug(slug: str):
                    {club_cols} {map_col}, {img_col}, {addr_col}
             FROM events e {club_join}
             WHERE e.start_date < CURRENT_DATE {where_slug}
-            ORDER BY e.start_date DESC NULLS LAST
+            {order_past_sql}
         """, (slug,))
         past_rows = list(cur.fetchall() or [])
         display_name = None
@@ -1658,8 +2684,11 @@ def _get_events_by_type_slug(slug: str):
             up_cards.append(_event_row_to_card(r, has_regatta_id, has_host_club_id, is_upcoming=True))
         live_cards = [c for c in up_cards if (c.get("event_state") or "") == "ACTIVE"]
         upcoming_only = [c for c in up_cards if (c.get("event_state") or "") != "ACTIVE"]
-        out["live"] = _sort_live_event_cards(live_cards)
-        out["upcoming"] = _sort_upcoming_event_cards(upcoming_only)
+        _series_max_map, _ = _yearly_series_max_and_history_maps()
+        out["live"] = _apply_live_display_sort(cur, live_cards, series_max_entries_by_key=_series_max_map)
+        out["upcoming"] = _apply_upcoming_display_sort(
+            cur, upcoming_only, series_max_entries_by_key=_series_max_map
+        )
         regattas_with_results = set()
         if past_rows and table_exists("results"):
             regatta_ids = [str(r.get("regatta_id")).strip() for r in past_rows if r.get("regatta_id")]
@@ -1815,6 +2844,7 @@ def _event_row_to_card(r, has_regatta_id, has_host_club_id, is_upcoming, regatta
         "sanction_level": _derive_sanction_level(r),
         "start_date_iso": _event_date_to_iso(start),
         "end_date_iso": _event_date_to_iso(end),
+        "event_id": int(r["event_id"]) if r.get("event_id") is not None else 0,
         "regatta_id": (r.get("regatta_id") or "").strip() if has_regatta_id else "",
     }
 
@@ -1822,12 +2852,18 @@ def _event_row_to_card(r, has_regatta_id, has_host_club_id, is_upcoming, regatta
 def _get_public_stats():
     """Aggregated counts and top lists for public /stats page. Uses existing tables only. Lightweight, limited rows.
     Data validation: total_regattas = COUNT(regattas), total_races = COUNT(results). No placeholders; totals match canonical DB."""
+    _pub_stats_ck = "public_stats_full_v1"
+    _cached_pub = get_cached(_pub_stats_ck, ttl_seconds=180)
+    if _cached_pub is not None:
+        return _cached_pub
     out = {
         "total_sailors": 0,
         "total_regattas": 0,
         "total_races": 0,
         "total_classes": 0,
         "total_clubs": 0,
+        "total_distinct_sail_numbers": 0,
+        "total_distinct_boats": 0,
         "top_classes": [],
         "top_clubs": [],
         "top_sailors": [],
@@ -1867,6 +2903,27 @@ def _get_public_stats():
             cur.execute("SELECT COUNT(*) AS n FROM clubs")
             row = cur.fetchone()
             out["total_clubs"] = int(row["n"]) if row and row.get("n") is not None else 0
+        if table_exists("results"):
+            try:
+                cur.execute("""
+                    SELECT COUNT(DISTINCT TRIM(sail_number::text)) AS n
+                    FROM results
+                    WHERE sail_number IS NOT NULL AND TRIM(sail_number::text) <> ''
+                """)
+                row = cur.fetchone()
+                out["total_distinct_sail_numbers"] = int(row["n"]) if row and row.get("n") is not None else 0
+            except Exception:
+                out["total_distinct_sail_numbers"] = 0
+            try:
+                cur.execute("""
+                    SELECT COUNT(DISTINCT LOWER(TRIM(boat_name))) AS n
+                    FROM results
+                    WHERE boat_name IS NOT NULL AND TRIM(boat_name) <> ''
+                """)
+                row = cur.fetchone()
+                out["total_distinct_boats"] = int(row["n"]) if row and row.get("n") is not None else 0
+            except Exception:
+                out["total_distinct_boats"] = 0
         # Top 10 classes by race count: class_id, class_name, slug, total_races, total_sailors
         if table_exists("results") and table_exists("classes"):
             cur.execute("""
@@ -2069,6 +3126,8 @@ def _get_public_stats():
     finally:
         if conn:
             return_db_connection(conn)
+    if not out.get("error"):
+        set_cached(_pub_stats_ck, out, ttl_seconds=180)
     return out
 
 
@@ -2446,6 +3505,7 @@ def _events_page_html() -> str:
 .events-tabs button[data-tab="past"].active {{ background: #7f1d1d; color: #fff; border-color: #991b1b; }}
 .events-panel {{ display: none; }}
 .events-panel.active {{ display: block; }}
+.page-about-block {{ margin: 0 0 1rem 0; padding: 0.85rem 1rem; border: 1px solid #dbe5ef; border-radius: 8px; background: #f8fbff; color: #1e293b; line-height: 1.45; font-size: 0.95rem; }}
 """ + _EVENTS_TAB_COUNT_CSS + _SECTION_HEADING_ROW_UNIFIED_CSS + _EVENTS_TOOLBAR_SEARCH_CSS + _EVENTS_CARD_MATRIX_CSS + f"""
 .event-card .event-likely-classes {{ font-size: 0.8rem; color: #475569; margin: 0.2rem 0 0 0; }}
 .event-card .event-card-header {{ display: block; }}
@@ -2497,6 +3557,7 @@ def _events_page_html() -> str:
     + _events_section_heading_row_html(
         f"Events ({len(upcoming) + len(live) + len(past)})"
     )
+    + '<div class="page-about-block">Browse all South African sailing events, including upcoming regattas, training events, and historical competitions. SailingSA provides links to full results, making it the most comprehensive South African sailing events and results database.</div>'
     + _events_tabs_and_panels_html(show_live, club_carousel=True, tab_counts=tab_counts)
     + """
 </div></div>"""
@@ -3419,7 +4480,15 @@ def _admin_online_users_light(cur) -> list:
 
 
 def _admin_online_users_full(cur) -> list:
-    """Full list for /admin/dashboard-data online_users: one row per active session (same sas_id can appear multiple times). Keys: session_id, sas_id, name, login_time_iso, session_start_unix, current_page, device, ip_address."""
+    """Full list for /admin/dashboard-data online_users: one row per session_id.
+
+    Rules: COALESCE(last_activity, created_at) within 30 minutes; last_path column optional;
+    empty path shown as "/". No duplicate session_id (DISTINCT ON). device_type from DB only;
+    device_name from optional ``device`` column. Sorted longest session first (now - login_at).
+    Keys include: session_id, sas_id, name, last_path, session_start (ISO), last_activity (ISO),
+    login_time_iso, session_start_unix, last_seen_unix, last_activity_unix (DB last_activity only; else null),
+    current_page, device_type, device_name, ip_address.
+    """
     if not table_exists("user_sessions"):
         return []
     try:
@@ -3427,50 +4496,114 @@ def _admin_online_users_full(cur) -> list:
         has_activity = column_exists("user_sessions", "last_activity")
         has_logout = column_exists("user_sessions", "logout_time")
         has_ip = column_exists("user_sessions", "ip_address")
-        has_ua = column_exists("user_sessions", "user_agent")
         has_dt = column_exists("user_sessions", "device_type")
+        has_device_col = column_exists("user_sessions", "device")
+        # Freshness: COALESCE(last_activity, created_at) within window; last_path optional (empty -> "/" in app)
+        interval = "30 minutes"
+        fresh = "COALESCE(s.last_activity, s.created_at) >= NOW() - INTERVAL '" + interval + "'"
         if has_logout and has_activity:
-            where_clause = "s.logout_time IS NULL AND s.last_activity >= NOW() - INTERVAL '30 minutes'"
+            where_clause = "s.logout_time IS NULL AND " + fresh
+        elif has_activity:
+            where_clause = "s.expires_at > NOW() AND " + fresh
         elif has_logout:
-            where_clause = "s.logout_time IS NULL AND s.created_at >= NOW() - INTERVAL '30 minutes'"
+            where_clause = "s.logout_time IS NULL AND s.created_at >= NOW() - INTERVAL '" + interval + "'"
         else:
-            where_30min = "s.last_activity >= NOW() - INTERVAL '30 minutes' OR (s.last_activity IS NULL AND s.created_at >= NOW() - INTERVAL '30 minutes')" if has_activity else "s.created_at >= NOW() - INTERVAL '30 minutes'"
-            where_clause = "s.expires_at > NOW() AND (" + where_30min + ")"
-        order_col = "COALESCE(s.last_activity, s.created_at)" if has_activity else "s.created_at"
-        path_col = "s.last_path" if has_path else "''"
-        cols = ["s.session_id", "s.sas_id", "s.created_at AS login_at", path_col + " AS last_path"]
+            where_clause = "s.expires_at > NOW() AND s.created_at >= NOW() - INTERVAL '" + interval + "'"
+        path_col = "COALESCE(NULLIF(TRIM(s.last_path), ''), '') AS last_path" if has_path else "''::text AS last_path"
+        cols = [
+            "s.session_id",
+            "s.sas_id",
+            "s.created_at AS login_at",
+            path_col,
+        ]
+        if has_activity:
+            cols.append("s.last_activity AS last_activity_at")
         if has_ip:
             cols.append("s.ip_address")
-        if has_ua:
-            cols.append("s.user_agent")
         if has_dt:
             cols.append("s.device_type")
-        cur.execute("""
-            SELECT """ + ", ".join(cols) + """,
+        if has_device_col:
+            cols.append("s.device AS device_label_col")
+        order_inner = (
+            "s.session_id, COALESCE(s.last_activity, s.created_at) DESC NULLS LAST"
+            if has_activity
+            else "s.session_id, s.created_at DESC NULLS LAST"
+        )
+        cur.execute(
+            """
+            SELECT DISTINCT ON (s.session_id) """
+            + ", ".join(cols)
+            + """,
                 COALESCE(TRIM(p.full_name), TRIM(p.first_name || ' ' || COALESCE(p.last_name, ''))) AS name
             FROM public.user_sessions s
             LEFT JOIN public.sas_id_personal p ON p.sa_sailing_id::text = s.sas_id
-            WHERE """ + where_clause + """
-            ORDER BY """ + order_col + """ DESC NULLS LAST
-        """)
+            WHERE """
+            + where_clause
+            + """
+            ORDER BY """
+            + order_inner
+        )
         rows = cur.fetchall() or []
+        now_ts = int(time.time())
         out = []
         for r in rows:
+            sid = str(r.get("session_id") or "").strip()
+            if not sid:
+                continue
             login_at = r.get("login_at")
+            last_at = r.get("last_activity_at") if has_activity else login_at
+            if last_at is None:
+                last_at = login_at
+            if last_at is None:
+                continue
+            path = (r.get("last_path") or "").strip() or "/"
             session_start_unix = int(login_at.timestamp()) if login_at and getattr(login_at, "timestamp", None) else None
-            device = (r.get("device_type") or "").strip() if r.get("device_type") else ""
-            if not device and r.get("user_agent"):
-                device = _derive_device_type(r.get("user_agent") or "")
-            out.append({
-                "session_id": str(r.get("session_id") or ""),
-                "sas_id": str(r.get("sas_id") or ""),
-                "name": (r.get("name") or "—") if r else "—",
-                "login_time_iso": login_at.isoformat() if login_at and getattr(login_at, "isoformat", None) else "",
-                "session_start_unix": session_start_unix,
-                "current_page": (r.get("last_path") or "—") if r else "—",
-                "device": device or "—",
-                "ip_address": (r.get("ip_address") or "—") if r else "—",
-            })
+            last_seen_unix = int(last_at.timestamp()) if last_at and getattr(last_at, "timestamp", None) else None
+            if session_start_unix is None or last_seen_unix is None:
+                continue
+            dt_raw = ((r.get("device_type") or "").strip().lower()) if r.get("device_type") else ""
+            if dt_raw in ("mobile", "phone", "tablet"):
+                dtype = "mobile"
+            elif dt_raw in ("desktop", "laptop"):
+                dtype = "desktop"
+            elif dt_raw:
+                dtype = dt_raw
+            else:
+                dtype = ""
+            device_name = ""
+            if has_device_col:
+                device_name = (r.get("device_label_col") or "").strip()
+            nm = (r.get("name") or "").strip()
+            device_legacy = device_name if device_name else (
+                "Mobile" if dtype == "mobile" else ("Desktop" if dtype == "desktop" else "")
+            )
+            login_iso = login_at.isoformat() if login_at and getattr(login_at, "isoformat", None) else ""
+            last_iso = last_at.isoformat() if last_at and getattr(last_at, "isoformat", None) else ""
+            last_activity_unix_out = None
+            if has_activity:
+                db_la_only = r.get("last_activity_at")
+                if db_la_only is not None and getattr(db_la_only, "timestamp", None):
+                    last_activity_unix_out = int(db_la_only.timestamp())
+            out.append(
+                {
+                    "session_id": sid,
+                    "sas_id": str(r.get("sas_id") or ""),
+                    "name": nm,
+                    "login_time_iso": login_iso,
+                    "session_start": login_iso,
+                    "last_activity": last_iso,
+                    "session_start_unix": session_start_unix,
+                    "last_seen_unix": last_seen_unix,
+                    "last_activity_unix": last_activity_unix_out,
+                    "last_path": path,
+                    "current_page": path,
+                    "device_type": dtype,
+                    "device_name": device_name,
+                    "device": device_legacy,
+                    "ip_address": (r.get("ip_address") or "") if has_ip else "",
+                }
+            )
+        out.sort(key=lambda x: now_ts - int(x["session_start_unix"]), reverse=True)
         return out
     except Exception:
         return []
@@ -5624,6 +6757,15 @@ body.dashboard-v3 #v3-status-box { display: block !important; }
    renderRaces();
   });
  }
+ setTimeout(function(){
+  try {
+   var q = new URLSearchParams(window.location.search).get('list');
+   if (q === 'sailors') togglePanel();
+   else if (q === 'classes') toggleClassesPanel();
+   else if (q === 'regattas') toggleRegattasPanel();
+   else if (q === 'races') toggleRacesPanel();
+  } catch (e) {}
+ }, 300);
 })();
 </script>"""
     # Inject before the *last* </body> only (index.html may contain "</body>" inside script strings)
@@ -6052,16 +7194,43 @@ def admin_dashboard_data():
     base = _admin_dashboard_data_base()
     site_stats = _get_site_stats()
     if not table_exists("user_sessions"):
-        return JSONResponse(content={**base, **site_stats, "online_users": [], "offline_sessions": []}, headers=_DASHBOARD_DATA_HEADERS)
+        return JSONResponse(
+            content={**base, **site_stats, "online_users": [], "offline_sessions": [], "traffic_top_paths": []},
+            headers=_DASHBOARD_DATA_HEADERS,
+        )
     conn = None
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         online_data = _admin_online_users_full(cur)
         offline_data = _admin_offline_sessions(cur)
-        return JSONResponse(content={**base, **site_stats, "online_users": online_data, "offline_sessions": offline_data}, headers=_DASHBOARD_DATA_HEADERS)
+        path_counts = Counter()
+        for u in online_data or []:
+            p = (u.get("last_path") or u.get("current_page") or "").strip() or "/"
+            path_counts[p] += 1
+        traffic_top_paths = [{"path": p, "count": n} for p, n in path_counts.most_common(5)]
+        return JSONResponse(
+            content={
+                **base,
+                **site_stats,
+                "online_users": online_data,
+                "offline_sessions": offline_data,
+                "traffic_top_paths": traffic_top_paths,
+            },
+            headers=_DASHBOARD_DATA_HEADERS,
+        )
     except Exception as e:
-        return JSONResponse(content={**base, **site_stats, "online_users": [], "offline_sessions": [], "error": str(e)}, headers=_DASHBOARD_DATA_HEADERS)
+        return JSONResponse(
+            content={
+                **base,
+                **site_stats,
+                "online_users": [],
+                "offline_sessions": [],
+                "traffic_top_paths": [],
+                "error": str(e),
+            },
+            headers=_DASHBOARD_DATA_HEADERS,
+        )
     finally:
         if conn:
             return_db_connection(conn)
@@ -6646,6 +7815,42 @@ def _admin_scrape_status_list(cur) -> list:
             s["countdown_seconds"] = None
         else:
             s["countdown_seconds"] = countdown
+    # Dashboard v10: total_records from latest scrape_runs.records_added; explicit timestamps
+    latest_scrape_ra: dict = {}
+    if has_scrape_runs:
+        try:
+            cur.execute(
+                """
+                SELECT DISTINCT ON (scrape_name) scrape_name, records_added
+                FROM scrape_runs
+                ORDER BY scrape_name, COALESCE(completed_at, started_at) DESC NULLS LAST
+                """
+            )
+            for row in cur.fetchall() or []:
+                drow = row if isinstance(row, dict) else dict(row)
+                sn = str(drow.get("scrape_name") or "").strip()
+                if sn:
+                    latest_scrape_ra[sn] = drow.get("records_added")
+        except Exception:
+            pass
+    _rk_scrape_db = {"events": "events", "accreditation": "accreditation", "sas_registry": "sas_registry"}
+    for s in out:
+        rk = s.get("run_key")
+        dbn = _rk_scrape_db.get(rk) if rk else None
+        if dbn and dbn in latest_scrape_ra:
+            val = latest_scrape_ra[dbn]
+            if val is not None:
+                try:
+                    s["total_records"] = int(val)
+                except (TypeError, ValueError):
+                    s["total_records"] = None
+            else:
+                s["total_records"] = None
+        else:
+            if "total_records" not in s:
+                s["total_records"] = None
+        s["last_run_at"] = s.get("last_successful_run") or s.get("last_run")
+        s["next_run_at"] = s.get("next_scheduled_run")
     # Sort by last_run DESC (most recent first); nulls last
     out.sort(key=lambda s: (s.get("last_run") is None, s.get("last_run") or ""), reverse=True)
     return out
@@ -7163,9 +8368,27 @@ def admin_review_issues(request: Request):
                 "result_ids": list(row.get("result_ids") or []),
                 "result_count": row.get("result_count") or 0,
             })
-        return {"ok": True, "sailors": sailors, "classes": classes, "fleets": fleets}
+        unknown_clubs_distinct = 0
+        try:
+            cur.execute("""
+                SELECT COUNT(DISTINCT TRIM(club_raw))::int AS n
+                FROM results
+                WHERE club_raw IS NOT NULL AND TRIM(club_raw) != ''
+                  AND (club_id IS NULL OR club_id = 0)
+            """)
+            uc = cur.fetchone()
+            unknown_clubs_distinct = int(uc["n"]) if uc and uc.get("n") is not None else 0
+        except Exception:
+            unknown_clubs_distinct = 0
+        return {
+            "ok": True,
+            "sailors": sailors,
+            "classes": classes,
+            "fleets": fleets,
+            "unknown_clubs_distinct": unknown_clubs_distinct,
+        }
     except Exception as e:
-        return {"ok": False, "error": str(e), "sailors": [], "classes": [], "fleets": []}
+        return {"ok": False, "error": str(e), "sailors": [], "classes": [], "fleets": [], "unknown_clubs_distinct": 0}
     finally:
         if conn:
             return_db_connection(conn)
@@ -8014,6 +9237,97 @@ def admin_list_top_search_regatta():
             return_db_connection(conn)
 
 
+def _admin_analytics_top_pages_window(cur, interval_literal: str, limit: int = 25) -> tuple:
+    """Return (top_pages list of {path, count}, page_view_event_count) for page_view rows in interval. interval_literal e.g. '1 day'."""
+    cur.execute(
+        """
+        SELECT COUNT(*)::int AS n FROM public.analytics_events
+        WHERE event_type = 'page_view' AND created_at >= NOW() - INTERVAL %s
+        """,
+        (interval_literal,),
+    )
+    total_pv = int((cur.fetchone() or {}).get("n") or 0)
+    cur.execute(
+        """
+        SELECT TRIM(metadata->>'path') AS path, COUNT(*)::int AS count
+        FROM public.analytics_events
+        WHERE event_type = 'page_view'
+          AND created_at >= NOW() - INTERVAL %s
+          AND TRIM(COALESCE(metadata->>'path', '')) != ''
+        GROUP BY TRIM(metadata->>'path')
+        ORDER BY count DESC
+        LIMIT %s
+        """,
+        (interval_literal, limit),
+    )
+    rows = [{"path": r.get("path") or "", "count": int(r.get("count") or 0)} for r in (cur.fetchall() or [])]
+    return rows, total_pv
+
+
+@app.get("/admin/api/analytics-traffic")
+def admin_api_analytics_traffic(request: Request, limit: int = Query(25, ge=25, le=100)):
+    """Top pages from analytics_events for 24h / 7d / 30d (page_view only, metadata.path). limit 25 or 100 per window. Admin live only. No requests/min."""
+    if socket.gethostname() != ADMIN_LIVE_HOSTNAME:
+        raise HTTPException(status_code=403, detail="Admin disabled on local.")
+    role = _get_session_role(request)
+    if not role or role not in ("super_admin", "admin"):
+        raise HTTPException(status_code=403, detail="Admin access required.")
+    lim = 100 if int(limit) == 100 else 25
+    if not table_exists("analytics_events"):
+        return JSONResponse(
+            content={
+                "ok": True,
+                "analytics_table_exists": False,
+                "partial_data": True,
+                "partial_data_message": "analytics_events not available — historic tabs have no page data.",
+                "limit_applied": lim,
+                "by_window": {"24h": {"top_pages": [], "page_view_count": 0}, "7d": {"top_pages": [], "page_view_count": 0}, "30d": {"top_pages": [], "page_view_count": 0}},
+            },
+            headers=_DASHBOARD_DATA_HEADERS,
+        )
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        by_window = {}
+        for key, iv in (("24h", "1 day"), ("7d", "7 days"), ("30d", "30 days")):
+            pages, n = _admin_analytics_top_pages_window(cur, iv, lim)
+            by_window[key] = {"top_pages": pages, "page_view_count": n}
+        cur.close()
+        total_all = sum(w["page_view_count"] for w in by_window.values())
+        partial = True
+        msg = "Partial data — counts are page_view events from instrumented clients only; not full site traffic."
+        if total_all == 0:
+            msg = "Partial data — no page_view rows in these windows (coverage gap or table empty for period)."
+        return JSONResponse(
+            content={
+                "ok": True,
+                "analytics_table_exists": True,
+                "partial_data": partial,
+                "partial_data_message": msg,
+                "limit_applied": lim,
+                "by_window": by_window,
+            },
+            headers=_DASHBOARD_DATA_HEADERS,
+        )
+    except Exception as e:
+        return JSONResponse(
+            content={
+                "ok": False,
+                "error": str(e),
+                "analytics_table_exists": True,
+                "partial_data": True,
+                "partial_data_message": "Could not load analytics aggregates.",
+                "by_window": {"24h": {"top_pages": [], "page_view_count": 0}, "7d": {"top_pages": [], "page_view_count": 0}, "30d": {"top_pages": [], "page_view_count": 0}},
+            },
+            status_code=500,
+            headers=_DASHBOARD_DATA_HEADERS,
+        )
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+
 @app.get("/admin/list/registered-users")
 def admin_list_registered_users():
     """Live DB list: name, sas_id, email, whatsapp, date_registered, last_login, login_count, status. No cache.
@@ -8054,6 +9368,82 @@ def restart_api(request: Request):
     return {"ok": True}
 
 
+@app.get("/admin/dashboard-v10", response_class=HTMLResponse)
+def admin_dashboard_v10(request: Request):
+    """Admin dashboard on blank.html: stacked cards (System, Stats, Live sessions, Data integrity, Scrapes, Traffic). Scroll page; tables scroll inside cards. Uses existing admin JSON endpoints."""
+    if socket.gethostname() != ADMIN_LIVE_HOSTNAME:
+        raise HTTPException(status_code=403, detail="Admin dashboard v10 disabled on local environment.")
+    role = _get_session_role(request)
+    if not role or role not in ("super_admin", "admin"):
+        raise HTTPException(status_code=403, detail="Admin access required.")
+    blank_path = os.path.join(STATIC_DIR, "blank.html")
+    frag_main = os.path.join(STATIC_DIR, "admin_dashboard_v10_main.html")
+    frag_script = os.path.join(STATIC_DIR, "admin_dashboard_v10_script.js")
+    if not os.path.isfile(blank_path):
+        raise HTTPException(status_code=404, detail="blank.html not found")
+    if not os.path.isfile(frag_main) or not os.path.isfile(frag_script):
+        raise HTTPException(status_code=404, detail="admin v10 fragments missing")
+    with open(blank_path, "r", encoding="utf-8", errors="replace") as f:
+        html = f.read()
+    # Landing page loads blank-landing-header.js; admin v10 uses admin_dashboard_v10_script.js only.
+    html = html.replace(
+        '  <script src="/js/blank-landing-header.js"></script>\n',
+        "",
+        1,
+    )
+    with open(frag_main, "r", encoding="utf-8", errors="replace") as f:
+        traffic_main = f.read()
+    traffic_main = traffic_main.replace("__V10_SERVER_START_TS__", str(SERVER_START_TS))
+    traffic_main = traffic_main.replace("__V10_HOSTNAME__", html_module.escape(socket.gethostname()))
+    with open(frag_script, "r", encoding="utf-8", errors="replace") as f:
+        script_body = f.read()
+    html = html.replace("<title>Search — SailingSA</title>", "<title>Admin — Dashboard — SailingSA</title>", 1)
+    if 'href="/css/main.css"' not in html:
+        html = html.replace(
+            "</head>",
+            '  <link rel="stylesheet" href="/css/main.css">\n'
+            '  <script src="/js/api.js"></script>\n'
+            '  <script src="/js/session.js"></script>\n'
+            "</head>",
+            1,
+        )
+    html = html.replace(
+        """  <nav class="blank-drawer" id="navDrawer" aria-label="Site menu" hidden aria-hidden="true">
+    <a href="/">Home</a>
+    <a href="/sailors">Sailors</a>
+    <a href="/regattas">Regattas</a>
+    <a href="/classes">Classes</a>
+    <a href="/clubs">Clubs</a>
+    <a href="/about">About</a>
+  </nav>""",
+        """  <nav class="blank-drawer" id="navDrawer" aria-label="Site menu" hidden aria-hidden="true">
+    <a href="/admin/dashboard">Admin dashboard</a>
+    <a href="/admin/dashboard-v3">Dashboard v3</a>
+    <a href="/admin/review">Data review</a>
+    <a href="/">Home</a>
+    <a href="/sailors">Sailors</a>
+    <a href="/regattas">Regattas</a>
+    <a href="/classes">Classes</a>
+    <a href="/clubs">Clubs</a>
+    <a href="/about">About</a>
+  </nav>""",
+        1,
+    )
+    i0 = html.find("    <section class=\"card blank-stats-wrap\"")
+    i1 = html.find("  <div class=\"blank-overlay\"")
+    if i0 < 0 or i1 < 0:
+        raise HTTPException(status_code=500, detail="blank.html layout changed; cannot splice v10")
+    html = html[:i0] + traffic_main + html[i1:]
+    s0 = html.find("  <script>\n(function () {")
+    if s0 < 0:
+        s0 = html.find("  <script>\r\n(function () {")
+    s_end = html.find("</script>", s0)
+    if s0 < 0 or s_end < 0:
+        raise HTTPException(status_code=500, detail="blank.html script block not found")
+    html = html[:s0] + "  <script>\n" + script_body + "\n  </script>" + html[s_end + len("</script>") :]
+    return HTMLResponse(content=html, headers={"Cache-Control": "no-store"})
+
+
 @app.get("/regatta/{slug}/class-{class_slug}")
 @app.head("/regatta/{slug}/class-{class_slug}")
 def _regatta_class_standalone(slug: str, class_slug: str):
@@ -8063,7 +9453,8 @@ def _regatta_class_standalone(slug: str, class_slug: str):
 
 @app.get("/regatta/{slug}")
 @app.head("/regatta/{slug}")
-def _regatta_standalone(slug: str): return serve_regatta_standalone(slug)
+def _regatta_standalone(request: Request, slug: str):
+    return serve_regatta_standalone(slug, request)
 
 
 @app.get("/club/{slug}")
@@ -8262,6 +9653,182 @@ def _get_site_stats():
 def api_site_stats():
     """Site stats for dashboard. Uses same sources as search. Cached 5min. Delegates to _get_site_stats()."""
     return _get_site_stats()
+
+
+@app.get("/api/events/live-summary")
+def api_events_live_summary():
+    """Live events count for public hub UIs; same `live` bucket as /events. Cached 60s."""
+    ck = "events_live_summary_v1"
+    cached = get_cached(ck, ttl_seconds=60)
+    if cached is not None:
+        return cached
+    try:
+        data = _get_upcoming_events()
+        live = data.get("live") or []
+        out = {"live_count": len(live), "has_live": len(live) > 0}
+    except Exception as e:
+        out = {"live_count": 0, "has_live": False, "error": str(e)}
+    set_cached(ck, out, ttl_seconds=60)
+    return out
+
+
+@app.get("/api/events")
+def api_events_public_list(
+    blank_hub: bool = Query(
+        False,
+        alias="blank_hub",
+        description="If true: narrower date window + lower limit for blank/events hub (faster).",
+    ),
+):
+    """Public JSON array for dashboards: event_name, start_date, end_date, races_sailed, entries (from linked regatta when present)."""
+    if not table_exists("events"):
+        return []
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        has_regatta_id = column_exists("events", "regatta_id")
+        has_category = column_exists("events", "category")
+        has_rb = table_exists("regatta_blocks")
+        has_res = table_exists("results")
+        if not has_regatta_id:
+            races_sql = "0::int"
+            entries_sql = "0::int"
+            podium_class_sql = "NULL::int"
+            regatta_col = "NULL::text AS regatta_id"
+        else:
+            if has_rb:
+                races_sql = (
+                    "CASE WHEN e.regatta_id IS NULL THEN 0::int "
+                    "ELSE (SELECT COALESCE(SUM(COALESCE(rb.races_sailed, 0)), 0)::int FROM regatta_blocks rb "
+                    "WHERE rb.regatta_id = e.regatta_id) END::int"
+                )
+                podium_class_sql = (
+                    "CASE WHEN e.regatta_id IS NULL THEN NULL::int "
+                    "ELSE (SELECT rb.class_id FROM regatta_blocks rb WHERE rb.regatta_id = e.regatta_id "
+                    "ORDER BY rb.block_id NULLS LAST LIMIT 1) END"
+                )
+            else:
+                races_sql = "0::int"
+                podium_class_sql = "NULL::int"
+            if has_res:
+                entries_sql = (
+                    "CASE WHEN e.regatta_id IS NULL THEN 0::int "
+                    "ELSE (SELECT COUNT(*)::int FROM results r WHERE r.regatta_id = e.regatta_id AND r.raced = TRUE) END::int"
+                )
+            else:
+                entries_sql = "0::int"
+            regatta_col = "e.regatta_id"
+        if blank_hub:
+            # Blank landing: regatta-style calendar only (same exclusions as /events result line for Meeting/Training).
+            cat_excl = ""
+            if has_category:
+                cat_excl = (
+                    " AND lower(trim(COALESCE(e.category, ''))) NOT IN "
+                    "('training', 'meeting', 'meetings') "
+                )
+            where_hub = f"""
+            WHERE COALESCE(e.end_date, e.start_date) >= (CURRENT_DATE - INTERVAL '150 days')
+              AND COALESCE(e.start_date, e.end_date) <= (CURRENT_DATE + INTERVAL '540 days')
+              {cat_excl}
+            """
+            limit_n = 400
+        else:
+            where_hub = ""
+            limit_n = 1500
+        category_sql = "e.category AS category" if has_category else "NULL::text AS category"
+        cur.execute(
+            f"""
+            SELECT e.event_name, e.start_date, e.end_date,
+                   {category_sql},
+                   {regatta_col},
+                   {races_sql} AS races_sailed,
+                   {entries_sql} AS entries,
+                   {podium_class_sql} AS podium_class_id
+            FROM events e
+            {where_hub}
+            ORDER BY e.start_date DESC NULLS LAST
+            LIMIT {limit_n}
+            """
+        )
+        rows = cur.fetchall() or []
+        out = []
+        for r in rows:
+            sd = r.get("start_date")
+            ed = r.get("end_date")
+            rid = r.get("regatta_id")
+            pcid = r.get("podium_class_id")
+            item = {
+                "event_name": r.get("event_name"),
+                "start_date": sd.isoformat() if sd and hasattr(sd, "isoformat") else (str(sd) if sd else None),
+                "end_date": ed.isoformat() if ed and hasattr(ed, "isoformat") else (str(ed) if ed else None),
+                "races_sailed": int(r.get("races_sailed") or 0),
+                "entries": int(r.get("entries") or 0),
+            }
+            if has_category:
+                cat_raw = r.get("category")
+                item["category"] = (str(cat_raw).strip() if cat_raw is not None else "") or None
+            if has_regatta_id:
+                item["regatta_id"] = rid if rid is not None else None
+                item["podium_class_id"] = int(pcid) if pcid is not None else None
+            out.append(item)
+        if blank_hub:
+            series_map = _yearly_series_distinct_year_counts_map()
+            max_by_sk, hist_by_sk = _yearly_series_max_and_history_maps()
+            for item in out:
+                key = _yearly_event_series_key((item.get("event_name") or "").strip())
+                item["series_years_count"] = int(series_map.get(key, 0)) if key else 0
+                emax = int(max_by_sk.get(key, 0)) if key else 0
+                item["entries_max_series"] = emax
+                ev_y = _event_year_from_public_event_item(item)
+                py, pe = _prior_year_entries_from_hist(hist_by_sk.get(key) if key else None, ev_y)
+                item["prior_year"] = py
+                item["entries_prior_year"] = pe
+                item["entries_for_sort"] = max(int(item.get("entries") or 0), emax)
+            hub_window = _compute_hub_upcoming_window_payload(out, today_iso=date.today().isoformat(), window_days=5, limit=10)
+            return {"events": out, "hub_upcoming_window": hub_window}
+        return out
+    except Exception as e:
+        print(f"[api_events_public_list] {e}")
+        traceback.print_exc()
+        return []
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+
+@app.get("/api/events/upcoming-window")
+def api_events_upcoming_window():
+    """Same slice + sort_signature as blank hub (`hub_upcoming_window`). Compare signatures across UIs."""
+    payload = api_events_public_list(blank_hub=True)
+    if isinstance(payload, dict):
+        return payload.get("hub_upcoming_window") or {
+            "sort_version": UPCOMING_DISPLAY_SORT_VERSION,
+            "sort_signature": "",
+            "anchor_date": None,
+            "window_end": None,
+            "items": [],
+        }
+    return {
+        "sort_version": UPCOMING_DISPLAY_SORT_VERSION,
+        "sort_signature": "",
+        "anchor_date": None,
+        "window_end": None,
+        "items": [],
+    }
+
+
+@app.get("/sail-numbers", response_class=HTMLResponse)
+def sail_numbers_placeholder_page():
+    """Placeholder until dedicated sail-number search (by class, duplicates) ships."""
+    return HTMLResponse(
+        "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"/><title>Sail numbers — SailingSA</title></head>"
+        "<body style=\"font-family:system-ui,sans-serif;max-width:28rem;margin:2rem auto;padding:0 1rem;color:#1a1a1a;\">"
+        "<p><a href=\"/\" style=\"color:#001f3f;font-weight:600;\">← Home</a></p>"
+        "<h1 style=\"color:#001f3f;font-size:1.25rem;\">Sail numbers</h1>"
+        "<p>Search and list sail numbers by class — coming soon.</p>"
+        "</body></html>"
+    )
 
 
 @app.get("/api/site-stats-audit")
@@ -10355,6 +11922,7 @@ def api_member_public_mentions(sa_id: str):
         raise HTTPException(status_code=400, detail="sa_id must be a valid numeric SAS ID")
     items = []
     media_score = None
+    ai_overview_summary = None
     conn = None
     try:
         conn = get_db_connection()
@@ -10398,10 +11966,17 @@ def api_member_public_mentions(sa_id: str):
         try:
             cur2 = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             try:
-                cur2.execute("SELECT media_score FROM sailor_media_score WHERE sa_id::text = %s LIMIT 1", (sa_id_safe,))
+                try:
+                    cur2.execute(
+                        "SELECT media_score, ai_overview_summary FROM sailor_media_score WHERE sa_id::text = %s LIMIT 1",
+                        (sa_id_safe,),
+                    )
+                except Exception:
+                    cur2.execute("SELECT media_score FROM sailor_media_score WHERE sa_id::text = %s LIMIT 1", (sa_id_safe,))
                 ms_row = cur2.fetchone()
                 if ms_row:
                     media_score = ms_row.get("media_score")
+                    ai_overview_summary = ms_row.get("ai_overview_summary")
             finally:
                 cur2.close()
         except Exception:
@@ -10412,11 +11987,11 @@ def api_member_public_mentions(sa_id: str):
                 _trigger_media_discovery(sa_id_safe)
             else:
                 logging.getLogger("uvicorn.error").info("[media] sa_id=%s has 0 items and media_score>=2 but SERPAPI_API_KEY not set; discovery not triggered.", sa_id_safe)
-        return {"items": items, "media_score": media_score}
+        return {"items": items, "media_score": media_score, "ai_overview_summary": ai_overview_summary}
     except Exception as e:
         print(f"[api] public-mentions for {sa_id}: {e}")
         traceback.print_exc()
-        return {"items": [], "media_score": None}
+        return {"items": [], "media_score": None, "ai_overview_summary": None}
     finally:
         if conn:
             try:
@@ -10471,6 +12046,15 @@ def _get_session_role(request: Request) -> Optional[str]:
             return_db_connection(conn)
     except Exception:
         return None
+
+
+def _session_role_is_super_admin(request: Request) -> bool:
+    """True if session maps to super admin (tolerates DB spacing/casing)."""
+    r = _get_session_role(request)
+    if not r:
+        return False
+    s = str(r).strip().lower().replace(" ", "_").replace("-", "_")
+    return s in ("super_admin", "superadmin")
 
 
 def _fetch_og_metadata(url: str) -> dict:
@@ -11284,6 +12868,263 @@ def api_results_full(request: Request, sa_id: str = Query(..., description="SA S
     return api_member_results(sa_id, request)
 
 
+def _hub_summary_json_row(row) -> dict:
+    """RealDictRow / dict with date → JSON-safe strings."""
+    d = dict(row) if row is not None else {}
+    for k, v in list(d.items()):
+        if v is not None and hasattr(v, "isoformat") and callable(getattr(v, "isoformat")):
+            try:
+                d[k] = v.isoformat()
+            except Exception:
+                d[k] = str(v)
+    return d
+
+
+@app.get("/api/member/{sa_id}/hub-summary")
+def api_member_hub_summary(sa_id: str, request: Request = None):
+    """Aggregates for hub/blank search: regattas sailed, calendar events (linked regatta), clubs, classes, sail numbers, boats."""
+    request_id = getattr(request.state, "request_id", None) if request else None
+    if not request_id:
+        request_id = get_request_id()
+    sid = (sa_id or "").strip()
+    if not sid:
+        raise HTTPException(status_code=400, detail="missing sa_id")
+
+    out = {
+        "sa_id": sid,
+        "regattas": [],
+        "events": [],
+        "clubs": [],
+        "classes": [],
+        "sail_numbers": [],
+        "boats": [],
+    }
+
+    conn = None
+    try:
+        conn = get_db_connection(request_id)
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            trace_query(cur, request_id)
+
+            if sid.upper().startswith("TMP:") or (
+                sid.upper().startswith("TMP") and ":" in sid
+            ):
+                where_sql = "(r.helm_temp_id = %s OR r.crew_temp_id = %s)"
+                base_params = [sid, sid]
+            else:
+                cur.execute(
+                    """
+                    SELECT COALESCE(TRIM(full_name), TRIM(first_name || ' ' || last_name)) AS sailor_name
+                    FROM public.sas_id_personal WHERE sa_sailing_id::text = %s
+                    """,
+                    (sid,),
+                )
+                nrow = cur.fetchone()
+                nm = (nrow.get("sailor_name") or "").strip() if nrow else ""
+                if nm:
+                    where_sql = """(
+                        r.helm_sa_sailing_id::text = %s OR r.crew_sa_sailing_id::text = %s
+                        OR (r.helm_sa_sailing_id IS NULL AND r.helm_temp_id IS NULL
+                            AND TRIM(LOWER(r.helm_name)) = TRIM(LOWER(%s)))
+                        OR (r.crew_sa_sailing_id IS NULL AND r.crew_temp_id IS NULL
+                            AND TRIM(LOWER(r.crew_name)) = TRIM(LOWER(%s)))
+                    )"""
+                    base_params = [sid, sid, nm, nm]
+                else:
+                    where_sql = "(r.helm_sa_sailing_id::text = %s OR r.crew_sa_sailing_id::text = %s)"
+                    base_params = [sid, sid]
+
+            cur.execute(
+                f"""
+                SELECT DISTINCT r.regatta_id FROM public.results r
+                WHERE {where_sql} AND r.regatta_id IS NOT NULL
+                LIMIT 800
+                """,
+                tuple(base_params),
+            )
+            all_regatta_ids = [
+                row["regatta_id"] for row in (cur.fetchall() or []) if row.get("regatta_id")
+            ]
+
+            if all_regatta_ids:
+                cur.execute(
+                    """
+                    SELECT reg.regatta_id, reg.event_name, reg.start_date, reg.end_date, reg.year, reg.regatta_number
+                    FROM public.regattas reg
+                    WHERE reg.regatta_id = ANY(%s)
+                    ORDER BY reg.end_date DESC NULLS LAST, reg.start_date DESC NULLS LAST
+                    LIMIT 100
+                    """,
+                    (all_regatta_ids,),
+                )
+                out["regattas"] = [_hub_summary_json_row(x) for x in (cur.fetchall() or [])]
+
+            regatta_ids = all_regatta_ids
+
+            if (
+                regatta_ids
+                and table_exists("events")
+                and column_exists("events", "regatta_id")
+            ):
+                has_url = column_exists("events", "source_url")
+                url_sql = "e.source_url" if has_url else "NULL::text AS source_url"
+                cur.execute(
+                    f"""
+                    SELECT e.event_id, e.event_name, e.start_date, e.end_date, e.regatta_id, {url_sql}
+                    FROM public.events e
+                    WHERE e.regatta_id = ANY(%s)
+                    ORDER BY e.start_date DESC NULLS LAST
+                    LIMIT 60
+                    """,
+                    (regatta_ids,),
+                )
+                out["events"] = [_hub_summary_json_row(x) for x in (cur.fetchall() or [])]
+
+            cur.execute(
+                f"""
+                SELECT DISTINCT c.club_id, c.club_abbrev, c.club_fullname, r.club_raw
+                FROM public.results r
+                LEFT JOIN public.clubs c ON c.club_id = r.club_id
+                WHERE {where_sql}
+                  AND (c.club_id IS NOT NULL OR (r.club_raw IS NOT NULL AND TRIM(r.club_raw) <> ''))
+                LIMIT 40
+                """,
+                tuple(base_params),
+            )
+            club_rows = cur.fetchall() or []
+            seen_club = set()
+            for cr in club_rows:
+                ab = (cr.get("club_abbrev") or "").strip()
+                fn = (cr.get("club_fullname") or "").strip()
+                raw = (cr.get("club_raw") or "").strip()
+                disp = ab or fn or raw
+                if not disp:
+                    continue
+                slug = _club_slug_from_name(fn or ab or raw)
+                key = (slug or disp).lower()
+                if key in seen_club:
+                    continue
+                seen_club.add(key)
+                out["clubs"].append(
+                    {
+                        "display": disp,
+                        "slug": slug or "",
+                        "club_abbrev": ab or None,
+                        "club_fullname": fn or None,
+                    }
+                )
+
+            if not (sid.upper().startswith("TMP:") or (sid.upper().startswith("TMP") and ":" in sid)):
+                cur.execute(
+                    """
+                    SELECT primary_club, club_1, primary_class
+                    FROM public.sas_id_personal WHERE sa_sailing_id::text = %s
+                    """,
+                    (sid,),
+                )
+                prow = cur.fetchone()
+                if prow:
+                    for label in (prow.get("primary_club"), prow.get("club_1")):
+                        t = (label or "").strip()
+                        if not t:
+                            continue
+                        slug = _club_slug_from_name(t)
+                        key = (slug or t).lower()
+                        if key in seen_club:
+                            continue
+                        seen_club.add(key)
+                        out["clubs"].insert(
+                            0,
+                            {
+                                "display": t,
+                                "slug": slug or "",
+                                "club_abbrev": None,
+                                "club_fullname": None,
+                            },
+                        )
+                    pc = (prow.get("primary_class") or "").strip()
+                    if pc:
+                        out["classes"].append(
+                            {"class_id": None, "class_name": pc, "from_profile": True}
+                        )
+
+            cur.execute(
+                f"""
+                SELECT DISTINCT r.class_id, COALESCE(cl.class_name, r.class_original) AS class_name
+                FROM public.results r
+                LEFT JOIN public.classes cl ON cl.class_id = r.class_id
+                WHERE {where_sql}
+                  AND (r.class_id IS NOT NULL OR (r.class_original IS NOT NULL AND TRIM(r.class_original) <> ''))
+                ORDER BY class_name NULLS LAST
+                LIMIT 50
+                """,
+                tuple(base_params),
+            )
+            for xr in cur.fetchall() or []:
+                cid = xr.get("class_id")
+                cname = (xr.get("class_name") or "").strip()
+                if not cname and cid is None:
+                    continue
+                out["classes"].append(
+                    {
+                        "class_id": int(cid) if cid is not None else None,
+                        "class_name": cname or "Class",
+                        "from_profile": False,
+                    }
+                )
+
+            by_class_name = {}
+            for c in out["classes"]:
+                k = (c.get("class_name") or "").strip().lower()
+                if not k:
+                    continue
+                prev = by_class_name.get(k)
+                if prev is None:
+                    by_class_name[k] = c
+                elif c.get("class_id") is not None and prev.get("class_id") is None:
+                    by_class_name[k] = c
+            out["classes"] = list(by_class_name.values())[:40]
+
+            cur.execute(
+                f"""
+                SELECT DISTINCT TRIM(r.sail_number::text) AS sn
+                FROM public.results r
+                WHERE {where_sql}
+                  AND r.sail_number IS NOT NULL AND TRIM(r.sail_number::text) <> ''
+                ORDER BY sn
+                LIMIT 50
+                """,
+                tuple(base_params),
+            )
+            out["sail_numbers"] = [
+                row["sn"] for row in (cur.fetchall() or []) if row.get("sn")
+            ]
+
+            cur.execute(
+                f"""
+                SELECT DISTINCT TRIM(r.boat_name) AS bn
+                FROM public.results r
+                WHERE {where_sql}
+                  AND r.boat_name IS NOT NULL AND TRIM(r.boat_name) <> ''
+                ORDER BY bn
+                LIMIT 50
+                """,
+                tuple(base_params),
+            )
+            out["boats"] = [
+                row["bn"] for row in (cur.fetchall() or []) if row.get("bn")
+            ]
+
+        return out
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn is not None:
+            return_db_connection(conn)
+
+
 def _resolve_regatta_id_for_results(regatta_id: str):
     """If regatta_id is numeric, try to resolve to string regatta_id from regattas.regatta_number."""
     if not regatta_id or not str(regatta_id).strip().isdigit():
@@ -11431,6 +13272,64 @@ def api_list_clubs():
         name = (r.get("name") or r.get("code") or "").strip()
         r["slug"] = _club_slug_from_name(name) if name else ""
     return rows
+
+
+@app.get("/api/search/clubs")
+def api_search_clubs(
+    q: str = Query("", description="Substring match on club name, code, province"),
+    limit: int = Query(200, ge=1, le=400),
+):
+    """Landing/hub search: DB-backed club matches (not limited to preloaded client list)."""
+    qn = (q or "").strip()
+    if len(qn) < 2:
+        return []
+    code_col = (
+        "club_abbrev" if column_exists("clubs", "club_abbrev") else (
+        "club_code" if column_exists("clubs", "club_code") else (
+        "club_name" if column_exists("clubs", "club_name") else (
+        "club_full_name" if column_exists("clubs", "club_full_name") else None)))
+    )
+    name_col = (
+        "club_full_name" if column_exists("clubs", "club_full_name") else (
+        "club_name" if column_exists("clubs", "club_name") else (
+        "club_abbrev" if column_exists("clubs", "club_abbrev") else (
+        "club_code" if column_exists("clubs", "club_code") else None)))
+    )
+    if not code_col and not name_col:
+        return []
+    province_col = (
+        "province" if column_exists("clubs", "province") else
+        "province_code" if column_exists("clubs", "province_code") else None
+    )
+    code_sql = f"{code_col} AS code" if code_col else "NULL::text AS code"
+    name_sql = f"{name_col} AS name" if name_col else "NULL::text AS name"
+    province_sql = f"{province_col} AS province" if province_col else "NULL::text AS province"
+    pat = f"%{_escape_like(qn.lower())}%"
+    search_fields = []
+    if code_col:
+        search_fields.append(f"LOWER(COALESCE({code_col}::text, '')) LIKE %s")
+    if name_col:
+        search_fields.append(f"LOWER(COALESCE({name_col}::text, '')) LIKE %s")
+    if province_col:
+        search_fields.append(f"LOWER(COALESCE({province_col}::text, '')) LIKE %s")
+    where_search = "(" + " OR ".join(search_fields) + ")"
+    n_repeat = len(search_fields)
+    order_col = code_col or name_col
+    sql = f"""
+      SELECT {code_sql}, {name_sql}, {province_sql}
+      FROM public.clubs
+      WHERE COALESCE(TRIM({code_col or name_col}), '') <> ''
+        AND {where_search}
+      ORDER BY {order_col}
+      LIMIT %s
+    """
+    params = [pat] * n_repeat + [max(1, min(400, int(limit)))]
+    rows = q(sql, params)
+    for r in rows or []:
+        name = (r.get("name") or r.get("code") or "").strip()
+        r["slug"] = _club_slug_from_name(name) if name else ""
+    return rows
+
 
 @app.get("/api/member/search")
 def api_search_members(
@@ -11669,7 +13568,8 @@ class ResultPatch(BaseModel):
     boat_name: Optional[str] = None
 
 @app.patch("/api/result/{result_id}")
-def patch_result(result_id: int, p: ResultPatch):
+def patch_result(request: Request, result_id: int, p: ResultPatch):
+    _require_super_admin(request)
     with psycopg2.connect(DB_URL) as conn:
         with conn.cursor() as cur:
             if p.helm_key is not None:
@@ -11693,8 +13593,9 @@ def patch_result(result_id: int, p: ResultPatch):
     return {"ok": True}
 
 @app.patch("/api/result/{result_id}/race")
-def patch_race_score(result_id: int, body: dict):
+def patch_race_score(request: Request, result_id: int, body: dict):
     """Update a race score and automatically recalculate total/nett/discards and re-rank fleet"""
+    _require_super_admin(request)
     import json
     import re
     
@@ -13196,6 +15097,7 @@ def api_search(
     age_under: Optional[int] = None,
     age_over: Optional[int] = None,
     limit: int = 200,
+    hub: int = Query(0, description="1 = landing/hub search: higher cap, multi-word fuzzy on names"),
 ):
     """Search for members (SA IDs and Temp IDs) with last regatta info"""
     request_id = getattr(request.state, 'request_id', None) if request else None
@@ -13209,8 +15111,8 @@ def api_search(
         except Exception:
             pass
     
-    # STAGE 12 OPTIMIZATION: Enforce maximum limit and minimum query length
-    limit = min(limit, 200)  # Cap at 200 to prevent huge result sets
+    max_cap = 500 if int(hub or 0) == 1 else 200
+    limit = min(max(1, int(limit or 200)), max_cap)
     
     rows = []
     
@@ -13243,20 +15145,65 @@ def api_search(
                                 return []
                         else:
                             # STAGE 12: Removed EXISTS clause - use LEFT JOIN with pre-filtered results instead
-                            # This eliminates per-row EXISTS subquery scans
-                            # For 2+ character queries, use prefix match (faster than LIKE '%...%')
                             needs_sail_boat_search = True
-                            # Use prefix match (starts with) instead of LIKE '%...%' for better index usage
-                            conditions.append("""
+                            tokens = [t for t in q_trimmed.lower().split() if t]
+                            hub_on = int(hub or 0) == 1
+
+                            def _append_sailor_token_sql(tok: str, include_clubs: bool) -> None:
+                                """One search token must match name, SA ID, and optionally club/class (escaped for LIKE)."""
+                                if not tok:
+                                    return
+                                esc = _escape_like(tok)
+                                if len(tok) == 1:
+                                    p = f"{esc}%"
+                                    conditions.append("""
+                                        (
+                                         LOWER(COALESCE(s.first_name,'')) LIKE %s
+                                         OR LOWER(COALESCE(s.last_name,'')) LIKE %s
+                                         OR LOWER(TRIM(COALESCE(s.first_name,'') || ' ' || COALESCE(s.last_name,''))) LIKE %s
+                                         OR LOWER(TRIM(COALESCE(s.last_name,'') || ' ' || COALESCE(s.first_name,''))) LIKE %s
+                                         OR CAST(s.sa_sailing_id AS TEXT) LIKE %s
+                                        )
+                                    """)
+                                    params.extend([p, p, p, p, p])
+                                    return
+                                p = f"%{esc}%"
+                                frag = """
+                                        (
+                                         LOWER(COALESCE(s.first_name,'')) LIKE %s
+                                         OR LOWER(COALESCE(s.last_name,'')) LIKE %s
+                                         OR LOWER(COALESCE(s.first_name,'') || ' ' || COALESCE(s.last_name,'')) LIKE %s
+                                         OR LOWER(COALESCE(s.last_name,'') || ' ' || COALESCE(s.first_name,'')) LIKE %s
+                                         OR CAST(s.sa_sailing_id AS TEXT) LIKE %s"""
+                                plist = [p, p, p, p, p]
+                                if include_clubs:
+                                    frag += """
+                                         OR LOWER(COALESCE(s.primary_club,'')) LIKE %s
+                                         OR LOWER(COALESCE(s.club_1,'')) LIKE %s
+                                         OR LOWER(COALESCE(s.primary_class,'')) LIKE %s"""
+                                    plist.extend([p, p, p])
+                                frag += "\n                                        )"
+                                conditions.append(frag)
+                                params.extend(plist)
+
+                            # Multi-word: each token must match somewhere (fixes "tim wea" vs "Timothy Weaving").
+                            if len(tokens) >= 2:
+                                for tok in tokens:
+                                    _append_sailor_token_sql(tok, include_clubs=True)
+                            elif hub_on and tokens:
+                                _append_sailor_token_sql(tokens[0], include_clubs=True)
+                            else:
+                                # Single token: prefix on names + substring on full-name strings + SA ID (legacy)
+                                conditions.append("""
                                 (LOWER(s.last_name) LIKE %s 
                                  OR LOWER(s.first_name) LIKE %s
                                  OR LOWER(s.last_name || ' ' || s.first_name) LIKE %s
                                  OR LOWER(s.first_name || ' ' || s.last_name) LIKE %s
                                  OR s.sa_sailing_id::text LIKE %s)
                             """)
-                            q_lower = f"{q_trimmed.lower()}%"
-                            q_lower_space = f"%{q_trimmed.lower()}%"
-                            params.extend([q_lower, q_lower, q_lower_space, q_lower_space, f"%{q_trimmed}%"])
+                                q_lower = f"{q_trimmed.lower()}%"
+                                q_lower_space = f"%{q_trimmed.lower()}%"
+                                params.extend([q_lower, q_lower, q_lower_space, q_lower_space, f"%{q_trimmed}%"])
                 
                 if sas_id:
                     # If sas_id is "T" or starts with "TMP", don't filter SA IDs (will show temp IDs instead)
@@ -13395,32 +15342,60 @@ def api_search(
                             temp_conditions.append("t.temp_id = %s")
                             temp_params.append(int(tmp_num))
                     
-                    # Apply name filter if q is not a temp ID pattern
-                    if q and not q.upper().startswith("TMP") and q.strip().upper() != "T":
-                        temp_conditions.append("""
-                            (LOWER(t.full_name) LIKE %s
+                    # Apply name filter if q is not a temp ID pattern (multi-word: each token must match full_name)
+                    if q and not q.upper().startswith("TMP") and q.strip().upper() != "T" and len(q.strip()) >= 2:
+                        qt = q.strip()
+                        tokens_t = [t for t in qt.lower().split() if t]
+                        q_lower = f"%{qt.lower()}%"
+                        exists_tail = """
                              OR EXISTS (
                                  SELECT 1 FROM public.results res 
                                  WHERE (res.helm_temp_id = 'TMP:' || t.temp_id::text 
                                         OR res.crew_temp_id = 'TMP:' || t.temp_id::text)
                                  AND (res.sail_number::text LIKE %s OR LOWER(COALESCE(res.boat_name, '')) LIKE %s)
-                             ))
-                        """)
-                        q_lower = f"%{q.lower()}%"
-                        temp_params.extend([q_lower, f"%{q}%", q_lower])
+                             ))"""
+                        if len(tokens_t) >= 2:
+                            name_ands = []
+                            for tok in tokens_t:
+                                esc = _escape_like(tok)
+                                pat = f"%{esc}%" if len(tok) > 1 else f"{esc}%"
+                                name_ands.append("LOWER(COALESCE(t.full_name,'')) LIKE %s")
+                                temp_params.append(pat)
+                            temp_conditions.append("((" + " AND ".join(name_ands) + ")" + exists_tail)
+                            temp_params.extend([f"%{qt}%", q_lower])
+                        else:
+                            temp_conditions.append("(LOWER(t.full_name) LIKE %s" + exists_tail)
+                            temp_params.extend([q_lower, f"%{qt}%", q_lower])
                 elif q:
-                    # Search by name, sail number, boat name (not temp ID search)
-                    temp_conditions.append("""
-                        (LOWER(t.full_name) LIKE %s
+                    # Name / sail / boat (not temp-ID listing). Single digit keeps legacy LIKE; multi-word uses AND on tokens.
+                    qt = q.strip()
+                    exists_tail = """
                          OR EXISTS (
                              SELECT 1 FROM public.results res 
                              WHERE (res.helm_temp_id = 'TMP:' || t.temp_id::text 
                                     OR res.crew_temp_id = 'TMP:' || t.temp_id::text)
                              AND (res.sail_number::text LIKE %s OR LOWER(COALESCE(res.boat_name, '')) LIKE %s)
-                         ))
-                    """)
-                    q_lower = f"%{q.lower()}%"
-                    temp_params.extend([q_lower, f"%{q}%", q_lower])
+                         ))"""
+                    if len(qt) < 2:
+                        if qt.isdigit():
+                            q_lower = f"%{qt.lower()}%"
+                            temp_conditions.append("(LOWER(t.full_name) LIKE %s" + exists_tail)
+                            temp_params.extend([q_lower, f"%{qt}%", q_lower])
+                    else:
+                        tokens_t = [t for t in qt.lower().split() if t]
+                        q_lower = f"%{qt.lower()}%"
+                        if len(tokens_t) >= 2:
+                            name_ands = []
+                            for tok in tokens_t:
+                                esc = _escape_like(tok)
+                                pat = f"%{esc}%" if len(tok) > 1 else f"{esc}%"
+                                name_ands.append("LOWER(COALESCE(t.full_name,'')) LIKE %s")
+                                temp_params.append(pat)
+                            temp_conditions.append("((" + " AND ".join(name_ands) + ")" + exists_tail)
+                            temp_params.extend([f"%{qt}%", q_lower])
+                        else:
+                            temp_conditions.append("(LOWER(t.full_name) LIKE %s" + exists_tail)
+                            temp_params.extend([q_lower, f"%{qt}%", q_lower])
                 
                 # Apply first_names and surname filters to temp IDs too
                 if first_names:
@@ -13460,10 +15435,10 @@ def api_search(
                     # Filter by class from results table
                     temp_conditions.append("EXISTS (SELECT 1 FROM public.results res JOIN public.classes c ON c.class_id = res.class_id WHERE (res.helm_temp_id = 'TMP:' || t.temp_id::text OR res.crew_temp_id = 'TMP:' || t.temp_id::text OR res.crew2_temp_id = 'TMP:' || t.temp_id::text OR res.crew3_temp_id = 'TMP:' || t.temp_id::text) AND LOWER(c.class_name) LIKE LOWER(%s))")
                     temp_params.append(f"%{class_name}%")
-                
-                    temp_where = " AND " + " AND ".join(temp_conditions) if temp_conditions else ""
-                    
-                    sql_temp = f"""
+
+                temp_where = " AND " + " AND ".join(temp_conditions) if temp_conditions else ""
+
+                sql_temp = f"""
                     SELECT
                         'TMP:' || t.temp_id::text as sas_id,
                         COALESCE(t.last_name, 
@@ -13536,12 +15511,12 @@ def api_search(
                     ORDER BY COALESCE(t.last_name, t.full_name), COALESCE(t.first_name, ''), t.temp_id
                     LIMIT %s
                 """
-                    temp_params.append(limit)
-                    if temp_where:
-                        cur.execute(sql_temp, temp_params)
-                    else:
-                        cur.execute(sql_temp, [limit])
-                    temp_rows = cur.fetchall()
+                temp_params.append(limit)
+                if temp_where:
+                    cur.execute(sql_temp, temp_params)
+                else:
+                    cur.execute(sql_temp, [limit])
+                temp_rows = cur.fetchall()
                 
                 # Combine results
                 for row in sa_rows:
@@ -13720,6 +15695,7 @@ def api_regattas_with_counts(
     year: Optional[int] = None,
     class_name: Optional[str] = Query(None, description="Filter regattas that sailed this class (e.g. 'Optimist A')"),
     request: Request = None,
+    limit: int = Query(150, ge=1, le=400, description="Max regattas returned (hub search uses higher values)"),
 ):
     """Return regattas with entry counts. q = Google-like: any word matches event name, host, or class (with aliases e.g. Laser=ILCA)."""
     # Search analytics: log regatta search when q present
@@ -13824,6 +15800,7 @@ def api_regattas_with_counts(
         if name_match_sql is not None:
             order_best_first = " (CASE WHEN " + name_match_sql + " THEN 0 ELSE 1 END),"
             params.extend(name_match_params)
+        _lim = max(1, min(400, int(limit)))
         sql = base_sql + where_clause + """
             GROUP BY r.regatta_id, r.event_name, r.year, r.regatta_number, 
                      r.start_date, r.end_date, r.host_club_name, c.club_abbrev
@@ -13831,9 +15808,9 @@ def api_regattas_with_counts(
             ORDER BY
         """ + order_best_first + """
             r.regatta_number DESC NULLS LAST, r.year DESC NULLS LAST, r.start_date DESC NULLS LAST
-            LIMIT 100
+            LIMIT """ + str(_lim) + """
         """
-        
+
         # SELECT and ORDER BY placeholders for name_match come first in SQL string, so prepend their params
         if name_match_sql is not None:
             params = list(name_match_params) + params
@@ -14325,7 +16302,11 @@ def api_regatta_podium_png(regatta_id: str, class_name: str = Query(..., alias="
 
 
 def _filter_regatta_rows_by_class(rows: list, class_id: str):
-    """Filter regatta rows (from api_regatta) to those matching class_id (block_id or class name)."""
+    """Filter regatta rows (from api_regatta) to those matching class_id.
+
+    class_id may be: regatta_blocks.block_id, classes.class_id (numeric — same as
+    /api/events podium_class_id), or a class name fragment.
+    """
     if not rows or not class_id:
         return []
     class_id = str(class_id).strip()
@@ -14336,6 +16317,10 @@ def _filter_regatta_rows_by_class(rows: list, class_id: str):
             continue
         block_id = (r.get("block_id") or "").strip()
         class_canonical = (r.get("class_name") or r.get("class_original") or "").strip()
+        res_cls = r.get("result_class_id")
+        if res_cls is not None and str(res_cls).strip() == class_id:
+            out.append(r)
+            continue
         if block_id == class_id:
             out.append(r)
             continue
@@ -14346,6 +16331,60 @@ def _filter_regatta_rows_by_class(rows: list, class_id: str):
             out.append(r)
     out.sort(key=lambda x: (int(x.get("rank")) if x.get("rank") is not None and str(x.get("rank")).isdigit() else 9999, x.get("result_id") or 0))
     return out
+
+
+def _resolve_regatta_internal_id(regatta_id: str) -> Optional[str]:
+    """Map public regatta id / slug prefix to regattas.regatta_id for fast SQL paths."""
+    if not regatta_id or not str(regatta_id).strip():
+        return None
+    s = str(regatta_id).strip()
+    rows = q("SELECT regatta_id::text AS rid FROM regattas WHERE regatta_id::text = %s LIMIT 1", (s,))
+    if rows and rows[0].get("rid") is not None:
+        return str(rows[0]["rid"])
+    if "-" in s:
+        fp = s.split("-")[0]
+        if fp.isdigit():
+            rows = q(
+                "SELECT regatta_id::text AS rid FROM regattas WHERE regatta_number::text = %s LIMIT 1",
+                (fp,),
+            )
+            if rows and rows[0].get("rid") is not None:
+                return str(rows[0]["rid"])
+    return None
+
+
+def _podium_rows_fast_numeric_class(regatta_internal_id: str, class_id_txt: str) -> list:
+    """Top 3 for classes.class_id match — avoids loading full api_regatta."""
+    rows = q(
+        """
+        SELECT
+            res.result_id,
+            res.rank,
+            res.helm_name,
+            res.crew_name,
+            res.nett_points_raw,
+            res.total_points_raw,
+            COALESCE(res.class_id, rb.class_id) AS result_class_id,
+            rb.block_id,
+            COALESCE(cls.class_name, res.class_original, rb.class_canonical, rb.class_original) AS class_name,
+            res.class_original AS result_class_original
+        FROM results res
+        INNER JOIN regatta_blocks rb ON rb.block_id = res.block_id
+        LEFT JOIN classes cls ON cls.class_id = COALESCE(res.class_id, rb.class_id)
+        WHERE rb.regatta_id::text = %s
+          AND res.raced = TRUE
+          AND res.result_id IS NOT NULL
+          AND COALESCE(res.class_id, rb.class_id)::text = %s
+        ORDER BY
+          CASE WHEN res.rank::text ~ '^[0-9]+$' THEN res.rank::integer ELSE 999999 END,
+          res.result_id
+        LIMIT 3
+        """,
+        (regatta_internal_id, str(class_id_txt).strip()),
+    )
+    if not rows:
+        return []
+    return [dict(r) for r in rows if r.get("result_id")]
 
 
 @app.get("/api/regattas/{regatta_id}/classes/{class_id}/results")
@@ -14364,6 +16403,16 @@ def api_regattas_class_results(regatta_id: str, class_id: str):
 @app.get("/api/regattas/{regatta_id}/classes/{class_id}/podium")
 def api_regattas_class_podium(regatta_id: str, class_id: str):
     """Return top 3 (podium) for a regatta class. Matches frontend getPodium(regattaId, classId)."""
+    cid = str(class_id).strip()
+    if cid.isdigit():
+        rid = _resolve_regatta_internal_id(regatta_id)
+        if rid:
+            try:
+                fast = _podium_rows_fast_numeric_class(rid, cid)
+                if len(fast) >= 1:
+                    return fast
+            except Exception as e:
+                print(f"[podium_fast] fallback to full regatta: {e}", flush=True)
     try:
         rows = api_regatta(regatta_id)
     except HTTPException:
@@ -16563,6 +18612,8 @@ async def check_session(request: Request):
         session = cur.fetchone()
         
         if session:
+            _session_touch_user_activity(cur, session_token, _client_path_for_session_touch(request))
+            conn.commit()
             # Fetch user name information from sas_id_personal or sailing_id
             first_name = None
             last_name = None
@@ -16616,14 +18667,14 @@ async def check_session(request: Request):
                             if first_name or last_name:
                                 full_name = f"{first_name or ''} {last_name or ''}".strip()
             
-            conn.commit()
-            
             # Session is valid
+            role = _get_session_role(request)
             return {
                 "valid": True,
                 "session_id": session['session_id'],
                 "sas_id": session['sas_id'],
                 "login_method": session['login_method'],
+                "role": role,
                 "user": {
                     "first_name": first_name,
                     "last_name": last_name,
@@ -16641,6 +18692,749 @@ async def check_session(request: Request):
     finally:
         cur.close()
         conn.close()
+
+
+def _hub_hero_json_path() -> Path:
+    return Path(_static_dir()) / "data" / "hub_hero.json"
+
+
+def _read_hub_hero_config() -> dict:
+    p = _hub_hero_json_path()
+    if not p.is_file():
+        return {}
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _write_hub_hero_config(obj: dict) -> None:
+    p = _hub_hero_json_path()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    body = dict(obj) if isinstance(obj, dict) else {}
+    body["updated_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    p.write_text(json.dumps(body, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    _cache.pop("hub_blank_freshness_v1", None)
+    _cache_timestamps.pop("hub_blank_freshness_v1", None)
+
+
+@app.get("/api/hub/hero")
+async def api_hub_hero_get():
+    """Public: saved blank-hub hero / layout hints (JSON file under static data/)."""
+    cfg = _read_hub_hero_config()
+    return cfg if isinstance(cfg, dict) else {}
+
+
+def _hub_blank_freshness_payload() -> dict:
+    """Latest activity for blank hub strip: hero config save, file touch, or any results as_at_time."""
+    times = []
+    p = _hub_hero_json_path()
+    if p.is_file():
+        try:
+            cfg = _read_hub_hero_config()
+            u = cfg.get("updated_at")
+            if isinstance(u, str) and u.strip():
+                try:
+                    s = u.strip().replace("Z", "+00:00")
+                    d = datetime.fromisoformat(s)
+                    if d.tzinfo is None:
+                        d = d.replace(tzinfo=timezone.utc)
+                    times.append(d)
+                except Exception:
+                    pass
+            times.append(datetime.fromtimestamp(p.stat().st_mtime, tz=timezone.utc))
+        except Exception:
+            pass
+    conn = None
+    try:
+        if table_exists("results"):
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("SELECT MAX(as_at_time) FROM public.results WHERE as_at_time IS NOT NULL")
+            row = cur.fetchone()
+            if row and row[0] is not None:
+                t = row[0]
+                if hasattr(t, "tzinfo") and getattr(t, "tzinfo", None) is None:
+                    t = t.replace(tzinfo=timezone.utc)
+                times.append(t)
+    except Exception as e:
+        print(f"[hub_blank_freshness] {e}")
+    finally:
+        if conn:
+            return_db_connection(conn)
+    if not times:
+        return {"updated_at": None}
+    mx = max(times)
+    return {"updated_at": mx.isoformat().replace("+00:00", "Z")}
+
+
+@app.get("/api/hub/blank-freshness")
+def api_hub_blank_freshness():
+    """Public: single ISO timestamp for blank hub “last updated” (hero edits + results activity). Cached 2 min."""
+    ck = "hub_blank_freshness_v1"
+    cached = get_cached(ck, ttl_seconds=120)
+    if cached is not None:
+        return cached
+    out = _hub_blank_freshness_payload()
+    set_cached(ck, out, ttl_seconds=120)
+    return out
+
+
+@app.put("/api/admin/hub/hero")
+async def api_admin_hub_hero_put(request: Request, body: dict = Body(...)):
+    """Super admin only: merge keys into hub_hero.json; null value removes key."""
+    if not _session_role_is_super_admin(request):
+        raise HTTPException(status_code=403, detail="super_admin only")
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="JSON object expected")
+    existing = _read_hub_hero_config()
+    for k, v in body.items():
+        if v is None:
+            existing.pop(k, None)
+        else:
+            existing[k] = v
+    _write_hub_hero_config(existing)
+    return {"ok": True, "config": existing}
+
+
+# Pilot regatta slug: super-admin tools on standalone sheet (must exist before WC header-icon helpers).
+WC_DINGHY_CHAMPS_REGATTA_SLUG = "live-2026-wc-dinghy-champs-sbyc"
+
+
+def _wc_regatta_header_icons_json_path() -> Path:
+    return Path(_static_dir()) / "data" / "wc_regatta_header_icons.json"
+
+
+def _read_wc_regatta_header_icons() -> dict:
+    p = _wc_regatta_header_icons_json_path()
+    if not p.is_file():
+        return {}
+    try:
+        o = json.loads(p.read_text(encoding="utf-8"))
+        return o if isinstance(o, dict) else {}
+    except Exception:
+        return {}
+
+
+def _write_wc_regatta_header_icons(data: dict) -> None:
+    p = _wc_regatta_header_icons_json_path()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def _wc_regatta_header_icon_urls(regatta_id: str) -> tuple:
+    """(left_url, right_url) for WC pilot slug only; else (None, None)."""
+    rid = str(regatta_id).strip()
+    if rid != WC_DINGHY_CHAMPS_REGATTA_SLUG:
+        return None, None
+    raw = _read_wc_regatta_header_icons().get(rid)
+    if not isinstance(raw, dict):
+        return None, None
+    lu = raw.get("left")
+    ru = raw.get("right")
+    ls = lu.strip() if isinstance(lu, str) else None
+    rs = ru.strip() if isinstance(ru, str) else None
+    return (ls or None, rs or None)
+
+
+def _wc_regatta_host_club_abbrev_for_regatta(regatta_id: str) -> Optional[str]:
+    """Host club abbrev for regatta (for club logo path); WC pilot uses regattas.host_club_id → clubs.club_abbrev."""
+    rid = str(regatta_id).strip()
+    if not rid or not table_exists("regattas") or not table_exists("clubs"):
+        return None
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        cur.execute(
+            """
+            SELECT c.club_abbrev FROM regattas r
+            LEFT JOIN clubs c ON c.club_id = r.host_club_id
+            WHERE r.regatta_id = %s
+            LIMIT 1
+            """,
+            (rid,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        ab = row.get("club_abbrev")
+        s = str(ab).strip() if ab is not None else ""
+        return s or None
+    finally:
+        cur.close()
+        return_db_connection(conn)
+
+
+def _wc_regatta_header_icon_set(regatta_id: str, slot: str, url: Optional[str]) -> None:
+    rid = str(regatta_id).strip()
+    if slot not in ("left", "right"):
+        raise ValueError("slot must be left or right")
+    all_d = dict(_read_wc_regatta_header_icons())
+    entry = dict(all_d.get(rid)) if isinstance(all_d.get(rid), dict) else {}
+    if url is None or (isinstance(url, str) and not url.strip()):
+        entry.pop(slot, None)
+    else:
+        entry[slot] = str(url).strip()
+    if not entry:
+        all_d.pop(rid, None)
+    else:
+        all_d[rid] = entry
+    _write_wc_regatta_header_icons(all_d)
+
+
+_HUB_UPLOAD_CT = {
+    "image/jpeg": ".jpg",
+    "image/jpg": ".jpg",
+    "image/pjpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+    "image/gif": ".gif",
+    "image/heic": ".heic",
+    "image/heif": ".heif",
+}
+_HUB_UPLOAD_MAX = 4 * 1024 * 1024
+
+
+def _hub_upload_extension(content_type: Optional[str], filename: Optional[str]) -> Optional[str]:
+    """Resolve file extension from MIME (iPhone HEIC) or filename (empty MIME on some mobile browsers)."""
+    ct = (content_type or "").split(";")[0].strip().lower()
+    if ct in _HUB_UPLOAD_CT:
+        return _HUB_UPLOAD_CT[ct]
+    fn = (filename or "").strip().lower()
+    for suf, ext in (
+        (".heic", ".heic"),
+        (".heif", ".heif"),
+        (".jpeg", ".jpg"),
+        (".jpg", ".jpg"),
+        (".png", ".png"),
+        (".webp", ".webp"),
+        (".gif", ".gif"),
+    ):
+        if fn.endswith(suf):
+            return ext
+    if ct == "application/octet-stream" and fn:
+        return _hub_upload_extension(None, fn)
+    return None
+
+
+@app.post("/api/admin/hub/hero/upload")
+async def api_admin_hub_hero_upload(request: Request, file: UploadFile = File(...)):
+    """Super admin: store image under static assets/hub/ and return public path."""
+    if not _session_role_is_super_admin(request):
+        raise HTTPException(status_code=403, detail="super_admin only")
+    ext = _hub_upload_extension(file.content_type, file.filename)
+    if not ext:
+        raise HTTPException(
+            status_code=400,
+            detail="Use a photo file (JPEG, PNG, WebP, GIF, HEIC). If this persists on iPhone, try “Most Compatible” in Camera settings.",
+        )
+    dest_dir = Path(_static_dir()) / "assets" / "hub"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    name = f"hero-{uuid.uuid4().hex[:16]}{ext}"
+    dest = dest_dir / name
+    size = 0
+    try:
+        with open(dest, "wb") as out:
+            while True:
+                chunk = await file.read(65536)
+                if not chunk:
+                    break
+                size += len(chunk)
+                if size > _HUB_UPLOAD_MAX:
+                    out.close()
+                    dest.unlink(missing_ok=True)
+                    raise HTTPException(status_code=400, detail="file too large (max 4MB)")
+                out.write(chunk)
+    except HTTPException:
+        raise
+    except Exception as e:
+        dest.unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail=str(e))
+    url_path = f"/assets/hub/{name}"
+    return {"ok": True, "image_url": url_path}
+
+
+@app.post("/api/admin/hub/wc-header-icon/{slot}")
+async def api_admin_hub_wc_header_icon_upload(
+    request: Request,
+    slot: str,
+    file: UploadFile = File(...),
+    apply_host_club_logo: Optional[str] = Query(None),
+):
+    """WC regatta header icons: same request shape as /api/admin/hub/hero/upload (file field only). Slot path: left | right.
+    Optional query apply_host_club_logo=1 (right slot only): copy into artwork/Club Logo/{abbrev}.ext for /api/club-logo/ and clear WC right override."""
+    if not _session_role_is_super_admin(request):
+        raise HTTPException(status_code=403, detail="super_admin only")
+    sl = (slot or "").strip().lower()
+    if sl not in ("left", "right"):
+        raise HTTPException(status_code=400, detail="slot must be left or right")
+    rid = WC_DINGHY_CHAMPS_REGATTA_SLUG
+    want_club_logo = str(apply_host_club_logo or "").strip().lower() in ("1", "true", "yes")
+    if want_club_logo and sl != "right":
+        raise HTTPException(status_code=400, detail="apply_host_club_logo is only valid for the right slot")
+    ext = _hub_upload_extension(file.content_type, file.filename)
+    if not ext:
+        raise HTTPException(
+            status_code=400,
+            detail="Use a photo file (JPEG, PNG, WebP, GIF, HEIC). If this persists on iPhone, try “Most Compatible” in Camera settings.",
+        )
+    dest_dir = Path(_static_dir()) / "assets" / "hub"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    name = f"wc-hdr-{sl}-{uuid.uuid4().hex[:14]}{ext}"
+    dest = dest_dir / name
+    size = 0
+    try:
+        with open(dest, "wb") as out:
+            while True:
+                chunk = await file.read(65536)
+                if not chunk:
+                    break
+                size += len(chunk)
+                if size > _HUB_UPLOAD_MAX:
+                    out.close()
+                    dest.unlink(missing_ok=True)
+                    raise HTTPException(status_code=400, detail="file too large (max 4MB)")
+                out.write(chunk)
+    except HTTPException:
+        raise
+    except Exception as e:
+        dest.unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+    if want_club_logo:
+        abbrev = _wc_regatta_host_club_abbrev_for_regatta(rid)
+        if not abbrev:
+            dest.unlink(missing_ok=True)
+            raise HTTPException(status_code=400, detail="Set host club on this regatta before saving as club logo.")
+        ext_l = dest.suffix.lower()
+        if ext_l not in (".png", ".jpg", ".jpeg"):
+            dest.unlink(missing_ok=True)
+            raise HTTPException(
+                status_code=400,
+                detail="To save as host club logo for all result pages, use PNG or JPEG (not HEIC/WebP/GIF here).",
+            )
+        safe = re.sub(r"[^\w\-]", "", abbrev)
+        if not safe:
+            dest.unlink(missing_ok=True)
+            raise HTTPException(status_code=400, detail="Invalid host club code for club logo filename.")
+        try:
+            os.makedirs(CLUB_LOGO_DIR, exist_ok=True)
+        except OSError as e:
+            dest.unlink(missing_ok=True)
+            raise HTTPException(status_code=500, detail=f"Could not create club logo directory: {e}")
+        for old_ext in ("jpg", "png", "jpeg"):
+            oldp = os.path.join(CLUB_LOGO_DIR, safe + "." + old_ext)
+            if os.path.isfile(oldp):
+                try:
+                    os.unlink(oldp)
+                except OSError:
+                    pass
+        club_dest = os.path.join(CLUB_LOGO_DIR, safe + ext_l)
+        try:
+            shutil.copy2(str(dest), club_dest)
+            dest.unlink(missing_ok=True)
+        except OSError as e:
+            dest.unlink(missing_ok=True)
+            raise HTTPException(status_code=500, detail=f"Could not write club logo file: {e}")
+        try:
+            _wc_regatta_header_icon_set(rid, "right", None)
+        except OSError as e:
+            try:
+                os.unlink(club_dest)
+            except OSError:
+                pass
+            cfg = _wc_regatta_header_icons_json_path()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Saved club logo but could not update WC config ({cfg}): {e}",
+            )
+        except Exception as e:
+            try:
+                os.unlink(club_dest)
+            except OSError:
+                pass
+            raise HTTPException(status_code=500, detail=f"Could not update WC config: {e}")
+        api_logo = f"/api/club-logo/{safe}"
+        return {
+            "ok": True,
+            "slot": sl,
+            "club_logo_saved": True,
+            "club_logo_code": safe,
+            "club_logo_url": api_logo,
+        }
+
+    url_path = f"/assets/hub/{name}"
+    try:
+        _wc_regatta_header_icon_set(rid, sl, url_path)
+    except OSError as e:
+        dest.unlink(missing_ok=True)
+        cfg = _wc_regatta_header_icons_json_path()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Saved image but could not write config (check disk permissions on {cfg}): {e}",
+        )
+    except Exception as e:
+        dest.unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail=f"Could not save header icon mapping: {e}")
+    return {"ok": True, "url": url_path, "slot": sl, "club_logo_saved": False}
+
+
+_HUB_VIDEO_CT = {
+    "video/mp4": ".mp4",
+    "video/webm": ".webm",
+    "video/quicktime": ".mov",
+    "video/x-m4v": ".mp4",
+    "video/mpeg": ".mp4",
+}
+_HUB_VIDEO_MAX = 48 * 1024 * 1024
+
+
+def _hub_video_extension(content_type: Optional[str], filename: Optional[str]) -> Optional[str]:
+    ct = (content_type or "").split(";")[0].strip().lower()
+    if ct in _HUB_VIDEO_CT:
+        return _HUB_VIDEO_CT[ct]
+    fn = (filename or "").strip().lower()
+    for suf, ext in (
+        (".mp4", ".mp4"),
+        (".webm", ".webm"),
+        (".mov", ".mov"),
+        (".m4v", ".mp4"),
+    ):
+        if fn.endswith(suf):
+            return ext
+    return None
+
+
+@app.post("/api/admin/hub/hero/upload-video")
+async def api_admin_hub_hero_upload_video(request: Request, file: UploadFile = File(...)):
+    """Super admin: store video under static assets/hub/ and return public path."""
+    if not _session_role_is_super_admin(request):
+        raise HTTPException(status_code=403, detail="super_admin only")
+    ext = _hub_video_extension(file.content_type, file.filename)
+    if not ext:
+        raise HTTPException(
+            status_code=400,
+            detail="Use MP4, WebM, or MOV.",
+        )
+    dest_dir = Path(_static_dir()) / "assets" / "hub"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    name = f"hero-vid-{uuid.uuid4().hex[:16]}{ext}"
+    dest = dest_dir / name
+    size = 0
+    try:
+        with open(dest, "wb") as out:
+            while True:
+                chunk = await file.read(65536)
+                if not chunk:
+                    break
+                size += len(chunk)
+                if size > _HUB_VIDEO_MAX:
+                    out.close()
+                    dest.unlink(missing_ok=True)
+                    raise HTTPException(status_code=400, detail="file too large (max 48MB)")
+                out.write(chunk)
+    except HTTPException:
+        raise
+    except Exception as e:
+        dest.unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail=str(e))
+    url_path = f"/assets/hub/{name}"
+    return {"ok": True, "url": url_path, "type": "video"}
+
+
+@app.get("/api/admin/hub/assets")
+async def api_admin_hub_assets(request: Request):
+    """Super admin: list existing files in assets/hub/ for album picker."""
+    if not _session_role_is_super_admin(request):
+        raise HTTPException(status_code=403, detail="super_admin only")
+    dest_dir = Path(_static_dir()) / "assets" / "hub"
+    items = []
+    image_ext = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".heic", ".heif"}
+    video_ext = {".mp4", ".webm", ".mov", ".m4v"}
+    if dest_dir.is_dir():
+        for p in sorted(dest_dir.iterdir()):
+            if not p.is_file():
+                continue
+            suf = p.suffix.lower()
+            if suf in image_ext:
+                kind = "image"
+            elif suf in video_ext:
+                kind = "video"
+            else:
+                continue
+            items.append({"name": p.name, "url": f"/assets/hub/{p.name}", "kind": kind})
+    return {"items": items}
+
+
+@app.patch("/api/super-admin/regatta/{regatta_id}/event-name")
+async def api_super_admin_regatta_event_name_patch(request: Request, regatta_id: str, body: dict = Body(...)):
+    """Super admin only. Pilot: update regattas.event_name for WC Dinghy Champs slug only."""
+    if not _session_role_is_super_admin(request):
+        raise HTTPException(status_code=403, detail="super_admin only")
+    rid = str(regatta_id).strip()
+    if rid != WC_DINGHY_CHAMPS_REGATTA_SLUG:
+        raise HTTPException(status_code=403, detail="not editable for this regatta yet")
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="JSON object expected")
+    en = body.get("event_name")
+    if en is not None and not isinstance(en, str):
+        raise HTTPException(status_code=400, detail="event_name must be a string")
+    name = (en or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="event_name required")
+    if len(name) > 500:
+        raise HTTPException(status_code=400, detail="event_name too long (max 500)")
+    if not table_exists("regattas"):
+        raise HTTPException(status_code=500, detail="regattas table missing")
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("UPDATE regattas SET event_name = %s WHERE regatta_id = %s", (name, rid))
+        n = cur.rowcount
+        if n == 0:
+            conn.rollback()
+            raise HTTPException(status_code=404, detail="regatta not found")
+        conn.commit()
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        print(f"[api_super_admin_regatta_event_name_patch] {e}", flush=True)
+        raise HTTPException(status_code=500, detail="database error")
+    finally:
+        cur.close()
+        return_db_connection(conn)
+    return {"ok": True, "event_name": name}
+
+
+@app.get("/api/super-admin/clubs-search")
+async def api_super_admin_clubs_search(
+    request: Request,
+    q: str = Query("", description="Substring on abbrev or full name"),
+    limit: int = Query(80, ge=1, le=150),
+):
+    """Super admin: search clubs by abbrev/name; returns club_id for host picker (WC pilot)."""
+    if not _session_role_is_super_admin(request):
+        raise HTTPException(status_code=403, detail="super_admin only")
+    qn = (q or "").strip()
+    if len(qn) < 2:
+        return {"clubs": []}
+    if not table_exists("clubs"):
+        raise HTTPException(status_code=500, detail="clubs table missing")
+    pat = f"%{_escape_like(qn.lower())}%"
+    lim = max(1, min(150, int(limit)))
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        cur.execute(
+            """
+            SELECT club_id,
+                   TRIM(COALESCE(club_abbrev, '')) AS code,
+                   TRIM(COALESCE(club_fullname, '')) AS name
+            FROM public.clubs
+            WHERE COALESCE(TRIM(COALESCE(club_abbrev, club_fullname, '')), '') <> ''
+              AND (
+                LOWER(COALESCE(club_abbrev::text, '')) LIKE %s
+                OR LOWER(COALESCE(club_fullname::text, '')) LIKE %s
+              )
+            ORDER BY club_abbrev NULLS LAST, club_fullname NULLS LAST
+            LIMIT %s
+            """,
+            (pat, pat, lim),
+        )
+        rows = cur.fetchall() or []
+    finally:
+        cur.close()
+        return_db_connection(conn)
+    out = []
+    for r in rows:
+        cid = r.get("club_id")
+        if cid is None:
+            continue
+        out.append({"club_id": int(cid), "code": (r.get("code") or "").strip(), "name": (r.get("name") or "").strip()})
+    return {"clubs": out}
+
+
+@app.post("/api/super-admin/clubs")
+async def api_super_admin_clubs_create(request: Request, body: dict = Body(...)):
+    """Super admin: insert clubs row (abbrev + fullname). WC host picker; rejects duplicates and reserved Unassigned."""
+    if not _session_role_is_super_admin(request):
+        raise HTTPException(status_code=403, detail="super_admin only")
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="JSON object expected")
+    ab = (body.get("club_abbrev") or body.get("abbrev") or "").strip()
+    fn = (body.get("club_fullname") or body.get("fullname") or "").strip()
+    if not ab or not fn:
+        raise HTTPException(status_code=400, detail="club_abbrev and club_fullname required")
+    if len(ab) > 40 or len(fn) > 240:
+        raise HTTPException(status_code=400, detail="club_abbrev or club_fullname too long")
+    ab_l = ab.lower()
+    fn_l = fn.lower()
+    if ab_l == "unassigned" or fn_l == "unassigned":
+        raise HTTPException(status_code=400, detail="reserved club name")
+    if not table_exists("clubs"):
+        raise HTTPException(status_code=500, detail="clubs table missing")
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        cur.execute(
+            """
+            SELECT club_id FROM public.clubs
+            WHERE lower(trim(COALESCE(club_abbrev, ''))) = %s
+            LIMIT 1
+            """,
+            (ab_l,),
+        )
+        if cur.fetchone():
+            raise HTTPException(status_code=409, detail="club code already exists")
+        cur.execute(
+            """
+            SELECT club_id FROM public.clubs
+            WHERE lower(trim(COALESCE(club_fullname, ''))) = %s
+            LIMIT 1
+            """,
+            (fn_l,),
+        )
+        if cur.fetchone():
+            raise HTTPException(status_code=409, detail="club full name already exists")
+        cur.execute(
+            """
+            INSERT INTO public.clubs (club_abbrev, club_fullname)
+            VALUES (%s, %s)
+            RETURNING club_id
+            """,
+            (ab, fn),
+        )
+        row = cur.fetchone()
+        conn.commit()
+        cid = int(row["club_id"]) if row and row.get("club_id") is not None else None
+        if not cid:
+            raise HTTPException(status_code=500, detail="insert failed")
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        print(f"[api_super_admin_clubs_create] {e}", flush=True)
+        raise HTTPException(status_code=500, detail="database error")
+    finally:
+        cur.close()
+        return_db_connection(conn)
+    return {"ok": True, "club_id": cid, "code": ab, "name": fn}
+
+
+@app.patch("/api/super-admin/regatta/{regatta_id}/host-club")
+async def api_super_admin_regatta_host_club_patch(request: Request, regatta_id: str, body: dict = Body(...)):
+    """Super admin only. Pilot: set regattas.host_club_id for WC Dinghy Champs slug only."""
+    if not _session_role_is_super_admin(request):
+        raise HTTPException(status_code=403, detail="super_admin only")
+    rid = str(regatta_id).strip()
+    if rid != WC_DINGHY_CHAMPS_REGATTA_SLUG:
+        raise HTTPException(status_code=403, detail="not editable for this regatta yet")
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="JSON object expected")
+    hid = body.get("host_club_id")
+    if hid is None or (isinstance(hid, str) and not str(hid).strip().isdigit()):
+        raise HTTPException(status_code=400, detail="host_club_id required")
+    try:
+        hid_int = int(hid)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="host_club_id must be an integer")
+    if hid_int < 1:
+        raise HTTPException(status_code=400, detail="invalid host_club_id")
+    if not table_exists("regattas") or not table_exists("clubs"):
+        raise HTTPException(status_code=500, detail="database schema error")
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT club_id FROM clubs WHERE club_id = %s LIMIT 1", (hid_int,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="club not found")
+        cur.execute("UPDATE regattas SET host_club_id = %s WHERE regatta_id = %s", (hid_int, rid))
+        n = cur.rowcount
+        if n == 0:
+            conn.rollback()
+            raise HTTPException(status_code=404, detail="regatta not found")
+        conn.commit()
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        print(f"[api_super_admin_regatta_host_club_patch] {e}", flush=True)
+        raise HTTPException(status_code=500, detail="database error")
+    finally:
+        cur.close()
+        return_db_connection(conn)
+    return {"ok": True, "host_club_id": hid_int}
+
+
+@app.post("/api/super-admin/regatta/{regatta_id}/header-icon-upload")
+async def api_super_admin_regatta_header_icon_upload(
+    request: Request,
+    regatta_id: str,
+    slot: str = Query(..., description='left or right'),
+    file: UploadFile = File(...),
+):
+    """WC pilot: upload left/right header image (same validation as hub hero image upload)."""
+    if not _session_role_is_super_admin(request):
+        raise HTTPException(status_code=403, detail="super_admin only")
+    rid = str(regatta_id).strip()
+    if rid != WC_DINGHY_CHAMPS_REGATTA_SLUG:
+        raise HTTPException(status_code=403, detail="not editable for this regatta yet")
+    sl = (slot or "").strip().lower()
+    if sl not in ("left", "right"):
+        raise HTTPException(status_code=400, detail='slot must be "left" or "right"')
+    ext = _hub_upload_extension(file.content_type, file.filename)
+    if not ext:
+        raise HTTPException(
+            status_code=400,
+            detail="Use a photo file (JPEG, PNG, WebP, GIF, HEIC).",
+        )
+    dest_dir = Path(_static_dir()) / "assets" / "hub"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    name = f"wc-hdr-{sl}-{uuid.uuid4().hex[:14]}{ext}"
+    dest = dest_dir / name
+    size = 0
+    try:
+        with open(dest, "wb") as out:
+            while True:
+                chunk = await file.read(65536)
+                if not chunk:
+                    break
+                size += len(chunk)
+                if size > _HUB_UPLOAD_MAX:
+                    out.close()
+                    dest.unlink(missing_ok=True)
+                    raise HTTPException(status_code=400, detail="file too large (max 4MB)")
+                out.write(chunk)
+    except HTTPException:
+        raise
+    except Exception as e:
+        dest.unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail=str(e))
+    url_path = f"/assets/hub/{name}"
+    _wc_regatta_header_icon_set(rid, sl, url_path)
+    return {"ok": True, "url": url_path, "slot": sl}
+
+
+@app.patch("/api/super-admin/regatta/{regatta_id}/header-icons")
+async def api_super_admin_regatta_header_icons_patch(request: Request, regatta_id: str, body: dict = Body(...)):
+    """WC pilot: clear left/right custom header icons (null removes)."""
+    if not _session_role_is_super_admin(request):
+        raise HTTPException(status_code=403, detail="super_admin only")
+    rid = str(regatta_id).strip()
+    if rid != WC_DINGHY_CHAMPS_REGATTA_SLUG:
+        raise HTTPException(status_code=403, detail="not editable for this regatta yet")
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="JSON object expected")
+    if "left" in body and body["left"] is None:
+        _wc_regatta_header_icon_set(rid, "left", None)
+    if "right" in body and body["right"] is None:
+        _wc_regatta_header_icon_set(rid, "right", None)
+    return {"ok": True}
+
 
 @app.post("/auth/login")
 async def login(request: Request):
@@ -17953,6 +20747,79 @@ def api_club_logo(code: str):
     return Response(content=_CLUB_LOGO_PLACEHOLDER, media_type="image/png")
 
 
+_REGATTA_STANDALONE_SAILINGSA_LOGO = "/assets/logos/sailingsa-logo.png"
+
+
+def _club_logo_file_exists_on_disk(code: str) -> bool:
+    """True if artwork/Club Logo/{CODE}.(jpg|png|jpeg) exists (same as api_club_logo)."""
+    safe = re.sub(r"[^\w\-]", "", (code or "").strip())
+    if not safe:
+        return False
+    try:
+        for ext in ("jpg", "png", "jpeg"):
+            if os.path.isfile(os.path.join(CLUB_LOGO_DIR, safe + "." + ext)):
+                return True
+    except Exception:
+        pass
+    return False
+
+
+def _regatta_header_right_club_logo_html(host_club_abbrev: str, host_club_slug: Optional[str]) -> str:
+    """Right header slot: host club logo from disk if present, else same Sailing SA asset as left (symmetric)."""
+    code = re.sub(r"[^\w\-]", "", (host_club_abbrev or "").strip())
+    img_cls = "regatta-header-logo-img regatta-header-club-logo-img"
+    if code and _club_logo_file_exists_on_disk(code):
+        href = f"/club/{html_module.escape(host_club_slug)}" if host_club_slug else "/"
+        src = f"/api/club-logo/{html_module.escape(code)}"
+        return (
+            f'<div class="regatta-header-club-logo-col">'
+            f'<a href="{href}" class="regatta-header-logo-link" title="Host club">'
+            f'<img src="{src}" alt="" class="{img_cls}" width="200" height="25" loading="lazy" decoding="async" />'
+            f"</a></div>"
+        )
+    return (
+        '<div class="regatta-header-club-logo-col">'
+        '<a href="/" class="regatta-header-logo-link" title="SailingSA home">'
+        f'<img src="{_REGATTA_STANDALONE_SAILINGSA_LOGO}" alt="SailingSA" class="{img_cls}" '
+        'width="200" height="25" loading="lazy" decoding="async" />'
+        "</a></div>"
+    )
+
+
+def _regatta_standalone_left_logo_column_html(override_url: Optional[str]) -> str:
+    """Left header column: default Sailing SA logo or super-admin WC custom image URL."""
+    if not (override_url and str(override_url).strip()):
+        return _REGATTA_STANDALONE_HEADER_LOGO_HTML
+    src = html_module.escape(str(override_url).strip())
+    return (
+        '<div class="regatta-header-logo-col">'
+        '<a href="/" class="regatta-header-logo-link" title="SailingSA home">'
+        f'<img src="{src}" alt="" class="regatta-header-logo-img" '
+        'width="200" height="25" loading="lazy" decoding="async" />'
+        "</a></div>"
+    )
+
+
+def _regatta_standalone_right_logo_column_html(
+    host_club_abbrev: str,
+    host_club_slug: Optional[str],
+    override_url: Optional[str],
+) -> str:
+    """Right header: club logo / fallback, or WC custom image when override set."""
+    if override_url and str(override_url).strip():
+        src = html_module.escape(str(override_url).strip())
+        href = f"/club/{html_module.escape(host_club_slug)}" if host_club_slug else "/"
+        title = "Host club" if host_club_slug else "SailingSA home"
+        return (
+            '<div class="regatta-header-club-logo-col">'
+            f'<a href="{href}" class="regatta-header-logo-link" title="{title}">'
+            f'<img src="{src}" alt="" class="regatta-header-logo-img regatta-header-club-logo-img" '
+            'width="200" height="25" loading="lazy" decoding="async" />'
+            "</a></div>"
+        )
+    return _regatta_header_right_club_logo_html(host_club_abbrev, host_club_slug)
+
+
 @app.get("/sailingsa/news")
 def redirect_sailingsa_news():
     """Redirect /sailingsa/news to /sailingsa/news/ so the placeholder page loads."""
@@ -18647,6 +21514,51 @@ def serve_sailor_spa(slug: str):
         return HTMLResponse(content=_HTML_SOFT_FAIL_200, status_code=200, media_type="text/html")
 
 
+def serve_class_spa(class_slug: str):
+    """Serve class route with server-side canonical/title tags for crawlers."""
+    if not os.path.isfile(_INDEX_HTML_PATH):
+        raise HTTPException(status_code=404, detail="index.html not found")
+    class_id, class_name = _resolve_class_slug_to_class_id(class_slug)
+    if not class_id or not class_name:
+        raise HTTPException(status_code=404, detail="Class not found")
+    canonical_slug = _class_canonical_slug(class_name or "")
+    canonical_path = f"/class/{class_id}-{canonical_slug}" if canonical_slug else f"/class/{class_id}"
+    req_slug = (class_slug or "").strip().lower()
+    canon_slug = canonical_path.split("/class/", 1)[-1].lower()
+    if req_slug != canon_slug:
+        return RedirectResponse(url=canonical_path, status_code=301)
+    base_url = _canonical_base_url()
+    canonical_url = f"{base_url}{canonical_path}"
+    try:
+        with open(_INDEX_HTML_PATH, "r", encoding="utf-8", errors="replace") as f:
+            html = f.read()
+        escaped_name = html_module.escape(class_name)
+        seo_title = f"{escaped_name} - Class | SailingSA"
+        seo_desc = f"Official SailingSA class page for {escaped_name}. Regattas, sailors and race activity."
+        html = re.sub(r"<title>[^<]*</title>", f"<title>{seo_title}</title>", html, count=1)
+        html = re.sub(
+            r'<meta\s+name="description"\s+content="[^"]*"\s*/?>',
+            f'<meta name="description" content="{html_module.escape(seo_desc)}">',
+            html,
+            count=1,
+        )
+        html = re.sub(
+            r'<link\s+rel="canonical"\s+href="[^"]*"\s*/?>',
+            f'<link rel="canonical" href="{html_module.escape(canonical_url)}">',
+            html,
+            count=1,
+        )
+        html = _dedupe_html_canonical_links(html)
+        return HTMLResponse(html)
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[serve_class_spa] {e}", flush=True)
+        if os.path.isfile(_INDEX_HTML_PATH):
+            return FileResponse(_INDEX_HTML_PATH, media_type="text/html")
+        return HTMLResponse(content=_HTML_SOFT_FAIL_200, status_code=200, media_type="text/html")
+
+
 def _club_slug_from_name(name: str) -> str:
     """Generate URL slug from club name. Same logic as regatta."""
     if not name or not isinstance(name, str):
@@ -18912,12 +21824,48 @@ def _get_regatta_by_slug(slug: str):
     """Return (regatta_id, event_name, start_date, end_date, host_club_name, host_club_id) for regatta slug or None."""
     if not slug or not slug.strip():
         return None
+    s = slug.strip()
     # Prefer direct regatta_id match (existing routing)
-    reg = _get_regatta_by_regatta_id(slug.strip())
+    reg = _get_regatta_by_regatta_id(s)
     if reg:
         return reg
+    # Backward-compatible alias: numeric-prefix slugs can drift (e.g. 385-... -> 380-...).
+    # If id-prefixed slug does not exist, match by suffix after the first dash.
+    m = re.match(r"^\d+-(.+)$", s)
+    if m:
+        tail = (m.group(1) or "").strip()
+        if tail:
+            try:
+                conn = get_db_connection()
+                cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+                try:
+                    cur.execute("""
+                        SELECT r.regatta_id, r.event_name, r.start_date, r.end_date,
+                               COALESCE(c.club_abbrev, c.club_fullname, '') AS host_club_name,
+                               c.club_id AS host_club_id
+                        FROM regattas r
+                        LEFT JOIN clubs c ON c.club_id = r.host_club_id
+                        WHERE r.regatta_id ILIKE %s
+                        ORDER BY COALESCE(r.end_date, r.start_date) DESC NULLS LAST, r.regatta_id
+                        LIMIT 1
+                    """, ('%-' + tail,))
+                    row = cur.fetchone()
+                    if row:
+                        return (
+                            row.get("regatta_id"),
+                            row.get("event_name"),
+                            row.get("start_date"),
+                            row.get("end_date"),
+                            row.get("host_club_name"),
+                            row.get("host_club_id"),
+                        )
+                finally:
+                    cur.close()
+                    conn.close()
+            except Exception:
+                pass
     # Else match by slugified event_name (used by sitemap / callers that want any match)
-    return _get_regatta_by_event_name_slug(slug.strip())
+    return _get_regatta_by_event_name_slug(s)
 
 
 def _format_rank(rank):
@@ -18940,7 +21888,8 @@ def _format_rank(rank):
 
 
 def _get_regatta_full_page_data(regatta_id: str):
-    """Return (event_name, host_club_name, start_date, end_date, fleets, result_status, as_at_time) for standalone regatta page.
+    """Return (event_name, host_club_name, start_date, end_date, fleets, result_status, as_at_time, host_club_province, host_club_abbrev, host_club_fullname) for standalone regatta page.
+    host_club_abbrev / host_club_fullname: from clubs join for 'CODE - Full name' header.
     fleets = [{name, races_sailed, discard_count, to_count, scoring_system, entries, rows}].
     Each row = {rank, sail_number, helm_name, club, total, nett, race_scores, raced, class_name}.
     result_status: from regattas.result_status.
@@ -18957,6 +21906,8 @@ def _get_regatta_full_page_data(regatta_id: str):
                 cur.execute("""
                     SELECT r.event_name, r.start_date, r.end_date,
                            COALESCE(c.club_abbrev, c.club_fullname, '') AS host_club_name,
+                           TRIM(COALESCE(c.club_abbrev, '')) AS host_club_abbrev,
+                           TRIM(COALESCE(c.club_fullname, '')) AS host_club_fullname,
                            c.province AS host_club_province,
                            r.result_status, r.as_at_time
                     FROM regattas r
@@ -18967,6 +21918,8 @@ def _get_regatta_full_page_data(regatta_id: str):
                 cur.execute("""
                     SELECT r.event_name, r.start_date, r.end_date,
                            COALESCE(c.club_abbrev, c.club_fullname, '') AS host_club_name,
+                           TRIM(COALESCE(c.club_abbrev, '')) AS host_club_abbrev,
+                           TRIM(COALESCE(c.club_fullname, '')) AS host_club_fullname,
                            c.province AS host_club_province
                     FROM regattas r
                     LEFT JOIN clubs c ON c.club_id = r.host_club_id
@@ -18977,6 +21930,8 @@ def _get_regatta_full_page_data(regatta_id: str):
                 return None
             event_name = (row.get("event_name") or "").strip()
             host_club_name = (row.get("host_club_name") or "").strip()
+            host_club_abbrev = (row.get("host_club_abbrev") or "").strip()
+            host_club_fullname = (row.get("host_club_fullname") or "").strip()
             host_club_province = (row.get("host_club_province") or "").strip() or None
             start_date = row.get("start_date")
             end_date = row.get("end_date")
@@ -19126,7 +22081,18 @@ def _get_regatta_full_page_data(regatta_id: str):
         bl["entries"] = len(bl["rows"])
         fleets.append(bl)
     print(f"REGATTA_DATA: step=before_return time={time.time() - t0:.3f}", flush=True)
-    return (event_name, host_club_name, start_date, end_date, fleets, result_status, as_at_time, host_club_province)
+    return (
+        event_name,
+        host_club_name,
+        start_date,
+        end_date,
+        fleets,
+        result_status,
+        as_at_time,
+        host_club_province,
+        host_club_abbrev,
+        host_club_fullname,
+    )
 
 
 def _get_club_slug_by_id(club_id):
@@ -19215,15 +22181,272 @@ def _get_regatta_seo_preview(regatta_id: str):
     return out
 
 
+# Standalone /regatta/* sheets: same raster as site header (navy on white) — see sailingsa/frontend/css/main.css.
+_REGATTA_STANDALONE_HEADER_LOGO_HTML = (
+    '<div class="regatta-header-logo-col">'
+    '<a href="/" class="regatta-header-logo-link" title="SailingSA home">'
+    f'<img src="{_REGATTA_STANDALONE_SAILINGSA_LOGO}" alt="SailingSA" class="regatta-header-logo-img" '
+    'width="200" height="25" loading="lazy" decoding="async" />'
+    "</a></div>"
+)
+
+
+def _wc_super_admin_regatta_toolbar_html(regatta_id: str) -> str:
+    """Toolbar HTML+script: Public | toggle | Super Admin (edit). Default on load: Super Admin (edit); slide off for Public. Gated by slug + super_admin."""
+    key_js = json.dumps("sailsa_regatta_sa_edit_" + str(regatta_id))
+    return (
+        '<div class="regatta-sa-mode-wrap" id="regattaSaModeWrap">'
+        '<span class="regatta-sa-mode-text regatta-sa-mode-text--public">Public</span>'
+        '<label class="regatta-sa-switch" title="Off = Public view, On = Super Admin (edit) — default is edit">'
+        '<input type="checkbox" id="regattaSaEditToggle" autocomplete="off" checked aria-label="Super Admin edit mode on; uncheck for Public view">'
+        '<span class="regatta-sa-slider" aria-hidden="true"></span>'
+        "</label>"
+        '<span class="regatta-sa-mode-text regatta-sa-mode-text--edit" title="Super Admin (edit mode)">Super Admin (edit)</span>'
+        "</div>"
+        "<script>(function(){var k=%s;var p=document.querySelector('.regatta-page');var i=document.getElementById('regattaSaEditToggle');"
+        "if(!p||!i)return;function apply(){var o=i.checked;p.classList.toggle('regatta-page--super-admin-edit',o);"
+        "try{localStorage.setItem(k,o?'1':'0');}catch(e){}}"
+        "function load(){try{var v=localStorage.getItem(k);if(v==='0')i.checked=false;else i.checked=true;}catch(e){i.checked=true}"
+        "apply()}"
+        "load();i.addEventListener('change',apply);window.addEventListener('pageshow',function(e){if(e.persisted)load();});})();</script>" % key_js
+    )
+
+
+def _wc_regatta_name_editor_fragment(display_name: str, regatta_id: str) -> str:
+    """Super-admin WC pilot: view + editor for regatta display name (regattas.event_name)."""
+    escaped_view = html_module.escape(display_name or "")
+    initial_js = json.dumps(display_name or "")
+    rid_js = json.dumps(str(regatta_id))
+    return (
+        '<div class="regatta-name-block">'
+        '<div class="regatta-name-view"><div class="regatta-name" id="regattaNameView">' + escaped_view + "</div></div>"
+        '<div class="regatta-name-editor">'
+        '<label class="regatta-name-input-label" for="regattaNameInput">Regatta name</label>'
+        '<input type="text" id="regattaNameInput" class="regatta-name-input" maxlength="500" autocomplete="off" />'
+        '<button type="button" id="regattaNameSave" class="regatta-name-save-btn">Save</button>'
+        '<span id="regattaNameSaveMsg" class="regatta-name-save-msg" role="status"></span>'
+        "</div></div>"
+        "<script>(function(){var initial=%s;var rid=%s;var inp=document.getElementById('regattaNameInput');"
+        "var btn=document.getElementById('regattaNameSave');var msg=document.getElementById('regattaNameSaveMsg');"
+        "var view=document.getElementById('regattaNameView');if(!inp||!btn)return;inp.value=initial;"
+        "function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}"
+        "btn.addEventListener('click',function(){msg.textContent='';var v=(inp.value||'').trim();"
+        "if(!v){msg.textContent='Name required.';return;}btn.disabled=true;"
+        "fetch('/api/super-admin/regatta/'+encodeURIComponent(rid)+'/event-name',{method:'PATCH',"
+        "headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({event_name:v})})"
+        ".then(function(r){return r.json().then(function(j){return{ok:r.ok,status:r.status,j:j}});})"
+        ".then(function(o){btn.disabled=false;if(!o.ok){var d=o.j&&o.j.detail;msg.textContent=typeof d==='string'?d:"
+        "(Array.isArray(d)&&d[0]&&d[0].msg)?d[0].msg:('Save failed ('+o.status+')');return;}"
+        "if(view)view.innerHTML=esc(v);document.title=v+' | SailingSA';msg.textContent='Saved.';"
+        "setTimeout(function(){msg.textContent='';},3000);})"
+        ".catch(function(){btn.disabled=false;msg.textContent='Network error.';});});})();</script>"
+        % (initial_js, rid_js)
+    )
+
+
+def _wc_regatta_host_picker_fragment(regatta_id: str) -> str:
+    """WC pilot: host picker — search, PATCH host, or create club + set host."""
+    rid_js = json.dumps(str(regatta_id))
+    return (
+        '<div id="regattaHostPicker" class="regatta-host-picker" hidden aria-hidden="true">'
+        '<div class="regatta-host-picker-inner">'
+        '<strong class="regatta-host-picker-title">Change host club</strong>'
+        '<button type="button" class="regatta-host-picker-close" id="regattaHostPickerClose" aria-label="Close">×</button>'
+        '<label class="regatta-host-picker-label" for="regattaHostSearch">Search clubs</label>'
+        '<input type="search" id="regattaHostSearch" class="regatta-host-picker-input" maxlength="120" autocomplete="off" />'
+        '<ul id="regattaHostPickerList" class="regatta-host-picker-list"></ul>'
+        '<span id="regattaHostPickerMsg" class="regatta-host-picker-msg" role="status"></span>'
+        '<p class="regatta-host-picker-add-hint">'
+        '<button type="button" class="regatta-host-picker-add-link" id="regattaHostToggleAdd">Add new club</button>'
+        '<span class="regatta-host-picker-add-hint-text"> if it is not in the list.</span></p>'
+        '<div id="regattaHostAddPanel" class="regatta-host-add-panel" hidden>'
+        '<div class="regatta-host-add-field">'
+        '<label for="regattaNewClubAbbrev">Club code</label>'
+        '<input type="text" id="regattaNewClubAbbrev" maxlength="40" autocomplete="off" placeholder="e.g. HYC" />'
+        "</div>"
+        '<div class="regatta-host-add-field">'
+        '<label for="regattaNewClubFullname">Full club name</label>'
+        '<input type="text" id="regattaNewClubFullname" maxlength="240" autocomplete="off" />'
+        "</div>"
+        '<button type="button" class="regatta-host-add-submit" id="regattaNewClubSubmit">Create club and set as host</button>'
+        "</div>"
+        "</div></div>"
+        "<script>(function(){var rid=%s;"
+        "var b=document.getElementById('regattaHostEditBtn');var p=document.getElementById('regattaHostPicker');"
+        "var inp=document.getElementById('regattaHostSearch');var list=document.getElementById('regattaHostPickerList');"
+        "var msg=document.getElementById('regattaHostPickerMsg');var closeBtn=document.getElementById('regattaHostPickerClose');"
+        "var toggleAdd=document.getElementById('regattaHostToggleAdd');var addPanel=document.getElementById('regattaHostAddPanel');"
+        "var abInp=document.getElementById('regattaNewClubAbbrev');var fnInp=document.getElementById('regattaNewClubFullname');"
+        "var subBtn=document.getElementById('regattaNewClubSubmit');"
+        "if(!b||!p)return;function openP(){p.hidden=false;p.setAttribute('aria-hidden','false');if(inp)inp.focus();}"
+        "function closeP(){p.hidden=true;p.setAttribute('aria-hidden','true');if(msg)msg.textContent='';if(list)list.innerHTML='';if(inp)inp.value='';"
+        "if(addPanel)addPanel.hidden=true;if(abInp)abInp.value='';if(fnInp)fnInp.value='';if(subBtn)subBtn.disabled=false;}"
+        "b.addEventListener('click',function(e){e.preventDefault();openP();});"
+        "if(closeBtn)closeBtn.addEventListener('click',closeP);"
+        "if(toggleAdd&&addPanel)toggleAdd.addEventListener('click',function(){addPanel.hidden=!addPanel.hidden;"
+        "if(!addPanel.hidden&&abInp)abInp.focus();});"
+        "function hostDetail(d){return typeof d==='string'?d:((Array.isArray(d)&&d[0]&&d[0].msg)?d[0].msg:String(d||''));}"
+        "if(subBtn)subBtn.addEventListener('click',function(){"
+        "var ab=(abInp&&abInp.value||'').trim();var fn=(fnInp&&fnInp.value||'').trim();"
+        "if(!ab||!fn){if(msg)msg.textContent='Enter club code and full name.';return;}"
+        "subBtn.disabled=true;if(msg)msg.textContent='';"
+        "fetch('/api/super-admin/clubs',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',"
+        "body:JSON.stringify({club_abbrev:ab,club_fullname:fn})})"
+        ".then(function(r){return r.json().then(function(j){return{ok:r.ok,status:r.status,j:j}});})"
+        ".then(function(o){"
+        "if(!o.ok){subBtn.disabled=false;var d=o.j&&o.j.detail;if(msg)msg.textContent=hostDetail(d)||('Create failed ('+o.status+')');return;}"
+        "var cid=o.j&&o.j.club_id;if(!cid){subBtn.disabled=false;if(msg)msg.textContent='Invalid response.';return;}"
+        "return fetch('/api/super-admin/regatta/'+encodeURIComponent(rid)+'/host-club',{method:'PATCH',"
+        "headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({host_club_id:cid})})"
+        ".then(function(r2){return r2.json().then(function(j2){return{ok:r2.ok,status:r2.status,j:j2}});})"
+        ".then(function(o2){if(!o2.ok){subBtn.disabled=false;var d=o2.j&&o2.j.detail;if(msg)msg.textContent=hostDetail(d)||('Set host failed ('+o2.status+')');return;}"
+        "window.location.reload();});}).catch(function(){subBtn.disabled=false;if(msg)msg.textContent='Network error.';});});"
+        "var t=null;function runSearch(){var q=(inp&&inp.value||'').trim();if(!list)return;list.innerHTML='';if(msg)msg.textContent='';"
+        "if(q.length<2){if(msg)msg.textContent='Type at least 2 characters, or add a new club below.';return;}"
+        "fetch('/api/super-admin/clubs-search?q='+encodeURIComponent(q)+'&limit=80',{credentials:'same-origin'})"
+        ".then(function(r){return r.json();}).then(function(data){"
+        "var clubs=(data&&data.clubs)||[];"
+        "if(clubs.length){if(addPanel)addPanel.hidden=true;}"
+        "else{if(msg)msg.textContent='No clubs matched your search — not in the list. Add it below.';"
+        "if(addPanel){addPanel.hidden=false;if(abInp&&!abInp.value)abInp.value=q;if(fnInp)fnInp.focus();}}"
+        "clubs.forEach(function(c){"
+        "var li=document.createElement('li');var btn=document.createElement('button');btn.type='button';btn.className='regatta-host-picker-row';"
+        "btn.setAttribute('data-club-id',String(c.club_id));"
+        "var a=(c.code||'').trim();var n=(c.name||'').trim();"
+        "btn.textContent=(a&&n&&(a.toLowerCase()!==n.toLowerCase()))?(a+' - '+n):(a||n||('#'+c.club_id));"
+        "btn.addEventListener('click',function(){if(msg)msg.textContent='';var id=parseInt(btn.getAttribute('data-club-id'),10);if(!id)return;"
+        "fetch('/api/super-admin/regatta/'+encodeURIComponent(rid)+'/host-club',{method:'PATCH',"
+        "headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({host_club_id:id})})"
+        ".then(function(r){return r.json().then(function(j){return{ok:r.ok,status:r.status,j:j}});})"
+        ".then(function(o){if(!o.ok){var d=o.j&&o.j.detail;if(msg)msg.textContent=hostDetail(d)||('Save failed ('+o.status+')');return;}"
+        "window.location.reload();}).catch(function(){if(msg)msg.textContent='Network error.';});});"
+        "li.appendChild(btn);list.appendChild(li);});}).catch(function(){if(msg)msg.textContent='Search failed.';});}"
+        "if(inp)inp.addEventListener('input',function(){if(t)clearTimeout(t);t=setTimeout(runSearch,300);});})();</script>"
+    ) % (rid_js,)
+
+
+def _wc_regatta_header_icon_editor_fragment(regatta_id: str, left_url: Optional[str], right_url: Optional[str]) -> str:
+    """Super-admin only: blank-style drop/click upload for left/right header icons (WC pilot)."""
+    rid_js = json.dumps(str(regatta_id))
+    left_esc = html_module.escape(left_url) if left_url else ""
+    right_esc = html_module.escape(right_url) if right_url else ""
+    left_prev = (
+        f'<img class="wc-icon-preview" src="{left_esc}" alt="">' if left_url else '<span class="wc-icon-drop-hint">Drop · click · JPEG, PNG, HEIC…</span>'
+    )
+    right_prev = (
+        f'<img class="wc-icon-preview" src="{right_esc}" alt="">' if right_url else '<span class="wc-icon-drop-hint">Drop · click · JPEG, PNG, HEIC…</span>'
+    )
+    body = (
+        '<div class="regatta-wc-icons-row" id="regattaWcIconsRow" aria-label="Header icons">'
+        '<div class="wc-icon-slot" data-slot="left">'
+        '<span class="wc-icon-slot-label">Left header icon</span>'
+        '<div class="wc-icon-drop" id="wcIconDropLeft">'
+        '<input type="file" class="wc-icon-file-native" accept="image/*,.heic,.heif" aria-label="Upload left header icon" />'
+        '<div class="wc-icon-drop-visual">' + left_prev + '</div></div>'
+        '<button type="button" class="wc-icon-reset" data-slot="left">Use default logo</button>'
+        '<p class="wc-icon-msg" id="wcIconMsgLeft" aria-live="polite"></p>'
+        '</div>'
+        '<div class="wc-icon-slot" data-slot="right">'
+        '<span class="wc-icon-slot-label">Right header icon</span>'
+        '<div class="wc-icon-drop" id="wcIconDropRight">'
+        '<input type="file" class="wc-icon-file-native" accept="image/*,.heic,.heif" aria-label="Upload right header icon" />'
+        '<div class="wc-icon-drop-visual">' + right_prev + '</div></div>'
+        '<button type="button" class="wc-icon-reset" data-slot="right">Use default (club / SailingSA)</button>'
+        '<p class="wc-icon-msg" id="wcIconMsgRight" aria-live="polite"></p>'
+        '</div></div>'
+    )
+    script = (
+        "<script>(function(){var rid=%s;"
+        "function imgOk(f){if(!f||!f.size)return false;var t=String(f.type||'').toLowerCase();"
+        "if(t.indexOf('image/')===0)return true;var n=String(f.name||'').toLowerCase();"
+        "return/\\.(jpe?g|png|gif|webp|heic|heif|bmp)$/i.test(n);}"
+        "function setMsg(slot,txt){var id=slot==='left'?'wcIconMsgLeft':'wcIconMsgRight';var e=document.getElementById(id);if(e)e.textContent=txt||'';}"
+        "function fmtErr(o){var d=o.j&&o.j.detail;if(typeof d==='string')return d;"
+        "if(Array.isArray(d)&&d.length)return d.map(function(x){return x.msg||x.type||'';}).join(' ').trim()||o.t;"
+        "return (o.t&&o.t.length<280?o.t:'HTTP '+o.status);}"
+        "function doUpload(slot,file){if(!imgOk(file)){setMsg(slot,'Use a photo file.');return;}"
+        "var applyHost=false;if(slot==='right'){applyHost=window.confirm('Also save as the host club logo (flag) for ALL regatta result pages for this host?\\n\\nOK = save for this host everywhere. Cancel = only this event header (WC override).');}"
+        "setMsg(slot,'Uploading…');var fd=new FormData();fd.append('file',file,file.name||'upload');"
+        "var u='/api/admin/hub/wc-header-icon/'+encodeURIComponent(slot);if(slot==='right'&&applyHost){u+='?apply_host_club_logo=1';}"
+        "fetch(u,{method:'POST',body:fd,credentials:'include'})"
+        ".then(function(r){return r.text().then(function(t){var j=null;try{j=JSON.parse(t);}catch(e){}"
+        "return{ok:r.ok,status:r.status,t:t,j:j};});})"
+        ".then(function(o){if(!o.ok){setMsg(slot,fmtErr(o));return;}"
+        "window.location.reload();}).catch(function(){setMsg(slot,'Network error.');});}"
+        "function wire(slot,dropId){var d=document.getElementById(dropId);var fi=d&&d.querySelector('input[type=file]');if(!d||!fi)return;"
+        "function onDragOver(e){e.preventDefault();e.stopPropagation();try{e.dataTransfer.dropEffect='copy';}catch(x){}d.classList.add('wc-icon-drop--active');}"
+        "function onDrop(e){e.preventDefault();e.stopPropagation();d.classList.remove('wc-icon-drop--active');var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];if(f)doUpload(slot,f);}"
+        "fi.addEventListener('change',function(){var f=fi.files&&fi.files[0];fi.value='';if(f)doUpload(slot,f);});"
+        "['dragenter','dragover'].forEach(function(ev){fi.addEventListener(ev,onDragOver);d.addEventListener(ev,onDragOver);});"
+        "fi.addEventListener('dragleave',function(){d.classList.remove('wc-icon-drop--active');});"
+        "d.addEventListener('dragleave',function(e){if(!d.contains(e.relatedTarget))d.classList.remove('wc-icon-drop--active');});"
+        "d.addEventListener('drop',onDrop,true);}"
+        "wire('left','wcIconDropLeft');wire('right','wcIconDropRight');"
+        "document.querySelectorAll('.wc-icon-reset').forEach(function(btn){"
+        "btn.addEventListener('click',function(){var slot=btn.getAttribute('data-slot');if(!slot)return;"
+        "var body=slot==='left'?{left:null}:{right:null};setMsg(slot,'…');"
+        "fetch('/api/super-admin/regatta/'+encodeURIComponent(rid)+'/header-icons',{method:'PATCH',"
+        "headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(body)})"
+        ".then(function(r){if(!r.ok){setMsg(slot,'Reset failed.');return;}window.location.reload();})"
+        ".catch(function(){setMsg(slot,'Network error.');});});});})();</script>" % rid_js
+    )
+    return body + script
+
+
 # Same CSS as admin regatta_viewer.html result sheet popup, with mobile-friendly widths so headers match tables
 _RESULT_SHEET_CSS = (
     "*{box-sizing:border-box}"
     "html,body{background:#ffffff;color:#1a2750;font-family:system-ui,sans-serif;margin:0;padding:0;width:100%;max-width:100%;overflow-x:hidden}"
     ".regatta-page{width:100%;max-width:100%;padding:16px;margin:0 auto}"
-    ".header{text-align:center;margin-bottom:30px;position:relative;display:flex;align-items:center;justify-content:center;border:2px solid #1a2750;border-radius:10px;padding:6px;background:#ffffff;width:100%}"
+    ".header{display:grid;grid-template-columns:minmax(0,auto) minmax(0,3fr) minmax(0,auto);align-items:center;column-gap:6px;row-gap:4px;margin-bottom:30px;position:relative;border:2px solid #1a2750;border-radius:10px;padding:4px 6px;background:#ffffff;width:100%;box-sizing:border-box}"
+    ".regatta-header-logo-col{display:flex;align-items:center;justify-content:flex-start;min-width:0;padding:3px 8px 3px 3px}"
+    ".regatta-header-club-logo-col{display:flex;align-items:center;justify-content:flex-end;min-width:0;padding:3px 3px 3px 8px}"
+    ".regatta-header-logo-link{display:flex;align-items:center;justify-content:center;line-height:0;text-decoration:none;max-width:100%}"
+    ".regatta-header-logo-img{display:block;height:auto;max-height:min(24vw,104px);width:auto;max-width:min(54vw,320px);object-fit:contain}"
+    ".regatta-header-main-col{grid-column:2;grid-row:1;justify-self:center;align-self:center;text-align:center;width:100%;max-width:100%;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center}"
     ".regatta-name{font-size:24px;font-weight:bold;color:#1a2750;margin-bottom:8px}"
+    ".regatta-name-block{width:100%}"
+    ".regatta-name-editor{display:none;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px;width:100%;margin-bottom:8px}"
+    ".regatta-page--super-admin-edit .regatta-name-view{display:none}"
+    ".regatta-page--super-admin-edit .regatta-name-editor{display:flex}"
+    ".regatta-name-input-label{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}"
+    ".regatta-name-input{flex:1;min-width:0;max-width:100%;font-size:18px;font-weight:700;color:#1a2750;padding:8px 12px;border:2px solid #1a2750;border-radius:8px;box-sizing:border-box}"
+    ".regatta-name-save-btn{padding:8px 16px;border:2px solid #0b2c4d;border-radius:20px;background:#0b2c4d;color:#fff;font-weight:700;font-size:14px;cursor:pointer}"
+    ".regatta-name-save-btn:hover{background:#ff6a00;border-color:#ff6a00}"
+    ".regatta-name-save-btn:disabled{opacity:0.6;cursor:not-allowed}"
+    ".regatta-name-save-msg{font-size:13px;color:#1a2750;min-height:1.2em}"
     ".host-club{font-size:18px;color:#1a2750;margin-bottom:8px}"
-    ".status-line{font-size:14px;color:#1a2750;margin-top:20px}"
+    ".host-club a,.host-club a:visited{color:#1a2750;font-weight:600;text-decoration:none}"
+    ".host-club a:hover{color:#e65100}"
+    ".host-club-wrap .host-club-public-nav a{color:#1a2750;font-weight:600;text-decoration:none}"
+    ".host-club-wrap .host-club-public-nav a:hover{color:#e65100}"
+    ".host-club-sa-edit-hit{display:none;background:none;border:none;padding:0;margin:0;font:inherit;font-size:inherit;font-weight:600;color:#1a2750;text-decoration:none;cursor:pointer;text-align:left}"
+    ".host-club-sa-edit-hit:hover{color:#e65100}"
+    ".regatta-host-picker{margin-top:12px;padding:12px;border:2px solid #1a2750;border-radius:10px;background:#ffffff;max-width:100%;text-align:left}"
+    ".regatta-host-picker-inner{position:relative;padding-right:36px}"
+    ".regatta-host-picker-title{display:block;font-size:16px;font-weight:700;color:#1a2750;margin-bottom:8px}"
+    ".regatta-host-picker-close{position:absolute;top:0;right:0;border:none;background:transparent;font-size:22px;line-height:1;cursor:pointer;color:#1a2750;padding:4px}"
+    ".regatta-host-picker-label{display:block;font-size:13px;font-weight:600;color:#1a2750;margin-bottom:4px}"
+    ".regatta-host-picker-input{width:100%;max-width:400px;padding:8px;border:2px solid #1a2750;border-radius:8px;box-sizing:border-box;font-size:15px;color:#1a2750}"
+    ".regatta-host-picker-list{list-style:none;margin:10px 0 0;padding:0;max-height:220px;overflow-y:auto}"
+    ".regatta-host-picker-row{width:100%;text-align:left;padding:10px 12px;margin:0 0 6px;border:1px solid #1d294d;border-radius:8px;background:#ffffff;cursor:pointer;font-size:14px;color:#1a2750;font-weight:600}"
+    ".regatta-host-picker-row:hover{background:#e9eefb}"
+    ".regatta-host-picker-msg{font-size:13px;margin-top:8px;min-height:1.2em;color:#1a2750}"
+    ".regatta-host-picker-add-hint{margin-top:14px;padding-top:12px;border-top:1px solid #cbd5e1;font-size:14px;color:#1a2750;text-align:left}"
+    ".regatta-host-picker-add-link{background:none;border:none;padding:0;color:#0b2c4d;font-weight:700;cursor:pointer;font-size:14px;text-decoration:none}"
+    ".regatta-host-picker-add-link:hover{color:#e65100}"
+    ".regatta-host-picker-add-hint-text{font-weight:400}"
+    ".regatta-host-add-panel{margin-top:10px;padding-top:6px;text-align:left}"
+    ".regatta-host-add-panel[hidden]{display:none!important}"
+    ".regatta-host-add-field{margin-bottom:10px}"
+    ".regatta-host-add-field label{display:block;font-size:13px;font-weight:600;color:#1a2750;margin-bottom:4px}"
+    ".regatta-host-add-field input{width:100%;max-width:400px;padding:8px;border:2px solid #1a2750;border-radius:8px;box-sizing:border-box;font-size:15px;color:#1a2750}"
+    ".regatta-host-add-submit{margin-top:4px;padding:8px 16px;border:2px solid #0b2c4d;border-radius:20px;background:#0b2c4d;color:#ffffff;font-weight:700;font-size:14px;cursor:pointer}"
+    ".regatta-host-add-submit:hover{background:#ff6a00;border-color:#ff6a00}"
+    ".regatta-host-add-submit:disabled{opacity:0.6;cursor:not-allowed}"
+    ".regatta-page--super-admin-edit .host-club-wrap .host-club-public-nav{display:none!important}"
+    ".regatta-page--super-admin-edit .host-club-wrap .host-club-sa-edit-hit{display:inline!important}"
+    ".status-line{font-size:14px;color:#1a2750;margin-top:8px}"
     ".fleet-section{width:100%;margin-top:40px}"
     ".class-header{font-size:20px;font-weight:bold;color:#1a2750;text-align:center;margin-top:0;margin-bottom:0;border:2px solid #1a2750;border-radius:10px;padding:15px;background:#ffffff;width:100%}"
     ".sailed-line{font-size:12px;color:#1a2750;text-align:center;margin-top:10px;margin-bottom:0}"
@@ -19243,27 +22466,70 @@ _RESULT_SHEET_CSS = (
     ".disc{color:#6a1b9a;font-weight:bold;text-decoration:line-through;opacity:0.8}"
     ".strike-out{text-decoration:line-through;opacity:0.6}"
     ".action-buttons{display:flex;gap:10px;justify-content:flex-end;margin-top:30px;margin-bottom:20px;padding:10px;width:100%}"
-    "@media print{.action-buttons{display:none!important}}"
+    "@media print{.action-buttons{display:none!important}.back-to-home{display:none!important}.regatta-sa-mode-wrap{display:none!important}.regatta-wc-icons-row{display:none!important}"
+    ".regatta-name-editor{display:none!important}.regatta-name-view{display:block!important}"
+    ".host-club-sa-edit-hit{display:none!important}.host-club-wrap .host-club-public-nav{display:inline!important}"
+    ".regatta-host-picker{display:none!important}}"
     ".action-button{padding:12px 24px;border:2px solid #1a2750;border-radius:6px;background:#ffffff;color:#1a2750;font-weight:bold;font-size:14px;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,0.2);min-width:120px}"
     ".action-button:hover{background:#1a2750;color:#ffffff}"
-    ".back-to-home{position:fixed;top:20px;left:20px;background:#0b2c4d;color:white;padding:8px 14px;border-radius:20px;font-size:14px;text-decoration:none;z-index:9999}"
+    ".regatta-header-wrap{width:100%}"
+    ".regatta-back-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin-bottom:10px;width:100%}"
+    ".regatta-back-row .back-to-home{margin-bottom:0}"
+    ".regatta-sa-mode-wrap{display:flex;align-items:center;gap:8px;flex-wrap:wrap}"
+    ".regatta-sa-mode-text{font-size:13px;font-weight:600;color:#1a2750;line-height:1.2}"
+    ".regatta-sa-mode-wrap:has(#regattaSaEditToggle:checked) .regatta-sa-mode-text--public{opacity:0.45}"
+    ".regatta-sa-mode-wrap:has(#regattaSaEditToggle:checked) .regatta-sa-mode-text--edit{opacity:1;color:#0b2c4d}"
+    ".regatta-sa-mode-wrap:not(:has(#regattaSaEditToggle:checked)) .regatta-sa-mode-text--public{opacity:1;color:#0b2c4d}"
+    ".regatta-sa-mode-wrap:not(:has(#regattaSaEditToggle:checked)) .regatta-sa-mode-text--edit{opacity:0.5}"
+    ".regatta-sa-switch{position:relative;display:inline-block;width:48px;height:28px;flex-shrink:0}"
+    ".regatta-sa-switch input{opacity:0;width:0;height:0;position:absolute}"
+    ".regatta-sa-slider{position:absolute;cursor:pointer;inset:0;background:#cbd5e1;border-radius:999px;transition:background .2s}"
+    ".regatta-sa-slider:before{position:absolute;content:'';height:22px;width:22px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}"
+    ".regatta-sa-switch input:checked+.regatta-sa-slider{background:#0b2c4d}"
+    ".regatta-sa-switch input:checked+.regatta-sa-slider:before{transform:translateX(20px)}"
+    ".regatta-sa-switch input:focus-visible+.regatta-sa-slider{outline:2px solid #ff6a00;outline-offset:2px}"
+    ".back-to-home{display:inline-block;margin-bottom:10px;background:#0b2c4d;color:white;padding:8px 14px;border-radius:20px;font-size:14px;text-decoration:none}"
     ".back-to-home:hover{background:#ff6a00}"
     "@media (max-width:768px){"
     ".regatta-page{padding:12px;width:100%;min-width:0}"
-    ".header{width:100%!important;max-width:100%!important;margin-bottom:20px;padding:12px;margin-left:0;margin-right:0}"
     ".regatta-name{font-size:18px}"
+    ".regatta-name-input{font-size:16px}"
     ".host-club{font-size:14px}"
-    ".status-line{font-size:12px}"
+    ".status-line{font-size:12px;margin-top:6px}"
     ".fleet-section{width:100%;margin-top:24px}"
     ".class-header{width:100%!important;max-width:100%!important;padding:12px;font-size:16px;margin-left:0;margin-right:0}"
     ".sailed-line{font-size:11px;margin-top:6px}"
     ".table-wrapper{width:100%;max-width:100%;margin-top:12px;margin-left:0;margin-right:0}"
     ".table-wrapper table{min-width:500px}"
     "th,td{padding:6px;font-size:13px}"
+    ".regatta-sa-mode-text{font-size:11px}"
+    ".regatta-sa-switch{width:44px;height:26px}"
+    ".regatta-sa-slider:before{height:20px;width:20px;transform:translateX(0)}"
+    ".regatta-sa-switch input:checked+.regatta-sa-slider:before{transform:translateX(18px)}"
+    "}"
+    "@media (max-width:768px) and (max-aspect-ratio:1/1){"
+    ".header{width:100%!important;max-width:100%!important;margin-bottom:16px;padding:3px 3px;margin-left:0;margin-right:0;"
+    "grid-template-columns:minmax(0,min(22vw,72px)) minmax(0,1fr) minmax(0,min(22vw,72px));grid-template-rows:auto;align-items:center;align-content:center;"
+    "column-gap:3px;row-gap:2px;min-height:0}"
+    ".regatta-header-logo-col{grid-column:1;grid-row:1;justify-content:flex-start;min-width:0;padding:1px 2px 1px 1px}"
+    ".regatta-header-club-logo-col{grid-column:3;grid-row:1;justify-content:flex-end;min-width:0;padding:1px 1px 1px 2px}"
+    ".regatta-header-main-col{grid-column:2;grid-row:1;justify-self:center;align-self:center;padding-top:0;min-width:0;max-width:100%}"
+    ".regatta-header-logo-img{max-height:min(12vw,44px);max-width:min(18vw,72px);object-fit:contain}"
+    ".regatta-name{font-size:clamp(10.4px,3.04vw,14.4px);line-height:1.2;margin-bottom:3px}"
+    ".host-club{font-size:clamp(9.6px,2.56vw,11.2px);margin-bottom:0;line-height:1.25}"
+    ".status-line{font-size:clamp(8px,2.24vw,9.6px);margin-top:2px;margin-bottom:0;line-height:1.25}"
+    "}"
+    "@media (max-width:768px) and (orientation:landscape){"
+    ".header{width:100%!important;max-width:100%!important;margin-bottom:20px;padding:4px 6px;margin-left:0;margin-right:0;grid-template-columns:1fr 1fr;grid-template-rows:auto auto}"
+    ".regatta-header-logo-col{grid-column:1;grid-row:1;justify-content:center;padding:3px 4px 3px 3px}"
+    ".regatta-header-club-logo-col{grid-column:2;grid-row:1;justify-content:center;padding:3px 3px 3px 4px}"
+    ".regatta-header-main-col{grid-column:1/-1;grid-row:2;justify-self:center;padding-top:4px}"
+    ".regatta-header-logo-img{max-height:min(20vw,88px);max-width:min(46vw,260px)}"
     "}"
     "@media (orientation:landscape) and (max-height:600px){"
     ".regatta-page{padding:6px}"
     ".header{margin-bottom:10px;padding:6px}"
+    ".regatta-header-logo-img{max-height:min(16vw,72px);max-width:min(44vw,220px)}"
     ".regatta-name{font-size:12px}"
     ".host-club{font-size:10px}"
     ".status-line{font-size:9px}"
@@ -19276,6 +22542,18 @@ _RESULT_SHEET_CSS = (
     ".action-button{padding:5px 12px;font-size:10px;min-width:70px}"
     ".back-to-home{font-size:10px;padding:5px 8px}"
     "}"
+    ".regatta-wc-icons-row{display:none;flex-wrap:wrap;gap:12px;margin-top:12px;width:100%;padding:8px 0;border-top:1px solid #cbd5e1}"
+    ".regatta-page--super-admin-edit .regatta-wc-icons-row{display:flex}"
+    ".wc-icon-slot{flex:1;min-width:140px;max-width:320px}"
+    ".wc-icon-slot-label{display:block;font-size:12px;font-weight:700;color:#1a2750;margin-bottom:6px}"
+    ".wc-icon-drop{position:relative;border:2px dashed #1a2750;border-radius:8px;min-height:72px;padding:0;text-align:center;font-size:12px;color:#334155;cursor:pointer;background:#f8fafc;display:flex;flex-direction:column;align-items:stretch;justify-content:center;overflow:hidden}"
+    ".wc-icon-file-native{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:0;margin:0;padding:0;border:0;z-index:2}"
+    ".wc-icon-drop-visual{position:relative;z-index:1;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:72px;padding:8px;width:100%}"
+    ".wc-icon-drop--active{background:#e0e7ff;border-color:#0b2c4d}"
+    ".wc-icon-drop-hint{line-height:1.35;padding:4px}"
+    ".wc-icon-preview{max-height:56px;max-width:100%;object-fit:contain;display:block}"
+    ".wc-icon-reset{font-size:11px;margin-top:6px;background:none;border:none;color:#0b2c4d;cursor:pointer;text-decoration:underline;padding:0}"
+    ".wc-icon-msg{font-size:12px;margin-top:4px;min-height:1.2em;color:#1a2750}"
 )
 
 
@@ -20752,6 +24030,22 @@ def _serve_club_page_impl(slug: str, club: tuple):
     return HTMLResponse(doc)
 
 
+def _format_regatta_host_display(abbrev: str, fullname: str, legacy_coalesce: str) -> str:
+    """Standalone regatta header: Host: CODE - Full club name when both exist; else abbrev, full name, or legacy COALESCE."""
+    a = (abbrev or "").strip()
+    f = (fullname or "").strip()
+    leg = (legacy_coalesce or "").strip()
+    if a and f:
+        if a.lower() == f.lower():
+            return f or a
+        return f"{a} - {f}"
+    if a:
+        return a
+    if f:
+        return f
+    return leg
+
+
 def _format_regatta_status_line(status_word: str, as_at_time) -> str:
     """Format status line per RESULTS_HTML_STATUS_LINE_RULE. as_at_time from API (results table then regattas). No datetime.now/start_date.
     If as_at_time exists and is formattable: 'Results are <Status> as at DD Month YYYY at HH:MM'.
@@ -20811,7 +24105,7 @@ def api_class_resolve_slug(slug: str):
 
 
 def _get_regatta_class_page_data(regatta_id: str, class_id: int):
-    """Return (event_name, host_club_name, start_date, end_date, [one_fleet], result_status, as_at_time, host_club_province) for single-class regatta page, or None."""
+    """Return (event_name, host_club_name, start_date, end_date, [one_fleet], result_status, as_at_time, host_club_province, host_club_abbrev, host_club_fullname) for single-class regatta page, or None."""
     if not regatta_id or class_id is None or not table_exists("regattas") or not table_exists("regatta_blocks") or not table_exists("results"):
         return None
     raw = []
@@ -20823,6 +24117,8 @@ def _get_regatta_class_page_data(regatta_id: str, class_id: int):
             cur.execute("""
                 SELECT r.event_name, r.start_date, r.end_date,
                        COALESCE(c.club_abbrev, c.club_fullname, '') AS host_club_name,
+                       TRIM(COALESCE(c.club_abbrev, '')) AS host_club_abbrev,
+                       TRIM(COALESCE(c.club_fullname, '')) AS host_club_fullname,
                        c.province AS host_club_province,
                        r.result_status, r.as_at_time
                 FROM regattas r
@@ -20834,6 +24130,8 @@ def _get_regatta_class_page_data(regatta_id: str, class_id: int):
                 return None
             event_name = (row.get("event_name") or "").strip()
             host_club_name = (row.get("host_club_name") or "").strip()
+            host_club_abbrev = (row.get("host_club_abbrev") or "").strip()
+            host_club_fullname = (row.get("host_club_fullname") or "").strip()
             host_club_province = (row.get("host_club_province") or "").strip() or None
             start_date = row.get("start_date")
             end_date = row.get("end_date")
@@ -20977,7 +24275,18 @@ def _get_regatta_class_page_data(regatta_id: str, class_id: int):
         bl = by_block[bid]
         bl["entries"] = len(bl["rows"])
         fleets.append(bl)
-    return (event_name, host_club_name, start_date, end_date, fleets, result_status, as_at_time, host_club_province)
+    return (
+        event_name,
+        host_club_name,
+        start_date,
+        end_date,
+        fleets,
+        result_status,
+        as_at_time,
+        host_club_province,
+        host_club_abbrev,
+        host_club_fullname,
+    )
 
 
 def serve_regatta_class_standalone(slug: str, class_slug: str):
@@ -20998,7 +24307,11 @@ def serve_regatta_class_standalone(slug: str, class_slug: str):
     data = _get_regatta_class_page_data(regatta_id, cid)
     if not data:
         return RedirectResponse(url="/events", status_code=301)
-    ev_name, host_club_name, start_d, end_d, fleets, result_status, as_at_time, host_club_province = data
+    if len(data) >= 10:
+        ev_name, host_club_name, start_d, end_d, fleets, result_status, as_at_time, host_club_province, host_club_abbrev, host_club_fullname = data[:10]
+    else:
+        ev_name, host_club_name, start_d, end_d, fleets, result_status, as_at_time, host_club_province = data[:8]
+        host_club_abbrev, host_club_fullname = "", ""
     if len(fleets) != 1:
         return RedirectResponse(url="/events", status_code=301)
     try:
@@ -21010,16 +24323,24 @@ def serve_regatta_class_standalone(slug: str, class_slug: str):
         status_line_text = _format_regatta_status_line(status_word, as_at_time)
         host_club_id = reg[5] if len(reg) > 5 else None
         host_club_slug = _get_club_slug_by_id(host_club_id) if host_club_id else None
-        host_club_text = host_club_name or ""
+        host_club_text = _format_regatta_host_display(host_club_abbrev, host_club_fullname, host_club_name or "")
         host_club_html = f'<a href="/club/{html_module.escape(host_club_slug)}">{html_module.escape(host_club_text)}</a>' if host_club_slug and host_club_text else html_module.escape(host_club_text)
         back_link = f'<a href="/regatta/{html_module.escape(regatta_id)}" class="back-to-home">← Back to full regatta</a>'
+        _lu, _ru = _wc_regatta_header_icon_urls(str(regatta_id))
+        _left_logo_col = _regatta_standalone_left_logo_column_html(_lu)
+        _right_logo_col = _regatta_standalone_right_logo_column_html(host_club_abbrev, host_club_slug, _ru)
         header_html = (
-            back_link
+            '<div class="regatta-header-wrap">'
+            + back_link
             + '<div class="header">'
-            f'<div><div class="regatta-name">{escaped_title}</div>'
+            + _left_logo_col
+            + '<div class="regatta-header-main-col">'
+            f'<div class="regatta-name">{escaped_title}</div>'
             f'<div class="host-club">Host: {host_club_html}</div>'
-            f'<div class="status-line">{status_line_text}</div></div>'
-            "</div>"
+            f'<div class="status-line">{status_line_text}</div>'
+            + "</div>"
+            + _right_logo_col
+            + "</div></div>"
         )
 
         def _iso_date(d):
@@ -21070,7 +24391,7 @@ def serve_regatta_class_standalone(slug: str, class_slug: str):
         return HTMLResponse(content=_HTML_SOFT_FAIL_200, status_code=200, media_type="text/html")
 
 
-def serve_regatta_standalone(slug: str):
+def serve_regatta_standalone(slug: str, request: Request):
     """Serve one full standalone HTML result sheet for /regatta/{slug}. Unknown regatta → 301 /events (not 404)."""
     start_time = time.time()
     reg = _get_regatta_by_slug(slug)
@@ -21086,25 +24407,78 @@ def serve_regatta_standalone(slug: str):
     if not data:
         return RedirectResponse(url="/events", status_code=301)
     try:
-        ev_name, host_club, start_d, end_d, fleets, result_status, as_at_time, host_club_province = (
-            data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7] if len(data) > 7 else None
-        )
+        if len(data) >= 10:
+            ev_name, host_club_legacy, start_d, end_d, fleets, result_status, as_at_time, host_club_province, host_club_abbrev, host_club_fullname = data[:10]
+        else:
+            ev_name, host_club_legacy, start_d, end_d, fleets, result_status, as_at_time = data[:7]
+            host_club_province = data[7] if len(data) > 7 else None
+            host_club_abbrev, host_club_fullname = "", ""
         base_url = _canonical_base_url()
         canonical_url = f"{base_url}/regatta/{regatta_id}"
-        escaped_title = html_module.escape(ev_name or event_name)
+        display_name = (ev_name or event_name or "").strip()
+        escaped_title = html_module.escape(display_name)
         status_word = (result_status or "Final").strip() or "Final"
         status_line_text = _format_regatta_status_line(status_word, as_at_time)
         host_club_slug = _get_club_slug_by_id(host_club_id) if host_club_id else None
-        host_club_text = host_club or host_club_name or ""
-        host_club_html = f'<a href="/club/{html_module.escape(host_club_slug)}">{html_module.escape(host_club_text)}</a>' if host_club_slug and host_club_text else html_module.escape(host_club_text)
+        host_club_text = _format_regatta_host_display(
+            host_club_abbrev, host_club_fullname, (host_club_legacy or host_club_name or "")
+        )
+        esc_host = html_module.escape(host_club_text)
+        host_club_html = (
+            f'<a href="/club/{html_module.escape(host_club_slug)}">{esc_host}</a>'
+            if host_club_slug and host_club_text
+            else esc_host
+        )
         back_link = '<a href="/" class="back-to-home">← Back to Search</a>'
+        if str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG and _session_role_is_super_admin(request):
+            back_block = (
+                '<div class="regatta-back-row">'
+                + back_link
+                + _wc_super_admin_regatta_toolbar_html(str(regatta_id))
+                + "</div>"
+            )
+            name_html = _wc_regatta_name_editor_fragment(display_name, str(regatta_id))
+            # Public / SA-off-edit: real <a> navigates. SA edit mode: button only (no navigation) — wire to host picker when present.
+            if host_club_slug and host_club_text:
+                href = f"/club/{html_module.escape(host_club_slug)}"
+                host_row = (
+                    f'<div class="host-club host-club-wrap">Host: '
+                    f'<span class="host-club-public-nav"><a href="{href}">{esc_host}</a></span>'
+                    f'<button type="button" class="host-club-sa-edit-hit" id="regattaHostEditBtn" '
+                    f'aria-label="Change host club">{esc_host}</button></div>'
+                )
+            else:
+                host_row = (
+                    f'<div class="host-club host-club-wrap">Host: '
+                    f'<span class="host-club-public-nav">{esc_host}</span>'
+                    f'<button type="button" class="host-club-sa-edit-hit" id="regattaHostEditBtn" '
+                    f'aria-label="Change host club">{esc_host}</button></div>'
+                )
+            host_row += _wc_regatta_host_picker_fragment(str(regatta_id))
+        else:
+            back_block = back_link
+            name_html = f'<div class="regatta-name">{escaped_title}</div>'
+            host_row = f'<div class="host-club">Host: {host_club_html}</div>'
+        lu, ru = _wc_regatta_header_icon_urls(str(regatta_id))
+        left_logo_col = _regatta_standalone_left_logo_column_html(lu)
+        right_logo_col = _regatta_standalone_right_logo_column_html(host_club_abbrev, host_club_slug, ru)
+        wc_icons_frag = ""
+        if str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG and _session_role_is_super_admin(request):
+            wc_icons_frag = _wc_regatta_header_icon_editor_fragment(str(regatta_id), lu, ru)
         header_html = (
-            back_link
+            '<div class="regatta-header-wrap">'
+            + back_block
             + '<div class="header">'
-            f'<div><div class="regatta-name">{escaped_title}</div>'
-            f'<div class="host-club">Host: {host_club_html}</div>'
-            f'<div class="status-line">{status_line_text}</div></div>'
-            "</div>"
+            + left_logo_col
+            + '<div class="regatta-header-main-col">'
+            f"{name_html}"
+            f"{host_row}"
+            f'<div class="status-line">{status_line_text}</div>'
+            + "</div>"
+            + right_logo_col
+            + "</div>"
+            + wc_icons_frag
+            + "</div>"
         )
 
         def _iso_date(d):
@@ -21428,72 +24802,29 @@ _sitemap_cache = {"body": None, "expires_at": 0.0}
 
 
 def _build_sitemap_xml() -> str:
-    """Generate full sitemap XML string. Called on cache miss. All loc URLs are https://sailingsa.co.za (no www, no index.html, no ?mode=)."""
-    base = _canonical_base_url()
+    """Sitemap index (sitemaps.org): points to child urlset files on the site. Called on cache miss."""
+    base = _canonical_base_url().rstrip("/")
     today = datetime.utcnow().strftime("%Y-%m-%d")
-    entries = []
-    seen_loc = set()
-
-    def add(loc: str, lastmod: str, priority: Optional[float] = None):
-        if loc in seen_loc:
-            return
-        seen_loc.add(loc)
-        entries.append((loc, lastmod, priority))
-
-    add(f"{base}/", today)
-    # Directory pages (high value for crawlers)
-    add(f"{base}/sailors", today, 0.9)
-    add(f"{base}/regattas", today, 0.9)
-    add(f"{base}/classes", today, 0.8)
-    add(f"{base}/clubs", today, 0.8)
-    add(f"{base}/stats", today, 0.7)
-    add(f"{base}/events", today, 0.8)
-    sailor_slugs = list(set(_sitemap_sailor_slugs()))
-    for slug in sorted(sailor_slugs):
-        add(f"{base}/sailor/{slug}", today)
-    num_sailors = len(sailor_slugs)
-    class_entries = _sitemap_class_entries()
-    for cid, class_name in sorted(class_entries, key=lambda x: x[0]):
-        slug = _class_canonical_slug(class_name) if class_name else ""
-        loc = f"{base}/class/{cid}-{slug}" if slug else f"{base}/class/{cid}"
-        add(loc, today)
-    num_classes = len(class_entries)
-    regatta_list = _sitemap_regatta_slugs()
-    regatta_by_slug = {}
-    for slug, lastmod in regatta_list:
-        if slug not in regatta_by_slug:
-            regatta_by_slug[slug] = lastmod
-    num_regattas = 0
-    for slug in sorted(regatta_by_slug.keys()):
-        if _get_regatta_by_slug(slug) is not None:
-            add(f"{base}/regatta/{slug}", regatta_by_slug[slug])
-            num_regattas += 1
-    regatta_class_list = _sitemap_regatta_class_entries()
-    num_regatta_classes = 0
-    for regatta_slug, class_slug in regatta_class_list:
-        if _get_regatta_by_slug(regatta_slug) is not None:
-            add(f"{base}/regatta/{regatta_slug}/class-{class_slug}", today)
-            num_regatta_classes += 1
-    club_list = _sitemap_club_slugs()
-    for slug, lastmod in club_list:
-        add(f"{base}/club/{slug}", lastmod)
-    num_clubs = len(club_list)
-    print(f"[sitemap] sailors: {num_sailors}, classes: {num_classes}, regattas: {num_regattas}, regatta-classes: {num_regatta_classes}, clubs: {num_clubs}, total URLs: {len(entries)}")
-
+    child_names = (
+        "sitemap-classes.xml",
+        "sitemap-clubs.xml",
+        "sitemap-core.xml",
+        "sitemap-regattas.xml",
+        "sitemap-sailors.xml",
+    )
     lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
-        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+        '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
     ]
-    for loc, lastmod, priority in entries:
-        esc_loc = _sitemap_escape_loc(loc)
-        lines.append("  <url>")
+    for name in child_names:
+        full_url = f"{base}/{name}"
+        esc_loc = _sitemap_escape_loc(full_url)
+        lines.append("  <sitemap>")
         lines.append(f"    <loc>{esc_loc}</loc>")
-        lines.append(f"    <lastmod>{lastmod}</lastmod>")
-        lines.append("    <changefreq>weekly</changefreq>")
-        if priority is not None:
-            lines.append(f"    <priority>{priority}</priority>")
-        lines.append("  </url>")
-    lines.append("</urlset>")
+        lines.append(f"    <lastmod>{today}</lastmod>")
+        lines.append("  </sitemap>")
+    lines.append("</sitemapindex>")
+    print(f"[sitemap] index: {len(child_names)} child sitemaps, lastmod={today}")
     return "\n".join(lines)
 
 
