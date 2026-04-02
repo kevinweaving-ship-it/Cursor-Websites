@@ -9446,9 +9446,9 @@ def admin_dashboard_v10(request: Request):
 
 @app.get("/regatta/{slug}/class-{class_slug}")
 @app.head("/regatta/{slug}/class-{class_slug}")
-def _regatta_class_standalone(slug: str, class_slug: str):
+def _regatta_class_standalone(request: Request, slug: str, class_slug: str):
     """Serve single-class regatta page: /regatta/{slug}/class-{class_slug} (e.g. class-420, class-ilca-6)."""
-    return serve_regatta_class_standalone(slug, class_slug)
+    return serve_regatta_class_standalone(slug, class_slug, request)
 
 
 @app.get("/regatta/{slug}")
@@ -18822,6 +18822,70 @@ def _write_wc_regatta_header_icons(data: dict) -> None:
     p.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
+_WC_COLUMN_PREF_KEYS = (
+    "rank",
+    "fleet",
+    "class",
+    "sail_no",
+    "boat_name",
+    "jib",
+    "bow",
+    "hull",
+    "club",
+    "helm",
+    "crew",
+    "race_scores",
+    "total",
+    "nett",
+)
+
+
+def _wc_regatta_column_prefs_json_path() -> Path:
+    return Path(_static_dir()) / "data" / "wc_regatta_column_prefs.json"
+
+
+def _default_wc_column_prefs() -> dict:
+    return {k: True for k in _WC_COLUMN_PREF_KEYS}
+
+
+def _read_wc_regatta_column_prefs_raw() -> dict:
+    p = _wc_regatta_column_prefs_json_path()
+    if not p.is_file():
+        return {}
+    try:
+        o = json.loads(p.read_text(encoding="utf-8"))
+        return o if isinstance(o, dict) else {}
+    except Exception:
+        return {}
+
+
+def _merge_wc_column_prefs_for_regatta(regatta_id: str) -> dict:
+    rid = str(regatta_id).strip()
+    out = _default_wc_column_prefs()
+    raw = _read_wc_regatta_column_prefs_raw().get(rid)
+    if not isinstance(raw, dict):
+        return out
+    for k in _WC_COLUMN_PREF_KEYS:
+        if k in raw:
+            out[k] = bool(raw[k])
+    return out
+
+
+def _write_wc_regatta_column_prefs_for_regatta(regatta_id: str, prefs: dict) -> None:
+    rid = str(regatta_id).strip()
+    if rid != WC_DINGHY_CHAMPS_REGATTA_SLUG:
+        raise ValueError("column prefs only for WC pilot regatta")
+    all_d = dict(_read_wc_regatta_column_prefs_raw())
+    merged = _merge_wc_column_prefs_for_regatta(rid)
+    for k in _WC_COLUMN_PREF_KEYS:
+        if k in prefs:
+            merged[k] = bool(prefs[k])
+    all_d[rid] = merged
+    p = _wc_regatta_column_prefs_json_path()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(all_d, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
 def _wc_regatta_header_icon_urls(regatta_id: str) -> tuple:
     """(left_url, right_url) for WC pilot slug only; else (None, None)."""
     rid = str(regatta_id).strip()
@@ -19434,6 +19498,37 @@ async def api_super_admin_regatta_header_icons_patch(request: Request, regatta_i
     if "right" in body and body["right"] is None:
         _wc_regatta_header_icon_set(rid, "right", None)
     return {"ok": True}
+
+
+@app.get("/api/super-admin/regatta/{regatta_id}/column-prefs")
+async def api_super_admin_regatta_column_prefs_get(request: Request, regatta_id: str):
+    """WC pilot: which result-sheet columns are visible to the public."""
+    if not _session_role_is_super_admin(request):
+        raise HTTPException(status_code=403, detail="super_admin only")
+    rid = str(regatta_id).strip()
+    if rid != WC_DINGHY_CHAMPS_REGATTA_SLUG:
+        raise HTTPException(status_code=403, detail="not editable for this regatta yet")
+    return {"ok": True, "prefs": _merge_wc_column_prefs_for_regatta(rid)}
+
+
+@app.patch("/api/super-admin/regatta/{regatta_id}/column-prefs")
+async def api_super_admin_regatta_column_prefs_patch(request: Request, regatta_id: str, body: dict = Body(...)):
+    """WC pilot: set which result columns are shown (same table for everyone after save)."""
+    if not _session_role_is_super_admin(request):
+        raise HTTPException(status_code=403, detail="super_admin only")
+    rid = str(regatta_id).strip()
+    if rid != WC_DINGHY_CHAMPS_REGATTA_SLUG:
+        raise HTTPException(status_code=403, detail="not editable for this regatta yet")
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="JSON object expected")
+    patch = {}
+    for k in _WC_COLUMN_PREF_KEYS:
+        if k in body:
+            patch[k] = bool(body[k])
+    if not patch:
+        raise HTTPException(status_code=400, detail="no known keys")
+    _write_wc_regatta_column_prefs_for_regatta(rid, patch)
+    return {"ok": True, "prefs": _merge_wc_column_prefs_for_regatta(rid)}
 
 
 @app.post("/auth/login")
@@ -22393,6 +22488,58 @@ def _wc_regatta_header_icon_editor_fragment(regatta_id: str, left_url: Optional[
     return body + script
 
 
+def _wc_regatta_sa_columns_panel_html(regatta_id: str, prefs: dict) -> str:
+    """Super-admin only: checkboxes for which result columns the public sees (WC pilot). Hidden until .regatta-page--super-admin-edit."""
+    rid_js = json.dumps(str(regatta_id))
+    labels = (
+        ("rank", "Rank"),
+        ("fleet", "Fleet"),
+        ("class", "Class"),
+        ("sail_no", "Sail No"),
+        ("boat_name", "Boat Name"),
+        ("jib", "Jib No"),
+        ("bow", "Bow No"),
+        ("hull", "Hull No"),
+        ("club", "Club"),
+        ("helm", "Helm"),
+        ("crew", "Crew"),
+        ("race_scores", "Race scores (R1…)"),
+        ("total", "Total"),
+        ("nett", "Nett"),
+    )
+    parts = [
+        '<div class="regatta-sa-columns-panel" id="regattaWcColumnPrefs" aria-label="Public result columns">',
+        '<span class="regatta-sa-columns-title">Columns visible to public</span>',
+        '<div class="wc-col-prefs-grid">',
+    ]
+    for key, lab in labels:
+        ck = " checked" if bool(prefs.get(key, True)) else ""
+        parts.append(
+            f'<label class="wc-col-pref-label"><input type="checkbox" data-col="{html_module.escape(key)}"{ck}> '
+            f"{html_module.escape(lab)}</label>"
+        )
+    parts.append(
+        '</div>'
+        '<p class="wc-col-prefs-msg" id="wcColPrefsMsg" aria-live="polite"></p>'
+        '<button type="button" class="wc-col-prefs-apply" id="wcColPrefsApply">Apply column visibility</button>'
+        "</div>"
+    )
+    body = "".join(parts)
+    script = (
+        "<script>(function(){var rid=%s;var msg=document.getElementById('wcColPrefsMsg');var btn=document.getElementById('wcColPrefsApply');"
+        "function collect(){var o={};document.querySelectorAll('#regattaWcColumnPrefs input[data-col]').forEach(function(cb){"
+        "o[cb.getAttribute('data-col')]=cb.checked;});return o;}"
+        "function apply(){if(msg)msg.textContent='Saving…';var body=collect();"
+        "fetch('/api/super-admin/regatta/'+encodeURIComponent(rid)+'/column-prefs',{method:'PATCH',"
+        "headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(body)})"
+        ".then(function(r){return r.json().then(function(j){return{ok:r.ok,j:j};});})"
+        ".then(function(o){if(!o.ok){if(msg)msg.textContent=(o.j&&o.j.detail)||'Save failed';return;}"
+        "window.location.reload();}).catch(function(){if(msg)msg.textContent='Network error.';});}"
+        "if(btn)btn.addEventListener('click',apply);})();</script>" % rid_js
+    )
+    return body + script
+
+
 # Same CSS as admin regatta_viewer.html result sheet popup, with mobile-friendly widths so headers match tables
 _RESULT_SHEET_CSS = (
     "*{box-sizing:border-box}"
@@ -22466,7 +22613,7 @@ _RESULT_SHEET_CSS = (
     ".disc{color:#6a1b9a;font-weight:bold;text-decoration:line-through;opacity:0.8}"
     ".strike-out{text-decoration:line-through;opacity:0.6}"
     ".action-buttons{display:flex;gap:10px;justify-content:flex-end;margin-top:30px;margin-bottom:20px;padding:10px;width:100%}"
-    "@media print{.action-buttons{display:none!important}.back-to-home{display:none!important}.regatta-sa-mode-wrap{display:none!important}.regatta-wc-icons-row{display:none!important}"
+    "@media print{.action-buttons{display:none!important}.back-to-home{display:none!important}.regatta-sa-mode-wrap{display:none!important}.regatta-wc-icons-row{display:none!important}.regatta-sa-columns-panel{display:none!important}"
     ".regatta-name-editor{display:none!important}.regatta-name-view{display:block!important}"
     ".host-club-sa-edit-hit{display:none!important}.host-club-wrap .host-club-public-nav{display:inline!important}"
     ".regatta-host-picker{display:none!important}}"
@@ -22507,6 +22654,9 @@ _RESULT_SHEET_CSS = (
     ".regatta-sa-slider:before{height:20px;width:20px;transform:translateX(0)}"
     ".regatta-sa-switch input:checked+.regatta-sa-slider:before{transform:translateX(18px)}"
     "}"
+    "@media (max-width:768px) and (orientation:portrait){"
+    ".fleet-section .sailed-line{font-size:calc(11px * .75);line-height:1.25}"
+    "}"
     "@media (max-width:768px) and (max-aspect-ratio:1/1){"
     ".header{width:100%!important;max-width:100%!important;margin-bottom:16px;padding:3px 3px;margin-left:0;margin-right:0;"
     "grid-template-columns:minmax(0,min(22vw,72px)) minmax(0,1fr) minmax(0,min(22vw,72px));grid-template-rows:auto;align-items:center;align-content:center;"
@@ -22544,6 +22694,15 @@ _RESULT_SHEET_CSS = (
     "}"
     ".regatta-wc-icons-row{display:none;flex-wrap:wrap;gap:12px;margin-top:12px;width:100%;padding:8px 0;border-top:1px solid #cbd5e1}"
     ".regatta-page--super-admin-edit .regatta-wc-icons-row{display:flex}"
+    ".regatta-sa-columns-panel{display:none;width:100%;margin-top:8px;padding:10px 0 12px;border-top:1px solid #cbd5e1}"
+    ".regatta-page--super-admin-edit .regatta-sa-columns-panel{display:block}"
+    ".regatta-sa-columns-title{display:block;font-size:12px;font-weight:700;color:#1a2750;margin-bottom:8px}"
+    ".wc-col-prefs-grid{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}"
+    ".wc-col-pref-label{font-size:12px;color:#1a2750;font-weight:600;cursor:pointer}"
+    ".wc-col-pref-label input{margin-right:6px;vertical-align:middle}"
+    ".wc-col-prefs-msg{font-size:12px;margin-top:8px;min-height:1.2em;color:#1a2750}"
+    ".wc-col-prefs-apply{margin-top:10px;padding:8px 16px;border:2px solid #0b2c4d;border-radius:20px;background:#0b2c4d;color:#fff;font-weight:700;font-size:13px;cursor:pointer}"
+    ".wc-col-prefs-apply:hover{background:#ff6a00;border-color:#ff6a00}"
     ".wc-icon-slot{flex:1;min-width:140px;max-width:320px}"
     ".wc-icon-slot-label{display:block;font-size:12px;font-weight:700;color:#1a2750;margin-bottom:6px}"
     ".wc-icon-drop{position:relative;border:2px dashed #1a2750;border-radius:8px;min-height:72px;padding:0;text-align:center;font-size:12px;color:#334155;cursor:pointer;background:#f8fafc;display:flex;flex-direction:column;align-items:stretch;justify-content:center;overflow:hidden}"
@@ -22557,9 +22716,32 @@ _RESULT_SHEET_CSS = (
 )
 
 
-def _render_result_sheet_fleet(fleet: dict, standalone_class_page: bool = False) -> str:
+def _render_result_sheet_fleet(
+    fleet: dict,
+    standalone_class_page: bool = False,
+    *,
+    column_prefs: Optional[dict] = None,
+) -> str:
     """Render one fleet as HTML using the same structure and class names as admin regatta_viewer result sheet popup.
-    When standalone_class_page is True (e.g. /regatta/{id}/class-{slug}), header is class name only, no 'Fleet' suffix."""
+    When standalone_class_page is True (e.g. /regatta/{id}/class-{slug}), header is class name only, no 'Fleet' suffix.
+    When column_prefs is set (WC pilot), unchecked keys hide columns; checked keys show columns for everyone (admin and public).
+    Optional columns (boat/jib/bow/hull/crew) show when the pref is on even if cells are empty.
+    When column_prefs is None (other regattas), optional columns only appear when at least one row has data (legacy)."""
+    prefs = column_prefs if isinstance(column_prefs, dict) else None
+
+    def _pref_on(key: str) -> bool:
+        if prefs is None:
+            return True
+        if key not in prefs:
+            return True
+        return bool(prefs.get(key))
+
+    def _optional_col_visible(pref_key: str, has_data: bool) -> bool:
+        """Legacy regattas: optional column only if has_data. WC prefs: follow checkbox only."""
+        if prefs is None:
+            return has_data
+        return _pref_on(pref_key)
+
     fname = (fleet.get("name") or "Fleet").strip()
     fleet_label = (fleet.get("fleet_label") or "").strip()
     class_canonical = (fleet.get("class_canonical") or "").strip()
@@ -22588,36 +22770,68 @@ def _render_result_sheet_fleet(fleet: dict, standalone_class_page: bool = False)
     scoring_system = fleet.get("scoring_system") or "Appendix A"
     sailed_line = f"Sailed: {races_sailed}, Discards: {discard_count}, To count: {to_count}, Entries: {entries}, Scoring system: {scoring_system}"
     rows = fleet.get("rows") or []
+
     def _row_has_crew(row):
         if (row.get("crew_name") or "").strip():
             return True
         cl = row.get("crew_list") or []
         return any((x.get("role") or "").strip().lower() == "crew" for x in cl)
+
     has_crew = any(_row_has_crew(r) for r in rows)
     has_boat_name = any((r.get("boat_name") or "").strip() for r in rows)
     has_jib_no = any((r.get("jib_no") or "").strip() for r in rows)
     has_bow_no = any((r.get("bow_no") or "").strip() for r in rows)
     has_hull_no = any((r.get("hull_no") or "").strip() for r in rows)
     race_columns = []
-    for i in range(1, int(races_sailed) + 1 if races_sailed else 0):
-        rkey = f"R{i}"
-        if any((r.get("race_scores") or {}).get(rkey, "").strip() for r in rows):
-            race_columns.append(rkey)
-    thead = '<th class="rank-col">Rank</th><th>Fleet</th><th>Class</th><th class="sail-col">Sail No</th>'
-    if has_boat_name:
+    if races_sailed:
+        n = int(races_sailed)
+        if prefs is None:
+            for i in range(1, n + 1):
+                rkey = f"R{i}"
+                if any((r.get("race_scores") or {}).get(rkey, "").strip() for r in rows):
+                    race_columns.append(rkey)
+        elif _pref_on("race_scores"):
+            for i in range(1, n + 1):
+                race_columns.append(f"R{i}")
+
+    show_boat = _optional_col_visible("boat_name", has_boat_name)
+    show_jib = _optional_col_visible("jib", has_jib_no)
+    show_bow = _optional_col_visible("bow", has_bow_no)
+    show_hull = _optional_col_visible("hull", has_hull_no)
+    show_crew_col = _optional_col_visible("crew", has_crew)
+    show_races = bool(race_columns)
+
+    thead = ""
+    if _pref_on("rank"):
+        thead += '<th class="rank-col">Rank</th>'
+    if _pref_on("fleet"):
+        thead += "<th>Fleet</th>"
+    if _pref_on("class"):
+        thead += "<th>Class</th>"
+    if _pref_on("sail_no"):
+        thead += '<th class="sail-col">Sail No</th>'
+    if show_boat:
         thead += "<th>Boat Name</th>"
-    if has_jib_no:
+    if show_jib:
         thead += "<th>Jib No</th>"
-    if has_bow_no:
+    if show_bow:
         thead += "<th>Bow No</th>"
-    if has_hull_no:
+    if show_hull:
         thead += "<th>Hull No</th>"
-    thead += '<th class="club-col">Club</th><th class="helm-col">Helm</th>'
-    if has_crew:
+    if _pref_on("club"):
+        thead += '<th class="club-col">Club</th>'
+    if _pref_on("helm"):
+        thead += '<th class="helm-col">Helm</th>'
+    if show_crew_col:
         thead += "<th>Crew</th>"
-    for r in race_columns:
-        thead += f"<th>{html_module.escape(r)}</th>"
-    thead += "<th>Total</th><th class=\"nett-col\">Nett</th>"
+    if show_races:
+        for rc in race_columns:
+            thead += f"<th>{html_module.escape(rc)}</th>"
+    if _pref_on("total"):
+        thead += "<th>Total</th>"
+    if _pref_on("nett"):
+        thead += '<th class="nett-col">Nett</th>'
+
     trs = []
     for r in rows:
         race_scores = r.get("race_scores") or {}
@@ -22657,25 +22871,41 @@ def _render_result_sheet_fleet(fleet: dict, standalone_class_page: bool = False)
             crew_str = f'<a href="/sailor/{html_module.escape(crew_slug)}">{html_module.escape(crew_raw)}</a>' if crew_slug and crew_raw else html_module.escape(crew_raw)
         total_str = html_module.escape(str(r.get("total") if r.get("total") is not None else ""))
         nett_str = html_module.escape(str(r.get("nett") if r.get("nett") is not None else ""))
-        row_html = f'<tr class="{row_classes}"><td class="rank-col">{html_module.escape(rank_str)}</td><td>{fleet_str}</td><td>{class_str}</td><td class="sail-col">{sail_str}</td>'
-        if has_boat_name:
+        row_html = f'<tr class="{row_classes}">'
+        if _pref_on("rank"):
+            row_html += f'<td class="rank-col">{html_module.escape(rank_str)}</td>'
+        if _pref_on("fleet"):
+            row_html += f"<td>{fleet_str}</td>"
+        if _pref_on("class"):
+            row_html += f"<td>{class_str}</td>"
+        if _pref_on("sail_no"):
+            row_html += f'<td class="sail-col">{sail_str}</td>'
+        if show_boat:
             row_html += f'<td>{html_module.escape(str(r.get("boat_name") or ""))}</td>'
-        if has_jib_no:
+        if show_jib:
             row_html += f'<td>{html_module.escape(str(r.get("jib_no") or ""))}</td>'
-        if has_bow_no:
+        if show_bow:
             row_html += f'<td>{html_module.escape(str(r.get("bow_no") or ""))}</td>'
-        if has_hull_no:
+        if show_hull:
             row_html += f'<td>{html_module.escape(str(r.get("hull_no") or ""))}</td>'
-        row_html += f'<td class="club-col">{club_str}</td><td class="helm-col">{helm_str}</td>'
-        if has_crew:
-            row_html += f'<td>{crew_str}</td>'
-        for rkey in race_columns:
-            score = (race_scores.get(rkey) or "").strip()
-            is_discarded = score.startswith("(") and score.endswith(")")
-            has_penalty = bool(re.search(r"\b(DNC|DNS|DNF|RET|DSQ|UFD|BFD|DPI|OCS)\b", score, re.I)) if score else False
-            cell_class = "code" if has_penalty else ("disc" if is_discarded else ("score-counts" if score else ""))
-            row_html += f'<td class="{cell_class}">{html_module.escape(score)}</td>'
-        row_html += f'<td class="{strike_class}">{total_str}</td><td class="nett-col {strike_class}">{nett_str}</td></tr>'
+        if _pref_on("club"):
+            row_html += f'<td class="club-col">{club_str}</td>'
+        if _pref_on("helm"):
+            row_html += f'<td class="helm-col">{helm_str}</td>'
+        if show_crew_col:
+            row_html += f"<td>{crew_str}</td>"
+        if show_races:
+            for rkey in race_columns:
+                score = (race_scores.get(rkey) or "").strip()
+                is_discarded = score.startswith("(") and score.endswith(")")
+                has_penalty = bool(re.search(r"\b(DNC|DNS|DNF|RET|DSQ|UFD|BFD|DPI|OCS)\b", score, re.I)) if score else False
+                cell_class = "code" if has_penalty else ("disc" if is_discarded else ("score-counts" if score else ""))
+                row_html += f'<td class="{cell_class}">{html_module.escape(score)}</td>'
+        if _pref_on("total"):
+            row_html += f'<td class="{strike_class}">{total_str}</td>'
+        if _pref_on("nett"):
+            row_html += f'<td class="nett-col {strike_class}">{nett_str}</td>'
+        row_html += "</tr>"
         trs.append(row_html)
     table_html = f"<table><thead><tr>{thead}</tr></thead><tbody>{''.join(trs)}</tbody></table>"
     return (
@@ -24289,7 +24519,7 @@ def _get_regatta_class_page_data(regatta_id: str, class_id: int):
     )
 
 
-def serve_regatta_class_standalone(slug: str, class_slug: str):
+def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request):
     """Serve single-class regatta page at /regatta/{slug}/class-{class_slug}. Reuses regatta header and fleet renderer."""
     reg = _get_regatta_by_slug(slug)
     if not reg:
@@ -24325,13 +24555,24 @@ def serve_regatta_class_standalone(slug: str, class_slug: str):
         host_club_slug = _get_club_slug_by_id(host_club_id) if host_club_id else None
         host_club_text = _format_regatta_host_display(host_club_abbrev, host_club_fullname, host_club_name or "")
         host_club_html = f'<a href="/club/{html_module.escape(host_club_slug)}">{html_module.escape(host_club_text)}</a>' if host_club_slug and host_club_text else html_module.escape(host_club_text)
+        use_wc_cols = str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG
+        is_sa = _session_role_is_super_admin(request)
         back_link = f'<a href="/regatta/{html_module.escape(regatta_id)}" class="back-to-home">← Back to full regatta</a>'
+        if use_wc_cols and is_sa:
+            back_block = (
+                '<div class="regatta-back-row">'
+                + back_link
+                + _wc_super_admin_regatta_toolbar_html(str(regatta_id))
+                + "</div>"
+            )
+        else:
+            back_block = back_link
         _lu, _ru = _wc_regatta_header_icon_urls(str(regatta_id))
         _left_logo_col = _regatta_standalone_left_logo_column_html(_lu)
         _right_logo_col = _regatta_standalone_right_logo_column_html(host_club_abbrev, host_club_slug, _ru)
         header_html = (
             '<div class="regatta-header-wrap">'
-            + back_link
+            + back_block
             + '<div class="header">'
             + _left_logo_col
             + '<div class="regatta-header-main-col">'
@@ -24368,9 +24609,20 @@ def serve_regatta_class_standalone(slug: str, class_slug: str):
             json_ld["description"] = event_name
         if host_club_text:
             json_ld["organizer"] = {"@type": "Organization", "name": host_club_text}
-        fleet_sections = [_render_result_sheet_fleet(f, standalone_class_page=True) for f in fleets]
+        wc_prefs = _merge_wc_column_prefs_for_regatta(str(regatta_id)) if use_wc_cols else None
+        sa_columns_frag = ""
+        if use_wc_cols and is_sa:
+            sa_columns_frag = _wc_regatta_sa_columns_panel_html(str(regatta_id), wc_prefs)
+        fleet_sections = [
+            _render_result_sheet_fleet(
+                f,
+                standalone_class_page=True,
+                column_prefs=wc_prefs if use_wc_cols else None,
+            )
+            for f in fleets
+        ]
         print_btn = '<div class="action-buttons"><button class="action-button" onclick="window.print()">Print</button></div>'
-        body_html = header_html + "\n".join(fleet_sections) + "\n" + print_btn
+        body_html = header_html + sa_columns_frag + "\n".join(fleet_sections) + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()
         doc = (
@@ -24517,9 +24769,21 @@ def serve_regatta_standalone(slug: str, request: Request):
                 "name": host_club_text,
                 "address": address,
             }
-        fleet_sections = [_render_result_sheet_fleet(f) for f in fleets]
+        use_wc_cols = str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG
+        is_sa = _session_role_is_super_admin(request)
+        wc_prefs = _merge_wc_column_prefs_for_regatta(str(regatta_id)) if use_wc_cols else None
+        sa_columns_frag = ""
+        if use_wc_cols and is_sa:
+            sa_columns_frag = _wc_regatta_sa_columns_panel_html(str(regatta_id), wc_prefs)
+        fleet_sections = [
+            _render_result_sheet_fleet(
+                f,
+                column_prefs=wc_prefs if use_wc_cols else None,
+            )
+            for f in fleets
+        ]
         print_btn = '<div class="action-buttons"><button class="action-button" onclick="window.print()">Print</button></div>'
-        body_html = header_html + "\n".join(fleet_sections) + "\n" + print_btn
+        body_html = header_html + sa_columns_frag + "\n".join(fleet_sections) + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()
         doc = (
