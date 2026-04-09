@@ -8,6 +8,14 @@ This project uses **split tasks** to avoid agent resource limits and crashes.
 
 **Production:** All fixes (sailor URLs, regatta links, 385 data, no broken URLs) must be deployed to **live** via the SSH readme — deploy code (push-to-cloud-expect.exp) and sync 385 (sync-385-local-to-live.sh). Local-only changes do not affect https://sailingsa.co.za.
 
+## Regatta results (parsed, historical, preloaded / WC) — required readme
+
+**`docs/PRELOADED_REGATTA_RESULTS_RULES.md`** — **Read before** ingesting or fixing **any** regatta results (parsed pipelines, **historical** backfills, preloaded fleets, WC Dinghy Champs). Covers: SAS identity vs source sheet, **helm/crew display names** (first word of `first_name` + `last_name`), clubs, recalc (WC vs legacy), checksums. **Index:** `sailingsa/deploy/README_WC_PRELOADED_RESULTS.md`.
+
+## API: each route owns its DB read
+
+**`.cursor/rules/api-direct-db-per-route.mdc`** — Every `/api/...` handler must load its own data from the database (or shared SQL helpers). **Do not** HTTP-fetch another internal SailingSA URL to populate a route. **Do** factor common logic into shared Python functions both routes call so changing one path does not silently break another.
+
 ## Avoid frontend drift / wrong-layer fixes
 
 **`docs/AVOID_FRONTEND_DRIFT_AND_WRONG_LAYER.md`** — Do **not** add local-only frontend changes that diverge from live. Do **not** fix the frontend when the failure is backend or DB (e.g. "Failed to load regatta data" → diagnose API/DB first; fix SQL or data). Match live first; fix the layer that is actually broken.
@@ -26,9 +34,12 @@ This project uses **split tasks** to avoid agent resource limits and crashes.
 
 - Give **one clear, small task** per request when possible (e.g. "add a logout button to the header" not "redo the whole header and auth").
 - For big work, say: "Split this into steps" or "Do step 1 only" so the agent can break it down and do one step per run.
+- **Test / utility URLs on live:** bookmark **`docs/TEST_URLS.md`** (e.g. Cape Classic series test page, regatta viewer, site stats). Ask the assistant to update that file when you add a new test-only page.
 
 ## For agents
 
+- **Mobile portrait — locked baseline:** **`docs/DESIGN_MOBILE_MASTER_VS_CLASS.md`** (section *Locked — mobile portrait*). Current **mobile portrait** is good as-is; **do not change it** when working on tablet, desktop, or other features — use **`min-width`** / larger breakpoints so portrait stays untouched unless the task explicitly targets portrait mobile.
+- **Blank hub (new landing / hub UI):** Treat **`https://sailingsa.co.za/blank.html`** as the only live URL for hub work, verification, and release notes. **Super Admin** Breaking News inline save must **UPDATE `regattas`** via `PATCH /api/super-admin/regatta/{id}/breaking-news-meta` (not client-only overrides) so every consumer of those columns sees the same data; API invalidates `results-summary` cache for that regatta after patch. **Handover / backup / git / proof:** **`docs/BLANK_HUB_SA_HANDOVER_AND_PROOF.md`**. **Breaking News card viewports (fleet pills / podium CSS):** **`docs/HANDOVER_BLANK_NEW_CARD.md`** — *Viewport strategy* — tablet behaves like phone (**portrait** = locked tier, **landscape** = roomy tier); **desktop** uses the **same roomy tier as mobile landscape** (`orientation: landscape` or `min-width: 1024px`, scoped to the card). **Do not** frame hub fixes as “the homepage” or **`/`** unless the user explicitly asked about root. Today nginx may serve the same `blank.html` at **`/`** and **`/blank.html`** (see **`sailingsa/deploy/nginx-root-blank-hub.conf`**); to separate them, root must serve another file (e.g. `index.html`) via nginx — document any such server change in **`sailingsa/deploy/SSH_LIVE.md`** when applied.
 - **Regatta iframe sheets (locked):** Do **not** edit `class-results.html` or `results.html` under `sailingsa/frontend/regatta/` and `public/regatta/` unless the user writes exactly **`override lock`**. See **`.cursor/rules/regatta-results-sheets-readonly.mdc`**. Before other frontend or `api.py` edits, run **`bash sailingsa/deploy/pre-change-backup.sh`** and confirm the server backup tarball exists.
 - Follow the rule in **`.cursor/rules/task-splitting-and-resources.mdc`**: one logical task per session, use todos for multi-step work, narrow scope, targeted reads.
 - If the user’s request is large, propose a short list of steps and do **only the first step** unless they ask for more.
@@ -48,6 +59,10 @@ Use these names to scope work and split agents:
 - **Never modify header or navigation layout.** Header links must stay white on dark background.
 - **Always reuse existing components** (`.container`, `.card`, `.table`, `buildMasterPageLayout`). Do not invent new CSS frameworks; follow **`docs/design_system.md`** and `sailingsa/frontend/css/main.css`.
 - **Modify only components or page sections, not global layout.** See `.cursorrules` and `.cursor/rules/design-system-and-components.mdc`.
+
+## Class vs Fleet — mandatory terminology
+
+**Class** (boat / equipment type, `classes`) and **Fleet** (regatta scoring division, `fleet_label` / blocks) are **not** the same. Never conflate them in UI, APIs, or comments. Full rule: **`.cursor/rules/class-vs-fleet-terminology.mdc`**.
 
 ## Logical areas in this repo (for scoping)
 

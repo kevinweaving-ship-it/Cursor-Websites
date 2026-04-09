@@ -6,6 +6,26 @@ Current codebase uses **desktop-first** (`@media (max-width: …)`). When adding
 
 ---
 
+## Locked — mobile portrait (audit / scope)
+
+**Status:** **Mobile portrait** (phone held upright: narrow width, typically `max-width: 768px` and `orientation: portrait`) is **accepted as the current baseline — good as-is.** Treat it as **locked for now** so other work does not accidentally regress it.
+
+**Do not change** portrait-mobile layout, spacing, typography, or breakpoint behaviour **while doing unrelated tasks** (tablet, desktop, mobile landscape–only tweaks, blank hub sections, new components, etc.).
+
+**How to change other sizes without touching portrait**
+
+- Prefer **`@media (min-width: 769px)`** (or higher) for tablet/desktop adjustments so **≤768px portrait rules stay as they are**.
+- If you must touch shared rules, **narrow the edit** to non-portrait (e.g. `(orientation: landscape)` or a `min-width` band) or get **explicit user approval** for a mobile-portrait change.
+
+**When portrait mobile *may* change**
+
+- The user explicitly asks for a mobile-portrait fix, or
+- A small follow-up they approve after review.
+
+**Audit:** When reviewing a PR or task, if files touch `main.css`, hub HTML, or shared components, confirm portrait mobile was not altered unless in scope.
+
+---
+
 ## Breakpoints in use
 
 | Breakpoint | Usage |
