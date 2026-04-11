@@ -1,0 +1,226 @@
+    <style>
+    .blank-app .card {
+      border: 1px solid #001f3f;
+    }
+    .card {
+      max-width: 100% !important;
+    }
+    .v10-card-title { font-weight: 800; color: #001f3f; font-size: 0.92rem; margin: 0 0 8px 0; line-height: 1.2; }
+    .v10-one-line { font-size: 0.76rem; line-height: 1.45; color: #334155; margin: 0 0 6px 0; }
+    .v10-one-line-traffic { font-size: 0.76rem; line-height: 1.45; color: #334155; margin: 0 0 6px 0; white-space: normal; word-break: break-word; overflow-x: hidden; }
+    .v10-one-line a, .v10-one-line-traffic a { color: #001f3f; font-weight: 700; text-decoration: underline; }
+    .v10-one-line a:hover, .v10-one-line-traffic a:hover { text-decoration: none; }
+    .v10-system-line { font-size: 0.76rem; line-height: 1.5; color: #1e293b; margin: 0 0 10px 0; }
+    .v10-hidden { display: none !important; }
+    .v10-subtle { font-size: 0.7rem; font-weight: 700; color: #64748b; margin: 10px 0 4px 0; }
+    .v10-subtle:first-child { margin-top: 0; }
+    .v10-scrape-rows {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .v10-scrape-rows .scrape-row {
+      min-height: 44px;
+      font-size: 0.68rem;
+      line-height: 1.25;
+      color: #1e293b;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 6px 0;
+      overflow-x: hidden;
+    }
+    .v10-scrape-rows .scrape-main,
+    .v10-scrape-rows .scrape-meta,
+    .v10-scrape-rows .scrape-actions {
+      margin-bottom: 4px;
+    }
+    .v10-scrape-rows .scrape-meta span {
+      white-space: nowrap;
+    }
+    .v10-scrape-name { font-weight: 700; color: #001f3f; min-width: 0; word-break: break-word; }
+    .v10-sc-sep { color: #94a3b8; font-weight: 400; }
+    .v10-scrape-rows .scrape-row a { color: #001f3f; font-weight: 600; }
+    .v10-scrape-rows .scrape-row button.blank-stat { padding: 4px 10px; min-height: 36px; }
+    .v10-scrape-rows .scrape-row button.blank-stat .blank-stat-val { font-size: 0.65rem; }
+    .v10-dot-ok { color: #16a34a; }
+    .v10-dot-run { color: #ca8a04; }
+    .v10-dot-fail { color: #dc2626; }
+    .v10-dot-never { color: #94a3b8; }
+    .v10-system-primary {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+    #news-stats-section {
+      margin-bottom: 16px;
+      grid-column: 1 / -1;
+      min-width: 0;
+    }
+    .news-main-card {
+      border: 1px solid #d0d7e2;
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 12px;
+      background: #ffffff;
+    }
+    .news-tag {
+      font-size: 0.65rem;
+      font-weight: 800;
+      color: #dc2626;
+      margin-bottom: 6px;
+      letter-spacing: 0.02em;
+    }
+    .news-tag--event {
+      color: #64748b;
+    }
+    .news-title {
+      font-weight: 800;
+      color: #001f3f;
+      font-size: 0.95rem;
+      line-height: 1.25;
+      margin-bottom: 6px;
+      word-break: break-word;
+    }
+    .news-sub {
+      font-size: 0.76rem;
+      color: #64748b;
+      line-height: 1.35;
+    }
+    a.news-main-card.news-event-manage-link {
+      display: block;
+      text-decoration: none;
+      color: inherit;
+      cursor: pointer;
+    }
+    a.news-main-card.news-event-manage-link:hover {
+      border-color: #001f3f;
+    }
+    a.news-row.news-event-manage-link {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      text-decoration: none;
+      color: inherit;
+      cursor: pointer;
+    }
+    a.news-row.news-event-manage-link:hover .news-row-title {
+      text-decoration: underline;
+    }
+    .news-manage-missing {
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: #94a3b8;
+      margin-top: 6px;
+      letter-spacing: 0.02em;
+    }
+    .news-row .news-manage-missing {
+      flex-shrink: 0;
+      margin-top: 0;
+      margin-left: auto;
+    }
+    .news-row {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 0.76rem;
+      line-height: 1.35;
+      min-height: 44px;
+      box-sizing: border-box;
+    }
+    .news-row:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+    .news-row-tag {
+      flex-shrink: 0;
+      font-weight: 800;
+      font-size: 0.62rem;
+      color: #dc2626;
+      min-width: 4.75rem;
+    }
+    .news-row-tag--muted {
+      color: #64748b;
+    }
+    .news-row-title {
+      font-weight: 700;
+      color: #001f3f;
+      min-width: 0;
+      word-break: break-word;
+    }
+    </style>
+
+    <section class="card" aria-label="System">
+      <div class="v10-card-title">System</div>
+      <div class="v10-system-line" id="v10SystemLine" data-start-ts="__V10_SERVER_START_TS__"></div>
+      <div class="v10-system-primary">
+        <button type="button" class="blank-btn-logout" id="adminRestartBtn">Restart API</button>
+        <span class="blank-search-hint" id="restartStatus" style="display:inline-block;visibility:hidden;max-width:200px;"></span>
+      </div>
+    </section>
+
+    <section class="card blank-stats-wrap" aria-label="Site stats">
+      <div class="v10-card-title">Stats</div>
+      <div class="blank-stats-grid">
+        <div id="news-stats-section">
+          <div id="news-container"></div>
+        </div>
+        <a class="blank-stat blank-stat--link" href="/sailors">
+          <div class="blank-stat-icon-cell"><img src="/assets/icons/sailors.png" alt=""></div>
+          <div class="blank-stat-copy">
+            <div class="blank-stat-val" id="v10TileSailors"></div>
+            <div class="blank-stat-lbl">Sailors</div>
+          </div>
+        </a>
+        <a class="blank-stat blank-stat--link" href="/classes">
+          <div class="blank-stat-icon-cell"><img src="/assets/icons/classes.png" alt=""></div>
+          <div class="blank-stat-copy">
+            <div class="blank-stat-val" id="v10TileClasses"></div>
+            <div class="blank-stat-lbl">Classes</div>
+          </div>
+        </a>
+        <a class="blank-stat blank-stat--link" href="/regattas">
+          <div class="blank-stat-icon-cell"><img src="/assets/icons/events.png" alt=""></div>
+          <div class="blank-stat-copy">
+            <div class="blank-stat-val" id="v10TileRegattas"></div>
+            <div class="blank-stat-lbl">Regattas</div>
+          </div>
+        </a>
+        <a class="blank-stat blank-stat--link" href="/stats">
+          <div class="blank-stat-icon-cell"><img src="/assets/icons/results.png" alt=""></div>
+          <div class="blank-stat-copy">
+            <div class="blank-stat-val" id="v10TileRaces"></div>
+            <div class="blank-stat-lbl">Races</div>
+          </div>
+        </a>
+      </div>
+    </section>
+
+    <section class="card" aria-label="Live users">
+      <div class="v10-card-title">Live users</div>
+      <p class="v10-one-line" id="v10LiveActiveLine"></p>
+      <div id="v10LiveUserLines"></div>
+    </section>
+
+    <section class="card v10-hidden" aria-label="User behaviour snapshot" id="v10BehaviourCard">
+      <div class="v10-card-title">User behaviour snapshot</div>
+      <div id="v10BehaviourBody"></div>
+    </section>
+
+    <section class="card" aria-label="Data integrity">
+      <div class="v10-card-title">Data integrity</div>
+      <p class="v10-one-line" id="v10DataLine"></p>
+      <p class="v10-one-line"><a href="/admin/review/sailors">Sailors</a> · <a href="/admin/review/clubs">Clubs</a> · <a href="/admin/review/classes">Classes</a></p>
+    </section>
+
+    <section class="card" aria-label="Auto scrapes">
+      <div class="v10-card-title">Auto scrapes — control &amp; verify</div>
+      <div class="v10-scrape-rows" id="scpRows" aria-label="Scrape jobs"></div>
+    </section>
+
+    <section class="card" aria-label="Traffic" id="v10TrafficCard">
+      <p class="blank-search-hint v10-hidden" id="trafficPartialLabel"></p>
+      <div class="v10-card-title">Traffic</div>
+      <div id="v10TrafficLines"></div>
+    </section>

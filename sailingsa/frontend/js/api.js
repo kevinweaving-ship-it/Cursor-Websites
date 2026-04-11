@@ -45,7 +45,13 @@ async function apiRequest(endpoint, options = {}) {
  */
 async function checkSession() {
     try {
-        const result = await apiRequest('/auth/session', { 
+        let pathQs = '';
+        try {
+            if (typeof window !== 'undefined' && window.location && window.location.pathname) {
+                pathQs = '?path=' + encodeURIComponent(window.location.pathname || '/');
+            }
+        } catch (e) { /* ignore */ }
+        const result = await apiRequest('/auth/session' + pathQs, { 
             method: 'GET',
             credentials: 'include' // Important: include cookies
         });
@@ -54,6 +60,31 @@ async function checkSession() {
         console.error('[DEBUG] checkSession: Error:', error);
         return { valid: false, error: error.message };
     }
+}
+
+/**
+ * Normalize role for comparison (matches api.py _session_role_is_super_admin tolerance).
+ */
+function sailingNormalizeRoleString(role) {
+    if (role == null || role === '') return '';
+    return String(role)
+        .trim()
+        .toLowerCase()
+        .replace(/[\s\-]+/g, '_')
+        .replace(/_+/g, '_');
+}
+
+/**
+ * True when session is super admin (top-level role or session.user.role).
+ */
+function sailingSessionIsSuperAdmin(session) {
+    if (!session || session.valid !== true) return false;
+    if (session.is_super_admin === true) return true;
+    if (session.is_super_admin === false) return false;
+    var r = session.role;
+    if ((r == null || r === '') && session.user) r = session.user.role;
+    var n = sailingNormalizeRoleString(r);
+    return n === 'super_admin' || n === 'superadmin';
 }
 
 /**
@@ -207,6 +238,8 @@ async function loadRegattas() {
 // Make functions globally available
 window.loginWithUsernamePassword = loginWithUsernamePassword;
 window.checkSession = checkSession;
+window.sailingNormalizeRoleString = sailingNormalizeRoleString;
+window.sailingSessionIsSuperAdmin = sailingSessionIsSuperAdmin;
 window.getRegattaClassEntries = getRegattaClassEntries;
 
 // Export for use in other modules

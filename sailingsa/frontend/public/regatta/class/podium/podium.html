@@ -124,7 +124,7 @@
                 }
                 const hostClubCode = h0.host_club_code || '';
                 const hostClub = formatRegattaHostDisplay(h0);
-                const sailingsaLogoHtml = '<div class="header-logo-wrap"><img src="/assets/logos/sailingsa-with-flags-below-nobg.png" alt="SailingSA" class="header-logo"></div>';
+                const sailingsaLogoHtml = '<div class="header-logo-wrap"><img src="/assets/logos/sailingsa-logo.png" alt="SailingSA" class="header-logo"></div>';
                 let clubLogoHtml = '';
                 if (hostClubCode) {
                     clubLogoHtml = `<img id="clubLogoImg" alt="${hostClubCode}" class="header-club-logo" style="display:none;height:60px;width:auto;object-fit:contain"><script>(function(){var img=document.getElementById("clubLogoImg");var ex=["jpg","png","jpeg"];var i=0;function next(){if(i<ex.length){img.src="${API}/artwork/Club Logo/${hostClubCode}."+ex[i];img.onload=function(){img.style.display="block";};img.onerror=function(){i++;next();};}} next();})();<\/script>`;
@@ -185,11 +185,14 @@
                 
                 function formatRank(rank) {
                     if (!rank || isNaN(rank)) return rank;
-                    const num = parseInt(rank);
-                    const lastDigit = num % 10;
-                    const lastTwoDigits = num % 100;
-                    if (lastTwoDigits >= 11 && lastTwoDigits <= 13) return num + 'th';
-                    switch (lastDigit) { case 1: return num + 'st'; case 2: return num + 'nd'; case 3: return num + 'rd'; default: return num + 'th'; }
+                    const num = parseInt(rank, 10);
+                    const v = num % 100;
+                    if (v >= 10 && v <= 20) return num + 'th';
+                    const d = num % 10;
+                    if (d === 1) return num + 'st';
+                    if (d === 2) return num + 'nd';
+                    if (d === 3) return num + 'rd';
+                    return num + 'th';
                 }
                 
                 const escapedFleetName = (fleetName || '').replace(/"/g, '&quot;');

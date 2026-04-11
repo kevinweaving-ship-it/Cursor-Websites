@@ -3029,9 +3029,10 @@
                                     if (bestResults.length > 0) {
                                         var formatRank = function(n) {
                                             if (!n || isNaN(n)) return '';
-                                            var num = parseInt(n);
-                                            var d = num % 10, dd = num % 100;
-                                            if (dd >= 11 && dd <= 13) return num + 'th';
+                                            var num = parseInt(n, 10);
+                                            var dd = num % 100;
+                                            if (dd >= 10 && dd <= 20) return num + 'th';
+                                            var d = num % 10;
                                             return num + ({ 1: 'st', 2: 'nd', 3: 'rd' }[d] || 'th');
                                         };
                                         var bestListHtml = bestResults.map(function(r) {
@@ -5432,18 +5433,14 @@
                 
                 const formatRank = (rank) => {
                     if (!rank || isNaN(rank)) return rank;
-                    const num = parseInt(rank);
-                    const lastDigit = num % 10;
-                    const lastTwoDigits = num % 100;
-                    if (lastTwoDigits >= 11 && lastTwoDigits <= 13) {
-                        return num + 'th';
-                    }
-                    switch (lastDigit) {
-                        case 1: return num + 'st';
-                        case 2: return num + 'nd';
-                        case 3: return num + 'rd';
-                        default: return num + 'th';
-                    }
+                    const num = parseInt(rank, 10);
+                    const v = num % 100;
+                    if (v >= 10 && v <= 20) return num + 'th';
+                    const d = num % 10;
+                    if (d === 1) return num + 'st';
+                    if (d === 2) return num + 'nd';
+                    if (d === 3) return num + 'rd';
+                    return num + 'th';
                 };
                 
                 const escJs = (s) => (s == null ? '' : String(s)).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
@@ -5659,11 +5656,14 @@
                 
                 function formatRank(rank) {
                     if (!rank || isNaN(rank)) return rank;
-                    const num = parseInt(rank);
-                    const lastDigit = num % 10;
-                    const lastTwoDigits = num % 100;
-                    if (lastTwoDigits >= 11 && lastTwoDigits <= 13) return num + 'th';
-                    switch (lastDigit) { case 1: return num + 'st'; case 2: return num + 'nd'; case 3: return num + 'rd'; default: return num + 'th'; }
+                    const num = parseInt(rank, 10);
+                    const v = num % 100;
+                    if (v >= 10 && v <= 20) return num + 'th';
+                    const d = num % 10;
+                    if (d === 1) return num + 'st';
+                    if (d === 2) return num + 'nd';
+                    if (d === 3) return num + 'rd';
+                    return num + 'th';
                 }
                 
                 // Group ALL rows by block_id (same as regatta_viewer.html - includes all data)
@@ -6334,10 +6334,15 @@
                         const sasIdStr = String(sasId).trim();
                         const formatRank = (rank) => {
                             if (rank == null || rank === '') return 'N/A';
-                            const r = parseInt(rank, 10);
-                            if (isNaN(r)) return 'N/A';
-                            const suffix = r === 1 ? 'st' : r === 2 ? 'nd' : r === 3 ? 'rd' : 'th';
-                            return r + suffix;
+                            const num = parseInt(rank, 10);
+                            if (isNaN(num)) return 'N/A';
+                            const v = num % 100;
+                            if (v >= 10 && v <= 20) return num + 'th';
+                            const d = num % 10;
+                            if (d === 1) return num + 'st';
+                            if (d === 2) return num + 'nd';
+                            if (d === 3) return num + 'rd';
+                            return num + 'th';
                         };
                         function applyStanding(rankPosition, totalSailors, notRanked, rankingScore, hasParticipation) {
                             const el = document.getElementById(standingId);

@@ -741,3 +741,686 @@ label {
         }
     }
 }
+
+/*
+ * Hub shell (blank.html landing + /admin/dashboard-v10): body.blank-landing-page.admin-dashboard-v10
+ * Portrait vs landscape: tighten per page over time; .blank-app column rules live below.
+ * Header: full viewport width; main.css .container must not narrow the navy bar.
+ */
+/* Admin v10 single navy header: full bleed; .blank-app column unchanged */
+body.admin-dashboard-v10 .admin-v10-second-header {
+    position: relative;
+    background: #001f3f;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    width: 100%;
+    max-width: none;
+    margin: 0 0 16px 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body.admin-dashboard-v10 .admin-v10-second-header__inner {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    box-sizing: border-box;
+    padding: 12px max(12px, env(safe-area-inset-left, 0px)) 12px max(12px, env(safe-area-inset-right, 0px));
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+}
+
+body.admin-dashboard-v10 .admin-v10-second-header__top-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-width: 0;
+}
+
+/* Right: Sign In slot (session.js) | visible user row | hamburger */
+body.admin-dashboard-v10 .admin-v10-second-header__right {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+    min-width: 0;
+    flex: 1 1 0%;
+    justify-content: flex-end;
+}
+
+body.admin-dashboard-v10 .admin-v10-second-header__auth.header-auth {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-width: 0;
+    flex: 0 1 auto;
+    margin-right: 0;
+    gap: 0.5rem;
+}
+
+/* session.js #loggedInStatus: DOM slot for authBtn; visible UI is #adminV10SecondHeaderUser */
+body.admin-dashboard-v10 .admin-v10-header-auth-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+body.admin-dashboard-v10 .admin-v10-second-header__auth {
+    position: relative;
+}
+
+body.admin-dashboard-v10 .admin-v10-second-header .menu-btn {
+    flex-shrink: 0;
+}
+
+/*
+ * 2nd header brand = same raster as .logo img (sailingsa-logo.png).
+ * Top header: one <img> (word + flags horizontal). Here: two background slices, flags below word.
+ * Sprite math: logo 400×50; text ends before col ~126; flags x 137–231 (width 95).
+ */
+/* Do not use min-width:0 here — iOS flex can collapse empty sprite spans to zero width. */
+body.admin-dashboard-v10 .admin-v10-second-header__brand-block {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    flex-shrink: 0;
+    width: fit-content;
+    max-width: 45%;
+    min-width: min-content;
+}
+
+/*
+ * Pre-sized vars per breakpoint (no calc(var(--px) * n / m)) — WebKit mobile often botches that.
+ * Sprite: sailingsa-logo.png 400×50; word 0–126; flags 137–231 (w 95).
+ */
+body.admin-dashboard-v10 .admin-v10-second-header__brand-link {
+    --admin-v10-logo-h: 40px;
+    --admin-v10-bg-w: 320px;
+    --admin-v10-word-w: 100.8px;
+    --admin-v10-flags-w: 76px;
+    --admin-v10-flags-x: -109.6px;
+    --admin-v10-brand-gap: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--admin-v10-brand-gap);
+    text-decoration: none;
+    color: #ffffff;
+    line-height: 1;
+    flex-shrink: 0;
+    min-width: var(--admin-v10-word-w);
+}
+
+body.admin-dashboard-v10 .admin-v10-second-header__brand-link:hover {
+    opacity: 0.92;
+}
+
+body.admin-dashboard-v10 .admin-v10-second-header__brand-slice {
+    display: block;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    background-image: url('/assets/logos/sailingsa-logo.png');
+    background-repeat: no-repeat;
+    background-size: var(--admin-v10-bg-w) var(--admin-v10-logo-h);
+    height: var(--admin-v10-logo-h);
+    min-height: var(--admin-v10-logo-h);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+}
+
+body.admin-dashboard-v10 .admin-v10-second-header__brand-slice--word {
+    width: var(--admin-v10-word-w);
+    min-width: var(--admin-v10-word-w);
+    background-position: 0 50%;
+}
+
+body.admin-dashboard-v10 .admin-v10-second-header__brand-slice--flags {
+    width: var(--admin-v10-flags-w);
+    min-width: var(--admin-v10-flags-w);
+    background-position: var(--admin-v10-flags-x) 50%;
+    margin-top: -5px;
+}
+
+@media (max-width: 768px) {
+    body.admin-dashboard-v10 .admin-v10-second-header__brand-link {
+        --admin-v10-logo-h: 30px;
+        --admin-v10-bg-w: 240px;
+        --admin-v10-word-w: 75.6px;
+        --admin-v10-flags-w: 57px;
+        --admin-v10-flags-x: -82.2px;
+        --admin-v10-brand-gap: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    body.admin-dashboard-v10 .admin-v10-second-header__brand-link {
+        --admin-v10-logo-h: 28px;
+        --admin-v10-bg-w: 224px;
+        --admin-v10-word-w: 70.56px;
+        --admin-v10-flags-w: 53.2px;
+        --admin-v10-flags-x: -76.72px;
+        --admin-v10-brand-gap: 0;
+    }
+}
+
+/* Visible row: name + SAS, avatar, Logout */
+body.admin-dashboard-v10 .admin-v10-second-header__user {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    margin-left: 0;
+    min-width: 0;
+    flex: 0 1 auto;
+    justify-content: flex-end;
+    max-width: 100%;
+}
+
+body.admin-dashboard-v10 .admin-v10-second-header__user-text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    text-align: right;
+    min-width: 0;
+    flex: 1 1 0%;
+    overflow: hidden;
+    gap: 2px;
+}
+
+body.admin-dashboard-v10 .admin-v10-second-header__name,
+body.admin-dashboard-v10 .admin-v10-second-header__sas {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #ffffff;
+}
+
+body.admin-dashboard-v10 .admin-v10-second-header__name {
+    font-weight: 700;
+    font-size: 1.05rem;
+    line-height: 1.15;
+}
+
+body.admin-dashboard-v10 .admin-v10-second-header__sas {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.88);
+}
+
+/* ~2× logo slice height − overlap with flags; matches left brand stack */
+body.admin-dashboard-v10 .admin-v10-second-header__avatar {
+    display: none;
+    width: 72px;
+    height: 72px;
+    min-width: 72px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+body.admin-dashboard-v10 .admin-v10-second-header__logout.btn-logout {
+    flex-shrink: 0;
+    margin: 0 0 0 14px;
+    padding: 0 11px;
+    font-size: 0.66rem;
+    font-weight: 700;
+    min-height: 54px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+    body.admin-dashboard-v10 .admin-v10-second-header__name {
+        font-size: 0.98rem;
+    }
+
+    body.admin-dashboard-v10 .admin-v10-second-header__sas {
+        font-size: 0.82rem;
+    }
+
+    body.admin-dashboard-v10 .admin-v10-second-header__avatar {
+        width: 54px;
+        height: 54px;
+        min-width: 54px;
+    }
+
+    body.admin-dashboard-v10 .admin-v10-second-header__logout.btn-logout {
+        min-height: 41px;
+        font-size: 0.62rem;
+    }
+}
+
+@media (max-width: 480px) {
+    body.admin-dashboard-v10 .admin-v10-second-header__name {
+        font-size: 0.92rem;
+    }
+
+    body.admin-dashboard-v10 .admin-v10-second-header__sas {
+        font-size: 0.78rem;
+    }
+
+    body.admin-dashboard-v10 .admin-v10-second-header__avatar {
+        width: 50px;
+        height: 50px;
+        min-width: 50px;
+    }
+
+    body.admin-dashboard-v10 .admin-v10-second-header__logout.btn-logout {
+        min-height: 38px;
+        font-size: 0.59rem;
+        padding: 0 8px;
+    }
+}
+
+body.admin-dashboard-v10 .user-info {
+    margin-left: 0 !important;
+}
+
+@media (max-width: 768px) {
+    /* Card stack: portrait-style narrow column on small viewports */
+    body.admin-dashboard-v10 .blank-app.container {
+        max-width: 480px;
+        margin-left: auto;
+        margin-right: auto;
+        padding-left: max(16px, env(safe-area-inset-left, 0px));
+        padding-right: max(16px, env(safe-area-inset-right, 0px));
+    }
+}
+
+/* After portrait rule: landscape always full width (beats blank.html 480px + rule above) */
+@media (orientation: landscape) {
+    body.admin-dashboard-v10 .blank-app.container {
+        max-width: none;
+        width: 100%;
+        margin-left: 0;
+        margin-right: 0;
+        padding-left: max(12px, env(safe-area-inset-left, 0px));
+        padding-right: max(12px, env(safe-area-inset-right, 0px));
+    }
+}
+
+@media (max-width: 480px) {
+    body.admin-dashboard-v10 .blank-app.container {
+        padding-left: max(18px, env(safe-area-inset-left, 0px));
+        padding-right: max(18px, env(safe-area-inset-right, 0px));
+    }
+}
+
+/* Super admin: sailor profile — media/activity cards are plain blocks (no outbound links) */
+.media-card-link.media-card-link--static {
+    flex: 1;
+    min-width: 0;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    cursor: default;
+}
+.sailor-profile-sa-no-nav .feed-item--static {
+    cursor: default;
+    text-decoration: none;
+    color: inherit;
+}
+
+/* Super-admin sailor profile: inline club editor (table cell + typeahead + add club) */
+.sailor-sa-club-edit-table {
+    width: 100%;
+    margin-top: 8px;
+    margin-bottom: 4px;
+}
+.sailor-sa-club-edit-table th[scope="row"] {
+    width: 28%;
+    vertical-align: top;
+    padding-top: 12px;
+}
+.sailor-sa-home-club-editor-wrap {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #e5e7eb;
+    position: relative;
+    max-width: 100%;
+}
+.sailor-sa-inline-club {
+    position: relative;
+    max-width: 100%;
+}
+.club-option.sailor-home-club-picker-row:focus-visible {
+    outline: 2px solid #001f3f;
+    outline-offset: 2px;
+}
+.sailor-sa-club-inline-input {
+    width: 100%;
+    max-width: 420px;
+    padding: 10px 12px;
+    border: 2px solid #1a2750;
+    border-radius: 8px;
+    box-sizing: border-box;
+    font-size: 15px;
+    font-weight: 600;
+    color: #1a2750;
+    background: #fff;
+}
+.sailor-sa-club-suggest {
+    position: absolute;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    margin-top: 4px;
+    max-width: 420px;
+}
+.sailor-sa-club-inline-actions {
+    margin-top: 8px;
+}
+.sailor-sa-club-add-toggle {
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #0b2c4d;
+    background: #e9eefb;
+    border: 1px solid #1d294d;
+    border-radius: 8px;
+    cursor: pointer;
+}
+.sailor-sa-club-add-toggle:hover {
+    background: #dbe4f5;
+}
+.sailor-sa-club-add-hint {
+    font-size: 13px;
+    font-weight: 700;
+    margin: 0 0 10px;
+    color: #1a2750;
+}
+.sailor-sa-club-add-panel {
+    margin-top: 10px;
+    padding: 12px;
+    border: 1px solid #1d294d;
+    border-radius: 8px;
+    background: #f8f9fa;
+    max-width: 420px;
+}
+.sailor-sa-inline-club.sailor-sa-club-is-editing .sailor-sa-club-inline-input {
+    outline: 2px solid #1a2750;
+    outline-offset: 1px;
+}
+.sailor-sa-club-add-panel label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1a2750;
+}
+.sailor-sa-club-add-panel input {
+    width: 100%;
+    margin-top: 4px;
+    padding: 8px;
+    border: 1px solid #1d294d;
+    border-radius: 6px;
+    box-sizing: border-box;
+    font-size: 14px;
+}
+.sailor-sa-club-add-panel .sailor-sa-club-add-btns {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.sailor-sa-club-add-panel button {
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    border-radius: 8px;
+    cursor: pointer;
+}
+.sailor-sa-club-add-save {
+    background: #0b2c4d;
+    color: #fff;
+    border: 2px solid #0b2c4d;
+}
+.sailor-sa-club-add-cancel {
+    background: #fff;
+    color: #1a2750;
+    border: 1px solid #1d294d;
+}
+.sailor-sa-club-inline-msg {
+    font-size: 13px;
+    margin-top: 6px;
+    min-height: 1.2em;
+    color: #1a2750;
+}
+
+/* Super-admin sailor profile: home club picker (same flow as WC host search; list shows code only) */
+.sailor-sa-change-club-btn {
+    margin-top: 6px;
+    padding: 8px 14px;
+    border: 2px solid #0b2c4d;
+    border-radius: 20px;
+    background: #0b2c4d;
+    color: #fff;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+}
+.sailor-sa-change-club-btn:hover {
+    background: #ff6a00;
+    border-color: #ff6a00;
+}
+/* SA sailor profile: header club badge — click opens Profile tab and focuses inline club editor */
+button.sailor-club-flag-box.sailor-sa-club-flag-edit-trigger {
+    appearance: none;
+    -webkit-appearance: none;
+    border: none;
+    background: transparent;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    text-align: center;
+}
+button.sailor-club-flag-box.sailor-sa-club-flag-edit-trigger:focus-visible {
+    outline: 2px solid #001f3f;
+    outline-offset: 2px;
+}
+/* SA sailor profile: club badge display-only when not using edit trigger */
+.sailor-sa-club-flag-static {
+    cursor: default;
+}
+.sailor-sa-club-flag-static img {
+    pointer-events: none;
+}
+.sailor-home-club-picker {
+    margin-top: 12px;
+    padding: 12px;
+    border: 2px solid #1a2750;
+    border-radius: 10px;
+    background: #ffffff;
+    max-width: 100%;
+    text-align: left;
+}
+.sailor-home-club-picker-inner {
+    position: relative;
+    padding-right: 36px;
+}
+.sailor-home-club-picker-title {
+    display: block;
+    font-size: 16px;
+    font-weight: 700;
+    color: #1a2750;
+    margin-bottom: 8px;
+}
+.sailor-home-club-picker-close {
+    position: absolute;
+    top: 0;
+    right: 0;
+    border: none;
+    background: transparent;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    color: #1a2750;
+    padding: 4px;
+}
+.sailor-home-club-picker-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1a2750;
+    margin-bottom: 4px;
+}
+.sailor-home-club-picker-input {
+    width: 100%;
+    max-width: 400px;
+    padding: 8px;
+    border: 2px solid #1a2750;
+    border-radius: 8px;
+    box-sizing: border-box;
+    font-size: 15px;
+    color: #1a2750;
+}
+.sailor-home-club-picker-list {
+    list-style: none;
+    margin: 10px 0 0;
+    padding: 0;
+    max-height: 220px;
+    overflow-y: auto;
+}
+.sailor-home-club-picker-row {
+    width: 100%;
+    text-align: left;
+    padding: 10px 12px;
+    margin: 0 0 6px;
+    border: 1px solid #1d294d;
+    border-radius: 8px;
+    background: #ffffff;
+    cursor: pointer;
+    font-size: 14px;
+    color: #1a2750;
+    font-weight: 700;
+}
+.sailor-home-club-picker-row:hover {
+    background: #e9eefb;
+}
+.sailor-home-club-picker-msg {
+    font-size: 13px;
+    margin-top: 8px;
+    min-height: 1.2em;
+    color: #1a2750;
+}
+.sailor-home-club-picker-hint {
+    font-size: 12px;
+    color: #475569;
+    margin-top: 6px;
+}
+@media (max-width: 768px) {
+    .sailor-home-club-picker-input {
+        max-width: none;
+        font-size: 16px;
+    }
+    .sailor-home-club-picker-row {
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+    }
+}
+
+/* Hub BN card SA edit — Results / Events URL row */
+.blank-breaking-news-card .bn-card__sa-url-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 6px;
+}
+.blank-breaking-news-card .bn-card__sa-url-btn {
+    min-height: 36px;
+    padding: 6px 10px;
+    font-size: 0.85rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #f8fafc;
+    color: #0f172a;
+    cursor: pointer;
+}
+.blank-breaking-news-card .bn-card__sa-url-btn:active {
+    filter: brightness(0.96);
+}
+.blank-breaking-news-card .bn-card__sa-field--event-name > label {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 4px;
+    font-size: 0.9rem;
+}
+
+/* SA Edit: pale card when Edit pill on; red box around inline form (class set by breaking-news-card.js).
+   Include [data-bncard-root] fallbacks so styles apply without .blank-breaking-news-card ancestor. */
+.blank-breaking-news-card [data-bncard-root][data-bncard-sa-edit-mode="1"] > .bn-card__body,
+[data-bncard-root][data-bncard-sa-edit-mode="1"] > .bn-card__body {
+    background: #ffe8e8 !important;
+    border-radius: 10px;
+}
+.blank-breaking-news-card .bn-card__sa-inline-form.bn-card__sa-form--open,
+.blank-breaking-news-card [data-bncard-sa-form].bn-card__sa-form--open,
+.blank-breaking-news-card [data-bncard-sa-form]:not([hidden]),
+.blank-breaking-news-card .bn-card__sa-inline-form:not([hidden]),
+[data-bncard-root] .bn-card__sa-inline-form.bn-card__sa-form--open,
+[data-bncard-root] [data-bncard-sa-form].bn-card__sa-form--open,
+[data-bncard-root] [data-bncard-sa-form]:not([hidden]),
+[data-bncard-root] .bn-card__sa-inline-form:not([hidden]) {
+    background: #ffd6d6 !important;
+    border: 2px solid #dc2626 !important;
+    border-radius: 10px;
+    padding: 10px 12px !important;
+    margin: 0 0 8px 0;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+/* BN hub: Results pill — green + tick only when render() sets --prov; red “No results” when no URL/data */
+.blank-breaking-news-card .bn-card__badge-row a.blank-hub-hero-badge--results-none {
+    background: #c62828;
+    color: #fff;
+    text-decoration: none;
+    cursor: default;
+    display: inline-flex;
+    align-items: center;
+    gap: calc(5px * 0.9);
+    animation: none;
+    -webkit-animation: none;
+    box-shadow: none;
+}
+.blank-breaking-news-card .bn-card__badge-row a.blank-hub-hero-badge--results-none[href="#"] {
+    pointer-events: none;
+}
+.blank-breaking-news-card .bn-card__badge-row a.blank-hub-hero-badge--results-none:not([href="#"]) {
+    cursor: pointer;
+}
+
+/* BN hub: section pill colours when driven by saved `blank_hub_news_badge_label` (any column) */
+.blank-breaking-news-card .bn-card__badge-row [data-bncard-section-badge].blank-hub-hero-badge--top-news {
+    background: #001f3f;
+    color: #fff;
+    animation: none;
+}
+.blank-breaking-news-card .bn-card__badge-row [data-bncard-section-badge].blank-hub-hero-badge--hub-news {
+    background: #2e7d32;
+    color: #fff;
+    animation: none;
+}
+.blank-breaking-news-card .bn-card__badge-row [data-bncard-section-badge].blank-hub-hero-badge--hub-archive {
+    background: #546e7a;
+    color: #fff;
+    animation: none;
+}

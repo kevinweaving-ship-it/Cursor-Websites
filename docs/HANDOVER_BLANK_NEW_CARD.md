@@ -77,6 +77,16 @@ After changing `blank.html` or `breaking-news-card.js`, run project **D/R** per 
 
 ---
 
+## Helm / Crew lookup (SA — SAS ID or name)
+
+For South African helm/crew fields (compact Claim Event table, SA edit flows, or any regatta-style entry where the user picks a person):
+
+- **Input:** Accept **SAS ID** (numeric / known format) **or** **name** — same field; backend or search resolves both.
+- **Suggestions:** Show a **sorted** list of matches (stable order, e.g. by surname then first name, or by relevance score then name).
+- **Progressive narrowing:** As the user types **more characters**, the dropdown should show **fewer options** (filter-in-place), not a long static list — classic typeahead behaviour.
+
+---
+
 ## Suggested first message in the new chat
 
 > Continue from `docs/HANDOVER_BLANK_NEW_CARD.md`. Scope: Breaking News card on `blank.html` only; extend to rest of page/URLs only after this card is done.

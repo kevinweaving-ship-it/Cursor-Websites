@@ -1,7 +1,8 @@
-# Daily SAS member-finder scrape → sas_id_personal (02:30 SAST)
+# Daily SAS member-finder scrape → sas_id_personal (02:30 local server time = cron TZ).
 # Install: sudo cp sailingsa/deploy/sailingsa_sas_scrape.cron /etc/cron.d/sailingsa_sas_scrape
-# Ensure www-data has DB_URL (e.g. in /var/www/sailingsa/.env or systemd env).
-# Log: /var/log/sailingsa_sas_scrape.log
+# Uses deploy wrapper so DB_URL is set (systemd sailingsa-api env, then fallback). Do not redirect —
+# log: /var/www/sailingsa/deploy/logs/sas-id-registry-scrape.log
+# If sailingsa_registry_scrape.cron is also installed (02:00 root), consider removing one job to avoid double runs.
 SHELL=/bin/bash
 PATH=/usr/bin:/bin
-30 2 * * * www-data /var/www/sailingsa/api/venv/bin/python3 /var/www/sailingsa/scripts/sas_member_scrape.py >> /var/log/sailingsa_sas_scrape.log 2>&1
+30 2 * * * www-data /bin/bash /var/www/sailingsa/deploy/run-sas-id-registry-scrape.sh --on-server

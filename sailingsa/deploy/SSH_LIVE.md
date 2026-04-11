@@ -13,6 +13,8 @@ Confirm path before change.
 **User:** `root`  
 **Auth:** SSH key preferred (`~/.ssh/sailingsa_live_key`); password fallback for legacy expect scripts.
 
+**Blank hub UI:** Use **`https://sailingsa.co.za/blank.html`** as the canonical URL for hub work and verification. Nginx may also serve the same `blank.html` at **`/`**; see **`sailingsa/deploy/nginx-root-blank-hub.conf`** and the optional split there if root must show a different file.
+
 ---
 
 ## SSH key setup (one-time; then no password needed)

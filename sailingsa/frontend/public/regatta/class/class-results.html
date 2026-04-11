@@ -379,20 +379,22 @@
                 var liteTableHtml = '<div id="table-lite" class="' + liteTableClass + '"><div class="table-wrapper"><table><thead><tr>' + liteHeaders + '</tr></thead><tbody>' + liteRows + '</tbody></table></div></div>';
                 var expandedWrap = '<div id="table-expanded" class="results-table-view"><div class="table-expanded-wrap"><div class="table-expanded-left"><table><thead><tr>' + anchoredHeaders + '</tr></thead><tbody>' + anchoredRows + '</tbody></table></div><div class="table-expanded-right"><table><thead><tr>' + raceHeaders + '</tr></thead><tbody>' + raceRows + '</tbody></table></div></div></div>';
                 
-                // If this is an Open Fleet, also show ALL results from the Open Fleet (all classes)
+                // Open division (Open, Open A, Open Fleet, …): show all classes in that block when applicable
                 let openFleetFullResultsHtml = '';
+                const blockIdLc = (blockId || '').toLowerCase();
                 const blockFleetLabel = (blockData.fleet_label || '').trim().toLowerCase();
-                const isOpenFleet = blockFleetLabel === 'open';
+                const isOpenFleetLabel = (s) => {
+                    const t = (s || '').trim().toLowerCase();
+                    return t === 'open' || t === 'open fleet' || (t.startsWith('open ') && t !== 'opening');
+                };
+                const isOpenFleet = isOpenFleetLabel(blockFleetLabel) || blockIdLc.endsWith(':open');
                 
                 if (isOpenFleet) {
-                    // Get ALL results where fleet_label = "Open" (not filtering by class)
-                    // Filter by fleet_label = "Open" to get all boats/classes in the Open Fleet
                     let allOpenFleetResults = regattaData.filter(r => {
-                        // Check if this result belongs to an Open Fleet (fleet_label = "Open")
                         const resultFleetLabel = (r.fleet_label || '').trim().toLowerCase();
-                        const isOpenFleetResult = resultFleetLabel === 'open';
+                        const resultBlockLc = (r.block_id || '').toLowerCase();
+                        const isOpenFleetResult = isOpenFleetLabel(resultFleetLabel) || resultBlockLc.endsWith(':open');
                         
-                        // If result doesn't have fleet_label, check if it's in the Open Fleet block
                         if (!isOpenFleetResult && r.block_id !== blockId) return false;
                         
                         // Only include actual result rows (not block header rows)
@@ -497,7 +499,7 @@
                         var openFleetLiteTableHtml = '<div id="table-lite-open-fleet-full" class="' + openFleetLiteTableClass + '"><div class="table-wrapper"><table><thead><tr>' + openFleetLiteHeaders + '</tr></thead><tbody>' + openFleetLiteRows + '</tbody></table></div></div>';
                         var openFleetExpandedWrap = '<div id="table-expanded-open-fleet-full" class="results-table-view"><div class="table-expanded-wrap"><div class="table-expanded-left"><table><thead><tr>' + openFleetAnchoredHeaders + '</tr></thead><tbody>' + openFleetAnchoredRows + '</tbody></table></div><div class="table-expanded-right"><table><thead><tr>' + openFleetRaceHeaders + '</tr></thead><tbody>' + openFleetRaceRows + '</tbody></table></div></div></div>';
                         
-                        openFleetFullResultsHtml = '<div style="margin-top: 24px; padding-top: 24px; border-top: 2px solid #1a2750;"><div class="class-header">Open Fleet - All Classes</div><div class="sailed-line">' + openFleetFullSailedLine + '</div>' + openFleetLiteTableHtml + openFleetExpandedWrap + '</div>';
+                        openFleetFullResultsHtml = '<div style="margin-top: 24px; padding-top: 24px; border-top: 2px solid #1a2750;"><div class="class-header">' + esc(fleetName) + ' - All Classes</div><div class="sailed-line">' + openFleetFullSailedLine + '</div>' + openFleetLiteTableHtml + openFleetExpandedWrap + '</div>';
                     }
                 }
                 

@@ -339,12 +339,20 @@
       font-size: 0.92rem;
       font-weight: 800;
       color: #001f3f;
-      margin: 0 0 10px 0;
+      margin: 0 0 4px 0;
       display: flex;
       align-items: center;
       gap: 8px;
     }
     .blank-news-heading img { width: 22px; height: 22px; flex-shrink: 0; }
+    .blank-news-subline {
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: #001f3f;
+      margin: 0 0 12px 0;
+      line-height: 1.3;
+      padding-left: 30px;
+    }
     .blank-news-list { display: flex; flex-direction: column; gap: 10px; }
     .blank-news-item {
       border: 1px solid var(--blank-border-blue);
@@ -522,7 +530,8 @@
       min-height: 160px;
       min-width: 0;
     }
-    .blank-app .blank-hub-subcards-row .blank-hub-subcard--prior-hero {
+    .blank-app .blank-hub-subcards-row .blank-hub-subcard--prior-hero,
+    .blank-app .blank-hub-subcards-row .blank-hub-subcard--secondary-news {
       min-height: 0;
     }
     .blank-hub-prior-toolbar {
@@ -565,24 +574,28 @@
       max-height: none;
       overflow: visible;
     }
-    /* Prior “News” box: smaller image so card fits under main hero without huge scroll */
-    #blankHubPriorHeroWrap.blank-hub-prior-hero-wrap--limited .blank-hub-hero-img-wrap {
+    /* Left/right News boxes: smaller image in limited view */
+    #blankHubPriorHeroWrap.blank-hub-prior-hero-wrap--limited .blank-hub-hero-img-wrap,
+    #blankHubRightHeroWrap.blank-hub-prior-hero-wrap--limited .blank-hub-hero-img-wrap {
       aspect-ratio: 16 / 9;
       min-height: 88px;
       max-height: 120px;
     }
-    #blankHubPriorHeroWrap.blank-hub-prior-hero-wrap--limited .blank-hub-hero-img-wrap--placeholder {
+    #blankHubPriorHeroWrap.blank-hub-prior-hero-wrap--limited .blank-hub-hero-img-wrap--placeholder,
+    #blankHubRightHeroWrap.blank-hub-prior-hero-wrap--limited .blank-hub-hero-img-wrap--placeholder {
       min-height: 88px;
       max-height: 120px;
     }
     @media (min-width: 380px) {
-      #blankHubPriorHeroWrap.blank-hub-prior-hero-wrap--limited .blank-hub-hero-img-wrap {
+      #blankHubPriorHeroWrap.blank-hub-prior-hero-wrap--limited .blank-hub-hero-img-wrap,
+      #blankHubRightHeroWrap.blank-hub-prior-hero-wrap--limited .blank-hub-hero-img-wrap {
         flex: 0 0 36%;
         max-width: 40%;
         max-height: 140px;
         min-height: 96px;
       }
-      #blankHubPriorHeroWrap.blank-hub-prior-hero-wrap--limited .blank-hub-hero-img-wrap--placeholder {
+      #blankHubPriorHeroWrap.blank-hub-prior-hero-wrap--limited .blank-hub-hero-img-wrap--placeholder,
+      #blankHubRightHeroWrap.blank-hub-prior-hero-wrap--limited .blank-hub-hero-img-wrap--placeholder {
         max-height: 140px;
         min-height: 96px;
       }
@@ -602,17 +615,26 @@
         max-width: none;
       }
     }
-    /* Prior News — limited: badge, time, headline, image only (no Past/Day, stats, podium, host lines) */
+    /* Left/right News — limited: badge, time, headline, image only */
     .blank-hub-subcards-row:not(.blank-hub-subcards-row--prior-expanded)
       #blankHubPriorHeroWrap.blank-hub-prior-hero-wrap--limited
       .blank-hub-hero-subline,
     .blank-hub-subcards-row:not(.blank-hub-subcards-row--prior-expanded)
       #blankHubPriorHeroWrap.blank-hub-prior-hero-wrap--limited
+      .blank-hub-hero-text,
+    .blank-hub-subcards-row:not(.blank-hub-subcards-row--prior-expanded)
+      #blankHubRightHeroWrap.blank-hub-prior-hero-wrap--limited
+      .blank-hub-hero-subline,
+    .blank-hub-subcards-row:not(.blank-hub-subcards-row--prior-expanded)
+      #blankHubRightHeroWrap.blank-hub-prior-hero-wrap--limited
       .blank-hub-hero-text {
       display: none !important;
     }
     .blank-hub-subcards-row:not(.blank-hub-subcards-row--prior-expanded)
       #blankHubPriorHeroWrap.blank-hub-prior-hero-wrap--limited
+      .blank-hub-hero-cols,
+    .blank-hub-subcards-row:not(.blank-hub-subcards-row--prior-expanded)
+      #blankHubRightHeroWrap.blank-hub-prior-hero-wrap--limited
       .blank-hub-hero-cols {
       flex-direction: column;
       align-items: stretch;
@@ -623,6 +645,12 @@
       .blank-hub-hero-img-wrap,
     .blank-hub-subcards-row:not(.blank-hub-subcards-row--prior-expanded)
       #blankHubPriorHeroWrap.blank-hub-prior-hero-wrap--limited
+      .blank-hub-hero-img-wrap--placeholder,
+    .blank-hub-subcards-row:not(.blank-hub-subcards-row--prior-expanded)
+      #blankHubRightHeroWrap.blank-hub-prior-hero-wrap--limited
+      .blank-hub-hero-img-wrap,
+    .blank-hub-subcards-row:not(.blank-hub-subcards-row--prior-expanded)
+      #blankHubRightHeroWrap.blank-hub-prior-hero-wrap--limited
       .blank-hub-hero-img-wrap--placeholder {
       flex: none !important;
       width: 100% !important;
@@ -1011,7 +1039,8 @@
     }
     .blank-hub-hero-textarea { min-height: 88px; resize: vertical; }
     .blank-hub-hero-drop-active .blank-hub-hero-img-wrap,
-    #blankHubPriorHeroWrap.blank-hub-hero-drop-active .blank-hub-hero-img-wrap {
+    #blankHubPriorHeroWrap.blank-hub-hero-drop-active .blank-hub-hero-img-wrap,
+    #blankHubRightHeroWrap.blank-hub-hero-drop-active .blank-hub-hero-img-wrap {
       outline: 2px dashed #0d47a1;
       outline-offset: 2px;
     }
@@ -1342,14 +1371,19 @@
           <div id="blank-hub-hero-inner-prev"></div>
         </div>
       </div>
-      <div class="card blank-hub-subcard" id="blankHubSubcardRight" aria-label="Right panel (placeholder)"></div>
+      <div class="card blank-hub-subcard blank-hub-subcard--secondary-news" id="blankHubSubcardRight" aria-label="Earlier featured story">
+        <div class="blank-hub-prior-hero-wrap blank-hub-prior-hero-wrap--limited" id="blankHubRightHeroWrap">
+          <div id="blank-hub-hero-inner-prev2"></div>
+        </div>
+      </div>
     </div>
 
-    <section class="card blank-news-wrap" id="blank-news-section" aria-label="Calendar events from database">
+    <section class="card blank-news-wrap" id="blank-news-section" aria-label="Regatta calendar">
       <h2 class="blank-news-heading">
         <img src="/assets/icons/events.png" alt="">
         Events
       </h2>
+      <p class="blank-news-subline">Live &amp; upcoming regattas</p>
       <div id="blank-news-list" class="blank-news-list"></div>
       <p class="blank-news-more"><a href="/events">Full calendar →</a></p>
     </section>
@@ -1560,6 +1594,58 @@
     });
   }
 
+  function blankFmtStartDateShort(iso) {
+    if (!iso) return '';
+    var d = new Date(String(iso).slice(0, 10) + 'T12:00:00');
+    if (isNaN(d.getTime())) return String(iso).slice(0, 10);
+    var mon = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return d.getDate() + ' ' + mon[d.getMonth()] + ' ' + d.getFullYear();
+  }
+
+  /** Inclusive calendar-day span (single-day = 1). */
+  function blankEventSpanDays(sd, ed) {
+    if (!sd) return 1;
+    var t0 = new Date(String(sd).slice(0, 10) + 'T12:00:00').getTime();
+    var t1 = new Date(String(ed || sd).slice(0, 10) + 'T12:00:00').getTime();
+    if (isNaN(t0) || isNaN(t1) || t1 < t0) return 1;
+    return Math.round((t1 - t0) / 864e5) + 1;
+  }
+
+  function blankYmdAddDays(ymd, delta) {
+    var d = new Date(String(ymd).slice(0, 10) + 'T12:00:00');
+    if (isNaN(d.getTime())) return '';
+    d.setDate(d.getDate() + delta);
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, '0');
+    var day = String(d.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + day;
+  }
+
+  /** Match server UPCOMING_DISPLAY_SORT_VERSION /api/events hub_upcoming_window (legacy array fallback). */
+  function blankUpcomingDisplaySortCompare(a, b) {
+    function entSort(ev) {
+      if (ev.entries_for_sort != null && ev.entries_for_sort !== '') {
+        var n = Number(ev.entries_for_sort);
+        if (isFinite(n)) return n;
+      }
+      return Math.max(Number(ev.entries || 0) || 0, Number(ev.entries_max_series || 0) || 0);
+    }
+    var syA = Number(a.series_years_count || 0) || 0;
+    var syB = Number(b.series_years_count || 0) || 0;
+    var estA = syA >= 2 ? 0 : 1;
+    var estB = syB >= 2 ? 0 : 1;
+    if (estA !== estB) return estA - estB;
+    var entA = entSort(a);
+    var entB = entSort(b);
+    if (entB !== entA) return entB - entA;
+    if (syB !== syA) return syB - syA;
+    var sa = String(a.start_date || '').slice(0, 10);
+    var sb = String(b.start_date || '').slice(0, 10);
+    var dc = sa.localeCompare(sb);
+    if (dc !== 0) return dc;
+    return String(a.event_name || '').localeCompare(String(b.event_name || ''));
+  }
+
   function blankEventDayLabel(sd, ed, today) {
     if (!sd) return '';
     var t0 = new Date(String(sd).slice(0, 10) + 'T12:00:00').getTime();
@@ -1568,30 +1654,6 @@
     if (isNaN(t0) || isNaN(t1) || t1 < t0 || t1 > tEnd) return '';
     var diff = Math.round((t1 - t0) / 864e5);
     return 'Day ' + (diff + 1);
-  }
-
-  function blankSeriesKeyFromEventName(name) {
-    var s = String(name || '').toLowerCase();
-    if (!s) return '';
-    // Strip years and common noise so yearly repeats group together.
-    s = s.replace(/\b(19|20)\d{2}\b/g, ' ');
-    s = s.replace(/\b(results|result|#live|live|sa|rsa)\b/g, ' ');
-    s = s.replace(/[#()\-_/]/g, ' ');
-    s = s.replace(/\s+/g, ' ').trim();
-    return s;
-  }
-
-  function blankBuildSeriesCounts(events, today) {
-    var counts = {};
-    (events || []).forEach(function (e) {
-      var eEnd = String(e.end_date || e.start_date || '').slice(0, 10);
-      if (!eEnd || eEnd >= today) return;
-      if (!(e.has_results || e.entries > 0 || e.races_sailed > 0)) return;
-      var k = blankSeriesKeyFromEventName(e.event_name);
-      if (!k) return;
-      counts[k] = (counts[k] || 0) + 1;
-    });
-    return counts;
   }
 
   function blankFmtNett(v) {
@@ -1847,6 +1909,7 @@
   function blankSyncHeroFreshnessDom() {
     blankSyncHeroFreshnessIntoEl(document.getElementById('blankHubHeroFreshness'));
     blankSyncHeroFreshnessIntoEl(document.getElementById('blankHubHeroFreshness_prev'));
+    blankSyncHeroFreshnessIntoEl(document.getElementById('blankHubHeroFreshness_prev2'));
   }
 
   function blankHubCloneHeroOpts(o) {
@@ -1882,10 +1945,10 @@
 
   /**
    * Same hero layout as main; guestOnly = no SA upload / no badge editor.
-   * lowerSlot: prior/right “News” card — label Top News → News, blue badge (--lower-news).
-   * timeId: e.g. blankHubHeroFreshness or blankHubHeroFreshness_prev
+   * lowerKind: false | 'left' | 'right' — lower cards: Top News → News, blue badge; 'left' adds Full View host row.
+   * Main featured: Breaking news only when event is live AND has results; past (or live without scores) → Top News.
    */
-  function blankHubHeroBuildInnerHtml(opts, guestOnly, timeId, imgFetchPriority, lowerSlot) {
+  function blankHubHeroBuildInnerHtml(opts, guestOnly, timeId, imgFetchPriority, lowerKind) {
     var imgPri = imgFetchPriority || 'low';
     var hub = opts.hub || {};
     var heroEvent = opts.heroEvent;
@@ -1894,20 +1957,27 @@
     var heroMeta = opts.heroMeta || {};
     var role = opts.role;
     var isSa = !guestOnly && sailingsaIsSuperAdminRole(role);
+    var lowerSlot = lowerKind === 'left' || lowerKind === 'right';
 
-    var autoBadge = heroEvent && !heroEvent.is_live ? 'Top News' : 'Breaking news';
+    var evForBadge = heroEvent || teaserFallback;
+    var autoBadge = 'Top News';
+    if (evForBadge && evForBadge.is_live && evForBadge.has_results) {
+      autoBadge = 'Breaking news';
+    }
     var badgeRaw = String(hub.badge_label || autoBadge).trim() || autoBadge;
     if (lowerSlot && /^\s*top\s+news\s*$/i.test(badgeRaw)) {
       badgeRaw = 'News';
     }
     var displayIsNews = /^\s*news\s*$/i.test(badgeRaw);
     var badgeLooksPast = /\btop\b|\bpast\b/i.test(badgeRaw) || displayIsNews;
+    /** Hub may set badge to Breaking news for promos (e.g. WCDC) before results — show live styling + Live row. */
+    var breakingNewsHero = /breaking\s*news/i.test(badgeRaw);
     var badgeMode;
     if (lowerSlot && displayIsNews) {
       badgeMode = 'lower-news';
     } else if (badgeLooksPast) {
       badgeMode = 'past';
-    } else if (heroEvent && heroEvent.is_live) {
+    } else if ((heroEvent && heroEvent.is_live) || breakingNewsHero) {
       badgeMode = 'live';
     } else {
       badgeMode = 'past';
@@ -2010,7 +2080,7 @@
         '</button>'
       : '<span class="blank-hub-hero-badge blank-hub-hero-badge--' + badgeMode + '">' + badge + '</span>';
 
-    var isHeroLive = !!(heroEvent && heroEvent.is_live);
+    var isHeroLive = !!(heroEvent && heroEvent.is_live) || breakingNewsHero;
     var hasHeroResults = !!(heroEvent && heroEvent.has_results);
     var podiumHtml = blankFormatPodiumHtml(podiumRows, 'blank-podium--hub-hero');
     var textCol = '<div class="blank-hub-hero-text">';
@@ -2035,7 +2105,7 @@
 
     var tid = timeId || 'blankHubHeroFreshness';
     var topBlock;
-    if (lowerSlot) {
+    if (lowerKind === 'left') {
       topBlock =
         '<div class="blank-hub-hero-top blank-hub-hero-top--prior-limited">' +
         '<div class="blank-hub-hero-top-cluster">' +
@@ -2124,6 +2194,7 @@
     var section = document.getElementById('blank-hub-hero-section');
     var inner = document.getElementById('blank-hub-hero-inner');
     var innerPrev = document.getElementById('blank-hub-hero-inner-prev');
+    var innerPrev2 = document.getElementById('blank-hub-hero-inner-prev2');
     var admin = document.getElementById('blank-hub-hero-admin');
     var isSa = sailingsaIsSuperAdminRole(role);
     if (!section || !inner) return;
@@ -2135,20 +2206,34 @@
         blankHubPriorExpandDetachButton();
         innerPrev.innerHTML = '';
       }
+      if (innerPrev2) innerPrev2.innerHTML = '';
       if (admin) admin.hidden = true;
       window.blankHubLastHeroOpts = null;
       window.blankHubLastHeroFingerprint = '';
+      window.blankHubHeroQueueLeft = null;
+      window.blankHubHeroQueueRight = null;
       return;
     }
 
     var fp = blankHubHeroFingerprint(opts);
-    var prevOpts;
+    var dispLeft;
+    var dispRight;
     if (!window.blankHubLastHeroOpts) {
-      prevOpts = blankHubCloneHeroOpts(opts);
+      dispLeft = blankHubCloneHeroOpts(opts);
+      dispRight = null;
     } else if (fp === window.blankHubLastHeroFingerprint) {
-      prevOpts = blankHubCloneHeroOpts(opts);
+      dispLeft = window.blankHubHeroQueueLeft
+        ? blankHubCloneHeroOpts(window.blankHubHeroQueueLeft)
+        : blankHubCloneHeroOpts(opts);
+      dispRight = window.blankHubHeroQueueRight
+        ? blankHubCloneHeroOpts(window.blankHubHeroQueueRight)
+        : null;
     } else {
-      prevOpts = blankHubCloneHeroOpts(window.blankHubLastHeroOpts);
+      var oldLeftQ = window.blankHubHeroQueueLeft;
+      dispRight = oldLeftQ ? blankHubCloneHeroOpts(oldLeftQ) : null;
+      dispLeft = blankHubCloneHeroOpts(window.blankHubLastHeroOpts);
+      window.blankHubHeroQueueLeft = blankHubCloneHeroOpts(window.blankHubLastHeroOpts);
+      window.blankHubHeroQueueRight = oldLeftQ ? blankHubCloneHeroOpts(oldLeftQ) : null;
     }
 
     var rowSub = document.getElementById('blankHubSubcardsRow');
@@ -2159,14 +2244,24 @@
       btnPrior.textContent = 'Full View';
     }
 
-    inner.innerHTML = blankHubHeroBuildInnerHtml(opts, false, 'blankHubHeroFreshness', 'high');
+    inner.innerHTML = blankHubHeroBuildInnerHtml(opts, false, 'blankHubHeroFreshness', 'high', false);
     blankInitPodiumDots(inner);
 
     if (innerPrev) {
       blankHubPriorExpandDetachButton();
-      innerPrev.innerHTML = blankHubHeroBuildInnerHtml(prevOpts, !isSa, 'blankHubHeroFreshness_prev', 'low', true);
+      innerPrev.innerHTML = blankHubHeroBuildInnerHtml(dispLeft, !isSa, 'blankHubHeroFreshness_prev', 'low', 'left');
       blankInitPodiumDots(innerPrev);
       blankHubPriorExpandPlaceButton();
+    }
+
+    if (innerPrev2) {
+      if (dispRight) {
+        innerPrev2.innerHTML = blankHubHeroBuildInnerHtml(dispRight, !isSa, 'blankHubHeroFreshness_prev2', 'low', 'right');
+        blankInitPodiumDots(innerPrev2);
+      } else {
+        innerPrev2.innerHTML =
+          '<p class="blank-hub-empty-line">Earlier story appears after the next hero change.</p>';
+      }
     }
 
     blankSyncHeroFreshnessDom();
@@ -2315,14 +2410,18 @@
     }
     function blankHubHeroDropTargetContains(el) {
       if (!el) return false;
+      var prev2 = document.getElementById('blank-hub-hero-inner-prev2');
       return (
         (heroInner && heroInner.contains(el)) ||
-        (heroInnerPrev && heroInnerPrev.contains(el))
+        (heroInnerPrev && heroInnerPrev.contains(el)) ||
+        (prev2 && prev2.contains(el))
       );
     }
     function blankHubHeroClearDropHighlight() {
       if (sec) sec.classList.remove('blank-hub-hero-drop-active');
       if (priorWrap) priorWrap.classList.remove('blank-hub-hero-drop-active');
+      var rw = document.getElementById('blankHubRightHeroWrap');
+      if (rw) rw.classList.remove('blank-hub-hero-drop-active');
     }
     if (blankAppEl) {
       blankAppEl.addEventListener('click', function (ev) {
@@ -2353,6 +2452,12 @@
           sec.classList.add('blank-hub-hero-drop-active');
         } else if (heroInnerPrev && heroInnerPrev.contains(ev.target) && priorWrap) {
           priorWrap.classList.add('blank-hub-hero-drop-active');
+        } else {
+          var prev2el = document.getElementById('blank-hub-hero-inner-prev2');
+          var rw = document.getElementById('blankHubRightHeroWrap');
+          if (prev2el && prev2el.contains(ev.target) && rw) {
+            rw.classList.add('blank-hub-hero-drop-active');
+          }
         }
       });
       blankAppEl.addEventListener('drop', function (ev) {
@@ -2480,7 +2585,37 @@
 
     function cardUpcoming(e) {
       var name = escapeHtml(e.event_name || 'Event');
-      return '<div class="blank-news-item blank-news-item--event"><div class="blank-event-headline">' + name + '</div><div class="blank-news-meta">Starts ' + escapeHtml(String(e.start_date || '')) + '</div></div>';
+      var startLbl = blankFmtStartDateShort(e.start_date);
+      var meta = startLbl ? 'Starts ' + escapeHtml(startLbl) : '';
+      var py = e.prior_year;
+      var pe = e.entries_prior_year;
+      var priorLine = '';
+      if (py != null && pe != null && Number(pe) > 0) {
+        priorLine =
+          '<div class="blank-news-meta">' +
+          escapeHtml(String(py)) +
+          ': ' +
+          escapeHtml(String(pe)) +
+          ' entries</div>';
+      }
+      var rid = e.regatta_id && String(e.regatta_id).trim();
+      var inner =
+        '<div class="blank-event-headline">' + name + '</div>' +
+        (meta ? '<div class="blank-news-meta">' + meta + '</div>' : '') +
+        priorLine;
+      var cls = 'blank-news-item blank-news-item--event';
+      if (rid) {
+        return (
+          '<a class="' +
+          cls +
+          '" href="/regatta/' +
+          encodeURIComponent(rid) +
+          '">' +
+          inner +
+          '</a>'
+        );
+      }
+      return '<div class="' + cls + '">' + inner + '</div>';
     }
 
     try {
@@ -2499,28 +2634,33 @@
       var rHub = null;
       var rEv = null;
       var rFresh = null;
+      var rUw = null;
       try {
         var quad = await Promise.all([
           fetch(base + '/auth/session' + pathQs, { credentials: 'include' }),
           fetch(base + '/api/hub/hero', { cache: 'no-store' }),
           fetch(base + '/api/events?blank_hub=1', { cache: 'no-store' }),
-          fetch(base + '/api/hub/blank-freshness', { cache: 'no-store' })
+          fetch(base + '/api/hub/blank-freshness', { cache: 'no-store' }),
+          fetch(base + '/api/events/upcoming-window', { cache: 'no-store' })
         ]);
         rSess = quad[0];
         rHub = quad[1];
         rEv = quad[2];
         rFresh = quad[3];
+        rUw = quad[4];
       } catch (eNet) {
         rSess = { ok: false };
         rHub = { ok: false };
         rEv = { ok: false };
         rFresh = { ok: false };
+        rUw = { ok: false };
       }
       var sessHubRaw = await Promise.all([
         fetchJsonOr(rSess, {}),
         fetchJsonOr(rHub, {}),
         fetchJsonOr(rEv, []),
-        fetchJsonOr(rFresh, {})
+        fetchJsonOr(rFresh, {}),
+        fetchJsonOr(rUw, {})
       ]);
       var sess = sessHubRaw[0] || {};
       var hub = sessHubRaw[1] || {};
@@ -2534,8 +2674,24 @@
           ? freshPayload.updated_at.trim()
           : null;
 
-      var raw = Array.isArray(sessHubRaw[2]) ? sessHubRaw[2] : [];
-      var events = Array.isArray(raw) ? raw : [];
+      var evPayload = sessHubRaw[2];
+      var events;
+      if (
+        evPayload &&
+        typeof evPayload === 'object' &&
+        !Array.isArray(evPayload) &&
+        Array.isArray(evPayload.events)
+      ) {
+        events = evPayload.events;
+        window.blankHubUpcomingSortSig =
+          evPayload.hub_upcoming_window && evPayload.hub_upcoming_window.sort_signature
+            ? String(evPayload.hub_upcoming_window.sort_signature)
+            : null;
+      } else {
+        events = Array.isArray(evPayload) ? evPayload : [];
+        window.blankHubUpcomingSortSig = null;
+      }
+      var upcomingWinPayload = sessHubRaw[4] || {};
       var today = new Date().toISOString().slice(0, 10);
 
       blankApplyRegattaFallback(events);
@@ -2666,22 +2822,67 @@
         } catch (eHeroPod) {}
       }
 
-      var seriesCounts = blankBuildSeriesCounts(events, today);
-      var upcoming = events
-        .filter(function (e) {
+      var hubWin =
+        evPayload &&
+        typeof evPayload === 'object' &&
+        !Array.isArray(evPayload) &&
+        evPayload.hub_upcoming_window
+          ? evPayload.hub_upcoming_window
+          : null;
+      if (
+        !hubWin &&
+        upcomingWinPayload &&
+        typeof upcomingWinPayload === 'object' &&
+        !upcomingWinPayload.detail &&
+        Array.isArray(upcomingWinPayload.items) &&
+        upcomingWinPayload.items.length
+      ) {
+        hubWin = upcomingWinPayload;
+      }
+      if (
+        hubWin &&
+        hubWin.sort_signature &&
+        (window.blankHubUpcomingSortSig == null || window.blankHubUpcomingSortSig === '')
+      ) {
+        window.blankHubUpcomingSortSig = String(hubWin.sort_signature);
+      }
+      var upcoming;
+      if (hubWin && Array.isArray(hubWin.items) && hubWin.items.length) {
+        upcoming = hubWin.items.map(function (e) {
+          var o = Object.assign({}, e);
+          o.races_sailed = o.races_sailed || 0;
+          o.entries = o.entries || 0;
+          var sd = String(o.start_date || '').slice(0, 10);
+          var ed = String(o.end_date || o.start_date || '').slice(0, 10);
+          o.start_date = sd;
+          o.end_date = ed;
+          o.is_live = false;
+          return o;
+        });
+      } else {
+        var upcomingCandidates = events.filter(function (e) {
           return !e.is_live && String(e.start_date || '').slice(0, 10) >= today;
-        })
-        .sort(function (a, b) {
-          var ka = blankSeriesKeyFromEventName(a.event_name);
-          var kb = blankSeriesKeyFromEventName(b.event_name);
-          var ca = seriesCounts[ka] || 0;
-          var cb = seriesCounts[kb] || 0;
-          return (
-            (cb - ca) ||
-            String(a.start_date || '').localeCompare(String(b.start_date || ''))
-          );
-        })
-        .slice(0, 12);
+        });
+        var anchor =
+          upcomingCandidates.length &&
+          upcomingCandidates.reduce(function (best, e) {
+            var s = String(e.start_date || '').slice(0, 10);
+            if (!s) return best;
+            return !best || s.localeCompare(best) < 0 ? s : best;
+          }, '');
+        var windowEnd = anchor ? blankYmdAddDays(anchor, 5) : '';
+        var upcomingWindowed = upcomingCandidates.filter(function (e) {
+          if (!anchor || !windowEnd) return false;
+          var s = String(e.start_date || '').slice(0, 10);
+          return s >= anchor && s <= windowEnd;
+        });
+        await Promise.all(
+          upcomingWindowed.map(function (e) {
+            return blankEnrichEventFromRegatta(e, base);
+          })
+        );
+        upcoming = upcomingWindowed.sort(blankUpcomingDisplaySortCompare).slice(0, 10);
+      }
 
       var hasManual = !!(
         String(hub.headline || '').trim() ||

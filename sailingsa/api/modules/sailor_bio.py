@@ -88,8 +88,16 @@ def _normalize_class_name(cls: str) -> str:
     return s
 
 
-def _ordinal(n: int) -> str:
-    if n % 100 in (11, 12, 13):
+def _ordinal(n) -> str:
+    """Match api._ordinal: 1st, 7th, 10th–20th → …th, 21st, …"""
+    try:
+        n = int(n)
+    except (TypeError, ValueError):
+        try:
+            n = int(float(n))
+        except (TypeError, ValueError):
+            return ""
+    if 10 <= n % 100 <= 20:
         return f"{n}th"
     suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
     return f"{n}{suffix}"

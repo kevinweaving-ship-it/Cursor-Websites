@@ -178,6 +178,11 @@
     <script src="js/session.js?v=20260207_mobile_login"></script>
     <script>
         (function() {
+            document.addEventListener('click', function (e) {
+                var a = e.target && e.target.closest && e.target.closest('a.js-go-home');
+                if (!a) return;
+                try { sessionStorage.setItem('sailingsa_home_from_logo', '1'); } catch (err) {}
+            }, true);
             var logo = document.getElementById('headerLogoLink');
             if (logo) logo.setAttribute('href', '/');
             function normalizeNavPath(path) {

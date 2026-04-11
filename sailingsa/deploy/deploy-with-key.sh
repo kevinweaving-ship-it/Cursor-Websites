@@ -17,7 +17,8 @@ fi
 echo "Build frontend zip..."
 cd "$PROJECT_ROOT/sailingsa/frontend"
 rm -f ../../sailingsa-frontend.zip
-zip -r ../../sailingsa-frontend.zip . -x "*.DS_Store" -x "__MACOSX" -x "*.BU_*" -x "*.bu_*" -x "*.bak" -x "*.md"
+# Exclude live hub config — never overwrite server-side album/media (see hub_hero.json on live).
+zip -r ../../sailingsa-frontend.zip . -x "*.DS_Store" -x "__MACOSX" -x "*.BU_*" -x "*.bu_*" -x "*.bak" -x "*.md" -x "data/hub_hero.json"
 cd "$PROJECT_ROOT"
 
 echo "Upload zip..."

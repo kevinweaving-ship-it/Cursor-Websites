@@ -1675,55 +1675,6 @@
       flex-direction: column;
       align-items: stretch;
     }
-    /* Hub BN: full-bleed slot title (matches section pill colours) + grey rules above/below pill row */
-    .blank-breaking-news-card .bn-card__hub-slot-bleed {
-      margin: 0 -10px;
-      display: flex;
-      flex-direction: column;
-      align-items: stretch;
-    }
-    @media (min-width: 400px) {
-      .blank-breaking-news-card .bn-card__hub-slot-bleed {
-        margin: 0 -12px;
-      }
-    }
-    .blank-breaking-news-card .bn-card__hub-slot-bleed--rule-only {
-      margin-top: 0;
-      margin-bottom: 8px;
-    }
-    .blank-breaking-news-card .bn-card__hub-rule {
-      height: 0;
-      margin: 0;
-      border: none;
-      border-top: 1px solid #bdbdbd;
-      width: 100%;
-      flex-shrink: 0;
-    }
-    .blank-breaking-news-card .bn-card__slot-header {
-      box-sizing: border-box;
-      width: 100%;
-      margin: 0;
-      padding: 10px 14px;
-      font-size: clamp(0.95rem, 2.8vw, 1.125rem);
-      font-weight: 800;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: #fff;
-      text-align: center;
-      border-radius: 8px 8px 0 0;
-    }
-    .blank-breaking-news-card .bn-card__slot-header--breaking {
-      background: #ff6a00;
-    }
-    .blank-breaking-news-card .bn-card__slot-header--top-news {
-      background: #001f3f;
-    }
-    .blank-breaking-news-card .bn-card__slot-header--hub-news {
-      background: #2e7d32;
-    }
-    .blank-breaking-news-card .bn-card__slot-header--hub-archive {
-      background: #546e7a;
-    }
     .blank-breaking-news-card .bn-card__image-slot {
       margin-top: 0;
       box-sizing: border-box;
@@ -1757,9 +1708,10 @@
       align-items: center;
       flex-wrap: wrap;
       gap: calc(8px * 0.9);
-      padding: 8px 0;
-      margin: 0 0 0 0;
-      border-bottom: none;
+      /* Thin rule centred in the band between pills and hero row: equal space above/below the line. */
+      padding-bottom: 8px;
+      margin: 0 0 8px 0;
+      border-bottom: 1px solid #bdbdbd;
     }
     /* All badges in this row: 90% of hub hero pill size */
     .blank-breaking-news-card .bn-card__badge-row .blank-hub-hero-badge,
@@ -3949,31 +3901,12 @@
       outline: 2px solid #0a6cff;
       outline-offset: 2px;
     }
-    /**
-     * Same /auth/session cookie on / and /blank69.html — API is not path-specific.
-     * This page had two auth UIs (#loginBox from session.js + #adminV10SecondHeaderUser from blank-landing-header.js).
-     * When the v10 row is visible (logged in), never show the duplicate Sign In slot.
-     */
-    .admin-v10-second-header__right:has(#adminV10SecondHeaderUser:not([hidden])) #loginBox {
-      display: none !important;
-      visibility: hidden !important;
-      position: absolute !important;
-      width: 1px !important;
-      height: 1px !important;
-      margin: -1px !important;
-      overflow: hidden !important;
-      clip: rect(0, 0, 0, 0) !important;
-      pointer-events: none !important;
-    }
   </style>
-  <script>
-    window.API_BASE = window.location && window.location.origin ? String(window.location.origin).replace(/\/$/, '') : '';
-  </script>
-  <link rel="stylesheet" href="/css/main.css?v=20260412hublogout1">
-  <script src="/js/api.js?v=20260412apifix1"></script>
-  <script src="/js/session.js?v=20260412auth9"></script>
+  <link rel="stylesheet" href="/css/main.css?v=20260408bn2">
+  <script src="/js/api.js"></script>
+  <script src="/js/session.js"></script>
 </head>
-<body class="blank-landing-page admin-dashboard-v10" data-sailingsa-hub-header-isolated="1">
+<body class="blank-landing-page admin-dashboard-v10">
   <!-- Single navy header (replaces former .site-header on this page): brand, session.js login slot, user row, menu -->
   <div class="admin-v10-second-header" aria-label="Site header">
     <div class="admin-v10-second-header__inner">
@@ -4007,9 +3940,17 @@
             <img class="admin-v10-second-header__avatar" id="adminV10SecondHeaderAvatar" alt="" width="72" height="72" decoding="async">
             <button type="button" class="btn-logout admin-v10-second-header__logout" id="adminV10SecondHeaderLogoutBtn">Logout</button>
           </div>
+          <button type="button" class="menu-btn" id="menuBtn" aria-label="Open menu">
+            <span class="menu-icon"></span>
+          </button>
         </div>
       </div>
     </div>
+    <nav id="navMenuOverlay" class="nav-menu-overlay" aria-hidden="true" style="display:none;">
+      <a href="/">Sailor</a>
+      <a href="/" data-mode="regatta">Regatta</a>
+      <a href="/about">About</a>
+    </nav>
   </div>
 
   <div class="blank-app container" id="blankApp">
@@ -4040,10 +3981,6 @@
           <p class="blank-hub-empty-line">No event currently qualifies for automated Breaking News.</p>
         </div>
         <div data-bncard-body class="bn-card__body" hidden>
-          <div class="bn-card__hub-slot-bleed" data-bncard-slot-bleed>
-            <div class="bn-card__slot-header bn-card__slot-header--breaking" data-bncard-slot-header>Breaking News</div>
-            <div class="bn-card__hub-rule" aria-hidden="true"></div>
-          </div>
           <div class="bn-card__badge-row" data-bncard-badge-row>
             <span
               class="blank-hub-hero-badge blank-hub-hero-badge--live blank-hub-hero-badge--pulse"
@@ -4061,9 +3998,6 @@
             >Live</span>
             <span class="blank-hub-hero-badge bn-card__day-pill" data-bncard-day-badge hidden>Day 1</span>
             <span class="blank-hub-hero-badge bn-card__race-pill" data-bncard-race-badge hidden>R0</span>
-          </div>
-          <div class="bn-card__hub-slot-bleed bn-card__hub-slot-bleed--rule-only" aria-hidden="true">
-            <div class="bn-card__hub-rule"></div>
           </div>
           <div class="bn-card__split" data-bncard-hero-row>
             <div class="bn-card__split-left">
@@ -4113,10 +4047,6 @@
           <p class="blank-hub-empty-line">No Top News item is currently set.</p>
         </div>
         <div data-bncard-body class="bn-card__body" hidden>
-          <div class="bn-card__hub-slot-bleed" data-bncard-slot-bleed>
-            <div class="bn-card__slot-header bn-card__slot-header--top-news" data-bncard-slot-header>Top News</div>
-            <div class="bn-card__hub-rule" aria-hidden="true"></div>
-          </div>
           <div class="bn-card__badge-row" data-bncard-badge-row>
             <span
               class="blank-hub-hero-badge blank-hub-hero-badge--top-news"
@@ -4134,9 +4064,6 @@
             >Live</span>
             <span class="blank-hub-hero-badge bn-card__day-pill" data-bncard-day-badge hidden>Day 1</span>
             <span class="blank-hub-hero-badge bn-card__race-pill" data-bncard-race-badge hidden>R0</span>
-          </div>
-          <div class="bn-card__hub-slot-bleed bn-card__hub-slot-bleed--rule-only" aria-hidden="true">
-            <div class="bn-card__hub-rule"></div>
           </div>
           <div class="bn-card__split" data-bncard-hero-row>
             <div class="bn-card__split-left">
@@ -4186,10 +4113,6 @@
           <p class="blank-hub-empty-line">No regatta is currently tagged as News.</p>
         </div>
         <div data-bncard-body class="bn-card__body" hidden>
-          <div class="bn-card__hub-slot-bleed" data-bncard-slot-bleed>
-            <div class="bn-card__slot-header bn-card__slot-header--hub-news" data-bncard-slot-header>News</div>
-            <div class="bn-card__hub-rule" aria-hidden="true"></div>
-          </div>
           <div class="bn-card__badge-row" data-bncard-badge-row>
             <span
               class="blank-hub-hero-badge blank-hub-hero-badge--hub-news"
@@ -4207,9 +4130,6 @@
             >Live</span>
             <span class="blank-hub-hero-badge bn-card__day-pill" data-bncard-day-badge hidden>Day 1</span>
             <span class="blank-hub-hero-badge bn-card__race-pill" data-bncard-race-badge hidden>R0</span>
-          </div>
-          <div class="bn-card__hub-slot-bleed bn-card__hub-slot-bleed--rule-only" aria-hidden="true">
-            <div class="bn-card__hub-rule"></div>
           </div>
           <div class="bn-card__split" data-bncard-hero-row>
             <div class="bn-card__split-left">
@@ -4259,10 +4179,6 @@
           <p class="blank-hub-empty-line">No regatta is currently tagged as Archive.</p>
         </div>
         <div data-bncard-body class="bn-card__body" hidden>
-          <div class="bn-card__hub-slot-bleed" data-bncard-slot-bleed>
-            <div class="bn-card__slot-header bn-card__slot-header--hub-archive" data-bncard-slot-header>Archive</div>
-            <div class="bn-card__hub-rule" aria-hidden="true"></div>
-          </div>
           <div class="bn-card__badge-row" data-bncard-badge-row>
             <span
               class="blank-hub-hero-badge blank-hub-hero-badge--hub-archive"
@@ -4280,9 +4196,6 @@
             >Live</span>
             <span class="blank-hub-hero-badge bn-card__day-pill" data-bncard-day-badge hidden>Day 1</span>
             <span class="blank-hub-hero-badge bn-card__race-pill" data-bncard-race-badge hidden>R0</span>
-          </div>
-          <div class="bn-card__hub-slot-bleed bn-card__hub-slot-bleed--rule-only" aria-hidden="true">
-            <div class="bn-card__hub-rule"></div>
           </div>
           <div class="bn-card__split" data-bncard-hero-row>
             <div class="bn-card__split-left">
@@ -4477,10 +4390,6 @@
           <p class="blank-hub-empty-line">No upcoming featured event for this slot yet — set the regatta to &ldquo;Upcoming Event&rdquo; in hub admin, or ensure the calendar row is linked to a regatta with future dates.</p>
         </div>
         <div data-bncard-body class="bn-card__body" hidden>
-          <div class="bn-card__hub-slot-bleed" data-bncard-slot-bleed>
-            <div class="bn-card__slot-header bn-card__slot-header--hub-news" data-bncard-slot-header>Upcoming Events</div>
-            <div class="bn-card__hub-rule" aria-hidden="true"></div>
-          </div>
           <div class="bn-card__badge-row" data-bncard-badge-row>
             <span
               class="blank-hub-hero-badge blank-hub-hero-badge--hub-news"
@@ -4498,9 +4407,6 @@
             >Live</span>
             <span class="blank-hub-hero-badge bn-card__day-pill" data-bncard-day-badge hidden>Day 1</span>
             <span class="blank-hub-hero-badge bn-card__race-pill" data-bncard-race-badge hidden>R0</span>
-          </div>
-          <div class="bn-card__hub-slot-bleed bn-card__hub-slot-bleed--rule-only" aria-hidden="true">
-            <div class="bn-card__hub-rule"></div>
           </div>
           <div class="bn-card__split" data-bncard-hero-row>
             <div class="bn-card__split-left">
@@ -4645,8 +4551,11 @@
     </button>
   </nav>
 
-  <script src="/js/blank-landing-header.js?v=20260412auth9"></script>
-  <script src="/js/breaking-news-card.js?v=20260412header1" defer></script>
+  <script src="/js/blank-landing-header.js"></script>
+  <script>
+    window.API_BASE = (window.location && window.location.origin) ? window.location.origin.replace(/\/$/, '') : '';
+  </script>
+  <script src="/js/breaking-news-card.js?v=20260411bn23" defer></script>
   <script>
 (function () {
   /** Top live-with-results event: headline/teaser defaults + photo upload merge. */
@@ -10607,7 +10516,18 @@
   </script>
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-  /* Header avatars: watchHubHeaderAvatarSrc in /js/blank-landing-header.js */
+  function watchAvatarSrc(id) {
+    var avatar = document.getElementById(id);
+    if (!avatar) return;
+    var observer = new MutationObserver(function () {
+      if (avatar.src && avatar.src !== window.location.href) {
+        avatar.style.display = "block";
+      }
+    });
+    observer.observe(avatar, { attributes: true, attributeFilter: ["src"] });
+  }
+  watchAvatarSrc("userAvatarImg");
+  watchAvatarSrc("adminV10SecondHeaderAvatar");
 
   var bnav = document.getElementById("blankBottomNav");
   if (bnav) {

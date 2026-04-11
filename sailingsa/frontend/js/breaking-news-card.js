@@ -23,26 +23,15 @@
  * share the same hub badge (e.g. two “Top News” in DB), up to `MAX_HUB_NEWS_CARDS_PER_SLOT`.
  * `breaking` | `top` | `news` | `archive` | `upcoming event` (featured std slot, not a news column) ← `blank_hub_news_badge_label`.
  * Legacy “Old News” never matches.
- *
- * **Global dedupe:** A regatta may appear only once across all five slots (and at most once per slot).
- * Slots refresh in page order; `findAllSlotWinners` skips `regatta_id`s already reserved by an earlier slot.
  */
 (function () {
   'use strict';
-
-  /**
-   * Never assign window.API_BASE here — hub pages set origin for /auth/session and /api/*. A relative value
-   * (e.g. '/admin') breaks checkSession + header sync after this script runs (defer).
-   */
-  window.BN_FORCE_SOURCE = '/admin/dashboard-data';
 
   var NS = 'bncard';
 
   function baseUrl() {
     var b = typeof window.API_BASE === 'string' ? window.API_BASE : '';
-    if (b && /^https?:\/\//i.test(b)) {
-      return b.replace(/\/$/, '');
-    }
+    if (b) return b.replace(/\/$/, '');
     try {
       return window.location && window.location.origin ? window.location.origin.replace(/\/$/, '') : '';
     } catch (e) {
@@ -111,66 +100,35 @@
   }
 
   /**
-   * Hub upcoming-events column: calendar rows use anchor / 7-day / next-future heuristics.
-   * Rows with DB ``Upcoming Event`` on ``blank_hub_news_badge_label`` bypass that (must show; sort rules later).
+   * Hub upcoming-events column: show regattas whose anchor date falls in [today, today+7];
+   * if none, show only the single next upcoming (earliest anchor on or after today).
+   * (Later: more cards exist in data but stay hidden — same filter entry point.)
    * Card count is capped later by findAllSlotWinners (MAX_HUB_NEWS_CARDS_PER_SLOT).
    */
   function bnFilterUpcomingSlotVisibleCandidates(candidates, today) {
     if (!Array.isArray(candidates) || !today) return [];
-    var explicitUe = [];
-    var rest = [];
-    var ix;
-    for (ix = 0; ix < candidates.length; ix++) {
-      var cx = candidates[ix];
-      if (cx && normalizeHubNewsBadge({ blank_hub_news_badge_label: cx.blank_hub_news_badge_label }) === 'Upcoming Event') {
-        explicitUe.push(cx);
-      } else {
-        rest.push(cx);
-      }
-    }
     var weekEnd = bnYmdAddDays(today, 7);
-    var withDates = rest.filter(function (c) {
+    var withDates = candidates.filter(function (c) {
       return c && bnAnchorYmdForUpcomingCandidate(c, today);
     });
-    var filteredRest = [];
-    if (withDates.length) {
-      var inSeven = withDates.filter(function (c) {
-        var sd = bnAnchorYmdForUpcomingCandidate(c, today);
-        return sd >= today && sd <= weekEnd;
-      });
-      inSeven.sort(function (a, b) {
-        return bnAnchorYmdForUpcomingCandidate(a, today).localeCompare(bnAnchorYmdForUpcomingCandidate(b, today));
-      });
-      if (inSeven.length) {
-        filteredRest = inSeven;
-      } else {
-        var future = withDates.filter(function (c) {
-          return bnAnchorYmdForUpcomingCandidate(c, today) >= today;
-        });
-        future.sort(function (a, b) {
-          return bnAnchorYmdForUpcomingCandidate(a, today).localeCompare(bnAnchorYmdForUpcomingCandidate(b, today));
-        });
-        filteredRest = future.length ? [future[0]] : [];
-      }
+    if (!withDates.length) return [];
+    var inSeven = withDates.filter(function (c) {
+      var sd = bnAnchorYmdForUpcomingCandidate(c, today);
+      return sd >= today && sd <= weekEnd;
+    });
+    inSeven.sort(function (a, b) {
+      return bnAnchorYmdForUpcomingCandidate(a, today).localeCompare(bnAnchorYmdForUpcomingCandidate(b, today));
+    });
+    if (inSeven.length) {
+      return inSeven;
     }
-    var seenM = Object.create(null);
-    var merged = [];
-    var j;
-    for (j = 0; j < explicitUe.length; j++) {
-      var ex = explicitUe[j];
-      var ridE = ex && ex.regatta_id != null ? String(ex.regatta_id).trim() : '';
-      if (!ridE || seenM[ridE]) continue;
-      seenM[ridE] = true;
-      merged.push(ex);
-    }
-    for (j = 0; j < filteredRest.length; j++) {
-      var fr = filteredRest[j];
-      var ridF = fr && fr.regatta_id != null ? String(fr.regatta_id).trim() : '';
-      if (!ridF || seenM[ridF]) continue;
-      seenM[ridF] = true;
-      merged.push(fr);
-    }
-    return merged;
+    var future = withDates.filter(function (c) {
+      return bnAnchorYmdForUpcomingCandidate(c, today) >= today;
+    });
+    future.sort(function (a, b) {
+      return bnAnchorYmdForUpcomingCandidate(a, today).localeCompare(bnAnchorYmdForUpcomingCandidate(b, today));
+    });
+    return future.length ? [future[0]] : [];
   }
 
   /** Today (YYYY-MM-DD) within event window [start, end] inclusive. */
@@ -242,10 +200,7 @@
     return bnCalendarEventUrlFromSummary(summary);
   }
 
-  /**
-   * Calendar row shape for hub: normalized dates + result counts for **sorting candidates only**.
-   * Do **not** derive “Live vs Past” here — that is only `bnPaintHubLiveDayRaceBadges` (pills), not slot routing.
-   */
+  /** Same calendar shape as blank hub: is_live + has_results from dates + counts. */
   function normalizeEvents(events, today) {
     if (!Array.isArray(events)) return [];
     return events.map(function (e) {
@@ -256,6 +211,7 @@
       var ed = String(o.end_date || o.start_date || '').slice(0, 10);
       o.start_date = sd;
       o.end_date = ed;
+      o.is_live = sd !== '' && ed !== '' && sd <= today && today <= ed;
       o.has_results = o.races_sailed > 0 || o.entries > 0 ? 1 : 0;
       return o;
     });
@@ -337,61 +293,59 @@
   }
 
   /**
-   * Flat candidate list for hub slots: **no** “live vs past” buckets (that is pill-only).
-   * 1) One row per `regatta_id` (first wins from fetch order).
-   * 2) Rows with DB hub card type first — `prioritizeCandidatesByEventHubBadge` then refines per slot.
-   * 3) Others sorted by results signal + recency only (not whether the event is “live” today).
+   * Ordered candidates: live with calendar “has_results”, other live, then recent past with results.
+   * Same ordering idea as featured row; duplicates by regatta_id removed.
    */
   function buildCandidateList(events, today) {
     var norm = normalizeEvents(events, today);
-    var byRid = Object.create(null);
-    var order = [];
-    var ni;
-    for (ni = 0; ni < norm.length; ni++) {
-      var ev = norm[ni];
-      var rid = ev && ev.regatta_id != null ? String(ev.regatta_id).trim() : '';
-      if (!rid) continue;
-      if (!byRid[rid]) {
-        byRid[rid] = ev;
-        order.push(rid);
+    var live = norm.filter(function (e) {
+      return e.is_live;
+    });
+    live.sort(function (a, b) {
+      return b.has_results - a.has_results || b.entries - a.entries || b.races_sailed - a.races_sailed;
+    });
+    var liveWith = live.filter(function (e) {
+      return e.has_results && e.regatta_id;
+    });
+    var liveRest = live.filter(function (e) {
+      return e.regatta_id && !e.has_results;
+    });
+    var pastWith = norm
+      .filter(function (e) {
+        var end = String(e.end_date || e.start_date || '').slice(0, 10);
+        return !e.is_live && e.has_results && end && end < today && e.regatta_id;
+      })
+      .sort(function (a, b) {
+        return String(b.end_date || b.start_date || '').localeCompare(String(a.end_date || a.start_date || ''));
+      });
+    var out = [];
+    var seen = Object.create(null);
+    function pushArr(arr) {
+      var i;
+      for (i = 0; i < arr.length; i++) {
+        var e = arr[i];
+        var rid = e && e.regatta_id != null ? String(e.regatta_id).trim() : '';
+        if (!rid || seen[rid]) continue;
+        seen[rid] = true;
+        out.push(e);
       }
     }
-    var explicitRows = [];
-    var restRows = [];
-    var oi;
-    for (oi = 0; oi < order.length; oi++) {
-      var row = byRid[order[oi]];
-      var bx = normalizeHubNewsBadge({ blank_hub_news_badge_label: row.blank_hub_news_badge_label });
-      if (bx) explicitRows.push(row);
-      else restRows.push(row);
-    }
-    restRows.sort(function (a, b) {
-      return (
-        (b.has_results || 0) - (a.has_results || 0) ||
-        (b.entries || 0) - (a.entries || 0) ||
-        (b.races_sailed || 0) - (a.races_sailed || 0) ||
-        String(b.end_date || b.start_date || '').localeCompare(String(a.end_date || a.start_date || ''))
-      );
-    });
-    return explicitRows.concat(restRows);
-  }
-
-  /**
-   * `/api/events` can list the same `regatta_id` twice (multiple calendar rows). Keep first row
-   * per id so each hub slot paints at most one card per regatta.
-   */
-  function dedupeCandidatesByRegattaId(candidates) {
-    if (!Array.isArray(candidates) || !candidates.length) return candidates || [];
-    var seen = Object.create(null);
-    var out = [];
-    var i;
-    for (i = 0; i < candidates.length; i++) {
-      var c = candidates[i];
-      var rid = c && c.regatta_id != null ? String(c.regatta_id).trim() : '';
-      if (!rid) continue;
-      if (seen[rid]) continue;
-      seen[rid] = true;
-      out.push(c);
+    pushArr(liveWith);
+    pushArr(liveRest);
+    pushArr(live.filter(function (e) {
+      return e.regatta_id;
+    }));
+    pushArr(pastWith);
+    if (!out.length) {
+      var anyResults = norm
+        .filter(function (e) {
+          var rid = e && e.regatta_id != null ? String(e.regatta_id).trim() : '';
+          return rid && e.has_results;
+        })
+        .sort(function (a, b) {
+          return String(b.start_date || '').localeCompare(String(a.start_date || ''));
+        });
+      pushArr(anyResults);
     }
     return out;
   }
@@ -427,29 +381,16 @@
   /**
    * Canonical labels from `blank_hub_news_badge_label` so SA “Top News” / “Breaking News”
    * (any casing) route to the right slot.
-   * ``None``, ``--None--``, “not set”, etc. are **not** a card choice — same as unset (empty string).
-   * Unknown strings are treated as unset so they never match a slot as a fake “custom” type.
    */
   function normalizeHubNewsBadge(summary) {
     var raw = String(summary && summary.blank_hub_news_badge_label != null ? summary.blank_hub_news_badge_label : '').trim();
     if (!raw) return '';
-    var lower = raw.toLowerCase();
-    if (
-      lower === 'none' ||
-      lower === 'null' ||
-      lower === 'n/a' ||
-      lower === 'na' ||
-      /^[\s\-—–]*none[\s\-—–]*$/i.test(raw) ||
-      /^[\s\-—–]*not\s*set\s*[\s\-—–]*$/i.test(raw)
-    ) {
-      return '';
-    }
     if (/^top\s*news$/i.test(raw)) return 'Top News';
     if (/^breaking\s*news$/i.test(raw)) return 'Breaking News';
     if (/^news$/i.test(raw)) return 'News';
     if (/^archive$/i.test(raw)) return 'Archive';
-    if (/^upcoming\s*events?$/i.test(raw)) return 'Upcoming Event';
-    return '';
+    if (/^upcoming\s*event$/i.test(raw)) return 'Upcoming Event';
+    return raw;
   }
 
   /** Legacy hub label — not used for Breaking/Top cards; SA should save “Top News” instead. */
@@ -457,10 +398,7 @@
     return /^\s*old\s*news\s*$/i.test(String(b || '').trim());
   }
 
-  /**
-   * True when today is within [start, end] — used for **auto** slot picks (e.g. untagged Breaking) and Top fallback.
-   * **Not** used for the Live vs Past **pill**; that is `bnPaintHubLiveDayRaceBadges` only.
-   */
+  /** True when today is within the event window (event row or results-summary dates). */
   function eventWindowForCard(eventCandidate, summary, today) {
     var startY = ymdSlice(
       eventCandidate && eventCandidate.start_date != null ? eventCandidate.start_date : summary.start_date
@@ -2008,14 +1946,13 @@
 
     var bs = formEl && !formEl.hidden ? formEl.querySelector('[name="blank_hub_news_badge_label"]') : null;
     if (bs) {
-      var bsv = String(bs.value || '').trim();
-      body.blank_hub_news_badge_label = bsv ? bsv : null;
+      body.blank_hub_news_badge_label = String(bs.value || '').trim();
     } else {
-      var bFallback = merged.blank_hub_news_badge_label != null
-        ? merged.blank_hub_news_badge_label
-        : summary.blank_hub_news_badge_label;
-      var bStr = String(bFallback != null ? bFallback : '').trim();
-      body.blank_hub_news_badge_label = bStr ? bStr : null;
+      body.blank_hub_news_badge_label = String(
+        merged.blank_hub_news_badge_label != null
+          ? merged.blank_hub_news_badge_label
+          : summary.blank_hub_news_badge_label || ''
+      ).trim();
     }
 
     var iuIn = formEl && !formEl.hidden ? formEl.querySelector('[name="blank_hub_news_image_url"]') : null;
@@ -2650,17 +2587,6 @@
         out[arr[0].key] = classEntriesObj[arr[0].key];
         continue;
       }
-      /** Only merge multiple rows into one pill for **Open** divisions — never merge duplicate labels like two Dabchick blocks (mixed podiums). */
-      var firstLabel = arr[0] && arr[0].data ? fleetDisplayNameFromEntry(arr[0].data, arr[0].key) : '';
-      var firstDisplay = bnBreakingNewsFleetPillDisplay(firstLabel);
-      if (!bnIsOpenADivisionLabel(firstDisplay) && String(firstDisplay || '').trim().toLowerCase() !== 'open') {
-        var si;
-        for (si = 0; si < arr.length; si++) {
-          out['split_' + mj + '_' + si + '_' + k.replace(/[^a-z0-9]+/g, '_')] = classEntriesObj[arr[si].key];
-        }
-        mj++;
-        continue;
-      }
       var sum = 0;
       var bi;
       var best = arr[0];
@@ -2817,10 +2743,7 @@
     } else if (asIso !== '') {
       m.as_at_time = asIso;
     }
-    if (badgeIn) {
-      var bmv = String(badgeIn.value || '').trim();
-      m.blank_hub_news_badge_label = bmv ? bmv : null;
-    }
+    if (badgeIn) m.blank_hub_news_badge_label = String(badgeIn.value || '').trim();
     if (sdIn) {
       var sdy = bnSaFormYmd(sdIn);
       m.start_date = sdy ? sdy : null;
@@ -2902,25 +2825,6 @@
     }
   }
 
-  /** Full-width slot title bar — same label + colour family as the section pill (`bnPaintHubSectionBadgeFromLabel`). */
-  function bnSyncHubSlotHeaderFromSectionBadge(cardSection, sectionBadge) {
-    if (!cardSection || !sectionBadge) return;
-    var hdr = cardSection.querySelector('[data-' + NS + '-slot-header]');
-    if (!hdr) return;
-    hdr.textContent = sectionBadge.textContent;
-    var h = 'bn-card__slot-header';
-    if (sectionBadge.classList.contains('blank-hub-hero-badge--top-news')) {
-      h += ' bn-card__slot-header--top-news';
-    } else if (sectionBadge.classList.contains('blank-hub-hero-badge--hub-news')) {
-      h += ' bn-card__slot-header--hub-news';
-    } else if (sectionBadge.classList.contains('blank-hub-hero-badge--hub-archive')) {
-      h += ' bn-card__slot-header--hub-archive';
-    } else {
-      h += ' bn-card__slot-header--breaking';
-    }
-    hdr.className = h;
-  }
-
   /** Section pill (Breaking / Top / … / Upcoming) from `blank_hub_news_badge_label` — render + SA preview. */
   function bnPaintHubSectionBadgeFromLabel(root, mergedSummary) {
     var cardSection = root.closest('[data-blank-bn-card]') || root.closest('.blank-breaking-news-card');
@@ -2928,44 +2832,6 @@
     var sectionBadge = cardSection.querySelector('[data-' + NS + '-section-badge]');
     if (!sectionBadge) return;
     var lab = normalizeHubNewsBadge(mergedSummary);
-    var slot = (cardSection.getAttribute('data-bn-slot') || '').trim();
-    /** No DB card type: pill follows this column’s slot (auto picks), not a literal “Breaking News” everywhere. */
-    if (!lab) {
-      if (slot === 'top') {
-        sectionBadge.textContent = 'Top News';
-        sectionBadge.className = 'blank-hub-hero-badge blank-hub-hero-badge--top-news';
-        cardSection.setAttribute('aria-label', 'Top News');
-        bnSyncHubSlotHeaderFromSectionBadge(cardSection, sectionBadge);
-        return;
-      }
-      if (slot === 'news') {
-        sectionBadge.textContent = 'News';
-        sectionBadge.className = 'blank-hub-hero-badge blank-hub-hero-badge--hub-news';
-        cardSection.setAttribute('aria-label', 'News');
-        bnSyncHubSlotHeaderFromSectionBadge(cardSection, sectionBadge);
-        return;
-      }
-      if (slot === 'archive') {
-        sectionBadge.textContent = 'Archive';
-        sectionBadge.className = 'blank-hub-hero-badge blank-hub-hero-badge--hub-archive';
-        cardSection.setAttribute('aria-label', 'Archive');
-        bnSyncHubSlotHeaderFromSectionBadge(cardSection, sectionBadge);
-        return;
-      }
-      if (slot === 'upcoming-events') {
-        sectionBadge.textContent = 'Upcoming Events';
-        sectionBadge.className = 'blank-hub-hero-badge blank-hub-hero-badge--hub-news';
-        cardSection.setAttribute('aria-label', 'Upcoming Events');
-        bnSyncHubSlotHeaderFromSectionBadge(cardSection, sectionBadge);
-        return;
-      }
-      sectionBadge.textContent = 'Breaking News';
-      sectionBadge.className =
-        'blank-hub-hero-badge blank-hub-hero-badge--live blank-hub-hero-badge--pulse';
-      cardSection.setAttribute('aria-label', 'Breaking News');
-      bnSyncHubSlotHeaderFromSectionBadge(cardSection, sectionBadge);
-      return;
-    }
     if (lab === 'Top News') {
       sectionBadge.textContent = 'Top News';
       sectionBadge.className = 'blank-hub-hero-badge blank-hub-hero-badge--top-news';
@@ -2979,7 +2845,7 @@
       sectionBadge.className = 'blank-hub-hero-badge blank-hub-hero-badge--hub-archive';
       cardSection.setAttribute('aria-label', 'Archive');
     } else if (lab === 'Upcoming Event') {
-      if (slot === 'upcoming-events') {
+      if ((cardSection.getAttribute('data-bn-slot') || '') === 'upcoming-events') {
         sectionBadge.textContent = 'Upcoming Events';
         sectionBadge.className = 'blank-hub-hero-badge blank-hub-hero-badge--hub-news';
         cardSection.setAttribute('aria-label', 'Upcoming Events');
@@ -2994,14 +2860,9 @@
         'blank-hub-hero-badge blank-hub-hero-badge--live blank-hub-hero-badge--pulse';
       cardSection.setAttribute('aria-label', 'Breaking News');
     }
-    bnSyncHubSlotHeaderFromSectionBadge(cardSection, sectionBadge);
   }
 
-  /**
-   * **Live / Past** (and Day N, R#): **chrome only** — the row of pills on the card.
-   * Dates here do **not** decide whether a regatta appears in a hub column; that is DB hub badge + slot matchers
-   * (`matches*Slot` / `findAllSlotWinners`). Only use this for what readers see next to Results.
-   */
+  /** Live / Past, Day N, R# — same logic as render (uses event row when regatta ids differ). */
   function bnPaintHubLiveDayRaceBadges(root, summary, eventCandidate) {
     var liveBadgeEl = root.querySelector('[data-' + NS + '-live-badge]');
     var dayBadgeEl = root.querySelector('[data-' + NS + '-day-badge]');
@@ -4111,8 +3972,7 @@
     var rs = resultStatusSelectValue(summary.result_status);
     var sd = String(summary.start_date || '').slice(0, 10);
     var ed = String(summary.end_date || '').slice(0, 10);
-    var curBadgeNorm = normalizeHubNewsBadge(summary);
-    var curBadge = curBadgeNorm;
+    var curBadge = String(summary.blank_hub_news_badge_label || '').trim() || 'Breaking News';
     var curImg = String(summary.blank_hub_news_image_url || '').trim();
     var showHero = summary.blank_hub_news_show_hero !== false;
     var asAtParts = bnResultsAsAtToDateAndTime(summary.as_at_time);
@@ -4127,7 +3987,7 @@
       '<select id="' +
       NS +
       '-sa-badge" name="blank_hub_news_badge_label" aria-label="Card Type News/Upcoming Event">' +
-      '<option value="">— Not set —</option>';
+      '';
     for (bi = 0; bi < BN_BADGE_OPTIONS.length; bi++) {
       var opt = BN_BADGE_OPTIONS[bi];
       badgeSelectHtml +=
@@ -4467,10 +4327,7 @@
       body.host_club_id = null;
     }
     var bs = formEl.querySelector('[name="blank_hub_news_badge_label"]');
-    if (bs) {
-      var bsv2 = String(bs.value || '').trim();
-      body.blank_hub_news_badge_label = bsv2 ? bsv2 : null;
-    }
+    if (bs) body.blank_hub_news_badge_label = String(bs.value || '').trim();
     var iuIn = formEl.querySelector('[name="blank_hub_news_image_url"]');
     if (iuIn) body.blank_hub_news_image_url = String(iuIn.value || '').trim() || null;
     var hidAlbum = formEl.querySelector('[name="blank_hub_news_album_json"]');
@@ -4661,28 +4518,6 @@
     return r != null ? String(r).trim() : '';
   }
 
-  /** Event end (else start) YYYY-MM-DD — for ordering multiple cards in one hub slot. */
-  function bnHubWinnerRecencyYmd(w) {
-    if (!w || typeof w !== 'object') return '';
-    var s = w.summary;
-    var c = w.winningCandidate;
-    var y =
-      ymdSlice(s && s.end_date) ||
-      ymdSlice(c && c.end_date) ||
-      ymdSlice(s && s.start_date) ||
-      ymdSlice(c && c.start_date) ||
-      '';
-    return y;
-  }
-
-  /** When a slot shows more than one regatta, most recent (by end/start date) renders on top. */
-  function sortHubWinnersMostRecentFirst(winners) {
-    if (!Array.isArray(winners) || winners.length < 2) return winners;
-    return winners.slice().sort(function (a, b) {
-      return bnHubWinnerRecencyYmd(b).localeCompare(bnHubWinnerRecencyYmd(a));
-    });
-  }
-
   function resetBnCardRootClone(el) {
     if (!el) return;
     el.removeAttribute('data-' + NS + '-sa-edit-mode');
@@ -4760,14 +4595,8 @@
   /**
    * All qualifying regattas for a hub slot (e.g. two DB “Top News” → two cards).
    * Top: every explicit “Top News” match, else legacy single auto (past Breaking/unset).
-   * @param {Object|null} globalReserved optional map regatta_id → true: already shown in an earlier hub column (no cross-slot dupes).
    */
-  async function findAllSlotWinners(b, candidates, today, slot, globalReserved) {
-    var gr = globalReserved && typeof globalReserved === 'object' ? globalReserved : null;
-    function ridTakenGlobally(rid) {
-      var r = rid != null ? String(rid).trim() : '';
-      return !!(r && gr && gr[r]);
-    }
+  async function findAllSlotWinners(b, candidates, today, slot) {
     var matchFn =
       slot === 'upcoming-events'
         ? matchesUpcomingEventsSlot
@@ -4798,12 +4627,12 @@
           if (!s || normalizeHubNewsBadge(s) !== 'Top News') continue;
           if (!matchFn(s, cnd, today)) continue;
           var rid = bnWinnerRegattaId(s, cnd);
-          if (!rid || seenE[rid] || ridTakenGlobally(rid)) continue;
+          if (!rid || seenE[rid]) continue;
           seenE[rid] = true;
           explicit.push({ summary: s, winningCandidate: cnd });
         }
       }
-      if (explicit.length) return sortHubWinnersMostRecentFirst(explicit);
+      if (explicit.length) return explicit;
       for (ci = 0; ci < candidates.length; ci += maxParallel) {
         chunk = candidates.slice(ci, ci + maxParallel);
         batch = await Promise.all(
@@ -4818,7 +4647,7 @@
           if (normalizeHubNewsBadge(s) === 'Top News') continue;
           if (!matchFn(s, cnd, today)) continue;
           rid = bnWinnerRegattaId(s, cnd);
-          if (!rid || ridTakenGlobally(rid)) continue;
+          if (!rid) continue;
           return [{ summary: s, winningCandidate: cnd }];
         }
       }
@@ -4852,12 +4681,12 @@
         }
         if (!s2 || !matchFn(s2, c2, today)) continue;
         var rid2 = bnWinnerRegattaId(s2, c2);
-        if (!rid2 || seen[rid2] || ridTakenGlobally(rid2)) continue;
+        if (!rid2 || seen[rid2]) continue;
         seen[rid2] = true;
         out.push({ summary: s2, winningCandidate: c2 });
       }
     }
-    return sortHubWinnersMostRecentFirst(out);
+    return out;
   }
 
   async function renderOneBnWinner(b, root, found) {
@@ -4899,7 +4728,7 @@
     await render(root, summary, winningCandidate, classEntriesObj, fleetClasses);
   }
 
-  async function refreshSlot(b, candidates, today, slot, globalReserved) {
+  async function refreshSlot(b, candidates, today, slot) {
     var section = document.querySelector('[data-blank-bn-card][data-bn-slot="' + slot + '"]');
     if (!section) return;
     var stack = section.querySelector('[data-bncard-stack]') || section;
@@ -4916,12 +4745,7 @@
         return;
       }
 
-      var winners = await findAllSlotWinners(b, candidates, today, slot, globalReserved);
-      var wx;
-      for (wx = 0; wx < winners.length; wx++) {
-        var wrid = bnWinnerRegattaId(winners[wx].summary, winners[wx].winningCandidate);
-        if (wrid && globalReserved) globalReserved[wrid] = true;
-      }
+      var winners = await findAllSlotWinners(b, candidates, today, slot);
       var want = Math.max(1, winners.length);
       syncBnSlotRootCount(stack, want);
       var roots = stack.querySelectorAll('[data-' + NS + '-root]');
@@ -5013,7 +4837,7 @@
         /* keep breaking_news-only list */
       }
     }
-    var candidates = dedupeCandidatesByRegattaId(buildCandidateList(events, today));
+    var candidates = buildCandidateList(events, today);
     var candidatesTop = prioritizeCandidatesByEventHubBadge(candidates, events, 'Top News');
     var candidatesNews = prioritizeCandidatesByEventHubBadge(candidates, events, 'News');
     var candidatesArchive = prioritizeCandidatesByEventHubBadge(candidates, events, 'Archive');
@@ -5021,10 +4845,10 @@
     var normUeAll = normalizeEvents(eventsHubAll, today);
     var upcomingFromCalendar = normUeAll.filter(function (e) {
       if (!e || e.regatta_id == null || String(e.regatta_id).trim() === '') return false;
-      var eb = normalizeHubNewsBadge({ blank_hub_news_badge_label: e.blank_hub_news_badge_label });
-      if (eb === 'Upcoming Event') return true;
       var ped = String(e.end_date || e.start_date || '').slice(0, 10);
       if (!ped || ped < today) return false;
+      var eb = normalizeHubNewsBadge({ blank_hub_news_badge_label: e.blank_hub_news_badge_label });
+      if (eb === 'Upcoming Event') return true;
       return bnCalendarRowMatchesHubUpcomingFallback(e);
     });
     var candidatesUpcomingEvents = prioritizeCandidatesByEventHubBadge(
@@ -5037,29 +4861,18 @@
     }
     candidatesUpcomingEvents = bnFilterUpcomingSlotVisibleCandidates(candidatesUpcomingEvents, today);
 
-    /** One regatta_id / upcoming row per hub page — earlier columns win (Breaking → Top → News → Archive → Upcoming). */
-    var hubUsedRegattaIds = Object.create(null);
-    await refreshSlot(b, candidatesBreaking, today, 'breaking', hubUsedRegattaIds);
-    await refreshSlot(b, candidatesTop, today, 'top', hubUsedRegattaIds);
-    await refreshSlot(b, candidatesNews, today, 'news', hubUsedRegattaIds);
-    await refreshSlot(b, candidatesArchive, today, 'archive', hubUsedRegattaIds);
-    var reservedBeforeUpcoming = Object.assign(Object.create(null), hubUsedRegattaIds);
-    await refreshSlot(b, candidatesUpcomingEvents, today, 'upcoming-events', hubUsedRegattaIds);
+    await Promise.all([
+      refreshSlot(b, candidatesBreaking, today, 'breaking'),
+      refreshSlot(b, candidatesTop, today, 'top'),
+      refreshSlot(b, candidatesNews, today, 'news'),
+      refreshSlot(b, candidatesArchive, today, 'archive'),
+      refreshSlot(b, candidatesUpcomingEvents, today, 'upcoming-events')
+    ]);
 
     try {
-      /* Featured std slot: first upcoming candidate not already shown in a column above. */
+      /* Same ordered list as refreshSlot upcoming column (includes fallback path). */
       var ueList = candidatesUpcomingEvents.slice();
-      var prefUE = null;
-      var uei;
-      for (uei = 0; uei < ueList.length; uei++) {
-        var ueRow = ueList[uei];
-        var ueRid = ueRow && ueRow.regatta_id != null ? String(ueRow.regatta_id).trim() : '';
-        if (ueRid && !reservedBeforeUpcoming[ueRid]) {
-          prefUE = ueRow;
-          break;
-        }
-      }
-      if (!prefUE && ueList.length) prefUE = ueList[0];
+      var prefUE = ueList.length ? ueList[0] : null;
       try {
         window.__blankHubUpcomingEventFeatured = prefUE;
       } catch (eW) {

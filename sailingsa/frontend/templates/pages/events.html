@@ -84,15 +84,14 @@ document.getElementById("year-events").textContent = new Date().getFullYear();
   function esc(s){ var d=document.createElement("div"); d.textContent=s||""; return d.innerHTML; }
   function renderCard(e, isPast){
     var cardClass = 'event-card' + (isPast && e.result_yes ? ' event-card-has-results' : '');
-    var titleText = (e.display_title != null && e.display_title !== '') ? e.display_title : e.event_name;
+    var titleText = (e.event_name != null && e.event_name !== '') ? e.event_name : (e.display_title || '');
     var titleHtml = (isPast && e.has_regatta_link && e.details_url && e.details_url.indexOf('/regatta/') === 0)
       ? '<a href="' + esc(e.details_url) + '" class="event-title-link">' + esc(titleText) + '</a>'
       : esc(titleText);
     var hostLabel = 'Host: ';
     var hostLink = e.club_slug ? '<a href="/club/' + esc(e.club_slug) + '">' + esc(e.host_code || e.host_club) + '</a>' : esc(e.host_code || e.host_club);
-    var hostFullname = (e.host_club_fullname && e.host_club_fullname.trim() && String(e.host_club_fullname).trim() !== String(e.host_code || e.host_club).trim()) ? ' (' + esc(e.host_club_fullname) + ')' : '';
     var hostFlag = (e.host_unmatched) ? ' <span class="event-host-unmatched" title="Host not in club list — add to clubs table">⚠</span>' : '';
-    var hostHtml = '<span class="event-club">' + hostLabel + hostLink + hostFullname + hostFlag + '</span>';
+    var hostHtml = '<span class="event-club">' + hostLabel + hostLink + hostFlag + '</span>';
     var rawType = (e.event_type != null && String(e.event_type).trim()) ? String(e.event_type).trim() : '';
     var typeHtml = '<div class="event-type-line"><span class="event-type' + (rawType ? '' : ' event-type--empty') + '"' + (rawType ? '' : ' title="Event type not set"') + '>' + (rawType ? esc(rawType) : '\u2014') + '</span></div>';
     var locHtml = e.location ? '<span class="event-location">' + esc(e.location) + '</span>' : '';
@@ -100,7 +99,7 @@ document.getElementById("year-events").textContent = new Date().getFullYear();
       ? (e.result_yes
           ? '<div class="event-result-line"><a href="' + esc(e.result_url || '') + '" class="event-result-chip event-result-yes"><span class="event-result-label">Result:</span><span class="event-result-glyph" aria-hidden="true">&#10003;</span></a></div>'
           : '<div class="event-result-line"><span class="event-result-chip event-result-no"><span class="event-result-label">Result:</span><span class="event-result-glyph" aria-hidden="true">&#10007;</span></span></div>')
-      : '<div class="event-result-line"><span class="event-result-chip event-result-chip--reserved" aria-hidden="true"><span class="event-result-label">Result:</span><span class="event-result-glyph">&#10003;</span></span></div>';
+      : '';
     var hasDetails = e.details_url && e.details_url !== '#';
     var ext = hasDetails && e.details_url.indexOf('/') !== 0;
     var btn = hasDetails ? '<a href="' + esc(e.details_url) + '" class="event-details-btn"' + (ext ? ' target="_blank" rel="noopener"' : '') + '>Details</a>' : '';

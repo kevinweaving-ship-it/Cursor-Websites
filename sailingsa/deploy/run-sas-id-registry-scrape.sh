@@ -42,7 +42,12 @@ if [ "$ON_SERVER" = true ] && [ -x "/var/www/sailingsa/api/venv/bin/python3" ]; 
 fi
 
 if [ "$ON_SERVER" = true ]; then
-  export DB_URL="${DB_URL:-postgresql://sailors_user:SailSA_Pg_Beta2026@localhost:5432/sailors_master}"
+  if [ -z "${DB_URL:-}" ] && [ -z "${DATABASE_URL:-}" ]; then
+    EV=$(systemctl show sailingsa-api -p Environment --value 2>/dev/null || true)
+    DB_URL=$(echo "$EV" | tr ' ' '\n' | sed -n 's/^DB_URL=//p' | head -1)
+    [ -n "$DB_URL" ] && export DB_URL
+  fi
+  export DB_URL="${DB_URL:-${DATABASE_URL:-postgresql://sailors_user:SailSA_Pg_Beta2026@localhost:5432/sailors_master}}"
 fi
 
 BATCH_ID="REGISTRY_$(date -u +%Y%m%d%H%M)"

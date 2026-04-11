@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <base href="/">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cape Classic Series (test) — SailingSA</title>
+    <meta name="description" content="Test view: Western Cape Cape Classic series as three linked regatta legs (ZVYC, TSC, HYC), not a single regatta.">
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="canonical" href="https://sailingsa.co.za/cape-classic-series">
+    <link rel="icon" type="image/png" href="assets/logos/sailingsa-logo.png">
+    <link rel="stylesheet" href="css/main.css">
+    <style>
+        .ccs-page { max-width: 950px; margin: 0 auto; padding: 1rem 12px 2rem; }
+        .ccs-page .card { margin-bottom: 16px; }
+        .ccs-page .section-title { margin-top: 0; }
+        .ccs-lede { color: #334155; font-size: 0.95rem; line-height: 1.55; margin: 0 0 0.75rem; }
+        .ccs-note { font-size: 0.88rem; color: #475569; margin: 0.5rem 0 0; }
+        .ccs-kv { font-size: 0.85rem; color: #334155; margin: 0.25rem 0; }
+    </style>
+</head>
+<body>
+    <header class="site-header">
+        <div class="container">
+            <a href="/" class="logo js-go-home" id="headerLogoLink" title="Home">
+                <img src="assets/logos/sailingsa-logo.png" alt="SailingSA Logo">
+            </a>
+            <div class="header-auth" id="headerAuth"></div>
+            <button class="menu-btn" id="menuBtn" aria-label="Open menu">
+                <span class="menu-icon"></span>
+            </button>
+        </div>
+        <nav id="navMenuOverlay" class="nav-menu-overlay" aria-hidden="true" style="display:none;">
+            <a href="/">Sailor</a>
+            <a href="/" data-mode="regatta">Regatta</a>
+            <a href="/about">About</a>
+        </nav>
+    </header>
+
+    <main class="main-content">
+        <div class="container ccs-page">
+
+            <div class="card">
+                <h1 class="section-title">Cape Classic Series (test)</h1>
+                <p class="ccs-lede">
+                    This page is a <strong>test</strong> view only. It shows how a <strong>series</strong> can be built from <strong>three separate regatta results</strong> already in the <code>results</code> table — it is <strong>not</strong> a fourth regatta and <strong>not</strong> the same URL pattern as normal regatta results.
+                </p>
+                <p class="ccs-lede">
+                    Each leg stays a normal regatta (search / regatta pages unchanged). Here we only <strong>aggregate</strong> by <strong>helm SA id</strong> across three Cape Classic legs for a given class.
+                </p>
+            </div>
+
+            <div class="card">
+                <h2 class="section-title">The three legs (same season snapshot)</h2>
+                <p class="ccs-kv"><strong>ZVYC</strong> — <code>359-2025-zvyc-southern-charter-cape-classic</code></p>
+                <p class="ccs-kv"><strong>TSC</strong> — <code>371-2025-tsc-cape-classic</code></p>
+                <p class="ccs-kv"><strong>HYC</strong> — <code>380-2026-hyc-cape-classic</code> (blocks may use <code>385-2026-hyc-cape-classic:*</code>)</p>
+                <p class="ccs-note">Open each regatta’s results as usual; this series page only groups rows that share the mapped <code>block_id</code>s per class below.</p>
+            </div>
+
+            <div class="card">
+                <h2 class="section-title">How the series table is worked out</h2>
+                <ul class="ccs-lede" style="margin:0;padding-left:1.25rem;">
+                    <li><strong>Eligibility:</strong> helm must have a result in <strong>all three</strong> legs for that class (<strong>3 of 3</strong>), where that class actually runs at each venue. If a venue does not host the class (e.g. Hobie at ZVYC — water too shallow), the fair comparison is over the <strong>available</strong> legs only; sailors who sailed those legs but not a missing class leg are listed as “2 of 3” (or “2 of 2” when only two venues have that fleet).</li>
+                    <li><strong>Partial series:</strong> helms with only two legs when three exist for that class → listed separately as “2 of 3”, not on the main series podium.</li>
+                    <li><strong>Ranking:</strong> lowest <strong>sum of leg ranks</strong>; tie-break: lowest <strong>sum of leg netts</strong>.</li>
+                    <li><strong>Grouping:</strong> <code>GROUP BY helm_sa_sailing_id</code> (display names can change between events).</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h2 class="section-title">Optimist A — series (3 of 3)</h2>
+                <p class="ccs-note">Blocks: <code>…:optimist-a-fleet</code> (ZVYC), <code>…:optimist-a</code> (TSC), <code>…:optimist-a</code> (HYC).</p>
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Series</th>
+                                <th>Helm</th>
+                                <th>SA ID</th>
+                                <th>ZVYC r</th>
+                                <th>TSC r</th>
+                                <th>HYC r</th>
+                                <th>Σ ranks</th>
+                                <th>Σ nett</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>1</td>
+                                <td>Lele Mseswa</td>
+                                <td>26437</td>
+                                <td>3</td>
+                                <td>3</td>
+                                <td>2</td>
+                                <td>8</td>
+                                <td>44</td>
+                            </tr>
+                            <tr>
+                                <td>2</td>
+                                <td>Ben Madel</td>
+                                <td>14506</td>
+                                <td>6</td>
+                                <td>5</td>
+                                <td>1</td>
+                                <td>12</td>
+                                <td>67</td>
+                            </tr>
+                            <tr>
+                                <td>3</td>
+                                <td>Benjamin Fourie</td>
+                                <td>25017</td>
+                                <td>5</td>
+                                <td>7</td>
+                                <td>6</td>
+                                <td>18</td>
+                                <td>82</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="ccs-note">Same SA ID appears as “Bazolele Mseswa” on some legs — one person in the database.</p>
+            </div>
+
+            <div class="card">
+                <h2 class="section-title">Optimist A — helms with 2 of 3 legs only</h2>
+                <p class="ccs-note">Not eligible for the series podium above; shown for audit.</p>
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Helm</th>
+                                <th>SA ID</th>
+                                <th>Missing leg</th>
+                                <th>Legs sailed (rank / nett)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Timothy Weaving</td><td>21172</td><td>HYC</td><td>ZVYC 1/9 · TSC 1/6</td></tr>
+                            <tr><td>Nathan McCombe</td><td>21517</td><td>HYC</td><td>ZVYC 4/31 · TSC 2/12</td></tr>
+                            <tr><td>Sean van Aswegen</td><td>21184</td><td>HYC</td><td>ZVYC 2/12 · TSC 4/14</td></tr>
+                            <tr><td>James Tanner</td><td>17526</td><td>ZVYC</td><td>TSC 6/22 · HYC 3/9</td></tr>
+                            <tr><td>Finn Steenkamp</td><td>15180</td><td>ZVYC</td><td>TSC 8/33 · HYC 8/35</td></tr>
+                            <tr><td>Harold Schultz</td><td>23152</td><td>TSC</td><td>ZVYC 7/44 · HYC 4/14</td></tr>
+                            <tr><td>Michael Hartnack</td><td>19930</td><td>TSC</td><td>ZVYC 8/51 · HYC 9/36</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="section-title">Optimist B — series (3 of 3)</h2>
+                <p class="ccs-note">Blocks: <code>…:optimist-b-fleet</code>, <code>…:optimist-b</code>, <code>…:optimist-b</code>.</p>
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Series</th>
+                                <th>Helm</th>
+                                <th>SA ID</th>
+                                <th>ZVYC r</th>
+                                <th>TSC r</th>
+                                <th>HYC r</th>
+                                <th>Σ ranks</th>
+                                <th>Σ nett</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>1</td>
+                                <td>Dwayne McCombe</td>
+                                <td>25013</td>
+                                <td>6</td>
+                                <td>5</td>
+                                <td>6</td>
+                                <td>17</td>
+                                <td>82</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="ccs-note">Only one helm completed all three legs in this snapshot — no 2nd/3rd for the series until more sailors sail all legs.</p>
+            </div>
+
+            <div class="card">
+                <h2 class="section-title">Optimist B — helms with 2 of 3 legs only</h2>
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Helm</th>
+                                <th>SA ID</th>
+                                <th>Missing leg</th>
+                                <th>Legs sailed (rank / nett)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Sebastian Fourie</td><td>25018</td><td>HYC</td><td>ZVYC 2/12 · TSC 2/12</td></tr>
+                            <tr><td>Cameron Starke</td><td>23001</td><td>HYC</td><td>ZVYC 1/8 · TSC 3/12</td></tr>
+                            <tr><td>Charles Schultz</td><td>27542</td><td>TSC</td><td>ZVYC 3/30 · HYC 4/13</td></tr>
+                            <tr><td>Bastien Taylor</td><td>26382</td><td>ZVYC</td><td>TSC 6/20 · HYC 1/11</td></tr>
+                            <tr><td>Maximus Taylor</td><td>26381</td><td>ZVYC</td><td>TSC 4/13 · HYC 3/12</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="section-title">Other classes — venue limits and “2 of 3”</h2>
+                <p class="ccs-lede">Some fleets are not sailed at every Cape Classic host: for example <strong>Hobie catamarans</strong> are not raced at <strong>ZVYC</strong> in this series snapshot (draft / water depth), so a Hobie “series” here is only <strong>TSC + HYC</strong> — two legs, not three. <strong>Mirror</strong> has ZVYC and TSC blocks in the data; there is no Mirror block at HYC in this snapshot, so the comparable series is <strong>ZVYC + TSC</strong>. Use the same rank-sum / nett-sum rules on those available legs.</p>
+                <p class="ccs-note">ILCA 4.7 and 420 below use full 3-of-3 where all three venues hosted that class.</p>
+            </div>
+
+            <div class="card">
+                <h2 class="section-title">ILCA 4.7 — series (3 of 3)</h2>
+                <p class="ccs-note">Blocks: <code>…:ilca-4-fleet</code> (ZVYC), <code>…:ilca47</code> (TSC), <code>…:ilca4</code> (HYC).</p>
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Series</th>
+                                <th>Helm</th>
+                                <th>SA ID</th>
+                                <th>ZVYC r</th>
+                                <th>TSC r</th>
+                                <th>HYC r</th>
+                                <th>Σ ranks</th>
+                                <th>Σ nett</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>1</td>
+                                <td>Joshua Keytel</td>
+                                <td>13522</td>
+                                <td>1</td>
+                                <td>1</td>
+                                <td>1</td>
+                                <td>3</td>
+                                <td>18</td>
+                            </tr>
+                            <tr>
+                                <td>2</td>
+                                <td>Isabella Keytel</td>
+                                <td>10148</td>
+                                <td>5</td>
+                                <td>3</td>
+                                <td>4</td>
+                                <td>12</td>
+                                <td>83</td>
+                            </tr>
+                            <tr>
+                                <td>3</td>
+                                <td>Patrick Jackson</td>
+                                <td>3088</td>
+                                <td>3</td>
+                                <td>4</td>
+                                <td>8</td>
+                                <td>15</td>
+                                <td>102</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="section-title">420 — series (3 of 3)</h2>
+                <p class="ccs-note">Blocks: <code>…:420-fleet</code> (ZVYC), <code>…:420</code> (TSC), <code>…:420</code> (HYC).</p>
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Series</th>
+                                <th>Helm</th>
+                                <th>SA ID</th>
+                                <th>ZVYC r</th>
+                                <th>TSC r</th>
+                                <th>HYC r</th>
+                                <th>Σ ranks</th>
+                                <th>Σ nett</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>1</td>
+                                <td>Hayden Miller</td>
+                                <td>8683</td>
+                                <td>1</td>
+                                <td>1</td>
+                                <td>3</td>
+                                <td>5</td>
+                                <td>38</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="ccs-note">Only one helm completed all three legs in this snapshot — no 2nd or 3rd for the series until more sailors sail ZVYC + TSC + HYC.</p>
+            </div>
+
+            <div class="card">
+                <h2 class="section-title">Hobie — two-leg series (TSC + HYC only)</h2>
+                <p class="ccs-note">ZVYC does not host Hobie in these results (no Hobie block). Blocks: <code>…:hobie14</code> / <code>…:hobie16</code> (TSC, best rank per helm), <code>…:hobie</code> (HYC). Ranking: lowest sum of leg ranks; tie-break lowest sum of netts.</p>
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Series</th>
+                                <th>Helm</th>
+                                <th>SA ID</th>
+                                <th>TSC r</th>
+                                <th>TSC nett</th>
+                                <th>HYC r</th>
+                                <th>HYC nett</th>
+                                <th>Σ ranks</th>
+                                <th>Σ nett</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>1</td>
+                                <td>Neal Delport</td>
+                                <td>25451</td>
+                                <td>2</td>
+                                <td>8</td>
+                                <td>1</td>
+                                <td>4</td>
+                                <td>3</td>
+                                <td>12</td>
+                            </tr>
+                            <tr>
+                                <td>2</td>
+                                <td>Roger Sheriff</td>
+                                <td>19899</td>
+                                <td>4</td>
+                                <td>20</td>
+                                <td>2</td>
+                                <td>8</td>
+                                <td>6</td>
+                                <td>28</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="ccs-note">Two helms appear in both TSC and HYC Hobie blocks; others sailed one venue only.</p>
+            </div>
+
+            <div class="card">
+                <h2 class="section-title">Mirror — two-leg series (ZVYC + TSC only)</h2>
+                <p class="ccs-note">No Mirror block at HYC in this dataset. Blocks: <code>…:mirror</code> (ZVYC), <code>…:mirror</code> (TSC). Tie on Σ ranks (7) broken by lower Σ nett (Simankele 51 vs Zubair 65).</p>
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Series</th>
+                                <th>Helm</th>
+                                <th>SA ID</th>
+                                <th>ZVYC r</th>
+                                <th>ZVYC nett</th>
+                                <th>TSC r</th>
+                                <th>TSC nett</th>
+                                <th>Σ ranks</th>
+                                <th>Σ nett</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>1</td>
+                                <td>Grant Ekermans</td>
+                                <td>324</td>
+                                <td>1</td>
+                                <td>7</td>
+                                <td>1</td>
+                                <td>11</td>
+                                <td>2</td>
+                                <td>18</td>
+                            </tr>
+                            <tr>
+                                <td>2</td>
+                                <td>Simankele Mtshofeni</td>
+                                <td>18908</td>
+                                <td>5</td>
+                                <td>37</td>
+                                <td>2</td>
+                                <td>14</td>
+                                <td>7</td>
+                                <td>51</td>
+                            </tr>
+                            <tr>
+                                <td>3</td>
+                                <td>Zubair Davids</td>
+                                <td>10167</td>
+                                <td>4</td>
+                                <td>30</td>
+                                <td>3</td>
+                                <td>35</td>
+                                <td>7</td>
+                                <td>65</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="section-title">ILCA 6 — helms with 2 of 3 legs only</h2>
+                <p class="ccs-note">Blocks for a full series: <code>…:ilca-7</code> (ZVYC), <code>…:ilca6</code> (TSC), <code>…:ilca6</code> (HYC). Rows below have TSC + HYC only (missing ZVYC).</p>
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Helm</th>
+                                <th>SA ID</th>
+                                <th>Missing leg</th>
+                                <th>Legs sailed (rank / nett)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Blake Madel</td><td>8680</td><td>ZVYC</td><td>TSC 1/5 · HYC 2/15</td></tr>
+                            <tr><td>Alan Keen</td><td>295</td><td>ZVYC</td><td>TSC 2/7 · HYC 1/11</td></tr>
+                            <tr><td>Jacques Dugas</td><td>13994</td><td>ZVYC</td><td>TSC 5/30 · HYC 3/28</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <footer class="site-footer-about">
+                <a href="/">SailingSA</a> — Cape Classic Series test page · not indexed
+            </footer>
+        </div>
+    </main>
+
+    <script>
+        (function() {
+            document.addEventListener('click', function (e) {
+                var a = e.target && e.target.closest && e.target.closest('a.js-go-home');
+                if (!a) return;
+                try { sessionStorage.setItem('sailingsa_home_from_logo', '1'); } catch (err) {}
+            }, true);
+            var logo = document.getElementById('headerLogoLink');
+            if (logo) logo.setAttribute('href', '/');
+            var menuBtn = document.getElementById('menuBtn');
+            var overlay = document.getElementById('navMenuOverlay');
+            if (menuBtn && overlay) {
+                menuBtn.addEventListener('click', function() {
+                    var hidden = overlay.style.display === 'none';
+                    overlay.style.display = hidden ? 'flex' : 'none';
+                    overlay.setAttribute('aria-hidden', hidden ? 'false' : 'true');
+                });
+                overlay.addEventListener('click', function(e) {
+                    if (e.target.tagName === 'A') overlay.style.display = 'none';
+                });
+            }
+            var regattaLink = overlay && overlay.querySelector('a[data-mode="regatta"]');
+            if (regattaLink) {
+                regattaLink.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    window.location.href = '/?mode=regatta';
+                });
+            }
+        })();
+    </script>
+</body>
+</html>

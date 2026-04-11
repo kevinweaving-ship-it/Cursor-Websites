@@ -23,6 +23,130 @@ async function safeUpdatePageContentAsync() {
     return await updatePageContent();
 }
 
+/** Slug from display name for personal-avatars filenames: `{sasId}-{slug}.png` */
+function sailingPersonalAvatarNameSlug(fullName) {
+    return String(fullName || '')
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/[\s_-]+/g, '-')
+        .replace(/^-+|-+$/g, '') || 'member';
+}
+
+/**
+ * Ordered avatar URLs: personal folder first, then SAS id files / cache / default-youth.
+ * @param {string} apiBase - e.g. window.API_BASE without trailing slash
+ */
+function sailingBuildSailorAvatarCandidates(apiBase, sasId, fullName, opts) {
+    opts = opts || {};
+    const id = sasId != null ? String(sasId).trim() : '';
+    if (!/^\d+$/.test(id)) return [];
+    const pre = apiBase && String(apiBase).trim() ? String(apiBase).replace(/\/$/, '') + '/' : '';
+    const slug = sailingPersonalAvatarNameSlug(fullName);
+    const urls = [];
+    urls.push(pre + 'assets/personal-avatars/' + encodeURIComponent(id) + '-' + slug + '.png');
+    urls.push(pre + 'assets/personal-avatars/' + encodeURIComponent(id) + '-' + slug + '.jpg');
+    /* SAS-only filenames in personal-avatars/ (if full name slug does not match session string) */
+    urls.push(pre + 'assets/personal-avatars/' + encodeURIComponent(id) + '.png');
+    urls.push(pre + 'assets/personal-avatars/' + encodeURIComponent(id) + '.jpg');
+    let ageNum = null;
+    if (opts.ageYears !== undefined && opts.ageYears !== null && opts.ageYears !== '' && !isNaN(opts.ageYears)) {
+        ageNum = parseInt(opts.ageYears, 10);
+    }
+    if (ageNum >= 9 && ageNum <= 18) {
+        urls.push(pre + 'assets/avatars/default-youth.png');
+    }
+    urls.push(pre + 'assets/avatars/' + encodeURIComponent(id) + '.png');
+    urls.push(pre + 'assets/avatars/' + encodeURIComponent(id) + '.jpg');
+    if (opts.includeMediaCache !== false) {
+        urls.push(pre + 'media/avatars/' + encodeURIComponent(id) + '.jpg');
+    }
+    urls.push(pre + 'assets/avatars/default-youth.png');
+    const seen = {};
+    const out = [];
+    for (let u = 0; u < urls.length; u++) {
+        if (!seen[urls[u]]) {
+            seen[urls[u]] = true;
+            out.push(urls[u]);
+        }
+    }
+    return out;
+}
+
+/**
+ * Apply candidate chain to an <img> (sailor profile or header).
+ * opts: { apiBase, ageYears, includeMediaCache, headerMode }
+ */
+function applySailingAvatarToImg(imgEl, sasId, fullName, opts) {
+    if (!imgEl) return;
+    opts = opts || {};
+    const apiBase = (opts.apiBase != null ? opts.apiBase : (window.API_BASE || '')).replace(/\/$/, '');
+    const urls = sailingBuildSailorAvatarCandidates(apiBase, sasId, fullName, opts);
+    if (!urls.length) {
+        imgEl.removeAttribute('src');
+        if (opts.headerMode) imgEl.style.display = 'none';
+        return;
+    }
+    let idx = 0;
+    imgEl.onerror = function sailingAvatarOnErr() {
+        idx += 1;
+        if (idx >= urls.length) {
+            imgEl.onerror = null;
+            if (opts.headerMode) {
+                imgEl.removeAttribute('src');
+                imgEl.style.display = 'none';
+            } else {
+                imgEl.style.display = 'none';
+                const fb = imgEl.parentElement && imgEl.parentElement.querySelector('.avatar-fallback');
+                if (fb) fb.style.display = 'flex';
+            }
+            return;
+        }
+        imgEl.src = urls[idx];
+    };
+    imgEl.onload = function sailingAvatarOnLoad() {
+        if (opts.headerMode) {
+            imgEl.style.display = 'block';
+        } else {
+            imgEl.style.display = '';
+            const fb = imgEl.parentElement && imgEl.parentElement.querySelector('.avatar-fallback');
+            if (fb) fb.style.display = 'none';
+        }
+    };
+    idx = 0;
+    imgEl.src = urls[0];
+}
+
+function applySailingLoginAvatarsFromSession(sasId, displayName) {
+    const apiBase = (window.API_BASE || '').replace(/\/$/, '');
+    ['userAvatarImg', 'adminV10SecondHeaderAvatar'].forEach(function (tid) {
+        const el = document.getElementById(tid);
+        if (el) {
+            applySailingAvatarToImg(el, sasId, displayName, {
+                apiBase,
+                headerMode: true,
+                includeMediaCache: false
+            });
+        }
+    });
+}
+
+function clearSailingLoginAvatars() {
+    ['userAvatarImg', 'adminV10SecondHeaderAvatar'].forEach(function (tid) {
+        const el = document.getElementById(tid);
+        if (!el) return;
+        el.removeAttribute('src');
+        el.style.display = 'none';
+        el.onerror = null;
+    });
+}
+
+window.sailingPersonalAvatarNameSlug = sailingPersonalAvatarNameSlug;
+window.sailingBuildSailorAvatarCandidates = sailingBuildSailorAvatarCandidates;
+window.applySailingAvatarToImg = applySailingAvatarToImg;
+window.applySailingLoginAvatarsFromSession = applySailingLoginAvatarsFromSession;
+window.clearSailingLoginAvatars = clearSailingLoginAvatars;
+
 /**
  * Check session and show popup if needed
  * After login, redirects to landing page (not profile)
@@ -125,6 +249,19 @@ function redirectToLandingPage() {
     window.location.href = window.location.origin + window.location.pathname;
 }
 
+/** Toggle document.body.super-admin (e.g. for CSS hooks). No global click blocking here. */
+function sailingSyncSuperAdminBodyClass(sessionLike) {
+    try {
+        const sess = sessionLike || {};
+        const isSa = typeof sailingSessionIsSuperAdmin === 'function' && sailingSessionIsSuperAdmin(sess);
+        document.body.classList.toggle('super-admin', !!isSa);
+    } catch (_) {
+        try {
+            document.body.classList.remove('super-admin');
+        } catch (e2) {}
+    }
+}
+
 /**
  * Update header auth status (login box or user name + logout)
  */
@@ -132,9 +269,15 @@ async function updateHeaderAuthStatus() {
     console.log('[DEBUG] updateHeaderAuthStatus: Called');
     try {
         const session = await checkSession();
+        sailingSyncSuperAdminBodyClass(session);
         console.log('[DEBUG] updateHeaderAuthStatus: Session data:', session);
         
         if (session.valid) {
+            const user = session.user || {};
+            const fullName = user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim();
+            const displayName = fullName || 'User';
+            const sasId = session.sas_id || '';
+
             // Show logged in status
             const loggedInDiv = document.getElementById('loggedInStatus');
             const loginBoxDiv = document.getElementById('loginBox');
@@ -147,12 +290,6 @@ async function updateHeaderAuthStatus() {
             });
             
             if (loggedInDiv && loginBoxDiv && userNameDisplay) {
-                // Get user info from session
-                const user = session.user || {};
-                const fullName = user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim();
-                const displayName = fullName || 'User';
-                const sasId = session.sas_id || '';
-                
                 console.log('[DEBUG] updateHeaderAuthStatus: User data:', {
                     fullName,
                     displayName,
@@ -177,6 +314,8 @@ async function updateHeaderAuthStatus() {
                 loginBoxDiv.style.display = 'none';
                 console.log('[DEBUG] updateHeaderAuthStatus: Logged in status displayed');
             }
+
+            applySailingLoginAvatarsFromSession(sasId, displayName);
             
             // Update auth button to "Logout" (same button, different text/function)
             // Remove any existing buttons with old IDs first
@@ -231,7 +370,9 @@ async function updateHeaderAuthStatus() {
             // Trigger page content update if function exists
             safeUpdatePageContentSync();
         } else {
+            sailingSyncSuperAdminBodyClass({ valid: false });
             console.log('[DEBUG] updateHeaderAuthStatus: No valid session, showing login box');
+            clearSailingLoginAvatars();
             // Show login box or "Your Sailing Results" button
             const loggedInDiv = document.getElementById('loggedInStatus');
             const loginBoxDiv = document.getElementById('loginBox');
@@ -388,6 +529,7 @@ async function updateHeaderAuthStatus() {
             safeUpdatePageContentSync();
         }
     } catch (error) {
+        sailingSyncSuperAdminBodyClass({ valid: false });
         console.error('[DEBUG] updateHeaderAuthStatus: Error:', error);
         console.error('[DEBUG] updateHeaderAuthStatus: Stack trace:', error.stack);
         // Show login box on error
