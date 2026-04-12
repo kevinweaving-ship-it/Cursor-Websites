@@ -9912,6 +9912,84 @@ def api_events_public_list(
             out = valid + fallback
             if len(out) < 10:
                 out = out
+            # Hub blank69: calendar query window (see WHERE above) can omit regattas that still have SA hub badges
+            # (e.g. Archive from last season). Inject synthetic rows so buildCandidateList + slot matchers see them.
+            try:
+                if table_exists("regattas") and column_exists("regattas", "blank_hub_news_badge_label"):
+                    have_hub = {(it.get("regatta_id") or "").strip() for it in out if (it.get("regatta_id") or "").strip()}
+                    rs_sel = "0::int"
+                    en_sel = "0::int"
+                    pc_sel = "NULL::int"
+                    if has_rb:
+                        rs_sel = (
+                            "(SELECT COALESCE(SUM(COALESCE(rb.races_sailed, 0)), 0)::int FROM regatta_blocks rb "
+                            "WHERE rb.regatta_id = r.regatta_id)"
+                        )
+                        pc_sel = (
+                            "(SELECT rb.class_id FROM regatta_blocks rb WHERE rb.regatta_id = r.regatta_id "
+                            "ORDER BY rb.block_id NULLS LAST LIMIT 1)"
+                        )
+                    if has_res:
+                        en_sel = (
+                            "(SELECT COUNT(*)::int FROM results res WHERE res.regatta_id = r.regatta_id "
+                            "AND res.raced = TRUE)"
+                        )
+                    cur.execute(
+                        f"""
+                        SELECT r.regatta_id, r.event_name, r.start_date, r.end_date, r.blank_hub_news_badge_label,
+                               {rs_sel} AS races_sailed,
+                               {en_sel} AS entries,
+                               {pc_sel} AS podium_class_id
+                        FROM regattas r
+                        WHERE TRIM(COALESCE(r.blank_hub_news_badge_label, '')) <> ''
+                        """
+                    )
+
+                    def _hub_inj_date_iso(d):
+                        if d is None:
+                            return None
+                        if hasattr(d, "isoformat"):
+                            try:
+                                return d.isoformat()
+                            except Exception:
+                                pass
+                        s = str(d)
+                        return s[:10] if s else None
+
+                    for raw in cur.fetchall() or []:
+                        rid = str(raw.get("regatta_id") or "").strip()
+                        if not rid or rid in have_hub:
+                            continue
+                        have_hub.add(rid)
+
+                        sd = raw.get("start_date")
+                        ed = raw.get("end_date")
+                        sd_iso = _hub_inj_date_iso(sd)
+                        ed_iso = _hub_inj_date_iso(ed) or sd_iso
+                        pcid = raw.get("podium_class_id")
+                        item_inj = {
+                            "event_name": raw.get("event_name"),
+                            "start_date": sd_iso,
+                            "end_date": ed_iso,
+                            "races_sailed": int(raw.get("races_sailed") or 0),
+                            "entries": int(raw.get("entries") or 0),
+                            "regatta_id": rid,
+                            "has_regatta": True,
+                            "blank_hub_news_badge_label": raw.get("blank_hub_news_badge_label"),
+                            "hub_injected_tagged_regatta": True,
+                        }
+                        if has_category:
+                            item_inj["category"] = None
+                        if pcid is not None:
+                            try:
+                                item_inj["podium_class_id"] = int(pcid)
+                            except (TypeError, ValueError):
+                                item_inj["podium_class_id"] = None
+                        else:
+                            item_inj["podium_class_id"] = None
+                        out.append(item_inj)
+            except Exception as e_hub_inj:
+                print(f"[api_events_public_list] hub tagged regatta inject: {e_hub_inj}", flush=True)
             series_map = _yearly_series_distinct_year_counts_map()
             max_by_sk, hist_by_sk = _yearly_series_max_and_history_maps()
             for item in out:
@@ -9924,6 +10002,26 @@ def api_events_public_list(
                 item["prior_year"] = py
                 item["entries_prior_year"] = pe
                 item["entries_for_sort"] = max(int(item.get("entries") or 0), emax)
+            # So hub JS can prioritize slots (Top/News/Archive/Breaking) by DB badge on linked regatta.
+            if table_exists("regattas") and column_exists("regattas", "blank_hub_news_badge_label"):
+                rids_h = sorted({(item.get("regatta_id") or "").strip() for item in out if (item.get("regatta_id") or "").strip()})
+                if rids_h:
+                    try:
+                        cur.execute(
+                            "SELECT regatta_id, blank_hub_news_badge_label FROM regattas WHERE regatta_id = ANY(%s)",
+                            (rids_h,),
+                        )
+                        badge_map = {
+                            str(br["regatta_id"]): br.get("blank_hub_news_badge_label")
+                            for br in (cur.fetchall() or [])
+                            if br and br.get("regatta_id") is not None
+                        }
+                        for item in out:
+                            rr = (item.get("regatta_id") or "").strip()
+                            if rr and rr in badge_map and badge_map[rr] is not None:
+                                item["blank_hub_news_badge_label"] = badge_map[rr]
+                    except Exception as e_badge:
+                        print(f"[api_events_public_list] hub badge merge: {e_badge}", flush=True)
             hub_window = _compute_hub_upcoming_window_payload(out, today_iso=date.today().isoformat(), window_days=5, limit=10)
             return {"events": out, "hub_upcoming_window": hub_window}
         return out
@@ -16290,36 +16388,158 @@ def api_regatta_class_entries(regatta_id: str):
     print(f"[TRACE] getRegattaClassEntries({regatta_id}) took {t1-t0:.3f}s ({len(result)} classes)")
     return result
 
-@app.get("/api/regatta/{regatta_id}/results-summary")
-def api_regatta_results_summary(regatta_id: str):
-    if (
-        not table_exists("results")
-        or not table_exists("regatta_blocks")
-        or not column_exists("results", "block_id")
-        or not column_exists("regatta_blocks", "block_id")
-        or not column_exists("regatta_blocks", "class_id")
-    ):
-        return {"classes": []}
-    conn = get_db_connection()
+def _regatta_results_summary_payload(regatta_id: str) -> Optional[dict]:
+    """
+    Public hub / Breaking News card payload: regatta row + fleet_stats + hub hero fields.
+    Matches sailingsa/frontend/js/breaking-news-card.js (fleet_stats, blank_hub_news_*, entries_total, …).
+    """
+    if not table_exists("regattas") or not regatta_id or not str(regatta_id).strip():
+        return None
+    rid = str(regatta_id).strip()
+    conn = None
     try:
-        cur = conn.cursor()
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         try:
+            hub_select = []
+            for col in (
+                "blank_hub_news_badge_label",
+                "blank_hub_news_image_url",
+                "blank_hub_news_show_hero",
+                "blank_hub_news_album",
+                "card_results_url",
+                "card_calendar_url",
+            ):
+                if column_exists("regattas", col):
+                    hub_select.append(f"r.{col}")
+            hub_sql = (", " + ", ".join(hub_select)) if hub_select else ""
             cur.execute(
-                """
-                SELECT rb.class_id, COUNT(*) as entries
-                FROM results r
-                JOIN regatta_blocks rb ON r.block_id = rb.block_id
+                f"""
+                SELECT r.regatta_id, r.event_name, r.start_date, r.end_date,
+                       COALESCE(NULLIF(TRIM(r.result_status), ''), 'Provisional') AS result_status,
+                       r.as_at_time,
+                       r.host_club_id,
+                       hc.club_abbrev AS host_club_code,
+                       COALESCE(hc.club_abbrev, hc.club_fullname) AS host_club_name
+                       {hub_sql}
+                FROM regattas r
+                LEFT JOIN clubs hc ON hc.club_id = r.host_club_id
                 WHERE r.regatta_id = %s
-                GROUP BY rb.class_id
+                LIMIT 1
                 """,
-                (regatta_id,),
+                (rid,),
             )
-            rows = cur.fetchall() or []
-            return {"classes": [{"class_id": r[0], "entries": r[1]} for r in rows]}
+            reg = cur.fetchone()
+            if not reg:
+                return None
+            out = dict(reg)
+            out["result_name"] = (out.get("event_name") or "").strip() or None
+            # ISO dates for JSON
+            for dk in ("start_date", "end_date"):
+                v = out.get(dk)
+                if v is not None and hasattr(v, "isoformat"):
+                    out[dk] = v.isoformat()
+                elif v is not None:
+                    out[dk] = str(v)[:10]
+            at = out.get("as_at_time")
+            if at is not None and hasattr(at, "isoformat"):
+                out["as_at_time"] = at.isoformat()
+            elif at is not None:
+                out["as_at_time"] = str(at)
+
+            # Album JSON (text/jsonb)
+            if "blank_hub_news_album" in out:
+                raw_al = out.get("blank_hub_news_album")
+                if isinstance(raw_al, str) and raw_al.strip():
+                    try:
+                        out["blank_hub_news_album"] = json.loads(raw_al)
+                    except Exception:
+                        out["blank_hub_news_album"] = []
+                elif raw_al is None:
+                    out["blank_hub_news_album"] = []
+                elif not isinstance(raw_al, list):
+                    out["blank_hub_news_album"] = []
+
+            entries_total = 0
+            races_total = 0
+            fleet_stats: list = []
+            if (
+                table_exists("results")
+                and table_exists("regatta_blocks")
+                and column_exists("results", "block_id")
+                and column_exists("regatta_blocks", "block_id")
+            ):
+                cur.execute(
+                    """
+                    SELECT COUNT(*)::int AS n FROM results WHERE regatta_id = %s AND raced IS TRUE
+                    """,
+                    (rid,),
+                )
+                er = cur.fetchone()
+                entries_total = int(er["n"]) if er and er.get("n") is not None else 0
+                cur.execute(
+                    """
+                    SELECT COALESCE(SUM(COALESCE(races_sailed, 0)), 0)::int AS n
+                    FROM regatta_blocks WHERE regatta_id = %s
+                    """,
+                    (rid,),
+                )
+                rr = cur.fetchone()
+                races_total = int(rr["n"]) if rr and rr.get("n") is not None else 0
+
+                cur.execute(
+                    """
+                    SELECT
+                        rb.class_id,
+                        rb.fleet_label,
+                        COALESCE(cls.class_name, rb.class_canonical, rb.class_original) AS class_name,
+                        COUNT(DISTINCT CASE WHEN res.raced IS TRUE THEN res.result_id END)::int AS entries
+                    FROM regatta_blocks rb
+                    LEFT JOIN classes cls ON cls.class_id = rb.class_id
+                    LEFT JOIN results res ON res.block_id = rb.block_id AND res.regatta_id = %s
+                    WHERE rb.regatta_id = %s
+                    GROUP BY rb.block_id, rb.class_id, rb.fleet_label, cls.class_name, rb.class_canonical, rb.class_original
+                    ORDER BY rb.block_id NULLS LAST
+                    """,
+                    (rid, rid),
+                )
+                for fr in cur.fetchall() or []:
+                    ent = int(fr.get("entries") or 0)
+                    cn = (fr.get("class_name") or "").strip() or None
+                    fl = (fr.get("fleet_label") or "").strip() or None
+                    cid = fr.get("class_id")
+                    fleet_stats.append(
+                        {
+                            "class_id": int(cid) if cid is not None else None,
+                            "fleet_label": fl,
+                            "class_name": cn,
+                            "boat_class_name": cn,
+                            "entries": ent,
+                        }
+                    )
+            out["entries_total"] = entries_total
+            out["races_total"] = races_total
+            out["fleet_stats"] = fleet_stats
+            # Legacy tiny shape some callers still read
+            out["classes"] = [{"class_id": fs.get("class_id"), "entries": fs.get("entries")} for fs in fleet_stats if (fs.get("entries") or 0) > 0]
+            return out
         finally:
             cur.close()
+    except Exception as e:
+        print(f"[_regatta_results_summary_payload] {e}", flush=True)
+        traceback.print_exc()
+        return None
     finally:
-        return_db_connection(conn)
+        if conn:
+            return_db_connection(conn)
+
+
+@app.get("/api/regatta/{regatta_id}/results-summary")
+def api_regatta_results_summary(regatta_id: str):
+    payload = _regatta_results_summary_payload(regatta_id)
+    if payload is None:
+        raise HTTPException(status_code=404, detail="Regatta not found")
+    return payload
 
 @app.get("/api/regatta/{regatta_id}")
 def api_regatta(regatta_id: str, request: Request = None):
@@ -16327,7 +16547,12 @@ def api_regatta(regatta_id: str, request: Request = None):
     t0 = time.time()
     print(f"[TRACE] getRegatta({regatta_id}) START")
     try:
-        rows = q("""
+        _hub_badge_sql = (
+            "r.blank_hub_news_badge_label,\n                "
+            if column_exists("regattas", "blank_hub_news_badge_label")
+            else ""
+        )
+        rows = q(f"""
             SELECT 
                 r.regatta_id,
                 r.event_name,
@@ -16341,7 +16566,7 @@ def api_regatta(regatta_id: str, request: Request = None):
                 r.host_club_id,
             c.club_abbrev as host_club_code,
             COALESCE(c.club_abbrev, c.club_fullname) as host_club_name,
-            rb.block_id,
+                {_hub_badge_sql}rb.block_id,
             rb.fleet_label,
             rb.class_canonical,
                 rb.class_original,
@@ -16393,14 +16618,14 @@ def api_regatta(regatta_id: str, request: Request = None):
                     """, (first_part,))
                     if rows and rows[0]:
                         resolved_id = str(rows[0].get("regatta_id") or first_part)
-                        rows = q("""
+                        rows = q(f"""
                             SELECT 
                                 r.regatta_id, r.event_name, r.year, r.regatta_number,
                                 COALESCE(NULLIF(TRIM(r.result_status), ''), NULLIF(TRIM(res.result_status), ''), 'Final') AS result_status,
                                 COALESCE(r.as_at_time::timestamptz, res.as_at_time::timestamptz) AS as_at_time,
                                 r.host_club_id,
                                 c.club_abbrev as host_club_code, COALESCE(c.club_abbrev, c.club_fullname) as host_club_name,
-                                rb.block_id, rb.fleet_label, rb.class_canonical, rb.class_original, rb.races_sailed, rb.discard_count, rb.to_count, rb.scoring_system,
+                                {_hub_badge_sql}rb.block_id, rb.fleet_label, rb.class_canonical, rb.class_original, rb.races_sailed, rb.discard_count, rb.to_count, rb.scoring_system,
                                 res.result_id, res.rank, res.helm_name, res.crew_name, res.sail_number, res.club_raw, res.club_id, c2.club_abbrev as club_abbrev,
                                 COALESCE(c2.club_abbrev, c2.club_fullname) as club_fullname,
                                 res.race_scores, res.total_points_raw, res.nett_points_raw, res.helm_sa_sailing_id, res.crew_sa_sailing_id, res.helm_temp_id, res.crew_temp_id,
@@ -16636,13 +16861,16 @@ def api_regatta_podium_png(regatta_id: str, class_name: str = Query(..., alias="
 def _filter_regatta_rows_by_class(rows: list, class_id: str):
     """Filter regatta rows (from api_regatta) to those matching class_id.
 
-    class_id may be: regatta_blocks.block_id, classes.class_id (numeric — same as
-    /api/events podium_class_id), or a class name fragment.
+    Hub / Breaking News pills send ``classes.class_id`` (digits). For that case we match **only**
+    ``result_class_id`` — substring and ``block_id`` matching caused mixed fleets (e.g. 420 + Dabchick).
+
+    Non-numeric ``class_id`` (legacy callers): block_id, exact name, then cautious substring.
     """
     if not rows or not class_id:
         return []
     class_id = str(class_id).strip()
     class_id_lower = class_id.lower()
+    is_numeric_class_id = class_id.isdigit()
     out = []
     for r in rows:
         if not r.get("result_id"):
@@ -16650,6 +16878,10 @@ def _filter_regatta_rows_by_class(rows: list, class_id: str):
         block_id = (r.get("block_id") or "").strip()
         class_canonical = (r.get("class_name") or r.get("class_original") or "").strip()
         res_cls = r.get("result_class_id")
+        if is_numeric_class_id:
+            if res_cls is not None and str(res_cls).strip() == class_id:
+                out.append(r)
+            continue
         if res_cls is not None and str(res_cls).strip() == class_id:
             out.append(r)
             continue
@@ -19133,6 +19365,11 @@ async def api_admin_hub_hero_put(request: Request, body: dict = Body(...)):
 # Pilot regatta slug: super-admin tools on standalone sheet (must exist before WC header-icon helpers).
 WC_DINGHY_CHAMPS_REGATTA_SLUG = "live-2026-wc-dinghy-champs-sbyc"
 
+# regattas.blank_hub_news_badge_label — must match _regatta_sa_toolbar_html <option value="…">.
+_BLANK_HUB_NEWS_BADGE_LABELS_ALLOWED = frozenset(
+    {"Breaking News", "Top News", "News", "Archive", "Upcoming Event"}
+)
+
 
 def _wc_regatta_header_icons_json_path() -> Path:
     return Path(_static_dir()) / "data" / "wc_regatta_header_icons.json"
@@ -19603,6 +19840,59 @@ async def api_super_admin_regatta_event_name_patch(request: Request, regatta_id:
         cur.close()
         return_db_connection(conn)
     return {"ok": True, "event_name": name}
+
+
+@app.post("/api/super-admin/regatta/{regatta_id}/breaking-news-meta")
+@app.patch("/api/super-admin/regatta/{regatta_id}/breaking-news-meta")
+async def api_super_admin_regatta_breaking_news_meta(request: Request, regatta_id: str, body: dict = Body(...)):
+    """Super admin: set regattas.blank_hub_news_badge_label (hub / blank69 result card placement)."""
+    if not _session_role_is_super_admin(request):
+        raise HTTPException(status_code=403, detail="super_admin only")
+    rid = str(regatta_id).strip()
+    if not rid:
+        raise HTTPException(status_code=400, detail="regatta_id required")
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="JSON object expected")
+    raw = body.get("blank_hub_news_badge_label")
+    if raw is None:
+        val = None
+    elif isinstance(raw, str):
+        s = raw.strip()
+        if not s or s.lower() in ("none", "null"):
+            val = None
+        else:
+            val = s
+    else:
+        raise HTTPException(status_code=400, detail="blank_hub_news_badge_label must be string or null")
+    if val is not None and val not in _BLANK_HUB_NEWS_BADGE_LABELS_ALLOWED:
+        raise HTTPException(status_code=400, detail="invalid blank_hub_news_badge_label")
+    if not table_exists("regattas"):
+        raise HTTPException(status_code=500, detail="regattas table missing")
+    if not column_exists("regattas", "blank_hub_news_badge_label"):
+        raise HTTPException(status_code=500, detail="blank_hub_news_badge_label column missing")
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            "UPDATE regattas SET blank_hub_news_badge_label = %s WHERE regatta_id = %s",
+            (val, rid),
+        )
+        n = cur.rowcount
+        if n == 0:
+            conn.rollback()
+            raise HTTPException(status_code=404, detail="regatta not found")
+        conn.commit()
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        print(f"[api_super_admin_regatta_breaking_news_meta] {e}", flush=True)
+        raise HTTPException(status_code=500, detail="database error")
+    finally:
+        cur.close()
+        return_db_connection(conn)
+    return {"ok": True, "blank_hub_news_badge_label": val}
 
 
 @app.get("/api/super-admin/clubs-search")
@@ -23031,27 +23321,36 @@ _REGATTA_STANDALONE_HEADER_LOGO_HTML = (
 )
 
 
-def _wc_super_admin_regatta_toolbar_html(regatta_id: str) -> str:
-    """Toolbar HTML+script: Public | toggle | Super Admin (edit). Default on load: Super Admin (edit); slide off for Public. Gated by slug + super_admin."""
-    key_js = json.dumps("sailsa_regatta_sa_edit_" + str(regatta_id))
+def _regatta_sa_toolbar_html(regatta_id: str) -> str:
+    """Public | Super Admin toggle + News type → POST …/breaking-news-meta (regattas.blank_hub_news_badge_label). Behaviour: /js/regatta-sa-toolbar.js."""
+    rid_esc = html_module.escape(str(regatta_id))
+    ls_key_esc = html_module.escape("sailsa_regatta_sa_edit_" + str(regatta_id))
     return (
-        '<div class="regatta-sa-mode-wrap" id="regattaSaModeWrap">'
+        '<div class="regatta-sa-mode-wrap" id="regattaSaModeWrap"'
+        f' data-regatta-id="{rid_esc}" data-ls-key="{ls_key_esc}">'
         '<span class="regatta-sa-mode-text regatta-sa-mode-text--public">Public</span>'
         '<label class="regatta-sa-switch" title="Off = Public view, On = Super Admin (edit) — default is edit">'
         '<input type="checkbox" id="regattaSaEditToggle" autocomplete="off" checked aria-label="Super Admin edit mode on; uncheck for Public view">'
         '<span class="regatta-sa-slider" aria-hidden="true"></span>'
         "</label>"
         '<span class="regatta-sa-mode-text regatta-sa-mode-text--edit" title="Super Admin (edit mode)">Super Admin (edit)</span>'
+        '<label class="regatta-hub-news-type-label" for="regattaHubNewsType">News type</label>'
+        '<select id="regattaHubNewsType" class="regatta-hub-news-type-select" name="blank_hub_news_badge_label" '
+        'aria-label="Hub card placement on sailing hub">'
+        "<option value=\"\">— Not set —</option>"
+        '<option value="Breaking News">Breaking News</option>'
+        '<option value="Top News">Top News</option>'
+        '<option value="News">News</option>'
+        '<option value="Archive">Archive</option>'
+        '<option value="Upcoming Event">Upcoming Event</option>'
+        "</select>"
         "</div>"
-        "<script>(function(){var k=%s;var p=document.querySelector('.regatta-page');var i=document.getElementById('regattaSaEditToggle');"
-        "if(!p||!i)return;function apply(){var o=i.checked;p.classList.toggle('regatta-page--super-admin-edit',o);"
-        "if(typeof window.__wcInitFleetAutocomplete==='function')window.__wcInitFleetAutocomplete();"
-        "if(typeof window.__wcBindAllFleetSaves==='function')window.__wcBindAllFleetSaves();"
-        "try{localStorage.setItem(k,o?'1':'0');}catch(e){}}"
-        "function load(){try{var v=localStorage.getItem(k);if(v==='0')i.checked=false;else i.checked=true;}catch(e){i.checked=true}"
-        "apply()}"
-        "load();i.addEventListener('change',apply);window.addEventListener('pageshow',function(e){if(e.persisted)load();});})();</script>" % key_js
     )
+
+
+def _wc_super_admin_regatta_toolbar_html(regatta_id: str) -> str:
+    """Alias for _regatta_sa_toolbar_html (WC + all standalone regatta Results URLs)."""
+    return _regatta_sa_toolbar_html(regatta_id)
 
 
 def _wc_regatta_name_editor_fragment(display_name: str, regatta_id: str) -> str:
@@ -23714,6 +24013,8 @@ _RESULT_SHEET_CSS = (
     ".regatta-sa-mode-wrap:has(#regattaSaEditToggle:checked) .regatta-sa-mode-text--edit{opacity:1;color:#0b2c4d}"
     ".regatta-sa-mode-wrap:not(:has(#regattaSaEditToggle:checked)) .regatta-sa-mode-text--public{opacity:1;color:#0b2c4d}"
     ".regatta-sa-mode-wrap:not(:has(#regattaSaEditToggle:checked)) .regatta-sa-mode-text--edit{opacity:0.5}"
+    ".regatta-hub-news-type-label{font-size:13px;font-weight:700;color:#1a2750;margin-left:6px}"
+    ".regatta-hub-news-type-select{font-size:13px;font-weight:600;color:#0b2c4d;padding:6px 10px;border:2px solid #93c5fd;border-radius:8px;background:#ffffff;min-width:160px;max-width:min(100%,280px)}"
     ".regatta-sa-switch{position:relative;display:inline-block;width:48px;height:28px;flex-shrink:0}"
     ".regatta-sa-switch input{opacity:0;width:0;height:0;position:absolute}"
     ".regatta-sa-slider{position:absolute;cursor:pointer;inset:0;background:#cbd5e1;border-radius:999px;transition:background .2s}"
@@ -25864,11 +26165,11 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
         use_wc_cols = str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG
         is_sa = _session_role_is_super_admin(request)
         back_link = f'<a href="/regatta/{html_module.escape(regatta_id)}" class="back-to-home">← Back to full regatta</a>'
-        if use_wc_cols and is_sa:
+        if is_sa:
             back_block = (
                 '<div class="regatta-back-row">'
                 + back_link
-                + _wc_super_admin_regatta_toolbar_html(str(regatta_id))
+                + _regatta_sa_toolbar_html(str(regatta_id))
                 + "</div>"
             )
         else:
@@ -25940,6 +26241,7 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
             if str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG and is_sa
             else ""
         )
+        sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js" defer></script>' if is_sa else ""
         doc = (
             "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
             f"{html_module.escape(class_name)} – {escaped_title} | SailingSA</title>"
@@ -25949,7 +26251,7 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
             "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
             f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
             f"<style>{_RESULT_SHEET_CSS}</style></head><body>"
-            f"<div class=\"regatta-page\">{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script_c}"
+            f"<div class=\"regatta-page\">{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script_c}{sa_toolbar_js}"
             "</body></html>"
         )
         return HTMLResponse(doc)
@@ -25996,14 +26298,19 @@ def serve_regatta_standalone(slug: str, request: Request):
             if host_club_slug and host_club_text
             else esc_host
         )
+        is_sa = _session_role_is_super_admin(request)
+        is_wc = str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG
         back_link = '<a href="/" class="back-to-home">← Back to Search</a>'
-        if str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG and _session_role_is_super_admin(request):
+        if is_sa:
             back_block = (
                 '<div class="regatta-back-row">'
                 + back_link
-                + _wc_super_admin_regatta_toolbar_html(str(regatta_id))
+                + _regatta_sa_toolbar_html(str(regatta_id))
                 + "</div>"
             )
+        else:
+            back_block = back_link
+        if is_wc and is_sa:
             name_html = _wc_regatta_name_editor_fragment(display_name, str(regatta_id))
             # Public / SA-off-edit: real <a> navigates. SA edit mode: button only (no navigation) — wire to host picker when present.
             if host_club_slug and host_club_text:
@@ -26024,14 +26331,13 @@ def serve_regatta_standalone(slug: str, request: Request):
             host_row += _wc_regatta_host_picker_fragment(str(regatta_id))
             host_row += _wc_regatta_fleet_picker_fragment(str(regatta_id))
         else:
-            back_block = back_link
             name_html = f'<div class="regatta-name">{escaped_title}</div>'
             host_row = f'<div class="host-club">Host: {host_club_html}</div>'
         lu, ru = _wc_regatta_header_icon_urls(str(regatta_id))
         left_logo_col = _regatta_standalone_left_logo_column_html(lu)
         right_logo_col = _regatta_standalone_right_logo_column_html(host_club_abbrev, host_club_slug, ru)
         wc_icons_frag = ""
-        if str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG and _session_role_is_super_admin(request):
+        if is_wc and is_sa:
             wc_icons_frag = _wc_regatta_header_icon_editor_fragment(str(regatta_id), lu, ru)
         header_html = (
             '<div class="regatta-header-wrap">'
@@ -26086,7 +26392,6 @@ def serve_regatta_standalone(slug: str, request: Request):
                 "address": address,
             }
         use_wc_cols = str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG
-        is_sa = _session_role_is_super_admin(request)
         wc_prefs = _merge_wc_column_prefs_for_regatta(str(regatta_id)) if use_wc_cols else None
         sa_columns_frag = ""
         if use_wc_cols and is_sa:
@@ -26134,6 +26439,7 @@ def serve_regatta_standalone(slug: str, request: Request):
             if str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG and is_sa
             else ""
         )
+        sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js" defer></script>' if is_sa else ""
         doc = (
             "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
             f"{escaped_title} | SailingSA</title>"
@@ -26143,7 +26449,7 @@ def serve_regatta_standalone(slug: str, request: Request):
             "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
             f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
             f"<style>{_RESULT_SHEET_CSS}</style></head><body>"
-            f"<div class=\"regatta-page\">{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script}"
+            f"<div class=\"regatta-page\">{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script}{sa_toolbar_js}"
             "</body></html>"
         )
         print("REGATTA: total route time", round(time.time() - start_time, 3))
