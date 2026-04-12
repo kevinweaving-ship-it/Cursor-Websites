@@ -1,5 +1,6 @@
 # SailingSA — Cursor UI rules
 
+- **Master Header (hub v10 — `.admin-v10-second-header`, `js/blank-landing-header.js`): LOCKED.** Do not edit unless the user explicitly authorizes in the same request. See **`.cursor/rules/master-header-locked.mdc`**.
 - **Never modify header or navigation layout.** Header (`.site-header`) and all nav links must stay as-is; header links must remain white on dark background.
 - **Always reuse existing components.** Use `.container`, `.card`, `.table`, `.table-container`, `.section-title`; use `buildMasterPageLayout(container, opts)` for Regatta/Sailor/Class/Club pages.
 - **Do not invent new CSS frameworks or styles.** Follow **`docs/design_system.md`** and **`sailingsa/frontend/css/main.css`** strictly.

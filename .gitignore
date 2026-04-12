@@ -279,3 +279,9 @@ secrets/
 
 # Full live server rsync mirror (large; do not push to GitHub)
 live-www-sailingsa/
+live-www-sailingsa/
+backup_original/
+*.zip
+*.tar.gz
+*.sql
+*.log

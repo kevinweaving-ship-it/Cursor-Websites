@@ -1,0 +1,15 @@
+#!/usr/bin/expect -f
+set timeout 120
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+set web_root "/var/www/sailingsa"
+
+# Install unzip if missing, then extract
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "apt-get update -qq && apt-get install -y unzip >/dev/null 2>&1; cd $web_root && unzip -o /tmp/sailingsa-frontend.zip && rm -f /tmp/sailingsa-frontend.zip && chown -R www-data:www-data $web_root 2>/dev/null; ls -la index.html robots.txt sitemap.xml"
+expect {
+    "password:" { send "$password\r"; exp_continue }
+    eof { }
+    timeout { puts "ERROR: timeout"; exit 1 }
+}
+wait

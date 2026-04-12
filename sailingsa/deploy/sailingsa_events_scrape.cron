@@ -1,0 +1,7 @@
+# Daily SAS Events list scrape at 03:00 UTC.
+# Install: sudo cp sailingsa/deploy/sailingsa_events_scrape.cron /etc/cron.d/sailingsa_events_scrape
+# Script: /var/www/sailingsa/deploy/run-daily-events-scrape.sh --on-server
+# Scraper: /var/www/sailingsa/scripts/scrape_sas_events_list.py
+SHELL=/bin/bash
+PATH=/usr/bin:/bin
+0 3 * * * root /var/www/sailingsa/deploy/run-daily-events-scrape.sh --on-server

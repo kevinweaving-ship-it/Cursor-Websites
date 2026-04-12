@@ -10,6 +10,26 @@ function sailingsaIsClassSpaPath() {
     }
 }
 
+/**
+ * Hub pages where js/blank-landing-header.js exclusively owns #loginBox and #adminV10SecondHeader*.
+ * session.js must not paint header auth, run ensureButtonText on #loginBox, or set admin header avatars here.
+ * Opt-in: body data-sailingsa-hub-header-isolated="1" and/or pathname …/blank69…
+ */
+function sailingsaHubHeaderOwnedByBlankLandingJs() {
+    try {
+        if (typeof window !== 'undefined' && window.location && String(window.location.pathname || '').indexOf('blank69') !== -1) {
+            return true;
+        }
+    } catch (e1) { /* ignore */ }
+    try {
+        if (typeof document !== 'undefined' && document.body && document.body.getAttribute('data-sailingsa-hub-header-isolated') === '1') {
+            return true;
+        }
+    } catch (e2) { /* ignore */ }
+    return false;
+}
+window.sailingsaHubHeaderOwnedByBlankLandingJs = sailingsaHubHeaderOwnedByBlankLandingJs;
+
 /** Skip updatePageContent on class routes — header-triggered updates must not replace class view with sailor home. */
 function safeUpdatePageContentSync() {
     if (typeof updatePageContent !== 'function') return;
@@ -119,7 +139,11 @@ function applySailingAvatarToImg(imgEl, sasId, fullName, opts) {
 
 function applySailingLoginAvatarsFromSession(sasId, displayName) {
     const apiBase = (window.API_BASE || '').replace(/\/$/, '');
-    ['userAvatarImg', 'adminV10SecondHeaderAvatar'].forEach(function (tid) {
+    const ids =
+        typeof sailingsaHubHeaderOwnedByBlankLandingJs === 'function' && sailingsaHubHeaderOwnedByBlankLandingJs()
+            ? ['userAvatarImg']
+            : ['userAvatarImg', 'adminV10SecondHeaderAvatar'];
+    ids.forEach(function (tid) {
         const el = document.getElementById(tid);
         if (el) {
             applySailingAvatarToImg(el, sasId, displayName, {
@@ -132,7 +156,11 @@ function applySailingLoginAvatarsFromSession(sasId, displayName) {
 }
 
 function clearSailingLoginAvatars() {
-    ['userAvatarImg', 'adminV10SecondHeaderAvatar'].forEach(function (tid) {
+    const ids =
+        typeof sailingsaHubHeaderOwnedByBlankLandingJs === 'function' && sailingsaHubHeaderOwnedByBlankLandingJs()
+            ? ['userAvatarImg']
+            : ['userAvatarImg', 'adminV10SecondHeaderAvatar'];
+    ids.forEach(function (tid) {
         const el = document.getElementById(tid);
         if (!el) return;
         el.removeAttribute('src');
@@ -267,108 +295,151 @@ function sailingSyncSuperAdminBodyClass(sessionLike) {
  */
 async function updateHeaderAuthStatus() {
     console.log('[DEBUG] updateHeaderAuthStatus: Called');
+    if (typeof sailingsaHubHeaderOwnedByBlankLandingJs === 'function' && sailingsaHubHeaderOwnedByBlankLandingJs()) {
+        return;
+    }
     try {
         const session = await checkSession();
         sailingSyncSuperAdminBodyClass(session);
         console.log('[DEBUG] updateHeaderAuthStatus: Session data:', session);
-        
-        if (session.valid) {
-            const user = session.user || {};
-            const fullName = user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim();
-            const displayName = fullName || 'User';
-            const sasId = session.sas_id || '';
 
-            // Show logged in status
-            const loggedInDiv = document.getElementById('loggedInStatus');
-            const loginBoxDiv = document.getElementById('loginBox');
-            const userNameDisplay = document.getElementById('userNameDisplay');
-            
-            console.log('[DEBUG] updateHeaderAuthStatus: Elements found:', {
-                loggedInDiv: !!loggedInDiv,
-                loginBoxDiv: !!loginBoxDiv,
-                userNameDisplay: !!userNameDisplay
-            });
-            
-            if (loggedInDiv && loginBoxDiv && userNameDisplay) {
-                console.log('[DEBUG] updateHeaderAuthStatus: User data:', {
-                    fullName,
-                    displayName,
-                    sasId,
-                    user
+        /**
+         * blank69 (and any blank hub using admin-v10 header): visible auth is ONLY
+         * `#adminV10SecondHeaderUser` from blank-landing-header.js — same `/auth/session` as `/`.
+         * When logged in, bail out before any Sign In / `#authBtn` logic so we never stack Sign In + Logout.
+         */
+        try {
+            const v10Wrap = document.getElementById('adminV10SecondHeaderUser');
+            const isBlankHub =
+                document.body &&
+                document.body.classList &&
+                document.body.classList.contains('blank-landing-page') &&
+                document.body.classList.contains('admin-dashboard-v10');
+            if (session && session.valid && v10Wrap && isBlankHub) {
+                const lbHub = document.getElementById('loginBox');
+                if (lbHub) {
+                    lbHub.style.display = 'none';
+                    lbHub.innerHTML = '';
+                }
+                return;
+            }
+        } catch (eHubEarly) {
+            /* continue with normal branches */
+        }
+
+        if (session.valid) {
+            /**
+             * blank69 / hub: safeUpdatePageContentSync → updatePageContent can throw (no full SPA).
+             * That must NOT hit the outer catch, which paints "Sign In" while syncAdminV10SecondHeader still shows Logout.
+             */
+            try {
+                const user = session.user || {};
+                const fullName = user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim();
+                const displayName = fullName || 'User';
+                const sasId = session.sas_id || '';
+
+                // Show logged in status
+                const loggedInDiv = document.getElementById('loggedInStatus');
+                const loginBoxDiv = document.getElementById('loginBox');
+                const userNameDisplay = document.getElementById('userNameDisplay');
+                
+                console.log('[DEBUG] updateHeaderAuthStatus: Elements found:', {
+                    loggedInDiv: !!loggedInDiv,
+                    loginBoxDiv: !!loginBoxDiv,
+                    userNameDisplay: !!userNameDisplay
                 });
                 
-                // Display name only (white) - Welcome removed
-                userNameDisplay.innerHTML = `<span class="user-name-value">${displayName}</span>`;
+                // Always hide public Sign In slot when session is valid (blank69 v10 row shows Logout).
+                if (loginBoxDiv) {
+                    loginBoxDiv.style.display = 'none';
+                }
+
+                if (loggedInDiv && userNameDisplay) {
+                    console.log('[DEBUG] updateHeaderAuthStatus: User data:', {
+                        fullName,
+                        displayName,
+                        sasId,
+                        user
+                    });
+                    
+                    // Display name only (white) - Welcome removed
+                    userNameDisplay.innerHTML = `<span class="user-name-value">${displayName}</span>`;
+                    
+                    // Display SAS ID if available
+                    const sasIdDisplay = document.getElementById('userSasIdDisplay');
+                    if (sasIdDisplay) {
+                        if (sasId) {
+                            sasIdDisplay.innerHTML = `SAS ID: <span class="sas-id-value">${sasId}</span>`;
+                        } else {
+                            sasIdDisplay.textContent = '';
+                        }
+                    }
+                    
+                    loggedInDiv.style.display = 'flex';
+                    console.log('[DEBUG] updateHeaderAuthStatus: Logged in status displayed');
+                }
+
+                applySailingLoginAvatarsFromSession(sasId, displayName);
                 
-                // Display SAS ID if available
-                const sasIdDisplay = document.getElementById('userSasIdDisplay');
-                if (sasIdDisplay) {
-                    if (sasId) {
-                        sasIdDisplay.innerHTML = `SAS ID: <span class="sas-id-value">${sasId}</span>`;
-                    } else {
-                        sasIdDisplay.textContent = '';
+                // Update auth button to "Logout" (same button, different text/function)
+                // Remove any existing buttons with old IDs first
+                const oldLogoutBtn = document.getElementById('logoutBtn');
+                const oldLoginBtn = document.getElementById('loginBtn');
+                if (oldLogoutBtn) {
+                    oldLogoutBtn.remove();
+                }
+                if (oldLoginBtn) {
+                    oldLoginBtn.remove();
+                }
+                
+                let authBtn = document.getElementById('authBtn');
+                if (!authBtn) {
+                    // Create button if it doesn't exist
+                    authBtn = document.createElement('button');
+                    authBtn.id = 'authBtn';
+                }
+                
+                // Update button properties for logged in state
+                authBtn.textContent = 'Logout';
+                authBtn.className = 'btn-logout';
+                
+                // Move button to loggedInStatus if not already there
+                const loggedInDivForBtn = document.getElementById('loggedInStatus');
+                if (loggedInDivForBtn) {
+                    // Remove button from any other parent first
+                    if (authBtn.parentNode && authBtn.parentNode !== loggedInDivForBtn) {
+                        authBtn.parentNode.removeChild(authBtn);
+                    }
+                    // Add to loggedInStatus if not already there
+                    if (!loggedInDivForBtn.contains(authBtn)) {
+                        loggedInDivForBtn.appendChild(authBtn);
                     }
                 }
                 
-                loggedInDiv.style.display = 'flex';
-                loginBoxDiv.style.display = 'none';
-                console.log('[DEBUG] updateHeaderAuthStatus: Logged in status displayed');
-            }
-
-            applySailingLoginAvatarsFromSession(sasId, displayName);
-            
-            // Update auth button to "Logout" (same button, different text/function)
-            // Remove any existing buttons with old IDs first
-            const oldLogoutBtn = document.getElementById('logoutBtn');
-            const oldLoginBtn = document.getElementById('loginBtn');
-            if (oldLogoutBtn) {
-                oldLogoutBtn.remove();
-            }
-            if (oldLoginBtn) {
-                oldLoginBtn.remove();
-            }
-            
-            let authBtn = document.getElementById('authBtn');
-            if (!authBtn) {
-                // Create button if it doesn't exist
-                authBtn = document.createElement('button');
-                authBtn.id = 'authBtn';
-            }
-            
-            // Update button properties for logged in state
-            authBtn.textContent = 'Logout';
-            authBtn.className = 'btn-logout';
-            
-            // Move button to loggedInStatus if not already there
-            const loggedInDivForBtn = document.getElementById('loggedInStatus');
-            if (loggedInDivForBtn) {
-                // Remove button from any other parent first
-                if (authBtn.parentNode && authBtn.parentNode !== loggedInDivForBtn) {
-                    authBtn.parentNode.removeChild(authBtn);
+                // Remove any existing listeners and add logout listener
+                const newAuthBtn = authBtn.cloneNode(true);
+                if (authBtn.parentNode) {
+                    authBtn.parentNode.replaceChild(newAuthBtn, authBtn);
                 }
-                // Add to loggedInStatus if not already there
-                if (!loggedInDivForBtn.contains(authBtn)) {
-                    loggedInDivForBtn.appendChild(authBtn);
+                newAuthBtn.addEventListener('click', async function(e) {
+                    e.preventDefault();
+                    console.log('[DEBUG] Auth button clicked (Logout)');
+                    if (typeof handleLogout === 'function') {
+                        await handleLogout();
+                    }
+                });
+                
+                // "Your Sailing Results" button removed - no longer needed
+                
+                // Trigger page content update if function exists
+                safeUpdatePageContentSync();
+            } catch (loggedInUiErr) {
+                console.error('[DEBUG] updateHeaderAuthStatus: logged-in UI error (session still valid):', loggedInUiErr);
+                const loginBoxErr = document.getElementById('loginBox');
+                if (loginBoxErr) {
+                    loginBoxErr.style.display = 'none';
                 }
             }
-            
-            // Remove any existing listeners and add logout listener
-            const newAuthBtn = authBtn.cloneNode(true);
-            if (authBtn.parentNode) {
-                authBtn.parentNode.replaceChild(newAuthBtn, authBtn);
-            }
-            newAuthBtn.addEventListener('click', async function(e) {
-                e.preventDefault();
-                console.log('[DEBUG] Auth button clicked (Logout)');
-                if (typeof handleLogout === 'function') {
-                    await handleLogout();
-                }
-            });
-            
-            // "Your Sailing Results" button removed - no longer needed
-            
-            // Trigger page content update if function exists
-            safeUpdatePageContentSync();
         } else {
             sailingSyncSuperAdminBodyClass({ valid: false });
             console.log('[DEBUG] updateHeaderAuthStatus: No valid session, showing login box');
@@ -529,6 +600,19 @@ async function updateHeaderAuthStatus() {
             safeUpdatePageContentSync();
         }
     } catch (error) {
+        try {
+            const sRecover = await checkSession();
+            if (sRecover && sRecover.valid) {
+                sailingSyncSuperAdminBodyClass(sRecover);
+                const lbRec = document.getElementById('loginBox');
+                if (lbRec) {
+                    lbRec.style.display = 'none';
+                }
+                return;
+            }
+        } catch (eRec) {
+            /* fall through to logged-out error UI */
+        }
         sailingSyncSuperAdminBodyClass({ valid: false });
         console.error('[DEBUG] updateHeaderAuthStatus: Error:', error);
         console.error('[DEBUG] updateHeaderAuthStatus: Stack trace:', error.stack);
@@ -922,6 +1006,9 @@ async function handleLogout() {
 
 // Ensure button text persists - monitor and fix if changed
 (function ensureButtonText() {
+    if (typeof sailingsaHubHeaderOwnedByBlankLandingJs === 'function' && sailingsaHubHeaderOwnedByBlankLandingJs()) {
+        return;
+    }
     function fixButtonText() {
         const authBtn = document.getElementById('authBtn');
         if (authBtn) {

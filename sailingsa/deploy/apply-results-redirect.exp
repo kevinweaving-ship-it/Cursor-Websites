@@ -1,0 +1,27 @@
+#!/usr/bin/expect -f
+# Apply nginx 301: /results/{slug} -> /regatta/{slug}. Run from project root.
+
+set timeout 30
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+
+set script_dir [file dirname [info script]]
+set sh_path "$script_dir/add-nginx-results-redirect.sh"
+
+spawn scp -o StrictHostKeyChecking=no $sh_path ${user}@${server}:/tmp/add-nginx-results-redirect.sh
+expect "password:"
+send "$password\r"
+expect eof
+
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "chmod +x /tmp/add-nginx-results-redirect.sh && /tmp/add-nginx-results-redirect.sh"
+expect "password:"
+send "$password\r"
+expect {
+    "NGINX_RELOADED" { }
+    "syntax is ok" { exp_continue }
+    "already present" { exp_continue }
+    eof { }
+    timeout { puts "ERROR: timeout"; exit 1 }
+}
+expect eof

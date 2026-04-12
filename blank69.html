@@ -608,10 +608,10 @@
       display: grid;
       grid-template-columns: 1fr 2fr;
       gap: 10px;
-      /* Same rhythm as .bn-card__badge-row rule: space, line, space — above hero image + podium. */
-      margin-top: 8px;
-      border-top: 1px solid #bdbdbd;
-      padding-top: 8px;
+      /* Space below title row; single grey rule is only under pill row (not a second line here). */
+      margin-top: 16px;
+      border-top: none;
+      padding-top: 0;
       width: 100%;
       min-width: 0;
       align-items: start;
@@ -1257,7 +1257,7 @@
       }
       .blank-breaking-news-card .bn-card__image-podium-row {
         gap: 12px;
-        margin-top: 10px;
+        margin-top: 18px;
       }
       .blank-breaking-news-card .bn-card__podium-sa-scope__hint {
         font-size: calc(0.55rem * 1.2 * 1.15);
@@ -1675,6 +1675,79 @@
       flex-direction: column;
       align-items: stretch;
     }
+    /* Hub BN: full-bleed slot title (matches section pill colours) + grey rule below pill row only */
+    .blank-breaking-news-card .bn-card__hub-slot-bleed {
+      margin: 0 -10px;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+    }
+    @media (min-width: 400px) {
+      .blank-breaking-news-card .bn-card__hub-slot-bleed {
+        margin: 0 -12px;
+      }
+    }
+    /* First card in stack only: pull header to top inner edge of .card (flush with blue border inner) */
+    .blank-app .blank-breaking-news-card > .bn-card-stack > [data-bncard-root]:first-child > .bn-card__body > .bn-card__hub-slot-bleed:not(.bn-card__hub-slot-bleed--rule-only) {
+      margin-top: -10px;
+    }
+    @media (min-width: 400px) {
+      .blank-app .blank-breaking-news-card > .bn-card-stack > [data-bncard-root]:first-child > .bn-card__body > .bn-card__hub-slot-bleed:not(.bn-card__hub-slot-bleed--rule-only) {
+        margin-top: -12px;
+      }
+    }
+    .blank-app .blank-breaking-news-card > .bn-card-stack > [data-bncard-root]:first-child > .bn-card__body {
+      margin-top: 0;
+    }
+    /* 2+ regattas in same slot: repeat body chrome only — hide duplicate slot header block */
+    .blank-breaking-news-card .bn-card-stack > [data-bncard-root] ~ [data-bncard-root] .bn-card__hub-slot-bleed:not(.bn-card__hub-slot-bleed--rule-only) {
+      display: none;
+    }
+    .blank-breaking-news-card .bn-card__hub-slot-bleed--rule-only {
+      margin-top: 0;
+      margin-bottom: 8px;
+    }
+    .blank-breaking-news-card .bn-card__hub-rule {
+      height: 0;
+      margin: 0;
+      border: none;
+      border-top: 1px solid #bdbdbd;
+      width: 100%;
+      flex-shrink: 0;
+    }
+    .blank-breaking-news-card .bn-card__slot-header {
+      box-sizing: border-box;
+      width: 100%;
+      margin: 0;
+      padding: 10px 14px;
+      font-size: clamp(0.95rem, 2.8vw, 1.125rem);
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #fff;
+      text-align: center;
+      border-radius: 8px 8px 0 0;
+    }
+    .blank-app .blank-breaking-news-card > .bn-card-stack > [data-bncard-root]:first-child .bn-card__slot-header {
+      border-radius: 8px 8px 0 0;
+    }
+    @media (min-width: 400px) {
+      .blank-app .blank-breaking-news-card > .bn-card-stack > [data-bncard-root]:first-child .bn-card__slot-header {
+        border-radius: 10px 10px 0 0;
+      }
+    }
+    .blank-breaking-news-card .bn-card__slot-header--breaking {
+      background: #ff6a00;
+    }
+    .blank-breaking-news-card .bn-card__slot-header--top-news {
+      background: #001f3f;
+    }
+    .blank-breaking-news-card .bn-card__slot-header--hub-news {
+      background: #2e7d32;
+    }
+    .blank-breaking-news-card .bn-card__slot-header--hub-archive {
+      background: #546e7a;
+    }
     .blank-breaking-news-card .bn-card__image-slot {
       margin-top: 0;
       box-sizing: border-box;
@@ -1708,10 +1781,9 @@
       align-items: center;
       flex-wrap: wrap;
       gap: calc(8px * 0.9);
-      /* Thin rule centred in the band between pills and hero row: equal space above/below the line. */
-      padding-bottom: 8px;
-      margin: 0 0 8px 0;
-      border-bottom: 1px solid #bdbdbd;
+      padding: 8px 0;
+      margin: 0 0 0 0;
+      border-bottom: none;
     }
     /* All badges in this row: 90% of hub hero pill size */
     .blank-breaking-news-card .bn-card__badge-row .blank-hub-hero-badge,
@@ -3992,6 +4064,10 @@
           <p class="blank-hub-empty-line">No event currently qualifies for automated Breaking News.</p>
         </div>
         <div data-bncard-body class="bn-card__body" hidden>
+          <div class="bn-card__hub-slot-bleed" data-bncard-slot-bleed>
+            <div class="bn-card__slot-header bn-card__slot-header--breaking" data-bncard-slot-header>Breaking News</div>
+            <div class="bn-card__hub-rule" aria-hidden="true"></div>
+          </div>
           <div class="bn-card__badge-row" data-bncard-badge-row>
             <span
               class="blank-hub-hero-badge blank-hub-hero-badge--live blank-hub-hero-badge--pulse"
@@ -4009,6 +4085,9 @@
             >Live</span>
             <span class="blank-hub-hero-badge bn-card__day-pill" data-bncard-day-badge hidden>Day 1</span>
             <span class="blank-hub-hero-badge bn-card__race-pill" data-bncard-race-badge hidden>R0</span>
+          </div>
+          <div class="bn-card__hub-slot-bleed bn-card__hub-slot-bleed--rule-only" aria-hidden="true">
+            <div class="bn-card__hub-rule"></div>
           </div>
           <div class="bn-card__split" data-bncard-hero-row>
             <div class="bn-card__split-left">
@@ -4058,6 +4137,10 @@
           <p class="blank-hub-empty-line">No Top News item is currently set.</p>
         </div>
         <div data-bncard-body class="bn-card__body" hidden>
+          <div class="bn-card__hub-slot-bleed" data-bncard-slot-bleed>
+            <div class="bn-card__slot-header bn-card__slot-header--top-news" data-bncard-slot-header>Top News</div>
+            <div class="bn-card__hub-rule" aria-hidden="true"></div>
+          </div>
           <div class="bn-card__badge-row" data-bncard-badge-row>
             <span
               class="blank-hub-hero-badge blank-hub-hero-badge--top-news"
@@ -4075,6 +4158,9 @@
             >Live</span>
             <span class="blank-hub-hero-badge bn-card__day-pill" data-bncard-day-badge hidden>Day 1</span>
             <span class="blank-hub-hero-badge bn-card__race-pill" data-bncard-race-badge hidden>R0</span>
+          </div>
+          <div class="bn-card__hub-slot-bleed bn-card__hub-slot-bleed--rule-only" aria-hidden="true">
+            <div class="bn-card__hub-rule"></div>
           </div>
           <div class="bn-card__split" data-bncard-hero-row>
             <div class="bn-card__split-left">
@@ -4124,6 +4210,9 @@
           <p class="blank-hub-empty-line">No regatta is currently tagged as News.</p>
         </div>
         <div data-bncard-body class="bn-card__body" hidden>
+          <div class="bn-card__hub-slot-bleed" data-bncard-slot-bleed>
+            <div class="bn-card__slot-header bn-card__slot-header--hub-news" data-bncard-slot-header>News</div>
+          </div>
           <div class="bn-card__badge-row" data-bncard-badge-row>
             <span
               class="blank-hub-hero-badge blank-hub-hero-badge--hub-news"
@@ -4141,6 +4230,9 @@
             >Live</span>
             <span class="blank-hub-hero-badge bn-card__day-pill" data-bncard-day-badge hidden>Day 1</span>
             <span class="blank-hub-hero-badge bn-card__race-pill" data-bncard-race-badge hidden>R0</span>
+          </div>
+          <div class="bn-card__hub-slot-bleed bn-card__hub-slot-bleed--rule-only" aria-hidden="true">
+            <div class="bn-card__hub-rule"></div>
           </div>
           <div class="bn-card__split" data-bncard-hero-row>
             <div class="bn-card__split-left">
@@ -4190,6 +4282,9 @@
           <p class="blank-hub-empty-line">No regatta is currently tagged as Archive.</p>
         </div>
         <div data-bncard-body class="bn-card__body" hidden>
+          <div class="bn-card__hub-slot-bleed" data-bncard-slot-bleed>
+            <div class="bn-card__slot-header bn-card__slot-header--hub-archive" data-bncard-slot-header>Archive</div>
+          </div>
           <div class="bn-card__badge-row" data-bncard-badge-row>
             <span
               class="blank-hub-hero-badge blank-hub-hero-badge--hub-archive"
@@ -4207,6 +4302,9 @@
             >Live</span>
             <span class="blank-hub-hero-badge bn-card__day-pill" data-bncard-day-badge hidden>Day 1</span>
             <span class="blank-hub-hero-badge bn-card__race-pill" data-bncard-race-badge hidden>R0</span>
+          </div>
+          <div class="bn-card__hub-slot-bleed bn-card__hub-slot-bleed--rule-only" aria-hidden="true">
+            <div class="bn-card__hub-rule"></div>
           </div>
           <div class="bn-card__split" data-bncard-hero-row>
             <div class="bn-card__split-left">
@@ -4401,6 +4499,9 @@
           <p class="blank-hub-empty-line">No upcoming featured event for this slot yet — set the regatta to &ldquo;Upcoming Event&rdquo; in hub admin, or ensure the calendar row is linked to a regatta with future dates.</p>
         </div>
         <div data-bncard-body class="bn-card__body" hidden>
+          <div class="bn-card__hub-slot-bleed" data-bncard-slot-bleed>
+            <div class="bn-card__slot-header bn-card__slot-header--hub-news" data-bncard-slot-header>Upcoming Events</div>
+          </div>
           <div class="bn-card__badge-row" data-bncard-badge-row>
             <span
               class="blank-hub-hero-badge blank-hub-hero-badge--hub-news"
@@ -4418,6 +4519,9 @@
             >Live</span>
             <span class="blank-hub-hero-badge bn-card__day-pill" data-bncard-day-badge hidden>Day 1</span>
             <span class="blank-hub-hero-badge bn-card__race-pill" data-bncard-race-badge hidden>R0</span>
+          </div>
+          <div class="bn-card__hub-slot-bleed bn-card__hub-slot-bleed--rule-only" aria-hidden="true">
+            <div class="bn-card__hub-rule"></div>
           </div>
           <div class="bn-card__split" data-bncard-hero-row>
             <div class="bn-card__split-left">
@@ -4563,7 +4667,7 @@
   </nav>
 
   <script src="/js/blank-landing-header.js?v=20260412auth9"></script>
-  <script src="/js/breaking-news-card.js?v=20260413stack1" defer></script>
+  <script src="/js/breaking-news-card.js?v=20260412header2" defer></script>
   <script>
 (function () {
   /** Top live-with-results event: headline/teaser defaults + photo upload merge. */

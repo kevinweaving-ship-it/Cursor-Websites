@@ -1,0 +1,15 @@
+#!/usr/bin/expect -f
+# Read-only: fetch live index.html + class-results.html sections for LIVE vs LOCAL diagnosis.
+set timeout 30
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+set web_root "/var/www/sailingsa"
+
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "echo '=== LIVE index API_BASE (1688-1698) ===' && sed -n '1686,1700p' $web_root/index.html && echo '' && echo '=== LIVE navigateToClassResults (4470-4482) ===' && sed -n '4470,4482p' $web_root/index.html && echo '' && echo '=== LIVE openResultPageInModal (4502-4515) ===' && sed -n '4502,4515p' $web_root/index.html && echo '' && echo '=== LIVE class-results.html script API and fetch (111-155) ===' && sed -n '111,155p' $web_root/regatta/class/class-results.html"
+expect {
+    "password:" { send "$password\r"; exp_continue }
+    eof { }
+    timeout { puts "ERROR: timeout"; exit 1 }
+}
+wait

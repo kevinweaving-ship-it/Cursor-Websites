@@ -1,0 +1,47 @@
+#!/usr/bin/expect -f
+# Sync regatta 385 (HYC Cape Classic 2026) data to live. TABLE DATA ONLY. No HTML.
+set timeout 90
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+set script_dir [file dirname [info script]]
+set project_root [file normalize "$script_dir/../.."]
+set sql_path "$project_root/sailingsa/deploy/regatta_385_sync.sql"
+
+if {![file exists $sql_path]} {
+    puts "ERROR: regatta_385_sync.sql not found. Run export first."
+    exit 1
+}
+
+puts "=== Uploading regatta_385_sync.sql to live ==="
+spawn scp -o StrictHostKeyChecking=no $sql_path ${user}@${server}:/tmp/
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    "100%" { expect eof }
+    eof { }
+    timeout { puts "ERROR: timeout"; exit 1 }
+}
+wait
+
+puts "=== Applying SQL on live DB ==="
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "psql postgresql://sailors_user:SailSA_Pg_Beta2026!@localhost:5432/sailors_master -f /tmp/regatta_385_sync.sql 2>&1"
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    "100%" { expect eof }
+    eof { }
+    timeout { puts "ERROR: timeout"; exit 1 }
+}
+wait
+
+puts "=== Restart API (to clear cache) ==="
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "systemctl restart sailingsa-api && sleep 2 && echo Done"
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    "100%" { expect eof }
+    eof { }
+    timeout { puts "ERROR: timeout"; exit 1 }
+}
+wait
+
+puts ""
+puts "Done. Verify: https://sailingsa.co.za/ Regatta search -> HYC Cape Classic 2026"

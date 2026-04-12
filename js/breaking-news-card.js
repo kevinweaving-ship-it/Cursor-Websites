@@ -2902,6 +2902,25 @@
     }
   }
 
+  /** Full-width slot title bar — same label + colour family as the section pill (`bnPaintHubSectionBadgeFromLabel`). */
+  function bnSyncHubSlotHeaderFromSectionBadge(cardSection, sectionBadge) {
+    if (!cardSection || !sectionBadge) return;
+    var hdr = cardSection.querySelector('[data-' + NS + '-slot-header]');
+    if (!hdr) return;
+    hdr.textContent = sectionBadge.textContent;
+    var h = 'bn-card__slot-header';
+    if (sectionBadge.classList.contains('blank-hub-hero-badge--top-news')) {
+      h += ' bn-card__slot-header--top-news';
+    } else if (sectionBadge.classList.contains('blank-hub-hero-badge--hub-news')) {
+      h += ' bn-card__slot-header--hub-news';
+    } else if (sectionBadge.classList.contains('blank-hub-hero-badge--hub-archive')) {
+      h += ' bn-card__slot-header--hub-archive';
+    } else {
+      h += ' bn-card__slot-header--breaking';
+    }
+    hdr.className = h;
+  }
+
   /** Section pill (Breaking / Top / … / Upcoming) from `blank_hub_news_badge_label` — render + SA preview. */
   function bnPaintHubSectionBadgeFromLabel(root, mergedSummary) {
     var cardSection = root.closest('[data-blank-bn-card]') || root.closest('.blank-breaking-news-card');
@@ -2916,30 +2935,35 @@
         sectionBadge.textContent = 'Top News';
         sectionBadge.className = 'blank-hub-hero-badge blank-hub-hero-badge--top-news';
         cardSection.setAttribute('aria-label', 'Top News');
+        bnSyncHubSlotHeaderFromSectionBadge(cardSection, sectionBadge);
         return;
       }
       if (slot === 'news') {
         sectionBadge.textContent = 'News';
         sectionBadge.className = 'blank-hub-hero-badge blank-hub-hero-badge--hub-news';
         cardSection.setAttribute('aria-label', 'News');
+        bnSyncHubSlotHeaderFromSectionBadge(cardSection, sectionBadge);
         return;
       }
       if (slot === 'archive') {
         sectionBadge.textContent = 'Archive';
         sectionBadge.className = 'blank-hub-hero-badge blank-hub-hero-badge--hub-archive';
         cardSection.setAttribute('aria-label', 'Archive');
+        bnSyncHubSlotHeaderFromSectionBadge(cardSection, sectionBadge);
         return;
       }
       if (slot === 'upcoming-events') {
         sectionBadge.textContent = 'Upcoming Events';
         sectionBadge.className = 'blank-hub-hero-badge blank-hub-hero-badge--hub-news';
         cardSection.setAttribute('aria-label', 'Upcoming Events');
+        bnSyncHubSlotHeaderFromSectionBadge(cardSection, sectionBadge);
         return;
       }
       sectionBadge.textContent = 'Breaking News';
       sectionBadge.className =
         'blank-hub-hero-badge blank-hub-hero-badge--live blank-hub-hero-badge--pulse';
       cardSection.setAttribute('aria-label', 'Breaking News');
+      bnSyncHubSlotHeaderFromSectionBadge(cardSection, sectionBadge);
       return;
     }
     if (lab === 'Top News') {
@@ -2970,6 +2994,7 @@
         'blank-hub-hero-badge blank-hub-hero-badge--live blank-hub-hero-badge--pulse';
       cardSection.setAttribute('aria-label', 'Breaking News');
     }
+    bnSyncHubSlotHeaderFromSectionBadge(cardSection, sectionBadge);
   }
 
   /**

@@ -1,0 +1,11 @@
+#!/usr/bin/expect -f
+# One-off: SSH and run server diagnostics. No deploy, no file changes.
+set timeout 30
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "echo '=== NGINX STATUS ===' && sudo systemctl status nginx --no-pager; echo ''; echo '=== SAILINGSA-API STATUS ===' && sudo systemctl status sailingsa-api --no-pager; echo ''; echo '=== NGINX ERROR LOG (last 50) ===' && sudo tail -n 50 /var/log/nginx/error.log; echo ''; echo '=== NGINX ACCESS LOG (last 50) ===' && sudo tail -n 50 /var/log/nginx/access.log; echo ''; echo '=== API JOURNAL (last 50) ===' && sudo journalctl -u sailingsa-api -n 50 --no-pager"
+expect "password:"
+send "$password\r"
+expect eof

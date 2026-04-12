@@ -1,0 +1,31 @@
+#!/usr/bin/expect -f
+# Apply nginx alias for /sailingsa/frontend/ → web root (immediate fix)
+# Run from project root: expect sailingsa/deploy/apply-nginx-alias.exp
+#
+# Prerequisite: nginx config at /etc/nginx/sites-available/sailingsa.co.za
+# or similar. Script inserts the location block before "location /".
+
+set timeout 30
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+
+set block {
+location /sailingsa/frontend/ {
+    alias /var/www/sailingsa/;
+}
+}
+
+# Find sailingsa nginx config and add block if not present
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "NGCFG=\$(ls /etc/nginx/sites-available/sailingsa* /etc/nginx/sites-enabled/sailingsa* 2>/dev/null | head -1); if \[ -z \"\$NGCFG\" \]; then NGCFG=/etc/nginx/sites-available/default; fi; grep -q 'location /sailingsa/frontend/' \"\$NGCFG\" 2>/dev/null && echo ALREADY_PRESENT || (sed -i '/location \\/ {/i\\
+    location /sailingsa/frontend/ {\\
+        alias /var/www/sailingsa/;\\
+    }\\
+' \"\$NGCFG\" 2>/dev/null || echo 'Manual edit needed'); nginx -t 2>&1; systemctl reload nginx 2>&1"
+expect {
+    "password:" { send "$password\r"; exp_continue }
+    eof { }
+    timeout { puts "ERROR: timeout"; exit 1 }
+}
+wait
+puts "Done. Verify: curl -I https://sailingsa.co.za/sailingsa/frontend/index.html"

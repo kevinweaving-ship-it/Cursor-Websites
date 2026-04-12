@@ -5502,6 +5502,11 @@
                 const escapedFleetName = fleetName.replace(/'/g, "\\'");
                 const escapedStatusText = statusText.replace(/'/g, "\\'");
                 const escapedDateTimeStr = dateTimeStr.replace(/'/g, "\\'");
+                const hubLabelRaw = (h0.blank_hub_news_badge_label != null && String(h0.blank_hub_news_badge_label).trim() !== '') ? String(h0.blank_hub_news_badge_label).trim() : '';
+                const hubNewsLineHtml = hubLabelRaw
+                    ? ('<div class="status-line hub-news-type" style="margin-top:10px;font-weight:600;color:#0f172a">SailingSA hub: ' +
+                        hubLabelRaw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') + '</div>')
+                    : '';
                 
                 const htmlContent = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Result Sheet - ' + fleetName + '</title>' +
                     '<style>body{background:#ffffff;color:#1a2750;font-family:system-ui,sans-serif;margin:0;padding:20px}' +
@@ -5534,7 +5539,7 @@
                     '<div style="flex:1;text-align:center">' +
                     '<div class="regatta-name">' + escapedRegattaName + '</div>' +
                     '<div class="host-club">' + (h0.host_club_slug && hostClub !== 'Unknown' ? '<a href="/club/' + String(h0.host_club_slug).replace(/"/g, '&quot;') + '" title="View club page">' + hostClub.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') + '</a>' : hostClub) + '</div>' +
-                    '<div class="status-line">Results are ' + escapedStatusText + ' as at ' + escapedDateTimeStr + '</div>' +
+                    '<div class="status-line">Results are ' + escapedStatusText + ' as at ' + escapedDateTimeStr + '</div>' + hubNewsLineHtml +
                     '</div></div>' +
                     '<div class="class-header">' + escapedFleetName + '</div>' +
                     '<div class="sailed-line">' + sailedLine + '</div>' +
@@ -5650,6 +5655,11 @@
                 const escapedStatusText = statusText.replace(/'/g, "\\'").replace(/"/g, '&quot;');
                 const escapedDateTimeStr = dateTimeStr.replace(/'/g, "\\'").replace(/"/g, '&quot;');
                 const escapedHostClub = hostClub.replace(/"/g, '&quot;');
+                const hubLabelFull = (h0.blank_hub_news_badge_label != null && String(h0.blank_hub_news_badge_label).trim() !== '') ? String(h0.blank_hub_news_badge_label).trim() : '';
+                const hubNewsLineHtmlFull = hubLabelFull
+                    ? ('<div class="status-line hub-news-type" style="margin-top:10px;font-weight:600;color:#0f172a">SailingSA hub: ' +
+                        hubLabelFull.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') + '</div>')
+                    : '';
                 
                 function formatRank(rank) {
                     if (!rank || isNaN(rank)) return rank;
@@ -5845,7 +5855,7 @@
                     '<div class="header">' + sailingsaLogoHtml2 + clubLogoHtml +
                     '<div style="flex:1;text-align:center">' +
                     '<div class="regatta-name">' + escapedRegattaName + '</div><div class="host-club">' + (h0.host_club_slug ? '<a href="/club/' + String(h0.host_club_slug).replace(/"/g, '&quot;') + '" title="View club page">' + escapedHostClub + '</a>' : escapedHostClub) + '</div>' +
-                    '<div class="status-line">Results are ' + escapedStatusText + ' as at ' + escapedDateTimeStr + '</div></div></div>' +
+                    '<div class="status-line">Results are ' + escapedStatusText + ' as at ' + escapedDateTimeStr + '</div>' + hubNewsLineHtmlFull + '</div></div>' +
                     classEntriesBoxHtml +
                     classSectionsHtml +
                     '<script>document.addEventListener("click",function(e){var row=e.target&&e.target.closest?(e.target.closest("tr.sailor-row-clickable")||e.target.closest("tr[data-helm-name]")):null;if(!row)return;var sid=(row.getAttribute("data-sailor-id")||"").trim(),name=(row.getAttribute("data-helm-name")||"").trim(),club=(row.getAttribute("data-club")||"").trim(),cls=(row.getAttribute("data-class")||"").trim();if(!name&&!sid)return;(window.opener||window.parent).postMessage({type:"showSailorProfile",sid:sid,name:name,club:club,cls:cls},"*");if(window.opener)window.close()});<\/script>' +

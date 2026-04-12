@@ -1,0 +1,35 @@
+#!/usr/bin/expect -f
+# Add nginx location = /about proxy so /about serves about.html, not index.html (SPA fallback)
+# Run from project root: expect sailingsa/deploy/fix-nginx-about.exp
+
+set timeout 30
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+
+set script_dir [file dirname [info script]]
+set fix_script "$script_dir/fix-nginx-about.sh"
+
+# Upload and run fix script on server
+puts "Uploading nginx fix script..."
+spawn scp -o StrictHostKeyChecking=no $fix_script ${user}@${server}:/tmp/fix-nginx-about.sh
+expect {
+    "password:" { send "$password\r"; exp_continue }
+    "100%" { expect eof }
+    eof { }
+    timeout { puts "ERROR: SCP timeout"; exit 1 }
+}
+wait
+
+puts "Running fix on server..."
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "bash /tmp/fix-nginx-about.sh"
+expect {
+    "password:" { send "$password\r"; exp_continue }
+    "NGINX_RELOADED" { }
+    eof { }
+    timeout { puts "ERROR: SSH timeout"; exit 1 }
+}
+wait
+
+puts ""
+puts "Done. Test: https://sailingsa.co.za/about"

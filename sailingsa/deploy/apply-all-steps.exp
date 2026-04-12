@@ -1,0 +1,35 @@
+#!/usr/bin/expect -f
+# Apply STEP 1 (API), STEP 3 (assets), STEP 5 (nginx), deploy frontend
+set timeout 300
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+set web_root "/var/www/sailingsa"
+set script_dir [file dirname [info script]]
+set project_root [file normalize "$script_dir/../.."]
+
+puts "=== Upload api.py ==="
+spawn scp -o StrictHostKeyChecking=no $project_root/api.py ${user}@${server}:/var/www/sailingsa/api/
+expect { "password:" { send "$password\r"; exp_continue } eof { } timeout { exit 1 } }
+wait
+
+puts "=== Upload frontend zip ==="
+spawn scp -o StrictHostKeyChecking=no $project_root/sailingsa-frontend.zip ${user}@${server}:/tmp/
+expect { "password:" { send "$password\r"; exp_continue } eof { } timeout { exit 1 } }
+wait
+
+puts "=== Extract, rsync assets, chown ==="
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "cd ${web_root} && unzip -o /tmp/sailingsa-frontend.zip && chown -R www-data:www-data ${web_root} 2>/dev/null; ls -la index.html results/lite.html results/full.html sailor.html 2>/dev/null"
+expect { "password:" { send "$password\r"; exp_continue } eof { } timeout { exit 1 } }
+wait
+
+puts "=== Restart API ==="
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "systemctl restart sailingsa-api && sleep 2 && systemctl status sailingsa-api --no-pager | head -8"
+expect { "password:" { send "$password\r"; exp_continue } eof { } timeout { exit 1 } }
+wait
+
+puts "=== Nginx: ensure try_files =404 (no SPA fallback) ==="
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "grep -l sailingsa /etc/nginx/sites-enabled/* 2>/dev/null | head -1"
+expect { "password:" { send "$password\r"; exp_continue } eof { } }
+wait
+puts "Done."

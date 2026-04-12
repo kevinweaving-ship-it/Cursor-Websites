@@ -936,6 +936,11 @@ body.admin-dashboard-v10 .admin-v10-second-header__user {
     max-width: 100%;
 }
 
+/* [hidden] alone loses to the rule above — must hide logged-out row (no Logout next to Sign In). */
+#adminV10SecondHeaderUser[hidden] {
+    display: none !important;
+}
+
 body.admin-dashboard-v10 .admin-v10-second-header__user-text {
     display: flex;
     flex-direction: column;
@@ -1816,10 +1821,9 @@ button.sailor-club-flag-box.sailor-sa-club-flag-edit-trigger:focus-visible {
       display: grid;
       grid-template-columns: 1fr 2fr;
       gap: 10px;
-      /* Same rhythm as .bn-card__badge-row rule: space, line, space — above hero image + podium. */
-      margin-top: 8px;
-      border-top: 1px solid #bdbdbd;
-      padding-top: 8px;
+      margin-top: 16px;
+      border-top: none;
+      padding-top: 0;
       width: 100%;
       min-width: 0;
       align-items: start;
@@ -2525,7 +2529,7 @@ button.sailor-club-flag-box.sailor-sa-club-flag-edit-trigger:focus-visible {
       }
       .blank-breaking-news-card .bn-card__image-podium-row {
         gap: 12px;
-        margin-top: 10px;
+        margin-top: 18px;
       }
       .blank-breaking-news-card .bn-card__podium-sa-scope__hint {
         font-size: calc(0.55rem * 1.2 * 1.15);
@@ -2979,6 +2983,92 @@ button.sailor-club-flag-box.sailor-sa-club-flag-edit-trigger:focus-visible {
       align-items: stretch;
     }
 
+/* Hub BN: full-bleed slot title + grey rule below pill row only */
+.blank-breaking-news-card .bn-card__hub-slot-bleed {
+      margin: 0 -10px;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+@media (min-width: 400px) {
+      .blank-breaking-news-card .bn-card__hub-slot-bleed {
+        margin: 0 -12px;
+      }
+    }
+
+.blank-app .blank-breaking-news-card > .bn-card-stack > [data-bncard-root]:first-child > .bn-card__body > .bn-card__hub-slot-bleed:not(.bn-card__hub-slot-bleed--rule-only) {
+      margin-top: -10px;
+    }
+
+@media (min-width: 400px) {
+      .blank-app .blank-breaking-news-card > .bn-card-stack > [data-bncard-root]:first-child > .bn-card__body > .bn-card__hub-slot-bleed:not(.bn-card__hub-slot-bleed--rule-only) {
+        margin-top: -12px;
+      }
+    }
+
+.blank-app .blank-breaking-news-card > .bn-card-stack > [data-bncard-root]:first-child > .bn-card__body {
+      margin-top: 0;
+    }
+
+.blank-breaking-news-card .bn-card-stack > [data-bncard-root] ~ [data-bncard-root] .bn-card__hub-slot-bleed:not(.bn-card__hub-slot-bleed--rule-only) {
+      display: none;
+    }
+
+.blank-breaking-news-card .bn-card__hub-slot-bleed--rule-only {
+      margin-top: 0;
+      margin-bottom: 8px;
+    }
+
+.blank-breaking-news-card .bn-card__hub-rule {
+      height: 0;
+      margin: 0;
+      border: none;
+      border-top: 1px solid #bdbdbd;
+      width: 100%;
+      flex-shrink: 0;
+    }
+
+.blank-breaking-news-card .bn-card__slot-header {
+      box-sizing: border-box;
+      width: 100%;
+      margin: 0;
+      padding: 10px 14px;
+      font-size: clamp(0.95rem, 2.8vw, 1.125rem);
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #fff;
+      text-align: center;
+      border-radius: 8px 8px 0 0;
+    }
+
+.blank-app .blank-breaking-news-card > .bn-card-stack > [data-bncard-root]:first-child .bn-card__slot-header {
+      border-radius: 8px 8px 0 0;
+    }
+
+@media (min-width: 400px) {
+      .blank-app .blank-breaking-news-card > .bn-card-stack > [data-bncard-root]:first-child .bn-card__slot-header {
+        border-radius: 10px 10px 0 0;
+      }
+    }
+
+.blank-breaking-news-card .bn-card__slot-header--breaking {
+      background: #ff6a00;
+    }
+
+.blank-breaking-news-card .bn-card__slot-header--top-news {
+      background: #001f3f;
+    }
+
+.blank-breaking-news-card .bn-card__slot-header--hub-news {
+      background: #2e7d32;
+    }
+
+.blank-breaking-news-card .bn-card__slot-header--hub-archive {
+      background: #546e7a;
+    }
+
 .blank-breaking-news-card .bn-card__image-slot {
       margin-top: 0;
       box-sizing: border-box;
@@ -3013,10 +3103,9 @@ button.sailor-club-flag-box.sailor-sa-club-flag-edit-trigger:focus-visible {
       align-items: center;
       flex-wrap: wrap;
       gap: calc(8px * 0.9);
-      /* Thin rule centred in the band between pills and hero row: equal space above/below the line. */
-      padding-bottom: 8px;
-      margin: 0 0 8px 0;
-      border-bottom: 1px solid #bdbdbd;
+      padding: 8px 0;
+      margin: 0 0 0 0;
+      border-bottom: none;
     }
 
 .blank-breaking-news-card .bn-card__badge-row .blank-hub-hero-badge,

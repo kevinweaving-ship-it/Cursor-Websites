@@ -3575,18 +3575,7 @@
   <script src="/js/blank-landing-header.js"></script>
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-  function watchAvatarSrc(id) {
-    var avatar = document.getElementById(id);
-    if (!avatar) return;
-    var observer = new MutationObserver(function () {
-      if (avatar.src && avatar.src !== window.location.href) {
-        avatar.style.display = "block";
-      }
-    });
-    observer.observe(avatar, { attributes: true, attributeFilter: ["src"] });
-  }
-  watchAvatarSrc("userAvatarImg");
-  watchAvatarSrc("adminV10SecondHeaderAvatar");
+  /* Header avatars: watchHubHeaderAvatarSrc in /js/blank-landing-header.js */
 
   var bnav = document.getElementById("blankBottomNav");
   if (bnav) {
