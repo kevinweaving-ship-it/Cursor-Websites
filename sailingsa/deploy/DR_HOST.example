@@ -1,6 +1,0 @@
-# D/R server for deploy-prod-and-dr-verified.sh
-# Copy to DR_HOST and set your D/R server (one line: user@host or root@IP)
-#   cp sailingsa/deploy/DR_HOST.example sailingsa/deploy/DR_HOST
-#   echo 'root@YOUR_DR_SERVER_IP' > sailingsa/deploy/DR_HOST
-# Or set env: export SAILINGSA_DR_HOST=root@YOUR_DR_IP
-# DR_HOST is in .gitignore so the real IP is not committed.

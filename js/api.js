@@ -8,10 +8,6 @@ let API_BASE = (typeof window !== 'undefined' && window.location) ? (window.loca
 async function apiRequest(endpoint, options = {}) {
     let apiBase = window.API_BASE || API_BASE;
     if (!apiBase) apiBase = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
-    // Relative API_BASE (e.g. '/admin' from another script) makes `/auth/session` → wrong host path and 404s.
-    if (apiBase && !/^https?:\/\//i.test(String(apiBase))) {
-        apiBase = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
-    }
     if (apiBase && apiBase.includes('/')) apiBase = (apiBase.match(/^https?:\/\/[^\/]+/) || [apiBase])[0];
     const url = `${apiBase}${endpoint}`;
     

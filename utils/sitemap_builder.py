@@ -37,15 +37,6 @@ def _slug_from_name(full_name: str) -> str:
     return s
 
 
-def _sailor_canonical_slug(full_name: str, sas_id: str, has_duplicate: bool) -> str:
-    base = _slug_from_name(full_name)
-    if not base:
-        return f"sailor-{sas_id}" if sas_id else "sailor"
-    if has_duplicate and sas_id:
-        return f"{base}-{sas_id}"
-    return base
-
-
 def _class_canonical_slug(class_name: str) -> str:
     if not class_name or not isinstance(class_name, str):
         return ""
@@ -102,6 +93,7 @@ def _fetch_regattas(cur) -> list[tuple[str, str]]:
               SELECT 1
               FROM results r
               WHERE r.regatta_id = regattas.regatta_id
+                AND r.raced IS TRUE
           )
     """)
     out = []
@@ -115,46 +107,36 @@ def _fetch_regattas(cur) -> list[tuple[str, str]]:
 
 
 def _fetch_sailors(cur) -> list[tuple[str, str]]:
+    """Sailor URLs only from results (raced helm/crew names); slug from name. No sas_id_personal."""
     cur.execute("""
         SELECT
-            s.id,
-            s.sa_sailing_id::text AS sas_id,
-            COALESCE(NULLIF(TRIM(s.full_name), ''), TRIM(s.first_name || ' ' || COALESCE(s.last_name, ''))) AS full_name,
-            (
-                SELECT MAX(COALESCE(rg.end_date, rg.start_date))
-                FROM results r
-                JOIN regattas rg ON r.regatta_id = rg.regatta_id
-                WHERE r.helm_sa_sailing_id::text = s.sa_sailing_id::text
-                   OR r.crew_sa_sailing_id::text = s.sa_sailing_id::text
-            ) AS lastmod
-        FROM sas_id_personal s
-        WHERE s.sa_sailing_id IS NOT NULL
-          AND EXISTS (
-              SELECT 1
-              FROM results r
-              WHERE r.helm_sa_sailing_id::text = s.sa_sailing_id::text
-                 OR r.crew_sa_sailing_id::text = s.sa_sailing_id::text
-          )
+            LOWER(TRIM(t.nm)) AS name_key,
+            MIN(TRIM(t.nm)) AS name_sample,
+            MAX(COALESCE(rg.end_date, rg.start_date)) AS lastmod
+        FROM (
+            SELECT DISTINCT TRIM(r.helm_name) AS nm, r.regatta_id
+            FROM results r
+            WHERE r.helm_name IS NOT NULL
+              AND BTRIM(r.helm_name) <> ''
+              AND r.raced IS TRUE
+            UNION
+            SELECT DISTINCT TRIM(r.crew_name) AS nm, r.regatta_id
+            FROM results r
+            WHERE r.crew_name IS NOT NULL
+              AND BTRIM(r.crew_name) <> ''
+              AND r.raced IS TRUE
+        ) t
+        INNER JOIN regattas rg ON rg.regatta_id = t.regatta_id
+        GROUP BY LOWER(TRIM(t.nm))
     """)
-    rows = list(cur.fetchall() or [])
-    by_name: dict[str, list[tuple[str, str, str]]] = {}
-    for r in rows:
-        sas_id = (r.get("sas_id") or "").strip()
-        full_name = (r.get("full_name") or "").strip()
-        if not sas_id:
-            continue
-        lastmod_iso = _date_iso(r.get("lastmod"))
-        key = (full_name or "").lower()
-        if key not in by_name:
-            by_name[key] = []
-        by_name[key].append((sas_id, full_name or "", lastmod_iso))
     out = []
-    for _key, group in by_name.items():
-        has_dup = len(group) > 1
-        for sas_id, full_name, lastmod in group:
-            slug = _sailor_canonical_slug(full_name, sas_id, has_dup)
-            if slug:
-                out.append((slug, lastmod))
+    for r in cur.fetchall() or []:
+        sample = (r.get("name_sample") or "").strip()
+        if not sample:
+            continue
+        slug = _slug_from_name(sample)
+        if slug:
+            out.append((slug, _date_iso(r.get("lastmod"))))
     return out
 
 
@@ -167,7 +149,8 @@ def _fetch_classes(cur) -> list[tuple[int, str, str]]:
                 (SELECT MAX(COALESCE(rg.end_date, rg.start_date))
                  FROM results r
                  JOIN regattas rg ON rg.regatta_id = r.regatta_id
-                 WHERE r.class_id = c.class_id),
+                 WHERE r.class_id = c.class_id
+                   AND r.raced IS TRUE),
                 DATE '2000-01-01'
             ) AS lastmod
         FROM classes c
@@ -176,6 +159,7 @@ def _fetch_classes(cur) -> list[tuple[int, str, str]]:
               SELECT 1
               FROM results r
               WHERE r.class_id = c.class_id
+                AND r.raced IS TRUE
           )
     """)
     out = []
@@ -200,13 +184,14 @@ def _fetch_clubs(cur) -> list[tuple[int, str, str]]:
             ) AS lastmod
         FROM clubs c
         LEFT JOIN regattas hosted ON hosted.host_club_id = c.club_id
-        LEFT JOIN results r ON r.club_id = c.club_id
+        LEFT JOIN results r ON r.club_id = c.club_id AND r.raced IS TRUE
         LEFT JOIN regattas rg ON rg.regatta_id = r.regatta_id
         WHERE c.club_id IS NOT NULL
           AND EXISTS (
               SELECT 1
               FROM results rr
               WHERE rr.club_id = c.club_id
+                AND rr.raced IS TRUE
           )
         GROUP BY c.club_id, c.club_fullname, c.club_abbrev
     """)

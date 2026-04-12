@@ -1,151 +1,8 @@
 // Session Management
+var _dbg = (typeof window !== 'undefined' && window.DEBUG_MODE) ? console.log.bind(console) : function() {};
 
-/** True when URL is any SPA class page under /class/… (avoid re-running landing/sailor updatePageContent). */
-function sailingsaIsClassSpaPath() {
-    try {
-        var p = (window.location.pathname || '').replace(/\/+$/, '') || '/';
-        return p.indexOf('/class/') === 0;
-    } catch (e) {
-        return false;
-    }
-}
-
-/** Skip updatePageContent on class routes — header-triggered updates must not replace class view with sailor home. */
-function safeUpdatePageContentSync() {
-    if (typeof updatePageContent !== 'function') return;
-    if (sailingsaIsClassSpaPath()) return;
-    updatePageContent();
-}
-
-async function safeUpdatePageContentAsync() {
-    if (typeof updatePageContent !== 'function') return;
-    if (sailingsaIsClassSpaPath()) return;
-    return await updatePageContent();
-}
-
-/** Slug from display name for personal-avatars filenames: `{sasId}-{slug}.png` */
-function sailingPersonalAvatarNameSlug(fullName) {
-    return String(fullName || '')
-        .toLowerCase()
-        .trim()
-        .replace(/[^\w\s-]/g, '')
-        .replace(/[\s_-]+/g, '-')
-        .replace(/^-+|-+$/g, '') || 'member';
-}
-
-/**
- * Ordered avatar URLs: personal folder first, then SAS id files / cache / default-youth.
- * @param {string} apiBase - e.g. window.API_BASE without trailing slash
- */
-function sailingBuildSailorAvatarCandidates(apiBase, sasId, fullName, opts) {
-    opts = opts || {};
-    const id = sasId != null ? String(sasId).trim() : '';
-    if (!/^\d+$/.test(id)) return [];
-    const pre = apiBase && String(apiBase).trim() ? String(apiBase).replace(/\/$/, '') + '/' : '';
-    const slug = sailingPersonalAvatarNameSlug(fullName);
-    const urls = [];
-    urls.push(pre + 'assets/personal-avatars/' + encodeURIComponent(id) + '-' + slug + '.png');
-    urls.push(pre + 'assets/personal-avatars/' + encodeURIComponent(id) + '-' + slug + '.jpg');
-    /* SAS-only filenames in personal-avatars/ (if full name slug does not match session string) */
-    urls.push(pre + 'assets/personal-avatars/' + encodeURIComponent(id) + '.png');
-    urls.push(pre + 'assets/personal-avatars/' + encodeURIComponent(id) + '.jpg');
-    let ageNum = null;
-    if (opts.ageYears !== undefined && opts.ageYears !== null && opts.ageYears !== '' && !isNaN(opts.ageYears)) {
-        ageNum = parseInt(opts.ageYears, 10);
-    }
-    if (ageNum >= 9 && ageNum <= 18) {
-        urls.push(pre + 'assets/avatars/default-youth.png');
-    }
-    urls.push(pre + 'assets/avatars/' + encodeURIComponent(id) + '.png');
-    urls.push(pre + 'assets/avatars/' + encodeURIComponent(id) + '.jpg');
-    if (opts.includeMediaCache !== false) {
-        urls.push(pre + 'media/avatars/' + encodeURIComponent(id) + '.jpg');
-    }
-    urls.push(pre + 'assets/avatars/default-youth.png');
-    const seen = {};
-    const out = [];
-    for (let u = 0; u < urls.length; u++) {
-        if (!seen[urls[u]]) {
-            seen[urls[u]] = true;
-            out.push(urls[u]);
-        }
-    }
-    return out;
-}
-
-/**
- * Apply candidate chain to an <img> (sailor profile or header).
- * opts: { apiBase, ageYears, includeMediaCache, headerMode }
- */
-function applySailingAvatarToImg(imgEl, sasId, fullName, opts) {
-    if (!imgEl) return;
-    opts = opts || {};
-    const apiBase = (opts.apiBase != null ? opts.apiBase : (window.API_BASE || '')).replace(/\/$/, '');
-    const urls = sailingBuildSailorAvatarCandidates(apiBase, sasId, fullName, opts);
-    if (!urls.length) {
-        imgEl.removeAttribute('src');
-        if (opts.headerMode) imgEl.style.display = 'none';
-        return;
-    }
-    let idx = 0;
-    imgEl.onerror = function sailingAvatarOnErr() {
-        idx += 1;
-        if (idx >= urls.length) {
-            imgEl.onerror = null;
-            if (opts.headerMode) {
-                imgEl.removeAttribute('src');
-                imgEl.style.display = 'none';
-            } else {
-                imgEl.style.display = 'none';
-                const fb = imgEl.parentElement && imgEl.parentElement.querySelector('.avatar-fallback');
-                if (fb) fb.style.display = 'flex';
-            }
-            return;
-        }
-        imgEl.src = urls[idx];
-    };
-    imgEl.onload = function sailingAvatarOnLoad() {
-        if (opts.headerMode) {
-            imgEl.style.display = 'block';
-        } else {
-            imgEl.style.display = '';
-            const fb = imgEl.parentElement && imgEl.parentElement.querySelector('.avatar-fallback');
-            if (fb) fb.style.display = 'none';
-        }
-    };
-    idx = 0;
-    imgEl.src = urls[0];
-}
-
-function applySailingLoginAvatarsFromSession(sasId, displayName) {
-    const apiBase = (window.API_BASE || '').replace(/\/$/, '');
-    ['userAvatarImg', 'adminV10SecondHeaderAvatar'].forEach(function (tid) {
-        const el = document.getElementById(tid);
-        if (el) {
-            applySailingAvatarToImg(el, sasId, displayName, {
-                apiBase,
-                headerMode: true,
-                includeMediaCache: false
-            });
-        }
-    });
-}
-
-function clearSailingLoginAvatars() {
-    ['userAvatarImg', 'adminV10SecondHeaderAvatar'].forEach(function (tid) {
-        const el = document.getElementById(tid);
-        if (!el) return;
-        el.removeAttribute('src');
-        el.style.display = 'none';
-        el.onerror = null;
-    });
-}
-
-window.sailingPersonalAvatarNameSlug = sailingPersonalAvatarNameSlug;
-window.sailingBuildSailorAvatarCandidates = sailingBuildSailorAvatarCandidates;
-window.applySailingAvatarToImg = applySailingAvatarToImg;
-window.applySailingLoginAvatarsFromSession = applySailingLoginAvatarsFromSession;
-window.clearSailingLoginAvatars = clearSailingLoginAvatars;
+/** Login enabled. Set true to disable for Beta. */
+var BETA_LOGIN_DISABLED = false;
 
 /**
  * Check session and show popup if needed
@@ -238,59 +95,46 @@ function clearSession() {
     document.cookie = 'session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;';
     document.cookie = 'session_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;';
     
-    console.log('[DEBUG] clearSession: All session data cleared');
+    _dbg('[DEBUG] clearSession: All session data cleared');
 }
 
 /**
  * Redirect to landing page after successful login/registration
  */
 function redirectToLandingPage() {
-    // Redirect to current path on same origin (canonical home is / not /index.html)
+    // Redirect to landing page (index.html) - same page, just refresh
     window.location.href = window.location.origin + window.location.pathname;
-}
-
-/** Toggle document.body.super-admin (e.g. for CSS hooks). No global click blocking here. */
-function sailingSyncSuperAdminBodyClass(sessionLike) {
-    try {
-        const sess = sessionLike || {};
-        const isSa = typeof sailingSessionIsSuperAdmin === 'function' && sailingSessionIsSuperAdmin(sess);
-        document.body.classList.toggle('super-admin', !!isSa);
-    } catch (_) {
-        try {
-            document.body.classList.remove('super-admin');
-        } catch (e2) {}
-    }
 }
 
 /**
  * Update header auth status (login box or user name + logout)
  */
 async function updateHeaderAuthStatus() {
-    console.log('[DEBUG] updateHeaderAuthStatus: Called');
+    _dbg('[DEBUG] updateHeaderAuthStatus: Called');
     try {
         const session = await checkSession();
-        sailingSyncSuperAdminBodyClass(session);
-        console.log('[DEBUG] updateHeaderAuthStatus: Session data:', session);
+        _dbg('[DEBUG] updateHeaderAuthStatus: Session data:', session);
         
         if (session.valid) {
-            const user = session.user || {};
-            const fullName = user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim();
-            const displayName = fullName || 'User';
-            const sasId = session.sas_id || '';
-
             // Show logged in status
             const loggedInDiv = document.getElementById('loggedInStatus');
             const loginBoxDiv = document.getElementById('loginBox');
             const userNameDisplay = document.getElementById('userNameDisplay');
             
-            console.log('[DEBUG] updateHeaderAuthStatus: Elements found:', {
+            _dbg('[DEBUG] updateHeaderAuthStatus: Elements found:', {
                 loggedInDiv: !!loggedInDiv,
                 loginBoxDiv: !!loginBoxDiv,
                 userNameDisplay: !!userNameDisplay
             });
             
             if (loggedInDiv && loginBoxDiv && userNameDisplay) {
-                console.log('[DEBUG] updateHeaderAuthStatus: User data:', {
+                // Get user info from session
+                const user = session.user || {};
+                const fullName = user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim();
+                const displayName = fullName || 'User';
+                const sasId = session.sas_id || '';
+                
+                _dbg('[DEBUG] updateHeaderAuthStatus: User data:', {
                     fullName,
                     displayName,
                     sasId,
@@ -312,10 +156,8 @@ async function updateHeaderAuthStatus() {
                 
                 loggedInDiv.style.display = 'flex';
                 loginBoxDiv.style.display = 'none';
-                console.log('[DEBUG] updateHeaderAuthStatus: Logged in status displayed');
+                _dbg('[DEBUG] updateHeaderAuthStatus: Logged in status displayed');
             }
-
-            applySailingLoginAvatarsFromSession(sasId, displayName);
             
             // Update auth button to "Logout" (same button, different text/function)
             // Remove any existing buttons with old IDs first
@@ -359,25 +201,34 @@ async function updateHeaderAuthStatus() {
             }
             newAuthBtn.addEventListener('click', async function(e) {
                 e.preventDefault();
-                console.log('[DEBUG] Auth button clicked (Logout)');
+                _dbg('[DEBUG] Auth button clicked (Logout)');
                 if (typeof handleLogout === 'function') {
                     await handleLogout();
                 }
             });
             
-            // "Your Sailing Results" button removed - no longer needed
-            
-            // Trigger page content update if function exists
-            safeUpdatePageContentSync();
+            syncAuthToSiteHeader();
+            if (typeof updatePageContent === 'function') {
+                updatePageContent();
+            }
         } else {
-            sailingSyncSuperAdminBodyClass({ valid: false });
-            console.log('[DEBUG] updateHeaderAuthStatus: No valid session, showing login box');
-            clearSailingLoginAvatars();
+            _dbg('[DEBUG] updateHeaderAuthStatus: No valid session, showing login box');
             // Show login box or "Your Sailing Results" button
             const loggedInDiv = document.getElementById('loggedInStatus');
             const loginBoxDiv = document.getElementById('loginBox');
             const userNameDisplay = document.getElementById('userNameDisplay');
             const userSasIdDisplay = document.getElementById('userSasIdDisplay');
+            
+            // Beta: show non-interactive message when login not yet available
+            if (BETA_LOGIN_DISABLED) {
+                if (loggedInDiv) loggedInDiv.style.display = 'none';
+                if (loginBoxDiv) {
+                    loginBoxDiv.style.display = 'block';
+                    loginBoxDiv.innerHTML = '<span id="authBtn" class="login-section-expanding" style="font-size:0.85rem;color:#64748b;cursor:default;">Content for this section is currently being expanded.</span>';
+                }
+                if (typeof updatePageContent === 'function') updatePageContent();
+                return;
+            }
             
             // Hide logged in status and clear user info
             if (loggedInDiv) {
@@ -425,8 +276,8 @@ async function updateHeaderAuthStatus() {
             authBtn.className = 'btn-primary';
             // Set as attribute too
             authBtn.setAttribute('data-button-text', 'Sign In / Sign Up');
-            console.log('[DEBUG] updateHeaderAuthStatus: Set button text to:', authBtn.textContent);
-            console.log('[DEBUG] updateHeaderAuthStatus: Button element:', authBtn);
+            _dbg('[DEBUG] updateHeaderAuthStatus: Set button text to:', authBtn.textContent);
+            _dbg('[DEBUG] updateHeaderAuthStatus: Button element:', authBtn);
             
             // Move button to loginBox if not already there
             if (loginBoxDiv) {
@@ -456,80 +307,23 @@ async function updateHeaderAuthStatus() {
                     if (finalBtn.textContent !== 'Sign In / Sign Up') {
                         finalBtn.textContent = 'Sign In / Sign Up';
                         finalBtn.innerHTML = 'Sign In / Sign Up';
-                        console.log('[DEBUG] updateHeaderAuthStatus: Fixed button text after replacement:', finalBtn.textContent);
+                        _dbg('[DEBUG] updateHeaderAuthStatus: Fixed button text after replacement:', finalBtn.textContent);
                     } else {
-                        console.log('[DEBUG] updateHeaderAuthStatus: Final button text correct:', finalBtn.textContent);
+                        _dbg('[DEBUG] updateHeaderAuthStatus: Final button text correct:', finalBtn.textContent);
                     }
                 }
             }, 50);
             newAuthBtn.addEventListener('click', async function(e) {
                 e.preventDefault();
-                console.log('[DEBUG] Auth button clicked (Sign In)');
-                
-                // Check if there's a valid session on this device
-                try {
-                    const session = await checkSession();
-                    console.log('[DEBUG] Sign In: Session check result:', session);
-                    
-                    if (session && session.valid) {
-                        // Auto sign in - valid session found on this device
-                        console.log('[DEBUG] Sign In: Valid session found, auto-signing in');
-                        // Update header and page content
-                        await updateHeaderAuthStatus();
-                        await safeUpdatePageContentAsync();
-                        // Refresh to show signed-in view
-                        window.location.reload();
-                    } else {
-                        // Check for stored credentials (WhatsApp/SAS ID + Password)
-                        const rememberCredentials = localStorage.getItem('remember_credentials');
-                        if (rememberCredentials === 'true') {
-                            const savedUsername = localStorage.getItem('saved_username');
-                            const savedPassword = localStorage.getItem('saved_password');
-                            
-                            if (savedUsername && savedPassword) {
-                                console.log('[DEBUG] Sign In: Stored credentials found, attempting auto-login');
-                                try {
-                                    // Try auto-login with stored credentials
-                                    const loginResult = await loginWithUsernamePassword(savedUsername, savedPassword);
-                                    if (loginResult && loginResult.success) {
-                                        console.log('[DEBUG] Sign In: Auto-login successful');
-                                        // Store session
-                                        document.cookie = `session=${loginResult.session || loginResult.session_token}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
-                                        localStorage.setItem('session', loginResult.session || loginResult.session_token);
-                                        // Update header and reload
-                                        await updateHeaderAuthStatus();
-                                        await safeUpdatePageContentAsync();
-                                        window.location.reload();
-                                        return;
-                                    }
-                                } catch (loginError) {
-                                    console.error('[DEBUG] Sign In: Auto-login failed:', loginError);
-                                }
-                            }
-                        }
-                        
-                        // No valid session or auto-login failed - redirect to login page
-                        try { sessionStorage.setItem('auth_returnTo', window.location.href); } catch (err) {}
-                        const loginUrl = (window.location.origin || '') + '/login.html';
-                        console.log('[DEBUG] Sign In: No valid session, redirecting to:', loginUrl);
-                        window.location.href = loginUrl;
-                    }
-                } catch (error) {
-                    console.error('[DEBUG] Sign In: Error checking session:', error);
-                    // On error, redirect to login page
-                    try { sessionStorage.setItem('auth_returnTo', window.location.href); } catch (err) {}
-                    const loginUrl = (window.location.origin || '') + '/login.html';
-                    window.location.href = loginUrl;
-                }
+                await handleSignInClick();
             });
             
-            // "Your Sailing Results" button removed - no longer needed
-            
-            // Trigger page content update if function exists
-            safeUpdatePageContentSync();
+            syncAuthToSiteHeader();
+            if (typeof updatePageContent === 'function') {
+                updatePageContent();
+            }
         }
     } catch (error) {
-        sailingSyncSuperAdminBodyClass({ valid: false });
         console.error('[DEBUG] updateHeaderAuthStatus: Error:', error);
         console.error('[DEBUG] updateHeaderAuthStatus: Stack trace:', error.stack);
         // Show login box on error
@@ -537,6 +331,95 @@ async function updateHeaderAuthStatus() {
         const loginBoxDiv = document.getElementById('loginBox');
         const userNameDisplay = document.getElementById('userNameDisplay');
         const userSasIdDisplay = document.getElementById('userSasIdDisplay');
+        
+        if (BETA_LOGIN_DISABLED) {
+            if (loggedInDiv) loggedInDiv.style.display = 'none';
+            if (loginBoxDiv) {
+                loginBoxDiv.style.display = 'block';
+                loginBoxDiv.innerHTML = '<span id="authBtn" class="login-section-expanding" style="font-size:0.85rem;color:#64748b;cursor:default;">Content for this section is currently being expanded.</span>';
+            }
+            return;
+        }
+        
+        // Hide logged in status and clear user info
+        if (loggedInDiv) {
+            loggedInDiv.style.display = 'none';
+        }
+        
+        // Clear Name and SAS ID when logged out (error state)
+        if (userNameDisplay) {
+            userNameDisplay.textContent = '';
+            userNameDisplay.innerHTML = '';
+        }
+        
+        if (userSasIdDisplay) {
+            userSasIdDisplay.textContent = '';
+            userSasIdDisplay.innerHTML = '';
+        }
+        
+        // Show login box with Sign In button
+        if (loginBoxDiv) {
+            loginBoxDiv.style.display = 'block';
+        }
+        
+        // Update auth button to "Sign In" on error (same button, different text/function)
+        // Remove any existing buttons with old IDs first
+        const oldLogoutBtn = document.getElementById('logoutBtn');
+        const oldLoginBtn = document.getElementById('loginBtn');
+        if (oldLogoutBtn) {
+            oldLogoutBtn.remove();
+        }
+        if (oldLoginBtn) {
+            oldLoginBtn.remove();
+        }
+        
+        let authBtn = document.getElementById('authBtn');
+        if (!authBtn) {
+            authBtn = document.createElement('button');
+            authBtn.id = 'authBtn';
+        }
+        
+        authBtn.textContent = 'Sign In / Sign Up';
+        authBtn.innerHTML = 'Sign In / Sign Up';
+        authBtn.className = 'btn-primary';
+        authBtn.setAttribute('data-button-text', 'Sign In / Sign Up');
+        if (loginBoxDiv) {
+            if (authBtn.parentNode && authBtn.parentNode !== loginBoxDiv) {
+                authBtn.parentNode.removeChild(authBtn);
+            }
+            if (!loginBoxDiv.contains(authBtn)) {
+                loginBoxDiv.appendChild(authBtn);
+            }
+        }
+        const newAuthBtn = authBtn.cloneNode(true);
+        if (authBtn.parentNode) {
+            authBtn.parentNode.replaceChild(newAuthBtn, authBtn);
+        }
+        newAuthBtn.addEventListener('click', async function(e) {
+            e.preventDefault();
+            await handleSignInClick();
+        });
+        syncAuthToSiteHeader();
+    }
+}
+
+    } catch (error) {
+        console.error('[DEBUG] updateHeaderAuthStatus: Error:', error);
+        console.error('[DEBUG] updateHeaderAuthStatus: Stack trace:', error.stack);
+        // Show login box on error
+        const loggedInDiv = document.getElementById('loggedInStatus');
+        const loginBoxDiv = document.getElementById('loginBox');
+        const userNameDisplay = document.getElementById('userNameDisplay');
+        const userSasIdDisplay = document.getElementById('userSasIdDisplay');
+        
+        if (BETA_LOGIN_DISABLED) {
+            if (loggedInDiv) loggedInDiv.style.display = 'none';
+            if (loginBoxDiv) {
+                loginBoxDiv.style.display = 'block';
+                loginBoxDiv.innerHTML = '<span id="authBtn" class="login-section-expanding" style="font-size:0.85rem;color:#64748b;cursor:default;">Content for this section is currently being expanded.</span>';
+            }
+            return;
+        }
         
         // Hide logged in status and clear user info
         if (loggedInDiv) {
@@ -584,8 +467,8 @@ async function updateHeaderAuthStatus() {
         authBtn.className = 'btn-primary';
         // Set as attribute too
         authBtn.setAttribute('data-button-text', 'Sign In / Sign Up');
-        console.log('[DEBUG] updateHeaderAuthStatus (error): Set button text to:', authBtn.textContent);
-        console.log('[DEBUG] updateHeaderAuthStatus (error): Button element:', authBtn);
+        _dbg('[DEBUG] updateHeaderAuthStatus (error): Set button text to:', authBtn.textContent);
+        _dbg('[DEBUG] updateHeaderAuthStatus (error): Button element:', authBtn);
         
         // Move button to loginBox if not already there
         if (loginBoxDiv) {
@@ -615,27 +498,29 @@ async function updateHeaderAuthStatus() {
                 if (finalBtn.textContent !== 'Sign In / Sign Up') {
                     finalBtn.textContent = 'Sign In / Sign Up';
                     finalBtn.innerHTML = 'Sign In / Sign Up';
-                    console.log('[DEBUG] updateHeaderAuthStatus (error): Fixed button text after replacement:', finalBtn.textContent);
+                    _dbg('[DEBUG] updateHeaderAuthStatus (error): Fixed button text after replacement:', finalBtn.textContent);
                 } else {
-                    console.log('[DEBUG] updateHeaderAuthStatus (error): Final button text correct:', finalBtn.textContent);
+                    _dbg('[DEBUG] updateHeaderAuthStatus (error): Final button text correct:', finalBtn.textContent);
                 }
             }
         }, 50);
         newAuthBtn.addEventListener('click', async function(e) {
             e.preventDefault();
-            console.log('[DEBUG] Auth button clicked (Sign In - error state)');
+            _dbg('[DEBUG] Auth button clicked (Sign In - error state)');
             
             // Check if there's a valid session on this device
             try {
                 const session = await checkSession();
-                console.log('[DEBUG] Sign In (error state): Session check result:', session);
+                _dbg('[DEBUG] Sign In (error state): Session check result:', session);
                 
                 if (session && session.valid) {
                     // Auto sign in - valid session found on this device
-                    console.log('[DEBUG] Sign In (error state): Valid session found, auto-signing in');
+                    _dbg('[DEBUG] Sign In (error state): Valid session found, auto-signing in');
                     // Update header and page content
                     await updateHeaderAuthStatus();
-                    await safeUpdatePageContentAsync();
+                    if (typeof updatePageContent === 'function') {
+                        await updatePageContent();
+                    }
                     // Refresh to show signed-in view
                     window.location.reload();
                 } else {
@@ -646,18 +531,20 @@ async function updateHeaderAuthStatus() {
                         const savedPassword = localStorage.getItem('saved_password');
                         
                         if (savedUsername && savedPassword && typeof loginWithUsernamePassword === 'function') {
-                            console.log('[DEBUG] Sign In (error state): Stored credentials found, attempting auto-login');
+                            _dbg('[DEBUG] Sign In (error state): Stored credentials found, attempting auto-login');
                             try {
                                 // Try auto-login with stored credentials
                                 const loginResult = await loginWithUsernamePassword(savedUsername, savedPassword);
                                 if (loginResult && loginResult.success) {
-                                    console.log('[DEBUG] Sign In (error state): Auto-login successful');
+                                    _dbg('[DEBUG] Sign In (error state): Auto-login successful');
                                     // Store session
                                     document.cookie = `session=${loginResult.session || loginResult.session_token}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
                                     localStorage.setItem('session', loginResult.session || loginResult.session_token);
                                     // Update header and reload
                                     await updateHeaderAuthStatus();
-                                    await safeUpdatePageContentAsync();
+                                    if (typeof updatePageContent === 'function') {
+                                        await updatePageContent();
+                                    }
                                     window.location.reload();
                                     return;
                                 }
@@ -670,7 +557,7 @@ async function updateHeaderAuthStatus() {
                     // No valid session or auto-login failed - redirect to login page
                     try { sessionStorage.setItem('auth_returnTo', window.location.href); } catch (err) {}
                     const loginUrl = (window.location.origin || '') + '/login.html';
-                    console.log('[DEBUG] Sign In (error state): No valid session, redirecting to:', loginUrl);
+                    _dbg('[DEBUG] Sign In (error state): No valid session, redirecting to:', loginUrl);
                     window.location.href = loginUrl;
                 }
             } catch (error) {
@@ -806,7 +693,7 @@ window.showAutoLoginPopup = showAutoLoginPopup;
  * Handle logout
  */
 async function handleLogout() {
-    console.log('[DEBUG] handleLogout: Called');
+    _dbg('[DEBUG] handleLogout: Called');
     
     // Show styled popup asking about auto-login
     const enableAutoLogin = await showAutoLoginPopup();
@@ -831,20 +718,17 @@ async function handleLogout() {
             loggedInDiv.style.display = 'none';
         }
         
-        // Call logout endpoint to end session on server
+        // Call logout endpoint to end session on server (send token in body so server always gets it)
         try {
-            const apiBase = (window.API_BASE || window.location.origin || '').replace(/\/$/, '');
-            var logoutPath = '/auth/logout';
-            try {
-                if (window.location && window.location.pathname && window.location.pathname.indexOf('/admin/') === 0) {
-                    logoutPath = '/admin/api/logout';
-                }
-            } catch (ePath) { /* ignore */ }
-            const response = await fetch(`${apiBase}${logoutPath}`, {
+            const base = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+            const sessionToken = localStorage.getItem('session') || document.cookie.replace(/(?:(?:^|.*;\s*)session\s*=\s*([^;]*).*$)|^.*$/, '$1');
+            const response = await fetch(`${base}/auth/logout`, {
                 method: 'POST',
-                credentials: 'include'
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: sessionToken ? JSON.stringify({ session_token: sessionToken }) : '{}'
             });
-            console.log('[DEBUG] handleLogout: Logout response:', response.status);
+            _dbg('[DEBUG] handleLogout: Logout response:', response.status);
         } catch (fetchError) {
             console.error('[DEBUG] handleLogout: Logout endpoint error:', fetchError);
         }
@@ -861,22 +745,22 @@ async function handleLogout() {
         // Handle auto-login preference
         if (!enableAutoLogin) {
             // User chose NOT to enable auto-login - clear stored credentials
-            console.log('[DEBUG] handleLogout: User chose not to enable auto-login, clearing credentials');
+            _dbg('[DEBUG] handleLogout: User chose not to enable auto-login, clearing credentials');
             localStorage.removeItem('saved_username');
             localStorage.removeItem('saved_password');
             localStorage.removeItem('remember_credentials');
             
-            // Canonical home: / (not /index.html)
-            const indexUrl = `${window.location.protocol}//${window.location.host}/`;
-            console.log('[DEBUG] handleLogout: Redirecting to public page (no auto-login):', indexUrl);
+            // Redirect to public page (index.html), not login.html
+            const indexUrl = (window.location.origin || '') + '/index.html';
+            _dbg('[DEBUG] handleLogout: Redirecting to public page (no auto-login):', indexUrl);
             window.location.href = indexUrl;
         } else {
             // User chose to enable auto-login - keep credentials stored
-            console.log('[DEBUG] handleLogout: User chose to enable auto-login, keeping credentials');
+            _dbg('[DEBUG] handleLogout: User chose to enable auto-login, keeping credentials');
             
-            // Canonical home on live: / (not /sailingsa/frontend/ — that path is dev-only / not on server)
-            const indexUrl = `${window.location.protocol}//${window.location.host}/`;
-            console.log('[DEBUG] handleLogout: Redirecting to public page:', indexUrl);
+            // Redirect to public index page
+            const indexUrl = (window.location.origin || '') + '/index.html';
+            _dbg('[DEBUG] handleLogout: Redirecting to public page:', indexUrl);
             window.location.href = indexUrl;
         }
     } catch (error) {
@@ -914,8 +798,9 @@ async function handleLogout() {
             loggedInDiv.style.display = 'none';
         }
         
-        const indexUrl = `${window.location.protocol}//${window.location.host}/`;
-        console.log('[DEBUG] handleLogout: Redirecting to public page (error):', indexUrl);
+        // Redirect to public page (index.html) on error, not login.html
+        const indexUrl = (window.location.origin || '') + '/index.html';
+        _dbg('[DEBUG] handleLogout: Redirecting to public page (error):', indexUrl);
         window.location.href = indexUrl;
     }
 }
@@ -939,7 +824,7 @@ async function handleLogout() {
                     authBtn.textContent = 'Sign In / Sign Up';
                     authBtn.innerHTML = 'Sign In / Sign Up';
                     authBtn.setAttribute('data-button-text', 'Sign In / Sign Up');
-                    console.log('[DEBUG] ensureButtonText: Fixed button text from "' + currentText + '" to "Sign In / Sign Up"');
+                    _dbg('[DEBUG] ensureButtonText: Fixed button text from "' + currentText + '" to "Sign In / Sign Up"');
                 }
             }
         }
@@ -1007,13 +892,83 @@ async function handleLogout() {
     }
 })();
 
+/**
+ * Sign-in button click handler (shared so site header copy can use it)
+ */
+async function handleSignInClick() {
+    _dbg('[DEBUG] Auth button clicked (Sign In)');
+    try {
+        const session = await checkSession();
+        _dbg('[DEBUG] Sign In: Session check result:', session);
+        if (session && session.valid) {
+            _dbg('[DEBUG] Sign In: Valid session found, auto-signing in');
+            await updateHeaderAuthStatus();
+            if (typeof updatePageContent === 'function') await updatePageContent();
+            window.location.reload();
+            return;
+        }
+        const rememberCredentials = localStorage.getItem('remember_credentials');
+        if (rememberCredentials === 'true') {
+            const savedUsername = localStorage.getItem('saved_username');
+            const savedPassword = localStorage.getItem('saved_password');
+            if (savedUsername && savedPassword) {
+                try {
+                    const loginResult = await loginWithUsernamePassword(savedUsername, savedPassword);
+                    if (loginResult && loginResult.success) {
+                        document.cookie = `session=${loginResult.session || loginResult.session_token}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
+                        localStorage.setItem('session', loginResult.session || loginResult.session_token);
+                        await updateHeaderAuthStatus();
+                        if (typeof updatePageContent === 'function') await updatePageContent();
+                        window.location.reload();
+                        return;
+                    }
+                } catch (loginError) { console.error('[DEBUG] Sign In: Auto-login failed:', loginError); }
+            }
+        }
+        try { sessionStorage.setItem('auth_returnTo', window.location.href); } catch (err) {}
+        const loginUrl = (window.location.origin || '') + '/login.html';
+        _dbg('[DEBUG] Sign In: No valid session, redirecting to:', loginUrl);
+        window.location.href = loginUrl;
+    } catch (error) {
+        console.error('[DEBUG] Sign In: Error checking session:', error);
+        try { sessionStorage.setItem('auth_returnTo', window.location.href); } catch (err) {}
+        window.location.href = (window.location.origin || '') + '/login.html';
+    }
+}
+
+/**
+ * Sync auth block to site header (headerAuthSite) and attach Logout/Sign In listener so buttons work when on sailor/class etc. pages.
+ */
+function syncAuthToSiteHeader() {
+    const auth = document.getElementById('headerAuth');
+    const authSite = document.getElementById('headerAuthSite');
+    if (!auth || !authSite) return;
+    authSite.innerHTML = auth.innerHTML;
+    const btn = authSite.querySelector('.btn-logout') || authSite.querySelector('.btn-primary');
+    if (!btn) return;
+    const newBtn = btn.cloneNode(true);
+    if (btn.parentNode) btn.parentNode.replaceChild(newBtn, btn);
+    if (newBtn.classList.contains('btn-logout')) {
+        newBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (typeof handleLogout === 'function') handleLogout();
+        });
+    } else {
+        newBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            handleSignInClick();
+        });
+    }
+}
+
 // Make functions globally available
 window.showState = showState;
 window.showPopup = showPopup;
 window.hidePopup = hidePopup;
 window.handleLogout = handleLogout;
+window.handleSignInClick = handleSignInClick;
+window.syncAuthToSiteHeader = syncAuthToSiteHeader;
 window.showAutoLoginPopup = showAutoLoginPopup;
-window.sailingsaIsClassSpaPath = sailingsaIsClassSpaPath;
 
 // Export for use in other modules
 if (typeof module !== 'undefined' && module.exports) {

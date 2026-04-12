@@ -276,3 +276,6 @@ secrets/
 *.key
 *.pem
 !public/*.pem
+
+# Full live server rsync mirror (large; do not push to GitHub)
+live-www-sailingsa/

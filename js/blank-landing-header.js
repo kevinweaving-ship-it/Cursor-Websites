@@ -1,8 +1,6 @@
 /**
- * Hub header (blank.html, blank69, admin dashboard template): single owner of #loginBox + #adminV10SecondHeader*
- * for pages where sailingsaHubHeaderOwnedByBlankLandingJs() is true (blank69 path or body data-sailingsa-hub-header-isolated="1").
- * session.js must not paint those nodes on those pages.
- * Load after /js/api.js and /js/session.js; DOM may omit #menuBtn / #navMenuOverlay when hamburger is not used.
+ * blank.html — same header behaviour as /admin/dashboard-v10 (menu overlay, session.js auth, v10 user row).
+ * Load after /js/api.js and /js/session.js; DOM must include #menuBtn, #navMenuOverlay, #adminV10SecondHeaderUser, etc.
  */
 (function () {
   if (!window.API_BASE && window.location && window.location.origin) {
@@ -24,45 +22,6 @@
     });
   }
 
-  function pathnameHasBlank69() {
-    try {
-      return (window.location && String(window.location.pathname || '').indexOf('blank69') !== -1);
-    } catch (e) {
-      return false;
-    }
-  }
-
-  /** Same contract as session.js sailingsaHubHeaderOwnedByBlankLandingJs (prefer window fn when session.js loaded). */
-  function hubUsesIsolatedSessionJsHeader() {
-    try {
-      if (typeof window.sailingsaHubHeaderOwnedByBlankLandingJs === 'function' &&
-          window.sailingsaHubHeaderOwnedByBlankLandingJs()) {
-        return true;
-      }
-    } catch (e) { /* ignore */ }
-    return pathnameHasBlank69();
-  }
-
-  /**
-   * Isolated hub: session.js updateHeaderAuthStatus is NOT run — this file is the only Sign In control (no #authBtn clash).
-   */
-  function paintBlank69LoggedOutSignIn() {
-    var lb = document.getElementById('loginBox');
-    if (!lb) return;
-    lb.style.display = 'block';
-    lb.innerHTML =
-      '<button type="button" class="btn-primary" id="blank69HubSignInOnly">Sign In / Sign Up</button>';
-    var btn = document.getElementById('blank69HubSignInOnly');
-    if (!btn) return;
-    btn.addEventListener('click', function (ev) {
-      ev.preventDefault();
-      try {
-        sessionStorage.setItem('auth_returnTo', window.location.href);
-      } catch (e1) { /* ignore */ }
-      window.location.href = (window.location.origin || '') + '/login.html';
-    });
-  }
-
   async function syncAdminV10SecondHeader() {
     var wrap = document.getElementById('adminV10SecondHeaderUser');
     var nm = document.getElementById('adminV10SecondHeaderName');
@@ -71,38 +30,23 @@
     if (!wrap || !nm || !sasEl || !av) return;
     wireAdminV10SecondHeaderLogout();
     try {
-      /**
-       * Always fetch session with raw fetch — not session.js checkSession/apiRequest (throws on some status codes
-       * before JSON is read). Gate on valid only; user may be sparse but API still returns valid + sas_id.
-       */
       var pathQs = '';
       try {
         if (window.location && window.location.pathname) {
           pathQs = '?path=' + encodeURIComponent(window.location.pathname || '/');
         }
       } catch (e0) { /* ignore */ }
-      var pathP = (window.location && window.location.pathname) ? window.location.pathname : '';
-      var useAdminSessionProxy = pathP === '/admin' || (pathP.indexOf('/admin/') === 0);
-      /** Hub pages must use origin — never a relative window.API_BASE clobbered by another deferred script. */
-      var rawBase = (window.API_BASE || (window.location && window.location.origin) || '').replace(/\/$/, '');
-      var apiBase = /^https?:\/\//i.test(String(rawBase)) ? rawBase : String((window.location && window.location.origin) || '').replace(/\/$/, '');
-      var sessionUrl = apiBase + (useAdminSessionProxy ? '/admin/api/session' : '/auth/session') + pathQs;
+      var p = (window.location && window.location.pathname) ? window.location.pathname : '';
+      var useAdminSessionProxy = p === '/admin' || (p.indexOf('/admin/') === 0);
+      var sessionUrl = window.API_BASE + (useAdminSessionProxy ? '/admin/api/session' : '/auth/session') + pathQs;
       var r = await fetch(sessionUrl, { credentials: 'include', cache: 'no-store' });
-      var s = null;
-      try {
-        s = await r.json();
-      } catch (eJ) {
-        s = { valid: false };
-      }
-      if (!s || s.valid !== true) {
+      var s = await r.json();
+      if (!s || !s.valid || !s.user) {
         wrap.setAttribute('hidden', '');
         av.removeAttribute('src');
         av.style.display = 'none';
         nm.textContent = '';
         sasEl.textContent = '';
-        if (hubUsesIsolatedSessionJsHeader()) {
-          paintBlank69LoggedOutSignIn();
-        }
         return;
       }
       var u = s.user || {};
@@ -124,16 +68,8 @@
         av.style.display = 'none';
       }
       wrap.removeAttribute('hidden');
-      var loginBoxHide = document.getElementById('loginBox');
-      if (loginBoxHide) {
-        loginBoxHide.style.display = 'none';
-        try {
-          loginBoxHide.innerHTML = '';
-        } catch (eClr) { /* ignore */ }
-      }
     } catch (e) {
       wrap.setAttribute('hidden', '');
-      // Do not paint Sign In here — transient fetch/DOM errors are not logged-out.
     }
   }
 
@@ -171,20 +107,12 @@
   }
 
   async function refreshBlankLandingHeader() {
-    var skipSessionJsHeader = hubUsesIsolatedSessionJsHeader();
-    /** blank69: never call updateHeaderAuthStatus — it injects #authBtn into #loginBox and duplicates v10 Logout. */
-    if (!skipSessionJsHeader && typeof updateHeaderAuthStatus === 'function') {
+    if (typeof updateHeaderAuthStatus === 'function') {
       try {
         await updateHeaderAuthStatus();
       } catch (e) { /* ignore */ }
     }
     await syncAdminV10SecondHeader();
-    if (skipSessionJsHeader && typeof checkSession === 'function' && typeof sailingSyncSuperAdminBodyClass === 'function') {
-      try {
-        var sBody = await checkSession();
-        sailingSyncSuperAdminBodyClass(sBody);
-      } catch (eSa) { /* ignore */ }
-    }
   }
 
   window.refreshBlankLandingHeader = refreshBlankLandingHeader;
@@ -194,22 +122,9 @@
     return typeof fn === 'function' ? fn() : Promise.resolve();
   }
 
-  function watchHubHeaderAvatarSrc(id) {
-    var avatar = document.getElementById(id);
-    if (!avatar) return;
-    var observer = new MutationObserver(function () {
-      if (avatar.src && avatar.src !== window.location.href) {
-        avatar.style.display = 'block';
-      }
-    });
-    observer.observe(avatar, { attributes: true, attributeFilter: ['src'] });
-  }
-
   function boot() {
     wireLogoHomeFlag();
     wireBlankHeaderNav();
-    watchHubHeaderAvatarSrc('userAvatarImg');
-    watchHubHeaderAvatarSrc('adminV10SecondHeaderAvatar');
     callRefresh().catch(function () {});
   }
 
