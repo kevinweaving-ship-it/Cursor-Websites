@@ -281,7 +281,18 @@ secrets/
 live-www-sailingsa/
 live-www-sailingsa/
 backup_original/
+archives/
 *.zip
 *.tar.gz
 *.sql
 *.log
+
+# Local API snapshots / restore trees (large; not source of truth)
+api/api.py.bak.*
+api/api.py.before_*
+api/api.py.broken.*
+api/api.py.pre_*
+api_restore_8001/
+
+# macOS AppleDouble / resource fork files inside tracked dirs
+**/._*
