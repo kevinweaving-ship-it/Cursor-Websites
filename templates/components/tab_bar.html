@@ -1,0 +1,31 @@
+{# Fixed primary nav — same destinations as global site nav #}
+{% set nav_items = [
+  ('Home', '/'),
+  ('Sailors', '/sailors'),
+  ('Regattas', '/regattas'),
+  ('Classes', '/classes'),
+  ('Clubs', '/clubs'),
+  ('Events', '/events'),
+  ('Statistics', '/stats'),
+  ('About', '/about'),
+] %}
+<div class="site-header site-header-tab-bar">
+  <div class="container" style="display:flex;align-items:center;flex-wrap:wrap;gap:0.75rem;">
+    <nav class="nav-inline" aria-label="Main" style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-right:auto;">
+      {% for label, href in nav_items %}
+        {% if href != nav_current %}
+      <a href="{{ href }}">{{ label }}</a>
+        {% endif %}
+      {% endfor %}
+    </nav>
+    <div class="header-auth" id="headerAuth" style="margin-left:auto;"></div>
+    <button type="button" class="menu-dropdown-toggle" id="menuToggle" aria-label="Menu" aria-expanded="false" aria-haspopup="true" aria-controls="mobileMenu">▾</button>
+  </div>
+  <div id="mobileMenu" class="mobile-dropdown hidden" role="menu" aria-hidden="true">
+    {% for label, href in nav_items %}
+      {% if href != nav_current %}
+    <a href="{{ href }}" role="menuitem">{{ label }}</a>
+      {% endif %}
+    {% endfor %}
+  </div>
+</div>

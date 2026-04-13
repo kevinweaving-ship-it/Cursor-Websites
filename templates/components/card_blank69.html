@@ -1,0 +1,65 @@
+    <section class="card blank-breaking-news-card" aria-label="Breaking News" role="region" data-blank-bn-card data-bn-slot="breaking">
+      <div class="bn-card-stack" data-bncard-stack>
+      <div data-bncard-root class="bn-card">
+        <p class="blank-hub-empty-line bn-card__loading" data-bncard-loading>Loading…</p>
+        <div data-bncard-empty class="bn-card__empty" hidden>
+          <p class="blank-hub-empty-line">No event currently qualifies for automated Breaking News.</p>
+        </div>
+        <div data-bncard-body class="bn-card__body" hidden>
+          <div class="bn-card__badge-row" data-bncard-badge-row>
+            <span
+              class="blank-hub-hero-badge blank-hub-hero-badge--live blank-hub-hero-badge--pulse"
+              data-bncard-section-badge
+              >Breaking News</span
+            >
+            <a class="blank-hub-hero-badge blank-hub-hero-badge--prov blank-hub-hero-badge--pulse" data-bncard-results-link href="#" aria-label="Open regatta results">
+              <span class="blank-hub-hero-prov-check" aria-hidden="true"><span class="blank-hub-hero-prov-check-glyph">✓</span></span>
+              <span class="blank-hub-hero-prov-label">Results</span>
+            </a>
+            <span
+              class="blank-hub-hero-badge blank-hub-hero-badge--live blank-hub-hero-badge--pulse"
+              data-bncard-live-badge
+              hidden
+            >Live</span>
+            <span class="blank-hub-hero-badge bn-card__day-pill" data-bncard-day-badge hidden>Day 1</span>
+            <span class="blank-hub-hero-badge bn-card__race-pill" data-bncard-race-badge hidden>R0</span>
+          </div>
+          <div class="bn-card__split" data-bncard-hero-row>
+            <div class="bn-card__split-left">
+              <div data-bncard-view-block>
+                <p class="bn-card__title-line" data-bncard-title-line hidden></p>
+                <p class="bn-card__detail-line" data-bncard-detail-line hidden></p>
+                <p class="bn-card__detail-line bn-card__detail-line--asat" data-bncard-detail-line2 hidden></p>
+                <p class="bn-card__detail-line" data-bncard-stats-line hidden></p>
+              </div>
+              <div class="bn-card__sa-inline-form" data-bncard-sa-form hidden></div>
+              <p class="bn-card__sa-msg" data-bncard-sa-msg hidden aria-live="polite"></p>
+            </div>
+            <div class="bn-card__split-right">
+              <div class="bn-card__hero-col">
+                <div class="bn-card__fleet-block" data-bncard-fleet-block hidden>
+                  <div class="bn-card__fleet-wrap" data-bncard-fleet-wrap aria-label="Fleets"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="bn-card__image-podium-row">
+            <div
+              class="bn-card__image-slot"
+              data-bncard-image-placeholder
+              aria-label="Image placeholder"
+            >
+              <span class="bn-card__image-slot-label">Image</span>
+            </div>
+            <div
+              class="bn-card__podium"
+              data-bncard-podium
+              hidden
+              aria-live="polite"
+              aria-label="Fleet results — swipe sideways for more ranks"
+            ></div>
+          </div>
+        </div>
+      </div>
+      </div>
+    </section>

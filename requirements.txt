@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+psycopg2-binary
+unidecode
+python-dotenv
+duckduckgo-search
+feedparser
+httpx
+pillow>=10.0.0
+pillow-heif>=0.16.0

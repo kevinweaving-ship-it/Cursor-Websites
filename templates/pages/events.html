@@ -1,0 +1,148 @@
+{% extends "base_app.html" %}
+{% block title %}Events – SailingSA{% endblock %}
+{% block meta %}
+<meta name="description" content="Upcoming and past sailing events. South African Sailing calendar.">
+<link rel="canonical" href="https://sailingsa.co.za/events">
+{% endblock %}
+{% block extra_head %}
+<style>
+main#events-dashboard { padding-top: 1rem; box-sizing: border-box; }
+@media (min-width: 640px) { main#events-dashboard { padding-top: 1.25rem; } }
+.events-tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.events-tabs button { padding: 0.6rem 1.2rem; font-size: 1rem; font-weight: 600; border: 2px solid transparent; border-radius: 8px; cursor: pointer; }
+.events-tabs button[data-tab="upcoming"] { background: #dcfce7; color: #166534; }
+.events-tabs button[data-tab="upcoming"]:hover { background: #bbf7d0; }
+.events-tabs button[data-tab="upcoming"].active { background: #22c55e; color: #fff; border-color: #15803d; }
+.events-tabs button[data-tab="past"] { background: #fee2e2; color: #991b1b; }
+.events-tabs button[data-tab="past"]:hover { background: #fecaca; }
+.events-tabs button[data-tab="past"].active { background: #ef4444; color: #fff; border-color: #b91c1c; }
+.events-panel { display: none; }
+.events-panel.active { display: block; }
+#panel-upcoming .event-card { background: #dcfce7; border: 2px solid #22c55e; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.5rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 0.35rem; }
+#panel-past .event-card { background: #fee2e2; border: 2px solid #fecaca; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.5rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 0.35rem; }
+#panel-past .event-card.event-card-has-results { background: #7a1c1c; border-color: #ef4444; }
+.event-card .event-likely-classes { font-size: 0.8rem; color: #475569; margin: 0.2rem 0 0 0; }
+.event-card { border-radius: 6px; padding: 0.5rem 0.75rem 0.35rem 0.75rem; margin-bottom: 0.5rem; }
+.event-card .event-card-header { display: block; }
+.event-card h3 { font-size: 0.95rem; font-weight: 700; color: #001f3f; margin: 0 0 0.2rem 0; line-height: 1.25; }
+.event-card .event-date { font-size: 0.8rem; color: #475569; margin: 0; display: block; }
+.event-card .event-card-body { display: flex; flex-direction: column; align-items: flex-start; flex-wrap: nowrap; width: 100%; gap: 0.22rem 0.75rem; }
+.event-card .event-club { font-size: 0.8rem; margin: 0; }
+.event-card .event-club a { color: #2563eb; font-weight: 600; text-decoration: underline; }
+.event-card .event-club a:hover { color: #e65100; }
+.event-card .event-host-unmatched { color: #b45309; font-size: 0.85em; margin-left: 0.2rem; }
+.event-card .event-host-unmatched[title]:hover { cursor: help; }
+.event-card .event-type-line { display: block; margin: 0.2rem 0 0 0; width: 100%; }
+.event-card .event-footer-row { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 0.5rem; margin-top: 0.2rem; }
+.event-card .event-type { display: inline-block; font-size: 0.75rem; font-weight: 700; padding: 0.18rem 0.4rem; background: #001f3f; color: #fff; border-radius: 4px; margin: 0; }
+.event-card .event-type.event-type--empty { font-style: italic; opacity: 0.9; }
+.event-card .event-card-result-row .event-result-line { display: flex; flex-wrap: nowrap; align-items: center; gap: 0.35rem; font-size: 0.7rem; font-weight: 600; margin: 0; padding: 0; }
+.event-result-chip { display: inline-flex; flex-direction: row; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 0.3rem; padding: 0.22rem 0.45rem; min-height: 1.5rem; height: 1.5rem; max-height: 1.5rem; background: #fff; border: 1px solid rgba(0,0,0,0.2); border-radius: 6px; box-sizing: border-box; font-size: 0.7rem; font-weight: 600; line-height: 1; text-decoration: none; color: #1e293b; }
+.event-card .event-result-chip .event-result-label { color: #334155; flex-shrink: 0; }
+.event-result-chip--reserved { visibility: hidden; pointer-events: none; }
+.event-result-chip.event-result-yes .event-result-glyph { color: #16a34a; font-weight: 700; }
+.event-result-chip.event-result-no .event-result-glyph { color: #dc2626; font-weight: 700; }
+.event-card a.event-result-chip.event-result-yes:hover { background: #f8fafc; border-color: rgba(0,0,0,0.22); }
+.event-card a.event-result-chip.event-result-yes:hover .event-result-glyph { color: #15803d; }
+.event-card .event-location { font-size: 0.75rem; color: #64748b; margin: 0; }
+.event-card .event-card-actions .event-details-btn { display: inline-flex; align-items: center; justify-content: center; height: 1.5rem; min-height: 1.5rem; max-height: 1.5rem; padding: 0 0.4rem; font-size: 0.7rem; font-weight: 600; line-height: 1; border-radius: 6px; text-decoration: none; border: none; cursor: pointer; margin: 0; box-sizing: border-box; }
+.event-card .event-card-index { border-radius: 6px; }
+.event-card .event-card-actions .event-details-btn:hover { opacity: 0.92; }
+.event-card .event-thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }
+.events-show-more { margin-top: 0.5rem; }
+.events-show-more button { padding: 0.5rem 1rem; font-size: 0.95rem; background: #f1f5f9; border: 2px solid #001f3f; border-radius: 6px; cursor: pointer; color: #001f3f; font-weight: 600; }
+.events-show-more button:hover { background: #e2e8f0; }
+.events-show-more button.hidden { display: none; }
+@media (max-width: 768px) {
+  .events-header .container { flex-wrap: nowrap !important; overflow: visible; }
+  .events-header .nav-inline { display: none !important; }
+  .events-header .menu-dropdown-toggle { display: flex; }
+}
+</style>
+{% endblock %}
+{% block content %}
+<main class="main-content" id="events-dashboard"><div class="container">
+<div class="card stats-section">
+<h2 class="section-title">Events</h2>
+<div class="events-tabs" role="tablist">
+<button type="button" class="events-tab active" role="tab" aria-selected="true" data-tab="upcoming">Upcoming</button>
+<button type="button" class="events-tab" role="tab" aria-selected="false" data-tab="past">Past</button>
+</div>
+<div id="panel-upcoming" class="events-panel active" role="tabpanel"><div class="events-cards" id="cards-upcoming"></div><div class="events-show-more" id="show-more-upcoming"><button type="button" id="btn-more-upcoming">Show More</button></div></div>
+<div id="panel-past" class="events-panel" role="tabpanel"><div class="events-cards" id="cards-past"></div><div class="events-show-more" id="show-more-past"><button type="button" id="btn-more-past">Show More</button></div></div>
+</div></div></main>
+<footer class="site-footer-about" style="text-align:center;padding:2rem 1rem;font-size:0.9rem;color:#666;border-top:1px solid #e0e0e0;margin-top:2rem;">SailingSA – South African Sailing Results Database © <span id="year-events"></span></footer>
+{% endblock %}
+{% block extra_scripts %}
+<script type="application/json" id="events-data">{{ events_json|safe }}</script>
+<script>
+document.getElementById("year-events").textContent = new Date().getFullYear();
+(function(){
+  var raw = document.getElementById("events-data");
+  var DATA = raw ? JSON.parse(raw.textContent) : { upcoming: [], past: [] };
+  var INITIAL = 10;
+  function esc(s){ var d=document.createElement("div"); d.textContent=s||""; return d.innerHTML; }
+  function renderCard(e, isPast){
+    var cardClass = 'event-card' + (isPast && e.result_yes ? ' event-card-has-results' : '');
+    var titleText = (e.event_name != null && e.event_name !== '') ? e.event_name : (e.display_title || '');
+    var titleHtml = (isPast && e.has_regatta_link && e.details_url && e.details_url.indexOf('/regatta/') === 0)
+      ? '<a href="' + esc(e.details_url) + '" class="event-title-link">' + esc(titleText) + '</a>'
+      : esc(titleText);
+    var hostLabel = 'Host: ';
+    var hostLink = e.club_slug ? '<a href="/club/' + esc(e.club_slug) + '">' + esc(e.host_code || e.host_club) + '</a>' : esc(e.host_code || e.host_club);
+    var hostFlag = (e.host_unmatched) ? ' <span class="event-host-unmatched" title="Host not in club list — add to clubs table">⚠</span>' : '';
+    var hostHtml = '<span class="event-club">' + hostLabel + hostLink + hostFlag + '</span>';
+    var rawType = (e.event_type != null && String(e.event_type).trim()) ? String(e.event_type).trim() : '';
+    var typeHtml = '<div class="event-type-line"><span class="event-type' + (rawType ? '' : ' event-type--empty') + '"' + (rawType ? '' : ' title="Event type not set"') + '>' + (rawType ? esc(rawType) : '\u2014') + '</span></div>';
+    var locHtml = e.location ? '<span class="event-location">' + esc(e.location) + '</span>' : '';
+    var resultHtml = (e.show_result_line === true)
+      ? (e.result_yes
+          ? '<div class="event-result-line"><a href="' + esc(e.result_url || '') + '" class="event-result-chip event-result-yes"><span class="event-result-label">Result:</span><span class="event-result-glyph" aria-hidden="true">&#10003;</span></a></div>'
+          : '<div class="event-result-line"><span class="event-result-chip event-result-no"><span class="event-result-label">Result:</span><span class="event-result-glyph" aria-hidden="true">&#10007;</span></span></div>')
+      : '';
+    var hasDetails = e.details_url && e.details_url !== '#';
+    var ext = hasDetails && e.details_url.indexOf('/') !== 0;
+    var btn = hasDetails ? '<a href="' + esc(e.details_url) + '" class="event-details-btn"' + (ext ? ' target="_blank" rel="noopener"' : '') + '>Details</a>' : '';
+    var footerRow = (typeHtml || btn) ? '<div class="event-footer-row">' + typeHtml + btn + '</div>' : '';
+    var header = '<div class="event-card-header"><h3>' + titleHtml + '</h3><span class="event-date">' + esc(e.date_display) + '</span></div>';
+    var body = '<div class="event-card-body">'
+      + hostHtml
+      + locHtml
+      + resultHtml
+      + footerRow
+      + '</div>';
+    return '<div class="' + cardClass + '">' + header + body + '</div>';
+  }
+  function fillPanel(id, list){
+    var container = document.getElementById("cards-" + id);
+    var btnWrap = document.getElementById("show-more-" + id);
+    var btn = document.getElementById("btn-more-" + id);
+    if(!container || !list.length){ if(btnWrap) btnWrap.classList.add("hidden"); return; }
+    container.innerHTML = "";
+    var show = INITIAL;
+    function add(){
+      var end = Math.min(show, list.length);
+      var isPast = (id === 'past');
+      for(var i = container.children.length; i < end; i++)
+        container.insertAdjacentHTML("beforeend", renderCard(list[i], isPast));
+      if(btnWrap) btnWrap.classList.toggle("hidden", end >= list.length);
+      show = end;
+    }
+    add();
+    if(btn) btn.onclick = function(){ show += INITIAL; add(); };
+  }
+  fillPanel("upcoming", DATA.upcoming);
+  fillPanel("past", DATA.past);
+  document.querySelectorAll(".events-tab").forEach(function(t){
+    t.addEventListener("click", function(){
+      var tab = t.getAttribute("data-tab");
+      document.querySelectorAll(".events-tab").forEach(function(x){ x.classList.remove("active"); x.setAttribute("aria-selected","false"); });
+      t.classList.add("active"); t.setAttribute("aria-selected","true");
+      document.querySelectorAll(".events-panel").forEach(function(p){ p.classList.remove("active"); });
+      var panel = document.getElementById("panel-" + tab);
+      if(panel) panel.classList.add("active");
+    });
+  });
+})();
+</script>
+{% endblock %}

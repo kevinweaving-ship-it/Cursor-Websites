@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Admin dashboard · SailingSA</title>
+  <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
+  <link rel="stylesheet" href="/css/main.css?v=20260411adminonly2">
+  <style id="admin-dash-no-main-auth">
+    /* Cached/old markup: hide main-site login chip; admin uses #adminV10SecondHeaderUser + admin-dashboard.js only */
+    body.admin-dashboard-v10 #headerAuth,
+    body.admin-dashboard-v10 #loginBox,
+    body.admin-dashboard-v10 #loggedInStatus,
+    body.admin-dashboard-v10 button#authBtn { display: none !important; visibility: hidden !important; }
+  </style>
+  <script>window.API_BASE = (window.location && window.location.origin) ? String(window.location.origin).replace(/\/$/, '') : '';</script>
+</head>
+<body class="blank-landing-page admin-dashboard-v10">
+  <div class="admin-v10-second-header" aria-label="Site header">
+    <div class="admin-v10-second-header__inner">
+      <div class="admin-v10-second-header__top-row">
+        <div class="admin-v10-second-header__brand-block">
+          <a href="/" class="admin-v10-second-header__brand-link js-go-home" id="headerLogoLink" title="Home – SailingSA" aria-label="Home – SailingSA">
+            <span class="admin-v10-second-header__brand-slice admin-v10-second-header__brand-slice--word" aria-hidden="true"></span>
+            <span class="admin-v10-second-header__brand-slice admin-v10-second-header__brand-slice--flags" aria-hidden="true"></span>
+          </a>
+        </div>
+        <div class="admin-v10-second-header__right">
+          <div class="admin-v10-second-header__user" id="adminV10SecondHeaderUser" hidden>
+            <div class="admin-v10-second-header__user-text">
+              <span class="admin-v10-second-header__name" id="adminV10SecondHeaderName"></span>
+              <span class="admin-v10-second-header__sas" id="adminV10SecondHeaderSas"></span>
+            </div>
+            <img class="admin-v10-second-header__avatar" id="adminV10SecondHeaderAvatar" alt="" width="72" height="72" decoding="async">
+            <button type="button" class="btn-logout admin-v10-second-header__logout" id="adminV10SecondHeaderLogoutBtn">Logout</button>
+          </div>
+          <button type="button" class="menu-btn" id="menuBtn" aria-label="Open menu">
+            <span class="menu-icon"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <nav id="navMenuOverlay" class="nav-menu-overlay" aria-hidden="true" style="display:none;">
+      <a href="/">Sailor</a>
+      <a href="/" data-mode="regatta">Regatta</a>
+      <a href="/about">About</a>
+    </nav>
+  </div>
+
+  <main class="blank-app container" id="adminDashboardMain">
+    {% if sas_registry_card %}
+    <article class="card admin-task-report-card" aria-label="SAS ID Registry scrape"
+      data-panel-log-file="{{ sas_registry_card.panel_log_file }}"
+      data-run-scrape-key="{{ sas_registry_card.run_scrape_key }}">
+      <div class="admin-task-report-card__pills-row">
+        <span class="admin-pill admin-pill--scrape-title admin-pill--long">{{ sas_registry_card.scrape_name }}</span>
+        <span class="admin-pill {{ sas_registry_card.status_pill_class }}">Status: {{ sas_registry_card.status }}</span>
+        <span class="admin-pill admin-pill--fleet">{{ sas_registry_card.table_pill }}</span>
+        <span class="admin-pill admin-pill--fleet">{{ sas_registry_card.rows_pill }}</span>
+        <span class="admin-pill admin-pill--day">{{ sas_registry_card.last_run_pill }}</span>
+        <span class="admin-pill admin-pill--fleet">{{ sas_registry_card.pill_last_batch_records }}</span>
+        <span class="admin-pill admin-pill--batch-pill" title="{{ sas_registry_card.batch_id_display }}">Batch: {{ sas_registry_card.batch_id_pill }}</span>
+      </div>
+      <div class="admin-task-report-card__pills-row">
+        <span class="admin-pill admin-pill--fleet">{{ sas_registry_card.pill_errors }}</span>
+        <span class="admin-pill admin-pill--fleet">{{ sas_registry_card.pill_next_scheduled }}</span>
+        <span class="admin-pill admin-pill--fleet-accent">{{ sas_registry_card.pill_countdown }}</span>
+        <span class="admin-pill admin-pill--fleet">{{ sas_registry_card.pill_total_added }}</span>
+        <span class="admin-pill admin-pill--fleet">{{ sas_registry_card.pill_trigger }}</span>
+      </div>
+      <div class="admin-task-report-card__pills-row admin-task-report-card__pills-row--card-actions">
+        <button type="button" class="admin-pill admin-pill--fleet-accent admin-pill--dash-action" data-admin-dash-records>Last 5 SAS IDs</button>
+        <button type="button" class="admin-pill admin-pill--fleet-accent admin-pill--dash-action" data-admin-dash-manual>Manual run</button>
+        {% if sas_registry_card.audit_url %}<a class="admin-pill admin-pill--fleet-accent admin-pill--dash-action" href="{{ sas_registry_card.audit_url }}">Open audit</a>{% endif %}
+        {% if sas_registry_card.log_url %}<a class="admin-pill admin-pill--fleet admin-pill--dash-action" href="{{ sas_registry_card.log_url }}">Deploy log ({{ sas_registry_card.panel_log_file }})</a>{% endif %}
+      </div>
+      <div id="adminDashboardRegistryPanel" class="admin-dashboard-registry-panel" hidden>
+        <div class="admin-dashboard-registry-panel__bar">
+          <span id="adminDashboardRegistryPanelTitle" class="admin-dashboard-registry-panel__title"></span>
+          <button type="button" id="adminDashboardRegistryPanelClose" class="admin-dashboard-registry-panel__close">Close</button>
+        </div>
+        <div id="adminDashboardRegistryPanelMount" class="admin-dashboard-registry-panel__mount">
+          <p id="adminDashboardRegistryStatus" class="admin-dashboard-registry-status" hidden></p>
+          <div id="adminDashboardRegistryPanelBody"></div>
+        </div>
+      </div>
+    </article>
+    {% endif %}
+  </main>
+  <script src="/js/admin-dashboard.js?v=20260411adminonly2"></script>
+</body>
+</html>

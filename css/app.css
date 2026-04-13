@@ -1,0 +1,101 @@
+/**
+ * App layout shell (Phase 1) — mobile-first, max-width container.
+ * Tables: horizontal scroll + nowrap (matches design system table-container pattern).
+ */
+
+.app-container {
+  width: 100%;
+  max-width: 72rem;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  box-sizing: border-box;
+}
+
+.app-header-title {
+  margin: 0;
+}
+
+.site-header-tab-bar .container {
+  min-height: 44px;
+}
+
+/* Mobile-first bottom nav */
+.app-bottom-nav {
+  display: flex;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  justify-content: space-around;
+  align-items: center;
+  min-height: 48px;
+  padding: 0.25rem 0.5rem env(safe-area-inset-bottom, 0.25rem);
+  background: #001f3f;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  box-sizing: border-box;
+}
+
+.app-bottom-nav a {
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 0.75rem;
+  padding: 0.5rem 0.35rem;
+}
+
+.app-bottom-nav a:hover,
+.app-bottom-nav a:focus-visible {
+  text-decoration: underline;
+}
+
+/* Reserve space so content is not hidden behind bottom nav on small screens */
+@media (max-width: 768px) {
+  body {
+    padding-bottom: 3.5rem;
+  }
+}
+
+@media (min-width: 769px) {
+  .app-bottom-nav {
+    display: none;
+  }
+
+  body {
+    padding-bottom: 0;
+  }
+}
+
+/* Tables inside app shell — overflow + nowrap (allow horizontal scroll) */
+.app-container .table-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.app-container .table.table,
+.app-container table.table {
+  white-space: nowrap;
+}
+
+.results-table-component .table {
+  white-space: nowrap;
+}
+
+/* Regatta standalone (Phase 1) — padding shell only; fleet HTML still uses .table-wrapper */
+.page-content {
+  padding: 12px;
+  max-width: 100%;
+}
+
+.app-container .page-content .table-wrapper {
+  overflow-x: auto;
+  width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+
+.app-container .page-content .table-container {
+  overflow-x: auto;
+  width: 100%;
+}
