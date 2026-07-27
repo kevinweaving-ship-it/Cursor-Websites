@@ -53,6 +53,15 @@ CREATE TABLE IF NOT EXISTS artifact_statuses (
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Source scope enumeration (what level does this source cover?)
+CREATE TABLE IF NOT EXISTS source_scopes (
+    scope_code          TEXT PRIMARY KEY,
+    scope_name          TEXT NOT NULL,
+    description         TEXT,
+    scope_level         SMALLINT NOT NULL,  -- Higher = more specific (REGATTA=1, RESULT=6)
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- ============================================================================
 -- STEP 2: Seed lookup tables
 -- ============================================================================
@@ -105,6 +114,17 @@ INSERT INTO artifact_statuses (status_code, status_name, description) VALUES
 ('deleted_source', 'Source Deleted', 'Original URL no longer accessible'),
 ('pending_retrieval', 'Pending Retrieval', 'Scheduled for download/refresh')
 ON CONFLICT (status_code) DO NOTHING;
+
+-- Source scopes (granularity levels)
+INSERT INTO source_scopes (scope_code, scope_name, description, scope_level) VALUES
+('regatta', 'Regatta', 'Source covers entire regatta (all classes, races, results)', 1),
+('class', 'Class', 'Source covers one class/fleet within regatta', 2),
+('fleet', 'Fleet', 'Source covers one fleet/division within class', 3),
+('race', 'Race', 'Source covers one race only', 4),
+('entry', 'Entry', 'Source covers one entry/competitor', 5),
+('result', 'Result', 'Source covers one result row', 6),
+('boat', 'Boat', 'Source covers boat identity/registration', 7)
+ON CONFLICT (scope_code) DO NOTHING;
 
 -- ============================================================================
 -- STEP 3: Create helper function for updated_at
@@ -222,6 +242,23 @@ CREATE TABLE IF NOT EXISTS regatta_sources (
     regatta_id          TEXT NOT NULL REFERENCES regattas(regatta_id) ON DELETE CASCADE,
     artifact_id         BIGINT NOT NULL REFERENCES source_artifacts(artifact_id) ON DELETE RESTRICT,
     
+    -- Source scope: what level does this source cover?
+    source_scope        TEXT NOT NULL DEFAULT 'regatta' REFERENCES source_scopes(scope_code),
+    
+    -- Scope-specific references (populated based on source_scope)
+    -- For scope='class': which class this source covers
+    scope_class_id      INTEGER REFERENCES classes(class_id),
+    -- For scope='fleet': which fleet (block) this source covers
+    scope_block_id      TEXT,
+    -- For scope='race': which race number(s) this source covers
+    scope_race_numbers  INTEGER[],
+    -- For scope='entry': which entry this source covers
+    scope_entry_id      BIGINT REFERENCES entries(entry_id),
+    -- For scope='result': which result this source covers
+    scope_result_id     BIGINT REFERENCES results(result_id),
+    -- For scope='boat': which boat this source covers
+    scope_boat_id       BIGINT REFERENCES boats(boat_id),
+    
     -- Original vs Secondary (is_original is IMMUTABLE)
     is_original         BOOLEAN NOT NULL DEFAULT FALSE,
     is_primary          BOOLEAN NOT NULL DEFAULT FALSE,
@@ -233,12 +270,12 @@ CREATE TABLE IF NOT EXISTS regatta_sources (
     authority_override  SMALLINT,
     
     -- Validation
-    validation_status   TEXT NOT NULL DEFAULT 'validated' REFERENCES validation_statuses(status_code),
+    validation_status   TEXT NOT NULL DEFAULT 'draft' REFERENCES validation_statuses(status_code),
     validated_by        TEXT,
     validated_at        TIMESTAMPTZ,
     validation_notes    TEXT,
     
-    -- Partial scope fields
+    -- Partial scope fields (for scope='regatta' when not covering everything)
     covers_all_classes  BOOLEAN NOT NULL DEFAULT TRUE,
     class_ids_covered   INTEGER[],
     covers_all_races    BOOLEAN NOT NULL DEFAULT TRUE,
@@ -264,15 +301,65 @@ CREATE TABLE IF NOT EXISTS regatta_sources (
     updated_by          TEXT,
     notes               TEXT,
     
-    UNIQUE (regatta_id, artifact_id)
+    UNIQUE (regatta_id, artifact_id, source_scope, COALESCE(scope_class_id, -1), 
+            COALESCE(scope_block_id, ''), COALESCE(scope_entry_id, -1), 
+            COALESCE(scope_result_id, -1), COALESCE(scope_boat_id, -1))
 );
 
+-- Validate scope references match scope type
+CREATE OR REPLACE FUNCTION validate_regatta_source_scope()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Validate scope-specific fields are populated correctly
+    IF NEW.source_scope = 'regatta' THEN
+        IF NEW.scope_class_id IS NOT NULL OR NEW.scope_entry_id IS NOT NULL OR 
+           NEW.scope_result_id IS NOT NULL OR NEW.scope_boat_id IS NOT NULL THEN
+            RAISE EXCEPTION 'Regatta-scope source should not have class/entry/result/boat scope references';
+        END IF;
+    ELSIF NEW.source_scope = 'class' THEN
+        IF NEW.scope_class_id IS NULL THEN
+            RAISE EXCEPTION 'Class-scope source requires scope_class_id';
+        END IF;
+    ELSIF NEW.source_scope = 'fleet' THEN
+        IF NEW.scope_block_id IS NULL THEN
+            RAISE EXCEPTION 'Fleet-scope source requires scope_block_id';
+        END IF;
+    ELSIF NEW.source_scope = 'race' THEN
+        IF NEW.scope_race_numbers IS NULL OR array_length(NEW.scope_race_numbers, 1) = 0 THEN
+            RAISE EXCEPTION 'Race-scope source requires scope_race_numbers';
+        END IF;
+    ELSIF NEW.source_scope = 'entry' THEN
+        IF NEW.scope_entry_id IS NULL THEN
+            RAISE EXCEPTION 'Entry-scope source requires scope_entry_id';
+        END IF;
+    ELSIF NEW.source_scope = 'result' THEN
+        IF NEW.scope_result_id IS NULL THEN
+            RAISE EXCEPTION 'Result-scope source requires scope_result_id';
+        END IF;
+    ELSIF NEW.source_scope = 'boat' THEN
+        IF NEW.scope_boat_id IS NULL THEN
+            RAISE EXCEPTION 'Boat-scope source requires scope_boat_id';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_validate_regatta_source_scope
+BEFORE INSERT OR UPDATE ON regatta_sources
+FOR EACH ROW EXECUTE FUNCTION validate_regatta_source_scope();
+
 -- Indexes
-CREATE UNIQUE INDEX IF NOT EXISTS uq_regatta_original_source ON regatta_sources(regatta_id) WHERE is_original = TRUE;
-CREATE UNIQUE INDEX IF NOT EXISTS uq_regatta_primary_source ON regatta_sources(regatta_id) WHERE is_primary = TRUE;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_regatta_original_source ON regatta_sources(regatta_id, source_scope, 
+    COALESCE(scope_class_id, -1), COALESCE(scope_result_id, -1)) WHERE is_original = TRUE;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_regatta_primary_source ON regatta_sources(regatta_id, source_scope,
+    COALESCE(scope_class_id, -1), COALESCE(scope_result_id, -1)) WHERE is_primary = TRUE;
 CREATE INDEX IF NOT EXISTS idx_regatta_sources_artifact ON regatta_sources(artifact_id);
 CREATE INDEX IF NOT EXISTS idx_regatta_sources_validation ON regatta_sources(validation_status);
 CREATE INDEX IF NOT EXISTS idx_regatta_sources_regatta ON regatta_sources(regatta_id);
+CREATE INDEX IF NOT EXISTS idx_regatta_sources_scope ON regatta_sources(source_scope);
+CREATE INDEX IF NOT EXISTS idx_regatta_sources_class ON regatta_sources(scope_class_id) WHERE scope_class_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_regatta_sources_result ON regatta_sources(scope_result_id) WHERE scope_result_id IS NOT NULL;
 
 -- Prevent changing is_original
 CREATE OR REPLACE FUNCTION prevent_original_flag_change()
@@ -316,35 +403,45 @@ FOR EACH ROW
 WHEN (NEW.is_primary = TRUE)
 EXECUTE FUNCTION enforce_single_primary_regatta_source();
 
--- Deferred constraint: exactly one primary per regatta where sources exist
-CREATE OR REPLACE FUNCTION check_exactly_one_primary_per_regatta()
+-- Deferred constraint: exactly one primary per regatta+scope combination where sources exist
+CREATE OR REPLACE FUNCTION check_exactly_one_primary_per_regatta_scope()
 RETURNS TRIGGER AS $$
 DECLARE
     primary_count INTEGER;
     source_count INTEGER;
     check_regatta_id TEXT;
+    check_scope TEXT;
+    check_class_id INTEGER;
+    check_result_id BIGINT;
 BEGIN
     check_regatta_id := COALESCE(NEW.regatta_id, OLD.regatta_id);
+    check_scope := COALESCE(NEW.source_scope, OLD.source_scope);
+    check_class_id := COALESCE(NEW.scope_class_id, OLD.scope_class_id);
+    check_result_id := COALESCE(NEW.scope_result_id, OLD.scope_result_id);
     
+    -- Count sources and primaries for this regatta+scope combination
     SELECT COUNT(*), COUNT(*) FILTER (WHERE is_primary = TRUE)
     INTO source_count, primary_count
     FROM regatta_sources
-    WHERE regatta_id = check_regatta_id;
+    WHERE regatta_id = check_regatta_id
+      AND source_scope = check_scope
+      AND COALESCE(scope_class_id, -1) = COALESCE(check_class_id, -1)
+      AND COALESCE(scope_result_id, -1) = COALESCE(check_result_id, -1);
     
     IF source_count > 0 AND primary_count != 1 THEN
-        RAISE EXCEPTION 'Regatta % has % sources but % primary (must be exactly 1)',
-            check_regatta_id, source_count, primary_count;
+        RAISE EXCEPTION 'Regatta % scope % has % sources but % primary (must be exactly 1)',
+            check_regatta_id, check_scope, source_count, primary_count;
     END IF;
     
     RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE CONSTRAINT TRIGGER trg_check_exactly_one_primary_per_regatta
+CREATE CONSTRAINT TRIGGER trg_check_exactly_one_primary_per_regatta_scope
 AFTER INSERT OR UPDATE OR DELETE ON regatta_sources
 DEFERRABLE INITIALLY DEFERRED
 FOR EACH ROW
-EXECUTE FUNCTION check_exactly_one_primary_per_regatta();
+EXECUTE FUNCTION check_exactly_one_primary_per_regatta_scope();
 
 -- Auto-update updated_at
 CREATE TRIGGER trg_regatta_sources_updated_at
@@ -677,9 +774,11 @@ WHERE r.source_url IS NOT NULL
 
 -- 10b. Create regatta_sources links with explicit migration status
 -- Coverage is ASSUMED but flagged for verification
+-- source_scope='regatta' indicates this source claims to cover the entire regatta
 INSERT INTO regatta_sources (
     regatta_id,
     artifact_id,
+    source_scope,
     is_original,
     is_primary,
     authority_level,
@@ -687,21 +786,24 @@ INSERT INTO regatta_sources (
     correction_type,
     covers_all_classes,
     covers_all_races,
+    coverage_confidence,
     created_by,
     notes
 )
 SELECT 
     r.regatta_id,
     sa.artifact_id,
+    'regatta',  -- Explicit scope: entire regatta
     TRUE,   -- is_original
     TRUE,   -- is_primary
     sa.authority_level,
     'pending_review',  -- NOT 'validated' - needs verification
     'initial',
-    TRUE,   -- ASSUMED full coverage
-    TRUE,   -- ASSUMED full coverage
+    TRUE,   -- ASSUMED full coverage (unverified)
+    TRUE,   -- ASSUMED full coverage (unverified)
+    NULL,   -- coverage_confidence=NULL means not assessed
     'migration_210',
-    'Migrated from regattas.source_url - coverage assumed, validation pending'
+    'Migrated from regattas.source_url - scope=regatta assumed, coverage unverified'
 FROM regattas r
 JOIN source_artifacts sa ON sa.source_url = r.source_url
 WHERE r.source_url IS NOT NULL
@@ -965,8 +1067,11 @@ COMMIT;
 SELECT table_name FROM information_schema.tables 
 WHERE table_schema = 'public' 
 AND table_name IN ('source_types', 'import_methods', 'validation_statuses', 'artifact_statuses',
-                   'source_artifacts', 'regatta_sources', 'result_sources', 
+                   'source_scopes', 'source_artifacts', 'regatta_sources', 'result_sources', 
                    'result_source_mappings', 'source_conflicts');
+
+-- Check source scopes
+SELECT * FROM source_scopes ORDER BY scope_level;
 
 -- Check lookup data
 SELECT * FROM source_types ORDER BY authority_level DESC;
@@ -1038,7 +1143,8 @@ DROP TRIGGER IF EXISTS trg_result_sources_updated_at ON result_sources;
 
 DROP TRIGGER IF EXISTS trg_source_conflicts_updated_at ON source_conflicts;
 
-DROP TRIGGER IF EXISTS trg_check_exactly_one_primary_per_regatta ON regatta_sources;
+DROP TRIGGER IF EXISTS trg_check_exactly_one_primary_per_regatta_scope ON regatta_sources;
+DROP TRIGGER IF EXISTS trg_validate_regatta_source_scope ON regatta_sources;
 DROP TRIGGER IF EXISTS trg_enforce_single_primary_regatta_source ON regatta_sources;
 DROP TRIGGER IF EXISTS trg_prevent_regatta_original_flag_change ON regatta_sources;
 DROP TRIGGER IF EXISTS trg_regatta_sources_updated_at ON regatta_sources;
@@ -1049,7 +1155,8 @@ DROP TRIGGER IF EXISTS trg_prevent_artifact_immutable_modification ON source_art
 DROP FUNCTION IF EXISTS link_results_to_verified_regatta_source(TEXT);
 DROP FUNCTION IF EXISTS check_exactly_one_current_per_result();
 DROP FUNCTION IF EXISTS enforce_single_current_result_source();
-DROP FUNCTION IF EXISTS check_exactly_one_primary_per_regatta();
+DROP FUNCTION IF EXISTS check_exactly_one_primary_per_regatta_scope();
+DROP FUNCTION IF EXISTS validate_regatta_source_scope();
 DROP FUNCTION IF EXISTS enforce_single_primary_regatta_source();
 DROP FUNCTION IF EXISTS prevent_original_flag_change();
 DROP FUNCTION IF EXISTS prevent_artifact_immutable_modification();
@@ -1061,6 +1168,7 @@ DROP TABLE IF EXISTS result_sources CASCADE;
 DROP TABLE IF EXISTS source_conflicts CASCADE;
 DROP TABLE IF EXISTS regatta_sources CASCADE;
 DROP TABLE IF EXISTS source_artifacts CASCADE;
+DROP TABLE IF EXISTS source_scopes CASCADE;
 DROP TABLE IF EXISTS artifact_statuses CASCADE;
 DROP TABLE IF EXISTS validation_statuses CASCADE;
 DROP TABLE IF EXISTS import_methods CASCADE;
