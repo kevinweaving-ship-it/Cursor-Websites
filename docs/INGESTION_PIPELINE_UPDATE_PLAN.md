@@ -363,9 +363,11 @@ CREATE TABLE source_domains (
 | Read-only boat cursor (all write paths blocked) | ✅ Complete | 2026-07-27 |
 | Optimist A/B/C permanent rule documented | ✅ Complete | 2026-07-27 |
 | `load_events_csv_to_db.py` provenance integration | ✅ Complete | 2026-07-27 |
+| `scrape_sas_events_list.py` baseline from production | ✅ Complete | 2026-07-27 |
+| `scrape_sas_events_list.py` provenance (single-chain) | ✅ Complete | 2026-07-27 |
 
 ---
 
 *Created: 2026-07-27*  
 *Updated: 2026-07-27*  
-*Status: `results_ingestion_common.py` and `load_events_csv_to_db.py` done — ready for remaining script audits*
+*Status: Events scrape pipeline complete — ready for remaining script audits*
