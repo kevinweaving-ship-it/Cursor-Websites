@@ -301,10 +301,10 @@ CREATE TABLE IF NOT EXISTS regatta_sources (
     updated_by          TEXT,
     notes               TEXT,
     
-    UNIQUE (regatta_id, artifact_id, source_scope, COALESCE(scope_class_id, -1), 
-            COALESCE(scope_block_id, ''), COALESCE(scope_entry_id, -1), 
-            COALESCE(scope_result_id, -1), COALESCE(scope_boat_id, -1))
+    UNIQUE (regatta_id, artifact_id)
 );
+
+-- Note: More granular uniqueness for scope-specific sources is enforced by indexes below
 
 -- Validate scope references match scope type
 CREATE OR REPLACE FUNCTION validate_regatta_source_scope()
