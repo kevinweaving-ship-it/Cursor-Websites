@@ -6,6 +6,36 @@
 
 ---
 
+## PERMANENT RULES — DO NOT VIOLATE
+
+### Optimist Fleets
+
+**Never assume only Optimist A/B exist. Optimist C is a VALID FIRST-CLASS FLEET.**
+
+Validate and support equally in:
+- Parsers (PDF, HTML, Sailwave, etc.)
+- Boat Register (class families, identifiers)
+- Class resolution (class_aliases, class_families)
+- Provenance tracking
+- Historical imports and backfills
+- Rankings and standings
+- UI class selectors
+
+If Optimist C appears in source data, it is **VALID**—not an anomaly or fallback.
+
+**Valid Optimist fleets:** Optimist A, Optimist B, Optimist C  
+**All share the same hull_family:** Optimist
+
+### Boat Register Read-Only
+
+The ingestion layer is **TECHNICALLY INCAPABLE** of modifying Boat Register data.
+
+Protected tables: `boats`, `boat_identifiers`, `boat_names`, `boat_associations`
+
+Boat creation/modification belongs to Boat Register/backfill workflow only.
+
+---
+
 ## Current Ingestion Paths (Audit)
 
 | Path | Script | Current Flow | Provenance? |
@@ -295,9 +325,13 @@ CREATE TABLE source_domains (
 | Add shared provenance functions | ✅ Complete | 2026-07-27 |
 | URL inference (domain + content type) | ✅ Complete | 2026-07-27 |
 | Test idempotency, link prevention | ✅ Complete | 2026-07-27 |
+| Insert flow with provenance | ✅ Complete | 2026-07-27 |
+| Boat resolution (read-only enforced) | ✅ Complete | 2026-07-27 |
+| Read-only boat cursor (all write paths blocked) | ✅ Complete | 2026-07-27 |
+| Optimist A/B/C permanent rule documented | ✅ Complete | 2026-07-27 |
 
 ---
 
 *Created: 2026-07-27*  
 *Updated: 2026-07-27*  
-*Status: Step 1 complete — ready for Step 2 (insert flow integration)*
+*Status: Step 1 complete — results_ingestion_common.py done, ready for load_events_csv_to_db.py audit*

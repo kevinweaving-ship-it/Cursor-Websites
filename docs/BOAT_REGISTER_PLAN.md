@@ -9,6 +9,24 @@
 
 ---
 
+## PERMANENT RULE: Optimist Fleets
+
+**Never assume only Optimist A/B exist. Optimist C is a VALID FIRST-CLASS FLEET.**
+
+Valid Optimist fleets:
+- `Optimist A`
+- `Optimist B`
+- `Optimist C`
+
+All share the same `hull_family` (Optimist) but are **separate class entries** in `classes` table.
+
+In Boat Register:
+- Optimist boats may be registered to any fleet (A, B, or C)
+- Class family matching allows boats to be linked across fleets
+- If Optimist C appears in historical imports, it is **VALID**—not an anomaly
+
+---
+
 ## Executive Summary
 
 This document provides a comprehensive architecture plan for implementing a **Boat Register** and **Boat Passport** system for SailingSA. The plan is based on a thorough audit of:

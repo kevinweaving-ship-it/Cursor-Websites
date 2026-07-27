@@ -7,6 +7,36 @@ Shared helpers for manual parsed-results ingestion into `results`.
 - Unknown classes → block insert, write to ingestion_issues, return error summary.
 - Sailor resolution: use resolve_helm_to_sa_id(); if None → leave helm_sa_sailing_id NULL (review queue).
   Never create or assign a fake SAS ID.
+
+================================================================================
+PERMANENT RULES - DO NOT VIOLATE
+================================================================================
+
+OPTIMIST FLEETS:
+    Never assume only Optimist A/B exist. Optimist C is a VALID FIRST-CLASS FLEET.
+    
+    Validate and support equally in:
+    - Parsers (PDF, HTML, Sailwave, etc.)
+    - Boat Register (class families, identifiers)
+    - Class resolution (class_aliases, class_families)
+    - Provenance tracking
+    - Historical imports and backfills
+    - Rankings and standings
+    - UI class selectors
+    
+    If Optimist C appears in source data, it is VALID—not an anomaly or fallback.
+    
+    Valid Optimist fleets: Optimist A, Optimist B, Optimist C
+    All share the same hull_family (Optimist).
+
+BOAT REGISTER READ-ONLY:
+    The ingestion layer is TECHNICALLY INCAPABLE of modifying Boat Register data.
+    See _ReadOnlyBoatCursor for enforced protection of:
+    boats, boat_identifiers, boat_names, boat_associations
+    
+    Boat creation/modification belongs to Boat Register/backfill workflow only.
+
+================================================================================
 """
 import json
 import os
