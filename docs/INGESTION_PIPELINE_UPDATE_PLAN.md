@@ -291,7 +291,40 @@ def resolve_boat_id(cur, sail_number, class_id, class_family_id=None):
 
 ## Future Improvements
 
-### 1. `source_domains` Config Table (Approved for later)
+### 1. Separate Source Type from Authority (Approved for later)
+
+Currently authority_level is embedded in importers based on source_type. This should be separated:
+
+- **Source type** identifies *where* data came from (sas_official, sailwave, club_official, etc.)
+- **Authority** should come from a **configurable policy** (or DB table), not embedded in code
+
+This allows the same source type to have different authority depending on **context**:
+- Calendar/notice of race → lower authority
+- Preliminary results → medium authority
+- Official results → high authority
+- Corrected results → highest authority
+
+**Example policy table:**
+```sql
+CREATE TABLE authority_policies (
+    policy_id SERIAL PRIMARY KEY,
+    source_type TEXT NOT NULL REFERENCES source_types(source_type_code),
+    data_context TEXT NOT NULL,  -- 'calendar', 'nor', 'preliminary', 'official', 'corrected'
+    authority_level INTEGER NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (source_type, data_context)
+);
+```
+
+**Benefits:**
+- Same source (e.g., SAS) can have different authority for calendar vs. results
+- Admin can adjust authority without code changes
+- Cleaner separation of concerns
+
+---
+
+### 2. `source_domains` Config Table (Approved for later)
 
 Move club domain detection from hard-coded patterns in `_infer_source_type_from_url()` to a database table so Super Admin can manage domains without code changes.
 
