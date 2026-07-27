@@ -636,12 +636,56 @@ AUTHORITY_LEVELS = {
     "sas_pdf": 90,           # Official SAS results PDF
     "sas_html": 85,          # SAS web page
     "sailwave_blw": 80,      # Sailwave file from club
+    "windsail": 78,          # Windsail results
     "club_official": 75,     # Club-published results
     "external_scrape": 50,   # Third-party scraped
     "manual_admin": 30,      # Manual admin entry
     "sailingsa_live": 95,    # SailingSA Live (future)
     "unknown": 10,           # Unknown source
 }
+
+
+def _infer_source_type_from_url(url: str) -> str:
+    """
+    Infer source_type from URL based on domain + file extension/content type.
+    
+    Rules:
+    - .pdf extension → sas_pdf (if SAS domain) or external PDF
+    - .blw extension → sailwave_blw
+    - sailwave.com domain → sailwave_blw
+    - windsail domain → windsail
+    - sailing.org.za without .pdf → sas_html
+    - Other → external_scrape
+    
+    Returns source_type string.
+    """
+    if not url:
+        return "unknown"
+    
+    url_lower = url.lower()
+    
+    # Check file extension first (most reliable)
+    if url_lower.endswith('.pdf'):
+        if "sailing.org.za" in url_lower:
+            return "sas_pdf"
+        return "external_scrape"  # External PDF
+    
+    if url_lower.endswith('.blw'):
+        return "sailwave_blw"
+    
+    # Domain-based inference
+    if "sailwave.com" in url_lower or "sailwave.co" in url_lower:
+        return "sailwave_blw"
+    
+    if "windsail" in url_lower:
+        return "windsail"
+    
+    # SAS domain but not PDF = HTML
+    if "sailing.org.za" in url_lower:
+        return "sas_html"
+    
+    # Default for unknown external sources
+    return "external_scrape"
 
 
 def _compute_file_checksum(file_path: Path | str) -> str | None:
@@ -1440,8 +1484,8 @@ def detect_new_regattas_from_results(result_items, dry_run: bool = True, apply: 
                     )
                     
                     # --- PROVENANCE TRACKING (graceful, no auto-validate, no auto-truth) ---
-                    # Infer source_type from URL pattern (not authority - that's in provenance layer)
-                    inferred_source_type = "sas_pdf" if "sailing.org.za" in source_url else "external_scrape"
+                    # Infer source_type from URL + file extension (not authority - that's in provenance layer)
+                    inferred_source_type = _infer_source_type_from_url(source_url)
                     
                     # Create artifact (idempotent - won't duplicate if URL exists)
                     artifact_id = create_source_artifact(

@@ -12,6 +12,7 @@ Tests:
 """
 import os
 import sys
+import uuid
 from pathlib import Path
 
 # Add parent dir to path for imports
@@ -40,8 +41,11 @@ def get_test_db_url():
     )
 
 
-def setup_test_data(conn):
-    """Create minimal test data for provenance tests."""
+def setup_test_data(conn, test_id=None):
+    """Create minimal test data for provenance tests with unique IDs."""
+    if test_id is None:
+        test_id = uuid.uuid4().hex[:8]
+    
     cur = conn.cursor()
     
     # Check if provenance tables exist
@@ -54,51 +58,38 @@ def setup_test_data(conn):
         cur.close()
         return False
     
-    # Create test class if not exists
+    # Create unique test class
+    class_name = f'Test Class {test_id}'
     cur.execute("""
         INSERT INTO classes (class_name) 
-        VALUES ('Test Optimist')
-        ON CONFLICT DO NOTHING
+        VALUES (%s)
         RETURNING class_id
-    """)
-    row = cur.fetchone()
-    if row:
-        test_class_id = row[0]
-    else:
-        cur.execute("SELECT class_id FROM classes WHERE class_name = 'Test Optimist'")
-        test_class_id = cur.fetchone()[0]
+    """, (class_name,))
+    test_class_id = cur.fetchone()[0]
     
-    # Create test regatta if not exists
+    # Create unique test regatta
+    regatta_id = f'TEST-{test_id}'
     cur.execute("""
         INSERT INTO regattas (regatta_id, event_name, year)
-        VALUES ('TEST-PROV-001', 'Provenance Test Regatta', 2026)
-        ON CONFLICT (regatta_id) DO NOTHING
-    """)
+        VALUES (%s, %s, 2026)
+    """, (regatta_id, f'Provenance Test Regatta {test_id}'))
     
-    # Create test result if not exists
+    # Create unique test result
     cur.execute("""
         INSERT INTO results (regatta_id, class_id, sail_number, helm_name)
-        VALUES ('TEST-PROV-001', %s, 'TST 999', 'Test Sailor')
-        ON CONFLICT DO NOTHING
+        VALUES (%s, %s, %s, %s)
         RETURNING result_id
-    """, (test_class_id,))
-    row = cur.fetchone()
-    if row:
-        test_result_id = row[0]
-    else:
-        cur.execute("""
-            SELECT result_id FROM results 
-            WHERE regatta_id = 'TEST-PROV-001' AND sail_number = 'TST 999'
-        """)
-        test_result_id = cur.fetchone()[0]
+    """, (regatta_id, test_class_id, f'TST {test_id}', f'Test Sailor {test_id}'))
+    test_result_id = cur.fetchone()[0]
     
     conn.commit()
     cur.close()
     
     return {
         "class_id": test_class_id,
-        "regatta_id": "TEST-PROV-001",
+        "regatta_id": regatta_id,
         "result_id": test_result_id,
+        "test_id": test_id,
     }
 
 
@@ -124,7 +115,9 @@ def test_create_artifact_idempotency(conn, test_data):
     """Test that creating same artifact twice returns same ID."""
     print("\n=== TEST: create_source_artifact idempotency ===")
     
-    source_url = "https://test.sailingsa.co.za/test-idempotency.pdf"
+    # Use unique URL based on test_id
+    test_id = test_data.get("test_id", uuid.uuid4().hex[:8])
+    source_url = f"https://test.sailingsa.co.za/test-idempotency-{test_id}.pdf"
     
     # First creation
     artifact_id_1 = create_source_artifact(
@@ -157,6 +150,9 @@ def test_create_artifact_idempotency(conn, test_data):
 def test_link_regatta_idempotency(conn, test_data, artifact_id):
     """Test that linking same regatta twice returns same ID."""
     print("\n=== TEST: link_regatta_to_artifact idempotency ===")
+    
+    test_id = test_data.get("test_id", "unknown")
+    print(f"  Using regatta_id={test_data['regatta_id']} (test_id={test_id})")
     
     # First link
     link_id_1 = link_regatta_to_artifact(
@@ -201,14 +197,18 @@ def test_link_result_idempotency(conn, test_data, artifact_id):
     print("  PASSED: link_result_to_artifact is idempotent")
 
 
-def test_authority_levels(conn):
+def test_authority_levels(conn, test_id=None):
     """Test that authority levels are applied correctly."""
     print("\n=== TEST: authority levels ===")
+    
+    # Use unique URL prefix
+    if test_id is None:
+        test_id = uuid.uuid4().hex[:8]
     
     # Create artifacts with different source types
     for source_type, expected_level in [("sas_pdf", 90), ("club_official", 75), ("manual_admin", 30)]:
         artifact_id = create_source_artifact(
-            conn, f"https://test.sailingsa.co.za/authority-{source_type}.pdf",
+            conn, f"https://test.sailingsa.co.za/authority-{source_type}-{test_id}.pdf",
             source_type, "manual_entry",
             captured_by="test", parse_notes=f"authority test {source_type}"
         )
@@ -228,9 +228,12 @@ def test_artifact_status_update(conn, test_data):
     """Test updating artifact status."""
     print("\n=== TEST: update_artifact_status ===")
     
+    # Use unique URL from test_data
+    test_id = test_data.get("test_id", uuid.uuid4().hex[:8])
+    
     # Create artifact
     artifact_id = create_source_artifact(
-        conn, "https://test.sailingsa.co.za/status-update-test.pdf",
+        conn, f"https://test.sailingsa.co.za/status-update-test-{test_id}.pdf",
         "sas_pdf", "scrape_auto",
         captured_by="test", parse_notes="status update test"
     )
@@ -304,15 +307,15 @@ def test_class_resolution(conn, test_data):
     
     cur = conn.cursor()
     
-    # Should find our test class - verify it exists and is consistent
-    class_id_1 = resolve_class_id(cur, "Test Optimist")
-    assert class_id_1 is not None, "Test Optimist class not found"
-    print(f"  'Test Optimist' → class_id={class_id_1}")
+    # Use a known class from the stub data ("Optimist")
+    class_id_1 = resolve_class_id(cur, "Optimist")
+    assert class_id_1 is not None, "Optimist class not found"
+    print(f"  'Optimist' → class_id={class_id_1}")
     
     # Case insensitive - should return same ID
-    class_id_2 = resolve_class_id(cur, "test optimist")
+    class_id_2 = resolve_class_id(cur, "optimist")
     assert class_id_2 == class_id_1, f"Case insensitive match failed: {class_id_1} != {class_id_2}"
-    print(f"  'test optimist' → class_id={class_id_2} (case insensitive, same as above)")
+    print(f"  'optimist' → class_id={class_id_2} (case insensitive, same as above)")
     
     # Unknown class should return None
     class_id = resolve_class_id(cur, "Nonexistent Class XYZ")
@@ -361,42 +364,61 @@ def test_sailor_resolution_no_match(conn, test_data):
 
 
 def test_url_inference():
-    """Test that source_type is correctly inferred from URL pattern."""
-    print("\n=== TEST: URL inference ===")
+    """Test that source_type is correctly inferred from URL + file extension."""
+    print("\n=== TEST: URL inference (domain + content type) ===")
     
-    # Test SAS URL detection
-    sas_urls = [
-        "https://www.sailing.org.za/file/abc123",
-        "https://sailing.org.za/results/2026/test.pdf",
-        "http://www.sailing.org.za/documents/file.pdf",
+    # Import the inference function
+    from results_ingestion_common import _infer_source_type_from_url
+    
+    # Test cases: (url, expected_type, description)
+    test_cases = [
+        # SAS PDFs (must have .pdf extension)
+        ("https://www.sailing.org.za/file/results.pdf", "sas_pdf", "SAS domain + .pdf"),
+        ("https://sailing.org.za/documents/2026/regatta.PDF", "sas_pdf", "SAS domain + .PDF uppercase"),
+        
+        # SAS HTML (SAS domain without .pdf)
+        ("https://www.sailing.org.za/results/2026", "sas_html", "SAS domain, no .pdf = HTML"),
+        ("https://sailing.org.za/events/123", "sas_html", "SAS domain, events page = HTML"),
+        ("https://www.sailing.org.za/file/abc123", "sas_html", "SAS domain, no extension = HTML"),
+        
+        # Sailwave (.blw extension or sailwave.com domain)
+        ("https://example.com/results.blw", "sailwave_blw", ".blw extension"),
+        ("https://sailwave.com/event/123", "sailwave_blw", "sailwave.com domain"),
+        ("https://www.sailwave.co.uk/results", "sailwave_blw", "sailwave.co domain"),
+        
+        # Windsail
+        ("https://windsail.co.za/results", "windsail", "windsail domain"),
+        ("https://www.windsail.com/event/456", "windsail", "windsail.com domain"),
+        
+        # External (other domains)
+        ("https://example.com/results.pdf", "external_scrape", "External domain + .pdf"),
+        ("https://club.co.za/results/2026.pdf", "external_scrape", "Club domain + .pdf"),
+        ("https://other-site.com/event", "external_scrape", "Generic external"),
     ]
     
-    external_urls = [
-        "https://example.com/results.pdf",
-        "https://club.co.za/results/2026.pdf",
-        "https://sailwave.com/event/123",
-    ]
+    all_passed = True
+    for url, expected, description in test_cases:
+        inferred = _infer_source_type_from_url(url)
+        if inferred == expected:
+            print(f"  ✓ {description}: '{url[:35]}...' → {inferred}")
+        else:
+            print(f"  ✗ {description}: '{url[:35]}...' → {inferred} (expected {expected})")
+            all_passed = False
     
-    for url in sas_urls:
-        inferred = "sas_pdf" if "sailing.org.za" in url else "external_scrape"
-        assert inferred == "sas_pdf", f"SAS URL '{url}' should infer 'sas_pdf', got '{inferred}'"
-        print(f"  '{url[:40]}...' → sas_pdf ✓")
-    
-    for url in external_urls:
-        inferred = "sas_pdf" if "sailing.org.za" in url else "external_scrape"
-        assert inferred == "external_scrape", f"External URL '{url}' should infer 'external_scrape', got '{inferred}'"
-        print(f"  '{url[:40]}...' → external_scrape ✓")
-    
-    print("  PASSED: URL inference works correctly")
+    assert all_passed, "URL inference has failures"
+    print("  PASSED: URL inference works correctly (domain + content type)")
 
 
-def test_idempotent_artifact_creation(conn):
+def test_idempotent_artifact_creation(conn, test_id=None):
     """Test that creating artifact with same URL returns same ID (no duplicates)."""
     print("\n=== TEST: Idempotent artifact creation ===")
     
     conn.rollback()
     
-    test_url = "https://test.sailingsa.co.za/idempotent-test-12345.pdf"
+    # Use unique URL
+    if test_id is None:
+        test_id = uuid.uuid4().hex[:8]
+    test_url = f"https://test.sailingsa.co.za/idempotent-test-{test_id}.pdf"
     
     # Create first artifact
     artifact_id_1 = create_source_artifact(
@@ -439,9 +461,12 @@ def test_duplicate_regatta_link_prevention(conn, test_data):
     
     conn.rollback()
     
-    # Create a fresh artifact for this test
+    # Use unique URL based on test_id
+    test_id = test_data.get("test_id", uuid.uuid4().hex[:8])
+    
+    # Create a fresh artifact for this test with unique URL
     artifact_id = create_source_artifact(
-        conn, "https://test.sailingsa.co.za/regatta-link-test-67890.pdf",
+        conn, f"https://test.sailingsa.co.za/regatta-link-test-{test_id}.pdf",
         "sas_pdf", "scrape_auto",
         captured_by="test", parse_notes="regatta link test"
     )
@@ -555,40 +580,58 @@ def run_all_tests():
         
         print(f"\nTest data: {test_data}")
         
-        # Run tests - rollback between each to ensure clean state
+        # Each test uses unique IDs - no cleanup needed between tests
+        # Generate unique test_id for this run
+        run_id = uuid.uuid4().hex[:8]
         
         # NEW: Tests for the 4 specific scenarios
         test_url_inference()  # No DB needed
-        test_idempotent_artifact_creation(conn)
+        
+        test_idempotent_artifact_creation(conn, f"idem-{run_id}")
         conn.rollback()
+        
         test_duplicate_regatta_link_prevention(conn, test_data)
         conn.rollback()
+        
         test_safe_failure_no_provenance_tables()  # Uses separate connection
         
-        # Clean up test data before running original tests to avoid conflicts
-        cleanup_test_data(conn)
-        test_data = setup_test_data(conn)
-        if not test_data:
-            print("SKIP: Could not reset test data")
+        # Create fresh test data for remaining tests
+        test_data_2 = setup_test_data(conn, f"orig-{run_id}")
+        if not test_data_2:
+            print("SKIP: Could not create test data for original tests")
             return True
         
-        # Original tests
-        artifact_id = test_create_artifact_idempotency(conn, test_data)
+        # Original tests with fresh data
+        artifact_id = test_create_artifact_idempotency(conn, test_data_2)
         conn.rollback()
-        test_link_regatta_idempotency(conn, test_data, artifact_id)
+        
+        # Fresh data for link tests
+        test_data_3 = setup_test_data(conn, f"link-{run_id}")
+        artifact_id_3 = test_create_artifact_idempotency(conn, test_data_3)
+        test_link_regatta_idempotency(conn, test_data_3, artifact_id_3)
         conn.rollback()
-        test_link_result_idempotency(conn, test_data, artifact_id)
+        
+        test_data_4 = setup_test_data(conn, f"res-{run_id}")
+        artifact_id_4 = test_create_artifact_idempotency(conn, test_data_4)
+        test_link_result_idempotency(conn, test_data_4, artifact_id_4)
         conn.rollback()
-        test_authority_levels(conn)
+        
+        test_authority_levels(conn, f"auth-{run_id}")
         conn.rollback()
-        test_artifact_status_update(conn, test_data)
+        
+        test_data_5 = setup_test_data(conn, f"stat-{run_id}")
+        test_artifact_status_update(conn, test_data_5)
         conn.rollback()
+        
         test_resolve_boat_no_match(conn, test_data)
         conn.rollback()
+        
         test_resolve_boat_normalization(conn, test_data)
         conn.rollback()
+        
         test_class_resolution(conn, test_data)
         conn.rollback()
+        
         test_sailor_resolution_no_match(conn, test_data)
         conn.rollback()
         
