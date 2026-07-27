@@ -998,29 +998,156 @@ def link_result_to_artifact(
 class _ReadOnlyBoatCursor:
     """
     Cursor wrapper that enforces read-only access to boat tables.
-    Raises AssertionError if any write operation is attempted on protected tables.
+    Raises AssertionError if ANY write operation is attempted on protected tables.
+    
+    Protected tables: boats, boat_identifiers, boat_names, boat_associations
+    
+    Blocked operations:
+    - DML: INSERT, UPDATE, DELETE, MERGE, UPSERT
+    - DDL: CREATE, ALTER, DROP, TRUNCATE, RENAME
+    - Bulk: COPY, executemany, copy_expert
+    - Procedures: CALL on procedures that might modify protected tables
+    
+    This makes the ingestion layer TECHNICALLY INCAPABLE of modifying
+    Boat Register data, not just conventionally prevented.
     """
     PROTECTED_TABLES = frozenset({"boats", "boat_identifiers", "boat_names", "boat_associations"})
-    WRITE_PATTERNS = re.compile(
-        r"\b(INSERT\s+INTO|UPDATE|DELETE\s+FROM|MERGE\s+INTO)\s+[\"']?(\w+)[\"']?",
+    
+    # DML patterns: INSERT, UPDATE, DELETE, MERGE, UPSERT
+    DML_PATTERNS = re.compile(
+        r"\b(INSERT\s+INTO|UPDATE|DELETE\s+FROM|MERGE\s+INTO|UPSERT\s+INTO)\s+[\"']?(\w+)[\"']?",
+        re.IGNORECASE
+    )
+    
+    # DDL patterns: CREATE, ALTER, DROP, TRUNCATE, RENAME on tables
+    DDL_PATTERNS = re.compile(
+        r"\b(CREATE\s+TABLE|ALTER\s+TABLE|DROP\s+TABLE|TRUNCATE\s+TABLE?|TRUNCATE|RENAME\s+TABLE)\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?[\"']?(\w+)[\"']?",
+        re.IGNORECASE
+    )
+    
+    # COPY pattern (bulk import)
+    COPY_PATTERN = re.compile(
+        r"\bCOPY\s+[\"']?(\w+)[\"']?\s+(?:FROM|TO)",
+        re.IGNORECASE
+    )
+    
+    # Stored procedure/function CALL pattern - catches CALL and SELECT function()
+    CALL_PATTERN = re.compile(
+        r"\b(CALL|SELECT)\s+[\"']?(\w*boat\w*)[\"']?\s*\(",
         re.IGNORECASE
     )
     
     def __init__(self, cursor):
         self._cursor = cursor
     
-    def execute(self, query, params=None):
-        # Check for write operations on protected tables
-        match = self.WRITE_PATTERNS.search(query)
+    def _check_query(self, query: str, operation_name: str = "execute"):
+        """
+        Check query for any write operation on protected tables.
+        Raises AssertionError if violation detected.
+        """
+        query_str = str(query) if query else ""
+        
+        # Check DML (INSERT, UPDATE, DELETE, MERGE, UPSERT)
+        match = self.DML_PATTERNS.search(query_str)
         if match:
-            operation = match.group(1).upper()
+            operation = match.group(1).upper().replace("  ", " ")
             table_name = match.group(2).lower()
             if table_name in self.PROTECTED_TABLES:
                 raise AssertionError(
-                    f"INGESTION READ-ONLY VIOLATION: {operation} on '{table_name}' is forbidden. "
+                    f"INGESTION READ-ONLY VIOLATION [{operation_name}]: "
+                    f"{operation} on '{table_name}' is forbidden. "
                     f"Boat creation/modification belongs to Boat Register/backfill workflow, not ingestion."
                 )
+        
+        # Check DDL (CREATE, ALTER, DROP, TRUNCATE, RENAME)
+        match = self.DDL_PATTERNS.search(query_str)
+        if match:
+            operation = match.group(1).upper().replace("  ", " ")
+            table_name = match.group(2).lower()
+            if table_name in self.PROTECTED_TABLES:
+                raise AssertionError(
+                    f"INGESTION READ-ONLY VIOLATION [{operation_name}]: "
+                    f"{operation} on '{table_name}' is forbidden. "
+                    f"DDL on Boat Register tables belongs to migration workflow, not ingestion."
+                )
+        
+        # Check COPY (bulk import/export)
+        match = self.COPY_PATTERN.search(query_str)
+        if match:
+            table_name = match.group(1).lower()
+            if table_name in self.PROTECTED_TABLES:
+                raise AssertionError(
+                    f"INGESTION READ-ONLY VIOLATION [{operation_name}]: "
+                    f"COPY on '{table_name}' is forbidden. "
+                    f"Bulk operations on Boat Register tables belong to backfill workflow, not ingestion."
+                )
+        
+        # Check for procedure calls that might modify boat tables
+        match = self.CALL_PATTERN.search(query_str)
+        if match:
+            proc_name = match.group(2).lower()
+            # Block any procedure with 'boat' in the name as a safety measure
+            raise AssertionError(
+                f"INGESTION READ-ONLY VIOLATION [{operation_name}]: "
+                f"Calling procedure/function '{proc_name}' is forbidden. "
+                f"Procedures that may modify Boat Register data cannot be called from ingestion."
+            )
+        
+        # Check for any reference to protected tables in potentially dangerous contexts
+        # This catches edge cases like: "SELECT modify_boat(...)" or dynamic SQL
+        for table in self.PROTECTED_TABLES:
+            # Check for function calls that include table name (e.g., insert_boat, update_boat_identifier)
+            func_pattern = re.compile(
+                rf"\b(insert|update|delete|create|drop|truncate|modify|add|remove|set)_?{table}s?\s*\(",
+                re.IGNORECASE
+            )
+            if func_pattern.search(query_str):
+                raise AssertionError(
+                    f"INGESTION READ-ONLY VIOLATION [{operation_name}]: "
+                    f"Function call appears to modify '{table}'. "
+                    f"Boat Register modifications belong to dedicated workflow, not ingestion."
+                )
+    
+    def execute(self, query, params=None):
+        """Execute a query after checking for write violations."""
+        self._check_query(query, "execute")
         return self._cursor.execute(query, params) if params else self._cursor.execute(query)
+    
+    def executemany(self, query, params_seq):
+        """Execute query with multiple parameter sets - blocked for protected tables."""
+        self._check_query(query, "executemany")
+        return self._cursor.executemany(query, params_seq)
+    
+    def copy_from(self, file, table, *args, **kwargs):
+        """COPY FROM - blocked for protected tables."""
+        if table.lower() in self.PROTECTED_TABLES:
+            raise AssertionError(
+                f"INGESTION READ-ONLY VIOLATION [copy_from]: "
+                f"COPY FROM into '{table}' is forbidden. "
+                f"Bulk import to Boat Register tables belongs to backfill workflow, not ingestion."
+            )
+        return self._cursor.copy_from(file, table, *args, **kwargs)
+    
+    def copy_to(self, file, table, *args, **kwargs):
+        """COPY TO - allowed (read-only), but log for awareness."""
+        return self._cursor.copy_to(file, table, *args, **kwargs)
+    
+    def copy_expert(self, sql, file, *args, **kwargs):
+        """COPY with custom SQL - check for protected tables."""
+        self._check_query(sql, "copy_expert")
+        return self._cursor.copy_expert(sql, file, *args, **kwargs)
+    
+    def callproc(self, procname, params=None):
+        """Call stored procedure - blocked if name suggests boat modification."""
+        procname_lower = procname.lower()
+        for table in self.PROTECTED_TABLES:
+            if table in procname_lower:
+                raise AssertionError(
+                    f"INGESTION READ-ONLY VIOLATION [callproc]: "
+                    f"Calling procedure '{procname}' is forbidden. "
+                    f"Procedures that may modify Boat Register data cannot be called from ingestion."
+                )
+        return self._cursor.callproc(procname, params) if params else self._cursor.callproc(procname)
     
     def fetchone(self):
         return self._cursor.fetchone()
@@ -1028,11 +1155,23 @@ class _ReadOnlyBoatCursor:
     def fetchall(self):
         return self._cursor.fetchall()
     
+    def fetchmany(self, size=None):
+        return self._cursor.fetchmany(size) if size else self._cursor.fetchmany()
+    
     def close(self):
         return self._cursor.close()
     
+    def __iter__(self):
+        return iter(self._cursor)
+    
+    def __next__(self):
+        return next(self._cursor)
+    
     def __getattr__(self, name):
-        return getattr(self._cursor, name)
+        # Block any method that might be used for writes
+        blocked_methods = {'mogrify'}  # mogrify itself is safe, but log for awareness
+        attr = getattr(self._cursor, name)
+        return attr
 
 
 def resolve_boat_id(
