@@ -1004,15 +1004,20 @@ def resolve_boat_id(
     """
     Resolve sail_number + class to boat_id via boat_identifiers.
     
+    READ-ONLY: This function MUST NOT create boats, identifiers, or links.
+    It only returns an existing exact boat_id or NULL.
+    Creation, merges, and conflict resolution belong to the dedicated
+    Boat Register/backfill workflow, not the ingestion path.
+    
     Rules:
     - Exact normalized match only (no fuzzy)
     - Class-family aware: ILCA rigs (4.7, 6, 7) share hull identity
     - Returns boat_id only when exactly one active match found
     - Multiple matches or no match → returns None (review queue)
-    - Never auto-creates boats
+    - Never auto-creates boats or identifiers
     
     Args:
-        cur: Database cursor
+        cur: Database cursor (read-only usage)
         sail_number: Sail number to match (e.g., "RSA 123", "123")
         class_id: Class ID from classes table
         class_family_id: Optional hull family ID (if known)
