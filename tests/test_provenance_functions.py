@@ -855,6 +855,54 @@ def test_read_only_boat_cursor_enforcement(conn):
         else:
             raise
     
+    # === CTE (WITH) Writes ===
+    
+    conn.rollback()
+    cur = conn.cursor()
+    safe_cur = _ReadOnlyBoatCursor(cur)
+    
+    # WITH ... INSERT INTO boats should be blocked
+    try:
+        safe_cur.execute("WITH new_data AS (SELECT 1) INSERT INTO boats SELECT * FROM new_data")
+        raise AssertionError("CTE INSERT INTO boats should have been blocked")
+    except AssertionError as e:
+        if "INGESTION READ-ONLY VIOLATION" in str(e):
+            print("  CTE INSERT INTO boats blocked: ✓")
+        else:
+            raise
+    
+    # === LOCK TABLE ===
+    
+    conn.rollback()
+    cur = conn.cursor()
+    safe_cur = _ReadOnlyBoatCursor(cur)
+    
+    # LOCK TABLE boats should be blocked
+    try:
+        safe_cur.execute("LOCK TABLE boats IN EXCLUSIVE MODE")
+        raise AssertionError("LOCK TABLE boats should have been blocked")
+    except AssertionError as e:
+        if "INGESTION READ-ONLY VIOLATION" in str(e):
+            print("  LOCK TABLE boats blocked: ✓")
+        else:
+            raise
+    
+    # === Index Operations ===
+    
+    conn.rollback()
+    cur = conn.cursor()
+    safe_cur = _ReadOnlyBoatCursor(cur)
+    
+    # CREATE INDEX ON boat_identifiers should be blocked
+    try:
+        safe_cur.execute("CREATE INDEX test_idx ON boat_identifiers (sail_number_normalized)")
+        raise AssertionError("CREATE INDEX ON boat_identifiers should have been blocked")
+    except AssertionError as e:
+        if "INGESTION READ-ONLY VIOLATION" in str(e):
+            print("  CREATE INDEX ON boat_identifiers blocked: ✓")
+        else:
+            raise
+    
     # === Allowed Operations ===
     
     # SELECT from boat tables should be allowed (read-only)

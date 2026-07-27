@@ -1019,9 +1019,11 @@ class _ReadOnlyBoatCursor:
         re.IGNORECASE
     )
     
-    # DDL patterns: CREATE, ALTER, DROP, TRUNCATE, RENAME on tables
+    # DDL patterns: CREATE, ALTER, DROP, TRUNCATE, RENAME on tables/indexes
     DDL_PATTERNS = re.compile(
-        r"\b(CREATE\s+TABLE|ALTER\s+TABLE|DROP\s+TABLE|TRUNCATE\s+TABLE?|TRUNCATE|RENAME\s+TABLE)\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?[\"']?(\w+)[\"']?",
+        r"\b(CREATE\s+TABLE|ALTER\s+TABLE|DROP\s+TABLE|TRUNCATE\s+TABLE?|TRUNCATE|RENAME\s+TABLE|"
+        r"CREATE\s+INDEX\s+\w+\s+ON|DROP\s+INDEX\s+\w+\s+ON|REINDEX\s+TABLE)\s+"
+        r"(?:IF\s+(?:NOT\s+)?EXISTS\s+)?[\"']?(\w+)[\"']?",
         re.IGNORECASE
     )
     
@@ -1034,6 +1036,18 @@ class _ReadOnlyBoatCursor:
     # Stored procedure/function CALL pattern - catches CALL and SELECT function()
     CALL_PATTERN = re.compile(
         r"\b(CALL|SELECT)\s+[\"']?(\w*boat\w*)[\"']?\s*\(",
+        re.IGNORECASE
+    )
+    
+    # CTE (WITH) that contains writes to protected tables
+    CTE_WRITE_PATTERN = re.compile(
+        r"\bWITH\b.*?\b(INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+[\"']?(\w+)[\"']?",
+        re.IGNORECASE | re.DOTALL
+    )
+    
+    # LOCK TABLE pattern
+    LOCK_PATTERN = re.compile(
+        r"\bLOCK\s+(?:TABLE\s+)?[\"']?(\w+)[\"']?",
         re.IGNORECASE
     )
     
@@ -1092,6 +1106,29 @@ class _ReadOnlyBoatCursor:
                 f"Calling procedure/function '{proc_name}' is forbidden. "
                 f"Procedures that may modify Boat Register data cannot be called from ingestion."
             )
+        
+        # Check for CTE (WITH) writes to protected tables
+        match = self.CTE_WRITE_PATTERN.search(query_str)
+        if match:
+            operation = match.group(1).upper().replace("  ", " ")
+            table_name = match.group(2).lower()
+            if table_name in self.PROTECTED_TABLES:
+                raise AssertionError(
+                    f"INGESTION READ-ONLY VIOLATION [{operation_name}]: "
+                    f"CTE with {operation} on '{table_name}' is forbidden. "
+                    f"Boat Register modifications belong to dedicated workflow, not ingestion."
+                )
+        
+        # Check for LOCK TABLE on protected tables
+        match = self.LOCK_PATTERN.search(query_str)
+        if match:
+            table_name = match.group(1).lower()
+            if table_name in self.PROTECTED_TABLES:
+                raise AssertionError(
+                    f"INGESTION READ-ONLY VIOLATION [{operation_name}]: "
+                    f"LOCK TABLE on '{table_name}' is forbidden. "
+                    f"Locking Boat Register tables is not allowed from ingestion."
+                )
         
         # Check for any reference to protected tables in potentially dangerous contexts
         # This catches edge cases like: "SELECT modify_boat(...)" or dynamic SQL
