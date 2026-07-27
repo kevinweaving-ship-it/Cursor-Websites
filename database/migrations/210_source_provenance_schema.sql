@@ -245,6 +245,11 @@ CREATE TABLE IF NOT EXISTS regatta_sources (
     race_numbers_covered INTEGER[],
     covers_series_only  BOOLEAN NOT NULL DEFAULT FALSE,
     
+    -- Coverage confidence (0-100, NULL = not assessed)
+    coverage_confidence SMALLINT CHECK (coverage_confidence IS NULL OR coverage_confidence BETWEEN 0 AND 100),
+    coverage_verified_by TEXT,
+    coverage_verified_at TIMESTAMPTZ,
+    
     -- Correction/audit fields
     correction_reason   TEXT,
     correction_type     TEXT CHECK (correction_type IS NULL OR correction_type IN (
@@ -622,49 +627,56 @@ EXCEPTION WHEN OTHERS THEN
 END $$;
 
 -- ============================================================================
--- STEP 10: Migrate existing source data (SAFE - no overwrites)
+-- STEP 10: Migrate existing source data (CONSERVATIVE - unknown stays NULL)
 -- ============================================================================
 
--- 10a. Create artifacts for regattas with source_url
+-- PRINCIPLE: Unknown provenance stays NULL/unlinked. No placeholders.
+-- PRINCIPLE: Results only linked if regatta source coverage is verified.
+-- PRINCIPLE: Explicit confidence/status based on source quality.
+
+-- 10a. Create artifacts ONLY for regattas with valid, identifiable source_url
 INSERT INTO source_artifacts (
     source_type,
     import_method,
     authority_level,
+    artifact_status,
     source_url,
     working_file_path,
     first_retrieved_at,
     captured_at,
-    captured_by
+    captured_by,
+    parse_notes
 )
 SELECT DISTINCT ON (r.source_url)
     CASE 
         WHEN r.source_url LIKE '%sailing.org.za%' THEN 'sas_pdf'
-        WHEN r.import_status = 'manual' THEN 'manual_admin'
-        ELSE 'unknown'
+        ELSE 'external_scrape'  -- Only external with URL, not 'unknown'
     END,
     CASE 
         WHEN r.source_url LIKE '%sailing.org.za%' THEN 'pdf_table_extract'
-        WHEN r.import_status = 'manual' THEN 'manual_entry'
-        ELSE 'migration'
+        ELSE 'scrape_auto'
     END,
     CASE 
         WHEN r.source_url LIKE '%sailing.org.za%' THEN 90
-        WHEN r.import_status = 'manual' THEN 30
-        ELSE 0
+        ELSE 50  -- External sources get medium authority
     END,
+    'active',
     r.source_url,
     r.local_file_path,
     r.created_at,
     COALESCE(r.created_at, NOW()),
-    'migration_210'
+    'migration_210',
+    'Migrated from regattas.source_url - coverage assumed full but not verified'
 FROM regattas r
 WHERE r.source_url IS NOT NULL
   AND r.source_url != ''
+  AND LENGTH(TRIM(r.source_url)) > 10  -- Must be a real URL
   AND NOT EXISTS (
       SELECT 1 FROM source_artifacts sa WHERE sa.source_url = r.source_url
   );
 
--- 10b. Create regatta_sources links (is_original=TRUE, is_primary=TRUE)
+-- 10b. Create regatta_sources links with explicit migration status
+-- Coverage is ASSUMED but flagged for verification
 INSERT INTO regatta_sources (
     regatta_id,
     artifact_id,
@@ -673,17 +685,23 @@ INSERT INTO regatta_sources (
     authority_level,
     validation_status,
     correction_type,
-    created_by
+    covers_all_classes,
+    covers_all_races,
+    created_by,
+    notes
 )
 SELECT 
     r.regatta_id,
     sa.artifact_id,
-    TRUE,
-    TRUE,
+    TRUE,   -- is_original
+    TRUE,   -- is_primary
     sa.authority_level,
-    'validated',
+    'pending_review',  -- NOT 'validated' - needs verification
     'initial',
-    'migration_210'
+    TRUE,   -- ASSUMED full coverage
+    TRUE,   -- ASSUMED full coverage
+    'migration_210',
+    'Migrated from regattas.source_url - coverage assumed, validation pending'
 FROM regattas r
 JOIN source_artifacts sa ON sa.source_url = r.source_url
 WHERE r.source_url IS NOT NULL
@@ -692,124 +710,148 @@ WHERE r.source_url IS NOT NULL
       SELECT 1 FROM regatta_sources rs WHERE rs.regatta_id = r.regatta_id AND rs.artifact_id = sa.artifact_id
   );
 
--- 10c. Update regattas with artifact references
+-- 10c. Update regattas with artifact references (only those with valid sources)
 UPDATE regattas r
 SET original_artifact_id = rs.artifact_id,
     primary_artifact_id = rs.artifact_id,
-    provenance_status = 'linked'
+    provenance_status = 'migrated_pending_verification'
 FROM regatta_sources rs
 WHERE rs.regatta_id = r.regatta_id 
   AND rs.is_original = TRUE
   AND r.original_artifact_id IS NULL;
 
--- 10d. Create placeholder artifact for regattas WITHOUT source_url
-INSERT INTO source_artifacts (
-    source_type,
-    import_method,
-    authority_level,
-    captured_by
-)
-SELECT 'unknown', 'migration', 0, 'migration_210_placeholder'
-WHERE NOT EXISTS (
-    SELECT 1 FROM source_artifacts WHERE captured_by = 'migration_210_placeholder'
-)
-AND EXISTS (
-    SELECT 1 FROM regattas WHERE source_url IS NULL OR source_url = ''
-);
+-- 10d. Regattas WITHOUT source_url: mark status but DO NOT create placeholder
+-- These stay NULL/unlinked until source is identified
+UPDATE regattas
+SET provenance_status = 'unknown_source'
+WHERE (source_url IS NULL OR source_url = '' OR LENGTH(TRIM(source_url)) <= 10)
+  AND provenance_status IS NULL;
 
--- 10e. Link orphan regattas to placeholder (if any)
-INSERT INTO regatta_sources (
-    regatta_id,
-    artifact_id,
-    is_original,
-    is_primary,
-    authority_level,
-    validation_status,
-    correction_type,
-    created_by,
-    notes
-)
-SELECT 
-    r.regatta_id,
-    (SELECT artifact_id FROM source_artifacts WHERE captured_by = 'migration_210_placeholder' LIMIT 1),
-    TRUE,
-    TRUE,
-    0,
-    'validated',
-    'initial',
-    'migration_210',
-    'No original source_url - placeholder artifact'
-FROM regattas r
-WHERE (r.source_url IS NULL OR r.source_url = '')
-  AND NOT EXISTS (
-      SELECT 1 FROM regatta_sources rs WHERE rs.regatta_id = r.regatta_id
-  )
-  AND EXISTS (
-      SELECT 1 FROM source_artifacts WHERE captured_by = 'migration_210_placeholder'
-  );
+-- 10e. DO NOT auto-link results to regatta artifacts
+-- Results will only be linked when:
+--   1. Regatta source has covers_all_classes=TRUE AND covers_all_races=TRUE AND validation_status='validated', OR
+--   2. Result's class_id is in regatta_sources.class_ids_covered, OR
+--   3. Manual verification confirms coverage
+-- For now, results stay unlinked (NULL artifact references)
 
--- 10f. Update orphan regattas with placeholder reference
-UPDATE regattas r
-SET original_artifact_id = rs.artifact_id,
-    primary_artifact_id = rs.artifact_id,
-    provenance_status = 'placeholder'
-FROM regatta_sources rs
-WHERE rs.regatta_id = r.regatta_id 
-  AND rs.is_original = TRUE
-  AND r.original_artifact_id IS NULL;
-
--- 10g. Create result_sources for all results (inherit from regatta)
-INSERT INTO result_sources (
-    result_id,
-    artifact_id,
-    is_original,
-    is_current,
-    correction_type,
-    created_by
-)
-SELECT 
-    r.result_id,
-    reg.original_artifact_id,
-    TRUE,
-    TRUE,
-    'initial',
-    'migration_210'
-FROM results r
-JOIN regattas reg ON reg.regatta_id = r.regatta_id
-WHERE reg.original_artifact_id IS NOT NULL
-  AND NOT EXISTS (
-      SELECT 1 FROM result_sources rs WHERE rs.result_id = r.result_id
-  );
-
--- 10h. Update results with artifact references
+-- 10f. Update results to indicate migration status (no artifact link yet)
 UPDATE results r
-SET original_artifact_id = rs.artifact_id,
-    current_artifact_id = rs.artifact_id
-FROM result_sources rs
-WHERE rs.result_id = r.result_id 
-  AND rs.is_original = TRUE
-  AND r.original_artifact_id IS NULL;
+SET row_validation_status = 
+    CASE 
+        WHEN reg.provenance_status = 'migrated_pending_verification' THEN 'pending_review'
+        WHEN reg.provenance_status = 'unknown_source' THEN 'draft'
+        ELSE 'draft'
+    END
+FROM regattas reg
+WHERE reg.regatta_id = r.regatta_id
+  AND r.row_validation_status IS NULL;
 
 -- ============================================================================
--- STEP 11: Migrate events source data
+-- STEP 10g: Function to link results ONLY when coverage is verified
+-- Call this after manual verification of regatta_sources
+-- ============================================================================
+CREATE OR REPLACE FUNCTION link_results_to_verified_regatta_source(
+    p_regatta_id TEXT
+) RETURNS TABLE(linked_count INTEGER, skipped_count INTEGER) AS $$
+DECLARE
+    v_artifact_id BIGINT;
+    v_covers_all_classes BOOLEAN;
+    v_covers_all_races BOOLEAN;
+    v_class_ids INTEGER[];
+    v_linked INTEGER := 0;
+    v_skipped INTEGER := 0;
+BEGIN
+    -- Get the validated primary source for this regatta
+    SELECT rs.artifact_id, rs.covers_all_classes, rs.covers_all_races, rs.class_ids_covered
+    INTO v_artifact_id, v_covers_all_classes, v_covers_all_races, v_class_ids
+    FROM regatta_sources rs
+    WHERE rs.regatta_id = p_regatta_id
+      AND rs.is_primary = TRUE
+      AND rs.validation_status = 'validated';
+    
+    IF v_artifact_id IS NULL THEN
+        RAISE EXCEPTION 'No validated primary source for regatta %', p_regatta_id;
+    END IF;
+    
+    -- Link results based on coverage
+    IF v_covers_all_classes AND v_covers_all_races THEN
+        -- Full coverage: link all results
+        INSERT INTO result_sources (result_id, artifact_id, is_original, is_current, correction_type, created_by, notes)
+        SELECT r.result_id, v_artifact_id, TRUE, TRUE, 'initial', 'verified_link',
+               'Linked after regatta source validation - full coverage'
+        FROM results r
+        WHERE r.regatta_id = p_regatta_id
+          AND NOT EXISTS (SELECT 1 FROM result_sources rs WHERE rs.result_id = r.result_id);
+        
+        GET DIAGNOSTICS v_linked = ROW_COUNT;
+        
+        UPDATE results
+        SET original_artifact_id = v_artifact_id,
+            current_artifact_id = v_artifact_id,
+            row_validation_status = 'validated'
+        WHERE regatta_id = p_regatta_id
+          AND original_artifact_id IS NULL;
+    ELSE
+        -- Partial coverage: only link results in covered classes
+        INSERT INTO result_sources (result_id, artifact_id, is_original, is_current, correction_type, created_by, notes)
+        SELECT r.result_id, v_artifact_id, TRUE, TRUE, 'initial', 'verified_link',
+               'Linked after regatta source validation - partial coverage (class matched)'
+        FROM results r
+        WHERE r.regatta_id = p_regatta_id
+          AND r.class_id = ANY(v_class_ids)
+          AND NOT EXISTS (SELECT 1 FROM result_sources rs WHERE rs.result_id = r.result_id);
+        
+        GET DIAGNOSTICS v_linked = ROW_COUNT;
+        
+        UPDATE results
+        SET original_artifact_id = v_artifact_id,
+            current_artifact_id = v_artifact_id,
+            row_validation_status = 'validated'
+        WHERE regatta_id = p_regatta_id
+          AND class_id = ANY(v_class_ids)
+          AND original_artifact_id IS NULL;
+        
+        -- Count skipped (not in coverage)
+        SELECT COUNT(*) INTO v_skipped
+        FROM results r
+        WHERE r.regatta_id = p_regatta_id
+          AND (r.class_id IS NULL OR NOT (r.class_id = ANY(v_class_ids)))
+          AND r.original_artifact_id IS NULL;
+    END IF;
+    
+    RETURN QUERY SELECT v_linked, v_skipped;
+END;
+$$ LANGUAGE plpgsql;
+
+COMMENT ON FUNCTION link_results_to_verified_regatta_source IS 
+'Links results to regatta source ONLY after validation_status=validated. 
+Respects partial coverage (class_ids_covered). Call after manual verification.';
+
+-- ============================================================================
+-- STEP 11: Migrate events source data (CONSERVATIVE)
 -- ============================================================================
 
 -- Events have their own source tracking (source, source_event_id, source_url)
--- These are calendar events, not results - link if they reference regattas
+-- These are CALENDAR events, not results sources
+-- Only create artifacts for events with valid URLs
 
 -- Add event_artifact_id to events if not exists
 ALTER TABLE events
-    ADD COLUMN IF NOT EXISTS artifact_id BIGINT REFERENCES source_artifacts(artifact_id);
+    ADD COLUMN IF NOT EXISTS artifact_id BIGINT REFERENCES source_artifacts(artifact_id),
+    ADD COLUMN IF NOT EXISTS provenance_status TEXT;
 
--- Create artifacts for events with source_url (if not already created via regattas)
+-- Create artifacts ONLY for events with valid, identifiable source_url
+-- Note: events.source_url is the EVENT LISTING page, not results PDF
 INSERT INTO source_artifacts (
     source_type,
     import_method,
     authority_level,
+    artifact_status,
     source_url,
     first_retrieved_at,
     captured_at,
-    captured_by
+    captured_by,
+    parse_notes
 )
 SELECT DISTINCT ON (e.source_url)
     CASE 
@@ -817,57 +859,79 @@ SELECT DISTINCT ON (e.source_url)
         ELSE 'external_scrape'
     END,
     'scrape_auto',
-    CASE 
-        WHEN e.source = 'sas' THEN 50
-        ELSE 50
-    END,
+    50,  -- Calendar events have medium authority (not results)
+    'active',
     e.source_url,
     e.created_at,
     COALESCE(e.created_at, NOW()),
-    'migration_210_events'
+    'migration_210_events',
+    'Event calendar source - NOT results data'
 FROM events e
 WHERE e.source_url IS NOT NULL
   AND e.source_url != ''
+  AND LENGTH(TRIM(e.source_url)) > 10
   AND NOT EXISTS (
       SELECT 1 FROM source_artifacts sa WHERE sa.source_url = e.source_url
   );
 
--- Link events to their artifacts
+-- Link events to their artifacts (those with valid URLs only)
 UPDATE events e
-SET artifact_id = sa.artifact_id
+SET artifact_id = sa.artifact_id,
+    provenance_status = 'migrated'
 FROM source_artifacts sa
 WHERE sa.source_url = e.source_url
   AND e.source_url IS NOT NULL
+  AND e.source_url != ''
   AND e.artifact_id IS NULL;
 
+-- Mark events without valid source_url
+UPDATE events
+SET provenance_status = 'unknown_source'
+WHERE (source_url IS NULL OR source_url = '' OR LENGTH(TRIM(source_url)) <= 10)
+  AND provenance_status IS NULL;
+
 -- ============================================================================
--- STEP 12: Migrate results_staging source data
+-- STEP 12: Migrate results_staging source data (CONSERVATIVE)
 -- ============================================================================
 
--- Create artifacts for results_staging with source_url (if not already created)
+-- results_staging has source_url for SAS PDFs - these ARE results sources
+-- Create artifacts but mark as pending (not yet promoted to results)
+
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.columns 
                WHERE table_name = 'results_staging' AND column_name = 'source_url') THEN
         
+        -- Create artifacts for staging rows with valid source_url
         INSERT INTO source_artifacts (
             source_type,
             import_method,
             authority_level,
+            artifact_status,
             source_url,
             working_file_path,
-            captured_by
+            captured_by,
+            parse_notes
         )
         SELECT DISTINCT ON (rs.source_url)
-            COALESCE(rs.source_site, 'sas_pdf'),
+            CASE 
+                WHEN rs.source_site = 'SAS' OR rs.source_url LIKE '%sailing.org.za%' THEN 'sas_pdf'
+                ELSE 'external_scrape'
+            END,
             'pdf_table_extract',
-            90,
+            CASE 
+                WHEN rs.source_site = 'SAS' OR rs.source_url LIKE '%sailing.org.za%' THEN 90
+                ELSE 50
+            END,
+            'pending_retrieval',  -- Staging = not yet processed
             rs.source_url,
             rs.pdf_local_path,
-            'migration_210_staging'
+            'migration_210_staging',
+            'Staging source - pending promotion to results'
         FROM results_staging rs
         WHERE rs.source_url IS NOT NULL
           AND rs.source_url != ''
+          AND LENGTH(TRIM(rs.source_url)) > 10
           AND NOT EXISTS (
               SELECT 1 FROM source_artifacts sa WHERE sa.source_url = rs.source_url
           );
@@ -875,11 +939,15 @@ BEGIN
         -- Link staging to artifacts
         UPDATE results_staging rs
         SET artifact_id = sa.artifact_id,
-            source_type = 'sas_pdf',
+            source_type = CASE 
+                WHEN rs.source_site = 'SAS' OR rs.source_url LIKE '%sailing.org.za%' THEN 'sas_pdf'
+                ELSE 'external_scrape'
+            END,
             import_method = 'pdf_table_extract'
         FROM source_artifacts sa
         WHERE sa.source_url = rs.source_url
           AND rs.source_url IS NOT NULL
+          AND rs.source_url != ''
           AND rs.artifact_id IS NULL;
     END IF;
 END $$;
@@ -954,6 +1022,7 @@ ALTER TABLE results DROP COLUMN IF EXISTS manually_parsed;
 ALTER TABLE entries DROP COLUMN IF EXISTS original_artifact_id;
 ALTER TABLE regatta_blocks DROP COLUMN IF EXISTS artifact_id;
 ALTER TABLE events DROP COLUMN IF EXISTS artifact_id;
+ALTER TABLE events DROP COLUMN IF EXISTS provenance_status;
 
 ALTER TABLE results_staging DROP COLUMN IF EXISTS source_type;
 ALTER TABLE results_staging DROP COLUMN IF EXISTS import_method;
@@ -977,6 +1046,7 @@ DROP TRIGGER IF EXISTS trg_regatta_sources_updated_at ON regatta_sources;
 DROP TRIGGER IF EXISTS trg_prevent_artifact_immutable_modification ON source_artifacts;
 
 -- ROLLBACK STEP 3: Drop functions
+DROP FUNCTION IF EXISTS link_results_to_verified_regatta_source(TEXT);
 DROP FUNCTION IF EXISTS check_exactly_one_current_per_result();
 DROP FUNCTION IF EXISTS enforce_single_current_result_source();
 DROP FUNCTION IF EXISTS check_exactly_one_primary_per_regatta();
