@@ -635,7 +635,7 @@ def record_ingestion_log(conn, new_regattas: int, new_results_rows: int, parse_f
 AUTHORITY_LEVELS = {
     "sas_pdf": 90,           # Official SAS results PDF
     "sas_html": 85,          # SAS web page
-    "sailwave_blw": 80,      # Sailwave file from club
+    "sailwave": 80,          # Sailwave file/results
     "windsail": 78,          # Windsail results
     "club_official": 75,     # Club-published results
     "external_scrape": 50,   # Third-party scraped
@@ -650,11 +650,11 @@ def _infer_source_type_from_url(url: str) -> str:
     Infer source_type from URL based on domain + file extension/content type.
     
     Rules:
-    - .pdf extension → sas_pdf (if SAS domain) or external PDF
-    - .blw extension → sailwave_blw
-    - sailwave.com domain → sailwave_blw
+    - .pdf extension + SAS domain → sas_pdf
+    - SAS domain without .pdf → sas_html
+    - .blw extension or sailwave domain → sailwave
     - windsail domain → windsail
-    - sailing.org.za without .pdf → sas_html
+    - Known club domains → club_official
     - Other → external_scrape
     
     Returns source_type string.
@@ -664,25 +664,32 @@ def _infer_source_type_from_url(url: str) -> str:
     
     url_lower = url.lower()
     
-    # Check file extension first (most reliable)
-    if url_lower.endswith('.pdf'):
-        if "sailing.org.za" in url_lower:
+    # SAS domain checks (most specific first)
+    if "sailing.org.za" in url_lower:
+        if url_lower.endswith('.pdf'):
             return "sas_pdf"
-        return "external_scrape"  # External PDF
+        return "sas_html"
     
+    # Sailwave - .blw extension or sailwave domain
     if url_lower.endswith('.blw'):
-        return "sailwave_blw"
-    
-    # Domain-based inference
+        return "sailwave"
     if "sailwave.com" in url_lower or "sailwave.co" in url_lower:
-        return "sailwave_blw"
+        return "sailwave"
     
+    # Windsail
     if "windsail" in url_lower:
         return "windsail"
     
-    # SAS domain but not PDF = HTML
-    if "sailing.org.za" in url_lower:
-        return "sas_html"
+    # Club domains - common patterns for SA sailing clubs
+    club_patterns = [
+        "yacht", "sailing", "boat", "dinghy", "yc.", "sc.",
+        "royalcapeyc", "rcyc", "zvyc", "zvsc", "hbyc", "thyc",
+        "langebaan", "saldanha", "durban", "knysna", "mossel",
+        "club.co.za", "club.org.za"
+    ]
+    for pattern in club_patterns:
+        if pattern in url_lower and "sailing.org.za" not in url_lower:
+            return "club_official"
     
     # Default for unknown external sources
     return "external_scrape"

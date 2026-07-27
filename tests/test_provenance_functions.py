@@ -382,17 +382,21 @@ def test_url_inference():
         ("https://www.sailing.org.za/file/abc123", "sas_html", "SAS domain, no extension = HTML"),
         
         # Sailwave (.blw extension or sailwave.com domain)
-        ("https://example.com/results.blw", "sailwave_blw", ".blw extension"),
-        ("https://sailwave.com/event/123", "sailwave_blw", "sailwave.com domain"),
-        ("https://www.sailwave.co.uk/results", "sailwave_blw", "sailwave.co domain"),
+        ("https://example.com/results.blw", "sailwave", ".blw extension"),
+        ("https://sailwave.com/event/123", "sailwave", "sailwave.com domain"),
+        ("https://www.sailwave.co.uk/results", "sailwave", "sailwave.co domain"),
         
         # Windsail
         ("https://windsail.co.za/results", "windsail", "windsail domain"),
         ("https://www.windsail.com/event/456", "windsail", "windsail.com domain"),
         
-        # External (other domains)
-        ("https://example.com/results.pdf", "external_scrape", "External domain + .pdf"),
-        ("https://club.co.za/results/2026.pdf", "external_scrape", "Club domain + .pdf"),
+        # Club domains
+        ("https://rcyc.co.za/results/2026.pdf", "club_official", "Club domain (RCYC)"),
+        ("https://hbyc.org.za/events", "club_official", "Club domain (HBYC)"),
+        ("https://langebaanyachtclub.co.za/results", "club_official", "Club domain (Langebaan)"),
+        
+        # External (unknown domains)
+        ("https://example.com/results.pdf", "external_scrape", "Unknown domain + .pdf"),
         ("https://other-site.com/event", "external_scrape", "Generic external"),
     ]
     
