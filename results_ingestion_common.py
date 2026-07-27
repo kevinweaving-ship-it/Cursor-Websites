@@ -658,6 +658,10 @@ def _infer_source_type_from_url(url: str) -> str:
     - Other → external_scrape
     
     Returns source_type string.
+    
+    TODO: Move club_patterns to database table (source_domains) so Super Admin
+    can add/change club domains (HYC, LDYC, RCYC, ZVYC, international clubs)
+    without code changes. See INGESTION_PIPELINE_UPDATE_PLAN.md.
     """
     if not url:
         return "unknown"

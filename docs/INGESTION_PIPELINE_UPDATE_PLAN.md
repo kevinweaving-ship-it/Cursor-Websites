@@ -259,5 +259,45 @@ def resolve_boat_id(cur, sail_number, class_id, class_family_id=None):
 
 ---
 
+## Future Improvements
+
+### 1. `source_domains` Config Table (Approved for later)
+
+Move club domain detection from hard-coded patterns in `_infer_source_type_from_url()` to a database table so Super Admin can manage domains without code changes.
+
+**Table Design:**
+```sql
+CREATE TABLE source_domains (
+    domain_id SERIAL PRIMARY KEY,
+    domain_pattern TEXT NOT NULL,          -- e.g. 'rcyc', 'hbyc.org.za', 'yacht'
+    source_type TEXT NOT NULL DEFAULT 'club_official',
+    authority_level INTEGER DEFAULT 75,
+    club_id INTEGER REFERENCES clubs(club_id),  -- Optional link to club
+    match_type TEXT DEFAULT 'contains',    -- 'contains', 'exact', 'suffix'
+    is_active BOOLEAN DEFAULT TRUE,
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+**Benefits:**
+- Super Admin adds new clubs (HYC, LDYC, international) via UI
+- No code deployment for domain changes
+- Can link domains directly to club records
+- Authority level per club/source
+
+---
+
+## Completed Steps
+
+| Step | Status | Date |
+|------|--------|------|
+| Add shared provenance functions | ✅ Complete | 2026-07-27 |
+| URL inference (domain + content type) | ✅ Complete | 2026-07-27 |
+| Test idempotency, link prevention | ✅ Complete | 2026-07-27 |
+
+---
+
 *Created: 2026-07-27*  
-*Status: Awaiting approval before implementation*
+*Updated: 2026-07-27*  
+*Status: Step 1 complete — ready for Step 2 (insert flow integration)*
