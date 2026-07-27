@@ -295,7 +295,7 @@ resolved → validated    (auto, after conflict resolution)
 ### 6.2 New Lookup Tables
 
 ```sql
--- Source type enumeration
+-- Source type enumeration with authority
 CREATE TABLE source_types (
     source_type_code    TEXT PRIMARY KEY,
     source_type_name    TEXT NOT NULL,
@@ -324,6 +324,21 @@ CREATE TABLE validation_statuses (
     display_order       SMALLINT NOT NULL,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Artifact status (lifecycle of the artifact itself)
+CREATE TABLE artifact_statuses (
+    status_code         TEXT PRIMARY KEY,
+    status_name         TEXT NOT NULL,
+    description         TEXT,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO artifact_statuses (status_code, status_name, description) VALUES
+('active', 'Active', 'Artifact is valid and in use'),
+('archived', 'Archived', 'Artifact retained for audit but no longer primary'),
+('corrupted', 'Corrupted', 'File integrity check failed'),
+('deleted_source', 'Source Deleted', 'Original URL no longer accessible'),
+('pending_retrieval', 'Pending Retrieval', 'Scheduled for download/refresh');
 ```
 
 ### 6.3 Source Artifacts Table (Immutable Record of Each Source)
@@ -331,61 +346,98 @@ CREATE TABLE validation_statuses (
 ```sql
 CREATE TABLE source_artifacts (
     artifact_id         BIGSERIAL PRIMARY KEY,
+    
     -- Source identification
     source_type         TEXT NOT NULL REFERENCES source_types(source_type_code),
     import_method       TEXT NOT NULL REFERENCES import_methods(import_method_code),
+    
+    -- Authority & Status
+    authority_level     SMALLINT NOT NULL CHECK (authority_level BETWEEN 0 AND 100),
+    artifact_status     TEXT NOT NULL DEFAULT 'active' REFERENCES artifact_statuses(status_code),
+    
     -- Source locators (IMMUTABLE once set)
     source_url          TEXT,                   -- Original URL (SAS PDF, external page)
-    source_file_path    TEXT,                   -- Local storage path
+    
+    -- Raw file retention
+    raw_file_path       TEXT,                   -- Permanent local archive path (never deleted)
+    raw_file_retained   BOOLEAN NOT NULL DEFAULT FALSE,
+    retention_policy    TEXT DEFAULT 'permanent', -- 'permanent', '5_years', 'until_superseded'
+    
+    -- Working copy (may be updated/regenerated)
+    working_file_path   TEXT,                   -- Current working copy path
     source_filename     TEXT,                   -- Original filename
-    -- Metadata
+    
+    -- Version & Retrieval timestamps
+    artifact_version    INTEGER NOT NULL DEFAULT 1,
+    first_retrieved_at  TIMESTAMPTZ,            -- When first downloaded/captured
+    last_retrieved_at   TIMESTAMPTZ,            -- Last successful retrieval
+    last_verified_at    TIMESTAMPTZ,            -- Last integrity check
+    source_modified_at  TIMESTAMPTZ,            -- Last-Modified header from source
+    
+    -- File metadata
     mime_type           TEXT,                   -- 'application/pdf', 'text/csv', etc.
     byte_size           BIGINT,
     checksum_md5        TEXT,                   -- MD5 hash for deduplication
     checksum_sha256     TEXT,                   -- SHA256 for integrity
+    
     -- Parser info
     parser_name         TEXT,                   -- 'sas_pdf_extractor_v2', 'sailwave_importer'
     parser_version      TEXT,                   -- '1.2.3'
     parse_timestamp     TIMESTAMPTZ,
+    
     -- Manual parsing
     manually_parsed     BOOLEAN NOT NULL DEFAULT FALSE,
     parsed_by           TEXT,                   -- User who did manual parsing
     parse_notes         TEXT,                   -- Notes about parsing difficulties
-    -- Audit (IMMUTABLE)
+    
+    -- Live session/device provenance (for future SailingSA Live)
+    live_session_id     TEXT,                   -- Live scoring session identifier
+    live_device_id      TEXT,                   -- Device that captured data
+    live_device_type    TEXT,                   -- 'ios_app', 'android_app', 'web', 'hardware'
+    live_gps_lat        NUMERIC(9,6),           -- GPS coordinates at capture
+    live_gps_lng        NUMERIC(9,6),
+    live_captured_by_user TEXT,                 -- User account on Live system
+    
+    -- Audit (IMMUTABLE core fields)
     captured_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     captured_by         TEXT NOT NULL DEFAULT 'system',
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    -- NOTE: No updated_at - artifacts are immutable
+    -- NOTE: No updated_at for core fields - use artifact_version for changes
 );
 
 -- Indexes
 CREATE INDEX idx_source_artifacts_source_type ON source_artifacts(source_type);
+CREATE INDEX idx_source_artifacts_status ON source_artifacts(artifact_status);
 CREATE INDEX idx_source_artifacts_checksum ON source_artifacts(checksum_md5) WHERE checksum_md5 IS NOT NULL;
 CREATE INDEX idx_source_artifacts_url ON source_artifacts(source_url) WHERE source_url IS NOT NULL;
+CREATE INDEX idx_source_artifacts_live_session ON source_artifacts(live_session_id) WHERE live_session_id IS NOT NULL;
 
--- Prevent modification of source locators after creation
-CREATE OR REPLACE FUNCTION prevent_artifact_url_modification()
+-- Prevent modification of immutable source locators after creation
+CREATE OR REPLACE FUNCTION prevent_artifact_immutable_modification()
 RETURNS TRIGGER AS $$
 BEGIN
     IF OLD.source_url IS NOT NULL AND NEW.source_url IS DISTINCT FROM OLD.source_url THEN
         RAISE EXCEPTION 'Cannot modify source_url on existing artifact (id=%)', OLD.artifact_id;
     END IF;
-    IF OLD.source_file_path IS NOT NULL AND NEW.source_file_path IS DISTINCT FROM OLD.source_file_path THEN
-        RAISE EXCEPTION 'Cannot modify source_file_path on existing artifact (id=%)', OLD.artifact_id;
+    IF OLD.raw_file_path IS NOT NULL AND NEW.raw_file_path IS DISTINCT FROM OLD.raw_file_path THEN
+        RAISE EXCEPTION 'Cannot modify raw_file_path on existing artifact (id=%)', OLD.artifact_id;
     END IF;
     IF OLD.checksum_md5 IS NOT NULL AND NEW.checksum_md5 IS DISTINCT FROM OLD.checksum_md5 THEN
         RAISE EXCEPTION 'Cannot modify checksum_md5 on existing artifact (id=%)', OLD.artifact_id;
+    END IF;
+    IF OLD.first_retrieved_at IS NOT NULL AND NEW.first_retrieved_at IS DISTINCT FROM OLD.first_retrieved_at THEN
+        RAISE EXCEPTION 'Cannot modify first_retrieved_at on existing artifact (id=%)', OLD.artifact_id;
     END IF;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_prevent_artifact_url_modification
+CREATE TRIGGER trg_prevent_artifact_immutable_modification
 BEFORE UPDATE ON source_artifacts
-FOR EACH ROW EXECUTE FUNCTION prevent_artifact_url_modification();
+FOR EACH ROW EXECUTE FUNCTION prevent_artifact_immutable_modification();
 ```
 
-### 6.4 Regatta Source Link Table (Many-to-Many, Preserves History)
+### 6.4 Regatta Source Link Table (Many-to-Many, Exactly One Primary)
 
 ```sql
 -- Link regattas to their source artifacts (many-to-many for multiple sources)
@@ -394,51 +446,150 @@ CREATE TABLE regatta_sources (
     regatta_source_id   BIGSERIAL PRIMARY KEY,
     regatta_id          TEXT NOT NULL REFERENCES regattas(regatta_id) ON DELETE CASCADE,
     artifact_id         BIGINT NOT NULL REFERENCES source_artifacts(artifact_id) ON DELETE RESTRICT,
-    -- Original vs Secondary
+    
+    -- Original vs Secondary (is_original is IMMUTABLE)
     is_original         BOOLEAN NOT NULL DEFAULT FALSE,  -- TRUE = first source that created this regatta
     is_primary          BOOLEAN NOT NULL DEFAULT FALSE,  -- TRUE = current authoritative source for display
-    superseded_by       BIGINT REFERENCES source_artifacts(artifact_id), -- If replaced by newer source
+    superseded_by       BIGINT REFERENCES source_artifacts(artifact_id),
     superseded_at       TIMESTAMPTZ,
+    
     -- Authority
-    authority_override  SMALLINT,                       -- Override source_type authority if needed
+    authority_level     SMALLINT NOT NULL,               -- Copied from artifact at link time
+    authority_override  SMALLINT,                        -- Override if needed
+    
     -- Validation
     validation_status   TEXT NOT NULL DEFAULT 'draft' REFERENCES validation_statuses(status_code),
     validated_by        TEXT,
     validated_at        TIMESTAMPTZ,
     validation_notes    TEXT,
-    -- Scope (what this source covers)
-    covers_all_classes  BOOLEAN NOT NULL DEFAULT TRUE,  -- FALSE = partial source
-    class_ids_covered   INTEGER[],                      -- Specific class_ids if partial
+    
+    -- Partial scope fields
+    covers_all_classes  BOOLEAN NOT NULL DEFAULT TRUE,   -- FALSE = partial source
+    class_ids_covered   INTEGER[],                       -- Specific class_ids if partial
+    covers_all_races    BOOLEAN NOT NULL DEFAULT TRUE,   -- FALSE = partial races
+    race_numbers_covered INTEGER[],                      -- Specific race numbers if partial
+    covers_series_only  BOOLEAN NOT NULL DEFAULT FALSE,  -- TRUE = series totals only, no race-by-race
+    
+    -- Correction/audit fields
+    correction_reason   TEXT,                            -- Why this source was added (if secondary)
+    correction_type     TEXT CHECK (correction_type IN (
+                            'initial', 'correction', 'amendment', 'protest_result',
+                            'redress', 'disqualification', 'reinstatement', 'rescore')),
+    correction_reference TEXT,                           -- Reference to official notice/decision
+    
     -- Metadata
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_by          TEXT NOT NULL DEFAULT 'system',
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_by          TEXT,
     notes               TEXT,
+    
     UNIQUE (regatta_id, artifact_id)
 );
 
 -- Only one original source per regatta (the first one)
 CREATE UNIQUE INDEX uq_regatta_original_source ON regatta_sources(regatta_id) WHERE is_original = TRUE;
 
--- Only one primary source per regatta (current authoritative)
+-- Enforce EXACTLY ONE primary source per regatta (not zero, not multiple)
 CREATE UNIQUE INDEX uq_regatta_primary_source ON regatta_sources(regatta_id) WHERE is_primary = TRUE;
+
+CREATE INDEX idx_regatta_sources_artifact ON regatta_sources(artifact_id);
+CREATE INDEX idx_regatta_sources_validation ON regatta_sources(validation_status);
 
 -- Prevent changing is_original after creation
 CREATE OR REPLACE FUNCTION prevent_original_flag_change()
 RETURNS TRIGGER AS $$
 BEGIN
     IF OLD.is_original = TRUE AND NEW.is_original = FALSE THEN
-        RAISE EXCEPTION 'Cannot unset is_original flag on regatta_source (id=%)', OLD.regatta_source_id;
+        RAISE EXCEPTION 'Cannot unset is_original flag (id=%)', OLD.regatta_source_id;
+    END IF;
+    IF OLD.is_original = FALSE AND NEW.is_original = TRUE THEN
+        RAISE EXCEPTION 'Cannot set is_original flag on existing non-original source (id=%)', OLD.regatta_source_id;
     END IF;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_prevent_original_flag_change
+CREATE TRIGGER trg_prevent_regatta_original_flag_change
 BEFORE UPDATE ON regatta_sources
 FOR EACH ROW EXECUTE FUNCTION prevent_original_flag_change();
+
+-- Enforce exactly one primary: when setting is_primary=TRUE, unset others
+CREATE OR REPLACE FUNCTION enforce_single_primary_regatta_source()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.is_primary = TRUE THEN
+        UPDATE regatta_sources
+        SET is_primary = FALSE, 
+            superseded_by = NEW.artifact_id, 
+            superseded_at = NOW(),
+            updated_at = NOW()
+        WHERE regatta_id = NEW.regatta_id 
+          AND regatta_source_id != NEW.regatta_source_id 
+          AND is_primary = TRUE;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_enforce_single_primary_regatta_source
+BEFORE INSERT OR UPDATE OF is_primary ON regatta_sources
+FOR EACH ROW 
+WHEN (NEW.is_primary = TRUE)
+EXECUTE FUNCTION enforce_single_primary_regatta_source();
 ```
 
-### 6.5 Result Source Link Table (Result → Artifact Traceability)
+### 6.5 Source Conflicts Table (Conflict Records)
+
+```sql
+-- Track conflicts between sources for admin resolution
+CREATE TABLE source_conflicts (
+    conflict_id         BIGSERIAL PRIMARY KEY,
+    
+    -- What entity is conflicted
+    entity_type         TEXT NOT NULL CHECK (entity_type IN ('regatta', 'result', 'entry', 'boat')),
+    regatta_id          TEXT REFERENCES regattas(regatta_id) ON DELETE CASCADE,
+    result_id           BIGINT REFERENCES results(result_id) ON DELETE CASCADE,
+    entry_id            BIGINT REFERENCES entries(entry_id) ON DELETE CASCADE,
+    boat_id             BIGINT REFERENCES boats(boat_id) ON DELETE CASCADE,
+    
+    -- Conflicting artifacts
+    artifact_a_id       BIGINT NOT NULL REFERENCES source_artifacts(artifact_id),
+    artifact_b_id       BIGINT NOT NULL REFERENCES source_artifacts(artifact_id),
+    
+    -- Conflict details
+    conflict_type       TEXT NOT NULL CHECK (conflict_type IN (
+                            'value_mismatch', 'duplicate_source', 'authority_tie',
+                            'partial_overlap', 'contradictory_correction', 'missing_data')),
+    field_name          TEXT,                   -- Which field conflicts (if applicable)
+    value_a             TEXT,                   -- Value from artifact A
+    value_b             TEXT,                   -- Value from artifact B
+    conflict_details    JSONB,                  -- Additional context
+    
+    -- Resolution
+    resolution_status   TEXT NOT NULL DEFAULT 'pending' CHECK (resolution_status IN (
+                            'pending', 'resolved', 'deferred', 'ignored', 'escalated')),
+    resolved_artifact_id BIGINT REFERENCES source_artifacts(artifact_id),
+    resolution_action   TEXT CHECK (resolution_action IN (
+                            'accept_a', 'accept_b', 'merge', 'manual_value', 'defer', 'ignore')),
+    resolved_value      TEXT,                   -- Final value if manual
+    resolved_by         TEXT,
+    resolved_at         TIMESTAMPTZ,
+    resolution_reason   TEXT,
+    resolution_reference TEXT,                  -- Link to decision/notice
+    
+    -- Audit
+    detected_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    detected_by         TEXT NOT NULL DEFAULT 'system',
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_source_conflicts_pending ON source_conflicts(resolution_status) WHERE resolution_status = 'pending';
+CREATE INDEX idx_source_conflicts_regatta ON source_conflicts(regatta_id) WHERE regatta_id IS NOT NULL;
+CREATE INDEX idx_source_conflicts_result ON source_conflicts(result_id) WHERE result_id IS NOT NULL;
+```
+
+### 6.6 Result Source Link Table (Result → Artifact Traceability)
 
 ```sql
 -- Link results to their source artifacts (one result can have multiple source records)
@@ -447,19 +598,34 @@ CREATE TABLE result_sources (
     result_source_id    BIGSERIAL PRIMARY KEY,
     result_id           BIGINT NOT NULL REFERENCES results(result_id) ON DELETE CASCADE,
     artifact_id         BIGINT NOT NULL REFERENCES source_artifacts(artifact_id) ON DELETE RESTRICT,
-    -- Original vs Secondary
+    
+    -- Original vs Secondary (is_original is IMMUTABLE)
     is_original         BOOLEAN NOT NULL DEFAULT FALSE,  -- TRUE = first source that created this result
     is_current          BOOLEAN NOT NULL DEFAULT TRUE,   -- TRUE = current version of this result
     superseded_by       BIGINT REFERENCES source_artifacts(artifact_id),
     superseded_at       TIMESTAMPTZ,
+    
     -- Source locator within artifact
     source_locator      TEXT,                   -- 'pdf:p3:r12', 'csv:row45', 'sailwave:competitor:123'
-    -- What this source provided
+    
+    -- Partial scope: what this source provided
     fields_from_source  TEXT[],                 -- ['sail_number', 'helm_name', 'R1', 'R2', 'total_points']
+    race_numbers_from_source INTEGER[],         -- [1, 2, 3] if partial races
+    
+    -- Correction/audit fields
+    correction_reason   TEXT,
+    correction_type     TEXT CHECK (correction_type IN (
+                            'initial', 'correction', 'amendment', 'protest_result',
+                            'redress', 'disqualification', 'reinstatement', 'rescore')),
+    correction_reference TEXT,
+    
     -- Metadata
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_by          TEXT NOT NULL DEFAULT 'system',
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_by          TEXT,
     notes               TEXT,
+    
     UNIQUE (result_id, artifact_id)
 );
 
@@ -475,9 +641,33 @@ CREATE INDEX idx_result_sources_artifact ON result_sources(artifact_id);
 CREATE TRIGGER trg_prevent_result_original_flag_change
 BEFORE UPDATE ON result_sources
 FOR EACH ROW EXECUTE FUNCTION prevent_original_flag_change();
+
+-- Enforce exactly one current: when setting is_current=TRUE, unset others
+CREATE OR REPLACE FUNCTION enforce_single_current_result_source()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.is_current = TRUE THEN
+        UPDATE result_sources
+        SET is_current = FALSE, 
+            superseded_by = NEW.artifact_id, 
+            superseded_at = NOW(),
+            updated_at = NOW()
+        WHERE result_id = NEW.result_id 
+          AND result_source_id != NEW.result_source_id 
+          AND is_current = TRUE;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_enforce_single_current_result_source
+BEFORE INSERT OR UPDATE OF is_current ON result_sources
+FOR EACH ROW 
+WHEN (NEW.is_current = TRUE)
+EXECUTE FUNCTION enforce_single_current_result_source();
 ```
 
-### 6.6 Result Source Mapping Table (Cell-Level Provenance — Optional)
+### 6.7 Result Source Mapping Table (Cell-Level Provenance — Optional)
 
 ```sql
 -- Optional: cell-level provenance for results (M2 from goals.md)
@@ -496,10 +686,14 @@ CREATE TABLE result_source_mappings (
     -- Is this the original value or a correction?
     is_original         BOOLEAN NOT NULL DEFAULT TRUE,
     supersedes_mapping_id BIGINT REFERENCES result_source_mappings(mapping_id),
+    -- Correction audit
+    correction_reason   TEXT,
+    correction_type     TEXT,
     -- Confidence
     extraction_confidence SMALLINT CHECK (extraction_confidence BETWEEN 0 AND 100),
     -- Audit
-    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by          TEXT NOT NULL DEFAULT 'system'
 );
 
 CREATE INDEX idx_result_source_mappings_result ON result_source_mappings(result_id);
@@ -705,11 +899,30 @@ VALUES ('R-2026-001', 456, FALSE, TRUE, ...);
 
 ### 9.1 Phase 1: Schema Only (No Data Changes)
 
-1. Create lookup tables (`source_types`, `import_methods`, `validation_statuses`)
-2. Seed lookup tables with defined values
-3. Create `source_artifacts`, `regatta_sources`, `result_sources`, `result_source_mappings` tables
-4. Add new columns to `regattas`, `results`, `entries`, `results_staging`, `regatta_blocks`
-5. Create triggers to protect immutability
+1. Create lookup tables:
+   - `source_types` (with authority levels)
+   - `import_methods`
+   - `validation_statuses`
+   - `artifact_statuses`
+2. Seed all lookup tables with defined values
+3. Create core tables:
+   - `source_artifacts` (with immutability triggers)
+   - `regatta_sources` (with single-primary enforcement)
+   - `result_sources` (with single-current enforcement)
+   - `source_conflicts` (conflict tracking)
+   - `result_source_mappings` (optional cell-level)
+4. Add new columns to existing tables:
+   - `regattas`: `original_artifact_id`, `primary_artifact_id`, `validation_status`, `manually_parsed`
+   - `results`: `original_artifact_id`, `current_artifact_id`, `row_validation_status`, `manually_parsed`
+   - `entries`: `original_artifact_id`
+   - `results_staging`: `source_type`, `import_method`, `artifact_id`, `manually_parsed`, `source_locator`
+   - `regatta_blocks`: `artifact_id`
+5. Create all triggers:
+   - `trg_prevent_artifact_immutable_modification`
+   - `trg_prevent_regatta_original_flag_change`
+   - `trg_enforce_single_primary_regatta_source`
+   - `trg_prevent_result_original_flag_change`
+   - `trg_enforce_single_current_result_source`
 6. **Do not populate provenance on existing data yet**
 
 ### 9.2 Phase 2: Backfill Existing Data (Preserve Original Sources)
@@ -855,6 +1068,17 @@ INSERT INTO validation_statuses (status_code, status_name, description, is_termi
 ('conflict', 'Conflict', 'Conflicting with other source', FALSE, 40),
 ('resolved', 'Resolved', 'Conflict resolved', FALSE, 50),
 ('superseded', 'Superseded', 'Replaced by newer data', TRUE, 80);
+```
+
+### 9.4 Artifact Statuses Seed
+
+```sql
+INSERT INTO artifact_statuses (status_code, status_name, description) VALUES
+('active', 'Active', 'Artifact is valid and in use'),
+('archived', 'Archived', 'Artifact retained for audit but no longer primary'),
+('corrupted', 'Corrupted', 'File integrity check failed'),
+('deleted_source', 'Source Deleted', 'Original URL no longer accessible'),
+('pending_retrieval', 'Pending Retrieval', 'Scheduled for download/refresh');
 ```
 
 ---
