@@ -386,9 +386,9 @@ def test_url_inference():
         ("https://sailing.org.za/documents/2026/regatta.PDF", "sas_pdf", "SAS domain + .PDF uppercase"),
         
         # SAS HTML (SAS domain without .pdf)
-        ("https://www.sailing.org.za/results/2026", "sas_html", "SAS domain, no .pdf = HTML"),
-        ("https://sailing.org.za/events/123", "sas_html", "SAS domain, events page = HTML"),
-        ("https://www.sailing.org.za/file/abc123", "sas_html", "SAS domain, no extension = HTML"),
+        ("https://www.sailing.org.za/results/2026", "sas_official", "SAS domain, no .pdf = official web"),
+        ("https://sailing.org.za/events/123", "sas_official", "SAS domain, events page = official web"),
+        ("https://www.sailing.org.za/file/abc123", "sas_official", "SAS domain, no extension = official web"),
         
         # Sailwave (.blw extension or sailwave.com domain)
         ("https://example.com/results.blw", "sailwave", ".blw extension"),

@@ -662,16 +662,19 @@ def record_ingestion_log(conn, new_regattas: int, new_results_rows: int, parse_f
 # =============================================================================
 
 # Authority levels (higher = more trustworthy)
+# Must match source_types table in database (migration 210)
 AUTHORITY_LEVELS = {
-    "sas_pdf": 90,           # Official SAS results PDF
-    "sas_html": 85,          # SAS web page
-    "sailwave": 80,          # Sailwave file/results
-    "windsail": 78,          # Windsail results
-    "club_official": 75,     # Club-published results
-    "external_scrape": 50,   # Third-party scraped
-    "manual_admin": 30,      # Manual admin entry
-    "sailingsa_live": 95,    # SailingSA Live (future)
-    "unknown": 10,           # Unknown source
+    "sas_official": 100,     # Official SAS results with verification
+    "sas_pdf": 90,           # SAS-published PDF without explicit verification
+    "sailingsa_live": 85,    # SailingSA Live (our own system)
+    "sailwave": 80,          # Sailwave export
+    "windsail": 80,          # Windsail export
+    "club_official": 75,     # Direct from club with authorization
+    "club_upload": 60,       # Club upload without authorization
+    "external_scrape": 50,   # Scraped from external sites
+    "external_manual": 40,   # Manually transcribed from external
+    "manual_admin": 30,      # Admin-entered, no external source
+    "unknown": 0,            # Legacy data, no tracking
 }
 
 
@@ -681,13 +684,13 @@ def _infer_source_type_from_url(url: str) -> str:
     
     Rules:
     - .pdf extension + SAS domain → sas_pdf
-    - SAS domain without .pdf → sas_html
+    - SAS domain without .pdf → sas_official (verified SAS web content)
     - .blw extension or sailwave domain → sailwave
     - windsail domain → windsail
     - Known club domains → club_official
     - Other → external_scrape
     
-    Returns source_type string.
+    Returns source_type string matching source_types table (migration 210).
     
     TODO: Move club_patterns to database table (source_domains) so Super Admin
     can add/change club domains (HYC, LDYC, RCYC, ZVYC, international clubs)
@@ -702,7 +705,7 @@ def _infer_source_type_from_url(url: str) -> str:
     if "sailing.org.za" in url_lower:
         if url_lower.endswith('.pdf'):
             return "sas_pdf"
-        return "sas_html"
+        return "sas_official"  # HTML/web content from SAS
     
     # Sailwave - .blw extension or sailwave domain
     if url_lower.endswith('.blw'):
