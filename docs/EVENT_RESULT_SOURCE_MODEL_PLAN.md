@@ -490,11 +490,12 @@ CREATE TABLE regatta_sources (
 -- Only one original source per regatta (the first one)
 CREATE UNIQUE INDEX uq_regatta_original_source ON regatta_sources(regatta_id) WHERE is_original = TRUE;
 
--- Enforce EXACTLY ONE primary source per regatta (not zero, not multiple)
+-- At most one primary source per regatta (uniqueness constraint)
 CREATE UNIQUE INDEX uq_regatta_primary_source ON regatta_sources(regatta_id) WHERE is_primary = TRUE;
 
 CREATE INDEX idx_regatta_sources_artifact ON regatta_sources(artifact_id);
 CREATE INDEX idx_regatta_sources_validation ON regatta_sources(validation_status);
+CREATE INDEX idx_regatta_sources_regatta ON regatta_sources(regatta_id);
 
 -- Prevent changing is_original after creation
 CREATE OR REPLACE FUNCTION prevent_original_flag_change()
@@ -514,7 +515,7 @@ CREATE TRIGGER trg_prevent_regatta_original_flag_change
 BEFORE UPDATE ON regatta_sources
 FOR EACH ROW EXECUTE FUNCTION prevent_original_flag_change();
 
--- Enforce exactly one primary: when setting is_primary=TRUE, unset others
+-- When setting is_primary=TRUE, supersede previous primary (at-most-one enforcement)
 CREATE OR REPLACE FUNCTION enforce_single_primary_regatta_source()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -525,7 +526,7 @@ BEGIN
             superseded_at = NOW(),
             updated_at = NOW()
         WHERE regatta_id = NEW.regatta_id 
-          AND regatta_source_id != NEW.regatta_source_id 
+          AND regatta_source_id != COALESCE(NEW.regatta_source_id, -1)
           AND is_primary = TRUE;
     END IF;
     RETURN NEW;
@@ -537,9 +538,41 @@ BEFORE INSERT OR UPDATE OF is_primary ON regatta_sources
 FOR EACH ROW 
 WHEN (NEW.is_primary = TRUE)
 EXECUTE FUNCTION enforce_single_primary_regatta_source();
+
+-- ============================================================================
+-- DEFERRED CONSTRAINT: Exactly one primary per regatta (where sources exist)
+-- Checked at transaction COMMIT, not at statement time
+-- ============================================================================
+CREATE OR REPLACE FUNCTION check_exactly_one_primary_per_regatta()
+RETURNS TRIGGER AS $$
+DECLARE
+    primary_count INTEGER;
+    source_count INTEGER;
+BEGIN
+    -- Count sources and primaries for this regatta
+    SELECT COUNT(*), COUNT(*) FILTER (WHERE is_primary = TRUE)
+    INTO source_count, primary_count
+    FROM regatta_sources
+    WHERE regatta_id = COALESCE(NEW.regatta_id, OLD.regatta_id);
+    
+    -- If sources exist, exactly one must be primary
+    IF source_count > 0 AND primary_count != 1 THEN
+        RAISE EXCEPTION 'Regatta % has % sources but % primary (must be exactly 1)',
+            COALESCE(NEW.regatta_id, OLD.regatta_id), source_count, primary_count;
+    END IF;
+    
+    RETURN NULL; -- CONSTRAINT TRIGGER returns NULL
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE CONSTRAINT TRIGGER trg_check_exactly_one_primary_per_regatta
+AFTER INSERT OR UPDATE OR DELETE ON regatta_sources
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW
+EXECUTE FUNCTION check_exactly_one_primary_per_regatta();
 ```
 
-### 6.5 Source Conflicts Table (Conflict Records)
+### 6.5 Source Conflicts Table (Conflict Records with Full Audit)
 
 ```sql
 -- Track conflicts between sources for admin resolution
@@ -556,37 +589,104 @@ CREATE TABLE source_conflicts (
     -- Conflicting artifacts
     artifact_a_id       BIGINT NOT NULL REFERENCES source_artifacts(artifact_id),
     artifact_b_id       BIGINT NOT NULL REFERENCES source_artifacts(artifact_id),
+    authority_a         SMALLINT NOT NULL,      -- Authority level of artifact A at detection
+    authority_b         SMALLINT NOT NULL,      -- Authority level of artifact B at detection
     
     -- Conflict details
     conflict_type       TEXT NOT NULL CHECK (conflict_type IN (
                             'value_mismatch', 'duplicate_source', 'authority_tie',
-                            'partial_overlap', 'contradictory_correction', 'missing_data')),
+                            'partial_overlap', 'contradictory_correction', 'missing_data',
+                            'checksum_mismatch', 'date_conflict', 'identity_conflict')),
+    conflict_severity   TEXT NOT NULL DEFAULT 'medium' CHECK (conflict_severity IN (
+                            'low', 'medium', 'high', 'critical')),
     field_name          TEXT,                   -- Which field conflicts (if applicable)
     value_a             TEXT,                   -- Value from artifact A
     value_b             TEXT,                   -- Value from artifact B
-    conflict_details    JSONB,                  -- Additional context
+    value_a_locator     TEXT,                   -- Source locator for value A
+    value_b_locator     TEXT,                   -- Source locator for value B
+    conflict_details    JSONB,                  -- Additional context (full row diff, etc.)
     
-    -- Resolution
+    -- Resolution workflow
     resolution_status   TEXT NOT NULL DEFAULT 'pending' CHECK (resolution_status IN (
-                            'pending', 'resolved', 'deferred', 'ignored', 'escalated')),
+                            'pending', 'in_review', 'resolved', 'deferred', 'ignored', 'escalated')),
+    assigned_to         TEXT,                   -- Admin assigned to resolve
+    assigned_at         TIMESTAMPTZ,
+    due_date            DATE,                   -- Resolution deadline
+    priority            SMALLINT DEFAULT 50 CHECK (priority BETWEEN 0 AND 100),
+    
+    -- Resolution outcome
     resolved_artifact_id BIGINT REFERENCES source_artifacts(artifact_id),
     resolution_action   TEXT CHECK (resolution_action IN (
-                            'accept_a', 'accept_b', 'merge', 'manual_value', 'defer', 'ignore')),
+                            'accept_a', 'accept_b', 'accept_higher_authority',
+                            'merge', 'manual_value', 'create_correction',
+                            'defer', 'ignore', 'escalate', 'split')),
     resolved_value      TEXT,                   -- Final value if manual
+    resolution_details  JSONB,                  -- Full resolution context
+    
+    -- Resolution audit
     resolved_by         TEXT,
     resolved_at         TIMESTAMPTZ,
-    resolution_reason   TEXT,
-    resolution_reference TEXT,                  -- Link to decision/notice
+    resolution_reason   TEXT NOT NULL DEFAULT '',
+    resolution_reference TEXT,                  -- Link to official decision/notice/protest
+    resolution_artifact_id BIGINT REFERENCES source_artifacts(artifact_id), -- New artifact if correction created
     
-    -- Audit
+    -- Review/escalation
+    reviewed_by         TEXT,                   -- Second reviewer if escalated
+    reviewed_at         TIMESTAMPTZ,
+    review_notes        TEXT,
+    escalated_to        TEXT,                   -- Higher authority for escalation
+    escalated_at        TIMESTAMPTZ,
+    escalation_reason   TEXT,
+    
+    -- History tracking
+    previous_resolution_id BIGINT REFERENCES source_conflicts(conflict_id), -- If reopened
+    reopen_count        INTEGER NOT NULL DEFAULT 0,
+    last_reopened_at    TIMESTAMPTZ,
+    last_reopened_by    TEXT,
+    last_reopened_reason TEXT,
+    
+    -- Detection audit
     detected_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     detected_by         TEXT NOT NULL DEFAULT 'system',
-    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    detection_method    TEXT DEFAULT 'auto' CHECK (detection_method IN (
+                            'auto', 'manual_report', 'audit_scan', 'import_check')),
+    detection_context   JSONB,                  -- What triggered detection
+    
+    -- Timestamps
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    
+    -- Ensure at least one entity reference
+    CONSTRAINT chk_conflict_has_entity CHECK (
+        regatta_id IS NOT NULL OR result_id IS NOT NULL OR 
+        entry_id IS NOT NULL OR boat_id IS NOT NULL
+    )
 );
 
-CREATE INDEX idx_source_conflicts_pending ON source_conflicts(resolution_status) WHERE resolution_status = 'pending';
+-- Indexes
+CREATE INDEX idx_source_conflicts_pending ON source_conflicts(resolution_status) 
+    WHERE resolution_status IN ('pending', 'in_review');
 CREATE INDEX idx_source_conflicts_regatta ON source_conflicts(regatta_id) WHERE regatta_id IS NOT NULL;
 CREATE INDEX idx_source_conflicts_result ON source_conflicts(result_id) WHERE result_id IS NOT NULL;
+CREATE INDEX idx_source_conflicts_assigned ON source_conflicts(assigned_to) WHERE assigned_to IS NOT NULL;
+CREATE INDEX idx_source_conflicts_priority ON source_conflicts(priority DESC, created_at) 
+    WHERE resolution_status = 'pending';
+CREATE INDEX idx_source_conflicts_artifact_a ON source_conflicts(artifact_a_id);
+CREATE INDEX idx_source_conflicts_artifact_b ON source_conflicts(artifact_b_id);
+
+-- Auto-update updated_at
+CREATE TRIGGER trg_source_conflicts_updated_at
+BEFORE UPDATE ON source_conflicts
+FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Helper function (create if not exists)
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 ```
 
 ### 6.6 Result Source Link Table (Result → Artifact Traceability)
@@ -632,17 +732,18 @@ CREATE TABLE result_sources (
 -- Only one original source per result
 CREATE UNIQUE INDEX uq_result_original_source ON result_sources(result_id) WHERE is_original = TRUE;
 
--- Only one current source per result (for display)
+-- At most one current source per result (uniqueness constraint)
 CREATE UNIQUE INDEX uq_result_current_source ON result_sources(result_id) WHERE is_current = TRUE;
 
 CREATE INDEX idx_result_sources_artifact ON result_sources(artifact_id);
+CREATE INDEX idx_result_sources_result ON result_sources(result_id);
 
 -- Prevent changing is_original after creation
 CREATE TRIGGER trg_prevent_result_original_flag_change
 BEFORE UPDATE ON result_sources
 FOR EACH ROW EXECUTE FUNCTION prevent_original_flag_change();
 
--- Enforce exactly one current: when setting is_current=TRUE, unset others
+-- When setting is_current=TRUE, supersede previous current (at-most-one enforcement)
 CREATE OR REPLACE FUNCTION enforce_single_current_result_source()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -653,7 +754,7 @@ BEGIN
             superseded_at = NOW(),
             updated_at = NOW()
         WHERE result_id = NEW.result_id 
-          AND result_source_id != NEW.result_source_id 
+          AND result_source_id != COALESCE(NEW.result_source_id, -1)
           AND is_current = TRUE;
     END IF;
     RETURN NEW;
@@ -665,6 +766,38 @@ BEFORE INSERT OR UPDATE OF is_current ON result_sources
 FOR EACH ROW 
 WHEN (NEW.is_current = TRUE)
 EXECUTE FUNCTION enforce_single_current_result_source();
+
+-- ============================================================================
+-- DEFERRED CONSTRAINT: Exactly one current per result (where sources exist)
+-- Checked at transaction COMMIT, not at statement time
+-- ============================================================================
+CREATE OR REPLACE FUNCTION check_exactly_one_current_per_result()
+RETURNS TRIGGER AS $$
+DECLARE
+    current_count INTEGER;
+    source_count INTEGER;
+BEGIN
+    -- Count sources and currents for this result
+    SELECT COUNT(*), COUNT(*) FILTER (WHERE is_current = TRUE)
+    INTO source_count, current_count
+    FROM result_sources
+    WHERE result_id = COALESCE(NEW.result_id, OLD.result_id);
+    
+    -- If sources exist, exactly one must be current
+    IF source_count > 0 AND current_count != 1 THEN
+        RAISE EXCEPTION 'Result % has % sources but % current (must be exactly 1)',
+            COALESCE(NEW.result_id, OLD.result_id), source_count, current_count;
+    END IF;
+    
+    RETURN NULL; -- CONSTRAINT TRIGGER returns NULL
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE CONSTRAINT TRIGGER trg_check_exactly_one_current_per_result
+AFTER INSERT OR UPDATE OR DELETE ON result_sources
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW
+EXECUTE FUNCTION check_exactly_one_current_per_result();
 ```
 
 ### 6.7 Result Source Mapping Table (Cell-Level Provenance — Optional)
