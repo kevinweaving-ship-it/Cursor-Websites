@@ -1415,7 +1415,14 @@ def insert_result_with_provenance(
             pass
         cur = conn.cursor()
         
-        # 4. INSERT RESULT ROW
+        # 4. RESOLVE BOAT_ID BEFORE INSERT (exact match only - NO guessing)
+        # Resolve before insert so we can include boat_id in single INSERT (no UPDATE)
+        boat_id = None
+        if sail_number and class_id:
+            boat_id = resolve_boat_id(cur, sail_number, class_id)
+            result["boat_id"] = boat_id
+        
+        # 5. INSERT RESULT ROW (with boat_id if found, NULL otherwise)
         # Check which columns exist in results table
         cur.execute("""
             SELECT column_name FROM information_schema.columns 
@@ -1472,6 +1479,11 @@ def insert_result_with_provenance(
             insert_cols.append("helm_sa_sailing_id")
             insert_vals.append(helm_sa_sailing_id)
         
+        # Include boat_id in INSERT (NULL if not found - no UPDATE needed)
+        if "boat_id" in existing_cols:
+            insert_cols.append("boat_id")
+            insert_vals.append(boat_id)  # Will be None if not resolved
+        
         # Provenance columns on result row
         if "original_artifact_id" in existing_cols and artifact_id:
             insert_cols.append("original_artifact_id")
@@ -1496,7 +1508,7 @@ def insert_result_with_provenance(
         result_id = row[0] if row else None
         result["result_id"] = result_id
         
-        # 5. LINK RESULT TO ARTIFACT
+        # 6. LINK RESULT TO ARTIFACT
         if result_id and artifact_id:
             link_result_to_artifact(
                 conn, result_id, artifact_id,
@@ -1508,27 +1520,17 @@ def insert_result_with_provenance(
                 notes="Initial result insert"
             )
         
-        # 6. RESOLVE BOAT_ID (exact match only - NO guessing)
-        boat_id = None
-        if sail_number and class_id:
-            boat_id = resolve_boat_id(cur, sail_number, class_id)
-            result["boat_id"] = boat_id
-            
-            # Update result with boat_id if found
-            if boat_id and "boat_id" in existing_cols:
-                cur.execute(
-                    "UPDATE results SET boat_id = %s WHERE result_id = %s",
-                    (boat_id, result_id)
-                )
-            
-            # 7. LOG AMBIGUITY if no match (don't guess)
-            if boat_id is None:
+        # 7. LOG BOAT AMBIGUITY after insert (don't guess - boat_id already NULL in row)
+        if sail_number and class_id and boat_id is None:
+            try:
                 issue_id = log_ambiguity_issue(
                     conn, regatta_id, "boat_not_found",
                     {"sail_number": sail_number, "class_id": class_id, "helm_name": helm_name},
                     source_file=source_file, created_by=created_by
                 )
                 result["issues"].append({"type": "boat_not_found", "issue_id": issue_id})
+            except Exception:
+                pass  # Logging failure is not fatal
         
         conn.commit()
         result["success"] = True
