@@ -9,79 +9,165 @@
 ## 1. Executive Summary
 
 Before backfilling the boat register, we must establish a single, canonical model for tracking:
-- **Original source** of every event and result
+- **Original source** of every event and result (preserved forever, never overwritten)
 - **Import method** (how data entered the system)
 - **Source URL/file** (artifact locator)
 - **Authority level** (trust hierarchy for conflict resolution)
 - **Validation status** (data lifecycle)
 - **Manual parsing flag** (whether human interpretation was required)
+- **Secondary sources** (can be added without replacing original)
 
-This ensures the boat register inherits correct provenance and enables future auditing.
+**Key Design Principle**: The original source is IMMUTABLE. Secondary sources are ADDITIVE.
 
 ---
 
-## 2. Current State Audit
+## 2. Current State Audit — Source URL Linking
 
-### 2.1 Existing Source Fields
+### 2.1 Entity Relationship: Current Source Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        CURRENT SOURCE URL LINKING                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────┐     regatta_id      ┌──────────────┐     regatta_id     ┌──────────────┐
+│    events    │ ──────────────────► │   regattas   │ ◄───────────────── │   results    │
+│              │     (nullable FK)   │              │     (required FK)  │              │
+│ source='sas' │                     │ source_url   │                    │ class_original│
+│ source_event_│                     │ local_file_  │                    │ club_raw     │
+│   id         │                     │   path       │                    │ (no source   │
+│ source_url   │                     │ file_type    │                    │    columns)  │
+└──────────────┘                     │ doc_hash     │                    └──────────────┘
+       │                             │ import_status│                           │
+       │                             └──────────────┘                           │
+       │                                    │                                   │
+       │                                    │ block_id                          │ entry_id
+       │                                    ▼                                   │ (nullable)
+       │                             ┌──────────────┐                           │
+       │                             │regatta_blocks│                           │
+       │                             │              │                           │
+       │                             │ (no source   │                           │
+       │                             │   columns)   │                           │
+       │                             └──────────────┘                           │
+       │                                                                        │
+       │                                                                        ▼
+       │                                                                 ┌──────────────┐
+       │                                                                 │   entries    │
+       │                                                                 │              │
+       │                                                                 │ regatta_id   │
+       │                                                                 │ (text, no FK)│
+       │                                                                 │ (no source   │
+       │                                                                 │   columns)   │
+       │                                                                 └──────────────┘
+       │
+       │     SEPARATE STAGING PATH (not linked to above)
+       │
+       │     ┌──────────────────┐
+       └───► │ results_staging  │
+             │                  │
+             │ source_url       │  ◄── SAS PDF URL (dedupe key)
+             │ source_title_raw │
+             │ source_site='SAS'│
+             │ pdf_local_path   │
+             │ regatta_id=      │  ◄── Placeholder 'RAW:SAS'
+             │   'RAW:SAS'      │
+             └──────────────────┘
+```
+
+### 2.2 Existing Source Fields by Table
+
+#### `events` table (calendar/event listing)
+| Column | Type | Current Usage | Populated? |
+|--------|------|---------------|------------|
+| `source` | text | `'sas'`, `'external'` | ✅ Yes |
+| `source_event_id` | text | SAS event ID or external event ID | ✅ Yes |
+| `source_url` | text | Details page URL (not results PDF) | ✅ Yes |
+| `regatta_id` | text FK | Link to regattas (when results exist) | Partial |
+| `scrape_run_id` | text | `YYYYMMDDHHMM` timestamp of scrape | ✅ Yes |
+| `last_seen_at` | timestamptz | Last scrape detection | ✅ Yes |
+
+**Note**: `events.source_url` is the EVENT LISTING page, NOT the results PDF.
 
 #### `regattas` table (regatta-level provenance)
-| Column | Type | Current Usage |
-|--------|------|---------------|
-| `source_url` | text | URL of PDF/results artifact (e.g., `https://www.sailing.org.za/file/{hash}`) |
-| `local_file_path` | text | Local PDF copy (rarely populated) |
-| `file_type` | text | `'PDF'`, `'pdf'`, `'html'`, `'screenshot'` (inconsistent casing) |
-| `doc_hash` | text | MD5 checksum; unique index (rarely populated) |
-| `import_status` | text | `'pending'`, `'imported'`, `'manual'` (inconsistent defaults) |
-| `source_platform` | text | **UNUSED** — column exists, no values set |
+| Column | Type | Current Usage | Populated? |
+|--------|------|---------------|------------|
+| `source_url` | text | URL of PDF/results artifact | Partial (~30%) |
+| `local_file_path` | text | Local PDF copy path | Rare |
+| `file_type` | text | `'PDF'`, `'pdf'`, `'html'`, `'screenshot'` | Rare |
+| `doc_hash` | text | MD5 checksum; unique index | Rare |
+| `import_status` | text | `'pending'`, `'imported'`, `'manual'` | ✅ Default only |
+| `source_platform` | text | **UNUSED** — column exists, no values | ❌ Never |
 
-#### `results` table (row-level provenance)
-| Column | Type | Current Usage |
-|--------|------|---------------|
-| `class_original` | text | Exact text from PDF/sheet (soft provenance) |
-| `club_raw` | text | Club as printed on sheet |
-| `validation_flag` | text | **DEAD COLUMN** — never written |
-| `source_row_text` | text | **DEAD COLUMN** — never written |
-| `match_status_helm` | text | How helm SAS ID was resolved (`auto_sas`, `chosen`, etc.) |
-| `match_status_crew` | text | How crew SAS ID was resolved |
+**Critical**: `regattas.source_url` is the ONLY field that can trace back to the original document.
 
-#### `results_staging` table (staging provenance)
-| Column | Type | Current Usage |
-|--------|------|---------------|
-| `source_url` | text | Dedupe key for SAS PDFs (runtime-added column) |
-| `source_title_raw` | text | Raw SAS listing title |
-| `source_site` | text | Hardcoded `'SAS'` |
-| `pdf_local_path` | text | Local PDF storage path |
-| `validation_status` | text | `'PENDING'` only (no transitions implemented) |
+#### `regatta_blocks` table (fleet/class grouping)
+| Column | Type | Current Usage | Populated? |
+|--------|------|---------------|------------|
+| `regatta_id` | text FK | Link to parent regatta | ✅ Yes |
+| `class_id` | int FK | Link to class | ✅ Yes |
+| (no source columns) | — | — | — |
 
-#### `events` table (calendar provenance)
-| Column | Type | Current Usage |
-|--------|------|---------------|
-| `source` | text | `'sas'`, `'external'` |
-| `source_event_id` | text | SAS or external event ID |
-| `source_url` | text | Details page URL |
-| `scrape_run_id` | text | `YYYYMMDDHHMM` timestamp of scrape |
-| `last_seen_at` | timestamptz | Last scrape detection |
+**Gap**: No way to trace a block to a specific source if regatta has multiple sources.
 
-### 2.2 Current Source Types (Implicit)
+#### `results` table (individual result rows)
+| Column | Type | Current Usage | Populated? |
+|--------|------|---------------|------------|
+| `regatta_id` | text FK | Link to regatta (inherits source) | ✅ Yes |
+| `block_id` | text FK | Link to regatta_block | ✅ Yes |
+| `entry_id` | int FK | Link to entries (nullable) | Partial |
+| `class_original` | text | Exact text from PDF/sheet | ✅ Yes |
+| `club_raw` | text | Club as printed on sheet | ✅ Yes |
+| `validation_flag` | text | **DEAD COLUMN** — never written | ❌ Never |
+| `source_row_text` | text | **DEAD COLUMN** — never written | ❌ Never |
+| `match_status_helm` | text | Identity resolution audit | ✅ Yes |
+| `match_status_crew` | text | Identity resolution audit | ✅ Yes |
+
+**Gap**: Results inherit source only via `regatta_id` → `regattas.source_url`. If a regatta has multiple sources (e.g., SAS PDF + Sailwave correction), cannot trace which source a result came from.
+
+#### `entries` table (regatta entries)
+| Column | Type | Current Usage | Populated? |
+|--------|------|---------------|------------|
+| `regatta_id` | text | Link to regatta (NOT an FK!) | ✅ Yes |
+| `block_id` | text | Block identifier | ✅ Yes |
+| (no source columns) | — | — | — |
+
+**Gap**: `entries.regatta_id` is text, not a proper FK. No source tracking.
+
+#### `results_staging` table (staging for ingestion)
+| Column | Type | Current Usage | Populated? |
+|--------|------|---------------|------------|
+| `source_url` | text | SAS PDF URL (dedupe key) | ✅ Yes (runtime) |
+| `source_title_raw` | text | Raw SAS listing title | ✅ Yes (runtime) |
+| `source_site` | text | Hardcoded `'SAS'` | ✅ Yes (runtime) |
+| `pdf_local_path` | text | Local PDF storage path | ✅ Yes (runtime) |
+| `validation_status` | text | `'PENDING'` only | ✅ Default only |
+| `regatta_id` | text | Placeholder `'RAW:SAS'` | ✅ Placeholder |
+
+**Gap**: Staging has source info, but it's LOST when promoting to `results` (no carry-forward).
+
+### 2.3 Current Source Types (Implicit Values)
 
 From code analysis:
 
-| Context | Values Used |
-|---------|-------------|
-| `results_staging.source_site` | `'SAS'` (hardcoded) |
-| `events.source` | `'sas'`, `'external'` |
-| `regattas.import_status` | `'pending'`, `'imported'`, `'manual'` |
-| Manual scripts | Implicit source tracking via script filename |
+| Context | Column | Values Used |
+|---------|--------|-------------|
+| `events` | `source` | `'sas'`, `'external'` |
+| `results_staging` | `source_site` | `'SAS'` (hardcoded) |
+| `regattas` | `import_status` | `'pending'`, `'imported'`, `'manual'` |
+| `regattas` | `file_type` | `'PDF'`, `'pdf'`, `'html'`, `'screenshot'` |
+| Manual scripts | (none) | Implicit via script filename in `imports_log.source_file` |
 
-### 2.3 Identified Gaps
+### 2.4 Critical Gaps
 
-1. **No cell-level provenance** — cannot trace individual values to source sheet locations
-2. **Dead columns** — `validation_flag`, `source_row_text` on `results` never populated
-3. **No FK to source artifact** — cannot link results to their PDF/file
-4. **Staging→production path missing** — no provenance carry-forward when promoting
-5. **Inconsistent naming** — `source_platform` vs `source_site` vs `source`
-6. **No authority hierarchy** — no way to resolve conflicts between sources
-7. **No manual-parsing flag** — cannot distinguish OCR/AI-parsed from human-transcribed
+1. **Single source per regatta** — `regattas.source_url` is scalar; if updated, original is lost
+2. **No result→source link** — Results trace via regatta, but if regatta has multiple sources, cannot distinguish
+3. **Staging provenance lost** — `results_staging` has source info; promoting to `results` loses it
+4. **Dead columns** — `validation_flag`, `source_row_text` on `results` never populated
+5. **entries not FK'd** — `entries.regatta_id` is text, not FK; no source tracking
+6. **No import method** — Cannot tell if data was scraped, uploaded, manually entered
+7. **No authority hierarchy** — Cannot resolve conflicts between sources
+8. **No manual-parsing flag** — Cannot distinguish OCR/AI-parsed from human-transcribed
+9. **No secondary source support** — Adding a correction source would overwrite original
 
 ---
 
@@ -184,7 +270,29 @@ resolved → validated    (auto, after conflict resolution)
 
 ## 6. Proposed Schema Changes
 
-### 6.1 New Lookup Tables
+### 6.1 Design Principles for Provenance
+
+**PRINCIPLE 1: Original Source is Immutable**
+- Once recorded, the ORIGINAL source artifact is NEVER modified or deleted
+- The `is_original` flag marks the first source that created a record
+- Existing `regattas.source_url` is migrated as the original source
+
+**PRINCIPLE 2: Secondary Sources are Additive**
+- Additional sources (corrections, Sailwave exports, club uploads) are ADDED, not replaced
+- Each source gets its own artifact record with relationship to the regatta/result
+- `is_original=FALSE` distinguishes secondary sources
+
+**PRINCIPLE 3: Every Result Traces to Exact Source**
+- Results link to specific artifact, not just regatta
+- Cell-level provenance (optional) traces individual values to source locations
+- Import method and parser version are captured
+
+**PRINCIPLE 4: Authority Determines Precedence, Not Replacement**
+- Higher-authority sources take precedence for DISPLAY
+- Lower-authority originals are PRESERVED for audit
+- Conflict resolution creates new records, doesn't overwrite
+
+### 6.2 New Lookup Tables
 
 ```sql
 -- Source type enumeration
@@ -218,7 +326,7 @@ CREATE TABLE validation_statuses (
 );
 ```
 
-### 6.2 Source Artifacts Table (from goals.md)
+### 6.3 Source Artifacts Table (Immutable Record of Each Source)
 
 ```sql
 CREATE TABLE source_artifacts (
@@ -226,7 +334,7 @@ CREATE TABLE source_artifacts (
     -- Source identification
     source_type         TEXT NOT NULL REFERENCES source_types(source_type_code),
     import_method       TEXT NOT NULL REFERENCES import_methods(import_method_code),
-    -- Source locators
+    -- Source locators (IMMUTABLE once set)
     source_url          TEXT,                   -- Original URL (SAS PDF, external page)
     source_file_path    TEXT,                   -- Local storage path
     source_filename     TEXT,                   -- Original filename
@@ -243,59 +351,151 @@ CREATE TABLE source_artifacts (
     manually_parsed     BOOLEAN NOT NULL DEFAULT FALSE,
     parsed_by           TEXT,                   -- User who did manual parsing
     parse_notes         TEXT,                   -- Notes about parsing difficulties
-    -- Audit
+    -- Audit (IMMUTABLE)
     captured_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     captured_by         TEXT NOT NULL DEFAULT 'system',
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    -- NOTE: No updated_at - artifacts are immutable
 );
 
 -- Indexes
 CREATE INDEX idx_source_artifacts_source_type ON source_artifacts(source_type);
 CREATE INDEX idx_source_artifacts_checksum ON source_artifacts(checksum_md5) WHERE checksum_md5 IS NOT NULL;
 CREATE INDEX idx_source_artifacts_url ON source_artifacts(source_url) WHERE source_url IS NOT NULL;
+
+-- Prevent modification of source locators after creation
+CREATE OR REPLACE FUNCTION prevent_artifact_url_modification()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF OLD.source_url IS NOT NULL AND NEW.source_url IS DISTINCT FROM OLD.source_url THEN
+        RAISE EXCEPTION 'Cannot modify source_url on existing artifact (id=%)', OLD.artifact_id;
+    END IF;
+    IF OLD.source_file_path IS NOT NULL AND NEW.source_file_path IS DISTINCT FROM OLD.source_file_path THEN
+        RAISE EXCEPTION 'Cannot modify source_file_path on existing artifact (id=%)', OLD.artifact_id;
+    END IF;
+    IF OLD.checksum_md5 IS NOT NULL AND NEW.checksum_md5 IS DISTINCT FROM OLD.checksum_md5 THEN
+        RAISE EXCEPTION 'Cannot modify checksum_md5 on existing artifact (id=%)', OLD.artifact_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_prevent_artifact_url_modification
+BEFORE UPDATE ON source_artifacts
+FOR EACH ROW EXECUTE FUNCTION prevent_artifact_url_modification();
 ```
 
-### 6.3 Regatta Source Link Table
+### 6.4 Regatta Source Link Table (Many-to-Many, Preserves History)
 
 ```sql
 -- Link regattas to their source artifacts (many-to-many for multiple sources)
+-- ORIGINAL source is preserved; secondary sources are added
 CREATE TABLE regatta_sources (
     regatta_source_id   BIGSERIAL PRIMARY KEY,
     regatta_id          TEXT NOT NULL REFERENCES regattas(regatta_id) ON DELETE CASCADE,
-    artifact_id         BIGINT NOT NULL REFERENCES source_artifacts(artifact_id) ON DELETE CASCADE,
+    artifact_id         BIGINT NOT NULL REFERENCES source_artifacts(artifact_id) ON DELETE RESTRICT,
+    -- Original vs Secondary
+    is_original         BOOLEAN NOT NULL DEFAULT FALSE,  -- TRUE = first source that created this regatta
+    is_primary          BOOLEAN NOT NULL DEFAULT FALSE,  -- TRUE = current authoritative source for display
+    superseded_by       BIGINT REFERENCES source_artifacts(artifact_id), -- If replaced by newer source
+    superseded_at       TIMESTAMPTZ,
     -- Authority
-    is_primary          BOOLEAN NOT NULL DEFAULT FALSE, -- Primary authoritative source
     authority_override  SMALLINT,                       -- Override source_type authority if needed
     -- Validation
     validation_status   TEXT NOT NULL DEFAULT 'draft' REFERENCES validation_statuses(status_code),
     validated_by        TEXT,
     validated_at        TIMESTAMPTZ,
     validation_notes    TEXT,
+    -- Scope (what this source covers)
+    covers_all_classes  BOOLEAN NOT NULL DEFAULT TRUE,  -- FALSE = partial source
+    class_ids_covered   INTEGER[],                      -- Specific class_ids if partial
     -- Metadata
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_by          TEXT NOT NULL DEFAULT 'system',
+    notes               TEXT,
     UNIQUE (regatta_id, artifact_id)
 );
 
--- Only one primary source per regatta
+-- Only one original source per regatta (the first one)
+CREATE UNIQUE INDEX uq_regatta_original_source ON regatta_sources(regatta_id) WHERE is_original = TRUE;
+
+-- Only one primary source per regatta (current authoritative)
 CREATE UNIQUE INDEX uq_regatta_primary_source ON regatta_sources(regatta_id) WHERE is_primary = TRUE;
+
+-- Prevent changing is_original after creation
+CREATE OR REPLACE FUNCTION prevent_original_flag_change()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF OLD.is_original = TRUE AND NEW.is_original = FALSE THEN
+        RAISE EXCEPTION 'Cannot unset is_original flag on regatta_source (id=%)', OLD.regatta_source_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_prevent_original_flag_change
+BEFORE UPDATE ON regatta_sources
+FOR EACH ROW EXECUTE FUNCTION prevent_original_flag_change();
 ```
 
-### 6.4 Result Source Mapping Table (Cell-Level Provenance)
+### 6.5 Result Source Link Table (Result → Artifact Traceability)
+
+```sql
+-- Link results to their source artifacts (one result can have multiple source records)
+-- ORIGINAL source is preserved; corrections/updates create new artifact links
+CREATE TABLE result_sources (
+    result_source_id    BIGSERIAL PRIMARY KEY,
+    result_id           BIGINT NOT NULL REFERENCES results(result_id) ON DELETE CASCADE,
+    artifact_id         BIGINT NOT NULL REFERENCES source_artifacts(artifact_id) ON DELETE RESTRICT,
+    -- Original vs Secondary
+    is_original         BOOLEAN NOT NULL DEFAULT FALSE,  -- TRUE = first source that created this result
+    is_current          BOOLEAN NOT NULL DEFAULT TRUE,   -- TRUE = current version of this result
+    superseded_by       BIGINT REFERENCES source_artifacts(artifact_id),
+    superseded_at       TIMESTAMPTZ,
+    -- Source locator within artifact
+    source_locator      TEXT,                   -- 'pdf:p3:r12', 'csv:row45', 'sailwave:competitor:123'
+    -- What this source provided
+    fields_from_source  TEXT[],                 -- ['sail_number', 'helm_name', 'R1', 'R2', 'total_points']
+    -- Metadata
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by          TEXT NOT NULL DEFAULT 'system',
+    notes               TEXT,
+    UNIQUE (result_id, artifact_id)
+);
+
+-- Only one original source per result
+CREATE UNIQUE INDEX uq_result_original_source ON result_sources(result_id) WHERE is_original = TRUE;
+
+-- Only one current source per result (for display)
+CREATE UNIQUE INDEX uq_result_current_source ON result_sources(result_id) WHERE is_current = TRUE;
+
+CREATE INDEX idx_result_sources_artifact ON result_sources(artifact_id);
+
+-- Prevent changing is_original after creation
+CREATE TRIGGER trg_prevent_result_original_flag_change
+BEFORE UPDATE ON result_sources
+FOR EACH ROW EXECUTE FUNCTION prevent_original_flag_change();
+```
+
+### 6.6 Result Source Mapping Table (Cell-Level Provenance — Optional)
 
 ```sql
 -- Optional: cell-level provenance for results (M2 from goals.md)
+-- Traces individual field values to exact source locations
 CREATE TABLE result_source_mappings (
     mapping_id          BIGSERIAL PRIMARY KEY,
     -- Target
     result_id           BIGINT NOT NULL REFERENCES results(result_id) ON DELETE CASCADE,
     field_name          TEXT NOT NULL,          -- 'sail_number', 'helm_name', 'R1', 'total_points', etc.
     -- Source
-    artifact_id         BIGINT NOT NULL REFERENCES source_artifacts(artifact_id) ON DELETE CASCADE,
+    artifact_id         BIGINT NOT NULL REFERENCES source_artifacts(artifact_id) ON DELETE RESTRICT,
     source_locator      TEXT,                   -- 'pdf:p3:r12:c8', 'csv:row45:col_D', 'sailwave:competitor:123:race5'
-    -- Values
+    -- Values (both preserved)
     raw_value           TEXT,                   -- Exact value from source
     normalized_value    TEXT,                   -- Value after normalization
+    -- Is this the original value or a correction?
+    is_original         BOOLEAN NOT NULL DEFAULT TRUE,
+    supersedes_mapping_id BIGINT REFERENCES result_source_mappings(mapping_id),
     -- Confidence
     extraction_confidence SMALLINT CHECK (extraction_confidence BETWEEN 0 AND 100),
     -- Audit
@@ -304,34 +504,49 @@ CREATE TABLE result_source_mappings (
 
 CREATE INDEX idx_result_source_mappings_result ON result_source_mappings(result_id);
 CREATE INDEX idx_result_source_mappings_artifact ON result_source_mappings(artifact_id);
+CREATE INDEX idx_result_source_mappings_field ON result_source_mappings(result_id, field_name);
 ```
 
-### 6.5 Modify Existing Tables
+### 6.7 Modify Existing Tables
 
 ```sql
 -- Add to regattas (augment existing columns)
+-- NOTE: Existing source_url is preserved for backward compatibility
+--       New provenance flows through regatta_sources table
 ALTER TABLE regattas
-    ADD COLUMN IF NOT EXISTS primary_source_type TEXT REFERENCES source_types(source_type_code),
-    ADD COLUMN IF NOT EXISTS primary_import_method TEXT REFERENCES import_methods(import_method_code),
+    ADD COLUMN IF NOT EXISTS original_artifact_id BIGINT REFERENCES source_artifacts(artifact_id),
     ADD COLUMN IF NOT EXISTS primary_artifact_id BIGINT REFERENCES source_artifacts(artifact_id),
-    ADD COLUMN IF NOT EXISTS validation_status TEXT DEFAULT 'draft' REFERENCES validation_statuses(status_code),
+    ADD COLUMN IF NOT EXISTS validation_status TEXT DEFAULT 'validated' REFERENCES validation_statuses(status_code),
     ADD COLUMN IF NOT EXISTS manually_parsed BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- IMPORTANT: Do NOT drop or clear existing source_url - it becomes the original artifact
 
 -- Add to results (revive dead columns with proper semantics)
 ALTER TABLE results
-    ADD COLUMN IF NOT EXISTS source_artifact_id BIGINT REFERENCES source_artifacts(artifact_id),
+    ADD COLUMN IF NOT EXISTS original_artifact_id BIGINT REFERENCES source_artifacts(artifact_id),
+    ADD COLUMN IF NOT EXISTS current_artifact_id BIGINT REFERENCES source_artifacts(artifact_id),
     ADD COLUMN IF NOT EXISTS row_validation_status TEXT DEFAULT 'validated' REFERENCES validation_statuses(status_code),
     ADD COLUMN IF NOT EXISTS manually_parsed BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- Existing validation_flag will be deprecated in favor of row_validation_status
 -- Existing source_row_text remains for raw row capture (activate in ingestion)
 
--- Add to results_staging
+-- Add to entries (add FK and source tracking)
+ALTER TABLE entries
+    ADD COLUMN IF NOT EXISTS original_artifact_id BIGINT REFERENCES source_artifacts(artifact_id);
+-- NOTE: entries.regatta_id should become a proper FK in future migration
+
+-- Add to results_staging (full provenance before promotion)
 ALTER TABLE results_staging
     ADD COLUMN IF NOT EXISTS source_type TEXT REFERENCES source_types(source_type_code),
     ADD COLUMN IF NOT EXISTS import_method TEXT REFERENCES import_methods(import_method_code),
     ADD COLUMN IF NOT EXISTS artifact_id BIGINT REFERENCES source_artifacts(artifact_id),
-    ADD COLUMN IF NOT EXISTS manually_parsed BOOLEAN NOT NULL DEFAULT FALSE;
+    ADD COLUMN IF NOT EXISTS manually_parsed BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS source_locator TEXT;  -- Position within artifact
+
+-- Add to regatta_blocks (block-level source when different from regatta)
+ALTER TABLE regatta_blocks
+    ADD COLUMN IF NOT EXISTS artifact_id BIGINT REFERENCES source_artifacts(artifact_id);
 ```
 
 ---
@@ -397,32 +612,201 @@ ALTER TABLE results_staging
 
 ---
 
-## 8. Migration Strategy
+## 8. Provenance Chain — Tracing Results to Original Source
 
-### 8.1 Phase 1: Schema Only (No Data Changes)
+### 8.1 Complete Trace Path
+
+Every result can trace back to its exact original source via:
+
+```
+result_id
+    │
+    ├─► result_sources (is_original=TRUE)
+    │       │
+    │       └─► artifact_id ───► source_artifacts
+    │                               │
+    │                               ├── source_url (ORIGINAL URL - immutable)
+    │                               ├── source_file_path (local copy)
+    │                               ├── checksum_md5 (integrity check)
+    │                               ├── source_type (authority level)
+    │                               ├── import_method (how it entered)
+    │                               ├── parser_version (what processed it)
+    │                               └── manually_parsed (human involvement)
+    │
+    └─► result_source_mappings (optional cell-level)
+            │
+            ├── field_name ('sail_number', 'R1', etc.)
+            ├── source_locator ('pdf:p3:r12:c8')
+            ├── raw_value (exact from source)
+            └── normalized_value (after processing)
+```
+
+### 8.2 Query Examples
+
+**Trace result to original source URL:**
+```sql
+SELECT r.result_id, r.helm_name, r.sail_number,
+       sa.source_url AS original_source_url,
+       sa.source_type, sa.import_method,
+       sa.captured_at, sa.parser_version
+FROM results r
+JOIN result_sources rs ON rs.result_id = r.result_id AND rs.is_original = TRUE
+JOIN source_artifacts sa ON sa.artifact_id = rs.artifact_id
+WHERE r.result_id = 12345;
+```
+
+**Find all sources for a regatta (original + secondary):**
+```sql
+SELECT reg.regatta_id, reg.event_name,
+       rs.is_original, rs.is_primary, rs.superseded_at,
+       sa.source_url, sa.source_type, sa.import_method
+FROM regattas reg
+JOIN regatta_sources rs ON rs.regatta_id = reg.regatta_id
+JOIN source_artifacts sa ON sa.artifact_id = rs.artifact_id
+WHERE reg.regatta_id = 'R-2026-001'
+ORDER BY rs.is_original DESC, rs.created_at;
+```
+
+**Audit: which results came from which source:**
+```sql
+SELECT sa.source_url, sa.source_type, COUNT(*) AS result_count
+FROM results r
+JOIN result_sources rs ON rs.result_id = r.result_id AND rs.is_current = TRUE
+JOIN source_artifacts sa ON sa.artifact_id = rs.artifact_id
+WHERE r.regatta_id = 'R-2026-001'
+GROUP BY sa.artifact_id, sa.source_url, sa.source_type;
+```
+
+### 8.3 Adding Secondary Sources (Without Replacing Original)
+
+When a correction or update source is added:
+
+```sql
+-- 1. Create new artifact for the correction source
+INSERT INTO source_artifacts (source_type, import_method, source_url, ...)
+VALUES ('sailwave', 'sailwave_xml', 'https://club.com/results.blw', ...)
+RETURNING artifact_id;  -- e.g., 456
+
+-- 2. Mark old regatta_source as superseded (but DON'T delete)
+UPDATE regatta_sources
+SET is_primary = FALSE, superseded_by = 456, superseded_at = NOW()
+WHERE regatta_id = 'R-2026-001' AND is_primary = TRUE;
+
+-- 3. Add new regatta_source as primary (original stays intact)
+INSERT INTO regatta_sources (regatta_id, artifact_id, is_original, is_primary, ...)
+VALUES ('R-2026-001', 456, FALSE, TRUE, ...);
+
+-- Original source (is_original=TRUE) is NEVER modified
+```
+
+---
+
+## 9. Migration Strategy
+
+### 9.1 Phase 1: Schema Only (No Data Changes)
 
 1. Create lookup tables (`source_types`, `import_methods`, `validation_statuses`)
 2. Seed lookup tables with defined values
-3. Create `source_artifacts`, `regatta_sources`, `result_source_mappings` tables
-4. Add new columns to `regattas`, `results`, `results_staging`
-5. **Do not populate provenance on existing data yet**
+3. Create `source_artifacts`, `regatta_sources`, `result_sources`, `result_source_mappings` tables
+4. Add new columns to `regattas`, `results`, `entries`, `results_staging`, `regatta_blocks`
+5. Create triggers to protect immutability
+6. **Do not populate provenance on existing data yet**
 
-### 8.2 Phase 2: Backfill Existing Data
+### 9.2 Phase 2: Backfill Existing Data (Preserve Original Sources)
 
-1. Create source_artifact records for all known `source_url` values on regattas
-2. Link regattas to artifacts via `regatta_sources`
-3. Set `primary_source_type` based on heuristics:
-   - If `source_url` contains `sailing.org.za` → `sas_pdf`
-   - If `import_status = 'manual'` → `manual_admin`
-   - Else → `unknown`
-4. Set `validation_status = 'validated'` for all existing data (trusted baseline)
+**CRITICAL**: Existing `regattas.source_url` values are the ORIGINAL sources. They must be preserved.
 
-### 8.3 Phase 3: Activate New Pipelines
+```sql
+-- 2a. Create source_artifact for each regatta with source_url
+INSERT INTO source_artifacts (
+    source_type, import_method, source_url, source_file_path, 
+    captured_at, captured_by
+)
+SELECT 
+    CASE 
+        WHEN source_url LIKE '%sailing.org.za%' THEN 'sas_pdf'
+        WHEN import_status = 'manual' THEN 'manual_admin'
+        ELSE 'unknown'
+    END,
+    CASE 
+        WHEN source_url LIKE '%sailing.org.za%' THEN 'pdf_table_extract'
+        WHEN import_status = 'manual' THEN 'manual_entry'
+        ELSE 'migration'
+    END,
+    source_url,
+    local_file_path,
+    COALESCE(created_at, NOW()),
+    'migration'
+FROM regattas
+WHERE source_url IS NOT NULL;
+
+-- 2b. Link regattas to artifacts as ORIGINAL source
+INSERT INTO regatta_sources (
+    regatta_id, artifact_id, is_original, is_primary, validation_status, created_by
+)
+SELECT 
+    r.regatta_id, 
+    sa.artifact_id,
+    TRUE,   -- is_original
+    TRUE,   -- is_primary (original is primary until superseded)
+    'validated',
+    'migration'
+FROM regattas r
+JOIN source_artifacts sa ON sa.source_url = r.source_url
+WHERE r.source_url IS NOT NULL;
+
+-- 2c. Update regattas with artifact references
+UPDATE regattas r
+SET original_artifact_id = rs.artifact_id,
+    primary_artifact_id = rs.artifact_id
+FROM regatta_sources rs
+WHERE rs.regatta_id = r.regatta_id AND rs.is_original = TRUE;
+
+-- 2d. Create result_sources for all results (inherit from regatta)
+INSERT INTO result_sources (
+    result_id, artifact_id, is_original, is_current, created_by
+)
+SELECT 
+    r.result_id,
+    reg.original_artifact_id,
+    TRUE,   -- is_original
+    TRUE,   -- is_current
+    'migration'
+FROM results r
+JOIN regattas reg ON reg.regatta_id = r.regatta_id
+WHERE reg.original_artifact_id IS NOT NULL;
+
+-- 2e. Update results with artifact references
+UPDATE results r
+SET original_artifact_id = rs.artifact_id,
+    current_artifact_id = rs.artifact_id
+FROM result_sources rs
+WHERE rs.result_id = r.result_id AND rs.is_original = TRUE;
+```
+
+### 9.3 Phase 3: Activate New Pipelines
 
 1. Update `results_ingestion_common.py` to create source_artifacts
 2. Update staging→production promotion to carry forward provenance
-3. Update admin UI to capture source info on manual entry
-4. Deploy and monitor
+3. Set `is_original=TRUE` for newly created records
+4. Update admin UI to capture source info on manual entry
+5. Deploy and monitor
+
+### 9.4 Handling Regattas Without source_url
+
+For regattas where `source_url IS NULL`:
+
+```sql
+-- Create placeholder artifact for unknown sources
+INSERT INTO source_artifacts (source_type, import_method, captured_by)
+VALUES ('unknown', 'migration', 'migration')
+RETURNING artifact_id;  -- use this for orphan regattas
+
+-- Link orphan regattas to placeholder
+INSERT INTO regatta_sources (regatta_id, artifact_id, is_original, is_primary, ...)
+SELECT regatta_id, <placeholder_artifact_id>, TRUE, TRUE, ...
+FROM regattas WHERE source_url IS NULL;
+```
 
 ---
 
