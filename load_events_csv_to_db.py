@@ -5,8 +5,12 @@ Run after: (1) migration 145 + 146, (2) scrape_sas_events_list.py [--no-detail] 
 Usage: python3 load_events_csv_to_db.py [--csv PATH] [--dry-run]
 Env: DATABASE_URL or DB_URL.
 
-Provenance:
-- CSV file itself = import artifact (tracked via scrape_run_id)
+Provenance (single chain architecture):
+- If scrape_metadata.json exists alongside CSV:
+  - Uses scrape_artifact_id as primary evidence (SAS Website → Scrape Run → Events)
+  - Does NOT create separate CSV artifact (CSV is output of scrape, not separate source)
+- If no scrape_metadata.json (manual run):
+  - Creates CSV artifact as fallback
 - Each row's source_url = original event artifact (never overwritten)
 - Source type inferred from URL using shared _infer_source_type_from_url()
 - Authority levels based on source type (calendar data < official results)
@@ -90,10 +94,34 @@ def _check_events_provenance_columns(cur) -> bool:
         return False
 
 
+def _load_scrape_metadata(csv_path: Path) -> dict | None:
+    """
+    Load scrape_metadata.json if it exists alongside the CSV.
+    
+    Returns metadata dict or None if not found.
+    """
+    # Look for scrape_metadata.json in same directory as CSV
+    metadata_path = csv_path.parent / "scrape_metadata.json"
+    if not metadata_path.exists():
+        return None
+    
+    try:
+        with open(metadata_path, "r", encoding="utf-8") as f:
+            metadata = json.load(f)
+        # Validate that it has the expected structure
+        if "scrape_artifact_id" in metadata or "csv_checksum_md5" in metadata:
+            return metadata
+        return None
+    except Exception as e:
+        print(f"[provenance] Failed to load scrape_metadata.json: {e}", file=sys.stderr)
+        return None
+
+
 def _create_csv_import_artifact(conn, csv_path: Path, scrape_run_id: str) -> int | None:
     """
-    Create artifact for the CSV file itself (import source).
+    Create artifact for the CSV file itself (fallback when no scrape metadata).
     
+    Only called when scrape_metadata.json doesn't exist (manual CSV load).
     Returns artifact_id or None if provenance not available.
     """
     if not HAS_PROVENANCE or not create_source_artifact:
@@ -111,7 +139,7 @@ def _create_csv_import_artifact(conn, csv_path: Path, scrape_run_id: str) -> int
         raw_file_path=str(csv_path.resolve()),
         checksum_md5=checksum,
         captured_by=f"load_events_csv_to_db:{scrape_run_id}",
-        parse_notes=f"CSV import: {csv_path.name}, run {scrape_run_id}",
+        parse_notes=f"CSV import (manual, no scrape metadata): {csv_path.name}, run {scrape_run_id}",
     )
 
 
@@ -249,12 +277,34 @@ def main():
                 elif not has_provenance_columns:
                     print(f"Provenance disabled: events.artifact_id column not found", file=sys.stderr)
             
-            # Create artifact for the CSV file itself (import source)
+            # Provenance: check for scrape_metadata.json (single chain architecture)
+            # If scrape ran first, it created the artifact; we use that instead of creating CSV artifact
+            scrape_metadata = _load_scrape_metadata(csv_path)
+            scrape_artifact_id = None
             csv_artifact_id = None
+            
             if use_provenance:
-                csv_artifact_id = _create_csv_import_artifact(conn, csv_path, scrape_run_id)
-                if csv_artifact_id:
-                    print(f"  CSV artifact created: {csv_artifact_id}", file=sys.stderr)
+                if scrape_metadata and scrape_metadata.get("scrape_artifact_id"):
+                    # Use scrape artifact (single provenance chain)
+                    scrape_artifact_id = scrape_metadata["scrape_artifact_id"]
+                    print(f"  Using scrape artifact: {scrape_artifact_id} (from scrape_metadata.json)", file=sys.stderr)
+                    
+                    # Verify CSV checksum matches if available
+                    expected_checksum = scrape_metadata.get("csv_checksum_md5")
+                    if expected_checksum:
+                        actual_checksum = _compute_csv_checksum(csv_path)
+                        if actual_checksum == expected_checksum:
+                            print(f"  CSV checksum verified: {actual_checksum[:16]}...", file=sys.stderr)
+                        else:
+                            print(f"  WARNING: CSV checksum mismatch! Expected {expected_checksum[:16]}..., got {actual_checksum[:16] if actual_checksum else 'None'}...", file=sys.stderr)
+                else:
+                    # Fallback: create CSV artifact (manual load without scrape)
+                    csv_artifact_id = _create_csv_import_artifact(conn, csv_path, scrape_run_id)
+                    if csv_artifact_id:
+                        print(f"  CSV artifact created (fallback): {csv_artifact_id}", file=sys.stderr)
+            
+            # The import artifact is scrape_artifact_id if from scrape, else csv_artifact_id
+            import_artifact_id = scrape_artifact_id or csv_artifact_id
             
             # Track statistics
             stats = {"inserted": 0, "updated": 0, "artifacts_created": 0, "artifacts_reused": 0}
@@ -281,8 +331,9 @@ def main():
                 provenance_status = None
                 if use_provenance:
                     provenance_status = json.dumps({
-                        "status": "csv_import",
-                        "import_artifact_id": csv_artifact_id,
+                        "status": "scrape_import" if scrape_artifact_id else "csv_import",
+                        "import_artifact_id": import_artifact_id,
+                        "scrape_artifact_id": scrape_artifact_id,  # None if manual CSV load
                         "scrape_run_id": scrape_run_id,
                         "imported_at": datetime.utcnow().isoformat(),
                     })

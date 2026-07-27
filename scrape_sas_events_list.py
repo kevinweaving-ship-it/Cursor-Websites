@@ -7,19 +7,35 @@ Scrape SAS events list from https://www.sailing.org.za/events/
 - Output: one CSV with all fields. Use --no-detail for list-only (quick run).
 
 Daily auto: run with --output-dir DIR --date-stamp; cron e.g. 0 4 * * * run-daily-events-scrape.sh
+
+Provenance:
+- Creates one scrape run artifact (primary evidence)
+- Tracks page checksums (even without --store-html)
+- Writes scrape_metadata.json for loader to use
+- Loader uses scrape artifact ID directly (single provenance chain)
 """
 from __future__ import annotations
 
 import argparse
 import csv
 import html as html_module
+import json
+import os
 import re
 import sys
 import time
 from datetime import datetime, timezone
+from hashlib import md5
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
 from urllib.request import Request, urlopen
+
+# Provenance imports (optional - graceful degradation if not available)
+try:
+    import psycopg2
+    HAS_PSYCOPG2 = True
+except ImportError:
+    HAS_PSYCOPG2 = False
 
 BASE = "https://www.sailing.org.za"
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
@@ -526,34 +542,241 @@ def parse_list_html(html: str, is_past: bool) -> list[dict]:
     return events
 
 
+# ============================================================================
+# PROVENANCE HELPERS
+# ============================================================================
+
+def _compute_checksum(data: str | bytes) -> str:
+    """Compute MD5 checksum of string or bytes."""
+    if isinstance(data, str):
+        data = data.encode('utf-8')
+    return md5(data).hexdigest()
+
+
+def _get_db_connection(db_url: str | None):
+    """Get database connection if URL provided and psycopg2 available."""
+    if not db_url or not HAS_PSYCOPG2:
+        return None
+    try:
+        return psycopg2.connect(db_url)
+    except Exception as e:
+        print(f"[provenance] DB connection failed: {e}", file=sys.stderr)
+        return None
+
+
+def _check_provenance_tables(conn) -> bool:
+    """Check if provenance tables exist."""
+    if not conn:
+        return False
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT 1 FROM information_schema.tables 
+            WHERE table_name = 'source_artifacts' AND table_schema = 'public'
+        """)
+        result = cur.fetchone() is not None
+        cur.close()
+        return result
+    except Exception:
+        return False
+
+
+def _create_scrape_artifact(conn, scrape_started_at: str) -> int | None:
+    """
+    Create scrape run artifact (primary evidence for this acquisition).
+    
+    Returns artifact_id or None if provenance not available.
+    """
+    if not conn:
+        return None
+    
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO source_artifacts (
+                source_type, import_method, authority_level, artifact_status,
+                source_url, first_retrieved_at, captured_at, captured_by, parse_notes
+            ) VALUES (
+                'sas_official', 'scrape_auto', 100, 'in_progress',
+                %s, %s, %s, 'scrape_sas_events_list',
+                'SAS events calendar scrape - in progress'
+            )
+            RETURNING artifact_id
+        """, (
+            BASE + "/events/",
+            scrape_started_at,
+            scrape_started_at,
+        ))
+        result = cur.fetchone()
+        conn.commit()
+        cur.close()
+        return result[0] if result else None
+    except Exception as e:
+        print(f"[provenance] Failed to create scrape artifact: {e}", file=sys.stderr)
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        return None
+
+
+def _update_scrape_artifact(conn, artifact_id: int, status: str, 
+                            stats: dict, csv_checksum: str | None) -> bool:
+    """Update scrape artifact with completion status and stats."""
+    if not conn or not artifact_id:
+        return False
+    
+    try:
+        notes = json.dumps({
+            "status": status,
+            "events_count": stats.get("events_count", 0),
+            "pages_fetched": stats.get("pages_fetched", 0),
+            "detail_pages_fetched": stats.get("detail_pages_fetched", 0),
+            "csv_checksum_md5": csv_checksum,
+            "with_host": stats.get("with_host", 0),
+            "with_nor": stats.get("with_nor", 0),
+        }, indent=2)
+        
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE source_artifacts
+            SET artifact_status = %s,
+                checksum_md5 = %s,
+                parse_notes = %s
+            WHERE artifact_id = %s
+        """, (
+            'completed' if status == 'success' else 'issues_found',
+            csv_checksum,
+            f"SAS events calendar scrape - {status}\n{notes}",
+            artifact_id,
+        ))
+        conn.commit()
+        cur.close()
+        return True
+    except Exception as e:
+        print(f"[provenance] Failed to update scrape artifact: {e}", file=sys.stderr)
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        return False
+
+
+def _store_html_evidence(html: str, url: str, output_dir: Path, 
+                         page_type: str, page_num: int | None = None) -> tuple[str | None, str]:
+    """
+    Store raw HTML to file as evidence.
+    
+    Returns (file_path, checksum). file_path is None if storage failed.
+    """
+    checksum = _compute_checksum(html)
+    
+    # Build filename: list_upcoming_p1.html, list_past_p5.html, detail_123456.html
+    if page_type == "detail":
+        # Extract event ID from URL
+        m = re.search(r'/events/(\d+)', url)
+        eid = m.group(1) if m else checksum[:8]
+        filename = f"detail_{eid}.html"
+    else:
+        page_suffix = f"_p{page_num}" if page_num else ""
+        filename = f"list_{page_type}{page_suffix}.html"
+    
+    html_dir = output_dir / "html_evidence"
+    try:
+        html_dir.mkdir(parents=True, exist_ok=True)
+        file_path = html_dir / filename
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(html)
+        return str(file_path), checksum
+    except Exception as e:
+        print(f"[provenance] Failed to store HTML: {e}", file=sys.stderr)
+        return None, checksum
+
+
+def _write_scrape_metadata(output_dir: Path, metadata: dict):
+    """Write scrape_metadata.json alongside CSV."""
+    try:
+        metadata_path = output_dir / "scrape_metadata.json"
+        with open(metadata_path, "w", encoding="utf-8") as f:
+            json.dump(metadata, f, indent=2)
+        print(f"[provenance] Wrote {metadata_path}", file=sys.stderr)
+    except Exception as e:
+        print(f"[provenance] Failed to write metadata: {e}", file=sys.stderr)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Scrape SAS events list + full detail per event (host, location, NOR, SI, etc.).")
     parser.add_argument("--output-dir", type=str, default=None, help="Write CSV here (default: script dir)")
     parser.add_argument("--date-stamp", action="store_true", help="Also write sas_events_list_YYYYMMDD.csv for daily runs")
     parser.add_argument("--no-detail", action="store_true", help="Skip fetching each event detail page (list-only, faster)")
+    # Provenance arguments
+    parser.add_argument("--store-html", action="store_true", 
+        help="Store raw HTML responses as evidence (default: checksums only)")
+    parser.add_argument("--db-url", type=str, default=None,
+        help="Database URL for provenance artifact creation (default: metadata JSON only)")
     args = parser.parse_args()
 
     out_dir = Path(args.output_dir).resolve() if args.output_dir else Path(__file__).resolve().parent
     out_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
+    
+    # Provenance: track scrape timing and stats
+    scrape_started_at = datetime.now(timezone.utc).isoformat()
+    page_checksums: list[dict] = []  # Track checksums for all fetched pages
+    
+    # Provenance: create scrape run artifact if DB available
+    db_url = args.db_url or os.getenv("DB_URL") or os.getenv("DATABASE_URL")
+    conn = _get_db_connection(db_url)
+    has_provenance = conn and _check_provenance_tables(conn)
+    scrape_artifact_id = None
+    
+    if has_provenance:
+        scrape_artifact_id = _create_scrape_artifact(conn, scrape_started_at)
+        if scrape_artifact_id:
+            print(f"[provenance] Scrape artifact created: {scrape_artifact_id}", file=sys.stderr)
+        else:
+            print("[provenance] Failed to create scrape artifact, continuing without", file=sys.stderr)
+    elif db_url:
+        print("[provenance] Provenance tables not found, continuing without artifacts", file=sys.stderr)
 
     all_events: list[dict] = []
     seen_urls: set[str] = set()
 
     # path, is_past, paginate (fetch page=1,2,... until empty)
     list_config = [
-        ("/events/", False, False),
-        ("/events/list", False, True),   # upcoming: all pages
-        ("/events/list/past", True, True),  # past: all pages
+        ("/events/", False, False, "upcoming_landing"),
+        ("/events/list", False, True, "upcoming"),   # upcoming: all pages
+        ("/events/list/past", True, True, "past"),  # past: all pages
     ]
     max_pages = 200
-    for path, is_past, paginate in list_config:
+    pages_fetched = {"upcoming_landing": 0, "upcoming": 0, "past": 0, "total": 0}
+    
+    for path, is_past, paginate, page_type in list_config:
         page = 1
         while page <= max_pages:
             url_path = f"{path}?page={page}" if (paginate and page > 1) else path
+            full_url = BASE + url_path
             print(f"Fetching list {url_path} ...", file=sys.stderr)
             try:
                 html = fetch_list_page(url_path)
+                
+                # Provenance: track checksum (always) and optionally store HTML
+                checksum = _compute_checksum(html)
+                html_path = None
+                if args.store_html:
+                    html_path, _ = _store_html_evidence(html, full_url, out_dir, page_type, page)
+                page_checksums.append({
+                    "url": full_url,
+                    "type": "list",
+                    "page_type": page_type,
+                    "page_num": page,
+                    "checksum_md5": checksum,
+                    "html_stored": html_path is not None,
+                    "html_path": html_path,
+                })
+                pages_fetched[page_type] += 1
+                pages_fetched["total"] += 1
+                
                 batch = parse_list_html(html, is_past)
                 new_count = 0
                 for e in batch:
@@ -575,6 +798,7 @@ def main():
             time.sleep(0.7)
 
     # Fetch detail page for each event to get host, location, NOR, SI, etc.
+    detail_pages_fetched = 0
     if not args.no_detail and all_events:
         print(f"Fetching detail for {len(all_events)} events ...", file=sys.stderr)
         for i, ev in enumerate(all_events):
@@ -582,6 +806,20 @@ def main():
             list_host = (ev.get("venue_text") or "").strip()
             html = fetch_detail_page(url)
             if html:
+                # Provenance: track checksum and optionally store HTML
+                checksum = _compute_checksum(html)
+                html_path = None
+                if args.store_html:
+                    html_path, _ = _store_html_evidence(html, url, out_dir, "detail")
+                page_checksums.append({
+                    "url": url,
+                    "type": "detail",
+                    "checksum_md5": checksum,
+                    "html_stored": html_path is not None,
+                    "html_path": html_path,
+                })
+                detail_pages_fetched += 1
+                
                 detail = parse_detail_html(html, url)
                 for k, v in detail.items():
                     if v and isinstance(v, str):
@@ -635,6 +873,57 @@ def main():
     with_nor = sum(1 for e in all_events if e.get("nor_url"))
     with_host = sum(1 for e in all_events if e.get("host") or e.get("location"))
     print(f"Detail: {with_host} with host/location, {with_nor} with NOR URL", file=sys.stderr)
+    
+    # Provenance: compute CSV checksum
+    csv_checksum = None
+    if out_csv.exists():
+        with open(out_csv, "rb") as f:
+            csv_checksum = md5(f.read()).hexdigest()
+    
+    # Provenance: complete timing
+    scrape_completed_at = datetime.now(timezone.utc).isoformat()
+    
+    # Provenance: build stats
+    scrape_stats = {
+        "events_count": len(all_events),
+        "pages_fetched": pages_fetched["total"],
+        "detail_pages_fetched": detail_pages_fetched,
+        "with_host": with_host,
+        "with_nor": with_nor,
+    }
+    
+    # Provenance: write metadata JSON (always, even without DB)
+    metadata = {
+        "scrape_artifact_id": scrape_artifact_id,
+        "csv_path": str(out_csv),
+        "csv_checksum_md5": csv_checksum,
+        "scrape_started_at": scrape_started_at,
+        "scrape_completed_at": scrape_completed_at,
+        "pages_fetched": pages_fetched,
+        "events_count": len(all_events),
+        "detail_pages_fetched": detail_pages_fetched,
+        "html_evidence_stored": args.store_html,
+        "source_urls": [
+            BASE + "/events/",
+            BASE + "/events/list",
+            BASE + "/events/list/past",
+        ],
+        "page_checksums": page_checksums,
+        "stats": scrape_stats,
+    }
+    _write_scrape_metadata(out_dir, metadata)
+    
+    # Provenance: update scrape artifact status
+    if scrape_artifact_id and conn:
+        _update_scrape_artifact(conn, scrape_artifact_id, "success", scrape_stats, csv_checksum)
+        print(f"[provenance] Scrape artifact {scrape_artifact_id} updated: success", file=sys.stderr)
+    
+    # Close DB connection
+    if conn:
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":

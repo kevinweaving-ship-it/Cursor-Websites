@@ -30,6 +30,7 @@ from load_events_csv_to_db import (
     _check_events_provenance_columns,
     _create_csv_import_artifact,
     _create_event_source_artifact,
+    _load_scrape_metadata,
     CALENDAR_AUTHORITY_REDUCTION,
 )
 from results_ingestion_common import AUTHORITY_LEVELS
@@ -282,6 +283,60 @@ def test_original_artifact_never_overwritten(conn):
     print("  PASSED: Original artifact never overwritten")
 
 
+def test_load_scrape_metadata():
+    """Test loading scrape_metadata.json."""
+    print("\n=== TEST: Load scrape metadata ===")
+    
+    # Create temp directory with CSV and metadata
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+        
+        # Create CSV
+        csv_path = tmpdir / "sas_events_list.csv"
+        csv_path.write_text("col1,col2\nval1,val2\n")
+        
+        # Test: no metadata file → returns None
+        result = _load_scrape_metadata(csv_path)
+        assert result is None, "Should return None when no metadata file"
+        print("  No metadata file → None: ✓")
+        
+        # Create metadata with scrape_artifact_id
+        metadata = {
+            "scrape_artifact_id": 123,
+            "csv_checksum_md5": "abc123",
+            "events_count": 992,
+        }
+        metadata_path = tmpdir / "scrape_metadata.json"
+        with open(metadata_path, "w") as f:
+            json.dump(metadata, f)
+        
+        # Test: with valid metadata → returns dict
+        result = _load_scrape_metadata(csv_path)
+        assert result is not None, "Should return metadata dict"
+        assert result["scrape_artifact_id"] == 123, "Should have scrape_artifact_id"
+        print(f"  With metadata file → scrape_artifact_id={result['scrape_artifact_id']}: ✓")
+        
+        # Test: metadata without scrape_artifact_id but with csv_checksum_md5 (also valid)
+        metadata2 = {"csv_checksum_md5": "def456", "events_count": 500}
+        with open(metadata_path, "w") as f:
+            json.dump(metadata2, f)
+        
+        result = _load_scrape_metadata(csv_path)
+        assert result is not None, "Should return metadata even without scrape_artifact_id if has csv_checksum_md5"
+        print(f"  Metadata without artifact_id but with checksum → valid: ✓")
+        
+        # Test: invalid metadata (no expected keys) → returns None
+        metadata3 = {"random_key": "value"}
+        with open(metadata_path, "w") as f:
+            json.dump(metadata3, f)
+        
+        result = _load_scrape_metadata(csv_path)
+        assert result is None, "Should return None for invalid metadata"
+        print("  Invalid metadata → None: ✓")
+    
+    print("  PASSED: Load scrape metadata")
+
+
 def test_authority_levels_calendar_vs_results():
     """Test that calendar authority is lower than results authority."""
     print("\n=== TEST: Authority levels (calendar < results) ===")
@@ -316,6 +371,7 @@ def run_all_tests():
     
     # Test without DB first
     test_csv_checksum()
+    test_load_scrape_metadata()
     test_authority_levels_calendar_vs_results()
     
     # DB tests
