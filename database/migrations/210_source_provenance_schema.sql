@@ -964,8 +964,8 @@ SELECT DISTINCT ON (e.source_url)
     50,  -- Calendar events have medium authority (not results)
     'active',
     e.source_url,
-    e.created_at,
-    COALESCE(e.created_at, NOW()),
+    NOW(),  -- events table may not have created_at
+    NOW(),
     'migration_210_events',
     'Event calendar source - NOT results data'
 FROM events e
