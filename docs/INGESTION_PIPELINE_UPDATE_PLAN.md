@@ -329,9 +329,10 @@ CREATE TABLE source_domains (
 | Boat resolution (read-only enforced) | ✅ Complete | 2026-07-27 |
 | Read-only boat cursor (all write paths blocked) | ✅ Complete | 2026-07-27 |
 | Optimist A/B/C permanent rule documented | ✅ Complete | 2026-07-27 |
+| `load_events_csv_to_db.py` provenance integration | ✅ Complete | 2026-07-27 |
 
 ---
 
 *Created: 2026-07-27*  
 *Updated: 2026-07-27*  
-*Status: Step 1 complete — results_ingestion_common.py done, ready for load_events_csv_to_db.py audit*
+*Status: `results_ingestion_common.py` and `load_events_csv_to_db.py` done — ready for remaining script audits*
