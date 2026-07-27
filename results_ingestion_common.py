@@ -1438,6 +1438,44 @@ def detect_new_regattas_from_results(result_items, dry_run: bool = True, apply: 
                         f"INSERT INTO regattas ({cols_sql}) VALUES ({placeholders})",
                         tuple(insert_vals),
                     )
+                    
+                    # --- PROVENANCE TRACKING (graceful, no auto-validate, no auto-truth) ---
+                    # Infer source_type from URL pattern (not authority - that's in provenance layer)
+                    inferred_source_type = "sas_pdf" if "sailing.org.za" in source_url else "external_scrape"
+                    
+                    # Create artifact (idempotent - won't duplicate if URL exists)
+                    artifact_id = create_source_artifact(
+                        conn, source_url, inferred_source_type, "scrape_auto",
+                        captured_by="detect_new_regattas",
+                        parse_notes=f"Auto-detected from {title_text or file_name}"
+                    )
+                    
+                    if artifact_id:
+                        # Link regatta to artifact - validation_status='pending_review' (NO auto-validate)
+                        # is_original=True, is_primary=True only because this is first source
+                        # Truth determination happens later in provenance layer
+                        link_regatta_to_artifact(
+                            conn, regatta_id, artifact_id,
+                            source_scope="regatta",
+                            is_original=True,
+                            is_primary=True,  # First source is primary by default, can be changed later
+                            validation_status="pending_review",  # NO auto-validation
+                            created_by="detect_new_regattas",
+                            notes="Initial source - pending validation"
+                        )
+                        
+                        # Update regatta with artifact reference (if columns exist)
+                        if "original_artifact_id" in optional_cols:
+                            cur.execute(
+                                "UPDATE regattas SET original_artifact_id = %s WHERE regatta_id = %s",
+                                (artifact_id, regatta_id)
+                            )
+                        if "provenance_status" in optional_cols:
+                            cur.execute(
+                                "UPDATE regattas SET provenance_status = 'pending_review' WHERE regatta_id = %s",
+                                (regatta_id,)
+                            )
+                    # --- END PROVENANCE TRACKING ---
 
                 report.append(
                     {
