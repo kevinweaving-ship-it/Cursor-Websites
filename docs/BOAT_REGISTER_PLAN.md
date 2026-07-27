@@ -1,8 +1,11 @@
 # Boat Register / Boat Passport — End-to-End Architecture Plan
 
-**Status:** PLAN ONLY — No production changes  
+**Status:** SCHEMA APPROVED — Migration file created  
 **Date:** 2026-07-27  
-**Author:** Cursor Cloud Agent (audit for ChatGPT review)
+**Author:** Cursor Cloud Agent (reviewed with ChatGPT)
+
+**Migration File:** `/workspace/database/migrations/200_boat_register_schema.sql`  
+**Scope:** Schema only — no backfill, API, UI, or ranking changes yet
 
 ---
 
