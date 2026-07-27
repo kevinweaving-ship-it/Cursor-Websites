@@ -29,6 +29,8 @@ from results_ingestion_common import (
     update_artifact_status,
     resolve_class_id,
     resolve_helm_to_sa_id,
+    insert_result_with_provenance,
+    log_ambiguity_issue,
     AUTHORITY_LEVELS,
 )
 
@@ -45,6 +47,12 @@ def setup_test_data(conn, test_id=None):
     """Create minimal test data for provenance tests with unique IDs."""
     if test_id is None:
         test_id = uuid.uuid4().hex[:8]
+    
+    # Ensure clean transaction state
+    try:
+        conn.rollback()
+    except Exception:
+        pass
     
     cur = conn.cursor()
     
@@ -561,6 +569,153 @@ def test_safe_failure_no_provenance_tables():
     print("  PASSED: Safe failure behavior verified")
 
 
+def test_insert_result_with_provenance(conn, test_data):
+    """Test the full result insert flow with provenance tracking."""
+    print("\n=== TEST: insert_result_with_provenance ===")
+    
+    # Ensure clean connection state
+    try:
+        conn.rollback()
+    except Exception:
+        pass
+    
+    test_id = test_data.get("test_id", uuid.uuid4().hex[:8])
+    regatta_id = test_data["regatta_id"]
+    class_id = test_data["class_id"]
+    source_url = f"https://test.sailing.org.za/results-{test_id}.pdf"
+    
+    # Insert a result with full provenance
+    result = insert_result_with_provenance(
+        conn,
+        regatta_id=regatta_id,
+        source_url=source_url,
+        import_method="manual_entry",  # Valid import_method from migration 210
+        sail_number=f"TST {test_id}",
+        helm_name=f"Test Helm {test_id}",
+        class_id=class_id,
+        rank_overall=1,
+        total_points=10.0,
+        created_by="test_suite",
+    )
+    
+    # Verify result
+    assert result["success"], f"Insert failed: {result.get('error')}"
+    assert result["result_id"] is not None, "No result_id returned"
+    assert result["artifact_id"] is not None, "No artifact_id returned"
+    print(f"  Result inserted: result_id={result['result_id']}, artifact_id={result['artifact_id']}")
+    
+    # Verify boat_not_found issue was logged (since test boat doesn't exist)
+    boat_issues = [i for i in result["issues"] if i["type"] == "boat_not_found"]
+    assert len(boat_issues) > 0, "Expected boat_not_found issue to be logged"
+    print(f"  Boat ambiguity logged: issue_id={boat_issues[0].get('issue_id')}")
+    
+    # Verify result row has provenance columns set
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT result_id, original_artifact_id, row_validation_status 
+        FROM results WHERE result_id = %s
+    """, (result["result_id"],))
+    row = cur.fetchone()
+    cur.close()
+    
+    if row:
+        assert row[1] == result["artifact_id"], "original_artifact_id not set correctly"
+        assert row[2] == "pending_review", f"Expected pending_review, got {row[2]}"
+        print(f"  Result row verified: original_artifact_id={row[1]}, validation={row[2]}")
+    
+    # Verify result_sources link was created
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT result_source_id, is_original, is_current 
+        FROM result_sources WHERE result_id = %s AND artifact_id = %s
+    """, (result["result_id"], result["artifact_id"]))
+    link = cur.fetchone()
+    cur.close()
+    
+    assert link is not None, "result_sources link not created"
+    assert link[1] is True, "is_original should be True"
+    assert link[2] is True, "is_current should be True"
+    print(f"  Result-artifact link verified: result_source_id={link[0]}")
+    
+    print("  PASSED: insert_result_with_provenance works correctly")
+    return result
+
+
+def test_insert_result_unknown_class(conn, test_data):
+    """Test that unknown class labels are logged as issues, not inserted."""
+    print("\n=== TEST: insert_result_with_provenance - unknown class ===")
+    
+    conn.rollback()
+    
+    test_id = test_data.get("test_id", uuid.uuid4().hex[:8])
+    regatta_id = test_data["regatta_id"]
+    source_url = f"https://test.sailing.org.za/unknown-class-{test_id}.pdf"
+    
+    # Try to insert with unknown class
+    result = insert_result_with_provenance(
+        conn,
+        regatta_id=regatta_id,
+        source_url=source_url,
+        import_method="manual_entry",  # Valid import_method from migration 210
+        sail_number="TST 123",
+        helm_name="Test Sailor",
+        raw_class_label="Nonexistent Class XYZ 999",  # Unknown class
+        rank_overall=1,
+        created_by="test_suite",
+    )
+    
+    # Should fail with class_not_found error
+    assert result["success"] is False, "Expected insert to fail for unknown class"
+    assert "Unknown class" in (result.get("error") or ""), f"Expected class error: {result.get('error')}"
+    
+    # Verify class_not_found issue was logged
+    class_issues = [i for i in result["issues"] if i["type"] == "class_not_found"]
+    assert len(class_issues) > 0, "Expected class_not_found issue to be logged"
+    print(f"  Unknown class correctly blocked: {result.get('error')}")
+    print(f"  Class issue logged: issue_id={class_issues[0].get('issue_id')}")
+    
+    print("  PASSED: Unknown class blocks insert and logs issue")
+    return result
+
+
+def test_log_ambiguity_issue(conn, test_data):
+    """Test that ambiguity issues are logged correctly."""
+    print("\n=== TEST: log_ambiguity_issue ===")
+    
+    conn.rollback()
+    
+    test_id = test_data.get("test_id", uuid.uuid4().hex[:8])
+    regatta_id = test_data["regatta_id"]
+    
+    # Log a boat ambiguity issue
+    issue_id = log_ambiguity_issue(
+        conn, regatta_id, "boat_ambiguous",
+        {"sail_number": "RSA 123", "class_id": 1, "matches": ["boat_1", "boat_2"]},
+        source_file="test.pdf",
+        created_by="test_suite"
+    )
+    
+    assert issue_id is not None, "Failed to log issue"
+    print(f"  Logged issue: id={issue_id}")
+    
+    # Verify it was stored
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT issue_type, issue_details, status 
+        FROM ingestion_issues WHERE id = %s
+    """, (issue_id,))
+    row = cur.fetchone()
+    cur.close()
+    
+    assert row is not None, "Issue not found in database"
+    assert row[0] == "boat_ambiguous", f"Expected 'boat_ambiguous', got '{row[0]}'"
+    assert row[2] == "OPEN", f"Expected 'OPEN' status, got '{row[2]}'"
+    print(f"  Issue verified: type={row[0]}, status={row[2]}")
+    
+    print("  PASSED: log_ambiguity_issue works correctly")
+    return issue_id
+
+
 def run_all_tests():
     """Run all provenance tests."""
     print("=" * 60)
@@ -637,6 +792,29 @@ def run_all_tests():
         conn.rollback()
         
         test_sailor_resolution_no_match(conn, test_data)
+        conn.rollback()
+        
+        # NEW: Test insert flow with provenance
+        # Reset connection state - create a new cursor context
+        conn.rollback()
+        
+        test_data_insert = setup_test_data(conn, f"ins-{run_id}")
+        if test_data_insert:
+            test_log_ambiguity_issue(conn, test_data_insert)
+        conn.rollback()
+        
+        # Fresh setup for insert test - reset connection state
+        conn.rollback()
+        test_data_insert2 = setup_test_data(conn, f"ins2-{run_id}")
+        if test_data_insert2:
+            test_insert_result_with_provenance(conn, test_data_insert2)
+        conn.rollback()
+        
+        # Fresh setup for unknown class test
+        conn.rollback()
+        test_data_insert3 = setup_test_data(conn, f"ins3-{run_id}")
+        if test_data_insert3:
+            test_insert_result_unknown_class(conn, test_data_insert3)
         conn.rollback()
         
         print("\n" + "=" * 60)

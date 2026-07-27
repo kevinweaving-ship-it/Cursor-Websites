@@ -1156,6 +1156,392 @@ def update_artifact_status(
         raise
 
 
+def log_ambiguity_issue(
+    conn,
+    regatta_id: str,
+    issue_type: str,
+    issue_details: dict,
+    source_file: str | None = None,
+    created_by: str | None = None,
+) -> int | None:
+    """
+    Log an ambiguity or unresolved match to ingestion_issues for admin review.
+    
+    Issue types:
+    - 'boat_ambiguous': Multiple boats match sail_number + class
+    - 'boat_not_found': No boat matches (candidate for new boat)
+    - 'sailor_ambiguous': Multiple sailors match helm name
+    - 'sailor_not_found': No sailor match
+    - 'class_not_found': Unknown class label
+    
+    Args:
+        conn: Database connection
+        regatta_id: Regatta context
+        issue_type: Type of ambiguity
+        issue_details: Dict with context (sail_number, helm_name, class, etc.)
+        source_file: Source file reference
+        created_by: Who/what logged this
+        
+    Returns:
+        Issue ID or None if table doesn't exist
+    """
+    cur = conn.cursor()
+    try:
+        # Ensure table exists with extended schema
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS ingestion_issues (
+                id SERIAL PRIMARY KEY,
+                regatta_id TEXT NOT NULL,
+                issue_type TEXT NOT NULL DEFAULT 'unknown_class',
+                source_file TEXT,
+                raw_class_label TEXT,
+                issue_details JSONB,
+                created_by TEXT,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                resolved_at TIMESTAMPTZ,
+                resolved_by TEXT,
+                resolution_notes TEXT,
+                status TEXT NOT NULL DEFAULT 'OPEN'
+            )
+        """)
+        
+        # Add issue_type column if missing (for existing tables)
+        cur.execute("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name = 'ingestion_issues' AND column_name = 'issue_type'
+                ) THEN
+                    ALTER TABLE ingestion_issues ADD COLUMN issue_type TEXT DEFAULT 'unknown_class';
+                END IF;
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name = 'ingestion_issues' AND column_name = 'issue_details'
+                ) THEN
+                    ALTER TABLE ingestion_issues ADD COLUMN issue_details JSONB;
+                END IF;
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name = 'ingestion_issues' AND column_name = 'created_by'
+                ) THEN
+                    ALTER TABLE ingestion_issues ADD COLUMN created_by TEXT;
+                END IF;
+            END $$;
+        """)
+        
+        import json
+        cur.execute(
+            """
+            INSERT INTO ingestion_issues 
+            (regatta_id, issue_type, source_file, issue_details, created_by, status)
+            VALUES (%s, %s, %s, %s::jsonb, %s, 'OPEN')
+            RETURNING id
+            """,
+            (regatta_id, issue_type, source_file, json.dumps(issue_details), created_by),
+        )
+        row = cur.fetchone()
+        conn.commit()
+        cur.close()
+        return row[0] if row else None
+    except Exception as e:
+        conn.rollback()
+        cur.close()
+        return None
+
+
+def insert_result_with_provenance(
+    conn,
+    regatta_id: str,
+    source_url: str,
+    source_type: str | None = None,
+    import_method: str = "manual_entry",  # Default to valid import_method from migration 210
+    # Result data
+    sail_number: str | None = None,
+    helm_name: str | None = None,
+    crew_name: str | None = None,
+    class_id: int | None = None,
+    raw_class_label: str | None = None,
+    fleet_label: str | None = None,
+    rank_overall: int | None = None,
+    total_points: float | None = None,
+    net_points: float | None = None,
+    race_scores: dict | None = None,
+    # Provenance options
+    created_by: str | None = None,
+    source_file: str | None = None,
+    source_locator: str | None = None,
+) -> dict:
+    """
+    Insert a result row with full provenance tracking.
+    
+    Order:
+    1. Create/find source artifact
+    2. Link regatta to artifact (if not already linked)
+    3. Resolve class_id (if raw_class_label provided)
+    4. Insert result row
+    5. Link result to artifact
+    6. Resolve boat_id (exact match only)
+    7. Log ambiguity issues instead of guessing
+    
+    Args:
+        conn: Database connection
+        regatta_id: Target regatta
+        source_url: Source URL for artifact
+        source_type: Source type (auto-inferred if None)
+        import_method: How the data was imported
+        sail_number: Sail number from source
+        helm_name: Helm name from source
+        crew_name: Crew name from source
+        class_id: Resolved class ID (or None to resolve from raw_class_label)
+        raw_class_label: Raw class label to resolve
+        fleet_label: Fleet/division label
+        rank_overall: Overall rank
+        total_points: Total points
+        net_points: Net points after discards
+        race_scores: Dict of race scores {race_num: points}
+        created_by: Who/what is inserting
+        source_file: Local file path reference
+        source_locator: Specific location in source (page, row)
+        
+    Returns:
+        Dict with:
+        - success: bool
+        - result_id: int or None
+        - artifact_id: int or None
+        - boat_id: int or None
+        - helm_sa_sailing_id: str or None
+        - issues: list of logged issues
+        - error: str or None
+    """
+    result = {
+        "success": False,
+        "result_id": None,
+        "artifact_id": None,
+        "boat_id": None,
+        "helm_sa_sailing_id": None,
+        "issues": [],
+        "error": None,
+    }
+    
+    # Ensure clean transaction state
+    try:
+        conn.rollback()
+    except Exception:
+        pass
+    
+    cur = conn.cursor()
+    try:
+        # 1. CREATE/FIND ARTIFACT
+        if source_type is None:
+            source_type = _infer_source_type_from_url(source_url)
+        
+        try:
+            artifact_id = create_source_artifact(
+                conn, source_url, source_type, import_method,
+                raw_file_path=source_file,
+                captured_by=created_by,
+                parse_notes=f"Result insert for {regatta_id}"
+            )
+            result["artifact_id"] = artifact_id
+        except Exception as e:
+            result["error"] = f"Step 1 (artifact): {e}"
+            raise
+        
+        # 2. LINK REGATTA TO ARTIFACT (idempotent - won't duplicate)
+        if artifact_id:
+            try:
+                link_regatta_to_artifact(
+                    conn, regatta_id, artifact_id,
+                    source_scope="regatta",
+                    is_original=True,
+                    is_primary=True,
+                    validation_status="pending_review",  # NO auto-validation
+                    created_by=created_by,
+                    notes="Result insert - pending validation"
+                )
+            except Exception as e:
+                result["error"] = f"Step 2 (link regatta): {e}"
+                raise
+        
+        # Reset cursor after commits from helper functions
+        cur.close()
+        cur = conn.cursor()
+        
+        # 3. RESOLVE CLASS (if not provided)
+        if class_id is None and raw_class_label:
+            class_id = resolve_class_id(cur, raw_class_label)
+            if class_id is None:
+                # Log unknown class issue
+                issue_id = log_ambiguity_issue(
+                    conn, regatta_id, "class_not_found",
+                    {"raw_class_label": raw_class_label, "sail_number": sail_number, "helm_name": helm_name},
+                    source_file=source_file, created_by=created_by
+                )
+                result["issues"].append({"type": "class_not_found", "issue_id": issue_id})
+                result["error"] = f"Unknown class: {raw_class_label}"
+                cur.close()
+                return result
+        
+        # Get class_canonical for result row
+        class_canonical = get_class_name_by_id(cur, class_id) if class_id else None
+        
+        # Resolve helm to SA ID (no guessing - NULL if not found)
+        try:
+            helm_sa_sailing_id = resolve_helm_to_sa_id(cur, helm_name, sail_number, class_id)
+        except Exception as e:
+            # Sailor resolution failure is not fatal - just log and continue with NULL
+            helm_sa_sailing_id = None
+            conn.rollback()
+            cur = conn.cursor()
+        result["helm_sa_sailing_id"] = helm_sa_sailing_id
+        
+        if helm_name and helm_sa_sailing_id is None:
+            # Log unresolved sailor (not blocking, just for review)
+            try:
+                issue_id = log_ambiguity_issue(
+                    conn, regatta_id, "sailor_not_found",
+                    {"helm_name": helm_name, "sail_number": sail_number, "class_id": class_id},
+                    source_file=source_file, created_by=created_by
+                )
+                result["issues"].append({"type": "sailor_not_found", "issue_id": issue_id})
+            except Exception:
+                pass  # Logging failure is not fatal
+        
+        # Reset cursor after potential commits from logging functions
+        try:
+            cur.close()
+        except Exception:
+            pass
+        cur = conn.cursor()
+        
+        # 4. INSERT RESULT ROW
+        # Check which columns exist in results table
+        cur.execute("""
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'results' AND table_schema = 'public'
+        """)
+        existing_cols = {row[0] for row in cur.fetchall()}
+        
+        # Build dynamic INSERT
+        import json
+        insert_cols = ["regatta_id"]
+        insert_vals = [regatta_id]
+        
+        if "sail_number" in existing_cols and sail_number:
+            insert_cols.append("sail_number")
+            insert_vals.append(sail_number)
+        
+        if "helm_name" in existing_cols and helm_name:
+            insert_cols.append("helm_name")
+            insert_vals.append(helm_name)
+        
+        if "crew_name" in existing_cols and crew_name:
+            insert_cols.append("crew_name")
+            insert_vals.append(crew_name)
+        
+        if "class_id" in existing_cols and class_id:
+            insert_cols.append("class_id")
+            insert_vals.append(class_id)
+        
+        if "class_canonical" in existing_cols and class_canonical:
+            insert_cols.append("class_canonical")
+            insert_vals.append(class_canonical)
+        
+        if "fleet_label" in existing_cols and fleet_label:
+            insert_cols.append("fleet_label")
+            insert_vals.append(fleet_label)
+        
+        if "rank_overall" in existing_cols and rank_overall is not None:
+            insert_cols.append("rank_overall")
+            insert_vals.append(rank_overall)
+        
+        if "total_points" in existing_cols and total_points is not None:
+            insert_cols.append("total_points")
+            insert_vals.append(total_points)
+        
+        if "net_points" in existing_cols and net_points is not None:
+            insert_cols.append("net_points")
+            insert_vals.append(net_points)
+        
+        if "race_scores" in existing_cols and race_scores:
+            insert_cols.append("race_scores")
+            insert_vals.append(json.dumps(race_scores))
+        
+        if "helm_sa_sailing_id" in existing_cols:
+            insert_cols.append("helm_sa_sailing_id")
+            insert_vals.append(helm_sa_sailing_id)
+        
+        # Provenance columns on result row
+        if "original_artifact_id" in existing_cols and artifact_id:
+            insert_cols.append("original_artifact_id")
+            insert_vals.append(artifact_id)
+        
+        if "current_artifact_id" in existing_cols and artifact_id:
+            insert_cols.append("current_artifact_id")
+            insert_vals.append(artifact_id)
+        
+        if "row_validation_status" in existing_cols:
+            insert_cols.append("row_validation_status")
+            insert_vals.append("pending_review")  # NO auto-validation
+        
+        placeholders = ", ".join(["%s"] * len(insert_cols))
+        cols_sql = ", ".join(insert_cols)
+        
+        cur.execute(
+            f"INSERT INTO results ({cols_sql}) VALUES ({placeholders}) RETURNING result_id",
+            tuple(insert_vals),
+        )
+        row = cur.fetchone()
+        result_id = row[0] if row else None
+        result["result_id"] = result_id
+        
+        # 5. LINK RESULT TO ARTIFACT
+        if result_id and artifact_id:
+            link_result_to_artifact(
+                conn, result_id, artifact_id,
+                is_original=True,
+                is_current=True,
+                source_locator=source_locator,
+                fields_from_source=["sail_number", "helm_name", "rank_overall", "total_points", "net_points"],
+                created_by=created_by,
+                notes="Initial result insert"
+            )
+        
+        # 6. RESOLVE BOAT_ID (exact match only - NO guessing)
+        boat_id = None
+        if sail_number and class_id:
+            boat_id = resolve_boat_id(cur, sail_number, class_id)
+            result["boat_id"] = boat_id
+            
+            # Update result with boat_id if found
+            if boat_id and "boat_id" in existing_cols:
+                cur.execute(
+                    "UPDATE results SET boat_id = %s WHERE result_id = %s",
+                    (boat_id, result_id)
+                )
+            
+            # 7. LOG AMBIGUITY if no match (don't guess)
+            if boat_id is None:
+                issue_id = log_ambiguity_issue(
+                    conn, regatta_id, "boat_not_found",
+                    {"sail_number": sail_number, "class_id": class_id, "helm_name": helm_name},
+                    source_file=source_file, created_by=created_by
+                )
+                result["issues"].append({"type": "boat_not_found", "issue_id": issue_id})
+        
+        conn.commit()
+        result["success"] = True
+        cur.close()
+        return result
+        
+    except Exception as e:
+        conn.rollback()
+        cur.close()
+        result["error"] = str(e)
+        return result
+
+
 def stage_new_sas_results_with_local_pdfs(result_items, dry_run: bool = True, apply: bool = False):
     """
     Stage only new SAS result PDFs into results_staging and store them locally.
