@@ -995,6 +995,46 @@ def link_result_to_artifact(
         raise
 
 
+class _ReadOnlyBoatCursor:
+    """
+    Cursor wrapper that enforces read-only access to boat tables.
+    Raises AssertionError if any write operation is attempted on protected tables.
+    """
+    PROTECTED_TABLES = frozenset({"boats", "boat_identifiers", "boat_names", "boat_associations"})
+    WRITE_PATTERNS = re.compile(
+        r"\b(INSERT\s+INTO|UPDATE|DELETE\s+FROM|MERGE\s+INTO)\s+[\"']?(\w+)[\"']?",
+        re.IGNORECASE
+    )
+    
+    def __init__(self, cursor):
+        self._cursor = cursor
+    
+    def execute(self, query, params=None):
+        # Check for write operations on protected tables
+        match = self.WRITE_PATTERNS.search(query)
+        if match:
+            operation = match.group(1).upper()
+            table_name = match.group(2).lower()
+            if table_name in self.PROTECTED_TABLES:
+                raise AssertionError(
+                    f"INGESTION READ-ONLY VIOLATION: {operation} on '{table_name}' is forbidden. "
+                    f"Boat creation/modification belongs to Boat Register/backfill workflow, not ingestion."
+                )
+        return self._cursor.execute(query, params) if params else self._cursor.execute(query)
+    
+    def fetchone(self):
+        return self._cursor.fetchone()
+    
+    def fetchall(self):
+        return self._cursor.fetchall()
+    
+    def close(self):
+        return self._cursor.close()
+    
+    def __getattr__(self, name):
+        return getattr(self._cursor, name)
+
+
 def resolve_boat_id(
     cur,
     sail_number: str | None,
@@ -1004,8 +1044,9 @@ def resolve_boat_id(
     """
     Resolve sail_number + class to boat_id via boat_identifiers.
     
-    READ-ONLY: This function MUST NOT create boats, identifiers, or links.
-    It only returns an existing exact boat_id or NULL.
+    READ-ONLY ENFORCED: This function uses a protected cursor that will raise
+    AssertionError if any INSERT, UPDATE, DELETE, or MERGE is attempted on
+    boats, boat_identifiers, boat_names, or boat_associations tables.
     Creation, merges, and conflict resolution belong to the dedicated
     Boat Register/backfill workflow, not the ingestion path.
     
@@ -1017,14 +1058,19 @@ def resolve_boat_id(
     - Never auto-creates boats or identifiers
     
     Args:
-        cur: Database cursor (read-only usage)
+        cur: Database cursor (will be wrapped for read-only enforcement)
         sail_number: Sail number to match (e.g., "RSA 123", "123")
         class_id: Class ID from classes table
         class_family_id: Optional hull family ID (if known)
         
     Returns:
         boat_id (int) or None if no unique match
+        
+    Raises:
+        AssertionError: If any write operation is attempted on boat tables
     """
+    # Wrap cursor to enforce read-only access to boat tables
+    safe_cur = _ReadOnlyBoatCursor(cur)
     if not sail_number or not str(sail_number).strip():
         return None
     
@@ -1034,11 +1080,11 @@ def resolve_boat_id(
     # If no class_family_id provided, try to get it from classes
     if class_family_id is None and class_id is not None:
         try:
-            cur.execute(
+            safe_cur.execute(
                 "SELECT hull_family_id FROM classes WHERE class_id = %s",
                 (class_id,),
             )
-            row = cur.fetchone()
+            row = safe_cur.fetchone()
             if row:
                 class_family_id = row[0] if not isinstance(row, dict) else row.get("hull_family_id")
         except Exception:
@@ -1050,7 +1096,7 @@ def resolve_boat_id(
     try:
         if class_family_id is not None:
             # Family-aware match: find boats where identifier class shares same family
-            cur.execute(
+            safe_cur.execute(
                 """
                 SELECT DISTINCT bi.boat_id
                 FROM boat_identifiers bi
@@ -1066,7 +1112,7 @@ def resolve_boat_id(
             )
         elif class_id is not None:
             # Exact class match only
-            cur.execute(
+            safe_cur.execute(
                 """
                 SELECT DISTINCT bi.boat_id
                 FROM boat_identifiers bi
@@ -1078,7 +1124,7 @@ def resolve_boat_id(
             )
         else:
             # No class info - try to match by sail number alone (risky, may have conflicts)
-            cur.execute(
+            safe_cur.execute(
                 """
                 SELECT DISTINCT bi.boat_id
                 FROM boat_identifiers bi
@@ -1088,7 +1134,7 @@ def resolve_boat_id(
                 (sail_norm,),
             )
         
-        for row in cur.fetchall() or []:
+        for row in safe_cur.fetchall() or []:
             boat_id = row[0] if not isinstance(row, dict) else row.get("boat_id")
             if boat_id is not None:
                 candidates.append(boat_id)

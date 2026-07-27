@@ -32,6 +32,7 @@ from results_ingestion_common import (
     insert_result_with_provenance,
     log_ambiguity_issue,
     AUTHORITY_LEVELS,
+    _ReadOnlyBoatCursor,
 )
 
 
@@ -716,6 +717,69 @@ def test_log_ambiguity_issue(conn, test_data):
     return issue_id
 
 
+def test_read_only_boat_cursor_enforcement(conn):
+    """Test that _ReadOnlyBoatCursor blocks write operations on boat tables."""
+    print("\n=== TEST: Read-only boat cursor enforcement ===")
+    
+    conn.rollback()
+    cur = conn.cursor()
+    safe_cur = _ReadOnlyBoatCursor(cur)
+    
+    # SELECT should work fine
+    try:
+        safe_cur.execute("SELECT 1")
+        safe_cur.fetchone()
+        print("  SELECT allowed: ✓")
+    except AssertionError:
+        raise AssertionError("SELECT should be allowed")
+    
+    # INSERT into boats should be blocked
+    try:
+        safe_cur.execute("INSERT INTO boats (boat_id) VALUES (999)")
+        raise AssertionError("INSERT INTO boats should have been blocked")
+    except AssertionError as e:
+        if "INGESTION READ-ONLY VIOLATION" in str(e):
+            print("  INSERT INTO boats blocked: ✓")
+        else:
+            raise
+    
+    # UPDATE boat_identifiers should be blocked
+    try:
+        safe_cur.execute("UPDATE boat_identifiers SET identifier_status = 'inactive' WHERE 1=0")
+        raise AssertionError("UPDATE boat_identifiers should have been blocked")
+    except AssertionError as e:
+        if "INGESTION READ-ONLY VIOLATION" in str(e):
+            print("  UPDATE boat_identifiers blocked: ✓")
+        else:
+            raise
+    
+    # DELETE FROM boat_names should be blocked
+    try:
+        safe_cur.execute("DELETE FROM boat_names WHERE 1=0")
+        raise AssertionError("DELETE FROM boat_names should have been blocked")
+    except AssertionError as e:
+        if "INGESTION READ-ONLY VIOLATION" in str(e):
+            print("  DELETE FROM boat_names blocked: ✓")
+        else:
+            raise
+    
+    # INSERT into other tables should be allowed (e.g., results)
+    conn.rollback()
+    cur = conn.cursor()
+    safe_cur = _ReadOnlyBoatCursor(cur)
+    try:
+        # This would fail at DB level but shouldn't raise AssertionError
+        safe_cur.execute("SELECT * FROM results LIMIT 1")
+        print("  SELECT from other tables allowed: ✓")
+    except AssertionError:
+        raise AssertionError("SELECT from other tables should be allowed")
+    except Exception:
+        pass  # DB-level errors are OK
+    
+    cur.close()
+    print("  PASSED: Read-only enforcement works correctly")
+
+
 def run_all_tests():
     """Run all provenance tests."""
     print("=" * 60)
@@ -801,6 +865,9 @@ def run_all_tests():
         test_data_insert = setup_test_data(conn, f"ins-{run_id}")
         if test_data_insert:
             test_log_ambiguity_issue(conn, test_data_insert)
+        conn.rollback()
+        
+        test_read_only_boat_cursor_enforcement(conn)
         conn.rollback()
         
         # Fresh setup for insert test - reset connection state
