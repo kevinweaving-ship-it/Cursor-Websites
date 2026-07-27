@@ -47,10 +47,15 @@ BEGIN;
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'boats') THEN
-        -- Drop any indexes on boats first
+        -- Drop triggers first
+        DROP TRIGGER IF EXISTS trg_boats_updated_at ON boats;
+        
+        -- Drop constraints (which will drop associated indexes)
+        ALTER TABLE public.boats DROP CONSTRAINT IF EXISTS boats_sail_number_class_name_key;
+        
+        -- Drop remaining indexes
         DROP INDEX IF EXISTS idx_boats_sail_number;
         DROP INDEX IF EXISTS idx_boats_class_name;
-        DROP INDEX IF EXISTS boats_sail_number_class_name_key;
         
         -- Rename table
         ALTER TABLE public.boats RENAME TO boats_legacy;
@@ -564,4 +569,44 @@ SELECT * FROM class_hull_families;
 SELECT cfm.*, c.class_name 
 FROM class_family_members cfm 
 JOIN classes c ON c.class_id = cfm.class_id;
+*/
+
+-- ============================================================================
+-- ROLLBACK PROCEDURE (execute in order if rollback needed)
+-- ============================================================================
+/*
+-- ROLLBACK STEP 1: Remove FK columns from results/entries
+ALTER TABLE results DROP COLUMN IF EXISTS boat_id;
+ALTER TABLE entries DROP COLUMN IF EXISTS boat_id;
+
+-- ROLLBACK STEP 2: Drop view
+DROP VIEW IF EXISTS boat_summary;
+
+-- ROLLBACK STEP 3: Drop trigger and function
+DROP TRIGGER IF EXISTS trg_check_identifier_overlap ON boat_identifiers;
+DROP FUNCTION IF EXISTS check_identifier_overlap();
+
+-- ROLLBACK STEP 4: Drop boat tables (order matters - CASCADE for boats)
+DROP TABLE IF EXISTS boat_conflicts CASCADE;
+DROP TABLE IF EXISTS boat_match_log CASCADE;
+DROP TABLE IF EXISTS boat_associations CASCADE;
+DROP TABLE IF EXISTS boat_names CASCADE;
+DROP TABLE IF EXISTS boat_identifiers CASCADE;
+DROP TABLE IF EXISTS boats CASCADE;
+DROP TABLE IF EXISTS hull_models CASCADE;
+DROP TABLE IF EXISTS class_family_members CASCADE;
+DROP TABLE IF EXISTS class_hull_families CASCADE;
+
+-- ROLLBACK STEP 5: Restore legacy table
+ALTER TABLE boats_legacy RENAME TO boats;
+
+-- ROLLBACK STEP 6: Recreate legacy indexes and constraints
+CREATE UNIQUE INDEX boats_sail_number_class_name_key ON boats(sail_number, class_name);
+CREATE INDEX idx_boats_sail_number ON boats(sail_number);
+CREATE INDEX idx_boats_class_name ON boats(class_name);
+
+-- ROLLBACK STEP 7: Verify
+SELECT table_name FROM information_schema.tables 
+WHERE table_schema = 'public' AND table_name LIKE 'boat%';
+-- Should show only: boats
 */
