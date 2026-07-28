@@ -171,9 +171,9 @@
       var active = function(f) { return currentFleet === f ? ' active' : ''; };
       document.getElementById('stats').innerHTML = 
         '<div class="stat' + active('all') + '" data-fleet="all"><div class="stat-value">' + data.total + '</div><div class="stat-label">All</div></div>' +
-        '<div class="stat fleet-a' + active('Optimist A') + '" data-fleet="Optimist A"><div class="stat-value">' + (fc['Optimist A'] || 0) + '</div><div class="stat-label">A Fleet</div></div>' +
-        '<div class="stat fleet-b' + active('Optimist B') + '" data-fleet="Optimist B"><div class="stat-value">' + (fc['Optimist B'] || 0) + '</div><div class="stat-label">B Fleet</div></div>' +
-        '<div class="stat fleet-c' + active('Optimist C') + '" data-fleet="Optimist C"><div class="stat-value">' + (fc['Optimist C'] || 0) + '</div><div class="stat-label">C Fleet</div></div>';
+        '<div class="stat fleet-a' + active('Optimist A') + '" data-fleet="Optimist A"><div class="stat-value">' + (fc['Optimist A'] || 0) + '</div><div class="stat-label">A</div></div>' +
+        '<div class="stat fleet-b' + active('Optimist B') + '" data-fleet="Optimist B"><div class="stat-value">' + (fc['Optimist B'] || 0) + '</div><div class="stat-label">B</div></div>' +
+        '<div class="stat fleet-c' + active('Optimist C') + '" data-fleet="Optimist C"><div class="stat-value">' + (fc['Optimist C'] || 0) + '</div><div class="stat-label">C</div></div>';
     }
     
     function load() {
