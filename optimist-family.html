@@ -18,17 +18,16 @@
     .card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 20px; }
     .title { font-size: 1.5rem; font-weight: 700; color: #0f172a; margin: 0 0 8px 0; }
     .subtitle { color: #64748b; margin-bottom: 16px; }
-    .stats { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; }
-    .stat { text-align: center; padding: 12px 20px; background: #f0f9ff; border-radius: 8px; }
+    .stats { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+    .stat { text-align: center; padding: 12px 20px; background: #f0f9ff; border-radius: 8px; cursor: pointer; border: 2px solid transparent; transition: all 0.15s; }
+    .stat:hover { background: #e0f2fe; }
+    .stat.active { border-color: #001f3f; background: #001f3f; }
+    .stat.active .stat-value, .stat.active .stat-label { color: #fff; }
     .stat-value { font-size: 1.5rem; font-weight: 700; color: #0c4a6e; }
     .stat-label { font-size: 0.75rem; color: #64748b; }
-    .fleet-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
-    .fleet-btn { padding: 8px 16px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; cursor: pointer; font-size: 0.9rem; }
-    .fleet-btn:hover { background: #f1f5f9; }
-    .fleet-btn.active { background: #001f3f; color: #fff; border-color: #001f3f; }
-    .fleet-btn.fleet-a { border-left: 4px solid #dc2626; }
-    .fleet-btn.fleet-b { border-left: 4px solid #2563eb; }
-    .fleet-btn.fleet-c { border-left: 4px solid #16a34a; }
+    .stat.fleet-a { border-left: 4px solid #dc2626; }
+    .stat.fleet-b { border-left: 4px solid #2563eb; }
+    .stat.fleet-c { border-left: 4px solid #16a34a; }
     table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
     th, td { padding: 12px 10px; text-align: left; border-bottom: 1px solid #e2e8f0; }
     th { background: #f8fafc; font-weight: 600; color: #475569; position: sticky; top: 0; cursor: pointer; }
@@ -40,13 +39,12 @@
     .fleet-tag.fleet-a { background: #fee2e2; color: #dc2626; }
     .fleet-tag.fleet-b { background: #dbeafe; color: #2563eb; }
     .fleet-tag.fleet-c { background: #dcfce7; color: #16a34a; }
-    .fleet-tag.fleet-generic { background: #f3e8ff; color: #7c3aed; }
     .loading { padding: 40px; text-align: center; color: #64748b; }
     .search-box { padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; width: 250px; margin-bottom: 16px; }
     @media (max-width: 768px) {
       th, td { padding: 8px 6px; font-size: 0.8rem; }
       .search-box { width: 100%; }
-      .stats { gap: 10px; }
+      .stats { gap: 8px; }
       .stat { padding: 10px 14px; }
     }
   </style>
@@ -68,20 +66,13 @@
   <main class="container">
     <div class="card">
       <h1 class="title">Optimist Family</h1>
-      <p class="subtitle">Master list of all Optimist boats — sorted by sail number, showing current fleet based on last race</p>
+      <p class="subtitle">Master list of all Optimist boats — click totals to filter by fleet</p>
       
       <div id="stats" class="stats">
         <div class="loading">Loading...</div>
       </div>
       
       <input type="text" id="search" class="search-box" placeholder="Search sail number or sailor...">
-      
-      <div id="fleet-filters" class="fleet-filters">
-        <button class="fleet-btn active" data-fleet="all">All</button>
-        <button class="fleet-btn fleet-a" data-fleet="Optimist A">A Fleet</button>
-        <button class="fleet-btn fleet-b" data-fleet="Optimist B">B Fleet</button>
-        <button class="fleet-btn fleet-c" data-fleet="Optimist C">C Fleet</button>
-      </div>
       
       <div id="table-container">
         <div class="loading">Loading Optimist boats...</div>
@@ -150,12 +141,12 @@
       
       var html = '<table><thead><tr>' +
         '<th>#</th>' +
-        '<th data-sort="sail_number" style="cursor:pointer">Sail #' + sortArrow('sail_number') + '</th>' +
-        '<th data-sort="current_fleet" style="cursor:pointer">Fleet' + sortArrow('current_fleet') + '</th>' +
-        '<th data-sort="helm_name" style="cursor:pointer">Last Helm' + sortArrow('helm_name') + '</th>' +
-        '<th data-sort="last_race_date" style="cursor:pointer">Last Race' + sortArrow('last_race_date') + '</th>' +
-        '<th data-sort="last_event" style="cursor:pointer">Event' + sortArrow('last_event') + '</th>' +
-        '<th data-sort="total_results" style="cursor:pointer">Results' + sortArrow('total_results') + '</th>' +
+        '<th data-sort="sail_number">Sail #' + sortArrow('sail_number') + '</th>' +
+        '<th data-sort="current_fleet">Fleet' + sortArrow('current_fleet') + '</th>' +
+        '<th data-sort="helm_name">Last Helm' + sortArrow('helm_name') + '</th>' +
+        '<th data-sort="last_race_date">Last Race' + sortArrow('last_race_date') + '</th>' +
+        '<th data-sort="last_event">Event' + sortArrow('last_event') + '</th>' +
+        '<th data-sort="total_results">Results' + sortArrow('total_results') + '</th>' +
         '</tr></thead><tbody>';
       
       boats.forEach(function(b, idx) {
@@ -176,11 +167,12 @@
     
     function renderStats() {
       var fc = data.fleet_counts;
+      var active = function(f) { return currentFleet === f ? ' active' : ''; };
       document.getElementById('stats').innerHTML = 
-        '<div class="stat"><div class="stat-value">' + data.total + '</div><div class="stat-label">Total Boats</div></div>' +
-        '<div class="stat"><div class="stat-value">' + (fc['Optimist A'] || 0) + '</div><div class="stat-label">A Fleet</div></div>' +
-        '<div class="stat"><div class="stat-value">' + (fc['Optimist B'] || 0) + '</div><div class="stat-label">B Fleet</div></div>' +
-        '<div class="stat"><div class="stat-value">' + (fc['Optimist C'] || 0) + '</div><div class="stat-label">C Fleet</div></div>';
+        '<div class="stat' + active('all') + '" data-fleet="all"><div class="stat-value">' + data.total + '</div><div class="stat-label">All</div></div>' +
+        '<div class="stat fleet-a' + active('Optimist A') + '" data-fleet="Optimist A"><div class="stat-value">' + (fc['Optimist A'] || 0) + '</div><div class="stat-label">A Fleet</div></div>' +
+        '<div class="stat fleet-b' + active('Optimist B') + '" data-fleet="Optimist B"><div class="stat-value">' + (fc['Optimist B'] || 0) + '</div><div class="stat-label">B Fleet</div></div>' +
+        '<div class="stat fleet-c' + active('Optimist C') + '" data-fleet="Optimist C"><div class="stat-value">' + (fc['Optimist C'] || 0) + '</div><div class="stat-label">C Fleet</div></div>';
     }
     
     function load() {
@@ -201,12 +193,11 @@
       render();
     });
     
-    document.getElementById('fleet-filters').addEventListener('click', function(e) {
-      var btn = e.target.closest('.fleet-btn');
-      if (!btn) return;
-      document.querySelectorAll('.fleet-btn').forEach(function(b) { b.classList.remove('active'); });
-      btn.classList.add('active');
-      currentFleet = btn.getAttribute('data-fleet');
+    document.getElementById('stats').addEventListener('click', function(e) {
+      var stat = e.target.closest('.stat[data-fleet]');
+      if (!stat) return;
+      currentFleet = stat.getAttribute('data-fleet');
+      renderStats();
       render();
     });
     
