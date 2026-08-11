@@ -141,7 +141,27 @@ Ranked by Chrome last-visit (SailingSA-related). Full index:
 
 ---
 
-## 8) Tracking ritual (so Cursor stays aligned with GPT)
+## 8) Mobile module workflow (vibe / phone)
+
+**Use case:** On phone, pass an event result (photo / PDF / text / Sailwave export).  
+Agent must: match to existing regatta/event URL → update `race_results` → show live on sailingsa.co.za.
+
+**How (simple):**
+1. Cursor mobile → repo `Cursor-Websites` → branch `sailingsa-clean`
+2. One module per chat, e.g. “Ingest Brass Monkey Day 2 results → match `/regatta/...` → update live”
+3. Keep model **Auto**, Max Mode **off** (credits)
+
+**Agent must follow:**
+- Match existing event by date/name/club — do **not** invent duplicate regattas
+- Write into `race_results` (SSOT); never treat PDF as authority after ingest
+- Confirm live URL after update
+- No Gold Header / unrelated UI edits in a results module
+
+**Cloud agents need** Cursor Dashboard secrets for live SSH/DB (Mac has `~/.ssh/sailingsa_live_key`; cloud must have the same secret configured once).
+
+---
+
+## 9) Tracking ritual (so Cursor stays aligned with GPT)
 
 Until Accessibility is enabled for Cursor→Chrome:
 
