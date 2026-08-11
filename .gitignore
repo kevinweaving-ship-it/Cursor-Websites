@@ -1,0 +1,13 @@
+.DS_Store
+.system_index/
+deploy_logs/
+backups/
+*.pyc
+__pycache__/
+.venv/
+venv/
+.env
+.env.*
+*.log
+.trae/
+.cursor/
