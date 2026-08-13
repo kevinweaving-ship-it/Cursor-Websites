@@ -859,6 +859,17 @@
             }
         }
 
+        function _allowedReturnHost(hostname) {
+            var h = (hostname || '').toLowerCase();
+            return h === 'sailingsa.co.za' || h === 'www.sailingsa.co.za' || h === 'timadvisor.co.za' || h === 'www.timadvisor.co.za' || h === window.location.hostname;
+        }
+        function _sessionTokenForHandoff() {
+            try {
+                var fromCookie = document.cookie.split('; ').find(function(row) { return row.indexOf('session=') === 0; });
+                if (fromCookie) return decodeURIComponent((fromCookie.split('=')[1] || ''));
+            } catch (e) {}
+            try { return localStorage.getItem('session') || ''; } catch (e2) { return ''; }
+        }
         function goBackToReturnUrl() {
             var returnTo = null;
             try {
@@ -872,8 +883,16 @@
             var target = returnTo;
             if (target) {
                 try {
-                    var u = new URL(target);
-                    if (u.origin !== window.location.origin) target = null;
+                    // Relative paths like /admin/dashboard need a base (mobile admin returnTo).
+                    var u = new URL(target, window.location.origin);
+                    if (!_allowedReturnHost(u.hostname)) target = null;
+                    else if (u.origin !== window.location.origin) {
+                        var tok = _sessionTokenForHandoff();
+                        if (tok) { u.searchParams.set('session', tok); target = u.toString(); }
+                        else target = null;
+                    } else {
+                        target = u.pathname + u.search + u.hash;
+                    }
                 } catch (err) { target = null; }
             }
             if (!target) {
@@ -881,15 +900,29 @@
                 if (ref && (ref.indexOf('login') === -1)) target = ref;
             }
             if (!target) {
-                target = window.location.origin + '/index.html';
+                target = window.location.origin + '/';
             }
             window.location.replace(target);
         }
 
         function redirectToLandingPage() {
             console.log('[DEBUG] redirectToLandingPage: Called');
-            try { sessionStorage.removeItem('auth_returnTo'); } catch (e) {}
-            const landingUrl = window.location.origin + '/index.html';
+            var stored = null;
+            try { stored = sessionStorage.getItem('auth_returnTo'); } catch (e) {}
+            if (stored) {
+                goBackToReturnUrl();
+                return;
+            }
+            try {
+                if (typeof URLSearchParams !== 'undefined') {
+                    var params = new URLSearchParams(window.location.search);
+                    if (params.get('returnTo')) {
+                        goBackToReturnUrl();
+                        return;
+                    }
+                }
+            } catch (e2) {}
+            const landingUrl = window.location.origin + '/';
             console.log('[DEBUG] redirectToLandingPage: Redirecting to:', landingUrl);
             window.location.replace(landingUrl);
         }
@@ -900,12 +933,29 @@
             return;
         }
 
+        function getAuthReturnToValue() {
+            try {
+                const stored = sessionStorage.getItem('auth_returnTo');
+                if (stored) return stored;
+            } catch (e) {}
+            try {
+                const params = new URLSearchParams(window.location.search);
+                return params.get('returnTo') || '';
+            } catch (e2) {
+                return '';
+            }
+        }
+
         function loginWithFacebook() {
             console.log('[DEBUG] loginWithFacebook() function called');
             try {
-                const oauthUrl = window.location.origin + '/auth/facebook';
-                console.log('[DEBUG] Redirecting to:', oauthUrl);
-                window.location.href = oauthUrl;
+                const oauthUrl = new URL(window.location.origin + '/auth/facebook');
+                const returnTo = getAuthReturnToValue();
+                if (returnTo) {
+                    oauthUrl.searchParams.set('returnTo', returnTo);
+                }
+                console.log('[DEBUG] Redirecting to:', oauthUrl.toString());
+                window.location.href = oauthUrl.toString();
             } catch (error) {
                 console.error('[ERROR] Failed to redirect:', error);
                 showError('Failed to start Facebook login. Please try again.');
