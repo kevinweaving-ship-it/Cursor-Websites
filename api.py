@@ -12260,7 +12260,11 @@ def _get_session_sas_id(request: Request) -> Optional[str]:
 
 
 def _get_session_role(request: Request) -> Optional[str]:
-    """Return user_accounts.role for valid session, else None. Requires role column to exist."""
+    """Return best admin role for the session's sas_id (any linked login method), else account role.
+
+    Same sailor can have multiple user_accounts rows (whatsapp=super_admin, google=sailor).
+    Admin gates must use the highest role for that sas_id, not only the login method in use.
+    """
     try:
         if not table_exists("user_accounts") or not column_exists("user_accounts", "role"):
             return None
@@ -12272,7 +12276,20 @@ def _get_session_role(request: Request) -> Optional[str]:
         try:
             where_extra = " AND s.logout_time IS NULL" if column_exists("user_sessions", "logout_time") else ""
             cur.execute("""
-                SELECT ua.role FROM public.user_sessions s
+                SELECT COALESCE(
+                    (
+                        SELECT ua2.role FROM public.user_accounts ua2
+                        WHERE ua2.sas_id::text = s.sas_id::text
+                          AND LOWER(TRIM(COALESCE(ua2.role, ''))) IN ('super_admin', 'admin')
+                        ORDER BY CASE LOWER(TRIM(ua2.role))
+                            WHEN 'super_admin' THEN 0
+                            ELSE 1
+                        END
+                        LIMIT 1
+                    ),
+                    ua.role
+                ) AS role
+                FROM public.user_sessions s
                 JOIN public.user_accounts ua ON ua.account_id = s.account_id
                 WHERE s.session_id = %s AND s.expires_at > NOW()
             """ + where_extra, (token,))
