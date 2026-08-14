@@ -54,7 +54,7 @@ function sailingPersonalAvatarNameSlug(fullName) {
 }
 
 /**
- * Ordered avatar URLs: personal folder first, then SAS id files / cache / default-youth.
+ * Ordered avatar URLs: personal folder first, then uploaded avatar files, with default-youth only as fallback.
  * @param {string} apiBase - e.g. window.API_BASE without trailing slash
  */
 function sailingBuildSailorAvatarCandidates(apiBase, sasId, fullName, opts) {
@@ -73,13 +73,13 @@ function sailingBuildSailorAvatarCandidates(apiBase, sasId, fullName, opts) {
     if (opts.ageYears !== undefined && opts.ageYears !== null && opts.ageYears !== '' && !isNaN(opts.ageYears)) {
         ageNum = parseInt(opts.ageYears, 10);
     }
-    if (ageNum >= 9 && ageNum <= 18) {
-        urls.push(pre + 'assets/avatars/default-youth.png');
-    }
     urls.push(pre + 'assets/avatars/' + encodeURIComponent(id) + '.png');
     urls.push(pre + 'assets/avatars/' + encodeURIComponent(id) + '.jpg');
     if (opts.includeMediaCache !== false) {
         urls.push(pre + 'media/avatars/' + encodeURIComponent(id) + '.jpg');
+    }
+    if (ageNum >= 9 && ageNum <= 18) {
+        urls.push(pre + 'assets/avatars/default-youth.png');
     }
     urls.push(pre + 'assets/avatars/default-youth.png');
     const seen = {};
@@ -261,6 +261,10 @@ function clearSession() {
     // Clear localStorage
     localStorage.removeItem('sailing_session');
     localStorage.removeItem('session');
+    try {
+        window.__sailingSessionCache = null;
+        window.__sailingSessionPromise = null;
+    } catch (eCache) {}
     
     // Clear cookies
     document.cookie = 'session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;';
@@ -293,6 +297,356 @@ function sailingSyncSuperAdminBodyClass(sessionLike) {
 /**
  * Update header auth status (login box or user name + logout)
  */
+function sailingRememberAuthReturnToCurrentPage() {
+    try {
+        sessionStorage.setItem('auth_returnTo', window.location.href);
+    } catch (err) {}
+}
+
+function sailingLoginUrl() {
+    return (window.location.origin || '') + '/login.html';
+}
+
+function sailingAutoLoginDisabledOnce() {
+    try {
+        return sessionStorage.getItem('disable_auto_login_once') === 'true';
+    } catch (err) {
+        return false;
+    }
+}
+
+function sailingSetAutoLoginDisabledOnce() {
+    try {
+        sessionStorage.setItem('disable_auto_login_once', 'true');
+    } catch (err) {}
+}
+
+function sailingClearAutoLoginDisabledOnce() {
+    try {
+        sessionStorage.removeItem('disable_auto_login_once');
+    } catch (err) {}
+}
+
+function sailingSignupUrl() {
+    var signupBase = (window.location.origin || '') + '/signup.html';
+    var returnTo = '';
+    try {
+        returnTo = window.location.href || '';
+    } catch (err) {}
+    return signupBase + '?signup=1&returnTo=' + encodeURIComponent(returnTo);
+}
+
+async function sailingHandleHeaderSignIn(e) {
+    if (e) e.preventDefault();
+    console.log('[DEBUG] Header Sign In clicked');
+    try {
+        const session = await checkSession();
+        console.log('[DEBUG] Header Sign In: Session check result:', session);
+
+        if (session && session.valid) {
+            await updateHeaderAuthStatus();
+            await safeUpdatePageContentAsync();
+            window.location.reload();
+            return;
+        }
+
+        // If user said Yes on Logout, Login silently auto-signs in (no second popup).
+        const rememberCredentials = localStorage.getItem('remember_credentials');
+        if (rememberCredentials === 'true') {
+            const savedOAuthMethod = (localStorage.getItem('saved_login_method') || '').toLowerCase();
+            if (savedOAuthMethod === 'google' || savedOAuthMethod === 'facebook') {
+                console.log('[DEBUG] Header Sign In: silent OAuth auto-login via', savedOAuthMethod);
+                sailingClearAutoLoginDisabledOnce();
+                sailingRememberAuthReturnToCurrentPage();
+                const oauthUrl = new URL((window.location.origin || '') + '/auth/' + savedOAuthMethod);
+                oauthUrl.searchParams.set('flow', 'login');
+                try {
+                    const rt = sessionStorage.getItem('auth_returnTo') || '';
+                    if (rt) oauthUrl.searchParams.set('returnTo', rt);
+                } catch (_rt) {}
+                window.location.href = oauthUrl.toString();
+                return;
+            }
+
+            const savedUsername = localStorage.getItem('saved_username');
+            const savedPassword = localStorage.getItem('saved_password');
+            if (savedUsername && savedPassword && typeof loginWithUsernamePassword === 'function') {
+                console.log('[DEBUG] Header Sign In: silent password auto-login');
+                try {
+                    const loginResult = await loginWithUsernamePassword(savedUsername, savedPassword);
+                    if (loginResult && loginResult.success) {
+                        document.cookie = `session=${loginResult.session || loginResult.session_token}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
+                        localStorage.setItem('session', loginResult.session || loginResult.session_token);
+                        localStorage.setItem('remember_credentials', 'true');
+                        localStorage.setItem('saved_login_method', 'password');
+                        sailingClearAutoLoginDisabledOnce();
+                        await updateHeaderAuthStatus();
+                        await safeUpdatePageContentAsync();
+                        window.location.reload();
+                        return;
+                    }
+                    localStorage.removeItem('saved_password');
+                } catch (loginError) {
+                    console.error('[DEBUG] Header Sign In: Auto-login failed:', loginError);
+                }
+            }
+        }
+
+        sailingRememberAuthReturnToCurrentPage();
+        const loginUrl = sailingLoginUrl();
+        console.log('[DEBUG] Header Sign In: Redirecting to:', loginUrl);
+        window.location.href = loginUrl;
+    } catch (error) {
+        console.error('[DEBUG] Header Sign In: Error checking session:', error);
+        sailingRememberAuthReturnToCurrentPage();
+        window.location.href = sailingLoginUrl();
+    }
+}
+
+function sailingHandleHeaderSignUp(e) {
+    if (e) e.preventDefault();
+    sailingRememberAuthReturnToCurrentPage();
+    const signupUrl = sailingSignupUrl();
+    console.log('[DEBUG] Header Sign Up: Redirecting to:', signupUrl);
+    window.location.href = signupUrl;
+}
+
+function sailingRenderLoggedOutAuthButtons(loginBoxDiv) {
+    if (!loginBoxDiv) return;
+
+    const existingAuthBtn = document.getElementById('authBtn');
+    if (existingAuthBtn && existingAuthBtn.parentNode) {
+        existingAuthBtn.parentNode.removeChild(existingAuthBtn);
+    }
+
+    loginBoxDiv.innerHTML = '';
+    loginBoxDiv.style.setProperty('position', 'absolute', 'important');
+    loginBoxDiv.style.setProperty('right', '0px', 'important');
+    loginBoxDiv.style.setProperty('top', '50%', 'important');
+    loginBoxDiv.style.setProperty('transform', 'translateY(-50%)', 'important');
+    loginBoxDiv.style.setProperty('display', 'flex', 'important');
+    loginBoxDiv.style.setProperty('justify-content', 'flex-end', 'important');
+    loginBoxDiv.style.setProperty('align-items', 'center', 'important');
+    loginBoxDiv.style.setProperty('width', 'auto', 'important');
+    loginBoxDiv.style.setProperty('box-sizing', 'border-box', 'important');
+    loginBoxDiv.style.setProperty('padding', '0', 'important');
+    loginBoxDiv.style.setProperty('margin', '0', 'important');
+    loginBoxDiv.style.setProperty('overflow', 'visible', 'important');
+    loginBoxDiv.style.setProperty('background', 'transparent', 'important');
+
+    const wrap = document.createElement('div');
+    wrap.className = 'auth-split-buttons';
+    wrap.style.setProperty('display', 'inline-flex', 'important');
+    wrap.style.setProperty('align-items', 'center', 'important');
+    wrap.style.setProperty('justify-content', 'flex-end', 'important');
+    wrap.style.setProperty('gap', '6px', 'important');
+    wrap.style.setProperty('flex-wrap', 'nowrap', 'important');
+    wrap.style.setProperty('width', 'auto', 'important');
+    wrap.style.setProperty('height', '32px', 'important');
+    wrap.style.setProperty('min-height', '32px', 'important');
+    wrap.style.setProperty('max-height', '32px', 'important');
+    wrap.style.setProperty('margin', '0', 'important');
+    wrap.style.setProperty('padding', '0', 'important');
+    wrap.style.setProperty('padding-right', '6px', 'important');
+    wrap.style.setProperty('flex-shrink', '0', 'important');
+    wrap.style.setProperty('flex-grow', '0', 'important');
+    wrap.style.setProperty('box-sizing', 'border-box', 'important');
+    wrap.style.setProperty('overflow', 'hidden', 'important');
+
+    const SI_ICON = '/icons/assets/phosphor/bold/user-circle-gear-bold.svg';
+    const SI_TEXT = 'Login';
+    const SI_BG = '#ffffff';
+    const SI_FG = '#001f3f';
+    const SI_BORDER = '#f1f5f9';
+    const SI_TINT = 'filter:invert(8%) sepia(92%) saturate(2500%) hue-rotate(185deg) brightness(92%) contrast(105%)';
+
+    const SU_ICON = '/icons/assets/iconoir/regular/edit.svg';
+    const SU_TEXT = 'Sign Up';
+    const SU_BG = '#eab308';
+    const SU_FG = '#000000';
+    const SU_BORDER = '#eab308';
+
+    function boxBase(el) {
+        el.style.setProperty('box-sizing', 'border-box', 'important');
+        el.style.setProperty('border-style', 'solid', 'important');
+        el.style.setProperty('border-width', '3px', 'important');
+        el.style.setProperty('border-radius', '10px', 'important');
+        el.style.setProperty('outline', 'none', 'important');
+        el.style.setProperty('line-height', '32px', 'important');
+        el.style.setProperty('height', '32px', 'important');
+        el.style.setProperty('min-height', '32px', 'important');
+        el.style.setProperty('max-height', '32px', 'important');
+        el.style.setProperty('padding', '0 10px', 'important');
+        el.style.setProperty('vertical-align', 'middle', 'important');
+        el.style.setProperty('font-family', 'inherit', 'important');
+        el.style.setProperty('white-space', 'nowrap', 'important');
+        el.style.setProperty('overflow', 'hidden', 'important');
+        el.style.setProperty('opacity', '1', 'important');
+        el.style.setProperty('background-image', 'none', 'important');
+        el.style.setProperty('box-shadow', '0 1px 2px rgba(15,23,42,.18)', 'important');
+        el.style.setProperty('text-decoration', 'none', 'important');
+        el.style.setProperty('flex-shrink', '0', 'important');
+        el.style.setProperty('flex-grow', '0', 'important');
+        try {
+            el.style.setProperty('appearance', 'none', 'important');
+            el.style.setProperty('-moz-appearance', 'none', 'important');
+            el.style.setProperty('-webkit-appearance', 'none', 'important');
+        } catch (_a) { /* ignore */ }
+        el.style.setProperty('-webkit-tap-highlight-color', 'transparent', 'important');
+    }
+
+    function forceIdenticalBoxHeight(el) {
+        // Post-boxBase lock — same values for both buttons 100% identical.
+        // Guarantees zero pixel mismatch on Safari mobile where bold-font line-height 1 adds rounding delta.
+        el.style.setProperty('height', '32px', 'important');
+        el.style.setProperty('min-height', '32px', 'important');
+        el.style.setProperty('max-height', '32px', 'important');
+        el.style.setProperty('line-height', '32px', 'important');
+    }
+
+    const signInBtn = document.createElement('button');
+    signInBtn.type = 'button';
+    signInBtn.id = 'authSignInBtn';
+    boxBase(signInBtn);
+    forceIdenticalBoxHeight(signInBtn);
+    signInBtn.style.setProperty('display', 'inline-flex', 'important');
+    signInBtn.style.setProperty('align-items', 'center', 'important');
+    signInBtn.style.setProperty('justify-content', 'center', 'important');
+    signInBtn.style.setProperty('gap', '5px', 'important');
+    signInBtn.style.setProperty('min-width', '88px', 'important');
+    signInBtn.style.setProperty('background', SI_BG, 'important');
+    signInBtn.style.setProperty('background-color', SI_BG, 'important');
+    signInBtn.style.setProperty('border-color', SI_BORDER, 'important');
+    signInBtn.style.setProperty('color', SI_FG, 'important');
+    signInBtn.style.setProperty('font-size', '13px', 'important');
+    signInBtn.style.setProperty('font-weight', '700', 'important');
+    signInBtn.style.setProperty('cursor', 'pointer', 'important');
+    forceIdenticalBoxHeight(signInBtn); // RE-LOCK after all per-button styles (in case any above override height)
+    signInBtn.innerHTML =
+        '<img src="' + SI_ICON + '" alt="' + SI_TEXT + '" width="16" height="16" style="display:block;flex-shrink:0;width:16px;height:16px;max-width:16px;max-height:16px;object-fit:contain;object-position:center;' + SI_TINT + ';background:none;border:0;padding:0;margin:0">' +
+        '<span style="display:inline-block;vertical-align:middle;line-height:32px!important;color:' + SI_FG + '!important;font-weight:700!important;font-size:13px!important;background:none;padding:0;margin:0">' + SI_TEXT + '</span>';
+    signInBtn.addEventListener('click', function(e){
+      e.preventDefault();
+      if (window.__GOLD_HEADER_CALL && typeof window.__GOLD_HEADER_CALL.fireSignIn === 'function') {
+        window.__GOLD_HEADER_CALL.fireSignIn();
+        return;
+      }
+      try { return sailingHandleHeaderSignIn.apply(this, arguments); } catch(_){}
+    });
+
+    const signUpBtn = document.createElement('button');
+    signUpBtn.type = 'button';
+    signUpBtn.id = 'authSignUpBtn';
+    boxBase(signUpBtn);
+    forceIdenticalBoxHeight(signUpBtn);
+    signUpBtn.style.setProperty('display', 'inline-flex', 'important');
+    signUpBtn.style.setProperty('align-items', 'center', 'important');
+    signUpBtn.style.setProperty('justify-content', 'center', 'important');
+    signUpBtn.style.setProperty('gap', '5px', 'important');
+    signUpBtn.style.setProperty('min-width', '94px', 'important');
+    signUpBtn.style.setProperty('background', SU_BG, 'important');
+    signUpBtn.style.setProperty('background-color', SU_BG, 'important');
+    signUpBtn.style.setProperty('border-color', SU_BORDER, 'important');
+    signUpBtn.style.setProperty('color', SU_FG, 'important');
+    signUpBtn.style.setProperty('font-size', '13px', 'important');
+    signUpBtn.style.setProperty('font-weight', '700', 'important');
+    signUpBtn.style.setProperty('cursor', 'pointer', 'important');
+    forceIdenticalBoxHeight(signUpBtn); // RE-LOCK after per-button styles
+    signUpBtn.innerHTML =
+        '<img src="' + SU_ICON + '" alt="' + SU_TEXT + '" width="16" height="16" style="display:block;flex-shrink:0;width:16px;height:16px;max-width:16px;max-height:16px;object-fit:contain;object-position:center;filter:brightness(0) saturate(100%);background:none;border:0;padding:0;margin:0">' +
+        '<span style="display:inline-block;vertical-align:middle;line-height:32px!important;color:' + SU_FG + '!important;font-weight:700!important;font-size:13px!important;background:none;padding:0;margin:0">' + SU_TEXT + '</span>';
+    signUpBtn.addEventListener('click', function(e){
+      e.preventDefault();
+      if (window.__GOLD_HEADER_CALL && typeof window.__GOLD_HEADER_CALL.fireSignUp === 'function') {
+        window.__GOLD_HEADER_CALL.fireSignUp();
+        return;
+      }
+      try { return sailingHandleHeaderSignUp.apply(this, arguments); } catch(_){}
+    });
+
+    // DOM ORDER: signUpBtn FIRST (left) then signInBtn SECOND (right)
+    wrap.appendChild(signUpBtn);
+    wrap.appendChild(signInBtn);
+    loginBoxDiv.appendChild(wrap);
+
+    // --------------------------------------------------------------
+    // PC / LAPTOP: MATCH LOGOUT'S RIGHT ALIGNMENT 1:1 (≥1024px ONLY)
+    // MOBILE / TABLET (<1024px): ZERO CHANGES.  Mobile uses absolute
+    //   right:0 inside site-header, already perfect — untouched.
+    //
+    // ROOT CAUSE OF "buttons too far left" on PC:
+    //   Lines 435-448 above forced #loginBox to position:absolute.
+    //   That pulled it COMPLETELY OUT OF the normal flex flow of its
+    //   direct parent .header-auth.  But #loggedInStatus (Logout slot)
+    //   sits INSIDE that flex flow:
+    //     .header-auth (lines 3156-3164 header.html) =
+    //       flex:0 0 auto; display:flex; align-items:center;
+    //       justify-content:flex-end; margin-left:auto
+    //     Inside that: #loggedInStatus.style.display = 'flex'
+    //                + #loggedInStatus CSS = justify-content:flex-end
+    //   → #loggedInStatus sits at exact RIGHT edge of the container
+    //     (max-width 1200 0 auto, the same as root / uses).  Absolute
+    //     #loginBox never could, because absolute ignores parent flex
+    //     and picks the nearest positioned ancestor (which varies by
+    //     CSS cascade on PC media queries).
+    //
+    // FIX (on PC ≥1024px ONLY):
+    //   Put #loginBox BACK INTO the exact same flex flow Logout uses.
+    //   Unset position:absolute → static (in flow), set the same
+    //   display:flex + justify-content:flex-end + width:100% that
+    //   #loggedInStatus has.  Same flex flow = same right edge. Done.
+    //   No fixed positioning.  No scroll listeners.  No guesswork.
+    // --------------------------------------------------------------
+    try {
+        if (typeof window !== 'undefined'
+            && typeof window.matchMedia === 'function'
+            && (
+                window.matchMedia('(min-width: 1024px)').matches
+                || window.matchMedia('(orientation: landscape) and (max-width: 1023px)').matches
+            )) {
+
+            // --- RESTORE #loginBox to the SAME flex flow Logout uses ---
+            // PC + Mobile Landscape: static flex-end (matches MP right flush + vertical center).
+            loginBoxDiv.style.setProperty('position',      'static',    'important');
+            loginBoxDiv.style.setProperty('display',       'flex',      'important');
+            loginBoxDiv.style.setProperty('align-items',   'center',    'important');
+            loginBoxDiv.style.setProperty('justify-content','flex-end', 'important');
+            loginBoxDiv.style.setProperty('flex-direction','row',       'important');
+            loginBoxDiv.style.setProperty('width',         '100%',      'important');
+            loginBoxDiv.style.setProperty('max-width',     'none',      'important');
+            loginBoxDiv.style.setProperty('height',        'auto',      'important');
+            loginBoxDiv.style.setProperty('top',           'auto',      'important');
+            loginBoxDiv.style.setProperty('right',         'auto',      'important');
+            loginBoxDiv.style.setProperty('bottom',        'auto',      'important');
+            loginBoxDiv.style.setProperty('left',          'auto',      'important');
+            loginBoxDiv.style.setProperty('transform',     'none',      'important');
+            loginBoxDiv.style.setProperty('margin',        '0',         'important');
+            loginBoxDiv.style.setProperty('padding',       '0',         'important');
+            loginBoxDiv.style.setProperty('box-sizing',    'border-box','important');
+            loginBoxDiv.style.setProperty('z-index',       'auto',      'important');
+            loginBoxDiv.style.setProperty('gap',           '0',         'important');
+            loginBoxDiv.style.setProperty('flex-wrap',     'nowrap',    'important');
+
+            // --- Inner wrap matches too (no extra right pad) ---
+            wrap.style.setProperty('display',       'inline-flex', 'important');
+            wrap.style.setProperty('justify-content','flex-end',   'important');
+            wrap.style.setProperty('align-items',   'center',      'important');
+            wrap.style.setProperty('flex-direction','row',         'important');
+            wrap.style.setProperty('width',         'auto',        'important');
+            wrap.style.setProperty('height',        'auto',        'important');
+            wrap.style.setProperty('padding',       '0',           'important');
+            wrap.style.setProperty('margin',        '0',           'important');
+            wrap.style.setProperty('box-sizing',    'border-box',  'important');
+            wrap.style.setProperty('gap',           '6px',         'important');
+            wrap.style.setProperty('flex-wrap',     'nowrap',      'important');
+            wrap.style.setProperty('padding-right', '0px',         'important');
+            wrap.style.setProperty('flex-grow',     '0',           'important');
+            wrap.style.setProperty('flex-shrink',   '0',           'important');
+        }
+    } catch (_ee) { /* swallow — never break render */ }
+    // --------------------------------------------------------------
+}
+
 async function updateHeaderAuthStatus() {
     console.log('[DEBUG] updateHeaderAuthStatus: Called');
     if (typeof sailingsaHubHeaderOwnedByBlankLandingJs === 'function' && sailingsaHubHeaderOwnedByBlankLandingJs()) {
@@ -338,99 +692,319 @@ async function updateHeaderAuthStatus() {
                 const displayName = fullName || 'User';
                 const sasId = session.sas_id || '';
 
-                // Show logged in status
                 const loggedInDiv = document.getElementById('loggedInStatus');
                 const loginBoxDiv = document.getElementById('loginBox');
-                const userNameDisplay = document.getElementById('userNameDisplay');
-                
+
+                // /header/ and header.html OWN the new three-slot layout:
+                //   slot 1 left:  logo
+                //   slot 2 mid:   .header-user-center  (#headerUserCenter)
+                //   slot 3 right: .header-auth > #loggedInStatus with ONLY Logout btn
+                // If #headerUserCenter exists → this layout path ONLY, no legacy spans.
+                const centerCol = document.getElementById('headerUserCenter');
+                const IS_HEADER_OWNED_LAYOUT = !!(centerCol && loggedInDiv);
+
                 console.log('[DEBUG] updateHeaderAuthStatus: Elements found:', {
                     loggedInDiv: !!loggedInDiv,
                     loginBoxDiv: !!loginBoxDiv,
-                    userNameDisplay: !!userNameDisplay
+                    centerCol: !!centerCol,
+                    IS_HEADER_OWNED_LAYOUT: IS_HEADER_OWNED_LAYOUT
                 });
-                
-                // Always hide public Sign In slot when session is valid (blank69 v10 row shows Logout).
+
+                // Always hide public Sign In slot when session is valid.
                 if (loginBoxDiv) {
                     loginBoxDiv.style.display = 'none';
                 }
 
-                if (loggedInDiv && userNameDisplay) {
+                // ================================================================
+                // /header/ SPECIFIC RENDER (center name + SAS, Logout UNMOVED right)
+                // ================================================================
+                if (IS_HEADER_OWNED_LAYOUT) {
                     console.log('[DEBUG] updateHeaderAuthStatus: User data:', {
                         fullName,
                         displayName,
                         sasId,
                         user
                     });
-                    
-                    // Display name only (white) - Welcome removed
-                    userNameDisplay.innerHTML = `<span class="user-name-value">${displayName}</span>`;
-                    
-                    // Display SAS ID if available
-                    const sasIdDisplay = document.getElementById('userSasIdDisplay');
-                    if (sasIdDisplay) {
-                        if (sasId) {
-                            sasIdDisplay.innerHTML = `SAS ID: <span class="sas-id-value">${sasId}</span>`;
-                        } else {
-                            sasIdDisplay.textContent = '';
-                        }
+
+                    // Pure CSS Grid layout centers this column (no JS transform hacks).
+                    centerCol.innerHTML = '';
+                    centerCol.style.setProperty('display','flex','important');
+                    centerCol.style.setProperty('visibility','visible','important');
+
+                    // --- ROW 1: Sailor's name centered ---
+                    var nameRow = document.createElement('div');
+                    nameRow.className = 'user-center-row-name';
+                    nameRow.textContent = displayName;
+                    try { centerCol.appendChild(nameRow); } catch(_){}
+
+                    // --- ROW 2: SAS ID centered under name ---
+                    if (sasId) {
+                        var sasRow = document.createElement('div');
+                        sasRow.className = 'user-center-row-sas';
+                        sasRow.innerHTML =
+                            'SAS ID: <span class="sas-id-value">' + sasId + '</span>';
+                        try { centerCol.appendChild(sasRow); } catch(_){}
                     }
-                    
+
+                    // #loggedInStatus: ONLY child is the Logout button (right side, UNMOVED).
+                    loggedInDiv.innerHTML = '';
                     loggedInDiv.style.display = 'flex';
-                    console.log('[DEBUG] updateHeaderAuthStatus: Logged in status displayed');
+                    console.log('[DEBUG] updateHeaderAuthStatus: /header/ render — name centered, SAS under name, Logout right (unchanged)');
+                } else {
+                    // ================================================================
+                    // LEGACY PATH for all OTHER pages (/, /results, etc — NEVER touch them).
+                    // Old compact single-line user info + Logout button in #loggedInStatus.
+                    // Code below is preserved exactly as it was before the /header/ split.
+                    // ================================================================
+                    const userNameDisplay = document.getElementById('userNameDisplay');
+                    if (loggedInDiv && userNameDisplay) {
+                        console.log('[DEBUG] updateHeaderAuthStatus (legacy): User data:', {
+                            fullName, displayName, sasId, user
+                        });
+                        const sasIdDisplay = document.getElementById('userSasIdDisplay');
+                        const showSas = !!(sasIdDisplay && sasId);
+                        const nameHtml =
+                            '<span class="user-name" style="display:inline!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px;line-height:18px!important;font-size:15px!important;font-weight:700!important;color:#ffffff!important;margin:0!important;padding:0!important">' +
+                            displayName +
+                            '</span>';
+                        const sasSepHtml = showSas
+                            ? '<span style="display:inline!important;white-space:nowrap;margin:0 6px 0 4px!important;padding:0!important;line-height:18px!important;color:rgba(255,255,255,0.45)!important;font-size:14px!important;font-weight:400!important">·</span>'
+                            : '';
+                        const sasHtml = showSas
+                            ? '<span class="user-sas-id" style="display:inline!important;white-space:nowrap;line-height:18px!important;font-size:12px!important;font-weight:500!important;color:rgba(255,255,255,0.88)!important;margin:0!important;padding:0!important">SAS ID: <span class="sas-id-value" style="display:inline!important;color:rgba(255,255,255,0.92)!important;font-weight:600!important">' + sasId + '</span></span>'
+                            : '';
+                        userNameDisplay.style.setProperty('display', 'inline-block', 'important');
+                        userNameDisplay.style.setProperty('white-space', 'nowrap', 'important');
+                        userNameDisplay.style.setProperty('overflow', 'hidden', 'important');
+                        userNameDisplay.style.setProperty('text-overflow', 'ellipsis', 'important');
+                        userNameDisplay.style.setProperty('max-width', '460px', 'important');
+                        userNameDisplay.style.setProperty('text-align', 'right', 'important');
+                        userNameDisplay.style.setProperty('line-height', '18px', 'important');
+                        userNameDisplay.style.setProperty('margin', '0', 'important');
+                        userNameDisplay.style.setProperty('padding', '0', 'important');
+                        userNameDisplay.innerHTML = nameHtml + sasSepHtml + sasHtml;
+                        if (sasIdDisplay) {
+                            sasIdDisplay.textContent = '';
+                            sasIdDisplay.innerHTML = '';
+                            sasIdDisplay.style.setProperty('display', 'none', 'important');
+                            sasIdDisplay.style.setProperty('height', '0px', 'important');
+                            sasIdDisplay.style.setProperty('width', '0px', 'important');
+                            sasIdDisplay.style.setProperty('margin', '0', 'important');
+                            sasIdDisplay.style.setProperty('padding', '0', 'important');
+                            sasIdDisplay.style.setProperty('overflow', 'hidden', 'important');
+                        }
+                        loggedInDiv.style.display = 'flex';
+                        console.log('[DEBUG] updateHeaderAuthStatus: legacy user info (compact single-line row layout)');
+                    }
                 }
 
                 applySailingLoginAvatarsFromSession(sasId, displayName);
-                
-                // Update auth button to "Logout" (same button, different text/function)
-                // Remove any existing buttons with old IDs first
-                const oldLogoutBtn = document.getElementById('logoutBtn');
-                const oldLoginBtn = document.getElementById('loginBtn');
-                if (oldLogoutBtn) {
-                    oldLogoutBtn.remove();
+
+                // ============================================================
+                // Logout button: EXACT SAME BOX SIZE/STYLE as Login button
+                // (same proportions, same border, same height, same text size,
+                //  same white bg / navy text).  ONLY DIFFERENCES:
+                //   icon  = /icons/assets/phosphor/regular/user-circle-minus.svg
+                //   text  = "Logout" (instead of "Login")
+                // Reference for these styles: session.js lines 468-539 Login button
+                // (boxBase + forceIdenticalBoxHeight + SI_* constants)
+                // ============================================================
+                var LO_ICON   = '/icons/assets/phosphor/regular/user-circle-minus.svg';
+                var LO_TEXT   = 'Logout';
+                var LO_BG     = '#ffffff';
+                var LO_FG     = '#001f3f';
+                var LO_BORDER = '#f1f5f9';
+                var LO_TINT   = 'filter:invert(8%) sepia(92%) saturate(2500%) hue-rotate(185deg) brightness(92%) contrast(105%)';
+
+                function logoutBoxBase(el) {
+                    el.style.setProperty('box-sizing', 'border-box', 'important');
+                    el.style.setProperty('border-style', 'solid', 'important');
+                    el.style.setProperty('border-width', '3px', 'important');
+                    el.style.setProperty('border-radius', '10px', 'important');
+                    el.style.setProperty('outline', 'none', 'important');
+                    el.style.setProperty('line-height', '32px', 'important');
+                    el.style.setProperty('height', '32px', 'important');
+                    el.style.setProperty('min-height', '32px', 'important');
+                    el.style.setProperty('max-height', '32px', 'important');
+                    el.style.setProperty('padding', '0 10px', 'important');
+                    el.style.setProperty('vertical-align', 'middle', 'important');
+                    el.style.setProperty('font-family', 'inherit', 'important');
+                    el.style.setProperty('white-space', 'nowrap', 'important');
+                    el.style.setProperty('overflow', 'hidden', 'important');
+                    el.style.setProperty('opacity', '1', 'important');
+                    el.style.setProperty('background-image', 'none', 'important');
+                    el.style.setProperty('box-shadow', '0 1px 2px rgba(15,23,42,.18)', 'important');
+                    el.style.setProperty('text-decoration', 'none', 'important');
+                    el.style.setProperty('flex-shrink', '0', 'important');
+                    el.style.setProperty('flex-grow', '0', 'important');
+                    try {
+                        el.style.setProperty('appearance', 'none', 'important');
+                        el.style.setProperty('-moz-appearance', 'none', 'important');
+                        el.style.setProperty('-webkit-appearance', 'none', 'important');
+                    } catch (_lo_a) { /* ignore */ }
+                    el.style.setProperty('-webkit-tap-highlight-color', 'transparent', 'important');
                 }
-                if (oldLoginBtn) {
-                    oldLoginBtn.remove();
+                function logoutForceIdenticalBoxHeight(el) {
+                    el.style.setProperty('height', '32px', 'important');
+                    el.style.setProperty('min-height', '32px', 'important');
+                    el.style.setProperty('max-height', '32px', 'important');
+                    el.style.setProperty('line-height', '32px', 'important');
                 }
-                
-                let authBtn = document.getElementById('authBtn');
-                if (!authBtn) {
-                    // Create button if it doesn't exist
-                    authBtn = document.createElement('button');
-                    authBtn.id = 'authBtn';
+
+                // Remove any old/existing button instances with wrong style
+                // (old id "authBtn" with class btn-logout / old purple giant button screenshot)
+                var oldLogoutIds = ['logoutBtn','loginBtn','authBtn','oldLogoutBtn'];
+                for (var _lo_k=0; _lo_k<oldLogoutIds.length; _lo_k++) {
+                    var oldEl = document.getElementById(oldLogoutIds[_lo_k]);
+                    if (oldEl && oldEl.parentNode) { try { oldEl.parentNode.removeChild(oldEl); } catch(_){} }
                 }
-                
-                // Update button properties for logged in state
-                authBtn.textContent = 'Logout';
-                authBtn.className = 'btn-logout';
-                
-                // Move button to loggedInStatus if not already there
-                const loggedInDivForBtn = document.getElementById('loggedInStatus');
+
+                var loggedInDivForBtn = document.getElementById('loggedInStatus');
+                var logoutBtn = document.createElement('button');
+                logoutBtn.type = 'button';
+                logoutBtn.id = 'authBtn';
+                // NO class="btn-logout" — that rendered the old giant purple/white outline box user hated
+                logoutBtn.className = '';
+                logoutBoxBase(logoutBtn);
+                logoutForceIdenticalBoxHeight(logoutBtn);
+                logoutBtn.style.setProperty('display', 'inline-flex', 'important');
+                logoutBtn.style.setProperty('align-items', 'center', 'important');
+                logoutBtn.style.setProperty('justify-content', 'center', 'important');
+                logoutBtn.style.setProperty('gap', '5px', 'important');
+                logoutBtn.style.setProperty('min-width', '96px', 'important'); // +8px vs Login (Logout longer text)
+                logoutBtn.style.setProperty('background', LO_BG, 'important');
+                logoutBtn.style.setProperty('background-color', LO_BG, 'important');
+                logoutBtn.style.setProperty('border-color', LO_BORDER, 'important');
+                logoutBtn.style.setProperty('color', LO_FG, 'important');
+                logoutBtn.style.setProperty('font-size', '13px', 'important');
+                logoutBtn.style.setProperty('font-weight', '700', 'important');
+                logoutBtn.style.setProperty('cursor', 'pointer', 'important');
+                logoutForceIdenticalBoxHeight(logoutBtn);
+                logoutBtn.innerHTML =
+                    '<img src="' + LO_ICON + '" alt="' + LO_TEXT + '" width="16" height="16" style="display:block;flex-shrink:0;width:16px;height:16px;max-width:16px;max-height:16px;object-fit:contain;object-position:center;' + LO_TINT + ';background:none;border:0;padding:0;margin:0">' +
+                    '<span style="display:inline-block;vertical-align:middle;line-height:32px!important;color:' + LO_FG + '!important;font-weight:700!important;font-size:13px!important;background:none;padding:0;margin:0">' + LO_TEXT + '</span>';
+
+                // Insert into #loggedInStatus (same flex-flow slot as before so right align stays perfect)
                 if (loggedInDivForBtn) {
-                    // Remove button from any other parent first
-                    if (authBtn.parentNode && authBtn.parentNode !== loggedInDivForBtn) {
-                        authBtn.parentNode.removeChild(authBtn);
+                    // Clean any previous button nodes from the div; #loggedInStatus ONLY holds Logout now.
+                    var kids = loggedInDivForBtn.children ? Array.prototype.slice.call(loggedInDivForBtn.children) : [];
+                    for (var _lo_j=0; _lo_j<kids.length; _lo_j++) {
+                        var k = kids[_lo_j];
+                        if (!k) continue;
+                        if (k.id === 'authBtn' || (k.tagName && /button/i.test(k.tagName))) {
+                            try { k.parentNode.removeChild(k); } catch(_){}
+                        }
                     }
-                    // Add to loggedInStatus if not already there
-                    if (!loggedInDivForBtn.contains(authBtn)) {
-                        loggedInDivForBtn.appendChild(authBtn);
-                    }
+                    try { loggedInDivForBtn.appendChild(logoutBtn); } catch(_){}
                 }
-                
-                // Remove any existing listeners and add logout listener
-                const newAuthBtn = authBtn.cloneNode(true);
-                if (authBtn.parentNode) {
-                    authBtn.parentNode.replaceChild(newAuthBtn, authBtn);
-                }
-                newAuthBtn.addEventListener('click', async function(e) {
+
+                // Logout click handler: identical to previous logic, same handleLogout call + reload fallback
+                logoutBtn.addEventListener('click', async function(e) {
                     e.preventDefault();
-                    console.log('[DEBUG] Auth button clicked (Logout)');
+                    try {
+                        console.log('[DEBUG] Auth button clicked (Logout - new style match Login)');
+                    } catch(_) {}
+                    if (window.__GOLD_HEADER_CALL && typeof window.__GOLD_HEADER_CALL.fireLogout === 'function') {
+                        try { window.__GOLD_HEADER_CALL.fireLogout(); return; } catch(_ghcLo){}
+                    }
                     if (typeof handleLogout === 'function') {
-                        await handleLogout();
+                        try { await handleLogout(); } catch (_hl) {
+                            try { window.location.reload(); } catch(_){}
+                        }
+                    } else {
+                        try { window.location.reload(); } catch(_){}
                     }
                 });
-                
-                // "Your Sailing Results" button removed - no longer needed
-                
+
+                // —————————————————————————————————————————————————————————————————
+                // LEGACY CACHED-SCRIPT OVERWRITE GUARD (header only, ≥150ms).
+                // Problem: cached old session.live.js / old session.js (before 20260808)
+                //   sets authBtn.textContent='Logout' + className='btn-logout' / 'btn-primary'
+                //   AFTER our fresh updateHeaderAuthStatus runs → kills icon, reverts to
+                //   plain text-only (no user-circle-minus icon) and/or purple class.
+                // Fix: MutationObserver on #loggedInStatus + 150ms interval guard both
+                //   re-clone-and-rewrite authBtn back to the gold icon+text layout IF
+                //   the inner no longer contains the logout img/svg icon AND the
+                //   textContent still equals Logout (i.e. definitely this button).
+                // Scope: only runs while session is valid; dies on next navigate;
+                //   never touches buttons below header.
+                // —————————————————————————————————————————————————————————————————
+                try {
+                    (function guardGoldLogoutButton() {
+                        var targetSlot = document.getElementById('loggedInStatus');
+                        if (!targetSlot) return;
+                        var GOLD_ICON = LO_ICON;
+                        var GOLD_TEXT = LO_TEXT;
+                        var guardClicks = 0;
+                        function cloneListener(newBtn) {
+                            if (!newBtn || guardClicks > 0) return;
+                            guardClicks++;
+                            newBtn.addEventListener('click', async function(ev) {
+                                ev.preventDefault();
+                                try { console.log('[DEBUG] Guard: authBtn click (gold)'); } catch(_g){}
+                                if (window.__GOLD_HEADER_CALL && typeof window.__GOLD_HEADER_CALL.fireLogout === 'function') {
+                                    try { window.__GOLD_HEADER_CALL.fireLogout(); return; } catch(_g0){}
+                                }
+                                if (typeof handleLogout === 'function') {
+                                    try { await handleLogout(); } catch(_g1){ try { window.location.reload(); } catch(_g2){} }
+                                } else { try { window.location.reload(); } catch(_g3){} }
+                            });
+                        }
+                        function isBrokenLegacyRewrite(b) {
+                            if (!b) return false;
+                            var hasImg = (b.querySelectorAll && (b.querySelectorAll('img,svg').length > 0));
+                            if (hasImg) return false;
+                            var txt = (b.textContent || '').replace(/\s+/g, ' ').trim();
+                            return (txt === GOLD_TEXT || txt === 'Login' || txt === 'Sign In');
+                        }
+                        function rewriteToGoldIfBroken() {
+                            var btn = document.getElementById('authBtn');
+                            if (!btn) return;
+                            if (!isBrokenLegacyRewrite(btn)) return;
+                            var slot = document.getElementById('loggedInStatus');
+                            if (!slot) return;
+                            if (btn.parentNode) { try { btn.parentNode.removeChild(btn); } catch(_g){} }
+                            var nb = document.createElement('button');
+                            nb.type = 'button';
+                            nb.id = 'authBtn';
+                            nb.className = '';
+                            logoutBoxBase(nb);
+                            logoutForceIdenticalBoxHeight(nb);
+                            nb.style.setProperty('display','inline-flex','important');
+                            nb.style.setProperty('align-items','center','important');
+                            nb.style.setProperty('justify-content','center','important');
+                            nb.style.setProperty('gap','5px','important');
+                            nb.style.setProperty('min-width','96px','important');
+                            nb.style.setProperty('background', LO_BG, 'important');
+                            nb.style.setProperty('background-color', LO_BG, 'important');
+                            nb.style.setProperty('border-color', LO_BORDER, 'important');
+                            nb.style.setProperty('color', LO_FG, 'important');
+                            nb.style.setProperty('font-size','13px','important');
+                            nb.style.setProperty('font-weight','700','important');
+                            nb.style.setProperty('cursor','pointer','important');
+                            logoutForceIdenticalBoxHeight(nb);
+                            nb.innerHTML =
+                                '<img src="'+GOLD_ICON+'" alt="'+GOLD_TEXT+'" width="16" height="16" style="display:block;flex-shrink:0;width:16px;height:16px;max-width:16px;max-height:16px;object-fit:contain;object-position:center;'+LO_TINT+';background:none;border:0;padding:0;margin:0">'+
+                                '<span style="display:inline-block;vertical-align:middle;line-height:32px!important;color:'+LO_FG+'!important;font-weight:700!important;font-size:13px!important;background:none;padding:0;margin:0">'+GOLD_TEXT+'</span>';
+                            guardClicks = 0;
+                            cloneListener(nb);
+                            try { slot.appendChild(nb); } catch(_g){}
+                        }
+                        cloneListener(logoutBtn);
+                        rewriteToGoldIfBroken();
+                        if (typeof window.MutationObserver === 'function') {
+                            var mo = new MutationObserver(function(){ rewriteToGoldIfBroken(); });
+                            try { mo.observe(targetSlot, { childList: true, subtree: true, attributes: true, characterData: true }); } catch(_g){}
+                        }
+                        var guardCount = 0;
+                        var guardTimer = setInterval(function() {
+                            guardCount++;
+                            rewriteToGoldIfBroken();
+                            if (guardCount > 14) { clearInterval(guardTimer); }
+                        }, 25);
+                    })();
+                } catch (_ginit) { /* ignore guard init errors */ }
+
                 // Trigger page content update if function exists
                 safeUpdatePageContentSync();
             } catch (loggedInUiErr) {
@@ -449,23 +1023,33 @@ async function updateHeaderAuthStatus() {
             const loginBoxDiv = document.getElementById('loginBox');
             const userNameDisplay = document.getElementById('userNameDisplay');
             const userSasIdDisplay = document.getElementById('userSasIdDisplay');
-            
+            const centerCol = document.getElementById('headerUserCenter');
+
             // Hide logged in status and clear user info
             if (loggedInDiv) {
                 loggedInDiv.style.display = 'none';
+                loggedInDiv.innerHTML = '';
             }
-            
-            // Clear Name and SAS ID when logged out
+
+            // Legacy span clear — ONLY runs when IDs exist (other pages, not /header/)
             if (userNameDisplay) {
                 userNameDisplay.textContent = '';
                 userNameDisplay.innerHTML = '';
             }
-            
+
             if (userSasIdDisplay) {
                 userSasIdDisplay.textContent = '';
                 userSasIdDisplay.innerHTML = '';
             }
-            
+
+            // /header/-owned layout: wipe center column + nudge transform reset
+            if (centerCol) {
+                centerCol.innerHTML = '';
+                try { centerCol.style.removeProperty('transform'); } catch(_){}
+                try { centerCol.style.removeProperty('translate'); } catch(_){}
+                centerCol.style.setProperty('visibility','hidden','important');
+            }
+
             // Show login box with Sign In button
             if (loginBoxDiv) {
                 loginBoxDiv.style.display = 'block';
@@ -482,117 +1066,7 @@ async function updateHeaderAuthStatus() {
                 oldLoginBtn.remove();
             }
             
-            let authBtn = document.getElementById('authBtn');
-            if (!authBtn) {
-                // Create button if it doesn't exist
-                authBtn = document.createElement('button');
-                authBtn.id = 'authBtn';
-            }
-            
-            // Update button properties for logged out state
-            // Use both textContent AND innerHTML to ensure it sticks
-            authBtn.textContent = 'Sign In / Sign Up';
-            authBtn.innerHTML = 'Sign In / Sign Up';
-            authBtn.className = 'btn-primary';
-            // Set as attribute too
-            authBtn.setAttribute('data-button-text', 'Sign In / Sign Up');
-            console.log('[DEBUG] updateHeaderAuthStatus: Set button text to:', authBtn.textContent);
-            console.log('[DEBUG] updateHeaderAuthStatus: Button element:', authBtn);
-            
-            // Move button to loginBox if not already there
-            if (loginBoxDiv) {
-                // Remove button from any other parent first
-                if (authBtn.parentNode && authBtn.parentNode !== loginBoxDiv) {
-                    authBtn.parentNode.removeChild(authBtn);
-                }
-                // Add to loginBox if not already there
-                if (!loginBoxDiv.contains(authBtn)) {
-                    loginBoxDiv.appendChild(authBtn);
-                }
-            }
-            
-            // Remove any existing listeners and add sign in listener
-            const newAuthBtn = authBtn.cloneNode(true);
-            // Ensure text is set after clone - use multiple methods
-            newAuthBtn.textContent = 'Sign In / Sign Up';
-            newAuthBtn.innerHTML = 'Sign In / Sign Up';
-            newAuthBtn.setAttribute('data-button-text', 'Sign In / Sign Up');
-            if (authBtn.parentNode) {
-                authBtn.parentNode.replaceChild(newAuthBtn, authBtn);
-            }
-            // Double-check text after replacement - use setTimeout to ensure DOM is updated
-            setTimeout(function() {
-                const finalBtn = document.getElementById('authBtn');
-                if (finalBtn) {
-                    if (finalBtn.textContent !== 'Sign In / Sign Up') {
-                        finalBtn.textContent = 'Sign In / Sign Up';
-                        finalBtn.innerHTML = 'Sign In / Sign Up';
-                        console.log('[DEBUG] updateHeaderAuthStatus: Fixed button text after replacement:', finalBtn.textContent);
-                    } else {
-                        console.log('[DEBUG] updateHeaderAuthStatus: Final button text correct:', finalBtn.textContent);
-                    }
-                }
-            }, 50);
-            newAuthBtn.addEventListener('click', async function(e) {
-                e.preventDefault();
-                console.log('[DEBUG] Auth button clicked (Sign In)');
-                
-                // Check if there's a valid session on this device
-                try {
-                    const session = await checkSession();
-                    console.log('[DEBUG] Sign In: Session check result:', session);
-                    
-                    if (session && session.valid) {
-                        // Auto sign in - valid session found on this device
-                        console.log('[DEBUG] Sign In: Valid session found, auto-signing in');
-                        // Update header and page content
-                        await updateHeaderAuthStatus();
-                        await safeUpdatePageContentAsync();
-                        // Refresh to show signed-in view
-                        window.location.reload();
-                    } else {
-                        // Check for stored credentials (WhatsApp/SAS ID + Password)
-                        const rememberCredentials = localStorage.getItem('remember_credentials');
-                        if (rememberCredentials === 'true') {
-                            const savedUsername = localStorage.getItem('saved_username');
-                            const savedPassword = localStorage.getItem('saved_password');
-                            
-                            if (savedUsername && savedPassword) {
-                                console.log('[DEBUG] Sign In: Stored credentials found, attempting auto-login');
-                                try {
-                                    // Try auto-login with stored credentials
-                                    const loginResult = await loginWithUsernamePassword(savedUsername, savedPassword);
-                                    if (loginResult && loginResult.success) {
-                                        console.log('[DEBUG] Sign In: Auto-login successful');
-                                        // Store session
-                                        document.cookie = `session=${loginResult.session || loginResult.session_token}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
-                                        localStorage.setItem('session', loginResult.session || loginResult.session_token);
-                                        // Update header and reload
-                                        await updateHeaderAuthStatus();
-                                        await safeUpdatePageContentAsync();
-                                        window.location.reload();
-                                        return;
-                                    }
-                                } catch (loginError) {
-                                    console.error('[DEBUG] Sign In: Auto-login failed:', loginError);
-                                }
-                            }
-                        }
-                        
-                        // No valid session or auto-login failed - redirect to login page
-                        try { sessionStorage.setItem('auth_returnTo', window.location.href); } catch (err) {}
-                        const loginUrl = (window.location.origin || '') + '/login.html';
-                        console.log('[DEBUG] Sign In: No valid session, redirecting to:', loginUrl);
-                        window.location.href = loginUrl;
-                    }
-                } catch (error) {
-                    console.error('[DEBUG] Sign In: Error checking session:', error);
-                    // On error, redirect to login page
-                    try { sessionStorage.setItem('auth_returnTo', window.location.href); } catch (err) {}
-                    const loginUrl = (window.location.origin || '') + '/login.html';
-                    window.location.href = loginUrl;
-                }
-            });
+            sailingRenderLoggedOutAuthButtons(loginBoxDiv);
             
             // "Your Sailing Results" button removed - no longer needed
             
@@ -621,23 +1095,33 @@ async function updateHeaderAuthStatus() {
         const loginBoxDiv = document.getElementById('loginBox');
         const userNameDisplay = document.getElementById('userNameDisplay');
         const userSasIdDisplay = document.getElementById('userSasIdDisplay');
-        
+        const centerColErr = document.getElementById('headerUserCenter');
+
         // Hide logged in status and clear user info
         if (loggedInDiv) {
             loggedInDiv.style.display = 'none';
+            loggedInDiv.innerHTML = '';
         }
-        
-        // Clear Name and SAS ID when logged out (error state)
+
+        // Clear Name and SAS ID when logged out (error state, legacy spans only)
         if (userNameDisplay) {
             userNameDisplay.textContent = '';
             userNameDisplay.innerHTML = '';
         }
-        
+
         if (userSasIdDisplay) {
             userSasIdDisplay.textContent = '';
             userSasIdDisplay.innerHTML = '';
         }
-        
+
+        // /header/-owned layout: wipe center column + nudge transform reset
+        if (centerColErr) {
+            centerColErr.innerHTML = '';
+            try { centerColErr.style.removeProperty('transform'); } catch(_){}
+            try { centerColErr.style.removeProperty('translate'); } catch(_){}
+            centerColErr.style.setProperty('visibility','hidden','important');
+        }
+
         // Show login box with Sign In button
         if (loginBoxDiv) {
             loginBoxDiv.style.display = 'block';
@@ -654,117 +1138,7 @@ async function updateHeaderAuthStatus() {
             oldLoginBtn.remove();
         }
         
-        let authBtn = document.getElementById('authBtn');
-        if (!authBtn) {
-            // Create button if it doesn't exist
-            authBtn = document.createElement('button');
-            authBtn.id = 'authBtn';
-        }
-        
-        // Update button properties for logged out state
-        // Use both textContent AND innerHTML to ensure it sticks
-        authBtn.textContent = 'Sign In / Sign Up';
-        authBtn.innerHTML = 'Sign In / Sign Up';
-        authBtn.className = 'btn-primary';
-        // Set as attribute too
-        authBtn.setAttribute('data-button-text', 'Sign In / Sign Up');
-        console.log('[DEBUG] updateHeaderAuthStatus (error): Set button text to:', authBtn.textContent);
-        console.log('[DEBUG] updateHeaderAuthStatus (error): Button element:', authBtn);
-        
-        // Move button to loginBox if not already there
-        if (loginBoxDiv) {
-            // Remove button from any other parent first
-            if (authBtn.parentNode && authBtn.parentNode !== loginBoxDiv) {
-                authBtn.parentNode.removeChild(authBtn);
-            }
-            // Add to loginBox if not already there
-            if (!loginBoxDiv.contains(authBtn)) {
-                loginBoxDiv.appendChild(authBtn);
-            }
-        }
-        
-        // Remove any existing listeners and add sign in listener
-        const newAuthBtn = authBtn.cloneNode(true);
-        // Ensure text is set after clone - use multiple methods
-        newAuthBtn.textContent = 'Sign In / Sign Up';
-        newAuthBtn.innerHTML = 'Sign In / Sign Up';
-        newAuthBtn.setAttribute('data-button-text', 'Sign In / Sign Up');
-        if (authBtn.parentNode) {
-            authBtn.parentNode.replaceChild(newAuthBtn, authBtn);
-        }
-        // Double-check text after replacement - use setTimeout to ensure DOM is updated
-        setTimeout(function() {
-            const finalBtn = document.getElementById('authBtn');
-            if (finalBtn) {
-                if (finalBtn.textContent !== 'Sign In / Sign Up') {
-                    finalBtn.textContent = 'Sign In / Sign Up';
-                    finalBtn.innerHTML = 'Sign In / Sign Up';
-                    console.log('[DEBUG] updateHeaderAuthStatus (error): Fixed button text after replacement:', finalBtn.textContent);
-                } else {
-                    console.log('[DEBUG] updateHeaderAuthStatus (error): Final button text correct:', finalBtn.textContent);
-                }
-            }
-        }, 50);
-        newAuthBtn.addEventListener('click', async function(e) {
-            e.preventDefault();
-            console.log('[DEBUG] Auth button clicked (Sign In - error state)');
-            
-            // Check if there's a valid session on this device
-            try {
-                const session = await checkSession();
-                console.log('[DEBUG] Sign In (error state): Session check result:', session);
-                
-                if (session && session.valid) {
-                    // Auto sign in - valid session found on this device
-                    console.log('[DEBUG] Sign In (error state): Valid session found, auto-signing in');
-                    // Update header and page content
-                    await updateHeaderAuthStatus();
-                    await safeUpdatePageContentAsync();
-                    // Refresh to show signed-in view
-                    window.location.reload();
-                } else {
-                    // Check for stored credentials (WhatsApp/SAS ID + Password)
-                    const rememberCredentials = localStorage.getItem('remember_credentials');
-                    if (rememberCredentials === 'true') {
-                        const savedUsername = localStorage.getItem('saved_username');
-                        const savedPassword = localStorage.getItem('saved_password');
-                        
-                        if (savedUsername && savedPassword && typeof loginWithUsernamePassword === 'function') {
-                            console.log('[DEBUG] Sign In (error state): Stored credentials found, attempting auto-login');
-                            try {
-                                // Try auto-login with stored credentials
-                                const loginResult = await loginWithUsernamePassword(savedUsername, savedPassword);
-                                if (loginResult && loginResult.success) {
-                                    console.log('[DEBUG] Sign In (error state): Auto-login successful');
-                                    // Store session
-                                    document.cookie = `session=${loginResult.session || loginResult.session_token}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
-                                    localStorage.setItem('session', loginResult.session || loginResult.session_token);
-                                    // Update header and reload
-                                    await updateHeaderAuthStatus();
-                                    await safeUpdatePageContentAsync();
-                                    window.location.reload();
-                                    return;
-                                }
-                            } catch (loginError) {
-                                console.error('[DEBUG] Sign In (error state): Auto-login failed:', loginError);
-                            }
-                        }
-                    }
-                    
-                    // No valid session or auto-login failed - redirect to login page
-                    try { sessionStorage.setItem('auth_returnTo', window.location.href); } catch (err) {}
-                    const loginUrl = (window.location.origin || '') + '/login.html';
-                    console.log('[DEBUG] Sign In (error state): No valid session, redirecting to:', loginUrl);
-                    window.location.href = loginUrl;
-                }
-            } catch (error) {
-                console.error('[DEBUG] Sign In (error state): Error checking session:', error);
-                // On error, redirect to login page
-                try { sessionStorage.setItem('auth_returnTo', window.location.href); } catch (err) {}
-                const loginUrl = (window.location.origin || '') + '/login.html';
-                window.location.href = loginUrl;
-            }
-        });
+        sailingRenderLoggedOutAuthButtons(loginBoxDiv);
         
         // "Your Sailing Results" button removed - no longer needed
     }
@@ -775,111 +1149,100 @@ async function updateHeaderAuthStatus() {
  */
 function showAutoLoginPopup() {
     return new Promise((resolve) => {
-        // Create popup overlay
+        let __done = false;
+        let __createdAt = 0;
+        const host = document.body || document.documentElement;
+        if (!host) { resolve(false); return; }
+
+        // Remove any leftover popups immediately
+        try {
+            var old = host.querySelectorAll('#_srgAutoLoginOverlay, #autoLoginPopupOverlay, [data-srg-popup="1"]');
+            for (var i = 0; i < old.length; i++) {
+                try { if (old[i].parentNode) old[i].parentNode.removeChild(old[i]); } catch (_) {}
+            }
+        } catch (_) {}
+
         const overlay = document.createElement('div');
         overlay.id = 'autoLoginPopupOverlay';
-        overlay.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 10000;
-        `;
-        
-        // Create popup container
+        overlay.setAttribute('data-srg-popup', '1');
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;';
+        try { overlay.style.setProperty('z-index', '9999999', 'important'); } catch (_) { overlay.style.zIndex = '9999999'; }
+
+        function finish(v) {
+            if (__done) return;
+            __done = true;
+            try { if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay); } catch (_) {}
+            try {
+                var left = document.querySelectorAll('#autoLoginPopupOverlay, #_srgAutoLoginOverlay, [data-srg-popup="1"]');
+                for (var j = 0; j < left.length; j++) {
+                    try { if (left[j].parentNode) left[j].parentNode.removeChild(left[j]); } catch (_) {}
+                }
+            } catch (_) {}
+            resolve(!!v);
+        }
+
         const popup = document.createElement('div');
-        popup.style.cssText = `
-            background: white;
-            border-radius: 8px;
-            padding: 1.5rem;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            min-width: 200px;
-            max-width: 300px;
-            text-align: center;
-        `;
-        
-        // Title
+        popup.style.cssText = 'background:white;border-radius:10px;padding:22px 22px 18px;box-shadow:0 10px 30px rgba(0,0,0,0.28);min-width:230px;max-width:300px;text-align:center;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;';
+
         const title = document.createElement('div');
-        title.textContent = 'Auto Sign In';
-        title.style.cssText = `
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 1rem;
-            color: #1a365d;
-        `;
-        
-        // Buttons container
-        const buttonsDiv = document.createElement('div');
-        buttonsDiv.style.cssText = `
-            display: flex;
-            gap: 0.75rem;
-            justify-content: center;
-        `;
-        
-        // Yes button
-        const yesBtn = document.createElement('button');
-        yesBtn.textContent = 'Yes';
-        yesBtn.style.cssText = `
-            padding: 0.5rem 1.5rem;
-            background: #1a365d;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background 0.2s;
-        `;
-        yesBtn.onmouseover = () => yesBtn.style.background = '#2c5282';
-        yesBtn.onmouseout = () => yesBtn.style.background = '#1a365d';
-        yesBtn.onclick = () => {
-            document.body.removeChild(overlay);
-            resolve(true);
-        };
-        
-        // No button
-        const noBtn = document.createElement('button');
-        noBtn.textContent = 'No';
-        noBtn.style.cssText = `
-            padding: 0.5rem 1.5rem;
-            background: #e2e8f0;
-            color: #1a365d;
-            border: none;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background 0.2s;
-        `;
-        noBtn.onmouseover = () => noBtn.style.background = '#cbd5e0';
-        noBtn.onmouseout = () => noBtn.style.background = '#e2e8f0';
-        noBtn.onclick = () => {
-            document.body.removeChild(overlay);
-            resolve(false);
-        };
-        
-        // Close on overlay click (outside popup)
-        overlay.onclick = (e) => {
-            if (e.target === overlay) {
-                document.body.removeChild(overlay);
-                resolve(false);
-            }
-        };
-        
-        // Assemble popup
-        buttonsDiv.appendChild(yesBtn);
-        buttonsDiv.appendChild(noBtn);
+        title.textContent = 'Auto Login';
+        title.style.cssText = 'font-size:17px;font-weight:700;margin-bottom:8px;color:#1a365d;';
+
+        const question = document.createElement('div');
+        question.textContent = 'Sign in automatically next time?';
+        question.style.cssText = 'font-size:14px;color:#2d3748;margin-bottom:16px;line-height:1.45;';
+
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;gap:12px;justify-content:center;';
+
+        function mkBtn(txt, bg, fg) {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.textContent = txt;
+            b.style.cssText = 'padding:9px 22px;background:' + bg + ';color:' + fg + ';border:none;border-radius:7px;font-size:14px;font-weight:600;cursor:pointer;min-width:88px;';
+            return b;
+        }
+        const yesBtn = mkBtn('Yes', '#1a365d', '#ffffff');
+        const noBtn = mkBtn('No', '#e2e8f0', '#1a365d');
+
+        function onYes(ev) {
+            try { if (ev) { ev.preventDefault(); ev.stopPropagation(); } } catch (_) {}
+            finish(true);
+        }
+        function onNo(ev) {
+            try { if (ev) { ev.preventDefault(); ev.stopPropagation(); } } catch (_) {}
+            finish(false);
+        }
+        yesBtn.addEventListener('click', onYes, true);
+        noBtn.addEventListener('click', onNo, true);
+
+        overlay.addEventListener('click', function (e) {
+            if (!e || e.target !== overlay) return;
+            finish(false);
+        }, true);
+
+        try {
+            document.addEventListener('keydown', function onKey(ev) {
+                if (!ev || ev.key !== 'Escape') return;
+                try { document.removeEventListener('keydown', onKey, true); } catch (_) {}
+                finish(false);
+            }, true);
+        } catch (_) { }
+
+        row.appendChild(yesBtn);
+        row.appendChild(noBtn);
         popup.appendChild(title);
-        popup.appendChild(buttonsDiv);
+        popup.appendChild(question);
+        popup.appendChild(row);
         overlay.appendChild(popup);
-        
-        // Add to page
-        document.body.appendChild(overlay);
+
+        // Append now (no delayed re-open after No)
+        try {
+            __createdAt = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+            if (!__done) host.appendChild(overlay);
+        } catch (_) {
+            finish(false);
+        }
     });
 }
 
@@ -891,28 +1254,42 @@ window.showAutoLoginPopup = showAutoLoginPopup;
  */
 async function handleLogout() {
     console.log('[DEBUG] handleLogout: Called');
-    
-    // Show styled popup asking about auto-login
-    const enableAutoLogin = await showAutoLoginPopup();
-    
+    let enableAutoLogin = false;
+    try {
+        enableAutoLogin = await showAutoLoginPopup();
+    } catch (popupErr) {
+        console.error('[DEBUG] handleLogout: showAutoLoginPopup failed, defaulting to no-auto-login:', popupErr);
+        enableAutoLogin = false;
+    }
+
     try {
         // Clear user info display immediately
         const userNameDisplay = document.getElementById('userNameDisplay');
         const userSasIdDisplay = document.getElementById('userSasIdDisplay');
         const loggedInDiv = document.getElementById('loggedInStatus');
-        
+        const centerCol = document.getElementById('headerUserCenter');
+
         if (userNameDisplay) {
             userNameDisplay.textContent = '';
             userNameDisplay.innerHTML = '';
         }
-        
+
         if (userSasIdDisplay) {
             userSasIdDisplay.textContent = '';
             userSasIdDisplay.innerHTML = '';
         }
-        
+
         if (loggedInDiv) {
             loggedInDiv.style.display = 'none';
+            loggedInDiv.innerHTML = '';
+        }
+
+        // /header/-owned layout: wipe center column + transform reset
+        if (centerCol) {
+            centerCol.innerHTML = '';
+            try { centerCol.style.removeProperty('transform'); } catch(_){}
+            try { centerCol.style.removeProperty('translate'); } catch(_){}
+            centerCol.style.setProperty('visibility','hidden','important');
         }
         
         // Call logout endpoint to end session on server
@@ -946,21 +1323,24 @@ async function handleLogout() {
         if (!enableAutoLogin) {
             // User chose NOT to enable auto-login - clear stored credentials
             console.log('[DEBUG] handleLogout: User chose not to enable auto-login, clearing credentials');
+            sailingSetAutoLoginDisabledOnce();
             localStorage.removeItem('saved_username');
             localStorage.removeItem('saved_password');
             localStorage.removeItem('remember_credentials');
+            localStorage.removeItem('saved_login_method');
             
             // Canonical home: / (not /index.html)
             const indexUrl = `${window.location.protocol}//${window.location.host}/`;
             console.log('[DEBUG] handleLogout: Redirecting to public page (no auto-login):', indexUrl);
             window.location.href = indexUrl;
         } else {
-            // User chose to enable auto-login - keep credentials stored
-            console.log('[DEBUG] handleLogout: User chose to enable auto-login, keeping credentials');
-            
-            // Canonical home on live: / (not /sailingsa/frontend/ — that path is dev-only / not on server)
+            // Yes = remember for NEXT Login click only. Stay logged out now.
+            console.log('[DEBUG] handleLogout: Remember for next time — stay logged out');
+            try { localStorage.setItem('remember_credentials', 'true'); } catch (_r) {}
+            // CRITICAL: do not auto-login on the page we land on after logout
+            sailingSetAutoLoginDisabledOnce();
             const indexUrl = `${window.location.protocol}//${window.location.host}/`;
-            console.log('[DEBUG] handleLogout: Redirecting to public page:', indexUrl);
+            console.log('[DEBUG] handleLogout: Redirecting logged-out to:', indexUrl);
             window.location.href = indexUrl;
         }
     } catch (error) {
@@ -983,26 +1363,50 @@ async function handleLogout() {
         const userNameDisplay = document.getElementById('userNameDisplay');
         const userSasIdDisplay = document.getElementById('userSasIdDisplay');
         const loggedInDiv = document.getElementById('loggedInStatus');
-        
+        const centerColErr = document.getElementById('headerUserCenter');
+
         if (userNameDisplay) {
             userNameDisplay.textContent = '';
             userNameDisplay.innerHTML = '';
         }
-        
+
         if (userSasIdDisplay) {
             userSasIdDisplay.textContent = '';
             userSasIdDisplay.innerHTML = '';
         }
-        
+
         if (loggedInDiv) {
             loggedInDiv.style.display = 'none';
+            loggedInDiv.innerHTML = '';
         }
-        
+
+        // /header/-owned layout: wipe center column + transform reset
+        if (centerColErr) {
+            centerColErr.innerHTML = '';
+            try { centerColErr.style.removeProperty('transform'); } catch(_){}
+            try { centerColErr.style.removeProperty('translate'); } catch(_){}
+            centerColErr.style.setProperty('visibility','hidden','important');
+        }
+
         const indexUrl = `${window.location.protocol}//${window.location.host}/`;
         console.log('[DEBUG] handleLogout: Redirecting to public page (error):', indexUrl);
         window.location.href = indexUrl;
     }
 }
+
+// After logout we stay logged out. Do NOT auto-login on page load.
+// Auto Login Yes/No only on Logout. Login click silently uses remember if Yes was chosen.
+(function ensureSurgicalAutoLoginGuard() {
+    try {
+        var p = String((window.location && window.location.pathname) || '/').replace(/\/+$/, '') || '/';
+        var isLoginOrSignupPage =
+            p.indexOf('/login') === 0 || p.indexOf('/signup') === 0 || p.endsWith('/login.html') || p.endsWith('/signup.html');
+        if (isLoginOrSignupPage) {
+            sailingSetAutoLoginDisabledOnce();
+        }
+        // Intentionally no on-load auto-login popup (was repeating + logging users back in after Logout).
+    } catch(_eMain) {}
+})();
 
 // Ensure button text persists - monitor and fix if changed
 (function ensureButtonText() {
@@ -1010,6 +1414,11 @@ async function handleLogout() {
         return;
     }
     function fixButtonText() {
+        const splitSignInBtn = document.getElementById('authSignInBtn');
+        const splitSignUpBtn = document.getElementById('authSignUpBtn');
+        if (splitSignInBtn || splitSignUpBtn) {
+            return;
+        }
         const authBtn = document.getElementById('authBtn');
         if (authBtn) {
             const loginBox = document.getElementById('loginBox');
@@ -1020,14 +1429,7 @@ async function handleLogout() {
                                      (!loggedInStatus || loggedInStatus.style.display === 'none');
             
             if (shouldBeLoggedOut) {
-                // User is logged out, should show "Sign In / Sign Up"
-                const currentText = authBtn.textContent.trim();
-                if (currentText === 'Sign In' || currentText !== 'Sign In / Sign Up') {
-                    authBtn.textContent = 'Sign In / Sign Up';
-                    authBtn.innerHTML = 'Sign In / Sign Up';
-                    authBtn.setAttribute('data-button-text', 'Sign In / Sign Up');
-                    console.log('[DEBUG] ensureButtonText: Fixed button text from "' + currentText + '" to "Sign In / Sign Up"');
-                }
+                return;
             }
         }
     }
@@ -1094,14 +1496,62 @@ async function handleLogout() {
     }
 })();
 
-// Landing / page dwell stop: leave beacon + soft heartbeat (live-aligned).
-(function () {
+// Report real browser page for Online Users + Public current page (path+query).
+(function sailingReportCurrentPagePath() {
+    var lastSent = '';
+    function report() {
+        try {
+            var path = String(window.location.pathname || '/') + String(window.location.search || '');
+            if (path === lastSent) return;
+            lastSent = path;
+            fetch('/auth/session?path=' + encodeURIComponent(path), {
+                credentials: 'include',
+                cache: 'no-store'
+            }).catch(function () {});
+        } catch (e) {}
+    }
+    function reportForce() {
+        lastSent = '';
+        report();
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', reportForce);
+    } else {
+        reportForce();
+    }
+    try { window.addEventListener('popstate', reportForce); } catch (e2) {}
+    try { window.addEventListener('pageshow', reportForce); } catch (e3) {}
+    try {
+        var _ps = history.pushState;
+        var _rs = history.replaceState;
+        if (typeof _ps === 'function') {
+            history.pushState = function () {
+                var r = _ps.apply(this, arguments);
+                reportForce();
+                return r;
+            };
+        }
+        if (typeof _rs === 'function') {
+            history.replaceState = function () {
+                var r = _rs.apply(this, arguments);
+                reportForce();
+                return r;
+            };
+        }
+    } catch (e4) {}
+    // No 15s heartbeat — that inflated "session duration" with zero new pages.
+    // Presence/duration must come from real path changes only.
+    // On leave/hide: close current page dwell (time-on-page).
     try {
         function sendLeave() {
             try {
                 // MUST be GET — /auth/session leave is GET-only. sendBeacon() POSTs and never closes dwell.
                 var path = String(window.location.pathname || '/') + String(window.location.search || '');
                 var url = '/auth/session?path=' + encodeURIComponent(path) + '&leave=1';
+                try {
+                    var eg = (window.__ssaEngageTokens || []);
+                    if (eg && eg.length) url += '&engage=' + encodeURIComponent(eg.join(','));
+                } catch (eE) {}
                 if (typeof fetch === 'function') {
                     fetch(url, { method: 'GET', credentials: 'include', cache: 'no-store', keepalive: true }).catch(function () {});
                 }
@@ -1115,13 +1565,20 @@ async function handleLogout() {
         document.addEventListener('visibilitychange', function () {
             if (document.visibilityState === 'hidden') sendLeave();
         });
+        // While tab visible: soft heartbeat so landing-only dwell can stop at real leave
+        // (same-URL touch bumps last_activity; does not add trail rows).
         try {
             /* LANDING_DWELL_HEARTBEAT */
             setInterval(function () {
                 try {
                     if (document.visibilityState !== 'visible') return;
                     var path = String(window.location.pathname || '/') + String(window.location.search || '');
-                    fetch('/auth/session?path=' + encodeURIComponent(path), {
+                    var hb = '/auth/session?path=' + encodeURIComponent(path);
+                    try {
+                        var eg2 = (window.__ssaEngageTokens || []);
+                        if (eg2 && eg2.length) hb += '&engage=' + encodeURIComponent(eg2.join(','));
+                    } catch (eE2) {}
+                    fetch(hb, {
                         method: 'GET',
                         credentials: 'include',
                         cache: 'no-store',
@@ -1132,6 +1589,78 @@ async function handleLogout() {
         } catch (eH2) {}
     } catch (e6) {}
 })();
+
+/* LITE_PAGE_ENGAGE — scroll / search / first click (bot vs real on long home dwell) */
+(function () {
+  try {
+    window.__ssaEngageTokens = window.__ssaEngageTokens || [];
+    function addTok(t) {
+      try {
+        if (!t) return;
+        if (window.__ssaEngageTokens.indexOf(t) >= 0) return;
+        window.__ssaEngageTokens.push(t);
+        // push soon so Live can see it without waiting for leave
+        var path = String(window.location.pathname || '/') + String(window.location.search || '');
+        var url = '/auth/session?path=' + encodeURIComponent(path) + '&engage=' + encodeURIComponent(window.__ssaEngageTokens.join(','));
+        if (typeof fetch === 'function') {
+          fetch(url, { method: 'GET', credentials: 'include', cache: 'no-store', keepalive: true }).catch(function () {});
+        }
+      } catch (e) {}
+    }
+    function isSearchEl(el) {
+      if (!el || !el.tagName) return false;
+      var tag = String(el.tagName).toLowerCase();
+      if (tag === 'input' || tag === 'textarea') {
+        var ty = String(el.type || '').toLowerCase();
+        var nm = String(el.name || el.id || '').toLowerCase();
+        var ph = String(el.placeholder || '').toLowerCase();
+        var role = String(el.getAttribute && el.getAttribute('role') || '').toLowerCase();
+        if (ty === 'search') return true;
+        if (role === 'searchbox') return true;
+        if (nm.indexOf('search') >= 0 || nm === 'q' || nm.indexOf('query') >= 0) return true;
+        if (ph.indexOf('search') >= 0) return true;
+      }
+      return false;
+    }
+    // scroll ~halfway
+    var scrolled = false;
+    function onScroll() {
+      if (scrolled) return;
+      try {
+        var doc = document.documentElement || document.body;
+        var max = Math.max(1, (doc.scrollHeight || 0) - (window.innerHeight || 0));
+        var y = window.pageYOffset || doc.scrollTop || 0;
+        if (y / max >= 0.35) {
+          scrolled = true;
+          addTok('scrolled');
+          window.removeEventListener('scroll', onScroll, { passive: true });
+        }
+      } catch (e) {}
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    // search focus / type
+    document.addEventListener('focusin', function (ev) {
+      if (isSearchEl(ev.target)) addTok('searched');
+    }, true);
+    document.addEventListener('input', function (ev) {
+      if (isSearchEl(ev.target)) addTok('searched');
+    }, true);
+    // first meaningful click/tap
+    var clicked = false;
+    document.addEventListener('click', function (ev) {
+      if (clicked) return;
+      try {
+        var t = ev.target;
+        if (!t) return;
+        var el = t.closest ? t.closest('a,button,[role="button"],input[type="submit"]') : null;
+        if (!el) return;
+        clicked = true;
+        addTok('clicked');
+      } catch (e) {}
+    }, true);
+  } catch (e0) {}
+})();
+
 
 // Make functions globally available
 window.showState = showState;
