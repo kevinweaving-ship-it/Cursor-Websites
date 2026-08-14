@@ -1094,6 +1094,45 @@ async function handleLogout() {
     }
 })();
 
+// Landing / page dwell stop: leave beacon + soft heartbeat (live-aligned).
+(function () {
+    try {
+        function sendLeave() {
+            try {
+                // MUST be GET — /auth/session leave is GET-only. sendBeacon() POSTs and never closes dwell.
+                var path = String(window.location.pathname || '/') + String(window.location.search || '');
+                var url = '/auth/session?path=' + encodeURIComponent(path) + '&leave=1';
+                if (typeof fetch === 'function') {
+                    fetch(url, { method: 'GET', credentials: 'include', cache: 'no-store', keepalive: true }).catch(function () {});
+                }
+                try {
+                    var img = new Image();
+                    img.src = url + '&_=' + Date.now();
+                } catch (eImg) {}
+            } catch (eL) {}
+        }
+        window.addEventListener('pagehide', sendLeave);
+        document.addEventListener('visibilitychange', function () {
+            if (document.visibilityState === 'hidden') sendLeave();
+        });
+        try {
+            /* LANDING_DWELL_HEARTBEAT */
+            setInterval(function () {
+                try {
+                    if (document.visibilityState !== 'visible') return;
+                    var path = String(window.location.pathname || '/') + String(window.location.search || '');
+                    fetch('/auth/session?path=' + encodeURIComponent(path), {
+                        method: 'GET',
+                        credentials: 'include',
+                        cache: 'no-store',
+                        keepalive: true
+                    }).catch(function () {});
+                } catch (eH) {}
+            }, 45000);
+        } catch (eH2) {}
+    } catch (e6) {}
+})();
+
 // Make functions globally available
 window.showState = showState;
 window.showPopup = showPopup;
