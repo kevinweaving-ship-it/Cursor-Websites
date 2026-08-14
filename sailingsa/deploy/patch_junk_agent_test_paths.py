@@ -48,7 +48,8 @@ else:
 
 # lean SQL filter
 old_line = "      AND {col} NOT LIKE '/temp-landing{pct}'"
-if "%clean-trail%" in text[text.find("def _lean_traffic_path_ok_sql") : text.find("def _lean_traffic_path_ok_sql") + 1500]:
+_path_ok_snip = text[text.find("def _lean_traffic_path_ok_sql") : text.find("def _lean_traffic_path_ok_sql") + 1500]
+if "{pct}clean-trail{pct}" in _path_ok_snip or "%clean-trail%" in _path_ok_snip:
     print("lean sql already filtered")
 elif old_line not in text:
     raise SystemExit("lean filter line missing")
@@ -56,8 +57,8 @@ else:
     text = text.replace(
         old_line,
         "      AND {col} NOT LIKE '/temp-landing{pct}'\n"
-        "      AND {col} NOT LIKE '%clean-trail%'\n"
-        "      AND {col} NOT LIKE '%local-trail%'",
+        "      AND {col} NOT LIKE '{pct}clean-trail{pct}'\n"
+        "      AND {col} NOT LIKE '{pct}local-trail{pct}'",
         1,
     )
 
