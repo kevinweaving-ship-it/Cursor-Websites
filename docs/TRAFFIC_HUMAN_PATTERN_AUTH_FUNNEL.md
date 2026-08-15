@@ -27,3 +27,9 @@ Same IP across the whole story. Guest `public_sessions` is purged on login (by d
 - Wired into confident-bot / sterile classify / Done offline so this shape is never bot  
 
 Deploy patch: `sailingsa/deploy/patch_learn_auth_funnel_human.py`
+
+## Live signed-in list — profile under name
+
+Every logged-in Live row must show the sailor **name** (linked) and the public profile URL **under** it, e.g. `/sailor/robyn-patrick`, so you can open their profile in one tap.
+
+Deploy: `sailingsa/deploy/patch_signed_live_profile_link.py`
