@@ -2,7 +2,7 @@
 """Lock validated North Sails J22 2026 live result rows (scores still open).
 
 Live multi-day event: more racing to come. Identity / entry fields are checked
-and CLOSED — do not re-validate or rewrite them. Scores / total / nett stay OPEN.
+and CLOSED — do not re-validate or rewrite them.
 
 LOCKED (override only with explicit user instruction):
   bow_no, sail_number, boat_name, boat_id,
@@ -11,17 +11,25 @@ LOCKED (override only with explicit user instruction):
   crew_name, crew_sa_sailing_id, crew_temp_id, match_status_crew,
   class_canonical, class_original, class_id, fleet_label, block_id
 
-OPEN (update as races complete):
-  race_scores, total_points_raw, nett_points_raw,
-  rank, rank_ordinal, races_sailed, discard_count,
-  result_status / as_at_time (regatta + rows as needed)
+OPEN (change as races / scores are added):
+  results: race_scores, total_points_raw, nett_points_raw,
+           rank, rank_ordinal, races_sailed, discard_count
+  block / sailed line: races_sailed, discard_count, to_count, entries_raced
+  regatta: result_status, as_at_time
+
+RANKING (after each score pass — checksum first):
+  1. Compute total = sum of all race points (incl. discarded)
+  2. Compute nett = total − discarded; verify nett + discarded = total
+  3. Sort by nett ASC (lowest nett = 1st, highest nett = last)
+  4. Tie on nett: lower score in the last race sailed ranks above
+     (better place). Re-assign rank / rank_ordinal from that order.
 
 Markers on each results row:
   validation_flag      = LIVE_PARTIAL_LOCK
   race_updated_status  = Provisional
   row_validation_status = validated
   manually_parsed      = true
-  source_row_text      = lock manifest (human + agent readable)
+  source_row_text      = lock + ranking manifest
 
 Regatta:
   import_status = live_locked_scores_open
@@ -70,7 +78,19 @@ OPEN_FIELDS = [
     "rank_ordinal",
     "races_sailed",
     "discard_count",
+    "block.races_sailed",
+    "block.discard_count",
+    "block.to_count",
+    "block.entries_raced",
+    "regattas.result_status",
+    "regattas.as_at_time",
 ]
+RANKING_RULE = {
+    "after": "checksum_total_nett",
+    "primary_sort": "nett_points_raw ASC",
+    "tie_break": "last_race_score ASC (lower last race score ranks above)",
+    "rank_source": "position_after_sort",
+}
 
 
 def main() -> None:
@@ -79,9 +99,10 @@ def main() -> None:
         "lock": "LIVE_PARTIAL_LOCK",
         "regatta_id": RID,
         "locked_at": locked_at,
-        "reason": "live_multi_day; identity_entry_validated; more_racing_to_come",
+        "reason": "live_multi_day; identity_entry_validated; scores_rank_sailed_line_open",
         "locked_fields": LOCKED_FIELDS,
         "open_fields": OPEN_FIELDS,
+        "ranking": RANKING_RULE,
         "do_not_revalidate_locked": True,
     }
     manifest_text = "LIVE_PARTIAL_LOCK " + json.dumps(manifest, separators=(",", ":"))
@@ -103,8 +124,7 @@ def main() -> None:
               ELSE identity_status
             END
         WHERE regatta_id = %s
-        RETURNING result_id, rank, sail_number, helm_name, validation_flag,
-                  race_updated_status, match_status_helm, match_status_crew
+        RETURNING result_id, rank, sail_number, validation_flag
         """,
         (
             "LIVE_PARTIAL_LOCK",
@@ -122,7 +142,7 @@ def main() -> None:
         SET import_status = %s,
             updated_at = NOW()
         WHERE regatta_id = %s
-        RETURNING regatta_id, import_status, result_status, as_at_time
+        RETURNING regatta_id, import_status, result_status
         """,
         ("live_locked_scores_open", RID),
     )
@@ -130,14 +150,9 @@ def main() -> None:
     conn.commit()
 
     print(f"locked_rows={len(rows)} regatta={dict(reg) if reg else None}")
-    for r in rows:
-        print(
-            f"  rank={r['rank']} sail={r['sail_number']} helm={r['helm_name']} "
-            f"flag={r['validation_flag']} race_status={r['race_updated_status']} "
-            f"helm_match={r['match_status_helm']} crew_match={r['match_status_crew']}"
-        )
     print("LOCKED:", ", ".join(LOCKED_FIELDS))
     print("OPEN:", ", ".join(OPEN_FIELDS))
+    print("RANKING:", json.dumps(RANKING_RULE))
     cur.close()
     conn.close()
 
