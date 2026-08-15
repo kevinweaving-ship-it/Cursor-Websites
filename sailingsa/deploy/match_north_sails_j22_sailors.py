@@ -6,6 +6,14 @@ HARD RULE — SAS ID table = name truth:
   results.crew_name MUST be the canonical SAS name (first+last / full_name).
   Results-sheet spellings are match input only — never keep sheet typos,
   nicknames, or OCR mistakes once an ID is known.
+
+NO SAS ID → do NOT invent a SAS match:
+  If the person is not in sas_id_personal, leave sa_sailing_id NULL.
+  Hub search then exposes them as NAME:{slug} (e.g. NAME:pascal-allers,
+  NAME:yogi-davaris). That is the correct capture path — same as sailor
+  search cards that show SAS ID "—". Never fuzzy-promote sheet names onto
+  a different SAS surname (e.g. Davaris ≠ Divaris / Yogi nickname).
+  Always check /api/search?q=… for existing NAME: hits before calling ISSUE.
 """
 from __future__ import annotations
 
@@ -239,7 +247,18 @@ def main() -> int:
         if fuzzy:
             top = fuzzy[0]
             second = fuzzy[1]["sim"] if len(fuzzy) > 1 else 0
-            if top["sim"] >= 0.88 or (top["sim"] >= 0.78 and top["sim"] - second >= 0.08):
+            # Last-name must agree — blocks Davaris→Divaris via nickname "Yogi"
+            sheet_last = name_keys(name)[1]
+            can_last = name_keys(top.get("canonical") or "")[1]
+            last_ok = (
+                bool(sheet_last)
+                and bool(can_last)
+                and ratio(sheet_last, can_last) >= 0.88
+            )
+            if last_ok and (
+                top["sim"] >= 0.88
+                or (top["sim"] >= 0.78 and top["sim"] - second >= 0.08)
+            ):
                 return (
                     {
                         "sas_id": top["sas_id"],
@@ -252,10 +271,11 @@ def main() -> int:
                     notes,
                 )
             if top["sim"] >= 0.55:
-                notes.append(f"fuzzy={fuzzy[:3]}")
+                notes.append(f"fuzzy={fuzzy[:3]} last_ok={last_ok}")
                 return None, "AMBIGUOUS_OR_WEAK_FUZZY", notes
             notes.append(f"fuzzy_weak={fuzzy[:2]}")
-        return None, "NO_MATCH", notes
+        # No SAS row → NAME: capture (sa_sailing_id stays NULL). Not an invented SAS ID.
+        return None, "NO_SAS_NAME_ONLY", notes
 
     cur.execute(
         """
