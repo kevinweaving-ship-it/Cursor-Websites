@@ -4649,6 +4649,11 @@
   function setLoading(root, on) {
     var ld = root.querySelector('[data-' + NS + '-loading]');
     var sec = root.closest('[data-blank-bn-card]');
+    var bodyEl = root.querySelector('[data-' + NS + '-body]');
+    // Skip showing loading if body is already visible (prevents refresh flicker)
+    if (on && bodyEl && !bodyEl.hidden) {
+      return;
+    }
     if (ld) ld.hidden = !on;
     if (sec && on) sec.hidden = false;
   }
