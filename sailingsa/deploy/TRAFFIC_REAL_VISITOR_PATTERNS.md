@@ -21,3 +21,9 @@ From `public_page_hits` engagement + admin/phone samples vs Meta/AWS fakes.
 
 Identify → quarantine → **ignore** (no further public trail / live cost).
 Only engaged humans appear on Live.
+
+## Facebook in-app vs link-preview (2026-08-15)
+
+- **Real:** person opens a SailingSA link *inside* Facebook/Instagram browser (Meta IP OK). Scroll/click counts like any human.
+- **Not real:** `facebookexternalhit` / meta-external* link-preview crawler (UA). Often fakes `searched`+`clicked` without `scrolled`.
+- Meta IP alone is **not** a ban. UA crawler ⇒ quarantine. Scroll ⇒ always real.
