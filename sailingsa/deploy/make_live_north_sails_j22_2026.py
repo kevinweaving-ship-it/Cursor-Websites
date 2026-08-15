@@ -38,8 +38,9 @@ END = "2026-08-16"
 AS_AT = datetime(2026, 8, 15, 17, 25, 0, tzinfo=ZoneInfo("Africa/Johannesburg"))
 RESULT_STATUS = "Provisional"
 
+# Sponsor-from-name: "North Sails" in event name → left header = Sponsor Logo
 LEFT_ICON = "/artwork/Sponsor Logo/North-Sails.png"
-RIGHT_ICON = "/artwork/Club Logo/RCYC.png"
+RIGHT_ICON = "/artwork/Club Logo/RCYC.png"  # host club right
 
 ICONS_PATHS = [
     ROOT / "data" / "wc_regatta_header_icons.json",  # STATIC_DIR/data — live API reads this
