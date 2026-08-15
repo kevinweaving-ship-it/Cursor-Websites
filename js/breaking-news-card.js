@@ -3245,6 +3245,12 @@
     var emptyEl = root.querySelector('[data-' + NS + '-empty]');
     var bodyEl = root.querySelector('[data-' + NS + '-body]');
     var cardSection = root.closest('[data-blank-bn-card]');
+    
+    // NEVER hide body if it's already visible with content - prevents show/hide flicker
+    if (mode !== 'qualified' && bodyEl && !bodyEl.hidden) {
+      return;
+    }
+    
     if (mode === 'hidden') {
       if (emptyEl) emptyEl.hidden = true;
       if (bodyEl) bodyEl.hidden = true;
