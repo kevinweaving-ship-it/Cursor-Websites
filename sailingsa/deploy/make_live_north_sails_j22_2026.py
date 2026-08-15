@@ -153,31 +153,66 @@ def _ordinal(n: int) -> str:
 
 
 def seed_rank_rows_1_to_16(cur) -> None:
-    """Placeholder fleet table rows ranks 1st–16th (Entries: 16)."""
+    """Ranks 1st–16th with validated bow / sail / boat name from sheet."""
     from psycopg2.extras import Json
 
     block_id = f"{REGATTA_ID}:j22"
+    sheet = [
+        (1, "32", "1571", "Nitro Juice", "HYC", "Calvin Gibbs", "Markus Progli"),
+        (2, "31", "774", "Nitro Maverick", "UCTYC", "Dale Rae", None),
+        (3, "48", "1169", "Ullman Sails Camissa", "FBYC", "Henry Daniels", None),
+        (4, "23", "763", "Phantom", "KYC", "Greg Davis", "Yogi Davaris"),
+        (5, "34", "1116", "G'day J", "PYC", "Richard Weddell", None),
+        (6, "49", "1175", "Nitro Monkey", "SBYC", "Stef Marcia", None),
+        (7, "26", "766", "Amtec Racing", "RCYC", "Sean van Rensburg", None),
+        (8, "28", "768", "Ullman Racing", "RNYC", "Mike Farrington", "Andrea Giovannini"),
+        (9, "8", "173", "J-Walker powered by North Sails", "RCYC Academy", "Sibu Sizatu", None),
+        (10, "14", "185", "Andiamo", "GLYC", "Hamilton Slater", None),
+        (11, "55", "1239", "CaCanny", "TSC", "Jimmy Jacka", None),
+        (12, "52", "1277", "22-ATE", "WBYC", "Bjorn Geiger", None),
+        (13, "63", "771", "Donna Mia Forever", "IZI", "Thando Mntambo", None),
+        (14, "46", "1176", "Wildcard", "LDYC", "Aaron Biagio", "Henning Kock"),
+        (15, "43", "1138", "Laugh a minute", "WYAC", "Travis Clack", None),
+        (16, "51", "1237", "Attacke", "LYC", "Pascal Allers", None),
+    ]
     cur.execute(
         "DELETE FROM results WHERE regatta_id = %s AND block_id = %s",
         (REGATTA_ID, block_id),
     )
     race_scores = {"R1": "", "R2": ""}
-    for rank in range(1, 17):
+    for rank, bow, sail, boat, club_raw, helm, crew in sheet:
         cur.execute(
             """
             INSERT INTO results (
                 regatta_id, block_id, rank, rank_ordinal,
                 fleet_label, class_original, class_canonical, class_id,
+                bow_no, sail_number, boat_name, club_raw,
+                helm_name, crew_name,
                 races_sailed, discard_count, race_scores,
                 result_status, as_at_time
             ) VALUES (
                 %s, %s, %s, %s,
                 'J22', 'J22', 'J22', 48,
+                %s, %s, %s, %s,
+                %s, %s,
                 2, 0, %s,
                 'Provisional', %s
             )
             """,
-            (REGATTA_ID, block_id, rank, _ordinal(rank), Json(race_scores), AS_AT),
+            (
+                REGATTA_ID,
+                block_id,
+                rank,
+                _ordinal(rank),
+                bow,
+                sail,
+                boat,
+                club_raw,
+                helm,
+                crew,
+                Json(race_scores),
+                AS_AT,
+            ),
         )
 
 
