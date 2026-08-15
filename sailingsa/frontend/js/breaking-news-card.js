@@ -4961,7 +4961,30 @@
     }
   }
 
+  /** Guard to prevent concurrent refreshes causing show/hide flicker. */
+  var _bnRefreshInProgress = false;
+  var _bnRefreshPending = false;
+
   async function refreshAll() {
+    if (_bnRefreshInProgress) {
+      _bnRefreshPending = true;
+      return;
+    }
+    _bnRefreshInProgress = true;
+    _bnRefreshPending = false;
+
+    try {
+      await _doRefreshAll();
+    } finally {
+      _bnRefreshInProgress = false;
+      if (_bnRefreshPending) {
+        _bnRefreshPending = false;
+        refreshAll();
+      }
+    }
+  }
+
+  async function _doRefreshAll() {
     var roots = document.querySelectorAll('[data-blank-bn-card] [data-' + NS + '-root]');
     var b = baseUrl();
     var ri;
