@@ -109,6 +109,41 @@ def upsert_regatta(cur) -> None:
     )
 
 
+def upsert_j22_block(cur) -> None:
+    """Fleet = J22; sailed line: 2 / 0 / 2 / 16 / Appendix A."""
+    block_id = f"{REGATTA_ID}:j22"
+    cur.execute(
+        """
+        INSERT INTO regatta_blocks (
+            block_id, regatta_id, class_original, class_canonical, fleet_label,
+            races_sailed, discard_count, to_count, scoring_system, class_id, entries_raced
+        ) VALUES (
+            %s, %s, 'J22', 'J22', 'J22',
+            2, 0, 2, 'Appendix A', 48, 16
+        )
+        ON CONFLICT (block_id) DO UPDATE SET
+            class_original = EXCLUDED.class_original,
+            class_canonical = EXCLUDED.class_canonical,
+            fleet_label = EXCLUDED.fleet_label,
+            races_sailed = EXCLUDED.races_sailed,
+            discard_count = EXCLUDED.discard_count,
+            to_count = EXCLUDED.to_count,
+            scoring_system = EXCLUDED.scoring_system,
+            class_id = EXCLUDED.class_id,
+            entries_raced = EXCLUDED.entries_raced
+        """,
+        (block_id, REGATTA_ID),
+    )
+    cur.execute(
+        """
+        UPDATE regattas
+        SET scoring_system = 'Appendix A', class_layout = 'single', updated_at = NOW()
+        WHERE regatta_id = %s
+        """,
+        (REGATTA_ID,),
+    )
+
+
 def lock_event(cur) -> None:
     cur.execute(
         """
@@ -185,6 +220,7 @@ def main() -> int:
     try:
         with conn.cursor() as cur:
             upsert_regatta(cur)
+            upsert_j22_block(cur)
             lock_event(cur)
             cur.execute(
                 """
