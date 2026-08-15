@@ -1590,21 +1590,35 @@ async function handleLogout() {
     } catch (e6) {}
 })();
 
-/* LITE_PAGE_ENGAGE — scroll / search / first click (bot vs real on long home dwell) */
+/* LITE_PAGE_ENGAGE — scroll / search / click (+ nav flush; bot vs real) */
 (function () {
   try {
     window.__ssaEngageTokens = window.__ssaEngageTokens || [];
-    function addTok(t) {
+    function flushEngage(sync) {
       try {
-        if (!t) return;
-        if (window.__ssaEngageTokens.indexOf(t) >= 0) return;
-        window.__ssaEngageTokens.push(t);
-        // push soon so Live can see it without waiting for leave
+        if (!window.__ssaEngageTokens.length) return;
         var path = String(window.location.pathname || '/') + String(window.location.search || '');
         var url = '/auth/session?path=' + encodeURIComponent(path) + '&engage=' + encodeURIComponent(window.__ssaEngageTokens.join(','));
         if (typeof fetch === 'function') {
           fetch(url, { method: 'GET', credentials: 'include', cache: 'no-store', keepalive: true }).catch(function () {});
         }
+        if (sync) {
+          try {
+            var img = new Image();
+            img.src = url + '&_=' + Date.now();
+          } catch (eImg) {}
+        }
+      } catch (eF) {}
+    }
+    function addTok(t, sync) {
+      try {
+        if (!t) return;
+        if (window.__ssaEngageTokens.indexOf(t) >= 0) {
+          if (sync) flushEngage(true);
+          return;
+        }
+        window.__ssaEngageTokens.push(t);
+        flushEngage(!!sync);
       } catch (e) {}
     }
     function isSearchEl(el) {
@@ -1622,7 +1636,18 @@ async function handleLogout() {
       }
       return false;
     }
-    // scroll ~halfway
+    function isNavLink(el) {
+      if (!el || !el.tagName) return false;
+      var a = el.closest ? el.closest('a[href]') : null;
+      if (!a) return false;
+      var href = String(a.getAttribute('href') || '').trim();
+      if (!href || href.charAt(0) === '#' || href.indexOf('javascript:') === 0) return false;
+      try {
+        if (a.target && String(a.target).toLowerCase() === '_blank') return false;
+      } catch (eT) {}
+      return true;
+    }
+    // Any real scroll (~40px or ~10% of page) — not only 35%
     var scrolled = false;
     function onScroll() {
       if (scrolled) return;
@@ -1630,34 +1655,34 @@ async function handleLogout() {
         var doc = document.documentElement || document.body;
         var max = Math.max(1, (doc.scrollHeight || 0) - (window.innerHeight || 0));
         var y = window.pageYOffset || doc.scrollTop || 0;
-        if (y / max >= 0.35) {
+        if (y >= 40 || (max > 0 && y / max >= 0.10)) {
           scrolled = true;
-          addTok('scrolled');
+          addTok('scrolled', false);
           window.removeEventListener('scroll', onScroll, { passive: true });
         }
       } catch (e) {}
     }
     window.addEventListener('scroll', onScroll, { passive: true });
-    // search focus / type
+    try { onScroll(); } catch (e0s) {}
     document.addEventListener('focusin', function (ev) {
-      if (isSearchEl(ev.target)) addTok('searched');
+      if (isSearchEl(ev.target)) addTok('searched', false);
     }, true);
     document.addEventListener('input', function (ev) {
-      if (isSearchEl(ev.target)) addTok('searched');
+      if (isSearchEl(ev.target)) addTok('searched', false);
     }, true);
-    // first meaningful click/tap
-    var clicked = false;
-    document.addEventListener('click', function (ev) {
-      if (clicked) return;
+    // pointerdown early — click alone often loses race to navigation
+    function markClick(ev, syncNav) {
       try {
-        var t = ev.target;
+        var t = ev && ev.target;
         if (!t) return;
         var el = t.closest ? t.closest('a,button,[role="button"],input[type="submit"]') : null;
         if (!el) return;
-        clicked = true;
-        addTok('clicked');
+        var nav = isNavLink(el) || syncNav;
+        addTok('clicked', !!nav);
       } catch (e) {}
-    }, true);
+    }
+    document.addEventListener('pointerdown', function (ev) { markClick(ev, false); }, true);
+    document.addEventListener('click', function (ev) { markClick(ev, true); }, true);
   } catch (e0) {}
 })();
 
