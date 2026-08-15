@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Match North Sails J22 helms/crews to sas_id_personal; apply confident matches; list issues."""
+"""Match North Sails J22 helms/crews to sas_id_personal; apply confident matches; list issues.
+
+HARD RULE — SAS ID table = name truth:
+  When a sailor is linked to sas_id_personal (or Temp id), results.helm_name /
+  results.crew_name MUST be the canonical SAS name (first+last / full_name).
+  Results-sheet spellings are match input only — never keep sheet typos,
+  nicknames, or OCR mistakes once an ID is known.
+"""
 from __future__ import annotations
 
 import os
