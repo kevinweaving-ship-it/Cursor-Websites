@@ -258,6 +258,7 @@ def main() -> int:
         with conn.cursor() as cur:
             upsert_regatta(cur)
             upsert_j22_block(cur)
+            seed_rank_rows_1_to_16(cur)
             lock_event(cur)
             cur.execute(
                 """
