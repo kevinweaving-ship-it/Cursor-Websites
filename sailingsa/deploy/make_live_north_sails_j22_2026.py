@@ -166,7 +166,7 @@ def seed_rank_rows_1_to_16(cur) -> None:
         (6, "49", "1175", "Nitro Monkey", "SBYC", "Stef Marcia", None),
         (7, "26", "766", "Amtec Racing", "RCYC", "Sean van Rensburg", None),
         (8, "28", "768", "Ullman Racing", "RNYC", "Mike Farrington", "Andrea Giovannini"),
-        (9, "8", "173", "J-Walker powered by North Sails", "RCYC Academy", "Sibu Sizatu", None),
+        (9, "8", "173", "J-Walker", "RCYC Academy", "Sibu Sizatu", None),
         (10, "14", "185", "Andiamo", "GLYC", "Hamilton Slater", None),
         (11, "55", "1239", "CaCanny", "TSC", "Jimmy Jacka", None),
         (12, "52", "1277", "22-ATE", "WBYC", "Bjorn Geiger", None),
