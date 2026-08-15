@@ -74,12 +74,8 @@ def main() -> None:
     else:
         if OLD_STAFF not in chunk:
             raise SystemExit("staff exclusion line not in unified sql")
-        chunk2 = chunk.replace(
-            OLD_STAFF,
-            "        # Staff engaged hits count in popular (Done already includes staff reals)\n"
-            + NEW_STAFF,
-            1,
-        )
+        # NOTE: never put Python '#' comments inside the SQL f-string body
+        chunk2 = chunk.replace(OLD_STAFF, NEW_STAFF, 1)
         # Update docstring
         chunk2 = chunk2.replace(
             "Post-cutover hits: REAL only — IP must have scroll/click in-range; exclude staff,\n"
