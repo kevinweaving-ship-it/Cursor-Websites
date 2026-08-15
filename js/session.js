@@ -1585,7 +1585,7 @@ async function handleLogout() {
                         keepalive: true
                     }).catch(function () {});
                 } catch (eH) {}
-            }, 45000);
+            }, 15000);
         } catch (eH2) {}
     } catch (e6) {}
 })();
@@ -1594,10 +1594,13 @@ async function handleLogout() {
 (function () {
   try {
     window.__ssaEngageTokens = window.__ssaEngageTokens || [];
-    function flushEngage(sync) {
+    function curPath() {
+      return String(window.location.pathname || '/') + String(window.location.search || '');
+    }
+    function flushEngage(sync, pathOverride) {
       try {
         if (!window.__ssaEngageTokens.length) return;
-        var path = String(window.location.pathname || '/') + String(window.location.search || '');
+        var path = pathOverride || curPath();
         var url = '/auth/session?path=' + encodeURIComponent(path) + '&engage=' + encodeURIComponent(window.__ssaEngageTokens.join(','));
         if (typeof fetch === 'function') {
           fetch(url, { method: 'GET', credentials: 'include', cache: 'no-store', keepalive: true }).catch(function () {});
@@ -1620,6 +1623,17 @@ async function handleLogout() {
         window.__ssaEngageTokens.push(t);
         flushEngage(!!sync);
       } catch (e) {}
+    }
+    function resetEngageForNewPage() {
+      try {
+        var prev = curPath();
+        if (window.__ssaEngageTokens && window.__ssaEngageTokens.length) {
+          flushEngage(true, prev);
+        }
+        window.__ssaEngageTokens = [];
+        scrolled = false;
+        try { window.addEventListener('scroll', onScroll, { passive: true }); } catch (eA) {}
+      } catch (eR) {}
     }
     function isSearchEl(el) {
       if (!el || !el.tagName) return false;
@@ -1647,7 +1661,6 @@ async function handleLogout() {
       } catch (eT) {}
       return true;
     }
-    // Any real scroll (~40px or ~10% of page) — not only 35%
     var scrolled = false;
     function onScroll() {
       if (scrolled) return;
@@ -1655,10 +1668,10 @@ async function handleLogout() {
         var doc = document.documentElement || document.body;
         var max = Math.max(1, (doc.scrollHeight || 0) - (window.innerHeight || 0));
         var y = window.pageYOffset || doc.scrollTop || 0;
-        if (y >= 40 || (max > 0 && y / max >= 0.10)) {
+        if (y >= 10 || (max > 0 && y / max >= 0.05)) {
           scrolled = true;
           addTok('scrolled', false);
-          window.removeEventListener('scroll', onScroll, { passive: true });
+          try { window.removeEventListener('scroll', onScroll, { passive: true }); } catch (eR) {}
         }
       } catch (e) {}
     }
@@ -1670,21 +1683,58 @@ async function handleLogout() {
     document.addEventListener('input', function (ev) {
       if (isSearchEl(ev.target)) addTok('searched', false);
     }, true);
-    // pointerdown early — click alone often loses race to navigation
+    // Any real pointer/click on the page counts (tabs, cards, rows — not only <a>/<button>)
     function markClick(ev, syncNav) {
       try {
         var t = ev && ev.target;
-        if (!t) return;
-        var el = t.closest ? t.closest('a,button,[role="button"],input[type="submit"]') : null;
-        if (!el) return;
-        var nav = isNavLink(el) || syncNav;
+        if (!t || !t.tagName) return;
+        var tag = String(t.tagName).toLowerCase();
+        if (tag === 'html' || tag === 'body') return;
+        if (isSearchEl(t)) return;
+        var el = t.closest ? t.closest('a,button,[role="button"],input[type="submit"],input[type="button"],.tab,[data-action],[onclick]') : null;
+        var nav = !!(el && isNavLink(el)) || !!syncNav;
+        // Count any click that isn't a pure empty background
+        if (!el) {
+          // still a human action on content
+          addTok('clicked', false);
+          return;
+        }
         addTok('clicked', !!nav);
       } catch (e) {}
     }
     document.addEventListener('pointerdown', function (ev) { markClick(ev, false); }, true);
-    document.addEventListener('click', function (ev) { markClick(ev, true); }, true);
+    document.addEventListener('click', function (ev) {
+      try {
+        var t = ev && ev.target;
+        var nav = t && t.closest && !!isNavLink(t);
+        markClick(ev, nav);
+      } catch (e) { markClick(ev, true); }
+    }, true);
+    // SPA: flush previous page engage before path report
+    try {
+      var _ps = history.pushState;
+      var _rs = history.replaceState;
+      if (typeof _ps === 'function') {
+        history.pushState = function () {
+          try { resetEngageForNewPage(); } catch (e1) {}
+          return _ps.apply(this, arguments);
+        };
+      }
+      if (typeof _rs === 'function') {
+        history.replaceState = function () {
+          try { resetEngageForNewPage(); } catch (e2) {}
+          return _rs.apply(this, arguments);
+        };
+      }
+      window.addEventListener('popstate', function () {
+        try { resetEngageForNewPage(); } catch (e3) {}
+      });
+    } catch (eSpa) {}
+    window.__ssaFlushEngage = flushEngage;
+    window.__ssaAddEngageTok = addTok;
   } catch (e0) {}
 })();
+
 
 
 // Make functions globally available
