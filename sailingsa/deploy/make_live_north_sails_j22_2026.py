@@ -144,6 +144,43 @@ def upsert_j22_block(cur) -> None:
     )
 
 
+def _ordinal(n: int) -> str:
+    if 10 <= n % 100 <= 13:
+        suf = "th"
+    else:
+        suf = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suf}"
+
+
+def seed_rank_rows_1_to_16(cur) -> None:
+    """Placeholder fleet table rows ranks 1st–16th (Entries: 16)."""
+    from psycopg2.extras import Json
+
+    block_id = f"{REGATTA_ID}:j22"
+    cur.execute(
+        "DELETE FROM results WHERE regatta_id = %s AND block_id = %s",
+        (REGATTA_ID, block_id),
+    )
+    race_scores = {"R1": "", "R2": ""}
+    for rank in range(1, 17):
+        cur.execute(
+            """
+            INSERT INTO results (
+                regatta_id, block_id, rank, rank_ordinal,
+                fleet_label, class_original, class_canonical, class_id,
+                races_sailed, discard_count, race_scores,
+                result_status, as_at_time
+            ) VALUES (
+                %s, %s, %s, %s,
+                'J22', 'J22', 'J22', 48,
+                2, 0, %s,
+                'Provisional', %s
+            )
+            """,
+            (REGATTA_ID, block_id, rank, _ordinal(rank), Json(race_scores), AS_AT),
+        )
+
+
 def lock_event(cur) -> None:
     cur.execute(
         """
