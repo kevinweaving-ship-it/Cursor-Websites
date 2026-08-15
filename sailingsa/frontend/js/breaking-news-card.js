@@ -4900,8 +4900,9 @@
       var et0 = parseInt(summary.entries_total, 10);
       summary.entries_total = (isFinite(et0) ? et0 : 0) + mt;
     }
-    setVisibility(root, 'qualified');
+    // Render content BEFORE showing body - prevents show-then-hide if render fails
     await render(root, summary, winningCandidate, classEntriesObj, fleetClasses);
+    setVisibility(root, 'qualified');
   }
 
   async function refreshSlot(b, candidates, today, slot, globalReserved) {
@@ -4945,7 +4946,11 @@
               try {
                 console.error('[bncard] render failed', e);
               } catch (e2) {}
-              if (roots[idx]) setVisibility(roots[idx], 'notQualified');
+              // Only hide if body doesn't already have content (prevents hiding existing content on error)
+              var bodyEl = roots[idx] && roots[idx].querySelector('[data-' + NS + '-body]');
+              if (roots[idx] && (!bodyEl || bodyEl.hidden)) {
+                setVisibility(roots[idx], 'notQualified');
+              }
             }
           })();
         })
