@@ -1,18 +1,11 @@
--- SSL identity fields on the existing SAS sailor table.
--- Nullable only. Does not create sailors. Idempotent (IF NOT EXISTS).
--- Apply: psql "$DB_URL" -f database/migrations/183_sas_id_personal_ssl_identity.sql
+-- Add nullable SSL user id onto existing SAS sailor rows.
+-- Does not create sailors. Does not add duplicate slug/url/status columns.
+-- No DROP. Idempotent (IF NOT EXISTS).
+-- Do not apply this file in this step.
 
 ALTER TABLE public.sas_id_personal
-  ADD COLUMN IF NOT EXISTS ssl_id BIGINT,
-  ADD COLUMN IF NOT EXISTS ssl_slug TEXT,
-  ADD COLUMN IF NOT EXISTS ssl_profile_url TEXT,
-  ADD COLUMN IF NOT EXISTS ssl_match_status TEXT,
-  ADD COLUMN IF NOT EXISTS ssl_last_checked_at TIMESTAMPTZ;
+  ADD COLUMN IF NOT EXISTS ssl_user_id BIGINT NULL;
 
-CREATE UNIQUE INDEX IF NOT EXISTS ux_sas_id_personal_ssl_id
-  ON public.sas_id_personal (ssl_id)
-  WHERE ssl_id IS NOT NULL;
-
-CREATE INDEX IF NOT EXISTS ix_sas_id_personal_ssl_slug
-  ON public.sas_id_personal (ssl_slug)
-  WHERE ssl_slug IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS ux_sas_id_personal_ssl_user_id
+  ON public.sas_id_personal (ssl_user_id)
+  WHERE ssl_user_id IS NOT NULL;
