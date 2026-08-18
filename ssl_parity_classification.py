@@ -5,7 +5,15 @@ Championship status is an explicit caller/metadata input. Event names and
 SSL categories are never used to guess championship or exception status.
 
 Championships with N < 10 drop exactly one category (5→6, 6→7).
-Fewer than 3 valid boats are ineligible, including championships.
+
+Modes:
+  official / parity (default): fewer than 3 valid boats are ineligible,
+    including championships.
+  ssa: one boat remains recorded/ineligible; exactly two boats classify
+    as SSA Category 8. Categories 1–7 are unchanged for N ≥ 3.
+    This module does not assign Category 8 points.
+  checksum: same fleet floor as official. Never emits SSA Category 8,
+    even if metadata requests SSA. Used by published.json projection.
 
 SSA event ratings (500 / 350 / 250 / 150) are independent and must not
 be derived from, or written into, the SSL category.
@@ -26,14 +34,24 @@ from typing import Any, Iterable, Mapping, Optional
 SSL_CATEGORY_NATIONAL = 5
 SSL_CATEGORY_REGIONAL = 6
 SSL_CATEGORY_LOCAL = 7
+SSL_CATEGORY_SSA_TWO_BOAT = 8  # SSA mode only; no points in this module
 
 SSL_CATEGORY_NAMES = {
     SSL_CATEGORY_NATIONAL: "NATIONAL",
     SSL_CATEGORY_REGIONAL: "REGIONAL",
     SSL_CATEGORY_LOCAL: "LOCAL",
+    SSL_CATEGORY_SSA_TWO_BOAT: "SSA_8",
 }
 
-# Scoring floor: fewer than this many valid boats never score.
+MODE_OFFICIAL = "official"
+MODE_SSA = "ssa"
+MODE_CHECKSUM = "checksum"
+
+_OFFICIAL_MODE_TOKENS = {MODE_OFFICIAL, "parity", "ssl"}
+_SSA_MODE_TOKENS = {MODE_SSA}
+_CHECKSUM_MODE_TOKENS = {MODE_CHECKSUM}
+
+# Scoring floor in official/checksum mode: fewer than this many valid boats never score.
 MIN_VALID_BOATS = 3
 
 # Ordinary (non-championship) fleet-size fallback, and championship full-category floor.
@@ -87,6 +105,7 @@ class SSLClassification:
     valid_boats: int
     ssa_rating: Optional[int] = None
     reason: str = ""
+    mode: str = MODE_OFFICIAL
 
     def as_dict(self) -> dict:
         return {
@@ -98,6 +117,7 @@ class SSLClassification:
             "valid_boats": self.valid_boats,
             "ssa_rating": self.ssa_rating,
             "reason": self.reason,
+            "mode": self.mode,
         }
 
 
@@ -210,6 +230,67 @@ def _resolve_explicit_status(
     return status
 
 
+def _normalize_mode_token(raw: Any) -> Optional[str]:
+    if raw is None:
+        return None
+    token = str(raw).strip().lower().replace(" ", "_").replace("-", "_")
+    if not token:
+        return None
+    if token in _CHECKSUM_MODE_TOKENS:
+        return MODE_CHECKSUM
+    if token in _SSA_MODE_TOKENS:
+        return MODE_SSA
+    if token in _OFFICIAL_MODE_TOKENS:
+        return MODE_OFFICIAL
+    return None
+
+
+def _resolve_mode(mode: Any, metadata: Optional[Mapping[str, Any]]) -> str:
+    """
+    Classification mode from the explicit `mode` argument, else metadata.
+
+    Default is official (parity). An explicit checksum argument always wins
+    over a metadata SSA request, so checksum can never become Category 8.
+    """
+    explicit = _normalize_mode_token(mode)
+    if explicit == MODE_CHECKSUM:
+        return MODE_CHECKSUM
+    if explicit == MODE_SSA:
+        return MODE_SSA
+    if explicit == MODE_OFFICIAL:
+        return MODE_OFFICIAL
+    meta = metadata if isinstance(metadata, Mapping) else {}
+    from_meta = _normalize_mode_token(
+        meta.get("mode") or meta.get("classification_mode")
+    )
+    if from_meta == MODE_CHECKSUM:
+        return MODE_CHECKSUM
+    if from_meta == MODE_SSA:
+        return MODE_SSA
+    return MODE_OFFICIAL
+
+
+def _ineligible_result(
+    boats: int,
+    status: Optional[str],
+    ssa_rating: Optional[int],
+    mode: str,
+    reason: str,
+    source: str = "ineligible",
+) -> SSLClassification:
+    return SSLClassification(
+        category=None,
+        category_name=None,
+        eligible=False,
+        official_status=status,
+        source=source,
+        valid_boats=boats,
+        ssa_rating=ssa_rating,
+        reason=reason,
+        mode=mode,
+    )
+
+
 def _championship_category(base_category: int, boats: int) -> tuple[int, str]:
     """Drop exactly one category when championship fleet is under 10."""
     if boats >= CHAMPIONSHIP_FULL_CATEGORY_MIN_BOATS:
@@ -224,6 +305,19 @@ def _championship_category(base_category: int, boats: int) -> tuple[int, str]:
     )
 
 
+def _ensure_checksum_not_cat8(result: SSLClassification) -> SSLClassification:
+    """Checksum / published projection must never emit SSA Category 8."""
+    if result.mode == MODE_CHECKSUM and result.category == SSL_CATEGORY_SSA_TWO_BOAT:
+        return _ineligible_result(
+            result.valid_boats,
+            result.official_status,
+            result.ssa_rating,
+            MODE_CHECKSUM,
+            "checksum mode cannot use SSA Category 8",
+        )
+    return result
+
+
 def classify_ssl_category(
     event_name: Any,
     valid_boats: Any,
@@ -232,12 +326,15 @@ def classify_ssl_category(
     ssa_rating: Optional[int] = None,
     championship: Optional[bool] = None,
     exception: Optional[str] = None,
+    mode: Optional[str] = None,
 ) -> SSLClassification:
     """
     Classify one event (or class fleet) for SSL.
 
     Precedence:
-      1. N < 3 → ineligible (never scores), including championships.
+      1. Mode: official (default) / checksum keep N < 3 ineligible.
+         SSA mode: N = 1 recorded/ineligible; N = 2 → Category 8.
+         Checksum never emits Category 8.
       2. Explicit national/world championship: N ≥ 10 → Category 5;
          3 ≤ N < 10 → Category 6 (exactly one drop).
       3. Explicit regional/provincial/district championship: N ≥ 10 → Category 6;
@@ -254,6 +351,7 @@ def classify_ssl_category(
 
     `ssa_rating` is passed through unchanged and is not used for SSL category.
     `event_name` is accepted for callers/projection; it does not classify.
+    Category 8 is a classification label only; this module does not score it.
     """
     _ = event_name
     try:
@@ -261,46 +359,81 @@ def classify_ssl_category(
     except (TypeError, ValueError):
         boats = 0
 
+    resolved_mode = _resolve_mode(mode, metadata)
     status = _resolve_explicit_status(
         official_status, exception, championship, metadata
     )
 
-    if boats < MIN_VALID_BOATS:
-        return SSLClassification(
-            category=None,
-            category_name=None,
-            eligible=False,
-            official_status=status,
-            source="ineligible",
-            valid_boats=boats,
-            ssa_rating=ssa_rating,
-            reason="fewer than 3 valid boats",
+    if resolved_mode == MODE_SSA:
+        if boats < 1:
+            return _ineligible_result(
+                boats,
+                status,
+                ssa_rating,
+                MODE_SSA,
+                "fewer than 3 valid boats",
+            )
+        if boats == 1:
+            return _ineligible_result(
+                boats,
+                status,
+                ssa_rating,
+                MODE_SSA,
+                "SSA mode: one boat remains recorded/ineligible",
+                source="recorded_ineligible",
+            )
+        if boats == 2:
+            result = SSLClassification(
+                category=SSL_CATEGORY_SSA_TWO_BOAT,
+                category_name=SSL_CATEGORY_NAMES[SSL_CATEGORY_SSA_TWO_BOAT],
+                eligible=True,
+                official_status=status,
+                source="ssa_two_boat",
+                valid_boats=boats,
+                ssa_rating=ssa_rating,
+                reason="SSA mode: exactly two valid boats classify as Category 8",
+                mode=MODE_SSA,
+            )
+            return _ensure_checksum_not_cat8(result)
+    elif boats < MIN_VALID_BOATS:
+        return _ineligible_result(
+            boats,
+            status,
+            ssa_rating,
+            resolved_mode,
+            "fewer than 3 valid boats",
         )
 
     if status in {OFFICIAL_NATIONAL, OFFICIAL_WORLD}:
         category, reason = _championship_category(SSL_CATEGORY_NATIONAL, boats)
-        return SSLClassification(
-            category=category,
-            category_name=SSL_CATEGORY_NAMES[category],
-            eligible=True,
-            official_status=status,
-            source="official_status",
-            valid_boats=boats,
-            ssa_rating=ssa_rating,
-            reason=reason,
+        return _ensure_checksum_not_cat8(
+            SSLClassification(
+                category=category,
+                category_name=SSL_CATEGORY_NAMES[category],
+                eligible=True,
+                official_status=status,
+                source="official_status",
+                valid_boats=boats,
+                ssa_rating=ssa_rating,
+                reason=reason,
+                mode=resolved_mode,
+            )
         )
 
     if status in {OFFICIAL_REGIONAL, OFFICIAL_PROVINCIAL, OFFICIAL_DISTRICT}:
         category, reason = _championship_category(SSL_CATEGORY_REGIONAL, boats)
-        return SSLClassification(
-            category=category,
-            category_name=SSL_CATEGORY_NAMES[category],
-            eligible=True,
-            official_status=status,
-            source="official_status",
-            valid_boats=boats,
-            ssa_rating=ssa_rating,
-            reason=reason,
+        return _ensure_checksum_not_cat8(
+            SSLClassification(
+                category=category,
+                category_name=SSL_CATEGORY_NAMES[category],
+                eligible=True,
+                official_status=status,
+                source="official_status",
+                valid_boats=boats,
+                ssa_rating=ssa_rating,
+                reason=reason,
+                mode=resolved_mode,
+            )
         )
 
     if boats >= ORDINARY_REGIONAL_MIN_BOATS:
@@ -310,7 +443,7 @@ def classify_ssl_category(
         category = SSL_CATEGORY_LOCAL
         reason = "ordinary event with 3–9 valid boats → Category 7"
 
-    return SSLClassification(
+    result = SSLClassification(
         category=category,
         category_name=SSL_CATEGORY_NAMES[category],
         eligible=True,
@@ -319,13 +452,16 @@ def classify_ssl_category(
         valid_boats=boats,
         ssa_rating=ssa_rating,
         reason=reason,
+        mode=resolved_mode,
     )
+    return _ensure_checksum_not_cat8(result)
 
 
 def classify_published_row(row: Mapping[str, Any]) -> SSLClassification:
     """Classify a published.json breakdown row. Does not mutate the row.
 
     Uses explicit row fields only. Event name is not a championship signal.
+    Always checksum mode so published projection can never emit SSA Category 8.
     """
     championship = row.get("championship") if isinstance(row, Mapping) else None
     if championship in ("true", "True", 1):
@@ -342,6 +478,7 @@ def classify_published_row(row: Mapping[str, Any]) -> SSLClassification:
         ssa_rating=row.get("rating"),
         championship=championship,
         exception=row.get("exception") if isinstance(row, Mapping) else None,
+        mode=MODE_CHECKSUM,
     )
 
 
@@ -659,35 +796,213 @@ _TESTS = [
         "live_category": 5,
         "expect_category": 6,
     },
+    # --- Mode boundaries: official / SSA / checksum ---
+    {
+        "id": "official-n1-ineligible",
+        "event": "Club Open Regatta",
+        "n": 1,
+        "mode": "official",
+        "expect_category": None,
+        "expect_eligible": False,
+        "expect_mode": "official",
+        "forbid_category": 8,
+    },
+    {
+        "id": "official-n2-ineligible-not-cat8",
+        "event": "Club Open Regatta",
+        "n": 2,
+        "mode": "official",
+        "expect_category": None,
+        "expect_eligible": False,
+        "expect_mode": "official",
+        "forbid_category": 8,
+    },
+    {
+        "id": "official-n3-ordinary-still-cat7",
+        "event": "Club Open Regatta",
+        "n": 3,
+        "mode": "official",
+        "expect_category": 7,
+        "expect_mode": "official",
+    },
+    {
+        "id": "ssa-n1-recorded-ineligible",
+        "event": "Club Open Regatta",
+        "n": 1,
+        "mode": "ssa",
+        "expect_category": None,
+        "expect_eligible": False,
+        "expect_mode": "ssa",
+        "expect_source": "recorded_ineligible",
+        "forbid_category": 8,
+    },
+    {
+        "id": "ssa-n2-category-8",
+        "event": "Club Open Regatta",
+        "n": 2,
+        "mode": "ssa",
+        "expect_category": 8,
+        "expect_eligible": True,
+        "expect_mode": "ssa",
+        "expect_name": "SSA_8",
+        "expect_source": "ssa_two_boat",
+    },
+    {
+        "id": "ssa-n2-national-championship-still-category-8",
+        "event": "National Championship",
+        "n": 2,
+        "mode": "ssa",
+        "official_status": "national_championship",
+        "expect_category": 8,
+        "expect_eligible": True,
+        "expect_mode": "ssa",
+        "expect_name": "SSA_8",
+    },
+    {
+        "id": "ssa-n2-regional-championship-still-category-8",
+        "event": "Regional Championship",
+        "n": 2,
+        "mode": "ssa",
+        "official_status": "regional_championship",
+        "expect_category": 8,
+        "expect_eligible": True,
+        "expect_mode": "ssa",
+        "expect_name": "SSA_8",
+    },
+    {
+        "id": "ssa-n3-national-championship-still-cat6",
+        "event": "National Championship",
+        "n": 3,
+        "mode": "ssa",
+        "official_status": "national_championship",
+        "expect_category": 6,
+        "expect_mode": "ssa",
+    },
+    {
+        "id": "ssa-n10-national-championship-still-cat5",
+        "event": "National Championship",
+        "n": 10,
+        "mode": "ssa",
+        "official_status": "national_championship",
+        "expect_category": 5,
+        "expect_mode": "ssa",
+    },
+    {
+        "id": "ssa-ordinary-n3-still-cat7",
+        "event": "Club Open Regatta",
+        "n": 3,
+        "mode": "ssa",
+        "expect_category": 7,
+        "expect_mode": "ssa",
+    },
+    {
+        "id": "checksum-n1-ineligible",
+        "event": "Club Open Regatta",
+        "n": 1,
+        "mode": "checksum",
+        "expect_category": None,
+        "expect_eligible": False,
+        "expect_mode": "checksum",
+        "forbid_category": 8,
+    },
+    {
+        "id": "checksum-n2-ineligible-never-cat8",
+        "event": "Club Open Regatta",
+        "n": 2,
+        "mode": "checksum",
+        "expect_category": None,
+        "expect_eligible": False,
+        "expect_mode": "checksum",
+        "forbid_category": 8,
+    },
+    {
+        "id": "checksum-n2-national-ineligible-never-cat8",
+        "event": "National Championship",
+        "n": 2,
+        "mode": "checksum",
+        "official_status": "national_championship",
+        "expect_category": None,
+        "expect_eligible": False,
+        "expect_mode": "checksum",
+        "forbid_category": 8,
+    },
+    {
+        "id": "checksum-n2-metadata-ssa-never-cat8",
+        "event": "Club Open Regatta",
+        "n": 2,
+        "mode": "checksum",
+        "metadata": {"mode": "ssa"},
+        "expect_category": None,
+        "expect_eligible": False,
+        "expect_mode": "checksum",
+        "forbid_category": 8,
+    },
+    {
+        "id": "checksum-n3-ordinary-still-cat7",
+        "event": "Club Open Regatta",
+        "n": 3,
+        "mode": "checksum",
+        "expect_category": 7,
+        "expect_mode": "checksum",
+    },
+    {
+        "id": "published-row-n2-mode-ssa-never-cat8",
+        "published_row": {
+            "event": "Club Open Regatta",
+            "fleet": 2,
+            "mode": "ssa",
+        },
+        "n": 2,
+        "event": "Club Open Regatta",
+        "expect_category": None,
+        "expect_eligible": False,
+        "expect_mode": "checksum",
+        "forbid_category": 8,
+    },
 ]
 
 
 def _run_inline_tests() -> list[dict]:
     results = []
     for spec in _TESTS:
-        got = classify_ssl_category(
-            spec["event"],
-            spec["n"],
-            official_status=spec.get("official_status"),
-            metadata=spec.get("metadata"),
-            ssa_rating=spec.get("ssa_rating"),
-            championship=spec.get("championship"),
-            exception=spec.get("exception"),
-        )
+        if spec.get("published_row") is not None:
+            got = classify_published_row(spec["published_row"])
+        else:
+            got = classify_ssl_category(
+                spec["event"],
+                spec["n"],
+                official_status=spec.get("official_status"),
+                metadata=spec.get("metadata"),
+                ssa_rating=spec.get("ssa_rating"),
+                championship=spec.get("championship"),
+                exception=spec.get("exception"),
+                mode=spec.get("mode"),
+            )
         expect_eligible = spec.get("expect_eligible", spec["expect_category"] is not None)
         ok = got.category == spec["expect_category"] and got.eligible == expect_eligible
         if spec.get("ssa_rating") is not None and got.ssa_rating != spec["ssa_rating"]:
+            ok = False
+        if spec.get("expect_mode") is not None and got.mode != spec["expect_mode"]:
+            ok = False
+        if spec.get("expect_name") is not None and got.category_name != spec["expect_name"]:
+            ok = False
+        if spec.get("expect_source") is not None and got.source != spec["expect_source"]:
+            ok = False
+        if spec.get("forbid_category") is not None and got.category == spec["forbid_category"]:
+            ok = False
+        if got.mode == MODE_CHECKSUM and got.category == SSL_CATEGORY_SSA_TWO_BOAT:
             ok = False
         results.append(
             {
                 "id": spec["id"],
                 "ok": ok,
-                "event": spec["event"],
-                "n": spec["n"],
+                "event": spec.get("event"),
+                "n": spec.get("n"),
                 "expect": spec["expect_category"],
                 "got": got.category,
                 "got_name": got.category_name,
                 "source": got.source,
+                "mode": got.mode,
                 "ssa_rating": got.ssa_rating,
                 "live_category": spec.get("live_category"),
                 "reason": got.reason,
