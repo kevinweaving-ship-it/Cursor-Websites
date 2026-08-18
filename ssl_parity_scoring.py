@@ -483,6 +483,9 @@ def score_published_row(
 
 # ---------------------------------------------------------------------------
 # Inline self-check
+#
+# live_points is comparison metadata only. Never use it to derive expect_points.
+# WCDC 0.79 is excluded: SAS and WoS finishing positions differ.
 # ---------------------------------------------------------------------------
 
 _TESTS = [
@@ -496,10 +499,11 @@ _TESTS = [
         "ssa_rating": 500,
         "is_championship": True,
         "official_status": "national_championship",
+        "is_open": True,
         "expect_points": 109.5,
         "expect_category": 5,
         "sailor": "Sean Kavanagh",
-        "live_points": 108.0,
+        "live_points": 108.0,  # SSA published comparison only; not the expect
     },
     {
         "id": "thomas-henshilwood-2026-rsa-29er-nationals-p4-n10",
@@ -511,30 +515,20 @@ _TESTS = [
         "ssa_rating": 500,
         "is_championship": True,
         "official_status": "national_championship",
+        "is_open": True,
         "expect_category": 5,
-        "expect_points": 132.81,  # 156.25 placement × 0.85 WS class
+        # Cat5 P4/N10 raw 156.25 × 0.85 WS × 1.00 open = 132.81
+        "expect_points": 132.81,
         "compare_roles": ("crew", "helm"),
         "sailor": "Thomas Henshilwood",
         "sa_sailing_id": 9612,
         "slug": "thomas-henshilwood",
+        # WoS 35.16 is 156.25 × 0.225 undocumented Junior/non-open. Not the expect.
         "live_points": 35.16,
-    },
-    {
-        "id": "thomas-henshilwood-wcdc-29er-cat7",
-        "event": "2025 Western Cape Dinghy Championships 29er",
-        "n": 6,
-        "place": 6,
-        "class_name": "29er",
-        "event_date": "2026-04-06",
-        "ssa_rating": 150,
-        "is_championship": False,
-        "expect_category": 7,
-        "expect_points": 0.85,  # last place Cat 7 = 1 × 0.85 WS class
-        "live_points": 0.79,
-        "role": "crew",
-        "sailor": "Thomas Henshilwood",
-        "sa_sailing_id": 9612,
-        "slug": "thomas-henshilwood",
+        "live_points_note": (
+            "WoS 35.16 = 156.25 × 0.225 undocumented Junior/non-open; "
+            "official is 156.25 × 0.85 × 1.00 = 132.81"
+        ),
     },
     {
         "id": "ilca6-nationals-p1",
@@ -730,6 +724,7 @@ def _run_inline_tests() -> list[dict]:
                 )
             )
         got = scores[0]
+        # live_points is metadata only and must never decide pass/fail.
         expect_eligible = spec.get(
             "expect_eligible",
             spec.get("expect_points", 0) != 0 or spec.get("expect_category") is not None,
@@ -756,6 +751,7 @@ def _run_inline_tests() -> list[dict]:
                 "got_category": got.category,
                 "expect_category": spec.get("expect_category"),
                 "live_points": spec.get("live_points"),
+                "live_points_note": spec.get("live_points_note"),
                 "roles": [s.points for s in scores],
                 "ssa_rating": got.ssa_rating,
                 "reason": got.reason,
@@ -877,7 +873,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     for r in results:
         flag = "PASS" if r["ok"] else "FAIL"
         print(
-            "%s  %s  cat %s→%s  pts expect=%s got=%s  live=%s  roles=%s"
+            "%s  %s  cat %s→%s  pts expect=%s got=%s  live_meta=%s  roles=%s"
             % (
                 flag,
                 r["id"],
@@ -889,6 +885,8 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
                 r["roles"],
             )
         )
+        if r.get("live_points_note"):
+            print("    %s" % r["live_points_note"])
     print("-" * 60)
     print("tests: %s passed, %s failed, %s total" % (len(results) - len(failed), len(failed), len(results)))
 
