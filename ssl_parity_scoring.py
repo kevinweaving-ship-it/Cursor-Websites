@@ -1,9 +1,13 @@
 """
-SSL parity scoring (Phase 2).
+SSL parity scoring (Phase 2 / Step 4).
 
-Official SSL Categories 1–7 only. SSA Categories 8–9 are not implemented.
+Official and checksum modes: SSL Categories 1–7 only. Category 8 is rejected.
 
-Points = placement(category, place, N) × class × open × time.
+SSA mode: exactly two boats score as Category 8 (first 2.00, second 1.00),
+then class, restriction, and time coefficients. One boat scores zero.
+SSA Category 9 is not implemented.
+
+Points = placement(category, place, N) × class × restriction × time.
 Skipper/helm and crew receive the same points for the same result.
 
 Championship status is passed explicitly into the classifier
@@ -22,7 +26,13 @@ from datetime import date, datetime
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Any, Iterable, Mapping, Optional
 
-from ssl_parity_classification import classify_ssl_category
+from ssl_parity_classification import (
+    MODE_CHECKSUM,
+    MODE_OFFICIAL,
+    MODE_SSA,
+    SSL_CATEGORY_SSA_TWO_BOAT,
+    classify_ssl_category,
+)
 
 # Official SSL category winner points (Categories 1–7). Not SSA 500/350/250/150.
 CATEGORY_BASE = {
@@ -43,7 +53,12 @@ CATEGORY_NAMES = {
     5: "NATIONAL",
     6: "REGIONAL",
     7: "LOCAL",
+    SSL_CATEGORY_SSA_TWO_BOAT: "SSA_8",
 }
+
+# SSA Category 8 placement only (exactly two boats). Not a Categories 1–7 winner table.
+SSA_CAT8_FIRST = 2.00
+SSA_CAT8_SECOND = 1.00
 
 # Last ranked gets 1 point, except Category 1 last ranked gets 50.
 DEFAULT_LAST_PLACE = 1.0
@@ -242,20 +257,40 @@ def _placement_knots(category: int, fleet: int) -> list[tuple[int, float]]:
     return knots
 
 
+def ssa_cat8_placement(place: Any, fleet: Any) -> float:
+    """SSA Category 8: exactly two boats; first 2.00, second 1.00. Else 0."""
+    try:
+        p = int(place)
+        n = int(fleet)
+    except (TypeError, ValueError):
+        return 0.0
+    if n != 2 or p < 1:
+        return 0.0
+    if p == 1:
+        return SSA_CAT8_FIRST
+    if p == 2:
+        return SSA_CAT8_SECOND
+    return 0.0
+
+
 def placement_points(category: Any, place: Any, fleet: Any = None) -> float:
-    """Category 1–7 placement points for finishing place in a fleet of N."""
+    """Placement points: Categories 1–7 official table, or SSA Category 8 two-boat."""
     try:
         cat = int(category)
         p = int(place)
     except (TypeError, ValueError):
         return 0.0
-    if cat not in CATEGORY_BASE or p < 1:
+    if p < 1:
         return 0.0
     try:
         n = int(fleet) if fleet is not None else p
     except (TypeError, ValueError):
         n = p
     if n < 1:
+        return 0.0
+    if cat == SSL_CATEGORY_SSA_TWO_BOAT:
+        return ssa_cat8_placement(p, n)
+    if cat not in CATEGORY_BASE:
         return 0.0
     if p > n:
         p = n
@@ -279,6 +314,9 @@ def place_factor(place: Any, fleet: Any = None, category: Any = 5) -> float:
         cat = int(category)
     except (TypeError, ValueError):
         cat = 5
+    if cat == SSL_CATEGORY_SSA_TWO_BOAT:
+        pts = placement_points(cat, place, fleet)
+        return pts / SSA_CAT8_FIRST if SSA_CAT8_FIRST else 0.0
     if cat not in CATEGORY_BASE:
         return 0.0
     pts = placement_points(cat, place, fleet)
@@ -367,15 +405,19 @@ def score_result(
     exception: Optional[str] = None,
     is_open: Any = True,
     restriction_count: Any = 0,
+    mode: Optional[str] = None,
 ) -> SSLScore:
     """
-    Score one result with official Categories 1–7.
+    Score one result.
+
+    Official/checksum: Categories 1–7 only; Category 8 is rejected.
+    SSA mode: N=1 scores zero; N=2 is Category 8 (first 2.00, second 1.00)
+    then class × restriction × time. Category 9 is not implemented.
 
     `role` (helm/skipper/crew) does not change points. Same boat, same place,
     same fleet → same points for skipper and crew.
 
     `ssa_rating` is echoed only; it is not a multiplier.
-    SSA Categories 8–9 are not implemented.
     """
     champ_flag = is_championship if is_championship is not None else championship
     champ_exc = championship_exception if championship_exception is not None else exception
@@ -387,11 +429,15 @@ def score_result(
         ssa_rating=ssa_rating,
         championship=champ_flag,
         exception=champ_exc,
+        mode=mode,
     )
+    resolved_mode = classification.mode
     cat = category if category is not None else classification.category
+    if resolved_mode == MODE_SSA and classification.category == SSL_CATEGORY_SSA_TWO_BOAT:
+        cat = SSL_CATEGORY_SSA_TWO_BOAT
     role_key = str(role or "").strip().lower() or None
 
-    if not classification.eligible or cat is None:
+    def _reject(reason: str) -> SSLScore:
         return _ineligible_score(
             class_name,
             event_date,
@@ -400,23 +446,52 @@ def score_result(
             ssa_rating,
             is_open,
             restriction_count,
-            classification.reason or "ineligible",
+            reason,
         )
+
+    if resolved_mode in (MODE_OFFICIAL, MODE_CHECKSUM) and cat == SSL_CATEGORY_SSA_TWO_BOAT:
+        return _reject("official/checksum mode rejects SSA Category 8")
+
+    if not classification.eligible or cat is None:
+        return _reject(classification.reason or "ineligible")
 
     try:
         cat_i = int(cat)
     except (TypeError, ValueError):
         cat_i = -1
+
+    if cat_i == SSL_CATEGORY_SSA_TWO_BOAT:
+        if resolved_mode != MODE_SSA:
+            return _reject("official/checksum mode rejects SSA Category 8")
+        placed = ssa_cat8_placement(place, valid_boats)
+        if placed <= 0:
+            return _reject("SSA Category 8 is only for exactly two boats")
+        coeff = class_coefficient(class_name)
+        open_c = open_coefficient(is_open, restriction_count)
+        pf = place_factor(place, valid_boats, cat_i)
+        af = time_coefficient(event_date, as_at)
+        points = _round2(placed * coeff * open_c * af)
+        return SSLScore(
+            points=points,
+            eligible=True,
+            category=cat_i,
+            category_name=CATEGORY_NAMES.get(cat_i),
+            category_base=SSA_CAT8_FIRST,
+            class_coefficient=coeff,
+            open_coefficient=open_c,
+            place_factor=pf,
+            placement_points=placed,
+            age_factor=af,
+            role=role_key,
+            ssa_rating=ssa_rating,
+            reason="SSA Cat 8 placement × class × restriction × time; role ignored",
+        )
+
     if cat_i not in CATEGORY_BASE:
-        return _ineligible_score(
-            class_name,
-            event_date,
-            as_at,
-            role_key,
-            ssa_rating,
-            is_open,
-            restriction_count,
-            "SSA categories 8–9 not implemented",
+        return _reject(
+            "SSA category 9 not implemented"
+            if cat_i == 9
+            else "SSA categories 8–9 not implemented"
         )
 
     base = CATEGORY_BASE[cat_i]
@@ -442,7 +517,7 @@ def score_result(
         age_factor=af,
         role=role_key,
         ssa_rating=ssa_rating,
-        reason="placement × class × open × time; role ignored",
+        reason="placement × class × restriction × time; role ignored",
     )
 
 
@@ -478,6 +553,7 @@ def score_published_row(
         championship_exception=row.get("exception") if isinstance(row, Mapping) else None,
         is_open=is_open,
         restriction_count=row.get("restriction_count") if isinstance(row, Mapping) else 0,
+        mode=MODE_CHECKSUM,
     )
 
 
@@ -695,6 +771,102 @@ _TESTS = [
         "expect_category": 6,
         "expect_points": 50.0,
     },
+    # --- SSA Category 8 (exactly two boats) ---
+    {
+        "id": "ssa-n1-scores-zero",
+        "event": "Club Open Regatta",
+        "n": 1,
+        "place": 1,
+        "class_name": "Optimist",
+        "event_date": "2023-12-01",
+        "as_at": "2024-01-01",
+        "mode": "ssa",
+        "expect_points": 0.0,
+        "expect_eligible": False,
+        "expect_category": None,
+    },
+    {
+        "id": "ssa-cat8-p1-n2-first-2.00",
+        "event": "Club Open Regatta",
+        "n": 2,
+        "place": 1,
+        "class_name": "Ilca 7",
+        "event_date": "2026-06-01",
+        "mode": "ssa",
+        "is_open": True,
+        "expect_category": 8,
+        "expect_points": 2.0,  # 2.00 × 1.00 Olympic × 1.00 restriction × 1.00 time
+    },
+    {
+        "id": "ssa-cat8-p1-n2-restricted",
+        "event": "Club Open Regatta",
+        "n": 2,
+        "place": 1,
+        "class_name": "Ilca 7",
+        "event_date": "2026-06-01",
+        "mode": "ssa",
+        "is_open": False,
+        "expect_category": 8,
+        "expect_points": 0.8,  # 2.00 × 1.00 × 0.40 restriction
+    },
+    {
+        "id": "timothy-weaving-2023-optimist-p2-n2",
+        "event": "2023 Optimist",
+        "n": 2,
+        "place": 2,
+        "class_name": "Optimist",
+        "event_date": "2023-12-01",
+        "as_at": "2024-01-01",
+        "mode": "ssa",
+        "is_open": True,
+        "expect_category": 8,
+        # 1.00 × 0.85 WS × 1.00 restriction × 1.00 time
+        "expect_points": 0.85,
+        "sailor": "Timothy Weaving",
+        "sa_sailing_id": 21172,
+        "slug": "timothy-weaving",
+    },
+    {
+        "id": "checksum-n2-rejects-cat8",
+        "event": "2023 Optimist",
+        "n": 2,
+        "place": 2,
+        "class_name": "Optimist",
+        "event_date": "2023-12-01",
+        "as_at": "2024-01-01",
+        "mode": "checksum",
+        "expect_points": 0.0,
+        "expect_eligible": False,
+        "forbid_category": 8,
+    },
+    {
+        "id": "checksum-n2-metadata-ssa-rejects-cat8",
+        "event": "2023 Optimist",
+        "n": 2,
+        "place": 2,
+        "class_name": "Optimist",
+        "event_date": "2023-12-01",
+        "as_at": "2024-01-01",
+        "mode": "checksum",
+        "metadata": {"mode": "ssa"},
+        "expect_points": 0.0,
+        "expect_eligible": False,
+        "forbid_category": 8,
+    },
+    {
+        "id": "official-forced-cat8-n2-rejects",
+        "event": "2023 Optimist",
+        "n": 2,
+        "place": 2,
+        "class_name": "Optimist",
+        "event_date": "2023-12-01",
+        "as_at": "2024-01-01",
+        "mode": "official",
+        "category": 8,
+        "expect_points": 0.0,
+        "expect_eligible": False,
+        "forbid_category": 8,
+    },
 ]
 
 
@@ -714,6 +886,7 @@ def _run_inline_tests() -> list[dict]:
                     event_date=spec.get("event_date"),
                     role=role,
                     official_status=spec.get("official_status"),
+                    metadata=spec.get("metadata"),
                     ssa_rating=spec.get("ssa_rating"),
                     as_at=as_at,
                     category=spec.get("category"),
@@ -721,6 +894,7 @@ def _run_inline_tests() -> list[dict]:
                     championship_exception=spec.get("championship_exception"),
                     is_open=spec.get("is_open", True),
                     restriction_count=spec.get("restriction_count", 0),
+                    mode=spec.get("mode"),
                 )
             )
         got = scores[0]
@@ -737,6 +911,15 @@ def _run_inline_tests() -> list[dict]:
         if "expect_points" in spec and abs(got.points - spec["expect_points"]) > 0.011:
             ok = False
         if spec.get("expect_eligible") is False and (got.eligible or got.points != 0):
+            ok = False
+        if spec.get("forbid_category") is not None and got.category == spec["forbid_category"]:
+            ok = False
+        if got.category == SSL_CATEGORY_SSA_TWO_BOAT and spec.get("mode") in (
+            None,
+            "official",
+            "checksum",
+            "parity",
+        ):
             ok = False
         if spec.get("ssa_rating") is not None and got.ssa_rating != spec["ssa_rating"]:
             ok = False
@@ -757,6 +940,38 @@ def _run_inline_tests() -> list[dict]:
                 "reason": got.reason,
             }
         )
+    published = score_published_row(
+        {
+            "event": "2023 Optimist",
+            "fleet": 2,
+            "place": 2,
+            "className": "Optimist",
+            "mode": "ssa",
+            "eventDate": "2023-12-01",
+        },
+        as_at="2024-01-01",
+        reclassify=True,
+    )
+    published_ok = (
+        published.category != SSL_CATEGORY_SSA_TWO_BOAT
+        and published.points == 0.0
+        and published.eligible is False
+    )
+    out.append(
+        {
+            "id": "published-row-checksum-never-cat8",
+            "ok": published_ok,
+            "got_points": published.points,
+            "expect_points": 0.0,
+            "got_category": published.category,
+            "expect_category": None,
+            "live_points": None,
+            "live_points_note": None,
+            "roles": [published.points],
+            "ssa_rating": published.ssa_rating,
+            "reason": published.reason,
+        }
+    )
     return out
 
 
@@ -865,7 +1080,7 @@ def _load_published_readonly() -> Optional[dict]:
 
 def main(argv: Optional[Iterable[str]] = None) -> int:
     _ = argv
-    print("SSL parity scoring self-check (Phase 2, Categories 1–7)")
+    print("SSL parity scoring self-check (Categories 1–7 official; SSA Cat 8 two-boat)")
     print("No recalc / DB write / export / deploy")
     print("-" * 60)
     results = _run_inline_tests()
