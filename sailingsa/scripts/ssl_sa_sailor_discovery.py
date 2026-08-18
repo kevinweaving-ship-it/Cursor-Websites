@@ -532,7 +532,19 @@ def load_sas_index(cur) -> dict:
         built = normalize_name(f"{row.get('first_name') or ''} {row.get('last_name') or ''}")
         if built and built != norm:
             by_norm[built].append(row)
+        computed = name_to_slug(row.get("first_name") or "", row.get("last_name") or "")
+        if computed:
+            prev = by_slug.get(computed)
+            if prev is None:
+                by_slug[computed] = row
+            elif str(prev.get("sa_sailing_id")) != str(row.get("sa_sailing_id")):
+                by_slug[computed] = {"_collision": True, "sa_sailing_id": None}
     return {"rows": rows, "by_ssl_id": by_ssl_id, "by_slug": by_slug, "by_norm": by_norm}
+
+
+def name_to_slug(first: str, last: str) -> str:
+    raw = normalize_name(f"{first} {last}")
+    return raw.replace(" ", "-") if raw else ""
 
 
 def sas_search_live(name: str, slug: str | None, failures: list) -> list[dict]:
@@ -614,7 +626,6 @@ def match_person(person: dict, index: dict, live_hits: list[dict]) -> dict:
 
     exact_id = index["by_ssl_id"].get(ssl_id) if ssl_id is not None else None
     exact_slug = index["by_slug"].get(slug) if slug else None
-    # Also treat live slug-resolve as exact slug when SAS slug equals SSL slug.
     live_slug_hits = [h for h in live_hits if h.get("source") == "live_slug_resolve"]
     name_hits_db = list(index["by_norm"].get(norm) or [])
     name_hits_live = [h for h in live_hits if normalize_name(h.get("full_name") or "") == norm]
@@ -651,7 +662,15 @@ def match_person(person: dict, index: dict, live_hits: list[dict]) -> dict:
         return decision
 
     slug_sas = None
-    if exact_slug:
+    if exact_slug and exact_slug.get("_collision"):
+        decision.update(
+            {
+                "status": "manual_review",
+                "reason": "SSL slug matches more than one SAS sailor name-slug",
+            }
+        )
+        return decision
+    if exact_slug and exact_slug.get("sa_sailing_id"):
         slug_sas = str(exact_slug["sa_sailing_id"])
     elif len(live_slug_hits) == 1:
         slug_sas = str(live_slug_hits[0]["sa_sailing_id"])
@@ -843,11 +862,9 @@ def main(argv: list[str] | None = None) -> int:
         ensure_sailor_table(conn, cur)
         index = load_sas_index(cur)
         local_row_count = len(index["rows"])
+        print(f"[db] sas_id_personal rows={local_row_count}", flush=True)
         if local_row_count == 0:
-            allow_seed = True
-            print("[db] sas_id_personal is empty locally; confirmed matches may seed existing SAS ids from live lookup", flush=True)
-        else:
-            print(f"[db] sas_id_personal rows={local_row_count}", flush=True)
+            print("[db] empty table: unique-name matches cannot be confirmed until identities are loaded", flush=True)
     except Exception as e:
         failures.append({"stage": "db_connect", "error": str(e)})
         print(f"[db] unavailable: {e}", flush=True)
@@ -855,17 +872,11 @@ def main(argv: list[str] | None = None) -> int:
 
     decisions = []
     for i, person in enumerate(people, 1):
-        live_hits = []
-        try:
-            live_hits = sas_search_live(person.get("displayed_name") or "", person.get("slug"), failures)
-        except Exception as e:
-            failures.append({"stage": "sas_lookup", "slug": person.get("slug"), "error": str(e)})
-        decision = match_person(person, index, live_hits)
-        decision["live_hits"] = live_hits
+        decision = match_person(person, index, [])
+        decision["live_hits"] = []
         decisions.append(decision)
-        if i % 25 == 0:
+        if i % 100 == 0:
             print(f"[match] {i}/{len(people)}", flush=True)
-        time.sleep(0.15)
 
     confirmed = [d for d in decisions if d["status"] == "confirmed"]
     unmatched = [d for d in decisions if d["status"] == "unmatched"]
