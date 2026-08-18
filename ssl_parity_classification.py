@@ -1,7 +1,12 @@
 """
 SSL parity event classification.
 
-Championship / official event status outranks fleet-size fallback.
+Championship status is an explicit caller/metadata input. Event names and
+SSL categories are never used to guess championship or exception status.
+
+Championships with N < 10 drop exactly one category (5→6, 6→7).
+Fewer than 3 valid boats are ineligible, including championships.
+
 SSA event ratings (500 / 350 / 250 / 150) are independent and must not
 be derived from, or written into, the SSL category.
 
@@ -31,8 +36,9 @@ SSL_CATEGORY_NAMES = {
 # Scoring floor: fewer than this many valid boats never score.
 MIN_VALID_BOATS = 3
 
-# Ordinary (non-championship) fleet-size fallback.
+# Ordinary (non-championship) fleet-size fallback, and championship full-category floor.
 ORDINARY_REGIONAL_MIN_BOATS = 10  # 10+ → Cat 6; 3–9 → Cat 7
+CHAMPIONSHIP_FULL_CATEGORY_MIN_BOATS = 10  # under 10 drops exactly one category
 
 # SSA ratings — kept here only so callers do not mix them with SSL categories.
 SSA_RATING_NATIONAL = 500
@@ -104,7 +110,26 @@ def is_cape_classic(event_name: Any) -> bool:
     return bool(_CAPE_CLASSIC_RE.search(_norm(event_name)))
 
 
+def _normalize_official_status(raw: Any) -> Optional[str]:
+    """Map an explicit championship/exception token to a status constant."""
+    if raw is None or raw is False:
+        return None
+    token = str(raw).strip().lower().replace(" ", "_").replace("-", "_")
+    if not token:
+        return None
+    if token in _NATIONAL_STATUS or token in {OFFICIAL_NATIONAL, OFFICIAL_WORLD}:
+        return OFFICIAL_WORLD if "world" in token else OFFICIAL_NATIONAL
+    if token in _REGIONAL_STATUS:
+        if "provincial" in token:
+            return OFFICIAL_PROVINCIAL
+        if "district" in token:
+            return OFFICIAL_DISTRICT
+        return OFFICIAL_REGIONAL
+    return None
+
+
 def _status_from_metadata(metadata: Optional[Mapping[str, Any]]) -> Optional[str]:
+    """Explicit metadata keys only. Does not read event names or SSL category."""
     if not metadata:
         return None
     for key in (
@@ -112,24 +137,11 @@ def _status_from_metadata(metadata: Optional[Mapping[str, Any]]) -> Optional[str
         "championship_classification",
         "championship_type",
         "ssl_official_status",
+        "exception",
     ):
-        raw = metadata.get(key)
-        if raw is None or raw is False:
-            continue
-        token = str(raw).strip().lower().replace(" ", "_").replace("-", "_")
-        if token in _NATIONAL_STATUS or token in {
-            "national_championship",
-            "world_championship",
-        }:
-            if token in {"world", "world_championship"}:
-                return OFFICIAL_WORLD
-            return OFFICIAL_NATIONAL
-        if token in _REGIONAL_STATUS:
-            if "provincial" in token:
-                return OFFICIAL_PROVINCIAL
-            if "district" in token:
-                return OFFICIAL_DISTRICT
-            return OFFICIAL_REGIONAL
+        status = _normalize_official_status(metadata.get(key))
+        if status:
+            return status
     if metadata.get("is_national_championship") is True:
         return OFFICIAL_NATIONAL
     if metadata.get("is_regional_championship") is True:
@@ -142,10 +154,10 @@ def infer_official_status(
     metadata: Optional[Mapping[str, Any]] = None,
 ) -> Optional[str]:
     """
-    Resolve official championship status.
+    Name-based helper kept for callers that still need it.
 
-    Authoritative metadata wins. Cape Classic titles never infer National
-    Championship from the name alone.
+    classify_ssl_category does not use this. Championship classification
+    requires official_status, exception, championship=False/True, or metadata.
     """
     from_meta = _status_from_metadata(metadata)
     if from_meta:
@@ -176,55 +188,82 @@ def infer_official_status(
     return None
 
 
+def _resolve_explicit_status(
+    official_status: Optional[str],
+    exception: Optional[str],
+    championship: Optional[bool],
+    metadata: Optional[Mapping[str, Any]],
+) -> Optional[str]:
+    """
+    Championship/exception from explicit inputs only.
+
+    Never inferred from event name or from an SSL category number.
+    championship=False forces ordinary fleet-size fallback.
+    """
+    if championship is False:
+        return None
+    status = _normalize_official_status(official_status)
+    if status is None:
+        status = _normalize_official_status(exception)
+    if status is None:
+        status = _status_from_metadata(metadata)
+    return status
+
+
+def _championship_category(base_category: int, boats: int) -> tuple[int, str]:
+    """Drop exactly one category when championship fleet is under 10."""
+    if boats >= CHAMPIONSHIP_FULL_CATEGORY_MIN_BOATS:
+        return base_category, (
+            "explicit championship with %s+ valid boats keeps Category %s"
+            % (CHAMPIONSHIP_FULL_CATEGORY_MIN_BOATS, base_category)
+        )
+    dropped = min(base_category + 1, SSL_CATEGORY_LOCAL)
+    return dropped, (
+        "championship under 10 valid boats drops exactly one category (%s→%s)"
+        % (base_category, dropped)
+    )
+
+
 def classify_ssl_category(
     event_name: Any,
     valid_boats: Any,
     official_status: Optional[str] = None,
     metadata: Optional[Mapping[str, Any]] = None,
     ssa_rating: Optional[int] = None,
+    championship: Optional[bool] = None,
+    exception: Optional[str] = None,
 ) -> SSLClassification:
     """
     Classify one event (or class fleet) for SSL.
 
     Precedence:
-      1. N < 3 → ineligible (never scores).
-      2. Official National Championship / Nationals / Worlds → Category 5,
-         even when 3 ≤ N < 10.
-      3. Official Regional / Provincial / District Championship → Category 6,
-         even when 3 ≤ N < 10.
-      4. Ordinary events: 10+ → Category 6; 3–9 → Category 7.
-         Ordinary events are never promoted to Category 5 by fleet size.
+      1. N < 3 → ineligible (never scores), including championships.
+      2. Explicit national/world championship: N ≥ 10 → Category 5;
+         3 ≤ N < 10 → Category 6 (exactly one drop).
+      3. Explicit regional/provincial/district championship: N ≥ 10 → Category 6;
+         3 ≤ N < 10 → Category 7 (exactly one drop).
+      4. Ordinary events (no explicit championship/exception): 10+ → Category 6;
+         3–9 → Category 7. Never Category 5 by fleet size or event name.
+
+    Championship/exception must be passed as official_status, exception,
+    championship=False to disable, or metadata keys. Event name and SSL
+    category are not used to guess championship status.
 
     Cape Classic (HYC/TSC/ZVYC/Southern Charter/Series) is never Category 5
-    unless metadata explicitly designates a National Championship.
+    unless an explicit national/world championship input is supplied.
 
     `ssa_rating` is passed through unchanged and is not used for SSL category.
+    `event_name` is accepted for callers/projection; it does not classify.
     """
+    _ = event_name
     try:
         boats = int(valid_boats)
     except (TypeError, ValueError):
         boats = 0
 
-    status = None
-    if official_status:
-        token = str(official_status).strip().lower().replace(" ", "_").replace("-", "_")
-        if token in _NATIONAL_STATUS or token in {OFFICIAL_NATIONAL, OFFICIAL_WORLD}:
-            status = OFFICIAL_WORLD if "world" in token else OFFICIAL_NATIONAL
-        elif token in _REGIONAL_STATUS:
-            if "provincial" in token:
-                status = OFFICIAL_PROVINCIAL
-            elif "district" in token:
-                status = OFFICIAL_DISTRICT
-            else:
-                status = OFFICIAL_REGIONAL
-    if status is None:
-        status = infer_official_status(event_name, metadata)
-
-    # Cape Classic name cannot be Category 5 without explicit national metadata.
-    if is_cape_classic(event_name) and status in {OFFICIAL_NATIONAL, OFFICIAL_WORLD}:
-        if _status_from_metadata(metadata) not in {OFFICIAL_NATIONAL, OFFICIAL_WORLD}:
-            if not official_status:
-                status = None
+    status = _resolve_explicit_status(
+        official_status, exception, championship, metadata
+    )
 
     if boats < MIN_VALID_BOATS:
         return SSLClassification(
@@ -239,27 +278,29 @@ def classify_ssl_category(
         )
 
     if status in {OFFICIAL_NATIONAL, OFFICIAL_WORLD}:
+        category, reason = _championship_category(SSL_CATEGORY_NATIONAL, boats)
         return SSLClassification(
-            category=SSL_CATEGORY_NATIONAL,
-            category_name=SSL_CATEGORY_NAMES[SSL_CATEGORY_NATIONAL],
+            category=category,
+            category_name=SSL_CATEGORY_NAMES[category],
             eligible=True,
             official_status=status,
             source="official_status",
             valid_boats=boats,
             ssa_rating=ssa_rating,
-            reason="official national/world championship overrides fleet-size fallback",
+            reason=reason,
         )
 
     if status in {OFFICIAL_REGIONAL, OFFICIAL_PROVINCIAL, OFFICIAL_DISTRICT}:
+        category, reason = _championship_category(SSL_CATEGORY_REGIONAL, boats)
         return SSLClassification(
-            category=SSL_CATEGORY_REGIONAL,
-            category_name=SSL_CATEGORY_NAMES[SSL_CATEGORY_REGIONAL],
+            category=category,
+            category_name=SSL_CATEGORY_NAMES[category],
             eligible=True,
             official_status=status,
             source="official_status",
             valid_boats=boats,
             ssa_rating=ssa_rating,
-            reason="official regional/provincial/district championship overrides fleet-size fallback",
+            reason=reason,
         )
 
     if boats >= ORDINARY_REGIONAL_MIN_BOATS:
@@ -282,12 +323,25 @@ def classify_ssl_category(
 
 
 def classify_published_row(row: Mapping[str, Any]) -> SSLClassification:
-    """Classify a published.json breakdown row. Does not mutate the row."""
+    """Classify a published.json breakdown row. Does not mutate the row.
+
+    Uses explicit row fields only. Event name is not a championship signal.
+    """
+    championship = row.get("championship") if isinstance(row, Mapping) else None
+    if championship in ("true", "True", 1):
+        championship = True
+    elif championship in ("false", "False", 0):
+        championship = False
+    elif championship is not True and championship is not False:
+        championship = None
     return classify_ssl_category(
         event_name=row.get("event") or row.get("eventSlug") or row.get("regattaId"),
         valid_boats=row.get("fleet"),
+        official_status=row.get("official_status") if isinstance(row, Mapping) else None,
         metadata=row if isinstance(row, Mapping) else None,
         ssa_rating=row.get("rating"),
+        championship=championship,
+        exception=row.get("exception") if isinstance(row, Mapping) else None,
     )
 
 
@@ -348,21 +402,31 @@ _TESTS = [
         "live_category": 7,
         "ssa_rating": 250,
     },
-    # 2025 29er Nationals N=6 remains Cat 5 (official National Championship)
+    # Explicit national championship N=6 drops 5→6 (not keep Cat 5, not auto Local)
     {
-        "id": "2025-29er-nationals-n6",
+        "id": "2025-29er-nationals-n6-drops-to-cat6",
         "event": "2025-05-04 29er Nationals Results",
         "n": 6,
-        "expect_category": 5,
+        "official_status": "national_championship",
+        "expect_category": 6,
         "live_category": 7,
         "ssa_rating": 500,
     },
-    # Overberg Regional N=5 remains/becomes Cat 6 (official status overrides fallback)
+    # Name "Nationals" without explicit championship is ordinary, not Cat 5
     {
-        "id": "overberg-regional-n5",
+        "id": "29er-nationals-name-only-n6-not-guessed",
+        "event": "2025-05-04 29er Nationals Results",
+        "n": 6,
+        "expect_category": 7,
+        "ssa_rating": 500,
+    },
+    # Explicit regional championship N=5 drops 6→7
+    {
+        "id": "overberg-regional-n5-drops-to-cat7",
         "event": "2025-04-05 Overberg Regional Championships 2025",
         "n": 5,
-        "expect_category": 6,
+        "official_status": "regional_championship",
+        "expect_category": 7,
         "live_category": 7,
         "ssa_rating": 150,
     },
@@ -370,6 +434,7 @@ _TESTS = [
         "id": "sa-youth-nationals",
         "event": "2025-12-19 SA Youth Nationals Dec 2025",
         "n": 33,
+        "official_status": "national_championship",
         "expect_category": 5,
         "live_category": 5,
         "ssa_rating": 500,
@@ -378,14 +443,7 @@ _TESTS = [
         "id": "ilca-nationals",
         "event": "2026-05-03 ILCA Nationals",
         "n": 29,
-        "expect_category": 5,
-        "live_category": 5,
-        "ssa_rating": 500,
-    },
-    {
-        "id": "29er-nationals-official",
-        "event": "2026 RSA 29er Nationals",
-        "n": 10,
+        "official_status": "national_championship",
         "expect_category": 5,
         "live_category": 5,
         "ssa_rating": 500,
@@ -394,6 +452,7 @@ _TESTS = [
         "id": "420-nationals",
         "event": "2025-10-04 420 National Championship Results",
         "n": 18,
+        "official_status": "national_championship",
         "expect_category": 5,
         "live_category": 5,
         "ssa_rating": 500,
@@ -407,11 +466,12 @@ _TESTS = [
         "live_category": None,
         "ssa_rating": 250,
     },
-    # N=2 never scores, even if National
+    # N=2 never scores, even with explicit National championship
     {
         "id": "nationals-n2-ineligible",
         "event": "ILCA Nationals",
         "n": 2,
+        "official_status": "national_championship",
         "expect_category": None,
         "live_category": None,
         "ssa_rating": 500,
@@ -426,6 +486,179 @@ _TESTS = [
         "metadata": {"official_status": "national_championship"},
         "ssa_rating": 500,
     },
+    # --- Thomas Henshilwood (SAS 9612, slug thomas-henshilwood) ---
+    {
+        "id": "thomas-henshilwood-2026-rsa-29er-nationals-n10",
+        "event": "2026 RSA 29er Nationals",
+        "n": 10,
+        "official_status": "national_championship",
+        "expect_category": 5,
+        "live_category": 5,
+        "ssa_rating": 500,
+        "sailor": "Thomas Henshilwood",
+        "sa_sailing_id": 9612,
+        "slug": "thomas-henshilwood",
+    },
+    {
+        "id": "thomas-henshilwood-2026-rsa-29er-nationals-n9",
+        "event": "2026 RSA 29er Nationals",
+        "n": 9,
+        "official_status": "national_championship",
+        "expect_category": 6,
+        "ssa_rating": 500,
+        "sailor": "Thomas Henshilwood",
+        "sa_sailing_id": 9612,
+        "slug": "thomas-henshilwood",
+    },
+    {
+        "id": "thomas-henshilwood-2026-rsa-29er-nationals-n3",
+        "event": "2026 RSA 29er Nationals",
+        "n": 3,
+        "official_status": "national_championship",
+        "expect_category": 6,
+        "ssa_rating": 500,
+        "sailor": "Thomas Henshilwood",
+        "sa_sailing_id": 9612,
+        "slug": "thomas-henshilwood",
+    },
+    {
+        "id": "thomas-henshilwood-2026-rsa-29er-nationals-n2",
+        "event": "2026 RSA 29er Nationals",
+        "n": 2,
+        "official_status": "national_championship",
+        "expect_category": None,
+        "expect_eligible": False,
+        "ssa_rating": 500,
+        "sailor": "Thomas Henshilwood",
+        "sa_sailing_id": 9612,
+        "slug": "thomas-henshilwood",
+    },
+    # National championship fleet-size boundaries (explicit input)
+    {
+        "id": "national-championship-n2-ineligible",
+        "event": "National Championship",
+        "n": 2,
+        "official_status": "national_championship",
+        "expect_category": None,
+        "expect_eligible": False,
+    },
+    {
+        "id": "national-championship-n3-drops-to-cat6",
+        "event": "National Championship",
+        "n": 3,
+        "official_status": "national_championship",
+        "expect_category": 6,
+    },
+    {
+        "id": "national-championship-n9-drops-to-cat6",
+        "event": "National Championship",
+        "n": 9,
+        "official_status": "national_championship",
+        "expect_category": 6,
+    },
+    {
+        "id": "national-championship-n10-keeps-cat5",
+        "event": "National Championship",
+        "n": 10,
+        "official_status": "national_championship",
+        "expect_category": 5,
+    },
+    # Regional championship fleet-size boundaries (explicit input)
+    {
+        "id": "regional-championship-n2-ineligible",
+        "event": "Regional Championship",
+        "n": 2,
+        "official_status": "regional_championship",
+        "expect_category": None,
+        "expect_eligible": False,
+    },
+    {
+        "id": "regional-championship-n3-drops-to-cat7",
+        "event": "Regional Championship",
+        "n": 3,
+        "official_status": "regional_championship",
+        "expect_category": 7,
+    },
+    {
+        "id": "regional-championship-n9-drops-to-cat7",
+        "event": "Regional Championship",
+        "n": 9,
+        "official_status": "regional_championship",
+        "expect_category": 7,
+    },
+    {
+        "id": "regional-championship-n10-keeps-cat6",
+        "event": "Regional Championship",
+        "n": 10,
+        "official_status": "regional_championship",
+        "expect_category": 6,
+    },
+    # Ordinary (no championship input) fleet-size boundaries
+    {
+        "id": "ordinary-n2-ineligible",
+        "event": "Club Open Regatta",
+        "n": 2,
+        "expect_category": None,
+        "expect_eligible": False,
+    },
+    {
+        "id": "ordinary-n3-cat7",
+        "event": "Club Open Regatta",
+        "n": 3,
+        "expect_category": 7,
+    },
+    {
+        "id": "ordinary-n9-cat7",
+        "event": "Club Open Regatta",
+        "n": 9,
+        "expect_category": 7,
+    },
+    {
+        "id": "ordinary-n10-cat6",
+        "event": "Club Open Regatta",
+        "n": 10,
+        "expect_category": 6,
+    },
+    # Exception input is explicit championship type (not inferred from name)
+    {
+        "id": "exception-national-n9-drops-to-cat6",
+        "event": "Club Open Regatta",
+        "n": 9,
+        "exception": "national_championship",
+        "expect_category": 6,
+    },
+    {
+        "id": "exception-national-n10-keeps-cat5",
+        "event": "Club Open Regatta",
+        "n": 10,
+        "exception": "national_championship",
+        "expect_category": 5,
+    },
+    # championship=False ignores explicit national metadata (ordinary fallback)
+    {
+        "id": "championship-false-ignores-national-metadata",
+        "event": "2026 RSA 29er Nationals",
+        "n": 10,
+        "championship": False,
+        "metadata": {"official_status": "national_championship"},
+        "expect_category": 6,
+    },
+    # championship=True without a type does not guess National from the name
+    {
+        "id": "championship-true-without-type-does-not-guess",
+        "event": "2026 RSA 29er Nationals",
+        "n": 10,
+        "championship": True,
+        "expect_category": 6,
+    },
+    # Live SSL category is not a championship signal
+    {
+        "id": "live-category-5-does-not-guess-championship",
+        "event": "Club Open Regatta",
+        "n": 10,
+        "live_category": 5,
+        "expect_category": 6,
+    },
 ]
 
 
@@ -435,8 +668,11 @@ def _run_inline_tests() -> list[dict]:
         got = classify_ssl_category(
             spec["event"],
             spec["n"],
+            official_status=spec.get("official_status"),
             metadata=spec.get("metadata"),
             ssa_rating=spec.get("ssa_rating"),
+            championship=spec.get("championship"),
+            exception=spec.get("exception"),
         )
         expect_eligible = spec.get("expect_eligible", spec["expect_category"] is not None)
         ok = got.category == spec["expect_category"] and got.eligible == expect_eligible
@@ -597,12 +833,14 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         print("  %s: %s" % (slug, rows or "(none in filter)"))
 
     # Explicit required rows
+    # Name-only published rows are not championships. Cape Classic stays Cat 6.
+    # 29er Nationals / Overberg need explicit championship input to drop 5→6 / 6→7.
     required = [
         ("2026-02-16 HYC Cape Classic 2026", "Sonnet", 15, 5, 6),
         ("2024-12-01 TSC Cape Classic", "Optimist A", 13, 5, 6),
         ("2024-09-08 Southern Charter Cape Classic", "Optimist A", 14, 5, 6),
-        ("2025-05-04 29er Nationals Results", "29er", 6, 7, 5),
-        ("2025-04-05 Overberg Regional Championships 2025", "Optimist A", 5, 7, 6),
+        ("2025-05-04 29er Nationals Results", "29er", 6, 7, 7),
+        ("2025-04-05 Overberg Regional Championships 2025", "Optimist A", 5, 7, 7),
     ]
     print("required live-row checks:")
     req_fail = 0
