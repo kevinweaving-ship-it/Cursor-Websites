@@ -6,8 +6,8 @@ Default path writes ONLY ranking_audit* for a new audit. Does NOT publish.
 Does NOT touch api.py.
 
 --mode=ssa-v2 is read-only: reuses live SAS extraction/dedup, scores with
-PR13 score_result(mode="ssa"), writes audit JSON to a non-published path.
-Forbids DB writes and published.json.
+PR13 score_result(mode="ssa") using SAS event type/classification (not WoS),
+writes audit JSON to a non-published path. Forbids DB writes and published.json.
 
 Feature flag (required for default path):
   export SSL_PARITY_ENGINE=1
@@ -65,6 +65,94 @@ FORBIDDEN_PUBLISH_PATHS = (
     "published.json",
     "/var/www/sailingsa/rankings/data",
 )
+
+# Authoritative SAS event_rating_type / event_scope / event_rating_level only.
+# Never inferred from event names or WoS.
+_SAS_TYPE_MAP = {
+    "world championship / olympics": ("world", "world_championship", 2),
+    "continental championship": ("continental", None, 3),
+    "south african championship / nationals": ("national", "national_championship", 5),
+    "provincial championship": ("regional", "regional_championship", 6),
+    "regional championship": ("regional", "regional_championship", 6),
+    "major open regatta": ("ordinary", None, None),
+    "club championship": ("ordinary", None, None),
+}
+_SAS_SCOPE_MAP = {
+    "WORLD": ("world", "world_championship", 2),
+    "CONTINENTAL": ("continental", None, 3),
+    "INTERNATIONAL": ("international", None, 4),
+    "NATIONAL": ("national", "national_championship", 5),
+    "NATIONAL_OPEN": ("ordinary", None, None),
+    "PROVINCIAL": ("regional", "regional_championship", 6),
+    "REGIONAL": ("regional", "regional_championship", 6),
+    "CLUB": ("ordinary", None, None),
+    "CLUB_SERIES": ("ordinary", None, None),
+}
+_SAS_LEVEL_MAP = {
+    1000: ("world", "world_championship", 2),
+    750: ("continental", None, 3),
+    600: ("international", None, 4),
+    500: ("national", "national_championship", 5),
+    350: ("regional", "regional_championship", 6),
+    250: ("ordinary", None, None),
+    150: ("regional", "regional_championship", 6),
+    100: ("ordinary", None, None),
+    75: ("ordinary", None, None),
+    50: ("ordinary", None, None),
+}
+_CHAMP_KINDS = {"world", "continental", "international", "national", "regional"}
+
+
+def _norm_sas_type(raw: Any) -> str:
+    return re.sub(r"\s+", " ", str(raw or "").strip().lower())
+
+
+def _parse_sas_level(raw: Any) -> Optional[int]:
+    try:
+        if raw in (None, ""):
+            return None
+        return int(raw)
+    except (TypeError, ValueError):
+        return None
+
+
+def _resolve_sas_event_type(row: Any) -> dict:
+    """Map SAS event type/scope/level. Unknown types are reported, not Cat 6."""
+    type_raw = getattr(row, "event_rating_type", None)
+    scope_raw = getattr(row, "event_scope", None)
+    level = _parse_sas_level(getattr(row, "event_rating_level", None))
+    from_type = _SAS_TYPE_MAP.get(_norm_sas_type(type_raw))
+    from_scope = _SAS_SCOPE_MAP.get(str(scope_raw or "").strip().upper()) or None
+    from_level = _SAS_LEVEL_MAP.get(level) if level is not None else None
+    chosen = from_type or from_scope or from_level
+    sources = [s for s in (from_type, from_scope, from_level) if s]
+    if chosen is None or (len({s[0] for s in sources}) > 1):
+        return {
+            "kind": "unknown",
+            "official_status": None,
+            "base_category": None,
+            "event_rating_type": type_raw,
+            "event_scope": scope_raw,
+            "event_rating_level": level,
+            "reason": "unknown_or_conflicting_sas_event_type",
+        }
+    kind, official_status, base_cat = chosen
+    return {
+        "kind": kind,
+        "official_status": official_status,
+        "base_category": base_cat,
+        "event_rating_type": type_raw,
+        "event_scope": scope_raw,
+        "event_rating_level": level,
+        "reason": None,
+    }
+
+
+def _championship_category_after_fleet(base_category: int, fleet: int) -> int:
+    """Under-10 championships drop exactly one category. N>=10 keeps the base."""
+    if fleet >= 10:
+        return int(base_category)
+    return min(int(base_category) + 1, 7)
 
 
 def connect(db_url: str):
@@ -376,6 +464,7 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
     errors: list[dict] = []
     n1_exclusions = 0
     cat_classified: dict[str, int] = defaultdict(int)
+    unknown_type_keys: dict[str, int] = defaultdict(int)
     contribs: list[Any] = []
 
     for r in raw_rows:
@@ -383,6 +472,28 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
         if fleet == 1:
             n1_exclusions += 1
         place = getattr(r, "place", None)
+        sas_event = _resolve_sas_event_type(r)
+        if sas_event["kind"] == "unknown":
+            key = "%s|%s|%s" % (
+                sas_event.get("event_scope"),
+                sas_event.get("event_rating_type"),
+                sas_event.get("event_rating_level"),
+            )
+            unknown_type_keys[key] += 1
+            errors.append(
+                {
+                    "code": "unknown_event_type",
+                    "result_id": getattr(r, "result_id", None),
+                    "regatta_id": getattr(r, "regatta_id", None),
+                    "event": getattr(r, "event_name", None),
+                    "sailor": getattr(r, "sailor_name", None),
+                    "event_scope": sas_event.get("event_scope"),
+                    "event_rating_type": sas_event.get("event_rating_type"),
+                    "event_rating_level": sas_event.get("event_rating_level"),
+                }
+            )
+            cat_classified["unknown"] += 1
+            continue
         if place is None:
             errors.append(
                 {
@@ -394,18 +505,35 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
             )
             cat_classified["none"] += 1
             continue
+        kind = sas_event["kind"]
+        official_status = sas_event["official_status"]
+        is_champ = kind in _CHAMP_KINDS
+        # N=2 is SSA Cat 8 only. Do not force a championship category.
+        score_kwargs: dict[str, Any] = {
+            "event_date": getattr(r, "event_date", None),
+            "role": getattr(r, "role", None),
+            "as_at": as_of,
+            "mode": "ssa",
+            "is_open": True,
+            "restriction_count": 0,
+            "championship": False if (kind == "ordinary" or fleet == 2) else is_champ,
+            "official_status": None if (kind == "ordinary" or fleet == 2) else official_status,
+            "championship_exception": None if (kind == "ordinary" or fleet == 2) else official_status,
+        }
+        if is_champ and fleet >= 3 and sas_event["base_category"] is not None:
+            # World/Continental/International: PR13 maps world→Cat5, so lock the
+            # SAS championship category here, then apply the under-10 one-tier drop.
+            if kind in {"world", "continental", "international"}:
+                score_kwargs["category"] = _championship_category_after_fleet(
+                    int(sas_event["base_category"]), fleet
+                )
         try:
             scored = pr13_score_result(
                 getattr(r, "event_name", None),
                 fleet,
                 place,
                 getattr(r, "class_name", None),
-                event_date=getattr(r, "event_date", None),
-                role=getattr(r, "role", None),
-                as_at=as_of,
-                mode="ssa",
-                is_open=True,
-                restriction_count=0,
+                **score_kwargs,
             )
         except Exception as exc:  # noqa: BLE001 — shadow audit must not abort the dataset
             errors.append(
@@ -447,6 +575,7 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
                 event_date=getattr(r, "event_date", None),
                 counts_toward_rank=counts,
                 eligible=bool(scored.eligible),
+                sas_event_kind=kind,
                 reason=scored.reason,
                 underlying_entry_key=f"result:{getattr(r, 'result_id', '')}",
                 selected_for_regatta=None,
@@ -603,6 +732,8 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
         "category_classified_counts": dict(sorted(cat_classified.items(), key=lambda kv: str(kv[0]))),
         "category_counting_counts": dict(sorted(cat_counting.items(), key=lambda kv: str(kv[0]))),
         "n1_exclusions": n1_exclusions,
+        "unknown_event_types": dict(sorted(unknown_type_keys.items(), key=lambda kv: -kv[1])),
+        "unknown_event_type_count": sum(unknown_type_keys.values()),
         "exceptions": errors[:200],
         "exception_count": len(errors),
         "dedup_groups": len(dedup_groups),
@@ -630,7 +761,10 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
             ),
         },
         "aggregation": "best_6_non_local_plus_all_local_and_ssa_cat8",
-        "scoring": "PR13 score_result(mode=ssa) from SAS rank/class/fleet/date only",
+        "scoring": (
+            "PR13 score_result(mode=ssa) from SAS rank/class/fleet/date plus "
+            "authoritative SAS event type/scope/level; WoS unused"
+        ),
     }
 
     cur.execute("SELECT COUNT(*) FROM results")
