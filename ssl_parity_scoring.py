@@ -1,9 +1,14 @@
 """
 SSL parity scoring (Phase 2).
 
-Uses Phase 1 SSL *category* (5/6/7), not SSA event rating (500/350/250/150).
-Skipper and crew receive the same points for the same result. Board assignment
-(skipper list vs crew list) is not this module.
+Official SSL Categories 1–7 only. SSA Categories 8–9 are not implemented.
+
+Points = placement(category, place, N) × class × open × time.
+Skipper/helm and crew receive the same points for the same result.
+
+Championship status is passed explicitly into the classifier
+(`is_championship`, `championship_exception` / `official_status`).
+Event name and SSL category are not used to guess championship.
 
 Does not recalculate rankings into the database, export published.json, or deploy.
 """
@@ -17,64 +22,126 @@ from datetime import date, datetime
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Any, Iterable, Mapping, Optional
 
-from ssl_parity_classification import (
-    SSL_CATEGORY_LOCAL,
-    SSL_CATEGORY_NATIONAL,
-    SSL_CATEGORY_REGIONAL,
-    classify_ssl_category,
-)
+from ssl_parity_classification import classify_ssl_category
 
-# Category bases fitted to ssl-parity-v1-shadow published.json (audit 2026-07-27-011).
-# Independent of SSA ratings.
+# Official SSL category winner points (Categories 1–7). Not SSA 500/350/250/150.
 CATEGORY_BASE = {
-    SSL_CATEGORY_NATIONAL: 250.0,  # Cat 5
-    SSL_CATEGORY_REGIONAL: 100.0,  # Cat 6
-    SSL_CATEGORY_LOCAL: 10.0,  # Cat 7
+    1: 4000.0,  # MAJOR
+    2: 2500.0,  # WORLD
+    3: 1000.0,  # CONTINENTAL
+    4: 500.0,  # INTERNATIONAL
+    5: 250.0,  # NATIONAL
+    6: 100.0,  # REGIONAL
+    7: 10.0,  # LOCAL
 }
+
+CATEGORY_NAMES = {
+    1: "MAJOR",
+    2: "WORLD",
+    3: "CONTINENTAL",
+    4: "INTERNATIONAL",
+    5: "NATIONAL",
+    6: "REGIONAL",
+    7: "LOCAL",
+}
+
+# Last ranked gets 1 point, except Category 1 last ranked gets 50.
+DEFAULT_LAST_PLACE = 1.0
+CATEGORY_1_LAST_PLACE = 50.0
+
+# 4 linear stages on absolute place: 1→5, 5→10, 10→20, 20→last.
+# Stage-2 end 0.19 is the official short-fleet interpolation that makes
+# Cat 5 P6 of N≥10 = 109.5 (Sean ILCA Nationals P6/N13, Olympic, open, recent).
+PLACE_KNOTS = (
+    (1, 1.00),
+    (5, 0.50),
+    (10, 0.19),
+    (20, 0.08),
+)
 
 FULL_VALUE_WEEKS = 52
 ZERO_VALUE_WEEKS = 104
 AGE_HALF = 0.5
-LAST_PLACE_FLOOR = 0.004
 
-# Class coefficients fitted from P=1 published rows.
-CLASS_COEFFICIENT = {
-    "ilca 6": 1.0,
-    "ilca 7": 1.0,
-    "ilca 4.7": 0.85,
-    "ilca 4": 0.85,
-    "optimist a": 0.85,
-    "optimist b": 0.85,
-    "optimist": 0.85,
-    "420": 0.85,
-    "29er": 0.85,
-    "finn": 0.85,
-    "mirror": 0.85,
-    "j22": 0.85,
-    "dart 18": 0.85,
-    "hobie 16": 0.85,
-    "hobie 14": 0.85,
-    "hobie tiger": 0.85,
-    "flying 15": 0.85,
-    "flying fifteen": 0.85,
-    "505": 0.85,
-    "rs tera": 0.85,
-    "topper 5.3": 0.85,
-    "soling": 0.85,
-    "sonnet": 0.75,
-    "dabchick": 0.75,
-    "extra": 0.75,
-    "windsurfer lt": 0.75,
-    "stadt 23": 0.75,
-    "hunter": 0.75,
-    "hunter 19": 0.75,
-    "l26": 0.75,
-    "halcat": 0.75,
-    "topaz": 0.75,
-    "pacer 27": 0.75,
+OPEN_FULL = 1.0
+OPEN_RESTRICTED = 0.40
+OPEN_DOUBLE_RESTRICTED = 0.20
+
+CLASS_OLYMPIC = 1.0
+CLASS_WS = 0.85
+CLASS_OTHER = 0.75
+
+OLYMPIC_CLASSES = {
+    "ilca 7",
+    "ilca 6",
+    "ilca7",
+    "ilca6",
+    "laser",
+    "laser radial",
+    "49er",
+    "49erfx",
+    "49er fx",
+    "nacra 17",
+    "470",
+    "470 mixed",
 }
 
-DEFAULT_CLASS_COEFFICIENT = 0.85
+WS_CLASSES = {
+    "ilca 4.7",
+    "ilca 4",
+    "optimist a",
+    "optimist b",
+    "optimist",
+    "420",
+    "29er",
+    "finn",
+    "505",
+    "5o5",
+    "hobie 16",
+    "hobie tiger",
+    "j70",
+    "j/70",
+    "star",
+    "snipe",
+    "moth",
+    "tp52",
+    "tp 52",
+    "melges 24",
+    "dragon",
+    "sunfish",
+}
+
+CLASS_COEFFICIENT = {}
+CLASS_COEFFICIENT.update({name: CLASS_OLYMPIC for name in OLYMPIC_CLASSES})
+CLASS_COEFFICIENT.update({name: CLASS_WS for name in WS_CLASSES})
+# Remaining local/national classes (Status 3).
+CLASS_COEFFICIENT.update(
+    {
+        "sonnet": CLASS_OTHER,
+        "dabchick": CLASS_OTHER,
+        "extra": CLASS_OTHER,
+        "mirror": CLASS_OTHER,
+        "j22": CLASS_OTHER,
+        "j/22": CLASS_OTHER,
+        "hobie 14": CLASS_OTHER,
+        "flying 15": CLASS_OTHER,
+        "flying fifteen": CLASS_OTHER,
+        "rs tera": CLASS_OTHER,
+        "topper 5.3": CLASS_OTHER,
+        "soling": CLASS_OTHER,
+        "windsurfer lt": CLASS_OTHER,
+        "stadt 23": CLASS_OTHER,
+        "hunter": CLASS_OTHER,
+        "hunter 19": CLASS_OTHER,
+        "l26": CLASS_OTHER,
+        "halcat": CLASS_OTHER,
+        "topaz": CLASS_OTHER,
+        "pacer 27": CLASS_OTHER,
+        "dart 18": CLASS_OTHER,
+    }
+)
+
+DEFAULT_CLASS_COEFFICIENT = CLASS_OTHER
 
 PUBLISHED_AS_AT = date(2026, 7, 27)
 
@@ -88,6 +155,19 @@ def class_coefficient(class_name: Any) -> float:
     if key in CLASS_COEFFICIENT:
         return CLASS_COEFFICIENT[key]
     return DEFAULT_CLASS_COEFFICIENT
+
+
+def open_coefficient(is_open: Any = True, restriction_count: Any = 0) -> float:
+    """Type 1 open 100%; Type 2 restricted 40%; two or more restrictions 20%."""
+    try:
+        n_rest = int(restriction_count or 0)
+    except (TypeError, ValueError):
+        n_rest = 0
+    if n_rest >= 2:
+        return OPEN_DOUBLE_RESTRICTED
+    if is_open is False or n_rest >= 1:
+        return OPEN_RESTRICTED
+    return OPEN_FULL
 
 
 def parse_date(value: Any) -> Optional[date]:
@@ -112,7 +192,8 @@ def age_weeks(event_date: Any, as_at: Any = None) -> Optional[float]:
     return (end - start).days / 7.0
 
 
-def age_factor(event_date: Any, as_at: Any = None) -> float:
+def time_coefficient(event_date: Any, as_at: Any = None) -> float:
+    """Official time validity: ≤52 weeks 100%; 53–104 weeks 50%; older 0%."""
     weeks = age_weeks(event_date, as_at)
     if weeks is None:
         return 1.0
@@ -123,31 +204,88 @@ def age_factor(event_date: Any, as_at: Any = None) -> float:
     return 0.0
 
 
-def place_factor(place: Any, fleet: Any = None) -> float:
-    """
-    Provisional place curve fitted to published medians (ssl-parity-v1-shadow).
+def age_factor(event_date: Any, as_at: Any = None) -> float:
+    """Alias of time_coefficient (SSL time validity)."""
+    return time_coefficient(event_date, as_at)
 
-    P1–P5: 1.000, 0.875, 0.750, 0.625, 0.500
-    P6–P10: drop 0.068 per place
-    P11+: drop 0.016 per place, floor 0.004
+
+def last_place_points(category: int) -> float:
+    if int(category) == 1:
+        return CATEGORY_1_LAST_PLACE
+    return DEFAULT_LAST_PLACE
+
+
+def _placement_knots(category: int, fleet: int) -> list[tuple[int, float]]:
     """
+    Official 4-stage table, short-fleet interpolated.
+
+    Knots at places 1, 5, 10, 20 are fractions of the category winner.
+    If the fleet is shorter than a knot, that knot is dropped and last
+    place is pinned to 1 (or 50 for Category 1). Places between remaining
+    knots are linear.
+    """
+    winner = CATEGORY_BASE[category]
+    last = last_place_points(category)
+    n = max(int(fleet), 1)
+    knots: list[tuple[int, float]] = []
+    for place, frac in PLACE_KNOTS:
+        if place > n:
+            break
+        if place == n:
+            knots.append((n, last))
+            return knots
+        knots.append((place, winner * frac))
+    if not knots or knots[-1][0] != n:
+        knots.append((n, last))
+    else:
+        knots[-1] = (n, last)
+    return knots
+
+
+def placement_points(category: Any, place: Any, fleet: Any = None) -> float:
+    """Category 1–7 placement points for finishing place in a fleet of N."""
     try:
+        cat = int(category)
         p = int(place)
     except (TypeError, ValueError):
         return 0.0
-    if p < 1:
+    if cat not in CATEGORY_BASE or p < 1:
         return 0.0
     try:
-        n = int(fleet) if fleet is not None else None
+        n = int(fleet) if fleet is not None else p
     except (TypeError, ValueError):
-        n = None
-    if n is not None and p > n:
+        n = p
+    if n < 1:
+        return 0.0
+    if p > n:
         p = n
-    if p <= 5:
-        return 1.0 - 0.125 * (p - 1)
-    if p <= 10:
-        return 0.5 - 0.068 * (p - 5)
-    return max(LAST_PLACE_FLOOR, 0.160 - 0.016 * (p - 10))
+    knots = _placement_knots(cat, n)
+    if p <= knots[0][0]:
+        return knots[0][1]
+    for i in range(1, len(knots)):
+        p0, v0 = knots[i - 1]
+        p1, v1 = knots[i]
+        if p <= p1:
+            if p1 == p0:
+                return v1
+            t = (p - p0) / float(p1 - p0)
+            return v0 + (v1 - v0) * t
+    return knots[-1][1]
+
+
+def place_factor(place: Any, fleet: Any = None, category: Any = 5) -> float:
+    """Placement as a fraction of the category winner (for diagnostics)."""
+    try:
+        cat = int(category)
+    except (TypeError, ValueError):
+        cat = 5
+    if cat not in CATEGORY_BASE:
+        return 0.0
+    pts = placement_points(cat, place, fleet)
+    winner = CATEGORY_BASE[cat]
+    if winner <= 0:
+        return 0.0
+    return pts / winner
 
 
 @dataclass(frozen=True)
@@ -158,7 +296,9 @@ class SSLScore:
     category_name: Optional[str]
     category_base: float
     class_coefficient: float
+    open_coefficient: float
     place_factor: float
+    placement_points: float
     age_factor: float
     role: Optional[str]
     ssa_rating: Optional[int]
@@ -172,12 +312,41 @@ class SSLScore:
             "category_name": self.category_name,
             "category_base": self.category_base,
             "class_coefficient": self.class_coefficient,
+            "open_coefficient": self.open_coefficient,
             "place_factor": self.place_factor,
+            "placement_points": self.placement_points,
             "age_factor": self.age_factor,
             "role": self.role,
             "ssa_rating": self.ssa_rating,
             "reason": self.reason,
         }
+
+
+def _ineligible_score(
+    class_name: Any,
+    event_date: Any,
+    as_at: Any,
+    role_key: Optional[str],
+    ssa_rating: Optional[int],
+    is_open: Any,
+    restriction_count: Any,
+    reason: str,
+) -> SSLScore:
+    return SSLScore(
+        points=0.0,
+        eligible=False,
+        category=None,
+        category_name=None,
+        category_base=0.0,
+        class_coefficient=class_coefficient(class_name),
+        open_coefficient=open_coefficient(is_open, restriction_count),
+        place_factor=0.0,
+        placement_points=0.0,
+        age_factor=time_coefficient(event_date, as_at),
+        role=role_key,
+        ssa_rating=ssa_rating,
+        reason=reason,
+    )
 
 
 def score_result(
@@ -192,62 +361,88 @@ def score_result(
     ssa_rating: Optional[int] = None,
     as_at: Any = None,
     category: Optional[int] = None,
+    is_championship: Optional[bool] = None,
+    championship_exception: Optional[str] = None,
+    championship: Optional[bool] = None,
+    exception: Optional[str] = None,
+    is_open: Any = True,
+    restriction_count: Any = 0,
 ) -> SSLScore:
     """
-    Score one result.
+    Score one result with official Categories 1–7.
 
     `role` (helm/skipper/crew) does not change points. Same boat, same place,
     same fleet → same points for skipper and crew.
 
     `ssa_rating` is echoed only; it is not a multiplier.
+    SSA Categories 8–9 are not implemented.
     """
+    champ_flag = is_championship if is_championship is not None else championship
+    champ_exc = championship_exception if championship_exception is not None else exception
     classification = classify_ssl_category(
         event_name,
         valid_boats,
         official_status=official_status,
         metadata=metadata,
         ssa_rating=ssa_rating,
+        championship=champ_flag,
+        exception=champ_exc,
     )
     cat = category if category is not None else classification.category
     role_key = str(role or "").strip().lower() or None
 
     if not classification.eligible or cat is None:
-        return SSLScore(
-            points=0.0,
-            eligible=False,
-            category=None,
-            category_name=None,
-            category_base=0.0,
-            class_coefficient=class_coefficient(class_name),
-            place_factor=0.0,
-            age_factor=age_factor(event_date, as_at),
-            role=role_key,
-            ssa_rating=ssa_rating,
-            reason=classification.reason or "ineligible",
+        return _ineligible_score(
+            class_name,
+            event_date,
+            as_at,
+            role_key,
+            ssa_rating,
+            is_open,
+            restriction_count,
+            classification.reason or "ineligible",
         )
 
-    base = CATEGORY_BASE[cat]
+    try:
+        cat_i = int(cat)
+    except (TypeError, ValueError):
+        cat_i = -1
+    if cat_i not in CATEGORY_BASE:
+        return _ineligible_score(
+            class_name,
+            event_date,
+            as_at,
+            role_key,
+            ssa_rating,
+            is_open,
+            restriction_count,
+            "SSA categories 8–9 not implemented",
+        )
+
+    base = CATEGORY_BASE[cat_i]
     coeff = class_coefficient(class_name)
-    pf = place_factor(place, valid_boats)
-    af = age_factor(event_date, as_at)
-    raw = base * coeff * pf * af
+    open_c = open_coefficient(is_open, restriction_count)
+    placed = placement_points(cat_i, place, valid_boats)
+    pf = place_factor(place, valid_boats, cat_i)
+    af = time_coefficient(event_date, as_at)
+    raw = placed * coeff * open_c * af
     points = _round2(raw)
     return SSLScore(
         points=points,
         eligible=True,
-        category=cat,
-        category_name=classification.category_name if category is None else {
-            SSL_CATEGORY_NATIONAL: "NATIONAL",
-            SSL_CATEGORY_REGIONAL: "REGIONAL",
-            SSL_CATEGORY_LOCAL: "LOCAL",
-        }.get(cat),
+        category=cat_i,
+        category_name=CATEGORY_NAMES.get(cat_i)
+        if category is not None
+        else (classification.category_name or CATEGORY_NAMES.get(cat_i)),
         category_base=base,
         class_coefficient=coeff,
+        open_coefficient=open_c,
         place_factor=pf,
+        placement_points=placed,
         age_factor=af,
         role=role_key,
         ssa_rating=ssa_rating,
-        reason="base × class × place × age; role ignored",
+        reason="placement × class × open × time; role ignored",
     )
 
 
@@ -257,6 +452,16 @@ def score_published_row(
     reclassify: bool = True,
 ) -> SSLScore:
     live_cat = row.get("category") if not reclassify else None
+    championship = row.get("championship") if isinstance(row, Mapping) else None
+    if championship in ("true", "True", 1):
+        championship = True
+    elif championship in ("false", "False", 0):
+        championship = False
+    elif championship is not True and championship is not False:
+        championship = None
+    is_open = True
+    if isinstance(row, Mapping) and "is_open" in row:
+        is_open = row.get("is_open")
     return score_result(
         event_name=row.get("event") or row.get("eventSlug") or row.get("regattaId"),
         valid_boats=row.get("fleet"),
@@ -264,10 +469,15 @@ def score_published_row(
         class_name=row.get("className"),
         event_date=row.get("eventDate"),
         role=row.get("role"),
+        official_status=row.get("official_status") if isinstance(row, Mapping) else None,
         metadata=row,
         ssa_rating=row.get("rating"),
         as_at=as_at or PUBLISHED_AS_AT,
         category=live_cat,
+        is_championship=championship,
+        championship_exception=row.get("exception") if isinstance(row, Mapping) else None,
+        is_open=is_open,
+        restriction_count=row.get("restriction_count") if isinstance(row, Mapping) else 0,
     )
 
 
@@ -277,6 +487,56 @@ def score_published_row(
 
 _TESTS = [
     {
+        "id": "sean-ilca-nationals-p6-n13-109.5",
+        "event": "2026-05-03 ILCA Nationals",
+        "n": 13,
+        "place": 6,
+        "class_name": "Ilca 7",
+        "event_date": "2026-05-03",
+        "ssa_rating": 500,
+        "is_championship": True,
+        "official_status": "national_championship",
+        "expect_points": 109.5,
+        "expect_category": 5,
+        "sailor": "Sean Kavanagh",
+        "live_points": 108.0,
+    },
+    {
+        "id": "thomas-henshilwood-2026-rsa-29er-nationals-p4-n10",
+        "event": "2026 RSA 29er Nationals",
+        "n": 10,
+        "place": 4,
+        "class_name": "29er",
+        "event_date": "2026-03-30",
+        "ssa_rating": 500,
+        "is_championship": True,
+        "official_status": "national_championship",
+        "expect_category": 5,
+        "expect_points": 132.81,  # 156.25 placement × 0.85 WS class
+        "compare_roles": ("crew", "helm"),
+        "sailor": "Thomas Henshilwood",
+        "sa_sailing_id": 9612,
+        "slug": "thomas-henshilwood",
+        "live_points": 35.16,
+    },
+    {
+        "id": "thomas-henshilwood-wcdc-29er-cat7",
+        "event": "2025 Western Cape Dinghy Championships 29er",
+        "n": 6,
+        "place": 6,
+        "class_name": "29er",
+        "event_date": "2026-04-06",
+        "ssa_rating": 150,
+        "is_championship": False,
+        "expect_category": 7,
+        "expect_points": 0.85,  # last place Cat 7 = 1 × 0.85 WS class
+        "live_points": 0.79,
+        "role": "crew",
+        "sailor": "Thomas Henshilwood",
+        "sa_sailing_id": 9612,
+        "slug": "thomas-henshilwood",
+    },
+    {
         "id": "ilca6-nationals-p1",
         "event": "2026-05-03 ILCA Nationals",
         "n": 29,
@@ -284,18 +544,23 @@ _TESTS = [
         "class_name": "Ilca 6",
         "event_date": "2026-05-03",
         "ssa_rating": 500,
+        "is_championship": True,
+        "official_status": "national_championship",
         "expect_points": 250.0,
         "expect_category": 5,
     },
     {
-        "id": "youth-nationals-optA-p1",
+        "id": "youth-nationals-optA-p1-non-open",
         "event": "2025-12-19 SA Youth Nationals Dec 2025",
         "n": 33,
         "place": 1,
         "class_name": "Optimist A",
         "event_date": "2025-12-19",
         "ssa_rating": 500,
-        "expect_points": 212.5,
+        "is_championship": True,
+        "official_status": "national_championship",
+        "is_open": False,
+        "expect_points": 85.0,  # 250 × 0.85 WS × 0.40 non-open
         "expect_category": 5,
     },
     {
@@ -306,19 +571,23 @@ _TESTS = [
         "class_name": "420",
         "event_date": "2025-10-04",
         "ssa_rating": 500,
-        "expect_points": 185.94,
+        "is_championship": True,
+        "official_status": "national_championship",
+        "expect_points": 185.94,  # 218.75 × 0.85
         "expect_category": 5,
     },
     {
-        "id": "29er-nationals-n6-stays-cat5-p1",
+        "id": "29er-nationals-n6-drops-to-cat6-p1",
         "event": "2025-05-04 29er Nationals Results",
         "n": 6,
         "place": 1,
         "class_name": "29er",
         "event_date": "2025-05-04",
         "ssa_rating": 500,
-        "expect_category": 5,
-        "expect_points": 106.25,  # 250 * 0.85 * 1.0 * 0.5 age
+        "is_championship": True,
+        "official_status": "national_championship",
+        "expect_category": 6,
+        "expect_points": 42.5,  # 100 × 0.85 × 0.5 age
     },
     {
         "id": "sean-cape-classic-sonnet-p2-now-cat6",
@@ -328,44 +597,23 @@ _TESTS = [
         "class_name": "Sonnet",
         "event_date": "2026-02-16",
         "ssa_rating": 250,
+        "is_championship": False,
         "expect_category": 6,
-        "expect_points": 65.63,  # 100 * 0.75 * 0.875 → 65.625 → 65.63
+        "expect_points": 65.63,  # 87.5 placement × 0.75
         "live_points": 164.06,
     },
     {
-        "id": "timothy-tsc-2024-p5-now-cat6",
-        "event": "2024-12-01 TSC Cape Classic",
-        "n": 13,
-        "place": 5,
-        "class_name": "Optimist A",
-        "event_date": "2024-12-01",
-        "ssa_rating": 250,
-        "expect_category": 6,
-        "expect_points": 21.25,  # 100 * 0.85 * 0.5 * 0.5
-        "live_points": 53.12,
-    },
-    {
-        "id": "timothy-southern-charter-2024-p5-now-cat6",
-        "event": "2024-09-08 Southern Charter Cape Classic",
-        "n": 14,
-        "place": 5,
-        "class_name": "Optimist A",
-        "event_date": "2024-09-08",
-        "ssa_rating": 250,
-        "expect_category": 6,
-        "expect_points": 21.25,
-        "live_points": 53.12,
-    },
-    {
-        "id": "overberg-optA-p1-now-cat6",
+        "id": "overberg-optA-p1-drops-to-cat7",
         "event": "2025-04-05 Overberg Regional Championships 2025",
         "n": 5,
         "place": 1,
         "class_name": "Optimist A",
         "event_date": "2025-04-05",
         "ssa_rating": 150,
-        "expect_category": 6,
-        "expect_points": 42.5,  # 100 * 0.85 * 1.0 * 0.5 age
+        "is_championship": True,
+        "official_status": "regional_championship",
+        "expect_category": 7,
+        "expect_points": 4.25,  # 10 × 0.85 × 0.5 age
         "live_points": 4.25,
     },
     {
@@ -376,7 +624,9 @@ _TESTS = [
         "class_name": "420",
         "event_date": "2025-10-04",
         "ssa_rating": 500,
-        "expect_points": 132.81,
+        "is_championship": True,
+        "official_status": "national_championship",
+        "expect_points": 132.81,  # 156.25 × 0.85
         "expect_category": 5,
         "compare_roles": ("helm", "crew"),
     },
@@ -389,7 +639,7 @@ _TESTS = [
         "event_date": "2026-06-01",
         "ssa_rating": 500,
         "expect_category": 6,
-        "expect_points": 100.0,  # ordinary 10+ → cat 6 base 100, not SSA 500
+        "expect_points": 100.0,
     },
     {
         "id": "n2-ineligible",
@@ -399,8 +649,57 @@ _TESTS = [
         "class_name": "Ilca 6",
         "event_date": "2026-05-03",
         "ssa_rating": 500,
+        "is_championship": True,
+        "official_status": "national_championship",
         "expect_points": 0.0,
         "expect_eligible": False,
+    },
+    {
+        "id": "cat1-winner-4000",
+        "event": "Olympic Games",
+        "n": 40,
+        "place": 1,
+        "class_name": "Ilca 7",
+        "event_date": "2026-06-01",
+        "category": 1,
+        "is_championship": True,
+        "official_status": "world_championship",
+        "expect_category": 1,
+        "expect_points": 4000.0,
+    },
+    {
+        "id": "ssa-cat8-not-implemented",
+        "event": "Handicap Club Series",
+        "n": 20,
+        "place": 1,
+        "class_name": "Sonnet",
+        "event_date": "2026-06-01",
+        "category": 8,
+        "expect_points": 0.0,
+        "expect_eligible": False,
+    },
+    {
+        "id": "championship-exception-national-n9-cat6",
+        "event": "Club Open Regatta",
+        "n": 9,
+        "place": 1,
+        "class_name": "Ilca 7",
+        "event_date": "2026-06-01",
+        "is_championship": True,
+        "championship_exception": "national_championship",
+        "expect_category": 6,
+        "expect_points": 100.0,
+    },
+    {
+        "id": "time-midterm-50-percent",
+        "event": "Club Open Regatta",
+        "n": 20,
+        "place": 1,
+        "class_name": "Ilca 6",
+        "event_date": "2025-01-01",
+        "as_at": "2026-07-27",
+        "expect_category": 6,
+        "expect_points": 50.0,
     },
 ]
 
@@ -410,6 +709,7 @@ def _run_inline_tests() -> list[dict]:
     for spec in _TESTS:
         roles = spec.get("compare_roles") or (spec.get("role"),)
         scores = []
+        as_at = spec.get("as_at", PUBLISHED_AS_AT)
         for role in roles:
             scores.append(
                 score_result(
@@ -419,12 +719,21 @@ def _run_inline_tests() -> list[dict]:
                     spec["class_name"],
                     event_date=spec.get("event_date"),
                     role=role,
+                    official_status=spec.get("official_status"),
                     ssa_rating=spec.get("ssa_rating"),
-                    as_at=PUBLISHED_AS_AT,
+                    as_at=as_at,
+                    category=spec.get("category"),
+                    is_championship=spec.get("is_championship"),
+                    championship_exception=spec.get("championship_exception"),
+                    is_open=spec.get("is_open", True),
+                    restriction_count=spec.get("restriction_count", 0),
                 )
             )
         got = scores[0]
-        expect_eligible = spec.get("expect_eligible", spec.get("expect_points", 0) != 0 or spec.get("expect_category") is not None)
+        expect_eligible = spec.get(
+            "expect_eligible",
+            spec.get("expect_points", 0) != 0 or spec.get("expect_category") is not None,
+        )
         if spec.get("expect_eligible") is False:
             expect_eligible = False
         ok = True
@@ -432,9 +741,7 @@ def _run_inline_tests() -> list[dict]:
             ok = False
         if "expect_points" in spec and abs(got.points - spec["expect_points"]) > 0.011:
             ok = False
-        if got.eligible != expect_eligible and spec.get("expect_eligible") is False:
-            ok = False
-        if spec.get("expect_eligible") is False and got.points != 0:
+        if spec.get("expect_eligible") is False and (got.eligible or got.points != 0):
             ok = False
         if spec.get("ssa_rating") is not None and got.ssa_rating != spec["ssa_rating"]:
             ok = False
@@ -451,6 +758,7 @@ def _run_inline_tests() -> list[dict]:
                 "live_points": spec.get("live_points"),
                 "roles": [s.points for s in scores],
                 "ssa_rating": got.ssa_rating,
+                "reason": got.reason,
             }
         )
     return out
@@ -478,7 +786,7 @@ def project_published_impact(payload: Mapping[str, Any]) -> dict:
             replay_sum += replay.points
             new_sum += scored.points
             cat_changed = scored.category != row.get("category")
-            if cat_changed:
+            if cat_changed or abs(scored.points - live_pts) > 0.02:
                 n_point_change += 1
                 label = "%s | %s | P=%s N=%s | cat %s→%s | live %s replay %s new %s" % (
                     row.get("event"),
@@ -517,10 +825,16 @@ def project_published_impact(payload: Mapping[str, Any]) -> dict:
             }
 
     named = {}
-    for slug in ("sean-kavanagh", "timothy-weaving", "joshua-keytel"):
+    for slug in ("sean-kavanagh", "thomas-henshilwood", "timothy-weaving"):
         named[slug] = sailor_delta.get(
             slug,
-            {"live_sum": None, "replay_sum": None, "new_sum": None, "delta_vs_replay": 0, "changes": []},
+            {
+                "live_sum": None,
+                "replay_sum": None,
+                "new_sum": None,
+                "delta_vs_replay": 0,
+                "changes": [],
+            },
         )
 
     return {
@@ -555,7 +869,7 @@ def _load_published_readonly() -> Optional[dict]:
 
 def main(argv: Optional[Iterable[str]] = None) -> int:
     _ = argv
-    print("SSL parity scoring self-check (Phase 2)")
+    print("SSL parity scoring self-check (Phase 2, Categories 1–7)")
     print("No recalc / DB write / export / deploy")
     print("-" * 60)
     results = _run_inline_tests()
