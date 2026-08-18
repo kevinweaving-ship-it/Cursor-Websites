@@ -132,24 +132,81 @@ def levenshtein(a: str, b: str) -> int:
 # ---------------------------------------------------------------------------
 
 
-def _unescape_html_json(html: str) -> str:
-    return html.replace('\\"', '"').replace("\\/", "/")
+_SAILOR_RE = re.compile(
+    r'\\"sailor\\":\{\\"id\\":(\d+),\\"username\\":\\"([^\\"]+)\\",\\"first_name\\":\\"([^\\"]*)\\",\\"name\\":\\"([^\\"]*)\\"'
+)
+_META_RE = re.compile(
+    r'\\"lines\\":\{\\"current_page\\":(\d+),\\"data\\":\[.*?'
+    r'\\"first_page_url\\":\\"[^\\"]*\\",\\"from\\":(\d+),\\"last_page\\":(\d+),.*?'
+    r'\\"per_page\\":(\d+),.*?"to\\":(\d+),\\"total\\":(\d+)',
+    re.DOTALL,
+)
+
+
+def _ranking_section(html: str, ranking_type: str) -> str:
+    """Slice the escaped RSC ranking object for one skipper/crew type."""
+    marker = f'\\"type\\":\\"{ranking_type}\\"'
+    start = html.find(marker)
+    if start < 0:
+        marker = f'"type":"{ranking_type}"'
+        start = html.find(marker)
+        if start < 0:
+            raise RuntimeError(f"ranking payload not found for {ranking_type}")
+        # Rare unescaped payload: take a bounded window.
+        return html[start : start + 2_000_000]
+    nxt = html.find('\\"type\\":\\"ranking.type.', start + 10)
+    end = nxt if nxt > start else start + 2_000_000
+    return html[start:end]
 
 
 def extract_ranking_lines(html: str, ranking_type: str) -> dict:
-    text = _unescape_html_json(html)
-    marker = f'"type":"{ranking_type}"'
-    start = text.find(marker)
-    if start < 0:
-        raise RuntimeError(f"ranking payload not found for {ranking_type}")
-    lines_at = text.find('"lines":', start)
-    if lines_at < 0:
-        raise RuntimeError(f"lines paginator not found for {ranking_type}")
-    brace = text.find("{", lines_at)
-    obj, _end = json.JSONDecoder().raw_decode(text[brace:])
-    if not isinstance(obj, dict) or "data" not in obj:
-        raise RuntimeError(f"unexpected lines object for {ranking_type}")
-    return obj
+    """Parse one ranking paginator from SSR HTML without json.loads on biographies."""
+    section = _ranking_section(html, ranking_type)
+    meta = _META_RE.search(section)
+    if not meta:
+        # Fallback: first pagination numbers in this section.
+        current = re.search(r'\\"current_page\\":(\d+)', section)
+        last = re.search(r'\\"last_page\\":(\d+)', section)
+        per = re.search(r'\\"per_page\\":(\d+)', section)
+        total = re.search(r'\\"total\\":(\d+)', section)
+        if not (current and last and per and total):
+            raise RuntimeError(f"paginator meta not found for {ranking_type}")
+        current_page, last_page, per_page, total_n = (
+            int(current.group(1)),
+            int(last.group(1)),
+            int(per.group(1)),
+            int(total.group(1)),
+        )
+    else:
+        current_page = int(meta.group(1))
+        last_page = int(meta.group(3))
+        per_page = int(meta.group(4))
+        total_n = int(meta.group(6))
+
+    data = []
+    for m in _SAILOR_RE.finditer(section):
+        ssl_id = int(m.group(1))
+        data.append(
+            {
+                "id": None,
+                "user_id": ssl_id,
+                "sailor": {
+                    "id": ssl_id,
+                    "username": m.group(2),
+                    "first_name": m.group(3),
+                    "name": m.group(4),
+                },
+            }
+        )
+    if not data:
+        raise RuntimeError(f"no sailor rows parsed for {ranking_type}")
+    return {
+        "current_page": current_page,
+        "last_page": last_page,
+        "per_page": per_page,
+        "total": total_n,
+        "data": data,
+    }
 
 
 def row_from_ranking_item(item: dict, source_role: str, fetched_at: str, source_url: str) -> dict:
