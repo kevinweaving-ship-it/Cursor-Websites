@@ -7,7 +7,13 @@ sas_id_personal rows, and writes SSL identity fields only for confirmed
 unique matches.
 
 Does not modify api.py. Does not invent SAS IDs. Does not merge people
-because names look similar.
+because names look similar. Does not INSERT into sas_id_personal.
+Unmatched and ambiguous SSL records stay audit-only. SAS names are
+never updated. Writes (when --apply is used later) only set
+ssl_user_id, ssl_profile_slug, ssl_profile_url, ssl_match_status=LINKED.
+
+Fails closed if those canonical columns are unavailable: no ssl_id /
+ssl_slug fallback, no migration, no seed of missing SAS rows.
 
 Usage:
   python3 sailingsa/scripts/ssl_sa_sailor_discovery.py --dry-run
@@ -31,7 +37,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-MIGRATION = ROOT / "database" / "migrations" / "183_sas_id_personal_ssl_identity.sql"
 WOS_RANKING = "https://worldofsailors.com/ranking"
 WOS_API = "https://platform.worldofsailors.com/api/rankings/sailors"
 WOS_PROFILE = "https://worldofsailors.com/sailor/{slug}"
@@ -42,6 +47,8 @@ TYPE_SKIPPER = "ranking.type.skipper"
 TYPE_CREW = "ranking.type.crew"
 SLEEP_S = 0.8
 MAX_RETRIES = 5
+CANONICAL_SSL_COLUMNS = ("ssl_user_id", "ssl_profile_slug", "ssl_profile_url", "ssl_match_status")
+SSL_MATCH_STATUS_LINKED = "LINKED"
 
 # ---------------------------------------------------------------------------
 # HTTP
@@ -482,33 +489,83 @@ def table_exists(cur, name: str) -> bool:
     return cur.fetchone() is not None
 
 
-def ensure_sailor_table(conn, cur) -> None:
-    if not table_exists(cur, "sas_id_personal"):
-        cur.execute(
-            """
-            CREATE TABLE public.sas_id_personal (
-                id SERIAL PRIMARY KEY,
-                sa_sailing_id VARCHAR NOT NULL UNIQUE,
-                full_name VARCHAR,
-                first_name VARCHAR,
-                last_name VARCHAR
-            )
-            """
-        )
-        conn.commit()
-        print("[db] created public.sas_id_personal (minimal local identity table)", flush=True)
-    sql = MIGRATION.read_text(encoding="utf-8")
-    cur.execute(sql)
-    conn.commit()
-    print(f"[db] applied {MIGRATION.relative_to(ROOT)}", flush=True)
-
-
-def load_sas_index(cur) -> dict:
+def list_table_columns(cur, table: str) -> set[str]:
     cur.execute(
         """
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = %s
+        """,
+        (table,),
+    )
+    names = set()
+    for row in cur.fetchall() or []:
+        names.add(row["column_name"] if isinstance(row, dict) else row[0])
+    return names
+
+
+def missing_canonical_ssl_columns(cur) -> list[str]:
+    cols = list_table_columns(cur, "sas_id_personal")
+    return [name for name in CANONICAL_SSL_COLUMNS if name not in cols]
+
+
+def require_identity_table(cur) -> None:
+    if not table_exists(cur, "sas_id_personal"):
+        raise RuntimeError("FAIL CLOSED: public.sas_id_personal is missing")
+
+
+def unique_sas_ids(values) -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for raw in values or []:
+        text = str(raw).strip() if raw is not None else ""
+        if text and text not in seen:
+            seen.add(text)
+            out.append(text)
+    return out
+
+
+def with_sas_candidates(decision: dict, ids) -> dict:
+    cleaned = unique_sas_ids(ids)
+    decision["candidates"] = cleaned
+    decision["candidate_sas_ids"] = cleaned
+    return decision
+
+
+def _index_slug(by_slug: dict, slug: str, row: dict) -> None:
+    if not slug:
+        return
+    prev = by_slug.get(slug)
+    sas = str(row.get("sa_sailing_id") or "").strip()
+    if prev is None:
+        by_slug[slug] = row
+        return
+    prev_id = str(prev.get("sa_sailing_id") or "").strip()
+    if prev_id == sas:
+        return
+    ids = []
+    if prev.get("_collision"):
+        ids.extend(prev.get("candidate_sas_ids") or [])
+    elif prev_id:
+        ids.append(prev_id)
+    if sas:
+        ids.append(sas)
+    by_slug[slug] = {
+        "_collision": True,
+        "sa_sailing_id": None,
+        "candidate_sas_ids": unique_sas_ids(ids),
+    }
+
+
+def load_sas_index(cur, include_ssl: bool = True) -> dict:
+    ssl_select = ""
+    if include_ssl:
+        ssl_select = ", ssl_user_id, ssl_profile_slug, ssl_profile_url, ssl_match_status"
+    cur.execute(
+        f"""
         SELECT sa_sailing_id::text AS sa_sailing_id,
-               full_name, first_name, last_name,
-               ssl_id, ssl_slug, ssl_profile_url, ssl_match_status
+               full_name, first_name, last_name
+               {ssl_select}
         FROM public.sas_id_personal
         """
     )
@@ -517,11 +574,11 @@ def load_sas_index(cur) -> dict:
     by_slug = {}
     by_norm = defaultdict(list)
     for row in rows:
-        if row.get("ssl_id") is not None:
-            by_ssl_id[int(row["ssl_id"])] = row
-        slug = (row.get("ssl_slug") or "").strip()
-        if slug:
-            by_slug[slug] = row
+        user_id = row.get("ssl_user_id") if include_ssl else None
+        if user_id is not None:
+            by_ssl_id[int(user_id)] = row
+        if include_ssl:
+            _index_slug(by_slug, (row.get("ssl_profile_slug") or "").strip(), row)
         full = row.get("full_name") or ""
         if not full:
             full = " ".join(p for p in (row.get("first_name") or "", row.get("last_name") or "") if p)
@@ -532,13 +589,7 @@ def load_sas_index(cur) -> dict:
         built = normalize_name(f"{row.get('first_name') or ''} {row.get('last_name') or ''}")
         if built and built != norm:
             by_norm[built].append(row)
-        computed = name_to_slug(row.get("first_name") or "", row.get("last_name") or "")
-        if computed:
-            prev = by_slug.get(computed)
-            if prev is None:
-                by_slug[computed] = row
-            elif str(prev.get("sa_sailing_id")) != str(row.get("sa_sailing_id")):
-                by_slug[computed] = {"_collision": True, "sa_sailing_id": None}
+        _index_slug(by_slug, name_to_slug(row.get("first_name") or "", row.get("last_name") or ""), row)
     return {"rows": rows, "by_ssl_id": by_ssl_id, "by_slug": by_slug, "by_norm": by_norm}
 
 
@@ -640,7 +691,10 @@ def match_person(person: dict, index: dict, live_hits: list[dict]) -> dict:
 
     decision = {
         "ssl_id": ssl_id,
+        "ssl_user_id": ssl_id,
         "slug": slug,
+        "ssl_profile_slug": slug,
+        "ssl_profile_url": person.get("profile_url"),
         "displayed_name": person.get("displayed_name"),
         "source_roles": person.get("source_roles"),
         "status": "manual_review",
@@ -648,18 +702,19 @@ def match_person(person: dict, index: dict, live_hits: list[dict]) -> dict:
         "sa_sailing_id": None,
         "match_via": None,
         "candidates": [],
+        "candidate_sas_ids": [],
     }
 
     if exact_id:
         decision.update(
             {
                 "status": "confirmed",
-                "match_via": "exact_ssl_id",
+                "match_via": "exact_ssl_user_id",
                 "sa_sailing_id": str(exact_id["sa_sailing_id"]),
-                "reason": "existing ssl_id on sas_id_personal",
+                "reason": "existing ssl_user_id on sas_id_personal",
             }
         )
-        return decision
+        return with_sas_candidates(decision, [])
 
     slug_sas = None
     if exact_slug and exact_slug.get("_collision"):
@@ -669,7 +724,7 @@ def match_person(person: dict, index: dict, live_hits: list[dict]) -> dict:
                 "reason": "SSL slug matches more than one SAS sailor name-slug",
             }
         )
-        return decision
+        return with_sas_candidates(decision, exact_slug.get("candidate_sas_ids") or [])
     if exact_slug and exact_slug.get("sa_sailing_id"):
         slug_sas = str(exact_slug["sa_sailing_id"])
     elif len(live_slug_hits) == 1:
@@ -679,10 +734,9 @@ def match_person(person: dict, index: dict, live_hits: list[dict]) -> dict:
             {
                 "status": "manual_review",
                 "reason": "ssl slug resolved to multiple SAS ids",
-                "candidates": [h["sa_sailing_id"] for h in live_slug_hits],
             }
         )
-        return decision
+        return with_sas_candidates(decision, [h["sa_sailing_id"] for h in live_slug_hits])
 
     unique_name = name_hits[0] if len(name_hits) == 1 else None
 
@@ -691,21 +745,20 @@ def match_person(person: dict, index: dict, live_hits: list[dict]) -> dict:
             {
                 "status": "manual_review",
                 "reason": "exact slug and unique name point at different SAS ids",
-                "candidates": [slug_sas, str(unique_name["sa_sailing_id"])],
             }
         )
-        return decision
+        return with_sas_candidates(decision, [slug_sas, str(unique_name["sa_sailing_id"])])
 
     if slug_sas:
         decision.update(
             {
                 "status": "confirmed",
-                "match_via": "exact_ssl_slug" if exact_slug else "exact_ssl_slug_live_resolve",
+                "match_via": "exact_ssl_profile_slug" if exact_slug else "exact_ssl_slug_live_resolve",
                 "sa_sailing_id": slug_sas,
                 "reason": "SSL slug uniquely maps to one SAS sailor",
             }
         )
-        return decision
+        return with_sas_candidates(decision, [])
 
     if unique_name:
         decision.update(
@@ -716,76 +769,69 @@ def match_person(person: dict, index: dict, live_hits: list[dict]) -> dict:
                 "reason": "exactly one SAS sailor with this normalized full name",
             }
         )
-        return decision
+        return with_sas_candidates(decision, [])
 
     if len(name_hits) > 1:
         decision.update(
             {
                 "status": "manual_review",
                 "reason": "normalized full name matches multiple SAS sailors",
-                "candidates": [str(r["sa_sailing_id"]) for r in name_hits],
             }
         )
-        return decision
+        return with_sas_candidates(decision, [str(r["sa_sailing_id"]) for r in name_hits])
 
     decision.update(
         {
             "status": "unmatched",
-            "reason": "no exact ssl_id, exact slug, or unique normalized name match",
-            "candidates": [str(r["sa_sailing_id"]) for r in live_hits],
+            "reason": "no exact ssl_user_id, exact ssl_profile_slug, or unique normalized name match",
         }
     )
-    return decision
+    return with_sas_candidates(decision, [str(r["sa_sailing_id"]) for r in live_hits])
 
 
-def apply_confirmed(conn, cur, decision: dict, person: dict, live_hits: list[dict], allow_seed: bool) -> str:
-    """Update ssl_* on an existing SAS row. Never invent SAS IDs. Never overwrite a different ssl_id."""
+def apply_confirmed(cur, decision: dict, person: dict) -> str:
+    """Link SSL identity onto an existing SAS row.
+
+    Never INSERT. Never invent SAS IDs. Never update SAS names.
+    Unmatched sailors stay audit-only (this function is not called for them).
+    """
     sas_id = decision.get("sa_sailing_id")
-    ssl_id = person.get("ssl_id")
+    ssl_user_id = person.get("ssl_id")
     slug = person.get("slug")
     url = person.get("profile_url")
     if not sas_id:
         return "skipped_no_sas_id"
 
     cur.execute(
-        "SELECT sa_sailing_id::text AS sa_sailing_id, ssl_id, ssl_slug FROM public.sas_id_personal WHERE sa_sailing_id::text = %s",
+        """
+        SELECT sa_sailing_id::text AS sa_sailing_id,
+               ssl_user_id, ssl_profile_slug, ssl_profile_url, ssl_match_status
+        FROM public.sas_id_personal
+        WHERE sa_sailing_id::text = %s
+        """,
         (str(sas_id),),
     )
     existing = cur.fetchone()
     if existing is None:
-        if not allow_seed:
-            return "skipped_sas_row_missing"
-        hit = next((h for h in live_hits if str(h.get("sa_sailing_id")) == str(sas_id)), None)
-        if hit is None:
-            return "skipped_sas_row_missing"
-        cur.execute(
-            """
-            INSERT INTO public.sas_id_personal (sa_sailing_id, full_name, first_name, last_name)
-            VALUES (%s, %s, %s, %s)
-            ON CONFLICT (sa_sailing_id) DO NOTHING
-            """,
-            (str(sas_id), hit.get("full_name"), hit.get("first_name"), hit.get("last_name")),
-        )
-        existing = {"sa_sailing_id": str(sas_id), "ssl_id": None, "ssl_slug": None}
+        return "skipped_sas_row_missing"
 
-    if existing.get("ssl_id") is not None and ssl_id is not None and int(existing["ssl_id"]) != int(ssl_id):
-        return "conflict_existing_ssl_id"
-    if existing.get("ssl_slug") and slug and existing["ssl_slug"] != slug:
-        return "conflict_existing_ssl_slug"
+    if existing.get("ssl_user_id") is not None and ssl_user_id is not None and int(existing["ssl_user_id"]) != int(ssl_user_id):
+        return "conflict_existing_ssl_user_id"
+    if existing.get("ssl_profile_slug") and slug and existing["ssl_profile_slug"] != slug:
+        return "conflict_existing_ssl_profile_slug"
 
     cur.execute(
         """
         UPDATE public.sas_id_personal
-        SET ssl_id = COALESCE(ssl_id, %s),
-            ssl_slug = COALESCE(ssl_slug, %s),
+        SET ssl_user_id = COALESCE(ssl_user_id, %s),
+            ssl_profile_slug = COALESCE(ssl_profile_slug, %s),
             ssl_profile_url = COALESCE(ssl_profile_url, %s),
-            ssl_match_status = 'confirmed',
-            ssl_last_checked_at = NOW()
+            ssl_match_status = %s
         WHERE sa_sailing_id::text = %s
-          AND (ssl_id IS NULL OR ssl_id = %s)
-          AND (ssl_slug IS NULL OR ssl_slug = %s)
+          AND (ssl_user_id IS NULL OR ssl_user_id = %s)
+          AND (ssl_profile_slug IS NULL OR ssl_profile_slug = %s)
         """,
-        (ssl_id, slug, url, str(sas_id), ssl_id, slug),
+        (ssl_user_id, slug, url, SSL_MATCH_STATUS_LINKED, str(sas_id), ssl_user_id, slug),
     )
     return "updated" if cur.rowcount else "unchanged"
 
@@ -798,11 +844,11 @@ def apply_confirmed(conn, cur, decision: dict, person: dict, live_hits: list[dic
 def verification_queries() -> list[str]:
     return [
         "SELECT COUNT(*) AS sailor_rows FROM public.sas_id_personal;",
-        "SELECT COUNT(*) AS ssl_id_populated FROM public.sas_id_personal WHERE ssl_id IS NOT NULL;",
-        "SELECT COUNT(*) AS ssl_slug_populated FROM public.sas_id_personal WHERE ssl_slug IS NOT NULL;",
-        "SELECT COUNT(*) AS ssl_confirmed FROM public.sas_id_personal WHERE ssl_match_status = 'confirmed';",
-        "SELECT sa_sailing_id, full_name, ssl_id, ssl_slug, ssl_match_status, ssl_last_checked_at FROM public.sas_id_personal WHERE ssl_id IS NOT NULL ORDER BY ssl_last_checked_at DESC NULLS LAST, sa_sailing_id LIMIT 20;",
-        "SELECT ssl_id, COUNT(*) FROM public.sas_id_personal WHERE ssl_id IS NOT NULL GROUP BY ssl_id HAVING COUNT(*) > 1;",
+        "SELECT COUNT(*) AS ssl_user_id_populated FROM public.sas_id_personal WHERE ssl_user_id IS NOT NULL;",
+        "SELECT COUNT(*) AS ssl_profile_slug_populated FROM public.sas_id_personal WHERE ssl_profile_slug IS NOT NULL;",
+        "SELECT COUNT(*) AS ssl_linked FROM public.sas_id_personal WHERE ssl_match_status = 'LINKED';",
+        "SELECT sa_sailing_id, full_name, ssl_user_id, ssl_profile_slug, ssl_profile_url, ssl_match_status FROM public.sas_id_personal WHERE ssl_user_id IS NOT NULL ORDER BY sa_sailing_id LIMIT 20;",
+        "SELECT ssl_user_id, COUNT(*) FROM public.sas_id_personal WHERE ssl_user_id IS NOT NULL GROUP BY ssl_user_id HAVING COUNT(*) > 1;",
     ]
 
 
@@ -824,11 +870,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--audit-dir",
         default=str(ROOT / "var" / "ssl_sa_sailor_discovery"),
-    )
-    parser.add_argument(
-        "--allow-seed-missing-sas-rows",
-        action="store_true",
-        help="If a confirmed SAS id is missing locally, copy that existing SAS identity then set SSL fields. Never invent IDs.",
     )
     args = parser.parse_args(argv)
     apply = bool(args.apply)
@@ -855,14 +896,34 @@ def main(argv: list[str] | None = None) -> int:
     conn = None
     index = {"rows": [], "by_ssl_id": {}, "by_slug": {}, "by_norm": defaultdict(list)}
     local_row_count = 0
-    allow_seed = bool(args.allow_seed_missing_sas_rows)
+    missing_ssl_columns: list[str] = list(CANONICAL_SSL_COLUMNS)
+    schema_ok = False
     try:
         conn, factory = db_connect(db_url)
         cur = conn.cursor(cursor_factory=factory)
-        ensure_sailor_table(conn, cur)
-        index = load_sas_index(cur)
+        require_identity_table(cur)
+        missing_ssl_columns = missing_canonical_ssl_columns(cur)
+        schema_ok = not missing_ssl_columns
+        if not schema_ok:
+            msg = (
+                "FAIL CLOSED: canonical SSL columns unavailable: "
+                + ", ".join(missing_ssl_columns)
+                + ". Required: "
+                + ", ".join(CANONICAL_SSL_COLUMNS)
+                + ". No ssl_id/ssl_slug fallback, no migration, no INSERT."
+            )
+            failures.append(
+                {
+                    "stage": "schema",
+                    "error": msg,
+                    "required": list(CANONICAL_SSL_COLUMNS),
+                    "missing": missing_ssl_columns,
+                }
+            )
+            print(f"[db] {msg}", flush=True)
+        index = load_sas_index(cur, include_ssl=schema_ok)
         local_row_count = len(index["rows"])
-        print(f"[db] sas_id_personal rows={local_row_count}", flush=True)
+        print(f"[db] sas_id_personal rows={local_row_count} canonical_ssl_columns={schema_ok}", flush=True)
         if local_row_count == 0:
             print("[db] empty table: unique-name matches cannot be confirmed until identities are loaded", flush=True)
     except Exception as e:
@@ -882,32 +943,49 @@ def main(argv: list[str] | None = None) -> int:
     unmatched = [d for d in decisions if d["status"] == "unmatched"]
     review = [d for d in decisions if d["status"] == "manual_review"]
 
-    apply_counts = {"updated": 0, "unchanged": 0, "skipped_sas_row_missing": 0, "conflict_existing_ssl_id": 0, "conflict_existing_ssl_slug": 0, "skipped_no_sas_id": 0}
+    apply_counts = {
+        "updated": 0,
+        "unchanged": 0,
+        "skipped_sas_row_missing": 0,
+        "conflict_existing_ssl_user_id": 0,
+        "conflict_existing_ssl_profile_slug": 0,
+        "skipped_no_sas_id": 0,
+        "refused_schema": 0,
+    }
     if apply and cur is not None:
-        for decision in confirmed:
-            person = next(p for p in people if p.get("ssl_id") == decision.get("ssl_id") and p.get("slug") == decision.get("slug"))
-            try:
-                result = apply_confirmed(conn, cur, decision, person, decision.get("live_hits") or [], allow_seed)
-                apply_counts[result] = apply_counts.get(result, 0) + 1
-            except Exception as e:
-                failures.append({"stage": "apply", "ssl_id": decision.get("ssl_id"), "error": str(e)})
-                conn.rollback()
-                continue
-        conn.commit()
-        print(f"[apply] {apply_counts}", flush=True)
+        if not schema_ok:
+            apply_counts["refused_schema"] = len(confirmed)
+            print("[apply] refused: canonical SSL columns unavailable (fail closed)", flush=True)
+        else:
+            for decision in confirmed:
+                person = next(p for p in people if p.get("ssl_id") == decision.get("ssl_id") and p.get("slug") == decision.get("slug"))
+                try:
+                    result = apply_confirmed(cur, decision, person)
+                    apply_counts[result] = apply_counts.get(result, 0) + 1
+                except Exception as e:
+                    failures.append({"stage": "apply", "ssl_user_id": decision.get("ssl_user_id"), "error": str(e)})
+                    conn.rollback()
+                    continue
+            conn.commit()
+            print(f"[apply] {apply_counts}", flush=True)
     elif dry_run:
-        print("[dry-run] no ssl_* columns written", flush=True)
+        print("[dry-run] no ssl_* columns written; unmatched remain audit-only", flush=True)
 
     verify = []
-    if cur is not None:
+    if cur is not None and schema_ok:
         verify = run_verification(cur)
 
     ended = utc_now()
+    checksum_parts = len(confirmed) + len(unmatched) + len(review)
     report = {
         "started_at": iso(started),
         "ended_at": iso(ended),
         "dry_run": dry_run,
         "apply": apply,
+        "fail_closed": not schema_ok,
+        "canonical_ssl_columns": list(CANONICAL_SSL_COLUMNS),
+        "canonical_ssl_columns_missing": missing_ssl_columns,
+        "ssl_match_status_value": SSL_MATCH_STATUS_LINKED,
         "source": {
             "skipper_url": f"{WOS_RANKING}?main=individual&country=south-africa&type={TYPE_SKIPPER}",
             "crew_url": f"{WOS_RANKING}?main=individual&country=south-africa&type={TYPE_CREW}",
@@ -925,24 +1003,26 @@ def main(argv: list[str] | None = None) -> int:
         "confirmed_sas_matches": len(confirmed),
         "unmatched_ssl_sailors": len(unmatched),
         "ambiguous_manual_review": len(review),
+        "checksum_unique_people": dedup_stats["unique_people"],
+        "checksum_confirmed_plus_review_plus_unmatched": checksum_parts,
         "database_rows_updated": apply_counts["updated"] if apply else 0,
         "apply_counts": apply_counts if apply else None,
         "failures": failures,
         "alias_candidates": aliases,
         "confirmed": [
-            {k: d[k] for k in ("ssl_id", "slug", "displayed_name", "sa_sailing_id", "match_via", "source_roles")}
+            {k: d[k] for k in ("ssl_user_id", "ssl_profile_slug", "ssl_profile_url", "displayed_name", "sa_sailing_id", "match_via", "source_roles")}
             for d in confirmed
         ],
         "unmatched": [
-            {k: d[k] for k in ("ssl_id", "slug", "displayed_name", "reason", "source_roles")}
+            {k: d[k] for k in ("ssl_user_id", "ssl_profile_slug", "ssl_profile_url", "displayed_name", "reason", "candidate_sas_ids", "source_roles")}
             for d in unmatched
         ],
         "manual_review": [
-            {k: d[k] for k in ("ssl_id", "slug", "displayed_name", "reason", "candidates", "source_roles")}
+            {k: d[k] for k in ("ssl_user_id", "ssl_profile_slug", "ssl_profile_url", "displayed_name", "reason", "candidate_sas_ids", "candidates", "source_roles")}
             for d in review
         ],
         "verification_queries": verify,
-        "verification_sql": verification_queries(),
+        "verification_sql": verification_queries() if schema_ok else [],
     }
 
     audit_dir = Path(args.audit_dir)
@@ -964,6 +1044,9 @@ def main(argv: list[str] | None = None) -> int:
         f"confirmed_sas_matches={report['confirmed_sas_matches']}",
         f"unmatched_ssl_sailors={report['unmatched_ssl_sailors']}",
         f"ambiguous_manual_review={report['ambiguous_manual_review']}",
+        f"checksum={report['checksum_unique_people']}={report['checksum_confirmed_plus_review_plus_unmatched']}",
+        f"fail_closed={report['fail_closed']}",
+        f"canonical_ssl_columns_missing={report['canonical_ssl_columns_missing']}",
         f"database_rows_updated={report['database_rows_updated']}",
         f"failures={len(failures)}",
         f"report_path={report_path}",
@@ -977,6 +1060,8 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(item["rows"], indent=2, default=str))
     if conn is not None:
         conn.close()
+    if not schema_ok:
+        return 2
     return 1 if failures and report["skipper_rows_fetched"] == 0 and report["crew_rows_fetched"] == 0 else 0
 
 
