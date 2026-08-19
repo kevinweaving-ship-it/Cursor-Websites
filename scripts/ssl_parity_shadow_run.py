@@ -1394,10 +1394,10 @@ def _build_ssa_v2_class_boards(
     return class_boards, class_options
 
 
-def _build_ssa_v2_breakdowns(sailors: list[dict], ser) -> tuple[dict[str, list[dict]], dict[str, str]]:
+def _build_ssa_v2_breakdowns(sailors: list[dict], slug_by_identity: dict[str, str], ser) -> tuple[dict[str, list[dict]], dict[str, str]]:
     breakdowns: dict[str, list[dict]] = {}
     for s in sailors:
-        slug = s.get("slug") or _slugify(s.get("sailor_name") or "")
+        slug = slug_by_identity.get(s["identity_key"]) or s.get("slug") or _slugify(s.get("sailor_name") or "")
         for c in s.get("contribs_counted") or []:
             event = c.get("event") or ""
             row = {
@@ -1407,7 +1407,7 @@ def _build_ssa_v2_breakdowns(sailors: list[dict], ser) -> tuple[dict[str, list[d
                 "rating": c.get("event_rating_level"),
                 "fleet": c.get("fleet"),
                 "place": c.get("place"),
-                "points": float(c.get("points") or 0),
+                "points": round(float(c.get("points") or 0), 2),
                 "role": c.get("role") or "",
                 "races": c.get("races_sailed"),
                 "regattaId": c.get("regatta_id"),
@@ -1433,19 +1433,29 @@ def _build_ssa_v2_breakdowns(sailors: list[dict], ser) -> tuple[dict[str, list[d
     return breakdowns, example_aliases
 
 
-def _build_ssa_v2_published_sailors(sailors: list[dict], ser) -> list[dict]:
+def _build_ssa_v2_published_sailors(sailors: list[dict], ser) -> tuple[list[dict], dict[str, str]]:
+    used_slugs: set[str] = set()
+    slug_by_identity: dict[str, str] = {}
     rows: list[dict] = []
     for s in sailors:
+        base = s.get("slug") or ser.slugify(s.get("sailor_name") or "")
+        slug = base
+        sas = str(s.get("sas_id") or "").strip()
+        if slug in used_slugs:
+            slug = f"{base}-{sas}" if sas else f"{base}-{s['identity_key'].replace(':', '-')}"
+        used_slugs.add(slug)
+        slug_by_identity[s["identity_key"]] = slug
         counted = s.get("contribs_counted") or []
         tip = counted[0] if counted else {}
         class_name = (tip.get("class_name") or s.get("class_name") or "").strip()
+        total = round(float(s["total_points"]), 2)
         rows.append(
             {
                 "rank": int(s["rank"]),
-                "points": float(s["total_points"]),
+                "points": total,
                 "name": s.get("sailor_name") or "",
-                "slug": s.get("slug") or ser.slugify(s.get("sailor_name") or ""),
-                "sasId": s.get("sas_id") or "",
+                "slug": slug,
+                "sasId": sas,
                 "club": tip.get("club_name") or s.get("club_name") or "",
                 "clubCode": ser.club_code_from(None, tip.get("club_name") or s.get("club_name") or ""),
                 "className": class_name,
@@ -1458,12 +1468,12 @@ def _build_ssa_v2_published_sailors(sailors: list[dict], ser) -> list[dict]:
                 "overallRank": int(s["rank"]),
                 "classRank": None,
                 "classPoints": None,
-                "overallPoints": float(s["total_points"]),
+                "overallPoints": total,
                 "isAgedOut": False,
                 "agedOutLabel": "",
             }
         )
-    return rows
+    return rows, slug_by_identity
 
 
 def _validate_published_candidate(payload: dict, *, reference: Optional[dict]) -> dict:
@@ -1506,6 +1516,7 @@ def _validate_published_candidate(payload: dict, *, reference: Optional[dict]) -
             "ok": unique_slugs and unique_sas,
             "slug_count": len(slugs),
             "unique_slug_count": len(set(slugs)),
+            "duplicate_slug_count": len(slugs) - len(set(slugs)),
             "sas_count": len(sas_ids),
             "unique_sas_count": len(set(sas_ids)),
         }
@@ -1616,8 +1627,8 @@ def _serialize_ssa_v2_published_candidate(
 ) -> tuple[dict, Path, dict]:
     ser = _load_published_serializer()
     _assert_safe_candidate_published_path(SSA_V2_CANDIDATE_PUBLISHED)
-    published_sailors = _build_ssa_v2_published_sailors(sailors, ser)
-    breakdowns, example_aliases = _build_ssa_v2_breakdowns(sailors, ser)
+    published_sailors, slug_by_identity = _build_ssa_v2_published_sailors(sailors, ser)
+    breakdowns, example_aliases = _build_ssa_v2_breakdowns(sailors, slug_by_identity, ser)
     class_boards, class_options = _build_ssa_v2_class_boards(
         conn, contribs=contribs, sailors=sailors, as_of=as_of, ser=ser
     )
