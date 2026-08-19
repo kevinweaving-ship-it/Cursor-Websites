@@ -73,10 +73,10 @@ FORBIDDEN_PUBLISH_PATHS = (
 SSA_V2_CANDIDATE_PUBLISHED = Path("/tmp/published.ssa-v2.candidate.json")
 SSA_V2_CANDIDATE_VERSION = "ssa-v2-candidate-2026-07-27"
 SSA_V2_EXPECTED_RANKS = {
-    "6804": {"name": "Sean Kavanagh", "rank": 17, "points": 608.57},
-    "21172": {"name": "Timothy Weaving", "rank": 20, "points": 566.29},
-    "13522": {"name": "Joshua Keytel", "rank": 15, "points": 663.0},
-    "9612": {"name": "Thomas Henshilwood", "rank": 22, "points": 554.42},
+    "6804": {"name": "Sean Kavanagh", "rank": 13, "points": 608.57},
+    "21172": {"name": "Timothy Weaving", "rank": 16, "points": 566.29},
+    "13522": {"name": "Joshua Keytel", "rank": 11, "points": 663.0},
+    "9612": {"name": "Thomas Henshilwood", "rank": 18, "points": 554.42},
 }
 PUBLISHED_SCHEMA_TOP_KEYS = frozenset(
     {
@@ -183,6 +183,12 @@ BEST6_EXCLUSION_REASON = "outside_best_6_non_local"
 ROLE_COLLAPSE_EXCLUSION_REASON = "same_result_lower_role_points"
 LIVE_DEDUP_EXCLUSION_REASON = (
     "Duplicate classification within same regatta — higher eligible championship contribution selected."
+)
+IDENTITY_MISSING_SAS_ID_REASON = "missing_sas_id"
+IDENTITY_NOT_IN_SAS_ID_PERSONAL_REASON = "not_in_sas_id_personal"
+IDENTITY_EXCLUSION_DETAIL = (
+    "Name-only/foreign/unresolved result participant — not a valid SailingSA identity; "
+    "requires non-null sa_sailing_id in public.sas_id_personal."
 )
 
 
@@ -1202,6 +1208,84 @@ def _fetch_birth_meta(conn, sas_ids: list[str]) -> dict[str, dict]:
     return out
 
 
+def _fetch_valid_sas_id_set(conn, sas_ids: list[str]) -> set[str]:
+    """SAS IDs that exist in public.sas_id_personal (hard identity rule)."""
+    return set(_fetch_birth_meta(conn, sas_ids).keys())
+
+
+def _identity_exclusion_reason(sas_id: Optional[str], valid_sas_ids: set[str]) -> Optional[str]:
+    sid = str(sas_id or "").strip()
+    if not sid:
+        return IDENTITY_MISSING_SAS_ID_REASON
+    if sid not in valid_sas_ids:
+        return IDENTITY_NOT_IN_SAS_ID_PERSONAL_REASON
+    return None
+
+
+def _contrib_fleet_label(c: Any) -> Optional[str]:
+    place = getattr(c, "place", None)
+    fleet = getattr(c, "fleet_size", None)
+    if place is not None and fleet is not None:
+        return f"P{place}/N{fleet}"
+    if fleet is not None:
+        return f"N{fleet}"
+    return None
+
+
+def _contrib_to_identity_exclusion(c: Any, reason: str) -> dict:
+    return {
+        "result_id": getattr(c, "result_id", None),
+        "sas_id": getattr(c, "sas_id", None),
+        "sailor_name": getattr(c, "sailor_name", None),
+        "event_name": getattr(c, "event_name", None),
+        "regatta_id": getattr(c, "regatta_id", None),
+        "class_name": getattr(c, "class_name", None),
+        "place": getattr(c, "place", None),
+        "fleet": _contrib_fleet_label(c),
+        "role": getattr(c, "role", None),
+        "identity_key": getattr(c, "identity_key", None),
+        "reason": reason,
+    }
+
+
+def _apply_identity_filter(
+    conn, contribs: list[Any]
+) -> tuple[list[Any], list[dict], dict, set[str]]:
+    """Exclude contribs without a valid sas_id_personal identity; never create/merge sailors."""
+    sas_ids = sorted(
+        {
+            str(getattr(c, "sas_id", "") or "").strip()
+            for c in contribs
+            if str(getattr(c, "sas_id", "") or "").strip()
+        }
+    )
+    valid_sas_ids = _fetch_valid_sas_id_set(conn, sas_ids)
+    exclusions: list[dict] = []
+    by_reason: Counter = Counter()
+    excluded_identity_keys: set[str] = set()
+    for c in contribs:
+        reason = _identity_exclusion_reason(getattr(c, "sas_id", None), valid_sas_ids)
+        if reason is None:
+            continue
+        c.counts_toward_rank = False
+        c.selected_for_regatta = False
+        c.exclusion_reason = reason
+        exclusions.append(_contrib_to_identity_exclusion(c, reason))
+        by_reason[reason] += 1
+        ident = str(getattr(c, "identity_key", "") or "")
+        if ident:
+            excluded_identity_keys.add(ident)
+    summary = {
+        "detail": IDENTITY_EXCLUSION_DETAIL,
+        "valid_sas_id_count": len(valid_sas_ids),
+        "distinct_sas_ids_in_contribs": len(sas_ids),
+        "excluded_contrib_count": len(exclusions),
+        "excluded_identity_count": len(excluded_identity_keys),
+        "by_reason": dict(sorted(by_reason.items())),
+    }
+    return contribs, exclusions, summary, valid_sas_ids
+
+
 def _aggregate_ssa_v2_board_aggs(contribs: list[Any], board: str, ser) -> list[Any]:
     by_ident: dict[str, list[Any]] = defaultdict(list)
     for c in contribs:
@@ -1506,6 +1590,21 @@ def _validate_published_candidate(payload: dict, *, reference: Optional[dict]) -
     )
     ok = ok and sailor_key_ok
 
+    missing_sas = [s for s in sailors if not str(s.get("sasId") or "").strip()]
+    identity_ok = not missing_sas
+    checks.append(
+        {
+            "name": "all_sailors_have_sas_id",
+            "ok": identity_ok,
+            "missing_count": len(missing_sas),
+            "samples": [
+                {"rank": s.get("rank"), "name": s.get("name"), "slug": s.get("slug")}
+                for s in missing_sas[:10]
+            ],
+        }
+    )
+    ok = ok and identity_ok
+
     slugs = [str(s.get("slug") or "") for s in sailors if s.get("slug")]
     sas_ids = [str(s.get("sasId") or "") for s in sailors if str(s.get("sasId") or "").strip()]
     unique_slugs = len(slugs) == len(set(slugs))
@@ -1804,13 +1903,20 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
         row["event_date"] = _iso_date(scored.event_date)
         row["exclusion_reason"] = scored.exclusion_reason or AGE_DIVISION_EXCLUSION_REASON
 
+    contribs, identity_exclusions, identity_summary, valid_sas_ids = _apply_identity_filter(conn, contribs)
+
     by_id: dict[str, list[Any]] = defaultdict(list)
     for c in contribs:
+        if _identity_exclusion_reason(getattr(c, "sas_id", None), valid_sas_ids):
+            continue
         by_id[c.identity_key].append(c)
 
     sailors: list[dict] = []
     cat_counting: dict[str, int] = defaultdict(int)
     for ident, items in by_id.items():
+        sas_id = str(next((c.sas_id for c in items if c.sas_id), "") or "").strip()
+        if sas_id not in valid_sas_ids:
+            continue
         records = [_full_contrib_dict(c) for c in items]
         eligible_payload = [
             rec
@@ -1956,6 +2062,8 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
         ),
         "timothy_2025_420_nationals": tim_420_regression,
         "duplicate_division_exclusions": age_div_exclusions,
+        "identity_exclusions": identity_exclusions,
+        "identity_exclusion_summary": identity_summary,
         "cat7_8_share": share_summaries["cat7_8_share"],
         "one_event_concentration": share_summaries["one_event_concentration"],
         "scored_contribs": len(contribs),
@@ -2035,6 +2143,17 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
                 "timothy_2025_420_nationals": tim_420_regression,
                 "exclusions": age_div_exclusions,
                 "groups": age_div_groups,
+            },
+            indent=2,
+            default=str,
+        ),
+        encoding="utf-8",
+    )
+    (out_dir / "identity_exclusions.json").write_text(
+        json.dumps(
+            {
+                "summary": identity_summary,
+                "exclusions": identity_exclusions,
             },
             indent=2,
             default=str,
