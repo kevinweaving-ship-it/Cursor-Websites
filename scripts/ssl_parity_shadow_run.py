@@ -388,9 +388,28 @@ def _load_module_from_path(modname: str, path: Path):
 
 
 def _import_live_engine():
-    for extra in (Path("/var/www/sailingsa/utils"), Path("/var/www/sailingsa"), _ROOT / "utils"):
-        if extra.is_dir() and str(extra) not in sys.path:
-            sys.path.insert(0, str(extra))
+    """Import live ssl_parity_engine; do not let PR13 classification shadow live utils."""
+    live_utils = Path("/var/www/sailingsa/utils")
+    for extra in (live_utils, Path("/var/www/sailingsa"), _ROOT / "utils"):
+        if not extra.is_dir():
+            continue
+        s = str(extra)
+        if s in sys.path:
+            sys.path.remove(s)
+        sys.path.insert(0, s)
+    if live_utils.is_dir():
+        s = str(live_utils)
+        if s in sys.path:
+            sys.path.remove(s)
+        sys.path.insert(0, s)
+        # _ROOT holds PR13 classification/scoring; keep it after live utils.
+        root = str(_ROOT)
+        if root in sys.path:
+            sys.path.remove(root)
+            sys.path.append(root)
+    existing = sys.modules.get("ssl_parity_classification")
+    if existing is not None and getattr(existing, "__file__", "").startswith(str(_ROOT)):
+        sys.modules.pop("ssl_parity_classification", None)
     import ssl_parity_engine as eng  # noqa: WPS433
 
     return eng
