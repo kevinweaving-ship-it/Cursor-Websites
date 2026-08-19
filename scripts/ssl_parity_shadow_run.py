@@ -73,10 +73,10 @@ FORBIDDEN_PUBLISH_PATHS = (
 SSA_V2_CANDIDATE_PUBLISHED = Path("/tmp/published.ssa-v2.candidate.json")
 SSA_V2_CANDIDATE_VERSION = "ssa-v2-candidate-2026-07-27"
 SSA_V2_EXPECTED_RANKS = {
-    "6804": {"name": "Sean Kavanagh", "rank": 24, "points": 428.32},
-    "21172": {"name": "Timothy Weaving", "rank": 27, "points": 413.1},
-    "13522": {"name": "Joshua Keytel", "rank": 13, "points": 494.06},
-    "9612": {"name": "Thomas Henshilwood", "rank": 23, "points": 433.69},
+    "6804": {"name": "Sean Kavanagh", "rank": 3, "points": 362.7},
+    "21172": {"name": "Timothy Weaving", "rank": 12, "points": 274.35},
+    "13522": {"name": "Joshua Keytel", "rank": 11, "points": 276.26},
+    "9612": {"name": "Thomas Henshilwood", "rank": 4, "points": 356.67},
 }
 PUBLISHED_SCHEMA_TOP_KEYS = frozenset(
     {
@@ -178,11 +178,21 @@ TIM_420_DIVISION_RESULT_IDS = frozenset({10381, 10382})
 TIM_420_EXPECT_PLACE = 5
 TIM_420_EXPECT_FLEET = 12
 TIM_420_EXPECT_OPEN_COEFF = 1.0
-TIM_420_EXPECT_POINTS = 106.25
+TIM_420_EXPECT_POINTS = 42.5
+TIM_420_EXPECT_CATEGORY = 6
 HAYDEN_SAS_ID = "8683"
 HAYDEN_YOUTH_NATIONALS_RESULT_ID = 4049
 HAYDEN_YOUTH_EXPECT_OPEN_COEFF = 0.40
-HAYDEN_YOUTH_EXPECT_POINTS = 63.75
+HAYDEN_YOUTH_EXPECT_POINTS = 25.5
+HAYDEN_YOUTH_EXPECT_CATEGORY = 6
+THOMAS_SAS_ID = "2530"
+MIRROR_WORLDS_EVENT_TOKEN = "marriott imca world"
+MIRROR_WORLDS_THOMAS_RESULT_ID = 1004
+MIRROR_WORLDS_HAYDEN_RESULT_ID = 1006
+MIRROR_WORLDS_EXPECT_CATEGORY = 5
+MIRROR_WORLDS_THOMAS_EXPECT_POINTS = 79.69
+MIRROR_WORLDS_HAYDEN_EXPECT_POINTS = 53.13
+MIRROR_WORLDS_EXPECT_FLEET = 33
 AGE_DIVISION_EXCLUSION_REASON = (
     "Duplicate age-division sheet for the same sailor/regatta/class — "
     "Overall/Open retained; U17/U19/Youth subdivision excluded (never summed)."
@@ -266,10 +276,114 @@ def _resolve_sas_event_type(row: Any) -> dict:
 
 
 def _championship_category_after_fleet(base_category: int, fleet: int) -> int:
-    """Under-10 championships drop exactly one category. N>=10 keeps the base."""
+    """Drop exactly one category when championship fleet is under 10 (legacy helper)."""
     if fleet >= 10:
         return int(base_category)
     return min(int(base_category) + 1, 7)
+
+
+def _ssa_fleet_category_cap(fleet: int) -> dict[str, Any]:
+    """SSA-only maximum category from actual class-fleet entries N."""
+    n = int(fleet or 0)
+    if n <= 1:
+        return {
+            "fleet_n": n,
+            "max_category": None,
+            "force_ineligible": True,
+            "force_cat8": False,
+            "reason": "N=1 ineligible (SSA fleet cap)",
+        }
+    if n == 2:
+        return {
+            "fleet_n": n,
+            "max_category": 8,
+            "force_ineligible": False,
+            "force_cat8": True,
+            "reason": "N=2 → SSA Category 8 (SSA fleet cap)",
+        }
+    if n <= 9:
+        max_cat = 7
+    elif n <= 29:
+        max_cat = 6
+    elif n <= 79:
+        max_cat = 5
+    elif n <= 199:
+        max_cat = 4
+    else:
+        max_cat = 3
+    return {
+        "fleet_n": n,
+        "max_category": max_cat,
+        "force_ineligible": False,
+        "force_cat8": False,
+        "reason": f"N={n} → maximum Cat{max_cat} (SSA fleet cap)",
+    }
+
+
+def _ssa_pedigree_category(sas_event: dict, fleet: int) -> Optional[int]:
+    """Pedigree category from SAS event type/scope/level before fleet prestige cap."""
+    base = sas_event.get("base_category")
+    if base is not None:
+        return int(base)
+    kind = sas_event.get("kind")
+    if kind == "ordinary":
+        # Ordinary pedigree before fleet cap: Cat6 for N≥10, Cat7 for smaller fleets.
+        return 6 if int(fleet or 0) >= 10 else 7
+    if kind == "unknown":
+        return None
+    return None
+
+
+def _apply_ssa_fleet_cap(
+    pedigree_category: Optional[int],
+    fleet: int,
+) -> dict[str, Any]:
+    """Lower-scoring of pedigree and fleet cap (higher cat number = lower prestige)."""
+    cap = _ssa_fleet_category_cap(fleet)
+    if cap["force_ineligible"]:
+        return {
+            "pedigree_category": pedigree_category,
+            "fleet_cap_category": None,
+            "effective_category": None,
+            "downgraded": True,
+            "downgrade_reason": cap["reason"],
+            "force_ineligible": True,
+            "force_cat8": False,
+        }
+    if cap["force_cat8"]:
+        return {
+            "pedigree_category": pedigree_category,
+            "fleet_cap_category": 8,
+            "effective_category": 8,
+            "downgraded": pedigree_category not in (None, 8),
+            "downgrade_reason": cap["reason"],
+            "force_ineligible": False,
+            "force_cat8": True,
+        }
+    fleet_cap = int(cap["max_category"])
+    if pedigree_category is None:
+        effective = fleet_cap
+        downgraded = False
+        reason = cap["reason"]
+    else:
+        pedigree = int(pedigree_category)
+        # Higher category number = lower scoring prestige.
+        effective = max(pedigree, fleet_cap)
+        downgraded = effective > pedigree
+        reason = (
+            f"pedigree Cat{pedigree} capped by N={int(fleet)} → Cat{effective}"
+            if downgraded
+            else f"pedigree Cat{pedigree} within N={int(fleet)} cap Cat{fleet_cap}"
+        )
+    return {
+        "pedigree_category": pedigree_category,
+        "fleet_cap_category": fleet_cap,
+        "effective_category": effective,
+        "downgraded": downgraded,
+        "downgrade_reason": reason,
+        "force_ineligible": False,
+        "force_cat8": False,
+    }
 
 
 def connect(db_url: str):
@@ -725,6 +839,10 @@ def _full_contrib_dict(c: Any) -> dict:
         "official_status": getattr(c, "official_status", None),
         "championship_exception": getattr(c, "championship_exception", None),
         "category_override": getattr(c, "category_override", None),
+        "pedigree_category": getattr(c, "pedigree_category", None),
+        "fleet_cap_category": getattr(c, "fleet_cap_category", None),
+        "effective_category": getattr(c, "effective_category", None),
+        "category_downgrade_reason": getattr(c, "category_downgrade_reason", None),
         "points": float(getattr(c, "points", 0) or 0),
         "eligible": bool(getattr(c, "eligible", False)),
         "category": getattr(c, "category", None),
@@ -1063,6 +1181,8 @@ def _score_row_to_contrib(
     official_status = sas_event["official_status"]
     is_champ = kind in _CHAMP_KINDS
     restrictions = _resolve_authoritative_restrictions(r)
+    pedigree_category = _ssa_pedigree_category(sas_event, fleet)
+    fleet_cap = _apply_ssa_fleet_cap(pedigree_category, fleet)
     score_kwargs: dict[str, Any] = {
         "event_date": getattr(r, "event_date", None),
         "role": getattr(r, "role", None),
@@ -1070,15 +1190,13 @@ def _score_row_to_contrib(
         "mode": "ssa",
         "is_open": restrictions["is_open"],
         "restriction_count": restrictions["restriction_count"],
-        "championship": False if (kind == "ordinary" or fleet == 2) else is_champ,
-        "official_status": None if (kind == "ordinary" or fleet == 2) else official_status,
-        "championship_exception": None if (kind == "ordinary" or fleet == 2) else official_status,
+        "championship": False if (kind == "ordinary" or fleet <= 2) else is_champ,
+        "official_status": None if (kind == "ordinary" or fleet <= 2) else official_status,
+        "championship_exception": None if (kind == "ordinary" or fleet <= 2) else official_status,
     }
-    category_override = None
-    if is_champ and fleet >= 3 and sas_event["base_category"] is not None:
-        if kind in {"world", "continental", "international"}:
-            category_override = _championship_category_after_fleet(int(sas_event["base_category"]), fleet)
-            score_kwargs["category"] = category_override
+    category_override = fleet_cap.get("effective_category")
+    if category_override is not None:
+        score_kwargs["category"] = category_override
 
     def _base_contrib(**extra: Any) -> Any:
         ns = SimpleNamespace(
@@ -1122,6 +1240,10 @@ def _score_row_to_contrib(
             official_status=score_kwargs["official_status"],
             championship_exception=score_kwargs["championship_exception"],
             category_override=category_override,
+            pedigree_category=fleet_cap.get("pedigree_category"),
+            fleet_cap_category=fleet_cap.get("fleet_cap_category"),
+            effective_category=fleet_cap.get("effective_category"),
+            category_downgrade_reason=fleet_cap.get("downgrade_reason"),
             category=None,
             category_name=None,
             category_base=None,
@@ -1142,6 +1264,18 @@ def _score_row_to_contrib(
         for k, v in extra.items():
             setattr(ns, k, v)
         return ns
+
+    if fleet_cap.get("force_ineligible"):
+        return (
+            _base_contrib(
+                reason=fleet_cap.get("downgrade_reason") or "N=1 ineligible",
+                exclusion_reason=preset_exclusion or fleet_cap.get("downgrade_reason") or "N=1 ineligible",
+                eligible=False,
+                counts_toward_rank=False,
+            ),
+            None,
+            sas_event,
+        )
 
     if kind == "unknown":
         err = {
@@ -1249,12 +1383,17 @@ def timothy_420_nationals_open_coeff_regression(contribs: list[Any]) -> dict:
         and int(fleet or 0) == TIM_420_EXPECT_FLEET
         and abs((open_c or 0) - TIM_420_EXPECT_OPEN_COEFF) < 0.011
         and abs((points or 0) - TIM_420_EXPECT_POINTS) < 0.011
+        and int(getattr(hit, "category", 0) or 0) == TIM_420_EXPECT_CATEGORY
         and not bool(getattr(hit, "age_restricted", False))
     )
     return {
         "result_id": TIM_420_OVERALL_RESULT_ID,
         "expect_place_fleet": f"P{TIM_420_EXPECT_PLACE}/N{TIM_420_EXPECT_FLEET}",
         "got_place_fleet": f"P{place}/N{fleet}" if hit is not None else None,
+        "expect_category": TIM_420_EXPECT_CATEGORY,
+        "got_category": getattr(hit, "category", None) if hit is not None else None,
+        "pedigree_category": getattr(hit, "pedigree_category", None) if hit is not None else None,
+        "fleet_cap_category": getattr(hit, "fleet_cap_category", None) if hit is not None else None,
         "expect_open_coefficient": TIM_420_EXPECT_OPEN_COEFF,
         "got_open_coefficient": open_c,
         "expect_points": TIM_420_EXPECT_POINTS,
@@ -1281,6 +1420,7 @@ def hayden_youth_nationals_restriction_regression(contribs: list[Any]) -> dict:
         hit is not None
         and abs((open_c or 0) - HAYDEN_YOUTH_EXPECT_OPEN_COEFF) < 0.011
         and abs((points or 0) - HAYDEN_YOUTH_EXPECT_POINTS) < 0.011
+        and int(getattr(hit, "category", 0) or 0) == HAYDEN_YOUTH_EXPECT_CATEGORY
         and bool(getattr(hit, "age_restricted", False))
     )
     return {
@@ -1288,12 +1428,107 @@ def hayden_youth_nationals_restriction_regression(contribs: list[Any]) -> dict:
         "sas_id": HAYDEN_SAS_ID,
         "result_id": HAYDEN_YOUTH_NATIONALS_RESULT_ID,
         "event": getattr(hit, "event_name", None) if hit is not None else None,
+        "expect_category": HAYDEN_YOUTH_EXPECT_CATEGORY,
+        "got_category": getattr(hit, "category", None) if hit is not None else None,
+        "pedigree_category": getattr(hit, "pedigree_category", None) if hit is not None else None,
+        "fleet_cap_category": getattr(hit, "fleet_cap_category", None) if hit is not None else None,
         "expect_open_coefficient": HAYDEN_YOUTH_EXPECT_OPEN_COEFF,
         "got_open_coefficient": open_c,
         "expect_points": HAYDEN_YOUTH_EXPECT_POINTS,
         "got_points": points,
         "age_restricted": bool(getattr(hit, "age_restricted", False)) if hit is not None else None,
         "ok": ok,
+    }
+
+
+def _find_contrib(contribs: list[Any], *, result_id: int, sas_id: str) -> Optional[Any]:
+    for c in contribs:
+        if int(getattr(c, "result_id", 0) or 0) != result_id:
+            continue
+        if str(getattr(c, "sas_id", "") or "").strip() != sas_id:
+            continue
+        return c
+    return None
+
+
+def mirror_worlds_fleet_cap_regression(contribs: list[Any]) -> dict:
+    """Mirror Worlds N33: pedigree Cat2 capped to Cat5; Thomas P3=79.69, Hayden P5=53.13."""
+    thomas = _find_contrib(contribs, result_id=MIRROR_WORLDS_THOMAS_RESULT_ID, sas_id=THOMAS_SAS_ID)
+    hayden = _find_contrib(contribs, result_id=MIRROR_WORLDS_HAYDEN_RESULT_ID, sas_id=HAYDEN_SAS_ID)
+
+    def row_check(c: Any, expect_points: float, expect_place: int) -> dict:
+        if c is None:
+            return {"found": False, "ok": False}
+        fleet = int(getattr(c, "fleet_size", 0) or 0)
+        cat = getattr(c, "category", None)
+        pedigree = getattr(c, "pedigree_category", None)
+        fleet_cap = getattr(c, "fleet_cap_category", None)
+        points = float(getattr(c, "points", 0) or 0)
+        place = getattr(c, "place", None)
+        ok = (
+            fleet == MIRROR_WORLDS_EXPECT_FLEET
+            and int(cat or 0) == MIRROR_WORLDS_EXPECT_CATEGORY
+            and int(pedigree or 0) == 2
+            and int(fleet_cap or 0) == MIRROR_WORLDS_EXPECT_CATEGORY
+            and place == expect_place
+            and abs(points - expect_points) < 0.011
+        )
+        return {
+            "found": True,
+            "ok": ok,
+            "result_id": getattr(c, "result_id", None),
+            "place": place,
+            "fleet": fleet,
+            "pedigree_category": pedigree,
+            "fleet_cap_category": fleet_cap,
+            "effective_category": getattr(c, "effective_category", None) or cat,
+            "category": cat,
+            "points": points,
+            "expect_points": expect_points,
+            "downgrade_reason": getattr(c, "category_downgrade_reason", None),
+        }
+
+    thomas_row = row_check(thomas, MIRROR_WORLDS_THOMAS_EXPECT_POINTS, 3)
+    hayden_row = row_check(hayden, MIRROR_WORLDS_HAYDEN_EXPECT_POINTS, 5)
+    return {
+        "event_token": MIRROR_WORLDS_EVENT_TOKEN,
+        "expect_category": MIRROR_WORLDS_EXPECT_CATEGORY,
+        "expect_fleet": MIRROR_WORLDS_EXPECT_FLEET,
+        "thomas_funke": thomas_row,
+        "hayden_miller": hayden_row,
+        "ok": bool(thomas_row.get("ok") and hayden_row.get("ok")),
+    }
+
+
+def _summarize_category_shifts(contribs: list[Any]) -> dict[str, Any]:
+    shifts: Counter = Counter()
+    downgraded = 0
+    samples: list[dict] = []
+    for c in contribs:
+        pedigree = getattr(c, "pedigree_category", None)
+        effective = getattr(c, "effective_category", None)
+        if pedigree is None or effective is None:
+            continue
+        if int(effective) > int(pedigree):
+            downgraded += 1
+            key = f"Cat{pedigree}->Cat{effective}"
+            shifts[key] += 1
+            if len(samples) < 20:
+                samples.append(
+                    {
+                        "result_id": getattr(c, "result_id", None),
+                        "event": getattr(c, "event_name", None),
+                        "fleet": getattr(c, "fleet_size", None),
+                        "pedigree_category": pedigree,
+                        "fleet_cap_category": getattr(c, "fleet_cap_category", None),
+                        "effective_category": effective,
+                        "reason": getattr(c, "category_downgrade_reason", None),
+                    }
+                )
+    return {
+        "downgraded_contrib_count": downgraded,
+        "by_shift": dict(sorted(shifts.items(), key=lambda kv: -kv[1])),
+        "samples": samples,
     }
 
 
@@ -2104,6 +2339,8 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
     tim_420_regression["open_coefficient"] = open_coeff_reg
     tim_420_regression["ok"] = bool(tim_420_regression.get("ok")) and bool(open_coeff_reg.get("ok"))
     hayden_youth_regression = hayden_youth_nationals_restriction_regression(contribs)
+    mirror_worlds_regression = mirror_worlds_fleet_cap_regression(contribs)
+    category_shift_summary = _summarize_category_shifts(contribs)
 
     by_id: dict[str, list[Any]] = defaultdict(list)
     for c in contribs:
@@ -2285,6 +2522,8 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
         ),
         "timothy_2025_420_nationals": tim_420_regression,
         "hayden_youth_nationals": hayden_youth_regression,
+        "mirror_worlds_fleet_cap": mirror_worlds_regression,
+        "category_shifts": category_shift_summary,
         "duplicate_division_exclusions": age_div_exclusions,
         "identity_exclusions": identity_exclusions,
         "identity_exclusion_summary": identity_summary,
@@ -2328,8 +2567,8 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
         "aggregation": "best_6_non_local_plus_all_local_and_ssa_cat8",
         "scoring": (
             "Live age-division filter (Overall/Open kept, U17/U19/Youth excluded, "
-            "never summed) then PR13 score_result(mode=ssa) from SAS rank/class/"
-            "fleet/date plus authoritative SAS event type/scope/level; WoS unused"
+            "never summed) then PR13 score_result(mode=ssa) with SAS pedigree capped "
+            "by actual class-fleet N; WoS unused"
         ),
         "age_division_groups": age_div_groups,
     }
