@@ -9,8 +9,9 @@ Does NOT touch api.py.
 age-division classification, drops U17/U19/Youth subdivision rows when
 Overall/Open exists for the same sailor/regatta/class (never summed),
 then scores with PR13 score_result(mode="ssa") using SAS event type
-(not WoS). Writes audit JSON to a non-published path. Forbids DB writes
-and published.json.
+(not WoS). Writes audit JSON to a non-published path and emits
+/tmp/published.ssa-v2.candidate.json via the live published serializer.
+Never overwrites live published.json. Forbids DB writes and published.json.
 
 Feature flag (required for default path):
   export SSL_PARITY_ENGINE=1
@@ -27,6 +28,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import importlib.util
 import json
 import os
@@ -67,6 +69,54 @@ SSA_V2_VALIDATION_NAMES = (
 FORBIDDEN_PUBLISH_PATHS = (
     "published.json",
     "/var/www/sailingsa/rankings/data",
+)
+SSA_V2_CANDIDATE_PUBLISHED = Path("/tmp/published.ssa-v2.candidate.json")
+SSA_V2_CANDIDATE_VERSION = "ssa-v2-candidate-2026-07-27"
+SSA_V2_EXPECTED_RANKS = {
+    "6804": {"name": "Sean Kavanagh", "rank": 17, "points": 608.57},
+    "21172": {"name": "Timothy Weaving", "rank": 20, "points": 566.29},
+    "13522": {"name": "Joshua Keytel", "rank": 15, "points": 663.0},
+    "9612": {"name": "Thomas Henshilwood", "rank": 22, "points": 554.42},
+}
+PUBLISHED_SCHEMA_TOP_KEYS = frozenset(
+    {
+        "audit",
+        "auditVersion",
+        "audits",
+        "breakdowns",
+        "classBoards",
+        "classOptions",
+        "eventRatingVersion",
+        "exampleAliases",
+        "formulaVersion",
+        "isMock",
+        "isPublished",
+        "sailors",
+    }
+)
+PUBLISHED_SAILOR_KEYS = frozenset(
+    {
+        "agedOutLabel",
+        "className",
+        "classPoints",
+        "classRank",
+        "classSlug",
+        "club",
+        "clubCode",
+        "isAgedOut",
+        "name",
+        "overallPoints",
+        "overallRank",
+        "points",
+        "previousRank",
+        "rank",
+        "rankChange",
+        "ratedEvents",
+        "ratedRaces",
+        "sailNo",
+        "sasId",
+        "slug",
+    }
 )
 
 # Authoritative SAS event_rating_type / event_scope / event_rating_level only.
@@ -1077,6 +1127,559 @@ def timothy_420_nationals_regression(kept_rows: list, exclusions: list[dict]) ->
     }
 
 
+def _assert_safe_candidate_published_path(path: Path) -> None:
+    resolved = str(path.resolve())
+    lowered = resolved.lower()
+    if "/rankings/data/published.json" in lowered or lowered.endswith("/rankings/data/published.json"):
+        raise SystemExit(f"ssa-v2 candidate forbids live published.json path: {path}")
+    if path.name == "published.json" and "rankings/data" in lowered:
+        raise SystemExit(f"ssa-v2 candidate forbids overwriting live published.json: {path}")
+
+
+def _load_published_serializer():
+    """Load live export_ranking_audit_json (published.json serializer)."""
+    candidates = [
+        Path("/var/www/sailingsa/scripts/export_ranking_audit_json.py"),
+        _ROOT / "scripts" / "export_ranking_audit_json.py",
+    ]
+    for path in candidates:
+        if path.is_file():
+            return _load_module_from_path("export_ranking_audit_json_serializer", path)
+    raise SystemExit(
+        "Published serializer not found (export_ranking_audit_json.py on live or in scripts/)"
+    )
+
+
+def _sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _contrib_role_board(c: Any) -> str:
+    role = str(getattr(c, "role", "") or "").strip().lower()
+    return "skipper" if role in {"helm", "skipper"} else "crew"
+
+
+def _class_board_source_contribs(contribs: list[Any]) -> list[Any]:
+    pool: list[Any] = []
+    for c in contribs:
+        if getattr(c, "exclusion_reason", None):
+            continue
+        if not getattr(c, "eligible", False):
+            continue
+        if float(getattr(c, "points", 0) or 0) <= 0:
+            continue
+        pool.append(c)
+    return pool
+
+
+def _fetch_birth_meta(conn, sas_ids: list[str]) -> dict[str, dict]:
+    if not sas_ids:
+        return {}
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT sa_sailing_id::text AS sas_id, year_of_birth, date_of_birth, age
+        FROM sas_id_personal
+        WHERE sa_sailing_id::text = ANY(%s)
+        """,
+        (sas_ids,),
+    )
+    out: dict[str, dict] = {}
+    for row in cur.fetchall():
+        if isinstance(row, dict):
+            out[str(row["sas_id"])] = row
+        else:
+            out[str(row[0])] = {
+                "sas_id": str(row[0]),
+                "year_of_birth": row[1],
+                "date_of_birth": row[2],
+                "age": row[3],
+            }
+    return out
+
+
+def _aggregate_ssa_v2_board_aggs(contribs: list[Any], board: str, ser) -> list[Any]:
+    by_ident: dict[str, list[Any]] = defaultdict(list)
+    for c in contribs:
+        if _contrib_role_board(c) != board:
+            continue
+        by_ident[c.identity_key].append(c)
+    aggs: list[Any] = []
+    for ident, items in by_ident.items():
+        payload = [
+            {
+                "points": float(c.points),
+                "category": c.category,
+                "result_id": c.result_id,
+                "role": c.role,
+            }
+            for c in items
+        ]
+        counted_recs, total = _select_best6_plus_local_cat8(payload)
+        counted_keys = {(r.get("result_id"), r.get("role")) for r in counted_recs}
+        counted = [c for c in items if (c.result_id, c.role) in counted_keys]
+        if total <= 0:
+            continue
+        tip = counted[0] if counted else items[0]
+        class_name = (getattr(tip, "class_name", None) or "").strip()
+        class_slug = ser.slugify(class_name) if class_name else ""
+        aggs.append(
+            SimpleNamespace(
+                identity_key=ident,
+                sas_id=next((c.sas_id for c in items if c.sas_id), tip.sas_id),
+                sailor_slug=getattr(tip, "sailor_slug", None) or ser.slugify(tip.sailor_name),
+                sailor_name=tip.sailor_name,
+                board=board,
+                club_code=None,
+                club_name=getattr(tip, "club_name", None),
+                class_name=class_name,
+                class_slug=class_slug,
+                sail_number=getattr(tip, "sail_number", None),
+                total_points=float(total),
+                total_rated_events=len(counted),
+                total_rated_races=sum(int(getattr(c, "races_sailed", 0) or 0) for c in counted),
+                rank=None,
+            )
+        )
+    aggs.sort(
+        key=lambda a: (
+            -float(a.total_points),
+            -int(a.total_rated_events),
+            -int(a.total_rated_races),
+            str(a.sailor_name or "").lower(),
+            str(a.sailor_slug or ""),
+        )
+    )
+    for i, a in enumerate(aggs, start=1):
+        a.rank = i
+    return aggs
+
+
+def _build_ssa_v2_class_boards(
+    conn,
+    *,
+    contribs: list[Any],
+    sailors: list[dict],
+    as_of: date,
+    ser,
+) -> tuple[dict[str, list[dict]], list[dict]]:
+    overall_rank_by_identity = {
+        s["identity_key"]: {"rank": int(s["rank"]), "points": float(s["total_points"])}
+        for s in sailors
+    }
+    pool = _class_board_source_contribs(contribs)
+    contribs_by_class: dict[str, list[Any]] = defaultdict(list)
+    class_names: dict[str, Counter] = defaultdict(Counter)
+    for c in pool:
+        class_name = (getattr(c, "class_name", None) or "").strip()
+        class_slug = ser.slugify(class_name) if class_name else ""
+        if not class_name or not class_slug:
+            continue
+        contribs_by_class[class_slug].append(c)
+        class_names[class_slug][class_name] += 1
+
+    sas_ids = sorted({str(getattr(c, "sas_id", "") or "") for c in pool if getattr(c, "sas_id", None)})
+    birth_meta = _fetch_birth_meta(conn, sas_ids)
+    class_boards: dict[str, list[dict]] = {}
+    class_options: list[dict] = []
+    for class_slug in sorted(
+        contribs_by_class.keys(),
+        key=lambda slug: (str(class_names[slug].most_common(1)[0][0]).lower(), slug),
+    ):
+        class_name = class_names[class_slug].most_common(1)[0][0]
+        class_contribs = contribs_by_class[class_slug]
+        skipper_aggs = _aggregate_ssa_v2_board_aggs(class_contribs, "skipper", ser)
+        crew_aggs = _aggregate_ssa_v2_board_aggs(class_contribs, "crew", ser)
+        merged_active: dict[str, dict] = {}
+        merged_aged_out: dict[str, dict] = {}
+        for board_name, aggs in (("skipper", skipper_aggs), ("crew", crew_aggs)):
+            for agg in aggs:
+                aged_out = False
+                yob = None
+                if ser.is_optimist_class(class_slug, class_name):
+                    eligible, yob = ser.optimist_current_board_eligible(
+                        birth_meta.get(str(agg.sas_id or "")),
+                        as_of=as_of,
+                    )
+                    if not eligible and not ser.optimist_recently_aged_out(yob, as_of=as_of):
+                        continue
+                    aged_out = not eligible
+                else:
+                    yob = ser.infer_year_of_birth(birth_meta.get(str(agg.sas_id or "")), as_of=as_of)
+                target = merged_aged_out if aged_out else merged_active
+                current = target.get(agg.identity_key)
+                if current and not ser.class_row_better(agg, board_name, current["agg"], current["board"]):
+                    continue
+                target[agg.identity_key] = {
+                    "agg": agg,
+                    "board": board_name,
+                    "yearOfBirth": yob,
+                    "isAgedOut": aged_out,
+                }
+
+        def row_from_item(item: dict, *, class_rank: Optional[int]) -> dict:
+            agg = item["agg"]
+            overall_meta = overall_rank_by_identity.get(agg.identity_key) or {}
+            return {
+                "rank": class_rank,
+                "classRank": class_rank,
+                "overallRank": overall_meta.get("rank"),
+                "overallPoints": overall_meta.get("points"),
+                "classPoints": float(agg.total_points),
+                "points": float(agg.total_points),
+                "name": agg.sailor_name,
+                "slug": agg.sailor_slug or ser.slugify(agg.sailor_name),
+                "sasId": agg.sas_id or "",
+                "club": agg.club_name or "",
+                "clubCode": ser.club_code_from(getattr(agg, "club_code", None), agg.club_name or ""),
+                "className": class_name,
+                "classSlug": class_slug,
+                "sailNo": agg.sail_number or "",
+                "previousRank": None,
+                "rankChange": None,
+                "ratedEvents": int(agg.total_rated_events or 0),
+                "ratedRaces": int(agg.total_rated_races or 0),
+                "year": as_of.year,
+                "sourceBoard": item["board"],
+                "yearOfBirth": item["yearOfBirth"],
+                "isAgedOut": bool(item["isAgedOut"]),
+                "agedOutLabel": "Aged Out" if item["isAgedOut"] else "",
+            }
+
+        def sort_rows(items: dict[str, dict]) -> list[dict]:
+            rows: list[dict] = []
+            for item in items.values():
+                agg = item["agg"]
+                rows.append(
+                    {
+                        "_sort_points": float(agg.total_points),
+                        "_sort_events": int(agg.total_rated_events or 0),
+                        "_sort_races": int(agg.total_rated_races or 0),
+                        "_sort_name": str(agg.sailor_name or "").lower(),
+                        "_sort_slug": str(agg.sailor_slug or ser.slugify(agg.sailor_name)),
+                        "_item": item,
+                    }
+                )
+            rows.sort(
+                key=lambda r: (
+                    -r["_sort_points"],
+                    -r["_sort_events"],
+                    -r["_sort_races"],
+                    r["_sort_name"],
+                    r["_sort_slug"],
+                )
+            )
+            return rows
+
+        active_sorted = sort_rows(merged_active)
+        aged_out_sorted = sort_rows(merged_aged_out)
+        rows: list[dict] = []
+        for idx, item in enumerate(active_sorted, start=1):
+            rows.append(row_from_item(item["_item"], class_rank=idx))
+        for item in aged_out_sorted:
+            rows.append(row_from_item(item["_item"], class_rank=None))
+        class_boards[class_slug] = rows
+        class_options.append(
+            {
+                "className": class_name,
+                "classSlug": class_slug,
+                "sailorCount": len(active_sorted),
+                "agedOutCount": len(aged_out_sorted),
+            }
+        )
+    return class_boards, class_options
+
+
+def _build_ssa_v2_breakdowns(sailors: list[dict], ser) -> tuple[dict[str, list[dict]], dict[str, str]]:
+    breakdowns: dict[str, list[dict]] = {}
+    for s in sailors:
+        slug = s.get("slug") or _slugify(s.get("sailor_name") or "")
+        for c in s.get("contribs_counted") or []:
+            event = c.get("event") or ""
+            row = {
+                "event": event,
+                "eventSlug": ser.slugify(event),
+                "eventDate": c.get("event_date") or c.get("date") or "",
+                "rating": c.get("event_rating_level"),
+                "fleet": c.get("fleet"),
+                "place": c.get("place"),
+                "points": float(c.get("points") or 0),
+                "role": c.get("role") or "",
+                "races": c.get("races_sailed"),
+                "regattaId": c.get("regatta_id"),
+                "ageWeeks": None,
+                "category": c.get("category"),
+                "categoryName": c.get("category_name"),
+                "className": c.get("class_name"),
+                "exampleSailorName": "",
+            }
+            breakdowns.setdefault(slug, []).append(row)
+    example_aliases = ser.build_example_aliases(list(breakdowns.keys()))
+    for slug, rows in breakdowns.items():
+        for row in rows:
+            row["exampleSailorName"] = example_aliases.get(slug, "Example Sailor")
+        rows.sort(
+            key=lambda r: (
+                -ser.sortable_event_date(r.get("eventDate") or ""),
+                -float(r["points"]),
+                int(r.get("place")) if str(r.get("place", "")).isdigit() else 999999,
+                str(r.get("event") or "").lower(),
+            )
+        )
+    return breakdowns, example_aliases
+
+
+def _build_ssa_v2_published_sailors(sailors: list[dict], ser) -> list[dict]:
+    rows: list[dict] = []
+    for s in sailors:
+        counted = s.get("contribs_counted") or []
+        tip = counted[0] if counted else {}
+        class_name = (tip.get("class_name") or s.get("class_name") or "").strip()
+        rows.append(
+            {
+                "rank": int(s["rank"]),
+                "points": float(s["total_points"]),
+                "name": s.get("sailor_name") or "",
+                "slug": s.get("slug") or ser.slugify(s.get("sailor_name") or ""),
+                "sasId": s.get("sas_id") or "",
+                "club": tip.get("club_name") or s.get("club_name") or "",
+                "clubCode": ser.club_code_from(None, tip.get("club_name") or s.get("club_name") or ""),
+                "className": class_name,
+                "classSlug": ser.slugify(class_name) if class_name else "",
+                "sailNo": tip.get("sail_number") or "",
+                "previousRank": None,
+                "rankChange": None,
+                "ratedEvents": int(s.get("events_counted") or 0),
+                "ratedRaces": sum(int(c.get("races_sailed") or 0) for c in counted),
+                "overallRank": int(s["rank"]),
+                "classRank": None,
+                "classPoints": None,
+                "overallPoints": float(s["total_points"]),
+                "isAgedOut": False,
+                "agedOutLabel": "",
+            }
+        )
+    return rows
+
+
+def _validate_published_candidate(payload: dict, *, reference: Optional[dict]) -> dict:
+    checks: list[dict] = []
+    ok = True
+
+    top_keys = set(payload.keys())
+    missing_top = sorted(PUBLISHED_SCHEMA_TOP_KEYS - top_keys)
+    extra_top = sorted(top_keys - PUBLISHED_SCHEMA_TOP_KEYS)
+    schema_ok = not missing_top
+    checks.append(
+        {
+            "name": "schema_top_level",
+            "ok": schema_ok,
+            "missing": missing_top,
+            "extra": extra_top,
+            "reference_keys": sorted((reference or {}).keys()) if reference else None,
+        }
+    )
+    ok = ok and schema_ok
+
+    sailors = payload.get("sailors") or []
+    sailor_key_ok = bool(sailors) and all(PUBLISHED_SAILOR_KEYS <= set(s.keys()) for s in sailors[:20])
+    checks.append(
+        {
+            "name": "schema_sailor_rows",
+            "ok": sailor_key_ok,
+            "required": sorted(PUBLISHED_SAILOR_KEYS),
+        }
+    )
+    ok = ok and sailor_key_ok
+
+    slugs = [str(s.get("slug") or "") for s in sailors if s.get("slug")]
+    sas_ids = [str(s.get("sasId") or "") for s in sailors if str(s.get("sasId") or "").strip()]
+    unique_slugs = len(slugs) == len(set(slugs))
+    unique_sas = len(sas_ids) == len(set(sas_ids))
+    checks.append(
+        {
+            "name": "unique_sailors",
+            "ok": unique_slugs and unique_sas,
+            "slug_count": len(slugs),
+            "unique_slug_count": len(set(slugs)),
+            "sas_count": len(sas_ids),
+            "unique_sas_count": len(set(sas_ids)),
+        }
+    )
+    ok = ok and unique_slugs and unique_sas
+
+    ranks = [int(s.get("rank")) for s in sailors if s.get("rank") is not None]
+    expected_ranks = list(range(1, len(ranks) + 1))
+    rank_seq_ok = ranks == expected_ranks
+    checks.append(
+        {
+            "name": "rank_sequence",
+            "ok": rank_seq_ok,
+            "sailor_count": len(ranks),
+            "first": ranks[0] if ranks else None,
+            "last": ranks[-1] if ranks else None,
+        }
+    )
+    ok = ok and rank_seq_ok
+
+    breakdowns = payload.get("breakdowns") or {}
+    sum_mismatches: list[dict] = []
+    for s in sailors:
+        slug = str(s.get("slug") or "")
+        rows = breakdowns.get(slug) or []
+        summed = round(sum(float(r.get("points") or 0) for r in rows), 2)
+        overall = round(float(s.get("overallPoints") or s.get("points") or 0), 2)
+        if summed != overall:
+            sum_mismatches.append(
+                {"slug": slug, "name": s.get("name"), "overall": overall, "breakdown_sum": summed}
+            )
+    sum_ok = not sum_mismatches
+    checks.append(
+        {
+            "name": "contribution_sums",
+            "ok": sum_ok,
+            "mismatch_count": len(sum_mismatches),
+            "samples": sum_mismatches[:10],
+        }
+    )
+    ok = ok and sum_ok
+
+    class_boards = payload.get("classBoards") or {}
+    class_ok = isinstance(class_boards, dict) and bool(class_boards)
+    class_issues: list[str] = []
+    for slug, rows in list(class_boards.items())[:50]:
+        if not isinstance(rows, list):
+            class_issues.append(f"{slug}: not a list")
+            continue
+        active_ranks = [int(r.get("classRank")) for r in rows if r.get("classRank") is not None]
+        if active_ranks and active_ranks != list(range(1, len(active_ranks) + 1)):
+            class_issues.append(f"{slug}: classRank sequence broken")
+        for r in rows[:3]:
+            if "isAgedOut" not in r or "agedOutLabel" not in r:
+                class_issues.append(f"{slug}: missing age-out fields")
+                break
+    if class_issues:
+        class_ok = False
+    checks.append(
+        {
+            "name": "class_boards",
+            "ok": class_ok,
+            "class_count": len(class_boards),
+            "issues": class_issues[:20],
+        }
+    )
+    ok = ok and class_ok
+
+    age_ok = all("isAgedOut" in s and "agedOutLabel" in s for s in sailors)
+    checks.append({"name": "age_out_fields_overall", "ok": age_ok})
+    ok = ok and age_ok
+
+    by_sas = {str(s.get("sasId") or "").strip(): s for s in sailors if str(s.get("sasId") or "").strip()}
+    named: dict[str, dict] = {}
+    named_ok = True
+    for sas_id, expect in SSA_V2_EXPECTED_RANKS.items():
+        row = by_sas.get(sas_id)
+        if row is None:
+            named_ok = False
+            named[sas_id] = {"ok": False, "reason": "missing", "expect": expect}
+            continue
+        got_rank = int(row.get("overallRank") or row.get("rank") or 0)
+        got_points = round(float(row.get("overallPoints") or row.get("points") or 0), 2)
+        match = got_rank == expect["rank"] and got_points == expect["points"]
+        named_ok = named_ok and match
+        named[sas_id] = {
+            "ok": match,
+            "name": expect["name"],
+            "expect_rank": expect["rank"],
+            "expect_points": expect["points"],
+            "got_rank": got_rank,
+            "got_points": got_points,
+        }
+    checks.append({"name": "named_sailor_ranks", "ok": named_ok, "sailors": named})
+    ok = ok and named_ok
+
+    return {"ok": ok, "checks": checks, "named_sailors": named}
+
+
+def _serialize_ssa_v2_published_candidate(
+    conn,
+    *,
+    sailors: list[dict],
+    contribs: list[Any],
+    as_of: date,
+    window_start: date,
+    reference: Optional[dict],
+) -> tuple[dict, Path, dict]:
+    ser = _load_published_serializer()
+    _assert_safe_candidate_published_path(SSA_V2_CANDIDATE_PUBLISHED)
+    published_sailors = _build_ssa_v2_published_sailors(sailors, ser)
+    breakdowns, example_aliases = _build_ssa_v2_breakdowns(sailors, ser)
+    class_boards, class_options = _build_ssa_v2_class_boards(
+        conn, contribs=contribs, sailors=sailors, as_of=as_of, ser=ser
+    )
+    ref_audit = (reference or {}).get("audit") or {}
+    audit_row = {
+        "version": SSA_V2_CANDIDATE_VERSION,
+        "calculatedAt": f"{as_of.isoformat()}T00:00:00",
+        "formulaVersion": (reference or {}).get("formulaVersion") or "ssa-v2-pr13-shadow",
+        "eventRatingVersion": (reference or {}).get("eventRatingVersion") or ref_audit.get("eventRatingVersion"),
+        "totalRankedSailors": len(published_sailors),
+        "totalEventsIncluded": sum(int(s.get("ratedEvents") or 0) for s in published_sailors),
+        "totalRacesIncluded": sum(int(s.get("ratedRaces") or 0) for s in published_sailors),
+        "lastOfficialResultIncluded": ref_audit.get("lastOfficialResultIncluded"),
+        "exclusions": [{"code": "ssa_v2_shadow", "detail": "read-only candidate; not published"}],
+        "warnings": [],
+        "changelog": "SSA-v2 shadow candidate with live age-division dedup; not published",
+        "isPublished": False,
+    }
+    payload = {
+        "auditVersion": SSA_V2_CANDIDATE_VERSION,
+        "formulaVersion": audit_row["formulaVersion"],
+        "eventRatingVersion": audit_row["eventRatingVersion"],
+        "isMock": False,
+        "isPublished": False,
+        "audit": audit_row,
+        "audits": [audit_row],
+        "sailors": published_sailors,
+        "breakdowns": breakdowns,
+        "classBoards": class_boards,
+        "classOptions": class_options,
+        "exampleAliases": example_aliases,
+    }
+    validation = _validate_published_candidate(payload, reference=reference)
+    SSA_V2_CANDIDATE_PUBLISHED.parent.mkdir(parents=True, exist_ok=True)
+    SSA_V2_CANDIDATE_PUBLISHED.write_text(
+        json.dumps(payload, separators=(",", ":"), default=str),
+        encoding="utf-8",
+    )
+    candidate_hash = _sha256_file(SSA_V2_CANDIDATE_PUBLISHED)
+    top20 = [
+        {
+            "rank": s.get("rank"),
+            "name": s.get("name"),
+            "sasId": s.get("sasId"),
+            "points": s.get("points"),
+            "ratedEvents": s.get("ratedEvents"),
+        }
+        for s in published_sailors[:20]
+    ]
+    report = {
+        "ok": validation["ok"],
+        "candidate_path": str(SSA_V2_CANDIDATE_PUBLISHED),
+        "sha256": candidate_hash,
+        "sailor_count": len(published_sailors),
+        "class_board_count": len(class_boards),
+        "breakdown_keys": len(breakdowns),
+        "top20": top20,
+        "validation": validation,
+    }
+    return payload, SSA_V2_CANDIDATE_PUBLISHED, report
+
+
 def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
     _assert_non_published_out_dir(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -1386,6 +1989,24 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
         "age_division_groups": age_div_groups,
     }
 
+    _candidate_payload, candidate_path, candidate_report = _serialize_ssa_v2_published_candidate(
+        conn,
+        sailors=sailors,
+        contribs=contribs,
+        as_of=as_of,
+        window_start=window_start,
+        reference=published,
+    )
+    audit["published_candidate"] = {
+        "path": str(candidate_path),
+        "sha256": candidate_report["sha256"],
+        "sailor_count": candidate_report["sailor_count"],
+        "class_board_count": candidate_report["class_board_count"],
+        "top20": candidate_report["top20"],
+        "validation_ok": candidate_report["ok"],
+    }
+    audit["published_candidate_validation"] = candidate_report["validation"]
+
     cur.execute("SELECT COUNT(*) FROM results")
     results_after = cur.fetchone()[0]
     cur.execute("SELECT COUNT(*) FROM regattas")
@@ -1436,6 +2057,10 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
             indent=2,
             default=str,
         ),
+        encoding="utf-8",
+    )
+    (out_dir / "published_candidate_validation.json").write_text(
+        json.dumps(candidate_report, indent=2, default=str),
         encoding="utf-8",
     )
     return audit
@@ -1559,6 +2184,13 @@ def main() -> None:
                         "timothy_2025_420_nationals": audit.get("timothy_2025_420_nationals"),
                         "duplicate_division_exclusion_count": len(audit.get("duplicate_division_exclusions") or []),
                         "duplicate_division_exclusions": audit.get("duplicate_division_exclusions") or [],
+                        "published_candidate": {
+                            "path": audit.get("published_candidate", {}).get("path"),
+                            "sha256": audit.get("published_candidate", {}).get("sha256"),
+                            "validation_ok": audit.get("published_candidate", {}).get("validation_ok"),
+                            "top20": audit.get("published_candidate", {}).get("top20"),
+                        },
+                        "published_candidate_validation": audit.get("published_candidate_validation"),
                         "cat7_8_share": audit.get("cat7_8_share"),
                         "one_event_concentration": {
                             k: v
