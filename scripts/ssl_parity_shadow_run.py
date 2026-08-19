@@ -5,9 +5,12 @@ Completely separate from sas-points-v1.x.
 Default path writes ONLY ranking_audit* for a new audit. Does NOT publish.
 Does NOT touch api.py.
 
---mode=ssa-v2 is read-only: reuses live SAS extraction/dedup, scores with
-PR13 score_result(mode="ssa") using SAS event type/classification (not WoS),
-writes audit JSON to a non-published path. Forbids DB writes and published.json.
+--mode=ssa-v2 is read-only: reuses live SAS extraction plus live
+age-division classification, drops U17/U19/Youth subdivision rows when
+Overall/Open exists for the same sailor/regatta/class (never summed),
+then scores with PR13 score_result(mode="ssa") using SAS event type
+(not WoS). Writes audit JSON to a non-published path. Forbids DB writes
+and published.json.
 
 Feature flag (required for default path):
   export SSL_PARITY_ENGINE=1
@@ -30,7 +33,7 @@ import os
 import sys
 import unicodedata
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from pathlib import Path
@@ -101,6 +104,31 @@ _SAS_LEVEL_MAP = {
     50: ("ordinary", None, None),
 }
 _CHAMP_KINDS = {"world", "continental", "international", "national", "regional"}
+
+# Live championship classification (utils/ssl_parity_classification.py on live).
+# Overall/Open/class tables win; age-subdivision sheets are excluded, never summed.
+_MAIN_FLEET_TYPES = frozenset({"OVERALL", "OPEN", "CLASS"})
+_SUBDIVISION_TYPES = frozenset({"U17", "U19", "YOUTH", "JUNIOR"})
+_DROP_WHEN_MAIN = _SUBDIVISION_TYPES | frozenset({"SENIOR", "INCIDENTAL"})
+_KEEP_ORDER = {
+    "OVERALL": 0,
+    "OPEN": 1,
+    "CLASS": 2,
+    "SENIOR": 3,
+    "U19": 4,
+    "YOUTH": 5,
+    "JUNIOR": 6,
+    "U17": 7,
+    "UNKNOWN": 8,
+    "INCIDENTAL": 99,
+}
+TIM_SAS_ID = "21172"
+TIM_420_OVERALL_RESULT_ID = 837
+TIM_420_DIVISION_RESULT_IDS = frozenset({10381, 10382})
+AGE_DIVISION_EXCLUSION_REASON = (
+    "Duplicate age-division sheet for the same sailor/regatta/class — "
+    "Overall/Open retained; U17/U19/Youth subdivision excluded (never summed)."
+)
 
 
 def _norm_sas_type(raw: Any) -> str:
@@ -442,6 +470,219 @@ def _find_named(sailors: list[dict], name: str) -> Optional[dict]:
     return None
 
 
+def _load_live_age_division_cls(eng) -> Any:
+    """Load live championship classification from next to ssl_parity_engine.
+
+    Must not use PR13 ssl_parity_classification.py (no age-division resolver).
+    """
+    candidates = []
+    if getattr(eng, "__file__", None):
+        candidates.append(Path(eng.__file__).resolve().parent / "ssl_parity_classification.py")
+    candidates.extend(
+        [
+            Path("/var/www/sailingsa/utils/ssl_parity_classification.py"),
+            Path("/tmp/ssl_parity_classification.live.py"),
+        ]
+    )
+    seen: set[str] = set()
+    for path in candidates:
+        key = str(path)
+        if key in seen or not path.is_file():
+            continue
+        seen.add(key)
+        mod = _load_module_from_path("ssl_parity_age_division_cls", path)
+        if hasattr(mod, "resolve_championship_classification") and hasattr(mod, "underlying_entry_key"):
+            return mod
+    raise SystemExit(
+        "Live age-division classification not found next to ssl_parity_engine "
+        "(need resolve_championship_classification / underlying_entry_key)"
+    )
+
+
+def _row_attr(row: Any, *names: str, default: Any = None) -> Any:
+    for name in names:
+        if hasattr(row, name):
+            val = getattr(row, name)
+            if val not in (None, ""):
+                return val
+        elif isinstance(row, dict) and row.get(name) not in (None, ""):
+            return row.get(name)
+    return default
+
+
+def _classify_raw_row(row: Any, cls_mod: Any) -> Any:
+    return cls_mod.resolve_championship_classification(
+        fleet_label=_row_attr(row, "fleet_label"),
+        age_category=_row_attr(row, "age_category"),
+        block_id=_row_attr(row, "block_id"),
+        block_label=_row_attr(row, "block_label", "block_label_raw"),
+        class_name=_row_attr(row, "class_name"),
+    )
+
+
+def _underlying_entry_key_for_row(row: Any, cls_mod: Any) -> str:
+    return cls_mod.underlying_entry_key(
+        regatta_id=_row_attr(row, "regatta_id") or "",
+        class_name=_row_attr(row, "class_name"),
+        class_slug=_row_attr(row, "class_slug"),
+        sail_number=_row_attr(row, "sail_number"),
+        entry_id=_row_attr(row, "entry_id"),
+        sas_id=_row_attr(row, "sas_id"),
+        result_id=_row_attr(row, "result_id"),
+    )
+
+
+def _age_division_group_key(row: Any, ident: str) -> tuple:
+    """Same sailor / regatta / class — not per result_id or entry_id.
+
+    Live underlying_entry_key prefers entry_id/result_id, which splits Overall
+    vs U17/U19 sheets for the same boat. Group by sailor+regatta+class instead.
+    """
+    cls = (_row_attr(row, "class_slug", "class_name") or "").strip().lower()
+    return (ident, _row_attr(row, "regatta_id"), cls)
+
+
+def _keep_rank(classification_type: str) -> int:
+    return int(_KEEP_ORDER.get(classification_type or "UNKNOWN", 50))
+
+
+def _row_place_fleet(row: Any) -> tuple[int, int]:
+    try:
+        place = int(_row_attr(row, "place") or 10**9)
+    except (TypeError, ValueError):
+        place = 10**9
+    try:
+        fleet = int(_row_attr(row, "fleet_size") or 0)
+    except (TypeError, ValueError):
+        fleet = 0
+    return place, fleet
+
+
+def _pick_one_age_division_row(items: list[tuple]) -> tuple:
+    """items: list of (row, clf, uek). Prefer Overall, then Open, then class."""
+
+    def sort_key(item: tuple):
+        row, clf, _uek = item
+        place, fleet = _row_place_fleet(row)
+        rid = int(_row_attr(row, "result_id") or 0)
+        return (_keep_rank(clf.classification_type), -fleet, place, rid)
+
+    ranked = sorted(items, key=sort_key)
+    return ranked[0], ranked[1:]
+
+
+def filter_age_division_rows_before_scoring(raw_rows: list, cls_mod: Any) -> tuple[list, list[dict], list[dict]]:
+    """Reuse live championship classification; keep Overall/Open; never sum subdivisions.
+
+    Returns (rows_to_score, exclusion_audit, collapsed_group_audit).
+    """
+    grouped: dict[tuple, list[tuple]] = defaultdict(list)
+    for row in raw_rows:
+        ident = _identity_key(_row_attr(row, "sas_id"), _row_attr(row, "sailor_name") or "")
+        clf = _classify_raw_row(row, cls_mod)
+        uek = _underlying_entry_key_for_row(row, cls_mod)
+        grouped[_age_division_group_key(row, ident)].append((row, clf, uek))
+
+    kept: list = []
+    exclusions: list[dict] = []
+    groups_audit: list[dict] = []
+    for key, items in grouped.items():
+        types = {clf.classification_type for _row, clf, _uek in items}
+        drop_types = _DROP_WHEN_MAIN if (types & _MAIN_FLEET_TYPES) else frozenset({"INCIDENTAL"})
+        survivors = [it for it in items if it[1].classification_type not in drop_types]
+        dropped = [it for it in items if it[1].classification_type in drop_types]
+        if not survivors:
+            survivors = [it for it in items if it[1].classification_type != "INCIDENTAL"]
+            dropped = [it for it in items if it[1].classification_type == "INCIDENTAL"]
+        winner, extras = _pick_one_age_division_row(survivors) if survivors else (None, [])
+        dropped.extend(extras)
+        if winner is not None:
+            row, clf, uek = winner
+            row.classification_type = clf.classification_type
+            row.classification_label = clf.classification_label
+            row.official_classification = bool(clf.official_classification)
+            row.classification_breadth = int(getattr(clf, "breadth", 0) or 0)
+            row.underlying_entry_key = "|".join("" if x is None else str(x) for x in key)
+            row.live_underlying_entry_key = uek
+            kept.append(row)
+        if dropped:
+            win_id = _row_attr(winner[0], "result_id") if winner is not None else None
+            win_type = winner[1].classification_type if winner is not None else None
+            groups_audit.append(
+                {
+                    "identity_key": key[0],
+                    "regatta_id": key[1],
+                    "class_name": key[2],
+                    "candidate_count": len(items),
+                    "selected_result_id": win_id,
+                    "selected_classification": win_type,
+                    "excluded_result_ids": [_row_attr(r, "result_id") for r, _c, _u in dropped],
+                    "excluded_classifications": [c.classification_type for _r, c, _u in dropped],
+                }
+            )
+            for row, clf, uek in dropped:
+                exclusions.append(
+                    {
+                        "result_id": _row_attr(row, "result_id"),
+                        "sas_id": _row_attr(row, "sas_id"),
+                        "sailor_name": _row_attr(row, "sailor_name"),
+                        "event_name": _row_attr(row, "event_name"),
+                        "regatta_id": _row_attr(row, "regatta_id"),
+                        "class_name": _row_attr(row, "class_name"),
+                        "place": _row_attr(row, "place"),
+                        "fleet_size": _row_attr(row, "fleet_size"),
+                        "championship_type": clf.classification_type,
+                        "championship_label": clf.classification_label,
+                        "block_id": _row_attr(row, "block_id"),
+                        "fleet_label": _row_attr(row, "fleet_label"),
+                        "age_category": _row_attr(row, "age_category"),
+                        "selected_result_id": win_id,
+                        "selected_classification": win_type,
+                        "live_underlying_entry_key": uek,
+                        "reason": AGE_DIVISION_EXCLUSION_REASON,
+                    }
+                )
+    return kept, exclusions, groups_audit
+
+
+def _is_tim_420_nationals(row: Any) -> bool:
+    sas = str(_row_attr(row, "sas_id") or "").strip()
+    event = (_row_attr(row, "event_name") or "").lower()
+    return sas == TIM_SAS_ID and "420 national" in event
+
+
+def timothy_420_nationals_regression(kept_rows: list, exclusions: list[dict]) -> dict:
+    """P5/N12 (result 837) counted once; both P1/N3 division rows excluded."""
+    counted_ids = sorted(
+        {
+            int(_row_attr(r, "result_id"))
+            for r in kept_rows
+            if _is_tim_420_nationals(r) and _row_attr(r, "result_id") is not None
+        }
+    )
+    excluded_ids = sorted(
+        {
+            int(x["result_id"])
+            for x in exclusions
+            if str(x.get("sas_id") or "").strip() == TIM_SAS_ID
+            and "420 national" in (x.get("event_name") or "").lower()
+            and x.get("result_id") is not None
+        }
+    )
+    ok = counted_ids == [TIM_420_OVERALL_RESULT_ID] and set(excluded_ids) == set(TIM_420_DIVISION_RESULT_IDS)
+    return {
+        "sailor": "Timothy Weaving",
+        "sas_id": TIM_SAS_ID,
+        "event": "2025-10-04 420 National Champ",
+        "expect_counted_result_ids": [TIM_420_OVERALL_RESULT_ID],
+        "expect_excluded_result_ids": sorted(TIM_420_DIVISION_RESULT_IDS),
+        "counted_result_ids": counted_ids,
+        "excluded_result_ids": excluded_ids,
+        "counted_place_fleet": "P5/N12" if TIM_420_OVERALL_RESULT_ID in counted_ids else None,
+        "ok": ok,
+    }
+
+
 def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
     _assert_non_published_out_dir(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -458,8 +699,13 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
 
     eng = _import_live_engine()
     pr13_score_result, _pr13_cls = _load_pr13_score_result()
+    age_div_cls = _load_live_age_division_cls(eng)
     window_start = as_of - timedelta(weeks=WINDOW_WEEKS)
     raw_rows = eng.fetch_result_rows(conn, history_start=window_start)
+    score_rows, age_div_exclusions, age_div_groups = filter_age_division_rows_before_scoring(
+        raw_rows, age_div_cls
+    )
+    tim_420_regression = timothy_420_nationals_regression(score_rows, age_div_exclusions)
 
     errors: list[dict] = []
     n1_exclusions = 0
@@ -467,7 +713,7 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
     unknown_type_keys: dict[str, int] = defaultdict(int)
     contribs: list[Any] = []
 
-    for r in raw_rows:
+    for r in score_rows:
         fleet = int(getattr(r, "fleet_size", 0) or 0)
         if fleet == 1:
             n1_exclusions += 1
@@ -577,7 +823,12 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
                 eligible=bool(scored.eligible),
                 sas_event_kind=kind,
                 reason=scored.reason,
-                underlying_entry_key=f"result:{getattr(r, 'result_id', '')}",
+                classification_type=getattr(r, "classification_type", None),
+                classification_label=getattr(r, "classification_label", None),
+                classification_breadth=getattr(r, "classification_breadth", 0),
+                official_classification=getattr(r, "official_classification", True),
+                underlying_entry_key=getattr(r, "underlying_entry_key", None)
+                or f"result:{getattr(r, 'result_id', '')}",
                 selected_for_regatta=None,
                 selected_result_id=None,
                 exclusion_reason=None,
@@ -624,6 +875,7 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
                         "time_coeff": c.time_coeff,
                         "role": c.role,
                         "result_id": c.result_id,
+                        "championship_type": getattr(c, "classification_type", None),
                     }
                 )
         counted, total = _select_best6_plus_local_cat8(payload)
@@ -714,6 +966,16 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
                 "delta_points": s.get("delta_points"),
                 "events_counted": s.get("events_counted"),
                 "top_contribs": (s.get("contribs_counted") or [])[:8],
+                "all_contribs": s.get("contribs_counted") or [],
+                "age_division_excluded": [
+                    x
+                    for x in age_div_exclusions
+                    if str(x.get("sas_id") or "") == str(s.get("sas_id") or "")
+                    or (
+                        (x.get("sailor_name") or "").lower()
+                        == (s.get("sailor_name") or "").lower()
+                    )
+                ],
             }
         )
 
@@ -727,6 +989,13 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
         "db_writes": False,
         "published_json_written": False,
         "raw_extracted_rows": len(raw_rows),
+        "age_division_kept_rows": len(score_rows),
+        "age_division_excluded_count": len(age_div_exclusions),
+        "age_division_groups_collapsed": len(age_div_groups),
+        "age_division_exclusion_types": dict(
+            sorted(Counter(str(x.get("championship_type")) for x in age_div_exclusions).items())
+        ),
+        "timothy_2025_420_nationals": tim_420_regression,
         "scored_contribs": len(contribs),
         "proposed_sailor_count": len(sailors),
         "category_classified_counts": dict(sorted(cat_classified.items(), key=lambda kv: str(kv[0]))),
@@ -762,9 +1031,11 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
         },
         "aggregation": "best_6_non_local_plus_all_local_and_ssa_cat8",
         "scoring": (
-            "PR13 score_result(mode=ssa) from SAS rank/class/fleet/date plus "
-            "authoritative SAS event type/scope/level; WoS unused"
+            "Live age-division filter (Overall/Open kept, U17/U19/Youth excluded, "
+            "never summed) then PR13 score_result(mode=ssa) from SAS rank/class/"
+            "fleet/date plus authoritative SAS event type/scope/level; WoS unused"
         ),
+        "age_division_groups": age_div_groups,
     }
 
     cur.execute("SELECT COUNT(*) FROM results")
@@ -776,6 +1047,20 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
     conn.rollback()
 
     (out_dir / "audit.json").write_text(json.dumps(audit, indent=2, default=str), encoding="utf-8")
+    (out_dir / "age_division_exclusions.json").write_text(
+        json.dumps(
+            {
+                "count": len(age_div_exclusions),
+                "groups_collapsed": len(age_div_groups),
+                "timothy_2025_420_nationals": tim_420_regression,
+                "exclusions": age_div_exclusions,
+                "groups": age_div_groups,
+            },
+            indent=2,
+            default=str,
+        ),
+        encoding="utf-8",
+    )
     (out_dir / "proposed_sailors.json").write_text(
         json.dumps(
             [
