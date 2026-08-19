@@ -239,13 +239,20 @@ def last_place_points(category: int) -> float:
 
 
 def _placement_anchors(category: int, fleet: int) -> list[tuple[int, float]]:
-    """Official anchors: P1 winner, category P5/P10/P15 table, last at fleet N."""
+    """Official anchors: P1 winner, category P5/P10/P15 table, last at fleet N.
+
+    Short-fleet collapse (N<15, cats 1–6): discard unreachable P10/P15 anchors;
+    interpolate P5 → last=1 at N.
+    """
     cat = int(category)
     n = max(int(fleet), 1)
     base = float(CATEGORY_BASE[cat])
     last = last_place_points(cat)
+    breakpoints = PLACE_BREAKPOINTS.get(cat, [])
+    if n < 15 and cat != 7:
+        breakpoints = [(rank, pts) for rank, pts in breakpoints if rank <= 5]
     anchors: list[tuple[int, float]] = [(1, base)]
-    for rank, pts in PLACE_BREAKPOINTS.get(cat, []):
+    for rank, pts in breakpoints:
         if rank < n:
             anchors.append((rank, float(pts)))
     anchors.append((n, last))
@@ -573,10 +580,20 @@ _TESTS = [
         "is_championship": True,
         "official_status": "national_championship",
         "is_open": True,
-        "expect_points": 108.0,  # Cat5 P6/N13 raw 108.0 × 1.00 Olympic × 1.00 open
+        "expect_points": 109.5,
         "expect_category": 5,
         "sailor": "Sean Kavanagh",
         "live_points": 108.0,  # SSA published comparison only; not the expect
+    },
+    {
+        "id": "cat5-national-p6-n10-short-fleet-100.2",
+        "event": "2025-12-19 Youth Nationals",
+        "category": 5,
+        "place": 6,
+        "n": 10,
+        "class_name": "Mirror",
+        "event_date": "2025-12-19",
+        "expect_placement_points": 100.2,
     },
     {
         "id": "cat2-world-p3-raw-1750",
