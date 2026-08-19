@@ -61,18 +61,28 @@ SSA_CAT8_FIRST = 2.00
 SSA_CAT8_SECOND = 1.00
 
 # Last ranked gets 1 point, except Category 1 last ranked gets 50.
-DEFAULT_LAST_PLACE = 1.0
-CATEGORY_1_LAST_PLACE = 50.0
+LAST_POINTS = {
+    1: 50.0,
+    2: 1.0,
+    3: 1.0,
+    4: 1.0,
+    5: 1.0,
+    6: 1.0,
+    7: 1.0,
+}
 
-# 4 linear stages on absolute place: 1→5, 5→10, 10→20, 20→last.
-# Stage-2 end 0.19 is the official short-fleet interpolation that makes
-# Cat 5 P6 of N≥10 = 109.5 (Sean ILCA Nationals P6/N13, Olympic, open, recent).
-PLACE_KNOTS = (
-    (1, 1.00),
-    (5, 0.50),
-    (10, 0.19),
-    (20, 0.08),
-)
+# Official category-specific placement anchors at P5/P10/P15 (absolute points, not
+# generic winner fractions). Linear interpolation between P1 (category winner),
+# each anchor, and last place at fleet size N. Never use a flat 50% P5 factor.
+PLACE_BREAKPOINTS: dict[int, list[tuple[int, float]]] = {
+    1: [(5, 1500.0), (10, 600.0), (15, 200.0)],
+    2: [(5, 1000.0), (10, 300.0), (15, 100.0)],
+    3: [(5, 500.0), (10, 180.0), (15, 60.0)],
+    4: [(5, 250.0), (10, 80.0), (15, 40.0)],
+    5: [(5, 125.0), (10, 40.0), (15, 20.0)],
+    6: [(5, 50.0), (10, 20.0), (15, 8.0)],
+    7: [(2, 8.0)],
+}
 
 FULL_VALUE_WEEKS = 52
 ZERO_VALUE_WEEKS = 104
@@ -116,6 +126,11 @@ WS_CLASSES = {
     "hobie tiger",
     "j70",
     "j/70",
+    "j22",
+    "j/22",
+    "mirror",
+    "flying 15",
+    "flying fifteen",
     "star",
     "snipe",
     "moth",
@@ -135,12 +150,7 @@ CLASS_COEFFICIENT.update(
         "sonnet": CLASS_OTHER,
         "dabchick": CLASS_OTHER,
         "extra": CLASS_OTHER,
-        "mirror": CLASS_OTHER,
-        "j22": CLASS_OTHER,
-        "j/22": CLASS_OTHER,
         "hobie 14": CLASS_OTHER,
-        "flying 15": CLASS_OTHER,
-        "flying fifteen": CLASS_OTHER,
         "rs tera": CLASS_OTHER,
         "topper 5.3": CLASS_OTHER,
         "soling": CLASS_OTHER,
@@ -225,36 +235,24 @@ def age_factor(event_date: Any, as_at: Any = None) -> float:
 
 
 def last_place_points(category: int) -> float:
-    if int(category) == 1:
-        return CATEGORY_1_LAST_PLACE
-    return DEFAULT_LAST_PLACE
+    return float(LAST_POINTS.get(int(category), 1.0))
 
 
-def _placement_knots(category: int, fleet: int) -> list[tuple[int, float]]:
-    """
-    Official 4-stage table, short-fleet interpolated.
-
-    Knots at places 1, 5, 10, 20 are fractions of the category winner.
-    If the fleet is shorter than a knot, that knot is dropped and last
-    place is pinned to 1 (or 50 for Category 1). Places between remaining
-    knots are linear.
-    """
-    winner = CATEGORY_BASE[category]
-    last = last_place_points(category)
+def _placement_anchors(category: int, fleet: int) -> list[tuple[int, float]]:
+    """Official anchors: P1 winner, category P5/P10/P15 table, last at fleet N."""
+    cat = int(category)
     n = max(int(fleet), 1)
-    knots: list[tuple[int, float]] = []
-    for place, frac in PLACE_KNOTS:
-        if place > n:
-            break
-        if place == n:
-            knots.append((n, last))
-            return knots
-        knots.append((place, winner * frac))
-    if not knots or knots[-1][0] != n:
-        knots.append((n, last))
-    else:
-        knots[-1] = (n, last)
-    return knots
+    base = float(CATEGORY_BASE[cat])
+    last = last_place_points(cat)
+    anchors: list[tuple[int, float]] = [(1, base)]
+    for rank, pts in PLACE_BREAKPOINTS.get(cat, []):
+        if rank < n:
+            anchors.append((rank, float(pts)))
+    anchors.append((n, last))
+    merged: dict[int, float] = {}
+    for rank, pts in anchors:
+        merged[rank] = pts
+    return sorted(merged.items())
 
 
 def ssa_cat8_placement(place: Any, fleet: Any) -> float:
@@ -294,18 +292,17 @@ def placement_points(category: Any, place: Any, fleet: Any = None) -> float:
         return 0.0
     if p > n:
         p = n
-    knots = _placement_knots(cat, n)
-    if p <= knots[0][0]:
-        return knots[0][1]
-    for i in range(1, len(knots)):
-        p0, v0 = knots[i - 1]
-        p1, v1 = knots[i]
-        if p <= p1:
+    anchors = _placement_anchors(cat, n)
+    if p >= n:
+        return anchors[-1][1]
+    for i in range(len(anchors) - 1):
+        p0, v0 = anchors[i]
+        p1, v1 = anchors[i + 1]
+        if p0 <= p <= p1:
             if p1 == p0:
-                return v1
-            t = (p - p0) / float(p1 - p0)
-            return v0 + (v1 - v0) * t
-    return knots[-1][1]
+                return v0
+            return v0 + (v1 - v0) * (p - p0) / float(p1 - p0)
+    return anchors[-1][1]
 
 
 def place_factor(place: Any, fleet: Any = None, category: Any = 5) -> float:
@@ -576,10 +573,48 @@ _TESTS = [
         "is_championship": True,
         "official_status": "national_championship",
         "is_open": True,
-        "expect_points": 109.5,
+        "expect_points": 108.0,  # Cat5 P6/N13 raw 108.0 × 1.00 Olympic × 1.00 open
         "expect_category": 5,
         "sailor": "Sean Kavanagh",
         "live_points": 108.0,  # SSA published comparison only; not the expect
+    },
+    {
+        "id": "cat2-world-p3-raw-1750",
+        "event": "2025-04-19 Marriott IMCA World Champs",
+        "category": 2,
+        "place": 3,
+        "n": 33,
+        "class_name": "Mirror",
+        "event_date": "2025-04-19",
+        "expect_placement_points": 1750.0,
+    },
+    {
+        "id": "cat2-world-p5-raw-1000",
+        "event": "2025-04-19 Marriott IMCA World Champs",
+        "category": 2,
+        "place": 5,
+        "n": 33,
+        "class_name": "Mirror",
+        "event_date": "2025-04-19",
+        "expect_placement_points": 1000.0,
+    },
+    {
+        "id": "hayden-youth-nationals-mirror-p3-n10-restricted",
+        "event": "2025-12-19 Youth Nationals",
+        "n": 10,
+        "place": 3,
+        "class_name": "Mirror",
+        "event_date": "2025-12-19",
+        "ssa_rating": 500,
+        "is_championship": True,
+        "official_status": "national_championship",
+        "category": 5,
+        "is_open": False,
+        # Cat5 P3/N10 raw 187.5 × 0.85 WS × 0.40 age-restricted
+        "expect_points": 63.75,
+        "expect_category": 5,
+        "sailor": "Hayden Miller",
+        "sa_sailing_id": 8683,
     },
     {
         "id": "thomas-henshilwood-2026-rsa-29er-nationals-p4-n10",
@@ -910,6 +945,14 @@ def _run_inline_tests() -> list[dict]:
             ok = False
         if "expect_points" in spec and abs(got.points - spec["expect_points"]) > 0.011:
             ok = False
+        if "expect_placement_points" in spec:
+            raw = placement_points(
+                spec.get("category") or got.category,
+                spec["place"],
+                spec["n"],
+            )
+            if abs(raw - spec["expect_placement_points"]) > 0.011:
+                ok = False
         if spec.get("expect_eligible") is False and (got.eligible or got.points != 0):
             ok = False
         if spec.get("forbid_category") is not None and got.category == spec["forbid_category"]:
