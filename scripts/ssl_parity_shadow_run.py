@@ -11,7 +11,9 @@ Overall/Open exists for the same sailor/regatta/class (never summed),
 then scores with PR13 score_result(mode="ssa") using SAS event type
 (not WoS). Writes audit JSON to a non-published path and emits
 /tmp/published.ssa-v2.candidate.json via the live published serializer.
-Never overwrites live published.json. Forbids DB writes and published.json.
+Also emits /tmp/published.ssa-v2.preview.profile.json (SAS ID + result_id
+sidecar for profile preview). Never overwrites live published.json.
+Forbids DB writes and published.json.
 
 Feature flag (required for default path):
   export SSL_PARITY_ENGINE=1
@@ -21,8 +23,8 @@ Usage:
   SSL_PARITY_ENGINE=1 DB_URL=... python3 scripts/ssl_parity_shadow_run.py \\
     --apply --version 2026-07-26-003 --out-dir /tmp/ssl_parity_003
 
-  python3 scripts/ssl_parity_shadow_run.py --mode=ssa-v2 --as-of 2026-07-27 \\
-    --out-dir /tmp/ssl_parity_ssa_v2_2026-07-27
+    python3 scripts/ssl_parity_shadow_run.py --mode=ssa-v2 --as-of 2026-08-19 \\
+    --out-dir /tmp/ssl_parity_ssa_v2_2026-08-19
 """
 from __future__ import annotations
 
@@ -71,6 +73,7 @@ FORBIDDEN_PUBLISH_PATHS = (
     "/var/www/sailingsa/rankings/data",
 )
 SSA_V2_CANDIDATE_PUBLISHED = Path("/tmp/published.ssa-v2.candidate.json")
+SSA_V2_PROFILE_SIDECAR = Path("/tmp/published.ssa-v2.preview.profile.json")
 SSA_V2_CANDIDATE_VERSION = "ssa-v2-candidate-2026-07-27"
 SSA_V2_EXPECTED_RANKS = {
     "6804": {"name": "Sean Kavanagh", "rank": 3, "points": 362.7},
@@ -2221,6 +2224,443 @@ def _serialize_ssa_v2_published_candidate(
     return payload, SSA_V2_CANDIDATE_PUBLISHED, report
 
 
+def _json_num(value: Any) -> Optional[float]:
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _json_cat(value: Any) -> Optional[int]:
+    if value is None or value == "":
+        return None
+    try:
+        n = int(value)
+    except (TypeError, ValueError):
+        return None
+    if n < 1 or n > 8:
+        return None
+    return n
+
+
+def _json_result_id(value: Any) -> Optional[int]:
+    if value is None or value == "":
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _is_division_dup_rec(rec: dict) -> bool:
+    reason = str(rec.get("exclusion_reason") or rec.get("reason") or "")
+    if reason == AGE_DIVISION_EXCLUSION_REASON or "Duplicate age-division sheet" in reason:
+        return True
+    ctype = str(rec.get("championship_type") or "").upper()
+    if rec.get("selected_result_id") and ctype in _SUBDIVISION_TYPES:
+        return True
+    return False
+
+
+def _profile_sidecar_kind(rec: dict) -> tuple[bool, str, str]:
+    pts = float(rec.get("points") or 0)
+    if rec.get("counts_toward_rank") and pts > 0 and not rec.get("exclusion_reason"):
+        return True, "counted", str(rec.get("reason") or "counted")
+    if _is_division_dup_rec(rec):
+        return False, "division_dup", AGE_DIVISION_EXCLUSION_REASON
+    reason = rec.get("exclusion_reason") or rec.get("reason") or rec.get("score_reason") or "scored_excluded"
+    return False, "scored_excluded", str(reason)
+
+
+def _profile_sidecar_entry(rec: dict) -> Optional[dict]:
+    rid = _json_result_id(rec.get("result_id"))
+    if rid is None:
+        return None
+    counted, kind, reason = _profile_sidecar_kind(rec)
+    pts = round(float(rec.get("points") or 0), 2)
+    if counted and (rec.get("eligible") is False or pts <= 0):
+        counted = False
+        kind = "scored_excluded"
+        reason = str(rec.get("exclusion_reason") or rec.get("reason") or "ineligible_or_zero")
+    role = rec.get("role")
+    if role not in ("helm", "crew", "crew2", "crew3"):
+        role = None if role in (None, "") else str(role)
+    place_raw = rec.get("placement_points")
+    if place_raw is None:
+        place_raw = rec.get("place_points_raw")
+    time_c = rec.get("time_coeff")
+    if time_c is None:
+        time_c = rec.get("time_coefficient")
+    fleet = rec.get("fleet")
+    if fleet is None:
+        fleet = rec.get("fleet_size")
+    event = rec.get("event") or rec.get("event_name") or ""
+    event_date = rec.get("event_date") or rec.get("date") or ""
+    return {
+        "result_id": rid,
+        "points": pts,
+        "counted": counted,
+        "exclusion_kind": kind,
+        "reason": reason,
+        "fleet": fleet,
+        "place": rec.get("place"),
+        "pedigree_category": _json_cat(rec.get("pedigree_category")),
+        "fleet_cap_category": _json_cat(rec.get("fleet_cap_category")),
+        "effective_category": _json_cat(rec.get("effective_category") if rec.get("effective_category") is not None else rec.get("category")),
+        "class_coefficient": _json_num(rec.get("class_coefficient")),
+        "open_coefficient": _json_num(rec.get("open_coefficient")),
+        "time_coefficient": _json_num(time_c),
+        "place_points_raw": _json_num(place_raw),
+        "role": role,
+        "event": event,
+        "event_date": event_date,
+    }
+
+
+def _sidecar_put(sailors_out: dict[str, dict], sas_id: str, entry: dict, mismatches: list) -> None:
+    sid = str(sas_id or "").strip()
+    rid = entry.get("result_id")
+    if not sid or rid is None:
+        mismatches.append({"kind": "blank_key", "sas_id": sid, "result_id": rid})
+        return
+    rid_key = str(int(rid))
+    bucket = sailors_out.setdefault(sid, {})
+    prev = bucket.get(rid_key)
+    if prev is None:
+        bucket[rid_key] = entry
+        return
+    rank = {"counted": 0, "division_dup": 1, "scored_excluded": 2}
+    if entry["exclusion_kind"] == prev["exclusion_kind"] == "counted":
+        mismatches.append({"kind": "duplicate_counted", "sas_id": sid, "result_id": rid})
+        return
+    if rank.get(entry["exclusion_kind"], 9) < rank.get(prev["exclusion_kind"], 9):
+        bucket[rid_key] = entry
+
+
+def _write_ssa_v2_profile_sidecar(
+    *,
+    sailors: list[dict],
+    profile_groups: list[dict],
+    age_div_exclusions: list[dict],
+    valid_sas_ids: set[str],
+    conn,
+    as_of: date,
+    audit_version: str,
+) -> dict:
+    sailors_out: dict[str, dict] = {}
+    mismatches: list[dict] = []
+    for group in profile_groups:
+        sas_id = str(group.get("sas_id") or "").strip()
+        if not sas_id or sas_id not in valid_sas_ids:
+            continue
+        for rec in group.get("records") or []:
+            entry = _profile_sidecar_entry(rec)
+            if entry is None:
+                mismatches.append({"kind": "missing_result_id", "sas_id": sas_id, "rec": rec.get("event")})
+                continue
+            _sidecar_put(sailors_out, sas_id, entry, mismatches)
+    for row in age_div_exclusions:
+        sas_id = str(row.get("sas_id") or "").strip()
+        if not sas_id or sas_id not in valid_sas_ids:
+            continue
+        rec = dict(row)
+        rec["counts_toward_rank"] = False
+        rec["exclusion_reason"] = AGE_DIVISION_EXCLUSION_REASON
+        rec["reason"] = AGE_DIVISION_EXCLUSION_REASON
+        rec["fleet"] = rec.get("fleet") or rec.get("fleet_size")
+        rec["event"] = rec.get("event") or rec.get("event_name")
+        entry = _profile_sidecar_entry(rec)
+        if entry is None:
+            mismatches.append({"kind": "division_dup_missing_result_id", "sas_id": sas_id})
+            continue
+        entry["counted"] = False
+        entry["exclusion_kind"] = "division_dup"
+        entry["reason"] = AGE_DIVISION_EXCLUSION_REASON
+        existing = (sailors_out.get(sas_id) or {}).get(str(entry["result_id"]))
+        if existing and existing.get("counted"):
+            # Audit row names the retained Overall/Open result — keep counted.
+            continue
+        _sidecar_put(sailors_out, sas_id, entry, mismatches)
+
+    payload = {
+        "auditVersion": audit_version,
+        "asAt": as_of.isoformat(),
+        "isPublished": False,
+        "sailors": sailors_out,
+    }
+    text = json.dumps(payload, indent=2, default=str)
+    json.loads(text)  # parse check
+    SSA_V2_PROFILE_SIDECAR.parent.mkdir(parents=True, exist_ok=True)
+    SSA_V2_PROFILE_SIDECAR.write_text(text, encoding="utf-8")
+
+    report = _validate_ssa_v2_profile_sidecar(
+        payload,
+        path=SSA_V2_PROFILE_SIDECAR,
+        sailors=sailors,
+        age_div_exclusions=age_div_exclusions,
+        valid_sas_ids=valid_sas_ids,
+        conn=conn,
+        build_mismatches=mismatches,
+    )
+    return report
+
+
+def _validate_ssa_v2_profile_sidecar(
+    payload: dict,
+    *,
+    path: Path,
+    sailors: list[dict],
+    age_div_exclusions: list[dict],
+    valid_sas_ids: set[str],
+    conn,
+    build_mismatches: list[dict],
+) -> dict:
+    checks: list[dict] = []
+    ok = True
+    sailors_out = payload.get("sailors") or {}
+
+    parse_ok = payload.get("isPublished") is False
+    checks.append({"name": "parses_unpublished", "ok": parse_ok, "isPublished": payload.get("isPublished")})
+    ok = ok and parse_ok
+
+    blank = 0
+    dup_pairs = 0
+    seen_pairs: set[tuple[str, str]] = set()
+    for sas_id, results in sailors_out.items():
+        if not str(sas_id or "").strip():
+            blank += 1
+        for rid_key, entry in (results or {}).items():
+            rid = entry.get("result_id") if isinstance(entry, dict) else None
+            if rid is None or rid_key in ("", "None"):
+                blank += 1
+                continue
+            pair = (str(sas_id), str(int(rid)))
+            if pair in seen_pairs:
+                dup_pairs += 1
+            seen_pairs.add(pair)
+    unique_ok = dup_pairs == 0 and blank == 0
+    checks.append({"name": "unique_sas_result_keys", "ok": unique_ok, "duplicate_pairs": dup_pairs, "blank_keys": blank})
+    ok = ok and unique_ok
+
+    sidecar_sas = {str(s).strip() for s in sailors_out.keys() if str(s).strip()}
+    missing_personal = sorted(s for s in sidecar_sas if s not in valid_sas_ids)
+    if missing_personal:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT sa_sailing_id::text FROM public.sas_id_personal WHERE sa_sailing_id::text = ANY(%s)",
+            (missing_personal,),
+        )
+        found = {str(r[0] if not isinstance(r, dict) else r.get("sa_sailing_id")) for r in (cur.fetchall() or [])}
+        missing_personal = [s for s in missing_personal if s not in found]
+    ident_ok = not missing_personal
+    checks.append(
+        {
+            "name": "sas_ids_in_sas_id_personal",
+            "ok": ident_ok,
+            "missing_count": len(missing_personal),
+            "missing_samples": missing_personal[:10],
+        }
+    )
+    ok = ok and ident_ok
+
+    counted_missing = []
+    counted_extra = []
+    sum_mismatches = []
+    for s in sailors:
+        sas = str(s.get("sas_id") or "").strip()
+        board_counted = s.get("contribs_counted") or []
+        board_ids = []
+        for rec in board_counted:
+            rid = _json_result_id(rec.get("result_id"))
+            if rid is None:
+                counted_missing.append({"sas_id": sas, "result_id": None})
+                continue
+            board_ids.append(rid)
+            entry = (sailors_out.get(sas) or {}).get(str(rid))
+            if not entry or not entry.get("counted") or entry.get("exclusion_kind") != "counted":
+                counted_missing.append({"sas_id": sas, "result_id": rid})
+        sidecar_counted_ids = [
+            int(e["result_id"])
+            for e in (sailors_out.get(sas) or {}).values()
+            if e.get("counted")
+        ]
+        extra = sorted(set(sidecar_counted_ids) - set(board_ids))
+        for rid in extra:
+            counted_extra.append({"sas_id": sas, "result_id": rid})
+        board_sum = round(float(s.get("total_points") or 0), 2)
+        side_sum = round(
+            sum(float(e.get("points") or 0) for e in (sailors_out.get(sas) or {}).values() if e.get("counted")),
+            2,
+        )
+        if board_sum != side_sum:
+            sum_mismatches.append({"sas_id": sas, "name": s.get("sailor_name"), "board": board_sum, "sidecar": side_sum})
+    counted_ok = not counted_missing and not counted_extra
+    sum_ok = not sum_mismatches
+    checks.append(
+        {
+            "name": "candidate_counted_exactly_once",
+            "ok": counted_ok,
+            "missing": counted_missing[:15],
+            "extra": counted_extra[:15],
+            "missing_count": len(counted_missing),
+            "extra_count": len(counted_extra),
+        }
+    )
+    checks.append(
+        {
+            "name": "counted_points_match_candidate",
+            "ok": sum_ok,
+            "mismatch_count": len(sum_mismatches),
+            "samples": sum_mismatches[:10],
+        }
+    )
+    ok = ok and counted_ok and sum_ok
+
+    div_missing = []
+    for row in age_div_exclusions:
+        sas = str(row.get("sas_id") or "").strip()
+        rid = _json_result_id(row.get("result_id"))
+        if not sas or sas not in valid_sas_ids or rid is None:
+            continue
+        entry = (sailors_out.get(sas) or {}).get(str(rid))
+        if entry and entry.get("counted"):
+            continue
+        if not entry or entry.get("exclusion_kind") != "division_dup" or entry.get("counted"):
+            div_missing.append({"sas_id": sas, "result_id": rid})
+    div_ok = not div_missing
+    checks.append(
+        {
+            "name": "all_division_dups_represented",
+            "ok": div_ok,
+            "missing_count": len(div_missing),
+            "samples": div_missing[:10],
+        }
+    )
+    ok = ok and div_ok
+
+    scored_missing = []
+    for s in sailors:
+        sas = str(s.get("sas_id") or "").strip()
+        for rec in s.get("contribs_excluded") or []:
+            if _is_division_dup_rec(rec):
+                continue
+            rid = _json_result_id(rec.get("result_id"))
+            if rid is None:
+                continue
+            entry = (sailors_out.get(sas) or {}).get(str(rid))
+            if entry is None:
+                scored_missing.append({"sas_id": sas, "result_id": rid})
+                continue
+            if entry.get("counted") or entry.get("exclusion_kind") in ("scored_excluded", "division_dup"):
+                continue
+            scored_missing.append({"sas_id": sas, "result_id": rid})
+    scored_ok = not scored_missing
+    checks.append(
+        {
+            "name": "all_scored_exclusions_represented",
+            "ok": scored_ok,
+            "missing_count": len(scored_missing),
+            "samples": scored_missing[:10],
+        }
+    )
+    ok = ok and scored_ok
+
+    tim = sailors_out.get(TIM_SAS_ID) or {}
+    tim_837 = tim.get(str(TIM_420_OVERALL_RESULT_ID)) or {}
+    tim_d1 = tim.get("10381") or {}
+    tim_d2 = tim.get("10382") or {}
+    tim_ok = (
+        bool(tim_837.get("counted"))
+        and tim_837.get("exclusion_kind") == "counted"
+        and tim_d1.get("exclusion_kind") == "division_dup"
+        and not tim_d1.get("counted")
+        and tim_d2.get("exclusion_kind") == "division_dup"
+        and not tim_d2.get("counted")
+    )
+    checks.append(
+        {
+            "name": "timothy_420_nationals",
+            "ok": tim_ok,
+            "result_837": tim_837,
+            "result_10381": {k: tim_d1.get(k) for k in ("result_id", "counted", "exclusion_kind", "reason", "points")},
+            "result_10382": {k: tim_d2.get(k) for k in ("result_id", "counted", "exclusion_kind", "reason", "points")},
+        }
+    )
+    ok = ok and tim_ok
+
+    def _sample(sas_id: str) -> dict:
+        rows = sailors_out.get(str(sas_id)) or {}
+        items = list(rows.values())
+        return {
+            "sas_id": sas_id,
+            "result_count": len(items),
+            "counted": sum(1 for e in items if e.get("counted")),
+            "scored_excluded": sum(1 for e in items if e.get("exclusion_kind") == "scored_excluded"),
+            "division_dup": sum(1 for e in items if e.get("exclusion_kind") == "division_dup"),
+            "entries": items,
+        }
+
+    samples = {
+        "8680": _sample("8680"),
+        "21172": _sample("21172"),
+        "8683": _sample("8683"),
+    }
+
+    counted_n = 0
+    scored_n = 0
+    div_n = 0
+    zero_n = 0
+    result_n = 0
+    for results in sailors_out.values():
+        for e in results.values():
+            result_n += 1
+            kind = e.get("exclusion_kind")
+            if e.get("counted"):
+                counted_n += 1
+            elif kind == "division_dup":
+                div_n += 1
+            else:
+                scored_n += 1
+            if float(e.get("points") or 0) <= 0 or kind not in ("counted", "division_dup") and (
+                "ineligible" in str(e.get("reason") or "") or str(e.get("reason") or "") == "ineligible_or_zero"
+            ):
+                if not e.get("counted"):
+                    zero_n += 1
+
+    hard_dups = [m for m in build_mismatches if m.get("kind") == "duplicate_counted"]
+    if hard_dups:
+        ok = False
+    data = path.read_bytes()
+    report = {
+        "ok": ok,
+        "path": str(path),
+        "bytes": len(data),
+        "sha256": hashlib.sha256(data).hexdigest(),
+        "sailor_count": len(sailors_out),
+        "result_entry_count": result_n,
+        "counted_count": counted_n,
+        "scored_excluded_count": scored_n,
+        "division_dup_count": div_n,
+        "zero_ineligible_count": zero_n,
+        "reconciliation_mismatches": {
+            "build": build_mismatches[:30],
+            "build_count": len(build_mismatches),
+            "sum_mismatches": sum_mismatches[:20],
+            "sum_mismatch_count": len(sum_mismatches),
+            "counted_missing": counted_missing[:20],
+            "division_dup_missing": div_missing[:20],
+            "scored_missing": scored_missing[:20],
+        },
+        "checks": checks,
+        "samples": samples,
+    }
+    if not ok:
+        raise SystemExit("ssa-v2 profile sidecar validation failed:\n" + json.dumps(report, indent=2, default=str)[:12000])
+    return report
+
+
 def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
     _assert_non_published_out_dir(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -2349,6 +2789,7 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
         by_id[c.identity_key].append(c)
 
     sailors: list[dict] = []
+    profile_groups: list[dict] = []
     cat_counting: dict[str, int] = defaultdict(int)
     for ident, items in by_id.items():
         sas_id = str(next((c.sas_id for c in items if c.sas_id), "") or "").strip()
@@ -2373,6 +2814,7 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
                     rec["exclusion_reason"] = BEST6_EXCLUSION_REASON
                 else:
                     rec["exclusion_reason"] = rec.get("reason") or "ineligible_or_zero"
+        profile_groups.append({"sas_id": sas_id, "records": records, "total_points": total})
         if total <= 0:
             continue
         tip = items[0]
@@ -2590,6 +3032,16 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
         "validation_ok": candidate_report["ok"],
     }
     audit["published_candidate_validation"] = candidate_report["validation"]
+    sidecar_report = _write_ssa_v2_profile_sidecar(
+        sailors=sailors,
+        profile_groups=profile_groups,
+        age_div_exclusions=age_div_exclusions,
+        valid_sas_ids=valid_sas_ids,
+        conn=conn,
+        as_of=as_of,
+        audit_version=f"ssa-v2-candidate-{as_of.isoformat()}",
+    )
+    audit["profile_sidecar"] = sidecar_report
 
     cur.execute("SELECT COUNT(*) FROM results")
     results_after = cur.fetchone()[0]
@@ -2786,6 +3238,7 @@ def main() -> None:
                             "top20": audit.get("published_candidate", {}).get("top20"),
                         },
                         "published_candidate_validation": audit.get("published_candidate_validation"),
+                        "profile_sidecar": audit.get("profile_sidecar"),
                         "cat7_8_share": audit.get("cat7_8_share"),
                         "one_event_concentration": {
                             k: v
