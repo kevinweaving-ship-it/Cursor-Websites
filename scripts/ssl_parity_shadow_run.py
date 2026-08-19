@@ -129,6 +129,11 @@ AGE_DIVISION_EXCLUSION_REASON = (
     "Duplicate age-division sheet for the same sailor/regatta/class — "
     "Overall/Open retained; U17/U19/Youth subdivision excluded (never summed)."
 )
+BEST6_EXCLUSION_REASON = "outside_best_6_non_local"
+ROLE_COLLAPSE_EXCLUSION_REASON = "same_result_lower_role_points"
+LIVE_DEDUP_EXCLUSION_REASON = (
+    "Duplicate classification within same regatta — higher eligible championship contribution selected."
+)
 
 
 def _norm_sas_type(raw: Any) -> str:
@@ -459,6 +464,189 @@ def _select_best6_plus_local_cat8(items: list[dict]) -> tuple[list[dict], float]
     return counted, total
 
 
+def _iso_date(value: Any) -> Optional[str]:
+    if value is None:
+        return None
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
+
+
+def _median(values: list[float]) -> Optional[float]:
+    if not values:
+        return None
+    ordered = sorted(values)
+    n = len(ordered)
+    mid = n // 2
+    if n % 2:
+        return round(float(ordered[mid]), 4)
+    return round((float(ordered[mid - 1]) + float(ordered[mid])) / 2.0, 4)
+
+
+def _contrib_key(row: dict) -> tuple:
+    return (row.get("result_id"), row.get("role"), row.get("identity_key"))
+
+
+def _full_contrib_dict(c: Any) -> dict:
+    """All scoring inputs/outputs plus exclusion metadata for one contribution."""
+    dt = getattr(c, "event_date", None)
+    return {
+        "identity_key": getattr(c, "identity_key", None),
+        "sas_id": getattr(c, "sas_id", None),
+        "sailor_name": getattr(c, "sailor_name", None),
+        "result_id": getattr(c, "result_id", None),
+        "regatta_id": getattr(c, "regatta_id", None),
+        "event": getattr(c, "event_name", None),
+        "event_date": _iso_date(dt),
+        "class_name": getattr(c, "class_name", None),
+        "sail_number": getattr(c, "sail_number", None),
+        "club_name": getattr(c, "club_name", None),
+        "role": getattr(c, "role", None),
+        "place": getattr(c, "place", None),
+        "fleet": getattr(c, "fleet_size", None),
+        "races_sailed": getattr(c, "races_sailed", None),
+        "block_id": getattr(c, "block_id", None),
+        "fleet_label": getattr(c, "fleet_label", None),
+        "age_category": getattr(c, "age_category", None),
+        "championship_type": getattr(c, "classification_type", None),
+        "championship_label": getattr(c, "classification_label", None),
+        "classification_breadth": getattr(c, "classification_breadth", None),
+        "official_classification": getattr(c, "official_classification", None),
+        "underlying_entry_key": getattr(c, "underlying_entry_key", None),
+        "live_underlying_entry_key": getattr(c, "live_underlying_entry_key", None),
+        "sas_event_kind": getattr(c, "sas_event_kind", None),
+        "event_rating_type": getattr(c, "event_rating_type", None),
+        "event_scope": getattr(c, "event_scope", None),
+        "event_rating_level": getattr(c, "event_rating_level", None),
+        "mode": "ssa",
+        "as_at": _iso_date(getattr(c, "as_at", None)),
+        "is_open": getattr(c, "is_open", True),
+        "restriction_count": getattr(c, "restriction_count", 0),
+        "championship": getattr(c, "championship", None),
+        "official_status": getattr(c, "official_status", None),
+        "championship_exception": getattr(c, "championship_exception", None),
+        "category_override": getattr(c, "category_override", None),
+        "points": float(getattr(c, "points", 0) or 0),
+        "eligible": bool(getattr(c, "eligible", False)),
+        "category": getattr(c, "category", None),
+        "category_name": getattr(c, "category_name", None),
+        "category_base": getattr(c, "category_base", None),
+        "class_coefficient": getattr(c, "class_coefficient", None),
+        "open_coefficient": getattr(c, "open_coefficient", None),
+        "place_factor": getattr(c, "place_factor", None),
+        "placement_points": getattr(c, "placement_points", None),
+        "time_coeff": getattr(c, "time_coeff", None),
+        "ssa_rating": getattr(c, "ssa_rating", None),
+        "reason": getattr(c, "reason", None),
+        "exclusion_reason": getattr(c, "exclusion_reason", None),
+        "counts_toward_rank": bool(getattr(c, "counts_toward_rank", False)),
+        "selected_for_regatta": getattr(c, "selected_for_regatta", None),
+        "selected_result_id": getattr(c, "selected_result_id", None),
+    }
+
+
+def _cat78_and_concentration(sailors: list[dict]) -> dict:
+    """Audit summaries: Cat7/8 share of counted points, one-event concentration."""
+    all_counting_points = 0.0
+    cat7_points = 0.0
+    cat8_points = 0.0
+    cat7_events = 0
+    cat8_events = 0
+    sailors_any_7 = 0
+    sailors_any_8 = 0
+    sailors_majority_78 = 0
+    max_shares: list[float] = []
+    ge50 = 0
+    ge75 = 0
+    single_only = 0
+    concentrated: list[dict] = []
+    for s in sailors:
+        counted = s.get("contribs_counted") or []
+        total = float(s.get("total_points") or 0)
+        s7 = 0.0
+        s8 = 0.0
+        n7 = 0
+        n8 = 0
+        for row in counted:
+            pts = float(row.get("points") or 0)
+            all_counting_points += pts
+            cat = row.get("category")
+            if cat == 7:
+                cat7_points += pts
+                cat7_events += 1
+                s7 += pts
+                n7 += 1
+            elif cat == 8:
+                cat8_points += pts
+                cat8_events += 1
+                s8 += pts
+                n8 += 1
+        if n7:
+            sailors_any_7 += 1
+        if n8:
+            sailors_any_8 += 1
+        share78 = round((s7 + s8) / total, 4) if total else None
+        s["cat7_points"] = round(s7, 2)
+        s["cat8_points"] = round(s8, 2)
+        s["cat7_8_share"] = share78
+        if share78 is not None and share78 >= 0.5:
+            sailors_majority_78 += 1
+        if counted and total:
+            top = max(counted, key=lambda r: float(r.get("points") or 0))
+            share = round(float(top.get("points") or 0) / total, 4)
+        else:
+            top = None
+            share = None
+        s["max_event_share"] = share
+        s["max_event"] = (top or {}).get("event")
+        s["max_event_points"] = float((top or {}).get("points") or 0) if top else 0.0
+        if share is not None:
+            max_shares.append(share)
+            if share >= 0.5:
+                ge50 += 1
+            if share >= 0.75:
+                ge75 += 1
+            if len(counted) == 1:
+                single_only += 1
+            concentrated.append(
+                {
+                    "sailor_name": s.get("sailor_name"),
+                    "sas_id": s.get("sas_id"),
+                    "rank": s.get("rank"),
+                    "total_points": s.get("total_points"),
+                    "max_event_share": share,
+                    "event": s.get("max_event"),
+                    "event_points": s.get("max_event_points"),
+                    "events_counted": s.get("events_counted"),
+                }
+            )
+    concentrated.sort(key=lambda r: -float(r["max_event_share"]))
+    denom = all_counting_points or 1.0
+    return {
+        "cat7_8_share": {
+            "counting_points_all": round(all_counting_points, 2),
+            "cat7_counting_events": cat7_events,
+            "cat8_counting_events": cat8_events,
+            "cat7_counting_points": round(cat7_points, 2),
+            "cat8_counting_points": round(cat8_points, 2),
+            "cat7_share": round(cat7_points / denom, 4) if all_counting_points else 0.0,
+            "cat8_share": round(cat8_points / denom, 4) if all_counting_points else 0.0,
+            "cat7_or_8_share": round((cat7_points + cat8_points) / denom, 4) if all_counting_points else 0.0,
+            "sailors_with_any_cat7": sailors_any_7,
+            "sailors_with_any_cat8": sailors_any_8,
+            "sailors_majority_cat7_or_8": sailors_majority_78,
+        },
+        "one_event_concentration": {
+            "mean_max_event_share": round(sum(max_shares) / len(max_shares), 4) if max_shares else None,
+            "median_max_event_share": _median(max_shares),
+            "sailors_one_event_ge_50pct": ge50,
+            "sailors_one_event_ge_75pct": ge75,
+            "sailors_single_event_only": single_only,
+            "top_concentrated": concentrated[:25],
+        },
+    }
+
+
 def _find_named(sailors: list[dict], name: str) -> Optional[dict]:
     target = name.lower()
     for s in sailors:
@@ -571,10 +759,13 @@ def _pick_one_age_division_row(items: list[tuple]) -> tuple:
     return ranked[0], ranked[1:]
 
 
-def filter_age_division_rows_before_scoring(raw_rows: list, cls_mod: Any) -> tuple[list, list[dict], list[dict]]:
+def filter_age_division_rows_before_scoring(
+    raw_rows: list, cls_mod: Any
+) -> tuple[list, list[dict], list[dict], list]:
     """Reuse live championship classification; keep Overall/Open; never sum subdivisions.
 
-    Returns (rows_to_score, exclusion_audit, collapsed_group_audit).
+    Returns (rows_to_count, exclusion_audit, collapsed_group_audit, excluded_rows).
+    Excluded rows are scored for audit only and never enter Best 6.
     """
     grouped: dict[tuple, list[tuple]] = defaultdict(list)
     for row in raw_rows:
@@ -586,6 +777,7 @@ def filter_age_division_rows_before_scoring(raw_rows: list, cls_mod: Any) -> tup
     kept: list = []
     exclusions: list[dict] = []
     groups_audit: list[dict] = []
+    excluded_rows: list = []
     for key, items in grouped.items():
         types = {clf.classification_type for _row, clf, _uek in items}
         drop_types = _DROP_WHEN_MAIN if (types & _MAIN_FLEET_TYPES) else frozenset({"INCIDENTAL"})
@@ -604,6 +796,8 @@ def filter_age_division_rows_before_scoring(raw_rows: list, cls_mod: Any) -> tup
             row.classification_breadth = int(getattr(clf, "breadth", 0) or 0)
             row.underlying_entry_key = "|".join("" if x is None else str(x) for x in key)
             row.live_underlying_entry_key = uek
+            row.exclusion_reason = None
+            row.selected_result_id = _row_attr(row, "result_id")
             kept.append(row)
         if dropped:
             win_id = _row_attr(winner[0], "result_id") if winner is not None else None
@@ -621,6 +815,15 @@ def filter_age_division_rows_before_scoring(raw_rows: list, cls_mod: Any) -> tup
                 }
             )
             for row, clf, uek in dropped:
+                row.classification_type = clf.classification_type
+                row.classification_label = clf.classification_label
+                row.official_classification = bool(clf.official_classification)
+                row.classification_breadth = int(getattr(clf, "breadth", 0) or 0)
+                row.underlying_entry_key = "|".join("" if x is None else str(x) for x in key)
+                row.live_underlying_entry_key = uek
+                row.exclusion_reason = AGE_DIVISION_EXCLUSION_REASON
+                row.selected_result_id = win_id
+                excluded_rows.append(row)
                 exclusions.append(
                     {
                         "result_id": _row_attr(row, "result_id"),
@@ -642,7 +845,179 @@ def filter_age_division_rows_before_scoring(raw_rows: list, cls_mod: Any) -> tup
                         "reason": AGE_DIVISION_EXCLUSION_REASON,
                     }
                 )
-    return kept, exclusions, groups_audit
+    return kept, exclusions, groups_audit, excluded_rows
+
+
+def _score_row_to_contrib(
+    r: Any,
+    *,
+    as_of: date,
+    pr13_score_result,
+    preset_exclusion: Optional[str] = None,
+) -> tuple[Any, Optional[dict], dict]:
+    """Score one SAS row. Age-division losers are scored for audit but never count."""
+    fleet = int(getattr(r, "fleet_size", 0) or 0)
+    place = getattr(r, "place", None)
+    sas_event = _resolve_sas_event_type(r)
+    ident = _identity_key(getattr(r, "sas_id", None), getattr(r, "sailor_name", "") or "")
+    kind = sas_event["kind"]
+    official_status = sas_event["official_status"]
+    is_champ = kind in _CHAMP_KINDS
+    score_kwargs: dict[str, Any] = {
+        "event_date": getattr(r, "event_date", None),
+        "role": getattr(r, "role", None),
+        "as_at": as_of,
+        "mode": "ssa",
+        "is_open": True,
+        "restriction_count": 0,
+        "championship": False if (kind == "ordinary" or fleet == 2) else is_champ,
+        "official_status": None if (kind == "ordinary" or fleet == 2) else official_status,
+        "championship_exception": None if (kind == "ordinary" or fleet == 2) else official_status,
+    }
+    category_override = None
+    if is_champ and fleet >= 3 and sas_event["base_category"] is not None:
+        if kind in {"world", "continental", "international"}:
+            category_override = _championship_category_after_fleet(int(sas_event["base_category"]), fleet)
+            score_kwargs["category"] = category_override
+
+    def _base_contrib(**extra: Any) -> Any:
+        ns = SimpleNamespace(
+            identity_key=ident,
+            sas_id=getattr(r, "sas_id", None),
+            sailor_slug=_slugify(getattr(r, "sailor_name", "") or ""),
+            sailor_name=getattr(r, "sailor_name", "") or "",
+            result_id=getattr(r, "result_id", None),
+            regatta_id=getattr(r, "regatta_id", None),
+            event_name=getattr(r, "event_name", None),
+            board="all",
+            role=getattr(r, "role", None),
+            place=int(place) if place is not None else None,
+            fleet_size=fleet,
+            races_sailed=int(getattr(r, "races_sailed", 0) or 0),
+            class_name=getattr(r, "class_name", None),
+            club_name=getattr(r, "club_name", None),
+            sail_number=getattr(r, "sail_number", None),
+            event_date=getattr(r, "event_date", None),
+            block_id=getattr(r, "block_id", None),
+            fleet_label=getattr(r, "fleet_label", None),
+            age_category=getattr(r, "age_category", None),
+            classification_type=getattr(r, "classification_type", None),
+            classification_label=getattr(r, "classification_label", None),
+            classification_breadth=getattr(r, "classification_breadth", 0),
+            official_classification=getattr(r, "official_classification", True),
+            underlying_entry_key=getattr(r, "underlying_entry_key", None)
+            or f"result:{getattr(r, 'result_id', '')}",
+            live_underlying_entry_key=getattr(r, "live_underlying_entry_key", None),
+            sas_event_kind=kind,
+            event_rating_type=sas_event.get("event_rating_type"),
+            event_scope=sas_event.get("event_scope"),
+            event_rating_level=sas_event.get("event_rating_level"),
+            as_at=as_of,
+            is_open=True,
+            restriction_count=0,
+            championship=score_kwargs["championship"],
+            official_status=score_kwargs["official_status"],
+            championship_exception=score_kwargs["championship_exception"],
+            category_override=category_override,
+            category=None,
+            category_name=None,
+            category_base=None,
+            class_coefficient=None,
+            open_coefficient=None,
+            place_factor=None,
+            placement_points=None,
+            time_coeff=None,
+            ssa_rating=None,
+            points=0.0,
+            eligible=False,
+            reason=None,
+            counts_toward_rank=False,
+            selected_for_regatta=preset_exclusion is None,
+            selected_result_id=getattr(r, "selected_result_id", None),
+            exclusion_reason=preset_exclusion,
+        )
+        for k, v in extra.items():
+            setattr(ns, k, v)
+        return ns
+
+    if kind == "unknown":
+        err = {
+            "code": "unknown_event_type",
+            "result_id": getattr(r, "result_id", None),
+            "regatta_id": getattr(r, "regatta_id", None),
+            "event": getattr(r, "event_name", None),
+            "sailor": getattr(r, "sailor_name", None),
+            "event_scope": sas_event.get("event_scope"),
+            "event_rating_type": sas_event.get("event_rating_type"),
+            "event_rating_level": sas_event.get("event_rating_level"),
+        }
+        return (
+            _base_contrib(
+                reason="unknown_or_conflicting_sas_event_type",
+                exclusion_reason=preset_exclusion or "unknown_or_conflicting_sas_event_type",
+            ),
+            err,
+            sas_event,
+        )
+    if place is None:
+        err = {
+            "code": "missing_place",
+            "result_id": getattr(r, "result_id", None),
+            "event": getattr(r, "event_name", None),
+            "sailor": getattr(r, "sailor_name", None),
+        }
+        return (
+            _base_contrib(
+                reason="missing_place",
+                exclusion_reason=preset_exclusion or "missing_place",
+            ),
+            err,
+            sas_event,
+        )
+    try:
+        scored = pr13_score_result(
+            getattr(r, "event_name", None),
+            fleet,
+            place,
+            getattr(r, "class_name", None),
+            **score_kwargs,
+        )
+    except Exception as exc:  # noqa: BLE001 — shadow audit must not abort the dataset
+        err = {
+            "code": "score_exception",
+            "result_id": getattr(r, "result_id", None),
+            "event": getattr(r, "event_name", None),
+            "sailor": getattr(r, "sailor_name", None),
+            "detail": str(exc),
+        }
+        return (
+            _base_contrib(reason=str(exc), exclusion_reason=preset_exclusion or "score_exception"),
+            err,
+            sas_event,
+        )
+
+    exclusion = preset_exclusion
+    counts = bool(scored.eligible and scored.points > 0 and exclusion is None)
+    if exclusion is None and not counts:
+        exclusion = scored.reason or "ineligible_or_zero"
+    contrib = _base_contrib(
+        category=scored.category,
+        category_name=scored.category_name,
+        category_base=getattr(scored, "category_base", None),
+        class_coefficient=getattr(scored, "class_coefficient", None),
+        open_coefficient=getattr(scored, "open_coefficient", None),
+        place_factor=getattr(scored, "place_factor", None),
+        placement_points=getattr(scored, "placement_points", None),
+        time_coeff=float(scored.age_factor or 0),
+        ssa_rating=getattr(scored, "ssa_rating", None),
+        points=float(scored.points or 0),
+        eligible=bool(scored.eligible),
+        reason=scored.reason,
+        counts_toward_rank=counts,
+        exclusion_reason=exclusion,
+        selected_for_regatta=exclusion is None,
+    )
+    return contrib, None, sas_event
 
 
 def _is_tim_420_nationals(row: Any) -> bool:
@@ -702,8 +1077,8 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
     age_div_cls = _load_live_age_division_cls(eng)
     window_start = as_of - timedelta(weeks=WINDOW_WEEKS)
     raw_rows = eng.fetch_result_rows(conn, history_start=window_start)
-    score_rows, age_div_exclusions, age_div_groups = filter_age_division_rows_before_scoring(
-        raw_rows, age_div_cls
+    score_rows, age_div_exclusions, age_div_groups, excluded_rows = (
+        filter_age_division_rows_before_scoring(raw_rows, age_div_cls)
     )
     tim_420_regression = timothy_420_nationals_regression(score_rows, age_div_exclusions)
 
@@ -713,12 +1088,15 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
     unknown_type_keys: dict[str, int] = defaultdict(int)
     contribs: list[Any] = []
 
-    for r in score_rows:
+    scored_pairs: list[tuple[Any, Optional[str]]] = [(r, None) for r in score_rows]
+    scored_pairs.extend((r, getattr(r, "exclusion_reason", None) or AGE_DIVISION_EXCLUSION_REASON) for r in excluded_rows)
+    for r, preset_excl in scored_pairs:
         fleet = int(getattr(r, "fleet_size", 0) or 0)
-        if fleet == 1:
+        if fleet == 1 and preset_excl is None:
             n1_exclusions += 1
-        place = getattr(r, "place", None)
-        sas_event = _resolve_sas_event_type(r)
+        contrib, err, sas_event = _score_row_to_contrib(
+            r, as_of=as_of, pr13_score_result=pr13_score_result, preset_exclusion=preset_excl
+        )
         if sas_event["kind"] == "unknown":
             key = "%s|%s|%s" % (
                 sas_event.get("event_scope"),
@@ -726,123 +1104,38 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
                 sas_event.get("event_rating_level"),
             )
             unknown_type_keys[key] += 1
-            errors.append(
-                {
-                    "code": "unknown_event_type",
-                    "result_id": getattr(r, "result_id", None),
-                    "regatta_id": getattr(r, "regatta_id", None),
-                    "event": getattr(r, "event_name", None),
-                    "sailor": getattr(r, "sailor_name", None),
-                    "event_scope": sas_event.get("event_scope"),
-                    "event_rating_type": sas_event.get("event_rating_type"),
-                    "event_rating_level": sas_event.get("event_rating_level"),
-                }
-            )
-            cat_classified["unknown"] += 1
-            continue
-        if place is None:
-            errors.append(
-                {
-                    "code": "missing_place",
-                    "result_id": getattr(r, "result_id", None),
-                    "event": getattr(r, "event_name", None),
-                    "sailor": getattr(r, "sailor_name", None),
-                }
-            )
-            cat_classified["none"] += 1
-            continue
-        kind = sas_event["kind"]
-        official_status = sas_event["official_status"]
-        is_champ = kind in _CHAMP_KINDS
-        # N=2 is SSA Cat 8 only. Do not force a championship category.
-        score_kwargs: dict[str, Any] = {
-            "event_date": getattr(r, "event_date", None),
-            "role": getattr(r, "role", None),
-            "as_at": as_of,
-            "mode": "ssa",
-            "is_open": True,
-            "restriction_count": 0,
-            "championship": False if (kind == "ordinary" or fleet == 2) else is_champ,
-            "official_status": None if (kind == "ordinary" or fleet == 2) else official_status,
-            "championship_exception": None if (kind == "ordinary" or fleet == 2) else official_status,
-        }
-        if is_champ and fleet >= 3 and sas_event["base_category"] is not None:
-            # World/Continental/International: PR13 maps world→Cat5, so lock the
-            # SAS championship category here, then apply the under-10 one-tier drop.
-            if kind in {"world", "continental", "international"}:
-                score_kwargs["category"] = _championship_category_after_fleet(
-                    int(sas_event["base_category"]), fleet
-                )
-        try:
-            scored = pr13_score_result(
-                getattr(r, "event_name", None),
-                fleet,
-                place,
-                getattr(r, "class_name", None),
-                **score_kwargs,
-            )
-        except Exception as exc:  # noqa: BLE001 — shadow audit must not abort the dataset
-            errors.append(
-                {
-                    "code": "score_exception",
-                    "result_id": getattr(r, "result_id", None),
-                    "event": getattr(r, "event_name", None),
-                    "sailor": getattr(r, "sailor_name", None),
-                    "detail": str(exc),
-                }
-            )
-            continue
-
-        cat = scored.category
-        cat_classified[str(cat if cat is not None else "none")] += 1
-        ident = _identity_key(getattr(r, "sas_id", None), getattr(r, "sailor_name", "") or "")
-        counts = bool(scored.eligible and scored.points > 0)
-        contribs.append(
-            SimpleNamespace(
-                identity_key=ident,
-                sas_id=getattr(r, "sas_id", None),
-                sailor_slug=_slugify(getattr(r, "sailor_name", "") or ""),
-                sailor_name=getattr(r, "sailor_name", "") or "",
-                result_id=getattr(r, "result_id", None),
-                regatta_id=getattr(r, "regatta_id", None),
-                event_name=getattr(r, "event_name", None),
-                board="all",
-                role=getattr(r, "role", None),
-                place=int(place),
-                fleet_size=fleet,
-                races_sailed=int(getattr(r, "races_sailed", 0) or 0),
-                category=cat,
-                category_name=scored.category_name,
-                points=float(scored.points or 0),
-                time_coeff=float(scored.age_factor or 0),
-                class_name=getattr(r, "class_name", None),
-                club_name=getattr(r, "club_name", None),
-                sail_number=getattr(r, "sail_number", None),
-                event_date=getattr(r, "event_date", None),
-                counts_toward_rank=counts,
-                eligible=bool(scored.eligible),
-                sas_event_kind=kind,
-                reason=scored.reason,
-                classification_type=getattr(r, "classification_type", None),
-                classification_label=getattr(r, "classification_label", None),
-                classification_breadth=getattr(r, "classification_breadth", 0),
-                official_classification=getattr(r, "official_classification", True),
-                underlying_entry_key=getattr(r, "underlying_entry_key", None)
-                or f"result:{getattr(r, 'result_id', '')}",
-                selected_for_regatta=None,
-                selected_result_id=None,
-                exclusion_reason=None,
-            )
-        )
+            if preset_excl is None:
+                cat_classified["unknown"] += 1
+        elif contrib.place is None:
+            if preset_excl is None:
+                cat_classified["none"] += 1
+        elif preset_excl is None:
+            cat_classified[str(contrib.category if contrib.category is not None else "none")] += 1
+        if err is not None:
+            errors.append(err)
+        contribs.append(contrib)
 
     # Same identity + same result: one role-neutral row (keep higher points).
     best: dict[tuple, Any] = {}
+    role_losers: list[Any] = []
     for c in contribs:
         key = (c.identity_key, c.result_id)
         prev = best.get(key)
-        if prev is None or float(c.points) > float(prev.points):
+        if prev is None:
             best[key] = c
-    contribs = list(best.values())
+            continue
+        if float(c.points) > float(prev.points):
+            prev.counts_toward_rank = False
+            if not prev.exclusion_reason:
+                prev.exclusion_reason = ROLE_COLLAPSE_EXCLUSION_REASON
+            role_losers.append(prev)
+            best[key] = c
+        else:
+            c.counts_toward_rank = False
+            if not c.exclusion_reason:
+                c.exclusion_reason = ROLE_COLLAPSE_EXCLUSION_REASON
+            role_losers.append(c)
+    contribs = list(best.values()) + role_losers
 
     dedup_groups: list[dict] = []
     if hasattr(eng, "dedupe_same_regatta_contributions"):
@@ -850,7 +1143,33 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
         for c in contribs:
             if getattr(c, "selected_for_regatta", True) is False:
                 c.counts_toward_rank = False
-                c.points = 0.0
+                if not c.exclusion_reason:
+                    c.exclusion_reason = getattr(c, "exclusion_reason", None) or LIVE_DEDUP_EXCLUSION_REASON
+
+    scored_by_result: dict[int, Any] = {}
+    for c in contribs:
+        rid = getattr(c, "result_id", None)
+        if rid is not None:
+            scored_by_result[int(rid)] = c
+    for row in age_div_exclusions:
+        rid = row.get("result_id")
+        scored = scored_by_result.get(int(rid)) if rid is not None else None
+        if scored is None:
+            continue
+        row["points"] = float(scored.points or 0)
+        row["category"] = scored.category
+        row["category_name"] = scored.category_name
+        row["category_base"] = scored.category_base
+        row["class_coefficient"] = scored.class_coefficient
+        row["open_coefficient"] = scored.open_coefficient
+        row["place_factor"] = scored.place_factor
+        row["placement_points"] = scored.placement_points
+        row["time_coeff"] = scored.time_coeff
+        row["eligible"] = scored.eligible
+        row["score_reason"] = scored.reason
+        row["role"] = scored.role
+        row["event_date"] = _iso_date(scored.event_date)
+        row["exclusion_reason"] = scored.exclusion_reason or AGE_DIVISION_EXCLUSION_REASON
 
     by_id: dict[str, list[Any]] = defaultdict(list)
     for c in contribs:
@@ -859,26 +1178,25 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
     sailors: list[dict] = []
     cat_counting: dict[str, int] = defaultdict(int)
     for ident, items in by_id.items():
-        payload = []
-        for c in items:
-            if getattr(c, "counts_toward_rank", False) and c.points > 0:
-                payload.append(
-                    {
-                        "points": float(c.points),
-                        "category": c.category,
-                        "category_name": c.category_name,
-                        "event": c.event_name,
-                        "place": c.place,
-                        "fleet": c.fleet_size,
-                        "class_name": c.class_name,
-                        "date": c.event_date.isoformat() if c.event_date else None,
-                        "time_coeff": c.time_coeff,
-                        "role": c.role,
-                        "result_id": c.result_id,
-                        "championship_type": getattr(c, "classification_type", None),
-                    }
-                )
-        counted, total = _select_best6_plus_local_cat8(payload)
+        records = [_full_contrib_dict(c) for c in items]
+        eligible_payload = [
+            rec
+            for rec in records
+            if rec.get("counts_toward_rank") and float(rec.get("points") or 0) > 0 and not rec.get("exclusion_reason")
+        ]
+        counted, total = _select_best6_plus_local_cat8(eligible_payload)
+        counted_keys = {_contrib_key(rec) for rec in counted}
+        for rec in records:
+            if _contrib_key(rec) in counted_keys:
+                rec["counts_toward_rank"] = True
+                rec["exclusion_reason"] = None
+                continue
+            rec["counts_toward_rank"] = False
+            if not rec.get("exclusion_reason"):
+                if rec.get("eligible") and float(rec.get("points") or 0) > 0:
+                    rec["exclusion_reason"] = BEST6_EXCLUSION_REASON
+                else:
+                    rec["exclusion_reason"] = rec.get("reason") or "ineligible_or_zero"
         if total <= 0:
             continue
         tip = items[0]
@@ -899,6 +1217,7 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
                 "total_points": total,
                 "events_counted": len(counted),
                 "contribs_counted": counted,
+                "contribs_excluded": [rec for rec in records if _contrib_key(rec) not in counted_keys],
             }
         )
 
@@ -947,6 +1266,8 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
         else:
             s["delta_points"] = None
 
+    share_summaries = _cat78_and_concentration(sailors)
+
     validation = []
     for name in SSA_V2_VALIDATION_NAMES:
         s = _find_named(sailors, name)
@@ -965,9 +1286,14 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
                 "delta_rank": s.get("delta_rank"),
                 "delta_points": s.get("delta_points"),
                 "events_counted": s.get("events_counted"),
-                "top_contribs": (s.get("contribs_counted") or [])[:8],
-                "all_contribs": s.get("contribs_counted") or [],
-                "age_division_excluded": [
+                "cat7_points": s.get("cat7_points"),
+                "cat8_points": s.get("cat8_points"),
+                "cat7_8_share": s.get("cat7_8_share"),
+                "max_event_share": s.get("max_event_share"),
+                "max_event": s.get("max_event"),
+                "contribs_counted": s.get("contribs_counted") or [],
+                "contribs_excluded": s.get("contribs_excluded") or [],
+                "duplicate_division_exclusions": [
                     x
                     for x in age_div_exclusions
                     if str(x.get("sas_id") or "") == str(s.get("sas_id") or "")
@@ -996,6 +1322,9 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
             sorted(Counter(str(x.get("championship_type")) for x in age_div_exclusions).items())
         ),
         "timothy_2025_420_nationals": tim_420_regression,
+        "duplicate_division_exclusions": age_div_exclusions,
+        "cat7_8_share": share_summaries["cat7_8_share"],
+        "one_event_concentration": share_summaries["one_event_concentration"],
         "scored_contribs": len(contribs),
         "proposed_sailor_count": len(sailors),
         "category_classified_counts": dict(sorted(cat_classified.items(), key=lambda kv: str(kv[0]))),
@@ -1075,10 +1404,18 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
                     "published_points": s.get("published_points"),
                     "delta_rank": s.get("delta_rank"),
                     "delta_points": s.get("delta_points"),
+                    "cat7_points": s.get("cat7_points"),
+                    "cat8_points": s.get("cat8_points"),
+                    "cat7_8_share": s.get("cat7_8_share"),
+                    "max_event_share": s.get("max_event_share"),
+                    "max_event": s.get("max_event"),
+                    "contribs_counted": s.get("contribs_counted") or [],
+                    "contribs_excluded": s.get("contribs_excluded") or [],
                 }
                 for s in sailors
             ],
             indent=2,
+            default=str,
         ),
         encoding="utf-8",
     )
@@ -1191,7 +1528,44 @@ def main() -> None:
         assert_db(conn)
         if args.mode == SSA_V2_MODE:
             audit = run_ssa_v2(conn, as_of=as_of, out_dir=out_dir)
-            print(json.dumps({"ok": True, "mode": SSA_V2_MODE, "audit": audit, "out_dir": str(out_dir)}, indent=2, default=str))
+            print(
+                json.dumps(
+                    {
+                        "ok": True,
+                        "mode": SSA_V2_MODE,
+                        "out_dir": str(out_dir),
+                        "proposed_sailor_count": audit.get("proposed_sailor_count"),
+                        "age_division_excluded_count": audit.get("age_division_excluded_count"),
+                        "age_division_exclusion_types": audit.get("age_division_exclusion_types"),
+                        "timothy_2025_420_nationals": audit.get("timothy_2025_420_nationals"),
+                        "duplicate_division_exclusion_count": len(audit.get("duplicate_division_exclusions") or []),
+                        "duplicate_division_exclusions": audit.get("duplicate_division_exclusions") or [],
+                        "cat7_8_share": audit.get("cat7_8_share"),
+                        "one_event_concentration": {
+                            k: v
+                            for k, v in (audit.get("one_event_concentration") or {}).items()
+                            if k != "top_concentrated"
+                        },
+                        "validation": [
+                            {
+                                "sailor": v.get("sailor"),
+                                "found": v.get("found"),
+                                "sas_id": v.get("sas_id"),
+                                "proposed_rank": v.get("proposed_rank"),
+                                "proposed_points": v.get("proposed_points"),
+                                "published_rank": v.get("published_rank"),
+                                "published_points": v.get("published_points"),
+                                "events_counted": v.get("events_counted"),
+                                "counted_result_ids": [c.get("result_id") for c in (v.get("contribs_counted") or [])],
+                                "excluded_result_ids": [c.get("result_id") for c in (v.get("contribs_excluded") or [])],
+                            }
+                            for v in (audit.get("validation") or [])
+                        ],
+                    },
+                    indent=2,
+                    default=str,
+                )
+            )
         else:
             audit_meta = run_default_parity(conn, args, out_dir, as_of)
             print(json.dumps({"ok": True, "audit": audit_meta, "out_dir": str(out_dir)}, indent=2))
