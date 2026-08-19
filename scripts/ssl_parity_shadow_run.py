@@ -73,10 +73,10 @@ FORBIDDEN_PUBLISH_PATHS = (
 SSA_V2_CANDIDATE_PUBLISHED = Path("/tmp/published.ssa-v2.candidate.json")
 SSA_V2_CANDIDATE_VERSION = "ssa-v2-candidate-2026-07-27"
 SSA_V2_EXPECTED_RANKS = {
-    "6804": {"name": "Sean Kavanagh", "rank": 23, "points": 428.32},
-    "21172": {"name": "Timothy Weaving", "rank": 36, "points": 349.35},
+    "6804": {"name": "Sean Kavanagh", "rank": 24, "points": 428.32},
+    "21172": {"name": "Timothy Weaving", "rank": 27, "points": 413.1},
     "13522": {"name": "Joshua Keytel", "rank": 13, "points": 494.06},
-    "9612": {"name": "Thomas Henshilwood", "rank": 22, "points": 433.69},
+    "9612": {"name": "Thomas Henshilwood", "rank": 23, "points": 433.69},
 }
 PUBLISHED_SCHEMA_TOP_KEYS = frozenset(
     {
@@ -175,6 +175,14 @@ _KEEP_ORDER = {
 TIM_SAS_ID = "21172"
 TIM_420_OVERALL_RESULT_ID = 837
 TIM_420_DIVISION_RESULT_IDS = frozenset({10381, 10382})
+TIM_420_EXPECT_PLACE = 5
+TIM_420_EXPECT_FLEET = 12
+TIM_420_EXPECT_OPEN_COEFF = 1.0
+TIM_420_EXPECT_POINTS = 106.25
+HAYDEN_SAS_ID = "8683"
+HAYDEN_YOUTH_NATIONALS_RESULT_ID = 4049
+HAYDEN_YOUTH_EXPECT_OPEN_COEFF = 0.40
+HAYDEN_YOUTH_EXPECT_POINTS = 63.75
 AGE_DIVISION_EXCLUSION_REASON = (
     "Duplicate age-division sheet for the same sailor/regatta/class — "
     "Overall/Open retained; U17/U19/Youth subdivision excluded (never summed)."
@@ -543,45 +551,49 @@ def _is_open_unrestricted_class(class_name: Any) -> bool:
     return key.startswith("ilca 4") or key.startswith("ilca4")
 
 
-def _restriction_fleet_event_text(row: Any, *, include_event_name: bool = True) -> str:
-    """Authoritative SAS fleet/event dimensions only — never sailor names."""
-    parts: list[Any] = []
-    if include_event_name:
-        parts.append(_row_attr(row, "event_name"))
-    parts.extend(
-        [
-            _row_attr(row, "fleet_label"),
-            _row_attr(row, "block_label"),
-            _row_attr(row, "age_category"),
-            _row_attr(row, "classification_type"),
-            _row_attr(row, "classification_label"),
-        ]
-    )
+def _canonical_classification(row: Any) -> str:
+    """Division type after age-division dedup (Overall/Open retained when present)."""
+    return str(_row_attr(row, "classification_type") or "").strip().upper()
+
+
+def _join_row_text(row: Any, names: tuple[str, ...]) -> str:
+    parts = [_row_attr(row, name) for name in names]
     return " ".join(str(p) for p in parts if p not in (None, ""))
 
 
-def _explicit_age_classification(row: Any) -> bool:
-    ctype = str(_row_attr(row, "classification_type") or "").strip().upper()
-    return ctype in _EXPLICIT_AGE_CLASSIFICATIONS
+def _event_or_type_text(row: Any) -> str:
+    """Event name / SAS event type only — never fleet labels or sailor names."""
+    return _join_row_text(row, ("event_name", "event_rating_type"))
+
+
+def _gender_label_text(row: Any) -> str:
+    """Explicit SAS event/fleet gender labels — never sailor names."""
+    return _join_row_text(
+        row,
+        ("event_name", "event_rating_type", "fleet_label", "block_label", "classification_label"),
+    )
 
 
 def _resolve_authoritative_restrictions(row: Any) -> dict[str, Any]:
-    """Return age/gender restriction flags and deduped restriction_count for the scorer."""
+    """Age/gender flags from post-dedup classification + event/event-type.
+
+    Overall/Open/Class rows are not age-restricted because a fleet label says
+    Youth. Only an explicitly youth-restricted event/event type, an Optimist
+    class, or a surviving U17/U19/Youth sheet remains age-restricted.
+    """
     class_name = _row_attr(row, "class_name")
+    canonical = _canonical_classification(row)
     age_restricted = False
     gender_restricted = False
 
     if _is_optimist_class(class_name):
         age_restricted = True
-    elif _is_open_unrestricted_class(class_name):
-        fleet_text = _restriction_fleet_event_text(row, include_event_name=False)
-        if _AGE_RESTRICTION_RE.search(fleet_text) or _explicit_age_classification(row):
-            age_restricted = True
-    else:
-        if _AGE_RESTRICTION_RE.search(_restriction_fleet_event_text(row)) or _explicit_age_classification(row):
-            age_restricted = True
+    elif canonical in _EXPLICIT_AGE_CLASSIFICATIONS:
+        age_restricted = True
+    elif _AGE_RESTRICTION_RE.search(_event_or_type_text(row)):
+        age_restricted = True
 
-    if _GENDER_RESTRICTION_RE.search(_restriction_fleet_event_text(row)):
+    if _GENDER_RESTRICTION_RE.search(_gender_label_text(row)):
         gender_restricted = True
 
     restriction_count = int(age_restricted) + int(gender_restricted)
@@ -590,6 +602,7 @@ def _resolve_authoritative_restrictions(row: Any) -> dict[str, Any]:
         "gender_restricted": gender_restricted,
         "restriction_count": restriction_count,
         "is_open": restriction_count == 0,
+        "canonical_classification": canonical or None,
     }
 
 
@@ -1214,6 +1227,74 @@ def _is_tim_420_nationals(row: Any) -> bool:
     sas = str(_row_attr(row, "sas_id") or "").strip()
     event = (_row_attr(row, "event_name") or "").lower()
     return sas == TIM_SAS_ID and "420 national" in event
+
+
+def timothy_420_nationals_open_coeff_regression(contribs: list[Any]) -> dict:
+    """Overall 420 Nationals P5/N12 is open (coeff 1.00), not youth-restricted."""
+    hit = None
+    for c in contribs:
+        if int(getattr(c, "result_id", 0) or 0) != TIM_420_OVERALL_RESULT_ID:
+            continue
+        if str(getattr(c, "sas_id", "") or "").strip() != TIM_SAS_ID:
+            continue
+        hit = c
+        break
+    open_c = float(getattr(hit, "open_coefficient", 0) or 0) if hit is not None else None
+    points = float(getattr(hit, "points", 0) or 0) if hit is not None else None
+    place = getattr(hit, "place", None) if hit is not None else None
+    fleet = getattr(hit, "fleet_size", None) if hit is not None else None
+    ok = (
+        hit is not None
+        and place == TIM_420_EXPECT_PLACE
+        and int(fleet or 0) == TIM_420_EXPECT_FLEET
+        and abs((open_c or 0) - TIM_420_EXPECT_OPEN_COEFF) < 0.011
+        and abs((points or 0) - TIM_420_EXPECT_POINTS) < 0.011
+        and not bool(getattr(hit, "age_restricted", False))
+    )
+    return {
+        "result_id": TIM_420_OVERALL_RESULT_ID,
+        "expect_place_fleet": f"P{TIM_420_EXPECT_PLACE}/N{TIM_420_EXPECT_FLEET}",
+        "got_place_fleet": f"P{place}/N{fleet}" if hit is not None else None,
+        "expect_open_coefficient": TIM_420_EXPECT_OPEN_COEFF,
+        "got_open_coefficient": open_c,
+        "expect_points": TIM_420_EXPECT_POINTS,
+        "got_points": points,
+        "age_restricted": bool(getattr(hit, "age_restricted", False)) if hit is not None else None,
+        "canonical_classification": getattr(hit, "classification_type", None) if hit is not None else None,
+        "ok": ok,
+    }
+
+
+def hayden_youth_nationals_restriction_regression(contribs: list[Any]) -> dict:
+    """Youth Nationals remains age-restricted because the event itself is youth."""
+    hit = None
+    for c in contribs:
+        if int(getattr(c, "result_id", 0) or 0) != HAYDEN_YOUTH_NATIONALS_RESULT_ID:
+            continue
+        if str(getattr(c, "sas_id", "") or "").strip() != HAYDEN_SAS_ID:
+            continue
+        hit = c
+        break
+    open_c = float(getattr(hit, "open_coefficient", 0) or 0) if hit is not None else None
+    points = float(getattr(hit, "points", 0) or 0) if hit is not None else None
+    ok = (
+        hit is not None
+        and abs((open_c or 0) - HAYDEN_YOUTH_EXPECT_OPEN_COEFF) < 0.011
+        and abs((points or 0) - HAYDEN_YOUTH_EXPECT_POINTS) < 0.011
+        and bool(getattr(hit, "age_restricted", False))
+    )
+    return {
+        "sailor": "Hayden Miller",
+        "sas_id": HAYDEN_SAS_ID,
+        "result_id": HAYDEN_YOUTH_NATIONALS_RESULT_ID,
+        "event": getattr(hit, "event_name", None) if hit is not None else None,
+        "expect_open_coefficient": HAYDEN_YOUTH_EXPECT_OPEN_COEFF,
+        "got_open_coefficient": open_c,
+        "expect_points": HAYDEN_YOUTH_EXPECT_POINTS,
+        "got_points": points,
+        "age_restricted": bool(getattr(hit, "age_restricted", False)) if hit is not None else None,
+        "ok": ok,
+    }
 
 
 def timothy_420_nationals_regression(kept_rows: list, exclusions: list[dict]) -> dict:
@@ -2019,6 +2100,10 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
         row["exclusion_reason"] = scored.exclusion_reason or AGE_DIVISION_EXCLUSION_REASON
 
     contribs, identity_exclusions, identity_summary, valid_sas_ids = _apply_identity_filter(conn, contribs)
+    open_coeff_reg = timothy_420_nationals_open_coeff_regression(contribs)
+    tim_420_regression["open_coefficient"] = open_coeff_reg
+    tim_420_regression["ok"] = bool(tim_420_regression.get("ok")) and bool(open_coeff_reg.get("ok"))
+    hayden_youth_regression = hayden_youth_nationals_restriction_regression(contribs)
 
     by_id: dict[str, list[Any]] = defaultdict(list)
     for c in contribs:
@@ -2199,6 +2284,7 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
             sorted(Counter(str(x.get("championship_type")) for x in age_div_exclusions).items())
         ),
         "timothy_2025_420_nationals": tim_420_regression,
+        "hayden_youth_nationals": hayden_youth_regression,
         "duplicate_division_exclusions": age_div_exclusions,
         "identity_exclusions": identity_exclusions,
         "identity_exclusion_summary": identity_summary,
