@@ -1122,19 +1122,25 @@ def filter_age_division_rows_before_scoring(
         if dropped:
             win_id = _row_attr(winner[0], "result_id") if winner is not None else None
             win_type = winner[1].classification_type if winner is not None else None
-            groups_audit.append(
-                {
-                    "identity_key": key[0],
-                    "regatta_id": key[1],
-                    "class_name": key[2],
-                    "candidate_count": len(items),
-                    "selected_result_id": win_id,
-                    "selected_classification": win_type,
-                    "excluded_result_ids": [_row_attr(r, "result_id") for r, _c, _u in dropped],
-                    "excluded_classifications": [c.classification_type for _r, c, _u in dropped],
-                }
-            )
-            for row, clf, uek in dropped:
+            real_dropped = [
+                it
+                for it in dropped
+                if win_id is None or _row_attr(it[0], "result_id") != win_id
+            ]
+            if real_dropped:
+                groups_audit.append(
+                    {
+                        "identity_key": key[0],
+                        "regatta_id": key[1],
+                        "class_name": key[2],
+                        "candidate_count": len(items),
+                        "selected_result_id": win_id,
+                        "selected_classification": win_type,
+                        "excluded_result_ids": [_row_attr(r, "result_id") for r, _c, _u in real_dropped],
+                        "excluded_classifications": [c.classification_type for _r, c, _u in real_dropped],
+                    }
+                )
+            for row, clf, uek in real_dropped:
                 row.classification_type = clf.classification_type
                 row.classification_label = clf.classification_label
                 row.official_classification = bool(clf.official_classification)
@@ -2255,13 +2261,16 @@ def _json_result_id(value: Any) -> Optional[int]:
 
 
 def _is_division_dup_rec(rec: dict) -> bool:
+    """division_dup only when a different result_id was retained in the same group.
+
+    Never infer from YOUTH/U17/U19/CLASS labels. Same-id 'selected' is the winner.
+    """
+    rid = _json_result_id(rec.get("result_id"))
+    sel = _json_result_id(rec.get("selected_result_id"))
+    if rid is None or sel is None or rid == sel:
+        return False
     reason = str(rec.get("exclusion_reason") or rec.get("reason") or "")
-    if reason == AGE_DIVISION_EXCLUSION_REASON or "Duplicate age-division sheet" in reason:
-        return True
-    ctype = str(rec.get("championship_type") or "").upper()
-    if rec.get("selected_result_id") and ctype in _SUBDIVISION_TYPES:
-        return True
-    return False
+    return reason == AGE_DIVISION_EXCLUSION_REASON or "Duplicate age-division sheet" in reason
 
 
 def _profile_sidecar_kind(rec: dict) -> tuple[bool, str, str]:
@@ -2366,6 +2375,10 @@ def _write_ssa_v2_profile_sidecar(
         if not sas_id or sas_id not in valid_sas_ids:
             continue
         rec = dict(row)
+        rid = _json_result_id(rec.get("result_id"))
+        sel = _json_result_id(rec.get("selected_result_id"))
+        if rid is None or sel is None or rid == sel:
+            continue
         rec["counts_toward_rank"] = False
         rec["exclusion_reason"] = AGE_DIVISION_EXCLUSION_REASON
         rec["reason"] = AGE_DIVISION_EXCLUSION_REASON
@@ -2380,7 +2393,6 @@ def _write_ssa_v2_profile_sidecar(
         entry["reason"] = AGE_DIVISION_EXCLUSION_REASON
         existing = (sailors_out.get(sas_id) or {}).get(str(entry["result_id"]))
         if existing and existing.get("counted"):
-            # Audit row names the retained Overall/Open result — keep counted.
             continue
         _sidecar_put(sailors_out, sas_id, entry, mismatches)
 
