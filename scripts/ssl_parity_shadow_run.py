@@ -73,10 +73,10 @@ FORBIDDEN_PUBLISH_PATHS = (
 SSA_V2_CANDIDATE_PUBLISHED = Path("/tmp/published.ssa-v2.candidate.json")
 SSA_V2_CANDIDATE_VERSION = "ssa-v2-candidate-2026-07-27"
 SSA_V2_EXPECTED_RANKS = {
-    "6804": {"name": "Sean Kavanagh", "rank": 13, "points": 608.57},
-    "21172": {"name": "Timothy Weaving", "rank": 16, "points": 566.29},
-    "13522": {"name": "Joshua Keytel", "rank": 11, "points": 663.0},
-    "9612": {"name": "Thomas Henshilwood", "rank": 18, "points": 554.42},
+    "6804": {"name": "Sean Kavanagh", "rank": 23, "points": 428.32},
+    "21172": {"name": "Timothy Weaving", "rank": 36, "points": 349.35},
+    "13522": {"name": "Joshua Keytel", "rank": 13, "points": 494.06},
+    "9612": {"name": "Thomas Henshilwood", "rank": 22, "points": 433.69},
 }
 PUBLISHED_SCHEMA_TOP_KEYS = frozenset(
     {
@@ -190,6 +190,26 @@ IDENTITY_EXCLUSION_DETAIL = (
     "Name-only/foreign/unresolved result participant — not a valid SailingSA identity; "
     "requires non-null sa_sailing_id in public.sas_id_personal."
 )
+_AGE_RESTRICTION_RE = re.compile(
+    r"\b(youth|u[\s-]?17|u[\s-]?19|under[\s-]?17|under[\s-]?19|juniors?)\b",
+    re.I,
+)
+_GENDER_RESTRICTION_RE = re.compile(
+    r"\b(women(?:'?s)?|girls|boys|men)\b",
+    re.I,
+)
+_OPTIMIST_CLASS_RE = re.compile(r"\boptimist\b", re.I)
+_OPEN_UNRESTRICTED_CLASS_KEYS = frozenset(
+    {
+        "29er",
+        "420",
+        "ilca 4",
+        "ilca 4.7",
+        "ilca4",
+        "ilca4.7",
+    }
+)
+_EXPLICIT_AGE_CLASSIFICATIONS = frozenset({"U17", "U19", "YOUTH", "JUNIOR"})
 
 
 def _norm_sas_type(raw: Any) -> str:
@@ -508,6 +528,95 @@ def _identity_key(sas_id: Optional[str], name: str) -> str:
     return f"name:{_slugify(name)}"
 
 
+def _norm_class_key(class_name: Any) -> str:
+    return re.sub(r"\s+", " ", str(class_name or "").strip().lower())
+
+
+def _is_optimist_class(class_name: Any) -> bool:
+    return bool(_OPTIMIST_CLASS_RE.search(str(class_name or "")))
+
+
+def _is_open_unrestricted_class(class_name: Any) -> bool:
+    key = _norm_class_key(class_name)
+    if key in _OPEN_UNRESTRICTED_CLASS_KEYS:
+        return True
+    return key.startswith("ilca 4") or key.startswith("ilca4")
+
+
+def _restriction_fleet_event_text(row: Any, *, include_event_name: bool = True) -> str:
+    """Authoritative SAS fleet/event dimensions only — never sailor names."""
+    parts: list[Any] = []
+    if include_event_name:
+        parts.append(_row_attr(row, "event_name"))
+    parts.extend(
+        [
+            _row_attr(row, "fleet_label"),
+            _row_attr(row, "block_label"),
+            _row_attr(row, "age_category"),
+            _row_attr(row, "classification_type"),
+            _row_attr(row, "classification_label"),
+        ]
+    )
+    return " ".join(str(p) for p in parts if p not in (None, ""))
+
+
+def _explicit_age_classification(row: Any) -> bool:
+    ctype = str(_row_attr(row, "classification_type") or "").strip().upper()
+    return ctype in _EXPLICIT_AGE_CLASSIFICATIONS
+
+
+def _resolve_authoritative_restrictions(row: Any) -> dict[str, Any]:
+    """Return age/gender restriction flags and deduped restriction_count for the scorer."""
+    class_name = _row_attr(row, "class_name")
+    age_restricted = False
+    gender_restricted = False
+
+    if _is_optimist_class(class_name):
+        age_restricted = True
+    elif _is_open_unrestricted_class(class_name):
+        fleet_text = _restriction_fleet_event_text(row, include_event_name=False)
+        if _AGE_RESTRICTION_RE.search(fleet_text) or _explicit_age_classification(row):
+            age_restricted = True
+    else:
+        if _AGE_RESTRICTION_RE.search(_restriction_fleet_event_text(row)) or _explicit_age_classification(row):
+            age_restricted = True
+
+    if _GENDER_RESTRICTION_RE.search(_restriction_fleet_event_text(row)):
+        gender_restricted = True
+
+    restriction_count = int(age_restricted) + int(gender_restricted)
+    return {
+        "age_restricted": age_restricted,
+        "gender_restricted": gender_restricted,
+        "restriction_count": restriction_count,
+        "is_open": restriction_count == 0,
+    }
+
+
+def _summarize_restriction_audit(contribs: list[Any]) -> dict[str, Any]:
+    counts: Counter = Counter()
+    open_coeff_counts: Counter = Counter()
+    for c in contribs:
+        age = bool(getattr(c, "age_restricted", False))
+        gender = bool(getattr(c, "gender_restricted", False))
+        if age and gender:
+            counts["age_and_gender"] += 1
+        elif age:
+            counts["age_only"] += 1
+        elif gender:
+            counts["gender_only"] += 1
+        else:
+            counts["open_unrestricted"] += 1
+        coeff = getattr(c, "open_coefficient", None)
+        if coeff is not None:
+            open_coeff_counts[str(round(float(coeff), 2))] += 1
+    return {
+        "contrib_count": len(contribs),
+        "by_restriction_type": dict(sorted(counts.items())),
+        "open_coefficient_distribution": dict(sorted(open_coeff_counts.items())),
+    }
+
+
 def _load_published_readonly() -> Optional[dict]:
     candidates = []
     env = os.environ.get("SSL_PARITY_PUBLISHED_JSON")
@@ -583,6 +692,8 @@ def _full_contrib_dict(c: Any) -> dict:
         "block_id": getattr(c, "block_id", None),
         "fleet_label": getattr(c, "fleet_label", None),
         "age_category": getattr(c, "age_category", None),
+        "age_restricted": getattr(c, "age_restricted", False),
+        "gender_restricted": getattr(c, "gender_restricted", False),
         "championship_type": getattr(c, "classification_type", None),
         "championship_label": getattr(c, "classification_label", None),
         "classification_breadth": getattr(c, "classification_breadth", None),
@@ -938,13 +1049,14 @@ def _score_row_to_contrib(
     kind = sas_event["kind"]
     official_status = sas_event["official_status"]
     is_champ = kind in _CHAMP_KINDS
+    restrictions = _resolve_authoritative_restrictions(r)
     score_kwargs: dict[str, Any] = {
         "event_date": getattr(r, "event_date", None),
         "role": getattr(r, "role", None),
         "as_at": as_of,
         "mode": "ssa",
-        "is_open": True,
-        "restriction_count": 0,
+        "is_open": restrictions["is_open"],
+        "restriction_count": restrictions["restriction_count"],
         "championship": False if (kind == "ordinary" or fleet == 2) else is_champ,
         "official_status": None if (kind == "ordinary" or fleet == 2) else official_status,
         "championship_exception": None if (kind == "ordinary" or fleet == 2) else official_status,
@@ -975,6 +1087,7 @@ def _score_row_to_contrib(
             event_date=getattr(r, "event_date", None),
             block_id=getattr(r, "block_id", None),
             fleet_label=getattr(r, "fleet_label", None),
+            block_label=getattr(r, "block_label", None),
             age_category=getattr(r, "age_category", None),
             classification_type=getattr(r, "classification_type", None),
             classification_label=getattr(r, "classification_label", None),
@@ -988,8 +1101,10 @@ def _score_row_to_contrib(
             event_scope=sas_event.get("event_scope"),
             event_rating_level=sas_event.get("event_rating_level"),
             as_at=as_of,
-            is_open=True,
-            restriction_count=0,
+            is_open=restrictions["is_open"],
+            restriction_count=restrictions["restriction_count"],
+            age_restricted=restrictions["age_restricted"],
+            gender_restricted=restrictions["gender_restricted"],
             championship=score_kwargs["championship"],
             official_status=score_kwargs["official_status"],
             championship_exception=score_kwargs["championship_exception"],
@@ -2006,6 +2121,29 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
             s["delta_points"] = None
 
     share_summaries = _cat78_and_concentration(sailors)
+    restriction_audit = _summarize_restriction_audit(contribs)
+
+    def _sailor_spot_check(sas_id: str) -> dict:
+        row = next((s for s in sailors if str(s.get("sas_id") or "") == sas_id), None)
+        if row is None:
+            return {"found": False, "sas_id": sas_id}
+        counted = row.get("contribs_counted") or []
+        return {
+            "found": True,
+            "sas_id": sas_id,
+            "name": row.get("sailor_name"),
+            "rank": row.get("rank"),
+            "total_points": row.get("total_points"),
+            "events_counted": row.get("events_counted"),
+            "counted_sum": round(sum(float(c.get("points") or 0) for c in counted), 2),
+            "age_restricted_counted": sum(1 for c in counted if c.get("age_restricted")),
+            "gender_restricted_counted": sum(1 for c in counted if c.get("gender_restricted")),
+        }
+
+    spot_check_totals = {
+        "2530": _sailor_spot_check("2530"),
+        "8683": _sailor_spot_check("8683"),
+    }
 
     validation = []
     for name in SSA_V2_VALIDATION_NAMES:
@@ -2064,6 +2202,8 @@ def run_ssa_v2(conn, *, as_of: date, out_dir: Path) -> dict:
         "duplicate_division_exclusions": age_div_exclusions,
         "identity_exclusions": identity_exclusions,
         "identity_exclusion_summary": identity_summary,
+        "restriction_audit": restriction_audit,
+        "spot_check_totals": spot_check_totals,
         "cat7_8_share": share_summaries["cat7_8_share"],
         "one_event_concentration": share_summaries["one_event_concentration"],
         "scored_contribs": len(contribs),
