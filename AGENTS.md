@@ -41,6 +41,8 @@ Use these names to scope work and split agents:
 
 - **News Feed** — Landing-page "Latest News" section (Local / International), 16:9 thumb cards, fetch from `/api/news/latest`. In scope: `sailingsa/frontend/index.html` (`#landing-news-embed`, `#landing-news-list`, `.news-feed-*` CSS, `loadLandingNews()`), optional `sailingsa/news/index.html`, and in `api.py` only `GET /api/news/latest`, `POST /api/news/refresh`, and the news cache/pipeline. **Full scope:** **`docs/NEWS_FEED_AGENT.md`**. When the user says "News Feed", limit changes to this scope only.
 
+- **Result Parse - Add** — Passing partial or full regatta results (often from iPhone App → Cursor): stub + pass scripts, checksum, SAS name validation, live DB via SSH. In scope: `sailingsa/deploy/result_parse_common.py`, `sailingsa/deploy/create_*_stub.py`, `sailingsa/deploy/pass_*_*.py`, header icon merge, live pass (not workspace-only). **Full workflow:** **`docs/RESULT_PARSE_ADD.md`**. When the user says **"Result Parse - Add"**, follow that doc; gold example = 2026 ILCA KZN Regionals.
+
 ## UI / design system — hard rules (do not break pages)
 
 **`docs/UI_COMPONENTS_README.md`** — Hard rules for layout and components. **Store in Cursor memory for easy access.**

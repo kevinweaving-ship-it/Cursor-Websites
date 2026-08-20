@@ -1,5 +1,7 @@
 ## Results Passing Workflow (Per User Spec)
 
+**Fast path (iPhone partial results):** use **`docs/RESULT_PARSE_ADD.md`** — trigger **"Result Parse - Add"**; shared code in `sailingsa/deploy/result_parse_common.py`.
+
 1. **Regatta Intake**
    - Capture the regatta number supplied.
    - Confirm the regatta name against `regatta-admin-V22.html`.
