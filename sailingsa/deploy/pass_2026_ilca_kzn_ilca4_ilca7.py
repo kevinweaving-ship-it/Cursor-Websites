@@ -156,27 +156,47 @@ def lookup_club(cur, code: str):
     return None, c
 
 
-def lookup_sailor(cur, name: str):
+def _sas_helm_name(first_name: str | None, last_name: str | None) -> str:
+    """Truth from sas_id_personal: first_name + last_name only (no second/middle names)."""
+    return f"{(first_name or '').strip()} {(last_name or '').strip()}".strip()
+
+
+def lookup_sailor(cur, name: str, sail: str | None = None):
     n = (name or "").strip()
     aliases = [n]
     alt = NAME_ALIASES.get(n.lower())
     if alt:
         aliases.append(alt)
+
+    sail_clean = (sail or "").strip()
+    if sail_clean and sail_clean.upper() != "TBA":
+        cur.execute(
+            """
+            SELECT sa_sailing_id, first_name, last_name
+            FROM sas_id_personal
+            WHERE TRIM(COALESCE(primary_sailno, '')) = %s
+            LIMIT 1
+            """,
+            (sail_clean,),
+        )
+        row = cur.fetchone()
+        if row:
+            return str(row[0]).strip(), _sas_helm_name(row[1], row[2])
+
     for cand in aliases:
         cur.execute(
             """
-            SELECT sa_sailing_id, COALESCE(NULLIF(TRIM(full_name), ''),
-                   TRIM(COALESCE(first_name,'') || ' ' || COALESCE(last_name,''))) AS full_name
+            SELECT sa_sailing_id, first_name, last_name
             FROM sas_id_personal
-            WHERE LOWER(TRIM(full_name)) = LOWER(%s)
-               OR LOWER(TRIM(COALESCE(first_name,'') || ' ' || COALESCE(last_name,''))) = LOWER(%s)
+            WHERE LOWER(TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, ''))) = LOWER(%s)
+               OR LOWER(TRIM(COALESCE(full_name, ''))) = LOWER(%s)
             LIMIT 1
             """,
             (cand, cand),
         )
         row = cur.fetchone()
         if row:
-            return str(row[0]).strip(), (row[1] or cand).strip()
+            return str(row[0]).strip(), _sas_helm_name(row[1], row[2])
     return None, n
 
 
@@ -251,7 +271,7 @@ def insert_fleet(cur, fleet: dict) -> list[str]:
                 f"checksum fail {name}: got {chk['total']}/{chk['nett']} expected {chk['exp_t']}/{chk['exp_n']}"
             )
         club_id, club_raw = lookup_club(cur, club_code)
-        sas_id, canon = lookup_sailor(cur, name)
+        sas_id, canon = lookup_sailor(cur, name, sail)
         if not sas_id:
             unmatched.append(f"{name} | {club_code} | {sail}")
         scores = {f"R{i+1}": chk["scores"][i] for i in range(6)}
