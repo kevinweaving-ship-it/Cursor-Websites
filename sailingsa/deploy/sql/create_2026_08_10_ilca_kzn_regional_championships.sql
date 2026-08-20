@@ -3,6 +3,10 @@
 -- Header: generic ILCA class logo left, PYC host logo right (see header_icons JSON).
 -- Status line: Results are Provisional as at 10 August 2026 at 17:25
 -- Do not invent fleets / regatta_blocks / results — add those when the sheet is passed.
+-- Results pass (validated classes only; never family Ilca/Laser):
+--   Sheet "ILCA 4" / "Ilca 4" → class_canonical = 'Ilca 4.7'
+--   Sheet "ILCA 6" → 'Ilca 6'; sheet "ILCA 7" → 'Ilca 7'
+--   fleet_label = class as sailed (same as class_canonical). Not parent "ILCA".
 
 INSERT INTO public.regattas (
   regatta_id,

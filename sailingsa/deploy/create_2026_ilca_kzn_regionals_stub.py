@@ -6,6 +6,11 @@ Header: generic ILCA logo left, PYC logo right.
 Status: Results are Provisional as at 10 August 2026 at 17:25
 No fleets / results until the sheet is passed.
 
+Results pass — validated race classes only (never family Ilca/Laser):
+  Sheet ILCA 4 / Ilca 4 → class_canonical Ilca 4.7
+  Sheet ILCA 6 → Ilca 6; sheet ILCA 7 → Ilca 7
+  fleet_label = class as sailed (same validated name as class_canonical).
+
 Requires DATABASE_URL or DB_URL. Merges header icons into data/wc_regatta_header_icons.json
 (do not replace that file with a one-key fragment).
 """

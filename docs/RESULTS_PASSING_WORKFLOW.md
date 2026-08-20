@@ -12,6 +12,7 @@
      ii. Host (club code)  
      iii. **Results status line** (see format below)
    - Record the fleet label (starting with the first fleet if multiple).
+   - **ILCA:** sheet `ILCA 4` / `Ilca 4` → validated `Ilca 4.7` (never `Ilca 4`; never family `Ilca/Laser`). Same for `Ilca 6` and `Ilca 7`. **Fleet = class as sailed** (`fleet_label` = `class_canonical`).
    - Capture the sailed line: `Sailed: U, Discards: V, To count: W, Entries: X, Scoring system: Y`.
 
    **Results status line — sentence and date/time format (canonical)**  
