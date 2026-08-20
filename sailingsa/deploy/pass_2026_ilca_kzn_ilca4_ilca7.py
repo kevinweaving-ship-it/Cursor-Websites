@@ -33,7 +33,7 @@ NAME_ALIASES = {
     "caitlin macpherson": "Caitlin MacPherson",
     "matthew macpherson": "Matthew MacPherson",
     "penny macpherson": "Penny MacPherson",
-    "kees van welie": "Kees van Weelie",
+    "kees van welie": "Kees van Welie",
     "michaels barrett": "Michael Barrett",
 }
 
@@ -156,9 +156,53 @@ def lookup_club(cur, code: str):
     return None, c
 
 
+_NAME_PARTICLES = frozenset(
+    {"van", "de", "du", "der", "den", "le", "la", "von", "ter", "ten", "di", "da"}
+)
+
+
+def _cap_token(token: str) -> str:
+    if not token:
+        return token
+    if "-" in token:
+        return "-".join(_cap_token(t) for t in token.split("-"))
+    if "'" in token:
+        return "'".join(_cap_token(t) for t in token.split("'"))
+    if token.islower() or token.isupper():
+        return token[:1].upper() + token[1:].lower()
+    return token
+
+
+def _format_name_tokens(tokens: list[str], *, surname_mode: bool = False) -> str:
+    out: list[str] = []
+    for i, tok in enumerate(tokens):
+        tl = tok.lower()
+        if surname_mode and i < len(tokens) - 1 and tl in _NAME_PARTICLES:
+            out.append(tl)
+        else:
+            out.append(_cap_token(tok))
+    return " ".join(out)
+
+
+def _format_display_name(name: str) -> str:
+    """First name + surname capitals; particles (van, de, …) stay lowercase."""
+    s = (name or "").strip()
+    if not s:
+        return s
+    parts = s.split(None, 1)
+    if len(parts) == 1:
+        return _format_name_tokens(parts[0].split(), surname_mode=False)
+    first, rest = parts
+    return (
+        f"{_format_name_tokens(first.split(), surname_mode=False)} "
+        f"{_format_name_tokens(rest.split(), surname_mode=True)}"
+    ).strip()
+
+
 def _sas_helm_name(first_name: str | None, last_name: str | None) -> str:
-    """Truth from sas_id_personal: first_name + last_name only (no second/middle names)."""
-    return f"{(first_name or '').strip()} {(last_name or '').strip()}".strip()
+    """Truth from sas_id_personal: first_name + last_name only, then display format."""
+    raw = f"{(first_name or '').strip()} {(last_name or '').strip()}".strip()
+    return _format_display_name(raw) if raw else ""
 
 
 def lookup_sailor(cur, name: str, sail: str | None = None):
@@ -197,7 +241,7 @@ def lookup_sailor(cur, name: str, sail: str | None = None):
         row = cur.fetchone()
         if row:
             return str(row[0]).strip(), _sas_helm_name(row[1], row[2])
-    return None, n
+    return None, _format_display_name(n)
 
 
 def class_id(cur, name: str) -> int:
