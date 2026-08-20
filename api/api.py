@@ -22553,6 +22553,13 @@ def _format_rank(rank):
     return f"{num}th"
 
 
+def _results_age_category_gender_sql() -> str:
+    """Optional Category/Gender columns from results (Sailwave extra cols)."""
+    cat = "res.age_category" if column_exists("results", "age_category") else "NULL::text AS age_category"
+    gen = "res.gender" if column_exists("results", "gender") else "NULL::text AS gender"
+    return f", {cat}, {gen}"
+
+
 def _get_regatta_full_page_data(regatta_id: str):
     """Return (event_name, host_club_name, start_date, end_date, fleets, result_status, as_at_time, host_club_province, host_club_abbrev, host_club_fullname) for standalone regatta page.
     host_club_abbrev / host_club_fullname: from clubs join for 'CODE - Full name' header.
@@ -22615,7 +22622,9 @@ def _get_regatta_full_page_data(regatta_id: str):
                 as_at_time = res_row["as_at_time"]
             print(f"REGATTA_DATA: step=after_as_at_time time={time.time() - t0:.3f}", flush=True)
 
-            cur.execute("""
+            extra_cg = _results_age_category_gender_sql()
+            cur.execute(
+                f"""
                 SELECT rb.block_id,
                        COALESCE(TRIM(rb.fleet_label), TRIM(rb.class_canonical), TRIM(rb.class_original), 'Fleet') AS fleet_name,
                        rb.fleet_label, rb.class_canonical,
@@ -22629,13 +22638,16 @@ def _get_regatta_full_page_data(regatta_id: str):
                        res.total_points_raw, res.nett_points_raw, res.race_scores, res.raced,
                        COALESCE(TRIM(c_res.class_name), TRIM(res.class_original), '') AS class_name,
                        COALESCE(res.class_id, rb.class_id) AS result_class_id
+                       {extra_cg}
                 FROM regatta_blocks rb
                 JOIN results res ON res.block_id = rb.block_id AND res.regatta_id = rb.regatta_id
                 LEFT JOIN clubs c ON c.club_id = res.club_id
                 LEFT JOIN classes c_res ON c_res.class_id = res.class_id
                 WHERE rb.regatta_id = %s
                 ORDER BY rb.block_id, COALESCE(res.rank, 99999), res.result_id
-            """, (regatta_id,))
+                """,
+                (regatta_id,),
+            )
             raw = cur.fetchall() or []
             print(f"REGATTA_DATA: step=after_main_join time={time.time() - t0:.3f}", flush=True)
             dup_names = set()
@@ -22749,6 +22761,8 @@ def _get_regatta_full_page_data(regatta_id: str):
             "raced": r.get("raced"),
             "class_name": (r.get("class_name") or "").strip(),
             "result_class_id": r.get("result_class_id"),
+            "age_category": (str(r.get("age_category") or "").strip()),
+            "gender": (str(r.get("gender") or "").strip()),
         })
     for bid in sorted(by_block.keys()):
         bl = by_block[bid]
@@ -23839,37 +23853,60 @@ def _render_result_sheet_fleet(
     show_hull = _optional_col_visible("hull", has_hull_no)
     show_crew_col = _optional_col_visible("crew", has_crew)
     show_races = bool(race_columns)
+    has_category = any(str(r.get("age_category") or "").strip() for r in rows)
+    has_gender = any(str(r.get("gender") or "").strip() for r in rows)
+    # Sheet extra cols (ILCA KZN etc): Rank Sail No Club Name Category Gender R1.. Total Nett
+    source_extra_order = has_category or has_gender
 
     thead = ""
-    if _pref_on("rank"):
-        thead += '<th class="rank-col">Rank</th>'
-    if _pref_on("fleet"):
-        thead += "<th>Fleet</th>"
-    if _pref_on("class"):
-        thead += "<th>Class</th>"
-    if _pref_on("sail_no"):
-        thead += '<th class="sail-col">Sail No</th>'
-    if show_boat:
-        thead += "<th>Boat Name</th>"
-    if show_jib:
-        thead += "<th>Jib No</th>"
-    if show_bow:
-        thead += "<th>Bow No</th>"
-    if show_hull:
-        thead += "<th>Hull No</th>"
-    if _pref_on("club"):
-        thead += '<th class="club-col">Club</th>'
-    if _pref_on("helm"):
-        thead += '<th class="helm-col">Helm</th>'
-    if show_crew_col:
-        thead += "<th>Crew</th>"
-    if show_races:
-        for rc in race_columns:
-            thead += f"<th>{html_module.escape(rc)}</th>"
-    if _pref_on("total"):
-        thead += "<th>Total</th>"
-    if _pref_on("nett"):
-        thead += '<th class="nett-col">Nett</th>'
+    if source_extra_order:
+        if _pref_on("rank"):
+            thead += '<th class="rank-col">Rank</th>'
+        if _pref_on("sail_no"):
+            thead += '<th class="sail-col">Sail No</th>'
+        if _pref_on("club"):
+            thead += '<th class="club-col">Club</th>'
+        if _pref_on("helm"):
+            thead += '<th class="helm-col">Name</th>'
+        thead += '<th class="col-category">Category</th>'
+        thead += '<th class="col-gender">Gender</th>'
+        if show_races:
+            for rc in race_columns:
+                thead += f"<th>{html_module.escape(rc)}</th>"
+        if _pref_on("total"):
+            thead += "<th>Total</th>"
+        if _pref_on("nett"):
+            thead += '<th class="nett-col">Nett</th>'
+    else:
+        if _pref_on("rank"):
+            thead += '<th class="rank-col">Rank</th>'
+        if _pref_on("fleet"):
+            thead += "<th>Fleet</th>"
+        if _pref_on("class"):
+            thead += "<th>Class</th>"
+        if _pref_on("sail_no"):
+            thead += '<th class="sail-col">Sail No</th>'
+        if show_boat:
+            thead += "<th>Boat Name</th>"
+        if show_jib:
+            thead += "<th>Jib No</th>"
+        if show_bow:
+            thead += "<th>Bow No</th>"
+        if show_hull:
+            thead += "<th>Hull No</th>"
+        if _pref_on("club"):
+            thead += '<th class="club-col">Club</th>'
+        if _pref_on("helm"):
+            thead += '<th class="helm-col">Helm</th>'
+        if show_crew_col:
+            thead += "<th>Crew</th>"
+        if show_races:
+            for rc in race_columns:
+                thead += f"<th>{html_module.escape(rc)}</th>"
+        if _pref_on("total"):
+            thead += "<th>Total</th>"
+        if _pref_on("nett"):
+            thead += '<th class="nett-col">Nett</th>'
 
     trs = []
     for r in rows:
@@ -23998,32 +24035,46 @@ def _render_result_sheet_fleet(
         total_str = html_module.escape(total_plain)
         nett_str = html_module.escape(nett_plain)
         row_html = f'<tr class="{row_classes}">'
-        if _pref_on("rank"):
-            row_html += f'<td class="rank-col">{_wc_cell(html_module.escape(rank_str), rank_plain, "rank", None, 8)}</td>'
-        if _pref_on("fleet"):
-            row_html += f"<td>{fleet_str}</td>"
-        if _pref_on("class"):
-            row_html += f"<td>{_wc_cell(class_str, class_name_raw, 'class_name', None, 64, 'class', class_xin)}</td>"
-        if _pref_on("sail_no"):
-            row_html += f'<td class="sail-col">{_wc_cell(sail_str, sail_raw, "sail_number", None, 32)}</td>'
-        if show_boat:
-            bn = str(r.get("boat_name") or "")
-            row_html += f'<td>{_wc_cell(html_module.escape(bn), bn, "boat_name", None, 120)}</td>'
-        if show_jib:
-            jv = str(r.get("jib_no") or "")
-            row_html += f'<td>{_wc_cell(html_module.escape(jv), jv, "jib_no", None, 32)}</td>'
-        if show_bow:
-            bv = str(r.get("bow_no") or "")
-            row_html += f'<td>{_wc_cell(html_module.escape(bv), bv, "bow_no", None, 32)}</td>'
-        if show_hull:
-            hv = str(r.get("hull_no") or "")
-            row_html += f'<td>{_wc_cell(html_module.escape(hv), hv, "hull_no", None, 32)}</td>'
-        if _pref_on("club"):
-            row_html += f'<td class="club-col">{_wc_cell(club_link_html, club_raw, "club_code", None, 32, "club", club_xin)}</td>'
-        if _pref_on("helm"):
-            row_html += f'<td class="helm-col">{_wc_cell(helm_str, helm_raw or "", "helm_name", None, 120, "helm", helm_xin)}</td>'
-        if show_crew_col:
-            row_html += f"<td>{_wc_cell(crew_str, crew_raw_for_edit, 'crew_name', None, 160, 'crew', crew_xin)}</td>"
+        if source_extra_order:
+            if _pref_on("rank"):
+                row_html += f'<td class="rank-col">{_wc_cell(html_module.escape(rank_str), rank_plain, "rank", None, 8)}</td>'
+            if _pref_on("sail_no"):
+                row_html += f'<td class="sail-col">{_wc_cell(sail_str, sail_raw, "sail_number", None, 32)}</td>'
+            if _pref_on("club"):
+                row_html += f'<td class="club-col">{_wc_cell(club_link_html, club_raw, "club_code", None, 32, "club", club_xin)}</td>'
+            if _pref_on("helm"):
+                row_html += f'<td class="helm-col">{_wc_cell(helm_str, helm_raw or "", "helm_name", None, 120, "helm", helm_xin)}</td>'
+            cat_raw = str(r.get("age_category") or "")
+            gen_raw = str(r.get("gender") or "")
+            row_html += f'<td class="col-category">{html_module.escape(cat_raw)}</td>'
+            row_html += f'<td class="col-gender">{html_module.escape(gen_raw)}</td>'
+        else:
+            if _pref_on("rank"):
+                row_html += f'<td class="rank-col">{_wc_cell(html_module.escape(rank_str), rank_plain, "rank", None, 8)}</td>'
+            if _pref_on("fleet"):
+                row_html += f"<td>{fleet_str}</td>"
+            if _pref_on("class"):
+                row_html += f"<td>{_wc_cell(class_str, class_name_raw, 'class_name', None, 64, 'class', class_xin)}</td>"
+            if _pref_on("sail_no"):
+                row_html += f'<td class="sail-col">{_wc_cell(sail_str, sail_raw, "sail_number", None, 32)}</td>'
+            if show_boat:
+                bn = str(r.get("boat_name") or "")
+                row_html += f'<td>{_wc_cell(html_module.escape(bn), bn, "boat_name", None, 120)}</td>'
+            if show_jib:
+                jv = str(r.get("jib_no") or "")
+                row_html += f'<td>{_wc_cell(html_module.escape(jv), jv, "jib_no", None, 32)}</td>'
+            if show_bow:
+                bv = str(r.get("bow_no") or "")
+                row_html += f'<td>{_wc_cell(html_module.escape(bv), bv, "bow_no", None, 32)}</td>'
+            if show_hull:
+                hv = str(r.get("hull_no") or "")
+                row_html += f'<td>{_wc_cell(html_module.escape(hv), hv, "hull_no", None, 32)}</td>'
+            if _pref_on("club"):
+                row_html += f'<td class="club-col">{_wc_cell(club_link_html, club_raw, "club_code", None, 32, "club", club_xin)}</td>'
+            if _pref_on("helm"):
+                row_html += f'<td class="helm-col">{_wc_cell(helm_str, helm_raw or "", "helm_name", None, 120, "helm", helm_xin)}</td>'
+            if show_crew_col:
+                row_html += f"<td>{_wc_cell(crew_str, crew_raw_for_edit, 'crew_name', None, 160, 'crew', crew_xin)}</td>"
         if show_races:
             for rkey in race_columns:
                 score = (race_scores.get(rkey) or "").strip()
@@ -25505,7 +25556,9 @@ def _get_regatta_class_page_data(regatta_id: str, class_id: int):
             res_row = cur.fetchone()
             if res_row and res_row.get("as_at_time"):
                 as_at_time = res_row["as_at_time"]
-            cur.execute("""
+            extra_cg = _results_age_category_gender_sql()
+            cur.execute(
+                f"""
                 SELECT rb.block_id,
                        COALESCE(TRIM(rb.fleet_label), TRIM(rb.class_canonical), TRIM(rb.class_original), 'Fleet') AS fleet_name,
                        rb.fleet_label, rb.class_canonical,
@@ -25519,13 +25572,16 @@ def _get_regatta_class_page_data(regatta_id: str, class_id: int):
                        res.total_points_raw, res.nett_points_raw, res.race_scores, res.raced,
                        COALESCE(TRIM(c_res.class_name), TRIM(res.class_original), '') AS class_name,
                        COALESCE(res.class_id, rb.class_id) AS result_class_id
+                       {extra_cg}
                 FROM regatta_blocks rb
                 JOIN results res ON res.block_id = rb.block_id AND res.regatta_id = rb.regatta_id
                 LEFT JOIN clubs c ON c.club_id = res.club_id
                 LEFT JOIN classes c_res ON c_res.class_id = COALESCE(res.class_id, rb.class_id)
                 WHERE rb.regatta_id = %s AND (COALESCE(res.class_id, rb.class_id) = %s)
                 ORDER BY rb.block_id, COALESCE(res.rank, 99999), res.result_id
-            """, (regatta_id, class_id))
+                """,
+                (regatta_id, class_id),
+            )
             raw = cur.fetchall() or []
             if not raw:
                 return None
@@ -25639,6 +25695,8 @@ def _get_regatta_class_page_data(regatta_id: str, class_id: int):
             "raced": r.get("raced"),
             "class_name": (r.get("class_name") or "").strip(),
             "result_class_id": r.get("result_class_id"),
+            "age_category": (str(r.get("age_category") or "").strip()),
+            "gender": (str(r.get("gender") or "").strip()),
         })
     fleets = []
     for bid in sorted(by_block.keys()):
