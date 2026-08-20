@@ -1,4 +1,6 @@
--- 2026 ILCA KZN Regional Championships (laser.org.za/events/364968)
+-- 2026 ILCA KZN Regional Championships
+-- Event page: https://www.laser.org.za/events/364968
+-- Results PDF: https://cdn.revolutionise.com.au/site/ltjdspwjl1li4gni.pdf
 -- Date-format URL: /regatta/2026-08-10-ilca-kzn-regional-championships
 -- Header: generic ILCA class logo left, PYC host logo right (see header_icons JSON).
 -- Status line: Results are Provisional as at 10 August 2026 at 17:25
@@ -35,8 +37,8 @@ SELECT
   c.club_abbrev,
   c.club_fullname,
   'KZN',
-  'pending',
-  'https://www.laser.org.za/events/364968'
+  'manual',
+  'https://cdn.revolutionise.com.au/site/ltjdspwjl1li4gni.pdf'
 FROM public.clubs c
 WHERE UPPER(TRIM(c.club_abbrev)) = 'PYC'
 LIMIT 1

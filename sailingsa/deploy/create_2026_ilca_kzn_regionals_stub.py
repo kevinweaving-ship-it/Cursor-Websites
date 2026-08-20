@@ -26,7 +26,9 @@ import psycopg2
 ROOT = Path(__file__).resolve().parents[2]
 REGATTA_ID = "2026-08-10-ilca-kzn-regional-championships"
 EVENT_NAME = "ILCA KZN Regional Championships"
-SOURCE_URL = "https://www.laser.org.za/events/364968"
+SOURCE_URL = "https://cdn.revolutionise.com.au/site/ltjdspwjl1li4gni.pdf"
+EVENT_PAGE_URL = "https://www.laser.org.za/events/364968"
+DOC_HASH = "164c12512e2bafe624bb966f32470a80"
 FRAGMENT = Path(__file__).resolve().parent / "header_icons_2026_08_10_ilca_kzn_regional_championships.json"
 HEADER_ICONS = {
     "left": "/artwork/Class Logo/ILCA-Class-Logo.png",
@@ -82,6 +84,8 @@ def upsert_regatta(cur) -> None:
         "province_code": "KZN",
         "regatta_type": "Regional Championships",
         "source_url": SOURCE_URL,
+        "file_type": "PDF",
+        "doc_hash": DOC_HASH,
         "import_status": "pending",
     }
     insert_cols = [c for c in wanted if c in cols]
@@ -167,6 +171,8 @@ def main() -> None:
     print(f"events_linked={n}")
     print("header_icons=" + ",".join(str(p) for p in icons))
     print("url=https://sailingsa.co.za/regatta/2026-08-10-ilca-kzn-regional-championships")
+    print(f"source_url={SOURCE_URL}")
+    print(f"event_page={EVENT_PAGE_URL}")
     print("status_line=Results are Provisional as at 10 August 2026 at 17:25")
 
 

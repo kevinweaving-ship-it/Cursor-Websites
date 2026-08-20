@@ -2,7 +2,8 @@
 """Pass ILCA 4.7 / 6 / 7 fleets for 2026 ILCA KZN Regionals.
 
 Column order (as sheet): Rank | Sail No | Club | Name | Category | Gender | R1–R6 | Total | Nett
-Source: https://www.laser.org.za/events/364968
+Source: https://cdn.revolutionise.com.au/site/ltjdspwjl1li4gni.pdf
+Event page: https://www.laser.org.za/events/364968
 Requires DATABASE_URL or DB_URL.
 """
 from __future__ import annotations
@@ -309,7 +310,7 @@ def main() -> None:
         conn.close()
     print(f"regatta_id={REGATTA_ID}")
     print(f"events_linked={n}")
-    print("source_url=https://www.laser.org.za/events/364968")
+    print("source_url=https://cdn.revolutionise.com.au/site/ltjdspwjl1li4gni.pdf")
     print("url=https://sailingsa.co.za/regatta/2026-08-10-ilca-kzn-regional-championships")
     print("fleets=Ilca 4.7, Ilca 6, Ilca 7")
     if unmatched:
