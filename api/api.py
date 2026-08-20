@@ -19050,10 +19050,8 @@ def _write_wc_regatta_column_prefs_for_regatta(regatta_id: str, prefs: dict) -> 
 
 
 def _wc_regatta_header_icon_urls(regatta_id: str) -> tuple:
-    """(left_url, right_url) for WC pilot slug only; else (None, None)."""
+    """(left_url, right_url) from data/wc_regatta_header_icons.json for this regatta_id."""
     rid = str(regatta_id).strip()
-    if rid != WC_DINGHY_CHAMPS_REGATTA_SLUG:
-        return None, None
     raw = _read_wc_regatta_header_icons().get(rid)
     if not isinstance(raw, dict):
         return None, None
@@ -21449,14 +21447,20 @@ def _regatta_header_right_club_logo_html(host_club_abbrev: str, host_club_slug: 
 
 
 def _regatta_standalone_left_logo_column_html(override_url: Optional[str]) -> str:
-    """Left header column: default Sailing SA logo or super-admin WC custom image URL."""
+    """Left header column: default Sailing SA logo or per-regatta class/event logo."""
     if not (override_url and str(override_url).strip()):
         return _REGATTA_STANDALONE_HEADER_LOGO_HTML
-    src = html_module.escape(str(override_url).strip())
+    raw = str(override_url).strip()
+    src = html_module.escape(raw)
+    href = "/"
+    title = "SailingSA home"
+    if "ilca-class-logo" in raw.lower():
+        href = "/class/ilca"
+        title = "ILCA"
     return (
         '<div class="regatta-header-logo-col">'
-        '<a href="/" class="regatta-header-logo-link" title="SailingSA home">'
-        f'<img src="{src}" alt="" class="regatta-header-logo-img" '
+        f'<a href="{href}" class="regatta-header-logo-link" title="{html_module.escape(title)}">'
+        f'<img src="{src}" alt="" class="regatta-header-logo-img regatta-header-left-logo-img" '
         'width="200" height="25" loading="lazy" decoding="async" />'
         "</a></div>"
     )
