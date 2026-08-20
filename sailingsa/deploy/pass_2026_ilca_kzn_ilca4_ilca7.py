@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Pass ILCA 4 (Ilca 4.7) and ILCA 7 fleets for 2026 ILCA KZN Regionals.
+"""Pass ILCA 4.7 / 6 / 7 fleets for 2026 ILCA KZN Regionals.
 
 Column order (as sheet): Rank | Sail No | Club | Name | Category | Gender | R1–R6 | Total | Nett
 Source: https://www.laser.org.za/events/364968
-Requires DATABASE_URL or DB_URL. Does not invent ILCA 6.
+Requires DATABASE_URL or DB_URL.
 """
 from __future__ import annotations
 
@@ -31,6 +31,9 @@ NAME_ALIASES = {
     "anthony mcmillan": "Anthony MacMillan",
     "caitlin macpherson": "Caitlin MacPherson",
     "matthew macpherson": "Matthew MacPherson",
+    "penny macpherson": "Penny MacPherson",
+    "kees van welie": "Kees van Weelie",
+    "michaels barrett": "Michael Barrett",
 }
 
 # Sheet rows: rank, sail, club, name, category, gender, r1..r6, total, nett
@@ -74,6 +77,26 @@ ILCA7 = {
         (8, "TBA", "PYC", "Struan Alexander", "Senior", "M", ["7.0", "6.0", "(DNC)", "8.0", "9.0", "8.0"], "49.0", "38.0"),
         (9, "122771", "BSC", "Ian Campbell", "Senior", "M", ["(DNC)", "7.0", "RET", "9.0", "8.0", "10.0"], "56.0", "45.0"),
         (10, "12277", "BSC", "Stephan Deeke", "Senior", "M", ["(DNC)", "DNC", "DNC", "10.0", "10.0", "9.0"], "62.0", "51.0"),
+    ],
+}
+ILCA6 = {
+    "class_original": "ILCA 6",
+    "class_canonical": "Ilca 6",
+    "block_slug": "ilca-6",
+    "entries": 10,
+    "discards": 1,
+    "races": 6,
+    "rows": [
+        (1, "188566", "ZVYC", "Blake Madel", "Youth", "M", ["3.0", "1.0", "1.0", "1.0", "(OCS)", "2.0"], "19.0", "8.0"),
+        (2, "201753", "RNYC", "Paul Changuion", "Senior", "M", ["1.0", "3.0", "2.0", "2.0", "(OCS)", "4.0"], "23.0", "12.0"),
+        (3, "160127", "SYC", "Aydin O'Hara", "Youth", "M", ["2.0", "4.0", "3.0", "(5.0)", "2.0", "3.0"], "19.0", "14.0"),
+        (4, "144324", "HMYC", "Noah Clulow", "Youth", "M", ["(RET)", "2.0", "DNC", "7.0", "1.0", "1.0"], "33.0", "22.0"),
+        (5, "144153", "RNYC", "Michaels Barrett", "Youth", "F", ["4.0", "(6.0)", "5.0", "4.0", "4.0", "6.0"], "29.0", "23.0"),
+        (6, "188079", "HMYC", "Daniela Cantarelli", "Youth", "F", ["5.0", "5.0", "4.0", "6.0", "5.0", "(7.0)"], "32.0", "25.0"),
+        (7, "19123", "HMYC", "Penny Macpherson", "Senior", "F", ["(DNC)", "DNC", "DNC", "3.0", "3.0", "5.0"], "44.0", "33.0"),
+        (8, "42555", "BSC", "Stephan Deeke", "Senior", "M", ["7.0", "8.0", "6.0", "(DNC)", "DNC", "DNC"], "54.0", "43.0"),
+        (9, "191233", "HMYC", "Kees van Welie", "Senior", "M", ["6.0", "7.0", "(DNC)", "DNC", "DNC", "DNC"], "57.0", "46.0"),
+        (10, "37181", "BSC", "Mike Tainton", "Senior", "M", ["(DNC)", "DNC", "DNC", "8.0", "6.0", "RET"], "58.0", "47.0"),
     ],
 }
 
@@ -279,6 +302,7 @@ def main() -> None:
             ensure_gender(cur)
             unmatched = []
             unmatched += insert_fleet(cur, ILCA4)
+            unmatched += insert_fleet(cur, ILCA6)
             unmatched += insert_fleet(cur, ILCA7)
         conn.commit()
     finally:
@@ -287,7 +311,7 @@ def main() -> None:
     print(f"events_linked={n}")
     print("source_url=https://www.laser.org.za/events/364968")
     print("url=https://sailingsa.co.za/regatta/2026-08-10-ilca-kzn-regional-championships")
-    print("fleets=Ilca 4.7, Ilca 7 (ILCA 6 not pasted)")
+    print("fleets=Ilca 4.7, Ilca 6, Ilca 7")
     if unmatched:
         print("UNMATCHED sailors (need SA ID / Temp):")
         for u in unmatched:
