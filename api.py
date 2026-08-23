@@ -2486,8 +2486,8 @@ _EVENTS_SA_HOME_REGATTA_CSS = """
 /* Events list = same layout as home regatta list; light green = we have results */
 .events-cards.sa-home-regatta-list { display: flex; flex-direction: column; gap: 10px; }
 .sa-home-regatta-card{background:#fff;border:2px solid #8aa2c6;border-radius:6px;box-shadow:0 2px 3px rgba(15,23,42,.06);padding:8px 12px 10px;display:flex;flex-direction:column;gap:8px;overflow:hidden;}
-.sa-home-regatta-card--has-results{background:#dcfce7;border-color:#86efac;}
-.sa-home-regatta-card--has-results .sa-home-regatta-btn{border-color:#4ade80;background:#f0fdf4;color:#166534;}
+.sa-home-regatta-card--has-results{background:#f6ecec;border-color:#e0c4c4;}
+.sa-home-regatta-card--has-results .sa-home-regatta-btn{border-color:#c9a0a0;background:#faf4f4;color:#7f1d1d;}
 .sa-home-regatta-top{display:grid;grid-template-columns:104px minmax(0,1fr) minmax(160px,252px) auto;grid-template-areas:"logo main host actions";gap:14px;align-items:center;}
 .sa-home-regatta-event-logo{grid-area:logo;display:block;width:96px;height:68px;object-fit:contain;border:none;border-radius:0;background:transparent;flex:0 0 auto;padding:0;justify-self:start;}
 .sa-home-regatta-top-main{grid-area:main;min-width:0;}
