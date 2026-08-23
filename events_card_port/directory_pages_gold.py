@@ -95,9 +95,8 @@ def _sailors_directory_page_html():
         + _SECTION_HEADING_ROW_UNIFIED_CSS
         + _EVENTS_TOOLBAR_SEARCH_CSS
         + _DIRECTORY_PAGE_ABOUT_CSS
-        + """
-.profile-card{background:#fff;border-radius:8px;border:2px solid #001f3f;padding:0.5rem 0.85rem;cursor:pointer;line-height:1.35;}
-</style>"
+        + ".profile-card{background:#fff;border-radius:8px;border:2px solid #001f3f;padding:0.5rem 0.85rem;cursor:pointer;line-height:1.35;}"
+        + "</style>"
         '<script src="/js/hub-sailor-directory.js?v=20260823dir1"></script>'
     )
     inner = (
