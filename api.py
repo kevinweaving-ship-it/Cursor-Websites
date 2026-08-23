@@ -3151,9 +3151,21 @@ def _get_upcoming_events(host_club_id=None):
         # Automatic calendar↔regatta linking: global date pool for /events and type filters only.
         # Club pages (host_club_id set) re-match in serve_club_page against Regattas hosted only.
         if out["past"] and past_rows and host_club_id is None:
+            # Public /events: fuzzy-matching every unlinked past card against the full
+            # regatta pool is O(n*m) and previously took ~80s (crawl 504s). Only
+            # fuzzy-match recent unlinked rows; already-linked cards still get ticks.
             pool = _regatta_match_pool_for_past_rows(cur, past_rows)
             if pool:
-                _club_past_events_match_hosted(out["past"], pool, None)
+                from datetime import date as _date, timedelta as _td
+                cut = (_date.today() - _td(days=550)).isoformat()
+                linked_or_recent = []
+                for card in out["past"]:
+                    rid = str(card.get("regatta_id") or "").strip()
+                    iso = (card.get("start_date_iso") or card.get("end_date_iso") or "").strip()[:10]
+                    if rid or (iso and iso >= cut):
+                        linked_or_recent.append(card)
+                if linked_or_recent:
+                    _club_past_events_match_hosted(linked_or_recent, pool, None)
         try:
             _attach_events_page_card_logos(out["past"], cur)
             _attach_events_page_card_logos(out.get("live") or [], cur)
