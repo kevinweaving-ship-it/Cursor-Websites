@@ -8,12 +8,12 @@ t = path.read_text(encoding="utf-8")
 
 fn = '''
 def _attach_events_page_card_logos(cards: list, cur=None) -> None:
-    """Fill event_logo_url for past has-results cards — same artwork as landing regatta list."""
+    """Fill event_logo_url for coloured cards — past has-results, then upcoming expect-results."""
     if not cards:
         return
     targets = []
     for c in cards:
-        if not c.get("result_yes"):
+        if not (c.get("result_yes") or c.get("expect_results")):
             continue
         if str(c.get("event_logo_url") or c.get("image_url") or "").strip():
             continue
@@ -86,6 +86,8 @@ def _attach_events_page_card_logos(cards: list, cur=None) -> None:
 
 wire = '''        try:
             _attach_events_page_card_logos(out["past"], cur)
+            _attach_events_page_card_logos(out.get("live") or [], cur)
+            _attach_events_page_card_logos(out["upcoming"], cur)
         except Exception as _logo_err:
             print(f"[events] card logos: {_logo_err}", flush=True)
         out["past"] = _sort_past_event_cards(out["past"])'''
@@ -97,16 +99,33 @@ if "_attach_events_page_card_logos" not in t:
     t = t.replace(anchor, fn + "\n" + anchor, 1)
     print("inserted _attach_events_page_card_logos")
 else:
+    # Upgrade existing helper to include expect_results if still past-only
+    old_tgt = "        if not c.get(\"result_yes\"):\n            continue"
+    new_tgt = "        if not (c.get(\"result_yes\") or c.get(\"expect_results\")):\n            continue"
+    if old_tgt in t:
+        t = t.replace(old_tgt, new_tgt, 1)
+        print("upgraded targets to include expect_results")
     print("helpers already present")
 
-if "_attach_events_page_card_logos(out[\"past\"]" in t:
-    print("wire already present")
+if "_attach_events_page_card_logos(out[\"upcoming\"]" in t:
+    print("wire already includes upcoming")
+elif "_attach_events_page_card_logos(out[\"past\"]" in t:
+    old_wire = '''        try:
+            _attach_events_page_card_logos(out["past"], cur)
+        except Exception as _logo_err:
+            print(f"[events] card logos: {_logo_err}", flush=True)
+        out["past"] = _sort_past_event_cards(out["past"])'''
+    if old_wire in t:
+        t = t.replace(old_wire, wire)
+        print("upgraded wire to past+live+upcoming")
+    else:
+        print("wire present (manual check)")
 else:
     old = '        out["past"] = _sort_past_event_cards(out["past"])'
     if t.count(old) < 1:
         raise SystemExit("wire anchor missing")
     t = t.replace(old, wire, 1)
-    if "_attach_events_page_card_logos(out[\"past\"]" not in t.split("def _get_events_by_type_slug", 1)[-1]:
+    if t.count(old) >= 1:
         t = t.replace(old, wire, 1)
     print("wired _get_upcoming_events + type filter")
 

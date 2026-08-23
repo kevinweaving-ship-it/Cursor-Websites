@@ -1848,6 +1848,107 @@ def _event_category_shows_times(category: str | None, event_name: str | None = N
     return False
 
 
+def _event_span_days(start_date, end_date) -> int:
+    """Calendar days covered (1 = same-day)."""
+    def _as_date(d):
+        if not d:
+            return None
+        if hasattr(d, "toordinal") and not isinstance(d, str):
+            # date or datetime
+            if hasattr(d, "hour"):
+                try:
+                    return d.date()
+                except Exception:
+                    return None
+            return d
+        s = str(d)[:10]
+        try:
+            return datetime.strptime(s, "%Y-%m-%d").date()
+        except Exception:
+            return None
+
+    s = _as_date(start_date)
+    if not s:
+        return 1
+    e = _as_date(end_date) or s
+    try:
+        return max(1, (e - s).days + 1)
+    except Exception:
+        return 1
+
+
+def _event_has_real_host(host_code: str | None, host_club: str | None = None, club_slug: str | None = None) -> bool:
+    """True when card has usable host info (club code/name/slug), not blank/TBC/Unassigned."""
+    for raw in (host_code, host_club, club_slug):
+        s = (raw or "").strip()
+        if not s:
+            continue
+        if s in ("—", "-", "–"):
+            continue
+        if s.lower() in ("tbc", "unk", "unknown", "unassigned", "teams", "online", "n/a", "na"):
+            continue
+        return True
+    return False
+
+
+def _event_expect_racing_results(
+    category: str | None,
+    event_name: str | None = None,
+    *,
+    host_code: str | None = None,
+    host_club: str | None = None,
+    club_slug: str | None = None,
+    start_date=None,
+    end_date=None,
+) -> bool:
+    """True for real regattas sailors enter (results expected).
+
+    Clues: exclude AGM/course/training; most real events have host info;
+    many span 2–3+ calendar days.
+    """
+    if _event_category_shows_times(category, event_name):
+        return False
+    cat = (category or "").strip().lower()
+    if cat in ("meeting", "meetings", "training"):
+        return False
+    name = f" {(event_name or '').strip().lower()} "
+    for token in (
+        " agm",
+        "agm ",
+        " instructor ",
+        " race officer ",
+        " safeguarding ",
+        " appointment ",
+        " cruise ",
+    ):
+        if token in name:
+            return False
+    has_host = _event_has_real_host(host_code, host_club, club_slug)
+    multi_day = _event_span_days(start_date, end_date) >= 2
+    # Primary: resolved host (club race or championship).
+    if has_host:
+        return True
+    # Secondary: multi-day even when host still unmatched.
+    if multi_day:
+        return True
+    # Single-day, no host: only clear racing titles.
+    for token in (
+        " championship",
+        " nationals",
+        " regional",
+        " provincials",
+        " regatta",
+        " open ",
+        " classic",
+        " series",
+        " cup ",
+        " trophy",
+    ):
+        if token in name:
+            return True
+    return False
+
+
 def _format_event_date_range(start_date, end_date, start_time=None, end_time=None):
     """Compact event dates for cards.
 
@@ -2561,7 +2662,7 @@ def _attach_events_page_card_logos(cards: list, cur=None) -> None:
         return
     targets = []
     for c in cards:
-        if not c.get("result_yes"):
+        if not (c.get("result_yes") or c.get("expect_results")):
             continue
         if str(c.get("event_logo_url") or c.get("image_url") or "").strip():
             continue
@@ -2742,6 +2843,8 @@ _EVENTS_SA_HOME_REGATTA_CSS = """
 .sa-home-regatta-card{background:#fff;border:2px solid #8aa2c6;border-radius:6px;box-shadow:0 2px 3px rgba(15,23,42,.06);padding:8px 12px 10px;display:flex;flex-direction:column;gap:8px;overflow:hidden;}
 .sa-home-regatta-card--has-results{background:#f6ecec;border-color:#e0c4c4;}
 .sa-home-regatta-card--has-results .sa-home-regatta-btn{border-color:#c9a0a0;background:#faf4f4;color:#7f1d1d;}
+.sa-home-regatta-card--expect-results{background:#eaf8ef;border-color:#b8e6c8;}
+.sa-home-regatta-card--expect-results .sa-home-regatta-btn{border-color:#7dcf9a;background:#f3fcf6;color:#166534;}
 .sa-home-regatta-top{display:grid;grid-template-columns:104px minmax(0,1fr) minmax(160px,252px) auto;grid-template-areas:"logo main host actions";gap:14px;align-items:center;}
 .sa-home-regatta-event-logo{grid-area:logo;display:block;width:96px;height:68px;object-fit:contain;border:none;border-radius:0;background:transparent;flex:0 0 auto;padding:0;justify-self:start;}
 .sa-home-regatta-top-main{grid-area:main;min-width:0;}
@@ -2942,6 +3045,8 @@ def _get_upcoming_events(host_club_id=None):
                 _club_past_events_match_hosted(out["past"], pool, None)
         try:
             _attach_events_page_card_logos(out["past"], cur)
+            _attach_events_page_card_logos(out.get("live") or [], cur)
+            _attach_events_page_card_logos(out["upcoming"], cur)
         except Exception as _logo_err:
             print(f"[events] card logos: {_logo_err}", flush=True)
         out["past"] = _sort_past_event_cards(out["past"])
@@ -3121,6 +3226,8 @@ def _get_events_by_type_slug(slug: str):
                 _club_past_events_match_hosted(out["past"], pool, None)
         try:
             _attach_events_page_card_logos(out["past"], cur)
+            _attach_events_page_card_logos(out.get("live") or [], cur)
+            _attach_events_page_card_logos(out["upcoming"], cur)
         except Exception as _logo_err:
             print(f"[events] card logos: {_logo_err}", flush=True)
         out["past"] = _sort_past_event_cards(out["past"])
@@ -3261,6 +3368,15 @@ def _event_row_to_card(r, has_regatta_id, has_host_club_id, is_upcoming, regatta
         "image_url": image_url or "",
         "show_result_line": show_result_line,
         "result_yes": result_yes,
+        "expect_results": _event_expect_racing_results(
+            event_type,
+            event_name,
+            host_code=host_code,
+            host_club=host_club,
+            club_slug=club_slug,
+            start_date=start,
+            end_date=end,
+        ),
         "host_unmatched": host_unmatched,
         "result_url": result_url or "",
         "likely_classes": likely_classes,
@@ -4133,7 +4249,8 @@ document.getElementById("year").textContent = new Date().getFullYear();
     }
     actions += '</div>';
     var hasRes = !!e.result_yes;
-    var cardCls = 'sa-home-regatta-card' + (hasRes ? ' sa-home-regatta-card--has-results' : '');
+    var expect = !!e.expect_results && !hasRes && (panelId === 'upcoming' || panelId === 'live');
+    var cardCls = 'sa-home-regatta-card' + (hasRes ? ' sa-home-regatta-card--has-results' : (expect ? ' sa-home-regatta-card--expect-results' : ''));
     return '<article class="' + cardCls + '" data-panel="' + esc(panelId) + '" aria-label="Event ' + index1 + ' of ' + totalN + '">'
       + '<div class="sa-home-regatta-top">'
       + logoHtml
@@ -4521,7 +4638,8 @@ def _events_dashboard_fragment(
     }
     actions += '</div>';
     var hasRes = !!e.result_yes;
-    var cardCls = 'sa-home-regatta-card' + (hasRes ? ' sa-home-regatta-card--has-results' : '');
+    var expect = !!e.expect_results && !hasRes && (panelId === 'upcoming' || panelId === 'live');
+    var cardCls = 'sa-home-regatta-card' + (hasRes ? ' sa-home-regatta-card--has-results' : (expect ? ' sa-home-regatta-card--expect-results' : ''));
     return '<article class="' + cardCls + '" data-panel="' + esc(panelId) + '" aria-label="Event ' + index1 + ' of ' + totalN + '">'
       + '<div class="sa-home-regatta-top">'
       + logoHtml
@@ -4896,7 +5014,8 @@ document.getElementById("year").textContent = new Date().getFullYear();
     }
     actions += '</div>';
     var hasRes = !!e.result_yes;
-    var cardCls = 'sa-home-regatta-card' + (hasRes ? ' sa-home-regatta-card--has-results' : '');
+    var expect = !!e.expect_results && !hasRes && (panelId === 'upcoming' || panelId === 'live');
+    var cardCls = 'sa-home-regatta-card' + (hasRes ? ' sa-home-regatta-card--has-results' : (expect ? ' sa-home-regatta-card--expect-results' : ''));
     return '<article class="' + cardCls + '" data-panel="' + esc(panelId) + '" aria-label="Event ' + index1 + ' of ' + totalN + '">'
       + '<div class="sa-home-regatta-top">'
       + logoHtml
