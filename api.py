@@ -2157,6 +2157,7 @@ def _attach_event_card_display_sort_fields(
         key = _yearly_event_series_key((c.get("event_name") or "").strip())
         c["series_years_count"] = int(series_map.get(key, 0)) if key else 0
         smax = int(series_max_entries_by_key.get(key, 0)) if key else 0
+        c["entries"] = regatta_e
         c["entries_for_sort"] = max(regatta_e, smax)
 
 
@@ -2410,6 +2411,43 @@ a.event-result-chip.event-result-pick { padding: 0.18rem 0.4rem; min-height: 1.5
 .event-card.ec-past-sas .event-card-index { background: #fef2f2; color: #7f1d1d; }
 .event-card.ec-past-club .event-card-index { background: #450a0a; color: #fff; }
 .event-card.ec-past-other .event-card-index { background: #fff; color: #991b1b; }
+"""
+
+_EVENTS_SA_HOME_REGATTA_CSS = """
+/* Events list = same layout as home regatta list; light green = we have results */
+.events-cards.sa-home-regatta-list { display: flex; flex-direction: column; gap: 10px; }
+.sa-home-regatta-card{background:#fff;border:2px solid #8aa2c6;border-radius:6px;box-shadow:0 2px 3px rgba(15,23,42,.06);padding:8px 12px 10px;display:flex;flex-direction:column;gap:8px;overflow:hidden;}
+.sa-home-regatta-card--has-results{background:#dcfce7;border-color:#86efac;}
+.sa-home-regatta-card--has-results .sa-home-regatta-btn{border-color:#4ade80;background:#f0fdf4;color:#166534;}
+.sa-home-regatta-top{display:grid;grid-template-columns:104px minmax(0,1fr) minmax(160px,252px) auto;grid-template-areas:"logo main host actions";gap:14px;align-items:center;}
+.sa-home-regatta-event-logo{grid-area:logo;display:block;width:96px;height:68px;object-fit:contain;border:none;border-radius:0;background:transparent;flex:0 0 auto;padding:0;justify-self:start;}
+.sa-home-regatta-top-main{grid-area:main;min-width:0;}
+.sa-home-regatta-title{font-size:15px;font-weight:900;color:#142c78;line-height:1.15;margin:0;letter-spacing:-.01em;text-decoration:none;}
+a.sa-home-regatta-title:hover{color:#1d4ed8;text-decoration:underline;}
+.sa-home-regatta-meta{display:flex;flex-wrap:wrap;gap:8px;color:#5b6780;font-size:11.5px;margin-top:6px;}
+.sa-home-regatta-meta-pill{display:inline-flex;align-items:center;gap:5px;padding:0;border:none;border-radius:0;background:transparent;font-weight:700;white-space:nowrap;position:relative;}
+.sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill{padding-left:10px;}
+.sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill:before{content:"";position:absolute;left:0;top:2px;bottom:2px;width:1px;background:#cbd5e1;}
+.sa-home-regatta-type{display:inline-block;font-size:11px;font-weight:800;padding:2px 7px;background:#001f3f;color:#fff;border-radius:4px;line-height:1.2;}
+.sa-home-regatta-host{grid-area:host;display:flex;align-items:center;gap:10px;min-width:0;text-decoration:none;color:inherit;}
+.sa-home-regatta-host-logo{display:block;width:84px;height:44px;object-fit:contain;border:none;border-radius:0;background:transparent;flex:0 0 auto;padding:0;}
+.sa-home-regatta-host-text{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.sa-home-regatta-host-code{font-weight:900;color:#21356b;font-size:14px;line-height:1.05;}
+.sa-home-regatta-host-name{color:#475569;font-size:11px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px;}
+.sa-home-regatta-actions{grid-area:actions;display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap;}
+.sa-home-regatta-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 14px;border-radius:6px;border:1px solid #a5d7de;background:#f9ffff;color:#0f6d7a;font-weight:900;font-size:12px;text-decoration:none;white-space:nowrap;min-width:126px;box-shadow:0 1px 0 rgba(15,109,122,.08);}
+.sa-home-regatta-details{font-size:11px;font-weight:700;color:#2563eb;text-decoration:underline;text-underline-offset:2px;}
+.sa-home-regatta-details:hover{color:#1d4ed8;}
+@media (max-width: 480px){
+.sa-home-regatta-card{padding:8px 10px 10px;border-radius:6px;}
+.sa-home-regatta-top{grid-template-columns:82px minmax(0,1fr);grid-template-areas:"logo main" "logo host" "actions actions";gap:8px 10px;align-items:start;}
+.sa-home-regatta-event-logo{width:78px;max-width:78px;height:58px;}
+.sa-home-regatta-title{font-size:14px;}
+.sa-home-regatta-host-logo{width:76px;height:36px;}
+.sa-home-regatta-host-name{max-width:220px;}
+.sa-home-regatta-actions{width:100%;justify-content:flex-start;}
+.sa-home-regatta-btn{flex:1;min-width:0;padding:9px 10px;}
+}
 """
 
 
@@ -2893,6 +2931,16 @@ def _event_row_to_card(r, has_regatta_id, has_host_club_id, is_upcoming, regatta
         "end_date_iso": _event_date_to_iso(end),
         "event_id": int(r["event_id"]) if r.get("event_id") is not None else 0,
         "regatta_id": (r.get("regatta_id") or "").strip() if has_regatta_id else "",
+        "entries": 0,
+        # Logos for sa-home-regatta list layout (host always; event logo filled when known upstream)
+        "club_logo_url": (
+            f"/artwork/Club Logo/{host_code}.png"
+            if host_code
+            and host_code not in ("—", "-", "TBC", "Unk", "Unassigned")
+            and re.match(r"^[A-Za-z0-9]{2,12}$", host_code)
+            else ""
+        ),
+        "event_logo_url": (image_url or "").strip(),
     }
 
 
@@ -3553,7 +3601,7 @@ def _events_page_html() -> str:
 .events-panel {{ display: none; }}
 .events-panel.active {{ display: block; }}
 .page-about-block {{ margin: 0 0 1rem 0; padding: 0.85rem 1rem; border: 1px solid #dbe5ef; border-radius: 8px; background: #f8fbff; color: #1e293b; line-height: 1.45; font-size: 0.95rem; }}
-""" + _EVENTS_TAB_COUNT_CSS + _SECTION_HEADING_ROW_UNIFIED_CSS + _EVENTS_TOOLBAR_SEARCH_CSS + _EVENTS_CARD_MATRIX_CSS + f"""
+""" + _EVENTS_TAB_COUNT_CSS + _SECTION_HEADING_ROW_UNIFIED_CSS + _EVENTS_TOOLBAR_SEARCH_CSS + _EVENTS_CARD_MATRIX_CSS + _EVENTS_SA_HOME_REGATTA_CSS + f"""
 .event-card .event-likely-classes {{ font-size: 0.8rem; color: #475569; margin: 0.2rem 0 0 0; }}
 .event-card .event-card-header {{ display: block; }}
 .event-card[class*="ec-"] h3 {{ font-size: 0.95rem; font-weight: 700; margin: 0 0 0.2rem 0; line-height: 1.25; }}
@@ -3681,47 +3729,81 @@ document.getElementById("year").textContent = new Date().getFullYear();
     else st = 'upcoming';
     return 'ec-' + st + '-' + sl;
   }
-  function renderCard(e, panelId, index1, totalN){
-    var cardClass = 'event-card ' + eventMatrixClass(e, panelId);
-    var titleText = (e.display_title != null && e.display_title !== '') ? e.display_title : e.event_name;
-    var titleHtml = (panelId === 'past' && e.has_regatta_link && e.details_url && e.details_url.indexOf('/regatta/') === 0)
-      ? '<a href="' + esc(e.details_url) + '" class="event-title-link">' + esc(titleText) + '</a>'
-      : esc(titleText);
-    var hostLabel = 'Host: ';
-    var hostLink = e.club_slug ? '<a href="/club/' + esc(e.club_slug) + '">' + esc(e.host_code || e.host_club) + '</a>' : esc(e.host_code || e.host_club);
-    var hostFullname = (e.host_club_fullname && e.host_club_fullname.trim() && String(e.host_club_fullname).trim() !== String(e.host_code || e.host_club).trim()) ? ' (' + esc(e.host_club_fullname) + ')' : '';
-    var hostFlag = (e.host_unmatched) ? ' <span class="event-host-unmatched" title="Host not in club list — add to clubs table">⚠</span>' : '';
-    var rawType = (e.event_type != null && String(e.event_type).trim()) ? String(e.event_type).trim() : '';
-    var typeHtml = '<div class="event-type-line"><span class="event-type' + (rawType ? '' : ' event-type--empty') + '"' + (rawType ? '' : ' title="Event type not set"') + '>' + (rawType ? esc(rawType) : '\u2014') + '</span></div>';
-    var locHtml = e.location ? '<span class="event-location">' + esc(e.location) + '</span>' : '';
-    var resultHtml = (e.show_result_line === true)
-      ? (e.result_yes
-          ? (e.result_multi && e.result_options && e.result_options.length
-          ? '<details class="event-result-line event-result-line-multi event-result-multi-details"><summary class="event-result-multi-summary" aria-label="Choose which results to open">' +
-          '<span class="event-result-label">Results:</span><span class="event-result-glyph" aria-hidden="true">&#10003;</span></summary>' +
-          '<div class="event-result-dropdown-panel">' + e.result_options.map(function(o){ return '<a href="' + esc(o.url || '') + '" class="event-result-chip event-result-yes event-result-pick"><span class="event-result-glyph" aria-hidden="true">&#10003;</span><span class="event-result-pick-label">' + esc(o.label || 'Results') + '</span></a>'; }).join('') + '</div></details>'
-          : '<div class="event-result-line"><a href="' + esc(e.result_url || '') + '" class="event-result-chip event-result-yes"><span class="event-result-label">Result:</span><span class="event-result-glyph" aria-hidden="true">&#10003;</span></a></div>')
-          : '<div class="event-result-line"><span class="event-result-chip event-result-no"><span class="event-result-label">Result:</span><span class="event-result-glyph" aria-hidden="true">&#10007;</span></span></div>')
-      : '<div class="event-result-line"><span class="event-result-chip event-result-chip--reserved" aria-hidden="true"><span class="event-result-label">Result:</span><span class="event-result-glyph">&#10003;</span></span></div>';
-    var hasDetails = e.details_url && e.details_url !== '#';
-    var ext = hasDetails && e.details_url.indexOf('/') !== 0;
-    var btn = hasDetails ? '<a href="' + esc(e.details_url) + '" class="event-details-btn"' + (ext ? ' target="_blank" rel="noopener"' : '') + '>Details</a>' : '<span class="event-details-btn event-details-btn--empty" aria-hidden="true">Details</span>';
-    var idxAria = (typeof totalN === "number" && totalN > 0) ? ' aria-label="Event ' + index1 + ' of ' + totalN + '"' : "";
-    var indexBadge = '<span class="event-card-index"' + idxAria + '>' + String(index1) + '</span>';
-    var header = '<div class="event-card-header"><h3>' + titleHtml + '</h3><span class="event-date">' + esc(e.date_display) + '</span></div>';
-    var body = '<div class="event-card-body">'
-      + '<div class="event-card-body-inner">'
-      + typeHtml
-      + '<span class="event-club">' + hostLabel + hostLink + hostFullname + hostFlag + '</span>'
-      + '<div class="event-card-result-row">'
-      + '<div class="event-result-slot">' + resultHtml + '</div>'
-      + '<div class="event-card-actions">' + indexBadge + btn + '</div>'
-      + '</div>'
-      + locHtml
-      + '</div>'
-      + '</div>';
-    return '<div class="' + cardClass + '">' + header + body + '</div>';
+  function icoCal(){
+    return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>';
   }
+  function icoPeople(){
+    return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
+  }
+  function renderCard(e, panelId, index1, totalN){
+    var titleText = (e.display_title != null && e.display_title !== '') ? e.display_title : e.event_name;
+    var rid = (e.regatta_id || '').trim();
+    var regHref = rid ? ('/regatta/' + encodeURIComponent(rid)) : '';
+    var titleHref = '';
+    if (e.has_regatta_link && e.details_url && String(e.details_url).indexOf('/regatta/') === 0) titleHref = e.details_url;
+    else if (regHref && e.result_yes) titleHref = regHref;
+    else if (e.details_url && String(e.details_url).indexOf('/') === 0) titleHref = e.details_url;
+    var titleHtml = titleHref
+      ? '<a href="' + esc(titleHref) + '" class="sa-home-regatta-title">' + esc(titleText) + '</a>'
+      : '<div class="sa-home-regatta-title">' + esc(titleText) + '</div>';
+    var logoSrc = (e.event_logo_url || '').trim();
+    var logoHtml = logoSrc
+      ? '<img class="sa-home-regatta-event-logo" src="' + esc(logoSrc) + '" alt="" loading="lazy" decoding="async" onerror="this.style.display=\'none\'">'
+      : '';
+    var meta = '<div class="sa-home-regatta-meta">';
+    if (e.date_display) meta += '<span class="sa-home-regatta-meta-pill">' + icoCal() + '<span>' + esc(e.date_display) + '</span></span>';
+    var rawType = (e.event_type != null && String(e.event_type).trim()) ? String(e.event_type).trim() : '';
+    if (rawType) meta += '<span class="sa-home-regatta-meta-pill"><span class="sa-home-regatta-type">' + esc(rawType) + '</span></span>';
+    var ent = parseInt(e.entries, 10);
+    if (!ent || ent < 1) ent = 0;
+    if (e.result_yes && ent > 0) meta += '<span class="sa-home-regatta-meta-pill">' + icoPeople() + '<span>' + ent + ' entries</span></span>';
+    meta += '</div>';
+    var hostCode = (e.host_code || e.host_club || '').trim();
+    var hostName = (e.host_club_fullname || '').trim();
+    if (hostName && hostCode && hostName.toLowerCase() === hostCode.toLowerCase()) hostName = '';
+    var isUnassigned = !hostCode || hostCode === '—' || hostCode === '-' || /^(tbc|unk|unassigned)$/i.test(hostCode);
+    var clubLogo = (e.club_logo_url || '').trim();
+    var hostInner = '';
+    if (!isUnassigned && clubLogo) {
+      hostInner += '<img class="sa-home-regatta-host-logo" src="' + esc(clubLogo) + '" alt="" loading="lazy" decoding="async" onerror="this.style.display=\'none\'">';
+    }
+    hostInner += '<div class="sa-home-regatta-host-text">';
+    hostInner += '<div class="sa-home-regatta-host-code">' + esc(isUnassigned ? (hostCode || 'Unassigned') : hostCode) + '</div>';
+    if (hostName) hostInner += '<div class="sa-home-regatta-host-name">' + esc(hostName) + '</div>';
+    hostInner += '</div>';
+    var hostHtml;
+    if (!isUnassigned && e.club_slug) {
+      hostHtml = '<a class="sa-home-regatta-host" href="/club/' + esc(e.club_slug) + '">' + hostInner + '</a>';
+    } else {
+      hostHtml = '<div class="sa-home-regatta-host">' + hostInner + '</div>';
+    }
+    var actions = '<div class="sa-home-regatta-actions">';
+    var resHref = '';
+    if (e.result_yes && e.show_result_line !== false) {
+      resHref = (e.result_url || regHref || '').trim();
+      if (resHref) {
+        actions += '<a class="sa-home-regatta-btn" href="' + esc(resHref) + '">Full Results</a>';
+      }
+    }
+    var det = (e.details_url || '').trim();
+    if (det && det !== '#' && !(e.result_yes && (det === resHref || det === regHref))) {
+      var ext = det.indexOf('/') !== 0;
+      if (!(e.result_yes && det.indexOf('/regatta/') === 0)) {
+        actions += '<a class="sa-home-regatta-details" href="' + esc(det) + '"' + (ext ? ' target="_blank" rel="noopener"' : '') + '>Details</a>';
+      }
+    }
+    actions += '</div>';
+    var hasRes = !!e.result_yes;
+    var cardCls = 'sa-home-regatta-card' + (hasRes ? ' sa-home-regatta-card--has-results' : '');
+    return '<article class="' + cardCls + '" data-panel="' + esc(panelId) + '" aria-label="Event ' + index1 + ' of ' + totalN + '">'
+      + '<div class="sa-home-regatta-top">'
+      + logoHtml
+      + '<div class="sa-home-regatta-top-main">' + titleHtml + meta + '</div>'
+      + hostHtml
+      + actions
+      + '</div></article>';
+  }
+
   function wireEventsCarousel(panelId){
     var carousel = document.getElementById("cards-" + panelId);
     var controls = document.getElementById("events-controls-" + panelId);
@@ -3812,6 +3894,7 @@ document.getElementById("year").textContent = new Date().getFullYear();
     var btnWrap = document.getElementById("show-more-" + id);
     var btn = document.getElementById("btn-more-" + id);
     if(!container){ return; }
+    container.classList.add("sa-home-regatta-list");
     if(!list.length){
       container.innerHTML = "";
       if(btnWrap) btnWrap.classList.add("hidden");
@@ -3914,6 +3997,7 @@ def _events_dashboard_fragment(
         ".events-panel { display: none; }\n"
         ".events-panel.active { display: block; }\n"
         + _EVENTS_CARD_MATRIX_CSS
+        + _EVENTS_SA_HOME_REGATTA_CSS
         + "\n"
         ".event-card .event-likely-classes { font-size: 0.8rem; color: #475569; margin: 0.2rem 0 0 0; }\n"
         ".event-card .event-card-header { display: block; }\n"
@@ -4033,47 +4117,81 @@ def _events_dashboard_fragment(
     else st = 'upcoming';
     return 'ec-' + st + '-' + sl;
   }
-  function renderCard(e, panelId, index1, totalN){
-    var cardClass = 'event-card ' + eventMatrixClass(e, panelId);
-    var titleText = (e.display_title != null && e.display_title !== '') ? e.display_title : e.event_name;
-    var titleHtml = (panelId === 'past' && e.has_regatta_link && e.details_url && e.details_url.indexOf('/regatta/') === 0)
-      ? '<a href="' + esc(e.details_url) + '" class="event-title-link">' + esc(titleText) + '</a>'
-      : esc(titleText);
-    var hostLabel = 'Host: ';
-    var hostLink = e.club_slug ? '<a href="/club/' + esc(e.club_slug) + '">' + esc(e.host_code || e.host_club) + '</a>' : esc(e.host_code || e.host_club);
-    var hostFullname = (e.host_club_fullname && e.host_club_fullname.trim() && String(e.host_club_fullname).trim() !== String(e.host_code || e.host_club).trim()) ? ' (' + esc(e.host_club_fullname) + ')' : '';
-    var hostFlag = (e.host_unmatched) ? ' <span class="event-host-unmatched" title="Host not in club list — add to clubs table">⚠</span>' : '';
-    var rawType = (e.event_type != null && String(e.event_type).trim()) ? String(e.event_type).trim() : '';
-    var typeHtml = '<div class="event-type-line"><span class="event-type' + (rawType ? '' : ' event-type--empty') + '"' + (rawType ? '' : ' title="Event type not set"') + '>' + (rawType ? esc(rawType) : '\u2014') + '</span></div>';
-    var locHtml = e.location ? '<span class="event-location">' + esc(e.location) + '</span>' : '';
-    var resultHtml = (e.show_result_line === true)
-      ? (e.result_yes
-          ? (e.result_multi && e.result_options && e.result_options.length
-          ? '<details class="event-result-line event-result-line-multi event-result-multi-details"><summary class="event-result-multi-summary" aria-label="Choose which results to open">' +
-          '<span class="event-result-label">Results:</span><span class="event-result-glyph" aria-hidden="true">&#10003;</span></summary>' +
-          '<div class="event-result-dropdown-panel">' + e.result_options.map(function(o){ return '<a href="' + esc(o.url || '') + '" class="event-result-chip event-result-yes event-result-pick"><span class="event-result-glyph" aria-hidden="true">&#10003;</span><span class="event-result-pick-label">' + esc(o.label || 'Results') + '</span></a>'; }).join('') + '</div></details>'
-          : '<div class="event-result-line"><a href="' + esc(e.result_url || '') + '" class="event-result-chip event-result-yes"><span class="event-result-label">Result:</span><span class="event-result-glyph" aria-hidden="true">&#10003;</span></a></div>')
-          : '<div class="event-result-line"><span class="event-result-chip event-result-no"><span class="event-result-label">Result:</span><span class="event-result-glyph" aria-hidden="true">&#10007;</span></span></div>')
-      : '<div class="event-result-line"><span class="event-result-chip event-result-chip--reserved" aria-hidden="true"><span class="event-result-label">Result:</span><span class="event-result-glyph">&#10003;</span></span></div>';
-    var hasDetails = e.details_url && e.details_url !== '#';
-    var ext = hasDetails && e.details_url.indexOf('/') !== 0;
-    var btn = hasDetails ? '<a href="' + esc(e.details_url) + '" class="event-details-btn"' + (ext ? ' target="_blank" rel="noopener"' : '') + '>Details</a>' : '<span class="event-details-btn event-details-btn--empty" aria-hidden="true">Details</span>';
-    var idxAria = (typeof totalN === "number" && totalN > 0) ? ' aria-label="Event ' + index1 + ' of ' + totalN + '"' : "";
-    var indexBadge = '<span class="event-card-index"' + idxAria + '>' + String(index1) + '</span>';
-    var header = '<div class="event-card-header"><h3>' + titleHtml + '</h3><span class="event-date">' + esc(e.date_display) + '</span></div>';
-    var body = '<div class="event-card-body">'
-      + '<div class="event-card-body-inner">'
-      + typeHtml
-      + '<span class="event-club">' + hostLabel + hostLink + hostFullname + hostFlag + '</span>'
-      + '<div class="event-card-result-row">'
-      + '<div class="event-result-slot">' + resultHtml + '</div>'
-      + '<div class="event-card-actions">' + indexBadge + btn + '</div>'
-      + '</div>'
-      + locHtml
-      + '</div>'
-      + '</div>';
-    return '<div class="' + cardClass + '">' + header + body + '</div>';
+  function icoCal(){
+    return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>';
   }
+  function icoPeople(){
+    return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
+  }
+  function renderCard(e, panelId, index1, totalN){
+    var titleText = (e.display_title != null && e.display_title !== '') ? e.display_title : e.event_name;
+    var rid = (e.regatta_id || '').trim();
+    var regHref = rid ? ('/regatta/' + encodeURIComponent(rid)) : '';
+    var titleHref = '';
+    if (e.has_regatta_link && e.details_url && String(e.details_url).indexOf('/regatta/') === 0) titleHref = e.details_url;
+    else if (regHref && e.result_yes) titleHref = regHref;
+    else if (e.details_url && String(e.details_url).indexOf('/') === 0) titleHref = e.details_url;
+    var titleHtml = titleHref
+      ? '<a href="' + esc(titleHref) + '" class="sa-home-regatta-title">' + esc(titleText) + '</a>'
+      : '<div class="sa-home-regatta-title">' + esc(titleText) + '</div>';
+    var logoSrc = (e.event_logo_url || '').trim();
+    var logoHtml = logoSrc
+      ? '<img class="sa-home-regatta-event-logo" src="' + esc(logoSrc) + '" alt="" loading="lazy" decoding="async" onerror="this.style.display=\'none\'">'
+      : '';
+    var meta = '<div class="sa-home-regatta-meta">';
+    if (e.date_display) meta += '<span class="sa-home-regatta-meta-pill">' + icoCal() + '<span>' + esc(e.date_display) + '</span></span>';
+    var rawType = (e.event_type != null && String(e.event_type).trim()) ? String(e.event_type).trim() : '';
+    if (rawType) meta += '<span class="sa-home-regatta-meta-pill"><span class="sa-home-regatta-type">' + esc(rawType) + '</span></span>';
+    var ent = parseInt(e.entries, 10);
+    if (!ent || ent < 1) ent = 0;
+    if (e.result_yes && ent > 0) meta += '<span class="sa-home-regatta-meta-pill">' + icoPeople() + '<span>' + ent + ' entries</span></span>';
+    meta += '</div>';
+    var hostCode = (e.host_code || e.host_club || '').trim();
+    var hostName = (e.host_club_fullname || '').trim();
+    if (hostName && hostCode && hostName.toLowerCase() === hostCode.toLowerCase()) hostName = '';
+    var isUnassigned = !hostCode || hostCode === '—' || hostCode === '-' || /^(tbc|unk|unassigned)$/i.test(hostCode);
+    var clubLogo = (e.club_logo_url || '').trim();
+    var hostInner = '';
+    if (!isUnassigned && clubLogo) {
+      hostInner += '<img class="sa-home-regatta-host-logo" src="' + esc(clubLogo) + '" alt="" loading="lazy" decoding="async" onerror="this.style.display=\'none\'">';
+    }
+    hostInner += '<div class="sa-home-regatta-host-text">';
+    hostInner += '<div class="sa-home-regatta-host-code">' + esc(isUnassigned ? (hostCode || 'Unassigned') : hostCode) + '</div>';
+    if (hostName) hostInner += '<div class="sa-home-regatta-host-name">' + esc(hostName) + '</div>';
+    hostInner += '</div>';
+    var hostHtml;
+    if (!isUnassigned && e.club_slug) {
+      hostHtml = '<a class="sa-home-regatta-host" href="/club/' + esc(e.club_slug) + '">' + hostInner + '</a>';
+    } else {
+      hostHtml = '<div class="sa-home-regatta-host">' + hostInner + '</div>';
+    }
+    var actions = '<div class="sa-home-regatta-actions">';
+    var resHref = '';
+    if (e.result_yes && e.show_result_line !== false) {
+      resHref = (e.result_url || regHref || '').trim();
+      if (resHref) {
+        actions += '<a class="sa-home-regatta-btn" href="' + esc(resHref) + '">Full Results</a>';
+      }
+    }
+    var det = (e.details_url || '').trim();
+    if (det && det !== '#' && !(e.result_yes && (det === resHref || det === regHref))) {
+      var ext = det.indexOf('/') !== 0;
+      if (!(e.result_yes && det.indexOf('/regatta/') === 0)) {
+        actions += '<a class="sa-home-regatta-details" href="' + esc(det) + '"' + (ext ? ' target="_blank" rel="noopener"' : '') + '>Details</a>';
+      }
+    }
+    actions += '</div>';
+    var hasRes = !!e.result_yes;
+    var cardCls = 'sa-home-regatta-card' + (hasRes ? ' sa-home-regatta-card--has-results' : '');
+    return '<article class="' + cardCls + '" data-panel="' + esc(panelId) + '" aria-label="Event ' + index1 + ' of ' + totalN + '">'
+      + '<div class="sa-home-regatta-top">'
+      + logoHtml
+      + '<div class="sa-home-regatta-top-main">' + titleHtml + meta + '</div>'
+      + hostHtml
+      + actions
+      + '</div></article>';
+  }
+
   function wireEventsCarousel(panelId){
     var carousel = document.getElementById("cards-" + panelId);
     var controls = document.getElementById("events-controls-" + panelId);
@@ -4164,6 +4282,7 @@ def _events_dashboard_fragment(
     var btnWrap = document.getElementById("show-more-" + id);
     var btn = document.getElementById("btn-more-" + id);
     if(!container){ return; }
+    container.classList.add("sa-home-regatta-list");
     if(!list.length){
       container.innerHTML = "";
       if(btnWrap) btnWrap.classList.add("hidden");
@@ -4256,7 +4375,7 @@ def _events_type_page_html(slug: str, display_name: str, data: dict) -> str:
 .events-tabs button[data-tab="past"].active {{ background: #7f1d1d; color: #fff; border-color: #991b1b; }}
 .events-panel {{ display: none; }}
 .events-panel.active {{ display: block; }}
-""" + _EVENTS_TAB_COUNT_CSS + _SECTION_HEADING_ROW_UNIFIED_CSS + _EVENTS_TOOLBAR_SEARCH_CSS + _EVENTS_CARD_MATRIX_CSS + f"""
+""" + _EVENTS_TAB_COUNT_CSS + _SECTION_HEADING_ROW_UNIFIED_CSS + _EVENTS_TOOLBAR_SEARCH_CSS + _EVENTS_CARD_MATRIX_CSS + _EVENTS_SA_HOME_REGATTA_CSS + f"""
 .event-card .event-likely-classes {{ font-size: 0.8rem; color: #475569; margin: 0.2rem 0 0 0; }}
 .event-card .event-card-header {{ display: block; }}
 .event-card[class*="ec-"] h3 {{ font-size: 0.95rem; font-weight: 700; margin: 0 0 0.2rem 0; line-height: 1.25; }}
@@ -4373,52 +4492,87 @@ document.getElementById("year").textContent = new Date().getFullYear();
     else st = 'upcoming';
     return 'ec-' + st + '-' + sl;
   }
-  function renderCard(e, panelId, index1, totalN){
-    var cardClass = 'event-card ' + eventMatrixClass(e, panelId);
-    var titleText = (e.display_title != null && e.display_title !== '') ? e.display_title : e.event_name;
-    var titleHtml = (panelId === 'past' && e.has_regatta_link && e.details_url && e.details_url.indexOf('/regatta/') === 0)
-      ? '<a href="' + esc(e.details_url) + '" class="event-title-link">' + esc(titleText) + '</a>'
-      : esc(titleText);
-    var hostLabel = 'Host: ';
-    var hostLink = e.club_slug ? '<a href="/club/' + esc(e.club_slug) + '">' + esc(e.host_code || e.host_club) + '</a>' : esc(e.host_code || e.host_club);
-    var hostFullname = (e.host_club_fullname && e.host_club_fullname.trim() && String(e.host_club_fullname).trim() !== String(e.host_code || e.host_club).trim()) ? ' (' + esc(e.host_club_fullname) + ')' : '';
-    var hostFlag = (e.host_unmatched) ? ' <span class="event-host-unmatched" title="Host not in club list">&#9888;</span>' : '';
-    var rawType = (e.event_type != null && String(e.event_type).trim()) ? String(e.event_type).trim() : '';
-    var typeHtml = '<div class="event-type-line"><span class="event-type' + (rawType ? '' : ' event-type--empty') + '"' + (rawType ? '' : ' title="Event type not set"') + '>' + (rawType ? esc(rawType) : '\u2014') + '</span></div>';
-    var locHtml = e.location ? '<span class="event-location">' + esc(e.location) + '</span>' : '';
-    var resultHtml = (e.show_result_line === true)
-      ? (e.result_yes
-          ? (e.result_multi && e.result_options && e.result_options.length
-          ? '<details class="event-result-line event-result-line-multi event-result-multi-details"><summary class="event-result-multi-summary" aria-label="Choose which results to open">' +
-          '<span class="event-result-label">Results:</span><span class="event-result-glyph" aria-hidden="true">&#10003;</span></summary>' +
-          '<div class="event-result-dropdown-panel">' + e.result_options.map(function(o){ return '<a href="' + esc(o.url || '') + '" class="event-result-chip event-result-yes event-result-pick"><span class="event-result-glyph" aria-hidden="true">&#10003;</span><span class="event-result-pick-label">' + esc(o.label || 'Results') + '</span></a>'; }).join('') + '</div></details>'
-          : '<div class="event-result-line"><a href="' + esc(e.result_url || '') + '" class="event-result-chip event-result-yes"><span class="event-result-label">Result:</span><span class="event-result-glyph" aria-hidden="true">&#10003;</span></a></div>')
-          : '<div class="event-result-line"><span class="event-result-chip event-result-no"><span class="event-result-label">Result:</span><span class="event-result-glyph" aria-hidden="true">&#10007;</span></span></div>')
-      : '<div class="event-result-line"><span class="event-result-chip event-result-chip--reserved" aria-hidden="true"><span class="event-result-label">Result:</span><span class="event-result-glyph">&#10003;</span></span></div>';
-    var hasDetails = e.details_url && e.details_url !== '#';
-    var ext = hasDetails && e.details_url.indexOf('/') !== 0;
-    var btn = hasDetails ? '<a href="' + esc(e.details_url) + '" class="event-details-btn"' + (ext ? ' target="_blank" rel="noopener"' : '') + '>Details</a>' : '<span class="event-details-btn event-details-btn--empty" aria-hidden="true">Details</span>';
-    var idxAria = (typeof totalN === "number" && totalN > 0) ? ' aria-label="Event ' + index1 + ' of ' + totalN + '"' : "";
-    var indexBadge = '<span class="event-card-index"' + idxAria + '>' + String(index1) + '</span>';
-    var header = '<div class="event-card-header"><h3>' + titleHtml + '</h3><span class="event-date">' + esc(e.date_display) + '</span></div>';
-    var body = '<div class="event-card-body">'
-      + '<div class="event-card-body-inner">'
-      + typeHtml
-      + '<span class="event-club">' + hostLabel + hostLink + hostFullname + hostFlag + '</span>'
-      + '<div class="event-card-result-row">'
-      + '<div class="event-result-slot">' + resultHtml + '</div>'
-      + '<div class="event-card-actions">' + indexBadge + btn + '</div>'
-      + '</div>'
-      + locHtml
-      + '</div>'
-      + '</div>';
-    return '<div class="' + cardClass + '">' + header + body + '</div>';
+  function icoCal(){
+    return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>';
   }
+  function icoPeople(){
+    return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
+  }
+  function renderCard(e, panelId, index1, totalN){
+    var titleText = (e.display_title != null && e.display_title !== '') ? e.display_title : e.event_name;
+    var rid = (e.regatta_id || '').trim();
+    var regHref = rid ? ('/regatta/' + encodeURIComponent(rid)) : '';
+    var titleHref = '';
+    if (e.has_regatta_link && e.details_url && String(e.details_url).indexOf('/regatta/') === 0) titleHref = e.details_url;
+    else if (regHref && e.result_yes) titleHref = regHref;
+    else if (e.details_url && String(e.details_url).indexOf('/') === 0) titleHref = e.details_url;
+    var titleHtml = titleHref
+      ? '<a href="' + esc(titleHref) + '" class="sa-home-regatta-title">' + esc(titleText) + '</a>'
+      : '<div class="sa-home-regatta-title">' + esc(titleText) + '</div>';
+    var logoSrc = (e.event_logo_url || '').trim();
+    var logoHtml = logoSrc
+      ? '<img class="sa-home-regatta-event-logo" src="' + esc(logoSrc) + '" alt="" loading="lazy" decoding="async" onerror="this.style.display=\'none\'">'
+      : '';
+    var meta = '<div class="sa-home-regatta-meta">';
+    if (e.date_display) meta += '<span class="sa-home-regatta-meta-pill">' + icoCal() + '<span>' + esc(e.date_display) + '</span></span>';
+    var rawType = (e.event_type != null && String(e.event_type).trim()) ? String(e.event_type).trim() : '';
+    if (rawType) meta += '<span class="sa-home-regatta-meta-pill"><span class="sa-home-regatta-type">' + esc(rawType) + '</span></span>';
+    var ent = parseInt(e.entries, 10);
+    if (!ent || ent < 1) ent = 0;
+    if (e.result_yes && ent > 0) meta += '<span class="sa-home-regatta-meta-pill">' + icoPeople() + '<span>' + ent + ' entries</span></span>';
+    meta += '</div>';
+    var hostCode = (e.host_code || e.host_club || '').trim();
+    var hostName = (e.host_club_fullname || '').trim();
+    if (hostName && hostCode && hostName.toLowerCase() === hostCode.toLowerCase()) hostName = '';
+    var isUnassigned = !hostCode || hostCode === '—' || hostCode === '-' || /^(tbc|unk|unassigned)$/i.test(hostCode);
+    var clubLogo = (e.club_logo_url || '').trim();
+    var hostInner = '';
+    if (!isUnassigned && clubLogo) {
+      hostInner += '<img class="sa-home-regatta-host-logo" src="' + esc(clubLogo) + '" alt="" loading="lazy" decoding="async" onerror="this.style.display=\'none\'">';
+    }
+    hostInner += '<div class="sa-home-regatta-host-text">';
+    hostInner += '<div class="sa-home-regatta-host-code">' + esc(isUnassigned ? (hostCode || 'Unassigned') : hostCode) + '</div>';
+    if (hostName) hostInner += '<div class="sa-home-regatta-host-name">' + esc(hostName) + '</div>';
+    hostInner += '</div>';
+    var hostHtml;
+    if (!isUnassigned && e.club_slug) {
+      hostHtml = '<a class="sa-home-regatta-host" href="/club/' + esc(e.club_slug) + '">' + hostInner + '</a>';
+    } else {
+      hostHtml = '<div class="sa-home-regatta-host">' + hostInner + '</div>';
+    }
+    var actions = '<div class="sa-home-regatta-actions">';
+    var resHref = '';
+    if (e.result_yes && e.show_result_line !== false) {
+      resHref = (e.result_url || regHref || '').trim();
+      if (resHref) {
+        actions += '<a class="sa-home-regatta-btn" href="' + esc(resHref) + '">Full Results</a>';
+      }
+    }
+    var det = (e.details_url || '').trim();
+    if (det && det !== '#' && !(e.result_yes && (det === resHref || det === regHref))) {
+      var ext = det.indexOf('/') !== 0;
+      if (!(e.result_yes && det.indexOf('/regatta/') === 0)) {
+        actions += '<a class="sa-home-regatta-details" href="' + esc(det) + '"' + (ext ? ' target="_blank" rel="noopener"' : '') + '>Details</a>';
+      }
+    }
+    actions += '</div>';
+    var hasRes = !!e.result_yes;
+    var cardCls = 'sa-home-regatta-card' + (hasRes ? ' sa-home-regatta-card--has-results' : '');
+    return '<article class="' + cardCls + '" data-panel="' + esc(panelId) + '" aria-label="Event ' + index1 + ' of ' + totalN + '">'
+      + '<div class="sa-home-regatta-top">'
+      + logoHtml
+      + '<div class="sa-home-regatta-top-main">' + titleHtml + meta + '</div>'
+      + hostHtml
+      + actions
+      + '</div></article>';
+  }
+
   function fillPanel(id, list){
     var container = document.getElementById("cards-" + id);
     var btnWrap = document.getElementById("show-more-" + id);
     var btn = document.getElementById("btn-more-" + id);
     if(!container){ return; }
+    container.classList.add("sa-home-regatta-list");
     if(!list.length){
       container.innerHTML = "";
       if(btnWrap) btnWrap.classList.add("hidden");
@@ -14984,6 +15138,7 @@ def test_class_aggregate_page(class_id: int):
         _SECTION_HEADING_ROW_UNIFIED_CSS
         + _EVENTS_TOOLBAR_SEARCH_CSS
         + _EVENTS_CARD_MATRIX_CSS
+        + _EVENTS_SA_HOME_REGATTA_CSS
         + _CLUB_EVENTS_CAROUSEL_CSS
         + """
 .class-test-page .event-card .event-title-link { font-weight: 700; text-decoration: underline; }

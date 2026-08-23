@@ -44,3 +44,16 @@ python3 load_events_csv_to_db.py --csv sailingsa/deploy/sas_events_list.csv
 ```
 
 Or on server: `bash /var/www/sailingsa/deploy/run-daily-events-scrape.sh --on-server` after deploying updated scraper/loader.
+
+
+## Events list layout (regatta-list + green for results)
+
+`/events` cards use the same **sa-home-regatta** layout as the landing regatta list (event logo + host logo + meta pills).
+
+**Light green** (`.sa-home-regatta-card--has-results`): `result_yes` — we have rows in `results` for the linked regatta. White/neutral cards = past with no results, training, meetings, courses, etc.
+
+Live already had the list layout (Mac SSH). Repo now matches + green. Fast live-only green:
+
+```bash
+bash sailingsa/deploy/patch-events-has-results-green.sh
+```
