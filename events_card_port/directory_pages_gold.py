@@ -107,6 +107,25 @@ def _regattas_directory_page_html():
       return terms.every(function(t){return hay.indexOf(t)!==-1;});
     });
   }
+  function regattaSortDay(r){
+    var keys=["end_date","start_date","as_at_time"];
+    for(var i=0;i<keys.length;i++){
+      var v=r[keys[i]];
+      if(v==null) continue;
+      var s=String(v).slice(0,10);
+      if(/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return s;
+    }
+    return "0000-00-00";
+  }
+  function sortRegattasNewestFirst(list){
+    return (list||[]).slice().sort(function(a,b){
+      var da=regattaSortDay(a), db=regattaSortDay(b);
+      if(da!==db) return db.localeCompare(da);
+      var na=String(a.regatta_number||""), nb=String(b.regatta_number||"");
+      if(na!==nb) return nb.localeCompare(na,undefined,{numeric:true});
+      return String(a.event_name||"").toLowerCase().localeCompare(String(b.event_name||"").toLowerCase());
+    });
+  }
   function icoCal(){return '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';}
   function icoPeople(){return '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>';}
   function renderCard(r){
@@ -166,7 +185,7 @@ def _regattas_directory_page_html():
     var inp=document.getElementById("events-dashboard-search");
     var q=inp?inp.value.trim():"";
     var src=cache?nestRegattaParents(cache):[];
-    allParents=filterList(src,q);
+    allParents=sortRegattasNewestFirst(filterList(src,q));
     shown=INITIAL;
     updateLabel(q,allParents.length);
     paint();
