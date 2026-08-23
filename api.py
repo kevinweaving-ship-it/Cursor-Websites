@@ -3831,7 +3831,7 @@ document.getElementById("year").textContent = new Date().getFullYear();
       : '<div class="sa-home-regatta-title">' + esc(titleText) + '</div>';
     var logoSrc = (e.event_logo_url || '').trim();
     var logoHtml = logoSrc
-      ? '<img class="sa-home-regatta-event-logo" src="' + esc(logoSrc) + '" alt="" loading="lazy" decoding="async" onerror="this.style.display=\'none\'">'
+      ? '<img class="sa-home-regatta-event-logo" src="' + esc(logoSrc) + '" alt="" loading="lazy" decoding="async" onerror="this.hidden=true">'
       : '';
     var meta = '<div class="sa-home-regatta-meta">';
     if (e.date_display) meta += '<span class="sa-home-regatta-meta-pill">' + icoCal() + '<span>' + esc(e.date_display) + '</span></span>';
@@ -3848,7 +3848,7 @@ document.getElementById("year").textContent = new Date().getFullYear();
     var clubLogo = (e.club_logo_url || '').trim();
     var hostInner = '';
     if (!isUnassigned && clubLogo) {
-      hostInner += '<img class="sa-home-regatta-host-logo" src="' + esc(clubLogo) + '" alt="" loading="lazy" decoding="async" onerror="this.style.display=\'none\'">';
+      hostInner += '<img class="sa-home-regatta-host-logo" src="' + esc(clubLogo) + '" alt="" loading="lazy" decoding="async" onerror="this.hidden=true">';
     }
     hostInner += '<div class="sa-home-regatta-host-text">';
     hostInner += '<div class="sa-home-regatta-host-code">' + esc(isUnassigned ? (hostCode || 'Unassigned') : hostCode) + '</div>';
@@ -4219,7 +4219,7 @@ def _events_dashboard_fragment(
       : '<div class="sa-home-regatta-title">' + esc(titleText) + '</div>';
     var logoSrc = (e.event_logo_url || '').trim();
     var logoHtml = logoSrc
-      ? '<img class="sa-home-regatta-event-logo" src="' + esc(logoSrc) + '" alt="" loading="lazy" decoding="async" onerror="this.style.display=\'none\'">'
+      ? '<img class="sa-home-regatta-event-logo" src="' + esc(logoSrc) + '" alt="" loading="lazy" decoding="async" onerror="this.hidden=true">'
       : '';
     var meta = '<div class="sa-home-regatta-meta">';
     if (e.date_display) meta += '<span class="sa-home-regatta-meta-pill">' + icoCal() + '<span>' + esc(e.date_display) + '</span></span>';
@@ -4236,7 +4236,7 @@ def _events_dashboard_fragment(
     var clubLogo = (e.club_logo_url || '').trim();
     var hostInner = '';
     if (!isUnassigned && clubLogo) {
-      hostInner += '<img class="sa-home-regatta-host-logo" src="' + esc(clubLogo) + '" alt="" loading="lazy" decoding="async" onerror="this.style.display=\'none\'">';
+      hostInner += '<img class="sa-home-regatta-host-logo" src="' + esc(clubLogo) + '" alt="" loading="lazy" decoding="async" onerror="this.hidden=true">';
     }
     hostInner += '<div class="sa-home-regatta-host-text">';
     hostInner += '<div class="sa-home-regatta-host-code">' + esc(isUnassigned ? (hostCode || 'Unassigned') : hostCode) + '</div>';
@@ -4594,7 +4594,7 @@ document.getElementById("year").textContent = new Date().getFullYear();
       : '<div class="sa-home-regatta-title">' + esc(titleText) + '</div>';
     var logoSrc = (e.event_logo_url || '').trim();
     var logoHtml = logoSrc
-      ? '<img class="sa-home-regatta-event-logo" src="' + esc(logoSrc) + '" alt="" loading="lazy" decoding="async" onerror="this.style.display=\'none\'">'
+      ? '<img class="sa-home-regatta-event-logo" src="' + esc(logoSrc) + '" alt="" loading="lazy" decoding="async" onerror="this.hidden=true">'
       : '';
     var meta = '<div class="sa-home-regatta-meta">';
     if (e.date_display) meta += '<span class="sa-home-regatta-meta-pill">' + icoCal() + '<span>' + esc(e.date_display) + '</span></span>';
@@ -4611,7 +4611,7 @@ document.getElementById("year").textContent = new Date().getFullYear();
     var clubLogo = (e.club_logo_url || '').trim();
     var hostInner = '';
     if (!isUnassigned && clubLogo) {
-      hostInner += '<img class="sa-home-regatta-host-logo" src="' + esc(clubLogo) + '" alt="" loading="lazy" decoding="async" onerror="this.style.display=\'none\'">';
+      hostInner += '<img class="sa-home-regatta-host-logo" src="' + esc(clubLogo) + '" alt="" loading="lazy" decoding="async" onerror="this.hidden=true">';
     }
     hostInner += '<div class="sa-home-regatta-host-text">';
     hostInner += '<div class="sa-home-regatta-host-code">' + esc(isUnassigned ? (hostCode || 'Unassigned') : hostCode) + '</div>';
