@@ -1827,26 +1827,73 @@ def _directory_classes_page_head():
 
 
 def _format_event_date_range(start_date, end_date, start_time=None, end_time=None):
-    """Format event date range for display. If start_time exists: 'Thu 30 Apr 2026 18:00 – Sun 03 May 2026 18:00'. Else date only: 'Sat 14 Mar 2026 – Sun 15 Mar 2026'."""
+    """Compact event dates for cards.
+
+    With times: '18:00 Thu 27 – 18:00 Sat 29 Aug 2026'
+    Without:    'Thu 27 – Sat 29 Aug 2026'
+    Same day:   '18:00 Thu 27 Aug 2026' or 'Thu 27 Aug 2026'
+    """
     if not start_date:
         return "—"
+
+    def _as_date(d):
+        if hasattr(d, "strftime"):
+            return d
+        s = str(d)[:10]
+        try:
+            return datetime.strptime(s, "%Y-%m-%d").date()
+        except Exception:
+            return None
+
+    def _hhmm(t):
+        if not t:
+            return None
+        if hasattr(t, "strftime"):
+            return t.strftime("%H:%M")
+        s = str(t).strip()
+        if len(s) >= 5 and s[2] == ":":
+            return s[:5]
+        return s or None
+
     try:
-        time_fmt = "%H:%M"
-        if hasattr(start_date, "strftime"):
-            start_str = start_date.strftime("%a %d %b %Y")
+        sd = _as_date(start_date)
+        ed = _as_date(end_date) if end_date else sd
+        if not sd:
+            return str(start_date)[:10]
+        if not ed:
+            ed = sd
+        st = _hhmm(start_time)
+        et = _hhmm(end_time) or st
+        same_day = ed == sd
+        same_month = (ed.year == sd.year and ed.month == sd.month)
+        same_year = ed.year == sd.year
+
+        def day_part(d, include_month=False, include_year=False):
+            parts = [d.strftime("%a"), str(d.day)]
+            if include_month:
+                parts.append(d.strftime("%b"))
+            if include_year:
+                parts.append(d.strftime("%Y"))
+            return " ".join(parts)
+
+        if same_day:
+            core = day_part(sd, include_month=True, include_year=True)
+            return f"{st} {core}" if st else core
+
+        # Multi-day: put year (and month when shared) only on the end side.
+        if same_month:
+            left = day_part(sd, include_month=False, include_year=False)
+            right = day_part(ed, include_month=True, include_year=True)
+        elif same_year:
+            left = day_part(sd, include_month=True, include_year=False)
+            right = day_part(ed, include_month=True, include_year=True)
         else:
-            start_str = str(start_date)[:10] if start_date else "—"
-        if start_time and hasattr(start_time, "strftime"):
-            start_str += " " + start_time.strftime(time_fmt)
-        if end_date and end_date != start_date:
-            if hasattr(end_date, "strftime"):
-                end_str = end_date.strftime("%a %d %b %Y")
-            else:
-                end_str = str(end_date)[:10]
-            if end_time and hasattr(end_time, "strftime"):
-                end_str += " " + end_time.strftime(time_fmt)
-            return f"{start_str} – {end_str}"
-        return start_str
+            left = day_part(sd, include_month=True, include_year=True)
+            right = day_part(ed, include_month=True, include_year=True)
+
+        if st:
+            return f"{st} {left} – {et} {right}"
+        return f"{left} – {right}"
     except Exception:
         return str(start_date) if start_date else "—"
 
