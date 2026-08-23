@@ -1,4 +1,4 @@
-/* /sailors directory — landing-style dev-1 stats cards (no claim CTA). */
+/* /sailors directory — active sailors with stats cards only; search-driven. */
 (function (global) {
   'use strict';
   if (global.__ssaHubSailorDirectoryLoaded) return;
@@ -6,8 +6,6 @@
 
   var RESULTS_ID = 'sailor-directory-results';
   var SEARCH_ID = 'events-dashboard-search';
-  var HINT_ID = 'sailors-hint';
-  var INITIAL_LIMIT = 30;
   var SEARCH_LIMIT = 200;
 
   function getResultsEl() {
@@ -106,6 +104,15 @@
     });
   }
 
+  function hasStatsCard(slot) {
+    if (!slot) return false;
+    var ne = slot.querySelector('#dev1-next-event-slot');
+    if (ne && ne.textContent && ne.textContent.replace(/\s+/g, '').length > 20) return true;
+    var mid = slot.querySelector('#dev1-header-mid-slot');
+    if (mid && mid.children && mid.children.length) return true;
+    return false;
+  }
+
   function mountDev1Card(slot, html) {
     var box = document.createElement('div');
     box.innerHTML = html;
@@ -126,6 +133,7 @@
     while (box.firstChild) slot.appendChild(box.firstChild);
     runDev1Scripts(slot, codes);
     hideClaimUi(slot);
+    return hasStatsCard(slot);
   }
 
   function renderSailorList(list, q) {
@@ -139,8 +147,6 @@
       sailorSearchResults.innerHTML = '<div class="profile-card" style="cursor:default;">No sailors found.</div>';
       return Promise.resolve();
     }
-    var hint = document.getElementById(HINT_ID);
-    if (hint && q) hint.style.display = 'none';
 
     var slots = [];
     list.forEach(function (row) {
@@ -158,13 +164,13 @@
       if (!item || item.wrap.getAttribute('data-card-loaded') === '1') return Promise.resolve();
       item.wrap.setAttribute('data-card-loaded', '1');
       if (!item.sid) {
-        item.wrap.innerHTML = '<div class="profile-card" style="cursor:default;">No SAS ID.</div>';
+        item.wrap.remove();
         return Promise.resolve();
       }
       global.__ssaDev1CardCache = global.__ssaDev1CardCache || {};
       var cached = global.__ssaDev1CardCache[item.sid];
       if (cached) {
-        mountDev1Card(item.wrap, cached);
+        if (!mountDev1Card(item.wrap, cached)) item.wrap.remove();
         return Promise.resolve();
       }
       return fetch('/dev-1?embed=1&no_claim=1&sas_id=' + encodeURIComponent(item.sid), { credentials: 'same-origin' })
@@ -174,11 +180,11 @@
         .then(function (html) {
           if (gen !== (global.__sailorDirectoryGen || 0)) return;
           global.__ssaDev1CardCache[item.sid] = html;
-          mountDev1Card(item.wrap, html);
+          if (!mountDev1Card(item.wrap, html)) item.wrap.remove();
         })
         .catch(function () {
           if (gen !== (global.__sailorDirectoryGen || 0)) return;
-          item.wrap.innerHTML = '<div class="profile-card" style="cursor:default;">Could not load card.</div>';
+          item.wrap.remove();
         });
     }
 
@@ -194,7 +200,12 @@
       var pool = [];
       var n = Math.min(conc, Math.max(0, stop - start));
       for (var k = 0; k < n; k++) pool.push(worker());
-      return Promise.all(pool);
+      return Promise.all(pool).then(function () {
+        if (gen !== (global.__sailorDirectoryGen || 0)) return;
+        if (!sailorSearchResults.querySelector('.ssa-dev1-inject')) {
+          sailorSearchResults.innerHTML = '<div class="profile-card" style="cursor:default;">No sailors with results found.</div>';
+        }
+      });
     }
 
     if (global.__ssaSailorDirectoryIO) {
@@ -232,13 +243,23 @@
     return topLoad;
   }
 
+  function clearResults() {
+    var box = getResultsEl();
+    global.__sailorDirectoryGen = (global.__sailorDirectoryGen || 0) + 1;
+    if (box) {
+      box.innerHTML = '';
+      box.style.display = 'none';
+    }
+  }
+
   function loadSailorsFromApi(url, q, loadingMsg) {
     var box = getResultsEl();
-    var hint = document.getElementById(HINT_ID);
     global.__sailorDirectoryGen = (global.__sailorDirectoryGen || 0) + 1;
     var myGen = global.__sailorDirectoryGen;
-    if (box) box.innerHTML = '<div class="profile-card" style="cursor:default;">' + (loadingMsg || 'Loading…') + '</div>';
-    if (hint) hint.style.display = 'none';
+    if (box) {
+      box.style.display = 'flex';
+      box.innerHTML = '<div class="profile-card" style="cursor:default;">' + (loadingMsg || 'Loading…') + '</div>';
+    }
     return fetch(url, { credentials: 'same-origin' })
       .then(function (r) {
         return r.json();
@@ -246,17 +267,6 @@
       .then(function (list) {
         if (myGen !== (global.__sailorDirectoryGen || 0)) return;
         list = Array.isArray(list) ? list : [];
-        if (hint) {
-          hint.style.display = '';
-          if (!q) {
-            hint.textContent =
-              'Showing ' +
-              list.length +
-              ' sailors A–Z. Search by name, SA ID, club, or class to narrow results.';
-          } else {
-            hint.textContent = list.length + ' result' + (list.length === 1 ? '' : 's') + ' for your search.';
-          }
-        }
         return renderSailorList(list, q);
       })
       .catch(function () {
@@ -265,42 +275,43 @@
       });
   }
 
-  function loadInitialSailors() {
-    return loadSailorsFromApi('/api/search?hub=1&limit=' + INITIAL_LIMIT, '', 'Loading sailors…');
+  function searchApiUrl(q) {
+    return '/api/search?hub=1&active=1&limit=' + SEARCH_LIMIT + '&q=' + encodeURIComponent(q);
   }
 
   function runSearch() {
     var inp = document.getElementById(SEARCH_ID);
     var q = inp ? (inp.value || '').trim() : '';
     if (!q) {
-      return loadInitialSailors();
+      clearResults();
+      return;
     }
     if (q.length < 2) {
       var box = getResultsEl();
-      var hint = document.getElementById(HINT_ID);
-      if (box) box.innerHTML = '<div class="profile-card" style="cursor:default;">Type at least 2 characters to search.</div>';
-      if (hint) hint.style.display = 'none';
+      if (box) {
+        box.style.display = 'flex';
+        box.innerHTML = '<div class="profile-card" style="cursor:default;">Type at least 2 characters to search.</div>';
+      }
       return;
     }
-    return loadSailorsFromApi('/api/search?hub=1&limit=' + SEARCH_LIMIT + '&q=' + encodeURIComponent(q), q, 'Searching…');
+    return loadSailorsFromApi(searchApiUrl(q), q, 'Searching…');
   }
 
   function initSailorDirectory() {
     var inp = document.getElementById(SEARCH_ID);
     if (!inp) return;
-    inp.setAttribute('placeholder', 'Search sailors…');
-    inp.setAttribute('aria-label', 'Search sailors');
+    inp.setAttribute('placeholder', 'Search active sailors…');
+    inp.setAttribute('aria-label', 'Search active sailors');
     var deb = null;
     inp.addEventListener('input', function () {
       clearTimeout(deb);
       deb = setTimeout(runSearch, 280);
     });
-    loadInitialSailors();
+    clearResults();
   }
 
   global.__ssaSailorDirectoryRunSearch = runSearch;
   global.__ssaSailorDirectoryInit = initSailorDirectory;
-  global.__ssaSailorDirectoryLoadInitial = loadInitialSailors;
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initSailorDirectory);
