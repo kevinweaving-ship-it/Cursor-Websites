@@ -57,3 +57,9 @@ Live already had the list layout (Mac SSH). Repo now matches + green. Fast live-
 ```bash
 bash sailingsa/deploy/patch-events-has-results-green.sh
 ```
+
+
+## Times on cards
+
+- **Sailing / championship / regatta events:** no times on `date_display` (SAS 09:00 placeholders are junk).
+- **Keep times** for Meeting(s), Training, Course, Clinic, Seminar, Workshop, Briefing, AGM (category or name).

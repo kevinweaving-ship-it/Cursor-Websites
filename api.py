@@ -1826,11 +1826,33 @@ def _directory_classes_page_head():
     return Response(status_code=200)
 
 
+def _event_category_shows_times(category: str | None, event_name: str | None = None) -> bool:
+    """Show clock times only for AGM / course / meeting / training-style events.
+
+    Racing / championship / regatta SAS times are usually placeholder (e.g. 09:00–09:00).
+    """
+    cat = (category or "").strip().lower()
+    name = (event_name or "").strip().lower()
+    keep_cats = (
+        "meeting", "meetings", "training", "course", "courses",
+        "clinic", "seminar", "workshop", "briefing", "agm",
+    )
+    if cat in keep_cats or any(k in cat for k in ("meeting", "training", "course", "clinic", "seminar", "workshop")):
+        return True
+    # Name fallback when category empty/wrong (e.g. AGM tagged oddly)
+    for token in (" agm", "agm ", "course", "clinic", "seminar", "workshop", "briefing", "meeting"):
+        if token in f" {name} ":
+            return True
+    if name.endswith(" agm") or name.startswith("agm ") or name == "agm":
+        return True
+    return False
+
+
 def _format_event_date_range(start_date, end_date, start_time=None, end_time=None):
     """Compact event dates for cards.
 
-    With times: '18:00 Thu 27 – 18:00 Sat 29 Aug 2026'
-    Without:    'Thu 27 – Sat 29 Aug 2026'
+    With times (AGM/course/meeting only): '18:00 Thu 27 – 18:00 Sat 29 Aug 2026'
+    Without (default for sailing):        'Thu 27 – Sat 29 Aug 2026'
     Same day:   '18:00 Thu 27 Aug 2026' or 'Thu 27 Aug 2026'
     """
     if not start_date:
@@ -2866,6 +2888,12 @@ def _event_row_to_card(r, has_regatta_id, has_host_club_id, is_upcoming, regatta
     end = r.get("end_date")
     start_t = r.get("start_time")
     end_t = r.get("end_time")
+    event_name_early = (r.get("event_name") or "").strip()
+    category_early = (r.get("category") or "").strip() or ""
+    # Racing/championship SAS times are usually junk; keep times for AGM/course/meeting/training only.
+    if not _event_category_shows_times(category_early, event_name_early):
+        start_t = None
+        end_t = None
     date_display = _format_event_date_range(start, end, start_time=start_t, end_time=end_t)
     club_slug = (r.get("club_slug") or "").strip() if (has_host_club_id and r.get("host_club_id")) else (r.get("club_slug") or "").strip()
     host_code = "—"
