@@ -1877,8 +1877,8 @@ def _regattas_directory_page_html():
 
 def _sailors_directory_page_html():
     about = (
-        "Search all South African sailors with complete regatta results, rankings, and performance history. "
-        "SailingSA is the most comprehensive South African sailing results database for sailors."
+        "Search active South African sailors — those with regatta results on SailingSA. "
+        "This is not the full SA Sailing ID register; only sailors who have raced appear here."
     )
     extra_head = (
         '<link rel="canonical" href="https://sailingsa.co.za/sailors">'
@@ -1888,14 +1888,14 @@ def _sailors_directory_page_html():
         + _DIRECTORY_PAGE_ABOUT_CSS
         + ".profile-card{background:#fff;border-radius:8px;border:2px solid #001f3f;padding:0.5rem 0.85rem;cursor:pointer;line-height:1.35;}"
         + "</style>"
-        '<script src="/js/hub-sailor-directory.js?v=20260823dir3"></script>'
+        '<script src="/js/hub-sailor-directory.js?v=20260823dir4"></script>'
     )
     inner = (
         '<div class="container" id="sailors-dashboard">'
         '<div class="card stats-section">'
         + _events_section_heading_row_html("Sailors")
         + f'<div class="page-about-block">{html_module.escape(about)}</div>'
-        + '<p class="sailor-directory-hint" id="sailors-hint">Loading sailors…</p>'
+        + '<p class="sailor-directory-hint" id="sailors-hint">Search active sailors by name, SA ID, club, or class.</p>'
         + '<div class="sailor-directory-results sailor-search-results" id="sailor-directory-results" role="list"></div>'
         + "</div></div>"
         + _seo_discovery_block_html()
@@ -16262,6 +16262,7 @@ def api_search(
     age_over: Optional[int] = None,
     limit: int = 200,
     hub: int = Query(0, description="1 = landing/hub search: higher cap, multi-word fuzzy on names"),
+    active: int = Query(0, description="1 = only sailors with raced results on dated regattas (stats active count)"),
 ):
     """Search for members (SA IDs and Temp IDs) with last regatta info"""
     request_id = getattr(request.state, 'request_id', None) if request else None
@@ -16277,6 +16278,7 @@ def api_search(
     
     max_cap = 500 if int(hub or 0) == 1 else 200
     limit = min(max(1, int(limit or 200)), max_cap)
+    active_on = int(active or 0) == 1
     
     rows = []
     
@@ -16411,6 +16413,20 @@ def api_search(
                 if age_over:
                     conditions.append("s.year_of_birth < %s")
                     params.append(current_year - age_over)
+
+                if active_on:
+                    conditions.append("""
+                        EXISTS (
+                            SELECT 1 FROM public.results r
+                            JOIN public.regattas reg ON reg.regatta_id = r.regatta_id
+                            WHERE r.raced = TRUE
+                              AND (reg.end_date IS NOT NULL OR reg.start_date IS NOT NULL)
+                              AND (
+                                r.helm_sa_sailing_id::text = s.sa_sailing_id::text
+                                OR r.crew_sa_sailing_id::text = s.sa_sailing_id::text
+                              )
+                        )
+                    """)
                 
                 where_clause = " AND " + " AND ".join(conditions) if conditions else ""
                 
@@ -16491,8 +16507,11 @@ def api_search(
                 # 2. q is "T" or starts with "TMP"
                 # 3. q is empty (show all)
                 should_show_temp_ids = (
-                    (sas_id and (sas_id.strip().upper() == "T" or sas_id.upper().startswith("TMP"))) or
-                    (not q or q.strip() == "" or q.strip().upper() == "T" or q.upper().startswith("TMP"))
+                    not active_on
+                    and (
+                        (sas_id and (sas_id.strip().upper() == "T" or sas_id.upper().startswith("TMP")))
+                        or (not q or q.strip() == "" or q.strip().upper() == "T" or q.upper().startswith("TMP"))
+                    )
                 )
                 
                 if should_show_temp_ids:

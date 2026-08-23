@@ -1,4 +1,4 @@
-/* /sailors directory — landing-style dev-1 stats cards (no claim CTA). */
+/* /sailors directory — active sailors only (stats-page definition); search-driven. */
 (function (global) {
   'use strict';
   if (global.__ssaHubSailorDirectoryLoaded) return;
@@ -7,8 +7,9 @@
   var RESULTS_ID = 'sailor-directory-results';
   var SEARCH_ID = 'events-dashboard-search';
   var HINT_ID = 'sailors-hint';
-  var INITIAL_LIMIT = 30;
   var SEARCH_LIMIT = 200;
+  var HINT_DEFAULT =
+    'Search active sailors by name, SA ID, club, or class. Only sailors with regatta results are listed — not the full SA Sailing ID register.';
 
   function getResultsEl() {
     return document.getElementById(RESULTS_ID);
@@ -136,11 +137,11 @@
     sailorSearchResults.innerHTML = '';
     sailorSearchResults.style.display = 'flex';
     if (!list.length) {
-      sailorSearchResults.innerHTML = '<div class="profile-card" style="cursor:default;">No sailors found.</div>';
+      sailorSearchResults.innerHTML = '<div class="profile-card" style="cursor:default;">No active sailors found.</div>';
       return Promise.resolve();
     }
     var hint = document.getElementById(HINT_ID);
-    if (hint && q) hint.style.display = 'none';
+    if (hint) hint.style.display = 'none';
 
     var slots = [];
     list.forEach(function (row) {
@@ -232,12 +233,29 @@
     return topLoad;
   }
 
+  function showSearchPrompt() {
+    var box = getResultsEl();
+    var hint = document.getElementById(HINT_ID);
+    global.__sailorDirectoryGen = (global.__sailorDirectoryGen || 0) + 1;
+    if (box) {
+      box.innerHTML = '';
+      box.style.display = 'none';
+    }
+    if (hint) {
+      hint.style.display = '';
+      hint.textContent = HINT_DEFAULT;
+    }
+  }
+
   function loadSailorsFromApi(url, q, loadingMsg) {
     var box = getResultsEl();
     var hint = document.getElementById(HINT_ID);
     global.__sailorDirectoryGen = (global.__sailorDirectoryGen || 0) + 1;
     var myGen = global.__sailorDirectoryGen;
-    if (box) box.innerHTML = '<div class="profile-card" style="cursor:default;">' + (loadingMsg || 'Loading…') + '</div>';
+    if (box) {
+      box.style.display = 'flex';
+      box.innerHTML = '<div class="profile-card" style="cursor:default;">' + (loadingMsg || 'Loading…') + '</div>';
+    }
     if (hint) hint.style.display = 'none';
     return fetch(url, { credentials: 'same-origin' })
       .then(function (r) {
@@ -248,14 +266,7 @@
         list = Array.isArray(list) ? list : [];
         if (hint) {
           hint.style.display = '';
-          if (!q) {
-            hint.textContent =
-              'Showing ' +
-              list.length +
-              ' sailors A–Z. Search by name, SA ID, club, or class to narrow results.';
-          } else {
-            hint.textContent = list.length + ' result' + (list.length === 1 ? '' : 's') + ' for your search.';
-          }
+          hint.textContent = list.length + ' active sailor' + (list.length === 1 ? '' : 's') + ' found.';
         }
         return renderSailorList(list, q);
       })
@@ -265,42 +276,51 @@
       });
   }
 
-  function loadInitialSailors() {
-    return loadSailorsFromApi('/api/search?hub=1&limit=' + INITIAL_LIMIT, '', 'Loading sailors…');
+  function searchApiUrl(q) {
+    return (
+      '/api/search?hub=1&active=1&limit=' +
+      SEARCH_LIMIT +
+      '&q=' +
+      encodeURIComponent(q)
+    );
   }
 
   function runSearch() {
     var inp = document.getElementById(SEARCH_ID);
     var q = inp ? (inp.value || '').trim() : '';
     if (!q) {
-      return loadInitialSailors();
+      showSearchPrompt();
+      return;
     }
     if (q.length < 2) {
       var box = getResultsEl();
       var hint = document.getElementById(HINT_ID);
-      if (box) box.innerHTML = '<div class="profile-card" style="cursor:default;">Type at least 2 characters to search.</div>';
+      if (box) {
+        box.style.display = 'flex';
+        box.innerHTML = '<div class="profile-card" style="cursor:default;">Type at least 2 characters to search.</div>';
+      }
       if (hint) hint.style.display = 'none';
       return;
     }
-    return loadSailorsFromApi('/api/search?hub=1&limit=' + SEARCH_LIMIT + '&q=' + encodeURIComponent(q), q, 'Searching…');
+    return loadSailorsFromApi(searchApiUrl(q), q, 'Searching…');
   }
 
   function initSailorDirectory() {
     var inp = document.getElementById(SEARCH_ID);
     if (!inp) return;
-    inp.setAttribute('placeholder', 'Search sailors…');
-    inp.setAttribute('aria-label', 'Search sailors');
+    inp.setAttribute('placeholder', 'Search active sailors…');
+    inp.setAttribute('aria-label', 'Search active sailors');
     var deb = null;
     inp.addEventListener('input', function () {
       clearTimeout(deb);
       deb = setTimeout(runSearch, 280);
     });
-    loadInitialSailors();
+    showSearchPrompt();
   }
 
   global.__ssaSailorDirectoryRunSearch = runSearch;
   global.__ssaSailorDirectoryInit = initSailorDirectory;
-  global.__ssaSailorDirectoryLoadInitial = loadInitialSailors;
+  global.__ssaSailorDirectoryShowPrompt = showSearchPrompt;
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initSailorDirectory);
