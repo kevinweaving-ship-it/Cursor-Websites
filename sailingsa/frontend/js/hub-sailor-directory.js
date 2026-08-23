@@ -7,6 +7,8 @@
   var RESULTS_ID = 'sailor-directory-results';
   var SEARCH_ID = 'events-dashboard-search';
   var HINT_ID = 'sailors-hint';
+  var INITIAL_LIMIT = 30;
+  var SEARCH_LIMIT = 200;
 
   function getResultsEl() {
     return document.getElementById(RESULTS_ID);
@@ -138,7 +140,7 @@
       return Promise.resolve();
     }
     var hint = document.getElementById(HINT_ID);
-    if (hint) hint.style.display = 'none';
+    if (hint && q) hint.style.display = 'none';
 
     var slots = [];
     list.forEach(function (row) {
@@ -230,40 +232,57 @@
     return topLoad;
   }
 
-  function runSearch() {
-    var inp = document.getElementById(SEARCH_ID);
-    var q = inp ? (inp.value || '').trim() : '';
+  function loadSailorsFromApi(url, q, loadingMsg) {
     var box = getResultsEl();
     var hint = document.getElementById(HINT_ID);
-    if (!q) {
-      if (box) box.innerHTML = '';
-      if (hint) {
-        hint.style.display = '';
-        hint.textContent = 'Type at least 2 characters to search sailors by name, SA ID, club, or class.';
-      }
-      return;
-    }
-    if (q.length < 2) {
-      if (box) box.innerHTML = '<div class="profile-card" style="cursor:default;">Type at least 2 characters to search.</div>';
-      if (hint) hint.style.display = 'none';
-      return;
-    }
     global.__sailorDirectoryGen = (global.__sailorDirectoryGen || 0) + 1;
-    if (box) box.innerHTML = '<div class="profile-card" style="cursor:default;">Searching…</div>';
-    if (hint) hint.style.display = 'none';
     var myGen = global.__sailorDirectoryGen;
-    fetch('/api/search?hub=1&limit=200&q=' + encodeURIComponent(q), { credentials: 'same-origin' })
+    if (box) box.innerHTML = '<div class="profile-card" style="cursor:default;">' + (loadingMsg || 'Loading…') + '</div>';
+    if (hint) hint.style.display = 'none';
+    return fetch(url, { credentials: 'same-origin' })
       .then(function (r) {
         return r.json();
       })
       .then(function (list) {
         if (myGen !== (global.__sailorDirectoryGen || 0)) return;
-        return renderSailorList(Array.isArray(list) ? list : [], q);
+        list = Array.isArray(list) ? list : [];
+        if (hint) {
+          hint.style.display = '';
+          if (!q) {
+            hint.textContent =
+              'Showing ' +
+              list.length +
+              ' sailors A–Z. Search by name, SA ID, club, or class to narrow results.';
+          } else {
+            hint.textContent = list.length + ' result' + (list.length === 1 ? '' : 's') + ' for your search.';
+          }
+        }
+        return renderSailorList(list, q);
       })
       .catch(function () {
         if (myGen !== (global.__sailorDirectoryGen || 0)) return;
-        if (box) box.innerHTML = '<div class="profile-card" style="cursor:default;color:#c00;">Search failed. Try again.</div>';
+        if (box) box.innerHTML = '<div class="profile-card" style="cursor:default;color:#c00;">Could not load sailors. Try again.</div>';
       });
+  }
+
+  function loadInitialSailors() {
+    return loadSailorsFromApi('/api/search?hub=1&limit=' + INITIAL_LIMIT, '', 'Loading sailors…');
+  }
+
+  function runSearch() {
+    var inp = document.getElementById(SEARCH_ID);
+    var q = inp ? (inp.value || '').trim() : '';
+    if (!q) {
+      return loadInitialSailors();
+    }
+    if (q.length < 2) {
+      var box = getResultsEl();
+      var hint = document.getElementById(HINT_ID);
+      if (box) box.innerHTML = '<div class="profile-card" style="cursor:default;">Type at least 2 characters to search.</div>';
+      if (hint) hint.style.display = 'none';
+      return;
+    }
+    return loadSailorsFromApi('/api/search?hub=1&limit=' + SEARCH_LIMIT + '&q=' + encodeURIComponent(q), q, 'Searching…');
   }
 
   function initSailorDirectory() {
@@ -276,10 +295,12 @@
       clearTimeout(deb);
       deb = setTimeout(runSearch, 280);
     });
+    loadInitialSailors();
   }
 
   global.__ssaSailorDirectoryRunSearch = runSearch;
   global.__ssaSailorDirectoryInit = initSailorDirectory;
+  global.__ssaSailorDirectoryLoadInitial = loadInitialSailors;
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initSailorDirectory);

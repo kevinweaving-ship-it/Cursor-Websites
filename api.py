@@ -1887,14 +1887,14 @@ def _sailors_directory_page_html():
         + _DIRECTORY_PAGE_ABOUT_CSS
         + ".profile-card{background:#fff;border-radius:8px;border:2px solid #001f3f;padding:0.5rem 0.85rem;cursor:pointer;line-height:1.35;}"
         + "</style>"
-        '<script src="/js/hub-sailor-directory.js?v=20260823dir1"></script>'
+        '<script src="/js/hub-sailor-directory.js?v=20260823dir2"></script>'
     )
     inner = (
         '<div class="container" id="sailors-dashboard">'
         '<div class="card stats-section">'
         + _events_section_heading_row_html("Sailors")
         + f'<div class="page-about-block">{html_module.escape(about)}</div>'
-        + '<p class="sailor-directory-hint" id="sailors-hint">Type at least 2 characters to search sailors by name, SA ID, club, or class.</p>'
+        + '<p class="sailor-directory-hint" id="sailors-hint">Loading sailors…</p>'
         + '<div class="sailor-directory-results sailor-search-results" id="sailor-directory-results" role="list"></div>'
         + "</div></div>"
         + _seo_discovery_block_html()
