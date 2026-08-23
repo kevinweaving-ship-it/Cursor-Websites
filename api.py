@@ -2186,7 +2186,7 @@ def _event_time_to_sort_seconds(t) -> int:
 
 
 # Shared with /blank hub, /events, /events/type/*, club pages, /yearly-events, GET /api/events/upcoming-window.
-UPCOMING_DISPLAY_SORT_VERSION = "upcoming_display_v2"
+UPCOMING_DISPLAY_SORT_VERSION = "upcoming_display_v3_date_asc"
 
 
 def _batch_entries_by_regatta_ids(cur, regatta_ids: list) -> dict[str, int]:
@@ -2237,14 +2237,11 @@ def _attach_event_card_display_sort_fields(
 
 
 def _sort_event_cards_display_order(cards: list, *, use_start_time: bool) -> list:
-    """Established series (≥2 years) first, then entries, series depth, date; live tab ties on start_time."""
+    """Upcoming/live: real calendar order — start_date ascending (next event first); same-day optional start_time."""
     sub = list(cards)
     sub.sort(
         key=lambda c: (
-            0 if int(c.get("series_years_count") or 0) >= 2 else 1,
-            -int(c.get("entries_for_sort") or 0),
-            -int(c.get("series_years_count") or 0),
-            c.get("start_date_iso") or "",
+            c.get("start_date_iso") or "9999-99-99",
             (_event_time_to_sort_seconds(c.get("start_time")) if use_start_time else 0),
             (c.get("event_name") or "").lower(),
             int(c.get("event_id") or 0),
@@ -2325,9 +2322,6 @@ def _compute_hub_upcoming_window_payload(
 
     windowed.sort(
         key=lambda e: (
-            0 if int(e.get("series_years_count") or 0) >= 2 else 1,
-            -_hub_ent(e),
-            -int(e.get("series_years_count") or 0),
             _sd(e),
             (e.get("event_name") or "").lower(),
             str(e.get("regatta_id") or ""),
@@ -2349,17 +2343,17 @@ def _compute_hub_upcoming_window_payload(
 
 
 def _sort_past_event_cards(cards: list) -> list:
-    order_san = {"SAS": 0, "CLUB": 1, "OTHER": 2}
-
-    def date_key(c):
-        return c.get("start_date_iso") or ""
-
-    out = []
-    for s in ("SAS", "CLUB", "OTHER"):
-        sub = [c for c in cards if (c.get("sanction_level") or "CLUB") == s]
-        sub.sort(key=date_key, reverse=True)
-        out.extend(sub)
-    return out
+    """Past: newest start_date first (do not bury club/laser.org rows behind all SAS)."""
+    sub = list(cards)
+    sub.sort(
+        key=lambda c: (
+            c.get("start_date_iso") or "",
+            (c.get("event_name") or "").lower(),
+            int(c.get("event_id") or 0),
+        ),
+        reverse=True,
+    )
+    return sub
 
 
 # Tailwind-aligned hex: ACTIVE/UPCOMING/PAST × SAS/CLUB/OTHER — /events + club events (identical).
