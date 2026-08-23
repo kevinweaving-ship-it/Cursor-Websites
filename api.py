@@ -3686,14 +3686,9 @@ def _stats_page_html(data: dict) -> str:
     from urllib.parse import quote
     title = "Sailing Statistics – South African Regatta Results"
     desc = "Explore statistics from South Africa's sailing results database including sailors, classes, clubs and regatta participation."
-    header = f"""<!DOCTYPE html>
-<html lang="en-US">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>{html_module.escape(title)}</title>
-<meta name="description" content="{html_module.escape(desc)}">
+    extra_head = (
+        f"""<meta name="description" content="{html_module.escape(desc)}">
 <link rel="canonical" href="https://sailingsa.co.za/stats">
-<link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
-<link rel="stylesheet" href="/css/main.css?v=13">
 <style>
 .stats-overview {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 1rem; }}
 .stats-card {{ background: #fff; border: 2px solid #001f3f; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,31,63,0.08); padding: 0.75rem 1rem; text-align: center; }}
@@ -3720,15 +3715,12 @@ def _stats_page_html(data: dict) -> str:
 .stats-month-title {{ font-weight: 600; margin: 0.25rem 0; }}
 .stats-regatta-row {{ padding: 0.2rem 0; font-size: 0.85rem; }}
 </style>
-</head>
-<body>
-<header class="site-header"><div class="container" style="display:flex;align-items:center;flex-wrap:wrap;gap:0.75rem;">
-<a href="/" class="logo js-go-home" title="Home"><img src="/assets/logos/sailingsa-logo.png" alt="SailingSA Logo"></a>
-<nav class="nav-inline" aria-label="Main" style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-right:auto;"><a href="/">Home</a><a href="/sailors">Sailors</a><a href="/regattas">Regattas</a><a href="/classes">Classes</a><a href="/clubs">Clubs</a><a href="https://sailingsa.co.za/events">Events</a><a href="/about">About</a></nav>
-<div class="header-auth" style="margin-left:auto;"></div>
-</div></header>
-<main class="main-content" id="stats-dashboard"><div class="container">
 """
+    )
+    inner = (
+        """<div class="container" id="stats-dashboard">
+"""
+    )
     card_links = ("/sailors", "/regattas", "/stats?races=1", "/classes", "/clubs")
     cards = data.get("total_sailors", 0), data.get("total_regattas", 0), data.get("total_races", 0), data.get("total_classes", 0), data.get("total_clubs", 0)
     labels = ("Total Sailors", "Total Regattas", "Total Races", "Total Classes", "Total Clubs")
@@ -3784,7 +3776,7 @@ def _stats_page_html(data: dict) -> str:
         date_iso = row.get("date_iso") or ""
         body += f'<tr data-date="{html_module.escape(date_iso)}" data-event_name="{html_module.escape(str(row.get("event_name") or ""))}" data-host_club="{html_module.escape(str(row.get("host_club") or ""))}"><td>{html_module.escape(row.get("date") or "—")}</td><td><a href="{reg_href}">{html_module.escape(row.get("event_name") or "—")}</a></td><td><a href="{club_href}">{html_module.escape(row.get("host_club") or "—")}</a></td></tr>'
     body += "</tbody></table></div></div>"
-    footer = """</div></main><footer class="site-footer-about" style="text-align:center;padding:2rem 1rem;font-size:0.9rem;color:#666;border-top:1px solid #e0e0e0;margin-top:2rem;">SailingSA – South African Sailing Results Database © <span id="year"></span></footer>
+    footer = """</div><footer class="site-footer-about" style="text-align:center;padding:2rem 1rem;font-size:0.9rem;color:#666;border-top:1px solid #e0e0e0;margin-top:2rem;">SailingSA – South African Sailing Results Database © <span id="year"></span></footer>
 <script>
 document.getElementById("year").textContent = new Date().getFullYear();
 (function(){
@@ -3814,8 +3806,22 @@ document.getElementById("year").textContent = new Date().getFullYear();
     row.addEventListener("keydown", function(e){ if (e.key === "Enter" || e.key === " ") { e.preventDefault(); row.click(); } });
   });
 })();
-</script></body></html>"""
-    return header + body + _seo_discovery_block_html() + footer
+</script>"""
+    inner = inner + body + _seo_discovery_block_html() + footer
+    gold_fn = globals().get("_html_with_gold_header")
+    if gold_fn:
+        resp = gold_fn(title, inner, extra_head)
+        body_bytes = resp.body
+        if isinstance(body_bytes, memoryview):
+            body_bytes = body_bytes.tobytes()
+        if isinstance(body_bytes, (bytes, bytearray)):
+            return body_bytes.decode("utf-8")
+        return str(body_bytes)
+    # Fallback when thin api.py lacks gold header helper
+    return (
+        f"<!DOCTYPE html><html lang=\"en-US\"><head><meta charset=\"UTF-8\">"
+        f"<title>{html_module.escape(title)}</title>{extra_head}</head><body>{inner}</body></html>"
+    )
 
 
 _EVENTS_TOOLBAR_SEARCH_CSS = """
