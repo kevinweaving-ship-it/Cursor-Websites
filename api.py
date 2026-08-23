@@ -2342,6 +2342,260 @@ def _compute_hub_upcoming_window_payload(
     }
 
 
+# Same artwork paths as landing regatta list (_attach_regatta_search_card_logos / logo_url).
+_SA_NATIONALS_EVENT_LOGO = "/artwork/Event Logo/SA-Nationals.png"
+_YOUTH_NATIONALS_EVENT_LOGO = "/artwork/Event Logo/Youth-Nationals-Logo.png"
+_EVENT_LOGO_ASSET_BUST = "20260823d"
+_EVENT_CARD_NAMED_LOGO_RULES: tuple[tuple[str, str], ...] = (
+    ("youth national", _YOUTH_NATIONALS_EVENT_LOGO),
+    ("rsa national", _SA_NATIONALS_EVENT_LOGO),
+    ("national championship", _SA_NATIONALS_EVENT_LOGO),
+    ("sa sailing national", _SA_NATIONALS_EVENT_LOGO),
+    ("ilca kzn", "/artwork/Event Logo/ILCA-KZN-Regional-Championships.png"),
+    ("club champs", "/artwork/Event Logo/Club-Championships.png"),
+    ("club championship", "/artwork/Event Logo/Club-Championships.png"),
+    ("interclub", "/artwork/Event Logo/Interclub.png"),
+    ("29er", "/artwork/Event Logo/29er-Class-Logo.png"),
+)
+_EVENT_CARD_CLASS_TOKENS: tuple[str, ...] = (
+    "flying fifteen",
+    "flying 15",
+    "cape 31",
+    "dart 18",
+    "hobie 16",
+    "hobie 14",
+    "dragonflite",
+    "df 95",
+    "df95",
+    "optimist",
+    "dabchick",
+    "mirror",
+    "ilca 7",
+    "ilca 6",
+    "ilca 4.7",
+    "ilca 4",
+    "ilca",
+    "laser",
+    "29er",
+    "420",
+    "505",
+    "finn",
+    "soling",
+    "hunter",
+    "j22",
+    "iom",
+    "sonnet",
+)
+
+
+def _public_event_logo_url(path: Optional[str]) -> Optional[str]:
+    p = (path or "").strip()
+    if not p:
+        return None
+    if not p.startswith("/"):
+        p = "/" + p.lstrip("/")
+    if "?" in p:
+        return p
+    return f"{p}?v={_EVENT_LOGO_ASSET_BUST}"
+
+
+def _event_logo_from_named_rules_simple(
+    regatta_id: Optional[str],
+    event_name: Optional[str] = None,
+) -> Optional[str]:
+    hay = f"{(event_name or '').lower()} {str(regatta_id or '').lower()}"
+    hay_flex = hay.replace("-", " ")
+    best_src = ""
+    best_len = -1
+    rules = globals().get("_CLUB_EVENT_LOGO_RULES") or _EVENT_CARD_NAMED_LOGO_RULES
+    for item in rules:
+        if len(item) == 3:
+            needle, src, _label = item
+        else:
+            needle, src = item[0], item[1]
+        if not needle:
+            continue
+        if needle not in hay and needle not in hay_flex:
+            continue
+        s = (src or "").strip()
+        if not s:
+            continue
+        if len(needle) > best_len:
+            best_src = s
+            best_len = len(needle)
+    if not best_src:
+        return None
+    return best_src if best_src.startswith("/") else "/" + best_src.lstrip("/")
+
+
+def _class_logo_path_from_db(cur, class_name: str) -> Optional[str]:
+    cn = (class_name or "").strip()
+    if not cn or cur is None or not table_exists("classes"):
+        return None
+    try:
+        cur.execute(
+            """
+            SELECT NULLIF(btrim(logo_path), '') AS logo_path
+            FROM classes
+            WHERE lower(btrim(class_name)) = lower(btrim(%s))
+               OR lower(replace(class_name, ' ', '')) = lower(replace(%s, ' ', ''))
+            ORDER BY class_id
+            LIMIT 1
+            """,
+            (cn, cn),
+        )
+        row = cur.fetchone()
+        if row and row.get("logo_path"):
+            return str(row["logo_path"]).strip() or None
+    except Exception:
+        try:
+            cur.connection.rollback()
+        except Exception:
+            pass
+    return None
+
+
+def _class_logo_from_obvious_event_name(event_name: str, cur=None) -> Optional[str]:
+    hay = f" {(event_name or '').strip().lower()} "
+    if not hay.strip():
+        return None
+    try:
+        from events_logos_gallery import _canon_series_key, _series_key_from_regatta_name
+
+        sk = _canon_series_key(_series_key_from_regatta_name(event_name or "", ""))
+        series_map = globals().get("_EVENTS_LOGOS_SERIES_CLASS_LOGO") or {}
+        if sk and sk in series_map:
+            return series_map[sk]
+    except Exception:
+        pass
+    for tok in _EVENT_CARD_CLASS_TOKENS:
+        if f" {tok} " in hay or hay.strip().startswith(tok) or f" {tok}" in hay:
+            lp = _class_logo_path_from_db(cur, tok.replace("df 95", "df95"))
+            if lp:
+                return lp
+    return None
+
+
+def _batch_regatta_block_logos(cur, regatta_ids: list[str]) -> dict[str, dict]:
+    out: dict[str, dict] = {}
+    rids = [str(r).strip() for r in regatta_ids if str(r).strip()]
+    if not rids or cur is None or not table_exists("regatta_blocks"):
+        return out
+    try:
+        cur.execute(
+            """
+            SELECT DISTINCT ON (rb.regatta_id)
+                   rb.regatta_id,
+                   NULLIF(btrim(cl.logo_path), '') AS logo_path,
+                   COALESCE(
+                     NULLIF(btrim(cl.class_name), ''),
+                     NULLIF(btrim(rb.class_canonical), ''),
+                     NULLIF(btrim(rb.class_original), '')
+                   ) AS class_name
+            FROM regatta_blocks rb
+            LEFT JOIN classes cl ON cl.class_id = rb.class_id
+            WHERE rb.regatta_id = ANY(%s)
+            ORDER BY rb.regatta_id, rb.block_id
+            """,
+            (rids,),
+        )
+        for row in cur.fetchall() or []:
+            rid = str(row.get("regatta_id") or "").strip()
+            if rid:
+                out[rid] = dict(row)
+    except Exception:
+        try:
+            cur.connection.rollback()
+        except Exception:
+            pass
+    return out
+
+
+def _event_card_logo_url(cur, regatta_id: str, event_name: str) -> Optional[str]:
+    """Resolve left event logo — same sources as landing regatta list (logo_url)."""
+    rid = str(regatta_id or "").strip()
+    rname = str(event_name or "").strip()
+    regatta_logo_fn = globals().get("_regatta_card_event_logo_url")
+    if regatta_logo_fn and rid:
+        try:
+            logo = regatta_logo_fn(rid, rname, cur=cur)
+            if logo:
+                return logo
+        except Exception:
+            pass
+    catalogue_fn = globals().get("_catalogue_regatta_left_logo")
+    if catalogue_fn and rid:
+        try:
+            logo, _href = catalogue_fn(rid, rname, cur=cur)
+            if logo:
+                pub_fn = globals().get("_public_artwork_url") or _public_event_logo_url
+                return pub_fn(logo)
+        except Exception:
+            pass
+    logo = None
+    try:
+        left, _right = _wc_regatta_header_icon_urls(rid)
+        if left:
+            logo = left.strip()
+    except Exception:
+        pass
+    named_fn = globals().get("_event_logo_from_named_rules") or _event_logo_from_named_rules_simple
+    try:
+        named = named_fn(rid, rname)
+        if named and (not logo or "/artwork/class logo/" in str(logo).lower()):
+            logo = named
+    except Exception:
+        pass
+    if not logo and rid:
+        block = (_batch_regatta_block_logos(cur, [rid]) or {}).get(rid) or {}
+        logo = str(block.get("logo_path") or "").strip() or None
+    if not logo:
+        logo = _class_logo_from_obvious_event_name(rname, cur)
+    pub_fn = globals().get("_public_artwork_url") or _public_event_logo_url
+    return pub_fn(logo) if logo else None
+
+
+def _attach_events_page_card_logos(cards: list, cur=None) -> None:
+    """Fill event_logo_url on coloured /events cards (past has-results first)."""
+    if not cards:
+        return
+    targets = []
+    for c in cards:
+        if not c.get("result_yes"):
+            continue
+        if str(c.get("event_logo_url") or c.get("image_url") or "").strip():
+            continue
+        targets.append(c)
+    if not targets:
+        return
+    class_logo_by_rid: dict[str, str] = {}
+    if globals().get("_regatta_card_event_logo_url"):
+        rids = list({str(c.get("regatta_id") or "").strip() for c in targets if c.get("regatta_id")})
+        for rid, block in (_batch_regatta_block_logos(cur, rids) or {}).items():
+            lp = str(block.get("logo_path") or "").strip()
+            if lp:
+                class_logo_by_rid[rid] = lp
+    for c in targets:
+        rid = str(c.get("regatta_id") or "").strip()
+        rname = str(c.get("event_name") or c.get("display_title") or "").strip()
+        logo = None
+        regatta_logo_fn = globals().get("_regatta_card_event_logo_url")
+        if regatta_logo_fn and rid:
+            try:
+                logo = regatta_logo_fn(
+                    rid,
+                    rname,
+                    cur=cur,
+                    class_logo_by_rid=class_logo_by_rid or None,
+                )
+            except Exception:
+                logo = None
+        if not logo:
+            logo = _event_card_logo_url(cur, rid, rname)
+        if logo:
+            c["event_logo_url"] = logo
+
+
 def _sort_past_event_cards(cards: list) -> list:
     """Past: newest start_date first (do not bury club/laser.org rows behind all SAS)."""
     sub = list(cards)
@@ -2686,6 +2940,10 @@ def _get_upcoming_events(host_club_id=None):
             pool = _regatta_match_pool_for_past_rows(cur, past_rows)
             if pool:
                 _club_past_events_match_hosted(out["past"], pool, None)
+        try:
+            _attach_events_page_card_logos(out["past"], cur)
+        except Exception as _logo_err:
+            print(f"[events] card logos: {_logo_err}", flush=True)
         out["past"] = _sort_past_event_cards(out["past"])
         t5 = time.time()
         print("EVENTS: rows upcoming:", len(out["upcoming"]), "live:", len(out["live"]), "past:", len(out["past"]))
@@ -2861,6 +3119,10 @@ def _get_events_by_type_slug(slug: str):
             pool = _regatta_match_pool_for_past_rows(cur, past_rows)
             if pool:
                 _club_past_events_match_hosted(out["past"], pool, None)
+        try:
+            _attach_events_page_card_logos(out["past"], cur)
+        except Exception as _logo_err:
+            print(f"[events] card logos: {_logo_err}", flush=True)
         out["past"] = _sort_past_event_cards(out["past"])
         cur.close()
         return_db_connection(conn)
@@ -3823,7 +4085,7 @@ document.getElementById("year").textContent = new Date().getFullYear();
     var titleHtml = titleHref
       ? '<a href="' + esc(titleHref) + '" class="sa-home-regatta-title">' + esc(titleText) + '</a>'
       : '<div class="sa-home-regatta-title">' + esc(titleText) + '</div>';
-    var logoSrc = (e.event_logo_url || '').trim();
+    var logoSrc = (e.event_logo_url || e.image_url || '').trim();
     var logoHtml = logoSrc
       ? '<img class="sa-home-regatta-event-logo" src="' + esc(logoSrc) + '" alt="" loading="lazy" decoding="async" onerror="this.hidden=true">'
       : '';
@@ -4211,7 +4473,7 @@ def _events_dashboard_fragment(
     var titleHtml = titleHref
       ? '<a href="' + esc(titleHref) + '" class="sa-home-regatta-title">' + esc(titleText) + '</a>'
       : '<div class="sa-home-regatta-title">' + esc(titleText) + '</div>';
-    var logoSrc = (e.event_logo_url || '').trim();
+    var logoSrc = (e.event_logo_url || e.image_url || '').trim();
     var logoHtml = logoSrc
       ? '<img class="sa-home-regatta-event-logo" src="' + esc(logoSrc) + '" alt="" loading="lazy" decoding="async" onerror="this.hidden=true">'
       : '';
@@ -4586,7 +4848,7 @@ document.getElementById("year").textContent = new Date().getFullYear();
     var titleHtml = titleHref
       ? '<a href="' + esc(titleHref) + '" class="sa-home-regatta-title">' + esc(titleText) + '</a>'
       : '<div class="sa-home-regatta-title">' + esc(titleText) + '</div>';
-    var logoSrc = (e.event_logo_url || '').trim();
+    var logoSrc = (e.event_logo_url || e.image_url || '').trim();
     var logoHtml = logoSrc
       ? '<img class="sa-home-regatta-event-logo" src="' + esc(logoSrc) + '" alt="" loading="lazy" decoding="async" onerror="this.hidden=true">'
       : '';
