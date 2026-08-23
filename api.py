@@ -2086,11 +2086,64 @@ def _derive_event_state(r, is_past_panel: bool) -> str:
     en = _event_date_only(r.get("end_date")) or st
     if not st:
         return "UPCOMING"
+    if en and en < today:
+        return "PAST"
     if st <= today <= (en or st):
         return "ACTIVE"
     if st > today:
         return "UPCOMING"
     return "UPCOMING"
+
+
+def _sanitize_event_row_end_date(r: dict) -> None:
+    """Fix known SAS end-date bullshit in-memory (before Live/Past bucketing).
+
+    DSO Appointments (361162): SAS list says May 2029; real window is May 2026.
+    Also clamps same-month year typos (end year > start, day span ≤14).
+    """
+    name = (r.get("event_name") or "")
+    url = (r.get("source_url") or "")
+    sid = str(r.get("source_event_id") or "").strip()
+    if (
+        sid == "361162"
+        or "361162" in url
+        or "Safeguarding Officer (DSO)" in name
+        or "Safeguarding Personal Clearances" in name
+    ):
+        r["end_date"] = date(2026, 5, 31)
+        return
+    start = _event_date_only(r.get("start_date"))
+    end = _event_date_only(r.get("end_date"))
+    if not start or not end:
+        return
+    if end.year > start.year and end.month == start.month and 0 < (end.day - start.day) <= 14:
+        try:
+            r["end_date"] = end.replace(year=start.year)
+        except ValueError:
+            pass
+
+
+def _rebucket_event_rows_after_date_sanitize(upcoming_rows: list, past_rows: list) -> tuple:
+    """Sanitize end dates then re-split upcoming vs past (so DSO 2029→2026 leaves Live)."""
+    today = date.today()
+    for r in list(upcoming_rows) + list(past_rows):
+        _sanitize_event_row_end_date(r)
+    seen = set()
+    up: list = []
+    past: list = []
+    for r in list(upcoming_rows) + list(past_rows):
+        eid = r.get("event_id")
+        key = ("id", eid) if eid is not None else ("obj", id(r))
+        if key in seen:
+            continue
+        seen.add(key)
+        start = _event_date_only(r.get("start_date"))
+        end = _event_date_only(r.get("end_date")) or start
+        if end and end < today:
+            past.append(r)
+        else:
+            up.append(r)
+    return up, past
 
 
 def _event_time_to_sort_seconds(t) -> int:
@@ -2549,6 +2602,7 @@ def _get_upcoming_events(host_club_id=None):
         past_rows = list(cur.fetchall() or [])
         t2 = time.time()
         print("EVENTS: past query", round(t2 - t1, 3))
+        upcoming_rows, past_rows = _rebucket_event_rows_after_date_sanitize(upcoming_rows, past_rows)
         # Resolve host_display to club when host_club_id is NULL. Use venue_raw when host_club_name_raw is association-only.
         if table_exists("clubs"):
             host_displays_to_resolve = set()
@@ -2715,6 +2769,7 @@ def _get_events_by_type_slug(slug: str):
             {order_past_sql}
         """, (slug,))
         past_rows = list(cur.fetchall() or [])
+        upcoming_rows, past_rows = _rebucket_event_rows_after_date_sanitize(upcoming_rows, past_rows)
         display_name = None
         if upcoming_rows:
             display_name = (upcoming_rows[0].get("category") or "").strip()
