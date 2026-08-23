@@ -100,7 +100,7 @@
 
   function hideClaimUi(slot) {
     if (!slot) return;
-    slot.querySelectorAll('.sa-claim-slot, .sa-claim-banner, .sailor-claim-cta, #dev1-claim-slot, #dev1-claim-banner').forEach(function (el) {
+    slot.querySelectorAll('.sa-claim-banner, .sailor-claim-cta, #dev1-claim-banner, #dev1-claim-slot').forEach(function (el) {
       el.style.display = 'none';
       el.setAttribute('aria-hidden', 'true');
     });
@@ -167,7 +167,7 @@
         mountDev1Card(item.wrap, cached);
         return Promise.resolve();
       }
-      return fetch('/dev-1?embed=1&sas_id=' + encodeURIComponent(item.sid), { credentials: 'same-origin' })
+      return fetch('/dev-1?embed=1&no_claim=1&sas_id=' + encodeURIComponent(item.sid), { credentials: 'same-origin' })
         .then(function (r) {
           return r.text();
         })

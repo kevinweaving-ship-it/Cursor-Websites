@@ -1817,7 +1817,8 @@ _DIRECTORY_PAGE_ABOUT_CSS = """
 .sailor-directory-results .ssa-dev1-inject main,.sailor-directory-results .ssa-dev1-inject .main-column,.sailor-directory-results .ssa-dev1-inject .container{width:100%!important;max-width:100%!important;margin:0!important;padding:0!important;}
 .sailor-directory-results .ssa-dev1-inject .sa-approved-sailor-card{margin-top:0;}
 .sailor-directory-results .profile-card{margin:0;}
-.sailor-directory-results .sa-claim-slot,.sailor-directory-results .sa-claim-banner,.sailor-directory-results .sailor-claim-cta,.sailor-directory-results #dev1-claim-slot,.sailor-directory-results #dev1-claim-banner{display:none!important;}
+.sailor-directory-results .sa-claim-banner,.sailor-directory-results .sailor-claim-cta,.sailor-directory-results #dev1-claim-banner,.sailor-directory-results .sa-header-mid-slot > #dev1-claim-slot{display:none!important;}
+.sailor-directory-results .sa-ranks-mid-slot,.sailor-directory-results #dev1-ranks-mid-slot,.sailor-directory-results #dev1-next-event-slot{display:block!important;}
 """
 
 
@@ -1887,7 +1888,7 @@ def _sailors_directory_page_html():
         + _DIRECTORY_PAGE_ABOUT_CSS
         + ".profile-card{background:#fff;border-radius:8px;border:2px solid #001f3f;padding:0.5rem 0.85rem;cursor:pointer;line-height:1.35;}"
         + "</style>"
-        '<script src="/js/hub-sailor-directory.js?v=20260823dir2"></script>'
+        '<script src="/js/hub-sailor-directory.js?v=20260823dir3"></script>'
     )
     inner = (
         '<div class="container" id="sailors-dashboard">'
