@@ -1886,7 +1886,7 @@ def _sailors_directory_page_html():
         + ".profile-card{background:#fff;border-radius:8px;border:2px solid #001f3f;padding:0.5rem 0.85rem;cursor:pointer;line-height:1.35;}"
         + ".sailor-directory-hint{display:none!important;}"
         + "</style>"
-        '<script src="/js/hub-sailor-directory.js?v=20260823dir5"></script>'
+        '<script src="/js/hub-sailor-directory.js?v=20260823dir6"></script>'
     )
     inner = (
         '<div class="container" id="sailors-dashboard">'
@@ -16411,19 +16411,7 @@ def api_search(
                     conditions.append("s.year_of_birth < %s")
                     params.append(current_year - age_over)
 
-                if active_on:
-                    conditions.append("""
-                        EXISTS (
-                            SELECT 1 FROM public.results r
-                            JOIN public.regattas reg ON reg.regatta_id = r.regatta_id
-                            WHERE r.raced = TRUE
-                              AND (reg.end_date IS NOT NULL OR reg.start_date IS NOT NULL)
-                              AND (
-                                r.helm_sa_sailing_id::text = s.sa_sailing_id::text
-                                OR r.crew_sa_sailing_id::text = s.sa_sailing_id::text
-                              )
-                        )
-                    """)
+                # active_on uses active_join INNER JOIN (see below)
                 
                 where_clause = " AND " + " AND ".join(conditions) if conditions else ""
                 
@@ -16437,6 +16425,28 @@ def api_search(
                     # Uses pre-aggregated LEFT JOINs instead of per-row subqueries
                     # Pattern: Single pass through sas_id_personal with pre-computed result flags
                     
+                    # Active sailors only: join pre-filtered set (faster than per-row EXISTS)
+                    active_join = ""
+                    if active_on:
+                        active_join = """
+                            INNER JOIN (
+                                SELECT DISTINCT sailor_id FROM (
+                                    SELECT r.helm_sa_sailing_id::text AS sailor_id
+                                    FROM public.results r
+                                    JOIN public.regattas reg ON reg.regatta_id = r.regatta_id
+                                    WHERE r.raced = TRUE
+                                      AND r.helm_sa_sailing_id IS NOT NULL AND r.helm_sa_sailing_id::text != ''
+                                      AND (reg.end_date IS NOT NULL OR reg.start_date IS NOT NULL)
+                                    UNION
+                                    SELECT r.crew_sa_sailing_id::text AS sailor_id
+                                    FROM public.results r
+                                    JOIN public.regattas reg ON reg.regatta_id = r.regatta_id
+                                    WHERE r.raced = TRUE
+                                      AND r.crew_sa_sailing_id IS NOT NULL AND r.crew_sa_sailing_id::text != ''
+                                      AND (reg.end_date IS NOT NULL OR reg.start_date IS NOT NULL)
+                                ) u
+                            ) active_sailors ON active_sailors.sailor_id = s.sa_sailing_id::text
+                        """
                     # Build sail/boat name search JOIN if needed (replaces EXISTS clause)
                     sail_boat_join = ""
                     sail_boat_filter = ""
@@ -16484,6 +16494,7 @@ def api_search(
                             NULL::text as bow_no,
                             s.year_of_birth as born
                         FROM public.sas_id_personal s
+                        {active_join}
                         {sail_boat_join}
                         WHERE 1=1 {where_clause}{" " + sail_boat_filter if sail_boat_filter else ""}
                         ORDER BY surname NULLS LAST, first_names NULLS LAST, sas_id

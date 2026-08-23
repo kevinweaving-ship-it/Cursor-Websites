@@ -96,7 +96,7 @@ def _sailors_directory_page_html():
         + ".profile-card{background:#fff;border-radius:8px;border:2px solid #001f3f;padding:0.5rem 0.85rem;cursor:pointer;line-height:1.35;}"
         + ".sailor-directory-hint{display:none!important;}"
         + "</style>"
-        '<script src="/js/hub-sailor-directory.js?v=20260823dir5"></script>'
+        '<script src="/js/hub-sailor-directory.js?v=20260823dir6"></script>'
     )
     inner = (
         '<div class="container" id="sailors-dashboard">'

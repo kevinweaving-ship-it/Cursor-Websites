@@ -1,4 +1,4 @@
-/* /sailors directory — active sailors with stats cards only; search-driven. */
+/* /sailors — landing-style fuzzy search, active sailors only, stats cards. */
 (function (global) {
   'use strict';
   if (global.__ssaHubSailorDirectoryLoaded) return;
@@ -6,7 +6,12 @@
 
   var RESULTS_ID = 'sailor-directory-results';
   var SEARCH_ID = 'events-dashboard-search';
-  var SEARCH_LIMIT = 200;
+  var SEARCH_LIMIT = 500;
+  var DISPLAY_CAP = 30;
+  var DEBOUNCE_MS = 220;
+
+  var searchAbort = null;
+  var searchDebounce = null;
 
   function getResultsEl() {
     return document.getElementById(RESULTS_ID);
@@ -16,6 +21,10 @@
     var qn = String(q || '').toLowerCase().replace(/\s+/g, ' ').trim();
     var tokens = qn.split(' ').filter(Boolean);
     function score(row) {
+      if (row._search_rel != null && row._search_rel !== '') {
+        var rel = parseInt(row._search_rel, 10);
+        if (!isNaN(rel)) return rel;
+      }
       var fn = String(row.first_names || row.first_name || '').toLowerCase();
       var ln = String(row.surname || row.last_name || '').toLowerCase();
       var full = (fn + ' ' + ln).replace(/\s+/g, ' ').trim();
@@ -109,8 +118,7 @@
     var ne = slot.querySelector('#dev1-next-event-slot');
     if (ne && ne.textContent && ne.textContent.replace(/\s+/g, '').length > 20) return true;
     var mid = slot.querySelector('#dev1-header-mid-slot');
-    if (mid && mid.children && mid.children.length) return true;
-    return false;
+    return !!(mid && mid.children && mid.children.length);
   }
 
   function mountDev1Card(slot, html) {
@@ -136,16 +144,25 @@
     return hasStatsCard(slot);
   }
 
-  function renderSailorList(list, q) {
+  function renderSailorList(list, q, gen) {
     var sailorSearchResults = getResultsEl();
     if (!sailorSearchResults) return Promise.resolve();
-    var gen = global.__sailorDirectoryGen || 0;
     list = sortSailorList(list, q);
+    var total = list.length;
+    if (total > DISPLAY_CAP) list = list.slice(0, DISPLAY_CAP);
+
     sailorSearchResults.innerHTML = '';
     sailorSearchResults.style.display = 'flex';
     if (!list.length) {
       sailorSearchResults.innerHTML = '<div class="profile-card" style="cursor:default;">No sailors found.</div>';
       return Promise.resolve();
+    }
+    if (total > DISPLAY_CAP) {
+      var note = document.createElement('p');
+      note.className = 'sailor-directory-hint';
+      note.style.cssText = 'color:#64748b;font-size:0.9rem;margin:0 0 0.5rem 0;';
+      note.textContent = 'Showing top ' + DISPLAY_CAP + ' of ' + total + ' matches — type more to narrow.';
+      sailorSearchResults.appendChild(note);
     }
 
     var slots = [];
@@ -161,6 +178,7 @@
     });
 
     function fetchOne(item) {
+      if (gen !== (global.__sailorDirectoryGen || 0)) return Promise.resolve();
       if (!item || item.wrap.getAttribute('data-card-loaded') === '1') return Promise.resolve();
       item.wrap.setAttribute('data-card-loaded', '1');
       if (!item.sid) {
@@ -214,8 +232,8 @@
       } catch (_) {}
       global.__ssaSailorDirectoryIO = null;
     }
-    var topN = Math.min(3, slots.length);
-    var topLoad = loadRange(0, topN, 3);
+    var topN = Math.min(2, slots.length);
+    var topLoad = loadRange(0, topN, 2);
     if (slots.length > topN && typeof IntersectionObserver === 'function') {
       var io = new IntersectionObserver(
         function (entries) {
@@ -233,18 +251,24 @@
             if (item) fetchOne(item);
           });
         },
-        { root: null, rootMargin: '600px 0px', threshold: 0.01 }
+        { root: null, rootMargin: '400px 0px', threshold: 0.01 }
       );
       global.__ssaSailorDirectoryIO = io;
       for (var s = topN; s < slots.length; s++) io.observe(slots[s].wrap);
     } else if (slots.length > topN) {
-      loadRange(topN, slots.length, 2);
+      loadRange(topN, slots.length, 1);
     }
     return topLoad;
   }
 
   function clearResults() {
     var box = getResultsEl();
+    if (searchAbort) {
+      try {
+        searchAbort.abort();
+      } catch (_) {}
+      searchAbort = null;
+    }
     global.__sailorDirectoryGen = (global.__sailorDirectoryGen || 0) + 1;
     if (box) {
       box.innerHTML = '';
@@ -252,49 +276,60 @@
     }
   }
 
-  function loadSailorsFromApi(url, q, loadingMsg) {
-    var box = getResultsEl();
-    global.__sailorDirectoryGen = (global.__sailorDirectoryGen || 0) + 1;
-    var myGen = global.__sailorDirectoryGen;
-    if (box) {
-      box.style.display = 'flex';
-      box.innerHTML = '<div class="profile-card" style="cursor:default;">' + (loadingMsg || 'Loading…') + '</div>';
-    }
-    return fetch(url, { credentials: 'same-origin' })
-      .then(function (r) {
-        return r.json();
-      })
-      .then(function (list) {
-        if (myGen !== (global.__sailorDirectoryGen || 0)) return;
-        list = Array.isArray(list) ? list : [];
-        return renderSailorList(list, q);
-      })
-      .catch(function () {
-        if (myGen !== (global.__sailorDirectoryGen || 0)) return;
-        if (box) box.innerHTML = '<div class="profile-card" style="cursor:default;color:#c00;">Could not load sailors. Try again.</div>';
-      });
-  }
-
-  function searchApiUrl(q) {
-    return '/api/search?hub=1&active=1&limit=' + SEARCH_LIMIT + '&q=' + encodeURIComponent(q);
-  }
-
-  function runSearch() {
+  function runSailorSearch() {
     var inp = document.getElementById(SEARCH_ID);
     var q = inp ? (inp.value || '').trim() : '';
+    var box = getResultsEl();
+
     if (!q) {
       clearResults();
       return;
     }
     if (q.length < 2) {
-      var box = getResultsEl();
+      if (searchAbort) {
+        try {
+          searchAbort.abort();
+        } catch (_) {}
+        searchAbort = null;
+      }
       if (box) {
         box.style.display = 'flex';
         box.innerHTML = '<div class="profile-card" style="cursor:default;">Type at least 2 characters to search.</div>';
       }
       return;
     }
-    return loadSailorsFromApi(searchApiUrl(q), q, 'Searching…');
+
+    if (searchAbort) searchAbort.abort();
+    searchAbort = new AbortController();
+    global.__sailorDirectoryGen = (global.__sailorDirectoryGen || 0) + 1;
+    var myGen = global.__sailorDirectoryGen;
+
+    if (box) {
+      box.style.display = 'flex';
+      box.innerHTML = '<div class="profile-card" style="cursor:default;">Searching…</div>';
+    }
+
+    var api = global.API_BASE || '';
+    var url =
+      api +
+      '/api/search?q=' +
+      encodeURIComponent(q) +
+      '&hub=1&active=1&limit=' +
+      SEARCH_LIMIT;
+
+    fetch(url, { credentials: 'same-origin', signal: searchAbort.signal })
+      .then(function (r) {
+        return r.ok ? r.json() : [];
+      })
+      .then(function (list) {
+        if (myGen !== (global.__sailorDirectoryGen || 0)) return;
+        return renderSailorList(Array.isArray(list) ? list : [], q, myGen);
+      })
+      .catch(function (err) {
+        if (err && err.name === 'AbortError') return;
+        if (myGen !== (global.__sailorDirectoryGen || 0)) return;
+        if (box) box.innerHTML = '<div class="profile-card" style="cursor:default;color:#c00;">Search failed. Try again.</div>';
+      });
   }
 
   function initSailorDirectory() {
@@ -302,15 +337,22 @@
     if (!inp) return;
     inp.setAttribute('placeholder', 'Search active sailors…');
     inp.setAttribute('aria-label', 'Search active sailors');
-    var deb = null;
     inp.addEventListener('input', function () {
-      clearTimeout(deb);
-      deb = setTimeout(runSearch, 280);
+      clearTimeout(searchDebounce);
+      var q = (inp.value || '').trim();
+      if (q.length >= 2) {
+        var box = getResultsEl();
+        if (box) {
+          box.style.display = 'flex';
+          box.innerHTML = '<div class="profile-card" style="cursor:default;">Searching…</div>';
+        }
+      }
+      searchDebounce = setTimeout(runSailorSearch, DEBOUNCE_MS);
     });
     clearResults();
   }
 
-  global.__ssaSailorDirectoryRunSearch = runSearch;
+  global.__ssaSailorDirectoryRunSearch = runSailorSearch;
   global.__ssaSailorDirectoryInit = initSailorDirectory;
 
   if (document.readyState === 'loading') {
