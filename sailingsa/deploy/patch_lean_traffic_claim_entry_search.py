@@ -499,25 +499,25 @@ def patch_index(text: str) -> str:
     else:
         print("WARN claimHref count", text.count(old_href))
 
-    # Improve onclick meta - find the onclick string
-    old_click = "window.__trackFunnelEvent('claim_cta_click',this.getAttribute('data-sas-id')||'',true,'',{returnTo:(window.location&&window.location.pathname)?String(window.location.pathname):'/'})"
-    # In HTML source it's escaped with \\'
-    variants = [
-        r"window.__trackFunnelEvent&&window.__trackFunnelEvent(\'claim_cta_click\',this.getAttribute(\'data-sas-id\')||\'\',true,\'\',{returnTo:(window.location&&window.location.pathname)?String(window.location.pathname):\'/\'})",
-        "window.__trackFunnelEvent&&window.__trackFunnelEvent('claim_cta_click',this.getAttribute('data-sas-id')||'',true,'',{returnTo:(window.location&&window.location.pathname)?String(window.location.pathname):'/'})",
-    ]
-    replaced = False
-    for v in variants:
-        if v in text:
-            text = text.replace(
-                v,
-                "window.__trackFunnelEvent&&window.__trackFunnelEvent('claim_cta_click',this.getAttribute('data-sas-id')||'',true,'',{returnTo:(window.location&&window.location.pathname)?String(window.location.pathname):'/',entry:'sailor_claim',name:(this.getAttribute('data-sailor-name')||'')})",
-                1,
-            )
-            replaced = True
-            print("index click meta")
-            break
-    if not replaced:
+    # Improve onclick meta — MUST keep \\' escapes (this string sits inside a single-quoted JS literal).
+    # A prior unescaped replace broke the whole SPA (sailor/regatta search).
+    old_click_esc = (
+        r"window.__trackFunnelEvent&&window.__trackFunnelEvent(\'claim_cta_click\',"
+        r"this.getAttribute(\'data-sas-id\')||\'\',true,\'\',"
+        r"{returnTo:(window.location&&window.location.pathname)?String(window.location.pathname):\'/\'})"
+    )
+    new_click_esc = (
+        r"window.__trackFunnelEvent&&window.__trackFunnelEvent(\'claim_cta_click\',"
+        r"this.getAttribute(\'data-sas-id\')||\'\',true,\'\',"
+        r"{returnTo:(window.location&&window.location.pathname)?String(window.location.pathname):\'/\',"
+        r"entry:\'sailor_claim\',name:(this.getAttribute(\'data-sailor-name\')||\'\')})"
+    )
+    if old_click_esc in text:
+        text = text.replace(old_click_esc, new_click_esc, 1)
+        print("index click meta (escaped)")
+    elif new_click_esc in text:
+        print("index click meta already present")
+    else:
         print("WARN click meta not replaced")
 
     # add data-sailor-name on anchor if we can find it
