@@ -9403,6 +9403,45 @@ async def api_traffic_collect(request: Request):
             return_db_connection(conn)
 
 
+@app.post("/admin/api/traffic/release-human")
+async def admin_traffic_release_human(request: Request):
+    """Release false-positive quarantine: set is_bot=false for visit_ids in site_traffic_events only."""
+    if socket.gethostname() != ADMIN_LIVE_HOSTNAME:
+        raise HTTPException(status_code=403, detail="Admin disabled on local.")
+    role = _get_session_role(request)
+    if not role or role not in ("super_admin", "admin"):
+        raise HTTPException(status_code=403, detail="Admin access required.")
+    if _site_traffic is None:
+        return JSONResponse(content={"ok": False, "error": "traffic module unavailable"}, status_code=503)
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    visit_ids = payload.get("visit_ids") if isinstance(payload, dict) else None
+    if isinstance(visit_ids, str):
+        visit_ids = [visit_ids]
+    if not isinstance(visit_ids, list) or not visit_ids:
+        raise HTTPException(status_code=400, detail="visit_ids required")
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        n = _site_traffic.release_visits_as_human(cur, visit_ids)
+        conn.commit()
+        cur.close()
+        return {"ok": True, "released_rows": n, "visit_ids": visit_ids}
+    except Exception as e:
+        if conn:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        return JSONResponse(content={"ok": False, "error": str(e)}, status_code=500)
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+
 @app.get("/admin/list/registered-users")
 def admin_list_registered_users():
     """Live DB list: name, sas_id, email, whatsapp, date_registered, last_login, login_count, status. No cache.

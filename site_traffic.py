@@ -57,15 +57,21 @@ ALLOWED_EVENT_TYPES = frozenset({
     "exit",
 })
 
+# Known self-declaring bots (GA4/IAB-style). Avoid broad tokens that hit real browsers
+# (e.g. bare "whatsapp", "preview", "java/" false-positive humans).
 _BOT_UA_RE = re.compile(
-    r"(bot|crawl|spider|slurp|bingpreview|facebookexternalhit|linkedinbot|"
-    r"twitterbot|whatsapp|telegrambot|discordbot|preview|headless|phantom|"
-    r"selenium|puppeteer|playwright|httpclient|python-requests|curl/|wget|"
-    r"yandex|baidu|duckduck|semrush|ahrefs|mj12|dotbot|petalbot|bytespider|"
-    r"gptbot|chatgpt|claudebot|anthropic|perplexity|ccbot|amazonbot|"
-    r"applebot|petalbot|dataforseo|serpstat|screaming frog|uptimerobot|"
-    r"pingdom|statuscake|monitoring|scrapy|http.rb|go-http-client|java/|"
-    r"libwww|okhttp|axios/|node-fetch|undici)",
+    r"("
+    r"googlebot|bingbot|yandexbot|baiduspider|duckduckbot|slurp|"
+    r"facebookexternalhit|linkedinbot|twitterbot|discordbot|telegrambot|"
+    r"applebot|amazonbot|petalbot|bytespider|semrushbot|ahrefsbot|dotbot|mj12bot|"
+    r"gptbot|chatgpt-user|claudebot|anthropic-ai|perplexitybot|ccbot|"
+    r"dataforseobot|serpstatbot|screaming frog|"
+    r"uptimerobot|pingdom|statuscake|"
+    r"headlesschrome|phantomjs|selenium|puppeteer|playwright|"
+    r"python-requests|curl/|wget/|scrapy|go-http-client|libwww-perl|"
+    r"okhttp|node-fetch|undici|"
+    r"\bbot\b|\bcrawl\b|\bspider\b"
+    r")",
     re.I,
 )
 
@@ -470,6 +476,33 @@ def admin_traffic_payload(cur, limit: int = 25) -> dict:
         })
 
     total = sum(w["human_visits"] for w in by_window.values())
+
+    # Quarantine review queue (possible false bots): recent is_bot rows for admin release
+    cur.execute(
+        """
+        SELECT DISTINCT ON (visit_id)
+          visit_id, visitor_id, path, source_channel, event_type, created_at, ip_address,
+          left(user_agent, 120) AS user_agent
+        FROM public.site_traffic_events
+        WHERE is_bot = true
+          AND created_at >= NOW() - INTERVAL '7 days'
+        ORDER BY visit_id, created_at DESC
+        LIMIT 50
+        """
+    )
+    quarantine = []
+    for r in cur.fetchall() or []:
+        quarantine.append({
+            "visit_id": r.get("visit_id"),
+            "visitor_id": r.get("visitor_id"),
+            "path": r.get("path") or "/",
+            "source_channel": r.get("source_channel") or "other",
+            "last_event": r.get("event_type"),
+            "last_at": r["created_at"].isoformat() if r.get("created_at") else None,
+            "ip_address": r.get("ip_address") or "",
+            "user_agent": r.get("user_agent") or "",
+        })
+
     return {
         "ok": True,
         "traffic_table": "site_traffic_events",
@@ -479,6 +512,8 @@ def admin_traffic_payload(cur, limit: int = 25) -> dict:
             "like_gsc": "GSC is search clicks/impressions not site sessions; low GSC often = bots/scrapers removed from Search reports.",
             "engaged": "Engaged = scroll, click, or ≥10s visible time (GA4-style engagement proxy).",
             "realtime": "Active = human events in last 5m without exit/inactive.",
+            "old_data": "user_sessions / analytics_events are NOT this table — nothing to bulk-release there. Only site_traffic_events uses is_bot.",
+            "release": "POST /admin/api/traffic/release-human with visit_ids to set is_bot=false if a human was quarantined.",
         },
         "partial_data": total == 0 and realtime.get("active_now", 0) == 0,
         "partial_data_message": (
@@ -490,4 +525,22 @@ def admin_traffic_payload(cur, limit: int = 25) -> dict:
         "realtime": realtime,
         "by_window": by_window,
         "active_visits": active,
+        "quarantine_review": quarantine,
     }
+
+
+def release_visits_as_human(cur, visit_ids: list) -> int:
+    """Mark visit_ids as human (is_bot=false). Returns rows updated."""
+    ids = [str(v).strip() for v in (visit_ids or []) if str(v).strip()]
+    if not ids:
+        return 0
+    cur.execute(
+        """
+        UPDATE public.site_traffic_events
+        SET is_bot = false,
+            metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('released_human', true, 'released_at', NOW()::text)
+        WHERE visit_id = ANY(%s) AND is_bot = true
+        """,
+        (ids,),
+    )
+    return int(cur.rowcount or 0)

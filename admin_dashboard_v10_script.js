@@ -748,6 +748,23 @@
         );
       });
     }
+    var qrev = d.quarantine_review || [];
+    if (qrev.length) {
+      parts.push('<div class="v10-subtle">Quarantine review (may release if human)</div>');
+      qrev.slice(0, 5).forEach(function (a) {
+        parts.push(
+          '<p class="v10-one-line-traffic">' +
+            escapeHtml(String(a.source_channel || '')) +
+            ' · ' +
+            pathLabelHtml(a.path) +
+            ' · ' +
+            escapeHtml(String(a.user_agent || '').slice(0, 40)) +
+            ' <button type="button" class="blank-stat" data-traffic-release="' +
+            escapeHtml(String(a.visit_id || '')) +
+            '">Release human</button></p>'
+        );
+      });
+    }
     if (!Number(rt.active_now || 0) && !visits && !active.length) {
       parts.push('<p class="v10-one-line">No human traffic beacons yet (deploy tracker).</p>');
     }
@@ -767,9 +784,33 @@
         partial_data_message: 'Traffic API failed to load.',
         by_window: {},
         active_visits: [],
+        quarantine_review: [],
       };
     }
     renderTrafficBlock();
+  }
+
+  function wireTrafficReleaseDelegation() {
+    var box = document.getElementById('v10TrafficLines');
+    if (!box || box._trafficReleaseWired) return;
+    box._trafficReleaseWired = true;
+    box.addEventListener('click', async function (ev) {
+      var btn = ev.target && ev.target.closest ? ev.target.closest('[data-traffic-release]') : null;
+      if (!btn) return;
+      ev.preventDefault();
+      var vid = btn.getAttribute('data-traffic-release') || '';
+      if (!vid) return;
+      btn.disabled = true;
+      try {
+        await fetch(window.API_BASE + '/admin/api/traffic/release-human', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ visit_ids: [vid] }),
+        });
+      } catch (e) {}
+      await loadTrafficData();
+    });
   }
 
   function applyDashboardMeta(d) {
@@ -1004,6 +1045,7 @@
 
   wireRestart();
   wireScrapeRunDelegation();
+  wireTrafficReleaseDelegation();
   wireNewsStatsSearchToggle();
   window.setInterval(tickSystemLine, 1000);
 
