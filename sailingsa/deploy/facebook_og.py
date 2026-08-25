@@ -13,7 +13,7 @@ OG_WIDTH = 1200
 OG_HEIGHT = 630
 OG_BRAND_BG = (0, 31, 63)  # legacy navy (sailor ring only)
 OG_CANVAS_WHITE = (255, 255, 255)
-OG_DUAL_BOX_RENDER = "dual_white_v5"  # bump when dual-logo layout changes
+OG_DUAL_BOX_RENDER = "dual_white_v6"  # bump when dual-logo layout changes; also busts FB path cache
 OG_SAILOR_CIRCLE_RENDER = "circle_v1"
 OG_SAILOR_CIRCLE_FRAC = 0.88  # circle vs right half of white box
 OG_SAILOR_DEFAULT_POSITION = (0.5, 0.28)
@@ -41,10 +41,12 @@ def source_fingerprint(path: str) -> str:
 
 
 def build_og_image_url(base_url: str, page_type: str, entity_key: str, fingerprint: str) -> str:
+    """Fingerprint is in the PATH (not ?v=) so Facebook cannot ignore cache-busting."""
     b = (base_url or "").rstrip("/")
     key = quote(str(entity_key or "site").strip("/") or "site", safe="")
     pt = quote(str(page_type or "home").strip(), safe="")
-    return f"{b}/api/og/{pt}/{key}.png?v={fingerprint}"
+    fp = quote(str(fingerprint or "0").strip() or "0", safe="")
+    return f"{b}/api/og/{pt}/{key}/{fp}.png"
 
 
 def render_facebook_head(
@@ -133,7 +135,19 @@ def url_to_local_path(
         return None
     if u.startswith("/artwork/"):
         rel = u.lstrip("/")
-        for root in (base_dir, os.path.dirname(base_dir)):
+        # Prefer web root (STATIC_DIR), never api/artwork shadow copies first.
+        roots: list[str] = []
+        if static_dir:
+            roots.append(os.path.abspath(static_dir))
+        if base_dir:
+            bd = os.path.abspath(base_dir)
+            roots.append(os.path.dirname(bd))
+            roots.append(bd)
+        seen: set[str] = set()
+        for root in roots:
+            if not root or root in seen:
+                continue
+            seen.add(root)
             p = os.path.join(root, rel.replace("/", os.sep))
             if os.path.isfile(p):
                 return p
