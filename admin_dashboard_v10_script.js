@@ -646,29 +646,85 @@
     card.classList.toggle('v10-hidden', lines.length === 0);
   }
 
-  function setPartialBanner() {
+  function setPartialBanner(msg) {
     var el = document.getElementById('trafficPartialLabel');
     if (!el) return;
-    el.classList.add('v10-hidden');
-    el.textContent = '';
+    if (msg) {
+      el.textContent = msg;
+      el.classList.remove('v10-hidden');
+    } else {
+      el.textContent = '';
+      el.classList.add('v10-hidden');
+    }
   }
+
+  var trafficCache = null;
 
   function renderTrafficBlock() {
     var container = document.getElementById('v10TrafficLines');
     if (!container) return;
-    setPartialBanner();
+    var d = trafficCache;
+    if (!d) {
+      setPartialBanner('Loading traffic…');
+      container.innerHTML = '';
+      return;
+    }
+    setPartialBanner(d.partial_data ? (d.partial_data_message || 'Partial traffic data') : '');
     var parts = [];
-    var fromApi = dashboardPayload && dashboardPayload.traffic_top_paths;
-    var livePages = sortCountDesc(
-      fromApi && fromApi.length ? fromApi : aggregateSessionPathsV10()
-    ).slice(0, 5);
-    if (livePages.length) {
-      parts.push('<div class="v10-subtle">Top pages (same data as Live users)</div>');
-      livePages.forEach(function (p) {
+    var w = (d.by_window && d.by_window['24h']) || {};
+    var visits = Number(w.human_visits || 0);
+    var pvs = Number(w.page_view_count || 0);
+    parts.push('<p class="v10-one-line">Last 24h: ' + visits + ' human visits · ' + pvs + ' page views</p>');
+    var sources = w.by_source || [];
+    if (sources.length) {
+      parts.push('<div class="v10-subtle">Source (24h)</div>');
+      sources.slice(0, 6).forEach(function (s) {
+        parts.push('<p class="v10-one-line-traffic">' + escapeHtml(String(s.source || 'other')) + ' (' + Number(s.count || 0) + ')</p>');
+      });
+    }
+    var pages = w.top_pages || [];
+    if (pages.length) {
+      parts.push('<div class="v10-subtle">Top pages (24h · humans)</div>');
+      pages.slice(0, 5).forEach(function (p) {
         parts.push('<p class="v10-one-line-traffic">' + pathLabelHtml(p.path) + ' (' + Number(p.count || 0) + ')</p>');
       });
     }
+    var active = d.active_visits || [];
+    if (active.length) {
+      parts.push('<div class="v10-subtle">Active now (≤5m · not exited)</div>');
+      active.slice(0, 8).forEach(function (a) {
+        parts.push(
+          '<p class="v10-one-line-traffic">' +
+            escapeHtml(String(a.source_channel || '')) +
+            ' · ' +
+            pathLabelHtml(a.path) +
+            (a.ip_address ? ' · ' + escapeHtml(String(a.ip_address)) : '') +
+            '</p>'
+        );
+      });
+    }
+    if (!sources.length && !pages.length && !active.length && !visits) {
+      parts.push('<p class="v10-one-line">No human traffic in site_traffic_events yet.</p>');
+    }
     container.innerHTML = parts.join('');
+  }
+
+  async function loadTrafficData() {
+    try {
+      var r = await fetch(window.API_BASE + '/admin/api/analytics-traffic?limit=25&t=' + Date.now(), {
+        credentials: 'include',
+        cache: 'no-store',
+      });
+      trafficCache = await r.json();
+    } catch (e) {
+      trafficCache = {
+        partial_data: true,
+        partial_data_message: 'Traffic API failed to load.',
+        by_window: {},
+        active_visits: [],
+      };
+    }
+    renderTrafficBlock();
   }
 
   function applyDashboardMeta(d) {
@@ -704,7 +760,7 @@
   function renderAllDynamic() {
     renderLiveUsers();
     renderBehaviourSnapshot();
-    renderTrafficBlock();
+    loadTrafficData();
     loadScrapes();
     loadNews();
   }
@@ -915,7 +971,8 @@
   ]).then(function () {
     renderLiveUsers();
     renderBehaviourSnapshot();
-    renderTrafficBlock();
+    return loadTrafficData();
+  }).then(function () {
     return loadScrapes();
   }).then(function () {
     return loadNews();
