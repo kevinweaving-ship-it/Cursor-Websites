@@ -13,3 +13,6 @@
 - Direct + Google + Facebook + Other = Visitors (same real-visitor set)
 - Signed-in + guests = Visitors
 - Claim: ok + fail + open = attempts (distinct people; accounts lift ok when funnel gaps)
+
+## Super-admin excluded from /traffic
+Kevin/Tim/agent (role=super_admin) IPs and sessions are omitted from Visitors, hits, sources, Live, and Real visitors. Public traffic only.
