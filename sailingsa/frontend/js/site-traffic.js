@@ -121,6 +121,13 @@
     ev.utm_campaign = utmCampaign || undefined;
     ev.page_visible_ms = visibleAccum();
     ev.duration_ms = Date.now() - pageEntered;
+    ev.metadata = {
+      webdriver: !!(navigator.webdriver),
+      headless: !!(navigator.webdriver),
+      lang: (navigator.language || '').slice(0, 16) || undefined,
+      sw: typeof screen !== 'undefined' ? screen.width : undefined,
+      sh: typeof screen !== 'undefined' ? screen.height : undefined,
+    };
     queue.push(ev);
     if (!flushTimer) flushTimer = setTimeout(flush, 400);
   }

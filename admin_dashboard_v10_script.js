@@ -671,10 +671,55 @@
     }
     setPartialBanner(d.partial_data ? (d.partial_data_message || 'Partial traffic data') : '');
     var parts = [];
+    var rt = d.realtime || {};
+    parts.push(
+      '<p class="v10-one-line"><strong>Realtime</strong> · active now ' +
+        Number(rt.active_now || 0) +
+        ' · 1m ' +
+        Number(rt.humans_1m || 0) +
+        ' · 5m ' +
+        Number(rt.humans_5m || 0) +
+        ' · 15m ' +
+        Number(rt.humans_15m || 0) +
+        ' humans</p>'
+    );
+    parts.push(
+      '<p class="v10-one-line">Engaged 15m: ' +
+        Number(rt.engaged_15m || 0) +
+        ' · Quarantined bots 15m: ' +
+        Number(rt.quarantined_bots_15m || 0) +
+        ' (excluded from human counts)</p>'
+    );
+    var src15 = rt.by_source_15m || [];
+    if (src15.length) {
+      parts.push('<div class="v10-subtle">Source (15m · humans)</div>');
+      src15.slice(0, 6).forEach(function (s) {
+        parts.push('<p class="v10-one-line-traffic">' + escapeHtml(String(s.source || 'other')) + ' (' + Number(s.count || 0) + ')</p>');
+      });
+    }
+    var pages15 = rt.top_pages_15m || [];
+    if (pages15.length) {
+      parts.push('<div class="v10-subtle">Top pages (15m · humans)</div>');
+      pages15.slice(0, 5).forEach(function (p) {
+        parts.push('<p class="v10-one-line-traffic">' + pathLabelHtml(p.path) + ' (' + Number(p.count || 0) + ')</p>');
+      });
+    }
     var w = (d.by_window && d.by_window['24h']) || {};
     var visits = Number(w.human_visits || 0);
+    var engaged = Number(w.engaged_visits || 0);
+    var qbot = Number(w.quarantined_bot_visits || 0);
     var pvs = Number(w.page_view_count || 0);
-    parts.push('<p class="v10-one-line">Last 24h: ' + visits + ' human visits · ' + pvs + ' page views</p>');
+    parts.push(
+      '<p class="v10-one-line">Last 24h: ' +
+        visits +
+        ' human visits · ' +
+        engaged +
+        ' engaged · ' +
+        pvs +
+        ' page views · ' +
+        qbot +
+        ' bots quarantined</p>'
+    );
     var sources = w.by_source || [];
     if (sources.length) {
       parts.push('<div class="v10-subtle">Source (24h)</div>');
@@ -691,7 +736,7 @@
     }
     var active = d.active_visits || [];
     if (active.length) {
-      parts.push('<div class="v10-subtle">Active now (≤5m · not exited)</div>');
+      parts.push('<div class="v10-subtle">On site now (≤5m · not idle/exited)</div>');
       active.slice(0, 8).forEach(function (a) {
         parts.push(
           '<p class="v10-one-line-traffic">' +
@@ -703,8 +748,8 @@
         );
       });
     }
-    if (!sources.length && !pages.length && !active.length && !visits) {
-      parts.push('<p class="v10-one-line">No human traffic in site_traffic_events yet.</p>');
+    if (!Number(rt.active_now || 0) && !visits && !active.length) {
+      parts.push('<p class="v10-one-line">No human traffic beacons yet (deploy tracker).</p>');
     }
     container.innerHTML = parts.join('');
   }
@@ -981,4 +1026,8 @@
   window.setInterval(function () {
     refreshAll();
   }, REFRESH_MS);
+  // Traffic card: faster realtime poll (5s) — humans + quarantine only
+  window.setInterval(function () {
+    loadTrafficData();
+  }, 5000);
 })();

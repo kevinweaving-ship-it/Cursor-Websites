@@ -60,8 +60,12 @@ ALLOWED_EVENT_TYPES = frozenset({
 _BOT_UA_RE = re.compile(
     r"(bot|crawl|spider|slurp|bingpreview|facebookexternalhit|linkedinbot|"
     r"twitterbot|whatsapp|telegrambot|discordbot|preview|headless|phantom|"
-    r"selenium|puppeteer|httpclient|python-requests|curl/|wget|yandex|"
-    r"baidu|duckduck|semrush|ahrefs|mj12|dotbot|petalbot|bytespider)",
+    r"selenium|puppeteer|playwright|httpclient|python-requests|curl/|wget|"
+    r"yandex|baidu|duckduck|semrush|ahrefs|mj12|dotbot|petalbot|bytespider|"
+    r"gptbot|chatgpt|claudebot|anthropic|perplexity|ccbot|amazonbot|"
+    r"applebot|petalbot|dataforseo|serpstat|screaming frog|uptimerobot|"
+    r"pingdom|statuscake|monitoring|scrapy|http.rb|go-http-client|java/|"
+    r"libwww|okhttp|axios/|node-fetch|undici)",
     re.I,
 )
 
@@ -82,6 +86,20 @@ def is_bot_user_agent(ua: Optional[str]) -> bool:
     if not ua or not str(ua).strip():
         return True
     return bool(_BOT_UA_RE.search(str(ua)))
+
+
+def event_marks_bot(raw: dict, ua: str) -> bool:
+    """Known-bot UA (GA4/IAB-style) plus client automation signals."""
+    if is_bot_user_agent(ua):
+        return True
+    if not isinstance(raw, dict):
+        return False
+    meta = raw.get("metadata") if isinstance(raw.get("metadata"), dict) else {}
+    if meta.get("webdriver") is True or raw.get("webdriver") is True:
+        return True
+    if meta.get("automation") is True or meta.get("headless") is True:
+        return True
+    return False
 
 
 def _host(url_or_host: Optional[str]) -> str:
@@ -183,6 +201,7 @@ def normalize_event(raw: dict, *, ip: str, ua: str, is_bot: bool, site_host: str
     except (TypeError, ValueError):
         page_visible_ms = None
     meta = raw.get("metadata") if isinstance(raw.get("metadata"), dict) else {}
+    bot = bool(is_bot) or event_marks_bot(raw, ua)
     return {
         "visitor_id": visitor_id,
         "visit_id": visit_id,
@@ -199,7 +218,7 @@ def normalize_event(raw: dict, *, ip: str, ua: str, is_bot: bool, site_host: str
         "click_selector": _clip(raw.get("click_selector"), 200),
         "duration_ms": duration_ms,
         "page_visible_ms": page_visible_ms,
-        "is_bot": bool(is_bot),
+        "is_bot": bot,
         "ip_address": _clip(ip, 80),
         "user_agent": _clip(ua, 500),
         "metadata": meta,
@@ -246,6 +265,34 @@ def _window_stats(cur, interval_literal: str, limit: int) -> dict:
     )
     visits = int((cur.fetchone() or {}).get("visits") or 0)
 
+    # Engaged humans (GA4-like): scroll, click, or visible ≥10s on any event in visit
+    cur.execute(
+        """
+        SELECT COUNT(DISTINCT visit_id)::int AS n
+        FROM public.site_traffic_events
+        WHERE is_bot = false
+          AND created_at >= NOW() - INTERVAL %s
+          AND (
+            event_type IN ('scroll', 'click')
+            OR COALESCE(page_visible_ms, 0) >= 10000
+            OR COALESCE(scroll_pct, 0) >= 25
+          )
+        """,
+        (interval_literal,),
+    )
+    engaged = int((cur.fetchone() or {}).get("n") or 0)
+
+    cur.execute(
+        """
+        SELECT COUNT(DISTINCT visit_id)::int AS n
+        FROM public.site_traffic_events
+        WHERE is_bot = true AND event_type = 'visit_start'
+          AND created_at >= NOW() - INTERVAL %s
+        """,
+        (interval_literal,),
+    )
+    quarantined = int((cur.fetchone() or {}).get("n") or 0)
+
     cur.execute(
         """
         SELECT COALESCE(source_channel, 'other') AS source_channel, COUNT(DISTINCT visit_id)::int AS n
@@ -286,10 +333,104 @@ def _window_stats(cur, interval_literal: str, limit: int) -> dict:
 
     return {
         "human_visits": visits,
+        "engaged_visits": engaged,
+        "quarantined_bot_visits": quarantined,
         "page_view_count": page_views,
         "by_source": by_source,
         "top_pages": top_pages,
     }
+
+
+def _realtime_block(cur) -> dict:
+    """Realtime human view + quarantine (Google excludes bots from main reports; we show both)."""
+    out = {
+        "active_now": 0,
+        "humans_1m": 0,
+        "humans_5m": 0,
+        "humans_15m": 0,
+        "engaged_15m": 0,
+        "quarantined_bots_15m": 0,
+        "by_source_15m": [],
+        "top_pages_15m": [],
+    }
+    for key, iv in (("humans_1m", "1 minute"), ("humans_5m", "5 minutes"), ("humans_15m", "15 minutes")):
+        cur.execute(
+            """
+            SELECT COUNT(DISTINCT visit_id)::int AS n
+            FROM public.site_traffic_events
+            WHERE is_bot = false AND event_type IN ('visit_start', 'page_view', 'heartbeat', 'scroll', 'click')
+              AND created_at >= NOW() - INTERVAL %s
+            """,
+            (iv,),
+        )
+        out[key] = int((cur.fetchone() or {}).get("n") or 0)
+
+    cur.execute(
+        """
+        SELECT COUNT(DISTINCT visit_id)::int AS n
+        FROM public.site_traffic_events
+        WHERE is_bot = false
+          AND created_at >= NOW() - INTERVAL '15 minutes'
+          AND (
+            event_type IN ('scroll', 'click')
+            OR COALESCE(page_visible_ms, 0) >= 10000
+            OR COALESCE(scroll_pct, 0) >= 25
+          )
+        """
+    )
+    out["engaged_15m"] = int((cur.fetchone() or {}).get("n") or 0)
+
+    cur.execute(
+        """
+        SELECT COUNT(DISTINCT visit_id)::int AS n
+        FROM public.site_traffic_events
+        WHERE is_bot = true
+          AND created_at >= NOW() - INTERVAL '15 minutes'
+        """
+    )
+    out["quarantined_bots_15m"] = int((cur.fetchone() or {}).get("n") or 0)
+
+    cur.execute(
+        """
+        SELECT COALESCE(source_channel, 'other') AS source_channel, COUNT(DISTINCT visit_id)::int AS n
+        FROM public.site_traffic_events
+        WHERE is_bot = false AND event_type = 'visit_start'
+          AND created_at >= NOW() - INTERVAL '15 minutes'
+        GROUP BY 1
+        ORDER BY n DESC
+        """
+    )
+    out["by_source_15m"] = [{"source": r["source_channel"], "count": int(r["n"])} for r in (cur.fetchall() or [])]
+
+    cur.execute(
+        """
+        SELECT COALESCE(NULLIF(TRIM(path), ''), '/') AS path, COUNT(*)::int AS n
+        FROM public.site_traffic_events
+        WHERE is_bot = false AND event_type = 'page_view'
+          AND created_at >= NOW() - INTERVAL '15 minutes'
+        GROUP BY 1
+        ORDER BY n DESC
+        LIMIT 8
+        """
+    )
+    out["top_pages_15m"] = [{"path": r["path"], "count": int(r["n"])} for r in (cur.fetchall() or [])]
+
+    cur.execute(
+        """
+        WITH recent AS (
+          SELECT DISTINCT ON (visit_id)
+            visit_id, event_type, created_at
+          FROM public.site_traffic_events
+          WHERE is_bot = false
+            AND created_at >= NOW() - INTERVAL '5 minutes'
+          ORDER BY visit_id, created_at DESC
+        )
+        SELECT COUNT(*)::int AS n FROM recent
+        WHERE event_type NOT IN ('exit', 'inactive')
+        """
+    )
+    out["active_now"] = int((cur.fetchone() or {}).get("n") or 0)
+    return out
 
 
 def admin_traffic_payload(cur, limit: int = 25) -> dict:
@@ -297,7 +438,9 @@ def admin_traffic_payload(cur, limit: int = 25) -> dict:
     for key, iv in (("24h", "1 day"), ("7d", "7 days"), ("30d", "30 days")):
         by_window[key] = _window_stats(cur, iv, limit)
 
-    # Active human visits: heartbeat/page_view in last 5 minutes, not exited after last activity
+    realtime = _realtime_block(cur)
+
+    # Active human visits: last event in 5 minutes, not exited/inactive
     cur.execute(
         """
         WITH recent AS (
@@ -309,7 +452,7 @@ def admin_traffic_payload(cur, limit: int = 25) -> dict:
           ORDER BY visit_id, created_at DESC
         )
         SELECT * FROM recent
-        WHERE event_type NOT IN ('exit')
+        WHERE event_type NOT IN ('exit', 'inactive')
         ORDER BY created_at DESC
         LIMIT 25
         """
@@ -331,13 +474,20 @@ def admin_traffic_payload(cur, limit: int = 25) -> dict:
         "ok": True,
         "traffic_table": "site_traffic_events",
         "analytics_table_exists": True,
-        "partial_data": total == 0,
+        "method": {
+            "like_ga4": "Known-bot UA quarantine (IAB-style list + automation signals); bots excluded from human counts.",
+            "like_gsc": "GSC is search clicks/impressions not site sessions; low GSC often = bots/scrapers removed from Search reports.",
+            "engaged": "Engaged = scroll, click, or ≥10s visible time (GA4-style engagement proxy).",
+            "realtime": "Active = human events in last 5m without exit/inactive.",
+        },
+        "partial_data": total == 0 and realtime.get("active_now", 0) == 0,
         "partial_data_message": (
-            "No human visits recorded yet — waiting for site-traffic.js beacons."
-            if total == 0
-            else "Human traffic only (bots filtered). Source = Direct / Google / Social / Referral."
+            "No human beacons yet — deploy site-traffic.js + nginx inject, then refresh."
+            if total == 0 and realtime.get("active_now", 0) == 0
+            else "Human traffic (quarantined bots shown separately). Not login sessions."
         ),
         "limit_applied": limit,
+        "realtime": realtime,
         "by_window": by_window,
         "active_visits": active,
     }
