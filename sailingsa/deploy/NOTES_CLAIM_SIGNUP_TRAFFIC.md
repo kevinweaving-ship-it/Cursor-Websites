@@ -84,6 +84,12 @@ Patches: `patch_claim_status_opened_not_submitted.py`, `patch_claim_had_form_ope
 
 Patch: `patch_login_signup_separate_urls.py`
 
+## Claim popup mobile cards (live 2026-08-25)
+
+Claim / sign-up detail popup (`/traffic` → Claim card) uses **one card per attempt** instead of a wide table — mobile portrait friendly, vertical scroll.
+
+Patch: `patch_claim_popup_mp_cards.py`
+
 ## INCIDENT 2026-08-25 — site search broken
 
 `patch_lean_traffic_claim_entry_search.py` wrote an **unescaped** `onclick` string into `index.html` `claimCtaHtml`, which terminated a JS string and broke sailor + regatta search on the main SPA.
