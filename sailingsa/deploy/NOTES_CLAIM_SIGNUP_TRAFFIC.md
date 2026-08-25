@@ -55,3 +55,10 @@ Fixes on live:
 - Register no longer requires WhatsApp
 
 Patches: `patch_claim_signup_easy.py`, `patch_claim_signup_easy_html.py`
+
+
+## INCIDENT 2026-08-25 — site search broken
+
+`patch_lean_traffic_claim_entry_search.py` wrote an **unescaped** `onclick` string into `index.html` `claimCtaHtml`, which terminated a JS string and broke sailor + regatta search on the main SPA.
+
+**Fix:** restore escaped `\'claim_cta_click\'` quotes in `/var/www/sailingsa/index.html`. Also coerce `hub=Query()` when `/api/search` is called from Python (`/api/people/search`).
