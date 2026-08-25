@@ -503,6 +503,9 @@ def admin_traffic_payload(cur, limit: int = 25) -> dict:
             "user_agent": r.get("user_agent") or "",
         })
 
+    # Recent human visit journeys (full path chain) — what the table has that aggregates hide
+    recent_journeys = _recent_human_journeys(cur, limit=5)
+
     return {
         "ok": True,
         "traffic_table": "site_traffic_events",
@@ -526,7 +529,79 @@ def admin_traffic_payload(cur, limit: int = 25) -> dict:
         "by_window": by_window,
         "active_visits": active,
         "quarantine_review": quarantine,
+        "recent_journeys": recent_journeys,
     }
+
+
+def _recent_human_journeys(cur, limit: int = 5) -> list:
+    """Last N human visits with ordered page_view/click steps (matches table, not just top-pages)."""
+    cur.execute(
+        """
+        SELECT visit_id, MAX(created_at) AS last_at
+        FROM public.site_traffic_events
+        WHERE is_bot = false
+          AND created_at >= NOW() - INTERVAL '2 hours'
+        GROUP BY visit_id
+        ORDER BY last_at DESC
+        LIMIT %s
+        """,
+        (limit,),
+    )
+    visits = [r["visit_id"] for r in (cur.fetchall() or []) if r.get("visit_id")]
+    out = []
+    for vid in visits:
+        cur.execute(
+            """
+            SELECT event_type, path, click_text, click_href, source_channel, created_at,
+                   page_visible_ms, scroll_pct, left(ip_address, 40) AS ip_address
+            FROM public.site_traffic_events
+            WHERE visit_id = %s AND is_bot = false
+            ORDER BY id
+            """,
+            (vid,),
+        )
+        rows = cur.fetchall() or []
+        steps = []
+        pages = []
+        source = "direct"
+        for r in rows:
+            et = r.get("event_type")
+            path = r.get("path") or "/"
+            source = r.get("source_channel") or source
+            if et == "page_view":
+                pages.append(path)
+                steps.append({"t": "page", "path": path, "at": r["created_at"].isoformat() if r.get("created_at") else None})
+            elif et == "click":
+                steps.append({
+                    "t": "click",
+                    "path": path,
+                    "click": (r.get("click_text") or "")[:80],
+                    "href": (r.get("click_href") or "")[:200],
+                    "at": r["created_at"].isoformat() if r.get("created_at") else None,
+                })
+            elif et in ("scroll",) and r.get("scroll_pct") in (25, 50, 75, 100):
+                # keep milestones light — only 100% to avoid noise in UI
+                if int(r.get("scroll_pct") or 0) == 100:
+                    steps.append({"t": "scroll", "path": path, "scroll_pct": 100})
+            elif et in ("exit", "inactive"):
+                steps.append({"t": et, "path": path, "at": r["created_at"].isoformat() if r.get("created_at") else None})
+        # unique page order
+        page_trail = []
+        for p in pages:
+            if not page_trail or page_trail[-1] != p:
+                page_trail.append(p)
+        out.append({
+            "visit_id": vid,
+            "source_channel": source,
+            "event_count": len(rows),
+            "page_count": len(page_trail),
+            "page_trail": page_trail[:30],
+            "steps": steps[:80],
+            "ip_address": (rows[-1].get("ip_address") if rows else "") or "",
+            "first_at": rows[0]["created_at"].isoformat() if rows and rows[0].get("created_at") else None,
+            "last_at": rows[-1]["created_at"].isoformat() if rows and rows[-1].get("created_at") else None,
+        })
+    return out
 
 
 def release_visits_as_human(cur, visit_ids: list) -> int:

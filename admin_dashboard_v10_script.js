@@ -765,6 +765,35 @@
         );
       });
     }
+    var journeys = d.recent_journeys || [];
+    if (journeys.length) {
+      parts.push('<div class="v10-subtle">Recent sessions (full path from table)</div>');
+      journeys.slice(0, 3).forEach(function (j) {
+        var trail = (j.page_trail || []).slice(0, 12).map(function (p) {
+          return pathLabelHtml(p);
+        }).join(' → ');
+        parts.push(
+          '<p class="v10-one-line-traffic">' +
+            escapeHtml(String(j.source_channel || '')) +
+            ' · ' +
+            Number(j.event_count || 0) +
+            ' events · ' +
+            Number(j.page_count || 0) +
+            ' pages</p>'
+        );
+        if (trail) {
+          parts.push('<p class="v10-one-line-traffic">' + trail + '</p>');
+        }
+        var clicks = (j.steps || []).filter(function (s) { return s.t === 'click' && s.click; }).slice(0, 6);
+        if (clicks.length) {
+          parts.push(
+            '<p class="v10-one-line-traffic">Clicks: ' +
+              clicks.map(function (c) { return escapeHtml(String(c.click)); }).join(' · ') +
+              '</p>'
+          );
+        }
+      });
+    }
     if (!Number(rt.active_now || 0) && !visits && !active.length) {
       parts.push('<p class="v10-one-line">No human traffic beacons yet (deploy tracker).</p>');
     }
