@@ -18,4 +18,12 @@
 Kevin/Tim/agent (role=super_admin) IPs and sessions are omitted from Visitors, hits, sources, Live, and Real visitors. Public traffic only.
 
 ## Claim card popup
-Claim/sign-up KPI is clickable → modal with date/time, path, outcome, failure reason via GET /traffic/api/claim-attempts.
+Claim/sign-up KPI is clickable → modal via `GET /traffic/api/claim-attempts`.
+
+Shows in plain English:
+- **Sailor they tried to claim** (name + link)
+- **What happened** (tapped Claim / opened page / submitted / failed / account created)
+- **Why** (human reason, not raw SQL)
+- **On /users?** — successful accounts must appear on https://sailingsa.co.za/users (`user_accounts`)
+
+`/users` = Registered Users from `user_accounts` (not the traffic Visitors card).
