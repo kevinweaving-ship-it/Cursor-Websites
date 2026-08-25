@@ -41,3 +41,17 @@ Beacons (signup.html + sailor Claim CTA): `claim_page_loaded` always (with `entr
 - Claim **card number** is driven from the same `/traffic/api/claim-attempts` digest as the popup (same range).
 
 Historical: Alex Schon / Andrew Scott can log in because accounts exist from Feb 2026 — they will not appear as “new members” in a last-30-days filter.
+
+
+## Sign-up made easier (live 2026-08-25)
+
+Why ~94 “left”: multi-step form + **required WhatsApp/DOB** + sailor Claim path **skipped Google splash**.
+
+Fixes on live:
+- WhatsApp + DOB **optional** (email path)
+- **Continue with Google — easiest** on Confirm Profile + registration form
+- Plain-English API/client errors (no raw SQL)
+- Google complete signup records `claim_completed` funnel
+- Register no longer requires WhatsApp
+
+Patches: `patch_claim_signup_easy.py`, `patch_claim_signup_easy_html.py`
