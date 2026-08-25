@@ -76,6 +76,13 @@ Zack van der Walt (27617): 22:19 was open-only (false “Submitted”); **22:26*
 
 Patches: `patch_claim_status_opened_not_submitted.py`, `patch_claim_had_form_open_init.py`
 
+## Separate sign-up vs sign-in URLs (live 2026-08-25)
+
+- **`/login.html`** — sign-in only: Google/Facebook use `flow=login`; “New here? **Sign up**” → `/signup.html`; any old register/claim query (`signup`, `register`, `sas_id`) redirects to signup.
+- **`/signup.html`** — sign-up/claim only: Google/Facebook use `flow=signup`; “Already registered? **Sign in**” on splash + find-profile step; already-claimed sailor card → sign-in with `returnTo` preserved.
+- Repo root `signup.html` is the full claim page (not a redirect to login).
+
+Patch: `patch_login_signup_separate_urls.py`
 
 ## INCIDENT 2026-08-25 — site search broken
 
