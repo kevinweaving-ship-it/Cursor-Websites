@@ -20,10 +20,13 @@ Kevin/Tim/agent (role=super_admin) IPs and sessions are omitted from Visitors, h
 ## Claim card popup
 Claim/sign-up KPI is clickable → modal via `GET /traffic/api/claim-attempts`.
 
-Shows in plain English:
-- **Sailor they tried to claim** (name + link)
-- **What happened** (tapped Claim / opened page / submitted / failed / account created)
-- **Why** (human reason, not raw SQL)
-- **On /users?** — successful accounts must appear on https://sailingsa.co.za/users (`user_accounts`)
+Shows **one row per attempt** (not every micro-step):
+- **How they started** — Claim on sailor profile vs Sign-up banner vs direct
+- **Sailor** they tried to claim (+ link)
+- **Searched for** — text they typed when finding a sailor from banner/signup
+- **Got as far as** / **Result** / **Why** (plain English)
+- **On /users?** — successful accounts must appear on https://sailingsa.co.za/users
+
+Beacons (signup.html + sailor Claim CTA): `claim_page_loaded` always (with `entry`), `sailor_search`, `sailor_selected`, plus existing submit/fail/success steps. Meta carries `sailor_name`, `search_query`, `entry`.
 
 `/users` = Registered Users from `user_accounts` (not the traffic Visitors card).
