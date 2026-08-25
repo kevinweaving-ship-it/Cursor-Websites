@@ -90,6 +90,17 @@ Claim / sign-up detail popup (`/traffic` → Claim card) uses **one card per att
 
 Patch: `patch_claim_popup_mp_cards.py`
 
+## Live graph vs Live now list sync (live 2026-08-25)
+
+Graph/card could show 1+ live while “Live now — who / where” was empty (different counts).
+
+Fixes:
+- Graph right edge + **Live now** card use `/traffic/api/live` `human_live` (same as the list)
+- Poll no longer overwrites card from series `live_now`
+- Recover engaged IPs from page hits when `public_sessions` row is missing
+
+Patch: `patch_live_graph_list_sync.py`
+
 ## INCIDENT 2026-08-25 — site search broken
 
 `patch_lean_traffic_claim_entry_search.py` wrote an **unescaped** `onclick` string into `index.html` `claimCtaHtml`, which terminated a JS string and broke sailor + regatta search on the main SPA.
