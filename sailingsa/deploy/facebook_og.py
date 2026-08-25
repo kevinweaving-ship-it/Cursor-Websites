@@ -13,7 +13,7 @@ OG_WIDTH = 1200
 OG_HEIGHT = 630
 OG_BRAND_BG = (0, 31, 63)  # legacy navy (sailor ring only)
 OG_CANVAS_WHITE = (255, 255, 255)
-OG_DUAL_BOX_RENDER = "dual_white_v2"  # bump when dual-logo layout changes
+OG_DUAL_BOX_RENDER = "dual_white_v3"  # bump when dual-logo layout changes
 OG_SAILOR_CIRCLE_RENDER = "circle_v1"
 OG_SAILOR_CIRCLE_FRAC = 0.88  # circle vs right half of white box
 OG_SAILOR_DEFAULT_POSITION = (0.5, 0.28)
@@ -23,12 +23,13 @@ OG_BOX_DIVIDER = (226, 232, 240)
 OG_LOGO_TARGET_FRAC = 0.92  # both halves: logos fill this fraction of inner height
 OG_TRIM_ALPHA = 12  # trim transparent padding before sizing
 
+OG_BRAND_ASSET = "assets/logos/sailingsa-logo-on-white.png"
+OG_ENTITY_FALLBACK_ASSET = "assets/logos/sailingsa-logo-on-white.png"
+
 _BRAND_CANDIDATES = (
-    "favicon-192.png",
-    "favicon-48.png",
-    "favicon-32.png",
+    OG_BRAND_ASSET,
     "assets/logos/sailingsa-logo.png",
-    "assets/logos/sailingsa-logo-on-white.png",
+    "favicon-192.png",
 )
 
 
