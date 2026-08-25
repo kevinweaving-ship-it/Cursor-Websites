@@ -13,13 +13,15 @@ OG_WIDTH = 1200
 OG_HEIGHT = 630
 OG_BRAND_BG = (0, 31, 63)  # legacy navy (sailor ring only)
 OG_CANVAS_WHITE = (255, 255, 255)
-OG_DUAL_BOX_RENDER = "dual_white_v1"  # bump when dual-logo layout changes
+OG_DUAL_BOX_RENDER = "dual_white_v2"  # bump when dual-logo layout changes
 OG_SAILOR_CIRCLE_RENDER = "circle_v1"
 OG_SAILOR_CIRCLE_FRAC = 0.88  # circle vs right half of white box
 OG_SAILOR_DEFAULT_POSITION = (0.5, 0.28)
 OG_BOX_PAD = 40
 OG_BOX_GAP = 36
 OG_BOX_DIVIDER = (226, 232, 240)
+OG_LOGO_TARGET_FRAC = 0.92  # both halves: logos fill this fraction of inner height
+OG_TRIM_ALPHA = 12  # trim transparent padding before sizing
 
 _BRAND_CANDIDATES = (
     "favicon-192.png",
@@ -186,8 +188,24 @@ def og_cache_fingerprint(
         px, py = object_position or OG_SAILOR_DEFAULT_POSITION
         raw = f"{base}:{OG_DUAL_BOX_RENDER}:{OG_SAILOR_CIRCLE_RENDER}:{px:.4f}:{py:.4f}"
     else:
-        raw = f"{base}:{OG_DUAL_BOX_RENDER}:contain"
+        raw = f"{base}:{OG_DUAL_BOX_RENDER}:contain:{OG_LOGO_TARGET_FRAC:.2f}"
     return hashlib.sha256(raw.encode()).hexdigest()[:16]
+
+
+def _trim_logo(img: "Image.Image") -> "Image.Image":
+    """Remove transparent (or empty) margins so small marks scale up consistently."""
+    from PIL import Image, ImageChops
+
+    img = img.convert("RGBA")
+    alpha = img.split()[3]
+    bbox = alpha.point(lambda p: 255 if p > OG_TRIM_ALPHA else 0).getbbox()
+    if bbox:
+        return img.crop(bbox)
+    flat = ImageChops.invert(ImageChops.difference(img, Image.new("RGBA", img.size, (255, 255, 255, 255))))
+    bbox2 = flat.getbbox()
+    if bbox2:
+        return img.crop(bbox2)
+    return img
 
 
 def _fit_contain(
@@ -277,18 +295,27 @@ def render_og_dual_white_box_png(
     brand = Image.open(brand_path).convert("RGBA")
     entity = Image.open(entity_source_path).convert("RGBA")
 
-    b_img, bx, by = _fit_contain(brand, half_w, inner_h, allow_upscale=True)
+    target_h = max(1, int(inner_h * OG_LOGO_TARGET_FRAC))
+    target_w = half_w
+
+    b_img, bx, by = _fit_contain(brand, target_w, target_h, allow_upscale=True)
     canvas.paste(b_img, (left_x + bx, top_y + by), b_img)
 
+    # Match entity visual weight to rendered brand size (sailor circle uses same height).
+    match_h = max(b_img.height, target_h)
+    match_w = target_w
+
     if right_mode == "circle":
-        diam = max(1, int(min(half_w, inner_h) * OG_SAILOR_CIRCLE_FRAC))
-        square = _cover_crop_square(entity, diam, object_position[0], object_position[1])
+        diam = max(1, int(min(match_w, match_h) * OG_SAILOR_CIRCLE_FRAC))
+        entity_body = _trim_logo(entity)
+        square = _cover_crop_square(entity_body, diam, object_position[0], object_position[1])
         circle = _circle_mask_image(square, diam)
         rx = right_x + (half_w - diam) // 2
         ry = top_y + (inner_h - diam) // 2
         canvas.paste(circle, (rx, ry), circle)
     else:
-        e_img, ex, ey = _fit_contain(entity, half_w, inner_h, allow_upscale=False)
+        entity_body = _trim_logo(entity)
+        e_img, ex, ey = _fit_contain(entity_body, match_w, match_h, allow_upscale=True)
         canvas.paste(e_img, (right_x + ex, top_y + ey), e_img)
 
     out = io.BytesIO()
