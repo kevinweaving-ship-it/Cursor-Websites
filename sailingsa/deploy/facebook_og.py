@@ -13,7 +13,7 @@ OG_WIDTH = 1200
 OG_HEIGHT = 630
 OG_BRAND_BG = (0, 31, 63)  # legacy navy (sailor ring only)
 OG_CANVAS_WHITE = (255, 255, 255)
-OG_DUAL_BOX_RENDER = "dual_white_v3"  # bump when dual-logo layout changes
+OG_DUAL_BOX_RENDER = "dual_white_v5"  # bump when dual-logo layout changes
 OG_SAILOR_CIRCLE_RENDER = "circle_v1"
 OG_SAILOR_CIRCLE_FRAC = 0.88  # circle vs right half of white box
 OG_SAILOR_DEFAULT_POSITION = (0.5, 0.28)
@@ -23,13 +23,14 @@ OG_BOX_DIVIDER = (226, 232, 240)
 OG_LOGO_TARGET_FRAC = 0.92  # both halves: logos fill this fraction of inner height
 OG_TRIM_ALPHA = 12  # trim transparent padding before sizing
 
-OG_BRAND_ASSET = "assets/logos/sailingsa-logo-on-white.png"
-OG_ENTITY_FALLBACK_ASSET = "assets/logos/sailingsa-logo-on-white.png"
+# Brand on white OG cards: full SAILING SA wordmark (Live SSOT).
+# favicon / mark-on-color = dark header ONLY — never use on white OG canvas.
+OG_BRAND_ASSET = "assets/logos/Live/logo-wordmark-on-white.png"
+OG_ENTITY_FALLBACK_ASSET = "assets/logos/Live/logo-wordmark-on-white.png"
 
 _BRAND_CANDIDATES = (
     OG_BRAND_ASSET,
-    "assets/logos/sailingsa-logo.png",
-    "favicon-192.png",
+    "assets/logos/sailingsa-logo.png",  # mark-on-white fallback only
 )
 
 
@@ -71,8 +72,14 @@ def render_facebook_head(
         img = html_module.escape(og_image_url)
         out += (
             f'<meta property="og:image" content="{img}">'
+            f'<meta property="og:image:secure_url" content="{img}">'
+            f'<meta property="og:image:type" content="image/png">'
             f'<meta property="og:image:width" content="{OG_WIDTH}">'
             f'<meta property="og:image:height" content="{OG_HEIGHT}">'
+            f'<meta name="twitter:card" content="summary_large_image">'
+            f'<meta name="twitter:title" content="{t}">'
+            f'<meta name="twitter:description" content="{d}">'
+            f'<meta name="twitter:image" content="{img}">'
         )
     return out
 
@@ -302,8 +309,8 @@ def render_og_dual_white_box_png(
     b_img, bx, by = _fit_contain(brand, target_w, target_h, allow_upscale=True)
     canvas.paste(b_img, (left_x + bx, top_y + by), b_img)
 
-    # Match entity visual weight to rendered brand size (sailor circle uses same height).
-    match_h = max(b_img.height, target_h)
+    # Match entity visual weight to rendered brand height (not full box height).
+    match_h = max(1, b_img.height)
     match_w = target_w
 
     if right_mode == "circle":
