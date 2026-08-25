@@ -56,6 +56,26 @@ Fixes on live:
 
 Patches: `patch_claim_signup_easy.py`, `patch_claim_signup_easy_html.py`
 
+## Easy form flow (live 2026-08-25 evening)
+
+`signup.html` registration form:
+- Green ✓ ticks per field (optional blank = “skip”)
+- Tab / Enter moves to the next field (no mid-form jump-submit)
+- Device autofill: `autocomplete` name / email / tel / new-password / bday
+- Password: only **7+ chars + match** required (extra strength tips are optional)
+- Submit always tappable → lists what’s wrong and focuses the first bad field
+- WhatsApp / DOB / photo / skipper remain optional
+
+Patches: `patch_signup_form_flow_ux.py`, `patch_signup_form_flow_wire.py`, `patch_signup_form_flow_cleanup.py`
+
+## Traffic label fix — opened ≠ submitted
+
+`registration_started` no longer sets `had_submit`. Popup shows **Opened form, didn't finish** until a real `submission_attempted`.
+
+Zack van der Walt (27617): 22:19 was open-only (false “Submitted”); **22:26** `account_created` / `claim_completed` — member created.
+
+Patches: `patch_claim_status_opened_not_submitted.py`, `patch_claim_had_form_open_init.py`
+
 
 ## INCIDENT 2026-08-25 — site search broken
 
