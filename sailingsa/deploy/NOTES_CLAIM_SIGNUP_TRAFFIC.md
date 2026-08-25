@@ -16,3 +16,6 @@
 
 ## Super-admin excluded from /traffic
 Kevin/Tim/agent (role=super_admin) IPs and sessions are omitted from Visitors, hits, sources, Live, and Real visitors. Public traffic only.
+
+## Claim card popup
+Claim/sign-up KPI is clickable → modal with date/time, path, outcome, failure reason via GET /traffic/api/claim-attempts.
