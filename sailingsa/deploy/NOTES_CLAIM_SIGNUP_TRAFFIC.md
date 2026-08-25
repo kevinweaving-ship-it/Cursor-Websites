@@ -30,3 +30,14 @@ Shows **one row per attempt** (not every micro-step):
 Beacons (signup.html + sailor Claim CTA): `claim_page_loaded` always (with `entry`), `sailor_search`, `sailor_selected`, plus existing submit/fail/success steps. Meta carries `sailor_name`, `search_query`, `entry`.
 
 `/users` = Registered Users from `user_accounts` (not the traffic Visitors card).
+
+## Popup layman model (live)
+
+- **Blocked** = submitted / form error (real problem). Example: Waydon Goliath — old register SQL bug (fixed).
+- **Left** = opened claim, never submitted (not a bug). Example: John Lindemann.
+- **Became a member** = funnel success **or** `user_accounts.created_at` in the selected range (catches Google sign-ups like Robyn Patrick).
+- **Who tried** = email/name if they typed one; else “Didn’t leave email” (no visitor hex).
+- **Already on /users?** = that sailor profile already has a member (they should Sign in).
+- Claim **card number** is driven from the same `/traffic/api/claim-attempts` digest as the popup (same range).
+
+Historical: Alex Schon / Andrew Scott can log in because accounts exist from Feb 2026 — they will not appear as “new members” in a last-30-days filter.
