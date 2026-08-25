@@ -11,10 +11,23 @@ from urllib.parse import quote
 
 OG_WIDTH = 1200
 OG_HEIGHT = 630
-OG_BRAND_BG = (0, 31, 63)  # #001f3f
-OG_SAILOR_CIRCLE_RENDER = "circle_v1"  # bump when sailor OG crop changes
-OG_SAILOR_CIRCLE_FRAC = 0.55  # circle diameter vs min(canvas w,h)
-OG_SAILOR_DEFAULT_POSITION = (0.5, 0.28)  # matches DEV1_AVATAR_CROP default
+OG_BRAND_BG = (0, 31, 63)  # legacy navy (sailor ring only)
+OG_CANVAS_WHITE = (255, 255, 255)
+OG_DUAL_BOX_RENDER = "dual_white_v1"  # bump when dual-logo layout changes
+OG_SAILOR_CIRCLE_RENDER = "circle_v1"
+OG_SAILOR_CIRCLE_FRAC = 0.88  # circle vs right half of white box
+OG_SAILOR_DEFAULT_POSITION = (0.5, 0.28)
+OG_BOX_PAD = 40
+OG_BOX_GAP = 36
+OG_BOX_DIVIDER = (226, 232, 240)
+
+_BRAND_CANDIDATES = (
+    "favicon-192.png",
+    "favicon-48.png",
+    "favicon-32.png",
+    "assets/logos/sailingsa-logo.png",
+    "assets/logos/sailingsa-logo-on-white.png",
+)
 
 
 def source_fingerprint(path: str) -> str:
@@ -129,6 +142,39 @@ def url_to_local_path(
     return None
 
 
+def _web_root_from_source(source_path: str) -> Optional[str]:
+    p = os.path.abspath(source_path)
+    d = os.path.dirname(p)
+    for _ in range(8):
+        for rel in _BRAND_CANDIDATES:
+            if os.path.isfile(os.path.join(d, rel)):
+                return d
+        parent = os.path.dirname(d)
+        if parent == d:
+            break
+        d = parent
+    return None
+
+
+def resolve_brand_favicon_path(source_path: str, static_dir: Optional[str] = None) -> Optional[str]:
+    roots: list[str] = []
+    if static_dir:
+        roots.append(os.path.abspath(static_dir))
+    root = _web_root_from_source(source_path)
+    if root:
+        roots.append(root)
+    seen: set[str] = set()
+    for base in roots:
+        if base in seen:
+            continue
+        seen.add(base)
+        for rel in _BRAND_CANDIDATES:
+            p = os.path.join(base, rel.replace("/", os.sep))
+            if os.path.isfile(p):
+                return p
+    return None
+
+
 def og_cache_fingerprint(
     source_path: str,
     page_type: str,
@@ -138,9 +184,29 @@ def og_cache_fingerprint(
     pt = (page_type or "").strip().lower()
     if pt == "sailor":
         px, py = object_position or OG_SAILOR_DEFAULT_POSITION
-        raw = f"{base}:{OG_SAILOR_CIRCLE_RENDER}:{px:.4f}:{py:.4f}"
-        return hashlib.sha256(raw.encode()).hexdigest()[:16]
-    return base
+        raw = f"{base}:{OG_DUAL_BOX_RENDER}:{OG_SAILOR_CIRCLE_RENDER}:{px:.4f}:{py:.4f}"
+    else:
+        raw = f"{base}:{OG_DUAL_BOX_RENDER}:contain"
+    return hashlib.sha256(raw.encode()).hexdigest()[:16]
+
+
+def _fit_contain(
+    img: "Image.Image",
+    box_w: int,
+    box_h: int,
+    *,
+    allow_upscale: bool = True,
+) -> tuple["Image.Image", int, int]:
+    from PIL import Image
+
+    sw, sh = img.size
+    scale = min(box_w / max(sw, 1), box_h / max(sh, 1))
+    if not allow_upscale:
+        scale = min(scale, 1.0)
+    nw = max(1, int(round(sw * scale)))
+    nh = max(1, int(round(sh * scale)))
+    resized = img.resize((nw, nh), Image.Resampling.LANCZOS)
+    return resized, (box_w - nw) // 2, (box_h - nh) // 2
 
 
 def _cover_crop_square(
@@ -177,60 +243,81 @@ def _circle_mask_image(img: "Image.Image", size: int) -> "Image.Image":
     return out
 
 
+def render_og_dual_white_box_png(
+    entity_source_path: str,
+    brand_source_path: Optional[str] = None,
+    *,
+    right_mode: str = "contain",
+    object_position: tuple[float, float] = OG_SAILOR_DEFAULT_POSITION,
+) -> bytes:
+    """White 1200x630 OG card: SailingSA favicon/logo left, entity logo right (same box)."""
+    from PIL import Image, ImageDraw
+
+    brand_path = brand_source_path or resolve_brand_favicon_path(entity_source_path)
+    if not brand_path or not os.path.isfile(brand_path):
+        raise FileNotFoundError("SailingSA brand favicon/logo not found for OG card")
+
+    canvas = Image.new("RGB", (OG_WIDTH, OG_HEIGHT), OG_CANVAS_WHITE)
+    draw = ImageDraw.Draw(canvas)
+
+    inner_w = OG_WIDTH - (2 * OG_BOX_PAD)
+    inner_h = OG_HEIGHT - (2 * OG_BOX_PAD)
+    half_w = max(1, (inner_w - OG_BOX_GAP) // 2)
+    left_x = OG_BOX_PAD
+    right_x = OG_BOX_PAD + half_w + OG_BOX_GAP
+    top_y = OG_BOX_PAD
+
+    divider_x = OG_BOX_PAD + half_w + (OG_BOX_GAP // 2)
+    draw.line(
+        [(divider_x, top_y + 24), (divider_x, top_y + inner_h - 24)],
+        fill=OG_BOX_DIVIDER,
+        width=2,
+    )
+
+    brand = Image.open(brand_path).convert("RGBA")
+    entity = Image.open(entity_source_path).convert("RGBA")
+
+    b_img, bx, by = _fit_contain(brand, half_w, inner_h, allow_upscale=True)
+    canvas.paste(b_img, (left_x + bx, top_y + by), b_img)
+
+    if right_mode == "circle":
+        diam = max(1, int(min(half_w, inner_h) * OG_SAILOR_CIRCLE_FRAC))
+        square = _cover_crop_square(entity, diam, object_position[0], object_position[1])
+        circle = _circle_mask_image(square, diam)
+        rx = right_x + (half_w - diam) // 2
+        ry = top_y + (inner_h - diam) // 2
+        canvas.paste(circle, (rx, ry), circle)
+    else:
+        e_img, ex, ey = _fit_contain(entity, half_w, inner_h, allow_upscale=False)
+        canvas.paste(e_img, (right_x + ex, top_y + ey), e_img)
+
+    out = io.BytesIO()
+    canvas.save(out, format="PNG", optimize=True)
+    return out.getvalue()
+
+
 def render_og_sailor_avatar_png(
     source_path: str,
     object_position: tuple[float, float] = OG_SAILOR_DEFAULT_POSITION,
+    brand_source_path: Optional[str] = None,
 ) -> bytes:
-    """1200x630 card with centred circular avatar (same crop idiom as /sailor/ page)."""
-    from PIL import Image, ImageDraw
-
-    src = Image.open(source_path).convert("RGBA")
-    canvas = Image.new("RGB", (OG_WIDTH, OG_HEIGHT), OG_BRAND_BG)
-    diam = max(1, int(min(OG_WIDTH, OG_HEIGHT) * OG_SAILOR_CIRCLE_FRAC))
-    square = _cover_crop_square(src, diam, object_position[0], object_position[1])
-    circle = _circle_mask_image(square, diam)
-    x = (OG_WIDTH - diam) // 2
-    y = (OG_HEIGHT - diam) // 2
-    draw = ImageDraw.Draw(canvas)
-    ring = max(3, diam // 90)
-    draw.ellipse(
-        (x - ring, y - ring, x + diam + ring, y + diam + ring),
-        outline=(255, 255, 255),
-        width=ring,
+    return render_og_dual_white_box_png(
+        source_path,
+        brand_source_path,
+        right_mode="circle",
+        object_position=object_position,
     )
-    canvas.paste(circle, (x, y), circle)
-    out = io.BytesIO()
-    canvas.save(out, format="PNG", optimize=True)
-    return out.getvalue()
 
 
-def render_og_card_png(source_path: str, title: Optional[str] = None) -> bytes:
-    from PIL import Image, ImageDraw, ImageFont
-
-    src = Image.open(source_path).convert("RGBA")
-    canvas = Image.new("RGB", (OG_WIDTH, OG_HEIGHT), OG_BRAND_BG)
-    sw, sh = src.size
-    max_w = int(OG_WIDTH * 0.72)
-    max_h = int(OG_HEIGHT * 0.62)
-    scale = min(max_w / max(sw, 1), max_h / max(sh, 1), 1.0)
-    nw, nh = max(1, int(sw * scale)), max(1, int(sh * scale))
-    logo = src.resize((nw, nh), Image.Resampling.LANCZOS)
-    x = (OG_WIDTH - nw) // 2
-    y = (OG_HEIGHT - nh) // 2
-    if title:
-        y = int(OG_HEIGHT * 0.12)
-    canvas.paste(logo, (x, y + (0 if not title else 40)), logo)
-    if title:
-        draw = ImageDraw.Draw(canvas)
-        try:
-            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 42)
-        except Exception:
-            font = ImageFont.load_default()
-        tw = draw.textlength(title, font=font)
-        draw.text(((OG_WIDTH - tw) / 2, 28), title[:80], fill=(255, 255, 255), font=font)
-    out = io.BytesIO()
-    canvas.save(out, format="PNG", optimize=True)
-    return out.getvalue()
+def render_og_logo_png(
+    source_path: str,
+    brand_source_path: Optional[str] = None,
+) -> bytes:
+    return render_og_dual_white_box_png(
+        source_path,
+        brand_source_path,
+        right_mode="contain",
+    )
 
 
 def cache_og_png(
@@ -240,17 +327,19 @@ def cache_og_png(
     source_path: str,
     title: Optional[str] = None,
     object_position: Optional[tuple[float, float]] = None,
+    static_dir: Optional[str] = None,
 ) -> str:
     os.makedirs(cache_dir, exist_ok=True)
     fp = og_cache_fingerprint(source_path, page_type, object_position)
     safe_key = re.sub(r"[^\w\-]+", "_", str(entity_key or "site"))[:120]
     out_path = os.path.join(cache_dir, f"{page_type}_{safe_key}_{fp}.png")
     if not os.path.isfile(out_path):
+        brand = resolve_brand_favicon_path(source_path, static_dir)
         if (page_type or "").strip().lower() == "sailor":
             pos = object_position or OG_SAILOR_DEFAULT_POSITION
-            data = render_og_sailor_avatar_png(source_path, pos)
+            data = render_og_sailor_avatar_png(source_path, pos, brand)
         else:
-            data = render_og_card_png(source_path, title=title)
+            data = render_og_logo_png(source_path, brand)
         with open(out_path, "wb") as f:
             f.write(data)
     return out_path
