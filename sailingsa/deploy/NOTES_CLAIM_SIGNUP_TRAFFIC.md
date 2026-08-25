@@ -8,3 +8,8 @@
 - Restored `POST /api/funnel-event` → `traffic_funnel_events`
 - Fixed register-account session vals to include `"email"` login_method
 - `/traffic` KPI **Claim / sign-up** + panel: attempts, succeeded/failed, failure reasons, step counts, accounts created
+
+## KPI maths identities (enforced live)
+- Direct + Google + Facebook + Other = Visitors (same real-visitor set)
+- Signed-in + guests = Visitors
+- Claim: ok + fail + open = attempts (distinct people; accounts lift ok when funnel gaps)
