@@ -226,17 +226,17 @@
     <div class="option">
       <h2>Live weather — Windy Point Forecast</h2>
       <p>
-        Cape Town / Table Mountain (−33.96, 18.40) via
-        <a href="https://api.windy.com/point-forecast/docs" target="_blank" rel="noopener noreferrer" style="color:#9ec5ff;">Point Forecast API</a>.
-        Paste a Point Forecast API key (stored only in this browser).
+        Table Bay race area (−33.8604, 18.3623) via
+        <a href="https://api.windy.com/point-forecast/docs" target="_blank" rel="noopener noreferrer" style="color:#9ec5ff;">Point Forecast API</a>
+        (Lipton Cup testing key — wind-focused).
       </p>
 
       <div class="wx-setup">
-        <input id="windy-key" type="password" autocomplete="off" placeholder="Windy Point Forecast API key" />
-        <button type="button" id="windy-save">Save &amp; load</button>
+        <input id="windy-key" type="password" autocomplete="off" placeholder="Override API key (optional)" />
+        <button type="button" id="windy-save">Save override</button>
         <button type="button" id="windy-refresh">Refresh</button>
       </div>
-      <p class="wx-status" id="wx-status">Waiting for API key…</p>
+      <p class="wx-status" id="wx-status">Loading weather…</p>
       <div class="wx-grid" id="wx-grid" hidden></div>
       <p class="wx-meta" id="wx-meta"></p>
     </div>
@@ -307,9 +307,12 @@
   syncLabels();
   applyLook();
 
-  var LAT = -33.96;
-  var LON = 18.40;
+  // Table Bay water pin (between Robben Island and V&A / harbour).
+  var LAT = -33.8603685;
+  var LON = 18.3622621;
   var KEY_STORAGE = 'cptCamWindyPointForecastKey';
+  // Windy Point Forecast testing key — Lipton Cup 5-day event (issued 26/08/2026).
+  var DEFAULT_KEY = 'Uc21juMteKWjwQLVVQBwlDIt5wwzuIRf';
   var endpoint = 'https://api.windy.com/api/point-forecast/v2';
 
   var keyInput = document.getElementById('windy-key');
@@ -328,7 +331,11 @@
       try { localStorage.setItem(KEY_STORAGE, fromUrl); } catch (e) {}
       return fromUrl;
     }
-    try { return localStorage.getItem(KEY_STORAGE) || ''; } catch (e) { return ''; }
+    try {
+      var stored = localStorage.getItem(KEY_STORAGE);
+      if (stored) return stored;
+    } catch (e) {}
+    return DEFAULT_KEY;
   }
 
   function saveKey(key) {
@@ -450,9 +457,9 @@
       var clouds = weather['lclouds-surface'] && weather['lclouds-surface'][i];
 
       var html = '';
-      html += card('Temp', fmt(tempC, 1), '°C');
       html += card('Wind', fmt(windKt, 1) + (wind.dir != null ? ' ' + dirLabel(wind.dir) : ''), 'kt');
       html += card('Gust', fmt(gustKt, 1), 'kt');
+      html += card('Temp', fmt(tempC, 1), '°C');
       html += card('Humidity', fmt(rh, 0), '%');
       html += card('Pressure', fmt(pressure, 0), 'hPa');
       html += card('Precip 3h', fmt(precip, 1), 'mm');
@@ -496,10 +503,10 @@
   document.getElementById('windy-refresh').addEventListener('click', loadWeather);
 
   var existing = getKey();
-  if (existing) {
+  if (existing && existing !== DEFAULT_KEY) {
     keyInput.value = existing;
-    loadWeather();
   }
+  loadWeather();
 })();
   </script>
 </body>
