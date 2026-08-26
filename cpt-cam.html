@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>CPT Cam — Table Mountain | SailingSA</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --text: #e8eef8;
+      --muted: #9aa8bd;
+      --line: rgba(255, 255, 255, 0.12);
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", system-ui, sans-serif;
+    }
+    .bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, #121a2b, #0b1220);
+    }
+    .bar h1 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    .bar p {
+      margin: 2px 0 0;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+    .bar a {
+      color: var(--text);
+      font-size: 0.85rem;
+    }
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+    .wrap h2 {
+      margin: 0 0 10px;
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+    .block { margin-bottom: 28px; }
+    video { display: block; max-width: 100%; background: #000; }
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <div>
+      <h1>CPT Cam — Table Mountain Panomax</h1>
+      <p>Experiment page · /cpt-cam only</p>
+    </div>
+    <a href="https://tablemountain.panomax.com" target="_blank" rel="noopener noreferrer">Open source</a>
+  </div>
+
+  <div class="wrap">
+    <div class="block">
+      <h2>Interactive panorama</h2>
+      <iframe src="https://tablemountain.panomax.com" style="width: 100%; height: 650px; border: none;" allowfullscreen></iframe>
+    </div>
+
+    <div class="block">
+      <h2>Video stream (full HD)</h2>
+      <video controls autoplay loop playsinline style="max-width: 100%;">
+        <source src="https://video.panomax.com/cams/5058/videos/5058_fullHD.mp4" />
+        <!-- use this for a video of 1280 x 720 <source src="https://video.panomax.com/cams/5058/videos/5058_HDready.mp4" /> -->
+        <!-- use this for a video of 480 x 270 <source src="https://video.panomax.com/cams/5058/videos/5058_mobile.mp4" /> -->
+      </video>
+    </div>
+  </div>
+</body>
+</html>
