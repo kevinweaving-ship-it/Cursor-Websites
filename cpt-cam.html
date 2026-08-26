@@ -11,6 +11,7 @@
       --text: #e8eef8;
       --muted: #9aa8bd;
       --line: rgba(255, 255, 255, 0.12);
+      --card: #121a2b;
     }
     * { box-sizing: border-box; }
     html, body {
@@ -41,10 +42,7 @@
       padding-bottom: 28px;
       border-bottom: 1px solid var(--line);
     }
-    .option:last-child {
-      border-bottom: 0;
-      margin-bottom: 0;
-    }
+    .option:last-child { border-bottom: 0; margin-bottom: 0; }
     .option h2 {
       margin: 0 0 6px;
       font-size: 1.05rem;
@@ -56,13 +54,75 @@
       color: var(--muted);
     }
     video { display: block; max-width: 100%; background: #000; }
+
+    .wx-setup {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .wx-setup input {
+      flex: 1 1 220px;
+      min-width: 180px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #0a101c;
+      color: var(--text);
+    }
+    .wx-setup button {
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #1a2740;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .wx-status {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin: 0 0 12px;
+      min-height: 1.2em;
+    }
+    .wx-status.error { color: #ff8f8f; }
+    .wx-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+    }
+    .wx-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .wx-card .label {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .wx-card .value {
+      font-size: 1.15rem;
+      font-weight: 600;
+    }
+    .wx-card .unit {
+      font-size: 0.8rem;
+      font-weight: 400;
+      color: var(--muted);
+    }
+    .wx-meta {
+      margin-top: 12px;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
   </style>
 </head>
 <body>
   <div class="bar">
     <div>
-      <h1>CPT Cam — compare two embeds</h1>
-      <p>Same camera · stacked A/B · /cpt-cam only</p>
+      <h1>CPT Cam — compare two embeds + weather</h1>
+      <p>Table Mountain · /cpt-cam only</p>
     </div>
     <a href="https://tablemountain.panomax.com" target="_blank" rel="noopener noreferrer">Open source</a>
   </div>
@@ -83,6 +143,222 @@
         <!-- use this for a video of 480 x 270 <source src="https://video.panomax.com/cams/5058/videos/5058_mobile.mp4" /> -->
       </video>
     </div>
+
+    <div class="option">
+      <h2>Live weather — Windy Point Forecast</h2>
+      <p>
+        Cape Town / Table Mountain (−33.96, 18.40) via
+        <a href="https://api.windy.com/point-forecast/docs" target="_blank" rel="noopener noreferrer" style="color:#9ec5ff;">Point Forecast API</a>.
+        Paste a Point Forecast API key (stored only in this browser).
+      </p>
+
+      <div class="wx-setup">
+        <input id="windy-key" type="password" autocomplete="off" placeholder="Windy Point Forecast API key" />
+        <button type="button" id="windy-save">Save &amp; load</button>
+        <button type="button" id="windy-refresh">Refresh</button>
+      </div>
+      <p class="wx-status" id="wx-status">Waiting for API key…</p>
+      <div class="wx-grid" id="wx-grid" hidden></div>
+      <p class="wx-meta" id="wx-meta"></p>
+    </div>
   </div>
+
+  <script>
+(function () {
+  var LAT = -33.96;
+  var LON = 18.40;
+  var KEY_STORAGE = 'cptCamWindyPointForecastKey';
+  var endpoint = 'https://api.windy.com/api/point-forecast/v2';
+
+  var keyInput = document.getElementById('windy-key');
+  var statusEl = document.getElementById('wx-status');
+  var gridEl = document.getElementById('wx-grid');
+  var metaEl = document.getElementById('wx-meta');
+
+  function setStatus(msg, isError) {
+    statusEl.textContent = msg;
+    statusEl.className = 'wx-status' + (isError ? ' error' : '');
+  }
+
+  function getKey() {
+    var fromUrl = new URLSearchParams(window.location.search).get('windy_key');
+    if (fromUrl) {
+      try { localStorage.setItem(KEY_STORAGE, fromUrl); } catch (e) {}
+      return fromUrl;
+    }
+    try { return localStorage.getItem(KEY_STORAGE) || ''; } catch (e) { return ''; }
+  }
+
+  function saveKey(key) {
+    try { localStorage.setItem(KEY_STORAGE, key); } catch (e) {}
+  }
+
+  function card(label, value, unit) {
+    return (
+      '<div class="wx-card">' +
+        '<div class="label">' + label + '</div>' +
+        '<div class="value">' + value +
+          (unit ? ' <span class="unit">' + unit + '</span>' : '') +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function nearestIndex(ts) {
+    var now = Date.now();
+    var best = 0;
+    var bestDiff = Infinity;
+    for (var i = 0; i < ts.length; i++) {
+      var d = Math.abs(ts[i] - now);
+      if (d < bestDiff) { bestDiff = d; best = i; }
+    }
+    return best;
+  }
+
+  function windFromUV(u, v) {
+    var speed = Math.sqrt(u * u + v * v);
+    var dir = (Math.atan2(-u, -v) * 180 / Math.PI + 360) % 360;
+    return { speed: speed, dir: dir };
+  }
+
+  function dirLabel(deg) {
+    var dirs = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+    return dirs[Math.round(deg / 22.5) % 16];
+  }
+
+  function fmt(n, digits) {
+    if (n == null || Number.isNaN(n)) return '—';
+    return Number(n).toFixed(digits);
+  }
+
+  function kToC(k) {
+    if (k == null) return null;
+    return k - 273.15;
+  }
+
+  function msToKnots(ms) {
+    if (ms == null) return null;
+    return ms * 1.94384;
+  }
+
+  function paToHpa(pa) {
+    if (pa == null) return null;
+    return pa / 100;
+  }
+
+  async function postForecast(body) {
+    var res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) {
+      var text = await res.text();
+      throw new Error(res.status + ' ' + text);
+    }
+    return res.json();
+  }
+
+  async function loadWeather() {
+    var key = (keyInput.value || getKey() || '').trim();
+    if (!key) {
+      gridEl.hidden = true;
+      metaEl.textContent = '';
+      setStatus('Add a Windy Point Forecast API key, then Save & load.', true);
+      return;
+    }
+
+    setStatus('Loading Windy forecast…');
+    gridEl.hidden = true;
+
+    try {
+      var weather = await postForecast({
+        lat: LAT,
+        lon: LON,
+        model: 'gfs',
+        parameters: ['temp', 'wind', 'windGust', 'rh', 'pressure', 'precip', 'lclouds'],
+        levels: ['surface'],
+        key: key
+      });
+
+      var waves = null;
+      try {
+        waves = await postForecast({
+          lat: LAT,
+          lon: LON,
+          model: 'gfsWave',
+          parameters: ['waves'],
+          levels: ['surface'],
+          key: key
+        });
+      } catch (waveErr) {
+        console.warn('Wave model unavailable', waveErr);
+      }
+
+      var i = nearestIndex(weather.ts || []);
+      var u = weather['wind_u-surface'] && weather['wind_u-surface'][i];
+      var v = weather['wind_v-surface'] && weather['wind_v-surface'][i];
+      var wind = (u != null && v != null) ? windFromUV(u, v) : { speed: null, dir: null };
+      var tempC = kToC(weather['temp-surface'] && weather['temp-surface'][i]);
+      var gustKt = msToKnots(weather['gust-surface'] && weather['gust-surface'][i]);
+      var windKt = msToKnots(wind.speed);
+      var rh = weather['rh-surface'] && weather['rh-surface'][i];
+      var pressure = paToHpa(weather['pressure-surface'] && weather['pressure-surface'][i]);
+      var precip = weather['past3hprecip-surface'] && weather['past3hprecip-surface'][i];
+      var clouds = weather['lclouds-surface'] && weather['lclouds-surface'][i];
+
+      var html = '';
+      html += card('Temp', fmt(tempC, 1), '°C');
+      html += card('Wind', fmt(windKt, 1) + (wind.dir != null ? ' ' + dirLabel(wind.dir) : ''), 'kt');
+      html += card('Gust', fmt(gustKt, 1), 'kt');
+      html += card('Humidity', fmt(rh, 0), '%');
+      html += card('Pressure', fmt(pressure, 0), 'hPa');
+      html += card('Precip 3h', fmt(precip, 1), 'mm');
+      html += card('Low cloud', fmt(clouds, 0), '%');
+
+      if (waves && waves.ts && waves.ts.length) {
+        var wi = nearestIndex(waves.ts);
+        var wh = waves['waves_height-surface'] && waves['waves_height-surface'][wi];
+        var wp = waves['waves_period-surface'] && waves['waves_period-surface'][wi];
+        var wd = waves['waves_direction-surface'] && waves['waves_direction-surface'][wi];
+        html += card('Waves', fmt(wh, 1), 'm');
+        html += card('Period', fmt(wp, 1), 's');
+        html += card('Wave dir', wd != null ? dirLabel(wd) + ' (' + Math.round(wd) + '°)' : '—', '');
+      }
+
+      gridEl.innerHTML = html;
+      gridEl.hidden = false;
+      var when = weather.ts && weather.ts[i] ? new Date(weather.ts[i]) : null;
+      metaEl.textContent =
+        'Model: GFS' + (waves ? ' + gfsWave' : '') +
+        ' · Point: ' + LAT + ', ' + LON +
+        (when ? ' · Valid: ' + when.toLocaleString() : '') +
+        ' · Source: api.windy.com';
+      setStatus('Live weather loaded.');
+    } catch (err) {
+      gridEl.hidden = true;
+      metaEl.textContent = '';
+      setStatus('Weather failed: ' + (err && err.message ? err.message : String(err)), true);
+    }
+  }
+
+  document.getElementById('windy-save').addEventListener('click', function () {
+    var key = keyInput.value.trim();
+    if (!key) {
+      setStatus('Enter an API key first.', true);
+      return;
+    }
+    saveKey(key);
+    loadWeather();
+  });
+  document.getElementById('windy-refresh').addEventListener('click', loadWeather);
+
+  var existing = getKey();
+  if (existing) {
+    keyInput.value = existing;
+    loadWeather();
+  }
+})();
+  </script>
 </body>
 </html>
