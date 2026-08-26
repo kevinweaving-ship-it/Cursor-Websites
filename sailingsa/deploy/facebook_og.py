@@ -107,10 +107,18 @@ def strip_facebook_meta(html: str) -> str:
 
 
 def inject_facebook_head(html: str, head_fragment: str) -> str:
+    """Insert OG tags immediately after <head> so crawlers see them before large CSS/JS."""
     html = strip_facebook_meta(html)
+    frag = (head_fragment or "").strip()
+    if not frag:
+        return html
+    m = re.search(r"<head[^>]*>", html, flags=re.I)
+    if m:
+        i = m.end()
+        return html[:i] + "\n" + frag + "\n" + html[i:]
     if "</head>" in html.lower():
-        return re.sub(r"</head>", head_fragment + "\n</head>", html, count=1, flags=re.I)
-    return head_fragment + html
+        return re.sub(r"</head>", frag + "\n</head>", html, count=1, flags=re.I)
+    return frag + html
 
 
 def url_to_local_path(
