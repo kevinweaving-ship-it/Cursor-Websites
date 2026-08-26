@@ -116,6 +116,46 @@
       font-size: 0.75rem;
       color: var(--muted);
     }
+    .view-controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+      margin: 0 0 12px;
+      padding: 12px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+    .view-controls label {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .view-controls input[type="range"] { width: 100%; }
+    .view-controls .val {
+      font-size: 0.8rem;
+      color: var(--text);
+    }
+    .view-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: end;
+    }
+    .view-actions button {
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #1a2740;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .view-note {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin: 0 0 12px;
+    }
   </style>
 </head>
 <body>
@@ -130,8 +170,47 @@
   <div class="wrap">
     <div class="option">
       <h2>Option 1 — Interactive panorama (iframe)</h2>
-      <p>Full Panomax player: pan / zoom / archive UI inside the frame.</p>
-      <iframe src="https://tablemountain.panomax.com" style="width: 100%; height: 650px; border: none;" allowfullscreen></iframe>
+      <p>
+        Start aimed at a sailing look via Panomax URL params
+        (<code>r</code> rotation, <code>z</code> zoom, <code>tl</code> tilt).
+        Public embed can set the initial view — it cannot hard-lock the pan sector.
+      </p>
+      <p class="view-note">
+        Tune below until harbour / Table Bay sailing is framed, then use “Apply look”.
+        Users can still drag outside that area inside the Panomax player.
+      </p>
+
+      <div class="view-controls">
+        <div>
+          <label for="pano-r">Rotation (r)</label>
+          <input id="pano-r" type="range" min="0" max="359" step="1" value="90">
+          <div class="val"><span id="pano-r-val">90</span>°</div>
+        </div>
+        <div>
+          <label for="pano-z">Zoom (z)</label>
+          <input id="pano-z" type="range" min="0" max="100" step="1" value="35">
+          <div class="val"><span id="pano-z-val">35</span>%</div>
+        </div>
+        <div>
+          <label for="pano-tl">Tilt (tl)</label>
+          <input id="pano-tl" type="range" min="-40" max="40" step="1" value="-8">
+          <div class="val"><span id="pano-tl-val">-8</span>°</div>
+        </div>
+        <div class="view-actions">
+          <button type="button" id="pano-apply">Apply look</button>
+          <button type="button" id="pano-bay">Preset: Table Bay</button>
+          <button type="button" id="pano-reset">Reset wide</button>
+        </div>
+      </div>
+
+      <iframe
+        id="pano-frame"
+        title="Table Mountain Panomax"
+        src="https://tablemountain.panomax.com/?r=90&z=35&tl=-8&hidetopbar=1"
+        style="width: 100%; height: 650px; border: none;"
+        allowfullscreen
+      ></iframe>
+      <p class="view-note" id="pano-url-note"></p>
     </div>
 
     <div class="option">
@@ -165,6 +244,69 @@
 
   <script>
 (function () {
+  // Option 1: initial look only (Panomax public URL params). No hard view lock.
+  var frame = document.getElementById('pano-frame');
+  var rEl = document.getElementById('pano-r');
+  var zEl = document.getElementById('pano-z');
+  var tlEl = document.getElementById('pano-tl');
+  var rVal = document.getElementById('pano-r-val');
+  var zVal = document.getElementById('pano-z-val');
+  var tlVal = document.getElementById('pano-tl-val');
+  var urlNote = document.getElementById('pano-url-note');
+
+  function syncLabels() {
+    rVal.textContent = rEl.value;
+    zVal.textContent = zEl.value;
+    tlVal.textContent = tlEl.value;
+  }
+
+  function buildPanoUrl() {
+    return 'https://tablemountain.panomax.com/?r=' + encodeURIComponent(rEl.value) +
+      '&z=' + encodeURIComponent(zEl.value) +
+      '&tl=' + encodeURIComponent(tlEl.value) +
+      '&hidetopbar=1';
+  }
+
+  function applyLook() {
+    var url = buildPanoUrl();
+    frame.src = url;
+    urlNote.textContent = 'Iframe URL: ' + url;
+    try {
+      localStorage.setItem('cptCamPanoLook', JSON.stringify({
+        r: rEl.value, z: zEl.value, tl: tlEl.value
+      }));
+    } catch (e) {}
+  }
+
+  function setLook(r, z, tl) {
+    rEl.value = r; zEl.value = z; tlEl.value = tl;
+    syncLabels();
+    applyLook();
+  }
+
+  ['input', 'change'].forEach(function (evt) {
+    rEl.addEventListener(evt, syncLabels);
+    zEl.addEventListener(evt, syncLabels);
+    tlEl.addEventListener(evt, syncLabels);
+  });
+  document.getElementById('pano-apply').addEventListener('click', applyLook);
+  document.getElementById('pano-bay').addEventListener('click', function () {
+    // Starting guess toward Table Bay / harbour — tune with sliders.
+    setLook(90, 35, -8);
+  });
+  document.getElementById('pano-reset').addEventListener('click', function () {
+    setLook(0, 0, 0);
+  });
+
+  try {
+    var saved = JSON.parse(localStorage.getItem('cptCamPanoLook') || 'null');
+    if (saved && saved.r != null) {
+      rEl.value = saved.r; zEl.value = saved.z; tlEl.value = saved.tl;
+    }
+  } catch (e) {}
+  syncLabels();
+  applyLook();
+
   var LAT = -33.96;
   var LON = 18.40;
   var KEY_STORAGE = 'cptCamWindyPointForecastKey';
