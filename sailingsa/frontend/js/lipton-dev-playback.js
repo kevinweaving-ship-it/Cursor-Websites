@@ -334,6 +334,8 @@
       if (!any) return;
       mapCtx.strokeStyle = stroke;
       mapCtx.lineWidth = width;
+      mapCtx.lineJoin = "round";
+      mapCtx.lineCap = "round";
       mapCtx.stroke();
     }
     function drawGate(line, color, label, pinLabel, rcLabel) {
@@ -638,6 +640,7 @@
       lastKey = "";
       seen = {};
       deltaSeen = {};
+      lastHdg = {};
       render(ts);
     }
 
