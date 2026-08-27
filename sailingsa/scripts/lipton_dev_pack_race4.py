@@ -104,9 +104,9 @@ def main() -> int:
         if any(p.get("race_number") == RACE for p in boat_by[sail]):
             boat_by[sail] = [p for p in boat_by[sail] if p.get("race_number") == RACE]
 
-    def crossing_ts(sail, pts):
-        is_ocs = sail in ocs
-        look_from = gun - 90_000 if is_ocs else gun - 2_000
+    def line_hits(pts, look_from):
+        """Prestart (d>0) → course (d<=0) enters, and the reverse exits."""
+        hits = []
         prev = None
         for p in pts:
             if p["ts"] < look_from:
@@ -116,25 +116,47 @@ def main() -> int:
                 d = -d
             if prev is not None:
                 d0, t0, a0 = prev
-                if d0 > 0 and d <= 0:
-                    frac = d0 / (d0 - d) if d0 != d else 1.0
-                    ts = int(t0 + (p["ts"] - t0) * frac)
-                    along_x = a0 + (along - a0) * frac
-                    if -20 <= along_x <= ab_len + 20:
-                        if is_ocs or ts >= gun - 500:
-                            return ts
-            if p["ts"] >= look_from:
-                prev = (d, p["ts"], along)
-        if is_ocs:
-            return gun
-        return None
+                if -20 <= along <= ab_len + 20 or -20 <= a0 <= ab_len + 20:
+                    if d0 > 0 and d <= 0:
+                        frac = d0 / (d0 - d) if d0 != d else 1.0
+                        ts = int(t0 + (p["ts"] - t0) * frac)
+                        hits.append({"ts": ts, "dir": "enter"})
+                    elif d0 <= 0 and d > 0:
+                        frac = (-d0) / (d - d0) if d != d0 else 1.0
+                        ts = int(t0 + (p["ts"] - t0) * frac)
+                        hits.append({"ts": ts, "dir": "exit"})
+            prev = (d, p["ts"], along)
+        return hits
+
+    def start_times(sail, pts):
+        is_ocs = sail in ocs
+        look_from = gun - 90_000 if is_ocs else gun - 2_000
+        hits = line_hits(pts, look_from)
+        if not is_ocs:
+            for h in hits:
+                if h["dir"] == "enter" and h["ts"] >= gun - 500:
+                    return h["ts"], None
+            return None, None
+        ocs_ts = next((h["ts"] for h in hits if h["dir"] == "enter"), gun)
+        saw_exit = False
+        legal = None
+        for h in hits:
+            if h["dir"] == "exit" and h["ts"] >= ocs_ts:
+                saw_exit = True
+            elif h["dir"] == "enter" and saw_exit:
+                legal = h["ts"]
+                break
+        return legal or ocs_ts, ocs_ts
 
     st = []
     for sail, pts in boat_by.items():
-        ts = crossing_ts(sail, pts)
+        ts, ocs_dip = start_times(sail, pts)
         if ts is None:
             raise SystemExit(f"no start crossing for {sail}")
-        st.append({"boat": sail, "ts_ms": ts})
+        row = {"boat": sail, "ts_ms": ts}
+        if ocs_dip is not None:
+            row["ocs_ts_ms"] = int(ocs_dip)
+        st.append(row)
     st.sort(key=lambda r: r["ts_ms"])
 
     cands = {
@@ -201,6 +223,7 @@ def main() -> int:
         "default_rate": 1,
         "ocs": ocs,
         "exonerated": exonerated,
+        "ocs_ts": {row["boat"]: row["ocs_ts_ms"] for row in st if "ocs_ts_ms" in row},
         "mark1": mark_passes[0]["boats"] if mark_passes else [],
         "boats": boats,
         "finish": finish_rows,
@@ -216,7 +239,7 @@ def main() -> int:
         ),
         "sources": {
             "guns_finishes_ocs": "Vakaros Firestore races[R4] starts/finishes/ocsParticipants",
-            "start_order": "teleapi GPS crossing of Race 4 startLine after/before gun. SBYC OCS.",
+            "start_order": "teleapi GPS start-line crossing. OCS boats use recross after returning to prestart, not the OCS dip.",
             "marks": "teleapi every GPS point; heading + closest. Empty = not received.",
             "identity": "public Lipton sheet bow/boat/club logos",
         },
@@ -234,6 +257,7 @@ def main() -> int:
                 "exonerated": exonerated,
                 "st_first": st[0]["boat"],
                 "st_first_legal": legal,
+                "st_sbyc_rank": next((i + 1 for i, b in enumerate(st) if b["boat"] == "SBYC"), None),
                 "st_n": len(st),
                 "marks": summary,
                 "finish_n": len(finish_rows),
