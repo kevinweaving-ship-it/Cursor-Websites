@@ -5,8 +5,8 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827aj";
-  var TRAIL_URL = "/js/lipton-dev-trail.json?v=20260827aj";
+  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827ak";
+  var TRAIL_URL = "/js/lipton-dev-trail.json?v=20260827ak";
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -100,6 +100,10 @@
     }
     var OCS = {};
     (data.ocs || []).forEach(function (name) { OCS[name] = true; });
+    var EXONERATED = {};
+    (data.exonerated || []).forEach(function (name) { EXONERATED[name] = true; });
+    var OCS_HOLD_MS = 20000;
+    var LEG_FLASH_MS = 20000;
     var ST_LEAD_TS = null;
     PASSES.forEach(function (p) {
       if ((p.id === "ST" || p.label === "ST") && p.boats.length) {
@@ -483,36 +487,24 @@
     function metersPx(m) {
       return Math.max(4, m * mapBounds.scale);
     }
-    function drawBoatIcon(p, hdg, ocs) {
+    function drawBoatIcon(p, hdg, fill, stroke) {
+      var r = 7;
+      mapCtx.beginPath();
+      mapCtx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      mapCtx.fillStyle = fill;
+      mapCtx.fill();
+      mapCtx.strokeStyle = stroke;
+      mapCtx.lineWidth = 0.9;
+      mapCtx.stroke();
       mapCtx.save();
       mapCtx.translate(p.x, p.y);
       mapCtx.rotate((hdg || 0) * Math.PI / 180);
-      mapCtx.lineJoin = "round";
-      mapCtx.lineCap = "round";
       mapCtx.beginPath();
-      mapCtx.moveTo(0, -5.6);
-      mapCtx.quadraticCurveTo(2.4, -0.8, 2.2, 3.8);
-      mapCtx.lineTo(-2.2, 3.8);
-      mapCtx.quadraticCurveTo(-2.4, -0.8, 0, -5.6);
+      mapCtx.moveTo(0, -r - 3.6);
+      mapCtx.lineTo(3.1, -r + 1.2);
+      mapCtx.lineTo(-3.1, -r + 1.2);
       mapCtx.closePath();
-      mapCtx.fillStyle = ocs ? "#b42318" : "#0b1b33";
-      mapCtx.fill();
-      mapCtx.strokeStyle = ocs ? "#fecaca" : "#f8fafc";
-      mapCtx.lineWidth = 0.7;
-      mapCtx.stroke();
-      mapCtx.beginPath();
-      mapCtx.moveTo(0.15, 2.6);
-      mapCtx.lineTo(0.15, -4.6);
-      mapCtx.lineTo(3.8, 1.2);
-      mapCtx.closePath();
-      mapCtx.fillStyle = ocs ? "#fecaca" : "#ffffff";
-      mapCtx.fill();
-      mapCtx.beginPath();
-      mapCtx.moveTo(-0.15, 1.8);
-      mapCtx.lineTo(-0.15, -3.2);
-      mapCtx.lineTo(-2.4, 0.8);
-      mapCtx.closePath();
-      mapCtx.fillStyle = ocs ? "#f87171" : "#cbd5e1";
+      mapCtx.fillStyle = fill === "#16a34a" ? "#bbf7d0" : "#ffffff";
       mapCtx.fill();
       mapCtx.restore();
     }
@@ -630,61 +622,86 @@
       }
       return null;
     }
-    function mapPlace(sail, ts) {
+    function stTime(sail) {
+      for (var i = 0; i < PASSES.length; i++) {
+        if (PASSES[i].id === "ST" || PASSES[i].label === "ST") return tsAtPass(PASSES[i], sail);
+      }
+      return null;
+    }
+    function ocsPending(sail, ts) {
+      if (!OCS[sail]) return false;
+      if (!EXONERATED[sail]) return true;
+      var st = stTime(sail);
+      var from = st != null ? st : GUN_TS;
+      return ts < from + OCS_HOLD_MS;
+    }
+    function mapBadge(sail, ts) {
+      var startNo = START_RANK[sail] != null ? START_RANK[sail] : null;
       var last = -1;
+      var lastTs = null;
       for (var i = 0; i < PASSES.length; i++) {
         var t = tsAtPass(PASSES[i], sail);
-        if (t != null && t <= ts) last = i;
+        if (t != null && t <= ts) {
+          last = i;
+          lastTs = t;
+        }
       }
-      if (last < 0) return { place: null, delta: null };
-      var place = passRankOf(PASSES[last], sail);
+      var place = startNo;
+      if (last > 0) place = passRankOf(PASSES[last], sail);
+      var pending = ocsPending(sail, ts);
+      var started = last >= 0;
       var delta = null;
-      if (last > 0) {
-        var prev = passRankOf(PASSES[last - 1], sail);
-        if (prev != null && place != null) delta = prev - place;
+      if (last > 0 && place != null && startNo != null) {
+        var flash = lastTs != null && (ts - lastTs) < LEG_FLASH_MS;
+        if (flash) {
+          var prev = passRankOf(PASSES[last - 1], sail);
+          if (prev != null) delta = prev - place;
+        } else {
+          delta = startNo - place;
+        }
+        if (delta === 0) delta = null;
       }
-      return { place: place, delta: delta };
+      return { place: place, pending: pending, started: started, onMark: last > 0, delta: delta };
     }
-    function drawBoatLabel(p, sail, ts) {
+    function drawBoatLabel(p, hdg, sail, ts) {
       var club = clubCode(sail);
-      var info = mapPlace(sail, ts);
-      var ocs = !!OCS[sail];
-      var x = p.x + 7;
-      var y = p.y - 1;
-      mapCtx.font = "bold 9px sans-serif";
+      var info = mapBadge(sail, ts);
+      var fill = "#f8fafc";
+      var stroke = "rgba(15,23,42,0.45)";
+      var ink = "#0f172a";
+      if (info.pending) {
+        fill = "#fff7ed";
+        stroke = "#dc2626";
+        ink = "#dc2626";
+      } else if (info.started && !info.onMark) {
+        fill = "#16a34a";
+        stroke = "#14532d";
+        ink = "#ffffff";
+      }
+      drawBoatIcon(p, hdg, fill, stroke);
+      if (info.place != null) {
+        mapCtx.fillStyle = ink;
+        mapCtx.font = "bold 8px sans-serif";
+        mapCtx.textAlign = "center";
+        mapCtx.textBaseline = "middle";
+        mapCtx.fillText(String(info.place), p.x, p.y + 0.4);
+      }
+      var lx = p.x + 10;
+      var ly = p.y - 1;
+      mapCtx.font = "bold 8px sans-serif";
       mapCtx.textAlign = "left";
       mapCtx.textBaseline = "middle";
-      mapCtx.fillStyle = ocs ? "#f87171" : "#ffffff";
-      mapCtx.fillText(club, x, y);
-      if (info.place == null) {
-        mapCtx.textAlign = "start";
-        mapCtx.textBaseline = "alphabetic";
-        return;
-      }
-      var cx = x + mapCtx.measureText(club).width + 8;
-      var cy = y;
-      var r = 5;
-      mapCtx.beginPath();
-      mapCtx.arc(cx, cy, r, 0, Math.PI * 2);
-      mapCtx.fillStyle = ocs ? "#fecaca" : "#f8fafc";
-      mapCtx.fill();
-      mapCtx.strokeStyle = "rgba(15,23,42,0.45)";
-      mapCtx.lineWidth = 0.8;
-      mapCtx.stroke();
-      mapCtx.fillStyle = "#0f172a";
-      mapCtx.font = "bold 7px sans-serif";
-      mapCtx.textAlign = "center";
-      mapCtx.fillText(String(info.place), cx, cy + 0.3);
-      if (info.delta != null && info.delta !== 0) {
-        mapCtx.textAlign = "left";
+      mapCtx.fillStyle = info.pending ? "#f87171" : "#ffffff";
+      mapCtx.fillText(club, lx, ly);
+      if (info.delta != null) {
+        var cw = mapCtx.measureText(club).width;
         mapCtx.font = "bold 8px sans-serif";
-        var tx = cx + r + 2;
         if (info.delta > 0) {
           mapCtx.fillStyle = "#4ade80";
-          mapCtx.fillText("▲" + info.delta, tx, cy);
+          mapCtx.fillText("▲" + info.delta, lx + cw + 3, ly);
         } else {
           mapCtx.fillStyle = "#f87171";
-          mapCtx.fillText("▼" + (-info.delta), tx, cy);
+          mapCtx.fillText("▼" + (-info.delta), lx + cw + 3, ly);
         }
       }
       mapCtx.textAlign = "start";
@@ -725,8 +742,7 @@
         var pos = posAt(sail, ts);
         if (!pos) return;
         var p = xy(pos.lat, pos.lon);
-        drawBoatIcon(p, pos.hdg, OCS[sail]);
-        drawBoatLabel(p, sail, ts);
+        drawBoatLabel(p, pos.hdg, sail, ts);
       });
     }
     function setRateButtons() {
