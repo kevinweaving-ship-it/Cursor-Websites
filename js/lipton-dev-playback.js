@@ -1,26 +1,22 @@
 /**
  * Lipton 2026 -dev only. Replay sandbox — not live, not Nett.
- * Data: /js/lipton-dev-replay.json (replace that file to refresh old data).
+ * Rank re-sorts at each mark from Race 5 tracker times.
+ * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827f";
+  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827g";
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
   }
-  function fmtT(ms) {
+  function fmtClock(ms) {
     if (ms < 0) {
       var a = Math.abs(ms);
       var s = Math.floor(a / 1000);
-      return "T−" + pad(Math.floor(s / 60)) + ":" + pad(s % 60);
+      return "−" + pad(Math.floor(s / 60)) + ":" + pad(s % 60);
     }
     var s2 = Math.floor(ms / 1000);
-    var m = Math.floor(s2 / 60);
-    var h = Math.floor(m / 60);
-    m = m % 60;
-    var sec = s2 % 60;
-    if (h > 0) return "T+" + h + ":" + pad(m) + ":" + pad(sec);
-    return "T+" + m + ":" + pad(sec);
+    return Math.floor(s2 / 60) + ":" + pad(s2 % 60);
   }
   function esc(s) {
     return String(s || "")
@@ -48,22 +44,26 @@
     });
 
   function start(data) {
-    var MARK1 = (data.mark1 || []).map(function (b) {
-      return { boat: b.boat, ts: b.ts_ms };
+    var LABELS = data.mark_labels || ["M1", "M2", "M3", "M4"];
+    var MARKS = {};
+    LABELS.forEach(function (lab) {
+      MARKS[lab] = ((data.marks || {})[lab] || []).map(function (b) {
+        return { boat: b.boat, ts: b.ts_ms };
+      });
     });
     var BOATS = data.boats || {};
     var GUN_TS = Number(data.gun_ts_ms);
     var PLAY_START_TS = Number(data.play_start_ts_ms);
+    var PLAY_END_TS = Number(data.play_end_ts_ms || data.end_ts_ms);
     var FINISH_TS = Number(data.first_finish_ts_ms || 0);
     var RATE = Number(data.default_rate || 8);
     var playing = true;
     var playTs = PLAY_START_TS;
     var lastWall = Date.now();
-    var lastRounded = -1;
-    var markEnd = MARK1.length ? MARK1[MARK1.length - 1].ts + 8000 : PLAY_START_TS;
+    var lastKey = "";
+    var seen = {};
 
     var tbody = document.getElementById("lipton-dev-tbody");
-    var tableWrap = document.getElementById("lipton-dev-table-wrap");
     var clockEl = document.getElementById("lipton-dev-clock");
     var sailedEl = document.getElementById("lipton-dev-sailed");
     var frameEl = document.getElementById("lipton-dev-vakaros");
@@ -96,64 +96,118 @@
     function setPlayLabel() {
       if (playBtn) playBtn.textContent = playing ? "Pause" : "Play";
     }
-
+    function tsAt(lab, boat) {
+      var list = MARKS[lab] || [];
+      for (var i = 0; i < list.length; i++) {
+        if (list[i].boat === boat) return list[i].ts;
+      }
+      return null;
+    }
+    function boatTimes(boat, ts) {
+      var out = {};
+      for (var i = 0; i < LABELS.length; i++) {
+        var t = tsAt(LABELS[i], boat);
+        if (t != null && t <= ts) out[LABELS[i]] = t;
+      }
+      return out;
+    }
+    function furthest(times) {
+      var k = -1;
+      var lab = null;
+      var t = null;
+      for (var i = 0; i < LABELS.length; i++) {
+        if (times[LABELS[i]] != null) {
+          k = i;
+          lab = LABELS[i];
+          t = times[LABELS[i]];
+        }
+      }
+      return { idx: k, lab: lab, ts: t };
+    }
+    function splitCell(times, lab, i) {
+      var t = times[lab];
+      if (t == null) return "";
+      var prev = i === 0 ? GUN_TS : times[LABELS[i - 1]];
+      if (prev == null) return "";
+      return fmtClock(t - prev);
+    }
     function rowsAt(ts) {
-      return MARK1.filter(function (b) { return b.ts <= ts; }).map(function (b, i) {
-        return { rank: i + 1, boat: b.boat, markTs: b.ts };
+      var names = {};
+      LABELS.forEach(function (lab) {
+        (MARKS[lab] || []).forEach(function (b) {
+          if (b.ts <= ts) names[b.boat] = true;
+        });
       });
+      var rows = Object.keys(names).map(function (boat) {
+        var times = boatTimes(boat, ts);
+        var far = furthest(times);
+        return { boat: boat, times: times, farIdx: far.idx, farTs: far.ts, farLab: far.lab };
+      });
+      rows.sort(function (a, b) {
+        if (b.farIdx !== a.farIdx) return b.farIdx - a.farIdx;
+        return a.farTs - b.farTs;
+      });
+      rows.forEach(function (r, i) { r.rank = i + 1; });
+      return rows;
+    }
+    function leadMark(rows) {
+      return rows.length ? rows[0].farLab : null;
+    }
+    function stateKey(rows) {
+      return rows.map(function (r) { return r.rank + ":" + r.boat + ":" + r.farLab; }).join("|");
     }
     function rowHtml(r, unroll) {
       var id = ident(r.boat);
       var medal = r.rank === 1 ? " medal-gold" : r.rank === 2 ? " medal-silver" : r.rank === 3 ? " medal-bronze" : "";
       var cls = medal + (unroll ? " lipton-unroll" : "");
-      var html = "<tr class=\"" + cls + "\" data-bow=\"" + esc(id ? id.bow : "") + "\">";
+      var html = "<tr class=\"" + cls + "\" data-bow=\"" + esc(id ? id.bow : "") + "\" data-boat=\"" + esc(r.boat) + "\">";
       html += "<td class=\"rank-col\">" + r.rank + "</td>";
       html += "<td class=\"wc-meta-col\">" + bowCell(id) + "</td>";
       html += "<td class=\"boat-name-col\">" + boatNameCell(id) + "</td>";
       html += "<td class=\"club-col\">" + clubCell(id) + "</td>";
-      html += "<td class=\"timer-col\">" + fmtT(r.markTs - GUN_TS) + "</td>";
+      for (var i = 0; i < LABELS.length; i++) {
+        html += "<td class=\"timer-col\">" + splitCell(r.times, LABELS[i], i) + "</td>";
+      }
       html += "</tr>";
       return html;
     }
-    function setSailed(n) {
+    function setSailed(rows) {
       if (!sailedEl) return;
-      sailedEl.textContent = n === 0
-        ? "Race 5 replay · approaching mark 1"
-        : (n === 17
-          ? "Race 5 replay · all 17 around mark 1"
-          : "Race 5 replay · " + n + " of 17 around mark 1");
+      var lab = leadMark(rows);
+      if (!lab) {
+        sailedEl.textContent = "Race 5 · approaching M1";
+        return;
+      }
+      var n = 0;
+      rows.forEach(function (r) { if (r.farLab === lab) n += 1; });
+      var tot = (MARKS[lab] || []).length;
+      sailedEl.textContent = "Race 5 · " + lab + " · " + n + " of " + tot + " · rank by " + lab;
     }
-    function render(ts, unrollNew) {
-      var n = MARK1.filter(function (b) { return b.ts <= ts; }).length;
-      var shown = tbody.rows.length;
-      if (tableWrap) tableWrap.hidden = false;
-      if (n === 0) {
-        tbody.innerHTML = "";
-      } else if (n < shown || !unrollNew) {
-        var rows = rowsAt(ts);
-        var html = "";
-        for (var i = 0; i < rows.length; i++) html += rowHtml(rows[i], false);
-        tbody.innerHTML = html;
-      } else if (n > shown) {
-        var add = rowsAt(ts).slice(shown);
-        var extra = "";
-        for (var j = 0; j < add.length; j++) extra += rowHtml(add[j], true);
-        tbody.insertAdjacentHTML("beforeend", extra);
+    function render(ts) {
+      var rows = rowsAt(ts);
+      var html = "";
+      for (var i = 0; i < rows.length; i++) {
+        var first = !seen[rows[i].boat];
+        seen[rows[i].boat] = true;
+        html += rowHtml(rows[i], first);
       }
+      tbody.innerHTML = html;
       if (clockEl) {
-        clockEl.textContent = n === 0
-          ? fmtT(ts - GUN_TS) + " → M1"
-          : fmtT(ts - GUN_TS);
+        clockEl.textContent = rows.length === 0
+          ? fmtClock(ts - GUN_TS) + " → M1"
+          : fmtClock(ts - GUN_TS);
       }
-      setSailed(n);
+      setSailed(rows);
+      lastKey = stateKey(rows);
     }
 
     function jump(ts) {
       playTs = ts;
       lastWall = Date.now();
-      lastRounded = -1;
+      lastKey = "";
+      seen = {};
       setFrame(ts);
-      render(ts, false);
+      render(ts);
     }
 
     function tick() {
@@ -161,20 +215,19 @@
         var now = Date.now();
         playTs += (now - lastWall) * RATE;
         lastWall = now;
-        if (playTs > markEnd) {
-          playTs = markEnd;
+        if (playTs > PLAY_END_TS) {
+          playTs = PLAY_END_TS;
           playing = false;
           setPlayLabel();
         }
-        var n = MARK1.filter(function (b) { return b.ts <= playTs; }).length;
-        if (n !== lastRounded) {
-          lastRounded = n;
-          render(playTs, true);
+        var rows = rowsAt(playTs);
+        var key = stateKey(rows);
+        if (key !== lastKey) {
+          render(playTs);
         } else if (clockEl) {
-          var nNow = MARK1.filter(function (b) { return b.ts <= playTs; }).length;
-          clockEl.textContent = nNow === 0
-            ? fmtT(playTs - GUN_TS) + " → M1"
-            : fmtT(playTs - GUN_TS);
+          clockEl.textContent = rows.length === 0
+            ? fmtClock(playTs - GUN_TS) + " → M1"
+            : fmtClock(playTs - GUN_TS);
         }
       } else {
         lastWall = Date.now();
@@ -208,7 +261,7 @@
     setFrame(PLAY_START_TS);
     setRateButtons();
     setPlayLabel();
-    render(playTs, false);
+    render(playTs);
     window.requestAnimationFrame(tick);
   }
 })();
