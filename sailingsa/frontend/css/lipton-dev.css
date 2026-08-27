@@ -24,7 +24,11 @@ body[data-lipton-dev="1"] .lipton-dev-board {
   max-width: none;
   margin: 0;
   justify-self: start;
-  align-self: start;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
 }
 body[data-lipton-dev="1"] .class-header {
   font-size: 12px;
@@ -97,10 +101,11 @@ body[data-lipton-dev="1"] .lipton-dev-btn.is-active {
   color: #ffffff;
 }
 body[data-lipton-dev="1"] .table-wrapper {
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: auto;
   width: 100%;
   margin-top: 4px;
+  flex: 1;
+  min-height: 0;
 }
 body[data-lipton-dev="1"] .table-wrapper[hidden] {
   display: none;
@@ -121,6 +126,16 @@ body[data-lipton-dev="1"] .table-wrapper table {
   table-layout: auto;
   border-collapse: collapse;
   background: #ffffff;
+}
+body[data-lipton-dev="1"] .table-wrapper th.timer-col:last-child,
+body[data-lipton-dev="1"] .table-wrapper td.timer-col:last-child {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  background: #ffffff;
+}
+body[data-lipton-dev="1"] .table-wrapper th.timer-col:last-child {
+  background: #e9eefb;
 }
 body[data-lipton-dev="1"] th,
 body[data-lipton-dev="1"] td {

@@ -5,8 +5,8 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827an";
-  var TRAIL_URL = "/js/lipton-dev-trail.json?v=20260827an";
+  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827ao";
+  var TRAIL_URL = "/js/lipton-dev-trail.json?v=20260827ao";
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -732,7 +732,7 @@
         if (prev != null) leg = prev - place;
         if (startNo != null) total = startNo - place;
       }
-      return { place: place, pending: pending, started: started, onMark: last > 0, leg: leg, total: total };
+      return { place: place, pending: pending, started: started, onMark: last > 0, finished: last > 0 && PASSES[last] && (PASSES[last].id === "FIN" || PASSES[last].label === "Fin"), leg: leg, total: total };
     }
     function drawDelta(x, y, delta, align) {
       if (delta == null) return x;
@@ -767,7 +767,7 @@
         mapCtx.textBaseline = "middle";
         mapCtx.fillText(String(info.place), p.x, p.y + 0.4);
       }
-      if (info.onMark) drawDelta(p.x - 10, p.y - 1, info.leg, "right");
+      if (info.onMark && !info.finished) drawDelta(p.x - 10, p.y - 1, info.leg, "right");
       var lx = p.x + 10;
       var ly = p.y - 1;
       mapCtx.font = "bold 8px sans-serif";
@@ -836,16 +836,33 @@
       playBtn.disabled = false;
       playBtn.textContent = playing ? "Pause" : "Play";
     }
-    function fillHead() {
-      if (!headRow) return;
-      var html = "<th class=\"rank-col\">Rank</th><th class=\"wc-meta-col\">Bow</th><th class=\"boat-name-col\">Boat</th><th class=\"club-col\">Club</th>";
+    function visiblePassLimit(ts) {
+      var max = 0;
       for (var i = 0; i < PASSES.length; i++) {
+        for (var b = 0; b < PASSES[i].boats.length; b++) {
+          if (PASSES[i].boats[b].ts <= ts) max = i;
+        }
+      }
+      return max;
+    }
+    function skipLastLegDelta(limit, i) {
+      var last = PASSES[limit];
+      return last && (last.id === "FIN" || last.label === "Fin") && i === limit - 1;
+    }
+    var lastHeadLimit = -1;
+    function fillHead(limit) {
+      if (!headRow) return;
+      if (limit == null) limit = PASSES.length - 1;
+      if (limit === lastHeadLimit) return;
+      lastHeadLimit = limit;
+      var html = "<th class=\"rank-col\">Rank</th><th class=\"wc-meta-col\">Bow</th><th class=\"boat-name-col\">Boat</th><th class=\"club-col\">Club</th>";
+      for (var i = 0; i <= limit; i++) {
         var p = PASSES[i];
         var title = "Lap " + p.lap + " mark " + p.mark;
         if (p.id === "FIN" || p.label === "Fin") title = "Finish";
         else if (p.id === "ST" || p.label === "ST") title = "Seconds after first boat over the start line. OCS if recalled.";
         html += "<th class=\"timer-col\" title=\"" + esc(title) + "\">" + esc(p.label) + "</th>";
-        if (i < PASSES.length - 1) {
+        if (i < limit && !skipLastLegDelta(limit, i)) {
           var nlab = PASSES[i + 1].label;
           html += "<th class=\"place-delta-col\" title=\"Places gained or lost " + esc(p.label) + " to " + esc(nlab) + "\" aria-label=\"Place change " + esc(p.label) + " to " + esc(nlab) + "\">±</th>";
         }
@@ -989,7 +1006,7 @@
     function stateKey(rows) {
       return rows.map(function (r) { return r.rank + ":" + r.boat + ":" + r.farIdx; }).join("|");
     }
-    function rowHtml(r, unroll, rankMaps) {
+    function rowHtml(r, unroll, rankMaps, passLimit) {
       var id = ident(r.boat);
       var medal = r.rank === 1 ? " medal-gold" : r.rank === 2 ? " medal-silver" : r.rank === 3 ? " medal-bronze" : "";
       var cls = medal + (unroll ? " lipton-unroll" : "");
@@ -998,9 +1015,9 @@
       html += "<td class=\"wc-meta-col\">" + bowCell(id) + "</td>";
       html += "<td class=\"boat-name-col\">" + boatNameCell(id) + "</td>";
       html += "<td class=\"club-col\">" + clubCell(id) + "</td>";
-      for (var i = 0; i < PASSES.length; i++) {
+      for (var i = 0; i <= passLimit; i++) {
         html += "<td class=\"timer-col\">" + splitCell(r.times, i, r.boat) + "</td>";
-        if (i < PASSES.length - 1) {
+        if (i < passLimit && !skipLastLegDelta(passLimit, i)) {
           html += deltaCell(r.boat, i, rankMaps[i].prev, rankMaps[i].next);
         }
       }
@@ -1033,11 +1050,13 @@
     function render(ts) {
       var rows = rowsAt(ts);
       var rankMaps = pairRankMaps(ts);
+      var passLimit = visiblePassLimit(ts);
+      fillHead(passLimit);
       var html = "";
       for (var i = 0; i < rows.length; i++) {
         var first = !seen[rows[i].boat];
         seen[rows[i].boat] = true;
-        html += rowHtml(rows[i], first, rankMaps);
+        html += rowHtml(rows[i], first, rankMaps, passLimit);
       }
       tbody.innerHTML = html;
       if (clockEl) clockEl.textContent = clockText(ts, rows);
@@ -1055,6 +1074,7 @@
       lastHdg = {};
       lastHdgAt = {};
       cam = null;
+      lastHeadLimit = -1;
       render(ts);
     }
 
@@ -1105,7 +1125,7 @@
     document.querySelectorAll("[data-jump]").forEach(function (btn) {
       btn.addEventListener("click", function () {
         var key = btn.getAttribute("data-jump");
-        var ts = key === "gun" ? GUN_TS : key === "finish" ? (FINISH[0] ? FINISH[0].ts : PLAY_START_TS) : PLAY_START_TS;
+        var ts = key === "gun" ? GUN_TS : key === "finish" ? PLAY_END_TS : PLAY_START_TS;
         if (!ts) return;
         jump(ts);
       });
@@ -1133,7 +1153,7 @@
       drawMap(playTs);
     });
 
-    fillHead();
+    fillHead(0);
     setRateButtons();
     waitForTracker();
     window.requestAnimationFrame(tick);
