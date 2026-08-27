@@ -6,7 +6,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Lipton Challenge Cup 2026 — playback (dev)</title>
   <link rel="stylesheet" href="/css/main.css">
-  <link rel="stylesheet" href="/css/lipton-dev.css?v=20260827k">
+  <link rel="stylesheet" href="/css/lipton-dev.css?v=20260827m">
   <script src="/js/api.js"></script>
   <script src="/js/session.js"></script>
 </head>
@@ -67,6 +67,13 @@
             <div class="fleet-header-title-wrap"><a href="/class/j22">J22 Fleet</a></div>
             <div class="sailed-line" id="lipton-dev-sailed">Race 5 replay · approaching M1</div>
             <div class="sailed-line" id="lipton-dev-clock">0:00</div>
+            <div class="lipton-dev-transport" role="group" aria-label="Replay speed">
+              <button type="button" class="lipton-dev-btn" id="lipton-dev-play">Pause</button>
+              <button type="button" class="lipton-dev-btn is-active" data-rate="1">1×</button>
+              <button type="button" class="lipton-dev-btn" data-rate="2">2×</button>
+              <button type="button" class="lipton-dev-btn" data-rate="4">4×</button>
+              <button type="button" class="lipton-dev-btn" data-rate="10">10×</button>
+            </div>
           </div>
           <div class="class-header-club-logo-col">
             <a href="/class/j22" class="regatta-header-logo-link" title="Open J22 class page">
@@ -83,11 +90,11 @@
                 <th class="boat-name-col">Boat</th>
                 <th class="club-col">Club</th>
                 <th class="timer-col">M1</th>
-                <th class="place-delta-col" title="Places gained or lost M1 to M2" aria-label="Place change M1 to M2"></th>
+                <th class="place-delta-col" title="Places gained or lost M1 to M2">±</th>
                 <th class="timer-col">M2</th>
-                <th class="place-delta-col" title="Places gained or lost M2 to M3" aria-label="Place change M2 to M3"></th>
+                <th class="place-delta-col" title="Places gained or lost M2 to M3">±</th>
                 <th class="timer-col">M3</th>
-                <th class="place-delta-col" title="Places gained or lost M3 to M4" aria-label="Place change M3 to M4"></th>
+                <th class="place-delta-col" title="Places gained or lost M3 to M4">±</th>
                 <th class="timer-col">M4</th>
                 <th class="timer-col">Fin</th>
               </tr>
@@ -109,6 +116,6 @@
   </div>
 
   <script src="/js/blank-landing-header.js"></script>
-  <script src="/js/lipton-dev-playback.js?v=20260827k"></script>
+  <script src="/js/lipton-dev-playback.js?v=20260827m"></script>
 </body>
 </html>

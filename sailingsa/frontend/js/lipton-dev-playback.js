@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827k";
+  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827m";
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -131,7 +131,7 @@
         html += "<th class=\"timer-col\" title=\"Lap " + p.lap + " mark " + p.mark + "\">" + esc(p.label) + "</th>";
         if (i < PASSES.length - 1) {
           var nlab = PASSES[i + 1].label;
-          html += "<th class=\"place-delta-col\" title=\"Places gained or lost " + esc(p.label) + " to " + esc(nlab) + "\" aria-label=\"Place change " + esc(p.label) + " to " + esc(nlab) + "\"></th>";
+        html += "<th class=\"place-delta-col\" title=\"Places gained or lost " + esc(p.label) + " to " + esc(nlab) + "\" aria-label=\"Place change " + esc(p.label) + " to " + esc(nlab) + "\">±</th>";
         }
       }
       html += "<th class=\"timer-col\">Fin</th>";
@@ -201,13 +201,13 @@
       deltaSeen[key] = gained;
       var flashCls = flash && gained !== 0 ? " place-delta--flash" : "";
       if (gained > 0) {
-        return "<td class=\"place-delta-col\"><span class=\"place-delta place-delta--up" + flashCls + "\" title=\"Gained " + gained + "\" aria-label=\"Gained " + gained + "\"><span class=\"place-delta-mark\" aria-hidden=\"true\"></span><span class=\"place-delta-n\">" + gained + "</span></span></td>";
+        return "<td class=\"place-delta-col\"><span class=\"place-delta place-delta--up" + flashCls + "\" title=\"Gained " + gained + "\" aria-label=\"Gained " + gained + "\">▲" + gained + "</span></td>";
       }
       if (gained < 0) {
         var lost = -gained;
-        return "<td class=\"place-delta-col\"><span class=\"place-delta place-delta--down" + flashCls + "\" title=\"Lost " + lost + "\" aria-label=\"Lost " + lost + "\"><span class=\"place-delta-mark\" aria-hidden=\"true\"></span><span class=\"place-delta-n\">" + lost + "</span></span></td>";
+        return "<td class=\"place-delta-col\"><span class=\"place-delta place-delta--down" + flashCls + "\" title=\"Lost " + lost + "\" aria-label=\"Lost " + lost + "\">▼" + lost + "</span></td>";
       }
-      return "<td class=\"place-delta-col\"><span class=\"place-delta place-delta--same\" title=\"No change\" aria-label=\"No change\"><span class=\"place-delta-mark\" aria-hidden=\"true\"></span><span class=\"place-delta-n\">0</span></span></td>";
+      return "<td class=\"place-delta-col\"><span class=\"place-delta place-delta--same\" title=\"No change\" aria-label=\"No change\">■0</span></td>";
     }
     function rowsAt(ts) {
       var names = {};
@@ -316,6 +316,7 @@
         var rows = rowsAt(playTs);
         var key = stateKey(rows);
         if (key !== lastKey) {
+          if (RATE !== 1) setFrame(playTs);
           render(playTs);
         } else if (clockEl) {
           clockEl.textContent = clockText(playTs, rows);
@@ -339,6 +340,7 @@
         RATE = Number(btn.getAttribute("data-rate")) || 1;
         lastWall = Date.now();
         setRateButtons();
+        setFrame(playTs);
       });
     });
     if (playBtn) {
@@ -346,6 +348,7 @@
         playing = !playing;
         lastWall = Date.now();
         setPlayLabel();
+        if (playing) setFrame(playTs);
       });
     }
 

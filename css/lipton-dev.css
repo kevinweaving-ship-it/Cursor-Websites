@@ -71,6 +71,31 @@ body[data-lipton-dev="1"] .sailed-line {
   margin-bottom: 0;
   line-height: 1.2;
 }
+body[data-lipton-dev="1"] .lipton-dev-transport {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 4px;
+}
+body[data-lipton-dev="1"] .lipton-dev-btn {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 10px;
+  background: #ffffff;
+  color: #1a2750;
+  border: 1px solid #1a2750;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+body[data-lipton-dev="1"] .lipton-dev-btn.is-active {
+  background: #1a2750;
+  color: #ffffff;
+}
 body[data-lipton-dev="1"] .table-wrapper {
   overflow-x: auto;
   overflow-y: hidden;
@@ -142,57 +167,29 @@ body[data-lipton-dev="1"] td.timer-col {
 }
 body[data-lipton-dev="1"] th.place-delta-col,
 body[data-lipton-dev="1"] td.place-delta-col {
-  width: 28px;
-  min-width: 28px;
+  width: 40px;
+  min-width: 40px;
   overflow: visible;
   text-overflow: clip;
-  padding: 1px 1px;
+  padding: 1px 2px;
+  font-weight: 800;
 }
 body[data-lipton-dev="1"] .place-delta {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
+  display: inline-block;
   font-variant-numeric: tabular-nums;
   font-weight: 800;
-  font-size: 10px;
-  line-height: 1;
-}
-body[data-lipton-dev="1"] .place-delta-mark {
-  display: inline-block;
-  flex: 0 0 auto;
-}
-body[data-lipton-dev="1"] .place-delta-n {
-  color: inherit;
-  font-weight: 800;
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 body[data-lipton-dev="1"] .place-delta--up {
   color: #15803d;
 }
-body[data-lipton-dev="1"] .place-delta--up .place-delta-mark {
-  width: 0;
-  height: 0;
-  border-left: 4px solid transparent;
-  border-right: 4px solid transparent;
-  border-bottom: 7px solid currentColor;
-}
 body[data-lipton-dev="1"] .place-delta--down {
   color: #b42318;
 }
-body[data-lipton-dev="1"] .place-delta--down .place-delta-mark {
-  width: 0;
-  height: 0;
-  border-left: 4px solid transparent;
-  border-right: 4px solid transparent;
-  border-top: 7px solid currentColor;
-}
 body[data-lipton-dev="1"] .place-delta--same {
   color: #6b7280;
-}
-body[data-lipton-dev="1"] .place-delta--same .place-delta-mark {
-  width: 7px;
-  height: 7px;
-  background: currentColor;
 }
 @keyframes lipton-delta-flash {
   0%, 100% { opacity: 1; }
