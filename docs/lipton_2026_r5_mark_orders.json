@@ -1,0 +1,620 @@
+{
+  "ok": true,
+  "regatta_id": "2026-08-29-lipton-challenge-cup",
+  "event_id": "Lv9A35uOBSBRmGpHgXtH",
+  "fleet": "J22",
+  "source": "teleapi_mark_orders",
+  "kind": "mark_orders",
+  "race_number": 5,
+  "race_day": 2,
+  "confirmed": true,
+  "use": "Who rounded each mark from GPS trail. Not finish order. Not Nett.",
+  "accuracy": {
+    "typical_m": 5,
+    "conservative_m": 10,
+    "order_reliable_if_gap_over_s": 2.5,
+    "note": "At ~11 kn, 5 m GPS is ~1 s of boat travel. Gaps over ~2.5 s are a real order. Sub-2 s gaps are near-ties."
+  },
+  "course_lap1": "Start \u2192 1 WindW \u2192 2 Wing \u2192 3 Leeward \u2192 4 Wing2",
+  "passes": [
+    {
+      "pass_id": "L1-1",
+      "mark": "1",
+      "title": "WindW",
+      "leave_to": "port",
+      "status": "all_17",
+      "boats_rounded": 17,
+      "first": {
+        "boat": "HYC",
+        "sast": "16:22:03"
+      },
+      "near_ties": [
+        {
+          "boats": [
+            "RNYC",
+            "UCTYC"
+          ],
+          "gap_s": 1.0,
+          "note": "inside GPS ~1s noise \u2014 treat as near-tie"
+        }
+      ],
+      "order": [
+        {
+          "order": 1,
+          "boat": "HYC",
+          "sast": "16:22:03",
+          "closest_m": 8.5,
+          "sog_kn": 10.2,
+          "ts_ms": 1787840523000
+        },
+        {
+          "order": 2,
+          "boat": "RCYC",
+          "sast": "16:22:21",
+          "closest_m": 5.3,
+          "sog_kn": 10.6,
+          "ts_ms": 1787840541000
+        },
+        {
+          "order": 3,
+          "boat": "KYC",
+          "sast": "16:22:31",
+          "closest_m": 3.4,
+          "sog_kn": 11.0,
+          "ts_ms": 1787840551000
+        },
+        {
+          "order": 4,
+          "boat": "RCYC Academy",
+          "sast": "16:22:58",
+          "closest_m": 13.9,
+          "sog_kn": 12.8,
+          "ts_ms": 1787840578000
+        },
+        {
+          "order": 5,
+          "boat": "RNYC",
+          "sast": "16:23:09",
+          "closest_m": 6.0,
+          "sog_kn": 10.6,
+          "ts_ms": 1787840589000
+        },
+        {
+          "order": 6,
+          "boat": "UCTYC",
+          "sast": "16:23:10",
+          "closest_m": 6.4,
+          "sog_kn": 11.0,
+          "ts_ms": 1787840590000
+        },
+        {
+          "order": 7,
+          "boat": "SBYC",
+          "sast": "16:23:18",
+          "closest_m": 10.1,
+          "sog_kn": 11.3,
+          "ts_ms": 1787840598000
+        },
+        {
+          "order": 8,
+          "boat": "PYC",
+          "sast": "16:23:28",
+          "closest_m": 6.4,
+          "sog_kn": 7.2,
+          "ts_ms": 1787840608000
+        },
+        {
+          "order": 9,
+          "boat": "FBYC",
+          "sast": "16:23:35",
+          "closest_m": 5.4,
+          "sog_kn": 9.4,
+          "ts_ms": 1787840615000
+        },
+        {
+          "order": 10,
+          "boat": "WBYC",
+          "sast": "16:23:38",
+          "closest_m": 2.5,
+          "sog_kn": 11.3,
+          "ts_ms": 1787840618000
+        },
+        {
+          "order": 11,
+          "boat": "IZIVUNGUVUNGU",
+          "sast": "16:23:46",
+          "closest_m": 2.9,
+          "sog_kn": 13.6,
+          "ts_ms": 1787840626000
+        },
+        {
+          "order": 12,
+          "boat": "LDYC",
+          "sast": "16:24:05",
+          "closest_m": 13.5,
+          "sog_kn": 11.3,
+          "ts_ms": 1787840645000
+        },
+        {
+          "order": 13,
+          "boat": "GLYC",
+          "sast": "16:24:13",
+          "closest_m": 8.5,
+          "sog_kn": 9.4,
+          "ts_ms": 1787840653000
+        },
+        {
+          "order": 14,
+          "boat": "BYC",
+          "sast": "16:24:37",
+          "closest_m": 3.9,
+          "sog_kn": 12.1,
+          "ts_ms": 1787840677000
+        },
+        {
+          "order": 15,
+          "boat": "TSC",
+          "sast": "16:24:48",
+          "closest_m": 8.2,
+          "sog_kn": 12.5,
+          "ts_ms": 1787840688000
+        },
+        {
+          "order": 16,
+          "boat": "LYC",
+          "sast": "16:25:07",
+          "closest_m": 9.5,
+          "sog_kn": 11.7,
+          "ts_ms": 1787840707000
+        },
+        {
+          "order": 17,
+          "boat": "WYAC",
+          "sast": "16:25:42",
+          "closest_m": 2.8,
+          "sog_kn": 12.1,
+          "ts_ms": 1787840742000
+        }
+      ]
+    },
+    {
+      "pass_id": "L1-2",
+      "mark": "2",
+      "title": "Wing",
+      "leave_to": "port",
+      "status": "all_17",
+      "boats_rounded": 17,
+      "first": {
+        "boat": "HYC",
+        "sast": "16:25:06"
+      },
+      "near_ties": [],
+      "order": [
+        {
+          "order": 1,
+          "boat": "HYC",
+          "sast": "16:25:06",
+          "closest_m": 3.1,
+          "sog_kn": 11.0,
+          "ts_ms": 1787840706000
+        },
+        {
+          "order": 2,
+          "boat": "RCYC",
+          "sast": "16:25:11",
+          "closest_m": 6.1,
+          "sog_kn": 15.5,
+          "ts_ms": 1787840711000
+        },
+        {
+          "order": 3,
+          "boat": "KYC",
+          "sast": "16:25:26",
+          "closest_m": 4.6,
+          "sog_kn": 14.0,
+          "ts_ms": 1787840726000
+        },
+        {
+          "order": 4,
+          "boat": "RCYC Academy",
+          "sast": "16:25:33",
+          "closest_m": 1.5,
+          "sog_kn": 9.4,
+          "ts_ms": 1787840733000
+        },
+        {
+          "order": 5,
+          "boat": "UCTYC",
+          "sast": "16:25:48",
+          "closest_m": 2.6,
+          "sog_kn": 15.1,
+          "ts_ms": 1787840748000
+        },
+        {
+          "order": 6,
+          "boat": "RNYC",
+          "sast": "16:25:53",
+          "closest_m": 5.9,
+          "sog_kn": 10.6,
+          "ts_ms": 1787840753000
+        },
+        {
+          "order": 7,
+          "boat": "SBYC",
+          "sast": "16:26:04",
+          "closest_m": 3.4,
+          "sog_kn": 14.7,
+          "ts_ms": 1787840764000
+        },
+        {
+          "order": 8,
+          "boat": "FBYC",
+          "sast": "16:26:18",
+          "closest_m": 1.2,
+          "sog_kn": 13.6,
+          "ts_ms": 1787840778000
+        },
+        {
+          "order": 9,
+          "boat": "PYC",
+          "sast": "16:26:24",
+          "closest_m": 1.9,
+          "sog_kn": 15.1,
+          "ts_ms": 1787840784000
+        },
+        {
+          "order": 10,
+          "boat": "WBYC",
+          "sast": "16:26:27",
+          "closest_m": 5.7,
+          "sog_kn": 14.4,
+          "ts_ms": 1787840787000
+        },
+        {
+          "order": 11,
+          "boat": "IZIVUNGUVUNGU",
+          "sast": "16:26:43",
+          "closest_m": 2.6,
+          "sog_kn": 14.0,
+          "ts_ms": 1787840803000
+        },
+        {
+          "order": 12,
+          "boat": "LDYC",
+          "sast": "16:26:57",
+          "closest_m": 2.8,
+          "sog_kn": 15.9,
+          "ts_ms": 1787840817000
+        },
+        {
+          "order": 13,
+          "boat": "GLYC",
+          "sast": "16:27:08",
+          "closest_m": 0.8,
+          "sog_kn": 12.5,
+          "ts_ms": 1787840828000
+        },
+        {
+          "order": 14,
+          "boat": "BYC",
+          "sast": "16:27:20",
+          "closest_m": 2.8,
+          "sog_kn": 12.1,
+          "ts_ms": 1787840840000
+        },
+        {
+          "order": 15,
+          "boat": "TSC",
+          "sast": "16:27:41",
+          "closest_m": 1.6,
+          "sog_kn": 11.7,
+          "ts_ms": 1787840861000
+        },
+        {
+          "order": 16,
+          "boat": "LYC",
+          "sast": "16:28:21",
+          "closest_m": 2.4,
+          "sog_kn": 5.3,
+          "ts_ms": 1787840901000
+        },
+        {
+          "order": 17,
+          "boat": "WYAC",
+          "sast": "16:28:45",
+          "closest_m": 2.3,
+          "sog_kn": 7.6,
+          "ts_ms": 1787840925000
+        }
+      ]
+    },
+    {
+      "pass_id": "L1-3",
+      "mark": "3",
+      "title": "Leeward",
+      "leave_to": "port",
+      "status": "front_14",
+      "boats_rounded": 14,
+      "missing": [
+        "RCYC Academy",
+        "UCTYC",
+        "SBYC"
+      ],
+      "note": "Academy, UCTYC, SBYC not in this pack; do not invent them from finish.",
+      "first": {
+        "boat": "HYC",
+        "sast": "16:29:11"
+      },
+      "near_ties": [
+        {
+          "boats": [
+            "FBYC",
+            "PYC"
+          ],
+          "gap_s": 2.0,
+          "note": "inside GPS ~1s noise \u2014 treat as near-tie"
+        },
+        {
+          "boats": [
+            "LDYC",
+            "IZIVUNGUVUNGU"
+          ],
+          "gap_s": 0.0,
+          "note": "inside GPS ~1s noise \u2014 treat as near-tie"
+        }
+      ],
+      "order": [
+        {
+          "order": 1,
+          "boat": "HYC",
+          "sast": "16:29:11",
+          "closest_m": 5.5,
+          "sog_kn": 12.1,
+          "ts_ms": 1787840951000
+        },
+        {
+          "order": 2,
+          "boat": "RCYC",
+          "sast": "16:29:18",
+          "closest_m": 4.9,
+          "sog_kn": 12.1,
+          "ts_ms": 1787840958000
+        },
+        {
+          "order": 3,
+          "boat": "KYC",
+          "sast": "16:29:38",
+          "closest_m": 3.7,
+          "sog_kn": 9.8,
+          "ts_ms": 1787840978000
+        },
+        {
+          "order": 4,
+          "boat": "RNYC",
+          "sast": "16:30:05",
+          "closest_m": 7.3,
+          "sog_kn": 10.2,
+          "ts_ms": 1787841005000
+        },
+        {
+          "order": 5,
+          "boat": "FBYC",
+          "sast": "16:30:29",
+          "closest_m": 2.4,
+          "sog_kn": 9.4,
+          "ts_ms": 1787841029000
+        },
+        {
+          "order": 6,
+          "boat": "PYC",
+          "sast": "16:30:31",
+          "closest_m": 11.5,
+          "sog_kn": 10.6,
+          "ts_ms": 1787841031000
+        },
+        {
+          "order": 7,
+          "boat": "WBYC",
+          "sast": "16:30:34",
+          "closest_m": 6.7,
+          "sog_kn": 6.8,
+          "ts_ms": 1787841034000
+        },
+        {
+          "order": 8,
+          "boat": "LDYC",
+          "sast": "16:30:54",
+          "closest_m": 4.4,
+          "sog_kn": 11.0,
+          "ts_ms": 1787841054000
+        },
+        {
+          "order": 9,
+          "boat": "IZIVUNGUVUNGU",
+          "sast": "16:30:54",
+          "closest_m": 6.1,
+          "sog_kn": 6.8,
+          "ts_ms": 1787841054000
+        },
+        {
+          "order": 10,
+          "boat": "GLYC",
+          "sast": "16:31:07",
+          "closest_m": 4.0,
+          "sog_kn": 11.0,
+          "ts_ms": 1787841067000
+        },
+        {
+          "order": 11,
+          "boat": "BYC",
+          "sast": "16:31:21",
+          "closest_m": 5.9,
+          "sog_kn": 10.6,
+          "ts_ms": 1787841081000
+        },
+        {
+          "order": 12,
+          "boat": "TSC",
+          "sast": "16:31:44",
+          "closest_m": 8.0,
+          "sog_kn": 11.7,
+          "ts_ms": 1787841104000
+        },
+        {
+          "order": 13,
+          "boat": "LYC",
+          "sast": "16:33:10",
+          "closest_m": 9.7,
+          "sog_kn": 12.8,
+          "ts_ms": 1787841190000
+        },
+        {
+          "order": 14,
+          "boat": "WYAC",
+          "sast": "16:33:41",
+          "closest_m": 10.6,
+          "sog_kn": 12.1,
+          "ts_ms": 1787841221000
+        }
+      ]
+    },
+    {
+      "pass_id": "L1-4",
+      "mark": "4",
+      "title": "Wing 2",
+      "leave_to": "port",
+      "status": "front_14",
+      "boats_rounded": 14,
+      "missing": [
+        "RCYC Academy",
+        "UCTYC",
+        "SBYC"
+      ],
+      "note": "Device 4 is also the finish pin. Do not treat finish times as a mark-4 rounding.",
+      "first": {
+        "boat": "HYC",
+        "sast": "16:32:32"
+      },
+      "near_ties": [],
+      "order": [
+        {
+          "order": 1,
+          "boat": "HYC",
+          "sast": "16:32:32",
+          "closest_m": 2.9,
+          "sog_kn": 11.3,
+          "ts_ms": 1787841152000
+        },
+        {
+          "order": 2,
+          "boat": "RCYC",
+          "sast": "16:32:38",
+          "closest_m": 4.5,
+          "sog_kn": 12.8,
+          "ts_ms": 1787841158000
+        },
+        {
+          "order": 3,
+          "boat": "KYC",
+          "sast": "16:32:56",
+          "closest_m": 3.4,
+          "sog_kn": 12.1,
+          "ts_ms": 1787841176000
+        },
+        {
+          "order": 4,
+          "boat": "RNYC",
+          "sast": "16:33:23",
+          "closest_m": 5.8,
+          "sog_kn": 10.2,
+          "ts_ms": 1787841203000
+        },
+        {
+          "order": 5,
+          "boat": "PYC",
+          "sast": "16:33:59",
+          "closest_m": 4.2,
+          "sog_kn": 12.8,
+          "ts_ms": 1787841239000
+        },
+        {
+          "order": 6,
+          "boat": "FBYC",
+          "sast": "16:34:04",
+          "closest_m": 3.7,
+          "sog_kn": 8.7,
+          "ts_ms": 1787841244000
+        },
+        {
+          "order": 7,
+          "boat": "WBYC",
+          "sast": "16:34:09",
+          "closest_m": 3.4,
+          "sog_kn": 10.6,
+          "ts_ms": 1787841249000
+        },
+        {
+          "order": 8,
+          "boat": "IZIVUNGUVUNGU",
+          "sast": "16:34:21",
+          "closest_m": 3.8,
+          "sog_kn": 10.6,
+          "ts_ms": 1787841261000
+        },
+        {
+          "order": 9,
+          "boat": "LDYC",
+          "sast": "16:34:26",
+          "closest_m": 3.8,
+          "sog_kn": 9.1,
+          "ts_ms": 1787841266000
+        },
+        {
+          "order": 10,
+          "boat": "GLYC",
+          "sast": "16:34:37",
+          "closest_m": 3.8,
+          "sog_kn": 11.0,
+          "ts_ms": 1787841277000
+        },
+        {
+          "order": 11,
+          "boat": "BYC",
+          "sast": "16:34:51",
+          "closest_m": 4.7,
+          "sog_kn": 12.1,
+          "ts_ms": 1787841291000
+        },
+        {
+          "order": 12,
+          "boat": "TSC",
+          "sast": "16:35:17",
+          "closest_m": 3.3,
+          "sog_kn": 13.6,
+          "ts_ms": 1787841317000
+        },
+        {
+          "order": 13,
+          "boat": "LYC",
+          "sast": "16:36:53",
+          "closest_m": 4.8,
+          "sog_kn": 10.6,
+          "ts_ms": 1787841413000
+        },
+        {
+          "order": 14,
+          "boat": "WYAC",
+          "sast": "16:37:08",
+          "closest_m": 3.5,
+          "sog_kn": 13.2,
+          "ts_ms": 1787841428000
+        }
+      ]
+    }
+  ],
+  "finish_order_not_a_mark": {
+    "source": "firestore_finishes",
+    "first": "RCYC",
+    "note": "RCYC 1st to finish. HYC 1st at marks 1\u20134 lap 1. Do not copy finish into mark rank."
+  }
+}

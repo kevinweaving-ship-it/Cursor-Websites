@@ -17,7 +17,7 @@ This is the day as it starts. Fill each slice only with what the tracker actuall
 | SA chip LIVE / RACING / POSTPONED | Override if the feed is wrong. POSTPONED = racing-day AP, not “event moved”. |
 | Lipton page | Display only. Do not write sheet Nett from tracker places. |
 
-GPS **trails** (boats and marks 1/2/3 moving) are what the replay map draws. They are **not** in the spectator document yet. Anything that needs “who is closest to mark 1 right now” waits on that trail.
+GPS **trails** come from `teleapi.regatta.app` (not Firestore). Archive them: `python3 sailingsa/scripts/lipton_mark_rounding.py --fetch` then `--save`. Frozen Race 5 mark-1 file: `docs/lipton_2026_r5_mark1_rounding.json`.
 
 ## Day skeleton (what we look for)
 
@@ -111,4 +111,77 @@ Rounding order (closest to mark 1, then HDG change). **>90°** = bear-away at th
 | 15 | TSC | 16:24:48 | 86° | 237→151 |
 | 16 | LYC | 16:25:07 | 45° | 232→187 |
 | 17 | WYAC | 16:25:42 | 68° | 239→171 |
+
+## Can we rank 1st–17th at each mark? (Race 5 trail)
+
+**Yes for lap 1 mark 1 and mark 2 — all 17.** Frozen: `docs/lipton_2026_r5_mark_orders.json`. Not finish order. Not Nett. Not live yet.
+
+At ~11 kn, **5 m GPS ≈ 1 s** of boat travel. Gaps **>2.5 s** are a real 1st/2nd/… Gaps **under ~2 s** are a near-tie.
+
+| Mark | 1st–17th? | First | Note |
+|---|---|---|---|
+| **1 WindW** | **all 17** | HYC 16:22:03 | RNYC/UCTYC +0.9 s = near-tie for 5th/6th |
+| **2 Wing** | **all 17** | HYC 16:25:06 | Clean. HYC still 1st, RCYC 2nd (+4.7 s) |
+| **3 Leeward** | **front 14** | HYC 16:29:11 | Academy, UCTYC, SBYC not in this pack — do not invent |
+| **4 Wing 2** | **front 14** | HYC 16:32:32 | Same three missing. Device 4 is also the finish pin — do not use finish times as a rounding |
+| **Finish** | all 17 | **RCYC** 17:02:00 | Firestore finish line. RCYC 1st here, HYC 1st at the marks |
+
+Lap 2 / 3: trail exists, not a clean 17 yet. Wait for raw live GPS before showing those ranks.
+
+## Metres to the mark / pin — when accuracy is lost
+
+**Metres-to-mark is always computed.** It does not fade with range. 400 m out is the same GPS as 40 m out.
+
+The error is a **fixed number of metres**, not a percent of distance:
+
+| What | Metres |
+|---|---|
+| Typical trail error | **~5 m** |
+| Conservative (p95) | **~10 m** |
+| Do not claim closer than | **~3 m** |
+| Useful precision lost inside | **~10 m** of the buoy |
+
+So:
+
+- **400 m → 50 m from the mark:** distance is good. “12 m vs 18 m” is real. “Going to the mark” (heading tracks the buoy, distance falling) is clean from **~300 m** down to **~50 m**.
+- **~30 m:** they are already turning. Heading-to-mark is the rounding, not the approach.
+- **Inside ~10 m:** GPS error is as big as the distance. “2 m from the pin” is **not** real. Closest pings in Race 5 were 2–14 m (HYC 8.5 m). That is “at the mark”, not a millimetre DTL.
+- **Past the mark:** same **~5 / ~10 m**. Rounding is clear by **10–20 m past** (distance increasing + heading swung). Still accurate at 200 m past. Course to mark 2 is clearest **10–75 m** past.
+
+**Start-gun pin DTL** is the exception: Vakaros stores millimetres (`dtlMm`) **at the gun only**. The live trail never has that.
+
+3-length zone (~20 m) is usable (several times the noise).
+
+## Speed at Race 5 mark 1 (knots)
+
+**Assumption checked: they do not have to slow to round.** Median **11.3 kn** at 50 m in, **11.3 kn** at the mark, **12.1 kn** 50 m out. Only 7 of 17 dropped ≥0.8 kn.
+
+The three big bear-aways (**>90° HDG**: HYC, RNYC, PYC) *did* dip (especially PYC 12.3→7.2 then back to 12.5). Boats already reaching kept or gained speed. So a speed dip is a **style** flag for a hard turn, not the rounding detector. Rounding is still **heading change + closest distance**.
+
+| # | Boat | kn 50 m in | kn at mark | kn 50 m out | slowed? |
+|---|---|---:|---:|---:|---|
+| 1 | HYC | 11.7 | 10.2 | 11.7 | yes (−1.5) |
+| 2 | RCYC | 11.3 | 10.6 | 12.1 | no |
+| 3 | KYC | 10.2 | 11.0 | 12.3 | no |
+| 4 | RCYC Academy | 11.0 | 12.8 | 12.1 | no |
+| 5 | RNYC | 11.7 | 10.6 | 11.3 | yes (−1.1) |
+| 6 | UCTYC | 11.9 | 11.0 | 10.6 | yes |
+| 7 | SBYC | 9.8 | 11.3 | 12.5 | no |
+| 8 | PYC | 12.3 | 7.2 | 12.5 | yes (−5.1) |
+| 9 | FBYC | 12.1 | 9.4 | 14.2 | yes |
+| 10 | WBYC | 11.3 | 11.3 | 12.3 | no |
+| 11 | IZIVUNGUVUNGU | 9.6 | 13.6 | 11.9 | no |
+| 12 | LDYC | 12.3 | 11.3 | 11.7 | yes |
+| 13 | GLYC | 11.3 | 9.4 | 11.3 | yes |
+| 14 | BYC | 11.1 | 12.1 | 14.0 | no |
+| 15 | TSC | 11.5 | 12.5 | 12.8 | no |
+| 16 | LYC | 11.3 | 11.7 | 12.3 | no |
+| 17 | WYAC | 11.0 | 12.1 | 11.9 | no |
+
+## Heel and trim (Race 5 mark 1)
+
+Trail has **roll** (heel) and **pitch** (trim).
+
+- **Heel is of some use.** Median |roll| **~16°** inbound (upwind) → **~9°** at the mark → **~8°** outbound (flatter on the reach). Supports “they have borne away” together with heading. Too noisy to time the rounding on its own.
+- **Trim is not useful.** Pitch only moves a few degrees (median ~2° in / ~2° at / ~4° out), integer and noisy. Do not use as a rounding signal.
 

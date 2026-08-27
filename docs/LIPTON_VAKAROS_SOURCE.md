@@ -125,13 +125,13 @@ Every rounding on this course is **port** (`roundingDirection: port`, role `mark
 
 Start and finish are **lines**, not roundings (pin–RC). That direction arrow on the map is how we know a boat is approaching the mark it must round, and which way. Detecting “now in the 3-length zone” still needs the GPS trail (not in the spectator document yet). The **rule** is stored; the **when** waits on frames.
 
-**What we cannot get yet:** lat/lon for marks **1 / 2 / 3** during the race, or a boat’s distance to them **while racing**. The replay map draws those from GPS frame streams. Spectator Firestore has the course (which SN is which mark) but not the ping trail. Do not invent those positions.
+**Trail (now archived):** lat/lon for boats and marks **1 / 2 / 3** while racing is on `teleapi.regatta.app`, not in the spectator document. Frozen Race 5 mark-1 rounding + metre accuracy: `docs/lipton_2026_r5_mark1_rounding.json` (`source=teleapi_mark_rounding` in `vakaros_snapshots`). Do not invent positions. Metres-to-mark is always computed; trail error is **~5 m typical / ~10 m conservative** at any range. Inside ~10 m of the buoy that error *is* the distance, so do not show centimetre DTL from the trail. Gun DTL millimetres remain Firestore `dtlMm` only.
 
 ## First boat (finish vs marks)
 
 **Finish:** yes. `finishes[].finishingTime` is a full order. Stored as `first_to_finish` / `finish_order`. Race 5 first to finish: **RCYC**.
 
-**First to round mark 1 / 2 / 3:** not in this document. No rounding timestamps or splits. Do not invent a mark leader from finish order.
+**First to round mark 1:** yes, from the trail (not from finish order). Race 5 first about to round mark 1: **HYC 16:22:03 SAST**, 8.5 m. See `docs/LIPTON_RACE_DAY.md`.
 
 ## How to check (must actually run)
 
@@ -158,6 +158,6 @@ Or: `expect sailingsa/deploy/apply-lipton-vakaros-archive.exp`
 `payload_raw` = Firestore REST body (lossless).  
 `summary` = days / race numbers derived from `races[].starts[].startTime` (SAST date), not from our clock.
 
-**Not in this document (cannot invent):** GPS replay / frame bundles. Spectator auth can read `regattas/{id}` only. Storage was empty. If those streams become readable later, snapshot them into new rows with a different `source`.
+**GPS trails:** `teleapi.regatta.app` (not this Firestore document). Freeze with `python3 sailingsa/scripts/lipton_mark_rounding.py --fetch --save`. `source = teleapi_mark_rounding`.
 
 Lipton-only ingest (`regatta_id = 2026-08-29-lipton-challenge-cup`). Do not reuse against other regattas.
