@@ -372,6 +372,11 @@ def extract_course_hardware(doc: dict, div: dict) -> dict:
             "finish_pin": _end(finish, "finishLeft"),
             "finish_committee": _end(finish, "finishRight"),
         },
+        "rounding_zone": {
+            "enabled": bool(div.get("markZoneEnabled")),
+            "boat_lengths": div.get("numBoatLengthsForZone"),
+            "mark_role_on_course": "markPort means leave the mark to port (round to port)",
+        },
         "note": (
             "Tracker does not label a device 'Pin'. Start/finish left end is device name '4'. "
             "Committee boat is device name 'RC' (role coordinator). "

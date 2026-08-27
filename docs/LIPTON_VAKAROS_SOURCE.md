@@ -112,6 +112,19 @@ There is **no device named Pin**. The pin is device **4**.
 
 **Race 5 gun (checked):** start line ~174 m. Closest boat LDYC DTL **0.13 m**, ~11 m from the pin. No OCS. Replay at gun (no `live`): see `races[R5].replay.at_gun`.
 
+**Rounding direction (on the course, not guessed)**
+
+Every rounding on this course is **port** (`roundingDirection: port`, role `markPort`). Zone is **on**, **3 boat lengths** (`markZoneEnabled`, `numBoatLengthsForZone`).
+
+| Mark | Round | Leave to |
+|---|---|---|
+| 1 Windward | port | port |
+| 2 Wing | port | port |
+| 3 Leeward | port | port |
+| 4 (also a wing later) | port | port |
+
+Start and finish are **lines**, not roundings (pin–RC). That direction arrow on the map is how we know a boat is approaching the mark it must round, and which way. Detecting “now in the 3-length zone” still needs the GPS trail (not in the spectator document yet). The **rule** is stored; the **when** waits on frames.
+
 **What we cannot get yet:** lat/lon for marks **1 / 2 / 3** during the race, or a boat’s distance to them **while racing**. The replay map draws those from GPS frame streams. Spectator Firestore has the course (which SN is which mark) but not the ping trail. Do not invent those positions.
 
 ## How to check (must actually run)
