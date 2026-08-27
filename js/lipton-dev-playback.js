@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827v";
+  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827w";
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -96,9 +96,19 @@
     (data.ocs || []).forEach(function (name) { OCS[name] = true; });
     var ST_LEAD_TS = null;
     PASSES.forEach(function (p) {
-      if ((p.id === "ST" || p.label === "ST") && p.boats.length) ST_LEAD_TS = p.boats[0].ts;
+      if ((p.id === "ST" || p.label === "ST") && p.boats.length) {
+        for (var si = 0; si < p.boats.length; si++) {
+          if (!OCS[p.boats[si].boat]) {
+            ST_LEAD_TS = p.boats[si].ts;
+            break;
+          }
+        }
+        if (ST_LEAD_TS == null) ST_LEAD_TS = p.boats[0].ts;
+      }
     });
     var GUN_CLOCK = String(data.gun_sast || "").slice(11, 19) || "15:50:01";
+    var RACE_NO = Number(data.race_number || 5);
+    var RACE_LAB = "Race " + RACE_NO;
     var RATE = Number(data.default_rate || 1);
     var SETTLE_MS = 2500;
     var playing = false;
@@ -219,6 +229,7 @@
     function fmtBehindFirst(t) {
       if (ST_LEAD_TS == null) return "";
       var sec = (t - ST_LEAD_TS) / 1000;
+      if (sec <= -0.05) return sec.toFixed(1);
       if (sec < 0.05) return "0.0";
       return "+" + sec.toFixed(1);
     }
@@ -339,7 +350,7 @@
     function setSailed(rows) {
       if (!sailedEl) return;
       if (!rows.length) {
-        sailedEl.textContent = "Race 5 · gun " + GUN_CLOCK + " · approaching start";
+        sailedEl.textContent = "Race " + RACE_NO + " · gun " + GUN_CLOCK + " · approaching start";
         return;
       }
       var lead = rows[0];
@@ -352,7 +363,7 @@
       var lapBit = !isFin && !isSt && lead.farLap > 1 ? " · lap " + lead.farLap : "";
       var ocsBit = isSt && Object.keys(OCS).length ? " · OCS " + Object.keys(OCS).join(",") : "";
       var rankLab = isSt ? "start" : lead.farLab;
-      sailedEl.textContent = (isSt ? "Race 5 · gun " + GUN_CLOCK : "Race 5 replay") + " · " + lead.farLab + lapBit + " · " + n + " of " + tot + " · rank by " + rankLab + ocsBit;
+      sailedEl.textContent = (isSt ? RACE_LAB + " · gun " + GUN_CLOCK : RACE_LAB + " replay") + " · " + lead.farLab + lapBit + " · " + n + " of " + tot + " · rank by " + rankLab + ocsBit;
     }
     function clockText(ts, rows) {
       var clock = fmtClock(ts - GUN_TS);
