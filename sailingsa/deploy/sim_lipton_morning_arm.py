@@ -85,6 +85,18 @@ ok02 = (
 )
 
 mem.clear()
+mem.update(leftover)
+mod._live_race_sa_minutes_now = lambda: 10 * 60
+st10_left = mod._live_race_apply_sa_schedule(RID, dict(mem))
+print("10:00 leftover gun", {k: st10_left.get(k) for k in keys})
+ok10_left = (
+    not st10_left.get("gun_at")
+    and str(st10_left.get("board_status") or "") == "LIVE"
+    and st10_left.get("race_key") == "R6"
+    and st10_left.get("day_done") is False
+)
+
+mem.clear()
 mem.update(orig)
 mod._live_race_sa_minutes_now = lambda: 10 * 60
 st10 = mod._live_race_apply_sa_schedule(RID, dict(mem))
@@ -98,6 +110,7 @@ print("gun_at_12", st12.get("gun_at"))
 
 ok = (
     ok02
+    and ok10_left
     and st10.get("race_key") == "R6"
     and st10.get("day_done") is False
     and not st10.get("gun_at")
