@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827u";
+  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827v";
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -92,6 +92,13 @@
         boats: FINISH
       });
     }
+    var OCS = {};
+    (data.ocs || []).forEach(function (name) { OCS[name] = true; });
+    var ST_LEAD_TS = null;
+    PASSES.forEach(function (p) {
+      if ((p.id === "ST" || p.label === "ST") && p.boats.length) ST_LEAD_TS = p.boats[0].ts;
+    });
+    var GUN_CLOCK = String(data.gun_sast || "").slice(11, 19) || "15:50:01";
     var RATE = Number(data.default_rate || 1);
     var SETTLE_MS = 2500;
     var playing = false;
@@ -166,7 +173,7 @@
         var p = PASSES[i];
         var title = "Lap " + p.lap + " mark " + p.mark;
         if (p.id === "FIN" || p.label === "Fin") title = "Finish";
-        else if (p.id === "ST" || p.label === "ST") title = "Start line";
+        else if (p.id === "ST" || p.label === "ST") title = "Seconds after first boat over the start line. OCS if recalled.";
         html += "<th class=\"timer-col\" title=\"" + esc(title) + "\">" + esc(p.label) + "</th>";
         if (i < PASSES.length - 1) {
           var nlab = PASSES[i + 1].label;
@@ -209,9 +216,20 @@
       if (ft != null && ft <= ts) return fmtClock(ft - GUN_TS);
       return "";
     }
-    function splitCell(times, i) {
+    function fmtBehindFirst(t) {
+      if (ST_LEAD_TS == null) return "";
+      var sec = (t - ST_LEAD_TS) / 1000;
+      if (sec < 0.05) return "0.0";
+      return "+" + sec.toFixed(1);
+    }
+    function splitCell(times, i, boat) {
       var t = times[i];
       if (t == null) return "";
+      if (PASSES[i] && (PASSES[i].id === "ST" || PASSES[i].label === "ST")) {
+        var gap = fmtBehindFirst(t);
+        if (OCS[boat]) return "OCS " + gap;
+        return gap;
+      }
       if (PASSES[i] && (PASSES[i].id === "FIN" || PASSES[i].label === "Fin")) {
         return fmtClock(t - GUN_TS);
       }
@@ -310,7 +328,7 @@
       html += "<td class=\"boat-name-col\">" + boatNameCell(id) + "</td>";
       html += "<td class=\"club-col\">" + clubCell(id) + "</td>";
       for (var i = 0; i < PASSES.length; i++) {
-        html += "<td class=\"timer-col\">" + splitCell(r.times, i) + "</td>";
+        html += "<td class=\"timer-col\">" + splitCell(r.times, i, r.boat) + "</td>";
         if (i < PASSES.length - 1) {
           html += deltaCell(r.boat, i, rankMaps[i].prev, rankMaps[i].next);
         }
@@ -321,7 +339,7 @@
     function setSailed(rows) {
       if (!sailedEl) return;
       if (!rows.length) {
-        sailedEl.textContent = "Race 5 replay · approaching M1";
+        sailedEl.textContent = "Race 5 · gun " + GUN_CLOCK + " · approaching start";
         return;
       }
       var lead = rows[0];
@@ -330,12 +348,15 @@
       var tot = PASSES[lead.farIdx] ? PASSES[lead.farIdx].boats.length : n;
       var p = PASSES[lead.farIdx];
       var isFin = p && (p.id === "FIN" || p.label === "Fin");
-      var lapBit = !isFin && lead.farLap > 1 ? " · lap " + lead.farLap : "";
-      sailedEl.textContent = "Race 5 replay · " + lead.farLab + lapBit + " · " + n + " of " + tot + " · rank by " + lead.farLab;
+      var isSt = p && (p.id === "ST" || p.label === "ST");
+      var lapBit = !isFin && !isSt && lead.farLap > 1 ? " · lap " + lead.farLap : "";
+      var ocsBit = isSt && Object.keys(OCS).length ? " · OCS " + Object.keys(OCS).join(",") : "";
+      var rankLab = isSt ? "start" : lead.farLab;
+      sailedEl.textContent = (isSt ? "Race 5 · gun " + GUN_CLOCK : "Race 5 replay") + " · " + lead.farLab + lapBit + " · " + n + " of " + tot + " · rank by " + rankLab + ocsBit;
     }
     function clockText(ts, rows) {
       var clock = fmtClock(ts - GUN_TS);
-      if (!rows.length) return clock + " → M1";
+      if (!rows.length) return clock + " → start";
       return clock;
     }
     function render(ts) {

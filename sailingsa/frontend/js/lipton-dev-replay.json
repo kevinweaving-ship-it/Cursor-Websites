@@ -11,8 +11,8 @@
   "race_day": 2,
   "gun_ts_ms": 1787838601000,
   "gun_sast": "2026-08-27T15:50:01+02:00",
-  "play_start_ts_ms": 1787840433900,
-  "play_start_sast": "2026-08-27T16:20:33+02:00",
+  "play_start_ts_ms": 1787838601000,
+  "play_start_sast": "2026-08-27T15:50:01+02:00",
   "first_finish_ts_ms": 1787842920412,
   "first_finish_sast": "2026-08-27T17:02:00.412+02:00",
   "end_ts_ms": 1787843375770,
@@ -263,7 +263,8 @@
   "jumps": {
     "gun": 1787838601000,
     "mark1": 1787840490000,
-    "finish": 1787842920412
+    "finish": 1787842920412,
+    "start": 1787838601000
   },
   "sources": {
     "guns_finishes": "Vakaros Firestore races[R5]",
@@ -1195,5 +1196,6 @@
       ]
     }
   ],
-  "play_end_sast": "2026-08-27T17:09:35.770+02:00"
+  "play_end_sast": "2026-08-27T17:09:35.770+02:00",
+  "ocs": []
 }
