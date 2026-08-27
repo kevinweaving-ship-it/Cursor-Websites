@@ -5,8 +5,8 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827ah";
-  var TRAIL_URL = "/js/lipton-dev-trail.json?v=20260827ah";
+  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827ai";
+  var TRAIL_URL = "/js/lipton-dev-trail.json?v=20260827ai";
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -620,43 +620,79 @@
       mapCtx.fillText(pinLabel || "Pin", a.x + 6, a.y - 6);
       mapCtx.fillText(label, (a.x + b.x) / 2 + 6, (a.y + b.y) / 2 - 6);
     }
-    function lastGained(sail, maps) {
-      var g = null;
-      for (var i = 0; i < maps.length; i++) {
-        var prev = maps[i].prev[sail];
-        var next = maps[i].next[sail];
-        if (prev != null && next != null) g = prev - next;
+    function passRankOf(pass, sail) {
+      if (!pass || !pass.boats) return null;
+      if (pass.id === "ST" || pass.label === "ST") {
+        return START_RANK[sail] != null ? START_RANK[sail] : null;
       }
-      return g;
+      for (var i = 0; i < pass.boats.length; i++) {
+        if (pass.boats[i].boat === sail) return i + 1;
+      }
+      return null;
     }
-    function drawRankBadge(p, sail, gained) {
-      var n = START_RANK[sail];
-      if (n == null) return;
-      var fill = "#f8fafc";
-      var ink = "#0f172a";
-      if (gained != null && gained > 0) { fill = "#16a34a"; ink = "#ffffff"; }
-      if (gained != null && gained < 0) { fill = "#dc2626"; ink = "#ffffff"; }
-      var x = p.x + 9;
-      var y = p.y - 9;
+    function mapPlace(sail, ts) {
+      var last = -1;
+      for (var i = 0; i < PASSES.length; i++) {
+        var t = tsAtPass(PASSES[i], sail);
+        if (t != null && t <= ts) last = i;
+      }
+      if (last < 0) return { place: null, delta: null };
+      var place = passRankOf(PASSES[last], sail);
+      var delta = null;
+      if (last > 0) {
+        var prev = passRankOf(PASSES[last - 1], sail);
+        if (prev != null && place != null) delta = prev - place;
+      }
+      return { place: place, delta: delta };
+    }
+    function drawBoatLabel(p, sail, ts) {
+      var club = clubCode(sail);
+      var info = mapPlace(sail, ts);
+      var ocs = !!OCS[sail];
+      var x = p.x + 7;
+      var y = p.y - 1;
+      mapCtx.font = "bold 9px sans-serif";
+      mapCtx.textAlign = "left";
+      mapCtx.textBaseline = "middle";
+      mapCtx.fillStyle = ocs ? "#f87171" : "#ffffff";
+      mapCtx.fillText(club, x, y);
+      if (info.place == null) {
+        mapCtx.textAlign = "start";
+        mapCtx.textBaseline = "alphabetic";
+        return;
+      }
+      var cx = x + mapCtx.measureText(club).width + 8;
+      var cy = y;
+      var r = 5.5;
       mapCtx.beginPath();
-      mapCtx.arc(x, y, 7.2, 0, Math.PI * 2);
-      mapCtx.fillStyle = fill;
+      mapCtx.arc(cx, cy, r, 0, Math.PI * 2);
+      mapCtx.fillStyle = ocs ? "#fecaca" : "#f8fafc";
       mapCtx.fill();
       mapCtx.strokeStyle = "rgba(15,23,42,0.45)";
-      mapCtx.lineWidth = 1;
+      mapCtx.lineWidth = 0.8;
       mapCtx.stroke();
-      mapCtx.fillStyle = ink;
-      mapCtx.font = "bold 8px sans-serif";
+      mapCtx.fillStyle = "#0f172a";
+      mapCtx.font = "bold 7px sans-serif";
       mapCtx.textAlign = "center";
-      mapCtx.textBaseline = "middle";
-      mapCtx.fillText(String(n), x, y + 0.4);
+      mapCtx.fillText(String(info.place), cx, cy + 0.3);
+      if (info.delta != null && info.delta !== 0) {
+        mapCtx.textAlign = "left";
+        mapCtx.font = "bold 8px sans-serif";
+        var tx = cx + r + 2;
+        if (info.delta > 0) {
+          mapCtx.fillStyle = "#4ade80";
+          mapCtx.fillText("▲" + info.delta, tx, cy);
+        } else {
+          mapCtx.fillStyle = "#f87171";
+          mapCtx.fillText("▼" + (-info.delta), tx, cy);
+        }
+      }
       mapCtx.textAlign = "start";
       mapCtx.textBaseline = "alphabetic";
     }
     function drawMap(ts) {
       frameCam(ts);
       if (!mapCtx || !mapBounds) return;
-      var rankMaps = pairRankMaps(ts);
       var w = mapBounds.w;
       var h = mapBounds.h;
       mapCtx.fillStyle = "#001f3f";
@@ -690,7 +726,7 @@
         if (!pos) return;
         var p = xy(pos.lat, pos.lon);
         drawBoatIcon(p, pos.hdg, OCS[sail]);
-        drawRankBadge(p, sail, lastGained(sail, rankMaps));
+        drawBoatLabel(p, sail, ts);
       });
     }
     function setRateButtons() {
