@@ -3,7 +3,7 @@
  * Data: /js/lipton-dev-replay.json (replace that file to refresh old data).
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827c";
+  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827d";
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -63,6 +63,7 @@
     var markEnd = MARK1.length ? MARK1[MARK1.length - 1].ts + 8000 : PLAY_START_TS;
 
     var tbody = document.getElementById("lipton-dev-tbody");
+    var tableWrap = document.getElementById("lipton-dev-table-wrap");
     var clockEl = document.getElementById("lipton-dev-clock");
     var sailedEl = document.getElementById("lipton-dev-sailed");
     var frameEl = document.getElementById("lipton-dev-vakaros");
@@ -98,26 +99,23 @@
 
     function rowsAt(ts) {
       var rounded = MARK1.filter(function (b) { return b.ts <= ts; });
-      var waiting = MARK1.filter(function (b) { return b.ts > ts; });
       var leadTs = rounded.length ? rounded[0].ts : null;
-      var out = rounded.map(function (b, i) {
-        return { rank: i + 1, boat: b.boat, gap: leadTs == null ? 0 : b.ts - leadTs, done: true };
+      return rounded.map(function (b, i) {
+        return { rank: i + 1, boat: b.boat, gap: leadTs == null ? 0 : b.ts - leadTs };
       });
-      waiting.forEach(function (b) {
-        out.push({ rank: null, boat: b.boat, gap: null, done: false });
-      });
-      return out;
     }
 
     function render(ts) {
-      var rows = rowsAt(ts);
+      var n = MARK1.filter(function (b) { return b.ts <= ts; }).length;
+      if (tableWrap) tableWrap.hidden = n === 0;
+      var rows = n === 0 ? [] : rowsAt(ts);
       var html = "";
       for (var i = 0; i < rows.length; i++) {
         var r = rows[i];
         var id = ident(r.boat);
         var medal = r.rank === 1 ? " medal-gold" : r.rank === 2 ? " medal-silver" : r.rank === 3 ? " medal-bronze" : "";
-        html += "<tr class=\"" + (r.done ? "" : "strike-out") + medal + "\" data-bow=\"" + esc(id ? id.bow : "") + "\">";
-        html += "<td class=\"rank-col\">" + (r.rank ? r.rank : "—") + "</td>";
+        html += "<tr class=\"" + medal + "\" data-bow=\"" + esc(id ? id.bow : "") + "\">";
+        html += "<td class=\"rank-col\">" + r.rank + "</td>";
         html += "<td class=\"wc-meta-col\">" + bowCell(id) + "</td>";
         html += "<td class=\"boat-name-col\">" + boatNameCell(id) + "</td>";
         html += "<td class=\"club-col\">" + clubCell(id) + "</td>";
@@ -125,7 +123,6 @@
       }
       tbody.innerHTML = html;
       if (clockEl) clockEl.textContent = fmtT(ts - GUN_TS);
-      var n = MARK1.filter(function (b) { return b.ts <= ts; }).length;
       if (sailedEl) {
         sailedEl.textContent = n === 0
           ? "Race 5 replay · approaching mark 1"

@@ -71,10 +71,8 @@ body[data-lipton-dev="1"] .sailed-line {
   margin-bottom: 0;
   line-height: 1.2;
 }
-body[data-lipton-dev="1"] .table-wrapper {
-  overflow: hidden;
-  width: 100%;
-  margin-top: 4px;
+body[data-lipton-dev="1"] .table-wrapper[hidden] {
+  display: none;
 }
 body[data-lipton-dev="1"] .table-wrapper table {
   width: 100%;
