@@ -5,8 +5,8 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827af";
-  var TRAIL_URL = "/js/lipton-dev-trail.json?v=20260827af";
+  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827ag";
+  var TRAIL_URL = "/js/lipton-dev-trail.json?v=20260827ag";
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -111,6 +111,13 @@
         }
         if (ST_LEAD_TS == null) ST_LEAD_TS = p.boats[0].ts;
       }
+    });
+    var START_RANK = {};
+    PASSES.forEach(function (p) {
+      if (p.id !== "ST" && p.label !== "ST") return;
+      p.boats.slice().sort(function (a, b) { return a.ts - b.ts; }).forEach(function (b, i) {
+        START_RANK[b.boat] = i + 1;
+      });
     });
     var GUN_CLOCK = String(data.gun_sast || "").slice(11, 19) || "15:50:01";
     var RACE_NO = Number(data.race_number || 5);
@@ -310,10 +317,11 @@
       if (!cam) {
         cam = target;
       } else {
-        var a = playing ? Math.min(1, 0.16 + RATE / 70) : 1;
-        cam.midLat += (target.midLat - cam.midLat) * a;
-        cam.midLon += (target.midLon - cam.midLon) * a;
-        cam.scale += (target.scale - cam.scale) * a;
+        var aPan = playing ? 0.05 : 1;
+        var aZoom = playing ? 0.03 : 1;
+        cam.midLat += (target.midLat - cam.midLat) * aPan;
+        cam.midLon += (target.midLon - cam.midLon) * aPan;
+        cam.scale += (target.scale - cam.scale) * aZoom;
         cam.cos = Math.cos(cam.midLat * Math.PI / 180);
         cam.w = w;
         cam.h = h;
@@ -328,7 +336,7 @@
       };
     }
     var lastHdg = {};
-    var lastPosEase = {};
+    var lastHdgAt = {};
     function hitBack(series, i) {
       var k = i;
       while (k >= 0 && series.lat[k] == null) k -= 1;
@@ -371,14 +379,12 @@
       var f = (t - i) / (j - i);
       if (f < 0) f = 0;
       if (f > 1) f = 1;
-      var p0 = ptAt(series, hitBack(series, i - 1)) || ptAt(series, i);
-      var p1 = ptAt(series, i);
-      var p2 = ptAt(series, j);
-      var p3 = ptAt(series, hitFwd(series, j + 1)) || p2;
-      var cr = catmull(p0, p1, p2, p3, f);
-      cr.i = i;
-      cr.j = j;
-      return cr;
+      return {
+        lat: series.lat[i] + (series.lat[j] - series.lat[i]) * f,
+        lon: series.lon[i] + (series.lon[j] - series.lon[i]) * f,
+        i: i,
+        j: j
+      };
     }
     function headingAt(b, sample) {
       if (!b || !sample) return 0;
@@ -392,45 +398,26 @@
     function blendHdg(sail, target) {
       if (target == null || isNaN(target)) return lastHdg[sail] || 0;
       var prev = lastHdg[sail];
+      var now = Date.now();
       if (prev == null) {
         lastHdg[sail] = target;
+        lastHdgAt[sail] = now;
         return target;
       }
+      var dt = Math.min(0.05, (now - (lastHdgAt[sail] || now)) / 1000);
+      lastHdgAt[sail] = now;
       var d = target - prev;
       while (d > 180) d -= 360;
       while (d < -180) d += 360;
-      var k = playing ? Math.min(1, 0.18 + RATE / 55) : 1;
+      var k = playing ? (1 - Math.exp(-dt * 9)) : 1;
       var out = prev + d * k;
       lastHdg[sail] = out;
-      return out;
-    }
-    function easePos(sail, pos) {
-      if (!pos) return null;
-      var prev = lastPosEase[sail];
-      if (!prev || !playing) {
-        lastPosEase[sail] = { lat: pos.lat, lon: pos.lon };
-        return pos;
-      }
-      if (distM(prev, pos) > 45) {
-        lastPosEase[sail] = { lat: pos.lat, lon: pos.lon };
-        return pos;
-      }
-      var k = Math.min(1, 0.2 + RATE / 50);
-      var out = {
-        lat: prev.lat + (pos.lat - prev.lat) * k,
-        lon: prev.lon + (pos.lon - prev.lon) * k,
-        i: pos.i,
-        j: pos.j,
-        hdg: pos.hdg
-      };
-      lastPosEase[sail] = { lat: out.lat, lon: out.lon };
       return out;
     }
     function posAt(sail, ts) {
       var b = trail.boats[sail];
       var pos = sampleAt(b, ts);
       if (!pos) return null;
-      pos = easePos(sail, pos);
       pos.hdg = blendHdg(sail, headingAt(b, pos));
       return pos;
     }
@@ -577,9 +564,43 @@
       mapCtx.fillText(pinLabel || "Pin", a.x + 6, a.y - 6);
       mapCtx.fillText(label, (a.x + b.x) / 2 + 6, (a.y + b.y) / 2 - 6);
     }
+    function lastGained(sail, maps) {
+      var g = null;
+      for (var i = 0; i < maps.length; i++) {
+        var prev = maps[i].prev[sail];
+        var next = maps[i].next[sail];
+        if (prev != null && next != null) g = prev - next;
+      }
+      return g;
+    }
+    function drawRankBadge(p, sail, gained) {
+      var n = START_RANK[sail];
+      if (n == null) return;
+      var fill = "#f8fafc";
+      var ink = "#0f172a";
+      if (gained != null && gained > 0) { fill = "#16a34a"; ink = "#ffffff"; }
+      if (gained != null && gained < 0) { fill = "#dc2626"; ink = "#ffffff"; }
+      var x = p.x + 9;
+      var y = p.y - 9;
+      mapCtx.beginPath();
+      mapCtx.arc(x, y, 7.2, 0, Math.PI * 2);
+      mapCtx.fillStyle = fill;
+      mapCtx.fill();
+      mapCtx.strokeStyle = "rgba(15,23,42,0.45)";
+      mapCtx.lineWidth = 1;
+      mapCtx.stroke();
+      mapCtx.fillStyle = ink;
+      mapCtx.font = "bold 8px sans-serif";
+      mapCtx.textAlign = "center";
+      mapCtx.textBaseline = "middle";
+      mapCtx.fillText(String(n), x, y + 0.4);
+      mapCtx.textAlign = "start";
+      mapCtx.textBaseline = "alphabetic";
+    }
     function drawMap(ts) {
       frameCam(ts);
       if (!mapCtx || !mapBounds) return;
+      var rankMaps = pairRankMaps(ts);
       var w = mapBounds.w;
       var h = mapBounds.h;
       mapCtx.fillStyle = "#001f3f";
@@ -613,9 +634,7 @@
         if (!pos) return;
         var p = xy(pos.lat, pos.lon);
         drawBoatIcon(p, pos.hdg, OCS[sail]);
-        mapCtx.fillStyle = OCS[sail] ? "#fecaca" : "#e2e8f0";
-        mapCtx.font = "bold 8px sans-serif";
-        mapCtx.fillText(clubCode(sail), p.x + 6, p.y - 6);
+        drawRankBadge(p, sail, lastGained(sail, rankMaps));
       });
     }
     function setRateButtons() {
@@ -851,7 +870,7 @@
       seen = {};
       deltaSeen = {};
       lastHdg = {};
-      lastPosEase = {};
+      lastHdgAt = {};
       cam = null;
       render(ts);
     }
