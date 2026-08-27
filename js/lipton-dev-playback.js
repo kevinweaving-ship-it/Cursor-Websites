@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827s";
+  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827t";
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -87,7 +87,7 @@
       PASSES.push({
         id: "FIN",
         label: "Fin",
-        lap: 99,
+        lap: 0,
         mark: 0,
         boats: FINISH
       });
@@ -326,7 +326,9 @@
       var n = 0;
       rows.forEach(function (r) { if (r.farIdx === lead.farIdx) n += 1; });
       var tot = PASSES[lead.farIdx] ? PASSES[lead.farIdx].boats.length : n;
-      var lapBit = lead.farLap > 1 ? " · lap " + lead.farLap : "";
+      var p = PASSES[lead.farIdx];
+      var isFin = p && (p.id === "FIN" || p.label === "Fin");
+      var lapBit = !isFin && lead.farLap > 1 ? " · lap " + lead.farLap : "";
       sailedEl.textContent = "Race 5 replay · " + lead.farLab + lapBit + " · " + n + " of " + tot + " · rank by " + lead.farLab;
     }
     function clockText(ts, rows) {
