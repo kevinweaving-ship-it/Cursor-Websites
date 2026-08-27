@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260827ay";
+  var CACHE = "20260827az";
   var RACE_Q = Number((new URLSearchParams(location.search)).get("race") || 0);
   function jsonUrl(kind, race) {
     if (!race || race === 4) return "/js/lipton-dev-" + kind + ".json?v=" + CACHE;
@@ -39,7 +39,8 @@
         if (!btn) return;
         var gun = String(r.gun_sast || "").slice(11, 16);
         var ocs = (r.ocs || []).length ? " · OCS " + r.ocs.join(",") : "";
-        btn.title = "Race " + r.n + " · gun " + gun + (r.packed ? "" : " · GPS not packed yet") + ocs;
+        var course = r.course ? " · " + r.course : "";
+        btn.title = "Race " + r.n + course + " · gun " + gun + (r.packed ? "" : " · GPS not packed yet") + ocs;
         btn.classList.toggle("is-unpacked", !r.packed);
       });
     })
