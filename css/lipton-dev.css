@@ -262,24 +262,11 @@ body[data-lipton-dev="1"] .lipton-dev-track {
   border-radius: 4px;
   overflow: hidden;
 }
-body[data-lipton-dev="1"] .lipton-dev-track iframe {
+body[data-lipton-dev="1"] .lipton-dev-track canvas {
   display: block;
   width: 100%;
   height: 100%;
-  border: 0;
   background: #001f3f;
-  pointer-events: none;
-}
-body[data-lipton-dev="1"] .lipton-dev-track-shield {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  background: transparent;
-  cursor: default;
-  touch-action: none;
-}
-body[data-lipton-dev="1"] .lipton-dev-track.is-paused .lipton-dev-track-shield {
-  background: rgba(0, 31, 63, 0.35);
 }
 body[data-lipton-dev="1"] .lipton-dev-btn:disabled {
   opacity: 0.45;
