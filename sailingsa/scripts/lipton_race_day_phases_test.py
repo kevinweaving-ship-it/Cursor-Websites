@@ -65,6 +65,72 @@ class RaceDayPhasesTest(unittest.TestCase):
         self.assertTrue(r.marks_committed)
         self.assertIn("1", r.committed_marks)
         self.assertIn("4", r.committed_marks)
+        self.assertIsNotNone(r.course)
+        self.assertIn(r.course["id"], ("wl", "quadrangle", "triangle", "unknown"))
+        self.assertIn("look_for", r.course["expect"])
+
+    def test_course_type_wl_from_close_weather_pair(self):
+        # ~100 m weather pair, ~50 m leeward gate → W/L once marks laid
+        wl_marks = [
+            MarkSample("1", -33.9000, 18.4500, 0.0),
+            MarkSample("2", -33.9008, 18.4502, 0.0),  # ~90 m
+            MarkSample("3", -33.9200, 18.4400, 0.0),
+            MarkSample("4", -33.9204, 18.4401, 0.0),  # ~45 m gate
+        ]
+        r = advance_phase(
+            Phase.DOCK,
+            PhaseInput(
+                now_ms=1_000_000,
+                boats=boats(sog=1.5),
+                marks=wl_marks,
+                last_finished_race=5,
+                tracker_race=TrackerRace(6),
+            ),
+        )
+        self.assertEqual(r.phase, Phase.COURSE_SET)
+        self.assertEqual(r.course["id"], "wl")
+        self.assertIn("Weather", r.course["expect"]["look_for"])
+        self.assertIn("L1-1", r.course["expect"]["passes_hint"])
+
+    def test_course_type_quadrangle_from_wide_weather_pair(self):
+        quad = [
+            MarkSample("1", -33.9000, 18.4500, 0.0),
+            MarkSample("2", -33.9050, 18.4560, 0.0),  # >400 m
+            MarkSample("3", -33.9200, 18.4400, 0.0),
+            MarkSample("4", -33.9210, 18.4410, 0.0),
+        ]
+        r = advance_phase(
+            Phase.DOCK,
+            PhaseInput(
+                now_ms=1_000_000,
+                boats=boats(sog=1.5),
+                marks=quad,
+                last_finished_race=5,
+                tracker_race=TrackerRace(6),
+            ),
+        )
+        self.assertEqual(r.course["id"], "quadrangle")
+        self.assertEqual(r.course["expect"]["lap1_marks"], [1, 2, 3, 4])
+
+    def test_course_type_triangle_from_mid_spacing(self):
+        tri = [
+            MarkSample("1", -33.9000, 18.4500, 0.0),
+            MarkSample("2", -33.9025, 18.4520, 0.0),  # ~250–400 m
+            MarkSample("3", -33.9200, 18.4400, 0.0),
+            MarkSample("4", -33.9210, 18.4410, 0.0),
+        ]
+        r = advance_phase(
+            Phase.DOCK,
+            PhaseInput(
+                now_ms=1_000_000,
+                boats=boats(sog=1.5),
+                marks=tri,
+                last_finished_race=5,
+                tracker_race=TrackerRace(6),
+            ),
+        )
+        self.assertEqual(r.course["id"], "triangle")
+        self.assertEqual(r.course["expect"]["lap1_marks"], [1, 2, 3])
 
     def test_prestart_when_near_pin(self):
         committed = snapshot_marks(marks())

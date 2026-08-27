@@ -188,12 +188,14 @@ def tick(state: dict, *, lookback_ms: int = 45_000) -> dict:
     added_race = append_unique(out, rows, seen)
     added_day = append_unique(day, rows, day_seen)
 
+    course = result.course
     state.update(
         {
             "phase": result.phase.value,
             "race_number": race,
             "marks_committed": result.marks_committed,
             "committed_marks": result.committed_marks,
+            "course": course,
             "race_mode": result.race_mode,
             "t_minus_s": result.t_minus_s,
             "t_plus_s": result.t_plus_s,
@@ -224,10 +226,33 @@ def main() -> int:
     try:
         while True:
             state = tick(state)
-            print(json.dumps({k: state[k] for k in (
-                "phase", "race_number", "race_mode", "t_minus_s", "t_plus_s",
-                "marks_committed", "boats_n", "marks_n", "added_race", "added_day", "reasons", "updated_at"
-            ) if k in state}, ensure_ascii=False), flush=True)
+            slim = {
+                k: state[k]
+                for k in (
+                    "phase",
+                    "race_number",
+                    "race_mode",
+                    "t_minus_s",
+                    "t_plus_s",
+                    "marks_committed",
+                    "boats_n",
+                    "marks_n",
+                    "added_race",
+                    "added_day",
+                    "reasons",
+                    "updated_at",
+                )
+                if k in state
+            }
+            if state.get("course"):
+                c = state["course"]
+                slim["course"] = {
+                    "id": c.get("id"),
+                    "label": c.get("label"),
+                    "look_for": (c.get("expect") or {}).get("look_for"),
+                    "passes_hint": (c.get("expect") or {}).get("passes_hint"),
+                }
+            print(json.dumps(slim, ensure_ascii=False), flush=True)
             if args.once:
                 return 0
             time.sleep(max(0.5, float(args.poll)))

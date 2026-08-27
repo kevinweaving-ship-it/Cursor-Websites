@@ -5,7 +5,7 @@ Pure logic (no network). Live loop is lipton_race_day_live.py.
 
 Phases (operator story):
   DOCK       boats + marks at club, SOG < 1 kn
-  COURSE_SET marks committed once boats start moving; record buoy positions
+  COURSE_SET marks committed once boats start moving; classify course format
   PRESTART   boats lining up; race = last finished + 1 (tracker race no)
   T_MINUS    tracker T−; sync clock; arm race mode
   RACING     gun / T+; keep grabbing same GPS we archive historically
@@ -82,6 +82,8 @@ class PhaseInput:
     tracker_race: TrackerRace | None
     marks_committed: bool = False
     committed_marks: dict[str, dict] | None = None
+    start_line: dict | None = None
+    finish_line: dict | None = None
 
 
 @dataclass
@@ -96,6 +98,7 @@ class PhaseResult:
     gun_ts_ms: int | None
     reasons: list[str]
     grab: bool = True  # always grab dock → course → race
+    course: dict | None = None  # format + expect[] once marks laid
 
     def as_dict(self) -> dict[str, Any]:
         d = asdict(self)
@@ -164,12 +167,32 @@ def haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return 2 * r * math.asin(math.sqrt(h))
 
 
-def boats_near_start_frac(boats: list[BoatSample], start_lat: float, start_lon: float, radius_m: float = PRESTART_NEAR_START_M) -> float:
+def boats_near_start_frac(
+    boats: list[BoatSample], start_lat: float, start_lon: float, radius_m: float = PRESTART_NEAR_START_M
+) -> float:
     known = [b for b in boats if b.lat is not None and b.lon is not None]
     if not known:
         return 0.0
     near = sum(1 for b in known if haversine_m(b.lat, b.lon, start_lat, start_lon) <= radius_m)
     return near / len(known)
+
+
+def _course_for_marks(
+    committed_marks: dict,
+    *,
+    start_line: dict | None = None,
+    finish_line: dict | None = None,
+) -> dict | None:
+    if not committed_marks:
+        return None
+    try:
+        from lipton_dev_course import classify_from_committed_marks
+
+        return classify_from_committed_marks(
+            committed_marks, start_line=start_line, finish_line=finish_line
+        )
+    except Exception:
+        return None
 
 
 def advance_phase(prev: Phase, inp: PhaseInput) -> PhaseResult:
@@ -184,6 +207,42 @@ def advance_phase(prev: Phase, inp: PhaseInput) -> PhaseResult:
     committed = bool(inp.marks_committed)
     committed_marks = dict(inp.committed_marks or {})
 
+    def _pack(
+        phase: Phase,
+        *,
+        race_mode: bool,
+        marks_committed: bool,
+        marks: dict,
+        t_minus: float | None = None,
+        t_plus: float | None = None,
+        extra: list[str] | None = None,
+    ) -> PhaseResult:
+        course = (
+            _course_for_marks(marks, start_line=inp.start_line, finish_line=inp.finish_line)
+            if marks_committed and marks
+            else None
+        )
+        rs = list(reasons)
+        if extra:
+            rs.extend(extra)
+        if course and course.get("id"):
+            rs.append(f"course={course['id']}")
+            look = (course.get("expect") or {}).get("look_for")
+            if look:
+                rs.append(f"look_for={look}")
+        return PhaseResult(
+            phase=phase,
+            race_number=race_no,
+            marks_committed=marks_committed,
+            committed_marks=marks,
+            race_mode=race_mode,
+            t_minus_s=t_minus if t_minus is not None else t_m,
+            t_plus_s=t_plus if t_plus is not None else t_p,
+            gun_ts_ms=gun,
+            reasons=rs,
+            course=course,
+        )
+
     # Finish wins when tracker shows finishes for this race.
     if (
         inp.tracker_race
@@ -192,121 +251,61 @@ def advance_phase(prev: Phase, inp: PhaseInput) -> PhaseResult:
         and (t_p is not None and t_p > 60)
     ):
         reasons.append(f"finishes={inp.tracker_race.finish_count}")
-        return PhaseResult(
-            phase=Phase.FINISHED,
-            race_number=race_no,
-            marks_committed=committed,
-            committed_marks=committed_marks,
-            race_mode=False,
-            t_minus_s=t_m,
-            t_plus_s=t_p,
-            gun_ts_ms=gun,
-            reasons=reasons,
-        )
+        return _pack(Phase.FINISHED, race_mode=False, marks_committed=committed, marks=committed_marks)
 
     # Racing: at/after gun
     if gun is not None and inp.now_ms >= gun:
         reasons.append("now>=gun")
-        return PhaseResult(
-            phase=Phase.RACING,
-            race_number=race_no,
-            marks_committed=committed or marks_ok,
-            committed_marks=committed_marks or (snapshot_marks(inp.marks) if marks_ok else {}),
+        marks = committed_marks or (snapshot_marks(inp.marks) if marks_ok else {})
+        return _pack(
+            Phase.RACING,
             race_mode=True,
-            t_minus_s=None,
-            t_plus_s=t_p,
-            gun_ts_ms=gun,
-            reasons=reasons,
+            marks_committed=committed or marks_ok,
+            marks=marks,
+            t_minus=None,
+            t_plus=t_p,
         )
 
     # T−: gun in the future
     if gun is not None and t_m is not None and t_m > 0:
         reasons.append(f"T−={t_m:.0f}s")
-        return PhaseResult(
-            phase=Phase.T_MINUS,
-            race_number=race_no,
-            marks_committed=committed or marks_ok,
-            committed_marks=committed_marks or (snapshot_marks(inp.marks) if marks_ok else {}),
+        marks = committed_marks or (snapshot_marks(inp.marks) if marks_ok else {})
+        return _pack(
+            Phase.T_MINUS,
             race_mode=True,
-            t_minus_s=t_m,
-            t_plus_s=None,
-            gun_ts_ms=gun,
-            reasons=reasons,
+            marks_committed=committed or marks_ok,
+            marks=marks,
+            t_minus=t_m,
+            t_plus=None,
         )
 
     # Commit marks when we leave dock (boats moving) and marks are visible.
     if not committed and marks_ok and moving_f >= FLEET_MOVING_FRAC:
-        committed = True
         committed_marks = snapshot_marks(inp.marks)
         reasons.append("marks_committed_on_move")
-        return PhaseResult(
-            phase=Phase.COURSE_SET,
-            race_number=race_no,
-            marks_committed=True,
-            committed_marks=committed_marks,
-            race_mode=False,
-            t_minus_s=t_m,
-            t_plus_s=t_p,
-            gun_ts_ms=gun,
-            reasons=reasons,
-        )
+        return _pack(Phase.COURSE_SET, race_mode=False, marks_committed=True, marks=committed_marks)
 
     if committed:
-        # Prestart if tracker has start line / race armed, or boats clustering near pin mark 4.
         pin = committed_marks.get("4") or (snapshot_marks(inp.marks).get("4") if marks_ok else None)
         near = 0.0
         if pin:
             near = boats_near_start_frac(inp.boats, pin["lat"], pin["lon"])
         if (inp.tracker_race and inp.tracker_race.has_start_line) or near >= 0.3:
             reasons.append(f"prestart near_start={near:.2f}")
-            return PhaseResult(
-                phase=Phase.PRESTART,
-                race_number=race_no,
-                marks_committed=True,
-                committed_marks=committed_marks,
-                race_mode=False,
-                t_minus_s=t_m,
-                t_plus_s=t_p,
-                gun_ts_ms=gun,
-                reasons=reasons,
-            )
+            return _pack(Phase.PRESTART, race_mode=False, marks_committed=True, marks=committed_marks)
         reasons.append("course_set waiting_lineup")
-        return PhaseResult(
-            phase=Phase.COURSE_SET,
-            race_number=race_no,
-            marks_committed=True,
-            committed_marks=committed_marks,
-            race_mode=False,
-            t_minus_s=t_m,
-            t_plus_s=t_p,
-            gun_ts_ms=gun,
-            reasons=reasons,
-        )
+        return _pack(Phase.COURSE_SET, race_mode=False, marks_committed=True, marks=committed_marks)
 
     # Default dock: idle fleet, marks may be at club
     if idle_f >= FLEET_IDLE_FRAC or not marks_ok:
         reasons.append(f"dock idle_frac={idle_f:.2f} marks={len(inp.marks)}")
-        return PhaseResult(
-            phase=Phase.DOCK,
-            race_number=race_no,
-            marks_committed=False,
-            committed_marks={},
-            race_mode=False,
-            t_minus_s=t_m,
-            t_plus_s=t_p,
-            gun_ts_ms=gun,
-            reasons=reasons,
-        )
+        return _pack(Phase.DOCK, race_mode=False, marks_committed=False, marks={})
 
     reasons.append("fallback_dock")
-    return PhaseResult(
-        phase=Phase.DOCK,
-        race_number=race_no,
-        marks_committed=committed,
-        committed_marks=committed_marks,
+    return _pack(
+        Phase.DOCK,
         race_mode=False,
-        t_minus_s=t_m,
-        t_plus_s=t_p,
-        gun_ts_ms=gun,
-        reasons=reasons + [f"prev={prev.value}"],
+        marks_committed=committed,
+        marks=committed_marks,
+        extra=[f"prev={prev.value}"],
     )

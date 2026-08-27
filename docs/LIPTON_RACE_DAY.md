@@ -21,17 +21,25 @@ State machine (`lipton_race_day_phases.py`):
 | Phase | Meaning | What we do |
 |---|---|---|
 | **DOCK** | Boats + marks at club, SOG &lt; 1 kn | Grab GPS continuously |
-| **COURSE_SET** | Fleet starts moving (≥1 kn); marks visible | **Commit** mark lat/lon snapshot; keep grabbing |
+| **COURSE_SET** | Fleet starts moving (≥1 kn); marks visible | **Commit** mark lat/lon snapshot; **classify course** (W/L · Quadrangle · Triangle) + `expect.look_for` / `passes_hint` so mark sequence is known before racing; keep grabbing |
 | **PRESTART** | Boats near start / lineup; race = last finished + 1 (tracker race no) | Keep grabbing |
 | **T_MINUS** | Tracker gun in future (T−) | Sync clock; **arm race mode**; keep grabbing |
 | **RACING** | Now ≥ gun (T+) | Same live GPS stream we archive for historical replay |
 | **FINISHED** | Enough finishes in Firestore | Disarm race mode; await next race |
 
 Outputs under `data/`:
-- `lipton_race_day_state.json` — phase, race_number, T−/T+, race_mode
+- `lipton_race_day_state.json` — phase, race_number, T−/T+, race_mode, **course** (`id` / `label` / `expect`)
 - `lipton_race_day_marks.json` — committed buoy positions
 - `lipton_r{N}_telemetry.jsonl` — per-race GPS (same shape as historical pack)
 - `lipton_race_day_live.jsonl` — continuous dock→course day file
+
+**Course type at COURSE_SET** (`lipton_dev_course.py`): once marks are laid, classify from buoy spacing (and start/finish when available) so we know what to look for — no surprises:
+
+| id | Label | Expect (look_for) |
+|---|---|---|
+| `wl` | Windward / Leeward | Weather (M1), then leeward gate (M3/M4). Wing M2 not a fleet rounding. |
+| `quadrangle` | Quadrangle | M1 → M2 → M3 → M4 each lap |
+| `triangle` | Triangle | M1 → M2 → M3; M4 is pin, not a fourth rounding |
 
 **Hard rule:** grab + archive only. Do **not** auto-write public Nett / results sheet from tracker places.
 
