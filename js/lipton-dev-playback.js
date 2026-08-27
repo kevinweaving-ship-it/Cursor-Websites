@@ -4,7 +4,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827h";
+  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827i";
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -58,12 +58,11 @@
     var FINISH = (data.finish || []).map(function (b) {
       return { boat: b.boat, ts: b.ts_ms };
     });
-    var RATE = Number(data.default_rate || 10);
+    var RATE = Number(data.default_rate || 1);
     var playing = true;
     var playTs = PLAY_START_TS;
     var lastWall = Date.now();
     var lastKey = "";
-    var lastLead = "";
     var seen = {};
 
     var tbody = document.getElementById("lipton-dev-tbody");
@@ -190,13 +189,13 @@
       if (!sailedEl) return;
       var lab = leadMark(rows);
       if (!lab) {
-        sailedEl.textContent = "Race 5 replay 10× · approaching M1";
+        sailedEl.textContent = "Race 5 replay · approaching M1";
         return;
       }
       var n = 0;
       rows.forEach(function (r) { if (r.farLab === lab) n += 1; });
       var tot = (MARKS[lab] || []).length;
-      sailedEl.textContent = "Race 5 replay 10× · " + lab + " · " + n + " of " + tot + " · rank by " + lab;
+      sailedEl.textContent = "Race 5 replay · " + lab + " · " + n + " of " + tot + " · rank by " + lab;
     }
     function render(ts) {
       var rows = rowsAt(ts);
@@ -214,11 +213,6 @@
       }
       setSailed(rows);
       lastKey = stateKey(rows);
-      var lead = leadMark(rows) || "";
-      if (lead && lead !== lastLead) {
-        lastLead = lead;
-        setFrame(ts);
-      }
     }
 
     function jump(ts) {
