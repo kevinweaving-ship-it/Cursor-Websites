@@ -138,5 +138,34 @@ So:
 
 ## Speed at Race 5 mark 1 (knots)
 
-They did **not** generally slow to round. Median **11.3 kn** at 50 m in, **11.3 kn** at the mark, **12.1 kn** 50 m out. Only 7 of 17 dropped ≥0.8 kn. A wide bear-away keeps / gains speed; slowing is not the rounding signal — **heading change + closest distance** is.
+**Assumption checked: they do not have to slow to round.** Median **11.3 kn** at 50 m in, **11.3 kn** at the mark, **12.1 kn** 50 m out. Only 7 of 17 dropped ≥0.8 kn.
+
+The three big bear-aways (**>90° HDG**: HYC, RNYC, PYC) *did* dip (especially PYC 12.3→7.2 then back to 12.5). Boats already reaching kept or gained speed. So a speed dip is a **style** flag for a hard turn, not the rounding detector. Rounding is still **heading change + closest distance**.
+
+| # | Boat | kn 50 m in | kn at mark | kn 50 m out | slowed? |
+|---|---|---:|---:|---:|---|
+| 1 | HYC | 11.7 | 10.2 | 11.7 | yes (−1.5) |
+| 2 | RCYC | 11.3 | 10.6 | 12.1 | no |
+| 3 | KYC | 10.2 | 11.0 | 12.3 | no |
+| 4 | RCYC Academy | 11.0 | 12.8 | 12.1 | no |
+| 5 | RNYC | 11.7 | 10.6 | 11.3 | yes (−1.1) |
+| 6 | UCTYC | 11.9 | 11.0 | 10.6 | yes |
+| 7 | SBYC | 9.8 | 11.3 | 12.5 | no |
+| 8 | PYC | 12.3 | 7.2 | 12.5 | yes (−5.1) |
+| 9 | FBYC | 12.1 | 9.4 | 14.2 | yes |
+| 10 | WBYC | 11.3 | 11.3 | 12.3 | no |
+| 11 | IZIVUNGUVUNGU | 9.6 | 13.6 | 11.9 | no |
+| 12 | LDYC | 12.3 | 11.3 | 11.7 | yes |
+| 13 | GLYC | 11.3 | 9.4 | 11.3 | yes |
+| 14 | BYC | 11.1 | 12.1 | 14.0 | no |
+| 15 | TSC | 11.5 | 12.5 | 12.8 | no |
+| 16 | LYC | 11.3 | 11.7 | 12.3 | no |
+| 17 | WYAC | 11.0 | 12.1 | 11.9 | no |
+
+## Heel and trim (Race 5 mark 1)
+
+Trail has **roll** (heel) and **pitch** (trim).
+
+- **Heel is of some use.** Median |roll| **~16°** inbound (upwind) → **~9°** at the mark → **~8°** outbound (flatter on the reach). Supports “they have borne away” together with heading. Too noisy to time the rounding on its own.
+- **Trim is not useful.** Pitch only moves a few degrees (median ~2° in / ~2° at / ~4° out), integer and noisy. Do not use as a rounding signal.
 

@@ -248,19 +248,25 @@ def analyze_r5_mark1(rows: list[dict] | None = None) -> dict:
             if abs(x["ts"] - t0) <= 1500:
                 jitter.append(haversine_m(x["latitude"], x["longitude"], mlat, mlon))
 
-        def sog_band(seq, lo, hi):
+        def band_median(seq, lo, hi, key, scale=1.0):
             xs = []
             for x in seq:
                 d = haversine_m(x["latitude"], x["longitude"], mlat, mlon)
                 if lo <= d < hi:
-                    xs.append((x.get("sog") or 0) * 1.94384)
+                    xs.append((x.get(key) or 0) * scale)
             return round(statistics.median(xs), 1) if xs else None
 
-        sog_in_50 = sog_band(inbound, 40, 80)
-        sog_in_20 = sog_band(inbound, 15, 30)
+        sog_in_50 = band_median(inbound, 40, 80, "sog", 1.94384)
+        sog_in_20 = band_median(inbound, 15, 30, "sog", 1.94384)
         sog_mark = round((p.get("sog") or 0) * 1.94384, 1)
-        sog_out_20 = sog_band(outbound, 15, 30)
-        sog_out_50 = sog_band(outbound, 40, 80)
+        sog_out_20 = band_median(outbound, 15, 30, "sog", 1.94384)
+        sog_out_50 = band_median(outbound, 40, 80, "sog", 1.94384)
+        roll_in_50 = band_median(inbound, 40, 80, "roll")
+        roll_at = p.get("roll")
+        roll_out_50 = band_median(outbound, 40, 80, "roll")
+        pitch_in_50 = band_median(inbound, 40, 80, "pitch")
+        pitch_at = p.get("pitch")
+        pitch_out_50 = band_median(outbound, 40, 80, "pitch")
         slowed = None
         if sog_in_50 is not None:
             slowed = sog_mark <= (sog_in_50 - 0.8)
@@ -281,6 +287,12 @@ def analyze_r5_mark1(rows: list[dict] | None = None) -> dict:
                 "sog_20m_out_kn": sog_out_20,
                 "sog_50m_out_kn": sog_out_50,
                 "slowed_at_rounding": slowed,
+                "roll_50m_in_deg": roll_in_50,
+                "roll_at_mark_deg": roll_at,
+                "roll_50m_out_deg": roll_out_50,
+                "pitch_50m_in_deg": pitch_in_50,
+                "pitch_at_mark_deg": pitch_at,
+                "pitch_50m_out_deg": pitch_out_50,
                 "inbound_first_le_75m": first_cross(inbound, 75, decreasing=True),
                 "inbound_first_le_50m": first_cross(inbound, 50, decreasing=True),
                 "inbound_first_le_20m": first_cross(inbound, 20, decreasing=True),
@@ -299,6 +311,17 @@ def analyze_r5_mark1(rows: list[dict] | None = None) -> dict:
     sog_out = [r["sog_50m_out_kn"] for r in roundings if r["sog_50m_out_kn"] is not None]
     slowed_n = sum(1 for r in roundings if r["slowed_at_rounding"] is True)
     speed_n = sum(1 for r in roundings if r["slowed_at_rounding"] is not None)
+    bear = [r for r in roundings if r.get("bear_away")]
+    bear_dkn = []
+    for r in bear:
+        if r["sog_50m_in_kn"] is not None:
+            bear_dkn.append(round(r["sog_at_mark_kn"] - r["sog_50m_in_kn"], 1))
+    abs_roll_in = [abs(r["roll_50m_in_deg"]) for r in roundings if r.get("roll_50m_in_deg") is not None]
+    abs_roll_at = [abs(r["roll_at_mark_deg"]) for r in roundings if r.get("roll_at_mark_deg") is not None]
+    abs_roll_out = [abs(r["roll_50m_out_deg"]) for r in roundings if r.get("roll_50m_out_deg") is not None]
+    pitch_in = [r["pitch_50m_in_deg"] for r in roundings if r.get("pitch_50m_in_deg") is not None]
+    pitch_at = [r["pitch_at_mark_deg"] for r in roundings if r.get("pitch_at_mark_deg") is not None]
+    pitch_out = [r["pitch_50m_out_deg"] for r in roundings if r.get("pitch_50m_out_deg") is not None]
     boat_p95 = _pct(resid, 0.95)
     mark_p95 = _median(w_p95)
     typical_m = 5
@@ -336,9 +359,29 @@ def analyze_r5_mark1(rows: list[dict] | None = None) -> dict:
             "median_sog_50m_out_kn": _median(sog_out),
             "boats_that_slowed": slowed_n,
             "boats_with_speed": speed_n,
+            "bear_away_boats": len(bear),
+            "bear_away_median_delta_kn": _median(bear_dkn),
             "note": (
                 "Slow = SOG at closest is at least 0.8 kn below SOG 40–80 m inbound. "
-                "A wide bear-away can keep speed; a tight pinch/tack can dump it."
+                "Checked: not generally true. Big bear-away (>90° HDG) often dips; boats already reaching do not. "
+                "Do not use a speed dip as the rounding detector."
+            ),
+        },
+        "heel_and_trim": {
+            "heel_source": "roll_deg",
+            "trim_source": "pitch_deg",
+            "median_abs_roll_50m_in_deg": _median(abs_roll_in),
+            "median_abs_roll_at_mark_deg": _median(abs_roll_at),
+            "median_abs_roll_50m_out_deg": _median(abs_roll_out),
+            "median_pitch_50m_in_deg": _median(pitch_in),
+            "median_pitch_at_mark_deg": _median(pitch_at),
+            "median_pitch_50m_out_deg": _median(pitch_out),
+            "heel_useful": True,
+            "trim_useful": False,
+            "note": (
+                "Heel (roll): boats flatten from upwind heel onto the reach (typical |roll| ~16° in → ~8° out). "
+                "Useful as a supporting signal with heading, not as a rounding clock. "
+                "Trim (pitch): only a few degrees, noisy integers. Not useful as a rounding signal."
             ),
         },
         "accuracy_m": {
