@@ -17,7 +17,7 @@ This is the day as it starts. Fill each slice only with what the tracker actuall
 | SA chip LIVE / RACING / POSTPONED | Override if the feed is wrong. POSTPONED = racing-day AP, not “event moved”. |
 | Lipton page | Display only. Do not write sheet Nett from tracker places. |
 
-GPS **trails** (boats and marks 1/2/3 moving) are what the replay map draws. They are **not** in the spectator document yet. Anything that needs “who is closest to mark 1 right now” waits on that trail.
+GPS **trails** come from `teleapi.regatta.app` (not Firestore). Archive them: `python3 sailingsa/scripts/lipton_mark_rounding.py --fetch` then `--save`. Frozen Race 5 mark-1 file: `docs/lipton_2026_r5_mark1_rounding.json`.
 
 ## Day skeleton (what we look for)
 
@@ -111,4 +111,32 @@ Rounding order (closest to mark 1, then HDG change). **>90°** = bear-away at th
 | 15 | TSC | 16:24:48 | 86° | 237→151 |
 | 16 | LYC | 16:25:07 | 45° | 232→187 |
 | 17 | WYAC | 16:25:42 | 68° | 239→171 |
+
+## Metres to the mark / pin — when accuracy is lost
+
+**Metres-to-mark is always computed.** It does not fade with range. 400 m out is the same GPS as 40 m out.
+
+The error is a **fixed number of metres**, not a percent of distance:
+
+| What | Metres |
+|---|---|
+| Typical trail error | **~5 m** |
+| Conservative (p95) | **~10 m** |
+| Do not claim closer than | **~3 m** |
+| Useful precision lost inside | **~10 m** of the buoy |
+
+So:
+
+- **400 m → 50 m from the mark:** distance is good. “12 m vs 18 m” is real. “Going to the mark” (heading tracks the buoy, distance falling) is clean from **~300 m** down to **~50 m**.
+- **~30 m:** they are already turning. Heading-to-mark is the rounding, not the approach.
+- **Inside ~10 m:** GPS error is as big as the distance. “2 m from the pin” is **not** real. Closest pings in Race 5 were 2–14 m (HYC 8.5 m). That is “at the mark”, not a millimetre DTL.
+- **Past the mark:** same **~5 / ~10 m**. Rounding is clear by **10–20 m past** (distance increasing + heading swung). Still accurate at 200 m past. Course to mark 2 is clearest **10–75 m** past.
+
+**Start-gun pin DTL** is the exception: Vakaros stores millimetres (`dtlMm`) **at the gun only**. The live trail never has that.
+
+3-length zone (~20 m) is usable (several times the noise).
+
+## Speed at Race 5 mark 1 (knots)
+
+They did **not** generally slow to round. Median **11.3 kn** at 50 m in, **11.3 kn** at the mark, **12.1 kn** 50 m out. Only 7 of 17 dropped ≥0.8 kn. A wide bear-away keeps / gains speed; slowing is not the rounding signal — **heading change + closest distance** is.
 
