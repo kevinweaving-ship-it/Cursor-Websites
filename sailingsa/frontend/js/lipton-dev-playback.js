@@ -5,8 +5,8 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827am";
-  var TRAIL_URL = "/js/lipton-dev-trail.json?v=20260827am";
+  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827an";
+  var TRAIL_URL = "/js/lipton-dev-trail.json?v=20260827an";
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -102,7 +102,6 @@
     (data.ocs || []).forEach(function (name) { OCS[name] = true; });
     var EXONERATED = {};
     (data.exonerated || []).forEach(function (name) { EXONERATED[name] = true; });
-    var LEG_FLASH_MS = 20000;
     var ST_LEAD_TS = null;
     PASSES.forEach(function (p) {
       if ((p.id === "ST" || p.label === "ST") && p.boats.length) {
@@ -715,34 +714,35 @@
       var startNo = START_RANK[sail] != null ? START_RANK[sail] : null;
       var liveNo = liveStartRank(sail, ts);
       var last = -1;
-      var lastTs = null;
       var pending = ocsPending(sail, ts);
       for (var i = 0; i < PASSES.length; i++) {
         var p = PASSES[i];
         if ((p.id === "ST" || p.label === "ST") && pending) continue;
         var t = tsAtPass(p, sail);
         if ((p.id === "ST" || p.label === "ST") && LEGAL_TS[sail] != null) t = LEGAL_TS[sail];
-        if (t != null && t <= ts) {
-          last = i;
-          lastTs = t;
-        }
+        if (t != null && t <= ts) last = i;
       }
       var place = liveNo;
       if (last > 0) place = passRankOf(PASSES[last], sail);
       var started = liveNo != null;
-      var delta = null;
-      var flash = false;
-      if (last > 0 && place != null && startNo != null) {
-        var flashMs = Math.max(LEG_FLASH_MS, Math.min(120000, 5000 * Math.max(1, RATE)));
-        flash = lastTs != null && (ts - lastTs) < flashMs;
-        if (flash) {
-          var prev = passRankOf(PASSES[last - 1], sail);
-          if (prev != null) delta = prev - place;
-        } else {
-          delta = startNo - place;
-        }
+      var leg = null;
+      var total = null;
+      if (last > 0 && place != null) {
+        var prev = passRankOf(PASSES[last - 1], sail);
+        if (prev != null) leg = prev - place;
+        if (startNo != null) total = startNo - place;
       }
-      return { place: place, pending: pending, started: started, onMark: last > 0, delta: delta, flash: flash };
+      return { place: place, pending: pending, started: started, onMark: last > 0, leg: leg, total: total };
+    }
+    function drawDelta(x, y, delta, align) {
+      if (delta == null) return x;
+      var txt = delta > 0 ? "▲" + delta : delta < 0 ? "▼" + (-delta) : "■0";
+      mapCtx.font = "bold 8px sans-serif";
+      mapCtx.textAlign = align || "left";
+      mapCtx.textBaseline = "middle";
+      mapCtx.fillStyle = delta > 0 ? "#4ade80" : delta < 0 ? "#f87171" : "#cbd5e1";
+      mapCtx.fillText(txt, x, y);
+      return mapCtx.measureText(txt).width;
     }
     function drawBoatLabel(p, hdg, sail, ts) {
       var club = clubCode(sail);
@@ -767,6 +767,7 @@
         mapCtx.textBaseline = "middle";
         mapCtx.fillText(String(info.place), p.x, p.y + 0.4);
       }
+      if (info.onMark) drawDelta(p.x - 10, p.y - 1, info.leg, "right");
       var lx = p.x + 10;
       var ly = p.y - 1;
       mapCtx.font = "bold 8px sans-serif";
@@ -774,20 +775,9 @@
       mapCtx.textBaseline = "middle";
       mapCtx.fillStyle = info.pending ? "#f87171" : "#ffffff";
       mapCtx.fillText(club, lx, ly);
-      if (info.delta != null && (info.delta !== 0 || info.flash)) {
+      if (info.onMark) {
         var cw = mapCtx.measureText(club).width;
-        var tx = lx + cw + 3;
-        mapCtx.font = info.flash ? "bold 10px sans-serif" : "bold 8px sans-serif";
-        if (info.delta > 0) {
-          mapCtx.fillStyle = "#4ade80";
-          mapCtx.fillText("▲" + info.delta, tx, ly);
-        } else if (info.delta < 0) {
-          mapCtx.fillStyle = "#f87171";
-          mapCtx.fillText("▼" + (-info.delta), tx, ly);
-        } else {
-          mapCtx.fillStyle = "#cbd5e1";
-          mapCtx.fillText("■0", tx, ly);
-        }
+        drawDelta(lx + cw + 3, ly, info.total, "left");
       }
       mapCtx.textAlign = "start";
       mapCtx.textBaseline = "alphabetic";
