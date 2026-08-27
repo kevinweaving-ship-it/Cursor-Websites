@@ -5,8 +5,8 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827ae";
-  var TRAIL_URL = "/js/lipton-dev-trail.json?v=20260827ae";
+  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827af";
+  var TRAIL_URL = "/js/lipton-dev-trail.json?v=20260827af";
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -328,49 +328,66 @@
       };
     }
     var lastHdg = {};
+    var lastPosEase = {};
+    function hitBack(series, i) {
+      var k = i;
+      while (k >= 0 && series.lat[k] == null) k -= 1;
+      return k;
+    }
+    function hitFwd(series, i) {
+      var k = i;
+      while (k < series.lat.length && series.lat[k] == null) k += 1;
+      return k < series.lat.length ? k : -1;
+    }
+    function ptAt(series, i) {
+      if (i < 0 || !series || series.lat[i] == null) return null;
+      return { lat: series.lat[i], lon: series.lon[i], i: i };
+    }
+    function catmull(p0, p1, p2, p3, t) {
+      var t2 = t * t;
+      var t3 = t2 * t;
+      function axis(a, b, c, d) {
+        return 0.5 * ((2 * b) + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
+      }
+      return {
+        lat: axis(p0.lat, p1.lat, p2.lat, p3.lat),
+        lon: axis(p0.lon, p1.lon, p2.lon, p3.lon)
+      };
+    }
     function sampleAt(series, ts) {
       if (!series) return null;
       if (typeof series.lat === "number") return { lat: series.lat, lon: series.lon, i: 0, j: 0 };
       var t = (ts - trail.gun_ts_ms) / trail.step_ms;
-      var i = Math.floor(t);
-      if (i < 0) i = 0;
-      if (i >= series.lat.length) i = series.lat.length - 1;
-      var back = i;
-      while (back >= 0 && series.lat[back] == null) back -= 1;
-      if (back < 0) {
-        var fwd = Math.max(0, Math.floor(t));
-        while (fwd < series.lat.length && series.lat[fwd] == null) fwd += 1;
-        if (fwd >= series.lat.length) return null;
+      var i = hitBack(series, Math.min(series.lat.length - 1, Math.max(0, Math.floor(t))));
+      if (i < 0) {
+        var fwd = hitFwd(series, 0);
+        if (fwd < 0) return null;
         return { lat: series.lat[fwd], lon: series.lon[fwd], i: fwd, j: fwd };
       }
-      i = back;
-      var j = i + 1;
-      var maxJ = Math.min(series.lat.length, i + 3);
-      while (j < maxJ && series.lat[j] == null) j += 1;
-      if (j < maxJ && series.lat[j] != null) {
-        var f = (t - i) / (j - i);
-        if (f < 0) f = 0;
-        if (f > 1) f = 1;
-        return {
-          lat: series.lat[i] + (series.lat[j] - series.lat[i]) * f,
-          lon: series.lon[i] + (series.lon[j] - series.lon[i]) * f,
-          i: i,
-          j: j
-        };
+      var j = hitFwd(series, i + 1);
+      if (j < 0 || j - i > 2) {
+        return { lat: series.lat[i], lon: series.lon[i], i: i, j: i };
       }
-      return { lat: series.lat[i], lon: series.lon[i], i: i, j: i };
+      var f = (t - i) / (j - i);
+      if (f < 0) f = 0;
+      if (f > 1) f = 1;
+      var p0 = ptAt(series, hitBack(series, i - 1)) || ptAt(series, i);
+      var p1 = ptAt(series, i);
+      var p2 = ptAt(series, j);
+      var p3 = ptAt(series, hitFwd(series, j + 1)) || p2;
+      var cr = catmull(p0, p1, p2, p3, f);
+      cr.i = i;
+      cr.j = j;
+      return cr;
     }
     function headingAt(b, sample) {
       if (!b || !sample) return 0;
-      var i = sample.i;
-      var j = sample.j;
-      if (j != null && j > i && b.lat[j] != null && b.lat[i] != null) {
-        return Math.atan2(b.lon[j] - b.lon[i], b.lat[j] - b.lat[i]) * 180 / Math.PI;
+      if (sample.j != null && sample.j > sample.i && b.lat[sample.j] != null && b.lat[sample.i] != null) {
+        return Math.atan2(b.lon[sample.j] - b.lon[sample.i], b.lat[sample.j] - b.lat[sample.i]) * 180 / Math.PI;
       }
-      var k = i - 1;
-      while (k >= 0 && b.lat[k] == null) k -= 1;
-      if (k < 0 || b.lat[i] == null) return 0;
-      return Math.atan2(b.lon[i] - b.lon[k], b.lat[i] - b.lat[k]) * 180 / Math.PI;
+      var k = hitBack(b, sample.i - 1);
+      if (k < 0) return 0;
+      return Math.atan2(b.lon[sample.i] - b.lon[k], b.lat[sample.i] - b.lat[k]) * 180 / Math.PI;
     }
     function blendHdg(sail, target) {
       if (target == null || isNaN(target)) return lastHdg[sail] || 0;
@@ -382,15 +399,38 @@
       var d = target - prev;
       while (d > 180) d -= 360;
       while (d < -180) d += 360;
-      var k = playing ? Math.min(1, 0.28 + RATE / 70) : 1;
+      var k = playing ? Math.min(1, 0.18 + RATE / 55) : 1;
       var out = prev + d * k;
       lastHdg[sail] = out;
+      return out;
+    }
+    function easePos(sail, pos) {
+      if (!pos) return null;
+      var prev = lastPosEase[sail];
+      if (!prev || !playing) {
+        lastPosEase[sail] = { lat: pos.lat, lon: pos.lon };
+        return pos;
+      }
+      if (distM(prev, pos) > 45) {
+        lastPosEase[sail] = { lat: pos.lat, lon: pos.lon };
+        return pos;
+      }
+      var k = Math.min(1, 0.2 + RATE / 50);
+      var out = {
+        lat: prev.lat + (pos.lat - prev.lat) * k,
+        lon: prev.lon + (pos.lon - prev.lon) * k,
+        i: pos.i,
+        j: pos.j,
+        hdg: pos.hdg
+      };
+      lastPosEase[sail] = { lat: out.lat, lon: out.lon };
       return out;
     }
     function posAt(sail, ts) {
       var b = trail.boats[sail];
       var pos = sampleAt(b, ts);
       if (!pos) return null;
+      pos = easePos(sail, pos);
       pos.hdg = blendHdg(sail, headingAt(b, pos));
       return pos;
     }
@@ -433,32 +473,77 @@
       mapCtx.fill();
       mapCtx.restore();
     }
+    function tailHits(b, ts) {
+      var now = sampleAt(b, ts);
+      if (!now) return [];
+      var hits = [now];
+      var acc = 0;
+      var idx = hitBack(b, Math.floor((ts - trail.gun_ts_ms) / trail.step_ms) - 1);
+      var lastI = now.i != null ? now.i : Math.floor((ts - trail.gun_ts_ms) / trail.step_ms);
+      while (idx >= 0) {
+        if (lastI - idx > 2) break;
+        var cur = { lat: b.lat[idx], lon: b.lon[idx], i: idx };
+        acc += distM(hits[hits.length - 1], cur);
+        hits.push(cur);
+        if (acc >= TAIL_M) break;
+        lastI = idx;
+        idx = hitBack(b, idx - 1);
+      }
+      hits.reverse();
+      if (hits.length < 2) return hits;
+      var dense = [];
+      for (var s = 0; s < hits.length - 1; s++) {
+        var a = hits[s];
+        var c = hits[s + 1];
+        var p0 = hits[s - 1] || a;
+        var p3 = hits[s + 2] || c;
+        dense.push(a);
+        var steps = 5;
+        for (var u = 1; u < steps; u++) dense.push(catmull(p0, a, c, p3, u / steps));
+      }
+      dense.push(hits[hits.length - 1]);
+      return dense;
+    }
     function drawTail(sail, ts) {
       var b = trail.boats[sail];
       if (!b) return;
-      var now = sampleAt(b, ts);
-      if (!now) return;
-      var pts = [now];
-      var acc = 0;
-      var t = Math.floor((ts - trail.gun_ts_ms) / trail.step_ms) - 1;
-      var prev = now;
-      for (var i = t; i >= 0; i--) {
-        if (b.lat[i] == null) break;
-        var cur = { lat: b.lat[i], lon: b.lon[i] };
-        acc += distM(prev, cur);
-        pts.push(cur);
-        if (acc >= TAIL_M) break;
-        prev = cur;
+      var hits = tailHits(b, ts);
+      if (hits.length < 2) return;
+      var screen = hits.map(function (pt) { return xy(pt.lat, pt.lon); });
+      var left = [];
+      var right = [];
+      for (var i = 0; i < screen.length; i++) {
+        var dx, dy;
+        if (i === 0) {
+          dx = screen[1].x - screen[0].x;
+          dy = screen[1].y - screen[0].y;
+        } else if (i === screen.length - 1) {
+          dx = screen[i].x - screen[i - 1].x;
+          dy = screen[i].y - screen[i - 1].y;
+        } else {
+          dx = screen[i + 1].x - screen[i - 1].x;
+          dy = screen[i + 1].y - screen[i - 1].y;
+        }
+        var len = Math.sqrt(dx * dx + dy * dy) || 1;
+        var nx = -dy / len;
+        var ny = dx / len;
+        var along = i / (screen.length - 1);
+        var w = 0.35 + along * along * 3.1;
+        left.push({ x: screen[i].x + nx * w, y: screen[i].y + ny * w });
+        right.push({ x: screen[i].x - nx * w, y: screen[i].y - ny * w });
       }
-      if (pts.length < 2) return;
       mapCtx.beginPath();
-      for (var k = pts.length - 1; k >= 0; k--) {
-        var p = xy(pts[k].lat, pts[k].lon);
-        if (k === pts.length - 1) mapCtx.moveTo(p.x, p.y);
-        else mapCtx.lineTo(p.x, p.y);
-      }
-      mapCtx.strokeStyle = OCS[sail] ? "rgba(252,165,165,0.75)" : "rgba(248,250,252,0.55)";
-      mapCtx.lineWidth = 1.6;
+      mapCtx.moveTo(left[0].x, left[0].y);
+      for (var L = 1; L < left.length; L++) mapCtx.lineTo(left[L].x, left[L].y);
+      for (var R = right.length - 1; R >= 0; R--) mapCtx.lineTo(right[R].x, right[R].y);
+      mapCtx.closePath();
+      mapCtx.fillStyle = OCS[sail] ? "rgba(252,165,165,0.22)" : "rgba(226,232,240,0.22)";
+      mapCtx.fill();
+      mapCtx.beginPath();
+      mapCtx.moveTo(screen[0].x, screen[0].y);
+      for (var s = 1; s < screen.length; s++) mapCtx.lineTo(screen[s].x, screen[s].y);
+      mapCtx.strokeStyle = OCS[sail] ? "rgba(254,202,202,0.7)" : "rgba(248,250,252,0.7)";
+      mapCtx.lineWidth = 1.15;
       mapCtx.lineJoin = "round";
       mapCtx.lineCap = "round";
       mapCtx.stroke();
@@ -766,6 +851,7 @@
       seen = {};
       deltaSeen = {};
       lastHdg = {};
+      lastPosEase = {};
       cam = null;
       render(ts);
     }
