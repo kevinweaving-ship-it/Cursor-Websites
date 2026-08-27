@@ -6,7 +6,9 @@ from __future__ import annotations
 def overnight(mins: int, *, gun: bool, phase: str, complete: bool, simulate: bool = False) -> bool:
     if simulate:
         return False
-    if not (mins >= 17 * 60 or mins < 10 * 60):
+    if mins < 10 * 60:
+        return True
+    if mins < 17 * 60:
         return False
     if gun and phase == "racing" and not complete:
         return False
@@ -17,6 +19,8 @@ def main() -> int:
     assert overnight(17 * 60, gun=False, phase="finished", complete=True) is True
     assert overnight(19 * 60, gun=False, phase="idle", complete=True) is True
     assert overnight(9 * 60 + 59, gun=False, phase="finished", complete=True) is True
+    # After midnight a leftover gun is stale — still closed.
+    assert overnight(2 * 60, gun=True, phase="racing", complete=False) is True
     assert overnight(10 * 60, gun=False, phase="idle", complete=False) is False
     assert overnight(12 * 60, gun=False, phase="idle", complete=False) is False
     assert overnight(16 * 60 + 59, gun=False, phase="idle", complete=False) is False

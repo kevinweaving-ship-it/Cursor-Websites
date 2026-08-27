@@ -64,6 +64,28 @@ mod._write_wc_regatta_header_icons = lambda *a, **k: None
 print("START", {k: mem.get(k) for k in keys})
 print("next_now", mod._live_race_next_race_key(RID))
 
+orig = json.loads(JSON_PATH.read_text(encoding="utf-8"))
+leftover = dict(orig)
+leftover["phase"] = "racing"
+leftover["status"] = "RACING"
+leftover["board_status"] = "RACING"
+leftover["gun_at"] = "2026-08-27T16:45:00+02:00"
+leftover["race_complete"] = False
+leftover["day_done"] = False
+mem.clear()
+mem.update(leftover)
+mod._live_race_sa_minutes_now = lambda: 2 * 60
+st02 = mod._live_race_apply_sa_schedule(RID, dict(mem))
+print("02:00 leftover gun", {k: st02.get(k) for k in keys})
+ok02 = (
+    not st02.get("gun_at")
+    and st02.get("day_done") is True
+    and str(st02.get("board_status") or "") == "LIVE"
+    and str(st02.get("race_key") or "") == "R5"
+)
+
+mem.clear()
+mem.update(orig)
 mod._live_race_sa_minutes_now = lambda: 10 * 60
 st10 = mod._live_race_apply_sa_schedule(RID, dict(mem))
 print("10:00", {k: st10.get(k) for k in keys})
@@ -75,7 +97,8 @@ print("12:00", {k: st12.get(k) for k in keys})
 print("gun_at_12", st12.get("gun_at"))
 
 ok = (
-    st10.get("race_key") == "R6"
+    ok02
+    and st10.get("race_key") == "R6"
     and st10.get("day_done") is False
     and not st10.get("gun_at")
     and st12.get("race_key") == "R6"
