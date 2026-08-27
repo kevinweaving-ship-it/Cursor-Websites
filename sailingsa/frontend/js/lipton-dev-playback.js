@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827w";
+  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827x";
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -146,19 +146,9 @@
       return "<span class=\"wc-boat-linked\"><a href=\"" + esc(id.boatHref) + "\">" + esc(id.bow) + "</a></span>";
     }
     function showTracker(ts) {
-      if (!frameEl) return;
-      var url = watchUrl(data, ts);
-      if (url === lastMapUrl) return;
-      lastMapUrl = url;
-      lastMapJump = Date.now();
-      frameEl.src = url;
-      if (trackEl) trackEl.classList.remove("is-paused");
-    }
-    function stopTracker() {
-      if (!frameEl) return;
-      lastMapUrl = "about:blank";
-      frameEl.src = "about:blank";
-      if (trackEl) trackEl.classList.add("is-paused");
+      if (!frameEl || lastMapUrl) return;
+      lastMapUrl = watchUrl(data, ts);
+      frameEl.src = lastMapUrl;
     }
     function setRateButtons() {
       [].forEach.call(document.querySelectorAll("[data-rate]"), function (btn) {
@@ -402,10 +392,7 @@
         if (playTs > PLAY_END_TS) {
           playTs = PLAY_END_TS;
           playing = false;
-          stopTracker();
           setPlayLabel();
-        } else if (RATE > 1 && now - lastMapJump > 1200) {
-          showTracker(playTs);
         }
         var rows = rowsAt(playTs);
         var key = stateKey(rows);
@@ -465,7 +452,6 @@
         var ts = key === "gun" ? GUN_TS : key === "finish" ? (FINISH[0] ? FINISH[0].ts : PLAY_START_TS) : PLAY_START_TS;
         if (!ts) return;
         jump(ts);
-        if (playing) showTracker(playTs);
       });
     });
     document.querySelectorAll("[data-rate]").forEach(function (btn) {
@@ -474,7 +460,6 @@
         RATE = Number(btn.getAttribute("data-rate")) || 1;
         lastWall = Date.now();
         setRateButtons();
-        if (playing) showTracker(playTs);
       });
     });
     if (playBtn) {
@@ -482,12 +467,6 @@
         if (!trackerReady) return;
         playing = !playing;
         lastWall = Date.now();
-        if (playing) {
-          lastMapUrl = "";
-          showTracker(playTs);
-        } else {
-          stopTracker();
-        }
         setPlayLabel();
       });
     }
