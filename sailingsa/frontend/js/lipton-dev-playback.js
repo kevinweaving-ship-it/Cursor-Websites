@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827p";
+  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827q";
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -81,8 +81,17 @@
     var PLAY_START_TS = Number(data.play_start_ts_ms);
     var PLAY_END_TS = Number(data.play_end_ts_ms || data.end_ts_ms);
     var FINISH = asBoats(data.finish);
+    if (FINISH.length) {
+      PASSES.push({
+        id: "FIN",
+        label: "Fin",
+        lap: 99,
+        mark: 0,
+        boats: FINISH
+      });
+    }
     var RATE = Number(data.default_rate || 1);
-    var SETTLE_MS = 4000;
+    var SETTLE_MS = 2500;
     var playing = false;
     var trackerReady = false;
     var playTs = PLAY_START_TS;
@@ -140,13 +149,13 @@
       var html = "<th class=\"rank-col\">Rank</th><th class=\"wc-meta-col\">Bow</th><th class=\"boat-name-col\">Boat</th><th class=\"club-col\">Club</th>";
       for (var i = 0; i < PASSES.length; i++) {
         var p = PASSES[i];
-        html += "<th class=\"timer-col\" title=\"Lap " + p.lap + " mark " + p.mark + "\">" + esc(p.label) + "</th>";
+        var title = p.id === "FIN" || p.label === "Fin" ? "Finish" : ("Lap " + p.lap + " mark " + p.mark);
+        html += "<th class=\"timer-col\" title=\"" + esc(title) + "\">" + esc(p.label) + "</th>";
         if (i < PASSES.length - 1) {
           var nlab = PASSES[i + 1].label;
           html += "<th class=\"place-delta-col\" title=\"Places gained or lost " + esc(p.label) + " to " + esc(nlab) + "\" aria-label=\"Place change " + esc(p.label) + " to " + esc(nlab) + "\">±</th>";
         }
       }
-      html += "<th class=\"timer-col\">Fin</th>";
       headRow.innerHTML = html;
     }
     function tsAtPass(pass, boat) {
@@ -186,21 +195,37 @@
     function splitCell(times, i) {
       var t = times[i];
       if (t == null) return "";
+      if (PASSES[i] && (PASSES[i].id === "FIN" || PASSES[i].label === "Fin")) {
+        return fmtClock(t - GUN_TS);
+      }
       var prev = i === 0 ? GUN_TS : times[i - 1];
       if (prev == null) return "";
       return fmtClock(t - prev);
     }
-    function rankMapsAt(ts) {
-      return PASSES.map(function (pass) {
-        var hit = [];
-        for (var i = 0; i < pass.boats.length; i++) {
-          if (pass.boats[i].ts <= ts) hit.push(pass.boats[i]);
+    function pairRankMaps(ts) {
+      var out = [];
+      for (var i = 0; i < PASSES.length - 1; i++) {
+        var a = PASSES[i];
+        var b = PASSES[i + 1];
+        var both = {};
+        for (var x = 0; x < a.boats.length; x++) {
+          if (a.boats[x].ts > ts) continue;
+          var t2 = tsAtPass(b, a.boats[x].boat);
+          if (t2 != null && t2 <= ts) both[a.boats[x].boat] = true;
         }
-        hit.sort(function (a, b) { return a.ts - b.ts; });
-        var map = {};
-        for (var j = 0; j < hit.length; j++) map[hit[j].boat] = j + 1;
-        return map;
-      });
+        function rankOf(pass) {
+          var hit = [];
+          for (var k = 0; k < pass.boats.length; k++) {
+            if (both[pass.boats[k].boat] && pass.boats[k].ts <= ts) hit.push(pass.boats[k]);
+          }
+          hit.sort(function (p, q) { return p.ts - q.ts; });
+          var map = {};
+          for (var n = 0; n < hit.length; n++) map[hit[n].boat] = n + 1;
+          return map;
+        }
+        out.push({ prev: rankOf(a), next: rankOf(b) });
+      }
+      return out;
     }
     function deltaCell(boat, passIdx, prevMap, nextMap) {
       if (!prevMap || !nextMap) return "<td class=\"place-delta-col\"></td>";
@@ -265,10 +290,9 @@
       for (var i = 0; i < PASSES.length; i++) {
         html += "<td class=\"timer-col\">" + splitCell(r.times, i) + "</td>";
         if (i < PASSES.length - 1) {
-          html += deltaCell(r.boat, i, rankMaps[i], rankMaps[i + 1]);
+          html += deltaCell(r.boat, i, rankMaps[i].prev, rankMaps[i].next);
         }
       }
-      html += "<td class=\"timer-col\">" + finCell(r, playTs) + "</td>";
       html += "</tr>";
       return html;
     }
@@ -292,7 +316,7 @@
     }
     function render(ts) {
       var rows = rowsAt(ts);
-      var rankMaps = rankMapsAt(ts);
+      var rankMaps = pairRankMaps(ts);
       var html = "";
       for (var i = 0; i < rows.length; i++) {
         var first = !seen[rows[i].boat];
@@ -370,7 +394,7 @@
       loadTrackerOnce(PLAY_START_TS);
       window.setTimeout(function () {
         if (!trackerReady) onShellLoad();
-      }, 12000);
+      }, 8000);
     }
 
     document.querySelectorAll("[data-jump]").forEach(function (btn) {
