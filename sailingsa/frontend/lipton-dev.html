@@ -57,19 +57,32 @@
   <div class="lipton-dev-shell">
     <div class="lipton-dev-split">
       <div class="fleet-section lipton-dev-board">
-        <div class="class-header">
-          <div class="fleet-header-title-wrap">J22</div>
-          <div class="sailed-line" id="lipton-dev-sailed">Race 5 playback · approaching mark 1</div>
-          <div class="sailed-line" id="lipton-dev-clock">T−</div>
+        <div class="class-header class-header--with-logos">
+          <div class="class-header-logo-col">
+            <a href="/events-logos/lipton-challenge-cup" class="regatta-header-logo-link" title="Lipton Challenge Cup">
+              <img src="/artwork/Event%20Logo/Lipton-Challenge-Cup-2026.png?v=20260827a" alt="Lipton Challenge Cup" class="class-header-logo-img">
+            </a>
+          </div>
+          <div class="class-header-main-col">
+            <div class="fleet-header-title-wrap"><a href="/class/j22">J22 Fleet</a></div>
+            <div class="sailed-line" id="lipton-dev-sailed">Race 5 tracker replay · approaching mark 1</div>
+            <div class="sailed-line" id="lipton-dev-clock">T−</div>
+          </div>
+          <div class="class-header-club-logo-col">
+            <a href="/class/j22" class="regatta-header-logo-link" title="Open J22 class page">
+              <img src="/artwork/Class%20Logo/J22-Class-Logo.png?v=20260827a" alt="J22" class="class-header-logo-img">
+            </a>
+          </div>
         </div>
         <div class="table-wrapper results-table-container table-container">
-          <table class="table">
+          <table class="table fleet-results-table">
             <thead>
               <tr>
-                <th>Rank</th>
-                <th>Bow</th>
-                <th>Club</th>
-                <th>Timer</th>
+                <th class="rank-col">Rank</th>
+                <th class="wc-meta-col">Bow No</th>
+                <th class="boat-name-col">Boat Name</th>
+                <th class="club-col">Club</th>
+                <th class="timer-col">Timer</th>
               </tr>
             </thead>
             <tbody id="lipton-dev-tbody"></tbody>
@@ -78,8 +91,9 @@
       </div>
       <div class="lipton-dev-track">
         <iframe
-          title="Vakaros RaceSense"
-          src="https://player.vakaros.com/watch/Lv9A35uOBSBRmGpHgXtH/J22?live=true"
+          id="lipton-dev-vakaros"
+          title="Vakaros RaceSense replay — Race 5"
+          src="https://player.vakaros.com/watch/Lv9A35uOBSBRmGpHgXtH/J22?race-day=2&amp;ts=1787840490000"
           allow="fullscreen"
           allowfullscreen
           referrerpolicy="no-referrer-when-downgrade"></iframe>
