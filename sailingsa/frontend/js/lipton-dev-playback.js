@@ -69,14 +69,6 @@
     var s = Math.floor(ms / 1000);
     return "+" + Math.floor(s / 60) + ":" + pad(s % 60);
   }
-  function ordinal(n) {
-    var v = n % 100;
-    if (v >= 11 && v <= 13) return n + "th";
-    if (n % 10 === 1) return n + "st";
-    if (n % 10 === 2) return n + "nd";
-    if (n % 10 === 3) return n + "rd";
-    return n + "th";
-  }
 
   var tbody = document.getElementById("lipton-dev-tbody");
   var clockEl = document.getElementById("lipton-dev-clock");
@@ -112,9 +104,10 @@
       var r = rows[i];
       var medal = r.rank === 1 ? " medal-gold" : r.rank === 2 ? " medal-silver" : r.rank === 3 ? " medal-bronze" : "";
       html += "<tr class=\"" + (r.done ? "" : "strike-out") + "\">";
-      html += "<td class=\"rank-col" + medal + "\">" + (r.rank ? ordinal(r.rank) : "—") + "</td>";
+      var club = CLUB[r.boat] || r.boat;
+      html += "<td class=\"rank-col" + medal + "\">" + (r.rank ? r.rank : "—") + "</td>";
       html += "<td>" + r.boat + "</td>";
-      html += "<td class=\"club-col\">" + (CLUB[r.boat] || r.boat) + "</td>";
+      html += "<td class=\"club-col\" title=\"" + club + "\">" + club + "</td>";
       html += "<td>" + fmtGap(r.gap) + "</td>";
       html += "</tr>";
     }
