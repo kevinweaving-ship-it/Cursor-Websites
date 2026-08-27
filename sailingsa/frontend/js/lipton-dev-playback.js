@@ -3,7 +3,7 @@
  * Data: /js/lipton-dev-replay.json (replace that file to refresh old data).
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827d";
+  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827e";
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -98,38 +98,50 @@
     }
 
     function rowsAt(ts) {
-      var rounded = MARK1.filter(function (b) { return b.ts <= ts; });
-      var leadTs = rounded.length ? rounded[0].ts : null;
-      return rounded.map(function (b, i) {
-        return { rank: i + 1, boat: b.boat, gap: leadTs == null ? 0 : b.ts - leadTs };
+      return MARK1.filter(function (b) { return b.ts <= ts; }).map(function (b, i) {
+        return { rank: i + 1, boat: b.boat, markTs: b.ts };
       });
     }
-
-    function render(ts) {
+    function rowHtml(r, unroll) {
+      var id = ident(r.boat);
+      var medal = r.rank === 1 ? " medal-gold" : r.rank === 2 ? " medal-silver" : r.rank === 3 ? " medal-bronze" : "";
+      var cls = medal + (unroll ? " lipton-unroll" : "");
+      var html = "<tr class=\"" + cls + "\" data-bow=\"" + esc(id ? id.bow : "") + "\">";
+      html += "<td class=\"rank-col\">" + r.rank + "</td>";
+      html += "<td class=\"wc-meta-col\">" + bowCell(id) + "</td>";
+      html += "<td class=\"boat-name-col\">" + boatNameCell(id) + "</td>";
+      html += "<td class=\"club-col\">" + clubCell(id) + "</td>";
+      html += "<td class=\"timer-col\">" + fmtT(r.markTs - GUN_TS) + "</td>";
+      html += "</tr>";
+      return html;
+    }
+    function setSailed(n) {
+      if (!sailedEl) return;
+      sailedEl.textContent = n === 0
+        ? "Race 5 replay · approaching mark 1"
+        : (n === 17
+          ? "Race 5 replay · all 17 around mark 1"
+          : "Race 5 replay · " + n + " of 17 around mark 1");
+    }
+    function render(ts, unrollNew) {
       var n = MARK1.filter(function (b) { return b.ts <= ts; }).length;
+      var shown = tbody.rows.length;
       if (tableWrap) tableWrap.hidden = n === 0;
-      var rows = n === 0 ? [] : rowsAt(ts);
-      var html = "";
-      for (var i = 0; i < rows.length; i++) {
-        var r = rows[i];
-        var id = ident(r.boat);
-        var medal = r.rank === 1 ? " medal-gold" : r.rank === 2 ? " medal-silver" : r.rank === 3 ? " medal-bronze" : "";
-        html += "<tr class=\"" + medal + "\" data-bow=\"" + esc(id ? id.bow : "") + "\">";
-        html += "<td class=\"rank-col\">" + r.rank + "</td>";
-        html += "<td class=\"wc-meta-col\">" + bowCell(id) + "</td>";
-        html += "<td class=\"boat-name-col\">" + boatNameCell(id) + "</td>";
-        html += "<td class=\"club-col\">" + clubCell(id) + "</td>";
-        html += "</tr>";
+      if (n === 0) {
+        tbody.innerHTML = "";
+      } else if (n < shown || !unrollNew) {
+        var rows = rowsAt(ts);
+        var html = "";
+        for (var i = 0; i < rows.length; i++) html += rowHtml(rows[i], false);
+        tbody.innerHTML = html;
+      } else if (n > shown) {
+        var add = rowsAt(ts).slice(shown);
+        var extra = "";
+        for (var j = 0; j < add.length; j++) extra += rowHtml(add[j], true);
+        tbody.insertAdjacentHTML("beforeend", extra);
       }
-      tbody.innerHTML = html;
       if (clockEl) clockEl.textContent = fmtT(ts - GUN_TS);
-      if (sailedEl) {
-        sailedEl.textContent = n === 0
-          ? "Race 5 replay · approaching mark 1"
-          : (n === 17
-            ? "Race 5 replay · all 17 around mark 1"
-            : "Race 5 replay · " + n + " of 17 around mark 1");
-      }
+      setSailed(n);
     }
 
     function jump(ts) {
@@ -137,7 +149,7 @@
       lastWall = Date.now();
       lastRounded = -1;
       setFrame(ts);
-      render(ts);
+      render(ts, false);
     }
 
     function tick() {
@@ -153,7 +165,7 @@
         var n = MARK1.filter(function (b) { return b.ts <= playTs; }).length;
         if (n !== lastRounded) {
           lastRounded = n;
-          render(playTs);
+          render(playTs, true);
         } else if (clockEl) {
           clockEl.textContent = fmtT(playTs - GUN_TS);
         }
@@ -189,7 +201,7 @@
     setFrame(PLAY_START_TS);
     setRateButtons();
     setPlayLabel();
-    render(playTs);
+    render(playTs, false);
     window.requestAnimationFrame(tick);
   }
 })();
