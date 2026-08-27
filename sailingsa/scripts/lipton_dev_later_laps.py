@@ -28,8 +28,17 @@ OUT = ROOT / "sailingsa/frontend/js/lipton-dev-replay.json"
 OUT_COPY = ROOT / "js/lipton-dev-replay.json"
 
 
+def _mark_relocated(a: dict, b: dict, *, thresh_m: float = 50.0) -> bool:
+    """True when buoy GPS jumped — RO towed the mark (wind shift), not GPS noise."""
+    return haversine_m(a["latitude"], a["longitude"], b["latitude"], b["longitude"]) >= thresh_m
+
+
 def nearest_mark(marks_sorted: list[dict], ts: int) -> dict | None:
-    """Buoy ping at or before ts, else the next ping if the last one is stale. Not boat GPS."""
+    """Buoy ping for this instant. Prefer same station after a mid-race mark move.
+
+    RO often tows weather/wing between laps. Do not keep the pre-tow lat/lon once
+    the buoy has relocated — that creates false checksum gaps on later laps.
+    """
     if not marks_sorted:
         return None
     lo, hi = 0, len(marks_sorted) - 1
@@ -45,6 +54,12 @@ def nearest_mark(marks_sorted: list[dict], ts: int) -> dict | None:
         nxt = marks_sorted[0]
     elif lo + 1 < len(marks_sorted):
         nxt = marks_sorted[lo + 1]
+    # If the next ping is a relocation and we are past the tow window, use the new station.
+    if last and nxt and _mark_relocated(last, nxt):
+        mid_ts = (last["ts"] + nxt["ts"]) // 2
+        if ts >= mid_ts:
+            return nxt
+        return last
     stale_ms = 120_000
     if last and ts - last["ts"] <= stale_ms:
         return last
@@ -53,6 +68,33 @@ def nearest_mark(marks_sorted: list[dict], ts: int) -> dict | None:
     if last and nxt:
         return last if (ts - last["ts"]) <= (nxt["ts"] - ts) else nxt
     return last or nxt
+
+
+def mark_move_events(marks_sorted: list[dict], *, thresh_m: float = 50.0, gun_ts_ms: int | None = None) -> list[dict]:
+    """List buoy relocations (RO towed mark). For -dev audit / checksum notes."""
+    out = []
+    if not marks_sorted:
+        return out
+    prev = marks_sorted[0]
+    for cur in marks_sorted[1:]:
+        d = haversine_m(prev["latitude"], prev["longitude"], cur["latitude"], cur["longitude"])
+        if d >= thresh_m:
+            row = {
+                "from_ts": int(prev["ts"]),
+                "to_ts": int(cur["ts"]),
+                "moved_m": round(d, 1),
+                "from": {"lat": round(prev["latitude"], 6), "lon": round(prev["longitude"], 6)},
+                "to": {"lat": round(cur["latitude"], 6), "lon": round(cur["longitude"], 6)},
+            }
+            if gun_ts_ms is not None:
+                row["from_gun_s"] = round((prev["ts"] - gun_ts_ms) / 1000)
+                row["to_gun_s"] = round((cur["ts"] - gun_ts_ms) / 1000)
+            out.append(row)
+            prev = cur
+        else:
+            # stay on the current station centroid for noise
+            prev = cur
+    return out
 
 
 def rounding_candidates(pts: list[dict], marks_sorted: list[dict], *, enter_m=80.0, leave_extra_m=8.0, gap_inbound_ms=15_000):

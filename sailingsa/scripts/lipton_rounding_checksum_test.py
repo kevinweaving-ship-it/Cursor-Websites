@@ -160,6 +160,27 @@ class RoundingChecksumTest(unittest.TestCase):
         self.assertEqual(chk["sanity"]["time_fail"][0]["boat"], "A")
 
 
+
+class MarkMoveNearestTest(unittest.TestCase):
+    def test_nearest_mark_switches_after_tow(self):
+        """After RO tows weather ~200m, later boat times must use new station."""
+        from lipton_dev_later_laps import nearest_mark, mark_move_events
+        t0 = GUN
+        before = {"ts": t0 + 1_000_000, "latitude": -33.8800, "longitude": 18.4820}
+        after = {"ts": t0 + 1_200_000, "latitude": -33.8785, "longitude": 18.4805}
+        marks = [before, after]
+        # mid-window and later must prefer relocated buoy
+        mid = nearest_mark(marks, t0 + 1_100_000)
+        late = nearest_mark(marks, t0 + 1_500_000)
+        early = nearest_mark(marks, t0 + 1_050_000)
+        self.assertEqual(early["latitude"], before["latitude"])
+        self.assertEqual(mid["latitude"], after["latitude"])
+        self.assertEqual(late["latitude"], after["latitude"])
+        ev = mark_move_events(marks, thresh_m=50.0, gun_ts_ms=GUN)
+        self.assertEqual(len(ev), 1)
+        self.assertGreater(ev[0]["moved_m"], 100)
+
+
 class CourseCardTest(unittest.TestCase):
     def test_quadrangle_two_far_weathers(self):
         from lipton_dev_course import classify_course

@@ -353,16 +353,15 @@ def main() -> int:
         "jumps": {"gun": gun, "start": gun, "finish": first_finish},
         "mark_labels": [p["label"] for p in mark_passes],
         "passes": [{"id": "ST", "label": "ST", "lap": 0, "mark": 0, "boats": st}, *mark_passes],
+        # Always checksum only marks the fleet actually sailed. COURSE_PASSES lists
+        # every template leg (incl. wings never rounded / W/L middles) which used to
+        # surface as false "checksum gaps L1-2 …" when a mark was towed between laps.
         "checksum": build_checksum(
             fleet=sorted(boats),
             st=st,
             mark_passes=mark_passes,
             finish=finish_rows,
-            course_passes=(
-                [{"id": p["id"], "lap": p["lap"], "mark": str(p["mark"])} for p in mark_passes]
-                if use_wl
-                else COURSE_PASSES
-            ),
+            course_passes=[{"id": p["id"], "lap": p["lap"], "mark": str(p["mark"])} for p in mark_passes],
         ),
         "sources": {
             "guns_finishes_ocs": f"Vakaros Firestore races[R{race}] starts/finishes/ocsParticipants",
