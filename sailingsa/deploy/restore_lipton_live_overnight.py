@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 
 RID = "2026-08-29-lipton-challenge-cup"
@@ -42,8 +43,27 @@ def main() -> None:
     st["elapsed_raw"] = None
     st["force_racing"] = False
     st["simulate"] = False
-    # Last completed race is R5. race_key=R6 + finished makes next_race_key skip to R7.
-    st["race_key"] = "R5"
+    # Last completed Rn from race_times (R5 today, R6 after tomorrow). Do not leave
+    # next empty Rn + finished — that makes next_race_key skip a race.
+    last_rk = "R5"
+    try:
+        rt = st.get("race_times") if isinstance(st.get("race_times"), dict) else {}
+        filled_n = []
+        for k, rows in (rt or {}).items():
+            m = re.match(r"^R(\d+)$", str(k), re.I)
+            if not m:
+                continue
+            if isinstance(rows, list) and any(
+                isinstance(r, dict)
+                and (r.get("place") is not None or r.get("finish_ms") is not None)
+                for r in rows
+            ):
+                filled_n.append(int(m.group(1)))
+        if filled_n:
+            last_rk = "R" + str(max(filled_n))
+    except Exception:
+        pass
+    st["race_key"] = last_rk
     # Do not keep tomorrow's 12:00 start chip armed overnight.
     st["next_start_hhmm"] = None
     st["planned_start"] = None
@@ -59,7 +79,7 @@ def main() -> None:
         ent["live_board_status"] = "LIVE"
         ent.pop("live_race_gun_at", None)
         ent["live_race_gun_at"] = None
-        ent["live_race_key"] = "R5"
+        ent["live_race_key"] = last_rk
         d[RID] = ent
         _write_json(p, d)
         print("icons LIVE", p)
