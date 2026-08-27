@@ -5,8 +5,8 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827ab";
-  var TRAIL_URL = "/js/lipton-dev-trail.json?v=20260827ab";
+  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827ac";
+  var TRAIL_URL = "/js/lipton-dev-trail.json?v=20260827ac";
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -183,6 +183,10 @@
       mapEl.height = Math.floor(h * dpr);
       mapCtx = mapEl.getContext("2d");
       mapCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      mapCtx.imageSmoothingEnabled = true;
+      mapCtx.imageSmoothingQuality = "high";
+      mapCtx.lineJoin = "round";
+      mapCtx.lineCap = "round";
       var box = { minLat: 90, maxLat: -90, minLon: 180, maxLon: -180 };
       Object.keys(trail.boats || {}).forEach(function (sail) {
         eachSeriesPoint(trail.boats[sail], function (lat, lon) { expandBounds(lat, lon, box); });
@@ -213,9 +217,10 @@
         y: -(lat - b.midLat) * 111000 * b.scale + b.h / 2
       };
     }
+    var lastHdg = {};
     function sampleAt(series, ts) {
       if (!series) return null;
-      if (typeof series.lat === "number") return { lat: series.lat, lon: series.lon };
+      if (typeof series.lat === "number") return { lat: series.lat, lon: series.lon, i: 0, j: 0 };
       var t = (ts - trail.gun_ts_ms) / trail.step_ms;
       var i = Math.floor(t);
       if (i < 0) i = 0;
@@ -223,32 +228,53 @@
       while (i >= 0 && series.lat[i] == null) i -= 1;
       if (i < 0) return null;
       var j = i + 1;
-      if (j < series.lat.length && series.lat[j] != null) {
-        var f = t - i;
+      var maxJ = Math.min(series.lat.length, i + 3);
+      while (j < maxJ && series.lat[j] == null) j += 1;
+      if (j < maxJ && series.lat[j] != null) {
+        var f = (t - i) / (j - i);
         if (f < 0) f = 0;
         if (f > 1) f = 1;
         return {
           lat: series.lat[i] + (series.lat[j] - series.lat[i]) * f,
-          lon: series.lon[i] + (series.lon[j] - series.lon[i]) * f
+          lon: series.lon[i] + (series.lon[j] - series.lon[i]) * f,
+          i: i,
+          j: j
         };
       }
-      return { lat: series.lat[i], lon: series.lon[i] };
+      return { lat: series.lat[i], lon: series.lon[i], i: i, j: i };
     }
-    function headingAt(b, ts) {
-      var t = Math.floor((ts - trail.gun_ts_ms) / trail.step_ms);
-      if (t < 1) t = 1;
-      if (t >= b.lat.length) t = b.lat.length - 1;
-      while (t >= 0 && b.lat[t] == null) t -= 1;
-      var k = t - 1;
+    function headingAt(b, sample) {
+      if (!b || !sample) return 0;
+      var i = sample.i;
+      var j = sample.j;
+      if (j != null && j > i && b.lat[j] != null && b.lat[i] != null) {
+        return Math.atan2(b.lon[j] - b.lon[i], b.lat[j] - b.lat[i]) * 180 / Math.PI;
+      }
+      var k = i - 1;
       while (k >= 0 && b.lat[k] == null) k -= 1;
-      if (t < 0 || k < 0) return 0;
-      return Math.atan2(b.lon[t] - b.lon[k], b.lat[t] - b.lat[k]) * 180 / Math.PI;
+      if (k < 0 || b.lat[i] == null) return 0;
+      return Math.atan2(b.lon[i] - b.lon[k], b.lat[i] - b.lat[k]) * 180 / Math.PI;
+    }
+    function blendHdg(sail, target) {
+      if (target == null || isNaN(target)) return lastHdg[sail] || 0;
+      var prev = lastHdg[sail];
+      if (prev == null) {
+        lastHdg[sail] = target;
+        return target;
+      }
+      var d = target - prev;
+      while (d > 180) d -= 360;
+      while (d < -180) d += 360;
+      var k = playing ? Math.min(1, 0.28 + RATE / 70) : 1;
+      var out = prev + d * k;
+      lastHdg[sail] = out;
+      return out;
     }
     function posAt(sail, ts) {
       var b = trail.boats[sail];
       var pos = sampleAt(b, ts);
       if (!pos) return null;
-      pos.hdg = headingAt(b, ts);
+      pos.hdg = blendHdg(sail, headingAt(b, pos));
       return pos;
     }
     function markAt(k, ts) {
@@ -261,29 +287,30 @@
       mapCtx.save();
       mapCtx.translate(p.x, p.y);
       mapCtx.rotate((hdg || 0) * Math.PI / 180);
+      mapCtx.lineJoin = "round";
+      mapCtx.lineCap = "round";
       mapCtx.beginPath();
-      mapCtx.moveTo(0, -12);
-      mapCtx.quadraticCurveTo(5.5, -2, 5, 8);
-      mapCtx.lineTo(-5, 8);
-      mapCtx.quadraticCurveTo(-5.5, -2, 0, -12);
+      mapCtx.moveTo(0, -5.6);
+      mapCtx.quadraticCurveTo(2.4, -0.8, 2.2, 3.8);
+      mapCtx.lineTo(-2.2, 3.8);
+      mapCtx.quadraticCurveTo(-2.4, -0.8, 0, -5.6);
       mapCtx.closePath();
       mapCtx.fillStyle = ocs ? "#b42318" : "#0b1b33";
       mapCtx.fill();
       mapCtx.strokeStyle = ocs ? "#fecaca" : "#f8fafc";
-      mapCtx.lineWidth = 1.1;
+      mapCtx.lineWidth = 0.7;
       mapCtx.stroke();
       mapCtx.beginPath();
-      mapCtx.moveTo(0.4, 6);
-      mapCtx.lineTo(0.4, -10);
-      mapCtx.lineTo(8.5, 3);
-      mapCtx.lineTo(0.4, 5);
+      mapCtx.moveTo(0.15, 2.6);
+      mapCtx.lineTo(0.15, -4.6);
+      mapCtx.lineTo(3.8, 1.2);
       mapCtx.closePath();
       mapCtx.fillStyle = ocs ? "#fecaca" : "#ffffff";
       mapCtx.fill();
       mapCtx.beginPath();
-      mapCtx.moveTo(-0.4, 4);
-      mapCtx.lineTo(-0.4, -7);
-      mapCtx.lineTo(-5.5, 2);
+      mapCtx.moveTo(-0.15, 1.8);
+      mapCtx.lineTo(-0.15, -3.2);
+      mapCtx.lineTo(-2.4, 0.8);
       mapCtx.closePath();
       mapCtx.fillStyle = ocs ? "#f87171" : "#cbd5e1";
       mapCtx.fill();
@@ -375,8 +402,8 @@
         var p = xy(pos.lat, pos.lon);
         drawBoatIcon(p, pos.hdg, OCS[sail]);
         mapCtx.fillStyle = OCS[sail] ? "#fecaca" : "#e2e8f0";
-        mapCtx.font = "bold 10px sans-serif";
-        mapCtx.fillText(clubCode(sail), p.x + 10, p.y - 10);
+        mapCtx.font = "bold 8px sans-serif";
+        mapCtx.fillText(clubCode(sail), p.x + 6, p.y - 6);
       });
     }
     function setRateButtons() {
