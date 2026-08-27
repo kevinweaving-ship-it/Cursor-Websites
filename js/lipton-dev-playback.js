@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827q";
+  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827s";
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -38,7 +38,9 @@
   }
   function loadPasses(data) {
     if (Array.isArray(data.passes) && data.passes.length) {
-      return data.passes.map(function (p, i) {
+      return data.passes.filter(function (p) {
+        return p && (p.id === "FIN" || (p.boats && p.boats.length));
+      }).map(function (p, i) {
         return {
           id: p.id || ("P" + i),
           label: p.label || ("M" + (p.mark || i + 1)),
@@ -99,7 +101,9 @@
     var lastKey = "";
     var seen = {};
     var deltaSeen = {};
-    var frameLocked = false;
+    var lastMapUrl = "";
+    var lastMapJump = 0;
+    var trackEl = document.querySelector(".lipton-dev-track");
 
     var tbody = document.getElementById("lipton-dev-tbody");
     var clockEl = document.getElementById("lipton-dev-clock");
@@ -124,14 +128,25 @@
       if (!id) return "";
       return "<span class=\"wc-boat-linked\"><a href=\"" + esc(id.boatHref) + "\">" + esc(id.bow) + "</a></span>";
     }
-    function loadTrackerOnce(ts) {
-      if (!frameEl || frameLocked) return;
-      frameLocked = true;
-      frameEl.src = watchUrl(data, ts);
+    function showTracker(ts) {
+      if (!frameEl) return;
+      var url = watchUrl(data, ts);
+      if (url === lastMapUrl) return;
+      lastMapUrl = url;
+      lastMapJump = Date.now();
+      frameEl.src = url;
+      if (trackEl) trackEl.classList.remove("is-paused");
+    }
+    function stopTracker() {
+      if (!frameEl) return;
+      lastMapUrl = "about:blank";
+      frameEl.src = "about:blank";
+      if (trackEl) trackEl.classList.add("is-paused");
     }
     function setRateButtons() {
       [].forEach.call(document.querySelectorAll("[data-rate]"), function (btn) {
         btn.classList.toggle("is-active", Number(btn.getAttribute("data-rate")) === RATE);
+        btn.disabled = !trackerReady;
       });
     }
     function setPlayLabel() {
@@ -198,8 +213,13 @@
       if (PASSES[i] && (PASSES[i].id === "FIN" || PASSES[i].label === "Fin")) {
         return fmtClock(t - GUN_TS);
       }
-      var prev = i === 0 ? GUN_TS : times[i - 1];
-      if (prev == null) return "";
+      var prev = GUN_TS;
+      for (var j = i - 1; j >= 0; j--) {
+        if (times[j] != null) {
+          prev = times[j];
+          break;
+        }
+      }
       return fmtClock(t - prev);
     }
     function pairRankMaps(ts) {
@@ -346,7 +366,10 @@
         if (playTs > PLAY_END_TS) {
           playTs = PLAY_END_TS;
           playing = false;
+          stopTracker();
           setPlayLabel();
+        } else if (RATE > 1 && now - lastMapJump > 1200) {
+          showTracker(playTs);
         }
         var rows = rowsAt(playTs);
         var key = stateKey(rows);
@@ -366,14 +389,17 @@
       trackerReady = true;
       playTs = PLAY_START_TS;
       lastWall = Date.now();
-      playing = true;
+      playing = false;
       setPlayLabel();
+      setRateButtons();
       render(playTs);
+      if (sailedEl) sailedEl.textContent = "Tracker ready · press Play to start the map";
     }
 
     function waitForTracker() {
       if (sailedEl) sailedEl.textContent = "Loading tracker…";
       setPlayLabel();
+      setRateButtons();
       render(playTs);
       if (!frameEl) {
         window.setTimeout(beginAfterTracker, 0);
@@ -383,7 +409,7 @@
       function onShellLoad() {
         if (shellSeen) return;
         shellSeen = true;
-        if (sailedEl) sailedEl.textContent = "Tracker loaded · waiting until stable";
+        if (sailedEl) sailedEl.textContent = "Tracker loaded · press Play to start";
         window.setTimeout(beginAfterTracker, SETTLE_MS);
       }
       frameEl.addEventListener("load", function () {
@@ -391,7 +417,7 @@
         if (src.indexOf("player.vakaros.com") === -1) return;
         onShellLoad();
       });
-      loadTrackerOnce(PLAY_START_TS);
+      showTracker(PLAY_START_TS);
       window.setTimeout(function () {
         if (!trackerReady) onShellLoad();
       }, 8000);
@@ -403,13 +429,16 @@
         var ts = key === "gun" ? GUN_TS : key === "finish" ? (FINISH[0] ? FINISH[0].ts : PLAY_START_TS) : PLAY_START_TS;
         if (!ts) return;
         jump(ts);
+        if (playing) showTracker(playTs);
       });
     });
     document.querySelectorAll("[data-rate]").forEach(function (btn) {
       btn.addEventListener("click", function () {
+        if (!trackerReady) return;
         RATE = Number(btn.getAttribute("data-rate")) || 1;
         lastWall = Date.now();
         setRateButtons();
+        if (playing) showTracker(playTs);
       });
     });
     if (playBtn) {
@@ -417,6 +446,12 @@
         if (!trackerReady) return;
         playing = !playing;
         lastWall = Date.now();
+        if (playing) {
+          lastMapUrl = "";
+          showTracker(playTs);
+        } else {
+          stopTracker();
+        }
         setPlayLabel();
       });
     }

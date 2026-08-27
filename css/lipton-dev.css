@@ -255,6 +255,7 @@ body[data-lipton-dev="1"] .medal-silver { background-color: #D7D7D7; }
 body[data-lipton-dev="1"] .medal-bronze { background-color: #CE8946; }
 body[data-lipton-dev="1"] .strike-out { opacity: 0.55; text-decoration: none; }
 body[data-lipton-dev="1"] .lipton-dev-track {
+  position: relative;
   min-width: 0;
   height: 100%;
   background: #001f3f;
@@ -267,6 +268,22 @@ body[data-lipton-dev="1"] .lipton-dev-track iframe {
   height: 100%;
   border: 0;
   background: #001f3f;
+  pointer-events: none;
+}
+body[data-lipton-dev="1"] .lipton-dev-track-shield {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: transparent;
+  cursor: default;
+  touch-action: none;
+}
+body[data-lipton-dev="1"] .lipton-dev-track.is-paused .lipton-dev-track-shield {
+  background: rgba(0, 31, 63, 0.35);
+}
+body[data-lipton-dev="1"] .lipton-dev-btn:disabled {
+  opacity: 0.45;
+  cursor: wait;
 }
 @media (max-width: 900px) {
   body[data-lipton-dev="1"] {
