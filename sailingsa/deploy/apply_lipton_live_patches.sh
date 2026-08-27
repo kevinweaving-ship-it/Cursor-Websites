@@ -28,6 +28,7 @@ PATCHERS=(
   patch_lipton_pre_arm_put.py
   patch_lipton_pre_arm_wake.py
   patch_lipton_live_button_rk.py
+  patch_lipton_apply_late_finish.py
 )
 
 echo "api $API"
@@ -60,6 +61,7 @@ REQUIRED=(
   LIPTON_PRE_ARM_PUT_V1
   LIPTON_PRE_ARM_WAKE_V1
   LIPTON_LIVE_BUTTON_RK_V1
+  LIPTON_APPLY_LATE_FINISH_V1
 )
 miss=0
 for m in "${REQUIRED[@]}"; do
