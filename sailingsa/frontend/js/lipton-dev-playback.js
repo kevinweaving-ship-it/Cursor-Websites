@@ -4,7 +4,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827g";
+  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827h";
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -55,12 +55,15 @@
     var GUN_TS = Number(data.gun_ts_ms);
     var PLAY_START_TS = Number(data.play_start_ts_ms);
     var PLAY_END_TS = Number(data.play_end_ts_ms || data.end_ts_ms);
-    var FINISH_TS = Number(data.first_finish_ts_ms || 0);
-    var RATE = Number(data.default_rate || 8);
+    var FINISH = (data.finish || []).map(function (b) {
+      return { boat: b.boat, ts: b.ts_ms };
+    });
+    var RATE = Number(data.default_rate || 10);
     var playing = true;
     var playTs = PLAY_START_TS;
     var lastWall = Date.now();
     var lastKey = "";
+    var lastLead = "";
     var seen = {};
 
     var tbody = document.getElementById("lipton-dev-tbody");
@@ -124,6 +127,17 @@
       }
       return { idx: k, lab: lab, ts: t };
     }
+    function finishTs(boat) {
+      for (var i = 0; i < FINISH.length; i++) {
+        if (FINISH[i].boat === boat) return FINISH[i].ts;
+      }
+      return null;
+    }
+    function finCell(r, ts) {
+      var ft = finishTs(r.boat);
+      if (ft != null && ft <= ts) return fmtClock(ft - GUN_TS);
+      return "";
+    }
     function splitCell(times, lab, i) {
       var t = times[lab];
       if (t == null) return "";
@@ -168,6 +182,7 @@
       for (var i = 0; i < LABELS.length; i++) {
         html += "<td class=\"timer-col\">" + splitCell(r.times, LABELS[i], i) + "</td>";
       }
+      html += "<td class=\"timer-col\">" + finCell(r, playTs) + "</td>";
       html += "</tr>";
       return html;
     }
@@ -175,13 +190,13 @@
       if (!sailedEl) return;
       var lab = leadMark(rows);
       if (!lab) {
-        sailedEl.textContent = "Race 5 · approaching M1";
+        sailedEl.textContent = "Race 5 replay 10× · approaching M1";
         return;
       }
       var n = 0;
       rows.forEach(function (r) { if (r.farLab === lab) n += 1; });
       var tot = (MARKS[lab] || []).length;
-      sailedEl.textContent = "Race 5 · " + lab + " · " + n + " of " + tot + " · rank by " + lab;
+      sailedEl.textContent = "Race 5 replay 10× · " + lab + " · " + n + " of " + tot + " · rank by " + lab;
     }
     function render(ts) {
       var rows = rowsAt(ts);
@@ -199,6 +214,11 @@
       }
       setSailed(rows);
       lastKey = stateKey(rows);
+      var lead = leadMark(rows) || "";
+      if (lead && lead !== lastLead) {
+        lastLead = lead;
+        setFrame(ts);
+      }
     }
 
     function jump(ts) {
@@ -238,7 +258,7 @@
     document.querySelectorAll("[data-jump]").forEach(function (btn) {
       btn.addEventListener("click", function () {
         var key = btn.getAttribute("data-jump");
-        var ts = key === "gun" ? GUN_TS : key === "finish" ? FINISH_TS : PLAY_START_TS;
+        var ts = key === "gun" ? GUN_TS : key === "finish" ? (FINISH[0] ? FINISH[0].ts : PLAY_START_TS) : PLAY_START_TS;
         if (!ts) return;
         jump(ts);
       });
