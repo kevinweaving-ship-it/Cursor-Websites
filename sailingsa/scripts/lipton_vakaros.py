@@ -29,13 +29,14 @@ from zoneinfo import ZoneInfo
 LIPTON_SLUG = "2026-08-29-lipton-challenge-cup"
 LIPTON_EVENT_ID = "Lv9A35uOBSBRmGpHgXtH"
 LIPTON_FLEET = "J22"
-WATCH_URL = (
-    f"https://player.vakaros.com/watch/{LIPTON_EVENT_ID}/{LIPTON_FLEET}?live=true"
-)
+WATCH_PATH = f"/watch/{LIPTON_EVENT_ID}/{LIPTON_FLEET}"
+WATCH_ORIGIN = "https://player.vakaros.com"
+WATCH_URL = f"{WATCH_ORIGIN}{WATCH_PATH}?live=true"
 FIREBASE_PROJECT = "vakaros-racesense"
 # Public web API key shipped in player.vakaros.com/main.dart.js
 FIREBASE_WEB_API_KEY = "AIzaSyDoQfjoAtx9g3sS7MzKUM0gGwW8tREKxwk"
 SAST = ZoneInfo("Africa/Johannesburg")
+FINISHED_STAGES = {"finished"}
 SNAPSHOT_DDL = """
 CREATE TABLE IF NOT EXISTS public.vakaros_snapshots (
     snapshot_id BIGSERIAL PRIMARY KEY,
@@ -152,6 +153,53 @@ def anonymous_id_token(api_key: str = FIREBASE_WEB_API_KEY) -> str:
     if status != 200 or not token:
         raise VakarosSourceError(f"Firebase anonymous auth failed HTTP {status}: {body}")
     return token
+
+
+def ms_utc(dt: datetime | None) -> int | None:
+    if dt is None:
+        return None
+    return int(dt.astimezone(timezone.utc).timestamp() * 1000)
+
+
+def build_watch_url(*, race_day: int = 1, live: bool = False, ts_ms: int | None = None) -> str:
+    """Same query rules as player.vakaros.com (Flutter route `avt.gCy`).
+
+    - race-day omitted when 1
+    - live omitted when false
+    - ts = playback instant in unix milliseconds
+    """
+    q: list[str] = []
+    if int(race_day) != 1:
+        q.append(f"race-day={int(race_day)}")
+    if live:
+        q.append("live=true")
+    if ts_ms is not None:
+        q.append(f"ts={int(ts_ms)}")
+    url = f"{WATCH_ORIGIN}{WATCH_PATH}"
+    return url + (("?" + "&".join(q)) if q else "")
+
+
+def t_sign_and_seconds(*, playback: datetime | None, gun: datetime | None) -> dict | None:
+    """Player T-/T+ chip: compare playback clock to that race's gun.
+
+    From main.dart.js adG/akT: before gun → T- (gun-now); at/after gun → T+ (now-gun).
+    Not a stored Firestore field.
+    """
+    if playback is None or gun is None:
+        return None
+    delta = (gun - playback).total_seconds()
+    if delta > 0:
+        return {"sign": "T-", "seconds": round(delta, 3), "label": "before gun"}
+    return {"sign": "T+", "seconds": round(-delta, 3), "label": "after gun"}
+
+
+def race_day_index(day_sast: str | None, day_list: list[str]) -> int | None:
+    if not day_sast:
+        return None
+    try:
+        return day_list.index(day_sast) + 1
+    except ValueError:
+        return None
 
 
 def fetch_player_html(url: str = WATCH_URL) -> str:
@@ -273,6 +321,40 @@ def summarize_event(doc: dict) -> dict:
     finished = [r for r in races if r["stage"] in FINISHED_STAGES]
     if finished:
         last_finished = max(finished, key=lambda r: r["race_number"])
+    last_finished_no = last_finished["race_number"] if last_finished else None
+    day_list = sorted(days.keys())
+    for r in races:
+        r["race_day"] = race_day_index(r.get("day_sast"), day_list)
+        gun = parse_ts(r.get("gun_at_utc"))
+        end = parse_ts(r.get("end_sast"))
+        day_n = r["race_day"] or 1
+        r["replay"] = {
+            "at_gun": build_watch_url(race_day=day_n, ts_ms=ms_utc(gun)) if gun else None,
+            "at_end": build_watch_url(race_day=day_n, ts_ms=ms_utc(end)) if end else None,
+            "prestart_5min": build_watch_url(race_day=day_n, ts_ms=ms_utc(gun) - 5 * 60 * 1000) if gun else None,
+        }
+    replay_examples = []
+    by_no = {r["race_number"]: r for r in races}
+    if 4 in by_no and 5 in by_no:
+        r4, r5 = by_no[4], by_no[5]
+        g4, e4 = parse_ts(r4.get("gun_at_utc")), parse_ts(r4.get("end_sast"))
+        g5 = parse_ts(r5.get("gun_at_utc"))
+        day_n = r5.get("race_day") or r4.get("race_day") or 2
+        gap_ts = ms_utc(e4)
+        replay_examples.append(
+            {
+                "name": "between_r4_and_r5",
+                "note": "Replay after R4 finished, before R5 gun. Left clock = ts. T- chip = R5 gun minus ts.",
+                "race_day": day_n,
+                "playback_sast": e4.isoformat() if e4 else None,
+                "r4_gun_sast": r4.get("gun_at_sast"),
+                "r4_end_sast": r4.get("end_sast"),
+                "r5_gun_sast": r5.get("gun_at_sast"),
+                "url": build_watch_url(race_day=day_n, ts_ms=gap_ts) if gap_ts else None,
+                "t_minus_vs_r5_gun": t_sign_and_seconds(playback=e4, gun=g5),
+                "t_plus_vs_r4_gun": t_sign_and_seconds(playback=e4, gun=g4),
+            }
+        )
     return {
         "ok": True,
         "source": {
@@ -295,9 +377,23 @@ def summarize_event(doc: dict) -> dict:
         "modified_ts": doc.get("modifiedTs"),
         "fleet": div.get("name"),
         "network_race_number": div.get("networkRaceNumber"),
+        "countdown_type": div.get("countdownType"),
+        "start_length": div.get("startLength"),
+        "player_chrome": {
+            "url": {
+                "path": WATCH_PATH,
+                "race-day": "1-based day index from tracker guns (Day 1 omitted in URL)",
+                "live": "true only while the player is in live mode; omitted = replay",
+                "ts": "unix ms playback instant; left-hand clock in replay",
+            },
+            "left_clock": "Replay: URL ts / scrubber. Live: wall clock. Not T-.",
+            "t_minus_t_plus": "Computed in player: playback vs selected race starts[].startTime. Not stored.",
+            "go_live": "Shown when live=false. Does not mean racing.",
+        },
+        "replay_examples": replay_examples,
         "races": races,
-        "days": [{"date_sast": d, "races": nums} for d, nums in sorted(days.items())],
-        "last_finished_race": last_finished["race_number"] if last_finished else None,
+        "days": [{"date_sast": d, "races": nums, "race_day": i} for i, (d, nums) in enumerate(sorted(days.items()), start=1)],
+        "last_finished_race": last_finished_no,
         "next_race_number": next_race,
         "next_race_reason": next_reason,
         "fetched_at_utc": datetime.now(timezone.utc).isoformat(),
