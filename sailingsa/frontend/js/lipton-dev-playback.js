@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827m";
+  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827p";
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -82,12 +82,15 @@
     var PLAY_END_TS = Number(data.play_end_ts_ms || data.end_ts_ms);
     var FINISH = asBoats(data.finish);
     var RATE = Number(data.default_rate || 1);
-    var playing = true;
+    var SETTLE_MS = 4000;
+    var playing = false;
+    var trackerReady = false;
     var playTs = PLAY_START_TS;
     var lastWall = Date.now();
     var lastKey = "";
     var seen = {};
     var deltaSeen = {};
+    var frameLocked = false;
 
     var tbody = document.getElementById("lipton-dev-tbody");
     var clockEl = document.getElementById("lipton-dev-clock");
@@ -112,8 +115,10 @@
       if (!id) return "";
       return "<span class=\"wc-boat-linked\"><a href=\"" + esc(id.boatHref) + "\">" + esc(id.bow) + "</a></span>";
     }
-    function setFrame(ts) {
-      if (frameEl) frameEl.src = watchUrl(data, ts);
+    function loadTrackerOnce(ts) {
+      if (!frameEl || frameLocked) return;
+      frameLocked = true;
+      frameEl.src = watchUrl(data, ts);
     }
     function setRateButtons() {
       [].forEach.call(document.querySelectorAll("[data-rate]"), function (btn) {
@@ -121,7 +126,14 @@
       });
     }
     function setPlayLabel() {
-      if (playBtn) playBtn.textContent = playing ? "Pause" : "Play";
+      if (!playBtn) return;
+      if (!trackerReady) {
+        playBtn.disabled = true;
+        playBtn.textContent = "Wait";
+        return;
+      }
+      playBtn.disabled = false;
+      playBtn.textContent = playing ? "Pause" : "Play";
     }
     function fillHead() {
       if (!headRow) return;
@@ -131,7 +143,7 @@
         html += "<th class=\"timer-col\" title=\"Lap " + p.lap + " mark " + p.mark + "\">" + esc(p.label) + "</th>";
         if (i < PASSES.length - 1) {
           var nlab = PASSES[i + 1].label;
-        html += "<th class=\"place-delta-col\" title=\"Places gained or lost " + esc(p.label) + " to " + esc(nlab) + "\" aria-label=\"Place change " + esc(p.label) + " to " + esc(nlab) + "\">±</th>";
+          html += "<th class=\"place-delta-col\" title=\"Places gained or lost " + esc(p.label) + " to " + esc(nlab) + "\" aria-label=\"Place change " + esc(p.label) + " to " + esc(nlab) + "\">±</th>";
         }
       }
       html += "<th class=\"timer-col\">Fin</th>";
@@ -299,12 +311,11 @@
       lastKey = "";
       seen = {};
       deltaSeen = {};
-      setFrame(ts);
       render(ts);
     }
 
     function tick() {
-      if (playing) {
+      if (playing && trackerReady) {
         var now = Date.now();
         playTs += (now - lastWall) * RATE;
         lastWall = now;
@@ -316,7 +327,6 @@
         var rows = rowsAt(playTs);
         var key = stateKey(rows);
         if (key !== lastKey) {
-          if (RATE !== 1) setFrame(playTs);
           render(playTs);
         } else if (clockEl) {
           clockEl.textContent = clockText(playTs, rows);
@@ -325,6 +335,42 @@
         lastWall = Date.now();
       }
       window.requestAnimationFrame(tick);
+    }
+
+    function beginAfterTracker() {
+      if (trackerReady) return;
+      trackerReady = true;
+      playTs = PLAY_START_TS;
+      lastWall = Date.now();
+      playing = true;
+      setPlayLabel();
+      render(playTs);
+    }
+
+    function waitForTracker() {
+      if (sailedEl) sailedEl.textContent = "Loading tracker…";
+      setPlayLabel();
+      render(playTs);
+      if (!frameEl) {
+        window.setTimeout(beginAfterTracker, 0);
+        return;
+      }
+      var shellSeen = false;
+      function onShellLoad() {
+        if (shellSeen) return;
+        shellSeen = true;
+        if (sailedEl) sailedEl.textContent = "Tracker loaded · waiting until stable";
+        window.setTimeout(beginAfterTracker, SETTLE_MS);
+      }
+      frameEl.addEventListener("load", function () {
+        var src = String(frameEl.src || "");
+        if (src.indexOf("player.vakaros.com") === -1) return;
+        onShellLoad();
+      });
+      loadTrackerOnce(PLAY_START_TS);
+      window.setTimeout(function () {
+        if (!trackerReady) onShellLoad();
+      }, 12000);
     }
 
     document.querySelectorAll("[data-jump]").forEach(function (btn) {
@@ -340,23 +386,20 @@
         RATE = Number(btn.getAttribute("data-rate")) || 1;
         lastWall = Date.now();
         setRateButtons();
-        setFrame(playTs);
       });
     });
     if (playBtn) {
       playBtn.addEventListener("click", function () {
+        if (!trackerReady) return;
         playing = !playing;
         lastWall = Date.now();
         setPlayLabel();
-        if (playing) setFrame(playTs);
       });
     }
 
     fillHead();
-    setFrame(PLAY_START_TS);
     setRateButtons();
-    setPlayLabel();
-    render(playTs);
+    waitForTracker();
     window.requestAnimationFrame(tick);
   }
 })();
