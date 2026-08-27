@@ -181,6 +181,54 @@ class MarkMoveNearestTest(unittest.TestCase):
         self.assertGreater(ev[0]["moved_m"], 100)
 
 
+
+class FleetWindowAssignTest(unittest.TestCase):
+    def test_late_mark4_maps_to_lap2_not_stuck_on_lap1(self):
+        """FBYC-style: miss early L1-4, later M4/M1/M2 hits are L2-4/L3-1/L3-2."""
+        from lipton_dev_pass_assign import pack_passes_with_fleet_windows
+        gun = GUN
+        fleet = [f"B{i:02d}" for i in range(16)] + ["FBYC"]
+        # Build synthetic candidates: fleet on-time; FBYC skips early M4 then hits late cluster
+        cands = {s: {"1": [], "2": [], "3": [], "4": []} for s in fleet}
+
+        def add(sail, mark, offset_s):
+            cands[sail][str(mark)].append({"ts": gun + offset_s * 1000, "sast": "", "closest_m": 5})
+
+        # Fleet lap times (seconds after gun)
+        schedule = [
+            ("1", 1, 1000), ("2", 1, 1300), ("3", 1, 1600), ("4", 1, 1900),
+            ("1", 2, 2500), ("2", 2, 2800), ("3", 2, 3100), ("4", 2, 3400),
+            ("1", 3, 4000), ("2", 3, 4300),
+        ]
+        for i, sail in enumerate(fleet[:-1]):
+            for mark, _lap, base in schedule:
+                add(sail, mark, base + i)  # slight stagger
+        # FBYC: L1-1..L1-3 ok, skip L1-4 early; then at fleet L2-4 / L3-1 / L3-2 times
+        add("FBYC", 1, 1000)
+        add("FBYC", 2, 1300)
+        add("FBYC", 3, 1600)
+        # no early mark 4
+        add("FBYC", 4, 3405)  # with L2-4 fleet
+        add("FBYC", 1, 4005)  # with L3-1
+        add("FBYC", 2, 4305)  # with L3-2
+        finish_ts = {s: gun + 5000_000 for s in fleet}
+        # use seconds*1000 already; finish far enough
+        finish_ts = {s: gun + 6_000_000 for s in fleet}
+        passes = pack_passes_with_fleet_windows(
+            cands, gun=gun, finish_ts=finish_ts, last_finish=gun + 6_000_000, use_wl=False, min_fleet=12
+        )
+        by_id = {p["id"]: {b["boat"] for b in p["boats"]} for p in passes}
+        self.assertIn("FBYC", by_id.get("L1-1", set()))
+        self.assertIn("FBYC", by_id.get("L1-2", set()))
+        self.assertIn("FBYC", by_id.get("L1-3", set()))
+        # Must NOT park the late M4 on L1-4
+        if "L1-4" in by_id:
+            self.assertNotIn("FBYC", by_id["L1-4"])
+        self.assertIn("FBYC", by_id.get("L2-4", set()))
+        self.assertIn("FBYC", by_id.get("L3-1", set()))
+        self.assertIn("FBYC", by_id.get("L3-2", set()))
+
+
 class CourseCardTest(unittest.TestCase):
     def test_quadrangle_two_far_weathers(self):
         from lipton_dev_course import classify_course

@@ -20,7 +20,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from lipton_dev_checksum import build_checksum  # noqa: E402
 from lipton_dev_later_laps import mark_move_events, rounding_candidates  # noqa: E402
-from lipton_mark_rounding import COURSE_PASSES, MARK_SN  # noqa: E402
+from lipton_dev_pass_assign import pack_passes_with_fleet_windows  # noqa: E402
+from lipton_mark_rounding import MARK_SN  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -69,80 +70,6 @@ def detect_wl(cands: dict, gun: int, first_finish: int, fleet_n: int) -> bool:
         if any(gun + 120_000 < c["ts"] < first_finish - 120_000 for c in cands[sail].get("2") or [])
     )
     return m2_hits < min_fleet
-
-
-def pack_passes(cands: dict, gun: int, finish_ts: dict, last_finish: int, use_wl: bool) -> list[dict]:
-    boat_by = list(cands)
-    # ≥¾ fleet — avoids sparse false wings (e.g. R3 L1-4 with 9/17 after mark tow).
-    min_fleet = max(12, (len(boat_by) * 3 + 3) // 4)
-    last_ts = {sail: gun + 60_000 for sail in boat_by}
-    mark_passes = []
-
-    def first_cand(sail, mark, after, before):
-        return next((c for c in cands[sail].get(str(mark), []) if after < c["ts"] < before), None)
-
-    def commit(spec_id, lap, mark, ranked):
-        ranked.sort(key=lambda r: r["ts_ms"])
-        mark_passes.append(
-            {
-                "id": spec_id,
-                "label": f"M{mark}",
-                "lap": lap,
-                "mark": int(mark),
-                "boats": ranked,
-            }
-        )
-
-    if use_wl:
-        for lap in (1, 2, 3):
-            weather, nxts = [], {}
-            for sail in boat_by:
-                fin = finish_ts.get(sail, last_finish) - 80_000
-                c = first_cand(sail, "1", last_ts[sail] + 2_000, fin)
-                if not c:
-                    continue
-                weather.append({"boat": sail, "ts_ms": int(c["ts"])})
-                nxts[sail] = c["ts"]
-            if len(weather) < min_fleet:
-                break
-            for sail, ts in nxts.items():
-                last_ts[sail] = ts
-            commit(f"L{lap}-1", lap, 1, weather)
-            leeward, nxts = [], {}
-            for sail in boat_by:
-                fin = finish_ts.get(sail, last_finish) - 80_000
-                opts = []
-                for mark in ("3", "4"):
-                    c = first_cand(sail, mark, last_ts[sail] + 2_000, fin)
-                    if c:
-                        opts.append(c)
-                if not opts:
-                    continue
-                c = min(opts, key=lambda x: x["ts"])
-                leeward.append({"boat": sail, "ts_ms": int(c["ts"])})
-                nxts[sail] = c["ts"]
-            if len(leeward) < min_fleet:
-                break
-            for sail, ts in nxts.items():
-                last_ts[sail] = ts
-            commit(f"L{lap}-3", lap, 3, leeward)
-    else:
-        for spec in COURSE_PASSES:
-            ranked, nxts = [], {}
-            for sail in boat_by:
-                fin = finish_ts.get(sail, last_finish)
-                cutoff = fin - 80_000 if spec["mark"] == "4" else fin
-                nxt = first_cand(sail, spec["mark"], last_ts[sail] + 2_000, cutoff)
-                if not nxt:
-                    continue
-                ranked.append({"boat": sail, "ts_ms": int(nxt["ts"])})
-                nxts[sail] = nxt["ts"]
-            if len(ranked) < min_fleet:
-                continue
-            for sail, ts in nxts.items():
-                last_ts[sail] = ts
-            commit(spec["id"], spec["lap"], int(spec["mark"]), ranked)
-    return mark_passes
 
 
 def lap_mark_stations(mark_passes: list[dict], marks_by_name: dict, gun: int) -> dict:
@@ -216,7 +143,13 @@ def correct_race(race: int) -> dict:
         for sail, pts in boat_pts.items()
     }
     use_wl = detect_wl(cands, gun, first_finish, len(boat_pts))
-    mark_passes = pack_passes(cands, gun, finish_ts, last_finish, use_wl)
+    mark_passes = pack_passes_with_fleet_windows(
+        cands,
+        gun=gun,
+        finish_ts=finish_ts,
+        last_finish=last_finish,
+        use_wl=use_wl,
+    )
     stations = lap_mark_stations(mark_passes, marks_by_name, gun)
 
     # Lap-to-lap deltas for report

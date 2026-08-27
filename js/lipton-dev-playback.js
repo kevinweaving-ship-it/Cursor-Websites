@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260827bb";
+  var CACHE = "20260827bc";
   var RACE_Q = Number((new URLSearchParams(location.search)).get("race") || 0);
   function jsonUrl(kind, race) {
     if (!race || race === 4) return "/js/lipton-dev-" + kind + ".json?v=" + CACHE;

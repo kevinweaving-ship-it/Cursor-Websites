@@ -749,10 +749,6 @@
           "ts_ms": 1787839900000
         },
         {
-          "boat": "RCYC Academy",
-          "ts_ms": 1787839915000
-        },
-        {
           "boat": "IZIVUNGUVUNGU",
           "ts_ms": 1787839925000
         },
@@ -782,6 +778,10 @@
         },
         {
           "boat": "LDYC",
+          "ts_ms": 1787839955000
+        },
+        {
+          "boat": "RCYC Academy",
           "ts_ms": 1787839955000
         },
         {
@@ -1049,14 +1049,6 @@
           "ts_ms": 1787841158000
         },
         {
-          "boat": "KYC",
-          "ts_ms": 1787841175000
-        },
-        {
-          "boat": "RCYC Academy",
-          "ts_ms": 1787841188000
-        },
-        {
           "boat": "UCTYC",
           "ts_ms": 1787841197000
         },
@@ -1067,6 +1059,14 @@
         {
           "boat": "SBYC",
           "ts_ms": 1787841207000
+        },
+        {
+          "boat": "KYC",
+          "ts_ms": 1787841215000
+        },
+        {
+          "boat": "RCYC Academy",
+          "ts_ms": 1787841228000
         },
         {
           "boat": "PYC",
@@ -1342,7 +1342,7 @@
   "checksum": {
     "fleet_n": 17,
     "ok": true,
-    "sha256": "b959d85168b78b6b",
+    "sha256": "8e861378953b7248",
     "passes": [
       {
         "id": "ST",
@@ -1382,7 +1382,7 @@
         "fleet_n": 17,
         "missing": [],
         "ok": true,
-        "sha256": "a8ce61bad68de1fc"
+        "sha256": "8fcd10bc4c4868d5"
       },
       {
         "id": "L2-1",
@@ -1414,7 +1414,7 @@
         "fleet_n": 17,
         "missing": [],
         "ok": true,
-        "sha256": "2fc43c89e370d51d"
+        "sha256": "cd8a8e248ee4ac4d"
       },
       {
         "id": "L3-1",
@@ -1530,8 +1530,8 @@
         "mark": "4",
         "lat": -33.87782,
         "lon": 18.4692,
-        "ts_ms": 1787839943000,
-        "gun_s": 1342,
+        "ts_ms": 1787839944000,
+        "gun_s": 1343,
         "fleet_n": 17
       },
       "L2-1": {

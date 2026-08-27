@@ -22,7 +22,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from lipton_dev_checksum import build_checksum  # noqa: E402
 from lipton_dev_course import classify_course  # noqa: E402
 from lipton_dev_later_laps import rounding_candidates  # noqa: E402
-from lipton_mark_rounding import COURSE_PASSES, MARK_SN, fetch_rows  # noqa: E402
+from lipton_dev_pass_assign import pack_passes_with_fleet_windows  # noqa: E402
+from lipton_mark_rounding import MARK_SN, fetch_rows  # noqa: E402
 from lipton_vakaros import _j22_division, fetch_regatta_doc  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -204,79 +205,22 @@ def main() -> int:
         if any(gun + 120_000 < c["ts"] < first_finish - 120_000 for c in cands[sail].get("2") or [])
     )
 
-    def first_cand(sail, mark, after, before):
-        return next((c for c in cands[sail].get(str(mark), []) if after < c["ts"] < before), None)
-
-    def commit_pass(spec_id, lap, mark, ranked):
-        ranked.sort(key=lambda r: r["ts_ms"])
-        mark_passes.append(
-            {
-                "id": spec_id,
-                "label": f"M{mark}",
-                "lap": lap,
-                "mark": int(mark),
-                "boats": ranked,
-            }
-        )
-        summary.append({"id": spec_id, "n": len(ranked), "first": ranked[0]["boat"]})
-
-    last_ts = {sail: gun + 60_000 for sail in boat_by}
-    mark_passes = []
-    summary = []
     use_wl = m2_hits < min_fleet
-    if use_wl:
-        for lap in (1, 2, 3):
-            weather = []
-            nxts = {}
-            for sail in boat_by:
-                fin = finish_ts.get(sail, last_finish) - 80_000
-                c = first_cand(sail, "1", last_ts[sail] + 2_000, fin)
-                if not c:
-                    continue
-                weather.append({"boat": sail, "ts_ms": int(c["ts"])})
-                nxts[sail] = c["ts"]
-            if len(weather) < min_fleet:
-                break
-            for sail, ts in nxts.items():
-                last_ts[sail] = ts
-            commit_pass(f"L{lap}-1", lap, 1, weather)
-            leeward = []
-            nxts = {}
-            for sail in boat_by:
-                fin = finish_ts.get(sail, last_finish) - 80_000
-                opts = []
-                for mark in ("3", "4"):
-                    c = first_cand(sail, mark, last_ts[sail] + 2_000, fin)
-                    if c:
-                        opts.append(c)
-                if not opts:
-                    continue
-                c = min(opts, key=lambda x: x["ts"])
-                leeward.append({"boat": sail, "ts_ms": int(c["ts"])})
-                nxts[sail] = c["ts"]
-            if len(leeward) < min_fleet:
-                break
-            for sail, ts in nxts.items():
-                last_ts[sail] = ts
-            commit_pass(f"L{lap}-3", lap, 3, leeward)
-    else:
-        for spec in COURSE_PASSES:
-            ranked = []
-            nxts = {}
-            for sail in boat_by:
-                fin = finish_ts.get(sail, last_finish)
-                cutoff = fin - 80_000 if spec["mark"] == "4" else fin
-                nxt = first_cand(sail, spec["mark"], last_ts[sail] + 2_000, cutoff)
-                if not nxt:
-                    continue
-                ranked.append({"boat": sail, "ts_ms": int(nxt["ts"])})
-                nxts[sail] = nxt["ts"]
-            ranked.sort(key=lambda r: r["ts_ms"])
-            if len(ranked) < min_fleet:
-                continue
-            for sail, ts in nxts.items():
-                last_ts[sail] = ts
-            commit_pass(spec["id"], spec["lap"], int(spec["mark"]), ranked)
+    # Fleet-window assign: stops backmarkers (e.g. FBYC R2) getting later
+    # roundings stuck on the wrong lap label.
+    mark_passes = pack_passes_with_fleet_windows(
+        cands,
+        gun=gun,
+        finish_ts=finish_ts,
+        last_finish=last_finish,
+        use_wl=use_wl,
+        min_fleet=min_fleet,
+    )
+    summary = [
+        {"id": p["id"], "n": len(p["boats"]), "first": p["boats"][0]["boat"]}
+        for p in mark_passes
+        if p.get("boats")
+    ]
 
     def rec_mid(recs):
         if not recs:
