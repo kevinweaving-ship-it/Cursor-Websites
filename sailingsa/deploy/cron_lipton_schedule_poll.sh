@@ -5,7 +5,7 @@ set -eu
 RID="2026-08-29-lipton-challenge-cup"
 DAY="$(TZ=Africa/Johannesburg date +%Y-%m-%d)"
 case "$DAY" in
-  2026-08-28|2026-08-29) ;;
+  2026-08-27|2026-08-28|2026-08-29) ;;
   *) exit 0 ;;
 esac
 URL="https://sailingsa.co.za/api/regatta/${RID}/live-race"

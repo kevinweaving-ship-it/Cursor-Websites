@@ -1,8 +1,10 @@
 # Lipton 2026: apply SA schedule without a page view.
 # UTC 08:00-10:59 = SAST 10:00-12:59 (wake + 12:00 arm)
 # UTC 15:00-16:59 = SAST 17:00-18:59 (harbour close)
-# Script no-ops except 28-29 Aug 2026. Does not hardcode R5.
+# UTC 17-23 and 0-7 hourly = SAST 19:00-09:59 (restart leftover gun)
+# Script no-ops except 27-29 Aug 2026. Does not set race_key.
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 * 8-10 * * * root /usr/local/sbin/cron_lipton_schedule_poll.sh
 * 15-16 * * * root /usr/local/sbin/cron_lipton_schedule_poll.sh
+0 17-23,0-7 * * * root /usr/local/sbin/cron_lipton_schedule_poll.sh
