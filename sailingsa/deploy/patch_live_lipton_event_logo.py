@@ -69,9 +69,32 @@ NAMED_NEW = '''    """Named Event/Class/Sponsor artwork from _CLUB_EVENT_LOGO_RU
     hay = f"{(regatta_name or '').lower()} {str(regatta_id or '').lower()}"
 '''
 
+CATALOGUE_OLD = '''    if key:
+        row = idx.get(key)
+        path = str((row or {}).get("path") or "").strip()
+        href = _catalogue_event_href_for_row(row)
+        if path and href:
+            return path, href
+'''
+
+CATALOGUE_NEW = '''    if key:
+        row = idx.get(key)
+        path = str((row or {}).get("path") or "").strip()
+        href = _catalogue_event_href_for_row(row)
+        if path and href:
+            if _regatta_is_lipton_challenge(rid):
+                path = _lipton_challenge_event_logo(rid)
+            return path, href
+'''
+
 
 def patch_text(s: str) -> str:
-    if "def _lipton_challenge_event_logo(" in s and FLEET_NEW in s and NAMED_NEW in s:
+    if (
+        "def _lipton_challenge_event_logo(" in s
+        and FLEET_NEW in s
+        and NAMED_NEW in s
+        and CATALOGUE_NEW in s
+    ):
         return s
     if IS_LIPTON_FN not in s:
         raise SystemExit("_regatta_is_lipton_challenge block not found")
@@ -93,6 +116,13 @@ def patch_text(s: str) -> str:
         if s.count(NAMED_OLD) != 1:
             raise SystemExit("named-rules hay assignment not unique")
         s = s.replace(NAMED_OLD, NAMED_NEW, 1)
+    if CATALOGUE_OLD not in s:
+        if CATALOGUE_NEW not in s:
+            raise SystemExit("catalogue left-logo return not found")
+    else:
+        if s.count(CATALOGUE_OLD) != 1:
+            raise SystemExit("catalogue left-logo return not unique")
+        s = s.replace(CATALOGUE_OLD, CATALOGUE_NEW, 1)
     if "def _lipton_challenge_event_logo(" not in s:
         raise SystemExit("helper missing after patch")
     if FLEET_OLD in s:
