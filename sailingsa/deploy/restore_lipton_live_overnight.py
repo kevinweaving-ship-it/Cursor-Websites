@@ -44,6 +44,9 @@ def main() -> None:
     st["simulate"] = False
     # Last completed race is R5. race_key=R6 + finished makes next_race_key skip to R7.
     st["race_key"] = "R5"
+    # Do not keep tomorrow's 12:00 start chip armed overnight.
+    st["next_start_hhmm"] = None
+    st["planned_start"] = None
     _write_json(STATE, st)
     os.system(f"chown www-data:www-data {STATE} >/dev/null 2>&1 || true")
     os.system(f"chmod 664 {STATE} >/dev/null 2>&1 || true")
@@ -54,7 +57,9 @@ def main() -> None:
         d = json.loads(p.read_text(encoding="utf-8"))
         ent = dict(d.get(RID) or {})
         ent["live_board_status"] = "LIVE"
+        ent.pop("live_race_gun_at", None)
         ent["live_race_gun_at"] = None
+        ent["live_race_key"] = "R5"
         d[RID] = ent
         _write_json(p, d)
         print("icons LIVE", p)
