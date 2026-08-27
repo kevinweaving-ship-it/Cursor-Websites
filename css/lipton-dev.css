@@ -108,13 +108,11 @@ body[data-lipton-dev="1"] .rank-col {
   font-weight: 700;
 }
 body[data-lipton-dev="1"] th:nth-child(1),
-body[data-lipton-dev="1"] td:nth-child(1) { width: 32px; }
+body[data-lipton-dev="1"] td:nth-child(1) { width: 36px; }
 body[data-lipton-dev="1"] th:nth-child(2),
-body[data-lipton-dev="1"] td:nth-child(2) { width: 40px; }
+body[data-lipton-dev="1"] td:nth-child(2) { width: 36px; }
 body[data-lipton-dev="1"] th:nth-child(4),
 body[data-lipton-dev="1"] td:nth-child(4) { width: 72px; }
-body[data-lipton-dev="1"] th:nth-child(5),
-body[data-lipton-dev="1"] td:nth-child(5) { width: 42px; }
 body[data-lipton-dev="1"] a {
   color: #1a0dab;
 }

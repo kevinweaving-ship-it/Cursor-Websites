@@ -10,6 +10,7 @@ set repo_root [file normalize "$script_dir/../.."]
 spawn scp -o StrictHostKeyChecking=no \
   $repo_root/sailingsa/frontend/lipton-dev.html \
   $repo_root/sailingsa/frontend/js/lipton-dev-playback.js \
+  $repo_root/sailingsa/frontend/js/lipton-dev-replay.json \
   $repo_root/css/lipton-dev.css \
   $repo_root/sailingsa/deploy/patch_lipton_dev_page.py \
   ${user}@${server}:/tmp/
@@ -20,7 +21,7 @@ expect {
 }
 wait
 
-spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "cp /tmp/lipton-dev.html /var/www/sailingsa/lipton-dev.html && cp /tmp/lipton-dev-playback.js /var/www/sailingsa/js/lipton-dev-playback.js && cp /tmp/lipton-dev.css /var/www/sailingsa/css/lipton-dev.css && python3 /tmp/patch_lipton_dev_page.py && systemctl restart sailingsa-api && sleep 2 && systemctl is-active sailingsa-api && curl -sS -o /dev/null -w '%{http_code} %{url_effective}\\n' -A 'SailingSA-devcheck' https://sailingsa.co.za/regatta/2026-08-29-lipton-challenge-cup-dev && curl -sS https://sailingsa.co.za/regatta/2026-08-29-lipton-challenge-cup-dev | head -c 400"
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "cp /tmp/lipton-dev.html /var/www/sailingsa/lipton-dev.html && cp /tmp/lipton-dev-playback.js /var/www/sailingsa/js/lipton-dev-playback.js && cp /tmp/lipton-dev-replay.json /var/www/sailingsa/js/lipton-dev-replay.json && cp /tmp/lipton-dev.css /var/www/sailingsa/css/lipton-dev.css && python3 /tmp/patch_lipton_dev_page.py && systemctl restart sailingsa-api && sleep 2 && systemctl is-active sailingsa-api && curl -sS -o /dev/null -w '%{http_code} %{url_effective}\\n' -A 'SailingSA-devcheck' https://sailingsa.co.za/regatta/2026-08-29-lipton-challenge-cup-dev && curl -sS https://sailingsa.co.za/regatta/2026-08-29-lipton-challenge-cup-dev | head -c 400"
 expect {
     -re "assword" { send "$password\r"; exp_continue }
     timeout { puts "ERROR: ssh timeout"; exit 1 }
