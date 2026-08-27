@@ -1,0 +1,16 @@
+#!/usr/bin/expect -f
+# Lipton 2026 URL: raced=TRUE, year=2026, year-stamped Event Logo.
+# From project root: expect sailingsa/deploy/apply-lipton-2026-url-entries-logo.exp
+set timeout 120
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+
+spawn bash -c "scp -o StrictHostKeyChecking=no sailingsa/deploy/patch_lipton_2026_raced_year.sql sailingsa/deploy/patch_live_lipton_event_logo.py ${user}@${server}:/tmp/ && ssh -o StrictHostKeyChecking=no ${user}@${server} \"set -e; DB_URL=\\\$(systemctl show sailingsa-api -p Environment --no-pager --value | tr ' ' '\\\\n' | sed -n 's/^DB_URL=//p'); /usr/bin/psql \\\"\\\$DB_URL\\\" -v ON_ERROR_STOP=1 -f /tmp/patch_lipton_2026_raced_year.sql; for d in '/var/www/sailingsa/artwork/Event Logo' '/var/www/sailingsa/api/artwork/Event Logo'; do cp -n \\\"\\\$d/Lipton-Challenge-Cup-2025.png\\\" \\\"\\\$d/Lipton-Challenge-Cup-2026.png\\\"; chown www-data:www-data \\\"\\\$d/Lipton-Challenge-Cup-2026.png\\\" 2>/dev/null || true; done; python3 /tmp/patch_live_lipton_event_logo.py /var/www/sailingsa/api/api.py; systemctl restart sailingsa-api; sleep 2; systemctl is-active sailingsa-api\""
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    -re "password" { send "$password\r"; exp_continue }
+    eof { }
+    timeout { puts "ERROR: timeout"; exit 1 }
+}
+wait
