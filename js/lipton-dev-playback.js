@@ -962,6 +962,35 @@
       }
       return miss;
     }
+    var viewTs = PLAY_START_TS;
+    function fleetMedianLeg(passIdx) {
+      if (passIdx < 1 || !PASSES[passIdx - 1]) return null;
+      var xs = [];
+      var boats = PASSES[passIdx].boats || [];
+      for (var k = 0; k < boats.length; k++) {
+        var sail = boats[k].boat;
+        var t = tsAtPass(PASSES[passIdx], sail);
+        var p = tsAtPass(PASSES[passIdx - 1], sail);
+        if (t == null || p == null || t > viewTs) continue;
+        var d = t - p;
+        if (d > 2000 && d < 2 * 3600 * 1000) xs.push(d);
+      }
+      if (xs.length < 3) return null;
+      xs.sort(function (a, b) { return a - b; });
+      return xs[Math.floor(xs.length / 2)];
+    }
+    function prevKnown(times, i) {
+      for (var j = i - 1; j >= 0; j--) {
+        if (times[j] != null) return { i: j, t: times[j] };
+      }
+      return null;
+    }
+    function nextKnown(times, i) {
+      for (var k = i + 1; k < times.length; k++) {
+        if (times[k] != null) return { i: k, t: times[k] };
+      }
+      return null;
+    }
     function splitCell(times, i, boat) {
       var t = times[i];
       if (PASSES[i] && (PASSES[i].id === "ST" || PASSES[i].label === "ST")) {
@@ -974,10 +1003,21 @@
         if (t == null) return "";
         return fmtClock(t - GUN_TS);
       }
+      var med = fleetMedianLeg(i);
       if (t != null) {
         var prev = i > 0 ? times[i - 1] : null;
-        if (prev == null) return "";
-        return fmtClock(t - prev);
+        if (prev != null) return fmtClock(t - prev);
+        if (med != null) return fmtClock(med);
+        return "";
+      }
+      var before = prevKnown(times, i);
+      var after = nextKnown(times, i);
+      if (before && after && after.i === i + 1) {
+        var mashed = after.t - before.t;
+        var nextMed = fleetMedianLeg(after.i);
+        if (nextMed != null && mashed > nextMed * 1.8) return fmtClock(mashed - nextMed);
+        if (med != null) return fmtClock(med);
+        return fmtClock(mashed);
       }
       var miss = missingMarkIdx(times);
       if (miss.length === 1 && miss[0] === i) {
@@ -1128,6 +1168,7 @@
       return clock;
     }
     function render(ts) {
+      viewTs = ts;
       var rows = rowsAt(ts);
       var rankMaps = pairRankMaps(ts);
       var passLimit = visiblePassLimit(ts);
