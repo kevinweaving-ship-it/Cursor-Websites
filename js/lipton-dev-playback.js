@@ -5,8 +5,8 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827ai";
-  var TRAIL_URL = "/js/lipton-dev-trail.json?v=20260827ai";
+  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827aj";
+  var TRAIL_URL = "/js/lipton-dev-trail.json?v=20260827aj";
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -663,7 +663,7 @@
       }
       var cx = x + mapCtx.measureText(club).width + 8;
       var cy = y;
-      var r = 5.5;
+      var r = 5;
       mapCtx.beginPath();
       mapCtx.arc(cx, cy, r, 0, Math.PI * 2);
       mapCtx.fillStyle = ocs ? "#fecaca" : "#f8fafc";
@@ -697,7 +697,7 @@
       var h = mapBounds.h;
       mapCtx.fillStyle = "#001f3f";
       mapCtx.fillRect(0, 0, w, h);
-      var zone = metersPx(20.1);
+      var zone = Math.min(metersPx(20.1), 11);
       Object.keys(trail.marks || {}).forEach(function (k) {
         var pos = markAt(k, ts);
         if (!pos) return;
@@ -709,7 +709,7 @@
         mapCtx.lineWidth = focus ? 2 : 1;
         mapCtx.stroke();
         mapCtx.beginPath();
-        mapCtx.arc(p.x, p.y, focus ? 5 : 3.5, 0, Math.PI * 2);
+        mapCtx.arc(p.x, p.y, focus ? 4 : 2.8, 0, Math.PI * 2);
         mapCtx.fillStyle = focus ? "#fbbf24" : "#f59e0b";
         mapCtx.fill();
         mapCtx.fillStyle = "#ffffff";
