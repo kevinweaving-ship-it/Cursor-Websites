@@ -7,6 +7,7 @@ Does not invent boats that never rounded. Not a Nett source.
 from __future__ import annotations
 
 import json
+import math
 import sys
 from collections import defaultdict
 from datetime import datetime
@@ -125,7 +126,92 @@ def rounding_candidates(pts: list[dict], marks_sorted: list[dict], *, enter_m=80
                 i += 1
             continue
         i += 1
+    out.extend(_gap_roundings(series, marks_sorted, enter_m, {c["ts"] for c in out}))
+    out.sort(key=lambda c: c["ts"])
     return out
+
+
+def _chord_cpa(p0: dict, p1: dict, mk: dict) -> tuple[float, int]:
+    best = None
+    dt = p1["ts"] - p0["ts"]
+    for k in range(41):
+        f = k / 40
+        lat = p0["latitude"] + (p1["latitude"] - p0["latitude"]) * f
+        lon = p0["longitude"] + (p1["longitude"] - p0["longitude"]) * f
+        d = haversine_m(lat, lon, mk["latitude"], mk["longitude"])
+        ts = int(p0["ts"] + dt * f)
+        if best is None or d < best[0]:
+            best = (d, ts)
+    return best
+
+
+def _destination(lat: float, lon: float, bearing: float, dist_m: float) -> tuple[float, float]:
+    r = 6371000.0
+    ang = dist_m / r
+    br = math.radians(bearing)
+    p1 = math.radians(lat)
+    l1 = math.radians(lon)
+    p2 = math.asin(math.sin(p1) * math.cos(ang) + math.cos(p1) * math.sin(ang) * math.cos(br))
+    l2 = l1 + math.atan2(math.sin(br) * math.sin(ang) * math.cos(p1), math.cos(ang) - math.sin(p1) * math.sin(p2))
+    return math.degrees(p2), (math.degrees(l2) + 540) % 360 - 180
+
+
+def _reverse_dr_cpa(p: dict, mk: dict, heading: float, sog_ms: float, max_ms: int) -> tuple[float, int] | None:
+    if sog_ms < 0.4 or max_ms <= 0:
+        return None
+    back = (heading + 180) % 360
+    best = None
+    step = 1.0
+    t = 0.0
+    max_s = min(max_ms / 1000.0, 480.0)
+    while t <= max_s:
+        lat, lon = _destination(p["latitude"], p["longitude"], back, sog_ms * t)
+        d = haversine_m(lat, lon, mk["latitude"], mk["longitude"])
+        if best is None or d < best[0]:
+            best = (d, int(p["ts"] - t * 1000))
+        t += step
+    return best
+
+
+def _gap_roundings(series, marks_sorted, enter_m, existing: set[int]) -> list[dict]:
+    """Hole between two received pings that still brackets a mark. Map tails stay gappy."""
+    extra = []
+    n = len(series)
+    for i in range(1, n):
+        p0, _d0, _g0 = series[i - 1]
+        p1, _d1, g1 = series[i]
+        if not g1 or g1 < 20_000:
+            continue
+        mk = nearest_mark(marks_sorted, (p0["ts"] + p1["ts"]) // 2)
+        if not mk:
+            continue
+        best_d, best_ts = _chord_cpa(p0, p1, mk)
+        if best_d > enter_m:
+            hdg = p1.get("heading")
+            sog = p1.get("sog") or 0.0
+            if hdg is None and i + 1 < n:
+                hdg = bearing_deg(p1["latitude"], p1["longitude"], series[i + 1][0]["latitude"], series[i + 1][0]["longitude"])
+                dt = (series[i + 1][0]["ts"] - p1["ts"]) / 1000.0
+                if dt > 0:
+                    sog = haversine_m(p1["latitude"], p1["longitude"], series[i + 1][0]["latitude"], series[i + 1][0]["longitude"]) / dt
+            back = _reverse_dr_cpa(p1, mk, hdg, sog, g1) if hdg is not None else None
+            if not back or back[0] > enter_m:
+                continue
+            best_d, best_ts = back
+        if any(abs(best_ts - t) < 40_000 for t in existing):
+            continue
+        existing.add(best_ts)
+        extra.append(
+            {
+                "ts": best_ts,
+                "sast": datetime.fromtimestamp(best_ts / 1000, SAST).strftime("%H:%M:%S"),
+                "closest_m": round(best_d, 1),
+                "sog_kn": round((p1.get("sog") or 0) * 1.94384, 1),
+                "heading": p1.get("heading"),
+                "via": "gap",
+            }
+        )
+    return extra
 
 
 def _bearing_to_mark(p: dict, mk: dict | None) -> float | None:

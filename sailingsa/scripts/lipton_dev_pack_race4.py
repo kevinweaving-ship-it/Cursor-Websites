@@ -84,7 +84,12 @@ def main() -> int:
         sail = f.get("sailNumber")
         ts = ms_iso(f["finishingTime"])
         finish_ts[sail] = ts
-        finish_rows.append({"boat": sail, "ts_ms": ts})
+        row = {"boat": sail, "ts_ms": ts}
+        coords = ((f.get("positionAtFinish") or {}).get("coordinates")) or []
+        if len(coords) >= 2:
+            row["lon"] = round(float(coords[0]), 6)
+            row["lat"] = round(float(coords[1]), 6)
+        finish_rows.append(row)
     last_finish = max(finish_ts.values())
     first_finish = min(finish_ts.values())
 

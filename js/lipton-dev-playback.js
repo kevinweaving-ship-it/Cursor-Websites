@@ -5,8 +5,8 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827ar";
-  var TRAIL_URL = "/js/lipton-dev-trail.json?v=20260827ar";
+  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827at";
+  var TRAIL_URL = "/js/lipton-dev-trail.json?v=20260827at";
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -545,7 +545,17 @@
       lastHdg[sail] = out;
       return out;
     }
+    var FIN_POS = {};
+    (data.finish || []).forEach(function (f) {
+      if (f && f.lat != null && f.lon != null) {
+        FIN_POS[f.boat] = { lat: Number(f.lat), lon: Number(f.lon) };
+      }
+    });
     function posAt(sail, ts) {
+      var ft = finishTs(sail);
+      if (ft != null && ts >= ft && FIN_POS[sail]) {
+        return { lat: FIN_POS[sail].lat, lon: FIN_POS[sail].lon, hdg: lastHdg[sail] || 0, i: 0, j: 0 };
+      }
       var b = trail.boats[sail];
       var pos = sampleAt(b, ts);
       if (!pos) return null;
@@ -848,8 +858,22 @@
       return max;
     }
     function skipLastLegDelta(limit, i) {
-      var last = PASSES[limit];
-      return last && (last.id === "FIN" || last.label === "Fin") && i === limit - 1;
+      return false;
+    }
+    function passHeadLabel(idx) {
+      var p = PASSES[idx];
+      if (!p) return "";
+      if (p.id === "ST" || p.label === "ST") return "ST";
+      if (p.id === "FIN" || p.label === "Fin") return "Fin";
+      var n = 0;
+      var mark = Number(p.mark);
+      for (var i = 0; i <= idx; i++) {
+        var q = PASSES[i];
+        if (!q || q.id === "ST" || q.id === "FIN" || q.label === "ST" || q.label === "Fin") continue;
+        if (Number(q.mark) === mark) n += 1;
+      }
+      var base = "M" + mark;
+      return n <= 1 ? base : base + "·" + n;
     }
     var lastHeadLimit = -1;
     function fillHead(limit) {
@@ -860,13 +884,14 @@
       var html = "<th class=\"rank-col\">Rank</th><th class=\"wc-meta-col\">Bow</th><th class=\"boat-name-col\">Boat</th><th class=\"club-col\">Club</th>";
       for (var i = 0; i <= limit; i++) {
         var p = PASSES[i];
+        var lab = passHeadLabel(i);
         var title = "Lap " + p.lap + " mark " + p.mark;
         if (p.id === "FIN" || p.label === "Fin") title = "Finish";
         else if (p.id === "ST" || p.label === "ST") title = "Seconds after first legal start. OCS boats use the recross after they clear, not the OCS dip.";
-        html += "<th class=\"timer-col\" title=\"" + esc(title) + "\">" + esc(p.label) + "</th>";
+        html += "<th class=\"timer-col\" title=\"" + esc(title) + "\">" + esc(lab) + "</th>";
         if (i < limit && !skipLastLegDelta(limit, i)) {
-          var nlab = PASSES[i + 1].label;
-          html += "<th class=\"place-delta-col\" title=\"Places gained or lost " + esc(p.label) + " to " + esc(nlab) + "\" aria-label=\"Place change " + esc(p.label) + " to " + esc(nlab) + "\">±</th>";
+          var nlab = passHeadLabel(i + 1);
+          html += "<th class=\"place-delta-col\" title=\"Places gained or lost " + esc(lab) + " to " + esc(nlab) + "\" aria-label=\"Place change " + esc(lab) + " to " + esc(nlab) + "\">±</th>";
         }
       }
       headRow.innerHTML = html;
@@ -895,7 +920,7 @@
       }
       if (k < 0) return { idx: -1, lab: null, ts: null, lap: 1 };
       var p = PASSES[k];
-      return { idx: k, lab: p.label, ts: times[k], lap: p.lap };
+      return { idx: k, lab: passHeadLabel(k), ts: times[k], lap: p.lap };
     }
     function finishTs(boat) {
       for (var i = 0; i < FINISH.length; i++) {
@@ -915,25 +940,51 @@
       if (sec < 0.05) return "0.0";
       return "+" + sec.toFixed(1);
     }
+    function knownLegSum(times) {
+      var s = 0;
+      for (var i = 1; i < times.length; i++) {
+        if (times[i] != null && times[i - 1] != null) s += times[i] - times[i - 1];
+      }
+      return s;
+    }
+    function holeRemainder(times) {
+      var st = times[0];
+      var fin = times[times.length - 1];
+      if (st == null || fin == null) return null;
+      var rem = (fin - st) - knownLegSum(times);
+      if (rem < 1500) return null;
+      return rem;
+    }
+    function missingMarkIdx(times) {
+      var miss = [];
+      for (var i = 1; i < times.length - 1; i++) {
+        if (times[i] == null) miss.push(i);
+      }
+      return miss;
+    }
     function splitCell(times, i, boat) {
       var t = times[i];
-      if (t == null) return "";
       if (PASSES[i] && (PASSES[i].id === "ST" || PASSES[i].label === "ST")) {
+        if (t == null) return "";
         var gap = fmtBehindFirst(t);
         if (OCS[boat]) return "OCS " + gap;
         return gap;
       }
       if (PASSES[i] && (PASSES[i].id === "FIN" || PASSES[i].label === "Fin")) {
+        if (t == null) return "";
         return fmtClock(t - GUN_TS);
       }
-      var prev = GUN_TS;
-      for (var j = i - 1; j >= 0; j--) {
-        if (times[j] != null) {
-          prev = times[j];
-          break;
-        }
+      if (t != null) {
+        var prev = i > 0 ? times[i - 1] : null;
+        if (prev == null) return "";
+        return fmtClock(t - prev);
       }
-      return fmtClock(t - prev);
+      var miss = missingMarkIdx(times);
+      if (miss.length === 1 && miss[0] === i) {
+        var rem = holeRemainder(times);
+        if (rem != null) return fmtClock(rem);
+      }
+      return "";
     }
     function pairRankMaps(ts) {
       var out = [];
