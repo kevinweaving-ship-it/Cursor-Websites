@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Lipton Challenge Cup 2026 — playback (dev)</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/lipton-dev.css">
+  <script src="/js/api.js"></script>
+  <script src="/js/session.js"></script>
+</head>
+<body class="admin-dashboard-v10" data-sailingsa-hub-header-isolated="1" data-lipton-dev="1">
+  <div class="admin-v10-second-header" aria-label="Site header">
+    <div class="admin-v10-second-header__inner">
+      <div class="admin-v10-second-header__top-row">
+        <div class="admin-v10-second-header__brand-block">
+          <a href="/" class="admin-v10-second-header__brand-link js-go-home" id="headerLogoLink" title="Home – SailingSA" aria-label="Home – SailingSA">
+            <span class="admin-v10-second-header__brand-slice admin-v10-second-header__brand-slice--word" aria-hidden="true"></span>
+            <span class="admin-v10-second-header__brand-slice admin-v10-second-header__brand-slice--flags" aria-hidden="true"></span>
+          </a>
+        </div>
+        <div class="admin-v10-second-header__right">
+          <div class="header-auth admin-v10-second-header__auth" id="headerAuth">
+            <div id="loginBox" style="display: none;"></div>
+            <div class="admin-v10-header-auth-sr-only" aria-hidden="true">
+              <div id="loggedInStatus" style="display: none;">
+                <img id="userAvatarImg" alt="Avatar" width="28" height="28">
+                <div class="user-info">
+                  <span class="user-name" id="userNameDisplay"></span>
+                  <span class="user-sas-id" id="userSasIdDisplay"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="admin-v10-second-header__user" id="adminV10SecondHeaderUser" hidden>
+            <div class="admin-v10-second-header__user-text">
+              <span class="admin-v10-second-header__name" id="adminV10SecondHeaderName"></span>
+              <span class="admin-v10-second-header__sas" id="adminV10SecondHeaderSas"></span>
+            </div>
+            <img class="admin-v10-second-header__avatar" id="adminV10SecondHeaderAvatar" alt="" width="72" height="72" decoding="async">
+            <button type="button" class="btn-logout admin-v10-second-header__logout" id="adminV10SecondHeaderLogoutBtn">Logout</button>
+          </div>
+          <button type="button" class="menu-btn" id="menuBtn" aria-label="Open menu">
+            <span class="menu-icon"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <nav id="navMenuOverlay" class="nav-menu-overlay" aria-hidden="true" style="display:none;">
+      <a href="/">Sailor</a>
+      <a href="/" data-mode="regatta">Regatta</a>
+      <a href="/about">About</a>
+    </nav>
+  </div>
+
+  <div class="container">
+    <div class="regatta-page" data-lipton-dev="1">
+      <div class="fleet-section">
+        <div class="class-header">
+          <div class="fleet-header-title-wrap">J22</div>
+          <div class="sailed-line" id="lipton-dev-sailed">Race 5 playback · approaching mark 1</div>
+          <div class="sailed-line" id="lipton-dev-clock">T−</div>
+        </div>
+        <div class="table-wrapper results-table-container table-container">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Bow no</th>
+                <th>Club</th>
+                <th>Timer</th>
+              </tr>
+            </thead>
+            <tbody id="lipton-dev-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/blank-landing-header.js"></script>
+  <script src="/js/lipton-dev-playback.js"></script>
+</body>
+</html>

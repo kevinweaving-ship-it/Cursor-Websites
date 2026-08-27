@@ -1,6 +1,7 @@
 # Lipton 2026 — race day, step by step (this URL only)
 
 **URL:** `/regatta/2026-08-29-lipton-challenge-cup`  
+**Playback sandbox:** `/regatta/2026-08-29-lipton-challenge-cup-dev` (gold header + J22 ranks, not the public page)  
 **Tracker:** Vakaros RaceSense (same Firestore document we archive in `public.vakaros_snapshots`).  
 Do not invent positions, mark leaders, or Nett from the live map.
 
