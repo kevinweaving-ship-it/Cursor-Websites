@@ -24,6 +24,18 @@ def main() -> int:
     assert put_blocked(10 * 60, harbour=False) is True
     assert put_blocked(12 * 60, harbour=False, race_armed=True) is False
     assert put_blocked(12 * 60, harbour=False) is False
+
+    def leftover_active(mins, *, has_gun, phase, complete, simulate=False):
+        race_active = has_gun and phase == "racing" and not complete
+        if race_active and not simulate and mins < 12 * 60:
+            race_active = False
+        return race_active
+
+    assert leftover_active(10 * 60, has_gun=True, phase="racing", complete=False) is False
+    assert leftover_active(11 * 60 + 59, has_gun=True, phase="racing", complete=False) is False
+    assert leftover_active(12 * 60, has_gun=True, phase="racing", complete=False) is True
+    assert leftover_active(10 * 60, has_gun=True, phase="racing", complete=False, simulate=True) is True
+
     print("PASS pre-arm put block")
     return 0
 
