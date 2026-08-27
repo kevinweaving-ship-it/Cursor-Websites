@@ -13,15 +13,15 @@ body[data-lipton-dev="1"] .lipton-dev-shell {
 }
 body[data-lipton-dev="1"] .lipton-dev-split {
   display: grid;
-  grid-template-columns: 460px minmax(0, 1fr);
+  grid-template-columns: calc(25% + 345px) minmax(0, 1fr);
   gap: 6px;
   align-items: stretch;
   width: 100%;
   height: 100%;
 }
 body[data-lipton-dev="1"] .lipton-dev-board {
-  width: 460px;
-  max-width: 460px;
+  width: 100%;
+  max-width: none;
   margin: 0;
   justify-self: start;
   align-self: start;
@@ -79,11 +79,12 @@ body[data-lipton-dev="1"] .table-wrapper {
 body[data-lipton-dev="1"] .table-wrapper[hidden] {
   display: none;
 }
-body[data-lipton-dev="1"] #lipton-dev-tbody:empty::after {
-  content: none;
-}
 body[data-lipton-dev="1"] th.timer-col {
   font-weight: 800;
+}
+body[data-lipton-dev="1"] thead tr {
+  transform-origin: left center;
+  animation: lipton-unroll 0.55s ease-out;
 }
 body[data-lipton-dev="1"] .table-wrapper table {
   width: 100%;

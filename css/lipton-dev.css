@@ -13,15 +13,15 @@ body[data-lipton-dev="1"] .lipton-dev-shell {
 }
 body[data-lipton-dev="1"] .lipton-dev-split {
   display: grid;
-  grid-template-columns: 460px minmax(0, 1fr);
+  grid-template-columns: calc(25% + 345px) minmax(0, 1fr);
   gap: 6px;
   align-items: stretch;
   width: 100%;
   height: 100%;
 }
 body[data-lipton-dev="1"] .lipton-dev-board {
-  width: 460px;
-  max-width: 460px;
+  width: 100%;
+  max-width: none;
   margin: 0;
   justify-self: start;
   align-self: start;
