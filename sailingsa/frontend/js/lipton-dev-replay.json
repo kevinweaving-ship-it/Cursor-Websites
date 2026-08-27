@@ -1,7 +1,7 @@
 {
   "mode": "replay",
   "live": false,
-  "note": "Race 4 tracker. Every teleapi point is used for roundings (heading + closest). ST = seconds after first legal starter; OCS boats labelled OCS. SBYC is OCS (dtlMm -30) and was later exonerated. Empty cell = GPS not received. Not Nett.",
+  "note": "Race 4 tracker. Every teleapi point is used for roundings (heading + closest). ST = seconds after first legal starter; OCS boats labelled OCS. Empty cell = GPS not received. Not Nett.",
   "regatta_id": "2026-08-29-lipton-challenge-cup",
   "dev_slug": "2026-08-29-lipton-challenge-cup-dev",
   "event_id": "Lv9A35uOBSBRmGpHgXtH",
@@ -25,6 +25,14 @@
   "exonerated": [
     "SBYC"
   ],
+  "course": {
+    "id": "quadrangle",
+    "label": "Quadrangle",
+    "note": "Two weather marks upwind and two leewards. Separate start and finish."
+  },
+  "ocs_ts": {
+    "SBYC": 1787831701561
+  },
   "mark1": [
     {
       "boat": "WBYC",
@@ -305,104 +313,104 @@
     {
       "boat": "WBYC",
       "ts_ms": 1787837132898,
-      "lat": -33.876559,
-      "lon": 18.467937
+      "lon": 18.467937,
+      "lat": -33.876559
     },
     {
       "boat": "RNYC",
       "ts_ms": 1787837221274,
-      "lat": -33.876563,
-      "lon": 18.467937
+      "lon": 18.467937,
+      "lat": -33.876563
     },
     {
       "boat": "FBYC",
       "ts_ms": 1787837255758,
-      "lat": -33.876573,
-      "lon": 18.467952
+      "lon": 18.467952,
+      "lat": -33.876573
     },
     {
       "boat": "RCYC",
       "ts_ms": 1787837262448,
-      "lat": -33.876594,
-      "lon": 18.467967
+      "lon": 18.467967,
+      "lat": -33.876594
     },
     {
       "boat": "SBYC",
       "ts_ms": 1787837285730,
-      "lat": -33.876562,
-      "lon": 18.467944
+      "lon": 18.467944,
+      "lat": -33.876562
     },
     {
       "boat": "GLYC",
       "ts_ms": 1787837293024,
-      "lat": -33.876568,
-      "lon": 18.467944
+      "lon": 18.467944,
+      "lat": -33.876568
     },
     {
       "boat": "RCYC Academy",
       "ts_ms": 1787837309501,
-      "lat": -33.876539,
-      "lon": 18.467927
+      "lon": 18.467927,
+      "lat": -33.876539
     },
     {
       "boat": "KYC",
       "ts_ms": 1787837327021,
-      "lat": -33.876591,
-      "lon": 18.467971
+      "lon": 18.467971,
+      "lat": -33.876591
     },
     {
       "boat": "UCTYC",
       "ts_ms": 1787837345824,
-      "lat": -33.876565,
-      "lon": 18.467943
+      "lon": 18.467943,
+      "lat": -33.876565
     },
     {
       "boat": "LDYC",
       "ts_ms": 1787837352005,
-      "lat": -33.876577,
-      "lon": 18.467951
+      "lon": 18.467951,
+      "lat": -33.876577
     },
     {
       "boat": "PYC",
       "ts_ms": 1787837359349,
-      "lat": -33.876606,
-      "lon": 18.467992
+      "lon": 18.467992,
+      "lat": -33.876606
     },
     {
       "boat": "HYC",
       "ts_ms": 1787837405641,
-      "lat": -33.876883,
-      "lon": 18.468262
+      "lon": 18.468262,
+      "lat": -33.876883
     },
     {
       "boat": "LYC",
       "ts_ms": 1787837450804,
-      "lat": -33.876801,
-      "lon": 18.4682
+      "lon": 18.4682,
+      "lat": -33.876801
     },
     {
       "boat": "TSC",
       "ts_ms": 1787837473086,
-      "lat": -33.876552,
-      "lon": 18.46792
+      "lon": 18.46792,
+      "lat": -33.876552
     },
     {
       "boat": "IZIVUNGUVUNGU",
       "ts_ms": 1787837517910,
-      "lat": -33.876627,
-      "lon": 18.468002
+      "lon": 18.468002,
+      "lat": -33.876627
     },
     {
       "boat": "BYC",
       "ts_ms": 1787837528632,
-      "lat": -33.876579,
-      "lon": 18.467947
+      "lon": 18.467947,
+      "lat": -33.876579
     },
     {
       "boat": "WYAC",
       "ts_ms": 1787837583891,
-      "lat": -33.876585,
-      "lon": 18.467961
+      "lon": 18.467961,
+      "lat": -33.876585
     }
   ],
   "jumps": {
@@ -480,8 +488,8 @@
         },
         {
           "boat": "SBYC",
-          "ts_ms": 1787831719200,
-          "ocs_ts_ms": 1787831701154
+          "ts_ms": 1787831719319,
+          "ocs_ts_ms": 1787831701561
         },
         {
           "boat": "WYAC",
@@ -660,6 +668,10 @@
           "ts_ms": 1787834090600
         },
         {
+          "boat": "SBYC",
+          "ts_ms": 1787834147500
+        },
+        {
           "boat": "GLYC",
           "ts_ms": 1787834153100
         },
@@ -674,10 +686,6 @@
         {
           "boat": "LDYC",
           "ts_ms": 1787834207800
-        },
-        {
-          "boat": "SBYC",
-          "ts_ms": 1787834216900
         },
         {
           "boat": "FBYC",
@@ -809,7 +817,7 @@
       "boats": [
         {
           "boat": "WBYC",
-          "ts_ms": 1787835654000
+          "ts_ms": 1787835710400
         },
         {
           "boat": "RNYC",
@@ -817,7 +825,7 @@
         },
         {
           "boat": "RCYC",
-          "ts_ms": 1787835749950
+          "ts_ms": 1787835749620
         },
         {
           "boat": "FBYC",
@@ -825,7 +833,11 @@
         },
         {
           "boat": "SBYC",
-          "ts_ms": 1787835766750
+          "ts_ms": 1787835766625
+        },
+        {
+          "boat": "LDYC",
+          "ts_ms": 1787835826100
         },
         {
           "boat": "GLYC",
@@ -842,10 +854,6 @@
         {
           "boat": "UCTYC",
           "ts_ms": 1787835863900
-        },
-        {
-          "boat": "LDYC",
-          "ts_ms": 1787835868900
         },
         {
           "boat": "PYC",
@@ -1033,7 +1041,7 @@
   "checksum": {
     "fleet_n": 17,
     "ok": true,
-    "sha256": "f5f34a4e191abf57",
+    "sha256": "fd09071ea1d9582c",
     "passes": [
       {
         "id": "ST",
@@ -1041,7 +1049,7 @@
         "fleet_n": 17,
         "missing": [],
         "ok": true,
-        "sha256": "cc7a1b90c6a3b1fb"
+        "sha256": "6351614960ff7fe9"
       },
       {
         "id": "L1-1",
@@ -1065,7 +1073,7 @@
         "fleet_n": 17,
         "missing": [],
         "ok": true,
-        "sha256": "3317c1c6544e5177"
+        "sha256": "9978cee225d4cd92"
       },
       {
         "id": "L1-4",
@@ -1081,7 +1089,7 @@
         "fleet_n": 17,
         "missing": [],
         "ok": true,
-        "sha256": "64dc2ec6219148bf"
+        "sha256": "1af8f43070a25120"
       },
       {
         "id": "L2-2",
@@ -1123,13 +1131,5 @@
     "start_order": "teleapi GPS start-line crossing. OCS boats use recross after returning to prestart, not the OCS dip.",
     "marks": "teleapi every GPS point; heading + closest. Empty = not received.",
     "identity": "public Lipton sheet bow/boat/club logos"
-  },
-  "ocs_ts": {
-    "SBYC": 1787831701154
-  },
-  "course": {
-    "id": "quadrangle",
-    "label": "Quadrangle",
-    "note": "Two weather marks upwind and two leewards. Separate start and finish."
   }
 }

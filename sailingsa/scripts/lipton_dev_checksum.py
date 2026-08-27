@@ -36,7 +36,7 @@ def one_pass(pass_id: str, boats: list[dict], fleet: list[str]) -> dict:
         "n": len(have),
         "fleet_n": len(fleet),
         "missing": missing,
-        "ok": len(missing) == 0 and len(have) == len(fleet),
+        "ok": len(missing) == 0,
         "sha256": sha16({"id": pass_id, "rows": rows}),
     }
 
@@ -63,6 +63,25 @@ def expected_mark_specs(course_passes: list[dict], mark_passes: list[dict]) -> l
             continue
         out.append(spec)
     return out
+
+
+def arrived_in_time(prev_boats: list[dict], this_boats: list[dict], full_fleet: list[str]) -> list[str]:
+    """Boats already at the previous mark before this pass ended. Tail still on the last leg is not a gap."""
+    if not prev_boats or not this_boats:
+        return list(full_fleet)
+    this_last = max(int(r.get("ts_ms", r.get("ts"))) for r in this_boats)
+    out = []
+    seen = set()
+    for row in prev_boats:
+        sail = row.get("boat")
+        ts = row.get("ts_ms", row.get("ts"))
+        if sail is None or ts is None:
+            continue
+        sail = str(sail)
+        if int(ts) < this_last and sail not in seen:
+            seen.add(sail)
+            out.append(sail)
+    return out or list(full_fleet)
 
 
 def pass_rank(boats: list[dict]) -> dict[str, int]:
@@ -144,11 +163,14 @@ def build_checksum(*, fleet: list[str], st: list[dict], mark_passes: list[dict],
     fleet = [str(s) for s in fleet]
     parts = [one_pass("ST", st, fleet)]
     used_marks = []
+    prev_boats = st
     for spec in expected_mark_specs(course_passes, mark_passes):
         got = next((p for p in mark_passes if p["id"] == spec["id"]), {"boats": []})
         boats = got.get("boats") or []
+        expect = arrived_in_time(prev_boats, boats, fleet)
         used_marks.append({"id": spec["id"], "boats": boats})
-        parts.append(one_pass(spec["id"], boats, fleet))
+        parts.append(one_pass(spec["id"], boats, expect))
+        prev_boats = boats
     parts.append(one_pass("FIN", finish, fleet))
     missing = [{"id": p["id"], "missing": p["missing"]} for p in parts if not p["ok"]]
     sanity = sanity_places_and_times(fleet=fleet, st=st, mark_passes=used_marks, finish=finish)

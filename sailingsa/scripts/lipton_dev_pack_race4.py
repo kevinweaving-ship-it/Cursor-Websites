@@ -230,7 +230,7 @@ def main() -> int:
             nxts = {}
             for sail in boat_by:
                 fin = finish_ts.get(sail, last_finish) - 80_000
-                c = first_cand(sail, "1", last_ts[sail] + 25_000, fin)
+                c = first_cand(sail, "1", last_ts[sail] + 2_000, fin)
                 if not c:
                     continue
                 weather.append({"boat": sail, "ts_ms": int(c["ts"])})
@@ -246,7 +246,7 @@ def main() -> int:
                 fin = finish_ts.get(sail, last_finish) - 80_000
                 opts = []
                 for mark in ("3", "4"):
-                    c = first_cand(sail, mark, last_ts[sail] + 25_000, fin)
+                    c = first_cand(sail, mark, last_ts[sail] + 2_000, fin)
                     if c:
                         opts.append(c)
                 if not opts:
@@ -266,7 +266,7 @@ def main() -> int:
             for sail in boat_by:
                 fin = finish_ts.get(sail, last_finish)
                 cutoff = fin - 80_000 if spec["mark"] == "4" else fin
-                nxt = first_cand(sail, spec["mark"], last_ts[sail] + 25_000, cutoff)
+                nxt = first_cand(sail, spec["mark"], last_ts[sail] + 2_000, cutoff)
                 if not nxt:
                     continue
                 ranked.append({"boat": sail, "ts_ms": int(nxt["ts"])})

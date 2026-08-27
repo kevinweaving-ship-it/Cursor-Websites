@@ -87,6 +87,30 @@ class RoundingChecksumTest(unittest.TestCase):
         self.assertNotIn("L3-1", ids)
         self.assertTrue(chk["sanity"]["ok"])
 
+    def test_tail_still_on_previous_leg_is_not_a_gap(self):
+        """Leaders round L2-3 while five boats are still on the beat to L2-2."""
+        fleet = [f"B{i:02d}" for i in range(17)]
+        leaders, tail = fleet[:12], fleet[12:]
+        st = [{"boat": s, "ts_ms": GUN + i} for i, s in enumerate(fleet)]
+        l22 = [{"boat": s, "ts_ms": GUN + 2000 + i} for i, s in enumerate(leaders)]
+        l22 += [{"boat": s, "ts_ms": GUN + 8000 + i} for i, s in enumerate(tail)]
+        l23 = [{"boat": s, "ts_ms": GUN + 4000 + i} for i, s in enumerate(leaders)]
+        fin = [{"boat": s, "ts_ms": GUN + 12000 + i} for i, s in enumerate(fleet)]
+        chk = build_checksum(
+            fleet=fleet,
+            st=st,
+            mark_passes=[
+                {"id": "L2-2", "boats": l22},
+                {"id": "L2-3", "boats": l23},
+            ],
+            finish=fin,
+            course_passes=[{"id": "L2-2", "lap": 2, "mark": "2"}, {"id": "L2-3", "lap": 2, "mark": "3"}],
+        )
+        self.assertTrue(chk["ok"])
+        l23p = next(p for p in chk["passes"] if p["id"] == "L2-3")
+        self.assertEqual(l23p["fleet_n"], 12)
+        self.assertEqual(l23p["missing"], [])
+
     def test_skipped_middle_mark_does_not_stop_later_laps(self):
         fleet = [f"B{i:02d}" for i in range(17)]
         st = [{"boat": s, "ts_ms": GUN + i} for i, s in enumerate(fleet)]

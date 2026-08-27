@@ -87,8 +87,19 @@ def main() -> int:
     replay = json.loads(replay_file.read_text())
     gun = int(replay["gun_ts_ms"])
     end = int(replay.get("play_end_ts_ms") or replay["end_ts_ms"])
-    print("fetch", race, gun, end, flush=True)
-    rows = fetch_rows(gun - 15_000, end + 5_000)
+    print("load trail", race, gun, end, flush=True)
+    try:
+        from lipton_dev_archive_telemetry import load_race_rows  # noqa: E402
+
+        rows = load_race_rows(race)
+    except Exception:
+        rows = []
+    if rows:
+        print(json.dumps({"archive_rows": len(rows), "race": race}), flush=True)
+        rows = [r for r in rows if gun - 15_000 <= int(r.get("ts") or 0) <= end + 5_000] or rows
+    else:
+        print("fetch", race, gun, end, flush=True)
+        rows = fetch_rows(gun - 15_000, end + 5_000)
     boat_by = defaultdict(list)
     marks_by = defaultdict(list)
     for rec in rows:

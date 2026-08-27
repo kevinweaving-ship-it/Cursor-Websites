@@ -422,11 +422,8 @@
     "M1",
     "M2",
     "M3",
-    "M4",
     "M1",
-    "M2",
-    "M3",
-    "M3"
+    "M2"
   ],
   "passes": [
     {
@@ -735,38 +732,6 @@
       ]
     },
     {
-      "id": "L1-4",
-      "label": "M4",
-      "lap": 1,
-      "mark": 4,
-      "boats": [
-        {
-          "boat": "FBYC",
-          "ts_ms": 1787752811000
-        },
-        {
-          "boat": "UCTYC",
-          "ts_ms": 1787752896500
-        },
-        {
-          "boat": "BYC",
-          "ts_ms": 1787752985300
-        },
-        {
-          "boat": "WYAC",
-          "ts_ms": 1787752992300
-        },
-        {
-          "boat": "GLYC",
-          "ts_ms": 1787752993600
-        },
-        {
-          "boat": "TSC",
-          "ts_ms": 1787753000800
-        }
-      ]
-    },
-    {
       "id": "L2-1",
       "label": "M1",
       "lap": 2,
@@ -917,60 +882,12 @@
           "ts_ms": 1787754069500
         }
       ]
-    },
-    {
-      "id": "L2-3",
-      "label": "M3",
-      "lap": 2,
-      "mark": 3,
-      "boats": [
-        {
-          "boat": "RCYC Academy",
-          "ts_ms": 1787754154900
-        },
-        {
-          "boat": "LDYC",
-          "ts_ms": 1787754188400
-        },
-        {
-          "boat": "UCTYC",
-          "ts_ms": 1787754196500
-        },
-        {
-          "boat": "RCYC",
-          "ts_ms": 1787754206300
-        },
-        {
-          "boat": "BYC",
-          "ts_ms": 1787754311500
-        },
-        {
-          "boat": "LYC",
-          "ts_ms": 1787754336500
-        },
-        {
-          "boat": "GLYC",
-          "ts_ms": 1787754340400
-        }
-      ]
-    },
-    {
-      "id": "L3-3",
-      "label": "M3",
-      "lap": 3,
-      "mark": 3,
-      "boats": [
-        {
-          "boat": "RCYC Academy",
-          "ts_ms": 1787754202100
-        }
-      ]
     }
   ],
   "checksum": {
     "fleet_n": 17,
-    "ok": false,
-    "sha256": "502f79b7b78b0e65",
+    "ok": true,
+    "sha256": "cbe6cc5dff58f997",
     "passes": [
       {
         "id": "ST",
@@ -1005,26 +922,6 @@
         "sha256": "41ce0a78a73f6f8d"
       },
       {
-        "id": "L1-4",
-        "n": 6,
-        "fleet_n": 17,
-        "missing": [
-          "HYC",
-          "IZIVUNGUVUNGU",
-          "KYC",
-          "LDYC",
-          "LYC",
-          "PYC",
-          "RCYC",
-          "RCYC Academy",
-          "RNYC",
-          "SBYC",
-          "WBYC"
-        ],
-        "ok": false,
-        "sha256": "8c12b695d8762d3f"
-      },
-      {
         "id": "L2-1",
         "n": 17,
         "fleet_n": 17,
@@ -1041,25 +938,6 @@
         "sha256": "a50eeeac6db79bfd"
       },
       {
-        "id": "L2-3",
-        "n": 7,
-        "fleet_n": 17,
-        "missing": [
-          "FBYC",
-          "HYC",
-          "IZIVUNGUVUNGU",
-          "KYC",
-          "PYC",
-          "RNYC",
-          "SBYC",
-          "TSC",
-          "WBYC",
-          "WYAC"
-        ],
-        "ok": false,
-        "sha256": "940946855be788ca"
-      },
-      {
         "id": "FIN",
         "n": 17,
         "fleet_n": 17,
@@ -1068,39 +946,7 @@
         "sha256": "7e22ad312620f873"
       }
     ],
-    "gaps": [
-      {
-        "id": "L1-4",
-        "missing": [
-          "HYC",
-          "IZIVUNGUVUNGU",
-          "KYC",
-          "LDYC",
-          "LYC",
-          "PYC",
-          "RCYC",
-          "RCYC Academy",
-          "RNYC",
-          "SBYC",
-          "WBYC"
-        ]
-      },
-      {
-        "id": "L2-3",
-        "missing": [
-          "FBYC",
-          "HYC",
-          "IZIVUNGUVUNGU",
-          "KYC",
-          "PYC",
-          "RNYC",
-          "SBYC",
-          "TSC",
-          "WBYC",
-          "WYAC"
-        ]
-      }
-    ],
+    "gaps": [],
     "sanity": {
       "ok": true,
       "time_fail": [],

@@ -1330,10 +1330,9 @@
     function fillChecksum() {
       if (!checksumEl) return;
       var cs = data.checksum || {};
-      var fleetN = cs.fleet_n || 17;
       var bits = [];
       if (cs.ok) {
-        bits.push(fleetN + "/" + fleetN + " marks");
+        bits.push("marks ok");
       } else if (cs.gaps && cs.gaps.length) {
         bits.push("gaps " + cs.gaps.map(function (g) {
           return g.id + " " + (g.missing || []).map(clubCode).join(" ");
