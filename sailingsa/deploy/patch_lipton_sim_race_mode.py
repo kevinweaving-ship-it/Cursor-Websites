@@ -120,7 +120,10 @@ def set_racing_state() -> None:
     st["elapsed_raw"] = None
     st["cam_show"] = True
     st["updated_at"] = now
-    LIVE_JSON.write_text(json.dumps(st, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    payload = json.dumps(st, indent=2, ensure_ascii=False) + "\n"
+    tmp = LIVE_JSON.with_name(LIVE_JSON.name + ".tmp")
+    tmp.write_text(payload, encoding="utf-8")
+    os.replace(tmp, LIVE_JSON)
     try:
         shutil.chown(str(LIVE_JSON), user="www-data", group="www-data")
     except Exception:
