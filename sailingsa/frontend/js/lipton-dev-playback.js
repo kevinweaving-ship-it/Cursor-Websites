@@ -5,8 +5,8 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827ag";
-  var TRAIL_URL = "/js/lipton-dev-trail.json?v=20260827ag";
+  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827ah";
+  var TRAIL_URL = "/js/lipton-dev-trail.json?v=20260827ah";
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -204,7 +204,7 @@
         mapBounds.h = h;
       }
     }
-    function boundsFromPts(pts, w, h) {
+    function bboxOf(pts) {
       var box = { minLat: 90, maxLat: -90, minLon: 180, maxLon: -180 };
       pts.forEach(function (p) { expandBounds(p.lat, p.lon, box); });
       var midLat = (box.minLat + box.maxLat) / 2;
@@ -212,10 +212,54 @@
       var cos = Math.cos(midLat * Math.PI / 180);
       var heightM = (box.maxLat - box.minLat) * 111000;
       var widthM = (box.maxLon - box.minLon) * 111000 * cos;
-      if (heightM < 320) heightM = 320;
-      if (widthM < 320) widthM = 320;
-      var scale = Math.min(w / (widthM * 1.22), h / (heightM * 1.22));
-      return { w: w, h: h, midLat: midLat, midLon: midLon, cos: cos, scale: scale };
+      return { box: box, midLat: midLat, midLon: midLon, cos: cos, heightM: heightM, widthM: widthM, spanM: Math.max(widthM, heightM) };
+    }
+    function boundsFromPts(pts, w, h, opts) {
+      opts = opts || {};
+      var minSpan = opts.minSpan != null ? opts.minSpan : 80;
+      var padPx = opts.padPx != null ? opts.padPx : 44;
+      var padM = opts.padM != null ? opts.padM : 0;
+      var s = bboxOf(pts);
+      var heightM = Math.max(s.heightM + 2 * padM, minSpan * 0.35);
+      var widthM = Math.max(s.widthM + 2 * padM, minSpan * 0.35);
+      var span = Math.max(heightM, widthM, minSpan);
+      if (span > Math.max(heightM, widthM)) {
+        var grow = (span - Math.max(heightM, widthM)) / 2;
+        heightM += grow;
+        widthM += grow;
+      }
+      var innerW = Math.max(64, w - 2 * padPx);
+      var innerH = Math.max(64, h - 2 * padPx);
+      var scale = Math.min(innerW / Math.max(widthM, 1e-3), innerH / Math.max(heightM, 1e-3));
+      return { w: w, h: h, midLat: s.midLat, midLon: s.midLon, cos: s.cos, scale: scale };
+    }
+    function pinTrio() {
+      var pts = [];
+      var sl = trail.start_line;
+      var fl = trail.finish_line;
+      if (sl && sl.left) pts.push(sl.left);
+      if (sl && sl.right) pts.push(sl.right);
+      if (fl && fl.left) pts.push(fl.left);
+      return pts;
+    }
+    function fleetNearStart(boatPts, ts) {
+      if (ts != null && trail.gun_ts_ms != null && ts < trail.gun_ts_ms + 25000) return true;
+      var pin = trail.start_line && trail.start_line.left;
+      if (!pin || !boatPts.length) return true;
+      var maxD = 0;
+      for (var i = 0; i < boatPts.length; i++) {
+        var d = distM(boatPts[i], pin);
+        if (d > maxD) maxD = d;
+      }
+      return maxD < 420;
+    }
+    function pointNearBoatBox(pt, boatPts, padM) {
+      if (!pt || !boatPts.length) return false;
+      var s = bboxOf(boatPts);
+      var padLat = padM / 111000;
+      var padLon = padM / (111000 * Math.max(s.cos, 0.2));
+      return pt.lat >= s.box.minLat - padLat && pt.lat <= s.box.maxLat + padLat &&
+        pt.lon >= s.box.minLon - padLon && pt.lon <= s.box.maxLon + padLon;
     }
     function countPassed(pass, ts) {
       var n = 0;
@@ -291,34 +335,46 @@
       if (!mapEl) return;
       var w = mapEl.clientWidth || 640;
       var h = mapEl.clientHeight || 480;
-      var pts = [];
+      var boatPts = [];
       Object.keys(trail.boats || {}).forEach(function (sail) {
         var pos = sampleAt(trail.boats[sail], ts);
-        if (pos) pts.push(pos);
+        if (pos) boatPts.push(pos);
       });
-      if (!pts.length) return;
+      if (!boatPts.length) return;
       var cx = 0;
       var cy = 0;
-      pts.forEach(function (p) { cx += p.lat; cy += p.lon; });
-      var fleet = { lat: cx / pts.length, lon: cy / pts.length };
+      boatPts.forEach(function (p) { cx += p.lat; cy += p.lon; });
+      var fleet = { lat: cx / boatPts.length, lon: cy / boatPts.length };
       var focus = focusForFleet(ts, fleet);
       focusMarkKey = focus.mark;
       focusGate = focus.gate;
-      if (focus.mark) {
-        var mk = markAt(focus.mark, ts);
-        if (mk) pts.push(mk);
+      var nearStart = fleetNearStart(boatPts, ts);
+      var pts = boatPts.slice();
+      if (nearStart) {
+        pinTrio().forEach(function (p) { pts.push(p); });
+        focusGate = "start_line";
+      } else {
+        if (focus.mark) {
+          var mk = markAt(focus.mark, ts);
+          if (mk && pointNearBoatBox(mk, boatPts, 220)) pts.push(mk);
+        }
+        if (focus.gate && trail[focus.gate]) {
+          var ln = trail[focus.gate];
+          if (ln.left && pointNearBoatBox(ln.left, boatPts, 220)) pts.push(ln.left);
+          if (ln.right && pointNearBoatBox(ln.right, boatPts, 220)) pts.push(ln.right);
+        }
       }
-      if (focus.gate && trail[focus.gate]) {
-        var ln = trail[focus.gate];
-        if (ln.left) pts.push(ln.left);
-        if (ln.right) pts.push(ln.right);
-      }
-      var target = boundsFromPts(pts, w, h);
+      var target = boundsFromPts(pts, w, h, {
+        minSpan: nearStart ? 70 : 90,
+        padPx: nearStart ? 32 : 40,
+        padM: nearStart ? 18 : 24
+      });
       if (!cam) {
         cam = target;
       } else {
-        var aPan = playing ? 0.05 : 1;
-        var aZoom = playing ? 0.03 : 1;
+        var aPan = playing ? 0.12 : 1;
+        var aZoom = playing ? 0.08 : 1;
+        if (playing && target.scale < cam.scale) aZoom = 0.22;
         cam.midLat += (target.midLat - cam.midLat) * aPan;
         cam.midLon += (target.midLon - cam.midLon) * aPan;
         cam.scale += (target.scale - cam.scale) * aZoom;
