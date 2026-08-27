@@ -5,8 +5,8 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827ak";
-  var TRAIL_URL = "/js/lipton-dev-trail.json?v=20260827ak";
+  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827al";
+  var TRAIL_URL = "/js/lipton-dev-trail.json?v=20260827al";
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -651,17 +651,18 @@
       var pending = ocsPending(sail, ts);
       var started = last >= 0;
       var delta = null;
+      var flash = false;
       if (last > 0 && place != null && startNo != null) {
-        var flash = lastTs != null && (ts - lastTs) < LEG_FLASH_MS;
+        var flashMs = Math.max(LEG_FLASH_MS, Math.min(120000, 5000 * Math.max(1, RATE)));
+        flash = lastTs != null && (ts - lastTs) < flashMs;
         if (flash) {
           var prev = passRankOf(PASSES[last - 1], sail);
           if (prev != null) delta = prev - place;
         } else {
           delta = startNo - place;
         }
-        if (delta === 0) delta = null;
       }
-      return { place: place, pending: pending, started: started, onMark: last > 0, delta: delta };
+      return { place: place, pending: pending, started: started, onMark: last > 0, delta: delta, flash: flash };
     }
     function drawBoatLabel(p, hdg, sail, ts) {
       var club = clubCode(sail);
@@ -693,15 +694,19 @@
       mapCtx.textBaseline = "middle";
       mapCtx.fillStyle = info.pending ? "#f87171" : "#ffffff";
       mapCtx.fillText(club, lx, ly);
-      if (info.delta != null) {
+      if (info.delta != null && (info.delta !== 0 || info.flash)) {
         var cw = mapCtx.measureText(club).width;
-        mapCtx.font = "bold 8px sans-serif";
+        var tx = lx + cw + 3;
+        mapCtx.font = info.flash ? "bold 10px sans-serif" : "bold 8px sans-serif";
         if (info.delta > 0) {
           mapCtx.fillStyle = "#4ade80";
-          mapCtx.fillText("▲" + info.delta, lx + cw + 3, ly);
-        } else {
+          mapCtx.fillText("▲" + info.delta, tx, ly);
+        } else if (info.delta < 0) {
           mapCtx.fillStyle = "#f87171";
-          mapCtx.fillText("▼" + (-info.delta), lx + cw + 3, ly);
+          mapCtx.fillText("▼" + (-info.delta), tx, ly);
+        } else {
+          mapCtx.fillStyle = "#cbd5e1";
+          mapCtx.fillText("■0", tx, ly);
         }
       }
       mapCtx.textAlign = "start";
