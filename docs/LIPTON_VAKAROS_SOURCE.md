@@ -127,6 +127,12 @@ Start and finish are **lines**, not roundings (pin–RC). That direction arrow o
 
 **What we cannot get yet:** lat/lon for marks **1 / 2 / 3** during the race, or a boat’s distance to them **while racing**. The replay map draws those from GPS frame streams. Spectator Firestore has the course (which SN is which mark) but not the ping trail. Do not invent those positions.
 
+## First boat (finish vs marks)
+
+**Finish:** yes. `finishes[].finishingTime` is a full order. Stored as `first_to_finish` / `finish_order`. Race 5 first to finish: **RCYC**.
+
+**First to round mark 1 / 2 / 3:** not in this document. No rounding timestamps or splits. Do not invent a mark leader from finish order.
+
 ## How to check (must actually run)
 
 ```bash
