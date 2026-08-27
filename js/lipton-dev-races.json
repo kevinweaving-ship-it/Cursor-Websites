@@ -24,7 +24,9 @@
       "gun_sast": "2026-08-26T13:20:01+02:00",
       "finish_n": 17,
       "ocs": [],
-      "packed": false
+      "packed": true,
+      "course": "Quadrangle",
+      "course_id": "quadrangle"
     },
     {
       "n": 3,
