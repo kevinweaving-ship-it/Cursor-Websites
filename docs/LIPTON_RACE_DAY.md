@@ -86,4 +86,29 @@ If we cannot see boats on **our** map between gun and mark 1, that is correct un
 
 ### Race 5 check (already archived)
 
-Gun 15:50:01 SAST. Mark 1 = windward, port. We have all 17 positions and DTL **at that gun**. We do **not** have who reached mark 1 first.
+Gun 15:50:01 SAST. Mark 1 = windward, port.
+
+Telemetry (`teleapi.regatta.app`, not HTML): first boat **about to round** mark 1 = **HYC 16:22:03 SAST**. Replay: `?race-day=2&ts=1787840523900`.
+
+Rounding order (closest to mark 1, then HDG change). **>90°** = bear-away at the mark. Smaller Δ = already on a reaching heading when they got there (tack, then a smaller turn).
+
+| # | Boat | Time SAST | ΔHDG | in→out |
+|---|---|---|---|---|
+| 1 | HYC | 16:22:15 | 127° | 310→183 |
+| 2 | RCYC | 16:22:19 | 104° | 327→223 |
+| 3 | KYC | 16:22:25 | 91° | 317→226 |
+| 4 | RCYC Academy | 16:22:58 | 22° | 163→141 |
+| 5 | RNYC | 16:23:16 | 130° | 330→200 |
+| 6 | UCTYC | 16:23:10 | 52° | 222→170 |
+| 7 | SBYC | 16:23:28 | 141° | 323→182 |
+| 8 | PYC | 16:23:35 | 133° | 334→201 |
+| 9 | FBYC | 16:23:35 | 112° | 339→227 |
+| 10 | WBYC | 16:23:38 | 53° | 240→187 |
+| 11 | IZIVUNGUVUNGU | 16:23:46 | 81° | 242→161 |
+| 12 | LDYC | 16:24:05 | 59° | 231→172 |
+| 13 | GLYC | 16:24:13 | 121° | 330→209 |
+| 14 | BYC | 16:24:37 | 45° | 237→192 |
+| 15 | TSC | 16:24:48 | 86° | 237→151 |
+| 16 | LYC | 16:25:07 | 45° | 232→187 |
+| 17 | WYAC | 16:25:42 | 68° | 239→171 |
+
