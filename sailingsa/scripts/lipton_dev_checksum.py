@@ -44,16 +44,23 @@ def one_pass(pass_id: str, boats: list[dict], fleet: list[str]) -> dict:
 def expected_mark_specs(course_passes: list[dict], mark_passes: list[dict]) -> list[dict]:
     """Course template may list extra laps. Only checksum marks the fleet actually sailed.
 
-    A later spec with zero boats means the race was shortened (finish after the previous mark).
-    A spec with some boats is still required for the whole fleet — those gaps are checksum failures.
+    A later spec with zero boats is skipped if a later mark still has boats
+    (template extra marks, or a wing nobody rounded). Trailing empty specs mean
+    a shortened course.
     """
     packed = {p["id"]: p for p in mark_passes}
+    last_i = -1
+    for i, spec in enumerate(course_passes):
+        n = len((packed.get(spec["id"]) or {}).get("boats") or [])
+        if n:
+            last_i = i
     out = []
-    for spec in course_passes:
-        got = packed.get(spec["id"])
-        n = len((got or {}).get("boats") or [])
-        if n == 0:
+    for i, spec in enumerate(course_passes):
+        if i > last_i:
             break
+        n = len((packed.get(spec["id"]) or {}).get("boats") or [])
+        if n == 0:
+            continue
         out.append(spec)
     return out
 

@@ -87,6 +87,23 @@ class RoundingChecksumTest(unittest.TestCase):
         self.assertNotIn("L3-1", ids)
         self.assertTrue(chk["sanity"]["ok"])
 
+    def test_skipped_middle_mark_does_not_stop_later_laps(self):
+        fleet = [f"B{i:02d}" for i in range(17)]
+        st = [{"boat": s, "ts_ms": GUN + i} for i, s in enumerate(fleet)]
+        m1 = [{"boat": s, "ts_ms": GUN + 1000 + i} for i, s in enumerate(fleet)]
+        m3 = [{"boat": s, "ts_ms": GUN + 3000 + i} for i, s in enumerate(fleet)]
+        fin = [{"boat": s, "ts_ms": GUN + 9000 + i} for i, s in enumerate(fleet)]
+        chk = build_checksum(
+            fleet=fleet,
+            st=st,
+            mark_passes=[{"id": "L1-1", "boats": m1}, {"id": "L1-3", "boats": m3}],
+            finish=fin,
+            course_passes=COURSE_PASSES,
+        )
+        ids = [p["id"] for p in chk["passes"]]
+        self.assertEqual(ids, ["ST", "L1-1", "L1-3", "FIN"])
+        self.assertTrue(chk["ok"])
+
     def test_place_delta_telescopes_to_start_minus_finish(self):
         fleet = ["A", "B", "C"]
         st = [{"boat": "A", "ts_ms": 1}, {"boat": "B", "ts_ms": 2}, {"boat": "C", "ts_ms": 3}]

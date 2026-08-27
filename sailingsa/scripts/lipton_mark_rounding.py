@@ -15,6 +15,8 @@ import json
 import math
 import os
 import statistics
+import time
+import urllib.error
 import urllib.request
 from collections import defaultdict
 from datetime import datetime
@@ -66,13 +68,20 @@ COURSE_PASSES = [
 ]
 
 
-def _http_json(url: str, timeout: int = 60):
+def _http_json(url: str, timeout: int = 60, attempts: int = 5):
     req = urllib.request.Request(
         url,
         headers={"User-Agent": "SailingSA-LiptonRounding/1.0", "Accept": "application/json"},
     )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return json.loads(resp.read().decode())
+    last = None
+    for i in range(attempts):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return json.loads(resp.read().decode())
+        except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError) as err:
+            last = err
+            time.sleep(min(32, 2 ** i))
+    raise last
 
 
 def haversine_m(lat1, lon1, lat2, lon2) -> float:
@@ -103,7 +112,14 @@ def _fetch_chunk(after_ms: int, before_ms: int, *, limit: int = 100000) -> tuple
     return data.get("Fields") or [], data.get("Rows") or []
 
 
-def fetch_rows(after_ms: int, before_ms: int, *, chunk_ms: int = 30_000, overlap_ms: int = 1_000) -> list[dict]:
+def fetch_rows(
+    after_ms: int,
+    before_ms: int,
+    *,
+    chunk_ms: int = 30_000,
+    overlap_ms: int = 1_000,
+    verbose: bool = False,
+) -> list[dict]:
     """Every telemetry row in [after, before). Overlapping chunks so we do not drop the boundary second.
 
     If a window hits the row cap, split it. Do not downsample here — the map may grid later.
@@ -112,6 +128,7 @@ def fetch_rows(after_ms: int, before_ms: int, *, chunk_ms: int = 30_000, overlap
     rows = []
     fields = None
     t = after_ms
+    nchunk = 0
     while t < before_ms:
         t2 = min(t + chunk_ms, before_ms)
         flds, chunk = _fetch_chunk(t, t2, limit=limit)
@@ -125,6 +142,13 @@ def fetch_rows(after_ms: int, before_ms: int, *, chunk_ms: int = 30_000, overlap
             rows.extend(b)
         else:
             rows.extend(chunk)
+        nchunk += 1
+        if verbose and nchunk % 15 == 0:
+            pct = min(100.0, 100.0 * (t2 - after_ms) / max(before_ms - after_ms, 1))
+            print(
+                json.dumps({"chunk": nchunk, "pct": round(pct, 1), "raw": len(rows)}),
+                flush=True,
+            )
         nxt = t2 - overlap_ms if t2 < before_ms else t2
         t = max(nxt, t + 1)
     idx = {k: i for i, k in enumerate(fields or [])}

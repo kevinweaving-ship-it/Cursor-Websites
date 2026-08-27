@@ -111,8 +111,19 @@ def main() -> int:
     last_finish = max(finish_ts.values())
     first_finish = min(finish_ts.values())
 
-    print("fetch trail", gun, last_finish, flush=True)
-    rows = fetch_rows(gun - 90_000, last_finish + 20_000)
+    print("load trail", gun, last_finish, flush=True)
+    try:
+        from lipton_dev_archive_telemetry import load_race_rows  # noqa: E402
+
+        rows = load_race_rows(race)
+    except Exception:
+        rows = []
+    if rows:
+        print(json.dumps({"archive_rows": len(rows), "race": race}), flush=True)
+        rows = [r for r in rows if gun - 90_000 <= int(r.get("ts") or 0) <= last_finish + 20_000] or rows
+    else:
+        print("fetch trail", gun, last_finish, flush=True)
+        rows = fetch_rows(gun - 90_000, last_finish + 20_000)
     marks_by_sn = defaultdict(list)
     boat_by = defaultdict(list)
     for rec in rows:
@@ -186,35 +197,86 @@ def main() -> int:
         sail: {name: rounding_candidates(pts, marks_by_sn.get(sn) or []) for name, sn in MARK_SN.items()}
         for sail, pts in boat_by.items()
     }
-    last_ts = {sail: gun + 60_000 for sail in boat_by}
-    mark_passes = []
-    summary = []
-    for spec in COURSE_PASSES:
-        ranked = []
-        for sail in boat_by:
-            fin = finish_ts.get(sail, last_finish)
-            cutoff = fin - 80_000 if spec["mark"] == "4" else fin
-            nxt = next(
-                (c for c in cands[sail].get(spec["mark"], []) if last_ts[sail] + 25_000 < c["ts"] < cutoff),
-                None,
-            )
-            if not nxt:
-                continue
-            last_ts[sail] = nxt["ts"]
-            ranked.append({"boat": sail, "ts_ms": int(nxt["ts"])})
+    min_fleet = max(8, (len(boat_by) + 1) // 2)
+    m2_hits = sum(
+        1
+        for sail in boat_by
+        if any(gun + 120_000 < c["ts"] < first_finish - 120_000 for c in cands[sail].get("2") or [])
+    )
+
+    def first_cand(sail, mark, after, before):
+        return next((c for c in cands[sail].get(str(mark), []) if after < c["ts"] < before), None)
+
+    def commit_pass(spec_id, lap, mark, ranked):
         ranked.sort(key=lambda r: r["ts_ms"])
-        if not ranked:
-            continue
         mark_passes.append(
             {
-                "id": spec["id"],
-                "label": f"M{spec['mark']}",
-                "lap": spec["lap"],
-                "mark": int(spec["mark"]),
+                "id": spec_id,
+                "label": f"M{mark}",
+                "lap": lap,
+                "mark": int(mark),
                 "boats": ranked,
             }
         )
-        summary.append({"id": spec["id"], "n": len(ranked), "first": ranked[0]["boat"]})
+        summary.append({"id": spec_id, "n": len(ranked), "first": ranked[0]["boat"]})
+
+    last_ts = {sail: gun + 60_000 for sail in boat_by}
+    mark_passes = []
+    summary = []
+    use_wl = m2_hits < min_fleet
+    if use_wl:
+        for lap in (1, 2, 3):
+            weather = []
+            nxts = {}
+            for sail in boat_by:
+                fin = finish_ts.get(sail, last_finish) - 80_000
+                c = first_cand(sail, "1", last_ts[sail] + 25_000, fin)
+                if not c:
+                    continue
+                weather.append({"boat": sail, "ts_ms": int(c["ts"])})
+                nxts[sail] = c["ts"]
+            if len(weather) < min_fleet:
+                break
+            for sail, ts in nxts.items():
+                last_ts[sail] = ts
+            commit_pass(f"L{lap}-1", lap, 1, weather)
+            leeward = []
+            nxts = {}
+            for sail in boat_by:
+                fin = finish_ts.get(sail, last_finish) - 80_000
+                opts = []
+                for mark in ("3", "4"):
+                    c = first_cand(sail, mark, last_ts[sail] + 25_000, fin)
+                    if c:
+                        opts.append(c)
+                if not opts:
+                    continue
+                c = min(opts, key=lambda x: x["ts"])
+                leeward.append({"boat": sail, "ts_ms": int(c["ts"])})
+                nxts[sail] = c["ts"]
+            if len(leeward) < min_fleet:
+                break
+            for sail, ts in nxts.items():
+                last_ts[sail] = ts
+            commit_pass(f"L{lap}-3", lap, 3, leeward)
+    else:
+        for spec in COURSE_PASSES:
+            ranked = []
+            nxts = {}
+            for sail in boat_by:
+                fin = finish_ts.get(sail, last_finish)
+                cutoff = fin - 80_000 if spec["mark"] == "4" else fin
+                nxt = first_cand(sail, spec["mark"], last_ts[sail] + 25_000, cutoff)
+                if not nxt:
+                    continue
+                ranked.append({"boat": sail, "ts_ms": int(nxt["ts"])})
+                nxts[sail] = nxt["ts"]
+            ranked.sort(key=lambda r: r["ts_ms"])
+            if len(ranked) < min_fleet:
+                continue
+            for sail, ts in nxts.items():
+                last_ts[sail] = ts
+            commit_pass(spec["id"], spec["lap"], int(spec["mark"]), ranked)
 
     def rec_mid(recs):
         if not recs:
@@ -246,6 +308,12 @@ def main() -> int:
         finish_line=fin_line,
         lap1_mark_ids=[p["mark"] for p in mark_passes if int(p.get("lap") or 1) == 1],
     )
+    if use_wl:
+        course = {
+            "id": "wl",
+            "label": "Windward / Leeward",
+            "note": "Weather then leeward gate (first of M3/M4). Wing was not rounded by the fleet.",
+        }
 
     gun_sast = datetime.fromtimestamp(gun / 1000, SAST).isoformat()
     first_sast = datetime.fromtimestamp(first_finish / 1000, SAST).isoformat()
@@ -290,7 +358,11 @@ def main() -> int:
             st=st,
             mark_passes=mark_passes,
             finish=finish_rows,
-            course_passes=COURSE_PASSES,
+            course_passes=(
+                [{"id": p["id"], "lap": p["lap"], "mark": str(p["mark"])} for p in mark_passes]
+                if use_wl
+                else COURSE_PASSES
+            ),
         ),
         "sources": {
             "guns_finishes_ocs": f"Vakaros Firestore races[R{race}] starts/finishes/ocsParticipants",
