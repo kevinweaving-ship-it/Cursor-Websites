@@ -1020,5 +1020,10 @@
     "start_order": "teleapi GPS start-line crossing. OCS boats use recross after returning to prestart, not the OCS dip.",
     "marks": "teleapi every GPS point; heading + closest. Empty = not received.",
     "identity": "public Lipton sheet bow/boat/club logos"
+  },
+  "course": {
+    "id": "triangle",
+    "label": "Triangle",
+    "note": "Weather, wing, leeward. Device 4 is the pin, not a fourth rounding."
   }
 }

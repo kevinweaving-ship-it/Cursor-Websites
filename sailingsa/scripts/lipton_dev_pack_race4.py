@@ -20,6 +20,7 @@ from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from lipton_dev_checksum import build_checksum  # noqa: E402
+from lipton_dev_course import classify_course  # noqa: E402
 from lipton_dev_later_laps import rounding_candidates  # noqa: E402
 from lipton_mark_rounding import COURSE_PASSES, MARK_SN, fetch_rows  # noqa: E402
 from lipton_vakaros import _j22_division, fetch_regatta_doc  # noqa: E402
@@ -215,6 +216,37 @@ def main() -> int:
         )
         summary.append({"id": spec["id"], "n": len(ranked), "first": ranked[0]["boat"]})
 
+    def rec_mid(recs):
+        if not recs:
+            return None
+        lo = len(recs) // 5
+        hi = max(lo + 1, 4 * len(recs) // 5)
+        sl = recs[lo:hi]
+        return (
+            sum(r["latitude"] for r in sl) / len(sl),
+            sum(r["longitude"] for r in sl) / len(sl),
+        )
+
+    fin_line = None
+    if finishes:
+        f0 = finishes[0]
+        ll = ((f0.get("lineLeftLocation") or {}).get("coordinates")) or []
+        rr = ((f0.get("lineRightLocation") or {}).get("coordinates")) or []
+        if len(ll) >= 2 and len(rr) >= 2:
+            fin_line = {
+                "left": {"lat": float(ll[1]), "lon": float(ll[0])},
+                "right": {"lat": float(rr[1]), "lon": float(rr[0])},
+            }
+    course = classify_course(
+        marks={name: rec_mid(marks_by_sn.get(sn) or []) for name, sn in MARK_SN.items()},
+        start_line={
+            "left": {"lat": pin_lat, "lon": pin_lon},
+            "right": {"lat": rc_lat, "lon": rc_lon},
+        },
+        finish_line=fin_line,
+        lap1_mark_ids=[p["mark"] for p in mark_passes if int(p.get("lap") or 1) == 1],
+    )
+
     gun_sast = datetime.fromtimestamp(gun / 1000, SAST).isoformat()
     first_sast = datetime.fromtimestamp(first_finish / 1000, SAST).isoformat()
     end_sast = datetime.fromtimestamp(last_finish / 1000, SAST).isoformat()
@@ -245,6 +277,7 @@ def main() -> int:
         "default_rate": 1,
         "ocs": ocs,
         "exonerated": exonerated,
+        "course": course,
         "ocs_ts": {row["boat"]: row["ocs_ts_ms"] for row in st if "ocs_ts_ms" in row},
         "mark1": mark_passes[0]["boats"] if mark_passes else [],
         "boats": boats,
@@ -286,6 +319,7 @@ def main() -> int:
                 "marks": summary,
                 "finish_n": len(finish_rows),
                 "finish_first": finish_rows[0]["boat"] if finish_rows else None,
+                "course": course,
                 "checksum_ok": pack["checksum"]["ok"],
                 "checksum_gaps": pack["checksum"]["gaps"],
                 "sanity_ok": pack["checksum"].get("sanity", {}).get("ok"),

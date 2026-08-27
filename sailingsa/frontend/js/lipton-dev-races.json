@@ -14,7 +14,9 @@
         "SBYC",
         "WBYC"
       ],
-      "packed": true
+      "packed": true,
+      "course": "Triangle",
+      "course_id": "triangle"
     },
     {
       "n": 2,
@@ -42,7 +44,9 @@
       "ocs": [
         "SBYC"
       ],
-      "packed": true
+      "packed": true,
+      "course": "Quadrangle",
+      "course_id": "quadrangle"
     },
     {
       "n": 5,

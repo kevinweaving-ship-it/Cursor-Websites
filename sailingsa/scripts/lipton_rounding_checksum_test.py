@@ -119,5 +119,43 @@ class RoundingChecksumTest(unittest.TestCase):
         self.assertEqual(chk["sanity"]["time_fail"][0]["boat"], "A")
 
 
+class CourseCardTest(unittest.TestCase):
+    def test_quadrangle_two_far_weathers(self):
+        from lipton_dev_course import classify_course
+
+        start = {"left": {"lat": -33.878, "lon": 18.467}, "right": {"lat": -33.877, "lon": 18.468}}
+        finish = {"left": {"lat": -33.8765, "lon": 18.468}, "right": {"lat": -33.877, "lon": 18.4685}}
+        got = classify_course(
+            marks={
+                "1": (-33.858, 18.460),
+                "2": (-33.862, 18.450),
+                "3": (-33.880, 18.461),
+                "4": (-33.876, 18.468),
+            },
+            start_line=start,
+            finish_line=finish,
+            lap1_mark_ids=[1, 2, 3, 4],
+        )
+        self.assertEqual(got["id"], "quadrangle")
+
+    def test_triangle_one_weather_near_wing(self):
+        from lipton_dev_course import classify_course
+
+        start = {"left": {"lat": -33.863, "lon": 18.478}, "right": {"lat": -33.864, "lon": 18.475}}
+        finish = {"left": {"lat": -33.864, "lon": 18.475}, "right": {"lat": -33.864, "lon": 18.476}}
+        got = classify_course(
+            marks={
+                "1": (-33.880, 18.482),
+                "2": (-33.861, 18.473),
+                "3": (-33.862, 18.478),
+                "4": (-33.863, 18.479),
+            },
+            start_line=start,
+            finish_line=finish,
+            lap1_mark_ids=[1, 2, 3, 4],
+        )
+        self.assertEqual(got["id"], "triangle")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1126,5 +1126,10 @@
   },
   "ocs_ts": {
     "SBYC": 1787831701154
+  },
+  "course": {
+    "id": "quadrangle",
+    "label": "Quadrangle",
+    "note": "Two weather marks upwind and two leewards. Separate start and finish."
   }
 }

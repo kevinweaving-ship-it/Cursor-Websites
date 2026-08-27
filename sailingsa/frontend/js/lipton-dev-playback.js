@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260827ax";
+  var CACHE = "20260827ay";
   var RACE_Q = Number((new URLSearchParams(location.search)).get("race") || 0);
   function jsonUrl(kind, race) {
     if (!race || race === 4) return "/js/lipton-dev-" + kind + ".json?v=" + CACHE;
@@ -886,6 +886,71 @@
         var p = xy(pos.lat, pos.lon);
         drawBoatLabel(p, pos.hdg, sail, ts);
       });
+      drawCourseLabel();
+    }
+    function courseFromTrail() {
+      if (data.course && data.course.label) return data.course.label;
+      var sl = trail.start_line;
+      var fl = trail.finish_line;
+      if (!sl || !sl.left || !trail.marks) return "";
+      function mid(a, b) {
+        return { lat: (a.lat + b.lat) / 2, lon: (a.lon + b.lon) / 2 };
+      }
+      function hav(a, b) {
+        if (!a || !b) return null;
+        var R = 6371000;
+        var p1 = a.lat * Math.PI / 180;
+        var p2 = b.lat * Math.PI / 180;
+        var dphi = (b.lat - a.lat) * Math.PI / 180;
+        var dl = (b.lon - a.lon) * Math.PI / 180;
+        var x = Math.sin(dphi / 2) * Math.sin(dphi / 2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) * Math.sin(dl / 2);
+        return 2 * R * Math.asin(Math.sqrt(x));
+      }
+      function markMid(k) {
+        var s = trail.marks[k];
+        if (!s || !s.lat) return null;
+        var pts = [];
+        for (var i = 0; i < s.lat.length; i++) {
+          if (s.lat[i] != null) pts.push({ lat: s.lat[i], lon: s.lon[i] });
+        }
+        if (!pts.length) return null;
+        var lo = Math.floor(pts.length * 0.2);
+        var hi = Math.max(lo + 1, Math.floor(pts.length * 0.8));
+        var slc = pts.slice(lo, hi);
+        var lat = 0, lon = 0;
+        for (var j = 0; j < slc.length; j++) { lat += slc[j].lat; lon += slc[j].lon; }
+        return { lat: lat / slc.length, lon: lon / slc.length };
+      }
+      var start = mid(sl.left, sl.right);
+      var finish = fl && fl.left && fl.right ? mid(fl.left, fl.right) : null;
+      var m1 = markMid("1");
+      var m2 = markMid("2");
+      var d12 = hav(m1, m2);
+      var d1s = hav(m1, start);
+      var d2s = hav(m2, start);
+      var sf = hav(start, finish);
+      if (sf != null && sf < 50 && d12 != null && d12 < 250) return "Windward / Leeward";
+      if (d12 != null && d12 > 400 && d1s != null && d2s != null && d1s > 800 && d2s > 800) return "Quadrangle";
+      if (d1s != null && d1s > 800 && d2s != null && d2s < 800) return "Triangle";
+      return "";
+    }
+    function drawCourseLabel() {
+      var label = courseFromTrail();
+      if (!label || !mapCtx || !mapBounds) return;
+      var pad = 10;
+      mapCtx.save();
+      mapCtx.font = "bold 13px sans-serif";
+      mapCtx.textAlign = "right";
+      mapCtx.textBaseline = "top";
+      var text = label.toUpperCase();
+      var tw = mapCtx.measureText(text).width;
+      var x = mapBounds.w - pad;
+      var y = pad;
+      mapCtx.fillStyle = "rgba(0,31,63,0.62)";
+      mapCtx.fillRect(x - tw - 8, y - 2, tw + 16, 22);
+      mapCtx.fillStyle = "#ffffff";
+      mapCtx.fillText(text, x, y);
+      mapCtx.restore();
     }
     function setRateButtons() {
       [].forEach.call(document.querySelectorAll("[data-rate]"), function (btn) {
