@@ -1,7 +1,7 @@
 {
   "mode": "replay",
   "live": false,
-  "note": "Race 5 real tracker data. Rank re-sorts at each mark. Splits M1=gun→M1, M2=M1→M2, … Fin=gun→finish. Not Nett.",
+  "note": "Race 5 tracker. Each pass is one rounding; the same mark (M1, M2, \u2026) can appear again on later laps. Rank re-sorts per pass. Splits = previous pass to this pass (first M1 vs gun). Fin = gun to finish. Place deltas sit between consecutive passes. Not Nett. Do not invent missing roundings.",
   "regatta_id": "2026-08-29-lipton-challenge-cup",
   "dev_slug": "2026-08-29-lipton-challenge-cup-dev",
   "event_id": "Lv9A35uOBSBRmGpHgXtH",
@@ -604,5 +604,287 @@
     "M3",
     "M4"
   ],
-  "play_end_ts_ms": 1787841436000
+  "play_end_ts_ms": 1787841436000,
+  "passes": [
+    {
+      "id": "L1-1",
+      "label": "M1",
+      "lap": 1,
+      "mark": 1,
+      "boats": [
+        {
+          "boat": "HYC",
+          "ts_ms": 1787840523900
+        },
+        {
+          "boat": "RCYC",
+          "ts_ms": 1787840541600
+        },
+        {
+          "boat": "KYC",
+          "ts_ms": 1787840551400
+        },
+        {
+          "boat": "RCYC Academy",
+          "ts_ms": 1787840578100
+        },
+        {
+          "boat": "RNYC",
+          "ts_ms": 1787840589100
+        },
+        {
+          "boat": "UCTYC",
+          "ts_ms": 1787840590000
+        },
+        {
+          "boat": "SBYC",
+          "ts_ms": 1787840598100
+        },
+        {
+          "boat": "PYC",
+          "ts_ms": 1787840608400
+        },
+        {
+          "boat": "FBYC",
+          "ts_ms": 1787840615600
+        },
+        {
+          "boat": "WBYC",
+          "ts_ms": 1787840618300
+        },
+        {
+          "boat": "IZIVUNGUVUNGU",
+          "ts_ms": 1787840626100
+        },
+        {
+          "boat": "LDYC",
+          "ts_ms": 1787840645000
+        },
+        {
+          "boat": "GLYC",
+          "ts_ms": 1787840653400
+        },
+        {
+          "boat": "BYC",
+          "ts_ms": 1787840677800
+        },
+        {
+          "boat": "TSC",
+          "ts_ms": 1787840688900
+        },
+        {
+          "boat": "LYC",
+          "ts_ms": 1787840707500
+        },
+        {
+          "boat": "WYAC",
+          "ts_ms": 1787840742900
+        }
+      ]
+    },
+    {
+      "id": "L1-2",
+      "label": "M2",
+      "lap": 1,
+      "mark": 2,
+      "boats": [
+        {
+          "boat": "HYC",
+          "ts_ms": 1787840706000
+        },
+        {
+          "boat": "RCYC",
+          "ts_ms": 1787840711000
+        },
+        {
+          "boat": "KYC",
+          "ts_ms": 1787840726000
+        },
+        {
+          "boat": "RCYC Academy",
+          "ts_ms": 1787840733000
+        },
+        {
+          "boat": "UCTYC",
+          "ts_ms": 1787840748000
+        },
+        {
+          "boat": "RNYC",
+          "ts_ms": 1787840753000
+        },
+        {
+          "boat": "SBYC",
+          "ts_ms": 1787840764000
+        },
+        {
+          "boat": "FBYC",
+          "ts_ms": 1787840778000
+        },
+        {
+          "boat": "PYC",
+          "ts_ms": 1787840784000
+        },
+        {
+          "boat": "WBYC",
+          "ts_ms": 1787840787000
+        },
+        {
+          "boat": "IZIVUNGUVUNGU",
+          "ts_ms": 1787840803000
+        },
+        {
+          "boat": "LDYC",
+          "ts_ms": 1787840817000
+        },
+        {
+          "boat": "GLYC",
+          "ts_ms": 1787840828000
+        },
+        {
+          "boat": "BYC",
+          "ts_ms": 1787840840000
+        },
+        {
+          "boat": "TSC",
+          "ts_ms": 1787840861000
+        },
+        {
+          "boat": "LYC",
+          "ts_ms": 1787840901000
+        },
+        {
+          "boat": "WYAC",
+          "ts_ms": 1787840925000
+        }
+      ]
+    },
+    {
+      "id": "L1-3",
+      "label": "M3",
+      "lap": 1,
+      "mark": 3,
+      "boats": [
+        {
+          "boat": "HYC",
+          "ts_ms": 1787840951000
+        },
+        {
+          "boat": "RCYC",
+          "ts_ms": 1787840958000
+        },
+        {
+          "boat": "KYC",
+          "ts_ms": 1787840978000
+        },
+        {
+          "boat": "RNYC",
+          "ts_ms": 1787841005000
+        },
+        {
+          "boat": "FBYC",
+          "ts_ms": 1787841029000
+        },
+        {
+          "boat": "PYC",
+          "ts_ms": 1787841031000
+        },
+        {
+          "boat": "WBYC",
+          "ts_ms": 1787841034000
+        },
+        {
+          "boat": "LDYC",
+          "ts_ms": 1787841054000
+        },
+        {
+          "boat": "IZIVUNGUVUNGU",
+          "ts_ms": 1787841054000
+        },
+        {
+          "boat": "GLYC",
+          "ts_ms": 1787841067000
+        },
+        {
+          "boat": "BYC",
+          "ts_ms": 1787841081000
+        },
+        {
+          "boat": "TSC",
+          "ts_ms": 1787841104000
+        },
+        {
+          "boat": "LYC",
+          "ts_ms": 1787841190000
+        },
+        {
+          "boat": "WYAC",
+          "ts_ms": 1787841221000
+        }
+      ]
+    },
+    {
+      "id": "L1-4",
+      "label": "M4",
+      "lap": 1,
+      "mark": 4,
+      "boats": [
+        {
+          "boat": "HYC",
+          "ts_ms": 1787841152000
+        },
+        {
+          "boat": "RCYC",
+          "ts_ms": 1787841158000
+        },
+        {
+          "boat": "KYC",
+          "ts_ms": 1787841176000
+        },
+        {
+          "boat": "RNYC",
+          "ts_ms": 1787841203000
+        },
+        {
+          "boat": "PYC",
+          "ts_ms": 1787841239000
+        },
+        {
+          "boat": "FBYC",
+          "ts_ms": 1787841244000
+        },
+        {
+          "boat": "WBYC",
+          "ts_ms": 1787841249000
+        },
+        {
+          "boat": "IZIVUNGUVUNGU",
+          "ts_ms": 1787841261000
+        },
+        {
+          "boat": "LDYC",
+          "ts_ms": 1787841266000
+        },
+        {
+          "boat": "GLYC",
+          "ts_ms": 1787841277000
+        },
+        {
+          "boat": "BYC",
+          "ts_ms": 1787841291000
+        },
+        {
+          "boat": "TSC",
+          "ts_ms": 1787841317000
+        },
+        {
+          "boat": "LYC",
+          "ts_ms": 1787841413000
+        },
+        {
+          "boat": "WYAC",
+          "ts_ms": 1787841428000
+        }
+      ]
+    }
+  ]
 }

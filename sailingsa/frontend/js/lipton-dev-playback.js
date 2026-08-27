@@ -1,10 +1,11 @@
 /**
  * Lipton 2026 -dev only. Replay sandbox — not live, not Nett.
- * Rank re-sorts at each mark from Race 5 tracker times.
+ * Rank re-sorts at each mark *pass* (M1 can appear again on lap 2+).
+ * Place deltas sit between consecutive passes. Times are mm:ss, no T+.
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827i";
+  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827k";
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -30,6 +31,36 @@
     q.push("ts=" + Math.floor(ts));
     return data.watch_path + "?" + q.join("&");
   }
+  function asBoats(list) {
+    return (list || []).map(function (b) {
+      return { boat: b.boat, ts: b.ts_ms != null ? Number(b.ts_ms) : Number(b.ts) };
+    });
+  }
+  function loadPasses(data) {
+    if (Array.isArray(data.passes) && data.passes.length) {
+      return data.passes.map(function (p, i) {
+        return {
+          id: p.id || ("P" + i),
+          label: p.label || ("M" + (p.mark || i + 1)),
+          lap: Number(p.lap || 1),
+          mark: Number(p.mark || i + 1),
+          boats: asBoats(p.boats)
+        };
+      });
+    }
+    var labels = data.mark_labels || Object.keys(data.marks || {});
+    return labels.map(function (lab, i) {
+      var n = parseInt(String(lab).replace(/^M/i, ""), 10);
+      if (isNaN(n)) n = i + 1;
+      return {
+        id: "L1-" + n,
+        label: lab,
+        lap: 1,
+        mark: n,
+        boats: asBoats((data.marks || {})[lab])
+      };
+    });
+  }
 
   fetch(DATA_URL, { cache: "no-store" })
     .then(function (res) {
@@ -44,32 +75,26 @@
     });
 
   function start(data) {
-    var LABELS = data.mark_labels || ["M1", "M2", "M3", "M4"];
-    var MARKS = {};
-    LABELS.forEach(function (lab) {
-      MARKS[lab] = ((data.marks || {})[lab] || []).map(function (b) {
-        return { boat: b.boat, ts: b.ts_ms };
-      });
-    });
+    var PASSES = loadPasses(data);
     var BOATS = data.boats || {};
     var GUN_TS = Number(data.gun_ts_ms);
     var PLAY_START_TS = Number(data.play_start_ts_ms);
     var PLAY_END_TS = Number(data.play_end_ts_ms || data.end_ts_ms);
-    var FINISH = (data.finish || []).map(function (b) {
-      return { boat: b.boat, ts: b.ts_ms };
-    });
+    var FINISH = asBoats(data.finish);
     var RATE = Number(data.default_rate || 1);
     var playing = true;
     var playTs = PLAY_START_TS;
     var lastWall = Date.now();
     var lastKey = "";
     var seen = {};
+    var deltaSeen = {};
 
     var tbody = document.getElementById("lipton-dev-tbody");
     var clockEl = document.getElementById("lipton-dev-clock");
     var sailedEl = document.getElementById("lipton-dev-sailed");
     var frameEl = document.getElementById("lipton-dev-vakaros");
     var playBtn = document.getElementById("lipton-dev-play");
+    var headRow = document.getElementById("lipton-dev-thead-row");
     if (!tbody) return;
 
     function ident(tracker) {
@@ -98,33 +123,42 @@
     function setPlayLabel() {
       if (playBtn) playBtn.textContent = playing ? "Pause" : "Play";
     }
-    function tsAt(lab, boat) {
-      var list = MARKS[lab] || [];
-      for (var i = 0; i < list.length; i++) {
-        if (list[i].boat === boat) return list[i].ts;
+    function fillHead() {
+      if (!headRow) return;
+      var html = "<th class=\"rank-col\">Rank</th><th class=\"wc-meta-col\">Bow</th><th class=\"boat-name-col\">Boat</th><th class=\"club-col\">Club</th>";
+      for (var i = 0; i < PASSES.length; i++) {
+        var p = PASSES[i];
+        html += "<th class=\"timer-col\" title=\"Lap " + p.lap + " mark " + p.mark + "\">" + esc(p.label) + "</th>";
+        if (i < PASSES.length - 1) {
+          var nlab = PASSES[i + 1].label;
+          html += "<th class=\"place-delta-col\" title=\"Places gained or lost " + esc(p.label) + " to " + esc(nlab) + "\" aria-label=\"Place change " + esc(p.label) + " to " + esc(nlab) + "\"></th>";
+        }
+      }
+      html += "<th class=\"timer-col\">Fin</th>";
+      headRow.innerHTML = html;
+    }
+    function tsAtPass(pass, boat) {
+      for (var i = 0; i < pass.boats.length; i++) {
+        if (pass.boats[i].boat === boat) return pass.boats[i].ts;
       }
       return null;
     }
     function boatTimes(boat, ts) {
-      var out = {};
-      for (var i = 0; i < LABELS.length; i++) {
-        var t = tsAt(LABELS[i], boat);
-        if (t != null && t <= ts) out[LABELS[i]] = t;
+      var out = [];
+      for (var i = 0; i < PASSES.length; i++) {
+        var t = tsAtPass(PASSES[i], boat);
+        out.push(t != null && t <= ts ? t : null);
       }
       return out;
     }
     function furthest(times) {
       var k = -1;
-      var lab = null;
-      var t = null;
-      for (var i = 0; i < LABELS.length; i++) {
-        if (times[LABELS[i]] != null) {
-          k = i;
-          lab = LABELS[i];
-          t = times[LABELS[i]];
-        }
+      for (var i = 0; i < times.length; i++) {
+        if (times[i] != null) k = i;
       }
-      return { idx: k, lab: lab, ts: t };
+      if (k < 0) return { idx: -1, lab: null, ts: null, lap: 1 };
+      var p = PASSES[k];
+      return { idx: k, lab: p.label, ts: times[k], lap: p.lap };
     }
     function finishTs(boat) {
       for (var i = 0; i < FINISH.length; i++) {
@@ -137,24 +171,62 @@
       if (ft != null && ft <= ts) return fmtClock(ft - GUN_TS);
       return "";
     }
-    function splitCell(times, lab, i) {
-      var t = times[lab];
+    function splitCell(times, i) {
+      var t = times[i];
       if (t == null) return "";
-      var prev = i === 0 ? GUN_TS : times[LABELS[i - 1]];
+      var prev = i === 0 ? GUN_TS : times[i - 1];
       if (prev == null) return "";
       return fmtClock(t - prev);
     }
+    function rankMapsAt(ts) {
+      return PASSES.map(function (pass) {
+        var hit = [];
+        for (var i = 0; i < pass.boats.length; i++) {
+          if (pass.boats[i].ts <= ts) hit.push(pass.boats[i]);
+        }
+        hit.sort(function (a, b) { return a.ts - b.ts; });
+        var map = {};
+        for (var j = 0; j < hit.length; j++) map[hit[j].boat] = j + 1;
+        return map;
+      });
+    }
+    function deltaCell(boat, passIdx, prevMap, nextMap) {
+      if (!prevMap || !nextMap) return "<td class=\"place-delta-col\"></td>";
+      var prev = prevMap[boat];
+      var next = nextMap[boat];
+      if (prev == null || next == null) return "<td class=\"place-delta-col\"></td>";
+      var gained = prev - next;
+      var key = boat + "|" + passIdx;
+      var flash = deltaSeen[key] !== gained;
+      deltaSeen[key] = gained;
+      var flashCls = flash && gained !== 0 ? " place-delta--flash" : "";
+      if (gained > 0) {
+        return "<td class=\"place-delta-col\"><span class=\"place-delta place-delta--up" + flashCls + "\" title=\"Gained " + gained + "\" aria-label=\"Gained " + gained + "\"><span class=\"place-delta-mark\" aria-hidden=\"true\"></span><span class=\"place-delta-n\">" + gained + "</span></span></td>";
+      }
+      if (gained < 0) {
+        var lost = -gained;
+        return "<td class=\"place-delta-col\"><span class=\"place-delta place-delta--down" + flashCls + "\" title=\"Lost " + lost + "\" aria-label=\"Lost " + lost + "\"><span class=\"place-delta-mark\" aria-hidden=\"true\"></span><span class=\"place-delta-n\">" + lost + "</span></span></td>";
+      }
+      return "<td class=\"place-delta-col\"><span class=\"place-delta place-delta--same\" title=\"No change\" aria-label=\"No change\"><span class=\"place-delta-mark\" aria-hidden=\"true\"></span><span class=\"place-delta-n\">0</span></span></td>";
+    }
     function rowsAt(ts) {
       var names = {};
-      LABELS.forEach(function (lab) {
-        (MARKS[lab] || []).forEach(function (b) {
+      PASSES.forEach(function (pass) {
+        pass.boats.forEach(function (b) {
           if (b.ts <= ts) names[b.boat] = true;
         });
       });
       var rows = Object.keys(names).map(function (boat) {
         var times = boatTimes(boat, ts);
         var far = furthest(times);
-        return { boat: boat, times: times, farIdx: far.idx, farTs: far.ts, farLab: far.lab };
+        return {
+          boat: boat,
+          times: times,
+          farIdx: far.idx,
+          farTs: far.ts,
+          farLab: far.lab,
+          farLap: far.lap
+        };
       });
       rows.sort(function (a, b) {
         if (b.farIdx !== a.farIdx) return b.farIdx - a.farIdx;
@@ -167,9 +239,9 @@
       return rows.length ? rows[0].farLab : null;
     }
     function stateKey(rows) {
-      return rows.map(function (r) { return r.rank + ":" + r.boat + ":" + r.farLab; }).join("|");
+      return rows.map(function (r) { return r.rank + ":" + r.boat + ":" + r.farIdx; }).join("|");
     }
-    function rowHtml(r, unroll) {
+    function rowHtml(r, unroll, rankMaps) {
       var id = ident(r.boat);
       var medal = r.rank === 1 ? " medal-gold" : r.rank === 2 ? " medal-silver" : r.rank === 3 ? " medal-bronze" : "";
       var cls = medal + (unroll ? " lipton-unroll" : "");
@@ -178,8 +250,11 @@
       html += "<td class=\"wc-meta-col\">" + bowCell(id) + "</td>";
       html += "<td class=\"boat-name-col\">" + boatNameCell(id) + "</td>";
       html += "<td class=\"club-col\">" + clubCell(id) + "</td>";
-      for (var i = 0; i < LABELS.length; i++) {
-        html += "<td class=\"timer-col\">" + splitCell(r.times, LABELS[i], i) + "</td>";
+      for (var i = 0; i < PASSES.length; i++) {
+        html += "<td class=\"timer-col\">" + splitCell(r.times, i) + "</td>";
+        if (i < PASSES.length - 1) {
+          html += deltaCell(r.boat, i, rankMaps[i], rankMaps[i + 1]);
+        }
       }
       html += "<td class=\"timer-col\">" + finCell(r, playTs) + "</td>";
       html += "</tr>";
@@ -187,30 +262,33 @@
     }
     function setSailed(rows) {
       if (!sailedEl) return;
-      var lab = leadMark(rows);
-      if (!lab) {
+      if (!rows.length) {
         sailedEl.textContent = "Race 5 replay · approaching M1";
         return;
       }
+      var lead = rows[0];
       var n = 0;
-      rows.forEach(function (r) { if (r.farLab === lab) n += 1; });
-      var tot = (MARKS[lab] || []).length;
-      sailedEl.textContent = "Race 5 replay · " + lab + " · " + n + " of " + tot + " · rank by " + lab;
+      rows.forEach(function (r) { if (r.farIdx === lead.farIdx) n += 1; });
+      var tot = PASSES[lead.farIdx] ? PASSES[lead.farIdx].boats.length : n;
+      var lapBit = lead.farLap > 1 ? " · lap " + lead.farLap : "";
+      sailedEl.textContent = "Race 5 replay · " + lead.farLab + lapBit + " · " + n + " of " + tot + " · rank by " + lead.farLab;
+    }
+    function clockText(ts, rows) {
+      var clock = fmtClock(ts - GUN_TS);
+      if (!rows.length) return clock + " → M1";
+      return clock;
     }
     function render(ts) {
       var rows = rowsAt(ts);
+      var rankMaps = rankMapsAt(ts);
       var html = "";
       for (var i = 0; i < rows.length; i++) {
         var first = !seen[rows[i].boat];
         seen[rows[i].boat] = true;
-        html += rowHtml(rows[i], first);
+        html += rowHtml(rows[i], first, rankMaps);
       }
       tbody.innerHTML = html;
-      if (clockEl) {
-        clockEl.textContent = rows.length === 0
-          ? fmtClock(ts - GUN_TS) + " → M1"
-          : fmtClock(ts - GUN_TS);
-      }
+      if (clockEl) clockEl.textContent = clockText(ts, rows);
       setSailed(rows);
       lastKey = stateKey(rows);
     }
@@ -220,6 +298,7 @@
       lastWall = Date.now();
       lastKey = "";
       seen = {};
+      deltaSeen = {};
       setFrame(ts);
       render(ts);
     }
@@ -239,9 +318,7 @@
         if (key !== lastKey) {
           render(playTs);
         } else if (clockEl) {
-          clockEl.textContent = rows.length === 0
-            ? fmtClock(playTs - GUN_TS) + " → M1"
-            : fmtClock(playTs - GUN_TS);
+          clockEl.textContent = clockText(playTs, rows);
         }
       } else {
         lastWall = Date.now();
@@ -272,6 +349,7 @@
       });
     }
 
+    fillHead();
     setFrame(PLAY_START_TS);
     setRateButtons();
     setPlayLabel();

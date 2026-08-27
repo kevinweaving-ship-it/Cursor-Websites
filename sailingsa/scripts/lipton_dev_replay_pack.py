@@ -93,7 +93,7 @@ def main() -> int:
     pack = {
         "mode": "replay",
         "live": False,
-        "note": "Replay sandbox only. Test here, then live later. Replace this file to refresh old playback data. Not a Nett source.",
+        "note": "Replay sandbox only. Each pass is one rounding; M1/M2/… may repeat on later laps. Not a Nett source.",
         "regatta_id": "2026-08-29-lipton-challenge-cup",
         "dev_slug": "2026-08-29-lipton-challenge-cup-dev",
         "event_id": "Lv9A35uOBSBRmGpHgXtH",
@@ -118,6 +118,29 @@ def main() -> int:
             "identity": "public Lipton sheet bow/boat/club logos",
         },
     }
+    for key in (
+        "marks",
+        "mark_labels",
+        "passes",
+        "finish",
+        "play_end_ts_ms",
+        "play_start_sast",
+    ):
+        if key in prev:
+            pack[key] = prev[key]
+    if not pack.get("passes"):
+        labels = pack.get("mark_labels") or ["M1", "M2", "M3", "M4"]
+        marks = pack.get("marks") or {}
+        pack["passes"] = [
+            {
+                "id": f"L1-{i + 1}",
+                "label": lab,
+                "lap": 1,
+                "mark": i + 1,
+                "boats": marks.get(lab) or [],
+            }
+            for i, lab in enumerate(labels)
+        ]
     text = json.dumps(pack, indent=2, ensure_ascii=False) + "\n"
     OUT.write_text(text)
     OUT_COPY.write_text(text)
