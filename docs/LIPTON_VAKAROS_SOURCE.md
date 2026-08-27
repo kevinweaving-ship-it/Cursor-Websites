@@ -89,6 +89,31 @@ Each race summary also stores `replay.at_gun`, `replay.at_end`, `replay.prestart
 
 Open those with `live` **omitted** (replay). `python3 sailingsa/scripts/lipton_vakaros.py` prints `replay_examples`.
 
+## Marks, pin, committee boat (Race 5 checked)
+
+Devices on this event (Firestore `rcDevices` + course `achievements`):
+
+| Name on tracker | Role | Used as |
+|---|---|---|
+| **RC** | coordinator | Committee boat. `startRight` and `finishRight` |
+| **4** | mark | **Pin** end of start/finish (`startLeft` / `finishLeft`). Also a wing rounding later |
+| **1** | mark | Windward (`WindW`) |
+| **2** | mark | Wing |
+| **3** | mark | Leeward |
+| **Media** | mark | Extra tracker, radius 0 |
+
+There is **no device named Pin**. The pin is device **4**.
+
+**What we can measure (already in the archive):**
+
+- **At the gun:** pin + RC lat/lon (`starts[].startLine`), every boat lat/lon, and official **distance to the start line in millimetres** (`startingStats[].dtlMm`). Player column: “DTL at Start (m)”.
+- **At the finish:** boat lat/lon + the live pin/RC positions at that instant (`lineLeftLocation` / `lineRightLocation`). The line **moves** (pin drifted ~187 m from R5 gun to first finish; RC ~15 m).
+- Distance from a boat to pin or to RC at those two instants: compute from those coordinates (haversine).
+
+**Race 5 gun (checked):** start line ~174 m. Closest boat LDYC DTL **0.13 m**, ~11 m from the pin. No OCS. Replay at gun (no `live`): see `races[R5].replay.at_gun`.
+
+**What we cannot get yet:** lat/lon for marks **1 / 2 / 3** during the race, or a boat’s distance to them **while racing**. The replay map draws those from GPS frame streams. Spectator Firestore has the course (which SN is which mark) but not the ping trail. Do not invent those positions.
+
 ## How to check (must actually run)
 
 ```bash

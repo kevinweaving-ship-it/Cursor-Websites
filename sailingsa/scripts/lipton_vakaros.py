@@ -292,7 +292,95 @@ def _summarize_race(race: dict) -> dict:
         "last_finish_sast": last_finish.isoformat() if last_finish else None,
         "end_sast": end_sast.isoformat() if end_sast else None,
         "ocs": list(start0.get("ocsParticipants") or []),
-        "source_fields": ["divisions[].races[]", "starts[].startTime", "finishes[].finishingTime", "currentStage"],
+        "prep_flag": start0.get("prepFlag"),
+        "start_line": start0.get("startLine"),
+        "dtl_at_gun_mm": {
+            s.get("sailNumber"): s.get("dtlMm")
+            for s in (start0.get("startingStats") or [])
+            if isinstance(s, dict) and s.get("sailNumber")
+        },
+        "source_fields": [
+            "divisions[].races[]",
+            "starts[].startTime",
+            "starts[].startLine",
+            "starts[].startingStats.dtlMm",
+            "finishes[].finishingTime",
+            "currentStage",
+        ],
+    }
+
+
+def extract_course_hardware(doc: dict, div: dict) -> dict:
+    """What the map is drawing: RC, pin, marks 1–4. Positions only where Firestore stored them."""
+    devices = []
+    for d in doc.get("rcDevices") or []:
+        if not isinstance(d, dict):
+            continue
+        devices.append(
+            {
+                "name": d.get("name"),
+                "role": d.get("role"),
+                "sn": d.get("sn"),
+                "mark_type": d.get("markType"),
+                "mark_radius_cm": d.get("markRadius"),
+            }
+        )
+    by_sn = {d["sn"]: d for d in devices if d.get("sn")}
+    legs = []
+    courses = div.get("courses") or []
+    course0 = courses[0] if courses and isinstance(courses[0], dict) else {}
+    for a in course0.get("achievements") or []:
+        if not isinstance(a, dict):
+            continue
+        roles = []
+        for r in a.get("deviceRoles") or []:
+            sn = r.get("sn")
+            roles.append(
+                {
+                    "role": r.get("role"),
+                    "sn": sn,
+                    "device_name": (by_sn.get(sn) or {}).get("name"),
+                    "device_role": (by_sn.get(sn) or {}).get("role"),
+                }
+            )
+        legs.append(
+            {
+                "title": a.get("title"),
+                "type": a.get("type"),
+                "rounding": a.get("roundingDirection"),
+                "roles": roles,
+            }
+        )
+    start = next((x for x in legs if x.get("type") == "startLine"), None)
+    finish = next((x for x in legs if x.get("type") == "finishLine"), None)
+
+    def _end(line, want):
+        if not line:
+            return None
+        for r in line.get("roles") or []:
+            if r.get("role") == want:
+                return r
+        return None
+
+    return {
+        "devices": devices,
+        "course_name": course0.get("name"),
+        "legs": legs,
+        "line_ends": {
+            "pin": _end(start, "startLeft"),
+            "committee_boat": _end(start, "startRight"),
+            "finish_pin": _end(finish, "finishLeft"),
+            "finish_committee": _end(finish, "finishRight"),
+        },
+        "note": (
+            "Tracker does not label a device 'Pin'. Start/finish left end is device name '4'. "
+            "Committee boat is device name 'RC' (role coordinator). "
+            "Marks 1=windward, 2=wing, 3=leeward. "
+            "Lat/lon for pin+RC exist at each gun (startLine) and at each finish "
+            "(lineLeftLocation/lineRightLocation). Mark 1/2/3 lat/lon are not in this "
+            "spectator document — replay map draws them from GPS frames we cannot download yet. "
+            "Distance-to-line at the gun is stored as dtlMm (millimetres)."
+        ),
     }
 
 
@@ -391,6 +479,7 @@ def summarize_event(doc: dict) -> dict:
             "go_live": "Shown when live=false. Does not mean racing.",
         },
         "replay_examples": replay_examples,
+        "marks": extract_course_hardware(doc, div),
         "races": races,
         "days": [{"date_sast": d, "races": nums, "race_day": i} for i, (d, nums) in enumerate(sorted(days.items()), start=1)],
         "last_finished_race": last_finished_no,
