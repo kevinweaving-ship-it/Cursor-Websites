@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827t";
+  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827u";
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -164,7 +164,9 @@
       var html = "<th class=\"rank-col\">Rank</th><th class=\"wc-meta-col\">Bow</th><th class=\"boat-name-col\">Boat</th><th class=\"club-col\">Club</th>";
       for (var i = 0; i < PASSES.length; i++) {
         var p = PASSES[i];
-        var title = p.id === "FIN" || p.label === "Fin" ? "Finish" : ("Lap " + p.lap + " mark " + p.mark);
+        var title = "Lap " + p.lap + " mark " + p.mark;
+        if (p.id === "FIN" || p.label === "Fin") title = "Finish";
+        else if (p.id === "ST" || p.label === "ST") title = "Start line";
         html += "<th class=\"timer-col\" title=\"" + esc(title) + "\">" + esc(p.label) + "</th>";
         if (i < PASSES.length - 1) {
           var nlab = PASSES[i + 1].label;
