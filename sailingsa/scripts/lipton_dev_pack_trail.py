@@ -22,6 +22,7 @@ from lipton_vakaros import _j22_division, fetch_regatta_doc  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 STEP_MS = 1000
+PRE_MS = 10_000
 
 
 def replay_path(race: int) -> Path:
@@ -101,12 +102,13 @@ def main() -> int:
             pts = [p for p in pts if p.get("race_number") == race]
         boat_by[sail] = pts
 
-    n = int((end - gun) / STEP_MS) + 1
+    origin = gun - PRE_MS
+    n = int((end - origin) / STEP_MS) + 1
     boats = {}
     for sail, pts in boat_by.items():
         boats[sail] = grid_series(
-            [p for p in pts if gun - STEP_MS <= p["ts"] <= end + STEP_MS],
-            gun,
+            [p for p in pts if origin - STEP_MS <= p["ts"] <= end + STEP_MS],
+            origin,
             n,
         )
 
@@ -116,8 +118,8 @@ def main() -> int:
         if not pts:
             continue
         marks[name] = grid_series(
-            [p for p in pts if gun - STEP_MS <= p["ts"] <= end + STEP_MS],
-            gun,
+            [p for p in pts if origin - STEP_MS <= p["ts"] <= end + STEP_MS],
+            origin,
             n,
         )
 
@@ -125,6 +127,7 @@ def main() -> int:
     payload = {
         "race_number": race,
         "gun_ts_ms": gun,
+        "grid_start_ts_ms": origin,
         "end_ts_ms": end,
         "step_ms": STEP_MS,
         "n": n,

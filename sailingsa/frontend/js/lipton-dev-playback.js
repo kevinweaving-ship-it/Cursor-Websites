@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260827aw";
+  var CACHE = "20260827ax";
   var RACE_Q = Number((new URLSearchParams(location.search)).get("race") || 0);
   function jsonUrl(kind, race) {
     if (!race || race === 4) return "/js/lipton-dev-" + kind + ".json?v=" + CACHE;
@@ -127,8 +127,9 @@
     var PASSES = loadPasses(data);
     var BOATS = data.boats || {};
     var GUN_TS = Number(data.gun_ts_ms);
-    var PLAY_START_TS = Number(data.play_start_ts_ms);
+    var PLAY_START_TS = GUN_TS - 10000;
     var PLAY_END_TS = Number(data.play_end_ts_ms || data.end_ts_ms);
+    var GRID_ORIGIN = trail.grid_start_ts_ms != null ? Number(trail.grid_start_ts_ms) : Number(trail.gun_ts_ms);
     var FINISH = asBoats(data.finish);
     if (FINISH.length) {
       PASSES.push({
@@ -186,7 +187,7 @@
         if (s.lat[i] == null) continue;
         var sg = geom.signed(s.lat[i], s.lon[i]);
         var dist = geom.flip ? -sg.d : sg.d;
-        var ts = trail.gun_ts_ms + i * trail.step_ms;
+        var ts = GRID_ORIGIN + i * trail.step_ms;
         if (prev && prev.d > 0 && dist <= 0) {
           var frac = prev.d === dist ? 1 : prev.d / (prev.d - dist);
           var t = Math.round(prev.ts + (ts - prev.ts) * frac);
@@ -209,10 +210,17 @@
         LEGAL_TS[sail] = hits[0];
       }
     });
+    var packedOcsTs = data.ocs_ts || {};
     PASSES.forEach(function (p) {
       if (p.id !== "ST" && p.label !== "ST") return;
       p.boats.forEach(function (b) {
-        if (LEGAL_TS[b.boat] == null && !OCS[b.boat]) LEGAL_TS[b.boat] = b.ts;
+        if (OCS[b.boat]) {
+          if (packedOcsTs[b.boat] != null) OCS_TS[b.boat] = Number(packedOcsTs[b.boat]);
+          else if (b.ocs_ts_ms != null) OCS_TS[b.boat] = Number(b.ocs_ts_ms);
+          LEGAL_TS[b.boat] = b.ts;
+        } else if (LEGAL_TS[b.boat] == null) {
+          LEGAL_TS[b.boat] = b.ts;
+        }
       });
     });
     var START_RANK = {};
@@ -269,9 +277,10 @@
       if (!id) return "";
       return "<a href=\"" + esc(id.nameHref) + "\" class=\"rs-boat-name-sponsors rs-boat-name-sponsors--link\" title=\"" + esc(id.title) + "\">" + id.nameInner + "</a>";
     }
-    function clubCell(id) {
+    function clubCell(id, pending) {
       if (!id) return "";
-      return "<span class=\"rs-club-with-logo\"><a href=\"" + esc(id.clubHref) + "\">" + esc(id.club) + "</a><img class=\"rs-club-row-logo\" src=\"" + esc(id.clubLogo) + "\" alt=\"" + esc(id.club) + "\" title=\"" + esc(id.club) + "\"></span>";
+      var cls = "rs-club-with-logo" + (pending ? " ocs-club" : "");
+      return "<span class=\"" + cls + "\"><a href=\"" + esc(id.clubHref) + "\">" + esc(id.club) + "</a><img class=\"rs-club-row-logo\" src=\"" + esc(id.clubLogo) + "\" alt=\"" + esc(id.club) + "\" title=\"" + esc(id.club) + "\"></span>";
     }
     function bowCell(id) {
       if (!id) return "";
@@ -538,7 +547,7 @@
     function sampleAt(series, ts) {
       if (!series) return null;
       if (typeof series.lat === "number") return { lat: series.lat, lon: series.lon, i: 0, j: 0 };
-      var t = (ts - trail.gun_ts_ms) / trail.step_ms;
+      var t = (ts - GRID_ORIGIN) / trail.step_ms;
       var i = hitBack(series, Math.min(series.lat.length - 1, Math.max(0, Math.floor(t))));
       if (i < 0) {
         var fwd = hitFwd(series, 0);
@@ -636,7 +645,7 @@
       if (!now) return [];
       var hits = [now];
       var acc = 0;
-      var lastI = now.i != null ? now.i : Math.floor((ts - trail.gun_ts_ms) / trail.step_ms);
+      var lastI = now.i != null ? now.i : Math.floor((ts - GRID_ORIGIN) / trail.step_ms);
       var idx = hitBack(b, lastI - 1);
       var wantM = Math.max(TAIL_M, 28 / Math.max(mapBounds && mapBounds.scale ? mapBounds.scale : 0.4, 0.08));
       while (idx >= 0) {
@@ -703,12 +712,13 @@
       for (var L = 1; L < left.length; L++) mapCtx.lineTo(left[L].x, left[L].y);
       for (var R = right.length - 1; R >= 0; R--) mapCtx.lineTo(right[R].x, right[R].y);
       mapCtx.closePath();
-      mapCtx.fillStyle = OCS[sail] ? "rgba(252,165,165,0.22)" : "rgba(226,232,240,0.22)";
+      var hot = ocsPending(sail, ts);
+      mapCtx.fillStyle = hot ? "rgba(252,165,165,0.22)" : "rgba(226,232,240,0.22)";
       mapCtx.fill();
       mapCtx.beginPath();
       mapCtx.moveTo(screen[0].x, screen[0].y);
       for (var s = 1; s < screen.length; s++) mapCtx.lineTo(screen[s].x, screen[s].y);
-      mapCtx.strokeStyle = OCS[sail] ? "rgba(254,202,202,0.85)" : "rgba(248,250,252,0.85)";
+      mapCtx.strokeStyle = hot ? "rgba(254,202,202,0.85)" : "rgba(248,250,252,0.85)";
       mapCtx.lineWidth = Math.max(1.2, 0.5 / Math.max(mapBounds.scale, 0.12));
       mapCtx.lineJoin = "round";
       mapCtx.lineCap = "round";
@@ -761,6 +771,9 @@
     }
     function ocsPending(sail, ts) {
       if (!OCS[sail]) return false;
+      if (ts < GUN_TS) return false;
+      var markedAt = OCS_TS[sail] != null ? OCS_TS[sail] : GUN_TS;
+      if (ts < markedAt) return false;
       if (LEGAL_TS[sail] == null) return true;
       return ts < LEGAL_TS[sail];
     }
@@ -1036,7 +1049,9 @@
     function splitCell(times, i, boat) {
       var t = times[i];
       if (PASSES[i] && (PASSES[i].id === "ST" || PASSES[i].label === "ST")) {
-        if (t == null) return "";
+        if (t == null) {
+          return ocsPending(boat, viewTs) ? "OCS" : "";
+        }
         var gap = fmtBehindFirst(t);
         if (OCS[boat]) return "OCS " + gap;
         return gap;
@@ -1117,10 +1132,11 @@
     }
     function rowsAt(ts) {
       var names = {};
+      Object.keys(BOATS).forEach(function (boat) { names[boat] = true; });
+      Object.keys(trail.boats || {}).forEach(function (boat) { names[boat] = true; });
       PASSES.forEach(function (pass) {
         pass.boats.forEach(function (b) {
-          var t = tsAtPass(pass, b.boat);
-          if (t != null && t <= ts) names[b.boat] = true;
+          names[b.boat] = true;
         });
       });
       var rows = Object.keys(names).map(function (boat) {
@@ -1137,7 +1153,13 @@
       });
       rows.sort(function (a, b) {
         if (b.farIdx !== a.farIdx) return b.farIdx - a.farIdx;
-        return a.farTs - b.farTs;
+        if (a.farTs != null && b.farTs != null && a.farTs !== b.farTs) return a.farTs - b.farTs;
+        var ia = ident(a.boat);
+        var ib = ident(b.boat);
+        var ba = ia && ia.bow != null ? Number(ia.bow) : 99;
+        var bb = ib && ib.bow != null ? Number(ib.bow) : 99;
+        if (ba !== bb) return ba - bb;
+        return String(a.boat).localeCompare(String(b.boat));
       });
       rows.forEach(function (r, i) { r.rank = i + 1; });
       return rows;
@@ -1150,13 +1172,14 @@
     }
     function rowHtml(r, unroll, rankMaps, passLimit) {
       var id = ident(r.boat);
+      var pending = ocsPending(r.boat, viewTs);
       var medal = r.rank === 1 ? " medal-gold" : r.rank === 2 ? " medal-silver" : r.rank === 3 ? " medal-bronze" : "";
-      var cls = medal + (unroll ? " lipton-unroll" : "");
+      var cls = medal + (unroll ? " lipton-unroll" : "") + (pending ? " ocs-pending" : "");
       var html = "<tr class=\"" + cls + "\" data-bow=\"" + esc(id ? id.bow : "") + "\" data-boat=\"" + esc(r.boat) + "\">";
       html += "<td class=\"rank-col\">" + r.rank + "</td>";
       html += "<td class=\"wc-meta-col\">" + bowCell(id) + "</td>";
       html += "<td class=\"boat-name-col\">" + boatNameCell(id) + "</td>";
-      html += "<td class=\"club-col\">" + clubCell(id) + "</td>";
+      html += "<td class=\"club-col\">" + clubCell(id, pending) + "</td>";
       for (var i = 0; i <= passLimit; i++) {
         html += "<td class=\"timer-col\">" + splitCell(r.times, i, r.boat) + "</td>";
         if (i < passLimit && !skipLastLegDelta(passLimit, i)) {
@@ -1168,12 +1191,22 @@
     }
     function setSailed(rows) {
       if (!sailedEl) return;
+      if (viewTs < GUN_TS) {
+        sailedEl.textContent = RACE_LAB + " · gun " + GUN_CLOCK + " · T−10 · approaching start";
+        fillChecksum();
+        return;
+      }
       if (!rows.length) {
         sailedEl.textContent = "Race " + RACE_NO + " · gun " + GUN_CLOCK + " · approaching start";
         fillChecksum();
         return;
       }
       var lead = rows[0];
+      if (lead.farIdx < 0) {
+        sailedEl.textContent = RACE_LAB + " · gun " + GUN_CLOCK + " · approaching start";
+        fillChecksum();
+        return;
+      }
       var n = 0;
       rows.forEach(function (r) { if (r.farIdx === lead.farIdx) n += 1; });
       var tot = PASSES[lead.farIdx] ? PASSES[lead.farIdx].boats.length : n;
@@ -1321,7 +1354,7 @@
       setPlayLabel();
       setRateButtons();
       render(playTs);
-      if (sailedEl) sailedEl.textContent = RACE_LAB + " · gun " + GUN_CLOCK + " · press Play";
+      if (sailedEl) sailedEl.textContent = RACE_LAB + " · gun " + GUN_CLOCK + " · T−10 · press Play";
       fillChecksum();
     }
 
@@ -1335,7 +1368,7 @@
     document.querySelectorAll("[data-jump]").forEach(function (btn) {
       btn.addEventListener("click", function () {
         var key = btn.getAttribute("data-jump");
-        var ts = key === "gun" ? GUN_TS : key === "finish" ? PLAY_END_TS : PLAY_START_TS;
+        var ts = key === "pre" ? PLAY_START_TS : key === "gun" ? GUN_TS : key === "finish" ? PLAY_END_TS : PLAY_START_TS;
         if (!ts) return;
         jump(ts);
       });
