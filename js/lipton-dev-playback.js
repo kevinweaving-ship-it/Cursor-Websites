@@ -196,13 +196,19 @@
       var f = t - i;
       if (i < 0) { i = 0; f = 0; }
       if (i >= b.lat.length) { i = b.lat.length - 1; f = 0; }
-      if (b.lat[i] == null) return null;
-      if (f < 0.001 || i + 1 >= b.lat.length || b.lat[i + 1] == null) {
+      while (i >= 0 && b.lat[i] == null) i -= 1;
+      if (i < 0) return null;
+      var j = i + 1;
+      while (j < b.lat.length && b.lat[j] == null) j += 1;
+      if (j >= b.lat.length || b.lat[j] == null) {
         return { lat: b.lat[i], lon: b.lon[i] };
       }
+      f = (t - i) / (j - i);
+      if (f < 0) f = 0;
+      if (f > 1) f = 1;
       return {
-        lat: b.lat[i] + (b.lat[i + 1] - b.lat[i]) * f,
-        lon: b.lon[i] + (b.lon[i + 1] - b.lon[i]) * f
+        lat: b.lat[i] + (b.lat[j] - b.lat[i]) * f,
+        lon: b.lon[i] + (b.lon[j] - b.lon[i]) * f
       };
     }
     function drawMap(ts) {
