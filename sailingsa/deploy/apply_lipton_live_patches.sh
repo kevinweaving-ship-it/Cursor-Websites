@@ -25,6 +25,7 @@ PATCHERS=(
   patch_lipton_js_pre_wake_close.py
   patch_lipton_apply_overnight_skip.py
   patch_lipton_race_times_merge.py
+  patch_lipton_pre_arm_put.py
 )
 
 echo "api $API"
@@ -54,6 +55,7 @@ REQUIRED=(
   LIPTON_JS_PRE_WAKE_CLOSE_V1
   LIPTON_APPLY_OVERNIGHT_SKIP_V1
   LIPTON_RACE_TIMES_MERGE_V1
+  LIPTON_PRE_ARM_PUT_V1
 )
 miss=0
 for m in "${REQUIRED[@]}"; do
