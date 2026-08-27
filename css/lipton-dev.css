@@ -79,11 +79,12 @@ body[data-lipton-dev="1"] .table-wrapper {
 body[data-lipton-dev="1"] .table-wrapper[hidden] {
   display: none;
 }
-body[data-lipton-dev="1"] #lipton-dev-tbody:empty::after {
-  content: none;
-}
 body[data-lipton-dev="1"] th.timer-col {
   font-weight: 800;
+}
+body[data-lipton-dev="1"] thead tr {
+  transform-origin: left center;
+  animation: lipton-unroll 0.55s ease-out;
 }
 body[data-lipton-dev="1"] .table-wrapper table {
   width: 100%;
