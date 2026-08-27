@@ -3,7 +3,7 @@
  * Data: /js/lipton-dev-replay.json (replace that file to refresh old data).
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827e";
+  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827f";
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -126,7 +126,7 @@
     function render(ts, unrollNew) {
       var n = MARK1.filter(function (b) { return b.ts <= ts; }).length;
       var shown = tbody.rows.length;
-      if (tableWrap) tableWrap.hidden = n === 0;
+      if (tableWrap) tableWrap.hidden = false;
       if (n === 0) {
         tbody.innerHTML = "";
       } else if (n < shown || !unrollNew) {
@@ -140,7 +140,11 @@
         for (var j = 0; j < add.length; j++) extra += rowHtml(add[j], true);
         tbody.insertAdjacentHTML("beforeend", extra);
       }
-      if (clockEl) clockEl.textContent = fmtT(ts - GUN_TS);
+      if (clockEl) {
+        clockEl.textContent = n === 0
+          ? fmtT(ts - GUN_TS) + " → M1"
+          : fmtT(ts - GUN_TS);
+      }
       setSailed(n);
     }
 
@@ -167,7 +171,10 @@
           lastRounded = n;
           render(playTs, true);
         } else if (clockEl) {
-          clockEl.textContent = fmtT(playTs - GUN_TS);
+          var nNow = MARK1.filter(function (b) { return b.ts <= playTs; }).length;
+          clockEl.textContent = nNow === 0
+            ? fmtT(playTs - GUN_TS) + " → M1"
+            : fmtT(playTs - GUN_TS);
         }
       } else {
         lastWall = Date.now();
