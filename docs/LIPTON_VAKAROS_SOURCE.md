@@ -56,4 +56,23 @@ python3 sailingsa/scripts/lipton_vakaros.py
 
 The script prints JSON from Firestore. It also GETs the watch URL and records that the HTML is a shell. Exit `0` only if races were returned by the tracker.
 
-Lipton-only. Do not reuse this against other regattas.
+## Store it — the feed will disappear
+
+After the event, this Firestore document is gone. Archive **the whole spectator document** (boats, marks, courses, guns, OCS, finish lat/lon, times), not a guessed subset.
+
+Table: `public.vakaros_snapshots` (append-only). Each fetch is a new row.
+
+```bash
+# on live
+DB_URL=... python3 sailingsa/scripts/lipton_vakaros.py --save
+```
+
+Or: `expect sailingsa/deploy/apply-lipton-vakaros-archive.exp`
+
+`payload` = decoded document (usable JSON).  
+`payload_raw` = Firestore REST body (lossless).  
+`summary` = days / race numbers derived from `races[].starts[].startTime` (SAST date), not from our clock.
+
+**Not in this document (cannot invent):** GPS replay / frame bundles. Spectator auth can read `regattas/{id}` only. Storage was empty. If those streams become readable later, snapshot them into new rows with a different `source`.
+
+Lipton-only ingest (`regatta_id = 2026-08-29-lipton-challenge-cup`). Do not reuse against other regattas.

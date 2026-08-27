@@ -17,7 +17,10 @@ be observed from tracker state, not from our stored query string.
 """
 from __future__ import annotations
 
+import argparse
+import hashlib
 import json
+import os
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
@@ -33,7 +36,36 @@ FIREBASE_PROJECT = "vakaros-racesense"
 # Public web API key shipped in player.vakaros.com/main.dart.js
 FIREBASE_WEB_API_KEY = "AIzaSyDoQfjoAtx9g3sS7MzKUM0gGwW8tREKxwk"
 SAST = ZoneInfo("Africa/Johannesburg")
-FINISHED_STAGES = {"finished"}
+SNAPSHOT_DDL = """
+CREATE TABLE IF NOT EXISTS public.vakaros_snapshots (
+    snapshot_id BIGSERIAL PRIMARY KEY,
+    regatta_id TEXT NOT NULL,
+    event_id TEXT NOT NULL,
+    fleet TEXT,
+    source TEXT NOT NULL,
+    fetched_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    tracker_modified_ts TIMESTAMPTZ,
+    tracker_create_time TIMESTAMPTZ,
+    tracker_update_time TIMESTAMPTZ,
+    sequence_number INTEGER,
+    payload_sha256 TEXT NOT NULL,
+    payload JSONB NOT NULL,
+    payload_raw JSONB NOT NULL,
+    summary JSONB,
+    player_html JSONB,
+    notes TEXT
+);
+CREATE INDEX IF NOT EXISTS vakaros_snapshots_regatta_fetched_idx
+    ON public.vakaros_snapshots (regatta_id, fetched_at DESC);
+CREATE INDEX IF NOT EXISTS vakaros_snapshots_event_idx
+    ON public.vakaros_snapshots (event_id, fetched_at DESC);
+"""
+
+
+def ensure_table(conn) -> None:
+    with conn.cursor() as cur:
+        cur.execute(SNAPSHOT_DDL)
+    conn.commit()
 
 
 class VakarosSourceError(RuntimeError):
@@ -143,7 +175,8 @@ def player_html_is_shell_only(html: str) -> dict:
     }
 
 
-def fetch_regatta_doc(event_id: str = LIPTON_EVENT_ID, token: str | None = None) -> dict:
+def fetch_regatta_raw(event_id: str = LIPTON_EVENT_ID, token: str | None = None) -> dict:
+    """Raw Firestore REST document. Keep this — it is the lossless archive."""
     tok = token or anonymous_id_token()
     url = (
         "https://firestore.googleapis.com/v1/projects/"
@@ -154,7 +187,11 @@ def fetch_regatta_doc(event_id: str = LIPTON_EVENT_ID, token: str | None = None)
         raise VakarosSourceError(f"Firestore regattas/{event_id} HTTP {status}: {body}")
     if not isinstance(body, dict) or "fields" not in body:
         raise VakarosSourceError(f"Firestore regattas/{event_id} had no fields")
-    return decode_firestore_doc(body)
+    return body
+
+
+def fetch_regatta_doc(event_id: str = LIPTON_EVENT_ID, token: str | None = None) -> dict:
+    return decode_firestore_doc(fetch_regatta_raw(event_id=event_id, token=token))
 
 
 def _j22_division(doc: dict) -> dict:
@@ -267,32 +304,125 @@ def summarize_event(doc: dict) -> dict:
     }
 
 
-def fetch_lipton_from_tracker() -> dict:
+def fetch_lipton_archive() -> dict:
+    """Full tracker pull for DB archive: raw REST + decoded payload + summary."""
     html = fetch_player_html()
     html_probe = player_html_is_shell_only(html)
-    doc = fetch_regatta_doc()
-    out = summarize_event(doc)
-    out["player_html"] = html_probe
+    raw = fetch_regatta_raw()
+    doc = decode_firestore_doc(raw)
+    summary = summarize_event(doc)
+    summary["player_html"] = html_probe
     if html_probe.get("mentions_race_1") or html_probe.get("mentions_day_1"):
-        out["player_html_note"] = "HTML unexpectedly mentioned a race/day label — re-check scrape vs Firestore"
+        summary["player_html_note"] = (
+            "HTML unexpectedly mentioned a race/day label — re-check scrape vs Firestore"
+        )
     else:
-        out["player_html_note"] = (
+        summary["player_html_note"] = (
             "Confirmed: watch URL HTML is the Flutter shell only. "
             "Race/day list came from Firestore, which is what the player loads."
         )
-    return out
+    payload_bytes = json.dumps(doc, sort_keys=True, default=str).encode("utf-8")
+    return {
+        "summary": summary,
+        "payload": doc,
+        "payload_raw": raw,
+        "player_html": html_probe,
+        "payload_sha256": hashlib.sha256(payload_bytes).hexdigest(),
+    }
+
+
+def fetch_lipton_from_tracker() -> dict:
+    return fetch_lipton_archive()["summary"]
+
+
+def _db_url() -> str:
+    url = os.environ.get("DB_URL") or os.environ.get("DATABASE_URL")
+    if not url:
+        raise VakarosSourceError("DB_URL or DATABASE_URL required to save a snapshot")
+    return url
+
+
+def save_snapshot(archive: dict, db_url: str | None = None) -> dict:
+    """Append-only insert of the full tracker document. Lipton slug only."""
+    import psycopg2
+    from psycopg2.extras import Json
+
+    summary = archive["summary"]
+    if not summary.get("races"):
+        raise VakarosSourceError("refusing to save: tracker returned no races")
+    conn = psycopg2.connect(db_url or _db_url())
+    try:
+        ensure_table(conn)
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO public.vakaros_snapshots (
+                        regatta_id, event_id, fleet, source,
+                        tracker_modified_ts, tracker_create_time, tracker_update_time,
+                        sequence_number, payload_sha256, payload, payload_raw,
+                        summary, player_html, notes
+                    ) VALUES (
+                        %s, %s, %s, %s,
+                        %s, %s, %s,
+                        %s, %s, %s, %s,
+                        %s, %s, %s
+                    )
+                    RETURNING snapshot_id, fetched_at
+                    """,
+                    (
+                        LIPTON_SLUG,
+                        LIPTON_EVENT_ID,
+                        summary.get("fleet"),
+                        "firestore_regattas",
+                        summary.get("modified_ts"),
+                        (archive["payload_raw"] or {}).get("createTime"),
+                        (archive["payload_raw"] or {}).get("updateTime"),
+                        archive["payload"].get("sequenceNumber"),
+                        archive["payload_sha256"],
+                        Json(archive["payload"]),
+                        Json(archive["payload_raw"]),
+                        Json(summary),
+                        Json(archive["player_html"]),
+                        "Full Vakaros spectator document. GPS replay frames are not in this collection.",
+                    ),
+                )
+                row = cur.fetchone()
+    finally:
+        conn.close()
+    return {
+        "ok": True,
+        "snapshot_id": row[0],
+        "fetched_at": row[1].isoformat() if row[1] else None,
+        "payload_sha256": archive["payload_sha256"],
+        "bytes": len(json.dumps(archive["payload"], default=str)),
+        "races": len(summary.get("races") or []),
+        "last_finished_race": summary.get("last_finished_race"),
+        "next_race_number": summary.get("next_race_number"),
+        "days": summary.get("days"),
+    }
 
 
 def main() -> int:
+    ap = argparse.ArgumentParser(description="Lipton Vakaros tracker source")
+    ap.add_argument(
+        "--save",
+        action="store_true",
+        help="Insert the full tracker document into public.vakaros_snapshots (needs DB_URL)",
+    )
+    args = ap.parse_args()
     try:
-        data = fetch_lipton_from_tracker()
+        archive = fetch_lipton_archive()
+        summary = archive["summary"]
+        if args.save:
+            result = save_snapshot(archive)
+            print(json.dumps(result, indent=2))
+        else:
+            print(json.dumps(summary, indent=2))
     except Exception as e:
         print(json.dumps({"ok": False, "error": str(e)}, indent=2))
         return 1
-    print(json.dumps(data, indent=2))
-    if not data.get("races"):
-        return 1
-    if data.get("next_race_number") is None:
+    if not summary.get("races") or summary.get("next_race_number") is None:
         return 1
     return 0
 
