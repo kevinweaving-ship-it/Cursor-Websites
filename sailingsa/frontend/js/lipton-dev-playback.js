@@ -5,8 +5,8 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827ao";
-  var TRAIL_URL = "/js/lipton-dev-trail.json?v=20260827ao";
+  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827ap";
+  var TRAIL_URL = "/js/lipton-dev-trail.json?v=20260827ap";
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -590,14 +590,18 @@
       if (!now) return [];
       var hits = [now];
       var acc = 0;
-      var idx = hitBack(b, Math.floor((ts - trail.gun_ts_ms) / trail.step_ms) - 1);
       var lastI = now.i != null ? now.i : Math.floor((ts - trail.gun_ts_ms) / trail.step_ms);
+      var idx = hitBack(b, lastI - 1);
+      var wantM = Math.max(TAIL_M, 28 / Math.max(mapBounds && mapBounds.scale ? mapBounds.scale : 0.4, 0.08));
       while (idx >= 0) {
-        if (lastI - idx > 2) break;
+        var gap = lastI - idx;
         var cur = { lat: b.lat[idx], lon: b.lon[idx], i: idx };
-        acc += distM(hits[hits.length - 1], cur);
+        var step = distM(hits[hits.length - 1], cur);
+        if (gap > 45) break;
+        if (step > 14 * Math.min(gap, 8)) break;
+        acc += step;
         hits.push(cur);
-        if (acc >= TAIL_M) break;
+        if (acc >= wantM) break;
         lastI = idx;
         idx = hitBack(b, idx - 1);
       }
@@ -607,11 +611,14 @@
       for (var s = 0; s < hits.length - 1; s++) {
         var a = hits[s];
         var c = hits[s + 1];
-        var p0 = hits[s - 1] || a;
-        var p3 = hits[s + 2] || c;
+        var span = (c.i != null && a.i != null) ? (c.i - a.i) : 1;
         dense.push(a);
-        var steps = 5;
-        for (var u = 1; u < steps; u++) dense.push(catmull(p0, a, c, p3, u / steps));
+        if (span <= 2) {
+          var p0 = hits[s - 1] || a;
+          var p3 = hits[s + 2] || c;
+          var steps = 5;
+          for (var u = 1; u < steps; u++) dense.push(catmull(p0, a, c, p3, u / steps));
+        }
       }
       dense.push(hits[hits.length - 1]);
       return dense;
@@ -640,7 +647,8 @@
         var nx = -dy / len;
         var ny = dx / len;
         var along = i / (screen.length - 1);
-        var w = 0.35 + along * along * 3.1;
+        var zoom = Math.max(1, 0.45 / Math.max(mapBounds.scale, 0.12));
+        var w = (0.4 + along * along * 3.2) * Math.min(zoom, 2.2);
         left.push({ x: screen[i].x + nx * w, y: screen[i].y + ny * w });
         right.push({ x: screen[i].x - nx * w, y: screen[i].y - ny * w });
       }
@@ -654,8 +662,8 @@
       mapCtx.beginPath();
       mapCtx.moveTo(screen[0].x, screen[0].y);
       for (var s = 1; s < screen.length; s++) mapCtx.lineTo(screen[s].x, screen[s].y);
-      mapCtx.strokeStyle = OCS[sail] ? "rgba(254,202,202,0.7)" : "rgba(248,250,252,0.7)";
-      mapCtx.lineWidth = 1.15;
+      mapCtx.strokeStyle = OCS[sail] ? "rgba(254,202,202,0.85)" : "rgba(248,250,252,0.85)";
+      mapCtx.lineWidth = Math.max(1.2, 0.5 / Math.max(mapBounds.scale, 0.12));
       mapCtx.lineJoin = "round";
       mapCtx.lineCap = "round";
       mapCtx.stroke();
