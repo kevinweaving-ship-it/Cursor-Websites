@@ -5,8 +5,8 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827al";
-  var TRAIL_URL = "/js/lipton-dev-trail.json?v=20260827al";
+  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827am";
+  var TRAIL_URL = "/js/lipton-dev-trail.json?v=20260827am";
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -102,7 +102,6 @@
     (data.ocs || []).forEach(function (name) { OCS[name] = true; });
     var EXONERATED = {};
     (data.exonerated || []).forEach(function (name) { EXONERATED[name] = true; });
-    var OCS_HOLD_MS = 20000;
     var LEG_FLASH_MS = 20000;
     var ST_LEAD_TS = null;
     PASSES.forEach(function (p) {
@@ -116,13 +115,92 @@
         if (ST_LEAD_TS == null) ST_LEAD_TS = p.boats[0].ts;
       }
     });
-    var START_RANK = {};
+    function startLineGeom() {
+      var sl = trail.start_line;
+      if (!sl || !sl.left || !sl.right) return null;
+      var lat0 = (sl.left.lat + sl.right.lat) / 2;
+      var lon0 = (sl.left.lon + sl.right.lon) / 2;
+      var R = 6371000;
+      function xy(lat, lon) {
+        return {
+          x: (lon - lon0) * Math.PI / 180 * Math.cos(lat0 * Math.PI / 180) * R,
+          y: (lat - lat0) * Math.PI / 180 * R
+        };
+      }
+      var a = xy(sl.left.lat, sl.left.lon);
+      var b = xy(sl.right.lat, sl.right.lon);
+      var abx = b.x - a.x;
+      var aby = b.y - a.y;
+      var abLen = Math.hypot(abx, aby) || 1;
+      function signed(lat, lon) {
+        var p = xy(lat, lon);
+        var apx = p.x - a.x;
+        var apy = p.y - a.y;
+        return { d: (abx * apy - aby * apx) / abLen, along: (apx * abx + apy * aby) / abLen };
+      }
+      var ds = [];
+      Object.keys(trail.boats || {}).forEach(function (sail) {
+        var s = trail.boats[sail];
+        if (!s || s.lat[0] == null) return;
+        ds.push(signed(s.lat[0], s.lon[0]).d);
+      });
+      ds.sort(function (u, v) { return u - v; });
+      var flip = ds.length ? ds[Math.floor(ds.length / 2)] < 0 : false;
+      return { signed: signed, abLen: abLen, flip: flip };
+    }
+    function courseCrossings(sail, geom) {
+      var s = trail.boats[sail];
+      if (!s || !geom) return [];
+      var hits = [];
+      var prev = null;
+      var n = Math.min(s.lat.length, 180);
+      for (var i = 0; i < n; i++) {
+        if (s.lat[i] == null) continue;
+        var sg = geom.signed(s.lat[i], s.lon[i]);
+        var dist = geom.flip ? -sg.d : sg.d;
+        var ts = trail.gun_ts_ms + i * trail.step_ms;
+        if (prev && prev.d > 0 && dist <= 0) {
+          var frac = prev.d === dist ? 1 : prev.d / (prev.d - dist);
+          var t = Math.round(prev.ts + (ts - prev.ts) * frac);
+          var along = prev.along + (sg.along - prev.along) * frac;
+          if (along >= -25 && along <= geom.abLen + 25) hits.push(t);
+        }
+        prev = { d: dist, along: sg.along, ts: ts };
+      }
+      return hits;
+    }
+    var geom = startLineGeom();
+    var LEGAL_TS = {};
+    var OCS_TS = {};
+    Object.keys(trail.boats || {}).forEach(function (sail) {
+      var hits = courseCrossings(sail, geom);
+      if (OCS[sail]) {
+        if (hits[0] != null) OCS_TS[sail] = hits[0];
+        if (hits[1] != null) LEGAL_TS[sail] = hits[1];
+      } else if (hits[0] != null) {
+        LEGAL_TS[sail] = hits[0];
+      }
+    });
     PASSES.forEach(function (p) {
       if (p.id !== "ST" && p.label !== "ST") return;
-      p.boats.slice().sort(function (a, b) { return a.ts - b.ts; }).forEach(function (b, i) {
-        START_RANK[b.boat] = i + 1;
+      p.boats.forEach(function (b) {
+        if (LEGAL_TS[b.boat] == null && !OCS[b.boat]) LEGAL_TS[b.boat] = b.ts;
       });
     });
+    var START_RANK = {};
+    Object.keys(LEGAL_TS).sort(function (a, b) {
+      return LEGAL_TS[a] - LEGAL_TS[b];
+    }).forEach(function (sail, i) {
+      START_RANK[sail] = i + 1;
+    });
+    function liveStartRank(sail, ts) {
+      if (LEGAL_TS[sail] == null || ts < LEGAL_TS[sail]) return null;
+      var earlier = 0;
+      Object.keys(LEGAL_TS).forEach(function (other) {
+        if (LEGAL_TS[other] < LEGAL_TS[sail] || (LEGAL_TS[other] === LEGAL_TS[sail] && other < sail)) earlier += 1;
+      });
+      return earlier + 1;
+    }
     var GUN_CLOCK = String(data.gun_sast || "").slice(11, 19) || "15:50:01";
     var RACE_NO = Number(data.race_number || 5);
     var RACE_LAB = "Race " + RACE_NO;
@@ -630,26 +708,28 @@
     }
     function ocsPending(sail, ts) {
       if (!OCS[sail]) return false;
-      if (!EXONERATED[sail]) return true;
-      var st = stTime(sail);
-      var from = st != null ? st : GUN_TS;
-      return ts < from + OCS_HOLD_MS;
+      if (LEGAL_TS[sail] == null) return true;
+      return ts < LEGAL_TS[sail];
     }
     function mapBadge(sail, ts) {
       var startNo = START_RANK[sail] != null ? START_RANK[sail] : null;
+      var liveNo = liveStartRank(sail, ts);
       var last = -1;
       var lastTs = null;
+      var pending = ocsPending(sail, ts);
       for (var i = 0; i < PASSES.length; i++) {
-        var t = tsAtPass(PASSES[i], sail);
+        var p = PASSES[i];
+        if ((p.id === "ST" || p.label === "ST") && pending) continue;
+        var t = tsAtPass(p, sail);
+        if ((p.id === "ST" || p.label === "ST") && LEGAL_TS[sail] != null) t = LEGAL_TS[sail];
         if (t != null && t <= ts) {
           last = i;
           lastTs = t;
         }
       }
-      var place = startNo;
+      var place = liveNo;
       if (last > 0) place = passRankOf(PASSES[last], sail);
-      var pending = ocsPending(sail, ts);
-      var started = last >= 0;
+      var started = liveNo != null;
       var delta = null;
       var flash = false;
       if (last > 0 && place != null && startNo != null) {
