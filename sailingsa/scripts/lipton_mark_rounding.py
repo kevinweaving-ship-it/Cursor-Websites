@@ -96,20 +96,55 @@ def ang_diff(a, b) -> float:
     return (b - a + 180) % 360 - 180
 
 
-def fetch_rows(after_ms: int, before_ms: int) -> list[dict]:
+def _fetch_chunk(after_ms: int, before_ms: int, *, limit: int = 100000) -> tuple[list, list]:
+    data = _http_json(
+        f"{TELEAPI}/event/{LIPTON_EVENT_ID}?after={after_ms}&before={before_ms}&limit={limit}&division={LIPTON_FLEET}"
+    )
+    return data.get("Fields") or [], data.get("Rows") or []
+
+
+def fetch_rows(after_ms: int, before_ms: int, *, chunk_ms: int = 30_000, overlap_ms: int = 1_000) -> list[dict]:
+    """Every telemetry row in [after, before). Overlapping chunks so we do not drop the boundary second.
+
+    If a window hits the row cap, split it. Do not downsample here — the map may grid later.
+    """
+    limit = 100000
     rows = []
     fields = None
     t = after_ms
     while t < before_ms:
-        t2 = min(t + 120_000, before_ms)
-        data = _http_json(
-            f"{TELEAPI}/event/{LIPTON_EVENT_ID}?after={t}&before={t2}&limit=100000&division={LIPTON_FLEET}"
-        )
-        fields = data["Fields"]
-        rows.extend(data.get("Rows") or [])
-        t = t2
+        t2 = min(t + chunk_ms, before_ms)
+        flds, chunk = _fetch_chunk(t, t2, limit=limit)
+        fields = flds or fields
+        if len(chunk) >= limit and t2 - t > 2_000:
+            mid = t + (t2 - t) // 2
+            flds_a, a = _fetch_chunk(t, mid, limit=limit)
+            flds_b, b = _fetch_chunk(mid, t2, limit=limit)
+            fields = flds_a or flds_b or fields
+            rows.extend(a)
+            rows.extend(b)
+        else:
+            rows.extend(chunk)
+        nxt = t2 - overlap_ms if t2 < before_ms else t2
+        t = max(nxt, t + 1)
     idx = {k: i for i, k in enumerate(fields or [])}
-    return [{k: row[i] for k, i in idx.items()} for row in rows]
+    mapped = [{k: row[i] for k, i in idx.items()} for row in rows]
+    seen = set()
+    out = []
+    for rec in mapped:
+        key = (
+            rec.get("sn"),
+            rec.get("sail_number"),
+            rec.get("ts"),
+            rec.get("latitude"),
+            rec.get("longitude"),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(rec)
+    out.sort(key=lambda r: (r.get("ts") or 0, str(r.get("sn") or ""), str(r.get("sail_number") or "")))
+    return out
 
 
 def _pct(xs, p):

@@ -5,8 +5,8 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827ap";
-  var TRAIL_URL = "/js/lipton-dev-trail.json?v=20260827ap";
+  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827aq";
+  var TRAIL_URL = "/js/lipton-dev-trail.json?v=20260827aq";
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -216,6 +216,7 @@
     var tbody = document.getElementById("lipton-dev-tbody");
     var clockEl = document.getElementById("lipton-dev-clock");
     var sailedEl = document.getElementById("lipton-dev-sailed");
+    var checksumEl = document.getElementById("lipton-dev-checksum");
     var mapEl = document.getElementById("lipton-dev-map");
     var playBtn = document.getElementById("lipton-dev-play");
     var headRow = document.getElementById("lipton-dev-thead-row");
@@ -1036,6 +1037,7 @@
       if (!sailedEl) return;
       if (!rows.length) {
         sailedEl.textContent = "Race " + RACE_NO + " · gun " + GUN_CLOCK + " · approaching start";
+        fillChecksum();
         return;
       }
       var lead = rows[0];
@@ -1049,6 +1051,25 @@
       var ocsBit = isSt && Object.keys(OCS).length ? " · OCS " + Object.keys(OCS).join(",") : "";
       var rankLab = isSt ? "start" : lead.farLab;
       sailedEl.textContent = (isSt ? RACE_LAB + " · gun " + GUN_CLOCK : RACE_LAB + " replay") + " · " + lead.farLab + lapBit + " · " + n + " of " + tot + " · rank by " + rankLab + ocsBit;
+      fillChecksum();
+    }
+    function fillChecksum() {
+      if (!checksumEl) return;
+      var cs = data.checksum;
+      if (!cs) {
+        checksumEl.textContent = "";
+        return;
+      }
+      var fleetN = cs.fleet_n || 17;
+      if (cs.ok) {
+        checksumEl.textContent = "checksum " + fleetN + "/" + fleetN + " start · marks · finish";
+        return;
+      }
+      var bits = (cs.gaps || []).map(function (g) {
+        var miss = (g.missing || []).map(function (s) { return clubCode(s); }).join(" ");
+        return g.id + " " + miss;
+      });
+      checksumEl.textContent = "checksum gaps · " + bits.join(" · ");
     }
     function clockText(ts, rows) {
       var clock = fmtClock(ts - GUN_TS);
@@ -1121,6 +1142,7 @@
       setRateButtons();
       render(playTs);
       if (sailedEl) sailedEl.textContent = RACE_LAB + " · gun " + GUN_CLOCK + " · press Play";
+      fillChecksum();
     }
 
     function waitForTracker() {

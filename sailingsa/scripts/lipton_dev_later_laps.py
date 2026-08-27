@@ -17,6 +17,7 @@ from lipton_mark_rounding import (  # noqa: E402
     COURSE_PASSES,
     MARK_SN,
     SAST,
+    bearing_deg,
     fetch_rows,
     haversine_m,
 )
@@ -27,58 +28,87 @@ OUT_COPY = ROOT / "js/lipton-dev-replay.json"
 
 
 def nearest_mark(marks_sorted: list[dict], ts: int) -> dict | None:
+    """Buoy ping at or before ts, else the next ping if the last one is stale. Not boat GPS."""
     if not marks_sorted:
         return None
     lo, hi = 0, len(marks_sorted) - 1
     while lo < hi:
-        mid = (lo + hi) // 2
-        if marks_sorted[mid]["ts"] < ts:
-            lo = mid + 1
+        mid = (lo + hi + 1) // 2
+        if marks_sorted[mid]["ts"] <= ts:
+            lo = mid
         else:
-            hi = mid
-    best = marks_sorted[lo]
-    if lo and abs(marks_sorted[lo - 1]["ts"] - ts) <= abs(best["ts"] - ts):
-        best = marks_sorted[lo - 1]
-    return best
+            hi = mid - 1
+    last = marks_sorted[lo] if marks_sorted[lo]["ts"] <= ts else None
+    nxt = None
+    if last is None:
+        nxt = marks_sorted[0]
+    elif lo + 1 < len(marks_sorted):
+        nxt = marks_sorted[lo + 1]
+    stale_ms = 120_000
+    if last and ts - last["ts"] <= stale_ms:
+        return last
+    if nxt and nxt["ts"] - ts <= stale_ms:
+        return nxt
+    if last and nxt:
+        return last if (ts - last["ts"]) <= (nxt["ts"] - ts) else nxt
+    return last or nxt
 
 
-def rounding_candidates(pts: list[dict], marks_sorted: list[dict], *, enter_m=72.0, leave_m=55.0, approach_m=90.0):
-    """A visit: come from open water, dip near the mark, then leave. Marks may ping sparsely."""
+def rounding_candidates(pts: list[dict], marks_sorted: list[dict], *, enter_m=80.0, leave_extra_m=8.0, gap_inbound_ms=15_000):
+    """Heading + closest distance on every received point. Do not invent GPS.
+
+    Tracker holes before a real CPA still count: if the next ping is already in
+    the zone, that *is* received rounding data. A hole where the boat reappears
+    hundreds of metres past the mark is a checksum miss, not a guess.
+    """
     if not pts or not marks_sorted:
         return []
     series = []
+    prev_ts = None
     for p in pts:
         mk = nearest_mark(marks_sorted, p["ts"])
         if not mk:
             continue
         d = haversine_m(p["latitude"], p["longitude"], mk["latitude"], mk["longitude"])
-        series.append((p, d))
+        gap = None if prev_ts is None else p["ts"] - prev_ts
+        series.append((p, d, gap))
+        prev_ts = p["ts"]
     out = []
     i = 0
     n = len(series)
     while i < n:
-        p, d = series[i]
+        p, d, gap = series[i]
         if d > enter_m:
             i += 1
             continue
-        inbound = False
-        k = i - 1
-        while k >= 0 and (p["ts"] - series[k][0]["ts"]) <= 180_000:
-            if series[k][1] >= approach_m:
+        inbound = bool(gap is None or gap >= gap_inbound_ms)
+        if not inbound:
+            k = i - 1
+            while k >= 0 and (p["ts"] - series[k][0]["ts"]) <= 180_000:
+                if series[k][1] >= enter_m:
+                    inbound = True
+                    break
+                k -= 1
+        hdg = p.get("heading")
+        if hdg is not None and not inbound:
+            brg = _bearing_to_mark(p, nearest_mark(marks_sorted, p["ts"]))
+            if brg is not None and abs(_ang_diff(hdg, brg)) <= 95:
                 inbound = True
-                break
-            k -= 1
         best = (d, p)
         j = i
         left = False
-        while j < n and (series[j][0]["ts"] - p["ts"]) < 120_000:
+        while j < n and (series[j][0]["ts"] - p["ts"]) < 180_000:
             dj = series[j][1]
             if dj < best[0]:
                 best = (dj, series[j][0])
-            if dj >= leave_m and dj > best[0] + 4:
+            if dj >= best[0] + leave_extra_m:
                 left = True
                 break
             j += 1
+        if not left and best[0] <= 25.0:
+            nxt_gap = series[j][2] if j < n else None
+            if j >= n or (nxt_gap is not None and nxt_gap >= gap_inbound_ms):
+                left = True
         if inbound and left and best[0] <= enter_m:
             bp = best[1]
             out.append(
@@ -87,6 +117,7 @@ def rounding_candidates(pts: list[dict], marks_sorted: list[dict], *, enter_m=72
                     "sast": datetime.fromtimestamp(bp["ts"] / 1000, SAST).strftime("%H:%M:%S"),
                     "closest_m": round(best[0], 1),
                     "sog_kn": round((bp.get("sog") or 0) * 1.94384, 1),
+                    "heading": bp.get("heading"),
                 }
             )
             skip_until = bp["ts"] + 40_000
@@ -95,6 +126,16 @@ def rounding_candidates(pts: list[dict], marks_sorted: list[dict], *, enter_m=72
             continue
         i += 1
     return out
+
+
+def _bearing_to_mark(p: dict, mk: dict | None) -> float | None:
+    if not mk:
+        return None
+    return bearing_deg(p["latitude"], p["longitude"], mk["latitude"], mk["longitude"])
+
+
+def _ang_diff(a, b) -> float:
+    return (b - a + 180) % 360 - 180
 
 
 def main() -> int:

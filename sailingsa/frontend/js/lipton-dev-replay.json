@@ -1,7 +1,7 @@
 {
   "mode": "replay",
   "live": false,
-  "note": "Race 4 tracker. ST = seconds after first legal starter; OCS boats labelled OCS. SBYC is OCS (dtlMm -30) and was later exonerated. Marks from GPS trail. Not Nett.",
+  "note": "Race 4 tracker. Every teleapi point is used for roundings (heading + closest). ST = seconds after first legal starter; OCS boats labelled OCS. SBYC is OCS (dtlMm -30) and was later exonerated. Empty cell = GPS not received. Not Nett.",
   "regatta_id": "2026-08-29-lipton-challenge-cup",
   "dev_slug": "2026-08-29-lipton-challenge-cup-dev",
   "event_id": "Lv9A35uOBSBRmGpHgXtH",
@@ -746,7 +746,7 @@
         },
         {
           "boat": "TSC",
-          "ts_ms": 1787834695000
+          "ts_ms": 1787834694800
         },
         {
           "boat": "IZIVUNGUVUNGU",
@@ -754,7 +754,7 @@
         },
         {
           "boat": "LYC",
-          "ts_ms": 1787834745800
+          "ts_ms": 1787834745900
         },
         {
           "boat": "BYC",
@@ -775,6 +775,10 @@
         {
           "boat": "RNYC",
           "ts_ms": 1787835720600
+        },
+        {
+          "boat": "FBYC",
+          "ts_ms": 1787835758600
         },
         {
           "boat": "GLYC",
@@ -818,7 +822,7 @@
         },
         {
           "boat": "BYC",
-          "ts_ms": 1787836135400
+          "ts_ms": 1787836104400
         },
         {
           "boat": "WYAC",
@@ -930,7 +934,7 @@
         },
         {
           "boat": "GLYC",
-          "ts_ms": 1787837050100
+          "ts_ms": 1787837048900
         },
         {
           "boat": "RCYC Academy",
@@ -979,10 +983,104 @@
       ]
     }
   ],
+  "checksum": {
+    "fleet_n": 17,
+    "ok": false,
+    "sha256": "8f3c6f05d78105fb",
+    "passes": [
+      {
+        "id": "ST",
+        "n": 17,
+        "fleet_n": 17,
+        "missing": [],
+        "ok": true,
+        "sha256": "70b5742bf65dab75"
+      },
+      {
+        "id": "L1-1",
+        "n": 17,
+        "fleet_n": 17,
+        "missing": [],
+        "ok": true,
+        "sha256": "fde23d1d97592b19"
+      },
+      {
+        "id": "L1-2",
+        "n": 17,
+        "fleet_n": 17,
+        "missing": [],
+        "ok": true,
+        "sha256": "124c301a8c5a65dd"
+      },
+      {
+        "id": "L1-3",
+        "n": 17,
+        "fleet_n": 17,
+        "missing": [],
+        "ok": true,
+        "sha256": "3317c1c6544e5177"
+      },
+      {
+        "id": "L1-4",
+        "n": 17,
+        "fleet_n": 17,
+        "missing": [],
+        "ok": true,
+        "sha256": "aebafeeac3161906"
+      },
+      {
+        "id": "L2-1",
+        "n": 14,
+        "fleet_n": 17,
+        "missing": [
+          "RCYC",
+          "SBYC",
+          "WBYC"
+        ],
+        "ok": false,
+        "sha256": "3a69b35781543ac2"
+      },
+      {
+        "id": "L2-2",
+        "n": 17,
+        "fleet_n": 17,
+        "missing": [],
+        "ok": true,
+        "sha256": "5f0321817f6ad8b4"
+      },
+      {
+        "id": "L2-3",
+        "n": 17,
+        "fleet_n": 17,
+        "missing": [],
+        "ok": true,
+        "sha256": "737f8c08cc480113"
+      },
+      {
+        "id": "FIN",
+        "n": 17,
+        "fleet_n": 17,
+        "missing": [],
+        "ok": true,
+        "sha256": "9e160e03a2d0379b"
+      }
+    ],
+    "gaps": [
+      {
+        "id": "L2-1",
+        "missing": [
+          "RCYC",
+          "SBYC",
+          "WBYC"
+        ]
+      }
+    ],
+    "note": "Each pass sha256 is boat+ts from tracker GPS (marks) or Firestore (finish). Missing boats are GPS holes or a rounding we did not receive — not filled in."
+  },
   "sources": {
     "guns_finishes_ocs": "Vakaros Firestore races[R4] starts/finishes/ocsParticipants",
     "start_order": "teleapi GPS crossing of Race 4 startLine after/before gun. SBYC OCS.",
-    "marks": "teleapi GPS mark visits. Empty cell = not found on trail.",
-    "identity": "public /api/regatta/2026-08-29-lipton-challenge-cup bow/boat_name/club_abbrev"
+    "marks": "teleapi every GPS point; heading + closest. Empty = not received.",
+    "identity": "public Lipton sheet bow/boat/club logos"
   }
 }

@@ -15,6 +15,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from lipton_dev_checksum import build_checksum  # noqa: E402
 from lipton_dev_later_laps import rounding_candidates  # noqa: E402
 from lipton_mark_rounding import COURSE_PASSES, MARK_SN, fetch_rows  # noqa: E402
 from lipton_vakaros import _j22_division, fetch_regatta_doc  # noqa: E402
@@ -177,8 +178,9 @@ def main() -> int:
         "mode": "replay",
         "live": False,
         "note": (
-            "Race 4 tracker. ST = seconds after first legal starter; OCS boats labelled OCS. "
-            "SBYC is OCS (dtlMm -30) and was later exonerated. Marks from GPS trail. Not Nett."
+            "Race 4 tracker. Every teleapi point is used for roundings (heading + closest). "
+            "ST = seconds after first legal starter; OCS boats labelled OCS. "
+            "SBYC is OCS (dtlMm -30) and was later exonerated. Empty cell = GPS not received. Not Nett."
         ),
         "regatta_id": prev["regatta_id"],
         "dev_slug": prev["dev_slug"],
@@ -205,10 +207,17 @@ def main() -> int:
         "jumps": {"gun": gun, "start": gun, "finish": first_finish},
         "mark_labels": [p["label"] for p in mark_passes],
         "passes": [{"id": "ST", "label": "ST", "lap": 0, "mark": 0, "boats": st}, *mark_passes],
+        "checksum": build_checksum(
+            fleet=sorted(boats),
+            st=st,
+            mark_passes=mark_passes,
+            finish=finish_rows,
+            course_passes=COURSE_PASSES,
+        ),
         "sources": {
             "guns_finishes_ocs": "Vakaros Firestore races[R4] starts/finishes/ocsParticipants",
             "start_order": "teleapi GPS crossing of Race 4 startLine after/before gun. SBYC OCS.",
-            "marks": "teleapi GPS mark visits. Empty cell = not found on trail.",
+            "marks": "teleapi every GPS point; heading + closest. Empty = not received.",
             "identity": "public Lipton sheet bow/boat/club logos",
         },
     }
@@ -227,7 +236,10 @@ def main() -> int:
                 "st_first_legal": legal,
                 "st_n": len(st),
                 "marks": summary,
+                "finish_n": len(finish_rows),
                 "finish_first": finish_rows[0]["boat"],
+                "checksum_ok": pack["checksum"]["ok"],
+                "checksum_gaps": pack["checksum"]["gaps"],
             },
             indent=2,
         )
