@@ -8,7 +8,11 @@ import sqlite3
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+_here = Path(__file__).resolve()
+try:
+    ROOT = _here.parents[2]
+except IndexError:
+    ROOT = _here.parent
 SQLITE = Path(os.environ.get("LIPTON_SQLITE") or ROOT / "data" / "lipton_telemetry.sqlite")
 DDL = """
 CREATE TABLE IF NOT EXISTS public.lipton_telemetry (
