@@ -7,6 +7,36 @@ Do not invent positions, mark leaders, or Nett from the live map.
 
 This is the day as it starts. Fill each slice only with what the tracker actually gives us. Current slice: **gun → mark 1**.
 
+## Live auto grab (prepare for race day)
+
+Run on **This Mac**:
+
+```bash
+python3 sailingsa/scripts/lipton_race_day_live.py          # continuous
+python3 sailingsa/scripts/lipton_race_day_live.py --once   # one poll
+```
+
+State machine (`lipton_race_day_phases.py`):
+
+| Phase | Meaning | What we do |
+|---|---|---|
+| **DOCK** | Boats + marks at club, SOG &lt; 1 kn | Grab GPS continuously |
+| **COURSE_SET** | Fleet starts moving (≥1 kn); marks visible | **Commit** mark lat/lon snapshot; keep grabbing |
+| **PRESTART** | Boats near start / lineup; race = last finished + 1 (tracker race no) | Keep grabbing |
+| **T_MINUS** | Tracker gun in future (T−) | Sync clock; **arm race mode**; keep grabbing |
+| **RACING** | Now ≥ gun (T+) | Same live GPS stream we archive for historical replay |
+| **FINISHED** | Enough finishes in Firestore | Disarm race mode; await next race |
+
+Outputs under `data/`:
+- `lipton_race_day_state.json` — phase, race_number, T−/T+, race_mode
+- `lipton_race_day_marks.json` — committed buoy positions
+- `lipton_r{N}_telemetry.jsonl` — per-race GPS (same shape as historical pack)
+- `lipton_race_day_live.jsonl` — continuous dock→course day file
+
+**Hard rule:** grab + archive only. Do **not** auto-write public Nett / results sheet from tracker places.
+
+Unit tests: `python3 -m unittest lipton_race_day_phases_test` (from `sailingsa/scripts`).
+
 ## Tools (whole day)
 
 | Tool | Job |
