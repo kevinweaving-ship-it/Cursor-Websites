@@ -5,8 +5,8 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827ac";
-  var TRAIL_URL = "/js/lipton-dev-trail.json?v=20260827ac";
+  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827ae";
+  var TRAIL_URL = "/js/lipton-dev-trail.json?v=20260827ae";
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -155,6 +155,7 @@
     }
     var mapCtx = null;
     var mapBounds = null;
+    var cam = null;
     function expandBounds(lat, lon, box) {
       if (lat == null || lon == null) return;
       if (lat < box.minLat) box.minLat = lat;
@@ -162,53 +163,162 @@
       if (lon < box.minLon) box.minLon = lon;
       if (lon > box.maxLon) box.maxLon = lon;
     }
-    function eachSeriesPoint(series, fn) {
-      if (!series) return;
-      if (typeof series.lat === "number") {
-        fn(series.lat, series.lon);
-        return;
-      }
-      var lat = series.lat || [];
-      for (var i = 0; i < lat.length; i++) {
-        if (lat[i] == null) continue;
-        fn(lat[i], series.lon[i]);
-      }
+    function distM(a, b) {
+      var c = Math.cos(((a.lat + b.lat) / 2) * Math.PI / 180);
+      var y = (a.lat - b.lat) * 111000;
+      var x = (a.lon - b.lon) * 111000 * c;
+      return Math.sqrt(x * x + y * y);
     }
-    function fitMap() {
+    var BOAT_LEN_M = 6.71;
+    var TAIL_M = BOAT_LEN_M * 10;
+    var focusMarkKey = null;
+    var focusGate = null;
+    function sizeCanvas() {
       if (!mapEl) return;
       var w = mapEl.clientWidth || 640;
       var h = mapEl.clientHeight || 480;
       var dpr = window.devicePixelRatio || 1;
-      mapEl.width = Math.floor(w * dpr);
-      mapEl.height = Math.floor(h * dpr);
-      mapCtx = mapEl.getContext("2d");
+      var needW = Math.floor(w * dpr);
+      var needH = Math.floor(h * dpr);
+      if (!mapCtx || mapEl.width !== needW || mapEl.height !== needH) {
+        mapEl.width = needW;
+        mapEl.height = needH;
+        mapCtx = mapEl.getContext("2d");
+      }
       mapCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
       mapCtx.imageSmoothingEnabled = true;
       mapCtx.imageSmoothingQuality = "high";
       mapCtx.lineJoin = "round";
       mapCtx.lineCap = "round";
+      if (!mapBounds) {
+        mapBounds = { w: w, h: h, midLat: -33.87, midLon: 18.46, cos: Math.cos(-33.87 * Math.PI / 180), scale: 0.2 };
+      } else {
+        mapBounds.w = w;
+        mapBounds.h = h;
+      }
+    }
+    function boundsFromPts(pts, w, h) {
       var box = { minLat: 90, maxLat: -90, minLon: 180, maxLon: -180 };
-      Object.keys(trail.boats || {}).forEach(function (sail) {
-        eachSeriesPoint(trail.boats[sail], function (lat, lon) { expandBounds(lat, lon, box); });
-      });
-      Object.keys(trail.marks || {}).forEach(function (k) {
-        eachSeriesPoint(trail.marks[k], function (lat, lon) { expandBounds(lat, lon, box); });
-      });
-      ["start_line", "finish_line"].forEach(function (key) {
-        var ln = trail[key];
-        if (!ln) return;
-        if (ln.left) expandBounds(ln.left.lat, ln.left.lon, box);
-        if (ln.right) expandBounds(ln.right.lat, ln.right.lon, box);
-      });
+      pts.forEach(function (p) { expandBounds(p.lat, p.lon, box); });
       var midLat = (box.minLat + box.maxLat) / 2;
       var midLon = (box.minLon + box.maxLon) / 2;
       var cos = Math.cos(midLat * Math.PI / 180);
       var heightM = (box.maxLat - box.minLat) * 111000;
       var widthM = (box.maxLon - box.minLon) * 111000 * cos;
-      if (heightM < 200) heightM = 200;
-      if (widthM < 200) widthM = 200;
-      var scale = Math.min(w / (widthM * 1.16), h / (heightM * 1.16));
-      mapBounds = { w: w, h: h, midLat: midLat, midLon: midLon, cos: cos, scale: scale };
+      if (heightM < 320) heightM = 320;
+      if (widthM < 320) widthM = 320;
+      var scale = Math.min(w / (widthM * 1.22), h / (heightM * 1.22));
+      return { w: w, h: h, midLat: midLat, midLon: midLon, cos: cos, scale: scale };
+    }
+    function countPassed(pass, ts) {
+      var n = 0;
+      for (var i = 0; i < pass.boats.length; i++) {
+        if (pass.boats[i].ts <= ts) n += 1;
+      }
+      return n;
+    }
+    function focusForFleet(ts, fleet) {
+      var lastKey = null;
+      var nextKey = null;
+      var lastGate = null;
+      var nextGate = null;
+      var onWater = 0;
+      Object.keys(trail.boats || {}).forEach(function (sail) {
+        if (sampleAt(trail.boats[sail], ts)) onWater += 1;
+      });
+      for (var i = 0; i < PASSES.length; i++) {
+        var p = PASSES[i];
+        var n = countPassed(p, ts);
+        if (p.id === "ST" || p.label === "ST") {
+          if (n > 0) lastGate = "start_line";
+          continue;
+        }
+        if (p.id === "FIN" || p.label === "Fin") {
+          if (n > 0) lastGate = "finish_line";
+          if (n < onWater) nextGate = "finish_line";
+          continue;
+        }
+        var key = String(p.mark);
+        if (n > 0) lastKey = key;
+        if (n < onWater) {
+          nextKey = key;
+          break;
+        }
+      }
+      var lastPos = lastKey ? markAt(lastKey, ts) : null;
+      var nextPos = nextKey ? markAt(nextKey, ts) : null;
+      var pickKey = null;
+      var pickGate = null;
+      function gateMid(name) {
+        var ln = trail[name];
+        if (!ln || !ln.left || !ln.right) return null;
+        return { lat: (ln.left.lat + ln.right.lat) / 2, lon: (ln.left.lon + ln.right.lon) / 2 };
+      }
+      var candidates = [];
+      if (lastPos) candidates.push({ mark: lastKey, pos: lastPos });
+      if (nextPos && nextKey !== lastKey) candidates.push({ mark: nextKey, pos: nextPos });
+      if (!lastKey && trail.start_line) {
+        var sm = gateMid("start_line");
+        if (sm) candidates.push({ gate: "start_line", pos: sm });
+      }
+      if (nextGate === "finish_line" || lastGate === "finish_line") {
+        var fm = gateMid("finish_line");
+        if (fm) candidates.push({ gate: "finish_line", pos: fm });
+      }
+      if (!candidates.length && trail.start_line) {
+        pickGate = "start_line";
+      } else if (candidates.length) {
+        var best = candidates[0];
+        var bestD = distM(fleet, best.pos);
+        for (var c = 1; c < candidates.length; c++) {
+          var d = distM(fleet, candidates[c].pos);
+          if (d < bestD) { best = candidates[c]; bestD = d; }
+        }
+        pickKey = best.mark || null;
+        pickGate = best.gate || null;
+      }
+      return { mark: pickKey, gate: pickGate };
+    }
+    function frameCam(ts) {
+      sizeCanvas();
+      if (!mapEl) return;
+      var w = mapEl.clientWidth || 640;
+      var h = mapEl.clientHeight || 480;
+      var pts = [];
+      Object.keys(trail.boats || {}).forEach(function (sail) {
+        var pos = sampleAt(trail.boats[sail], ts);
+        if (pos) pts.push(pos);
+      });
+      if (!pts.length) return;
+      var cx = 0;
+      var cy = 0;
+      pts.forEach(function (p) { cx += p.lat; cy += p.lon; });
+      var fleet = { lat: cx / pts.length, lon: cy / pts.length };
+      var focus = focusForFleet(ts, fleet);
+      focusMarkKey = focus.mark;
+      focusGate = focus.gate;
+      if (focus.mark) {
+        var mk = markAt(focus.mark, ts);
+        if (mk) pts.push(mk);
+      }
+      if (focus.gate && trail[focus.gate]) {
+        var ln = trail[focus.gate];
+        if (ln.left) pts.push(ln.left);
+        if (ln.right) pts.push(ln.right);
+      }
+      var target = boundsFromPts(pts, w, h);
+      if (!cam) {
+        cam = target;
+      } else {
+        var a = playing ? Math.min(1, 0.16 + RATE / 70) : 1;
+        cam.midLat += (target.midLat - cam.midLat) * a;
+        cam.midLon += (target.midLon - cam.midLon) * a;
+        cam.scale += (target.scale - cam.scale) * a;
+        cam.cos = Math.cos(cam.midLat * Math.PI / 180);
+        cam.w = w;
+        cam.h = h;
+      }
+      mapBounds = cam;
     }
     function xy(lat, lon) {
       var b = mapBounds;
@@ -225,8 +335,15 @@
       var i = Math.floor(t);
       if (i < 0) i = 0;
       if (i >= series.lat.length) i = series.lat.length - 1;
-      while (i >= 0 && series.lat[i] == null) i -= 1;
-      if (i < 0) return null;
+      var back = i;
+      while (back >= 0 && series.lat[back] == null) back -= 1;
+      if (back < 0) {
+        var fwd = Math.max(0, Math.floor(t));
+        while (fwd < series.lat.length && series.lat[fwd] == null) fwd += 1;
+        if (fwd >= series.lat.length) return null;
+        return { lat: series.lat[fwd], lon: series.lon[fwd], i: fwd, j: fwd };
+      }
+      i = back;
       var j = i + 1;
       var maxJ = Math.min(series.lat.length, i + 3);
       while (j < maxJ && series.lat[j] == null) j += 1;
@@ -316,24 +433,32 @@
       mapCtx.fill();
       mapCtx.restore();
     }
-    function strokeTrack(series, ts, fromIdx, stroke, width) {
-      if (!series || !series.lat) return;
-      var t = Math.floor((ts - trail.gun_ts_ms) / trail.step_ms);
-      if (t < 0) return;
-      mapCtx.beginPath();
-      var lastI = -999;
-      var any = false;
-      for (var i = fromIdx; i <= t && i < series.lat.length; i++) {
-        if (series.lat[i] == null) continue;
-        var p = xy(series.lat[i], series.lon[i]);
-        if (!any || i - lastI > 1) mapCtx.moveTo(p.x, p.y);
-        else mapCtx.lineTo(p.x, p.y);
-        lastI = i;
-        any = true;
+    function drawTail(sail, ts) {
+      var b = trail.boats[sail];
+      if (!b) return;
+      var now = sampleAt(b, ts);
+      if (!now) return;
+      var pts = [now];
+      var acc = 0;
+      var t = Math.floor((ts - trail.gun_ts_ms) / trail.step_ms) - 1;
+      var prev = now;
+      for (var i = t; i >= 0; i--) {
+        if (b.lat[i] == null) break;
+        var cur = { lat: b.lat[i], lon: b.lon[i] };
+        acc += distM(prev, cur);
+        pts.push(cur);
+        if (acc >= TAIL_M) break;
+        prev = cur;
       }
-      if (!any) return;
-      mapCtx.strokeStyle = stroke;
-      mapCtx.lineWidth = width;
+      if (pts.length < 2) return;
+      mapCtx.beginPath();
+      for (var k = pts.length - 1; k >= 0; k--) {
+        var p = xy(pts[k].lat, pts[k].lon);
+        if (k === pts.length - 1) mapCtx.moveTo(p.x, p.y);
+        else mapCtx.lineTo(p.x, p.y);
+      }
+      mapCtx.strokeStyle = OCS[sail] ? "rgba(252,165,165,0.75)" : "rgba(248,250,252,0.55)";
+      mapCtx.lineWidth = 1.6;
       mapCtx.lineJoin = "round";
       mapCtx.lineCap = "round";
       mapCtx.stroke();
@@ -368,6 +493,7 @@
       mapCtx.fillText(label, (a.x + b.x) / 2 + 6, (a.y + b.y) / 2 - 6);
     }
     function drawMap(ts) {
+      frameCam(ts);
       if (!mapCtx || !mapBounds) return;
       var w = mapBounds.w;
       var h = mapBounds.h;
@@ -378,26 +504,25 @@
         var pos = markAt(k, ts);
         if (!pos) return;
         var p = xy(pos.lat, pos.lon);
+        var focus = k === focusMarkKey;
         mapCtx.beginPath();
         mapCtx.arc(p.x, p.y, zone, 0, Math.PI * 2);
-        mapCtx.strokeStyle = "rgba(245,158,11,0.4)";
-        mapCtx.lineWidth = 1;
+        mapCtx.strokeStyle = focus ? "rgba(251,191,36,0.7)" : "rgba(245,158,11,0.28)";
+        mapCtx.lineWidth = focus ? 2 : 1;
         mapCtx.stroke();
         mapCtx.beginPath();
-        mapCtx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-        mapCtx.fillStyle = "#f59e0b";
+        mapCtx.arc(p.x, p.y, focus ? 5 : 3.5, 0, Math.PI * 2);
+        mapCtx.fillStyle = focus ? "#fbbf24" : "#f59e0b";
         mapCtx.fill();
         mapCtx.fillStyle = "#ffffff";
-        mapCtx.font = "bold 11px sans-serif";
+        mapCtx.font = focus ? "bold 12px sans-serif" : "bold 10px sans-serif";
         mapCtx.fillText("M" + k, p.x + 8, p.y + 4);
       });
       Object.keys(trail.boats || {}).forEach(function (sail) {
-        var t = Math.floor((ts - trail.gun_ts_ms) / trail.step_ms);
-        strokeTrack(trail.boats[sail], ts, 0, OCS[sail] ? "rgba(239,68,68,0.16)" : "rgba(148,163,184,0.18)", 1);
-        strokeTrack(trail.boats[sail], ts, Math.max(0, t - 90), OCS[sail] ? "rgba(252,165,165,0.7)" : "rgba(248,250,252,0.55)", 1.6);
+        drawTail(sail, ts);
       });
-      drawGate(trail.start_line, "#38bdf8", "START", "Pin", "RC");
-      drawGate(trail.finish_line, "#fbbf24", "FINISH", "Pin", "RC");
+      drawGate(trail.start_line, focusGate === "start_line" ? "#38bdf8" : "rgba(56,189,248,0.4)", "START", "Pin", "RC");
+      drawGate(trail.finish_line, focusGate === "finish_line" ? "#fbbf24" : "rgba(251,191,36,0.35)", "FINISH", "Pin", "RC");
       Object.keys(trail.boats || {}).forEach(function (sail) {
         var pos = posAt(sail, ts);
         if (!pos) return;
@@ -641,6 +766,7 @@
       seen = {};
       deltaSeen = {};
       lastHdg = {};
+      cam = null;
       render(ts);
     }
 
@@ -674,7 +800,7 @@
       playTs = PLAY_START_TS;
       lastWall = Date.now();
       playing = false;
-      fitMap();
+      frameCam(playTs);
       setPlayLabel();
       setRateButtons();
       render(playTs);
@@ -714,7 +840,8 @@
     }
 
     window.addEventListener("resize", function () {
-      fitMap();
+      cam = null;
+      frameCam(playTs);
       drawMap(playTs);
     });
 
