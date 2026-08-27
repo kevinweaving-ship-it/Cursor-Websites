@@ -64,10 +64,16 @@ class RoundingChecksumTest(unittest.TestCase):
 
     def test_shortened_course_stops_before_empty_laps(self):
         fleet = [f"B{i:02d}" for i in range(17)]
-        st = [{"boat": s, "ts_ms": GUN} for s in fleet]
+        st = [{"boat": s, "ts_ms": GUN + i} for i, s in enumerate(fleet)]
         sailed = ["L1-1", "L1-2", "L1-3", "L1-4", "L2-1", "L2-2", "L2-3"]
-        mark_passes = [{"id": i, "boats": [{"boat": s, "ts_ms": GUN + 1} for s in fleet]} for i in sailed]
-        fin = [{"boat": s, "ts_ms": GUN + 9} for s in fleet]
+        mark_passes = [
+            {
+                "id": pid,
+                "boats": [{"boat": s, "ts_ms": GUN + 1000 * (n + 1) + i} for i, s in enumerate(fleet)],
+            }
+            for n, pid in enumerate(sailed)
+        ]
+        fin = [{"boat": s, "ts_ms": GUN + 1000 * (len(sailed) + 1) + i} for i, s in enumerate(fleet)]
         chk = build_checksum(
             fleet=fleet,
             st=st,
@@ -79,6 +85,38 @@ class RoundingChecksumTest(unittest.TestCase):
         self.assertEqual(ids, ["ST", *sailed, "FIN"])
         self.assertNotIn("L2-4", ids)
         self.assertNotIn("L3-1", ids)
+        self.assertTrue(chk["sanity"]["ok"])
+
+    def test_place_delta_telescopes_to_start_minus_finish(self):
+        fleet = ["A", "B", "C"]
+        st = [{"boat": "A", "ts_ms": 1}, {"boat": "B", "ts_ms": 2}, {"boat": "C", "ts_ms": 3}]
+        m1 = [{"boat": "B", "ts_ms": 10}, {"boat": "A", "ts_ms": 11}, {"boat": "C", "ts_ms": 12}]
+        fin = [{"boat": "C", "ts_ms": 20}, {"boat": "B", "ts_ms": 21}, {"boat": "A", "ts_ms": 22}]
+        chk = build_checksum(
+            fleet=fleet,
+            st=st,
+            mark_passes=[{"id": "L1-1", "boats": m1}],
+            finish=fin,
+            course_passes=[{"id": "L1-1", "lap": 1, "mark": "1"}],
+        )
+        self.assertTrue(chk["ok"])
+        self.assertTrue(chk["sanity"]["ok"])
+        # A 1→3 expect −2; B 2→2 expect 0; C 3→1 expect +2
+
+    def test_sanity_flags_non_increasing_times(self):
+        fleet = ["A", "B"]
+        st = [{"boat": "A", "ts_ms": 10}, {"boat": "B", "ts_ms": 11}]
+        m1 = [{"boat": "A", "ts_ms": 9}, {"boat": "B", "ts_ms": 20}]
+        fin = [{"boat": "A", "ts_ms": 30}, {"boat": "B", "ts_ms": 31}]
+        chk = build_checksum(
+            fleet=fleet,
+            st=st,
+            mark_passes=[{"id": "L1-1", "boats": m1}],
+            finish=fin,
+            course_passes=[{"id": "L1-1", "lap": 1, "mark": "1"}],
+        )
+        self.assertFalse(chk["sanity"]["ok"])
+        self.assertEqual(chk["sanity"]["time_fail"][0]["boat"], "A")
 
 
 if __name__ == "__main__":

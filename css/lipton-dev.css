@@ -100,6 +100,9 @@ body[data-lipton-dev="1"] .lipton-dev-btn.is-active {
   background: #1a2750;
   color: #ffffff;
 }
+body[data-lipton-dev="1"] .lipton-dev-btn.is-unpacked:not(.is-active) {
+  opacity: 0.55;
+}
 body[data-lipton-dev="1"] .table-wrapper {
   overflow: auto;
   width: 100%;

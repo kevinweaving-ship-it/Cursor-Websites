@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
-"""Pack Lipton -dev replay JSON for Race 4 (SBYC OCS).
+"""Pack Lipton -dev replay JSON for one J22 race.
 
 Keeps the 17-boat identity map. Start order from GPS line crossings.
 Marks from trail visits. Finishes from Firestore. Not Nett.
+
+  python3 sailingsa/scripts/lipton_dev_pack_race4.py
+  python3 sailingsa/scripts/lipton_dev_pack_race4.py --race 1
 """
 from __future__ import annotations
 
+import argparse
 import json
 import math
 import sys
@@ -21,11 +25,19 @@ from lipton_mark_rounding import COURSE_PASSES, MARK_SN, fetch_rows  # noqa: E40
 from lipton_vakaros import _j22_division, fetch_regatta_doc  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
-OUT = ROOT / "sailingsa/frontend/js/lipton-dev-replay.json"
-OUT_COPY = ROOT / "js/lipton-dev-replay.json"
+IDENTITY = ROOT / "sailingsa/frontend/js/lipton-dev-replay.json"
 SAST = ZoneInfo("Africa/Johannesburg")
 R = 6371000.0
-RACE = 4
+
+
+def replay_paths(race: int) -> tuple[Path, Path]:
+    if race == 4:
+        return ROOT / "sailingsa/frontend/js/lipton-dev-replay.json", ROOT / "js/lipton-dev-replay.json"
+    suffix = f"-r{race}"
+    return (
+        ROOT / f"sailingsa/frontend/js/lipton-dev-replay{suffix}.json",
+        ROOT / f"js/lipton-dev-replay{suffix}.json",
+    )
 
 
 def xy(lat, lon, lat0, lon0):
@@ -42,13 +54,18 @@ def ms_iso(value) -> int:
 
 
 def main() -> int:
-    prev = json.loads(OUT.read_text())
+    ap = argparse.ArgumentParser(description="Pack Lipton -dev replay JSON for one race")
+    ap.add_argument("--race", type=int, default=4)
+    args = ap.parse_args()
+    race = int(args.race)
+    out, out_copy = replay_paths(race)
+    prev = json.loads(IDENTITY.read_text())
     boats = prev.get("boats") or {}
     if len(boats) != 17:
         raise SystemExit("identity map missing")
 
     doc = fetch_regatta_doc()
-    r4 = next(r for r in _j22_division(doc)["races"] if int(r.get("raceNumber") or 0) == RACE)
+    r4 = next(r for r in _j22_division(doc)["races"] if int(r.get("raceNumber") or 0) == race)
     s0 = r4["starts"][0]
     ocs = [str(x) for x in (s0.get("ocsParticipants") or [])]
     exonerated = [str(x) for x in (s0.get("exoneratedParticipants") or [])]
@@ -100,14 +117,14 @@ def main() -> int:
     for rec in rows:
         if rec.get("sn") in MARK_SN.values():
             marks_by_sn[rec["sn"]].append(rec)
-        if rec.get("role") == "competitor" and rec.get("race_number") in (RACE, None, 0, float(RACE)):
+        if rec.get("role") == "competitor" and rec.get("race_number") in (race, None, 0, float(race)):
             boat_by[rec["sail_number"]].append(rec)
     for sn in marks_by_sn:
         marks_by_sn[sn] = sorted(marks_by_sn[sn], key=lambda x: x["ts"])
     for sail in list(boat_by):
         boat_by[sail] = sorted(boat_by[sail], key=lambda x: x["ts"])
-        if any(p.get("race_number") == RACE for p in boat_by[sail]):
-            boat_by[sail] = [p for p in boat_by[sail] if p.get("race_number") == RACE]
+        if any(p.get("race_number") == race for p in boat_by[sail]):
+            boat_by[sail] = [p for p in boat_by[sail] if p.get("race_number") == race]
 
     def line_hits(pts, look_from):
         """Prestart (d>0) → course (d<=0) enters, and the reverse exits."""
@@ -205,17 +222,17 @@ def main() -> int:
         "mode": "replay",
         "live": False,
         "note": (
-            "Race 4 tracker. Every teleapi point is used for roundings (heading + closest). "
+            f"Race {race} tracker. Every teleapi point is used for roundings (heading + closest). "
             "ST = seconds after first legal starter; OCS boats labelled OCS. "
-            "SBYC is OCS (dtlMm -30) and was later exonerated. Empty cell = GPS not received. Not Nett."
+            "Empty cell = GPS not received. Not Nett."
         ),
         "regatta_id": prev["regatta_id"],
         "dev_slug": prev["dev_slug"],
         "event_id": prev["event_id"],
         "fleet": "J22",
         "watch_path": prev["watch_path"],
-        "race_number": 4,
-        "race_day": 2,
+        "race_number": race,
+        "race_day": 1 if race <= 3 else 2,
         "gun_ts_ms": gun,
         "gun_sast": gun_sast,
         "play_start_ts_ms": gun,
@@ -243,32 +260,36 @@ def main() -> int:
             course_passes=COURSE_PASSES,
         ),
         "sources": {
-            "guns_finishes_ocs": "Vakaros Firestore races[R4] starts/finishes/ocsParticipants",
+            "guns_finishes_ocs": f"Vakaros Firestore races[R{race}] starts/finishes/ocsParticipants",
             "start_order": "teleapi GPS start-line crossing. OCS boats use recross after returning to prestart, not the OCS dip.",
             "marks": "teleapi every GPS point; heading + closest. Empty = not received.",
             "identity": "public Lipton sheet bow/boat/club logos",
         },
     }
     text = json.dumps(pack, indent=2, ensure_ascii=False) + "\n"
-    OUT.write_text(text)
-    OUT_COPY.write_text(text)
-    legal = next(b["boat"] for b in st if b["boat"] not in ocs)
+    out.write_text(text)
+    out_copy.write_text(text)
+    legal = next((b["boat"] for b in st if b["boat"] not in ocs), st[0]["boat"] if st else None)
     print(
         json.dumps(
             {
                 "ok": True,
+                "race": race,
+                "out": str(out),
                 "gun": gun_sast,
                 "ocs": ocs,
                 "exonerated": exonerated,
-                "st_first": st[0]["boat"],
+                "st_first": st[0]["boat"] if st else None,
                 "st_first_legal": legal,
                 "st_sbyc_rank": next((i + 1 for i, b in enumerate(st) if b["boat"] == "SBYC"), None),
                 "st_n": len(st),
                 "marks": summary,
                 "finish_n": len(finish_rows),
-                "finish_first": finish_rows[0]["boat"],
+                "finish_first": finish_rows[0]["boat"] if finish_rows else None,
                 "checksum_ok": pack["checksum"]["ok"],
                 "checksum_gaps": pack["checksum"]["gaps"],
+                "sanity_ok": pack["checksum"].get("sanity", {}).get("ok"),
+                "sanity": pack["checksum"].get("sanity"),
             },
             indent=2,
         )

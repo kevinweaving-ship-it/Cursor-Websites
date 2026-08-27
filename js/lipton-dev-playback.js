@@ -5,8 +5,45 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var DATA_URL = "/js/lipton-dev-replay.json?v=20260827at";
-  var TRAIL_URL = "/js/lipton-dev-trail.json?v=20260827at";
+  var CACHE = "20260827aw";
+  var RACE_Q = Number((new URLSearchParams(location.search)).get("race") || 0);
+  function jsonUrl(kind, race) {
+    if (!race || race === 4) return "/js/lipton-dev-" + kind + ".json?v=" + CACHE;
+    return "/js/lipton-dev-" + kind + "-r" + race + ".json?v=" + CACHE;
+  }
+  var DATA_URL = jsonUrl("replay", RACE_Q);
+  var TRAIL_URL = jsonUrl("trail", RACE_Q);
+
+  function bindRaceButtons(active) {
+    var want = Number(active || RACE_Q || 4);
+    document.querySelectorAll("#lipton-dev-races [data-race]").forEach(function (btn) {
+      var n = Number(btn.getAttribute("data-race"));
+      btn.classList.toggle("is-active", n === want);
+      btn.setAttribute("aria-pressed", n === want ? "true" : "false");
+      if (btn.getAttribute("data-bound") === "1") return;
+      btn.setAttribute("data-bound", "1");
+      btn.addEventListener("click", function () {
+        var u = new URL(location.href);
+        u.searchParams.set("race", String(n));
+        location.assign(u.pathname + "?" + u.searchParams.toString());
+      });
+    });
+  }
+  bindRaceButtons(RACE_Q || 4);
+  fetch("/js/lipton-dev-races.json?v=" + CACHE, { cache: "no-store" })
+    .then(function (res) { return res.ok ? res.json() : null; })
+    .then(function (meta) {
+      if (!meta) return;
+      (meta.races || []).forEach(function (r) {
+        var btn = document.querySelector('#lipton-dev-races [data-race="' + r.n + '"]');
+        if (!btn) return;
+        var gun = String(r.gun_sast || "").slice(11, 16);
+        var ocs = (r.ocs || []).length ? " · OCS " + r.ocs.join(",") : "";
+        btn.title = "Race " + r.n + " · gun " + gun + (r.packed ? "" : " · GPS not packed yet") + ocs;
+        btn.classList.toggle("is-unpacked", !r.packed);
+      });
+    })
+    .catch(function () {});
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -78,7 +115,11 @@
     .then(function (pair) { start(pair[0], pair[1]); })
     .catch(function (err) {
       var sailed = document.getElementById("lipton-dev-sailed");
-      if (sailed) sailed.textContent = "Replay data failed to load";
+      if (sailed) {
+        sailed.textContent = RACE_Q && RACE_Q !== 4
+          ? ("Race " + RACE_Q + " GPS not packed on -dev yet. Choose R4.")
+          : "Replay data failed to load";
+      }
       console.error(err);
     });
 
@@ -193,8 +234,9 @@
       });
       return earlier + 1;
     }
-    var GUN_CLOCK = String(data.gun_sast || "").slice(11, 19) || "15:50:01";
-    var RACE_NO = Number(data.race_number || 5);
+    bindRaceButtons(data.race_number || RACE_Q || 4);
+    var GUN_CLOCK = String(data.gun_sast || "").slice(11, 19) || "13:55:01";
+    var RACE_NO = Number(data.race_number || RACE_Q || 4);
     var RACE_LAB = "Race " + RACE_NO;
     var RATE = Number(data.default_rate || 1);
     var SETTLE_MS = 2500;
@@ -1144,23 +1186,69 @@
       sailedEl.textContent = (isSt ? RACE_LAB + " · gun " + GUN_CLOCK : RACE_LAB + " replay") + " · " + lead.farLab + lapBit + " · " + n + " of " + tot + " · rank by " + rankLab + ocsBit;
       fillChecksum();
     }
+    function sanityReport() {
+      var maps = pairRankMaps(PLAY_END_TS);
+      var names = {};
+      PASSES.forEach(function (p) {
+        (p.boats || []).forEach(function (b) { names[b.boat] = true; });
+      });
+      var timeFail = [];
+      var placeFail = [];
+      var legFail = [];
+      Object.keys(names).forEach(function (sail) {
+        var times = boatTimes(sail, PLAY_END_TS);
+        var last = null;
+        for (var i = 0; i < times.length; i++) {
+          if (times[i] == null) continue;
+          if (last != null && times[i] <= last) {
+            timeFail.push(clubCode(sail));
+            break;
+          }
+          last = times[i];
+        }
+        var complete = times.length && times.every(function (t) { return t != null; });
+        if (!complete) return;
+        var deltaSum = 0;
+        var deltaN = 0;
+        for (var j = 0; j < maps.length; j++) {
+          var a = maps[j].prev[sail];
+          var b = maps[j].next[sail];
+          if (a == null || b == null) continue;
+          deltaSum += a - b;
+          deltaN += 1;
+        }
+        var stRank = maps.length ? maps[0].prev[sail] : null;
+        var finRank = maps.length ? maps[maps.length - 1].next[sail] : null;
+        if (stRank != null && finRank != null && deltaN === maps.length && deltaSum !== stRank - finRank) {
+          placeFail.push(clubCode(sail) + " " + stRank + "→" + finRank);
+        }
+        if (Math.abs((times[times.length - 1] - times[0]) - knownLegSum(times)) > 1) {
+          legFail.push(clubCode(sail));
+        }
+      });
+      return { timeFail: timeFail, placeFail: placeFail, legFail: legFail };
+    }
     function fillChecksum() {
       if (!checksumEl) return;
-      var cs = data.checksum;
-      if (!cs) {
-        checksumEl.textContent = "";
-        return;
-      }
+      var cs = data.checksum || {};
       var fleetN = cs.fleet_n || 17;
+      var bits = [];
       if (cs.ok) {
-        checksumEl.textContent = "checksum " + fleetN + "/" + fleetN + " start · marks · finish";
-        return;
+        bits.push(fleetN + "/" + fleetN + " marks");
+      } else if (cs.gaps && cs.gaps.length) {
+        bits.push("gaps " + cs.gaps.map(function (g) {
+          return g.id + " " + (g.missing || []).map(clubCode).join(" ");
+        }).join(" · "));
       }
-      var bits = (cs.gaps || []).map(function (g) {
-        var miss = (g.missing || []).map(function (s) { return clubCode(s); }).join(" ");
-        return g.id + " " + miss;
-      });
-      checksumEl.textContent = "checksum gaps · " + bits.join(" · ");
+      var san = sanityReport();
+      if (!san.placeFail.length) bits.push("± ok");
+      else bits.push("± fail " + san.placeFail.join(" "));
+      if (!san.timeFail.length && !san.legFail.length) bits.push("times ok");
+      else {
+        if (san.timeFail.length) bits.push("times " + san.timeFail.join(" "));
+        if (san.legFail.length) bits.push("legs " + san.legFail.join(" "));
+      }
+      checksumEl.textContent = bits.length ? "checksum " + bits.join(" · ") : "";
     }
     function clockText(ts, rows) {
       var clock = fmtClock(ts - GUN_TS);

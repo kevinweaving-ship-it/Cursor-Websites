@@ -1,0 +1,12 @@
+{
+  "event_id": "Lv9A35uOBSBRmGpHgXtH",
+  "fleet": "J22",
+  "note": "All J22 races from Vakaros. packed=true means -dev has GPS replay JSON on this page.",
+  "races": [
+    {"n": 1, "stage": "finished", "gun_sast": "2026-08-26T11:30:01+02:00", "finish_n": 17, "ocs": ["FBYC", "KYC", "SBYC", "WBYC"], "packed": false},
+    {"n": 2, "stage": "finished", "gun_sast": "2026-08-26T13:20:01+02:00", "finish_n": 17, "ocs": [], "packed": false},
+    {"n": 3, "stage": "finished", "gun_sast": "2026-08-26T15:10:01+02:00", "finish_n": 17, "ocs": ["PYC"], "packed": false},
+    {"n": 4, "stage": "finished", "gun_sast": "2026-08-27T13:55:01+02:00", "finish_n": 17, "ocs": ["SBYC"], "packed": true},
+    {"n": 5, "stage": "finished", "gun_sast": "2026-08-27T15:50:01+02:00", "finish_n": 17, "ocs": [], "packed": false}
+  ]
+}
