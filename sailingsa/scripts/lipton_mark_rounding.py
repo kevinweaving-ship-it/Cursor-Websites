@@ -31,6 +31,7 @@ from lipton_vakaros import (
     SNAPSHOT_DDL,
     WATCH_ORIGIN,
     ensure_table,
+    fetch_lipton_from_tracker,
 )
 
 SAST = ZoneInfo("Africa/Johannesburg")
@@ -39,12 +40,30 @@ MARK_SN = {
     "1": 25633,  # windward
     "2": 25610,  # wing
     "3": 25619,  # leeward
+    "4": 25607,  # pin / wing 2
 }
 J22_BOAT_LENGTH_M = 6.71
 ZONE_BOAT_LENGTHS = 3
 ZONE_RADIUS_M = round(J22_BOAT_LENGTH_M * ZONE_BOAT_LENGTHS, 1)
 DOCS_DIR = Path(__file__).resolve().parents[2] / "docs"
 R5_MARK1_PATH = DOCS_DIR / "lipton_2026_r5_mark1_rounding.json"
+R5_ORDERS_PATH = DOCS_DIR / "lipton_2026_r5_mark_orders.json"
+
+# Default course roundings (Firestore legs). Start/finish are lines, not roundings.
+# Device 4 is the pin at start/finish and Wing 2 on the course.
+COURSE_PASSES = [
+    {"id": "L1-1", "lap": 1, "mark": "1", "sn": 25633, "title": "WindW"},
+    {"id": "L1-2", "lap": 1, "mark": "2", "sn": 25610, "title": "Wing"},
+    {"id": "L1-3", "lap": 1, "mark": "3", "sn": 25619, "title": "Leeward"},
+    {"id": "L1-4", "lap": 1, "mark": "4", "sn": 25607, "title": "Wing 2"},
+    {"id": "L2-1", "lap": 2, "mark": "1", "sn": 25633, "title": "WindW"},
+    {"id": "L2-2", "lap": 2, "mark": "2", "sn": 25610, "title": "Wing"},
+    {"id": "L2-3", "lap": 2, "mark": "3", "sn": 25619, "title": "Leeward"},
+    {"id": "L2-4", "lap": 2, "mark": "4", "sn": 25607, "title": "Wing2"},
+    {"id": "L3-1", "lap": 3, "mark": "1", "sn": 25633, "title": "WindW"},
+    {"id": "L3-2", "lap": 3, "mark": "2", "sn": 25610, "title": "Wing"},
+    {"id": "L3-3", "lap": 3, "mark": "3", "sn": 25619, "title": "Leeward"},
+]
 
 
 def _http_json(url: str, timeout: int = 60):
@@ -450,6 +469,208 @@ def analyze_r5_mark1(rows: list[dict] | None = None) -> dict:
     return payload
 
 
+def _rounding_candidates(pts: list[dict], marks_sorted: list[dict], *, max_m=32.0, leave_m=20.0, approach_m=70.0):
+    """Local distance minima that were approached from open water, then left.
+
+    Ignores sitting next to a mark being towed / the pin at the start.
+    """
+    if not pts or not marks_sorted:
+        return []
+    mi = 0
+    series = []
+    for p in pts:
+        while mi + 1 < len(marks_sorted) and abs(marks_sorted[mi + 1]["ts"] - p["ts"]) < abs(
+            marks_sorted[mi]["ts"] - p["ts"]
+        ):
+            mi += 1
+        mk = marks_sorted[mi]
+        if abs(mk["ts"] - p["ts"]) > 8000:
+            continue
+        d = haversine_m(p["latitude"], p["longitude"], mk["latitude"], mk["longitude"])
+        series.append((p, d))
+    out = []
+    i = 1
+    n = len(series)
+    while i < n - 1:
+        p, d = series[i]
+        if (
+            d <= max_m
+            and d <= series[i - 1][1]
+            and d <= series[i + 1][1]
+            and (p.get("sog") or 0) * 1.94384 >= 3.0
+        ):
+            inbound = False
+            k = i - 1
+            while k >= 0 and (p["ts"] - series[k][0]["ts"]) <= 180_000:
+                if series[k][1] >= approach_m:
+                    inbound = True
+                    break
+                k -= 1
+            left = False
+            j = i + 1
+            while j < n and (series[j][0]["ts"] - p["ts"]) < 90_000:
+                if series[j][1] >= leave_m and series[j][1] > d + 5:
+                    left = True
+                    break
+                j += 1
+            if inbound and left:
+                out.append(
+                    {
+                        "ts": p["ts"],
+                        "sast": datetime.fromtimestamp(p["ts"] / 1000, SAST).strftime("%H:%M:%S"),
+                        "closest_m": round(d, 1),
+                        "sog_kn": round((p.get("sog") or 0) * 1.94384, 1),
+                        "hdg_deg": p.get("heading"),
+                    }
+                )
+                skip_until = p["ts"] + 45_000
+                while i < n - 1 and series[i][0]["ts"] < skip_until:
+                    i += 1
+                continue
+        i += 1
+    return out
+
+
+def analyze_r5_mark_orders(rows: list[dict] | None = None) -> dict:
+    """Who rounded each course mark, in order. Trail only. Not finish order. Not Nett."""
+    summary = fetch_lipton_from_tracker()
+    r5 = next((r for r in (summary.get("races") or []) if r.get("race_number") == 5), None)
+    if not r5:
+        raise RuntimeError("tracker has no Race 5")
+    gun = datetime.fromisoformat(r5["gun_at_sast"])
+    last_finish = datetime.fromisoformat(r5["last_finish_sast"])
+    after = int(gun.timestamp() * 1000)
+    before = int(last_finish.timestamp() * 1000) + 30_000
+    if rows is None:
+        rows = fetch_rows(after, before)
+
+    finish_ts = {}
+    for f in r5.get("finish_order") or []:
+        t = f.get("finishing_time")
+        if not t:
+            continue
+        dt = datetime.fromisoformat(t.replace("Z", "+00:00")).astimezone(SAST)
+        finish_ts[f["sail_number"]] = int(dt.timestamp() * 1000)
+
+    marks_by_sn = defaultdict(list)
+    boat_by = defaultdict(list)
+    for rec in rows:
+        if rec.get("sn") in MARK_SN.values():
+            marks_by_sn[rec["sn"]].append(rec)
+        if rec.get("role") == "competitor" and rec.get("race_number") in (5, None, 0):
+            boat_by[rec["sail_number"]].append(rec)
+    for sn in list(marks_by_sn):
+        marks_by_sn[sn] = sorted(marks_by_sn[sn], key=lambda x: x["ts"])
+    for sail in list(boat_by):
+        boat_by[sail] = sorted(boat_by[sail], key=lambda x: x["ts"])
+        # if race_number is present, keep 5 only
+        if any(p.get("race_number") == 5 for p in boat_by[sail]):
+            boat_by[sail] = [p for p in boat_by[sail] if p.get("race_number") == 5]
+
+    cands = {}
+    for sail, pts in boat_by.items():
+        cands[sail] = {}
+        for mark_name, sn in MARK_SN.items():
+            cands[sail][mark_name] = _rounding_candidates(pts, marks_by_sn.get(sn) or [])
+
+    boat_passes = {}
+    for sail in boat_by:
+        last_ts = after + 3 * 60_000
+        end_ts = finish_ts.get(sail, before)
+        boat_passes[sail] = []
+        for spec in COURSE_PASSES:
+            nxt = next(
+                (c for c in cands[sail].get(spec["mark"], []) if last_ts + 20_000 < c["ts"] < end_ts),
+                None,
+            )
+            row = {
+                "pass_id": spec["id"],
+                "lap": spec["lap"],
+                "mark": spec["mark"],
+                "title": spec["title"],
+                "rounded": nxt is not None,
+            }
+            if nxt:
+                row.update(nxt)
+                last_ts = nxt["ts"]
+            boat_passes[sail].append(row)
+
+    passes_out = []
+    for spec in COURSE_PASSES:
+        ranked = []
+        for sail, events in boat_passes.items():
+            ev = next(e for e in events if e["pass_id"] == spec["id"])
+            if ev.get("rounded"):
+                ranked.append(
+                    {
+                        "boat": sail,
+                        "sast": ev["sast"],
+                        "ts_ms": ev["ts"],
+                        "closest_m": ev["closest_m"],
+                        "sog_kn": ev["sog_kn"],
+                        "hdg_deg": ev["hdg_deg"],
+                        "replay": f"{WATCH_ORIGIN}/watch/{LIPTON_EVENT_ID}/{LIPTON_FLEET}?race-day=2&ts={ev['ts']}",
+                    }
+                )
+        ranked.sort(key=lambda x: x["ts_ms"])
+        for i, row in enumerate(ranked, start=1):
+            row["order"] = i
+        first = ranked[0] if ranked else None
+        passes_out.append(
+            {
+                "pass_id": spec["id"],
+                "lap": spec["lap"],
+                "mark": spec["mark"],
+                "title": spec["title"],
+                "leave_to": "port",
+                "boats_rounded": len(ranked),
+                "first": {"boat": first["boat"], "sast": first["sast"], "closest_m": first["closest_m"]}
+                if first
+                else None,
+                "order": ranked,
+            }
+        )
+
+    finish_order = []
+    for i, f in enumerate(r5.get("finish_order") or [], start=1):
+        t = f.get("finishing_time")
+        dt = datetime.fromisoformat(t.replace("Z", "+00:00")).astimezone(SAST) if t else None
+        finish_order.append(
+            {
+                "order": i,
+                "boat": f.get("sail_number"),
+                "sast": dt.strftime("%H:%M:%S") if dt else None,
+                "source": "firestore_finishes",
+            }
+        )
+
+    return {
+        "ok": True,
+        "regatta_id": LIPTON_SLUG,
+        "event_id": LIPTON_EVENT_ID,
+        "fleet": LIPTON_FLEET,
+        "source": "teleapi_mark_orders",
+        "kind": "mark_orders",
+        "race_number": 5,
+        "race_day": 2,
+        "gun_sast": r5.get("gun_at_sast"),
+        "use": "Who rounded each mark, from GPS trail. Not finish order. Not a Nett source.",
+        "course": {
+            "name": "Start → 1 → 2 → 3 → 4 → 1 → 2 → 3 → 4 → 1 → 2 → 3 → Finish",
+            "rounding": "port",
+            "note": "Device 4 is the pin at start/finish and Wing 2 on the course. Start/finish are lines.",
+        },
+        "passes": passes_out,
+        "finish_order": finish_order,
+        "first_to_finish": (r5.get("first_to_finish") or {}).get("sail_number"),
+        "counts": {
+            "telemetry_rows": len(rows),
+            "boats": len(boat_by),
+            "passes": len(passes_out),
+        },
+    }
+
+
 def write_file(payload: dict, path: Path = R5_MARK1_PATH) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, sort_keys=False) + "\n")
@@ -465,12 +686,21 @@ def save_snapshot(payload: dict, db_url: str | None = None) -> dict:
         raise RuntimeError("DB_URL or DATABASE_URL required to save a snapshot")
     blob = json.dumps(payload, sort_keys=True, default=str).encode("utf-8")
     summary = {
-        "kind": "mark_rounding",
+        "kind": payload.get("kind") or "mark_rounding",
         "race_number": payload.get("race_number"),
         "mark": (payload.get("mark") or {}).get("name"),
         "boats": (payload.get("counts") or {}).get("boats"),
-        "first": payload.get("first_about_to_round"),
+        "first": payload.get("first_about_to_round") or (payload.get("passes") or [{}])[0].get("first"),
         "accuracy_m": payload.get("accuracy_m"),
+        "passes": [
+            {
+                "id": p.get("pass_id"),
+                "mark": p.get("mark"),
+                "first": p.get("first"),
+                "n": p.get("boats_rounded"),
+            }
+            for p in (payload.get("passes") or [])
+        ],
         "last_finished_race": 5,
         "next_race_number": 6,
     }
@@ -498,7 +728,7 @@ def save_snapshot(payload: dict, db_url: str | None = None) -> dict:
                         LIPTON_SLUG,
                         LIPTON_EVENT_ID,
                         LIPTON_FLEET,
-                        "teleapi_mark_rounding",
+                        payload.get("source") or "teleapi_mark_rounding",
                         hashlib.sha256(blob).hexdigest(),
                         Json(payload),
                         Json({"teleapi": payload.get("teleapi"), "window_sast": payload.get("window_sast")}),
@@ -524,9 +754,17 @@ def save_snapshot(payload: dict, db_url: str | None = None) -> dict:
 def main() -> int:
     ap = argparse.ArgumentParser(description="Lipton mark-rounding archive (teleapi)")
     ap.add_argument("--fetch", action="store_true", help="Pull teleapi and write the frozen JSON")
+    ap.add_argument("--orders", action="store_true", help="Race 5 order at every mark (trail, not finish)")
     ap.add_argument("--save", action="store_true", help="Insert frozen JSON into vakaros_snapshots")
     ap.add_argument("--from-file", default=str(R5_MARK1_PATH), help="JSON to save")
     args = ap.parse_args()
+    if args.orders:
+        payload = analyze_r5_mark_orders()
+        path = write_file(payload, R5_ORDERS_PATH)
+        print(json.dumps({"ok": True, "wrote": str(path), "boats": payload["counts"]["boats"]}, indent=2))
+        if args.save:
+            print(json.dumps(save_snapshot(payload), indent=2))
+        return 0
     if args.fetch:
         payload = analyze_r5_mark1()
         path = write_file(payload)

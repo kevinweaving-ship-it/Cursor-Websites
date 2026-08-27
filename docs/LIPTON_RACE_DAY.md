@@ -112,6 +112,22 @@ Rounding order (closest to mark 1, then HDG change). **>90°** = bear-away at th
 | 16 | LYC | 16:25:07 | 45° | 232→187 |
 | 17 | WYAC | 16:25:42 | 68° | 239→171 |
 
+## Can we rank 1st–17th at each mark? (Race 5 trail)
+
+**Yes for lap 1 mark 1 and mark 2 — all 17.** Frozen: `docs/lipton_2026_r5_mark_orders.json`. Not finish order. Not Nett. Not live yet.
+
+At ~11 kn, **5 m GPS ≈ 1 s** of boat travel. Gaps **>2.5 s** are a real 1st/2nd/… Gaps **under ~2 s** are a near-tie.
+
+| Mark | 1st–17th? | First | Note |
+|---|---|---|---|
+| **1 WindW** | **all 17** | HYC 16:22:03 | RNYC/UCTYC +0.9 s = near-tie for 5th/6th |
+| **2 Wing** | **all 17** | HYC 16:25:06 | Clean. HYC still 1st, RCYC 2nd (+4.7 s) |
+| **3 Leeward** | **front 14** | HYC 16:29:11 | Academy, UCTYC, SBYC not in this pack — do not invent |
+| **4 Wing 2** | **front 14** | HYC 16:32:32 | Same three missing. Device 4 is also the finish pin — do not use finish times as a rounding |
+| **Finish** | all 17 | **RCYC** 17:02:00 | Firestore finish line. RCYC 1st here, HYC 1st at the marks |
+
+Lap 2 / 3: trail exists, not a clean 17 yet. Wait for raw live GPS before showing those ranks.
+
 ## Metres to the mark / pin — when accuracy is lost
 
 **Metres-to-mark is always computed.** It does not fade with range. 400 m out is the same GPS as 40 m out.
