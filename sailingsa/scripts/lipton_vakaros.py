@@ -264,6 +264,19 @@ def _summarize_race(race: dict) -> dict:
     finish_ts = [parse_ts(f.get("finishingTime")) for f in finishes if isinstance(f, dict)]
     finish_ts = [t for t in finish_ts if t is not None]
     gun_sast = to_sast(gun)
+    finish_order = []
+    for f in sorted(
+        [x for x in finishes if isinstance(x, dict)],
+        key=lambda x: x.get("finishingTime") or "",
+    ):
+        finish_order.append(
+            {
+                "sail_number": f.get("sailNumber"),
+                "finishing_time": f.get("finishingTime"),
+                "distance_traveled_m": f.get("distanceTraveled"),
+                "max_speed": f.get("maxSpeed"),
+            }
+        )
     first_finish = to_sast(min(finish_ts)) if finish_ts else None
     last_finish = to_sast(max(finish_ts)) if finish_ts else None
     end_sast = to_sast(parse_ts(race.get("endTime")))
@@ -288,6 +301,8 @@ def _summarize_race(race: dict) -> dict:
         "gun_at_sast": gun_sast.isoformat() if gun_sast else None,
         "day_sast": day,
         "finish_count": len(finishes),
+        "first_to_finish": finish_order[0] if finish_order else None,
+        "finish_order": finish_order,
         "first_finish_sast": first_finish.isoformat() if first_finish else None,
         "last_finish_sast": last_finish.isoformat() if last_finish else None,
         "end_sast": end_sast.isoformat() if end_sast else None,
@@ -384,7 +399,9 @@ def extract_course_hardware(doc: dict, div: dict) -> dict:
             "Lat/lon for pin+RC exist at each gun (startLine) and at each finish "
             "(lineLeftLocation/lineRightLocation). Mark 1/2/3 lat/lon are not in this "
             "spectator document — replay map draws them from GPS frames we cannot download yet. "
-            "Distance-to-line at the gun is stored as dtlMm (millimetres)."
+            "Distance-to-line at the gun is stored as dtlMm (millimetres). "
+            "Who rounded each mark first is NOT in this document (no rounding timestamps). "
+            "Who crossed the finish first IS stored (finishes[].finishingTime)."
         ),
     }
 
