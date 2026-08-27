@@ -24,6 +24,7 @@ PATCHERS=(
   patch_lipton_apply_asat.py
   patch_lipton_js_pre_wake_close.py
   patch_lipton_apply_overnight_skip.py
+  patch_lipton_race_times_merge.py
 )
 
 echo "api $API"
@@ -52,6 +53,7 @@ REQUIRED=(
   LIPTON_APPLY_ASAT_V1
   LIPTON_JS_PRE_WAKE_CLOSE_V1
   LIPTON_APPLY_OVERNIGHT_SKIP_V1
+  LIPTON_RACE_TIMES_MERGE_V1
 )
 miss=0
 for m in "${REQUIRED[@]}"; do
@@ -67,4 +69,4 @@ if [[ "$miss" -ne 0 ]]; then
   exit 1
 fi
 echo "OK all required Lipton live markers"
-echo "After restart: python3 $DIR/restore_lipton_live_overnight.py"
+echo "After restart: python3 /usr/local/sbin/restore_lipton_live_overnight.py"

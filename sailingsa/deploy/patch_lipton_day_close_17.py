@@ -180,6 +180,11 @@ def _patch_once(text: str, label: str, old: str, new: str) -> tuple[str, bool]:
 
 def main() -> int:
     text = API_PATH.read_text(encoding="utf-8")
+    if "LIPTON_PRE_WAKE_CLOSE_V1" in text:
+        # Close is 17:00 + 00:00–10:00; V2 unique strings were consumed.
+        print("already close-17 via LIPTON_PRE_WAKE_CLOSE_V1")
+        print("ok", API_PATH)
+        return 0
     ok = True
     if MARKER not in text:
         text, p = _patch_once(text, "close-head", OLD_CLOSE_HEAD, NEW_CLOSE_HEAD)
