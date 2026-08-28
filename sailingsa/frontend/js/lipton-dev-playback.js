@@ -429,9 +429,10 @@
       return Math.sqrt(x * x + y * y);
     }
     var BOAT_LEN_M = 6.71;
-    var TAIL_M = BOAT_LEN_M;
+    var TAIL_M = BOAT_LEN_M * 0.85;
     var TAIL_CLEAR_MS = 5000;
     var tailsUntil = 0;
+    var finishFlashUntil = {};
     var focusMarkKey = null;
     var focusGate = null;
     function sizeCanvas() {
@@ -740,14 +741,15 @@
       }
     });
     function posAt(sail, ts) {
-      var ft = finishTs(sail);
-      if (ft != null && ts >= ft && FIN_POS[sail]) {
-        return { lat: FIN_POS[sail].lat, lon: FIN_POS[sail].lon, hdg: lastHdg[sail] || 0, i: 0, j: 0 };
-      }
       var b = trail.boats[sail];
       var pos = sampleAt(b, ts);
       if (!pos) return null;
       pos.hdg = blendHdg(sail, headingAt(b, pos));
+      var ft = finishTs(sail);
+      if (ft != null && ts >= ft) {
+        if (!finishFlashUntil[sail]) finishFlashUntil[sail] = Date.now() + 10000;
+        pos.finished = true;
+      }
       return pos;
     }
     function markAt(k, ts) {
@@ -798,22 +800,7 @@
         idx = hitBack(b, idx - 1);
       }
       hits.reverse();
-      if (hits.length < 2) return hits;
-      var dense = [];
-      for (var s = 0; s < hits.length - 1; s++) {
-        var a = hits[s];
-        var c = hits[s + 1];
-        var span = (c.i != null && a.i != null) ? (c.i - a.i) : 1;
-        dense.push(a);
-        if (span <= 2) {
-          var p0 = hits[s - 1] || a;
-          var p3 = hits[s + 2] || c;
-          var steps = 5;
-          for (var u = 1; u < steps; u++) dense.push(catmull(p0, a, c, p3, u / steps));
-        }
-      }
-      dense.push(hits[hits.length - 1]);
-      return dense;
+      return hits;
     }
     function tailsCleared() {
       return tailsUntil < 0;
@@ -828,6 +815,17 @@
       }
       tailsUntil = 0;
     }
+    function finishPulse(sail) {
+      var until = finishFlashUntil[sail];
+      if (!until || Date.now() >= until) return 1;
+      return 0.38 + 0.62 * (0.5 + 0.5 * Math.sin(Date.now() / 360));
+    }
+    function anyFinishPulse() {
+      var now = Date.now();
+      return Object.keys(finishFlashUntil).some(function (sail) {
+        return finishFlashUntil[sail] > now;
+      });
+    }
     function drawTail(sail, ts) {
       if (tailsCleared()) return;
       if (tailsUntil > 0 && Date.now() >= tailsUntil) {
@@ -839,42 +837,12 @@
       var hits = tailHits(b, ts);
       if (hits.length < 2) return;
       var screen = hits.map(function (pt) { return xy(pt.lat, pt.lon); });
-      var left = [];
-      var right = [];
-      for (var i = 0; i < screen.length; i++) {
-        var dx, dy;
-        if (i === 0) {
-          dx = screen[1].x - screen[0].x;
-          dy = screen[1].y - screen[0].y;
-        } else if (i === screen.length - 1) {
-          dx = screen[i].x - screen[i - 1].x;
-          dy = screen[i].y - screen[i - 1].y;
-        } else {
-          dx = screen[i + 1].x - screen[i - 1].x;
-          dy = screen[i + 1].y - screen[i - 1].y;
-        }
-        var len = Math.sqrt(dx * dx + dy * dy) || 1;
-        var nx = -dy / len;
-        var ny = dx / len;
-        var along = i / (screen.length - 1);
-        var zoom = Math.max(1, 0.35 / Math.max(mapBounds.scale, 0.12));
-        var w = (0.28 + along * along * 1.15) * Math.min(zoom, 1.4);
-        left.push({ x: screen[i].x + nx * w, y: screen[i].y + ny * w });
-        right.push({ x: screen[i].x - nx * w, y: screen[i].y - ny * w });
-      }
-      mapCtx.beginPath();
-      mapCtx.moveTo(left[0].x, left[0].y);
-      for (var L = 1; L < left.length; L++) mapCtx.lineTo(left[L].x, left[L].y);
-      for (var R = right.length - 1; R >= 0; R--) mapCtx.lineTo(right[R].x, right[R].y);
-      mapCtx.closePath();
       var hot = ocsPending(sail, ts);
-      mapCtx.fillStyle = hot ? "rgba(252,165,165,0.22)" : "rgba(226,232,240,0.22)";
-      mapCtx.fill();
       mapCtx.beginPath();
       mapCtx.moveTo(screen[0].x, screen[0].y);
       for (var s = 1; s < screen.length; s++) mapCtx.lineTo(screen[s].x, screen[s].y);
-      mapCtx.strokeStyle = hot ? "rgba(254,202,202,0.85)" : "rgba(248,250,252,0.85)";
-      mapCtx.lineWidth = Math.max(0.9, 0.35 / Math.max(mapBounds.scale, 0.12));
+      mapCtx.strokeStyle = hot ? "rgba(254,202,202,0.7)" : "rgba(248,250,252,0.7)";
+      mapCtx.lineWidth = 2;
       mapCtx.lineJoin = "round";
       mapCtx.lineCap = "round";
       mapCtx.stroke();
@@ -981,6 +949,8 @@
         stroke = "#14532d";
         ink = "#ffffff";
       }
+      mapCtx.save();
+      mapCtx.globalAlpha = finishPulse(sail);
       drawBoatIcon(p, hdg, fill, stroke);
       if (info.place != null) {
         mapCtx.fillStyle = ink;
@@ -1003,6 +973,7 @@
       }
       mapCtx.textAlign = "start";
       mapCtx.textBaseline = "alphabetic";
+      mapCtx.restore();
     }
     function drawMap(ts) {
       if (drawingMap) return;
@@ -1555,6 +1526,7 @@
       lastHdgAt = {};
       if (followFleet) cam = null;
       lastHeadLimit = -1;
+      finishFlashUntil = {};
       resetTails(ts);
       render(ts);
     }
@@ -1580,8 +1552,8 @@
         drawMap(playTs);
       } else {
         lastWall = Date.now();
-        if (tailsUntil > 0 && Date.now() >= tailsUntil) {
-          tailsUntil = -1;
+        if ((tailsUntil > 0 && Date.now() >= tailsUntil) || anyFinishPulse()) {
+          if (tailsUntil > 0 && Date.now() >= tailsUntil) tailsUntil = -1;
           drawMap(playTs);
         }
       }
