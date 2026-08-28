@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828cs";
+  var CACHE = "20260828da";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = !RACE_Q;
@@ -310,7 +310,7 @@
     var nameEl = document.getElementById("lipton-dev-map-hud-name");
     var clockHud = document.getElementById("lipton-dev-map-hud-clock");
     var playBtn = document.getElementById("lipton-dev-play");
-    var LIVE_CLOCK_LAG_MS = 20000;
+    var LIVE_CLOCK_LAG_MS = 2000;
     var atLive = true;
     var scrubbing = false;
     var playTs = Date.now() - LIVE_CLOCK_LAG_MS;
@@ -775,6 +775,11 @@
       var w = mapEl.clientWidth || 0;
       var h = mapEl.clientHeight || 0;
       mapCtx.clearRect(0, 0, w, h);
+      var pin = atTs(hist.pin, ts);
+      var rc = atTs(hist.rc, ts);
+      var startMid = (pin && rc)
+        ? { lat: (pin.lat + rc.lat) / 2, lon: (pin.lon + rc.lon) / 2 }
+        : (pin || rc);
       Object.keys(hist.marks).forEach(function (k) {
         if (k !== "1") return;
         var arr = hist.marks[k];
@@ -791,13 +796,17 @@
         mapCtx.arc(p.x, p.y, 4.2, 0, Math.PI * 2);
         mapCtx.fillStyle = "#fbbf24";
         mapCtx.fill();
+        var m1Spec = roundArr.M1 || defaultPortSpec(pos, startMid);
+        if (m1Spec) drawRoundArrow(pos, m1Spec, "#fbbf24");
+        var m1Lab = markLabelBack(pos, startMid);
         mapCtx.fillStyle = "#ffffff";
         mapCtx.font = "bold 13px sans-serif";
-        mapCtx.fillText("M1", p.x + 10, p.y + 4);
-        if (roundArr.M1) drawRoundArrow(pos, roundArr.M1, "#fbbf24");
+        mapCtx.textAlign = "center";
+        mapCtx.textBaseline = "middle";
+        mapCtx.fillText("M1", m1Lab.x, m1Lab.y);
+        mapCtx.textAlign = "start";
+        mapCtx.textBaseline = "alphabetic";
       });
-      var pin = atTs(hist.pin, ts);
-      var rc = atTs(hist.rc, ts);
       if (pin && rc) {
         drawStartGrid(pin, rc);
         var a = xy(pin.lat, pin.lon);
@@ -813,11 +822,23 @@
         mapCtx.lineWidth = 1;
         mapCtx.strokeRect(b.x - 7, b.y - 5, 14, 10);
         mapCtx.fillStyle = "#0b1b33";
+        mapCtx.textAlign = "start";
+        mapCtx.textBaseline = "alphabetic";
         mapCtx.fillText("RC", b.x - 6, b.y + 3);
+        var pinFrom = atTs(hist.marks["1"], ts) || startMid;
+        var pinLab = markLabelBack(pin, pinFrom);
         mapCtx.fillStyle = "#ffffff";
         mapCtx.font = "bold 10px sans-serif";
-        mapCtx.fillText("Pin", a.x + 6, a.y - 6);
-        if (gunTs && ts >= gunTs && roundArr.PIN) drawRoundArrow(pin, roundArr.PIN, "#38bdf8");
+        mapCtx.textAlign = "center";
+        mapCtx.textBaseline = "middle";
+        mapCtx.fillText("Pin", pinLab.x, pinLab.y);
+        mapCtx.textAlign = "start";
+        mapCtx.textBaseline = "alphabetic";
+        var pinLeeward = gunTs && (ts >= gunTs + 5 * 60 * 1000 || Object.keys(passTs.M1 || {}).length);
+        if (pinLeeward) {
+          var pinSpec = roundArr.PIN || defaultPortSpec(pin, pinFrom);
+          if (pinSpec) drawRoundArrow(pin, pinSpec, "#38bdf8");
+        }
         if (gunTs && ts < gunTs + 5 * 60 * 1000) {
           mapCtx.fillStyle = "#ffffff";
           mapCtx.font = "bold 10px sans-serif";
@@ -937,6 +958,19 @@
         e: (pos.lon - mark.lon) * Math.PI / 180 * Math.cos(lat0) * 6371000,
         n: (pos.lat - mark.lat) * Math.PI / 180 * 6371000
       };
+    }
+    function defaultPortSpec(mark, fromPt) {
+      if (!mark || !fromPt) return null;
+      var e = enuOf(mark, fromPt);
+      var mag = Math.hypot(e.e, e.n) || 1;
+      return { ie: e.e / mag, inn: e.n / mag, sweep: 1.85 };
+    }
+    function markLabelBack(mark, fromPt) {
+      if (!mark) return { x: 0, y: 0 };
+      var e = fromPt ? enuOf(mark, fromPt) : { e: 1, n: 0 };
+      var mag = Math.hypot(e.e, e.n) || 1;
+      var ll = meterOffset(mark.lat, mark.lon, (e.e / mag) * 22, (-e.n / mag) * 22);
+      return xy(ll.lat, ll.lon);
     }
     function ccwDelta(a, b) {
       var d = b - a;
@@ -1104,7 +1138,7 @@
           if (dj >= bestD + leaveExtra) { left = true; break; }
           j += 1;
         }
-        if (!left && bestD <= 25) {
+        if (!left && bestD <= 40) {
           var nxtGap = j < n ? series[j].gap : null;
           if (j >= n || (nxtGap != null && nxtGap >= gapInbound)) left = true;
         }
@@ -1150,34 +1184,87 @@
         });
       }
     }
+    function collectLineHits(pts, geom, fromTs) {
+      var hits = [];
+      var prev = null;
+      var i;
+      for (i = 0; i < pts.length; i++) {
+        var p = pts[i];
+        if (fromTs != null && p.ts_ms < fromTs) continue;
+        var sg = geom.signed(p.lat, p.lon);
+        if (prev) {
+          var on = (sg.along >= -80 && sg.along <= geom.len + 80) || (prev.along >= -80 && prev.along <= geom.len + 80);
+          if (on) {
+            if (prev.d > 0 && sg.d <= 0) {
+              var frac = prev.d === sg.d ? 1 : prev.d / (prev.d - sg.d);
+              hits.push({ t: Math.round(prev.ts + (p.ts_ms - prev.ts) * frac), kind: "enter" });
+            } else if (prev.d <= 0 && sg.d > 0) {
+              var frac = sg.d === prev.d ? 1 : (-prev.d) / (sg.d - prev.d);
+              hits.push({ t: Math.round(prev.ts + (p.ts_ms - prev.ts) * frac), kind: "exit" });
+            }
+          }
+        }
+        prev = { d: sg.d, ts: p.ts_ms, along: sg.along };
+      }
+      return hits;
+    }
+    function startTsForSail(sail, pts, geom) {
+      if (!geom || !gunTs || !pts || pts.length < 2) return null;
+      var ocs = liveOcsOn(sail);
+      var hits = collectLineHits(pts, geom, ocs ? gunTs - 90000 : gunTs - 8000);
+      var i;
+      var enters = [];
+      for (i = 0; i < hits.length; i++) {
+        if (hits[i].kind === "enter") enters.push(hits[i].t);
+      }
+      if (!ocs) {
+        for (i = 0; i < enters.length; i++) {
+          if (enters[i] >= gunTs - 500) return enters[i];
+        }
+        return null;
+      }
+      if (enters.length >= 2) return enters[enters.length - 1];
+      var dip = null;
+      var sawExit = false;
+      for (i = 0; i < hits.length; i++) {
+        var h = hits[i];
+        if (h.kind === "enter" && dip == null) dip = h.t;
+        if (dip != null && h.kind === "exit" && h.t >= dip) sawExit = true;
+        else if (sawExit && h.kind === "enter") return h.t;
+      }
+      if (enters.length === 1 && enters[0] >= gunTs + 3000) return enters[0];
+      return dip;
+    }
+    var lockedSt = {};
     function detectLivePasses() {
       passTs = { ST: {}, M1: {}, PIN: {}, M1b: {}, PINb: {}, M1c: {}, PINc: {}, M1d: {}, PINd: {} };
-      var pin = lastPt(hist.pin);
-      var rc = lastPt(hist.rc);
+      var pinNow = lastPt(hist.pin);
+      var rcNow = lastPt(hist.rc);
+      var pinGun = gunTs ? atTs(hist.pin, gunTs) : null;
+      var rcGun = gunTs ? atTs(hist.rc, gunTs) : null;
+      var pin = pinGun || pinNow;
+      var rc = rcGun || rcNow;
       var m1now = lastPt(hist.marks["1"]);
       var geom = lineGeom(pin, rc, stillEnough(hist.marks["1"], playTs) ? m1now : null);
       var m1Ids = ["M1", "M1b", "M1c", "M1d"];
       var pinIds = ["PIN", "PINb", "PINc", "PINd"];
       Object.keys(hist.boats).forEach(function (sail) {
         var pts = hist.boats[sail] || [];
-        if (geom && gunTs && pts.length >= 2) {
-          var prev = null;
-          for (var i = 0; i < pts.length; i++) {
-            var p = pts[i];
-            if (p.ts_ms < gunTs - 2000) continue;
-            var sg = geom.signed(p.lat, p.lon);
-            if (prev && prev.d > 0 && sg.d <= 0 && sg.along >= -30 && sg.along <= geom.len + 30) {
-              var frac = prev.d === sg.d ? 1 : prev.d / (prev.d - sg.d);
-              passTs.ST[sail] = Math.round(prev.ts + (p.ts_ms - prev.ts) * frac);
-              break;
-            }
-            prev = { d: sg.d, ts: p.ts_ms };
-          }
+        var ocs = liveOcsOn(sail);
+        var st = startTsForSail(sail, pts, geom);
+        if (ocs) {
+          if (st != null) lockedSt[sail] = st;
+        } else if (st != null) {
+          lockedSt[sail] = st;
+        } else if (lockedSt[sail] != null) {
+          st = lockedSt[sail];
         }
-        var afterSt = passTs.ST[sail] != null ? passTs.ST[sail] + 6000 : (gunTs ? gunTs + 6000 : 0);
+        if (st != null) passTs.ST[sail] = st;
+        var afterSt = st != null ? st + 6000 : (gunTs ? gunTs + 6000 : 0);
         var m1s = roundingCandidates(pts, hist.marks["1"], afterSt, 80);
-        var pinAfter = afterSt + 8 * 60 * 1000;
-        if (m1s[0]) pinAfter = Math.max(pinAfter, m1s[0] + 45000);
+        var pinAfter = m1s[0] != null
+          ? m1s[0] + 45000
+          : ((st != null ? st : gunTs) + 5 * 60 * 1000);
         var pins = roundingCandidates(pts, hist.pin, pinAfter, 80);
         m1s.forEach(function (t, idx) {
           if (m1Ids[idx]) passTs[m1Ids[idx]][sail] = t;
@@ -1187,8 +1274,11 @@
         });
       });
       packFill();
-      roundArr.M1 = voteRound(hist.marks["1"], passTs.M1, 25000);
-      roundArr.PIN = voteRound(hist.pin, passTs.PIN, 28000);
+      var startMid = (pin && rc)
+        ? { lat: (pin.lat + rc.lat) / 2, lon: (pin.lon + rc.lon) / 2 }
+        : pin;
+      roundArr.M1 = voteRound(hist.marks["1"], passTs.M1, 25000) || defaultPortSpec(m1now, startMid);
+      roundArr.PIN = voteRound(hist.pin, passTs.PIN, 28000) || defaultPortSpec(pinNow, m1now || startMid);
     }
     function rankMap(id) {
       return Object.keys(passTs[id] || {}).sort(function (a, b) {
@@ -1197,7 +1287,9 @@
     }
     function livePassAt(sail, id) {
       var t = passTs[id] && passTs[id][sail];
-      return t != null && t <= playTs ? t : null;
+      if (t == null) return null;
+      var cut = atLive ? Date.now() + 4000 : playTs;
+      return t <= cut ? t : null;
     }
     function liveMapBadge(sail) {
       var last = -1;
@@ -1218,7 +1310,7 @@
       }
       return {
         place: place,
-        pending: liveOcsOn(sail) && livePassAt(sail, "ST") != null,
+        pending: liveOcsPending(sail),
         onMark: last > 0,
         leg: leg,
         total: total
@@ -1229,10 +1321,33 @@
     var headRow = document.getElementById("lipton-dev-thead-row");
     var lastLiveTableKey = "";
     if (wrapEl) wrapEl.hidden = false;
-    function liveIdent(sail) { return identity[sail] || {}; }
+    function liveIdent(sail) {
+      if (identity[sail]) return identity[sail];
+      var keys = Object.keys(identity);
+      var i;
+      for (i = 0; i < keys.length; i++) {
+        var id = identity[keys[i]] || {};
+        if (id.mapClub === sail || id.club === sail || id.clubRaw === sail) return id;
+      }
+      return {};
+    }
     function liveOcsOn(sail) {
-      var n = (identity[sail] && (identity[sail].mapClub || identity[sail].club)) || sail;
-      return liveOcs.indexOf(sail) >= 0 || liveOcs.indexOf(n) >= 0;
+      var id = identity[sail] || {};
+      var aliases = [sail, id.mapClub, id.club, id.clubRaw];
+      var i;
+      var j;
+      for (i = 0; i < liveOcs.length; i++) {
+        var o = String(liveOcs[i] || "").toUpperCase().replace(/\s+/g, "");
+        if (!o) continue;
+        for (j = 0; j < aliases.length; j++) {
+          var n = String(aliases[j] || "").toUpperCase().replace(/\s+/g, "");
+          if (n && n === o) return true;
+        }
+      }
+      return false;
+    }
+    function liveOcsPending(sail) {
+      return liveOcsOn(sail) && livePassAt(sail, "ST") == null;
     }
     function fmtBehindFirst(t, first) {
       if (t == null || first == null) return "";
@@ -1280,9 +1395,6 @@
     function renderLiveTable() {
       if (!tbody) return;
       if (wrapEl) wrapEl.hidden = false;
-      var names = {};
-      Object.keys(identity).forEach(function (s) { names[s] = true; });
-      Object.keys(hist.boats).forEach(function (s) { names[s] = true; });
       var used = usedPassIds();
       var ranks = {};
       PASS_ORDER.forEach(function (id) { ranks[id] = rankMap(id); });
@@ -1293,7 +1405,9 @@
         if (t == null) return;
         if (firstSt == null || t < firstSt) firstSt = t;
       });
-      var rows = Object.keys(names).map(function (sail) {
+      var rowSails = Object.keys(hist.boats);
+      if (!rowSails.length) rowSails = Object.keys(identity);
+      var rows = rowSails.map(function (sail) {
         var times = {};
         var far = 0;
         var farTs = 0;
@@ -1305,6 +1419,9 @@
         return { sail: sail, times: times, far: far, farTs: farTs };
       });
       rows.sort(function (a, b) {
+        var pa = liveOcsPending(a.sail) ? 1 : 0;
+        var pb = liveOcsPending(b.sail) ? 1 : 0;
+        if (pa !== pb) return pa - pb;
         if (b.far !== a.far) return b.far - a.far;
         if (a.far && b.far && a.farTs !== b.farTs) return a.farTs - b.farTs;
         var ia = liveIdent(a.sail), ib = liveIdent(b.sail);
@@ -1321,7 +1438,7 @@
       var html = "";
       rows.forEach(function (r) {
         var id = liveIdent(r.sail);
-        var ocs = liveOcsOn(r.sail) && r.times.ST != null;
+        var ocs = liveOcsPending(r.sail);
         var medal = "";
         if (!ocs && r.rank === 1) medal = " medal-gold";
         else if (!ocs && r.rank === 2) medal = " medal-silver";
@@ -1338,7 +1455,13 @@
             html += "<td class=\"place-delta-col\">" + deltaSpan(d) + "</td>";
           }
           var cell = "";
-          if (pid === "ST") cell = ocs ? "OCS" : fmtBehindFirst(r.times.ST, firstSt);
+          if (pid === "ST") {
+            if (r.times.ST == null) cell = liveOcsOn(r.sail) ? "OCS" : "";
+            else {
+              var gap = fmtBehindFirst(r.times.ST, firstSt);
+              cell = liveOcsOn(r.sail) ? ("OCS " + gap) : gap;
+            }
+          }
           else if (r.times[pid]) {
             var prevT = null;
             for (var k = i - 1; k >= 0; k--) {
@@ -1368,12 +1491,18 @@
       if (n && liveRaceN && n !== liveRaceN) {
         hist = { boats: {}, marks: {}, pin: [], rc: [] };
         loadedHistory = false;
+        catchupOk = false;
+        lockedSt = {};
         gunTs = null;
         didFit = false;
       }
       liveRaceN = n;
       if (Array.isArray(data.ocs)) liveOcs = data.ocs.slice();
-      if (data.clock_lag_ms != null) LIVE_CLOCK_LAG_MS = Number(data.clock_lag_ms);
+      if (data.clock_lag_ms != null && Number(data.clock_lag_ms) < 5000) {
+        LIVE_CLOCK_LAG_MS = Number(data.clock_lag_ms);
+      } else {
+        LIVE_CLOCK_LAG_MS = 2000;
+      }
       snap = data;
       if (data.waiting && !data.gun_ts_ms) gunTs = null;
       else if (data.gun_ts_ms) gunTs = Number(data.gun_ts_ms);
@@ -1407,41 +1536,67 @@
     var lastDetectAt = 0;
     function maybeDetect() {
       var now = Date.now();
-      if (now - lastDetectAt < 200) return;
+      if (now - lastDetectAt < 100) return;
       lastDetectAt = now;
       detectLivePasses();
       renderLiveTable();
     }
     var pollInFlight = false;
+    var catchupInFlight = false;
+    var catchupOk = false;
+    var lastCatchupAt = 0;
+    var CATCHUP_LAG_MS = 2000;
+    function boatsFromGun() {
+      if (!gunTs) return 0;
+      var n = 0;
+      var sails = Object.keys(hist.boats);
+      var i;
+      for (i = 0; i < sails.length; i++) {
+        var t = hist.boats[sails[i]];
+        if (t && t.length && t[0].ts_ms <= gunTs + 15000) n += 1;
+      }
+      return n;
+    }
+    function stCount() {
+      var n = 0;
+      Object.keys(hist.boats).forEach(function (s) {
+        if ((passTs.ST && passTs.ST[s] != null) || lockedSt[s] != null) n += 1;
+      });
+      return n;
+    }
+    function needCatchup() {
+      if (catchupOk) return false;
+      if (!gunTs || (snap && snap.waiting && !snap.gun_ts_ms)) return false;
+      var now = Date.now();
+      if (now < gunTs + CATCHUP_LAG_MS) return false;
+      if (now - lastCatchupAt < CATCHUP_LAG_MS) return false;
+      return true;
+    }
     function poll() {
       if (pollInFlight) return;
       pollInFlight = true;
-      var histQ = needHistory();
-      var q = histQ ? "/api/lipton-dev/live?history=1" : "/api/lipton-dev/live";
-      fetch(q, { cache: "no-store" })
+      fetch("/api/lipton-dev/live", { cache: "no-store" })
         .then(function (res) { return res.json(); })
-        .then(function (data) {
-          applySnap(data);
-          if (!needHistory()) loadedHistory = true;
-        })
+        .then(applySnap)
         .catch(function () {})
         .then(function () { pollInFlight = false; });
     }
-    function needHistory() {
-      if (snap && snap.waiting && !snap.gun_ts_ms) return false;
-      if (!gunTs) return false;
-      var sails = Object.keys(hist.boats);
-      if (sails.length < 12) return true;
-      var fromGun = 0;
-      for (var i = 0; i < sails.length; i++) {
-        var t = hist.boats[sails[i]];
-        if (t && t.length && t[0].ts_ms <= gunTs + 15000) fromGun += 1;
-      }
-      if (fromGun < 12) return true;
-      if (!hist.pin.length || hist.pin[0].ts_ms > gunTs + 15000) return true;
-      var m1 = hist.marks["1"];
-      if (!m1 || !m1.length) return true;
-      return false;
+    function pollCatchup() {
+      if (catchupInFlight || !needCatchup()) return;
+      catchupInFlight = true;
+      lastCatchupAt = Date.now();
+      fetch("/js/lipton-dev-live-history.json?v=" + Date.now(), { cache: "no-store" })
+        .then(function (res) { return res.ok ? res.json() : null; })
+        .then(function (data) {
+          if (!data || !data.boats) return;
+          applySnap(data);
+          if (boatsFromGun() >= 12) {
+            catchupOk = true;
+            loadedHistory = true;
+          }
+        })
+        .catch(function () {})
+        .then(function () { catchupInFlight = false; });
     }
     fetch("/js/lipton-dev-replay.json?v=" + CACHE, { cache: "no-store" })
       .then(function (res) { return res.ok ? res.json() : null; })
@@ -1453,6 +1608,7 @@
     paintClock();
     renderLiveTable();
     poll();
+    pollCatchup();
     function liveTick() {
       paintClock();
       tickLiveHorns();
@@ -1461,6 +1617,7 @@
     }
     window.requestAnimationFrame(liveTick);
     setInterval(poll, 400);
+    setInterval(pollCatchup, 2000);
     window.addEventListener("resize", function () { drawLiveMap(); });
   }
 

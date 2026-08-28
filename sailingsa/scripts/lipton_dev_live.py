@@ -24,7 +24,7 @@ WINDOW_MS = 45_000
 HISTORY_MS = 4 * 60 * 1000
 LIVE_TRAIL_MS = 45_000
 STEP_MS = 280
-CLOCK_LAG_MS = 20_000
+CLOCK_LAG_MS = 2_000
 CHUNK_MS = 3 * 60 * 1000
 SNAP_TTL_S = 0.8
 SNAP_PATH = Path("/tmp/lipton_dev_live_snap.json")
@@ -392,12 +392,10 @@ def live_snapshot(*, history: bool = False) -> dict:
     start0 = ((raw_race or {}).get("starts") or [{}])[0] if raw_race else {}
     keep_ms = WINDOW_MS if waiting else (HISTORY_MS if history else WINDOW_MS)
     rec_keep: int | None = keep_ms
-    have_hist = _covers_start(stored_hit, gun_ms) or _history_span_ms(stored_hit) >= 60_000
+    have_hist = _covers_start(stored_hit, gun_ms)
     prestart = gun_ms is not None and now_ms < int(gun_ms) - 5_000
     if (not waiting) and (not prestart) and history and gun_ms is not None and not have_hist:
         start = int(gun_ms) - 30_000
-        if now_ms - int(gun_ms) > 8 * 60 * 1000:
-            start = max(start, now_ms - 6 * 60 * 1000)
         if start < now_ms:
             rows = _tele_range(start, now_ms + 2000)
             rec_keep = None
