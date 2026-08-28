@@ -318,11 +318,14 @@ body[data-lipton-dev="1"] .leaflet-tile {
 body[data-lipton-dev="1"] .lipton-dev-track > .leaflet-control-container {
   z-index: 3;
 }
-body[data-lipton-dev="1"] .leaflet-control-zoom a {
-  width: 44px;
-  height: 44px;
-  line-height: 44px;
-  font-size: 22px;
+body[data-lipton-dev="1"] .leaflet-control-zoom a,
+body[data-lipton-dev="1"] .leaflet-touch .leaflet-bar a,
+body[data-lipton-dev="1"] .leaflet-touch .leaflet-control-zoom-in,
+body[data-lipton-dev="1"] .leaflet-touch .leaflet-control-zoom-out {
+  width: 20px;
+  height: 20px;
+  line-height: 20px;
+  font-size: 13px;
 }
 body[data-lipton-dev="1"] .lipton-dev-track canvas {
   position: absolute;
