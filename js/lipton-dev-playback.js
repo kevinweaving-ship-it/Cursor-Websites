@@ -289,28 +289,35 @@
       TSC: "#9333ea",
       WYAC: "#f59e0b",
       RCYCA: "#64748b",
+      "RCYC Academy": "#64748b",
       UCT: "#0284c7",
+      UCTYC: "#0284c7",
       IZI: "#be123c",
-      LYCN: "#15803d"
+      IZIVUNGUVUNGU: "#be123c",
+      LYCN: "#15803d",
+      LYC: "#15803d"
     };
-    function hexLuma(hex) {
+    function hexRgb(hex) {
       var n = parseInt(String(hex).replace("#", ""), 16);
-      if (!(n >= 0)) return 0;
-      return 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
+      if (!(n >= 0)) return [148, 163, 184];
+      return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    }
+    function hexLuma(hex) {
+      var c = hexRgb(hex);
+      return 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2];
+    }
+    function rgbaHex(hex, a) {
+      var c = hexRgb(hex);
+      return "rgba(" + c[0] + "," + c[1] + "," + c[2] + "," + a + ")";
+    }
+    function eventFill(sail) {
+      return EVENT_BOAT_COLORS[sail] || EVENT_BOAT_COLORS[clubCode(sail)] || "#94a3b8";
     }
     function boatPaint(sail, pending) {
       if (pending) {
         return { fill: "#dc2626", stroke: "#7f1d1d", ink: "#ffffff", nose: "#fecaca" };
       }
-      var code = clubCode(sail);
-      var fill = EVENT_BOAT_COLORS[code];
-      if (!fill) {
-        var h = 0;
-        var s = String(code);
-        for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-        var keys = Object.keys(EVENT_BOAT_COLORS);
-        fill = EVENT_BOAT_COLORS[keys[h % keys.length]];
-      }
+      var fill = eventFill(sail);
       var dark = hexLuma(fill) < 165;
       return {
         fill: fill,
@@ -892,16 +899,17 @@
       var hits = tailHits(b, ts);
       if (hits.length < 2) return;
       var hot = ocsPending(sail, ts);
+      var fill = boatPaint(sail, hot).fill;
       var n = hits.length - 1;
       for (var s = 0; s < n; s++) {
         var a = xy(hits[s].lat, hits[s].lon);
         var c = xy(hits[s + 1].lat, hits[s + 1].lon);
         var u = (s + 1) / n;
-        var alpha = 0.12 + 0.72 * u * u;
+        var alpha = 0.18 + 0.72 * u * u;
         mapCtx.beginPath();
         mapCtx.moveTo(a.x, a.y);
         mapCtx.lineTo(c.x, c.y);
-        mapCtx.strokeStyle = hot ? "rgba(254,202,202," + alpha + ")" : "rgba(248,250,252," + alpha + ")";
+        mapCtx.strokeStyle = rgbaHex(fill, alpha);
         mapCtx.lineWidth = 1.4 + 1.2 * u;
         mapCtx.lineCap = "round";
         mapCtx.lineJoin = "round";
@@ -1015,8 +1023,11 @@
       mapCtx.font = "bold 8px sans-serif";
       mapCtx.textAlign = "left";
       mapCtx.textBaseline = "middle";
-      mapCtx.fillStyle = info.pending ? "#f87171" : "#ffffff";
+      mapCtx.shadowColor = "rgba(0,0,0,0.9)";
+      mapCtx.shadowBlur = 3;
+      mapCtx.fillStyle = info.pending ? "#f87171" : paint.fill;
       mapCtx.fillText(club, lx, ly);
+      mapCtx.shadowBlur = 0;
       if (info.onMark) {
         var cw = mapCtx.measureText(club).width;
         drawDelta(lx + cw + 3, ly, info.total, "left");
