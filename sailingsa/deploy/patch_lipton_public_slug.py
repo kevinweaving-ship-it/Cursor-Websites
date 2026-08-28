@@ -89,19 +89,34 @@ def _ensure_early(text: str) -> str:
     return text
 
 
+def _playback_is_real(text: str) -> bool:
+    """False if another process inverted playback into the old event page."""
+    m = re.search(
+        r"def serve_lipton_dev_playback_page\([\s\S]*?\n(?=\n(?:def |@app\.))",
+        text,
+    )
+    body = m.group(0) if m else ""
+    if "_serve_regatta_standalone_impl" in body:
+        return False
+    if "lipton-dev.html" not in body:
+        return False
+    after = text.split("def serve_regatta_standalone", 1)[-1][:1200]
+    if f'slug_s == "{PUBLIC}"' not in after:
+        return False
+    if "public=True" not in after:
+        return False
+    return True
+
+
 def main() -> int:
     text = API.read_text(encoding="utf-8")
-    if (
-        f'slug_s == "{PUBLIC}"' in text.split("def serve_regatta_standalone", 1)[-1][:1200]
-        and "serve_lipton_dev_playback_page(request, public=True)" in text
-        and "public: bool" in text
-    ):
+    if _playback_is_real(text):
         print("public slug already patched")
         return 0
     text = _replace_playback_block(text)
     text = _ensure_early(text)
-    if f'slug_s == "{PUBLIC}"' not in text:
-        print("ERROR: public slug early-return missing after patch", file=sys.stderr)
+    if not _playback_is_real(text):
+        print("ERROR: playback hook still inverted or public slug missing", file=sys.stderr)
         return 1
     API.write_text(text, encoding="utf-8")
     print("patched public slug", API)

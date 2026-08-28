@@ -204,7 +204,7 @@ body[data-lipton-dev="1"] .lipton-dev-shell {
 body[data-lipton-dev="1"] .lipton-dev-split {
   display: grid;
   grid-template-columns: 1fr;
-  grid-template-rows: minmax(180px, 1.35fr) minmax(120px, 1fr);
+  grid-template-rows: minmax(140px, 1fr) minmax(260px, 1.35fr);
   gap: 6px;
   align-items: stretch;
   width: 100%;
@@ -215,15 +215,16 @@ body[data-lipton-dev="1"] .lipton-dev-split {
   overflow: hidden;
 }
 body[data-lipton-dev="1"] .lipton-dev-board {
-  width: 100%;
-  max-width: none;
-  margin: 0;
-  justify-self: start;
-  align-self: stretch;
   display: flex;
   flex-direction: column;
+  min-width: 0;
   min-height: 0;
   height: 100%;
+  overflow: hidden;
+}
+body[data-lipton-dev="1"] .lipton-dev-board > .class-header {
+  flex: 0 0 auto;
+  margin: 0 0 4px;
 }
 body[data-lipton-dev="1"] .class-header {
   font-size: 12px;
@@ -307,8 +308,11 @@ body[data-lipton-dev="1"] .table-wrapper {
   flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
+  height: auto;
+  max-height: 100%;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  touch-action: pan-x pan-y;
 }
 body[data-lipton-dev="1"] .table-wrapper thead th {
   position: sticky;

@@ -362,23 +362,40 @@ def live_snapshot(*, history: bool = False) -> dict:
         summary = None
     races = (summary or {}).get("races") or []
     unfinished = [r for r in races if str(r.get("stage") or "").lower() not in FINISHED_STAGES]
-    race = min(unfinished, key=lambda r: r["race_number"]) if unfinished else None
-    gun = parse_ts(race.get("gun_at_utc")) if race else None
-    gun_ms = _ms(gun)
-    # Finished-race guns must not stay "live" — that re-fetches the whole race
-    # and hides the next start. Cached gun is only for an unfinished race.
-    if gun_ms is None and race is None:
-        waiting = True
-    elif gun_ms is None and cached.get("gun_ts_ms"):
+    nxt = min(unfinished, key=lambda r: r["race_number"]) if unfinished else None
+    nxt_gun_ms = _ms(parse_ts(nxt.get("gun_at_utc")) if nxt else None)
+    finished = [r for r in races if str(r.get("stage") or "").lower() in FINISHED_STAGES]
+    last_fin = max(finished, key=lambda r: r["race_number"]) if finished else None
+    # Keep the last race until the next race gun has actually fired (or is in the 10-min prep window).
+    # A scheduled tomorrow gun must not replace today's finished race.
+    NEXT_GUN_SWITCH_MS = 10 * 60 * 1000
+    nxt_live = (
+        nxt is not None
+        and nxt_gun_ms is not None
+        and int(nxt_gun_ms) <= now_ms + NEXT_GUN_SWITCH_MS
+    )
+    if nxt_live:
+        race = nxt
+        gun_ms = nxt_gun_ms
+        waiting = False
+    elif last_fin is not None:
+        race = last_fin
+        gun_ms = _ms(parse_ts(last_fin.get("gun_at_utc")))
+        if gun_ms is None and cached.get("race_number") == last_fin.get("race_number") and cached.get("gun_ts_ms"):
+            gun_ms = int(cached["gun_ts_ms"])
+        waiting = gun_ms is None
+    elif cached.get("gun_ts_ms") and (nxt is None or nxt_gun_ms is None):
         gun_ms = int(cached["gun_ts_ms"])
-        race = race or {
+        race = {
             "race_number": cached.get("race_number"),
-            "stage": cached.get("stage") or "starting",
+            "stage": cached.get("stage") or "finishing",
             "gun_at_sast": cached.get("gun_sast"),
         }
         waiting = False
     else:
-        waiting = gun_ms is None
+        race = nxt
+        gun_ms = None
+        waiting = True
     delta = (playback_ms - gun_ms) if gun_ms is not None else None
     devices = _device_map(doc) if doc else {"rc": 25604, "pin": PIN_SN, "marks": dict(MARK_SN)}
     raw_race = None
@@ -459,10 +476,15 @@ def live_snapshot(*, history: bool = False) -> dict:
         "ok": True,
         "live": True,
         "waiting": waiting,
-        "reason": ((summary or cached).get("next_race_reason") if waiting else "tracker gun vs wall clock"),
+        "holding_last": bool(last_fin and (nxt is None or nxt_gun_ms is None) and gun_ms),
+        "reason": (
+            "last race stays live until next gun"
+            if (last_fin and (nxt is None or nxt_gun_ms is None) and gun_ms)
+            else ((summary or cached).get("next_race_reason") if waiting else "tracker gun vs wall clock")
+        ),
         "race_number": (
-            (race["race_number"] if race else None)
-            or (summary or {}).get("next_race_number")
+            (race.get("race_number") if race else None)
+            or (None if not waiting else (summary or {}).get("next_race_number"))
             or (None if waiting else cached.get("race_number"))
         ),
         "stage": (race.get("stage") if race else None) or "waiting",

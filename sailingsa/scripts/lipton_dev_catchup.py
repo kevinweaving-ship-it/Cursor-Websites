@@ -140,6 +140,25 @@ def _atomic_write(path: Path, text: str) -> None:
 
 def main() -> int:
     data = live_snapshot(history=True)
+    existing = None
+    for p in HISTORY_PATHS:
+        try:
+            prev = json.loads(p.read_text(encoding="utf-8"))
+            if isinstance(prev, dict) and prev.get("boats"):
+                existing = prev
+                break
+        except (OSError, json.JSONDecodeError, TypeError, ValueError):
+            continue
+    if existing and len(existing.get("boats") or {}) >= 12 and existing.get("gun_ts_ms"):
+        boats_n = len((data or {}).get("boats") or {})
+        same_gun = data.get("gun_ts_ms") and int(data["gun_ts_ms"]) == int(existing["gun_ts_ms"])
+        if data.get("waiting") or not data.get("gun_ts_ms") or (same_gun and boats_n < 12):
+            print(
+                "catchup keep last race "
+                f"race={existing.get('race_number')} boats={len(existing.get('boats') or {})} "
+                f"gun={existing.get('gun_ts_ms')}"
+            )
+            return 0
     text = json.dumps(data, separators=(",", ":"), default=str)
     for p in (OUT,) + HISTORY_PATHS:
         try:

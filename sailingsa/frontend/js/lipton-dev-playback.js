@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828dm";
+  var CACHE = "20260828dq";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = !RACE_Q;
@@ -132,6 +132,13 @@
     u.searchParams.set("live", "1");
     location.assign(u.pathname + "?" + u.searchParams.toString());
   }
+  function setRaceTableLabel(n, isLive) {
+    var el = document.getElementById("lipton-dev-race-label");
+    if (!el) return;
+    if (n) el.textContent = "Race " + n;
+    else el.textContent = isLive ? "Live" : "";
+  }
+  setRaceTableLabel(LIVE_Q ? 0 : (RACE_Q || 0), LIVE_Q);
   function bindRaceButtons(active) {
     var want = LIVE_Q ? -1 : Number(active || RACE_Q || 4);
     document.querySelectorAll("#lipton-dev-race-boxes [data-race]").forEach(function (btn) {
@@ -1557,6 +1564,7 @@
     function renderLiveTable() {
       if (!tbody) return;
       if (wrapEl) wrapEl.hidden = false;
+      var raceOver = !!(snap && (snap.holding_last || /finish/i.test(String(snap.stage || ""))));
       var used = usedPassIds();
       var ranks = {};
       PASS_ORDER.forEach(function (id) { ranks[id] = rankMap(id); });
@@ -1581,14 +1589,14 @@
         var pts = hist.boats[sail] || [];
         var m1 = lastPt(hist.marks["1"]);
         var pinPt = lastPt(hist.pin);
-        if (far === 3 && leavingMark(pts, m1, pinPt)) {
+        if (!raceOver && far === 3 && leavingMark(pts, m1, pinPt)) {
           far = 4;
           farTs = null;
         }
         if (times.FIN != null) {
           far = 8;
           farTs = times.FIN;
-        } else if (times.M1c != null) {
+        } else if (!raceOver && times.M1c != null) {
           var here = lastPt(pts);
           if (here && m1 && distM(here, m1) > 55) {
             far = 7;
@@ -1631,11 +1639,15 @@
       rows.sort(function (a, b) {
         if (b.far !== a.far) return b.far - a.far;
         if (a.farTs != null && b.farTs != null && a.farTs !== b.farTs) return a.farTs - b.farTs;
+        if (a.farTs != null && b.farTs == null) return -1;
+        if (b.farTs != null && a.farTs == null) return 1;
+        if (raceOver) return String(a.sail).localeCompare(String(b.sail));
         return distNext(a.sail, a.far) - distNext(b.sail, b.far);
       });
       rows.forEach(function (r, i) { r.rank = i + 1; });
       var key = used.join(",") + "|" + rows.map(function (r) {
-        return r.sail + ":" + r.rank + ":" + r.far + ":" + Math.round(distNext(r.sail, r.far) / 8) + ":" + PASS_ORDER.map(function (id) { return r.times[id] || ""; }).join(":");
+        var distBit = raceOver ? "x" : String(Math.round(distNext(r.sail, r.far) / 8));
+        return r.sail + ":" + r.rank + ":" + r.far + ":" + distBit + ":" + PASS_ORDER.map(function (id) { return r.times[id] || ""; }).join(":");
       }).join("|");
       if (key === lastLiveTableKey) return;
       lastLiveTableKey = key;
@@ -1693,9 +1705,19 @@
     }
     function applySnap(data) {
       if (!data) return;
+      var incomingGun = data.gun_ts_ms != null ? Number(data.gun_ts_ms) : null;
+      var newRaceGun = incomingGun && gunTs && incomingGun !== gunTs;
+      if (gunTs && liveRaceN && (data.waiting || !incomingGun) && !newRaceGun) {
+        data = Object.assign({}, data, {
+          waiting: false,
+          gun_ts_ms: gunTs,
+          race_number: liveRaceN
+        });
+      }
       if (!data.ok && !(data.boats && Object.keys(data.boats).length)) return;
       var n = data.race_number || null;
-      if (n && liveRaceN && n !== liveRaceN) {
+      if (n && liveRaceN && n !== liveRaceN && !newRaceGun) n = liveRaceN;
+      if (n && liveRaceN && n !== liveRaceN && newRaceGun) {
         hist = { boats: {}, marks: {}, pin: [], rc: [] };
         loadedHistory = false;
         catchupOk = false;
@@ -1704,7 +1726,8 @@
         gunTs = null;
         didFit = false;
       }
-      liveRaceN = n;
+      liveRaceN = n || liveRaceN;
+      setRaceTableLabel(liveRaceN, true);
       if (Array.isArray(data.ocs)) liveOcs = data.ocs.slice();
       if (data.clock_lag_ms != null && Number(data.clock_lag_ms) < 5000) {
         LIVE_CLOCK_LAG_MS = Number(data.clock_lag_ms);
@@ -1712,7 +1735,7 @@
         LIVE_CLOCK_LAG_MS = 2000;
       }
       snap = data;
-      if (data.waiting && !data.gun_ts_ms) gunTs = null;
+      if (data.waiting && !data.gun_ts_ms && !gunTs) gunTs = null;
       else if (data.gun_ts_ms) {
         var nextGun = Number(data.gun_ts_ms);
         if (nextGun !== gunTs) {
@@ -1978,6 +2001,7 @@
     var GUN_CLOCK = String(data.gun_sast || "").slice(11, 19) || "13:55:01";
     var RACE_NO = Number(data.race_number || RACE_Q || 4);
     var RACE_LAB = "Race " + RACE_NO;
+    setRaceTableLabel(RACE_NO, false);
     var RATE = Number(data.default_rate || 1);
     var RATES = [1, 2, 5, 10, 25, 50];
     var SETTLE_MS = 2500;
