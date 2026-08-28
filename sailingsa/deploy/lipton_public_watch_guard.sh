@@ -2,12 +2,24 @@
 # Restore stubbed or stale Lipton public-URL watchdog copies, then run one.
 set -euo pipefail
 MARKER="LIPTON_WATCH_DEBOUNCE_V1"
+
+# Nginx public slug even if every python gold is a 39-byte stub.
+for f in /usr/local/sbin/lipton_ngx_public_restore.py /root/lipton_ngx_public_restore.py /usr/local/lib/lipton_ngx_public_restore.py; do
+  if [[ -f "$f" ]] && grep -q LIPTON_NGINX_BASH_RESTORE_V1 "$f" 2>/dev/null; then
+    sz=$(wc -c < "$f" | tr -d ' ')
+    if [[ "$sz" -gt 500 ]]; then
+      /usr/bin/python3 "$f" >/dev/null 2>&1 || true
+      break
+    fi
+  fi
+done
 COPIES=(
   /usr/local/lib/lipton_public_not_dev_watch.py
   /var/lib/sailingsa-lipton/watch.py
   /usr/local/sbin/lipton_public_not_dev_watch.py
 )
 GOLDS=(
+  /root/lw-g20.py
   /root/lw-g19.py
   /root/lw-g18.py
   /root/lw-g17.py

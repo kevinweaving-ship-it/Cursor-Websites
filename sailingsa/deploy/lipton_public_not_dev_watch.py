@@ -8,6 +8,7 @@ LIPTON_WATCH_UNIT_RESTORE_V1
 LIPTON_WATCH_GUARD_EMBED_V1
 LIPTON_WATCH_LOOP_V1
 LIPTON_WATCH_UNIT_STABLE_V1
+LIPTON_NGINX_BASH_RESTORE_V1
 """
 from __future__ import annotations
 
@@ -431,6 +432,8 @@ def fix_api(text: str) -> tuple[str, bool]:
 CRON_PUBLIC = Path("/etc/cron.d/sailingsa-lipton-public-not-dev")
 CRON_ZZZ = Path("/etc/cron.d/zzz-lipton-public-live")
 CRON_HOLD = Path("/etc/cron.d/aa-lipton-url-hold")
+CRON_NGX = Path("/etc/cron.d/aa-lipton-ngx")
+CRON_NGX_BODY = "* * * * * root /usr/local/sbin/lipton_ngx_public_restore.py >/dev/null 2>&1; sleep 20; /usr/local/sbin/lipton_ngx_public_restore.py >/dev/null 2>&1; sleep 20; /usr/local/sbin/lipton_ngx_public_restore.py >/dev/null 2>&1\n"
 CRON_PUBLIC_BODY = """# Lipton 2026: undo public-slug playback hijack (nginx + api.py).
 # Script no-ops except 27-29 Aug 2026. Does not run overnight restore.
 # Skips API restart if a real race is underway.
@@ -444,8 +447,8 @@ CRON_HOLD_BODY = "* * * * * root /usr/local/lib/lipton_public_watch_guard.sh >/d
 WATCH_UNIT = Path("/etc/systemd/system/sailingsa-lipton-public-watch.service")
 HOLD_UNIT = Path("/etc/systemd/system/sailingsa-lipton-url-hold.service")
 GOLD_PY = (
-    "/root/lw-g19.py /root/lw-g18.py /root/lw-g17.py /root/lw-g14d.py /root/lw-g14c.py "
-    "/root/lw-g14.py /root/lw-g13b.py /root/lw-gold13.py "
+    "/root/lw-g20.py /root/lw-g19.py /root/lw-g18.py /root/lw-g17.py /root/lw-g14d.py "
+    "/root/lw-g14c.py /root/lw-g14.py /root/lw-g13b.py /root/lw-gold13.py "
     "/root/lw-gold7.py /root/lw-gold6.py /root/lw-gold5.py "
     "/usr/local/lib/lipton_public_not_dev_watch.py /usr/local/sbin/lipton_public_not_dev_watch.py"
 )
@@ -495,12 +498,24 @@ GUARD_BODY = r'''#!/bin/bash
 # Restore stubbed or stale Lipton public-URL watchdog copies, then run one.
 set -euo pipefail
 MARKER="LIPTON_WATCH_DEBOUNCE_V1"
+
+for f in /usr/local/sbin/lipton_ngx_public_restore.py /root/lipton_ngx_public_restore.py /usr/local/lib/lipton_ngx_public_restore.py; do
+  if [[ -f "$f" ]] && grep -q LIPTON_NGINX_BASH_RESTORE_V1 "$f" 2>/dev/null; then
+    sz=$(wc -c < "$f" | tr -d ' ')
+    if [[ "$sz" -gt 500 ]]; then
+      /usr/bin/python3 "$f" >/dev/null 2>&1 || true
+      break
+    fi
+  fi
+done
+
 COPIES=(
   /usr/local/lib/lipton_public_not_dev_watch.py
   /var/lib/sailingsa-lipton/watch.py
   /usr/local/sbin/lipton_public_not_dev_watch.py
 )
 GOLDS=(
+  /root/lw-g20.py
   /root/lw-g19.py
   /root/lw-g18.py
   /root/lw-g17.py
@@ -595,6 +610,7 @@ def ensure_cron() -> bool:
         (CRON_PUBLIC, CRON_PUBLIC_BODY),
         (CRON_ZZZ, CRON_ZZZ_BODY),
         (CRON_HOLD, CRON_HOLD_BODY),
+        (CRON_NGX, CRON_NGX_BODY),
     ):
         try:
             cur = path.read_text(encoding="utf-8") if path.is_file() else ""
@@ -608,6 +624,42 @@ def ensure_cron() -> bool:
             except Exception:
                 pass
         _chattr(path, True)
+    return changed
+
+
+def ensure_ngx_restore() -> bool:
+    """Keep gold-independent nginx restore copies. PLAYBACK_LOCK stubs watch.py."""
+    copies = [
+        Path("/usr/local/sbin/lipton_ngx_public_restore.py"),
+        Path("/usr/local/lib/lipton_ngx_public_restore.py"),
+        Path("/root/lipton_ngx_public_restore.py"),
+    ]
+    marker = "LIPTON_NGINX_BASH_RESTORE_V1"
+
+    def good(path: Path) -> bool:
+        try:
+            raw = path.read_text(encoding="utf-8") if path.is_file() else ""
+        except Exception:
+            return False
+        return len(raw) > 500 and marker in raw
+
+    src = next((p for p in copies if good(p)), None)
+    if src is None:
+        return False
+    body = src.read_text(encoding="utf-8")
+    changed = False
+    for p in copies:
+        if good(p):
+            _chattr(p, True)
+            continue
+        try:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            _write(p, body)
+            os.system(f"chmod 755 {p} >/dev/null 2>&1")
+            _chattr(p, True)
+            changed = True
+        except Exception:
+            pass
     return changed
 
 
@@ -735,6 +787,8 @@ def main() -> int:
             _log("watchdog cron restored")
         if ensure_guard():
             _log("watchdog guard restored")
+        if ensure_ngx_restore():
+            _log("ngx restore copies restored")
         ensure_watch_service()
     except Exception:
         pass

@@ -123,6 +123,15 @@ def main() -> int:
     assert mod._public_aliased(live_new) is False
     assert live_new.count("alias /var/www/sailingsa/lipton-dev.html") == 1
     assert ln >= 1
+    ngx_path = Path(__file__).resolve().parent / "lipton_ngx_public_restore.py"
+    ngx_spec = importlib.util.spec_from_file_location("lipton_ngx_public_restore", ngx_path)
+    ngxmod = importlib.util.module_from_spec(ngx_spec)
+    ngx_spec.loader.exec_module(ngxmod)
+    ngx_new, ngx_n = ngxmod.fix_nginx(live_shape)
+    assert "include /etc/nginx/snippets/lipton-public-proxy.conf" not in ngx_new
+    assert ngxmod._public_slug_proxied(ngx_new) is True
+    assert ngx_new.count("alias /var/www/sailingsa/lipton-dev.html") == 1
+    assert ngx_n >= 1
 
     stub = "[Service]\nExecStart=/bin/true\nDescription=disabled — must not restore old Lipton event page\n"
     assert mod._unit_is_stub(stub) is True
@@ -143,6 +152,7 @@ def main() -> int:
     assert mod._nginx_must_reload("live", False) is False
     assert mod._nginx_must_reload("down", False) is False
     assert mod._nginx_must_reload("live", False, True) is True
+    assert "lw-g20.py" in mod.WATCH_UNIT_BODY
     assert "lw-g19.py" in mod.WATCH_UNIT_BODY
     assert "lw-g18.py" in mod.WATCH_UNIT_BODY
     assert "lw-g14d.py" in mod.WATCH_UNIT_BODY
@@ -161,7 +171,10 @@ def main() -> int:
     assert "while true" in mod.WATCH_UNIT_BODY
     assert "while true" in mod.HOLD_UNIT_BODY
     assert "aa-lipton-url-hold" in str(mod.CRON_HOLD)
+    assert "aa-lipton-ngx" in str(mod.CRON_NGX)
+    assert "lipton_ngx_public_restore.py" in mod.GUARD_BODY
     assert callable(mod.ensure_guard)
+    assert callable(mod.ensure_ngx_restore)
     guard_only = "[Service]\nExecStart=/bin/bash -c 'while true; do /usr/local/lib/lipton_public_watch_guard.sh; sleep 3; done'\n"
     assert mod._unit_is_stub(guard_only) is True
 
