@@ -72,23 +72,29 @@ def _replace_playback_block(text: str) -> str:
 
 
 def _ensure_early(text: str) -> str:
-    if f'slug_s == "{PUBLIC}"' in text and "serve_lipton_dev_playback_page(request, public=True)" in text:
+    needle = "def serve_regatta_standalone(slug: str, request: Request):"
+    after = text.split(needle, 1)[-1][:1200] if needle in text else ""
+    if f'slug_s == "{PUBLIC}"' in after and "public=True" in after:
         return text
     for old in OLD_EARLY:
         if old in text:
             return text.replace(old, EARLY, 1)
-    needle = "def serve_regatta_standalone(slug: str, request: Request):"
-    if "return serve_lipton_dev_playback_page" not in text.split(needle, 1)[-1][:900]:
-        text = text.replace(needle + "\n", needle + "\n" + EARLY, 1)
+    # -dev hook exists but public slug was never added — insert both.
+    if "return serve_lipton_dev_playback_page" in after:
+        idx = text.find(needle)
+        insert_at = text.find("\n", idx) + 1
+        return text[:insert_at] + EARLY + text[insert_at:]
+    if needle in text:
+        return text.replace(needle + "\n", needle + "\n" + EARLY, 1)
     return text
 
 
 def main() -> int:
     text = API.read_text(encoding="utf-8")
     if (
-        f'slug_s == "{PUBLIC}"' in text
-        and "public: bool" in text
+        f'slug_s == "{PUBLIC}"' in text.split("def serve_regatta_standalone", 1)[-1][:1200]
         and "serve_lipton_dev_playback_page(request, public=True)" in text
+        and "public: bool" in text
     ):
         print("public slug already patched")
         return 0
