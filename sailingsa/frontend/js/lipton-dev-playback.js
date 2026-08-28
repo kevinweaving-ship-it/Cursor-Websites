@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828db";
+  var CACHE = "20260828dc";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = !RACE_Q;
@@ -1138,7 +1138,7 @@
           if (dj >= bestD + leaveExtra) { left = true; break; }
           j += 1;
         }
-        if (!left && bestD <= 40) {
+        if (!left && bestD <= 50) {
           var nxtGap = j < n ? series[j].gap : null;
           if (j >= n || (nxtGap != null && nxtGap >= gapInbound)) left = true;
         }
@@ -1271,6 +1271,10 @@
         pins.forEach(function (t, idx) {
           if (pinIds[idx]) passTs[pinIds[idx]][sail] = t;
         });
+        if (pins[0] && passTs.M1b[sail] == null) {
+          var m1b = roundingCandidates(pts, hist.marks["1"], pins[0] + 45000, 80);
+          if (m1b[0]) passTs.M1b[sail] = m1b[0];
+        }
       });
       packFill();
       var startMid = (pin && rc)
