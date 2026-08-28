@@ -8,8 +8,10 @@ import sys
 import time
 from pathlib import Path
 
-WATCH = Path("/usr/local/sbin/lipton_public_not_dev_watch.py")
-if not WATCH.is_file():
+WATCH = Path("/usr/local/lib/lipton_public_not_dev_watch.py")
+if not WATCH.is_file() or WATCH.stat().st_size < 500:
+    WATCH = Path("/usr/local/sbin/lipton_public_not_dev_watch.py")
+if not WATCH.is_file() or WATCH.stat().st_size < 500:
     WATCH = Path(__file__).resolve().parent / "lipton_public_not_dev_watch.py"
 
 spec = importlib.util.spec_from_file_location("lipton_watch", WATCH)
