@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828dg";
+  var CACHE = "20260828dh";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = !RACE_Q;
@@ -1248,41 +1248,75 @@
       }
       return hits;
     }
+    function courseEnters(pts, geom, fromTs, toTs) {
+      var hits = [];
+      var prev = null;
+      var i;
+      if (!pts || !geom) return hits;
+      for (i = 0; i < pts.length; i++) {
+        var p = pts[i];
+        if (fromTs != null && p.ts_ms < fromTs) continue;
+        if (toTs != null && p.ts_ms > toTs) break;
+        var sg = geom.signed(p.lat, p.lon);
+        if (prev && prev.d > 0 && sg.d <= 0) {
+          var frac = prev.d === sg.d ? 1 : prev.d / (prev.d - sg.d);
+          var t = Math.round(prev.ts + (p.ts_ms - prev.ts) * frac);
+          var along = prev.along + (sg.along - prev.along) * frac;
+          if (along >= -25 && along <= geom.len + 25) hits.push(t);
+        }
+        prev = { d: sg.d, along: sg.along, ts: p.ts_ms };
+      }
+      return hits;
+    }
+    function liveStartGeom() {
+      var pin = gunTs ? atTs(hist.pin, gunTs) : lastPt(hist.pin);
+      var rc = gunTs ? atTs(hist.rc, gunTs) : lastPt(hist.rc);
+      if (!pin || !rc) return null;
+      var base = lineGeom(pin, rc, null);
+      if (!base) return null;
+      var ds = [];
+      Object.keys(hist.boats).forEach(function (sail) {
+        var pts = hist.boats[sail] || [];
+        var p = gunTs ? atTs(pts, gunTs) : lastPt(pts);
+        if (!p) return;
+        ds.push(base.signed(p.lat, p.lon).d);
+      });
+      ds.sort(function (a, b) { return a - b; });
+      var flip = ds.length ? ds[Math.floor(ds.length / 2)] < 0 : false;
+      return {
+        len: base.len,
+        signed: function (lat, lon) {
+          var s = base.signed(lat, lon);
+          if (flip) s.d = -s.d;
+          return s;
+        }
+      };
+    }
     function startTsForSail(sail, pts, geom) {
       if (!geom || !gunTs || !pts || pts.length < 2) return null;
+      if (packedStarts[sail] && packedStarts[sail].st_ms != null) {
+        return Number(packedStarts[sail].st_ms);
+      }
       var ocs = liveOcsOn(sail);
-      var startUntil = gunTs + 4 * 60 * 1000;
-      var hits = collectLineHits(pts, geom, ocs ? gunTs - 90000 : gunTs - 8000, startUntil);
+      var hits = courseEnters(pts, geom, gunTs - 5000, gunTs + 180000);
+      if (ocs) return hits.length >= 2 ? hits[1] : null;
       var i;
-      var enters = [];
       for (i = 0; i < hits.length; i++) {
-        if (hits[i].kind === "enter" && hits[i].t <= startUntil) enters.push(hits[i].t);
-      }
-      if (!ocs) {
-        for (i = 0; i < enters.length; i++) {
-          if (enters[i] >= gunTs - 500) return enters[i];
-        }
-        return null;
-      }
-      var dip = enters.length ? enters[0] : null;
-      var sawExit = false;
-      for (i = 0; i < hits.length; i++) {
-        var h = hits[i];
-        if (dip != null && h.kind === "exit" && h.t >= dip) sawExit = true;
-        else if (sawExit && h.kind === "enter" && h.t <= startUntil) return h.t;
+        if (hits[i] >= gunTs - 500) return hits[i];
       }
       return null;
     }
+    var packedStarts = {};
     var lockedSt = {};
     var lockedPass = {};
     function persistSt() {
       if (!gunTs) return;
-      try { sessionStorage.setItem("lipton-live-st-" + gunTs, JSON.stringify(lockedSt)); } catch (e2) {}
+      try { sessionStorage.setItem("lipton-live-st-v3-" + gunTs, JSON.stringify(lockedSt)); } catch (e2) {}
     }
     function loadSt() {
       if (!gunTs) return;
       try {
-        var raw = sessionStorage.getItem("lipton-live-st-" + gunTs);
+        var raw = sessionStorage.getItem("lipton-live-st-v3-" + gunTs);
         if (raw) {
           var parsed = JSON.parse(raw);
           if (parsed && typeof parsed === "object") lockedSt = parsed;
@@ -1298,7 +1332,7 @@
       var pin = pinGun || pinNow;
       var rc = rcGun || rcNow;
       var m1now = lastPt(hist.marks["1"]);
-      var geom = lineGeom(pin, rc, stillEnough(hist.marks["1"], playTs) ? m1now : null);
+      var geom = liveStartGeom() || lineGeom(pin, rc, stillEnough(hist.marks["1"], playTs) ? m1now : null);
       Object.keys(hist.boats).forEach(function (sail) {
         var pts = hist.boats[sail] || [];
         var st = startTsForSail(sail, pts, geom);
@@ -1685,6 +1719,20 @@
         .catch(function () {})
         .then(function () { catchupInFlight = false; });
     }
+    function pollStarts() {
+      fetch("/js/lipton-dev-live-starts.json?v=" + Date.now(), { cache: "no-store" })
+        .then(function (res) { return res.ok ? res.json() : null; })
+        .then(function (data) {
+          if (!data || !data.starts) return;
+          packedStarts = data.starts;
+          Object.keys(packedStarts).forEach(function (sail) {
+            var st = packedStarts[sail] && packedStarts[sail].st_ms;
+            if (st != null) lockedSt[sail] = Number(st);
+          });
+          maybeDetect();
+        })
+        .catch(function () {});
+    }
     fetch("/js/lipton-dev-replay.json?v=" + CACHE, { cache: "no-store" })
       .then(function (res) { return res.ok ? res.json() : null; })
       .then(function (data) {
@@ -1696,6 +1744,7 @@
     renderLiveTable();
     poll();
     pollCatchup();
+    pollStarts();
     function liveTick() {
       paintClock();
       tickLiveHorns();
@@ -1705,6 +1754,7 @@
     window.requestAnimationFrame(liveTick);
     setInterval(poll, 400);
     setInterval(pollCatchup, 2000);
+    setInterval(pollStarts, 5000);
     window.addEventListener("resize", function () { drawLiveMap(); });
   }
 
