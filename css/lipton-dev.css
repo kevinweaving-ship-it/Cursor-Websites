@@ -394,6 +394,16 @@ body[data-lipton-dev="1"] td.place-delta-col {
   padding: 1px 2px;
   font-weight: 800;
 }
+body[data-lipton-dev="1"] td.timer-col--folded {
+  white-space: nowrap;
+  line-height: 1.1;
+}
+body[data-lipton-dev="1"] td.timer-col--folded .place-delta {
+  display: block;
+  font-size: 10px;
+  line-height: 1.1;
+  margin-top: 1px;
+}
 body[data-lipton-dev="1"] .place-delta {
   display: inline-block;
   font-variant-numeric: tabular-nums;

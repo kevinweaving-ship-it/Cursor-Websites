@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828bq";
+  var CACHE = "20260828br";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = params.get("live") === "1";
@@ -1483,21 +1483,56 @@
       var base = "M" + mark;
       return n <= 1 ? base : base + "·" + n;
     }
-    var lastHeadLimit = -1;
+    var lastHeadKey = "";
+    function fleetN() {
+      return Object.keys(BOATS).length;
+    }
+    function boatsAtPass(passIdx, ts) {
+      var n = 0;
+      var last = null;
+      var p = PASSES[passIdx];
+      if (!p) return { n: 0, last: null };
+      Object.keys(BOATS).forEach(function (boat) {
+        var t = tsAtPass(p, boat);
+        if (t != null && t <= ts) {
+          n += 1;
+          if (last == null || t > last) last = t;
+        }
+      });
+      return { n: n, last: last };
+    }
+    var FOLD_AFTER_MS = 10000;
+    function passFolded(passIdx, ts) {
+      if (passIdx < 1 || !PASSES[passIdx]) return false;
+      var info = boatsAtPass(passIdx, ts);
+      if (info.n < fleetN() || info.last == null) return false;
+      return ts >= info.last + FOLD_AFTER_MS;
+    }
+    function showStCol(ts) {
+      return !passFolded(1, ts);
+    }
+    function showDeltaAfter(i, ts, limit) {
+      return i < limit && !passFolded(i + 1, ts);
+    }
     function fillHead(limit) {
       if (!headRow) return;
       if (limit == null) limit = PASSES.length - 1;
-      if (limit === lastHeadLimit) return;
-      lastHeadLimit = limit;
+      var ts = viewTs;
+      var key = String(limit) + (showStCol(ts) ? "|ST" : "|noST");
+      for (var i = 0; i < limit; i++) key += showDeltaAfter(i, ts, limit) ? "|d" : "|f";
+      if (key === lastHeadKey) return;
+      lastHeadKey = key;
       var html = "<th class=\"rank-col\">Rank</th><th class=\"wc-meta-col\">Bow</th><th class=\"boat-name-col\">Boat</th><th class=\"club-col\">Club</th>";
-      for (var i = 0; i <= limit; i++) {
+      for (i = 0; i <= limit; i++) {
+        if (i === 0 && !showStCol(ts)) continue;
         var p = PASSES[i];
         var lab = passHeadLabel(i);
         var title = "Lap " + p.lap + " mark " + p.mark;
-        if (p.id === "FIN" || p.label === "Fin") title = "Finish";
+        if (p.id === "FIN" || p.label === "Fin") title = "Finish time and places vs start";
         else if (p.id === "ST" || p.label === "ST") title = "Seconds after first legal start. OCS boats use the recross after they clear, not the OCS dip.";
+        else if (passFolded(i, ts)) title = lab + " time and places vs previous mark";
         html += "<th class=\"timer-col\" title=\"" + esc(title) + "\">" + esc(lab) + "</th>";
-        if (i < limit && !skipLastLegDelta(limit, i)) {
+        if (showDeltaAfter(i, ts, limit)) {
           var nlab = passHeadLabel(i + 1);
           html += "<th class=\"place-delta-col\" title=\"Places gained or lost " + esc(lab) + " to " + esc(nlab) + "\" aria-label=\"Place change " + esc(lab) + " to " + esc(nlab) + "\">±</th>";
         }
@@ -1664,24 +1699,54 @@
       }
       return out;
     }
-    function deltaCell(boat, passIdx, prevMap, nextMap) {
-      if (!prevMap || !nextMap) return "<td class=\"place-delta-col\"></td>";
-      var prev = prevMap[boat];
-      var next = nextMap[boat];
-      if (prev == null || next == null) return "<td class=\"place-delta-col\"></td>";
-      var gained = prev - next;
-      var key = boat + "|" + passIdx;
-      var flash = deltaSeen[key] !== gained;
-      deltaSeen[key] = gained;
+    function deltaSpan(gained, flash) {
+      if (gained == null) return "";
       var flashCls = flash && gained !== 0 ? " place-delta--flash" : "";
       if (gained > 0) {
-        return "<td class=\"place-delta-col\"><span class=\"place-delta place-delta--up" + flashCls + "\" title=\"Gained " + gained + "\" aria-label=\"Gained " + gained + "\">▲" + gained + "</span></td>";
+        return "<span class=\"place-delta place-delta--up" + flashCls + "\" title=\"Gained " + gained + "\" aria-label=\"Gained " + gained + "\">▲" + gained + "</span>";
       }
       if (gained < 0) {
         var lost = -gained;
-        return "<td class=\"place-delta-col\"><span class=\"place-delta place-delta--down" + flashCls + "\" title=\"Lost " + lost + "\" aria-label=\"Lost " + lost + "\">▼" + lost + "</span></td>";
+        return "<span class=\"place-delta place-delta--down" + flashCls + "\" title=\"Lost " + lost + "\" aria-label=\"Lost " + lost + "\">▼" + lost + "</span>";
       }
-      return "<td class=\"place-delta-col\"><span class=\"place-delta place-delta--same\" title=\"No change\" aria-label=\"No change\">■0</span></td>";
+      return "<span class=\"place-delta place-delta--same\" title=\"No change\" aria-label=\"No change\">■0</span>";
+    }
+    function deltaGain(prevMap, nextMap, boat) {
+      if (!prevMap || !nextMap) return null;
+      var prev = prevMap[boat];
+      var next = nextMap[boat];
+      if (prev == null || next == null) return null;
+      return prev - next;
+    }
+    function totalGain(boat) {
+      var start = START_RANK[boat];
+      var finPass = PASSES[PASSES.length - 1];
+      if (!finPass || (finPass.id !== "FIN" && finPass.label !== "Fin")) return null;
+      var fin = passRankOf(finPass, boat);
+      if (start == null || fin == null) return null;
+      return start - fin;
+    }
+    function rememberDelta(key, gained) {
+      var flash = deltaSeen[key] !== gained;
+      deltaSeen[key] = gained;
+      return flash;
+    }
+    function deltaCell(boat, passIdx, prevMap, nextMap) {
+      var gained = deltaGain(prevMap, nextMap, boat);
+      if (gained == null) return "<td class=\"place-delta-col\"></td>";
+      return "<td class=\"place-delta-col\">" + deltaSpan(gained, rememberDelta(boat + "|" + passIdx, gained)) + "</td>";
+    }
+    function timerTd(r, i, rankMaps, ts) {
+      var time = splitCell(r.times, i, r.boat);
+      if (!passFolded(i, ts)) return "<td class=\"timer-col\">" + time + "</td>";
+      var p = PASSES[i];
+      var isFin = p && (p.id === "FIN" || p.label === "Fin");
+      var gained = isFin ? totalGain(r.boat) : deltaGain(
+        rankMaps[i - 1] && rankMaps[i - 1].prev,
+        rankMaps[i - 1] && rankMaps[i - 1].next,
+        r.boat
+      );
+      return "<td class=\"timer-col timer-col--folded\">" + time + deltaSpan(gained, rememberDelta(r.boat + "|fold|" + i, gained)) + "</td>";
     }
     function boatHasStarted(boat, ts) {
       if (ts < GUN_TS) return false;
@@ -1843,8 +1908,9 @@
       html += "<td class=\"boat-name-col\">" + boatNameCell(id) + "</td>";
       html += "<td class=\"club-col\">" + clubCell(id, pending) + "</td>";
       for (var i = 0; i <= passLimit; i++) {
-        html += "<td class=\"timer-col\">" + splitCell(r.times, i, r.boat) + "</td>";
-        if (i < passLimit && !skipLastLegDelta(passLimit, i)) {
+        if (i === 0 && !showStCol(viewTs)) continue;
+        html += timerTd(r, i, rankMaps, viewTs);
+        if (showDeltaAfter(i, viewTs, passLimit)) {
           html += deltaCell(r.boat, i, rankMaps[i].prev, rankMaps[i].next);
         }
       }
@@ -1970,7 +2036,7 @@
       if (!rows.length) {
         tbody.innerHTML = "";
         if (wrapEl) setTableVisible(false);
-        lastHeadLimit = -1;
+        lastHeadKey = "";
         if (clockEl) clockEl.textContent = clockText(ts, rows);
         setSailed(rows);
         lastKey = stateKey(all, ts);
@@ -2010,7 +2076,7 @@
       lastHdg = {};
       lastHdgAt = {};
       if (followFleet) cam = null;
-      lastHeadLimit = -1;
+      lastHeadKey = "";
       finishFlashUntil = {};
       resetTails(ts);
       var gunAt = GUN_TS - GUN_HORN_EARLY_MS - GUN_HORN_LEAD_MS * (RATE > 0 ? RATE : 1);
