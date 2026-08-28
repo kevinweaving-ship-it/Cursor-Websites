@@ -441,19 +441,28 @@ body[data-lipton-dev="1"] a {
 }
 body[data-lipton-dev="1"] .rs-boat-name-sponsors {
   display: inline-flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 4px;
   max-width: 100%;
+  white-space: nowrap;
+  overflow: visible;
+  font-weight: 700;
+  line-height: 1.2;
+  vertical-align: middle;
 }
 body[data-lipton-dev="1"] .rs-boat-sponsor-logo {
   height: auto;
   width: auto;
-  max-height: 16px;
-  max-width: 48px;
+  max-height: 18px;
+  max-width: 56px;
   object-fit: contain;
+  object-position: left center;
   display: inline-block;
   vertical-align: middle;
   flex: 0 0 auto;
+  margin: 0;
 }
 body[data-lipton-dev="1"] .rs-club-with-logo {
   display: inline-flex;

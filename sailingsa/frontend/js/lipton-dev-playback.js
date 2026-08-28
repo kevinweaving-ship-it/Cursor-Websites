@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828bo";
+  var CACHE = "20260828bp";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = params.get("live") === "1";
@@ -601,8 +601,7 @@
     }
     function boatNameCell(id) {
       if (!id) return "";
-      var label = (id.title || "").trim();
-      return "<a href=\"" + esc(id.nameHref) + "\" class=\"rs-boat-name-sponsors rs-boat-name-sponsors--link\" title=\"" + esc(label) + "\">" + esc(label) + "</a>";
+      return "<a href=\"" + esc(id.nameHref) + "\" class=\"rs-boat-name-sponsors rs-boat-name-sponsors--link\" title=\"" + esc(id.title) + "\">" + (id.nameInner || esc(id.title || "")) + "</a>";
     }
     function clubCell(id, pending) {
       if (!id) return "";
