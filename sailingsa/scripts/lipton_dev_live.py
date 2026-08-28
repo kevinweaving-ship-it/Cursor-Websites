@@ -336,7 +336,9 @@ def _save_history_file(payload: dict) -> None:
     for p in HISTORY_PATHS:
         try:
             p.parent.mkdir(parents=True, exist_ok=True)
-            p.write_text(text, encoding="utf-8")
+            tmp = p.with_name(p.name + ".tmp")
+            tmp.write_text(text, encoding="utf-8")
+            tmp.replace(p)
         except OSError:
             continue
 
@@ -487,7 +489,7 @@ def live_snapshot(*, history: bool = False) -> dict:
         "source": "firestore gun + teleapi as received. Empty = not received.",
     }
     _save_state(out)
-    if boats and not waiting:
+    if history and boats and not waiting:
         _save_history_file(out)
     if history and not waiting:
         stored = _load_history_file(max_age_s=None)
