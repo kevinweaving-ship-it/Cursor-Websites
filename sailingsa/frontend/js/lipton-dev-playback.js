@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828bm";
+  var CACHE = "20260828bn";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = params.get("live") === "1";
@@ -16,13 +16,16 @@
   var DATA_URL = jsonUrl("replay", RACE_Q);
   var TRAIL_URL = jsonUrl("trail", RACE_Q);
 
+  var resetPlaybackAudio = function () {};
   function goRace(n) {
+    try { resetPlaybackAudio(); } catch (err) {}
     var u = new URL(location.href);
     u.searchParams.delete("live");
     u.searchParams.set("race", String(n));
     location.assign(u.pathname + "?" + u.searchParams.toString());
   }
   function goLive() {
+    try { resetPlaybackAudio(); } catch (err) {}
     var u = new URL(location.href);
     u.searchParams.delete("race");
     u.searchParams.set("live", "1");
@@ -320,6 +323,8 @@
     var recallBytes = null;
     var recallDecode = false;
     var recallTimer = null;
+    var hornSources = [];
+    var gunFired = false;
     var soundOn = false;
     var soundBtn = document.getElementById("lipton-dev-sound");
     fetch(GUN_HORN_SRC).then(function (res) { return res.ok ? res.arrayBuffer() : null; }).then(function (buf) { gunBytes = buf; decodeHorns(); }).catch(function () {});
@@ -414,7 +419,7 @@
       unlockAudioEl(recallHornEl());
     }
     function playBuf(buf, onset) {
-      if (!soundOn || !gunCtx || !buf) return false;
+      if (!soundOn || !playing || !gunCtx || !buf) return false;
       if (gunCtx.state === "suspended") {
         gunCtx.resume();
         return false;
@@ -423,7 +428,26 @@
       src.buffer = buf;
       src.connect(gunCtx.destination);
       src.start(0, Math.min(onset || 0, Math.max(0, buf.duration - 0.02)));
+      hornSources.push(src);
+      src.onended = function () {
+        var i = hornSources.indexOf(src);
+        if (i >= 0) hornSources.splice(i, 1);
+      };
       return true;
+    }
+    function stopHornEls() {
+      [gunHorn, recallHorn].forEach(function (el) {
+        if (!el) return;
+        try { el.pause(); } catch (err) {}
+        try { el.currentTime = 0; } catch (err2) {}
+      });
+    }
+    function stopHornSources() {
+      hornSources.forEach(function (src) {
+        try { src.stop(); } catch (err) {}
+        try { src.disconnect(); } catch (err2) {}
+      });
+      hornSources = [];
     }
     function cancelRecallHorn() {
       if (recallTimer) {
@@ -431,8 +455,14 @@
         recallTimer = null;
       }
     }
+    function resetHorns() {
+      gunFired = false;
+      cancelRecallHorn();
+      stopHornSources();
+      stopHornEls();
+    }
     function fireRecallHorn() {
-      if (!soundOn || !raceHasOcs()) return;
+      if (!soundOn || !playing || !raceHasOcs()) return;
       try {
         if (playBuf(recallBuf, 0)) return;
         var el = recallHornEl();
@@ -453,7 +483,8 @@
       }, wait);
     }
     function fireGunHorn() {
-      if (!soundOn) return;
+      if (!soundOn || !playing || gunFired) return;
+      gunFired = true;
       try {
         if (!playBuf(gunBuf, GUN_HORN_ONSET)) {
           var el = gunHornEl();
@@ -466,6 +497,12 @@
       } catch (err2) {}
       scheduleRecallHorn();
     }
+    resetPlaybackAudio = function () {
+      playing = false;
+      resetHorns();
+    };
+    window.addEventListener("pagehide", resetPlaybackAudio);
+    window.addEventListener("beforeunload", resetPlaybackAudio);
     var lastWall = Date.now();
     var lastKey = "";
     var seen = {};
@@ -1877,6 +1914,16 @@
       lastHeadLimit = -1;
       finishFlashUntil = {};
       resetTails(ts);
+      var gunAt = GUN_TS - GUN_HORN_EARLY_MS - GUN_HORN_LEAD_MS * (RATE > 0 ? RATE : 1);
+      if (ts < gunAt) {
+        gunFired = false;
+        cancelRecallHorn();
+        stopHornSources();
+        stopHornEls();
+      } else {
+        gunFired = true;
+        cancelRecallHorn();
+      }
       render(ts);
       syncScrub();
     }
@@ -1920,6 +1967,7 @@
       playTs = PLAY_START_TS;
       lastWall = Date.now();
       playing = false;
+      resetHorns();
       frameCam(playTs);
       setPlayLabel();
       setRateButtons();
