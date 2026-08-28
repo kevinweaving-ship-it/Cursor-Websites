@@ -129,6 +129,7 @@
     var BOATS = data.boats || {};
     var GUN_TS = Number(data.gun_ts_ms);
     var PLAY_START_TS = GUN_TS - 10000;
+    var START_LABEL_MS = 5 * 60 * 1000;
     var PLAY_END_TS = Number(data.play_end_ts_ms || data.end_ts_ms);
     var GRID_ORIGIN = trail.grid_start_ts_ms != null ? Number(trail.grid_start_ts_ms) : Number(trail.gun_ts_ms);
     var FINISH = asBoats(data.finish);
@@ -905,12 +906,12 @@
         var a = xy(hits[s].lat, hits[s].lon);
         var c = xy(hits[s + 1].lat, hits[s + 1].lon);
         var u = (s + 1) / n;
-        var alpha = 0.18 + 0.72 * u * u;
+        var alpha = 0.35 + 0.65 * u * u;
         mapCtx.beginPath();
         mapCtx.moveTo(a.x, a.y);
         mapCtx.lineTo(c.x, c.y);
         mapCtx.strokeStyle = rgbaHex(fill, alpha);
-        mapCtx.lineWidth = 1.4 + 1.2 * u;
+        mapCtx.lineWidth = 2 + 1.6 * u;
         mapCtx.lineCap = "round";
         mapCtx.lineJoin = "round";
         mapCtx.stroke();
@@ -1071,7 +1072,7 @@
       Object.keys(trail.boats || {}).forEach(function (sail) {
         drawTail(sail, ts);
       });
-      var startName = ts < GUN_TS ? "START" : "";
+      var startName = ts < PLAY_START_TS + START_LABEL_MS ? "START" : "";
       var finishName = ts >= GUN_TS ? "FINISH" : "";
       drawGate(trail.start_line, focusGate === "start_line" ? "#38bdf8" : "rgba(56,189,248,0.4)", startName, "Pin", "RC");
       drawGate(trail.finish_line, focusGate === "finish_line" ? "#fbbf24" : "rgba(251,191,36,0.35)", finishName, "Pin", "RC");
