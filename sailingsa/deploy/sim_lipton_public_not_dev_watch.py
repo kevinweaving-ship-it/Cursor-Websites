@@ -258,6 +258,10 @@ def main() -> int:
     assert callable(ngxmod.restore_schedule_cron)
     assert "dst.stat().st_size >= len(data)" in ngx_path.read_text(encoding="utf-8")
     assert "lipton_ngx_public_restore.py" in mod.GUARD_BODY
+    watch_src = Path(__file__).resolve().parent.joinpath("lipton_public_not_dev_watch.py").read_text(encoding="utf-8")
+    assert "LIPTON_WATCH_ENABLE_V1" in watch_src
+    assert "LIPTON_WATCH_ENABLE_V1" in mod.GUARD_BODY
+    assert '["systemctl", "is-enabled", unit_name]' in watch_src
     assert callable(mod.ensure_guard)
     assert callable(mod.ensure_ngx_restore)
     guard_only = "[Service]\nExecStart=/bin/bash -c 'while true; do /usr/local/lib/lipton_public_watch_guard.sh; sleep 3; done'\n"

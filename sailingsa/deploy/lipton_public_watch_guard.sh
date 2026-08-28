@@ -98,6 +98,11 @@ restore_unit() {
 restore_unit /etc/systemd/system/sailingsa-lipton-public-watch.service /usr/local/lib/sailingsa-lipton-public-watch.service
 restore_unit /etc/systemd/system/sailingsa-lipton-url-hold.service /usr/local/lib/sailingsa-lipton-url-hold.service
 
+# LIPTON_WATCH_ENABLE_V1
+systemctl unmask sailingsa-lipton-public-watch.service >/dev/null 2>&1 || true
+systemctl unmask sailingsa-lipton-url-hold.service >/dev/null 2>&1 || true
+systemctl enable sailingsa-lipton-public-watch.service >/dev/null 2>&1 || true
+systemctl enable sailingsa-lipton-url-hold.service >/dev/null 2>&1 || true
 systemctl start sailingsa-lipton-public-watch.service >/dev/null 2>&1 || true
 if ! pgrep -f "lipton_ngx_public_restore.py --loop" >/dev/null 2>&1; then
   nohup /usr/bin/python3 /usr/local/sbin/lipton_ngx_public_restore.py --loop >/dev/null 2>&1 &

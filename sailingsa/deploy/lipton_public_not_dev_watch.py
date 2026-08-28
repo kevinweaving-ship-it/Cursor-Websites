@@ -647,6 +647,11 @@ restore_unit() {
 restore_unit /etc/systemd/system/sailingsa-lipton-public-watch.service /usr/local/lib/sailingsa-lipton-public-watch.service
 restore_unit /etc/systemd/system/sailingsa-lipton-url-hold.service /usr/local/lib/sailingsa-lipton-url-hold.service
 
+# LIPTON_WATCH_ENABLE_V1
+systemctl unmask sailingsa-lipton-public-watch.service >/dev/null 2>&1 || true
+systemctl unmask sailingsa-lipton-url-hold.service >/dev/null 2>&1 || true
+systemctl enable sailingsa-lipton-public-watch.service >/dev/null 2>&1 || true
+systemctl enable sailingsa-lipton-url-hold.service >/dev/null 2>&1 || true
 systemctl start sailingsa-lipton-public-watch.service >/dev/null 2>&1 || true
 if ! pgrep -f "lipton_ngx_public_restore.py --loop" >/dev/null 2>&1; then
   nohup /usr/bin/python3 /usr/local/sbin/lipton_ngx_public_restore.py --loop >/dev/null 2>&1 &
@@ -791,6 +796,28 @@ def _start_unit_if_down(unit_name: str, *, restart: bool = False) -> None:
             text=True,
         )
         active = (p.stdout or "").strip() in ("active", "activating")
+        # LIPTON_WATCH_ENABLE_V1 — PLAYBACK_LOCK often `disable` without stop.
+        # Active+disabled would skip enable and die on reboot.
+        en = subprocess.run(
+            ["systemctl", "is-enabled", unit_name],
+            capture_output=True,
+            text=True,
+        )
+        enabled = (en.stdout or "").strip() == "enabled"
+        if not enabled:
+            subprocess.run(
+                ["systemctl", "unmask", unit_name],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            subprocess.run(
+                ["systemctl", "enable", unit_name],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            _log(f"watch systemd enabled {unit_name}")
         if active and not restart:
             return
         if restart and _python_watch_loop_running():
