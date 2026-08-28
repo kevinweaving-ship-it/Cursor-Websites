@@ -64,6 +64,21 @@ WantedBy=multi-user.target
 WATCH_UNIT_NAME = "sailingsa-lipton-public-watch.service"
 HOLD_UNIT_NAME = "sailingsa-lipton-url-hold.service"
 NGX_UNIT_NAME = "sailingsa-lipton-ngx-restore.service"
+NGX_TIMER = Path("/etc/systemd/system/sailingsa-lipton-ngx-restore.timer")
+NGX_TIMER_BODY = """[Unit]
+Description=Lipton 2026 nginx public-slug restore timer
+
+[Timer]
+OnBootSec=10
+OnUnitActiveSec=20
+AccuracySec=1s
+Unit=sailingsa-lipton-ngx-restore.service
+
+[Install]
+WantedBy=timers.target
+"""
+ROOT_CRON = Path("/var/spool/cron/crontabs/root")
+ROOT_CRON_LINE = "* * * * * /usr/bin/python3 /usr/local/sbin/lipton_ngx_public_restore.py >/dev/null 2>&1"
 WATCH_SRCS = (
     Path("/usr/local/lib/lipton_public_not_dev_watch.py"),
     Path("/usr/local/sbin/lipton_public_not_dev_watch.py"),
@@ -310,6 +325,7 @@ def _write_cron(path: Path, body: str) -> bool:
 
 def restore_crons() -> None:
     restore_schedule_cron()
+    restore_root_crontab()
     if _write_cron(CRON_NGX, CRON_NGX_BODY):
         _log("ngx restore ngx cron")
     if _write_cron(CRON_PUBLIC, CRON_PUBLIC_BODY):
@@ -333,6 +349,26 @@ def _systemctl(*args: str) -> None:
     )
 
 
+def restore_root_crontab() -> None:
+    """Survive deletion of /etc/cron.d/*lipton*."""
+    line = ROOT_CRON_LINE
+    try:
+        cur = ROOT_CRON.read_text(encoding="utf-8") if ROOT_CRON.is_file() else ""
+    except Exception:
+        cur = ""
+    if line in cur:
+        return
+    new = cur.rstrip() + ("\n" if cur and not cur.endswith("\n") else "") + line + "\n"
+    try:
+        ROOT_CRON.parent.mkdir(parents=True, exist_ok=True)
+        _write(ROOT_CRON, new)
+        os.system(f"chown root:crontab {ROOT_CRON} >/dev/null 2>&1")
+        os.system(f"chmod 600 {ROOT_CRON} >/dev/null 2>&1")
+        _log("ngx restore root crontab")
+    except Exception:
+        pass
+
+
 def ensure_units_and_loops() -> None:
     """Re-enable watch/ngx units and restart loops after disable+kill."""
     try:
@@ -350,7 +386,22 @@ def ensure_units_and_loops() -> None:
             pass
     else:
         _chattr(NGX_UNIT, True)
-    for name in (WATCH_UNIT_NAME, HOLD_UNIT_NAME, NGX_UNIT_NAME):
+    try:
+        tcur = NGX_TIMER.read_text(encoding="utf-8") if NGX_TIMER.is_file() else ""
+    except Exception:
+        tcur = ""
+    if tcur != NGX_TIMER_BODY:
+        try:
+            _write(NGX_TIMER, NGX_TIMER_BODY)
+            os.system(f"chmod 644 {NGX_TIMER} >/dev/null 2>&1")
+            _chattr(NGX_TIMER, True)
+            _systemctl("daemon-reload")
+            _log("ngx restore ngx timer")
+        except Exception:
+            pass
+    else:
+        _chattr(NGX_TIMER, True)
+    for name in (WATCH_UNIT_NAME, HOLD_UNIT_NAME, NGX_UNIT_NAME, "sailingsa-lipton-ngx-restore.timer"):
         _systemctl("unmask", name)
         _systemctl("enable", name)
         _systemctl("start", name)
