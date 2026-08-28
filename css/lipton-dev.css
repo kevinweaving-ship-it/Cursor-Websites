@@ -11,7 +11,7 @@ body[data-lipton-dev="1"] {
   flex-direction: column;
   --lipton-mark-h: 20px;
   --lipton-scrub-w: 140px;
-  --lipton-dev-lockup-h: 44px;
+  --lipton-dev-lockup-h: 56px;
 }
 body[data-lipton-dev="1"] .site-header {
   flex: 0 0 auto;
@@ -19,9 +19,6 @@ body[data-lipton-dev="1"] .site-header {
   top: 0;
   z-index: 30;
   overflow: hidden;
-  padding: 0.4rem 0;
-  background: #001018;
-  border-bottom-color: rgba(255, 255, 255, 0.08);
 }
 body[data-lipton-dev="1"] .site-header .container {
   width: 100%;
@@ -39,14 +36,14 @@ body[data-lipton-dev="1"] .nav-menu-overlay {
   display: none !important;
 }
 body[data-lipton-dev="1"] .lipton-dev-subhead {
-  flex: 0 0 60px;
+  flex: 0 0 64px;
   box-sizing: border-box;
   width: 100%;
   max-width: none;
-  height: 60px;
-  min-height: 60px;
-  max-height: 60px;
-  margin: 0 0 8px;
+  height: 64px;
+  min-height: 64px;
+  max-height: 64px;
+  margin: 8px 0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -407,32 +404,6 @@ body[data-lipton-dev="1"] .leaflet-attribution-flag {
   width: 8px !important;
   height: 6px !important;
 }
-body[data-lipton-dev="1"] .lipton-dev-zoom {
-  display: flex;
-  flex-direction: column;
-  flex: 0 0 auto;
-  overflow: hidden;
-  background: #ffffff;
-  border: 1px solid #1a2750;
-  border-radius: 4px;
-}
-body[data-lipton-dev="1"] .lipton-dev-zoom button {
-  width: 28px;
-  height: 28px;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-bottom: 1px solid #d1d5db;
-  background: #ffffff;
-  color: #1a2750;
-  font-size: 18px;
-  font-weight: 800;
-  line-height: 28px;
-  cursor: pointer;
-}
-body[data-lipton-dev="1"] .lipton-dev-zoom button:last-child {
-  border-bottom: 0;
-}
 body[data-lipton-dev="1"] .lipton-dev-map-transport {
   display: flex;
   flex-direction: column;
@@ -528,7 +499,7 @@ body[data-lipton-dev="1"] .lipton-dev-map-transport .lipton-dev-btn:disabled .li
 }
 body[data-lipton-dev="1"] .lipton-dev-event-logo {
   display: block;
-  width: 96px;
+  width: 120px;
   flex: 0 0 auto;
   min-width: 0;
   line-height: 0;
@@ -604,12 +575,6 @@ body[data-lipton-dev="1"] .lipton-dev-btn:disabled {
 @media (max-width: 900px) {
   body[data-lipton-dev="1"] {
     overflow: hidden;
-  }
-  body[data-lipton-dev="1"] .site-header .logo img {
-    height: 64px;
-  }
-  body[data-lipton-dev="1"] .lipton-dev-event-logo {
-    width: 72px;
   }
   body[data-lipton-dev="1"] .lipton-dev-split {
     grid-template-columns: 1fr;

@@ -596,10 +596,6 @@
       var track = el.parentNode;
       var ctrls = el.querySelector(".leaflet-control-container");
       if (track && ctrls) track.appendChild(ctrls);
-      var zoomIn = document.getElementById("lipton-dev-zoom-in");
-      var zoomOut = document.getElementById("lipton-dev-zoom-out");
-      if (zoomIn) zoomIn.addEventListener("click", function () { if (chartMap) chartMap.zoomIn(); });
-      if (zoomOut) zoomOut.addEventListener("click", function () { if (chartMap) chartMap.zoomOut(); });
     }
     var lastChartSyncAt = 0;
     function syncChart() {
