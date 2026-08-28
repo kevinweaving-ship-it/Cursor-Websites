@@ -379,41 +379,6 @@ body[data-lipton-dev="1"] .lipton-dev-track canvas {
   background: transparent;
   pointer-events: none;
 }
-body[data-lipton-dev="1"] .lipton-dev-hud {
-  position: absolute;
-  top: 88px;
-  right: 10px;
-  z-index: 4;
-  width: var(--lipton-tbox-w, 72px);
-  pointer-events: auto;
-}
-body[data-lipton-dev="1"] .lipton-dev-hud-map {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  align-items: stretch;
-  gap: 3px;
-  width: 100%;
-  margin-bottom: 4px;
-}
-body[data-lipton-dev="1"] .lipton-dev-hud-chip {
-  min-height: 18px;
-  min-width: 0;
-  width: 100%;
-  padding: 2px 2px;
-  font-size: 8px;
-  font-weight: 800;
-  line-height: 1.2;
-  text-align: center;
-  border-radius: 3px;
-  border: 1px solid #38bdf8;
-  background: rgba(0, 31, 63, 0.55);
-  color: #ffffff;
-  cursor: pointer;
-}
-body[data-lipton-dev="1"] .lipton-dev-hud-chip.is-active {
-  background: rgba(0, 31, 63, 0.92);
-  color: #ffffff;
-}
 body[data-lipton-dev="1"] .lipton-dev-btn:disabled {
   opacity: 0.45;
   cursor: wait;

@@ -518,27 +518,9 @@
     var chartSyncing = false;
     var chartPointerDown = false;
     var drawingMap = false;
-    function setMapButtons() {
-      document.querySelectorAll("[data-map]").forEach(function (btn) {
-        var mode = btn.getAttribute("data-map");
-        var active = followFleet ? mode === "follow" : mode === "free";
-        btn.classList.toggle("is-active", active);
-        btn.setAttribute("aria-pressed", active ? "true" : "false");
-      });
-    }
-    function setFollow(on, opts) {
-      followFleet = !!on;
-      setMapButtons();
-      if (followFleet && (!opts || opts.snap !== false)) {
-        cam = null;
-        frameCam(playTs);
-        drawMap(playTs);
-      }
-    }
     function userFreedMap() {
       if (chartSyncing || !followFleet) return;
       followFleet = false;
-      setMapButtons();
     }
     function initChart() {
       var el = document.getElementById("lipton-dev-chart");
@@ -1321,8 +1303,6 @@
       mapCtx.font = "bold 13px sans-serif";
       var nameW = name ? mapCtx.measureText(name).width : 0;
       var boxW = Math.max(nameW, 72);
-      var hud = document.getElementById("lipton-dev-hud");
-      if (hud) hud.style.setProperty("--lipton-tbox-w", Math.round(boxW) + "px");
       var boxH = 22;
       var clockH = 32;
       var x0 = mapBounds.w - pad - boxW;
@@ -1932,11 +1912,6 @@
       });
     }
     window.addEventListener("pointerup", function () { scrubbing = false; });
-    document.querySelectorAll("[data-map]").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        setFollow(btn.getAttribute("data-map") === "follow");
-      });
-    });
     if (playBtn) {
       playBtn.addEventListener("pointerdown", function () { unlockGunHorn(); });
       playBtn.addEventListener("click", function () {
@@ -1972,7 +1947,6 @@
 
     fillHead(0);
     setRateButtons();
-    setMapButtons();
     waitForTracker();
     window.requestAnimationFrame(tick);
   }
