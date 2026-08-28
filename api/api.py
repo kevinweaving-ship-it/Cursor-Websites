@@ -25794,7 +25794,7 @@ LIPTON_OLD_SLUG = "2026-08-29-lipton-challenge-cup-old"
 
 
 def serve_lipton_dev_playback_page(_request: Request, public: bool = False):
-    """Playback HTML. The public Lipton URL is this page, not the old weather/event HTML."""
+    """Always lipton-dev.html. Never the weather/event page."""
     names = (
         Path(STATIC_DIR) / "lipton-dev.html",
         WEB_ROOT / "lipton-dev.html",
@@ -25840,17 +25840,17 @@ def api_lipton_dev_live():
 def serve_regatta_standalone(slug: str, request: Request, *, allow_lipton_event: bool = False):
     """Serve one full standalone HTML result sheet for /regatta/{slug}. Unknown regatta → 301 /events (not 404).
 
-    Public Lipton URL is playback. Old weather/event page lives at -old only.
+    Public Lipton URL is playback only. Old weather/event HTML is -old only.
     """
     slug_s = str(slug or "").strip()
+    if slug_s == LIPTON_PUBLIC_SLUG:
+        return serve_lipton_dev_playback_page(request, public=True)
+    if slug_s == LIPTON_DEV_SLUG:
+        return serve_lipton_dev_playback_page(request, public=False)
     if slug_s == LIPTON_OLD_SLUG:
         slug_s = LIPTON_PUBLIC_SLUG
         slug = LIPTON_PUBLIC_SLUG
         allow_lipton_event = True
-    if slug_s == LIPTON_DEV_SLUG:
-        return serve_lipton_dev_playback_page(request, public=False)
-    if slug_s == LIPTON_PUBLIC_SLUG and not allow_lipton_event:
-        return serve_lipton_dev_playback_page(request, public=True)
     start_time = time.time()
     reg = _get_regatta_by_slug(slug)
     if not reg:

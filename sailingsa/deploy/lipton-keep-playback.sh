@@ -1,25 +1,18 @@
 #!/bin/bash
+# Public Lipton URL must stay playback. Old weather page is -old only.
 set -euo pipefail
+pkill -f lipton_public_watch_guard 2>/dev/null || true
+pkill -f lipton_public_not_dev_watch.py 2>/dev/null || true
+SNIP=/etc/nginx/snippets/lipton-public-proxy.conf
 CONF=/etc/nginx/sites-enabled/sailingsa
-GOLD=/root/lipton-nginx-golden.conf
-NEED='location = /regatta/2026-08-29-lipton-challenge-cup {'
-# Never let the weather-page watch come back.
-if test -e /etc/cron.d/sailingsa-lipton-public-not-dev; then
-  mkdir -p /root/disabled-lipton-not-dev
-  mv /etc/cron.d/sailingsa-lipton-public-not-dev /root/disabled-lipton-not-dev/ || rm -f /etc/cron.d/sailingsa-lipton-public-not-dev
-  echo "$(date -Is) removed public-not-dev cron" >> /root/lipton-keep-playback.log
+if test -f "$SNIP" && grep -q proxy_pass "$SNIP"; then
+  chattr -i "$CONF" "$SNIP" 2>/dev/null || true
+  python3 /root/force_lipton_nginx_alias.py
+  nginx -t && nginx -s reload
+  chattr +i "$CONF" "$SNIP" 2>/dev/null || true
+  echo "$(date -Is) snippet was proxy; restored playback rewrite" >> /root/lipton-keep-playback.log
 fi
-pkill -f 'lipton_public_not_dev_watch.py' 2>/dev/null || true
-test -s "$GOLD"
-if grep -qF "$NEED" "$CONF" 2>/dev/null; then
-  exit 0
-fi
-chattr -i "$CONF" 2>/dev/null || true
-cp "$GOLD" "$CONF"
-if nginx -t; then
-  nginx -s reload
-  chattr +i "$CONF" 2>/dev/null || true
-  echo "$(date -Is) restored public playback lock" >> /root/lipton-keep-playback.log
-else
-  echo "$(date -Is) restore failed nginx -t" >> /root/lipton-keep-playback.log
+if grep -q LIPTON_PUBLIC_NOT_DEV /var/www/sailingsa/api/api.py 2>/dev/null; then
+  python3 /root/patch_lipton_public_slug.py && systemctl restart sailingsa-api || true
+  echo "$(date -Is) stripped PUBLIC_NOT_DEV hijack" >> /root/lipton-keep-playback.log
 fi

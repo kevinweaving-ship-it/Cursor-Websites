@@ -9,6 +9,7 @@ set repo_root [file normalize "$script_dir/../.."]
 spawn bash -c "scp -o StrictHostKeyChecking=no \
   $repo_root/sailingsa/deploy/force_lipton_nginx_alias.py \
   $repo_root/sailingsa/deploy/patch_lipton_public_slug.py \
+  $repo_root/sailingsa/deploy/kill-lipton-public-watch-forever.sh \
   $repo_root/sailingsa/deploy/detach-lipton-old-public-url.sh \
   $repo_root/sailingsa/frontend/lipton-dev.html \
   ${user}@${server}:/tmp/"
