@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828co";
+  var CACHE = "20260828cp";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = !RACE_Q;
@@ -618,9 +618,7 @@
       });
       var g = startGrid(pin, rc, boats);
       if (!g || !mapCtx) return;
-      var depth = 100;
-      var step = 20;
-      function lineAt(d, dashed, width, color) {
+      function lineAt(d, width, color) {
         var p1 = g.fromxy(g.a.x + g.nx * d, g.a.y + g.ny * d);
         var p2 = g.fromxy(g.a.x + g.ux * g.len + g.nx * d, g.a.y + g.uy * g.len + g.ny * d);
         var a = xy(p1.lat, p1.lon);
@@ -630,40 +628,12 @@
         mapCtx.lineTo(b.x, b.y);
         mapCtx.strokeStyle = color;
         mapCtx.lineWidth = width;
-        mapCtx.setLineDash(dashed ? [6, 5] : []);
-        mapCtx.stroke();
         mapCtx.setLineDash([]);
-        return { a: a, b: b, p1: p1, p2: p2 };
-      }
-      for (var d = step; d <= depth; d += step) {
-        var ln = lineAt(d, true, 1.1, "rgba(226,232,240,0.55)");
-        mapCtx.fillStyle = "rgba(255,255,255,0.92)";
-        mapCtx.font = "bold 10px sans-serif";
-        mapCtx.textAlign = "left";
-        mapCtx.fillText(d + "m", ln.b.x + 4, ln.b.y + 3);
-        mapCtx.fillText(d + "m", ln.a.x - 28, ln.a.y + 3);
-      }
-      for (var s = 0; s <= g.len + 0.1; s += step) {
-        var q1 = g.fromxy(g.a.x + g.ux * s, g.a.y + g.uy * s);
-        var q2 = g.fromxy(g.a.x + g.ux * s + g.nx * depth, g.a.y + g.uy * s + g.ny * depth);
-        var c = xy(q1.lat, q1.lon);
-        var e = xy(q2.lat, q2.lon);
-        mapCtx.beginPath();
-        mapCtx.moveTo(c.x, c.y);
-        mapCtx.lineTo(e.x, e.y);
-        mapCtx.strokeStyle = "rgba(226,232,240,0.4)";
-        mapCtx.lineWidth = 1;
-        mapCtx.setLineDash([6, 5]);
         mapCtx.stroke();
-        mapCtx.setLineDash([]);
-        if (s > 0 && s < g.len) {
-          mapCtx.fillStyle = "rgba(255,255,255,0.9)";
-          mapCtx.font = "bold 10px sans-serif";
-          mapCtx.fillText(Math.round(s) + "m", c.x + 3, c.y - 6);
-        }
+        return { a: a, b: b };
       }
-      var over = lineAt(-2, false, 3.2, "rgba(239,68,68,0.85)");
-      var base = lineAt(0, false, 3.4, "#38bdf8");
+      var over = lineAt(-2, 3.2, "rgba(239,68,68,0.85)");
+      var base = lineAt(0, 3.4, "#38bdf8");
       return { g: g, over: over, base: base };
     }
     function fitLive() {
@@ -682,15 +652,6 @@
         var m = atTs(hist.marks[k], ts);
         if (m) pts.push([m.lat, m.lon]);
       });
-      if (pin && rc) {
-        var g = startGrid(pin, rc, pts.map(function (p) { return { lat: p[0], lon: p[1] }; }));
-        if (g) {
-          [[0, 0], [g.len, 0], [0, 100], [g.len, 100]].forEach(function (xyM) {
-            var p = g.fromxy(g.a.x + g.ux * xyM[0] + g.nx * xyM[1], g.a.y + g.uy * xyM[0] + g.ny * xyM[1]);
-            pts.push([p.lat, p.lon]);
-          });
-        }
-      }
       if (!pts.length) return;
       chartSyncing = true;
       chartMap.fitBounds(pts, { padding: [28, 28], maxZoom: 18, animate: false });
