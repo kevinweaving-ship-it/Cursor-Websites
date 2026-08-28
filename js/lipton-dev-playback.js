@@ -30,6 +30,30 @@
     });
   }
   bindRaceButtons(RACE_Q || 4);
+  (function wireSiteHeader() {
+    var menuBtn = document.getElementById("menuBtn");
+    var overlay = document.getElementById("navMenuOverlay");
+    if (menuBtn && overlay) {
+      menuBtn.addEventListener("click", function () {
+        var hidden = overlay.style.display === "none";
+        overlay.style.display = hidden ? "flex" : "none";
+        overlay.setAttribute("aria-hidden", hidden ? "false" : "true");
+      });
+      overlay.addEventListener("click", function (e) {
+        if (e.target.tagName === "A") overlay.style.display = "none";
+      });
+      var regattaLink = overlay.querySelector("a[data-mode=\"regatta\"]");
+      if (regattaLink) {
+        regattaLink.addEventListener("click", function (e) {
+          e.preventDefault();
+          window.location.href = "/?mode=regatta";
+        });
+      }
+    }
+    if (typeof window.updateHeaderAuthStatus === "function") {
+      window.updateHeaderAuthStatus();
+    }
+  })();
   fetch("/js/lipton-dev-races.json?v=" + CACHE, { cache: "no-store" })
     .then(function (res) { return res.ok ? res.json() : null; })
     .then(function (meta) {
@@ -536,7 +560,7 @@
       var el = document.getElementById("lipton-dev-chart");
       if (!el || !window.L || chartMap) return;
       chartMap = L.map(el, {
-        zoomControl: true,
+        zoomControl: false,
         attributionControl: true,
         dragging: true,
         scrollWheelZoom: true,
@@ -591,6 +615,10 @@
       var track = el.parentNode;
       var ctrls = el.querySelector(".leaflet-control-container");
       if (track && ctrls) track.appendChild(ctrls);
+      var zoomIn = document.getElementById("lipton-dev-zoom-in");
+      var zoomOut = document.getElementById("lipton-dev-zoom-out");
+      if (zoomIn) zoomIn.addEventListener("click", function () { if (chartMap) chartMap.zoomIn(); });
+      if (zoomOut) zoomOut.addEventListener("click", function () { if (chartMap) chartMap.zoomOut(); });
     }
     var lastChartSyncAt = 0;
     function syncChart() {

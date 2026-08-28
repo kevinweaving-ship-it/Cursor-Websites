@@ -2,6 +2,31 @@
 body[data-lipton-dev="1"] {
   background: #f5f5f5;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  --lipton-mark-h: 20px;
+  --lipton-scrub-w: 140px;
+}
+body[data-lipton-dev="1"] .site-header {
+  flex: 0 0 auto;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+body[data-lipton-dev="1"] .lipton-dev-subhead {
+  flex: 0 0 30px;
+  box-sizing: border-box;
+  height: 30px;
+  min-height: 30px;
+  max-height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  background: #001f3f;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  z-index: 29;
 }
 body[data-lipton-dev="1"] .lipton-dev-shell {
   width: 100%;
@@ -9,7 +34,9 @@ body[data-lipton-dev="1"] .lipton-dev-shell {
   margin: 0;
   padding: 4px 6px 4px 4px;
   box-sizing: border-box;
-  height: calc(100dvh - 96px);
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
 }
 body[data-lipton-dev="1"] .lipton-dev-split {
   display: grid;
@@ -321,14 +348,8 @@ body[data-lipton-dev="1"] .leaflet-tile {
 body[data-lipton-dev="1"] .lipton-dev-track > .leaflet-control-container {
   z-index: 3;
 }
-body[data-lipton-dev="1"] .leaflet-control-zoom a,
-body[data-lipton-dev="1"] .leaflet-touch .leaflet-bar a,
-body[data-lipton-dev="1"] .leaflet-touch .leaflet-control-zoom-in,
-body[data-lipton-dev="1"] .leaflet-touch .leaflet-control-zoom-out {
-  width: 14px;
-  height: 14px;
-  line-height: 14px;
-  font-size: 11px;
+body[data-lipton-dev="1"] .leaflet-control-zoom {
+  display: none !important;
 }
 body[data-lipton-dev="1"] .leaflet-bottom.leaflet-right {
   margin: 0;
@@ -347,47 +368,59 @@ body[data-lipton-dev="1"] .leaflet-attribution-flag {
   width: 8px !important;
   height: 6px !important;
 }
-body[data-lipton-dev="1"] .lipton-dev-map-brand {
-  position: absolute;
-  z-index: 4;
-  top: 10px;
-  left: 32px;
+body[data-lipton-dev="1"] .lipton-dev-zoom {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  pointer-events: auto;
-}
-body[data-lipton-dev="1"] .lipton-dev-map-logo {
+  flex-direction: column;
   flex: 0 0 auto;
-  line-height: 0;
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid #1a2750;
+  border-radius: 3px;
 }
-body[data-lipton-dev="1"] .lipton-dev-map-logo img {
-  display: block;
-  height: 32px;
-  width: auto;
+body[data-lipton-dev="1"] .lipton-dev-zoom button {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #1a2750;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 14px;
+  cursor: pointer;
+}
+body[data-lipton-dev="1"] .lipton-dev-zoom button:last-child {
+  border-bottom: 0;
 }
 body[data-lipton-dev="1"] .lipton-dev-map-transport {
   display: flex;
-  flex-direction: column;
-  width: var(--lipton-scrub-w);
-  flex: 0 0 var(--lipton-scrub-w);
-  gap: 2px;
+  flex-direction: row;
+  align-items: center;
+  width: auto;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 28px;
+  gap: 8px;
 }
 body[data-lipton-dev="1"] .lipton-dev-scrub {
   display: block;
-  width: 100%;
+  width: var(--lipton-scrub-w);
+  flex: 0 0 var(--lipton-scrub-w);
   height: 16px;
-  margin: 4px 0 0;
+  margin: 0;
   padding: 0;
   accent-color: #fbbf24;
   cursor: pointer;
 }
 body[data-lipton-dev="1"] .lipton-dev-map-transport .lipton-dev-transport--play {
   display: flex;
-  width: 100%;
-  height: var(--lipton-mark-h);
-  max-height: var(--lipton-mark-h);
-  margin: 14px 0 0;
+  width: var(--lipton-scrub-w);
+  flex: 0 0 var(--lipton-scrub-w);
+  height: 22px;
+  max-height: 22px;
+  margin: 0;
   padding: 1px 2px;
   box-sizing: border-box;
   gap: 3px;
@@ -435,11 +468,9 @@ body[data-lipton-dev="1"] .lipton-dev-map-transport .lipton-dev-btn:disabled {
   cursor: default;
 }
 body[data-lipton-dev="1"] .lipton-dev-event-logo {
-  position: absolute;
-  z-index: 4;
-  top: 46px;
-  left: 10px;
-  width: 59px;
+  display: block;
+  width: 48px;
+  flex: 0 0 auto;
   line-height: 0;
   pointer-events: auto;
 }
@@ -447,39 +478,38 @@ body[data-lipton-dev="1"] .lipton-dev-event-logo img {
   display: block;
   width: 100%;
   height: auto;
-  max-height: var(--lipton-mark-h);
+  max-height: 22px;
   object-fit: contain;
 }
 body[data-lipton-dev="1"] .lipton-dev-map-hud {
-  position: absolute;
-  z-index: 4;
-  top: 10px;
-  right: 10px;
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  min-width: 50px;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  min-width: 0;
   text-align: center;
-  pointer-events: none;
   color: #ffffff;
   font-family: sans-serif;
+  pointer-events: none;
 }
 body[data-lipton-dev="1"] .lipton-dev-map-hud-name {
   font-size: 9px;
   font-weight: 700;
   line-height: 1.2;
-  padding: 3px 6px;
-  background: rgba(0, 31, 63, 0.62);
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.12);
+  white-space: nowrap;
 }
 body[data-lipton-dev="1"] .lipton-dev-map-hud-clock {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 700;
   line-height: 22px;
   height: 22px;
   padding: 0 6px;
   box-sizing: border-box;
   border: 1.4px solid #38bdf8;
-  background: rgba(0, 31, 63, 0.86);
+  background: rgba(0, 16, 24, 0.55);
 }
 body[data-lipton-dev="1"] .lipton-dev-map-hud.is-after .lipton-dev-map-hud-clock {
   border-color: #fbbf24;
@@ -509,7 +539,7 @@ body[data-lipton-dev="1"] .lipton-dev-btn:disabled {
   }
   body[data-lipton-dev="1"] .lipton-dev-shell {
     height: auto;
-    min-height: calc(100dvh - 96px);
+    min-height: 0;
   }
   body[data-lipton-dev="1"] .lipton-dev-split {
     grid-template-columns: 1fr;
