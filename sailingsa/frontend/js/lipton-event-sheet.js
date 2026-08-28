@@ -24,10 +24,7 @@
 
   function hostEl() { return document.getElementById(HOST); }
   function frameEl() { return document.getElementById(FRAME); }
-  function showHost() {
-    var host = hostEl();
-    if (host) host.hidden = false;
-  }
+  function showHost() {}
   function hideHost() {
     var host = hostEl();
     if (host) host.hidden = true;

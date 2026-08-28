@@ -4,6 +4,7 @@ body[data-lipton-dev="1"] {
   background: #f5f5f5;
   overflow-x: hidden;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   max-width: 100%;
   height: auto;
   min-height: 100dvh;
@@ -36,6 +37,8 @@ body[data-lipton-dev="1"] .site-header .container {
   display: flex;
   align-items: center;
   gap: 12px;
+  margin-left: auto;
+  margin-right: auto;
 }
 body[data-lipton-dev="1"] .lipton-header-cup {
   margin-left: auto;
@@ -60,15 +63,17 @@ body[data-lipton-dev="1"] .site-header .logo img {
 body[data-lipton-dev="1"] .lipton-event-sheet {
   flex: 0 0 auto;
   width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 8px 12px 0;
+  box-sizing: border-box;
   background: #fff;
-}
-body[data-lipton-dev="1"] .lipton-event-sheet[hidden] {
-  display: none !important;
 }
 body[data-lipton-dev="1"] .lipton-event-sheet iframe {
   display: block;
   width: 100%;
   border: 0;
+  min-height: 280px;
   height: 280px;
   background: #fff;
 }
@@ -1042,6 +1047,7 @@ body[data-lipton-dev="1"] .lipton-dev-btn:disabled {
   body[data-lipton-dev="1"] {
     overflow-x: hidden;
     overflow-y: auto;
+    scrollbar-gutter: stable;
     height: auto;
     min-height: 100dvh;
   }
