@@ -56,17 +56,59 @@ EARLY_NO_IMPL = '''def serve_regatta_standalone(slug: str, request: Request, *, 
 '''
 
 
+def _fn_span(text: str, name: str, start_at: int = 0) -> tuple[int, int] | None:
+    m = re.search(rf"^def {name}\(", text[start_at:], re.M)
+    if not m:
+        return None
+    start = start_at + m.start()
+    rest = text[start + 1 :]
+    m2 = re.search(r"\n(?=def |\n@app\.)", rest)
+    if not m2:
+        return start, len(text)
+    return start, start + 1 + m2.start() + 1
+
+
 def _replace_fn(text: str, name: str, new: str) -> str:
-    pat = re.compile(
-        rf"def {name}\([\s\S]*?\n(?=\n(?:def |@app\.))",
-        re.M,
-    )
-    if not pat.search(text):
-        i = text.find("def serve_regatta_standalone")
-        if i < 0:
-            raise SystemExit(f"ERROR: {name} not found")
-        return text[:i] + new.rstrip() + "\n\n" + text[i:]
-    return pat.sub(new.rstrip() + "\n\n", text, count=1)
+    found = False
+    while True:
+        span = _fn_span(text, name)
+        if not span:
+            break
+        found = True
+        start, end = span
+        text = text[:start] + new.rstrip() + "\n\n" + text[end:]
+        # Only keep the replacement; drop later duplicates.
+        later = _fn_span(text, name, start + len(new))
+        while later:
+            s2, e2 = later
+            text = text[:s2] + text[e2:]
+            later = _fn_span(text, name, start + len(new))
+        break
+    if found:
+        return text
+    i = text.find("def serve_regatta_standalone")
+    if i < 0:
+        raise SystemExit(f"ERROR: {name} not found")
+    return text[:i] + new.rstrip() + "\n\n" + text[i:]
+
+
+def _strip_public_hijack(text: str) -> str:
+    """Watchers inject public=True → event HTML. Cut that out of playback fn."""
+    hijacks = [
+        "    if public:\n"
+        "        # LIPTON_PUBLIC_NOT_DEV_V4 hijack public=True must still render the live board.\n"
+        '        return _serve_regatta_standalone_impl("2026-08-29-lipton-challenge-cup", _request)\n',
+        "    if public:\n"
+        "        # LIPTON_PUBLIC_NOT_DEV hijack public=True must still render the live board.\n"
+        '        return _serve_regatta_standalone_impl("2026-08-29-lipton-challenge-cup", _request)\n',
+        "    if public:\n"
+        '        return _serve_regatta_standalone_impl("2026-08-29-lipton-challenge-cup", _request)\n',
+        "    if public:\n"
+        "        return _serve_regatta_standalone_impl(LIPTON_PUBLIC_SLUG, _request)\n",
+    ]
+    for h in hijacks:
+        text = text.replace(h, "")
+    return text
 
 
 def _kill_old_weather_css(text: str) -> str:
@@ -87,6 +129,8 @@ def _ok(text: str) -> bool:
     pb = text.split("def serve_lipton_dev_playback_page", 1)[-1][:900]
     if "LIPTON_PUBLIC_NOT_DEV" in pb or "lipton-dev.html" not in pb:
         return False
+    if "_serve_regatta_standalone_impl" in pb:
+        return False
     after = text.split("def serve_regatta_standalone", 1)[-1][:900]
     if "LIPTON_PUBLIC_NOT_DEV" in after:
         return False
@@ -103,6 +147,7 @@ def main() -> int:
     text = API.read_text(encoding="utf-8")
     text = _kill_old_weather_css(text)
     text = _replace_fn(text, "serve_lipton_dev_playback_page", PLAYBACK_FN)
+    text = _strip_public_hijack(text)
     if "def _serve_regatta_standalone_impl" in text:
         text, n = re.subn(
             r"def serve_regatta_standalone\([\s\S]*?\n\n(?=def _serve_regatta_standalone_impl)",
@@ -152,6 +197,12 @@ def main() -> int:
             "        allow_lipton_event = True\n",
             "",
         )
+    text = _strip_public_hijack(text)
+    n_pb = len(re.findall(r"^def serve_lipton_dev_playback_page\(", text, re.M))
+    print("playback_fn_count", n_pb)
+    if n_pb != 1:
+        print("ERROR: expected 1 playback fn", flush=True)
+        return 1
     if not _ok(text):
         print("ERROR: API still serves old page", flush=True)
         after = text.split("def serve_regatta_standalone", 1)[-1][:900]
