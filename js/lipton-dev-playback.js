@@ -274,6 +274,51 @@
       if (!id) return sail;
       return id.mapClub || id.club || sail;
     }
+    var EVENT_BOAT_COLORS = {
+      HYC: "#2563eb",
+      RCYC: "#e11d48",
+      KYC: "#16a34a",
+      RNYC: "#7c3aed",
+      WBYC: "#ea580c",
+      FBYC: "#0891b2",
+      SBYC: "#ca8a04",
+      PYC: "#db2777",
+      LDYC: "#4f46e5",
+      GLYC: "#65a30d",
+      BYC: "#0d9488",
+      TSC: "#9333ea",
+      WYAC: "#f59e0b",
+      RCYCA: "#64748b",
+      UCT: "#0284c7",
+      IZI: "#be123c",
+      LYCN: "#15803d"
+    };
+    function hexLuma(hex) {
+      var n = parseInt(String(hex).replace("#", ""), 16);
+      if (!(n >= 0)) return 0;
+      return 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
+    }
+    function boatPaint(sail, pending) {
+      if (pending) {
+        return { fill: "#dc2626", stroke: "#7f1d1d", ink: "#ffffff", nose: "#fecaca" };
+      }
+      var code = clubCode(sail);
+      var fill = EVENT_BOAT_COLORS[code];
+      if (!fill) {
+        var h = 0;
+        var s = String(code);
+        for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+        var keys = Object.keys(EVENT_BOAT_COLORS);
+        fill = EVENT_BOAT_COLORS[keys[h % keys.length]];
+      }
+      var dark = hexLuma(fill) < 165;
+      return {
+        fill: fill,
+        stroke: "rgba(15,23,42,0.75)",
+        ink: dark ? "#ffffff" : "#0f172a",
+        nose: dark ? "#ffffff" : "#0f172a"
+      };
+    }
     function boatNameCell(id) {
       if (!id) return "";
       return "<a href=\"" + esc(id.nameHref) + "\" class=\"rs-boat-name-sponsors rs-boat-name-sponsors--link\" title=\"" + esc(id.title) + "\">" + id.nameInner + "</a>";
@@ -759,7 +804,7 @@
     function metersPx(m) {
       return Math.max(4, m * mapBounds.scale);
     }
-    function drawBoatIcon(p, hdg, fill, stroke) {
+    function drawBoatIcon(p, hdg, fill, stroke, nose) {
       var r = 7;
       mapCtx.beginPath();
       mapCtx.arc(p.x, p.y, r, 0, Math.PI * 2);
@@ -776,7 +821,7 @@
       mapCtx.lineTo(3.1, -r + 1.2);
       mapCtx.lineTo(-3.1, -r + 1.2);
       mapCtx.closePath();
-      mapCtx.fillStyle = fill === "#16a34a" ? "#bbf7d0" : "#ffffff";
+      mapCtx.fillStyle = nose || "#ffffff";
       mapCtx.fill();
       mapCtx.restore();
     }
@@ -953,25 +998,12 @@
     function drawBoatLabel(p, hdg, sail, ts) {
       var club = clubCode(sail);
       var info = mapBadge(sail, ts);
-      var fill = "#f8fafc";
-      var stroke = "rgba(15,23,42,0.45)";
-      var ink = "#0f172a";
-      if (info.pending) {
-        fill = "#fff7ed";
-        stroke = "#dc2626";
-        ink = "#dc2626";
-      } else if (info.started && !info.onMark) {
-        fill = "#16a34a";
-        stroke = "#14532d";
-        ink = "#ffffff";
-      } else if (info.finished) {
-        stroke = finishPulseActive(sail) ? "#fbbf24" : "rgba(15,23,42,0.45)";
-      }
+      var paint = boatPaint(sail, info.pending);
       mapCtx.save();
       drawFinishHalo(p, sail);
-      drawBoatIcon(p, hdg, fill, stroke);
+      drawBoatIcon(p, hdg, paint.fill, paint.stroke, paint.nose);
       if (info.place != null) {
-        mapCtx.fillStyle = ink;
+        mapCtx.fillStyle = paint.ink;
         mapCtx.font = "bold 8px sans-serif";
         mapCtx.textAlign = "center";
         mapCtx.textBaseline = "middle";
