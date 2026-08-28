@@ -6,6 +6,7 @@ chattr -i /usr/local/sbin/lipton_public_not_dev_watch.py \
   /usr/local/lib/lipton_public_watch_guard.sh \
   /usr/local/sbin/lipton_apply_nginx_public_proxy_once.py \
   /etc/systemd/system/sailingsa-lipton-public-watch.service \
+  /etc/systemd/system/nginx.service.d/lipton-public-proxy.conf \
   /etc/nginx/sites-enabled/sailingsa 2>/dev/null || true
 mkdir -p /usr/local/lib /var/lib/sailingsa-lipton
 cp /tmp/lipton_public_not_dev_watch.py /usr/local/sbin/lipton_public_not_dev_watch.py
