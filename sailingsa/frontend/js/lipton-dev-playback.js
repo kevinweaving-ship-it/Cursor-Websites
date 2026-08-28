@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828bt";
+  var CACHE = "20260828bu";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = params.get("live") === "1";
@@ -1484,6 +1484,13 @@
       return n <= 1 ? base : base + "·" + n;
     }
     var lastHeadKey = "";
+    var marksDetailOpen = false;
+    function passIsMark(p) {
+      if (!p) return false;
+      if (p.id === "ST" || p.label === "ST") return false;
+      if (p.id === "FIN" || p.label === "Fin") return false;
+      return true;
+    }
     function fleetN() {
       return Object.keys(BOATS).length;
     }
@@ -1518,7 +1525,7 @@
       if (!headRow) return;
       if (limit == null) limit = PASSES.length - 1;
       var ts = viewTs;
-      var key = String(limit) + (showStCol(ts) ? "|ST" : "|noST");
+      var key = String(limit) + (showStCol(ts) ? "|ST" : "|noST") + (marksDetailOpen ? "|md1" : "|md0");
       for (var i = 0; i < limit; i++) key += showDeltaAfter(i, ts, limit) ? "|d" : "|f";
       if (key === lastHeadKey) return;
       lastHeadKey = key;
@@ -1531,7 +1538,11 @@
         if (p.id === "FIN" || p.label === "Fin") title = "Finish time and places vs start";
         else if (p.id === "ST" || p.label === "ST") title = "Seconds after first legal start. OCS boats use the recross after they clear, not the OCS dip.";
         else if (passFolded(i, ts)) title = lab + " places vs previous mark";
-        html += "<th class=\"timer-col\" title=\"" + esc(title) + "\">" + esc(lab) + "</th>";
+        var twist = "";
+        if (passIsMark(p) && passFolded(i, ts)) {
+          twist = "<button type=\"button\" class=\"ld-mark-twist\" data-mark-twist=\"1\" aria-expanded=\"" + (marksDetailOpen ? "true" : "false") + "\" title=\"" + (marksDetailOpen ? "Hide mark times" : "Show mark times") + "\" aria-label=\"" + (marksDetailOpen ? "Hide mark times" : "Show mark times") + "\">" + (marksDetailOpen ? "▾" : "▸") + "</button>";
+        }
+        html += "<th class=\"timer-col" + (passIsMark(p) ? " timer-col--mark" : "") + "\" title=\"" + esc(title) + "\"><span class=\"ld-mark-lab\">" + esc(lab) + "</span>" + twist + "</th>";
         if (showDeltaAfter(i, ts, limit)) {
           var nlab = passHeadLabel(i + 1);
           html += "<th class=\"place-delta-col\" title=\"Places gained or lost " + esc(lab) + " to " + esc(nlab) + "\" aria-label=\"Place change " + esc(lab) + " to " + esc(nlab) + "\">±</th>";
@@ -1699,17 +1710,30 @@
       }
       return out;
     }
-    function deltaSpan(gained, flash) {
+    function deltaSpan(gained, flash, numOnly) {
       if (gained == null) return "";
       var flashCls = flash && gained !== 0 ? " place-delta--flash" : "";
+      var n;
+      var cls;
+      var label;
+      var glyph;
       if (gained > 0) {
-        return "<span class=\"place-delta place-delta--up" + flashCls + "\" title=\"Gained " + gained + "\" aria-label=\"Gained " + gained + "\">▲" + gained + "</span>";
+        n = String(gained);
+        cls = "place-delta--up";
+        label = "Gained " + gained;
+        glyph = "▲";
+      } else if (gained < 0) {
+        n = String(-gained);
+        cls = "place-delta--down";
+        label = "Lost " + n;
+        glyph = "▼";
+      } else {
+        n = "0";
+        cls = "place-delta--same";
+        label = "No change";
+        glyph = "■";
       }
-      if (gained < 0) {
-        var lost = -gained;
-        return "<span class=\"place-delta place-delta--down" + flashCls + "\" title=\"Lost " + lost + "\" aria-label=\"Lost " + lost + "\">▼" + lost + "</span>";
-      }
-      return "<span class=\"place-delta place-delta--same\" title=\"No change\" aria-label=\"No change\">■0</span>";
+      return "<span class=\"place-delta " + cls + flashCls + "\" title=\"" + label + "\" aria-label=\"" + label + "\">" + (numOnly ? n : glyph + n) + "</span>";
     }
     function deltaGain(prevMap, nextMap, boat) {
       if (!prevMap || !nextMap) return null;
@@ -1754,11 +1778,14 @@
         rankMaps[i - 1] && rankMaps[i - 1].next,
         r.boat
       );
-      var tri = deltaSpan(gained, rememberDelta(r.boat + "|fold|" + i, gained));
+      var flash = rememberDelta(r.boat + "|fold|" + i, gained);
       if (isFin) {
-        return "<td class=\"timer-col timer-col--folded\">" + time + tri + "</td>";
+        return "<td class=\"timer-col timer-col--folded\">" + time + deltaSpan(gained, flash) + "</td>";
       }
-      return "<td class=\"timer-col timer-col--folded timer-col--places\">" + tri + "</td>";
+      if (!marksDetailOpen) {
+        return "<td class=\"timer-col timer-col--num\">" + deltaSpan(gained, flash, true) + "</td>";
+      }
+      return "<td class=\"timer-col timer-col--folded\">" + time + deltaSpan(gained, flash) + "</td>";
     }
     function boatHasStarted(boat, ts) {
       if (ts < GUN_TS) return false;
@@ -1887,7 +1914,7 @@
     }
     function stateKey(rows, ts) {
       var passLimit = visiblePassLimit(ts);
-      return "p" + passLimit + "|f" + foldMask(ts) + "|" + rows.map(function (r) {
+      return "p" + passLimit + "|f" + foldMask(ts) + (marksDetailOpen ? "|md1" : "|md0") + "|" + rows.map(function (r) {
         var pending = ocsPending(r.boat, ts);
         var badge = mapBadge(r.boat, ts);
         var place = badge.place == null ? "" : badge.place;
@@ -2205,6 +2232,18 @@
       drawMap(playTs);
     });
 
+    if (headRow) {
+      headRow.addEventListener("click", function (ev) {
+        var th = ev.target && ev.target.closest ? ev.target.closest("th.timer-col--mark") : null;
+        if (!th || !th.querySelector("[data-mark-twist]")) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        marksDetailOpen = !marksDetailOpen;
+        lastHeadKey = "";
+        lastKey = "";
+        render(viewTs);
+      });
+    }
     fillHead(0);
     setRateButtons();
     waitForTracker();

@@ -410,6 +410,32 @@ body[data-lipton-dev="1"] td.timer-col--places .place-delta {
   line-height: 1.2;
   margin-top: 0;
 }
+body[data-lipton-dev="1"] th.timer-col--mark {
+  white-space: normal;
+  line-height: 1.05;
+}
+body[data-lipton-dev="1"] .ld-mark-lab {
+  display: block;
+}
+body[data-lipton-dev="1"] .ld-mark-twist {
+  display: block;
+  width: 100%;
+  min-height: 16px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #1a2750;
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+}
+body[data-lipton-dev="1"] td.timer-col--num .place-delta {
+  display: inline-block;
+  font-size: 12px;
+  line-height: 1.2;
+  margin-top: 0;
+}
 body[data-lipton-dev="1"] .place-delta {
   display: inline-block;
   font-variant-numeric: tabular-nums;
