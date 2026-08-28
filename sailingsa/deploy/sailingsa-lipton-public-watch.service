@@ -7,7 +7,7 @@ PartOf=nginx.service
 Type=simple
 Restart=always
 RestartSec=1
-ExecStart=/bin/bash -c 'while true; do /usr/bin/python3 /usr/local/lib/lipton_public_not_dev_watch.py; sleep 1; done'
+ExecStart=/bin/bash -c 'while true; do /usr/local/lib/lipton_public_watch_guard.sh; sleep 1; done'
 
 [Install]
 WantedBy=multi-user.target

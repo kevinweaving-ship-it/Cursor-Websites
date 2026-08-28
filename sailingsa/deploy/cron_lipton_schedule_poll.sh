@@ -9,6 +9,6 @@ case "$DAY" in
   *) exit 0 ;;
 esac
 URL="https://sailingsa.co.za/api/regatta/${RID}/live-race"
-# Also undo public-slug playback hijack if PLAYBACK_LOCK re-inserted nginx aliases.
-/usr/bin/python3 /usr/local/sbin/lipton_public_not_dev_watch.py >/dev/null 2>&1 || true
+# Undo public-slug playback hijack. Prefer guard (restores 39-byte stubs).
+/usr/local/lib/lipton_public_watch_guard.sh >/dev/null 2>&1 || /usr/bin/python3 /usr/local/lib/lipton_public_not_dev_watch.py >/dev/null 2>&1 || /usr/bin/python3 /usr/local/sbin/lipton_public_not_dev_watch.py >/dev/null 2>&1 || true
 curl -fsS -o /dev/null --max-time 20 -H 'Cache-Control: no-store' "$URL" || true
