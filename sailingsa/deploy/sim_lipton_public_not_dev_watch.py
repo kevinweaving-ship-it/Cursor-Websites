@@ -105,6 +105,7 @@ def serve_lipton_dev_playback_page(_request, public: bool = False):
     assert callable(mod.ensure_watch_service)
     src = Path(__file__).resolve().parent / "lipton_public_not_dev_watch.py"
     assert "LIPTON_WATCH_DEBOUNCE_V1" in src.read_text(encoding="utf-8")
+    assert callable(mod._overnight_hold)
     print("PASS watchdog strips public nginx alias, inserts public proxy, keeps -dev")
     return 0
 

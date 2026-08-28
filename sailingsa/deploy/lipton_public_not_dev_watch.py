@@ -109,6 +109,13 @@ def _event_day() -> bool:
     return day in ("2026-08-27", "2026-08-28", "2026-08-29")
 
 
+def _overnight_hold() -> bool:
+    """17:00–10:00 SAST: last official Rn, no invented gun, avoid API restart storms."""
+    now = datetime.now(ZoneInfo("Africa/Johannesburg"))
+    mins = now.hour * 60 + now.minute
+    return mins >= 17 * 60 or mins < 10 * 60
+
+
 def _chattr(path: Path, plus_i: bool) -> None:
     flag = "+i" if plus_i else "-i"
     subprocess.run(["chattr", flag, str(path)], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -398,7 +405,7 @@ def main() -> int:
         raw = API.read_text(encoding="utf-8")
         new, changed = fix_api(raw)
         if changed:
-            if _seconds_since_api_strip() < 8:
+            if _seconds_since_api_strip() < (30 if _overnight_hold() else 8):
                 _log("api.py hijack on disk; deferred strip")
             else:
                 _write(API, new)
