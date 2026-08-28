@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828da";
+  var CACHE = "20260828db";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = !RACE_Q;
@@ -1184,13 +1184,14 @@
         });
       }
     }
-    function collectLineHits(pts, geom, fromTs) {
+    function collectLineHits(pts, geom, fromTs, toTs) {
       var hits = [];
       var prev = null;
       var i;
       for (i = 0; i < pts.length; i++) {
         var p = pts[i];
         if (fromTs != null && p.ts_ms < fromTs) continue;
+        if (toTs != null && p.ts_ms > toTs) break;
         var sg = geom.signed(p.lat, p.lon);
         if (prev) {
           var on = (sg.along >= -80 && sg.along <= geom.len + 80) || (prev.along >= -80 && prev.along <= geom.len + 80);
@@ -1211,11 +1212,12 @@
     function startTsForSail(sail, pts, geom) {
       if (!geom || !gunTs || !pts || pts.length < 2) return null;
       var ocs = liveOcsOn(sail);
-      var hits = collectLineHits(pts, geom, ocs ? gunTs - 90000 : gunTs - 8000);
+      var startUntil = gunTs + 4 * 60 * 1000;
+      var hits = collectLineHits(pts, geom, ocs ? gunTs - 90000 : gunTs - 8000, startUntil);
       var i;
       var enters = [];
       for (i = 0; i < hits.length; i++) {
-        if (hits[i].kind === "enter") enters.push(hits[i].t);
+        if (hits[i].kind === "enter" && hits[i].t <= startUntil) enters.push(hits[i].t);
       }
       if (!ocs) {
         for (i = 0; i < enters.length; i++) {
@@ -1223,16 +1225,13 @@
         }
         return null;
       }
-      if (enters.length >= 2) return enters[enters.length - 1];
-      var dip = null;
+      var dip = enters.length ? enters[0] : null;
       var sawExit = false;
       for (i = 0; i < hits.length; i++) {
         var h = hits[i];
-        if (h.kind === "enter" && dip == null) dip = h.t;
         if (dip != null && h.kind === "exit" && h.t >= dip) sawExit = true;
-        else if (sawExit && h.kind === "enter") return h.t;
+        else if (sawExit && h.kind === "enter" && h.t <= startUntil) return h.t;
       }
-      if (enters.length === 1 && enters[0] >= gunTs + 3000) return enters[0];
       return dip;
     }
     var lockedSt = {};
@@ -1252,12 +1251,12 @@
         var pts = hist.boats[sail] || [];
         var ocs = liveOcsOn(sail);
         var st = startTsForSail(sail, pts, geom);
-        if (ocs) {
-          if (st != null) lockedSt[sail] = st;
-        } else if (st != null) {
+        if (st != null) {
           lockedSt[sail] = st;
-        } else if (lockedSt[sail] != null) {
+        } else if (lockedSt[sail] != null && gunTs && lockedSt[sail] <= gunTs + 4 * 60 * 1000) {
           st = lockedSt[sail];
+        } else {
+          delete lockedSt[sail];
         }
         if (st != null) passTs.ST[sail] = st;
         var afterSt = st != null ? st + 6000 : (gunTs ? gunTs + 6000 : 0);
