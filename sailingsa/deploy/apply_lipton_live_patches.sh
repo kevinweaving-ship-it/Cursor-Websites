@@ -31,6 +31,7 @@ PATCHERS=(
   patch_lipton_apply_late_finish.py
   patch_lipton_icons_merge_read.py
   patch_lipton_allers_name_links.py
+  patch_lipton_public_not_dev.py
 )
 
 echo "api $API"
@@ -66,6 +67,7 @@ REQUIRED=(
   LIPTON_APPLY_LATE_FINISH_V1
   LIPTON_ICONS_MERGE_READ_V1
   LIPTON_ALLERS_NAME_LINKS_V2
+  LIPTON_PUBLIC_NOT_DEV_V1
 )
 miss=0
 for m in "${REQUIRED[@]}"; do
