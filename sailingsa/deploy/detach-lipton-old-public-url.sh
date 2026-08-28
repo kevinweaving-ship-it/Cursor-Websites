@@ -28,17 +28,22 @@ cp -a /var/www/sailingsa/api/api.py "$BAKDIR/api.py" || true
 # Drop backup confs nginx would include
 find /etc/nginx/sites-enabled -maxdepth 1 -type f ! -name '00-timadvisor' ! -name 'sailingsa' -print -delete || true
 
-echo '=== nginx: public slug aliases playback file (not proxy to old page) ==='
+echo '=== html file first (nginx rewrite 404s if missing) ==='
+if test -f /tmp/lipton-dev.html; then
+  cp /tmp/lipton-dev.html /var/www/sailingsa/lipton-dev.html
+  mkdir -p /var/www/sailingsa/frontend
+  cp /tmp/lipton-dev.html /var/www/sailingsa/frontend/lipton-dev.html
+fi
+ls -la /var/www/sailingsa/lipton-dev.html
+grep -c 'data-lipton-dev' /var/www/sailingsa/lipton-dev.html
+
+echo '=== nginx: public URL = playback file; -old = API event page ==='
 chattr -i "$ENABLED" 2>/dev/null || true
 python3 /tmp/force_lipton_nginx_alias.py
 nginx -t
 nginx -s reload
 chattr +i "$ENABLED"
 lsattr "$ENABLED"
-
-if test -f /tmp/lipton-dev.html; then
-  cp /tmp/lipton-dev.html /var/www/sailingsa/lipton-dev.html
-fi
 
 echo '=== API: old page no longer served at public slug ==='
 python3 /tmp/patch_lipton_public_slug.py
@@ -90,22 +95,24 @@ import subprocess
 
 def chk(url):
     p = subprocess.run(
-        ["curl", "-sS", "-D", "-", "-A", "SailingSA-devcheck", "-o", "/tmp/p.html", url],
+        ["curl", "-sS", "-D", "-", "-A", "SailingSA-devcheck", "-o", "/tmp/p.html",
+         "-w", " http%{http_code}", url],
         capture_output=True, text=True, errors="replace",
     )
-    hdr = p.stdout
     t = open("/tmp/p.html", encoding="utf-8", errors="replace").read()
-    set_cookie = "set-cookie:" in hdr.lower()
-    print(url)
-    print("  bytes", len(t), "playback", "lipton-dev-playback" in t,
+    print(url, p.stdout.strip().splitlines()[-1] if p.stdout else "")
+    print("  bytes", len(t), "playback", 'data-lipton-dev="1"' in t,
           "weather", ("WEATHER" in t or "Live cam" in t),
-          "set-cookie", set_cookie)
+          "head", t[:80].replace("\n", " "))
     return t
 
 pub = chk("https://sailingsa.co.za/regatta/2026-08-29-lipton-challenge-cup")
-if "lipton-dev-playback" not in pub or "WEATHER" in pub or len(pub) > 50000:
-    raise SystemExit("FAIL: public URL still serving old event page")
-print("OK public URL is playback, old page detached")
+old = chk("https://sailingsa.co.za/regatta/2026-08-29-lipton-challenge-cup-old")
+if 'data-lipton-dev="1"' not in pub or "WEATHER" in pub:
+    raise SystemExit("FAIL: public URL is not playback")
+if "WEATHER" not in old and "Live cam" not in old:
+    raise SystemExit("FAIL: -old URL is not the old event page")
+print("OK public=playback old=-old")
 PY
-echo '=== nginx public loc ==='
-awk '/location = \/regatta\/2026-08-29-lipton-challenge-cup \{/,/^    \}/' "$ENABLED" | head -20
+echo '=== nginx locs ==='
+grep -n 'lipton-challenge-cup' "$ENABLED" | head

@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""Detach the old Lipton weather/event page from the public slug.
-
-Does not replace whole api.py. Public /regatta/2026-08-29-lipton-challenge-cup
-serves playback HTML. Old event HTML only at /event.
-"""
+"""Public Lipton slug = playback. Old weather page only at -old. Does not replace whole api.py."""
 from __future__ import annotations
 
 import re
@@ -13,13 +9,15 @@ from pathlib import Path
 API = Path("/var/www/sailingsa/api/api.py")
 PUBLIC = "2026-08-29-lipton-challenge-cup"
 DEV = PUBLIC + "-dev"
+OLD = PUBLIC + "-old"
 
 PLAYBACK_FN = '''LIPTON_DEV_SLUG = "2026-08-29-lipton-challenge-cup-dev"
 LIPTON_PUBLIC_SLUG = "2026-08-29-lipton-challenge-cup"
+LIPTON_OLD_SLUG = "2026-08-29-lipton-challenge-cup-old"
 
 
 def serve_lipton_dev_playback_page(_request, public: bool = False):
-    """Playback HTML. The public Lipton URL is this page, not the old weather/event HTML."""
+    """Playback HTML. Public Lipton URL only. Old weather page is -old."""
     from pathlib import Path as _P
     names = (
         _P("/var/www/sailingsa/lipton-dev.html"),
@@ -45,43 +43,22 @@ SIG_OLD = "def serve_regatta_standalone(slug: str, request: Request):"
 SIG_NEW = "def serve_regatta_standalone(slug: str, request: Request, *, allow_lipton_event: bool = False):"
 
 EARLY = '''    slug_s = str(slug or "").strip()
+    if slug_s == "2026-08-29-lipton-challenge-cup-old":
+        slug_s = "2026-08-29-lipton-challenge-cup"
+        slug = "2026-08-29-lipton-challenge-cup"
+        allow_lipton_event = True
     if slug_s == "2026-08-29-lipton-challenge-cup-dev":
         return serve_lipton_dev_playback_page(request, public=False)
     if slug_s == "2026-08-29-lipton-challenge-cup" and not allow_lipton_event:
         return serve_lipton_dev_playback_page(request, public=True)
 '''
 
-EVENT_ROUTE = '''@app.get("/regatta/2026-08-29-lipton-challenge-cup/event")
-@app.head("/regatta/2026-08-29-lipton-challenge-cup/event")
-def _lipton_old_event_page_not_public(request: Request):
-    """Old weather/event HTML only. Not the public Lipton URL."""
-    return serve_regatta_standalone(
-        "2026-08-29-lipton-challenge-cup", request, allow_lipton_event=True
-    )
-
-
-'''
-
-OLD_EARLY = [
-    '''    if str(slug or "").strip() == "2026-08-29-lipton-challenge-cup-dev":
-        return serve_lipton_dev_playback_page(request)
-''',
-    '''    if str(slug or "").strip() == "2026-08-29-lipton-challenge-cup-dev":
-        return serve_lipton_dev_playback_page(request, public=False)
-''',
-    '''    slug_s = str(slug or "").strip()
-    if slug_s == "2026-08-29-lipton-challenge-cup-dev":
-        return serve_lipton_dev_playback_page(request, public=False)
-    if slug_s == "2026-08-29-lipton-challenge-cup":
-        return serve_lipton_dev_playback_page(request, public=True)
-''',
-]
-
 
 def _replace_playback_block(text: str) -> str:
     pat = re.compile(
         r'LIPTON_DEV_SLUG = "2026-08-29-lipton-challenge-cup-dev"\n+'
         r'(?:LIPTON_PUBLIC_SLUG = "2026-08-29-lipton-challenge-cup"\n+)?'
+        r'(?:LIPTON_OLD_SLUG = "2026-08-29-lipton-challenge-cup-old"\n+)?'
         r'def serve_lipton_dev_playback_page\([\s\S]*?\n(?=\n(?:def |@app\.))',
         re.M,
     )
@@ -104,66 +81,49 @@ def _ensure_signature(text: str) -> str:
 
 
 def _ensure_early(text: str) -> str:
-    after = text.split("def serve_regatta_standalone", 1)[-1][:1600]
-    if f'slug_s == "{PUBLIC}"' in after and "not allow_lipton_event" in after and "public=True" in after:
+    after = text.split("def serve_regatta_standalone", 1)[-1][:2000]
+    if f'slug_s == "{OLD}"' in after and "not allow_lipton_event" in after:
         return text
-    for old in OLD_EARLY:
-        if old in text:
-            return text.replace(old, EARLY, 1)
+    without_old = '''    slug_s = str(slug or "").strip()
+    if slug_s == "2026-08-29-lipton-challenge-cup-dev":
+        return serve_lipton_dev_playback_page(request, public=False)
+    if slug_s == "2026-08-29-lipton-challenge-cup" and not allow_lipton_event:
+        return serve_lipton_dev_playback_page(request, public=True)
+'''
+    if without_old in text:
+        return text.replace(without_old, EARLY, 1)
     idx = text.find(SIG_NEW)
     if idx < 0:
-        raise SystemExit("ERROR: cannot insert public-slug early return")
+        raise SystemExit("ERROR: cannot insert -old mapping")
     insert_at = text.find("\n", idx) + 1
     return text[:insert_at] + EARLY + text[insert_at:]
 
 
-def _ensure_event_route(text: str) -> str:
-    if "/regatta/2026-08-29-lipton-challenge-cup/event" in text:
-        return text
-    needle = '@app.get("/regatta/{slug}")\n@app.head("/regatta/{slug}")\ndef _regatta_standalone'
-    if needle not in text:
-        print("WARN: could not insert /event route", file=sys.stderr)
-        return text
-    return text.replace(needle, EVENT_ROUTE + needle, 1)
-
-
-def _playback_is_real(text: str) -> bool:
-    """False if another process inverted playback into the old event page."""
+def _ok(text: str) -> bool:
     m = re.search(
         r"def serve_lipton_dev_playback_page\([\s\S]*?\n(?=\n(?:def |@app\.))",
         text,
     )
     body = m.group(0) if m else ""
-    if "_serve_regatta_standalone_impl" in body:
+    if "_serve_regatta_standalone_impl" in body or "lipton-dev.html" not in body:
         return False
-    if "lipton-dev.html" not in body:
-        return False
-    after = text.split("def serve_regatta_standalone", 1)[-1][:1600]
-    if f'slug_s == "{PUBLIC}"' not in after:
-        return False
-    if "public=True" not in after:
-        return False
-    if "not allow_lipton_event" not in after:
-        return False
-    if "/regatta/2026-08-29-lipton-challenge-cup/event" not in text:
-        return False
-    return True
+    after = text.split("def serve_regatta_standalone", 1)[-1][:2000]
+    return f'slug_s == "{OLD}"' in after and "not allow_lipton_event" in after
 
 
 def main() -> int:
     text = API.read_text(encoding="utf-8")
-    if _playback_is_real(text):
-        print("old page already detached from public slug")
+    if _ok(text):
+        print("old page already on -old slug")
         return 0
     text = _replace_playback_block(text)
     text = _ensure_signature(text)
     text = _ensure_early(text)
-    text = _ensure_event_route(text)
-    if not _playback_is_real(text):
-        print("ERROR: old page still owns public slug or playback inverted", file=sys.stderr)
+    if not _ok(text):
+        print("ERROR: -old mapping missing", file=sys.stderr)
         return 1
     API.write_text(text, encoding="utf-8")
-    print("detached old page from public slug", API)
+    print("old page mapped to -old slug", API)
     return 0
 
 

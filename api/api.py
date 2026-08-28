@@ -9451,15 +9451,6 @@ def _regatta_class_standalone(request: Request, slug: str, class_slug: str):
     return serve_regatta_class_standalone(slug, class_slug, request)
 
 
-@app.get("/regatta/2026-08-29-lipton-challenge-cup/event")
-@app.head("/regatta/2026-08-29-lipton-challenge-cup/event")
-def _lipton_old_event_page_not_public(request: Request):
-    """Old weather/event HTML only. Not the public Lipton URL."""
-    return serve_regatta_standalone(
-        "2026-08-29-lipton-challenge-cup", request, allow_lipton_event=True
-    )
-
-
 @app.get("/regatta/{slug}")
 @app.head("/regatta/{slug}")
 def _regatta_standalone(request: Request, slug: str):
@@ -25799,6 +25790,7 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
 
 LIPTON_DEV_SLUG = "2026-08-29-lipton-challenge-cup-dev"
 LIPTON_PUBLIC_SLUG = "2026-08-29-lipton-challenge-cup"
+LIPTON_OLD_SLUG = "2026-08-29-lipton-challenge-cup-old"
 
 
 def serve_lipton_dev_playback_page(_request: Request, public: bool = False):
@@ -25848,9 +25840,13 @@ def api_lipton_dev_live():
 def serve_regatta_standalone(slug: str, request: Request, *, allow_lipton_event: bool = False):
     """Serve one full standalone HTML result sheet for /regatta/{slug}. Unknown regatta → 301 /events (not 404).
 
-    The Lipton public slug is not the old weather/event page. That page has no public URL.
+    Public Lipton URL is playback. Old weather/event page lives at -old only.
     """
     slug_s = str(slug or "").strip()
+    if slug_s == LIPTON_OLD_SLUG:
+        slug_s = LIPTON_PUBLIC_SLUG
+        slug = LIPTON_PUBLIC_SLUG
+        allow_lipton_event = True
     if slug_s == LIPTON_DEV_SLUG:
         return serve_lipton_dev_playback_page(request, public=False)
     if slug_s == LIPTON_PUBLIC_SLUG and not allow_lipton_event:
@@ -25860,7 +25856,7 @@ def serve_regatta_standalone(slug: str, request: Request, *, allow_lipton_event:
     if not reg:
         return RedirectResponse(url="/events", status_code=301)
     regatta_id, event_name, start_date, end_date, host_club_name, host_club_id = reg
-    if str(slug).strip() != str(regatta_id):
+    if slug_s != LIPTON_PUBLIC_SLUG and str(slug).strip() != str(regatta_id):
         return RedirectResponse(url=f"/regatta/{regatta_id}", status_code=301)
     print("REGATTA: before DB query")
     t0 = time.time()
