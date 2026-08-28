@@ -253,6 +253,42 @@
     var playing = false;
     var trackerReady = false;
     var playTs = PLAY_START_TS;
+    var GUN_HORN_SRC = "/js/lipton-dev-start-airhorn.mp3?v=20260828m";
+    var gunHorn = null;
+    function gunHornEl() {
+      if (!gunHorn) {
+        gunHorn = new Audio(GUN_HORN_SRC);
+        gunHorn.preload = "auto";
+      }
+      return gunHorn;
+    }
+    function unlockGunHorn() {
+      var el = gunHornEl();
+      el.muted = true;
+      var p = el.play();
+      if (p && p.then) {
+        p.then(function () {
+          if (!el.muted) return;
+          el.pause();
+          el.currentTime = 0;
+          el.muted = false;
+        }).catch(function () {
+          el.muted = false;
+        });
+      } else {
+        el.muted = false;
+      }
+    }
+    function fireGunHorn() {
+      var el = gunHornEl();
+      try {
+        el.muted = false;
+        el.pause();
+        el.currentTime = 0;
+        var p = el.play();
+        if (p && p.catch) p.catch(function () {});
+      } catch (err) {}
+    }
     var lastWall = Date.now();
     var lastKey = "";
     var seen = {};
@@ -1595,8 +1631,10 @@
     function tick() {
       if (playing && trackerReady) {
         var now = Date.now();
+        var prevTs = playTs;
         playTs += (now - lastWall) * RATE;
         lastWall = now;
+        if (prevTs < GUN_TS && playTs >= GUN_TS) fireGunHorn();
         if (playTs > PLAY_END_TS) {
           playTs = PLAY_END_TS;
           playing = false;
@@ -1648,6 +1686,7 @@
         var ts = key === "pre" ? PLAY_START_TS : key === "gun" ? GUN_TS : key === "finish" ? PLAY_END_TS : PLAY_START_TS;
         if (!ts) return;
         jump(ts);
+        if (key === "gun") fireGunHorn();
       });
     });
     document.querySelectorAll("[data-rate]").forEach(function (btn) {
@@ -1666,6 +1705,7 @@
     if (playBtn) {
       playBtn.addEventListener("click", function () {
         if (!trackerReady) return;
+        if (!playing) unlockGunHorn();
         playing = !playing;
         lastWall = Date.now();
         setPlayLabel();
