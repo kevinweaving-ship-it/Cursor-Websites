@@ -253,8 +253,8 @@
     var playing = false;
     var trackerReady = false;
     var playTs = PLAY_START_TS;
-    var GUN_HORN_SRC = "/js/lipton-dev-start-airhorn.mp3?v=20260828q";
-    var RECALL_HORN_SRC = "/js/lipton-dev-recall-horn.wav?v=20260828q";
+    var GUN_HORN_SRC = "/js/lipton-dev-start-airhorn.mp3?v=20260828r";
+    var RECALL_HORN_SRC = "/js/lipton-dev-recall-horn.wav?v=20260828r";
     var GUN_HORN_ONSET = 0.05;
     var GUN_HORN_LEAD_MS = 100;
     var GUN_HORN_EARLY_MS = 500;
@@ -930,21 +930,21 @@
       return Math.max(4, m * mapBounds.scale);
     }
     function drawBoatIcon(p, hdg, fill, stroke, nose) {
-      var r = 7;
+      var r = 5.5;
       mapCtx.beginPath();
       mapCtx.arc(p.x, p.y, r, 0, Math.PI * 2);
       mapCtx.fillStyle = fill;
       mapCtx.fill();
       mapCtx.strokeStyle = stroke;
-      mapCtx.lineWidth = 0.9;
+      mapCtx.lineWidth = 0.8;
       mapCtx.stroke();
       mapCtx.save();
       mapCtx.translate(p.x, p.y);
       mapCtx.rotate((hdg || 0) * Math.PI / 180);
       mapCtx.beginPath();
-      mapCtx.moveTo(0, -r - 3.6);
-      mapCtx.lineTo(3.1, -r + 1.2);
-      mapCtx.lineTo(-3.1, -r + 1.2);
+      mapCtx.moveTo(0, -r - 2.8);
+      mapCtx.lineTo(2.4, -r + 0.9);
+      mapCtx.lineTo(-2.4, -r + 0.9);
       mapCtx.closePath();
       mapCtx.fillStyle = nose || "#ffffff";
       mapCtx.fill();
@@ -1002,7 +1002,7 @@
       var u = (Date.now() % 1600) / 1600;
       var wave = 0.5 - 0.5 * Math.cos(u * Math.PI * 2);
       mapCtx.beginPath();
-      mapCtx.arc(p.x, p.y, 11 + 8 * wave, 0, Math.PI * 2);
+      mapCtx.arc(p.x, p.y, 9 + 6 * wave, 0, Math.PI * 2);
       mapCtx.strokeStyle = "rgba(251,191,36," + (0.9 - 0.55 * wave) + ")";
       mapCtx.lineWidth = 2.6;
       mapCtx.stroke();
@@ -1130,7 +1130,7 @@
       drawBoatIcon(p, hdg, paint.fill, paint.stroke, paint.nose);
       if (info.place != null) {
         mapCtx.fillStyle = paint.ink;
-        mapCtx.font = "bold 8px sans-serif";
+        mapCtx.font = "bold 7px sans-serif";
         mapCtx.textAlign = "center";
         mapCtx.textBaseline = "middle";
         mapCtx.fillText(String(info.place), p.x, p.y + 0.4);
@@ -1167,7 +1167,7 @@
       mapCtx.clearRect(0, 0, w, h);
       mapCtx.fillStyle = "rgba(0, 10, 24, 0.08)";
       mapCtx.fillRect(0, 0, w, h);
-      var zone = Math.min(metersPx(20.1), 11);
+      var zone = Math.min(metersPx(20.1), 8);
       Object.keys(trail.marks || {}).forEach(function (k) {
         var pos = markAt(k, ts);
         if (!pos) return;
@@ -1179,7 +1179,7 @@
         mapCtx.lineWidth = focus ? 2 : 1;
         mapCtx.stroke();
         mapCtx.beginPath();
-        mapCtx.arc(p.x, p.y, focus ? 4 : 2.8, 0, Math.PI * 2);
+        mapCtx.arc(p.x, p.y, focus ? 3.2 : 2.2, 0, Math.PI * 2);
         mapCtx.fillStyle = focus ? "#fbbf24" : "#f59e0b";
         mapCtx.fill();
         mapCtx.fillStyle = "#ffffff";
@@ -1267,13 +1267,9 @@
       mapCtx.textBaseline = "top";
       mapCtx.font = "bold 13px sans-serif";
       var nameW = name ? mapCtx.measureText(name).width : 0;
-      mapCtx.font = "bold 11px sans-serif";
-      var subW = mapCtx.measureText(sub).width;
-      mapCtx.font = "bold 24px sans-serif";
-      var clockW = mapCtx.measureText(clock).width;
-      var boxW = Math.max(nameW, subW, clockW) + 24;
+      var boxW = Math.max(nameW, 72);
       var boxH = 22;
-      var clockH = 38;
+      var clockH = 32;
       var x0 = mapBounds.w - pad - boxW;
       var y0 = pad;
       var cx = x0 + boxW / 2;
@@ -1281,19 +1277,23 @@
         mapCtx.fillStyle = "rgba(0,31,63,0.62)";
         mapCtx.fillRect(x0, y0, boxW, boxH);
         mapCtx.fillStyle = "#ffffff";
-        mapCtx.font = "bold 13px sans-serif";
         mapCtx.fillText(name, cx, y0 + 4);
         mapCtx.font = "bold 11px sans-serif";
         mapCtx.fillText(sub, cx, y0 + boxH + 4);
       }
       var cy = name ? y0 + boxH + 22 : y0;
+      var clockSize = 20;
+      mapCtx.font = "bold " + clockSize + "px sans-serif";
+      while (clockSize > 13 && mapCtx.measureText(clock).width + 8 > boxW) {
+        clockSize -= 1;
+        mapCtx.font = "bold " + clockSize + "px sans-serif";
+      }
       mapCtx.fillStyle = after ? "rgba(30,20,0,0.82)" : "rgba(0,31,63,0.86)";
       mapCtx.fillRect(x0, cy, boxW, clockH);
       mapCtx.strokeStyle = after ? "#fbbf24" : "#38bdf8";
-      mapCtx.lineWidth = 2.2;
+      mapCtx.lineWidth = 2;
       mapCtx.strokeRect(x0 + 1, cy + 1, boxW - 2, clockH - 2);
       mapCtx.fillStyle = after ? "#fbbf24" : "#ffffff";
-      mapCtx.font = "bold 24px sans-serif";
       mapCtx.textBaseline = "middle";
       mapCtx.fillText(clock, cx, cy + clockH / 2 + 1);
       mapCtx.restore();
