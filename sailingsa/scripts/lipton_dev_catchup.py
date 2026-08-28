@@ -90,12 +90,12 @@ def _pack_starts(data: dict) -> dict:
             d = -d
         return d, along
 
-    def enters(pts):
+    def enters(pts, look_from):
         hits = []
         prev = None
         for p in pts:
             ts = int(p.get("ts_ms") or 0)
-            if ts < gun - (90_000 if is_ocs else 5_000):
+            if ts < look_from:
                 continue
             if ts > gun + 180_000:
                 break
@@ -114,8 +114,8 @@ def _pack_starts(data: dict) -> dict:
     out = {}
     for sail, b in boats.items():
         pts = (b or {}).get("trail") or []
-        hits = enters(pts)
         is_ocs = _norm(sail) in ocs
+        hits = enters(pts, gun - (90_000 if is_ocs else 5_000))
         if is_ocs:
             st = hits[1] if len(hits) >= 2 else None
             dip = hits[0] if hits else None
