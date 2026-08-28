@@ -1738,7 +1738,10 @@
       return html;
     }
     function setSailed(rows) {
-      if (!sailedEl) return;
+      if (!sailedEl) {
+        fillChecksum();
+        return;
+      }
       if (viewTs < GUN_TS) {
         sailedEl.textContent = RACE_LAB + " · gun " + GUN_CLOCK + " · T−5 · approaching start";
         fillChecksum();
