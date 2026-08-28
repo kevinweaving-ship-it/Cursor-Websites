@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828dl";
+  var CACHE = "20260828dm";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = !RACE_Q;
@@ -885,7 +885,7 @@
         var p = xy(pos.lat, pos.lon);
         var info = liveMapBadge(sail);
         var ocs = info.pending;
-        var fill = ocs ? "#dc2626" : liveFill(sail);
+        var fill = liveFill(sail);
         drawBoatIcon(p, pos.hdg, fill);
         if (info.place != null) {
           mapCtx.fillStyle = "#ffffff";
@@ -913,7 +913,7 @@
         mapCtx.textBaseline = "middle";
         mapCtx.shadowColor = "rgba(0,0,0,0.9)";
         mapCtx.shadowBlur = 3;
-        mapCtx.fillStyle = ocs ? "#f87171" : fill;
+        mapCtx.fillStyle = fill;
         mapCtx.fillText(club, lx, ly);
         mapCtx.shadowBlur = 0;
         if (info.onMark) {
@@ -963,9 +963,9 @@
         }
       };
     }
-    var PASS_ORDER = ["ST", "M1", "PIN", "M1b", "PINb", "M1c", "PINc", "M1d", "PINd"];
-    var PASS_LAB = { ST: "ST", M1: "M1", PIN: "Pin", M1b: "M1", PINb: "Pin", M1c: "M1", PINc: "Pin", M1d: "M1", PINd: "Pin" };
-    var passTs = { ST: {}, M1: {}, PIN: {}, M1b: {}, PINb: {}, M1c: {}, PINc: {}, M1d: {}, PINd: {} };
+    var PASS_ORDER = ["ST", "M1", "PIN", "M1b", "PINb", "M1c", "FIN"];
+    var PASS_LAB = { ST: "ST", M1: "M1", PIN: "Pin", M1b: "M1", PINb: "Pin", M1c: "M1", FIN: "Fin" };
+    var passTs = { ST: {}, M1: {}, PIN: {}, M1b: {}, PINb: {}, M1c: {}, FIN: {} };
     var roundArr = { M1: null, PIN: null };
     function enuOf(mark, pos) {
       var lat0 = mark.lat * Math.PI / 180;
@@ -1307,11 +1307,36 @@
         }
       };
     }
+    function packedStartOf(sail) {
+      if (!sail || !packedStarts) return null;
+      if (packedStarts[sail]) return packedStarts[sail];
+      function n(s) { return String(s || "").toUpperCase().replace(/\s+/g, ""); }
+      var want = n(sail);
+      var keys = Object.keys(packedStarts);
+      var i, kn;
+      for (i = 0; i < keys.length; i++) {
+        kn = n(keys[i]);
+        if (kn === want) return packedStarts[keys[i]];
+      }
+      var id = identity[sail] || {};
+      var alts = [id.mapClub, id.clubRaw, id.club].map(n).filter(Boolean);
+      for (i = 0; i < keys.length; i++) {
+        kn = n(keys[i]);
+        if (alts.indexOf(kn) >= 0) return packedStarts[keys[i]];
+      }
+      var academy = want.indexOf("ACADEMY") >= 0 || want === "RCYCA" || alts.indexOf("RCYCA") >= 0 || alts.some(function (t) { return t.indexOf("ACADEMY") >= 0; });
+      if (academy) {
+        for (i = 0; i < keys.length; i++) {
+          kn = n(keys[i]);
+          if (kn.indexOf("ACADEMY") >= 0 || kn === "RCYCA") return packedStarts[keys[i]];
+        }
+      }
+      return null;
+    }
     function startTsForSail(sail, pts, geom) {
       if (!geom || !gunTs || !pts || pts.length < 2) return null;
-      if (packedStarts[sail] && packedStarts[sail].st_ms != null) {
-        return Number(packedStarts[sail].st_ms);
-      }
+      var packed = packedStartOf(sail);
+      if (packed && packed.st_ms != null) return Number(packed.st_ms);
       var ocs = liveOcsOn(sail);
       var hits = courseEnters(pts, geom, ocs ? gunTs - 90000 : gunTs - 5000, gunTs + 180000);
       if (ocs) return hits.length >= 2 ? hits[1] : null;
@@ -1339,7 +1364,7 @@
       } catch (e3) {}
     }
     function detectLivePasses() {
-      passTs = { ST: {}, M1: {}, PIN: {}, M1b: {}, PINb: {}, M1c: {}, PINc: {}, M1d: {}, PINd: {} };
+      passTs = { ST: {}, M1: {}, PIN: {}, M1b: {}, PINb: {}, M1c: {}, FIN: {} };
       var pinNow = lastPt(hist.pin);
       var rcNow = lastPt(hist.rc);
       var pinGun = gunTs ? atTs(hist.pin, gunTs) : null;
@@ -1377,9 +1402,27 @@
         if (lock.PINb && pinNow && lastPt(pts) && distM(lastPt(pts), pinNow) > 150 && lock.M1b && lock.PINb < lock.M1b) delete lock.PINb;
         var m1cT = lock.PINb ? firstRounding(pts, hist.marks["1"], lock.PINb + 45000, true) : null;
         if (m1cT != null && lock.M1c == null) lock.M1c = m1cT;
-        var pincT = lock.M1c ? firstRounding(pts, hist.pin, lock.M1c + 45000, false) : null;
-        if (pincT != null && lock.PINc == null) lock.PINc = pincT;
-        if (lock.PINc && !lock.M1c) delete lock.PINc;
+        if (lock.M1c && geom) {
+          var finHits = courseEnters(pts, geom, lock.M1c + 40000, null);
+          var pinAt = pinNow;
+          var fi;
+          for (fi = 0; fi < finHits.length; fi++) {
+            var ft = finHits[fi];
+            var fp = atTs(pts, ft) || lastPt(pts);
+            if (!fp) continue;
+            var alongOk = true;
+            var sg = geom.signed(fp.lat, fp.lon);
+            if (sg && (sg.along < 20 || sg.along > geom.len - 20)) alongOk = false;
+            if (pinAt && distM(fp, pinAt) < 28) alongOk = false;
+            if (alongOk) {
+              if (lock.FIN == null) lock.FIN = ft;
+              break;
+            }
+          }
+        }
+        delete lock.PINc;
+        delete lock.M1d;
+        delete lock.PINd;
         Object.keys(lock).forEach(function (id) {
           if (passTs[id]) passTs[id][sail] = lock[id];
         });
@@ -1443,14 +1486,13 @@
       return {};
     }
     function liveOcsOn(sail) {
-      var id = identity[sail] || {};
+      var packed = packedStartOf(sail);
+      if (packed && typeof packed.ocs === "boolean") return packed.ocs === true;
+      var id = liveIdent(sail);
       var self = [sail, id.mapClub, id.clubRaw].map(function (x) {
         return String(x || "").toUpperCase().replace(/\s+/g, "");
       }).filter(Boolean);
       var academy = self.indexOf("RCYCA") >= 0 || self.some(function (t) { return t.indexOf("ACADEMY") >= 0; });
-      if (packedStarts[sail] && typeof packedStarts[sail].ocs === "boolean") {
-        return packedStarts[sail].ocs === true;
-      }
       var i;
       for (i = 0; i < liveOcs.length; i++) {
         var o = String(liveOcs[i] || "").toUpperCase().replace(/\s+/g, "");
@@ -1461,7 +1503,14 @@
       return false;
     }
     function liveOcsPending(sail) {
-      return liveOcsOn(sail) && livePassAt(sail, "ST") == null;
+      if (!liveOcsOn(sail)) return false;
+      if (livePassAt(sail, "ST") != null) return false;
+      var marks = ["M1", "PIN", "M1b", "PINb", "M1c", "FIN"];
+      var i;
+      for (i = 0; i < marks.length; i++) {
+        if (livePassAt(sail, marks[i]) != null) return false;
+      }
+      return true;
     }
     function fmtBehindFirst(t, first) {
       if (t == null || first == null) return "";
@@ -1470,11 +1519,10 @@
       if (sec < 0.05) return "0.0";
       return "+" + sec.toFixed(1);
     }
-    function liveBoatIcon(sail, rank, ocs) {
-      var fill = ocs ? "#dc2626" : (LIVE_BOAT_COLORS[sail] || "#94a3b8");
-      var label = ocs ? "OCS" : (rank != null ? String(rank) : "");
-      var fs = ocs ? "5.2" : "8";
-      return "<svg class=\"lipton-boat-dot\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"13.2\" r=\"8.1\" fill=\"" + fill + "\" stroke=\"#fff\" stroke-width=\"1.5\"/><polygon points=\"12,3 15.8,8.4 8.2,8.4\" fill=\"" + fill + "\" stroke=\"#fff\" stroke-width=\"1.1\"/><text x=\"12\" y=\"16\" text-anchor=\"middle\" fill=\"#fff\" font-size=\"" + fs + "\" font-weight=\"800\">" + esc(label) + "</text></svg>";
+    function liveBoatIcon(sail, rank) {
+      var fill = LIVE_BOAT_COLORS[sail] || "#94a3b8";
+      var label = rank != null ? String(rank) : "";
+      return "<svg class=\"lipton-boat-dot\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"13.2\" r=\"8.1\" fill=\"" + fill + "\" stroke=\"#fff\" stroke-width=\"1.5\"/><polygon points=\"12,3 15.8,8.4 8.2,8.4\" fill=\"" + fill + "\" stroke=\"#fff\" stroke-width=\"1.1\"/><text x=\"12\" y=\"16\" text-anchor=\"middle\" fill=\"#fff\" font-size=\"8\" font-weight=\"800\">" + esc(label) + "</text></svg>";
     }
     function deltaSpan(gained) {
       if (gained == null) return "";
@@ -1537,28 +1585,57 @@
           far = 4;
           farTs = null;
         }
+        if (times.FIN != null) {
+          far = 8;
+          farTs = times.FIN;
+        } else if (times.M1c != null) {
+          var here = lastPt(pts);
+          if (here && m1 && distM(here, m1) > 55) {
+            far = 7;
+            farTs = null;
+          }
+        }
         return { sail: sail, times: times, far: far, farTs: farTs };
       });
+      function distToFinishLine(pos) {
+        var pin = lastPt(hist.pin);
+        var rc = lastPt(hist.rc);
+        if (!pos || !pin || !rc) return 9e9;
+        var R = 6371000;
+        var cos = Math.cos(((pin.lat + rc.lat) / 2) * Math.PI / 180);
+        function xyOf(p) {
+          return {
+            x: (p.lon - pin.lon) * Math.PI / 180 * cos * R,
+            y: (p.lat - pin.lat) * Math.PI / 180 * R
+          };
+        }
+        var a = xyOf(pin);
+        var b = xyOf(rc);
+        var p = xyOf(pos);
+        var vx = b.x - a.x;
+        var vy = b.y - a.y;
+        var len2 = vx * vx + vy * vy || 1;
+        var t = ((p.x - a.x) * vx + (p.y - a.y) * vy) / len2;
+        if (t < 0) t = 0;
+        if (t > 1) t = 1;
+        return Math.hypot(p.x - a.x - t * vx, p.y - a.y - t * vy);
+      }
       function distNext(sail, far) {
         var pos = lastPt(hist.boats[sail]);
         if (!pos) return 9e9;
-        var mk = null;
-        if (far <= 1 || far === 3 || far === 5 || far === 7) mk = lastPt(hist.marks["1"]);
-        else mk = lastPt(hist.pin);
+        if (far >= 7) return distToFinishLine(pos);
+        var mk = (far <= 1 || far === 3 || far === 5) ? lastPt(hist.marks["1"]) : lastPt(hist.pin);
         if (!mk) return 9e9;
         return distM(pos, mk);
       }
       rows.sort(function (a, b) {
-        var pa = liveOcsPending(a.sail) ? 1 : 0;
-        var pb = liveOcsPending(b.sail) ? 1 : 0;
-        if (pa !== pb) return pa - pb;
         if (b.far !== a.far) return b.far - a.far;
         if (a.farTs != null && b.farTs != null && a.farTs !== b.farTs) return a.farTs - b.farTs;
         return distNext(a.sail, a.far) - distNext(b.sail, b.far);
       });
       rows.forEach(function (r, i) { r.rank = i + 1; });
       var key = used.join(",") + "|" + rows.map(function (r) {
-        return r.sail + ":" + r.rank + ":" + PASS_ORDER.map(function (id) { return r.times[id] || ""; }).join(":");
+        return r.sail + ":" + r.rank + ":" + r.far + ":" + Math.round(distNext(r.sail, r.far) / 8) + ":" + PASS_ORDER.map(function (id) { return r.times[id] || ""; }).join(":");
       }).join("|");
       if (key === lastLiveTableKey) return;
       lastLiveTableKey = key;
@@ -1569,11 +1646,11 @@
         var id = liveIdent(r.sail);
         var ocs = liveOcsPending(r.sail);
         var medal = "";
-        if (!ocs && r.rank === 1) medal = " medal-gold";
-        else if (!ocs && r.rank === 2) medal = " medal-silver";
-        else if (!ocs && r.rank === 3) medal = " medal-bronze";
+        if (r.rank === 1) medal = " medal-gold";
+        else if (r.rank === 2) medal = " medal-silver";
+        else if (r.rank === 3) medal = " medal-bronze";
         html += "<tr class=\"" + medal + (ocs ? " ocs-pending" : "") + "\" data-boat=\"" + esc(r.sail) + "\">";
-        html += "<td class=\"rank-col\">" + liveBoatIcon(r.sail, r.rank, ocs) + "</td>";
+        html += "<td class=\"rank-col\">" + liveBoatIcon(r.sail, r.rank) + "</td>";
         html += "<td class=\"wc-meta-col\">" + (id.bow != null ? esc(id.bow) : "") + "</td>";
         html += "<td class=\"boat-name-col\">" + (id.nameInner || esc(id.title || r.sail)) + "</td>";
         html += "<td class=\"club-col\">" + esc(id.mapClub || id.club || "") + "</td>";
@@ -3544,10 +3621,10 @@
     }
     function boatIconHtml(sail, ts, rank) {
       var pending = ocsPending(sail, ts);
-      var paint = boatPaint(sail, pending);
-      var label = pending ? "OCS" : (rank != null ? String(rank) : "");
-      var fs = pending ? "5.2" : "8";
-      var title = pending ? "OCS" : (label ? "Rank " + label : "Boat");
+      var paint = boatPaint(sail, false);
+      var label = rank != null ? String(rank) : (pending ? "OCS" : "");
+      var fs = label === "OCS" ? "5.2" : "8";
+      var title = label ? (label === "OCS" ? "OCS" : "Rank " + label) : "Boat";
       return "<svg class=\"lipton-boat-dot\" viewBox=\"0 0 24 24\" aria-hidden=\"true\" title=\"" + esc(title) + "\">" +
         "<circle cx=\"12\" cy=\"13.2\" r=\"8.1\" fill=\"" + paint.fill + "\" stroke=\"#fff\" stroke-width=\"1.5\"/>" +
         "<polygon points=\"12,3 15.8,8.4 8.2,8.4\" fill=\"" + paint.fill + "\" stroke=\"#fff\" stroke-width=\"1.1\"/>" +
@@ -3558,9 +3635,9 @@
       var id = ident(r.boat);
       var pending = ocsPending(r.boat, viewTs);
       var medal = "";
-      if (!pending && r.rank === 1) medal = " medal-gold";
-      else if (!pending && r.rank === 2) medal = " medal-silver";
-      else if (!pending && r.rank === 3) medal = " medal-bronze";
+      if (r.rank === 1) medal = " medal-gold";
+      else if (r.rank === 2) medal = " medal-silver";
+      else if (r.rank === 3) medal = " medal-bronze";
       var cls = medal + (unroll ? " lipton-unroll" : "") + (pending ? " ocs-pending" : "");
       var html = "<tr class=\"" + cls + "\" data-bow=\"" + esc(id ? id.bow : "") + "\" data-boat=\"" + esc(r.boat) + "\">";
       html += "<td class=\"rank-col\">" + boatIconHtml(r.boat, viewTs, r.rank) + "</td>";
