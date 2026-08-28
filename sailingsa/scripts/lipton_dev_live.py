@@ -20,12 +20,15 @@ from lipton_vakaros import (
 )
 
 TELEAPI = "https://teleapi.regatta.app/telemetry"
-WINDOW_MS = 240_000
+WINDOW_MS = 45_000
 HISTORY_MS = 4 * 60 * 1000
-LIVE_TRAIL_MS = 240_000
+LIVE_TRAIL_MS = 45_000
 STEP_MS = 280
 CLOCK_LAG_MS = 20_000
 CHUNK_MS = 3 * 60 * 1000
+SNAP_TTL_S = 0.35
+_SNAP = None
+_SNAP_AT = 0.0
 STATE_PATH = Path("/tmp/lipton_dev_live_state.json")
 HISTORY_PATHS = (
     Path("/var/www/sailingsa/js/lipton-dev-live-history.json"),
@@ -191,20 +194,21 @@ def _first_trail_ts(data: dict) -> int | None:
 
 
 def _covers_start(data: dict, gun_ms: int | None) -> bool:
+    """Enough boats from the gun to stop a full-race re-fetch. Not every boat."""
     boats = (data or {}).get("boats") or {}
     if len(boats) < 10:
         return False
     if gun_ms is None:
         return _history_span_ms(data) >= 20_000
     gun = int(gun_ms)
+    from_gun = 0
     for b in boats.values():
         t = (b or {}).get("trail") or []
-        if not t or int(t[0].get("ts_ms") or 0) > gun + 15_000:
-            return False
+        if t and int(t[0].get("ts_ms") or 0) <= gun + 15_000:
+            from_gun += 1
     pin = ((data.get("pin") or {}).get("trail") or [])
-    if not pin or int(pin[0].get("ts_ms") or 0) > gun + 15_000:
-        return False
-    return True
+    pin_ok = bool(pin and int(pin[0].get("ts_ms") or 0) <= gun + 15_000)
+    return from_gun >= min(12, len(boats)) and pin_ok
 
 
 def _merge_trail(old: list | None, new: list | None) -> list[dict]:
@@ -318,33 +322,40 @@ def _save_history_file(payload: dict) -> None:
 
 
 def live_snapshot(*, history: bool = False) -> dict:
+    global _SNAP, _SNAP_AT
+    if not history and _SNAP is not None and (time.time() - _SNAP_AT) < SNAP_TTL_S:
+        return _SNAP
     now = datetime.now(timezone.utc)
     now_ms = int(now.timestamp() * 1000)
     playback_ms = now_ms - CLOCK_LAG_MS
     cached = _load_state()
     stored_hit = _load_history_file(max_age_s=None) if history else {}
-    stored_gun = (stored_hit or {}).get("gun_ts_ms") or cached.get("gun_ts_ms")
     doc = None
     summary = None
-    if not cached.get("gun_ts_ms"):
-        try:
-            doc = fetch_regatta_doc()
-            summary = summarize_event(doc)
-        except Exception:
-            summary = None
+    try:
+        doc = fetch_regatta_doc()
+        summary = summarize_event(doc)
+    except Exception:
+        summary = None
     races = (summary or {}).get("races") or []
     unfinished = [r for r in races if str(r.get("stage") or "").lower() not in FINISHED_STAGES]
     race = min(unfinished, key=lambda r: r["race_number"]) if unfinished else None
     gun = parse_ts(race.get("gun_at_utc")) if race else None
     gun_ms = _ms(gun)
-    if gun_ms is None and cached.get("gun_ts_ms"):
+    # Finished-race guns must not stay "live" — that re-fetches the whole race
+    # and hides the next start. Cached gun is only for an unfinished race.
+    if gun_ms is None and race is None:
+        waiting = True
+    elif gun_ms is None and cached.get("gun_ts_ms"):
         gun_ms = int(cached["gun_ts_ms"])
         race = race or {
             "race_number": cached.get("race_number"),
             "stage": cached.get("stage") or "starting",
             "gun_at_sast": cached.get("gun_sast"),
         }
-    waiting = gun_ms is None
+        waiting = False
+    else:
+        waiting = gun_ms is None
     delta = (playback_ms - gun_ms) if gun_ms is not None else None
     devices = _device_map(doc) if doc else {"rc": 25604, "pin": PIN_SN, "marks": dict(MARK_SN)}
     raw_race = None
@@ -358,10 +369,14 @@ def live_snapshot(*, history: bool = False) -> dict:
             None,
         )
     start0 = ((raw_race or {}).get("starts") or [{}])[0] if raw_race else {}
-    keep_ms = HISTORY_MS if history else WINDOW_MS
+    keep_ms = WINDOW_MS if waiting else (HISTORY_MS if history else WINDOW_MS)
     rec_keep: int | None = keep_ms
-    if history and gun_ms is not None and not _covers_start(stored_hit, gun_ms):
-        rows = _tele_range(int(gun_ms) - 30_000, now_ms + 2000)
+    have_hist = _covers_start(stored_hit, gun_ms) or _history_span_ms(stored_hit) >= 60_000
+    if (not waiting) and history and gun_ms is not None and not have_hist:
+        start = int(gun_ms) - 30_000
+        if now_ms - int(gun_ms) > 8 * 60 * 1000:
+            start = max(start, now_ms - 6 * 60 * 1000)
+        rows = _tele_range(start, now_ms + 2000)
         rec_keep = None
     else:
         rows = _tele_latest(now_ms - keep_ms, now_ms + 2000)
@@ -420,17 +435,21 @@ def live_snapshot(*, history: bool = False) -> dict:
         "live": True,
         "waiting": waiting,
         "reason": ((summary or cached).get("next_race_reason") if waiting else "tracker gun vs wall clock"),
-        "race_number": (race["race_number"] if race else None) or (summary or {}).get("next_race_number") or cached.get("race_number"),
+        "race_number": (
+            (race["race_number"] if race else None)
+            or (summary or {}).get("next_race_number")
+            or (None if waiting else cached.get("race_number"))
+        ),
         "stage": (race.get("stage") if race else None) or "waiting",
         "gun_ts_ms": gun_ms,
-        "gun_sast": (race.get("gun_at_sast") if race else None) or cached.get("gun_sast"),
+        "gun_sast": (race.get("gun_at_sast") if race else None),
         "now_ts_ms": now_ms,
         "playback_ts_ms": playback_ms,
         "clock_lag_ms": CLOCK_LAG_MS,
         "delta_ms": delta,
         "sign": None if delta is None else ("T+" if delta >= 0 else "T-"),
-        "prep_flag": start0.get("prepFlag") or cached.get("prep_flag"),
-        "ocs": list(start0.get("ocsParticipants") or cached.get("ocs") or []),
+        "prep_flag": start0.get("prepFlag"),
+        "ocs": list(start0.get("ocsParticipants") or []),
         "boats": boats,
         "marks": marks,
         "pin": pin,
@@ -444,11 +463,10 @@ def live_snapshot(*, history: bool = False) -> dict:
         },
         "source": "firestore gun + teleapi as received. Empty = not received.",
     }
-    if gun_ms is not None:
-        _save_state(out)
-    if boats:
+    _save_state(out)
+    if boats and not waiting:
         _save_history_file(out)
-    if history:
+    if history and not waiting:
         stored = _load_history_file(max_age_s=None)
         if stored and stored.get("boats"):
             stored = dict(stored)
@@ -457,6 +475,9 @@ def live_snapshot(*, history: bool = False) -> dict:
                     stored[k] = v
             stored["from_cache"] = False
             return stored
+    if not history:
+        _SNAP = out
+        _SNAP_AT = time.time()
     return out
 
 

@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828cq";
+  var CACHE = "20260828cr";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = !RACE_Q;
@@ -202,6 +202,7 @@
     bindRaceButtons(-1);
     var gunTs = null;
     var snap = null;
+    var liveRaceN = null;
     var chartMap = null;
     var mapEl = document.getElementById("lipton-dev-map");
     var mapCtx = null;
@@ -472,6 +473,11 @@
     function paintClock() {
       if (!clockHud || !hud) return;
       if (atLive) playTs = liveNow();
+      if (snap && snap.waiting && !snap.gun_ts_ms) {
+        clockHud.textContent = snap.race_number ? ("R" + snap.race_number) : "WAIT";
+        hud.classList.remove("is-after");
+        return;
+      }
       if (gunTs == null) {
         clockHud.textContent = "—";
         hud.classList.remove("is-after");
@@ -1258,10 +1264,19 @@
     function applySnap(data) {
       if (!data) return;
       if (!data.ok && !(data.boats && Object.keys(data.boats).length)) return;
+      var n = data.race_number || null;
+      if (n && liveRaceN && n !== liveRaceN) {
+        hist = { boats: {}, marks: {}, pin: [], rc: [] };
+        loadedHistory = false;
+        gunTs = null;
+        didFit = false;
+      }
+      liveRaceN = n;
       if (Array.isArray(data.ocs)) liveOcs = data.ocs.slice();
       if (data.clock_lag_ms != null) LIVE_CLOCK_LAG_MS = Number(data.clock_lag_ms);
       snap = data;
-      if (data.gun_ts_ms) gunTs = Number(data.gun_ts_ms);
+      if (data.waiting && !data.gun_ts_ms) gunTs = null;
+      else if (data.gun_ts_ms) gunTs = Number(data.gun_ts_ms);
       Object.keys(data.boats || {}).forEach(function (sail) {
         var b = data.boats[sail];
         hist.boats[sail] = mergeTrail(hist.boats[sail] || [], b.trail && b.trail.length ? b.trail : [b]);
@@ -1297,11 +1312,11 @@
       detectLivePasses();
       renderLiveTable();
     }
-    var lastHistAt = 0;
+    var pollInFlight = false;
     function poll() {
-      var now = Date.now();
-      var histQ = needHistory() || (now - lastHistAt > 12000);
-      if (histQ) lastHistAt = now;
+      if (pollInFlight) return;
+      pollInFlight = true;
+      var histQ = needHistory();
       var q = histQ ? "/api/lipton-dev/live?history=1" : "/api/lipton-dev/live";
       fetch(q, { cache: "no-store" })
         .then(function (res) { return res.json(); })
@@ -1309,21 +1324,23 @@
           applySnap(data);
           if (!needHistory()) loadedHistory = true;
         })
-        .catch(function () {});
+        .catch(function () {})
+        .then(function () { pollInFlight = false; });
     }
     function needHistory() {
-      if (!gunTs) return true;
-      var now = liveNow();
+      if (snap && snap.waiting && !snap.gun_ts_ms) return false;
+      if (!gunTs) return false;
       var sails = Object.keys(hist.boats);
       if (sails.length < 12) return true;
+      var fromGun = 0;
       for (var i = 0; i < sails.length; i++) {
         var t = hist.boats[sails[i]];
-        if (!t || !t.length || t[0].ts_ms > gunTs + 15000) return true;
-        if (t[t.length - 1].ts_ms < now - 25000) return true;
+        if (t && t.length && t[0].ts_ms <= gunTs + 15000) fromGun += 1;
       }
+      if (fromGun < 12) return true;
       if (!hist.pin.length || hist.pin[0].ts_ms > gunTs + 15000) return true;
       var m1 = hist.marks["1"];
-      if (!m1 || !m1.length || m1[0].ts_ms > gunTs + 10 * 60 * 1000) return true;
+      if (!m1 || !m1.length) return true;
       return false;
     }
     fetch("/js/lipton-dev-replay.json?v=" + CACHE, { cache: "no-store" })
@@ -1343,7 +1360,7 @@
       window.requestAnimationFrame(liveTick);
     }
     window.requestAnimationFrame(liveTick);
-    setInterval(poll, 750);
+    setInterval(poll, 400);
     window.addEventListener("resize", function () { drawLiveMap(); });
   }
 
