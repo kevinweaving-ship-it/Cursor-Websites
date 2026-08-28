@@ -26260,8 +26260,34 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
         return HTMLResponse(content=_HTML_SOFT_FAIL_200, status_code=200, media_type="text/html")
 
 
+LIPTON_DEV_SLUG = "2026-08-29-lipton-challenge-cup-dev"
+
+
+def serve_lipton_dev_playback_page(_request: Request):
+    """Isolated Lipton playback mirror. Does not touch the public Lipton URL."""
+    names = (
+        Path(STATIC_DIR) / "lipton-dev.html",
+        WEB_ROOT / "lipton-dev.html",
+        FRONTEND_DIR / "lipton-dev.html",
+        _API_DIR / "sailingsa" / "frontend" / "lipton-dev.html",
+        Path(__file__).resolve().parent / "sailingsa" / "frontend" / "lipton-dev.html",
+    )
+    for p in names:
+        try:
+            if p.is_file():
+                return HTMLResponse(
+                    p.read_text(encoding="utf-8"),
+                    headers={"Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow"},
+                )
+        except OSError:
+            continue
+    return HTMLResponse("Lipton dev page missing", status_code=500)
+
+
 def serve_regatta_standalone(slug: str, request: Request):
     """Serve one full standalone HTML result sheet for /regatta/{slug}. Unknown regatta → 301 /events (not 404)."""
+    if str(slug or "").strip() == LIPTON_DEV_SLUG:
+        return serve_lipton_dev_playback_page(request)
     start_time = time.time()
     reg = _get_regatta_by_slug(slug)
     if not reg:
