@@ -318,16 +318,92 @@ body[data-lipton-dev="1"] .table-wrapper table {
   border-collapse: collapse;
   background: #ffffff;
 }
+body[data-lipton-dev="1"] .table-wrapper th.rank-col,
+body[data-lipton-dev="1"] .table-wrapper td.rank-col {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  width: 36px;
+  min-width: 36px;
+  max-width: 36px;
+  background: #ffffff;
+}
+body[data-lipton-dev="1"] .table-wrapper th.wc-meta-col,
+body[data-lipton-dev="1"] .table-wrapper td.wc-meta-col {
+  position: sticky;
+  left: 36px;
+  z-index: 3;
+  width: 34px;
+  min-width: 34px;
+  max-width: 34px;
+  background: #ffffff;
+}
+body[data-lipton-dev="1"] .table-wrapper th.boat-name-col,
+body[data-lipton-dev="1"] .table-wrapper td.boat-name-col {
+  position: sticky;
+  left: 70px;
+  z-index: 3;
+  width: 88px;
+  min-width: 88px;
+  max-width: 88px;
+  background: #ffffff;
+}
+body[data-lipton-dev="1"] .table-wrapper th.club-col,
+body[data-lipton-dev="1"] .table-wrapper td.club-col {
+  position: sticky;
+  left: 158px;
+  z-index: 3;
+  width: 56px;
+  min-width: 56px;
+  max-width: 56px;
+  background: #ffffff;
+  box-shadow: 4px 0 6px -2px rgba(0, 0, 0, 0.18);
+}
+body[data-lipton-dev="1"] .table-wrapper th.timer-col--fin,
+body[data-lipton-dev="1"] .table-wrapper td.timer-col--fin,
 body[data-lipton-dev="1"] .table-wrapper th.timer-col:last-child,
 body[data-lipton-dev="1"] .table-wrapper td.timer-col:last-child {
   position: sticky;
   right: 0;
-  z-index: 1;
+  z-index: 3;
   background: #ffffff;
+  box-shadow: -4px 0 6px -2px rgba(0, 0, 0, 0.18);
 }
-body[data-lipton-dev="1"] .table-wrapper th.timer-col:last-child {
+body[data-lipton-dev="1"] .table-wrapper thead th.rank-col,
+body[data-lipton-dev="1"] .table-wrapper thead th.wc-meta-col,
+body[data-lipton-dev="1"] .table-wrapper thead th.boat-name-col,
+body[data-lipton-dev="1"] .table-wrapper thead th.club-col {
+  z-index: 6;
   background: #e9eefb;
-  z-index: 5;
+}
+body[data-lipton-dev="1"] .table-wrapper thead th.timer-col--fin,
+body[data-lipton-dev="1"] .table-wrapper thead th.timer-col:last-child {
+  z-index: 7;
+  background: #e9eefb;
+}
+body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-gold td.rank-col,
+body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-gold td.wc-meta-col,
+body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-gold td.boat-name-col,
+body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-gold td.club-col,
+body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-gold td.timer-col--fin,
+body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-gold td.timer-col:last-child {
+  background: #D4AF37;
+}
+body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-silver td.rank-col,
+body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-silver td.wc-meta-col,
+body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-silver td.boat-name-col,
+body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-silver td.club-col,
+body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-silver td.timer-col--fin,
+body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-silver td.timer-col:last-child {
+  background: #D7D7D7;
+}
+body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-bronze td.rank-col,
+body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-bronze td.wc-meta-col,
+body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-bronze td.boat-name-col,
+body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-bronze td.club-col,
+body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-bronze td.timer-col--fin,
+body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-bronze td.timer-col:last-child {
+  background: #CE8946;
 }
 body[data-lipton-dev="1"] th,
 body[data-lipton-dev="1"] td {
@@ -873,7 +949,9 @@ body[data-lipton-dev="1"] .lipton-dev-btn:disabled {
   }
   body[data-lipton-dev="1"] .table-wrapper {
     flex: 0 0 auto;
-    overflow: visible;
+    overflow-x: auto;
+    overflow-y: visible;
+    max-width: 100%;
     max-height: none;
     height: auto;
     overscroll-behavior: auto;

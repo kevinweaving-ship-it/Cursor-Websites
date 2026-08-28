@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828bw";
+  var CACHE = "20260828bx";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = params.get("live") === "1";
@@ -1550,7 +1550,7 @@
         if (passIsMark(p) && passFolded(i, ts) && isMobilePortrait()) {
           twist = "<button type=\"button\" class=\"ld-mark-twist\" data-mark-twist=\"1\" aria-expanded=\"" + (marksDetailOpen ? "true" : "false") + "\" title=\"" + (marksDetailOpen ? "Hide mark times" : "Show mark times") + "\" aria-label=\"" + (marksDetailOpen ? "Hide mark times" : "Show mark times") + "\">" + (marksDetailOpen ? "▾" : "▸") + "</button>";
         }
-        html += "<th class=\"timer-col" + (passIsMark(p) ? " timer-col--mark" : "") + (!marksDetailOpen && passIsMark(p) && passFolded(i, ts) ? " timer-col--tight" : "") + "\" title=\"" + esc(title) + "\"><span class=\"ld-mark-lab\">" + esc(lab) + "</span>" + twist + "</th>";
+        html += "<th class=\"timer-col" + ((p.id === "FIN" || p.label === "Fin") ? " timer-col--fin" : "") + (passIsMark(p) ? " timer-col--mark" : "") + (!marksDetailOpen && passIsMark(p) && passFolded(i, ts) ? " timer-col--tight" : "") + "\" title=\"" + esc(title) + "\"><span class=\"ld-mark-lab\">" + esc(lab) + "</span>" + twist + "</th>";
         if (showDeltaAfter(i, ts, limit)) {
           var nlab = passHeadLabel(i + 1);
           html += "<th class=\"place-delta-col\" title=\"Places gained or lost " + esc(lab) + " to " + esc(nlab) + "\" aria-label=\"Place change " + esc(lab) + " to " + esc(nlab) + "\">±</th>";
@@ -1778,9 +1778,10 @@
     }
     function timerTd(r, i, rankMaps, ts) {
       var time = splitCell(r.times, i, r.boat);
-      if (!passFolded(i, ts)) return "<td class=\"timer-col\">" + time + "</td>";
       var p = PASSES[i];
       var isFin = p && (p.id === "FIN" || p.label === "Fin");
+      var finCls = isFin ? " timer-col--fin" : "";
+      if (!passFolded(i, ts)) return "<td class=\"timer-col" + finCls + "\">" + time + "</td>";
       var gained = isFin ? totalGain(r.boat) : deltaGain(
         rankMaps[i - 1] && rankMaps[i - 1].prev,
         rankMaps[i - 1] && rankMaps[i - 1].next,
@@ -1788,9 +1789,9 @@
       );
       var flash = rememberDelta(r.boat + "|fold|" + i, gained);
       if (isFin) {
-        return "<td class=\"timer-col timer-col--folded\">" + time + deltaSpan(gained, flash) + "</td>";
+        return "<td class=\"timer-col timer-col--folded timer-col--fin\">" + time + deltaSpan(gained, flash) + "</td>";
       }
-      if (!isFin && !marksDetailOpen && isMobilePortrait()) {
+      if (!marksDetailOpen && isMobilePortrait()) {
         return "<td class=\"timer-col timer-col--places\">" + deltaSpan(gained, flash) + "</td>";
       }
       return "<td class=\"timer-col timer-col--folded\">" + time + deltaSpan(gained, flash) + "</td>";
