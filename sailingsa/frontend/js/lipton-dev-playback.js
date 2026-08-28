@@ -429,7 +429,9 @@
       return Math.sqrt(x * x + y * y);
     }
     var BOAT_LEN_M = 6.71;
-    var TAIL_M = BOAT_LEN_M * 2;
+    var TAIL_M = BOAT_LEN_M;
+    var TAIL_CLEAR_MS = 5000;
+    var tailsUntil = 0;
     var focusMarkKey = null;
     var focusGate = null;
     function sizeCanvas() {
@@ -813,7 +815,25 @@
       dense.push(hits[hits.length - 1]);
       return dense;
     }
+    function tailsCleared() {
+      return tailsUntil < 0;
+    }
+    function armTailClear() {
+      if (!tailsUntil) tailsUntil = Date.now() + TAIL_CLEAR_MS;
+    }
+    function resetTails(ts) {
+      if (ts != null && ts >= PLAY_END_TS) {
+        armTailClear();
+        return;
+      }
+      tailsUntil = 0;
+    }
     function drawTail(sail, ts) {
+      if (tailsCleared()) return;
+      if (tailsUntil > 0 && Date.now() >= tailsUntil) {
+        tailsUntil = -1;
+        return;
+      }
       var b = trail.boats[sail];
       if (!b) return;
       var hits = tailHits(b, ts);
@@ -1093,7 +1113,7 @@
       mapCtx.font = "bold 11px sans-serif";
       var subW = mapCtx.measureText(sub).width;
       var boxW = Math.max(nameW, subW) + 20;
-      var boxH = 42;
+      var boxH = 22;
       var x0 = mapBounds.w - pad - boxW;
       var y0 = pad;
       var cx = x0 + boxW / 2;
@@ -1101,9 +1121,9 @@
       mapCtx.fillRect(x0, y0, boxW, boxH);
       mapCtx.fillStyle = "#ffffff";
       mapCtx.font = "bold 13px sans-serif";
-      mapCtx.fillText(name, cx, y0 + 5);
+      mapCtx.fillText(name, cx, y0 + 4);
       mapCtx.font = "bold 11px sans-serif";
-      mapCtx.fillText(sub, cx, y0 + 23);
+      mapCtx.fillText(sub, cx, y0 + boxH + 4);
       mapCtx.restore();
     }
     function setRateButtons() {
@@ -1535,6 +1555,7 @@
       lastHdgAt = {};
       if (followFleet) cam = null;
       lastHeadLimit = -1;
+      resetTails(ts);
       render(ts);
     }
 
@@ -1547,6 +1568,7 @@
           playTs = PLAY_END_TS;
           playing = false;
           setPlayLabel();
+          armTailClear();
         }
         var rows = rowsAt(playTs);
         var key = stateKey(rows);
@@ -1558,6 +1580,10 @@
         drawMap(playTs);
       } else {
         lastWall = Date.now();
+        if (tailsUntil > 0 && Date.now() >= tailsUntil) {
+          tailsUntil = -1;
+          drawMap(playTs);
+        }
       }
       window.requestAnimationFrame(tick);
     }
