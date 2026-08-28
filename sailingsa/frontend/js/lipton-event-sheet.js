@@ -43,9 +43,16 @@
     });
     var extra = doc.createElement("style");
     extra.textContent = [
-      "html,body{margin:0;padding:0;background:#fff;}",
-      ".regatta-page{margin:0;padding:8px 10px 12px;background:#fff!important;}",
-      ".header,.class-header{background:#fff!important;}",
+      "html,body{margin:0;padding:0;background:#fff;overflow-x:hidden;}",
+      ".regatta-page,.header,.class-header,.fleet-section,.table-wrapper{width:100%!important;max-width:100%!important;margin-left:0!important;margin-right:0!important;box-sizing:border-box;}",
+      ".regatta-page{padding:8px 10px 12px;background:#fff!important;}",
+      ".header{margin-bottom:0!important;}",
+      ".fleet-section{margin-top:20px!important;}",
+      ".table-wrapper{margin-top:20px!important;}",
+      "@media (max-width:768px){.header{margin-bottom:0!important;}.fleet-section{margin-top:12px!important;}.table-wrapper{margin-top:12px!important;}}",
+      "@media (orientation:landscape) and (max-height:600px){.header{margin-bottom:0!important;}.fleet-section{margin-top:6px!important;}.table-wrapper{margin-top:6px!important;}}",
+      ".header.header--lipton{display:grid!important;grid-template-columns:88px minmax(0,1fr) 88px!important;align-items:center;}",
+      ".regatta-header-logo-col,.regatta-header-club-logo-col{width:88px;min-width:88px;}",
       ".regatta-live-board-row,.regatta-live-board{display:none!important;}"
     ].join("");
     (doc.head || doc.documentElement).appendChild(extra);
