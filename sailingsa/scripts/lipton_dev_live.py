@@ -25,6 +25,7 @@ HISTORY_MS = 4 * 60 * 1000
 LIVE_TRAIL_MS = 90_000
 STEP_MS = 280
 CLOCK_LAG_MS = 20_000
+CHUNK_MS = 3 * 60 * 1000
 STATE_PATH = Path("/tmp/lipton_dev_live_state.json")
 HISTORY_PATHS = (
     Path("/var/www/sailingsa/js/lipton-dev-live-history.json"),
@@ -166,6 +167,38 @@ def _trail_from_recs(recs: list[dict], keep_ms: int | None) -> list[dict]:
     return trail
 
 
+def _tele_range(after_ms: int, before_ms: int) -> list[dict]:
+    rows: list[dict] = []
+    t = int(after_ms)
+    end_all = int(before_ms)
+    while t < end_all:
+        end = min(t + CHUNK_MS, end_all)
+        rows.extend(_tele_latest(t, end))
+        t = end
+    return rows
+
+
+def _first_trail_ts(data: dict) -> int | None:
+    first = None
+    for b in (data.get("boats") or {}).values():
+        t = (b or {}).get("trail") or []
+        if not t:
+            continue
+        ts = int(t[0].get("ts_ms") or 0)
+        if ts and (first is None or ts < first):
+            first = ts
+    return first
+
+
+def _covers_start(data: dict, gun_ms: int | None) -> bool:
+    if not data or not data.get("boats"):
+        return False
+    if gun_ms is None:
+        return _history_span_ms(data) >= 20_000
+    first = _first_trail_ts(data)
+    return first is not None and first <= int(gun_ms) + 12_000
+
+
 def _merge_trail(old: list | None, new: list | None) -> list[dict]:
     by: dict[int, dict] = {}
     for p in (old or []) + (new or []):
@@ -178,10 +211,13 @@ def _merge_trail(old: list | None, new: list | None) -> list[dict]:
     return [by[k] for k in sorted(by)]
 
 
-def _slice_trail(trail: list[dict], keep_ms: int) -> list[dict]:
-    if not trail or keep_ms <= 0:
-        return trail or []
-    cut = trail[-1]["ts_ms"] - keep_ms
+def _slice_trail(trail: list[dict], keep_ms: int, *, gun_ms: int | None = None) -> list[dict]:
+    if not trail:
+        return []
+    if gun_ms:
+        cut = int(gun_ms) - 30_000
+    else:
+        cut = trail[-1]["ts_ms"] - keep_ms
     return [x for x in trail if x["ts_ms"] >= cut]
 
 
@@ -221,13 +257,14 @@ def _merge_history_payload(old: dict, new: dict) -> dict:
     if not old or not old.get("boats"):
         return new
     out = dict(new)
+    gun_ms = new.get("gun_ts_ms") or old.get("gun_ts_ms")
     boats: dict[str, dict] = {}
     sails = set(old.get("boats") or {}) | set(new.get("boats") or {})
     for sail in sails:
         ob = (old.get("boats") or {}).get(sail) or {}
         nb = (new.get("boats") or {}).get(sail) or {}
         trail = _merge_trail(ob.get("trail"), nb.get("trail") or ([nb] if nb.get("lat") is not None else []))
-        trail = _slice_trail(trail, HISTORY_MS)
+        trail = _slice_trail(trail, HISTORY_MS, gun_ms=gun_ms)
         built = _boat_from_trail(trail)
         if built:
             boats[sail] = built
@@ -238,7 +275,7 @@ def _merge_history_payload(old: dict, new: dict) -> dict:
             (old_m or {}).get("trail") or ([old_m] if old_m and old_m.get("lat") is not None else []),
             (new_m or {}).get("trail") or ([new_m] if new_m and new_m.get("lat") is not None else []),
         )
-        trail = _slice_trail(trail, HISTORY_MS)
+        trail = _slice_trail(trail, HISTORY_MS, gun_ms=gun_ms)
         return _boat_from_trail(trail)
 
     pin = merge_mark(old.get("pin"), new.get("pin"))
@@ -273,16 +310,12 @@ def _save_history_file(payload: dict) -> None:
 
 
 def live_snapshot(*, history: bool = False) -> dict:
-    if history:
-        hit = _load_history_file()
-        if hit and _history_span_ms(hit) >= 20_000:
-            hit = dict(hit)
-            hit["from_cache"] = True
-            return hit
     now = datetime.now(timezone.utc)
     now_ms = int(now.timestamp() * 1000)
     playback_ms = now_ms - CLOCK_LAG_MS
     cached = _load_state()
+    stored_hit = _load_history_file(max_age_s=None) if history else {}
+    stored_gun = (stored_hit or {}).get("gun_ts_ms") or cached.get("gun_ts_ms")
     doc = None
     summary = None
     if not cached.get("gun_ts_ms"):
@@ -318,7 +351,20 @@ def live_snapshot(*, history: bool = False) -> dict:
         )
     start0 = ((raw_race or {}).get("starts") or [{}])[0] if raw_race else {}
     keep_ms = HISTORY_MS if history else WINDOW_MS
-    rows = _tele_latest(now_ms - keep_ms, now_ms + 2000)
+    rec_keep: int | None = keep_ms
+    if history and gun_ms is not None and not _covers_start(stored_hit, gun_ms):
+        rows = _tele_range(int(gun_ms) - 30_000, now_ms + 2000)
+        rec_keep = None
+    elif history and _covers_start(stored_hit, gun_ms or stored_gun):
+        hit = dict(stored_hit)
+        hit["from_cache"] = True
+        hit["gun_ts_ms"] = gun_ms or stored_gun
+        hit["playback_ts_ms"] = playback_ms
+        hit["now_ts_ms"] = now_ms
+        hit["delta_ms"] = (playback_ms - int(hit["gun_ts_ms"])) if hit.get("gun_ts_ms") else None
+        return hit
+    else:
+        rows = _tele_latest(now_ms - keep_ms, now_ms + 2000)
     boats: dict[str, dict] = {}
     by_sn: dict[int, dict] = {}
     tracks: dict[str, list] = {}
@@ -338,13 +384,13 @@ def live_snapshot(*, history: bool = False) -> dict:
             if not prev or int(rec.get("ts") or 0) >= int(prev.get("ts") or 0):
                 by_sn[sn] = rec
     for sail, pts in tracks.items():
-        trail = _trail_from_recs(pts, keep_ms)
+        trail = _trail_from_recs(pts, rec_keep)
         built = _boat_from_trail(trail)
         if built:
             boats[sail] = built
-    pin_trail = _trail_from_recs(sn_tracks.get(devices["pin"]) or [], keep_ms)
+    pin_trail = _trail_from_recs(sn_tracks.get(devices["pin"]) or [], rec_keep)
     rc_sn = devices.get("rc")
-    rc_trail = _trail_from_recs(sn_tracks.get(rc_sn) or [], keep_ms) if rc_sn else []
+    rc_trail = _trail_from_recs(sn_tracks.get(rc_sn) or [], rec_keep) if rc_sn else []
     pin = pin_trail[-1] if pin_trail else _pt(by_sn.get(devices["pin"]))
     rc = rc_trail[-1] if rc_trail else (_pt(by_sn.get(rc_sn)) if rc_sn else None)
     if pin and pin_trail:
@@ -357,7 +403,7 @@ def live_snapshot(*, history: bool = False) -> dict:
     for name, sn in (devices.get("marks") or {}).items():
         if name == "4":
             continue
-        mtrail = _trail_from_recs(sn_tracks.get(sn) or [], keep_ms)
+        mtrail = _trail_from_recs(sn_tracks.get(sn) or [], rec_keep)
         if mtrail:
             mk = dict(mtrail[-1])
             mk["trail"] = mtrail
