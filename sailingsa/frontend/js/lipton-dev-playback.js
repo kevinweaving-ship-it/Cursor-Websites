@@ -253,8 +253,8 @@
     var playing = false;
     var trackerReady = false;
     var playTs = PLAY_START_TS;
-    var GUN_HORN_SRC = "/js/lipton-dev-start-airhorn.mp3?v=20260828r";
-    var RECALL_HORN_SRC = "/js/lipton-dev-recall-horn.wav?v=20260828r";
+    var GUN_HORN_SRC = "/js/lipton-dev-start-airhorn.mp3?v=20260828s";
+    var RECALL_HORN_SRC = "/js/lipton-dev-recall-horn.wav?v=20260828s";
     var GUN_HORN_ONSET = 0.05;
     var GUN_HORN_LEAD_MS = 100;
     var GUN_HORN_EARLY_MS = 500;
@@ -268,23 +268,29 @@
     var recallBytes = null;
     var recallDecode = false;
     var recallTimer = null;
-    fetch(GUN_HORN_SRC).then(function (res) { return res.ok ? res.arrayBuffer() : null; }).then(function (buf) { gunBytes = buf; }).catch(function () {});
-    fetch(RECALL_HORN_SRC).then(function (res) { return res.ok ? res.arrayBuffer() : null; }).then(function (buf) { recallBytes = buf; }).catch(function () {});
+    var soundOn = false;
+    var soundBtn = document.getElementById("lipton-dev-sound");
+    fetch(GUN_HORN_SRC).then(function (res) { return res.ok ? res.arrayBuffer() : null; }).then(function (buf) { gunBytes = buf; decodeHorns(); }).catch(function () {});
+    fetch(RECALL_HORN_SRC).then(function (res) { return res.ok ? res.arrayBuffer() : null; }).then(function (buf) { recallBytes = buf; decodeHorns(); }).catch(function () {});
     function raceHasOcs() {
       return Object.keys(OCS).length > 0;
     }
+    function prepHornEl(el) {
+      el.preload = "auto";
+      el.playsInline = true;
+      el.setAttribute("playsinline", "");
+      el.setAttribute("webkit-playsinline", "true");
+      el.crossOrigin = "anonymous";
+      el.volume = 1;
+      try { el.load(); } catch (err) {}
+      return el;
+    }
     function gunHornEl() {
-      if (!gunHorn) {
-        gunHorn = new Audio(GUN_HORN_SRC);
-        gunHorn.preload = "auto";
-      }
+      if (!gunHorn) gunHorn = prepHornEl(new Audio(GUN_HORN_SRC));
       return gunHorn;
     }
     function recallHornEl() {
-      if (!recallHorn) {
-        recallHorn = new Audio(RECALL_HORN_SRC);
-        recallHorn.preload = "auto";
-      }
+      if (!recallHorn) recallHorn = prepHornEl(new Audio(RECALL_HORN_SRC));
       return recallHorn;
     }
     function decodeOne(bytes, hasBuf, decoding, setBuf, setDecoding) {
@@ -300,32 +306,66 @@
       decodeOne(gunBytes, gunBuf, gunDecode, function (b) { gunBuf = b; }, function (v) { gunDecode = v; });
       decodeOne(recallBytes, recallBuf, recallDecode, function (b) { recallBuf = b; }, function (v) { recallDecode = v; });
     }
-    function unlockGunHorn() {
-      var AC = window.AudioContext || window.webkitAudioContext;
-      if (AC) {
-        if (!gunCtx) gunCtx = new AC();
-        if (gunCtx.state === "suspended") gunCtx.resume();
-        decodeHorns();
-      }
-      var el = gunHornEl();
+    function setSoundLabel() {
+      if (!soundBtn) return;
+      soundBtn.textContent = soundOn ? "Sound on" : "Sound";
+      soundBtn.classList.toggle("is-active", soundOn);
+      soundBtn.setAttribute("aria-pressed", soundOn ? "true" : "false");
+    }
+    function tickSilentBuffer() {
+      if (!gunCtx) return;
+      try {
+        var n = Math.max(1, Math.floor((gunCtx.sampleRate || 22050) * 0.02));
+        var buf = gunCtx.createBuffer(1, n, gunCtx.sampleRate || 22050);
+        var src = gunCtx.createBufferSource();
+        src.buffer = buf;
+        src.connect(gunCtx.destination);
+        src.start(0);
+      } catch (err) {}
+    }
+    function unlockAudioEl(el) {
+      if (!el) return;
       el.muted = true;
-      try { el.currentTime = GUN_HORN_ONSET; } catch (err) {}
+      el.volume = 1;
       var p = el.play();
       if (p && p.then) {
         p.then(function () {
-          if (!el.muted) return;
           el.pause();
-          try { el.currentTime = GUN_HORN_ONSET; } catch (err2) {}
+          try { el.currentTime = 0; } catch (err) {}
           el.muted = false;
         }).catch(function () { el.muted = false; });
       } else {
+        try { el.pause(); } catch (err2) {}
         el.muted = false;
       }
-      recallHornEl();
+    }
+    function unlockGunHorn() {
+      soundOn = true;
+      setSoundLabel();
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) {
+        if (!gunCtx) gunCtx = new AC();
+        var go = function () {
+          decodeHorns();
+          tickSilentBuffer();
+        };
+        if (gunCtx.state === "suspended") {
+          var r = gunCtx.resume();
+          if (r && r.then) r.then(go).catch(go);
+          else go();
+        } else {
+          go();
+        }
+      }
+      unlockAudioEl(gunHornEl());
+      unlockAudioEl(recallHornEl());
     }
     function playBuf(buf, onset) {
-      if (!gunCtx || !buf) return false;
-      if (gunCtx.state === "suspended") gunCtx.resume();
+      if (!soundOn || !gunCtx || !buf) return false;
+      if (gunCtx.state === "suspended") {
+        gunCtx.resume();
+        return false;
+      }
       var src = gunCtx.createBufferSource();
       src.buffer = buf;
       src.connect(gunCtx.destination);
@@ -339,11 +379,12 @@
       }
     }
     function fireRecallHorn() {
-      if (!raceHasOcs()) return;
+      if (!soundOn || !raceHasOcs()) return;
       try {
         if (playBuf(recallBuf, 0)) return;
         var el = recallHornEl();
         el.muted = false;
+        el.volume = 1;
         try { el.currentTime = 0; } catch (err) {}
         var p = el.play();
         if (p && p.catch) p.catch(function () {});
@@ -351,7 +392,7 @@
     }
     function scheduleRecallHorn() {
       cancelRecallHorn();
-      if (!raceHasOcs()) return;
+      if (!soundOn || !raceHasOcs()) return;
       var wait = gunBuf ? Math.max(400, Math.round((gunBuf.duration - GUN_HORN_ONSET) * 1000)) : 1550;
       recallTimer = setTimeout(function () {
         recallTimer = null;
@@ -359,10 +400,12 @@
       }, wait);
     }
     function fireGunHorn() {
+      if (!soundOn) return;
       try {
         if (!playBuf(gunBuf, GUN_HORN_ONSET)) {
           var el = gunHornEl();
           el.muted = false;
+          el.volume = 1;
           try { el.currentTime = GUN_HORN_ONSET; } catch (err) {}
           var p = el.play();
           if (p && p.catch) p.catch(function () {});
@@ -1813,6 +1856,7 @@
       });
     });
     if (playBtn) {
+      playBtn.addEventListener("pointerdown", function () { unlockGunHorn(); });
       playBtn.addEventListener("click", function () {
         if (!trackerReady) return;
         if (!playing) unlockGunHorn();
@@ -1821,6 +1865,24 @@
         setPlayLabel();
       });
     }
+    document.querySelectorAll('[data-jump="gun"]').forEach(function (btn) {
+      btn.addEventListener("pointerdown", function () { unlockGunHorn(); });
+    });
+    if (soundBtn) {
+      setSoundLabel();
+      soundBtn.addEventListener("click", function () {
+        if (soundOn) {
+          soundOn = false;
+          cancelRecallHorn();
+          setSoundLabel();
+          return;
+        }
+        unlockGunHorn();
+      });
+    }
+    document.addEventListener("visibilitychange", function () {
+      if (!document.hidden && gunCtx && gunCtx.state === "suspended") gunCtx.resume();
+    });
 
     window.addEventListener("resize", function () {
       if (chartMap) chartMap.invalidateSize({ animate: false });
