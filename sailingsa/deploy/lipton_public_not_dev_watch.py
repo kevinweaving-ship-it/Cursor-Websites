@@ -677,7 +677,21 @@ def main() -> int:
                         _log(f"api.py hijack stripped; sailingsa-api restarted board={board}")
         elif not _race_underway():
             board = _origin_board_state()
-            if board == "playback" and _seconds_since_api_restart() >= 20:
+            try:
+                ngx = NGINX.read_text(encoding="utf-8") if NGINX.is_file() else ""
+            except Exception:
+                ngx = ""
+            nginx_ok = _public_slug_proxied(ngx) and (
+                "include /etc/nginx/snippets/lipton-public-proxy.conf" not in ngx
+            )
+            if board == "playback" and not nginx_ok:
+                _log("origin playback; nginx not proxied; skipped API restart")
+            elif (
+                board == "playback"
+                and nginx_ok
+                and not _overnight_hold()
+                and _seconds_since_api_restart() >= 90
+            ):
                 subprocess.check_call(["systemctl", "restart", "sailingsa-api"])
                 _mark_api_restart()
                 _log("origin playback with clean disk; sailingsa-api restarted")
