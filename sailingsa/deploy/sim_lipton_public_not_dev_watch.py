@@ -143,11 +143,20 @@ def main() -> int:
     assert mod._nginx_must_reload("live", False) is False
     assert mod._nginx_must_reload("down", False) is False
     assert mod._nginx_must_reload("live", False, True) is True
+    assert "lw-g19.py" in mod.WATCH_UNIT_BODY
+    assert "lw-g18.py" in mod.WATCH_UNIT_BODY
     assert "lw-g14d.py" in mod.WATCH_UNIT_BODY
     assert "lw-g14c.py" in mod.WATCH_UNIT_BODY
     assert mod._unit_needs_rewrite(mod.WATCH_UNIT_BODY, mod.WATCH_UNIT_BODY) is False
     assert mod._unit_needs_rewrite(mod.WATCH_UNIT_BODY + "\n", mod.WATCH_UNIT_BODY) is False
     assert mod._unit_needs_rewrite(stub, mod.WATCH_UNIT_BODY) is True
+    alt_watch = mod.WATCH_UNIT_BODY.replace("lw-g19.py ", "")
+    assert "lw-g19.py" not in alt_watch
+    assert mod._unit_needs_rewrite(alt_watch, mod.WATCH_UNIT_BODY) is False
+    alt_hold = mod.HOLD_UNIT_BODY.replace("lw-g19.py ", "")
+    assert mod._unit_needs_rewrite(alt_hold, mod.HOLD_UNIT_BODY) is False
+    oneshot = "[Service]\nType=oneshot\nDescription=disabled\nExecStart=/bin/true\n"
+    assert mod._unit_is_stub(oneshot) is True
     assert "is-active --quiet sailingsa-lipton-public-watch.service" in mod.HOLD_UNIT_BODY
     assert "while true" in mod.WATCH_UNIT_BODY
     assert "while true" in mod.HOLD_UNIT_BODY

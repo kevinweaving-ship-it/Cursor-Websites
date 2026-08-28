@@ -8,6 +8,9 @@ COPIES=(
   /usr/local/sbin/lipton_public_not_dev_watch.py
 )
 GOLDS=(
+  /root/lw-g19.py
+  /root/lw-g18.py
+  /root/lw-g17.py
   /root/lw-g14d.py
   /root/lw-g14c.py
   /root/lw-g14.py

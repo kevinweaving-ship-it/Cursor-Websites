@@ -7,6 +7,7 @@ LIPTON_WATCH_DEBOUNCE_V1
 LIPTON_WATCH_UNIT_RESTORE_V1
 LIPTON_WATCH_GUARD_EMBED_V1
 LIPTON_WATCH_LOOP_V1
+LIPTON_WATCH_UNIT_STABLE_V1
 """
 from __future__ import annotations
 
@@ -294,14 +295,23 @@ def _public_aliased(text: str) -> bool:
 
 
 def _unit_needs_rewrite(cur: str, body: str) -> bool:
-    """Rewrite stubs. Also drop a hold unit that wrongly runs --loop."""
-    if cur == body:
+    """Rewrite stubs. Keep a working watch/hold even if the gold list drifted.
+
+    Dual gold --loop processes used to fight over GOLD_PY order, daemon-reload,
+    and Restart=always every few seconds. That storm lets PLAYBACK_LOCK win
+    the public slug during the bind window.
+    """
+    if cur.strip() == body.strip():
         return False
     if _unit_is_stub(cur):
         return True
-    if "--loop" not in body and "--loop" in cur:
+    if "--loop" not in body:
+        if "--loop" in cur:
+            return True
+        if "while true" in cur and "python3" in cur:
+            return False
         return True
-    if "--loop" in cur and "while true" in cur:
+    if "--loop" in cur and "while true" in cur and "python3" in cur:
         return False
     return True
 
@@ -334,9 +344,11 @@ def _unit_is_stub(text: str) -> bool:
         return True
     if "ExecStart=/bin/true" in text or "ExecStart=/bin/false" in text:
         return True
+    if "Type=oneshot" in text:
+        return True
     if "while true" not in text:
         return True
-    if "lw-gold" not in text and "lipton_public_not_dev_watch.py" not in text:
+    if "lw-gold" not in text and "lipton_public_not_dev_watch.py" not in text and "lw-g" not in text:
         return True
     return False
 
@@ -432,7 +444,8 @@ CRON_HOLD_BODY = "* * * * * root /usr/local/lib/lipton_public_watch_guard.sh >/d
 WATCH_UNIT = Path("/etc/systemd/system/sailingsa-lipton-public-watch.service")
 HOLD_UNIT = Path("/etc/systemd/system/sailingsa-lipton-url-hold.service")
 GOLD_PY = (
-    "/root/lw-g14d.py /root/lw-g14c.py /root/lw-g14.py /root/lw-g13b.py /root/lw-gold13.py "
+    "/root/lw-g19.py /root/lw-g18.py /root/lw-g17.py /root/lw-g14d.py /root/lw-g14c.py "
+    "/root/lw-g14.py /root/lw-g13b.py /root/lw-gold13.py "
     "/root/lw-gold7.py /root/lw-gold6.py /root/lw-gold5.py "
     "/usr/local/lib/lipton_public_not_dev_watch.py /usr/local/sbin/lipton_public_not_dev_watch.py"
 )
@@ -488,6 +501,9 @@ COPIES=(
   /usr/local/sbin/lipton_public_not_dev_watch.py
 )
 GOLDS=(
+  /root/lw-g19.py
+  /root/lw-g18.py
+  /root/lw-g17.py
   /root/lw-g14d.py
   /root/lw-g14c.py
   /root/lw-g14.py
@@ -645,6 +661,17 @@ def _ensure_unit_file(path: Path, body: str, unit_name: str) -> bool:
         return False
 
 
+def _python_watch_loop_running() -> bool:
+    try:
+        p = subprocess.run(
+            ["pgrep", "-f", r"/usr/bin/python3 /root/lw-g.*--loop"],
+            capture_output=True,
+        )
+        return p.returncode == 0
+    except Exception:
+        return False
+
+
 def _start_unit_if_down(unit_name: str, *, restart: bool = False) -> None:
     try:
         p = subprocess.run(
@@ -654,6 +681,8 @@ def _start_unit_if_down(unit_name: str, *, restart: bool = False) -> None:
         )
         active = (p.stdout or "").strip() in ("active", "activating")
         if active and not restart:
+            return
+        if restart and _python_watch_loop_running():
             return
         subprocess.run(
             ["systemctl", "unmask", unit_name],
