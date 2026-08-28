@@ -369,6 +369,20 @@ body[data-lipton-dev="1"] .lipton-dev-scrub {
   accent-color: #fbbf24;
   cursor: pointer;
 }
+body[data-lipton-dev="1"] .lipton-dev-event-logo {
+  position: absolute;
+  z-index: 4;
+  top: 46px;
+  left: 10px;
+  width: 59px;
+  line-height: 0;
+  pointer-events: auto;
+}
+body[data-lipton-dev="1"] .lipton-dev-event-logo img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
 body[data-lipton-dev="1"] .lipton-dev-track canvas {
   position: absolute;
   inset: 0;
