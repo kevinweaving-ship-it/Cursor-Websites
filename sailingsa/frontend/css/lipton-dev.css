@@ -12,6 +12,8 @@ body[data-lipton-dev="1"] {
   --lipton-mark-h: 20px;
   --lipton-scrub-w: 140px;
   --lipton-dev-lockup-h: 56px;
+  --lipton-logo-w: 120px;
+  --lipton-c-inset: 0.264;
   --lipton-map-bg: #001018;
   --lipton-bar-bg: #20696d;
 }
@@ -42,23 +44,102 @@ body[data-lipton-dev="1"] .mobile-dropdown {
   display: none !important;
 }
 body[data-lipton-dev="1"] .lipton-dev-subhead {
-  flex: 0 0 64px;
+  flex: 0 0 auto;
   box-sizing: border-box;
   width: 100%;
   max-width: none;
-  height: 64px;
+  height: auto;
   min-height: 64px;
-  max-height: 64px;
+  max-height: none;
   margin: 0;
   display: flex;
   align-items: flex-end;
   gap: 8px;
-  padding: 6px 10px 8px;
+  padding: 6px 10px 6px;
   min-width: 0;
   overflow: hidden;
   background: var(--lipton-bar-bg);
   border-radius: 4px;
   z-index: 29;
+}
+body[data-lipton-dev="1"] .lipton-dev-chrome {
+  display: grid;
+  grid-template-columns: var(--lipton-logo-w) minmax(0, var(--lipton-logo-w)) max-content;
+  grid-template-rows: auto auto;
+  align-items: end;
+  column-gap: 8px;
+  width: max-content;
+  max-width: 100%;
+  min-width: 0;
+}
+body[data-lipton-dev="1"] .lipton-dev-event-logo {
+  grid-column: 1;
+  grid-row: 1;
+  display: block;
+  width: var(--lipton-logo-w);
+  flex: 0 0 auto;
+  min-width: 0;
+  line-height: 0;
+  pointer-events: auto;
+}
+body[data-lipton-dev="1"] .lipton-dev-map-transport {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: stretch;
+  width: var(--lipton-logo-w);
+  max-width: var(--lipton-logo-w);
+  min-width: 0;
+  height: auto;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+body[data-lipton-dev="1"] .lipton-dev-race-boxes {
+  grid-column: 1 / 3;
+  grid-row: 2;
+  display: flex;
+  justify-content: flex-start;
+  align-items: stretch;
+  gap: 2px;
+  box-sizing: border-box;
+  margin: 3px 0 0 calc(var(--lipton-logo-w) * var(--lipton-c-inset));
+  width: calc(100% - var(--lipton-logo-w) * var(--lipton-c-inset));
+  max-width: calc(100% - var(--lipton-logo-w) * var(--lipton-c-inset));
+  height: 16px;
+  overflow: hidden;
+}
+body[data-lipton-dev="1"] .lipton-dev-race-box {
+  flex: 0 0 calc((100% - 20px) / 11);
+  box-sizing: border-box;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 2px;
+  background: rgba(0, 16, 24, 0.35);
+  color: #ffffff;
+  font-size: 7px;
+  font-weight: 800;
+  line-height: 14px;
+  letter-spacing: 0;
+  text-align: center;
+  overflow: hidden;
+  white-space: nowrap;
+  cursor: pointer;
+}
+body[data-lipton-dev="1"] .lipton-dev-race-box.is-active {
+  background: #ffffff;
+  color: #1a2750;
+  border-color: #ffffff;
+}
+body[data-lipton-dev="1"] .lipton-dev-race-box:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+body[data-lipton-dev="1"] .lipton-dev-race-box--live {
+  border-color: #38bdf8;
 }
 body[data-lipton-dev="1"] .lipton-dev-shell {
   width: 100%;
@@ -411,19 +492,6 @@ body[data-lipton-dev="1"] .leaflet-attribution-flag {
   width: 8px !important;
   height: 6px !important;
 }
-body[data-lipton-dev="1"] .lipton-dev-map-transport {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  align-items: stretch;
-  width: min(120px, 32vw);
-  flex: 0 1 120px;
-  min-width: 0;
-  max-width: 120px;
-  height: auto;
-  gap: 2px;
-  margin-bottom: 3px;
-}
 body[data-lipton-dev="1"] .lipton-dev-scrub {
   display: block;
   width: 100%;
@@ -505,14 +573,6 @@ body[data-lipton-dev="1"] .lipton-dev-map-transport .lipton-dev-btn:disabled {
 body[data-lipton-dev="1"] .lipton-dev-map-transport .lipton-dev-btn:disabled .lipton-dev-ico {
   fill: #1a2750;
 }
-body[data-lipton-dev="1"] .lipton-dev-event-logo {
-  display: block;
-  width: 120px;
-  flex: 0 0 auto;
-  min-width: 0;
-  line-height: 0;
-  pointer-events: auto;
-}
 body[data-lipton-dev="1"] .lipton-dev-event-logo img {
   display: block;
   width: 100%;
@@ -521,14 +581,14 @@ body[data-lipton-dev="1"] .lipton-dev-event-logo img {
   object-fit: contain;
 }
 body[data-lipton-dev="1"] .lipton-dev-map-hud {
+  grid-column: 3;
+  grid-row: 1;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-end;
   gap: 2px;
-  margin-left: auto;
-  margin-bottom: 3px;
-  flex: 0 1 auto;
+  margin: 0 0 3px 0;
   width: max-content;
   min-width: 0;
   max-width: 100%;

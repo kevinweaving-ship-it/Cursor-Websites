@@ -6,8 +6,8 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Lipton Challenge Cup 2026 — playback (dev)</title>
   <link rel="stylesheet" href="/css/main.css">
-  <link rel="stylesheet" href="/js/vendor/leaflet/leaflet.css?v=20260828az">
-  <link rel="stylesheet" href="/css/lipton-dev.css?v=20260828az">
+  <link rel="stylesheet" href="/js/vendor/leaflet/leaflet.css?v=20260828ba">
+  <link rel="stylesheet" href="/css/lipton-dev.css?v=20260828ba">
   <script src="/js/api.js"></script>
   <script src="/js/session.js"></script>
 </head>
@@ -30,28 +30,31 @@
   </header>
   <div class="lipton-dev-shell">
     <div class="lipton-dev-subhead" id="lipton-dev-subhead">
-      <a href="/events-logos/lipton-challenge-cup" class="lipton-dev-event-logo" title="Lipton Challenge Cup">
-        <img src="/js/lipton-dev-event-logo.png?v=20260828au" alt="Lipton Challenge Cup">
-      </a>
-      <div class="lipton-dev-map-transport">
-        <input type="range" class="lipton-dev-scrub" id="lipton-dev-scrub" min="0" max="1000" value="0" aria-label="Race position">
-        <div class="lipton-dev-transport lipton-dev-transport--play" role="group" aria-label="Playback">
-          <button type="button" class="lipton-dev-btn" id="lipton-dev-play" disabled title="Play" aria-label="Play">
-            <svg class="lipton-dev-ico lipton-dev-ico--play" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.2 2.1v11.8L14.2 8z"/></svg>
-            <svg class="lipton-dev-ico lipton-dev-ico--pause" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2.4h3.6v11.2H3zm6.4 0H13v11.2H9.4z"/></svg>
-          </button>
-          <button type="button" class="lipton-dev-btn" id="lipton-dev-slower" title="Slower" aria-label="Slower">
-            <svg class="lipton-dev-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M8.4 2.4 1.6 8l6.8 5.6V2.4zm6.5 0L8.1 8l6.8 5.6V2.4z"/></svg>
-          </button>
-          <span class="lipton-dev-play-rate" id="lipton-dev-rate">1×</span>
-          <button type="button" class="lipton-dev-btn" id="lipton-dev-faster" title="Faster" aria-label="Faster">
-            <svg class="lipton-dev-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.1 2.4v11.2L7.9 8zm6.5 0v11.2L14.4 8z"/></svg>
-          </button>
+      <div class="lipton-dev-chrome">
+        <a href="/events-logos/lipton-challenge-cup" class="lipton-dev-event-logo" title="Lipton Challenge Cup">
+          <img src="/js/lipton-dev-event-logo.png?v=20260828au" alt="Lipton Challenge Cup">
+        </a>
+        <div class="lipton-dev-map-transport">
+          <input type="range" class="lipton-dev-scrub" id="lipton-dev-scrub" min="0" max="1000" value="0" aria-label="Race position">
+          <div class="lipton-dev-transport lipton-dev-transport--play" role="group" aria-label="Playback">
+            <button type="button" class="lipton-dev-btn" id="lipton-dev-play" disabled title="Play" aria-label="Play">
+              <svg class="lipton-dev-ico lipton-dev-ico--play" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.2 2.1v11.8L14.2 8z"/></svg>
+              <svg class="lipton-dev-ico lipton-dev-ico--pause" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2.4h3.6v11.2H3zm6.4 0H13v11.2H9.4z"/></svg>
+            </button>
+            <button type="button" class="lipton-dev-btn" id="lipton-dev-slower" title="Slower" aria-label="Slower">
+              <svg class="lipton-dev-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M8.4 2.4 1.6 8l6.8 5.6V2.4zm6.5 0L8.1 8l6.8 5.6V2.4z"/></svg>
+            </button>
+            <span class="lipton-dev-play-rate" id="lipton-dev-rate">1×</span>
+            <button type="button" class="lipton-dev-btn" id="lipton-dev-faster" title="Faster" aria-label="Faster">
+              <svg class="lipton-dev-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.1 2.4v11.2L7.9 8zm6.5 0v11.2L14.4 8z"/></svg>
+            </button>
+          </div>
         </div>
-      </div>
-      <div class="lipton-dev-map-hud" id="lipton-dev-map-hud">
-        <div class="lipton-dev-map-hud-name" id="lipton-dev-map-hud-name"></div>
-        <div class="lipton-dev-map-hud-clock" id="lipton-dev-map-hud-clock">T−0:05.0</div>
+        <div class="lipton-dev-race-boxes" id="lipton-dev-race-boxes" role="group" aria-label="Races"></div>
+        <div class="lipton-dev-map-hud" id="lipton-dev-map-hud">
+          <div class="lipton-dev-map-hud-name" id="lipton-dev-map-hud-name"></div>
+          <div class="lipton-dev-map-hud-clock" id="lipton-dev-map-hud-clock">T−0:05.0</div>
+        </div>
       </div>
     </div>
     <div class="lipton-dev-split">
@@ -127,7 +130,7 @@
     </div>
   </div>
 
-  <script src="/js/vendor/leaflet/leaflet.js?v=20260828az"></script>
-  <script src="/js/lipton-dev-playback.js?v=20260828az"></script>
+  <script src="/js/vendor/leaflet/leaflet.js?v=20260828ba"></script>
+  <script src="/js/lipton-dev-playback.js?v=20260828ba"></script>
 </body>
 </html>

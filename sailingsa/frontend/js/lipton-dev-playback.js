@@ -6,7 +6,9 @@
  */
 (function () {
   var CACHE = "20260827az";
-  var RACE_Q = Number((new URLSearchParams(location.search)).get("race") || 0);
+  var params = new URLSearchParams(location.search);
+  var RACE_Q = Number(params.get("race") || 0);
+  var LIVE_Q = params.get("live") === "1";
   function jsonUrl(kind, race) {
     if (!race || race === 4) return "/js/lipton-dev-" + kind + ".json?v=" + CACHE;
     return "/js/lipton-dev-" + kind + "-r" + race + ".json?v=" + CACHE;
@@ -14,20 +16,61 @@
   var DATA_URL = jsonUrl("replay", RACE_Q);
   var TRAIL_URL = jsonUrl("trail", RACE_Q);
 
+  function goRace(n) {
+    var u = new URL(location.href);
+    u.searchParams.delete("live");
+    u.searchParams.set("race", String(n));
+    location.assign(u.pathname + "?" + u.searchParams.toString());
+  }
+  function goLive() {
+    var u = new URL(location.href);
+    u.searchParams.delete("race");
+    u.searchParams.set("live", "1");
+    location.assign(u.pathname + "?" + u.searchParams.toString());
+  }
   function bindRaceButtons(active) {
-    var want = Number(active || RACE_Q || 4);
-    document.querySelectorAll("#lipton-dev-races [data-race]").forEach(function (btn) {
+    var want = LIVE_Q ? -1 : Number(active || RACE_Q || 4);
+    document.querySelectorAll("#lipton-dev-races [data-race], #lipton-dev-race-boxes [data-race]").forEach(function (btn) {
       var n = Number(btn.getAttribute("data-race"));
       btn.classList.toggle("is-active", n === want);
       btn.setAttribute("aria-pressed", n === want ? "true" : "false");
       if (btn.getAttribute("data-bound") === "1") return;
       btn.setAttribute("data-bound", "1");
-      btn.addEventListener("click", function () {
-        var u = new URL(location.href);
-        u.searchParams.set("race", String(n));
-        location.assign(u.pathname + "?" + u.searchParams.toString());
-      });
+      btn.addEventListener("click", function () { goRace(n); });
     });
+  }
+  function renderRaceBoxes(meta) {
+    var host = document.getElementById("lipton-dev-race-boxes");
+    if (!host) return;
+    var races = ((meta && meta.races) || []).filter(function (r) {
+      return r.stage === "finished" || r.packed || Number(r.finish_n) > 0;
+    }).sort(function (a, b) { return a.n - b.n; }).slice(0, 10);
+    host.innerHTML = "";
+    var activeN = LIVE_Q ? -1 : Number(RACE_Q || 4);
+    races.forEach(function (r) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "lipton-dev-race-box";
+      b.setAttribute("data-race", String(r.n));
+      b.textContent = "R" + r.n;
+      if (r.n === activeN) b.classList.add("is-active");
+      if (!r.packed) b.disabled = true;
+      var gun = String(r.gun_sast || "").slice(11, 16);
+      var ocs = (r.ocs || []).length ? " · OCS " + r.ocs.join(",") : "";
+      var course = r.course ? " · " + r.course : "";
+      b.title = "Race " + r.n + course + " · gun " + gun + (r.packed ? "" : " · GPS not packed yet") + ocs;
+      b.addEventListener("click", function () { if (r.packed) goRace(r.n); });
+      host.appendChild(b);
+    });
+    var live = document.createElement("button");
+    live.type = "button";
+    live.className = "lipton-dev-race-box lipton-dev-race-box--live";
+    live.setAttribute("data-live", "1");
+    live.textContent = "Live";
+    live.title = "Live race";
+    if (LIVE_Q) live.classList.add("is-active");
+    live.addEventListener("click", goLive);
+    host.appendChild(live);
   }
   bindRaceButtons(RACE_Q || 4);
   (function wireSiteHeader() {
@@ -45,6 +88,7 @@
   fetch("/js/lipton-dev-races.json?v=" + CACHE, { cache: "no-store" })
     .then(function (res) { return res.ok ? res.json() : null; })
     .then(function (meta) {
+      renderRaceBoxes(meta);
       if (!meta) return;
       (meta.races || []).forEach(function (r) {
         var btn = document.querySelector('#lipton-dev-races [data-race="' + r.n + '"]');
@@ -56,7 +100,7 @@
         btn.classList.toggle("is-unpacked", !r.packed);
       });
     })
-    .catch(function () {});
+    .catch(function () { renderRaceBoxes({ races: [] }); });
 
   function pad(n) {
     return n < 10 ? "0" + n : String(n);
@@ -115,6 +159,10 @@
     });
   }
 
+  if (LIVE_Q) {
+    var liveSailed = document.getElementById("lipton-dev-sailed");
+    if (liveSailed) liveSailed.textContent = "Live — waiting for the next race";
+  } else {
   Promise.all([
     fetch(DATA_URL, { cache: "no-store" }).then(function (res) {
       if (!res.ok) throw new Error("replay json " + res.status);
@@ -135,6 +183,7 @@
       }
       console.error(err);
     });
+  }
 
   function start(data, trail) {
     var PASSES = loadPasses(data);
