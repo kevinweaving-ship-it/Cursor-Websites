@@ -8,6 +8,7 @@ COPIES=(
   /usr/local/sbin/lipton_public_not_dev_watch.py
 )
 GOLDS=(
+  /root/lw-gold.py
   /root/lipton_public_not_dev_watch.py
   /var/lib/sailingsa-lipton/watch.py.gold
 )
