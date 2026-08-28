@@ -100,6 +100,8 @@ def serve_lipton_dev_playback_page(_request, public: bool = False):
     head, _sep, _play = out.partition("def serve_lipton_dev_playback_page")
     assert "public=True" not in head
     assert "allow_lipton_event" not in head
+    assert "lipton_public_watch_guard.sh" in mod.CRON_PUBLIC_BODY
+    assert "zzz-lipton-public-live" in str(mod.CRON_ZZZ)
     print("PASS watchdog strips public nginx alias, inserts public proxy, keeps -dev")
     return 0
 

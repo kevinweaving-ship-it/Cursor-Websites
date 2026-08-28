@@ -217,11 +217,48 @@ def fix_api(text: str) -> tuple[str, bool]:
     return text, changed
 
 
+CRON_PUBLIC = Path("/etc/cron.d/sailingsa-lipton-public-not-dev")
+CRON_ZZZ = Path("/etc/cron.d/zzz-lipton-public-live")
+CRON_PUBLIC_BODY = """# Lipton 2026: undo public-slug playback hijack (nginx + api.py).
+# Script no-ops except 27-29 Aug 2026. Does not run overnight restore.
+# Skips API restart if a real race is underway.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+* * * * * root /usr/local/lib/lipton_public_watch_guard.sh >/dev/null 2>&1; sleep 20; /usr/local/lib/lipton_public_watch_guard.sh >/dev/null 2>&1; sleep 20; /usr/local/lib/lipton_public_watch_guard.sh >/dev/null 2>&1
+"""
+CRON_ZZZ_BODY = "* * * * * root /usr/local/lib/lipton_public_watch_guard.sh >/dev/null 2>&1\n"
+
+
+def ensure_cron() -> bool:
+    """Rewrite deleted watchdog crons. PLAYBACK_LOCK often removes these files."""
+    changed = False
+    for path, body in ((CRON_PUBLIC, CRON_PUBLIC_BODY), (CRON_ZZZ, CRON_ZZZ_BODY)):
+        try:
+            cur = path.read_text(encoding="utf-8") if path.is_file() else ""
+        except Exception:
+            cur = ""
+        if cur != body:
+            try:
+                _write(path, body)
+                os.system(f"chmod 644 {path} >/dev/null 2>&1")
+                changed = True
+            except Exception:
+                pass
+        _chattr(path, True)
+    return changed
+
+
 def main() -> int:
     if not _event_day():
         return 0
     nginx_changed = False
     api_changed = False
+    try:
+        if ensure_cron():
+            _log("watchdog cron restored")
+    except Exception:
+        pass
+
     if NGINX.is_file():
         snippet_changed = ensure_snippet()
         raw = NGINX.read_text(encoding="utf-8")
