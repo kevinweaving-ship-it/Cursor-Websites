@@ -188,12 +188,6 @@ body[data-lipton-dev="1"] th.club-col,
 body[data-lipton-dev="1"] td.club-col { width: 56px; }
 body[data-lipton-dev="1"] th.boat-name-col,
 body[data-lipton-dev="1"] td.boat-name-col { min-width: 88px; }
-body[data-lipton-dev="1"] .lipton-dev-transport[aria-label="Map"] .lipton-dev-btn {
-  min-height: 26px;
-  min-width: 0;
-  padding: 0 7px;
-  font-size: 10px;
-}
 body[data-lipton-dev="1"] th.timer-col,
 body[data-lipton-dev="1"] td.timer-col {
   width: 52px;
@@ -342,11 +336,35 @@ body[data-lipton-dev="1"] .lipton-dev-track canvas {
 }
 body[data-lipton-dev="1"] .lipton-dev-hud {
   position: absolute;
-  top: 92px;
+  top: 88px;
   right: 10px;
   z-index: 4;
   width: min(228px, calc(100% - 20px));
   pointer-events: auto;
+}
+body[data-lipton-dev="1"] .lipton-dev-hud-map {
+  display: flex;
+  justify-content: flex-end;
+  align-items: stretch;
+  gap: 3px;
+  margin-bottom: 4px;
+}
+body[data-lipton-dev="1"] .lipton-dev-hud-chip {
+  min-height: 18px;
+  min-width: 0;
+  padding: 2px 6px;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.2;
+  border-radius: 3px;
+  border: 1px solid #38bdf8;
+  background: rgba(0, 31, 63, 0.55);
+  color: #ffffff;
+  cursor: pointer;
+}
+body[data-lipton-dev="1"] .lipton-dev-hud-chip.is-active {
+  background: rgba(0, 31, 63, 0.92);
+  color: #ffffff;
 }
 body[data-lipton-dev="1"] .lipton-dev-hud-row {
   display: flex;

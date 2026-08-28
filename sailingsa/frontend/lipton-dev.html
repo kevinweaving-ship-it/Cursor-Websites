@@ -6,8 +6,8 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Lipton Challenge Cup 2026 — playback (dev)</title>
   <link rel="stylesheet" href="/css/main.css">
-  <link rel="stylesheet" href="/js/vendor/leaflet/leaflet.css?v=20260828u">
-  <link rel="stylesheet" href="/css/lipton-dev.css?v=20260828u">
+  <link rel="stylesheet" href="/js/vendor/leaflet/leaflet.css?v=20260828v">
+  <link rel="stylesheet" href="/css/lipton-dev.css?v=20260828v">
   <script src="/js/api.js"></script>
   <script src="/js/session.js"></script>
 </head>
@@ -76,10 +76,6 @@
             <div class="sailed-line" id="lipton-dev-sailed">Loading tracker…</div>
             <div class="sailed-line" id="lipton-dev-checksum"></div>
             <div class="sailed-line" id="lipton-dev-clock">0:00</div>
-            <div class="lipton-dev-transport" role="group" aria-label="Map">
-              <button type="button" class="lipton-dev-btn is-active" data-map="follow" aria-pressed="true" title="Keep the whole fleet in view while the race replays">Keep in view</button>
-              <button type="button" class="lipton-dev-btn" data-map="free" aria-pressed="false" title="Pan and zoom the map yourself">Free</button>
-            </div>
           </div>
           <div class="class-header-club-logo-col">
             <a href="/class/j22" class="regatta-header-logo-link" title="Open J22 class page">
@@ -131,6 +127,10 @@
         <div id="lipton-dev-chart" role="img" aria-label="Satellite chart of Table Bay harbour"></div>
         <canvas id="lipton-dev-map" aria-label="GPS marks and tracks"></canvas>
         <div class="lipton-dev-hud" id="lipton-dev-hud">
+          <div class="lipton-dev-hud-map" role="group" aria-label="Map">
+            <button type="button" class="lipton-dev-hud-chip is-active" data-map="follow" aria-pressed="true" title="Keep the whole fleet in view while the race replays">Keep in view</button>
+            <button type="button" class="lipton-dev-hud-chip" data-map="free" aria-pressed="false" title="Pan and zoom the map yourself">Free</button>
+          </div>
           <div class="lipton-dev-hud-row">
             <a href="/" class="lipton-dev-hud-logo" title="SailingSA">
               <img src="/assets/logos/sailingsa-with-flags-below-nobg.png" alt="SailingSA">
@@ -148,8 +148,8 @@
     </div>
   </div>
 
-  <script src="/js/vendor/leaflet/leaflet.js?v=20260828u"></script>
+  <script src="/js/vendor/leaflet/leaflet.js?v=20260828v"></script>
   <script src="/js/blank-landing-header.js"></script>
-  <script src="/js/lipton-dev-playback.js?v=20260828u"></script>
+  <script src="/js/lipton-dev-playback.js?v=20260828v"></script>
 </body>
 </html>
