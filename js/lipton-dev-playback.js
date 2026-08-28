@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828bu";
+  var CACHE = "20260828bv";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = params.get("live") === "1";
@@ -1484,7 +1484,15 @@
       return n <= 1 ? base : base + "·" + n;
     }
     var lastHeadKey = "";
-    var marksDetailOpen = false;
+    var marksUserSet = false;
+    function isMobilePortrait() {
+      try {
+        return window.matchMedia("(max-width: 768px) and (orientation: portrait)").matches;
+      } catch (err) {
+        return false;
+      }
+    }
+    var marksDetailOpen = !isMobilePortrait();
     function passIsMark(p) {
       if (!p) return false;
       if (p.id === "ST" || p.label === "ST") return false;
@@ -1525,7 +1533,7 @@
       if (!headRow) return;
       if (limit == null) limit = PASSES.length - 1;
       var ts = viewTs;
-      var key = String(limit) + (showStCol(ts) ? "|ST" : "|noST") + (marksDetailOpen ? "|md1" : "|md0");
+      var key = String(limit) + (showStCol(ts) ? "|ST" : "|noST") + (marksDetailOpen ? "|md1" : "|md0") + (isMobilePortrait() ? "|mp" : "|dx");
       for (var i = 0; i < limit; i++) key += showDeltaAfter(i, ts, limit) ? "|d" : "|f";
       if (key === lastHeadKey) return;
       lastHeadKey = key;
@@ -1539,7 +1547,7 @@
         else if (p.id === "ST" || p.label === "ST") title = "Seconds after first legal start. OCS boats use the recross after they clear, not the OCS dip.";
         else if (passFolded(i, ts)) title = lab + " places vs previous mark";
         var twist = "";
-        if (passIsMark(p) && passFolded(i, ts)) {
+        if (passIsMark(p) && passFolded(i, ts) && isMobilePortrait()) {
           twist = "<button type=\"button\" class=\"ld-mark-twist\" data-mark-twist=\"1\" aria-expanded=\"" + (marksDetailOpen ? "true" : "false") + "\" title=\"" + (marksDetailOpen ? "Hide mark times" : "Show mark times") + "\" aria-label=\"" + (marksDetailOpen ? "Hide mark times" : "Show mark times") + "\">" + (marksDetailOpen ? "▾" : "▸") + "</button>";
         }
         html += "<th class=\"timer-col" + (passIsMark(p) ? " timer-col--mark" : "") + "\" title=\"" + esc(title) + "\"><span class=\"ld-mark-lab\">" + esc(lab) + "</span>" + twist + "</th>";
@@ -1782,7 +1790,7 @@
       if (isFin) {
         return "<td class=\"timer-col timer-col--folded\">" + time + deltaSpan(gained, flash) + "</td>";
       }
-      if (!marksDetailOpen) {
+      if (!isFin && !marksDetailOpen && isMobilePortrait()) {
         return "<td class=\"timer-col timer-col--num\">" + deltaSpan(gained, flash, true) + "</td>";
       }
       return "<td class=\"timer-col timer-col--folded\">" + time + deltaSpan(gained, flash) + "</td>";
@@ -2239,11 +2247,40 @@
         ev.preventDefault();
         ev.stopPropagation();
         marksDetailOpen = !marksDetailOpen;
+        marksUserSet = true;
         lastHeadKey = "";
         lastKey = "";
         render(viewTs);
       });
     }
+    try {
+      var mpMq = window.matchMedia("(max-width: 768px) and (orientation: portrait)");
+      function syncMarksViewport() {
+        if (!isMobilePortrait()) {
+          marksUserSet = false;
+          if (!marksDetailOpen) {
+            marksDetailOpen = true;
+            lastHeadKey = "";
+            lastKey = "";
+            render(viewTs);
+          } else {
+            lastHeadKey = "";
+            fillHead(visiblePassLimit(viewTs));
+          }
+        } else if (!marksUserSet && marksDetailOpen) {
+          marksDetailOpen = false;
+          lastHeadKey = "";
+          lastKey = "";
+          render(viewTs);
+        } else {
+          lastHeadKey = "";
+          fillHead(visiblePassLimit(viewTs));
+        }
+        if (chartMap) chartMap.invalidateSize({ animate: false });
+      }
+      if (mpMq.addEventListener) mpMq.addEventListener("change", syncMarksViewport);
+      else if (mpMq.addListener) mpMq.addListener(syncMarksViewport);
+    } catch (err) {}
     fillHead(0);
     setRateButtons();
     waitForTracker();

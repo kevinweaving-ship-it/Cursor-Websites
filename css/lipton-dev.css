@@ -801,3 +801,57 @@ body[data-lipton-dev="1"] .lipton-dev-btn:disabled {
     height: 24px;
   }
 }
+/* Phone landscape only. Coarse + short height keeps Mac / PC / tablet / MP out. */
+@media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) and (hover: none) {
+  html:has(body[data-lipton-dev="1"]),
+  body[data-lipton-dev="1"] {
+    overflow: auto;
+    height: auto;
+    min-height: 100dvh;
+  }
+  body[data-lipton-dev="1"] .site-header {
+    display: none;
+  }
+  body[data-lipton-dev="1"] .lipton-dev-shell {
+    overflow: visible;
+    height: auto;
+    max-height: none;
+    flex: 0 0 auto;
+    max-width: none;
+  }
+  body[data-lipton-dev="1"] .lipton-dev-subhead {
+    position: relative;
+    top: auto;
+    flex: 0 0 auto;
+  }
+  body[data-lipton-dev="1"] .lipton-dev-split {
+    display: flex;
+    flex-direction: column;
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+    height: auto;
+    overflow: visible;
+    flex: 0 0 auto;
+  }
+  body[data-lipton-dev="1"] .lipton-dev-track {
+    flex: 0 0 auto;
+    width: 100%;
+    height: 100dvh;
+    min-height: 100dvh;
+    max-height: 100dvh;
+  }
+  body[data-lipton-dev="1"] .lipton-dev-board {
+    flex: 0 0 auto;
+    width: 100%;
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+  body[data-lipton-dev="1"] .table-wrapper {
+    flex: 0 0 auto;
+    overflow: visible;
+    max-height: none;
+    height: auto;
+    overscroll-behavior: auto;
+  }
+}
