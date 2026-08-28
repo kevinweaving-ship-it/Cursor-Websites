@@ -142,8 +142,7 @@ def restore_watch_golds() -> bool:
 
 def _public_aliased(text: str) -> bool:
     # LIPTON_WATCH_ALIAS_ANY_V1 — public slug alias to any file is a hijack.
-    if PLAYBACK_LOCK in text or "LIPTON_NGINX_PUBLIC_ALIAS" in text:
-        return True
+    # Do not scan the whole file for ALIAS comments: leftovers caused a reload storm.
     for m in re.finditer(
         r"location = /regatta/" + re.escape(RID) + r"(?:/)?(?!-)\s*\{([^{}]*)\}",
         text,
@@ -151,6 +150,8 @@ def _public_aliased(text: str) -> bool:
     ):
         body = m.group(1)
         if "alias" in body or "lipton-dev.html" in body:
+            return True
+        if "LIPTON_NGINX_PUBLIC_ALIAS" in body or "LIPTON_NGINX_PUBLIC_COPY" in body:
             return True
     return False
 
@@ -170,15 +171,21 @@ def _public_slug_proxied(text: str) -> bool:
 
 
 def fix_nginx(text: str) -> tuple[str, int]:
-    if (
-        _public_slug_proxied(text)
-        and "include /etc/nginx/snippets/lipton-public-proxy.conf" not in text
-        and PLAYBACK_LOCK not in text
-        and "LIPTON_NGINX_PUBLIC_ALIAS" not in text
-    ):
-        return text, 0
     n = 0
-    new = text
+    new, nc = re.subn(
+        r"[ \t]*# LIPTON_NGINX_PUBLIC_(ALIAS|COPY)_[^\n]*\n",
+        "",
+        text,
+    )
+    if nc:
+        n += nc
+    if (
+        _public_slug_proxied(new)
+        and "include /etc/nginx/snippets/lipton-public-proxy.conf" not in new
+        and PLAYBACK_LOCK not in new
+    ):
+        return new, n
+
     new, n1 = PUB_ALIAS.subn("", new)
     n += n1
     new2, n2 = PUB_LOC.subn("", new)

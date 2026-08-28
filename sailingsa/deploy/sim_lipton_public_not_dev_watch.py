@@ -173,6 +173,38 @@ def main() -> int:
     assert ngx_v2n >= 1
     assert "proxy_pass http://127.0.0.1:8000" in ngx_v2
     assert "lipton-new-dev.html" not in ngx_v2
+    leftover = """
+    # LIPTON_NGINX_PUBLIC_ALIAS_V3 public + -dev both serve lipton-dev.html playback.
+    location = /regatta/2026-08-29-lipton-challenge-cup-dev {
+        alias /var/www/sailingsa/lipton-dev.html;
+    }
+    location = /regatta/2026-08-29-lipton-challenge-cup {
+        # LIPTON_NGINX_PUBLIC_PROXY_V1
+        proxy_pass http://127.0.0.1:8000;
+    }
+"""
+    assert mod._public_aliased(leftover) is False
+    left_new, left_n = mod.fix_nginx(leftover)
+    assert "LIPTON_NGINX_PUBLIC_ALIAS" not in left_new
+    assert "proxy_pass" in left_new
+    assert left_n >= 1
+    assert left_new.count("alias /var/www/sailingsa/lipton-dev.html") == 1
+    copyv1 = """
+    location = /regatta/2026-08-29-lipton-challenge-cup-dev {
+        alias /var/www/sailingsa/lipton-dev.html;
+    }
+    location = /regatta/2026-08-29-lipton-challenge-cup {
+        # LIPTON_NGINX_PUBLIC_COPY_V1 — verbatim copy of -dev (lipton-public.html)
+        default_type text/html;
+        alias /var/www/sailingsa/lipton-public.html;
+        add_header X-Lipton-Page "public-copy-of-dev" always;
+    }
+"""
+    assert mod._public_aliased(copyv1) is True
+    cnew, cn = mod.fix_nginx(copyv1)
+    assert cn >= 1
+    assert "lipton-public.html" not in cnew
+    assert "proxy_pass http://127.0.0.1:8000" in cnew
 
     stub = "[Service]\nExecStart=/bin/true\nDescription=disabled — must not restore old Lipton event page\n"
     assert mod._unit_is_stub(stub) is True

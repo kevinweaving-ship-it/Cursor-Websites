@@ -315,8 +315,7 @@ def ensure_snippet() -> bool:
 
 def _public_aliased(text: str) -> bool:
     # LIPTON_WATCH_ALIAS_ANY_V1 — public slug alias to any file is a hijack.
-    if PLAYBACK_LOCK in text or "LIPTON_NGINX_PUBLIC_ALIAS" in text:
-        return True
+    # Do not scan the whole file for ALIAS comments: leftovers caused a reload storm.
     for m in re.finditer(
         r"location = /regatta/" + re.escape(RID) + r"(?:/)?(?!-)\s*\{([^{}]*)\}",
         text,
@@ -324,6 +323,8 @@ def _public_aliased(text: str) -> bool:
     ):
         body = m.group(1)
         if "alias" in body or "lipton-dev.html" in body:
+            return True
+        if "LIPTON_NGINX_PUBLIC_ALIAS" in body or "LIPTON_NGINX_PUBLIC_COPY" in body:
             return True
     return False
 
@@ -394,15 +395,21 @@ DEV_LOC = re.compile(
 
 
 def fix_nginx(text: str) -> tuple[str, int]:
-    if (
-        _public_slug_proxied(text)
-        and "include /etc/nginx/snippets/lipton-public-proxy.conf" not in text
-        and PLAYBACK_LOCK not in text
-        and "LIPTON_NGINX_PUBLIC_ALIAS" not in text
-    ):
-        return text, 0
     n = 0
-    new = text
+    new, nc = re.subn(
+        r"[ \t]*# LIPTON_NGINX_PUBLIC_(ALIAS|COPY)_[^\n]*\n",
+        "",
+        text,
+    )
+    if nc:
+        n += nc
+    if (
+        _public_slug_proxied(new)
+        and "include /etc/nginx/snippets/lipton-public-proxy.conf" not in new
+        and PLAYBACK_LOCK not in new
+    ):
+        return new, n
+
     new, n1 = PUB_ALIAS.subn("", new)
     n += n1
     new2, n2 = PUB_LOC.subn("", new)
@@ -859,7 +866,12 @@ def main() -> int:
                 else:
                     board = _origin_board_state()
                 must_reload = _nginx_must_reload(board, aliased, had_include)
-                if must_reload:
+                if must_reload and _seconds_since_nginx_reload() < 3:
+                    _log(
+                        f"nginx public proxy locked n={n} snippet={snippet_changed} "
+                        f"reload=0 debounce board={board}"
+                    )
+                elif must_reload:
                     subprocess.check_call(["nginx", "-s", "reload"])
                     _mark_nginx_reload()
                     _log(
