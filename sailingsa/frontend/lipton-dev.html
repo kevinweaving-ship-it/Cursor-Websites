@@ -6,8 +6,8 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Lipton Challenge Cup 2026 — playback (dev)</title>
   <link rel="stylesheet" href="/css/main.css">
-  <link rel="stylesheet" href="/js/vendor/leaflet/leaflet.css?v=20260828s">
-  <link rel="stylesheet" href="/css/lipton-dev.css?v=20260828s">
+  <link rel="stylesheet" href="/js/vendor/leaflet/leaflet.css?v=20260828t">
+  <link rel="stylesheet" href="/css/lipton-dev.css?v=20260828t">
   <script src="/js/api.js"></script>
   <script src="/js/session.js"></script>
 </head>
@@ -76,19 +76,6 @@
             <div class="sailed-line" id="lipton-dev-sailed">Loading tracker…</div>
             <div class="sailed-line" id="lipton-dev-checksum"></div>
             <div class="sailed-line" id="lipton-dev-clock">0:00</div>
-            <div class="lipton-dev-transport" role="group" aria-label="Replay speed">
-              <button type="button" class="lipton-dev-btn" id="lipton-dev-play" disabled>Wait</button>
-              <button type="button" class="lipton-dev-btn" id="lipton-dev-sound" aria-pressed="false" title="Enable start and recall horns on this phone">Sound</button>
-              <button type="button" class="lipton-dev-btn" data-jump="pre">T−10</button>
-              <button type="button" class="lipton-dev-btn" data-jump="gun">Gun</button>
-              <button type="button" class="lipton-dev-btn" data-jump="finish">End</button>
-              <button type="button" class="lipton-dev-btn is-active" data-rate="1">1×</button>
-              <button type="button" class="lipton-dev-btn" data-rate="2">2×</button>
-              <button type="button" class="lipton-dev-btn" data-rate="5">5×</button>
-              <button type="button" class="lipton-dev-btn" data-rate="10">10×</button>
-              <button type="button" class="lipton-dev-btn" data-rate="25">25×</button>
-              <button type="button" class="lipton-dev-btn" data-rate="50">50×</button>
-            </div>
             <div class="lipton-dev-transport" role="group" aria-label="Map">
               <button type="button" class="lipton-dev-btn is-active" data-map="follow" aria-pressed="true" title="Keep the whole fleet in view while the race replays">Keep in view</button>
               <button type="button" class="lipton-dev-btn" data-map="free" aria-pressed="false" title="Pan and zoom the map yourself">Free</button>
@@ -142,12 +129,26 @@
       <div class="lipton-dev-track">
         <div id="lipton-dev-chart" role="img" aria-label="Satellite chart of Table Bay harbour"></div>
         <canvas id="lipton-dev-map" aria-label="GPS marks and tracks"></canvas>
+        <div class="lipton-dev-hud" id="lipton-dev-hud">
+          <div class="lipton-dev-hud-row">
+            <a href="/" class="lipton-dev-hud-logo" title="SailingSA">
+              <img src="/assets/logos/sailingsa-with-flags-below-nobg.png" alt="SailingSA">
+            </a>
+            <button type="button" class="lipton-dev-btn" id="lipton-dev-play" disabled title="Play">▶</button>
+            <button type="button" class="lipton-dev-btn" data-jump="pre" title="Jump to T−5">T−5</button>
+            <button type="button" class="lipton-dev-btn" id="lipton-dev-slower" title="Slower">‹</button>
+            <span class="lipton-dev-hud-rate" id="lipton-dev-rate">1×</span>
+            <button type="button" class="lipton-dev-btn" id="lipton-dev-faster" title="Faster">›</button>
+            <button type="button" class="lipton-dev-btn" id="lipton-dev-sound" aria-pressed="false" title="Enable start and recall horns">♪</button>
+          </div>
+          <input type="range" class="lipton-dev-scrub" id="lipton-dev-scrub" min="0" max="1000" value="0" aria-label="Race position">
+        </div>
       </div>
     </div>
   </div>
 
-  <script src="/js/vendor/leaflet/leaflet.js?v=20260828s"></script>
+  <script src="/js/vendor/leaflet/leaflet.js?v=20260828t"></script>
   <script src="/js/blank-landing-header.js"></script>
-  <script src="/js/lipton-dev-playback.js?v=20260828s"></script>
+  <script src="/js/lipton-dev-playback.js?v=20260828t"></script>
 </body>
 </html>

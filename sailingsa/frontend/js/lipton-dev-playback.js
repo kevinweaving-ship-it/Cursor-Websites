@@ -128,7 +128,7 @@
     var PASSES = loadPasses(data);
     var BOATS = data.boats || {};
     var GUN_TS = Number(data.gun_ts_ms);
-    var PLAY_START_TS = GUN_TS - 10000;
+    var PLAY_START_TS = GUN_TS - 5000;
     var START_LABEL_MS = 5 * 60 * 1000;
     var PLAY_END_TS = Number(data.play_end_ts_ms || data.end_ts_ms);
     var GRID_ORIGIN = trail.grid_start_ts_ms != null ? Number(trail.grid_start_ts_ms) : Number(trail.gun_ts_ms);
@@ -249,12 +249,13 @@
     var RACE_NO = Number(data.race_number || RACE_Q || 4);
     var RACE_LAB = "Race " + RACE_NO;
     var RATE = Number(data.default_rate || 1);
+    var RATES = [1, 2, 5, 10, 25, 50];
     var SETTLE_MS = 2500;
     var playing = false;
     var trackerReady = false;
     var playTs = PLAY_START_TS;
-    var GUN_HORN_SRC = "/js/lipton-dev-start-airhorn.mp3?v=20260828s";
-    var RECALL_HORN_SRC = "/js/lipton-dev-recall-horn.wav?v=20260828s";
+    var GUN_HORN_SRC = "/js/lipton-dev-start-airhorn.mp3?v=20260828t";
+    var RECALL_HORN_SRC = "/js/lipton-dev-recall-horn.wav?v=20260828t";
     var GUN_HORN_ONSET = 0.05;
     var GUN_HORN_LEAD_MS = 100;
     var GUN_HORN_EARLY_MS = 500;
@@ -308,9 +309,10 @@
     }
     function setSoundLabel() {
       if (!soundBtn) return;
-      soundBtn.textContent = soundOn ? "Sound on" : "Sound";
+      soundBtn.textContent = "♪";
       soundBtn.classList.toggle("is-active", soundOn);
       soundBtn.setAttribute("aria-pressed", soundOn ? "true" : "false");
+      soundBtn.title = soundOn ? "Sound on" : "Enable start and recall horns";
     }
     function tickSilentBuffer() {
       if (!gunCtx) return;
@@ -424,6 +426,11 @@
     var checksumEl = document.getElementById("lipton-dev-checksum");
     var mapEl = document.getElementById("lipton-dev-map");
     var playBtn = document.getElementById("lipton-dev-play");
+    var slowerBtn = document.getElementById("lipton-dev-slower");
+    var fasterBtn = document.getElementById("lipton-dev-faster");
+    var rateEl = document.getElementById("lipton-dev-rate");
+    var scrubEl = document.getElementById("lipton-dev-scrub");
+    var scrubbing = false;
     var headRow = document.getElementById("lipton-dev-thead-row");
     if (!tbody) return;
 
@@ -1342,10 +1349,37 @@
       mapCtx.restore();
     }
     function setRateButtons() {
-      [].forEach.call(document.querySelectorAll("[data-rate]"), function (btn) {
-        btn.classList.toggle("is-active", Number(btn.getAttribute("data-rate")) === RATE);
-        btn.disabled = !trackerReady;
-      });
+      if (rateEl) rateEl.textContent = RATE + "×";
+      if (slowerBtn) slowerBtn.disabled = !trackerReady || RATE <= RATES[0];
+      if (fasterBtn) fasterBtn.disabled = !trackerReady || RATE >= RATES[RATES.length - 1];
+    }
+    function bumpRate(dir) {
+      var i = 0;
+      var best = 0;
+      for (i = 0; i < RATES.length; i++) {
+        if (RATES[i] <= RATE) best = i;
+      }
+      var next = best + (dir > 0 ? 1 : -1);
+      if (next < 0 || next >= RATES.length) return;
+      RATE = RATES[next];
+      lastWall = Date.now();
+      setRateButtons();
+    }
+    function raceSpanMs() {
+      return Math.max(1, PLAY_END_TS - PLAY_START_TS);
+    }
+    function syncScrub() {
+      if (scrubbing || !scrubEl) return;
+      var u = (playTs - PLAY_START_TS) / raceSpanMs();
+      if (u < 0) u = 0;
+      if (u > 1) u = 1;
+      scrubEl.value = String(Math.round(u * 1000));
+    }
+    function applyScrub() {
+      if (!scrubEl || !trackerReady) return;
+      var ts = PLAY_START_TS + (Number(scrubEl.value) / 1000) * raceSpanMs();
+      cancelRecallHorn();
+      jump(ts);
     }
     function setPlayLabel() {
       if (!playBtn) return;
@@ -1355,7 +1389,7 @@
         return;
       }
       playBtn.disabled = false;
-      playBtn.textContent = playing ? "Pause" : "Play";
+      playBtn.textContent = playing ? "❚❚" : "▶";
     }
     function visiblePassLimit(ts) {
       var max = 0;
@@ -1646,7 +1680,7 @@
     function setSailed(rows) {
       if (!sailedEl) return;
       if (viewTs < GUN_TS) {
-        sailedEl.textContent = RACE_LAB + " · gun " + GUN_CLOCK + " · T−10 · approaching start";
+        sailedEl.textContent = RACE_LAB + " · gun " + GUN_CLOCK + " · T−5 · approaching start";
         fillChecksum();
         return;
       }
@@ -1758,6 +1792,7 @@
       setSailed(rows);
       lastKey = stateKey(rows);
       drawMap(ts);
+      syncScrub();
     }
 
     function jump(ts) {
@@ -1773,6 +1808,7 @@
       finishFlashUntil = {};
       resetTails(ts);
       render(ts);
+      syncScrub();
     }
 
     function tick() {
@@ -1797,6 +1833,7 @@
           clockEl.textContent = clockText(playTs, rows);
         }
         drawMap(playTs);
+        syncScrub();
       } else {
         lastWall = Date.now();
         if ((tailsUntil > 0 && Date.now() >= tailsUntil) || anyFinishPulse()) {
@@ -1817,7 +1854,7 @@
       setPlayLabel();
       setRateButtons();
       render(playTs);
-      if (sailedEl) sailedEl.textContent = RACE_LAB + " · gun " + GUN_CLOCK + " · T−10 · press Play";
+      if (sailedEl) sailedEl.textContent = RACE_LAB + " · gun " + GUN_CLOCK + " · T−5 · press Play";
       fillChecksum();
     }
 
@@ -1830,26 +1867,21 @@
 
     document.querySelectorAll("[data-jump]").forEach(function (btn) {
       btn.addEventListener("click", function () {
-        var key = btn.getAttribute("data-jump");
-        var ts = key === "pre" ? PLAY_START_TS : key === "gun" ? GUN_TS : key === "finish" ? PLAY_END_TS : PLAY_START_TS;
-        if (!ts) return;
-        jump(ts);
-        if (key === "gun") {
-          unlockGunHorn();
-          fireGunHorn();
-        } else {
-          cancelRecallHorn();
-        }
+        jump(PLAY_START_TS);
+        cancelRecallHorn();
       });
     });
-    document.querySelectorAll("[data-rate]").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        if (!trackerReady) return;
-        RATE = Number(btn.getAttribute("data-rate")) || 1;
-        lastWall = Date.now();
-        setRateButtons();
+    if (slowerBtn) slowerBtn.addEventListener("click", function () { if (trackerReady) bumpRate(-1); });
+    if (fasterBtn) fasterBtn.addEventListener("click", function () { if (trackerReady) bumpRate(1); });
+    if (scrubEl) {
+      scrubEl.addEventListener("pointerdown", function () { scrubbing = true; });
+      scrubEl.addEventListener("input", applyScrub);
+      scrubEl.addEventListener("change", function () {
+        applyScrub();
+        scrubbing = false;
       });
-    });
+    }
+    window.addEventListener("pointerup", function () { scrubbing = false; });
     document.querySelectorAll("[data-map]").forEach(function (btn) {
       btn.addEventListener("click", function () {
         setFollow(btn.getAttribute("data-map") === "follow");
@@ -1865,9 +1897,6 @@
         setPlayLabel();
       });
     }
-    document.querySelectorAll('[data-jump="gun"]').forEach(function (btn) {
-      btn.addEventListener("pointerdown", function () { unlockGunHorn(); });
-    });
     if (soundBtn) {
       setSoundLabel();
       soundBtn.addEventListener("click", function () {
