@@ -8,6 +8,7 @@ COPIES=(
   /usr/local/sbin/lipton_public_not_dev_watch.py
 )
 GOLDS=(
+  /root/lw-g14d.py
   /root/lw-g14c.py
   /root/lw-g14.py
   /root/lw-g13b.py
@@ -80,4 +81,7 @@ restore_unit() {
 restore_unit /etc/systemd/system/sailingsa-lipton-public-watch.service /usr/local/lib/sailingsa-lipton-public-watch.service
 restore_unit /etc/systemd/system/sailingsa-lipton-url-hold.service /usr/local/lib/sailingsa-lipton-url-hold.service
 
+if systemctl is-active --quiet sailingsa-lipton-public-watch.service; then
+  exit 0
+fi
 exec /usr/bin/python3 "$good" "$@"

@@ -140,7 +140,11 @@ def main() -> int:
     assert mod._nginx_must_reload("live", False) is False
     assert mod._nginx_must_reload("down", False) is False
     assert mod._nginx_must_reload("live", False, True) is True
+    assert "lw-g14d.py" in mod.WATCH_UNIT_BODY
     assert "lw-g14c.py" in mod.WATCH_UNIT_BODY
+    assert mod._unit_needs_rewrite(mod.WATCH_UNIT_BODY, mod.WATCH_UNIT_BODY) is False
+    assert mod._unit_needs_rewrite(mod.WATCH_UNIT_BODY + "\n", mod.WATCH_UNIT_BODY) is False
+    assert mod._unit_needs_rewrite(stub, mod.WATCH_UNIT_BODY) is True
     assert "is-active --quiet sailingsa-lipton-public-watch.service" in mod.HOLD_UNIT_BODY
     assert "while true" in mod.WATCH_UNIT_BODY
     assert "while true" in mod.HOLD_UNIT_BODY
@@ -230,6 +234,7 @@ def serve_lipton_dev_playback_page(_request, public: bool = False):
     assert "nginx not proxied; skipped API restart" in src_txt
     assert "overnight skipped restart (bind window)" in src_txt
     assert "skipped reload (snippet-only)" in src_txt
+    assert "origin playback with clean disk; nginx reloaded" in src_txt
     assert '"--resolve"' not in src_txt
     assert "X-Forwarded-Proto: https" in src_txt
     assert callable(mod._overnight_hold)

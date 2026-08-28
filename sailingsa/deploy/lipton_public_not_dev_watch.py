@@ -285,6 +285,15 @@ def _public_aliased(text: str) -> bool:
     return False
 
 
+def _unit_needs_rewrite(cur: str, body: str) -> bool:
+    """Only rewrite stub/oneshot units. Do not restart a good --loop unit."""
+    if cur == body:
+        return False
+    if not _unit_is_stub(cur) and "--loop" in cur and "while true" in cur:
+        return False
+    return True
+
+
 def _nginx_must_reload(board: str, aliased_on_disk: bool, had_include: bool = False) -> bool:
     """Reload as soon as a public-slug alias or snippet include is on disk."""
     if aliased_on_disk or had_include:
@@ -407,8 +416,8 @@ CRON_HOLD_BODY = "* * * * * root /usr/local/lib/lipton_public_watch_guard.sh >/d
 WATCH_UNIT = Path("/etc/systemd/system/sailingsa-lipton-public-watch.service")
 HOLD_UNIT = Path("/etc/systemd/system/sailingsa-lipton-url-hold.service")
 GOLD_PY = (
-    "/root/lw-g14c.py /root/lw-g14.py /root/lw-g13b.py /root/lw-gold13.py /root/lw-gold7.py "
-    "/root/lw-gold6.py /root/lw-gold5.py "
+    "/root/lw-g14d.py /root/lw-g14c.py /root/lw-g14.py /root/lw-g13b.py /root/lw-gold13.py "
+    "/root/lw-gold7.py /root/lw-gold6.py /root/lw-gold5.py "
     "/usr/local/lib/lipton_public_not_dev_watch.py /usr/local/sbin/lipton_public_not_dev_watch.py"
 )
 WATCH_LOOP = (
@@ -463,6 +472,7 @@ COPIES=(
   /usr/local/sbin/lipton_public_not_dev_watch.py
 )
 GOLDS=(
+  /root/lw-g14d.py
   /root/lw-g14c.py
   /root/lw-g14.py
   /root/lw-g13b.py
@@ -535,6 +545,9 @@ restore_unit() {
 restore_unit /etc/systemd/system/sailingsa-lipton-public-watch.service /usr/local/lib/sailingsa-lipton-public-watch.service
 restore_unit /etc/systemd/system/sailingsa-lipton-url-hold.service /usr/local/lib/sailingsa-lipton-url-hold.service
 
+if systemctl is-active --quiet sailingsa-lipton-public-watch.service; then
+  exit 0
+fi
 exec /usr/bin/python3 "$good" "$@"
 '''
 
@@ -591,6 +604,9 @@ def _ensure_unit_file(path: Path, body: str, unit_name: str) -> bool:
     except Exception:
         cur = ""
     if cur == body:
+        _chattr(path, True)
+        return False
+    if not _unit_needs_rewrite(cur, body):
         _chattr(path, True)
         return False
     try:
@@ -721,6 +737,12 @@ def main() -> int:
         else:
             _chattr(NGINX, True)
             _chattr(SNIPPET, True)
+            if _seconds_since_nginx_reload() >= 3:
+                board = _origin_board_state()
+                if board == "playback":
+                    subprocess.check_call(["nginx", "-s", "reload"])
+                    _mark_nginx_reload()
+                    _log("origin playback with clean disk; nginx reloaded")
     if API.is_file():
         raw = API.read_text(encoding="utf-8")
         new, changed = fix_api(raw)
