@@ -431,6 +431,13 @@ def main() -> int:
                         subprocess.check_call(["systemctl", "restart", "sailingsa-api"])
                         _mark_api_restart()
                         _log(f"api.py hijack stripped; sailingsa-api restarted board={board}")
+        elif not _race_underway():
+            board = _origin_board_state()
+            if board == "playback" and _seconds_since_api_restart() >= 20:
+                subprocess.check_call(["systemctl", "restart", "sailingsa-api"])
+                _mark_api_restart()
+                _log("origin playback with clean disk; sailingsa-api restarted")
+                api_changed = True
     if not nginx_changed and not api_changed:
         return 0
     return 0
