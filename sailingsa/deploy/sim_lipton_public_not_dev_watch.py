@@ -256,6 +256,7 @@ def main() -> int:
     assert "cron_lipton_schedule_poll.sh" in mod.CRON_SCHED_BODY
     assert "cron_lipton_schedule_poll.sh" in ngxmod.CRON_SCHED_BODY
     assert callable(ngxmod.restore_schedule_cron)
+    assert "dst.stat().st_size >= len(data)" in ngx_path.read_text(encoding="utf-8")
     assert "lipton_ngx_public_restore.py" in mod.GUARD_BODY
     assert callable(mod.ensure_guard)
     assert callable(mod.ensure_ngx_restore)

@@ -137,7 +137,7 @@ def restore_watch_golds() -> bool:
     data = src.read_bytes()
     changed = False
     for dst in WATCH_DSTS:
-        if _watch_gold_ok(dst):
+        if _watch_gold_ok(dst) and dst.stat().st_size >= len(data):
             _chattr(dst, True)
             continue
         try:
