@@ -43,9 +43,11 @@
     });
     var extra = doc.createElement("style");
     extra.textContent = [
+      "html{zoom:0.7;}",
       "html,body{margin:0;padding:0;background:#fff;overflow-x:hidden;}",
       ".regatta-page,.header,.class-header,.fleet-section,.table-wrapper{width:100%!important;max-width:100%!important;margin-left:0!important;margin-right:0!important;box-sizing:border-box;}",
       ".regatta-page{padding:8px 10px 12px;background:#fff!important;}",
+      ".header,.class-header{background:#fff!important;}",
       ".header{margin-bottom:0!important;}",
       ".fleet-section{margin-top:20px!important;}",
       ".table-wrapper{margin-top:20px!important;}",
@@ -65,7 +67,8 @@
     try { doc = iframe.contentDocument; } catch (err) { return; }
     if (!doc) return;
     var page = doc.querySelector(".regatta-page") || doc.body;
-    var h = Math.ceil(Math.max(page.scrollHeight || 0, page.offsetHeight || 0, 160));
+    var box = page.getBoundingClientRect();
+    var h = Math.ceil(box.height || 160);
     iframe.style.height = h + "px";
   }
   function paint(html) {
