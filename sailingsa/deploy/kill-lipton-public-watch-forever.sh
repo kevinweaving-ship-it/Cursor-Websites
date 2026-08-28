@@ -20,9 +20,12 @@ pkill -f lipton_public_watch_guard 2>/dev/null || true
 pkill -f lipton_public_not_dev 2>/dev/null || true
 pkill -f lipton_apply_nginx_public_proxy 2>/dev/null || true
 pkill -f 'while true; do /usr/local/lib/lipton_public_watch_guard' 2>/dev/null || true
+pkill -f /var/lib/sailingsa-lipton/watch.py 2>/dev/null || true
+pkill -f /root/lw-gold.py 2>/dev/null || true
 sleep 1
 pkill -9 -f lipton_public_watch_guard 2>/dev/null || true
 pkill -9 -f lipton_public_not_dev 2>/dev/null || true
+pkill -9 -f /var/lib/sailingsa-lipton/watch.py 2>/dev/null || true
 
 mkdir -p /root/disabled-lipton-not-dev
 
@@ -49,18 +52,29 @@ while IFS= read -r f; do
     *) stub "$f" sh ;;
   esac
 done <<'LIST'
+# Gold copies the guard uses to resurrect itself
+/root/lw-gold.py
+/root/lipton_public_not_dev_watch.py
+/usr/local/lib/lipton_public_not_dev_watch.py
 /usr/local/lib/lipton_public_watch_guard.sh
 /usr/local/sbin/lipton_public_not_dev_watch.py
 /usr/local/sbin/lipton_apply_nginx_public_proxy_once.py
+/var/lib/sailingsa-lipton/watch.py
+/var/lib/sailingsa-lipton/watch.py.gold
 /tmp/lipton_public_not_dev_watch.py
 /tmp/lipton_hold_check.py
 LIST
 
 find /usr/local/sbin /usr/local/lib /tmp /root -maxdepth 2 -type f \( \
-  -name '*lipton*public*watch*' -o -name '*lipton*public*proxy*' -o -name '*public_not_dev*' \
+    -name '*lipton*public*watch*' -o -name '*lipton*public*proxy*' -o -name '*public_not_dev*' \
   \) 2>/dev/null | while read -r f; do
   case "$f" in
     /root/disabled-lipton-not-dev/*) continue ;;
+    *kill-lipton-public-watch*) continue ;;
+    *restore-playback*) continue ;;
+    *keep-playback*) continue ;;
+    *force_lipton_nginx*) continue ;;
+    *patch_lipton_public*) continue ;;
     *.py) stub "$f" py ;;
     *.sh) stub "$f" sh ;;
   esac
@@ -87,6 +101,21 @@ UNIT
 done
 systemctl daemon-reload 2>/dev/null || true
 systemctl mask sailingsa-lipton-public-watch.service 2>/dev/null || true
+rm -f /etc/systemd/system/nginx.service.wants/sailingsa-lipton-public-watch.service \
+      /etc/systemd/system/multi-user.target.wants/sailingsa-lipton-public-watch.service \
+      /etc/systemd/system/sailingsa-api.service.wants/sailingsa-lipton-public-watch.service 2>/dev/null || true
+
+# Watcher rewrites these cron files and unmasks systemd
+for c in /etc/cron.d/sailingsa-lipton-public-not-dev /etc/cron.d/zzz-lipton-public-live; do
+  chattr -i "$c" 2>/dev/null || true
+  if [ -f "$c" ]; then
+    cp -a "$c" /root/disabled-lipton-not-dev/ 2>/dev/null || true
+  fi
+  printf '# disabled — must not restore old Lipton event page\n' > "$c"
+  chmod 644 "$c"
+  chattr +i "$c" 2>/dev/null || true
+  echo "stubbed cron $c"
+done
 
 echo '=== remaining processes ==='
 ps aux | grep -Ei 'lipton_public|public_not_dev|public_watch' | grep -v grep || echo none
