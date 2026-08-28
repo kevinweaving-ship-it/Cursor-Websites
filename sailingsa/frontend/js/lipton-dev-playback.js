@@ -253,10 +253,11 @@
     var playing = false;
     var trackerReady = false;
     var playTs = PLAY_START_TS;
-    var GUN_HORN_SRC = "/js/lipton-dev-start-airhorn.mp3?v=20260828p";
-    var RECALL_HORN_SRC = "/js/lipton-dev-recall-horn.wav?v=20260828p";
+    var GUN_HORN_SRC = "/js/lipton-dev-start-airhorn.mp3?v=20260828q";
+    var RECALL_HORN_SRC = "/js/lipton-dev-recall-horn.wav?v=20260828q";
     var GUN_HORN_ONSET = 0.05;
     var GUN_HORN_LEAD_MS = 100;
+    var GUN_HORN_EARLY_MS = 500;
     var gunHorn = null;
     var recallHorn = null;
     var gunCtx = null;
@@ -1737,7 +1738,7 @@
         var prevTs = playTs;
         playTs += (now - lastWall) * RATE;
         lastWall = now;
-        var gunAt = GUN_TS - GUN_HORN_LEAD_MS * (RATE > 0 ? RATE : 1);
+        var gunAt = GUN_TS - GUN_HORN_EARLY_MS - GUN_HORN_LEAD_MS * (RATE > 0 ? RATE : 1);
         if (prevTs < gunAt && playTs >= gunAt) fireGunHorn();
         if (playTs > PLAY_END_TS) {
           playTs = PLAY_END_TS;
