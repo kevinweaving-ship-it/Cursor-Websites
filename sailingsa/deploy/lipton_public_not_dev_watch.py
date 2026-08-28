@@ -131,6 +131,7 @@ def _race_underway() -> bool:
 
 
 RESTART_STAMP = Path("/var/tmp/lipton_watch_api_restart")
+STRIP_STAMP = Path("/var/tmp/lipton_watch_api_strip")
 
 
 def _seconds_since_api_restart() -> float:
@@ -147,37 +148,52 @@ def _mark_api_restart() -> None:
         pass
 
 
-def _origin_board_state() -> str:
-    """live, playback, or down. Probe nginx→API on loopback so CDN 502s do not count."""
-    out = Path("/tmp/lipton_watch_probe.html")
+def _seconds_since_api_strip() -> float:
     try:
-        subprocess.run(
+        return time.time() - STRIP_STAMP.stat().st_mtime
+    except Exception:
+        return 10**9
+
+
+def _mark_api_strip() -> None:
+    try:
+        STRIP_STAMP.write_text(str(time.time()), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def _origin_board_state() -> str:
+    """live, playback, or down. Probe nginx→API on loopback; use size only (no 400k download)."""
+    try:
+        p = subprocess.run(
             [
                 "curl",
                 "-sk",
                 "--max-time",
-                "10",
+                "8",
                 "-o",
-                str(out),
+                "/dev/null",
+                "-w",
+                "%{http_code} %{size_download}",
                 "--resolve",
                 "sailingsa.co.za:443:127.0.0.1",
                 f"https://sailingsa.co.za/regatta/{RID}",
             ],
             check=False,
-            timeout=12,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            timeout=10,
+            capture_output=True,
+            text=True,
         )
-        b = out.read_bytes() if out.is_file() else b""
+        parts = (p.stdout or "").strip().split()
+        code = parts[0] if parts else "000"
+        size = int(parts[1]) if len(parts) > 1 else 0
     except Exception:
         return "down"
-    if b"data-lipton-dev" in b:
-        return "playback"
-    if b"regatta-page" in b and len(b) > 50000:
+    if size > 50000 and code == "200":
         return "live"
-    if b"Bad Gateway" in b or len(b) < 500:
+    if code in ("502", "503", "000") or size < 500:
         return "down"
-    if b"regatta-page" not in b and 500 < len(b) < 20000:
+    if 500 <= size < 20000:
         return "playback"
     return "down"
 
@@ -373,29 +389,32 @@ def main() -> int:
         raw = API.read_text(encoding="utf-8")
         new, changed = fix_api(raw)
         if changed:
-            _write(API, new)
-            py = PY if Path(PY).is_file() else sys.executable
-            chk = subprocess.run([py, "-m", "py_compile", str(API)], capture_output=True, text=True)
-            if chk.returncode != 0:
-                _write(API, raw)
-                _log("api.py compile failed; reverted")
-                return 1
-            os.system("chown www-data:www-data /var/www/sailingsa/api/api.py >/dev/null 2>&1")
-            api_changed = True
-            if _race_underway():
-                _log("api.py hijack stripped; skipped restart (race underway)")
+            if _seconds_since_api_strip() < 8:
+                _log("api.py hijack on disk; deferred strip")
             else:
-                board = _origin_board_state()
-                # Only restart when origin is actually serving playback. "down" is
-                # uvicorn still binding after the last restart — kicking it again 502s the board.
-                if board != "playback":
-                    _log(f"api.py hijack stripped; skipped restart (board={board})")
-                elif _seconds_since_api_restart() < 90:
-                    _log(f"api.py hijack stripped; skipped restart (debounce board={board})")
+                _write(API, new)
+                py = PY if Path(PY).is_file() else sys.executable
+                chk = subprocess.run([py, "-m", "py_compile", str(API)], capture_output=True, text=True)
+                if chk.returncode != 0:
+                    _write(API, raw)
+                    _log("api.py compile failed; reverted")
+                    return 1
+                os.system("chown www-data:www-data /var/www/sailingsa/api/api.py >/dev/null 2>&1")
+                _chattr(API, True)
+                _mark_api_strip()
+                api_changed = True
+                if _race_underway():
+                    _log("api.py hijack stripped; skipped restart (race underway)")
                 else:
-                    subprocess.check_call(["systemctl", "restart", "sailingsa-api"])
-                    _mark_api_restart()
-                    _log(f"api.py hijack stripped; sailingsa-api restarted board={board}")
+                    board = _origin_board_state()
+                    if board != "playback":
+                        _log(f"api.py hijack stripped; skipped restart (board={board})")
+                    elif _seconds_since_api_restart() < 90:
+                        _log(f"api.py hijack stripped; skipped restart (debounce board={board})")
+                    else:
+                        subprocess.check_call(["systemctl", "restart", "sailingsa-api"])
+                        _mark_api_restart()
+                        _log(f"api.py hijack stripped; sailingsa-api restarted board={board}")
     if not nginx_changed and not api_changed:
         return 0
     return 0
