@@ -12,6 +12,8 @@ mkdir -p /usr/local/lib /var/lib/sailingsa-lipton
 cp /tmp/lipton_public_not_dev_watch.py /usr/local/sbin/lipton_public_not_dev_watch.py
 cp /tmp/lipton_public_not_dev_watch.py /usr/local/lib/lipton_public_not_dev_watch.py
 cp /tmp/lipton_public_not_dev_watch.py /var/lib/sailingsa-lipton/watch.py
+cp /tmp/lipton_public_not_dev_watch.py /var/lib/sailingsa-lipton/watch.py.gold
+cp /tmp/lipton_public_not_dev_watch.py /root/lipton_public_not_dev_watch.py
 chmod 755 /usr/local/sbin/lipton_public_not_dev_watch.py \
   /usr/local/lib/lipton_public_not_dev_watch.py \
   /var/lib/sailingsa-lipton/watch.py

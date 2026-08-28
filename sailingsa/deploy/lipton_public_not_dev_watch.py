@@ -3,6 +3,7 @@
 
 Never restore a public-slug alias to lipton-dev.html. Lock nginx immediately after a
 good write so PLAYBACK_LOCK cannot win a long curl-check window.
+LIPTON_WATCH_DEBOUNCE_V1
 """
 from __future__ import annotations
 
