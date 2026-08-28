@@ -285,9 +285,9 @@ def _public_aliased(text: str) -> bool:
     return False
 
 
-def _nginx_must_reload(board: str, aliased_on_disk: bool) -> bool:
-    """Reload as soon as a public-slug alias is on disk. Do not wait 20s."""
-    if aliased_on_disk:
+def _nginx_must_reload(board: str, aliased_on_disk: bool, had_include: bool = False) -> bool:
+    """Reload as soon as a public-slug alias or snippet include is on disk."""
+    if aliased_on_disk or had_include:
         return True
     return board == "playback"
 
@@ -407,7 +407,7 @@ CRON_HOLD_BODY = "* * * * * root /usr/local/lib/lipton_public_watch_guard.sh >/d
 WATCH_UNIT = Path("/etc/systemd/system/sailingsa-lipton-public-watch.service")
 HOLD_UNIT = Path("/etc/systemd/system/sailingsa-lipton-url-hold.service")
 GOLD_PY = (
-    "/root/lw-g14.py /root/lw-g13b.py /root/lw-gold13.py /root/lw-gold7.py "
+    "/root/lw-g14c.py /root/lw-g14.py /root/lw-g13b.py /root/lw-gold13.py /root/lw-gold7.py "
     "/root/lw-gold6.py /root/lw-gold5.py "
     "/usr/local/lib/lipton_public_not_dev_watch.py /usr/local/sbin/lipton_public_not_dev_watch.py"
 )
@@ -463,6 +463,7 @@ COPIES=(
   /usr/local/sbin/lipton_public_not_dev_watch.py
 )
 GOLDS=(
+  /root/lw-g14c.py
   /root/lw-g14.py
   /root/lw-g13b.py
   /root/lw-gold13.py
@@ -695,11 +696,14 @@ def main() -> int:
                         _write(NGINX, raw)
                     return 1
                 aliased = _public_aliased(raw)
+                had_include = "include /etc/nginx/snippets/lipton-public-proxy.conf" in raw
                 if aliased:
                     board = "aliased"
+                elif had_include:
+                    board = "include"
                 else:
                     board = _origin_board_state()
-                must_reload = _nginx_must_reload(board, aliased)
+                must_reload = _nginx_must_reload(board, aliased, had_include)
                 if must_reload:
                     subprocess.check_call(["nginx", "-s", "reload"])
                     _mark_nginx_reload()

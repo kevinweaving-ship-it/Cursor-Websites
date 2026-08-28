@@ -139,6 +139,8 @@ def main() -> int:
     assert mod._nginx_must_reload("playback", False) is True
     assert mod._nginx_must_reload("live", False) is False
     assert mod._nginx_must_reload("down", False) is False
+    assert mod._nginx_must_reload("live", False, True) is True
+    assert "lw-g14c.py" in mod.WATCH_UNIT_BODY
     assert "is-active --quiet sailingsa-lipton-public-watch.service" in mod.HOLD_UNIT_BODY
     assert "while true" in mod.WATCH_UNIT_BODY
     assert "while true" in mod.HOLD_UNIT_BODY
