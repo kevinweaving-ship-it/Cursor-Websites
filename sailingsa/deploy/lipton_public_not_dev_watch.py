@@ -286,10 +286,14 @@ def _public_aliased(text: str) -> bool:
 
 
 def _unit_needs_rewrite(cur: str, body: str) -> bool:
-    """Only rewrite stub/oneshot units. Do not restart a good --loop unit."""
+    """Rewrite stubs. Also drop a hold unit that wrongly runs --loop."""
     if cur == body:
         return False
-    if not _unit_is_stub(cur) and "--loop" in cur and "while true" in cur:
+    if _unit_is_stub(cur):
+        return True
+    if "--loop" not in body and "--loop" in cur:
+        return True
+    if "--loop" in cur and "while true" in cur:
         return False
     return True
 
@@ -433,7 +437,7 @@ HOLD_LOOP = (
     f"for f in {GOLD_PY}; do "
     'sz=$(wc -c < "$f" 2>/dev/null || echo 0); '
     'if [ "$sz" -gt 500 ] && grep -q LIPTON_WATCH_DEBOUNCE_V1 "$f" 2>/dev/null; then '
-    '/usr/bin/python3 "$f" --loop; break; fi; done; sleep 1; done'
+    '/usr/bin/python3 "$f"; break; fi; done; sleep 10; done'
 )
 WATCH_UNIT_BODY = f"""[Unit]
 Description=Lipton 2026 public URL live-board watchdog
@@ -545,6 +549,10 @@ restore_unit() {
 restore_unit /etc/systemd/system/sailingsa-lipton-public-watch.service /usr/local/lib/sailingsa-lipton-public-watch.service
 restore_unit /etc/systemd/system/sailingsa-lipton-url-hold.service /usr/local/lib/sailingsa-lipton-url-hold.service
 
+systemctl start sailingsa-lipton-public-watch.service >/dev/null 2>&1 || true
+if ! pgrep -f "/usr/bin/python3 /root/lw-g.*--loop" >/dev/null 2>&1; then
+  nohup /usr/bin/python3 "$good" --loop >/dev/null 2>&1 &
+fi
 if systemctl is-active --quiet sailingsa-lipton-public-watch.service; then
   exit 0
 fi

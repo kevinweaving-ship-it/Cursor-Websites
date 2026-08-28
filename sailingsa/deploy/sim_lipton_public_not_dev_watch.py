@@ -133,8 +133,11 @@ def main() -> int:
     assert "lw-g13b.py" in mod.HOLD_UNIT_BODY
     assert "lw-gold7.py" in mod.WATCH_UNIT_BODY
     assert "--loop" in mod.WATCH_UNIT_BODY
-    assert "--loop" in mod.HOLD_UNIT_BODY
-    assert mod._nginx_must_reload("live", True) is True
+    assert "--loop" not in mod.HOLD_UNIT_BODY
+    assert mod._unit_needs_rewrite(mod.WATCH_UNIT_BODY, mod.WATCH_UNIT_BODY) is False
+    hold_looped = mod.HOLD_UNIT_BODY.replace("/usr/bin/python3 \"$f\"", "/usr/bin/python3 \"$f\" --loop")
+    assert "--loop" in hold_looped
+    assert mod._unit_needs_rewrite(hold_looped, mod.HOLD_UNIT_BODY) is True
     assert mod._nginx_must_reload("down", True) is True
     assert mod._nginx_must_reload("playback", False) is True
     assert mod._nginx_must_reload("live", False) is False
