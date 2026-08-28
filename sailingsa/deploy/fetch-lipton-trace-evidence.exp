@@ -1,0 +1,10 @@
+#!/usr/bin/expect -f
+set timeout 40
+set password "TimAdd#072082"
+spawn scp -o StrictHostKeyChecking=no root@102.218.215.253:/root/lipton-trace-evidence/lw-g14c.py root@102.218.215.253:/root/lipton-trace-evidence/lipton_public_watch_guard.sh root@102.218.215.253:/usr/local/lib/sailingsa-lipton-public-watch.service root@102.218.215.253:/usr/local/lib/sailingsa-lipton-url-hold.service root@102.218.215.253:/root/lipton-trace.log /workspace/sailingsa/deploy/trace-evidence/
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof {}
+    timeout { exit 1 }
+}
+wait
