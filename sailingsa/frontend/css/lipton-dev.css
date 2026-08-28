@@ -1018,3 +1018,48 @@ body[data-lipton-dev="1"] .lipton-dev-btn:disabled {
     overscroll-behavior: auto;
   }
 }
+
+/* Mac / PC: do not clip the fleet into an 8-row pane. Show all 17; page scrolls. */
+@media (hover: hover) and (pointer: fine) {
+  html:has(body[data-lipton-dev="1"]),
+  body[data-lipton-dev="1"] {
+    overflow-x: hidden;
+    overflow-y: auto;
+    height: auto;
+    min-height: 100dvh;
+  }
+  body[data-lipton-dev="1"] .lipton-dev-shell {
+    overflow: visible;
+    height: auto;
+    flex: 0 0 auto;
+  }
+  body[data-lipton-dev="1"] .lipton-dev-split {
+    display: flex;
+    flex-direction: column;
+    grid-template-rows: none;
+    overflow: visible;
+    height: auto;
+    flex: 0 0 auto;
+  }
+  body[data-lipton-dev="1"] .lipton-dev-track {
+    flex: 0 0 auto;
+    width: 100%;
+    height: min(38vh, 420px);
+    min-height: 220px;
+    max-height: 420px;
+  }
+  body[data-lipton-dev="1"] .lipton-dev-board {
+    flex: 0 0 auto;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+  body[data-lipton-dev="1"] .table-wrapper {
+    flex: 0 0 auto;
+    overflow-x: auto;
+    overflow-y: visible;
+    max-height: none;
+    height: auto;
+  }
+}
