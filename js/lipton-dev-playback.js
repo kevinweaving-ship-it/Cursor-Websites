@@ -335,15 +335,24 @@
         markerZoomAnimation: false,
         inertia: true
       }).setView([-33.901, 18.423], 15);
-      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+      var tileOpts = {
+        minZoom: 12,
+        maxZoom: 19,
+        keepBuffer: 8,
+        updateWhenIdle: false,
+        updateWhenZooming: false,
+        updateInterval: 400,
+        crossOrigin: true
+      };
+      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", Object.assign({
         maxZoom: 19,
         attribution: "Tiles © Esri"
-      }).addTo(chartMap);
-      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", {
-        maxZoom: 19,
+      }, tileOpts)).addTo(chartMap);
+      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", Object.assign({
+        maxZoom: 18,
         opacity: 0.85,
         attribution: "Labels © Esri"
-      }).addTo(chartMap);
+      }, tileOpts)).addTo(chartMap);
       chartMap.on("dragstart zoomstart boxzoomstart", userFreedMap);
       chartMap.on("movestart", function () {
         if (!chartSyncing) userFreedMap();
@@ -368,6 +377,7 @@
       var ctrls = el.querySelector(".leaflet-control-container");
       if (track && ctrls) track.appendChild(ctrls);
     }
+    var lastChartSyncAt = 0;
     function syncChart() {
       if (!followFleet || !chartMap || !mapBounds || chartPointerDown) return;
       var lat = mapBounds.midLat;
@@ -375,11 +385,32 @@
       var cos = Math.max(0.2, Math.cos(lat * Math.PI / 180));
       var z = Math.log(mapBounds.scale * 156543.03392 * cos) / Math.LN2;
       if (!(z > 0)) z = 15;
-      if (z < 13) z = 13;
-      if (z > 19) z = 19;
+      if (z < 14) z = 14;
+      if (z > 17) z = 17;
       var cur = chartMap.getCenter();
-      var dz = Math.abs(chartMap.getZoom() - z);
-      if (dz < 0.04 && Math.abs(cur.lat - lat) < 0.00003 && Math.abs(cur.lng - lon) < 0.00003) return;
+      var curZ = chartMap.getZoom();
+      var dz = Math.abs(curZ - z);
+      var now = Date.now();
+      var boatsNearEdge = false;
+      if (mapEl && trail && trail.boats) {
+        var w = mapEl.clientWidth || 0;
+        var h = mapEl.clientHeight || 0;
+        var pad = 48;
+        Object.keys(trail.boats).some(function (sail) {
+          var pos = sampleAt(trail.boats[sail], playTs);
+          if (!pos) return false;
+          var p = chartMap.latLngToContainerPoint([pos.lat, pos.lon]);
+          if (p.x < pad || p.y < pad || p.x > w - pad || p.y > h - pad) {
+            boatsNearEdge = true;
+            return true;
+          }
+          return false;
+        });
+      }
+      var moved = Math.abs(cur.lat - lat) > 0.00012 || Math.abs(cur.lng - lon) > 0.00012;
+      if (!boatsNearEdge && dz < 0.2 && !moved) return;
+      if (!boatsNearEdge && playing && now - lastChartSyncAt < 450 && dz < 0.35) return;
+      lastChartSyncAt = now;
       chartSyncing = true;
       chartMap.setView([lat, lon], z, { animate: false });
       chartSyncing = false;
@@ -398,7 +429,7 @@
       return Math.sqrt(x * x + y * y);
     }
     var BOAT_LEN_M = 6.71;
-    var TAIL_M = BOAT_LEN_M * 10;
+    var TAIL_M = BOAT_LEN_M * 2;
     var focusMarkKey = null;
     var focusGate = null;
     function sizeCanvas() {
@@ -751,7 +782,7 @@
       var acc = 0;
       var lastI = now.i != null ? now.i : Math.floor((ts - GRID_ORIGIN) / trail.step_ms);
       var idx = hitBack(b, lastI - 1);
-      var wantM = Math.max(TAIL_M, 28 / Math.max(mapBounds && mapBounds.scale ? mapBounds.scale : 0.4, 0.08));
+        var wantM = TAIL_M;
       while (idx >= 0) {
         var gap = lastI - idx;
         var cur = { lat: b.lat[idx], lon: b.lon[idx], i: idx };
@@ -806,8 +837,8 @@
         var nx = -dy / len;
         var ny = dx / len;
         var along = i / (screen.length - 1);
-        var zoom = Math.max(1, 0.45 / Math.max(mapBounds.scale, 0.12));
-        var w = (0.4 + along * along * 3.2) * Math.min(zoom, 2.2);
+        var zoom = Math.max(1, 0.35 / Math.max(mapBounds.scale, 0.12));
+        var w = (0.28 + along * along * 1.15) * Math.min(zoom, 1.4);
         left.push({ x: screen[i].x + nx * w, y: screen[i].y + ny * w });
         right.push({ x: screen[i].x - nx * w, y: screen[i].y - ny * w });
       }
@@ -823,7 +854,7 @@
       mapCtx.moveTo(screen[0].x, screen[0].y);
       for (var s = 1; s < screen.length; s++) mapCtx.lineTo(screen[s].x, screen[s].y);
       mapCtx.strokeStyle = hot ? "rgba(254,202,202,0.85)" : "rgba(248,250,252,0.85)";
-      mapCtx.lineWidth = Math.max(1.2, 0.5 / Math.max(mapBounds.scale, 0.12));
+      mapCtx.lineWidth = Math.max(0.9, 0.35 / Math.max(mapBounds.scale, 0.12));
       mapCtx.lineJoin = "round";
       mapCtx.lineCap = "round";
       mapCtx.stroke();
@@ -988,8 +1019,11 @@
       Object.keys(trail.boats || {}).forEach(function (sail) {
         drawTail(sail, ts);
       });
-      drawGate(trail.start_line, focusGate === "start_line" ? "#38bdf8" : "rgba(56,189,248,0.4)", "START", "Pin", "RC");
-      drawGate(trail.finish_line, focusGate === "finish_line" ? "#fbbf24" : "rgba(251,191,36,0.35)", "FINISH", "Pin", "RC");
+      if (ts < GUN_TS) {
+        drawGate(trail.start_line, focusGate === "start_line" ? "#38bdf8" : "rgba(56,189,248,0.4)", "START", "Pin", "RC");
+      } else {
+        drawGate(trail.finish_line, focusGate === "finish_line" ? "#fbbf24" : "rgba(251,191,36,0.35)", "FINISH", "Pin", "RC");
+      }
       Object.keys(trail.boats || {}).forEach(function (sail) {
         var pos = posAt(sail, ts);
         if (!pos) return;
@@ -1049,18 +1083,27 @@
       var label = courseFromTrail();
       if (!label || !mapCtx || !mapBounds) return;
       var pad = 10;
+      var name = label.toUpperCase();
+      var sub = "COURSE >";
       mapCtx.save();
-      mapCtx.font = "bold 13px sans-serif";
-      mapCtx.textAlign = "right";
+      mapCtx.textAlign = "center";
       mapCtx.textBaseline = "top";
-      var text = label.toUpperCase();
-      var tw = mapCtx.measureText(text).width;
-      var x = mapBounds.w - pad;
-      var y = pad;
+      mapCtx.font = "bold 13px sans-serif";
+      var nameW = mapCtx.measureText(name).width;
+      mapCtx.font = "bold 11px sans-serif";
+      var subW = mapCtx.measureText(sub).width;
+      var boxW = Math.max(nameW, subW) + 20;
+      var boxH = 22;
+      var x0 = mapBounds.w - pad - boxW;
+      var y0 = pad;
+      var cx = x0 + boxW / 2;
       mapCtx.fillStyle = "rgba(0,31,63,0.62)";
-      mapCtx.fillRect(x - tw - 8, y - 2, tw + 16, 22);
+      mapCtx.fillRect(x0, y0, boxW, boxH);
       mapCtx.fillStyle = "#ffffff";
-      mapCtx.fillText(text, x, y);
+      mapCtx.font = "bold 13px sans-serif";
+      mapCtx.fillText(name, cx, y0 + 4);
+      mapCtx.font = "bold 11px sans-serif";
+      mapCtx.fillText(sub, cx, y0 + boxH + 4);
       mapCtx.restore();
     }
     function setRateButtons() {

@@ -292,6 +292,13 @@ body[data-lipton-dev="1"] #lipton-dev-chart {
   position: absolute;
   inset: 0;
   z-index: 0;
+  background: #001018;
+}
+body[data-lipton-dev="1"] .leaflet-container {
+  background: #001018;
+}
+body[data-lipton-dev="1"] .leaflet-tile {
+  background: transparent !important;
 }
 body[data-lipton-dev="1"] .lipton-dev-track > .leaflet-control-container {
   z-index: 3;
