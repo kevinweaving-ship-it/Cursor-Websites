@@ -106,7 +106,7 @@ def _pack_starts(data: dict) -> dict:
                     frac = d0 / (d0 - d) if d0 != d else 1.0
                     t = int(t0 + (ts - t0) * frac)
                     along_x = a0 + (along - a0) * frac
-                    if -25 <= along_x <= length + 25:
+                    if -80 <= along_x <= length + 80:
                         hits.append(t)
             prev = (d, ts, along)
         return hits

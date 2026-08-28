@@ -1262,7 +1262,7 @@
           var frac = prev.d === sg.d ? 1 : prev.d / (prev.d - sg.d);
           var t = Math.round(prev.ts + (p.ts_ms - prev.ts) * frac);
           var along = prev.along + (sg.along - prev.along) * frac;
-          if (along >= -25 && along <= geom.len + 25) hits.push(t);
+          if (along >= -80 && along <= geom.len + 80) hits.push(t);
         }
         prev = { d: sg.d, along: sg.along, ts: p.ts_ms };
       }
