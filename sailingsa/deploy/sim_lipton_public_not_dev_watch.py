@@ -182,6 +182,18 @@ def serve_lipton_dev_playback_page(_request, public: bool = False):
     assert "lipton_public_watch_guard.sh" in mod.CRON_PUBLIC_BODY
     assert "zzz-lipton-public-live" in str(mod.CRON_ZZZ)
     assert callable(mod.ensure_watch_service)
+    mixed = """
+    location = /regatta/2026-08-29-lipton-challenge-cup {
+        proxy_pass http://127.0.0.1:8000;
+    }
+    location = /regatta/2026-08-29-lipton-challenge-cup/ {
+        default_type text/html;
+        alias /var/www/sailingsa/lipton-dev.html;
+    }
+"""
+    assert mod._public_aliased(mixed) is True
+    assert mod._public_slug_proxied(mixed) is False
+
     src = Path(__file__).resolve().parent / "lipton_public_not_dev_watch.py"
     src_txt = src.read_text(encoding="utf-8")
     assert "LIPTON_WATCH_DEBOUNCE_V1" in src_txt

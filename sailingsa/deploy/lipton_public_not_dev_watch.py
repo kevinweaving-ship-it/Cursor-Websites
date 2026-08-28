@@ -144,6 +144,7 @@ def _race_underway() -> bool:
 
 RESTART_STAMP = Path("/var/tmp/lipton_watch_api_restart")
 STRIP_STAMP = Path("/var/tmp/lipton_watch_api_strip")
+NGINX_RELOAD_STAMP = Path("/var/tmp/lipton_watch_nginx_reload")
 
 
 def _seconds_since_api_restart() -> float:
@@ -170,6 +171,20 @@ def _seconds_since_api_strip() -> float:
 def _mark_api_strip() -> None:
     try:
         STRIP_STAMP.write_text(str(time.time()), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def _seconds_since_nginx_reload() -> float:
+    try:
+        return time.time() - NGINX_RELOAD_STAMP.stat().st_mtime
+    except Exception:
+        return 10**9
+
+
+def _mark_nginx_reload() -> None:
+    try:
+        NGINX_RELOAD_STAMP.write_text(str(time.time()), encoding="utf-8")
     except Exception:
         pass
 
@@ -233,7 +248,7 @@ def _public_aliased(text: str) -> bool:
     if PLAYBACK_LOCK in text:
         return True
     for m in re.finditer(
-        r"location = /regatta/" + re.escape(RID) + r"(?!-)\s*\{([^{}]*)\}",
+        r"location = /regatta/" + re.escape(RID) + r"(?:/)?(?!-)\s*\{([^{}]*)\}",
         text,
         re.S,
     ):
@@ -243,9 +258,11 @@ def _public_aliased(text: str) -> bool:
 
 
 def _public_slug_proxied(text: str) -> bool:
-    """True only if the public slug location in this file proxies to the API."""
+    """True only if the public slug proxies to the API and is not also aliased."""
+    if _public_aliased(text):
+        return False
     m = re.search(
-        r"location = /regatta/" + re.escape(RID) + r"(?!-)\s*\{([^{}]*)\}",
+        r"location = /regatta/" + re.escape(RID) + r"(?:/)?(?!-)\s*\{([^{}]*)\}",
         text,
         re.S,
     )
@@ -631,9 +648,12 @@ def main() -> int:
                     _write(NGINX, raw)
                 return 1
             board = _origin_board_state()
-            must_reload = board == "playback"
+            must_reload = board == "playback" or (
+                _public_aliased(raw) and _seconds_since_nginx_reload() >= 20
+            )
             if must_reload:
                 subprocess.check_call(["nginx", "-s", "reload"])
+                _mark_nginx_reload()
                 _log(
                     f"nginx public proxy locked n={n} snippet={snippet_changed} "
                     f"reload=1 board={board}"
