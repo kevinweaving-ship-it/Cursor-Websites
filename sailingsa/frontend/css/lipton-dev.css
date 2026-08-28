@@ -20,6 +20,7 @@ body[data-lipton-dev="1"] .lipton-dev-subhead {
   height: 30px;
   min-height: 30px;
   max-height: 30px;
+  margin: 8px 0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -32,7 +33,7 @@ body[data-lipton-dev="1"] .lipton-dev-shell {
   width: 100%;
   max-width: none;
   margin: 0;
-  padding: 4px 6px 4px 4px;
+  padding: 0 6px 4px 4px;
   box-sizing: border-box;
   flex: 1 1 auto;
   min-height: 0;
