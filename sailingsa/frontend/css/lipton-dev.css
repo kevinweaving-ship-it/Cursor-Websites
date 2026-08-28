@@ -13,6 +13,7 @@ body[data-lipton-dev="1"] {
   --lipton-scrub-w: 140px;
   --lipton-dev-lockup-h: 56px;
   --lipton-map-bg: #001018;
+  --lipton-bar-bg: #20696d;
 }
 body[data-lipton-dev="1"] .site-header {
   flex: 0 0 auto;
@@ -55,7 +56,7 @@ body[data-lipton-dev="1"] .lipton-dev-subhead {
   padding: 0 10px;
   min-width: 0;
   overflow: hidden;
-  background: var(--lipton-map-bg);
+  background: var(--lipton-bar-bg);
   border-radius: 4px;
   z-index: 29;
 }
