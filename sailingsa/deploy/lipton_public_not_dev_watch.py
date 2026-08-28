@@ -670,6 +670,8 @@ def main() -> int:
                     board = _origin_board_state()
                     if board == "live":
                         _log(f"api.py hijack stripped; skipped restart (board={board})")
+                    elif _overnight_hold() and board == "down":
+                        _log("api.py hijack stripped; overnight skipped restart (bind window)")
                     elif _seconds_since_api_restart() < 90:
                         _log(f"api.py hijack stripped; skipped restart (debounce board={board})")
                     else:
