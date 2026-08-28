@@ -190,39 +190,66 @@ def _mark_nginx_reload() -> None:
 
 
 def _origin_board_state() -> str:
-    """live, playback, or down. Probe nginx→API on loopback; use size only (no 400k download)."""
-    try:
-        p = subprocess.run(
-            [
-                "curl",
-                "-sk",
-                "--max-time",
-                "8",
-                "-o",
-                "/dev/null",
-                "-w",
-                "%{http_code} %{size_download}",
-                "--resolve",
-                "sailingsa.co.za:443:127.0.0.1",
-                f"https://sailingsa.co.za/regatta/{RID}",
-            ],
-            check=False,
-            timeout=10,
-            capture_output=True,
-            text=True,
-        )
-        parts = (p.stdout or "").strip().split()
-        code = parts[0] if parts else "000"
-        size = int(parts[1]) if len(parts) > 1 else 0
-    except Exception:
-        return "down"
-    if size > 50000 and code == "200":
-        return "live"
-    if code in ("502", "503", "000") or size < 500:
-        return "down"
-    if 500 <= size < 20000:
-        return "playback"
-    return "down"
+    """live, playback, or down.
+
+    Do not --resolve to 127.0.0.1:443 — that hits the timadvisor default SSL
+    server (301). Probe public IPv4 SNI, then the API with forwarded proto.
+    """
+    probes = [
+        [
+            "curl",
+            "-4sk",
+            "--max-time",
+            "8",
+            "-o",
+            "/dev/null",
+            "-w",
+            "%{http_code} %{size_download}",
+            f"https://sailingsa.co.za/regatta/{RID}",
+        ],
+        [
+            "curl",
+            "-sS",
+            "--max-time",
+            "8",
+            "-o",
+            "/dev/null",
+            "-w",
+            "%{http_code} %{size_download}",
+            "-H",
+            "Host: sailingsa.co.za",
+            "-H",
+            "X-Forwarded-Proto: https",
+            "-H",
+            "X-Forwarded-Host: sailingsa.co.za",
+            f"http://127.0.0.1:8000/regatta/{RID}",
+        ],
+    ]
+    last = "down"
+    for args in probes:
+        try:
+            p = subprocess.run(
+                args,
+                check=False,
+                timeout=10,
+                capture_output=True,
+                text=True,
+            )
+            parts = (p.stdout or "").strip().split()
+            code = parts[0] if parts else "000"
+            size = int(parts[1]) if len(parts) > 1 else 0
+        except Exception:
+            last = "down"
+            continue
+        if size > 50000 and code == "200":
+            return "live"
+        if 500 <= size < 20000 and code == "200":
+            return "playback"
+        if code in ("502", "503", "000") or size < 500:
+            last = "down"
+            continue
+        last = "down"
+    return last
 
 
 def ensure_snippet() -> bool:

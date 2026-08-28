@@ -200,6 +200,8 @@ def serve_lipton_dev_playback_page(_request, public: bool = False):
     assert "LIPTON_WATCH_UNIT_RESTORE_V1" in src_txt
     assert "nginx not proxied; skipped API restart" in src_txt
     assert "overnight skipped restart (bind window)" in src_txt
+    assert '"--resolve"' not in src_txt
+    assert "X-Forwarded-Proto: https" in src_txt
     assert callable(mod._overnight_hold)
     print("PASS watchdog strips public nginx alias, inserts public proxy, keeps -dev")
     return 0
