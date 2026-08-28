@@ -45,6 +45,7 @@ cp /tmp/lipton-dev-playback.js /var/www/sailingsa/js/lipton-dev-playback-du.js
 cp /tmp/lipton-dev-playback.js /var/www/sailingsa/js/lipton-dev-playback-dt.js
 cp /tmp/lipton-dev-playback.js /var/www/sailingsa/js/lipton-dev-playback-ds.js
 cp /tmp/lipton-dev-playback.js /var/www/sailingsa/js/lipton-dev-playback-dq.js
+test -f /tmp/lipton-event-sheet.js && cp /tmp/lipton-event-sheet.js /var/www/sailingsa/js/lipton-event-sheet.js
 
 # keep-playback also deletes renamed crons
 cat > /root/lipton-keep-playback.sh <<'KEEP'
@@ -84,8 +85,8 @@ curl -sS -A SailingSA-devcheck -o /tmp/p.html -w 'page %{http_code} %{size_downl
 python3 - <<'PY'
 t = open("/tmp/p.html", encoding="utf-8", errors="replace").read()
 print("playback", "lipton-dev-playback" in t)
-print("dr", "20260828dr" in t)
-print("dq", "playback-dq.js" in t)
+print("du", "playback-du.js" in t)
+print("sheetjs", "lipton-event-sheet.js" in t)
 print("weather", "WEATHER" in t or "Live cam" in t)
 print("bytes", len(t))
 PY
