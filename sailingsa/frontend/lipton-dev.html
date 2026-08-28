@@ -6,7 +6,8 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Lipton Challenge Cup 2026 — playback (dev)</title>
   <link rel="stylesheet" href="/css/main.css">
-  <link rel="stylesheet" href="/css/lipton-dev.css?v=20260827av">
+  <link rel="stylesheet" href="/js/vendor/leaflet/leaflet.css?v=20260828a">
+  <link rel="stylesheet" href="/css/lipton-dev.css?v=20260828a">
   <script src="/js/api.js"></script>
   <script src="/js/session.js"></script>
 </head>
@@ -134,12 +135,14 @@
         </div>
       </div>
       <div class="lipton-dev-track">
-        <canvas id="lipton-dev-map" aria-label="Race 4 GPS replay"></canvas>
+        <div id="lipton-dev-chart" role="img" aria-label="Satellite chart of Table Bay harbour"></div>
+        <canvas id="lipton-dev-map" aria-label="GPS marks and tracks"></canvas>
       </div>
     </div>
   </div>
 
+  <script src="/js/vendor/leaflet/leaflet.js?v=20260828a"></script>
   <script src="/js/blank-landing-header.js"></script>
-  <script src="/js/lipton-dev-playback.js?v=20260827ba"></script>
+  <script src="/js/lipton-dev-playback.js?v=20260828a"></script>
 </body>
 </html>

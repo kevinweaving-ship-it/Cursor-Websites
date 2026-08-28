@@ -288,11 +288,20 @@ body[data-lipton-dev="1"] .lipton-dev-track {
   border-radius: 4px;
   overflow: hidden;
 }
+body[data-lipton-dev="1"] #lipton-dev-chart {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
 body[data-lipton-dev="1"] .lipton-dev-track canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
   display: block;
   width: 100%;
   height: 100%;
-  background: #001f3f;
+  background: transparent;
+  pointer-events: none;
 }
 body[data-lipton-dev="1"] .lipton-dev-btn:disabled {
   opacity: 0.45;

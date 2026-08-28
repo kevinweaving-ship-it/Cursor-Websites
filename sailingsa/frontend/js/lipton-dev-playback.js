@@ -290,6 +290,46 @@
     var mapCtx = null;
     var mapBounds = null;
     var cam = null;
+    var chartMap = null;
+    function initChart() {
+      var el = document.getElementById("lipton-dev-chart");
+      if (!el || !window.L || chartMap) return;
+      chartMap = L.map(el, {
+        zoomControl: false,
+        attributionControl: true,
+        dragging: false,
+        scrollWheelZoom: false,
+        doubleClickZoom: false,
+        boxZoom: false,
+        keyboard: false,
+        zoomSnap: 0,
+        zoomAnimation: false,
+        fadeAnimation: false,
+        markerZoomAnimation: false,
+        inertia: false
+      }).setView([-33.901, 18.423], 15);
+      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+        maxZoom: 19,
+        attribution: "Tiles © Esri"
+      }).addTo(chartMap);
+      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", {
+        maxZoom: 19,
+        opacity: 0.85,
+        attribution: "Labels © Esri"
+      }).addTo(chartMap);
+    }
+    function syncChart() {
+      if (!chartMap || !mapBounds) return;
+      chartMap.invalidateSize({ animate: false });
+      var lat = mapBounds.midLat;
+      var lon = mapBounds.midLon;
+      var cos = Math.max(0.2, Math.cos(lat * Math.PI / 180));
+      var z = Math.log(mapBounds.scale * 156543.03392 * cos) / Math.LN2;
+      if (!(z > 0)) z = 15;
+      if (z < 13) z = 13;
+      if (z > 19) z = 19;
+      chartMap.setView([lat, lon], z, { animate: false });
+    }
     function expandBounds(lat, lon, box) {
       if (lat == null || lon == null) return;
       if (lat < box.minLat) box.minLat = lat;
@@ -309,6 +349,7 @@
     var focusGate = null;
     function sizeCanvas() {
       if (!mapEl) return;
+      initChart();
       var w = mapEl.clientWidth || 640;
       var h = mapEl.clientHeight || 480;
       var dpr = window.devicePixelRatio || 1;
@@ -510,8 +551,13 @@
         cam.h = h;
       }
       mapBounds = cam;
+      syncChart();
     }
     function xy(lat, lon) {
+      if (chartMap) {
+        var pt = chartMap.latLngToContainerPoint([lat, lon]);
+        return { x: pt.x, y: pt.y };
+      }
       var b = mapBounds;
       return {
         x: (lon - b.midLon) * 111000 * b.cos * b.scale + b.w / 2,
@@ -855,7 +901,8 @@
       if (!mapCtx || !mapBounds) return;
       var w = mapBounds.w;
       var h = mapBounds.h;
-      mapCtx.fillStyle = "#001f3f";
+      mapCtx.clearRect(0, 0, w, h);
+      mapCtx.fillStyle = "rgba(0, 10, 24, 0.08)";
       mapCtx.fillRect(0, 0, w, h);
       var zone = Math.min(metersPx(20.1), 11);
       Object.keys(trail.marks || {}).forEach(function (k) {
