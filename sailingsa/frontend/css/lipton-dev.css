@@ -404,11 +404,35 @@ body[data-lipton-dev="1"] td.timer-col--folded .place-delta {
   line-height: 1.1;
   margin-top: 1px;
 }
-body[data-lipton-dev="1"] td.timer-col--places .place-delta {
+body[data-lipton-dev="1"] td.timer-col--places,
+body[data-lipton-dev="1"] th.timer-col--tight {
+  width: 34px;
+  min-width: 34px;
+  padding: 1px 1px;
+}
+body[data-lipton-dev="1"] .ld-tri {
   display: inline-block;
-  font-size: 12px;
-  line-height: 1.2;
-  margin-top: 0;
+  vertical-align: middle;
+  margin-right: 2px;
+}
+body[data-lipton-dev="1"] .ld-tri--up {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-bottom: 7px solid #15803d;
+}
+body[data-lipton-dev="1"] .ld-tri--down {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 7px solid #b42318;
+}
+body[data-lipton-dev="1"] .ld-tri--same {
+  width: 6px;
+  height: 6px;
+  background: #6b7280;
 }
 body[data-lipton-dev="1"] th.timer-col--mark {
   white-space: normal;

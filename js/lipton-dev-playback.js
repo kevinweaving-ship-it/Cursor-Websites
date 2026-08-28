@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828bv";
+  var CACHE = "20260828bw";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = params.get("live") === "1";
@@ -1550,7 +1550,7 @@
         if (passIsMark(p) && passFolded(i, ts) && isMobilePortrait()) {
           twist = "<button type=\"button\" class=\"ld-mark-twist\" data-mark-twist=\"1\" aria-expanded=\"" + (marksDetailOpen ? "true" : "false") + "\" title=\"" + (marksDetailOpen ? "Hide mark times" : "Show mark times") + "\" aria-label=\"" + (marksDetailOpen ? "Hide mark times" : "Show mark times") + "\">" + (marksDetailOpen ? "▾" : "▸") + "</button>";
         }
-        html += "<th class=\"timer-col" + (passIsMark(p) ? " timer-col--mark" : "") + "\" title=\"" + esc(title) + "\"><span class=\"ld-mark-lab\">" + esc(lab) + "</span>" + twist + "</th>";
+        html += "<th class=\"timer-col" + (passIsMark(p) ? " timer-col--mark" : "") + (!marksDetailOpen && passIsMark(p) && passFolded(i, ts) ? " timer-col--tight" : "") + "\" title=\"" + esc(title) + "\"><span class=\"ld-mark-lab\">" + esc(lab) + "</span>" + twist + "</th>";
         if (showDeltaAfter(i, ts, limit)) {
           var nlab = passHeadLabel(i + 1);
           html += "<th class=\"place-delta-col\" title=\"Places gained or lost " + esc(lab) + " to " + esc(nlab) + "\" aria-label=\"Place change " + esc(lab) + " to " + esc(nlab) + "\">±</th>";
@@ -1718,30 +1718,30 @@
       }
       return out;
     }
-    function deltaSpan(gained, flash, numOnly) {
+    function deltaSpan(gained, flash) {
       if (gained == null) return "";
       var flashCls = flash && gained !== 0 ? " place-delta--flash" : "";
       var n;
       var cls;
       var label;
-      var glyph;
+      var tri;
       if (gained > 0) {
         n = String(gained);
         cls = "place-delta--up";
         label = "Gained " + gained;
-        glyph = "▲";
+        tri = "up";
       } else if (gained < 0) {
         n = String(-gained);
         cls = "place-delta--down";
         label = "Lost " + n;
-        glyph = "▼";
+        tri = "down";
       } else {
         n = "0";
         cls = "place-delta--same";
         label = "No change";
-        glyph = "■";
+        tri = "same";
       }
-      return "<span class=\"place-delta " + cls + flashCls + "\" title=\"" + label + "\" aria-label=\"" + label + "\">" + (numOnly ? n : glyph + n) + "</span>";
+      return "<span class=\"place-delta " + cls + flashCls + "\" title=\"" + label + "\" aria-label=\"" + label + "\"><i class=\"ld-tri ld-tri--" + tri + "\" aria-hidden=\"true\"></i>" + n + "</span>";
     }
     function deltaGain(prevMap, nextMap, boat) {
       if (!prevMap || !nextMap) return null;
@@ -1791,7 +1791,7 @@
         return "<td class=\"timer-col timer-col--folded\">" + time + deltaSpan(gained, flash) + "</td>";
       }
       if (!isFin && !marksDetailOpen && isMobilePortrait()) {
-        return "<td class=\"timer-col timer-col--num\">" + deltaSpan(gained, flash, true) + "</td>";
+        return "<td class=\"timer-col timer-col--places\">" + deltaSpan(gained, flash) + "</td>";
       }
       return "<td class=\"timer-col timer-col--folded\">" + time + deltaSpan(gained, flash) + "</td>";
     }
