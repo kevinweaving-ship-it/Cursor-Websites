@@ -108,13 +108,13 @@ body[data-lipton-dev="1"] .lipton-dev-map-transport {
 body[data-lipton-dev="1"] .lipton-dev-playbox {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: stretch;
   flex: 1 1 auto;
   min-height: 0;
   height: 100%;
   width: 100%;
-  gap: 4px;
+  gap: 2px;
   margin: 0;
   padding: 0;
   box-sizing: border-box;
@@ -131,7 +131,7 @@ body[data-lipton-dev="1"] .lipton-dev-race-boxes {
   align-items: stretch;
   gap: 2px;
   box-sizing: border-box;
-  margin: 1px 0 0 calc(var(--lipton-logo-w) * var(--lipton-c-inset));
+  margin: 4px 0 0 calc(var(--lipton-logo-w) * var(--lipton-c-inset));
   width: calc(100% - var(--lipton-logo-w) * var(--lipton-c-inset));
   max-width: calc(100% - var(--lipton-logo-w) * var(--lipton-c-inset));
   height: 16px;
