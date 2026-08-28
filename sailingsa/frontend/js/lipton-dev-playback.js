@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828dh";
+  var CACHE = "20260828dj";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = !RACE_Q;
@@ -1298,7 +1298,7 @@
         return Number(packedStarts[sail].st_ms);
       }
       var ocs = liveOcsOn(sail);
-      var hits = courseEnters(pts, geom, gunTs - 5000, gunTs + 180000);
+      var hits = courseEnters(pts, geom, ocs ? gunTs - 90000 : gunTs - 5000, gunTs + 180000);
       if (ocs) return hits.length >= 2 ? hits[1] : null;
       var i;
       for (i = 0; i < hits.length; i++) {
@@ -1429,7 +1429,9 @@
     }
     function liveOcsOn(sail) {
       var id = identity[sail] || {};
-      var aliases = [sail, id.mapClub, id.club, id.clubRaw];
+      if (packedStarts[sail] && packedStarts[sail].ocs === true) return true;
+      if (packedStarts[sail] && packedStarts[sail].ocs === false) return false;
+      var aliases = [sail, id.mapClub, id.clubRaw];
       var i;
       var j;
       for (i = 0; i < liveOcs.length; i++) {
@@ -1579,7 +1581,8 @@
               if (r.times[used[k]]) { prevT = r.times[used[k]]; break; }
             }
             if (prevT) cell = fmtClock(r.times[pid] - prevT);
-            else if (r.times.ST && gunTs) cell = fmtClock(r.times[pid] - r.times.ST);
+            else if (r.times.ST) cell = fmtClock(r.times[pid] - r.times.ST);
+            else if (gunTs) cell = fmtClock(r.times[pid] - gunTs);
           }
           html += "<td class=\"timer-col\">" + cell + "</td>";
         });

@@ -95,7 +95,7 @@ def _pack_starts(data: dict) -> dict:
         prev = None
         for p in pts:
             ts = int(p.get("ts_ms") or 0)
-            if ts < gun - 5000:
+            if ts < gun - (90_000 if is_ocs else 5_000):
                 continue
             if ts > gun + 180_000:
                 break
