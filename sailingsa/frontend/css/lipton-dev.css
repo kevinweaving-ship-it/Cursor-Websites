@@ -387,7 +387,7 @@ body[data-lipton-dev="1"] .lipton-dev-map-transport .lipton-dev-transport--play 
   width: 100%;
   height: var(--lipton-mark-h);
   max-height: var(--lipton-mark-h);
-  margin: 0;
+  margin: 14px 0 0;
   padding: 1px 2px;
   box-sizing: border-box;
   gap: 3px;
