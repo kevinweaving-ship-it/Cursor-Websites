@@ -1,0 +1,69 @@
+#!/usr/bin/env python3
+"""Sim: watchdog strips public nginx alias and api.py playback hijack; keeps -dev."""
+from __future__ import annotations
+
+import importlib.util
+from pathlib import Path
+
+spec = importlib.util.spec_from_file_location(
+    "lipton_public_not_dev_watch",
+    Path(__file__).resolve().parent / "lipton_public_not_dev_watch.py",
+)
+mod = importlib.util.module_from_spec(spec)
+assert spec.loader is not None
+spec.loader.exec_module(mod)
+
+
+def main() -> int:
+    nginx = """
+    location = /regatta/2026-08-29-lipton-challenge-cup-dev {
+        default_type text/html;
+        add_header Cache-Control "no-store";
+        add_header X-Robots-Tag "noindex, nofollow";
+        alias /var/www/sailingsa/lipton-dev.html;
+    }
+
+    location = /regatta/2026-08-29-lipton-challenge-cup {
+        default_type text/html;
+        add_header Cache-Control "no-store";
+        alias /var/www/sailingsa/lipton-dev.html;
+    }
+    location = /regatta/2026-08-29-lipton-challenge-cup/ {
+        default_type text/html;
+        add_header Cache-Control "no-store";
+        alias /var/www/sailingsa/lipton-dev.html;
+    }
+        location = /regatta {
+"""
+    new, n = mod.fix_nginx(nginx)
+    assert n == 2, n
+    assert "lipton-challenge-cup-dev" in new
+    assert "location = /regatta/2026-08-29-lipton-challenge-cup {" not in new
+
+    api = '''
+def serve_regatta_standalone(slug: str, request: Request):
+    slug_s = str(slug or "").strip()
+    if slug_s == "2026-08-29-lipton-challenge-cup-dev":
+        return serve_lipton_dev_playback_page(request, public=False)
+    if slug_s == "2026-08-29-lipton-challenge-cup":
+        return serve_lipton_dev_playback_page(request, public=True)
+    return _serve_regatta_standalone_impl(slug, request)
+
+def serve_lipton_dev_playback_page(_request, public: bool = False):
+    """Lipton playback page. Public slug is indexable; -dev stays noindex."""
+    from pathlib import Path as _P
+    names = ()
+'''
+    out, changed = mod.fix_api(api)
+    assert changed
+    assert mod.HIJACK.search(api)
+    assert not mod.HIJACK.search(out)
+    assert "if public:" in out
+    head, _sep, _play = out.partition("def serve_lipton_dev_playback_page")
+    assert "public=True" not in head
+    print("PASS watchdog strips public nginx alias and api hijack; keeps -dev")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

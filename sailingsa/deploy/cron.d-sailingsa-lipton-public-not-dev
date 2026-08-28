@@ -1,0 +1,6 @@
+# Lipton 2026: undo public-slug playback hijack (nginx + api.py).
+# Script no-ops except 27-29 Aug 2026. Does not run overnight restore.
+# Skips API restart if a real race is underway.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+* * * * * root /usr/bin/python3 /usr/local/sbin/lipton_public_not_dev_watch.py >/dev/null 2>&1
