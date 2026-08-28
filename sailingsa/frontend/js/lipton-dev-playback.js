@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828cj";
+  var CACHE = "20260828ck";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = !RACE_Q;
@@ -444,13 +444,19 @@
       return hits;
     }
     function mergeTrail(dest, pts) {
-      if (!pts || !pts.length) return dest;
+      if (!pts || !pts.length) return dest || [];
       dest = dest || [];
+      var extra = [];
       pts.forEach(function (p) {
         if (!p || p.ts_ms == null) return;
         if (!dest.length || p.ts_ms > dest[dest.length - 1].ts_ms) dest.push(p);
         else if (p.ts_ms === dest[dest.length - 1].ts_ms) dest[dest.length - 1] = p;
+        else if (p.ts_ms < dest[0].ts_ms) extra.push(p);
       });
+      if (extra.length) {
+        extra.sort(function (a, b) { return a.ts_ms - b.ts_ms; });
+        dest = extra.concat(dest);
+      }
       return dest;
     }
     function syncScrub() {
@@ -929,7 +935,7 @@
         var mark = atTs(markTrail, pts[j].ts_ms);
         if (!mark) continue;
         var d = distM(pts[j], mark);
-        if (d < 48 && d <= distM(pts[j - 1], mark) && d <= distM(pts[j + 1], mark)) return pts[j].ts_ms;
+        if (d < 55 && d <= distM(pts[j - 1], mark) && d <= distM(pts[j + 1], mark)) return pts[j].ts_ms;
       }
       return null;
     }
@@ -1169,14 +1175,26 @@
       return hist.pin.length && hist.rc.length && Object.keys(hist.boats).length;
     }
     function poll() {
-      var q = loadedHistory ? "/api/lipton-dev/live" : "/api/lipton-dev/live?history=1";
+      var q = needHistory() ? "/api/lipton-dev/live?history=1" : "/api/lipton-dev/live";
       fetch(q, { cache: "no-store" })
         .then(function (res) { return res.json(); })
         .then(function (data) {
-          if (data && (data.ok || (data.boats && Object.keys(data.boats).length))) loadedHistory = true;
           applySnap(data);
+          if (!needHistory()) loadedHistory = true;
         })
         .catch(function () {});
+    }
+    function needHistory() {
+      if (!gunTs) return true;
+      var boatsOk = false;
+      Object.keys(hist.boats).forEach(function (s) {
+        var t = hist.boats[s];
+        if (t && t.length && t[0].ts_ms <= gunTs + 12000) boatsOk = true;
+      });
+      var m1 = hist.marks["1"];
+      var m1Ok = m1 && m1.length && m1[0].ts_ms <= gunTs + 8 * 60 * 1000;
+      var pinOk = hist.pin.length && hist.pin[0].ts_ms <= gunTs + 12000;
+      return !(boatsOk && m1Ok && pinOk);
     }
     fetch("/js/lipton-dev-replay.json?v=" + CACHE, { cache: "no-store" })
       .then(function (res) { return res.ok ? res.json() : null; })

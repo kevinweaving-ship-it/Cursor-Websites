@@ -37,7 +37,6 @@ mkdir -p /var/www/sailingsa/frontend /var/www/sailingsa/frontend/js
 cp /tmp/lipton-dev.html /var/www/sailingsa/frontend/lipton-dev.html
 cp /tmp/lipton-dev-playback.js /var/www/sailingsa/js/lipton-dev-playback.js
 cp /tmp/lipton-dev-playback.js /var/www/sailingsa/frontend/js/lipton-dev-playback.js 2>/dev/null || true
-rm -f /tmp/lipton_dev_live_history.json /var/www/sailingsa/js/lipton-dev-live-history.json
 cp /tmp/lipton-dev.css /var/www/sailingsa/css/lipton-dev.css
 cp /tmp/lipton_vakaros.py /tmp/lipton_dev_live.py /var/www/sailingsa/sailingsa/scripts/
 python3 /tmp/patch_lipton_dev_live.py
@@ -65,4 +64,3 @@ expect {
     eof { }
 }
 wait
-}
