@@ -252,18 +252,29 @@ def fix_nginx(text: str) -> tuple[str, int]:
     new2, n2 = PUB_LOC.subn("", new)
     n += n2
     new = new2
+    if "include /etc/nginx/snippets/lipton-public-proxy.conf" in new:
+        new = new.replace("    include /etc/nginx/snippets/lipton-public-proxy.conf;\n", "")
+        new = new.replace("include /etc/nginx/snippets/lipton-public-proxy.conf;\n", "")
+        n += 1
     if PLAYBACK_LOCK in new:
         new = new.replace(PLAYBACK_LOCK, PUBLIC_KEEP)
         n += 1
-    if "LIPTON_NGINX_PUBLIC_PROXY_V1" not in new:
+    has_public_proxy = bool(
+        re.search(
+            r"location = /regatta/" + re.escape(RID) + r"(?:/)?\s*\{[^}]*proxy_pass",
+            new,
+            re.S,
+        )
+    )
+    if not has_public_proxy:
         inserted = False
         if DEV_BLOCK in new:
-            new = new.replace(DEV_BLOCK, DEV_BLOCK + "\n" + INCLUDE, 1)
+            new = new.replace(DEV_BLOCK, DEV_BLOCK + "\n" + PUBLIC_PROXY, 1)
             inserted = True
         else:
             m = DEV_LOC.search(new)
             if m:
-                new = new.replace(m.group(1), m.group(1) + "\n\n" + INCLUDE, 1)
+                new = new.replace(m.group(1), m.group(1) + "\n\n" + PUBLIC_PROXY, 1)
                 inserted = True
         if not inserted:
             for needle in (
@@ -272,7 +283,7 @@ def fix_nginx(text: str) -> tuple[str, int]:
                 "        location = /regatta {",
             ):
                 if needle in new:
-                    new = new.replace(needle, INCLUDE + "\n" + needle, 1)
+                    new = new.replace(needle, PUBLIC_PROXY + "\n" + needle, 1)
                     inserted = True
                     break
         if inserted:
@@ -373,7 +384,7 @@ def main() -> int:
             or _public_aliased(raw)
             or new != raw
             or "LIPTON_NGINX_PUBLIC_PROXY_V1" not in new
-            or "lipton-public-proxy.conf" not in new
+            or "proxy_pass http://127.0.0.1:8000" not in new
             or snippet_changed
         )
         if needs and (new != raw or snippet_changed):
@@ -405,7 +416,7 @@ def main() -> int:
         raw = API.read_text(encoding="utf-8")
         new, changed = fix_api(raw)
         if changed:
-            if _seconds_since_api_strip() < (30 if _overnight_hold() else 8):
+            if _seconds_since_api_strip() < 8:
                 _log("api.py hijack on disk; deferred strip")
             else:
                 _write(API, new)

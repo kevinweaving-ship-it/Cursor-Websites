@@ -40,7 +40,8 @@ def main() -> int:
     assert "lipton-challenge-cup-dev" in new
     assert new.count("alias /var/www/sailingsa/lipton-dev.html") == 1
     assert "LIPTON_NGINX_PUBLIC_PROXY_V1" in new
-    assert "include /etc/nginx/snippets/lipton-public-proxy.conf" in new
+    assert "proxy_pass http://127.0.0.1:8000" in new
+    assert "include /etc/nginx/snippets/lipton-public-proxy.conf" not in new
     assert mod._public_aliased(new) is False
 
     base = """
@@ -55,7 +56,8 @@ def main() -> int:
     proxied, pn = mod.fix_nginx(base)
     assert pn == 1
     assert "LIPTON_NGINX_PUBLIC_PROXY_V1" in proxied
-    assert "include /etc/nginx/snippets/lipton-public-proxy.conf" in proxied
+    assert "proxy_pass http://127.0.0.1:8000" in proxied
+    assert "include /etc/nginx/snippets/lipton-public-proxy.conf" not in proxied
     assert "lipton-challenge-cup-dev" in proxied
 
     fat = """
@@ -74,8 +76,25 @@ def main() -> int:
     fat_new, fn = mod.fix_nginx(fat)
     assert fn >= 1
     assert "LIPTON_NGINX_PUBLIC_PROXY_V1" in fat_new
-    assert "include /etc/nginx/snippets/lipton-public-proxy.conf" in fat_new
+    assert "proxy_pass http://127.0.0.1:8000" in fat_new
+    assert "include /etc/nginx/snippets/lipton-public-proxy.conf" not in fat_new
     assert fat_new.count("alias /var/www/sailingsa/lipton-dev.html") == 1
+
+    with_inc = """
+    location = /regatta/2026-08-29-lipton-challenge-cup-dev {
+        default_type text/html;
+        add_header Cache-Control "no-store";
+        add_header X-Robots-Tag "noindex, nofollow";
+        alias /var/www/sailingsa/lipton-dev.html;
+    }
+    # LIPTON_NGINX_PUBLIC_PROXY_V1
+    include /etc/nginx/snippets/lipton-public-proxy.conf;
+        location = /regatta {
+"""
+    inc_new, ic = mod.fix_nginx(with_inc)
+    assert "include /etc/nginx/snippets/lipton-public-proxy.conf" not in inc_new
+    assert "proxy_pass http://127.0.0.1:8000" in inc_new
+    assert ic >= 1
 
     api = '''
 def serve_regatta_standalone(slug: str, request: Request):
