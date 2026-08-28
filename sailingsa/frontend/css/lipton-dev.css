@@ -293,6 +293,15 @@ body[data-lipton-dev="1"] #lipton-dev-chart {
   inset: 0;
   z-index: 0;
 }
+body[data-lipton-dev="1"] .lipton-dev-track > .leaflet-control-container {
+  z-index: 3;
+}
+body[data-lipton-dev="1"] .leaflet-control-zoom a {
+  width: 44px;
+  height: 44px;
+  line-height: 44px;
+  font-size: 22px;
+}
 body[data-lipton-dev="1"] .lipton-dev-track canvas {
   position: absolute;
   inset: 0;

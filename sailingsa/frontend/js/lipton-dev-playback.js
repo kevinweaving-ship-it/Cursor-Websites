@@ -291,22 +291,49 @@
     var mapBounds = null;
     var cam = null;
     var chartMap = null;
+    var followFleet = true;
+    var chartSyncing = false;
+    var chartPointerDown = false;
+    var drawingMap = false;
+    function setMapButtons() {
+      document.querySelectorAll("[data-map]").forEach(function (btn) {
+        var mode = btn.getAttribute("data-map");
+        var active = followFleet ? mode === "follow" : mode === "free";
+        btn.classList.toggle("is-active", active);
+        btn.setAttribute("aria-pressed", active ? "true" : "false");
+      });
+    }
+    function setFollow(on, opts) {
+      followFleet = !!on;
+      setMapButtons();
+      if (followFleet && (!opts || opts.snap !== false)) {
+        cam = null;
+        frameCam(playTs);
+        drawMap(playTs);
+      }
+    }
+    function userFreedMap() {
+      if (chartSyncing || !followFleet) return;
+      followFleet = false;
+      setMapButtons();
+    }
     function initChart() {
       var el = document.getElementById("lipton-dev-chart");
       if (!el || !window.L || chartMap) return;
       chartMap = L.map(el, {
-        zoomControl: false,
+        zoomControl: true,
         attributionControl: true,
-        dragging: false,
-        scrollWheelZoom: false,
-        doubleClickZoom: false,
-        boxZoom: false,
-        keyboard: false,
+        dragging: true,
+        scrollWheelZoom: true,
+        doubleClickZoom: true,
+        boxZoom: true,
+        keyboard: true,
+        touchZoom: true,
         zoomSnap: 0,
         zoomAnimation: false,
         fadeAnimation: false,
         markerZoomAnimation: false,
-        inertia: false
+        inertia: true
       }).setView([-33.901, 18.423], 15);
       L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
         maxZoom: 19,
@@ -317,10 +344,32 @@
         opacity: 0.85,
         attribution: "Labels © Esri"
       }).addTo(chartMap);
+      chartMap.on("dragstart zoomstart boxzoomstart", userFreedMap);
+      chartMap.on("movestart", function () {
+        if (!chartSyncing) userFreedMap();
+      });
+      chartMap.on("move zoom", function () {
+        if (chartSyncing || drawingMap) return;
+        drawMap(playTs);
+      });
+      el.addEventListener("pointerdown", function () {
+        chartPointerDown = true;
+      });
+      window.addEventListener("pointerup", function () {
+        chartPointerDown = false;
+      });
+      window.addEventListener("pointercancel", function () {
+        chartPointerDown = false;
+      });
+      window.requestAnimationFrame(function () {
+        if (chartMap) chartMap.invalidateSize({ animate: false });
+      });
+      var track = el.parentNode;
+      var ctrls = el.querySelector(".leaflet-control-container");
+      if (track && ctrls) track.appendChild(ctrls);
     }
     function syncChart() {
-      if (!chartMap || !mapBounds) return;
-      chartMap.invalidateSize({ animate: false });
+      if (!followFleet || !chartMap || !mapBounds || chartPointerDown) return;
       var lat = mapBounds.midLat;
       var lon = mapBounds.midLon;
       var cos = Math.max(0.2, Math.cos(lat * Math.PI / 180));
@@ -328,7 +377,12 @@
       if (!(z > 0)) z = 15;
       if (z < 13) z = 13;
       if (z > 19) z = 19;
+      var cur = chartMap.getCenter();
+      var dz = Math.abs(chartMap.getZoom() - z);
+      if (dz < 0.04 && Math.abs(cur.lat - lat) < 0.00003 && Math.abs(cur.lng - lon) < 0.00003) return;
+      chartSyncing = true;
       chartMap.setView([lat, lon], z, { animate: false });
+      chartSyncing = false;
     }
     function expandBounds(lat, lon, box) {
       if (lat == null || lon == null) return;
@@ -539,7 +593,7 @@
       });
       if (!cam) {
         cam = target;
-      } else {
+      } else if (followFleet) {
         var aPan = playing ? 0.12 : 1;
         var aZoom = playing ? 0.08 : 1;
         if (playing && target.scale < cam.scale) aZoom = 0.22;
@@ -549,9 +603,12 @@
         cam.cos = Math.cos(cam.midLat * Math.PI / 180);
         cam.w = w;
         cam.h = h;
+      } else {
+        cam.w = w;
+        cam.h = h;
       }
       mapBounds = cam;
-      syncChart();
+      if (followFleet) syncChart();
     }
     function xy(lat, lon) {
       if (chartMap) {
@@ -897,8 +954,13 @@
       mapCtx.textBaseline = "alphabetic";
     }
     function drawMap(ts) {
+      if (drawingMap) return;
+      drawingMap = true;
       frameCam(ts);
-      if (!mapCtx || !mapBounds) return;
+      if (!mapCtx || !mapBounds) {
+        drawingMap = false;
+        return;
+      }
       var w = mapBounds.w;
       var h = mapBounds.h;
       mapCtx.clearRect(0, 0, w, h);
@@ -935,6 +997,7 @@
         drawBoatLabel(p, pos.hdg, sail, ts);
       });
       drawCourseLabel();
+      drawingMap = false;
     }
     function courseFromTrail() {
       if (data.course && data.course.label) return data.course.label;
@@ -1427,7 +1490,7 @@
       deltaSeen = {};
       lastHdg = {};
       lastHdgAt = {};
-      cam = null;
+      if (followFleet) cam = null;
       lastHeadLimit = -1;
       render(ts);
     }
@@ -1493,6 +1556,11 @@
         setRateButtons();
       });
     });
+    document.querySelectorAll("[data-map]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        setFollow(btn.getAttribute("data-map") === "follow");
+      });
+    });
     if (playBtn) {
       playBtn.addEventListener("click", function () {
         if (!trackerReady) return;
@@ -1503,13 +1571,15 @@
     }
 
     window.addEventListener("resize", function () {
-      cam = null;
+      if (chartMap) chartMap.invalidateSize({ animate: false });
+      if (followFleet) cam = null;
       frameCam(playTs);
       drawMap(playTs);
     });
 
     fillHead(0);
     setRateButtons();
+    setMapButtons();
     waitForTracker();
     window.requestAnimationFrame(tick);
   }

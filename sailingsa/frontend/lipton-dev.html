@@ -6,8 +6,8 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Lipton Challenge Cup 2026 — playback (dev)</title>
   <link rel="stylesheet" href="/css/main.css">
-  <link rel="stylesheet" href="/js/vendor/leaflet/leaflet.css?v=20260828a">
-  <link rel="stylesheet" href="/css/lipton-dev.css?v=20260828a">
+  <link rel="stylesheet" href="/js/vendor/leaflet/leaflet.css?v=20260828b">
+  <link rel="stylesheet" href="/css/lipton-dev.css?v=20260828b">
   <script src="/js/api.js"></script>
   <script src="/js/session.js"></script>
 </head>
@@ -88,6 +88,10 @@
               <button type="button" class="lipton-dev-btn" data-rate="25">25×</button>
               <button type="button" class="lipton-dev-btn" data-rate="50">50×</button>
             </div>
+            <div class="lipton-dev-transport" role="group" aria-label="Map">
+              <button type="button" class="lipton-dev-btn is-active" data-map="follow" aria-pressed="true" title="Keep the whole fleet in view while the race replays">Keep in view</button>
+              <button type="button" class="lipton-dev-btn" data-map="free" aria-pressed="false" title="Pan and zoom the map yourself">Free</button>
+            </div>
           </div>
           <div class="class-header-club-logo-col">
             <a href="/class/j22" class="regatta-header-logo-link" title="Open J22 class page">
@@ -141,8 +145,8 @@
     </div>
   </div>
 
-  <script src="/js/vendor/leaflet/leaflet.js?v=20260828a"></script>
+  <script src="/js/vendor/leaflet/leaflet.js?v=20260828b"></script>
   <script src="/js/blank-landing-header.js"></script>
-  <script src="/js/lipton-dev-playback.js?v=20260828a"></script>
+  <script src="/js/lipton-dev-playback.js?v=20260828b"></script>
 </body>
 </html>
