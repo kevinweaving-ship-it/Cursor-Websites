@@ -890,7 +890,7 @@
       mapCtx.fillStyle = "#ffffff";
       mapCtx.font = "bold 10px sans-serif";
       mapCtx.fillText(pinLabel || "Pin", a.x + 6, a.y - 6);
-      mapCtx.fillText(label, (a.x + b.x) / 2 + 6, (a.y + b.y) / 2 - 6);
+      if (label) mapCtx.fillText(label, (a.x + b.x) / 2 + 6, (a.y + b.y) / 2 - 6);
     }
     function passRankOf(pass, sail) {
       if (!pass || !pass.boats) return null;
@@ -1028,11 +1028,10 @@
       Object.keys(trail.boats || {}).forEach(function (sail) {
         drawTail(sail, ts);
       });
-      if (ts < GUN_TS) {
-        drawGate(trail.start_line, focusGate === "start_line" ? "#38bdf8" : "rgba(56,189,248,0.4)", "START", "Pin", "RC");
-      } else {
-        drawGate(trail.finish_line, focusGate === "finish_line" ? "#fbbf24" : "rgba(251,191,36,0.35)", "FINISH", "Pin", "RC");
-      }
+      var startName = ts < GUN_TS ? "START" : "";
+      var finishName = ts >= GUN_TS ? "FINISH" : "";
+      drawGate(trail.start_line, focusGate === "start_line" ? "#38bdf8" : "rgba(56,189,248,0.4)", startName, "Pin", "RC");
+      drawGate(trail.finish_line, focusGate === "finish_line" ? "#fbbf24" : "rgba(251,191,36,0.35)", finishName, "Pin", "RC");
       Object.keys(trail.boats || {}).forEach(function (sail) {
         var pos = posAt(sail, ts);
         if (!pos) return;
