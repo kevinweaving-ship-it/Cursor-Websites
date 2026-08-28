@@ -456,43 +456,57 @@ body[data-lipton-dev="1"] .lipton-dev-scrub {
   cursor: pointer;
 }
 body[data-lipton-dev="1"] .lipton-dev-map-transport .lipton-dev-transport--play {
-  display: flex;
+  display: grid;
+  grid-template-columns: 24px 24px minmax(0, 1fr) 24px;
+  align-items: center;
   width: 100%;
   flex: 0 0 auto;
-  height: 26px;
-  max-height: 26px;
+  height: 28px;
+  max-height: 28px;
   margin: 0;
   padding: 2px;
   box-sizing: border-box;
-  gap: 3px;
-  flex-wrap: nowrap;
-  align-items: center;
-  justify-content: space-between;
+  gap: 2px;
   overflow: hidden;
   background: #ffffff;
   border-radius: 4px;
 }
 body[data-lipton-dev="1"] .lipton-dev-map-transport .lipton-dev-btn {
-  flex: 0 0 auto;
-  width: 22px;
-  height: 22px;
-  min-width: 22px;
-  min-height: 22px;
-  max-width: 22px;
-  max-height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  max-width: 24px;
+  max-height: 24px;
+  margin: 0;
   padding: 0;
-  font-size: 12px;
-  line-height: 20px;
   border-radius: 4px;
   background: #ffffff;
   color: #1a2750;
-  border: 1px solid #1a2750;
+  border: 1.5px solid #1a2750;
+}
+body[data-lipton-dev="1"] .lipton-dev-ico {
+  display: block;
+  width: 14px;
+  height: 14px;
+  fill: #1a2750;
+  flex: 0 0 auto;
+}
+body[data-lipton-dev="1"] .lipton-dev-ico--pause {
+  display: none;
+}
+body[data-lipton-dev="1"] #lipton-dev-play.is-playing .lipton-dev-ico--play {
+  display: none;
+}
+body[data-lipton-dev="1"] #lipton-dev-play.is-playing .lipton-dev-ico--pause {
+  display: block;
 }
 body[data-lipton-dev="1"] .lipton-dev-map-transport .lipton-dev-play-rate {
-  flex: 1 1 auto;
   min-width: 0;
-  height: 22px;
-  max-height: 22px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -503,10 +517,14 @@ body[data-lipton-dev="1"] .lipton-dev-map-transport .lipton-dev-play-rate {
   text-shadow: none;
 }
 body[data-lipton-dev="1"] .lipton-dev-map-transport .lipton-dev-btn:disabled {
-  border-color: #c5c5c5;
-  color: #c5c5c5;
-  opacity: 1;
+  border-color: #1a2750;
+  color: #1a2750;
+  background: #ffffff;
+  opacity: 0.55;
   cursor: default;
+}
+body[data-lipton-dev="1"] .lipton-dev-map-transport .lipton-dev-btn:disabled .lipton-dev-ico {
+  fill: #1a2750;
 }
 body[data-lipton-dev="1"] .lipton-dev-event-logo {
   display: block;

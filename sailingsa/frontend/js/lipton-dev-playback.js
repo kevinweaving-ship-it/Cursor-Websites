@@ -1356,13 +1356,11 @@
     }
     function setPlayLabel() {
       if (!playBtn) return;
-      if (!trackerReady) {
-        playBtn.disabled = true;
-        playBtn.textContent = "Wait";
-        return;
-      }
-      playBtn.disabled = false;
-      playBtn.textContent = playing ? "❚❚" : "▶";
+      playBtn.disabled = !trackerReady;
+      playBtn.classList.toggle("is-playing", !!(trackerReady && playing));
+      var lab = !trackerReady ? "Wait" : (playing ? "Pause" : "Play");
+      playBtn.title = lab;
+      playBtn.setAttribute("aria-label", lab);
     }
     function visiblePassLimit(ts) {
       var max = 0;
