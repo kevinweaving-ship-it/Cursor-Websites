@@ -340,18 +340,32 @@ body[data-lipton-dev="1"] .leaflet-touch .leaflet-control-zoom-out {
   line-height: 14px;
   font-size: 11px;
 }
-body[data-lipton-dev="1"] .lipton-dev-map-logo {
+body[data-lipton-dev="1"] .lipton-dev-map-brand {
   position: absolute;
   z-index: 4;
   top: 10px;
   left: 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   pointer-events: auto;
+}
+body[data-lipton-dev="1"] .lipton-dev-map-logo {
+  flex: 0 0 auto;
   line-height: 0;
 }
 body[data-lipton-dev="1"] .lipton-dev-map-logo img {
   display: block;
   height: 32px;
   width: auto;
+}
+body[data-lipton-dev="1"] .lipton-dev-scrub {
+  display: block;
+  width: 140px;
+  height: 18px;
+  margin: 0;
+  accent-color: #fbbf24;
+  cursor: pointer;
 }
 body[data-lipton-dev="1"] .lipton-dev-track canvas {
   position: absolute;
@@ -397,14 +411,6 @@ body[data-lipton-dev="1"] .lipton-dev-hud-chip {
 body[data-lipton-dev="1"] .lipton-dev-hud-chip.is-active {
   background: rgba(0, 31, 63, 0.92);
   color: #ffffff;
-}
-body[data-lipton-dev="1"] .lipton-dev-scrub {
-  display: block;
-  width: 100%;
-  margin: 4px 0 0;
-  height: 22px;
-  accent-color: #fbbf24;
-  cursor: pointer;
 }
 body[data-lipton-dev="1"] .lipton-dev-btn:disabled {
   opacity: 0.45;
