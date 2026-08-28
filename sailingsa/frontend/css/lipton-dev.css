@@ -367,7 +367,28 @@ body[data-lipton-dev="1"] .table-wrapper td.timer-col:last-child {
   right: 0;
   z-index: 3;
   background: #ffffff;
+}
+body[data-lipton-dev="1"] .table-wrapper th.ld-overall-head,
+body[data-lipton-dev="1"] .table-wrapper td.ld-overall-col {
+  position: sticky;
+  right: 52px;
+  z-index: 3;
+  width: 40px;
+  min-width: 40px;
+  background: #ffffff;
   box-shadow: -4px 0 6px -2px rgba(0, 0, 0, 0.18);
+}
+body[data-lipton-dev="1"] .table-wrapper thead th.ld-overall-head {
+  z-index: 6;
+  background: #e9eefb;
+  white-space: normal;
+  line-height: 1.05;
+}
+body[data-lipton-dev="1"] .ld-fin-legend {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
 }
 body[data-lipton-dev="1"] .table-wrapper thead th.rank-col,
 body[data-lipton-dev="1"] .table-wrapper thead th.wc-meta-col,
@@ -385,6 +406,7 @@ body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-gold td.rank-col,
 body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-gold td.wc-meta-col,
 body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-gold td.boat-name-col,
 body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-gold td.club-col,
+body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-gold td.ld-overall-col,
 body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-gold td.timer-col--fin,
 body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-gold td.timer-col:last-child {
   background: #D4AF37;
@@ -393,9 +415,19 @@ body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-silver td.rank-col,
 body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-silver td.wc-meta-col,
 body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-silver td.boat-name-col,
 body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-silver td.club-col,
+body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-silver td.ld-overall-col,
 body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-silver td.timer-col--fin,
 body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-silver td.timer-col:last-child {
   background: #D7D7D7;
+}
+body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-bronze td.rank-col,
+body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-bronze td.wc-meta-col,
+body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-bronze td.boat-name-col,
+body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-bronze td.club-col,
+body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-bronze td.ld-overall-col,
+body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-bronze td.timer-col--fin,
+body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-bronze td.timer-col:last-child {
+  background: #CE8946;
 }
 body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-bronze td.rank-col,
 body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-bronze td.wc-meta-col,

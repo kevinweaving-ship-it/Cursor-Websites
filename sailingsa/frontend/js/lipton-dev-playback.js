@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828by";
+  var CACHE = "20260828bz";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = params.get("live") === "1";
@@ -1491,6 +1491,9 @@
       if (p.id === "FIN" || p.label === "Fin") return false;
       return true;
     }
+    function passIsFin(p) {
+      return p && (p.id === "FIN" || p.label === "Fin");
+    }
     function fleetN() {
       return Object.keys(BOATS).length;
     }
@@ -1519,7 +1522,9 @@
       return !passFolded(1, ts);
     }
     function showDeltaAfter(i, ts, limit) {
-      return i < limit && !passFolded(i + 1, ts);
+      if (i >= limit) return false;
+      if (passIsFin(PASSES[i + 1])) return true;
+      return !passFolded(i + 1, ts);
     }
     function fillHead(limit) {
       if (!headRow) return;
@@ -1535,18 +1540,19 @@
         var p = PASSES[i];
         var lab = passHeadLabel(i);
         var title = "Lap " + p.lap + " mark " + p.mark;
-        if (p.id === "FIN" || p.label === "Fin") title = "Finish time and net places (sum of mark gains and losses). Arrow shows or hides all mark times.";
+        if (p.id === "FIN" || p.label === "Fin") title = "Finish time. Overall places are in the column to the left.";
         else if (p.id === "ST" || p.label === "ST") title = "Seconds after first legal start. OCS boats use the recross after they clear, not the OCS dip.";
         else if (passFolded(i, ts)) title = lab + " places vs previous mark";
-        var twist = "";
-        var isFinCol = p.id === "FIN" || p.label === "Fin";
-        if (isFinCol) {
-          twist = "<button type=\"button\" class=\"ld-mark-twist\" data-mark-twist=\"1\" aria-expanded=\"" + (marksDetailOpen ? "true" : "false") + "\" title=\"" + (marksDetailOpen ? "Hide mark times" : "Show mark times") + "\" aria-label=\"" + (marksDetailOpen ? "Hide mark times" : "Show mark times") + "\">" + (marksDetailOpen ? "▾" : "▸") + "</button>";
-        }
-        html += "<th class=\"timer-col" + ((p.id === "FIN" || p.label === "Fin") ? " timer-col--fin" : "") + (passIsMark(p) ? " timer-col--mark" : "") + (!marksDetailOpen && passIsMark(p) && passFolded(i, ts) ? " timer-col--tight" : "") + "\" title=\"" + esc(title) + "\"><span class=\"ld-mark-lab\">" + esc(lab) + "</span>" + twist + "</th>";
+        html += "<th class=\"timer-col" + (passIsFin(p) ? " timer-col--fin" : "") + (passIsMark(p) ? " timer-col--mark" : "") + (!marksDetailOpen && passIsMark(p) && passFolded(i, ts) ? " timer-col--tight" : "") + "\" title=\"" + esc(title) + "\"><span class=\"ld-mark-lab\">" + esc(lab) + "</span></th>";
         if (showDeltaAfter(i, ts, limit)) {
-          var nlab = passHeadLabel(i + 1);
-          html += "<th class=\"place-delta-col\" title=\"Places gained or lost " + esc(lab) + " to " + esc(nlab) + "\" aria-label=\"Place change " + esc(lab) + " to " + esc(nlab) + "\">±</th>";
+          if (passIsFin(PASSES[i + 1])) {
+            html += "<th class=\"place-delta-col ld-overall-head\" title=\"Overall places vs start (sum of mark gains and losses). Arrow shows or hides mark times.\" aria-label=\"Overall place change. Show or hide mark times.\">" +
+              "<span class=\"ld-fin-legend\" aria-hidden=\"true\"><i class=\"ld-tri ld-tri--up\"></i><i class=\"ld-tri ld-tri--down\"></i></span>" +
+              "<button type=\"button\" class=\"ld-mark-twist\" data-mark-twist=\"1\" aria-expanded=\"" + (marksDetailOpen ? "true" : "false") + "\" title=\"" + (marksDetailOpen ? "Hide mark times" : "Show mark times") + "\" aria-label=\"" + (marksDetailOpen ? "Hide mark times" : "Show mark times") + "\">" + (marksDetailOpen ? "▾" : "▸") + "</button></th>";
+          } else {
+            var nlab = passHeadLabel(i + 1);
+            html += "<th class=\"place-delta-col\" title=\"Places gained or lost " + esc(lab) + " to " + esc(nlab) + "\" aria-label=\"Place change " + esc(lab) + " to " + esc(nlab) + "\">±</th>";
+          }
         }
       }
       headRow.innerHTML = html;
@@ -1777,18 +1783,16 @@
     function timerTd(r, i, rankMaps, ts) {
       var time = splitCell(r.times, i, r.boat);
       var p = PASSES[i];
-      var isFin = p && (p.id === "FIN" || p.label === "Fin");
+      var isFin = passIsFin(p);
       var finCls = isFin ? " timer-col--fin" : "";
-      if (!passFolded(i, ts)) return "<td class=\"timer-col" + finCls + "\">" + time + "</td>";
-      var gained = isFin ? totalGain(r.boat, rankMaps) : deltaGain(
+      if (isFin) return "<td class=\"timer-col" + finCls + "\">" + time + "</td>";
+      if (!passFolded(i, ts)) return "<td class=\"timer-col\">" + time + "</td>";
+      var gained = deltaGain(
         rankMaps[i - 1] && rankMaps[i - 1].prev,
         rankMaps[i - 1] && rankMaps[i - 1].next,
         r.boat
       );
       var flash = rememberDelta(r.boat + "|fold|" + i, gained);
-      if (isFin) {
-        return "<td class=\"timer-col timer-col--folded timer-col--fin\">" + time + deltaSpan(gained, flash) + "</td>";
-      }
       if (!marksDetailOpen) {
         return "<td class=\"timer-col timer-col--places\">" + deltaSpan(gained, flash) + "</td>";
       }
@@ -1957,7 +1961,12 @@
         if (i === 0 && !showStCol(viewTs)) continue;
         html += timerTd(r, i, rankMaps, viewTs);
         if (showDeltaAfter(i, viewTs, passLimit)) {
-          html += deltaCell(r.boat, i, rankMaps[i].prev, rankMaps[i].next);
+          if (passIsFin(PASSES[i + 1])) {
+            var net = totalGain(r.boat, rankMaps);
+            html += "<td class=\"place-delta-col ld-overall-col\">" + deltaSpan(net, rememberDelta(r.boat + "|net", net)) + "</td>";
+          } else {
+            html += deltaCell(r.boat, i, rankMaps[i].prev, rankMaps[i].next);
+          }
         }
       }
       html += "</tr>";
@@ -2241,7 +2250,7 @@
 
     if (headRow) {
       headRow.addEventListener("click", function (ev) {
-        var th = ev.target && ev.target.closest ? ev.target.closest("th.timer-col--fin") : null;
+        var th = ev.target && ev.target.closest ? ev.target.closest("th.ld-overall-head") : null;
         if (!th || !th.querySelector("[data-mark-twist]")) return;
         ev.preventDefault();
         ev.stopPropagation();
