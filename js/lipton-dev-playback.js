@@ -429,7 +429,8 @@
       return Math.sqrt(x * x + y * y);
     }
     var BOAT_LEN_M = 6.71;
-    var TAIL_M = BOAT_LEN_M * 0.85;
+    var TAIL_M = BOAT_LEN_M * 6;
+    var TAIL_MS = 18000;
     var TAIL_CLEAR_MS = 5000;
     var tailsUntil = 0;
     var finishFlashUntil = {};
@@ -786,7 +787,7 @@
       var acc = 0;
       var lastI = now.i != null ? now.i : Math.floor((ts - GRID_ORIGIN) / trail.step_ms);
       var idx = hitBack(b, lastI - 1);
-        var wantM = TAIL_M;
+      var stepMs = trail.step_ms || 1000;
       while (idx >= 0) {
         var gap = lastI - idx;
         var cur = { lat: b.lat[idx], lon: b.lon[idx], i: idx };
@@ -795,7 +796,8 @@
         if (step > 14 * Math.min(gap, 8)) break;
         acc += step;
         hits.push(cur);
-        if (acc >= wantM) break;
+        if (acc >= TAIL_M) break;
+        if ((now.i - idx) * stepMs >= TAIL_MS) break;
         lastI = idx;
         idx = hitBack(b, idx - 1);
       }
@@ -842,25 +844,24 @@
         return;
       }
       var b = trail.boats[sail];
-      var pos = sampleAt(b, ts);
-      if (!pos) return;
-      var hdg = headingAt(b, pos);
-      var p = xy(pos.lat, pos.lon);
-      var rad = (hdg || 0) * Math.PI / 180;
-      var boatR = 8;
-      var len = Math.max(20, TAIL_M * (mapBounds && mapBounds.scale ? mapBounds.scale : 0.5));
-      var sx = p.x - Math.sin(rad) * boatR;
-      var sy = p.y + Math.cos(rad) * boatR;
-      var ex = p.x - Math.sin(rad) * (boatR + len);
-      var ey = p.y + Math.cos(rad) * (boatR + len);
+      var hits = tailHits(b, ts);
+      if (hits.length < 2) return;
       var hot = ocsPending(sail, ts);
-      mapCtx.beginPath();
-      mapCtx.moveTo(sx, sy);
-      mapCtx.lineTo(ex, ey);
-      mapCtx.strokeStyle = hot ? "rgba(254,202,202,0.9)" : "rgba(248,250,252,0.9)";
-      mapCtx.lineWidth = 3;
-      mapCtx.lineCap = "round";
-      mapCtx.stroke();
+      var n = hits.length - 1;
+      for (var s = 0; s < n; s++) {
+        var a = xy(hits[s].lat, hits[s].lon);
+        var c = xy(hits[s + 1].lat, hits[s + 1].lon);
+        var u = (s + 1) / n;
+        var alpha = 0.12 + 0.72 * u * u;
+        mapCtx.beginPath();
+        mapCtx.moveTo(a.x, a.y);
+        mapCtx.lineTo(c.x, c.y);
+        mapCtx.strokeStyle = hot ? "rgba(254,202,202," + alpha + ")" : "rgba(248,250,252," + alpha + ")";
+        mapCtx.lineWidth = 1.4 + 1.2 * u;
+        mapCtx.lineCap = "round";
+        mapCtx.lineJoin = "round";
+        mapCtx.stroke();
+      }
     }
     function drawGate(line, color, label, pinLabel, rcLabel) {
       if (!line || !line.left || !line.right) return;
