@@ -436,6 +436,16 @@
     if (!tbody) return;
     if (wrapEl) wrapEl.hidden = true;
     tbody.innerHTML = "";
+    var lastTableOn = false;
+    function setTableVisible(on) {
+      if (!wrapEl) return;
+      wrapEl.hidden = !on;
+      if (on === lastTableOn) return;
+      lastTableOn = on;
+      window.requestAnimationFrame(function () {
+        if (chartMap) chartMap.invalidateSize({ animate: false });
+      });
+    }
 
     function ident(tracker) {
       return BOATS[tracker] || null;
@@ -1775,7 +1785,7 @@
       var passLimit = visiblePassLimit(ts);
       if (!rows.length) {
         tbody.innerHTML = "";
-        if (wrapEl) wrapEl.hidden = true;
+        if (wrapEl) setTableVisible(false);
         lastHeadLimit = -1;
         if (clockEl) clockEl.textContent = clockText(ts, rows);
         setSailed(rows);
@@ -1784,7 +1794,7 @@
         syncScrub();
         return;
       }
-      if (wrapEl) wrapEl.hidden = false;
+      if (wrapEl) setTableVisible(true);
       fillHead(passLimit);
       var html = "";
       for (var i = 0; i < rows.length; i++) {
