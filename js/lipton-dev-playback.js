@@ -253,7 +253,7 @@
     var playing = false;
     var trackerReady = false;
     var playTs = PLAY_START_TS;
-    var GUN_HORN_SRC = "/js/lipton-dev-start-airhorn.mp3?v=20260828m";
+    var GUN_HORN_SRC = "/js/lipton-dev-start-airhorn.mp3?v=20260828n";
     var gunHorn = null;
     function gunHornEl() {
       if (!gunHorn) {
@@ -1118,7 +1118,7 @@
         var p = xy(pos.lat, pos.lon);
         drawBoatLabel(p, pos.hdg, sail, ts);
       });
-      drawCourseLabel();
+      drawCourseLabel(ts);
       drawingMap = false;
     }
     function courseFromTrail() {
@@ -1167,31 +1167,54 @@
       if (d1s != null && d1s > 800 && d2s != null && d2s < 800) return "Triangle";
       return "";
     }
-    function drawCourseLabel() {
-      var label = courseFromTrail();
-      if (!label || !mapCtx || !mapBounds) return;
+    function fmtLiveClock(ms) {
+      var a = Math.abs(Number(ms) || 0);
+      var tenths = Math.floor(a / 100);
+      var s = Math.floor(tenths / 10);
+      var t = tenths % 10;
+      return (ms < 0 ? "T−" : "T+") + Math.floor(s / 60) + ":" + pad(s % 60) + "." + t;
+    }
+    function drawCourseLabel(ts) {
+      if (!mapCtx || !mapBounds) return;
       var pad = 10;
-      var name = label.toUpperCase();
+      var name = (courseFromTrail() || "").toUpperCase();
       var sub = "COURSE >";
+      var clock = fmtLiveClock(ts - GUN_TS);
+      var after = ts >= GUN_TS;
       mapCtx.save();
       mapCtx.textAlign = "center";
       mapCtx.textBaseline = "top";
       mapCtx.font = "bold 13px sans-serif";
-      var nameW = mapCtx.measureText(name).width;
+      var nameW = name ? mapCtx.measureText(name).width : 0;
       mapCtx.font = "bold 11px sans-serif";
       var subW = mapCtx.measureText(sub).width;
-      var boxW = Math.max(nameW, subW) + 20;
+      mapCtx.font = "bold 24px sans-serif";
+      var clockW = mapCtx.measureText(clock).width;
+      var boxW = Math.max(nameW, subW, clockW) + 24;
       var boxH = 22;
+      var clockH = 38;
       var x0 = mapBounds.w - pad - boxW;
       var y0 = pad;
       var cx = x0 + boxW / 2;
-      mapCtx.fillStyle = "rgba(0,31,63,0.62)";
-      mapCtx.fillRect(x0, y0, boxW, boxH);
-      mapCtx.fillStyle = "#ffffff";
-      mapCtx.font = "bold 13px sans-serif";
-      mapCtx.fillText(name, cx, y0 + 4);
-      mapCtx.font = "bold 11px sans-serif";
-      mapCtx.fillText(sub, cx, y0 + boxH + 4);
+      if (name) {
+        mapCtx.fillStyle = "rgba(0,31,63,0.62)";
+        mapCtx.fillRect(x0, y0, boxW, boxH);
+        mapCtx.fillStyle = "#ffffff";
+        mapCtx.font = "bold 13px sans-serif";
+        mapCtx.fillText(name, cx, y0 + 4);
+        mapCtx.font = "bold 11px sans-serif";
+        mapCtx.fillText(sub, cx, y0 + boxH + 4);
+      }
+      var cy = name ? y0 + boxH + 22 : y0;
+      mapCtx.fillStyle = after ? "rgba(30,20,0,0.82)" : "rgba(0,31,63,0.86)";
+      mapCtx.fillRect(x0, cy, boxW, clockH);
+      mapCtx.strokeStyle = after ? "#fbbf24" : "#38bdf8";
+      mapCtx.lineWidth = 2.2;
+      mapCtx.strokeRect(x0 + 1, cy + 1, boxW - 2, clockH - 2);
+      mapCtx.fillStyle = after ? "#fbbf24" : "#ffffff";
+      mapCtx.font = "bold 24px sans-serif";
+      mapCtx.textBaseline = "middle";
+      mapCtx.fillText(clock, cx, cy + clockH / 2 + 1);
       mapCtx.restore();
     }
     function setRateButtons() {
