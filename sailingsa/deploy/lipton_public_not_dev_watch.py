@@ -386,8 +386,10 @@ def main() -> int:
                 _log("api.py hijack stripped; skipped restart (race underway)")
             else:
                 board = _origin_board_state()
-                if board == "live":
-                    _log("api.py hijack stripped; skipped restart (origin live board)")
+                # Only restart when origin is actually serving playback. "down" is
+                # uvicorn still binding after the last restart — kicking it again 502s the board.
+                if board != "playback":
+                    _log(f"api.py hijack stripped; skipped restart (board={board})")
                 elif _seconds_since_api_restart() < 90:
                     _log(f"api.py hijack stripped; skipped restart (debounce board={board})")
                 else:
