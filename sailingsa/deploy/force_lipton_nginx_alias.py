@@ -13,13 +13,23 @@ GOLD = Path("/root/lipton-nginx-golden.conf")
 
 SNIP_TEXT = """    location = /regatta/2026-08-29-lipton-challenge-cup {
         default_type text/html;
+        etag off;
+        if_modified_since off;
         add_header Cache-Control "no-store, no-cache, must-revalidate, max-age=0" always;
-        rewrite ^ /lipton-dev.html last;
+        add_header Pragma "no-cache" always;
+        add_header Expires "0" always;
+        add_header X-Lipton-Page "playback" always;
+        alias /var/www/sailingsa/lipton-dev.html;
     }
     location = /regatta/2026-08-29-lipton-challenge-cup/ {
         default_type text/html;
+        etag off;
+        if_modified_since off;
         add_header Cache-Control "no-store, no-cache, must-revalidate, max-age=0" always;
-        rewrite ^ /lipton-dev.html last;
+        add_header Pragma "no-cache" always;
+        add_header Expires "0" always;
+        add_header X-Lipton-Page "playback" always;
+        alias /var/www/sailingsa/lipton-dev.html;
     }
 """
 
@@ -95,7 +105,7 @@ def main() -> int:
     if AVAILABLE.is_file():
         AVAILABLE.write_text(text, encoding="utf-8")
     GOLD.write_text(text, encoding="utf-8")
-    print("snippet_playback", "rewrite ^ /lipton-dev.html last" in SNIP.read_text())
+    print("snippet_playback", "alias /var/www/sailingsa/lipton-dev.html" in SNIP.read_text())
     print("snippet_no_proxy", "proxy_pass" not in SNIP.read_text())
     print("old_in_site", "lipton-challenge-cup-old" in text)
     print("include", INCLUDE.strip() in text)

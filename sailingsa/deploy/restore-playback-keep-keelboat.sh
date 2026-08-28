@@ -48,7 +48,7 @@ fi
 SNIP=/etc/nginx/snippets/lipton-public-proxy.conf
 CONF=/etc/nginx/sites-enabled/sailingsa
 need=0
-if ! test -f "$SNIP" || grep -q proxy_pass "$SNIP" || ! grep -q 'rewrite ^ /lipton-dev.html last' "$SNIP"; then
+if ! test -f "$SNIP" || grep -q proxy_pass "$SNIP" || ! grep -q 'alias /var/www/sailingsa/lipton-dev.html' "$SNIP"; then
   need=1
 fi
 if [ "$need" = 1 ]; then
@@ -109,7 +109,7 @@ pub = subprocess.check_output(
 )
 snip = Path("/etc/nginx/snippets/lipton-public-proxy.conf").read_text()
 print("after25 public", len(pub), "dev", 'data-lipton-dev="1"' in pub)
-print("after25 snippet_rewrite", "rewrite ^ /lipton-dev.html last" in snip, "proxy", "proxy_pass" in snip)
+print("after25 snippet_alias", "alias /var/www/sailingsa/lipton-dev.html" in snip, "proxy", "proxy_pass" in snip)
 if 'data-lipton-dev="1"' not in pub or "proxy_pass" in snip:
     raise SystemExit("FAIL watchdog came back")
 print("OK still playback after 25s")

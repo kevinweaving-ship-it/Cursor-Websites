@@ -51,7 +51,7 @@ fi
 SNIP=/etc/nginx/snippets/lipton-public-proxy.conf
 CONF=/etc/nginx/sites-enabled/sailingsa
 need=0
-if ! test -f "$SNIP" || grep -q proxy_pass "$SNIP" || ! grep -q 'rewrite ^ /lipton-dev.html last' "$SNIP"; then
+if ! test -f "$SNIP" || grep -q proxy_pass "$SNIP" || ! grep -q 'alias /var/www/sailingsa/lipton-dev.html' "$SNIP"; then
   need=1
 fi
 if [ "$need" = 1 ]; then
