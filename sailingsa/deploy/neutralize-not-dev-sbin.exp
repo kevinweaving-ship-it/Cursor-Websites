@@ -1,15 +1,12 @@
 #!/usr/bin/expect -f
-set timeout 180
+set timeout 40
 set password "TimAdd#072082"
 set server "102.218.215.253"
 set user "root"
 set script_dir [file dirname [info script]]
 set repo_root [file normalize "$script_dir/../.."]
 
-spawn bash -c "scp -o StrictHostKeyChecking=no \
-  $repo_root/sailingsa/deploy/patch_keelboat_columns.py \
-  $repo_root/sailingsa/deploy/apply-keelboat-columns.sh \
-  ${user}@${server}:/tmp/"
+spawn scp -o StrictHostKeyChecking=no $repo_root/sailingsa/deploy/neutralize-not-dev-sbin.sh ${user}@${server}:/tmp/neutralize-not-dev-sbin.sh
 expect {
     -re "assword" { send "$password\r"; exp_continue }
     eof { }
@@ -17,7 +14,7 @@ expect {
 }
 wait
 
-spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "bash /tmp/apply-keelboat-columns.sh"
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "bash /tmp/neutralize-not-dev-sbin.sh"
 expect {
     -re "assword" { send "$password\r"; exp_continue }
     timeout { puts "ERROR: ssh timeout"; exit 1 }

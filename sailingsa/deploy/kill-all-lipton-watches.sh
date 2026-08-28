@@ -62,9 +62,16 @@ done
 pkill -f lipton_public_not_dev_watch.py 2>/dev/null || true
 CONF=/etc/nginx/sites-enabled/sailingsa
 GOLD=/root/lipton-nginx-golden.conf
-NEED='location = /regatta/2026-08-29-lipton-challenge-cup {'
 test -s "$GOLD"
-if grep -qF "$NEED" "$CONF" 2>/dev/null; then
+ok=0
+if grep -F 'location = /regatta/2026-08-29-lipton-challenge-cup {' "$CONF" >/dev/null 2>&1; then
+  blk=$(awk '/location = \/regatta\/2026-08-29-lipton-challenge-cup \{/,/^    \}/' "$CONF" | head -20)
+  echo "$blk" | grep -qF 'alias /var/www/sailingsa/lipton-dev.html' || ok=1
+  echo "$blk" | grep -q proxy_pass && ok=1
+else
+  ok=1
+fi
+if [ "$ok" = 0 ]; then
   exit 0
 fi
 chattr -i "$CONF" 2>/dev/null || true
@@ -72,11 +79,18 @@ cp "$GOLD" "$CONF"
 if nginx -t; then
   nginx -s reload
   chattr +i "$CONF" 2>/dev/null || true
-  echo "$(date -Is) restored public playback lock" >> /root/lipton-keep-playback.log
+  echo "$(date -Is) restored public playback lock (alias, not proxy)" >> /root/lipton-keep-playback.log
 fi
 KEEP
 chmod 700 /root/lipton-keep-playback.sh
 grep -q lipton-keep-playback /etc/crontab || echo '* * * * * root /root/lipton-keep-playback.sh' >> /etc/crontab
+
+if test -s /tmp/patch_lipton_public_slug.py; then
+  python3 /tmp/patch_lipton_public_slug.py || true
+  systemctl restart sailingsa-api || true
+  sleep 2
+  systemctl is-active sailingsa-api || true
+fi
 
 sleep 1
 echo '=== verify ==='

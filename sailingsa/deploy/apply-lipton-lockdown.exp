@@ -7,8 +7,10 @@ set script_dir [file dirname [info script]]
 set repo_root [file normalize "$script_dir/../.."]
 
 spawn bash -c "scp -o StrictHostKeyChecking=no \
-  $repo_root/sailingsa/deploy/patch_keelboat_columns.py \
-  $repo_root/sailingsa/deploy/apply-keelboat-columns.sh \
+  $repo_root/sailingsa/deploy/nginx-sailingsa-playback-lock.conf \
+  $repo_root/sailingsa/deploy/apply-lipton-lockdown.sh \
+  $repo_root/sailingsa/deploy/patch_lipton_public_slug.py \
+  $repo_root/sailingsa/scripts/lipton_dev_live.py \
   ${user}@${server}:/tmp/"
 expect {
     -re "assword" { send "$password\r"; exp_continue }
@@ -17,7 +19,7 @@ expect {
 }
 wait
 
-spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "bash /tmp/apply-keelboat-columns.sh"
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "bash /tmp/apply-lipton-lockdown.sh"
 expect {
     -re "assword" { send "$password\r"; exp_continue }
     timeout { puts "ERROR: ssh timeout"; exit 1 }

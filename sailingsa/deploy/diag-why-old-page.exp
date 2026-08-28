@@ -1,0 +1,17 @@
+#!/usr/bin/expect -f
+set timeout 60
+set password "TimAdd#072082"
+set repo_root [file normalize [file dirname [info script]]/../..]
+spawn bash -c "scp -o StrictHostKeyChecking=no $repo_root/sailingsa/deploy/diag-why-old-page.sh root@102.218.215.253:/tmp/"
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
+spawn ssh -o StrictHostKeyChecking=no root@102.218.215.253 "bash /tmp/diag-why-old-page.sh"
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    timeout { puts timeout; exit 1 }
+    eof { }
+}
+wait

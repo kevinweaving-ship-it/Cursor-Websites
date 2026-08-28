@@ -1,5 +1,5 @@
 #!/usr/bin/expect -f
-set timeout 180
+set timeout 90
 set password "TimAdd#072082"
 set server "102.218.215.253"
 set user "root"
@@ -7,8 +7,11 @@ set script_dir [file dirname [info script]]
 set repo_root [file normalize "$script_dir/../.."]
 
 spawn bash -c "scp -o StrictHostKeyChecking=no \
-  $repo_root/sailingsa/deploy/patch_keelboat_columns.py \
-  $repo_root/sailingsa/deploy/apply-keelboat-columns.sh \
+  $repo_root/sailingsa/deploy/nginx-sailingsa-playback-lock.conf \
+  $repo_root/sailingsa/deploy/restore-playback-now.sh \
+  $repo_root/sailingsa/frontend/lipton-dev.html \
+  $repo_root/sailingsa/frontend/css/lipton-dev.css \
+  $repo_root/sailingsa/frontend/js/lipton-dev-playback.js \
   ${user}@${server}:/tmp/"
 expect {
     -re "assword" { send "$password\r"; exp_continue }
@@ -17,7 +20,7 @@ expect {
 }
 wait
 
-spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "bash /tmp/apply-keelboat-columns.sh"
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "bash /tmp/restore-playback-now.sh"
 expect {
     -re "assword" { send "$password\r"; exp_continue }
     timeout { puts "ERROR: ssh timeout"; exit 1 }

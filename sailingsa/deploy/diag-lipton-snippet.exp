@@ -1,0 +1,9 @@
+#!/usr/bin/expect -f
+set timeout 60
+set password "TimAdd#072082"
+spawn ssh -o StrictHostKeyChecking=no root@102.218.215.253 {echo '=== snippet ==='; cat /etc/nginx/snippets/lipton-public-proxy.conf; echo '=== includes ==='; grep -n 'lipton-public' /etc/nginx/sites-enabled/sailingsa /etc/nginx/snippets/* 2>/dev/null}
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait

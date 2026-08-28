@@ -1,0 +1,11 @@
+#!/usr/bin/expect -f
+set timeout 40
+set password "TimAdd#072082"
+set repo_root [file normalize [file dirname [info script]]/../..]
+spawn bash -c "scp -o StrictHostKeyChecking=no $repo_root/sailingsa/deploy/diag-lipton-watch-files.sh root@102.218.215.253:/tmp/ && ssh -o StrictHostKeyChecking=no root@102.218.215.253 bash /tmp/diag-lipton-watch-files.sh"
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    timeout { puts timeout; exit 1 }
+    eof { }
+}
+wait

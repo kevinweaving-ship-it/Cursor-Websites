@@ -1,0 +1,10 @@
+#!/usr/bin/expect -f
+set timeout 90
+set password "TimAdd#072082"
+spawn ssh -o StrictHostKeyChecking=no root@102.218.215.253 {systemctl is-active sailingsa-api; ls -la /var/www/sailingsa/lipton-dev.html; echo SNIP; cat /etc/nginx/snippets/lipton-public-proxy.conf; echo CURL; curl -sS -o /tmp/pub.html -w 'pub %{http_code} %{size_download}\n' -A SailingSA-devcheck 'https://sailingsa.co.za/regatta/2026-08-29-lipton-challenge-cup'; curl -sS -o /tmp/old.html -w 'old %{http_code} %{size_download}\n' -A SailingSA-devcheck 'https://sailingsa.co.za/regatta/2026-08-29-lipton-challenge-cup-old'; curl -sS -o /tmp/devhtml.html -w 'file %{http_code} %{size_download}\n' -A SailingSA-devcheck 'https://sailingsa.co.za/lipton-dev.html'; python3 -c 'p=open("/tmp/pub.html",errors="replace").read(); o=open("/tmp/old.html",errors="replace").read(); print("pub",len(p),"dev", "data-lipton-dev" in p, "weather", "WEATHER" in p, p[:60].replace(chr(10)," ")); print("old",len(o),"dev", "data-lipton-dev" in o, "weather", "WEATHER" in o or "Live cam" in o, o[:60].replace(chr(10)," "))'}
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    timeout { puts "timeout"; exit 1 }
+    eof { }
+}
+wait

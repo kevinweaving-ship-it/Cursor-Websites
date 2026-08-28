@@ -1,0 +1,9 @@
+#!/usr/bin/expect -f
+set timeout 60
+set password "TimAdd#072082"
+spawn ssh -o StrictHostKeyChecking=no root@102.218.215.253 {grep -n 'lipton-challenge-cup' /etc/nginx/sites-enabled/sailingsa; echo '---'; sed -n '130,200p' /etc/nginx/sites-enabled/sailingsa}
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
