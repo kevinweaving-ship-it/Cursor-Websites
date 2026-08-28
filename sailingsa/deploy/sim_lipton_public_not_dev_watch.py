@@ -198,6 +198,41 @@ def serve_lipton_dev_playback_page(_request, public: bool = False):
     head2, _s2, _p2 = out2.partition("def serve_lipton_dev_playback_page")
     assert "public=True" not in head2
 
+    hijack_in = '''
+def serve_regatta_standalone(slug: str, request: Request, *, allow_lipton_event: bool = False):
+    slug_s = str(slug or "").strip()
+    if slug_s in (
+        "2026-08-29-lipton-challenge-cup",
+        "2026-08-29-lipton-challenge-cup-old",
+    ):
+        return serve_lipton_dev_playback_page(request, public=True)
+    if slug_s == "2026-08-29-lipton-challenge-cup-dev":
+        return serve_lipton_dev_playback_page(request, public=False)
+    return _serve_regatta_standalone_impl(slug, request)
+
+def _serve_regatta_standalone_impl(slug: str, request: Request):
+    slug_s = str(slug or "").strip()
+    if slug_s in (
+        "2026-08-29-lipton-challenge-cup",
+        "2026-08-29-lipton-challenge-cup-old",
+    ):
+        return serve_lipton_dev_playback_page(request, public=True)
+    return None
+
+def serve_lipton_dev_playback_page(_request, public: bool = False):
+    """Playback HTML."""
+    if public:
+        return _serve_regatta_standalone_impl("2026-08-29-lipton-challenge-cup", _request)
+    names = ()
+'''
+    out3, changed3 = mod.fix_api(hijack_in)
+    assert changed3
+    assert mod.HIJACK_IN.search(hijack_in)
+    assert not mod.HIJACK_IN.search(out3)
+    assert "if slug_s in (" not in out3
+    assert "challenge-cup-dev" in out3
+    assert "LIPTON_PUBLIC_NOT_DEV_V4 hijack public=True" in out3 or "if public:" in out3
+
     assert "lipton_public_watch_guard.sh" in mod.CRON_PUBLIC_BODY
     assert "zzz-lipton-public-live" in str(mod.CRON_ZZZ)
     assert callable(mod.ensure_watch_service)

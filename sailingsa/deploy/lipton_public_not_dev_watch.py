@@ -33,6 +33,14 @@ HIJACK = re.compile(
     r"(?:[ \t]*\r?\n)*"
     r"[ \t]*return serve_lipton_dev_playback_page\(request, public=True\)\r?\n"
 )
+HIJACK_IN = re.compile(
+    r"\n[ \t]*if slug_s in \(\r?\n"
+    r"[ \t]*\"2026-08-29-lipton-challenge-cup\",\r?\n"
+    r"[ \t]*\"2026-08-29-lipton-challenge-cup-old\",\r?\n"
+    r"[ \t]*\):\r?\n"
+    r"(?:[ \t]*\r?\n)*"
+    r"[ \t]*return serve_lipton_dev_playback_page\(request, public=True\)\r?\n"
+)
 PLAY_DOC = re.compile(
     r"(def serve_lipton_dev_playback_page\([^)]*\):\n"
     r"    \"\"\"[\s\S]*?\"\"\"\n)"
@@ -396,6 +404,10 @@ def fix_api(text: str) -> tuple[str, bool]:
     if n:
         changed = True
         text = new
+    new2, n2 = HIJACK_IN.subn("\n", text)
+    if n2:
+        changed = True
+        text = new2
     if "LIPTON_PUBLIC_NOT_DEV_V4 hijack public=True" not in text:
         patched, pn = PLAY_DOC.subn(r"\1" + PLAY_GUARD_BLOCK, text, count=1)
         if pn:
