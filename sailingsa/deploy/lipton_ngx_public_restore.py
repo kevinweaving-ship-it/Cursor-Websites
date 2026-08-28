@@ -18,6 +18,21 @@ RID = "2026-08-29-lipton-challenge-cup"
 NGINX = Path("/etc/nginx/sites-enabled/sailingsa")
 SNIPPET = Path("/etc/nginx/snippets/lipton-public-proxy.conf")
 LOG = Path("/var/log/lipton_public_not_dev_watch.log")
+WATCH_MARKER = "LIPTON_WATCH_DEBOUNCE_V1"
+WATCH_SRCS = (
+    Path("/usr/local/lib/lipton_public_not_dev_watch.py"),
+    Path("/usr/local/sbin/lipton_public_not_dev_watch.py"),
+    Path("/var/lib/sailingsa-lipton/watch.py"),
+    Path("/root/lw-g22.py"),
+)
+WATCH_DSTS = (
+    Path("/root/lw-g22.py"),
+    Path("/root/lw-g21.py"),
+    Path("/root/lw-g20.py"),
+    Path("/root/lw-g19.py"),
+    Path("/root/lw-g18.py"),
+    Path("/root/lw-g17.py"),
+)
 PLAYBACK_LOCK = (
     "# LIPTON_NGINX_PLAYBACK_LOCK public + -dev slugs serve lipton-dev.html "
     "(not API event page)."
@@ -84,6 +99,42 @@ def _write(path: Path, text: str) -> None:
     tmp = Path("/tmp") / (path.name + ".ngxrest")
     tmp.write_text(text if text.endswith("\n") else text + "\n", encoding="utf-8")
     os.system(f"cp {tmp} {path}")
+
+
+def _watch_gold_ok(path: Path) -> bool:
+    try:
+        if not path.is_file():
+            return False
+        raw = path.read_bytes()
+    except Exception:
+        return False
+    return len(raw) > 10000 and WATCH_MARKER.encode("ascii") in raw
+
+
+def restore_watch_golds() -> bool:
+    """Recreate /root/lw-g*.py when PLAYBACK_LOCK deletes them. No api.py."""
+    src = next((p for p in WATCH_SRCS if _watch_gold_ok(p)), None)
+    if src is None:
+        return False
+    data = src.read_bytes()
+    changed = False
+    for dst in WATCH_DSTS:
+        if _watch_gold_ok(dst):
+            _chattr(dst, True)
+            continue
+        try:
+            _chattr(dst, False)
+            tmp = Path("/tmp") / (dst.name + ".goldrest")
+            tmp.write_bytes(data)
+            os.system(f"cp {tmp} {dst}")
+            os.chmod(dst, 0o755)
+            _chattr(dst, True)
+            changed = True
+        except Exception:
+            pass
+    if changed:
+        _log("ngx restore watch golds")
+    return changed
 
 
 def _public_aliased(text: str) -> bool:
@@ -162,6 +213,7 @@ def fix_nginx(text: str) -> tuple[str, int]:
 def main() -> int:
     if "--check" in sys.argv:
         return 0
+    restore_watch_golds()
     changed = False
     if SNIPPET.is_file() or SNIPPET.parent.is_dir():
         body = PUBLIC_PROXY if PUBLIC_PROXY.endswith("\n") else PUBLIC_PROXY + "\n"

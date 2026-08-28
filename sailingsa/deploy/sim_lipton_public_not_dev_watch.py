@@ -132,6 +132,22 @@ def main() -> int:
     assert ngxmod._public_slug_proxied(ngx_new) is True
     assert ngx_new.count("alias /var/www/sailingsa/lipton-dev.html") == 1
     assert ngx_n >= 1
+    locked = """
+    location = /regatta/2026-08-29-lipton-challenge-cup-dev {
+        alias /var/www/sailingsa/lipton-dev.html;
+    }
+    location = /regatta/2026-08-29-lipton-challenge-cup {
+        # LIPTON_PUBLIC_LIVE_BOARD_LOCKED 2026-08-28
+        proxy_pass http://127.0.0.1:8000;
+        add_header X-Lipton-Page "live-board" always;
+    }
+"""
+    assert ngxmod._public_slug_proxied(locked) is True
+    assert ngxmod.fix_nginx(locked)[1] == 0
+    assert mod._public_slug_proxied(locked) is True
+    assert mod.fix_nginx(locked)[1] == 0
+    assert callable(ngxmod.restore_watch_golds)
+    assert "lw-g22.py" in str(ngxmod.WATCH_DSTS)
 
     stub = "[Service]\nExecStart=/bin/true\nDescription=disabled — must not restore old Lipton event page\n"
     assert mod._unit_is_stub(stub) is True
