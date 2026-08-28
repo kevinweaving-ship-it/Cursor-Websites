@@ -49,6 +49,50 @@ def _merge_icon_mirrors() -> dict:
     return merged
 
 
+def _lipton_db_max_filled_rn() -> int:
+    """Official race_scores Rn (R6 can exist with no Vakaros race_times)."""
+    try:
+        import json
+        import subprocess
+
+        out = subprocess.check_output(
+            [
+                "sudo",
+                "-u",
+                "postgres",
+                "psql",
+                "-d",
+                "sailors_master",
+                "-t",
+                "-A",
+                "-c",
+                "SELECT race_scores::text FROM results "
+                "WHERE regatta_id::text = '2026-08-29-lipton-challenge-cup' "
+                "AND (raced IS DISTINCT FROM FALSE);",
+            ],
+            stderr=subprocess.DEVNULL,
+            timeout=15,
+        )
+        filled = []
+        for line in out.decode("utf-8", errors="replace").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rs = json.loads(line)
+            except Exception:
+                continue
+            if not isinstance(rs, dict):
+                continue
+            for k in rs.keys():
+                m = re.match(r"^R(\d+)$", str(k), re.I)
+                if m:
+                    filled.append(int(m.group(1)))
+        return max(filled) if filled else 0
+    except Exception:
+        return 0
+
+
 def _lipton_icon_entry(merged: dict, last_rk: str) -> dict:
     ent = dict(merged.get(RID) or {}) if isinstance(merged.get(RID), dict) else {}
     if not ent.get("venue"):
@@ -88,9 +132,9 @@ def main() -> None:
     st["elapsed_raw"] = None
     st["force_racing"] = False
     st["simulate"] = False
-    # Last completed Rn from race_times (R5 today, R6 after tomorrow). Do not leave
-    # next empty Rn + finished — that makes next_race_key skip a race.
-    last_rk = "R5"
+    # Last completed Rn from race_times plus DB race_scores (R6 may be DB-only).
+    # Do not leave next empty Rn + finished — that makes next_race_key skip a race.
+    last_rk = str(st.get("race_key") or "R1")
     try:
         rt = st.get("race_times") if isinstance(st.get("race_times"), dict) else {}
         filled_n = []
@@ -104,6 +148,9 @@ def main() -> None:
                 for r in rows
             ):
                 filled_n.append(int(m.group(1)))
+        db_n = _lipton_db_max_filled_rn()
+        if db_n:
+            filled_n.append(db_n)
         if filled_n:
             last_rk = "R" + str(max(filled_n))
     except Exception:

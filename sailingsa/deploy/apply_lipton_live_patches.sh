@@ -33,6 +33,9 @@ PATCHERS=(
   patch_lipton_allers_name_links.py
   patch_lipton_public_not_dev.py
   patch_lipton_public_not_dev_v2.py
+  patch_lipton_public_not_dev_v3.py
+  patch_lipton_keep_last_rn_db.py
+  patch_lipton_schedule_keep_last_db.py
 )
 
 echo "api $API"
@@ -70,6 +73,9 @@ REQUIRED=(
   LIPTON_ALLERS_NAME_LINKS_V2
   LIPTON_PUBLIC_NOT_DEV_V1
   LIPTON_PUBLIC_NOT_DEV_V2
+  LIPTON_PUBLIC_NOT_DEV_V3
+  LIPTON_KEEP_LAST_RN_DB_V1
+  LIPTON_SCHEDULE_KEEP_LAST_DB_V1
 )
 miss=0
 for m in "${REQUIRED[@]}"; do
