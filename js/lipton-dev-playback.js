@@ -1353,17 +1353,10 @@
     }
     function fitHudName(el, text) {
       if (!el) return;
-      el.textContent = text || "";
+      var t = (text || "").trim();
+      var lines = /\s+\/\s+/.test(t) ? t.split(/\s+\/\s+/) : t.split(/\s+/);
+      el.textContent = lines.length === 2 ? (lines[0] + "\n" + lines[1]) : t;
       el.style.fontSize = "";
-      if (!text) return;
-      var size = 9;
-      el.style.fontSize = size + "px";
-      var n = 0;
-      while (n < 18 && size > 5.5 && el.scrollWidth > el.clientWidth + 1) {
-        size -= 0.5;
-        el.style.fontSize = size + "px";
-        n += 1;
-      }
     }
     function drawCourseLabel(ts) {
       var hud = document.getElementById("lipton-dev-map-hud");
