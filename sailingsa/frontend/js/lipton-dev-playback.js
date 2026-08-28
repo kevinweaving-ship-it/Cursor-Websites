@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828ch";
+  var CACHE = "20260828ci";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = !RACE_Q;
@@ -702,39 +702,40 @@
       mapCtx.clearRect(0, 0, w, h);
       Object.keys(hist.marks).forEach(function (k) {
         var arr = hist.marks[k];
-        if (trailMoving(arr, ts)) return;
+        if (!markValid(arr, ts) || markClustered(k, ts)) return;
         var pos = atTs(arr, ts);
         if (!pos) return;
         var p = xy(pos.lat, pos.lon);
         var focus = k === "1";
         mapCtx.beginPath();
         mapCtx.arc(p.x, p.y, focus ? 11 : 8, 0, Math.PI * 2);
-        mapCtx.strokeStyle = focus ? "rgba(251,191,36,0.85)" : "rgba(245,158,11,0.4)";
-        mapCtx.lineWidth = focus ? 2.2 : 1;
+        mapCtx.strokeStyle = focus ? "rgba(251,191,36,0.85)" : "rgba(245,158,11,0.55)";
+        mapCtx.lineWidth = focus ? 2.2 : 1.4;
         mapCtx.stroke();
         mapCtx.beginPath();
         mapCtx.arc(p.x, p.y, focus ? 4.2 : 2.4, 0, Math.PI * 2);
         mapCtx.fillStyle = focus ? "#fbbf24" : "#f59e0b";
         mapCtx.fill();
-        mapCtx.fillStyle = "#ffffff";
-        mapCtx.font = focus ? "bold 13px sans-serif" : "bold 10px sans-serif";
-        mapCtx.fillText("M" + k, p.x + 8, p.y + 4);
-      });
-      if (frozenM2) {
-        var m2p = xy(frozenM2.lat, frozenM2.lon);
-        mapCtx.beginPath();
-        mapCtx.arc(m2p.x, m2p.y, 11, 0, Math.PI * 2);
-        mapCtx.strokeStyle = "rgba(251,191,36,0.85)";
-        mapCtx.lineWidth = 2.2;
-        mapCtx.stroke();
-        mapCtx.beginPath();
-        mapCtx.arc(m2p.x, m2p.y, 4.2, 0, Math.PI * 2);
+        mapCtx.strokeStyle = "#fbbf24";
         mapCtx.fillStyle = "#fbbf24";
+        mapCtx.lineWidth = 2;
+        var ar = focus ? 14 : 12;
+        mapCtx.beginPath();
+        mapCtx.arc(p.x, p.y, ar, 0.4, 2.45, false);
+        mapCtx.stroke();
+        var ang = 2.45;
+        var ax = p.x + ar * Math.cos(ang);
+        var ay = p.y + ar * Math.sin(ang);
+        mapCtx.beginPath();
+        mapCtx.moveTo(ax, ay);
+        mapCtx.lineTo(ax - 5.5, ay - 3.5);
+        mapCtx.lineTo(ax - 0.5, ay + 6);
+        mapCtx.closePath();
         mapCtx.fill();
         mapCtx.fillStyle = "#ffffff";
-        mapCtx.font = "bold 13px sans-serif";
-        mapCtx.fillText("M2", m2p.x + 8, m2p.y + 4);
-      }
+        mapCtx.font = focus ? "bold 13px sans-serif" : "bold 10px sans-serif";
+        mapCtx.fillText("M" + k, p.x + 10, p.y + 4);
+      });
       var pin = atTs(hist.pin, ts);
       var rc = atTs(hist.rc, ts);
       if (pin && rc) {
@@ -866,21 +867,41 @@
       };
     }
     var passTs = { ST: {}, M1: {}, M2: {} };
-    function trailMoving(arr, ts) {
+    function markValid(arr, ts) {
       if (!arr || arr.length < 2) return false;
       var b = atTs(arr, ts) || lastPt(arr);
       if (!b) return false;
-      if (b.sog != null && Number(b.sog) > 1.2) return true;
-      var a = atTs(arr, b.ts_ms - 12000);
+      var a = atTs(arr, b.ts_ms - 20000) || atTs(arr, b.ts_ms - 8000);
       if (!a) return false;
-      return distM(a, b) > 12;
+      return distM(a, b) <= 8;
+    }
+    function markTravelM(arr) {
+      if (!arr || arr.length < 2) return 0;
+      return distM(arr[0], arr[arr.length - 1]);
+    }
+    function markClustered(k, ts) {
+      var pos = atTs(hist.marks[k], ts);
+      if (!pos) return true;
+      var travel = markTravelM(hist.marks[k]);
+      var keys = Object.keys(hist.marks);
+      for (var i = 0; i < keys.length; i++) {
+        var o = keys[i];
+        if (o === k) continue;
+        if (!markValid(hist.marks[o], ts)) continue;
+        var op = atTs(hist.marks[o], ts);
+        if (op && distM(pos, op) < 80 && markTravelM(hist.marks[o]) < travel - 40) return true;
+      }
+      return false;
+    }
+    function trailMoving(arr, ts) {
+      return !markValid(arr, ts);
     }
     var frozenM2 = null;
     function nearestRoundingVsTrail(pts, markTrail, afterTs) {
       if (!markTrail || !pts || pts.length < 3) return null;
       for (var j = 1; j < pts.length - 1; j++) {
         if (pts[j].ts_ms < afterTs) continue;
-        if (trailMoving(markTrail, pts[j].ts_ms)) continue;
+        if (trailMoving(markTrail, pts[j].ts_ms) || !markValid(markTrail, pts[j].ts_ms)) continue;
         var mark = atTs(markTrail, pts[j].ts_ms);
         if (!mark) continue;
         var d = distM(pts[j], mark);
@@ -916,8 +937,7 @@
         }
         if (passTs.M2[sail] == null) {
           var afterM2 = passTs.M1[sail] != null ? passTs.M1[sail] + 20000 : afterSt + 120000;
-          var t2 = nearestRoundingVsTrail(pts, hist.marks["2"], afterM2)
-            || nearestRoundingVsTrail(pts, hist.pin, afterM2);
+          var t2 = nearestRoundingVsTrail(pts, hist.marks["2"], afterM2);
           if (t2) passTs.M2[sail] = t2;
         }
       });
