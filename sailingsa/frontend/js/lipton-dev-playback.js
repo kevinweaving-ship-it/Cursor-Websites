@@ -31,6 +31,13 @@
   }
   bindRaceButtons(RACE_Q || 4);
   (function wireSiteHeader() {
+    ["menuBtn", "navMenuOverlay", "menuToggle"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+    });
+    document.querySelectorAll(".site-header .menu-btn, .site-header .nav-menu-overlay, .site-header .menu-dropdown-toggle, .site-header .mobile-dropdown").forEach(function (el) {
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+    });
     if (typeof window.updateHeaderAuthStatus === "function") {
       window.updateHeaderAuthStatus();
     }

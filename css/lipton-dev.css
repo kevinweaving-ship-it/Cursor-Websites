@@ -32,7 +32,10 @@ body[data-lipton-dev="1"] .site-header .logo img {
   max-width: none;
 }
 body[data-lipton-dev="1"] .menu-btn,
-body[data-lipton-dev="1"] .nav-menu-overlay {
+body[data-lipton-dev="1"] .menu-icon,
+body[data-lipton-dev="1"] .nav-menu-overlay,
+body[data-lipton-dev="1"] .menu-dropdown-toggle,
+body[data-lipton-dev="1"] .mobile-dropdown {
   display: none !important;
 }
 body[data-lipton-dev="1"] .lipton-dev-subhead {
