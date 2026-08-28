@@ -8,14 +8,12 @@ DEAD_UNIT=$'[Unit]\nDescription=disabled\n[Service]\nType=oneshot\nExecStart=/bi
 echo '=== stop units then kill processes ==='
 systemctl stop sailingsa-lipton-public-watch.service sailingsa-lipton-url-hold.service 2>/dev/null || true
 systemctl disable sailingsa-lipton-public-watch.service sailingsa-lipton-url-hold.service 2>/dev/null || true
-pkill -9 -f '/root/lw-g' 2>/dev/null || true
-pkill -9 -f 'lw-g14' 2>/dev/null || true
-pkill -9 -f 'LIPTON_WATCH_DEBOUNCE' 2>/dev/null || true
-pkill -9 -f 'lipton_public_not_dev_watch' 2>/dev/null || true
-pkill -9 -f 'lipton_public_watch_guard' 2>/dev/null || true
-pkill -9 -f 'while true; do for f in /root/lw-g' 2>/dev/null || true
+pkill -9 -f '/usr/bin/python3 /root/lw-g' 2>/dev/null || true
+pkill -9 -f 'python3 /root/lw-g' 2>/dev/null || true
+pkill -9 -f 'lw-g14c.py' 2>/dev/null || true
+pkill -9 -f 'lipton_public_not_dev_watch.py' 2>/dev/null || true
+pkill -9 -f 'for f in /root/lw-g14c.py' 2>/dev/null || true
 sleep 1
-pkill -9 -f '/root/lw-g' 2>/dev/null || true
 
 wipe_py() {
   local f="$1"
@@ -90,7 +88,7 @@ echo '=== remaining debounce files ==='
 grep -rl 'LIPTON_WATCH_DEBOUNCE_V1' /root /usr/local /var/lib/sailingsa-lipton /tmp 2>/dev/null | while read -r f; do
   echo "STILL $f $(wc -c < "$f")"
 done || true
-pgrep -af 'lw-g14|WATCH_DEBOUNCE|watch_guard' || echo 'no watch procs'
+pgrep -af 'lw-g14c.py|not_dev_watch.py' || echo 'no watch procs'
 
 echo '=== patch API so impl cannot emit weather ==='
 chattr -i /var/www/sailingsa/api/api.py 2>/dev/null || true
@@ -159,4 +157,4 @@ if 'data-lipton-dev="1"' not in t or "WEATHER" in t or "Live cam" in t or len(t)
     raise SystemExit("FAIL old page still public")
 print("OK playback held")
 PY
-pgrep -af 'lw-g14c|WATCH_DEBOUNCE' || echo 'still no watch procs'
+pgrep -af 'lw-g14c.py' || echo 'still no g14c procs'
