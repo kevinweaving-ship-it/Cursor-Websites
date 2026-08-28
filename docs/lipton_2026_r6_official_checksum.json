@@ -1,0 +1,34 @@
+{
+  "ok": true,
+  "regatta_id": "2026-08-29-lipton-challenge-cup",
+  "source": "Sailwave PDF Race 06 + Overall after 6 races. Provisional. Discards 0. Appendix A.",
+  "official_r6": [
+    {"place": 1, "sail": "1169", "club": "FBYC"},
+    {"place": 2, "sail": "173", "club": "RCYC Academy"},
+    {"place": 3, "sail": "774", "club": "UCTYC"},
+    {"place": 4, "sail": "1175", "club": "SBYC"},
+    {"place": 5, "sail": "1167", "club": "LDYC"},
+    {"place": 6, "sail": "1116", "club": "PYC"},
+    {"place": 7, "sail": "763", "club": "KYC"},
+    {"place": 8, "sail": "768", "club": "RNYC"},
+    {"place": 9, "sail": "1571", "club": "HYC"},
+    {"place": 10, "sail": "185", "club": "GLYC"},
+    {"place": 11, "sail": "1277", "club": "WBYC"},
+    {"place": 12, "sail": "766", "club": "RCYC"},
+    {"place": 13, "sail": "1237", "club": "LYC"},
+    {"place": 14, "sail": "771", "club": "IZIVUNGUVUNGU"},
+    {"place": 15, "sail": "1239", "club": "TSC"},
+    {"place": 16, "sail": "1139", "club": "BYC"},
+    {"place": 17, "sail": "1138", "club": "WYAC"}
+  ],
+  "gps_fin": {
+    "note": "GPS pin–RC line only. Not official. 5 boats. Do not use for Nett.",
+    "order": ["KYC", "FBYC", "RCYC", "HYC", "WYAC"],
+    "exact_place_matches": 0
+  },
+  "gps_last_pin": {
+    "note": "Last leeward (Pin·2) from heading+CPA. Not finish.",
+    "order": ["FBYC", "RCYC Academy", "UCTYC", "KYC", "SBYC", "RCYC", "PYC", "HYC", "RNYC", "LDYC", "WBYC", "GLYC", "LYC", "IZIVUNGUVUNGU", "TSC", "BYC"],
+    "exact_place_matches_vs_official_finish": 8
+  }
+}
