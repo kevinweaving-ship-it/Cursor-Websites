@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828dk";
+  var CACHE = "20260828dl";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = !RACE_Q;
@@ -207,6 +207,21 @@
     }
     var s2 = Math.floor(ms / 1000);
     return Math.floor(s2 / 60) + ":" + pad(s2 % 60);
+  }
+  function tailBudget(map) {
+    var z = 15;
+    try {
+      if (map && map.getZoom) z = map.getZoom();
+    } catch (e) {}
+    if (!(z > 0)) z = 15;
+    if (z < 12) z = 12;
+    if (z > 19) z = 19;
+    var t = (z - 12) / 7;
+    return {
+      m: 16 + t * 204,
+      ms: 6000 + t * 56000,
+      w: 1.5 + t * 2.4
+    };
   }
   function fmtLiveClock(ms) {
     var a = Math.abs(Number(ms) || 0);
@@ -527,8 +542,7 @@
     }
     function tailUntil(arr, ts) {
       if (!arr || !arr.length) return [];
-      var TAIL_M = 6.71 * 6;
-      var TAIL_MS = 18000;
+      var bud = tailBudget(chartMap);
       var hits = [];
       var acc = 0;
       var last = null;
@@ -537,8 +551,8 @@
         if (p.ts_ms > ts) continue;
         if (last) {
           acc += distM(last, p);
-          if (acc >= TAIL_M) break;
-          if (ts - p.ts_ms >= TAIL_MS) break;
+          if (acc >= bud.m) break;
+          if (ts - p.ts_ms >= bud.ms) break;
         }
         hits.push(p);
         last = p;
@@ -616,7 +630,7 @@
         followFleet = false;
         didFit = true;
       });
-      chartMap.on("move zoom", function () {
+      chartMap.on("move zoom zoomend", function () {
         if (!chartSyncing) drawLiveMap();
       });
       var track = el.parentNode;
@@ -845,6 +859,7 @@
           mapCtx.fillText("START", (a.x + b.x) / 2 + 6, (a.y + b.y) / 2 - 14);
         }
       }
+      var liveTailW = tailBudget(chartMap).w;
       Object.keys(hist.boats).forEach(function (sail) {
         var trail = tailUntil(hist.boats[sail], ts);
         if (trail.length < 2) return;
@@ -858,7 +873,7 @@
           mapCtx.moveTo(ta.x, ta.y);
           mapCtx.lineTo(tc.x, tc.y);
           mapCtx.strokeStyle = rgbaHex(fill, 0.25 + 0.7 * u * u);
-          mapCtx.lineWidth = 2 + 1.6 * u;
+          mapCtx.lineWidth = liveTailW + 1.6 * u;
           mapCtx.lineCap = "round";
           mapCtx.lineJoin = "round";
           mapCtx.stroke();
@@ -2252,7 +2267,7 @@
       chartMap.on("movestart", function () {
         if (!chartSyncing) userFreedMap();
       });
-      chartMap.on("move zoom", function () {
+      chartMap.on("move zoom zoomend", function () {
         if (chartSyncing || drawingMap) return;
         drawMap(playTs);
       });
@@ -2323,9 +2338,6 @@
       var x = (a.lon - b.lon) * 111000 * c;
       return Math.sqrt(x * x + y * y);
     }
-    var BOAT_LEN_M = 6.71;
-    var TAIL_M = BOAT_LEN_M * 6;
-    var TAIL_MS = 18000;
     var TAIL_CLEAR_MS = 5000;
     var tailsUntil = 0;
     var finishFlashUntil = {};
@@ -2678,6 +2690,7 @@
     function tailHits(b, ts) {
       var now = sampleAt(b, ts);
       if (!now) return [];
+      var bud = tailBudget(chartMap);
       var hits = [now];
       var acc = 0;
       var lastI = now.i != null ? now.i : Math.floor((ts - GRID_ORIGIN) / trail.step_ms);
@@ -2691,8 +2704,8 @@
         if (step > 14 * Math.min(gap, 8)) break;
         acc += step;
         hits.push(cur);
-        if (acc >= TAIL_M) break;
-        if ((now.i - idx) * stepMs >= TAIL_MS) break;
+        if (acc >= bud.m) break;
+        if ((now.i - idx) * stepMs >= bud.ms) break;
         lastI = idx;
         idx = hitBack(b, idx - 1);
       }
@@ -2744,6 +2757,7 @@
       var hot = ocsPending(sail, ts);
       var fill = boatPaint(sail, hot).fill;
       var n = hits.length - 1;
+      var tailW = tailBudget(chartMap).w;
       for (var s = 0; s < n; s++) {
         var a = xy(hits[s].lat, hits[s].lon);
         var c = xy(hits[s + 1].lat, hits[s + 1].lon);
@@ -2753,7 +2767,7 @@
         mapCtx.moveTo(a.x, a.y);
         mapCtx.lineTo(c.x, c.y);
         mapCtx.strokeStyle = rgbaHex(fill, alpha);
-        mapCtx.lineWidth = 2 + 1.6 * u;
+        mapCtx.lineWidth = tailW + 1.6 * u;
         mapCtx.lineCap = "round";
         mapCtx.lineJoin = "round";
         mapCtx.stroke();
