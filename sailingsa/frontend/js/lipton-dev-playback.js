@@ -1292,19 +1292,20 @@
     }
     function drawCourseLabel(ts) {
       if (!mapCtx || !mapBounds) return;
+      var s = 0.7;
       var pad = 10;
       var name = (courseFromTrail() || "").toUpperCase();
-      var sub = "COURSE >";
+      var sub = "COURSE";
       var clock = fmtLiveClock(ts - GUN_TS);
       var after = ts >= GUN_TS;
       mapCtx.save();
       mapCtx.textAlign = "center";
       mapCtx.textBaseline = "top";
-      mapCtx.font = "bold 13px sans-serif";
+      mapCtx.font = "bold " + Math.round(13 * s) + "px sans-serif";
       var nameW = name ? mapCtx.measureText(name).width : 0;
-      var boxW = Math.max(nameW, 72);
-      var boxH = 22;
-      var clockH = 32;
+      var boxW = Math.max(nameW, Math.round(72 * s));
+      var boxH = Math.round(22 * s);
+      var clockH = Math.round(32 * s);
       var x0 = mapBounds.w - pad - boxW;
       var y0 = pad;
       var cx = x0 + boxW / 2;
@@ -1312,21 +1313,22 @@
         mapCtx.fillStyle = "rgba(0,31,63,0.62)";
         mapCtx.fillRect(x0, y0, boxW, boxH);
         mapCtx.fillStyle = "#ffffff";
-        mapCtx.fillText(name, cx, y0 + 4);
-        mapCtx.font = "bold 11px sans-serif";
-        mapCtx.fillText(sub, cx, y0 + boxH + 4);
+        mapCtx.fillText(name, cx, y0 + Math.round(4 * s));
+        mapCtx.font = "bold " + Math.round(11 * s) + "px sans-serif";
+        mapCtx.fillText(sub, cx, y0 + boxH + Math.round(4 * s));
       }
-      var cy = name ? y0 + boxH + 22 : y0;
-      var clockSize = 20;
+      var cy = name ? y0 + boxH + Math.round(22 * s) : y0;
+      var clockSize = Math.round(20 * s);
+      var minClock = Math.round(13 * s);
       mapCtx.font = "bold " + clockSize + "px sans-serif";
-      while (clockSize > 13 && mapCtx.measureText(clock).width + 8 > boxW) {
+      while (clockSize > minClock && mapCtx.measureText(clock).width + 8 * s > boxW) {
         clockSize -= 1;
         mapCtx.font = "bold " + clockSize + "px sans-serif";
       }
       mapCtx.fillStyle = after ? "rgba(30,20,0,0.82)" : "rgba(0,31,63,0.86)";
       mapCtx.fillRect(x0, cy, boxW, clockH);
       mapCtx.strokeStyle = after ? "#fbbf24" : "#38bdf8";
-      mapCtx.lineWidth = 2;
+      mapCtx.lineWidth = Math.max(1, 2 * s);
       mapCtx.strokeRect(x0 + 1, cy + 1, boxW - 2, clockH - 2);
       mapCtx.fillStyle = after ? "#fbbf24" : "#ffffff";
       mapCtx.textBaseline = "middle";
