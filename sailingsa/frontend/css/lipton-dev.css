@@ -346,8 +346,9 @@ body[data-lipton-dev="1"] .lipton-dev-map-brand {
   top: 10px;
   left: 32px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
+  height: 32px;
   pointer-events: auto;
 }
 body[data-lipton-dev="1"] .lipton-dev-map-logo {
@@ -362,8 +363,9 @@ body[data-lipton-dev="1"] .lipton-dev-map-logo img {
 body[data-lipton-dev="1"] .lipton-dev-scrub {
   display: block;
   width: 140px;
-  height: 18px;
-  margin: 0;
+  height: 16px;
+  margin: 4px 0 0;
+  padding: 0;
   accent-color: #fbbf24;
   cursor: pointer;
 }
