@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828cp";
+  var CACHE = "20260828cq";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = !RACE_Q;
@@ -2642,13 +2642,17 @@
       if (!p) return "";
       if (p.id === "ST" || p.label === "ST") return "ST";
       if (p.id === "FIN" || p.label === "Fin") return "Fin";
+      var pin = p.label === "Pin" || Number(p.mark) === 4;
       var n = 0;
       var mark = Number(p.mark);
       for (var i = 0; i <= idx; i++) {
         var q = PASSES[i];
         if (!q || q.id === "ST" || q.id === "FIN" || q.label === "ST" || q.label === "Fin") continue;
-        if (Number(q.mark) === mark) n += 1;
+        if (pin) {
+          if (q.label === "Pin" || Number(q.mark) === 4) n += 1;
+        } else if (Number(q.mark) === mark) n += 1;
       }
+      if (pin) return n <= 1 ? "Pin" : "Pin·" + n;
       var base = "M" + mark;
       return n <= 1 ? base : base + "·" + n;
     }

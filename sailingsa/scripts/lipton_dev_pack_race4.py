@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from lipton_dev_checksum import build_checksum  # noqa: E402
 from lipton_dev_course import classify_course  # noqa: E402
 from lipton_dev_later_laps import rounding_candidates  # noqa: E402
-from lipton_mark_rounding import COURSE_PASSES, MARK_SN, fetch_rows  # noqa: E402
+from lipton_mark_rounding import COURSE_PASSES, MARK_SN, fetch_rows, haversine_m  # noqa: E402
 from lipton_vakaros import _j22_division, fetch_regatta_doc  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -98,6 +98,7 @@ def main() -> int:
     finishes = sorted(r4.get("finishes") or [], key=lambda f: f.get("finishingTime") or "")
     finish_rows = []
     finish_ts = {}
+    finish_from_gps = False
     for f in finishes:
         sail = f.get("sailNumber")
         ts = ms_iso(f["finishingTime"])
@@ -108,8 +109,13 @@ def main() -> int:
             row["lon"] = round(float(coords[0]), 6)
             row["lat"] = round(float(coords[1]), 6)
         finish_rows.append(row)
-    last_finish = max(finish_ts.values())
-    first_finish = min(finish_ts.values())
+    if finish_ts:
+        last_finish = max(finish_ts.values())
+        first_finish = min(finish_ts.values())
+    else:
+        end_raw = r4.get("endTime")
+        last_finish = ms_iso(end_raw) if end_raw else gun + 70 * 60 * 1000
+        first_finish = last_finish
 
     print("load trail", gun, last_finish, flush=True)
     try:
@@ -197,24 +203,52 @@ def main() -> int:
         sail: {name: rounding_candidates(pts, marks_by_sn.get(sn) or []) for name, sn in MARK_SN.items()}
         for sail, pts in boat_by.items()
     }
+    def rec_mid_early(recs):
+        if not recs:
+            return None
+        lo = len(recs) // 5
+        hi = max(lo + 1, 4 * len(recs) // 5)
+        sl = recs[lo:hi]
+        return (
+            sum(r["latitude"] for r in sl) / len(sl),
+            sum(r["longitude"] for r in sl) / len(sl),
+        )
+
     min_fleet = max(8, (len(boat_by) + 1) // 2)
     m2_hits = sum(
         1
         for sail in boat_by
         if any(gun + 120_000 < c["ts"] < first_finish - 120_000 for c in cands[sail].get("2") or [])
     )
+    m1_mid = rec_mid_early(marks_by_sn.get(MARK_SN["1"]) or [])
+    m2_mid = rec_mid_early(marks_by_sn.get(MARK_SN["2"]) or [])
+    m2_at_m1 = bool(
+        m1_mid
+        and m2_mid
+        and haversine_m(m1_mid[0], m1_mid[1], m2_mid[0], m2_mid[1]) < 150
+    )
+    m2_same_as_m1 = []
+    for sail in boat_by:
+        c1 = next((c for c in cands[sail].get("1") or [] if c["ts"] > gun + 60_000), None)
+        c2 = next((c for c in cands[sail].get("2") or [] if c["ts"] > gun + 60_000), None)
+        if c1 and c2:
+            m2_same_as_m1.append(c2["ts"] - c1["ts"])
+    m2_is_m1_boat = bool(
+        m2_same_as_m1 and sorted(m2_same_as_m1)[len(m2_same_as_m1) // 2] < 90_000
+    )
 
     def first_cand(sail, mark, after, before):
         return next((c for c in cands[sail].get(str(mark), []) if after < c["ts"] < before), None)
 
-    def commit_pass(spec_id, lap, mark, ranked):
+    def commit_pass(spec_id, lap, mark, ranked, label=None):
         ranked.sort(key=lambda r: r["ts_ms"])
+        mark_i = int(mark)
         mark_passes.append(
             {
                 "id": spec_id,
-                "label": f"M{mark}",
+                "label": label or ("Pin" if mark_i == 4 else f"M{mark_i}"),
                 "lap": lap,
-                "mark": int(mark),
+                "mark": mark_i,
                 "boats": ranked,
             }
         )
@@ -223,7 +257,7 @@ def main() -> int:
     last_ts = {sail: gun + 60_000 for sail in boat_by}
     mark_passes = []
     summary = []
-    use_wl = m2_hits < min_fleet
+    use_wl = m2_hits < min_fleet or m2_at_m1 or m2_is_m1_boat
     if use_wl:
         for lap in (1, 2, 3):
             weather = []
@@ -242,23 +276,32 @@ def main() -> int:
             commit_pass(f"L{lap}-1", lap, 1, weather)
             leeward = []
             nxts = {}
+            lee_marks = []
             for sail in boat_by:
                 fin = finish_ts.get(sail, last_finish) - 80_000
                 opts = []
                 for mark in ("3", "4"):
                     c = first_cand(sail, mark, last_ts[sail] + 2_000, fin)
                     if c:
-                        opts.append(c)
+                        opts.append((mark, c))
                 if not opts:
                     continue
-                c = min(opts, key=lambda x: x["ts"])
+                mark, c = min(opts, key=lambda x: x[1]["ts"])
                 leeward.append({"boat": sail, "ts_ms": int(c["ts"])})
                 nxts[sail] = c["ts"]
+                lee_marks.append(mark)
             if len(leeward) < min_fleet:
                 break
             for sail, ts in nxts.items():
                 last_ts[sail] = ts
-            commit_pass(f"L{lap}-3", lap, 3, leeward)
+            lee_mark = "4" if lee_marks.count("4") >= lee_marks.count("3") else "3"
+            commit_pass(
+                f"L{lap}-{lee_mark}",
+                lap,
+                int(lee_mark),
+                leeward,
+                label="Pin" if lee_mark == "4" else f"M{lee_mark}",
+            )
     else:
         for spec in COURSE_PASSES:
             ranked = []
@@ -277,6 +320,27 @@ def main() -> int:
             for sail, ts in nxts.items():
                 last_ts[sail] = ts
             commit_pass(spec["id"], spec["lap"], int(spec["mark"]), ranked)
+
+    if not finish_rows:
+        finish_from_gps = True
+        for sail, pts in boat_by.items():
+            last = last_ts.get(sail, gun)
+            if last <= gun + 60_000:
+                continue
+            look = last + 45_000
+            hit = next((h for h in line_hits(pts, look) if h["ts"] > look), None)
+            if not hit:
+                continue
+            row = {"boat": sail, "ts_ms": int(hit["ts"])}
+            near = min(pts, key=lambda p: abs(p["ts"] - hit["ts"]))
+            row["lat"] = round(float(near["latitude"]), 6)
+            row["lon"] = round(float(near["longitude"]), 6)
+            finish_rows.append(row)
+            finish_ts[sail] = int(hit["ts"])
+        finish_rows.sort(key=lambda r: r["ts_ms"])
+        if finish_ts:
+            first_finish = min(finish_ts.values())
+            last_finish = max(finish_ts.values())
 
     def rec_mid(recs):
         if not recs:
@@ -312,7 +376,7 @@ def main() -> int:
         course = {
             "id": "wl",
             "label": "Windward / Leeward",
-            "note": "Weather then leeward gate (first of M3/M4). Wing was not rounded by the fleet.",
+            "note": "Weather then Pin (start-line pin as leeward). Start/finish stay lines.",
         }
 
     gun_sast = datetime.fromtimestamp(gun / 1000, SAST).isoformat()
@@ -332,7 +396,7 @@ def main() -> int:
         "fleet": "J22",
         "watch_path": prev["watch_path"],
         "race_number": race,
-        "race_day": 1 if race <= 3 else 2,
+        "race_day": 1 if race <= 3 else (2 if race <= 5 else 3),
         "gun_ts_ms": gun,
         "gun_sast": gun_sast,
         "play_start_ts_ms": gun - 10_000,
@@ -365,7 +429,14 @@ def main() -> int:
             ),
         ),
         "sources": {
-            "guns_finishes_ocs": f"Vakaros Firestore races[R{race}] starts/finishes/ocsParticipants",
+            "guns_finishes_ocs": (
+                f"Vakaros Firestore races[R{race}] starts/ocsParticipants; "
+                + (
+                    "finish times from GPS pin–RC line crossing (Vakaros posted no finishes)."
+                    if finish_from_gps
+                    else "finishes from Firestore finishingTime."
+                )
+            ),
             "start_order": "teleapi GPS start-line crossing. OCS boats use recross after returning to prestart, not the OCS dip.",
             "marks": "teleapi every GPS point; heading + closest. Empty = not received.",
             "identity": "public Lipton sheet bow/boat/club logos",

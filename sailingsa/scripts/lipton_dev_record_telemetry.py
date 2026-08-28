@@ -44,6 +44,8 @@ def race_window(race: int) -> tuple[int, int]:
     finishes = r.get("finishes") or []
     if finishes:
         end = max(_ms_iso(f["finishingTime"]) for f in finishes)
+    elif r.get("endTime"):
+        end = _ms_iso(r["endTime"])
     else:
         end = int(time.time() * 1000)
     return gun - 90_000, end + 20_000

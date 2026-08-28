@@ -60,8 +60,12 @@ def race_lines(race: int) -> dict:
     finish = None
     if finishes:
         f0 = finishes[0]
-        ll, rr = f0["lineLeftLocation"]["coordinates"], f0["lineRightLocation"]["coordinates"]
-        finish = {"left": pt_latlon(ll[1], ll[0]), "right": pt_latlon(rr[1], rr[0])}
+        ll = (f0.get("lineLeftLocation") or {}).get("coordinates") or []
+        rr = (f0.get("lineRightLocation") or {}).get("coordinates") or []
+        if len(ll) >= 2 and len(rr) >= 2:
+            finish = {"left": pt_latlon(ll[1], ll[0]), "right": pt_latlon(rr[1], rr[0])}
+    if finish is None:
+        finish = start
     return {"start_line": start, "finish_line": finish}
 
 
