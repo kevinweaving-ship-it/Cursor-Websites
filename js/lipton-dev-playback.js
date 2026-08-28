@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828bn";
+  var CACHE = "20260828bo";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = params.get("live") === "1";
@@ -506,6 +506,10 @@
     var lastWall = Date.now();
     var lastKey = "";
     var seen = {};
+    var posted = {};
+    var postQueue = [];
+    var lastPostWall = 0;
+    var POST_GAP_MS = 1500;
     var deltaSeen = {};
 
     var tbody = document.getElementById("lipton-dev-tbody");
@@ -1681,6 +1685,66 @@
       if (ocsPending(boat, ts)) return true;
       return LEGAL_TS[boat] != null && ts >= LEGAL_TS[boat];
     }
+    function boatStartTs(boat, ts) {
+      if (ocsPending(boat, ts)) return GUN_TS;
+      return LEGAL_TS[boat] != null ? LEGAL_TS[boat] : ts;
+    }
+    function resetRankPosts() {
+      posted = {};
+      postQueue = [];
+      lastPostWall = 0;
+    }
+    function syncPostQueue(rows, ts) {
+      for (var i = 0; i < rows.length; i++) {
+        var boat = rows[i].boat;
+        if (posted[boat]) continue;
+        var st = boatStartTs(boat, ts);
+        if (!playing || scrubbing || ts - st > 3000) {
+          posted[boat] = true;
+          continue;
+        }
+        if (postQueue.indexOf(boat) < 0) postQueue.push(boat);
+      }
+    }
+    function postIsDue() {
+      if (!postQueue.length) return false;
+      if (!playing || scrubbing) return true;
+      return !lastPostWall || (Date.now() - lastPostWall >= POST_GAP_MS);
+    }
+    function takeDuePost() {
+      if (!playing || scrubbing) {
+        for (var i = 0; i < postQueue.length; i++) posted[postQueue[i]] = true;
+        postQueue = [];
+        return null;
+      }
+      if (!postIsDue()) return null;
+      var boat = postQueue.shift();
+      posted[boat] = true;
+      lastPostWall = Date.now();
+      return boat;
+    }
+    function rowByBoat(boat) {
+      if (!tbody) return null;
+      var nodes = tbody.querySelectorAll("tr[data-boat]");
+      for (var i = 0; i < nodes.length; i++) {
+        if (nodes[i].getAttribute("data-boat") === boat) return nodes[i];
+      }
+      return null;
+    }
+    function scrollNewRankIntoView(boat) {
+      if (!wrapEl || !boat) return;
+      var row = rowByBoat(boat);
+      if (!row) return;
+      var head = wrapEl.querySelector("thead");
+      var headH = head ? head.getBoundingClientRect().height : 0;
+      var wrapRect = wrapEl.getBoundingClientRect();
+      var rowRect = row.getBoundingClientRect();
+      if (rowRect.bottom <= wrapRect.bottom - 2 && rowRect.top >= wrapRect.top + headH - 1) return;
+      var nextTop = wrapEl.scrollTop + (rowRect.bottom - wrapRect.bottom) + 6;
+      if (nextTop < 0) nextTop = 0;
+      if (wrapEl.scrollTo) wrapEl.scrollTo({ top: nextTop, behavior: "smooth" });
+      else wrapEl.scrollTop = nextTop;
+    }
     function rowsAt(ts) {
       var names = {};
       Object.keys(BOATS).forEach(function (boat) { names[boat] = true; });
@@ -1872,7 +1936,11 @@
     }
     function render(ts) {
       viewTs = ts;
-      var rows = rowsAt(ts);
+      var all = rowsAt(ts);
+      syncPostQueue(all, ts);
+      var justPosted = takeDuePost();
+      var rows = all.filter(function (r) { return posted[r.boat]; });
+      rows.forEach(function (r, i) { r.rank = i + 1; });
       var rankMaps = pairRankMaps(ts);
       var passLimit = visiblePassLimit(ts);
       if (!rows.length) {
@@ -1881,7 +1949,7 @@
         lastHeadLimit = -1;
         if (clockEl) clockEl.textContent = clockText(ts, rows);
         setSailed(rows);
-        lastKey = stateKey(rows, ts);
+        lastKey = stateKey(all, ts);
         drawMap(ts);
         syncScrub();
         return;
@@ -1897,9 +1965,12 @@
       tbody.innerHTML = html;
       if (clockEl) clockEl.textContent = clockText(ts, rows);
       setSailed(rows);
-      lastKey = stateKey(rows, ts);
+      lastKey = stateKey(all, ts);
       drawMap(ts);
       syncScrub();
+      if (justPosted) {
+        window.requestAnimationFrame(function () { scrollNewRankIntoView(justPosted); });
+      }
     }
 
     function jump(ts) {
@@ -1907,6 +1978,7 @@
       lastWall = Date.now();
       lastKey = "";
       seen = {};
+      resetRankPosts();
       deltaSeen = {};
       lastHdg = {};
       lastHdgAt = {};
@@ -1943,8 +2015,9 @@
           armTailClear();
         }
         var rows = rowsAt(playTs);
+        syncPostQueue(rows, playTs);
         var key = stateKey(rows, playTs);
-        if (key !== lastKey) {
+        if (key !== lastKey || postIsDue()) {
           render(playTs);
         } else if (clockEl) {
           clockEl.textContent = clockText(playTs, rows);
