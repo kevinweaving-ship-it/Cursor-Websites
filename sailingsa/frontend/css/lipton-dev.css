@@ -14,7 +14,7 @@ body[data-lipton-dev="1"] {
   --lipton-dev-lockup-h: 56px;
   --lipton-logo-w: 120px;
   --lipton-logo-h: calc(var(--lipton-logo-w) * 574 / 2180);
-  --lipton-c-inset: 0.266;
+  --lipton-c-inset: 0.320;
   --lipton-map-bg: #001018;
   --lipton-bar-bg: #20696d;
 }
