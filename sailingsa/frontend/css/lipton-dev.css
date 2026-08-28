@@ -510,7 +510,8 @@ body[data-lipton-dev="1"] .ld-tri--same {
   height: 6px;
   background: #6b7280;
 }
-body[data-lipton-dev="1"] th.timer-col--mark {
+body[data-lipton-dev="1"] th.timer-col--mark,
+body[data-lipton-dev="1"] th.timer-col--fin {
   white-space: normal;
   line-height: 1.05;
 }

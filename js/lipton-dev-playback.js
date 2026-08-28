@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828bx";
+  var CACHE = "20260828by";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = params.get("live") === "1";
@@ -1484,15 +1484,7 @@
       return n <= 1 ? base : base + "·" + n;
     }
     var lastHeadKey = "";
-    var marksUserSet = false;
-    function isMobilePortrait() {
-      try {
-        return window.matchMedia("(max-width: 768px) and (orientation: portrait)").matches;
-      } catch (err) {
-        return false;
-      }
-    }
-    var marksDetailOpen = !isMobilePortrait();
+    var marksDetailOpen = false;
     function passIsMark(p) {
       if (!p) return false;
       if (p.id === "ST" || p.label === "ST") return false;
@@ -1533,7 +1525,7 @@
       if (!headRow) return;
       if (limit == null) limit = PASSES.length - 1;
       var ts = viewTs;
-      var key = String(limit) + (showStCol(ts) ? "|ST" : "|noST") + (marksDetailOpen ? "|md1" : "|md0") + (isMobilePortrait() ? "|mp" : "|dx");
+      var key = String(limit) + (showStCol(ts) ? "|ST" : "|noST") + (marksDetailOpen ? "|md1" : "|md0");
       for (var i = 0; i < limit; i++) key += showDeltaAfter(i, ts, limit) ? "|d" : "|f";
       if (key === lastHeadKey) return;
       lastHeadKey = key;
@@ -1543,11 +1535,12 @@
         var p = PASSES[i];
         var lab = passHeadLabel(i);
         var title = "Lap " + p.lap + " mark " + p.mark;
-        if (p.id === "FIN" || p.label === "Fin") title = "Finish time and places vs start";
+        if (p.id === "FIN" || p.label === "Fin") title = "Finish time and net places (sum of mark gains and losses). Arrow shows or hides all mark times.";
         else if (p.id === "ST" || p.label === "ST") title = "Seconds after first legal start. OCS boats use the recross after they clear, not the OCS dip.";
         else if (passFolded(i, ts)) title = lab + " places vs previous mark";
         var twist = "";
-        if (passIsMark(p) && passFolded(i, ts) && isMobilePortrait()) {
+        var isFinCol = p.id === "FIN" || p.label === "Fin";
+        if (isFinCol) {
           twist = "<button type=\"button\" class=\"ld-mark-twist\" data-mark-twist=\"1\" aria-expanded=\"" + (marksDetailOpen ? "true" : "false") + "\" title=\"" + (marksDetailOpen ? "Hide mark times" : "Show mark times") + "\" aria-label=\"" + (marksDetailOpen ? "Hide mark times" : "Show mark times") + "\">" + (marksDetailOpen ? "▾" : "▸") + "</button>";
         }
         html += "<th class=\"timer-col" + ((p.id === "FIN" || p.label === "Fin") ? " timer-col--fin" : "") + (passIsMark(p) ? " timer-col--mark" : "") + (!marksDetailOpen && passIsMark(p) && passFolded(i, ts) ? " timer-col--tight" : "") + "\" title=\"" + esc(title) + "\"><span class=\"ld-mark-lab\">" + esc(lab) + "</span>" + twist + "</th>";
@@ -1750,13 +1743,18 @@
       if (prev == null || next == null) return null;
       return prev - next;
     }
-    function totalGain(boat) {
-      var start = START_RANK[boat];
-      var finPass = PASSES[PASSES.length - 1];
-      if (!finPass || (finPass.id !== "FIN" && finPass.label !== "Fin")) return null;
-      var fin = passRankOf(finPass, boat);
-      if (start == null || fin == null) return null;
-      return start - fin;
+    function totalGain(boat, rankMaps) {
+      if (!rankMaps || !rankMaps.length) return null;
+      var sum = 0;
+      var any = false;
+      var i;
+      for (i = 0; i < rankMaps.length; i++) {
+        var g = deltaGain(rankMaps[i].prev, rankMaps[i].next, boat);
+        if (g == null) continue;
+        sum += g;
+        any = true;
+      }
+      return any ? sum : null;
     }
     function rememberDelta(key, gained) {
       var flash = deltaSeen[key] !== gained;
@@ -1782,7 +1780,7 @@
       var isFin = p && (p.id === "FIN" || p.label === "Fin");
       var finCls = isFin ? " timer-col--fin" : "";
       if (!passFolded(i, ts)) return "<td class=\"timer-col" + finCls + "\">" + time + "</td>";
-      var gained = isFin ? totalGain(r.boat) : deltaGain(
+      var gained = isFin ? totalGain(r.boat, rankMaps) : deltaGain(
         rankMaps[i - 1] && rankMaps[i - 1].prev,
         rankMaps[i - 1] && rankMaps[i - 1].next,
         r.boat
@@ -1791,7 +1789,7 @@
       if (isFin) {
         return "<td class=\"timer-col timer-col--folded timer-col--fin\">" + time + deltaSpan(gained, flash) + "</td>";
       }
-      if (!marksDetailOpen && isMobilePortrait()) {
+      if (!marksDetailOpen) {
         return "<td class=\"timer-col timer-col--places\">" + deltaSpan(gained, flash) + "</td>";
       }
       return "<td class=\"timer-col timer-col--folded\">" + time + deltaSpan(gained, flash) + "</td>";
@@ -2243,45 +2241,16 @@
 
     if (headRow) {
       headRow.addEventListener("click", function (ev) {
-        var th = ev.target && ev.target.closest ? ev.target.closest("th.timer-col--mark") : null;
+        var th = ev.target && ev.target.closest ? ev.target.closest("th.timer-col--fin") : null;
         if (!th || !th.querySelector("[data-mark-twist]")) return;
         ev.preventDefault();
         ev.stopPropagation();
         marksDetailOpen = !marksDetailOpen;
-        marksUserSet = true;
         lastHeadKey = "";
         lastKey = "";
         render(viewTs);
       });
     }
-    try {
-      var mpMq = window.matchMedia("(max-width: 768px) and (orientation: portrait)");
-      function syncMarksViewport() {
-        if (!isMobilePortrait()) {
-          marksUserSet = false;
-          if (!marksDetailOpen) {
-            marksDetailOpen = true;
-            lastHeadKey = "";
-            lastKey = "";
-            render(viewTs);
-          } else {
-            lastHeadKey = "";
-            fillHead(visiblePassLimit(viewTs));
-          }
-        } else if (!marksUserSet && marksDetailOpen) {
-          marksDetailOpen = false;
-          lastHeadKey = "";
-          lastKey = "";
-          render(viewTs);
-        } else {
-          lastHeadKey = "";
-          fillHead(visiblePassLimit(viewTs));
-        }
-        if (chartMap) chartMap.invalidateSize({ animate: false });
-      }
-      if (mpMq.addEventListener) mpMq.addEventListener("change", syncMarksViewport);
-      else if (mpMq.addListener) mpMq.addListener(syncMarksViewport);
-    } catch (err) {}
     fillHead(0);
     setRateButtons();
     waitForTracker();
