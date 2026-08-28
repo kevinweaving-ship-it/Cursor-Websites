@@ -429,14 +429,6 @@ body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-bronze td.timer-col--fin
 body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-bronze td.timer-col:last-child {
   background: #CE8946;
 }
-body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-bronze td.rank-col,
-body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-bronze td.wc-meta-col,
-body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-bronze td.boat-name-col,
-body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-bronze td.club-col,
-body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-bronze td.timer-col--fin,
-body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-bronze td.timer-col:last-child {
-  background: #CE8946;
-}
 body[data-lipton-dev="1"] th,
 body[data-lipton-dev="1"] td {
   border: 1px solid #1d294d;
