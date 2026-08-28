@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828cf";
+  var CACHE = "20260828cg";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = !RACE_Q;
@@ -424,12 +424,24 @@
     }
     function tailUntil(arr, ts) {
       if (!arr || !arr.length) return [];
-      var cut = ts - 90000;
-      var out = [];
-      for (var i = 0; i < arr.length; i++) {
-        if (arr[i].ts_ms >= cut && arr[i].ts_ms <= ts) out.push(arr[i]);
+      var TAIL_M = 6.71 * 6;
+      var TAIL_MS = 18000;
+      var hits = [];
+      var acc = 0;
+      var last = null;
+      for (var i = arr.length - 1; i >= 0; i--) {
+        var p = arr[i];
+        if (p.ts_ms > ts) continue;
+        if (last) {
+          acc += distM(last, p);
+          if (acc >= TAIL_M) break;
+          if (ts - p.ts_ms >= TAIL_MS) break;
+        }
+        hits.push(p);
+        last = p;
       }
-      return out;
+      hits.reverse();
+      return hits;
     }
     function mergeTrail(dest, pts) {
       if (!pts || !pts.length) return dest;
