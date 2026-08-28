@@ -378,11 +378,19 @@ def main() -> int:
                 if new != raw and not _public_aliased(raw):
                     _write(NGINX, raw)
                 return 1
-            subprocess.check_call(["nginx", "-s", "reload"])
+            board = _origin_board_state()
+            must_reload = new != raw or _public_aliased(raw) or board == "playback"
+            if must_reload:
+                subprocess.check_call(["nginx", "-s", "reload"])
+                _log(
+                    f"nginx public proxy locked n={n} snippet={snippet_changed} "
+                    f"reload=1 board={board}"
+                )
+            else:
+                _log(f"nginx snippet restored; skipped reload (board={board})")
             _chattr(NGINX, True)
             _chattr(SNIPPET, True)
             nginx_changed = True
-            _log(f"nginx public proxy locked n={n} snippet={snippet_changed} (never restore alias)")
         else:
             _chattr(NGINX, True)
             _chattr(SNIPPET, True)
