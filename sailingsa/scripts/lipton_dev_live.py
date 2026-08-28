@@ -26,9 +26,8 @@ LIVE_TRAIL_MS = 45_000
 STEP_MS = 280
 CLOCK_LAG_MS = 20_000
 CHUNK_MS = 3 * 60 * 1000
-SNAP_TTL_S = 0.35
-_SNAP = None
-_SNAP_AT = 0.0
+SNAP_TTL_S = 0.8
+SNAP_PATH = Path("/tmp/lipton_dev_live_snap.json")
 STATE_PATH = Path("/tmp/lipton_dev_live_state.json")
 HISTORY_PATHS = (
     Path("/var/www/sailingsa/js/lipton-dev-live-history.json"),
@@ -116,6 +115,27 @@ def _tele_latest(after_ms: int, before_ms: int) -> list[dict]:
     rows = data.get("Rows") or []
     idx = {k: i for i, k in enumerate(fields)}
     return [{k: row[i] for k, i in idx.items()} for row in rows]
+
+
+def _load_snap_file() -> dict | None:
+    try:
+        if time.time() - SNAP_PATH.stat().st_mtime > SNAP_TTL_S:
+            return None
+        data = json.loads(SNAP_PATH.read_text(encoding="utf-8"))
+        if isinstance(data, dict) and data.get("ok"):
+            return data
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        return None
+    return None
+
+
+def _save_snap_file(payload: dict) -> None:
+    try:
+        tmp = SNAP_PATH.with_suffix(".tmp")
+        tmp.write_text(json.dumps(payload, separators=(",", ":"), default=str), encoding="utf-8")
+        tmp.replace(SNAP_PATH)
+    except OSError:
+        pass
 
 
 def _save_state(payload: dict) -> None:
@@ -322,9 +342,10 @@ def _save_history_file(payload: dict) -> None:
 
 
 def live_snapshot(*, history: bool = False) -> dict:
-    global _SNAP, _SNAP_AT
-    if not history and _SNAP is not None and (time.time() - _SNAP_AT) < SNAP_TTL_S:
-        return _SNAP
+    if not history:
+        cached_snap = _load_snap_file()
+        if cached_snap:
+            return cached_snap
     now = datetime.now(timezone.utc)
     now_ms = int(now.timestamp() * 1000)
     playback_ms = now_ms - CLOCK_LAG_MS
@@ -372,12 +393,16 @@ def live_snapshot(*, history: bool = False) -> dict:
     keep_ms = WINDOW_MS if waiting else (HISTORY_MS if history else WINDOW_MS)
     rec_keep: int | None = keep_ms
     have_hist = _covers_start(stored_hit, gun_ms) or _history_span_ms(stored_hit) >= 60_000
-    if (not waiting) and history and gun_ms is not None and not have_hist:
+    prestart = gun_ms is not None and now_ms < int(gun_ms) - 5_000
+    if (not waiting) and (not prestart) and history and gun_ms is not None and not have_hist:
         start = int(gun_ms) - 30_000
         if now_ms - int(gun_ms) > 8 * 60 * 1000:
             start = max(start, now_ms - 6 * 60 * 1000)
-        rows = _tele_range(start, now_ms + 2000)
-        rec_keep = None
+        if start < now_ms:
+            rows = _tele_range(start, now_ms + 2000)
+            rec_keep = None
+        else:
+            rows = _tele_latest(now_ms - keep_ms, now_ms + 2000)
     else:
         rows = _tele_latest(now_ms - keep_ms, now_ms + 2000)
     boats: dict[str, dict] = {}
@@ -476,8 +501,7 @@ def live_snapshot(*, history: bool = False) -> dict:
             stored["from_cache"] = False
             return stored
     if not history:
-        _SNAP = out
-        _SNAP_AT = time.time()
+        _save_snap_file(out)
     return out
 
 
