@@ -841,19 +841,24 @@
         tailsUntil = -1;
         return;
       }
-      var pos = posAt(sail, ts);
+      var b = trail.boats[sail];
+      var pos = sampleAt(b, ts);
       if (!pos) return;
+      var hdg = headingAt(b, pos);
       var p = xy(pos.lat, pos.lon);
-      var rad = (pos.hdg || 0) * Math.PI / 180;
-      var px = Math.max(12, TAIL_M * (mapBounds && mapBounds.scale ? mapBounds.scale : 0.4));
-      var bx = p.x - Math.sin(rad) * px;
-      var by = p.y + Math.cos(rad) * px;
+      var rad = (hdg || 0) * Math.PI / 180;
+      var boatR = 8;
+      var len = Math.max(20, TAIL_M * (mapBounds && mapBounds.scale ? mapBounds.scale : 0.5));
+      var sx = p.x - Math.sin(rad) * boatR;
+      var sy = p.y + Math.cos(rad) * boatR;
+      var ex = p.x - Math.sin(rad) * (boatR + len);
+      var ey = p.y + Math.cos(rad) * (boatR + len);
       var hot = ocsPending(sail, ts);
       mapCtx.beginPath();
-      mapCtx.moveTo(bx, by);
-      mapCtx.lineTo(p.x, p.y);
-      mapCtx.strokeStyle = hot ? "rgba(254,202,202,0.85)" : "rgba(248,250,252,0.85)";
-      mapCtx.lineWidth = 2.4;
+      mapCtx.moveTo(sx, sy);
+      mapCtx.lineTo(ex, ey);
+      mapCtx.strokeStyle = hot ? "rgba(254,202,202,0.9)" : "rgba(248,250,252,0.9)";
+      mapCtx.lineWidth = 3;
       mapCtx.lineCap = "round";
       mapCtx.stroke();
     }
