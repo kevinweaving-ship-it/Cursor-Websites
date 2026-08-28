@@ -6,8 +6,8 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Lipton Challenge Cup 2026 — playback (dev)</title>
   <link rel="stylesheet" href="/css/main.css">
-  <link rel="stylesheet" href="/js/vendor/leaflet/leaflet.css?v=20260828ae">
-  <link rel="stylesheet" href="/css/lipton-dev.css?v=20260828ae">
+  <link rel="stylesheet" href="/js/vendor/leaflet/leaflet.css?v=20260828af">
+  <link rel="stylesheet" href="/css/lipton-dev.css?v=20260828af">
   <script src="/js/api.js"></script>
   <script src="/js/session.js"></script>
 </head>
@@ -73,13 +73,6 @@
               <button type="button" class="lipton-dev-btn" data-race="4">R4</button>
               <button type="button" class="lipton-dev-btn" data-race="5">R5</button>
             </div>
-            <div class="lipton-dev-transport lipton-dev-transport--play" role="group" aria-label="Playback">
-              <button type="button" class="lipton-dev-btn" id="lipton-dev-play" disabled title="Play">▶</button>
-              <button type="button" class="lipton-dev-btn" id="lipton-dev-slower" title="Slower">‹</button>
-              <span class="lipton-dev-play-rate" id="lipton-dev-rate">1×</span>
-              <button type="button" class="lipton-dev-btn" id="lipton-dev-faster" title="Faster">›</button>
-              <button type="button" class="lipton-dev-btn" id="lipton-dev-sound" aria-pressed="false" title="Enable start and recall horns">♪</button>
-            </div>
             <div class="sailed-line" id="lipton-dev-sailed">Loading tracker…</div>
             <div class="sailed-line" id="lipton-dev-clock">0:00</div>
           </div>
@@ -136,7 +129,16 @@
           <a href="/" class="lipton-dev-map-logo" title="SailingSA">
             <img src="/assets/logos/sailingsa-logo.png" alt="SailingSA">
           </a>
-          <input type="range" class="lipton-dev-scrub" id="lipton-dev-scrub" min="0" max="1000" value="0" aria-label="Race position">
+          <div class="lipton-dev-map-transport">
+            <input type="range" class="lipton-dev-scrub" id="lipton-dev-scrub" min="0" max="1000" value="0" aria-label="Race position">
+            <div class="lipton-dev-transport lipton-dev-transport--play" role="group" aria-label="Playback">
+              <button type="button" class="lipton-dev-btn" id="lipton-dev-play" disabled title="Play">▶</button>
+              <button type="button" class="lipton-dev-btn" id="lipton-dev-slower" title="Slower">‹</button>
+              <span class="lipton-dev-play-rate" id="lipton-dev-rate">1×</span>
+              <button type="button" class="lipton-dev-btn" id="lipton-dev-faster" title="Faster">›</button>
+              <button type="button" class="lipton-dev-btn" id="lipton-dev-sound" aria-pressed="false" title="Enable start and recall horns">♪</button>
+            </div>
+          </div>
         </div>
         <a href="/events-logos/lipton-challenge-cup" class="lipton-dev-event-logo" title="Lipton Challenge Cup">
           <img src="/js/lipton-dev-event-logo.png?v=20260828ae" alt="Lipton Challenge Cup">
@@ -145,8 +147,8 @@
     </div>
   </div>
 
-  <script src="/js/vendor/leaflet/leaflet.js?v=20260828ae"></script>
+  <script src="/js/vendor/leaflet/leaflet.js?v=20260828af"></script>
   <script src="/js/blank-landing-header.js"></script>
-  <script src="/js/lipton-dev-playback.js?v=20260828ae"></script>
+  <script src="/js/lipton-dev-playback.js?v=20260828af"></script>
 </body>
 </html>
