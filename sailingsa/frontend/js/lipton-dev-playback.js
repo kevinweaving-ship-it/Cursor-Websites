@@ -1321,6 +1321,8 @@
       mapCtx.font = "bold 13px sans-serif";
       var nameW = name ? mapCtx.measureText(name).width : 0;
       var boxW = Math.max(nameW, 72);
+      var hud = document.getElementById("lipton-dev-hud");
+      if (hud) hud.style.setProperty("--lipton-tbox-w", Math.round(boxW) + "px");
       var boxH = 22;
       var clockH = 32;
       var x0 = mapBounds.w - pad - boxW;
