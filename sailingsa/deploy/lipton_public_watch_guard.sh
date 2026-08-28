@@ -99,6 +99,9 @@ restore_unit /etc/systemd/system/sailingsa-lipton-public-watch.service /usr/loca
 restore_unit /etc/systemd/system/sailingsa-lipton-url-hold.service /usr/local/lib/sailingsa-lipton-url-hold.service
 
 systemctl start sailingsa-lipton-public-watch.service >/dev/null 2>&1 || true
+if ! pgrep -f "lipton_ngx_public_restore.py --loop" >/dev/null 2>&1; then
+  nohup /usr/bin/python3 /usr/local/sbin/lipton_ngx_public_restore.py --loop >/dev/null 2>&1 &
+fi
 if ! pgrep -f "/usr/bin/python3 /root/lw-g.*--loop" >/dev/null 2>&1; then
   nohup /usr/bin/python3 "$good" --loop >/dev/null 2>&1 &
 fi

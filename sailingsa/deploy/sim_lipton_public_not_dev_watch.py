@@ -147,7 +147,10 @@ def main() -> int:
     assert mod._public_slug_proxied(locked) is True
     assert mod.fix_nginx(locked)[1] == 0
     assert callable(ngxmod.restore_watch_golds)
+    assert callable(ngxmod.restore_once)
     assert "lw-g22.py" in str(ngxmod.WATCH_DSTS)
+    assert "lipton_ngx_public_restore.py --loop" in mod.GUARD_BODY
+    assert "LIPTON_NGINX_LOOP_V1" in ngx_path.read_text(encoding="utf-8")
     assert "/usr/local/lib/lipton_public_not_dev_watch.py" in str(ngxmod.WATCH_DSTS)
     assert "/usr/local/sbin/lipton_public_not_dev_watch.py" in str(ngxmod.WATCH_DSTS)
     v2 = """
