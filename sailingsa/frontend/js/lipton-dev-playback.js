@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828br";
+  var CACHE = "20260828bs";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = params.get("live") === "1";
@@ -1530,7 +1530,7 @@
         var title = "Lap " + p.lap + " mark " + p.mark;
         if (p.id === "FIN" || p.label === "Fin") title = "Finish time and places vs start";
         else if (p.id === "ST" || p.label === "ST") title = "Seconds after first legal start. OCS boats use the recross after they clear, not the OCS dip.";
-        else if (passFolded(i, ts)) title = lab + " time and places vs previous mark";
+        else if (passFolded(i, ts)) title = lab + " places vs previous mark";
         html += "<th class=\"timer-col\" title=\"" + esc(title) + "\">" + esc(lab) + "</th>";
         if (showDeltaAfter(i, ts, limit)) {
           var nlab = passHeadLabel(i + 1);
@@ -1736,6 +1736,14 @@
       if (gained == null) return "<td class=\"place-delta-col\"></td>";
       return "<td class=\"place-delta-col\">" + deltaSpan(gained, rememberDelta(boat + "|" + passIdx, gained)) + "</td>";
     }
+    function foldMask(ts) {
+      var mask = 0;
+      var i;
+      for (i = 1; i < PASSES.length; i++) {
+        if (passFolded(i, ts)) mask |= (1 << i);
+      }
+      return mask;
+    }
     function timerTd(r, i, rankMaps, ts) {
       var time = splitCell(r.times, i, r.boat);
       if (!passFolded(i, ts)) return "<td class=\"timer-col\">" + time + "</td>";
@@ -1746,7 +1754,11 @@
         rankMaps[i - 1] && rankMaps[i - 1].next,
         r.boat
       );
-      return "<td class=\"timer-col timer-col--folded\">" + time + deltaSpan(gained, rememberDelta(r.boat + "|fold|" + i, gained)) + "</td>";
+      var tri = deltaSpan(gained, rememberDelta(r.boat + "|fold|" + i, gained));
+      if (isFin) {
+        return "<td class=\"timer-col timer-col--folded\">" + time + tri + "</td>";
+      }
+      return "<td class=\"timer-col timer-col--folded timer-col--places\">" + tri + "</td>";
     }
     function boatHasStarted(boat, ts) {
       if (ts < GUN_TS) return false;
@@ -1875,7 +1887,7 @@
     }
     function stateKey(rows, ts) {
       var passLimit = visiblePassLimit(ts);
-      return "p" + passLimit + "|" + rows.map(function (r) {
+      return "p" + passLimit + "|f" + foldMask(ts) + "|" + rows.map(function (r) {
         var pending = ocsPending(r.boat, ts);
         var badge = mapBadge(r.boat, ts);
         var place = badge.place == null ? "" : badge.place;
