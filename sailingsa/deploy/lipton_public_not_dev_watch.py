@@ -333,7 +333,7 @@ def ensure_watch_service() -> None:
             capture_output=True,
             text=True,
         )
-        if (p.stdout or "").strip() == "active":
+        if (p.stdout or "").strip() in ("active", "activating"):
             return
         subprocess.run(
             ["systemctl", "unmask", "sailingsa-lipton-public-watch.service"],
