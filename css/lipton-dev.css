@@ -13,9 +13,8 @@ body[data-lipton-dev="1"] {
   --lipton-scrub-w: 140px;
   --lipton-dev-lockup-h: 56px;
   --lipton-logo-w: 120px;
-  --lipton-logo-h: calc(var(--lipton-logo-w) * 721 / 2180);
-  --lipton-underline-inset: 3px;
-  --lipton-c-inset: 0.264;
+  --lipton-logo-h: calc(var(--lipton-logo-w) * 574 / 2180);
+  --lipton-c-inset: 0.266;
   --lipton-map-bg: #001018;
   --lipton-bar-bg: #20696d;
 }
@@ -82,6 +81,7 @@ body[data-lipton-dev="1"] .lipton-dev-event-logo {
   display: block;
   width: var(--lipton-logo-w);
   height: var(--lipton-logo-h);
+  overflow: hidden;
   flex: 0 0 auto;
   min-width: 0;
   line-height: 0;
@@ -98,8 +98,9 @@ body[data-lipton-dev="1"] .lipton-dev-map-transport {
   width: var(--lipton-logo-w);
   max-width: var(--lipton-logo-w);
   min-width: 0;
-  height: calc(var(--lipton-logo-h) - var(--lipton-underline-inset));
-  max-height: calc(var(--lipton-logo-h) - var(--lipton-underline-inset));
+  height: var(--lipton-logo-h);
+  max-height: var(--lipton-logo-h);
+  overflow: hidden;
   gap: 0;
   margin: 0;
   padding: 0;
@@ -113,10 +114,11 @@ body[data-lipton-dev="1"] .lipton-dev-playbox {
   min-height: 0;
   height: 100%;
   width: 100%;
-  gap: 6px;
+  gap: 4px;
   margin: 0;
-  padding: 3px;
+  padding: 2px;
   box-sizing: border-box;
+  overflow: hidden;
   background: #ffffff;
   border-radius: 3px;
 }
@@ -128,7 +130,7 @@ body[data-lipton-dev="1"] .lipton-dev-race-boxes {
   align-items: stretch;
   gap: 2px;
   box-sizing: border-box;
-  margin: 3px 0 0 calc(var(--lipton-logo-w) * var(--lipton-c-inset));
+  margin: 1px 0 0 calc(var(--lipton-logo-w) * var(--lipton-c-inset));
   width: calc(100% - var(--lipton-logo-w) * var(--lipton-c-inset));
   max-width: calc(100% - var(--lipton-logo-w) * var(--lipton-c-inset));
   height: 16px;
@@ -634,7 +636,7 @@ body[data-lipton-dev="1"] .lipton-dev-event-logo img {
   height: 100%;
   max-height: none;
   object-fit: contain;
-  object-position: left center;
+  object-position: top left;
 }
 body[data-lipton-dev="1"] .lipton-dev-map-hud {
   display: flex;
@@ -644,8 +646,8 @@ body[data-lipton-dev="1"] .lipton-dev-map-hud {
   gap: 2px;
   margin-left: auto;
   margin-right: 0;
-  margin-bottom: 3px;
-  min-height: calc(var(--lipton-logo-w) * 721 / 2180);
+  margin-bottom: 0;
+  min-height: var(--lipton-logo-h);
   width: max-content;
   min-width: 0;
   max-width: 40%;
