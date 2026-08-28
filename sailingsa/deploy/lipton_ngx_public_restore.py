@@ -63,15 +63,30 @@ WantedBy=multi-user.target
 """
 WATCH_UNIT_NAME = "sailingsa-lipton-public-watch.service"
 HOLD_UNIT_NAME = "sailingsa-lipton-url-hold.service"
+WATCH_UNIT = Path("/etc/systemd/system/sailingsa-lipton-public-watch.service")
+WATCH_UNIT_BODY = """[Unit]
+Description=Lipton 2026 public URL live-board watchdog
+After=network.target nginx.service sailingsa-api.service
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+ExecStart=/bin/bash -c 'while true; do for f in /root/lw-g22.py /usr/local/lib/lipton_public_not_dev_watch.py /usr/local/sbin/lipton_public_not_dev_watch.py /usr/local/share/sailingsa-lipton/watch.py; do sz=$(wc -c < "$f" 2>/dev/null || echo 0); if [ "$sz" -gt 500 ] && grep -q LIPTON_WATCH_DEBOUNCE_V1 "$f" 2>/dev/null; then /usr/bin/python3 "$f" --loop; break; fi; done; sleep 1; done'
+
+[Install]
+WantedBy=multi-user.target
+"""
 NGX_UNIT_NAME = "sailingsa-lipton-ngx-restore.service"
 NGX_TIMER = Path("/etc/systemd/system/sailingsa-lipton-ngx-restore.timer")
 NGX_TIMER_BODY = """[Unit]
 Description=Lipton 2026 nginx public-slug restore timer
 
 [Timer]
-OnBootSec=10
-OnUnitActiveSec=20
+OnBootSec=8
+OnUnitInactiveSec=8
 AccuracySec=1s
+Persistent=true
 Unit=sailingsa-lipton-ngx-restore.service
 
 [Install]
@@ -386,6 +401,21 @@ def ensure_units_and_loops() -> None:
             pass
     else:
         _chattr(NGX_UNIT, True)
+    try:
+        wcur = WATCH_UNIT.read_text(encoding="utf-8") if WATCH_UNIT.is_file() else ""
+    except Exception:
+        wcur = ""
+    if wcur != WATCH_UNIT_BODY:
+        try:
+            _write(WATCH_UNIT, WATCH_UNIT_BODY)
+            os.system(f"chmod 644 {WATCH_UNIT} >/dev/null 2>&1")
+            _chattr(WATCH_UNIT, True)
+            _systemctl("daemon-reload")
+            _log("ngx restore watch unit")
+        except Exception:
+            pass
+    else:
+        _chattr(WATCH_UNIT, True)
     try:
         tcur = NGX_TIMER.read_text(encoding="utf-8") if NGX_TIMER.is_file() else ""
     except Exception:

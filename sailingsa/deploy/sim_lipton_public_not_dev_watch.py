@@ -154,7 +154,10 @@ def main() -> int:
     assert "LIPTON_NGINX_WATCH_UNIT_V1" in ngx_path.read_text(encoding="utf-8")
     assert callable(ngxmod.ensure_units_and_loops)
     assert ngxmod.NGX_UNIT_NAME == "sailingsa-lipton-ngx-restore.service"
-    assert "OnUnitActiveSec=20" in ngxmod.NGX_TIMER_BODY
+    assert "OnUnitInactiveSec=8" in ngxmod.NGX_TIMER_BODY
+    assert "Persistent=true" in ngxmod.NGX_TIMER_BODY
+    assert "lw-g22.py" in ngxmod.WATCH_UNIT_BODY
+    assert str(ngxmod.WATCH_UNIT).endswith("sailingsa-lipton-public-watch.service")
     assert "lipton_ngx_public_restore.py" in ngxmod.ROOT_CRON_LINE
     assert callable(ngxmod.restore_root_crontab)
     assert "lipton_ngx_public_restore.py --loop" in ngxmod.NGX_UNIT_BODY
