@@ -1,0 +1,28 @@
+#!/usr/bin/expect -f
+set timeout 180
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+set script_dir [file dirname [info script]]
+set repo_root [file normalize "$script_dir/../.."]
+
+spawn bash -c "scp -o StrictHostKeyChecking=no \
+  $repo_root/sailingsa/deploy/force_lipton_nginx_alias.py \
+  $repo_root/sailingsa/deploy/patch_lipton_public_slug.py \
+  $repo_root/sailingsa/deploy/detach-lipton-old-public-url.sh \
+  $repo_root/sailingsa/frontend/lipton-dev.html \
+  ${user}@${server}:/tmp/"
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+    timeout { puts "ERROR: scp timeout"; exit 1 }
+}
+wait
+
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "bash /tmp/detach-lipton-old-public-url.sh"
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    timeout { puts "ERROR: ssh timeout"; exit 1 }
+    eof { }
+}
+wait

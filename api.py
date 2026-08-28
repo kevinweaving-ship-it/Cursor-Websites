@@ -9451,6 +9451,15 @@ def _regatta_class_standalone(request: Request, slug: str, class_slug: str):
     return serve_regatta_class_standalone(slug, class_slug, request)
 
 
+@app.get("/regatta/2026-08-29-lipton-challenge-cup/event")
+@app.head("/regatta/2026-08-29-lipton-challenge-cup/event")
+def _lipton_old_event_page_not_public(request: Request):
+    """Old weather/event HTML only. Not the public Lipton URL."""
+    return serve_regatta_standalone(
+        "2026-08-29-lipton-challenge-cup", request, allow_lipton_event=True
+    )
+
+
 @app.get("/regatta/{slug}")
 @app.head("/regatta/{slug}")
 def _regatta_standalone(request: Request, slug: str):
@@ -26265,7 +26274,7 @@ LIPTON_PUBLIC_SLUG = "2026-08-29-lipton-challenge-cup"
 
 
 def serve_lipton_dev_playback_page(_request: Request, public: bool = False):
-    """Lipton playback page. Public slug is indexable; -dev stays noindex."""
+    """Playback HTML. The public Lipton URL is this page, not the old weather/event HTML."""
     names = (
         Path(STATIC_DIR) / "lipton-dev.html",
         WEB_ROOT / "lipton-dev.html",
@@ -26308,12 +26317,15 @@ def api_lipton_dev_live(request: Request):
         )
 
 
-def serve_regatta_standalone(slug: str, request: Request):
-    """Serve one full standalone HTML result sheet for /regatta/{slug}. Unknown regatta → 301 /events (not 404)."""
+def serve_regatta_standalone(slug: str, request: Request, *, allow_lipton_event: bool = False):
+    """Serve one full standalone HTML result sheet for /regatta/{slug}. Unknown regatta → 301 /events (not 404).
+
+    The Lipton public slug is not the old weather/event page. That page has no public URL.
+    """
     slug_s = str(slug or "").strip()
     if slug_s == LIPTON_DEV_SLUG:
         return serve_lipton_dev_playback_page(request, public=False)
-    if slug_s == LIPTON_PUBLIC_SLUG:
+    if slug_s == LIPTON_PUBLIC_SLUG and not allow_lipton_event:
         return serve_lipton_dev_playback_page(request, public=True)
     start_time = time.time()
     reg = _get_regatta_by_slug(slug)
