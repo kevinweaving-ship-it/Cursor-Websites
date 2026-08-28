@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828cn";
+  var CACHE = "20260828co";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = !RACE_Q;
@@ -974,83 +974,81 @@
     function trailMoving(arr, ts) {
       return !stillEnough(arr, ts);
     }
-    function angDelta(a, b) {
-      var d = b - a;
-      while (d > Math.PI) d -= Math.PI * 2;
-      while (d < -Math.PI) d += Math.PI * 2;
+    function angDiffDeg(a, b) {
+      var d = (b - a) % 360;
+      if (d > 180) d -= 360;
+      if (d < -180) d += 360;
       return d;
     }
-    function visitWrap(pts, markTrail, t, dt) {
-      var sum = 0;
-      var prev = null;
-      var u;
-      for (u = t - dt; u <= t + dt; u += 700) {
-        var boat = atTs(pts, u);
-        var mk = atTs(markTrail, u);
-        if (!boat || !mk) continue;
-        var v = enuOf(mk, boat);
-        if (Math.hypot(v.e, v.n) < 3) continue;
-        var ang = Math.atan2(v.n, v.e);
-        if (prev != null) sum += angDelta(prev, ang);
-        prev = ang;
+    function bearingDeg(lat1, lon1, lat2, lon2) {
+      var p1 = lat1 * Math.PI / 180;
+      var p2 = lat2 * Math.PI / 180;
+      var dl = (lon2 - lon1) * Math.PI / 180;
+      var x = Math.sin(dl) * Math.cos(p2);
+      var y = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl);
+      return (Math.atan2(x, y) * 180 / Math.PI + 360) % 360;
+    }
+    function roundingCandidates(pts, markTrail, afterTs, enterM) {
+      enterM = enterM || 80;
+      var leaveExtra = 8;
+      var gapInbound = 15000;
+      if (!pts || !markTrail || !markTrail.length) return [];
+      var series = [];
+      var prevTs = null;
+      var i;
+      for (i = 0; i < pts.length; i++) {
+        var p = pts[i];
+        if (afterTs != null && p.ts_ms < afterTs) continue;
+        var mk = atTs(markTrail, p.ts_ms);
+        if (!mk) continue;
+        series.push({ p: p, d: distM(p, mk), gap: prevTs == null ? null : p.ts_ms - prevTs });
+        prevTs = p.ts_ms;
       }
-      return sum;
-    }
-    function headingTilt(pts, t, dt) {
-      function cog(ts) {
-        var p = atTs(pts, ts);
-        if (p && p.hdg != null && isFinite(p.hdg)) return p.hdg * Math.PI / 180;
-        var a = atTs(pts, ts - 2200);
-        var b = atTs(pts, ts + 2200);
-        if (!a || !b) return null;
-        var lat = ((a.lat + b.lat) / 2) * Math.PI / 180;
-        return Math.atan2((b.lon - a.lon) * Math.cos(lat), b.lat - a.lat);
-      }
-      var h0 = cog(t - dt);
-      var h1 = cog(t + dt);
-      if (h0 == null || h1 == null) return 0;
-      return Math.abs(angDelta(h0, h1));
-    }
-    function isRounding(pts, markTrail, t) {
-      if (!t) return false;
-      var wrap = Math.abs(visitWrap(pts, markTrail, t, 22000));
-      var tilt = headingTilt(pts, t, 16000);
-      return wrap > 0.7 || tilt > 0.85;
-    }
-    function allVisits(pts, markTrail, afterTs, enter, need) {
-      if (!markTrail || !pts || !pts.length || afterTs == null) return [];
-      var ENTER = enter || 140;
-      var NEED = need || 110;
-      var GAP = 3.5 * 60 * 1000;
       var out = [];
-      var inZ = false;
-      var bestT = null;
-      var bestD = ENTER;
-      function pushVisit() {
-        if (bestT == null || bestD > NEED) return;
-        if (out.length && bestT - out[out.length - 1] < GAP) return;
-        if (!isRounding(pts, markTrail, bestT)) return;
-        out.push(bestT);
-      }
-      for (var j = 0; j < pts.length; j++) {
-        if (pts[j].ts_ms < afterTs) continue;
-        var mark = atTs(markTrail, pts[j].ts_ms);
-        if (!mark) continue;
-        var d = distM(pts[j], mark);
-        if (d < ENTER) {
-          inZ = true;
-          if (d < bestD) {
-            bestD = d;
-            bestT = pts[j].ts_ms;
+      i = 0;
+      var n = series.length;
+      while (i < n) {
+        var d = series[i].d;
+        p = series[i].p;
+        var gap = series[i].gap;
+        if (d > enterM) { i += 1; continue; }
+        var inbound = gap == null || gap >= gapInbound;
+        if (!inbound) {
+          var k = i - 1;
+          while (k >= 0 && (p.ts_ms - series[k].p.ts_ms) <= 180000) {
+            if (series[k].d >= enterM) { inbound = true; break; }
+            k -= 1;
           }
-        } else if (inZ) {
-          pushVisit();
-          inZ = false;
-          bestT = null;
-          bestD = ENTER;
         }
+        if (p.hdg != null && !inbound) {
+          mk = atTs(markTrail, p.ts_ms);
+          if (mk) {
+            var brg = bearingDeg(p.lat, p.lon, mk.lat, mk.lon);
+            if (Math.abs(angDiffDeg(p.hdg, brg)) <= 95) inbound = true;
+          }
+        }
+        var bestD = d;
+        var bestP = p;
+        var j = i;
+        var left = false;
+        while (j < n && (series[j].p.ts_ms - p.ts_ms) < 180000) {
+          var dj = series[j].d;
+          if (dj < bestD) { bestD = dj; bestP = series[j].p; }
+          if (dj >= bestD + leaveExtra) { left = true; break; }
+          j += 1;
+        }
+        if (!left && bestD <= 25) {
+          var nxtGap = j < n ? series[j].gap : null;
+          if (j >= n || (nxtGap != null && nxtGap >= gapInbound)) left = true;
+        }
+        if (inbound && left && bestD <= enterM) {
+          out.push(bestP.ts_ms);
+          var skipUntil = bestP.ts_ms + 40000;
+          while (i < n && series[i].p.ts_ms < skipUntil) i += 1;
+          continue;
+        }
+        i += 1;
       }
-      if (inZ) pushVisit();
       return out;
     }
     function trailForPass(id) {
@@ -1080,7 +1078,7 @@
             if (passTs.M1[sail]) minPin = Math.max(minPin, passTs.M1[sail] + 45000);
             after = Math.max(after, minPin);
           }
-          var vs = allVisits(hist.boats[sail], trail, after, 200, 170);
+          var vs = roundingCandidates(hist.boats[sail], trail, after, 80);
           if (vs[0]) passTs[id][sail] = vs[0];
         });
       }
@@ -1110,10 +1108,10 @@
           }
         }
         var afterSt = passTs.ST[sail] != null ? passTs.ST[sail] + 6000 : (gunTs ? gunTs + 6000 : 0);
-        var m1s = allVisits(pts, hist.marks["1"], afterSt);
+        var m1s = roundingCandidates(pts, hist.marks["1"], afterSt, 80);
         var pinAfter = afterSt + 8 * 60 * 1000;
         if (m1s[0]) pinAfter = Math.max(pinAfter, m1s[0] + 45000);
-        var pins = allVisits(pts, hist.pin, pinAfter);
+        var pins = roundingCandidates(pts, hist.pin, pinAfter, 80);
         m1s.forEach(function (t, idx) {
           if (m1Ids[idx]) passTs[m1Ids[idx]][sail] = t;
         });
