@@ -111,6 +111,27 @@ def _strip_public_hijack(text: str) -> str:
     return text
 
 
+def _guard_impl(text: str) -> str:
+    """Even if nginx proxies, impl must not emit weather HTML for Lipton slugs."""
+    m = re.search(r"def _serve_regatta_standalone_impl\([^\n]*\):\n", text)
+    if not m:
+        return text
+    head = text[m.end() : m.end() + 500]
+    if "serve_lipton_dev_playback_page(request, public=True)" in head:
+        return text
+    inject = (
+        "    slug_s = str(slug or \"\").strip()\n"
+        "    if slug_s in (\n"
+        "        \"2026-08-29-lipton-challenge-cup\",\n"
+        "        \"2026-08-29-lipton-challenge-cup-old\",\n"
+        "    ):\n"
+        "        return serve_lipton_dev_playback_page(request, public=True)\n"
+        "    if slug_s == \"2026-08-29-lipton-challenge-cup-dev\":\n"
+        "        return serve_lipton_dev_playback_page(request, public=False)\n"
+    )
+    return text[: m.end()] + inject + text[m.end()]
+
+
 def _kill_old_weather_css(text: str) -> str:
     text = text.replace(
         "th.crew-col,td.crew-col{white-space:normal;width:auto;text-align:left}",
@@ -198,6 +219,7 @@ def main() -> int:
             "",
         )
     text = _strip_public_hijack(text)
+    text = _guard_impl(text)
     n_pb = len(re.findall(r"^def serve_lipton_dev_playback_page\(", text, re.M))
     print("playback_fn_count", n_pb)
     if n_pb != 1:
