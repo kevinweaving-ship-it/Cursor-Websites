@@ -1,13 +1,15 @@
 /**
  * Lipton public playback only.
- * Inserts the official event result sheet between the site header and Lipton chrome:
- * Event Header, Class Header, Event Results.
- * Strips LIVE board, weather, Live cam, and tracking. Does not put the old event page on this URL.
+ * Event header / class header / results table is the real page (above tracking).
+ * Cached in localStorage: refresh does not rebuild the sheet unless a new race result landed.
+ * Race Mode (?live=) hides this block so map + live race table take the page.
  */
 (function () {
   var FRAME = "lipton-event-sheet-frame";
   var HOST = "lipton-event-sheet";
   var SRC = "/regatta/2026-08-29-lipton-challenge-cup/class-j22";
+  var STORE_HTML = "liptonSheetHtml";
+  var STORE_FP = "liptonSheetFp";
   var HIDE = [
     ".regatta-live-board-row",
     ".regatta-live-board",
@@ -24,10 +26,40 @@
 
   function hostEl() { return document.getElementById(HOST); }
   function frameEl() { return document.getElementById(FRAME); }
-  function showHost() {}
+  function showHost() {
+    var host = hostEl();
+    if (host) host.hidden = false;
+  }
   function hideHost() {
     var host = hostEl();
     if (host) host.hidden = true;
+  }
+  function applyRaceMode() {
+    var p = new URLSearchParams(location.search);
+    var on = p.has("live") && String(p.get("live") || "") !== "0";
+    document.body.setAttribute("data-lipton-race-mode", on ? "1" : "0");
+  }
+  function fingerprint(html) {
+    var sailed = (String(html).match(/Sailed:\s*\d+/i) || [""])[0];
+    var asAt = (String(html).match(/Results are[^<]{0,120}/i) || [""])[0];
+    var heads = (String(html).match(/>R\d+</g) || []).join("");
+    return sailed + "|" + asAt + "|" + heads;
+  }
+  function readCache() {
+    try {
+      return {
+        html: localStorage.getItem(STORE_HTML) || "",
+        fp: localStorage.getItem(STORE_FP) || ""
+      };
+    } catch (err) {
+      return { html: "", fp: "" };
+    }
+  }
+  function writeCache(html, fp) {
+    try {
+      localStorage.setItem(STORE_HTML, html);
+      localStorage.setItem(STORE_FP, fp);
+    } catch (err) {}
   }
   function strip(doc) {
     var page = doc.querySelector(".regatta-page");
@@ -93,8 +125,20 @@
     iframe.srcdoc = "<!DOCTYPE html>" + doc.documentElement.outerHTML;
   }
 
+  applyRaceMode();
+  setTimeout(applyRaceMode, 0);
+  window.addEventListener("popstate", applyRaceMode);
+
+  var cached = readCache();
+  if (cached.html) paint(cached.html);
+
   fetch(SRC, { cache: "no-store", headers: { Accept: "text/html" } })
     .then(function (res) { return res.ok ? res.text() : Promise.reject(res.status); })
-    .then(paint)
-    .catch(function () { hideHost(); });
+    .then(function (html) {
+      var fp = fingerprint(html);
+      if (cached.html && cached.fp === fp) return;
+      writeCache(html, fp);
+      paint(html);
+    })
+    .catch(function () { if (!cached.html) hideHost(); });
 })();
