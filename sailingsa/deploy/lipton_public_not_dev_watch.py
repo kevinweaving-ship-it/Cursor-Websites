@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Keep the public Lipton URL on the live board. -dev stays playback. 27–29 Aug 2026."""
+"""Keep the public Lipton URL on the live board. -dev stays playback. 27–29 Aug 2026.
+
+Never restore a public-slug alias to lipton-dev.html. Lock nginx immediately after a
+good write so PLAYBACK_LOCK cannot win a long curl-check window.
+"""
 from __future__ import annotations
 
 import json
@@ -18,13 +22,6 @@ STATE = Path("/var/tmp/sailingsa_live_race_2026-08-29-lipton-challenge-cup.json"
 LOG = Path("/var/log/lipton_public_not_dev_watch.log")
 PY = "/var/www/sailingsa/api/venv/bin/python"
 
-PUB_ALIAS = re.compile(
-    r"\n    location = /regatta/2026-08-29-lipton-challenge-cup(?:/)? \{\n"
-    r"        default_type text/html;\n"
-    r"        add_header Cache-Control \"no-store\";\n"
-    r"        alias /var/www/sailingsa/lipton-dev.html;\n"
-    r"    \}",
-)
 HIJACK = re.compile(
     r"\n    if slug_s == \"2026-08-29-lipton-challenge-cup\":\n"
     r"        return serve_lipton_dev_playback_page\(request, public=True\)\n"
@@ -73,6 +70,23 @@ PUBLIC_KEEP = (
     "    # Only -dev may alias lipton-dev.html. Do not add a public-slug alias."
 )
 
+# Any exact public-slug location (alias or leftover proxy) so we can insert one pair.
+PUB_LOC = re.compile(
+    r"\n[ \t]*(?:# LIPTON_NGINX[^\n]*\n[ \t]*)?"
+    r"location = /regatta/"
+    + re.escape(RID)
+    + r"(?:/)?"
+    r"\s*\{[^{}]*\}",
+    re.S,
+)
+PUB_ALIAS = re.compile(
+    r"\n    location = /regatta/2026-08-29-lipton-challenge-cup(?:/)? \{\n"
+    r"        default_type text/html;\n"
+    r"        add_header Cache-Control \"no-store\";\n"
+    r"        alias /var/www/sailingsa/lipton-dev.html;\n"
+    r"    \}",
+)
+
 
 def _log(msg: str) -> None:
     line = datetime.now(ZoneInfo("Africa/Johannesburg")).strftime("%Y-%m-%d %H:%M:%S SAST ") + msg
@@ -112,36 +126,39 @@ def _race_underway() -> bool:
     return bool(gun) and phase == "racing" and not bool(st.get("race_complete"))
 
 
-def _public_is_live_board() -> bool:
-    try:
-        subprocess.run(
-            [
-                "curl",
-                "-sk",
-                "-o",
-                "/tmp/lipton_watch_pub.html",
-                "--max-time",
-                "20",
-                "--resolve",
-                "sailingsa.co.za:443:127.0.0.1",
-                f"https://sailingsa.co.za/regatta/{RID}",
-            ],
-            check=False,
-            timeout=25,
-        )
-        body = Path("/tmp/lipton_watch_pub.html").read_text(encoding="utf-8", errors="replace")
-        return "regatta-page" in body and "data-lipton-dev" not in body and len(body) > 50000
-    except Exception:
-        return False
+def _public_aliased(text: str) -> bool:
+    if PLAYBACK_LOCK in text:
+        return True
+    for m in re.finditer(
+        r"location = /regatta/" + re.escape(RID) + r"(?:/)?\s*\{([^{}]*)\}",
+        text,
+        re.S,
+    ):
+        if "lipton-dev.html" in m.group(1):
+            return True
+    return False
 
 
 def fix_nginx(text: str) -> tuple[str, int]:
-    new, n = PUB_ALIAS.subn("", text)
+    n = 0
+    new = text
+    if _public_aliased(text) or PUB_ALIAS.search(text):
+        new, n1 = PUB_ALIAS.subn("", new)
+        n += n1
+        # Drop leftover public-slug locations (missed alias format or duplicate proxy).
+        new2, n2 = PUB_LOC.subn("", new)
+        n += n2
+        new = new2
     if PLAYBACK_LOCK in new:
         new = new.replace(PLAYBACK_LOCK, PUBLIC_KEEP)
-    if "LIPTON_NGINX_PUBLIC_PROXY_V1" not in new and DEV_BLOCK in new:
-        new = new.replace(DEV_BLOCK, DEV_BLOCK + "\n" + PUBLIC_PROXY, 1)
         n += 1
+    if "LIPTON_NGINX_PUBLIC_PROXY_V1" not in new:
+        if DEV_BLOCK in new:
+            new = new.replace(DEV_BLOCK, DEV_BLOCK + "\n" + PUBLIC_PROXY, 1)
+            n += 1
+        elif "    location /regatta/ {" in new:
+            new = new.replace("    location /regatta/ {", PUBLIC_PROXY + "\n    location /regatta/ {", 1)
+            n += 1
     return new, n
 
 
@@ -165,33 +182,19 @@ def main() -> int:
     if NGINX.is_file():
         raw = NGINX.read_text(encoding="utf-8")
         new, n = fix_nginx(raw)
-        if n or (PLAYBACK_LOCK in raw) or new != raw:
+        needs = n or _public_aliased(raw) or new != raw or "LIPTON_NGINX_PUBLIC_PROXY_V1" not in new
+        if needs and new != raw:
             _write(NGINX, new)
             chk = subprocess.run(["nginx", "-t"], capture_output=True, text=True)
             if chk.returncode != 0:
-                _write(NGINX, raw)
-                _log("nginx -t failed; reverted")
-                return 1
-            subprocess.check_call(["systemctl", "reload", "nginx"])
-            ok = False
-            for _ in range(4):
-                if _public_is_live_board():
-                    ok = True
-                    break
-            if not ok:
-                # Never restore a public-slug alias to lipton-dev.html.
-                if "alias /var/www/sailingsa/lipton-dev.html" in raw and "location = /regatta/2026-08-29-lipton-challenge-cup {" in raw:
-                    _log("nginx public URL check failed; keeping stripped config (not restoring alias)")
-                    _chattr(NGINX, True)
-                    nginx_changed = True
-                else:
+                _log("nginx -t failed; not restoring aliased public slug")
+                if not _public_aliased(raw):
                     _write(NGINX, raw)
-                    subprocess.check_call(["systemctl", "reload", "nginx"])
-                    _log("nginx public URL not live board after strip; reverted")
-                    return 1
-            nginx_changed = True
-            _log(f"nginx stripped public aliases n={n} reloaded")
+                return 1
+            subprocess.check_call(["nginx", "-s", "reload"])
             _chattr(NGINX, True)
+            nginx_changed = True
+            _log(f"nginx public proxy locked n={n} (never restore alias)")
         else:
             _chattr(NGINX, True)
     if API.is_file():

@@ -1,0 +1,14 @@
+[Unit]
+Description=Lipton 2026 public URL live-board watchdog
+After=network.target nginx.service sailingsa-api.service
+PartOf=nginx.service
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+ExecStart=/bin/bash -c 'while true; do /usr/bin/python3 /usr/local/sbin/lipton_public_not_dev_watch.py; sleep 1; done'
+
+[Install]
+WantedBy=multi-user.target
+WantedBy=nginx.service

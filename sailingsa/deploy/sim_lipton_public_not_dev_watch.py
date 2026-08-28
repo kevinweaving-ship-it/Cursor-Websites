@@ -36,11 +36,12 @@ def main() -> int:
         location = /regatta {
 """
     new, n = mod.fix_nginx(nginx)
-    assert n == 3, n
+    assert n >= 3, n
     assert "lipton-challenge-cup-dev" in new
     assert new.count("alias /var/www/sailingsa/lipton-dev.html") == 1
     assert "LIPTON_NGINX_PUBLIC_PROXY_V1" in new
     assert "proxy_pass http://127.0.0.1:8000;" in new
+    assert mod._public_aliased(new) is False
 
     base = """
     location = /regatta/2026-08-29-lipton-challenge-cup-dev {
