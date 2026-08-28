@@ -3,4 +3,4 @@
 # Skips API restart if a real race is underway.
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-* * * * * root /usr/bin/python3 /usr/local/sbin/lipton_public_not_dev_watch.py >/dev/null 2>&1
+* * * * * root /usr/bin/python3 /usr/local/sbin/lipton_public_not_dev_watch.py >/dev/null 2>&1; sleep 20; /usr/bin/python3 /usr/local/sbin/lipton_public_not_dev_watch.py >/dev/null 2>&1; sleep 20; /usr/bin/python3 /usr/local/sbin/lipton_public_not_dev_watch.py >/dev/null 2>&1

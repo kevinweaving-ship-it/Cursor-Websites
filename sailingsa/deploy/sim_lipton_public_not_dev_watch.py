@@ -36,9 +36,26 @@ def main() -> int:
         location = /regatta {
 """
     new, n = mod.fix_nginx(nginx)
-    assert n == 2, n
+    assert n == 3, n
     assert "lipton-challenge-cup-dev" in new
-    assert "location = /regatta/2026-08-29-lipton-challenge-cup {" not in new
+    assert new.count("alias /var/www/sailingsa/lipton-dev.html") == 1
+    assert "LIPTON_NGINX_PUBLIC_PROXY_V1" in new
+    assert "proxy_pass http://127.0.0.1:8000;" in new
+
+    base = """
+    location = /regatta/2026-08-29-lipton-challenge-cup-dev {
+        default_type text/html;
+        add_header Cache-Control "no-store";
+        add_header X-Robots-Tag "noindex, nofollow";
+        alias /var/www/sailingsa/lipton-dev.html;
+    }
+        location = /regatta {
+"""
+    proxied, pn = mod.fix_nginx(base)
+    assert pn == 1
+    assert "LIPTON_NGINX_PUBLIC_PROXY_V1" in proxied
+    assert "proxy_pass http://127.0.0.1:8000;" in proxied
+    assert "lipton-challenge-cup-dev" in proxied
 
     api = '''
 def serve_regatta_standalone(slug: str, request: Request):
@@ -61,7 +78,7 @@ def serve_lipton_dev_playback_page(_request, public: bool = False):
     assert "if public:" in out
     head, _sep, _play = out.partition("def serve_lipton_dev_playback_page")
     assert "public=True" not in head
-    print("PASS watchdog strips public nginx alias and api hijack; keeps -dev")
+    print("PASS watchdog strips public nginx alias, inserts public proxy, keeps -dev")
     return 0
 
 

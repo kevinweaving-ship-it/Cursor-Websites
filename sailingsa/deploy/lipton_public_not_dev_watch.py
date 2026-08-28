@@ -40,6 +40,33 @@ PLAY_GUARD = '''def serve_lipton_dev_playback_page(_request, public: bool = Fals
         return _serve_regatta_standalone_impl("2026-08-29-lipton-challenge-cup", _request)
     from pathlib import Path as _P
 '''
+DEV_BLOCK = '''    location = /regatta/2026-08-29-lipton-challenge-cup-dev {
+        default_type text/html;
+        add_header Cache-Control "no-store";
+        add_header X-Robots-Tag "noindex, nofollow";
+        alias /var/www/sailingsa/lipton-dev.html;
+    }
+'''
+
+PUBLIC_PROXY = '''    location = /regatta/2026-08-29-lipton-challenge-cup {
+        # LIPTON_NGINX_PUBLIC_PROXY_V1
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        add_header Cache-Control "no-store";
+    }
+    location = /regatta/2026-08-29-lipton-challenge-cup/ {
+        # LIPTON_NGINX_PUBLIC_PROXY_V1
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        add_header Cache-Control "no-store";
+    }
+'''
 PLAYBACK_LOCK = "# LIPTON_NGINX_PLAYBACK_LOCK public + -dev slugs serve lipton-dev.html (not API event page)."
 PUBLIC_KEEP = (
     "# LIPTON_NGINX_PUBLIC_NOT_DEV_V2 public slug MUST proxy to the API live board.\n"
@@ -63,9 +90,15 @@ def _event_day() -> bool:
     return day in ("2026-08-27", "2026-08-28", "2026-08-29")
 
 
+def _chattr(path: Path, plus_i: bool) -> None:
+    flag = "+i" if plus_i else "-i"
+    subprocess.run(["chattr", flag, str(path)], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
 def _write(path: Path, text: str) -> None:
     tmp = Path("/tmp") / (path.name + ".watchtmp")
     tmp.write_text(text, encoding="utf-8")
+    _chattr(path, False)
     subprocess.check_call(["cp", str(tmp), str(path)])
 
 
@@ -106,6 +139,9 @@ def fix_nginx(text: str) -> tuple[str, int]:
     new, n = PUB_ALIAS.subn("", text)
     if PLAYBACK_LOCK in new:
         new = new.replace(PLAYBACK_LOCK, PUBLIC_KEEP)
+    if "LIPTON_NGINX_PUBLIC_PROXY_V1" not in new and DEV_BLOCK in new:
+        new = new.replace(DEV_BLOCK, DEV_BLOCK + "\n" + PUBLIC_PROXY, 1)
+        n += 1
     return new, n
 
 
@@ -129,7 +165,7 @@ def main() -> int:
     if NGINX.is_file():
         raw = NGINX.read_text(encoding="utf-8")
         new, n = fix_nginx(raw)
-        if n or (PLAYBACK_LOCK in raw):
+        if n or (PLAYBACK_LOCK in raw) or new != raw:
             _write(NGINX, new)
             chk = subprocess.run(["nginx", "-t"], capture_output=True, text=True)
             if chk.returncode != 0:
@@ -143,12 +179,21 @@ def main() -> int:
                     ok = True
                     break
             if not ok:
-                _write(NGINX, raw)
-                subprocess.check_call(["systemctl", "reload", "nginx"])
-                _log("nginx public URL not live board after strip; reverted")
-                return 1
+                # Never restore a public-slug alias to lipton-dev.html.
+                if "alias /var/www/sailingsa/lipton-dev.html" in raw and "location = /regatta/2026-08-29-lipton-challenge-cup {" in raw:
+                    _log("nginx public URL check failed; keeping stripped config (not restoring alias)")
+                    _chattr(NGINX, True)
+                    nginx_changed = True
+                else:
+                    _write(NGINX, raw)
+                    subprocess.check_call(["systemctl", "reload", "nginx"])
+                    _log("nginx public URL not live board after strip; reverted")
+                    return 1
             nginx_changed = True
             _log(f"nginx stripped public aliases n={n} reloaded")
+            _chattr(NGINX, True)
+        else:
+            _chattr(NGINX, True)
     if API.is_file():
         raw = API.read_text(encoding="utf-8")
         new, changed = fix_api(raw)
