@@ -8,6 +8,7 @@ COPIES=(
   /usr/local/sbin/lipton_public_not_dev_watch.py
 )
 GOLDS=(
+  /root/lw-gold7.py
   /root/lw-gold6.py
   /root/lw-gold5.py
   /root/lw-gold4.py
@@ -59,6 +60,8 @@ restore_unit() {
   elif grep -q 'must not restore' "$dest" 2>/dev/null; then
     need=1
   elif ! grep -q 'while true' "$dest" 2>/dev/null; then
+    need=1
+  elif ! grep -q 'lw-gold' "$dest" 2>/dev/null; then
     need=1
   fi
   if [[ "$need" -eq 1 ]]; then

@@ -127,9 +127,14 @@ def main() -> int:
     stub = "[Service]\nExecStart=/bin/true\nDescription=disabled — must not restore old Lipton event page\n"
     assert mod._unit_is_stub(stub) is True
     assert mod._unit_is_stub(mod.WATCH_UNIT_BODY) is False
+    assert "lw-gold7.py" in mod.WATCH_UNIT_BODY
+    assert "lw-gold7.py" in mod.HOLD_UNIT_BODY
     assert "while true" in mod.WATCH_UNIT_BODY
     assert "while true" in mod.HOLD_UNIT_BODY
     assert "aa-lipton-url-hold" in str(mod.CRON_HOLD)
+    assert callable(mod.ensure_guard)
+    guard_only = "[Service]\nExecStart=/bin/bash -c 'while true; do /usr/local/lib/lipton_public_watch_guard.sh; sleep 3; done'\n"
+    assert mod._unit_is_stub(guard_only) is True
 
     api = '''
 def serve_regatta_standalone(slug: str, request: Request):

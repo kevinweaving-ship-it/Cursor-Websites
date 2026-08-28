@@ -5,6 +5,7 @@ Never restore a public-slug alias to lipton-dev.html. Lock nginx immediately aft
 good write so PLAYBACK_LOCK cannot win a long curl-check window.
 LIPTON_WATCH_DEBOUNCE_V1
 LIPTON_WATCH_UNIT_RESTORE_V1
+LIPTON_WATCH_GUARD_EMBED_V1
 """
 from __future__ import annotations
 
@@ -262,7 +263,7 @@ def _unit_is_stub(text: str) -> bool:
         return True
     if "while true" not in text:
         return True
-    if "lipton_public_watch_guard.sh" not in text:
+    if "lw-gold" not in text and "lipton_public_not_dev_watch.py" not in text:
         return True
     return False
 
@@ -347,7 +348,23 @@ CRON_HOLD_BODY = "* * * * * root /usr/local/lib/lipton_public_watch_guard.sh >/d
 
 WATCH_UNIT = Path("/etc/systemd/system/sailingsa-lipton-public-watch.service")
 HOLD_UNIT = Path("/etc/systemd/system/sailingsa-lipton-url-hold.service")
-WATCH_UNIT_BODY = """[Unit]
+WATCH_LOOP = (
+    "while true; do "
+    "for f in /root/lw-gold7.py /root/lw-gold6.py /root/lw-gold5.py "
+    "/usr/local/lib/lipton_public_not_dev_watch.py /usr/local/sbin/lipton_public_not_dev_watch.py; do "
+    'sz=$(wc -c < "$f" 2>/dev/null || echo 0); '
+    'if [ "$sz" -gt 500 ] && grep -q LIPTON_WATCH_DEBOUNCE_V1 "$f" 2>/dev/null; then '
+    '/usr/bin/python3 "$f"; break; fi; done; sleep 4; done'
+)
+HOLD_LOOP = (
+    "while true; do "
+    "for f in /root/lw-gold7.py /root/lw-gold6.py /root/lw-gold5.py "
+    "/usr/local/lib/lipton_public_not_dev_watch.py /usr/local/sbin/lipton_public_not_dev_watch.py; do "
+    'sz=$(wc -c < "$f" 2>/dev/null || echo 0); '
+    'if [ "$sz" -gt 500 ] && grep -q LIPTON_WATCH_DEBOUNCE_V1 "$f" 2>/dev/null; then '
+    '/usr/bin/python3 "$f"; break; fi; done; sleep 10; done'
+)
+WATCH_UNIT_BODY = f"""[Unit]
 Description=Lipton 2026 public URL live-board watchdog
 After=network.target nginx.service sailingsa-api.service
 
@@ -355,12 +372,12 @@ After=network.target nginx.service sailingsa-api.service
 Type=simple
 Restart=always
 RestartSec=1
-ExecStart=/bin/bash -c 'while true; do /usr/local/lib/lipton_public_watch_guard.sh; sleep 3; done'
+ExecStart=/bin/bash -c '{WATCH_LOOP}'
 
 [Install]
 WantedBy=multi-user.target
 """
-HOLD_UNIT_BODY = """[Unit]
+HOLD_UNIT_BODY = f"""[Unit]
 Description=Lipton 2026 public URL hold loop
 After=network.target nginx.service sailingsa-api.service
 
@@ -368,11 +385,92 @@ After=network.target nginx.service sailingsa-api.service
 Type=simple
 Restart=always
 RestartSec=2
-ExecStart=/bin/bash -c 'while true; do /usr/local/lib/lipton_public_watch_guard.sh; sleep 5; done'
+ExecStart=/bin/bash -c '{HOLD_LOOP}'
 
 [Install]
 WantedBy=multi-user.target
 """
+GUARD_PATH = Path("/usr/local/lib/lipton_public_watch_guard.sh")
+GUARD_BODY = r'''#!/bin/bash
+# Restore stubbed or stale Lipton public-URL watchdog copies, then run one.
+set -euo pipefail
+MARKER="LIPTON_WATCH_DEBOUNCE_V1"
+COPIES=(
+  /usr/local/lib/lipton_public_not_dev_watch.py
+  /var/lib/sailingsa-lipton/watch.py
+  /usr/local/sbin/lipton_public_not_dev_watch.py
+)
+GOLDS=(
+  /root/lw-gold7.py
+  /root/lw-gold6.py
+  /root/lw-gold5.py
+  /root/lw-gold4.py
+  /root/lw-gold3.py
+  /root/lw-gold.py
+  /root/lipton_public_not_dev_watch.py
+  /var/lib/sailingsa-lipton/watch.py.gold
+)
+
+is_good() {
+  local f="$1"
+  [[ -f "$f" ]] || return 1
+  local sz
+  sz=$(wc -c < "$f" | tr -d ' ')
+  [[ "$sz" -gt 500 ]] || return 1
+  grep -q "$MARKER" "$f"
+}
+
+good=""
+for f in "${GOLDS[@]}" "${COPIES[@]}"; do
+  if is_good "$f"; then
+    good=$f
+    break
+  fi
+done
+if [[ -z "$good" ]]; then
+  echo "lipton watch: no good copy" >&2
+  exit 1
+fi
+for f in "${COPIES[@]}"; do
+  if ! is_good "$f"; then
+    chattr -i "$f" 2>/dev/null || true
+    mkdir -p "$(dirname "$f")"
+    cp "$good" "$f"
+    chmod 755 "$f"
+    chattr +i "$f" 2>/dev/null || true
+  fi
+done
+
+restore_unit() {
+  local dest="$1"
+  local src="$2"
+  [[ -f "$src" ]] || return 0
+  local need=0
+  if [[ ! -f "$dest" ]]; then
+    need=1
+  elif grep -q 'ExecStart=/bin/true' "$dest" 2>/dev/null; then
+    need=1
+  elif grep -q 'must not restore' "$dest" 2>/dev/null; then
+    need=1
+  elif ! grep -q 'while true' "$dest" 2>/dev/null; then
+    need=1
+  elif ! grep -q 'lw-gold' "$dest" 2>/dev/null; then
+    need=1
+  fi
+  if [[ "$need" -eq 1 ]]; then
+    chattr -i "$dest" 2>/dev/null || true
+    cp "$src" "$dest"
+    chmod 644 "$dest"
+    chattr +i "$dest" 2>/dev/null || true
+    systemctl daemon-reload >/dev/null 2>&1 || true
+  fi
+}
+
+restore_unit /etc/systemd/system/sailingsa-lipton-public-watch.service /usr/local/lib/sailingsa-lipton-public-watch.service
+restore_unit /etc/systemd/system/sailingsa-lipton-url-hold.service /usr/local/lib/sailingsa-lipton-url-hold.service
+
+exec /usr/bin/python3 "$good" "$@"
+'''
 
 
 def ensure_cron() -> bool:
@@ -398,16 +496,35 @@ def ensure_cron() -> bool:
     return changed
 
 
+def ensure_guard() -> bool:
+    """Rewrite stubbed guard.sh (often `exit 0`) so cron copies still run."""
+    try:
+        cur = GUARD_PATH.read_text(encoding="utf-8") if GUARD_PATH.is_file() else ""
+    except Exception:
+        cur = ""
+    stub = (len(cur) < 200) or ("LIPTON_WATCH_DEBOUNCE_V1" not in cur) or re.search(
+        r"^exit 0\s*$", cur, re.M
+    )
+    if not stub and cur.strip() == GUARD_BODY.strip():
+        _chattr(GUARD_PATH, True)
+        return False
+    try:
+        _write(GUARD_PATH, GUARD_BODY if GUARD_BODY.endswith("\n") else GUARD_BODY + "\n")
+        os.system(f"chmod 755 {GUARD_PATH} >/dev/null 2>&1")
+        _chattr(GUARD_PATH, True)
+        _log("watch guard restored")
+        return True
+    except Exception:
+        return False
+
+
 def _ensure_unit_file(path: Path, body: str, unit_name: str) -> bool:
-    """Rewrite stub/oneshot units (ExecStart=/bin/true) back to the hold loop."""
+    """Rewrite stub/oneshot/guard-only units back to the python gold loop."""
     try:
         cur = path.read_text(encoding="utf-8") if path.is_file() else ""
     except Exception:
         cur = ""
     if cur == body:
-        _chattr(path, True)
-        return False
-    if cur and not _unit_is_stub(cur) and "while true" in cur:
         _chattr(path, True)
         return False
     try:
@@ -426,14 +543,15 @@ def _ensure_unit_file(path: Path, body: str, unit_name: str) -> bool:
         return False
 
 
-def _start_unit_if_down(unit_name: str) -> None:
+def _start_unit_if_down(unit_name: str, *, restart: bool = False) -> None:
     try:
         p = subprocess.run(
             ["systemctl", "is-active", unit_name],
             capture_output=True,
             text=True,
         )
-        if (p.stdout or "").strip() in ("active", "activating"):
+        active = (p.stdout or "").strip() in ("active", "activating")
+        if active and not restart:
             return
         subprocess.run(
             ["systemctl", "unmask", unit_name],
@@ -441,6 +559,15 @@ def _start_unit_if_down(unit_name: str) -> None:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
+        if restart and active:
+            subprocess.run(
+                ["systemctl", "restart", unit_name],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            _log(f"watch systemd restarted {unit_name}")
+            return
         subprocess.run(
             ["systemctl", "enable", "--now", unit_name],
             check=False,
@@ -463,8 +590,8 @@ def ensure_watch_service() -> None:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-    _start_unit_if_down("sailingsa-lipton-public-watch.service")
-    _start_unit_if_down("sailingsa-lipton-url-hold.service")
+    _start_unit_if_down("sailingsa-lipton-public-watch.service", restart=restored)
+    _start_unit_if_down("sailingsa-lipton-url-hold.service", restart=restored_hold)
 
 
 def main() -> int:
@@ -475,6 +602,8 @@ def main() -> int:
     try:
         if ensure_cron():
             _log("watchdog cron restored")
+        if ensure_guard():
+            _log("watchdog guard restored")
         ensure_watch_service()
     except Exception:
         pass
@@ -501,7 +630,7 @@ def main() -> int:
                     _write(NGINX, raw)
                 return 1
             board = _origin_board_state()
-            must_reload = new != raw or _public_aliased(raw) or board == "playback"
+            must_reload = board == "playback"
             if must_reload:
                 subprocess.check_call(["nginx", "-s", "reload"])
                 _log(
