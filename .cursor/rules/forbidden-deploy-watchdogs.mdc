@@ -1,0 +1,14 @@
+---
+description: Ban deploy watchdogs that make old pages come back
+alwaysApply: true
+---
+
+# Forbidden: deploy watchdogs / URL fight loops
+
+Never install systemd services, timers, cron jobs, `while true` loops, or scripts named like `force_*`, `*_watch`, `*_hold`, `*_restore`, `lw-g*`, `keep-*-playback` whose purpose is to rewrite nginx or “hold” a live URL.
+
+That pattern causes finished pages to keep reverting to an old version (two enforcers fighting).
+
+**Do instead:** one-shot copy/nginx edit/reload. If a change flips back, find and remove the existing enforcer — do not install a second one.
+
+Full detail: `docs/FORBIDDEN_DEPLOY_WATCHDOGS.md`

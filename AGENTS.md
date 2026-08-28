@@ -8,6 +8,10 @@ This project uses **split tasks** to avoid agent resource limits and crashes.
 
 **Production:** All fixes (sailor URLs, regatta links, 385 data, no broken URLs) must be deployed to **live** via the SSH readme — deploy code (push-to-cloud-expect.exp) and sync 385 (sync-385-local-to-live.sh). Local-only changes do not affect https://sailingsa.co.za.
 
+## FORBIDDEN — deploy watchdogs (old page keeps coming back)
+
+**`docs/FORBIDDEN_DEPLOY_WATCHDOGS.md`** — Agents must **never** install systemd/cron/`while true`/`lw-g*`/`force_*`/`*_watch`/`*_hold`/`*_restore` daemons that rewrite nginx or hold a URL. That agent habit is why finished pages fight and the old page returns. Deploy once. If it reverts, **delete the enforcer** — do not add a competing enforcer.
+
 ## Avoid frontend drift / wrong-layer fixes
 
 **`docs/AVOID_FRONTEND_DRIFT_AND_WRONG_LAYER.md`** — Do **not** add local-only frontend changes that diverge from live. Do **not** fix the frontend when the failure is backend or DB (e.g. "Failed to load regatta data" → diagnose API/DB first; fix SQL or data). Match live first; fix the layer that is actually broken.

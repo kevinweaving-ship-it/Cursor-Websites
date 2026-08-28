@@ -1,5 +1,6 @@
 # SailingSA — Cursor UI rules
 
+- **FORBIDDEN — deploy watchdogs / URL fight loops.** Never install systemd services, cron, `while true` loops, `lw-g*`, `force_*`, `*_watch`, `*_hold`, or `*_restore` scripts that rewrite nginx or “hold” a live URL. That is what makes old pages keep coming back. See **`docs/FORBIDDEN_DEPLOY_WATCHDOGS.md`**. Deploy once; if something reverts, delete the enforcer — do not add a second enforcer.
 - **Master Header (hub v10 — `.admin-v10-second-header`, `js/blank-landing-header.js`): LOCKED.** Do not edit unless the user explicitly authorizes in the same request. See **`.cursor/rules/master-header-locked.mdc`**.
 - **Never modify header or navigation layout.** Header (`.site-header`) and all nav links must stay as-is; header links must remain white on dark background.
 - **Always reuse existing components.** Use `.container`, `.card`, `.table`, `.table-container`, `.section-title`; use `buildMasterPageLayout(container, opts)` for Regatta/Sailor/Class/Club pages.
@@ -7,4 +8,4 @@
 - **Modify only components or page sections, not global layout.** Do not add extra wrappers, change order of Back/Title/Stats/Data cards, or remove `.table-container` from the master template.
 - **Allowed classes:** container, card, table, tabs, section. **Forbidden:** raw ol/ul for results, inline CSS, custom page-level fonts or colours.
 
-See: `docs/UI_COMPONENTS_README.md`, `docs/design_system.md`, `.cursor/rules/theme-layout-mandatory.mdc`.
+See: `docs/UI_COMPONENTS_README.md`, `docs/design_system.md`, `.cursor/rules/theme-layout-mandatory.mdc`, `docs/FORBIDDEN_DEPLOY_WATCHDOGS.md`.
