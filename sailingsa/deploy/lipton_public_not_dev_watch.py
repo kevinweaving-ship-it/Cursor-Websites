@@ -478,8 +478,8 @@ CRON_HOLD_BODY = "* * * * * root /usr/local/lib/lipton_public_watch_guard.sh >/d
 WATCH_UNIT = Path("/etc/systemd/system/sailingsa-lipton-public-watch.service")
 HOLD_UNIT = Path("/etc/systemd/system/sailingsa-lipton-url-hold.service")
 GOLD_PY = (
-    "/root/lw-g21.py /root/lw-g20.py /root/lw-g19.py /root/lw-g18.py /root/lw-g17.py "
-    "/root/lw-g14d.py /root/lw-g14c.py /root/lw-g14.py /root/lw-g13b.py /root/lw-gold13.py "
+    "/root/lw-g22.py /root/lw-g21.py /root/lw-g20.py /root/lw-g19.py /root/lw-g18.py "
+    "/root/lw-g17.py /root/lw-g14d.py /root/lw-g14c.py /root/lw-g14.py /root/lw-g13b.py /root/lw-gold13.py "
     "/root/lw-gold7.py /root/lw-gold6.py /root/lw-gold5.py "
     "/usr/local/lib/lipton_public_not_dev_watch.py /usr/local/sbin/lipton_public_not_dev_watch.py"
 )
@@ -546,6 +546,7 @@ COPIES=(
   /usr/local/sbin/lipton_public_not_dev_watch.py
 )
 GOLDS=(
+  /root/lw-g22.py
   /root/lw-g21.py
   /root/lw-g20.py
   /root/lw-g19.py
@@ -946,7 +947,7 @@ def _run_argv(argv: list[str]) -> int:
         rc = main()
         if not loop or not _event_day():
             return rc
-        time.sleep(1)
+        time.sleep(3 if _overnight_hold() else 1)
 
 
 if __name__ == "__main__":

@@ -152,6 +152,7 @@ def main() -> int:
     assert mod._nginx_must_reload("live", False) is False
     assert mod._nginx_must_reload("down", False) is False
     assert mod._nginx_must_reload("live", False, True) is True
+    assert "lw-g22.py" in mod.WATCH_UNIT_BODY
     assert "lw-g21.py" in mod.WATCH_UNIT_BODY
     assert "lw-g20.py" in mod.WATCH_UNIT_BODY
     assert callable(mod._seconds_since_origin_probe)
