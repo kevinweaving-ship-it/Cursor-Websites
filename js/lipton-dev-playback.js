@@ -815,10 +815,9 @@
       }
       tailsUntil = 0;
     }
-    function finishPulse(sail) {
+    function finishPulseActive(sail) {
       var until = finishFlashUntil[sail];
-      if (!until || Date.now() >= until) return 1;
-      return 0.38 + 0.62 * (0.5 + 0.5 * Math.sin(Date.now() / 360));
+      return until && Date.now() < until;
     }
     function anyFinishPulse() {
       var now = Date.now();
@@ -826,24 +825,35 @@
         return finishFlashUntil[sail] > now;
       });
     }
+    function drawFinishHalo(p, sail) {
+      if (!finishPulseActive(sail)) return;
+      var u = (Date.now() % 1600) / 1600;
+      var wave = 0.5 - 0.5 * Math.cos(u * Math.PI * 2);
+      mapCtx.beginPath();
+      mapCtx.arc(p.x, p.y, 11 + 8 * wave, 0, Math.PI * 2);
+      mapCtx.strokeStyle = "rgba(251,191,36," + (0.9 - 0.55 * wave) + ")";
+      mapCtx.lineWidth = 2.6;
+      mapCtx.stroke();
+    }
     function drawTail(sail, ts) {
       if (tailsCleared()) return;
       if (tailsUntil > 0 && Date.now() >= tailsUntil) {
         tailsUntil = -1;
         return;
       }
-      var b = trail.boats[sail];
-      if (!b) return;
-      var hits = tailHits(b, ts);
-      if (hits.length < 2) return;
-      var screen = hits.map(function (pt) { return xy(pt.lat, pt.lon); });
+      var pos = posAt(sail, ts);
+      if (!pos) return;
+      var p = xy(pos.lat, pos.lon);
+      var rad = (pos.hdg || 0) * Math.PI / 180;
+      var px = Math.max(12, TAIL_M * (mapBounds && mapBounds.scale ? mapBounds.scale : 0.4));
+      var bx = p.x - Math.sin(rad) * px;
+      var by = p.y + Math.cos(rad) * px;
       var hot = ocsPending(sail, ts);
       mapCtx.beginPath();
-      mapCtx.moveTo(screen[0].x, screen[0].y);
-      for (var s = 1; s < screen.length; s++) mapCtx.lineTo(screen[s].x, screen[s].y);
-      mapCtx.strokeStyle = hot ? "rgba(254,202,202,0.7)" : "rgba(248,250,252,0.7)";
-      mapCtx.lineWidth = 2;
-      mapCtx.lineJoin = "round";
+      mapCtx.moveTo(bx, by);
+      mapCtx.lineTo(p.x, p.y);
+      mapCtx.strokeStyle = hot ? "rgba(254,202,202,0.85)" : "rgba(248,250,252,0.85)";
+      mapCtx.lineWidth = 2.4;
       mapCtx.lineCap = "round";
       mapCtx.stroke();
     }
@@ -948,9 +958,11 @@
         fill = "#16a34a";
         stroke = "#14532d";
         ink = "#ffffff";
+      } else if (info.finished) {
+        stroke = finishPulseActive(sail) ? "#fbbf24" : "rgba(15,23,42,0.45)";
       }
       mapCtx.save();
-      mapCtx.globalAlpha = finishPulse(sail);
+      drawFinishHalo(p, sail);
       drawBoatIcon(p, hdg, fill, stroke);
       if (info.place != null) {
         mapCtx.fillStyle = ink;
