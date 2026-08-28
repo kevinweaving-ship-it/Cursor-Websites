@@ -5,10 +5,20 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828dq";
+  var CACHE = "20260828dt";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = !RACE_Q;
+  var liveHeldN = 0;
+  var raceMeta = { races: [] };
+  function heldRaceFromMeta(meta) {
+    var races = ((meta && meta.races) || []);
+    var i;
+    for (i = races.length - 1; i >= 0; i--) {
+      if (races[i].held_live) return Number(races[i].n) || 0;
+    }
+    return 0;
+  }
   if (LIVE_Q && !params.has("live") && !params.has("race")) {
     var liveUrl = new URL(location.href);
     liveUrl.searchParams.set("live", "1");
@@ -18,6 +28,8 @@
     if (!race || race === 4) return "/js/lipton-dev-" + kind + ".json?v=" + CACHE;
     return "/js/lipton-dev-" + kind + "-r" + race + ".json?v=" + CACHE;
   }
+  var DATA_URL = jsonUrl("replay", RACE_Q);
+  var TRAIL_URL = jsonUrl("trail", RACE_Q);
   function startLineGeom(pin, rc) {
     if (!pin || !rc) return null;
     var R = 6371000;
@@ -140,37 +152,44 @@
   }
   setRaceTableLabel(LIVE_Q ? 0 : (RACE_Q || 0), LIVE_Q);
   function bindRaceButtons(active) {
-    var want = LIVE_Q ? -1 : Number(active || RACE_Q || 4);
+    var want = LIVE_Q ? (liveHeldN || heldRaceFromMeta(raceMeta) || -1) : Number(active || RACE_Q || 4);
     document.querySelectorAll("#lipton-dev-race-boxes [data-race]").forEach(function (btn) {
       var n = Number(btn.getAttribute("data-race"));
       btn.classList.toggle("is-active", n === want);
       btn.setAttribute("aria-pressed", n === want ? "true" : "false");
-      if (btn.getAttribute("data-bound") === "1") return;
-      btn.setAttribute("data-bound", "1");
-      btn.addEventListener("click", function () { goRace(n); });
+    });
+    document.querySelectorAll("#lipton-dev-race-boxes [data-live]").forEach(function (btn) {
+      btn.classList.toggle("is-active", LIVE_Q && want < 1);
+      btn.setAttribute("aria-pressed", LIVE_Q && want < 1 ? "true" : "false");
     });
   }
   function renderRaceBoxes(meta) {
     var host = document.getElementById("lipton-dev-race-boxes");
     if (!host) return;
-    var races = ((meta && meta.races) || []).filter(function (r) {
-      return r.stage === "finished" || r.packed || Number(r.finish_n) > 0;
+    if (meta) raceMeta = meta;
+    var races = ((raceMeta && raceMeta.races) || []).filter(function (r) {
+      return r.stage === "finished" || r.packed || r.held_live || Number(r.finish_n) > 0;
     }).sort(function (a, b) { return a.n - b.n; }).slice(0, 10);
     host.innerHTML = "";
-    var activeN = LIVE_Q ? -1 : Number(RACE_Q || 4);
+    var heldN = LIVE_Q ? (liveHeldN || heldRaceFromMeta(raceMeta)) : 0;
+    var activeN = LIVE_Q ? (heldN || -1) : Number(RACE_Q || 4);
     races.forEach(function (r) {
       var b = document.createElement("button");
       b.type = "button";
       b.className = "lipton-dev-race-box";
       b.setAttribute("data-race", String(r.n));
       b.textContent = "R" + r.n;
+      var isHeld = LIVE_Q && heldN && r.n === heldN;
       if (r.n === activeN) b.classList.add("is-active");
-      if (!r.packed) b.disabled = true;
+      if (!r.packed && !isHeld && !r.held_live) b.disabled = true;
       var gun = String(r.gun_sast || "").slice(11, 16);
       var ocs = (r.ocs || []).length ? " · OCS " + r.ocs.join(",") : "";
       var course = r.course ? " · " + r.course : "";
-      b.title = "Race " + r.n + course + " · gun " + gun + (r.packed ? "" : " · GPS not packed yet") + ocs;
-      b.addEventListener("click", function () { if (r.packed) goRace(r.n); });
+      b.title = "Race " + r.n + course + " · gun " + gun + (r.packed ? "" : (isHeld || r.held_live ? " · last race" : " · GPS not packed yet")) + ocs;
+      b.addEventListener("click", function () {
+        if (isHeld || r.held_live) goLive();
+        else if (r.packed) goRace(r.n);
+      });
       host.appendChild(b);
     });
     var live = document.createElement("button");
@@ -179,7 +198,7 @@
     live.setAttribute("data-live", "1");
     live.textContent = "Live";
     live.title = "Live race";
-    if (LIVE_Q) live.classList.add("is-active");
+    if (LIVE_Q && !heldN) live.classList.add("is-active");
     live.addEventListener("click", goLive);
     host.appendChild(live);
   }
@@ -200,6 +219,10 @@
     .then(function (res) { return res.ok ? res.json() : null; })
     .then(function (meta) {
       renderRaceBoxes(meta);
+      if (LIVE_Q) {
+        var h = liveHeldN || heldRaceFromMeta(meta);
+        if (h) setRaceTableLabel(h, true);
+      }
     })
     .catch(function () { renderRaceBoxes({ races: [] }); });
 
@@ -317,7 +340,7 @@
   };
 
   function startLive() {
-    bindRaceButtons(-1);
+    bindRaceButtons(liveHeldN || heldRaceFromMeta(raceMeta) || -1);
     var gunTs = null;
     var snap = null;
     var liveRaceN = null;
@@ -334,6 +357,9 @@
     var playBtn = document.getElementById("lipton-dev-play");
     var LIVE_CLOCK_LAG_MS = 2000;
     var atLive = true;
+    var livePlaying = false;
+    var livePlayWall = Date.now();
+    var LIVE_REPLAY_RATE = 10;
     var scrubbing = false;
     var playTs = Date.now() - LIVE_CLOCK_LAG_MS;
     var hist = { boats: {}, marks: {}, pin: [], rc: [] };
@@ -346,13 +372,25 @@
     if (fasterBtn) fasterBtn.disabled = true;
     if (playBtn) {
       playBtn.disabled = false;
-      playBtn.title = "Go live";
-      playBtn.setAttribute("aria-label", "Go live");
+      playBtn.title = "Play";
+      playBtn.setAttribute("aria-label", "Play");
       playBtn.addEventListener("pointerdown", unlockLiveHorn);
       playBtn.addEventListener("click", function () {
-        atLive = true;
-        playTs = Date.now() - LIVE_CLOCK_LAG_MS;
         unlockLiveHorn();
+        if (liveHeldN) {
+          if (livePlaying) {
+            livePlaying = false;
+          } else {
+            atLive = false;
+            if (playTs >= liveNow() - 2000) playTs = playStart();
+            livePlaying = true;
+            livePlayWall = Date.now();
+          }
+        } else {
+          livePlaying = false;
+          atLive = true;
+          playTs = liveNow();
+        }
         paintClock();
         syncScrub();
         drawLiveMap();
@@ -603,7 +641,13 @@
       var delta = playTs - gunTs;
       clockHud.textContent = fmtLiveClock(delta);
       hud.classList.toggle("is-after", delta >= 0);
-      if (playBtn) playBtn.classList.toggle("is-playing", atLive);
+      if (playBtn) {
+        var showPause = liveHeldN ? livePlaying : atLive;
+        playBtn.classList.toggle("is-playing", showPause);
+        var lab = showPause ? "Pause" : "Play";
+        playBtn.title = lab;
+        playBtn.setAttribute("aria-label", lab);
+      }
     }
     function initChart() {
       var el = document.getElementById("lipton-dev-chart");
@@ -1728,6 +1772,12 @@
       }
       liveRaceN = n || liveRaceN;
       setRaceTableLabel(liveRaceN, true);
+      if (data.holding_last || /finish/i.test(String(data.stage || ""))) {
+        liveHeldN = Number(data.race_number || liveRaceN || 0) || liveHeldN;
+      } else {
+        liveHeldN = 0;
+      }
+      renderRaceBoxes(raceMeta);
       if (Array.isArray(data.ocs)) liveOcs = data.ocs.slice();
       if (data.clock_lag_ms != null && Number(data.clock_lag_ms) < 5000) {
         LIVE_CLOCK_LAG_MS = Number(data.clock_lag_ms);
@@ -1865,6 +1915,18 @@
     pollCatchup();
     pollStarts();
     function liveTick() {
+      if (livePlaying && !atLive && !scrubbing) {
+        var now = Date.now();
+        playTs += (now - livePlayWall) * LIVE_REPLAY_RATE;
+        livePlayWall = now;
+        if (playTs >= liveNow()) {
+          playTs = liveNow();
+          livePlaying = false;
+          atLive = true;
+        }
+      } else {
+        livePlayWall = Date.now();
+      }
       paintClock();
       tickLiveHorns();
       drawLiveMap();
@@ -1894,6 +1956,14 @@
         mark: 0,
         boats: FINISH
       });
+    }
+    if (!PLAY_END_TS || !isFinite(PLAY_END_TS)) {
+      var lastFin = 0;
+      FINISH.forEach(function (b) {
+        var t = Number(b && b.ts);
+        if (t > lastFin) lastFin = t;
+      });
+      PLAY_END_TS = lastFin || (GUN_TS + 2 * 60 * 60 * 1000);
     }
     var OCS = {};
     (data.ocs || []).forEach(function (name) { OCS[name] = true; });
@@ -2007,7 +2077,7 @@
     var SETTLE_MS = 2500;
     var playing = false;
     var trackerReady = false;
-    var playTs = PLAY_START_TS;
+    var playTs = PLAY_END_TS;
     var GUN_HORN_SRC = "/js/lipton-dev-start-airhorn.mp3?v=20260828t";
     var RECALL_HORN_SRC = "/js/lipton-dev-recall-horn.wav?v=20260828t";
     var GUN_HORN_ONSET = 0.05;
@@ -3896,7 +3966,7 @@
     function beginAfterTracker() {
       if (trackerReady) return;
       trackerReady = true;
-      playTs = PLAY_START_TS;
+      playTs = PLAY_END_TS;
       lastWall = Date.now();
       playing = false;
       resetHorns();
@@ -3904,7 +3974,7 @@
       setPlayLabel();
       setRateButtons();
       render(playTs);
-      if (sailedEl) sailedEl.textContent = RACE_LAB + " · gun " + GUN_CLOCK + " · T−5 · press Play";
+      if (sailedEl) sailedEl.textContent = RACE_LAB + " · gun " + GUN_CLOCK + " · finish · press Play to replay";
       fillChecksum();
     }
 
@@ -3930,8 +4000,13 @@
       playBtn.addEventListener("pointerdown", function () { unlockGunHorn(); });
       playBtn.addEventListener("click", function () {
         if (!trackerReady) return;
-        if (!playing) unlockGunHorn();
-        playing = !playing;
+        if (!playing) {
+          unlockGunHorn();
+          if (playTs >= PLAY_END_TS - 250) jump(PLAY_START_TS);
+          playing = true;
+        } else {
+          playing = false;
+        }
         lastWall = Date.now();
         setPlayLabel();
       });

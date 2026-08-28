@@ -41,6 +41,8 @@ lsattr /etc/nginx/sites-enabled/sailingsa
 cp /tmp/lipton-dev.html /var/www/sailingsa/lipton-dev.html
 cp /tmp/lipton-dev.css /var/www/sailingsa/css/lipton-dev.css
 cp /tmp/lipton-dev-playback.js /var/www/sailingsa/js/lipton-dev-playback.js
+cp /tmp/lipton-dev-playback.js /var/www/sailingsa/js/lipton-dev-playback-dt.js
+cp /tmp/lipton-dev-playback.js /var/www/sailingsa/js/lipton-dev-playback-ds.js
 cp /tmp/lipton-dev-playback.js /var/www/sailingsa/js/lipton-dev-playback-dq.js
 
 # keep-playback also deletes renamed crons
