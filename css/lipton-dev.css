@@ -116,11 +116,12 @@ body[data-lipton-dev="1"] .lipton-dev-playbox {
   width: 100%;
   gap: 4px;
   margin: 0;
-  padding: 2px;
+  padding: 0;
   box-sizing: border-box;
   overflow: hidden;
-  background: #ffffff;
-  border-radius: 3px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
 }
 body[data-lipton-dev="1"] .lipton-dev-race-boxes {
   grid-column: 1 / 3;
@@ -532,7 +533,7 @@ body[data-lipton-dev="1"] .lipton-dev-playbox .lipton-dev-scrub {
 }
 body[data-lipton-dev="1"] .lipton-dev-playbox .lipton-dev-scrub::-webkit-slider-runnable-track {
   height: 6px;
-  background: #cbd5e1;
+  background: rgba(255, 255, 255, 0.45);
   border-radius: 3px;
 }
 body[data-lipton-dev="1"] .lipton-dev-playbox .lipton-dev-scrub::-webkit-slider-thumb {
@@ -543,11 +544,11 @@ body[data-lipton-dev="1"] .lipton-dev-playbox .lipton-dev-scrub::-webkit-slider-
   margin-top: -2px;
   border: 0;
   border-radius: 50%;
-  background: #1a2750;
+  background: #fbbf24;
 }
 body[data-lipton-dev="1"] .lipton-dev-playbox .lipton-dev-scrub::-moz-range-track {
   height: 6px;
-  background: #cbd5e1;
+  background: rgba(255, 255, 255, 0.45);
   border-radius: 3px;
   border: 0;
 }
@@ -556,7 +557,7 @@ body[data-lipton-dev="1"] .lipton-dev-playbox .lipton-dev-scrub::-moz-range-thum
   height: 10px;
   border: 0;
   border-radius: 50%;
-  background: #1a2750;
+  background: #fbbf24;
 }
 body[data-lipton-dev="1"] .lipton-dev-map-transport .lipton-dev-transport--play {
   display: grid;
@@ -617,7 +618,7 @@ body[data-lipton-dev="1"] .lipton-dev-map-transport .lipton-dev-play-rate {
   padding: 0;
   font-size: 10px;
   font-weight: 800;
-  color: #1a2750;
+  color: #ffffff;
   text-shadow: none;
 }
 body[data-lipton-dev="1"] .lipton-dev-map-transport .lipton-dev-btn:disabled {
