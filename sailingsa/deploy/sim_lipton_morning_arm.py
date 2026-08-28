@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Run on live host. Stubs all writers. Does not persist schedule sim."""
+"""Run on live host. Stubs all writers. Does not persist schedule sim.
+
+Overnight chip is last official Rn (R6). 12:00 arms R7 with no invented gun.
+Do not exec_module api.py on production workers during a race (502s).
+"""
 from __future__ import annotations
 
 import json
@@ -81,7 +85,7 @@ ok02 = (
     not st02.get("gun_at")
     and st02.get("day_done") is True
     and str(st02.get("board_status") or "") == "LIVE"
-    and str(st02.get("race_key") or "") == "R5"
+    and str(st02.get("race_key") or "") == "R6"
 )
 
 mem.clear()
@@ -92,7 +96,7 @@ print("10:00 leftover gun", {k: st10_left.get(k) for k in keys})
 ok10_left = (
     not st10_left.get("gun_at")
     and str(st10_left.get("board_status") or "") == "LIVE"
-    and st10_left.get("race_key") == "R6"
+    and st10_left.get("race_key") == "R7"
     and st10_left.get("day_done") is False
 )
 
@@ -111,10 +115,10 @@ print("gun_at_12", st12.get("gun_at"))
 ok = (
     ok02
     and ok10_left
-    and st10.get("race_key") == "R6"
+    and st10.get("race_key") == "R7"
     and st10.get("day_done") is False
     and not st10.get("gun_at")
-    and st12.get("race_key") == "R6"
+    and st12.get("race_key") == "R7"
     and st12.get("race_armed") is True
     and not st12.get("gun_at")
     and str(st12.get("board_status") or "") == "LIVE"
