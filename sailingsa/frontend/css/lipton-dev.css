@@ -329,6 +329,23 @@ body[data-lipton-dev="1"] .leaflet-touch .leaflet-control-zoom-out {
   line-height: 14px;
   font-size: 11px;
 }
+body[data-lipton-dev="1"] .leaflet-bottom.leaflet-right {
+  margin: 0;
+}
+body[data-lipton-dev="1"] .leaflet-container .leaflet-control-attribution {
+  font-size: 8px;
+  line-height: 1.2;
+  padding: 0 4px;
+  background: rgba(0, 16, 24, 0.55);
+  color: #9ca3af;
+}
+body[data-lipton-dev="1"] .leaflet-control-attribution a {
+  font-size: inherit;
+}
+body[data-lipton-dev="1"] .leaflet-attribution-flag {
+  width: 8px !important;
+  height: 6px !important;
+}
 body[data-lipton-dev="1"] .lipton-dev-map-brand {
   position: absolute;
   z-index: 4;
