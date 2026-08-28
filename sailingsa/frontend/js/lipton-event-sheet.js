@@ -32,9 +32,6 @@
   function strip(doc) {
     var page = doc.querySelector(".regatta-page");
     if (!page) return false;
-    page.removeAttribute("data-live-board-page-status");
-    page.removeAttribute("data-live-lipton");
-    page.removeAttribute("data-live-race-underway");
     doc.querySelectorAll(HIDE).forEach(function (el) {
       if (el && el.parentNode) el.parentNode.removeChild(el);
     });
@@ -43,14 +40,13 @@
     });
     var extra = doc.createElement("style");
     extra.textContent = [
-      "html{zoom:0.7;}",
       "html,body{margin:0;padding:0;background:#fff;overflow-x:hidden;}",
       ".regatta-page,.header,.class-header,.fleet-section,.table-wrapper{width:100%!important;max-width:100%!important;margin-left:0!important;margin-right:0!important;box-sizing:border-box;}",
-      ".regatta-page{padding:8px 10px 12px;background:#fff!important;}",
-      ".header,.class-header{background:#fff!important;}",
+      ".regatta-page{padding:8px 10px 12px;}",
       ".header{margin-bottom:0!important;}",
       ".fleet-section{margin-top:20px!important;}",
       ".table-wrapper{margin-top:20px!important;}",
+      ".table-wrapper table,.table-wrapper th,.table-wrapper td{font-size:70%;}",
       "@media (max-width:768px){.header{margin-bottom:0!important;}.fleet-section{margin-top:12px!important;}.table-wrapper{margin-top:12px!important;}}",
       "@media (orientation:landscape) and (max-height:600px){.header{margin-bottom:0!important;}.fleet-section{margin-top:6px!important;}.table-wrapper{margin-top:6px!important;}}",
       ".header.header--lipton{display:grid!important;grid-template-columns:88px minmax(0,1fr) 88px!important;align-items:center;}",
@@ -67,8 +63,7 @@
     try { doc = iframe.contentDocument; } catch (err) { return; }
     if (!doc) return;
     var page = doc.querySelector(".regatta-page") || doc.body;
-    var box = page.getBoundingClientRect();
-    var h = Math.ceil(box.height || 160);
+    var h = Math.ceil(Math.max(page.scrollHeight || 0, page.offsetHeight || 0, 160));
     iframe.style.height = h + "px";
   }
   function paint(html) {
