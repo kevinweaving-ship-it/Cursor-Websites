@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828bl";
+  var CACHE = "20260828bm";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = params.get("live") === "1";
@@ -1692,13 +1692,12 @@
         return [r.boat, pending ? "O" : "S", place, r.farIdx, r.farTs || ""].join(":");
       }).join("|");
     }
-    function boatIconHtml(sail, ts) {
+    function boatIconHtml(sail, ts, rank) {
       var pending = ocsPending(sail, ts);
       var paint = boatPaint(sail, pending);
-      var badge = mapBadge(sail, ts);
-      var label = pending ? "OCS" : (badge.place != null ? String(badge.place) : "");
+      var label = pending ? "OCS" : (rank != null ? String(rank) : "");
       var fs = pending ? "5.2" : "8";
-      var title = pending ? "OCS" : (label ? "Map " + label : "Boat");
+      var title = pending ? "OCS" : (label ? "Rank " + label : "Boat");
       return "<svg class=\"lipton-boat-dot\" viewBox=\"0 0 24 24\" aria-hidden=\"true\" title=\"" + esc(title) + "\">" +
         "<circle cx=\"12\" cy=\"13.2\" r=\"8.1\" fill=\"" + paint.fill + "\" stroke=\"#fff\" stroke-width=\"1.5\"/>" +
         "<polygon points=\"12,3 15.8,8.4 8.2,8.4\" fill=\"" + paint.fill + "\" stroke=\"#fff\" stroke-width=\"1.1\"/>" +
@@ -1708,14 +1707,13 @@
     function rowHtml(r, unroll, rankMaps, passLimit) {
       var id = ident(r.boat);
       var pending = ocsPending(r.boat, viewTs);
-      var badge = mapBadge(r.boat, viewTs);
       var medal = "";
-      if (!pending && badge.place === 1) medal = " medal-gold";
-      else if (!pending && badge.place === 2) medal = " medal-silver";
-      else if (!pending && badge.place === 3) medal = " medal-bronze";
+      if (!pending && r.rank === 1) medal = " medal-gold";
+      else if (!pending && r.rank === 2) medal = " medal-silver";
+      else if (!pending && r.rank === 3) medal = " medal-bronze";
       var cls = medal + (unroll ? " lipton-unroll" : "") + (pending ? " ocs-pending" : "");
       var html = "<tr class=\"" + cls + "\" data-bow=\"" + esc(id ? id.bow : "") + "\" data-boat=\"" + esc(r.boat) + "\">";
-      html += "<td class=\"rank-col\">" + boatIconHtml(r.boat, viewTs) + "</td>";
+      html += "<td class=\"rank-col\">" + boatIconHtml(r.boat, viewTs, r.rank) + "</td>";
       html += "<td class=\"wc-meta-col\">" + bowCell(id) + "</td>";
       html += "<td class=\"boat-name-col\">" + boatNameCell(id) + "</td>";
       html += "<td class=\"club-col\">" + clubCell(id, pending) + "</td>";
