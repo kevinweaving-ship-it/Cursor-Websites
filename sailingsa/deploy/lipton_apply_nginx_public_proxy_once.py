@@ -25,12 +25,17 @@ RID = "2026-08-29-lipton-challenge-cup"
 
 def main() -> int:
     raw = NGINX.read_text(encoding="utf-8")
+    try:
+        snippet_changed = mod.ensure_snippet()
+    except Exception as e:
+        print("snippet", e)
+        snippet_changed = False
     new, n = mod.fix_nginx(raw)
     if new != raw:
         mod._write(NGINX, new)
-        print("WROTE nginx public proxy n=", n)
+        print("WROTE nginx public include n=", n)
     else:
-        print("nginx already proxy or unchanged")
+        print("nginx already include or unchanged", "snippet", snippet_changed)
     chk = subprocess.run(["nginx", "-t"], capture_output=True, text=True)
     if chk.returncode != 0:
         print("FAIL nginx -t", chk.stderr, file=sys.stderr)
@@ -39,6 +44,10 @@ def main() -> int:
         return 1
     subprocess.check_call(["nginx", "-s", "reload"])
     mod._chattr(NGINX, True)
+    try:
+        mod._chattr(mod.SNIPPET, True)
+    except Exception:
+        pass
     print("LOCKED")
     time.sleep(0.4)
     subprocess.run(

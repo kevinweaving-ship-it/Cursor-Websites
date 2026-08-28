@@ -40,7 +40,7 @@ def main() -> int:
     assert "lipton-challenge-cup-dev" in new
     assert new.count("alias /var/www/sailingsa/lipton-dev.html") == 1
     assert "LIPTON_NGINX_PUBLIC_PROXY_V1" in new
-    assert "proxy_pass http://127.0.0.1:8000;" in new
+    assert "include /etc/nginx/snippets/lipton-public-proxy.conf" in new
     assert mod._public_aliased(new) is False
 
     base = """
@@ -55,7 +55,7 @@ def main() -> int:
     proxied, pn = mod.fix_nginx(base)
     assert pn == 1
     assert "LIPTON_NGINX_PUBLIC_PROXY_V1" in proxied
-    assert "proxy_pass http://127.0.0.1:8000;" in proxied
+    assert "include /etc/nginx/snippets/lipton-public-proxy.conf" in proxied
     assert "lipton-challenge-cup-dev" in proxied
 
     fat = """
@@ -74,6 +74,7 @@ def main() -> int:
     fat_new, fn = mod.fix_nginx(fat)
     assert fn >= 1
     assert "LIPTON_NGINX_PUBLIC_PROXY_V1" in fat_new
+    assert "include /etc/nginx/snippets/lipton-public-proxy.conf" in fat_new
     assert fat_new.count("alias /var/www/sailingsa/lipton-dev.html") == 1
 
     api = '''
@@ -81,12 +82,12 @@ def serve_regatta_standalone(slug: str, request: Request):
     slug_s = str(slug or "").strip()
     if slug_s == "2026-08-29-lipton-challenge-cup-dev":
         return serve_lipton_dev_playback_page(request, public=False)
-    if slug_s == "2026-08-29-lipton-challenge-cup":
+    if slug_s == "2026-08-29-lipton-challenge-cup" and not allow_lipton_event:
         return serve_lipton_dev_playback_page(request, public=True)
     return _serve_regatta_standalone_impl(slug, request)
 
 def serve_lipton_dev_playback_page(_request, public: bool = False):
-    """Lipton playback page. Public slug is indexable; -dev stays noindex."""
+    """Playback HTML. The public Lipton URL is this page; -dev is the same file."""
     from pathlib import Path as _P
     names = ()
 '''
@@ -94,9 +95,11 @@ def serve_lipton_dev_playback_page(_request, public: bool = False):
     assert changed
     assert mod.HIJACK.search(api)
     assert not mod.HIJACK.search(out)
+    assert "LIPTON_PUBLIC_NOT_DEV_V4 hijack public=True" in out
     assert "if public:" in out
     head, _sep, _play = out.partition("def serve_lipton_dev_playback_page")
     assert "public=True" not in head
+    assert "allow_lipton_event" not in head
     print("PASS watchdog strips public nginx alias, inserts public proxy, keeps -dev")
     return 0
 

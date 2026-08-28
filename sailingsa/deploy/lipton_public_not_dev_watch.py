@@ -23,20 +23,19 @@ LOG = Path("/var/log/lipton_public_not_dev_watch.log")
 PY = "/var/www/sailingsa/api/venv/bin/python"
 
 HIJACK = re.compile(
-    r"\n    if slug_s == \"2026-08-29-lipton-challenge-cup\":\n"
-    r"        return serve_lipton_dev_playback_page\(request, public=True\)\n"
+    r"\n[ \t]*if slug_s == \"2026-08-29-lipton-challenge-cup\"(?: and not allow_lipton_event)?:\n"
+    r"[ \t]*return serve_lipton_dev_playback_page\(request, public=True\)\n"
 )
-PLAY_HEAD = '''def serve_lipton_dev_playback_page(_request, public: bool = False):
-    """Lipton playback page. Public slug is indexable; -dev stays noindex."""
-    from pathlib import Path as _P
-'''
-PLAY_GUARD = '''def serve_lipton_dev_playback_page(_request, public: bool = False):
-    """Lipton playback page. Public slug is indexable; -dev stays noindex."""
-    if public:
-        # LIPTON_PUBLIC_NOT_DEV_V4 hijack public=True must still render the live board.
-        return _serve_regatta_standalone_impl("2026-08-29-lipton-challenge-cup", _request)
-    from pathlib import Path as _P
-'''
+PLAY_DOC = re.compile(
+    r"(def serve_lipton_dev_playback_page\([^)]*\):\n"
+    r"    \"\"\"[\s\S]*?\"\"\"\n)"
+    r"(?!    if public:)"
+)
+PLAY_GUARD_BLOCK = (
+    "    if public:\n"
+    "        # LIPTON_PUBLIC_NOT_DEV_V4 hijack public=True must still render the live board.\n"
+    '        return _serve_regatta_standalone_impl("2026-08-29-lipton-challenge-cup", _request)\n'
+)
 DEV_BLOCK = '''    location = /regatta/2026-08-29-lipton-challenge-cup-dev {
         default_type text/html;
         add_header Cache-Control "no-store";
@@ -69,6 +68,10 @@ PUBLIC_KEEP = (
     "# LIPTON_NGINX_PUBLIC_NOT_DEV_V2 public slug MUST proxy to the API live board.\n"
     "    # Only -dev may alias lipton-dev.html. Do not add a public-slug alias."
 )
+SNIPPET = Path("/etc/nginx/snippets/lipton-public-proxy.conf")
+INCLUDE = """    # LIPTON_NGINX_PUBLIC_PROXY_V1
+    include /etc/nginx/snippets/lipton-public-proxy.conf;
+"""
 
 # Any exact public-slug location (alias or leftover proxy) so we can insert one pair.
 PUB_LOC = re.compile(
@@ -126,6 +129,25 @@ def _race_underway() -> bool:
     return bool(gun) and phase == "racing" and not bool(st.get("race_complete"))
 
 
+def ensure_snippet() -> bool:
+    """Write the public-slug proxy locations into an immutable include file."""
+    try:
+        SNIPPET.parent.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        return False
+    body = PUBLIC_PROXY if PUBLIC_PROXY.endswith("\n") else PUBLIC_PROXY + "\n"
+    if SNIPPET.is_file():
+        try:
+            if SNIPPET.read_text(encoding="utf-8") == body:
+                _chattr(SNIPPET, True)
+                return False
+        except Exception:
+            pass
+    _write(SNIPPET, body)
+    _chattr(SNIPPET, True)
+    return True
+
+
 def _public_aliased(text: str) -> bool:
     if PLAYBACK_LOCK in text:
         return True
@@ -148,25 +170,23 @@ DEV_LOC = re.compile(
 def fix_nginx(text: str) -> tuple[str, int]:
     n = 0
     new = text
-    if _public_aliased(text) or PUB_ALIAS.search(text):
-        new, n1 = PUB_ALIAS.subn("", new)
-        n += n1
-        # Drop leftover public-slug locations (missed alias format or duplicate proxy).
-        new2, n2 = PUB_LOC.subn("", new)
-        n += n2
-        new = new2
+    new, n1 = PUB_ALIAS.subn("", new)
+    n += n1
+    new2, n2 = PUB_LOC.subn("", new)
+    n += n2
+    new = new2
     if PLAYBACK_LOCK in new:
         new = new.replace(PLAYBACK_LOCK, PUBLIC_KEEP)
         n += 1
     if "LIPTON_NGINX_PUBLIC_PROXY_V1" not in new:
         inserted = False
         if DEV_BLOCK in new:
-            new = new.replace(DEV_BLOCK, DEV_BLOCK + "\n" + PUBLIC_PROXY, 1)
+            new = new.replace(DEV_BLOCK, DEV_BLOCK + "\n" + INCLUDE, 1)
             inserted = True
         else:
             m = DEV_LOC.search(new)
             if m:
-                new = new.replace(m.group(1), m.group(1) + "\n\n" + PUBLIC_PROXY, 1)
+                new = new.replace(m.group(1), m.group(1) + "\n\n" + INCLUDE, 1)
                 inserted = True
         if not inserted:
             for needle in (
@@ -175,7 +195,7 @@ def fix_nginx(text: str) -> tuple[str, int]:
                 "        location = /regatta {",
             ):
                 if needle in new:
-                    new = new.replace(needle, PUBLIC_PROXY + "\n" + needle, 1)
+                    new = new.replace(needle, INCLUDE + "\n" + needle, 1)
                     inserted = True
                     break
         if inserted:
@@ -189,9 +209,11 @@ def fix_api(text: str) -> tuple[str, bool]:
     if n:
         changed = True
         text = new
-    if PLAY_HEAD in text and "LIPTON_PUBLIC_NOT_DEV_V4 hijack public=True" not in text:
-        text = text.replace(PLAY_HEAD, PLAY_GUARD, 1)
-        changed = True
+    if "LIPTON_PUBLIC_NOT_DEV_V4 hijack public=True" not in text:
+        patched, pn = PLAY_DOC.subn(r"\1" + PLAY_GUARD_BLOCK, text, count=1)
+        if pn:
+            text = patched
+            changed = True
     return text, changed
 
 
@@ -201,23 +223,34 @@ def main() -> int:
     nginx_changed = False
     api_changed = False
     if NGINX.is_file():
+        snippet_changed = ensure_snippet()
         raw = NGINX.read_text(encoding="utf-8")
         new, n = fix_nginx(raw)
-        needs = n or _public_aliased(raw) or new != raw or "LIPTON_NGINX_PUBLIC_PROXY_V1" not in new
-        if needs and new != raw:
-            _write(NGINX, new)
+        needs = (
+            n
+            or _public_aliased(raw)
+            or new != raw
+            or "LIPTON_NGINX_PUBLIC_PROXY_V1" not in new
+            or "lipton-public-proxy.conf" not in new
+            or snippet_changed
+        )
+        if needs and (new != raw or snippet_changed):
+            if new != raw:
+                _write(NGINX, new)
             chk = subprocess.run(["nginx", "-t"], capture_output=True, text=True)
             if chk.returncode != 0:
                 _log("nginx -t failed; not restoring aliased public slug")
-                if not _public_aliased(raw):
+                if new != raw and not _public_aliased(raw):
                     _write(NGINX, raw)
                 return 1
             subprocess.check_call(["nginx", "-s", "reload"])
             _chattr(NGINX, True)
+            _chattr(SNIPPET, True)
             nginx_changed = True
-            _log(f"nginx public proxy locked n={n} (never restore alias)")
+            _log(f"nginx public proxy locked n={n} snippet={snippet_changed} (never restore alias)")
         else:
             _chattr(NGINX, True)
+            _chattr(SNIPPET, True)
     if API.is_file():
         raw = API.read_text(encoding="utf-8")
         new, changed = fix_api(raw)
