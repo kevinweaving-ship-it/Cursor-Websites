@@ -248,6 +248,33 @@ def ensure_cron() -> bool:
     return changed
 
 
+def ensure_watch_service() -> None:
+    """Cron copy can restart systemd if PLAYBACK_LOCK stopped the loop."""
+    try:
+        p = subprocess.run(
+            ["systemctl", "is-active", "sailingsa-lipton-public-watch.service"],
+            capture_output=True,
+            text=True,
+        )
+        if (p.stdout or "").strip() == "active":
+            return
+        subprocess.run(
+            ["systemctl", "unmask", "sailingsa-lipton-public-watch.service"],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        subprocess.run(
+            ["systemctl", "enable", "--now", "sailingsa-lipton-public-watch.service"],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        _log("watch systemd started")
+    except Exception:
+        pass
+
+
 def main() -> int:
     if not _event_day():
         return 0
@@ -256,6 +283,7 @@ def main() -> int:
     try:
         if ensure_cron():
             _log("watchdog cron restored")
+        ensure_watch_service()
     except Exception:
         pass
 
