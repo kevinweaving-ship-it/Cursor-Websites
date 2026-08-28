@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828bp";
+  var CACHE = "20260828bq";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = params.get("live") === "1";
@@ -510,6 +510,10 @@
     var postQueue = [];
     var lastPostWall = 0;
     var POST_GAP_MS = 1500;
+    var VISIBLE_BEFORE_SCROLL = 5;
+    var POST_HOLD_MS = 7000;
+    var postHoldTimer = null;
+    var scrolledHome = false;
     var deltaSeen = {};
 
     var tbody = document.getElementById("lipton-dev-tbody");
@@ -1692,6 +1696,12 @@
       posted = {};
       postQueue = [];
       lastPostWall = 0;
+      scrolledHome = false;
+      if (postHoldTimer) {
+        clearTimeout(postHoldTimer);
+        postHoldTimer = null;
+      }
+      if (wrapEl) wrapEl.scrollTop = 0;
     }
     function syncPostQueue(rows, ts) {
       for (var i = 0; i < rows.length; i++) {
@@ -1730,19 +1740,34 @@
       }
       return null;
     }
-    function scrollNewRankIntoView(boat) {
+    function scrollTableTop() {
+      if (!wrapEl) return;
+      if (wrapEl.scrollTo) wrapEl.scrollTo({ top: 0, behavior: "smooth" });
+      else wrapEl.scrollTop = 0;
+    }
+    function scrollNewRankIntoView(boat, shownN) {
       if (!wrapEl || !boat) return;
+      if (shownN <= VISIBLE_BEFORE_SCROLL) {
+        wrapEl.scrollTop = 0;
+        return;
+      }
       var row = rowByBoat(boat);
       if (!row) return;
-      var head = wrapEl.querySelector("thead");
-      var headH = head ? head.getBoundingClientRect().height : 0;
       var wrapRect = wrapEl.getBoundingClientRect();
       var rowRect = row.getBoundingClientRect();
-      if (rowRect.bottom <= wrapRect.bottom - 2 && rowRect.top >= wrapRect.top + headH - 1) return;
       var nextTop = wrapEl.scrollTop + (rowRect.bottom - wrapRect.bottom) + 6;
       if (nextTop < 0) nextTop = 0;
       if (wrapEl.scrollTo) wrapEl.scrollTo({ top: nextTop, behavior: "smooth" });
       else wrapEl.scrollTop = nextTop;
+    }
+    function holdThenScrollToRankOne(shownN) {
+      if (!playing || scrubbing || scrolledHome || postHoldTimer) return;
+      if (shownN < 17) return;
+      postHoldTimer = setTimeout(function () {
+        postHoldTimer = null;
+        scrolledHome = true;
+        scrollTableTop();
+      }, POST_HOLD_MS);
     }
     function rowsAt(ts) {
       var names = {};
@@ -1968,7 +1993,10 @@
       drawMap(ts);
       syncScrub();
       if (justPosted) {
-        window.requestAnimationFrame(function () { scrollNewRankIntoView(justPosted); });
+        window.requestAnimationFrame(function () {
+          scrollNewRankIntoView(justPosted, rows.length);
+          holdThenScrollToRankOne(rows.length);
+        });
       }
     }
 
