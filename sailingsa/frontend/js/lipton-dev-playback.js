@@ -1921,12 +1921,6 @@
       beginAfterTracker();
     }
 
-    document.querySelectorAll("[data-jump]").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        jump(PLAY_START_TS);
-        cancelRecallHorn();
-      });
-    });
     if (slowerBtn) slowerBtn.addEventListener("click", function () { if (trackerReady) bumpRate(-1); });
     if (fasterBtn) fasterBtn.addEventListener("click", function () { if (trackerReady) bumpRate(1); });
     if (scrubEl) {
