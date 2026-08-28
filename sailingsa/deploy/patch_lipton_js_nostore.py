@@ -15,6 +15,7 @@ FILES = (
     "lipton-dev-playback-dq.js",
     "lipton-dev-playback-ds.js",
     "lipton-dev-playback-dt.js",
+    "lipton-dev-playback-du.js",
 )
 ANCHOR = "location = /regatta/2026-08-29-lipton-challenge-cup-dev {"
 

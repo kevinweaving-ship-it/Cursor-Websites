@@ -78,8 +78,8 @@
       "gun_sast": "2026-08-28T15:57:01+02:00",
       "finish_n": 17,
       "ocs": ["KYC", "LYC", "RCYC", "TSC", "WBYC", "WYAC"],
-      "packed": false,
-      "held_live": true,
+      "packed": true,
+      "held_live": false,
       "course": "Windward / Leeward",
       "course_id": "wl"
     }

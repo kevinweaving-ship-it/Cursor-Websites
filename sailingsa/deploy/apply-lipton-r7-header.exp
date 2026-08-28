@@ -1,5 +1,5 @@
 #!/usr/bin/expect -f
-set timeout 90
+set timeout 180
 set password "TimAdd#072082"
 set server "102.218.215.253"
 set user "root"
@@ -14,6 +14,8 @@ spawn bash -c "scp -o StrictHostKeyChecking=no \
   $repo_root/sailingsa/frontend/css/lipton-dev.css \
   $repo_root/sailingsa/frontend/js/lipton-dev-playback.js \
   $repo_root/sailingsa/frontend/js/lipton-dev-races.json \
+  $repo_root/sailingsa/frontend/js/lipton-dev-replay-r7.json \
+  $repo_root/sailingsa/frontend/js/lipton-dev-trail-r7.json \
   ${user}@${server}:/tmp/"
 expect {
     -re "assword" { send "$password\r"; exp_continue }

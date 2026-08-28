@@ -5,8 +5,17 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828dt";
+  var CACHE = "20260828du";
   var params = new URLSearchParams(location.search);
+  if (!params.has("race") && params.get("live") === "1") {
+    params.delete("live");
+    params.set("race", "7");
+    history.replaceState({}, "", location.pathname + "?race=7");
+  }
+  if (!params.has("live") && !params.has("race")) {
+    params.set("race", "7");
+    history.replaceState({}, "", location.pathname + "?race=7");
+  }
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = !RACE_Q;
   var liveHeldN = 0;
@@ -15,14 +24,9 @@
     var races = ((meta && meta.races) || []);
     var i;
     for (i = races.length - 1; i >= 0; i--) {
-      if (races[i].held_live) return Number(races[i].n) || 0;
+      if (races[i].held_live && !races[i].packed) return Number(races[i].n) || 0;
     }
     return 0;
-  }
-  if (LIVE_Q && !params.has("live") && !params.has("race")) {
-    var liveUrl = new URL(location.href);
-    liveUrl.searchParams.set("live", "1");
-    history.replaceState({}, "", liveUrl.pathname + "?" + liveUrl.searchParams.toString());
   }
   function jsonUrl(kind, race) {
     if (!race || race === 4) return "/js/lipton-dev-" + kind + ".json?v=" + CACHE;
@@ -141,7 +145,7 @@
     try { resetPlaybackAudio(); } catch (err) {}
     var u = new URL(location.href);
     u.searchParams.delete("race");
-    u.searchParams.set("live", "1");
+    u.searchParams.set("live", "gps");
     location.assign(u.pathname + "?" + u.searchParams.toString());
   }
   function setRaceTableLabel(n, isLive) {
@@ -152,7 +156,10 @@
   }
   setRaceTableLabel(LIVE_Q ? 0 : (RACE_Q || 0), LIVE_Q);
   function bindRaceButtons(active) {
-    var want = LIVE_Q ? (liveHeldN || heldRaceFromMeta(raceMeta) || -1) : Number(active || RACE_Q || 4);
+    var packedHeld = ((raceMeta.races || []).some(function (r) {
+      return r.packed && (r.n === liveHeldN || r.held_live);
+    }));
+    var want = LIVE_Q ? (packedHeld ? -1 : (liveHeldN || heldRaceFromMeta(raceMeta) || -1)) : Number(active || RACE_Q || 4);
     document.querySelectorAll("#lipton-dev-race-boxes [data-race]").forEach(function (btn) {
       var n = Number(btn.getAttribute("data-race"));
       btn.classList.toggle("is-active", n === want);
@@ -172,7 +179,8 @@
     }).sort(function (a, b) { return a.n - b.n; }).slice(0, 10);
     host.innerHTML = "";
     var heldN = LIVE_Q ? (liveHeldN || heldRaceFromMeta(raceMeta)) : 0;
-    var activeN = LIVE_Q ? (heldN || -1) : Number(RACE_Q || 4);
+    if (heldN && ((raceMeta.races || []).some(function (r) { return r.n === heldN && r.packed; }))) heldN = 0;
+    var activeN = LIVE_Q ? -1 : Number(RACE_Q || 4);
     races.forEach(function (r) {
       var b = document.createElement("button");
       b.type = "button";
@@ -187,8 +195,8 @@
       var course = r.course ? " · " + r.course : "";
       b.title = "Race " + r.n + course + " · gun " + gun + (r.packed ? "" : (isHeld || r.held_live ? " · last race" : " · GPS not packed yet")) + ocs;
       b.addEventListener("click", function () {
-        if (isHeld || r.held_live) goLive();
-        else if (r.packed) goRace(r.n);
+        if (r.packed) goRace(r.n);
+        else if (isHeld || r.held_live) goLive();
       });
       host.appendChild(b);
     });
@@ -198,7 +206,7 @@
     live.setAttribute("data-live", "1");
     live.textContent = "Live";
     live.title = "Live race";
-    if (LIVE_Q && !heldN) live.classList.add("is-active");
+    if (LIVE_Q) live.classList.add("is-active");
     live.addEventListener("click", goLive);
     host.appendChild(live);
   }
