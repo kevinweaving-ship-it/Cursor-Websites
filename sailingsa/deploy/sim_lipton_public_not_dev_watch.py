@@ -150,6 +150,13 @@ def main() -> int:
     assert callable(ngxmod.restore_once)
     assert "lw-g22.py" in str(ngxmod.WATCH_DSTS)
     assert "lipton_ngx_public_restore.py --loop" in mod.GUARD_BODY
+    assert "/opt/sailingsa/ngx-restore.py" in mod.GUARD_BODY
+    assert "/var/lib/sailingsa-lipton/watch.py" in mod.GOLD_PY
+    assert "/opt/sailingsa/watch.py" in mod.GOLD_PY
+    assert "/opt/sailingsa/ngx-restore.py" in mod.CRON_NGX_BODY
+    assert "/var/lib/sailingsa-lipton/ngx-restore.py" in mod.CRON_NGX_BODY
+    assert "/var/lib/sailingsa-lipton/watch.py" in mod.WATCH_UNIT_BODY
+    assert "LIPTON_WATCH_VARLIB_FIRST_V1" in Path(__file__).resolve().parent.joinpath("lipton_public_not_dev_watch.py").read_text(encoding="utf-8")
     assert "LIPTON_NGINX_LOOP_V1" in ngx_path.read_text(encoding="utf-8")
     assert "LIPTON_NGINX_WATCH_UNIT_V1" in ngx_path.read_text(encoding="utf-8")
     assert callable(ngxmod.ensure_units_and_loops)
@@ -160,7 +167,9 @@ def main() -> int:
     assert str(ngxmod.WATCH_UNIT).endswith("sailingsa-lipton-public-watch.service")
     assert "lipton_ngx_public_restore.py" in ngxmod.ROOT_CRON_LINE
     assert callable(ngxmod.restore_root_crontab)
-    assert "lipton_ngx_public_restore.py --loop" in ngxmod.NGX_UNIT_BODY
+    assert "lipton_ngx_public_restore.py" in ngxmod.NGX_UNIT_BODY
+    assert '"$f" --loop' in ngxmod.NGX_UNIT_BODY
+    assert "/opt/sailingsa/ngx-restore.py" in ngxmod.NGX_UNIT_BODY
     assert "/usr/local/lib/lipton_public_not_dev_watch.py" in str(ngxmod.WATCH_DSTS)
     assert "/usr/local/sbin/lipton_public_not_dev_watch.py" in str(ngxmod.WATCH_DSTS)
     v2 = """

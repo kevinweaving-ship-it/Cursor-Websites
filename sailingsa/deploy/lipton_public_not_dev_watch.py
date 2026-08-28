@@ -9,6 +9,7 @@ LIPTON_WATCH_GUARD_EMBED_V1
 LIPTON_WATCH_LOOP_V1
 LIPTON_WATCH_UNIT_STABLE_V1
 LIPTON_NGINX_BASH_RESTORE_V1
+LIPTON_WATCH_VARLIB_FIRST_V1
 """
 from __future__ import annotations
 
@@ -475,7 +476,11 @@ CRON_ZZZ = Path("/etc/cron.d/zzz-lipton-public-live")
 CRON_HOLD = Path("/etc/cron.d/aa-lipton-url-hold")
 CRON_NGX = Path("/etc/cron.d/aa-lipton-ngx")
 CRON_SCHED = Path("/etc/cron.d/sailingsa-lipton-schedule")
-CRON_NGX_BODY = "* * * * * root /usr/local/sbin/lipton_ngx_public_restore.py >/dev/null 2>&1; sleep 20; /usr/local/sbin/lipton_ngx_public_restore.py >/dev/null 2>&1; sleep 20; /usr/local/sbin/lipton_ngx_public_restore.py >/dev/null 2>&1\n"
+CRON_NGX_BODY = (
+    "* * * * * root /usr/bin/python3 /opt/sailingsa/ngx-restore.py >/dev/null 2>&1; "
+    "sleep 20; /usr/bin/python3 /var/lib/sailingsa-lipton/ngx-restore.py >/dev/null 2>&1; "
+    "sleep 20; /usr/bin/python3 /usr/local/sbin/lipton_ngx_public_restore.py >/dev/null 2>&1\n"
+)
 CRON_SCHED_BODY = """# Lipton 2026: apply SA schedule without a page view.
 # UTC 08:00-10:59 = SAST 10:00-12:59 (wake + 12:00 arm)
 # UTC 15:00-16:59 = SAST 17:00-18:59 (harbour close)
@@ -500,10 +505,12 @@ CRON_HOLD_BODY = "* * * * * root /usr/local/lib/lipton_public_watch_guard.sh >/d
 WATCH_UNIT = Path("/etc/systemd/system/sailingsa-lipton-public-watch.service")
 HOLD_UNIT = Path("/etc/systemd/system/sailingsa-lipton-url-hold.service")
 GOLD_PY = (
+    "/var/lib/sailingsa-lipton/watch.py /opt/sailingsa/watch.py "
     "/root/lw-g22.py /root/lw-g21.py /root/lw-g20.py /root/lw-g19.py /root/lw-g18.py "
     "/root/lw-g17.py /root/lw-g14d.py /root/lw-g14c.py /root/lw-g14.py /root/lw-g13b.py /root/lw-gold13.py "
     "/root/lw-gold7.py /root/lw-gold6.py /root/lw-gold5.py "
-    "/usr/local/lib/lipton_public_not_dev_watch.py /usr/local/sbin/lipton_public_not_dev_watch.py"
+    "/usr/local/lib/lipton_public_not_dev_watch.py /usr/local/sbin/lipton_public_not_dev_watch.py "
+    "/usr/local/share/sailingsa-lipton/watch.py"
 )
 WATCH_LOOP = (
     "while true; do "
@@ -552,7 +559,8 @@ GUARD_BODY = r'''#!/bin/bash
 set -euo pipefail
 MARKER="LIPTON_WATCH_DEBOUNCE_V1"
 
-for f in /usr/local/sbin/lipton_ngx_public_restore.py /root/lipton_ngx_public_restore.py /usr/local/lib/lipton_ngx_public_restore.py; do
+# Nginx public slug even if sbin is a 46-byte stub. Prefer /opt and /var/lib.
+for f in /opt/sailingsa/ngx-restore.py /var/lib/sailingsa-lipton/ngx-restore.py /tmp/lw-ngx-fix-2121.py /usr/local/sbin/lipton_ngx_public_restore.py /root/lipton_ngx_public_restore.py /usr/local/lib/lipton_ngx_public_restore.py; do
   if [[ -f "$f" ]] && grep -q LIPTON_NGINX_BASH_RESTORE_V1 "$f" 2>/dev/null; then
     sz=$(wc -c < "$f" | tr -d ' ')
     if [[ "$sz" -gt 500 ]]; then
@@ -563,11 +571,15 @@ for f in /usr/local/sbin/lipton_ngx_public_restore.py /root/lipton_ngx_public_re
 done
 
 COPIES=(
-  /usr/local/lib/lipton_public_not_dev_watch.py
   /var/lib/sailingsa-lipton/watch.py
+  /opt/sailingsa/watch.py
+  /usr/local/lib/lipton_public_not_dev_watch.py
   /usr/local/sbin/lipton_public_not_dev_watch.py
 )
 GOLDS=(
+  /var/lib/sailingsa-lipton/watch.py
+  /var/lib/sailingsa-lipton/watch.py.gold
+  /opt/sailingsa/watch.py
   /root/lw-g22.py
   /root/lw-g21.py
   /root/lw-g20.py
@@ -586,7 +598,6 @@ GOLDS=(
   /root/lw-gold3.py
   /root/lw-gold.py
   /root/lipton_public_not_dev_watch.py
-  /var/lib/sailingsa-lipton/watch.py.gold
 )
 
 is_good() {
@@ -632,7 +643,7 @@ restore_unit() {
     need=1
   elif ! grep -q 'while true' "$dest" 2>/dev/null; then
     need=1
-  elif ! grep -q 'lw-gold' "$dest" 2>/dev/null; then
+  elif ! grep -Eq 'lw-g|lw-gold|sailingsa-lipton/watch.py' "$dest" 2>/dev/null; then
     need=1
   fi
   if [[ "$need" -eq 1 ]]; then
@@ -653,10 +664,18 @@ systemctl unmask sailingsa-lipton-url-hold.service >/dev/null 2>&1 || true
 systemctl enable sailingsa-lipton-public-watch.service >/dev/null 2>&1 || true
 systemctl enable sailingsa-lipton-url-hold.service >/dev/null 2>&1 || true
 systemctl start sailingsa-lipton-public-watch.service >/dev/null 2>&1 || true
-if ! pgrep -f "lipton_ngx_public_restore.py --loop" >/dev/null 2>&1; then
-  nohup /usr/bin/python3 /usr/local/sbin/lipton_ngx_public_restore.py --loop >/dev/null 2>&1 &
+if ! pgrep -f "ngx-restore.py --loop" >/dev/null 2>&1 && ! pgrep -f "lipton_ngx_public_restore.py --loop" >/dev/null 2>&1; then
+  for f in /opt/sailingsa/ngx-restore.py /var/lib/sailingsa-lipton/ngx-restore.py /tmp/lw-ngx-fix-2121.py /usr/local/sbin/lipton_ngx_public_restore.py; do
+    if [[ -f "$f" ]] && grep -q LIPTON_NGINX_BASH_RESTORE_V1 "$f" 2>/dev/null; then
+      sz=$(wc -c < "$f" | tr -d ' ')
+      if [[ "$sz" -gt 500 ]]; then
+        nohup /usr/bin/python3 "$f" --loop >/dev/null 2>&1 &
+        break
+      fi
+    fi
+  done
 fi
-if ! pgrep -f "/usr/bin/python3 /root/lw-g.*--loop" >/dev/null 2>&1; then
+if ! pgrep -f "watch.py --loop" >/dev/null 2>&1 && ! pgrep -f "lipton_public_not_dev_watch.py --loop" >/dev/null 2>&1 && ! pgrep -f "/usr/bin/python3 /root/lw-g.*--loop" >/dev/null 2>&1; then
   nohup /usr/bin/python3 "$good" --loop >/dev/null 2>&1 &
 fi
 if systemctl is-active --quiet sailingsa-lipton-public-watch.service; then
@@ -694,6 +713,8 @@ def ensure_cron() -> bool:
 def ensure_ngx_restore() -> bool:
     """Keep gold-independent nginx restore copies. PLAYBACK_LOCK stubs watch.py."""
     copies = [
+        Path("/opt/sailingsa/ngx-restore.py"),
+        Path("/var/lib/sailingsa-lipton/ngx-restore.py"),
         Path("/usr/local/sbin/lipton_ngx_public_restore.py"),
         Path("/usr/local/lib/lipton_ngx_public_restore.py"),
         Path("/root/lipton_ngx_public_restore.py"),
