@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828dj";
+  var CACHE = "20260828dk";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = !RACE_Q;
@@ -1429,18 +1429,19 @@
     }
     function liveOcsOn(sail) {
       var id = identity[sail] || {};
-      if (packedStarts[sail] && packedStarts[sail].ocs === true) return true;
-      if (packedStarts[sail] && packedStarts[sail].ocs === false) return false;
-      var aliases = [sail, id.mapClub, id.clubRaw];
+      var self = [sail, id.mapClub, id.clubRaw].map(function (x) {
+        return String(x || "").toUpperCase().replace(/\s+/g, "");
+      }).filter(Boolean);
+      var academy = self.indexOf("RCYCA") >= 0 || self.some(function (t) { return t.indexOf("ACADEMY") >= 0; });
+      if (packedStarts[sail] && typeof packedStarts[sail].ocs === "boolean") {
+        return packedStarts[sail].ocs === true;
+      }
       var i;
-      var j;
       for (i = 0; i < liveOcs.length; i++) {
         var o = String(liveOcs[i] || "").toUpperCase().replace(/\s+/g, "");
         if (!o) continue;
-        for (j = 0; j < aliases.length; j++) {
-          var n = String(aliases[j] || "").toUpperCase().replace(/\s+/g, "");
-          if (n && n === o) return true;
-        }
+        if (academy && o === "RCYC") continue;
+        if (self.indexOf(o) >= 0) return true;
       }
       return false;
     }
