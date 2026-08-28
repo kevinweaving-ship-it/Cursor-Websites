@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828ca";
+  var CACHE = "20260828cd";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = !RACE_Q;
@@ -213,6 +213,7 @@
     var nameEl = document.getElementById("lipton-dev-map-hud-name");
     var clockHud = document.getElementById("lipton-dev-map-hud-clock");
     var playBtn = document.getElementById("lipton-dev-play");
+    var LIVE_CLOCK_LAG_MS = 10000;
     var slowerBtn = document.getElementById("lipton-dev-slower");
     var fasterBtn = document.getElementById("lipton-dev-faster");
     var scrubEl = document.getElementById("lipton-dev-scrub");
@@ -223,6 +224,11 @@
     function liveFill(sail) {
       return LIVE_BOAT_COLORS[sail] || "#94a3b8";
     }
+    function rgbaHex(hex, a) {
+      var n = parseInt(String(hex).replace("#", ""), 16);
+      if (!(n >= 0)) return "rgba(148,163,184," + a + ")";
+      return "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + a + ")";
+    }
     function paintClock() {
       if (!clockHud || !hud) return;
       if (gunTs == null) {
@@ -230,7 +236,7 @@
         hud.classList.remove("is-after");
         return;
       }
-      var delta = Date.now() - gunTs;
+      var delta = Date.now() - LIVE_CLOCK_LAG_MS - gunTs;
       clockHud.textContent = fmtLiveClock(delta);
       hud.classList.toggle("is-after", delta >= 0);
     }
@@ -392,6 +398,27 @@
       }
       Object.keys(data.boats || {}).forEach(function (sail) {
         var pos = data.boats[sail];
+        if (!pos || !pos.trail) return;
+        var trail = pos.trail;
+        if (trail.length < 2) return;
+        var fill = liveFill(sail);
+        var n = trail.length - 1;
+        for (var s = 0; s < n; s++) {
+          var ta = xy(trail[s].lat, trail[s].lon);
+          var tc = xy(trail[s + 1].lat, trail[s + 1].lon);
+          var u = (s + 1) / n;
+          mapCtx.beginPath();
+          mapCtx.moveTo(ta.x, ta.y);
+          mapCtx.lineTo(tc.x, tc.y);
+          mapCtx.strokeStyle = rgbaHex(fill, 0.25 + 0.7 * u * u);
+          mapCtx.lineWidth = 2 + 1.6 * u;
+          mapCtx.lineCap = "round";
+          mapCtx.lineJoin = "round";
+          mapCtx.stroke();
+        }
+      });
+      Object.keys(data.boats || {}).forEach(function (sail) {
+        var pos = data.boats[sail];
         if (!pos) return;
         var p = xy(pos.lat, pos.lon);
         var fill = liveFill(sail);
@@ -408,10 +435,10 @@
       drawingMap = false;
     }
     function applySnap(data) {
-      if (!data || !data.ok) return;
+      if (!data) return;
+      if (!data.ok && !(data.boats && Object.keys(data.boats).length)) return;
       snap = data;
       if (data.gun_ts_ms) gunTs = Number(data.gun_ts_ms);
-      else gunTs = null;
       paintClock();
       var label = "";
       if (data.race_number) label = "RACE " + data.race_number;
@@ -437,7 +464,7 @@
     paintClock();
     poll();
     setInterval(paintClock, 100);
-    setInterval(poll, 2000);
+    setInterval(poll, 1000);
     window.addEventListener("resize", function () { drawLiveMap(); });
   }
 

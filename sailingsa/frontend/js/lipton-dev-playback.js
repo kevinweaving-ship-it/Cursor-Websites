@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828ca";
+  var CACHE = "20260828cd";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = !RACE_Q;
@@ -213,26 +213,108 @@
     var nameEl = document.getElementById("lipton-dev-map-hud-name");
     var clockHud = document.getElementById("lipton-dev-map-hud-clock");
     var playBtn = document.getElementById("lipton-dev-play");
+    var LIVE_CLOCK_LAG_MS = 10000;
+    var atLive = true;
+    var scrubbing = false;
+    var playTs = Date.now() - LIVE_CLOCK_LAG_MS;
+    var hist = { boats: {}, marks: {}, pin: [], rc: [] };
+    var loadedHistory = false;
     var slowerBtn = document.getElementById("lipton-dev-slower");
     var fasterBtn = document.getElementById("lipton-dev-faster");
     var scrubEl = document.getElementById("lipton-dev-scrub");
-    if (playBtn) playBtn.disabled = true;
     if (slowerBtn) slowerBtn.disabled = true;
     if (fasterBtn) fasterBtn.disabled = true;
-    if (scrubEl) scrubEl.disabled = true;
+    if (playBtn) {
+      playBtn.disabled = false;
+      playBtn.title = "Go live";
+      playBtn.setAttribute("aria-label", "Go live");
+      playBtn.addEventListener("click", function () {
+        atLive = true;
+        playTs = Date.now() - LIVE_CLOCK_LAG_MS;
+        paintClock();
+        syncScrub();
+        drawLiveMap();
+      });
+    }
+    if (scrubEl) {
+      scrubEl.disabled = false;
+      scrubEl.addEventListener("pointerdown", function () { scrubbing = true; atLive = false; });
+      scrubEl.addEventListener("input", function () {
+        atLive = false;
+        var span = Math.max(1, liveNow() - playStart());
+        playTs = playStart() + (Number(scrubEl.value) / 1000) * span;
+        if (Number(scrubEl.value) >= 990) {
+          atLive = true;
+          playTs = liveNow();
+        }
+        paintClock();
+        drawLiveMap();
+      });
+      window.addEventListener("pointerup", function () { scrubbing = false; });
+    }
     function liveFill(sail) {
       return LIVE_BOAT_COLORS[sail] || "#94a3b8";
     }
+    function rgbaHex(hex, a) {
+      var n = parseInt(String(hex).replace("#", ""), 16);
+      if (!(n >= 0)) return "rgba(148,163,184," + a + ")";
+      return "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + a + ")";
+    }
+    function liveNow() {
+      return Date.now() - LIVE_CLOCK_LAG_MS;
+    }
+    function playStart() {
+      if (gunTs) return gunTs - 5 * 60 * 1000;
+      return liveNow() - 8 * 60 * 1000;
+    }
+    function atTs(arr, ts) {
+      if (!arr || !arr.length) return null;
+      var best = null;
+      for (var i = 0; i < arr.length; i++) {
+        if (arr[i].ts_ms <= ts) best = arr[i];
+        else break;
+      }
+      return best;
+    }
+    function tailUntil(arr, ts) {
+      if (!arr || !arr.length) return [];
+      var cut = ts - 18000;
+      var out = [];
+      for (var i = 0; i < arr.length; i++) {
+        if (arr[i].ts_ms >= cut && arr[i].ts_ms <= ts) out.push(arr[i]);
+      }
+      return out;
+    }
+    function mergeTrail(dest, pts) {
+      if (!pts || !pts.length) return dest;
+      dest = dest || [];
+      pts.forEach(function (p) {
+        if (!p || p.ts_ms == null) return;
+        if (!dest.length || p.ts_ms > dest[dest.length - 1].ts_ms) dest.push(p);
+        else if (p.ts_ms === dest[dest.length - 1].ts_ms) dest[dest.length - 1] = p;
+      });
+      return dest;
+    }
+    function syncScrub() {
+      if (!scrubEl || scrubbing) return;
+      var span = Math.max(1, liveNow() - playStart());
+      var v = atLive ? 1000 : Math.round(1000 * (playTs - playStart()) / span);
+      if (v < 0) v = 0;
+      if (v > 1000) v = 1000;
+      scrubEl.value = String(v);
+    }
     function paintClock() {
       if (!clockHud || !hud) return;
+      if (atLive) playTs = liveNow();
       if (gunTs == null) {
         clockHud.textContent = "—";
         hud.classList.remove("is-after");
         return;
       }
-      var delta = Date.now() - gunTs;
+      var delta = playTs - gunTs;
       clockHud.textContent = fmtLiveClock(delta);
       hud.classList.toggle("is-after", delta >= 0);
+      if (playBtn) playBtn.classList.toggle("is-playing", atLive);
     }
     function initChart() {
       var el = document.getElementById("lipton-dev-chart");
@@ -318,17 +400,20 @@
       mapCtx.restore();
     }
     function fitLive() {
-      if (!chartMap || !followFleet || !snap) return;
+      if (!chartMap || !followFleet) return;
+      var ts = playTs;
       var pts = [];
-      Object.keys(snap.boats || {}).forEach(function (sail) {
-        var b = snap.boats[sail];
-        if (b && b.lat != null) pts.push([b.lat, b.lon]);
+      Object.keys(hist.boats).forEach(function (sail) {
+        var b = atTs(hist.boats[sail], ts);
+        if (b) pts.push([b.lat, b.lon]);
       });
-      if (snap.pin && snap.pin.lat != null) pts.push([snap.pin.lat, snap.pin.lon]);
-      if (snap.committee && snap.committee.lat != null) pts.push([snap.committee.lat, snap.committee.lon]);
-      Object.keys(snap.marks || {}).forEach(function (k) {
-        var m = snap.marks[k];
-        if (m && m.lat != null) pts.push([m.lat, m.lon]);
+      var pin = atTs(hist.pin, ts);
+      var rc = atTs(hist.rc, ts);
+      if (pin) pts.push([pin.lat, pin.lon]);
+      if (rc) pts.push([rc.lat, rc.lon]);
+      Object.keys(hist.marks).forEach(function (k) {
+        var m = atTs(hist.marks[k], ts);
+        if (m) pts.push([m.lat, m.lon]);
       });
       if (!pts.length) return;
       var lat = 0, lon = 0;
@@ -345,12 +430,12 @@
         drawingMap = false;
         return;
       }
+      var ts = playTs;
       var w = mapEl.clientWidth || 0;
       var h = mapEl.clientHeight || 0;
       mapCtx.clearRect(0, 0, w, h);
-      var data = snap || {};
-      Object.keys(data.marks || {}).forEach(function (k) {
-        var pos = data.marks[k];
+      Object.keys(hist.marks).forEach(function (k) {
+        var pos = atTs(hist.marks[k], ts);
         if (!pos) return;
         var p = xy(pos.lat, pos.lon);
         mapCtx.beginPath();
@@ -361,10 +446,11 @@
         mapCtx.font = "bold 10px sans-serif";
         mapCtx.fillText("M" + k, p.x + 8, p.y + 4);
       });
-      var line = data.start_line;
-      if (line && line.left && line.right) {
-        var a = xy(line.left.lat, line.left.lon);
-        var b = xy(line.right.lat, line.right.lon);
+      var pin = atTs(hist.pin, ts);
+      var rc = atTs(hist.rc, ts);
+      if (pin && rc) {
+        var a = xy(pin.lat, pin.lon);
+        var b = xy(rc.lat, rc.lon);
         mapCtx.beginPath();
         mapCtx.moveTo(a.x, a.y);
         mapCtx.lineTo(b.x, b.y);
@@ -388,10 +474,29 @@
         mapCtx.fillStyle = "#ffffff";
         mapCtx.font = "bold 10px sans-serif";
         mapCtx.fillText("Pin", a.x + 6, a.y - 6);
-        mapCtx.fillText("START", (a.x + b.x) / 2 + 6, (a.y + b.y) / 2 - 6);
+        if (gunTs && ts < gunTs + 5 * 60 * 1000) mapCtx.fillText("START", (a.x + b.x) / 2 + 6, (a.y + b.y) / 2 - 6);
       }
-      Object.keys(data.boats || {}).forEach(function (sail) {
-        var pos = data.boats[sail];
+      Object.keys(hist.boats).forEach(function (sail) {
+        var trail = tailUntil(hist.boats[sail], ts);
+        if (trail.length < 2) return;
+        var fill = liveFill(sail);
+        var n = trail.length - 1;
+        for (var s = 0; s < n; s++) {
+          var ta = xy(trail[s].lat, trail[s].lon);
+          var tc = xy(trail[s + 1].lat, trail[s + 1].lon);
+          var u = (s + 1) / n;
+          mapCtx.beginPath();
+          mapCtx.moveTo(ta.x, ta.y);
+          mapCtx.lineTo(tc.x, tc.y);
+          mapCtx.strokeStyle = rgbaHex(fill, 0.25 + 0.7 * u * u);
+          mapCtx.lineWidth = 2 + 1.6 * u;
+          mapCtx.lineCap = "round";
+          mapCtx.lineJoin = "round";
+          mapCtx.stroke();
+        }
+      });
+      Object.keys(hist.boats).forEach(function (sail) {
+        var pos = atTs(hist.boats[sail], ts);
         if (!pos) return;
         var p = xy(pos.lat, pos.lon);
         var fill = liveFill(sail);
@@ -408,11 +513,22 @@
       drawingMap = false;
     }
     function applySnap(data) {
-      if (!data || !data.ok) return;
+      if (!data) return;
+      if (!data.ok && !(data.boats && Object.keys(data.boats).length)) return;
       snap = data;
       if (data.gun_ts_ms) gunTs = Number(data.gun_ts_ms);
-      else gunTs = null;
+      Object.keys(data.boats || {}).forEach(function (sail) {
+        var b = data.boats[sail];
+        hist.boats[sail] = mergeTrail(hist.boats[sail] || [], b.trail && b.trail.length ? b.trail : [b]);
+      });
+      Object.keys(data.marks || {}).forEach(function (k) {
+        var m = data.marks[k];
+        hist.marks[k] = mergeTrail(hist.marks[k] || [], m.trail && m.trail.length ? m.trail : [m]);
+      });
+      if (data.pin) hist.pin = mergeTrail(hist.pin, data.pin.trail && data.pin.trail.length ? data.pin.trail : [data.pin]);
+      if (data.committee) hist.rc = mergeTrail(hist.rc, data.committee.trail && data.committee.trail.length ? data.committee.trail : [data.committee]);
       paintClock();
+      syncScrub();
       var label = "";
       if (data.race_number) label = "RACE " + data.race_number;
       if (nameEl) {
@@ -423,9 +539,13 @@
       drawLiveMap();
     }
     function poll() {
-      fetch("/api/lipton-dev/live", { cache: "no-store" })
+      var q = loadedHistory ? "/api/lipton-dev/live" : "/api/lipton-dev/live?history=1";
+      fetch(q, { cache: "no-store" })
         .then(function (res) { return res.json(); })
-        .then(applySnap)
+        .then(function (data) {
+          if (data && (data.ok || (data.boats && Object.keys(data.boats).length))) loadedHistory = true;
+          applySnap(data);
+        })
         .catch(function () {});
     }
     fetch("/js/lipton-dev-replay.json?v=" + CACHE, { cache: "no-store" })
@@ -437,7 +557,7 @@
     paintClock();
     poll();
     setInterval(paintClock, 100);
-    setInterval(poll, 2000);
+    setInterval(poll, 1000);
     window.addEventListener("resize", function () { drawLiveMap(); });
   }
 

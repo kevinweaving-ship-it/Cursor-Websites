@@ -21,6 +21,7 @@ import argparse
 import hashlib
 import json
 import os
+import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
@@ -142,7 +143,31 @@ def to_sast(dt: datetime | None) -> datetime | None:
     return dt.astimezone(SAST)
 
 
+_TOKEN = None
+_TOKEN_AT = 0.0
+_TOKEN_TTL_S = 50 * 60
+_TOKEN_PATH = os.environ.get("LIPTON_VAKAROS_TOKEN_PATH", "/tmp/lipton_vakaros_idtoken.json")
+_DOC_CACHE = None
+_DOC_CACHE_AT = 0.0
+_DOC_TTL_S = 5.0
+
+
 def anonymous_id_token(api_key: str = FIREBASE_WEB_API_KEY) -> str:
+    """Reuse one anonymous token. Do not signUp on every live poll."""
+    global _TOKEN, _TOKEN_AT
+    now = time.time()
+    if _TOKEN and now - _TOKEN_AT < _TOKEN_TTL_S:
+        return _TOKEN
+    try:
+        if os.path.isfile(_TOKEN_PATH):
+            saved = json.loads(open(_TOKEN_PATH, encoding="utf-8").read())
+            tok = saved.get("idToken")
+            at = float(saved.get("at") or 0)
+            if tok and now - at < _TOKEN_TTL_S:
+                _TOKEN, _TOKEN_AT = tok, at
+                return tok
+    except (OSError, ValueError, json.JSONDecodeError):
+        pass
     url = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={api_key}"
     status, body = _http_json(
         url,
@@ -152,6 +177,11 @@ def anonymous_id_token(api_key: str = FIREBASE_WEB_API_KEY) -> str:
     token = (body or {}).get("idToken") if isinstance(body, dict) else None
     if status != 200 or not token:
         raise VakarosSourceError(f"Firebase anonymous auth failed HTTP {status}: {body}")
+    _TOKEN, _TOKEN_AT = token, now
+    try:
+        open(_TOKEN_PATH, "w", encoding="utf-8").write(json.dumps({"idToken": token, "at": now}))
+    except OSError:
+        pass
     return token
 
 
@@ -225,6 +255,10 @@ def player_html_is_shell_only(html: str) -> dict:
 
 def fetch_regatta_raw(event_id: str = LIPTON_EVENT_ID, token: str | None = None) -> dict:
     """Raw Firestore REST document. Keep this — it is the lossless archive."""
+    global _DOC_CACHE, _DOC_CACHE_AT
+    now = time.time()
+    if token is None and _DOC_CACHE is not None and now - _DOC_CACHE_AT < _DOC_TTL_S:
+        return _DOC_CACHE
     tok = token or anonymous_id_token()
     url = (
         "https://firestore.googleapis.com/v1/projects/"
@@ -235,6 +269,8 @@ def fetch_regatta_raw(event_id: str = LIPTON_EVENT_ID, token: str | None = None)
         raise VakarosSourceError(f"Firestore regattas/{event_id} HTTP {status}: {body}")
     if not isinstance(body, dict) or "fields" not in body:
         raise VakarosSourceError(f"Firestore regattas/{event_id} had no fields")
+    if token is None:
+        _DOC_CACHE, _DOC_CACHE_AT = body, now
     return body
 
 

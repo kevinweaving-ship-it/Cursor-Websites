@@ -26261,10 +26261,11 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
 
 
 LIPTON_DEV_SLUG = "2026-08-29-lipton-challenge-cup-dev"
+LIPTON_PUBLIC_SLUG = "2026-08-29-lipton-challenge-cup"
 
 
-def serve_lipton_dev_playback_page(_request: Request):
-    """Isolated Lipton playback mirror. Does not touch the public Lipton URL."""
+def serve_lipton_dev_playback_page(_request: Request, public: bool = False):
+    """Lipton playback page. Public slug is indexable; -dev stays noindex."""
     names = (
         Path(STATIC_DIR) / "lipton-dev.html",
         WEB_ROOT / "lipton-dev.html",
@@ -26272,20 +26273,20 @@ def serve_lipton_dev_playback_page(_request: Request):
         _API_DIR / "sailingsa" / "frontend" / "lipton-dev.html",
         Path(__file__).resolve().parent / "sailingsa" / "frontend" / "lipton-dev.html",
     )
+    headers = {"Cache-Control": "no-store"}
+    if not public:
+        headers["X-Robots-Tag"] = "noindex, nofollow"
     for p in names:
         try:
             if p.is_file():
-                return HTMLResponse(
-                    p.read_text(encoding="utf-8"),
-                    headers={"Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow"},
-                )
+                return HTMLResponse(p.read_text(encoding="utf-8"), headers=headers)
         except OSError:
             continue
-    return HTMLResponse("Lipton dev page missing", status_code=500)
+    return HTMLResponse("Lipton playback page missing", status_code=500)
 
 
 @app.get("/api/lipton-dev/live")
-def api_lipton_dev_live():
+def api_lipton_dev_live(request: Request):
     """Lipton -dev live T-/T+ and GPS as received. Does not invent a race or tracks."""
     for p in (
         Path(__file__).resolve().parent / "sailingsa" / "scripts",
@@ -26296,9 +26297,10 @@ def api_lipton_dev_live():
         s = str(p)
         if p.is_dir() and s not in sys.path:
             sys.path.insert(0, s)
+    hist = str(request.query_params.get("history") or "") in ("1", "true", "yes")
     try:
         from lipton_dev_live import live_snapshot
-        return JSONResponse(live_snapshot())
+        return JSONResponse(live_snapshot(history=hist))
     except Exception as err:
         return JSONResponse(
             {"ok": False, "live": True, "waiting": True, "error": str(err)},
@@ -26308,8 +26310,11 @@ def api_lipton_dev_live():
 
 def serve_regatta_standalone(slug: str, request: Request):
     """Serve one full standalone HTML result sheet for /regatta/{slug}. Unknown regatta → 301 /events (not 404)."""
-    if str(slug or "").strip() == LIPTON_DEV_SLUG:
-        return serve_lipton_dev_playback_page(request)
+    slug_s = str(slug or "").strip()
+    if slug_s == LIPTON_DEV_SLUG:
+        return serve_lipton_dev_playback_page(request, public=False)
+    if slug_s == LIPTON_PUBLIC_SLUG:
+        return serve_lipton_dev_playback_page(request, public=True)
     start_time = time.time()
     reg = _get_regatta_by_slug(slug)
     if not reg:
