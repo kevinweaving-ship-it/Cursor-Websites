@@ -253,15 +253,25 @@
     var playing = false;
     var trackerReady = false;
     var playTs = PLAY_START_TS;
-    var GUN_HORN_SRC = "/js/lipton-dev-start-airhorn.mp3?v=20260828o";
+    var GUN_HORN_SRC = "/js/lipton-dev-start-airhorn.mp3?v=20260828p";
+    var RECALL_HORN_SRC = "/js/lipton-dev-recall-horn.wav?v=20260828p";
     var GUN_HORN_ONSET = 0.05;
     var GUN_HORN_LEAD_MS = 100;
     var gunHorn = null;
+    var recallHorn = null;
     var gunCtx = null;
     var gunBuf = null;
     var gunBytes = null;
     var gunDecode = false;
+    var recallBuf = null;
+    var recallBytes = null;
+    var recallDecode = false;
+    var recallTimer = null;
     fetch(GUN_HORN_SRC).then(function (res) { return res.ok ? res.arrayBuffer() : null; }).then(function (buf) { gunBytes = buf; }).catch(function () {});
+    fetch(RECALL_HORN_SRC).then(function (res) { return res.ok ? res.arrayBuffer() : null; }).then(function (buf) { recallBytes = buf; }).catch(function () {});
+    function raceHasOcs() {
+      return Object.keys(OCS).length > 0;
+    }
     function gunHornEl() {
       if (!gunHorn) {
         gunHorn = new Audio(GUN_HORN_SRC);
@@ -269,21 +279,32 @@
       }
       return gunHorn;
     }
-    function decodeGunHorn() {
-      if (!gunCtx || !gunBytes || gunBuf || gunDecode) return;
-      gunDecode = true;
-      var copy = gunBytes.slice(0);
-      var done = function (buf) { gunBuf = buf; };
-      var fail = function () { gunDecode = false; };
+    function recallHornEl() {
+      if (!recallHorn) {
+        recallHorn = new Audio(RECALL_HORN_SRC);
+        recallHorn.preload = "auto";
+      }
+      return recallHorn;
+    }
+    function decodeOne(bytes, hasBuf, decoding, setBuf, setDecoding) {
+      if (!gunCtx || !bytes || hasBuf || decoding) return;
+      setDecoding(true);
+      var copy = bytes.slice(0);
+      var done = function (buf) { setBuf(buf); };
+      var fail = function () { setDecoding(false); };
       var p = gunCtx.decodeAudioData(copy, done, fail);
       if (p && p.then) p.then(done).catch(fail);
+    }
+    function decodeHorns() {
+      decodeOne(gunBytes, gunBuf, gunDecode, function (b) { gunBuf = b; }, function (v) { gunDecode = v; });
+      decodeOne(recallBytes, recallBuf, recallDecode, function (b) { recallBuf = b; }, function (v) { recallDecode = v; });
     }
     function unlockGunHorn() {
       var AC = window.AudioContext || window.webkitAudioContext;
       if (AC) {
         if (!gunCtx) gunCtx = new AC();
         if (gunCtx.state === "suspended") gunCtx.resume();
-        decodeGunHorn();
+        decodeHorns();
       }
       var el = gunHornEl();
       el.muted = true;
@@ -299,23 +320,54 @@
       } else {
         el.muted = false;
       }
+      recallHornEl();
     }
-    function fireGunHorn() {
+    function playBuf(buf, onset) {
+      if (!gunCtx || !buf) return false;
+      if (gunCtx.state === "suspended") gunCtx.resume();
+      var src = gunCtx.createBufferSource();
+      src.buffer = buf;
+      src.connect(gunCtx.destination);
+      src.start(0, Math.min(onset || 0, Math.max(0, buf.duration - 0.02)));
+      return true;
+    }
+    function cancelRecallHorn() {
+      if (recallTimer) {
+        clearTimeout(recallTimer);
+        recallTimer = null;
+      }
+    }
+    function fireRecallHorn() {
+      if (!raceHasOcs()) return;
       try {
-        if (gunCtx && gunBuf) {
-          if (gunCtx.state === "suspended") gunCtx.resume();
-          var src = gunCtx.createBufferSource();
-          src.buffer = gunBuf;
-          src.connect(gunCtx.destination);
-          src.start(0, Math.min(GUN_HORN_ONSET, Math.max(0, gunBuf.duration - 0.02)));
-          return;
-        }
-        var el = gunHornEl();
+        if (playBuf(recallBuf, 0)) return;
+        var el = recallHornEl();
         el.muted = false;
-        try { el.currentTime = GUN_HORN_ONSET; } catch (err) {}
+        try { el.currentTime = 0; } catch (err) {}
         var p = el.play();
         if (p && p.catch) p.catch(function () {});
       } catch (err2) {}
+    }
+    function scheduleRecallHorn() {
+      cancelRecallHorn();
+      if (!raceHasOcs()) return;
+      var wait = gunBuf ? Math.max(400, Math.round((gunBuf.duration - GUN_HORN_ONSET) * 1000)) : 1550;
+      recallTimer = setTimeout(function () {
+        recallTimer = null;
+        fireRecallHorn();
+      }, wait);
+    }
+    function fireGunHorn() {
+      try {
+        if (!playBuf(gunBuf, GUN_HORN_ONSET)) {
+          var el = gunHornEl();
+          el.muted = false;
+          try { el.currentTime = GUN_HORN_ONSET; } catch (err) {}
+          var p = el.play();
+          if (p && p.catch) p.catch(function () {});
+        }
+      } catch (err2) {}
+      scheduleRecallHorn();
     }
     var lastWall = Date.now();
     var lastKey = "";
@@ -1741,6 +1793,8 @@
         if (key === "gun") {
           unlockGunHorn();
           fireGunHorn();
+        } else {
+          cancelRecallHorn();
         }
       });
     });
