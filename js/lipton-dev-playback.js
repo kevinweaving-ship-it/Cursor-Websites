@@ -30,7 +30,7 @@
   }
   function bindRaceButtons(active) {
     var want = LIVE_Q ? -1 : Number(active || RACE_Q || 4);
-    document.querySelectorAll("#lipton-dev-races [data-race], #lipton-dev-race-boxes [data-race]").forEach(function (btn) {
+    document.querySelectorAll("#lipton-dev-race-boxes [data-race]").forEach(function (btn) {
       var n = Number(btn.getAttribute("data-race"));
       btn.classList.toggle("is-active", n === want);
       btn.setAttribute("aria-pressed", n === want ? "true" : "false");
@@ -89,16 +89,6 @@
     .then(function (res) { return res.ok ? res.json() : null; })
     .then(function (meta) {
       renderRaceBoxes(meta);
-      if (!meta) return;
-      (meta.races || []).forEach(function (r) {
-        var btn = document.querySelector('#lipton-dev-races [data-race="' + r.n + '"]');
-        if (!btn) return;
-        var gun = String(r.gun_sast || "").slice(11, 16);
-        var ocs = (r.ocs || []).length ? " · OCS " + r.ocs.join(",") : "";
-        var course = r.course ? " · " + r.course : "";
-        btn.title = "Race " + r.n + course + " · gun " + gun + (r.packed ? "" : " · GPS not packed yet") + ocs;
-        btn.classList.toggle("is-unpacked", !r.packed);
-      });
     })
     .catch(function () { renderRaceBoxes({ races: [] }); });
 
