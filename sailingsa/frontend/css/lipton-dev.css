@@ -528,9 +528,10 @@ body[data-lipton-dev="1"] .lipton-dev-map-hud {
   gap: 2px;
   margin-left: auto;
   margin-bottom: 3px;
+  flex: 0 1 auto;
   width: max-content;
   min-width: 0;
-  max-width: min(36%, 148px);
+  max-width: 100%;
   text-align: center;
   color: #ffffff;
   font-family: sans-serif;
@@ -541,12 +542,13 @@ body[data-lipton-dev="1"] .lipton-dev-map-hud-name {
   font-size: 9px;
   font-weight: 700;
   line-height: 1.15;
-  padding: 1px 6px;
+  padding: 1px 4px;
   background: rgba(255, 255, 255, 0.12);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  width: 100%;
+  width: 0;
+  min-width: 100%;
   max-width: 100%;
   box-sizing: border-box;
 }
@@ -560,10 +562,8 @@ body[data-lipton-dev="1"] .lipton-dev-map-hud-clock {
   border: 1.4px solid #38bdf8;
   background: rgba(0, 16, 24, 0.55);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 5.8em;
-  width: 100%;
+  width: max-content;
+  max-width: 100%;
 }
 body[data-lipton-dev="1"] .lipton-dev-map-hud.is-after .lipton-dev-map-hud-clock {
   border-color: #fbbf24;

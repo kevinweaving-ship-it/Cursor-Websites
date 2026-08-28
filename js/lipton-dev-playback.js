@@ -1312,6 +1312,20 @@
       var t = tenths % 10;
       return (ms < 0 ? "T−" : "T+") + Math.floor(s / 60) + ":" + pad(s % 60) + "." + t;
     }
+    function fitHudName(el, text) {
+      if (!el) return;
+      el.textContent = text || "";
+      el.style.fontSize = "";
+      if (!text) return;
+      var size = 9;
+      el.style.fontSize = size + "px";
+      var n = 0;
+      while (n < 18 && size > 5.5 && el.scrollWidth > el.clientWidth + 1) {
+        size -= 0.5;
+        el.style.fontSize = size + "px";
+        n += 1;
+      }
+    }
     function drawCourseLabel(ts) {
       var hud = document.getElementById("lipton-dev-map-hud");
       var nameEl = document.getElementById("lipton-dev-map-hud-name");
@@ -1319,10 +1333,10 @@
       if (!hud || !clockHud) return;
       var name = (courseFromTrail() || "").toUpperCase();
       var after = ts >= GUN_TS;
-      if (nameEl) nameEl.textContent = name;
       clockHud.textContent = fmtLiveClock(ts - GUN_TS);
       hud.classList.toggle("is-after", after);
       hud.classList.toggle("is-nameless", !name);
+      fitHudName(nameEl, name);
     }
     function setRateButtons() {
       if (rateEl) rateEl.textContent = RATE + "×";
