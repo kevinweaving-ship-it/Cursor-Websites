@@ -21,6 +21,18 @@ RID = "2026-08-29-lipton-challenge-cup"
 NGINX = Path("/etc/nginx/sites-enabled/sailingsa")
 SNIPPET = Path("/etc/nginx/snippets/lipton-public-proxy.conf")
 LOG = Path("/var/log/lipton_public_not_dev_watch.log")
+CRON_SCHED = Path("/etc/cron.d/sailingsa-lipton-schedule")
+CRON_SCHED_BODY = """# Lipton 2026: apply SA schedule without a page view.
+# UTC 08:00-10:59 = SAST 10:00-12:59 (wake + 12:00 arm)
+# UTC 15:00-16:59 = SAST 17:00-18:59 (harbour close)
+# UTC 17-23 and 0-7 every 5 min = SAST 19:00-09:59 (restart leftover gun)
+# Script no-ops except 27-29 Aug 2026. Does not set race_key.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+* 8-10 * * * root /usr/local/sbin/cron_lipton_schedule_poll.sh
+* 15-16 * * * root /usr/local/sbin/cron_lipton_schedule_poll.sh
+*/5 17-23,0-7 * * * root /usr/local/sbin/cron_lipton_schedule_poll.sh
+"""
 WATCH_MARKER = "LIPTON_WATCH_DEBOUNCE_V1"
 WATCH_SRCS = (
     Path("/usr/local/lib/lipton_public_not_dev_watch.py"),
@@ -226,7 +238,28 @@ def fix_nginx(text: str) -> tuple[str, int]:
     return new, n
 
 
+def restore_schedule_cron() -> bool:
+    """Wake 10:00 / arm 12:00 cron. PLAYBACK_LOCK deletes this file."""
+    body = CRON_SCHED_BODY if CRON_SCHED_BODY.endswith("\n") else CRON_SCHED_BODY + "\n"
+    try:
+        cur = CRON_SCHED.read_text(encoding="utf-8") if CRON_SCHED.is_file() else ""
+    except Exception:
+        cur = ""
+    if cur == body:
+        _chattr(CRON_SCHED, True)
+        return False
+    try:
+        _write(CRON_SCHED, body)
+        os.system(f"chmod 644 {CRON_SCHED} >/dev/null 2>&1")
+        _chattr(CRON_SCHED, True)
+        _log("ngx restore schedule cron")
+        return True
+    except Exception:
+        return False
+
+
 def restore_once() -> int:
+    restore_schedule_cron()
     restore_watch_golds()
     changed = False
     if SNIPPET.is_file() or SNIPPET.parent.is_dir():

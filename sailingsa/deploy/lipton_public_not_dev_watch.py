@@ -474,7 +474,19 @@ CRON_PUBLIC = Path("/etc/cron.d/sailingsa-lipton-public-not-dev")
 CRON_ZZZ = Path("/etc/cron.d/zzz-lipton-public-live")
 CRON_HOLD = Path("/etc/cron.d/aa-lipton-url-hold")
 CRON_NGX = Path("/etc/cron.d/aa-lipton-ngx")
+CRON_SCHED = Path("/etc/cron.d/sailingsa-lipton-schedule")
 CRON_NGX_BODY = "* * * * * root /usr/local/sbin/lipton_ngx_public_restore.py >/dev/null 2>&1; sleep 20; /usr/local/sbin/lipton_ngx_public_restore.py >/dev/null 2>&1; sleep 20; /usr/local/sbin/lipton_ngx_public_restore.py >/dev/null 2>&1\n"
+CRON_SCHED_BODY = """# Lipton 2026: apply SA schedule without a page view.
+# UTC 08:00-10:59 = SAST 10:00-12:59 (wake + 12:00 arm)
+# UTC 15:00-16:59 = SAST 17:00-18:59 (harbour close)
+# UTC 17-23 and 0-7 every 5 min = SAST 19:00-09:59 (restart leftover gun)
+# Script no-ops except 27-29 Aug 2026. Does not set race_key.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+* 8-10 * * * root /usr/local/sbin/cron_lipton_schedule_poll.sh
+* 15-16 * * * root /usr/local/sbin/cron_lipton_schedule_poll.sh
+*/5 17-23,0-7 * * * root /usr/local/sbin/cron_lipton_schedule_poll.sh
+"""
 CRON_PUBLIC_BODY = """# Lipton 2026: undo public-slug playback hijack (nginx + api.py).
 # Script no-ops except 27-29 Aug 2026. Does not run overnight restore.
 # Skips API restart if a real race is underway.
@@ -657,6 +669,7 @@ def ensure_cron() -> bool:
         (CRON_ZZZ, CRON_ZZZ_BODY),
         (CRON_HOLD, CRON_HOLD_BODY),
         (CRON_NGX, CRON_NGX_BODY),
+        (CRON_SCHED, CRON_SCHED_BODY),
     ):
         try:
             cur = path.read_text(encoding="utf-8") if path.is_file() else ""
