@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828cm";
+  var CACHE = "20260828cn";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = !RACE_Q;
@@ -860,9 +860,9 @@
         }
       };
     }
-    var PASS_ORDER = ["ST", "M1", "PIN", "M1b", "PINb", "M1c"];
-    var PASS_LAB = { ST: "ST", M1: "M1", PIN: "Pin", M1b: "M1", PINb: "Pin", M1c: "M1" };
-    var passTs = { ST: {}, M1: {}, PIN: {}, M1b: {}, PINb: {}, M1c: {} };
+    var PASS_ORDER = ["ST", "M1", "PIN", "M1b", "PINb", "M1c", "PINc", "M1d", "PINd"];
+    var PASS_LAB = { ST: "ST", M1: "M1", PIN: "Pin", M1b: "M1", PINb: "Pin", M1c: "M1", PINc: "Pin", M1d: "M1", PINd: "Pin" };
+    var passTs = { ST: {}, M1: {}, PIN: {}, M1b: {}, PINb: {}, M1c: {}, PINc: {}, M1d: {}, PINd: {} };
     var roundArr = { M1: null, PIN: null };
     function enuOf(mark, pos) {
       var lat0 = mark.lat * Math.PI / 180;
@@ -974,13 +974,64 @@
     function trailMoving(arr, ts) {
       return !stillEnough(arr, ts);
     }
-    function firstVisitCpa(pts, markTrail, afterTs) {
-      if (!markTrail || !pts || !pts.length || afterTs == null) return null;
-      var ENTER = 90;
-      var NEED = 80;
+    function angDelta(a, b) {
+      var d = b - a;
+      while (d > Math.PI) d -= Math.PI * 2;
+      while (d < -Math.PI) d += Math.PI * 2;
+      return d;
+    }
+    function visitWrap(pts, markTrail, t, dt) {
+      var sum = 0;
+      var prev = null;
+      var u;
+      for (u = t - dt; u <= t + dt; u += 700) {
+        var boat = atTs(pts, u);
+        var mk = atTs(markTrail, u);
+        if (!boat || !mk) continue;
+        var v = enuOf(mk, boat);
+        if (Math.hypot(v.e, v.n) < 3) continue;
+        var ang = Math.atan2(v.n, v.e);
+        if (prev != null) sum += angDelta(prev, ang);
+        prev = ang;
+      }
+      return sum;
+    }
+    function headingTilt(pts, t, dt) {
+      function cog(ts) {
+        var p = atTs(pts, ts);
+        if (p && p.hdg != null && isFinite(p.hdg)) return p.hdg * Math.PI / 180;
+        var a = atTs(pts, ts - 2200);
+        var b = atTs(pts, ts + 2200);
+        if (!a || !b) return null;
+        var lat = ((a.lat + b.lat) / 2) * Math.PI / 180;
+        return Math.atan2((b.lon - a.lon) * Math.cos(lat), b.lat - a.lat);
+      }
+      var h0 = cog(t - dt);
+      var h1 = cog(t + dt);
+      if (h0 == null || h1 == null) return 0;
+      return Math.abs(angDelta(h0, h1));
+    }
+    function isRounding(pts, markTrail, t) {
+      if (!t) return false;
+      var wrap = Math.abs(visitWrap(pts, markTrail, t, 22000));
+      var tilt = headingTilt(pts, t, 16000);
+      return wrap > 0.7 || tilt > 0.85;
+    }
+    function allVisits(pts, markTrail, afterTs, enter, need) {
+      if (!markTrail || !pts || !pts.length || afterTs == null) return [];
+      var ENTER = enter || 140;
+      var NEED = need || 110;
+      var GAP = 3.5 * 60 * 1000;
+      var out = [];
       var inZ = false;
       var bestT = null;
       var bestD = ENTER;
+      function pushVisit() {
+        if (bestT == null || bestD > NEED) return;
+        if (out.length && bestT - out[out.length - 1] < GAP) return;
+        if (!isRounding(pts, markTrail, bestT)) return;
+        out.push(bestT);
+      }
       for (var j = 0; j < pts.length; j++) {
         if (pts[j].ts_ms < afterTs) continue;
         var mark = atTs(markTrail, pts[j].ts_ms);
@@ -993,17 +1044,55 @@
             bestT = pts[j].ts_ms;
           }
         } else if (inZ) {
-          return bestD <= NEED ? bestT : null;
+          pushVisit();
+          inZ = false;
+          bestT = null;
+          bestD = ENTER;
         }
       }
-      return inZ && bestD <= NEED ? bestT : null;
+      if (inZ) pushVisit();
+      return out;
+    }
+    function trailForPass(id) {
+      return id.indexOf("PIN") === 0 ? hist.pin : hist.marks["1"];
+    }
+    function packFill() {
+      var i;
+      for (i = 1; i < PASS_ORDER.length; i++) {
+        var id = PASS_ORDER[i];
+        var got = Object.keys(passTs[id] || {});
+        if (got.length < 2) continue;
+        var trail = trailForPass(id);
+        if (!trail || !trail.length) continue;
+        Object.keys(hist.boats).forEach(function (sail) {
+          if (passTs[id][sail] != null) return;
+          var prevT = null;
+          var k;
+          for (k = i - 1; k >= 0; k--) {
+            if (passTs[PASS_ORDER[k]][sail] != null) {
+              prevT = passTs[PASS_ORDER[k]][sail];
+              break;
+            }
+          }
+          var after = prevT != null ? prevT + 35000 : (gunTs ? gunTs + 8000 : 0);
+          if (id.indexOf("PIN") === 0) {
+            var minPin = (gunTs || 0) + 8 * 60 * 1000;
+            if (passTs.M1[sail]) minPin = Math.max(minPin, passTs.M1[sail] + 45000);
+            after = Math.max(after, minPin);
+          }
+          var vs = allVisits(hist.boats[sail], trail, after, 200, 170);
+          if (vs[0]) passTs[id][sail] = vs[0];
+        });
+      }
     }
     function detectLivePasses() {
-      passTs = { ST: {}, M1: {}, PIN: {}, M1b: {}, PINb: {}, M1c: {} };
+      passTs = { ST: {}, M1: {}, PIN: {}, M1b: {}, PINb: {}, M1c: {}, PINc: {}, M1d: {}, PINd: {} };
       var pin = lastPt(hist.pin);
       var rc = lastPt(hist.rc);
       var m1now = lastPt(hist.marks["1"]);
       var geom = lineGeom(pin, rc, stillEnough(hist.marks["1"], playTs) ? m1now : null);
+      var m1Ids = ["M1", "M1b", "M1c", "M1d"];
+      var pinIds = ["PIN", "PINb", "PINc", "PINd"];
       Object.keys(hist.boats).forEach(function (sail) {
         var pts = hist.boats[sail] || [];
         if (geom && gunTs && pts.length >= 2) {
@@ -1021,30 +1110,18 @@
           }
         }
         var afterSt = passTs.ST[sail] != null ? passTs.ST[sail] + 6000 : (gunTs ? gunTs + 6000 : 0);
-        var t1 = firstVisitCpa(pts, hist.marks["1"], afterSt);
-        if (t1) passTs.M1[sail] = t1;
-        var afterPin = passTs.M1[sail] != null ? passTs.M1[sail] + 70000 : afterSt + 8 * 60 * 1000;
-        var tp = firstVisitCpa(pts, hist.pin, afterPin);
-        if (tp) passTs.PIN[sail] = tp;
-        var afterM1b = passTs.PIN[sail] != null
-          ? passTs.PIN[sail] + 40000
-          : (passTs.M1[sail] != null ? passTs.M1[sail] + 8 * 60 * 1000 : 0);
-        if (afterM1b) {
-          var t1b = firstVisitCpa(pts, hist.marks["1"], afterM1b);
-          if (t1b) passTs.M1b[sail] = t1b;
-        }
-        var afterPin2 = passTs.M1b[sail] != null
-          ? passTs.M1b[sail] + 40000
-          : (passTs.PIN[sail] != null ? passTs.PIN[sail] + 8 * 60 * 1000 : 0);
-        if (afterPin2) {
-          var tp2 = firstVisitCpa(pts, hist.pin, afterPin2);
-          if (tp2) passTs.PINb[sail] = tp2;
-        }
-        if (passTs.PINb[sail] != null) {
-          var t1c = firstVisitCpa(pts, hist.marks["1"], passTs.PINb[sail] + 40000);
-          if (t1c) passTs.M1c[sail] = t1c;
-        }
+        var m1s = allVisits(pts, hist.marks["1"], afterSt);
+        var pinAfter = afterSt + 8 * 60 * 1000;
+        if (m1s[0]) pinAfter = Math.max(pinAfter, m1s[0] + 45000);
+        var pins = allVisits(pts, hist.pin, pinAfter);
+        m1s.forEach(function (t, idx) {
+          if (m1Ids[idx]) passTs[m1Ids[idx]][sail] = t;
+        });
+        pins.forEach(function (t, idx) {
+          if (pinIds[idx]) passTs[pinIds[idx]][sail] = t;
+        });
       });
+      packFill();
       roundArr.M1 = voteRound(hist.marks["1"], passTs.M1, 25000);
       roundArr.PIN = voteRound(hist.pin, passTs.PIN, 28000);
     }
@@ -1197,7 +1274,14 @@
           }
           var cell = "";
           if (pid === "ST") cell = ocs ? "OCS" : fmtBehindFirst(r.times.ST, firstSt);
-          else if (r.times[pid] && i > 0 && r.times[used[i - 1]]) cell = fmtClock(r.times[pid] - r.times[used[i - 1]]);
+          else if (r.times[pid]) {
+            var prevT = null;
+            for (var k = i - 1; k >= 0; k--) {
+              if (r.times[used[k]]) { prevT = r.times[used[k]]; break; }
+            }
+            if (prevT) cell = fmtClock(r.times[pid] - prevT);
+            else if (gunTs) cell = fmtClock(r.times[pid] - gunTs);
+          }
           html += "<td class=\"timer-col\">" + cell + "</td>";
         });
         if (showOverall) {
@@ -1254,8 +1338,12 @@
       detectLivePasses();
       renderLiveTable();
     }
+    var lastHistAt = 0;
     function poll() {
-      var q = needHistory() ? "/api/lipton-dev/live?history=1" : "/api/lipton-dev/live";
+      var now = Date.now();
+      var histQ = needHistory() || (now - lastHistAt > 12000);
+      if (histQ) lastHistAt = now;
+      var q = histQ ? "/api/lipton-dev/live?history=1" : "/api/lipton-dev/live";
       fetch(q, { cache: "no-store" })
         .then(function (res) { return res.json(); })
         .then(function (data) {
@@ -1266,11 +1354,13 @@
     }
     function needHistory() {
       if (!gunTs) return true;
+      var now = liveNow();
       var sails = Object.keys(hist.boats);
       if (sails.length < 12) return true;
       for (var i = 0; i < sails.length; i++) {
         var t = hist.boats[sails[i]];
         if (!t || !t.length || t[0].ts_ms > gunTs + 15000) return true;
+        if (t[t.length - 1].ts_ms < now - 25000) return true;
       }
       if (!hist.pin.length || hist.pin[0].ts_ms > gunTs + 15000) return true;
       var m1 = hist.marks["1"];

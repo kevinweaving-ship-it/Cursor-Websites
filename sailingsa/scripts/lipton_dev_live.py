@@ -20,9 +20,9 @@ from lipton_vakaros import (
 )
 
 TELEAPI = "https://teleapi.regatta.app/telemetry"
-WINDOW_MS = 90_000
+WINDOW_MS = 240_000
 HISTORY_MS = 4 * 60 * 1000
-LIVE_TRAIL_MS = 90_000
+LIVE_TRAIL_MS = 240_000
 STEP_MS = 280
 CLOCK_LAG_MS = 20_000
 CHUNK_MS = 3 * 60 * 1000
