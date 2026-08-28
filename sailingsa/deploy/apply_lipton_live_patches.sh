@@ -29,6 +29,8 @@ PATCHERS=(
   patch_lipton_pre_arm_wake.py
   patch_lipton_live_button_rk.py
   patch_lipton_apply_late_finish.py
+  patch_lipton_icons_merge_read.py
+  patch_lipton_allers_name_links.py
 )
 
 echo "api $API"
@@ -62,6 +64,8 @@ REQUIRED=(
   LIPTON_PRE_ARM_WAKE_V1
   LIPTON_LIVE_BUTTON_RK_V1
   LIPTON_APPLY_LATE_FINISH_V1
+  LIPTON_ICONS_MERGE_READ_V1
+  LIPTON_ALLERS_NAME_LINKS_V2
 )
 miss=0
 for m in "${REQUIRED[@]}"; do
@@ -77,4 +81,5 @@ if [[ "$miss" -ne 0 ]]; then
   exit 1
 fi
 echo "OK all required Lipton live markers"
-echo "After restart: python3 /usr/local/sbin/restore_lipton_live_overnight.py"
+echo "After overnight/leftover-gun restart: python3 /usr/local/sbin/restore_lipton_live_overnight.py"
+echo "Do NOT run overnight restore while race_armed / waiting for a start (it pins day_close + last filled Rn)."
