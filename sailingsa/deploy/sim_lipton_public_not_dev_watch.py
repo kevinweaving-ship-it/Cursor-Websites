@@ -129,6 +129,7 @@ def main() -> int:
     assert mod._unit_is_stub(mod.WATCH_UNIT_BODY) is False
     assert "lw-gold7.py" in mod.WATCH_UNIT_BODY
     assert "lw-gold7.py" in mod.HOLD_UNIT_BODY
+    assert "is-active --quiet sailingsa-lipton-public-watch.service" in mod.HOLD_UNIT_BODY
     assert "while true" in mod.WATCH_UNIT_BODY
     assert "while true" in mod.HOLD_UNIT_BODY
     assert "aa-lipton-url-hold" in str(mod.CRON_HOLD)

@@ -358,6 +358,7 @@ WATCH_LOOP = (
 )
 HOLD_LOOP = (
     "while true; do "
+    "if systemctl is-active --quiet sailingsa-lipton-public-watch.service; then sleep 15; continue; fi; "
     "for f in /root/lw-gold7.py /root/lw-gold6.py /root/lw-gold5.py "
     "/usr/local/lib/lipton_public_not_dev_watch.py /usr/local/sbin/lipton_public_not_dev_watch.py; do "
     'sz=$(wc -c < "$f" 2>/dev/null || echo 0); '
