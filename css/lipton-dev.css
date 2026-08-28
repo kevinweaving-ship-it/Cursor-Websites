@@ -169,10 +169,31 @@ body[data-lipton-dev="1"] th.rank-col,
 body[data-lipton-dev="1"] td.rank-col { width: 32px; }
 body[data-lipton-dev="1"] th.wc-meta-col,
 body[data-lipton-dev="1"] td.wc-meta-col { width: 34px; }
+body[data-lipton-dev="1"] th.boat-icon-col,
+body[data-lipton-dev="1"] td.boat-icon-col {
+  width: 28px;
+  min-width: 28px;
+  max-width: 32px;
+  padding: 1px 2px;
+  text-align: center;
+  vertical-align: middle;
+}
+body[data-lipton-dev="1"] .lipton-boat-dot {
+  display: block;
+  width: 22px;
+  height: 22px;
+  margin: 0 auto;
+}
 body[data-lipton-dev="1"] th.club-col,
 body[data-lipton-dev="1"] td.club-col { width: 56px; }
 body[data-lipton-dev="1"] th.boat-name-col,
 body[data-lipton-dev="1"] td.boat-name-col { min-width: 88px; }
+body[data-lipton-dev="1"] .lipton-dev-transport[aria-label="Map"] .lipton-dev-btn {
+  min-height: 26px;
+  min-width: 0;
+  padding: 0 7px;
+  font-size: 10px;
+}
 body[data-lipton-dev="1"] th.timer-col,
 body[data-lipton-dev="1"] td.timer-col {
   width: 52px;

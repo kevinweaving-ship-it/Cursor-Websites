@@ -421,6 +421,7 @@
     var deltaSeen = {};
 
     var tbody = document.getElementById("lipton-dev-tbody");
+    var wrapEl = document.getElementById("lipton-dev-table-wrap");
     var clockEl = document.getElementById("lipton-dev-clock");
     var sailedEl = document.getElementById("lipton-dev-sailed");
     var checksumEl = document.getElementById("lipton-dev-checksum");
@@ -433,6 +434,8 @@
     var scrubbing = false;
     var headRow = document.getElementById("lipton-dev-thead-row");
     if (!tbody) return;
+    if (wrapEl) wrapEl.hidden = true;
+    tbody.innerHTML = "";
 
     function ident(tracker) {
       return BOATS[tracker] || null;
@@ -1424,7 +1427,7 @@
       if (limit == null) limit = PASSES.length - 1;
       if (limit === lastHeadLimit) return;
       lastHeadLimit = limit;
-      var html = "<th class=\"rank-col\">Rank</th><th class=\"wc-meta-col\">Bow</th><th class=\"boat-name-col\">Boat</th><th class=\"club-col\">Club</th>";
+      var html = "<th class=\"rank-col\">Rank</th><th class=\"wc-meta-col\">Bow</th><th class=\"boat-name-col\">Boat</th><th class=\"boat-icon-col\" title=\"Map number and boat colour\"> </th><th class=\"club-col\">Club</th>";
       for (var i = 0; i <= limit; i++) {
         var p = PASSES[i];
         var lab = passHeadLabel(i);
@@ -1618,6 +1621,11 @@
       }
       return "<td class=\"place-delta-col\"><span class=\"place-delta place-delta--same\" title=\"No change\" aria-label=\"No change\">■0</span></td>";
     }
+    function boatHasStarted(boat, ts) {
+      if (ts < GUN_TS) return false;
+      if (ocsPending(boat, ts)) return true;
+      return LEGAL_TS[boat] != null && ts >= LEGAL_TS[boat];
+    }
     function rowsAt(ts) {
       var names = {};
       Object.keys(BOATS).forEach(function (boat) { names[boat] = true; });
@@ -1627,7 +1635,9 @@
           names[b.boat] = true;
         });
       });
-      var rows = Object.keys(names).map(function (boat) {
+      var rows = Object.keys(names).filter(function (boat) {
+        return boatHasStarted(boat, ts);
+      }).map(function (boat) {
         var times = boatTimes(boat, ts);
         var far = furthest(times);
         return {
@@ -1655,18 +1665,44 @@
     function leadMark(rows) {
       return rows.length ? rows[0].farLab : null;
     }
-    function stateKey(rows) {
-      return rows.map(function (r) { return r.rank + ":" + r.boat + ":" + r.farIdx; }).join("|");
+    function stateKey(rows, ts) {
+      var passLimit = visiblePassLimit(ts);
+      return "p" + passLimit + "|" + rows.map(function (r) {
+        var pending = ocsPending(r.boat, ts);
+        var badge = mapBadge(r.boat, ts);
+        var place = badge.place == null ? "" : badge.place;
+        return [r.boat, pending ? "O" : "S", place, r.farIdx, r.farTs || ""].join(":");
+      }).join("|");
+    }
+    function boatIconCell(sail, ts) {
+      var pending = ocsPending(sail, ts);
+      var paint = boatPaint(sail, pending);
+      var badge = mapBadge(sail, ts);
+      var label = pending ? "OCS" : (badge.place != null ? String(badge.place) : "");
+      var fs = pending ? "5.2" : "8";
+      var title = pending ? "OCS" : (label ? "Map " + label : "Boat");
+      return "<td class=\"boat-icon-col\" title=\"" + esc(title) + "\">" +
+        "<svg class=\"lipton-boat-dot\" viewBox=\"0 0 24 24\" aria-hidden=\"true\">" +
+        "<circle cx=\"12\" cy=\"13.2\" r=\"8.1\" fill=\"" + paint.fill + "\" stroke=\"#fff\" stroke-width=\"1.5\"/>" +
+        "<polygon points=\"12,3 15.8,8.4 8.2,8.4\" fill=\"" + paint.fill + "\" stroke=\"#fff\" stroke-width=\"1.1\"/>" +
+        "<text x=\"12\" y=\"16\" text-anchor=\"middle\" fill=\"" + paint.ink + "\" font-size=\"" + fs + "\" font-weight=\"800\">" + esc(label) + "</text>" +
+        "</svg></td>";
     }
     function rowHtml(r, unroll, rankMaps, passLimit) {
       var id = ident(r.boat);
       var pending = ocsPending(r.boat, viewTs);
-      var medal = r.rank === 1 ? " medal-gold" : r.rank === 2 ? " medal-silver" : r.rank === 3 ? " medal-bronze" : "";
+      var badge = mapBadge(r.boat, viewTs);
+      var rankLabel = pending ? "OCS" : (badge.place != null ? badge.place : "");
+      var medal = "";
+      if (!pending && badge.place === 1) medal = " medal-gold";
+      else if (!pending && badge.place === 2) medal = " medal-silver";
+      else if (!pending && badge.place === 3) medal = " medal-bronze";
       var cls = medal + (unroll ? " lipton-unroll" : "") + (pending ? " ocs-pending" : "");
       var html = "<tr class=\"" + cls + "\" data-bow=\"" + esc(id ? id.bow : "") + "\" data-boat=\"" + esc(r.boat) + "\">";
-      html += "<td class=\"rank-col\">" + r.rank + "</td>";
+      html += "<td class=\"rank-col\">" + rankLabel + "</td>";
       html += "<td class=\"wc-meta-col\">" + bowCell(id) + "</td>";
       html += "<td class=\"boat-name-col\">" + boatNameCell(id) + "</td>";
+      html += boatIconCell(r.boat, viewTs);
       html += "<td class=\"club-col\">" + clubCell(id, pending) + "</td>";
       for (var i = 0; i <= passLimit; i++) {
         html += "<td class=\"timer-col\">" + splitCell(r.times, i, r.boat) + "</td>";
@@ -1691,7 +1727,13 @@
       }
       var lead = rows[0];
       if (lead.farIdx < 0) {
-        sailedEl.textContent = RACE_LAB + " · gun " + GUN_CLOCK + " · approaching start";
+        var ocsN = 0;
+        rows.forEach(function (r) { if (ocsPending(r.boat, viewTs)) ocsN += 1; });
+        if (ocsN) {
+          sailedEl.textContent = RACE_LAB + " · gun " + GUN_CLOCK + " · OCS " + ocsN;
+        } else {
+          sailedEl.textContent = RACE_LAB + " · gun " + GUN_CLOCK + " · approaching start";
+        }
         fillChecksum();
         return;
       }
@@ -1780,6 +1822,18 @@
       var rows = rowsAt(ts);
       var rankMaps = pairRankMaps(ts);
       var passLimit = visiblePassLimit(ts);
+      if (!rows.length) {
+        tbody.innerHTML = "";
+        if (wrapEl) wrapEl.hidden = true;
+        lastHeadLimit = -1;
+        if (clockEl) clockEl.textContent = clockText(ts, rows);
+        setSailed(rows);
+        lastKey = stateKey(rows, ts);
+        drawMap(ts);
+        syncScrub();
+        return;
+      }
+      if (wrapEl) wrapEl.hidden = false;
       fillHead(passLimit);
       var html = "";
       for (var i = 0; i < rows.length; i++) {
@@ -1790,7 +1844,7 @@
       tbody.innerHTML = html;
       if (clockEl) clockEl.textContent = clockText(ts, rows);
       setSailed(rows);
-      lastKey = stateKey(rows);
+      lastKey = stateKey(rows, ts);
       drawMap(ts);
       syncScrub();
     }
@@ -1826,7 +1880,7 @@
           armTailClear();
         }
         var rows = rowsAt(playTs);
-        var key = stateKey(rows);
+        var key = stateKey(rows, playTs);
         if (key !== lastKey) {
           render(playTs);
         } else if (clockEl) {
