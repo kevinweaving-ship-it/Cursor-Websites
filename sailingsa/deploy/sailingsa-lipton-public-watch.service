@@ -1,7 +1,6 @@
 [Unit]
 Description=Lipton 2026 public URL live-board watchdog
 After=network.target nginx.service sailingsa-api.service
-PartOf=nginx.service
 
 [Service]
 Type=simple
@@ -11,4 +10,3 @@ ExecStart=/bin/bash -c 'while true; do /usr/local/lib/lipton_public_watch_guard.
 
 [Install]
 WantedBy=multi-user.target
-WantedBy=nginx.service

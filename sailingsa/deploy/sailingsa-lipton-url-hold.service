@@ -1,0 +1,12 @@
+[Unit]
+Description=Lipton 2026 public URL hold loop
+After=network.target nginx.service sailingsa-api.service
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=2
+ExecStart=/bin/bash -c 'while true; do /usr/local/lib/lipton_public_watch_guard.sh; sleep 5; done'
+
+[Install]
+WantedBy=multi-user.target

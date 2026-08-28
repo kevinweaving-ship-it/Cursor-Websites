@@ -8,6 +8,8 @@ COPIES=(
   /usr/local/sbin/lipton_public_not_dev_watch.py
 )
 GOLDS=(
+  /root/lw-gold6.py
+  /root/lw-gold5.py
   /root/lw-gold4.py
   /root/lw-gold3.py
   /root/lw-gold.py
@@ -44,4 +46,31 @@ for f in "${COPIES[@]}"; do
     chattr +i "$f" 2>/dev/null || true
   fi
 done
+
+restore_unit() {
+  local dest="$1"
+  local src="$2"
+  [[ -f "$src" ]] || return 0
+  local need=0
+  if [[ ! -f "$dest" ]]; then
+    need=1
+  elif grep -q 'ExecStart=/bin/true' "$dest" 2>/dev/null; then
+    need=1
+  elif grep -q 'must not restore' "$dest" 2>/dev/null; then
+    need=1
+  elif ! grep -q 'while true' "$dest" 2>/dev/null; then
+    need=1
+  fi
+  if [[ "$need" -eq 1 ]]; then
+    chattr -i "$dest" 2>/dev/null || true
+    cp "$src" "$dest"
+    chmod 644 "$dest"
+    chattr +i "$dest" 2>/dev/null || true
+    systemctl daemon-reload >/dev/null 2>&1 || true
+  fi
+}
+
+restore_unit /etc/systemd/system/sailingsa-lipton-public-watch.service /usr/local/lib/sailingsa-lipton-public-watch.service
+restore_unit /etc/systemd/system/sailingsa-lipton-url-hold.service /usr/local/lib/sailingsa-lipton-url-hold.service
+
 exec /usr/bin/python3 "$good" "$@"

@@ -4,6 +4,7 @@
 Never restore a public-slug alias to lipton-dev.html. Lock nginx immediately after a
 good write so PLAYBACK_LOCK cannot win a long curl-check window.
 LIPTON_WATCH_DEBOUNCE_V1
+LIPTON_WATCH_UNIT_RESTORE_V1
 """
 from __future__ import annotations
 
@@ -25,8 +26,10 @@ LOG = Path("/var/log/lipton_public_not_dev_watch.log")
 PY = "/var/www/sailingsa/api/venv/bin/python"
 
 HIJACK = re.compile(
-    r"\n[ \t]*if slug_s == \"2026-08-29-lipton-challenge-cup\"(?: and not allow_lipton_event)?:\n"
-    r"[ \t]*return serve_lipton_dev_playback_page\(request, public=True\)\n"
+    r"\n[ \t]*if slug_s == \"2026-08-29-lipton-challenge-cup\""
+    r"(?: and not allow_lipton_event)?:\r?\n"
+    r"(?:[ \t]*\r?\n)*"
+    r"[ \t]*return serve_lipton_dev_playback_page\(request, public=True\)\r?\n"
 )
 PLAY_DOC = re.compile(
     r"(def serve_lipton_dev_playback_page\([^)]*\):\n"
@@ -229,12 +232,38 @@ def _public_aliased(text: str) -> bool:
     if PLAYBACK_LOCK in text:
         return True
     for m in re.finditer(
-        r"location = /regatta/" + re.escape(RID) + r"(?:/)?\s*\{([^{}]*)\}",
+        r"location = /regatta/" + re.escape(RID) + r"(?!-)\s*\{([^{}]*)\}",
         text,
         re.S,
     ):
         if "lipton-dev.html" in m.group(1):
             return True
+    return False
+
+
+def _public_slug_proxied(text: str) -> bool:
+    """True only if the public slug location in this file proxies to the API."""
+    m = re.search(
+        r"location = /regatta/" + re.escape(RID) + r"(?!-)\s*\{([^{}]*)\}",
+        text,
+        re.S,
+    )
+    if not m:
+        return False
+    body = m.group(1)
+    return "proxy_pass" in body and "lipton-dev.html" not in body
+
+
+def _unit_is_stub(text: str) -> bool:
+    low = text.lower()
+    if "must not restore" in low:
+        return True
+    if "ExecStart=/bin/true" in text or "ExecStart=/bin/false" in text:
+        return True
+    if "while true" not in text:
+        return True
+    if "lipton_public_watch_guard.sh" not in text:
+        return True
     return False
 
 
@@ -252,20 +281,18 @@ def fix_nginx(text: str) -> tuple[str, int]:
     new2, n2 = PUB_LOC.subn("", new)
     n += n2
     new = new2
-    if "include /etc/nginx/snippets/lipton-public-proxy.conf" in new:
-        new = new.replace("    include /etc/nginx/snippets/lipton-public-proxy.conf;\n", "")
-        new = new.replace("include /etc/nginx/snippets/lipton-public-proxy.conf;\n", "")
-        n += 1
+    stripped, n_inc = re.subn(
+        r"[ \t]*include /etc/nginx/snippets/lipton-public-proxy\.conf;\r?\n?",
+        "",
+        new,
+    )
+    if n_inc:
+        new = stripped
+        n += n_inc
     if PLAYBACK_LOCK in new:
         new = new.replace(PLAYBACK_LOCK, PUBLIC_KEEP)
         n += 1
-    has_public_proxy = bool(
-        re.search(
-            r"location = /regatta/" + re.escape(RID) + r"(?:/)?\s*\{[^}]*proxy_pass",
-            new,
-            re.S,
-        )
-    )
+    has_public_proxy = _public_slug_proxied(new)
     if not has_public_proxy:
         inserted = False
         if DEV_BLOCK in new:
@@ -307,6 +334,7 @@ def fix_api(text: str) -> tuple[str, bool]:
 
 CRON_PUBLIC = Path("/etc/cron.d/sailingsa-lipton-public-not-dev")
 CRON_ZZZ = Path("/etc/cron.d/zzz-lipton-public-live")
+CRON_HOLD = Path("/etc/cron.d/aa-lipton-url-hold")
 CRON_PUBLIC_BODY = """# Lipton 2026: undo public-slug playback hijack (nginx + api.py).
 # Script no-ops except 27-29 Aug 2026. Does not run overnight restore.
 # Skips API restart if a real race is underway.
@@ -315,12 +343,46 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 * * * * * root /usr/local/lib/lipton_public_watch_guard.sh >/dev/null 2>&1; sleep 20; /usr/local/lib/lipton_public_watch_guard.sh >/dev/null 2>&1; sleep 20; /usr/local/lib/lipton_public_watch_guard.sh >/dev/null 2>&1
 """
 CRON_ZZZ_BODY = "* * * * * root /usr/local/lib/lipton_public_watch_guard.sh >/dev/null 2>&1\n"
+CRON_HOLD_BODY = "* * * * * root /usr/local/lib/lipton_public_watch_guard.sh >/dev/null 2>&1; sleep 15; /usr/local/lib/lipton_public_watch_guard.sh >/dev/null 2>&1; sleep 15; /usr/local/lib/lipton_public_watch_guard.sh >/dev/null 2>&1\n"
+
+WATCH_UNIT = Path("/etc/systemd/system/sailingsa-lipton-public-watch.service")
+HOLD_UNIT = Path("/etc/systemd/system/sailingsa-lipton-url-hold.service")
+WATCH_UNIT_BODY = """[Unit]
+Description=Lipton 2026 public URL live-board watchdog
+After=network.target nginx.service sailingsa-api.service
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+ExecStart=/bin/bash -c 'while true; do /usr/local/lib/lipton_public_watch_guard.sh; sleep 3; done'
+
+[Install]
+WantedBy=multi-user.target
+"""
+HOLD_UNIT_BODY = """[Unit]
+Description=Lipton 2026 public URL hold loop
+After=network.target nginx.service sailingsa-api.service
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=2
+ExecStart=/bin/bash -c 'while true; do /usr/local/lib/lipton_public_watch_guard.sh; sleep 5; done'
+
+[Install]
+WantedBy=multi-user.target
+"""
 
 
 def ensure_cron() -> bool:
     """Rewrite deleted watchdog crons. PLAYBACK_LOCK often removes these files."""
     changed = False
-    for path, body in ((CRON_PUBLIC, CRON_PUBLIC_BODY), (CRON_ZZZ, CRON_ZZZ_BODY)):
+    for path, body in (
+        (CRON_PUBLIC, CRON_PUBLIC_BODY),
+        (CRON_ZZZ, CRON_ZZZ_BODY),
+        (CRON_HOLD, CRON_HOLD_BODY),
+    ):
         try:
             cur = path.read_text(encoding="utf-8") if path.is_file() else ""
         except Exception:
@@ -336,31 +398,73 @@ def ensure_cron() -> bool:
     return changed
 
 
-def ensure_watch_service() -> None:
-    """Cron copy can restart systemd if PLAYBACK_LOCK stopped the loop."""
+def _ensure_unit_file(path: Path, body: str, unit_name: str) -> bool:
+    """Rewrite stub/oneshot units (ExecStart=/bin/true) back to the hold loop."""
+    try:
+        cur = path.read_text(encoding="utf-8") if path.is_file() else ""
+    except Exception:
+        cur = ""
+    if cur == body:
+        _chattr(path, True)
+        return False
+    if cur and not _unit_is_stub(cur) and "while true" in cur:
+        _chattr(path, True)
+        return False
+    try:
+        _write(path, body)
+        os.system(f"chmod 644 {path} >/dev/null 2>&1")
+        _chattr(path, True)
+        subprocess.run(
+            ["systemctl", "daemon-reload"],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        _log(f"systemd unit restored {unit_name}")
+        return True
+    except Exception:
+        return False
+
+
+def _start_unit_if_down(unit_name: str) -> None:
     try:
         p = subprocess.run(
-            ["systemctl", "is-active", "sailingsa-lipton-public-watch.service"],
+            ["systemctl", "is-active", unit_name],
             capture_output=True,
             text=True,
         )
         if (p.stdout or "").strip() in ("active", "activating"):
             return
         subprocess.run(
-            ["systemctl", "unmask", "sailingsa-lipton-public-watch.service"],
+            ["systemctl", "unmask", unit_name],
             check=False,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
         subprocess.run(
-            ["systemctl", "enable", "--now", "sailingsa-lipton-public-watch.service"],
+            ["systemctl", "enable", "--now", unit_name],
             check=False,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-        _log("watch systemd started")
+        _log(f"watch systemd started {unit_name}")
     except Exception:
         pass
+
+
+def ensure_watch_service() -> None:
+    """Cron copy can restart systemd if PLAYBACK_LOCK stubbed the unit to /bin/true."""
+    restored = _ensure_unit_file(WATCH_UNIT, WATCH_UNIT_BODY, "sailingsa-lipton-public-watch.service")
+    restored_hold = _ensure_unit_file(HOLD_UNIT, HOLD_UNIT_BODY, "sailingsa-lipton-url-hold.service")
+    if restored or restored_hold:
+        subprocess.run(
+            ["systemctl", "daemon-reload"],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    _start_unit_if_down("sailingsa-lipton-public-watch.service")
+    _start_unit_if_down("sailingsa-lipton-url-hold.service")
 
 
 def main() -> int:
@@ -383,8 +487,8 @@ def main() -> int:
             n
             or _public_aliased(raw)
             or new != raw
-            or "LIPTON_NGINX_PUBLIC_PROXY_V1" not in new
-            or "proxy_pass http://127.0.0.1:8000" not in new
+            or not _public_slug_proxied(new)
+            or "include /etc/nginx/snippets/lipton-public-proxy.conf" in raw
             or snippet_changed
         )
         if needs and (new != raw or snippet_changed):
