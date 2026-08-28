@@ -5,10 +5,15 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828bz";
+  var CACHE = "20260828ca";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
-  var LIVE_Q = params.get("live") === "1";
+  var LIVE_Q = !RACE_Q;
+  if (LIVE_Q && !params.has("live") && !params.has("race")) {
+    var liveUrl = new URL(location.href);
+    liveUrl.searchParams.set("live", "1");
+    history.replaceState({}, "", liveUrl.pathname + "?" + liveUrl.searchParams.toString());
+  }
   function jsonUrl(kind, race) {
     if (!race || race === 4) return "/js/lipton-dev-" + kind + ".json?v=" + CACHE;
     return "/js/lipton-dev-" + kind + "-r" + race + ".json?v=" + CACHE;
@@ -107,6 +112,13 @@
     var s2 = Math.floor(ms / 1000);
     return Math.floor(s2 / 60) + ":" + pad(s2 % 60);
   }
+  function fmtLiveClock(ms) {
+    var a = Math.abs(Number(ms) || 0);
+    var tenths = Math.floor(a / 100);
+    var s = Math.floor(tenths / 10);
+    var t = tenths % 10;
+    return (ms < 0 ? "T−" : "T+") + Math.floor(s / 60) + ":" + pad(s % 60) + "." + t;
+  }
   function esc(s) {
     return String(s || "")
       .replace(/&/g, "&amp;")
@@ -153,8 +165,7 @@
   }
 
   if (LIVE_Q) {
-    var liveSailed = document.getElementById("lipton-dev-sailed");
-    if (liveSailed) liveSailed.textContent = "Live — waiting for the next race";
+    startLive();
   } else {
   Promise.all([
     fetch(DATA_URL, { cache: "no-store" }).then(function (res) {
@@ -176,6 +187,258 @@
       }
       console.error(err);
     });
+  }
+
+  var LIVE_BOAT_COLORS = {
+    HYC: "#2563eb", RCYC: "#e11d48", KYC: "#16a34a", RNYC: "#7c3aed",
+    WBYC: "#ea580c", FBYC: "#0891b2", SBYC: "#ca8a04", PYC: "#db2777",
+    LDYC: "#4f46e5", GLYC: "#65a30d", BYC: "#0d9488", TSC: "#9333ea",
+    WYAC: "#f59e0b", RCYCA: "#64748b", "RCYC Academy": "#64748b",
+    UCT: "#0284c7", UCTYC: "#0284c7", IZI: "#be123c", IZIVUNGUVUNGU: "#be123c",
+    LYCN: "#15803d", LYC: "#15803d"
+  };
+
+  function startLive() {
+    bindRaceButtons(-1);
+    var gunTs = null;
+    var snap = null;
+    var chartMap = null;
+    var mapEl = document.getElementById("lipton-dev-map");
+    var mapCtx = null;
+    var followFleet = true;
+    var chartSyncing = false;
+    var drawingMap = false;
+    var identity = {};
+    var hud = document.getElementById("lipton-dev-map-hud");
+    var nameEl = document.getElementById("lipton-dev-map-hud-name");
+    var clockHud = document.getElementById("lipton-dev-map-hud-clock");
+    var playBtn = document.getElementById("lipton-dev-play");
+    var slowerBtn = document.getElementById("lipton-dev-slower");
+    var fasterBtn = document.getElementById("lipton-dev-faster");
+    var scrubEl = document.getElementById("lipton-dev-scrub");
+    if (playBtn) playBtn.disabled = true;
+    if (slowerBtn) slowerBtn.disabled = true;
+    if (fasterBtn) fasterBtn.disabled = true;
+    if (scrubEl) scrubEl.disabled = true;
+    function liveFill(sail) {
+      return LIVE_BOAT_COLORS[sail] || "#94a3b8";
+    }
+    function paintClock() {
+      if (!clockHud || !hud) return;
+      if (gunTs == null) {
+        clockHud.textContent = "—";
+        hud.classList.remove("is-after");
+        return;
+      }
+      var delta = Date.now() - gunTs;
+      clockHud.textContent = fmtLiveClock(delta);
+      hud.classList.toggle("is-after", delta >= 0);
+    }
+    function initChart() {
+      var el = document.getElementById("lipton-dev-chart");
+      if (!el || !window.L || chartMap) return;
+      chartMap = L.map(el, {
+        zoomControl: false,
+        attributionControl: true,
+        dragging: true,
+        scrollWheelZoom: true,
+        doubleClickZoom: true,
+        boxZoom: true,
+        keyboard: true,
+        touchZoom: true,
+        zoomSnap: 0,
+        zoomAnimation: false,
+        fadeAnimation: false,
+        markerZoomAnimation: false,
+        inertia: true
+      }).setView([-33.886, 18.43], 15);
+      var tileOpts = {
+        minZoom: 12, maxZoom: 19, keepBuffer: 8,
+        updateWhenIdle: false, updateWhenZooming: false, updateInterval: 400, crossOrigin: true
+      };
+      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", Object.assign({
+        maxZoom: 19, attribution: "Tiles © Esri"
+      }, tileOpts)).addTo(chartMap);
+      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", Object.assign({
+        maxZoom: 18, opacity: 0.85, attribution: "Labels © Esri"
+      }, tileOpts)).addTo(chartMap);
+      chartMap.on("dragstart zoomstart boxzoomstart movestart", function () {
+        if (!chartSyncing) followFleet = false;
+      });
+      chartMap.on("move zoom", function () {
+        if (!chartSyncing) drawLiveMap();
+      });
+      window.requestAnimationFrame(function () {
+        if (chartMap) chartMap.invalidateSize({ animate: false });
+      });
+      var track = el.parentNode;
+      var ctrls = el.querySelector(".leaflet-control-container");
+      if (track && ctrls) track.appendChild(ctrls);
+    }
+    function sizeCanvas() {
+      if (!mapEl) return;
+      initChart();
+      var w = mapEl.clientWidth || 640;
+      var h = mapEl.clientHeight || 480;
+      var dpr = window.devicePixelRatio || 1;
+      var needW = Math.floor(w * dpr);
+      var needH = Math.floor(h * dpr);
+      if (!mapCtx || mapEl.width !== needW || mapEl.height !== needH) {
+        mapEl.width = needW;
+        mapEl.height = needH;
+        mapCtx = mapEl.getContext("2d");
+      }
+      mapCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      mapCtx.imageSmoothingEnabled = true;
+    }
+    function xy(lat, lon) {
+      if (!chartMap) return { x: 0, y: 0 };
+      var pt = chartMap.latLngToContainerPoint([lat, lon]);
+      return { x: pt.x, y: pt.y };
+    }
+    function drawBoatIcon(p, hdg, fill) {
+      var r = 7;
+      mapCtx.beginPath();
+      mapCtx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      mapCtx.fillStyle = fill;
+      mapCtx.fill();
+      mapCtx.strokeStyle = "rgba(15,23,42,0.75)";
+      mapCtx.lineWidth = 1.4;
+      mapCtx.stroke();
+      mapCtx.save();
+      mapCtx.translate(p.x, p.y);
+      mapCtx.rotate((hdg || 0) * Math.PI / 180);
+      mapCtx.beginPath();
+      mapCtx.moveTo(0, -r - 3.6);
+      mapCtx.lineTo(3.1, -r + 1.2);
+      mapCtx.lineTo(-3.1, -r + 1.2);
+      mapCtx.closePath();
+      mapCtx.fillStyle = "#ffffff";
+      mapCtx.fill();
+      mapCtx.restore();
+    }
+    function fitLive() {
+      if (!chartMap || !followFleet || !snap) return;
+      var pts = [];
+      Object.keys(snap.boats || {}).forEach(function (sail) {
+        var b = snap.boats[sail];
+        if (b && b.lat != null) pts.push([b.lat, b.lon]);
+      });
+      if (snap.pin && snap.pin.lat != null) pts.push([snap.pin.lat, snap.pin.lon]);
+      if (snap.committee && snap.committee.lat != null) pts.push([snap.committee.lat, snap.committee.lon]);
+      Object.keys(snap.marks || {}).forEach(function (k) {
+        var m = snap.marks[k];
+        if (m && m.lat != null) pts.push([m.lat, m.lon]);
+      });
+      if (!pts.length) return;
+      var lat = 0, lon = 0;
+      pts.forEach(function (p) { lat += p[0]; lon += p[1]; });
+      chartSyncing = true;
+      chartMap.setView([lat / pts.length, lon / pts.length], Math.max(chartMap.getZoom(), 15), { animate: false });
+      chartSyncing = false;
+    }
+    function drawLiveMap() {
+      if (drawingMap) return;
+      drawingMap = true;
+      sizeCanvas();
+      if (!mapCtx || !mapEl) {
+        drawingMap = false;
+        return;
+      }
+      var w = mapEl.clientWidth || 0;
+      var h = mapEl.clientHeight || 0;
+      mapCtx.clearRect(0, 0, w, h);
+      var data = snap || {};
+      Object.keys(data.marks || {}).forEach(function (k) {
+        var pos = data.marks[k];
+        if (!pos) return;
+        var p = xy(pos.lat, pos.lon);
+        mapCtx.beginPath();
+        mapCtx.arc(p.x, p.y, 2.4, 0, Math.PI * 2);
+        mapCtx.fillStyle = "#f59e0b";
+        mapCtx.fill();
+        mapCtx.fillStyle = "#ffffff";
+        mapCtx.font = "bold 10px sans-serif";
+        mapCtx.fillText("M" + k, p.x + 8, p.y + 4);
+      });
+      var line = data.start_line;
+      if (line && line.left && line.right) {
+        var a = xy(line.left.lat, line.left.lon);
+        var b = xy(line.right.lat, line.right.lon);
+        mapCtx.beginPath();
+        mapCtx.moveTo(a.x, a.y);
+        mapCtx.lineTo(b.x, b.y);
+        mapCtx.strokeStyle = "#38bdf8";
+        mapCtx.lineWidth = 2.4;
+        mapCtx.setLineDash([7, 4]);
+        mapCtx.stroke();
+        mapCtx.setLineDash([]);
+        mapCtx.beginPath();
+        mapCtx.arc(a.x, a.y, 4, 0, Math.PI * 2);
+        mapCtx.fillStyle = "#38bdf8";
+        mapCtx.fill();
+        mapCtx.fillStyle = "#e2e8f0";
+        mapCtx.font = "bold 9px sans-serif";
+        mapCtx.fillRect(b.x - 7, b.y - 5, 14, 10);
+        mapCtx.strokeStyle = "#38bdf8";
+        mapCtx.lineWidth = 1;
+        mapCtx.strokeRect(b.x - 7, b.y - 5, 14, 10);
+        mapCtx.fillStyle = "#0b1b33";
+        mapCtx.fillText("RC", b.x - 6, b.y + 3);
+        mapCtx.fillStyle = "#ffffff";
+        mapCtx.font = "bold 10px sans-serif";
+        mapCtx.fillText("Pin", a.x + 6, a.y - 6);
+        mapCtx.fillText("START", (a.x + b.x) / 2 + 6, (a.y + b.y) / 2 - 6);
+      }
+      Object.keys(data.boats || {}).forEach(function (sail) {
+        var pos = data.boats[sail];
+        if (!pos) return;
+        var p = xy(pos.lat, pos.lon);
+        var fill = liveFill(sail);
+        drawBoatIcon(p, pos.hdg, fill);
+        mapCtx.font = "bold 10px sans-serif";
+        mapCtx.textAlign = "left";
+        mapCtx.textBaseline = "middle";
+        mapCtx.shadowColor = "rgba(0,0,0,0.9)";
+        mapCtx.shadowBlur = 3;
+        mapCtx.fillStyle = fill;
+        mapCtx.fillText((identity[sail] && (identity[sail].mapClub || identity[sail].club)) || sail, p.x + 12, p.y - 1);
+        mapCtx.shadowBlur = 0;
+      });
+      drawingMap = false;
+    }
+    function applySnap(data) {
+      if (!data || !data.ok) return;
+      snap = data;
+      if (data.gun_ts_ms) gunTs = Number(data.gun_ts_ms);
+      else gunTs = null;
+      paintClock();
+      var label = "";
+      if (data.race_number) label = "RACE " + data.race_number;
+      if (nameEl) {
+        nameEl.textContent = label;
+        hud.classList.toggle("is-nameless", !label);
+      }
+      fitLive();
+      drawLiveMap();
+    }
+    function poll() {
+      fetch("/api/lipton-dev/live", { cache: "no-store" })
+        .then(function (res) { return res.json(); })
+        .then(applySnap)
+        .catch(function () {});
+    }
+    fetch("/js/lipton-dev-replay.json?v=" + CACHE, { cache: "no-store" })
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .then(function (data) {
+        identity = (data && data.boats) || {};
+      })
+      .catch(function () {});
+    paintClock();
+    poll();
+    setInterval(paintClock, 100);
+    setInterval(poll, 2000);
+    window.addEventListener("resize", function () { drawLiveMap(); });
   }
 
   function start(data, trail) {

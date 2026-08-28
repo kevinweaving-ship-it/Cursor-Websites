@@ -17,7 +17,10 @@ spawn bash -c "scp -o StrictHostKeyChecking=no \
   $repo_root/sailingsa/frontend/js/vendor/leaflet/leaflet.js \
   $repo_root/sailingsa/frontend/js/vendor/leaflet/leaflet.css \
   $repo_root/css/lipton-dev.css \
+  $repo_root/sailingsa/scripts/lipton_vakaros.py \
+  $repo_root/sailingsa/scripts/lipton_dev_live.py \
   $repo_root/sailingsa/deploy/patch_lipton_dev_page.py \
+  $repo_root/sailingsa/deploy/patch_lipton_dev_live.py \
   ${user}@${server}:/tmp/"
 expect {
     -re "assword" { send "$password\r"; exp_continue }
@@ -26,7 +29,7 @@ expect {
 }
 wait
 
-spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "mkdir -p /var/www/sailingsa/js/vendor/leaflet && cp /tmp/lipton-dev.html /var/www/sailingsa/lipton-dev.html && cp /tmp/lipton-dev-playback.js /var/www/sailingsa/js/lipton-dev-playback.js && cp /tmp/lipton-dev-event-logo.png /var/www/sailingsa/js/lipton-dev-event-logo.png && cp /tmp/lipton-dev-start-airhorn.mp3 /var/www/sailingsa/js/lipton-dev-start-airhorn.mp3 && cp /tmp/lipton-dev-recall-horn.wav /var/www/sailingsa/js/lipton-dev-recall-horn.wav && cp /tmp/lipton-dev.css /var/www/sailingsa/css/lipton-dev.css && cp /tmp/lipton-dev-*.json /var/www/sailingsa/js/ && cp /tmp/leaflet.js /tmp/leaflet.css /var/www/sailingsa/js/vendor/leaflet/ && python3 /tmp/patch_lipton_dev_page.py && systemctl restart sailingsa-api && sleep 2 && systemctl is-active sailingsa-api && curl -sS -o /dev/null -w '%{http_code} %{url_effective}\\n' -A 'SailingSA-devcheck' https://sailingsa.co.za/regatta/2026-08-29-lipton-challenge-cup-dev && curl -sS https://sailingsa.co.za/regatta/2026-08-29-lipton-challenge-cup-dev | head -c 400"
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "mkdir -p /var/www/sailingsa/js/vendor/leaflet /var/www/sailingsa/sailingsa/scripts && cp /tmp/lipton-dev.html /var/www/sailingsa/lipton-dev.html && cp /tmp/lipton-dev-playback.js /var/www/sailingsa/js/lipton-dev-playback.js && cp /tmp/lipton-dev-event-logo.png /var/www/sailingsa/js/lipton-dev-event-logo.png && cp /tmp/lipton-dev-start-airhorn.mp3 /var/www/sailingsa/js/lipton-dev-start-airhorn.mp3 && cp /tmp/lipton-dev-recall-horn.wav /var/www/sailingsa/js/lipton-dev-recall-horn.wav && cp /tmp/lipton-dev.css /var/www/sailingsa/css/lipton-dev.css && cp /tmp/lipton-dev-*.json /var/www/sailingsa/js/ && cp /tmp/leaflet.js /tmp/leaflet.css /var/www/sailingsa/js/vendor/leaflet/ && cp /tmp/lipton_vakaros.py /tmp/lipton_dev_live.py /var/www/sailingsa/sailingsa/scripts/ && python3 /tmp/patch_lipton_dev_page.py && python3 /tmp/patch_lipton_dev_live.py && systemctl restart sailingsa-api && sleep 2 && systemctl is-active sailingsa-api && curl -sS -o /dev/null -w '%{http_code} %{url_effective}\\n' -A 'SailingSA-devcheck' https://sailingsa.co.za/regatta/2026-08-29-lipton-challenge-cup-dev && curl -sS https://sailingsa.co.za/api/lipton-dev/live | head -c 500"
 expect {
     -re "assword" { send "$password\r"; exp_continue }
     timeout { puts "ERROR: ssh timeout"; exit 1 }

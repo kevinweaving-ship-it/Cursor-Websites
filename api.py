@@ -26284,6 +26284,28 @@ def serve_lipton_dev_playback_page(_request: Request):
     return HTMLResponse("Lipton dev page missing", status_code=500)
 
 
+@app.get("/api/lipton-dev/live")
+def api_lipton_dev_live():
+    """Lipton -dev live T-/T+ and GPS as received. Does not invent a race or tracks."""
+    for p in (
+        Path(__file__).resolve().parent / "sailingsa" / "scripts",
+        Path("/var/www/sailingsa/sailingsa/scripts"),
+        Path("/var/www/sailingsa/scripts"),
+        Path(__file__).resolve().parent.parent / "sailingsa" / "scripts",
+    ):
+        s = str(p)
+        if p.is_dir() and s not in sys.path:
+            sys.path.insert(0, s)
+    try:
+        from lipton_dev_live import live_snapshot
+        return JSONResponse(live_snapshot())
+    except Exception as err:
+        return JSONResponse(
+            {"ok": False, "live": True, "waiting": True, "error": str(err)},
+            status_code=502,
+        )
+
+
 def serve_regatta_standalone(slug: str, request: Request):
     """Serve one full standalone HTML result sheet for /regatta/{slug}. Unknown regatta → 301 /events (not 404)."""
     if str(slug or "").strip() == LIPTON_DEV_SLUG:

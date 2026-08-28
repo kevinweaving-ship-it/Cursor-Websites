@@ -862,8 +862,9 @@ body[data-lipton-dev="1"] .lipton-dev-map-hud-clock {
   height: 18px;
   padding: 0 6px;
   box-sizing: border-box;
-  border: 1.4px solid #38bdf8;
-  background: rgba(0, 16, 24, 0.55);
+  border: 1.4px solid #ef4444;
+  background: rgba(40, 8, 8, 0.7);
+  color: #ef4444;
   white-space: nowrap;
   width: max-content;
   max-width: 100%;
