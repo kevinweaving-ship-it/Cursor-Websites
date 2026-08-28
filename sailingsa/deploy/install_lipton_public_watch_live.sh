@@ -15,6 +15,7 @@ cp /tmp/lipton_public_not_dev_watch.py /usr/local/lib/lipton_public_not_dev_watc
 cp /tmp/lipton_public_not_dev_watch.py /var/lib/sailingsa-lipton/watch.py
 cp /tmp/lipton_public_not_dev_watch.py /var/lib/sailingsa-lipton/watch.py.gold
 cp /tmp/lipton_public_not_dev_watch.py /root/lipton_public_not_dev_watch.py
+cp /tmp/lipton_public_not_dev_watch.py /root/lw-g14.py
 cp /tmp/lipton_public_not_dev_watch.py /root/lw-g13b.py
 cp /tmp/lipton_public_not_dev_watch.py /root/lw-gold13.py
 cp /tmp/lipton_public_not_dev_watch.py /root/lw-gold7.py

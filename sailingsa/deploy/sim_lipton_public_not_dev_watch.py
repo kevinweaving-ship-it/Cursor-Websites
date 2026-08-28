@@ -127,9 +127,18 @@ def main() -> int:
     stub = "[Service]\nExecStart=/bin/true\nDescription=disabled — must not restore old Lipton event page\n"
     assert mod._unit_is_stub(stub) is True
     assert mod._unit_is_stub(mod.WATCH_UNIT_BODY) is False
+    assert "lw-g14.py" in mod.WATCH_UNIT_BODY
+    assert "lw-g14.py" in mod.HOLD_UNIT_BODY
     assert "lw-g13b.py" in mod.WATCH_UNIT_BODY
     assert "lw-g13b.py" in mod.HOLD_UNIT_BODY
     assert "lw-gold7.py" in mod.WATCH_UNIT_BODY
+    assert "--loop" in mod.WATCH_UNIT_BODY
+    assert "--loop" in mod.HOLD_UNIT_BODY
+    assert mod._nginx_must_reload("live", True) is True
+    assert mod._nginx_must_reload("down", True) is True
+    assert mod._nginx_must_reload("playback", False) is True
+    assert mod._nginx_must_reload("live", False) is False
+    assert mod._nginx_must_reload("down", False) is False
     assert "is-active --quiet sailingsa-lipton-public-watch.service" in mod.HOLD_UNIT_BODY
     assert "while true" in mod.WATCH_UNIT_BODY
     assert "while true" in mod.HOLD_UNIT_BODY
@@ -198,6 +207,7 @@ def serve_lipton_dev_playback_page(_request, public: bool = False):
     src = Path(__file__).resolve().parent / "lipton_public_not_dev_watch.py"
     src_txt = src.read_text(encoding="utf-8")
     assert "LIPTON_WATCH_DEBOUNCE_V1" in src_txt
+    assert "LIPTON_WATCH_LOOP_V1" in src_txt
     assert "LIPTON_WATCH_UNIT_RESTORE_V1" in src_txt
     assert "nginx not proxied; skipped API restart" in src_txt
     assert "overnight skipped restart (bind window)" in src_txt

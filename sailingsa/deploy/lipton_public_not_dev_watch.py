@@ -6,6 +6,7 @@ good write so PLAYBACK_LOCK cannot win a long curl-check window.
 LIPTON_WATCH_DEBOUNCE_V1
 LIPTON_WATCH_UNIT_RESTORE_V1
 LIPTON_WATCH_GUARD_EMBED_V1
+LIPTON_WATCH_LOOP_V1
 """
 from __future__ import annotations
 
@@ -200,7 +201,7 @@ def _origin_board_state() -> str:
             "curl",
             "-4sk",
             "--max-time",
-            "8",
+            "3",
             "-o",
             "/dev/null",
             "-w",
@@ -211,7 +212,7 @@ def _origin_board_state() -> str:
             "curl",
             "-sS",
             "--max-time",
-            "8",
+            "3",
             "-o",
             "/dev/null",
             "-w",
@@ -231,7 +232,7 @@ def _origin_board_state() -> str:
             p = subprocess.run(
                 args,
                 check=False,
-                timeout=10,
+                timeout=5,
                 capture_output=True,
                 text=True,
             )
@@ -282,6 +283,13 @@ def _public_aliased(text: str) -> bool:
         if "lipton-dev.html" in m.group(1):
             return True
     return False
+
+
+def _nginx_must_reload(board: str, aliased_on_disk: bool) -> bool:
+    """Reload as soon as a public-slug alias is on disk. Do not wait 20s."""
+    if aliased_on_disk:
+        return True
+    return board == "playback"
 
 
 def _public_slug_proxied(text: str) -> bool:
@@ -392,22 +400,25 @@ CRON_HOLD_BODY = "* * * * * root /usr/local/lib/lipton_public_watch_guard.sh >/d
 
 WATCH_UNIT = Path("/etc/systemd/system/sailingsa-lipton-public-watch.service")
 HOLD_UNIT = Path("/etc/systemd/system/sailingsa-lipton-url-hold.service")
+GOLD_PY = (
+    "/root/lw-g14.py /root/lw-g13b.py /root/lw-gold13.py /root/lw-gold7.py "
+    "/root/lw-gold6.py /root/lw-gold5.py "
+    "/usr/local/lib/lipton_public_not_dev_watch.py /usr/local/sbin/lipton_public_not_dev_watch.py"
+)
 WATCH_LOOP = (
     "while true; do "
-    "for f in /root/lw-g13b.py /root/lw-gold13.py /root/lw-gold7.py /root/lw-gold6.py /root/lw-gold5.py "
-    "/usr/local/lib/lipton_public_not_dev_watch.py /usr/local/sbin/lipton_public_not_dev_watch.py; do "
+    f"for f in {GOLD_PY}; do "
     'sz=$(wc -c < "$f" 2>/dev/null || echo 0); '
     'if [ "$sz" -gt 500 ] && grep -q LIPTON_WATCH_DEBOUNCE_V1 "$f" 2>/dev/null; then '
-    '/usr/bin/python3 "$f"; break; fi; done; sleep 4; done'
+    '/usr/bin/python3 "$f" --loop; break; fi; done; sleep 1; done'
 )
 HOLD_LOOP = (
     "while true; do "
     "if systemctl is-active --quiet sailingsa-lipton-public-watch.service; then sleep 15; continue; fi; "
-    "for f in /root/lw-g13b.py /root/lw-gold13.py /root/lw-gold7.py /root/lw-gold6.py /root/lw-gold5.py "
-    "/usr/local/lib/lipton_public_not_dev_watch.py /usr/local/sbin/lipton_public_not_dev_watch.py; do "
+    f"for f in {GOLD_PY}; do "
     'sz=$(wc -c < "$f" 2>/dev/null || echo 0); '
     'if [ "$sz" -gt 500 ] && grep -q LIPTON_WATCH_DEBOUNCE_V1 "$f" 2>/dev/null; then '
-    '/usr/bin/python3 "$f"; break; fi; done; sleep 10; done'
+    '/usr/bin/python3 "$f" --loop; break; fi; done; sleep 1; done'
 )
 WATCH_UNIT_BODY = f"""[Unit]
 Description=Lipton 2026 public URL live-board watchdog
@@ -446,6 +457,7 @@ COPIES=(
   /usr/local/sbin/lipton_public_not_dev_watch.py
 )
 GOLDS=(
+  /root/lw-g14.py
   /root/lw-g13b.py
   /root/lw-gold13.py
   /root/lw-gold7.py
@@ -676,10 +688,12 @@ def main() -> int:
                 if new != raw and not _public_aliased(raw):
                     _write(NGINX, raw)
                 return 1
-            board = _origin_board_state()
-            must_reload = board == "playback" or (
-                _public_aliased(raw) and _seconds_since_nginx_reload() >= 20
-            )
+            aliased = _public_aliased(raw)
+            if aliased:
+                board = "aliased"
+            else:
+                board = _origin_board_state()
+            must_reload = _nginx_must_reload(board, aliased)
             if must_reload:
                 subprocess.check_call(["nginx", "-s", "reload"])
                 _mark_nginx_reload()
@@ -753,5 +767,15 @@ def main() -> int:
     return 0
 
 
+def _run_argv(argv: list[str]) -> int:
+    loop = "--loop" in argv
+    rc = 0
+    while True:
+        rc = main()
+        if not loop or not _event_day():
+            return rc
+        time.sleep(1)
+
+
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(_run_argv(sys.argv[1:]))
