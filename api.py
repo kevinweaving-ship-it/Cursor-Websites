@@ -23992,7 +23992,7 @@ def _wc_standalone_fleet_autocomplete_script_html() -> str:
 # Same CSS as admin regatta_viewer.html result sheet popup, with mobile-friendly widths so headers match tables
 _RESULT_SHEET_CSS = (
     "*{box-sizing:border-box}"
-    "html,body{background:#ffffff;color:#1a2750;font-family:system-ui,sans-serif;margin:0;padding:0;width:100%;max-width:100%;overflow-x:hidden}"
+    "html,body{background:#ffffff;color:#1a2750;font-family:system-ui,sans-serif;margin:0;padding:0;width:100%;max-width:100%;overflow-x:auto}"
     ".regatta-page{width:100%;max-width:100%;padding:16px;margin:0 auto}"
     ".header{display:grid;grid-template-columns:minmax(0,auto) minmax(0,3fr) minmax(0,auto);align-items:center;column-gap:6px;row-gap:4px;margin-bottom:30px;position:relative;border:2px solid #1a2750;border-radius:10px;padding:4px 6px;background:#ffffff;width:100%;box-sizing:border-box}"
     ".regatta-header-logo-col{display:flex;align-items:center;justify-content:flex-start;min-width:0;padding:3px 8px 3px 3px}"
@@ -24059,8 +24059,8 @@ _RESULT_SHEET_CSS = (
     ".table-wrapper table{width:100%;min-width:600px;table-layout:auto}"
     "table{border-collapse:collapse;background:#ffffff;margin:0}"
     "th,td{border:1px solid #1d294d;padding:6px 4px;text-align:center;white-space:nowrap;width:1%;vertical-align:middle}"
-    "th.crew-col,td.crew-col{white-space:normal;width:auto;text-align:left}"
-    "th.helm-col,td.helm-col{text-align:left}"
+    "th.crew-col,td.crew-col{white-space:nowrap;text-align:left}"
+    "th.helm-col,td.helm-col{white-space:nowrap;text-align:left}"
     "th{background:#e9eefb;color:#1a2750}"
     "td{color:#1a2750}"
     ".rank-col,.sail-col,.club-col,.helm-col,.nett-col{font-weight:bold}"
@@ -26393,6 +26393,7 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
 
 LIPTON_DEV_SLUG = "2026-08-29-lipton-challenge-cup-dev"
 LIPTON_PUBLIC_SLUG = "2026-08-29-lipton-challenge-cup"
+# Former weather/event page slug. Do not generate that HTML. Playback only.
 LIPTON_OLD_SLUG = "2026-08-29-lipton-challenge-cup-old"
 
 
@@ -26440,20 +26441,16 @@ def api_lipton_dev_live(request: Request):
         )
 
 
-def serve_regatta_standalone(slug: str, request: Request, *, allow_lipton_event: bool = False):
+def serve_regatta_standalone(slug: str, request: Request):
     """Serve one full standalone HTML result sheet for /regatta/{slug}. Unknown regatta → 301 /events (not 404).
 
-    Public Lipton URL is playback only. Old weather/event HTML is -old only.
+    All Lipton slugs (public, -dev, former -old) are playback only. Weather/event HTML is gone.
     """
     slug_s = str(slug or "").strip()
-    if slug_s == LIPTON_PUBLIC_SLUG:
+    if slug_s in (LIPTON_PUBLIC_SLUG, LIPTON_OLD_SLUG):
         return serve_lipton_dev_playback_page(request, public=True)
     if slug_s == LIPTON_DEV_SLUG:
         return serve_lipton_dev_playback_page(request, public=False)
-    if slug_s == LIPTON_OLD_SLUG:
-        slug_s = LIPTON_PUBLIC_SLUG
-        slug = LIPTON_PUBLIC_SLUG
-        allow_lipton_event = True
     start_time = time.time()
     reg = _get_regatta_by_slug(slug)
     if not reg:

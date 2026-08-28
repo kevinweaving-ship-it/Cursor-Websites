@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Public slug = playback HTML. -old = weather page. Undo LIPTON_PUBLIC_NOT_DEV hijack."""
+"""Public / -dev / former -old Lipton slugs = playback HTML. Never weather."""
 from __future__ import annotations
 
 import re
@@ -8,7 +8,7 @@ from pathlib import Path
 API = Path("/var/www/sailingsa/api/api.py")
 
 PLAYBACK_FN = '''def serve_lipton_dev_playback_page(_request, public: bool = False):
-    """Playback HTML. Public Lipton URL only. Old weather page is -old."""
+    """Playback HTML only. Weather/event page is deleted."""
     from pathlib import Path as _P
     names = (
         _P("/var/www/sailingsa/lipton-dev.html"),
@@ -32,15 +32,27 @@ PLAYBACK_FN = '''def serve_lipton_dev_playback_page(_request, public: bool = Fal
 
 EARLY = '''def serve_regatta_standalone(slug: str, request: Request, *, allow_lipton_event: bool = False):
     slug_s = str(slug or "").strip()
-    if slug_s == "2026-08-29-lipton-challenge-cup":
+    if slug_s in (
+        "2026-08-29-lipton-challenge-cup",
+        "2026-08-29-lipton-challenge-cup-old",
+    ):
         return serve_lipton_dev_playback_page(request, public=True)
     if slug_s == "2026-08-29-lipton-challenge-cup-dev":
         return serve_lipton_dev_playback_page(request, public=False)
-    if slug_s == "2026-08-29-lipton-challenge-cup-old":
-        return _serve_regatta_standalone_impl("2026-08-29-lipton-challenge-cup", request)
     return _serve_regatta_standalone_impl(slug, request)
 
 
+'''
+
+EARLY_NO_IMPL = '''def serve_regatta_standalone(slug: str, request: Request, *, allow_lipton_event: bool = False):
+    slug_s = str(slug or "").strip()
+    if slug_s in (
+        "2026-08-29-lipton-challenge-cup",
+        "2026-08-29-lipton-challenge-cup-old",
+    ):
+        return serve_lipton_dev_playback_page(request, public=True)
+    if slug_s == "2026-08-29-lipton-challenge-cup-dev":
+        return serve_lipton_dev_playback_page(request, public=False)
 '''
 
 
@@ -50,61 +62,103 @@ def _replace_fn(text: str, name: str, new: str) -> str:
         re.M,
     )
     if not pat.search(text):
-        raise SystemExit(f"ERROR: {name} not found")
+        i = text.find("def serve_regatta_standalone")
+        if i < 0:
+            raise SystemExit(f"ERROR: {name} not found")
+        return text[:i] + new.rstrip() + "\n\n" + text[i:]
     return pat.sub(new.rstrip() + "\n\n", text, count=1)
 
 
+def _kill_old_weather_css(text: str) -> str:
+    text = text.replace(
+        "th.crew-col,td.crew-col{white-space:normal;width:auto;text-align:left}",
+        "th.crew-col,td.crew-col{white-space:nowrap;text-align:left}",
+    )
+    text = text.replace(
+        "html,body{background:#ffffff;color:#1a2750;font-family:system-ui,sans-serif;margin:0;padding:0;width:100%;max-width:100%;overflow-x:hidden}",
+        "html,body{background:#ffffff;color:#1a2750;font-family:system-ui,sans-serif;margin:0;padding:0;width:100%;max-width:100%;overflow-x:auto}",
+    )
+    return text
+
+
 def _ok(text: str) -> bool:
-    pb = text.split("def serve_lipton_dev_playback_page", 1)[-1][:900]
-    if "_serve_regatta_standalone_impl" in pb or "LIPTON_PUBLIC_NOT_DEV" in pb:
+    if "def serve_lipton_dev_playback_page" not in text:
         return False
-    if "lipton-dev.html" not in pb:
+    pb = text.split("def serve_lipton_dev_playback_page", 1)[-1][:900]
+    if "LIPTON_PUBLIC_NOT_DEV" in pb or "lipton-dev.html" not in pb:
         return False
     after = text.split("def serve_regatta_standalone", 1)[-1][:900]
     if "LIPTON_PUBLIC_NOT_DEV" in after:
         return False
-    if 'slug_s == "2026-08-29-lipton-challenge-cup-old"' not in after:
+    if "allow_lipton_event = True" in after:
         return False
-    if 'slug_s == "2026-08-29-lipton-challenge-cup":' not in after:
+    if "2026-08-29-lipton-challenge-cup-old" not in after:
         return False
-    if "public=True" not in after:
-        return False
-    # First public-slug branch must be playback, not impl.
-    pub = after.split('slug_s == "2026-08-29-lipton-challenge-cup":', 1)[-1][:180]
-    if "public=True" not in pub:
-        return False
-    if "_serve_regatta_standalone_impl" in pub:
+    if "serve_lipton_dev_playback_page(request, public=True)" not in after:
         return False
     return True
 
 
 def main() -> int:
     text = API.read_text(encoding="utf-8")
+    text = _kill_old_weather_css(text)
     text = _replace_fn(text, "serve_lipton_dev_playback_page", PLAYBACK_FN)
     if "def _serve_regatta_standalone_impl" in text:
-        text = re.sub(
+        text, n = re.subn(
             r"def serve_regatta_standalone\([\s\S]*?\n\n(?=def _serve_regatta_standalone_impl)",
             EARLY,
             text,
             count=1,
         )
     else:
-        text = re.sub(
+        text, n = re.subn(
             r"def serve_regatta_standalone\([\s\S]*?\n(?=    start_time = )",
-            EARLY.replace(
-                "    return _serve_regatta_standalone_impl(slug, request)\n\n",
-                "",
-            ),
+            EARLY_NO_IMPL,
             text,
             count=1,
         )
+    if n != 1:
+        # Live fork: prepend early returns after the def line.
+        m = re.search(r"def serve_regatta_standalone\([^\n]*\):\n", text)
+        if not m:
+            print("ERROR: serve_regatta_standalone missing", flush=True)
+            return 1
+        inject = (
+            "    slug_s = str(slug or \"\").strip()\n"
+            "    if slug_s in (\n"
+            "        \"2026-08-29-lipton-challenge-cup\",\n"
+            "        \"2026-08-29-lipton-challenge-cup-old\",\n"
+            "    ):\n"
+            "        return serve_lipton_dev_playback_page(request, public=True)\n"
+            "    if slug_s == \"2026-08-29-lipton-challenge-cup-dev\":\n"
+            "        return serve_lipton_dev_playback_page(request, public=False)\n"
+        )
+        body_start = m.end()
+        head = text[body_start:body_start + 700]
+        if "serve_lipton_dev_playback_page(request, public=True)" not in head:
+            text = text[:body_start] + inject + text[body_start:]
+        # Strip the old-page remap if it is still sitting after the inject.
+        text = text.replace(
+            "    if slug_s == LIPTON_OLD_SLUG:\n"
+            "        slug_s = LIPTON_PUBLIC_SLUG\n"
+            "        slug = LIPTON_PUBLIC_SLUG\n"
+            "        allow_lipton_event = True\n",
+            "",
+        )
+        text = text.replace(
+            '    if slug_s == "2026-08-29-lipton-challenge-cup-old":\n'
+            '        slug_s = "2026-08-29-lipton-challenge-cup"\n'
+            '        slug = "2026-08-29-lipton-challenge-cup"\n'
+            "        allow_lipton_event = True\n",
+            "",
+        )
     if not _ok(text):
-        print("ERROR: API still hijacked", flush=True)
-        after = text.split("def serve_regatta_standalone", 1)[-1][:800]
+        print("ERROR: API still serves old page", flush=True)
+        after = text.split("def serve_regatta_standalone", 1)[-1][:900]
         print(after)
         return 1
     API.write_text(text, encoding="utf-8")
-    print("API public=playback old=-old")
+    print("API public/-old/-dev = playback; weather gone")
     return 0
 
 

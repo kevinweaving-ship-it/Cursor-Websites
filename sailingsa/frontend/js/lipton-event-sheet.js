@@ -72,17 +72,17 @@
     });
     var extra = doc.createElement("style");
     extra.textContent = [
-      "html,body{margin:0;padding:0;background:#fff;overflow-x:hidden;}",
-      ".regatta-page,.header,.class-header,.fleet-section,.table-wrapper{width:100%!important;max-width:100%!important;margin-left:0!important;margin-right:0!important;box-sizing:border-box;}",
+      "html,body{margin:0;padding:0;background:#fff;overflow-x:auto;}",
+      ".regatta-page,.header,.class-header,.fleet-section{width:100%!important;max-width:100%!important;margin-left:0!important;margin-right:0!important;box-sizing:border-box;}",
       ".regatta-page{padding:8px 10px 12px;}",
       ".header{margin-bottom:0!important;}",
       ".fleet-section{margin-top:20px!important;}",
-      ".table-wrapper{margin-top:20px!important;}",
+      ".table-wrapper{margin-top:20px!important;overflow-x:auto!important;overflow-y:visible!important;max-width:100%!important;-webkit-overflow-scrolling:touch;}",
       ".table-wrapper table,.table-wrapper th,.table-wrapper td{font-size:70%;}",
-      ".table-wrapper table{width:100%!important;min-width:0!important;table-layout:auto!important;}",
+      ".table-wrapper table{table-layout:auto!important;}",
       ".table-wrapper th,.table-wrapper td{padding:6px 4px!important;white-space:nowrap;width:1%;vertical-align:middle;box-sizing:border-box;}",
-      ".table-wrapper .rank-col,.table-wrapper .wc-meta-col,.table-wrapper .club-col,.table-wrapper .nett-col,.table-wrapper .race-col,.table-wrapper .sail-col,.table-wrapper .helm-col{width:1%!important;max-width:none!important;white-space:nowrap!important;}",
-      ".table-wrapper th.crew-col,.table-wrapper td.crew-col{width:auto!important;max-width:none!important;white-space:normal!important;text-align:left!important;}",
+      ".table-wrapper .rank-col,.table-wrapper .wc-meta-col,.table-wrapper .club-col,.table-wrapper .nett-col,.table-wrapper .race-col,.table-wrapper .sail-col,.table-wrapper .helm-col,.table-wrapper .crew-col{width:1%!important;max-width:none!important;white-space:nowrap!important;}",
+      ".table-wrapper th.helm-col,.table-wrapper td.helm-col,.table-wrapper th.crew-col,.table-wrapper td.crew-col{text-align:left!important;white-space:nowrap!important;}",
       ".rs-boat-name-sponsors,.rs-club-with-logo{display:inline-flex!important;width:auto!important;max-width:none!important;justify-content:flex-start;align-items:center;}",
       "@media (max-width:768px){.header{margin-bottom:0!important;}.fleet-section{margin-top:12px!important;}.table-wrapper{margin-top:12px!important;}}",
       "@media (orientation:landscape) and (max-height:600px){.header{margin-bottom:0!important;}.fleet-section{margin-top:6px!important;}.table-wrapper{margin-top:6px!important;}}",

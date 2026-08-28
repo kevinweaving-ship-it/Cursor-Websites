@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""Public Lipton URL = playback file. -old = API event page.
+"""Public Lipton URL = playback file. Former -old URL is also playback.
 
-The live fight is /etc/nginx/snippets/lipton-public-proxy.conf which
-proxies the public slug to FastAPI's old weather page.
+Never proxy those slugs to FastAPI. The weather/event page is deleted.
 """
 from pathlib import Path
 
@@ -31,14 +30,15 @@ SNIP_TEXT = """    location = /regatta/2026-08-29-lipton-challenge-cup {
         add_header X-Lipton-Page "playback" always;
         alias /var/www/sailingsa/lipton-dev.html;
     }
-"""
-
-OLD = """    location = /regatta/2026-08-29-lipton-challenge-cup-old {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+    location = /regatta/2026-08-29-lipton-challenge-cup-old {
+        default_type text/html;
+        etag off;
+        if_modified_since off;
+        add_header Cache-Control "no-store, no-cache, must-revalidate, max-age=0" always;
+        add_header Pragma "no-cache" always;
+        add_header Expires "0" always;
+        add_header X-Lipton-Page "playback" always;
+        alias /var/www/sailingsa/lipton-dev.html;
     }
 """
 
@@ -86,6 +86,7 @@ def main() -> int:
         [
             "location = /regatta/2026-08-29-lipton-challenge-cup {",
             "location = /regatta/2026-08-29-lipton-challenge-cup/ {",
+            "location = /regatta/2026-08-29-lipton-challenge-cup-old {",
         ],
     )
     if INCLUDE not in text:
@@ -93,13 +94,6 @@ def main() -> int:
             if a in text:
                 text = text.replace(a, INCLUDE + "\n" + a, 1)
                 break
-    if "location = /regatta/2026-08-29-lipton-challenge-cup-old {" not in text:
-        text = text.replace(INCLUDE, INCLUDE + "\n" + OLD, 1)
-        if "location = /regatta/2026-08-29-lipton-challenge-cup-old {" not in text:
-            for a in ("    location = /regatta {", "    location / {"):
-                if a in text:
-                    text = text.replace(a, OLD + a, 1)
-                    break
 
     ENABLED.write_text(text, encoding="utf-8")
     if AVAILABLE.is_file():
@@ -107,6 +101,7 @@ def main() -> int:
     GOLD.write_text(text, encoding="utf-8")
     print("snippet_playback", "alias /var/www/sailingsa/lipton-dev.html" in SNIP.read_text())
     print("snippet_no_proxy", "proxy_pass" not in SNIP.read_text())
+    print("old_in_snippet", "lipton-challenge-cup-old" in SNIP.read_text())
     print("old_in_site", "lipton-challenge-cup-old" in text)
     print("include", INCLUDE.strip() in text)
     return 0
