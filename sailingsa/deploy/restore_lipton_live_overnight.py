@@ -27,6 +27,51 @@ def _write_json(path: Path, data) -> None:
     os.system(f"chmod 664 {path} >/dev/null 2>&1 || true")
 
 
+def _merge_icon_mirrors() -> dict:
+    """Per-regatta newest mtime wins so a 1-key Lipton stub cannot wipe the catalog."""
+    merged: dict = {}
+    rid_mt: dict = {}
+    for p in ICON_PATHS:
+        if not p.is_file():
+            continue
+        try:
+            mt = float(p.stat().st_mtime)
+            o = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if not isinstance(o, dict):
+            continue
+        for rid, rec in o.items():
+            k = str(rid)
+            if k not in merged or mt >= rid_mt.get(k, -1.0):
+                merged[k] = rec if isinstance(rec, dict) else rec
+                rid_mt[k] = mt
+    return merged
+
+
+def _lipton_icon_entry(merged: dict, last_rk: str) -> dict:
+    ent = dict(merged.get(RID) or {}) if isinstance(merged.get(RID), dict) else {}
+    if not ent.get("venue"):
+        for p in ICON_PATHS:
+            if not p.is_file():
+                continue
+            try:
+                rec = (json.loads(p.read_text(encoding="utf-8")) or {}).get(RID) or {}
+            except Exception:
+                continue
+            if isinstance(rec, dict) and rec.get("venue"):
+                ent["venue"] = rec.get("venue")
+                if rec.get("venue_co_host"):
+                    ent["venue_co_host"] = rec.get("venue_co_host")
+                break
+    ent["live_board_status"] = "LIVE"
+    ent["live_race_gun_at"] = None
+    ent["live_race_key"] = last_rk
+    for k in ("first_gun", "live_board_start", "race_start"):
+        ent.pop(k, None)
+    return ent
+
+
 def main() -> None:
     st = json.loads(STATE.read_text(encoding="utf-8"))
     st["phase"] = "finished"
@@ -71,18 +116,15 @@ def main() -> None:
     os.system(f"chown www-data:www-data {STATE} >/dev/null 2>&1 || true")
     os.system(f"chmod 664 {STATE} >/dev/null 2>&1 || true")
 
+    merged = _merge_icon_mirrors()
+    if not merged:
+        merged = {}
+    merged[RID] = _lipton_icon_entry(merged, last_rk)
     for p in ICON_PATHS:
-        if not p.is_file():
+        if not p.is_file() and not p.parent.is_dir():
             continue
-        d = json.loads(p.read_text(encoding="utf-8"))
-        ent = dict(d.get(RID) or {})
-        ent["live_board_status"] = "LIVE"
-        ent.pop("live_race_gun_at", None)
-        ent["live_race_gun_at"] = None
-        ent["live_race_key"] = last_rk
-        d[RID] = ent
-        _write_json(p, d)
-        print("icons LIVE", p)
+        _write_json(p, merged)
+        print("icons LIVE", p, "nkeys", len(merged), "rk", last_rk)
 
     print("state", {k: st.get(k) for k in ("phase", "board_status", "gun_at", "day_done", "race_key", "schedule_slot")})
 
