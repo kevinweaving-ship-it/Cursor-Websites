@@ -139,6 +139,12 @@ def _public_aliased(text: str) -> bool:
     return False
 
 
+DEV_LOC = re.compile(
+    r"(    location = /regatta/" + re.escape(RID) + r"-dev \{[^{}]*\n    \})",
+    re.S,
+)
+
+
 def fix_nginx(text: str) -> tuple[str, int]:
     n = 0
     new = text
@@ -153,11 +159,26 @@ def fix_nginx(text: str) -> tuple[str, int]:
         new = new.replace(PLAYBACK_LOCK, PUBLIC_KEEP)
         n += 1
     if "LIPTON_NGINX_PUBLIC_PROXY_V1" not in new:
+        inserted = False
         if DEV_BLOCK in new:
             new = new.replace(DEV_BLOCK, DEV_BLOCK + "\n" + PUBLIC_PROXY, 1)
-            n += 1
-        elif "    location /regatta/ {" in new:
-            new = new.replace("    location /regatta/ {", PUBLIC_PROXY + "\n    location /regatta/ {", 1)
+            inserted = True
+        else:
+            m = DEV_LOC.search(new)
+            if m:
+                new = new.replace(m.group(1), m.group(1) + "\n\n" + PUBLIC_PROXY, 1)
+                inserted = True
+        if not inserted:
+            for needle in (
+                "    location /regatta/ {",
+                "    location = /regatta {",
+                "        location = /regatta {",
+            ):
+                if needle in new:
+                    new = new.replace(needle, PUBLIC_PROXY + "\n" + needle, 1)
+                    inserted = True
+                    break
+        if inserted:
             n += 1
     return new, n
 

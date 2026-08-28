@@ -58,6 +58,24 @@ def main() -> int:
     assert "proxy_pass http://127.0.0.1:8000;" in proxied
     assert "lipton-challenge-cup-dev" in proxied
 
+    fat = """
+    location = /regatta/2026-08-29-lipton-challenge-cup-dev {
+        default_type text/html;
+        etag off;
+        if_modified_since off;
+        add_header Cache-Control "no-store, no-cache, must-revalidate, max-age=0" always;
+        add_header Pragma "no-cache" always;
+        add_header Expires "0" always;
+        add_header X-Robots-Tag "noindex, nofollow";
+        alias /var/www/sailingsa/lipton-dev.html;
+    }
+        location = /regatta {
+"""
+    fat_new, fn = mod.fix_nginx(fat)
+    assert fn >= 1
+    assert "LIPTON_NGINX_PUBLIC_PROXY_V1" in fat_new
+    assert fat_new.count("alias /var/www/sailingsa/lipton-dev.html") == 1
+
     api = '''
 def serve_regatta_standalone(slug: str, request: Request):
     slug_s = str(slug or "").strip()
