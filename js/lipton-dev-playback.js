@@ -31,25 +31,6 @@
   }
   bindRaceButtons(RACE_Q || 4);
   (function wireSiteHeader() {
-    var menuBtn = document.getElementById("menuBtn");
-    var overlay = document.getElementById("navMenuOverlay");
-    if (menuBtn && overlay) {
-      menuBtn.addEventListener("click", function () {
-        var hidden = overlay.style.display === "none";
-        overlay.style.display = hidden ? "flex" : "none";
-        overlay.setAttribute("aria-hidden", hidden ? "false" : "true");
-      });
-      overlay.addEventListener("click", function (e) {
-        if (e.target.tagName === "A") overlay.style.display = "none";
-      });
-      var regattaLink = overlay.querySelector("a[data-mode=\"regatta\"]");
-      if (regattaLink) {
-        regattaLink.addEventListener("click", function (e) {
-          e.preventDefault();
-          window.location.href = "/?mode=regatta";
-        });
-      }
-    }
     if (typeof window.updateHeaderAuthStatus === "function") {
       window.updateHeaderAuthStatus();
     }
@@ -1003,21 +984,21 @@
       return Math.max(4, m * mapBounds.scale);
     }
     function drawBoatIcon(p, hdg, fill, stroke, nose) {
-      var r = 5.5;
+      var r = 7;
       mapCtx.beginPath();
       mapCtx.arc(p.x, p.y, r, 0, Math.PI * 2);
       mapCtx.fillStyle = fill;
       mapCtx.fill();
       mapCtx.strokeStyle = stroke;
-      mapCtx.lineWidth = 0.8;
+      mapCtx.lineWidth = 1.4;
       mapCtx.stroke();
       mapCtx.save();
       mapCtx.translate(p.x, p.y);
       mapCtx.rotate((hdg || 0) * Math.PI / 180);
       mapCtx.beginPath();
-      mapCtx.moveTo(0, -r - 2.8);
-      mapCtx.lineTo(2.4, -r + 0.9);
-      mapCtx.lineTo(-2.4, -r + 0.9);
+      mapCtx.moveTo(0, -r - 3.6);
+      mapCtx.lineTo(3.1, -r + 1.2);
+      mapCtx.lineTo(-3.1, -r + 1.2);
       mapCtx.closePath();
       mapCtx.fillStyle = nose || "#ffffff";
       mapCtx.fill();
@@ -1203,15 +1184,15 @@
       drawBoatIcon(p, hdg, paint.fill, paint.stroke, paint.nose);
       if (info.place != null) {
         mapCtx.fillStyle = paint.ink;
-        mapCtx.font = "bold 7px sans-serif";
+        mapCtx.font = "bold 9px sans-serif";
         mapCtx.textAlign = "center";
         mapCtx.textBaseline = "middle";
         mapCtx.fillText(String(info.place), p.x, p.y + 0.4);
       }
-      if (info.onMark && !info.finished) drawDelta(p.x - 10, p.y - 1, info.leg, "right");
-      var lx = p.x + 10;
+      if (info.onMark && !info.finished) drawDelta(p.x - 12, p.y - 1, info.leg, "right");
+      var lx = p.x + 12;
       var ly = p.y - 1;
-      mapCtx.font = "bold 8px sans-serif";
+      mapCtx.font = "bold 10px sans-serif";
       mapCtx.textAlign = "left";
       mapCtx.textBaseline = "middle";
       mapCtx.shadowColor = "rgba(0,0,0,0.9)";
