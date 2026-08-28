@@ -141,14 +141,16 @@ def restore_watch_golds() -> bool:
 
 
 def _public_aliased(text: str) -> bool:
-    if PLAYBACK_LOCK in text:
+    # LIPTON_WATCH_ALIAS_ANY_V1 — public slug alias to any file is a hijack.
+    if PLAYBACK_LOCK in text or "LIPTON_NGINX_PUBLIC_ALIAS" in text:
         return True
     for m in re.finditer(
         r"location = /regatta/" + re.escape(RID) + r"(?:/)?(?!-)\s*\{([^{}]*)\}",
         text,
         re.S,
     ):
-        if "lipton-dev.html" in m.group(1):
+        body = m.group(1)
+        if "alias" in body or "lipton-dev.html" in body:
             return True
     return False
 
@@ -172,6 +174,7 @@ def fix_nginx(text: str) -> tuple[str, int]:
         _public_slug_proxied(text)
         and "include /etc/nginx/snippets/lipton-public-proxy.conf" not in text
         and PLAYBACK_LOCK not in text
+        and "LIPTON_NGINX_PUBLIC_ALIAS" not in text
     ):
         return text, 0
     n = 0

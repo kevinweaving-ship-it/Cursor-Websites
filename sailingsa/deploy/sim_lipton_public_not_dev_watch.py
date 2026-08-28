@@ -150,6 +150,29 @@ def main() -> int:
     assert "lw-g22.py" in str(ngxmod.WATCH_DSTS)
     assert "/usr/local/lib/lipton_public_not_dev_watch.py" in str(ngxmod.WATCH_DSTS)
     assert "/usr/local/sbin/lipton_public_not_dev_watch.py" in str(ngxmod.WATCH_DSTS)
+    v2 = """
+    location = /regatta/2026-08-29-lipton-challenge-cup-dev {
+        alias /var/www/sailingsa/lipton-dev.html;
+    }
+    location = /regatta/2026-08-29-lipton-challenge-cup {
+        # LIPTON_NGINX_PUBLIC_ALIAS_V2 — new dev playback page (not API proxy)
+        default_type text/html;
+        alias /var/www/sailingsa/lipton-new-dev.html;
+        add_header X-Lipton-Page "new-dev-public" always;
+    }
+"""
+    assert mod._public_aliased(v2) is True
+    assert mod._public_slug_proxied(v2) is False
+    v2n, v2c = mod.fix_nginx(v2)
+    assert v2c >= 1
+    assert "proxy_pass http://127.0.0.1:8000" in v2n
+    assert "lipton-new-dev.html" not in v2n
+    assert v2n.count("alias /var/www/sailingsa/lipton-dev.html") == 1
+    assert ngxmod._public_aliased(v2) is True
+    ngx_v2, ngx_v2n = ngxmod.fix_nginx(v2)
+    assert ngx_v2n >= 1
+    assert "proxy_pass http://127.0.0.1:8000" in ngx_v2
+    assert "lipton-new-dev.html" not in ngx_v2
 
     stub = "[Service]\nExecStart=/bin/true\nDescription=disabled — must not restore old Lipton event page\n"
     assert mod._unit_is_stub(stub) is True
