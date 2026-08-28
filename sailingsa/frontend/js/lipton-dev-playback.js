@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828cd";
+  var CACHE = "20260828cf";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = !RACE_Q;
@@ -213,11 +213,12 @@
     var nameEl = document.getElementById("lipton-dev-map-hud-name");
     var clockHud = document.getElementById("lipton-dev-map-hud-clock");
     var playBtn = document.getElementById("lipton-dev-play");
-    var LIVE_CLOCK_LAG_MS = 10000;
+    var LIVE_CLOCK_LAG_MS = 20000;
     var atLive = true;
     var scrubbing = false;
     var playTs = Date.now() - LIVE_CLOCK_LAG_MS;
     var hist = { boats: {}, marks: {}, pin: [], rc: [] };
+    var didFit = false;
     var loadedHistory = false;
     var slowerBtn = document.getElementById("lipton-dev-slower");
     var fasterBtn = document.getElementById("lipton-dev-faster");
@@ -228,9 +229,11 @@
       playBtn.disabled = false;
       playBtn.title = "Go live";
       playBtn.setAttribute("aria-label", "Go live");
+      playBtn.addEventListener("pointerdown", unlockLiveHorn);
       playBtn.addEventListener("click", function () {
         atLive = true;
         playTs = Date.now() - LIVE_CLOCK_LAG_MS;
+        unlockLiveHorn();
         paintClock();
         syncScrub();
         drawLiveMap();
@@ -252,6 +255,99 @@
       });
       window.addEventListener("pointerup", function () { scrubbing = false; });
     }
+    var GUN_HORN_SRC = "/js/lipton-dev-start-airhorn.mp3?v=20260828t";
+    var RECALL_HORN_SRC = "/js/lipton-dev-recall-horn.wav?v=20260828t";
+    var GUN_HORN_ONSET = 0.05;
+    var liveGunHorn = null;
+    var liveRecallHorn = null;
+    var liveHornCtx = null;
+    var liveGunBuf = null;
+    var liveRecallBuf = null;
+    var liveGunFired = false;
+    var liveSoundOn = false;
+    var liveOcs = [];
+    var liveRecallTimer = null;
+    var livePrevTs = 0;
+    fetch(GUN_HORN_SRC).then(function (res) { return res.ok ? res.arrayBuffer() : null; }).then(function (buf) {
+      if (!buf || !liveHornCtx) { liveGunBuf = buf; return; }
+      liveHornCtx.decodeAudioData(buf.slice(0), function (b) { liveGunBuf = b; }, function () {});
+    }).catch(function () {});
+    fetch(RECALL_HORN_SRC).then(function (res) { return res.ok ? res.arrayBuffer() : null; }).then(function (buf) {
+      if (!buf || !liveHornCtx) { liveRecallBuf = buf; return; }
+      liveHornCtx.decodeAudioData(buf.slice(0), function (b) { liveRecallBuf = b; }, function () {});
+    }).catch(function () {});
+    function prepLiveHorn(el) {
+      el.preload = "auto";
+      el.playsInline = true;
+      el.setAttribute("playsinline", "");
+      el.volume = 1;
+      try { el.load(); } catch (err) {}
+      return el;
+    }
+    function unlockLiveHorn() {
+      liveSoundOn = true;
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (AC && !liveHornCtx) liveHornCtx = new AC();
+      if (liveHornCtx && liveHornCtx.state === "suspended") liveHornCtx.resume();
+      if (!liveGunHorn) liveGunHorn = prepLiveHorn(new Audio(GUN_HORN_SRC));
+      if (!liveRecallHorn) liveRecallHorn = prepLiveHorn(new Audio(RECALL_HORN_SRC));
+      [liveGunHorn, liveRecallHorn].forEach(function (el) {
+        el.muted = true;
+        var p = el.play();
+        if (p && p.then) p.then(function () { el.pause(); el.muted = false; try { el.currentTime = 0; } catch (err) {} }).catch(function () { el.muted = false; });
+      });
+    }
+    function playLiveBuf(buf, onset) {
+      if (!liveSoundOn || !liveHornCtx || !buf) return false;
+      if (liveHornCtx.state === "suspended") { liveHornCtx.resume(); return false; }
+      try {
+        var src = liveHornCtx.createBufferSource();
+        src.buffer = buf;
+        src.connect(liveHornCtx.destination);
+        src.start(0, Math.min(onset || 0, Math.max(0, buf.duration - 0.02)));
+        return true;
+      } catch (err) { return false; }
+    }
+    function fireLiveRecall() {
+      if (!liveSoundOn || !liveOcs.length) return;
+      if (playLiveBuf(liveRecallBuf, 0)) return;
+      if (!liveRecallHorn) return;
+      liveRecallHorn.muted = false;
+      try { liveRecallHorn.currentTime = 0; } catch (err) {}
+      var p = liveRecallHorn.play();
+      if (p && p.catch) p.catch(function () {});
+    }
+    function fireLiveGun() {
+      if (!liveSoundOn || liveGunFired || !gunTs) return;
+      liveGunFired = true;
+      if (!playLiveBuf(liveGunBuf, GUN_HORN_ONSET) && liveGunHorn) {
+        liveGunHorn.muted = false;
+        try { liveGunHorn.currentTime = GUN_HORN_ONSET; } catch (err) {}
+        var p = liveGunHorn.play();
+        if (p && p.catch) p.catch(function () {});
+      }
+      if (liveOcs.length) {
+        if (liveRecallTimer) clearTimeout(liveRecallTimer);
+        liveRecallTimer = setTimeout(function () { liveRecallTimer = null; fireLiveRecall(); }, 1550);
+      }
+    }
+    function tickLiveHorns() {
+      if (!gunTs) return;
+      var prev = livePrevTs;
+      livePrevTs = playTs;
+      if (!prev) return;
+      if (!liveGunFired && prev < gunTs - 100 && playTs >= gunTs - 100) fireLiveGun();
+    }
+    document.addEventListener("pointerdown", unlockLiveHorn, { once: true });
+    resetPlaybackAudio = function () {
+      liveSoundOn = false;
+      liveGunFired = false;
+      if (liveRecallTimer) { clearTimeout(liveRecallTimer); liveRecallTimer = null; }
+      [liveGunHorn, liveRecallHorn].forEach(function (el) {
+        if (!el) return;
+        try { el.pause(); } catch (err) {}
+      });
+    };
     function liveFill(sail) {
       return LIVE_BOAT_COLORS[sail] || "#94a3b8";
     }
@@ -267,18 +363,68 @@
       if (gunTs) return gunTs - 5 * 60 * 1000;
       return liveNow() - 8 * 60 * 1000;
     }
+    var liveCam = null;
+    var lastChartSyncAt = 0;
+    var lastHdg = {};
+    var lastHdgAt = {};
+    var chartPointerDown = false;
+    function blendHdg(sail, target) {
+      if (target == null || isNaN(target)) return lastHdg[sail] || 0;
+      var prev = lastHdg[sail];
+      var now = Date.now();
+      if (prev == null) {
+        lastHdg[sail] = target;
+        lastHdgAt[sail] = now;
+        return target;
+      }
+      var dt = Math.min(0.05, (now - (lastHdgAt[sail] || now)) / 1000);
+      lastHdgAt[sail] = now;
+      var d = target - prev;
+      while (d > 180) d -= 360;
+      while (d < -180) d += 360;
+      var out = prev + d * (1 - Math.exp(-dt * 9));
+      lastHdg[sail] = out;
+      return out;
+    }
     function atTs(arr, ts) {
       if (!arr || !arr.length) return null;
-      var best = null;
+      var prev = null;
+      var next = null;
+      var prevI = -1;
       for (var i = 0; i < arr.length; i++) {
-        if (arr[i].ts_ms <= ts) best = arr[i];
-        else break;
+        if (arr[i].ts_ms <= ts) { prev = arr[i]; prevI = i; }
+        else { next = arr[i]; break; }
       }
-      return best;
+      if (!prev) return next ? { lat: next.lat, lon: next.lon, hdg: blendHdg("x", next.hdg), ts_ms: ts } : null;
+      if (!next || next.ts_ms === prev.ts_ms) {
+        var holdHdg = prev.hdg;
+        if (prevI > 0) {
+          var a = arr[prevI - 1];
+          holdHdg = Math.atan2(prev.lon - a.lon, prev.lat - a.lat) * 180 / Math.PI;
+        }
+        return { lat: prev.lat, lon: prev.lon, hdg: blendHdg(String(prev.ts_ms), holdHdg), ts_ms: ts };
+      }
+      var span = next.ts_ms - prev.ts_ms;
+      var u = span ? (ts - prev.ts_ms) / span : 0;
+      if (u < 0) u = 0;
+      if (u > 1) u = 1;
+      var pathHdg = Math.atan2(next.lon - prev.lon, next.lat - prev.lat) * 180 / Math.PI;
+      return {
+        lat: prev.lat + (next.lat - prev.lat) * u,
+        lon: prev.lon + (next.lon - prev.lon) * u,
+        hdg: pathHdg,
+        ts_ms: ts
+      };
+    }
+    function posLive(sail, ts) {
+      var pos = atTs(hist.boats[sail], ts);
+      if (!pos) return null;
+      pos.hdg = blendHdg(sail, pos.hdg);
+      return pos;
     }
     function tailUntil(arr, ts) {
       if (!arr || !arr.length) return [];
-      var cut = ts - 18000;
+      var cut = ts - 90000;
       var out = [];
       for (var i = 0; i < arr.length; i++) {
         if (arr[i].ts_ms >= cut && arr[i].ts_ms <= ts) out.push(arr[i]);
@@ -344,14 +490,12 @@
       L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", Object.assign({
         maxZoom: 18, opacity: 0.85, attribution: "Labels © Esri"
       }, tileOpts)).addTo(chartMap);
-      chartMap.on("dragstart zoomstart boxzoomstart movestart", function () {
-        if (!chartSyncing) followFleet = false;
+      chartMap.on("dragstart zoomstart boxzoomstart", function () {
+        followFleet = false;
+        didFit = true;
       });
       chartMap.on("move zoom", function () {
         if (!chartSyncing) drawLiveMap();
-      });
-      window.requestAnimationFrame(function () {
-        if (chartMap) chartMap.invalidateSize({ animate: false });
       });
       var track = el.parentNode;
       var ctrls = el.querySelector(".leaflet-control-container");
@@ -360,16 +504,18 @@
     function sizeCanvas() {
       if (!mapEl) return;
       initChart();
-      var w = mapEl.clientWidth || 640;
-      var h = mapEl.clientHeight || 480;
+      var w = mapEl.clientWidth || 0;
+      var h = mapEl.clientHeight || 0;
+      if (w < 32 || h < 32) return;
       var dpr = window.devicePixelRatio || 1;
-      var needW = Math.floor(w * dpr);
-      var needH = Math.floor(h * dpr);
-      if (!mapCtx || mapEl.width !== needW || mapEl.height !== needH) {
-        mapEl.width = needW;
-        mapEl.height = needH;
-        mapCtx = mapEl.getContext("2d");
+      var needW = Math.round(w * dpr);
+      var needH = Math.round(h * dpr);
+      if (mapCtx && Math.abs(mapEl.width - needW) < 3 && Math.abs(mapEl.height - needH) < 3) {
+        return;
       }
+      mapEl.width = needW;
+      mapEl.height = needH;
+      mapCtx = mapEl.getContext("2d");
       mapCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
       mapCtx.imageSmoothingEnabled = true;
     }
@@ -399,8 +545,109 @@
       mapCtx.fill();
       mapCtx.restore();
     }
+    function meterOffset(lat, lon, northM, eastM) {
+      return {
+        lat: lat + northM / 111000,
+        lon: lon + eastM / (111000 * Math.max(0.2, Math.cos(lat * Math.PI / 180)))
+      };
+    }
+    function startGrid(pin, rc, boatPts) {
+      if (!pin || !rc) return null;
+      var R = 6371000;
+      var lat0 = (pin.lat + rc.lat) / 2;
+      var lon0 = (pin.lon + rc.lon) / 2;
+      var cos = Math.cos(lat0 * Math.PI / 180);
+      function toxy(lat, lon) {
+        return {
+          x: (lon - lon0) * Math.PI / 180 * cos * R,
+          y: (lat - lat0) * Math.PI / 180 * R
+        };
+      }
+      function fromxy(x, y) {
+        return {
+          lat: lat0 + (y / R) * 180 / Math.PI,
+          lon: lon0 + (x / (R * cos)) * 180 / Math.PI
+        };
+      }
+      var a = toxy(pin.lat, pin.lon);
+      var b = toxy(rc.lat, rc.lon);
+      var lx = b.x - a.x;
+      var ly = b.y - a.y;
+      var len = Math.hypot(lx, ly) || 1;
+      var ux = lx / len;
+      var uy = ly / len;
+      var nx = -uy;
+      var ny = ux;
+      var scores = [];
+      (boatPts || []).forEach(function (p) {
+        var q = toxy(p.lat, p.lon);
+        scores.push((q.x - a.x) * nx + (q.y - a.y) * ny);
+      });
+      scores.sort(function (u, v) { return u - v; });
+      if (scores.length && scores[Math.floor(scores.length / 2)] < 0) {
+        nx = -nx;
+        ny = -ny;
+      }
+      return { a: a, ux: ux, uy: uy, nx: nx, ny: ny, len: len, fromxy: fromxy, toxy: toxy };
+    }
+    function drawStartGrid(pin, rc) {
+      var boats = [];
+      Object.keys(hist.boats).forEach(function (sail) {
+        var b = atTs(hist.boats[sail], playTs);
+        if (b) boats.push(b);
+      });
+      var g = startGrid(pin, rc, boats);
+      if (!g || !mapCtx) return;
+      var depth = 100;
+      var step = 20;
+      function lineAt(d, dashed, width, color) {
+        var p1 = g.fromxy(g.a.x + g.nx * d, g.a.y + g.ny * d);
+        var p2 = g.fromxy(g.a.x + g.ux * g.len + g.nx * d, g.a.y + g.uy * g.len + g.ny * d);
+        var a = xy(p1.lat, p1.lon);
+        var b = xy(p2.lat, p2.lon);
+        mapCtx.beginPath();
+        mapCtx.moveTo(a.x, a.y);
+        mapCtx.lineTo(b.x, b.y);
+        mapCtx.strokeStyle = color;
+        mapCtx.lineWidth = width;
+        mapCtx.setLineDash(dashed ? [6, 5] : []);
+        mapCtx.stroke();
+        mapCtx.setLineDash([]);
+        return { a: a, b: b, p1: p1, p2: p2 };
+      }
+      for (var d = step; d <= depth; d += step) {
+        var ln = lineAt(d, true, 1.1, "rgba(226,232,240,0.55)");
+        mapCtx.fillStyle = "rgba(255,255,255,0.92)";
+        mapCtx.font = "bold 10px sans-serif";
+        mapCtx.textAlign = "left";
+        mapCtx.fillText(d + "m", ln.b.x + 4, ln.b.y + 3);
+        mapCtx.fillText(d + "m", ln.a.x - 28, ln.a.y + 3);
+      }
+      for (var s = 0; s <= g.len + 0.1; s += step) {
+        var q1 = g.fromxy(g.a.x + g.ux * s, g.a.y + g.uy * s);
+        var q2 = g.fromxy(g.a.x + g.ux * s + g.nx * depth, g.a.y + g.uy * s + g.ny * depth);
+        var c = xy(q1.lat, q1.lon);
+        var e = xy(q2.lat, q2.lon);
+        mapCtx.beginPath();
+        mapCtx.moveTo(c.x, c.y);
+        mapCtx.lineTo(e.x, e.y);
+        mapCtx.strokeStyle = "rgba(226,232,240,0.4)";
+        mapCtx.lineWidth = 1;
+        mapCtx.setLineDash([6, 5]);
+        mapCtx.stroke();
+        mapCtx.setLineDash([]);
+        if (s > 0 && s < g.len) {
+          mapCtx.fillStyle = "rgba(255,255,255,0.9)";
+          mapCtx.font = "bold 10px sans-serif";
+          mapCtx.fillText(Math.round(s) + "m", c.x + 3, c.y - 6);
+        }
+      }
+      var over = lineAt(-2, false, 3.2, "rgba(239,68,68,0.85)");
+      var base = lineAt(0, false, 3.4, "#38bdf8");
+      return { g: g, over: over, base: base };
+    }
     function fitLive() {
-      if (!chartMap || !followFleet) return;
+      if (!chartMap || !followFleet || didFit) return;
       var ts = playTs;
       var pts = [];
       Object.keys(hist.boats).forEach(function (sail) {
@@ -415,11 +662,18 @@
         var m = atTs(hist.marks[k], ts);
         if (m) pts.push([m.lat, m.lon]);
       });
+      if (pin && rc) {
+        var g = startGrid(pin, rc, pts.map(function (p) { return { lat: p[0], lon: p[1] }; }));
+        if (g) {
+          [[0, 0], [g.len, 0], [0, 100], [g.len, 100]].forEach(function (xyM) {
+            var p = g.fromxy(g.a.x + g.ux * xyM[0] + g.nx * xyM[1], g.a.y + g.uy * xyM[0] + g.ny * xyM[1]);
+            pts.push([p.lat, p.lon]);
+          });
+        }
+      }
       if (!pts.length) return;
-      var lat = 0, lon = 0;
-      pts.forEach(function (p) { lat += p[0]; lon += p[1]; });
       chartSyncing = true;
-      chartMap.setView([lat / pts.length, lon / pts.length], Math.max(chartMap.getZoom(), 15), { animate: false });
+      chartMap.fitBounds(pts, { padding: [28, 28], maxZoom: 18, animate: false });
       chartSyncing = false;
     }
     function drawLiveMap() {
@@ -438,27 +692,26 @@
         var pos = atTs(hist.marks[k], ts);
         if (!pos) return;
         var p = xy(pos.lat, pos.lon);
+        var focus = k === "1";
         mapCtx.beginPath();
-        mapCtx.arc(p.x, p.y, 2.4, 0, Math.PI * 2);
-        mapCtx.fillStyle = "#f59e0b";
+        mapCtx.arc(p.x, p.y, focus ? 11 : 8, 0, Math.PI * 2);
+        mapCtx.strokeStyle = focus ? "rgba(251,191,36,0.85)" : "rgba(245,158,11,0.4)";
+        mapCtx.lineWidth = focus ? 2.2 : 1;
+        mapCtx.stroke();
+        mapCtx.beginPath();
+        mapCtx.arc(p.x, p.y, focus ? 4.2 : 2.4, 0, Math.PI * 2);
+        mapCtx.fillStyle = focus ? "#fbbf24" : "#f59e0b";
         mapCtx.fill();
         mapCtx.fillStyle = "#ffffff";
-        mapCtx.font = "bold 10px sans-serif";
+        mapCtx.font = focus ? "bold 13px sans-serif" : "bold 10px sans-serif";
         mapCtx.fillText("M" + k, p.x + 8, p.y + 4);
       });
       var pin = atTs(hist.pin, ts);
       var rc = atTs(hist.rc, ts);
       if (pin && rc) {
+        drawStartGrid(pin, rc);
         var a = xy(pin.lat, pin.lon);
         var b = xy(rc.lat, rc.lon);
-        mapCtx.beginPath();
-        mapCtx.moveTo(a.x, a.y);
-        mapCtx.lineTo(b.x, b.y);
-        mapCtx.strokeStyle = "#38bdf8";
-        mapCtx.lineWidth = 2.4;
-        mapCtx.setLineDash([7, 4]);
-        mapCtx.stroke();
-        mapCtx.setLineDash([]);
         mapCtx.beginPath();
         mapCtx.arc(a.x, a.y, 4, 0, Math.PI * 2);
         mapCtx.fillStyle = "#38bdf8";
@@ -474,7 +727,7 @@
         mapCtx.fillStyle = "#ffffff";
         mapCtx.font = "bold 10px sans-serif";
         mapCtx.fillText("Pin", a.x + 6, a.y - 6);
-        if (gunTs && ts < gunTs + 5 * 60 * 1000) mapCtx.fillText("START", (a.x + b.x) / 2 + 6, (a.y + b.y) / 2 - 6);
+        if (gunTs && ts < gunTs + 5 * 60 * 1000) mapCtx.fillText("START", (a.x + b.x) / 2 + 6, (a.y + b.y) / 2 - 14);
       }
       Object.keys(hist.boats).forEach(function (sail) {
         var trail = tailUntil(hist.boats[sail], ts);
@@ -496,7 +749,7 @@
         }
       });
       Object.keys(hist.boats).forEach(function (sail) {
-        var pos = atTs(hist.boats[sail], ts);
+        var pos = posLive(sail, ts);
         if (!pos) return;
         var p = xy(pos.lat, pos.lon);
         var fill = liveFill(sail);
@@ -512,9 +765,168 @@
       });
       drawingMap = false;
     }
+    function distM(a, b) {
+      if (!a || !b) return 1e9;
+      var R = 6371000;
+      var p1 = a.lat * Math.PI / 180;
+      var p2 = b.lat * Math.PI / 180;
+      var dphi = (b.lat - a.lat) * Math.PI / 180;
+      var dl = (b.lon - a.lon) * Math.PI / 180;
+      var x = Math.sin(dphi / 2) * Math.sin(dphi / 2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) * Math.sin(dl / 2);
+      return 2 * R * Math.asin(Math.sqrt(x));
+    }
+    function lineGeom(pin, rc, boatPts) {
+      if (!pin || !rc) return null;
+      var R = 6371000;
+      var lat0 = (pin.lat + rc.lat) / 2;
+      var lon0 = (pin.lon + rc.lon) / 2;
+      var cos = Math.cos(lat0 * Math.PI / 180);
+      function toxy(lat, lon) {
+        return { x: (lon - lon0) * Math.PI / 180 * cos * R, y: (lat - lat0) * Math.PI / 180 * R };
+      }
+      var a = toxy(pin.lat, pin.lon);
+      var b = toxy(rc.lat, rc.lon);
+      var lx = b.x - a.x, ly = b.y - a.y;
+      var len = Math.hypot(lx, ly) || 1;
+      var ux = lx / len, uy = ly / len;
+      var nx = -uy, ny = ux;
+      var scores = [];
+      (boatPts || []).forEach(function (p) {
+        var q = toxy(p.lat, p.lon);
+        scores.push((q.x - a.x) * nx + (q.y - a.y) * ny);
+      });
+      scores.sort(function (u, v) { return u - v; });
+      if (scores.length && scores[Math.floor(scores.length / 2)] < 0) { nx = -nx; ny = -ny; }
+      return {
+        len: len,
+        signed: function (lat, lon) {
+          var q = toxy(lat, lon);
+          return { d: (q.x - a.x) * nx + (q.y - a.y) * ny, along: (q.x - a.x) * ux + (q.y - a.y) * uy };
+        }
+      };
+    }
+    var stTs = {};
+    var m1Ts = {};
+    function detectLivePasses() {
+      var pin = hist.pin.length ? hist.pin[hist.pin.length - 1] : null;
+      var rc = hist.rc.length ? hist.rc[hist.rc.length - 1] : null;
+      var m1arr = hist.marks["1"] || [];
+      var m1 = m1arr.length ? m1arr[m1arr.length - 1] : null;
+      var probe = [];
+      Object.keys(hist.boats).forEach(function (sail) {
+        var b = (hist.boats[sail] || [])[0];
+        if (b) probe.push(b);
+      });
+      var geom = lineGeom(pin, rc, probe);
+      Object.keys(hist.boats).forEach(function (sail) {
+        var pts = hist.boats[sail] || [];
+        if (stTs[sail] == null && geom && gunTs && pts.length >= 2) {
+          var prev = null;
+          for (var i = 0; i < pts.length; i++) {
+            var p = pts[i];
+            if (p.ts_ms < gunTs - 2000) continue;
+            var sg = geom.signed(p.lat, p.lon);
+            if (prev && prev.d > 0 && sg.d <= 0 && sg.along >= -25 && sg.along <= geom.len + 25) {
+              var frac = prev.d === sg.d ? 1 : prev.d / (prev.d - sg.d);
+              stTs[sail] = Math.round(prev.ts + (p.ts_ms - prev.ts) * frac);
+              break;
+            }
+            prev = { d: sg.d, ts: p.ts_ms };
+          }
+        }
+        if (m1Ts[sail] == null && m1 && pts.length >= 3) {
+          var after = stTs[sail] != null ? stTs[sail] : (gunTs || 0);
+          for (var j = 1; j < pts.length - 1; j++) {
+            if (pts[j].ts_ms < after) continue;
+            var d = distM(pts[j], m1);
+            if (d < 40 && d <= distM(pts[j - 1], m1) && d <= distM(pts[j + 1], m1)) {
+              m1Ts[sail] = pts[j].ts_ms;
+              break;
+            }
+          }
+        }
+      });
+    }
+    var wrapEl = document.getElementById("lipton-dev-table-wrap");
+    var tbody = document.getElementById("lipton-dev-tbody");
+    var lastLiveTableKey = "";
+    if (wrapEl) wrapEl.hidden = false;
+    function liveIdent(sail) { return identity[sail] || {}; }
+    function liveOcsOn(sail) {
+      var n = (identity[sail] && (identity[sail].mapClub || identity[sail].club)) || sail;
+      return liveOcs.indexOf(sail) >= 0 || liveOcs.indexOf(n) >= 0;
+    }
+    function fmtBehind(t, first) {
+      if (t == null || first == null) return "";
+      var sec = Math.max(0, (t - first) / 1000);
+      var m = Math.floor(sec / 60);
+      var s = Math.floor(sec % 60);
+      return m + ":" + (s < 10 ? "0" : "") + s;
+    }
+    function liveBoatIcon(sail, rank, ocs) {
+      var fill = ocs ? "#dc2626" : (LIVE_BOAT_COLORS[sail] || "#94a3b8");
+      var label = ocs ? "OCS" : (rank != null ? String(rank) : "");
+      var fs = ocs ? "5.2" : "8";
+      return "<svg class=\"lipton-boat-dot\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"13.2\" r=\"8.1\" fill=\"" + fill + "\" stroke=\"#fff\" stroke-width=\"1.5\"/><polygon points=\"12,3 15.8,8.4 8.2,8.4\" fill=\"" + fill + "\" stroke=\"#fff\" stroke-width=\"1.1\"/><text x=\"12\" y=\"16\" text-anchor=\"middle\" fill=\"#fff\" font-size=\"" + fs + "\" font-weight=\"800\">" + esc(label) + "</text></svg>";
+    }
+    function renderLiveTable() {
+      if (!tbody) return;
+      if (wrapEl) wrapEl.hidden = false;
+      detectLivePasses();
+      var names = {};
+      Object.keys(identity).forEach(function (s) { names[s] = true; });
+      Object.keys(hist.boats).forEach(function (s) { names[s] = true; });
+      var firstSt = null;
+      Object.keys(stTs).forEach(function (s) {
+        if (liveOcsOn(s)) return;
+        if (firstSt == null || stTs[s] < firstSt) firstSt = stTs[s];
+      });
+      var stRank = {};
+      Object.keys(stTs).sort(function (a, b) { return stTs[a] - stTs[b]; }).forEach(function (s, i) { stRank[s] = i + 1; });
+      var m1Rank = {};
+      Object.keys(m1Ts).sort(function (a, b) { return m1Ts[a] - m1Ts[b]; }).forEach(function (s, i) { m1Rank[s] = i + 1; });
+      var rows = Object.keys(names).map(function (sail) {
+        var st = stTs[sail] != null && stTs[sail] <= playTs ? stTs[sail] : null;
+        var m1 = m1Ts[sail] != null && m1Ts[sail] <= playTs ? m1Ts[sail] : null;
+        return { sail: sail, st: st, m1: m1, far: m1 != null ? 2 : (st != null ? 1 : 0), farTs: m1 || st || 0 };
+      });
+      rows.sort(function (a, b) {
+        if (b.far !== a.far) return b.far - a.far;
+        if (a.far && b.far && a.farTs !== b.farTs) return a.farTs - b.farTs;
+        var ia = liveIdent(a.sail), ib = liveIdent(b.sail);
+        return Number(ia.bow || 99) - Number(ib.bow || 99);
+      });
+      rows.forEach(function (r, i) { r.rank = i + 1; });
+      var key = rows.map(function (r) { return r.sail + ":" + r.rank + ":" + (r.st || "") + ":" + (r.m1 || ""); }).join("|");
+      if (key === lastLiveTableKey) return;
+      lastLiveTableKey = key;
+      var html = "";
+      rows.forEach(function (r) {
+        var id = liveIdent(r.sail);
+        var ocs = liveOcsOn(r.sail) && r.st != null;
+        var medal = "";
+        if (!ocs && r.rank === 1) medal = " medal-gold";
+        else if (!ocs && r.rank === 2) medal = " medal-silver";
+        else if (!ocs && r.rank === 3) medal = " medal-bronze";
+        html += "<tr class=\"" + medal + (ocs ? " ocs-pending" : "") + "\" data-boat=\"" + esc(r.sail) + "\">";
+        html += "<td class=\"rank-col\">" + liveBoatIcon(r.sail, r.rank, ocs) + "</td>";
+        html += "<td class=\"wc-meta-col\">" + (id.bow != null ? esc(id.bow) : "") + "</td>";
+        html += "<td class=\"boat-name-col\">" + (id.nameInner || esc(id.title || r.sail)) + "</td>";
+        html += "<td class=\"club-col\">" + esc(id.mapClub || id.club || "") + "</td>";
+        html += "<td class=\"timer-col\">" + (ocs ? "OCS" : fmtBehind(r.st, firstSt)) + "</td>";
+        var d1 = (r.st && r.m1 && stRank[r.sail] && m1Rank[r.sail]) ? (stRank[r.sail] - m1Rank[r.sail]) : null;
+        html += "<td class=\"place-delta-col\">" + (d1 == null ? "" : (d1 > 0 ? "▲" + d1 : d1 < 0 ? "▼" + (-d1) : "")) + "</td>";
+        html += "<td class=\"timer-col\">" + (r.m1 && r.st ? fmtClock(r.m1 - r.st) : "") + "</td>";
+        html += "<td class=\"place-delta-col\"></td>";
+        html += "</tr>";
+      });
+      tbody.innerHTML = html;
+    }
     function applySnap(data) {
       if (!data) return;
       if (!data.ok && !(data.boats && Object.keys(data.boats).length)) return;
+      if (Array.isArray(data.ocs)) liveOcs = data.ocs.slice();
+      if (data.clock_lag_ms != null) LIVE_CLOCK_LAG_MS = Number(data.clock_lag_ms);
       snap = data;
       if (data.gun_ts_ms) gunTs = Number(data.gun_ts_ms);
       Object.keys(data.boats || {}).forEach(function (sail) {
@@ -535,8 +947,14 @@
         nameEl.textContent = label;
         hud.classList.toggle("is-nameless", !label);
       }
-      fitLive();
-      drawLiveMap();
+      if (!didFit && pinReady()) {
+        fitLive();
+        didFit = true;
+      }
+      renderLiveTable();
+    }
+    function pinReady() {
+      return hist.pin.length && hist.rc.length && Object.keys(hist.boats).length;
     }
     function poll() {
       var q = loadedHistory ? "/api/lipton-dev/live" : "/api/lipton-dev/live?history=1";
@@ -552,11 +970,20 @@
       .then(function (res) { return res.ok ? res.json() : null; })
       .then(function (data) {
         identity = (data && data.boats) || {};
+        renderLiveTable();
       })
-      .catch(function () {});
+      .catch(function () { renderLiveTable(); });
     paintClock();
+    renderLiveTable();
     poll();
-    setInterval(paintClock, 100);
+    function liveTick() {
+      paintClock();
+      tickLiveHorns();
+      drawLiveMap();
+      renderLiveTable();
+      window.requestAnimationFrame(liveTick);
+    }
+    window.requestAnimationFrame(liveTick);
     setInterval(poll, 1000);
     window.addEventListener("resize", function () { drawLiveMap(); });
   }

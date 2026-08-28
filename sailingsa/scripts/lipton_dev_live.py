@@ -20,9 +20,11 @@ from lipton_vakaros import (
 )
 
 TELEAPI = "https://teleapi.regatta.app/telemetry"
-WINDOW_MS = 25_000
-HISTORY_MS = 8 * 60 * 1000
-CLOCK_LAG_MS = 10_000
+WINDOW_MS = 90_000
+HISTORY_MS = 4 * 60 * 1000
+LIVE_TRAIL_MS = 90_000
+STEP_MS = 280
+CLOCK_LAG_MS = 20_000
 STATE_PATH = Path("/tmp/lipton_dev_live_state.json")
 HISTORY_PATHS = (
     Path("/var/www/sailingsa/js/lipton-dev-live-history.json"),
@@ -71,8 +73,8 @@ def _pt(rec: dict | None) -> dict | None:
 
 
 def _device_map(doc: dict) -> dict:
-    """Map teleapi sn → role from current Firestore names. Empty if not named."""
-    out = {"rc": None, "pin": PIN_SN, "marks": {}}
+    """Map teleapi sn → role. Always keep pin / RC / M1–M3 fallbacks."""
+    out = {"rc": 25604, "pin": PIN_SN, "marks": dict(MARK_SN)}
     for d in doc.get("rcDevices") or []:
         if not isinstance(d, dict):
             continue
@@ -85,7 +87,7 @@ def _device_map(doc: dict) -> dict:
         elif name == "4":
             out["pin"] = sn
             out["marks"]["4"] = sn
-        elif name.isdigit() and name != "4":
+        elif name.isdigit():
             out["marks"][name] = sn
     if "4" not in out["marks"]:
         out["marks"]["4"] = out["pin"]
@@ -138,11 +140,13 @@ def _load_state() -> dict:
         return {}
 
 
-def _trail_from_recs(recs: list[dict], keep: int) -> list[dict]:
+def _trail_from_recs(recs: list[dict], keep_ms: int | None) -> list[dict]:
     pts = sorted((p for p in recs if p.get("latitude") is not None), key=lambda p: int(p.get("ts") or 0))
     trail = []
     for p in pts:
         ts = int(p.get("ts") or 0)
+        if ts <= 0:
+            continue
         step = {
             "lat": round(float(p["latitude"]), 6),
             "lon": round(float(p["longitude"]), 6),
@@ -150,29 +154,116 @@ def _trail_from_recs(recs: list[dict], keep: int) -> list[dict]:
         }
         if p.get("heading") is not None:
             step["hdg"] = p.get("heading")
-        if trail and ts - trail[-1]["ts_ms"] < 900:
+        if p.get("sog") is not None:
+            step["sog"] = p.get("sog")
+        if trail and ts - trail[-1]["ts_ms"] < STEP_MS:
             trail[-1] = step
         else:
             trail.append(step)
-    if keep >= 0:
-        return trail[-keep:]
+    if keep_ms and trail:
+        cut = trail[-1]["ts_ms"] - keep_ms
+        trail = [x for x in trail if x["ts_ms"] >= cut]
     return trail
 
 
-def _load_history_file() -> dict:
+def _merge_trail(old: list | None, new: list | None) -> list[dict]:
+    by: dict[int, dict] = {}
+    for p in (old or []) + (new or []):
+        if not p or p.get("lat") is None or p.get("lon") is None:
+            continue
+        ts = int(p.get("ts_ms") or 0)
+        if ts <= 0:
+            continue
+        by[ts] = p
+    return [by[k] for k in sorted(by)]
+
+
+def _slice_trail(trail: list[dict], keep_ms: int) -> list[dict]:
+    if not trail or keep_ms <= 0:
+        return trail or []
+    cut = trail[-1]["ts_ms"] - keep_ms
+    return [x for x in trail if x["ts_ms"] >= cut]
+
+
+def _boat_from_trail(trail: list[dict]) -> dict | None:
+    if not trail:
+        return None
+    last = dict(trail[-1])
+    last["trail"] = trail
+    return last
+
+
+def _history_span_ms(data: dict) -> int:
+    span = 0
+    for b in (data.get("boats") or {}).values():
+        t = (b or {}).get("trail") or []
+        if len(t) >= 2:
+            span = max(span, int(t[-1].get("ts_ms") or 0) - int(t[0].get("ts_ms") or 0))
+    return span
+
+
+def _load_history_file(*, max_age_s: float | None = 180) -> dict:
     for p in HISTORY_PATHS:
         try:
-            if p.is_file() and time.time() - p.stat().st_mtime < 180:
-                data = json.loads(p.read_text(encoding="utf-8"))
-                if isinstance(data, dict) and data.get("boats"):
-                    return data
+            if not p.is_file():
+                continue
+            if max_age_s is not None and time.time() - p.stat().st_mtime > max_age_s:
+                continue
+            data = json.loads(p.read_text(encoding="utf-8"))
+            if isinstance(data, dict) and data.get("boats"):
+                return data
         except (OSError, json.JSONDecodeError, TypeError, ValueError):
             continue
     return {}
 
 
+def _merge_history_payload(old: dict, new: dict) -> dict:
+    if not old or not old.get("boats"):
+        return new
+    out = dict(new)
+    boats: dict[str, dict] = {}
+    sails = set(old.get("boats") or {}) | set(new.get("boats") or {})
+    for sail in sails:
+        ob = (old.get("boats") or {}).get(sail) or {}
+        nb = (new.get("boats") or {}).get(sail) or {}
+        trail = _merge_trail(ob.get("trail"), nb.get("trail") or ([nb] if nb.get("lat") is not None else []))
+        trail = _slice_trail(trail, HISTORY_MS)
+        built = _boat_from_trail(trail)
+        if built:
+            boats[sail] = built
+    out["boats"] = boats
+
+    def merge_mark(old_m, new_m):
+        trail = _merge_trail(
+            (old_m or {}).get("trail") or ([old_m] if old_m and old_m.get("lat") is not None else []),
+            (new_m or {}).get("trail") or ([new_m] if new_m and new_m.get("lat") is not None else []),
+        )
+        trail = _slice_trail(trail, HISTORY_MS)
+        return _boat_from_trail(trail)
+
+    pin = merge_mark(old.get("pin"), new.get("pin"))
+    rc = merge_mark(old.get("committee"), new.get("committee"))
+    if pin:
+        out["pin"] = pin
+    if rc:
+        out["committee"] = rc
+        if pin:
+            out["start_line"] = {"left": pin, "right": rc}
+    marks = {}
+    keys = set(old.get("marks") or {}) | set(new.get("marks") or {})
+    for k in keys:
+        mk = merge_mark((old.get("marks") or {}).get(k), (new.get("marks") or {}).get(k))
+        if mk:
+            marks[k] = mk
+    if marks:
+        out["marks"] = marks
+    return out
+
+
 def _save_history_file(payload: dict) -> None:
-    text = json.dumps(payload, separators=(",", ":"), default=str)
+    old = _load_history_file(max_age_s=None)
+    merged = _merge_history_payload(old, payload)
+    text = json.dumps(merged, separators=(",", ":"), default=str)
     for p in HISTORY_PATHS:
         try:
             p.parent.mkdir(parents=True, exist_ok=True)
@@ -184,7 +275,7 @@ def _save_history_file(payload: dict) -> None:
 def live_snapshot(*, history: bool = False) -> dict:
     if history:
         hit = _load_history_file()
-        if hit:
+        if hit and _history_span_ms(hit) >= 20_000:
             hit = dict(hit)
             hit["from_cache"] = True
             return hit
@@ -226,7 +317,8 @@ def live_snapshot(*, history: bool = False) -> dict:
             None,
         )
     start0 = ((raw_race or {}).get("starts") or [{}])[0] if raw_race else {}
-    rows = _tele_latest(now_ms - (HISTORY_MS if history else WINDOW_MS), now_ms + 2000)
+    keep_ms = HISTORY_MS if history else WINDOW_MS
+    rows = _tele_latest(now_ms - keep_ms, now_ms + 2000)
     boats: dict[str, dict] = {}
     by_sn: dict[int, dict] = {}
     tracks: dict[str, list] = {}
@@ -245,22 +337,14 @@ def live_snapshot(*, history: bool = False) -> dict:
             prev = by_sn.get(sn)
             if not prev or int(rec.get("ts") or 0) >= int(prev.get("ts") or 0):
                 by_sn[sn] = rec
-    keep = 0 if history else 20
     for sail, pts in tracks.items():
-        trail = _trail_from_recs(pts, keep)
-        if not trail:
-            continue
-        last = trail[-1]
-        boats[sail] = {
-            "lat": last["lat"],
-            "lon": last["lon"],
-            "ts_ms": last["ts_ms"],
-            "hdg": last.get("hdg"),
-            "trail": trail,
-        }
-    pin_trail = _trail_from_recs(sn_tracks.get(devices["pin"]) or [], keep)
+        trail = _trail_from_recs(pts, keep_ms)
+        built = _boat_from_trail(trail)
+        if built:
+            boats[sail] = built
+    pin_trail = _trail_from_recs(sn_tracks.get(devices["pin"]) or [], keep_ms)
     rc_sn = devices.get("rc")
-    rc_trail = _trail_from_recs(sn_tracks.get(rc_sn) or [], keep) if rc_sn else []
+    rc_trail = _trail_from_recs(sn_tracks.get(rc_sn) or [], keep_ms) if rc_sn else []
     pin = pin_trail[-1] if pin_trail else _pt(by_sn.get(devices["pin"]))
     rc = rc_trail[-1] if rc_trail else (_pt(by_sn.get(rc_sn)) if rc_sn else None)
     if pin and pin_trail:
@@ -273,7 +357,7 @@ def live_snapshot(*, history: bool = False) -> dict:
     for name, sn in (devices.get("marks") or {}).items():
         if name == "4":
             continue
-        mtrail = _trail_from_recs(sn_tracks.get(sn) or [], keep)
+        mtrail = _trail_from_recs(sn_tracks.get(sn) or [], keep_ms)
         if mtrail:
             mk = dict(mtrail[-1])
             mk["trail"] = mtrail
@@ -312,12 +396,21 @@ def live_snapshot(*, history: bool = False) -> dict:
             "pin": pin is not None,
             "committee": rc is not None,
         },
-        "source": "firestore gun + teleapi last 30s. Empty = not received.",
+        "source": "firestore gun + teleapi as received. Empty = not received.",
     }
     if gun_ms is not None:
         _save_state(out)
     if boats:
         _save_history_file(out)
+    if history:
+        stored = _load_history_file(max_age_s=None)
+        if stored and stored.get("boats"):
+            stored = dict(stored)
+            for k, v in out.items():
+                if k not in ("boats", "marks", "pin", "committee", "start_line"):
+                    stored[k] = v
+            stored["from_cache"] = False
+            return stored
     return out
 
 
