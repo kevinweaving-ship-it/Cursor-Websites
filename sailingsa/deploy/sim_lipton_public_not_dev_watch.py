@@ -151,6 +151,10 @@ def main() -> int:
     assert "lw-g22.py" in str(ngxmod.WATCH_DSTS)
     assert "lipton_ngx_public_restore.py --loop" in mod.GUARD_BODY
     assert "LIPTON_NGINX_LOOP_V1" in ngx_path.read_text(encoding="utf-8")
+    assert "LIPTON_NGINX_WATCH_UNIT_V1" in ngx_path.read_text(encoding="utf-8")
+    assert callable(ngxmod.ensure_units_and_loops)
+    assert ngxmod.NGX_UNIT_NAME == "sailingsa-lipton-ngx-restore.service"
+    assert "lipton_ngx_public_restore.py --loop" in ngxmod.NGX_UNIT_BODY
     assert "/usr/local/lib/lipton_public_not_dev_watch.py" in str(ngxmod.WATCH_DSTS)
     assert "/usr/local/sbin/lipton_public_not_dev_watch.py" in str(ngxmod.WATCH_DSTS)
     v2 = """

@@ -34,10 +34,41 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 */5 17-23,0-7 * * * root /usr/local/sbin/cron_lipton_schedule_poll.sh
 """
 WATCH_MARKER = "LIPTON_WATCH_DEBOUNCE_V1"
+# LIPTON_NGINX_WATCH_UNIT_V1 — revive units/loops when PLAYBACK_LOCK disable+kills.
+CRON_NGX = Path("/etc/cron.d/aa-lipton-ngx")
+CRON_NGX_BODY = (
+    "* * * * * root /usr/local/sbin/lipton_ngx_public_restore.py >/dev/null 2>&1; "
+    "sleep 20; /usr/local/sbin/lipton_ngx_public_restore.py >/dev/null 2>&1; "
+    "sleep 20; /usr/local/sbin/lipton_ngx_public_restore.py >/dev/null 2>&1\n"
+)
+CRON_PUBLIC = Path("/etc/cron.d/sailingsa-lipton-public-not-dev")
+CRON_PUBLIC_BODY = """# Lipton 2026: undo public-slug playback hijack (nginx + api.py).
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+* * * * * root /usr/local/lib/lipton_public_watch_guard.sh >/dev/null 2>&1; sleep 20; /usr/local/lib/lipton_public_watch_guard.sh >/dev/null 2>&1; sleep 20; /usr/local/lib/lipton_public_watch_guard.sh >/dev/null 2>&1
+"""
+NGX_UNIT = Path("/etc/systemd/system/sailingsa-lipton-ngx-restore.service")
+NGX_UNIT_BODY = """[Unit]
+Description=Lipton 2026 nginx public-slug restore loop
+After=network.target nginx.service
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+ExecStart=/usr/bin/python3 /usr/local/sbin/lipton_ngx_public_restore.py --loop
+
+[Install]
+WantedBy=multi-user.target
+"""
+WATCH_UNIT_NAME = "sailingsa-lipton-public-watch.service"
+HOLD_UNIT_NAME = "sailingsa-lipton-url-hold.service"
+NGX_UNIT_NAME = "sailingsa-lipton-ngx-restore.service"
 WATCH_SRCS = (
     Path("/usr/local/lib/lipton_public_not_dev_watch.py"),
     Path("/usr/local/sbin/lipton_public_not_dev_watch.py"),
     Path("/var/lib/sailingsa-lipton/watch.py"),
+    Path("/usr/local/share/sailingsa-lipton/watch.py"),
     Path("/root/lw-g22.py"),
 )
 WATCH_DSTS = (
@@ -50,6 +81,7 @@ WATCH_DSTS = (
     Path("/usr/local/lib/lipton_public_not_dev_watch.py"),
     Path("/usr/local/sbin/lipton_public_not_dev_watch.py"),
     Path("/var/lib/sailingsa-lipton/watch.py"),
+    Path("/usr/local/share/sailingsa-lipton/watch.py"),
 )
 PLAYBACK_LOCK = (
     "# LIPTON_NGINX_PLAYBACK_LOCK public + -dev slugs serve lipton-dev.html "
@@ -258,9 +290,111 @@ def restore_schedule_cron() -> bool:
         return False
 
 
-def restore_once() -> int:
+def _write_cron(path: Path, body: str) -> bool:
+    body = body if body.endswith("\n") else body + "\n"
+    try:
+        cur = path.read_text(encoding="utf-8") if path.is_file() else ""
+    except Exception:
+        cur = ""
+    if cur == body:
+        _chattr(path, True)
+        return False
+    try:
+        _write(path, body)
+        os.system(f"chmod 644 {path} >/dev/null 2>&1")
+        _chattr(path, True)
+        return True
+    except Exception:
+        return False
+
+
+def restore_crons() -> None:
     restore_schedule_cron()
+    if _write_cron(CRON_NGX, CRON_NGX_BODY):
+        _log("ngx restore ngx cron")
+    if _write_cron(CRON_PUBLIC, CRON_PUBLIC_BODY):
+        _log("ngx restore public cron")
+
+
+def _ps_has(needle: str) -> bool:
+    try:
+        out = subprocess.check_output(["ps", "-eo", "cmd"], text=True, errors="replace")
+    except Exception:
+        return False
+    return any(needle in line for line in out.splitlines())
+
+
+def _systemctl(*args: str) -> None:
+    subprocess.run(
+        ["systemctl", *args],
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+
+def ensure_units_and_loops() -> None:
+    """Re-enable watch/ngx units and restart loops after disable+kill."""
+    try:
+        cur = NGX_UNIT.read_text(encoding="utf-8") if NGX_UNIT.is_file() else ""
+    except Exception:
+        cur = ""
+    if cur != NGX_UNIT_BODY:
+        try:
+            _write(NGX_UNIT, NGX_UNIT_BODY)
+            os.system(f"chmod 644 {NGX_UNIT} >/dev/null 2>&1")
+            _chattr(NGX_UNIT, True)
+            _systemctl("daemon-reload")
+            _log("ngx restore ngx unit")
+        except Exception:
+            pass
+    else:
+        _chattr(NGX_UNIT, True)
+    for name in (WATCH_UNIT_NAME, HOLD_UNIT_NAME, NGX_UNIT_NAME):
+        _systemctl("unmask", name)
+        _systemctl("enable", name)
+        _systemctl("start", name)
+    gold = next((p for p in WATCH_SRCS if _watch_gold_ok(p)), None)
+    watch_loop = False
+    try:
+        watch_loop = any(
+            "lw-g" in line and "--loop" in line
+            for line in subprocess.check_output(
+                ["ps", "-eo", "cmd"], text=True, errors="replace"
+            ).splitlines()
+        )
+    except Exception:
+        watch_loop = False
+    if gold is not None and not watch_loop:
+        try:
+            subprocess.Popen(
+                ["/usr/bin/python3", str(gold), "--loop"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+            _log("ngx restore started watch --loop")
+        except Exception:
+            pass
+    if not _ps_has("lipton_ngx_public_restore.py --loop"):
+        ngx_bin = Path("/usr/local/sbin/lipton_ngx_public_restore.py")
+        if ngx_bin.is_file() and ngx_bin.stat().st_size > 500:
+            try:
+                subprocess.Popen(
+                    ["/usr/bin/python3", str(ngx_bin), "--loop"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    start_new_session=True,
+                )
+                _log("ngx restore started ngx --loop")
+            except Exception:
+                pass
+
+
+def restore_once() -> int:
+    restore_crons()
     restore_watch_golds()
+    ensure_units_and_loops()
     changed = False
     if SNIPPET.is_file() or SNIPPET.parent.is_dir():
         body = PUBLIC_PROXY if PUBLIC_PROXY.endswith("\n") else PUBLIC_PROXY + "\n"
