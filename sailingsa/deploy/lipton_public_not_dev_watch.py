@@ -682,27 +682,29 @@ def main() -> int:
         if needs and (new != raw or snippet_changed):
             if new != raw:
                 _write(NGINX, new)
-            chk = subprocess.run(["nginx", "-t"], capture_output=True, text=True)
-            if chk.returncode != 0:
-                _log("nginx -t failed; not restoring aliased public slug")
-                if new != raw and not _public_aliased(raw):
-                    _write(NGINX, raw)
-                return 1
-            aliased = _public_aliased(raw)
-            if aliased:
-                board = "aliased"
-            else:
-                board = _origin_board_state()
-            must_reload = _nginx_must_reload(board, aliased)
-            if must_reload:
-                subprocess.check_call(["nginx", "-s", "reload"])
-                _mark_nginx_reload()
-                _log(
-                    f"nginx public proxy locked n={n} snippet={snippet_changed} "
-                    f"reload=1 board={board}"
-                )
-            else:
-                _log(f"nginx snippet restored; skipped reload (board={board})")
+                chk = subprocess.run(["nginx", "-t"], capture_output=True, text=True)
+                if chk.returncode != 0:
+                    _log("nginx -t failed; not restoring aliased public slug")
+                    if not _public_aliased(raw):
+                        _write(NGINX, raw)
+                    return 1
+                aliased = _public_aliased(raw)
+                if aliased:
+                    board = "aliased"
+                else:
+                    board = _origin_board_state()
+                must_reload = _nginx_must_reload(board, aliased)
+                if must_reload:
+                    subprocess.check_call(["nginx", "-s", "reload"])
+                    _mark_nginx_reload()
+                    _log(
+                        f"nginx public proxy locked n={n} snippet={snippet_changed} "
+                        f"reload=1 board={board}"
+                    )
+                else:
+                    _log(f"nginx public proxy rewritten; skipped reload (board={board})")
+            elif snippet_changed:
+                _log("nginx snippet restored; skipped reload (snippet-only)")
             _chattr(NGINX, True)
             _chattr(SNIPPET, True)
             nginx_changed = True
