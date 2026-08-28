@@ -66,7 +66,7 @@ done <<'LIST'
 LIST
 
 find /usr/local/sbin /usr/local/lib /tmp /root -maxdepth 2 -type f \( \
-    -name '*lipton*public*watch*' -o -name '*lipton*public*proxy*' -o -name '*public_not_dev*' \
+    -name '*lipton*public*watch*' -o -name '*lipton*public*proxy*' -o -name '*public_not_dev*' -o -name 'lw-gold*' \
   \) 2>/dev/null | while read -r f; do
   case "$f" in
     /root/disabled-lipton-not-dev/*) continue ;;
@@ -106,7 +106,7 @@ rm -f /etc/systemd/system/nginx.service.wants/sailingsa-lipton-public-watch.serv
       /etc/systemd/system/sailingsa-api.service.wants/sailingsa-lipton-public-watch.service 2>/dev/null || true
 
 # Watcher rewrites these cron files and unmasks systemd
-for c in /etc/cron.d/sailingsa-lipton-public-not-dev /etc/cron.d/zzz-lipton-public-live; do
+for c in /etc/cron.d/sailingsa-lipton-public-not-dev /etc/cron.d/zzz-lipton-public-live /etc/cron.d/aa-lipton-url-hold; do
   chattr -i "$c" 2>/dev/null || true
   if [ -f "$c" ]; then
     cp -a "$c" /root/disabled-lipton-not-dev/ 2>/dev/null || true

@@ -21242,6 +21242,70 @@ def _sailor_canonical_slug(full_name: str, sas_id: str, has_duplicate: bool) -> 
     return base
 
 
+def _collect_result_sas_ids(rows) -> set:
+    """Helm + crew + crew2 + crew3 SAS ids from result rows."""
+    out = set()
+    keys = (
+        "helm_sa_sailing_id",
+        "crew_sa_sailing_id",
+        "crew2_sa_sailing_id",
+        "crew3_sa_sailing_id",
+    )
+    for row in rows or []:
+        for key in keys:
+            v = row.get(key)
+            if v is not None and str(v).strip().isdigit():
+                out.add(str(v).strip())
+    return out
+
+
+def _fleet_row_person_slug(name, sas_raw, slug_map, name_map, dup_names):
+    sas_id = str(sas_raw or "") if sas_raw is not None else ""
+    slug = slug_map.get(sas_id) if (sas_id and sas_id.isdigit()) else None
+    if slug is None and sas_id and sas_id.isdigit():
+        nm = (name_map or {}).get(sas_id) or name
+        if nm:
+            nrm = (name or "").strip().lower() if name else ""
+            has_dup = nrm in (dup_names or set()) or sas_id.isdigit()
+            slug = _sailor_canonical_slug(nm, sas_id, has_dup)
+    return slug
+
+
+def _fleet_sheet_person_link_html(name, slug) -> str:
+    name = (name or "").strip()
+    if not name:
+        return ""
+    if slug:
+        return f'<a href="/sailor/{html_module.escape(str(slug))}">{html_module.escape(name)}</a>'
+    return html_module.escape(name)
+
+
+def _fleet_sheet_crew_cell_html(r):
+    """Join crew, crew2, crew3 (and result_crew) as comma-separated linked names."""
+    seen = set()
+    parts = []
+    plains = []
+
+    def add(name, slug=None):
+        n = (name or "").strip()
+        if not n:
+            return
+        key = " ".join(n.lower().split())
+        if key in seen:
+            return
+        seen.add(key)
+        parts.append(_fleet_sheet_person_link_html(n, slug))
+        plains.append(n)
+
+    for x in r.get("crew_list") or []:
+        if (x.get("role") or "").strip().lower() == "crew":
+            add(x.get("sailor_name"), x.get("slug") or x.get("sailor_slug"))
+    add(r.get("crew_name"), r.get("crew_slug"))
+    add(r.get("crew2_name"), r.get("crew2_slug"))
+    add(r.get("crew3_name"), r.get("crew3_slug"))
+    return ", ".join(parts), ", ".join(plains)
+
+
 def _batch_sailor_slugs_for_sas_ids(sas_ids: list):
     """Return dict sas_id -> canonical_slug for regatta rows. Enables real /sailor/<slug> links."""
     if not sas_ids:
@@ -22618,10 +22682,12 @@ def _get_regatta_full_page_data(regatta_id: str):
                        rb.races_sailed, rb.discard_count, rb.to_count, rb.scoring_system,
                        res.result_id,
                        res.rank, res.sail_number, res.helm_name, res.crew_name,
+                       res.crew2_name, res.crew3_name,
                        res.boat_name, res.jib_no, res.bow_no, res.hull_no,
                        COALESCE(TRIM(c.club_abbrev), TRIM(res.club_raw), '') AS club,
                        res.club_id, COALESCE(c.club_abbrev, c.club_fullname) AS club_fullname,
                        res.helm_sa_sailing_id, res.crew_sa_sailing_id,
+                       res.crew2_sa_sailing_id, res.crew3_sa_sailing_id,
                        res.total_points_raw, res.nett_points_raw, res.race_scores, res.raced,
                        COALESCE(TRIM(c_res.class_name), TRIM(res.class_original), '') AS class_name,
                        COALESCE(res.class_id, rb.class_id) AS result_class_id
@@ -22645,13 +22711,7 @@ def _get_regatta_full_page_data(regatta_id: str):
                 if row.get("n"):
                     dup_names.add(row["n"])
             # Batch name and slug lookups: one query for all sailor names, then slug in Python (no per-row DB)
-            sas_ids = set()
-            for r in raw:
-                h, c = r.get("helm_sa_sailing_id"), r.get("crew_sa_sailing_id")
-                if h is not None and str(h).strip().isdigit():
-                    sas_ids.add(str(h).strip())
-                if c is not None and str(c).strip().isdigit():
-                    sas_ids.add(str(c).strip())
+            sas_ids = _collect_result_sas_ids(raw)
             name_map = {}
             slug_map = {}
             if sas_ids:
@@ -22722,6 +22782,14 @@ def _get_regatta_full_page_data(regatta_id: str):
             nm = name_map.get(crew_sas_id) or crew_name
             if nm:
                 crew_slug = _sailor_canonical_slug(nm, crew_sas_id, crew_has_dup)
+        crew2_name = r.get("crew2_name")
+        crew2_slug = _fleet_row_person_slug(
+            crew2_name, r.get("crew2_sa_sailing_id"), slug_map, name_map, dup_names
+        )
+        crew3_name = r.get("crew3_name")
+        crew3_slug = _fleet_row_person_slug(
+            crew3_name, r.get("crew3_sa_sailing_id"), slug_map, name_map, dup_names
+        )
         by_block[bid]["rows"].append({
             "result_id": r.get("result_id"),
             "rank": r.get("rank"),
@@ -22732,6 +22800,12 @@ def _get_regatta_full_page_data(regatta_id: str):
             "crew_name": crew_name,
             "crew_slug": crew_slug,
             "crew_sa_sailing_id": r.get("crew_sa_sailing_id"),
+            "crew2_name": crew2_name,
+            "crew2_slug": crew2_slug,
+            "crew2_sa_sailing_id": r.get("crew2_sa_sailing_id"),
+            "crew3_name": crew3_name,
+            "crew3_slug": crew3_slug,
+            "crew3_sa_sailing_id": r.get("crew3_sa_sailing_id"),
             "boat_name": r.get("boat_name"),
             "jib_no": r.get("jib_no"),
             "bow_no": r.get("bow_no"),
@@ -23513,9 +23587,11 @@ _RESULT_SHEET_CSS = (
     ".class-header{font-size:20px;font-weight:bold;color:#1a2750;text-align:center;margin-top:0;margin-bottom:0;border:2px solid #1a2750;border-radius:10px;padding:15px;background:#ffffff;width:100%}"
     ".sailed-line{font-size:12px;color:#1a2750;text-align:center;margin-top:10px;margin-bottom:0}"
     ".table-wrapper{overflow-x:auto;overflow-y:visible;width:100%;-webkit-overflow-scrolling:touch;margin-top:20px}"
-    ".table-wrapper table{width:100%;min-width:600px}"
+    ".table-wrapper table{width:100%;min-width:600px;table-layout:auto}"
     "table{border-collapse:collapse;background:#ffffff;margin:0}"
-    "th,td{border:1px solid #1d294d;padding:8px;text-align:center}"
+    "th,td{border:1px solid #1d294d;padding:6px 4px;text-align:center;white-space:nowrap;width:1%;vertical-align:middle}"
+    "th.crew-col,td.crew-col{white-space:normal;width:auto;text-align:left}"
+    "th.helm-col,td.helm-col{text-align:left}"
     "th{background:#e9eefb;color:#1a2750}"
     "td{color:#1a2750}"
     ".rank-col,.sail-col,.club-col,.helm-col,.nett-col{font-weight:bold}"
@@ -23807,7 +23883,7 @@ def _render_result_sheet_fleet(
     sailed_line = f"Sailed: {races_sailed}, Discards: {discard_count}, To count: {to_count}, Entries: {entries}, Scoring system: {scoring_system}"
 
     def _row_has_crew(row):
-        if (row.get("crew_name") or "").strip():
+        if any((row.get(k) or "").strip() for k in ("crew_name", "crew2_name", "crew3_name")):
             return True
         cl = row.get("crew_list") or []
         return any((x.get("role") or "").strip().lower() == "crew" for x in cl)
@@ -23914,7 +23990,7 @@ def _render_result_sheet_fleet(
         elif col == "helm":
             thead += '<th class="helm-col">Helm</th>'
         elif col == "crew":
-            thead += "<th>Crew</th>"
+            thead += '<th class="crew-col">Crew</th>'
         elif col == "races":
             for rc in race_columns:
                 thead += f"<th>{html_module.escape(rc)}</th>"
@@ -23950,10 +24026,8 @@ def _render_result_sheet_fleet(
         )
         result_id_row = r.get("result_id")
         crew_list = r.get("crew_list") or []
-        crew_raw_for_edit = ""
         if crew_list:
             helm_entries = [x for x in crew_list if (x.get("role") or "").strip().lower() == "helm"]
-            crew_entries = [x for x in crew_list if (x.get("role") or "").strip().lower() == "crew"]
             helm_raw = (helm_entries[0].get("sailor_name") or "").strip() if helm_entries else str(r.get("helm_name") or "")
             helm_slug = r.get("helm_slug")
             helm_str = (
@@ -23961,9 +24035,6 @@ def _render_result_sheet_fleet(
                 if helm_slug and helm_raw
                 else html_module.escape(helm_raw)
             )
-            crew_names = [(x.get("sailor_name") or "").strip() for x in crew_entries if (x.get("sailor_name") or "").strip()]
-            crew_raw_for_edit = ", ".join(crew_names) if crew_names else (r.get("crew_name") or "").strip()
-            crew_str = "Crew: " + ", ".join(html_module.escape(n) for n in crew_names) if crew_names else ""
         else:
             helm_raw = str(r.get("helm_name") or "")
             helm_slug = r.get("helm_slug")
@@ -23972,14 +24043,7 @@ def _render_result_sheet_fleet(
                 if helm_slug and helm_raw
                 else html_module.escape(helm_raw)
             )
-            crew_raw = str(r.get("crew_name") or "")
-            crew_raw_for_edit = crew_raw
-            crew_slug = r.get("crew_slug")
-            crew_str = (
-                f'<a href="/sailor/{html_module.escape(crew_slug)}">{html_module.escape(crew_raw)}</a>'
-                if crew_slug and crew_raw
-                else html_module.escape(crew_raw)
-            )
+        crew_str, crew_raw_for_edit = _fleet_sheet_crew_cell_html(r)
 
         def _wc_cell(
             inner_html: str,
@@ -24076,7 +24140,7 @@ def _render_result_sheet_fleet(
             elif col == "helm":
                 row_html += f'<td class="helm-col">{_wc_cell(helm_str, helm_raw or "", "helm_name", None, 120, "helm", helm_xin)}</td>'
             elif col == "crew":
-                row_html += f"<td>{_wc_cell(crew_str, crew_raw_for_edit, 'crew_name', None, 160, 'crew', crew_xin)}</td>"
+                row_html += f'<td class="crew-col">{_wc_cell(crew_str, crew_raw_for_edit, "crew_name", None, 160, "crew", crew_xin)}</td>'
             elif col == "races":
                 for rkey in race_columns:
                     score = (race_scores.get(rkey) or "").strip()
@@ -25565,10 +25629,12 @@ def _get_regatta_class_page_data(regatta_id: str, class_id: int):
                        rb.races_sailed, rb.discard_count, rb.to_count, rb.scoring_system,
                        res.result_id,
                        res.rank, res.sail_number, res.helm_name, res.crew_name,
+                       res.crew2_name, res.crew3_name,
                        res.boat_name, res.jib_no, res.bow_no, res.hull_no,
                        COALESCE(TRIM(c.club_abbrev), TRIM(res.club_raw), '') AS club,
                        res.club_id, COALESCE(c.club_abbrev, c.club_fullname) AS club_fullname,
                        res.helm_sa_sailing_id, res.crew_sa_sailing_id,
+                       res.crew2_sa_sailing_id, res.crew3_sa_sailing_id,
                        res.total_points_raw, res.nett_points_raw, res.race_scores, res.raced,
                        COALESCE(TRIM(c_res.class_name), TRIM(res.class_original), '') AS class_name,
                        COALESCE(res.class_id, rb.class_id) AS result_class_id
@@ -25592,13 +25658,7 @@ def _get_regatta_class_page_data(regatta_id: str, class_id: int):
             for r in cur.fetchall() or []:
                 if r.get("n"):
                     dup_names.add(r["n"])
-            sas_ids = set()
-            for r in raw:
-                h, c = r.get("helm_sa_sailing_id"), r.get("crew_sa_sailing_id")
-                if h is not None and str(h).strip().isdigit():
-                    sas_ids.add(str(h).strip())
-                if c is not None and str(c).strip().isdigit():
-                    sas_ids.add(str(c).strip())
+            sas_ids = _collect_result_sas_ids(raw)
             name_map = {}
             slug_map = {}
             if sas_ids:
@@ -25668,6 +25728,14 @@ def _get_regatta_class_page_data(regatta_id: str, class_id: int):
             nm = name_map.get(crew_sas_id) or crew_name
             if nm:
                 crew_slug = _sailor_canonical_slug(nm, crew_sas_id, crew_has_dup)
+        crew2_name = r.get("crew2_name")
+        crew2_slug = _fleet_row_person_slug(
+            crew2_name, r.get("crew2_sa_sailing_id"), slug_map, name_map, dup_names
+        )
+        crew3_name = r.get("crew3_name")
+        crew3_slug = _fleet_row_person_slug(
+            crew3_name, r.get("crew3_sa_sailing_id"), slug_map, name_map, dup_names
+        )
         by_block[bid]["rows"].append({
             "result_id": r.get("result_id"),
             "rank": r.get("rank"),
@@ -25678,6 +25746,12 @@ def _get_regatta_class_page_data(regatta_id: str, class_id: int):
             "crew_name": crew_name,
             "crew_slug": crew_slug,
             "crew_sa_sailing_id": r.get("crew_sa_sailing_id"),
+            "crew2_name": crew2_name,
+            "crew2_slug": crew2_slug,
+            "crew2_sa_sailing_id": r.get("crew2_sa_sailing_id"),
+            "crew3_name": crew3_name,
+            "crew3_slug": crew3_slug,
+            "crew3_sa_sailing_id": r.get("crew3_sa_sailing_id"),
             "crew_list": crew_by_result.get(r.get("result_id"), []),
             "boat_name": r.get("boat_name"),
             "jib_no": r.get("jib_no"),
