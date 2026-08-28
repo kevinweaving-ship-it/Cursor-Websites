@@ -36,6 +36,8 @@ PATCHERS=(
   patch_lipton_public_not_dev_v3.py
   patch_lipton_keep_last_rn_db.py
   patch_lipton_schedule_keep_last_db.py
+  patch_lipton_public_not_dev_v4.py
+  patch_lipton_no_discard_to_count.py
 )
 
 echo "api $API"
@@ -76,6 +78,8 @@ REQUIRED=(
   LIPTON_PUBLIC_NOT_DEV_V3
   LIPTON_KEEP_LAST_RN_DB_V1
   LIPTON_SCHEDULE_KEEP_LAST_DB_V1
+  LIPTON_PUBLIC_NOT_DEV_V4
+  LIPTON_NO_DISCARD_TO_COUNT_V1
 )
 miss=0
 for m in "${REQUIRED[@]}"; do
