@@ -53,7 +53,8 @@ body[data-lipton-dev="1"] .lipton-dev-subhead {
   max-height: none;
   margin: 0;
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
+  justify-content: flex-start;
   gap: 8px;
   padding: 6px 10px 6px;
   min-width: 0;
@@ -64,13 +65,14 @@ body[data-lipton-dev="1"] .lipton-dev-subhead {
 }
 body[data-lipton-dev="1"] .lipton-dev-chrome {
   display: grid;
-  grid-template-columns: var(--lipton-logo-w) minmax(0, var(--lipton-logo-w)) max-content;
+  grid-template-columns: var(--lipton-logo-w) minmax(0, var(--lipton-logo-w));
   grid-template-rows: auto auto;
   align-items: end;
   column-gap: 8px;
   width: max-content;
   max-width: 100%;
   min-width: 0;
+  flex: 0 1 auto;
 }
 body[data-lipton-dev="1"] .lipton-dev-event-logo {
   grid-column: 1;
@@ -581,17 +583,20 @@ body[data-lipton-dev="1"] .lipton-dev-event-logo img {
   object-fit: contain;
 }
 body[data-lipton-dev="1"] .lipton-dev-map-hud {
-  grid-column: 3;
-  grid-row: 1;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-end;
   gap: 2px;
-  margin: 0 0 3px 0;
+  margin-left: auto;
+  margin-right: 0;
+  margin-bottom: 3px;
+  min-height: calc(var(--lipton-logo-w) * 721 / 2180);
   width: max-content;
   min-width: 0;
-  max-width: 100%;
+  max-width: 40%;
+  flex: 0 0 auto;
+  align-self: start;
   text-align: center;
   color: #ffffff;
   font-family: sans-serif;
