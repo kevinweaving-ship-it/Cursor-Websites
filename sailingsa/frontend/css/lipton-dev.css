@@ -12,6 +12,7 @@ body[data-lipton-dev="1"] {
   --lipton-mark-h: 20px;
   --lipton-scrub-w: 140px;
   --lipton-dev-lockup-h: 56px;
+  --lipton-map-bg: #001018;
 }
 body[data-lipton-dev="1"] .site-header {
   flex: 0 0 auto;
@@ -19,6 +20,7 @@ body[data-lipton-dev="1"] .site-header {
   top: 0;
   z-index: 30;
   overflow: hidden;
+  background: #001f3f;
 }
 body[data-lipton-dev="1"] .site-header .container {
   width: 100%;
@@ -46,14 +48,14 @@ body[data-lipton-dev="1"] .lipton-dev-subhead {
   height: 64px;
   min-height: 64px;
   max-height: 64px;
-  margin: 8px 0;
+  margin: 0;
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 0 10px;
   min-width: 0;
   overflow: hidden;
-  background: #001018;
+  background: var(--lipton-map-bg);
   border-radius: 4px;
   z-index: 29;
 }
@@ -61,7 +63,8 @@ body[data-lipton-dev="1"] .lipton-dev-shell {
   width: 100%;
   max-width: 1100px;
   margin: 0 auto;
-  padding: 0 12px 12px;
+  padding: 8px 12px 12px;
+  gap: 8px;
   box-sizing: border-box;
   flex: 1 1 auto;
   min-height: 0;
@@ -366,7 +369,7 @@ body[data-lipton-dev="1"] .lipton-dev-track {
   position: relative;
   min-width: 0;
   height: 100%;
-  background: #001018;
+  background: var(--lipton-map-bg);
   border-radius: 4px;
   overflow: hidden;
   --lipton-mark-h: 20px;
@@ -376,10 +379,10 @@ body[data-lipton-dev="1"] #lipton-dev-chart {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background: #001018;
+  background: var(--lipton-map-bg);
 }
 body[data-lipton-dev="1"] .leaflet-container {
-  background: #001018;
+  background: var(--lipton-map-bg);
 }
 body[data-lipton-dev="1"] .leaflet-tile {
   background: transparent !important;
