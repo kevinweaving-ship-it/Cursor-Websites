@@ -156,6 +156,8 @@ def _race_underway() -> bool:
 RESTART_STAMP = Path("/var/tmp/lipton_watch_api_restart")
 STRIP_STAMP = Path("/var/tmp/lipton_watch_api_strip")
 NGINX_RELOAD_STAMP = Path("/var/tmp/lipton_watch_nginx_reload")
+ORIGIN_STAMP = Path("/var/tmp/lipton_watch_origin_probe")
+HEARTBEAT_STAMP = Path("/var/tmp/lipton_watch_heartbeat")
 
 
 def _seconds_since_api_restart() -> float:
@@ -200,6 +202,34 @@ def _mark_nginx_reload() -> None:
         pass
 
 
+def _seconds_since_origin_probe() -> float:
+    try:
+        return time.time() - ORIGIN_STAMP.stat().st_mtime
+    except Exception:
+        return 10**9
+
+
+def _mark_origin_probe() -> None:
+    try:
+        ORIGIN_STAMP.write_text(str(time.time()), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def _seconds_since_heartbeat() -> float:
+    try:
+        return time.time() - HEARTBEAT_STAMP.stat().st_mtime
+    except Exception:
+        return 10**9
+
+
+def _mark_heartbeat() -> None:
+    try:
+        HEARTBEAT_STAMP.write_text(str(time.time()), encoding="utf-8")
+    except Exception:
+        pass
+
+
 def _origin_board_state() -> str:
     """live, playback, or down.
 
@@ -236,6 +266,7 @@ def _origin_board_state() -> str:
             f"http://127.0.0.1:8000/regatta/{RID}",
         ],
     ]
+    _mark_origin_probe()
     last = "down"
     for args in probes:
         try:
@@ -447,8 +478,8 @@ CRON_HOLD_BODY = "* * * * * root /usr/local/lib/lipton_public_watch_guard.sh >/d
 WATCH_UNIT = Path("/etc/systemd/system/sailingsa-lipton-public-watch.service")
 HOLD_UNIT = Path("/etc/systemd/system/sailingsa-lipton-url-hold.service")
 GOLD_PY = (
-    "/root/lw-g20.py /root/lw-g19.py /root/lw-g18.py /root/lw-g17.py /root/lw-g14d.py "
-    "/root/lw-g14c.py /root/lw-g14.py /root/lw-g13b.py /root/lw-gold13.py "
+    "/root/lw-g21.py /root/lw-g20.py /root/lw-g19.py /root/lw-g18.py /root/lw-g17.py "
+    "/root/lw-g14d.py /root/lw-g14c.py /root/lw-g14.py /root/lw-g13b.py /root/lw-gold13.py "
     "/root/lw-gold7.py /root/lw-gold6.py /root/lw-gold5.py "
     "/usr/local/lib/lipton_public_not_dev_watch.py /usr/local/sbin/lipton_public_not_dev_watch.py"
 )
@@ -515,6 +546,7 @@ COPIES=(
   /usr/local/sbin/lipton_public_not_dev_watch.py
 )
 GOLDS=(
+  /root/lw-g21.py
   /root/lw-g20.py
   /root/lw-g19.py
   /root/lw-g18.py
@@ -840,7 +872,7 @@ def main() -> int:
         else:
             _chattr(NGINX, True)
             _chattr(SNIPPET, True)
-            if _seconds_since_nginx_reload() >= 3:
+            if _seconds_since_nginx_reload() >= 3 and _seconds_since_origin_probe() >= 8:
                 board = _origin_board_state()
                 if board == "playback":
                     subprocess.check_call(["nginx", "-s", "reload"])
@@ -878,7 +910,7 @@ def main() -> int:
                         subprocess.check_call(["systemctl", "restart", "sailingsa-api"])
                         _mark_api_restart()
                         _log(f"api.py hijack stripped; sailingsa-api restarted board={board}")
-        elif not _race_underway():
+        elif not _race_underway() and _seconds_since_origin_probe() >= 8:
             board = _origin_board_state()
             try:
                 ngx = NGINX.read_text(encoding="utf-8") if NGINX.is_file() else ""
@@ -900,6 +932,9 @@ def main() -> int:
                 _log("origin playback with clean disk; sailingsa-api restarted")
                 api_changed = True
     if not nginx_changed and not api_changed:
+        if _seconds_since_heartbeat() >= 60:
+            _log("watch loop alive")
+            _mark_heartbeat()
         return 0
     return 0
 
