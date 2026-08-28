@@ -1291,49 +1291,16 @@
       return (ms < 0 ? "T−" : "T+") + Math.floor(s / 60) + ":" + pad(s % 60) + "." + t;
     }
     function drawCourseLabel(ts) {
-      if (!mapCtx || !mapBounds) return;
-      var s = 0.7;
-      var pad = 10;
+      var hud = document.getElementById("lipton-dev-map-hud");
+      var nameEl = document.getElementById("lipton-dev-map-hud-name");
+      var clockHud = document.getElementById("lipton-dev-map-hud-clock");
+      if (!hud || !clockHud) return;
       var name = (courseFromTrail() || "").toUpperCase();
-      var sub = "COURSE";
-      var clock = fmtLiveClock(ts - GUN_TS);
       var after = ts >= GUN_TS;
-      mapCtx.save();
-      mapCtx.textAlign = "center";
-      mapCtx.textBaseline = "top";
-      mapCtx.font = "bold " + Math.round(13 * s) + "px sans-serif";
-      var nameW = name ? mapCtx.measureText(name).width : 0;
-      var boxW = Math.max(nameW, Math.round(72 * s));
-      var boxH = Math.round(22 * s);
-      var clockH = Math.round(32 * s);
-      var x0 = mapBounds.w - pad - boxW;
-      var y0 = pad;
-      var cx = x0 + boxW / 2;
-      if (name) {
-        mapCtx.fillStyle = "rgba(0,31,63,0.62)";
-        mapCtx.fillRect(x0, y0, boxW, boxH);
-        mapCtx.fillStyle = "#ffffff";
-        mapCtx.fillText(name, cx, y0 + Math.round(4 * s));
-        mapCtx.font = "bold " + Math.round(11 * s) + "px sans-serif";
-        mapCtx.fillText(sub, cx, y0 + boxH + Math.round(4 * s));
-      }
-      var cy = name ? y0 + boxH + Math.round(22 * s) : y0;
-      var clockSize = Math.round(20 * s);
-      var minClock = Math.round(13 * s);
-      mapCtx.font = "bold " + clockSize + "px sans-serif";
-      while (clockSize > minClock && mapCtx.measureText(clock).width + 8 * s > boxW) {
-        clockSize -= 1;
-        mapCtx.font = "bold " + clockSize + "px sans-serif";
-      }
-      mapCtx.fillStyle = after ? "rgba(30,20,0,0.82)" : "rgba(0,31,63,0.86)";
-      mapCtx.fillRect(x0, cy, boxW, clockH);
-      mapCtx.strokeStyle = after ? "#fbbf24" : "#38bdf8";
-      mapCtx.lineWidth = Math.max(1, 2 * s);
-      mapCtx.strokeRect(x0 + 1, cy + 1, boxW - 2, clockH - 2);
-      mapCtx.fillStyle = after ? "#fbbf24" : "#ffffff";
-      mapCtx.textBaseline = "middle";
-      mapCtx.fillText(clock, cx, cy + clockH / 2 + 1);
-      mapCtx.restore();
+      if (nameEl) nameEl.textContent = name;
+      clockHud.textContent = fmtLiveClock(ts - GUN_TS);
+      hud.classList.toggle("is-after", after);
+      hud.classList.toggle("is-nameless", !name);
     }
     function setRateButtons() {
       if (rateEl) rateEl.textContent = RATE + "×";
