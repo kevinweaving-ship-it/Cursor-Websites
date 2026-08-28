@@ -11,6 +11,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -127,6 +128,58 @@ def _race_underway() -> bool:
     gun = st.get("gun_at")
     phase = str(st.get("phase") or "").strip().lower()
     return bool(gun) and phase == "racing" and not bool(st.get("race_complete"))
+
+
+RESTART_STAMP = Path("/var/tmp/lipton_watch_api_restart")
+
+
+def _seconds_since_api_restart() -> float:
+    try:
+        return time.time() - RESTART_STAMP.stat().st_mtime
+    except Exception:
+        return 10**9
+
+
+def _mark_api_restart() -> None:
+    try:
+        RESTART_STAMP.write_text(str(time.time()), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def _origin_board_state() -> str:
+    """live, playback, or down. Probe nginx→API on loopback so CDN 502s do not count."""
+    out = Path("/tmp/lipton_watch_probe.html")
+    try:
+        subprocess.run(
+            [
+                "curl",
+                "-sk",
+                "--max-time",
+                "10",
+                "-o",
+                str(out),
+                "--resolve",
+                "sailingsa.co.za:443:127.0.0.1",
+                f"https://sailingsa.co.za/regatta/{RID}",
+            ],
+            check=False,
+            timeout=12,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        b = out.read_bytes() if out.is_file() else b""
+    except Exception:
+        return "down"
+    if b"data-lipton-dev" in b:
+        return "playback"
+    if b"regatta-page" in b and len(b) > 50000:
+        return "live"
+    if b"Bad Gateway" in b or len(b) < 500:
+        return "down"
+    if b"regatta-page" not in b and 500 < len(b) < 20000:
+        return "playback"
+    return "down"
 
 
 def ensure_snippet() -> bool:
@@ -332,8 +385,15 @@ def main() -> int:
             if _race_underway():
                 _log("api.py hijack stripped; skipped restart (race underway)")
             else:
-                subprocess.check_call(["systemctl", "restart", "sailingsa-api"])
-                _log("api.py hijack stripped; sailingsa-api restarted")
+                board = _origin_board_state()
+                if board == "live":
+                    _log("api.py hijack stripped; skipped restart (origin live board)")
+                elif _seconds_since_api_restart() < 90:
+                    _log(f"api.py hijack stripped; skipped restart (debounce board={board})")
+                else:
+                    subprocess.check_call(["systemctl", "restart", "sailingsa-api"])
+                    _mark_api_restart()
+                    _log(f"api.py hijack stripped; sailingsa-api restarted board={board}")
     if not nginx_changed and not api_changed:
         return 0
     return 0
