@@ -1,0 +1,19 @@
+#!/usr/bin/expect -f
+set timeout 90
+set password "TimAdd#072082"
+set script_dir [file dirname [info script]]
+set repo_root [file normalize "$script_dir/../.."]
+spawn scp -o StrictHostKeyChecking=no $repo_root/sailingsa/deploy/verify-lipton-playback-now.sh root@102.218.215.253:/tmp/
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+    timeout { puts "ERROR scp"; exit 1 }
+}
+wait
+spawn ssh -o StrictHostKeyChecking=no root@102.218.215.253 "bash /tmp/verify-lipton-playback-now.sh"
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    timeout { puts "ERROR ssh"; exit 1 }
+    eof { }
+}
+wait

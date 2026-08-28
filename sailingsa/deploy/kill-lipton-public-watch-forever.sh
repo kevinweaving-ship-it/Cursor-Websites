@@ -10,12 +10,19 @@ exit 0
 '
 
 echo '=== stop loops and units ==='
-systemctl stop sailingsa-lipton-public-watch.service 2>/dev/null || true
-systemctl disable sailingsa-lipton-public-watch.service 2>/dev/null || true
-systemctl mask sailingsa-lipton-public-watch.service 2>/dev/null || true
-systemctl stop sailingsa-lipton-public-watch.timer 2>/dev/null || true
-systemctl disable sailingsa-lipton-public-watch.timer 2>/dev/null || true
-systemctl mask sailingsa-lipton-public-watch.timer 2>/dev/null || true
+for u in \
+  sailingsa-lipton-public-watch.service \
+  sailingsa-lipton-public-watch.timer \
+  sailingsa-lipton-url-hold.service \
+  sailingsa-lipton-url-hold.timer \
+  sailingsa-lipton-public-not-dev.service \
+  sailingsa-lipton-public-not-dev.timer
+do
+  systemctl stop "$u" 2>/dev/null || true
+  systemctl disable "$u" 2>/dev/null || true
+  systemctl mask "$u" 2>/dev/null || true
+  echo "masked $u"
+done
 pkill -f lipton_public_watch_guard 2>/dev/null || true
 pkill -f lipton_public_not_dev 2>/dev/null || true
 pkill -f lipton_apply_nginx_public_proxy 2>/dev/null || true
@@ -83,7 +90,10 @@ done
 # systemd unit files: make them no-ops then mask
 for u in /etc/systemd/system/sailingsa-lipton-public-watch.service \
          /etc/systemd/system/sailingsa-lipton-public-watch.timer \
-         /lib/systemd/system/sailingsa-lipton-public-watch.service; do
+         /etc/systemd/system/sailingsa-lipton-url-hold.service \
+         /etc/systemd/system/sailingsa-lipton-url-hold.timer \
+         /lib/systemd/system/sailingsa-lipton-public-watch.service \
+         /lib/systemd/system/sailingsa-lipton-url-hold.service; do
   if [ -f "$u" ]; then
     chattr -i "$u" 2>/dev/null || true
     cp -a "$u" /root/disabled-lipton-not-dev/ 2>/dev/null || true
@@ -101,8 +111,10 @@ UNIT
 done
 systemctl daemon-reload 2>/dev/null || true
 systemctl mask sailingsa-lipton-public-watch.service 2>/dev/null || true
+systemctl mask sailingsa-lipton-url-hold.service 2>/dev/null || true
 rm -f /etc/systemd/system/nginx.service.wants/sailingsa-lipton-public-watch.service \
       /etc/systemd/system/multi-user.target.wants/sailingsa-lipton-public-watch.service \
+      /etc/systemd/system/multi-user.target.wants/sailingsa-lipton-url-hold.service \
       /etc/systemd/system/sailingsa-api.service.wants/sailingsa-lipton-public-watch.service 2>/dev/null || true
 
 # Watcher rewrites these cron files and unmasks systemd
