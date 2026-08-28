@@ -32,6 +32,9 @@ WATCH_DSTS = (
     Path("/root/lw-g19.py"),
     Path("/root/lw-g18.py"),
     Path("/root/lw-g17.py"),
+    Path("/usr/local/lib/lipton_public_not_dev_watch.py"),
+    Path("/usr/local/sbin/lipton_public_not_dev_watch.py"),
+    Path("/var/lib/sailingsa-lipton/watch.py"),
 )
 PLAYBACK_LOCK = (
     "# LIPTON_NGINX_PLAYBACK_LOCK public + -dev slugs serve lipton-dev.html "

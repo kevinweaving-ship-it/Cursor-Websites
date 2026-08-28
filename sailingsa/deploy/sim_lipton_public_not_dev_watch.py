@@ -148,6 +148,8 @@ def main() -> int:
     assert mod.fix_nginx(locked)[1] == 0
     assert callable(ngxmod.restore_watch_golds)
     assert "lw-g22.py" in str(ngxmod.WATCH_DSTS)
+    assert "/usr/local/lib/lipton_public_not_dev_watch.py" in str(ngxmod.WATCH_DSTS)
+    assert "/usr/local/sbin/lipton_public_not_dev_watch.py" in str(ngxmod.WATCH_DSTS)
 
     stub = "[Service]\nExecStart=/bin/true\nDescription=disabled — must not restore old Lipton event page\n"
     assert mod._unit_is_stub(stub) is True
