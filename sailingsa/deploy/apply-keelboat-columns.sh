@@ -1,8 +1,17 @@
 #!/bin/bash
 set -euo pipefail
-cp -a /var/www/sailingsa/api/api.py "/root/api.py.bak_keelboat_$(date +%Y%m%d_%H%M%S)"
+API=/var/www/sailingsa/api/api.py
+BAK="/root/api.py.bak_keelboat_$(date +%Y%m%d_%H%M%S)"
+cp -a "$API" "$BAK"
+chattr -i "$API" 2>/dev/null || true
 python3 /tmp/patch_keelboat_columns.py
-python3 -m py_compile /var/www/sailingsa/api/api.py
+if ! python3 -m py_compile "$API"; then
+  echo "ERROR: api.py compile failed — restoring $BAK"
+  cp -a "$BAK" "$API"
+  chattr +i "$API" 2>/dev/null || true
+  exit 1
+fi
+chattr +i "$API" 2>/dev/null || true
 systemctl restart sailingsa-api
 sleep 4
 systemctl is-active sailingsa-api
