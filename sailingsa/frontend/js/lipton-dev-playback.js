@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828ck";
+  var CACHE = "20260828cm";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = !RACE_Q;
@@ -388,31 +388,37 @@
     }
     function atTs(arr, ts) {
       if (!arr || !arr.length) return null;
-      var prev = null;
-      var next = null;
-      var prevI = -1;
-      for (var i = 0; i < arr.length; i++) {
-        if (arr[i].ts_ms <= ts) { prev = arr[i]; prevI = i; }
-        else { next = arr[i]; break; }
+      var n = arr.length;
+      if (ts <= arr[0].ts_ms) {
+        var f = arr[0];
+        return { lat: f.lat, lon: f.lon, hdg: f.hdg, ts_ms: ts };
       }
-      if (!prev) return next ? { lat: next.lat, lon: next.lon, hdg: blendHdg("x", next.hdg), ts_ms: ts } : null;
+      if (ts >= arr[n - 1].ts_ms) {
+        var last = arr[n - 1];
+        var holdHdg = last.hdg;
+        if (n > 1) holdHdg = Math.atan2(last.lon - arr[n - 2].lon, last.lat - arr[n - 2].lat) * 180 / Math.PI;
+        return { lat: last.lat, lon: last.lon, hdg: holdHdg, ts_ms: ts };
+      }
+      var lo = 0;
+      var hi = n - 1;
+      while (hi - lo > 1) {
+        var mid = (lo + hi) >> 1;
+        if (arr[mid].ts_ms <= ts) lo = mid;
+        else hi = mid;
+      }
+      var prev = arr[lo];
+      var next = arr[hi];
       if (!next || next.ts_ms === prev.ts_ms) {
-        var holdHdg = prev.hdg;
-        if (prevI > 0) {
-          var a = arr[prevI - 1];
-          holdHdg = Math.atan2(prev.lon - a.lon, prev.lat - a.lat) * 180 / Math.PI;
-        }
-        return { lat: prev.lat, lon: prev.lon, hdg: blendHdg(String(prev.ts_ms), holdHdg), ts_ms: ts };
+        return { lat: prev.lat, lon: prev.lon, hdg: prev.hdg, ts_ms: ts };
       }
       var span = next.ts_ms - prev.ts_ms;
       var u = span ? (ts - prev.ts_ms) / span : 0;
       if (u < 0) u = 0;
       if (u > 1) u = 1;
-      var pathHdg = Math.atan2(next.lon - prev.lon, next.lat - prev.lat) * 180 / Math.PI;
       return {
         lat: prev.lat + (next.lat - prev.lat) * u,
         lon: prev.lon + (next.lon - prev.lon) * u,
-        hdg: pathHdg,
+        hdg: Math.atan2(next.lon - prev.lon, next.lat - prev.lat) * 180 / Math.PI,
         ts_ms: ts
       };
     }
@@ -446,18 +452,14 @@
     function mergeTrail(dest, pts) {
       if (!pts || !pts.length) return dest || [];
       dest = dest || [];
-      var extra = [];
-      pts.forEach(function (p) {
-        if (!p || p.ts_ms == null) return;
-        if (!dest.length || p.ts_ms > dest[dest.length - 1].ts_ms) dest.push(p);
-        else if (p.ts_ms === dest[dest.length - 1].ts_ms) dest[dest.length - 1] = p;
-        else if (p.ts_ms < dest[0].ts_ms) extra.push(p);
+      var by = {};
+      dest.forEach(function (p) {
+        if (p && p.ts_ms != null) by[p.ts_ms] = p;
       });
-      if (extra.length) {
-        extra.sort(function (a, b) { return a.ts_ms - b.ts_ms; });
-        dest = extra.concat(dest);
-      }
-      return dest;
+      pts.forEach(function (p) {
+        if (p && p.ts_ms != null) by[p.ts_ms] = p;
+      });
+      return Object.keys(by).map(Number).sort(function (a, b) { return a - b; }).map(function (k) { return by[k]; });
     }
     function syncScrub() {
       if (!scrubEl || scrubbing) return;
@@ -722,24 +724,10 @@
         mapCtx.arc(p.x, p.y, 4.2, 0, Math.PI * 2);
         mapCtx.fillStyle = "#fbbf24";
         mapCtx.fill();
-        mapCtx.strokeStyle = "#fbbf24";
-        mapCtx.fillStyle = "#fbbf24";
-        mapCtx.lineWidth = 2;
-        mapCtx.beginPath();
-        mapCtx.arc(p.x, p.y, 14, 0.4, 2.45, false);
-        mapCtx.stroke();
-        var ang = 2.45;
-        var ax = p.x + 14 * Math.cos(ang);
-        var ay = p.y + 14 * Math.sin(ang);
-        mapCtx.beginPath();
-        mapCtx.moveTo(ax, ay);
-        mapCtx.lineTo(ax - 5.5, ay - 3.5);
-        mapCtx.lineTo(ax - 0.5, ay + 6);
-        mapCtx.closePath();
-        mapCtx.fill();
         mapCtx.fillStyle = "#ffffff";
         mapCtx.font = "bold 13px sans-serif";
         mapCtx.fillText("M1", p.x + 10, p.y + 4);
+        if (roundArr.M1) drawRoundArrow(pos, roundArr.M1, "#fbbf24");
       });
       var pin = atTs(hist.pin, ts);
       var rc = atTs(hist.rc, ts);
@@ -762,23 +750,7 @@
         mapCtx.fillStyle = "#ffffff";
         mapCtx.font = "bold 10px sans-serif";
         mapCtx.fillText("Pin", a.x + 6, a.y - 6);
-        if (gunTs && ts >= gunTs && markValid(hist.pin, ts)) {
-          mapCtx.strokeStyle = "#38bdf8";
-          mapCtx.fillStyle = "#38bdf8";
-          mapCtx.lineWidth = 2;
-          mapCtx.beginPath();
-          mapCtx.arc(a.x, a.y, 13, 0.4, 2.45, false);
-          mapCtx.stroke();
-          var pang = 2.45;
-          var px = a.x + 13 * Math.cos(pang);
-          var py = a.y + 13 * Math.sin(pang);
-          mapCtx.beginPath();
-          mapCtx.moveTo(px, py);
-          mapCtx.lineTo(px - 5.5, py - 3.5);
-          mapCtx.lineTo(px - 0.5, py + 6);
-          mapCtx.closePath();
-          mapCtx.fill();
-        }
+        if (gunTs && ts >= gunTs && roundArr.PIN) drawRoundArrow(pin, roundArr.PIN, "#38bdf8");
         if (gunTs && ts < gunTs + 5 * 60 * 1000) {
           mapCtx.fillStyle = "#ffffff";
           mapCtx.font = "bold 10px sans-serif";
@@ -888,9 +860,84 @@
         }
       };
     }
-    var PASS_ORDER = ["ST", "M1", "PIN", "M1b"];
-    var PASS_LAB = { ST: "ST", M1: "M1", PIN: "Pin", M1b: "M1" };
-    var passTs = { ST: {}, M1: {}, PIN: {}, M1b: {} };
+    var PASS_ORDER = ["ST", "M1", "PIN", "M1b", "PINb", "M1c"];
+    var PASS_LAB = { ST: "ST", M1: "M1", PIN: "Pin", M1b: "M1", PINb: "Pin", M1c: "M1" };
+    var passTs = { ST: {}, M1: {}, PIN: {}, M1b: {}, PINb: {}, M1c: {} };
+    var roundArr = { M1: null, PIN: null };
+    function enuOf(mark, pos) {
+      var lat0 = mark.lat * Math.PI / 180;
+      return {
+        e: (pos.lon - mark.lon) * Math.PI / 180 * Math.cos(lat0) * 6371000,
+        n: (pos.lat - mark.lat) * Math.PI / 180 * 6371000
+      };
+    }
+    function ccwDelta(a, b) {
+      var d = b - a;
+      while (d < 0) d += Math.PI * 2;
+      while (d >= Math.PI * 2) d -= Math.PI * 2;
+      return d;
+    }
+    function voteRound(markTrail, times, dt) {
+      var rows = [];
+      Object.keys(times || {}).forEach(function (sail) {
+        var t = times[sail];
+        if (t == null) return;
+        var pts = hist.boats[sail];
+        var mk = atTs(markTrail, t);
+        var inn = atTs(pts, t - dt);
+        var mid = atTs(pts, t);
+        var out = atTs(pts, t + dt);
+        if (!mk || !inn || !mid || !out) return;
+        var a = enuOf(mk, inn);
+        var c = enuOf(mk, mid);
+        var b = enuOf(mk, out);
+        var ia = Math.hypot(a.e, a.n);
+        var ic = Math.hypot(c.e, c.n);
+        var ib = Math.hypot(b.e, b.n);
+        if (ia < 8 || ib < 8 || ic < 0.4) return;
+        var a0 = Math.atan2(a.n, a.e);
+        var am = Math.atan2(c.n, c.e);
+        var a1 = Math.atan2(b.n, b.e);
+        var onCcw = ccwDelta(a0, am) <= ccwDelta(a0, a1) + 1e-6;
+        var sweep = onCcw ? ccwDelta(a0, a1) : ccwDelta(a0, a1) - Math.PI * 2;
+        if (Math.abs(sweep) < 0.35) return;
+        rows.push({ ie: a.e / ia, inn: a.n / ia, sweep: sweep });
+      });
+      if (rows.length < 2) return null;
+      rows.sort(function (u, v) { return u.sweep - v.sweep; });
+      var mid = rows[Math.floor(rows.length / 2)];
+      return { ie: mid.ie, inn: mid.inn, sweep: mid.sweep };
+    }
+    function drawRoundArrow(mark, spec, color) {
+      if (!mark || !spec || !mapCtx || spec.sweep == null) return;
+      var inn = meterOffset(mark.lat, mark.lon, spec.inn * 24, spec.ie * 24);
+      var p = xy(mark.lat, mark.lon);
+      var i = xy(inn.lat, inn.lon);
+      var a0 = Math.atan2(i.y - p.y, i.x - p.x);
+      var a1 = a0 - spec.sweep;
+      var ccw = spec.sweep > 0;
+      var r = 16;
+      mapCtx.save();
+      mapCtx.strokeStyle = color;
+      mapCtx.fillStyle = color;
+      mapCtx.lineWidth = 2.4;
+      mapCtx.lineCap = "round";
+      mapCtx.beginPath();
+      mapCtx.arc(p.x, p.y, r, a0, a1, ccw);
+      mapCtx.stroke();
+      var ax = p.x + r * Math.cos(a1);
+      var ay = p.y + r * Math.sin(a1);
+      var cw = spec.sweep < 0;
+      var tx = cw ? -Math.sin(a1) : Math.sin(a1);
+      var ty = cw ? Math.cos(a1) : -Math.cos(a1);
+      mapCtx.beginPath();
+      mapCtx.moveTo(ax + tx * 5, ay + ty * 5);
+      mapCtx.lineTo(ax - tx * 4 - ty * 4.2, ay - ty * 4 + tx * 4.2);
+      mapCtx.lineTo(ax - tx * 4 + ty * 4.2, ay - ty * 4 - tx * 4.2);
+      mapCtx.closePath();
+      mapCtx.fill();
+      mapCtx.restore();
+    }
     function markValid(arr, ts) {
       if (!arr || arr.length < 2) return false;
       var b = atTs(arr, ts) || lastPt(arr);
@@ -927,26 +974,39 @@
     function trailMoving(arr, ts) {
       return !stillEnough(arr, ts);
     }
-    function nearestRoundingVsTrail(pts, markTrail, afterTs) {
-      if (!markTrail || !pts || pts.length < 3) return null;
-      for (var j = 1; j < pts.length - 1; j++) {
+    function firstVisitCpa(pts, markTrail, afterTs) {
+      if (!markTrail || !pts || !pts.length || afterTs == null) return null;
+      var ENTER = 90;
+      var NEED = 80;
+      var inZ = false;
+      var bestT = null;
+      var bestD = ENTER;
+      for (var j = 0; j < pts.length; j++) {
         if (pts[j].ts_ms < afterTs) continue;
-        if (!stillEnough(markTrail, pts[j].ts_ms)) continue;
         var mark = atTs(markTrail, pts[j].ts_ms);
         if (!mark) continue;
         var d = distM(pts[j], mark);
-        if (d < 55 && d <= distM(pts[j - 1], mark) && d <= distM(pts[j + 1], mark)) return pts[j].ts_ms;
+        if (d < ENTER) {
+          inZ = true;
+          if (d < bestD) {
+            bestD = d;
+            bestT = pts[j].ts_ms;
+          }
+        } else if (inZ) {
+          return bestD <= NEED ? bestT : null;
+        }
       }
-      return null;
+      return inZ && bestD <= NEED ? bestT : null;
     }
     function detectLivePasses() {
+      passTs = { ST: {}, M1: {}, PIN: {}, M1b: {}, PINb: {}, M1c: {} };
       var pin = lastPt(hist.pin);
       var rc = lastPt(hist.rc);
       var m1now = lastPt(hist.marks["1"]);
       var geom = lineGeom(pin, rc, stillEnough(hist.marks["1"], playTs) ? m1now : null);
       Object.keys(hist.boats).forEach(function (sail) {
         var pts = hist.boats[sail] || [];
-        if (passTs.ST[sail] == null && geom && gunTs && pts.length >= 2) {
+        if (geom && gunTs && pts.length >= 2) {
           var prev = null;
           for (var i = 0; i < pts.length; i++) {
             var p = pts[i];
@@ -961,20 +1021,32 @@
           }
         }
         var afterSt = passTs.ST[sail] != null ? passTs.ST[sail] + 6000 : (gunTs ? gunTs + 6000 : 0);
-        if (passTs.M1[sail] == null) {
-          var t1 = nearestRoundingVsTrail(pts, hist.marks["1"], afterSt);
-          if (t1) passTs.M1[sail] = t1;
-        }
-        if (passTs.PIN[sail] == null) {
-          var afterPin = passTs.M1[sail] != null ? passTs.M1[sail] + 20000 : afterSt + 120000;
-          var tp = nearestRoundingVsTrail(pts, hist.pin, afterPin);
-          if (tp) passTs.PIN[sail] = tp;
-        }
-        if (passTs.M1b[sail] == null && passTs.PIN[sail] != null) {
-          var t1b = nearestRoundingVsTrail(pts, hist.marks["1"], passTs.PIN[sail] + 20000);
+        var t1 = firstVisitCpa(pts, hist.marks["1"], afterSt);
+        if (t1) passTs.M1[sail] = t1;
+        var afterPin = passTs.M1[sail] != null ? passTs.M1[sail] + 70000 : afterSt + 8 * 60 * 1000;
+        var tp = firstVisitCpa(pts, hist.pin, afterPin);
+        if (tp) passTs.PIN[sail] = tp;
+        var afterM1b = passTs.PIN[sail] != null
+          ? passTs.PIN[sail] + 40000
+          : (passTs.M1[sail] != null ? passTs.M1[sail] + 8 * 60 * 1000 : 0);
+        if (afterM1b) {
+          var t1b = firstVisitCpa(pts, hist.marks["1"], afterM1b);
           if (t1b) passTs.M1b[sail] = t1b;
         }
+        var afterPin2 = passTs.M1b[sail] != null
+          ? passTs.M1b[sail] + 40000
+          : (passTs.PIN[sail] != null ? passTs.PIN[sail] + 8 * 60 * 1000 : 0);
+        if (afterPin2) {
+          var tp2 = firstVisitCpa(pts, hist.pin, afterPin2);
+          if (tp2) passTs.PINb[sail] = tp2;
+        }
+        if (passTs.PINb[sail] != null) {
+          var t1c = firstVisitCpa(pts, hist.marks["1"], passTs.PINb[sail] + 40000);
+          if (t1c) passTs.M1c[sail] = t1c;
+        }
       });
+      roundArr.M1 = voteRound(hist.marks["1"], passTs.M1, 25000);
+      roundArr.PIN = voteRound(hist.pin, passTs.PIN, 28000);
     }
     function rankMap(id) {
       return Object.keys(passTs[id] || {}).sort(function (a, b) {
@@ -1054,8 +1126,9 @@
       var html = "<th class=\"rank-col\">Rank</th><th class=\"wc-meta-col\">Bow</th><th class=\"boat-name-col\">Boat</th><th class=\"club-col\">Club</th>";
       used.forEach(function (id, i) {
         var lab = PASS_LAB[id] || id;
-        if (i > 0) html += "<th class=\"place-delta-col\" title=\"Places gained or lost to " + lab + "\">±</th>";
-        html += "<th class=\"timer-col\"><span class=\"ld-mark-lab\">" + lab + "</span></th>";
+        var prevLab = i > 0 ? (PASS_LAB[used[i - 1]] || used[i - 1]) : "Start";
+        if (i > 0) html += "<th class=\"place-delta-col\" title=\"Places gained or lost " + prevLab + " → " + lab + "\">±</th>";
+        html += "<th class=\"timer-col\" title=\"" + (id === "ST" ? "Start" : prevLab + " → " + lab) + "\"><span class=\"ld-mark-lab\">" + lab + "</span></th>";
       });
       if (used.length > 1) {
         html += "<th class=\"place-delta-col ld-overall-head\" title=\"Overall places vs start\"><span class=\"ld-fin-legend\" aria-hidden=\"true\"><i class=\"ld-tri ld-tri--up\"></i><i class=\"ld-tri ld-tri--down\"></i></span></th>";
@@ -1065,7 +1138,6 @@
     function renderLiveTable() {
       if (!tbody) return;
       if (wrapEl) wrapEl.hidden = false;
-      detectLivePasses();
       var names = {};
       Object.keys(identity).forEach(function (s) { names[s] = true; });
       Object.keys(hist.boats).forEach(function (s) { names[s] = true; });
@@ -1169,10 +1241,18 @@
         fitLive();
         didFit = true;
       }
-      renderLiveTable();
+      maybeDetect();
     }
     function pinReady() {
       return hist.pin.length && hist.rc.length && Object.keys(hist.boats).length;
+    }
+    var lastDetectAt = 0;
+    function maybeDetect() {
+      var now = Date.now();
+      if (now - lastDetectAt < 200) return;
+      lastDetectAt = now;
+      detectLivePasses();
+      renderLiveTable();
     }
     function poll() {
       var q = needHistory() ? "/api/lipton-dev/live?history=1" : "/api/lipton-dev/live";
@@ -1186,15 +1266,16 @@
     }
     function needHistory() {
       if (!gunTs) return true;
-      var boatsOk = false;
-      Object.keys(hist.boats).forEach(function (s) {
-        var t = hist.boats[s];
-        if (t && t.length && t[0].ts_ms <= gunTs + 12000) boatsOk = true;
-      });
+      var sails = Object.keys(hist.boats);
+      if (sails.length < 12) return true;
+      for (var i = 0; i < sails.length; i++) {
+        var t = hist.boats[sails[i]];
+        if (!t || !t.length || t[0].ts_ms > gunTs + 15000) return true;
+      }
+      if (!hist.pin.length || hist.pin[0].ts_ms > gunTs + 15000) return true;
       var m1 = hist.marks["1"];
-      var m1Ok = m1 && m1.length && m1[0].ts_ms <= gunTs + 8 * 60 * 1000;
-      var pinOk = hist.pin.length && hist.pin[0].ts_ms <= gunTs + 12000;
-      return !(boatsOk && m1Ok && pinOk);
+      if (!m1 || !m1.length || m1[0].ts_ms > gunTs + 10 * 60 * 1000) return true;
+      return false;
     }
     fetch("/js/lipton-dev-replay.json?v=" + CACHE, { cache: "no-store" })
       .then(function (res) { return res.ok ? res.json() : null; })
@@ -1210,11 +1291,10 @@
       paintClock();
       tickLiveHorns();
       drawLiveMap();
-      renderLiveTable();
       window.requestAnimationFrame(liveTick);
     }
     window.requestAnimationFrame(liveTick);
-    setInterval(poll, 1000);
+    setInterval(poll, 750);
     window.addEventListener("resize", function () { drawLiveMap(); });
   }
 

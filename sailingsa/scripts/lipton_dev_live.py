@@ -191,12 +191,20 @@ def _first_trail_ts(data: dict) -> int | None:
 
 
 def _covers_start(data: dict, gun_ms: int | None) -> bool:
-    if not data or not data.get("boats"):
+    boats = (data or {}).get("boats") or {}
+    if len(boats) < 10:
         return False
     if gun_ms is None:
         return _history_span_ms(data) >= 20_000
-    first = _first_trail_ts(data)
-    return first is not None and first <= int(gun_ms) + 12_000
+    gun = int(gun_ms)
+    for b in boats.values():
+        t = (b or {}).get("trail") or []
+        if not t or int(t[0].get("ts_ms") or 0) > gun + 15_000:
+            return False
+    pin = ((data.get("pin") or {}).get("trail") or [])
+    if not pin or int(pin[0].get("ts_ms") or 0) > gun + 15_000:
+        return False
+    return True
 
 
 def _merge_trail(old: list | None, new: list | None) -> list[dict]:
@@ -355,14 +363,6 @@ def live_snapshot(*, history: bool = False) -> dict:
     if history and gun_ms is not None and not _covers_start(stored_hit, gun_ms):
         rows = _tele_range(int(gun_ms) - 30_000, now_ms + 2000)
         rec_keep = None
-    elif history and _covers_start(stored_hit, gun_ms or stored_gun):
-        hit = dict(stored_hit)
-        hit["from_cache"] = True
-        hit["gun_ts_ms"] = gun_ms or stored_gun
-        hit["playback_ts_ms"] = playback_ms
-        hit["now_ts_ms"] = now_ms
-        hit["delta_ms"] = (playback_ms - int(hit["gun_ts_ms"])) if hit.get("gun_ts_ms") else None
-        return hit
     else:
         rows = _tele_latest(now_ms - keep_ms, now_ms + 2000)
     boats: dict[str, dict] = {}
