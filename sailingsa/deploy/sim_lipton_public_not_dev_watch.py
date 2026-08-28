@@ -203,6 +203,22 @@ def serve_lipton_dev_playback_page(_request, public: bool = False):
 """
     assert mod._public_aliased(mixed) is True
     assert mod._public_slug_proxied(mixed) is False
+    already = """
+    location = /regatta/2026-08-29-lipton-challenge-cup-dev {
+        alias /var/www/sailingsa/lipton-dev.html;
+    }
+    location = /regatta/2026-08-29-lipton-challenge-cup {
+        # LIPTON_NGINX_PUBLIC_PROXY_V1
+        proxy_pass http://127.0.0.1:8000;
+    }
+    location = /regatta/2026-08-29-lipton-challenge-cup/ {
+        # LIPTON_NGINX_PUBLIC_PROXY_V1
+        proxy_pass http://127.0.0.1:8000;
+    }
+"""
+    already_new, already_n = mod.fix_nginx(already)
+    assert already_n == 0
+    assert already_new == already
 
     src = Path(__file__).resolve().parent / "lipton_public_not_dev_watch.py"
     src_txt = src.read_text(encoding="utf-8")

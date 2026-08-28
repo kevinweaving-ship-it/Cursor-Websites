@@ -327,6 +327,12 @@ DEV_LOC = re.compile(
 
 
 def fix_nginx(text: str) -> tuple[str, int]:
+    if (
+        _public_slug_proxied(text)
+        and "include /etc/nginx/snippets/lipton-public-proxy.conf" not in text
+        and PLAYBACK_LOCK not in text
+    ):
+        return text, 0
     n = 0
     new = text
     new, n1 = PUB_ALIAS.subn("", new)
