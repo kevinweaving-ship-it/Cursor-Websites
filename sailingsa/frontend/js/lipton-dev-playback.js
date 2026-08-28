@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828cr";
+  var CACHE = "20260828cs";
   var params = new URLSearchParams(location.search);
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = !RACE_Q;
@@ -18,8 +18,104 @@
     if (!race || race === 4) return "/js/lipton-dev-" + kind + ".json?v=" + CACHE;
     return "/js/lipton-dev-" + kind + "-r" + race + ".json?v=" + CACHE;
   }
-  var DATA_URL = jsonUrl("replay", RACE_Q);
-  var TRAIL_URL = jsonUrl("trail", RACE_Q);
+  function startLineGeom(pin, rc) {
+    if (!pin || !rc) return null;
+    var R = 6371000;
+    var lat0 = (pin.lat + rc.lat) / 2;
+    var lon0 = (pin.lon + rc.lon) / 2;
+    var cos = Math.cos(lat0 * Math.PI / 180);
+    function toxy(lat, lon) {
+      return {
+        x: (lon - lon0) * Math.PI / 180 * cos * R,
+        y: (lat - lat0) * Math.PI / 180 * R
+      };
+    }
+    function fromxy(x, y) {
+      return {
+        lat: lat0 + (y / R) * 180 / Math.PI,
+        lon: lon0 + (x / (R * cos)) * 180 / Math.PI
+      };
+    }
+    var a = toxy(pin.lat, pin.lon);
+    var b = toxy(rc.lat, rc.lon);
+    var lx = b.x - a.x;
+    var ly = b.y - a.y;
+    var len = Math.hypot(lx, ly) || 1;
+    return {
+      a: a,
+      ux: lx / len,
+      uy: ly / len,
+      nx: -ly / len,
+      ny: lx / len,
+      len: len,
+      fromxy: fromxy,
+      toxy: toxy
+    };
+  }
+  function startCourseNormal(g, m1, boatPts) {
+    if (!g) return g;
+    var nx = g.nx;
+    var ny = g.ny;
+    var mid = { x: g.a.x + g.ux * g.len / 2, y: g.a.y + g.uy * g.len / 2 };
+    if (m1 && m1.lat != null) {
+      var m = g.toxy(m1.lat, m1.lon);
+      if ((m.x - mid.x) * nx + (m.y - mid.y) * ny < 0) {
+        nx = -nx;
+        ny = -ny;
+      }
+    } else if (boatPts && boatPts.length) {
+      var scores = [];
+      boatPts.forEach(function (p) {
+        if (!p) return;
+        var q = g.toxy(p.lat, p.lon);
+        scores.push((q.x - g.a.x) * nx + (q.y - g.a.y) * ny);
+      });
+      scores.sort(function (u, v) { return u - v; });
+      if (scores.length && scores[Math.floor(scores.length / 2)] > 0) {
+        nx = -nx;
+        ny = -ny;
+      }
+    }
+    g.nx = nx;
+    g.ny = ny;
+    return g;
+  }
+  function drawStartDirArrows(ctx, xyFn, pin, rc, m1, boatPts) {
+    if (!ctx || !xyFn || !pin || !rc) return;
+    var g = startCourseNormal(startLineGeom(pin, rc), m1, boatPts);
+    if (!g) return;
+    var phase = Date.now() / 280;
+    var slots = [0.22, 0.5, 0.78];
+    slots.forEach(function (f, i) {
+      var alpha = 0.12 + 0.78 * (0.5 + 0.5 * Math.sin(phase - i * 0.95));
+      var along = f * g.len;
+      var base = g.fromxy(g.a.x + g.ux * along, g.a.y + g.uy * along);
+      var ahead = g.fromxy(g.a.x + g.ux * along + g.nx * 28, g.a.y + g.uy * along + g.ny * 28);
+      var p0 = xyFn(base.lat, base.lon);
+      var p1 = xyFn(ahead.lat, ahead.lon);
+      var dx = p1.x - p0.x;
+      var dy = p1.y - p0.y;
+      var L = Math.hypot(dx, dy) || 1;
+      dx /= L;
+      dy /= L;
+      var px = p0.x + dx * 10;
+      var py = p0.y + dy * 10;
+      var s = 12;
+      var px2 = -dy;
+      var py2 = dx;
+      ctx.beginPath();
+      ctx.moveTo(px + dx * s, py + dy * s);
+      ctx.lineTo(px - dx * s * 0.45 + px2 * s * 0.72, py - dy * s * 0.45 + py2 * s * 0.72);
+      ctx.lineTo(px - dx * s * 0.15, py - dy * s * 0.15);
+      ctx.lineTo(px - dx * s * 0.45 - px2 * s * 0.72, py - dy * s * 0.45 - py2 * s * 0.72);
+      ctx.closePath();
+      ctx.fillStyle = "rgba(56,189,248," + alpha.toFixed(3) + ")";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255," + (0.18 + 0.45 * alpha).toFixed(3) + ")";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    });
+  }
 
   var resetPlaybackAudio = function () {};
   function goRace(n) {
@@ -640,6 +736,10 @@
       }
       var over = lineAt(-2, 3.2, "rgba(239,68,68,0.85)");
       var base = lineAt(0, 3.4, "#38bdf8");
+      var m1p = hist.marks["1"] ? atTs(hist.marks["1"], playTs) : null;
+      if (!gunTs || playTs < gunTs + 5 * 60 * 1000) {
+        drawStartDirArrows(mapCtx, xy, pin, rc, m1p, boats);
+      }
       return { g: g, over: over, base: base };
     }
     function fitLive() {
@@ -2519,6 +2619,14 @@
       var startName = ts < PLAY_START_TS + START_LABEL_MS ? "START" : "";
       var finishName = ts >= GUN_TS ? "FINISH" : "";
       drawGate(trail.start_line, focusGate === "start_line" ? "#38bdf8" : "rgba(56,189,248,0.4)", startName, "Pin", "RC");
+      if (trail.start_line && ts < GUN_TS + 5 * 60 * 1000) {
+        var boatPts = [];
+        Object.keys(trail.boats || {}).forEach(function (sail) {
+          var bp = posAt(sail, ts);
+          if (bp) boatPts.push(bp);
+        });
+        drawStartDirArrows(mapCtx, xy, trail.start_line.left, trail.start_line.right, markAt("1", ts), boatPts);
+      }
       drawGate(trail.finish_line, focusGate === "finish_line" ? "#fbbf24" : "rgba(251,191,36,0.35)", finishName, "Pin", "RC");
       Object.keys(trail.boats || {}).forEach(function (sail) {
         var pos = posAt(sail, ts);
