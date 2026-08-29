@@ -26,26 +26,12 @@ fi
 test -d /var/www/sailingsa/frontend/js && cp /tmp/lipton-dev-races.json /var/www/sailingsa/frontend/js/lipton-dev-races.json
 test -d /var/www/sailingsa/frontend/js && cp /tmp/lipton-dev-playback.js /var/www/sailingsa/frontend/js/lipton-dev-playback.js
 
-# Stale R7 history must not overwrite R8 after a refresh.
-python3 - <<'PY'
-import json
-from pathlib import Path
-p = Path("/var/www/sailingsa/js/lipton-dev-live-history.json")
-if p.is_file():
-    try:
-        d = json.loads(p.read_text(encoding="utf-8", errors="replace"))
-    except Exception:
-        d = {}
-    n = d.get("race_number")
-    if n is None or int(n) < 8:
-        p.unlink()
-        print("dropped stale history race", n)
-    else:
-        print("history already", n)
-else:
-    print("no history file")
-PY
-rm -f /tmp/lipton_dev_live_snap.json /tmp/lipton_dev_live_snap.tmp /tmp/lipton_dev_live_state.json || true
+# Drop R7 history/snap so live cannot flip back.
+rm -f /var/www/sailingsa/js/lipton-dev-live-history.json \
+  /tmp/lipton_dev_live_history.json \
+  /tmp/lipton_dev_live_snap.json /tmp/lipton_dev_live_snap.tmp \
+  /tmp/lipton_dev_live_state.json || true
+echo "dropped live history/snap/state"
 
 echo "=== races last ==="
 python3 -c "import json; d=json.load(open('/var/www/sailingsa/js/lipton-dev-races.json')); print([(r['n'], r.get('packed'), r.get('held_live'), r.get('stage')) for r in d['races']])"
