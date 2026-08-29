@@ -18,6 +18,7 @@
   }
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = !RACE_Q;
+  var liveTablePhase = "armed10";
   var liveHeldN = 0;
   var raceMeta = { races: [] };
   function heldRaceFromMeta(meta) {
@@ -228,9 +229,13 @@
     .then(function (res) { return res.ok ? res.json() : null; })
     .then(function (meta) {
       renderRaceBoxes(meta);
-      if (LIVE_Q) {
+      if (LIVE_Q && liveTablePhase === "hold9") {
         var h = liveHeldN || heldRaceFromMeta(meta);
         if (h) setRaceTableLabel(h, true);
+      } else if (LIVE_Q && liveTablePhase === "armed10") {
+        setRaceTableLabel(10, true, "ARMED");
+      } else if (LIVE_Q && liveTablePhase === "live10") {
+        setRaceTableLabel(10, true, "LIVE");
       }
     })
     .catch(function () { renderRaceBoxes({ races: [] }); });
@@ -314,6 +319,15 @@
     });
   }
 
+  var LIVE_BOAT_COLORS = {
+    HYC: "#2563eb", RCYC: "#e11d48", KYC: "#16a34a", RNYC: "#7c3aed",
+    WBYC: "#ea580c", FBYC: "#0891b2", SBYC: "#ca8a04", PYC: "#db2777",
+    LDYC: "#4f46e5", GLYC: "#65a30d", BYC: "#0d9488", TSC: "#9333ea",
+    WYAC: "#f59e0b", RCYCA: "#64748b", "RCYC Academy": "#64748b",
+    UCT: "#0284c7", UCTYC: "#0284c7", IZI: "#be123c", IZIVUNGUVUNGU: "#be123c",
+    LYCN: "#15803d", LYC: "#15803d"
+  };
+
   if (LIVE_Q) {
     startLive();
   } else {
@@ -339,25 +353,18 @@
     });
   }
 
-  var LIVE_BOAT_COLORS = {
-    HYC: "#2563eb", RCYC: "#e11d48", KYC: "#16a34a", RNYC: "#7c3aed",
-    WBYC: "#ea580c", FBYC: "#0891b2", SBYC: "#ca8a04", PYC: "#db2777",
-    LDYC: "#4f46e5", GLYC: "#65a30d", BYC: "#0d9488", TSC: "#9333ea",
-    WYAC: "#f59e0b", RCYCA: "#64748b", "RCYC Academy": "#64748b",
-    UCT: "#0284c7", UCTYC: "#0284c7", IZI: "#be123c", IZIVUNGUVUNGU: "#be123c",
-    LYCN: "#15803d", LYC: "#15803d"
-  };
-
   function startLive() {
     bindRaceButtons(liveHeldN || heldRaceFromMeta(raceMeta) || -1);
     var gunTs = null;
     var snap = null;
-    var liveRaceN = 9;
+    var liveRaceN = 10;
     var R9_FINISH_ORDER = ["KYC", "RCYC", "PYC", "SBYC", "UCTYC", "RCYC Academy", "WBYC", "FBYC", "HYC", "GLYC", "RNYC", "BYC", "LDYC", "LYC", "IZIVUNGUVUNGU", "TSC", "WYAC"];
-    var devHoldR9 = true;
-    var devArmed = false;
+    var FLEET_17 = ["RCYC Academy", "GLYC", "KYC", "RCYC", "RNYC", "UCTYC", "HYC", "PYC", "WYAC", "BYC", "LDYC", "FBYC", "SBYC", "LYC", "WBYC", "TSC", "IZIVUNGUVUNGU"];
+    var devHoldR9 = false;
+    var devArmed = true;
     var devLiveR10 = false;
-    setRaceTableLabel(9, true);
+    liveTablePhase = "armed10";
+    setRaceTableLabel(10, true, "ARMED");
     var chartMap = null;
     var mapEl = document.getElementById("lipton-dev-map");
     var mapCtx = null;
@@ -520,7 +527,7 @@
       });
     };
     function liveFill(sail) {
-      return LIVE_BOAT_COLORS[sail] || "#94a3b8";
+      return (LIVE_BOAT_COLORS && LIVE_BOAT_COLORS[sail]) || "#94a3b8";
     }
     function rgbaHex(hex, a) {
       var n = parseInt(String(hex).replace("#", ""), 16);
@@ -639,25 +646,20 @@
       if (v > 1000) v = 1000;
       scrubEl.value = String(v);
     }
+    function gunClockDelta() {
+      var g = (snap && snap.gun_ts_ms != null) ? Number(snap.gun_ts_ms) : gunTs;
+      if (!(g > 0)) return null;
+      return Date.now() - g;
+    }
     function paintClock() {
       if (!clockHud || !hud) return;
       if (atLive) playTs = liveNow();
-      if (devHoldR9) {
+      var delta = gunClockDelta();
+      if (delta == null) {
         clockHud.textContent = "—";
         hud.classList.remove("is-after");
         return;
       }
-      if (snap && snap.waiting && !snap.gun_ts_ms) {
-        clockHud.textContent = snap.race_number ? ("R" + snap.race_number) : "WAIT";
-        hud.classList.remove("is-after");
-        return;
-      }
-      if (gunTs == null) {
-        clockHud.textContent = "—";
-        hud.classList.remove("is-after");
-        return;
-      }
-      var delta = playTs - gunTs;
       clockHud.textContent = fmtLiveClock(delta);
       hud.classList.toggle("is-after", delta >= 0);
       if (playBtn) {

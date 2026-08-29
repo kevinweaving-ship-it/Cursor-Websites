@@ -18,6 +18,7 @@
   }
   var RACE_Q = Number(params.get("race") || 0);
   var LIVE_Q = !RACE_Q;
+  var liveTablePhase = "armed10";
   var liveHeldN = 0;
   var raceMeta = { races: [] };
   function heldRaceFromMeta(meta) {
@@ -228,9 +229,13 @@
     .then(function (res) { return res.ok ? res.json() : null; })
     .then(function (meta) {
       renderRaceBoxes(meta);
-      if (LIVE_Q) {
+      if (LIVE_Q && liveTablePhase === "hold9") {
         var h = liveHeldN || heldRaceFromMeta(meta);
         if (h) setRaceTableLabel(h, true);
+      } else if (LIVE_Q && liveTablePhase === "armed10") {
+        setRaceTableLabel(10, true, "ARMED");
+      } else if (LIVE_Q && liveTablePhase === "live10") {
+        setRaceTableLabel(10, true, "LIVE");
       }
     })
     .catch(function () { renderRaceBoxes({ races: [] }); });
@@ -314,6 +319,15 @@
     });
   }
 
+  var LIVE_BOAT_COLORS = {
+    HYC: "#2563eb", RCYC: "#e11d48", KYC: "#16a34a", RNYC: "#7c3aed",
+    WBYC: "#ea580c", FBYC: "#0891b2", SBYC: "#ca8a04", PYC: "#db2777",
+    LDYC: "#4f46e5", GLYC: "#65a30d", BYC: "#0d9488", TSC: "#9333ea",
+    WYAC: "#f59e0b", RCYCA: "#64748b", "RCYC Academy": "#64748b",
+    UCT: "#0284c7", UCTYC: "#0284c7", IZI: "#be123c", IZIVUNGUVUNGU: "#be123c",
+    LYCN: "#15803d", LYC: "#15803d"
+  };
+
   if (LIVE_Q) {
     startLive();
   } else {
@@ -339,25 +353,18 @@
     });
   }
 
-  var LIVE_BOAT_COLORS = {
-    HYC: "#2563eb", RCYC: "#e11d48", KYC: "#16a34a", RNYC: "#7c3aed",
-    WBYC: "#ea580c", FBYC: "#0891b2", SBYC: "#ca8a04", PYC: "#db2777",
-    LDYC: "#4f46e5", GLYC: "#65a30d", BYC: "#0d9488", TSC: "#9333ea",
-    WYAC: "#f59e0b", RCYCA: "#64748b", "RCYC Academy": "#64748b",
-    UCT: "#0284c7", UCTYC: "#0284c7", IZI: "#be123c", IZIVUNGUVUNGU: "#be123c",
-    LYCN: "#15803d", LYC: "#15803d"
-  };
-
   function startLive() {
     bindRaceButtons(liveHeldN || heldRaceFromMeta(raceMeta) || -1);
     var gunTs = null;
     var snap = null;
-    var liveRaceN = 9;
+    var liveRaceN = 10;
     var R9_FINISH_ORDER = ["KYC", "RCYC", "PYC", "SBYC", "UCTYC", "RCYC Academy", "WBYC", "FBYC", "HYC", "GLYC", "RNYC", "BYC", "LDYC", "LYC", "IZIVUNGUVUNGU", "TSC", "WYAC"];
-    var devHoldR9 = true;
-    var devArmed = false;
+    var FLEET_17 = ["RCYC Academy", "GLYC", "KYC", "RCYC", "RNYC", "UCTYC", "HYC", "PYC", "WYAC", "BYC", "LDYC", "FBYC", "SBYC", "LYC", "WBYC", "TSC", "IZIVUNGUVUNGU"];
+    var devHoldR9 = false;
+    var devArmed = true;
     var devLiveR10 = false;
-    setRaceTableLabel(9, true);
+    liveTablePhase = "armed10";
+    setRaceTableLabel(10, true, "ARMED");
     var chartMap = null;
     var mapEl = document.getElementById("lipton-dev-map");
     var mapCtx = null;
@@ -639,25 +646,20 @@
       if (v > 1000) v = 1000;
       scrubEl.value = String(v);
     }
+    function gunClockDelta() {
+      var g = (snap && snap.gun_ts_ms != null) ? Number(snap.gun_ts_ms) : gunTs;
+      if (!(g > 0)) return null;
+      return Date.now() - g;
+    }
     function paintClock() {
       if (!clockHud || !hud) return;
       if (atLive) playTs = liveNow();
-      if (devHoldR9) {
+      var delta = gunClockDelta();
+      if (delta == null) {
         clockHud.textContent = "—";
         hud.classList.remove("is-after");
         return;
       }
-      if (snap && snap.waiting && !snap.gun_ts_ms) {
-        clockHud.textContent = snap.race_number ? ("R" + snap.race_number) : "WAIT";
-        hud.classList.remove("is-after");
-        return;
-      }
-      if (gunTs == null) {
-        clockHud.textContent = "—";
-        hud.classList.remove("is-after");
-        return;
-      }
-      var delta = playTs - gunTs;
       clockHud.textContent = fmtLiveClock(delta);
       hud.classList.toggle("is-after", delta >= 0);
       if (playBtn) {
@@ -1590,7 +1592,7 @@
       return "+" + sec.toFixed(1);
     }
     function liveBoatIcon(sail, rank) {
-      var fill = LIVE_BOAT_COLORS[sail] || "#94a3b8";
+      var fill = (LIVE_BOAT_COLORS && LIVE_BOAT_COLORS[sail]) || "#94a3b8";
       var label = rank != null ? String(rank) : "";
       return "<svg class=\"lipton-boat-dot\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"13.2\" r=\"8.1\" fill=\"" + fill + "\" stroke=\"#fff\" stroke-width=\"1.5\"/><polygon points=\"12,3 15.8,8.4 8.2,8.4\" fill=\"" + fill + "\" stroke=\"#fff\" stroke-width=\"1.1\"/><text x=\"12\" y=\"16\" text-anchor=\"middle\" fill=\"#fff\" font-size=\"8\" font-weight=\"800\">" + esc(label) + "</text></svg>";
     }
@@ -1621,27 +1623,20 @@
       var sails;
       if (devHoldR9) {
         sails = R9_FINISH_ORDER.slice();
-        Object.keys(identity).forEach(function (s) {
-          if (sails.indexOf(s) < 0) sails.push(s);
-        });
-        sails = sails.slice(0, 17);
       } else {
-        sails = Object.keys(identity);
-        if (!sails.length) sails = R9_FINISH_ORDER.slice();
-        sails.sort(function (a, b) {
-          var ba = liveIdent(a).bow;
-          var bb = liveIdent(b).bow;
-          if (ba != null && bb != null && Number(ba) !== Number(bb)) return Number(ba) - Number(bb);
-          return String(a).localeCompare(String(b));
-        });
+        sails = FLEET_17.slice();
       }
+      Object.keys(identity).forEach(function (s) {
+        if (sails.indexOf(s) < 0) sails.push(s);
+      });
+      sails = sails.slice(0, 17);
       var key = (devHoldR9 ? "hold9" : "armed10") + "|" + sails.join(",");
       if (key === lastLiveTableKey) return;
       lastLiveTableKey = key;
       var html = "";
       sails.forEach(function (sail, i) {
         var id = liveIdent(sail);
-        var rank = devHoldR9 ? (i + 1) : "";
+        var rank = i + 1;
         var medal = "";
         if (devHoldR9) {
           if (rank === 1) medal = " medal-gold";
@@ -1668,6 +1663,7 @@
       devArmed = isArmed;
       devLiveR10 = isLive10;
       devHoldR9 = !isArmed && !isLive10;
+      liveTablePhase = devArmed ? "armed10" : (devLiveR10 ? "live10" : "hold9");
       if (devHoldR9) setRaceTableLabel(9, true);
       else if (devArmed) setRaceTableLabel(10, true, "ARMED");
       else setRaceTableLabel(10, true, "LIVE");
