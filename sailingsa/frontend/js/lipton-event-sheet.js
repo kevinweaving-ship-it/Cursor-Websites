@@ -1,8 +1,9 @@
 /**
  * Lipton public playback only.
- * Event header / class header / results table is the real page (above tracking).
+ * Event header / class header / results table is an exact copy of
+ * /regatta/2026-08-29-lipton-challenge-cup/class-j22 (same look/size).
  * Cached in localStorage: refresh does not rebuild the sheet unless a new race result landed.
- * Race Mode (?live=) hides this block so map + live race table take the page.
+ * Keep the sheet visible in ?live=gps so DEV matches public.
  */
 (function () {
   var FRAME = "lipton-event-sheet-frame";
@@ -73,21 +74,14 @@
     var extra = doc.createElement("style");
     extra.textContent = [
       "html,body{margin:0;padding:0;background:#fff;overflow-x:auto;}",
-      ".regatta-page,.header,.class-header,.fleet-section{width:100%!important;max-width:100%!important;margin-left:0!important;margin-right:0!important;box-sizing:border-box;}",
-      ".regatta-page{padding:0 10px 12px;}",
-      ".header{margin-top:0!important;margin-bottom:20px!important;}",
-      ".fleet-section{margin-top:0!important;}",
-      ".class-header{margin-top:0!important;margin-bottom:0!important;}",
-      ".table-wrapper{margin-top:20px!important;overflow-x:auto!important;overflow-y:visible!important;max-width:100%!important;-webkit-overflow-scrolling:touch;}",
-      ".table-wrapper table,.table-wrapper th,.table-wrapper td{font-size:70%;}",
-      ".table-wrapper table{table-layout:auto!important;}",
-      ".table-wrapper th,.table-wrapper td{padding:6px 4px!important;white-space:nowrap;width:1%;vertical-align:middle;box-sizing:border-box;}",
-      ".table-wrapper .rank-col,.table-wrapper .wc-meta-col,.table-wrapper .club-col,.table-wrapper .nett-col,.table-wrapper .race-col,.table-wrapper .sail-col,.table-wrapper .helm-col,.table-wrapper .crew-col{width:1%!important;max-width:none!important;white-space:nowrap!important;}",
-      ".table-wrapper th.helm-col,.table-wrapper td.helm-col,.table-wrapper th.crew-col,.table-wrapper td.crew-col{text-align:left!important;white-space:nowrap!important;}",
-      ".rs-boat-name-sponsors,.rs-club-with-logo{display:inline-flex!important;width:auto!important;max-width:none!important;justify-content:flex-start;align-items:center;}",
-      ".header.header--lipton{display:grid!important;grid-template-columns:88px minmax(0,1fr) 88px!important;align-items:center;}",
-      ".regatta-header-logo-col,.regatta-header-club-logo-col{width:88px;min-width:88px;}",
-      ".regatta-live-board-row,.regatta-live-board{display:none!important;}"
+      ".regatta-page{width:100%!important;max-width:1100px!important;padding:16px!important;margin:0 auto!important;box-sizing:border-box;padding-top:0!important;}",
+      ".regatta-page > .regatta-header-wrap,.regatta-page > .header.header--lipton,.regatta-page > .header{margin-top:20px!important;margin-bottom:0!important;}",
+      ".regatta-page > .fleet-section{margin-top:20px!important;}",
+      ".regatta-page .class-header{margin-bottom:0!important;}",
+      ".regatta-page .fleet-section > .table-wrapper,.regatta-page .table-wrapper{margin-top:20px!important;overflow-x:auto!important;overflow-y:visible!important;}",
+      ".fleet-results-table td.rank-col--live-icon{width:2.7rem;min-width:2.7rem;max-width:3rem;padding:2px 1px!important;text-align:center;vertical-align:middle;line-height:0;overflow:hidden;box-sizing:border-box;}",
+      ".fleet-results-table .r10-live-icon,.fleet-results-table svg.lipton-boat-dot.r10-live-icon{width:36px!important;height:36px!important;max-width:36px;max-height:36px;display:inline-block;vertical-align:middle;}",
+      ".regatta-live-board-row,.regatta-live-board,.regatta-live-wx,.regatta-live-track,.regatta-live-clip,.regatta-live-map,.regatta-live-camera{display:none!important;}"
     ].join("");
     (doc.head || doc.documentElement).appendChild(extra);
     return true;

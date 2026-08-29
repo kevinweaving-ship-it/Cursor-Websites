@@ -1,0 +1,33 @@
+#!/usr/bin/expect -f
+# Copy Lipton teleapi GPS (sqlite + jsonl) and Firestore dump onto live disk,
+# then load public.lipton_telemetry. Does not invent GPS. Does not restart API.
+set timeout 2400
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+set script_dir [file dirname [info script]]
+set repo_root [file normalize "$script_dir/../.."]
+
+spawn scp -o StrictHostKeyChecking=no \
+  /tmp/lipton_telemetry.sqlite.gz \
+  /tmp/lipton_telemetry_jsonl.tar.gz \
+  /tmp/lipton_vakaros_regatta.json \
+  /tmp/lipton_vakaros_regatta_raw.json \
+  /tmp/lipton_vakaros_summary.json \
+  $repo_root/sailingsa/scripts/lipton_dev_load_telemetry_pg.py \
+  ${user}@${server}:/tmp/
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+    timeout { puts "ERROR: scp timeout"; exit 1 }
+}
+wait
+
+set timeout 3600
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "mkdir -p /root/lipton-vakaros-archive && cp -f /tmp/lipton_telemetry.sqlite.gz /tmp/lipton_telemetry_jsonl.tar.gz /tmp/lipton_vakaros_regatta.json /tmp/lipton_vakaros_regatta_raw.json /tmp/lipton_vakaros_summary.json /tmp/lipton_dev_load_telemetry_pg.py /root/lipton-vakaros-archive/ && gunzip -kf /tmp/lipton_telemetry.sqlite.gz && PY=python3 && LIPTON_SQLITE=/tmp/lipton_telemetry.sqlite DB_URL=postgresql://sailors_user:SailSA_Pg_Beta2026@localhost:5432/sailors_master \$PY /tmp/lipton_dev_load_telemetry_pg.py && psql postgresql://sailors_user:SailSA_Pg_Beta2026@localhost:5432/sailors_master -c \"SELECT race_number, COUNT(*) FROM public.lipton_telemetry GROUP BY 1 ORDER BY 1;\" && ls -lh /root/lipton-vakaros-archive"
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    timeout { puts "ERROR: ssh load timeout"; exit 1 }
+    eof { }
+}
+wait

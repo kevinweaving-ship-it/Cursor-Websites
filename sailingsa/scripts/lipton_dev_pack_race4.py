@@ -418,7 +418,18 @@ def main() -> int:
         "mark_labels": [p["label"] for p in mark_passes],
         "passes": [{"id": "ST", "label": "ST", "lap": 0, "mark": 0, "boats": st}, *mark_passes],
         "checksum": build_checksum(
-            fleet=sorted(boats),
+            fleet=sorted(
+                {
+                    row["boat"]
+                    for row in (
+                        list(st)
+                        + [b for p in mark_passes for b in (p.get("boats") or [])]
+                        + list(finish_rows)
+                    )
+                    if row.get("boat")
+                }
+            )
+            or sorted(boats),
             st=st,
             mark_passes=mark_passes,
             finish=finish_rows,

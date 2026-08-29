@@ -1,0 +1,25 @@
+LIPTON 2026 — Vakaros archive STATUS
+Updated: 2026-08-29 18:06:23 SAST  (16:06:23 UTC)
+
+PHONE SSH:
+  ssh root@102.218.215.253
+  cat /root/lipton-vakaros-archive/STATUS.txt
+
+DOING NOW: DONE. Our copy of all tracking data is in live Postgres + disk.
+
+LEFT TO DO
+- nothing for this archive job
+
+DONE
+- 3-pass teleapi GPS for R1–R10 (pass 2/3 added 0; wider window = start sequence + endTime)
+- live public.lipton_telemetry COUNT(*) matches sqlite for every race
+- Firestore spectator doc in public.vakaros_snapshots (snapshot_id 9, all 10 races)
+- disk /root/lipton-vakaros-archive/: sqlite.gz 300MB, jsonl tar 66MB, R7 jsonl, firestore JSON
+
+LIVE public.lipton_telemetry = SQLITE
+  R1 445928  R2 465456  R3 425130  R4 497546  R5 387712
+  R6 389935  R7 447777  R8 474183  R9 418619  R10 407029
+  total 4359315 unique pings
+
+Replay/calcs: use public.lipton_telemetry (GPS) + vakaros_snapshots (guns/finishes/OCS/lines).
+Do not invent GPS. No cron. DEV Live stays off. No API restart.

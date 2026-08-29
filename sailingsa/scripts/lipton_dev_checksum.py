@@ -78,6 +78,8 @@ def arrived_in_time(prev_boats: list[dict], this_boats: list[dict], full_fleet: 
         if sail is None or ts is None:
             continue
         sail = str(sail)
+        if sail not in full_fleet:
+            continue
         if int(ts) < this_last and sail not in seen:
             seen.add(sail)
             out.append(sail)

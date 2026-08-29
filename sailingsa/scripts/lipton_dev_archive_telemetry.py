@@ -20,8 +20,9 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from lipton_dev_record_telemetry import race_window, row_key  # noqa: E402
+from lipton_dev_record_telemetry import _ms_iso  # noqa: E402
 from lipton_mark_rounding import fetch_rows  # noqa: E402
+from lipton_vakaros import _j22_division, fetch_regatta_doc  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "data"
@@ -31,6 +32,24 @@ PASSES = [
     {"pass": 2, "chunk_ms": 25_000, "overlap_ms": 2_000},
     {"pass": 3, "chunk_ms": 17_000, "overlap_ms": 3_000},
 ]
+# 5-minute start sequence + buffer before gun; keep GPS until tracker endTime.
+ARCHIVE_PRE_GUN_MS = 10 * 60 * 1000
+ARCHIVE_POST_END_MS = 2 * 60 * 1000
+
+
+def archive_window(race: int) -> tuple[int, int]:
+    """Wider than pack race_window: prestart + post-finish, still only teleapi rows."""
+    doc = fetch_regatta_doc()
+    r = next(x for x in _j22_division(doc)["races"] if int(x.get("raceNumber") or 0) == race)
+    gun = _ms_iso(r["starts"][0]["startTime"])
+    ends: list[int] = []
+    finishes = r.get("finishes") or []
+    if finishes:
+        ends.append(max(_ms_iso(f["finishingTime"]) for f in finishes))
+    if r.get("endTime"):
+        ends.append(_ms_iso(r["endTime"]))
+    end = max(ends) if ends else int(time.time() * 1000)
+    return gun - ARCHIVE_PRE_GUN_MS, end + ARCHIVE_POST_END_MS
 
 
 def db() -> sqlite3.Connection:
@@ -127,13 +146,13 @@ def load_race_rows(race: int) -> list[dict]:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Archive Lipton teleapi GPS three times")
-    ap.add_argument("--races", default="1,2,3,4,5")
+    ap.add_argument("--races", default="1,2,3,4,5,6,7,8,9,10")
     args = ap.parse_args()
     races = [int(x) for x in args.races.split(",") if x.strip()]
     conn = db()
     report = []
     for race in races:
-        after, before = race_window(race)
+        after, before = archive_window(race)
         print(json.dumps({"race": race, "after": after, "before": before}), flush=True)
         per = {"race": race, "passes": []}
         for spec in PASSES:
