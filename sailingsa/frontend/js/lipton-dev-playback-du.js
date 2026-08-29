@@ -1065,7 +1065,7 @@
       };
     }
     var PASS_ORDER = ["ST", "M1", "PIN", "M1b", "PINb", "M1c", "FIN"];
-    var PASS_LAB = { ST: "ST", M1: "M1", PIN: "Pin", M1b: "M1", PINb: "Pin", M1c: "M1", FIN: "Fin" };
+    var PASS_LAB = { ST: "ST", M1: "M1", PIN: "Pin", M1b: "M1", PINb: "Pin", M1c: "M1", FIN: "Finish" };
     var passTs = { ST: {}, M1: {}, PIN: {}, M1b: {}, PINb: {}, M1c: {}, FIN: {} };
     var roundArr = { M1: null, PIN: null };
     function enuOf(mark, pos) {
@@ -1860,27 +1860,7 @@
       return "<span class=\"place-delta " + cls + "\" title=\"" + label + "\" aria-label=\"" + label + "\"><i class=\"ld-tri ld-tri--" + tri + "\" aria-hidden=\"true\"></i>" + n + "</span>";
     }
     function usedPassIds() {
-      var out = [];
-      PASS_ORDER.forEach(function (id) {
-        var any = Object.keys(passTs[id] || {}).some(function (s) { return livePassAt(s, id) != null; });
-        if (any) out.push(id);
-      });
-      var elapsed = gunTs ? Date.now() - gunTs : 0;
-      function ensure(id) {
-        if (out.indexOf(id) >= 0) return;
-        var at = PASS_ORDER.indexOf(id);
-        var j = 0;
-        while (j < out.length && PASS_ORDER.indexOf(out[j]) < at) j += 1;
-        out.splice(j, 0, id);
-      }
-      if (elapsed > 32 * 60 * 1000) {
-        ensure("M1b");
-        ensure("PINb");
-      } else if (elapsed > 16 * 60 * 1000) {
-        ensure("PIN");
-      }
-      if (!out.length) out = ["ST"];
-      return out;
+      return PASS_ORDER.slice();
     }
     function fillHoldHead() {
       if (!headRow) return;
@@ -1960,8 +1940,7 @@
         return;
       }
       var raceOver = !!(snap && (snap.holding_last || /finish/i.test(String(snap.stage || ""))));
-      var used = usedPassIds();
-      if (!used.length) used = ["ST"];
+      var used = PASS_ORDER.slice();
       var ranks = {};
       PASS_ORDER.forEach(function (id) { ranks[id] = rankMap(id); });
       var firstSt = null;
@@ -2042,41 +2021,12 @@
         if (!mk) return 9e9;
         return distM(pos, mk);
       }
-      function distToPin(sail) {
-        var pos = lastPt(hist.boats[sail]);
-        var pin = lastPt(hist.pin);
-        if (!pos || !pin) return 9e9;
-        return distM(pos, pin);
-      }
-      var rankId = "ST";
-      var rk;
-      for (rk = PASS_ORDER.length - 1; rk >= 1; rk--) {
-        var rid = PASS_ORDER[rk];
-        if (Object.keys(passTs[rid] || {}).some(function (s) { return livePassAt(s, rid) != null; })) {
-          rankId = rid;
-          break;
-        }
-      }
-      if (rankId === "ST" || rankId === "M1" || rankId === "M1b") {
-        var anyPinRun = rows.some(function (r) { return r.far >= 4; });
-        if (anyPinRun && !(passTs.PIN && Object.keys(passTs.PIN).length) && !(passTs.PINb && Object.keys(passTs.PINb).length)) {
-          rankId = "PINb";
-        }
-      }
       rows.sort(function (a, b) {
-        var aR = a.times[rankId];
-        var bR = b.times[rankId];
-        if (aR != null && bR != null && aR !== bR) return aR - bR;
-        if (aR != null && bR == null) return -1;
-        if (bR != null && aR == null) return 1;
         if (b.far !== a.far) return b.far - a.far;
         if (a.farTs != null && b.farTs != null && a.farTs !== b.farTs) return a.farTs - b.farTs;
         if (a.farTs != null && b.farTs == null) return -1;
         if (b.farTs != null && a.farTs == null) return 1;
         if (raceOver) return String(a.sail).localeCompare(String(b.sail));
-        if (rankId === "PIN" || rankId === "PINb" || a.far >= 4 || b.far >= 4) {
-          return distToPin(a.sail) - distToPin(b.sail);
-        }
         return distNext(a.sail, a.far) - distNext(b.sail, b.far);
       });
       rows.forEach(function (r, i) { r.rank = i + 1; });
