@@ -53,6 +53,14 @@ def main() -> int:
         with conn.cursor() as cur:
             cur.execute(DDL)
             batch = []
+            seen = 0
+            sql = """
+                        INSERT INTO public.lipton_telemetry (
+                            race_number, sn, sail_number, ts, latitude, longitude,
+                            heading, sog, role, fetch_pass, rec
+                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                        ON CONFLICT (race_number, sn, sail_number, ts, latitude, longitude) DO NOTHING
+                        """
             for r in src.execute(q):
                 batch.append(
                     (
@@ -61,20 +69,12 @@ def main() -> int:
                     )
                 )
                 if len(batch) >= 1000:
-                    execute_batch(
-                        cur,
-                        """
-                        INSERT INTO public.lipton_telemetry (
-                            race_number, sn, sail_number, ts, latitude, longitude,
-                            heading, sog, role, fetch_pass, rec
-                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                        ON CONFLICT (race_number, sn, sail_number, ts, latitude, longitude) DO NOTHING
-                        """,
-                        batch,
-                        page_size=1000,
-                    )
+                    execute_batch(cur, sql, batch, page_size=1000)
                     inserted += len(batch)
+                    seen += len(batch)
                     batch = []
+                    if seen % 50000 == 0:
+                        print(json.dumps({"progress": seen}), flush=True)
             if batch:
                 execute_batch(
                     cur,
