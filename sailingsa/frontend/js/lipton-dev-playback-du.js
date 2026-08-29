@@ -1738,12 +1738,17 @@
       if (pid === "M1b") return lock.PIN != null ? lock.PIN + 25000 : null;
       if (pid === "PINb") return lock.M1b != null ? lock.M1b + 25000 : null;
       if (pid === "M1c") return lock.PINb != null ? lock.PINb + 25000 : null;
-      if (pid === "FIN") return lock.M1c != null ? lock.M1c + 20000 : null;
+      if (pid === "FIN") return lock.M1c != null ? lock.M1c + 20000 : (lock.PINb != null ? lock.PINb + 45000 : null);
       return null;
     }
     function finishTsFor(pts, lock, geom, pinNow) {
-      if (!geom || !lock.M1c) return null;
-      var finHits = courseEnters(pts, geom, lock.M1c + 20000, null);
+      if (!geom) return null;
+      var after = null;
+      if (lock.M1c) after = lock.M1c + 20000;
+      else if (lock.PINb) after = lock.PINb + 45000;
+      if (after == null) return null;
+      var finHits = lineExitTimes(pts, geom, after);
+      if (!finHits.length) finHits = courseEnters(pts, geom, after, null);
       var fi;
       for (fi = 0; fi < finHits.length; fi++) {
         var ft = finHits[fi];
@@ -1751,8 +1756,7 @@
         if (!fp) continue;
         var sg = geom.signed(fp.lat, fp.lon);
         var alongOk = true;
-        if (sg && (sg.along < 20 || sg.along > geom.len - 20)) alongOk = false;
-        if (pinNow && distM(fp, pinNow) < 28) alongOk = false;
+        if (sg && (sg.along < -80 || sg.along > geom.len + 80)) alongOk = false;
         if (alongOk) return ft;
       }
       return null;
@@ -2307,7 +2311,10 @@
         if (!lockedPass[sail]) lockedPass[sail] = {};
         var src = data.lockedPass[sail] || {};
         Object.keys(src).forEach(function (id) {
-          if (src[id] != null && lockedPass[sail][id] == null) lockedPass[sail][id] = Number(src[id]);
+          if (src[id] == null) return;
+          if (lockedPass[sail][id] == null || id === "FIN" || id === "M1c") {
+            lockedPass[sail][id] = Number(src[id]);
+          }
         });
       });
       var delta = Date.now() - gunTs;

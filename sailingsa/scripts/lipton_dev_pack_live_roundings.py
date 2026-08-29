@@ -173,12 +173,23 @@ def main() -> int:
             last_ts[sail] = ts
 
     for sail, pts in boat_by.items():
-        after = locked.get(sail, {}).get("M1c")
+        after = locked.get(sail, {}).get("M1c") or locked.get(sail, {}).get("PINb")
         if not after:
             continue
-        hit = next((h for h in line_hits(pts, after + 20_000) if h["dir"] == "exit"), None)
+        hit = next((h for h in line_hits(pts, after + 45_000) if h["ts"] > after + 45_000), None)
         if hit:
             locked[sail]["FIN"] = int(hit["ts"])
+
+    finishes = sorted(r10.get("finishes") or [], key=lambda f: f.get("finishingTime") or "")
+    for f in finishes:
+        sail = f.get("sailNumber")
+        if not sail or not f.get("finishingTime"):
+            continue
+        try:
+            ts = ms_iso(f["finishingTime"])
+        except Exception:
+            continue
+        locked.setdefault(sail, {})["FIN"] = int(ts)
 
     counts = {k: 0 for k in ["ST", "M1", "PIN", "M1b", "PINb", "M1c", "FIN"]}
     for lock in locked.values():
