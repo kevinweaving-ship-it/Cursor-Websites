@@ -172,14 +172,6 @@ def main() -> int:
         for sail, ts in nxts.items():
             last_ts[sail] = ts
 
-    for sail, pts in boat_by.items():
-        after = locked.get(sail, {}).get("M1c") or locked.get(sail, {}).get("PINb")
-        if not after:
-            continue
-        hit = next((h for h in line_hits(pts, after + 45_000) if h["ts"] > after + 45_000), None)
-        if hit:
-            locked[sail]["FIN"] = int(hit["ts"])
-
     finishes = sorted(r10.get("finishes") or [], key=lambda f: f.get("finishingTime") or "")
     for f in finishes:
         sail = f.get("sailNumber")
@@ -190,6 +182,15 @@ def main() -> int:
         except Exception:
             continue
         locked.setdefault(sail, {})["FIN"] = int(ts)
+
+    if not any(lock.get("FIN") for lock in locked.values()):
+        for sail, pts in boat_by.items():
+            after = locked.get(sail, {}).get("M1c") or locked.get(sail, {}).get("PINb")
+            if not after:
+                continue
+            hit = next((h for h in line_hits(pts, after + 45_000) if h["ts"] > after + 45_000), None)
+            if hit:
+                locked[sail]["FIN"] = int(hit["ts"])
 
     counts = {k: 0 for k in ["ST", "M1", "PIN", "M1b", "PINb", "M1c", "FIN"]}
     for lock in locked.values():
@@ -205,7 +206,7 @@ def main() -> int:
         "lockedPass": locked,
         "counts": counts,
         "boats": len(boat_by),
-        "source": "teleapi + replay rounding_candidates. Empty = not received.",
+        "source": "Vakaros finishingTime for FIN; teleapi rounding_candidates for marks. Empty = not received.",
     }
     start_doc = {
         "gun_ts_ms": gun,

@@ -2176,6 +2176,9 @@
               cell = liveOcsOn(r.sail) ? ("OCS " + gap) : gap;
             }
           }
+          else if (pid === "FIN" && r.times.FIN && gunTs) {
+            cell = fmtClock(r.times.FIN - gunTs);
+          }
           else if (r.times[pid]) {
             var prevId = i > 0 ? used[i - 1] : null;
             var prevT = prevId ? r.times[prevId] : null;
