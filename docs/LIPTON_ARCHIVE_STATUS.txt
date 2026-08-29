@@ -1,0 +1,59 @@
+LIPTON 2026 — Vakaros archive STATUS
+Updated: 2026-08-29 16:48:16 SAST  (14:48:16 UTC)
+This file is rewritten every 60 seconds.
+
+PHONE SSH:
+  ssh root@102.218.215.253
+  cat /root/lipton-vakaros-archive/STATUS.txt
+
+DOING NOW: 3-pass teleapi fetch Race 5 — current chunk 69.1%
+
+LEFT TO DO
+- finish current pass on R5 (~31% of this pass)
+- finish R5 remaining passes
+- R6 3-pass (~8 min each)
+- R8 3-pass (~8 min each)
+- R9 3-pass (~8 min each)
+- R10 3-pass (~8 min each)
+- gzip full sqlite + scp to live archive dir
+- load extra pings into public.lipton_telemetry
+- verify live counts = sqlite
+
+DONE
+- Firestore full doc in live vakaros_snapshots (id 9, races 1–10)
+- R1–R10 already in live public.lipton_telemetry (first load; R7 is complete)
+- Disk: /root/lipton-vakaros-archive/ (sqlite.gz, jsonl, R7 jsonl, firestore JSON)
+- R7 3-pass complete (447777, pass 2/3 added 0)
+- R1–R4 3-pass complete (wider window: 5-min start + endTime)
+
+Replay/calcs can already use live DB. This pass fills gaps only.
+Do not invent GPS. No cron. DEV Live stays off.
+
+SQLITE (this VM) vs live PG first-load:
+  R01  sqlite= 445928  live_pg~= 390096  3x-done
+  R02  sqlite= 465456  live_pg~= 409702  3x-done
+  R03  sqlite= 425130  live_pg~= 371528  3x-done
+  R04  sqlite= 497546  live_pg~= 214240  3x-done
+  R05  sqlite= 387712  live_pg~= 220139  queued/in-progress
+  R06  sqlite= 332574  live_pg~= 332574  queued/in-progress
+  R07  sqlite= 447777  live_pg~= 447777  3x-done
+  R08  sqlite= 415809  live_pg~= 415809  queued/in-progress
+  R09  sqlite= 361768  live_pg~= 361768  queued/in-progress
+  R10  sqlite= 355022  live_pg~= 355022  queued/in-progress
+
+ARCHIVE PANE (last lines)
+{"chunk": 180, "pct": 95.0, "raw": 390103}
+{"pass": 1, "fetched": 387712, "new": 167573, "unique_total": 387712, "sec": 278
+.7, "ok": true}
+{"chunk": 15, "pct": 6.3, "raw": 29190}
+{"chunk": 30, "pct": 12.6, "raw": 63553}
+{"chunk": 45, "pct": 18.9, "raw": 87080}
+{"chunk": 60, "pct": 25.2, "raw": 119043}
+{"chunk": 75, "pct": 31.4, "raw": 148108}
+{"chunk": 90, "pct": 37.7, "raw": 177506}
+{"chunk": 105, "pct": 44.0, "raw": 201451}
+{"chunk": 120, "pct": 50.3, "raw": 224324}
+{"chunk": 135, "pct": 56.5, "raw": 247274}
+{"chunk": 150, "pct": 62.8, "raw": 274356}
+{"chunk": 165, "pct": 69.1, "raw": 297735}
+

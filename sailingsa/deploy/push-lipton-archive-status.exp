@@ -1,0 +1,11 @@
+#!/usr/bin/expect -f
+# Push STATUS.txt to live so phone SSH can cat it.
+set timeout 60
+set password "TimAdd#072082"
+spawn scp -o StrictHostKeyChecking=no /tmp/LIPTON_ARCHIVE_STATUS.txt root@102.218.215.253:/root/lipton-vakaros-archive/STATUS.txt
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+    timeout { puts "ERROR: status scp timeout"; exit 1 }
+}
+wait
