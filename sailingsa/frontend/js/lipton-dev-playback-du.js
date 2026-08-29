@@ -628,6 +628,50 @@
       hits.reverse();
       return hits;
     }
+    function slimTrail(arr) {
+      if (!arr || !arr.length) return [];
+      var out = [];
+      var last = -1e12;
+      var i;
+      for (i = 0; i < arr.length; i++) {
+        var p = arr[i];
+        if (!p || p.ts_ms == null) continue;
+        if (p.ts_ms - last >= 900 || i === arr.length - 1) {
+          out.push({ lat: p.lat, lon: p.lon, ts_ms: p.ts_ms, hdg: p.hdg });
+          last = p.ts_ms;
+        }
+      }
+      return out;
+    }
+    function persistHist() {
+      if (!gunTs) return;
+      try {
+        var payload = { boats: {}, marks: {}, pin: slimTrail(hist.pin), rc: slimTrail(hist.rc) };
+        Object.keys(hist.boats).forEach(function (s) {
+          payload.boats[s] = slimTrail(hist.boats[s]);
+        });
+        Object.keys(hist.marks).forEach(function (k) {
+          payload.marks[k] = slimTrail(hist.marks[k]);
+        });
+        sessionStorage.setItem("lipton-live-hist-v1-" + gunTs, JSON.stringify(payload));
+      } catch (eH) {}
+    }
+    function loadHist() {
+      if (!gunTs) return;
+      try {
+        var raw = sessionStorage.getItem("lipton-live-hist-v1-" + gunTs);
+        if (!raw) return;
+        var d = JSON.parse(raw);
+        Object.keys((d && d.boats) || {}).forEach(function (s) {
+          hist.boats[s] = mergeTrail(hist.boats[s] || [], d.boats[s]);
+        });
+        Object.keys((d && d.marks) || {}).forEach(function (k) {
+          hist.marks[k] = mergeTrail(hist.marks[k] || [], d.marks[k]);
+        });
+        if (d.pin) hist.pin = mergeTrail(hist.pin, d.pin);
+        if (d.rc) hist.rc = mergeTrail(hist.rc, d.rc);
+      } catch (eL) {}
+    }
     function mergeTrail(dest, pts) {
       if (!pts || !pts.length) return dest || [];
       dest = dest || [];
@@ -1380,9 +1424,9 @@
       if (!m1 || !pin) return false;
       return distM(m1, pin) >= 250;
     }
-    function gateTimes(pts, markTrail, afterTs) {
+    function gateTimes(pts, markTrail, afterTs, enterM) {
       if (!pts || pts.length < 3 || !markTrail || !markTrail.length) return [];
-      var enterM = 110;
+      enterM = enterM || 110;
       var out = [];
       var i = 0;
       while (i < pts.length) {
@@ -1442,15 +1486,52 @@
       }
       if (!out.length) {
         var close = closestAfter(pts, markTrail, afterTs);
-        if (close.ts != null && close.d <= 90) {
+        var closeLim = Math.max(90, enterM - 20);
+        if (close.ts != null && close.d <= closeLim) {
           var last = lastPt(pts);
           var mkL = last ? atTs(markTrail, last.ts_ms) : null;
           var leaving = mkL && distM(last, mkL) >= close.d + 6;
-          var atMark = close.d <= 55;
+          var atMark = close.d <= Math.max(55, enterM * 0.4);
           if (leaving || atMark) out.push(close.ts);
         }
       }
       return out;
+    }
+    function localMinGates(pts, markTrail, afterTs, maxD) {
+      maxD = maxD || 130;
+      if (!pts || pts.length < 5 || !markTrail || !markTrail.length) return [];
+      var ds = [];
+      var i;
+      for (i = 0; i < pts.length; i++) {
+        var p = pts[i];
+        if (afterTs != null && p.ts_ms < afterTs) continue;
+        var mk = atTs(markTrail, p.ts_ms);
+        if (!mk) continue;
+        ds.push({ t: p.ts_ms, d: distM(p, mk) });
+      }
+      var out = [];
+      for (i = 1; i < ds.length - 1; i++) {
+        if (ds[i].d > maxD) continue;
+        if (ds[i].d <= ds[i - 1].d && ds[i].d <= ds[i + 1].d) {
+          if (!out.length || ds[i].t - out[out.length - 1] >= 80000) out.push(ds[i].t);
+        }
+      }
+      return out;
+    }
+    function mergeGateList(a, b) {
+      var all = (a || []).concat(b || []).sort(function (x, y) { return x - y; });
+      var out = [];
+      var i;
+      for (i = 0; i < all.length; i++) {
+        if (!out.length || all[i] - out[out.length - 1] >= 80000) out.push(all[i]);
+      }
+      return out;
+    }
+    function lineExitTimes(pts, geom, fromTs) {
+      if (!geom || !pts) return [];
+      return collectLineHits(pts, geom, fromTs, null).filter(function (h) {
+        return h.kind === "exit";
+      }).map(function (h) { return h.t; });
     }
     function firstRounding(pts, markTrail, afterTs, needM1Sep) {
       var vs = gateTimes(pts, markTrail, afterTs);
@@ -1463,14 +1544,38 @@
     }
     function slotM1(t) {
       var age = gunTs ? t - gunTs : 0;
-      if (age < 20 * 60 * 1000) return "M1";
-      if (age < 48 * 60 * 1000) return "M1b";
+      if (age < 18 * 60 * 1000) return "M1";
+      if (age < 40 * 60 * 1000) return "M1b";
       return "M1c";
     }
     function slotPIN(t) {
       var age = gunTs ? t - gunTs : 0;
-      if (age < 32 * 60 * 1000) return "PIN";
+      if (age < 30 * 60 * 1000) return "PIN";
       return "PINb";
+    }
+    function nextSameSlot(id) {
+      if (id === "M1") return "M1b";
+      if (id === "M1b") return "M1c";
+      if (id === "PIN") return "PINb";
+      return null;
+    }
+    function placeKind(lock, kind, t) {
+      if (t == null || !lock) return;
+      var ids = kind === "M1" ? ["M1", "M1b", "M1c"] : ["PIN", "PINb"];
+      var i;
+      for (i = 0; i < ids.length; i++) {
+        if (lock[ids[i]] != null && Math.abs(lock[ids[i]] - t) < 50000) return;
+      }
+      var id = kind === "M1" ? slotM1(t) : slotPIN(t);
+      while (id && lock[id] != null) id = nextSameSlot(id);
+      if (id) lock[id] = t;
+    }
+    function trailFromStart(pts) {
+      return !!(pts && pts.length && gunTs && pts[0].ts_ms <= gunTs + 40000);
+    }
+    function stValid(t) {
+      t = Number(t);
+      return !!(gunTs && t && t >= gunTs - 90000 && t <= gunTs + 4 * 60 * 1000);
     }
     function collectLineHits(pts, geom, fromTs, toTs) {
       var hits = [];
@@ -1568,9 +1673,9 @@
       return null;
     }
     function startTsForSail(sail, pts, geom) {
-      if (!geom || !gunTs || !pts || pts.length < 2) return null;
       var packed = packedStartOf(sail);
-      if (packed && packed.st_ms != null) return Number(packed.st_ms);
+      if (packed && packed.st_ms != null && stValid(packed.st_ms)) return Number(packed.st_ms);
+      if (!geom || !gunTs || !pts || pts.length < 2) return null;
       var ocs = liveOcsOn(sail);
       var hits = courseEnters(pts, geom, ocs ? gunTs - 90000 : gunTs - 5000, gunTs + 180000);
       if (ocs) return hits.length >= 2 ? hits[1] : null;
@@ -1581,6 +1686,7 @@
       return null;
     }
     var packedStarts = {};
+    var packedStartsGun = null;
     var lockedSt = {};
     var lockedPass = {};
     function persistSt() {
@@ -1593,7 +1699,12 @@
         var raw = sessionStorage.getItem("lipton-live-st-v3-" + gunTs);
         if (raw) {
           var parsed = JSON.parse(raw);
-          if (parsed && typeof parsed === "object") lockedSt = parsed;
+          if (parsed && typeof parsed === "object") {
+            lockedSt = parsed;
+            Object.keys(lockedSt).forEach(function (s) {
+              if (!stValid(lockedSt[s])) delete lockedSt[s];
+            });
+          }
         }
       } catch (e3) {}
       try {
@@ -1604,6 +1715,7 @@
           if (parsedP && parsedP.armedLegIdx != null) armedLegIdx = Number(parsedP.armedLegIdx) || 0;
         }
       } catch (e4) {}
+      loadHist();
     }
     function persistPass() {
       if (!gunTs) return;
@@ -1655,31 +1767,22 @@
       return firstRounding(pts, trail, after, windward);
     }
     function captureArmedMark(geom, pinNow) {
-      var after = gunTs ? gunTs + 4000 : 0;
       gpsRoster().forEach(function (sail) {
         if (!lockedPass[sail]) lockedPass[sail] = {};
         var lock = lockedPass[sail];
         var pts = hist.boats[sail] || [];
-        var m1s = gateTimes(pts, hist.marks["1"], after).filter(function (t) {
-          return m1Separated(t);
-        });
-        var pins = gateTimes(pts, hist.pin, after);
-        m1s.sort(function (a, b) { return a - b; });
-        pins.sort(function (a, b) { return a - b; });
-        if (m1s.length >= 2) {
-          if (lock.M1 == null) lock.M1 = m1s[0];
-          if (lock.M1b == null) lock.M1b = m1s[1];
-          if (m1s[2] != null && lock.M1c == null) lock.M1c = m1s[2];
-        } else if (m1s.length === 1) {
-          var mid = slotM1(m1s[0]);
-          if (lock[mid] == null) lock[mid] = m1s[0];
+        var afterLast = lock.PINb || lock.M1b || lock.PIN || lock.M1 || (gunTs ? gunTs + 4000 : 0);
+        if (lock.M1c == null) {
+          mergeGateList(
+            gateTimes(pts, hist.marks["1"], afterLast + 25000).filter(function (t) { return m1Separated(t); }),
+            localMinGates(pts, hist.marks["1"], afterLast + 25000, 120)
+          ).forEach(function (t) { placeKind(lock, "M1", t); });
         }
-        if (pins.length >= 2) {
-          if (lock.PIN == null) lock.PIN = pins[0];
-          if (lock.PINb == null) lock.PINb = pins[1];
-        } else if (pins.length === 1) {
-          var pid = slotPIN(pins[0]);
-          if (lock[pid] == null) lock[pid] = pins[0];
+        if (lock.PINb == null) {
+          mergeGateList(
+            gateTimes(pts, hist.pin, afterLast + 25000, 150),
+            localMinGates(pts, hist.pin, afterLast + 25000, 150)
+          ).forEach(function (t) { placeKind(lock, "PIN", t); });
         }
         if (lock.FIN == null) {
           var ft = finishTsFor(pts, lock, geom, pinNow);
@@ -1729,9 +1832,10 @@
       Object.keys(hist.boats).forEach(function (sail) {
         var pts = hist.boats[sail] || [];
         var st = startTsForSail(sail, pts, geom);
+        if (st != null && !stValid(st)) st = null;
         if (st != null) {
           lockedSt[sail] = st;
-        } else if (lockedSt[sail] != null && gunTs && lockedSt[sail] <= gunTs + 4 * 60 * 1000) {
+        } else if (stValid(lockedSt[sail])) {
           st = lockedSt[sail];
         } else {
           delete lockedSt[sail];
@@ -2067,13 +2171,9 @@
             }
           }
           else if (r.times[pid]) {
-            var prevT = null;
-            for (var k = i - 1; k >= 0; k--) {
-              if (r.times[used[k]]) { prevT = r.times[used[k]]; break; }
-            }
+            var prevId = i > 0 ? used[i - 1] : null;
+            var prevT = prevId ? r.times[prevId] : null;
             if (prevT) cell = fmtClock(r.times[pid] - prevT);
-            else if (r.times.ST) cell = fmtClock(r.times[pid] - r.times.ST);
-            else if (gunTs) cell = fmtClock(r.times[pid] - gunTs);
           }
           html += "<td class=\"timer-col\">" + cell + "</td>";
         });
@@ -2160,18 +2260,49 @@
         fitLive();
         didFit = true;
       }
+      applyPackedPasses();
       maybeDetect();
     }
     function pinReady() {
       return hist.pin.length && hist.rc.length && Object.keys(hist.boats).length;
     }
     var lastDetectAt = 0;
+    var lastPersistAt = 0;
     function maybeDetect() {
       var now = Date.now();
       if (now - lastDetectAt < 100) return;
       lastDetectAt = now;
       detectLivePasses();
       renderLiveTable();
+      if (now - lastPersistAt > 2000) {
+        lastPersistAt = now;
+        persistHist();
+      }
+    }
+    var lastPassesDoc = null;
+    function applyPackedPasses(data) {
+      if (data) lastPassesDoc = data;
+      data = data || lastPassesDoc;
+      if (!data || !gunTs) return false;
+      var pg = data.gun_ts_ms != null ? Number(data.gun_ts_ms) : null;
+      if (!pg || Math.abs(pg - gunTs) > 120000) return false;
+      packedStartsGun = pg;
+      if (Array.isArray(data.ocs) && !liveOcs.length) liveOcs = data.ocs.slice();
+      if (data.starts) {
+        packedStarts = data.starts;
+        Object.keys(packedStarts).forEach(function (sail) {
+          var st = packedStarts[sail] && packedStarts[sail].st_ms;
+          if (stValid(st)) lockedSt[sail] = Number(st);
+        });
+      }
+      Object.keys(data.lockedPass || {}).forEach(function (sail) {
+        if (!lockedPass[sail]) lockedPass[sail] = {};
+        var src = data.lockedPass[sail] || {};
+        Object.keys(src).forEach(function (id) {
+          if (src[id] != null && lockedPass[sail][id] == null) lockedPass[sail][id] = Number(src[id]);
+        });
+      });
+      return true;
     }
     var pollInFlight = false;
     var catchupInFlight = false;
@@ -2235,11 +2366,24 @@
         .then(function (res) { return res.ok ? res.json() : null; })
         .then(function (data) {
           if (!data || !data.starts) return;
+          var pg = data.gun_ts_ms != null ? Number(data.gun_ts_ms) : null;
           packedStarts = data.starts;
+          packedStartsGun = pg;
+          if (gunTs && pg && Math.abs(pg - gunTs) > 120000) return;
+          if (!gunTs) return;
           Object.keys(packedStarts).forEach(function (sail) {
             var st = packedStarts[sail] && packedStarts[sail].st_ms;
-            if (st != null) lockedSt[sail] = Number(st);
+            if (stValid(st)) lockedSt[sail] = Number(st);
           });
+          maybeDetect();
+        })
+        .catch(function () {});
+    }
+    function pollPasses() {
+      fetch("/js/lipton-dev-live-passes.json?v=" + Date.now(), { cache: "no-store" })
+        .then(function (res) { return res.ok ? res.json() : null; })
+        .then(function (data) {
+          if (!applyPackedPasses(data)) return;
           maybeDetect();
         })
         .catch(function () {});
@@ -2256,6 +2400,7 @@
     poll();
     pollCatchup();
     pollStarts();
+    pollPasses();
     function liveTick() {
       if (livePlaying && !atLive && !scrubbing) {
         var now = Date.now();
@@ -2278,6 +2423,7 @@
     setInterval(poll, 400);
     setInterval(pollCatchup, 2000);
     setInterval(pollStarts, 5000);
+    setInterval(pollPasses, 5000);
     window.addEventListener("resize", function () {
       if (chartMap) chartMap.invalidateSize({ animate: false });
       drawLiveMap();
