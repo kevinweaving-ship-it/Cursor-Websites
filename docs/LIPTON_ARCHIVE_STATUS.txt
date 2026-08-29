@@ -1,17 +1,16 @@
 LIPTON 2026 — Vakaros archive STATUS
-Updated: 2026-08-29 17:07:53 SAST  (15:07:53 UTC)
+Updated: 2026-08-29 17:19:12 SAST  (15:19:12 UTC)
 This file is rewritten every 60 seconds.
 
 PHONE SSH:
   ssh root@102.218.215.253
   cat /root/lipton-vakaros-archive/STATUS.txt
 
-DOING NOW: 3-pass teleapi fetch Race 8 — current chunk 61.4%
+DOING NOW: 3-pass teleapi fetch Race 9 — current chunk 76.0%
 
 LEFT TO DO
-- finish current pass on R8 (~39% of this pass)
-- finish R8 remaining passes
-- R9 3-pass (~8 min each)
+- finish current pass on R9 (~24% of this pass)
+- finish R9 remaining passes
 - R10 3-pass (~8 min each)
 - gzip full sqlite + scp to live archive dir
 - load extra pings into public.lipton_telemetry
@@ -35,23 +34,23 @@ SQLITE (this VM) vs live PG first-load:
   R05  sqlite= 387712  live_pg~= 220139  3x-done
   R06  sqlite= 389935  live_pg~= 332574  3x-done
   R07  sqlite= 447777  live_pg~= 447777  3x-done
-  R08  sqlite= 415809  live_pg~= 415809  IN PROGRESS
-  R09  sqlite= 361768  live_pg~= 361768  queued/in-progress
+  R08  sqlite= 474183  live_pg~= 415809  3x-done
+  R09  sqlite= 361768  live_pg~= 361768  IN PROGRESS
   R10  sqlite= 355022  live_pg~= 355022  queued/in-progress
 
 ARCHIVE PANE (last lines)
-{"chunk": 285, "pct": 89.8, "raw": 423898}
-{"chunk": 300, "pct": 94.6, "raw": 448051}
-{"chunk": 315, "pct": 99.3, "raw": 472221}
-{"pass": 3, "fetched": 389935, "new": 0, "unique_total": 389935, "sec": 545.3, "
+{"chunk": 390, "pct": 96.4, "raw": 555249}
+{"chunk": 405, "pct": 100.0, "raw": 579137}
+{"pass": 3, "fetched": 474183, "new": 0, "unique_total": 474183, "sec": 278.8, "
 ok": true}
-{"race": 8, "after": 1787991601000, "before": 1787997269121}
-{"chunk": 15, "pct": 7.7, "raw": 42318}
-{"chunk": 30, "pct": 15.4, "raw": 83566}
-{"chunk": 45, "pct": 23.0, "raw": 118822}
-{"chunk": 60, "pct": 30.7, "raw": 160589}
-{"chunk": 75, "pct": 38.4, "raw": 199698}
-{"chunk": 90, "pct": 46.1, "raw": 240903}
-{"chunk": 105, "pct": 53.7, "raw": 279604}
-{"chunk": 120, "pct": 61.4, "raw": 316149}
+{"race": 9, "after": 1787997901000, "before": 1788003053618}
+{"chunk": 15, "pct": 8.5, "raw": 40235}
+{"chunk": 30, "pct": 16.9, "raw": 82732}
+{"chunk": 45, "pct": 25.3, "raw": 112164}
+{"chunk": 60, "pct": 33.8, "raw": 154089}
+{"chunk": 75, "pct": 42.2, "raw": 192984}
+{"chunk": 90, "pct": 50.7, "raw": 231198}
+{"chunk": 105, "pct": 59.1, "raw": 265690}
+{"chunk": 120, "pct": 67.6, "raw": 294712}
+{"chunk": 135, "pct": 76.0, "raw": 331013}
 
