@@ -2327,7 +2327,33 @@
         delta_ms: delta,
         sign: delta >= 0 ? "T+" : "T-"
       });
+      fillLiveChecksum(data.checksum);
       return true;
+    }
+    function fillLiveChecksum(cs) {
+      var el = document.getElementById("lipton-dev-checksum");
+      if (!el) return;
+      cs = cs || (lastPassesDoc && lastPassesDoc.checksum) || {};
+      var bits = [];
+      if (cs.ok) bits.push("marks ok");
+      else if (cs.gaps && cs.gaps.length) {
+        bits.push("gaps " + cs.gaps.map(function (g) {
+          return g.id + " " + (g.missing || []).join(" ");
+        }).join(" · "));
+      }
+      var san = cs.sanity || {};
+      if (san.ok) {
+        bits.push("± ok");
+        bits.push("times ok");
+      } else {
+        if (san.place_fail && san.place_fail.length) bits.push("± fail " + san.place_fail.join(" "));
+        else bits.push("± ok");
+        if (san.time_fail && san.time_fail.length) bits.push("times " + san.time_fail.join(" "));
+        else if (san.leg_fail && san.leg_fail.length) bits.push("legs " + san.leg_fail.join(" "));
+        else bits.push("times ok");
+      }
+      if (cs.sha256) bits.push(cs.sha256);
+      el.textContent = bits.length ? "checksum " + bits.join(" · ") : "";
     }
     var pollInFlight = false;
     var catchupInFlight = false;

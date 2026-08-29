@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from lipton_dev_checksum import build_checksum  # noqa: E402
 from lipton_dev_later_laps import rounding_candidates  # noqa: E402
 from lipton_mark_rounding import MARK_SN, fetch_rows  # noqa: E402
 from lipton_vakaros import _j22_division, fetch_regatta_doc  # noqa: E402
@@ -23,7 +24,29 @@ OUT = ROOT / "sailingsa/frontend/js/lipton-dev-live-passes.json"
 STARTS_OUT = ROOT / "sailingsa/frontend/js/lipton-dev-live-starts.json"
 R = 6371000.0
 RACE = 10
-WL_IDS = ["M1", "PIN", "M1b", "PINb", "M1c"]
+
+def checksum_from_locked(locked: dict) -> dict:
+    spec = {
+        "M1": ("L1-1", 1, 1),
+        "PIN": ("L1-4", 1, 4),
+        "M1b": ("L2-1", 2, 1),
+        "PINb": ("L2-4", 2, 4),
+        "M1c": ("L3-1", 3, 1),
+    }
+
+    def boats(pid):
+        rows = [{"boat": s, "ts_ms": int(lock[pid])} for s, lock in locked.items() if lock.get(pid) is not None]
+        rows.sort(key=lambda r: (r["ts_ms"], r["boat"]))
+        return rows
+
+    fleet = sorted(s for s, lock in locked.items() if lock.get("FIN") is not None)
+    mark_passes = []
+    course = []
+    for pid, (sid, lap, mark) in spec.items():
+        b = boats(pid)
+        mark_passes.append({"id": sid, "lap": lap, "mark": mark, "boats": b})
+        course.append({"id": sid, "lap": lap, "mark": str(mark)})
+    return build_checksum(fleet=fleet, st=boats("ST"), mark_passes=mark_passes, finish=boats("FIN"), course_passes=course)
 
 
 def ms_iso(value) -> int:
@@ -207,6 +230,7 @@ def main() -> int:
         "counts": counts,
         "boats": len(boat_by),
         "source": "Vakaros finishingTime for FIN; teleapi rounding_candidates for marks. Empty = not received.",
+        "checksum": checksum_from_locked(locked),
         "finish_source": "firestore races[R10].finishes[].finishingTime",
     }
     start_doc = {
