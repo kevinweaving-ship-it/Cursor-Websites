@@ -82,6 +82,17 @@
       "held_live": false,
       "course": "Windward / Leeward",
       "course_id": "wl"
+    },
+    {
+      "n": 8,
+      "stage": "inprogress",
+      "gun_sast": "2026-08-29T10:30:01+02:00",
+      "finish_n": 0,
+      "ocs": [],
+      "packed": false,
+      "held_live": true,
+      "course": "",
+      "course_id": ""
     }
   ]
 }

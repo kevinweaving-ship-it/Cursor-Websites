@@ -5,8 +5,10 @@ set script_dir [file dirname [info script]]
 set repo_root [file normalize "$script_dir/../.."]
 
 spawn scp -o StrictHostKeyChecking=no \
-  $repo_root/sailingsa/scripts/lipton_r7_official_update.py \
-  $repo_root/sailingsa/deploy/apply-lipton-r7-results.sh \
+  $repo_root/sailingsa/frontend/lipton-dev.html \
+  $repo_root/sailingsa/frontend/js/lipton-dev-playback.js \
+  $repo_root/sailingsa/frontend/js/lipton-dev-races.json \
+  $repo_root/sailingsa/deploy/apply-lipton-r8-live.sh \
   root@102.218.215.253:/tmp/
 expect {
     -re "assword" { send "$password\r"; exp_continue }
@@ -15,7 +17,7 @@ expect {
 }
 wait
 
-spawn ssh -o StrictHostKeyChecking=no root@102.218.215.253 bash /tmp/apply-lipton-r7-results.sh
+spawn ssh -o StrictHostKeyChecking=no root@102.218.215.253 bash /tmp/apply-lipton-r8-live.sh
 expect {
     -re "assword" { send "$password\r"; exp_continue }
     timeout { puts "ERROR: ssh timeout"; exit 1 }
