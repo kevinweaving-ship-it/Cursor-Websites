@@ -5,7 +5,8 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260829r8";
+  var CACHE = "20260829r8b";
+  var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (!params.has("race") && params.get("live") === "1") {
     params.set("live", "gps");
@@ -350,7 +351,8 @@
     bindRaceButtons(liveHeldN || heldRaceFromMeta(raceMeta) || -1);
     var gunTs = null;
     var snap = null;
-    var liveRaceN = null;
+    var liveRaceN = LIVE_RACE_LOCK;
+    setRaceTableLabel(LIVE_RACE_LOCK, true);
     var chartMap = null;
     var mapEl = document.getElementById("lipton-dev-map");
     var mapCtx = null;
@@ -1757,7 +1759,7 @@
     function applySnap(data) {
       if (!data) return;
       var incomingN = Number(data.race_number || 0) || 0;
-      if (liveRaceN && incomingN && incomingN < liveRaceN) return;
+      if (incomingN && incomingN !== LIVE_RACE_LOCK) return;
       var incomingGun = data.gun_ts_ms != null ? Number(data.gun_ts_ms) : null;
       var newRaceGun = incomingGun && gunTs && incomingGun !== gunTs;
       if (gunTs && liveRaceN && (data.waiting || !incomingGun) && !newRaceGun) {
@@ -1768,7 +1770,7 @@
         });
       }
       if (!data.ok && !(data.boats && Object.keys(data.boats).length)) return;
-      var n = data.race_number || null;
+      var n = LIVE_RACE_LOCK;
       if (n && liveRaceN && n !== liveRaceN && !newRaceGun) n = liveRaceN;
       if (n && liveRaceN && n !== liveRaceN && newRaceGun) {
         hist = { boats: {}, marks: {}, pin: [], rc: [] };
@@ -1888,7 +1890,7 @@
         .then(function (res) { return res.ok ? res.json() : null; })
         .then(function (data) {
           if (!data || !data.boats) return;
-          if (Number(data.race_number || 0) && Number(data.race_number) !== Number(liveRaceN)) return;
+          if (Number(data.race_number || 0) !== LIVE_RACE_LOCK) return;
           applySnap(data);
           if (boatsFromGun() >= 12) {
             catchupOk = true;

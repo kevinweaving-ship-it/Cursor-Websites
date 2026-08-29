@@ -8,6 +8,7 @@ spawn scp -o StrictHostKeyChecking=no \
   $repo_root/sailingsa/frontend/lipton-dev.html \
   $repo_root/sailingsa/frontend/js/lipton-dev-playback.js \
   $repo_root/sailingsa/frontend/js/lipton-dev-races.json \
+  $repo_root/sailingsa/scripts/lipton_dev_live.py \
   $repo_root/sailingsa/deploy/apply-lipton-r8-live.sh \
   root@102.218.215.253:/tmp/
 expect {

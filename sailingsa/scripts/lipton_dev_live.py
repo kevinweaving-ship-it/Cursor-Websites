@@ -29,6 +29,8 @@ CHUNK_MS = 3 * 60 * 1000
 SNAP_TTL_S = 0.8
 SNAP_PATH = Path("/tmp/lipton_dev_live_snap.json")
 STATE_PATH = Path("/tmp/lipton_dev_live_state.json")
+# Hard lock: -dev live is Race 8 only. Never emit R7 after R8 started.
+LIVE_RACE_LOCK = 8
 HISTORY_PATHS = (
     Path("/var/www/sailingsa/js/lipton-dev-live-history.json"),
     Path("/tmp/lipton_dev_live_history.json"),
@@ -123,6 +125,9 @@ def _load_snap_file() -> dict | None:
             return None
         data = json.loads(SNAP_PATH.read_text(encoding="utf-8"))
         if isinstance(data, dict) and data.get("ok"):
+            n = data.get("race_number")
+            if n is not None and int(n) != LIVE_RACE_LOCK:
+                return None
             return data
     except (OSError, json.JSONDecodeError, TypeError, ValueError):
         return None
@@ -131,6 +136,9 @@ def _load_snap_file() -> dict | None:
 
 def _save_snap_file(payload: dict) -> None:
     try:
+        n = payload.get("race_number")
+        if n is None or int(n) != LIVE_RACE_LOCK:
+            return
         tmp = SNAP_PATH.with_suffix(".tmp")
         tmp.write_text(json.dumps(payload, separators=(",", ":"), default=str), encoding="utf-8")
         tmp.replace(SNAP_PATH)
@@ -139,6 +147,9 @@ def _save_snap_file(payload: dict) -> None:
 
 
 def _save_state(payload: dict) -> None:
+    n = payload.get("race_number")
+    if n is None or int(n) != LIVE_RACE_LOCK:
+        return
     keep = {
         k: payload.get(k)
         for k in (
@@ -396,6 +407,33 @@ def live_snapshot(*, history: bool = False) -> dict:
         race = nxt
         gun_ms = None
         waiting = True
+    # Race 8 only — never fall back to finished R7 when Vakaros blips.
+    lock = next((r for r in races if int(r.get("race_number") or 0) == LIVE_RACE_LOCK), None)
+    if lock is None and nxt is not None and int(nxt.get("race_number") or 0) == LIVE_RACE_LOCK:
+        lock = nxt
+    if lock is not None:
+        race = lock
+        lock_gun = _ms(parse_ts(lock.get("gun_at_utc")))
+        if lock_gun is None and cached.get("race_number") == LIVE_RACE_LOCK and cached.get("gun_ts_ms"):
+            lock_gun = int(cached["gun_ts_ms"])
+        gun_ms = lock_gun
+        waiting = gun_ms is None
+    elif cached.get("race_number") == LIVE_RACE_LOCK:
+        race = {
+            "race_number": LIVE_RACE_LOCK,
+            "stage": cached.get("stage") or "inprogress",
+            "gun_at_sast": cached.get("gun_sast"),
+        }
+        if cached.get("gun_ts_ms"):
+            gun_ms = int(cached["gun_ts_ms"])
+        waiting = gun_ms is None
+    else:
+        race = {
+            "race_number": LIVE_RACE_LOCK,
+            "stage": "inprogress",
+            "gun_at_sast": "2026-08-29T10:30:01+02:00",
+        }
+        waiting = gun_ms is None
     delta = (playback_ms - gun_ms) if gun_ms is not None else None
     devices = _device_map(doc) if doc else {"rc": 25604, "pin": PIN_SN, "marks": dict(MARK_SN)}
     raw_race = None
@@ -476,17 +514,9 @@ def live_snapshot(*, history: bool = False) -> dict:
         "ok": True,
         "live": True,
         "waiting": waiting,
-        "holding_last": bool(last_fin and (nxt is None or nxt_gun_ms is None) and gun_ms),
-        "reason": (
-            "last race stays live until next gun"
-            if (last_fin and (nxt is None or nxt_gun_ms is None) and gun_ms)
-            else ((summary or cached).get("next_race_reason") if waiting else "tracker gun vs wall clock")
-        ),
-        "race_number": (
-            (race.get("race_number") if race else None)
-            or (None if not waiting else (summary or {}).get("next_race_number"))
-            or (None if waiting else cached.get("race_number"))
-        ),
+        "holding_last": False,
+        "reason": "race 8 only",
+        "race_number": LIVE_RACE_LOCK,
         "stage": (race.get("stage") if race else None) or "waiting",
         "gun_ts_ms": gun_ms,
         "gun_sast": (race.get("gun_at_sast") if race else None),

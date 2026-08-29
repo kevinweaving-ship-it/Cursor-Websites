@@ -16,6 +16,13 @@ cp /tmp/lipton-dev.html /var/www/sailingsa/frontend/lipton-dev.html
 cp /tmp/lipton-dev-playback.js /var/www/sailingsa/js/lipton-dev-playback.js
 cp /tmp/lipton-dev-playback.js /var/www/sailingsa/js/lipton-dev-playback-du.js
 cp /tmp/lipton-dev-races.json /var/www/sailingsa/js/lipton-dev-races.json
+if test -s /tmp/lipton_dev_live.py; then
+  mkdir -p /var/www/sailingsa/sailingsa/scripts /var/www/sailingsa/scripts
+  cp /tmp/lipton_dev_live.py /var/www/sailingsa/sailingsa/scripts/lipton_dev_live.py
+  cp /tmp/lipton_dev_live.py /var/www/sailingsa/scripts/lipton_dev_live.py
+  find /var/www/sailingsa -name 'lipton_dev_live*.pyc' -delete || true
+  find /var/www/sailingsa -path '*__pycache__*lipton_dev_live*' -delete || true
+fi
 test -d /var/www/sailingsa/frontend/js && cp /tmp/lipton-dev-races.json /var/www/sailingsa/frontend/js/lipton-dev-races.json
 test -d /var/www/sailingsa/frontend/js && cp /tmp/lipton-dev-playback.js /var/www/sailingsa/frontend/js/lipton-dev-playback.js
 
@@ -48,7 +55,7 @@ curl -sS -A SailingSA-devcheck -o /tmp/p.html -w 'page %{http_code} %{size_downl
 python3 - <<'PY'
 t=open("/tmp/p.html",encoding="utf-8",errors="replace").read()
 print("playback", "lipton-dev-playback" in t)
-print("r8bust", "20260829r8" in t)
+print("r8bust", "20260829r8b" in t)
 print("weather", "WEATHER" in t)
 print("dev", 'data-lipton-dev="1"' in t)
 PY
