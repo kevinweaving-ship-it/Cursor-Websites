@@ -76,7 +76,7 @@
       </div>
       <div class="lipton-dev-map-hud" id="lipton-dev-map-hud">
         <div class="lipton-dev-map-hud-name" id="lipton-dev-map-hud-name"></div>
-        <div class="lipton-dev-map-hud-clock" id="lipton-dev-map-hud-clock">T−0:05.0</div>
+        <div class="lipton-dev-map-hud-clock" id="lipton-dev-map-hud-clock">—</div>
       </div>
     </div>
     <div class="lipton-dev-split">
@@ -85,7 +85,7 @@
         <canvas id="lipton-dev-map" aria-label="GPS marks and tracks"></canvas>
       </div>
       <div class="fleet-section lipton-dev-board">
-        <h2 class="class-header" id="lipton-dev-race-label">Race</h2>
+        <h2 class="class-header" id="lipton-dev-race-label">Race 10 — ARMED</h2>
         <div class="table-wrapper results-table-container table-container" id="lipton-dev-table-wrap">
           <table class="table fleet-results-table">
             <thead>
@@ -94,9 +94,28 @@
                 <th class="wc-meta-col">Bow</th>
                 <th class="boat-name-col">Boat</th>
                 <th class="club-col">Club</th>
+                <th class="timer-col"><span class="ld-mark-lab">ST</span></th>
               </tr>
             </thead>
-            <tbody id="lipton-dev-tbody"></tbody>
+            <tbody id="lipton-dev-tbody">
+              <tr data-boat="RCYC Academy"><td class="rank-col">1</td><td class="wc-meta-col">8</td><td class="boat-name-col">J-Walker</td><td class="club-col">RCYCA</td><td class="timer-col"></td></tr>
+              <tr data-boat="GLYC"><td class="rank-col">2</td><td class="wc-meta-col">14</td><td class="boat-name-col">Andiamo</td><td class="club-col">GLYC</td><td class="timer-col"></td></tr>
+              <tr data-boat="KYC"><td class="rank-col">3</td><td class="wc-meta-col">23</td><td class="boat-name-col">Phantom</td><td class="club-col">KYC</td><td class="timer-col"></td></tr>
+              <tr data-boat="RCYC"><td class="rank-col">4</td><td class="wc-meta-col">26</td><td class="boat-name-col">Amtec Racing</td><td class="club-col">RCYC</td><td class="timer-col"></td></tr>
+              <tr data-boat="RNYC"><td class="rank-col">5</td><td class="wc-meta-col">28</td><td class="boat-name-col">Ullman Racing</td><td class="club-col">RNYC</td><td class="timer-col"></td></tr>
+              <tr data-boat="UCTYC"><td class="rank-col">6</td><td class="wc-meta-col">31</td><td class="boat-name-col">Nitro Maverick</td><td class="club-col">UCT</td><td class="timer-col"></td></tr>
+              <tr data-boat="HYC"><td class="rank-col">7</td><td class="wc-meta-col">32</td><td class="boat-name-col">Nitro Juice</td><td class="club-col">HYC</td><td class="timer-col"></td></tr>
+              <tr data-boat="PYC"><td class="rank-col">8</td><td class="wc-meta-col">34</td><td class="boat-name-col">G'day J</td><td class="club-col">PYC</td><td class="timer-col"></td></tr>
+              <tr data-boat="WYAC"><td class="rank-col">9</td><td class="wc-meta-col">43</td><td class="boat-name-col">Laugh a minute</td><td class="club-col">WYAC</td><td class="timer-col"></td></tr>
+              <tr data-boat="BYC"><td class="rank-col">10</td><td class="wc-meta-col">44</td><td class="boat-name-col">H2O Tech</td><td class="club-col">BYC</td><td class="timer-col"></td></tr>
+              <tr data-boat="LDYC"><td class="rank-col">11</td><td class="wc-meta-col">46</td><td class="boat-name-col">Wildcard</td><td class="club-col">LDYC</td><td class="timer-col"></td></tr>
+              <tr data-boat="FBYC"><td class="rank-col">12</td><td class="wc-meta-col">48</td><td class="boat-name-col">Ullman Sails Camissa</td><td class="club-col">FBYC</td><td class="timer-col"></td></tr>
+              <tr data-boat="SBYC"><td class="rank-col">13</td><td class="wc-meta-col">49</td><td class="boat-name-col">Nitro Monkey</td><td class="club-col">SBYC</td><td class="timer-col"></td></tr>
+              <tr data-boat="LYC"><td class="rank-col">14</td><td class="wc-meta-col">51</td><td class="boat-name-col">Attacke</td><td class="club-col">LYCN</td><td class="timer-col"></td></tr>
+              <tr data-boat="WBYC"><td class="rank-col">15</td><td class="wc-meta-col">52</td><td class="boat-name-col">22-ATE</td><td class="club-col">WBYC</td><td class="timer-col"></td></tr>
+              <tr data-boat="TSC"><td class="rank-col">16</td><td class="wc-meta-col">55</td><td class="boat-name-col">CaCanny</td><td class="club-col">TSC</td><td class="timer-col"></td></tr>
+              <tr data-boat="IZIVUNGUVUNGU"><td class="rank-col">17</td><td class="wc-meta-col">63</td><td class="boat-name-col">Donna Mia Forever</td><td class="club-col">IZI</td><td class="timer-col"></td></tr>
+            </tbody>
           </table>
         </div>
       </div>
@@ -105,6 +124,35 @@
 
   <script src="/js/vendor/leaflet/leaflet.js?v=20260828dk"></script>
   <script src="/js/lipton-event-sheet.js?v=20260828ef"></script>
-  <script src="/js/lipton-dev-playback-du.js?v=20260829r8b"></script>
+  <script>
+  (function () {
+    var clock = document.getElementById("lipton-dev-map-hud-clock");
+    var label = document.getElementById("lipton-dev-race-label");
+    var gunTs = null;
+    function pad(n) { return n < 10 ? "0" + n : String(n); }
+    function fmt(ms) {
+      var a = Math.abs(Number(ms) || 0);
+      var s = Math.floor(a / 1000);
+      return (ms < 0 ? "T−" : "T+") + Math.floor(s / 60) + ":" + pad(s % 60) + "." + Math.floor((a % 1000) / 100);
+    }
+    function tick() {
+      if (!clock || !(gunTs > 0)) return;
+      clock.textContent = fmt(Date.now() - gunTs);
+    }
+    function pull() {
+      fetch("/api/lipton-dev/live", { cache: "no-store" }).then(function (res) { return res.json(); }).then(function (d) {
+        if (d && d.gun_ts_ms) gunTs = Number(d.gun_ts_ms);
+        if (label && Number(d && d.race_number) === 10 && gunTs > 0) {
+          label.textContent = (Date.now() - gunTs < 0) ? "Race 10 — ARMED" : "Race 10 — LIVE";
+        }
+        tick();
+      }).catch(function () {});
+    }
+    pull();
+    setInterval(pull, 1000);
+    setInterval(tick, 100);
+  })();
+  </script>
+  <script src="/js/lipton-dev-playback-du.js?v=20260829r10g"></script>
 </body>
 </html>
