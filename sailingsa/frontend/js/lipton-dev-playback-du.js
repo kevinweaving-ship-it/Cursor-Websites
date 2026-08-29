@@ -5,10 +5,10 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260829r8b";
-  var LIVE_RACE_LOCK = 8;
+  var CACHE = "20260828du";
   var params = new URLSearchParams(location.search);
   if (!params.has("race") && params.get("live") === "1") {
+    params.delete("live");
     params.set("live", "gps");
     history.replaceState({}, "", location.pathname + "?live=gps");
   }
@@ -1834,10 +1834,9 @@
     }
     function applySnap(data) {
       if (!data) return;
-      var incomingN = Number(data.race_number || 0) || 0;
       var incomingGun = data.gun_ts_ms != null ? Number(data.gun_ts_ms) : null;
       var newRaceGun = incomingGun && gunTs && incomingGun !== gunTs;
-      if (gunTs && liveRaceN && incomingN !== 10 && (data.waiting || !incomingGun) && !newRaceGun) {
+      if (gunTs && liveRaceN && Number(data.race_number) !== 10 && (data.waiting || !incomingGun) && !newRaceGun) {
         data = Object.assign({}, data, {
           waiting: false,
           gun_ts_ms: gunTs,
@@ -1845,8 +1844,8 @@
         });
       }
       if (!data.ok && !(data.boats && Object.keys(data.boats).length)) return;
-      var n = incomingN || liveRaceN;
-      if (n && liveRaceN && n !== liveRaceN && !newRaceGun && incomingN !== 10) n = liveRaceN;
+      var n = data.race_number || null;
+      if (n && liveRaceN && n !== liveRaceN && !newRaceGun && Number(data.race_number) !== 10) n = liveRaceN;
       if (n && liveRaceN && n !== liveRaceN && newRaceGun) {
         hist = { boats: {}, marks: {}, pin: [], rc: [] };
         loadedHistory = false;
@@ -1958,7 +1957,7 @@
         .then(function () { pollInFlight = false; });
     }
     function pollCatchup() {
-      if (catchupInFlight || !needCatchup() || !liveRaceN) return;
+      if (catchupInFlight || !needCatchup()) return;
       catchupInFlight = true;
       lastCatchupAt = Date.now();
       fetch("/js/lipton-dev-live-history.json?v=" + Date.now(), { cache: "no-store" })
@@ -1979,8 +1978,6 @@
         .then(function (res) { return res.ok ? res.json() : null; })
         .then(function (data) {
           if (!data || !data.starts) return;
-          if (!gunTs) return;
-          if (data.gun_ts_ms && Number(data.gun_ts_ms) !== Number(gunTs)) return;
           packedStarts = data.starts;
           Object.keys(packedStarts).forEach(function (sail) {
             var st = packedStarts[sail] && packedStarts[sail].st_ms;
