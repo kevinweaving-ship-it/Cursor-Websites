@@ -1959,7 +1959,8 @@
           }
           var cell = "";
           if (pid === "ST") {
-            if (r.times.ST == null) cell = liveOcsOn(r.sail) ? "OCS" : "";
+            if (!(hist.boats[r.sail] && hist.boats[r.sail].length)) cell = "NO GPS";
+            else if (r.times.ST == null) cell = liveOcsOn(r.sail) ? "OCS" : "";
             else {
               var gap = fmtBehindFirst(r.times.ST, firstSt);
               cell = liveOcsOn(r.sail) ? ("OCS " + gap) : gap;
