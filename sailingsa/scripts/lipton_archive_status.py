@@ -15,7 +15,7 @@ SQLITE = ROOT / "data" / "lipton_telemetry.sqlite"
 OUT = ROOT / "docs" / "LIPTON_ARCHIVE_STATUS.txt"
 SAST = ZoneInfo("Africa/Johannesburg")
 # 3-pass finished before this status writer started (R5+ still in the rest job)
-KNOWN_3X = {1, 2, 3, 4, 5, 6, 7, 8}
+KNOWN_3X = {1, 2, 3, 4, 5, 6, 7, 8, 9}
 PG_FIRST_LOAD = {
     1: 390096,
     2: 409702,
