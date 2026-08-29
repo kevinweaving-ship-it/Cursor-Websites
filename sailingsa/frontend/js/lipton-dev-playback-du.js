@@ -1380,34 +1380,87 @@
       if (!m1 || !pin) return false;
       return distM(m1, pin) >= 250;
     }
+    function gateTimes(pts, markTrail, afterTs) {
+      if (!pts || pts.length < 3 || !markTrail || !markTrail.length) return [];
+      var enterM = 90;
+      var out = [];
+      var i = 0;
+      while (i < pts.length) {
+        var p = pts[i];
+        if (afterTs != null && p.ts_ms < afterTs) { i += 1; continue; }
+        var mk = atTs(markTrail, p.ts_ms);
+        if (!mk) { i += 1; continue; }
+        var d = distM(p, mk);
+        if (d > enterM) { i += 1; continue; }
+        var approached = i === 0;
+        var k = i - 1;
+        while (k >= 0 && (p.ts_ms - pts[k].ts_ms) <= 120000) {
+          var mkb = atTs(markTrail, pts[k].ts_ms);
+          if (mkb && distM(pts[k], mkb) >= enterM - 5) { approached = true; break; }
+          k -= 1;
+        }
+        var bestD = d;
+        var bestP = p;
+        var j = i;
+        var left = false;
+        while (j < pts.length && (pts[j].ts_ms - p.ts_ms) < 180000) {
+          var mkj = atTs(markTrail, pts[j].ts_ms);
+          if (mkj) {
+            var dj = distM(pts[j], mkj);
+            if (dj < bestD) { bestD = dj; bestP = pts[j]; }
+            if (dj >= bestD + 8 && dj >= 28) { left = true; break; }
+          }
+          j += 1;
+        }
+        if (!left && approached && bestD <= 45 && j >= pts.length) left = true;
+        if (approached && left && bestD <= 70) {
+          var inn = atTs(pts, bestP.ts_ms - 6000) || atTs(pts, bestP.ts_ms - 3000);
+          var outp = atTs(pts, bestP.ts_ms + 6000) || atTs(pts, bestP.ts_ms + 3000);
+          var mkc = atTs(markTrail, bestP.ts_ms);
+          var ok = true;
+          if (inn && outp && mkc) {
+            var dIn = distM(inn, mkc);
+            var dOut = distM(outp, mkc);
+            var a = enuOf(mkc, inn);
+            var b = enuOf(mkc, outp);
+            var magA = Math.hypot(a.e, a.n) || 1;
+            var magB = Math.hypot(b.e, b.n) || 1;
+            var dot = (a.e * b.e + a.n * b.n) / (magA * magB);
+            if (dot > 1) dot = 1;
+            if (dot < -1) dot = -1;
+            var ang = Math.acos(dot);
+            if (!(dIn > bestD + 3 && dOut > bestD + 3) && ang < 0.18 && bestD > 42) ok = false;
+          }
+          if (ok) {
+            out.push(bestP.ts_ms);
+            var skipUntil = bestP.ts_ms + 80000;
+            while (i < pts.length && pts[i].ts_ms < skipUntil) i += 1;
+            continue;
+          }
+        }
+        i += 1;
+      }
+      return out;
+    }
     function firstRounding(pts, markTrail, afterTs, needM1Sep) {
-      if (afterTs == null || !pts || !markTrail || !markTrail.length) return null;
-      var vs = roundingCandidates(pts, markTrail, afterTs, 80);
+      var vs = gateTimes(pts, markTrail, afterTs);
       var i;
       for (i = 0; i < vs.length; i++) {
-        var t = vs[i];
-        if (needM1Sep && !m1Separated(t)) continue;
-        var mk = atTs(markTrail, t);
-        if (!mk) continue;
-        var inn = atTs(pts, t - 18000) || atTs(pts, t - 8000);
-        var out = atTs(pts, t + 18000) || atTs(pts, t + 8000);
-        if (!inn || !out) continue;
-        var dIn = distM(inn, mk);
-        var dMid = distM(atTs(pts, t) || inn, mk);
-        var dOut = distM(out, mk);
-        if (!(dIn > dMid + 10 && dOut > dMid + 10)) continue;
-        var a = enuOf(mk, inn);
-        var b = enuOf(mk, out);
-        var magA = Math.hypot(a.e, a.n) || 1;
-        var magB = Math.hypot(b.e, b.n) || 1;
-        var dot = (a.e * b.e + a.n * b.n) / (magA * magB);
-        if (dot > 1) dot = 1;
-        if (dot < -1) dot = -1;
-        var ang = Math.acos(dot);
-        if (ang < 0.35) continue;
-        return t;
+        if (needM1Sep && !m1Separated(vs[i])) continue;
+        return vs[i];
       }
       return null;
+    }
+    function slotM1(t) {
+      var age = gunTs ? t - gunTs : 0;
+      if (age < 20 * 60 * 1000) return "M1";
+      if (age < 48 * 60 * 1000) return "M1b";
+      return "M1c";
+    }
+    function slotPIN(t) {
+      var age = gunTs ? t - gunTs : 0;
+      if (age < 32 * 60 * 1000) return "PIN";
+      return "PINb";
     }
     function collectLineHits(pts, geom, fromTs, toTs) {
       var hits = [];
@@ -1592,30 +1645,61 @@
       return firstRounding(pts, trail, after, windward);
     }
     function captureArmedMark(geom, pinNow) {
-      var guard = 0;
-      while (guard++ < 8) {
-        var pid = armedPid();
-        if (!pid) break;
-        var roster = gpsRoster();
-        var hits = [];
-        roster.forEach(function (sail) {
-          if (!lockedPass[sail]) lockedPass[sail] = {};
-          if (lockedPass[sail][pid] != null) return;
-          var t = detectPidTs(sail, hist.boats[sail] || [], pid, geom, pinNow);
-          if (t != null) hits.push({ sail: sail, ts: t });
+      var after = gunTs ? gunTs + 4000 : 0;
+      gpsRoster().forEach(function (sail) {
+        if (!lockedPass[sail]) lockedPass[sail] = {};
+        var lock = lockedPass[sail];
+        var pts = hist.boats[sail] || [];
+        var m1s = gateTimes(pts, hist.marks["1"], after).filter(function (t) {
+          return m1Separated(t);
         });
-        hits.sort(function (a, b) { return a.ts - b.ts; });
-        hits.forEach(function (h) {
-          lockedPass[h.sail][pid] = h.ts;
-        });
-        var all = roster.length > 0 && roster.every(function (sail) {
-          return lockedPass[sail] && lockedPass[sail][pid] != null;
-        });
-        if (all && armedLegIdx < ROUND_LEGS.length - 1) {
-          armedLegIdx += 1;
-          continue;
+        var pins = gateTimes(pts, hist.pin, after);
+        m1s.sort(function (a, b) { return a - b; });
+        pins.sort(function (a, b) { return a - b; });
+        if (m1s.length >= 2) {
+          if (lock.M1 == null) lock.M1 = m1s[0];
+          if (lock.M1b == null) lock.M1b = m1s[1];
+          if (m1s[2] != null && lock.M1c == null) lock.M1c = m1s[2];
+        } else if (m1s.length === 1) {
+          var mid = slotM1(m1s[0]);
+          if (lock[mid] == null) lock[mid] = m1s[0];
         }
-        break;
+        if (pins.length >= 2) {
+          if (lock.PIN == null) lock.PIN = pins[0];
+          if (lock.PINb == null) lock.PINb = pins[1];
+        } else if (pins.length === 1) {
+          var pid = slotPIN(pins[0]);
+          if (lock[pid] == null) lock[pid] = pins[0];
+        }
+        if (lock.FIN == null) {
+          var ft = finishTsFor(pts, lock, geom, pinNow);
+          if (ft != null) lock.FIN = ft;
+        }
+      });
+      var roster = gpsRoster();
+      var i;
+      armedLegIdx = 0;
+      for (i = 0; i < ROUND_LEGS.length; i++) {
+        var id = ROUND_LEGS[i];
+        var n = roster.filter(function (sail) {
+          return lockedPass[sail] && lockedPass[sail][id] != null;
+        }).length;
+        var elapsed = gunTs ? Date.now() - gunTs : 0;
+        var skipEmpty = n === 0 && (
+          (id === "M1" && elapsed > 20 * 60 * 1000) ||
+          (id === "PIN" && elapsed > 32 * 60 * 1000) ||
+          (id === "M1b" && elapsed > 50 * 60 * 1000) ||
+          (id === "PINb" && elapsed > 62 * 60 * 1000)
+        );
+        if (n > 0 && n < roster.length) {
+          armedLegIdx = i;
+          break;
+        }
+        if (n === 0 && !skipEmpty) {
+          armedLegIdx = i;
+          break;
+        }
+        armedLegIdx = Math.min(i + 1, ROUND_LEGS.length - 1);
       }
     }
     function detectLivePasses() {
