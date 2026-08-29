@@ -88,7 +88,7 @@
         scores.push((q.x - g.a.x) * nx + (q.y - g.a.y) * ny);
       });
       scores.sort(function (u, v) { return u - v; });
-      if (scores.length && scores[Math.floor(scores.length / 2)] > 0) {
+      if (scores.length && scores[Math.floor(scores.length / 2)] < 0) {
         nx = -nx;
         ny = -ny;
       }
@@ -369,6 +369,8 @@
     var mapEl = document.getElementById("lipton-dev-map");
     var mapCtx = null;
     var followFleet = true;
+    var mapCourseRot = 0;
+    var mapCourseRotReady = false;
     var chartSyncing = false;
     var drawingMap = false;
     var identity = {};
@@ -728,7 +730,35 @@
     function xy(lat, lon) {
       if (!chartMap) return { x: 0, y: 0 };
       var pt = chartMap.latLngToContainerPoint([lat, lon]);
-      return { x: pt.x, y: pt.y };
+      if (!mapCourseRotReady) return { x: pt.x, y: pt.y };
+      var cx = (mapEl && mapEl.clientWidth ? mapEl.clientWidth : 0) / 2;
+      var cy = (mapEl && mapEl.clientHeight ? mapEl.clientHeight : 0) / 2;
+      var rad = mapCourseRot * Math.PI / 180;
+      var dx = pt.x - cx;
+      var dy = pt.y - cy;
+      var c = Math.cos(rad);
+      var s = Math.sin(rad);
+      return { x: cx + dx * c - dy * s, y: cy + dx * s + dy * c };
+    }
+    function applyCourseOrientation(pin, rc, m1, boats) {
+      var g = startCourseNormal(startLineGeom(pin, rc), m1, boats);
+      if (!g) return;
+      var want = -Math.atan2(g.nx, g.ny) * 180 / Math.PI;
+      if (!mapCourseRotReady) {
+        mapCourseRot = want;
+        mapCourseRotReady = true;
+      } else {
+        var d = want - mapCourseRot;
+        while (d > 180) d -= 360;
+        while (d < -180) d += 360;
+        mapCourseRot += d * 0.35;
+      }
+      var rot = "rotate(" + mapCourseRot.toFixed(2) + "deg)";
+      var chart = document.getElementById("lipton-dev-chart");
+      if (chart) {
+        chart.style.transform = rot;
+        chart.style.transformOrigin = "center center";
+      }
     }
     function drawBoatIcon(p, hdg, fill) {
       var r = 7;
@@ -741,7 +771,7 @@
       mapCtx.stroke();
       mapCtx.save();
       mapCtx.translate(p.x, p.y);
-      mapCtx.rotate((hdg || 0) * Math.PI / 180);
+      mapCtx.rotate(((hdg || 0) + (mapCourseRotReady ? mapCourseRot : 0)) * Math.PI / 180);
       mapCtx.beginPath();
       mapCtx.moveTo(0, -r - 3.6);
       mapCtx.lineTo(3.1, -r + 1.2);
@@ -758,43 +788,8 @@
       };
     }
     function startGrid(pin, rc, boatPts) {
-      if (!pin || !rc) return null;
-      var R = 6371000;
-      var lat0 = (pin.lat + rc.lat) / 2;
-      var lon0 = (pin.lon + rc.lon) / 2;
-      var cos = Math.cos(lat0 * Math.PI / 180);
-      function toxy(lat, lon) {
-        return {
-          x: (lon - lon0) * Math.PI / 180 * cos * R,
-          y: (lat - lat0) * Math.PI / 180 * R
-        };
-      }
-      function fromxy(x, y) {
-        return {
-          lat: lat0 + (y / R) * 180 / Math.PI,
-          lon: lon0 + (x / (R * cos)) * 180 / Math.PI
-        };
-      }
-      var a = toxy(pin.lat, pin.lon);
-      var b = toxy(rc.lat, rc.lon);
-      var lx = b.x - a.x;
-      var ly = b.y - a.y;
-      var len = Math.hypot(lx, ly) || 1;
-      var ux = lx / len;
-      var uy = ly / len;
-      var nx = -uy;
-      var ny = ux;
-      var scores = [];
-      (boatPts || []).forEach(function (p) {
-        var q = toxy(p.lat, p.lon);
-        scores.push((q.x - a.x) * nx + (q.y - a.y) * ny);
-      });
-      scores.sort(function (u, v) { return u - v; });
-      if (scores.length && scores[Math.floor(scores.length / 2)] < 0) {
-        nx = -nx;
-        ny = -ny;
-      }
-      return { a: a, ux: ux, uy: uy, nx: nx, ny: ny, len: len, fromxy: fromxy, toxy: toxy };
+      var m1 = hist.marks["1"] ? atTs(hist.marks["1"], playTs) : null;
+      return startCourseNormal(startLineGeom(pin, rc), m1, boatPts);
     }
     function drawStartGrid(pin, rc) {
       var boats = [];
@@ -803,6 +798,7 @@
         if (b) boats.push(b);
       });
       var g = startGrid(pin, rc, boats);
+      applyCourseOrientation(pin, rc, hist.marks["1"] ? atTs(hist.marks["1"], playTs) : null, boats);
       if (!g || !mapCtx) return;
       function lineAt(d, width, color) {
         var p1 = g.fromxy(g.a.x + g.nx * d, g.a.y + g.ny * d);
@@ -821,9 +817,7 @@
       var over = lineAt(-2, 3.2, "rgba(239,68,68,0.85)");
       var base = lineAt(0, 3.4, "#38bdf8");
       var m1p = hist.marks["1"] ? atTs(hist.marks["1"], playTs) : null;
-      if (!gunTs || playTs < gunTs + 5 * 60 * 1000) {
-        drawStartDirArrows(mapCtx, xy, pin, rc, m1p, boats);
-      }
+      drawStartDirArrows(mapCtx, xy, pin, rc, m1p, boats);
       return { g: g, over: over, base: base };
     }
     function fitLive() {
@@ -861,6 +855,14 @@
       mapCtx.clearRect(0, 0, w, h);
       var pin = atTs(hist.pin, ts);
       var rc = atTs(hist.rc, ts);
+      if (pin && rc) {
+        var orientBoats = [];
+        Object.keys(hist.boats).forEach(function (sail) {
+          var ob = atTs(hist.boats[sail], ts);
+          if (ob) orientBoats.push(ob);
+        });
+        applyCourseOrientation(pin, rc, hist.marks["1"] ? atTs(hist.marks["1"], ts) : null, orientBoats);
+      }
       var startMid = (pin && rc)
         ? { lat: (pin.lat + rc.lat) / 2, lon: (pin.lon + rc.lon) / 2 }
         : (pin || rc);
@@ -882,7 +884,7 @@
         mapCtx.fill();
         var m1Spec = roundArr.M1 || defaultPortSpec(pos, startMid);
         if (m1Spec) drawRoundArrow(pos, m1Spec, "#fbbf24");
-        var m1Lab = markLabelBack(pos, startMid);
+        var m1Lab = markLabelAway(pos, m1Spec, startMid);
         mapCtx.fillStyle = "#ffffff";
         mapCtx.font = "bold 13px sans-serif";
         mapCtx.textAlign = "center";
@@ -905,29 +907,45 @@
         mapCtx.strokeStyle = "#38bdf8";
         mapCtx.lineWidth = 1;
         mapCtx.strokeRect(b.x - 7, b.y - 5, 14, 10);
-        mapCtx.fillStyle = "#0b1b33";
-        mapCtx.textAlign = "start";
-        mapCtx.textBaseline = "alphabetic";
-        mapCtx.fillText("RC", b.x - 6, b.y + 3);
         var pinFrom = atTs(hist.marks["1"], ts) || startMid;
-        var pinLab = markLabelBack(pin, pinFrom);
+        var pinLeeward = gunTs && (ts >= gunTs + 5 * 60 * 1000 || Object.keys(passTs.M1 || {}).length);
+        var pinSpec = roundArr.PIN || defaultPortSpec(pin, pinFrom);
+        var labBoats = [];
+        Object.keys(hist.boats).forEach(function (sail) {
+          var lb = atTs(hist.boats[sail], ts);
+          if (lb) labBoats.push(lb);
+        });
+        var pinLab = pinLeeward
+          ? markLabelAway(pin, pinSpec, pinFrom)
+          : linePassingLabel(pin, pin, rc, pinFrom, labBoats);
+        var rcLab = linePassingLabel(rc, pin, rc, pinFrom, labBoats);
         mapCtx.fillStyle = "#ffffff";
         mapCtx.font = "bold 10px sans-serif";
         mapCtx.textAlign = "center";
         mapCtx.textBaseline = "middle";
+        mapCtx.fillText("RC", rcLab.x, rcLab.y);
         mapCtx.fillText("Pin", pinLab.x, pinLab.y);
         mapCtx.textAlign = "start";
         mapCtx.textBaseline = "alphabetic";
-        var pinLeeward = gunTs && (ts >= gunTs + 5 * 60 * 1000 || Object.keys(passTs.M1 || {}).length);
         if (pinLeeward) {
-          var pinSpec = roundArr.PIN || defaultPortSpec(pin, pinFrom);
           if (pinSpec) drawRoundArrow(pin, pinSpec, "#38bdf8");
         }
-        if (gunTs && ts < gunTs + 5 * 60 * 1000) {
-          mapCtx.fillStyle = "#ffffff";
-          mapCtx.font = "bold 10px sans-serif";
-          mapCtx.fillText("START", (a.x + b.x) / 2 + 6, (a.y + b.y) / 2 - 14);
+        var sg = startCourseNormal(startLineGeom(pin, rc), pinFrom, null);
+        var midX = (a.x + b.x) / 2;
+        var midY = (a.y + b.y) / 2;
+        if (sg) {
+          var ahead = sg.fromxy(sg.a.x + sg.ux * sg.len / 2 + sg.nx * 36, sg.a.y + sg.uy * sg.len / 2 + sg.ny * 36);
+          var ap = xy(ahead.lat, ahead.lon);
+          midX = ap.x;
+          midY = ap.y;
         }
+        mapCtx.fillStyle = "#ffffff";
+        mapCtx.font = "bold 10px sans-serif";
+        mapCtx.textAlign = "center";
+        mapCtx.textBaseline = "middle";
+        mapCtx.fillText("START", midX, midY);
+        mapCtx.textAlign = "start";
+        mapCtx.textBaseline = "alphabetic";
       }
       var liveTailW = tailBudget(chartMap).w;
       Object.keys(hist.boats).forEach(function (sail) {
@@ -1050,12 +1068,29 @@
       var mag = Math.hypot(e.e, e.n) || 1;
       return { ie: e.e / mag, inn: e.n / mag, sweep: 1.85 };
     }
-    function markLabelBack(mark, fromPt) {
+    function markLabelAway(mark, spec, fromPt) {
       if (!mark) return { x: 0, y: 0 };
-      var e = fromPt ? enuOf(mark, fromPt) : { e: 1, n: 0 };
-      var mag = Math.hypot(e.e, e.n) || 1;
-      var ll = meterOffset(mark.lat, mark.lon, (e.e / mag) * 22, (-e.n / mag) * 22);
+      var back = fromPt ? enuOf(mark, fromPt) : { e: 0, n: -1 };
+      var mag = Math.hypot(back.e, back.n) || 1;
+      var be = back.e / mag;
+      var bn = back.n / mag;
+      var boatE = bn;
+      var boatN = -be;
+      var sweep = spec && spec.sweep != null ? Number(spec.sweep) : 1.85;
+      var sign = sweep >= 0 ? -1 : 1;
+      var ll = meterOffset(mark.lat, mark.lon, sign * boatN * 28, sign * boatE * 28);
       return xy(ll.lat, ll.lon);
+    }
+    function linePassingLabel(pt, pin, rc, m1, boats) {
+      if (!pt) return { x: 0, y: 0 };
+      if (!pin || !rc) return xy(pt.lat, pt.lon);
+      var g = startCourseNormal(startLineGeom(pin, rc), m1, boats);
+      if (!g) return xy(pt.lat, pt.lon);
+      var ll = meterOffset(pt.lat, pt.lon, -g.ny * 26, -g.nx * 26);
+      return xy(ll.lat, ll.lon);
+    }
+    function markLabelBack(mark, fromPt) {
+      return markLabelAway(mark, defaultPortSpec(mark, fromPt), fromPt);
     }
     function ccwDelta(a, b) {
       var d = b - a;
