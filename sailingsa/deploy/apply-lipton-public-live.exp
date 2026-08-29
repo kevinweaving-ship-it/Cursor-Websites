@@ -1,0 +1,66 @@
+#!/usr/bin/expect -f
+# Promote public Lipton slug to playback + live GPS. Small backup. No packed trail JSON.
+set timeout 300
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+set script_dir [file dirname [info script]]
+set repo_root [file normalize "$script_dir/../.."]
+
+spawn bash -c "scp -o StrictHostKeyChecking=no \
+  $repo_root/sailingsa/frontend/lipton-dev.html \
+  $repo_root/sailingsa/frontend/js/lipton-dev-playback.js \
+  $repo_root/css/lipton-dev.css \
+  $repo_root/sailingsa/scripts/lipton_vakaros.py \
+  $repo_root/sailingsa/scripts/lipton_dev_live.py \
+  $repo_root/sailingsa/deploy/patch_lipton_dev_live.py \
+  $repo_root/sailingsa/deploy/patch_lipton_public_slug.py \
+  ${user}@${server}:/tmp/"
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+    timeout { puts "ERROR: scp timeout"; exit 1 }
+}
+wait
+
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} {bash -s <<'REMOTE'
+TS=$(date +%Y%m%d_%H%M%S)
+mkdir -p /root/backup_lipton_$TS
+cp /var/www/sailingsa/api/api.py /root/backup_lipton_$TS/api.py
+cp -a /var/www/sailingsa/lipton-dev.html /root/backup_lipton_$TS/lipton-dev.html 2>/dev/null || true
+curl -sS -A SailingSA-backup -o /root/backup_lipton_$TS/public-slug.html https://sailingsa.co.za/regatta/2026-08-29-lipton-challenge-cup
+tar -czf /root/backup_lipton_$TS.tar.gz -C /root backup_lipton_$TS
+ls -la /root/backup_lipton_$TS.tar.gz
+mkdir -p /var/www/sailingsa/sailingsa/scripts /var/www/sailingsa/js /var/www/sailingsa/css
+cp /tmp/lipton-dev.html /var/www/sailingsa/lipton-dev.html
+mkdir -p /var/www/sailingsa/frontend /var/www/sailingsa/frontend/js
+cp /tmp/lipton-dev.html /var/www/sailingsa/frontend/lipton-dev.html
+cp /tmp/lipton-dev-playback.js /var/www/sailingsa/js/lipton-dev-playback.js
+cp /tmp/lipton-dev-playback.js /var/www/sailingsa/frontend/js/lipton-dev-playback.js 2>/dev/null || true
+cp /tmp/lipton-dev.css /var/www/sailingsa/css/lipton-dev.css
+cp /tmp/lipton_vakaros.py /tmp/lipton_dev_live.py /var/www/sailingsa/sailingsa/scripts/
+python3 /tmp/patch_lipton_dev_live.py
+python3 /tmp/patch_lipton_public_slug.py
+echo '{"race_number":6,"stage":"starting","gun_ts_ms":1787918701000,"gun_sast":"2026-08-28T14:05:01+02:00"}' > /tmp/lipton_dev_live_state.json
+systemctl restart sailingsa-api
+for i in 1 2 3 4 5 6 7 8 9 10; do
+  code=$(curl -sS -o /dev/null -w '%{http_code}' -A SailingSA-devcheck https://sailingsa.co.za/regatta/2026-08-29-lipton-challenge-cup || true)
+  echo wait_$i $code
+  [ "$code" = 200 ] && break
+  sleep 2
+done
+cd /var/www/sailingsa/sailingsa/scripts && python3 -c 'from lipton_dev_live import live_snapshot; d=live_snapshot(history=True); print("prewarm ok", d.get("ok"), "n", len(d.get("boats") or {}), "gun", d.get("gun_sast"))'
+echo '--- public ---'
+curl -sS -A SailingSA-devcheck https://sailingsa.co.za/regatta/2026-08-29-lipton-challenge-cup | python3 -c 'import sys; t=sys.stdin.read(); print("playback", "lipton-dev-playback.js" in t); print("og", "ea4ca8b2a84b036d.png" in t); print("noindex_meta", "noindex" in t.lower())'
+echo '--- dev ---'
+curl -sS -o /dev/null -w 'dev %{http_code}\n' -A SailingSA-devcheck https://sailingsa.co.za/regatta/2026-08-29-lipton-challenge-cup-dev
+echo '--- live api ---'
+curl -sS https://sailingsa.co.za/api/lipton-dev/live | python3 -c 'import json,sys; d=json.load(sys.stdin); b=d.get("boats") or {}; print("ok",d.get("ok"),"err",d.get("error"),"n",len(b),"race",d.get("race_number"),"gun",d.get("gun_sast")); print("trail", max((len((b[s] or {}).get("trail") or []) for s in b), default=0) if b else 0)'
+REMOTE
+}
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    timeout { puts "ERROR: ssh timeout"; exit 1 }
+    eof { }
+}
+wait

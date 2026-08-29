@@ -1,0 +1,33 @@
+#!/usr/bin/expect -f
+# Emergency: restore playback lock. Patch api.py in place only. No full api.py replace.
+set timeout 300
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+set script_dir [file dirname [info script]]
+set repo_root [file normalize "$script_dir/../.."]
+
+spawn bash -c "scp -o StrictHostKeyChecking=no \
+  $repo_root/sailingsa/frontend/lipton-dev.html \
+  $repo_root/sailingsa/frontend/js/lipton-dev-playback.js \
+  $repo_root/sailingsa/frontend/css/lipton-dev.css \
+  $repo_root/sailingsa/scripts/lipton_dev_catchup.py \
+  $repo_root/sailingsa/scripts/lipton_dev_live.py \
+  $repo_root/sailingsa/deploy/patch_lipton_js_nostore.py \
+  $repo_root/sailingsa/deploy/patch_lipton_public_slug.py \
+  $repo_root/sailingsa/deploy/relock_lipton_playback.py \
+  ${user}@${server}:/tmp/"
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+    timeout { puts "ERROR: scp timeout"; exit 1 }
+}
+wait
+
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "cp /tmp/lipton-dev.html /var/www/sailingsa/lipton-dev.html && cp /tmp/lipton-dev.css /var/www/sailingsa/css/lipton-dev.css && cp /tmp/lipton-dev-playback.js /var/www/sailingsa/js/lipton-dev-playback.js && cp /tmp/lipton-dev-playback.js /var/www/sailingsa/js/lipton-dev-playback-dk.js && cp /tmp/lipton-dev-playback.js /var/www/sailingsa/js/lipton-dev-playback-dl.js && cp /tmp/lipton-dev-playback.js /var/www/sailingsa/js/lipton-dev-playback-dm.js && cp /tmp/lipton-dev-playback.js /var/www/sailingsa/js/lipton-dev-playback-dn.js && cp /tmp/lipton-dev-playback.js /var/www/sailingsa/frontend/js/lipton-dev-playback.js && cp /tmp/lipton_dev_catchup.py /tmp/lipton_dev_live.py /var/www/sailingsa/sailingsa/scripts/ && python3 /tmp/relock_lipton_playback.py && python3 /tmp/patch_lipton_public_slug.py && python3 /tmp/patch_lipton_js_nostore.py && nginx -t && nginx -s reload && systemctl restart sailingsa-api && sleep 3 && systemctl is-active sailingsa-api && python3 /tmp/lipton_dev_catchup.py && curl -sS -A SailingSA-devcheck https://sailingsa.co.za/regatta/2026-08-29-lipton-challenge-cup?live=1 | python3 -c 'import sys; t=sys.stdin.read(); print(\"playback\", \"lipton-dev-playback\" in t); print(\"dnjs\", \"lipton-dev-playback-dn.js\" in t); print(\"old_weather\", \"WEATHER\" in t or \"Live cam\" in t or \"DELAYED\" in t)' && curl -sS -A SailingSA-devcheck https://sailingsa.co.za/api/lipton-dev/live | python3 -c 'import json,sys; d=json.load(sys.stdin); print(\"live\", {k:d.get(k) for k in (\"waiting\",\"race_number\",\"stage\",\"gun_sast\",\"holding_last\")}); print(\"boats\", len(d.get(\"boats\") or {}))'"
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    timeout { puts "ERROR: ssh timeout"; exit 1 }
+    eof { }
+}
+wait

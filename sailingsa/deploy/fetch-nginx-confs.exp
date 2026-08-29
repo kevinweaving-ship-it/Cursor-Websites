@@ -1,0 +1,21 @@
+#!/usr/bin/expect -f
+set timeout 60
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+
+spawn scp -o StrictHostKeyChecking=no ${user}@${server}:/etc/nginx/sites-enabled/sailingsa /tmp/nginx-enabled-broken.conf
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+    timeout { puts "ERROR: scp1 timeout"; exit 1 }
+}
+wait
+
+spawn scp -o StrictHostKeyChecking=no ${user}@${server}:/etc/nginx/sites-available/sailingsa /tmp/nginx-available.conf
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+    timeout { puts "ERROR: scp2 timeout"; exit 1 }
+}
+wait

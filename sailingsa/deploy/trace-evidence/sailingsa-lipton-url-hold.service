@@ -1,0 +1,12 @@
+[Unit]
+Description=Lipton 2026 public URL hold loop
+After=network.target nginx.service sailingsa-api.service
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=2
+ExecStart=/bin/bash -c 'while true; do if systemctl is-active --quiet sailingsa-lipton-public-watch.service; then sleep 15; continue; fi; for f in /root/lw-g13b.py /root/lw-gold13.py /root/lw-gold7.py /root/lw-gold6.py /root/lw-gold5.py /usr/local/lib/lipton_public_not_dev_watch.py /usr/local/sbin/lipton_public_not_dev_watch.py; do sz=$(wc -c < "$f" 2>/dev/null || echo 0); if [ "$sz" -gt 500 ] && grep -q LIPTON_WATCH_DEBOUNCE_V1 "$f" 2>/dev/null; then /usr/bin/python3 "$f"; break; fi; done; sleep 10; done'
+
+[Install]
+WantedBy=multi-user.target

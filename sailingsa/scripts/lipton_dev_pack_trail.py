@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
-"""Downsample Race 4 GPS trail for the -dev canvas map. Trail only. Not Nett.
+"""Downsample GPS trail for the -dev canvas map. Trail only. Not Nett.
 
 Do not linearly fill GPS holes: that draws chords through marks.
 Marks are a 1 s series (same grid as boats) so the buoy is where it was
 when boats actually rounded, not a race-long average.
+
+  python3 sailingsa/scripts/lipton_dev_pack_trail.py
+  python3 sailingsa/scripts/lipton_dev_pack_trail.py --race 1
 """
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from collections import defaultdict
@@ -17,11 +21,24 @@ from lipton_mark_rounding import MARK_SN, fetch_rows  # noqa: E402
 from lipton_vakaros import _j22_division, fetch_regatta_doc  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
-REPLAY = ROOT / "sailingsa/frontend/js/lipton-dev-replay.json"
-OUT = ROOT / "sailingsa/frontend/js/lipton-dev-trail.json"
-OUT_COPY = ROOT / "js/lipton-dev-trail.json"
 STEP_MS = 1000
-RACE = 4
+PRE_MS = 10_000
+
+
+def replay_path(race: int) -> Path:
+    if race == 4:
+        return ROOT / "sailingsa/frontend/js/lipton-dev-replay.json"
+    return ROOT / f"sailingsa/frontend/js/lipton-dev-replay-r{race}.json"
+
+
+def trail_paths(race: int) -> tuple[Path, Path]:
+    if race == 4:
+        return ROOT / "sailingsa/frontend/js/lipton-dev-trail.json", ROOT / "js/lipton-dev-trail.json"
+    suffix = f"-r{race}"
+    return (
+        ROOT / f"sailingsa/frontend/js/lipton-dev-trail{suffix}.json",
+        ROOT / f"js/lipton-dev-trail{suffix}.json",
+    )
 
 
 def q(v):
@@ -43,8 +60,12 @@ def race_lines(race: int) -> dict:
     finish = None
     if finishes:
         f0 = finishes[0]
-        ll, rr = f0["lineLeftLocation"]["coordinates"], f0["lineRightLocation"]["coordinates"]
-        finish = {"left": pt_latlon(ll[1], ll[0]), "right": pt_latlon(rr[1], rr[0])}
+        ll = (f0.get("lineLeftLocation") or {}).get("coordinates") or []
+        rr = (f0.get("lineRightLocation") or {}).get("coordinates") or []
+        if len(ll) >= 2 and len(rr) >= 2:
+            finish = {"left": pt_latlon(ll[1], ll[0]), "right": pt_latlon(rr[1], rr[0])}
+    if finish is None:
+        finish = start
     return {"start_line": start, "finish_line": finish}
 
 
@@ -61,30 +82,48 @@ def grid_series(pts: list[dict], gun: int, n: int) -> dict:
 
 
 def main() -> int:
-    replay = json.loads(REPLAY.read_text())
+    ap = argparse.ArgumentParser(description="Pack Lipton -dev GPS trail for one race")
+    ap.add_argument("--race", type=int, default=4)
+    args = ap.parse_args()
+    race = int(args.race)
+    replay_file = replay_path(race)
+    out, out_copy = trail_paths(race)
+    replay = json.loads(replay_file.read_text())
     gun = int(replay["gun_ts_ms"])
     end = int(replay.get("play_end_ts_ms") or replay["end_ts_ms"])
-    print("fetch", gun, end, flush=True)
-    rows = fetch_rows(gun - 15_000, end + 5_000)
+    print("load trail", race, gun, end, flush=True)
+    try:
+        from lipton_dev_archive_telemetry import load_race_rows  # noqa: E402
+
+        rows = load_race_rows(race)
+    except Exception:
+        rows = []
+    if rows:
+        print(json.dumps({"archive_rows": len(rows), "race": race}), flush=True)
+        rows = [r for r in rows if gun - 15_000 <= int(r.get("ts") or 0) <= end + 5_000] or rows
+    else:
+        print("fetch", race, gun, end, flush=True)
+        rows = fetch_rows(gun - 15_000, end + 5_000)
     boat_by = defaultdict(list)
     marks_by = defaultdict(list)
     for rec in rows:
         if rec.get("sn") in MARK_SN.values():
             marks_by[rec["sn"]].append(rec)
-        if rec.get("role") == "competitor" and rec.get("race_number") in (RACE, None, 0, float(RACE)):
+        if rec.get("role") == "competitor" and rec.get("race_number") in (race, None, 0, float(race)):
             boat_by[rec["sail_number"]].append(rec)
     for sail in list(boat_by):
         pts = sorted(boat_by[sail], key=lambda x: x["ts"])
-        if any(p.get("race_number") == RACE for p in pts):
-            pts = [p for p in pts if p.get("race_number") == RACE]
+        if any(p.get("race_number") == race for p in pts):
+            pts = [p for p in pts if p.get("race_number") == race]
         boat_by[sail] = pts
 
-    n = int((end - gun) / STEP_MS) + 1
+    origin = gun - PRE_MS
+    n = int((end - origin) / STEP_MS) + 1
     boats = {}
     for sail, pts in boat_by.items():
         boats[sail] = grid_series(
-            [p for p in pts if gun - STEP_MS <= p["ts"] <= end + STEP_MS],
-            gun,
+            [p for p in pts if origin - STEP_MS <= p["ts"] <= end + STEP_MS],
+            origin,
             n,
         )
 
@@ -94,15 +133,16 @@ def main() -> int:
         if not pts:
             continue
         marks[name] = grid_series(
-            [p for p in pts if gun - STEP_MS <= p["ts"] <= end + STEP_MS],
-            gun,
+            [p for p in pts if origin - STEP_MS <= p["ts"] <= end + STEP_MS],
+            origin,
             n,
         )
 
-    lines = race_lines(RACE)
+    lines = race_lines(race)
     payload = {
-        "race_number": RACE,
+        "race_number": race,
         "gun_ts_ms": gun,
+        "grid_start_ts_ms": origin,
         "end_ts_ms": end,
         "step_ms": STEP_MS,
         "n": n,
@@ -110,13 +150,18 @@ def main() -> int:
         "marks": marks,
         "start_line": lines["start_line"],
         "finish_line": lines["finish_line"],
-        "note": "Race 4 teleapi GPS, 1 s samples. Marks are time series. Start/finish are pin–RC lines. No interpolated holes. Not Nett.",
+        "note": (
+            f"Race {race} teleapi GPS, 1 s samples. Marks are time series. "
+            "Start/finish are pin–RC lines. No interpolated holes. Not Nett."
+        ),
     }
     text = json.dumps(payload, separators=(",", ":")) + "\n"
-    OUT.write_text(text)
-    OUT_COPY.write_text(text)
+    out.write_text(text)
+    out_copy.write_text(text)
     print(json.dumps({
         "ok": True,
+        "race": race,
+        "out": str(out),
         "bytes": len(text),
         "boats": len(boats),
         "n": n,

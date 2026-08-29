@@ -1,0 +1,23 @@
+#!/usr/bin/expect -f
+set timeout 40
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+set script_dir [file dirname [info script]]
+set repo_root [file normalize "$script_dir/../.."]
+
+spawn scp -o StrictHostKeyChecking=no $repo_root/sailingsa/deploy/diag-sailor-now.sh ${user}@${server}:/tmp/diag-sailor-now.sh
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+    timeout { puts "ERROR: scp timeout"; exit 1 }
+}
+wait
+
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "bash /tmp/diag-sailor-now.sh"
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    timeout { puts "ERROR: ssh timeout"; exit 1 }
+    eof { }
+}
+wait

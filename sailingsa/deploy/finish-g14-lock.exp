@@ -1,0 +1,26 @@
+#!/usr/bin/expect -f
+set timeout 120
+set password "TimAdd#072082"
+set script_dir [file dirname [info script]]
+set repo_root [file normalize "$script_dir/../.."]
+spawn scp -o StrictHostKeyChecking=no \
+  $repo_root/sailingsa/deploy/finish-g14-lock.sh \
+  $repo_root/sailingsa/deploy/patch_lipton_public_slug.py \
+  $repo_root/sailingsa/deploy/force_lipton_nginx_alias.py \
+  $repo_root/sailingsa/frontend/lipton-dev.html \
+  $repo_root/sailingsa/frontend/css/lipton-dev.css \
+  $repo_root/sailingsa/frontend/js/lipton-event-sheet.js \
+  root@102.218.215.253:/tmp/
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof {}
+    timeout { exit 1 }
+}
+wait
+spawn ssh -o StrictHostKeyChecking=no root@102.218.215.253 "bash /tmp/finish-g14-lock.sh"
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    timeout { exit 1 }
+    eof {}
+}
+wait

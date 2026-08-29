@@ -11,8 +11,13 @@
 
 ## Column Rules
 
-### Standard Column Order
+### Standard Column Order (dinghy — no boat names)
 `Rank | Fleet | Class | Sail No | [Boat Name] | [Jib No] | [Bow No] | [Hull No] | Club | Helm | [Crew] | [R1..Rn] | Total | Nett`
+
+### Keelboat column order (boats have names)
+`Rank | Bow | Boat Name | Club | Nett | [last race … R1] | Sail No | Helm | Crew`
+
+Race columns run newest-first (e.g. R7 R6 R5 R4 R3 R2 R1). Do not show Fleet, Class, Jib, Hull, or Total in this layout. Bow header is `Bow` (not `Bow No`).
 
 ### Fleet Column
 - **Source**: When `class_canonical` appears in more result rows than `fleet_label`, use `class_canonical` for Fleet (broader term). Otherwise `blockData.fleet_label || blockData.class_canonical || ''`

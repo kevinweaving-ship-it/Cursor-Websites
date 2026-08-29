@@ -1,0 +1,24 @@
+#!/usr/bin/expect -f
+set timeout 180
+set password "TimAdd#072082"
+set script_dir [file dirname [info script]]
+set repo_root [file normalize "$script_dir/../.."]
+
+spawn scp -o StrictHostKeyChecking=no \
+  $repo_root/sailingsa/scripts/lipton_r7_official_update.py \
+  $repo_root/sailingsa/deploy/apply-lipton-r7-results.sh \
+  root@102.218.215.253:/tmp/
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+    timeout { puts "ERROR: scp timeout"; exit 1 }
+}
+wait
+
+spawn ssh -o StrictHostKeyChecking=no root@102.218.215.253 bash /tmp/apply-lipton-r7-results.sh
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    timeout { puts "ERROR: ssh timeout"; exit 1 }
+    eof { }
+}
+wait

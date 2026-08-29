@@ -21702,6 +21702,70 @@ def _sailor_canonical_slug(full_name: str, sas_id: str, has_duplicate: bool) -> 
     return base
 
 
+def _collect_result_sas_ids(rows) -> set:
+    """Helm + crew + crew2 + crew3 SAS ids from result rows."""
+    out = set()
+    keys = (
+        "helm_sa_sailing_id",
+        "crew_sa_sailing_id",
+        "crew2_sa_sailing_id",
+        "crew3_sa_sailing_id",
+    )
+    for row in rows or []:
+        for key in keys:
+            v = row.get(key)
+            if v is not None and str(v).strip().isdigit():
+                out.add(str(v).strip())
+    return out
+
+
+def _fleet_row_person_slug(name, sas_raw, slug_map, name_map, dup_names):
+    sas_id = str(sas_raw or "") if sas_raw is not None else ""
+    slug = slug_map.get(sas_id) if (sas_id and sas_id.isdigit()) else None
+    if slug is None and sas_id and sas_id.isdigit():
+        nm = (name_map or {}).get(sas_id) or name
+        if nm:
+            nrm = (name or "").strip().lower() if name else ""
+            has_dup = nrm in (dup_names or set()) or sas_id.isdigit()
+            slug = _sailor_canonical_slug(nm, sas_id, has_dup)
+    return slug
+
+
+def _fleet_sheet_person_link_html(name, slug) -> str:
+    name = (name or "").strip()
+    if not name:
+        return ""
+    if slug:
+        return f'<a href="/sailor/{html_module.escape(str(slug))}">{html_module.escape(name)}</a>'
+    return html_module.escape(name)
+
+
+def _fleet_sheet_crew_cell_html(r):
+    """Join crew, crew2, crew3 (and result_crew) as comma-separated linked names."""
+    seen = set()
+    parts = []
+    plains = []
+
+    def add(name, slug=None):
+        n = (name or "").strip()
+        if not n:
+            return
+        key = " ".join(n.lower().split())
+        if key in seen:
+            return
+        seen.add(key)
+        parts.append(_fleet_sheet_person_link_html(n, slug))
+        plains.append(n)
+
+    for x in r.get("crew_list") or []:
+        if (x.get("role") or "").strip().lower() == "crew":
+            add(x.get("sailor_name"), x.get("slug") or x.get("sailor_slug"))
+    add(r.get("crew_name"), r.get("crew_slug"))
+    add(r.get("crew2_name"), r.get("crew2_slug"))
+    add(r.get("crew3_name"), r.get("crew3_slug"))
+    return ", ".join(parts), ", ".join(plains)
+
+
 def _batch_sailor_slugs_for_sas_ids(sas_ids: list):
     """Return dict sas_id -> canonical_slug for regatta rows. Enables real /sailor/<slug> links."""
     if not sas_ids:
@@ -23078,10 +23142,12 @@ def _get_regatta_full_page_data(regatta_id: str):
                        rb.races_sailed, rb.discard_count, rb.to_count, rb.scoring_system,
                        res.result_id,
                        res.rank, res.sail_number, res.helm_name, res.crew_name,
+                       res.crew2_name, res.crew3_name,
                        res.boat_name, res.jib_no, res.bow_no, res.hull_no,
                        COALESCE(TRIM(c.club_abbrev), TRIM(res.club_raw), '') AS club,
                        res.club_id, COALESCE(c.club_abbrev, c.club_fullname) AS club_fullname,
                        res.helm_sa_sailing_id, res.crew_sa_sailing_id,
+                       res.crew2_sa_sailing_id, res.crew3_sa_sailing_id,
                        res.total_points_raw, res.nett_points_raw, res.race_scores, res.raced,
                        COALESCE(TRIM(c_res.class_name), TRIM(res.class_original), '') AS class_name,
                        COALESCE(res.class_id, rb.class_id) AS result_class_id
@@ -23105,13 +23171,7 @@ def _get_regatta_full_page_data(regatta_id: str):
                 if row.get("n"):
                     dup_names.add(row["n"])
             # Batch name and slug lookups: one query for all sailor names, then slug in Python (no per-row DB)
-            sas_ids = set()
-            for r in raw:
-                h, c = r.get("helm_sa_sailing_id"), r.get("crew_sa_sailing_id")
-                if h is not None and str(h).strip().isdigit():
-                    sas_ids.add(str(h).strip())
-                if c is not None and str(c).strip().isdigit():
-                    sas_ids.add(str(c).strip())
+            sas_ids = _collect_result_sas_ids(raw)
             name_map = {}
             slug_map = {}
             if sas_ids:
@@ -23182,6 +23242,14 @@ def _get_regatta_full_page_data(regatta_id: str):
             nm = name_map.get(crew_sas_id) or crew_name
             if nm:
                 crew_slug = _sailor_canonical_slug(nm, crew_sas_id, crew_has_dup)
+        crew2_name = r.get("crew2_name")
+        crew2_slug = _fleet_row_person_slug(
+            crew2_name, r.get("crew2_sa_sailing_id"), slug_map, name_map, dup_names
+        )
+        crew3_name = r.get("crew3_name")
+        crew3_slug = _fleet_row_person_slug(
+            crew3_name, r.get("crew3_sa_sailing_id"), slug_map, name_map, dup_names
+        )
         by_block[bid]["rows"].append({
             "result_id": r.get("result_id"),
             "rank": r.get("rank"),
@@ -23192,6 +23260,12 @@ def _get_regatta_full_page_data(regatta_id: str):
             "crew_name": crew_name,
             "crew_slug": crew_slug,
             "crew_sa_sailing_id": r.get("crew_sa_sailing_id"),
+            "crew2_name": crew2_name,
+            "crew2_slug": crew2_slug,
+            "crew2_sa_sailing_id": r.get("crew2_sa_sailing_id"),
+            "crew3_name": crew3_name,
+            "crew3_slug": crew3_slug,
+            "crew3_sa_sailing_id": r.get("crew3_sa_sailing_id"),
             "boat_name": r.get("boat_name"),
             "jib_no": r.get("jib_no"),
             "bow_no": r.get("bow_no"),
@@ -23918,7 +23992,7 @@ def _wc_standalone_fleet_autocomplete_script_html() -> str:
 # Same CSS as admin regatta_viewer.html result sheet popup, with mobile-friendly widths so headers match tables
 _RESULT_SHEET_CSS = (
     "*{box-sizing:border-box}"
-    "html,body{background:#ffffff;color:#1a2750;font-family:system-ui,sans-serif;margin:0;padding:0;width:100%;max-width:100%;overflow-x:hidden}"
+    "html,body{background:#ffffff;color:#1a2750;font-family:system-ui,sans-serif;margin:0;padding:0;width:100%;max-width:100%;overflow-x:auto}"
     ".regatta-page{width:100%;max-width:100%;padding:16px;margin:0 auto}"
     ".header{display:grid;grid-template-columns:minmax(0,auto) minmax(0,3fr) minmax(0,auto);align-items:center;column-gap:6px;row-gap:4px;margin-bottom:30px;position:relative;border:2px solid #1a2750;border-radius:10px;padding:4px 6px;background:#ffffff;width:100%;box-sizing:border-box}"
     ".regatta-header-logo-col{display:flex;align-items:center;justify-content:flex-start;min-width:0;padding:3px 8px 3px 3px}"
@@ -23982,9 +24056,11 @@ _RESULT_SHEET_CSS = (
     ".class-header{font-size:20px;font-weight:bold;color:#1a2750;text-align:center;margin-top:0;margin-bottom:0;border:2px solid #1a2750;border-radius:10px;padding:15px;background:#ffffff;width:100%}"
     ".sailed-line{font-size:12px;color:#1a2750;text-align:center;margin-top:10px;margin-bottom:0}"
     ".table-wrapper{overflow-x:auto;overflow-y:visible;width:100%;-webkit-overflow-scrolling:touch;margin-top:20px}"
-    ".table-wrapper table{width:100%;min-width:600px}"
+    ".table-wrapper table{width:100%;min-width:600px;table-layout:auto}"
     "table{border-collapse:collapse;background:#ffffff;margin:0}"
-    "th,td{border:1px solid #1d294d;padding:8px;text-align:center}"
+    "th,td{border:1px solid #1d294d;padding:6px 4px;text-align:center;white-space:nowrap;width:1%;vertical-align:middle}"
+    "th.crew-col,td.crew-col{white-space:nowrap;text-align:left}"
+    "th.helm-col,td.helm-col{white-space:nowrap;text-align:left}"
     "th{background:#e9eefb;color:#1a2750}"
     "td{color:#1a2750}"
     ".rank-col,.sail-col,.club-col,.helm-col,.nett-col{font-weight:bold}"
@@ -24278,7 +24354,7 @@ def _render_result_sheet_fleet(
     sailed_line = f"Sailed: {races_sailed}, Discards: {discard_count}, To count: {to_count}, Entries: {entries}, Scoring system: {scoring_system}"
 
     def _row_has_crew(row):
-        if (row.get("crew_name") or "").strip():
+        if any((row.get(k) or "").strip() for k in ("crew_name", "crew2_name", "crew3_name")):
             return True
         cl = row.get("crew_list") or []
         return any((x.get("role") or "").strip().lower() == "crew" for x in cl)
@@ -24306,37 +24382,93 @@ def _render_result_sheet_fleet(
     show_hull = _optional_col_visible("hull", has_hull_no)
     show_crew_col = _optional_col_visible("crew", has_crew)
     show_races = bool(race_columns)
+    # Keelboat (boats have names): Rank, Bow, Boat name, Club, Nett, last race → R1, Sail no, Helm, Crew
+    keelboat = bool(show_boat)
+    if keelboat and race_columns:
+        race_columns = list(reversed(race_columns))
+
+    if keelboat:
+        ordered = []
+        if _pref_on("rank"):
+            ordered.append("rank")
+        if show_bow:
+            ordered.append("bow")
+        if show_boat:
+            ordered.append("boat")
+        if _pref_on("club"):
+            ordered.append("club")
+        if _pref_on("nett"):
+            ordered.append("nett")
+        if show_races:
+            ordered.append("races")
+        if _pref_on("sail_no"):
+            ordered.append("sail")
+        if _pref_on("helm"):
+            ordered.append("helm")
+        if show_crew_col:
+            ordered.append("crew")
+    else:
+        ordered = []
+        if _pref_on("rank"):
+            ordered.append("rank")
+        if _pref_on("fleet"):
+            ordered.append("fleet")
+        if _pref_on("class"):
+            ordered.append("class")
+        if _pref_on("sail_no"):
+            ordered.append("sail")
+        if show_boat:
+            ordered.append("boat")
+        if show_jib:
+            ordered.append("jib")
+        if show_bow:
+            ordered.append("bow")
+        if show_hull:
+            ordered.append("hull")
+        if _pref_on("club"):
+            ordered.append("club")
+        if _pref_on("helm"):
+            ordered.append("helm")
+        if show_crew_col:
+            ordered.append("crew")
+        if show_races:
+            ordered.append("races")
+        if _pref_on("total"):
+            ordered.append("total")
+        if _pref_on("nett"):
+            ordered.append("nett")
 
     thead = ""
-    if _pref_on("rank"):
-        thead += '<th class="rank-col">Rank</th>'
-    if _pref_on("fleet"):
-        thead += "<th>Fleet</th>"
-    if _pref_on("class"):
-        thead += "<th>Class</th>"
-    if _pref_on("sail_no"):
-        thead += '<th class="sail-col">Sail No</th>'
-    if show_boat:
-        thead += "<th>Boat Name</th>"
-    if show_jib:
-        thead += "<th>Jib No</th>"
-    if show_bow:
-        thead += "<th>Bow No</th>"
-    if show_hull:
-        thead += "<th>Hull No</th>"
-    if _pref_on("club"):
-        thead += '<th class="club-col">Club</th>'
-    if _pref_on("helm"):
-        thead += '<th class="helm-col">Helm</th>'
-    if show_crew_col:
-        thead += "<th>Crew</th>"
-    if show_races:
-        for rc in race_columns:
-            thead += f"<th>{html_module.escape(rc)}</th>"
-    if _pref_on("total"):
-        thead += "<th>Total</th>"
-    if _pref_on("nett"):
-        thead += '<th class="nett-col">Nett</th>'
+    for col in ordered:
+        if col == "rank":
+            thead += '<th class="rank-col">Rank</th>'
+        elif col == "fleet":
+            thead += "<th>Fleet</th>"
+        elif col == "class":
+            thead += "<th>Class</th>"
+        elif col == "sail":
+            thead += '<th class="sail-col">Sail No</th>'
+        elif col == "boat":
+            thead += "<th>Boat Name</th>"
+        elif col == "jib":
+            thead += "<th>Jib No</th>"
+        elif col == "bow":
+            thead += "<th>Bow</th>" if keelboat else "<th>Bow No</th>"
+        elif col == "hull":
+            thead += "<th>Hull No</th>"
+        elif col == "club":
+            thead += '<th class="club-col">Club</th>'
+        elif col == "helm":
+            thead += '<th class="helm-col">Helm</th>'
+        elif col == "crew":
+            thead += '<th class="crew-col">Crew</th>'
+        elif col == "races":
+            for rc in race_columns:
+                thead += f"<th>{html_module.escape(rc)}</th>"
+        elif col == "total":
+            thead += "<th>Total</th>"
+        elif col == "nett":
+            thead += '<th class="nett-col">Nett</th>'
 
     trs = []
     for r in rows:
@@ -24365,10 +24497,8 @@ def _render_result_sheet_fleet(
         )
         result_id_row = r.get("result_id")
         crew_list = r.get("crew_list") or []
-        crew_raw_for_edit = ""
         if crew_list:
             helm_entries = [x for x in crew_list if (x.get("role") or "").strip().lower() == "helm"]
-            crew_entries = [x for x in crew_list if (x.get("role") or "").strip().lower() == "crew"]
             helm_raw = (helm_entries[0].get("sailor_name") or "").strip() if helm_entries else str(r.get("helm_name") or "")
             helm_slug = r.get("helm_slug")
             helm_str = (
@@ -24376,9 +24506,6 @@ def _render_result_sheet_fleet(
                 if helm_slug and helm_raw
                 else html_module.escape(helm_raw)
             )
-            crew_names = [(x.get("sailor_name") or "").strip() for x in crew_entries if (x.get("sailor_name") or "").strip()]
-            crew_raw_for_edit = ", ".join(crew_names) if crew_names else (r.get("crew_name") or "").strip()
-            crew_str = "Crew: " + ", ".join(html_module.escape(n) for n in crew_names) if crew_names else ""
         else:
             helm_raw = str(r.get("helm_name") or "")
             helm_slug = r.get("helm_slug")
@@ -24387,14 +24514,7 @@ def _render_result_sheet_fleet(
                 if helm_slug and helm_raw
                 else html_module.escape(helm_raw)
             )
-            crew_raw = str(r.get("crew_name") or "")
-            crew_raw_for_edit = crew_raw
-            crew_slug = r.get("crew_slug")
-            crew_str = (
-                f'<a href="/sailor/{html_module.escape(crew_slug)}">{html_module.escape(crew_raw)}</a>'
-                if crew_slug and crew_raw
-                else html_module.escape(crew_raw)
-            )
+        crew_str, crew_raw_for_edit = _fleet_sheet_crew_cell_html(r)
 
         def _wc_cell(
             inner_html: str,
@@ -24465,43 +24585,44 @@ def _render_result_sheet_fleet(
         total_str = html_module.escape(total_plain)
         nett_str = html_module.escape(nett_plain)
         row_html = f'<tr class="{row_classes}">'
-        if _pref_on("rank"):
-            row_html += f'<td class="rank-col">{_wc_cell(html_module.escape(rank_str), rank_plain, "rank", None, 8)}</td>'
-        if _pref_on("fleet"):
-            row_html += f"<td>{fleet_str}</td>"
-        if _pref_on("class"):
-            row_html += f"<td>{_wc_cell(class_str, class_name_raw, 'class_name', None, 64, 'class', class_xin)}</td>"
-        if _pref_on("sail_no"):
-            row_html += f'<td class="sail-col">{_wc_cell(sail_str, sail_raw, "sail_number", None, 32)}</td>'
-        if show_boat:
-            bn = str(r.get("boat_name") or "")
-            row_html += f'<td>{_wc_cell(html_module.escape(bn), bn, "boat_name", None, 120)}</td>'
-        if show_jib:
-            jv = str(r.get("jib_no") or "")
-            row_html += f'<td>{_wc_cell(html_module.escape(jv), jv, "jib_no", None, 32)}</td>'
-        if show_bow:
-            bv = str(r.get("bow_no") or "")
-            row_html += f'<td>{_wc_cell(html_module.escape(bv), bv, "bow_no", None, 32)}</td>'
-        if show_hull:
-            hv = str(r.get("hull_no") or "")
-            row_html += f'<td>{_wc_cell(html_module.escape(hv), hv, "hull_no", None, 32)}</td>'
-        if _pref_on("club"):
-            row_html += f'<td class="club-col">{_wc_cell(club_link_html, club_raw, "club_code", None, 32, "club", club_xin)}</td>'
-        if _pref_on("helm"):
-            row_html += f'<td class="helm-col">{_wc_cell(helm_str, helm_raw or "", "helm_name", None, 120, "helm", helm_xin)}</td>'
-        if show_crew_col:
-            row_html += f"<td>{_wc_cell(crew_str, crew_raw_for_edit, 'crew_name', None, 160, 'crew', crew_xin)}</td>"
-        if show_races:
-            for rkey in race_columns:
-                score = (race_scores.get(rkey) or "").strip()
-                is_discarded = score.startswith("(") and score.endswith(")")
-                has_penalty = bool(re.search(r"\b(DNC|DNS|DNF|RET|DSQ|UFD|BFD|DPI|OCS)\b", score, re.I)) if score else False
-                cell_class = "code" if has_penalty else ("disc" if is_discarded else ("score-counts" if score else ""))
-                row_html += f'<td class="{cell_class}">{_wc_cell(html_module.escape(score), score, None, rkey, 48)}</td>'
-        if _pref_on("total"):
-            row_html += f'<td class="{strike_class}">{_wc_cell(total_str, total_plain, "total_points_raw", None, 24)}</td>'
-        if _pref_on("nett"):
-            row_html += f'<td class="nett-col {strike_class}">{_wc_cell(nett_str, nett_plain, "nett_points_raw", None, 24)}</td>'
+        for col in ordered:
+            if col == "rank":
+                row_html += f'<td class="rank-col">{_wc_cell(html_module.escape(rank_str), rank_plain, "rank", None, 8)}</td>'
+            elif col == "fleet":
+                row_html += f"<td>{fleet_str}</td>"
+            elif col == "class":
+                row_html += f"<td>{_wc_cell(class_str, class_name_raw, 'class_name', None, 64, 'class', class_xin)}</td>"
+            elif col == "sail":
+                row_html += f'<td class="sail-col">{_wc_cell(sail_str, sail_raw, "sail_number", None, 32)}</td>'
+            elif col == "boat":
+                bn = str(r.get("boat_name") or "")
+                row_html += f'<td>{_wc_cell(html_module.escape(bn), bn, "boat_name", None, 120)}</td>'
+            elif col == "jib":
+                jv = str(r.get("jib_no") or "")
+                row_html += f'<td>{_wc_cell(html_module.escape(jv), jv, "jib_no", None, 32)}</td>'
+            elif col == "bow":
+                bv = str(r.get("bow_no") or "")
+                row_html += f'<td>{_wc_cell(html_module.escape(bv), bv, "bow_no", None, 32)}</td>'
+            elif col == "hull":
+                hv = str(r.get("hull_no") or "")
+                row_html += f'<td>{_wc_cell(html_module.escape(hv), hv, "hull_no", None, 32)}</td>'
+            elif col == "club":
+                row_html += f'<td class="club-col">{_wc_cell(club_link_html, club_raw, "club_code", None, 32, "club", club_xin)}</td>'
+            elif col == "helm":
+                row_html += f'<td class="helm-col">{_wc_cell(helm_str, helm_raw or "", "helm_name", None, 120, "helm", helm_xin)}</td>'
+            elif col == "crew":
+                row_html += f'<td class="crew-col">{_wc_cell(crew_str, crew_raw_for_edit, "crew_name", None, 160, "crew", crew_xin)}</td>'
+            elif col == "races":
+                for rkey in race_columns:
+                    score = (race_scores.get(rkey) or "").strip()
+                    is_discarded = score.startswith("(") and score.endswith(")")
+                    has_penalty = bool(re.search(r"\b(DNC|DNS|DNF|RET|DSQ|UFD|BFD|DPI|OCS)\b", score, re.I)) if score else False
+                    cell_class = "code" if has_penalty else ("disc" if is_discarded else ("score-counts" if score else ""))
+                    row_html += f'<td class="{cell_class}">{_wc_cell(html_module.escape(score), score, None, rkey, 48)}</td>'
+            elif col == "total":
+                row_html += f'<td class="{strike_class}">{_wc_cell(total_str, total_plain, "total_points_raw", None, 24)}</td>'
+            elif col == "nett":
+                row_html += f'<td class="nett-col {strike_class}">{_wc_cell(nett_str, nett_plain, "nett_points_raw", None, 24)}</td>'
         row_html += "</tr>"
         trs.append(row_html)
     table_html = f"<table><thead><tr>{thead}</tr></thead><tbody>{''.join(trs)}</tbody></table>"
@@ -25979,10 +26100,12 @@ def _get_regatta_class_page_data(regatta_id: str, class_id: int):
                        rb.races_sailed, rb.discard_count, rb.to_count, rb.scoring_system,
                        res.result_id,
                        res.rank, res.sail_number, res.helm_name, res.crew_name,
+                       res.crew2_name, res.crew3_name,
                        res.boat_name, res.jib_no, res.bow_no, res.hull_no,
                        COALESCE(TRIM(c.club_abbrev), TRIM(res.club_raw), '') AS club,
                        res.club_id, COALESCE(c.club_abbrev, c.club_fullname) AS club_fullname,
                        res.helm_sa_sailing_id, res.crew_sa_sailing_id,
+                       res.crew2_sa_sailing_id, res.crew3_sa_sailing_id,
                        res.total_points_raw, res.nett_points_raw, res.race_scores, res.raced,
                        COALESCE(TRIM(c_res.class_name), TRIM(res.class_original), '') AS class_name,
                        COALESCE(res.class_id, rb.class_id) AS result_class_id
@@ -26006,13 +26129,7 @@ def _get_regatta_class_page_data(regatta_id: str, class_id: int):
             for r in cur.fetchall() or []:
                 if r.get("n"):
                     dup_names.add(r["n"])
-            sas_ids = set()
-            for r in raw:
-                h, c = r.get("helm_sa_sailing_id"), r.get("crew_sa_sailing_id")
-                if h is not None and str(h).strip().isdigit():
-                    sas_ids.add(str(h).strip())
-                if c is not None and str(c).strip().isdigit():
-                    sas_ids.add(str(c).strip())
+            sas_ids = _collect_result_sas_ids(raw)
             name_map = {}
             slug_map = {}
             if sas_ids:
@@ -26082,6 +26199,14 @@ def _get_regatta_class_page_data(regatta_id: str, class_id: int):
             nm = name_map.get(crew_sas_id) or crew_name
             if nm:
                 crew_slug = _sailor_canonical_slug(nm, crew_sas_id, crew_has_dup)
+        crew2_name = r.get("crew2_name")
+        crew2_slug = _fleet_row_person_slug(
+            crew2_name, r.get("crew2_sa_sailing_id"), slug_map, name_map, dup_names
+        )
+        crew3_name = r.get("crew3_name")
+        crew3_slug = _fleet_row_person_slug(
+            crew3_name, r.get("crew3_sa_sailing_id"), slug_map, name_map, dup_names
+        )
         by_block[bid]["rows"].append({
             "result_id": r.get("result_id"),
             "rank": r.get("rank"),
@@ -26092,6 +26217,12 @@ def _get_regatta_class_page_data(regatta_id: str, class_id: int):
             "crew_name": crew_name,
             "crew_slug": crew_slug,
             "crew_sa_sailing_id": r.get("crew_sa_sailing_id"),
+            "crew2_name": crew2_name,
+            "crew2_slug": crew2_slug,
+            "crew2_sa_sailing_id": r.get("crew2_sa_sailing_id"),
+            "crew3_name": crew3_name,
+            "crew3_slug": crew3_slug,
+            "crew3_sa_sailing_id": r.get("crew3_sa_sailing_id"),
             "crew_list": crew_by_result.get(r.get("result_id"), []),
             "boat_name": r.get("boat_name"),
             "jib_no": r.get("jib_no"),
@@ -26261,10 +26392,13 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
 
 
 LIPTON_DEV_SLUG = "2026-08-29-lipton-challenge-cup-dev"
+LIPTON_PUBLIC_SLUG = "2026-08-29-lipton-challenge-cup"
+# Former weather/event page slug. Do not generate that HTML. Playback only.
+LIPTON_OLD_SLUG = "2026-08-29-lipton-challenge-cup-old"
 
 
-def serve_lipton_dev_playback_page(_request: Request):
-    """Isolated Lipton playback mirror. Does not touch the public Lipton URL."""
+def serve_lipton_dev_playback_page(_request: Request, public: bool = False):
+    """Always lipton-dev.html. Never the weather/event page."""
     names = (
         Path(STATIC_DIR) / "lipton-dev.html",
         WEB_ROOT / "lipton-dev.html",
@@ -26272,28 +26406,57 @@ def serve_lipton_dev_playback_page(_request: Request):
         _API_DIR / "sailingsa" / "frontend" / "lipton-dev.html",
         Path(__file__).resolve().parent / "sailingsa" / "frontend" / "lipton-dev.html",
     )
+    headers = {"Cache-Control": "no-store"}
+    if not public:
+        headers["X-Robots-Tag"] = "noindex, nofollow"
     for p in names:
         try:
             if p.is_file():
-                return HTMLResponse(
-                    p.read_text(encoding="utf-8"),
-                    headers={"Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow"},
-                )
+                return HTMLResponse(p.read_text(encoding="utf-8"), headers=headers)
         except OSError:
             continue
-    return HTMLResponse("Lipton dev page missing", status_code=500)
+    return HTMLResponse("Lipton playback page missing", status_code=500)
+
+
+@app.get("/api/lipton-dev/live")
+def api_lipton_dev_live(request: Request):
+    """Lipton -dev live T-/T+ and GPS as received. Does not invent a race or tracks."""
+    for p in (
+        Path(__file__).resolve().parent / "sailingsa" / "scripts",
+        Path("/var/www/sailingsa/sailingsa/scripts"),
+        Path("/var/www/sailingsa/scripts"),
+        Path(__file__).resolve().parent.parent / "sailingsa" / "scripts",
+    ):
+        s = str(p)
+        if p.is_dir() and s not in sys.path:
+            sys.path.insert(0, s)
+    hist = str(request.query_params.get("history") or "") in ("1", "true", "yes")
+    try:
+        from lipton_dev_live import live_snapshot
+        return JSONResponse(live_snapshot(history=hist))
+    except Exception as err:
+        return JSONResponse(
+            {"ok": False, "live": True, "waiting": True, "error": str(err)},
+            status_code=502,
+        )
 
 
 def serve_regatta_standalone(slug: str, request: Request):
-    """Serve one full standalone HTML result sheet for /regatta/{slug}. Unknown regatta → 301 /events (not 404)."""
-    if str(slug or "").strip() == LIPTON_DEV_SLUG:
-        return serve_lipton_dev_playback_page(request)
+    """Serve one full standalone HTML result sheet for /regatta/{slug}. Unknown regatta → 301 /events (not 404).
+
+    All Lipton slugs (public, -dev, former -old) are playback only. Weather/event HTML is gone.
+    """
+    slug_s = str(slug or "").strip()
+    if slug_s in (LIPTON_PUBLIC_SLUG, LIPTON_OLD_SLUG):
+        return serve_lipton_dev_playback_page(request, public=True)
+    if slug_s == LIPTON_DEV_SLUG:
+        return serve_lipton_dev_playback_page(request, public=False)
     start_time = time.time()
     reg = _get_regatta_by_slug(slug)
     if not reg:
         return RedirectResponse(url="/events", status_code=301)
     regatta_id, event_name, start_date, end_date, host_club_name, host_club_id = reg
-    if str(slug).strip() != str(regatta_id):
+    if slug_s != LIPTON_PUBLIC_SLUG and str(slug).strip() != str(regatta_id):
         return RedirectResponse(url=f"/regatta/{regatta_id}", status_code=301)
     print("REGATTA: before DB query")
     t0 = time.time()

@@ -3,86 +3,89 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="robots" content="noindex,nofollow">
-  <title>Lipton Challenge Cup 2026 — playback (dev)</title>
+  <!-- playback-dy: static lipton-dev.html, never the weather event page -->
+  <title>2026 Lipton Challenge Cup | SailingSA</title>
+  <meta property="og:site_name" content="SailingSA">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="2026 Lipton Challenge Cup | SailingSA">
+  <meta property="og:description" content="Live tracking: 2026 Lipton Challenge Cup.">
+  <meta property="og:url" content="https://sailingsa.co.za/regatta/2026-08-29-lipton-challenge-cup">
+  <meta property="og:image" content="https://sailingsa.co.za/api/og/regatta/2026-08-29-lipton-challenge-cup/ea4ca8b2a84b036d.png">
+  <meta property="og:image:secure_url" content="https://sailingsa.co.za/api/og/regatta/2026-08-29-lipton-challenge-cup/ea4ca8b2a84b036d.png">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="2026 Lipton Challenge Cup | SailingSA">
+  <meta name="twitter:description" content="Live tracking: 2026 Lipton Challenge Cup.">
+  <meta name="twitter:image" content="https://sailingsa.co.za/api/og/regatta/2026-08-29-lipton-challenge-cup/ea4ca8b2a84b036d.png">
   <link rel="stylesheet" href="/css/main.css">
-  <link rel="stylesheet" href="/css/lipton-dev.css?v=20260827ag">
+  <link rel="stylesheet" href="/js/vendor/leaflet/leaflet.css?v=20260828dk">
+  <link rel="stylesheet" href="/css/lipton-dev.css?v=20260828ef">
   <script src="/js/api.js"></script>
   <script src="/js/session.js"></script>
 </head>
-<body class="admin-dashboard-v10" data-sailingsa-hub-header-isolated="1" data-lipton-dev="1">
-  <div class="admin-v10-second-header" aria-label="Site header">
-    <div class="admin-v10-second-header__inner">
-      <div class="admin-v10-second-header__top-row">
-        <div class="admin-v10-second-header__brand-block">
-          <a href="/" class="admin-v10-second-header__brand-link js-go-home" id="headerLogoLink" title="Home – SailingSA" aria-label="Home – SailingSA">
-            <span class="admin-v10-second-header__brand-slice admin-v10-second-header__brand-slice--word" aria-hidden="true"></span>
-            <span class="admin-v10-second-header__brand-slice admin-v10-second-header__brand-slice--flags" aria-hidden="true"></span>
-          </a>
-        </div>
-        <div class="admin-v10-second-header__right">
-          <div class="header-auth admin-v10-second-header__auth" id="headerAuth">
-            <div id="loginBox" style="display: none;"></div>
-            <div class="admin-v10-header-auth-sr-only" aria-hidden="true">
-              <div id="loggedInStatus" style="display: none;">
-                <img id="userAvatarImg" alt="Avatar" width="28" height="28">
-                <div class="user-info">
-                  <span class="user-name" id="userNameDisplay"></span>
-                  <span class="user-sas-id" id="userSasIdDisplay"></span>
-                </div>
-              </div>
-            </div>
+<body data-lipton-dev="1">
+  <header class="site-header">
+    <div class="container">
+      <a href="/" class="logo js-go-home" id="headerLogoLink" title="Home – clear search and return to sailingsa.co.za">
+        <img src="/assets/logos/sailingsa-logo.png" alt="SailingSA Logo">
+      </a>
+      <div class="header-auth" id="headerAuth">
+        <div id="loggedInStatus" style="display: none;">
+          <div class="user-info">
+            <span class="user-name" id="userNameDisplay"></span>
+            <span class="user-sas-id" id="userSasIdDisplay"></span>
           </div>
-          <div class="admin-v10-second-header__user" id="adminV10SecondHeaderUser" hidden>
-            <div class="admin-v10-second-header__user-text">
-              <span class="admin-v10-second-header__name" id="adminV10SecondHeaderName"></span>
-              <span class="admin-v10-second-header__sas" id="adminV10SecondHeaderSas"></span>
-            </div>
-            <img class="admin-v10-second-header__avatar" id="adminV10SecondHeaderAvatar" alt="" width="72" height="72" decoding="async">
-            <button type="button" class="btn-logout admin-v10-second-header__logout" id="adminV10SecondHeaderLogoutBtn">Logout</button>
-          </div>
-          <button type="button" class="menu-btn" id="menuBtn" aria-label="Open menu">
-            <span class="menu-icon"></span>
-          </button>
         </div>
+        <div id="loginBox" style="display: none;"></div>
+      </div>
+      <a href="/events-logos/lipton-challenge-cup" class="lipton-header-cup" title="Lipton Challenge Cup">
+        <img src="/artwork/Event%20Logo/Lipton-Challenge-Cup-2026.png?v=20260827a" alt="Lipton Challenge Cup">
+      </a>
+    </div>
+  </header>
+  <div class="lipton-event-sheet" id="lipton-event-sheet">
+    <iframe id="lipton-event-sheet-frame" title="2026 Lipton Challenge Cup results" src="about:blank"></iframe>
+  </div>
+  <div class="lipton-dev-shell">
+    <div class="lipton-dev-subhead" id="lipton-dev-subhead">
+      <div class="lipton-dev-chrome">
+        <a href="/events-logos/lipton-challenge-cup" class="lipton-dev-event-logo" title="Lipton Challenge Cup">
+          <img src="/js/lipton-dev-event-logo.png?v=20260828au" alt="Lipton Challenge Cup">
+        </a>
+        <div class="lipton-dev-map-transport">
+          <div class="lipton-dev-playbox">
+            <input type="range" class="lipton-dev-scrub" id="lipton-dev-scrub" min="0" max="1000" value="0" aria-label="Race position">
+            <div class="lipton-dev-transport lipton-dev-transport--play" role="group" aria-label="Playback">
+            <button type="button" class="lipton-dev-btn" id="lipton-dev-play" disabled title="Play" aria-label="Play">
+              <svg class="lipton-dev-ico lipton-dev-ico--play" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.2 2.1v11.8L14.2 8z"/></svg>
+              <svg class="lipton-dev-ico lipton-dev-ico--pause" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2.4h3.6v11.2H3zm6.4 0H13v11.2H9.4z"/></svg>
+            </button>
+            <button type="button" class="lipton-dev-btn" id="lipton-dev-slower" title="Slower" aria-label="Slower">
+              <svg class="lipton-dev-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M8.4 2.4 1.6 8l6.8 5.6V2.4zm6.5 0L8.1 8l6.8 5.6V2.4z"/></svg>
+            </button>
+            <span class="lipton-dev-play-rate" id="lipton-dev-rate">1×</span>
+            <button type="button" class="lipton-dev-btn" id="lipton-dev-faster" title="Faster" aria-label="Faster">
+              <svg class="lipton-dev-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.1 2.4v11.2L7.9 8zm6.5 0v11.2L14.4 8z"/></svg>
+            </button>
+          </div>
+          </div>
+        </div>
+        <div class="lipton-dev-race-boxes" id="lipton-dev-race-boxes" role="group" aria-label="Races"></div>
+      </div>
+      <div class="lipton-dev-map-hud" id="lipton-dev-map-hud">
+        <div class="lipton-dev-map-hud-name" id="lipton-dev-map-hud-name"></div>
+        <div class="lipton-dev-map-hud-clock" id="lipton-dev-map-hud-clock">T−0:05.0</div>
       </div>
     </div>
-    <nav id="navMenuOverlay" class="nav-menu-overlay" aria-hidden="true" style="display:none;">
-      <a href="/">Sailor</a>
-      <a href="/" data-mode="regatta">Regatta</a>
-      <a href="/about">About</a>
-    </nav>
-  </div>
-
-  <div class="lipton-dev-shell">
     <div class="lipton-dev-split">
+      <div class="lipton-dev-track">
+        <div id="lipton-dev-chart" role="img" aria-label="Satellite chart of Table Bay harbour"></div>
+        <canvas id="lipton-dev-map" aria-label="GPS marks and tracks"></canvas>
+      </div>
       <div class="fleet-section lipton-dev-board">
-        <div class="class-header class-header--with-logos">
-          <div class="class-header-logo-col">
-            <a href="/events-logos/lipton-challenge-cup" class="regatta-header-logo-link" title="Lipton Challenge Cup">
-              <img src="/artwork/Event%20Logo/Lipton-Challenge-Cup-2026.png?v=20260827a" alt="Lipton Challenge Cup" class="class-header-logo-img">
-            </a>
-          </div>
-          <div class="class-header-main-col">
-            <div class="fleet-header-title-wrap"><a href="/class/j22">J22 Fleet</a></div>
-            <div class="sailed-line" id="lipton-dev-sailed">Loading tracker…</div>
-            <div class="sailed-line" id="lipton-dev-clock">0:00</div>
-            <div class="lipton-dev-transport" role="group" aria-label="Replay speed">
-              <button type="button" class="lipton-dev-btn" id="lipton-dev-play" disabled>Wait</button>
-              <button type="button" class="lipton-dev-btn is-active" data-rate="1">1×</button>
-              <button type="button" class="lipton-dev-btn" data-rate="2">2×</button>
-              <button type="button" class="lipton-dev-btn" data-rate="5">5×</button>
-              <button type="button" class="lipton-dev-btn" data-rate="10">10×</button>
-              <button type="button" class="lipton-dev-btn" data-rate="25">25×</button>
-              <button type="button" class="lipton-dev-btn" data-rate="50">50×</button>
-            </div>
-          </div>
-          <div class="class-header-club-logo-col">
-            <a href="/class/j22" class="regatta-header-logo-link" title="Open J22 class page">
-              <img src="/artwork/Class%20Logo/J22-Class-Logo.png?v=20260827a" alt="J22" class="class-header-logo-img">
-            </a>
-          </div>
-        </div>
+        <h2 class="class-header" id="lipton-dev-race-label">Race</h2>
         <div class="table-wrapper results-table-container table-container" id="lipton-dev-table-wrap">
           <table class="table fleet-results-table">
             <thead>
@@ -91,44 +94,17 @@
                 <th class="wc-meta-col">Bow</th>
                 <th class="boat-name-col">Boat</th>
                 <th class="club-col">Club</th>
-                <th class="timer-col">ST</th>
-                <th class="place-delta-col">±</th>
-                <th class="timer-col">M1</th>
-                <th class="place-delta-col">±</th>
-                <th class="timer-col">M2</th>
-                <th class="place-delta-col">±</th>
-                <th class="timer-col">M3</th>
-                <th class="place-delta-col">±</th>
-                <th class="timer-col">M4</th>
-                <th class="place-delta-col">±</th>
-                <th class="timer-col">M1</th>
-                <th class="place-delta-col">±</th>
-                <th class="timer-col">M2</th>
-                <th class="place-delta-col">±</th>
-                <th class="timer-col">M3</th>
-                <th class="place-delta-col">±</th>
-                <th class="timer-col">M4</th>
-                <th class="place-delta-col">±</th>
-                <th class="timer-col">M1</th>
-                <th class="place-delta-col">±</th>
-                <th class="timer-col">M2</th>
-                <th class="place-delta-col">±</th>
-                <th class="timer-col">M3</th>
-                <th class="place-delta-col">±</th>
-                <th class="timer-col">Fin</th>
               </tr>
             </thead>
             <tbody id="lipton-dev-tbody"></tbody>
           </table>
         </div>
       </div>
-      <div class="lipton-dev-track">
-        <canvas id="lipton-dev-map" aria-label="Race 4 GPS replay"></canvas>
-      </div>
     </div>
   </div>
 
-  <script src="/js/blank-landing-header.js"></script>
-  <script src="/js/lipton-dev-playback.js?v=20260827ag"></script>
+  <script src="/js/vendor/leaflet/leaflet.js?v=20260828dk"></script>
+  <script src="/js/lipton-event-sheet.js?v=20260828ef"></script>
+  <script src="/js/lipton-dev-playback-du.js?v=20260829r8b"></script>
 </body>
 </html>
