@@ -65,7 +65,7 @@ body[data-lipton-dev="1"] .lipton-event-sheet {
   width: 100%;
   max-width: 1100px;
   margin: 0 auto;
-  padding: 8px 12px 0;
+  padding: 0;
   box-sizing: border-box;
   background: #fff;
 }
@@ -75,13 +75,10 @@ body[data-lipton-dev="1"] .lipton-event-sheet iframe {
   min-width: 100%;
   max-width: 100%;
   border: 0;
-  min-height: 280px;
-  height: 280px;
+  min-height: 0;
+  height: auto;
   background: #fff;
   margin: 0;
-}
-body[data-lipton-dev="1"][data-lipton-race-mode="1"] .lipton-event-sheet {
-  display: none !important;
 }
 body[data-lipton-dev="1"][data-lipton-race-mode="1"] .lipton-dev-shell {
   flex: 1 1 auto;
@@ -259,14 +256,14 @@ body[data-lipton-dev="1"] .lipton-dev-board > .class-header {
   margin: 0 0 4px;
 }
 body[data-lipton-dev="1"] .class-header {
-  font-size: 12px;
+  font-size: 16px;
   font-weight: bold;
   color: #1a2750;
   text-align: center;
   margin: 0;
-  border: 1px solid #1a2750;
-  border-radius: 4px;
-  padding: 3px 6px;
+  border: 2px solid #1a2750;
+  border-radius: 10px;
+  padding: 12px;
   background: #ffffff;
   width: 100%;
   box-sizing: border-box;
@@ -336,7 +333,7 @@ body[data-lipton-dev="1"] .table-wrapper {
   overflow-y: auto;
   width: 100%;
   max-width: 100%;
-  margin-top: 4px;
+  margin-top: 20px;
   flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
@@ -494,10 +491,10 @@ body[data-lipton-dev="1"] .table-wrapper tbody tr.medal-bronze td.timer-col:last
 body[data-lipton-dev="1"] th,
 body[data-lipton-dev="1"] td {
   border: 1px solid #1d294d;
-  padding: 1px 4px;
+  padding: 2px 3px;
   text-align: center;
   color: #1a2750;
-  font-size: 11px;
+  font-size: 9px;
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
@@ -505,8 +502,8 @@ body[data-lipton-dev="1"] td {
 }
 body[data-lipton-dev="1"] th {
   background: #e9eefb;
-  font-size: 10px;
-  padding: 2px 4px;
+  font-size: 9px;
+  padding: 2px 3px;
 }
 body[data-lipton-dev="1"] td.boat-name-col,
 body[data-lipton-dev="1"] td.club-col {
@@ -530,11 +527,27 @@ body[data-lipton-dev="1"] th.wc-meta-col,
 body[data-lipton-dev="1"] td.wc-meta-col { width: 1%; min-width: 0; white-space: nowrap; }
 body[data-lipton-dev="1"] th.wc-meta-col,
 body[data-lipton-dev="1"] td.wc-meta-col { width: 34px; }
-body[data-lipton-dev="1"] .lipton-boat-dot {
-  display: block;
-  width: 28px;
-  height: 28px;
+body[data-lipton-dev="1"] .table-wrapper td.rank-col--live-icon {
+  width: 2.7rem;
+  min-width: 2.7rem;
+  max-width: 3rem;
+  padding: 2px 1px;
+  text-align: center;
+  vertical-align: middle;
+  line-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+body[data-lipton-dev="1"] .lipton-boat-dot,
+body[data-lipton-dev="1"] .r10-live-icon,
+body[data-lipton-dev="1"] svg.lipton-boat-dot.r10-live-icon {
+  display: inline-block;
+  width: 36px;
+  height: 36px;
+  max-width: 36px;
+  max-height: 36px;
   margin: 0 auto;
+  vertical-align: middle;
 }
 body[data-lipton-dev="1"] th.club-col,
 body[data-lipton-dev="1"] td.club-col { width: 1%; min-width: 0; max-width: none; white-space: nowrap; }
@@ -706,7 +719,7 @@ body[data-lipton-dev="1"] .rs-club-with-logo {
 body[data-lipton-dev="1"] .rs-club-row-logo {
   height: auto;
   width: auto;
-  max-height: 16px;
+  max-height: 20px;
   max-width: 28px;
   object-fit: contain;
   display: inline-block;
@@ -997,12 +1010,13 @@ body[data-lipton-dev="1"] .lipton-dev-btn:disabled {
   body[data-lipton-dev="1"] .fleet-results-table tbody td,
   body[data-lipton-dev="1"] .fleet-results-table thead th {
     padding: 2px 3px;
-    font-size: 10px;
-    line-height: 1.15;
+    font-size: 9px;
+    line-height: 1.2;
   }
-  body[data-lipton-dev="1"] .lipton-boat-dot {
-    width: 24px;
-    height: 24px;
+  body[data-lipton-dev="1"] .lipton-boat-dot,
+  body[data-lipton-dev="1"] .r10-live-icon {
+    width: 36px;
+    height: 36px;
   }
 }
 /* Phone landscape only. Coarse + short height keeps Mac / PC / tablet / MP out. */
@@ -1074,8 +1088,8 @@ body[data-lipton-dev="1"] .lipton-dev-btn:disabled {
     min-height: 100dvh;
   }
   body[data-lipton-dev="1"] .lipton-event-sheet iframe {
-    min-height: 640px;
-    height: 640px;
+    min-height: 0;
+    height: auto;
   }
   body[data-lipton-dev="1"] .lipton-dev-shell {
     overflow: visible;

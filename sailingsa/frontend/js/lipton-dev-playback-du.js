@@ -1920,6 +1920,28 @@
       }
       return {};
     }
+    function liveBowCell(id) {
+      if (!id || id.bow == null || id.bow === "") return "";
+      if (id.boatHref) return "<span class=\"wc-boat-linked\"><a href=\"" + esc(id.boatHref) + "\">" + esc(id.bow) + "</a></span>";
+      return esc(id.bow);
+    }
+    function liveNameCell(id, sail) {
+      if (id && id.nameHref) {
+        return "<a href=\"" + esc(id.nameHref) + "\" class=\"rs-boat-name-sponsors rs-boat-name-sponsors--link\" title=\"" + esc(id.title || "") + "\">" + (id.nameInner || esc(id.title || sail)) + "</a>";
+      }
+      if (id && id.nameInner) return id.nameInner;
+      return esc((id && id.title) || sail);
+    }
+    function liveClubCell(id, pending) {
+      if (!id) return "";
+      var club = id.club || id.mapClub || "";
+      if (id.clubLogo) {
+        var cls = "rs-club-with-logo" + (pending ? " ocs-club" : "");
+        var name = id.clubHref ? ("<a href=\"" + esc(id.clubHref) + "\">" + esc(club) + "</a>") : esc(club);
+        return "<span class=\"" + cls + "\">" + name + "<img class=\"rs-club-row-logo\" src=\"" + esc(id.clubLogo) + "\" alt=\"" + esc(club) + "\" title=\"" + esc(club) + "\"></span>";
+      }
+      return esc(club);
+    }
     function liveOcsOn(sail) {
       var packed = packedStartOf(sail);
       if (packed && typeof packed.ocs === "boolean") return packed.ocs === true;
@@ -1957,7 +1979,7 @@
     function liveBoatIcon(sail, rank) {
       var fill = (LIVE_BOAT_COLORS && LIVE_BOAT_COLORS[sail]) || "#94a3b8";
       var label = rank != null ? String(rank) : "";
-      return "<svg class=\"lipton-boat-dot\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"13.2\" r=\"8.1\" fill=\"" + fill + "\" stroke=\"#fff\" stroke-width=\"1.5\"/><polygon points=\"12,3 15.8,8.4 8.2,8.4\" fill=\"" + fill + "\" stroke=\"#fff\" stroke-width=\"1.1\"/><text x=\"12\" y=\"16\" text-anchor=\"middle\" fill=\"#fff\" font-size=\"8\" font-weight=\"800\">" + esc(label) + "</text></svg>";
+      return "<svg class=\"lipton-boat-dot r10-live-icon\" viewBox=\"0 0 24 24\" width=\"36\" height=\"36\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"13.2\" r=\"8.1\" fill=\"" + fill + "\" stroke=\"#fff\" stroke-width=\"1.5\"/><polygon points=\"12,3 15.8,8.4 8.2,8.4\" fill=\"" + fill + "\" stroke=\"#fff\" stroke-width=\"1.1\"/><text x=\"12\" y=\"16\" text-anchor=\"middle\" fill=\"#fff\" font-size=\"8\" font-weight=\"800\">" + esc(label) + "</text></svg>";
     }
     function deltaSpan(gained) {
       if (gained == null) return "";
@@ -1972,7 +1994,7 @@
     }
     function fillHoldHead() {
       if (!headRow) return;
-      headRow.innerHTML = "<th class=\"rank-col\">Rank</th><th class=\"wc-meta-col\">Bow</th><th class=\"boat-name-col\">Boat</th><th class=\"club-col\">Club</th><th class=\"timer-col\" title=\"Start\"><span class=\"ld-mark-lab\">ST</span></th>";
+      headRow.innerHTML = "<th class=\"rank-col\">Rank</th><th class=\"wc-meta-col\">Bow</th><th class=\"boat-name-col\">Boat Name</th><th class=\"club-col\">Club</th><th class=\"timer-col\" title=\"Start\"><span class=\"ld-mark-lab\">ST</span></th>";
     }
     function renderHoldOrArmedTable() {
       if (!tbody) return;
@@ -2002,10 +2024,10 @@
           else if (rank === 3) medal = " medal-bronze";
         }
         html += "<tr class=\"" + medal + "\" data-boat=\"" + esc(sail) + "\">";
-        html += "<td class=\"rank-col\">" + liveBoatIcon(sail, rank || null) + "</td>";
-        html += "<td class=\"wc-meta-col\">" + (id.bow != null ? esc(id.bow) : "") + "</td>";
-        html += "<td class=\"boat-name-col\">" + (id.nameInner || esc(id.title || sail)) + "</td>";
-        html += "<td class=\"club-col\">" + esc(id.mapClub || id.club || "") + "</td>";
+        html += "<td class=\"rank-col rank-col--live-icon\">" + liveBoatIcon(sail, rank || null) + "</td>";
+        html += "<td class=\"wc-meta-col\">" + liveBowCell(id) + "</td>";
+        html += "<td class=\"boat-name-col\">" + liveNameCell(id, sail) + "</td>";
+        html += "<td class=\"club-col\">" + liveClubCell(id, false) + "</td>";
         html += "<td class=\"timer-col\"></td>";
         html += "</tr>";
       });
@@ -2028,7 +2050,7 @@
     }
     function fillLiveHead(used) {
       if (!headRow) return;
-      var html = "<th class=\"rank-col\">Rank</th><th class=\"wc-meta-col\">Bow</th><th class=\"boat-name-col\">Boat</th><th class=\"club-col\">Club</th>";
+      var html = "<th class=\"rank-col\">Rank</th><th class=\"wc-meta-col\">Bow</th><th class=\"boat-name-col\">Boat Name</th><th class=\"club-col\">Club</th>";
       used.forEach(function (id, i) {
         var lab = PASS_LAB[id] || id;
         var prevLab = i > 0 ? (PASS_LAB[used[i - 1]] || used[i - 1]) : "Start";
@@ -2155,10 +2177,10 @@
         else if (r.rank === 2) medal = " medal-silver";
         else if (r.rank === 3) medal = " medal-bronze";
         html += "<tr class=\"" + medal + (ocs ? " ocs-pending" : "") + "\" data-boat=\"" + esc(r.sail) + "\">";
-        html += "<td class=\"rank-col\">" + liveBoatIcon(r.sail, r.rank) + "</td>";
-        html += "<td class=\"wc-meta-col\">" + (id.bow != null ? esc(id.bow) : "") + "</td>";
-        html += "<td class=\"boat-name-col\">" + (id.nameInner || esc(id.title || r.sail)) + "</td>";
-        html += "<td class=\"club-col\">" + esc(id.mapClub || id.club || "") + "</td>";
+        html += "<td class=\"rank-col rank-col--live-icon\">" + liveBoatIcon(r.sail, r.rank) + "</td>";
+        html += "<td class=\"wc-meta-col\">" + liveBowCell(id) + "</td>";
+        html += "<td class=\"boat-name-col\">" + liveNameCell(id, r.sail) + "</td>";
+        html += "<td class=\"club-col\">" + liveClubCell(id, ocs) + "</td>";
         used.forEach(function (pid, i) {
           if (i > 0) {
             var prev = used[i - 1];
@@ -3865,7 +3887,7 @@
       for (var i = 0; i < limit; i++) key += showDeltaAfter(i, ts, limit) ? "|d" : "|f";
       if (key === lastHeadKey) return;
       lastHeadKey = key;
-      var html = "<th class=\"rank-col\">Rank</th><th class=\"wc-meta-col\">Bow</th><th class=\"boat-name-col\">Boat</th><th class=\"club-col\">Club</th>";
+      var html = "<th class=\"rank-col\">Rank</th><th class=\"wc-meta-col\">Bow</th><th class=\"boat-name-col\">Boat Name</th><th class=\"club-col\">Club</th>";
       for (i = 0; i <= limit; i++) {
         if (i === 0 && !showStCol(ts)) continue;
         var p = PASSES[i];
@@ -4269,7 +4291,7 @@
       var label = rank != null ? String(rank) : (pending ? "OCS" : "");
       var fs = label === "OCS" ? "5.2" : "8";
       var title = label ? (label === "OCS" ? "OCS" : "Rank " + label) : "Boat";
-      return "<svg class=\"lipton-boat-dot\" viewBox=\"0 0 24 24\" aria-hidden=\"true\" title=\"" + esc(title) + "\">" +
+      return "<svg class=\"lipton-boat-dot r10-live-icon\" viewBox=\"0 0 24 24\" width=\"36\" height=\"36\" aria-hidden=\"true\" title=\"" + esc(title) + "\">" +
         "<circle cx=\"12\" cy=\"13.2\" r=\"8.1\" fill=\"" + paint.fill + "\" stroke=\"#fff\" stroke-width=\"1.5\"/>" +
         "<polygon points=\"12,3 15.8,8.4 8.2,8.4\" fill=\"" + paint.fill + "\" stroke=\"#fff\" stroke-width=\"1.1\"/>" +
         "<text x=\"12\" y=\"16\" text-anchor=\"middle\" fill=\"" + paint.ink + "\" font-size=\"" + fs + "\" font-weight=\"800\">" + esc(label) + "</text>" +
@@ -4284,7 +4306,7 @@
       else if (r.rank === 3) medal = " medal-bronze";
       var cls = medal + (unroll ? " lipton-unroll" : "") + (pending ? " ocs-pending" : "");
       var html = "<tr class=\"" + cls + "\" data-bow=\"" + esc(id ? id.bow : "") + "\" data-boat=\"" + esc(r.boat) + "\">";
-      html += "<td class=\"rank-col\">" + boatIconHtml(r.boat, viewTs, r.rank) + "</td>";
+      html += "<td class=\"rank-col rank-col--live-icon\">" + boatIconHtml(r.boat, viewTs, r.rank) + "</td>";
       html += "<td class=\"wc-meta-col\">" + bowCell(id) + "</td>";
       html += "<td class=\"boat-name-col\">" + boatNameCell(id) + "</td>";
       html += "<td class=\"club-col\">" + clubCell(id, pending) + "</td>";
