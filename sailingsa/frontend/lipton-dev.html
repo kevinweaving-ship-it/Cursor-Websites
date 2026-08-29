@@ -21,7 +21,7 @@
   <meta name="twitter:image" content="https://sailingsa.co.za/api/og/regatta/2026-08-29-lipton-challenge-cup/ea4ca8b2a84b036d.png">
   <link rel="stylesheet" href="/css/main.css">
   <link rel="stylesheet" href="/js/vendor/leaflet/leaflet.css?v=20260828dk">
-  <link rel="stylesheet" href="/css/lipton-dev.css?v=20260829r10p">
+  <link rel="stylesheet" href="/css/lipton-dev.css?v=20260829r10q">
   <script src="/js/api.js"></script>
   <script src="/js/session.js"></script>
 </head>
@@ -140,9 +140,11 @@
       clock.textContent = fmt(Date.now() - gunTs);
     }
     function pull() {
-      fetch("/api/lipton-dev/live", { cache: "no-store" }).then(function (res) { return res.json(); }).then(function (d) {
+      fetch("/js/lipton-dev-live-starts.json?v=" + Date.now(), { cache: "no-store" }).then(function (res) {
+        return res.ok ? res.json() : null;
+      }).then(function (d) {
         if (d && d.gun_ts_ms) gunTs = Number(d.gun_ts_ms);
-        if (label && Number(d && d.race_number) === 10 && gunTs > 0) {
+        if (label && gunTs > 0) {
           label.textContent = (Date.now() - gunTs < 0) ? "Race 10 — ARMED" : "Race 10 — LIVE";
         }
         tick();
@@ -153,6 +155,6 @@
     setInterval(tick, 100);
   })();
   </script>
-  <script src="/js/lipton-dev-playback-du.js?v=20260829r10p"></script>
+  <script src="/js/lipton-dev-playback-du.js?v=20260829r10q"></script>
 </body>
 </html>

@@ -2163,7 +2163,9 @@
           }
           var cell = "";
           if (pid === "ST") {
-            if (!(hist.boats[r.sail] && hist.boats[r.sail].length)) cell = "NO GPS";
+            var hasGps = hist.boats[r.sail] && hist.boats[r.sail].length;
+            var hasMarks = r.times.ST != null || r.times.M1 != null || r.times.PIN != null;
+            if (!hasGps && !hasMarks) cell = "NO GPS";
             else if (r.times.ST == null) cell = liveOcsOn(r.sail) ? "OCS" : "";
             else {
               var gap = fmtBehindFirst(r.times.ST, firstSt);
@@ -2283,9 +2285,15 @@
     function applyPackedPasses(data) {
       if (data) lastPassesDoc = data;
       data = data || lastPassesDoc;
-      if (!data || !gunTs) return false;
+      if (!data) return false;
       var pg = data.gun_ts_ms != null ? Number(data.gun_ts_ms) : null;
-      if (!pg || Math.abs(pg - gunTs) > 120000) return false;
+      if (!pg) return false;
+      if (!gunTs) {
+        gunTs = pg;
+        loadSt();
+      } else if (Math.abs(pg - gunTs) > 120000) {
+        return false;
+      }
       packedStartsGun = pg;
       if (Array.isArray(data.ocs) && !liveOcs.length) liveOcs = data.ocs.slice();
       if (data.starts) {
@@ -2301,6 +2309,13 @@
         Object.keys(src).forEach(function (id) {
           if (src[id] != null && lockedPass[sail][id] == null) lockedPass[sail][id] = Number(src[id]);
         });
+      });
+      var delta = Date.now() - gunTs;
+      syncDevRacePhase({
+        race_number: Number(data.race_number || 10),
+        gun_ts_ms: gunTs,
+        delta_ms: delta,
+        sign: delta >= 0 ? "T+" : "T-"
       });
       return true;
     }
@@ -2338,11 +2353,19 @@
     function poll() {
       if (pollInFlight) return;
       pollInFlight = true;
-      fetch("/api/lipton-dev/live", { cache: "no-store" })
-        .then(function (res) { return res.json(); })
+      var ac = typeof AbortController !== "undefined" ? new AbortController() : null;
+      var to = setTimeout(function () { if (ac) ac.abort(); }, 8000);
+      fetch("/api/lipton-dev/live", { cache: "no-store", signal: ac ? ac.signal : undefined })
+        .then(function (res) {
+          if (!res.ok) throw new Error("live " + res.status);
+          return res.json();
+        })
         .then(applySnap)
         .catch(function () {})
-        .then(function () { pollInFlight = false; });
+        .then(function () {
+          clearTimeout(to);
+          pollInFlight = false;
+        });
     }
     function pollCatchup() {
       if (catchupInFlight || !needCatchup()) return;
@@ -2420,7 +2443,7 @@
       window.requestAnimationFrame(liveTick);
     }
     window.requestAnimationFrame(liveTick);
-    setInterval(poll, 400);
+    setInterval(poll, 1500);
     setInterval(pollCatchup, 2000);
     setInterval(pollStarts, 5000);
     setInterval(pollPasses, 5000);
