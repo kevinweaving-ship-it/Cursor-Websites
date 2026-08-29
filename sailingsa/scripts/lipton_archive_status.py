@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 import subprocess
 from datetime import datetime, timezone
@@ -14,7 +15,7 @@ SQLITE = ROOT / "data" / "lipton_telemetry.sqlite"
 OUT = ROOT / "docs" / "LIPTON_ARCHIVE_STATUS.txt"
 SAST = ZoneInfo("Africa/Johannesburg")
 # 3-pass finished before this status writer started (R5+ still in the rest job)
-KNOWN_3X = {1, 2, 3, 4, 7}
+KNOWN_3X = {1, 2, 3, 4, 5, 7}
 PG_FIRST_LOAD = {
     1: 390096,
     2: 409702,
@@ -68,6 +69,9 @@ def parse_state(tail: str) -> dict:
     finished = False
     if '"sqlite"' in tail and '"races"' in tail and "EXIT:" in tail:
         finished = True
+    found = [int(x) for x in re.findall(r'"race":\s*(\d+),\s*"after"', tail)]
+    if found:
+        race = found[-1]
     for ln in tail.splitlines():
         try:
             rec = json.loads(ln)
