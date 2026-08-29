@@ -1,17 +1,16 @@
 LIPTON 2026 — Vakaros archive STATUS
-Updated: 2026-08-29 16:58:30 SAST  (14:58:30 UTC)
+Updated: 2026-08-29 17:07:53 SAST  (15:07:53 UTC)
 This file is rewritten every 60 seconds.
 
 PHONE SSH:
   ssh root@102.218.215.253
   cat /root/lipton-vakaros-archive/STATUS.txt
 
-DOING NOW: 3-pass teleapi fetch Race 6 — current chunk 9.5%
+DOING NOW: 3-pass teleapi fetch Race 8 — current chunk 61.4%
 
 LEFT TO DO
-- finish current pass on R6 (~90% of this pass)
-- finish R6 remaining passes
-- R8 3-pass (~8 min each)
+- finish current pass on R8 (~39% of this pass)
+- finish R8 remaining passes
 - R9 3-pass (~8 min each)
 - R10 3-pass (~8 min each)
 - gzip full sqlite + scp to live archive dir
@@ -34,25 +33,25 @@ SQLITE (this VM) vs live PG first-load:
   R03  sqlite= 425130  live_pg~= 371528  3x-done
   R04  sqlite= 497546  live_pg~= 214240  3x-done
   R05  sqlite= 387712  live_pg~= 220139  3x-done
-  R06  sqlite= 389935  live_pg~= 332574  IN PROGRESS
+  R06  sqlite= 389935  live_pg~= 332574  3x-done
   R07  sqlite= 447777  live_pg~= 447777  3x-done
-  R08  sqlite= 415809  live_pg~= 415809  queued/in-progress
+  R08  sqlite= 415809  live_pg~= 415809  IN PROGRESS
   R09  sqlite= 361768  live_pg~= 361768  queued/in-progress
   R10  sqlite= 355022  live_pg~= 355022  queued/in-progress
 
 ARCHIVE PANE (last lines)
-{"chunk": 45, "pct": 23.3, "raw": 103300}
-{"chunk": 60, "pct": 31.1, "raw": 125905}
-{"chunk": 75, "pct": 38.9, "raw": 161612}
-{"chunk": 90, "pct": 46.6, "raw": 195816}
-{"chunk": 105, "pct": 54.4, "raw": 229976}
-{"chunk": 120, "pct": 62.1, "raw": 258877}
-{"chunk": 135, "pct": 69.9, "raw": 292291}
-{"chunk": 150, "pct": 77.7, "raw": 326320}
-{"chunk": 165, "pct": 85.4, "raw": 358982}
-{"chunk": 180, "pct": 93.2, "raw": 394167}
-{"pass": 2, "fetched": 389935, "new": 0, "unique_total": 389935, "sec": 132.5, "
+{"chunk": 285, "pct": 89.8, "raw": 423898}
+{"chunk": 300, "pct": 94.6, "raw": 448051}
+{"chunk": 315, "pct": 99.3, "raw": 472221}
+{"pass": 3, "fetched": 389935, "new": 0, "unique_total": 389935, "sec": 545.3, "
 ok": true}
-{"chunk": 15, "pct": 4.8, "raw": 23971}
-{"chunk": 30, "pct": 9.5, "raw": 48023}
+{"race": 8, "after": 1787991601000, "before": 1787997269121}
+{"chunk": 15, "pct": 7.7, "raw": 42318}
+{"chunk": 30, "pct": 15.4, "raw": 83566}
+{"chunk": 45, "pct": 23.0, "raw": 118822}
+{"chunk": 60, "pct": 30.7, "raw": 160589}
+{"chunk": 75, "pct": 38.4, "raw": 199698}
+{"chunk": 90, "pct": 46.1, "raw": 240903}
+{"chunk": 105, "pct": 53.7, "raw": 279604}
+{"chunk": 120, "pct": 61.4, "raw": 316149}
 
