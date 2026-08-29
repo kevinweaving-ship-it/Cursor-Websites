@@ -69,7 +69,7 @@ def parse_state(tail: str) -> dict:
     finished = False
     if '"sqlite"' in tail and '"races"' in tail and "EXIT:" in tail:
         finished = True
-    found = [int(x) for x in re.findall(r'"race":\s*(\d+),\s*"after"', tail)]
+    found = [int(x) for x in re.findall(r'"race":\s*(\d+)[\s\n,]+"after"', tail)]
     if found:
         race = found[-1]
     for ln in tail.splitlines():
@@ -92,6 +92,12 @@ def main() -> None:
     counts = sqlite_counts()
     tail = tmux_tail()
     st = parse_state(tail)
+    if not st["finished"]:
+        for n in (10, 9, 8, 6, 5):
+            if counts.get(n, 0) > PG_FIRST_LOAD.get(n, 0) + 1000:
+                if (st.get("race") or 0) < n:
+                    st["race"] = n
+                break
     if st["finished"]:
         doing = "3-pass fetch FINISHED R1–R10. Next: gzip sqlite + load extra points into live PG."
         left = [
