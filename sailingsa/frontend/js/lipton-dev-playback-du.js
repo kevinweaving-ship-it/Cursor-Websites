@@ -5,19 +5,15 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260828du";
+  var CACHE = "20260829r1r10";
   var params = new URLSearchParams(location.search);
-  if (!params.has("race") && params.get("live") === "1") {
+  if (!params.has("race") || params.has("live")) {
     params.delete("live");
-    params.set("live", "gps");
-    history.replaceState({}, "", location.pathname + "?live=gps");
+    if (!params.get("race")) params.set("race", "10");
+    history.replaceState({}, "", location.pathname + "?race=" + encodeURIComponent(params.get("race")));
   }
-  if (!params.has("live") && !params.has("race")) {
-    params.set("live", "gps");
-    history.replaceState({}, "", location.pathname + "?live=gps");
-  }
-  var RACE_Q = Number(params.get("race") || 0);
-  var LIVE_Q = !RACE_Q;
+  var RACE_Q = Number(params.get("race") || 10) || 10;
+  var LIVE_Q = false;
   var liveTablePhase = "armed10";
   var liveHeldN = 0;
   var raceMeta = { races: [] };
@@ -142,77 +138,54 @@
     u.searchParams.set("race", String(n));
     location.assign(u.pathname + "?" + u.searchParams.toString());
   }
-  function goLive() {
-    try { resetPlaybackAudio(); } catch (err) {}
-    var u = new URL(location.href);
-    u.searchParams.delete("race");
-    u.searchParams.set("live", "gps");
-    location.assign(u.pathname + "?" + u.searchParams.toString());
-  }
   function setRaceTableLabel(n, isLive, tag) {
     var el = document.getElementById("lipton-dev-race-label");
     if (!el) return;
     if (n && tag) el.textContent = "Race " + n + " — " + tag;
     else if (n) el.textContent = "Race " + n;
-    else el.textContent = isLive ? "Live" : "";
+    else el.textContent = "";
   }
-  setRaceTableLabel(LIVE_Q ? 0 : (RACE_Q || 0), LIVE_Q);
+  setRaceTableLabel(RACE_Q, false);
   function bindRaceButtons(active) {
-    var packedHeld = ((raceMeta.races || []).some(function (r) {
-      return r.packed && (r.n === liveHeldN || r.held_live);
-    }));
-    var want = LIVE_Q ? (packedHeld ? -1 : (liveHeldN || heldRaceFromMeta(raceMeta) || -1)) : Number(active || RACE_Q || 4);
+    var want = Number(active || RACE_Q || 10);
     document.querySelectorAll("#lipton-dev-race-boxes [data-race]").forEach(function (btn) {
       var n = Number(btn.getAttribute("data-race"));
       btn.classList.toggle("is-active", n === want);
       btn.setAttribute("aria-pressed", n === want ? "true" : "false");
-    });
-    document.querySelectorAll("#lipton-dev-race-boxes [data-live]").forEach(function (btn) {
-      btn.classList.toggle("is-active", LIVE_Q && want < 1);
-      btn.setAttribute("aria-pressed", LIVE_Q && want < 1 ? "true" : "false");
     });
   }
   function renderRaceBoxes(meta) {
     var host = document.getElementById("lipton-dev-race-boxes");
     if (!host) return;
     if (meta) raceMeta = meta;
-    var races = ((raceMeta && raceMeta.races) || []).filter(function (r) {
-      return r.stage === "finished" || r.packed || r.held_live || Number(r.finish_n) > 0;
-    }).sort(function (a, b) { return a.n - b.n; }).slice(0, 10);
+    var byN = {};
+    ((raceMeta && raceMeta.races) || []).forEach(function (r) { byN[r.n] = r; });
+    var races = [];
+    var i;
+    for (i = 1; i <= 10; i++) {
+      races.push(byN[i] || { n: i, packed: false, stage: "finished", ocs: [], gun_sast: "", course: "" });
+    }
     host.innerHTML = "";
-    var heldN = LIVE_Q ? (liveHeldN || heldRaceFromMeta(raceMeta)) : 0;
-    if (heldN && ((raceMeta.races || []).some(function (r) { return r.n === heldN && r.packed; }))) heldN = 0;
-    var activeN = LIVE_Q ? -1 : Number(RACE_Q || 4);
+    var activeN = Number(RACE_Q || 10);
     races.forEach(function (r) {
       var b = document.createElement("button");
       b.type = "button";
       b.className = "lipton-dev-race-box";
       b.setAttribute("data-race", String(r.n));
       b.textContent = "R" + r.n;
-      var isHeld = LIVE_Q && heldN && r.n === heldN;
       if (r.n === activeN) b.classList.add("is-active");
-      if (!r.packed && !isHeld && !r.held_live) b.disabled = true;
+      if (!r.packed) b.disabled = true;
       var gun = String(r.gun_sast || "").slice(11, 16);
       var ocs = (r.ocs || []).length ? " · OCS " + r.ocs.join(",") : "";
       var course = r.course ? " · " + r.course : "";
-      b.title = "Race " + r.n + course + " · gun " + gun + (r.packed ? "" : (isHeld || r.held_live ? " · last race" : " · GPS not packed yet")) + ocs;
+      b.title = "Race " + r.n + course + " · gun " + gun + (r.packed ? "" : " · GPS not packed yet") + ocs;
       b.addEventListener("click", function () {
         if (r.packed) goRace(r.n);
-        else if (isHeld || r.held_live) goLive();
       });
       host.appendChild(b);
     });
-    var live = document.createElement("button");
-    live.type = "button";
-    live.className = "lipton-dev-race-box lipton-dev-race-box--live";
-    live.setAttribute("data-live", "1");
-    live.textContent = "Live";
-    live.title = "Live race";
-    if (LIVE_Q) live.classList.add("is-active");
-    live.addEventListener("click", goLive);
-    host.appendChild(live);
   }
-  bindRaceButtons(RACE_Q || 4);
+  bindRaceButtons(RACE_Q || 10);
   (function wireSiteHeader() {
     ["menuBtn", "navMenuOverlay", "menuToggle"].forEach(function (id) {
       var el = document.getElementById(id);
@@ -229,14 +202,7 @@
     .then(function (res) { return res.ok ? res.json() : null; })
     .then(function (meta) {
       renderRaceBoxes(meta);
-      if (LIVE_Q && liveTablePhase === "hold9") {
-        var h = liveHeldN || heldRaceFromMeta(meta);
-        if (h) setRaceTableLabel(h, true);
-      } else if (LIVE_Q && liveTablePhase === "armed10") {
-        setRaceTableLabel(10, true, "ARMED");
-      } else if (LIVE_Q && liveTablePhase === "live10") {
-        setRaceTableLabel(10, true, "LIVE");
-      }
+      setRaceTableLabel(RACE_Q, false);
     })
     .catch(function () { renderRaceBoxes({ races: [] }); });
 
@@ -346,7 +312,7 @@
       var sailed = document.getElementById("lipton-dev-sailed");
       if (sailed) {
         sailed.textContent = RACE_Q && RACE_Q !== 4
-          ? ("Race " + RACE_Q + " GPS not packed on -dev yet. Choose R4.")
+          ? ("Race " + RACE_Q + " GPS not packed on -dev yet. Choose a packed race.")
           : "Replay data failed to load";
       }
       console.error(err);

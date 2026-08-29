@@ -185,7 +185,7 @@ body[data-lipton-dev="1"] .lipton-dev-race-boxes {
   overflow: hidden;
 }
 body[data-lipton-dev="1"] .lipton-dev-race-box {
-  flex: 0 0 calc((100% - 20px) / 11);
+  flex: 0 0 calc((100% - 18px) / 10);
   box-sizing: border-box;
   height: 16px;
   margin: 0;
