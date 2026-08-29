@@ -1440,6 +1440,16 @@
         }
         i += 1;
       }
+      if (!out.length) {
+        var close = closestAfter(pts, markTrail, afterTs);
+        if (close.ts != null && close.d <= 70) {
+          var last = lastPt(pts);
+          var mkL = last ? atTs(markTrail, last.ts_ms) : null;
+          var leaving = mkL && distM(last, mkL) >= close.d + 8;
+          var atMark = close.d <= 40;
+          if (leaving || atMark) out.push(close.ts);
+        }
+      }
       return out;
     }
     function firstRounding(pts, markTrail, afterTs, needM1Sep) {
