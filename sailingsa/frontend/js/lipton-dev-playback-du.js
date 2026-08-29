@@ -656,8 +656,6 @@
       if (atLive) playTs = liveNow();
       var delta = gunClockDelta();
       if (delta == null) {
-        clockHud.textContent = "—";
-        hud.classList.remove("is-after");
         return;
       }
       clockHud.textContent = fmtLiveClock(delta);
@@ -1990,8 +1988,8 @@
         renderLiveTable();
       })
       .catch(function () { renderLiveTable(); });
-    paintClock();
-    renderLiveTable();
+    try { paintClock(); } catch (e0) {}
+    try { renderLiveTable(); } catch (e1) {}
     poll();
     pollCatchup();
     pollStarts();

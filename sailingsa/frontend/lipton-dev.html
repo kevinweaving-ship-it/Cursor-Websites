@@ -124,6 +124,35 @@
 
   <script src="/js/vendor/leaflet/leaflet.js?v=20260828dk"></script>
   <script src="/js/lipton-event-sheet.js?v=20260828ef"></script>
-  <script src="/js/lipton-dev-playback-du.js?v=20260829r10d"></script>
+  <script>
+  (function () {
+    var clock = document.getElementById("lipton-dev-map-hud-clock");
+    var label = document.getElementById("lipton-dev-race-label");
+    var gunTs = null;
+    function pad(n) { return n < 10 ? "0" + n : String(n); }
+    function fmt(ms) {
+      var a = Math.abs(Number(ms) || 0);
+      var s = Math.floor(a / 1000);
+      return (ms < 0 ? "T−" : "T+") + Math.floor(s / 60) + ":" + pad(s % 60) + "." + Math.floor((a % 1000) / 100);
+    }
+    function tick() {
+      if (!clock || !(gunTs > 0)) return;
+      clock.textContent = fmt(Date.now() - gunTs);
+    }
+    function pull() {
+      fetch("/api/lipton-dev/live", { cache: "no-store" }).then(function (res) { return res.json(); }).then(function (d) {
+        if (d && d.gun_ts_ms) gunTs = Number(d.gun_ts_ms);
+        if (label && Number(d && d.race_number) === 10 && gunTs > 0) {
+          label.textContent = (Date.now() - gunTs < 0) ? "Race 10 — ARMED" : "Race 10 — LIVE";
+        }
+        tick();
+      }).catch(function () {});
+    }
+    pull();
+    setInterval(pull, 1000);
+    setInterval(tick, 100);
+  })();
+  </script>
+  <script src="/js/lipton-dev-playback-du.js?v=20260829r10e"></script>
 </body>
 </html>

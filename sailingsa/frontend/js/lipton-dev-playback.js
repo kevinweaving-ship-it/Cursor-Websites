@@ -656,8 +656,6 @@
       if (atLive) playTs = liveNow();
       var delta = gunClockDelta();
       if (delta == null) {
-        clockHud.textContent = "—";
-        hud.classList.remove("is-after");
         return;
       }
       clockHud.textContent = fmtLiveClock(delta);
