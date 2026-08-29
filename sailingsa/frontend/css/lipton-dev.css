@@ -740,6 +740,7 @@ body[data-lipton-dev="1"] #lipton-dev-chart {
   inset: 0;
   z-index: 0;
   background: var(--lipton-map-bg);
+  transform: none !important;
 }
 body[data-lipton-dev="1"] .leaflet-container {
   background: var(--lipton-map-bg);
@@ -748,10 +749,20 @@ body[data-lipton-dev="1"] .leaflet-tile {
   background: transparent !important;
 }
 body[data-lipton-dev="1"] .lipton-dev-track > .leaflet-control-container {
-  z-index: 3;
+  z-index: 4;
+  pointer-events: none;
+}
+body[data-lipton-dev="1"] .lipton-dev-track > .leaflet-control-container .leaflet-control {
+  pointer-events: auto;
 }
 body[data-lipton-dev="1"] .leaflet-control-zoom {
-  display: none !important;
+  display: block;
+  margin: 10px 0 0 10px;
+}
+body[data-lipton-dev="1"] .leaflet-control-zoom a {
+  width: 30px;
+  height: 30px;
+  line-height: 30px;
 }
 body[data-lipton-dev="1"] .leaflet-bottom.leaflet-right {
   margin: 0;
