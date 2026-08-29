@@ -1,54 +1,25 @@
 LIPTON 2026 — Vakaros archive STATUS
-Updated: 2026-08-29 17:41:43 SAST  (15:41:43 UTC)
-This file is rewritten every 60 seconds.
+Updated: 2026-08-29 18:06:23 SAST  (16:06:23 UTC)
 
 PHONE SSH:
   ssh root@102.218.215.253
   cat /root/lipton-vakaros-archive/STATUS.txt
 
-DOING NOW: 3-pass teleapi fetch Race 10
+DOING NOW: DONE. Our copy of all tracking data is in live Postgres + disk.
 
 LEFT TO DO
-- finish R10 remaining passes
-- gzip full sqlite + scp to live archive dir
-- load extra pings into public.lipton_telemetry
-- verify live counts = sqlite
+- nothing for this archive job
 
 DONE
-- Firestore full doc in live vakaros_snapshots (id 9, races 1–10)
-- R1–R10 already in live public.lipton_telemetry (first load; R7 is complete)
-- Disk: /root/lipton-vakaros-archive/ (sqlite.gz, jsonl, R7 jsonl, firestore JSON)
-- R7 3-pass complete (447777, pass 2/3 added 0)
-- R1–R4 3-pass complete (wider window: 5-min start + endTime)
+- 3-pass teleapi GPS for R1–R10 (pass 2/3 added 0; wider window = start sequence + endTime)
+- live public.lipton_telemetry COUNT(*) matches sqlite for every race
+- Firestore spectator doc in public.vakaros_snapshots (snapshot_id 9, all 10 races)
+- disk /root/lipton-vakaros-archive/: sqlite.gz 300MB, jsonl tar 66MB, R7 jsonl, firestore JSON
 
-Replay/calcs can already use live DB. This pass fills gaps only.
-Do not invent GPS. No cron. DEV Live stays off.
+LIVE public.lipton_telemetry = SQLITE
+  R1 445928  R2 465456  R3 425130  R4 497546  R5 387712
+  R6 389935  R7 447777  R8 474183  R9 418619  R10 407029
+  total 4359315 unique pings
 
-SQLITE (this VM) vs live PG first-load:
-  R01  sqlite= 445928  live_pg~= 390096  3x-done
-  R02  sqlite= 465456  live_pg~= 409702  3x-done
-  R03  sqlite= 425130  live_pg~= 371528  3x-done
-  R04  sqlite= 497546  live_pg~= 214240  3x-done
-  R05  sqlite= 387712  live_pg~= 220139  3x-done
-  R06  sqlite= 389935  live_pg~= 332574  3x-done
-  R07  sqlite= 447777  live_pg~= 447777  3x-done
-  R08  sqlite= 474183  live_pg~= 415809  3x-done
-  R09  sqlite= 418619  live_pg~= 361768  3x-done
-  R10  sqlite= 407029  live_pg~= 355022  IN PROGRESS
-
-ARCHIVE PANE (last lines)
-          "sec": 217.3,
-          "ok": true
-        }
-      ],
-      "jsonl": "/workspace/data/lipton_r10_telemetry.jsonl",
-      "jsonl_bytes": 102503777,
-      "pass2_new": 0,
-      "pass3_new": 0,
-      "complete": true
-    }
-  ]
-}
-EXIT:0
-workspace $
-
+Replay/calcs: use public.lipton_telemetry (GPS) + vakaros_snapshots (guns/finishes/OCS/lines).
+Do not invent GPS. No cron. DEV Live stays off. No API restart.
