@@ -207,6 +207,7 @@ def main() -> int:
         "counts": counts,
         "boats": len(boat_by),
         "source": "Vakaros finishingTime for FIN; teleapi rounding_candidates for marks. Empty = not received.",
+        "finish_source": "firestore races[R10].finishes[].finishingTime",
     }
     start_doc = {
         "gun_ts_ms": gun,
