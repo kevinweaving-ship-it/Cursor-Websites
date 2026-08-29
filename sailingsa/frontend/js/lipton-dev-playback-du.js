@@ -1382,7 +1382,7 @@
     }
     function gateTimes(pts, markTrail, afterTs) {
       if (!pts || pts.length < 3 || !markTrail || !markTrail.length) return [];
-      var enterM = 90;
+      var enterM = 110;
       var out = [];
       var i = 0;
       while (i < pts.length) {
@@ -1442,11 +1442,11 @@
       }
       if (!out.length) {
         var close = closestAfter(pts, markTrail, afterTs);
-        if (close.ts != null && close.d <= 70) {
+        if (close.ts != null && close.d <= 90) {
           var last = lastPt(pts);
           var mkL = last ? atTs(markTrail, last.ts_ms) : null;
-          var leaving = mkL && distM(last, mkL) >= close.d + 8;
-          var atMark = close.d <= 40;
+          var leaving = mkL && distM(last, mkL) >= close.d + 6;
+          var atMark = close.d <= 55;
           if (leaving || atMark) out.push(close.ts);
         }
       }
@@ -1617,7 +1617,7 @@
     function gpsRoster() {
       return FLEET_17.filter(function (sail) {
         var pts = hist.boats[sail];
-        return pts && pts.length >= 4;
+        return pts && pts.length >= 2;
       });
     }
     function afterTsForPid(lock, pid) {
@@ -1702,6 +1702,10 @@
           (id === "PINb" && elapsed > 62 * 60 * 1000)
         );
         if (n > 0 && n < roster.length) {
+          if (id === "M1b" && elapsed > 38 * 60 * 1000) {
+            armedLegIdx = Math.min(i + 1, ROUND_LEGS.length - 1);
+            continue;
+          }
           armedLegIdx = i;
           break;
         }
@@ -1861,6 +1865,21 @@
         var any = Object.keys(passTs[id] || {}).some(function (s) { return livePassAt(s, id) != null; });
         if (any) out.push(id);
       });
+      var elapsed = gunTs ? Date.now() - gunTs : 0;
+      function ensure(id) {
+        if (out.indexOf(id) >= 0) return;
+        var at = PASS_ORDER.indexOf(id);
+        var j = 0;
+        while (j < out.length && PASS_ORDER.indexOf(out[j]) < at) j += 1;
+        out.splice(j, 0, id);
+      }
+      if (elapsed > 32 * 60 * 1000) {
+        ensure("M1b");
+        ensure("PINb");
+      } else if (elapsed > 16 * 60 * 1000) {
+        ensure("PIN");
+      }
+      if (!out.length) out = ["ST"];
       return out;
     }
     function fillHoldHead() {
@@ -1968,6 +1987,8 @@
         var pts = hist.boats[sail] || [];
         var m1 = lastPt(hist.marks["1"]);
         var pinPt = lastPt(hist.pin);
+        var pos = lastPt(pts);
+        var elapsed = gunTs ? ((atLive ? Date.now() : playTs) - gunTs) : 0;
         if (!raceOver && far === 3 && leavingMark(pts, m1, pinPt)) {
           far = 4;
           farTs = null;
@@ -1976,9 +1997,15 @@
           far = 8;
           farTs = times.FIN;
         } else if (!raceOver && times.M1c != null) {
-          var here = lastPt(pts);
-          if (here && m1 && distM(here, m1) > 55) {
+          if (pos && m1 && distM(pos, m1) > 55) {
             far = 7;
+            farTs = null;
+          }
+        } else if (!raceOver && pos && m1 && pinPt && elapsed > 28 * 60 * 1000) {
+          var dM1 = distM(pos, m1);
+          var dPin = distM(pos, pinPt);
+          if (times.PIN == null && times.PINb == null && dM1 > 350 && dPin < dM1 - 40 && far < 4) {
+            far = 4;
             farTs = null;
           }
         }
@@ -2015,12 +2042,41 @@
         if (!mk) return 9e9;
         return distM(pos, mk);
       }
+      function distToPin(sail) {
+        var pos = lastPt(hist.boats[sail]);
+        var pin = lastPt(hist.pin);
+        if (!pos || !pin) return 9e9;
+        return distM(pos, pin);
+      }
+      var rankId = "ST";
+      var rk;
+      for (rk = PASS_ORDER.length - 1; rk >= 1; rk--) {
+        var rid = PASS_ORDER[rk];
+        if (Object.keys(passTs[rid] || {}).some(function (s) { return livePassAt(s, rid) != null; })) {
+          rankId = rid;
+          break;
+        }
+      }
+      if (rankId === "ST" || rankId === "M1" || rankId === "M1b") {
+        var anyPinRun = rows.some(function (r) { return r.far >= 4; });
+        if (anyPinRun && !(passTs.PIN && Object.keys(passTs.PIN).length) && !(passTs.PINb && Object.keys(passTs.PINb).length)) {
+          rankId = "PINb";
+        }
+      }
       rows.sort(function (a, b) {
+        var aR = a.times[rankId];
+        var bR = b.times[rankId];
+        if (aR != null && bR != null && aR !== bR) return aR - bR;
+        if (aR != null && bR == null) return -1;
+        if (bR != null && aR == null) return 1;
         if (b.far !== a.far) return b.far - a.far;
         if (a.farTs != null && b.farTs != null && a.farTs !== b.farTs) return a.farTs - b.farTs;
         if (a.farTs != null && b.farTs == null) return -1;
         if (b.farTs != null && a.farTs == null) return 1;
         if (raceOver) return String(a.sail).localeCompare(String(b.sail));
+        if (rankId === "PIN" || rankId === "PINb" || a.far >= 4 || b.far >= 4) {
+          return distToPin(a.sail) - distToPin(b.sail);
+        }
         return distNext(a.sail, a.far) - distNext(b.sail, b.far);
       });
       rows.forEach(function (r, i) { r.rank = i + 1; });
