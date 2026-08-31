@@ -321,7 +321,7 @@ Windows desktop-class viewer (docs: Win10, i5, 16 GB, GTX 1060). Consumes traj d
 - Did **not** obtain production WebSocket host/token, Netty WS URL, or IoTDB credentials (gated).  
 - Some ZH protocol docs have incorrect MESSAGE TYPE numbers; use EN.
 
-## 11. open_trac live/replay tracking (tracking-dev)
+## 10. open_trac live/replay tracking (tracking-dev)
 
 Primary public tracker page reverse-engineered for SailingSA tracking-dev reuse:
 
@@ -337,7 +337,7 @@ Primary public tracker page reverse-engineered for SailingSA tracking-dev reuse:
 
 ---
 
-## 10. Patents & software (follow-up dig)
+## 11. Patents & software (follow-up dig)
 
 Full dossier: **`docs/sailfish-china-extracts/PATENTS_AND_SOFTWARE.md`** (+ `patent_dossier.json`).
 
