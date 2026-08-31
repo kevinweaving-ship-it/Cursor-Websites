@@ -321,6 +321,18 @@ Windows desktop-class viewer (docs: Win10, i5, 16 GB, GTX 1060). Consumes traj d
 - Did **not** obtain production WebSocket host/token, Netty WS URL, or IoTDB credentials (gated).  
 - Some ZH protocol docs have incorrect MESSAGE TYPE numbers; use EN.
 
+## 11. open_trac live/replay tracking (tracking-dev)
+
+Primary public tracker page reverse-engineered for SailingSA tracking-dev reuse:
+
+- URL pattern: `/sf-admin/html/race/live/open_trac.html?raceCd={uuid}`
+- Stack: **SF_TrajX** (`appX.min.js`) + riot + protobuf + echarts + xgplayer
+- Boot: `getRace?pageName=open_trac` → status `99` forces `replay2/` else `live2/` + `getEncryption`
+- Leaderboard metrics: COG, SOG, VMG, VMC, DTL/DTF/DTS, RTS, ranking
+- WS topics: `/RX/RACE_CONTROL_*`, `/RX/SAIL_DATA_P_*`, `/RX/BUOY_DATA_*`
+- Full notes: **`docs/sailfish-china-extracts/OPEN_TRAC_TRACKING_DEV.md`**
+- Sample artifacts: `docs/sailfish-china-extracts/open_trac/`
+
 **Next scrape steps (when useful):** authenticate demo tenant if Sailfish provides one; capture live `getNettyWebsocketUrl` host; record one LIVE race share URL end-to-end; map SF-Traj tile/API calls in browser DevTools; re-fetch CN113588153A full claims when Google Patents is available; confirm soft著 via CN copyright certificate numbers if Sailfish shares them.
 
 ---
