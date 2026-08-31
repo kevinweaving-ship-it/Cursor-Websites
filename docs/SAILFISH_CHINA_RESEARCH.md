@@ -310,4 +310,31 @@ Windows desktop-class viewer (docs: Win10, i5, 16 GB, GTX 1060). Consumes traj d
 - Did **not** obtain production WebSocket host/token, Netty WS URL, or IoTDB credentials (gated).  
 - Some ZH protocol docs have incorrect MESSAGE TYPE numbers; use EN.
 
-**Next scrape steps (when useful):** authenticate demo tenant if Sailfish provides one; capture live `getNettyWebsocketUrl` host; record one LIVE race share URL end-to-end; map SF-Traj tile/API calls in browser DevTools.
+**Next scrape steps (when useful):** authenticate demo tenant if Sailfish provides one; capture live `getNettyWebsocketUrl` host; record one LIVE race share URL end-to-end; map SF-Traj tile/API calls in browser DevTools; re-fetch CN113588153A full claims when Google Patents is available; confirm soft著 via CN copyright certificate numbers if Sailfish shares them.
+
+---
+
+## 10. Patents & software (follow-up dig)
+
+Full dossier: **`docs/sailfish-china-extracts/PATENTS_AND_SOFTWARE.md`** (+ `patent_dossier.json`).
+
+### Patents (assignee 深圳旗鱼体育传播有限公司)
+
+| Family | Topic |
+|---|---|
+| CN110750962B / CN110738023B | NOAA GRIB → JSON → JPEG weather tiles (刘海岚) |
+| CN113033968B | Race performance scores: sailing / start / tack (田维宏, 王腾) |
+| CN113588153A | Offshore real-wind remote monitoring (田维宏) — appl. |
+| CN114690225B | Mark-rounding detection via GPS + auxiliary line (顾俊) |
+| CN220137400U / CN220874872U / CN220874741U | GPS tracker, rugged shell, microwave signal base (田维宏, 高翔) |
+
+No patents found under 王祥胜 or parent 海上轻骑 as assignee. Unrelated lookalikes (e.g. CN103111065B) excluded.
+
+### Software surfaces (beyond §2)
+
+- **赛事零距离** WeChat mini program (mobile SF-Traj)  
+- `/sf-training`, `/sf-cloud-h5/`, `/s/raceApp`  
+- 云相册, 3D panorama desktop, EOTS/YB companion apps  
+- Sailing-rules stack = RuoYi-Vue-Plus fork  
+
+Public **软件著作权** listings for this exact company were not found (CN copyright site needs registration numbers).
