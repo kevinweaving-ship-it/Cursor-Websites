@@ -320,15 +320,18 @@ Full dossier: **`docs/sailfish-china-extracts/PATENTS_AND_SOFTWARE.md`** (+ `pat
 
 ### Patents (assignee 深圳旗鱼体育传播有限公司)
 
-| Family | Topic |
-|---|---|
-| CN110750962B / CN110738023B | NOAA GRIB → JSON → JPEG weather tiles (刘海岚) |
-| CN113033968B | Race performance scores: sailing / start / tack (田维宏, 王腾) |
-| CN113588153A | Offshore real-wind remote monitoring (田维宏) — appl. |
-| CN114690225B | Mark-rounding detection via GPS + auxiliary line (顾俊) |
-| CN220137400U / CN220874872U / CN220874741U | GPS tracker, rugged shell, microwave signal base (田维宏, 高翔) |
+**Count reconciliation** (see `PATENT_COUNT_RECONCILIATION.md`): **8 families / 12 CN pubs**. “10+ patents” = counting every A/B/U publication. Company site itself only advertises **2 invention patents + 23 soft copyrights**.
 
-No patents found under 王祥胜 or parent 海上轻骑 as assignee. Unrelated lookalikes (e.g. CN103111065B) excluded.
+| Family | Topic | Status |
+|---|---|---|
+| CN110738023A/B | JSON weather → JPEG | Granted (ZL201910989617.3) — software method |
+| CN110750962A/B | GRIB → JSON weather | Granted (ZL201910975113.6) — software method |
+| CN113033968A/B | Race performance scores (sail/start/tack) | Granted — software method |
+| CN114690225A/B | Mark-rounding detection | Granted — software method |
+| CN113588153A | Marine true-wind / Windwatcher | Application only |
+| CN220137400U / CN220874872U / CN220874741U | GPS tracker, protective shell, signal base | Utility models granted |
+
+Soft著: **23 claimed** on saill.cn; certificate titles not public. No patents under 王祥胜 / 海上轻骑.
 
 ### Software surfaces (beyond §2)
 
