@@ -336,8 +336,9 @@ Soft著: **23 claimed** on saill.cn; certificate titles not public. No patents u
 ### Software surfaces (beyond §2)
 
 - **赛事零距离** WeChat mini program (mobile SF-Traj)  
-- `/sf-training`, `/sf-cloud-h5/`, `/s/raceApp`  
+- **Sailfish-App** `/sf-cloud-h5/` — uni-app race ops client (`__UNI__BB85F3F`): devices (Tracer/wind/auto-buoy), GoPro, match control, check-in, start/course/全召; talks to `/sf-admin/api/admin-api/`  
+- `/sf-training`, `/s/raceApp`  
 - 云相册, 3D panorama desktop, EOTS/YB companion apps  
 - Sailing-rules stack = RuoYi-Vue-Plus fork  
 
-Public **软件著作权** listings for this exact company were not found (CN copyright site needs registration numbers).
+**HNTE:** GR202444208141 (Shenzhen 2024 batch). Soft著 titles still not public (23 claimed). See `DIG_CONTINUATION.md`.
