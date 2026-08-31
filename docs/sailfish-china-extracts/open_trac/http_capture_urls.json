@@ -1,0 +1,54 @@
+[
+  {
+    "method": "GET",
+    "url": "https://www.saill.cn/sf-admin/html/race/live/open_trac.html?raceCd=6010fbd608e54ae4aff7d8363f912077"
+  },
+  {
+    "method": "GET",
+    "url": "https://www.saill.cn/sf-admin/api/app-api/match/race/getRace?pageName=open_trac&raceCd=6010fbd608e54ae4aff7d8363f912077"
+  },
+  {
+    "method": "GET",
+    "url": "https://www.saill.cn/sf-admin/api/app-api/match/race/replay2/getRaceDatas?&raceCd=6010fbd608e54ae4aff7d8363f912077&time=1788220016746"
+  },
+  {
+    "method": "GET",
+    "url": "https://hm.baidu.com/hm.gif?hca=B5A39FB0343EE555&cc=1&ck=1&cl=24-bit&ds=800x600&vl=900&et=0&ja=0&ln=en-us&lo=0&rnd=1284817078&si=70f2f50753bd8169ad59e383460ce0c5&v=1.3.2&lv=1&sn=32007&r=0&ww=1400&u=https%3A%2F%2Fwww.saill.cn%2Fsf-admin%2Fhtml%2Frace%2Flive%2Fopen_trac.html%3FraceCd%3D6010fbd608e54ae4aff7d8363f912077&tt=ILCA6%20BoysEMERALD%20F5%20-%20SAILFISH%20SPORTS"
+  },
+  {
+    "method": "GET",
+    "url": "https://www.saill.cn/sf-admin/api/app-api/match/race/getRouteInfo?raceCd=6010fbd608e54ae4aff7d8363f912077"
+  },
+  {
+    "method": "GET",
+    "url": "https://www.saill.cn/sf-admin/api/app-api/match/race/replay2/getEncryptionReplayData?raceCd=6010fbd608e54ae4aff7d8363f912077&matchCd=e681cd2293574fe9b6d702f97b842b3e&rounds=F5&replayFlag=1&timeSpan=6&asTime=1784381523000&timestamp=1784378280000&nonCache=false"
+  },
+  {
+    "method": "GET",
+    "url": "https://www.saill.cn/sf-admin/api/app-api/match/race/replay2/getEncryptionReplayData?raceCd=6010fbd608e54ae4aff7d8363f912077&matchCd=e681cd2293574fe9b6d702f97b842b3e&rounds=F5&replayFlag=1&timeSpan=6&asTime=1784381523000&timestamp=1784378640000&nonCache=false"
+  },
+  {
+    "method": "GET",
+    "url": "https://www.saill.cn/sf-admin/api/app-api/match/race/replay2/getEncryptionReplayData?raceCd=6010fbd608e54ae4aff7d8363f912077&matchCd=e681cd2293574fe9b6d702f97b842b3e&rounds=F5&replayFlag=1&timeSpan=6&asTime=1784381523000&timestamp=1784379000000&nonCache=false"
+  },
+  {
+    "method": "GET",
+    "url": "https://www.saill.cn/sf-admin/api/app-api/match/race/replay2/getEncryptionReplayData?raceCd=6010fbd608e54ae4aff7d8363f912077&matchCd=e681cd2293574fe9b6d702f97b842b3e&rounds=F5&replayFlag=1&timeSpan=6&asTime=1784381523000&timestamp=1784379360000&nonCache=false"
+  },
+  {
+    "method": "GET",
+    "url": "https://www.saill.cn/sf-admin/api/app-api/match/race/replay2/getEncryptionReplayData?raceCd=6010fbd608e54ae4aff7d8363f912077&matchCd=e681cd2293574fe9b6d702f97b842b3e&rounds=F5&replayFlag=1&timeSpan=6&asTime=1784381523000&timestamp=1784379720000&nonCache=false"
+  },
+  {
+    "method": "GET",
+    "url": "https://www.saill.cn/sf-admin/api/app-api/match/race/replay2/getEncryptionReplayData?raceCd=6010fbd608e54ae4aff7d8363f912077&matchCd=e681cd2293574fe9b6d702f97b842b3e&rounds=F5&replayFlag=1&timeSpan=6&asTime=1784381523000&timestamp=1784380080000&nonCache=false"
+  },
+  {
+    "method": "GET",
+    "url": "https://www.saill.cn/sf-admin/api/app-api/match/race/replay2/getEncryptionReplayData?raceCd=6010fbd608e54ae4aff7d8363f912077&matchCd=e681cd2293574fe9b6d702f97b842b3e&rounds=F5&replayFlag=1&timeSpan=6&asTime=1784381523000&timestamp=1784380440000&nonCache=false"
+  },
+  {
+    "method": "GET",
+    "url": "https://www.saill.cn/sf-admin/api/app-api/match/race/replay2/getEncryptionReplayData?raceCd=6010fbd608e54ae4aff7d8363f912077&matchCd=e681cd2293574fe9b6d702f97b842b3e&rounds=F5&replayFlag=1&timeSpan=6&asTime=1784381523000&timestamp=1784380800000&nonCache=false"
+  }
+]

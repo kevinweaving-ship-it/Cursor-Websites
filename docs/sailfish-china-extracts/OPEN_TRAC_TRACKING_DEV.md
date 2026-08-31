@@ -79,7 +79,17 @@ window.g = {
 | (client) | `{origin}{BaseUrl}/app-api/match/race/live2/` | Live track base; `method: 'getEncryption'` |
 | (client) | `{origin}{BaseUrl}/app-api/match/race/replay2/` | Replay track base; same method |
 
-**Note:** Plain curl to `live2/` / `replay2/` / `.../getEncryption` returns **404**. Track payloads are almost certainly built inside `appX.min.js` as encrypted GETs (or POST body) off that base URL — needs DevTools capture on a working browser session.
+**Verified encrypted endpoints (2026-08-31 browser capture):**
+
+| Path | Role |
+|---|---|
+| `{live2\|replay2}/getRaceDatas?&raceCd={uuid}&time={ms}` | Bootstrap (LZ `result` → JSON: `teamList`, marks, `viewConfig`) |
+| `{live2\|replay2}/getEncryptionReplayData?raceCd=…&matchCd=…&rounds=…&replayFlag=…&timeSpan=6&asTime=…&timestamp=…&nonCache=…` | Track time-series chunks (~666 KB compressed) |
+| Headers on encrypted GETs: `oQ: i8/RH`, `TV: gB` | `method: 'getEncryption'` transport |
+
+Plain curl to `live2/` / `replay2/` **directory root** still returns **404** — use the named endpoints above.
+
+**Payload decode + `runtime[]` index map:** **`WS_PAYLOAD_SCHEMA.md`**
 
 Secondary (tenant-gated): `/app-api/match/searoute/get` → “租户的请求未传递”.
 
