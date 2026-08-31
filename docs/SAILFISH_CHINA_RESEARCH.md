@@ -258,6 +258,17 @@ Documented as **SF-Traj** (system rename noted in marketing JS). Web map product
 - Layers: vector/satellite/weather viz, chart, day/night, grid, marks, work boats, wind instruments  
 - Modes: **LIVE** vs **REPLAY**; shareable public race links from admin  
 
+### 6.2b Install / spectators / training / “profiles”
+
+Full write-up: **`docs/sailfish-china-extracts/INSTALL_SPECTATOR_TRAINING_UX.md`**.
+
+- **Install:** SOS short=on / long 3s=off / triple=SOS; remote power via admin (disabled after manual off); SIM swap with 4 screws; serial on unit, QR on back.  
+- **Race equipment bind:** event device pool → import teams as Sail No. + Team Name + Device No. → assign mark/wind devices → share traj link → formal replay.  
+- **Spectators:** QR event viewer (Ready/Racing/Replay + Track/Pro); SF-Traj web; 赛事零距离 mini program.  
+- **“Sailor profile”:** thin — race team row + training H5 My (avatar/nickname, bound/followed teams, personal history). No SailingSA-style public career page.  
+- **Training:** `/sf-training` daily tracks (auto end midnight); H5 scan device QR to join (Manager/Coach/Team); demo `demo1`/`123456` in docs.  
+- **Equipment substitution** in sailingrule = sails/mast/hull paperwork, not GPS binding.
+
 ### 6.3 Sailing rules / event info platform
 
 - Fork of **RuoYi-Vue-Plus** (`https://gitee.com/dromara/RuoYi-Vue-Plus`)  
