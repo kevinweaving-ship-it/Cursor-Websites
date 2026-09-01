@@ -62,6 +62,8 @@
       wind.setAttribute("aria-hidden", vc.windCompass ? "false" : "true");
     }
 
+    document.title = (bootstrap.matchName || "Tracking") + " — SF-TrajX dev2";
+
     var label = el("lipton-dev-race-label");
     if (label && bootstrap.raceName) {
       label.textContent = bootstrap.raceName + (bootstrap.status === "99" ? " — REPLAY" : "");

@@ -1189,3 +1189,70 @@ body[data-tracking-dev2="1"] .tracking-dev2-wind-compass {
   color: #0284c7;
   background: #f0f9ff;
 }
+
+/* Dev2 = Sailfish map-first shell (no results iframe above tracker) */
+body[data-tracking-dev2="1"] .lipton-event-sheet {
+  display: none !important;
+}
+body[data-tracking-dev2="1"] .lipton-header-cup {
+  display: none;
+}
+body[data-tracking-dev2="1"] .lipton-dev-shell {
+  flex: 1 1 auto;
+  min-height: calc(100dvh - 88px);
+  max-width: none;
+  margin: 0;
+  padding: 0 6px 6px;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-sailfish-bar {
+  position: sticky;
+  top: 88px;
+  z-index: 28;
+  background: #0f172a;
+  color: #e2e8f0;
+  border: 1px solid #334155;
+  margin: 0 0 6px;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-sailfish-brand {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-sailfish-logo {
+  font-weight: 800;
+  font-size: 0.95rem;
+  letter-spacing: 0.06em;
+  color: #f97316;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-sailfish-sub {
+  font-size: 0.65rem;
+  opacity: 0.85;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-sailfish-meta {
+  color: #cbd5e1;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-split {
+  grid-template-rows: minmax(52vh, 2.2fr) minmax(180px, 1fr);
+  flex: 1 1 auto;
+  min-height: 0;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-map-first {
+  min-height: 52vh;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-map-first #lipton-dev-chart,
+body[data-tracking-dev2="1"] .tracking-dev2-map-first #lipton-dev-map {
+  min-height: 52vh;
+}
+body[data-tracking-dev2="1"] .lipton-dev-subhead {
+  position: sticky;
+  top: calc(88px + 52px);
+  z-index: 27;
+}
+@media (max-width: 900px) {
+  body[data-tracking-dev2="1"] .tracking-dev2-split {
+    grid-template-rows: minmax(45vh, 1.4fr) minmax(160px, 1fr);
+  }
+  body[data-tracking-dev2="1"] .lipton-dev-subhead {
+    top: calc(88px + 48px);
+  }
+}

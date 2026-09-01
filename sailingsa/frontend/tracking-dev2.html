@@ -21,7 +21,7 @@
   <meta name="twitter:image" content="https://sailingsa.co.za/api/og/regatta/2026-08-29-lipton-challenge-cup/ea4ca8b2a84b036d.png">
   <link rel="stylesheet" href="/css/main.css">
   <link rel="stylesheet" href="/js/vendor/leaflet/leaflet.css?v=20260828dk">
-  <link rel="stylesheet" href="/css/tracking-dev2.css?v=dev2v2">
+  <link rel="stylesheet" href="/css/tracking-dev2.css?v=dev2v3">
   <script src="/js/api.js"></script>
   <script src="/js/session.js"></script>
 </head>
@@ -45,13 +45,14 @@
       </a>
     </div>
   </header>
-  <div class="lipton-event-sheet" id="lipton-event-sheet">
-    <iframe id="lipton-event-sheet-frame" title="2026 Lipton Challenge Cup results" src="about:blank"></iframe>
-  </div>
   <div class="lipton-dev-shell">
     <div class="tracking-dev2-sailfish-bar card" id="tracking-dev2-sailfish-bar">
+      <div class="tracking-dev2-sailfish-brand">
+        <span class="tracking-dev2-sailfish-logo">SF-TrajX</span>
+        <span class="tracking-dev2-sailfish-sub">Sailfish open_trac · dev2</span>
+      </div>
       <span class="tracking-dev2-sailfish-mode tracking-dev2-sailfish-mode--replay" id="tracking-dev2-sailfish-mode">REPLAY</span>
-      <span class="tracking-dev2-sailfish-meta" id="tracking-dev2-sailfish-meta">Sailfish open_trac parity · Lipton R1–R10</span>
+      <span class="tracking-dev2-sailfish-meta" id="tracking-dev2-sailfish-meta">Lipton R1–R10 sample · status 99</span>
       <span class="tracking-dev2-sailfish-flags" id="tracking-dev2-sailfish-flags" aria-label="Sailfish viewConfig flags"></span>
       <div class="tracking-dev2-wind-compass" id="tracking-dev2-wind-compass" title="Wind compass (Sailfish viewConfig)" aria-hidden="true">W</div>
     </div>
@@ -85,12 +86,12 @@
         <div class="lipton-dev-map-hud-clock" id="lipton-dev-map-hud-clock">—</div>
       </div>
     </div>
-    <div class="lipton-dev-split">
-      <div class="lipton-dev-track">
+    <div class="lipton-dev-split tracking-dev2-split">
+      <div class="lipton-dev-track tracking-dev2-map-first">
         <div id="lipton-dev-chart" role="img" aria-label="Satellite chart of Table Bay harbour"></div>
         <canvas id="lipton-dev-map" aria-label="GPS marks and tracks"></canvas>
       </div>
-      <div class="fleet-section lipton-dev-board">
+      <div class="fleet-section lipton-dev-board tracking-dev2-ranking">
         <h2 class="class-header" id="lipton-dev-race-label">Race 1</h2>
         <p id="lipton-dev-checksum"></p>
         <div class="table-wrapper results-table-container table-container" id="lipton-dev-table-wrap">
@@ -105,23 +106,7 @@
               </tr>
             </thead>
             <tbody id="lipton-dev-tbody">
-              <tr data-boat="RCYC Academy"><td class="rank-col">1</td><td class="wc-meta-col">8</td><td class="boat-name-col">J-Walker</td><td class="club-col">RCYCA</td><td class="timer-col"></td></tr>
-              <tr data-boat="GLYC"><td class="rank-col">2</td><td class="wc-meta-col">14</td><td class="boat-name-col">Andiamo</td><td class="club-col">GLYC</td><td class="timer-col"></td></tr>
-              <tr data-boat="KYC"><td class="rank-col">3</td><td class="wc-meta-col">23</td><td class="boat-name-col">Phantom</td><td class="club-col">KYC</td><td class="timer-col"></td></tr>
-              <tr data-boat="RCYC"><td class="rank-col">4</td><td class="wc-meta-col">26</td><td class="boat-name-col">Amtec Racing</td><td class="club-col">RCYC</td><td class="timer-col"></td></tr>
-              <tr data-boat="RNYC"><td class="rank-col">5</td><td class="wc-meta-col">28</td><td class="boat-name-col">Ullman Racing</td><td class="club-col">RNYC</td><td class="timer-col"></td></tr>
-              <tr data-boat="UCTYC"><td class="rank-col">6</td><td class="wc-meta-col">31</td><td class="boat-name-col">Nitro Maverick</td><td class="club-col">UCT</td><td class="timer-col"></td></tr>
-              <tr data-boat="HYC"><td class="rank-col">7</td><td class="wc-meta-col">32</td><td class="boat-name-col">Nitro Juice</td><td class="club-col">HYC</td><td class="timer-col"></td></tr>
-              <tr data-boat="PYC"><td class="rank-col">8</td><td class="wc-meta-col">34</td><td class="boat-name-col">G'day J</td><td class="club-col">PYC</td><td class="timer-col"></td></tr>
-              <tr data-boat="WYAC"><td class="rank-col">9</td><td class="wc-meta-col">43</td><td class="boat-name-col">Laugh a minute</td><td class="club-col">WYAC</td><td class="timer-col"></td></tr>
-              <tr data-boat="BYC"><td class="rank-col">10</td><td class="wc-meta-col">44</td><td class="boat-name-col">H2O Tech</td><td class="club-col">BYC</td><td class="timer-col"></td></tr>
-              <tr data-boat="LDYC"><td class="rank-col">11</td><td class="wc-meta-col">46</td><td class="boat-name-col">Wildcard</td><td class="club-col">LDYC</td><td class="timer-col"></td></tr>
-              <tr data-boat="FBYC"><td class="rank-col">12</td><td class="wc-meta-col">48</td><td class="boat-name-col">Ullman Sails Camissa</td><td class="club-col">FBYC</td><td class="timer-col"></td></tr>
-              <tr data-boat="SBYC"><td class="rank-col">13</td><td class="wc-meta-col">49</td><td class="boat-name-col">Nitro Monkey</td><td class="club-col">SBYC</td><td class="timer-col"></td></tr>
-              <tr data-boat="LYC"><td class="rank-col">14</td><td class="wc-meta-col">51</td><td class="boat-name-col">Attacke</td><td class="club-col">LYCN</td><td class="timer-col"></td></tr>
-              <tr data-boat="WBYC"><td class="rank-col">15</td><td class="wc-meta-col">52</td><td class="boat-name-col">22-ATE</td><td class="club-col">WBYC</td><td class="timer-col"></td></tr>
-              <tr data-boat="TSC"><td class="rank-col">16</td><td class="wc-meta-col">55</td><td class="boat-name-col">CaCanny</td><td class="club-col">TSC</td><td class="timer-col"></td></tr>
-              <tr data-boat="IZIVUNGUVUNGU"><td class="rank-col">17</td><td class="wc-meta-col">63</td><td class="boat-name-col">Donna Mia Forever</td><td class="club-col">IZI</td><td class="timer-col"></td></tr>
+              <tr><td colspan="5">Loading Sailfish replay…</td></tr>
             </tbody>
           </table>
         </div>
@@ -130,8 +115,7 @@
   </div>
 
   <script src="/js/vendor/leaflet/leaflet.js?v=20260828dk"></script>
-  <script src="/js/lipton-event-sheet.js?v=20260829pubtbl"></script>
-  <script src="/js/tracking-dev2-sailfish.js?v=dev2v2"></script>
-  <script src="/js/tracking-dev2-playback.js?v=dev2v2"></script>
+  <script src="/js/tracking-dev2-sailfish.js?v=dev2v3"></script>
+  <script src="/js/tracking-dev2-playback.js?v=dev2v3"></script>
 </body>
 </html>
