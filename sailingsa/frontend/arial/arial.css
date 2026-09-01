@@ -54,6 +54,12 @@ html, body {
     text-shadow: 0 0 3px rgba(255, 255, 255, 0.35);
 }
 
+.lcd.disarmed {
+    background: #128a22;
+    color: #fff;
+    text-shadow: 0 0 3px rgba(255, 255, 255, 0.35);
+}
+
 #lcd-top,
 #lcd-2 {
     position: relative;

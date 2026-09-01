@@ -60,7 +60,9 @@
         if (!lcd) return;
         var st = areaState(device);
         var armed = st === "arm" || st === "stay" || st === "sleep" || st.indexOf("alarm") !== -1;
+        var disarmed = st === "disarm" || st === "notready";
         lcd.classList.toggle("armed", armed);
+        lcd.classList.toggle("disarmed", disarmed);
     }
 
     function applyLeds(device) {
