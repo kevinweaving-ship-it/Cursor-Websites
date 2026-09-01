@@ -51,6 +51,8 @@ _ROOT = Path(__file__).resolve().parent
 _DATA_DIR = _ROOT / "data"
 _USERS_PATH = _DATA_DIR / "arial_users.json"
 _lock = threading.Lock()
+_panel_cache: dict[str, Any] = {"at": 0.0, "data": None}
+_PANEL_TTL_SEC = 2.5
 
 HANSEKOP_ID = "0bb544db-30b0-453d-bf39-d323538ebd5e"
 KEYPAD_CODES = {
@@ -340,6 +342,22 @@ def _cookie_response(payload: dict[str, Any], session: Optional[str], clear: boo
     return resp
 
 
+def _cached_panel(device: dict[str, Any] | None = None, *, clear: bool = False) -> dict[str, Any] | None:
+    with _lock:
+        if clear:
+            _panel_cache["data"] = None
+            _panel_cache["at"] = 0.0
+            return None
+        if device is not None:
+            _panel_cache["data"] = device
+            _panel_cache["at"] = time.time()
+            return device
+        cached = _panel_cache.get("data")
+        if cached is not None and (time.time() - float(_panel_cache.get("at") or 0)) < _PANEL_TTL_SEC:
+            return cached
+        return None
+
+
 @router.get("/arial")
 @router.get("/arial/")
 def arial_index():
@@ -497,12 +515,15 @@ async def arial_devices(request: Request):
 
 @router.get("/api/arial/panel")
 async def arial_panel():
+    cached = _cached_panel()
+    if cached is not None:
+        return {"ok": True, "device": cached}
     raw = await _olarm_request(
         "GET",
         f"/api/v4/devices/{HANSEKOP_ID}",
         params={"deviceApiAccessOnly": "1"},
     )
-    return {"ok": True, "device": enrich_device(raw)}
+    return {"ok": True, "device": _cached_panel(enrich_device(raw))}
 
 
 @router.post("/api/arial/keypad")
@@ -529,6 +550,7 @@ async def arial_keypad(request: Request):
         f"/api/v4/devices/{HANSEKOP_ID}/actions",
         json_body={"actionCmd": cmd, "actionNum": num},
     )
+    _cached_panel(clear=True)
     return {"ok": True, "user": KEYPAD_CODES[code], "result": raw}
 
 

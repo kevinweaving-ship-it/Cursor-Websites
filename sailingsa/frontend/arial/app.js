@@ -209,11 +209,11 @@
         if (armed) {
             btn.setAttribute("aria-label", "DISARM");
             btn.classList.add("mode-disarm");
-            if (face) face.src = "/arial/btn-disarm.png?v=38";
+            if (face) face.src = "/arial/btn-disarm.png?v=39";
         } else {
             btn.setAttribute("aria-label", "ARM");
             btn.classList.add("mode-arm");
-            if (face) face.src = "/arial/btn-arm.png?v=38";
+            if (face) face.src = "/arial/btn-arm.png?v=39";
         }
     }
 
@@ -335,8 +335,8 @@
     var pin = "";
     var lcdHold = null;
     var CODES = {
-        "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png?v=38", code: "7302" },
-        "7102": { name: "Amoroc", from: "Amoroc", logo: "/arial/users/amoroc.png?v=38", code: "7102" }
+        "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png?v=39", code: "7302" },
+        "7102": { name: "Amoroc", from: "Amoroc", logo: "/arial/users/amoroc.png?v=39", code: "7102" }
     };
 
     function resolvedUser(user) {
@@ -722,7 +722,10 @@
     tickTime();
     loadStatus();
     setInterval(tickTime, 1000);
-    setInterval(loadStatus, 1000);
+    setInterval(function () {
+        if (localExitLeft() > 0 || panelIsExiting(window.arialDevice)) loadStatus();
+    }, 1000);
+    setInterval(loadStatus, 4000);
     setInterval(function () {
         if (!localExitLeft()) return;
         var st = areaState(window.arialDevice);

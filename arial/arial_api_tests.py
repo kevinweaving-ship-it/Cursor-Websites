@@ -92,6 +92,22 @@ def test_profile_exit_delay():
     assert arial_api.enrich_device(d)["arialExitDelay"] == 30
 
 
+def test_panel_cache_ttl(monkeypatch):
+    arial_api._cached_panel(clear=True)
+    fake = {"deviceName": "HANSEKOP"}
+    now = {"t": 1000.0}
+    monkeypatch.setattr(arial_api.time, "time", lambda: now["t"])
+    arial_api._cached_panel(fake)
+    assert arial_api._cached_panel() is fake
+    now["t"] = 1001.0
+    assert arial_api._cached_panel() is fake
+    now["t"] = 1004.0
+    assert arial_api._cached_panel() is None
+    arial_api._cached_panel(fake)
+    arial_api._cached_panel(clear=True)
+    assert arial_api._cached_panel() is None
+
+
 def test_register_login_profile(tmp_path, monkeypatch):
     monkeypatch.setattr(arial_api, "_USERS_PATH", tmp_path / "arial_users.json")
     monkeypatch.setattr(arial_api, "_DATA_DIR", tmp_path)
