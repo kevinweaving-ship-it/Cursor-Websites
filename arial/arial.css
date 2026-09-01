@@ -4,18 +4,37 @@ html, body {
 }
 
 .logo {
-    display: block;
-    width: 72%;
-    max-width: 320px;
-    height: auto;
-    margin: 0 auto;
-    padding: 16px 12px 8px;
+    display: none;
+}
+
+.brand-cover {
+    position: absolute;
+    left: 18%;
+    top: 4.2%;
+    width: 64%;
+    height: 6.2%;
+    z-index: 4;
+    background: #b8b8b8;
+    pointer-events: none;
+}
+
+.brand-logo {
+    position: absolute;
+    left: 22%;
+    top: 4.5%;
+    width: 56%;
+    height: 5.6%;
+    z-index: 5;
+    object-fit: contain;
+    object-position: center;
+    pointer-events: none;
+    mix-blend-mode: multiply;
 }
 
 .pad-frame {
     width: 100%;
     max-width: 420px;
-    margin: 0 auto;
+    margin: 16px auto 0;
 }
 
 .pad {
@@ -25,11 +44,39 @@ html, body {
 
 .pad-frame.compact {
     overflow: hidden;
-    aspect-ratio: 423 / 230;
+    aspect-ratio: 423 / 255;
 }
 
 .pad-frame.compact .hot-more {
     display: none;
+}
+
+.logout-link {
+    display: none;
+    position: absolute;
+    left: 81.2%;
+    top: 44.2%;
+    width: 16.4%;
+    height: 5.6%;
+    z-index: 5;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    color: #e00000;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    line-height: 1.1;
+    text-align: center;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.pad-frame.compact .logout-link {
+    display: block;
 }
 
 .keypad {

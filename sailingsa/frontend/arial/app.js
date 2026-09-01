@@ -195,8 +195,8 @@
     var pin = "";
     var lcdHold = null;
     var CODES = {
-        "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png?v=32", code: "7302" },
-        "7102": { name: "Amoroc", from: "Amoroc", logo: "/arial/users/amoroc.png?v=32", code: "7102" }
+        "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png?v=35", code: "7302" },
+        "7102": { name: "Amoroc", from: "Amoroc", logo: "/arial/users/amoroc.png?v=35", code: "7102" }
     };
 
     function resolvedUser(user) {
@@ -210,6 +210,19 @@
     function setPadLoggedIn(on) {
         var frame = document.getElementById("pad-frame");
         if (frame) frame.classList.toggle("compact", !!on);
+    }
+
+    function logOut() {
+        window.arialUser = null;
+        pin = "";
+        try { localStorage.removeItem("arialUser"); } catch (e) {}
+        try { sessionStorage.removeItem("arialUser"); } catch (e) {}
+        try { localStorage.removeItem("arialSite"); } catch (e) {}
+        siteId = "hansekop";
+        showUserLogo(null);
+        setPadLoggedIn(false);
+        setWelcome("");
+        loadStatus();
     }
 
     function setLoggedIn(user) {
@@ -227,11 +240,16 @@
         var img = document.getElementById("lcd-user-logo");
         if (!lcd || !img) return;
         if (user && user.logo) {
+            img.removeAttribute("hidden");
+            img.style.display = "block";
             img.src = user.logo;
             img.alt = user.from || user.name || "";
             lcd.classList.add("logged-in");
         } else {
             img.removeAttribute("src");
+            img.src = "";
+            img.alt = "";
+            img.style.display = "none";
             lcd.classList.remove("logged-in");
         }
     }
@@ -469,6 +487,8 @@
             else sendLiveAction("area-stay");
         } else if (key === "FORCE") {
             if (window.arialUser && window.arialUser.code) selectSite("tuys");
+        } else if (key === "LOGOUT") {
+            logOut();
         }
         saveClick(key);
         if (typeof window.onArialKey === "function") window.onArialKey(key);
@@ -506,6 +526,8 @@
             else if (cached.disarmed) setLed(document.getElementById("led-status"), "disarmed");
         }
     } catch (e) {}
+
+    setPadLoggedIn(false);
 
     try {
         var saved = JSON.parse(localStorage.getItem("arialUser") || "null");
