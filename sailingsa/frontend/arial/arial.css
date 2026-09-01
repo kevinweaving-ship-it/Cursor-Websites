@@ -3,10 +3,78 @@ html, body {
     background: #fff;
 }
 
-img {
+.logo {
     display: block;
-    width: 100%;
-    max-width: 420px;
+    width: 72%;
+    max-width: 320px;
     height: auto;
     margin: 0 auto;
+    padding: 16px 12px 8px;
+}
+
+.pad {
+    position: relative;
+    width: 100%;
+    max-width: 420px;
+    margin: 0 auto;
+}
+
+.keypad {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.lcd {
+    position: absolute;
+    left: 10.7%;
+    top: 11.5%;
+    width: 77.8%;
+    height: 16.4%;
+    background: linear-gradient(#1a5fd4 0%, #0b3ea8 55%, #09368f 100%);
+    box-shadow: inset 0 0 10px rgba(0, 20, 80, 0.45);
+    color: #dff2ff;
+    font-family: "Lucida Console", "Courier New", monospace;
+    font-size: clamp(13px, 4.2vw, 18px);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    line-height: 1.25;
+    text-shadow: 0 0 4px rgba(180, 220, 255, 0.85);
+    padding: 0.35em 0.5em;
+    overflow: hidden;
+}
+
+.lcd::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0.06) 0 1px,
+        transparent 1px 3px
+    );
+    pointer-events: none;
+}
+
+#lcd-1,
+#lcd-2 {
+    position: relative;
+    z-index: 1;
+    min-height: 1.15em;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.hot {
+    position: absolute;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.hot:active {
+    background: rgba(0, 40, 120, 0.12);
 }
