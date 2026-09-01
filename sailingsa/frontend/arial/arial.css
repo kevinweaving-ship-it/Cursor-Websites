@@ -40,10 +40,9 @@ html, body {
     letter-spacing: 0.01em;
     line-height: 1.2;
     text-shadow: 0 0 4px rgba(180, 220, 255, 0.85);
-    padding: 8px 10px;
+    padding: 6px 10px;
     display: flex;
-    flex-direction: row;
-    align-items: stretch;
+    flex-direction: column;
     justify-content: space-between;
     overflow: hidden;
     z-index: 2;
@@ -83,17 +82,27 @@ html, body {
     white-space: nowrap;
 }
 
-.lcd-left {
+.lcd-head {
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    flex: 0 0 auto;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.4em;
     z-index: 1;
 }
 
 #lcd-site {
     line-height: 1.2;
+    flex: 0 0 auto;
+}
+
+.lcd-mid {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    min-height: 0;
+    flex: 1;
+    z-index: 1;
 }
 
 #lcd-user-logo {
@@ -101,32 +110,15 @@ html, body {
     height: 34px;
     width: auto;
     max-width: 90px;
-    margin-top: 3px;
+    margin: 0;
     object-fit: contain;
     pointer-events: none;
     filter: drop-shadow(0 0 1px #fff);
+    flex: 0 0 auto;
 }
 
 .lcd.logged-in #lcd-user-logo {
     display: block;
-}
-
-.lcd-right {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    z-index: 1;
-    padding-left: 6px;
-}
-
-.lcd-right-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 0.4em;
-    width: 100%;
 }
 
 #lcd-welcome {
@@ -135,6 +127,7 @@ html, body {
     text-align: left;
     white-space: nowrap;
     overflow: hidden;
+    line-height: 1;
 }
 
 #lcd-when {

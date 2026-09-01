@@ -5,24 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex,nofollow">
     <title>Arial</title>
-    <link rel="stylesheet" href="/arial/arial.css?v=26">
+    <link rel="stylesheet" href="/arial/arial.css?v=30">
 </head>
 <body>
     <img class="logo" src="/arial/logo.png" alt="Aerial Networks">
     <div class="pad">
         <img class="keypad" src="/arial/keypad.png" alt="">
         <div class="lcd" aria-live="polite">
-            <div class="lcd-left">
+            <div class="lcd-head">
                 <span id="lcd-site">HANSEKOP</span>
-                <img id="lcd-user-logo" alt="Pingoa">
+                <span id="lcd-when"></span>
             </div>
-            <div class="lcd-right">
-                <div class="lcd-right-top">
-                    <span id="lcd-welcome"></span>
-                    <span id="lcd-when"></span>
-                </div>
-                <div id="lcd-2"></div>
+            <div class="lcd-mid">
+                <img id="lcd-user-logo" alt="">
+                <span id="lcd-welcome"></span>
             </div>
+            <div id="lcd-2"></div>
         </div>
         <div class="led ac" id="led-ac" title="AC"></div>
         <div class="led status" id="led-status" title="STATUS"></div>
@@ -63,6 +61,6 @@
         if (when) when.textContent = saNow();
     })();
     </script>
-    <script src="/arial/app.js?v=26"></script>
+    <script src="/arial/app.js?v=30"></script>
 </body>
 </html>

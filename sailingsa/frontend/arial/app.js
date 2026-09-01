@@ -166,9 +166,25 @@
     var pin = "";
     var lcdHold = null;
     var CODES = {
-        "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png", code: "7302" },
-        "7102": { name: "Amoroc", from: "Amoroc", logo: "/arial/users/amoroc.png", code: "7102" }
+        "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png?v=30", code: "7302" },
+        "7102": { name: "Amoroc", from: "Amoroc", logo: "/arial/users/amoroc.png?v=30", code: "7102" }
     };
+
+    function resolvedUser(user) {
+        if (!user) return null;
+        if (user.code && CODES[user.code]) return CODES[user.code];
+        if (/aerial/i.test(String(user.logo || user.name || ""))) return CODES["7102"];
+        if (/amoroc/i.test(String(user.name || user.from || user.logo || ""))) return CODES["7102"];
+        return user;
+    }
+
+    function setLoggedIn(user) {
+        user = resolvedUser(user);
+        window.arialUser = user;
+        try { sessionStorage.setItem("arialUser", JSON.stringify(user)); } catch (e) {}
+        showUserLogo(user);
+        if (window.arialDevice) applyLeds(window.arialDevice);
+    }
 
     function showUserLogo(user) {
         var lcd = document.querySelector(".lcd");
@@ -312,10 +328,7 @@
         pin = "";
         if (user) {
             pinAccepted();
-            window.arialUser = user;
-            try { sessionStorage.setItem("arialUser", JSON.stringify(user)); } catch (e) {}
-            showUserLogo(user);
-            applyLcd(window.arialDevice);
+            setLoggedIn(user);
             if (lcdHold) clearTimeout(lcdHold);
             lcdHold = setTimeout(function () {
                 lcdHold = null;
@@ -347,7 +360,7 @@
     }
 
     function sendLiveAction(cmd) {
-        var user = window.arialUser;
+        var user = resolvedUser(window.arialUser);
         if (!user || !user.code) {
             setWelcome("Enter Code", 2000);
             return;
@@ -447,10 +460,12 @@
 
     try {
         var saved = JSON.parse(sessionStorage.getItem("arialUser") || "null");
-        if (saved && saved.logo) {
+        if (saved) {
+            if (!saved.code && /aerial/i.test(String(saved.logo || saved.name || ""))) saved.code = "7102";
+            if (/aerial/i.test(String(saved.logo || ""))) saved.code = saved.code || "7102";
             if (!saved.code && saved.name === "Marc") saved.code = "7302";
-            window.arialUser = saved;
-            showUserLogo(saved);
+            if (/amoroc/i.test(String(saved.name || saved.from || saved.logo || ""))) saved.code = "7102";
+            if (saved.code && CODES[saved.code]) setLoggedIn(CODES[saved.code]);
         }
     } catch (e) {}
 
