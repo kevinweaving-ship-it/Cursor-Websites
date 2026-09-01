@@ -9,8 +9,11 @@
 
     function tickTime() {
         var d = new Date();
-        var el = document.getElementById("lcd-time");
-        if (el) el.textContent = pad(d.getHours()) + ":" + pad(d.getMinutes());
+        var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        var dateEl = document.getElementById("lcd-date");
+        var timeEl = document.getElementById("lcd-time");
+        if (dateEl) dateEl.textContent = pad(d.getDate()) + " " + months[d.getMonth()] + " " + d.getFullYear();
+        if (timeEl) timeEl.textContent = pad(d.getHours()) + ":" + pad(d.getMinutes());
     }
 
     function statusFromDevice(device) {
