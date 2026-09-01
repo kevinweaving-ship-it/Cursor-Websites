@@ -35,12 +35,12 @@ html, body {
     background: #1254c8;
     color: #e8f6ff;
     font-family: "Lucida Console", "Courier New", monospace;
-    font-size: clamp(9px, 2.5vw, 12px);
+    font-size: 12px;
     font-weight: 700;
-    letter-spacing: 0.02em;
-    line-height: 1.15;
+    letter-spacing: 0.01em;
+    line-height: 1.2;
     text-shadow: 0 0 4px rgba(180, 220, 255, 0.85);
-    padding: 3.2% 4%;
+    padding: 8px 10px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -68,22 +68,20 @@ html, body {
 }
 
 #lcd-top {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: auto 1fr;
     align-items: baseline;
-    gap: 0.5em;
+    column-gap: 0.6em;
     width: 100%;
 }
 
 #lcd-site {
-    flex: 0 1 auto;
-    overflow: hidden;
     min-width: 0;
 }
 
 #lcd-when {
-    flex: 0 0 auto;
-    margin-left: auto;
+    text-align: right;
+    justify-self: end;
 }
 
 #lcd-2 {

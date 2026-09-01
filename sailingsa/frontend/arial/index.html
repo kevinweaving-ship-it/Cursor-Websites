@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex,nofollow">
     <title>Arial</title>
-    <link rel="stylesheet" href="/arial/arial.css?v=7">
+    <link rel="stylesheet" href="/arial/arial.css?v=8">
 </head>
 <body>
     <img class="logo" src="/arial/logo.png" alt="Aerial Networks">
@@ -14,7 +14,7 @@
         <div class="lcd" aria-live="polite">
             <div id="lcd-top">
                 <span id="lcd-site">HANSEKOP</span>
-                <span id="lcd-when"><span id="lcd-date"></span> <span id="lcd-time"></span></span>
+                <span id="lcd-when"></span>
             </div>
             <div id="lcd-2"></div>
         </div>
@@ -43,6 +43,19 @@
         <button type="button" class="hot" data-key="0" style="left:43.6%;top:78.2%;width:13.0%;height:8.0%" aria-label="0"></button>
         <button type="button" class="hot" data-key="ENTER" style="left:58.6%;top:78.2%;width:13.2%;height:8.0%" aria-label="ENTER"></button>
     </div>
-    <script src="/arial/app.js?v=7"></script>
+    <script>
+    (function () {
+        var TZ = "Africa/Johannesburg";
+        var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        function pad(n) { return String(n).padStart(2, "0"); }
+        function saNow() {
+            var d = new Date(new Date().toLocaleString("en-US", { timeZone: TZ }));
+            return pad(d.getDate()) + " " + months[d.getMonth()] + " " + d.getFullYear() + "  " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+        }
+        var when = document.getElementById("lcd-when");
+        if (when) when.textContent = saNow();
+    })();
+    </script>
+    <script src="/arial/app.js?v=8"></script>
 </body>
 </html>

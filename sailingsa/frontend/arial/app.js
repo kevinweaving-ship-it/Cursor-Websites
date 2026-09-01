@@ -83,12 +83,19 @@
     }
 
     function tickTime() {
-        var d = new Date();
         var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        var dateEl = document.getElementById("lcd-date");
+        var d = new Date(new Date().toLocaleString("en-US", { timeZone: "Africa/Johannesburg" }));
+        var when = document.getElementById("lcd-when") || document.getElementById("lcd-date");
         var timeEl = document.getElementById("lcd-time");
-        if (dateEl) dateEl.textContent = pad(d.getDate()) + " " + months[d.getMonth()] + " " + d.getFullYear();
-        if (timeEl) timeEl.textContent = pad(d.getHours()) + ":" + pad(d.getMinutes());
+        var dateStr = pad(d.getDate()) + " " + months[d.getMonth()] + " " + d.getFullYear();
+        var timeStr = pad(d.getHours()) + ":" + pad(d.getMinutes());
+        if (timeEl) {
+            var dateEl = document.getElementById("lcd-date");
+            if (dateEl) dateEl.textContent = dateStr;
+            timeEl.textContent = timeStr;
+        } else if (when) {
+            when.textContent = dateStr + "  " + timeStr;
+        }
     }
 
     async function loadStatus() {
