@@ -167,7 +167,7 @@
     var lcdHold = null;
     var CODES = {
         "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png", code: "7302" },
-        "7102": { name: "Aerial", from: "Aerial", logo: "/arial/users/aerial.png", code: "7102" }
+        "7102": { name: "Amoroc", from: "Amoroc", logo: "/arial/users/amoroc.png", code: "7102" }
     };
 
     function showUserLogo(user) {

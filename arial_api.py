@@ -55,7 +55,7 @@ _lock = threading.Lock()
 HANSEKOP_ID = "0bb544db-30b0-453d-bf39-d323538ebd5e"
 KEYPAD_CODES = {
     "7302": {"name": "Marc", "from": "Pingoa"},
-    "7102": {"name": "Aerial", "from": "Aerial"},
+    "7102": {"name": "Amoroc", "from": "Amoroc"},
 }
 
 router = APIRouter()

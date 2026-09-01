@@ -100,7 +100,7 @@ html, body {
     display: none;
     height: 34px;
     width: auto;
-    max-width: 70px;
+    max-width: 90px;
     margin-top: 3px;
     object-fit: contain;
     pointer-events: none;
