@@ -183,7 +183,21 @@
         osc.stop(t + 0.1);
     }
 
-    function pinAccepted() {
+    function rollText(el, text) {
+        if (!el) return;
+        text = text == null ? "" : String(text);
+        if (el._roll) clearInterval(el._roll);
+        el.textContent = "";
+        var i = 0;
+        el._roll = setInterval(function () {
+            i += 1;
+            el.textContent = text.slice(0, i);
+            if (i >= text.length) {
+                clearInterval(el._roll);
+                el._roll = null;
+            }
+        }, 110);
+    }
         pinOk = pinOk || document.getElementById("pin-ok") || new Audio("/arial/pin-accepted.wav");
         pinOk.pause();
         pinOk.currentTime = 0;
@@ -199,7 +213,19 @@
             window.arialUser = user;
             var lcd = document.querySelector(".lcd");
             if (lcd) lcd.classList.remove("armed", "disarmed");
-            setStatusLine(user.name, 4000);
+            if (lcdHold) clearTimeout(lcdHold);
+            lcdHold = setTimeout(function () {
+                lcdHold = null;
+                pin = "";
+                var el = document.getElementById("lcd-2");
+                if (el && el._roll) {
+                    clearInterval(el._roll);
+                    el._roll = null;
+                }
+                if (el) el.textContent = lastStatus;
+                applyLcd(window.arialDevice);
+            }, 5000);
+            rollText(document.getElementById("lcd-2"), "Welcome Pingoa");
         } else {
             beep();
             setStatusLine("Invalid Code", 2000);
