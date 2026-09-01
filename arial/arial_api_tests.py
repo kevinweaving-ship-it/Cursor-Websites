@@ -101,7 +101,7 @@ def test_panel_cache_ttl(monkeypatch):
     assert arial_api._cached_panel() is fake
     now["t"] = 1001.0
     assert arial_api._cached_panel() is fake
-    now["t"] = 1004.0
+    now["t"] = 1006.0
     assert arial_api._cached_panel() is None
     arial_api._cached_panel(fake)
     arial_api._cached_panel(clear=True)

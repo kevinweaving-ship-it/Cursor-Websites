@@ -52,7 +52,7 @@ _DATA_DIR = _ROOT / "data"
 _USERS_PATH = _DATA_DIR / "arial_users.json"
 _lock = threading.Lock()
 _panel_cache: dict[str, Any] = {"at": 0.0, "data": None}
-_PANEL_TTL_SEC = 2.5
+_PANEL_TTL_SEC = 5.0
 
 HANSEKOP_ID = "0bb544db-30b0-453d-bf39-d323538ebd5e"
 KEYPAD_CODES = {
@@ -358,6 +358,12 @@ def _cached_panel(device: dict[str, Any] | None = None, *, clear: bool = False) 
         return None
 
 
+def _stale_panel() -> dict[str, Any] | None:
+    with _lock:
+        data = _panel_cache.get("data")
+        return data if isinstance(data, dict) else None
+
+
 @router.get("/arial")
 @router.get("/arial/")
 def arial_index():
@@ -518,11 +524,17 @@ async def arial_panel():
     cached = _cached_panel()
     if cached is not None:
         return {"ok": True, "device": cached}
-    raw = await _olarm_request(
-        "GET",
-        f"/api/v4/devices/{HANSEKOP_ID}",
-        params={"deviceApiAccessOnly": "1"},
-    )
+    try:
+        raw = await _olarm_request(
+            "GET",
+            f"/api/v4/devices/{HANSEKOP_ID}",
+            params={"deviceApiAccessOnly": "1"},
+        )
+    except HTTPException as exc:
+        stale = _stale_panel()
+        if exc.status_code == 429 and stale is not None:
+            return {"ok": True, "device": stale}
+        raise
     return {"ok": True, "device": _cached_panel(enrich_device(raw))}
 
 
