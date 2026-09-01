@@ -1,7 +1,6 @@
 (function () {
     var STORE = "arialKeyClicks";
     var audioCtx = null;
-    var statusText = "";
     var ROLL_MS = 110;
 
     function pad(n) {
@@ -30,9 +29,12 @@
     function tickTime() {
         var d = new Date();
         var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        rollText(document.getElementById("lcd-site"), "HANSEKOP");
-        rollText(document.getElementById("lcd-date"), pad(d.getDate()) + " " + months[d.getMonth()] + " " + d.getFullYear());
-        rollText(document.getElementById("lcd-time"), pad(d.getHours()) + ":" + pad(d.getMinutes()));
+        var dateStr = pad(d.getDate()) + " " + months[d.getMonth()] + " " + d.getFullYear();
+        var timeStr = pad(d.getHours()) + ":" + pad(d.getMinutes());
+        var dateEl = document.getElementById("lcd-date");
+        var timeEl = document.getElementById("lcd-time");
+        if (dateEl) dateEl.textContent = dateStr;
+        if (timeEl) timeEl.textContent = timeStr;
     }
 
     function statusFromDevice(device) {
@@ -44,7 +46,7 @@
         if (st === "sleep") return "Sleep Armed";
         if (st === "disarm") return "System Ready";
         if (st === "notready") return "Not Ready";
-        return st ? st : "";
+        return st ? st : "System Ready";
     }
 
     async function loadStatus() {
@@ -56,8 +58,7 @@
             var hanse = devices.filter(function (d) {
                 return /hansekop/i.test(d.deviceName || "");
             })[0] || devices[0];
-            statusText = statusFromDevice(hanse);
-            rollText(document.getElementById("lcd-2"), statusText);
+            rollText(document.getElementById("lcd-2"), statusFromDevice(hanse));
         } catch (e) { /* keep last status */ }
     }
 
@@ -106,7 +107,13 @@
     }
 
     window.setArialLcd = function (top, bottom) {
-        if (top != null) rollText(document.getElementById("lcd-site"), String(top));
+        if (top != null) {
+            var parts = String(top).split(/\s+/);
+            var timeEl = document.getElementById("lcd-time");
+            var dateEl = document.getElementById("lcd-date");
+            if (parts.length && timeEl) timeEl.textContent = parts[parts.length - 1];
+            if (parts.length > 1 && dateEl) dateEl.textContent = parts.slice(0, -1).join(" ");
+        }
         if (bottom != null) rollText(document.getElementById("lcd-2"), String(bottom));
     };
 
