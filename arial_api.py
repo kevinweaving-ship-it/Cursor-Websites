@@ -200,13 +200,30 @@ def enrich_device(device: dict[str, Any]) -> dict[str, Any]:
     profile = device.get("deviceProfile") or {}
     state = device.get("deviceState") or {}
     area_labels = list(profile.get("areasLabels") or [])
-    area_states = list(state.get("areas") or [])
+    area_states = _as_list(state.get("areas"))
+    area_details = _as_list(state.get("areasDetail"))
+    area_stamps = _as_list(state.get("areasStamp"))
     areas = []
+    countdown = None
     limit = int(profile.get("areasLimit") or max(len(area_labels), len(area_states), 0))
     for i in range(limit):
         label = (area_labels[i] if i < len(area_labels) else "") or f"Area {i + 1}"
         st = area_states[i] if i < len(area_states) else ""
-        areas.append({"num": i + 1, "label": label, "state": st})
+        detail = area_details[i] if i < len(area_details) else ""
+        stamp = area_stamps[i] if i < len(area_stamps) else None
+        cd = _area_countdown(st, detail)
+        if cd is not None and countdown is None:
+            countdown = cd
+        areas.append(
+            {
+                "num": i + 1,
+                "label": label,
+                "state": st,
+                "detail": detail,
+                "stamp": stamp,
+                "countdown": cd,
+            }
+        )
     zone_labels = list(profile.get("zonesLabels") or [])
     zone_types = list(profile.get("zonesTypes") or [])
     zone_states = list(state.get("zones") or [])
@@ -235,7 +252,75 @@ def enrich_device(device: dict[str, Any]) -> dict[str, Any]:
     out = dict(device)
     out["arialAreas"] = areas
     out["arialZones"] = zones
+    out["arialCountdown"] = countdown
+    out["arialExitDelay"] = _profile_exit_delay(profile)
     return out
+
+
+def _as_list(value: Any) -> list[Any]:
+    if value is None or value == "":
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    return [value]
+
+
+def _countdown_int(value: Any) -> int | None:
+    if value is None or value is True or value is False:
+        return None
+    if isinstance(value, (int, float)):
+        n = int(value)
+        return n if 0 < n <= 180 else None
+    if isinstance(value, dict):
+        for key in ("time", "seconds", "countdown", "remaining", "exitDelay", "delay"):
+            n = _countdown_int(value.get(key))
+            if n:
+                return n
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    if text.isdigit():
+        return _countdown_int(int(text))
+    m = re.search(r"(\d{1,3})\s*(?:s|sec|secs|second|seconds)?\b", text, re.I)
+    if m:
+        return _countdown_int(int(m.group(1)))
+    return None
+
+
+def _profile_exit_delay(profile: dict[str, Any]) -> int:
+    for key in ("exitDelay", "exitDelaySeconds", "areasExitDelay", "armDelay"):
+        n = _countdown_int(profile.get(key))
+        if n and n >= 10:
+            return n
+    return 60
+
+
+def _looks_like_timer(detail: Any) -> bool:
+    if isinstance(detail, bool) or detail is None:
+        return False
+    if isinstance(detail, (int, float, dict)):
+        return True
+    text = str(detail).strip().lower()
+    if not text:
+        return False
+    if text.isdigit():
+        return True
+    return bool(re.search(r"(delay|exit|countdown|second|\d+\s*s\b)", text))
+
+
+def _area_countdown(state: Any, detail: Any) -> int | None:
+    st = str(state or "").strip().lower()
+    if st == "countdown" or _looks_like_timer(detail):
+        n = _countdown_int(detail)
+        if n:
+            return n
+    text = f"{state or ''} {detail or ''}".strip().lower()
+    if "countdown" in text or "exit delay" in text:
+        return _countdown_int(text)
+    return None
 
 
 def _cookie_response(payload: dict[str, Any], session: Optional[str], clear: bool = False) -> JSONResponse:

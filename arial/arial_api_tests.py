@@ -52,6 +52,46 @@ def test_enrich_device_areas_and_named_zones():
     assert 6 not in zones  # empty label skipped
 
 
+def test_countdown_from_numeric_detail():
+    d = {
+        "deviceState": {"areas": ["countdown"], "areasDetail": ["47"]},
+        "deviceProfile": {"areasLimit": 1, "areasLabels": ["House"], "zonesLimit": 0},
+    }
+    out = arial_api.enrich_device(d)
+    assert out["arialCountdown"] == 47
+    assert out["arialAreas"][0]["countdown"] == 47
+    assert out["arialExitDelay"] == 60
+
+
+def test_countdown_from_detail_object():
+    d = {
+        "deviceState": {"areas": ["countdown"], "areasDetail": [{"time": 12}]},
+        "deviceProfile": {"areasLimit": 1, "areasLabels": ["House"], "zonesLimit": 0},
+    }
+    assert arial_api.enrich_device(d)["arialCountdown"] == 12
+
+
+def test_countdown_ignores_zone_names_when_armed():
+    d = {
+        "deviceState": {"areas": ["arm"], "areasDetail": ["Zone 12 PIR"]},
+        "deviceProfile": {"areasLimit": 1, "areasLabels": ["House"], "zonesLimit": 0},
+    }
+    assert arial_api.enrich_device(d)["arialCountdown"] is None
+
+
+def test_profile_exit_delay():
+    d = {
+        "deviceState": {"areas": ["disarm"], "areasDetail": [""]},
+        "deviceProfile": {
+            "areasLimit": 1,
+            "areasLabels": ["House"],
+            "zonesLimit": 0,
+            "exitDelay": 30,
+        },
+    }
+    assert arial_api.enrich_device(d)["arialExitDelay"] == 30
+
+
 def test_register_login_profile(tmp_path, monkeypatch):
     monkeypatch.setattr(arial_api, "_USERS_PATH", tmp_path / "arial_users.json")
     monkeypatch.setattr(arial_api, "_DATA_DIR", tmp_path)
