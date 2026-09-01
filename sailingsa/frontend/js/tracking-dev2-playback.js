@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v19";
+  var CACHE = "dev2v20";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -2067,7 +2067,9 @@
     var START_LABEL_MS = 5 * 60 * 1000;
     var PLAY_END_TS = Number(data.play_end_ts_ms || data.end_ts_ms);
     var GRID_ORIGIN = trail.grid_start_ts_ms != null ? Number(trail.grid_start_ts_ms) : Number(trail.gun_ts_ms);
-    var FINISH = asBoats(data.finish);
+    var FINISH = asBoats(data.finish).sort(function (a, b) {
+      return (a.ts || 0) - (b.ts || 0);
+    });
     var FINISH_PLACE = {};
     FINISH.forEach(function (b, i) {
       if (b && b.boat) FINISH_PLACE[b.boat] = i + 1;
@@ -3456,7 +3458,9 @@
         finished: last > 0 && PASSES[last] && (PASSES[last].id === "FIN" || PASSES[last].label === "Fin"),
         leg: leg,
         total: total,
-        isLeader: liveRankCache.overallLeader && liveRankCache.overallLeader.sail === sail,
+        isLeader: RACE_NO < 2
+          ? (liveRankCache.leader && liveRankCache.leader.sail === sail)
+          : (liveRankCache.overallLeader && liveRankCache.overallLeader.sail === sail),
         overallPos: liveRankCache.overallBySail[sail] || null,
         racePlace: livePlace
       };
@@ -3625,12 +3629,16 @@
         : 0;
       return { startMid: startMid, target: target, targetKey: key, windFrom: windFrom, leg: leg };
     }
-    function currentRacePoints(sail, ts, bySail) {
+    function boatHasFinished(sail, ts) {
       var i;
       for (i = 0; i < FINISH.length; i++) {
-        if (FINISH[i].boat === sail && FINISH[i].ts != null && FINISH[i].ts <= ts) {
-          return FINISH_PLACE[sail] != null ? FINISH_PLACE[sail] : (bySail[sail] || DNF_POINTS);
-        }
+        if (FINISH[i].boat === sail && FINISH[i].ts != null && FINISH[i].ts <= ts) return true;
+      }
+      return false;
+    }
+    function currentRacePoints(sail, ts, bySail) {
+      if (boatHasFinished(sail, ts) && FINISH_PLACE[sail] != null) {
+        return FINISH_PLACE[sail];
       }
       return bySail[sail] != null ? bySail[sail] : DNF_POINTS;
     }
@@ -3685,53 +3693,42 @@
       var fi;
       for (fi = 0; fi < FINISH.length; fi++) {
         var fb = FINISH[fi];
-        if (fb.boat && fb.ts != null && fb.ts <= ts) finishedLocked[fb.boat] = fi + 1;
+        if (fb.boat && fb.ts != null && fb.ts <= ts && FINISH_PLACE[fb.boat] != null) {
+          finishedLocked[fb.boat] = FINISH_PLACE[fb.boat];
+        }
       }
       var finishedN = Object.keys(finishedLocked).length;
-      var allFinished = FINISH.length > 0 && finishedN >= FINISH.length;
       var bySail = {};
-      if (allFinished) {
-        for (fi = 0; fi < FINISH.length; fi++) {
-          fb = FINISH[fi];
-          if (fb.boat && fb.ts != null && fb.ts <= ts) bySail[fb.boat] = fi + 1;
-        }
-        var dnfPlace = FINISH.length + 1;
-        Object.keys(trail.boats || {}).forEach(function (sail) {
-          if (bySail[sail] != null) return;
-          if (!posAt(sail, ts)) return;
-          bySail[sail] = dnfPlace;
-          dnfPlace += 1;
-        });
-      } else if (finishedN > 0) {
-        var taken = {};
-        Object.keys(finishedLocked).forEach(function (sail) {
-          bySail[sail] = finishedLocked[sail];
-          taken[finishedLocked[sail]] = true;
-        });
-        var open = rows.filter(function (r) { return finishedLocked[r.sail] == null; });
-        open.sort(function (a, b) {
-          if (b.done !== a.done) return b.done - a.done;
-          return a.dtm - b.dtm;
-        });
-        var place = 1;
-        open.forEach(function (r) {
-          while (taken[place]) place += 1;
-          bySail[r.sail] = place;
-          taken[place] = true;
-          place += 1;
-        });
-      } else {
-        rows.sort(function (a, b) {
-          if (b.done !== a.done) return b.done - a.done;
-          return a.dtm - b.dtm;
-        });
-        rows.forEach(function (r, i) { bySail[r.sail] = i + 1; });
-      }
+      Object.keys(finishedLocked).forEach(function (sail) {
+        bySail[sail] = finishedLocked[sail];
+      });
+      var open = rows.filter(function (r) { return !boatHasFinished(r.sail, ts); });
+      open.sort(function (a, b) {
+        if (b.done !== a.done) return b.done - a.done;
+        return a.dtm - b.dtm;
+      });
+      var nextRank = finishedN + 1;
+      open.forEach(function (r) {
+        bySail[r.sail] = nextRank;
+        nextRank += 1;
+      });
       rows.sort(function (a, b) {
         return (bySail[a.sail] || 99) - (bySail[b.sail] || 99);
       });
       var raceLeader = rows[0] || null;
-      var overallState = buildOverallState(rows, ts, bySail);
+      var overallState;
+      if (RACE_NO < 2) {
+        /* Race 1: no prior nett — overall = this race only */
+        overallState = {
+          overallBySail: {},
+          overallLeader: raceLeader
+        };
+        Object.keys(bySail).forEach(function (sail) {
+          overallState.overallBySail[sail] = bySail[sail];
+        });
+      } else {
+        overallState = buildOverallState(rows, ts, bySail);
+      }
       liveRankCache = {
         ts: ts,
         bySail: bySail,
