@@ -41,6 +41,7 @@
         var st = areaState(device);
         if (!st) return "";
         if (st.indexOf("alarm") !== -1) return "ALARM";
+        if (st === "countdown") return "Exit Delay";
         if (st === "arm") return "System Armed";
         if (st === "stay") return "Stay Armed";
         if (st === "sleep") return "Sleep Armed";
@@ -59,7 +60,7 @@
         var lcd = document.querySelector(".lcd");
         if (!lcd) return;
         var st = areaState(device);
-        var armed = st === "arm" || st === "stay" || st === "sleep" || st.indexOf("alarm") !== -1;
+        var armed = st === "arm" || st === "stay" || st === "sleep" || st === "countdown" || st.indexOf("alarm") !== -1;
         var disarmed = st === "disarm" || st === "notready";
         lcd.classList.toggle("armed", armed);
         lcd.classList.toggle("disarmed", disarmed);
@@ -73,7 +74,7 @@
         setLed(document.getElementById("led-ac"), acOk ? "on" : "flash");
         if (st.indexOf("alarm") !== -1) {
             setLed(document.getElementById("led-status"), "armed flash-fast");
-        } else if (st === "arm" || st === "stay" || st === "sleep") {
+        } else if (st === "arm" || st === "stay" || st === "sleep" || st === "countdown") {
             setLed(document.getElementById("led-status"), "armed");
         } else if (st === "notready") {
             setLed(document.getElementById("led-status"), "disarmed flash");
