@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v16";
+  var CACHE = "dev2v17";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -3636,12 +3636,55 @@
         var dtm = markPos ? distM(pos, markPos) : 1e12;
         rows.push({ sail: sail, pos: pos, dtm: dtm, done: done });
       });
-      rows.sort(function (a, b) {
-        if (b.done !== a.done) return b.done - a.done;
-        return a.dtm - b.dtm;
-      });
+      var finishedLocked = {};
+      var fi;
+      for (fi = 0; fi < FINISH.length; fi++) {
+        var fb = FINISH[fi];
+        if (fb.boat && fb.ts != null && fb.ts <= ts) finishedLocked[fb.boat] = fi + 1;
+      }
+      var finishedN = Object.keys(finishedLocked).length;
+      var allFinished = FINISH.length > 0 && finishedN >= FINISH.length;
       var bySail = {};
-      rows.forEach(function (r, i) { bySail[r.sail] = i + 1; });
+      if (allFinished) {
+        for (fi = 0; fi < FINISH.length; fi++) {
+          fb = FINISH[fi];
+          if (fb.boat && fb.ts != null && fb.ts <= ts) bySail[fb.boat] = fi + 1;
+        }
+        var dnfPlace = FINISH.length + 1;
+        Object.keys(trail.boats || {}).forEach(function (sail) {
+          if (bySail[sail] != null) return;
+          if (!posAt(sail, ts)) return;
+          bySail[sail] = dnfPlace;
+          dnfPlace += 1;
+        });
+      } else if (finishedN > 0) {
+        var taken = {};
+        Object.keys(finishedLocked).forEach(function (sail) {
+          bySail[sail] = finishedLocked[sail];
+          taken[finishedLocked[sail]] = true;
+        });
+        var open = rows.filter(function (r) { return finishedLocked[r.sail] == null; });
+        open.sort(function (a, b) {
+          if (b.done !== a.done) return b.done - a.done;
+          return a.dtm - b.dtm;
+        });
+        var place = 1;
+        open.forEach(function (r) {
+          while (taken[place]) place += 1;
+          bySail[r.sail] = place;
+          taken[place] = true;
+          place += 1;
+        });
+      } else {
+        rows.sort(function (a, b) {
+          if (b.done !== a.done) return b.done - a.done;
+          return a.dtm - b.dtm;
+        });
+        rows.forEach(function (r, i) { bySail[r.sail] = i + 1; });
+      }
+      rows.sort(function (a, b) {
+        return (bySail[a.sail] || 99) - (bySail[b.sail] || 99);
+      });
       var overallLeader = pickOverallLeader(rows, ts, bySail);
       liveRankCache = {
         ts: ts,

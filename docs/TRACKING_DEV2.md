@@ -84,7 +84,7 @@ Toggles on the SF-TrajX bar. **Stop adding new bits** until we pick keep vs drop
 | Wind | Compass | on |
 | Camera | Recenter / follow fleet (red dial button) | on |
 
-**Rank (always):** boat number and board rank = current race place. 1 = whoever is first *now* (marks completed, then distance to that boat’s next mark). **ST** = seconds behind the leader on this leg. Mark columns (when expanded) are confirmed rounding times.
+**Rank (always):** boat number and board rank = current race place. 1 = whoever is first *now* (marks completed, then distance to that boat’s next mark). **Once a boat finishes, its place locks to the confirmed finish order; after the last finisher, all numbers stay on Race N results (not live GPS drift).** **ST** = seconds behind the leader on this leg.
 
 **Leader (overall):** lowest `series nett + current race place` — prior race finishes from R1…R(N−1) (1 discard once 4+ prior races), plus live place in this race (or finish place once crossed the line). Gold ring and `LEADER` tag follow this boat.
 
