@@ -17,7 +17,7 @@ Dev sandbox for applying **Sailfish Sports (saill.cn)** open-trac patterns to Sa
 
 | | **Race 1** | **Race 2+** |
 |--|------------|-------------|
-| **Series nett at gun** | 0 for all | Sum of prior-race points (1 discard after 4 prior races) |
+| **Series nett at gun** | 0 for all | Sum of **all** prior-race points (club series — no discard) |
 | **Front** (red line) | Who is 1st **this race** | Same |
 | **Leader** (yellow line + gold ring) | **Same as Front** | **Overall regatta leader** — lowest `prior nett + live race place` |
 | **Number on map icon** | **This race place** (always) | **This race place** (locks to finish order when done) |

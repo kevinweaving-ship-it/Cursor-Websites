@@ -1339,6 +1339,12 @@ body[data-tracking-dev2="1"] .tracking-dev2-rank-table td.start-rank-col {
   min-width: 2rem;
   font-weight: 700;
 }
+body[data-tracking-dev2="1"] .tracking-dev2-rank-table thead th {
+  position: sticky;
+  top: 0;
+  background: #f1f5f9;
+  z-index: 1;
+}
 body[data-tracking-dev2="1"] .tracking-dev2-map-first #lipton-dev-chart,
 body[data-tracking-dev2="1"] .tracking-dev2-map-first #lipton-dev-map {
   grid-area: 1 / 1;

@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v18";
+  var CACHE = "dev2v19";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -2074,6 +2074,8 @@
     });
     var FLEET_SZ = Object.keys(trail.boats || {}).length || Object.keys(BOATS).length || 17;
     var DNF_POINTS = FLEET_SZ + 1;
+    /* Club / inter-club series: sum every prior race — no Olympic-style discard */
+    var CLUB_SERIES = true;
     function seriesNettBeforeCurrent(sail) {
       var scores = [];
       var r;
@@ -2082,7 +2084,7 @@
         var idx = order.indexOf(sail);
         scores.push(idx >= 0 ? idx + 1 : DNF_POINTS);
       }
-      if (scores.length >= 4) {
+      if (!CLUB_SERIES && scores.length >= 4) {
         var worst = Math.max.apply(null, scores);
         var wi = scores.indexOf(worst);
         scores = scores.slice(0, wi).concat(scores.slice(wi + 1));
