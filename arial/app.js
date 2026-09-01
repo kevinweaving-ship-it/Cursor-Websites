@@ -212,11 +212,11 @@
         if (armed) {
             btn.setAttribute("aria-label", "DISARM");
             btn.classList.add("mode-disarm");
-            if (face) face.src = "/arial/btn-disarm.png?v=42";
+            if (face) face.src = "/arial/btn-disarm.png?v=43";
         } else {
             btn.setAttribute("aria-label", "ARM");
             btn.classList.add("mode-arm");
-            if (face) face.src = "/arial/btn-arm.png?v=42";
+            if (face) face.src = "/arial/btn-arm.png?v=43";
         }
     }
 
@@ -338,8 +338,8 @@
     var pin = "";
     var lcdHold = null;
     var CODES = {
-        "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png?v=42", code: "7302" },
-        "7102": { name: "Amoroc", from: "Amoroc", logo: "/arial/users/amoroc.png?v=42", code: "7102" }
+        "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png?v=43", code: "7302" },
+        "7102": { name: "Amoroc", from: "Amoroc", logo: "/arial/users/amoroc.png?v=43", code: "7102" }
     };
 
     function resolvedUser(user) {

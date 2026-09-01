@@ -117,6 +117,10 @@ def test_up_arrow_is_logout_when_logged_in():
     assert "logout-link" not in html
     assert "logout-link" not in css
     assert 'data-key="UP"' in html
+    assert 'class="logout-label"' in html
+    assert ">Log<" in html and ">Out<" in html
+    assert ".logout-label" in css
+    assert "pointer-events: none" in css
     assert 'key === "UP"' in js
     assert "logOut();" in js
 
