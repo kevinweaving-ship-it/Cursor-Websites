@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v6";
+  var CACHE = "dev2v7";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -3210,9 +3210,9 @@
     function drawMap(ts) {
       if (drawingMap) return;
       drawingMap = true;
+      try {
       frameCam(ts);
       if (!mapCtx || !mapBounds) {
-        drawingMap = false;
         return;
       }
       var w = mapBounds.w;
@@ -3254,7 +3254,7 @@
         drawStartDirArrows(mapCtx, xy, trail.start_line.left, trail.start_line.right, markAt("1", ts), boatPts);
       }
       drawGate(trail.finish_line, focusGate === "finish_line" ? "#fbbf24" : "rgba(251,191,36,0.35)", finishName, "Pin", "RC");
-      drawSailfishOverlays(ts);
+      try { drawSailfishOverlays(ts); } catch (overlayErr) { console.warn("[dev2] overlay", overlayErr); }
       Object.keys(trail.boats || {}).forEach(function (sail) {
         var pos = posAt(sail, ts);
         if (!pos) return;
@@ -3262,7 +3262,11 @@
         drawBoatLabel(p, pos.hdg, sail, ts);
       });
       drawCourseLabel(ts);
-      drawingMap = false;
+      } catch (drawErr) {
+        console.warn("[dev2] drawMap", drawErr);
+      } finally {
+        drawingMap = false;
+      }
     }
     function destPoint(from, brg, meters) {
       var R = 6371000;
@@ -4257,13 +4261,18 @@
     }
 
     function tick() {
+      try {
       if (playing && trackerReady) {
         var now = Date.now();
         var prevTs = playTs;
-        playTs += (now - lastWall) * RATE;
+        var rate = Number(RATE);
+        if (!(rate > 0)) rate = 5;
+        playTs += (now - lastWall) * rate;
         lastWall = now;
-        var gunAt = GUN_TS - GUN_HORN_EARLY_MS - GUN_HORN_LEAD_MS * (RATE > 0 ? RATE : 1);
-        if (prevTs < gunAt && playTs >= gunAt) fireGunHorn();
+        var gunAt = GUN_TS - GUN_HORN_EARLY_MS - GUN_HORN_LEAD_MS * rate;
+        if (prevTs < gunAt && playTs >= gunAt) {
+          try { fireGunHorn(); } catch (hornErr) {}
+        }
         if (playTs > PLAY_END_TS) {
           playTs = PLAY_END_TS;
           playing = false;
@@ -4275,10 +4284,10 @@
         var key = stateKey(rows, playTs);
         if (key !== lastKey || postIsDue()) {
           render(playTs);
-        } else if (clockEl) {
-          clockEl.textContent = clockText(playTs, rows);
+        } else {
+          drawCourseLabel(playTs);
+          drawMap(playTs);
         }
-        drawMap(playTs);
         syncScrub();
       } else {
         lastWall = Date.now();
@@ -4287,25 +4296,32 @@
           drawMap(playTs);
         }
       }
+      } catch (tickErr) {
+        console.warn("[dev2] tick", tickErr);
+        lastWall = Date.now();
+      }
       window.requestAnimationFrame(tick);
     }
 
     function beginAfterTracker() {
       if (trackerReady) return;
       trackerReady = true;
-      playTs = GUN_TS;
+      playTs = Math.max(PLAY_START_TS, GUN_TS - 2000);
       lastWall = Date.now();
-      playing = false;
-      resetHorns();
-      frameCam(playTs);
-      setPlayLabel();
-      setRateButtons();
-      render(playTs);
-      if (sailedEl) sailedEl.textContent = RACE_LAB + " · gun " + GUN_CLOCK + " · press Play";
       playing = true;
-      lastWall = Date.now();
-      setPlayLabel();
+      RATE = Math.max(RATE || 1, 5);
+      resetHorns();
+      try {
+        frameCam(playTs);
+        setPlayLabel();
+        setRateButtons();
+        render(playTs);
+      } catch (bootErr) {
+        console.warn("[dev2] begin", bootErr);
+      }
+      if (sailedEl) sailedEl.textContent = RACE_LAB + " · gun " + GUN_CLOCK + " · playing " + RATE + "×";
       fillChecksum();
+      setPlayLabel();
     }
 
     function waitForTracker() {
@@ -4329,15 +4345,18 @@
     if (playBtn) {
       playBtn.addEventListener("pointerdown", function () { unlockGunHorn(); });
       playBtn.addEventListener("click", function () {
-        if (!trackerReady) return;
+        if (!trackerReady) {
+          beginAfterTracker();
+          return;
+        }
         if (!playing) {
           unlockGunHorn();
           if (playTs >= PLAY_END_TS - 250) jump(PLAY_START_TS);
           playing = true;
+          lastWall = Date.now();
         } else {
           playing = false;
         }
-        lastWall = Date.now();
         setPlayLabel();
       });
     }
