@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v11";
+  var CACHE = "dev2v12";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -2168,6 +2168,7 @@
     var RACE_LAB = "Race " + RACE_NO;
     setRaceTableLabel(RACE_NO, false);
     var overlay = {
+      board: true,
       layline: sailfish.layline !== false,
       leaderline: sailfish.leaderline !== false,
       frontline: true,
@@ -2179,6 +2180,7 @@
     window.__sailfishOverlay = overlay;
     window.__sailfishRedraw = function () {
       if (window.__sailfishOverlay) {
+        overlay.board = window.__sailfishOverlay.board !== false;
         overlay.layline = !!window.__sailfishOverlay.layline;
         overlay.leaderline = !!window.__sailfishOverlay.leaderline;
         overlay.frontline = window.__sailfishOverlay.frontline !== false;
@@ -2189,6 +2191,8 @@
           overlay.laylineAngle = Number(window.__sailfishOverlay.laylineAngle) || 44.2;
         }
       }
+      var boardEl = document.getElementById("tracking-dev2-ranking");
+      if (boardEl) boardEl.classList.toggle("is-hidden", !overlay.board);
       drawMap(playTs);
     };
     var liveRankCache = { ts: -1, bySail: {}, leader: null, target: null, windFrom: 0 };
@@ -3306,7 +3310,7 @@
         var keys = Object.keys(trail.marks || {});
         if (keys.length) target = markAt(keys[0], ts);
       }
-      var windFrom = (target && startMid)
+      var windFrom = (target && startMid && target.lat != null && startMid.lat != null)
         ? bearingDeg(startMid.lat, startMid.lon, target.lat, target.lon)
         : 0;
       return { startMid: startMid, target: target, targetKey: key, windFrom: windFrom };

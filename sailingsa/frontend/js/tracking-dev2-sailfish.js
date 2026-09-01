@@ -1,6 +1,7 @@
 /**
  * Sailfish (saill.cn) open_trac parity UI for tracking-dev2.
  * Applies viewConfig flags and shows transport/API status bar.
+ * Feature toggles are bit-by-bit: turn off anything you do not want.
  */
 (function () {
   function el(id) {
@@ -19,6 +20,7 @@
 
   function overlayState(vc) {
     return {
+      board: true,
       layline: vc.layline !== false,
       leaderline: vc.leaderline !== false,
       frontline: true,
@@ -30,9 +32,18 @@
     };
   }
 
+  function syncBoard(state) {
+    var board = el("tracking-dev2-ranking");
+    if (!board) return;
+    var on = state.board !== false;
+    board.classList.toggle("is-hidden", !on);
+    board.setAttribute("aria-hidden", on ? "false" : "true");
+  }
+
   function paintFlags(flags, state) {
     if (!flags) return;
     var items = [
+      ["Board", "board"],
       ["SOG", "colSOG"],
       ["COG", "colCOG"],
       ["Layline", "layline"],
@@ -50,10 +61,13 @@
       btn.textContent = pair[0];
       btn.title = "Toggle " + pair[0] + (pair[1] === "leaderline" || pair[1] === "frontline"
         ? " (follows live race leader — changes during race)"
-        : "");
+        : pair[1] === "board"
+          ? " (Sailfish left ranking board overlay)"
+          : "");
       btn.addEventListener("click", function () {
         state[pair[1]] = !state[pair[1]];
         window.__sailfishOverlay = state;
+        syncBoard(state);
         paintFlags(flags, state);
         if (typeof window.__sailfishRedraw === "function") window.__sailfishRedraw();
       });
@@ -70,6 +84,18 @@
     var wind = el("tracking-dev2-wind-compass");
     var state = overlayState(vc);
     window.__sailfishOverlay = state;
+    syncBoard(state);
+
+    var hideBtn = el("tracking-dev2-ranking-hide");
+    if (hideBtn) {
+      hideBtn.onclick = function () {
+        state.board = false;
+        window.__sailfishOverlay = state;
+        syncBoard(state);
+        paintFlags(flags, state);
+        if (typeof window.__sailfishRedraw === "function") window.__sailfishRedraw();
+      };
+    }
 
     if (mode) {
       mode.textContent = bootstrap.status === "99" ? "REPLAY" : "LIVE";
@@ -108,8 +134,8 @@
 
     var checksum = el("lipton-dev-checksum");
     if (checksum) {
-      checksum.textContent = "Sailfish dev2 · " + (bootstrap.raceCd || "") +
-        " · replay2/static-json · R1–R10 Lipton sample";
+      checksum.textContent = "Sailfish ranking · " + (bootstrap.raceCd || "") +
+        " · R1–R10 Lipton sample";
     }
 
     return {
@@ -121,6 +147,7 @@
       windCompass: state.windCompass,
       colSOG: state.colSOG,
       colCOG: state.colCOG,
+      board: state.board,
       trackLength: Number(vc.trackLength) || 90,
       nearestRate: nearestRate
     };

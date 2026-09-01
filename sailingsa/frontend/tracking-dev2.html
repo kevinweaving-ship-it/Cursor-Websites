@@ -21,7 +21,7 @@
   <meta name="twitter:image" content="https://sailingsa.co.za/api/og/regatta/2026-08-29-lipton-challenge-cup/ea4ca8b2a84b036d.png">
   <link rel="stylesheet" href="/css/main.css">
   <link rel="stylesheet" href="/js/vendor/leaflet/leaflet.css?v=20260828dk">
-  <link rel="stylesheet" href="/css/tracking-dev2.css?v=dev2v11">
+  <link rel="stylesheet" href="/css/tracking-dev2.css?v=dev2v12">
   <script src="/js/api.js"></script>
   <script src="/js/session.js"></script>
 </head>
@@ -64,6 +64,29 @@
           <div class="lipton-dev-map-hud-name" id="lipton-dev-map-hud-name"></div>
         </div>
         <div class="lipton-dev-race-boxes tracking-dev2-race-rail" id="lipton-dev-race-boxes" role="group" aria-label="Races"></div>
+        <aside class="fleet-section lipton-dev-board tracking-dev2-ranking" id="tracking-dev2-ranking" aria-label="Ranking board">
+          <div class="tracking-dev2-ranking-head">
+            <h2 class="class-header" id="lipton-dev-race-label">Ranking board</h2>
+            <button type="button" class="tracking-dev2-ranking-hide" id="tracking-dev2-ranking-hide" title="Hide ranking board">×</button>
+          </div>
+          <p id="lipton-dev-checksum"></p>
+          <div class="table-wrapper results-table-container table-container" id="lipton-dev-table-wrap">
+            <table class="table fleet-results-table tracking-dev2-rank-table">
+              <thead>
+                <tr id="lipton-dev-thead-row">
+                  <th class="rank-col">R</th>
+                  <th class="wc-meta-col">Bow</th>
+                  <th class="boat-name-col">Team</th>
+                  <th class="club-col">Club</th>
+                  <th class="timer-col"><span class="ld-mark-lab">ST</span></th>
+                </tr>
+              </thead>
+              <tbody id="lipton-dev-tbody">
+                <tr><td colspan="5">Loading Sailfish replay…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </aside>
         <div class="tracking-dev2-dock" id="lipton-dev-subhead">
           <div class="lipton-dev-map-transport">
             <div class="lipton-dev-playbox">
@@ -90,31 +113,11 @@
           </div>
         </div>
       </div>
-      <div class="fleet-section lipton-dev-board tracking-dev2-ranking">
-        <h2 class="class-header" id="lipton-dev-race-label">Race 1</h2>
-        <p id="lipton-dev-checksum"></p>
-        <div class="table-wrapper results-table-container table-container" id="lipton-dev-table-wrap">
-          <table class="table fleet-results-table">
-            <thead>
-              <tr id="lipton-dev-thead-row">
-                <th class="rank-col">Rank</th>
-                <th class="wc-meta-col">Bow</th>
-                <th class="boat-name-col">Boat Name</th>
-                <th class="club-col">Club</th>
-                <th class="timer-col"><span class="ld-mark-lab">ST</span></th>
-              </tr>
-            </thead>
-            <tbody id="lipton-dev-tbody">
-              <tr><td colspan="5">Loading Sailfish replay…</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
     </div>
   </div>
 
   <script src="/js/vendor/leaflet/leaflet.js?v=20260828dk"></script>
-  <script src="/js/tracking-dev2-sailfish.js?v=dev2v11"></script>
-  <script src="/js/tracking-dev2-playback.js?v=dev2v11"></script>
+  <script src="/js/tracking-dev2-sailfish.js?v=dev2v12"></script>
+  <script src="/js/tracking-dev2-playback.js?v=dev2v12"></script>
 </body>
 </html>
