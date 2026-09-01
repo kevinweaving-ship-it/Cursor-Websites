@@ -75,3 +75,9 @@ Feature toggles on the SF-TrajX bar (**SOG / COG / Layline / Leader / Front / Wi
 **We do not have the full saill.cn proprietary app source.** What we have is reverse-engineered extracts under research (getRace bootstrap, viewConfig, replay2 chunk shape, WS topic notes in PR #40 / `docs/sailfish-china-extracts/`). Dev2 reimplements useful bits against Lipton R1–R10 sample GPS.
 
 **Layout bit (dev2v8):** map-first stage with bottom transport dock + green digital REPLAY clock (Sailfish open_trac style). Ranking board remains beside the map for now.
+
+## Next steps
+
+1. Ranking board overlay on map (Sailfish left sidebar) — optional next bit.
+2. Map Lipton packed ticks → Sailfish `runtime[]` slots in playback (for WS parity).
+3. Replace static JSON with live WSS when Sailfish live capture completes (see `LIVE_WS_CAPTURE_WHEN.md`).
