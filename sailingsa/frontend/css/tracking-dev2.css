@@ -1243,6 +1243,8 @@ body[data-tracking-dev2="1"] .tracking-dev2-split {
   flex: 1 1 auto;
   min-height: 0;
   height: auto;
+  padding-bottom: 64px;
+  box-sizing: border-box;
 }
 body[data-tracking-dev2="1"] .tracking-dev2-map-first {
   position: relative;
@@ -1280,10 +1282,6 @@ body[data-tracking-dev2="1"] .tracking-dev2-dock {
   max-height: 72px;
   height: 64px;
   top: auto;
-  box-sizing: border-box;
-}
-body[data-tracking-dev2="1"] .tracking-dev2-split {
-  padding-bottom: 64px;
   box-sizing: border-box;
 }
 body[data-tracking-dev2="1"] .tracking-dev2-dock .lipton-dev-map-transport,
