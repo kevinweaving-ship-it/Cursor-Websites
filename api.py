@@ -26770,6 +26770,12 @@ def serve_robots_txt():
     body = f"User-agent: *\nAllow: /\nSitemap: {base}/sitemap.xml\n"
     return Response(content=body, media_type="text/plain", headers={"Cache-Control": "public, max-age=3600"})
 
+try:
+    from arial_api import router as arial_router
+    app.include_router(arial_router)
+except Exception as _arial_imp_err:
+    logging.getLogger("arial").warning("arial_api not loaded: %s", _arial_imp_err)
+
 # Serve /artwork/ from project artwork dir (e.g. TimAdvisor logo) so same-origin requests work
 ARTWORK_DIR = os.path.join(BASE_DIR, "artwork")
 if os.path.isdir(ARTWORK_DIR):

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en-ZA">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex,nofollow">
+    <title>Arial Dev — Aerial Networks</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/arial/arial.css">
+</head>
+<body class="arial-dev">
+    <div class="arial-banner">Arial Dev on sailingsa.co.za/arial · later arial.co.za · Olarm live devices · not the public SailingSA hub</div>
+    <header class="site-header arial-header">
+        <div class="container">
+            <a class="logo-text" href="/arial">Aerial Networks</a>
+            <nav class="header-nav" aria-label="Arial">
+                <a href="#dashboard" data-view="dashboard" class="is-active">Dashboard</a>
+                <a href="#events" data-view="events">Events</a>
+                <a href="#profile" data-view="profile">Profile</a>
+                <a href="#auth" data-view="auth" id="nav-auth">Sign in</a>
+            </nav>
+        </div>
+    </header>
+    <main class="arial-main">
+        <div class="container">
+            <div id="flash" class="hidden"></div>
+
+            <section id="view-auth" class="card hidden">
+                <h2 class="section-title">Sign in or create a profile</h2>
+                <p class="muted">Each person on Arial has their own login. The alarm dashboard uses the shared Olarm account.</p>
+                <div class="form-group">
+                    <label for="auth-name">Name</label>
+                    <input id="auth-name" type="text" autocomplete="name" placeholder="Your name">
+                </div>
+                <div class="form-group">
+                    <label for="auth-email">Email</label>
+                    <input id="auth-email" type="email" autocomplete="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="auth-password">Password</label>
+                    <input id="auth-password" type="password" autocomplete="current-password" required>
+                </div>
+                <div class="btn-row">
+                    <button type="button" class="primary" id="btn-login">Sign in</button>
+                    <button type="button" id="btn-register">Create profile</button>
+                </div>
+            </section>
+
+            <section id="view-dashboard" class="hidden">
+                <div class="card" id="device-meta"></div>
+                <div id="device-areas"></div>
+                <div class="card">
+                    <h2 class="section-title">Zones</h2>
+                    <div class="table-container">
+                        <table class="table" id="zones-table">
+                            <thead>
+                                <tr>
+                                    <th>Zone</th>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>State</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="view-events" class="card hidden">
+                <h2 class="section-title">Recent events</h2>
+                <div class="table-container">
+                    <table class="table" id="events-table">
+                        <thead>
+                            <tr>
+                                <th>When</th>
+                                <th>Event</th>
+                                <th>Who</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="view-profile" class="card hidden">
+                <h2 class="section-title">Your profile</h2>
+                <div class="form-group">
+                    <label for="prof-name">Name</label>
+                    <input id="prof-name" type="text">
+                </div>
+                <div class="form-group">
+                    <label for="prof-email">Email</label>
+                    <input id="prof-email" type="email" disabled>
+                </div>
+                <div class="form-group">
+                    <label for="prof-phone">Phone</label>
+                    <input id="prof-phone" type="tel">
+                </div>
+                <div class="form-group">
+                    <label for="prof-notes">Notes</label>
+                    <textarea id="prof-notes" maxlength="2000"></textarea>
+                </div>
+                <div class="btn-row">
+                    <button type="button" class="primary" id="btn-save-profile">Save profile</button>
+                    <button type="button" id="btn-logout">Sign out</button>
+                </div>
+            </section>
+        </div>
+    </main>
+    <script src="/arial/app.js"></script>
+</body>
+</html>

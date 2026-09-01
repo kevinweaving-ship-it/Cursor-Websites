@@ -3,6 +3,11 @@
 config.postgres.env
 *.env
 
+# Arial / Olarm (never commit tokens or user store)
+data/arial_users.json
+data/arial_users.json.tmp
+data/arial_sessions.json
+
 # Deploy D/R host (do not commit real IP)
 sailingsa/deploy/DR_HOST
 
