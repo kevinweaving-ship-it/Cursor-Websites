@@ -105,13 +105,30 @@ html, body {
     padding-left: 6px;
 }
 
+.lcd-right-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.4em;
+    width: 100%;
+}
+
+#lcd-welcome {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
 #lcd-when {
     text-align: right;
     white-space: nowrap;
+    flex: 0 0 auto;
 }
 
 #lcd-2 {
-    text-align: center;
+    text-align: right;
     width: 100%;
 }
 
@@ -142,24 +159,28 @@ html, body {
     box-shadow: 0 0 10px 4px rgba(255, 138, 0, 0.95);
 }
 
-.led.status.on {
-    background: #3dff5a;
-    opacity: 1;
-    box-shadow: 0 0 10px 4px rgba(34, 238, 68, 0.95);
-}
-
 .led.ac.flash {
     background: #ff9a1a;
     animation: ledflash 0.7s step-end infinite;
 }
 
-.led.status.flash {
+.led.status.armed {
+    background: #ff2a2a;
+    opacity: 1;
+    box-shadow: 0 0 10px 4px rgba(196, 18, 18, 0.95);
+}
+
+.led.status.disarmed {
     background: #3dff5a;
+    opacity: 1;
+    box-shadow: 0 0 10px 4px rgba(18, 138, 34, 0.95);
+}
+
+.led.status.flash {
     animation: ledflash 0.7s step-end infinite;
 }
 
 .led.status.flash-fast {
-    background: #3dff5a;
     animation: ledflash 0.28s step-end infinite;
 }
 

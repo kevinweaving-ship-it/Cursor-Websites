@@ -57,7 +57,7 @@
 
     function applyLcd(device) {
         var lcd = document.querySelector(".lcd");
-        if (!lcd || lcdHold) return;
+        if (!lcd) return;
         var st = areaState(device);
         var armed = st === "arm" || st === "stay" || st === "sleep" || st.indexOf("alarm") !== -1;
         var disarmed = st === "disarm" || st === "notready";
@@ -72,13 +72,13 @@
         applyLcd(device);
         setLed(document.getElementById("led-ac"), acOk ? "on" : "flash");
         if (st.indexOf("alarm") !== -1) {
-            setLed(document.getElementById("led-status"), "on flash-fast");
+            setLed(document.getElementById("led-status"), "armed flash-fast");
+        } else if (st === "arm" || st === "stay" || st === "sleep") {
+            setLed(document.getElementById("led-status"), "armed");
         } else if (st === "notready") {
-            setLed(document.getElementById("led-status"), "on flash");
-        } else if (st === "disarm") {
-            setLed(document.getElementById("led-status"), "on");
+            setLed(document.getElementById("led-status"), "disarmed flash");
         } else {
-            setLed(document.getElementById("led-status"), "");
+            setLed(document.getElementById("led-status"), "disarmed");
         }
     }
 
@@ -116,7 +116,7 @@
             }
             document.getElementById("lcd-site").textContent = siteName(hanse);
             lastStatus = statusFromDevice(hanse);
-            if (!pin && !lcdHold) document.getElementById("lcd-2").textContent = lastStatus;
+            document.getElementById("lcd-2").textContent = lastStatus;
             applyLeds(hanse);
             window.arialDevice = hanse;
         } catch (e) {
@@ -164,18 +164,23 @@
         }
     }
 
-    function setStatusLine(text, holdMs) {
-        var el = document.getElementById("lcd-2");
-        if (el) el.textContent = text;
+    function setWelcome(text, holdMs) {
+        var el = document.getElementById("lcd-welcome");
+        if (el) {
+            if (el._roll) {
+                clearInterval(el._roll);
+                el._roll = null;
+            }
+            el.textContent = text || "";
+        }
         if (lcdHold) clearTimeout(lcdHold);
         lcdHold = null;
         if (holdMs) {
-                lcdHold = setTimeout(function () {
-                    lcdHold = null;
-                    pin = "";
-                    el.textContent = lastStatus;
-                    applyLcd(window.arialDevice);
-                }, holdMs);
+            lcdHold = setTimeout(function () {
+                lcdHold = null;
+                pin = "";
+                if (el) el.textContent = "";
+            }, holdMs);
         }
     }
 
@@ -227,26 +232,24 @@
         if (user) {
             pinAccepted();
             window.arialUser = user;
-            var lcd = document.querySelector(".lcd");
-            if (lcd) lcd.classList.remove("armed", "disarmed");
             showUserLogo(user);
+            applyLcd(window.arialDevice);
             if (lcdHold) clearTimeout(lcdHold);
             lcdHold = setTimeout(function () {
                 lcdHold = null;
                 pin = "";
-                var el = document.getElementById("lcd-2");
+                var el = document.getElementById("lcd-welcome");
                 if (el && el._roll) {
                     clearInterval(el._roll);
                     el._roll = null;
                 }
-                if (el) el.textContent = lastStatus;
-                applyLcd(window.arialDevice);
+                if (el) el.textContent = "";
             }, 5000);
-            rollText(document.getElementById("lcd-2"), "Welcome Pingoa");
-        } else {
-            beep();
-            setStatusLine("Invalid Code", 2000);
-        }
+            rollText(document.getElementById("lcd-welcome"), "Welcome Pingoa");
+            } else {
+                beep();
+                setWelcome("Invalid Code", 2000);
+            }
     }
 
     function onKey(key) {
@@ -257,12 +260,12 @@
             if (pin.length === 4) submitPin();
             else {
                 beep();
-                setStatusLine(new Array(pin.length + 1).join("*"));
+                setWelcome(new Array(pin.length + 1).join("*"));
             }
         } else if (key === "CLEAR") {
             beep();
             pin = "";
-            setStatusLine(lastStatus);
+            setWelcome("");
         } else if (key === "ENTER") {
             if (pin) submitPin();
             else beep();
