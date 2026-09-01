@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v20";
+  var CACHE = "dev2v21";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -54,6 +54,11 @@
       })(r);
     }
     return Promise.all(jobs).then(function () { return out; });
+  }
+  function fetchSeriesScores() {
+    return fetch("/js/lipton-dev-series-scores.json?v=" + CACHE, { cache: "no-store" })
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .catch(function () { return null; });
   }
   var DATA_URL = jsonUrl("replay", RACE_Q);
   var TRAIL_URL = jsonUrl("trail", RACE_Q);
@@ -361,14 +366,15 @@
       if (!res.ok) throw new Error("trail json " + res.status);
       return res.json();
     }),
-    fetchPriorFinishes(RACE_Q)
+    fetchPriorFinishes(RACE_Q),
+    fetchSeriesScores()
   ])
     .then(function (quad) {
       window.__trackingDev2Bootstrap = quad[0];
       window.__sailfishDev2 = typeof window.applySailfishDev2 === "function"
         ? window.applySailfishDev2(quad[0])
         : {};
-      start(quad[1], quad[2], quad[0], quad[3]);
+      start(quad[1], quad[2], quad[0], quad[3], quad[4]);
     })
     .catch(function (err) {
       var sailed = document.getElementById("lipton-dev-sailed");
@@ -2053,8 +2059,9 @@
     window.addEventListener("resize", function () { drawLiveMap(); });
   }
 
-  function start(data, trail, bootstrap, seriesFinishes) {
+  function start(data, trail, bootstrap, seriesFinishes, seriesOfficial) {
     seriesFinishes = seriesFinishes || {};
+    seriesOfficial = seriesOfficial || null;
     var sailfish = {};
     if (bootstrap && typeof window.applySailfishDev2 === "function") {
       sailfish = window.applySailfishDev2(bootstrap) || {};
@@ -2078,13 +2085,69 @@
     var DNF_POINTS = FLEET_SZ + 1;
     /* Club / inter-club series: sum every prior race — no Olympic-style discard */
     var CLUB_SERIES = true;
+    var SERIES_OFFICIAL = seriesOfficial;
+    var PROTEST_MODE = "official";
+    var PROTEST_META = (SERIES_OFFICIAL && SERIES_OFFICIAL.race_6_protests) || data.protests || null;
+    var OFFICIAL_POINTS = data.official_points_r6 || data.official_points || null;
+    var OFFICIAL_RACE_RANK = {};
+    var PROTEST_FLAG_TS = null;
+    function officialPointsForRace(rn, sail) {
+      if (!SERIES_OFFICIAL || !SERIES_OFFICIAL.boats || !SERIES_OFFICIAL.boats[sail]) return null;
+      var row = SERIES_OFFICIAL.boats[sail].points || {};
+      var p = row[String(rn)];
+      return p == null ? null : Number(p);
+    }
+    function buildOfficialRaceRanks(pointsMap) {
+      var ranks = {};
+      var dsq = {};
+      if (!pointsMap) return ranks;
+      var rows = Object.keys(pointsMap).map(function (sail) {
+        return { sail: sail, pts: Number(pointsMap[sail]) };
+      });
+      rows.sort(function (a, b) {
+        if (a.pts !== b.pts) return a.pts - b.pts;
+        return String(a.sail).localeCompare(String(b.sail));
+      });
+      var place = 1;
+      rows.forEach(function (r) {
+        if (r.pts >= DNF_POINTS) {
+          dsq[r.sail] = true;
+          ranks[r.sail] = null;
+        } else {
+          ranks[r.sail] = place;
+          place += 1;
+        }
+      });
+      return ranks;
+    }
+    if (RACE_NO === 6 && !OFFICIAL_POINTS && SERIES_OFFICIAL && SERIES_OFFICIAL.boats) {
+      OFFICIAL_POINTS = {};
+      Object.keys(SERIES_OFFICIAL.boats).forEach(function (sail) {
+        var p = officialPointsForRace(6, sail);
+        if (p != null) OFFICIAL_POINTS[sail] = p;
+      });
+    }
+    if (OFFICIAL_POINTS) OFFICIAL_RACE_RANK = buildOfficialRaceRanks(OFFICIAL_POINTS);
+    if (PROTEST_META && PROTEST_META.tracking_pre_flag && GUN_TS) {
+      PROTEST_FLAG_TS = GUN_TS + Number(PROTEST_META.tracking_pre_flag.ts_offset_s || 0) * 1000;
+    }
     function seriesNettBeforeCurrent(sail) {
       var scores = [];
       var r;
       for (r = 1; r < RACE_NO; r++) {
-        var order = seriesFinishes[r] || [];
-        var idx = order.indexOf(sail);
-        scores.push(idx >= 0 ? idx + 1 : DNF_POINTS);
+        if (PROTEST_MODE === "official") {
+          var op = officialPointsForRace(r, sail);
+          if (op != null) scores.push(op);
+          else {
+            var order = seriesFinishes[r] || [];
+            var idx = order.indexOf(sail);
+            scores.push(idx >= 0 ? idx + 1 : DNF_POINTS);
+          }
+        } else {
+          var orderG = seriesFinishes[r] || [];
+          var idxG = orderG.indexOf(sail);
+          scores.push(idxG >= 0 ? idxG + 1 : DNF_POINTS);
+        }
       }
       if (!CLUB_SERIES && scores.length >= 4) {
         var worst = Math.max.apply(null, scores);
@@ -2220,6 +2283,24 @@
       return out;
     }
     var OVERALL_AT_GUN = computeOverallAtGun();
+    function refreshOverallAtGun() {
+      OVERALL_AT_GUN = computeOverallAtGun();
+    }
+    function applyProtestMode(mode) {
+      PROTEST_MODE = mode === "provisional" ? "provisional" : "official";
+      liveRankCache = { ts: -1 };
+      refreshOverallAtGun();
+      if (RACE_NO === 6 && PROTEST_META) {
+        setRaceTableLabel(RACE_NO, false, PROTEST_MODE === "official" ? "Official · 3 DSQ" : "Provisional");
+      }
+      var btn = document.getElementById("tracking-dev2-protest-toggle");
+      if (btn) {
+        btn.textContent = PROTEST_MODE === "official" ? "Scores: Official" : "Scores: Provisional";
+        btn.setAttribute("aria-pressed", PROTEST_MODE === "official" ? "true" : "false");
+      }
+      if (typeof drawMap === "function") drawMap(viewTs || playTs);
+      if (typeof render === "function") render(viewTs || playTs);
+    }
     var ST_LEAD_TS = null;
     Object.keys(LEGAL_TS).forEach(function (sail) {
       if (OCS[sail] && START_RANK[sail] == null) return;
@@ -2236,7 +2317,20 @@
     bindRaceButtons(data.race_number || RACE_Q || 1);
     var GUN_CLOCK = String(data.gun_sast || "").slice(11, 19) || "13:55:01";
     var RACE_LAB = "Race " + RACE_NO;
-    setRaceTableLabel(RACE_NO, false);
+    if (RACE_NO === 6 && PROTEST_META) {
+      setRaceTableLabel(RACE_NO, false, PROTEST_MODE === "official" ? "Official · 3 DSQ" : "Provisional");
+    } else {
+      setRaceTableLabel(RACE_NO, false);
+    }
+    var protestToggle = document.getElementById("tracking-dev2-protest-toggle");
+    if (protestToggle) {
+      protestToggle.hidden = !(RACE_NO === 6 && PROTEST_META);
+      protestToggle.textContent = PROTEST_MODE === "official" ? "Scores: Official" : "Scores: Provisional";
+      protestToggle.setAttribute("aria-pressed", PROTEST_MODE === "official" ? "true" : "false");
+      protestToggle.onclick = function () {
+        applyProtestMode(PROTEST_MODE === "official" ? "provisional" : "official");
+      };
+    }
     var overlay = {
       board: true,
       marks: true,
@@ -3637,6 +3731,10 @@
       return false;
     }
     function currentRacePoints(sail, ts, bySail) {
+      if (PROTEST_MODE === "official" && OFFICIAL_POINTS && OFFICIAL_POINTS[sail] != null &&
+          ts >= PLAY_END_TS - 5000) {
+        return OFFICIAL_POINTS[sail];
+      }
       if (boatHasFinished(sail, ts) && FINISH_PLACE[sail] != null) {
         return FINISH_PLACE[sail];
       }
@@ -3691,10 +3789,18 @@
       });
       var finishedLocked = {};
       var fi;
-      for (fi = 0; fi < FINISH.length; fi++) {
-        var fb = FINISH[fi];
-        if (fb.boat && fb.ts != null && fb.ts <= ts && FINISH_PLACE[fb.boat] != null) {
-          finishedLocked[fb.boat] = FINISH_PLACE[fb.boat];
+      var useOfficialRace = PROTEST_MODE === "official" && OFFICIAL_RACE_RANK &&
+        Object.keys(OFFICIAL_RACE_RANK).length && ts >= PLAY_END_TS - 5000;
+      if (useOfficialRace) {
+        Object.keys(OFFICIAL_RACE_RANK).forEach(function (sail) {
+          if (OFFICIAL_RACE_RANK[sail] != null) finishedLocked[sail] = OFFICIAL_RACE_RANK[sail];
+        });
+      } else {
+        for (fi = 0; fi < FINISH.length; fi++) {
+          var fb = FINISH[fi];
+          if (fb.boat && fb.ts != null && fb.ts <= ts && FINISH_PLACE[fb.boat] != null) {
+            finishedLocked[fb.boat] = FINISH_PLACE[fb.boat];
+          }
         }
       }
       var finishedN = Object.keys(finishedLocked).length;
@@ -3702,7 +3808,10 @@
       Object.keys(finishedLocked).forEach(function (sail) {
         bySail[sail] = finishedLocked[sail];
       });
-      var open = rows.filter(function (r) { return !boatHasFinished(r.sail, ts); });
+      var open = rows.filter(function (r) {
+        if (useOfficialRace && OFFICIAL_POINTS && OFFICIAL_POINTS[r.sail] >= DNF_POINTS) return false;
+        return !boatHasFinished(r.sail, ts) && !(useOfficialRace && finishedLocked[r.sail] != null);
+      });
       open.sort(function (a, b) {
         if (b.done !== a.done) return b.done - a.done;
         return a.dtm - b.dtm;
@@ -3878,6 +3987,27 @@
           mapCtx.font = "9px sans-serif";
           mapCtx.fillText(bits.join(" "), p.x + 10, p.y - 12);
         });
+      }
+
+      /* Pre-flagged possible protest (R6 pin traffic — tracking evidence) */
+      if (PROTEST_FLAG_TS && Math.abs(ts - PROTEST_FLAG_TS) <= 45000) {
+        var pinPt = (trail.finish_line && trail.finish_line.left) ||
+          (trail.start_line && trail.start_line.left) || null;
+        if (pinPt) {
+          var pp = xy(pinPt.lat, pinPt.lon);
+          mapCtx.save();
+          mapCtx.strokeStyle = "rgba(251,146,60,0.95)";
+          mapCtx.lineWidth = 2;
+          mapCtx.setLineDash([4, 3]);
+          mapCtx.beginPath();
+          mapCtx.arc(pp.x, pp.y, 22, 0, Math.PI * 2);
+          mapCtx.stroke();
+          mapCtx.setLineDash([]);
+          mapCtx.fillStyle = "rgba(251,146,60,0.95)";
+          mapCtx.font = "bold 11px system-ui,sans-serif";
+          mapCtx.fillText("⚑ Possible protest · 57:25", pp.x + 26, pp.y - 8);
+          mapCtx.restore();
+        }
       }
     }
     function courseFromTrail() {
@@ -4680,6 +4810,9 @@
       else {
         if (san.timeFail.length) bits.push("times " + san.timeFail.join(" "));
         if (san.legFail.length) bits.push("legs " + san.legFail.join(" "));
+      }
+      if (RACE_NO === 6 && PROTEST_META) {
+        bits.push("R6 protests: 2 · DSQ KYC LDYC RNYC · pre-flag 57:25");
       }
       checksumEl.textContent = bits.length ? "checksum " + bits.join(" · ") : "";
     }

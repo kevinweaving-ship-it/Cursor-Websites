@@ -1473,6 +1473,16 @@ body[data-tracking-dev2="1"] .lipton-dev-race-box {
   pointer-events: auto;
   cursor: pointer;
 }
+body[data-tracking-dev2="1"] .tracking-dev2-protest-toggle {
+  font-size: 0.72rem;
+  padding: 0.35rem 0.55rem;
+  min-width: 7.5rem;
+  white-space: nowrap;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-protest-toggle[aria-pressed="true"] {
+  background: rgba(251, 146, 60, 0.25);
+  border-color: rgba(251, 146, 60, 0.85);
+}
 body[data-tracking-dev2="1"] .lipton-dev-btn {
   min-width: 44px;
   min-height: 36px;

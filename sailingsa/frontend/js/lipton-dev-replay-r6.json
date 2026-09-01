@@ -21,6 +21,36 @@
   "default_rate": 1,
   "ocs": [],
   "exonerated": [],
+  "protests": {
+    "lodged": 2,
+    "outcome_r6_dsq": ["KYC", "LDYC", "RNYC"],
+    "outcome_note": "Official corrected scores (by end R7): KYC, LDYC, RNYC → 18.0 DSQ in R6. Case 02 DSQ LDYC & RNYC; KYC cleared in that hearing — KYC DSQ on published overall implies a second hearing.",
+    "case_02_pdf": "https://liptoncup.com/backend/wp-content/uploads/2026/08/case_02.pdf",
+    "tracking_pre_flag": {
+      "race_time": "57:25.1",
+      "ts_offset_s": 3445.1,
+      "boats": ["KYC", "LDYC", "RNYC", "RCYC"]
+    }
+  },
+  "official_points_r6": {
+    "FBYC": 1,
+    "RCYC Academy": 2,
+    "UCTYC": 3,
+    "SBYC": 4,
+    "PYC": 5,
+    "HYC": 6,
+    "GLYC": 7,
+    "WBYC": 8,
+    "RCYC": 9,
+    "LYC": 10,
+    "IZIVUNGUVUNGU": 11,
+    "TSC": 12,
+    "BYC": 13,
+    "WYAC": 14,
+    "KYC": 18,
+    "LDYC": 18,
+    "RNYC": 18
+  },
   "course": {
     "id": "wl",
     "label": "Windward / Leeward",
