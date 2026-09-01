@@ -57,7 +57,7 @@
 
     function applyLcd(device) {
         var lcd = document.querySelector(".lcd");
-        if (!lcd) return;
+        if (!lcd || lcdHold) return;
         var st = areaState(device);
         var armed = st === "arm" || st === "stay" || st === "sleep" || st.indexOf("alarm") !== -1;
         var disarmed = st === "disarm" || st === "notready";
@@ -155,11 +155,12 @@
         if (lcdHold) clearTimeout(lcdHold);
         lcdHold = null;
         if (holdMs) {
-            lcdHold = setTimeout(function () {
-                lcdHold = null;
-                pin = "";
-                el.textContent = lastStatus;
-            }, holdMs);
+                lcdHold = setTimeout(function () {
+                    lcdHold = null;
+                    pin = "";
+                    el.textContent = lastStatus;
+                    applyLcd(window.arialDevice);
+                }, holdMs);
         }
     }
 
@@ -196,6 +197,8 @@
         if (user) {
             pinAccepted();
             window.arialUser = user;
+            var lcd = document.querySelector(".lcd");
+            if (lcd) lcd.classList.remove("armed", "disarmed");
             setStatusLine(user.name, 4000);
         } else {
             beep();
