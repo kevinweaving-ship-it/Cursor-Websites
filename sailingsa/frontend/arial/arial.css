@@ -115,23 +115,24 @@ html, body {
 
 .brand-slot {
     position: absolute;
-    left: 12%;
-    top: 0.3%;
-    width: 76%;
-    height: 4.8%;
+    left: 10%;
+    top: 0.2%;
+    width: 80%;
+    height: 5.2%;
     z-index: 5;
     display: flex;
     align-items: center;
     justify-content: center;
     pointer-events: none;
+    isolation: isolate;
 }
 
 .brand-logo {
-    width: 72%;
-    height: 90%;
+    width: 78%;
+    height: 100%;
     object-fit: contain;
     object-position: center;
-    mix-blend-mode: multiply;
+    background: transparent;
 }
 
 .lcd-bezel {
