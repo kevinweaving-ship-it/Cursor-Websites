@@ -46,8 +46,9 @@
         return site.toUpperCase() || "HANSEKOP";
     }
 
-    var EXIT_DEFAULT = 60;
+    var EXIT_DEFAULT = 10;
     var pendingExitUntil = 0;
+    var armPending = false;
 
     function areaState(device) {
         var areas = (device && device.arialAreas) || [];
@@ -108,6 +109,7 @@
 
     function clearLocalExit() {
         pendingExitUntil = 0;
+        armPending = false;
         maybeExitBeeps._done = false;
     }
 
@@ -139,6 +141,7 @@
         if (deviceCountdown(device) > 0) return true;
         if (stampRemaining(device) > 0) return true;
         if (localExitLeft() > 0 && (st === "disarm" || st === "notready" || !st)) return true;
+        if (armPending && !isArmedState(st)) return true;
         return false;
     }
 
@@ -605,7 +608,8 @@
             setWelcome("Not Linked", 2000);
             return;
         }
-        var delay = exitDelaySecs(window.arialDevice);
+        var delay = EXIT_DEFAULT;
+        armPending = true;
         startLocalExit(delay);
         showArming(localExitLeft());
         maybeExitBeeps();

@@ -60,7 +60,7 @@ def test_countdown_from_numeric_detail():
     out = arial_api.enrich_device(d)
     assert out["arialCountdown"] == 47
     assert out["arialAreas"][0]["countdown"] == 47
-    assert out["arialExitDelay"] == 60
+    assert out["arialExitDelay"] == 10
 
 
 def test_countdown_from_detail_object():

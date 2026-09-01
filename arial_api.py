@@ -297,7 +297,7 @@ def _profile_exit_delay(profile: dict[str, Any]) -> int:
         n = _countdown_int(profile.get(key))
         if n and n >= 10:
             return n
-    return 60
+    return 10
 
 
 def _looks_like_timer(detail: Any) -> bool:
