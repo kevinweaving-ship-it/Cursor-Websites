@@ -1,4 +1,6 @@
 (function () {
+    var STORE = "arialKeyClicks";
+    var audioCtx = null;
     var statusText = "";
 
     function pad(n) {
@@ -38,6 +40,50 @@
         } catch (e) { /* keep last status */ }
     }
 
+    function loadClicks() {
+        try {
+            var raw = localStorage.getItem(STORE);
+            var list = raw ? JSON.parse(raw) : [];
+            return Array.isArray(list) ? list : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function saveClick(key) {
+        var list = loadClicks();
+        list.push({ key: key, at: new Date().toISOString() });
+        if (list.length > 500) list = list.slice(-500);
+        localStorage.setItem(STORE, JSON.stringify(list));
+        window.arialClicks = list;
+    }
+
+    function beep() {
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        if (!audioCtx) audioCtx = new AC();
+        if (audioCtx.state === "suspended") audioCtx.resume();
+        var t = audioCtx.currentTime;
+        var osc = audioCtx.createOscillator();
+        var gain = audioCtx.createGain();
+        osc.type = "square";
+        osc.frequency.setValueAtTime(1850, t);
+        gain.gain.setValueAtTime(0.0001, t);
+        gain.gain.exponentialRampToValueAtTime(0.08, t + 0.005);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(t);
+        osc.stop(t + 0.08);
+    }
+
+    function onKey(key) {
+        if (!key) return;
+        beep();
+        saveClick(key);
+        if (typeof window.onArialKey === "function") window.onArialKey(key);
+    }
+
     window.setArialLcd = function (top, bottom) {
         var site = document.getElementById("lcd-site");
         if (site && top != null) site.textContent = String(top);
@@ -45,11 +91,14 @@
         if (line2 && bottom != null) line2.textContent = String(bottom);
     };
 
-    document.querySelector(".pad").addEventListener("click", function (ev) {
+    window.arialClicks = loadClicks();
+
+    var pad = document.querySelector(".pad");
+    pad.addEventListener("pointerdown", function (ev) {
         var btn = ev.target.closest("[data-key]");
         if (!btn) return;
-        var key = btn.getAttribute("data-key");
-        if (typeof window.onArialKey === "function") window.onArialKey(key);
+        ev.preventDefault();
+        onKey(btn.getAttribute("data-key"));
     });
 
     tickTime();
