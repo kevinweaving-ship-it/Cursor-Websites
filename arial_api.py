@@ -409,6 +409,16 @@ async def arial_devices(request: Request):
     }
 
 
+@router.get("/api/arial/panel")
+async def arial_panel():
+    raw = await _olarm_request(
+        "GET",
+        f"/api/v4/devices/{HANSEKOP_ID}",
+        params={"deviceApiAccessOnly": "1"},
+    )
+    return {"ok": True, "device": enrich_device(raw)}
+
+
 @router.post("/api/arial/keypad")
 async def arial_keypad(request: Request):
     """Logged-in keypad PIN can arm/stay/disarm Hansekop. No cookie profile required."""

@@ -99,19 +99,18 @@
     }
 
     async function loadStatus() {
+        if (loadStatus._busy) return;
+        loadStatus._busy = true;
         try {
-            var res = await fetch("/api/arial/devices", { credentials: "same-origin", cache: "no-store" });
+            var res = await fetch("/api/arial/panel", { credentials: "same-origin", cache: "no-store" });
             var data = await res.json();
             if (!res.ok) {
-                document.getElementById("lcd-2").textContent = "No Link";
+                document.getElementById("lcd-2").textContent = lastStatus || "No Link";
                 return;
             }
-            var devices = data.devices || [];
-            var hanse = devices.filter(function (d) {
-                return /hansekop/i.test(d.deviceName || "");
-            })[0] || devices[0];
+            var hanse = data.device;
             if (!hanse) {
-                document.getElementById("lcd-2").textContent = "No Device";
+                document.getElementById("lcd-2").textContent = lastStatus || "No Device";
                 return;
             }
             document.getElementById("lcd-site").textContent = siteName(hanse);
@@ -119,8 +118,19 @@
             document.getElementById("lcd-2").textContent = lastStatus;
             applyLeds(hanse);
             window.arialDevice = hanse;
+            try {
+                var lcd = document.querySelector(".lcd");
+                localStorage.setItem("arialPanel", JSON.stringify({
+                    lastStatus: lastStatus,
+                    site: siteName(hanse),
+                    armed: !!(lcd && lcd.classList.contains("armed")),
+                    disarmed: !!(lcd && lcd.classList.contains("disarmed"))
+                }));
+            } catch (e) {}
         } catch (e) {
             document.getElementById("lcd-2").textContent = lastStatus || "No Link";
+        } finally {
+            loadStatus._busy = false;
         }
     }
 
@@ -307,7 +317,7 @@
     function onKey(key) {
         if (!key) return;
         var now = Date.now();
-        if (key === onKey._k && now - onKey._t < 70) return;
+        if (key === onKey._k && now - onKey._t < 280) return;
         onKey._k = key;
         onKey._t = now;
         var willAccept = /^[0-9]$/.test(key) && pin.length === 3 && CODES[pin + key];
@@ -353,12 +363,20 @@
         unlockAudio();
         onKey(btn.getAttribute("data-key"));
     });
-    keypad.addEventListener("click", function (ev) {
-        var btn = ev.target.closest("[data-key]");
-        if (!btn) return;
-        unlockAudio();
-        onKey(btn.getAttribute("data-key"));
-    });
+
+    try {
+        var cached = JSON.parse(localStorage.getItem("arialPanel") || "null");
+        if (cached) {
+            lastStatus = cached.lastStatus || "";
+            if (cached.site) document.getElementById("lcd-site").textContent = cached.site;
+            if (lastStatus) document.getElementById("lcd-2").textContent = lastStatus;
+            var lcd0 = document.querySelector(".lcd");
+            if (lcd0) {
+                lcd0.classList.toggle("armed", !!cached.armed);
+                lcd0.classList.toggle("disarmed", !!cached.disarmed);
+            }
+        }
+    } catch (e) {}
 
     try {
         var saved = JSON.parse(sessionStorage.getItem("arialUser") || "null");
@@ -372,5 +390,5 @@
     tickTime();
     loadStatus();
     setInterval(tickTime, 1000);
-    setInterval(loadStatus, 4000);
+    setInterval(loadStatus, 1000);
 })();
