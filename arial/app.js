@@ -2,18 +2,37 @@
     var STORE = "arialKeyClicks";
     var audioCtx = null;
     var statusText = "";
+    var ROLL_MS = 110;
 
     function pad(n) {
         return String(n).padStart(2, "0");
     }
 
+    function rollText(el, text) {
+        if (!el) return;
+        text = text == null ? "" : String(text);
+        if (el._want === text) return;
+        el._want = text;
+        if (el._roll) clearInterval(el._roll);
+        el.textContent = "";
+        var i = 0;
+        if (!text) return;
+        el._roll = setInterval(function () {
+            i += 1;
+            el.textContent = text.slice(0, i);
+            if (i >= text.length) {
+                clearInterval(el._roll);
+                el._roll = null;
+            }
+        }, ROLL_MS);
+    }
+
     function tickTime() {
         var d = new Date();
         var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        var dateEl = document.getElementById("lcd-date");
-        var timeEl = document.getElementById("lcd-time");
-        if (dateEl) dateEl.textContent = pad(d.getDate()) + " " + months[d.getMonth()] + " " + d.getFullYear();
-        if (timeEl) timeEl.textContent = pad(d.getHours()) + ":" + pad(d.getMinutes());
+        rollText(document.getElementById("lcd-site"), "HANSEKOP");
+        rollText(document.getElementById("lcd-date"), pad(d.getDate()) + " " + months[d.getMonth()] + " " + d.getFullYear());
+        rollText(document.getElementById("lcd-time"), pad(d.getHours()) + ":" + pad(d.getMinutes()));
     }
 
     function statusFromDevice(device) {
@@ -38,8 +57,7 @@
                 return /hansekop/i.test(d.deviceName || "");
             })[0] || devices[0];
             statusText = statusFromDevice(hanse);
-            var el = document.getElementById("lcd-2");
-            if (el) el.textContent = statusText;
+            rollText(document.getElementById("lcd-2"), statusText);
         } catch (e) { /* keep last status */ }
     }
 
@@ -88,10 +106,8 @@
     }
 
     window.setArialLcd = function (top, bottom) {
-        var site = document.getElementById("lcd-site");
-        if (site && top != null) site.textContent = String(top);
-        var line2 = document.getElementById("lcd-2");
-        if (line2 && bottom != null) line2.textContent = String(bottom);
+        if (top != null) rollText(document.getElementById("lcd-site"), String(top));
+        if (bottom != null) rollText(document.getElementById("lcd-2"), String(bottom));
     };
 
     window.arialClicks = loadClicks();
