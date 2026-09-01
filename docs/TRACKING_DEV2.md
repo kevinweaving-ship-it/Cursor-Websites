@@ -74,4 +74,6 @@ Feature toggles on the SF-TrajX bar (**SOG / COG / Layline / Leader / Front / Wi
 
 **We do not have the full saill.cn proprietary app source.** What we have is reverse-engineered extracts under research (getRace bootstrap, viewConfig, replay2 chunk shape, WS topic notes in PR #40 / `docs/sailfish-china-extracts/`). Dev2 reimplements useful bits against Lipton R1–R10 sample GPS.
 
-**Layout bit (dev2v12):** ranking board overlaid on the left of the map (Sailfish open_trac style), with **Board** toggle / × to hide. Bottom REPLAY dock remains.
+**Layout bit (dev2v13):** Sailfish course chrome — numbered marks, Start/Finish halos, dashed start line, P#/angle labels, dotted tracks, recenter camera button. **Marks** / **Dots** toggles hide them.
+
+Leader line: first boat to the current mark, holds until the last boat rounds, then moves to the next mark. Boat numbers are live race place (marks completed + DTM), not rounding order.

@@ -21,6 +21,8 @@
   function overlayState(vc) {
     return {
       board: true,
+      marks: true,
+      dots: true,
       layline: vc.layline !== false,
       leaderline: vc.leaderline !== false,
       frontline: true,
@@ -44,6 +46,8 @@
     if (!flags) return;
     var items = [
       ["Board", "board"],
+      ["Marks", "marks"],
+      ["Dots", "dots"],
       ["SOG", "colSOG"],
       ["COG", "colCOG"],
       ["Layline", "layline"],
@@ -59,11 +63,17 @@
       btn.className = "tracking-dev2-flag tracking-dev2-flag--" + (state[pair[1]] ? "on" : "off");
       btn.setAttribute("data-flag", pair[1]);
       btn.textContent = pair[0];
-      btn.title = "Toggle " + pair[0] + (pair[1] === "leaderline" || pair[1] === "frontline"
-        ? " (follows live race leader — changes during race)"
-        : pair[1] === "board"
-          ? " (Sailfish left ranking board overlay)"
-          : "");
+      btn.title = "Toggle " + pair[0] + (pair[1] === "leaderline"
+        ? " (first to current mark; holds until last boat rounds)"
+        : pair[1] === "frontline"
+          ? " (through live race leader — always current 1st)"
+          : pair[1] === "board"
+            ? " (Sailfish left ranking board overlay)"
+            : pair[1] === "marks"
+              ? " (Sailfish Start/Finish/numbered marks)"
+              : pair[1] === "dots"
+                ? " (breadcrumb dotted tracks)"
+                : "");
       btn.addEventListener("click", function () {
         state[pair[1]] = !state[pair[1]];
         window.__sailfishOverlay = state;
