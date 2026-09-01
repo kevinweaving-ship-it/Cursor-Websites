@@ -116,7 +116,7 @@
             }
             document.getElementById("lcd-site").textContent = siteName(hanse);
             lastStatus = statusFromDevice(hanse);
-            document.getElementById("lcd-2").textContent = lastStatus;
+            if (!pin && !lcdHold) document.getElementById("lcd-2").textContent = lastStatus;
             applyLeds(hanse);
             window.arialDevice = hanse;
         } catch (e) {
@@ -143,6 +143,25 @@
     }
 
     var pinOk = null;
+    var pin = "";
+    var lcdHold = null;
+    var CODES = {
+        "7302": { name: "Marc", from: "Pingoa" }
+    };
+
+    function setStatusLine(text, holdMs) {
+        var el = document.getElementById("lcd-2");
+        if (el) el.textContent = text;
+        if (lcdHold) clearTimeout(lcdHold);
+        lcdHold = null;
+        if (holdMs) {
+            lcdHold = setTimeout(function () {
+                lcdHold = null;
+                pin = "";
+                el.textContent = lastStatus;
+            }, holdMs);
+        }
+    }
 
     function beep() {
         var AC = window.AudioContext || window.webkitAudioContext;
@@ -173,8 +192,28 @@
 
     function onKey(key) {
         if (!key) return;
-        if (key === "ENTER") pinAccepted();
-        else beep();
+        if (/^[0-9]$/.test(key)) {
+            beep();
+            if (pin.length < 8) pin += key;
+            setStatusLine(new Array(pin.length + 1).join("*"));
+        } else if (key === "CLEAR") {
+            beep();
+            pin = "";
+            setStatusLine(lastStatus);
+        } else if (key === "ENTER") {
+            var user = CODES[pin];
+            pin = "";
+            if (user) {
+                pinAccepted();
+                window.arialUser = user;
+                setStatusLine(user.name, 4000);
+            } else {
+                beep();
+                setStatusLine("Invalid Code", 2000);
+            }
+        } else {
+            beep();
+        }
         saveClick(key);
         if (typeof window.onArialKey === "function") window.onArialKey(key);
     }
