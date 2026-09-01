@@ -21,6 +21,7 @@
     return {
       layline: vc.layline !== false,
       leaderline: vc.leaderline !== false,
+      frontline: true,
       windCompass: vc.windCompass !== false,
       colSOG: !!vc.ColSOG,
       colCOG: !!vc.ColCOG,
@@ -36,6 +37,7 @@
       ["COG", "colCOG"],
       ["Layline", "layline"],
       ["Leader", "leaderline"],
+      ["Front", "frontline"],
       ["Wind", "windCompass"],
       ["Camera", "camera"]
     ];
@@ -46,7 +48,9 @@
       btn.className = "tracking-dev2-flag tracking-dev2-flag--" + (state[pair[1]] ? "on" : "off");
       btn.setAttribute("data-flag", pair[1]);
       btn.textContent = pair[0];
-      btn.title = "Toggle " + pair[0];
+      btn.title = "Toggle " + pair[0] + (pair[1] === "leaderline" || pair[1] === "frontline"
+        ? " (follows live race leader — changes during race)"
+        : "");
       btn.addEventListener("click", function () {
         state[pair[1]] = !state[pair[1]];
         window.__sailfishOverlay = state;

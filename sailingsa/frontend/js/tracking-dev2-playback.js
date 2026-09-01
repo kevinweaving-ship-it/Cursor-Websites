@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v5";
+  var CACHE = "dev2v6";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -2170,6 +2170,7 @@
     var overlay = {
       layline: sailfish.layline !== false,
       leaderline: sailfish.leaderline !== false,
+      frontline: true,
       windCompass: sailfish.windCompass !== false,
       colSOG: sailfish.colSOG !== false,
       colCOG: sailfish.colCOG !== false,
@@ -2180,12 +2181,17 @@
       if (window.__sailfishOverlay) {
         overlay.layline = !!window.__sailfishOverlay.layline;
         overlay.leaderline = !!window.__sailfishOverlay.leaderline;
+        overlay.frontline = window.__sailfishOverlay.frontline !== false;
         overlay.windCompass = !!window.__sailfishOverlay.windCompass;
         overlay.colSOG = !!window.__sailfishOverlay.colSOG;
         overlay.colCOG = !!window.__sailfishOverlay.colCOG;
+        if (window.__sailfishOverlay.laylineAngle) {
+          overlay.laylineAngle = Number(window.__sailfishOverlay.laylineAngle) || 44.2;
+        }
       }
       drawMap(playTs);
     };
+    var liveRankCache = { ts: -1, bySail: {}, leader: null, target: null, windFrom: 0 };
     var RATE = Math.max(1, Number(data.default_rate || 1) || 1);
     var RATES = [1, 2, 5, 10, 25, 50, 100, 500];
     if (sailfish.replaySpeed && sailfish.nearestRate) {
@@ -3115,6 +3121,8 @@
       return ts < LEGAL_TS[sail];
     }
     function mapBadge(sail, ts) {
+      ensureLiveRanks(ts);
+      var livePlace = liveRankCache.bySail[sail];
       var startNo = START_RANK[sail] != null ? START_RANK[sail] : null;
       var liveNo = liveStartRank(sail, ts);
       var last = -1;
@@ -3126,17 +3134,28 @@
         if ((p.id === "ST" || p.label === "ST") && LEGAL_TS[sail] != null) t = LEGAL_TS[sail];
         if (t != null && t <= ts) last = i;
       }
-      var place = liveNo;
-      if (last > 0) place = passRankOf(PASSES[last], sail);
-      var started = liveNo != null;
+      /* Prefer live DTM place (changes as leader changes) over start-order tag */
+      var place = livePlace != null ? livePlace : liveNo;
+      if (place == null && last > 0) place = passRankOf(PASSES[last], sail);
+      var started = liveNo != null || livePlace != null;
       var leg = null;
       var total = null;
-      if (last > 0 && place != null) {
+      if (livePlace != null && startNo != null) total = startNo - livePlace;
+      else if (last > 0 && place != null) {
         var prev = passRankOf(PASSES[last - 1], sail);
         if (prev != null) leg = prev - place;
         if (startNo != null) total = startNo - place;
       }
-      return { place: place, pending: pending, started: started, onMark: last > 0, finished: last > 0 && PASSES[last] && (PASSES[last].id === "FIN" || PASSES[last].label === "Fin"), leg: leg, total: total };
+      return {
+        place: place,
+        pending: pending,
+        started: started,
+        onMark: last > 0,
+        finished: last > 0 && PASSES[last] && (PASSES[last].id === "FIN" || PASSES[last].label === "Fin"),
+        leg: leg,
+        total: total,
+        isLeader: livePlace === 1
+      };
     }
     function drawDelta(x, y, delta, align) {
       if (delta == null) return x;
@@ -3153,6 +3172,13 @@
       var info = mapBadge(sail, ts);
       var paint = boatPaint(sail, info.pending);
       mapCtx.save();
+      if (info.isLeader) {
+        mapCtx.beginPath();
+        mapCtx.arc(p.x, p.y, 14, 0, Math.PI * 2);
+        mapCtx.strokeStyle = "rgba(250,204,21,0.95)";
+        mapCtx.lineWidth = 2.4;
+        mapCtx.stroke();
+      }
       drawFinishHalo(p, sail);
       drawBoatIcon(p, hdg, paint.fill, paint.stroke, paint.nose);
       if (info.place != null) {
@@ -3238,13 +3264,6 @@
       drawCourseLabel(ts);
       drawingMap = false;
     }
-    function bearingDeg(a, b) {
-      if (!a || !b) return 0;
-      var y = Math.sin((b.lon - a.lon) * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180);
-      var x = Math.cos(a.lat * Math.PI / 180) * Math.sin(b.lat * Math.PI / 180) -
-        Math.sin(a.lat * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180) * Math.cos((b.lon - a.lon) * Math.PI / 180);
-      return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
-    }
     function destPoint(from, brg, meters) {
       var R = 6371000;
       var d = meters / R;
@@ -3264,86 +3283,152 @@
       var m = distM(prev, now);
       return (m / 4) * 1.94384;
     }
-    function drawSailfishOverlays(ts) {
-      if (!mapCtx || !mapBounds) return;
-      var m1 = markAt("1", ts);
+    function courseAxis(ts) {
       var sl = trail.start_line;
       var startMid = sl && sl.left && sl.right
         ? { lat: (sl.left.lat + sl.right.lat) / 2, lon: (sl.left.lon + sl.right.lon) / 2 }
         : null;
-      var windFrom = (m1 && startMid) ? bearingDeg(startMid, m1) : 0;
-      if (overlay.layline && m1) {
-        var downwind = (windFrom + 180) % 360;
-        var a1 = destPoint(m1, downwind - overlay.laylineAngle, 900);
-        var a2 = destPoint(m1, downwind + overlay.laylineAngle, 900);
-        var p0 = xy(m1.lat, m1.lon);
+      var key = focusMarkKey || "1";
+      var target = markAt(key, ts) || markAt("1", ts) || markAt("3", ts);
+      if (!target) {
+        var keys = Object.keys(trail.marks || {});
+        if (keys.length) target = markAt(keys[0], ts);
+      }
+      var windFrom = (target && startMid)
+        ? bearingDeg(startMid.lat, startMid.lon, target.lat, target.lon)
+        : 0;
+      return { startMid: startMid, target: target, targetKey: key, windFrom: windFrom };
+    }
+    function ensureLiveRanks(ts) {
+      if (liveRankCache.ts === ts && liveRankCache.leader) return liveRankCache;
+      var axis = courseAxis(ts);
+      var rows = [];
+      Object.keys(trail.boats || {}).forEach(function (sail) {
+        var pos = posAt(sail, ts);
+        if (!pos) return;
+        var dtm = axis.target ? distM(pos, axis.target) : 1e12;
+        rows.push({ sail: sail, pos: pos, dtm: dtm });
+      });
+      rows.sort(function (a, b) { return a.dtm - b.dtm; });
+      var bySail = {};
+      rows.forEach(function (r, i) { bySail[r.sail] = i + 1; });
+      liveRankCache = {
+        ts: ts,
+        bySail: bySail,
+        order: rows,
+        leader: rows[0] || null,
+        target: axis.target,
+        targetKey: axis.targetKey,
+        startMid: axis.startMid,
+        windFrom: axis.windFrom
+      };
+      return liveRankCache;
+    }
+    function drawSailfishOverlays(ts) {
+      if (!mapCtx || !mapBounds) return;
+      var live = ensureLiveRanks(ts);
+      var target = live.target;
+      var windFrom = live.windFrom || 0;
+      var leader = live.leader;
+
+      /* Laylines from active windward mark (± tacking angle downwind) */
+      if (overlay.layline && target) {
+        var down = (windFrom + 180) % 360;
+        var ang = overlay.laylineAngle || 44.2;
+        var len = 1400;
+        var left = destPoint(target, down - ang, len);
+        var right = destPoint(target, down + ang, len);
+        var p0 = xy(target.lat, target.lon);
         mapCtx.save();
-        mapCtx.setLineDash([8, 6]);
-        mapCtx.strokeStyle = "rgba(56,189,248,0.85)";
-        mapCtx.lineWidth = 1.6;
-        [[a1], [a2]].forEach(function (arr) {
-          var p = xy(arr[0].lat, arr[0].lon);
+        mapCtx.setLineDash([10, 7]);
+        mapCtx.strokeStyle = "rgba(56,189,248,0.95)";
+        mapCtx.lineWidth = 2.2;
+        [left, right].forEach(function (pt) {
+          var p = xy(pt.lat, pt.lon);
           mapCtx.beginPath();
           mapCtx.moveTo(p0.x, p0.y);
           mapCtx.lineTo(p.x, p.y);
           mapCtx.stroke();
         });
+        mapCtx.setLineDash([]);
+        mapCtx.fillStyle = "rgba(56,189,248,0.95)";
+        mapCtx.font = "bold 10px sans-serif";
+        mapCtx.fillText("Lay " + ang.toFixed(0) + "°", p0.x + 10, p0.y - 12);
         mapCtx.restore();
       }
-      if (overlay.leaderline) {
-        var leader = null;
-        var bestRank = 1e9;
-        Object.keys(trail.boats || {}).forEach(function (sail) {
-          var pos = posAt(sail, ts);
-          if (!pos) return;
-            var r = START_RANK[sail] != null ? START_RANK[sail] : 99;
-          if (r < bestRank) {
-            bestRank = r;
-            leader = { sail: sail, pos: pos };
-          }
-        });
-        if (leader && m1) {
-          var lp = xy(leader.pos.lat, leader.pos.lon);
-          var mp = xy(m1.lat, m1.lon);
-          mapCtx.save();
-          mapCtx.setLineDash([4, 5]);
-          mapCtx.strokeStyle = "rgba(250,204,21,0.9)";
-          mapCtx.lineWidth = 1.8;
-          mapCtx.beginPath();
-          mapCtx.moveTo(lp.x, lp.y);
-          mapCtx.lineTo(mp.x, mp.y);
-          mapCtx.stroke();
-          mapCtx.restore();
-        }
+
+      /* Leader line: live leader → next mark (leader changes with race) */
+      if (overlay.leaderline && leader && target) {
+        var lp = xy(leader.pos.lat, leader.pos.lon);
+        var mp = xy(target.lat, target.lon);
+        mapCtx.save();
+        mapCtx.setLineDash([5, 5]);
+        mapCtx.strokeStyle = "rgba(250,204,21,0.95)";
+        mapCtx.lineWidth = 2.2;
+        mapCtx.beginPath();
+        mapCtx.moveTo(lp.x, lp.y);
+        mapCtx.lineTo(mp.x, mp.y);
+        mapCtx.stroke();
+        mapCtx.setLineDash([]);
+        mapCtx.fillStyle = "#facc15";
+        mapCtx.font = "bold 10px sans-serif";
+        mapCtx.fillText("LEADER " + clubCode(leader.sail), lp.x + 14, lp.y - 14);
+        mapCtx.restore();
       }
+
+      /* Front line: perpendicular through live leader across fleet */
+      if (overlay.frontline !== false && leader && target) {
+        var courseBrg = bearingDeg(leader.pos.lat, leader.pos.lon, target.lat, target.lon);
+        var leftPt = destPoint(leader.pos, courseBrg - 90, 700);
+        var rightPt = destPoint(leader.pos, courseBrg + 90, 700);
+        var a = xy(leftPt.lat, leftPt.lon);
+        var b = xy(rightPt.lat, rightPt.lon);
+        mapCtx.save();
+        mapCtx.setLineDash([2, 4]);
+        mapCtx.strokeStyle = "rgba(248,113,113,0.9)";
+        mapCtx.lineWidth = 2;
+        mapCtx.beginPath();
+        mapCtx.moveTo(a.x, a.y);
+        mapCtx.lineTo(b.x, b.y);
+        mapCtx.stroke();
+        mapCtx.setLineDash([]);
+        mapCtx.fillStyle = "rgba(248,113,113,0.95)";
+        mapCtx.font = "bold 10px sans-serif";
+        mapCtx.fillText("FRONT", (a.x + b.x) / 2 + 6, (a.y + b.y) / 2 - 6);
+        mapCtx.restore();
+      }
+
+      /* Wind compass — always top-right of map canvas */
       if (overlay.windCompass) {
-        var cx = mapBounds.w - 36;
-        var cy = 36;
+        var cx = Math.max(48, mapBounds.w - 48);
+        var cy = 48;
         mapCtx.save();
         mapCtx.beginPath();
-        mapCtx.arc(cx, cy, 22, 0, Math.PI * 2);
-        mapCtx.fillStyle = "rgba(15,23,42,0.72)";
+        mapCtx.arc(cx, cy, 28, 0, Math.PI * 2);
+        mapCtx.fillStyle = "rgba(15,23,42,0.82)";
         mapCtx.fill();
         mapCtx.strokeStyle = "#38bdf8";
-        mapCtx.lineWidth = 2;
+        mapCtx.lineWidth = 2.5;
         mapCtx.stroke();
         mapCtx.translate(cx, cy);
         mapCtx.rotate(windFrom * Math.PI / 180);
         mapCtx.beginPath();
-        mapCtx.moveTo(0, -18);
-        mapCtx.lineTo(5, 8);
-        mapCtx.lineTo(0, 4);
-        mapCtx.lineTo(-5, 8);
+        mapCtx.moveTo(0, -22);
+        mapCtx.lineTo(7, 10);
+        mapCtx.lineTo(0, 5);
+        mapCtx.lineTo(-7, 10);
         mapCtx.closePath();
         mapCtx.fillStyle = "#f97316";
         mapCtx.fill();
         mapCtx.restore();
-        mapCtx.fillStyle = "#e2e8f0";
-        mapCtx.font = "bold 9px sans-serif";
+        mapCtx.fillStyle = "#f8fafc";
+        mapCtx.font = "bold 11px sans-serif";
         mapCtx.textAlign = "center";
-        mapCtx.fillText("W " + Math.round(windFrom) + "°", cx, cy + 36);
+        mapCtx.fillText("WIND", cx, cy + 44);
+        mapCtx.fillText(Math.round(windFrom) + "°", cx, cy + 58);
         mapCtx.textAlign = "start";
       }
+
       if (overlay.colSOG || overlay.colCOG) {
         Object.keys(trail.boats || {}).forEach(function (sail) {
           var pos = posAt(sail, ts);
@@ -3356,9 +3441,9 @@
           }
           if (overlay.colCOG) bits.push(Math.round((pos.hdg + 360) % 360) + "°");
           if (!bits.length) return;
-          mapCtx.fillStyle = "rgba(15,23,42,0.7)";
+          mapCtx.fillStyle = "rgba(15,23,42,0.75)";
           mapCtx.font = "9px sans-serif";
-          mapCtx.fillText(bits.join(" "), p.x + 10, p.y - 10);
+          mapCtx.fillText(bits.join(" "), p.x + 10, p.y - 12);
         });
       }
     }
