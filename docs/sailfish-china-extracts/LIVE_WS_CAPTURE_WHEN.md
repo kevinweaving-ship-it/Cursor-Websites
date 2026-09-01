@@ -42,6 +42,32 @@ Monitor [chinasailing.org.cn/wap/matchs/getList](https://www.chinasailing.org.cn
 
 ---
 
+## This weekend (Sat–Sun 6–7 Sep 2026) — club/local check
+
+No strong **Sailfish `open_trac`** target found for this specific weekend:
+
+| Event | When | Sailfish? | Why |
+|---|---|---|---|
+| [青岛国际帆船周](http://qd.bendibao.com/xiuxian/2026821/102579.shtm) closing | ends **6 Sep** | **Unlikely now** | Youth dinghy cluster ended **2 Sep**; weekend is coast rowing (金沙滩, 3–7 Sep) + motor/paddle — not SF-Traj dinghy |
+| 青岛市帆船俱乐部联赛 | 21–23 Aug | Unknown | Already finished (上合示范区) |
+| [圣士提反湾帆船赛](https://www.lcsd.gov.hk/tc/watersport/activities/acti_race/acti_race_notice.html) | 5–6 Sep | **No** | Hong Kong LCSD club race — different stack |
+| 全国青少年帆船联赛 厦门站周末赛 | early Aug | **Was** | Sailfish-contracted (厦门文旅); **already finished** 2 Aug |
+| Shenzhen / Sanya club 周末赛 | — | **None listed** | No Sep weekend series found on chinasailing or club notices |
+
+**Missed but relevant (just ended):** Qingdao OP / ASEAN youth (**26 Aug – 2 Sep**) — same ecosystem as Sailfish-heavy events; worth checking if any `open_trac` replay links surfaced on WeChat.
+
+**Practical club-level monitor list** (weekend series often unlisted on chinasailing.org.cn):
+
+- **厦门环东** — 全国青少年帆船联赛周末赛 (Sailfish when 轨迹费 in notice)
+- **深圳万航 / 浪骑** — league weekend赛 (often **no** tracking — check notice)
+- **青岛奥帆 / 上合** — 市帆船俱乐部联赛
+- **苏州东太湖 / 上海奉贤 / 秦皇岛 BSC** — 梅沙杯分站
+- **三亚亚沙场** — seasonal; family races usually untracked
+
+Search WeChat: `周末赛` + club name + `轨迹` the Thursday before a weekend.
+
+---
+
 ## How to know when to capture next
 
 1. **Direct `open_trac` share link** during a regatta (best signal)  
