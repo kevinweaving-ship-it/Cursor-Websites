@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v13";
+  var CACHE = "dev2v14";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -3180,15 +3180,26 @@
       }
       return n;
     }
-    function activeLeg(ts) {
+    function nextPassFor(sail, ts) {
+      var list = markPassList();
+      for (var i = 0; i < list.length; i++) {
+        var t = tsAtPass(list[i], sail);
+        if (t == null || t > ts) return list[i];
+      }
+      return list.length ? list[list.length - 1] : null;
+    }
+    function leaderLineState(ts) {
       var fleet = Object.keys(trail.boats || {}).length || Object.keys(BOATS).length;
       var list = markPassList();
       for (var i = 0; i < list.length; i++) {
         var st = boatsRounded(list[i], ts);
         if (st.n < fleet) {
+          var first = st.first;
+          /* Hold previous mark's first-rounder until someone actually rounds this mark */
+          if (!first && i > 0) first = boatsRounded(list[i - 1], ts).first;
           return {
             pass: list[i],
-            first: st.first,
+            first: first,
             rounded: st.n,
             fleet: fleet,
             key: passMarkKey(list[i])
@@ -3358,8 +3369,8 @@
         if ((p.id === "ST" || p.label === "ST") && LEGAL_TS[sail] != null) t = LEGAL_TS[sail];
         if (t != null && t <= ts) last = i;
       }
-      /* Prefer live race place (marks done + DTM) — never rounding-order tags */
-      var place = livePlace != null ? livePlace : liveNo;
+      /* Live race place only — never start-order or rounding-order tags */
+      var place = livePlace != null ? livePlace : null;
       var started = liveNo != null || livePlace != null;
       var leg = null;
       var total = null;
@@ -3519,7 +3530,7 @@
       var startMid = sl && sl.left && sl.right
         ? { lat: (sl.left.lat + sl.right.lat) / 2, lon: (sl.left.lon + sl.right.lon) / 2 }
         : null;
-      var leg = activeLeg(ts);
+      var leg = leaderLineState(ts);
       var key = (leg && leg.key) || focusMarkKey || "1";
       var target = markAt(key, ts) || markAt("1", ts) || markAt("3", ts);
       if (!target) {
@@ -3532,14 +3543,16 @@
       return { startMid: startMid, target: target, targetKey: key, windFrom: windFrom, leg: leg };
     }
     function ensureLiveRanks(ts) {
-      if (liveRankCache.ts === ts && liveRankCache.leader) return liveRankCache;
+      if (liveRankCache.ts === ts && liveRankCache.leader && liveRankCache.bySail) return liveRankCache;
       var axis = courseAxis(ts);
       var rows = [];
       Object.keys(trail.boats || {}).forEach(function (sail) {
         var pos = posAt(sail, ts);
         if (!pos) return;
+        var nxt = nextPassFor(sail, ts);
         var done = completedPasses(sail, ts);
-        var dtm = axis.target ? distM(pos, axis.target) : 1e12;
+        var markPos = nxt ? (markAt(passMarkKey(nxt), ts) || axis.target) : axis.target;
+        var dtm = markPos ? distM(pos, markPos) : 1e12;
         rows.push({ sail: sail, pos: pos, dtm: dtm, done: done });
       });
       rows.sort(function (a, b) {
@@ -4266,6 +4279,10 @@
         };
       });
       rows.sort(function (a, b) {
+        var live = ensureLiveRanks(ts).bySail;
+        var ra = live[a.boat] || 99;
+        var rb = live[b.boat] || 99;
+        if (ra !== rb) return ra - rb;
         if (b.farIdx !== a.farIdx) return b.farIdx - a.farIdx;
         if (a.farTs != null && b.farTs != null && a.farTs !== b.farTs) return a.farTs - b.farTs;
         var ia = ident(a.boat);
@@ -4275,7 +4292,10 @@
         if (ba !== bb) return ba - bb;
         return String(a.boat).localeCompare(String(b.boat));
       });
-      rows.forEach(function (r, i) { r.rank = i + 1; });
+      rows.forEach(function (r, i) {
+        var live = ensureLiveRanks(ts).bySail[r.boat];
+        r.rank = live != null ? live : (i + 1);
+      });
       return rows;
     }
     function leadMark(rows) {

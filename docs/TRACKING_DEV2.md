@@ -70,10 +70,22 @@ curl -s 'http://localhost:8000/api/tracking-dev2/bootstrap?race=1' | python3 -m 
 
 ## Features (apply / hide one at a time)
 
-Feature toggles on the SF-TrajX bar (**SOG / COG / Layline / Leader / Front / Wind / Camera**) turn Sailfish-style overlays on or off so each can be kept or dropped.
+Toggles on the SF-TrajX bar. **Stop adding new bits** until we pick keep vs drop:
 
-**We do not have the full saill.cn proprietary app source.** What we have is reverse-engineered extracts under research (getRace bootstrap, viewConfig, replay2 chunk shape, WS topic notes in PR #40 / `docs/sailfish-china-extracts/`). Dev2 reimplements useful bits against Lipton R1–R10 sample GPS.
+| Toggle | What it is | Default |
+|--------|------------|---------|
+| Board | Ranking table overlay on the map | on |
+| Marks | Start/Finish halos, numbered marks, P# / angle labels | on |
+| Dots | Breadcrumb dotted tracks | on |
+| SOG / COG | Speed / heading on map labels | off unless viewConfig |
+| Layline | Red V from active mark | on |
+| Leader | Line to first-to-round current mark; holds until last rounds | on |
+| Front | Perpendicular through **race** leader (rank 1) | on |
+| Wind | Compass | on |
+| Camera | Recenter / follow fleet (red dial button) | on |
 
-**Layout bit (dev2v13):** Sailfish course chrome — numbered marks, Start/Finish halos, dashed start line, P#/angle labels, dotted tracks, recenter camera button. **Marks** / **Dots** toggles hide them.
+**Rank (always):** boat number and board rank = current race place. 1 = whoever is first *now* (marks completed, then distance to that boat’s next mark). Rounding order is only in the mark-time columns.
 
-Leader line: first boat to the current mark, holds until the last boat rounds, then moves to the next mark. Boat numbers are live race place (marks completed + DTM), not rounding order.
+**Leader line:** first boat to round the current mark; stays on that boat until the last boat rounds it; does not jump to the next mark’s first-rounder until someone actually rounds that next mark.
+
+**We do not have the full saill.cn proprietary app source.** Reverse extracts only (PR #40 / `docs/sailfish-china-extracts/`).
