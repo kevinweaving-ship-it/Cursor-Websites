@@ -26,19 +26,25 @@ html, body {
 }
 
 .pad-wrap.compact .pad-clip {
+    position: relative;
     overflow: hidden;
-    aspect-ratio: 521 / 272;
+    aspect-ratio: 521 / 268;
 }
 
 .pad-wrap.compact .hot-more,
 .pad-wrap.compact .sublab,
 .pad-wrap.compact .shell-cover,
+.pad-wrap.compact #led-ac,
 .pad-wrap.compact .led.ac,
 .pad-wrap.compact .led-mark {
-    display: none;
+    display: none !important;
 }
 
 .pad-wrap.compact .pad {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
     pointer-events: none;
 }
 
