@@ -175,8 +175,8 @@
 
     window.arialClicks = loadClicks();
 
-    var pad = document.querySelector(".pad");
-    pad.addEventListener("pointerdown", function (ev) {
+    var keypad = document.querySelector(".pad");
+    keypad.addEventListener("pointerdown", function (ev) {
         var btn = ev.target.closest("[data-key]");
         if (!btn) return;
         ev.preventDefault();
