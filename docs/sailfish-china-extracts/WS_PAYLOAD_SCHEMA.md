@@ -156,37 +156,43 @@ Sample artifact: `open_trac/replay_chunk0.decoded.sample.json` (one team × 3 ti
 
 ---
 
-## 6. WebSocket / STOMP (static analysis — live only)
+## 6. WebSocket (captured 2026-09-01)
 
-> **Gap:** Sample race is finished (`status=99`). Puppeteer capture recorded **0 WebSocket frames**. Below is from **`appX.min.js`** deobfuscation strings + handler wiring. Re-run capture on a **live** `open_trac` URL to fill §6.4 with real frames.
+**Production URL verified** from `live2/getRaceDatas` bootstrap (`stomp` field, base64):
 
-### 6.1 URL construction
-
-1. **Page default** (base64 query `stomp` in `open_trac.html`):  
-   `ws://localhost:8186/websocket?token=sailfish`
-2. **Prod pattern** (elsewhere in Sailfish stack):  
-   `wss://www.saill.cn/sailfish-ntwss?token=sailfish`
-3. **Live bootstrap** `stomp` string → parsed by `wG()`:
-
-```javascript
-// stomp: base64-decode → split("|") → each segment split(",")
-// → cR[][] where cR[i] = [wsUrl, subIdA, subIdB]
-new WebSocket(cR[0][0], { binaryType: "arraybuffer" });
+```text
+wss://www.saill.cn/sailfish-ntwss?token=sailfish
 ```
 
-4. On `CONNECTED`, client sends JSON subscriptions: `{"iQ": "<subIdA>"}`, `{"iQ": "<subIdB>"}` for each registered topic handler in `kO`.
+(`replay2/getRaceDatas` omits `stomp` on finished races; use `live2/` bootstrap or force live client mode.)
 
-Keepalive: send `\n` on interval (`rp.7H` ms, default from config).
+Artifact: **`open_trac/ws_handshake_sample.json`**
 
-### 6.2 Topics
+### 6.1 Handshake + subscribe (captured frames)
 
-| Topic | Handler | Payload |
+| # | Dir | Payload |
+|---:|---|---|
+| 1 | ← server | `{"v":"CONNECTED","k":"CMD"}` |
+| 2 | → client | `{"subscribe":"/topic/SAIL_DATA_BATCH_P_{raceCd}"}` |
+| 3 | → client | `{"subscribe":"/topic/BUOY_DATA_{raceCd}"}` |
+| 4 | → client | `{"subscribe":"/topic/RACE_CONTROL_{raceCd}"}` |
+| 5 | ← server | `{"v":"SUBSCRIBE#/topic/SAIL_DATA_BATCH_P_{raceCd}","k":"CMD"}` |
+| 6 | ← server | `{"v":"SUBSCRIBE#/topic/BUOY_DATA_{raceCd}","k":"CMD"}` |
+| 7 | ← server | `{"v":"SUBSCRIBE#/topic/RACE_CONTROL_{raceCd}","k":"CMD"}` |
+| 8 | → client | `\n` (keepalive) |
+| 9 | ← server | `\n` (keepalive ack) |
+
+**Wire topics** use `/topic/…` prefix. **`appX` internal handlers** map to `/RX/…` after decode (e.g. `/RX/SAIL_DATA_P_{raceCd}`).
+
+Client sets `binaryType = "arraybuffer"` for protobuf sail batches.
+
+### 6.2 Topics (wire vs internal)
+
+| Wire subscribe path | Internal handler (`appX`) | Payload |
 |---|---|---|
-| `/RX/RACE_CONTROL_{raceCd}` | JSON via `N_.TS()` | Race control codes (see §6.3) |
-| `/RX/SAIL_DATA_P_{raceCd}` | Protobuf → `Nd()` | Per-boat tick → `runtime[]` |
-| `/RX/SAIL_DATA_BATCH_P_…` | Batch protobuf | Multiple `Nd()` records |
-| `/RX/BUOY_DATA_{raceCd}` | JSON array | Mark position updates |
-| `/RX/BEG{raceCd}` | Binary | Alternate batch sail stream (opcode `108`) |
+| `/topic/RACE_CONTROL_{raceCd}` | `/RX/RACE_CONTROL_{raceCd}` | JSON — race control codes (§6.3) |
+| `/topic/SAIL_DATA_BATCH_P_{raceCd}` | `/RX/SAIL_DATA_P_{raceCd}` / `/RX/BEG{raceCd}` | Binary protobuf → `Nd()` → `runtime[]` |
+| `/topic/BUOY_DATA_{raceCd}` | `/RX/BUOY_DATA_{raceCd}` | JSON mark arrays (§6.4) |
 
 ### 6.3 `RACE_CONTROL` message schema (after JSON decode)
 
@@ -235,23 +241,17 @@ Wire: **binary protobuf** (first byte stripped before decode in handler). Decode
 
 Exact VMG/VMC/DTL/DTF/DTS/RTS indices are computed in leaderboard layer when `Col*` flags enabled — not populated in minimal public replay extract.
 
-### 6.6 Expected first frames (template — not captured)
+### 6.6 Telemetry frames (still needs active race)
 
-When a live race connects, expect ordering similar to:
+Handshake + subscribe ACKs captured on finished ILCA6 race — **0 telemetry payloads** (server only returns CONNECTED/SUBSCRIBE acks + `\n`). During an active regatta, expect after frame 9:
 
 ```text
-→ (TCP/TLS handshake)
-← STOMP CONNECTED (body parsed as CMD#CONNECTED#…)
-→ {"iQ":"<sub-id-for-RACE_CONTROL>"}
-→ {"iQ":"<sub-id-for-SAIL_DATA_P>"}
-→ {"iQ":"<sub-id-for-BUOY_DATA>"}
-← /RX/RACE_CONTROL_*  JSON { JE: …, H0: … }
-← /RX/SAIL_DATA_P_*   binary → runtime[] tick
-← /RX/BUOY_DATA_*     JSON mark array
-→ \n  (keepalive, every ~10s per public docs)
+← binary or JSON sail batch (protobuf → runtime[] ticks)
+← JSON RACE_CONTROL { JE, H0, … }
+← JSON BUOY_DATA { D1, pointIndex, H0 }
 ```
 
-**Action for tracking-dev:** bookmark a live `open_trac` share URL during the next regatta; run `capture_open_trac.mjs` (see `/tmp/saill_ws/` on research VM) with `ws` logging enabled.
+Re-capture with a live `open_trac` URL when `getRace.status != 99`.
 
 ---
 
@@ -279,6 +279,7 @@ WebSocket push format in docs equals device protocol; SF_TrajX adds protobuf wra
 | `open_trac/getRace.pretty.json` | Race meta + `viewConfig` |
 | `open_trac/replay_chunk0.decoded.sample.json` | Decoded chunk excerpt |
 | `open_trac/http_capture_urls.json` | Saill API URLs from Puppeteer run |
+| `open_trac/ws_handshake_sample.json` | Prod WSS URL + first 9 frames (CONNECTED/subscribe) |
 | `OPEN_TRAC_TRACKING_DEV.md` | Full UX / feature reverse-engineering |
 
 ---
@@ -287,7 +288,5 @@ WebSocket push format in docs equals device protocol; SF_TrajX adds protobuf wra
 
 | Item | Blocker |
 |---|---|
-| Production `wss://` URL + token on live race | Need `status != 99` + `stomp` in bootstrap |
-| First 20 WS frames per topic | Same — replay uses HTTP chunks only |
+| First **telemetry** WS frames (protobuf sail tick, RACE_CONTROL JSON body) | Race must be actively publishing (`status` racing, not finished) |
 | Full VMG/DTL/… index map on live ticks | Need live race with `ColVMG`/`ColDTL` enabled |
-| `getEncryptionLiveData` exact path name | Inferred as `getEncryptionReplayData` sibling under `live2/` |

@@ -1,0 +1,73 @@
+{
+  "captured": "2026-09-01",
+  "method": "Puppeteer CDP on open_trac.html with getRace status forced to live (2); race server-side finished so no telemetry frames",
+  "raceCd": "6010fbd608e54ae4aff7d8363f912077",
+  "stompSource": "live2/getRaceDatas bootstrap field `stomp` (base64)",
+  "stompDecoded": "wss://www.saill.cn/sailfish-ntwss?token=sailfish",
+  "wsUrl": "wss://www.saill.cn/sailfish-ntwss?token=sailfish",
+  "handshakeSequence": [
+    {
+      "dir": "server",
+      "n": 1,
+      "opcode": 1,
+      "json": { "v": "CONNECTED", "k": "CMD" }
+    },
+    {
+      "dir": "client",
+      "n": 2,
+      "opcode": 1,
+      "json": { "subscribe": "/topic/SAIL_DATA_BATCH_P_6010fbd608e54ae4aff7d8363f912077" }
+    },
+    {
+      "dir": "client",
+      "n": 3,
+      "opcode": 1,
+      "json": { "subscribe": "/topic/BUOY_DATA_6010fbd608e54ae4aff7d8363f912077" }
+    },
+    {
+      "dir": "client",
+      "n": 4,
+      "opcode": 1,
+      "json": { "subscribe": "/topic/RACE_CONTROL_6010fbd608e54ae4aff7d8363f912077" }
+    },
+    {
+      "dir": "server",
+      "n": 5,
+      "opcode": 1,
+      "json": { "v": "SUBSCRIBE#/topic/SAIL_DATA_BATCH_P_6010fbd608e54ae4aff7d8363f912077", "k": "CMD" }
+    },
+    {
+      "dir": "server",
+      "n": 6,
+      "opcode": 1,
+      "json": { "v": "SUBSCRIBE#/topic/BUOY_DATA_6010fbd608e54ae4aff7d8363f912077", "k": "CMD" }
+    },
+    {
+      "dir": "server",
+      "n": 7,
+      "opcode": 1,
+      "json": { "v": "SUBSCRIBE#/topic/RACE_CONTROL_6010fbd608e54ae4aff7d8363f912077", "k": "CMD" }
+    },
+    {
+      "dir": "client",
+      "n": 8,
+      "opcode": 1,
+      "text": "\\n",
+      "note": "keepalive ping"
+    },
+    {
+      "dir": "server",
+      "n": 9,
+      "opcode": 1,
+      "text": "\\n",
+      "note": "keepalive pong"
+    }
+  ],
+  "topicsSubscribed": [
+    "/topic/SAIL_DATA_BATCH_P_{raceCd}",
+    "/topic/BUOY_DATA_{raceCd}",
+    "/topic/RACE_CONTROL_{raceCd}"
+  ],
+  "telemetryFramesCaptured": 0,
+  "note": "Finished race publishes no sail/buoy/control payloads on WS; replay uses HTTP chunks only. Re-capture during an active regatta for SAIL_DATA binary/protobuf samples."
+}

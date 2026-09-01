@@ -331,6 +331,7 @@ Primary public tracker page reverse-engineered for SailingSA tracking-dev reuse:
 - Leaderboard metrics: COG, SOG, VMG, VMC, DTL/DTF/DTS, RTS, ranking
 - WS topics: `/RX/RACE_CONTROL_*`, `/RX/SAIL_DATA_P_*`, `/RX/BUOY_DATA_*`
 - Encrypted HTTP: `getRaceDatas` + `getEncryptionReplayData` (LZ-String `N4I…` → JSON); **`runtime[]`** 51-slot telemetry (SOG/COG/lat/lng/power/rank indices verified)
+- **Prod WSS captured:** `wss://www.saill.cn/sailfish-ntwss?token=sailfish` — CONNECTED + `/topic/…` subscribe handshake in `ws_handshake_sample.json`
 - Full notes: **`docs/sailfish-china-extracts/OPEN_TRAC_TRACKING_DEV.md`**
 - **Payload schema (before/after decode, WS static analysis):** **`docs/sailfish-china-extracts/WS_PAYLOAD_SCHEMA.md`**
 - Sample artifacts: `docs/sailfish-china-extracts/open_trac/` (incl. `replay_chunk0.decoded.sample.json`, `http_capture_urls.json`)

@@ -117,20 +117,23 @@ SF_TrajX({
 
 ## 4. WebSocket URL construction
 
-1. **Page default (dev):** base64 `stomp` → `ws://localhost:8186/websocket?token=sailfish`  
-2. **Prod override:** race/bootstrap payload supplies STOMP endpoint list; client does `new WebSocket(url)` with `binaryType = "arraybuffer"`.  
-3. **Legacy/prod pattern seen elsewhere:** `wss://www.saill.cn/sailfish-ntwss?token=sailfish`  
-4. Client logs: `mU Socket Opened...` then subscribes by race.
+1. **Prod (verified):** `live2/getRaceDatas` bootstrap → `stomp` base64 →  
+   **`wss://www.saill.cn/sailfish-ntwss?token=sailfish`**
+2. **Page default (dev):** base64 query `stomp` in `open_trac.html` → `ws://localhost:8186/websocket?token=sailfish`
+3. Client: `new WebSocket(url)`, `binaryType = "arraybuffer"`
+4. On `{"v":"CONNECTED","k":"CMD"}`, client sends:
 
-### Topics (from `appX.min.js`)
+```json
+{"subscribe": "/topic/SAIL_DATA_BATCH_P_{raceCd}"}
+{"subscribe": "/topic/BUOY_DATA_{raceCd}"}
+{"subscribe": "/topic/RACE_CONTROL_{raceCd}"}
+```
 
-| Topic pattern | Purpose |
-|---|---|
-| `/RX/RACE_CONTROL_{raceCd}` | Race state machine (start / clear / time sync / next race) |
-| `/RX/SAIL_DATA_P_{raceCd}` | Per-tick sail/boat telemetry (protobuf) |
-| `/RX/SAIL_DATA_BATCH_P_`… | Batched sail updates |
-| `/RX/BUOY_DATA_{raceCd}` | Mark/buoy position updates |
-| `/RX/BEG{raceCd}` | Additional race/entity stream |
+5. Server ACKs: `{"v":"SUBSCRIBE#/topic/…","k":"CMD"}` per topic
+6. Keepalive: `\n` every ~10s (both directions)
+
+**Captured sequence:** `open_trac/ws_handshake_sample.json`  
+**Internal routing** after decode uses `/RX/…` prefixes in `appX` handlers.
 
 `RACE_CONTROL` handler cases observed (obfuscated `JE` codes):
 
