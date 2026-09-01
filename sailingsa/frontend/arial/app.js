@@ -190,27 +190,36 @@
         if (p && p.catch) p.catch(function () { beep(); });
     }
 
+    function submitPin() {
+        var user = CODES[pin];
+        pin = "";
+        if (user) {
+            pinAccepted();
+            window.arialUser = user;
+            setStatusLine(user.name, 4000);
+        } else {
+            beep();
+            setStatusLine("Invalid Code", 2000);
+        }
+    }
+
     function onKey(key) {
         if (!key) return;
         if (/^[0-9]$/.test(key)) {
-            beep();
-            if (pin.length < 8) pin += key;
-            setStatusLine(new Array(pin.length + 1).join("*"));
+            if (pin.length >= 4) return;
+            pin += key;
+            if (pin.length === 4) submitPin();
+            else {
+                beep();
+                setStatusLine(new Array(pin.length + 1).join("*"));
+            }
         } else if (key === "CLEAR") {
             beep();
             pin = "";
             setStatusLine(lastStatus);
         } else if (key === "ENTER") {
-            var user = CODES[pin];
-            pin = "";
-            if (user) {
-                pinAccepted();
-                window.arialUser = user;
-                setStatusLine(user.name, 4000);
-            } else {
-                beep();
-                setStatusLine("Invalid Code", 2000);
-            }
+            if (pin) submitPin();
+            else beep();
         } else {
             beep();
         }
