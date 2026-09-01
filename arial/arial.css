@@ -5,8 +5,17 @@ html, body {
 
 img {
     display: block;
-    width: 100%;
-    max-width: 420px;
     height: auto;
     margin: 0 auto;
+}
+
+.logo {
+    width: 72%;
+    max-width: 320px;
+    padding: 16px 12px 8px;
+}
+
+.keypad {
+    width: 100%;
+    max-width: 420px;
 }
