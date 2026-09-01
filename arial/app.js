@@ -198,6 +198,7 @@
             }
         }, 110);
     }
+    function pinAccepted() {
         pinOk = pinOk || document.getElementById("pin-ok") || new Audio("/arial/pin-accepted.wav");
         pinOk.pause();
         pinOk.currentTime = 0;
