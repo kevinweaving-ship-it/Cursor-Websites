@@ -125,6 +125,18 @@ def test_up_arrow_is_logout_when_logged_in():
     assert "logOut();" in js
 
 
+def test_tuya_catalog_unique_ids_and_mains_meter():
+    import json
+
+    catalog = json.loads((Path(__file__).resolve().parent / "tuya_catalog.json").read_text(encoding="utf-8"))
+    ids = [d["id"] for d in catalog["devices"]]
+    assert len(ids) == len(set(ids))
+    assert len(ids) == 30
+    meter = next(d for d in catalog["devices"] if d.get("role") == "mains-meter")
+    assert meter["id"] == "bf90676b1341ecb34dse39"
+    assert meter["name"] == "HSK Mains Meter"
+
+
 def test_register_login_profile(tmp_path, monkeypatch):
     monkeypatch.setattr(arial_api, "_USERS_PATH", tmp_path / "arial_users.json")
     monkeypatch.setattr(arial_api, "_DATA_DIR", tmp_path)
