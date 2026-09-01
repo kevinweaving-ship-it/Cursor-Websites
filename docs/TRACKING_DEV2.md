@@ -84,7 +84,7 @@ Toggles on the SF-TrajX bar. **Stop adding new bits** until we pick keep vs drop
 | Wind | Compass | on |
 | Camera | Recenter / follow fleet (red dial button) | on |
 
-**Rank (always):** boat number and board rank = current race place. 1 = whoever is first *now* (marks completed, then distance to that boat’s next mark). Rounding order is only in the mark-time columns.
+**Rank (always):** boat number and board rank = current race place. 1 = whoever is first *now* (marks completed, then distance to that boat’s next mark). **ST** = seconds behind the leader on this leg. Mark columns (when expanded) are confirmed rounding times.
 
 **Leader line:** first boat to round the current mark; stays on that boat until the last boat rounds it; does not jump to the next mark’s first-rounder until someone actually rounds that next mark.
 

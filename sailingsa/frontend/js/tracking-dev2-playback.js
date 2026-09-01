@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v14";
+  var CACHE = "dev2v15";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -3882,6 +3882,31 @@
       });
       return { n: n, last: last };
     }
+    function compactBoard() {
+      return document.body.getAttribute("data-tracking-dev2") === "1";
+    }
+    function fmtLegGap(sec) {
+      if (sec == null || !isFinite(sec)) return "—";
+      if (Math.abs(sec) < 0.05) return "0.0";
+      return (sec < 0 ? "−" : "+") + Math.abs(sec).toFixed(1);
+    }
+    function legGapSec(sail, ts) {
+      var live = ensureLiveRanks(ts);
+      var lead = live.leader;
+      if (!lead) return null;
+      var me = null;
+      var i;
+      for (i = 0; i < live.order.length; i++) {
+        if (live.order[i].sail === sail) { me = live.order[i]; break; }
+      }
+      if (!me) return null;
+      if (me.sail === lead.sail) return 0;
+      var kts = sogKts(lead.sail, ts);
+      var ms = (kts != null && kts > 0.5) ? kts * 0.514444 : 3;
+      if (me.done === lead.done) return (me.dtm - lead.dtm) / ms;
+      if (me.done < lead.done) return me.dtm / ms;
+      return 0;
+    }
     var FOLD_AFTER_MS = 10000;
     function passFolded(passIdx, ts) {
       if (passIdx < 1 || !PASSES[passIdx]) return false;
@@ -3901,28 +3926,33 @@
       if (!headRow) return;
       if (limit == null) limit = PASSES.length - 1;
       var ts = viewTs;
-      var key = String(limit) + (showStCol(ts) ? "|ST" : "|noST") + (marksDetailOpen ? "|md1" : "|md0");
+      var compact = compactBoard();
+      var key = String(limit) + (compact ? "|gap" : (showStCol(ts) ? "|ST" : "|noST")) + (marksDetailOpen ? "|md1" : "|md0");
       for (var i = 0; i < limit; i++) key += showDeltaAfter(i, ts, limit) ? "|d" : "|f";
       if (key === lastHeadKey) return;
       lastHeadKey = key;
       var html = "<th class=\"rank-col\">Rank</th><th class=\"wc-meta-col\">Bow</th><th class=\"boat-name-col\">Boat</th><th class=\"club-col\">Club</th>";
-      for (i = 0; i <= limit; i++) {
-        if (i === 0 && !showStCol(ts)) continue;
-        var p = PASSES[i];
-        var lab = passHeadLabel(i);
-        var title = "Lap " + p.lap + " mark " + p.mark;
-        if (p.id === "FIN" || p.label === "Fin") title = "Finish time. Overall places are in the column to the left.";
-        else if (p.id === "ST" || p.label === "ST") title = "Seconds after first legal start. OCS boats use the recross after they clear, not the OCS dip.";
-        else if (passFolded(i, ts)) title = lab + " places vs previous mark";
-        html += "<th class=\"timer-col" + (passIsFin(p) ? " timer-col--fin" : "") + (passIsMark(p) ? " timer-col--mark" : "") + (!marksDetailOpen && passIsMark(p) && passFolded(i, ts) ? " timer-col--tight" : "") + "\" title=\"" + esc(title) + "\"><span class=\"ld-mark-lab\">" + esc(lab) + "</span></th>";
-        if (showDeltaAfter(i, ts, limit)) {
-          if (passIsFin(PASSES[i + 1])) {
-            html += "<th class=\"place-delta-col ld-overall-head\" title=\"Overall places vs start (sum of mark gains and losses). Arrow shows or hides mark times.\" aria-label=\"Overall place change. Show or hide mark times.\">" +
-              "<span class=\"ld-fin-legend\" aria-hidden=\"true\"><i class=\"ld-tri ld-tri--up\"></i><i class=\"ld-tri ld-tri--down\"></i></span>" +
-              "<button type=\"button\" class=\"ld-mark-twist\" data-mark-twist=\"1\" aria-expanded=\"" + (marksDetailOpen ? "true" : "false") + "\" title=\"" + (marksDetailOpen ? "Hide mark times" : "Show mark times") + "\" aria-label=\"" + (marksDetailOpen ? "Hide mark times" : "Show mark times") + "\">" + (marksDetailOpen ? "▾" : "▸") + "</button></th>";
-          } else {
-            var nlab = passHeadLabel(i + 1);
-            html += "<th class=\"place-delta-col\" title=\"Places gained or lost " + esc(lab) + " to " + esc(nlab) + "\" aria-label=\"Place change " + esc(lab) + " to " + esc(nlab) + "\">±</th>";
+      html += "<th class=\"timer-col\" title=\"Seconds behind the race leader on this leg\">ST</th>";
+      if (!compact || marksDetailOpen) {
+        for (i = 0; i <= limit; i++) {
+          if (i === 0 && !showStCol(ts)) continue;
+          if (compact && i === 0) continue;
+          var p = PASSES[i];
+          var lab = passHeadLabel(i);
+          var title = "Lap " + p.lap + " mark " + p.mark + " — confirmed rounding";
+          if (p.id === "FIN" || p.label === "Fin") title = "Finish time. Overall places are in the column to the left.";
+          else if (p.id === "ST" || p.label === "ST") title = "Seconds after first legal start.";
+          else if (passFolded(i, ts)) title = lab + " places vs previous mark";
+          html += "<th class=\"timer-col" + (passIsFin(p) ? " timer-col--fin" : "") + (passIsMark(p) ? " timer-col--mark" : "") + (!marksDetailOpen && passIsMark(p) && passFolded(i, ts) ? " timer-col--tight" : "") + "\" title=\"" + esc(title) + "\"><span class=\"ld-mark-lab\">" + esc(lab) + "</span></th>";
+          if (showDeltaAfter(i, ts, limit)) {
+            if (passIsFin(PASSES[i + 1])) {
+              html += "<th class=\"place-delta-col ld-overall-head\" title=\"Overall places vs start (sum of mark gains and losses). Arrow shows or hides mark times.\" aria-label=\"Overall place change. Show or hide mark times.\">" +
+                "<span class=\"ld-fin-legend\" aria-hidden=\"true\"><i class=\"ld-tri ld-tri--up\"></i><i class=\"ld-tri ld-tri--down\"></i></span>" +
+                "<button type=\"button\" class=\"ld-mark-twist\" data-mark-twist=\"1\" aria-expanded=\"" + (marksDetailOpen ? "true" : "false") + "\" title=\"" + (marksDetailOpen ? "Hide mark times" : "Show mark times") + "\" aria-label=\"" + (marksDetailOpen ? "Hide mark times" : "Show mark times") + "\">" + (marksDetailOpen ? "▾" : "▸") + "</button></th>";
+            } else {
+              var nlab = passHeadLabel(i + 1);
+              html += "<th class=\"place-delta-col\" title=\"Places gained or lost " + esc(lab) + " to " + esc(nlab) + "\" aria-label=\"Place change " + esc(lab) + " to " + esc(nlab) + "\">±</th>";
+            }
           }
         }
       }
@@ -4295,6 +4325,7 @@
       rows.forEach(function (r, i) {
         var live = ensureLiveRanks(ts).bySail[r.boat];
         r.rank = live != null ? live : (i + 1);
+        r.gap = legGapSec(r.boat, ts);
       });
       return rows;
     }
@@ -4307,7 +4338,7 @@
         var pending = ocsPending(r.boat, ts);
         var badge = mapBadge(r.boat, ts);
         var place = badge.place == null ? "" : badge.place;
-        return [r.boat, pending ? "O" : "S", place, r.farIdx, r.farTs || ""].join(":");
+        return [r.boat, pending ? "O" : "S", place, r.farIdx, r.farTs || "", r.gap != null ? r.gap.toFixed(1) : ""].join(":");
       }).join("|");
     }
     function boatIconHtml(sail, ts, rank) {
@@ -4335,8 +4366,11 @@
       html += "<td class=\"wc-meta-col\">" + bowCell(id) + "</td>";
       html += "<td class=\"boat-name-col\">" + boatNameCell(id) + "</td>";
       html += "<td class=\"club-col\">" + clubCell(id, pending) + "</td>";
+      html += "<td class=\"timer-col\" title=\"Seconds behind leader this leg\">" + fmtLegGap(r.gap) + "</td>";
+      if (!compactBoard() || marksDetailOpen) {
       for (var i = 0; i <= passLimit; i++) {
         if (i === 0 && !showStCol(viewTs)) continue;
+        if (compactBoard() && i === 0) continue;
         html += timerTd(r, i, rankMaps, viewTs);
         if (showDeltaAfter(i, viewTs, passLimit)) {
           if (passIsFin(PASSES[i + 1])) {
@@ -4346,6 +4380,7 @@
             html += deltaCell(r.boat, i, rankMaps[i].prev, rankMaps[i].next);
           }
         }
+      }
       }
       html += "</tr>";
       return html;
