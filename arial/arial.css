@@ -335,6 +335,7 @@ html, body {
     box-shadow: 0 0 8px 3px rgba(255, 146, 0, 0.75);
 }
 
+.lcd.armed ~ .led.status,
 .led.status.armed {
     background: radial-gradient(circle at 45% 35%, #fff 0%, #ff1a1a 22%, #ff1a1a 100%);
     border-color: #6f7578;
@@ -342,6 +343,7 @@ html, body {
     box-shadow: 0 0 10px 4px rgba(255, 26, 26, 0.95);
 }
 
+.lcd.arming ~ .led.status,
 .led.status.arming {
     background: radial-gradient(circle at 45% 35%, #fff 0%, #ff9900 22%, #ff9900 100%);
     border-color: #6f7578;
@@ -350,11 +352,13 @@ html, body {
     animation: ledflash 1.2s step-end infinite;
 }
 
+.lcd.arming-fast ~ .led.status,
 .led.status.arming.flash-fast,
 .lcd.arming-fast ~ .led.status.arming {
     animation: ledflash 0.22s step-end infinite;
 }
 
+.lcd.disarmed ~ .led.status,
 .led.status.disarmed {
     background: radial-gradient(circle at 45% 35%, #fff 0%, #14d718 22%, #14d718 100%);
     border-color: #6f7578;
@@ -389,13 +393,13 @@ html, body {
 }
 
 .led-mark.ac-wave {
-    top: 44.4%;
+    top: 45.6%;
     font-size: 14px;
     letter-spacing: 0;
 }
 
 .led-mark.status-word {
-    top: 51.8%;
+    top: 42.4%;
     font-size: 6px;
     letter-spacing: 0.04em;
 }
