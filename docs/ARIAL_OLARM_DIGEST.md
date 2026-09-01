@@ -128,6 +128,10 @@ async with OlarmFlowClient(token) as client:
 
 Arial Dev talks to Olarm over HTTPS from `arial_api.py` so we do not need the package installed on the SailingSA API host.
 
+## Keypad reference (saved, not wired yet)
+
+Physical Paradox keypad photo: **`arial/keypad.png`** (copy in `sailingsa/frontend/arial/keypad.png`). Layout later — Stay / Force / Arm / Disarm, Byp / Mem / Tbl / Acc, numeric pad, Areas / Event / Instant / Display / Test / Chime / Prg, AC + Status LEDs.
+
 ## Arial users (this app)
 
 Separate from SailingSA `user_accounts`. Stored in `data/arial_users.json` (gitignored). Each person has email/password + a profile (name, phone, notes). Dashboard is shared Olarm devices for now; later bind devices per profile.
