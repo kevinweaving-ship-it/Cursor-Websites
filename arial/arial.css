@@ -120,19 +120,12 @@ html, body {
     pointer-events: none;
 }
 
-.brand-cover {
-    position: absolute;
-    inset: -8% -4% 0;
-    background: linear-gradient(180deg, #efefed 0%, #c9c9c6 70%, #b8b8b5 100%);
-}
-
 .brand-logo {
-    position: relative;
-    z-index: 1;
     width: 72%;
     height: 90%;
     object-fit: contain;
     object-position: center;
+    mix-blend-mode: multiply;
 }
 
 .lcd-bezel {
