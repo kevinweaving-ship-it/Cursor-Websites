@@ -98,6 +98,24 @@
         lcd.classList.toggle("armed", armed);
         lcd.classList.toggle("disarmed", disarmed);
         if (!arming) lcd.classList.remove("arming-fast");
+        syncArmToggle();
+    }
+
+    function syncArmToggle() {
+        var btn = document.getElementById("arm-toggle");
+        var lcd = document.querySelector(".lcd");
+        if (!btn) return;
+        var armed = !!(lcd && (lcd.classList.contains("armed") || lcd.classList.contains("arming")));
+        btn.classList.remove("mode-arm", "mode-disarm");
+        if (armed) {
+            btn.textContent = "DISARM";
+            btn.setAttribute("aria-label", "DISARM");
+            btn.classList.add("mode-disarm");
+        } else {
+            btn.textContent = "ARM";
+            btn.setAttribute("aria-label", "ARM");
+            btn.classList.add("mode-arm");
+        }
     }
 
     function applyLeds(device) {
@@ -195,8 +213,8 @@
     var pin = "";
     var lcdHold = null;
     var CODES = {
-        "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png?v=35", code: "7302" },
-        "7102": { name: "Amoroc", from: "Amoroc", logo: "/arial/users/amoroc.png?v=35", code: "7102" }
+        "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png?v=36", code: "7302" },
+        "7102": { name: "Amoroc", from: "Amoroc", logo: "/arial/users/amoroc.png?v=36", code: "7102" }
     };
 
     function resolvedUser(user) {
@@ -318,6 +336,7 @@
             lcd.classList.add("armed");
         }
         setLed(document.getElementById("led-status"), "armed");
+        syncArmToggle();
     }
 
     function showArming(n) {
@@ -330,6 +349,7 @@
             lcd.classList.add("arming");
         }
         setLed(document.getElementById("led-status"), "arming");
+        syncArmToggle();
     }
 
     function armBeeps(done) {
@@ -407,10 +427,11 @@
         if (st) st.textContent = lastStatus;
         var lcd = document.querySelector(".lcd");
         if (lcd) {
-            lcd.classList.remove("armed");
+            lcd.classList.remove("armed", "arming", "arming-fast");
             lcd.classList.add("disarmed");
         }
         setLed(document.getElementById("led-status"), "disarmed");
+        syncArmToggle();
     }
 
     function sendLiveAction(cmd) {
@@ -443,6 +464,25 @@
         });
     }
 
+    function doArm() {
+        if (window.arialUser && window.arialUser.code) {
+            sendLiveAction("area-arm");
+            if (currentSite().linked) {
+                armBeeps(function () {
+                    showArmed();
+                    loadStatus();
+                });
+            }
+        } else {
+            sendLiveAction("area-arm");
+        }
+    }
+
+    function doDisarm() {
+        if (window.arialUser && window.arialUser.code) showDisarmed();
+        sendLiveAction("area-disarm");
+    }
+
     function onKey(key) {
         if (!key) return;
         var now = Date.now();
@@ -450,9 +490,11 @@
         onKey._k = key;
         onKey._t = now;
         var willAccept = /^[0-9]$/.test(key) && pin.length === 3 && CODES[pin + key];
-        if (key === "DISARM") disarmBeep();
-        else if (key === "ARM") { /* 6 accelerating beeps */ }
-        else if (!willAccept) beep();
+        var lcdNow = document.querySelector(".lcd");
+        var isArmed = !!(lcdNow && (lcdNow.classList.contains("armed") || lcdNow.classList.contains("arming")));
+        if (key === "DISARM" && isArmed) disarmBeep();
+        else if (key === "ARM" || (key === "DISARM" && !isArmed)) { /* arm beeps later */ }
+        else if (!willAccept && key !== "LOGOUT") beep();
         if (/^[0-9]$/.test(key)) {
             if (pin.length >= 4) {
                 pin = key;
@@ -468,20 +510,10 @@
         } else if (key === "ENTER") {
             if (pin) submitPin();
         } else if (key === "DISARM") {
-            if (window.arialUser && window.arialUser.code) showDisarmed();
-            sendLiveAction("area-disarm");
+            if (isArmed) doDisarm();
+            else doArm();
         } else if (key === "ARM") {
-            if (window.arialUser && window.arialUser.code) {
-                sendLiveAction("area-arm");
-                if (currentSite().linked) {
-                    armBeeps(function () {
-                        showArmed();
-                        loadStatus();
-                    });
-                }
-            } else {
-                sendLiveAction("area-arm");
-            }
+            doArm();
         } else if (key === "STAY") {
             if (window.arialUser && window.arialUser.code) selectSite("hansekop");
             else sendLiveAction("area-stay");
@@ -524,6 +556,7 @@
             if (cached.arming) setLed(document.getElementById("led-status"), "arming");
             else if (cached.armed) setLed(document.getElementById("led-status"), "armed");
             else if (cached.disarmed) setLed(document.getElementById("led-status"), "disarmed");
+            syncArmToggle();
         }
     } catch (e) {}
 
