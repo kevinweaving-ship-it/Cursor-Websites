@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v17";
+  var CACHE = "dev2v18";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -2198,6 +2198,24 @@
     }).forEach(function (sail, i) {
       START_RANK[sail] = i + 1;
     });
+    function computeOverallAtGun() {
+      var out = {};
+      if (RACE_NO <= 1) {
+        Object.keys(START_RANK).forEach(function (s) { out[s] = START_RANK[s]; });
+        return out;
+      }
+      var rows = [];
+      Object.keys(trail.boats || {}).forEach(function (sail) {
+        rows.push({ sail: sail, nett: seriesNettBeforeCurrent(sail) });
+      });
+      rows.sort(function (a, b) {
+        if (a.nett !== b.nett) return a.nett - b.nett;
+        return String(a.sail).localeCompare(String(b.sail));
+      });
+      rows.forEach(function (r, i) { out[r.sail] = i + 1; });
+      return out;
+    }
+    var OVERALL_AT_GUN = computeOverallAtGun();
     var ST_LEAD_TS = null;
     Object.keys(LEGAL_TS).forEach(function (sail) {
       if (OCS[sail] && START_RANK[sail] == null) return;
@@ -2263,7 +2281,7 @@
         drawMap(playTs);
       };
     }
-    var liveRankCache = { ts: -1, bySail: {}, leader: null, overallLeader: null, target: null, windFrom: 0 };
+    var liveRankCache = { ts: -1, bySail: {}, overallBySail: {}, leader: null, overallLeader: null, target: null, windFrom: 0 };
     var RATE = Math.max(1, Number(data.default_rate || 1) || 1);
     var RATES = [1, 2, 5, 10, 25, 50, 100, 500];
     if (sailfish.replaySpeed && sailfish.nearestRate) {
@@ -3436,7 +3454,9 @@
         finished: last > 0 && PASSES[last] && (PASSES[last].id === "FIN" || PASSES[last].label === "Fin"),
         leg: leg,
         total: total,
-        isLeader: liveRankCache.overallLeader && liveRankCache.overallLeader.sail === sail
+        isLeader: liveRankCache.overallLeader && liveRankCache.overallLeader.sail === sail,
+        overallPos: liveRankCache.overallBySail[sail] || null,
+        racePlace: livePlace
       };
     }
     function drawDelta(x, y, delta, align) {
@@ -3449,11 +3469,24 @@
       mapCtx.fillText(txt, x, y);
       return mapCtx.measureText(txt).width;
     }
+    /* World Sailing series-leader colours: 1st yellow, 2nd blue, 3rd red (Regulation 20.4.3 bibs) */
+    var OVERALL_STICKER = { 1: "#facc15", 2: "#2563eb", 3: "#dc2626" };
+    function drawOverallStickerRing(p, pos) {
+      if (!pos || pos > 3) return;
+      var stroke = OVERALL_STICKER[pos];
+      if (!stroke) return;
+      mapCtx.beginPath();
+      mapCtx.arc(p.x, p.y, 17, 0, Math.PI * 2);
+      mapCtx.strokeStyle = stroke;
+      mapCtx.lineWidth = 2.8;
+      mapCtx.stroke();
+    }
     function drawBoatLabel(p, hdg, sail, ts) {
       var club = clubCode(sail);
       var info = mapBadge(sail, ts);
       var paint = boatPaint(sail, info.pending);
       mapCtx.save();
+      if (RACE_NO >= 2) drawOverallStickerRing(p, info.overallPos);
       if (info.isLeader) {
         mapCtx.beginPath();
         mapCtx.arc(p.x, p.y, 14, 0, Math.PI * 2);
@@ -3463,12 +3496,12 @@
       }
       drawFinishHalo(p, sail);
       drawBoatIcon(p, hdg, paint.fill, paint.stroke, paint.nose);
-      if (info.place != null) {
+      if (info.racePlace != null) {
         mapCtx.fillStyle = paint.ink;
         mapCtx.font = "bold 9px sans-serif";
         mapCtx.textAlign = "center";
         mapCtx.textBaseline = "middle";
-        mapCtx.fillText(String(info.place), p.x, p.y + 0.4);
+        mapCtx.fillText(String(info.racePlace), p.x, p.y + 0.4);
       }
       if (info.onMark && !info.finished) drawDelta(p.x - 12, p.y - 1, info.leg, "right");
       var lx = p.x + 12;
@@ -3599,30 +3632,40 @@
       }
       return bySail[sail] != null ? bySail[sail] : DNF_POINTS;
     }
-    function pickOverallLeader(rows, ts, bySail) {
-      var best = null;
-      var bestScore = 1e9;
-      var bestRace = 1e9;
-      rows.forEach(function (row) {
-        var nett = seriesNettBeforeCurrent(row.sail);
-        var cur = currentRacePoints(row.sail, ts, bySail);
-        var total = nett + cur;
-        if (total < bestScore || (total === bestScore && cur < bestRace)) {
-          bestScore = total;
-          bestRace = cur;
-          best = {
-            sail: row.sail,
-            pos: row.pos,
-            nett: nett,
-            racePlace: cur,
-            total: total
-          };
-        }
+    function buildOverallState(rows, ts, bySail) {
+      var scored = rows.map(function (r) {
+        var prior = seriesNettBeforeCurrent(r.sail);
+        var cur = currentRacePoints(r.sail, ts, bySail);
+        return {
+          sail: r.sail,
+          pos: r.pos,
+          prior: prior,
+          cur: cur,
+          total: prior + cur,
+          raceRank: bySail[r.sail]
+        };
       });
-      return best;
+      scored.sort(function (a, b) {
+        if (a.total !== b.total) return a.total - b.total;
+        if (a.cur !== b.cur) return a.cur - b.cur;
+        return (a.raceRank || 99) - (b.raceRank || 99);
+      });
+      var overallBySail = {};
+      scored.forEach(function (r, i) { overallBySail[r.sail] = i + 1; });
+      var top = scored[0] || null;
+      return {
+        overallBySail: overallBySail,
+        overallLeader: top ? {
+          sail: top.sail,
+          pos: top.pos,
+          nett: top.prior,
+          racePlace: top.cur,
+          total: top.total
+        } : null
+      };
     }
     function ensureLiveRanks(ts) {
-      if (liveRankCache.ts === ts && liveRankCache.leader && liveRankCache.overallLeader && liveRankCache.bySail) {
+      if (liveRankCache.ts === ts && liveRankCache.leader && liveRankCache.overallLeader && liveRankCache.bySail && liveRankCache.overallBySail) {
         return liveRankCache;
       }
       var axis = courseAxis(ts);
@@ -3685,13 +3728,15 @@
       rows.sort(function (a, b) {
         return (bySail[a.sail] || 99) - (bySail[b.sail] || 99);
       });
-      var overallLeader = pickOverallLeader(rows, ts, bySail);
+      var raceLeader = rows[0] || null;
+      var overallState = buildOverallState(rows, ts, bySail);
       liveRankCache = {
         ts: ts,
         bySail: bySail,
+        overallBySail: overallState.overallBySail,
         order: rows,
-        leader: rows[0] || null,
-        overallLeader: overallLeader,
+        leader: raceLeader,
+        overallLeader: overallState.overallLeader,
         target: axis.target,
         targetKey: axis.targetKey,
         startMid: axis.startMid,
@@ -3700,14 +3745,22 @@
       };
       return liveRankCache;
     }
+    function overallGain(sail, ts) {
+      var live = ensureLiveRanks(ts);
+      var cur = live.overallBySail[sail];
+      var start = OVERALL_AT_GUN[sail];
+      if (cur == null || start == null) return null;
+      return start - cur;
+    }
     function drawSailfishOverlays(ts) {
       if (!mapCtx || !mapBounds) return;
       var live = ensureLiveRanks(ts);
       var target = live.target;
       var windFrom = live.windFrom || 0;
-      var leader = live.leader;
-      var overall = live.overallLeader || leader;
-      var sameLead = overall && leader && overall.sail === leader.sail;
+      var raceLeader = live.leader;
+      var overall = live.overallLeader;
+      if (RACE_NO < 2) overall = raceLeader;
+      var sameLead = !raceLeader || !overall || overall.sail === raceLeader.sail;
 
       /* Laylines from active windward mark (± tacking angle downwind) */
       if (overlay.layline && target) {
@@ -3755,10 +3808,10 @@
       }
 
       /* Front line: perpendicular through live race leader (rank 1 this race) */
-      if (overlay.frontline !== false && leader && target) {
-        var courseBrg = bearingDeg(leader.pos.lat, leader.pos.lon, target.lat, target.lon);
-        var leftPt = destPoint(leader.pos, courseBrg - 90, 700);
-        var rightPt = destPoint(leader.pos, courseBrg + 90, 700);
+      if (overlay.frontline !== false && raceLeader && target) {
+        var courseBrg = bearingDeg(raceLeader.pos.lat, raceLeader.pos.lon, target.lat, target.lon);
+        var leftPt = destPoint(raceLeader.pos, courseBrg - 90, 700);
+        var rightPt = destPoint(raceLeader.pos, courseBrg + 90, 700);
         var a = xy(leftPt.lat, leftPt.lon);
         var b = xy(rightPt.lat, rightPt.lon);
         mapCtx.save();
@@ -3773,8 +3826,8 @@
         if (!sameLead) {
           mapCtx.fillStyle = "rgba(248,113,113,0.95)";
           mapCtx.font = "bold 10px sans-serif";
-          var fp = xy(leader.pos.lat, leader.pos.lon);
-          mapCtx.fillText("FRONT " + clubCode(leader.sail), fp.x + 14, fp.y - 8);
+          var fp = xy(raceLeader.pos.lat, raceLeader.pos.lon);
+          mapCtx.fillText("FRONT " + clubCode(raceLeader.sail), fp.x + 14, fp.y - 8);
         }
         mapCtx.restore();
       }
@@ -4050,12 +4103,18 @@
       if (limit == null) limit = PASSES.length - 1;
       var ts = viewTs;
       var compact = compactBoard();
-      var key = String(limit) + (compact ? "|gap" : (showStCol(ts) ? "|ST" : "|noST")) + (marksDetailOpen ? "|md1" : "|md0");
+      var key = String(limit) + (compact ? "|gap|start|ov" : (showStCol(ts) ? "|ST" : "|noST")) + (marksDetailOpen ? "|md1" : "|md0");
       for (var i = 0; i < limit; i++) key += showDeltaAfter(i, ts, limit) ? "|d" : "|f";
       if (key === lastHeadKey) return;
       lastHeadKey = key;
       var html = "<th class=\"rank-col\">Rank</th><th class=\"wc-meta-col\">Bow</th><th class=\"boat-name-col\">Boat</th><th class=\"club-col\">Club</th>";
-      html += "<th class=\"timer-col\" title=\"Seconds behind the race leader on this leg\">ST</th>";
+      if (compact) {
+        html += "<th class=\"timer-col\" title=\"Seconds behind the race leader on this leg\">Gap</th>";
+        html += "<th class=\"start-rank-col\" title=\"Start position this race\">Start</th>";
+        html += "<th class=\"place-delta-col\" title=\"Overall places gained (+) or lost (−) since race start\">O/all</th>";
+      } else {
+        html += "<th class=\"timer-col\" title=\"Seconds behind the race leader on this leg\">Gap</th>";
+      }
       if (!compact || marksDetailOpen) {
         for (i = 0; i <= limit; i++) {
           if (i === 0 && !showStCol(ts)) continue;
@@ -4432,10 +4491,16 @@
         };
       });
       rows.sort(function (a, b) {
-        var live = ensureLiveRanks(ts).bySail;
-        var ra = live[a.boat] || 99;
-        var rb = live[b.boat] || 99;
-        if (ra !== rb) return ra - rb;
+        var live = ensureLiveRanks(ts);
+        if (RACE_NO >= 2) {
+          var oa = live.overallBySail[a.boat] || 99;
+          var ob = live.overallBySail[b.boat] || 99;
+          if (oa !== ob) return oa - ob;
+        } else {
+          var ra = live.bySail[a.boat] || 99;
+          var rb = live.bySail[b.boat] || 99;
+          if (ra !== rb) return ra - rb;
+        }
         if (b.farIdx !== a.farIdx) return b.farIdx - a.farIdx;
         if (a.farTs != null && b.farTs != null && a.farTs !== b.farTs) return a.farTs - b.farTs;
         var ia = ident(a.boat);
@@ -4445,10 +4510,14 @@
         if (ba !== bb) return ba - bb;
         return String(a.boat).localeCompare(String(b.boat));
       });
-      rows.forEach(function (r, i) {
-        var live = ensureLiveRanks(ts).bySail[r.boat];
-        r.rank = live != null ? live : (i + 1);
+      rows.forEach(function (r) {
+        var live = ensureLiveRanks(ts);
+        r.raceRank = live.bySail[r.boat] || null;
+        r.overallRank = live.overallBySail[r.boat] || r.raceRank;
+        r.rank = RACE_NO >= 2 ? r.overallRank : r.raceRank;
         r.gap = legGapSec(r.boat, ts);
+        r.startRank = START_RANK[r.boat] != null ? START_RANK[r.boat] : null;
+        r.overallGain = overallGain(r.boat, ts);
       });
       return rows;
     }
@@ -4461,7 +4530,7 @@
         var pending = ocsPending(r.boat, ts);
         var badge = mapBadge(r.boat, ts);
         var place = badge.place == null ? "" : badge.place;
-        return [r.boat, pending ? "O" : "S", place, r.farIdx, r.farTs || "", r.gap != null ? r.gap.toFixed(1) : ""].join(":");
+        return [r.boat, pending ? "O" : "S", place, r.rank || "", r.raceRank || "", r.startRank || "", r.overallGain != null ? r.overallGain : "", r.farIdx, r.farTs || "", r.gap != null ? r.gap.toFixed(1) : ""].join(":");
       }).join("|");
     }
     function boatIconHtml(sail, ts, rank) {
@@ -4480,16 +4549,21 @@
       var id = ident(r.boat);
       var pending = ocsPending(r.boat, viewTs);
       var medal = "";
-      if (r.rank === 1) medal = " medal-gold";
-      else if (r.rank === 2) medal = " medal-silver";
-      else if (r.rank === 3) medal = " medal-bronze";
+      var medalRank = RACE_NO >= 2 ? r.overallRank : r.raceRank;
+      if (medalRank === 1) medal = " medal-gold";
+      else if (medalRank === 2) medal = " medal-silver";
+      else if (medalRank === 3) medal = " medal-bronze";
       var cls = medal + (unroll ? " lipton-unroll" : "") + (pending ? " ocs-pending" : "");
       var html = "<tr class=\"" + cls + "\" data-bow=\"" + esc(id ? id.bow : "") + "\" data-boat=\"" + esc(r.boat) + "\">";
       html += "<td class=\"rank-col\">" + boatIconHtml(r.boat, viewTs, r.rank) + "</td>";
       html += "<td class=\"wc-meta-col\">" + bowCell(id) + "</td>";
       html += "<td class=\"boat-name-col\">" + boatNameCell(id) + "</td>";
       html += "<td class=\"club-col\">" + clubCell(id, pending) + "</td>";
-      html += "<td class=\"timer-col\" title=\"Seconds behind leader this leg\">" + fmtLegGap(r.gap) + "</td>";
+      html += "<td class=\"timer-col\" title=\"Seconds behind race leader this leg\">" + fmtLegGap(r.gap) + "</td>";
+      if (compactBoard()) {
+        html += "<td class=\"start-rank-col\" title=\"Start position this race\">" + (r.startRank != null ? esc(String(r.startRank)) : "—") + "</td>";
+        html += "<td class=\"place-delta-col ld-overall-col\">" + deltaSpan(r.overallGain, rememberDelta(r.boat + "|ovgain", r.overallGain)) + "</td>";
+      }
       if (!compactBoard() || marksDetailOpen) {
       for (var i = 0; i <= passLimit; i++) {
         if (i === 0 && !showStCol(viewTs)) continue;

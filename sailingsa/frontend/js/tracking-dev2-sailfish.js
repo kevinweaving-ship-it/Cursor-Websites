@@ -57,6 +57,7 @@
       ["Camera", "camera"]
     ];
     flags.innerHTML = "";
+    var raceN = Number(new URLSearchParams(location.search).get("race") || 1) || 1;
     items.forEach(function (pair) {
       var btn = document.createElement("button");
       btn.type = "button";
@@ -64,9 +65,11 @@
       btn.setAttribute("data-flag", pair[1]);
       btn.textContent = pair[0];
       btn.title = "Toggle " + pair[0] + (pair[1] === "leaderline"
-        ? " (regatta overall leader — net score + current race place)"
+        ? (raceN >= 2
+          ? " (regatta overall leader — prior nett + live race place)"
+          : " (race leader — same as Front on Race 1)")
         : pair[1] === "frontline"
-          ? " (through live race leader — rank 1 this race only)"
+          ? " (who is 1st in this race right now)"
           : pair[1] === "board"
             ? " (Sailfish left ranking board overlay)"
             : pair[1] === "marks"

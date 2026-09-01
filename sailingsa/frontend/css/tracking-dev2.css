@@ -1333,11 +1333,11 @@ body[data-tracking-dev2="1"] .tracking-dev2-rank-table td {
   padding: 3px 5px;
   white-space: nowrap;
 }
-body[data-tracking-dev2="1"] .tracking-dev2-rank-table thead th {
-  position: sticky;
-  top: 0;
-  background: #f1f5f9;
-  z-index: 1;
+body[data-tracking-dev2="1"] .tracking-dev2-rank-table th.start-rank-col,
+body[data-tracking-dev2="1"] .tracking-dev2-rank-table td.start-rank-col {
+  text-align: center;
+  min-width: 2rem;
+  font-weight: 700;
 }
 body[data-tracking-dev2="1"] .tracking-dev2-map-first #lipton-dev-chart,
 body[data-tracking-dev2="1"] .tracking-dev2-map-first #lipton-dev-map {
