@@ -65,36 +65,6 @@ html, body {
     pointer-events: auto;
 }
 
-.logout-link {
-    display: none;
-    position: relative;
-    z-index: 8;
-    box-sizing: border-box;
-    width: max-content;
-    min-width: 44px;
-    min-height: 44px;
-    margin: 4px 2.8% 0 auto;
-    padding: 12px 4px 8px;
-    border: 0;
-    background: transparent;
-    color: #e00000;
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 13px;
-    font-weight: 900;
-    letter-spacing: 0;
-    line-height: 1;
-    white-space: nowrap;
-    text-align: right;
-    cursor: pointer;
-    pointer-events: auto;
-    touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
-}
-
-.pad-wrap.compact .logout-link {
-    display: block;
-}
-
 .keypad {
     display: block;
     width: 100%;

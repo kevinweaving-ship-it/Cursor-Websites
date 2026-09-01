@@ -212,11 +212,11 @@
         if (armed) {
             btn.setAttribute("aria-label", "DISARM");
             btn.classList.add("mode-disarm");
-            if (face) face.src = "/arial/btn-disarm.png?v=41";
+            if (face) face.src = "/arial/btn-disarm.png?v=42";
         } else {
             btn.setAttribute("aria-label", "ARM");
             btn.classList.add("mode-arm");
-            if (face) face.src = "/arial/btn-arm.png?v=41";
+            if (face) face.src = "/arial/btn-arm.png?v=42";
         }
     }
 
@@ -338,8 +338,8 @@
     var pin = "";
     var lcdHold = null;
     var CODES = {
-        "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png?v=41", code: "7302" },
-        "7102": { name: "Amoroc", from: "Amoroc", logo: "/arial/users/amoroc.png?v=41", code: "7102" }
+        "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png?v=42", code: "7302" },
+        "7102": { name: "Amoroc", from: "Amoroc", logo: "/arial/users/amoroc.png?v=42", code: "7102" }
     };
 
     function resolvedUser(user) {
@@ -353,6 +353,8 @@
     function setPadLoggedIn(on) {
         var frame = document.getElementById("pad-frame");
         if (frame) frame.classList.toggle("compact", !!on);
+        var up = document.querySelector('[data-key="UP"]');
+        if (up) up.setAttribute("aria-label", on ? "Log Out" : "Up");
     }
 
     function logOut() {
@@ -637,7 +639,7 @@
         var isArmed = panelLooksArmed(window.arialDevice);
         if ((key === "DISARM" || key === "TOGGLE") && isArmed) disarmBeep();
         else if (key === "ARM" || key === "TOGGLE" || (key === "DISARM" && !isArmed)) { /* panel countdown + beeps */ }
-        else if (!willAccept && key !== "LOGOUT") beep();
+        else if (!willAccept && key !== "LOGOUT" && key !== "UP") beep();
         if (/^[0-9]$/.test(key)) {
             if (pin.length >= 4) {
                 pin = key;
@@ -662,8 +664,8 @@
             else sendLiveAction("area-stay");
         } else if (key === "FORCE") {
             if (window.arialUser && window.arialUser.code) selectSite("tuys");
-        } else if (key === "LOGOUT") {
-            logOut();
+        } else if (key === "UP" || key === "LOGOUT") {
+            if (window.arialUser && window.arialUser.code) logOut();
         }
         saveClick(key);
         if (typeof window.onArialKey === "function") window.onArialKey(key);
@@ -679,20 +681,10 @@
     var keypad = document.getElementById("pad-frame") || document.querySelector(".pad");
     keypad.addEventListener("pointerdown", function (ev) {
         var btn = ev.target.closest("[data-key]");
-        if (!btn || btn.id === "logout-btn") return;
+        if (!btn) return;
         unlockAudio();
         onKey(btn.getAttribute("data-key"));
     });
-
-    var logoutBtn = document.getElementById("logout-btn") || document.querySelector(".logout-link");
-    if (logoutBtn) {
-        logoutBtn.addEventListener("click", function (ev) {
-            ev.preventDefault();
-            ev.stopPropagation();
-            unlockAudio();
-            logOut();
-        });
-    }
 
     try {
         var cached = JSON.parse(localStorage.getItem("arialPanel") || "null");
