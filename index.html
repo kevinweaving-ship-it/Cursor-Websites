@@ -5772,6 +5772,18 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                                 var dateB = classLastDates[b] || new Date(0);
                                 return dateB - dateA;
                             });
+                            var registeredClassHint = String(classesSailed || memberSource.class_name || memberSource.primary_class || '').trim();
+                            if (registeredClassHint && registeredClassHint !== '—') {
+                                var regClassNorm = normalizeClassName(registeredClassHint);
+                                if (regClassNorm && !classStats[regClassNorm]) {
+                                    classStats[regClassNorm] = { rg: 0, r: 0, medals: { gold: 0, silver: 0, bronze: 0 } };
+                                    classEntries = Object.keys(classStats).sort(function(a, b) {
+                                        var dateA = classLastDates[a] || new Date(0);
+                                        var dateB = classLastDates[b] || new Date(0);
+                                        return dateB - dateA;
+                                    });
+                                }
+                            }
                             // Header total = sum of per-class regatta badges (matches class sections)
                             regattaCount = classEntries.reduce(function(sum, cn) {
                                 return sum + ((classStats[cn] && classStats[cn].rg) || 0);
@@ -6820,7 +6832,7 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                                     return String(d.getDate()).padStart(2, '0') + ' ' + monthsShort[d.getMonth()] + ' ' + d.getFullYear();
                                 }
                                 function formatApprovedDurationShort(rows) {
-                                    if (!rows || !rows.length) return '0 yrs 0 mths';
+                                    if (!rows || !rows.length) return '—';
                                     var times = rows.map(function(r) {
                                         var t = new Date(r.dateStr || '').getTime();
                                         return isNaN(t) ? null : t;
@@ -7329,7 +7341,9 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                                         stats: classStats[className] || { rg: 0, r: 0 }
                                     });
                                 });
-                                approvedClassCards.push({ key: 'all', label: 'All Classes', logoCandidates: [], logoSrc: '', stats: { rg: regattaCount || 0, r: raceCount || 0 } });
+                                if (regattaCount > 0 || raceCount > 0 || !approvedClassCards.length) {
+                                    approvedClassCards.push({ key: 'all', label: 'All Classes', logoCandidates: [], logoSrc: '', stats: { rg: regattaCount || 0, r: raceCount || 0 } });
+                                }
                                 var approvedDefaultKey = (approvedClassCards.length ? approvedClassCards[0].key : 'all');
                                 try {
                                     var best = null;
@@ -7521,7 +7535,13 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                                                     '</div>' +
                                                 '</div>'
                                     );
-                                    var rankSectionHtml = '' +
+                                    var approvedNoArchiveResults = (regattaCount === 0 && raceCount === 0 && (!regattaHistoryRows || !regattaHistoryRows.length));
+                                    var hideApprovedRankPanels = approvedNoArchiveResults && saRankIsNone && sslRankIsNone;
+                                    var rankSectionHtml = hideApprovedRankPanels
+                                        ? ('<div class="sa-approved-sailor-rank-row sa-approved-sailor-rank-row--empty">' +
+                                            '<div class="sa-approved-sailor-results-empty">No regatta results in the SailingSA archive yet.</div>' +
+                                          '</div>')
+                                        : ('' +
                                         '<div class="sa-approved-sailor-rank-row">' +
                                             '<div class="sa-approved-sailor-rank-core">' +
                                                 saRankOpen +
@@ -7561,8 +7581,8 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                                                 sslRankClose +
                                             '</div>' +
                                             '<button type="button" class="sa-approved-sailor-mode-toggle" data-profile-mode-toggle="1" aria-label="' + (approvedState.mode === 'full' ? 'Hide highlights' : 'Show highlights') + '">' + buildApprovedChevron(approvedState.mode === 'full' ? 'up' : 'down') + '</button>' +
-                                        '</div>' +
-                                        '<div class="sa-approved-sailor-class-cards">' + classCardsHtml + '</div>';
+                                        '</div>');
+                                    rankSectionHtml += '<div class="sa-approved-sailor-class-cards">' + classCardsHtml + '</div>';
                                     var fullSectionHtml = '';
                                     if (approvedState.mode === 'full') {
                                         var rowsHtml = visibleResults.length
