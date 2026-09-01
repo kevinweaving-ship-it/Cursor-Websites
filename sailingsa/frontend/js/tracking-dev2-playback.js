@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v4";
+  var CACHE = "dev2v5";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -187,7 +187,7 @@
       b.textContent = "R" + r.n;
       var isHeld = LIVE_Q && heldN && r.n === heldN;
       if (r.n === activeN) b.classList.add("is-active");
-      if (!r.packed && !isHeld && !r.held_live) b.disabled = true;
+      b.disabled = false;
       var gun = String(r.gun_sast || "").slice(11, 16);
       var ocs = (r.ocs || []).length ? " · OCS " + r.ocs.join(",") : "";
       var course = r.course ? " · " + r.course : "";
@@ -197,6 +197,15 @@
       });
       host.appendChild(b);
     });
+    if (!host.getAttribute("data-wired")) {
+      host.setAttribute("data-wired", "1");
+      host.addEventListener("click", function (ev) {
+        var btn = ev.target && ev.target.closest ? ev.target.closest("[data-race]") : null;
+        if (!btn) return;
+        var n = Number(btn.getAttribute("data-race"));
+        if (n >= 1 && n <= 10) goRace(n);
+      });
+    }
   }
   bindRaceButtons(RACE_Q || 1);
   (function wireSiteHeader() {
@@ -2177,7 +2186,7 @@
       }
       drawMap(playTs);
     };
-    var RATE = Number(data.default_rate || 1);
+    var RATE = Math.max(1, Number(data.default_rate || 1) || 1);
     var RATES = [1, 2, 5, 10, 25, 50, 100, 500];
     if (sailfish.replaySpeed && sailfish.nearestRate) {
       RATE = sailfish.nearestRate(RATES, sailfish.replaySpeed);
@@ -4208,6 +4217,9 @@
       setRateButtons();
       render(playTs);
       if (sailedEl) sailedEl.textContent = RACE_LAB + " · gun " + GUN_CLOCK + " · press Play";
+      playing = true;
+      lastWall = Date.now();
+      setPlayLabel();
       fillChecksum();
     }
 
