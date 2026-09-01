@@ -16206,7 +16206,11 @@ def api_regattas_with_counts(
         """ + having_clause + """
             ORDER BY
         """ + order_best_first + """
-            r.regatta_number DESC NULLS LAST, r.year DESC NULLS LAST, r.start_date DESC NULLS LAST
+            """ + (
+            "r.regatta_number DESC NULLS LAST, r.year DESC NULLS LAST, r.start_date DESC NULLS LAST"
+            if name_match_sql is not None
+            else "COALESCE(r.end_date, r.start_date) DESC NULLS LAST, r.regatta_number DESC NULLS LAST, r.regatta_id DESC"
+        ) + """
             LIMIT """ + str(_lim) + """
         """
 
@@ -21872,6 +21876,43 @@ def api_club_logo(code: str):
 _REGATTA_STANDALONE_SAILINGSA_LOGO = "/assets/logos/sailingsa-logo.png"
 
 
+def _class_logo_url_from_fleet_name(name: str) -> Optional[str]:
+    """Map fleet/class label to artwork path (same filenames as hub regatta list chips)."""
+    key = re.sub(r"\s+(fleet|class)$", "", str(name or "").strip(), flags=re.I).strip().lower()
+    if not key:
+        return None
+    file_map = {
+        "ilca 4": "/artwork/Class Logo/ILCA-4.7-Class-Logo.png",
+        "ilca 4.7": "/artwork/Class Logo/ILCA-4.7-Class-Logo.png",
+        "ilca 6": "/artwork/Class Logo/ILCA-6-Class-Logo.png",
+        "ilca 7": "/artwork/Class Logo/ILCA-7-Class-Logo.png",
+        "optimist a": "/artwork/Class Logo/Optimist-A-Class-Logo.png",
+        "optimist b": "/artwork/Class Logo/Optimist-B-Class-Logo.png",
+        "optimist c": "/artwork/Class Logo/Optimist-C-Class-Logo.png",
+        "optimist": "/artwork/Class Logo/Optimist-Class-Logo.png",
+        "dabchick": "/artwork/Class Logo/Dabchick-Class-Logo.png",
+        "mirror": "/artwork/Class Logo/Mirror-Class-Logo.png",
+        "420": "/artwork/Class Logo/420-Class-Logo.png",
+        "29er": "/artwork/Class Logo/29er-Class-Logo.png",
+        "j22": "/artwork/Class Logo/J22-Class-Logo.png",
+        "hunter 19": "/artwork/Class Logo/Hunter-19-Class-Logo.png",
+        "hobie 14": "/artwork/Class Logo/Hobie-14-Class-Logo.png",
+        "hobie 16": "/artwork/Class Logo/Hobie-16-Class-Logo.png",
+        "df95": "/artwork/Class Logo/DF95-Class-Logo.png",
+        "sonnet": "/artwork/Class Logo/Sonnet-Class-Logo.png",
+    }
+    return file_map.get(key)
+
+
+def _regatta_named_event_logo_url(regatta_id: str, event_name: str) -> Optional[str]:
+    """Named recurring events: left header event logo (not generic Sailing SA)."""
+    rid = str(regatta_id or "").strip().lower()
+    en = str(event_name or "").lower()
+    if "lipton" in rid or "lipton" in en:
+        return "/js/lipton-dev-event-logo.png"
+    return None
+
+
 def _club_logo_file_exists_on_disk(code: str) -> bool:
     """True if artwork/Club Logo/{CODE}.(jpg|png|jpeg) exists (same as api_club_logo)."""
     safe = re.sub(r"[^\w\-]", "", (code or "").strip())
@@ -23979,7 +24020,10 @@ _RESULT_SHEET_CSS = (
     ".wc-fleet-block-pick--on{box-shadow:inset 0 0 0 2px #0b2c4d;background:#e9eefb}"
     ".status-line{font-size:14px;color:#1a2750;margin-top:8px}"
     ".fleet-section{width:100%;margin-top:40px}"
-    ".class-header{font-size:20px;font-weight:bold;color:#1a2750;text-align:center;margin-top:0;margin-bottom:0;border:2px solid #1a2750;border-radius:10px;padding:15px;background:#ffffff;width:100%}"
+    ".class-header{display:flex;align-items:center;justify-content:center;gap:12px;font-size:20px;font-weight:bold;color:#1a2750;text-align:center;margin-top:0;margin-bottom:0;border:2px solid #1a2750;border-radius:10px;padding:15px;background:#ffffff;width:100%}"
+    ".class-header-logo-col{flex:0 0 auto;display:flex;align-items:center;justify-content:center;min-width:48px}"
+    ".class-header-logo-img{display:block;max-height:56px;max-width:96px;object-fit:contain}"
+    ".class-header-text-col{flex:1;min-width:0;text-align:center}"
     ".sailed-line{font-size:12px;color:#1a2750;text-align:center;margin-top:10px;margin-bottom:0}"
     ".table-wrapper{overflow-x:auto;overflow-y:visible;width:100%;-webkit-overflow-scrolling:touch;margin-top:20px}"
     ".table-wrapper table{width:100%;min-width:600px}"
@@ -24505,10 +24549,21 @@ def _render_result_sheet_fleet(
         row_html += "</tr>"
         trs.append(row_html)
     table_html = f"<table><thead><tr>{thead}</tr></thead><tbody>{''.join(trs)}</tbody></table>"
+    class_logo_src = _class_logo_url_from_fleet_name(class_canonical or fleet_label or fname)
+    class_logo_col = ""
+    if class_logo_src:
+        class_logo_col = (
+            f'<div class="class-header-logo-col">'
+            f'<img src="{html_module.escape(class_logo_src)}" alt="" class="class-header-logo-img" '
+            'loading="lazy" decoding="async" />'
+            f"</div>"
+        )
     return (
         f'<div class="fleet-section">'
-        f'<div class="class-header"><div class="fleet-title-row">{fleet_header_html}</div>'
-        f'<div class="sailed-line">{html_module.escape(sailed_line)}</div></div>'
+        f'<div class="class-header">'
+        f"{class_logo_col}"
+        f'<div class="class-header-text-col"><div class="fleet-title-row">{fleet_header_html}</div>'
+        f'<div class="sailed-line">{html_module.escape(sailed_line)}</div></div></div>'
         f'<div class="table-wrapper">{table_html}</div></div>'
     )
 
@@ -26482,6 +26537,8 @@ def serve_regatta_standalone(slug: str, request: Request):
             name_html = f'<div class="regatta-name">{escaped_title}</div>'
             host_row = f'<div class="host-club">Host: {host_club_html}</div>'
         lu, ru = _wc_regatta_header_icon_urls(str(regatta_id))
+        if not lu:
+            lu = _regatta_named_event_logo_url(str(regatta_id), display_name)
         left_logo_col = _regatta_standalone_left_logo_column_html(lu)
         right_logo_col = _regatta_standalone_right_logo_column_html(host_club_abbrev, host_club_slug, ru)
         wc_icons_frag = ""
