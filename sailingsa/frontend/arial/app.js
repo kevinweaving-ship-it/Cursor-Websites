@@ -142,6 +142,8 @@
         window.arialClicks = list;
     }
 
+    var pinOk = null;
+
     function beep() {
         var AC = window.AudioContext || window.webkitAudioContext;
         if (!AC) return;
@@ -161,9 +163,18 @@
         osc.stop(t + 0.1);
     }
 
+    function pinAccepted() {
+        pinOk = pinOk || document.getElementById("pin-ok") || new Audio("/arial/pin-accepted.wav");
+        pinOk.pause();
+        pinOk.currentTime = 0;
+        var p = pinOk.play();
+        if (p && p.catch) p.catch(function () { beep(); });
+    }
+
     function onKey(key) {
         if (!key) return;
-        beep();
+        if (key === "ENTER") pinAccepted();
+        else beep();
         saveClick(key);
         if (typeof window.onArialKey === "function") window.onArialKey(key);
     }
