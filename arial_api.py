@@ -390,7 +390,6 @@ async def arial_me_update(request: Request):
 
 @router.get("/api/arial/devices")
 async def arial_devices(request: Request):
-    require_user(request)
     raw = await _olarm_request(
         "GET",
         "/api/v4/devices",
