@@ -146,8 +146,23 @@
     var pin = "";
     var lcdHold = null;
     var CODES = {
-        "7302": { name: "Marc", from: "Pingoa" }
+        "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png" }
     };
+
+    function showUserLogo(user) {
+        var lcd = document.querySelector(".lcd");
+        var img = document.getElementById("lcd-user-logo");
+        if (!lcd || !img) return;
+        if (user && user.logo) {
+            img.src = user.logo;
+            img.hidden = false;
+            lcd.classList.add("logged-in");
+        } else {
+            img.removeAttribute("src");
+            img.hidden = true;
+            lcd.classList.remove("logged-in");
+        }
+    }
 
     function setStatusLine(text, holdMs) {
         var el = document.getElementById("lcd-2");
@@ -214,6 +229,7 @@
             window.arialUser = user;
             var lcd = document.querySelector(".lcd");
             if (lcd) lcd.classList.remove("armed", "disarmed");
+            showUserLogo(user);
             if (lcdHold) clearTimeout(lcdHold);
             lcdHold = setTimeout(function () {
                 lcdHold = null;
