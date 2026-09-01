@@ -51,6 +51,15 @@ See `sailingsa/backend/tracking_dev2_bootstrap.py` → `RUNTIME_IDX` and `docs/s
 | Bootstrap API | None | `/api/tracking-dev2/bootstrap` |
 | Sailfish schema | No | Yes (teamList, runtimeIndex, viewConfig) |
 
+## Deploy to live (Mac — project root)
+
+```bash
+git checkout cursor/tracking-dev2-lipton-925c   # or main after merge
+bash sailingsa/deploy/deploy-tracking-dev2-live.sh
+```
+
+Requires `~/.ssh/sailingsa_live_key`. Script uploads frontend zip, `api.py`, and `sailingsa/backend/tracking_dev2_bootstrap.py`, then verifies bootstrap + page URLs.
+
 ## Local test
 
 ```bash
