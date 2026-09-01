@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v3";
+  var CACHE = "dev2v4";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -143,11 +143,7 @@
     location.assign(u.pathname + "?" + u.searchParams.toString());
   }
   function goLive() {
-    try { resetPlaybackAudio(); } catch (err) {}
-    var u = new URL(location.href);
-    u.searchParams.delete("race");
-    u.searchParams.set("live", "gps");
-    location.assign(u.pathname + "?" + u.searchParams.toString());
+    goRace(1);
   }
   function setRaceTableLabel(n, isLive, tag) {
     var el = document.getElementById("lipton-dev-race-label");
@@ -197,20 +193,10 @@
       var course = r.course ? " · " + r.course : "";
       b.title = "Race " + r.n + course + " · gun " + gun + (r.packed ? "" : (isHeld || r.held_live ? " · last race" : " · GPS not packed yet")) + ocs;
       b.addEventListener("click", function () {
-        if (r.packed) goRace(r.n);
-        else if (isHeld || r.held_live) goLive();
+        goRace(r.n);
       });
       host.appendChild(b);
     });
-    var live = document.createElement("button");
-    live.type = "button";
-    live.className = "lipton-dev-race-box lipton-dev-race-box--live";
-    live.setAttribute("data-live", "1");
-    live.textContent = "Live";
-    live.title = "Live race";
-    if (LIVE_Q) live.classList.add("is-active");
-    live.addEventListener("click", goLive);
-    host.appendChild(live);
   }
   bindRaceButtons(RACE_Q || 1);
   (function wireSiteHeader() {
@@ -2172,6 +2158,25 @@
     var RACE_NO = Number(data.race_number || RACE_Q || 1);
     var RACE_LAB = "Race " + RACE_NO;
     setRaceTableLabel(RACE_NO, false);
+    var overlay = {
+      layline: sailfish.layline !== false,
+      leaderline: sailfish.leaderline !== false,
+      windCompass: sailfish.windCompass !== false,
+      colSOG: sailfish.colSOG !== false,
+      colCOG: sailfish.colCOG !== false,
+      laylineAngle: sailfish.laylineAngle || 44.2
+    };
+    window.__sailfishOverlay = overlay;
+    window.__sailfishRedraw = function () {
+      if (window.__sailfishOverlay) {
+        overlay.layline = !!window.__sailfishOverlay.layline;
+        overlay.leaderline = !!window.__sailfishOverlay.leaderline;
+        overlay.windCompass = !!window.__sailfishOverlay.windCompass;
+        overlay.colSOG = !!window.__sailfishOverlay.colSOG;
+        overlay.colCOG = !!window.__sailfishOverlay.colCOG;
+      }
+      drawMap(playTs);
+    };
     var RATE = Number(data.default_rate || 1);
     var RATES = [1, 2, 5, 10, 25, 50, 100, 500];
     if (sailfish.replaySpeed && sailfish.nearestRate) {
@@ -2180,7 +2185,7 @@
     var SETTLE_MS = 2500;
     var playing = false;
     var trackerReady = false;
-    var playTs = PLAY_END_TS;
+    var playTs = GUN_TS;
     var GUN_HORN_SRC = "/js/lipton-dev-start-airhorn.mp3?v=20260828t";
     var RECALL_HORN_SRC = "/js/lipton-dev-recall-horn.wav?v=20260828t";
     var GUN_HORN_ONSET = 0.05;
@@ -3214,6 +3219,7 @@
         drawStartDirArrows(mapCtx, xy, trail.start_line.left, trail.start_line.right, markAt("1", ts), boatPts);
       }
       drawGate(trail.finish_line, focusGate === "finish_line" ? "#fbbf24" : "rgba(251,191,36,0.35)", finishName, "Pin", "RC");
+      drawSailfishOverlays(ts);
       Object.keys(trail.boats || {}).forEach(function (sail) {
         var pos = posAt(sail, ts);
         if (!pos) return;
@@ -3222,6 +3228,130 @@
       });
       drawCourseLabel(ts);
       drawingMap = false;
+    }
+    function bearingDeg(a, b) {
+      if (!a || !b) return 0;
+      var y = Math.sin((b.lon - a.lon) * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180);
+      var x = Math.cos(a.lat * Math.PI / 180) * Math.sin(b.lat * Math.PI / 180) -
+        Math.sin(a.lat * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180) * Math.cos((b.lon - a.lon) * Math.PI / 180);
+      return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+    }
+    function destPoint(from, brg, meters) {
+      var R = 6371000;
+      var d = meters / R;
+      var br = brg * Math.PI / 180;
+      var lat1 = from.lat * Math.PI / 180;
+      var lon1 = from.lon * Math.PI / 180;
+      var lat2 = Math.asin(Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(br));
+      var lon2 = lon1 + Math.atan2(Math.sin(br) * Math.sin(d) * Math.cos(lat1), Math.cos(d) - Math.sin(lat1) * Math.sin(lat2));
+      return { lat: lat2 * 180 / Math.PI, lon: lon2 * 180 / Math.PI };
+    }
+    function sogKts(sail, ts) {
+      var b = trail.boats[sail];
+      var now = sampleAt(b, ts);
+      if (!now) return null;
+      var prev = sampleAt(b, ts - 4000);
+      if (!prev) return null;
+      var m = distM(prev, now);
+      return (m / 4) * 1.94384;
+    }
+    function drawSailfishOverlays(ts) {
+      if (!mapCtx || !mapBounds) return;
+      var m1 = markAt("1", ts);
+      var sl = trail.start_line;
+      var startMid = sl && sl.left && sl.right
+        ? { lat: (sl.left.lat + sl.right.lat) / 2, lon: (sl.left.lon + sl.right.lon) / 2 }
+        : null;
+      var windFrom = (m1 && startMid) ? bearingDeg(startMid, m1) : 0;
+      if (overlay.layline && m1) {
+        var downwind = (windFrom + 180) % 360;
+        var a1 = destPoint(m1, downwind - overlay.laylineAngle, 900);
+        var a2 = destPoint(m1, downwind + overlay.laylineAngle, 900);
+        var p0 = xy(m1.lat, m1.lon);
+        mapCtx.save();
+        mapCtx.setLineDash([8, 6]);
+        mapCtx.strokeStyle = "rgba(56,189,248,0.85)";
+        mapCtx.lineWidth = 1.6;
+        [[a1], [a2]].forEach(function (arr) {
+          var p = xy(arr[0].lat, arr[0].lon);
+          mapCtx.beginPath();
+          mapCtx.moveTo(p0.x, p0.y);
+          mapCtx.lineTo(p.x, p.y);
+          mapCtx.stroke();
+        });
+        mapCtx.restore();
+      }
+      if (overlay.leaderline) {
+        var leader = null;
+        var bestRank = 1e9;
+        Object.keys(trail.boats || {}).forEach(function (sail) {
+          var pos = posAt(sail, ts);
+          if (!pos) return;
+            var r = START_RANK[sail] != null ? START_RANK[sail] : 99;
+          if (r < bestRank) {
+            bestRank = r;
+            leader = { sail: sail, pos: pos };
+          }
+        });
+        if (leader && m1) {
+          var lp = xy(leader.pos.lat, leader.pos.lon);
+          var mp = xy(m1.lat, m1.lon);
+          mapCtx.save();
+          mapCtx.setLineDash([4, 5]);
+          mapCtx.strokeStyle = "rgba(250,204,21,0.9)";
+          mapCtx.lineWidth = 1.8;
+          mapCtx.beginPath();
+          mapCtx.moveTo(lp.x, lp.y);
+          mapCtx.lineTo(mp.x, mp.y);
+          mapCtx.stroke();
+          mapCtx.restore();
+        }
+      }
+      if (overlay.windCompass) {
+        var cx = mapBounds.w - 36;
+        var cy = 36;
+        mapCtx.save();
+        mapCtx.beginPath();
+        mapCtx.arc(cx, cy, 22, 0, Math.PI * 2);
+        mapCtx.fillStyle = "rgba(15,23,42,0.72)";
+        mapCtx.fill();
+        mapCtx.strokeStyle = "#38bdf8";
+        mapCtx.lineWidth = 2;
+        mapCtx.stroke();
+        mapCtx.translate(cx, cy);
+        mapCtx.rotate(windFrom * Math.PI / 180);
+        mapCtx.beginPath();
+        mapCtx.moveTo(0, -18);
+        mapCtx.lineTo(5, 8);
+        mapCtx.lineTo(0, 4);
+        mapCtx.lineTo(-5, 8);
+        mapCtx.closePath();
+        mapCtx.fillStyle = "#f97316";
+        mapCtx.fill();
+        mapCtx.restore();
+        mapCtx.fillStyle = "#e2e8f0";
+        mapCtx.font = "bold 9px sans-serif";
+        mapCtx.textAlign = "center";
+        mapCtx.fillText("W " + Math.round(windFrom) + "°", cx, cy + 36);
+        mapCtx.textAlign = "start";
+      }
+      if (overlay.colSOG || overlay.colCOG) {
+        Object.keys(trail.boats || {}).forEach(function (sail) {
+          var pos = posAt(sail, ts);
+          if (!pos) return;
+          var p = xy(pos.lat, pos.lon);
+          var bits = [];
+          if (overlay.colSOG) {
+            var k = sogKts(sail, ts);
+            if (k != null) bits.push(k.toFixed(1) + "kt");
+          }
+          if (overlay.colCOG) bits.push(Math.round((pos.hdg + 360) % 360) + "°");
+          if (!bits.length) return;
+          mapCtx.fillStyle = "rgba(15,23,42,0.7)";
+          mapCtx.font = "9px sans-serif";
+          mapCtx.fillText(bits.join(" "), p.x + 10, p.y - 10);
+        });
+      }
     }
     function courseFromTrail() {
       if (data.course && data.course.label) return data.course.label;
@@ -4069,7 +4199,7 @@
     function beginAfterTracker() {
       if (trackerReady) return;
       trackerReady = true;
-      playTs = PLAY_END_TS;
+      playTs = GUN_TS;
       lastWall = Date.now();
       playing = false;
       resetHorns();
@@ -4077,7 +4207,7 @@
       setPlayLabel();
       setRateButtons();
       render(playTs);
-      if (sailedEl) sailedEl.textContent = RACE_LAB + " · gun " + GUN_CLOCK + " · finish · press Play to replay";
+      if (sailedEl) sailedEl.textContent = RACE_LAB + " · gun " + GUN_CLOCK + " · press Play";
       fillChecksum();
     }
 

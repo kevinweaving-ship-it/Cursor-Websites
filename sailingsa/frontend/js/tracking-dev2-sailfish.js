@@ -7,10 +7,6 @@
     return document.getElementById(id);
   }
 
-  function flag(on) {
-    return on ? "on" : "off";
-  }
-
   function nearestRate(rates, want) {
     var n = Number(want) || 1;
     var best = rates[0];
@@ -21,14 +17,55 @@
     return best;
   }
 
+  function overlayState(vc) {
+    return {
+      layline: vc.layline !== false,
+      leaderline: vc.leaderline !== false,
+      windCompass: vc.windCompass !== false,
+      colSOG: !!vc.ColSOG,
+      colCOG: !!vc.ColCOG,
+      camera: vc.camera !== false,
+      laylineAngle: Number(vc.laylineAngle) || 44.2
+    };
+  }
+
+  function paintFlags(flags, state) {
+    if (!flags) return;
+    var items = [
+      ["SOG", "colSOG"],
+      ["COG", "colCOG"],
+      ["Layline", "layline"],
+      ["Leader", "leaderline"],
+      ["Wind", "windCompass"],
+      ["Camera", "camera"]
+    ];
+    flags.innerHTML = "";
+    items.forEach(function (pair) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "tracking-dev2-flag tracking-dev2-flag--" + (state[pair[1]] ? "on" : "off");
+      btn.setAttribute("data-flag", pair[1]);
+      btn.textContent = pair[0];
+      btn.title = "Toggle " + pair[0];
+      btn.addEventListener("click", function () {
+        state[pair[1]] = !state[pair[1]];
+        window.__sailfishOverlay = state;
+        paintFlags(flags, state);
+        if (typeof window.__sailfishRedraw === "function") window.__sailfishRedraw();
+      });
+      flags.appendChild(btn);
+    });
+  }
+
   window.applySailfishDev2 = function (bootstrap) {
     if (!bootstrap) return {};
     var vc = bootstrap.viewConfig || {};
-    var bar = el("tracking-dev2-sailfish-bar");
     var mode = el("tracking-dev2-sailfish-mode");
     var meta = el("tracking-dev2-sailfish-meta");
     var flags = el("tracking-dev2-sailfish-flags");
     var wind = el("tracking-dev2-wind-compass");
+    var state = overlayState(vc);
+    window.__sailfishOverlay = state;
 
     if (mode) {
       mode.textContent = bootstrap.status === "99" ? "REPLAY" : "LIVE";
@@ -44,22 +81,18 @@
         (bootstrap.teamList || []).length + " teams"
       ].filter(Boolean).join(" · ");
     }
-    if (flags && vc) {
-      flags.innerHTML = [
-        ["SOG", vc.ColSOG],
-        ["COG", vc.ColCOG],
-        ["Layline", vc.layline],
-        ["Leader", vc.leaderline],
-        ["Wind", vc.windCompass],
-        ["Camera", vc.camera]
-      ].map(function (pair) {
-        return '<span class="tracking-dev2-flag tracking-dev2-flag--' + flag(pair[1]) + '">' +
-          pair[0] + "</span>";
-      }).join("");
-    }
+    paintFlags(flags, state);
     if (wind) {
-      wind.hidden = !vc.windCompass;
-      wind.setAttribute("aria-hidden", vc.windCompass ? "false" : "true");
+      wind.hidden = false;
+      wind.setAttribute("aria-hidden", "false");
+      wind.title = "Toggle wind compass";
+      wind.style.cursor = "pointer";
+      wind.onclick = function () {
+        state.windCompass = !state.windCompass;
+        window.__sailfishOverlay = state;
+        paintFlags(flags, state);
+        if (typeof window.__sailfishRedraw === "function") window.__sailfishRedraw();
+      };
     }
 
     document.title = (bootstrap.matchName || "Tracking") + " — SF-TrajX dev2";
@@ -78,33 +111,14 @@
     return {
       replaySpeed: Number(vc.replaySpeed) || 5,
       maxPlaySpeed: Number(vc.maxPlaySpeed) || 500,
-      layline: vc.layline !== false,
-      laylineAngle: Number(vc.laylineAngle) || 44.2,
-      leaderline: vc.leaderline !== false,
-      windCompass: vc.windCompass !== false,
-      colSOG: !!vc.ColSOG,
-      colCOG: !!vc.ColCOG,
+      layline: state.layline,
+      laylineAngle: state.laylineAngle,
+      leaderline: state.leaderline,
+      windCompass: state.windCompass,
+      colSOG: state.colSOG,
+      colCOG: state.colCOG,
       trackLength: Number(vc.trackLength) || 90,
       nearestRate: nearestRate
     };
-  };
-
-  window.verifySailfishDev2Apis = function (race) {
-    race = race || 1;
-    var urls = [
-      "/api/tracking-dev2/getRace?race=" + race,
-      "/api/tracking-dev2/replay2/getRaceDatas?race=" + race,
-      "/api/tracking-dev2/replay2/getEncryptionReplayData?race=" + race,
-      "/api/tracking-dev2/ws-config?race=" + race
-    ];
-    return Promise.all(
-      urls.map(function (u) {
-        return fetch(u, { cache: "no-store" }).then(function (res) {
-          return res.json().then(function (body) {
-            return { url: u, ok: res.ok, success: body && body.success };
-          });
-        });
-      })
-    );
   };
 })();

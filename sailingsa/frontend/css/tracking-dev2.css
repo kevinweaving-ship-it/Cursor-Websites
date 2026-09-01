@@ -1244,9 +1244,59 @@ body[data-tracking-dev2="1"] .tracking-dev2-map-first #lipton-dev-map {
   min-height: 52vh;
 }
 body[data-tracking-dev2="1"] .lipton-dev-subhead {
-  position: sticky;
-  top: calc(88px + 52px);
-  z-index: 27;
+  overflow: visible;
+  min-height: 96px;
+  position: relative;
+  top: auto;
+  z-index: 40;
+}
+body[data-tracking-dev2="1"] .lipton-dev-chrome {
+  overflow: visible;
+  grid-template-columns: minmax(120px, 160px) minmax(140px, 1fr);
+}
+body[data-tracking-dev2="1"] .lipton-dev-map-transport,
+body[data-tracking-dev2="1"] .lipton-dev-playbox {
+  overflow: visible;
+  width: auto;
+  max-width: none;
+  height: auto;
+  max-height: none;
+}
+body[data-tracking-dev2="1"] .lipton-dev-race-boxes {
+  height: auto;
+  min-height: 36px;
+  overflow: visible;
+  flex-wrap: wrap;
+  gap: 4px;
+  width: 100%;
+  max-width: none;
+  margin: 6px 0 0 0;
+  pointer-events: auto;
+  z-index: 41;
+  position: relative;
+}
+body[data-tracking-dev2="1"] .lipton-dev-race-box {
+  flex: 0 0 auto;
+  min-width: 44px;
+  min-height: 36px;
+  height: 36px;
+  padding: 0 8px;
+  font-size: 12px;
+  line-height: 34px;
+  pointer-events: auto;
+  cursor: pointer;
+}
+body[data-tracking-dev2="1"] .lipton-dev-btn {
+  min-width: 44px;
+  min-height: 36px;
+  pointer-events: auto;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-flag {
+  cursor: pointer;
+  pointer-events: auto;
+  font: inherit;
+  background: #1e293b;
+  color: #e2e8f0;
 }
 @media (max-width: 900px) {
   body[data-tracking-dev2="1"] .tracking-dev2-split {
