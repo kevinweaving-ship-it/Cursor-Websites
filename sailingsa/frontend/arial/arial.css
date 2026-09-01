@@ -58,8 +58,10 @@ html, body {
     width: 100%;
     height: 22.4%;
     border-radius: 10% 10% 3% 3% / 18% 18% 6% 6%;
-    background: linear-gradient(180deg, #ececec 0%, #c8c8c6 42%, #b4b4b2 100%);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+    background: linear-gradient(180deg, #efefed 0%, #c9c9c6 48%, #b0b0ad 100%);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.8),
+        inset 0 -1px 0 rgba(90, 90, 88, 0.18);
 }
 
 .shell-body {
@@ -71,8 +73,9 @@ html, body {
     border-radius: 6% 6% 18% 18% / 4% 4% 10% 10%;
     background: linear-gradient(180deg, #f7f7f5 0%, #f0f0ee 55%, #e8e8e6 100%);
     box-shadow:
-        0 10px 18px rgba(0, 0, 0, 0.12),
-        inset 0 0 0 1px rgba(180, 180, 178, 0.7);
+        0 14px 28px rgba(0, 0, 0, 0.16),
+        0 3px 6px rgba(0, 0, 0, 0.08),
+        inset 0 0 0 1px #b4b4b1;
 }
 
 .shell-recess {
@@ -82,10 +85,11 @@ html, body {
     width: 85.6%;
     height: 52.4%;
     border-radius: 3%;
-    background: #ececea;
+    background: #e6e6e3;
     box-shadow:
-        inset 0 2px 6px rgba(0, 0, 0, 0.14),
-        inset 0 -1px 0 rgba(255, 255, 255, 0.65);
+        inset 0 4px 10px rgba(0, 0, 0, 0.2),
+        inset 0 1px 0 rgba(70, 70, 68, 0.22),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.7);
 }
 
 .shell-cover {
@@ -96,7 +100,9 @@ html, body {
     height: 10.4%;
     border-radius: 0 0 40% 40% / 0 0 55% 55%;
     background: linear-gradient(180deg, #f3f3f1 0%, #e6e6e4 100%);
-    box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.08);
+    box-shadow:
+        0 -1px 0 rgba(90, 90, 88, 0.22),
+        inset 0 1px 0 rgba(255, 255, 255, 0.65);
 }
 
 .brand-slot {
@@ -137,10 +143,12 @@ html, body {
     z-index: 1;
     box-sizing: border-box;
     border-radius: 7px;
-    background: linear-gradient(180deg, #d8d8d5 0%, #c2c2bf 100%);
+    background: linear-gradient(180deg, #dcdcd8 0%, #c0c0bc 100%);
+    border: 1px solid #9a9a96;
     box-shadow:
-        0 2px 4px rgba(0, 0, 0, 0.18),
-        inset 0 1px 0 rgba(255, 255, 255, 0.55);
+        0 3px 7px rgba(0, 0, 0, 0.22),
+        inset 0 1px 0 rgba(255, 255, 255, 0.7),
+        inset 0 -1px 0 rgba(80, 80, 78, 0.2);
     pointer-events: none;
 }
 
@@ -166,7 +174,10 @@ html, body {
     overflow: hidden;
     z-index: 2;
     border-radius: 5px;
-    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.35);
+    border: 1px solid #15155a;
+    box-shadow:
+        inset 0 3px 8px rgba(0, 0, 0, 0.45),
+        inset 0 0 0 1px rgba(0, 0, 0, 0.22);
 }
 
 .lcd.armed {
@@ -307,9 +318,12 @@ html, body {
     left: 8.4%;
     border-radius: 50%;
     background: #c6cbcd;
-    border: 1px solid #8d9497;
+    border: 1px solid #6f7578;
     box-sizing: border-box;
     opacity: 0.95;
+    box-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.45);
 }
 
 .led.ac {
@@ -395,7 +409,7 @@ html, body {
 .hot {
     position: absolute;
     z-index: 3;
-    border: 1.2px solid #7f8c91;
+    border: 1px solid #a9b2bb;
     padding: 0;
     margin: 0;
     cursor: pointer;
@@ -410,32 +424,37 @@ html, body {
     justify-content: center;
     box-sizing: border-box;
     box-shadow:
-        0 2px 3px rgba(0, 0, 0, 0.22),
-        inset 0 1px 0 rgba(255, 255, 255, 0.7);
+        0 2px 4px rgba(0, 0, 0, 0.24),
+        0 1px 0 rgba(70, 78, 82, 0.45),
+        inset 0 1px 0 rgba(255, 255, 255, 0.78),
+        inset 0 -1px 1px rgba(70, 78, 82, 0.18);
 }
 
 .hot:active {
     transform: translateY(1px);
     box-shadow:
         0 1px 1px rgba(0, 0, 0, 0.2),
-        inset 0 2px 3px rgba(0, 0, 0, 0.12);
+        inset 0 2px 3px rgba(0, 0, 0, 0.16);
     filter: brightness(0.94);
 }
 
 .key-fn {
     border-radius: 12px;
+    border-color: #7f8c91;
     background: linear-gradient(180deg, #f8fbfc 0%, #d9dee4 52%, #c7d0d4 100%);
     font-size: 9px;
 }
 
 .key-num {
     border-radius: 999px;
+    border-color: #8a9398;
     background: linear-gradient(180deg, #f8fbfc 0%, #e6eaee 52%, #c9d2d6 100%);
     font-size: 16px;
 }
 
 .key-arrow {
     border-radius: 999px;
+    border-color: #7f8c91;
     background: linear-gradient(180deg, #f4f8fa 0%, #e6eaee 52%, #cbd4d8 100%);
 }
 
