@@ -83,12 +83,13 @@ html, body {
 
 #lcd-user-logo {
     display: none;
-    height: 26px;
+    height: 34px;
     width: auto;
-    max-width: 56px;
-    margin-top: 2px;
+    max-width: 70px;
+    margin-top: 3px;
     object-fit: contain;
     pointer-events: none;
+    filter: drop-shadow(0 0 1px #fff);
 }
 
 .lcd.logged-in #lcd-user-logo {

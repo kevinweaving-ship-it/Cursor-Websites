@@ -155,11 +155,9 @@
         if (!lcd || !img) return;
         if (user && user.logo) {
             img.src = user.logo;
-            img.hidden = false;
             lcd.classList.add("logged-in");
         } else {
             img.removeAttribute("src");
-            img.hidden = true;
             lcd.classList.remove("logged-in");
         }
     }
@@ -232,6 +230,7 @@
         if (user) {
             pinAccepted();
             window.arialUser = user;
+            try { sessionStorage.setItem("arialUser", JSON.stringify(user)); } catch (e) {}
             showUserLogo(user);
             applyLcd(window.arialDevice);
             if (lcdHold) clearTimeout(lcdHold);
@@ -290,6 +289,14 @@
         ev.preventDefault();
         onKey(btn.getAttribute("data-key"));
     });
+
+    try {
+        var saved = JSON.parse(sessionStorage.getItem("arialUser") || "null");
+        if (saved && saved.logo) {
+            window.arialUser = saved;
+            showUserLogo(saved);
+        }
+    } catch (e) {}
 
     tickTime();
     loadStatus();
