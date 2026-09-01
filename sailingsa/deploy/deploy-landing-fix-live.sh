@@ -40,7 +40,10 @@ echo "=== 2) Upload + extract frontend ==="
   unzip -o /tmp/sailingsa-frontend.zip &&
   rm -f /tmp/sailingsa-frontend.zip &&
   chown -R www-data:www-data ${WEB_ROOT} 2>/dev/null || true &&
-  ls -la ${WEB_ROOT}/index.html ${WEB_ROOT}/js/api.js
+  cp -a ${WEB_ROOT}/blank.html ${WEB_ROOT}/blank.html.bak_pre_index_sync_\$(date +%Y%m%d_%H%M%S) 2>/dev/null || true &&
+  cp ${WEB_ROOT}/index.html ${WEB_ROOT}/blank.html &&
+  chown www-data:www-data ${WEB_ROOT}/blank.html &&
+  ls -la ${WEB_ROOT}/index.html ${WEB_ROOT}/blank.html ${WEB_ROOT}/js/api.js
 "
 
 echo "=== 3) Deploy api.py ==="
