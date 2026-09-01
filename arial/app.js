@@ -226,6 +226,36 @@
         tone(1200, 0.95, 0.42);
     }
 
+    function showArmed() {
+        lastStatus = "System Armed";
+        var st = document.getElementById("lcd-2");
+        if (st) st.textContent = lastStatus;
+        var lcd = document.querySelector(".lcd");
+        if (lcd) {
+            lcd.classList.remove("disarmed");
+            lcd.classList.add("armed");
+        }
+        setLed(document.getElementById("led-status"), "armed");
+    }
+
+    function armBeeps(done) {
+        if (armBeeps._run) return;
+        armBeeps._run = true;
+        var gaps = [400, 310, 230, 150, 80];
+        var n = 0;
+        function ping() {
+            tone(1900, 0.07, 0.4);
+            n += 1;
+            if (n >= 6) {
+                armBeeps._run = false;
+                if (done) done();
+                return;
+            }
+            setTimeout(ping, gaps[n - 1]);
+        }
+        ping();
+    }
+
     function rollText(el, text) {
         if (!el) return;
         text = text == null ? "" : String(text);
@@ -322,6 +352,7 @@
         onKey._t = now;
         var willAccept = /^[0-9]$/.test(key) && pin.length === 3 && CODES[pin + key];
         if (key === "DISARM") disarmBeep();
+        else if (key === "ARM") { /* 6 accelerating beeps */ }
         else if (!willAccept) beep();
         if (/^[0-9]$/.test(key)) {
             if (pin.length >= 4) {
@@ -341,7 +372,15 @@
             if (window.arialUser && window.arialUser.code) showDisarmed();
             sendLiveAction("area-disarm");
         } else if (key === "ARM") {
-            sendLiveAction("area-arm");
+            if (window.arialUser && window.arialUser.code) {
+                sendLiveAction("area-arm");
+                armBeeps(function () {
+                    showArmed();
+                    loadStatus();
+                });
+            } else {
+                sendLiveAction("area-arm");
+            }
         } else if (key === "STAY") {
             sendLiveAction("area-stay");
         }
