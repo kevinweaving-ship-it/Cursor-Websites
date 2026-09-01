@@ -1237,43 +1237,112 @@ body[data-tracking-dev2="1"] .tracking-dev2-split {
   min-height: 0;
 }
 body[data-tracking-dev2="1"] .tracking-dev2-map-first {
-  min-height: 52vh;
+  position: relative;
+  min-height: 62vh;
+  display: grid;
+  grid-template: 1fr / 1fr;
 }
 body[data-tracking-dev2="1"] .tracking-dev2-map-first #lipton-dev-chart,
 body[data-tracking-dev2="1"] .tracking-dev2-map-first #lipton-dev-map {
-  min-height: 52vh;
+  grid-area: 1 / 1;
+  min-height: 62vh;
+  width: 100%;
+  height: 100%;
 }
-body[data-tracking-dev2="1"] .lipton-dev-subhead {
+/* Sailfish bit: bottom transport dock + green digital REPLAY clock */
+body[data-tracking-dev2="1"] .tracking-dev2-dock {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 45;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 10px;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.55), rgba(15, 23, 42, 0.92));
+  border-top: 1px solid #334155;
+  pointer-events: auto;
   overflow: visible;
-  min-height: 96px;
-  position: relative;
+  min-height: 0;
   top: auto;
-  z-index: 40;
 }
-body[data-tracking-dev2="1"] .lipton-dev-chrome {
-  overflow: visible;
-  grid-template-columns: minmax(120px, 160px) minmax(140px, 1fr);
-}
-body[data-tracking-dev2="1"] .lipton-dev-map-transport,
-body[data-tracking-dev2="1"] .lipton-dev-playbox {
+body[data-tracking-dev2="1"] .tracking-dev2-dock .lipton-dev-map-transport,
+body[data-tracking-dev2="1"] .tracking-dev2-dock .lipton-dev-playbox {
   overflow: visible;
   width: auto;
   max-width: none;
   height: auto;
   max-height: none;
+  flex: 1 1 220px;
 }
-body[data-tracking-dev2="1"] .lipton-dev-race-boxes {
+body[data-tracking-dev2="1"] .tracking-dev2-dock .lipton-dev-scrub {
+  width: 100%;
+  max-width: none;
+  accent-color: #f97316;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-replay-clock {
+  flex: 0 0 auto;
+  margin-left: auto;
+  text-align: right;
+  line-height: 1.05;
+  min-width: 9.5rem;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-replay-clock-label {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #86efac;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-dock .lipton-dev-map-hud-clock {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: clamp(1.15rem, 2.4vw, 1.65rem);
+  font-weight: 700;
+  color: #4ade80;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 8px rgba(74, 222, 128, 0.35);
+}
+body[data-tracking-dev2="1"] .tracking-dev2-replay-clock-units {
+  display: block;
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-course-hud {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 42;
+  max-width: min(52%, 280px);
+  pointer-events: none;
+  background: rgba(15, 23, 42, 0.72);
+  color: #e2e8f0;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-course-hud .lipton-dev-map-hud-name {
+  color: #f8fafc;
+  font-size: 0.78rem;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-race-rail {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  left: auto;
+  z-index: 43;
   height: auto;
   min-height: 36px;
   overflow: visible;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 4px;
-  width: 100%;
-  max-width: none;
-  margin: 6px 0 0 0;
+  width: auto;
+  max-width: min(70%, 420px);
+  margin: 0;
   pointer-events: auto;
-  z-index: 41;
-  position: relative;
 }
 body[data-tracking-dev2="1"] .lipton-dev-race-box {
   flex: 0 0 auto;
@@ -1300,9 +1369,19 @@ body[data-tracking-dev2="1"] .tracking-dev2-flag {
 }
 @media (max-width: 900px) {
   body[data-tracking-dev2="1"] .tracking-dev2-split {
-    grid-template-rows: minmax(45vh, 1.4fr) minmax(160px, 1fr);
+    grid-template-rows: minmax(50vh, 1.6fr) minmax(160px, 1fr);
   }
-  body[data-tracking-dev2="1"] .lipton-dev-subhead {
-    top: calc(88px + 48px);
+  body[data-tracking-dev2="1"] .tracking-dev2-map-first,
+  body[data-tracking-dev2="1"] .tracking-dev2-map-first #lipton-dev-chart,
+  body[data-tracking-dev2="1"] .tracking-dev2-map-first #lipton-dev-map {
+    min-height: 50vh;
+  }
+  body[data-tracking-dev2="1"] .tracking-dev2-race-rail {
+    max-width: 96%;
+    left: 8px;
+    right: 8px;
+    top: auto;
+    bottom: 72px;
+    justify-content: center;
   }
 }

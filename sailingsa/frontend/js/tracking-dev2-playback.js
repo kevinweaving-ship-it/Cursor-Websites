@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v7";
+  var CACHE = "dev2v8";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -2632,6 +2632,14 @@
       var x = (a.lon - b.lon) * 111000 * c;
       return Math.sqrt(x * x + y * y);
     }
+    function bearingDeg(lat1, lon1, lat2, lon2) {
+      var p1 = lat1 * Math.PI / 180;
+      var p2 = lat2 * Math.PI / 180;
+      var dl = (lon2 - lon1) * Math.PI / 180;
+      var x = Math.sin(dl) * Math.cos(p2);
+      var y = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl);
+      return (Math.atan2(x, y) * 180 / Math.PI + 360) % 360;
+    }
     var TAIL_CLEAR_MS = 5000;
     var tailsUntil = 0;
     var finishFlashUntil = {};
@@ -3500,9 +3508,14 @@
     function fmtLiveClock(ms) {
       var a = Math.abs(Number(ms) || 0);
       var tenths = Math.floor(a / 100);
-      var s = Math.floor(tenths / 10);
+      var totalSec = Math.floor(tenths / 10);
       var t = tenths % 10;
-      return (ms < 0 ? "T−" : "T+") + Math.floor(s / 60) + ":" + pad(s % 60) + "." + t;
+      var h = Math.floor(totalSec / 3600);
+      var m = Math.floor((totalSec % 3600) / 60);
+      var s = totalSec % 60;
+      /* Sailfish-style digital clock: HH:MM:SS.t (sign only for pre-gun) */
+      var body = pad(h) + ":" + pad(m) + ":" + pad(s) + "." + t;
+      return ms < 0 ? "−" + body : body;
     }
     function fitHudName(el, text) {
       if (!el) return;

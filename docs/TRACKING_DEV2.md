@@ -68,8 +68,10 @@ curl -s 'http://localhost:8000/api/tracking-dev2/bootstrap?race=1' | python3 -m 
 # Browser: /regatta/2026-08-29-lipton-challenge-cup-dev2?race=1
 ```
 
-## Next steps
+## Features (apply / hide one at a time)
 
-1. Map Lipton packed ticks → Sailfish `runtime[]` slots in playback (for WS parity).
-2. Wire `viewConfig` (replay speed, column toggles, laylines).
-3. Replace static JSON with live WSS when Sailfish live capture completes (see `LIVE_WS_CAPTURE_WHEN.md`).
+Feature toggles on the SF-TrajX bar (**SOG / COG / Layline / Leader / Front / Wind / Camera**) turn Sailfish-style overlays on or off so each can be kept or dropped.
+
+**We do not have the full saill.cn proprietary app source.** What we have is reverse-engineered extracts under research (getRace bootstrap, viewConfig, replay2 chunk shape, WS topic notes in PR #40 / `docs/sailfish-china-extracts/`). Dev2 reimplements useful bits against Lipton R1–R10 sample GPS.
+
+**Layout bit (dev2v8):** map-first stage with bottom transport dock + green digital REPLAY clock (Sailfish open_trac style). Ranking board remains beside the map for now.

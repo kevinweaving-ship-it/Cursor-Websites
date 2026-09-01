@@ -21,7 +21,7 @@
   <meta name="twitter:image" content="https://sailingsa.co.za/api/og/regatta/2026-08-29-lipton-challenge-cup/ea4ca8b2a84b036d.png">
   <link rel="stylesheet" href="/css/main.css">
   <link rel="stylesheet" href="/js/vendor/leaflet/leaflet.css?v=20260828dk">
-  <link rel="stylesheet" href="/css/tracking-dev2.css?v=dev2v7">
+  <link rel="stylesheet" href="/css/tracking-dev2.css?v=dev2v8">
   <script src="/js/api.js"></script>
   <script src="/js/session.js"></script>
 </head>
@@ -56,40 +56,39 @@
       <span class="tracking-dev2-sailfish-flags" id="tracking-dev2-sailfish-flags" aria-label="Sailfish viewConfig flags"></span>
       <div class="tracking-dev2-wind-compass" id="tracking-dev2-wind-compass" title="Wind compass (Sailfish viewConfig)" aria-hidden="true">W</div>
     </div>
-    <div class="lipton-dev-subhead" id="lipton-dev-subhead">
-      <div class="lipton-dev-chrome">
-        <a href="/events-logos/lipton-challenge-cup" class="lipton-dev-event-logo" title="Lipton Challenge Cup">
-          <img src="/js/lipton-dev-event-logo.png?v=20260828au" alt="Lipton Challenge Cup">
-        </a>
-        <div class="lipton-dev-map-transport">
-          <div class="lipton-dev-playbox">
-            <input type="range" class="lipton-dev-scrub" id="lipton-dev-scrub" min="0" max="1000" value="0" aria-label="Race position">
-            <div class="lipton-dev-transport lipton-dev-transport--play" role="group" aria-label="Playback">
-            <button type="button" class="lipton-dev-btn" id="lipton-dev-play" disabled title="Play" aria-label="Play">
-              <svg class="lipton-dev-ico lipton-dev-ico--play" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.2 2.1v11.8L14.2 8z"/></svg>
-              <svg class="lipton-dev-ico lipton-dev-ico--pause" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2.4h3.6v11.2H3zm6.4 0H13v11.2H9.4z"/></svg>
-            </button>
-            <button type="button" class="lipton-dev-btn" id="lipton-dev-slower" title="Slower" aria-label="Slower">
-              <svg class="lipton-dev-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M8.4 2.4 1.6 8l6.8 5.6V2.4zm6.5 0L8.1 8l6.8 5.6V2.4z"/></svg>
-            </button>
-            <span class="lipton-dev-play-rate" id="lipton-dev-rate">1×</span>
-            <button type="button" class="lipton-dev-btn" id="lipton-dev-faster" title="Faster" aria-label="Faster">
-              <svg class="lipton-dev-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.1 2.4v11.2L7.9 8zm6.5 0v11.2L14.4 8z"/></svg>
-            </button>
-          </div>
-          </div>
-        </div>
-        <div class="lipton-dev-race-boxes" id="lipton-dev-race-boxes" role="group" aria-label="Races"></div>
-      </div>
-      <div class="lipton-dev-map-hud" id="lipton-dev-map-hud">
-        <div class="lipton-dev-map-hud-name" id="lipton-dev-map-hud-name"></div>
-        <div class="lipton-dev-map-hud-clock" id="lipton-dev-map-hud-clock">—</div>
-      </div>
-    </div>
     <div class="lipton-dev-split tracking-dev2-split">
       <div class="lipton-dev-track tracking-dev2-map-first">
         <div id="lipton-dev-chart" role="img" aria-label="Satellite chart of Table Bay harbour"></div>
         <canvas id="lipton-dev-map" aria-label="GPS marks and tracks"></canvas>
+        <div class="lipton-dev-map-hud tracking-dev2-course-hud" id="lipton-dev-map-hud">
+          <div class="lipton-dev-map-hud-name" id="lipton-dev-map-hud-name"></div>
+        </div>
+        <div class="lipton-dev-race-boxes tracking-dev2-race-rail" id="lipton-dev-race-boxes" role="group" aria-label="Races"></div>
+        <div class="tracking-dev2-dock" id="lipton-dev-subhead">
+          <div class="lipton-dev-map-transport">
+            <div class="lipton-dev-playbox">
+              <input type="range" class="lipton-dev-scrub" id="lipton-dev-scrub" min="0" max="1000" value="0" aria-label="Race position">
+              <div class="lipton-dev-transport lipton-dev-transport--play" role="group" aria-label="Playback">
+                <button type="button" class="lipton-dev-btn" id="lipton-dev-play" disabled title="Play" aria-label="Play">
+                  <svg class="lipton-dev-ico lipton-dev-ico--play" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.2 2.1v11.8L14.2 8z"/></svg>
+                  <svg class="lipton-dev-ico lipton-dev-ico--pause" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2.4h3.6v11.2H3zm6.4 0H13v11.2H9.4z"/></svg>
+                </button>
+                <button type="button" class="lipton-dev-btn" id="lipton-dev-slower" title="Slower" aria-label="Slower">
+                  <svg class="lipton-dev-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M8.4 2.4 1.6 8l6.8 5.6V2.4zm6.5 0L8.1 8l6.8 5.6V2.4z"/></svg>
+                </button>
+                <span class="lipton-dev-play-rate" id="lipton-dev-rate">1×</span>
+                <button type="button" class="lipton-dev-btn" id="lipton-dev-faster" title="Faster" aria-label="Faster">
+                  <svg class="lipton-dev-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.1 2.4v11.2L7.9 8zm6.5 0v11.2L14.4 8z"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="tracking-dev2-replay-clock" aria-live="polite">
+            <span class="tracking-dev2-replay-clock-label">REPLAY</span>
+            <div class="lipton-dev-map-hud-clock" id="lipton-dev-map-hud-clock">00:00:00.0</div>
+            <span class="tracking-dev2-replay-clock-units">HRS · MIN · SEC</span>
+          </div>
+        </div>
       </div>
       <div class="fleet-section lipton-dev-board tracking-dev2-ranking">
         <h2 class="class-header" id="lipton-dev-race-label">Race 1</h2>
@@ -115,7 +114,7 @@
   </div>
 
   <script src="/js/vendor/leaflet/leaflet.js?v=20260828dk"></script>
-  <script src="/js/tracking-dev2-sailfish.js?v=dev2v7"></script>
-  <script src="/js/tracking-dev2-playback.js?v=dev2v7"></script>
+  <script src="/js/tracking-dev2-sailfish.js?v=dev2v8"></script>
+  <script src="/js/tracking-dev2-playback.js?v=dev2v8"></script>
 </body>
 </html>
