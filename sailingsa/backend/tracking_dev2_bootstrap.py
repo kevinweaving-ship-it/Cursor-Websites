@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-_FRONTEND_JS = Path(__file__).resolve().parents[1] / "frontend" / "js"
 _LIPTON_SLUG = "2026-08-29-lipton-challenge-cup"
 _DEV2_SLUG = "2026-08-29-lipton-challenge-cup-dev2"
 
@@ -24,8 +24,38 @@ RUNTIME_IDX = {
 }
 
 
+def _js_dirs() -> List[Path]:
+    """Live docroot uses /var/www/sailingsa/js; repo dev uses sailingsa/frontend/js."""
+    here = Path(__file__).resolve()
+    static = os.getenv("STATIC_DIR")
+    dirs: List[Path] = []
+    if static:
+        dirs.append(Path(static) / "js")
+    dirs.extend(
+        [
+            here.parents[2] / "js",
+            here.parents[1] / "frontend" / "js",
+            Path("/var/www/sailingsa/js"),
+        ]
+    )
+    seen = set()
+    out: List[Path] = []
+    for d in dirs:
+        key = str(d)
+        if key in seen:
+            continue
+        seen.add(key)
+        if d.is_dir():
+            out.append(d)
+    return out
+
+
 def _js_path(name: str) -> Path:
-    return _FRONTEND_JS / name
+    for d in _js_dirs():
+        p = d / name
+        if p.is_file():
+            return p
+    raise FileNotFoundError(f"Lipton dev JSON not found: {name}")
 
 
 def _load_json(path: Path) -> Dict[str, Any]:

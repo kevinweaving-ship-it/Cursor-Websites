@@ -26290,6 +26290,9 @@ def api_tracking_dev2_bootstrap(request: Request):
     except (TypeError, ValueError):
         race = 1
     try:
+        root = str(Path(__file__).resolve().parent.parent)
+        if root not in sys.path:
+            sys.path.insert(0, root)
         from sailingsa.backend.tracking_dev2_bootstrap import bootstrap_payload
 
         return JSONResponse(bootstrap_payload(race))
