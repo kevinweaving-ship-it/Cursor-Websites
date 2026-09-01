@@ -107,7 +107,8 @@ html, body {
 
 #lcd-user-logo {
     display: none;
-    height: 34px;
+    height: auto;
+    max-height: 34px;
     width: auto;
     max-width: 90px;
     margin: 0;
@@ -124,10 +125,12 @@ html, body {
 #lcd-welcome {
     flex: 1;
     min-width: 0;
+    align-self: center;
     text-align: left;
     white-space: nowrap;
     overflow: hidden;
     line-height: 1;
+    display: block;
 }
 
 #lcd-when {

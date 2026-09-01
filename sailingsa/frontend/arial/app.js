@@ -166,8 +166,8 @@
     var pin = "";
     var lcdHold = null;
     var CODES = {
-        "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png?v=30", code: "7302" },
-        "7102": { name: "Amoroc", from: "Amoroc", logo: "/arial/users/amoroc.png?v=30", code: "7102" }
+        "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png?v=31", code: "7302" },
+        "7102": { name: "Amoroc", from: "Amoroc", logo: "/arial/users/amoroc.png?v=31", code: "7102" }
     };
 
     function resolvedUser(user) {
