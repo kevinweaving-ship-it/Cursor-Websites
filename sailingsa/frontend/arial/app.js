@@ -60,10 +60,13 @@
         var lcd = document.querySelector(".lcd");
         if (!lcd) return;
         var st = areaState(device);
-        var armed = st === "arm" || st === "stay" || st === "sleep" || st === "countdown" || st.indexOf("alarm") !== -1;
+        var arming = st === "countdown";
+        var armed = !arming && (st === "arm" || st === "stay" || st === "sleep" || st.indexOf("alarm") !== -1);
         var disarmed = st === "disarm" || st === "notready";
+        lcd.classList.toggle("arming", arming);
         lcd.classList.toggle("armed", armed);
         lcd.classList.toggle("disarmed", disarmed);
+        if (!arming) lcd.classList.remove("arming-fast");
     }
 
     function applyLeds(device) {
@@ -74,7 +77,9 @@
         setLed(document.getElementById("led-ac"), acOk ? "on" : "flash");
         if (st.indexOf("alarm") !== -1) {
             setLed(document.getElementById("led-status"), "armed flash-fast");
-        } else if (st === "arm" || st === "stay" || st === "sleep" || st === "countdown") {
+        } else if (st === "countdown") {
+            setLed(document.getElementById("led-status"), "arming");
+        } else if (st === "arm" || st === "stay" || st === "sleep") {
             setLed(document.getElementById("led-status"), "armed");
         } else if (st === "notready") {
             setLed(document.getElementById("led-status"), "disarmed flash");
@@ -125,6 +130,7 @@
                     lastStatus: lastStatus,
                     site: siteName(hanse),
                     armed: !!(lcd && lcd.classList.contains("armed")),
+                    arming: !!(lcd && lcd.classList.contains("arming")),
                     disarmed: !!(lcd && lcd.classList.contains("disarmed"))
                 }));
             } catch (e) {}
@@ -220,11 +226,11 @@
     }
 
     function beep() {
-        tone(2100, 0.09, 0.38);
+        tone(2100, 0.09, 0.45);
     }
 
     function disarmBeep() {
-        tone(1200, 0.95, 0.42);
+        tone(1200, 0.95, 0.5);
     }
 
     function showArmed() {
@@ -233,20 +239,36 @@
         if (st) st.textContent = lastStatus;
         var lcd = document.querySelector(".lcd");
         if (lcd) {
-            lcd.classList.remove("disarmed");
+            lcd.classList.remove("disarmed", "arming", "arming-fast");
             lcd.classList.add("armed");
         }
         setLed(document.getElementById("led-status"), "armed");
     }
 
+    function showArming(n) {
+        lastStatus = n ? ("Exit Delay " + n) : "Exit Delay";
+        var st = document.getElementById("lcd-2");
+        if (st) st.textContent = lastStatus;
+        var lcd = document.querySelector(".lcd");
+        if (lcd) {
+            lcd.classList.remove("armed", "disarmed");
+            lcd.classList.add("arming");
+        }
+        setLed(document.getElementById("led-status"), "arming");
+    }
+
     function armBeeps(done) {
         if (armBeeps._run) return;
         armBeeps._run = true;
-        var gaps = [400, 310, 230, 150, 80];
+        unlockAudio();
+        var gaps = [420, 320, 230, 140, 70];
         var n = 0;
         function ping() {
-            tone(1900, 0.07, 0.4);
+            tone(1600, 0.12, 0.55);
             n += 1;
+            showArming(7 - n);
+            var lcd = document.querySelector(".lcd");
+            if (lcd && n >= 4) lcd.classList.add("arming-fast");
             if (n >= 6) {
                 armBeeps._run = false;
                 if (done) done();

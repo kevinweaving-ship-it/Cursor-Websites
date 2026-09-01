@@ -50,15 +50,30 @@ html, body {
 }
 
 .lcd.armed {
-    background: #c41212;
+    background: #ff1a1a;
+    color: #fff;
+    text-shadow: 0 0 3px rgba(255, 255, 255, 0.45);
+}
+
+.lcd.arming {
+    background: #ff9900;
+    color: #fff;
+    text-shadow: 0 0 3px rgba(255, 255, 255, 0.45);
+    animation: lcdflash 0.5s step-end infinite;
+}
+
+.lcd.arming-fast {
+    animation: lcdflash 0.22s step-end infinite;
+}
+
+.lcd.disarmed {
+    background: #12b028;
     color: #fff;
     text-shadow: 0 0 3px rgba(255, 255, 255, 0.35);
 }
 
-.lcd.disarmed {
-    background: #128a22;
-    color: #fff;
-    text-shadow: 0 0 3px rgba(255, 255, 255, 0.35);
+@keyframes lcdflash {
+    50% { background: #ffcc22; color: #111; }
 }
 
 #lcd-top,
@@ -165,10 +180,16 @@ html, body {
     animation: ledflash 0.7s step-end infinite;
 }
 
-.led.status.armed {
-    background: #ff2a2a;
+.led.status.arming {
+    background: #ff9900;
     opacity: 1;
-    box-shadow: 0 0 10px 4px rgba(196, 18, 18, 0.95);
+    box-shadow: 0 0 12px 5px rgba(255, 153, 0, 0.95);
+    animation: ledflash 0.5s step-end infinite;
+}
+
+.led.status.arming.flash-fast,
+.lcd.arming-fast ~ .led.status.arming {
+    animation: ledflash 0.22s step-end infinite;
 }
 
 .led.status.disarmed {
