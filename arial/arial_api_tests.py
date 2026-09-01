@@ -108,6 +108,19 @@ def test_panel_cache_ttl(monkeypatch):
     assert arial_api._cached_panel() is None
 
 
+def test_logout_button_is_wired_outside_keypad_keys():
+    root = Path(__file__).resolve().parent
+    html = (root / "index.html").read_text(encoding="utf-8")
+    js = (root / "app.js").read_text(encoding="utf-8")
+    css = (root / "arial.css").read_text(encoding="utf-8")
+    assert 'id="logout-btn"' in html
+    assert 'data-key="LOGOUT"' not in html
+    assert 'getElementById("logout-btn")' in js
+    assert "logOut();" in js
+    assert "pointer-events: none" in css
+    assert ".pad-wrap.compact .logout-link" in css
+
+
 def test_register_login_profile(tmp_path, monkeypatch):
     monkeypatch.setattr(arial_api, "_USERS_PATH", tmp_path / "arial_users.json")
     monkeypatch.setattr(arial_api, "_DATA_DIR", tmp_path)

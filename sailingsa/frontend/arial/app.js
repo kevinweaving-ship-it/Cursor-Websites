@@ -209,11 +209,11 @@
         if (armed) {
             btn.setAttribute("aria-label", "DISARM");
             btn.classList.add("mode-disarm");
-            if (face) face.src = "/arial/btn-disarm.png?v=39";
+            if (face) face.src = "/arial/btn-disarm.png?v=40";
         } else {
             btn.setAttribute("aria-label", "ARM");
             btn.classList.add("mode-arm");
-            if (face) face.src = "/arial/btn-arm.png?v=39";
+            if (face) face.src = "/arial/btn-arm.png?v=40";
         }
     }
 
@@ -335,8 +335,8 @@
     var pin = "";
     var lcdHold = null;
     var CODES = {
-        "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png?v=39", code: "7302" },
-        "7102": { name: "Amoroc", from: "Amoroc", logo: "/arial/users/amoroc.png?v=39", code: "7102" }
+        "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png?v=40", code: "7302" },
+        "7102": { name: "Amoroc", from: "Amoroc", logo: "/arial/users/amoroc.png?v=40", code: "7102" }
     };
 
     function resolvedUser(user) {
@@ -390,6 +390,7 @@
             img.src = "";
             img.alt = "";
             img.style.display = "none";
+            img.setAttribute("hidden", "");
             lcd.classList.remove("logged-in");
         }
     }
@@ -674,10 +675,20 @@
     var keypad = document.getElementById("pad-frame") || document.querySelector(".pad");
     keypad.addEventListener("pointerdown", function (ev) {
         var btn = ev.target.closest("[data-key]");
-        if (!btn) return;
+        if (!btn || btn.id === "logout-btn") return;
         unlockAudio();
         onKey(btn.getAttribute("data-key"));
     });
+
+    var logoutBtn = document.getElementById("logout-btn") || document.querySelector(".logout-link");
+    if (logoutBtn) {
+        logoutBtn.addEventListener("click", function (ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            unlockAudio();
+            logOut();
+        });
+    }
 
     try {
         var cached = JSON.parse(localStorage.getItem("arialPanel") || "null");
