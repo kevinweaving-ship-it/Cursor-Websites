@@ -336,7 +336,7 @@ Primary public tracker page reverse-engineered for SailingSA tracking-dev reuse:
 - **Payload schema (before/after decode, WS static analysis):** **`docs/sailfish-china-extracts/WS_PAYLOAD_SCHEMA.md`**
 - Sample artifacts: `docs/sailfish-china-extracts/open_trac/` (incl. `replay_chunk0.decoded.sample.json`, `http_capture_urls.json`)
 
-**Next scrape steps (when useful):** authenticate demo tenant if Sailfish provides one; capture live `getNettyWebsocketUrl` host; record one LIVE race share URL end-to-end; map SF-Traj tile/API calls in browser DevTools; re-fetch CN113588153A full claims when Google Patents is available; confirm soft著 via CN copyright certificate numbers if Sailfish shares them.
+**Next scrape steps (when useful):** see **`LIVE_WS_CAPTURE_WHEN.md`** for when/how to capture live WS telemetry (public event API is stale; wait for live `open_trac` share during a regatta). Other: authenticate demo tenant; map SF-Traj tile/API calls; re-fetch CN113588153A when Google Patents available.
 
 ---
 

@@ -288,5 +288,5 @@ WebSocket push format in docs equals device protocol; SF_TrajX adds protobuf wra
 
 | Item | Blocker |
 |---|---|
-| First **telemetry** WS frames (protobuf sail tick, RACE_CONTROL JSON body) | Race must be actively publishing (`status` racing, not finished) |
+| First **telemetry** WS frames (protobuf sail tick, RACE_CONTROL JSON body) | **Active regatta** — see **`LIVE_WS_CAPTURE_WHEN.md`** (public `sf-front-api` event list checked 2026-09-01: stale, no future dates) |
 | Full VMG/DTL/… index map on live ticks | Need live race with `ColVMG`/`ColDTL` enabled |
