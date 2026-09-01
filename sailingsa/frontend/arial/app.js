@@ -70,14 +70,14 @@
         var osc = audioCtx.createOscillator();
         var gain = audioCtx.createGain();
         osc.type = "square";
-        osc.frequency.setValueAtTime(1850, t);
+        osc.frequency.setValueAtTime(2100, t);
         gain.gain.setValueAtTime(0.0001, t);
-        gain.gain.exponentialRampToValueAtTime(0.08, t + 0.005);
-        gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+        gain.gain.exponentialRampToValueAtTime(0.38, t + 0.004);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
         osc.connect(gain);
         gain.connect(audioCtx.destination);
         osc.start(t);
-        osc.stop(t + 0.08);
+        osc.stop(t + 0.1);
     }
 
     function onKey(key) {
