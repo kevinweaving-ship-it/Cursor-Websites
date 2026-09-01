@@ -66,17 +66,10 @@ html, body {
     align-items: center;
     justify-content: center;
     pointer-events: none;
-}
-
-.brand-cover {
-    position: absolute;
-    inset: 0;
-    background: #c8c8c6;
+    background: transparent;
 }
 
 .brand-logo {
-    position: relative;
-    z-index: 1;
     width: 86%;
     height: 100%;
     object-fit: contain;
