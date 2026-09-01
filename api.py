@@ -26282,20 +26282,112 @@ def serve_tracking_dev2_page(_request: Request):
     return HTMLResponse("Tracking-dev2 page missing", status_code=500)
 
 
+def _tracking_dev2_sys_path():
+    root = str(Path(__file__).resolve().parent.parent)
+    if root not in sys.path:
+        sys.path.insert(0, root)
+
+
+def _tracking_dev2_race_param(request: Request) -> int:
+    qp = request.query_params
+    race_cd = str(qp.get("raceCd") or "").strip()
+    if race_cd.startswith("lipton-r"):
+        try:
+            return int(race_cd.split("-r", 1)[1])
+        except (IndexError, ValueError):
+            pass
+    try:
+        return int(qp.get("race") or 1)
+    except (TypeError, ValueError):
+        return 1
+
+
+def _tracking_dev2_bootstrap(race: int) -> dict:
+    _tracking_dev2_sys_path()
+    from sailingsa.backend.tracking_dev2_bootstrap import bootstrap_payload
+
+    return bootstrap_payload(race)
+
+
 @app.get("/api/tracking-dev2/bootstrap")
 def api_tracking_dev2_bootstrap(request: Request):
     """Sailfish-shaped race bootstrap for tracking-dev2 (Lipton packed replay R1–R10)."""
+    race = _tracking_dev2_race_param(request)
     try:
-        race = int(request.query_params.get("race") or 1)
-    except (TypeError, ValueError):
-        race = 1
-    try:
-        root = str(Path(__file__).resolve().parent.parent)
-        if root not in sys.path:
-            sys.path.insert(0, root)
-        from sailingsa.backend.tracking_dev2_bootstrap import bootstrap_payload
+        return JSONResponse(_tracking_dev2_bootstrap(race))
+    except ValueError as err:
+        return JSONResponse({"success": False, "error": str(err)}, status_code=404)
+    except Exception as err:
+        return JSONResponse({"success": False, "error": str(err)}, status_code=500)
 
-        return JSONResponse(bootstrap_payload(race))
+
+@app.get("/api/tracking-dev2/getRace")
+def api_tracking_dev2_get_race(request: Request):
+    """Sailfish getRace?pageName=open_trac parity (plain JSON dev mode)."""
+    race = _tracking_dev2_race_param(request)
+    try:
+        _tracking_dev2_sys_path()
+        from sailingsa.backend.tracking_dev2_sailfish import get_race_payload
+
+        return JSONResponse(get_race_payload(_tracking_dev2_bootstrap(race)))
+    except ValueError as err:
+        return JSONResponse({"success": False, "error": str(err)}, status_code=404)
+    except Exception as err:
+        return JSONResponse({"success": False, "error": str(err)}, status_code=500)
+
+
+@app.get("/api/tracking-dev2/replay2/getRaceDatas")
+def api_tracking_dev2_get_race_datas(request: Request):
+    """Sailfish replay2/getRaceDatas parity (plain JSON — no LZ compression)."""
+    race = _tracking_dev2_race_param(request)
+    try:
+        _tracking_dev2_sys_path()
+        from sailingsa.backend.tracking_dev2_sailfish import get_race_datas_payload
+
+        return JSONResponse(get_race_datas_payload(_tracking_dev2_bootstrap(race)))
+    except ValueError as err:
+        return JSONResponse({"success": False, "error": str(err)}, status_code=404)
+    except Exception as err:
+        return JSONResponse({"success": False, "error": str(err)}, status_code=500)
+
+
+@app.get("/api/tracking-dev2/replay2/getEncryptionReplayData")
+def api_tracking_dev2_replay_chunk(request: Request):
+    """Sailfish replay2/getEncryptionReplayData dev stand-in (chunk URL meta)."""
+    race = _tracking_dev2_race_param(request)
+    try:
+        _tracking_dev2_sys_path()
+        from sailingsa.backend.tracking_dev2_sailfish import get_replay_chunk_payload
+
+        return JSONResponse(get_replay_chunk_payload(_tracking_dev2_bootstrap(race)))
+    except ValueError as err:
+        return JSONResponse({"success": False, "error": str(err)}, status_code=404)
+    except Exception as err:
+        return JSONResponse({"success": False, "error": str(err)}, status_code=500)
+
+
+@app.get("/api/tracking-dev2/ws-config")
+def api_tracking_dev2_ws_config(request: Request):
+    """Sailfish STOMP/WebSocket config for dev2 (replay = no WS; live = prod URL template)."""
+    race = _tracking_dev2_race_param(request)
+    try:
+        boot = _tracking_dev2_bootstrap(race)
+        _tracking_dev2_sys_path()
+        from sailingsa.backend.tracking_dev2_sailfish import PROD_WSS, WS_TOPICS_TEMPLATE
+
+        race_cd = boot.get("raceCd") or f"lipton-r{race}"
+        replay = (boot.get("status") or "") == "99"
+        return JSONResponse(
+            {
+                "success": True,
+                "raceCd": race_cd,
+                "mode": "replay" if replay else "live",
+                "wss": None if replay else PROD_WSS,
+                "topics": [t.format(raceCd=race_cd) for t in WS_TOPICS_TEMPLATE],
+                "handshake": ["CONNECTED", "subscribe×3", "keepalive \\n"],
+                "note": "Replay races use static JSON; live WS capture pending China regatta.",
+            }
+        )
     except ValueError as err:
         return JSONResponse({"success": False, "error": str(err)}, status_code=404)
     except Exception as err:

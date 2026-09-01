@@ -92,7 +92,7 @@ def _team_list_from_replay(replay: Dict[str, Any]) -> List[Dict[str, Any]]:
         team_list.append(
             {
                 "teamCd": boat_id,
-                "teamName": meta.get("name") or boat_id,
+                "teamName": meta.get("title") or meta.get("name") or boat_id,
                 "sailNo": str(meta.get("bow") or ""),
                 "club": meta.get("club") or "",
                 "runtime": [""] * 51,
@@ -104,6 +104,8 @@ def _team_list_from_replay(replay: Dict[str, Any]) -> List[Dict[str, Any]]:
 
 def bootstrap_payload(race: int) -> Dict[str, Any]:
     """Build open_trac-like bootstrap for tracking-dev2 (replay-only sample)."""
+    from sailingsa.backend.tracking_dev2_sailfish import merge_view_config
+
     race = max(1, min(10, int(race or 1)))
     meta = _race_meta(race)
     if not meta or not meta.get("packed"):
@@ -131,29 +133,22 @@ def bootstrap_payload(race: int) -> Dict[str, Any]:
         "startTime": gun_ms,
         "endTime": int(replay.get("end_ts_ms") or gun_ms),
         "searouteRole": replay.get("course", {}).get("id") or meta.get("course_id") or "",
-        "viewConfig": {
-            "sogUnit": "kts",
-            "trackLength": 90,
-            "timeSpan": 6,
-            "replaySpeed": 5,
-            "maxPlaySpeed": 500,
-            "ColRanking": True,
-            "ColSOG": True,
-            "ColCOG": True,
-            "ColVMG": False,
-            "ColDTL": False,
-            "layline": True,
-            "laylineAngle": 44.2,
-            "leaderline": True,
-            "windCompass": True,
-            "camera": True,
-        },
+        "viewConfig": merge_view_config(),
         "teamList": _team_list_from_replay(replay),
         "runtimeIndex": RUNTIME_IDX,
         "chunkUrls": {
             "bootstrap": f"/api/tracking-dev2/bootstrap?race={race}",
+            "getRace": f"/api/tracking-dev2/getRace?race={race}",
+            "getRaceDatas": f"/api/tracking-dev2/replay2/getRaceDatas?race={race}",
+            "replayChunk": f"/api/tracking-dev2/replay2/getEncryptionReplayData?race={race}",
             "replay": _replay_path(race),
             "trail": _trail_path(race),
+        },
+        "sailfishApis": {
+            "getRace": "/api/tracking-dev2/getRace",
+            "getRaceDatas": "/api/tracking-dev2/replay2/getRaceDatas",
+            "getEncryptionReplayData": "/api/tracking-dev2/replay2/getEncryptionReplayData",
+            "wsConfig": "/api/tracking-dev2/ws-config",
         },
         "transport": {
             "mode": "replay",

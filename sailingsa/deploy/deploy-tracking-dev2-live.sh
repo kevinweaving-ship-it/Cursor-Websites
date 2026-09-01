@@ -48,8 +48,8 @@ scp -i "$KEY" -o StrictHostKeyChecking=no \
   "$PROJECT_ROOT/sailingsa/backend/__init__.py" \
   "root@${SERVER}:${WEB_ROOT}/sailingsa/backend/__init__.py"
 scp -i "$KEY" -o StrictHostKeyChecking=no \
-  "$PROJECT_ROOT/sailingsa/backend/tracking_dev2_bootstrap.py" \
-  "root@${SERVER}:${WEB_ROOT}/sailingsa/backend/tracking_dev2_bootstrap.py"
+  "$PROJECT_ROOT/sailingsa/backend/tracking_dev2_sailfish.py" \
+  "root@${SERVER}:${WEB_ROOT}/sailingsa/backend/tracking_dev2_sailfish.py"
 
 echo "=== 4) api.py (verified deploy) ==="
 scp -i "$KEY" -o StrictHostKeyChecking=no \
@@ -58,8 +58,8 @@ ssh -i "$KEY" -o StrictHostKeyChecking=no "root@${SERVER}" \
   "/root/deploy_api_verified.sh"
 
 echo "=== 5) Verify tracking-dev2 ==="
-curl -sf "https://sailingsa.co.za/api/tracking-dev2/bootstrap?race=1" | python3 -c \
-  "import json,sys; d=json.load(sys.stdin); assert d.get('success') and d.get('status')=='99', d; print('bootstrap OK', d.get('raceCd'))"
+curl -sf "https://sailingsa.co.za/api/tracking-dev2/replay2/getRaceDatas?race=1" | python3 -c \
+  "import json,sys; d=json.load(sys.stdin); assert d.get('success') and d.get('teamList'), d; print('getRaceDatas OK', len(d.get('teamList',[])), 'teams')"
 curl -sfI "https://sailingsa.co.za/regatta/2026-08-29-lipton-challenge-cup-dev2?race=1" | head -3
 
 echo ""

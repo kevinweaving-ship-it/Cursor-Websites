@@ -1128,3 +1128,64 @@ body[data-lipton-dev="1"] .lipton-dev-btn:disabled {
     height: auto;
   }
 }
+
+/* Sailfish open_trac parity bar (tracking-dev2 only) */
+body[data-tracking-dev2="1"] .tracking-dev2-sailfish-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin: 0.5rem 0.75rem 0;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-sailfish-mode {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-sailfish-mode--replay {
+  background: #166534;
+  color: #fff;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-sailfish-mode--live {
+  background: #b45309;
+  color: #fff;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-sailfish-meta {
+  flex: 1 1 12rem;
+  color: #334155;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-sailfish-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-flag {
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  border: 1px solid #cbd5e1;
+  font-size: 0.7rem;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-flag--on {
+  background: #e0f2fe;
+  border-color: #0284c7;
+  color: #0c4a6e;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-flag--off {
+  opacity: 0.45;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-wind-compass {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 2px solid #0284c7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: #0284c7;
+  background: #f0f9ff;
+}

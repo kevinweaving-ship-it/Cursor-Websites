@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v1";
+  var CACHE = "dev2v2";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -347,6 +347,9 @@
   ])
     .then(function (triple) {
       window.__trackingDev2Bootstrap = triple[0];
+      window.__sailfishDev2 = typeof window.applySailfishDev2 === "function"
+        ? window.applySailfishDev2(triple[0])
+        : {};
       start(triple[1], triple[2], triple[0]);
     })
     .catch(function (err) {
@@ -2033,8 +2036,9 @@
   }
 
   function start(data, trail, bootstrap) {
-    if (bootstrap && bootstrap.viewConfig && bootstrap.viewConfig.replaySpeed) {
-      /* Sailfish viewConfig hook — future: apply replaySpeed, columns, laylines */
+    var sailfish = {};
+    if (bootstrap && typeof window.applySailfishDev2 === "function") {
+      sailfish = window.applySailfishDev2(bootstrap) || {};
     }
     var PASSES = loadPasses(data);
     var BOATS = data.boats || {};
@@ -2169,7 +2173,10 @@
     var RACE_LAB = "Race " + RACE_NO;
     setRaceTableLabel(RACE_NO, false);
     var RATE = Number(data.default_rate || 1);
-    var RATES = [1, 2, 5, 10, 25, 50];
+    var RATES = [1, 2, 5, 10, 25, 50, 100, 500];
+    if (sailfish.replaySpeed && sailfish.nearestRate) {
+      RATE = sailfish.nearestRate(RATES, sailfish.replaySpeed);
+    }
     var SETTLE_MS = 2500;
     var playing = false;
     var trackerReady = false;
