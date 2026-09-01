@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Apply official Lipton 2026 overall scores + Final status to live DB.
+"""Apply official Lipton 2026 overall scores + status to live DB.
 
-Source: sailingsa/frontend/js/lipton-dev-series-scores.json (verified vs overall PDF).
+Source: sailingsa/frontend/js/lipton-dev-series-scores.json (Case 02 corrected overall).
 """
 
 from __future__ import annotations
@@ -34,9 +34,9 @@ BOAT_SAIL: dict[str, str] = {
     "WYAC": "1138",
 }
 
-# Sailwave overall PDF CreationDate (after 10 races, post-protest scores)
+# Defaults when publish block absent
 FINAL_AS_AT = "2026-08-29 15:24:06+02"
-RESULT_STATUS = "Final"
+RESULT_STATUS = "Provisional"
 
 
 def _fmt_race_cell(points: float, code: str | None) -> str:
@@ -67,9 +67,13 @@ def main() -> int:
     publish = data.get("publish") or {}
     as_at = publish.get("as_at_time") or FINAL_AS_AT
     status = publish.get("result_status") or RESULT_STATUS
+    rank_by_boat = {}
+    for row in (data.get("overall_after") or {}).get("10") or []:
+        if row.get("boat") is not None and row.get("rank") is not None:
+            rank_by_boat[str(row["boat"])] = int(row["rank"])
 
     lines = [
-        "-- Lipton Challenge Cup 2026 — official overall after 10 races",
+        "-- Lipton Challenge Cup 2026 — Case 02 corrected overall after 10 races",
         f"-- Source: {SERIES_PATH.name}",
         "BEGIN;",
     ]
@@ -82,13 +86,16 @@ def main() -> int:
         pts = row.get("points") or {}
         total = sum(float(pts[str(i)]) for i in range(1, 11))
         race_scores = _race_scores_json(row)
+        rank = rank_by_boat.get(boat_key)
+        rank_sql = f", rank = {rank}" if rank is not None else ""
         lines.append(
             f"UPDATE results SET "
             f"race_scores = '{race_scores}'::jsonb, "
             f"total_points_raw = {total:.1f}, "
             f"nett_points_raw = {total:.1f}, "
             f"result_status = '{status}', "
-            f"as_at_time = '{as_at}'::timestamptz "
+            f"as_at_time = '{as_at}'::timestamptz"
+            f"{rank_sql} "
             f"WHERE regatta_id = '{REGATTA_ID}' AND sail_number = '{sail}';"
         )
 

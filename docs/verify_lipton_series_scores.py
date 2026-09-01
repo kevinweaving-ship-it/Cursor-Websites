@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify lipton-dev-series-scores.json matches Lipton 2026 overall results PDF."""
+"""Verify lipton-dev-series-scores.json internal checksum + Case 02 corrected totals."""
 
 from __future__ import annotations
 
@@ -10,8 +10,8 @@ from pathlib import Path
 
 SERIES_PATH = Path(__file__).resolve().parents[1] / "sailingsa/frontend/js/lipton-dev-series-scores.json"
 
-# Totals from Lipton Cup 2026 Overall results after 10 races PDF
-PDF_TOTALS = {
+# Case 02 corrected overall after 10 races (KYC cleared R6; LDYC/RNYC DSQ)
+EXPECTED_TOTALS = {
     "HYC": 44.0,
     "RCYC": 46.0,
     "UCTYC": 51.0,
@@ -20,8 +20,8 @@ PDF_TOTALS = {
     "RNYC": 63.0,
     "PYC": 64.0,
     "RCYC Academy": 66.0,
+    "KYC": 71.0,
     "WBYC": 77.0,
-    "KYC": 82.0,
     "LDYC": 101.0,
     "GLYC": 114.0,
     "BYC": 127.0,
@@ -31,9 +31,8 @@ PDF_TOTALS = {
     "WYAC": 163.0,
 }
 
-PDF_CODES = {
+EXPECTED_CODES = {
     ("RNYC", 6): "DSQ",
-    ("KYC", 6): "DSQ",
     ("LDYC", 6): "DSQ",
     ("WYAC", 9): "RET",
     ("LDYC", 10): "RET",
@@ -60,16 +59,27 @@ def main() -> int:
     if expected_sha and matrix_sha != expected_sha:
         errors.append(f"matrix_sha256 mismatch: got {matrix_sha}, expected {expected_sha}")
 
-    for boat, exp in PDF_TOTALS.items():
+    dsq_r6 = [
+        b
+        for b, row in data.get("boats", {}).items()
+        if row.get("codes", {}).get("6") == "DSQ"
+    ]
+    if sorted(dsq_r6) != ["LDYC", "RNYC"]:
+        errors.append(f"R6 DSQ boats {dsq_r6!r} != ['LDYC', 'RNYC']")
+
+    if "KYC" in dsq_r6:
+        errors.append("KYC must not be DSQ in R6 (Case 02 cleared KYC)")
+
+    for boat, exp in EXPECTED_TOTALS.items():
         pts = data["boats"].get(boat, {}).get("points", {})
         total = sum(float(pts[str(i)]) for i in range(1, 11))
         if abs(total - exp) > 0.001:
-            errors.append(f"{boat} total {total} != PDF {exp}")
+            errors.append(f"{boat} total {total} != expected {exp}")
 
-    for (boat, rn), code in PDF_CODES.items():
+    for (boat, rn), code in EXPECTED_CODES.items():
         got = data["boats"].get(boat, {}).get("codes", {}).get(str(rn))
         if got != code:
-            errors.append(f"{boat} R{rn} code {got!r} != PDF {code!r}")
+            errors.append(f"{boat} R{rn} code {got!r} != expected {code!r}")
 
     for n in (6, 7, 10):
         key = str(n)
@@ -93,6 +103,7 @@ def main() -> int:
 
     print("OK", SERIES_PATH)
     print("  matrix_sha256", matrix_sha)
+    print("  R6 DSQ", dsq_r6)
     print("  boats", len(data["boats"]), "races 10 entries", data.get("entries"))
     return 0
 

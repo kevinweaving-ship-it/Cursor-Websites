@@ -3,32 +3,32 @@
   "entries": 17,
   "dnf_points": 18,
   "discards": 0,
-  "source": "Lipton Cup 2026 Overall results after 10 races PDF (liptoncup.com) — 100% matrix match.",
+  "source": "Lipton Cup 2026 overall \u2014 Case 02 corrected (KYC cleared R6; LDYC/RNYC DSQ; WYAC R9 RET; LDYC R10 RET).",
   "checksum": {
     "source_pdf": "https://liptoncup.com/backend/wp-content/uploads/2026/08/Lipton-Cup-2026-Overall-results-after-10.pdf",
-    "matrix_sha256": "b196e1ae904287da40abbc9f52736df8d642b0403d467193fb990bfe7fd7c27f",
-    "totals_sha256": "bb8906ff1c449f9e583d92ce9a777a080a101186c5e95c73b88404ccd161b733",
-    "verified": "2026-08-29",
+    "matrix_sha256": "64e24a4d6a771c397e2d7dea7a5a679930399e1d839a36dff220b18a439df9eb",
+    "totals_sha256": "fdc28bab1c6ece1bcfdf5428ade97eeb1a30fa0273f3903efe132db16abfec2a",
+    "verified": "2026-09-01",
     "script": "docs/verify_lipton_series_scores.py"
   },
   "publish": {
-    "result_status": "Final",
+    "result_status": "Provisional",
     "as_at_time": "2026-08-29T15:24:06+02:00",
-    "note": "Sailwave overall PDF after 10 races (CreationDate); R6 DSQs + R9/R10 RET per official sheet."
+    "note": "Sailwave overall after 10 races; R6 per Case 02 (KYC cleared)."
   },
   "ret_tracking": {
     "9": {
       "WYAC": {
         "code": "RET",
         "points": 18,
-        "note": "Official overall R9 18.0 RET (Witbank — not WBYC). GPS: no finish crossing, >350m from line at race end."
+        "note": "Official overall R9 18.0 RET (Witbank \u2014 not WBYC). GPS: no finish crossing, >350m from line at race end."
       }
     },
     "10": {
       "LDYC": {
         "code": "RET",
         "points": 18,
-        "note": "Official overall R10 18.0 RET. No LDYC GPS trail in packed replay — official score only."
+        "note": "Official overall R10 18.0 RET. No LDYC GPS trail in packed replay \u2014 official score only."
       }
     }
   },
@@ -177,15 +177,13 @@
         "3": 3.0,
         "4": 8.0,
         "5": 3.0,
-        "6": 18.0,
+        "6": 7.0,
         "7": 13.0,
         "8": 7.0,
         "9": 1.0,
         "10": 13.0
       },
-      "codes": {
-        "6": "DSQ"
-      }
+      "codes": {}
     },
     "LDYC": {
       "points": {
@@ -322,33 +320,33 @@
       },
       {
         "rank": 5,
-        "boat": "UCTYC",
+        "boat": "KYC",
         "nett": 37.0
       },
       {
         "rank": 6,
+        "boat": "UCTYC",
+        "nett": 37.0
+      },
+      {
+        "rank": 7,
         "boat": "WBYC",
         "nett": 39.0
       },
       {
-        "rank": 7,
+        "rank": 8,
         "boat": "RNYC",
         "nett": 41.0
       },
       {
-        "rank": 8,
+        "rank": 9,
         "boat": "SBYC",
         "nett": 41.0
       },
       {
-        "rank": 9,
+        "rank": 10,
         "boat": "PYC",
         "nett": 45.0
-      },
-      {
-        "rank": 10,
-        "boat": "KYC",
-        "nett": 48.0
       },
       {
         "rank": 11,
@@ -424,23 +422,23 @@
       },
       {
         "rank": 8,
-        "boat": "WBYC",
+        "boat": "KYC",
         "nett": 50.0
       },
       {
         "rank": 9,
+        "boat": "WBYC",
+        "nett": 50.0
+      },
+      {
+        "rank": 10,
         "boat": "PYC",
         "nett": 51.0
       },
       {
-        "rank": 10,
+        "rank": 11,
         "boat": "LDYC",
         "nett": 60.0
-      },
-      {
-        "rank": 11,
-        "boat": "KYC",
-        "nett": 61.0
       },
       {
         "rank": 12,
@@ -516,13 +514,13 @@
       },
       {
         "rank": 9,
-        "boat": "WBYC",
-        "nett": 77.0
+        "boat": "KYC",
+        "nett": 71.0
       },
       {
         "rank": 10,
-        "boat": "KYC",
-        "nett": 82.0
+        "boat": "WBYC",
+        "nett": 77.0
       },
       {
         "rank": 11,
@@ -564,12 +562,11 @@
   "race_6_protests": {
     "protests_lodged": 2,
     "dsq_boats": [
-      "KYC",
       "LDYC",
       "RNYC"
     ],
     "dsq_points": 18,
-    "note": "Two protests after R6 (shortened course; finished boats blocking finish). Published overall applies 18.0 DSQ to KYC, LDYC, RNYC in R6. Case 02 (ONB) DSQ'd LDYC & RNYC; cleared KYC in that hearing \u2014 KYC DSQ on final sheet implies second protest/hearing (Case 01 not yet on ONB).",
+    "note": "Case 02 (ONB): DSQ LDYC & RNYC in R6; KYC cleared. Only two R6 DSQs on corrected overall.",
     "case_02": {
       "protestor": "RCYC",
       "protestees": [
