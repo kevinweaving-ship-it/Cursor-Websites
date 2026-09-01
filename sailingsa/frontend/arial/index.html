@@ -5,22 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex,nofollow">
     <title>Arial</title>
-    <link rel="stylesheet" href="/arial/arial.css?v=55">
+    <link rel="stylesheet" href="/arial/arial.css?v=56">
 </head>
 <body>
     <div class="pad-wrap" id="pad-frame">
     <div class="pad-clip">
     <div class="pad">
-        <div class="shell" aria-hidden="true">
-            <div class="shell-cap"></div>
-            <div class="shell-body"></div>
-            <div class="shell-recess"></div>
-            <div class="shell-cover"></div>
-        </div>
+        <img class="keypad" src="/arial/keypad.png?v=56" alt="">
         <div class="brand-slot">
+            <div class="brand-cover" aria-hidden="true"></div>
             <img class="brand-logo" src="/arial/logo.png?v=54" alt="Aerial Networks">
         </div>
-        <div class="lcd-bezel" aria-hidden="true"></div>
         <div class="lcd" aria-live="polite">
             <div class="lcd-head">
                 <span id="lcd-site">HANSEKOP</span>
@@ -34,40 +29,31 @@
         </div>
         <div class="logout-label" aria-hidden="true"><span>Log</span><span>Out</span></div>
         <div class="led ac on" id="led-ac" title="AC"></div>
-        <div class="led-mark ac-wave" aria-hidden="true">~</div>
         <div class="led status" id="led-status" title="STATUS"></div>
-        <div class="led-mark status-word" aria-hidden="true">STATUS</div>
-        <button type="button" class="hot key-fn" data-key="STAY" aria-label="STAY"><span class="key-label">STAY</span></button>
-        <button type="button" class="hot key-fn" data-key="FORCE" aria-label="FORCE"><span class="key-label">FORCE</span></button>
-        <button type="button" class="hot key-fn" data-key="ARM" aria-label="ARM"><span class="key-label">ARM</span></button>
-        <button type="button" class="hot key-fn arm-toggle" id="arm-toggle" data-key="TOGGLE" aria-label="DISARM">
-            <span class="key-label" id="arm-toggle-face">DISARM</span>
+        <button type="button" class="hot" data-key="STAY" aria-label="STAY"></button>
+        <button type="button" class="hot" data-key="FORCE" aria-label="FORCE"></button>
+        <button type="button" class="hot" data-key="ARM" aria-label="ARM"></button>
+        <button type="button" class="hot arm-toggle" id="arm-toggle" data-key="TOGGLE" aria-label="DISARM">
+            <span id="arm-toggle-face"></span>
         </button>
-        <button type="button" class="hot key-fn hot-more" data-key="BYP" aria-label="BYP"><span class="key-label">BYP</span></button>
-        <button type="button" class="hot key-fn hot-more" data-key="MEM" aria-label="MEM"><span class="key-label">MEM</span></button>
-        <button type="button" class="hot key-fn hot-more" data-key="TBL" aria-label="TBL"><span class="key-label">TBL</span></button>
-        <button type="button" class="hot key-fn hot-more" data-key="ACC" aria-label="ACC"><span class="key-label">ACC</span></button>
-        <button type="button" class="hot key-arrow" data-key="UP" aria-label="Log Out"><span class="key-arrow-icon" aria-hidden="true"></span></button>
-        <button type="button" class="hot key-arrow hot-more" data-key="DOWN" aria-label="Down"><span class="key-arrow-icon down" aria-hidden="true"></span></button>
-        <span class="sublab sublab-areas">AREAS</span>
-        <button type="button" class="hot key-num hot-more" data-key="1" aria-label="1"><span class="key-label">1</span></button>
-        <button type="button" class="hot key-num hot-more" data-key="2" aria-label="2"><span class="key-label">2</span></button>
-        <button type="button" class="hot key-num hot-more" data-key="3" aria-label="3"><span class="key-label">3</span></button>
-        <span class="sublab sublab-instant">INSTANT</span>
-        <span class="sublab sublab-display">DISPLAY</span>
-        <button type="button" class="hot key-num hot-more" data-key="4" aria-label="4"><span class="key-label">4</span></button>
-        <button type="button" class="hot key-num hot-more" data-key="5" aria-label="5"><span class="key-label">5</span></button>
-        <button type="button" class="hot key-num hot-more" data-key="6" aria-label="6"><span class="key-label">6</span></button>
-        <span class="sublab sublab-event">EVENT</span>
-        <span class="sublab sublab-test">TEST</span>
-        <span class="sublab sublab-chime">CHIME</span>
-        <button type="button" class="hot key-num hot-more" data-key="7" aria-label="7"><span class="key-label">7</span></button>
-        <button type="button" class="hot key-num hot-more" data-key="8" aria-label="8"><span class="key-label">8</span></button>
-        <button type="button" class="hot key-num hot-more" data-key="9" aria-label="9"><span class="key-label">9</span></button>
-        <span class="sublab sublab-prg">PRG</span>
-        <button type="button" class="hot key-fn hot-more" data-key="CLEAR" aria-label="CLEAR"><span class="key-label">CLEAR</span></button>
-        <button type="button" class="hot key-num hot-more" data-key="0" aria-label="0"><span class="key-label">0</span></button>
-        <button type="button" class="hot key-fn hot-more" data-key="ENTER" aria-label="ENTER"><span class="key-label">ENTER</span></button>
+        <button type="button" class="hot hot-more" data-key="BYP" aria-label="BYP"></button>
+        <button type="button" class="hot hot-more" data-key="MEM" aria-label="MEM"></button>
+        <button type="button" class="hot hot-more" data-key="TBL" aria-label="TBL"></button>
+        <button type="button" class="hot hot-more" data-key="ACC" aria-label="ACC"></button>
+        <button type="button" class="hot" data-key="UP" aria-label="Log Out"></button>
+        <button type="button" class="hot hot-more" data-key="DOWN" aria-label="Down"></button>
+        <button type="button" class="hot hot-more" data-key="1" aria-label="1"></button>
+        <button type="button" class="hot hot-more" data-key="2" aria-label="2"></button>
+        <button type="button" class="hot hot-more" data-key="3" aria-label="3"></button>
+        <button type="button" class="hot hot-more" data-key="4" aria-label="4"></button>
+        <button type="button" class="hot hot-more" data-key="5" aria-label="5"></button>
+        <button type="button" class="hot hot-more" data-key="6" aria-label="6"></button>
+        <button type="button" class="hot hot-more" data-key="7" aria-label="7"></button>
+        <button type="button" class="hot hot-more" data-key="8" aria-label="8"></button>
+        <button type="button" class="hot hot-more" data-key="9" aria-label="9"></button>
+        <button type="button" class="hot hot-more" data-key="CLEAR" aria-label="CLEAR"></button>
+        <button type="button" class="hot hot-more" data-key="0" aria-label="0"></button>
+        <button type="button" class="hot hot-more" data-key="ENTER" aria-label="ENTER"></button>
         <audio id="pin-ok" src="/arial/pin-accepted.wav" preload="auto"></audio>
     </div>
     </div>
@@ -85,6 +71,6 @@
         if (when) when.textContent = saNow();
     })();
     </script>
-    <script src="/arial/app.js?v=55"></script>
+    <script src="/arial/app.js?v=56"></script>
 </body>
 </html>
