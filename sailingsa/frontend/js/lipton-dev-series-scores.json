@@ -11,6 +11,11 @@
     "verified": "2026-08-29",
     "script": "docs/verify_lipton_series_scores.py"
   },
+  "publish": {
+    "result_status": "Final",
+    "as_at_time": "2026-08-29T15:24:06+02:00",
+    "note": "Sailwave overall PDF after 10 races (CreationDate); R6 DSQs + R9/R10 RET per official sheet."
+  },
   "ret_tracking": {
     "9": {
       "WYAC": {
