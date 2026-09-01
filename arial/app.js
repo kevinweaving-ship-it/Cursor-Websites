@@ -124,6 +124,9 @@
             document.getElementById("lcd-2").textContent = lastStatus;
             applyLeds(hanse);
             window.arialDevice = hanse;
+            var stNow = areaState(hanse);
+            if (stNow === "countdown" && loadStatus._area !== "countdown") armBeeps();
+            loadStatus._area = stNow;
             try {
                 var lcd = document.querySelector(".lcd");
                 localStorage.setItem("arialPanel", JSON.stringify({
@@ -163,7 +166,8 @@
     var pin = "";
     var lcdHold = null;
     var CODES = {
-        "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png", code: "7302" }
+        "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png", code: "7302" },
+        "7102": { name: "Aerial", from: "Aerial", logo: "/arial/users/aerial.png", code: "7102" }
     };
 
     function showUserLogo(user) {
@@ -172,6 +176,7 @@
         if (!lcd || !img) return;
         if (user && user.logo) {
             img.src = user.logo;
+            img.alt = user.from || user.name || "";
             lcd.classList.add("logged-in");
         } else {
             img.removeAttribute("src");
@@ -322,7 +327,7 @@
                 }
                 if (el) el.textContent = "";
             }, 5000);
-            rollText(document.getElementById("lcd-welcome"), "Welcome Pingoa");
+            rollText(document.getElementById("lcd-welcome"), "Welcome " + (user.from || user.name));
             } else {
                 beep();
                 setWelcome("Invalid Code", 2000);
