@@ -22,13 +22,7 @@ html, body {
 .pad {
     position: relative;
     width: 100%;
-}
-
-.keypad {
-    display: block;
-    width: 100%;
-    height: auto;
-    pointer-events: none;
+    aspect-ratio: 521 / 615;
 }
 
 .pad-wrap.compact .pad-clip {
@@ -38,8 +32,11 @@ html, body {
 }
 
 .pad-wrap.compact .hot-more,
+.pad-wrap.compact .sublab,
+.pad-wrap.compact .shell-cover,
 .pad-wrap.compact #led-ac,
-.pad-wrap.compact .led.ac {
+.pad-wrap.compact .led.ac,
+.pad-wrap.compact .led-mark {
     display: none !important;
 }
 
@@ -55,50 +52,128 @@ html, body {
     pointer-events: auto;
 }
 
+.shell {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.shell-cap {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 34%;
+    border-radius: 8% 8% 2% 2% / 12% 12% 4% 4%;
+    background: linear-gradient(180deg, #e8e8e6 0%, #cfcfcd 40%, #b8b8b6 100%);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.85),
+        inset 0 -1px 0 rgba(90, 90, 88, 0.15);
+}
+
+.shell-body {
+    position: absolute;
+    left: 0;
+    top: 28%;
+    width: 100%;
+    height: 72%;
+    border-radius: 4% 4% 16% 16% / 3% 3% 9% 9%;
+    background: #f4f4f2;
+    box-shadow:
+        0 10px 22px rgba(0, 0, 0, 0.12),
+        inset 0 0 0 1px #c8c8c5;
+}
+
+.shell-recess {
+    position: absolute;
+    left: 8%;
+    top: 35.4%;
+    width: 84%;
+    height: 51%;
+    border-radius: 10px;
+    background: #eef0f2;
+    box-shadow:
+        inset 0 2px 5px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(120, 120, 118, 0.12);
+}
+
+.shell-cover {
+    position: absolute;
+    left: 10%;
+    top: 88%;
+    width: 80%;
+    height: 10%;
+    border-radius: 0 0 42% 42% / 0 0 70% 70%;
+    background: #f4f4f2;
+    box-shadow: 0 -1px 0 rgba(160, 160, 158, 0.35);
+}
+
 .brand-slot {
     position: absolute;
-    left: 16%;
-    top: 1.2%;
-    width: 68%;
-    height: 6.4%;
+    left: 10%;
+    top: 0.2%;
+    width: 80%;
+    height: 5.2%;
     z-index: 5;
     display: flex;
     align-items: center;
     justify-content: center;
     pointer-events: none;
-    background: transparent;
+    isolation: isolate;
 }
 
 .brand-logo {
-    width: 86%;
+    width: 78%;
     height: 100%;
     object-fit: contain;
     object-position: center;
     background: transparent;
 }
 
+.lcd-bezel {
+    position: absolute;
+    left: 7.5%;
+    top: 6.2%;
+    width: 85%;
+    height: 24.8%;
+    z-index: 1;
+    box-sizing: border-box;
+    border-radius: 8px;
+    background: linear-gradient(180deg, #d5d5d2 0%, #bdbdb9 100%);
+    border: 1px solid #a3a39f;
+    box-shadow:
+        0 2px 5px rgba(0, 0, 0, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.65);
+    pointer-events: none;
+}
+
 .lcd {
     position: absolute;
-    left: 10.6%;
-    top: 11.4%;
-    width: 78.2%;
-    height: 17.0%;
+    left: 9.6%;
+    top: 8.4%;
+    width: 80.8%;
+    height: 19.8%;
     box-sizing: border-box;
     background: linear-gradient(180deg, #0c18a8 0%, #1a14c0 100%);
     color: #00bfff;
     font-family: "Lucida Console", "Courier New", monospace;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 700;
     letter-spacing: 0.06em;
     line-height: 1.2;
     text-shadow: 0 0 4px rgba(0, 191, 255, 0.55);
-    padding: 6px 10px;
+    padding: 8px 12px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     overflow: hidden;
     z-index: 2;
-    border-radius: 4px;
+    border-radius: 5px;
+    border: 1px solid #15155a;
+    box-shadow:
+        inset 0 3px 8px rgba(0, 0, 0, 0.45),
+        inset 0 0 0 1px rgba(0, 0, 0, 0.22);
 }
 
 .lcd.armed {
@@ -201,7 +276,7 @@ html, body {
     display: none;
     position: absolute;
     left: 84.2%;
-    top: 28.8%;
+    top: 29.4%;
     width: 9.4%;
     height: 8.0%;
     z-index: 6;
@@ -238,8 +313,13 @@ html, body {
     height: 2.0%;
     left: 8.4%;
     border-radius: 50%;
-    background: transparent;
+    background: #c6cbcd;
+    border: 1px solid #6f7578;
     box-sizing: border-box;
+    opacity: 0.95;
+    box-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.45);
 }
 
 .led.ac {
@@ -252,6 +332,7 @@ html, body {
 
 .led.ac.on {
     background: radial-gradient(circle at 45% 35%, #fff 0%, #ff9200 22%, #ff9200 100%);
+    border-color: #6f7578;
     opacity: 1;
     box-shadow: 0 0 8px 3px rgba(255, 146, 0, 0.75);
 }
@@ -259,6 +340,7 @@ html, body {
 .lcd.armed ~ .led.status,
 .led.status.armed {
     background: radial-gradient(circle at 45% 35%, #fff 0%, #ff1a1a 22%, #ff1a1a 100%);
+    border-color: #6f7578;
     opacity: 1;
     box-shadow: 0 0 10px 4px rgba(255, 26, 26, 0.95);
 }
@@ -266,6 +348,7 @@ html, body {
 .lcd.arming ~ .led.status,
 .led.status.arming {
     background: radial-gradient(circle at 45% 35%, #fff 0%, #ff9900 22%, #ff9900 100%);
+    border-color: #6f7578;
     opacity: 1;
     box-shadow: 0 0 12px 5px rgba(255, 153, 0, 0.95);
     animation: ledflash 1.2s step-end infinite;
@@ -280,6 +363,7 @@ html, body {
 .lcd.disarmed ~ .led.status,
 .led.status.disarmed {
     background: radial-gradient(circle at 45% 35%, #fff 0%, #14d718 22%, #14d718 100%);
+    border-color: #6f7578;
     opacity: 1;
     box-shadow: 0 0 10px 4px rgba(20, 215, 24, 0.75);
 }
@@ -297,45 +381,154 @@ html, body {
     50% { opacity: 0.12; }
 }
 
+.led-mark {
+    position: absolute;
+    z-index: 4;
+    pointer-events: none;
+    left: 6.2%;
+    width: 9.0%;
+    color: #9aa0a4;
+    font-family: Arial, Helvetica, sans-serif;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1;
+}
+
+.led-mark.ac-wave {
+    top: 45.6%;
+    font-size: 14px;
+    letter-spacing: 0;
+}
+
+.led-mark.status-word {
+    top: 42.4%;
+    font-size: 6px;
+    letter-spacing: 0.04em;
+}
+
 .hot {
     position: absolute;
     z-index: 3;
-    border: 0;
+    border: 1px solid #a9b2bb;
     padding: 0;
     margin: 0;
-    background: transparent;
     cursor: pointer;
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
+    color: #153e7a;
+    font-family: Arial, Helvetica, sans-serif;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    box-shadow:
+        0 2px 3px rgba(0, 0, 0, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 .hot:active {
-    background: rgba(21, 62, 122, 0.12);
+    transform: translateY(1px);
+    box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.14);
+    filter: brightness(0.94);
 }
 
-#arm-toggle-face {
-    display: none;
+.key-fn {
+    border-radius: 12px;
+    border-color: #a9b2bb;
+    background: linear-gradient(180deg, #eef1f4 0%, #d9dee4 55%, #cfd5db 100%);
+    font-size: 8px;
 }
 
-.hot[data-key="STAY"] { left: 28.6%; top: 37.2%; width: 10.8%; height: 6.8%; }
-.hot[data-key="FORCE"] { left: 40.4%; top: 37.2%; width: 9.4%; height: 6.8%; }
-.hot[data-key="ARM"] { left: 50.6%; top: 37.2%; width: 9.2%; height: 6.8%; }
-.hot[data-key="TOGGLE"] { left: 61.0%; top: 37.2%; width: 10.8%; height: 6.8%; }
-.hot[data-key="BYP"] { left: 28.6%; top: 45.4%; width: 10.8%; height: 6.8%; }
-.hot[data-key="MEM"] { left: 40.4%; top: 45.4%; width: 9.4%; height: 6.8%; }
-.hot[data-key="TBL"] { left: 50.6%; top: 45.4%; width: 9.2%; height: 6.8%; }
-.hot[data-key="ACC"] { left: 61.0%; top: 45.4%; width: 10.8%; height: 6.8%; }
-.hot[data-key="UP"] { left: 84.2%; top: 37.2%; width: 9.4%; height: 6.8%; }
-.hot[data-key="DOWN"] { left: 84.2%; top: 45.4%; width: 9.4%; height: 6.8%; }
-.hot[data-key="1"] { left: 29.5%; top: 53.4%; width: 12.2%; height: 7.2%; }
-.hot[data-key="2"] { left: 43.6%; top: 53.4%; width: 13.0%; height: 7.2%; }
-.hot[data-key="3"] { left: 58.6%; top: 53.4%; width: 13.2%; height: 7.2%; }
-.hot[data-key="4"] { left: 28.4%; top: 61.8%; width: 13.2%; height: 7.4%; }
-.hot[data-key="5"] { left: 43.6%; top: 61.8%; width: 13.0%; height: 7.4%; }
-.hot[data-key="6"] { left: 58.6%; top: 61.8%; width: 13.2%; height: 7.4%; }
-.hot[data-key="7"] { left: 28.4%; top: 69.8%; width: 13.2%; height: 7.4%; }
-.hot[data-key="8"] { left: 43.6%; top: 69.8%; width: 13.0%; height: 7.4%; }
-.hot[data-key="9"] { left: 58.6%; top: 69.8%; width: 13.2%; height: 7.4%; }
-.hot[data-key="CLEAR"] { left: 28.4%; top: 78.2%; width: 13.2%; height: 8.0%; }
-.hot[data-key="0"] { left: 43.6%; top: 78.2%; width: 13.0%; height: 8.0%; }
-.hot[data-key="ENTER"] { left: 58.6%; top: 78.2%; width: 13.2%; height: 8.0%; }
+#arm-toggle.mode-arm {
+    background: linear-gradient(180deg, #eef8f0 0%, #8ed897 52%, #4caf5c 100%);
+    border-color: #2e8a3c;
+    color: #0b4a14;
+}
+
+#arm-toggle.mode-disarm {
+    background: linear-gradient(180deg, #fff1f1 0%, #f09a9a 52%, #d94c4c 100%);
+    border-color: #a33030;
+    color: #5a1010;
+}
+
+#arm-toggle .key-label {
+    font-weight: 800;
+}
+
+.key-num {
+    border-radius: 999px;
+    border-color: #a9b2bb;
+    background: linear-gradient(180deg, #f4f6f8 0%, #e6eaee 55%, #dce1e6 100%);
+    font-size: 14px;
+}
+
+.key-arrow {
+    border-radius: 999px;
+    border-color: #a9b2bb;
+    background: linear-gradient(180deg, #f4f6f8 0%, #e6eaee 55%, #dce1e6 100%);
+}
+
+.key-label {
+    pointer-events: none;
+    line-height: 1;
+}
+
+.key-arrow-icon {
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-bottom: 9px solid #153e7a;
+    pointer-events: none;
+}
+
+.key-arrow-icon.down {
+    border-bottom: 0;
+    border-top: 9px solid #153e7a;
+}
+
+.hot[data-key="STAY"] { left: 28.6%; top: 37.2%; width: 9.2%; height: 5.5%; }
+.hot[data-key="FORCE"] { left: 40.4%; top: 37.2%; width: 9.2%; height: 5.5%; }
+.hot[data-key="ARM"] { left: 50.6%; top: 37.2%; width: 9.2%; height: 5.5%; }
+.hot[data-key="TOGGLE"] { left: 61.0%; top: 37.2%; width: 9.2%; height: 5.5%; }
+.hot[data-key="BYP"] { left: 28.6%; top: 45.4%; width: 9.2%; height: 5.5%; }
+.hot[data-key="MEM"] { left: 40.4%; top: 45.4%; width: 9.2%; height: 5.5%; }
+.hot[data-key="TBL"] { left: 50.6%; top: 45.4%; width: 9.2%; height: 5.5%; }
+.hot[data-key="ACC"] { left: 61.0%; top: 45.4%; width: 9.2%; height: 5.5%; }
+.hot[data-key="UP"] { left: 84.2%; top: 37.8%; width: 7.6%; height: 4.5%; }
+.hot[data-key="DOWN"] { left: 84.2%; top: 46.0%; width: 7.6%; height: 4.5%; }
+.hot[data-key="1"] { left: 29.8%; top: 53.8%; width: 11.2%; height: 5.5%; }
+.hot[data-key="2"] { left: 44.6%; top: 53.8%; width: 11.2%; height: 5.5%; }
+.hot[data-key="3"] { left: 59.4%; top: 53.8%; width: 11.2%; height: 5.5%; }
+.hot[data-key="4"] { left: 29.8%; top: 62.2%; width: 11.2%; height: 5.5%; }
+.hot[data-key="5"] { left: 44.6%; top: 62.2%; width: 11.2%; height: 5.5%; }
+.hot[data-key="6"] { left: 59.4%; top: 62.2%; width: 11.2%; height: 5.5%; }
+.hot[data-key="7"] { left: 29.8%; top: 70.4%; width: 11.2%; height: 5.5%; }
+.hot[data-key="8"] { left: 44.6%; top: 70.4%; width: 11.2%; height: 5.5%; }
+.hot[data-key="9"] { left: 59.4%; top: 70.4%; width: 11.2%; height: 5.5%; }
+.hot[data-key="CLEAR"] { left: 29.8%; top: 78.6%; width: 11.2%; height: 5.8%; font-size: 7px; }
+.hot[data-key="0"] { left: 44.6%; top: 78.6%; width: 11.2%; height: 5.5%; }
+.hot[data-key="ENTER"] { left: 59.4%; top: 78.6%; width: 11.2%; height: 5.8%; font-size: 7px; }
+
+.sublab {
+    position: absolute;
+    z-index: 2;
+    pointer-events: none;
+    color: #9aa3a8;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 6px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-align: center;
+    line-height: 1;
+}
+
+.sublab-areas { left: 29.8%; top: 52.2%; width: 11.2%; }
+.sublab-instant { left: 44.6%; top: 60.6%; width: 11.2%; }
+.sublab-display { left: 59.4%; top: 60.6%; width: 11.2%; }
+.sublab-event { left: 29.8%; top: 68.8%; width: 11.2%; }
+.sublab-test { left: 44.6%; top: 68.8%; width: 11.2%; }
+.sublab-chime { left: 59.4%; top: 68.8%; width: 11.2%; }
+.sublab-prg { left: 44.6%; top: 77.0%; width: 11.2%; }
