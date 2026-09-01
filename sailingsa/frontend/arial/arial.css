@@ -64,53 +64,49 @@ html, body {
     left: 0;
     top: 0;
     width: 100%;
-    height: 22.4%;
-    border-radius: 10% 10% 3% 3% / 18% 18% 6% 6%;
-    background: linear-gradient(180deg, #efefed 0%, #c9c9c6 48%, #b0b0ad 100%);
+    height: 34%;
+    border-radius: 8% 8% 2% 2% / 12% 12% 4% 4%;
+    background: linear-gradient(180deg, #e8e8e6 0%, #cfcfcd 40%, #b8b8b6 100%);
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.8),
-        inset 0 -1px 0 rgba(90, 90, 88, 0.18);
+        inset 0 1px 0 rgba(255, 255, 255, 0.85),
+        inset 0 -1px 0 rgba(90, 90, 88, 0.15);
 }
 
 .shell-body {
     position: absolute;
     left: 0;
-    top: 14.5%;
+    top: 28%;
     width: 100%;
-    height: 85.5%;
-    border-radius: 6% 6% 18% 18% / 4% 4% 10% 10%;
-    background: linear-gradient(180deg, #f7f7f5 0%, #f0f0ee 55%, #e8e8e6 100%);
+    height: 72%;
+    border-radius: 4% 4% 16% 16% / 3% 3% 9% 9%;
+    background: #f4f4f2;
     box-shadow:
-        0 14px 28px rgba(0, 0, 0, 0.16),
-        0 3px 6px rgba(0, 0, 0, 0.08),
-        inset 0 0 0 1px #b4b4b1;
+        0 10px 22px rgba(0, 0, 0, 0.12),
+        inset 0 0 0 1px #c8c8c5;
 }
 
 .shell-recess {
     position: absolute;
-    left: 7.2%;
-    top: 34.8%;
-    width: 85.6%;
-    height: 52.4%;
-    border-radius: 3%;
-    background: #e6e6e3;
+    left: 8%;
+    top: 35.4%;
+    width: 84%;
+    height: 51%;
+    border-radius: 10px;
+    background: #eef0f2;
     box-shadow:
-        inset 0 4px 10px rgba(0, 0, 0, 0.2),
-        inset 0 1px 0 rgba(70, 70, 68, 0.22),
-        inset 0 -1px 0 rgba(255, 255, 255, 0.7);
+        inset 0 2px 5px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(120, 120, 118, 0.12);
 }
 
 .shell-cover {
     position: absolute;
-    left: 8%;
-    top: 87.6%;
-    width: 84%;
-    height: 10.4%;
-    border-radius: 0 0 40% 40% / 0 0 55% 55%;
-    background: linear-gradient(180deg, #f3f3f1 0%, #e6e6e4 100%);
-    box-shadow:
-        0 -1px 0 rgba(90, 90, 88, 0.22),
-        inset 0 1px 0 rgba(255, 255, 255, 0.65);
+    left: 10%;
+    top: 88%;
+    width: 80%;
+    height: 10%;
+    border-radius: 0 0 42% 42% / 0 0 70% 70%;
+    background: #f4f4f2;
+    box-shadow: 0 -1px 0 rgba(160, 160, 158, 0.35);
 }
 
 .brand-slot {
@@ -137,30 +133,29 @@ html, body {
 
 .lcd-bezel {
     position: absolute;
-    left: 4.6%;
-    top: 5.2%;
-    width: 90.8%;
-    height: 25.4%;
+    left: 7.5%;
+    top: 6.2%;
+    width: 85%;
+    height: 24.8%;
     z-index: 1;
     box-sizing: border-box;
-    border-radius: 7px;
-    background: linear-gradient(180deg, #dcdcd8 0%, #c0c0bc 100%);
-    border: 1px solid #9a9a96;
+    border-radius: 8px;
+    background: linear-gradient(180deg, #d5d5d2 0%, #bdbdb9 100%);
+    border: 1px solid #a3a39f;
     box-shadow:
-        0 3px 7px rgba(0, 0, 0, 0.22),
-        inset 0 1px 0 rgba(255, 255, 255, 0.7),
-        inset 0 -1px 0 rgba(80, 80, 78, 0.2);
+        0 2px 5px rgba(0, 0, 0, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.65);
     pointer-events: none;
 }
 
 .lcd {
     position: absolute;
-    left: 7.2%;
-    top: 7.4%;
-    width: 85.6%;
-    height: 20.6%;
+    left: 9.6%;
+    top: 8.4%;
+    width: 80.8%;
+    height: 19.8%;
     box-sizing: border-box;
-    background: linear-gradient(180deg, #1820b8 0%, #2810c8 100%);
+    background: linear-gradient(180deg, #0c18a8 0%, #1a14c0 100%);
     color: #00bfff;
     font-family: "Lucida Console", "Courier New", monospace;
     font-size: 14px;
@@ -429,38 +424,34 @@ html, body {
     justify-content: center;
     box-sizing: border-box;
     box-shadow:
-        0 2px 4px rgba(0, 0, 0, 0.24),
-        0 1px 0 rgba(70, 78, 82, 0.45),
-        inset 0 1px 0 rgba(255, 255, 255, 0.78),
-        inset 0 -1px 1px rgba(70, 78, 82, 0.18);
+        0 2px 3px rgba(0, 0, 0, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 .hot:active {
     transform: translateY(1px);
-    box-shadow:
-        0 1px 1px rgba(0, 0, 0, 0.2),
-        inset 0 2px 3px rgba(0, 0, 0, 0.16);
+    box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.14);
     filter: brightness(0.94);
 }
 
 .key-fn {
-    border-radius: 8px;
-    border-color: #7f8c91;
-    background: linear-gradient(180deg, #f8fbfc 0%, #d9dee4 52%, #c7d0d4 100%);
+    border-radius: 12px;
+    border-color: #a9b2bb;
+    background: linear-gradient(180deg, #eef1f4 0%, #d9dee4 55%, #cfd5db 100%);
     font-size: 8px;
 }
 
 .key-num {
     border-radius: 999px;
-    border-color: #8a9398;
-    background: linear-gradient(180deg, #f8fbfc 0%, #e6eaee 52%, #c9d2d6 100%);
+    border-color: #a9b2bb;
+    background: linear-gradient(180deg, #f4f6f8 0%, #e6eaee 55%, #dce1e6 100%);
     font-size: 14px;
 }
 
 .key-arrow {
     border-radius: 999px;
-    border-color: #7f8c91;
-    background: linear-gradient(180deg, #f4f8fa 0%, #e6eaee 52%, #cbd4d8 100%);
+    border-color: #a9b2bb;
+    background: linear-gradient(180deg, #f4f6f8 0%, #e6eaee 55%, #dce1e6 100%);
 }
 
 .key-label {
