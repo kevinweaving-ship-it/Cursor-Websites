@@ -146,7 +146,7 @@
     var pin = "";
     var lcdHold = null;
     var CODES = {
-        "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png" }
+        "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png", code: "7302" }
     };
 
     function showUserLogo(user) {
@@ -182,23 +182,38 @@
         }
     }
 
-    function beep() {
+    function unlockAudio() {
         var AC = window.AudioContext || window.webkitAudioContext;
         if (!AC) return;
         if (!audioCtx) audioCtx = new AC();
         if (audioCtx.state === "suspended") audioCtx.resume();
-        var t = audioCtx.currentTime;
-        var osc = audioCtx.createOscillator();
-        var gain = audioCtx.createGain();
-        osc.type = "square";
-        osc.frequency.setValueAtTime(2100, t);
-        gain.gain.setValueAtTime(0.0001, t);
-        gain.gain.exponentialRampToValueAtTime(0.38, t + 0.004);
-        gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start(t);
-        osc.stop(t + 0.1);
+    }
+
+    function tone(freq, dur, peak) {
+        unlockAudio();
+        if (!audioCtx) return;
+        try {
+            var t = audioCtx.currentTime;
+            var osc = audioCtx.createOscillator();
+            var gain = audioCtx.createGain();
+            osc.type = "square";
+            osc.frequency.setValueAtTime(freq, t);
+            gain.gain.setValueAtTime(0.0001, t);
+            gain.gain.exponentialRampToValueAtTime(peak || 0.38, t + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(t);
+            osc.stop(t + dur + 0.03);
+        } catch (e) {}
+    }
+
+    function beep() {
+        tone(2100, 0.09, 0.38);
+    }
+
+    function disarmBeep() {
+        tone(1200, 0.95, 0.42);
     }
 
     function rollText(el, text) {
@@ -251,25 +266,74 @@
             }
     }
 
+    function showDisarmed() {
+        lastStatus = "System Ready";
+        var st = document.getElementById("lcd-2");
+        if (st) st.textContent = lastStatus;
+        var lcd = document.querySelector(".lcd");
+        if (lcd) {
+            lcd.classList.remove("armed");
+            lcd.classList.add("disarmed");
+        }
+        setLed(document.getElementById("led-status"), "disarmed");
+    }
+
+    function sendLiveAction(cmd) {
+        var user = window.arialUser;
+        if (!user || !user.code) {
+            setWelcome("Enter Code", 2000);
+            return;
+        }
+        fetch("/api/arial/keypad", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ code: user.code, actionCmd: cmd, actionNum: 1 })
+        }).then(function (res) {
+            return res.json().then(function (data) {
+                if (!res.ok) {
+                    setWelcome((data && data.detail) || "Failed", 2000);
+                    return;
+                }
+                loadStatus();
+                setTimeout(loadStatus, 1200);
+                setTimeout(loadStatus, 3000);
+            });
+        }).catch(function () {
+            setWelcome("No Link", 2000);
+        });
+    }
+
     function onKey(key) {
         if (!key) return;
+        var now = Date.now();
+        if (key === onKey._k && now - onKey._t < 70) return;
+        onKey._k = key;
+        onKey._t = now;
+        var willAccept = /^[0-9]$/.test(key) && pin.length === 3 && CODES[pin + key];
+        if (key === "DISARM") disarmBeep();
+        else if (!willAccept) beep();
         if (/^[0-9]$/.test(key)) {
-            if (pin.length >= 4) return;
-            pin += key;
-            if (pin.length === 4) submitPin();
-            else {
-                beep();
-                setWelcome(new Array(pin.length + 1).join("*"));
+            if (pin.length >= 4) {
+                pin = key;
+                setWelcome("*");
+            } else {
+                pin += key;
+                if (pin.length === 4) submitPin();
+                else setWelcome(new Array(pin.length + 1).join("*"));
             }
         } else if (key === "CLEAR") {
-            beep();
             pin = "";
             setWelcome("");
         } else if (key === "ENTER") {
             if (pin) submitPin();
-            else beep();
-        } else {
-            beep();
+        } else if (key === "DISARM") {
+            if (window.arialUser && window.arialUser.code) showDisarmed();
+            sendLiveAction("area-disarm");
+        } else if (key === "ARM") {
+            sendLiveAction("area-arm");
+        } else if (key === "STAY") {
+            sendLiveAction("area-stay");
         }
         saveClick(key);
         if (typeof window.onArialKey === "function") window.onArialKey(key);
@@ -286,13 +350,20 @@
     keypad.addEventListener("pointerdown", function (ev) {
         var btn = ev.target.closest("[data-key]");
         if (!btn) return;
-        ev.preventDefault();
+        unlockAudio();
+        onKey(btn.getAttribute("data-key"));
+    });
+    keypad.addEventListener("click", function (ev) {
+        var btn = ev.target.closest("[data-key]");
+        if (!btn) return;
+        unlockAudio();
         onKey(btn.getAttribute("data-key"));
     });
 
     try {
         var saved = JSON.parse(sessionStorage.getItem("arialUser") || "null");
         if (saved && saved.logo) {
+            if (!saved.code && saved.name === "Marc") saved.code = "7302";
             window.arialUser = saved;
             showUserLogo(saved);
         }

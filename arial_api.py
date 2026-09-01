@@ -52,6 +52,11 @@ _DATA_DIR = _ROOT / "data"
 _USERS_PATH = _DATA_DIR / "arial_users.json"
 _lock = threading.Lock()
 
+HANSEKOP_ID = "0bb544db-30b0-453d-bf39-d323538ebd5e"
+KEYPAD_CODES = {
+    "7302": {"name": "Marc", "from": "Pingoa"},
+}
+
 router = APIRouter()
 
 
@@ -402,6 +407,33 @@ async def arial_devices(request: Request):
         "pageCount": raw.get("pageCount"),
         "devices": devices,
     }
+
+
+@router.post("/api/arial/keypad")
+async def arial_keypad(request: Request):
+    """Logged-in keypad PIN can arm/stay/disarm Hansekop. No cookie profile required."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    code = str(body.get("code") or "").strip()
+    cmd = str(body.get("actionCmd") or "").strip()
+    if code not in KEYPAD_CODES:
+        raise HTTPException(status_code=401, detail="Invalid code")
+    if cmd not in ALLOWED_ACTIONS:
+        raise HTTPException(status_code=400, detail="Unknown or disallowed action")
+    try:
+        num = int(body.get("actionNum") or 1)
+    except (TypeError, ValueError):
+        num = 1
+    if cmd != "user-panic" and num < 1:
+        num = 1
+    raw = await _olarm_request(
+        "POST",
+        f"/api/v4/devices/{HANSEKOP_ID}/actions",
+        json_body={"actionCmd": cmd, "actionNum": num},
+    )
+    return {"ok": True, "user": KEYPAD_CODES[code], "result": raw}
 
 
 @router.get("/api/arial/devices/{device_id}")
