@@ -2,6 +2,37 @@
     var STORE = "arialKeyClicks";
     var audioCtx = null;
     var lastStatus = "";
+    var SITES = [
+        { id: "hansekop", name: "HANSEKOP", linked: true },
+        { id: "tuys", name: "TUYS", linked: false }
+    ];
+    var siteId = "hansekop";
+
+    function currentSite() {
+        var i;
+        for (i = 0; i < SITES.length; i += 1) {
+            if (SITES[i].id === siteId) return SITES[i];
+        }
+        return SITES[0];
+    }
+
+    function selectSite(id) {
+        siteId = id || "hansekop";
+        try { localStorage.setItem("arialSite", siteId); } catch (e) {}
+        var s = currentSite();
+        var siteEl = document.getElementById("lcd-site");
+        if (siteEl) siteEl.textContent = s.name;
+        if (!s.linked) {
+            lastStatus = "Coming Soon";
+            var stEl = document.getElementById("lcd-2");
+            if (stEl) stEl.textContent = lastStatus;
+            var lcd = document.querySelector(".lcd");
+            if (lcd) lcd.classList.remove("armed", "disarmed", "arming", "arming-fast");
+            setLed(document.getElementById("led-status"), "");
+            return;
+        }
+        loadStatus();
+    }
 
     function pad(n) {
         return String(n).padStart(2, "0");
@@ -70,11 +101,8 @@
     }
 
     function applyLeds(device) {
-        var state = (device && device.deviceState) || {};
         var st = areaState(device);
-        var acOk = String(state.powerAC || "").toLowerCase() === "ok";
         applyLcd(device);
-        setLed(document.getElementById("led-ac"), acOk ? "on" : "flash");
         if (st.indexOf("alarm") !== -1) {
             setLed(document.getElementById("led-status"), "armed flash-fast");
         } else if (st === "countdown") {
@@ -105,6 +133,7 @@
     }
 
     async function loadStatus() {
+        if (currentSite().id !== "hansekop") return;
         if (loadStatus._busy) return;
         loadStatus._busy = true;
         try {
@@ -166,8 +195,8 @@
     var pin = "";
     var lcdHold = null;
     var CODES = {
-        "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png?v=31", code: "7302" },
-        "7102": { name: "Amoroc", from: "Amoroc", logo: "/arial/users/amoroc.png?v=31", code: "7102" }
+        "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png?v=32", code: "7302" },
+        "7102": { name: "Amoroc", from: "Amoroc", logo: "/arial/users/amoroc.png?v=32", code: "7102" }
     };
 
     function resolvedUser(user) {
@@ -178,11 +207,18 @@
         return user;
     }
 
+    function setPadLoggedIn(on) {
+        var frame = document.getElementById("pad-frame");
+        if (frame) frame.classList.toggle("compact", !!on);
+    }
+
     function setLoggedIn(user) {
         user = resolvedUser(user);
         window.arialUser = user;
-        try { sessionStorage.setItem("arialUser", JSON.stringify(user)); } catch (e) {}
+        try { localStorage.setItem("arialUser", JSON.stringify(user)); } catch (e) {}
+        try { sessionStorage.removeItem("arialUser"); } catch (e) {}
         showUserLogo(user);
+        setPadLoggedIn(!!(user && user.code));
         if (window.arialDevice) applyLeds(window.arialDevice);
     }
 
@@ -365,6 +401,10 @@
             setWelcome("Enter Code", 2000);
             return;
         }
+        if (!currentSite().linked) {
+            setWelcome("Not Linked", 2000);
+            return;
+        }
         fetch("/api/arial/keypad", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -415,15 +455,20 @@
         } else if (key === "ARM") {
             if (window.arialUser && window.arialUser.code) {
                 sendLiveAction("area-arm");
-                armBeeps(function () {
-                    showArmed();
-                    loadStatus();
-                });
+                if (currentSite().linked) {
+                    armBeeps(function () {
+                        showArmed();
+                        loadStatus();
+                    });
+                }
             } else {
                 sendLiveAction("area-arm");
             }
         } else if (key === "STAY") {
-            sendLiveAction("area-stay");
+            if (window.arialUser && window.arialUser.code) selectSite("hansekop");
+            else sendLiveAction("area-stay");
+        } else if (key === "FORCE") {
+            if (window.arialUser && window.arialUser.code) selectSite("tuys");
         }
         saveClick(key);
         if (typeof window.onArialKey === "function") window.onArialKey(key);
@@ -453,19 +498,31 @@
             var lcd0 = document.querySelector(".lcd");
             if (lcd0) {
                 lcd0.classList.toggle("armed", !!cached.armed);
+                lcd0.classList.toggle("arming", !!cached.arming);
                 lcd0.classList.toggle("disarmed", !!cached.disarmed);
             }
+            if (cached.arming) setLed(document.getElementById("led-status"), "arming");
+            else if (cached.armed) setLed(document.getElementById("led-status"), "armed");
+            else if (cached.disarmed) setLed(document.getElementById("led-status"), "disarmed");
         }
     } catch (e) {}
 
     try {
-        var saved = JSON.parse(sessionStorage.getItem("arialUser") || "null");
+        var saved = JSON.parse(localStorage.getItem("arialUser") || "null");
+        if (!saved) saved = JSON.parse(sessionStorage.getItem("arialUser") || "null");
         if (saved) {
             if (!saved.code && /aerial/i.test(String(saved.logo || saved.name || ""))) saved.code = "7102";
             if (/aerial/i.test(String(saved.logo || ""))) saved.code = saved.code || "7102";
             if (!saved.code && saved.name === "Marc") saved.code = "7302";
             if (/amoroc/i.test(String(saved.name || saved.from || saved.logo || ""))) saved.code = "7102";
             if (saved.code && CODES[saved.code]) setLoggedIn(CODES[saved.code]);
+        }
+    } catch (e) {}
+
+    try {
+        var savedSite = localStorage.getItem("arialSite");
+        if (window.arialUser && window.arialUser.code && (savedSite === "tuys" || savedSite === "hansekop")) {
+            selectSite(savedSite);
         }
     } catch (e) {}
 

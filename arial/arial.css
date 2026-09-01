@@ -12,11 +12,24 @@ html, body {
     padding: 16px 12px 8px;
 }
 
-.pad {
-    position: relative;
+.pad-frame {
     width: 100%;
     max-width: 420px;
     margin: 0 auto;
+}
+
+.pad {
+    position: relative;
+    width: 100%;
+}
+
+.pad-frame.compact {
+    overflow: hidden;
+    aspect-ratio: 423 / 230;
+}
+
+.pad-frame.compact .hot-more {
+    display: none;
 }
 
 .keypad {
@@ -156,13 +169,18 @@ html, body {
 }
 
 .led.ac {
-    left: 8.55%;
-    top: 39.85%;
+    display: none;
 }
 
 .led.status {
     left: 8.55%;
-    top: 48.55%;
+    top: 39.85%;
+}
+
+.led.status.armed {
+    background: #ff1a1a;
+    opacity: 1;
+    box-shadow: 0 0 10px 4px rgba(255, 26, 26, 0.95);
 }
 
 .led.ac.on {
