@@ -29,6 +29,9 @@
     "RCYC",
     "RNYC"
   ],
+  "retired": [
+    "WYAC"
+  ],
   "course": {
     "id": "wl",
     "label": "Windward / Leeward",

@@ -93,4 +93,6 @@ See **Later — full auto-detection** below for planned heuristics across all ra
 - **Case 02** (ONB PDF): RCYC vs KYC/LDYC/RNYC @ ~57:25 — DSQ **LDYC & RNYC**; **KYC cleared** in that hearing; no redress for RCYC (RRS 61.4(b)).
 - **KYC on final sheet:** still **18 DSQ** → implies a **second protest/hearing** (Case 01 not yet on ONB when checked).
 - **RNYC overall:** was leading after 6 on provisional; drops to **6th after 7** once R6 DSQ applied (63 pts total in final overall).
-- **Tracking pre-flag @ 57:25.1:** finished boats clustered at pin; RCYC closing; ~5 m pass; course change — `Scores: Official` / `Provisional` toggle on R6 replay.
+Run **`python3 docs/verify_lipton_series_scores.py`** — must pass (matrix SHA256 vs overall PDF).
+
+**RET auto-detect (dev2v22):** GPS flags boats with no finish + >350 m from line or trail gap >120 s. Official RET: **R9 WYAC**, **R10 LDYC** (Witbank not Walvis Bay). Checksum line shows `series sheet ok` and `RET detect WYAC` when matched.

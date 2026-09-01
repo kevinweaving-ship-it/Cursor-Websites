@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v21";
+  var CACHE = "dev2v22";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -59,6 +59,43 @@
     return fetch("/js/lipton-dev-series-scores.json?v=" + CACHE, { cache: "no-store" })
       .then(function (res) { return res.ok ? res.json() : null; })
       .catch(function () { return null; });
+  }
+  function canonicalSeriesMatrix(scores) {
+    if (!scores || !scores.boats) return "";
+    var lines = [];
+    Object.keys(scores.boats).sort().forEach(function (boat) {
+      var row = scores.boats[boat];
+      var pts = [];
+      var codes = [];
+      var i;
+      for (i = 1; i <= 10; i++) {
+        pts.push(String(row.points[String(i)]));
+        codes.push((row.codes && row.codes[String(i)]) || "");
+      }
+      lines.push(boat + "|" + pts.join(",") + "|" + codes.join(","));
+    });
+    return lines.join("\n");
+  }
+  function sha256Hex(text) {
+    if (!text || !window.crypto || !window.crypto.subtle) {
+      return Promise.resolve(null);
+    }
+    var enc = new TextEncoder().encode(text);
+    return window.crypto.subtle.digest("SHA-256", enc).then(function (buf) {
+      return Array.from(new Uint8Array(buf)).map(function (b) {
+        return b.toString(16).padStart(2, "0");
+      }).join("");
+    });
+  }
+  function verifySeriesChecksum(scores) {
+    if (!scores || !scores.checksum || !scores.checksum.matrix_sha256) {
+      return Promise.resolve({ ok: false, reason: "no checksum in series file" });
+    }
+    return sha256Hex(canonicalSeriesMatrix(scores)).then(function (hash) {
+      if (!hash) return { ok: null, reason: "sha256 unavailable" };
+      var ok = hash === scores.checksum.matrix_sha256;
+      return { ok: ok, hash: hash, expected: scores.checksum.matrix_sha256 };
+    });
   }
   var DATA_URL = jsonUrl("replay", RACE_Q);
   var TRAIL_URL = jsonUrl("trail", RACE_Q);
@@ -2091,6 +2128,84 @@
     var OFFICIAL_POINTS = data.official_points_r6 || data.official_points || null;
     var OFFICIAL_RACE_RANK = {};
     var PROTEST_FLAG_TS = null;
+    var SERIES_CHECKSUM = { ok: null, reason: "" };
+    var RETIRED = {};
+    var RET_DETECT = {};
+    function officialCodeForRace(rn, sail) {
+      if (!SERIES_OFFICIAL || !SERIES_OFFICIAL.boats || !SERIES_OFFICIAL.boats[sail]) return null;
+      var codes = SERIES_OFFICIAL.boats[sail].codes || {};
+      return codes[String(rn)] || null;
+    }
+    function loadOfficialPointsForRace(rn) {
+      var out = {};
+      if (!SERIES_OFFICIAL || !SERIES_OFFICIAL.boats) return out;
+      Object.keys(SERIES_OFFICIAL.boats).forEach(function (sail) {
+        var p = officialPointsForRace(rn, sail);
+        if (p != null) out[sail] = p;
+      });
+      return out;
+    }
+    function detectRetirements(trailData, finishList, playEnd) {
+      var out = {};
+      var finished = {};
+      (finishList || []).forEach(function (f) {
+        if (f && f.boat) finished[f.boat] = true;
+      });
+      var lastFinTs = playEnd || 0;
+      (finishList || []).forEach(function (f) {
+        var t = Number(f && f.ts);
+        if (t > lastFinTs) lastFinTs = t;
+      });
+      var grid = trailData.grid_start_ts_ms != null ? Number(trailData.grid_start_ts_ms) : GUN_TS;
+      var step = Number(trailData.step_ms) || 1000;
+      var n = Number(trailData.n) || 0;
+      var pin = (trailData.finish_line && trailData.finish_line.left) ||
+        (trailData.start_line && trailData.start_line.left) || null;
+      Object.keys(trailData.boats || {}).forEach(function (sail) {
+        if (finished[sail]) return;
+        var b = trailData.boats[sail];
+        if (!b || !b.lat) return;
+        var lastI = n - 1;
+        while (lastI >= 0 && b.lat[lastI] == null) lastI--;
+        if (lastI < 60) return;
+        var lastTs = grid + lastI * step;
+        var lat = b.lat[lastI];
+        var lon = b.lon[lastI];
+        if (lat == null || lon == null) return;
+        var gapMs = lastFinTs - lastTs;
+        var far = 0;
+        if (pin && pin.lat != null && pin.lon != null) {
+          var R = 6371000;
+          var p = Math.PI / 180;
+          var dLat = (pin.lat - lat) * p;
+          var dLon = (pin.lon - lon) * p;
+          var x = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat * p) * Math.cos(pin.lat * p) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+          far = 2 * R * Math.asin(Math.sqrt(x));
+        }
+        if (gapMs > 120000 || far > 350) {
+          out[sail] = { ts: lastTs, gap_s: gapMs / 1000, far_m: far };
+        }
+      });
+      return out;
+    }
+    function mergeRetirements() {
+      var i;
+      RETIRED = {};
+      RET_DETECT = detectRetirements(trail, FINISH, PLAY_END_TS);
+      Object.keys(RET_DETECT).forEach(function (sail) {
+        RETIRED[sail] = RET_DETECT[sail];
+      });
+      (data.retired || []).forEach(function (sail) {
+        if (!RETIRED[sail]) RETIRED[sail] = { ts: PLAY_END_TS, source: "replay" };
+      });
+      if (SERIES_OFFICIAL && SERIES_OFFICIAL.ret_tracking) {
+        var rt = SERIES_OFFICIAL.ret_tracking[String(RACE_NO)] || {};
+        Object.keys(rt).forEach(function (sail) {
+          if (!RETIRED[sail]) RETIRED[sail] = { ts: PLAY_END_TS, source: "official" };
+        });
+      }
+    }
     function officialPointsForRace(rn, sail) {
       if (!SERIES_OFFICIAL || !SERIES_OFFICIAL.boats || !SERIES_OFFICIAL.boats[sail]) return null;
       var row = SERIES_OFFICIAL.boats[sail].points || {};
@@ -2121,16 +2236,20 @@
       return ranks;
     }
     if (RACE_NO === 6 && !OFFICIAL_POINTS && SERIES_OFFICIAL && SERIES_OFFICIAL.boats) {
-      OFFICIAL_POINTS = {};
-      Object.keys(SERIES_OFFICIAL.boats).forEach(function (sail) {
-        var p = officialPointsForRace(6, sail);
-        if (p != null) OFFICIAL_POINTS[sail] = p;
-      });
+      OFFICIAL_POINTS = loadOfficialPointsForRace(6);
+    }
+    if (PROTEST_MODE === "official" && SERIES_OFFICIAL && SERIES_OFFICIAL.boats && !OFFICIAL_POINTS) {
+      OFFICIAL_POINTS = loadOfficialPointsForRace(RACE_NO);
     }
     if (OFFICIAL_POINTS) OFFICIAL_RACE_RANK = buildOfficialRaceRanks(OFFICIAL_POINTS);
     if (PROTEST_META && PROTEST_META.tracking_pre_flag && GUN_TS) {
       PROTEST_FLAG_TS = GUN_TS + Number(PROTEST_META.tracking_pre_flag.ts_offset_s || 0) * 1000;
     }
+    mergeRetirements();
+    verifySeriesChecksum(SERIES_OFFICIAL).then(function (chk) {
+      SERIES_CHECKSUM = chk;
+      if (typeof fillChecksum === "function") fillChecksum();
+    });
     function seriesNettBeforeCurrent(sail) {
       var scores = [];
       var r;
@@ -3730,11 +3849,17 @@
       }
       return false;
     }
+    function isRetired(sail, ts) {
+      if (!RETIRED[sail]) return false;
+      var r = RETIRED[sail];
+      return !r.ts || ts >= r.ts - 5000;
+    }
     function currentRacePoints(sail, ts, bySail) {
       if (PROTEST_MODE === "official" && OFFICIAL_POINTS && OFFICIAL_POINTS[sail] != null &&
-          ts >= PLAY_END_TS - 5000) {
+          (ts >= PLAY_END_TS - 5000 || isRetired(sail, ts) || officialCodeForRace(RACE_NO, sail))) {
         return OFFICIAL_POINTS[sail];
       }
+      if (isRetired(sail, ts)) return DNF_POINTS;
       if (boatHasFinished(sail, ts) && FINISH_PLACE[sail] != null) {
         return FINISH_PLACE[sail];
       }
@@ -4664,10 +4789,11 @@
     }
     function boatIconHtml(sail, ts, rank) {
       var pending = ocsPending(sail, ts);
+      var retired = isRetired(sail, ts);
       var paint = boatPaint(sail, false);
-      var label = rank != null ? String(rank) : (pending ? "OCS" : "");
-      var fs = label === "OCS" ? "5.2" : "8";
-      var title = label ? (label === "OCS" ? "OCS" : "Rank " + label) : "Boat";
+      var label = retired ? "RET" : (rank != null ? String(rank) : (pending ? "OCS" : ""));
+      var fs = (label === "OCS" || label === "RET") ? "5.2" : "8";
+      var title = retired ? "RET" : (label ? (label === "OCS" ? "OCS" : "Rank " + label) : "Boat");
       return "<svg class=\"lipton-boat-dot\" viewBox=\"0 0 24 24\" aria-hidden=\"true\" title=\"" + esc(title) + "\">" +
         "<circle cx=\"12\" cy=\"13.2\" r=\"8.1\" fill=\"" + paint.fill + "\" stroke=\"#fff\" stroke-width=\"1.5\"/>" +
         "<polygon points=\"12,3 15.8,8.4 8.2,8.4\" fill=\"" + paint.fill + "\" stroke=\"#fff\" stroke-width=\"1.1\"/>" +
@@ -4813,6 +4939,17 @@
       }
       if (RACE_NO === 6 && PROTEST_META) {
         bits.push("R6 protests: 2 · DSQ KYC LDYC RNYC · pre-flag 57:25");
+      }
+      if (SERIES_CHECKSUM.ok === true) bits.push("series sheet ok");
+      else if (SERIES_CHECKSUM.ok === false) bits.push("series sheet MISMATCH");
+      var retNames = Object.keys(RETIRED);
+      if (retNames.length) bits.push("RET " + retNames.map(clubCode).join(" "));
+      if (SERIES_OFFICIAL && SERIES_OFFICIAL.ret_tracking) {
+        var rt = SERIES_OFFICIAL.ret_tracking[String(RACE_NO)] || {};
+        Object.keys(rt).forEach(function (sail) {
+          if (RET_DETECT[sail]) bits.push("RET detect " + clubCode(sail));
+          else if (!trail.boats || !trail.boats[sail]) bits.push("RET official " + clubCode(sail));
+        });
       }
       checksumEl.textContent = bits.length ? "checksum " + bits.join(" · ") : "";
     }

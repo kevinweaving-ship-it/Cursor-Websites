@@ -37,6 +37,9 @@
     "TSC",
     "SBYC"
   ],
+  "retired": [
+    "LDYC"
+  ],
   "course": {
     "id": "wl",
     "label": "Windward / Leeward",

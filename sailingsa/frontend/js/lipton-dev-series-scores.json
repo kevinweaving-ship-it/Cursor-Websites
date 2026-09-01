@@ -3,7 +3,30 @@
   "entries": 17,
   "dnf_points": 18,
   "discards": 0,
-  "source": "Lipton Cup 2026 overall results PDF (corrected by end of R7); R6 provisional sheet pre-hearing also archived.",
+  "source": "Lipton Cup 2026 Overall results after 10 races PDF (liptoncup.com) — 100% matrix match.",
+  "checksum": {
+    "source_pdf": "https://liptoncup.com/backend/wp-content/uploads/2026/08/Lipton-Cup-2026-Overall-results-after-10.pdf",
+    "matrix_sha256": "b196e1ae904287da40abbc9f52736df8d642b0403d467193fb990bfe7fd7c27f",
+    "totals_sha256": "bb8906ff1c449f9e583d92ce9a777a080a101186c5e95c73b88404ccd161b733",
+    "verified": "2026-08-29",
+    "script": "docs/verify_lipton_series_scores.py"
+  },
+  "ret_tracking": {
+    "9": {
+      "WYAC": {
+        "code": "RET",
+        "points": 18,
+        "note": "Official overall R9 18.0 RET (Witbank — not WBYC). GPS: no finish crossing, >350m from line at race end."
+      }
+    },
+    "10": {
+      "LDYC": {
+        "code": "RET",
+        "points": 18,
+        "note": "Official overall R10 18.0 RET. No LDYC GPS trail in packed replay — official score only."
+      }
+    }
+  },
   "boats": {
     "HYC": {
       "points": {
