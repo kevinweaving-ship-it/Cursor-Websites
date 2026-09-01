@@ -1,65 +1,118 @@
 (function () {
     var STORE = "arialKeyClicks";
     var audioCtx = null;
-    var ROLL_MS = 110;
+    var lastStatus = "";
 
     function pad(n) {
         return String(n).padStart(2, "0");
     }
 
-    function rollText(el, text) {
-        if (!el) return;
-        text = text == null ? "" : String(text);
-        if (el._want === text) return;
-        el._want = text;
-        if (el._roll) clearInterval(el._roll);
-        el.textContent = "";
-        var i = 0;
-        if (!text) return;
-        el._roll = setInterval(function () {
-            i += 1;
-            el.textContent = text.slice(0, i);
-            if (i >= text.length) {
-                clearInterval(el._roll);
-                el._roll = null;
+    function siteName(device) {
+        var name = (device && device.deviceName) || "HANSEKOP";
+        var parts = String(name).split(" - ");
+        var site = (parts.length > 1 ? parts[parts.length - 1] : name).trim();
+        return site.toUpperCase() || "HANSEKOP";
+    }
+
+    function areaState(device) {
+        var areas = (device && device.arialAreas) || [];
+        var i;
+        for (i = 0; i < areas.length; i += 1) {
+            if (areas[i] && areas[i].state) return String(areas[i].state).toLowerCase();
+        }
+        var raw = ((device && device.deviceState) || {}).areas || [];
+        return raw.length ? String(raw[0] || "").toLowerCase() : "";
+    }
+
+    function openZoneLabel(device) {
+        var zones = (device && device.arialZones) || [];
+        var i;
+        for (i = 0; i < zones.length; i += 1) {
+            var z = zones[i];
+            var st = String((z && z.state) || "").toLowerCase();
+            if (st === "a" || st === "al" || st.indexOf("alarm") !== -1) {
+                return String(z.label || ("Zone " + z.num)).trim();
             }
-        }, ROLL_MS);
+        }
+        return "";
+    }
+
+    function statusFromDevice(device) {
+        var st = areaState(device);
+        if (!st) return "";
+        if (st.indexOf("alarm") !== -1) return "ALARM";
+        if (st === "arm") return "System Armed";
+        if (st === "stay") return "Stay Armed";
+        if (st === "sleep") return "Sleep Armed";
+        if (st === "disarm") return "System Ready";
+        if (st === "notready") return openZoneLabel(device) || "Not Ready";
+        return st;
+    }
+
+    function setLed(el, mode) {
+        if (!el) return;
+        var kind = el.classList.contains("ac") ? "led ac" : "led status";
+        el.className = kind + (mode ? " " + mode : "");
+    }
+
+    function applyLcd(device) {
+        var lcd = document.querySelector(".lcd");
+        if (!lcd) return;
+        var st = areaState(device);
+        var armed = st === "arm" || st === "stay" || st === "sleep" || st.indexOf("alarm") !== -1;
+        lcd.classList.toggle("armed", armed);
+    }
+
+    function applyLeds(device) {
+        var state = (device && device.deviceState) || {};
+        var st = areaState(device);
+        var acOk = String(state.powerAC || "").toLowerCase() === "ok";
+        applyLcd(device);
+        setLed(document.getElementById("led-ac"), acOk ? "on" : "flash");
+        if (st.indexOf("alarm") !== -1) {
+            setLed(document.getElementById("led-status"), "on flash-fast");
+        } else if (st === "notready") {
+            setLed(document.getElementById("led-status"), "on flash");
+        } else if (st === "disarm") {
+            setLed(document.getElementById("led-status"), "on");
+        } else {
+            setLed(document.getElementById("led-status"), "");
+        }
     }
 
     function tickTime() {
         var d = new Date();
         var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        var dateStr = pad(d.getDate()) + " " + months[d.getMonth()] + " " + d.getFullYear();
-        var timeStr = pad(d.getHours()) + ":" + pad(d.getMinutes());
         var dateEl = document.getElementById("lcd-date");
         var timeEl = document.getElementById("lcd-time");
-        if (dateEl) dateEl.textContent = dateStr;
-        if (timeEl) timeEl.textContent = timeStr;
-    }
-
-    function statusFromDevice(device) {
-        var areas = (device && device.arialAreas) || [];
-        var st = areas.length ? String(areas[0].state || "").toLowerCase() : "";
-        if (st.indexOf("alarm") !== -1) return "Alarm";
-        if (st === "arm") return "System Armed";
-        if (st === "stay") return "Stay Armed";
-        if (st === "sleep") return "Sleep Armed";
-        if (st === "disarm") return "System Ready";
-        if (st === "notready") return "Not Ready";
-        return st ? st : "System Ready";
+        if (dateEl) dateEl.textContent = pad(d.getDate()) + " " + months[d.getMonth()] + " " + d.getFullYear();
+        if (timeEl) timeEl.textContent = pad(d.getHours()) + ":" + pad(d.getMinutes());
     }
 
     async function loadStatus() {
         try {
-            var res = await fetch("/api/arial/devices", { credentials: "same-origin" });
+            var res = await fetch("/api/arial/devices", { credentials: "same-origin", cache: "no-store" });
             var data = await res.json();
-            if (!res.ok) return;
+            if (!res.ok) {
+                document.getElementById("lcd-2").textContent = "No Link";
+                return;
+            }
             var devices = data.devices || [];
             var hanse = devices.filter(function (d) {
                 return /hansekop/i.test(d.deviceName || "");
             })[0] || devices[0];
-            rollText(document.getElementById("lcd-2"), statusFromDevice(hanse));
-        } catch (e) { /* keep last status */ }
+            if (!hanse) {
+                document.getElementById("lcd-2").textContent = "No Device";
+                return;
+            }
+            document.getElementById("lcd-site").textContent = siteName(hanse);
+            lastStatus = statusFromDevice(hanse);
+            document.getElementById("lcd-2").textContent = lastStatus;
+            applyLeds(hanse);
+            window.arialDevice = hanse;
+        } catch (e) {
+            document.getElementById("lcd-2").textContent = lastStatus || "No Link";
+        }
     }
 
     function loadClicks() {
@@ -107,14 +160,8 @@
     }
 
     window.setArialLcd = function (top, bottom) {
-        if (top != null) {
-            var parts = String(top).split(/\s+/);
-            var timeEl = document.getElementById("lcd-time");
-            var dateEl = document.getElementById("lcd-date");
-            if (parts.length && timeEl) timeEl.textContent = parts[parts.length - 1];
-            if (parts.length > 1 && dateEl) dateEl.textContent = parts.slice(0, -1).join(" ");
-        }
-        if (bottom != null) rollText(document.getElementById("lcd-2"), String(bottom));
+        if (top != null) document.getElementById("lcd-site").textContent = String(top);
+        if (bottom != null) document.getElementById("lcd-2").textContent = String(bottom);
     };
 
     window.arialClicks = loadClicks();
@@ -130,5 +177,5 @@
     tickTime();
     loadStatus();
     setInterval(tickTime, 1000);
-    setInterval(loadStatus, 8000);
+    setInterval(loadStatus, 4000);
 })();
