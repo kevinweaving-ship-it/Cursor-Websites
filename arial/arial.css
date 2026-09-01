@@ -28,7 +28,7 @@ html, body {
 .pad-wrap.compact .pad-clip {
     position: relative;
     overflow: hidden;
-    aspect-ratio: 521 / 268;
+    aspect-ratio: 521 / 278;
 }
 
 .pad-wrap.compact .hot-more,
@@ -52,118 +52,55 @@ html, body {
     pointer-events: auto;
 }
 
-.shell {
+.shell-svg {
     position: absolute;
     inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
     pointer-events: none;
     z-index: 0;
 }
 
-.shell-cap {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 34%;
-    border-radius: 8% 8% 2% 2% / 12% 12% 4% 4%;
-    background: linear-gradient(180deg, #e8e8e6 0%, #cfcfcd 40%, #b8b8b6 100%);
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.85),
-        inset 0 -1px 0 rgba(90, 90, 88, 0.15);
-}
-
-.shell-body {
-    position: absolute;
-    left: 0;
-    top: 28%;
-    width: 100%;
-    height: 72%;
-    border-radius: 4% 4% 16% 16% / 3% 3% 9% 9%;
-    background: #f4f4f2;
-    box-shadow:
-        0 10px 22px rgba(0, 0, 0, 0.12),
-        inset 0 0 0 1px #c8c8c5;
-}
-
-.shell-recess {
-    position: absolute;
-    left: 8%;
-    top: 35.4%;
-    width: 84%;
-    height: 51%;
-    border-radius: 10px;
-    background: #eef0f2;
-    box-shadow:
-        inset 0 2px 5px rgba(0, 0, 0, 0.1),
-        inset 0 1px 0 rgba(120, 120, 118, 0.12);
-}
-
-.shell-cover {
-    position: absolute;
-    left: 10%;
-    top: 88%;
-    width: 80%;
-    height: 10%;
-    border-radius: 0 0 42% 42% / 0 0 70% 70%;
-    background: #f4f4f2;
-    box-shadow: 0 -1px 0 rgba(160, 160, 158, 0.35);
-}
-
 .brand-slot {
     position: absolute;
-    left: 10%;
-    top: 0.2%;
-    width: 80%;
-    height: 5.2%;
+    left: 22%;
+    top: 1.4%;
+    width: 56%;
+    height: 5.6%;
     z-index: 5;
     display: flex;
     align-items: center;
     justify-content: center;
     pointer-events: none;
     isolation: isolate;
+    background: transparent;
 }
 
 .brand-logo {
-    width: 78%;
+    width: 92%;
     height: 100%;
     object-fit: contain;
     object-position: center;
     background: transparent;
 }
 
-.lcd-bezel {
-    position: absolute;
-    left: 7.5%;
-    top: 6.2%;
-    width: 85%;
-    height: 24.8%;
-    z-index: 1;
-    box-sizing: border-box;
-    border-radius: 8px;
-    background: linear-gradient(180deg, #d5d5d2 0%, #bdbdb9 100%);
-    border: 1px solid #a3a39f;
-    box-shadow:
-        0 2px 5px rgba(0, 0, 0, 0.18),
-        inset 0 1px 0 rgba(255, 255, 255, 0.65);
-    pointer-events: none;
-}
-
 .lcd {
     position: absolute;
-    left: 9.6%;
-    top: 8.4%;
-    width: 80.8%;
-    height: 19.8%;
+    left: 11.32%;
+    top: 12.03%;
+    width: 76.97%;
+    height: 15.61%;
     box-sizing: border-box;
-    background: linear-gradient(180deg, #0c18a8 0%, #1a14c0 100%);
+    background: linear-gradient(180deg, #1820b8 0%, #2810c8 100%);
     color: #00bfff;
     font-family: "Lucida Console", "Courier New", monospace;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
     letter-spacing: 0.06em;
     line-height: 1.2;
     text-shadow: 0 0 4px rgba(0, 191, 255, 0.55);
-    padding: 8px 12px;
+    padding: 6px 10px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -310,8 +247,8 @@ html, body {
     z-index: 4;
     pointer-events: none;
     width: 4.6%;
-    height: 2.0%;
-    left: 8.4%;
+    height: 2.4%;
+    left: 8.6%;
     border-radius: 50%;
     background: #c6cbcd;
     border: 1px solid #6f7578;
@@ -323,15 +260,16 @@ html, body {
 }
 
 .led.ac {
-    top: 48.6%;
+    top: 48.5%;
+    height: 2.6%;
 }
 
 .led.status {
-    top: 39.8%;
+    top: 39.7%;
 }
 
 .led.ac.on {
-    background: radial-gradient(circle at 45% 35%, #fff 0%, #ff9200 22%, #ff9200 100%);
+    background: radial-gradient(ellipse at 45% 35%, #fff 0%, #ff9200 22%, #ff9200 100%);
     border-color: #6f7578;
     opacity: 1;
     box-shadow: 0 0 8px 3px rgba(255, 146, 0, 0.75);
@@ -339,7 +277,7 @@ html, body {
 
 .lcd.armed ~ .led.status,
 .led.status.armed {
-    background: radial-gradient(circle at 45% 35%, #fff 0%, #ff1a1a 22%, #ff1a1a 100%);
+    background: radial-gradient(ellipse at 45% 35%, #fff 0%, #ff1a1a 22%, #ff1a1a 100%);
     border-color: #6f7578;
     opacity: 1;
     box-shadow: 0 0 10px 4px rgba(255, 26, 26, 0.95);
@@ -347,7 +285,7 @@ html, body {
 
 .lcd.arming ~ .led.status,
 .led.status.arming {
-    background: radial-gradient(circle at 45% 35%, #fff 0%, #ff9900 22%, #ff9900 100%);
+    background: radial-gradient(ellipse at 45% 35%, #fff 0%, #ff9900 22%, #ff9900 100%);
     border-color: #6f7578;
     opacity: 1;
     box-shadow: 0 0 12px 5px rgba(255, 153, 0, 0.95);
@@ -362,7 +300,7 @@ html, body {
 
 .lcd.disarmed ~ .led.status,
 .led.status.disarmed {
-    background: radial-gradient(circle at 45% 35%, #fff 0%, #14d718 22%, #14d718 100%);
+    background: radial-gradient(ellipse at 45% 35%, #fff 0%, #14d718 22%, #14d718 100%);
     border-color: #6f7578;
     opacity: 1;
     box-shadow: 0 0 10px 4px rgba(20, 215, 24, 0.75);
@@ -385,8 +323,8 @@ html, body {
     position: absolute;
     z-index: 4;
     pointer-events: none;
-    left: 6.2%;
-    width: 9.0%;
+    left: 5.4%;
+    width: 11.0%;
     color: #9aa0a4;
     font-family: Arial, Helvetica, sans-serif;
     font-weight: 700;
@@ -395,7 +333,9 @@ html, body {
 }
 
 .led-mark.ac-wave {
-    top: 45.6%;
+    left: 13.4%;
+    top: 48.4%;
+    width: 6.0%;
     font-size: 14px;
     letter-spacing: 0;
 }
@@ -409,7 +349,7 @@ html, body {
 .hot {
     position: absolute;
     z-index: 3;
-    border: 1px solid #a9b2bb;
+    border: 1.2px solid #7f8c91;
     padding: 0;
     margin: 0;
     cursor: pointer;
@@ -424,21 +364,32 @@ html, body {
     justify-content: center;
     box-sizing: border-box;
     box-shadow:
-        0 2px 3px rgba(0, 0, 0, 0.18),
-        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        0 2px 3px rgba(0, 0, 0, 0.24),
+        inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
 .hot:active {
     transform: translateY(1px);
-    box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.14);
+    box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.16);
     filter: brightness(0.94);
 }
 
 .key-fn {
     border-radius: 12px;
-    border-color: #a9b2bb;
-    background: linear-gradient(180deg, #eef1f4 0%, #d9dee4 55%, #cfd5db 100%);
+    background: linear-gradient(180deg, #f8fbfc 0%, #dfe6e9 52%, #c7d0d4 100%);
     font-size: 8px;
+}
+
+.key-fn::after {
+    content: "";
+    position: absolute;
+    left: 8%;
+    right: 8%;
+    top: 3px;
+    height: 38%;
+    border-radius: 8px;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 100%);
 }
 
 #arm-toggle.mode-arm {
@@ -459,23 +410,37 @@ html, body {
 
 .key-num {
     border-radius: 999px;
-    border-color: #a9b2bb;
-    background: linear-gradient(180deg, #f4f6f8 0%, #e6eaee 55%, #dce1e6 100%);
+    background: linear-gradient(180deg, #f8fbfc 0%, #e1e8eb 52%, #c9d2d6 100%);
     font-size: 14px;
+}
+
+.key-num::after {
+    content: "";
+    position: absolute;
+    left: 14%;
+    right: 14%;
+    top: 3px;
+    height: 32%;
+    border-radius: 999px;
+    pointer-events: none;
+    background: rgba(255, 255, 255, 0.55);
 }
 
 .key-arrow {
     border-radius: 999px;
-    border-color: #a9b2bb;
-    background: linear-gradient(180deg, #f4f6f8 0%, #e6eaee 55%, #dce1e6 100%);
+    background: linear-gradient(180deg, #f4f8fa 0%, #e1e8eb 52%, #cbd4d8 100%);
 }
 
 .key-label {
+    position: relative;
+    z-index: 1;
     pointer-events: none;
     line-height: 1;
 }
 
 .key-arrow-icon {
+    position: relative;
+    z-index: 1;
     width: 0;
     height: 0;
     border-left: 6px solid transparent;
@@ -489,28 +454,28 @@ html, body {
     border-top: 9px solid #153e7a;
 }
 
-.hot[data-key="STAY"] { left: 28.6%; top: 37.2%; width: 9.2%; height: 5.5%; }
-.hot[data-key="FORCE"] { left: 40.4%; top: 37.2%; width: 9.2%; height: 5.5%; }
-.hot[data-key="ARM"] { left: 50.6%; top: 37.2%; width: 9.2%; height: 5.5%; }
-.hot[data-key="TOGGLE"] { left: 61.0%; top: 37.2%; width: 9.2%; height: 5.5%; }
-.hot[data-key="BYP"] { left: 28.6%; top: 45.4%; width: 9.2%; height: 5.5%; }
-.hot[data-key="MEM"] { left: 40.4%; top: 45.4%; width: 9.2%; height: 5.5%; }
-.hot[data-key="TBL"] { left: 50.6%; top: 45.4%; width: 9.2%; height: 5.5%; }
-.hot[data-key="ACC"] { left: 61.0%; top: 45.4%; width: 9.2%; height: 5.5%; }
-.hot[data-key="UP"] { left: 84.2%; top: 37.8%; width: 7.6%; height: 4.5%; }
-.hot[data-key="DOWN"] { left: 84.2%; top: 46.0%; width: 7.6%; height: 4.5%; }
-.hot[data-key="1"] { left: 29.8%; top: 53.8%; width: 11.2%; height: 5.5%; }
-.hot[data-key="2"] { left: 44.6%; top: 53.8%; width: 11.2%; height: 5.5%; }
-.hot[data-key="3"] { left: 59.4%; top: 53.8%; width: 11.2%; height: 5.5%; }
-.hot[data-key="4"] { left: 29.8%; top: 62.2%; width: 11.2%; height: 5.5%; }
-.hot[data-key="5"] { left: 44.6%; top: 62.2%; width: 11.2%; height: 5.5%; }
-.hot[data-key="6"] { left: 59.4%; top: 62.2%; width: 11.2%; height: 5.5%; }
-.hot[data-key="7"] { left: 29.8%; top: 70.4%; width: 11.2%; height: 5.5%; }
-.hot[data-key="8"] { left: 44.6%; top: 70.4%; width: 11.2%; height: 5.5%; }
-.hot[data-key="9"] { left: 59.4%; top: 70.4%; width: 11.2%; height: 5.5%; }
-.hot[data-key="CLEAR"] { left: 29.8%; top: 78.6%; width: 11.2%; height: 5.8%; font-size: 7px; }
-.hot[data-key="0"] { left: 44.6%; top: 78.6%; width: 11.2%; height: 5.5%; }
-.hot[data-key="ENTER"] { left: 59.4%; top: 78.6%; width: 11.2%; height: 5.8%; font-size: 7px; }
+.hot[data-key="STAY"] { left: 28.6%; top: 37.2%; width: 10.8%; height: 6.8%; }
+.hot[data-key="FORCE"] { left: 40.4%; top: 37.2%; width: 9.4%; height: 6.8%; }
+.hot[data-key="ARM"] { left: 50.6%; top: 37.2%; width: 9.2%; height: 6.8%; }
+.hot[data-key="TOGGLE"] { left: 61.0%; top: 37.2%; width: 10.8%; height: 6.8%; }
+.hot[data-key="BYP"] { left: 28.6%; top: 45.4%; width: 10.8%; height: 6.8%; }
+.hot[data-key="MEM"] { left: 40.4%; top: 45.4%; width: 9.4%; height: 6.8%; }
+.hot[data-key="TBL"] { left: 50.6%; top: 45.4%; width: 9.2%; height: 6.8%; }
+.hot[data-key="ACC"] { left: 61.0%; top: 45.4%; width: 10.8%; height: 6.8%; }
+.hot[data-key="UP"] { left: 84.2%; top: 37.2%; width: 9.4%; height: 6.8%; }
+.hot[data-key="DOWN"] { left: 84.2%; top: 45.4%; width: 9.4%; height: 6.8%; }
+.hot[data-key="1"] { left: 29.5%; top: 53.4%; width: 12.2%; height: 7.2%; }
+.hot[data-key="2"] { left: 43.6%; top: 53.4%; width: 13.0%; height: 7.2%; }
+.hot[data-key="3"] { left: 58.6%; top: 53.4%; width: 13.2%; height: 7.2%; }
+.hot[data-key="4"] { left: 28.4%; top: 61.8%; width: 13.2%; height: 7.4%; }
+.hot[data-key="5"] { left: 43.6%; top: 61.8%; width: 13.0%; height: 7.4%; }
+.hot[data-key="6"] { left: 58.6%; top: 61.8%; width: 13.2%; height: 7.4%; }
+.hot[data-key="7"] { left: 28.4%; top: 69.8%; width: 13.2%; height: 7.4%; }
+.hot[data-key="8"] { left: 43.6%; top: 69.8%; width: 13.0%; height: 7.4%; }
+.hot[data-key="9"] { left: 58.6%; top: 69.8%; width: 13.2%; height: 7.4%; }
+.hot[data-key="CLEAR"] { left: 28.4%; top: 78.2%; width: 13.2%; height: 8.0%; font-size: 7px; }
+.hot[data-key="0"] { left: 43.6%; top: 78.2%; width: 13.0%; height: 8.0%; }
+.hot[data-key="ENTER"] { left: 58.6%; top: 78.2%; width: 13.2%; height: 8.0%; font-size: 7px; }
 
 .sublab {
     position: absolute;
@@ -525,10 +490,10 @@ html, body {
     line-height: 1;
 }
 
-.sublab-areas { left: 29.8%; top: 52.2%; width: 11.2%; }
-.sublab-instant { left: 44.6%; top: 60.6%; width: 11.2%; }
-.sublab-display { left: 59.4%; top: 60.6%; width: 11.2%; }
-.sublab-event { left: 29.8%; top: 68.8%; width: 11.2%; }
-.sublab-test { left: 44.6%; top: 68.8%; width: 11.2%; }
-.sublab-chime { left: 59.4%; top: 68.8%; width: 11.2%; }
-.sublab-prg { left: 44.6%; top: 77.0%; width: 11.2%; }
+.sublab-areas { left: 29.5%; top: 51.8%; width: 42.3%; }
+.sublab-instant { left: 43.6%; top: 60.4%; width: 13.0%; }
+.sublab-display { left: 58.6%; top: 60.4%; width: 13.2%; }
+.sublab-event { left: 28.4%; top: 68.4%; width: 13.2%; }
+.sublab-test { left: 43.6%; top: 68.4%; width: 13.0%; }
+.sublab-chime { left: 58.6%; top: 68.4%; width: 13.2%; }
+.sublab-prg { left: 43.6%; top: 76.6%; width: 13.0%; }

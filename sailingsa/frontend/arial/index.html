@@ -5,22 +5,59 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex,nofollow">
     <title>Arial</title>
-    <link rel="stylesheet" href="/arial/arial.css?v=58">
+    <link rel="stylesheet" href="/arial/arial.css?v=59">
 </head>
 <body>
     <div class="pad-wrap" id="pad-frame">
     <div class="pad-clip">
     <div class="pad">
-        <div class="shell" aria-hidden="true">
-            <div class="shell-cap"></div>
-            <div class="shell-body"></div>
-            <div class="shell-recess"></div>
-            <div class="shell-cover"></div>
-        </div>
+        <svg class="shell-svg" viewBox="0 0 521 615" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+                <linearGradient id="bodyFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#f7f7f5"/>
+                    <stop offset="0.55" stop-color="#f1f1ef"/>
+                    <stop offset="1" stop-color="#e6e6e3"/>
+                </linearGradient>
+                <linearGradient id="capFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#ecece9"/>
+                    <stop offset="0.18" stop-color="#d8d8d5"/>
+                    <stop offset="0.45" stop-color="#c4c4c1"/>
+                    <stop offset="0.72" stop-color="#b3b3b0"/>
+                    <stop offset="1" stop-color="#c9c9c6"/>
+                </linearGradient>
+                <linearGradient id="capSheen" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0" stop-color="#000" stop-opacity="0.10"/>
+                    <stop offset="0.35" stop-color="#fff" stop-opacity="0.18"/>
+                    <stop offset="0.65" stop-color="#fff" stop-opacity="0.08"/>
+                    <stop offset="1" stop-color="#000" stop-opacity="0.12"/>
+                </linearGradient>
+                <linearGradient id="bezelFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#d8d8d5"/>
+                    <stop offset="1" stop-color="#b4b4b0"/>
+                </linearGradient>
+                <linearGradient id="recessFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#e4e6e8"/>
+                    <stop offset="1" stop-color="#eef0f2"/>
+                </linearGradient>
+                <filter id="bodyShadow" x="-8%" y="-4%" width="116%" height="116%">
+                    <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#000" flood-opacity="0.16"/>
+                </filter>
+            </defs>
+            <path class="shell-body" filter="url(#bodyShadow)" fill="url(#bodyFill)" stroke="#c8c8c5" stroke-width="1.2"
+                d="M38 10 H483 Q513 10 513 44 V558 Q513 605 468 605 H53 Q8 605 8 558 V44 Q8 10 38 10 Z"/>
+            <path class="shell-cap" fill="url(#capFill)"
+                d="M18 46 C18 14 72 6 158 6 H363 C449 6 503 14 503 46 V166 C492 196 404 208 260.5 210 C117 208 29 196 18 166 Z"/>
+            <path class="shell-cap" fill="url(#capSheen)"
+                d="M18 46 C18 14 72 6 158 6 H363 C449 6 503 14 503 46 V166 C492 196 404 208 260.5 210 C117 208 29 196 18 166 Z"/>
+            <rect class="lcd-frame" x="50" y="62" width="421" height="117" rx="8" fill="url(#bezelFill)" stroke="#a3a39f" stroke-width="1.1"/>
+            <rect class="lcd-well" x="59" y="74" width="401" height="96" rx="5" fill="#15155a"/>
+            <rect class="shell-recess" x="122" y="214" width="276" height="328" rx="12" fill="url(#recessFill)" stroke="#d0d2d4" stroke-width="0.8"/>
+            <path class="shell-cover" fill="#f1f1ef" stroke="#d4d4d1" stroke-width="0.8"
+                d="M70 548 H451 Q505 548 505 575 V590 Q505 605 468 605 H53 Q8 605 8 590 V575 Q8 548 70 548 Z"/>
+        </svg>
         <div class="brand-slot">
-            <img class="brand-logo" src="/arial/logo.png?v=58" alt="Aerial Networks">
+            <img class="brand-logo" src="/arial/logo.png?v=59" alt="Aerial Networks">
         </div>
-        <div class="lcd-bezel" aria-hidden="true"></div>
         <div class="lcd" aria-live="polite">
             <div class="lcd-head">
                 <span id="lcd-site">HANSEKOP</span>
@@ -85,6 +122,6 @@
         if (when) when.textContent = saNow();
     })();
     </script>
-    <script src="/arial/app.js?v=58"></script>
+    <script src="/arial/app.js?v=59"></script>
 </body>
 </html>
