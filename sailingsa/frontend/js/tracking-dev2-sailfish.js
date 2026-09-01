@@ -64,9 +64,9 @@
       btn.setAttribute("data-flag", pair[1]);
       btn.textContent = pair[0];
       btn.title = "Toggle " + pair[0] + (pair[1] === "leaderline"
-        ? " (first to current mark; holds until last boat rounds)"
+        ? " (regatta overall leader — net score + current race place)"
         : pair[1] === "frontline"
-          ? " (through live race leader — always current 1st)"
+          ? " (through live race leader — rank 1 this race only)"
           : pair[1] === "board"
             ? " (Sailfish left ranking board overlay)"
             : pair[1] === "marks"

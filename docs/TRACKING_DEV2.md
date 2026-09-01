@@ -79,13 +79,15 @@ Toggles on the SF-TrajX bar. **Stop adding new bits** until we pick keep vs drop
 | Dots | Breadcrumb dotted tracks | on |
 | SOG / COG | Speed / heading on map labels | off unless viewConfig |
 | Layline | Red V from active mark | on |
-| Leader | Line to first-to-round current mark; holds until last rounds | on |
-| Front | Perpendicular through **race** leader (rank 1) | on |
+| Leader | Yellow line to **regatta overall leader** (series nett + current race place) | on |
+| Front | Red perpendicular through **this race** leader (live rank 1) | on |
 | Wind | Compass | on |
 | Camera | Recenter / follow fleet (red dial button) | on |
 
 **Rank (always):** boat number and board rank = current race place. 1 = whoever is first *now* (marks completed, then distance to that boat’s next mark). **ST** = seconds behind the leader on this leg. Mark columns (when expanded) are confirmed rounding times.
 
-**Leader line:** first boat to round the current mark; stays on that boat until the last boat rounds it; does not jump to the next mark’s first-rounder until someone actually rounds that next mark.
+**Leader (overall):** lowest `series nett + current race place` — prior race finishes from R1…R(N−1) (1 discard once 4+ prior races), plus live place in this race (or finish place once crossed the line). Gold ring and `LEADER` tag follow this boat.
+
+**Front (this race):** live rank 1 only — marks completed, then distance to next mark. Red `FRONT` line when overall leader differs from race leader.
 
 **We do not have the full saill.cn proprietary app source.** Reverse extracts only (PR #40 / `docs/sailfish-china-extracts/`).
