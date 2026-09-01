@@ -120,8 +120,8 @@ html, body {
 
 .brand-cover {
     position: absolute;
-    inset: 0;
-    background: linear-gradient(180deg, #d8d8d6 0%, #c4c4c2 100%);
+    inset: -8% -4% 0;
+    background: linear-gradient(180deg, #efefed 0%, #c9c9c6 70%, #b8b8b5 100%);
 }
 
 .brand-logo {
@@ -131,7 +131,6 @@ html, body {
     height: 90%;
     object-fit: contain;
     object-position: center;
-    mix-blend-mode: multiply;
 }
 
 .lcd-bezel {
