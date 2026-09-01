@@ -1,0 +1,175 @@
+{
+  "event_id": "Lv9A35uOBSBRmGpHgXtH",
+  "fleet": "J22",
+  "note": "All J22 races from Vakaros. packed=true means -dev has GPS replay JSON. Event over — no Live.",
+  "races": [
+    {
+      "n": 1,
+      "stage": "finished",
+      "gun_sast": "2026-08-26T11:30:01+02:00",
+      "finish_n": 17,
+      "ocs": [
+        "FBYC",
+        "KYC",
+        "SBYC",
+        "WBYC"
+      ],
+      "packed": true,
+      "held_live": false,
+      "course": "Windward / Leeward",
+      "course_id": "wl",
+      "checksum_ok": true,
+      "sanity_ok": true,
+      "checksum_sha16": "03713b01fa7bc42a"
+    },
+    {
+      "n": 2,
+      "stage": "finished",
+      "gun_sast": "2026-08-26T13:20:01+02:00",
+      "finish_n": 17,
+      "ocs": [],
+      "packed": true,
+      "held_live": false,
+      "course": "Quadrangle",
+      "course_id": "quadrangle",
+      "checksum_ok": true,
+      "sanity_ok": true,
+      "checksum_sha16": "049a59e08103cee5"
+    },
+    {
+      "n": 3,
+      "stage": "finished",
+      "gun_sast": "2026-08-26T15:10:01+02:00",
+      "finish_n": 17,
+      "ocs": [
+        "PYC"
+      ],
+      "packed": true,
+      "held_live": false,
+      "course": "Quadrangle",
+      "course_id": "quadrangle",
+      "checksum_ok": true,
+      "sanity_ok": true,
+      "checksum_sha16": "cd44b0e1db2e8ef0"
+    },
+    {
+      "n": 4,
+      "stage": "finished",
+      "gun_sast": "2026-08-27T13:55:01+02:00",
+      "finish_n": 17,
+      "ocs": [
+        "SBYC"
+      ],
+      "packed": true,
+      "held_live": false,
+      "course": "Quadrangle",
+      "course_id": "quadrangle",
+      "checksum_ok": true,
+      "sanity_ok": true,
+      "checksum_sha16": "45190d5db31f94bf"
+    },
+    {
+      "n": 5,
+      "stage": "finished",
+      "gun_sast": "2026-08-27T15:50:01+02:00",
+      "finish_n": 17,
+      "ocs": [],
+      "packed": true,
+      "held_live": false,
+      "course": "Quadrangle",
+      "course_id": "quadrangle",
+      "checksum_ok": true,
+      "sanity_ok": true,
+      "checksum_sha16": "8e861378953b7248"
+    },
+    {
+      "n": 6,
+      "stage": "finished",
+      "gun_sast": "2026-08-28T14:05:01+02:00",
+      "finish_n": 5,
+      "ocs": [],
+      "packed": true,
+      "held_live": false,
+      "course": "Windward / Leeward",
+      "course_id": "wl",
+      "checksum_ok": false,
+      "sanity_ok": true,
+      "checksum_sha16": "6e088c067832e00e"
+    },
+    {
+      "n": 7,
+      "stage": "finished",
+      "gun_sast": "2026-08-28T15:57:01+02:00",
+      "finish_n": 17,
+      "ocs": [
+        "KYC",
+        "LYC",
+        "RCYC",
+        "TSC",
+        "WBYC",
+        "WYAC"
+      ],
+      "packed": true,
+      "held_live": false,
+      "course": "Windward / Leeward",
+      "course_id": "wl",
+      "checksum_ok": true,
+      "sanity_ok": true,
+      "checksum_sha16": "d8997b340de9e091"
+    },
+    {
+      "n": 8,
+      "stage": "finished",
+      "gun_sast": "2026-08-29T10:30:01+02:00",
+      "finish_n": 17,
+      "ocs": [],
+      "packed": true,
+      "held_live": false,
+      "course": "Windward / Leeward",
+      "course_id": "wl",
+      "checksum_ok": true,
+      "sanity_ok": true,
+      "checksum_sha16": "30f3230cd75ba913"
+    },
+    {
+      "n": 9,
+      "stage": "finished",
+      "gun_sast": "2026-08-29T12:15:01+02:00",
+      "finish_n": 16,
+      "ocs": [
+        "WBYC",
+        "RCYC",
+        "RNYC"
+      ],
+      "packed": true,
+      "held_live": false,
+      "course": "Windward / Leeward",
+      "course_id": "wl",
+      "checksum_ok": false,
+      "sanity_ok": true,
+      "checksum_sha16": "e08844add043bd6b"
+    },
+    {
+      "n": 10,
+      "stage": "finished",
+      "gun_sast": "2026-08-29T13:50:01+02:00",
+      "finish_n": 16,
+      "ocs": [
+        "WBYC",
+        "FBYC",
+        "GLYC",
+        "RCYC",
+        "RNYC",
+        "TSC",
+        "SBYC"
+      ],
+      "packed": true,
+      "held_live": false,
+      "course": "Windward / Leeward",
+      "course_id": "wl",
+      "checksum_ok": true,
+      "sanity_ok": true,
+      "checksum_sha16": "4e11b2c87c112cd5"
+    }
+  ]
+}

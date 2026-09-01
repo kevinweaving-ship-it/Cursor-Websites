@@ -26260,8 +26260,61 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
         return HTMLResponse(content=_HTML_SOFT_FAIL_200, status_code=200, media_type="text/html")
 
 
+TRACKING_DEV2_SLUG = "2026-08-29-lipton-challenge-cup-dev2"
+
+
+def serve_tracking_dev2_page(_request: Request):
+    """Tracking-dev2 replay shell (Sailfish-shaped bootstrap + Lipton R1–R10 fallback)."""
+    names = (
+        Path(STATIC_DIR) / "tracking-dev2.html",
+        WEB_ROOT / "tracking-dev2.html",
+        FRONTEND_DIR / "tracking-dev2.html",
+        _API_DIR / "sailingsa" / "frontend" / "tracking-dev2.html",
+        Path(__file__).resolve().parent / "sailingsa" / "frontend" / "tracking-dev2.html",
+    )
+    headers = {"Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow"}
+    for p in names:
+        try:
+            if p.is_file():
+                return HTMLResponse(p.read_text(encoding="utf-8"), headers=headers)
+        except OSError:
+            continue
+    return HTMLResponse("Tracking-dev2 page missing", status_code=500)
+
+
+@app.get("/api/tracking-dev2/bootstrap")
+def api_tracking_dev2_bootstrap(request: Request):
+    """Sailfish-shaped race bootstrap for tracking-dev2 (Lipton packed replay R1–R10)."""
+    try:
+        race = int(request.query_params.get("race") or 1)
+    except (TypeError, ValueError):
+        race = 1
+    try:
+        from sailingsa.backend.tracking_dev2_bootstrap import bootstrap_payload
+
+        return JSONResponse(bootstrap_payload(race))
+    except ValueError as err:
+        return JSONResponse({"success": False, "error": str(err)}, status_code=404)
+    except Exception as err:
+        return JSONResponse({"success": False, "error": str(err)}, status_code=500)
+
+
+@app.get("/tracking-dev2")
+@app.head("/tracking-dev2")
+def tracking_dev2_shortcut(request: Request):
+    """Shortcut → canonical regatta dev2 URL with default race 1."""
+    race = request.query_params.get("race") or "1"
+    return RedirectResponse(
+        url=f"/regatta/{TRACKING_DEV2_SLUG}?race={race}",
+        status_code=302,
+    )
+
+
 def serve_regatta_standalone(slug: str, request: Request):
     """Serve one full standalone HTML result sheet for /regatta/{slug}. Unknown regatta → 301 /events (not 404)."""
+    slug_s = str(slug or "").strip()
+    if slug_s == TRACKING_DEV2_SLUG:
+        return serve_tracking_dev2_page(request)
     start_time = time.time()
     reg = _get_regatta_by_slug(slug)
     if not reg:
