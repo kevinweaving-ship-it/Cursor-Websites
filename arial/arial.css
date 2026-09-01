@@ -65,6 +65,16 @@ html, body {
     overflow: hidden;
 }
 
+#lcd-1 {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5em;
+}
+
+#lcd-2 {
+    margin-top: 0.15em;
+}
+
 .hot {
     position: absolute;
     border: 0;
