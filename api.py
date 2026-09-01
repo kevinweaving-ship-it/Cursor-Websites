@@ -685,6 +685,60 @@ def _index_redirect(request: Request):
     return index_html_maybe_redirect_sas_id(request, sas_id=sas_id, sas_id_alt=None)
 
 
+@app.get("/dev-1", response_class=HTMLResponse)
+def dev1_sailor_embed(request: Request, embed: Optional[int] = None, sas_id: Optional[str] = None):
+    """Landing sailor search embed fragment (prod path used by index.html fetch)."""
+    sid = str(sas_id or request.query_params.get("sas_id") or "").strip()
+    if not sid or not sid.isdigit():
+        raise HTTPException(status_code=404, detail="Not Found")
+    name, club, classes = "Sailor", "—", "—"
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(
+            """
+            SELECT s.first_name AS first_names, s.last_name AS surname,
+                   COALESCE(s.primary_club, s.club_1) AS club,
+                   s.primary_class AS class_name
+            FROM public.sas_id_personal s
+            WHERE s.sa_sailing_id::text = %s
+            LIMIT 1
+            """,
+            (sid,),
+        )
+        row = cur.fetchone()
+        cur.close()
+        if not row:
+            raise HTTPException(status_code=404, detail="Not Found")
+        name = " ".join(p for p in [row.get("first_names"), row.get("surname")] if p).strip() or "Sailor"
+        club = row.get("club") or "—"
+        classes = row.get("class_name") or "—"
+    finally:
+        if conn:
+            return_db_connection(conn)
+    esc = html_module.escape
+    js_sid = json.dumps(sid)
+    js_name = json.dumps(name)
+    js_club = json.dumps(club)
+    js_classes = json.dumps(classes)
+    html = (
+        f'<div class="profile-card" role="listitem" data-sas-id="{esc(sid)}" style="cursor:pointer">'
+        f'<div class="profile-card-header">Profile</div>'
+        f'<div class="profile-card-body">'
+        f'<span class="profile-card-label">Name</span><span class="profile-card-value">{esc(name)}</span>'
+        f'<span class="profile-card-label">Club</span><span class="profile-card-value">{esc(club)}</span>'
+        f'<span class="profile-card-label">Classes Sailed</span><span class="profile-card-value">{esc(classes)}</span>'
+        f"</div></div>"
+        f"<script>(function(){{var c=document.currentScript&&document.currentScript.previousElementSibling;"
+        f"if(!c)return;c.addEventListener('click',function(){{"
+        f"if(typeof window.showSailorStatsInResults==='function')window.showSailorStatsInResults("
+        f"{js_sid},{js_name},{js_club},{js_classes});"
+        f"}});}})();</script>"
+    )
+    return HTMLResponse(html, headers={"Cache-Control": "no-store"})
+
+
 @app.get("/api/stats")
 async def api_stats():
     """Public stats for /stats page. Registered before /sailor/{slug} so /stats is not caught as slug."""
@@ -16094,7 +16148,7 @@ def api_regattas_with_counts(
     year: Optional[int] = None,
     class_name: Optional[str] = Query(None, description="Filter regattas that sailed this class (e.g. 'Optimist A')"),
     request: Request = None,
-    limit: int = Query(150, ge=1, le=400, description="Max regattas returned (hub search uses higher values)"),
+    limit: int = Query(150, ge=1, le=500, description="Max regattas returned (hub search uses higher values; clamped to 400)"),
 ):
     """Return regattas with entry counts. q = Google-like: any word matches event name, host, or class (with aliases e.g. Laser=ILCA)."""
     # Search analytics: log regatta search when q present
