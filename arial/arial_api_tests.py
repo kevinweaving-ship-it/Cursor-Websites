@@ -208,9 +208,10 @@ def test_lcd_status_text_is_bold():
     assert "lcdTextFlashSlow" in css
     assert "6s ease-in-out infinite" in css
     assert "0%, 74% { opacity: 1; }" in css
-    assert '"DSEG14 Classic"' in css
-    assert '"DSEG7 Classic"' not in css.split(".lcd.armed #lcd-2 {", 1)[1].split("}", 1)[0]
-    assert ".lcd.armed #lcd-2" in css
+    armed = css.split(".lcd.armed #lcd-2 {", 1)[1].split("}", 1)[0]
+    assert "Anton, Impact" in armed
+    assert "font-size: 44px;" in armed
+    assert "-webkit-text-stroke: 0.6px #fff;" in armed
     assert "lcdArmedSlow" not in css
     assert "lcdReadyFlash" not in css
     assert "animation: lcdflash" not in css

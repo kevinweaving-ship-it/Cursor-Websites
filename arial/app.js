@@ -224,7 +224,9 @@
         var w = el.clientWidth;
         var h = el.clientHeight || 32;
         if (w < 12) return;
-        var size = Math.min(48, Math.max(22, h + 10));
+        var lcd = document.querySelector(".lcd");
+        var shout = !!(lcd && lcd.classList.contains("armed"));
+        var size = Math.min(shout ? 54 : 48, Math.max(22, h + (shout ? 18 : 10)));
         el.style.fontSize = size + "px";
         var n = 0;
         while (n < 28 && size > 11 && (el.scrollWidth > w + 1 || el.scrollHeight > h + 1)) {
