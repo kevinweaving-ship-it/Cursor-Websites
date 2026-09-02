@@ -145,15 +145,35 @@
         return false;
     }
 
+    function zoneIsOpen(z) {
+        var st = String((z && z.state) || "").toLowerCase();
+        var lab = String((z && z.stateLabel) || "").toLowerCase();
+        if (st === "c" || st === "closed" || lab === "closed") return false;
+        if (st === "a" || st === "al" || st === "o" || st === "open") return true;
+        if (st.indexOf("alarm") !== -1 || lab.indexOf("alarm") !== -1) return true;
+        if (lab === "active" || lab === "open") return true;
+        return false;
+    }
+
+    function openZoneIssue(device) {
+        var zones = (device && device.arialZones) || [];
+        var i;
+        for (i = 0; i < zones.length; i += 1) {
+            var z = zones[i];
+            if (!zoneIsOpen(z)) continue;
+            var n = z.num != null ? z.num : (i + 1);
+            return "Zone " + n + " Open";
+        }
+        return "Zone Open";
+    }
+
     function openZoneLabel(device) {
         var zones = (device && device.arialZones) || [];
         var i;
         for (i = 0; i < zones.length; i += 1) {
             var z = zones[i];
-            var st = String((z && z.state) || "").toLowerCase();
-            if (st === "a" || st === "al" || st.indexOf("alarm") !== -1) {
-                return String(z.label || ("Zone " + z.num)).trim();
-            }
+            if (!zoneIsOpen(z)) continue;
+            return String(z.label || ("Zone " + (z.num != null ? z.num : (i + 1)))).trim();
         }
         return "";
     }
@@ -169,7 +189,8 @@
         if (st === "arm") return "System Armed";
         if (st === "stay") return "Stay Armed";
         if (st === "sleep") return "Sleep Armed";
-        if (st === "disarm" || st === "notready") return "System Ready";
+        if (st === "disarm") return "System Ready";
+        if (st === "notready") return openZoneIssue(device);
         return st;
     }
 
