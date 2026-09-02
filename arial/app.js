@@ -1424,7 +1424,7 @@
             svg.appendChild(slot);
             var v = hours[i];
             if (v == null || !(max > 0)) continue;
-            var h = Math.max(1.5, (v / max) * 56);
+            var h = Math.max(3.5, (v / max) * 56);
             var bar = document.createElementNS(ns, "rect");
             var isNow = breakerDayIdx === 0 && i === nowHour;
             bar.setAttribute("class", "bar " + breakerBandClass(isNow ? null : v, avg) + (isNow ? " now" : ""));

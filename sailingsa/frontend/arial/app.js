@@ -1172,14 +1172,11 @@
             return;
         }
         if (breakerEnergy.last != null && kwh < breakerEnergy.last - 0.001) {
-            if (kwh > 0.05) {
-                breakerEnergy.hidden = true;
-                if (row) row.hidden = true;
-                saveBreakerStore();
-                return;
-            }
-            breakerEnergy.midnightAddEle = kwh;
-            breakerEnergy.midnightYmd = saYmdNow();
+            // A cumulative register never decreases; this meter's add_ele is a per-report pulse, so hide the row.
+            breakerEnergy.hidden = true;
+            if (row) row.hidden = true;
+            saveBreakerStore();
+            return;
         }
         var ymd = saYmdNow();
         if (breakerEnergy.midnightYmd !== ymd || breakerEnergy.midnightAddEle == null) {
@@ -1427,7 +1424,7 @@
             svg.appendChild(slot);
             var v = hours[i];
             if (v == null || !(max > 0)) continue;
-            var h = Math.max(1.5, (v / max) * 56);
+            var h = Math.max(3.5, (v / max) * 56);
             var bar = document.createElementNS(ns, "rect");
             var isNow = breakerDayIdx === 0 && i === nowHour;
             bar.setAttribute("class", "bar " + breakerBandClass(isNow ? null : v, avg) + (isNow ? " now" : ""));

@@ -1057,20 +1057,30 @@ def _energy_analysis(device: str, days: list[dict[str, Any]], now: float) -> dic
             if to and start - _RECOVERY_S < to and start + 3600 > to - 60:
                 return True
         return False
-    base_vals: list[float] = []
+    cur_hour_key = _sa_hour_key(now)
+    complete: list[tuple[str, float]] = []  # newest first
     day_totals: list[float] = []
-    for day in days[1:]:
+    for day in days:
         ymd = str(day.get("ymd") or "").replace("-", "")
         hours = day.get("hours") or []
-        for h, v in enumerate(hours):
+        for h in range(23, -1, -1):
+            v = hours[h] if h < len(hours) else None
             if v is None:
                 continue
-            if in_recovery(f"{ymd}{h:02d}"):
+            key = f"{ymd}{h:02d}"
+            if key >= cur_hour_key or in_recovery(key):
                 continue
-            base_vals.append(float(v))
-        if int(day.get("hoursWithData") or 0) >= 20 and day.get("totalKwh") is not None:
+            complete.append((key, float(v)))
+        if int(day.get("hoursWithData") or 0) >= 20 and day.get("totalKwh") is not None and day is not days[0]:
             day_totals.append(float(day["totalKwh"]))
-    baseline_kw = round(sum(base_vals) / len(base_vals), 3) if len(base_vals) >= 6 else None
+    complete.sort(key=lambda kv: kv[0], reverse=True)
+    # Running baseline = median of the last 12 complete hours: robust to an idle night and to charging spikes.
+    window = [v for _, v in complete[:12]]
+    baseline_kw = None
+    if len(window) >= 4:
+        window.sort()
+        mid = len(window) // 2
+        baseline_kw = round(window[mid] if len(window) % 2 else (window[mid - 1] + window[mid]) / 2.0, 3)
     recent_w = [w for t, w in recent if now - t <= 1800]
     recent_kw = round(sum(recent_w) / len(recent_w) / 1000.0, 3) if recent_w else None
     power = _power_snapshot(now)
