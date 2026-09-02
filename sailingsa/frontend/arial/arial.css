@@ -84,7 +84,7 @@ html, body {
     object-fit: contain;
     object-position: center;
     background: transparent;
-    transform: scale(0.95);
+    transform: scale(0.855);
 }
 
 .lcd {
