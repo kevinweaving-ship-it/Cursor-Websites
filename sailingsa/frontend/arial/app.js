@@ -612,6 +612,10 @@
             clearTimeout(el._fade);
             el._fade = null;
         }
+        if (el._logo) {
+            clearTimeout(el._logo);
+            el._logo = null;
+        }
         el.classList.remove("credits", "credit-out", "credit-across");
         el.style.opacity = "";
         el.style.transform = "";
@@ -671,13 +675,16 @@
             el.classList.remove("credit-across");
             el._fade = setTimeout(function () {
                 el._fade = null;
+                revealLogo();
+            }, 220);
+            el._logo = setTimeout(function () {
+                el._logo = null;
                 el.classList.remove("credits", "credit-out", "credit-across");
                 el.textContent = "";
                 el.style.opacity = "";
                 el.style.transform = "";
                 el.style.removeProperty("--welcome-x");
-                revealLogo();
-            }, 1500);
+            }, 900);
         }, 2200);
     }
     var pinOkBuf = null;

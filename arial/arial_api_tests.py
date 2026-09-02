@@ -128,6 +128,8 @@ def test_welcome_credits_roll_and_fade():
     assert "welcomeBackLeft" in css
     assert "translateX(var(--welcome-x, 0px))" in css
     assert "logoRollIn" in css
+    assert "inset(0 0 0 100%)" in css
+    assert "}, 220)" in js
     assert "credits-playing" in js
     assert "logo-in" in js
 

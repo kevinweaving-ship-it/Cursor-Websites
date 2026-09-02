@@ -290,11 +290,11 @@ html, body {
 }
 
 .lcd.logged-in.logo-in #lcd-user-logo {
-    animation: logoRollIn 2.4s ease-out forwards;
+    animation: logoRollIn 1.5s ease-out forwards;
 }
 
 @keyframes logoRollIn {
-    0% { opacity: 0; clip-path: inset(0 100% 0 0); }
+    0% { opacity: 0; clip-path: inset(0 0 0 100%); }
     100% { opacity: 1; clip-path: inset(0 0 0 0); }
 }
 
