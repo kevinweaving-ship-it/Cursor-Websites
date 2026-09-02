@@ -850,12 +850,55 @@ def _map_our_actor(raw: str) -> str:
     return ""
 
 
-def _activity_line(label: str, state_lab: str, actor: str) -> str:
-    text = label if not state_lab or state_lab.lower() in label.lower() else f"{label}  {state_lab}"
+def is_skip_activity_event(event: dict[str, Any] | None) -> bool:
+    event = event or {}
+    if is_noise_olarm_event(event):
+        return True
+    state = str(event.get("eventState") or event.get("state") or "").strip().lower()
+    msg = str(event.get("eventMsg") or event.get("activity") or "").strip().lower()
+    if state in {"countdown", "notready"}:
+        return True
+    if "countdown" in msg or "not ready" in msg or "notready" in msg:
+        return True
+    return False
+
+
+def _activity_via(actor: str) -> str:
+    return "Remote" if str(actor or "").strip() in {"Pingoa", "Amoroc", "Onguard"} else ""
+
+
+def _activity_line(label: str, state_lab: str, actor: str, via: str = "") -> str:
+    label = str(label or "").strip()
+    state_lab = str(state_lab or "").strip()
+    text = label if not state_lab or state_lab.lower() in label.lower() else f"{label} {state_lab}"
     who = str(actor or "").strip()
     if who and who.lower() not in text.lower():
-        text = f"{text}  ·  {who}"
+        text = f"{text} · {who}" if text else who
+    src = str(via or "").strip() or _activity_via(who)
+    if src and src.lower() not in text.lower():
+        text = f"{text} · {src}" if text else src
     return text
+
+
+def dedupe_area_activity(rows: list[Any]) -> list[dict[str, Any]]:
+    """One ARMED per arm cycle (until a DISARMED). Drop countdown."""
+    out: list[dict[str, Any]] = []
+    armed: dict[str, bool] = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        st = _area_state_token(str(row.get("state") or ""))
+        title = str(row.get("title") or "").strip() or "_"
+        if st in {"countdown", "notready"}:
+            continue
+        if st in {"arm", "stay", "sleep"}:
+            if armed.get(title):
+                continue
+            armed[title] = True
+        elif st == "disarm":
+            armed[title] = False
+        out.append(row)
+    return out
 
 
 def _flock_path(path: Path) -> Path:
@@ -1009,7 +1052,8 @@ def _stamp_activity_actors(bundle: dict[str, Any] | None) -> dict[str, Any]:
         if not actor:
             continue
         row["actor"] = actor
-        row["activity"] = _activity_line(str(row.get("title") or ""), str(row.get("state") or ""), actor)
+        row["via"] = _activity_via(actor) or row.get("via") or ""
+        row["activity"] = _activity_line(str(row.get("title") or ""), str(row.get("state") or ""), actor, str(row.get("via") or ""))
     have = []
     for row in rows:
         if str(row.get("tab") or "") != "areas":
@@ -1030,7 +1074,7 @@ def _stamp_activity_actors(bundle: dict[str, Any] | None) -> dict[str, Any]:
         matched = False
         for ev_state, ev_ms in have:
             same = (state == "disarm" and ev_state == "disarm") or (
-                state != "disarm" and ev_state in {"arm", "stay", "sleep", "countdown"}
+                state != "disarm" and ev_state in {"arm", "stay", "sleep"}
             )
             if same and ev_ms and abs(ev_ms - kp_ms) <= _KEYPAD_MATCH_MS:
                 matched = True
@@ -1049,8 +1093,9 @@ def _stamp_activity_actors(bundle: dict[str, Any] | None) -> dict[str, Any]:
                 "date": _sa_stamp(kp_ms)[1],
                 "title": label,
                 "state": state_lab,
-                "activity": _activity_line(label, state_lab, actor),
+                "activity": _activity_line(label, state_lab, actor, "Remote"),
                 "actor": actor,
+                "via": "Remote",
                 "msg": "",
                 "num": 1,
                 "action": "area",
@@ -1062,7 +1107,7 @@ def _stamp_activity_actors(bundle: dict[str, Any] | None) -> dict[str, Any]:
     if extras:
         rows = extras + rows
         rows.sort(key=lambda r: int(r.get("at") or 0), reverse=True)
-    bundle["events"] = rows
+    bundle["events"] = dedupe_area_activity(rows)
     return bundle
 
 
@@ -1146,7 +1191,8 @@ def format_olarm_event(event: dict[str, Any], device: dict[str, Any] | None = No
         label = msg
     time_s, date_s = _sa_stamp(event.get("eventTime"))
     actor = _arial_event_actor(tab, event, device)
-    activity = _activity_line(label, state_lab, actor)
+    via = _activity_via(actor)
+    activity = _activity_line(label, state_lab, actor, via)
     return {
         "tab": tab,
         "time": time_s,
@@ -1155,6 +1201,7 @@ def format_olarm_event(event: dict[str, Any], device: dict[str, Any] | None = No
         "state": state_lab,
         "activity": activity,
         "actor": actor,
+        "via": via,
         "msg": msg,
         "num": num,
         "action": action,
@@ -1203,7 +1250,7 @@ def _profile_exit_delay(profile: dict[str, Any]) -> int:
         n = _countdown_int(raw)
         if n and n > 10:
             return n
-    return 30
+    return 60
 
 
 def _looks_like_timer(detail: Any) -> bool:
@@ -1470,7 +1517,7 @@ def _activity_bundle(device: dict[str, Any] | None, events: list[Any]) -> dict[s
     rows = [
         format_olarm_event(e, device)
         for e in events
-        if isinstance(e, dict) and not is_noise_olarm_event(e)
+        if isinstance(e, dict) and not is_skip_activity_event(e)
     ]
     return _stamp_activity_actors({"ok": True, "power": power, "events": rows, "live": True})
 

@@ -164,7 +164,7 @@ def test_countdown_from_numeric_detail():
     out = arial_api.enrich_device(d)
     assert out["arialCountdown"] == 47
     assert out["arialAreas"][0]["countdown"] == 47
-    assert out["arialExitDelay"] == 30
+    assert out["arialExitDelay"] == 60
 
 
 def test_countdown_from_detail_object():
@@ -206,29 +206,30 @@ def test_profile_exit_delay_ten_is_unset():
             "exitDelay": 10,
         },
     }
-    assert arial_api.enrich_device(d)["arialExitDelay"] == 30
+    assert arial_api.enrich_device(d)["arialExitDelay"] == 60
 
 
 def test_arm_disarm_pending_and_thirty_second_exit():
     root = Path(__file__).resolve().parent
     js = (root / "app.js").read_text(encoding="utf-8")
     css = (root / "arial.css").read_text(encoding="utf-8")
-    assert "var EXIT_DEFAULT = 30;" in js
+    assert "var EXIT_DEFAULT = 60;" in js
+    assert "var EXIT_SHOW_FROM = 20;" in js
+    assert "var EXIT_FAST_FROM = 7;" in js
     assert "n > 10 && n <= 180" in js
     assert "var disarmPending = false;" in js
     assert "function showSystemDisarmed()" in js
     assert 'setLcdStatus("System Disarmed", "");' in js
     assert "disarmPending = true;" in js
-    assert "var delay = exitDelaySecs(window.arialDevice);" in js
+    assert "startLocalExit(exitDelaySecs(window.arialDevice));" in js
     assert "if (apiCd > 0) syncLocalExitFromApi(apiCd)" in js
     assert "if (apiCd > 0 && !armPending)" not in js
     assert "if (armPending && local > 0) return local;" not in js
     assert "var exitCountStarted = false;" in js
-    assert "var EXIT_ACK_MS = 2500;" in js
     assert "var exitClockFromApi = false;" in js
-    assert "startLocalExit(apiCd);" in js
-    assert "Date.now() - armWaitSince < EXIT_ACK_MS" in js
-    assert "if (apiCd > 10) syncLocalExitFromApi(apiCd)" not in js
+    assert "function settleArm()" in js
+    assert "function localExitExpired()" in js
+    assert "if (localExitExpired()) return;" in js
     assert "startOlarmLive();" in js
     assert "function startOlarmLive()" in js
     assert "function kickExitAudio()" in js
@@ -364,6 +365,7 @@ def test_area_arm_uses_pingoa_not_olarm_user(tmp_path, monkeypatch):
     )
     assert row["actor"] == "Pingoa"
     assert "Pingoa" in row["activity"]
+    assert "Remote" in row["activity"]
     assert "Kevin" not in row["activity"]
     assert "ALARM SYSTEM" not in row["activity"]
     countdown = arial_api.format_olarm_event(
@@ -540,11 +542,73 @@ def test_activity_keeps_30_day_store_and_checksums_on_login():
     assert "function activityChecksum" in js
     assert "loadActivity({ history: true })" not in js
     assert 'prependActivity("ARMED")' in js
-    assert 'prependActivity("COUNTDOWN")' in js
+    assert 'prependActivity("COUNTDOWN")' not in js
+    assert "function tidyActivity" in js
+    assert "function skipActivityRow" in js
+    assert 'via: who ? "Remote" : ""' in js
     assert 'prependActivity("DISARMED")' in js
     assert "setInterval(loadActivity, 3000)" in js
     assert "restoreActivityStore();" in js
-    assert "app.js?v=172" in html
+    assert "app.js?v=173" in html
+
+
+def test_activity_armed_once_remote_no_countdown_or_notready():
+    js = (Path(__file__).resolve().parent / "app.js").read_text(encoding="utf-8")
+    assert "skipActivityRow" in js
+    assert "tidyActivity" in js
+    assert 'title + " " + state + " · " + who + " · Remote"' in js
+    line = arial_api._activity_line("Facility Building", "ARMED", "Onguard", "Remote")
+    assert line == "Facility Building ARMED · Onguard · Remote"
+    assert arial_api.is_skip_activity_event(
+        {"eventState": "countdown", "eventMsg": "COUNTDOWN - Area 1 - Facility Building"}
+    )
+    assert arial_api.is_skip_activity_event(
+        {"eventState": "notready", "eventMsg": "NOTREADY - Area 1 - Facility Building"}
+    )
+    assert not arial_api.is_skip_activity_event(
+        {"eventState": "arm", "eventMsg": "ARMED - Area 1 - Facility Building"}
+    )
+    rows = [
+        {"tab": "areas", "title": "Facility Building", "state": "ARMED", "actor": "Onguard", "at": 5},
+        {"tab": "areas", "title": "Facility Building", "state": "ARMED", "actor": "Onguard", "at": 4},
+        {"tab": "areas", "title": "Facility Building", "state": "COUNTDOWN", "at": 5},
+        {"tab": "areas", "title": "Facility Building", "state": "notready", "at": 3},
+        {"tab": "areas", "title": "Facility Building", "state": "DISARMED", "actor": "Onguard", "at": 2},
+        {"tab": "areas", "title": "Facility Building", "state": "ARMED", "actor": "Pingoa", "at": 1},
+    ]
+    out = arial_api.dedupe_area_activity(rows)
+    states = [r["state"] for r in out]
+    assert "COUNTDOWN" not in states
+    assert "notready" not in states
+    assert states == ["ARMED", "DISARMED", "ARMED"]
+    device = {"arialAreas": [{"num": 1, "label": "Facility Building"}]}
+    bundle = arial_api._activity_bundle(
+        device,
+        [
+            {
+                "eventAction": "area",
+                "eventState": "countdown",
+                "eventNum": 1,
+                "eventMsg": "COUNTDOWN - Area 1 - Facility Building",
+                "eventTime": 3000,
+            },
+            {
+                "eventAction": "area",
+                "eventState": "notready",
+                "eventNum": 1,
+                "eventMsg": "NOTREADY - Area 1 - Facility Building",
+                "eventTime": 2000,
+            },
+            {
+                "eventAction": "area",
+                "eventState": "arm",
+                "eventNum": 1,
+                "eventMsg": "ARMED - Area 1 - Facility Building",
+                "eventTime": 1000,
+            },
+        ],
+    )
+    assert [r["state"] for r in bundle["events"]] == ["ARMED"]
 
 
 def test_status_label_under_status_led():

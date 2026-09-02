@@ -46,10 +46,12 @@
         return site.toUpperCase() || "HANSEKOP";
     }
 
-    var EXIT_DEFAULT = 30;
-    var EXIT_ACK_MS = 2500;
+    var EXIT_DEFAULT = 60;
+    var EXIT_SHOW_FROM = 20;
+    var EXIT_FAST_FROM = 7;
     var pendingExitUntil = 0;
     var armPending = false;
+    var armSettled = false;
     var exitCountStarted = false;
     var exitClockFromApi = false;
     var disarmPending = false;
@@ -130,6 +132,14 @@
     }
 
     function persistExit() {
+        if (armSettled) {
+            storeSet("arialArmSettled", "1");
+            storeDel("arialExitUntil");
+            storeDel("arialArmPending");
+            storeDel("arialExitStarted");
+            return;
+        }
+        storeDel("arialArmSettled");
         if (armPending) {
             storeSet("arialArmPending", "1");
             storeSet("arialExitStarted", exitCountStarted ? "1" : "0");
@@ -142,6 +152,10 @@
         storeDel("arialExitStarted");
     }
 
+    function localExitExpired() {
+        return !!(pendingExitUntil && pendingExitUntil <= Date.now());
+    }
+
     function startLocalExit(seconds) {
         var n = seconds && seconds > 0 ? seconds : EXIT_DEFAULT;
         pendingExitUntil = Date.now() + n * 1000;
@@ -151,7 +165,9 @@
     }
 
     function inExitIntro() {
-        return !!(exitIntroUntil && Date.now() < exitIntroUntil);
+        if (!armPending || armSettled) return false;
+        if (!exitCountStarted) return true;
+        return localExitLeft() > EXIT_SHOW_FROM;
     }
 
     function stopExitBeeps() {
@@ -167,6 +183,7 @@
     function clearLocalExit() {
         pendingExitUntil = 0;
         armPending = false;
+        armSettled = false;
         exitCountStarted = false;
         exitClockFromApi = false;
         armWaitSince = 0;
@@ -176,19 +193,46 @@
         persistExit();
     }
 
+    function holdSystemArmed() {
+        stopIssueCycle();
+        stopExitBeeps();
+        setLcdStatus("System Armed", "");
+        var lcd = document.querySelector(".lcd");
+        if (lcd) {
+            lcd.classList.remove("disarmed", "arming", "arming-fast", "zone-open", "hold-disarmed", "alarm");
+            lcd.classList.add("armed");
+        }
+        setLed(document.getElementById("led-status"), "armed");
+        syncArmToggle();
+        fitLcdStatus();
+    }
+
+    function settleArm() {
+        if (armSettled) {
+            holdSystemArmed();
+            return;
+        }
+        armSettled = true;
+        armPending = false;
+        pendingExitUntil = 0;
+        exitCountStarted = false;
+        exitClockFromApi = false;
+        armWaitSince = 0;
+        exitIntroUntil = 0;
+        persistExit();
+        showArmed();
+    }
+
     function stillExiting(device) {
-        if (disarmPending) return false;
+        if (disarmPending || armSettled) return false;
         if (localExitLeft() > 0) return true;
-        if (armPending && exitCountStarted && pendingExitUntil && pendingExitUntil <= Date.now()) return false;
-        if (deviceCountdown(device) > 0) return true;
-        if (stampRemaining(device) > 0) return true;
-        if (areaState(device) === "countdown") return true;
         if (armPending && !exitCountStarted) return true;
         return false;
     }
 
     function syncLocalExitFromApi(seconds) {
-        if (!(seconds > 0)) return;
+        if (!(seconds > 0) || armSettled || disarmPending) return;
+        if (localExitExpired()) return;
         var local = localExitLeft();
         if (!exitClockFromApi && seconds > 10) {
             exitClockFromApi = true;
@@ -196,10 +240,6 @@
             return;
         }
         if (!local) {
-            if (pendingExitUntil && pendingExitUntil <= Date.now()) {
-                if (seconds <= 5) startLocalExit(seconds);
-                return;
-            }
             startLocalExit(seconds);
             return;
         }
@@ -220,11 +260,13 @@
     }
 
     function remainingExit(device) {
+        if (armSettled || disarmPending) return 0;
+        if (localExitExpired()) return 0;
         var apiCd = deviceCountdown(device);
         var stampCd = stampRemaining(device);
         if (apiCd > 0) syncLocalExitFromApi(apiCd);
         else if (stampCd > 0) syncLocalExitFromApi(stampCd);
-        return localExitLeft() || apiCd || stampCd || 0;
+        return localExitLeft();
     }
 
     function panelIsExiting(device) {
@@ -397,8 +439,8 @@
         lcd.classList.remove("hold-disarmed");
         var st = areaState(device);
         var alarm = isAlarmState(st);
-        var arming = stillExiting(device) || (armPending && (localExitLeft() > 0 || !exitCountStarted));
-        var armed = !arming && !alarm && isArmedState(st);
+        var arming = !armSettled && (stillExiting(device) || (armPending && (localExitLeft() > 0 || !exitCountStarted)));
+        var armed = armSettled || (!arming && !alarm && isArmedState(st));
         var zoneOpen = !arming && !armed && !alarm && openZoneIssues(device).length > 0;
         var trouble = !arming && !armed && !alarm && panelIssues(device).length > 0;
         var disarmed = !arming && !armed && !alarm && (st === "disarm" || st === "notready" || !st);
@@ -444,6 +486,7 @@
 
     function panelLooksArmed(device) {
         if (disarmPending) return false;
+        if (armSettled) return true;
         if (armPending || localExitLeft() > 0) return true;
         var d = device || window.arialDevice;
         if (panelIsExiting(d)) return true;
@@ -485,9 +528,16 @@
         setLed(document.getElementById("led-ac"), powerAcOk(device) ? "on" : "flash");
         var st = areaState(device);
         var apiCd = deviceCountdown(device);
-        if (apiCd > 0) syncLocalExitFromApi(apiCd);
         var stampCd = stampRemaining(device);
-        if (!apiCd && stampCd > 0) syncLocalExitFromApi(stampCd);
+        if (!armSettled && !localExitExpired()) {
+            if (apiCd > 0) syncLocalExitFromApi(apiCd);
+            else if (stampCd > 0) syncLocalExitFromApi(stampCd);
+        }
+
+        if (armSettled && !disarmPending && !isAlarmState(st)) {
+            holdSystemArmed();
+            return;
+        }
 
         if (isAlarmState(st)) {
             if (disarmPending) {
@@ -522,26 +572,27 @@
         }
         if (stillExiting(device) || (armPending && !exitCountStarted)) {
             stopIssueCycle();
-            showArming(remainingExit(device) || localExitLeft());
+            showArming(localExitLeft());
             maybeExitBeeps();
             return;
         }
         if (armPending && exitCountStarted && localExitLeft() === 0) {
-            if (!armWaitSince) armWaitSince = Date.now();
-            if (Date.now() - armWaitSince < EXIT_ACK_MS) {
-                showArming(0);
-                return;
-            }
-            showArmed();
-            clearLocalExit();
+            settleArm();
             return;
         }
         if (st === "arm" || st === "stay" || st === "sleep") {
-            clearLocalExit();
-            stopIssueCycle();
-            setLcdStatus(statusFromDevice(device), "");
-            applyLcd(device);
-            setLed(document.getElementById("led-status"), "armed");
+            if (armPending && localExitLeft() > 0) {
+                showArming(localExitLeft());
+                maybeExitBeeps();
+                return;
+            }
+            if (armPending || localExitExpired()) {
+                settleArm();
+                return;
+            }
+            armSettled = true;
+            persistExit();
+            holdSystemArmed();
             return;
         }
         clearLocalExit();
@@ -584,7 +635,6 @@
         var st = areaState(hanse);
         if (isLoggedIn() && applyPanelDevice._area && applyPanelDevice._area !== st) {
             if (st === "disarm" || st === "notready") prependActivity("DISARMED");
-            else if (st === "countdown") prependActivity("COUNTDOWN");
             else if (st === "arm" || st === "stay" || st === "sleep") prependActivity("ARMED");
         }
         applyPanelDevice._area = st;
@@ -650,26 +700,68 @@
         return ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2);
     }
 
+    function areaCycleState(r) {
+        var st = String((r && r.state) || "").toUpperCase();
+        if (!st) st = String((r && r.activity) || "").toUpperCase();
+        if (st.indexOf("COUNTDOWN") !== -1) return "";
+        if (st.indexOf("NOT READY") !== -1 || st.indexOf("NOTREADY") !== -1) return "";
+        if (st.indexOf("DISARM") !== -1) return "DISARMED";
+        if (st.indexOf("ARM") !== -1 || st.indexOf("STAY") !== -1 || st.indexOf("SLEEP") !== -1) return "ARMED";
+        return "";
+    }
+
+    function skipActivityRow(r) {
+        var st = String((r && r.state) || (r && r.activity) || "").toUpperCase();
+        return st.indexOf("COUNTDOWN") !== -1 || st.indexOf("NOT READY") !== -1 || st.indexOf("NOTREADY") !== -1;
+    }
+
+    function tidyActivity(rows) {
+        var out = [];
+        var armed = {};
+        var i;
+        for (i = 0; i < (rows || []).length; i += 1) {
+            var r = rows[i];
+            if (skipActivityRow(r)) continue;
+            var title = String((r && r.title) || "").trim() || "_";
+            var cycle = areaCycleState(r);
+            if (cycle === "ARMED") {
+                if (armed[title]) continue;
+                armed[title] = true;
+            } else if (cycle === "DISARMED") {
+                armed[title] = false;
+            }
+            out.push(r);
+        }
+        return out;
+    }
+
     function prependActivity(stateLab) {
+        var state = String(stateLab || "").toUpperCase();
+        if (!state || skipActivityRow({ state: state })) return;
         var user = resolvedUser(window.arialUser);
         var who = user && user.from ? String(user.from) : "";
         var title = areaTitle();
-        var state = String(stateLab || "").toUpperCase();
+        var cycle = /DISARM/.test(state) ? "DISARMED" : "ARMED";
+        var i;
+        for (i = 0; i < activityRows.length; i += 1) {
+            if (String(activityRows[i].title || "") !== title) continue;
+            var prev = areaCycleState(activityRows[i]);
+            if (!prev) continue;
+            if (prev === cycle) return;
+            break;
+        }
         var row = {
             tab: "areas",
             time: saHHmm(),
             title: title,
             state: state,
             actor: who,
-            activity: who ? (title + "  " + state + "  ·  " + who) : (title + "  " + state),
+            via: who ? "Remote" : "",
+            activity: who ? (title + " " + state + " · " + who + " · Remote") : (title + " " + state),
             at: Date.now(),
             local: true
         };
-        var top = activityRows[0];
-        if (top && top.local && top.state === state && top.title === title && (Date.now() - (top.at || 0)) < 8000) {
-            return;
-        }
-        activityRows = [row].concat(activityRows);
+        activityRows = tidyActivity([row].concat(activityRows));
         saveActivityStore();
         renderActivity();
     }
@@ -712,6 +804,7 @@
             var raw = JSON.parse(localStorage.getItem(ACTIVITY_STORE) || "null");
             if (!raw || !Array.isArray(raw.events) || !raw.events.length) return false;
             activityRows = pruneActivity(raw.events);
+            activityRows = tidyActivity(activityRows);
             activityLastKey = raw.lastKey || (activityRows[0] ? activityRecordKey(activityRows[0]) : "");
             activityChecksumLocal = raw.checksum || activityChecksum(activityRows);
             renderActivity();
@@ -758,7 +851,7 @@
             }
             return true;
         });
-        activityRows = added.concat(activityRows);
+        activityRows = tidyActivity(added.concat(activityRows));
         saveActivityStore();
         return "insert";
     }
@@ -766,9 +859,10 @@
     function activityLine(r) {
         var text = String(r.activity || r.title || "").replace(/\s+/g, " ").trim();
         var who = String(r.actor || "").trim();
-        if (who && text.toLowerCase().indexOf(who.toLowerCase()) === -1) {
-            text += " · " + who;
-        }
+        var via = String(r.via || "").trim();
+        if (r.tab === "areas" && who && !via) via = "Remote";
+        if (who && text.toLowerCase().indexOf(who.toLowerCase()) === -1) text += " · " + who;
+        if (via && text.toLowerCase().indexOf(via.toLowerCase()) === -1) text += " · " + via;
         return text;
     }
 
@@ -836,8 +930,8 @@
         var incoming = Array.isArray(data.events) ? data.events : [];
         var key = data.lastKey || (incoming[0] ? activityRecordKey(incoming[0]) : "");
         setActivityPower(data.power || ((window.arialDevice || {}).arialPower));
-        if (!activityRows.length) {
-            activityRows = pruneActivity(incoming.slice());
+            if (!activityRows.length) {
+                activityRows = tidyActivity(pruneActivity(incoming.slice()));
             activityLastKey = key;
             activityChecksumLocal = data.checksum || activityChecksum(activityRows);
             saveActivityStore();
@@ -1612,6 +1706,7 @@
             return;
         }
         armPending = true;
+        armSettled = false;
         exitCountStarted = false;
         pendingExitUntil = 0;
         armWaitSince = 0;
@@ -1619,12 +1714,12 @@
         exitClockFromApi = false;
         disarmPending = false;
         disarmNeedsStatus = false;
-        exitIntroUntil = Date.now() + 20000;
+        startLocalExit(exitDelaySecs(window.arialDevice));
         persistExit();
-        showArming(0);
+        showArming(localExitLeft());
         unlockAudio();
         tone(1600, 0.14, 0.55);
-        prependActivity("COUNTDOWN");
+        maybeExitBeeps();
         sendLiveAction("area-arm").then(function (ok) {
             if (!ok) {
                 clearLocalExit();
@@ -1632,12 +1727,8 @@
                 return;
             }
             var apiCd = deviceCountdown(window.arialDevice);
-            var delay = exitDelaySecs(window.arialDevice);
-            if (apiCd > 10) {
-                exitClockFromApi = true;
-                startLocalExit(apiCd);
-            } else if (!exitCountStarted) startLocalExit(delay);
-            showArming(remainingExit(window.arialDevice) || localExitLeft());
+            if (apiCd > 10) syncLocalExitFromApi(apiCd);
+            showArming(localExitLeft());
             maybeExitBeeps();
         });
     }
@@ -1799,6 +1890,10 @@
     } catch (e) {}
 
     try {
+        if (storeGet("arialArmSettled") === "1") {
+            armSettled = true;
+            holdSystemArmed();
+        } else {
         var until = Number(storeGet("arialExitUntil") || 0);
         var pending = storeGet("arialArmPending") === "1";
         exitCountStarted = storeGet("arialExitStarted") === "1";
@@ -1812,14 +1907,12 @@
             startExitBeeps();
             kickExitAudio();
         } else if (pending && until && until <= Date.now() && until > Date.now() - 8000) {
-            armPending = true;
-            exitCountStarted = true;
-            pendingExitUntil = until;
-            showArmed();
+            settleArm();
         } else if (pending && !exitCountStarted) {
             armPending = true;
-            exitIntroUntil = Date.now() + 20000;
-            showArming(0);
+            startLocalExit(EXIT_DEFAULT);
+            showArming(localExitLeft());
+        }
         }
     } catch (e2) {}
 
@@ -1844,9 +1937,13 @@
     setInterval(syncArmToggle, 400);
     setInterval(function () {
         if (disarmPending) return;
-        if (armPending && exitCountStarted && localExitLeft() === 0) return;
+        if (armSettled) return;
+        if (armPending && exitCountStarted && localExitLeft() === 0) {
+            settleArm();
+            return;
+        }
         maybeExitBeeps();
         if (!(armPending || localExitLeft() > 0 || panelIsExiting(window.arialDevice))) return;
-        showArming(remainingExit(window.arialDevice) || localExitLeft());
+        showArming(localExitLeft());
     }, 250);
 })();
