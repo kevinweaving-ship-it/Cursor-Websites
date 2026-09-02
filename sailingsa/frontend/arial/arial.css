@@ -11,6 +11,22 @@ html, body {
     font-display: swap;
 }
 
+@font-face {
+    font-family: "DSEG7 Classic";
+    src: url("/arial/fonts/dseg7-classic-bold.woff2") format("woff2");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "DSEG14 Classic";
+    src: url("/arial/fonts/dseg14-classic-bold.woff2") format("woff2");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
 .logo {
     display: none;
 }
@@ -139,7 +155,14 @@ html, body {
 }
 
 .lcd.armed #lcd-2 {
-    animation: lcdTextFlash 2.4s step-end infinite;
+    font-family: "DSEG7 Classic", "DSEG14 Classic", monospace;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.06em;
+    text-shadow:
+        0 0 4px rgba(255, 255, 255, 0.95),
+        0 0 10px rgba(255, 255, 255, 0.4);
+    animation: lcdTextFlashSlow 3.2s step-end infinite;
 }
 
 .lcd.arming #lcd-2 {
@@ -155,6 +178,10 @@ html, body {
 }
 
 @keyframes lcdTextFlash {
+    50% { opacity: 0; }
+}
+
+@keyframes lcdTextFlashSlow {
     50% { opacity: 0; }
 }
 

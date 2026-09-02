@@ -203,6 +203,9 @@ def test_lcd_status_text_is_bold():
     assert "font-size: 32px;" in block
     assert "text-transform: uppercase;" in block
     assert "lcdTextFlash" in css
+    assert "lcdTextFlashSlow" in css
+    assert '"DSEG7 Classic"' in css
+    assert ".lcd.armed #lcd-2" in css
     assert "lcdArmedSlow" not in css
     assert "lcdReadyFlash" not in css
     assert "animation: lcdflash" not in css
