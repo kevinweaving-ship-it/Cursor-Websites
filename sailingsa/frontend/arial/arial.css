@@ -9,8 +9,8 @@ html, body {
 
 .pad-wrap {
     position: relative;
-    width: 100%;
-    max-width: 420px;
+    width: 90%;
+    max-width: 378px;
     margin: 16px auto 0;
 }
 
