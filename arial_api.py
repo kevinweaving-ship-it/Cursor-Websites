@@ -88,6 +88,7 @@ HANSEKOP_ID = "0bb544db-30b0-453d-bf39-d323538ebd5e"
 KEYPAD_CODES = {
     "7302": {"name": "Marc", "from": "Pingoa"},
     "7102": {"name": "Amoroc", "from": "Amoroc"},
+    "7777": {"name": "Onguard", "from": "Onguard"},
 }
 
 # Tuya OpenAPI — TUYS keypad UI stays paused until tuya_probe() returns ok.
@@ -844,6 +845,8 @@ def _map_our_actor(raw: str) -> str:
         return "Pingoa"
     if "amoroc" in s:
         return "Amoroc"
+    if "onguard" in s:
+        return "Onguard"
     return ""
 
 
@@ -926,7 +929,7 @@ def _remember_keypad(code: str, cmd: str) -> dict[str, Any]:
 
 
 def _arial_event_actor(tab: str, event: dict[str, Any], device: dict[str, Any] | None) -> str:
-    """Credit the logged-in keypad user (Pingoa / Amoroc). Never Olarm userFullname."""
+    """Credit the logged-in keypad user (Pingoa / Amoroc / Onguard). Never Olarm userFullname."""
     if tab != "areas":
         return ""
     _load_keypad_log()
@@ -979,7 +982,7 @@ def _arial_event_actor(tab: str, event: dict[str, Any], device: dict[str, Any] |
         label = _map_our_actor(str(best.get("from") or best.get("label") or best.get("name") or ""))
         if not label:
             label = str(best.get("from") or best.get("label") or "").strip()
-        if label in {"Pingoa", "Amoroc"}:
+        if label in {"Pingoa", "Amoroc", "Onguard"}:
             return label
     return _map_our_actor(
         str(event.get("userFullname") or event.get("userName") or event.get("user") or "")
@@ -1035,7 +1038,7 @@ def _stamp_activity_actors(bundle: dict[str, Any] | None) -> dict[str, Any]:
         if matched:
             continue
         actor = _map_our_actor(str(rec.get("from") or rec.get("label") or ""))
-        if actor not in {"Pingoa", "Amoroc"}:
+        if actor not in {"Pingoa", "Amoroc", "Onguard"}:
             continue
         label = str(rec.get("area") or "").strip() or _hansekop_area_label()
         state_lab = _event_state_label(state)

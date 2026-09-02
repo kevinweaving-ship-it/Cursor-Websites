@@ -461,6 +461,32 @@ def test_keypad_who_survives_api_worker_restart(tmp_path, monkeypatch):
     assert "Pingoa" in bundle["events"][0]["activity"]
 
 
+def test_onguard_pin_7777_and_logo(tmp_path, monkeypatch):
+    root = Path(__file__).resolve().parent
+    assert (root / "users" / "onguard.png").is_file()
+    js = (root / "app.js").read_text(encoding="utf-8")
+    assert '"7777"' in js
+    assert "/arial/users/onguard.png" in js
+    assert 'from: "Onguard"' in js
+    _reset_keypad_log(monkeypatch, tmp_path)
+    actor = arial_api._remember_keypad("7777", "area-disarm")
+    assert actor["from"] == "Onguard"
+    row = arial_api.format_olarm_event(
+        {
+            "eventAction": "area",
+            "eventState": "disarm",
+            "eventNum": 1,
+            "eventMsg": "DISARMED - Area 1 - Facility Building",
+            "eventTime": int(actor["at"] * 1000) + 8_000,
+            "userFullname": "Kevin",
+        },
+        {"arialAreas": [{"num": 1, "label": "Facility Building"}]},
+    )
+    assert row["actor"] == "Onguard"
+    assert "Onguard" in row["activity"]
+    assert "Kevin" not in row["activity"]
+
+
 def test_olarm_poll_acks_until_newer_record(tmp_path, monkeypatch):
     _reset_keypad_log(monkeypatch, tmp_path)
     arial_api._activity_cache = {"at": 0.0, "data": None, "last_key": ""}
@@ -518,7 +544,7 @@ def test_activity_keeps_30_day_store_and_checksums_on_login():
     assert 'prependActivity("DISARMED")' in js
     assert "setInterval(loadActivity, 3000)" in js
     assert "restoreActivityStore();" in js
-    assert "app.js?v=171" in html
+    assert "app.js?v=172" in html
 
 
 def test_status_label_under_status_led():

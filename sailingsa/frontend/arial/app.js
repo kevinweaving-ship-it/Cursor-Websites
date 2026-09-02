@@ -955,12 +955,14 @@
     var lcdHold = null;
     var CODES = {
         "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png?v=43", code: "7302" },
-        "7102": { name: "Amoroc", from: "Amoroc", logo: "/arial/users/amoroc.png?v=43", code: "7102" }
+        "7102": { name: "Amoroc", from: "Amoroc", logo: "/arial/users/amoroc.png?v=43", code: "7102" },
+        "7777": { name: "Onguard", from: "Onguard", logo: "/arial/users/onguard.png?v=1", code: "7777" }
     };
 
     function resolvedUser(user) {
         if (!user) return null;
         if (user.code && CODES[user.code]) return CODES[user.code];
+        if (/onguard/i.test(String(user.name || user.from || user.logo || ""))) return CODES["7777"];
         if (/aerial/i.test(String(user.logo || user.name || ""))) return CODES["7102"];
         if (/amoroc/i.test(String(user.name || user.from || user.logo || ""))) return CODES["7102"];
         return user;
@@ -1780,6 +1782,7 @@
         var saved = JSON.parse(localStorage.getItem("arialUser") || "null");
         if (!saved) saved = JSON.parse(sessionStorage.getItem("arialUser") || "null");
         if (saved) {
+            if (/onguard/i.test(String(saved.name || saved.from || saved.logo || ""))) saved.code = "7777";
             if (!saved.code && /aerial/i.test(String(saved.logo || saved.name || ""))) saved.code = "7102";
             if (/aerial/i.test(String(saved.logo || ""))) saved.code = saved.code || "7102";
             if (!saved.code && saved.name === "Marc") saved.code = "7302";
