@@ -1248,6 +1248,7 @@ def _live_state_save() -> None:
             "panel": panel if isinstance(panel, dict) else None,
             "events": _olarm_store_rows(),
             "lastKey": str(_activity_cache.get("last_key") or ""),
+            "owner": {"pid": os.getpid(), "loop": dict(_live_debug), "backfill": dict(_olarm_backfill_info)},
         }
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -1279,6 +1280,8 @@ def _live_state_load(force: bool = False) -> bool:
     _live_state_mtime = mtime
     if not isinstance(data, dict):
         return False
+    if isinstance(data.get("owner"), dict):
+        _live_debug["owner"] = data["owner"]
     panel = data.get("panel")
     if isinstance(panel, dict):
         _cached_panel(panel)
@@ -1324,8 +1327,7 @@ def _ensure_live_session() -> None:
         _live_stop.clear()
         if _try_live_owner():
             _live_role = "owner"
-            _live_state_load(force=True)  # inherit history from the previous owner
-            target = _olarm_live_loop
+            target = _olarm_owner_thread
         else:
             _live_role = "follower"
             target = _live_follow_loop
@@ -1333,19 +1335,31 @@ def _ensure_live_session() -> None:
         _live_thread.start()
 
 
+def _olarm_owner_thread() -> None:
+    # Never call this while holding _lock: _live_state_load -> _cached_panel takes _lock itself.
+    try:
+        _live_state_load(force=True)  # inherit history from the previous owner
+    except Exception as exc:
+        _live_debug["inheritError"] = f"{exc.__class__.__name__}: {exc}"
+    _olarm_live_loop()
+
+
 def _live_follow_loop() -> None:
-    _live_state_load(force=True)
+    global _live_role
+    try:
+        _live_state_load(force=True)
+    except Exception:
+        pass
     while not _live_stop.wait(0.5):
         try:
             if _live_owner_lockf is None and _try_live_owner():
                 # Previous owner died; take over from where its snapshot left off.
-                global _live_role
                 _live_role = "owner"
-                _live_state_load(force=True)
-                _olarm_live_loop()
+                _olarm_owner_thread()
                 return
             _live_state_load()
-        except Exception:
+        except Exception as exc:
+            _live_debug["followError"] = f"{exc.__class__.__name__}: {exc}"
             continue
 
 
