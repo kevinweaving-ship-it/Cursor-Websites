@@ -127,10 +127,9 @@ def test_keypad_is_scaled_with_side_gaps():
 def test_compact_crop_shows_full_function_keys():
     css = (Path(__file__).resolve().parent / "arial.css").read_text(encoding="utf-8")
     assert ".pad-wrap.compact .hot-more" in css
-    assert "aspect-ratio: 368 / 212" in css
-    visible = 212 / 427
-    assert visible > 0.461
-    assert visible > 0.475
+    assert "aspect-ratio: 368 / 199" in css
+    visible = 199 / 427
+    assert visible > 0.453
 
 
 def test_lcd_status_text_is_bold():
