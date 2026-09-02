@@ -643,6 +643,10 @@
             clearTimeout(el._logo);
             el._logo = null;
         }
+        if (el._status) {
+            clearTimeout(el._status);
+            el._status = null;
+        }
         el.classList.remove("credits", "credit-out", "credit-across");
         el.style.opacity = "";
         el.style.transform = "";
@@ -650,7 +654,10 @@
         el.style.transition = "";
         el.style.removeProperty("--welcome-x");
         var lcd = document.querySelector(".lcd");
-        if (lcd) lcd.classList.remove("credits-playing");
+        if (lcd) {
+            lcd.classList.remove("credits-playing");
+            lcd.classList.remove("hero-credits");
+        }
     }
 
     function rollText(el, text) {
@@ -676,6 +683,7 @@
         var lcd = document.querySelector(".lcd");
         if (lcd) {
             lcd.classList.add("credits-playing");
+            lcd.classList.add("hero-credits");
             lcd.classList.remove("logo-in");
         }
         function revealLogo() {
@@ -684,6 +692,30 @@
             lcd.classList.remove("logo-in");
             void lcd.offsetWidth;
             lcd.classList.add("logo-in");
+            var img = document.getElementById("lcd-user-logo");
+            var shown = false;
+            function showStatus() {
+                if (shown) return;
+                shown = true;
+                lcd.classList.remove("hero-credits");
+                fitLcdStatus();
+            }
+            function afterLogo() {
+                if (el._status) clearTimeout(el._status);
+                el._status = setTimeout(function () {
+                    el._status = null;
+                    showStatus();
+                }, 500);
+            }
+            if (img) {
+                img.addEventListener("animationend", function onEnd(ev) {
+                    if (ev.animationName && ev.animationName.indexOf("logoRollIn") === -1) return;
+                    img.removeEventListener("animationend", onEnd);
+                    afterLogo();
+                });
+            }
+            if (el._status) clearTimeout(el._status);
+            el._status = setTimeout(afterLogo, 1600);
         }
         el.classList.add("credits");
         el.classList.remove("credit-out", "credit-across");

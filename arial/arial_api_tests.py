@@ -131,6 +131,9 @@ def test_welcome_credits_roll_and_fade():
     assert "inset(0 0 0 100%)" in css
     assert "}, 220)" in js
     assert "credits-playing" in js
+    assert "hero-credits" in js
+    assert "hero-credits" in css
+    assert ", 500)" in js
     assert "logo-in" in js
 
 

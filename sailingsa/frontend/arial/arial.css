@@ -323,6 +323,11 @@ html, body {
     opacity: 0;
 }
 
+.lcd.hero-credits #lcd-2 {
+    opacity: 0;
+    visibility: hidden;
+}
+
 .lcd.logged-in.logo-in #lcd-user-logo {
     animation: logoRollIn 1.5s ease-out forwards;
 }
