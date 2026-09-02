@@ -231,6 +231,9 @@ def test_status_label_under_status_led():
     assert 'class="led-status-label">Status</div>' in html
     assert ".led-status-label" in css
     assert "font-weight: 900;" in css.split(".led-status-label {", 1)[1].split("}", 1)[0]
+    assert "animation: none;" in css.split(".lcd.armed ~ .led.status,\n.led.status.armed {", 1)[1].split("}", 1)[0]
+    assert "ledAlarmSwap" in css
+    assert 'setLed(document.getElementById("led-status"), "alarm")' in (root / "app.js").read_text(encoding="utf-8")
 
 
 def test_ac_led_is_blue_under_status_led():

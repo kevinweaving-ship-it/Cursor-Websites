@@ -361,7 +361,7 @@
         }
         lcd.classList.remove("login-error");
         if (disarmPending && isLoggedIn()) {
-            lcd.classList.remove("arming", "armed", "arming-fast", "zone-open");
+            lcd.classList.remove("arming", "armed", "arming-fast", "zone-open", "alarm");
             lcd.classList.add("disarmed", "hold-disarmed");
             syncArmToggle();
             fitLcdStatus();
@@ -369,12 +369,14 @@
         }
         lcd.classList.remove("hold-disarmed");
         var st = areaState(device);
+        var alarm = isAlarmState(st);
         var arming = stillExiting(device) || (armPending && (localExitLeft() > 0 || !exitCountStarted));
-        var armed = !arming && isArmedState(st);
-        var zoneOpen = !arming && !armed && openZoneIssues(device).length > 0;
-        var disarmed = !arming && !armed && (st === "disarm" || st === "notready" || !st);
+        var armed = !arming && !alarm && isArmedState(st);
+        var zoneOpen = !arming && !armed && !alarm && openZoneIssues(device).length > 0;
+        var disarmed = !arming && !armed && !alarm && (st === "disarm" || st === "notready" || !st);
         lcd.classList.toggle("arming", arming);
         lcd.classList.toggle("armed", armed);
+        lcd.classList.toggle("alarm", alarm);
         lcd.classList.toggle("disarmed", disarmed);
         lcd.classList.toggle("zone-open", zoneOpen);
         if (!arming) lcd.classList.remove("arming-fast");
@@ -466,7 +468,7 @@
             stopIssueCycle();
             setLcdStatus("ALARM", "");
             applyLcd(device);
-            setLed(document.getElementById("led-status"), "armed flash-fast");
+            setLed(document.getElementById("led-status"), "alarm");
             return;
         }
         if (disarmPending && !isLoggedIn()) {
@@ -836,7 +838,7 @@
         setLcdStatus("System Armed", "");
         var lcd = document.querySelector(".lcd");
         if (lcd) {
-            lcd.classList.remove("disarmed", "arming", "arming-fast", "zone-open", "hold-disarmed");
+            lcd.classList.remove("disarmed", "arming", "arming-fast", "zone-open", "hold-disarmed", "alarm");
             lcd.classList.add("armed");
         }
         setLed(document.getElementById("led-status"), "armed");
@@ -1116,7 +1118,7 @@
         if (ensureIssueCycle()) {
             var lcdBusy = document.querySelector(".lcd");
             if (lcdBusy) {
-                lcdBusy.classList.remove("armed", "arming", "arming-fast", "hold-disarmed");
+                lcdBusy.classList.remove("armed", "arming", "arming-fast", "hold-disarmed", "alarm");
                 lcdBusy.classList.add("disarmed", "zone-open");
             }
             setLed(document.getElementById("led-status"), "disarmed flash");
@@ -1127,7 +1129,7 @@
         setLcdStatus("System Ready", "");
         var lcd = document.querySelector(".lcd");
         if (lcd) {
-            lcd.classList.remove("armed", "arming", "arming-fast", "zone-open", "hold-disarmed");
+            lcd.classList.remove("armed", "arming", "arming-fast", "zone-open", "hold-disarmed", "alarm");
             lcd.classList.add("disarmed");
         }
         setLed(document.getElementById("led-status"), "disarmed");
@@ -1303,11 +1305,13 @@
         stopIssueCycle();
         setLcdStatus("System Disarmed", "");
         var lcd = document.querySelector(".lcd");
+        var flash = openZoneIssues(window.arialDevice).length > 0;
         if (lcd) {
-            lcd.classList.remove("armed", "arming", "arming-fast", "zone-open", "login-error");
+            lcd.classList.remove("armed", "arming", "arming-fast", "login-error", "alarm");
             lcd.classList.add("disarmed", "hold-disarmed");
+            lcd.classList.toggle("zone-open", flash);
         }
-        setLed(document.getElementById("led-status"), "disarmed flash");
+        setLed(document.getElementById("led-status"), flash ? "disarmed flash" : "disarmed");
         syncArmToggle();
         fitLcdStatus();
     }

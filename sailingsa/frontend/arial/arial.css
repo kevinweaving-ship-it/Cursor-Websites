@@ -520,7 +520,14 @@ html, body {
 .led.status.armed {
     --led-fill: #e20b0b;
     --led-edge: #9a0000;
-    animation: ledflash 1.8s step-end infinite;
+    animation: none;
+}
+
+.lcd.alarm ~ .led.status,
+.led.status.alarm {
+    --led-fill: #e20b0b;
+    --led-edge: #9a0000;
+    animation: ledAlarmSwap 0.5s step-end infinite;
 }
 
 .lcd.arming ~ .led.status,
@@ -540,26 +547,29 @@ html, body {
 .led.status.disarmed {
     --led-fill: #12c01a;
     --led-edge: #0a8a10;
-}
-
-.lcd.disarmed:not(.zone-open) ~ .led.status,
-.lcd.disarmed:not(.zone-open) ~ .led.status.flash {
     animation: none;
 }
 
-.lcd.disarmed.zone-open ~ .led.status {
+.lcd.disarmed.zone-open ~ .led.status,
+.led.status.disarmed.flash {
+    --led-fill: #12c01a;
+    --led-edge: #0a8a10;
     animation: ledflash 0.7s step-end infinite;
 }
 
-.led.status.flash,
 .led.ac.flash {
     animation: ledflash 0.7s step-end infinite;
 }
 
-.led.status.flash-fast,
-.lcd.armed ~ .led.status.flash-fast,
-.led.status.armed.flash-fast {
-    animation: ledflash 0.28s step-end infinite;
+@keyframes ledAlarmSwap {
+    0%, 49% {
+        background: #e20b0b;
+        border-color: #9a0000;
+    }
+    50%, 100% {
+        background: #12c01a;
+        border-color: #0a8a10;
+    }
 }
 
 @keyframes ledflash {
