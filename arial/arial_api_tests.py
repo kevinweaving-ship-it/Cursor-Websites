@@ -120,6 +120,10 @@ def test_arm_disarm_pending_and_thirty_second_exit():
     assert "disarmNeedsStatus" in js
     assert "hold-disarmed" in js
     assert 'setWelcome("Login", 2200)' in js
+    assert 'setLcdStatus("Login", "");' in js
+    assert "function rejectNeedLogin()" in js
+    assert "loginErrorUntil" in js
+    assert "login-error" in js
     assert "function startExitBeeps()" in js
     assert "exitIntroUntil" in js
     assert "Date.now() + 1200" in js

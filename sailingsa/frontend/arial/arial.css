@@ -198,6 +198,16 @@ html, body {
     animation: none !important;
 }
 
+.lcd.login-error {
+    background: #7a0000;
+    color: #fff;
+}
+
+.lcd.login-error #lcd-2,
+.lcd.login-error #lcd-status-main {
+    animation: lcdTextFlash 0.22s step-end infinite;
+}
+
 @keyframes lcdTextFlash {
     50% { opacity: 0; }
 }
