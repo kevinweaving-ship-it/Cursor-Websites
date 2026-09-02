@@ -450,14 +450,14 @@ html, body {
     border-top: 9px solid #153e7a;
 }
 
-.hot[data-key="STAY"] { left: 19.9%; top: 38.1%; width: 13.1%; height: 7.2%; }
-.hot[data-key="FORCE"] { left: 34.8%; top: 38.1%; width: 13.1%; height: 7.2%; }
-.hot[data-key="ARM"] { left: 49.7%; top: 38.1%; width: 13.1%; height: 7.2%; }
-.hot[data-key="TOGGLE"] { left: 64.6%; top: 38.1%; width: 13.1%; height: 7.2%; }
-.hot[data-key="BYP"] { left: 19.9%; top: 46.3%; width: 13.1%; height: 7.2%; }
-.hot[data-key="MEM"] { left: 34.8%; top: 46.3%; width: 13.1%; height: 7.2%; }
-.hot[data-key="TBL"] { left: 49.7%; top: 46.3%; width: 13.1%; height: 7.2%; }
-.hot[data-key="ACC"] { left: 64.6%; top: 46.3%; width: 13.1%; height: 7.2%; }
+.hot[data-key="STAY"] { left: 19.9%; top: 39.0%; width: 13.1%; height: 7.1%; }
+.hot[data-key="FORCE"] { left: 34.8%; top: 39.0%; width: 13.1%; height: 7.1%; }
+.hot[data-key="ARM"] { left: 49.7%; top: 39.0%; width: 13.1%; height: 7.1%; }
+.hot[data-key="TOGGLE"] { left: 64.6%; top: 39.0%; width: 13.1%; height: 7.1%; }
+.hot[data-key="BYP"] { left: 19.9%; top: 46.9%; width: 13.1%; height: 7.1%; }
+.hot[data-key="MEM"] { left: 34.8%; top: 46.9%; width: 13.1%; height: 7.1%; }
+.hot[data-key="TBL"] { left: 49.7%; top: 46.9%; width: 13.1%; height: 7.1%; }
+.hot[data-key="ACC"] { left: 64.6%; top: 46.9%; width: 13.1%; height: 7.1%; }
 .pad-wrap.compact .hot[data-key="UP"] {
     display: flex;
 }
@@ -465,26 +465,26 @@ html, body {
 .hot[data-key="UP"] {
     display: none;
     left: 84.2%;
-    top: 38.1%;
+    top: 39.0%;
     width: 9.4%;
-    height: 7.2%;
+    height: 7.1%;
     background: linear-gradient(180deg, #c4b5fd 0%, #7c3aed 52%, #5b21b6 100%);
     border-color: #4c1d95;
     color: #fff;
 }
-.hot[data-key="DOWN"] { left: 84.2%; top: 46.3%; width: 9.4%; height: 7.2%; }
-.hot[data-key="1"] { left: 19.9%; top: 54.3%; width: 17.8%; height: 7.6%; }
-.hot[data-key="2"] { left: 39.9%; top: 54.3%; width: 17.8%; height: 7.6%; }
-.hot[data-key="3"] { left: 59.9%; top: 54.3%; width: 17.8%; height: 7.6%; }
-.hot[data-key="4"] { left: 19.9%; top: 62.7%; width: 17.8%; height: 7.6%; }
-.hot[data-key="5"] { left: 39.9%; top: 62.7%; width: 17.8%; height: 7.6%; }
-.hot[data-key="6"] { left: 59.9%; top: 62.7%; width: 17.8%; height: 7.6%; }
-.hot[data-key="7"] { left: 19.9%; top: 70.7%; width: 17.8%; height: 7.6%; }
-.hot[data-key="8"] { left: 39.9%; top: 70.7%; width: 17.8%; height: 7.6%; }
-.hot[data-key="9"] { left: 59.9%; top: 70.7%; width: 17.8%; height: 7.6%; }
-.hot[data-key="CLEAR"] { left: 19.9%; top: 79.1%; width: 17.8%; height: 8.0%; font-size: 9px; }
-.hot[data-key="0"] { left: 39.9%; top: 79.1%; width: 17.8%; height: 8.0%; }
-.hot[data-key="ENTER"] { left: 59.9%; top: 79.1%; width: 17.8%; height: 8.0%; font-size: 9px; }
+.hot[data-key="DOWN"] { left: 84.2%; top: 46.9%; width: 9.4%; height: 7.1%; }
+.hot[data-key="1"] { left: 19.9%; top: 54.8%; width: 17.8%; height: 7.1%; }
+.hot[data-key="2"] { left: 39.9%; top: 54.8%; width: 17.8%; height: 7.1%; }
+.hot[data-key="3"] { left: 59.9%; top: 54.8%; width: 17.8%; height: 7.1%; }
+.hot[data-key="4"] { left: 19.9%; top: 62.7%; width: 17.8%; height: 7.1%; }
+.hot[data-key="5"] { left: 39.9%; top: 62.7%; width: 17.8%; height: 7.1%; }
+.hot[data-key="6"] { left: 59.9%; top: 62.7%; width: 17.8%; height: 7.1%; }
+.hot[data-key="7"] { left: 19.9%; top: 70.6%; width: 17.8%; height: 7.1%; }
+.hot[data-key="8"] { left: 39.9%; top: 70.6%; width: 17.8%; height: 7.1%; }
+.hot[data-key="9"] { left: 59.9%; top: 70.6%; width: 17.8%; height: 7.1%; }
+.hot[data-key="CLEAR"] { left: 19.9%; top: 78.5%; width: 17.8%; height: 7.1%; font-size: 9px; }
+.hot[data-key="0"] { left: 39.9%; top: 78.5%; width: 17.8%; height: 7.1%; }
+.hot[data-key="ENTER"] { left: 59.9%; top: 78.5%; width: 17.8%; height: 7.1%; font-size: 9px; }
 
 .sublab {
     position: absolute;
@@ -499,10 +499,10 @@ html, body {
     line-height: 1;
 }
 
-.sublab-areas { left: 19.9%; top: 52.7%; width: 57.8%; }
-.sublab-instant { left: 39.9%; top: 61.3%; width: 17.8%; }
-.sublab-display { left: 59.9%; top: 61.3%; width: 17.8%; }
-.sublab-event { left: 19.9%; top: 69.3%; width: 17.8%; }
-.sublab-test { left: 39.9%; top: 69.3%; width: 17.8%; }
-.sublab-chime { left: 59.9%; top: 69.3%; width: 17.8%; }
-.sublab-prg { left: 39.9%; top: 77.5%; width: 17.8%; }
+.sublab-areas { left: 19.9%; top: 53.2%; width: 57.8%; }
+.sublab-instant { left: 39.9%; top: 61.2%; width: 17.8%; }
+.sublab-display { left: 59.9%; top: 61.2%; width: 17.8%; }
+.sublab-event { left: 19.9%; top: 69.1%; width: 17.8%; }
+.sublab-test { left: 39.9%; top: 69.1%; width: 17.8%; }
+.sublab-chime { left: 59.9%; top: 69.1%; width: 17.8%; }
+.sublab-prg { left: 39.9%; top: 77.0%; width: 17.8%; }
