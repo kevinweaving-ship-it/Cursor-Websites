@@ -29,7 +29,7 @@ html, body {
 .pad-wrap.compact .pad-clip {
     position: relative;
     overflow: hidden;
-    aspect-ratio: 368 / 193;
+    aspect-ratio: 368 / 212;
 }
 
 .pad-wrap.compact .hot-more,

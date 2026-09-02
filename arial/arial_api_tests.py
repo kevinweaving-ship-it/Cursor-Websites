@@ -108,6 +108,15 @@ def test_panel_cache_ttl(monkeypatch):
     assert arial_api._cached_panel() is None
 
 
+def test_compact_crop_shows_full_function_keys():
+    css = (Path(__file__).resolve().parent / "arial.css").read_text(encoding="utf-8")
+    assert ".pad-wrap.compact .hot-more" in css
+    assert "aspect-ratio: 368 / 212" in css
+    visible = 212 / 427
+    assert visible > 0.461
+    assert visible > 0.475
+
+
 def test_lcd_status_text_is_bold():
     css = (Path(__file__).resolve().parent / "arial.css").read_text(encoding="utf-8")
     assert "#lcd-2 {\n    text-align: right;\n    width: 100%;\n    font-weight: 900;" in css
