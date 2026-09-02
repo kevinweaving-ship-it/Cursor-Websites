@@ -113,7 +113,9 @@ def test_housing_sides_inset_toward_leds():
     assert "L19 372" in html
     assert "L6 372" not in html
     assert 'x="64"' in html
-    assert 'left: 6.0%' in (Path(__file__).resolve().parent / "arial.css").read_text(encoding="utf-8")
+    assert "left: 12.6%;" in (Path(__file__).resolve().parent / "arial.css").read_text(encoding="utf-8")
+    assert "width: 74.8%;" in (Path(__file__).resolve().parent / "arial.css").read_text(encoding="utf-8")
+    assert "height: 17.47%;" in (Path(__file__).resolve().parent / "arial.css").read_text(encoding="utf-8")
 
 
 def test_keypad_is_scaled_with_side_gaps():
