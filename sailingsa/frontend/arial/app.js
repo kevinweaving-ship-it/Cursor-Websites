@@ -1345,12 +1345,18 @@
         var tw = tip.offsetWidth;
         if (x - tw / 2 < 0) x = tw / 2;
         if (x + tw / 2 > rect.width) x = rect.width - tw / 2;
-        var max = 0;
-        for (j = 0; j < 24; j += 1) if (day.hours[j] != null && day.hours[j] > max) max = day.hours[j];
+        var max = breakerDaysMax();
         var y = 60;
         if (val != null && max > 0) y = 60 - (val / max) * 56;
         tip.style.left = x + "px";
         tip.style.top = Math.max(y - 4, 14) + "px";
+    }
+
+    // Fixed chart ceiling: the 10 A supply limit at 230 V is 2.3 kW, so 2.3 kWh is the most any hour can hold.
+    var BREAKER_HOUR_MAX_KWH = 2.3;
+
+    function breakerDaysMax() {
+        return BREAKER_HOUR_MAX_KWH;
     }
 
     function breakerAvgKwh(day) {

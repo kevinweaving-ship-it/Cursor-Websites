@@ -1352,15 +1352,11 @@
         tip.style.top = Math.max(y - 4, 14) + "px";
     }
 
+    // Fixed chart ceiling: the 10 A supply limit at 230 V is 2.3 kW, so 2.3 kWh is the most any hour can hold.
+    var BREAKER_HOUR_MAX_KWH = 2.3;
+
     function breakerDaysMax() {
-        // One scale for every day so a quiet day never looks as tall as a busy one.
-        var max = 0;
-        var d, i;
-        for (d = 0; d < breakerDays.length; d += 1) {
-            var hours = breakerDays[d] && Array.isArray(breakerDays[d].hours) ? breakerDays[d].hours : [];
-            for (i = 0; i < hours.length; i += 1) if (hours[i] != null && hours[i] > max) max = hours[i];
-        }
-        return max;
+        return BREAKER_HOUR_MAX_KWH;
     }
 
     function breakerAvgKwh(day) {
@@ -1421,6 +1417,18 @@
         base.setAttribute("x1", "0"); base.setAttribute("x2", "320");
         base.setAttribute("y1", "59.5"); base.setAttribute("y2", "59.5");
         svg.appendChild(base);
+        var cap = document.createElementNS(ns, "line");
+        cap.setAttribute("class", "cap");
+        cap.setAttribute("x1", "0"); cap.setAttribute("x2", "320");
+        cap.setAttribute("y1", "3"); cap.setAttribute("y2", "3");
+        svg.appendChild(cap);
+        var capLabel = document.createElementNS(ns, "text");
+        capLabel.setAttribute("class", "cap-label");
+        capLabel.setAttribute("x", "318");
+        capLabel.setAttribute("y", "10");
+        capLabel.setAttribute("text-anchor", "end");
+        capLabel.textContent = "MAX 10 A · " + BREAKER_HOUR_MAX_KWH.toFixed(1) + " kWh";
+        svg.appendChild(capLabel);
         var nowHour = Number(new Date().toLocaleString("en-GB", { timeZone: "Africa/Johannesburg", hour: "2-digit", hour12: false }).slice(0, 2));
         var avg = breakerAvgKwh(day);
         var slotW = 320 / 24;
@@ -1435,7 +1443,7 @@
             svg.appendChild(slot);
             var v = hours[i];
             if (v == null || !(max > 0)) continue;
-            var h = Math.max(3.5, (v / max) * 56);
+            var h = Math.max(3.5, Math.min(1, v / max) * 56);
             var bar = document.createElementNS(ns, "rect");
             var isNow = breakerDayIdx === 0 && i === nowHour;
             bar.setAttribute("class", "bar " + breakerBandClass(isNow ? null : v, avg) + (isNow ? " now" : ""));
