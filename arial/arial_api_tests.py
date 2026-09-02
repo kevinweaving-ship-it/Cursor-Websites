@@ -136,6 +136,7 @@ def test_compact_crop_shows_full_function_keys():
 def test_lcd_status_text_is_bold():
     css = (Path(__file__).resolve().parent / "arial.css").read_text(encoding="utf-8")
     assert "#lcd-2 {\n    text-align: right;\n    width: 100%;\n    font-weight: 900;" in css
+    assert "border-radius: 8px;" in css.split(".lcd {", 1)[1].split("}", 1)[0]
 
 
 def test_last_pin_digit_beeps_then_welcome_tune_waits():
