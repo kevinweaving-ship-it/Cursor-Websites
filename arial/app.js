@@ -981,10 +981,11 @@
     function breakerScale(code, value) {
         var n = Number(value);
         if (!isFinite(n)) return null;
-        if (code === "cur_voltage") return n > 1000 ? n / 100 : n > 400 ? n / 10 : n;
-        if (code === "cur_current") return n > 100 ? n / 1000 : n;
-        if (code === "cur_power") return n > 20000 ? n / 100 : n > 5000 ? n / 10 : n;
-        if (code === "add_ele") return n >= 100 ? n / 100 : n;
+        // Tuya DP spec for the GR2PWS meter: V scale 2, A scale 3, W scale 2, kWh scale 2.
+        if (code === "cur_voltage") return n / 100;
+        if (code === "cur_current") return n / 1000;
+        if (code === "cur_power") return n / 100;
+        if (code === "add_ele") return n / 100;
         return n;
     }
 

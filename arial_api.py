@@ -636,15 +636,12 @@ def _energy_save() -> None:
 
 
 def _scale_power_w(raw: Any) -> float | None:
+    """GR2PWS spec: cur_power unit W, scale 2 (always /100). Never guess from magnitude."""
     try:
         n = float(raw)
     except (TypeError, ValueError):
         return None
-    if n > 20000:
-        return n / 100.0
-    if n > 5000:
-        return n / 10.0
-    return n
+    return n / 100.0
 
 
 def _sa_hour_key(ts: float) -> str:
