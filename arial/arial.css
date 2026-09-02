@@ -200,6 +200,19 @@ html, body {
     display: block;
 }
 
+.lcd.credits-playing #lcd-user-logo {
+    opacity: 0;
+}
+
+.lcd.logged-in.logo-in #lcd-user-logo {
+    animation: logoRollIn 2.4s ease-out forwards;
+}
+
+@keyframes logoRollIn {
+    0% { opacity: 0; clip-path: inset(0 100% 0 0); }
+    100% { opacity: 1; clip-path: inset(0 0 0 0); }
+}
+
 #lcd-welcome {
     flex: 1;
     min-width: 0;
@@ -213,15 +226,18 @@ html, body {
 
 #lcd-welcome.credits {
     position: absolute;
-    left: 8px;
-    top: 52%;
+    right: 7px;
+    left: auto;
+    top: auto;
+    bottom: 10px;
     z-index: 3;
     flex: none;
-    max-width: 72%;
+    max-width: 52%;
     font-size: 34px;
     font-weight: 900;
     letter-spacing: 0.04em;
-    transform: translateY(-50%);
+    text-align: left;
+    transform: none;
     overflow: visible;
 }
 
@@ -230,8 +246,8 @@ html, body {
 }
 
 @keyframes creditScrollFade {
-    0% { opacity: 1; transform: translateY(-50%); }
-    100% { opacity: 0; transform: translateY(calc(-50% - 28px)); }
+    0% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-22px); }
 }
 
 #lcd-when {

@@ -400,6 +400,8 @@
             img.style.display = "";
             img.setAttribute("hidden", "");
             lcd.classList.remove("logged-in");
+            lcd.classList.remove("credits-playing");
+            lcd.classList.remove("logo-in");
         }
     }
 
@@ -570,6 +572,8 @@
         el.classList.remove("credits", "credit-out");
         el.style.opacity = "";
         el.style.transform = "";
+        var lcd = document.querySelector(".lcd");
+        if (lcd) lcd.classList.remove("credits-playing");
     }
 
     function rollText(el, text) {
@@ -588,11 +592,22 @@
         }, 110);
     }
 
-    function playWelcomeCredits(company) {
+    function playWelcomeCredits() {
         var el = document.getElementById("lcd-welcome");
         if (!el) return;
         stopWelcomeCredits(el);
-        var name = String(company || "").trim();
+        var lcd = document.querySelector(".lcd");
+        if (lcd) {
+            lcd.classList.add("credits-playing");
+            lcd.classList.remove("logo-in");
+        }
+        function revealLogo() {
+            if (!lcd) return;
+            lcd.classList.remove("credits-playing");
+            lcd.classList.remove("logo-in");
+            void lcd.offsetWidth;
+            lcd.classList.add("logo-in");
+        }
         function rollThenFade(word, done) {
             el.classList.add("credits");
             el.classList.remove("credit-out");
@@ -620,13 +635,9 @@
             }, 240);
         }
         rollThenFade("Welcome", function () {
-            if (!name) {
-                stopWelcomeCredits(el);
-                return;
-            }
-            rollThenFade(name, function () {
-                stopWelcomeCredits(el);
-            });
+            el.classList.remove("credits", "credit-out");
+            el.textContent = "";
+            revealLogo();
         });
     }
     var pinOkBuf = null;

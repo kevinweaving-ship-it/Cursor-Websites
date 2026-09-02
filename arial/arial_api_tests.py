@@ -116,7 +116,9 @@ def test_welcome_credits_roll_and_fade():
     assert 'rollThenFade("Welcome"' in js
     assert ", 240)" in js
     assert "creditScrollFade" in css
-    assert "font-size: 34px;" in css.split("#lcd-welcome.credits {", 1)[1].split("}", 1)[0]
+    assert "logoRollIn" in css
+    assert "credits-playing" in js
+    assert "logo-in" in js
 
 
 def test_lcd_site_date_time_stack_right():
