@@ -1156,7 +1156,14 @@ def tuya_energy(device_id: str | None = None) -> dict[str, Any]:
         out["source"] = "sampled"
         out["days"] = _energy_days_from_bins(device, now)
     out.update(_energy_analysis(device, out["days"], now))
-    out["debug"] = {"bootstrap": _energy_bootstrap_info, "logsLastError": _tuya_logs_last_error, "samplerHere": bool(_energy_thread and _energy_thread.is_alive())}
+    out["debug"] = {
+        "bootstrap": _energy_bootstrap_info,
+        "logsLastError": _tuya_logs_last_error,
+        "samplerHere": bool(_energy_thread and _energy_thread.is_alive()),
+        "olarmRole": _live_role,
+        "olarmBackfill": _olarm_backfill_info,
+        "olarmStoreRows": len(_olarm_store),
+    }
     out["ok"] = True
     return out
 
@@ -1341,10 +1348,63 @@ def _live_follow_loop() -> None:
             continue
 
 
+_OLARM_PAGE = 40  # Olarm caps pageLength at 40
+_olarm_backfill_info: dict[str, Any] = {}
+
+
+def _olarm_events_page(client: httpx.Client, until_ms: int | None = None) -> tuple[int, list[dict[str, Any]]]:
+    params: dict[str, Any] = {"pageLength": _OLARM_PAGE}
+    if until_ms:
+        params["until"] = int(until_ms)
+    resp = client.get(f"/api/v4/devices/{HANSEKOP_ID}/events", params=params)
+    if resp.status_code != 200:
+        return resp.status_code, []
+    payload = resp.json()
+    rows = payload.get("data") if isinstance(payload, dict) else []
+    return 200, [r for r in (rows or []) if isinstance(r, dict)]
+
+
+def _olarm_backfill(max_pages: int = 150, pace_s: float = 3.5, stop_when_known: bool = False) -> dict[str, Any]:
+    """Page backwards through Olarm history (until=oldest-1) into the store. Paced to stay under Olarm's rate limit."""
+    info = {"pages": 0, "added": 0, "oldest": None, "stopped": ""}
+    cutoff_ms = int((time.time() - _OLARM_STORE_DAYS * 86_400) * 1000)
+    until: int | None = None
+    for _ in range(max_pages):
+        with _olarm_http_lock:
+            client = _olarm_sync_client()
+            status, rows = _olarm_events_page(client, until)
+        if status == 429:
+            time.sleep(15.0)
+            continue
+        if status != 200 or not rows:
+            info["stopped"] = f"status {status}" if status != 200 else "no rows"
+            break
+        info["pages"] += 1
+        added = _olarm_store_add(rows)
+        info["added"] += added
+        oldest = min(_event_time_ms(r) for r in rows)
+        info["oldest"] = oldest
+        if stop_when_known and added == 0:
+            info["stopped"] = "overlap"
+            break
+        if oldest <= cutoff_ms or oldest <= 0:
+            info["stopped"] = "30 days"
+            break
+        until = oldest - 1
+        time.sleep(pace_s)
+    _rebuild_activity_cache(_stale_panel(), str(_activity_cache.get("last_key") or ""))
+    _live_state_save()
+    return info
+
+
 def _olarm_live_loop() -> None:
     last_events_at = 0.0
     last_area_sig = ""
     backoff_until = 0.0
+    try:
+        _olarm_backfill_info.update(_olarm_backfill())
+    except Exception as exc:  # keep polling even if history paging fails
+        _olarm_backfill_info["error"] = str(exc)
     while not _live_stop.wait(_LIVE_DEVICE_POLL_SEC):
         if not _olarm_token() or time.time() < backoff_until:
             continue
@@ -1379,7 +1439,7 @@ def _olarm_live_loop() -> None:
                 if area_changed or now - last_events_at >= _EVENTS_POLL_SEC:
                     events_resp = client.get(
                         f"/api/v4/devices/{HANSEKOP_ID}/events",
-                        params={"limit": 100},
+                        params={"pageLength": _OLARM_PAGE},
                     )
                     last_events_at = now
                     if events_resp.status_code == 429:
@@ -1388,7 +1448,12 @@ def _olarm_live_loop() -> None:
                 payload = events_resp.json()
                 rows = payload.get("data") if isinstance(payload, dict) else []
                 if isinstance(rows, list):
+                    rows = [r for r in rows if isinstance(r, dict)]
+                    known_before = {olarm_event_key(r) for r in rows} & set(_olarm_store.keys())
                     apply_olarm_events(rows, _stale_panel())
+                    if rows and not known_before:
+                        # A full page of unseen events: more than 40 arrived since the last poll. Fill the gap.
+                        _olarm_backfill(max_pages=10, pace_s=2.0, stop_when_known=True)
             if panel_changed or events_resp is not None:
                 _live_state_save()
         except Exception:
