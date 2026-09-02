@@ -801,7 +801,7 @@
         if (lcd) {
             lcd.classList.remove("armed", "disarmed", "zone-open", "hold-disarmed");
             lcd.classList.add("arming");
-            if (!intro && n && n <= 10) lcd.classList.add("arming-fast");
+            if (!intro && n && n <= 7) lcd.classList.add("arming-fast");
             else lcd.classList.remove("arming-fast");
         }
         var led = document.getElementById("led-status");
@@ -814,7 +814,8 @@
     }
 
     function maybeExitBeeps() {
-        if (!exitCountStarted || localExitLeft() <= 0) return;
+        if (!exitCountStarted) return;
+        if ((remainingExit(window.arialDevice) || localExitLeft()) <= 0) return;
         startExitBeeps();
     }
 
@@ -825,17 +826,18 @@
         startExitBeeps._nextFast = 0;
         unlockAudio();
         function tick() {
-            if (inExitIntro()) {
-                exitBeepTimer = setTimeout(tick, 40);
-                return;
-            }
-            var left = localExitLeft();
+            var left = remainingExit(window.arialDevice) || localExitLeft();
             if (left <= 0) {
                 startExitBeeps._on = false;
                 exitBeepTimer = null;
                 return;
             }
-            if (left > 10) {
+            if (left > 20) {
+                startExitBeeps._lastSec = left;
+                exitBeepTimer = setTimeout(tick, 40);
+                return;
+            }
+            if (left > 7) {
                 if (left !== startExitBeeps._lastSec) {
                     startExitBeeps._lastSec = left;
                     tone(1600, 0.11, 0.45);
@@ -1176,6 +1178,8 @@
         exitIntroUntil = Date.now() + 20000;
         persistExit();
         showArming(0);
+        unlockAudio();
+        tone(1600, 0.14, 0.55);
         sendLiveAction("area-arm").then(function (ok) {
             if (!ok) {
                 clearLocalExit();
