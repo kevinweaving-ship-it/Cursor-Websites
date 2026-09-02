@@ -389,7 +389,7 @@
         if (!lcd || !img) return;
         if (user && user.logo) {
             img.removeAttribute("hidden");
-            img.style.display = "block";
+            img.style.display = "";
             img.src = user.logo;
             img.alt = user.from || user.name || "";
             lcd.classList.add("logged-in");
@@ -397,7 +397,7 @@
             img.removeAttribute("src");
             img.src = "";
             img.alt = "";
-            img.style.display = "none";
+            img.style.display = "";
             img.setAttribute("hidden", "");
             lcd.classList.remove("logged-in");
         }
