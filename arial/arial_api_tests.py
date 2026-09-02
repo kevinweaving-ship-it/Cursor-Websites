@@ -121,7 +121,11 @@ def test_keypad_is_scaled_with_side_gaps():
     assert "width: 90%;" in css
     assert "max-width: 378px;" in css
     assert "position: sticky;" in css
-    assert "overscroll-behavior: none;" in css
+    assert "overscroll-behavior: none;" not in css
+    html = (Path(__file__).resolve().parent / "index.html").read_text(encoding="utf-8")
+    assert "user-scalable=yes" in html
+    js = (Path(__file__).resolve().parent / "app.js").read_text(encoding="utf-8")
+    assert 'document.addEventListener("touchmove"' not in js
 
 
 def test_compact_crop_shows_full_function_keys():
