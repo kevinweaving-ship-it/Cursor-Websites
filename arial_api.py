@@ -60,6 +60,7 @@ _live_thread: threading.Thread | None = None
 _live_stop = threading.Event()
 _panel_cache: dict[str, Any] = {"at": 0.0, "data": None, "seq": 0}
 _PANEL_TTL_SEC = 5.0
+_last_keypad: dict[str, Any] | None = None
 _activity_cache: dict[str, Any] = {"at": 0.0, "data": None}
 _ACTIVITY_TTL_SEC = 8.0
 _SAST = timezone(timedelta(hours=2))
@@ -645,6 +646,8 @@ def enrich_device(device: dict[str, Any]) -> dict[str, Any]:
     out["arialCountdown"] = countdown
     out["arialExitDelay"] = _profile_exit_delay(profile)
     out["arialPower"] = arial_power(state)
+    if _last_keypad:
+        out["arialActor"] = dict(_last_keypad)
     return out
 
 
@@ -723,6 +726,51 @@ def _event_state_label(state: str) -> str:
     return mapping.get(raw.lower(), raw.upper()) if raw else ""
 
 
+def _remember_keypad(code: str, cmd: str) -> dict[str, Any]:
+    global _last_keypad
+    user = KEYPAD_CODES.get(code) or {}
+    _last_keypad = {
+        "from": str(user.get("from") or ""),
+        "name": str(user.get("name") or ""),
+        "label": str(user.get("from") or user.get("name") or ""),
+        "code": code,
+        "action": cmd,
+        "at": time.time(),
+    }
+    return _last_keypad
+
+
+def _arial_event_actor(tab: str, event: dict[str, Any], device: dict[str, Any] | None) -> str:
+    """Area arm/disarm is our keypad user (Pingoa / Amoroc), never Olarm's userFullname."""
+    if tab != "areas":
+        return ""
+    keypad = None
+    if device and isinstance(device.get("arialActor"), dict):
+        keypad = device["arialActor"]
+    elif _last_keypad:
+        keypad = _last_keypad
+    if not keypad:
+        return ""
+    label = str(keypad.get("from") or keypad.get("label") or "").strip()
+    if not label:
+        return ""
+    try:
+        ev_ms = int(event.get("eventTime") or 0)
+        if ev_ms > 10_000_000_000:
+            pass
+        else:
+            ev_ms = ev_ms * 1000
+    except (TypeError, ValueError):
+        ev_ms = 0
+    try:
+        kp_ms = int(float(keypad.get("at") or 0) * 1000)
+    except (TypeError, ValueError):
+        kp_ms = 0
+    if ev_ms and kp_ms and ev_ms + 2000 < kp_ms:
+        return ""
+    return label
+
+
 def format_olarm_event(event: dict[str, Any], device: dict[str, Any] | None = None) -> dict[str, Any]:
     device = device or {}
     zones = {int(z.get("num") or 0): z for z in (device.get("arialZones") or []) if isinstance(z, dict)}
@@ -747,8 +795,10 @@ def format_olarm_event(event: dict[str, Any], device: dict[str, Any] | None = No
     if tab == "power" and msg:
         label = msg
     time_s, date_s = _sa_stamp(event.get("eventTime"))
-    actor = str(event.get("userFullname") or "").strip() or "ALARM SYSTEM"
+    actor = _arial_event_actor(tab, event, device)
     activity = label if not state_lab or state_lab.lower() in label.lower() else f"{label}  {state_lab}"
+    if actor:
+        activity = f"{activity}  ·  {actor}"
     return {
         "tab": tab,
         "time": time_s,
@@ -1151,6 +1201,7 @@ async def arial_keypad(request: Request):
         num = 1
     if cmd != "user-panic" and num < 1:
         num = 1
+    actor = _remember_keypad(code, cmd)
     raw = await _olarm_request(
         "POST",
         f"/api/v4/devices/{HANSEKOP_ID}/actions",
@@ -1163,13 +1214,18 @@ async def arial_keypad(request: Request):
             params={"deviceApiAccessOnly": "1"},
         )
         if isinstance(fresh, dict):
-            _cached_panel(enrich_device(fresh))
+            panel = enrich_device(fresh)
+            panel["arialActor"] = dict(actor)
+            _cached_panel(panel)
         else:
             _cached_panel(clear=True)
     except HTTPException:
         _cached_panel(clear=True)
+    with _lock:
+        _activity_cache["at"] = 0.0
+        _activity_cache["data"] = None
     _ensure_live_session()
-    return {"ok": True, "user": KEYPAD_CODES[code], "result": raw, "device": _stale_panel()}
+    return {"ok": True, "user": KEYPAD_CODES[code], "actor": actor, "result": raw, "device": _stale_panel()}
 
 
 @router.get("/api/arial/devices/{device_id}")

@@ -308,6 +308,35 @@ def test_lcd_site_date_time_stack_right():
     assert "#lcd-site {\n    font-size: 13.75px;" in css
     assert "object-position: right bottom;" in css
     assert "padding: 4px 0 0;" in css.split(".lcd-mid {", 1)[1].split("}", 1)[0]
+    assert html.split('id="lcd-time"', 1)[1].split('id="lcd-welcome"', 1)[0].count('id="lcd-user-logo"') == 1
+    logo = css.split("#lcd-user-logo {", 1)[1].split("}", 1)[0]
+    assert "max-width: 52%;" not in logo
+    assert "width: 100%;" in logo
+    assert "flex: 1 1 auto;" in logo
+
+
+def test_area_arm_uses_pingoa_not_olarm_user():
+    arial_api._last_keypad = None
+    actor = arial_api._remember_keypad("7302", "area-arm")
+    assert actor["from"] == "Pingoa"
+    device = {"arialActor": actor, "arialAreas": [{"num": 1, "label": "Facility Building"}]}
+    row = arial_api.format_olarm_event(
+        {
+            "eventAction": "area",
+            "eventState": "arm",
+            "eventNum": 1,
+            "eventMsg": "ARMED - Area 1 - Facility Building",
+            "eventTime": int(actor["at"] * 1000) + 500,
+            "userFullname": "Kevin",
+        },
+        device,
+    )
+    assert row["actor"] == "Pingoa"
+    assert "Pingoa" in row["activity"]
+    assert "Kevin" not in row["activity"]
+    assert "ALARM SYSTEM" not in row["activity"]
+    amoroc = arial_api._remember_keypad("7102", "area-disarm")
+    assert amoroc["from"] == "Amoroc"
 
 
 def test_status_label_under_status_led():

@@ -265,10 +265,10 @@ html, body {
 .lcd-toprow {
     display: flex;
     flex-direction: row;
-    align-items: flex-start;
+    align-items: stretch;
     justify-content: space-between;
     gap: 6px;
-    flex: 0 0 auto;
+    flex: 1 1 auto;
     min-height: 0;
     overflow: visible;
     z-index: 2;
@@ -329,7 +329,10 @@ html, body {
     flex-direction: column;
     align-items: flex-end;
     justify-content: flex-start;
-    flex: 0 0 auto;
+    flex: 0 0 42%;
+    max-width: 48%;
+    align-self: stretch;
+    min-height: 0;
     text-align: right;
     gap: 0;
     z-index: 1;
@@ -357,22 +360,23 @@ html, body {
     justify-content: space-between;
     gap: 8px;
     min-height: 0;
-    flex: 1;
+    flex: 0 0 auto;
     z-index: 1;
     padding: 4px 0 0;
 }
 
 #lcd-user-logo {
     display: none;
-    height: 100%;
-    width: auto;
-    max-width: 52%;
-    margin: 0 0 0 auto;
+    flex: 1 1 auto;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    max-width: none;
+    margin: 2px 0 0;
     object-fit: contain;
     object-position: right bottom;
     pointer-events: none;
     filter: drop-shadow(0 0 1px #fff);
-    flex: 0 1 auto;
 }
 
 .lcd.logged-in #lcd-user-logo {
