@@ -65,10 +65,10 @@ html, body {
 
 .brand-slot {
     position: absolute;
-    left: 28%;
-    top: 4.0%;
-    width: 44%;
-    height: 6.0%;
+    left: 14%;
+    top: 1.2%;
+    width: 72%;
+    height: 9.6%;
     z-index: 5;
     display: flex;
     align-items: center;
@@ -79,7 +79,7 @@ html, body {
 }
 
 .brand-logo {
-    width: 92%;
+    width: 100%;
     height: 100%;
     object-fit: contain;
     object-position: center;
@@ -91,7 +91,7 @@ html, body {
     left: 6.0%;
     top: 11.48%;
     width: 88.0%;
-    height: 16.39%;
+    height: 20.55%;
     box-sizing: border-box;
     background: linear-gradient(180deg, #1820b8 0%, #2810c8 100%);
     color: #00bfff;
