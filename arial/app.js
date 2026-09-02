@@ -478,7 +478,6 @@
                 showArming(0);
                 return;
             }
-            longArmedBeep();
             showArmed();
             if (isArmedState(st) || Date.now() - armWaitSince > 2500) clearLocalExit();
             return;
@@ -711,18 +710,24 @@
         loadPinOkBuffer();
     }
 
-    function playOsc(freq, dur, peak) {
+    function playOsc(freq, dur, peak, solid) {
         if (!audioCtx) return;
         try {
             var t = audioCtx.currentTime;
             if (!(t > 0.001)) t += 0.02;
             var osc = audioCtx.createOscillator();
             var gain = audioCtx.createGain();
+            var vol = peak || 0.38;
             osc.type = "square";
             osc.frequency.setValueAtTime(freq, t);
             gain.gain.setValueAtTime(0.0001, t);
-            gain.gain.exponentialRampToValueAtTime(peak || 0.38, t + 0.01);
-            gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+            gain.gain.exponentialRampToValueAtTime(vol, t + 0.015);
+            if (solid) {
+                gain.gain.setValueAtTime(vol, t + Math.max(0.05, dur - 0.07));
+                gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+            } else {
+                gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+            }
             osc.connect(gain);
             gain.connect(audioCtx.destination);
             osc.start(t);
@@ -776,6 +781,7 @@
 
     function showArmed() {
         stopIssueCycle();
+        longArmedBeep();
         setLcdStatus("System Armed", "");
         var lcd = document.querySelector(".lcd");
         if (lcd) {
@@ -827,7 +833,6 @@
             if (left <= 0) {
                 startExitBeeps._on = false;
                 exitBeepTimer = null;
-                longArmedBeep();
                 return;
             }
             if (left > 10) {
@@ -851,8 +856,9 @@
     function longArmedBeep() {
         if (longArmedBeep._done) return;
         longArmedBeep._done = true;
+        stopExitBeeps();
         unlockAudio();
-        tone(1100, 1.35, 0.62);
+        playOsc(1000, 2.0, 0.72, true);
     }
 
     function armBeeps(done) {
@@ -1347,7 +1353,6 @@
             armPending = true;
             exitCountStarted = true;
             pendingExitUntil = until;
-            longArmedBeep();
             showArmed();
         } else if (pending && !exitCountStarted) {
             armPending = true;

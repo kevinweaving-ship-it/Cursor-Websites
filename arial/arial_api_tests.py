@@ -136,7 +136,8 @@ def test_arm_disarm_pending_and_thirty_second_exit():
     assert "storeSet(\"arialExitUntil\"" in js
     assert "localStorage.setItem(k, v)" in js
     assert "startExitBeeps._nextFast = now + 500" in js
-    assert "tone(1100, 1.35, 0.62)" in js
+    assert "playOsc(1000, 2.0, 0.72, true)" in js
+    assert "longArmedBeep();" in js.split("function showArmed()", 1)[1].split("function showArming", 1)[0]
     assert "Date.now() - start + 333 <= 2500" in js
     assert "setTimeout(ping, 333)" in js
     assert "if ((key === \"DISARM\" || key === \"TOGGLE\") && isArmed && isLoggedIn())" in js
