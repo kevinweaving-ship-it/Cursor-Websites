@@ -3,6 +3,14 @@ html, body {
     background: #fff;
 }
 
+@font-face {
+    font-family: "Anton";
+    src: url("/arial/fonts/anton.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
 .logo {
     display: none;
 }
@@ -116,6 +124,7 @@ html, body {
     background: #ff1a1a;
     color: #fff;
     text-shadow: 0 0 3px rgba(255, 255, 255, 0.45);
+    animation: lcdArmedSlow 2.4s step-end infinite;
 }
 
 .lcd.arming {
@@ -135,8 +144,20 @@ html, body {
     text-shadow: 0 0 3px rgba(255, 255, 255, 0.35);
 }
 
+.lcd.disarmed.zone-open {
+    animation: lcdReadyFlash 1.15s step-end infinite;
+}
+
 @keyframes lcdflash {
     50% { background: #ffcc22; color: #111; }
+}
+
+@keyframes lcdArmedSlow {
+    50% { background: #8a0000; }
+}
+
+@keyframes lcdReadyFlash {
+    50% { background: #0a6a12; }
 }
 
 #lcd-top {
@@ -146,11 +167,47 @@ html, body {
     font-weight: 900;
 }
 
+.lcd-toprow {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    flex: 0 0 auto;
+    min-height: 0;
+    z-index: 2;
+}
+
+#lcd-2 {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: none;
+    width: auto;
+    height: auto;
+    min-height: 22px;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-family: Anton, Impact, "Arial Black", sans-serif;
+    font-weight: 400;
+    font-size: 26px;
+    letter-spacing: 0.04em;
+    line-height: 0.9;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.28);
+}
+
 .lcd-head {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
     justify-content: flex-start;
+    flex: 0 0 auto;
     text-align: right;
     gap: 0;
     z-index: 1;
@@ -160,7 +217,7 @@ html, body {
 #lcd-date,
 #lcd-time {
     display: block;
-    width: 100%;
+    width: auto;
     text-align: right;
     line-height: 1.2;
     white-space: nowrap;
@@ -216,7 +273,7 @@ html, body {
 #lcd-welcome {
     flex: 1;
     min-width: 0;
-    align-self: center;
+    align-self: flex-end;
     text-align: left;
     white-space: nowrap;
     overflow: hidden;
@@ -229,11 +286,11 @@ html, body {
     left: 2px;
     right: auto;
     top: auto;
-    bottom: 10px;
+    bottom: 1px;
     z-index: 3;
     flex: none;
     max-width: none;
-    font-size: 34px;
+    font-size: 22px;
     font-weight: 900;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -278,19 +335,6 @@ html, body {
 
 #lcd-when {
     display: none;
-}
-
-#lcd-2 {
-    position: absolute;
-    left: 2px;
-    top: 3px;
-    z-index: 2;
-    text-align: left;
-    width: auto;
-    max-width: 62%;
-    font-weight: 900;
-    white-space: nowrap;
-    overflow: hidden;
 }
 
 .led {
@@ -367,6 +411,10 @@ html, body {
 .led.status.disarmed {
     --led-fill: #12c01a;
     --led-edge: #0a8a10;
+}
+
+.lcd.disarmed.zone-open ~ .led.status {
+    animation: ledflash 0.7s step-end infinite;
 }
 
 .led.status.flash,

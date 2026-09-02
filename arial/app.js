@@ -27,7 +27,7 @@
             var stEl = document.getElementById("lcd-2");
             if (stEl) stEl.textContent = lastStatus;
             var lcd = document.querySelector(".lcd");
-            if (lcd) lcd.classList.remove("armed", "disarmed", "arming", "arming-fast");
+            if (lcd) lcd.classList.remove("armed", "disarmed", "arming", "arming-fast", "zone-open");
             setLed(document.getElementById("led-status"), "");
             syncArmToggle();
             return;
@@ -169,8 +169,7 @@
         if (st === "arm") return "System Armed";
         if (st === "stay") return "Stay Armed";
         if (st === "sleep") return "Sleep Armed";
-        if (st === "disarm") return "System Ready";
-        if (st === "notready") return openZoneLabel(device) || "Not Ready";
+        if (st === "disarm" || st === "notready") return "System Ready";
         return st;
     }
 
@@ -186,12 +185,32 @@
         var st = areaState(device);
         var arming = panelIsExiting(device);
         var armed = !arming && isArmedState(st);
+        var zoneOpen = !arming && !armed && st === "notready";
         var disarmed = !arming && !armed && (st === "disarm" || st === "notready" || !st);
         lcd.classList.toggle("arming", arming);
         lcd.classList.toggle("armed", armed);
         lcd.classList.toggle("disarmed", disarmed);
+        lcd.classList.toggle("zone-open", zoneOpen);
         if (!arming) lcd.classList.remove("arming-fast");
         syncArmToggle();
+        fitLcdStatus();
+    }
+
+    function fitLcdStatus() {
+        var el = document.getElementById("lcd-2");
+        if (!el) return;
+        el.style.fontSize = "";
+        var w = el.clientWidth;
+        var h = el.clientHeight || 22;
+        if (w < 12) return;
+        var size = Math.min(36, Math.max(14, h));
+        el.style.fontSize = size + "px";
+        var n = 0;
+        while (n < 28 && size > 11 && (el.scrollWidth > w + 1 || el.scrollHeight > h + 1)) {
+            size -= 1;
+            el.style.fontSize = size + "px";
+            n += 1;
+        }
     }
 
     function panelLooksArmed(device) {
@@ -306,7 +325,8 @@
                     site: siteName(hanse),
                     armed: !!(lcd && lcd.classList.contains("armed")),
                     arming: !!(lcd && lcd.classList.contains("arming")),
-                    disarmed: !!(lcd && lcd.classList.contains("disarmed"))
+                    disarmed: !!(lcd && lcd.classList.contains("disarmed")),
+                    zoneOpen: !!(lcd && lcd.classList.contains("zone-open"))
                 }));
             } catch (e) {}
         } catch (e) {
@@ -506,11 +526,12 @@
         if (st) st.textContent = lastStatus;
         var lcd = document.querySelector(".lcd");
         if (lcd) {
-            lcd.classList.remove("disarmed", "arming", "arming-fast");
+            lcd.classList.remove("disarmed", "arming", "arming-fast", "zone-open");
             lcd.classList.add("armed");
         }
         setLed(document.getElementById("led-status"), "armed");
         syncArmToggle();
+        fitLcdStatus();
     }
 
     function showArming(n) {
@@ -519,7 +540,7 @@
         if (st) st.textContent = lastStatus;
         var lcd = document.querySelector(".lcd");
         if (lcd) {
-            lcd.classList.remove("armed", "disarmed", "arming-fast");
+            lcd.classList.remove("armed", "disarmed", "arming-fast", "zone-open");
             lcd.classList.add("arming");
         }
         var led = document.getElementById("led-status");
@@ -527,6 +548,7 @@
             setLed(document.getElementById("led-status"), "arming");
         }
         syncArmToggle();
+        fitLcdStatus();
     }
 
     function maybeExitBeeps() {
@@ -697,11 +719,12 @@
         if (st) st.textContent = lastStatus;
         var lcd = document.querySelector(".lcd");
         if (lcd) {
-            lcd.classList.remove("armed", "arming", "arming-fast");
+            lcd.classList.remove("armed", "arming", "arming-fast", "zone-open");
             lcd.classList.add("disarmed");
         }
         setLed(document.getElementById("led-status"), "disarmed");
         syncArmToggle();
+        fitLcdStatus();
     }
 
     function sendLiveAction(cmd) {
@@ -838,11 +861,14 @@
                 lcd0.classList.toggle("armed", !!cached.armed);
                 lcd0.classList.toggle("arming", !!cached.arming);
                 lcd0.classList.toggle("disarmed", !!cached.disarmed);
+                lcd0.classList.toggle("zone-open", !!cached.zoneOpen);
             }
             if (cached.arming) setLed(document.getElementById("led-status"), "arming");
             else if (cached.armed) setLed(document.getElementById("led-status"), "armed");
+            else if (cached.zoneOpen) setLed(document.getElementById("led-status"), "disarmed flash");
             else if (cached.disarmed) setLed(document.getElementById("led-status"), "disarmed");
             syncArmToggle();
+            fitLcdStatus();
         }
     } catch (e) {}
 
@@ -869,6 +895,8 @@
 
     tickTime();
     loadStatus();
+    fitLcdStatus();
+    window.addEventListener("resize", fitLcdStatus);
     setInterval(tickTime, 1000);
     setInterval(function () {
         if (localExitLeft() > 0 || panelIsExiting(window.arialDevice)) loadStatus();
