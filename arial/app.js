@@ -2459,6 +2459,7 @@
         var pop = document.getElementById("lights-pop");
         if (!pop) return;
         pop.hidden = false;
+        openLights._at = Date.now();
         loadLights();
         if (lightsPoll) clearInterval(lightsPoll);
         lightsPoll = setInterval(loadLights, 5000);
@@ -2475,6 +2476,8 @@
         var pop = document.getElementById("lights-pop");
         if (!pop) return;
         pop.addEventListener("click", function (ev) {
+            // The key tap that opened us also emits a click on the overlay now under the finger; ignore it.
+            if (Date.now() - (openLights._at || 0) < 400) return;
             if (ev.target === pop) closeLights();
         });
         document.getElementById("lights-close").addEventListener("click", closeLights);

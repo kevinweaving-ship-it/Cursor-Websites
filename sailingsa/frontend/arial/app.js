@@ -2459,6 +2459,7 @@
         var pop = document.getElementById("lights-pop");
         if (!pop) return;
         pop.hidden = false;
+        openLights._at = Date.now();
         loadLights();
         if (lightsPoll) clearInterval(lightsPoll);
         lightsPoll = setInterval(loadLights, 5000);
