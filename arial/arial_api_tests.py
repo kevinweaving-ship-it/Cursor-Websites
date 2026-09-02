@@ -50,6 +50,92 @@ def test_enrich_device_areas_and_named_zones():
     assert zones[9]["typeLabel"] == "Door"
     assert 5 in zones  # labelled "Zone 5"
     assert 6 not in zones  # empty label skipped
+    assert out["arialPower"]["acOk"] is True
+    assert out["arialPower"]["batteryOk"] is True
+
+
+def test_olarm_power_fault_and_event_tabs():
+    fail = json.loads(json.dumps(SAMPLE))
+    fail["deviceState"]["powerAC"] = "fail"
+    fail["deviceState"]["powerBattery"] = "low"
+    p = arial_api.enrich_device(fail)["arialPower"]
+    assert p["acOk"] is False
+    assert p["batteryOk"] is False
+    device = arial_api.enrich_device(SAMPLE)
+    zone = arial_api.format_olarm_event(
+        {
+            "eventAction": "zone",
+            "eventState": "active",
+            "eventNum": 1,
+            "eventMsg": "ACTIVE - Zone 1 - Garage PIR",
+            "eventTime": 1700000000000,
+            "userFullname": "",
+        },
+        device,
+    )
+    assert zone["tab"] == "zones"
+    assert zone["title"] == "Garage PIR"
+    assert "ACTIVE" in zone["activity"]
+    assert arial_api.classify_olarm_event(
+        {"eventAction": "area", "eventState": "disarm", "eventMsg": "DISARMED - Area 1 - Facility Building"}
+    ) == "areas"
+    assert arial_api.classify_olarm_event(
+        {"eventAction": "zone_alarm", "eventState": "alarm", "eventMsg": "ZONE 1 IN ALARM - Zone 1 - Front Door"}
+    ) == "alarms"
+    assert arial_api.classify_olarm_event(
+        {"eventAction": "power", "eventState": "fail", "eventMsg": "POWER FAILURE"}
+    ) == "power"
+
+
+def test_activity_card_markup_and_zone_labels():
+    root = Path(__file__).resolve().parent
+    html = (root / "index.html").read_text(encoding="utf-8")
+    js = (root / "app.js").read_text(encoding="utf-8")
+    css = (root / "arial.css").read_text(encoding="utf-8")
+    assert 'out.push("Zone " + n + " Open")' not in js
+    assert "function panelIssues(" in js
+    assert 'out.push("Power Failure")' in js
+    assert 'out.push("Low Battery")' in js
+    assert 'data-tab="all"' in html
+    assert 'data-tab="zones"' in html
+    assert 'data-tab="areas"' in html
+    assert 'data-tab="alarms"' in html
+    assert 'data-tab="power"' in html
+    assert 'id="activity-more"' in html
+    assert "ACTIVITY_PREVIEW = 4" in js
+    assert "/api/arial/activity" in js
+    assert "color: #ffe14d" in css
+
+
+def test_activity_route_uses_zone_labels(monkeypatch):
+    async def fake_request(method, path, **kwargs):
+        if str(path).endswith("/events"):
+            return {
+                "data": [
+                    {
+                        "eventAction": "zone",
+                        "eventState": "closed",
+                        "eventNum": 6,
+                        "eventMsg": "CLOSED - Zone 6 - Cabinet Front",
+                        "eventTime": 1700000000000,
+                        "userFullname": "",
+                    }
+                ]
+            }
+        return SAMPLE
+
+    monkeypatch.setattr(arial_api, "_olarm_request", fake_request)
+    arial_api._activity_cache["data"] = None
+    arial_api._activity_cache["at"] = 0.0
+    app = FastAPI()
+    app.include_router(arial_api.router)
+    client = TestClient(app)
+    r = client.get("/api/arial/activity")
+    assert r.status_code == 200, r.text
+    row = r.json()["events"][0]
+    assert row["tab"] == "zones"
+    assert row["title"] == "Cabinet Front"
+    assert "OPEN" not in row["activity"]
 
 
 def test_countdown_from_numeric_detail():
@@ -300,8 +386,9 @@ def test_lcd_status_text_is_bold():
     assert "animation: lcdflash" not in css
     assert 'st === "notready"' in js
     assert "openZoneIssues" in js
-    assert "openZoneIssue" in js
-    assert '"Zone " + n + " Open"' in js
+    assert "panelIssues" in js
+    assert '"Zone " + n + " Open"' not in js
+    assert 'out.push("Power Failure")' in js
     assert "setInterval(showNextIssue, 1150)" in js
     assert "ensureIssueCycle" in js
     assert 'return "Zone Open"' not in js

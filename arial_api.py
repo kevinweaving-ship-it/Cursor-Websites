@@ -15,6 +15,7 @@ import secrets
 import threading
 import time
 import uuid
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional, AsyncIterator
 
@@ -59,6 +60,15 @@ _live_thread: threading.Thread | None = None
 _live_stop = threading.Event()
 _panel_cache: dict[str, Any] = {"at": 0.0, "data": None, "seq": 0}
 _PANEL_TTL_SEC = 5.0
+_activity_cache: dict[str, Any] = {"at": 0.0, "data": None}
+_ACTIVITY_TTL_SEC = 8.0
+_SAST = timezone(timedelta(hours=2))
+_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+ZONE_EVENT_ACTIONS = {"zone", "zone_watch"}
+AREA_EVENT_ACTIONS = {"area"}
+ALARM_EVENT_ACTIONS = {"zone_alarm", "s_alm", "s_alm_f", "s_alm_m"}
+POWER_EVENT_ACTIONS = {"power", "ac", "mains", "battery"}
+ALARM_EVENT_STATES = {"alarm", "emergency", "panic", "fire", "medical"}
 
 HANSEKOP_ID = "0bb544db-30b0-453d-bf39-d323538ebd5e"
 KEYPAD_CODES = {
@@ -634,7 +644,124 @@ def enrich_device(device: dict[str, Any]) -> dict[str, Any]:
     out["arialZones"] = zones
     out["arialCountdown"] = countdown
     out["arialExitDelay"] = _profile_exit_delay(profile)
+    out["arialPower"] = arial_power(state)
     return out
+
+
+def _power_ok(value: Any) -> bool:
+    s = str(value or "").strip().lower()
+    if s in ("", "ok", "1", "true", "on", "normal"):
+        return True
+    if s in ("fail", "failed", "fault", "problem", "low", "0", "false", "off", "error"):
+        return False
+    return s not in ("missing", "unknown")
+
+
+def arial_power(state: dict[str, Any] | None) -> dict[str, Any]:
+    state = state or {}
+    nested = state.get("power") if isinstance(state.get("power"), dict) else {}
+    ac = state.get("powerAC")
+    if ac is None:
+        ac = nested.get("AC", nested.get("ac"))
+    batt = state.get("powerBattery")
+    if batt is None:
+        batt = nested.get("Batt", nested.get("battery"))
+    ac_s = str(ac if ac is not None else "ok")
+    batt_s = str(batt if batt is not None else "ok")
+    return {
+        "ac": ac_s,
+        "battery": batt_s,
+        "acOk": _power_ok(ac if ac is not None else "ok"),
+        "batteryOk": _power_ok(batt if batt is not None else "ok"),
+    }
+
+
+def classify_olarm_event(event: dict[str, Any] | None) -> str:
+    event = event or {}
+    action = str(event.get("eventAction") or "").strip().lower()
+    state = str(event.get("eventState") or "").strip().lower()
+    msg = str(event.get("eventMsg") or "").strip().lower()
+    if action in POWER_EVENT_ACTIONS or "power" in msg or "battery" in msg or "mains" in msg:
+        return "power"
+    if action in ALARM_EVENT_ACTIONS or state in ALARM_EVENT_STATES or "in alarm" in msg or msg.startswith("alarm"):
+        return "alarms"
+    if action in AREA_EVENT_ACTIONS or state in {"arm", "disarm", "stay", "sleep", "countdown"} or "countdown" in msg:
+        return "areas"
+    if action in ZONE_EVENT_ACTIONS:
+        return "zones"
+    return "areas"
+
+
+def _sa_stamp(ms: Any) -> tuple[str, str]:
+    try:
+        n = int(ms)
+        if n > 10_000_000_000:
+            n = n / 1000.0
+        dt = datetime.fromtimestamp(n, tz=timezone.utc).astimezone(_SAST)
+    except (TypeError, ValueError, OSError, OverflowError):
+        dt = datetime.now(_SAST)
+    return f"{dt.hour:02d}:{dt.minute:02d}", f"{dt.day:02d} {_MONTHS[dt.month - 1]} {dt.year}"
+
+
+def _event_state_label(state: str) -> str:
+    raw = str(state or "").strip()
+    mapping = {
+        "active": "ACTIVE",
+        "closed": "CLOSED",
+        "arm": "ARMED",
+        "disarm": "DISARMED",
+        "stay": "STAY ARMED",
+        "sleep": "SLEEP ARMED",
+        "alarm": "ALARM",
+        "countdown": "COUNTDOWN",
+        "emergency": "EMERGENCY",
+        "panic": "PANIC",
+        "fail": "FAILURE",
+        "restore": "RESTORE",
+        "low": "LOW",
+    }
+    return mapping.get(raw.lower(), raw.upper()) if raw else ""
+
+
+def format_olarm_event(event: dict[str, Any], device: dict[str, Any] | None = None) -> dict[str, Any]:
+    device = device or {}
+    zones = {int(z.get("num") or 0): z for z in (device.get("arialZones") or []) if isinstance(z, dict)}
+    areas = {int(a.get("num") or 0): a for a in (device.get("arialAreas") or []) if isinstance(a, dict)}
+    action = str(event.get("eventAction") or "")
+    try:
+        num = int(event.get("eventNum") or 0)
+    except (TypeError, ValueError):
+        num = 0
+    tab = classify_olarm_event(event)
+    msg = str(event.get("eventMsg") or "").strip()
+    label = ""
+    if tab in {"zones", "alarms"} and num in zones:
+        label = str(zones[num].get("label") or "").strip()
+    elif tab == "areas" and num in areas:
+        label = str(areas[num].get("label") or "").strip()
+    if not label and " - " in msg:
+        label = msg.split(" - ")[-1].strip()
+    if not label:
+        label = msg or action or "Event"
+    state_lab = _event_state_label(str(event.get("eventState") or ""))
+    if tab == "power" and msg:
+        label = msg
+    time_s, date_s = _sa_stamp(event.get("eventTime"))
+    actor = str(event.get("userFullname") or "").strip() or "ALARM SYSTEM"
+    activity = label if not state_lab or state_lab.lower() in label.lower() else f"{label}  {state_lab}"
+    return {
+        "tab": tab,
+        "time": time_s,
+        "date": date_s,
+        "title": label,
+        "state": state_lab,
+        "activity": activity,
+        "actor": actor,
+        "msg": msg,
+        "num": num,
+        "action": action,
+        "at": event.get("eventTime"),
+    }
 
 
 def _as_list(value: Any) -> list[Any]:
@@ -927,6 +1054,53 @@ async def arial_panel():
             return {"ok": True, "device": stale}
         raise
     return {"ok": True, "device": _cached_panel(enrich_device(raw)), "live": True}
+
+
+def _activity_bundle(device: dict[str, Any] | None, events: list[Any]) -> dict[str, Any]:
+    power = arial_power((device or {}).get("deviceState") if device else None)
+    if device and isinstance(device.get("arialPower"), dict):
+        power = device["arialPower"]
+    rows = [format_olarm_event(e, device) for e in events if isinstance(e, dict)]
+    return {"ok": True, "power": power, "events": rows, "live": True}
+
+
+@router.get("/api/arial/activity")
+async def arial_activity():
+    now = time.time()
+    with _lock:
+        cached = _activity_cache.get("data")
+        if cached is not None and (now - float(_activity_cache.get("at") or 0)) < _ACTIVITY_TTL_SEC:
+            return cached
+    device = _stale_panel()
+    try:
+        raw = await _olarm_request(
+            "GET",
+            f"/api/v4/devices/{HANSEKOP_ID}/events",
+            params={"limit": 40},
+        )
+    except HTTPException as exc:
+        if cached is not None:
+            return cached
+        raise
+    events = raw.get("data") if isinstance(raw, dict) else []
+    if not isinstance(events, list):
+        events = []
+    if device is None:
+        try:
+            fresh = await _olarm_request(
+                "GET",
+                f"/api/v4/devices/{HANSEKOP_ID}",
+                params={"deviceApiAccessOnly": "1"},
+            )
+            if isinstance(fresh, dict):
+                device = _cached_panel(enrich_device(fresh))
+        except HTTPException:
+            device = _stale_panel()
+    bundle = _activity_bundle(device if isinstance(device, dict) else None, events)
+    with _lock:
+        _activity_cache["data"] = bundle
+        _activity_cache["at"] = time.time()
+    return bundle
 
 
 @router.get("/api/arial/live")

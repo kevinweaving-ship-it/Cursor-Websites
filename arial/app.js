@@ -251,9 +251,31 @@
         for (i = 0; i < zones.length; i += 1) {
             var z = zones[i];
             if (!zoneIsOpen(z)) continue;
-            var n = z.num != null ? z.num : (i + 1);
-            out.push("Zone " + n + " Open");
+            var label = String(z.label || "").trim();
+            if (!label) label = "Zone " + (z.num != null ? z.num : (i + 1));
+            out.push(label);
         }
+        return out;
+    }
+
+    function powerAcOk(device) {
+        var p = (device && device.arialPower) || {};
+        if (typeof p.acOk === "boolean") return p.acOk;
+        var raw = ((device && device.deviceState) || {}).powerAC;
+        return !raw || String(raw).toLowerCase() === "ok";
+    }
+
+    function powerBatteryOk(device) {
+        var p = (device && device.arialPower) || {};
+        if (typeof p.batteryOk === "boolean") return p.batteryOk;
+        var raw = ((device && device.deviceState) || {}).powerBattery;
+        return !raw || String(raw).toLowerCase() === "ok";
+    }
+
+    function panelIssues(device) {
+        var out = openZoneIssues(device);
+        if (!powerAcOk(device)) out.push("Power Failure");
+        if (!powerBatteryOk(device)) out.push("Low Battery");
         return out;
     }
 
@@ -300,7 +322,7 @@
     }
 
     function showNextIssue() {
-        var issues = openZoneIssues(window.arialDevice);
+        var issues = panelIssues(window.arialDevice);
         if (!issues.length) {
             stopIssueCycle();
             setLcdStatus("System Ready", "");
@@ -309,17 +331,22 @@
             return;
         }
         issueCycle.i = (issueCycle.i + 1) % issues.length;
-        setLcdStatus("System Not Ready", issues[issueCycle.i]);
+        setLcdStatus(issueMainStatus(window.arialDevice), issues[issueCycle.i]);
+    }
+
+    function issueMainStatus(device) {
+        if (openZoneIssues(device).length) return "System Not Ready";
+        return statusFromDevice(device) || "System Ready";
     }
 
     function ensureIssueCycle() {
-        var issues = openZoneIssues(window.arialDevice);
+        var issues = panelIssues(window.arialDevice);
         if (!issues.length) {
             stopIssueCycle();
             return false;
         }
         if (issueCycle.i >= issues.length) issueCycle.i = 0;
-        setLcdStatus("System Not Ready", issues[issueCycle.i]);
+        setLcdStatus(issueMainStatus(window.arialDevice), issues[issueCycle.i]);
         if (!issueCycle.timer) {
             issueCycle.timer = setInterval(showNextIssue, 1150);
         }
@@ -361,7 +388,7 @@
         }
         lcd.classList.remove("login-error");
         if (disarmPending && isLoggedIn()) {
-            lcd.classList.remove("arming", "armed", "arming-fast", "zone-open", "alarm");
+            lcd.classList.remove("arming", "armed", "arming-fast", "zone-open", "has-trouble", "alarm");
             lcd.classList.add("disarmed", "hold-disarmed");
             syncArmToggle();
             fitLcdStatus();
@@ -373,12 +400,14 @@
         var arming = stillExiting(device) || (armPending && (localExitLeft() > 0 || !exitCountStarted));
         var armed = !arming && !alarm && isArmedState(st);
         var zoneOpen = !arming && !armed && !alarm && openZoneIssues(device).length > 0;
+        var trouble = !arming && !armed && !alarm && panelIssues(device).length > 0;
         var disarmed = !arming && !armed && !alarm && (st === "disarm" || st === "notready" || !st);
         lcd.classList.toggle("arming", arming);
         lcd.classList.toggle("armed", armed);
         lcd.classList.toggle("alarm", alarm);
         lcd.classList.toggle("disarmed", disarmed);
         lcd.classList.toggle("zone-open", zoneOpen);
+        lcd.classList.toggle("has-trouble", trouble);
         if (!arming) lcd.classList.remove("arming-fast");
         syncArmToggle();
         fitLcdStatus();
@@ -453,6 +482,7 @@
             syncArmToggle();
             return;
         }
+        setLed(document.getElementById("led-ac"), powerAcOk(device) ? "on" : "flash");
         var st = areaState(device);
         var apiCd = deviceCountdown(device);
         if (apiCd > 0) syncLocalExitFromApi(apiCd);
@@ -549,6 +579,7 @@
         if (siteEl) siteEl.textContent = siteName(hanse);
         window.arialDevice = hanse;
         applyLeds(hanse);
+        setActivityPower(hanse.arialPower);
         lastStatus = (document.getElementById("lcd-status-main") || {}).textContent || statusFromDevice(hanse);
         loadStatus._area = areaState(hanse);
         try {
@@ -563,6 +594,110 @@
                 zoneOpen: !!(lcd && lcd.classList.contains("zone-open"))
             }));
         } catch (e) {}
+    }
+
+    var activityTab = "all";
+    var activityExpanded = false;
+    var activityRows = [];
+    var ACTIVITY_PREVIEW = 4;
+
+    function setActivityPower(power) {
+        var el = document.getElementById("activity-power");
+        if (!el) return;
+        power = power || {};
+        var acOk = power.acOk !== false;
+        var batOk = power.batteryOk !== false;
+        el.textContent = "AC " + (acOk ? "OK" : "FAILURE") + " · Battery " + (batOk ? "OK" : "LOW");
+        el.classList.toggle("fault", !acOk || !batOk);
+    }
+
+    function renderActivity() {
+        var body = document.getElementById("arial-activity-body");
+        var more = document.getElementById("activity-more");
+        if (!body) return;
+        var rows = activityRows;
+        if (activityTab !== "all") {
+            rows = activityRows.filter(function (r) { return r.tab === activityTab; });
+        }
+        var show = activityExpanded ? rows : rows.slice(0, ACTIVITY_PREVIEW);
+        body.textContent = "";
+        var i;
+        if (!show.length) {
+            var empty = document.createElement("tr");
+            var td = document.createElement("td");
+            td.colSpan = 3;
+            td.textContent = "No activity";
+            empty.appendChild(td);
+            body.appendChild(empty);
+        } else {
+            for (i = 0; i < show.length; i += 1) {
+                var r = show[i];
+                var row = document.createElement("tr");
+                var t1 = document.createElement("td");
+                t1.textContent = r.time || "";
+                var t2 = document.createElement("td");
+                t2.textContent = r.date || "";
+                var t3 = document.createElement("td");
+                t3.textContent = r.activity || r.title || "";
+                row.appendChild(t1);
+                row.appendChild(t2);
+                row.appendChild(t3);
+                body.appendChild(row);
+            }
+        }
+        if (more) {
+            if (rows.length > ACTIVITY_PREVIEW) {
+                more.hidden = false;
+                more.setAttribute("aria-expanded", activityExpanded ? "true" : "false");
+                var lab = more.querySelector(".activity-more-label");
+                if (lab) lab.textContent = activityExpanded ? "Show less" : "Show more";
+            } else {
+                more.hidden = true;
+            }
+        }
+    }
+
+    async function loadActivity() {
+        if (currentSite().id !== "hansekop") return;
+        if (loadActivity._busy) return;
+        loadActivity._busy = true;
+        try {
+            var res = await fetch("/api/arial/activity", { credentials: "same-origin", cache: "no-store" });
+            var data = await res.json();
+            if (!res.ok) return;
+            activityRows = Array.isArray(data.events) ? data.events : [];
+            setActivityPower(data.power || ((window.arialDevice || {}).arialPower));
+            renderActivity();
+        } catch (e) {
+        } finally {
+            loadActivity._busy = false;
+        }
+    }
+
+    function bindActivityCard() {
+        var tabs = document.querySelectorAll("#arial-activity .tabs button");
+        var i;
+        for (i = 0; i < tabs.length; i += 1) {
+            tabs[i].addEventListener("click", function () {
+                var btn = this;
+                var t = btn.getAttribute("data-tab") || "all";
+                activityTab = t;
+                var j;
+                for (j = 0; j < tabs.length; j += 1) {
+                    var on = tabs[j] === btn;
+                    tabs[j].classList.toggle("on", on);
+                    tabs[j].setAttribute("aria-selected", on ? "true" : "false");
+                }
+                renderActivity();
+            });
+        }
+        var more = document.getElementById("activity-more");
+        if (more) {
+            more.addEventListener("click", function () {
+                activityExpanded = !activityExpanded;
+                renderActivity();
+            });
+        }
     }
 
     function startOlarmLive() {
@@ -1482,12 +1617,15 @@
     });
     document.addEventListener("pointerdown", kickExitAudio, true);
     document.addEventListener("keydown", kickExitAudio, true);
+    bindActivityCard();
     tickTime();
     loadStatus();
+    loadActivity();
     startOlarmLive();
     fitLcdStatus();
     window.addEventListener("resize", fitLcdStatus);
     setInterval(tickTime, 1000);
+    setInterval(loadActivity, 8000);
     setInterval(function () {
         if (localExitLeft() > 0 || disarmPending || armPending || panelIsExiting(window.arialDevice)) loadStatus();
     }, 1000);

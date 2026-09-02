@@ -138,7 +138,32 @@ Support ticket: sent, no response as of 2 Sep 2026. Do not wait. Self-serve:
 4. Probe: `GET /api/arial/tuya/probe`. Token mint uses the new METHOD+SHA256 HMAC. Refresh/re-mint **must not** HMAC-sign with a dead access_token. TUYS keypad UI stays paused until this probe returns `ok`.
 5. Console `online` + ancient `lastSeen` is untrusted. Do not poll energy meters faster than 5–10s once auth works.
 
-## Keypad reference (saved, not wired yet)
+## Live Hansekop snapshot (2 Sep 2026)
+
+`GET /api/v4/devices/0bb544db-30b0-453d-bf39-d323538ebd5e` (Arial - Hansekop, Paradox, firmware 210.092).
+
+**Live state we can show now**
+
+| Field | Source | Hansekop now |
+|-------|--------|----------------|
+| Zone names | `deviceProfile.zonesLabels` | Front door, Grabouw Side, Tank Side, Mast, Cabinet Front, Cabinet Back, Front Door; unused stay `Zone 04` / `Zone 08` / … |
+| Zone open/closed | `deviceState.zones[]` `a`/`c`/`b`/`al` | Several PIR/door zones `a` (active) → LCD **System Not Ready** + yellow label, no “Open” |
+| Areas | `areasLabels` + `areas[]` | Facility Building, iShara Mast; state `notready` |
+| Mains | `deviceState.powerAC` | `ok` (anything else → **Power Failure** on LCD + AC LED flash) |
+| Battery | `deviceState.powerBattery` | `ok` (else **Low Battery**) |
+| Panel comms | `deviceState.panelComms` | `unknown` — do not show as a fault |
+
+**Activity log** `GET /api/v4/devices/{id}/events` → `eventAction`, `eventState`, `eventNum`, `eventMsg`, `eventTime` (ms), `userFullname`.
+
+| Tab | How we map it |
+|-----|----------------|
+| Zones | `eventAction` `zone` / `zone_watch` (live feed is mostly this: `ACTIVE`/`CLOSED` + zone label) |
+| Areas | `area` arm/disarm/stay/sleep/countdown |
+| Alarms | `zone_alarm`, `s_alm` / fire / medical, `eventState` alarm/emergency/panic |
+| Power | `power` / AC / battery, or message containing power/battery/mains (none in the last 20 events; live `powerAC`/`powerBattery` still shown on the card) |
+| All | union |
+
+Keypad UI uses `GET /api/arial/activity` (8s cache) so we do not extra-poll Olarm past the panel loop.
 
 Physical Paradox keypad photo: **`arial/keypad.png`** (copy in `sailingsa/frontend/arial/keypad.png`). Layout later — Stay / Force / Arm / Disarm, Byp / Mem / Tbl / Acc, numeric pad, Areas / Event / Instant / Display / Test / Chime / Prg, AC + Status LEDs.
 
