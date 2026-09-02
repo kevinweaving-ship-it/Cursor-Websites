@@ -180,6 +180,12 @@ html, body {
     animation: none;
 }
 
+.lcd.disarmed:not(.zone-open) #lcd-2,
+.lcd.disarmed:not(.zone-open) #lcd-status-main,
+.lcd.disarmed:not(.zone-open) #lcd-status-issue {
+    animation: none;
+}
+
 .lcd.disarmed.zone-open #lcd-status-issue {
     animation: lcdTextFlash 1.15s step-end infinite;
 }
@@ -467,6 +473,11 @@ html, body {
 .led.status.disarmed {
     --led-fill: #12c01a;
     --led-edge: #0a8a10;
+}
+
+.lcd.disarmed:not(.zone-open) ~ .led.status,
+.lcd.disarmed:not(.zone-open) ~ .led.status.flash {
+    animation: none;
 }
 
 .lcd.disarmed.zone-open ~ .led.status {

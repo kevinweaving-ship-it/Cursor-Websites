@@ -163,7 +163,7 @@
             var n = z.num != null ? z.num : (i + 1);
             return "Zone " + n + " Open";
         }
-        return "Zone Open";
+        return "";
     }
 
     function openZoneLabel(device) {
@@ -225,7 +225,7 @@
         var st = areaState(device);
         var arming = panelIsExiting(device);
         var armed = !arming && isArmedState(st);
-        var zoneOpen = !arming && !armed && st === "notready";
+        var zoneOpen = !arming && !armed && !!openZoneIssue(device);
         var disarmed = !arming && !armed && (st === "disarm" || st === "notready" || !st);
         lcd.classList.toggle("arming", arming);
         lcd.classList.toggle("armed", armed);
@@ -320,12 +320,13 @@
             return;
         }
         clearLocalExit();
-        if (st === "notready") {
-            setLcdStatus("System Not Ready", openZoneIssue(device));
+        var issue = openZoneIssue(device);
+        if (st === "notready" && issue) {
+            setLcdStatus("System Not Ready", issue);
             applyLcd(device);
             setLed(document.getElementById("led-status"), "disarmed flash");
         } else {
-            setLcdStatus(statusFromDevice(device), "");
+            setLcdStatus(st === "notready" ? "System Ready" : statusFromDevice(device), "");
             applyLcd(device);
             setLed(document.getElementById("led-status"), "disarmed");
         }
