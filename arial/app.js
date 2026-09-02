@@ -425,51 +425,71 @@
 
     function unlockAudio() {
         var AC = window.AudioContext || window.webkitAudioContext;
-        if (!AC) return Promise.resolve();
-        if (!audioCtx) audioCtx = new AC();
-        function prime() {
-            try {
-                var buf = audioCtx.createBuffer(1, 1, audioCtx.sampleRate || 22050);
-                var src = audioCtx.createBufferSource();
-                src.buffer = buf;
-                src.connect(audioCtx.destination);
-                src.start(0);
-            } catch (e) {}
+        if (AC) {
+            if (!audioCtx) audioCtx = new AC();
+            if (audioCtx.state === "suspended") {
+                try { audioCtx.resume(); } catch (e) {}
+            }
+            if (!unlockAudio._primed) {
+                try {
+                    var buf = audioCtx.createBuffer(1, 1, audioCtx.sampleRate || 22050);
+                    var src = audioCtx.createBufferSource();
+                    src.buffer = buf;
+                    src.connect(audioCtx.destination);
+                    src.start(0);
+                    unlockAudio._primed = true;
+                } catch (e2) {}
+            }
         }
-        if (audioCtx.state === "suspended") {
-            return audioCtx.resume().then(function () {
-                prime();
-            }).catch(function () {});
+        var beepEl = document.getElementById("key-beep");
+        if (beepEl && !unlockAudio._html) {
+            try { beepEl.load(); } catch (e3) {}
+            unlockAudio._html = true;
         }
-        prime();
-        return Promise.resolve();
+    }
+
+    function playOsc(freq, dur, peak) {
+        if (!audioCtx) return;
+        try {
+            var t = audioCtx.currentTime;
+            if (!(t > 0.001)) t += 0.02;
+            var osc = audioCtx.createOscillator();
+            var gain = audioCtx.createGain();
+            osc.type = "square";
+            osc.frequency.setValueAtTime(freq, t);
+            gain.gain.setValueAtTime(0.0001, t);
+            gain.gain.exponentialRampToValueAtTime(peak || 0.38, t + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(t);
+            osc.stop(t + dur + 0.03);
+        } catch (e) {}
+    }
+
+    function playHtmlBeep() {
+        var el = document.getElementById("key-beep");
+        if (!el) return false;
+        try {
+            el.pause();
+            try { el.currentTime = 0; } catch (e2) {}
+            el.volume = 0.85;
+            var p = el.play();
+            if (p && p.catch) p.catch(function () { playOsc(2100, 0.09, 0.45); });
+            return true;
+        } catch (e) {
+            return false;
+        }
     }
 
     function tone(freq, dur, peak) {
-        function play() {
-            if (!audioCtx) return;
-            try {
-                var t = audioCtx.currentTime;
-                var osc = audioCtx.createOscillator();
-                var gain = audioCtx.createGain();
-                osc.type = "square";
-                osc.frequency.setValueAtTime(freq, t);
-                gain.gain.setValueAtTime(0.0001, t);
-                gain.gain.exponentialRampToValueAtTime(peak || 0.38, t + 0.01);
-                gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start(t);
-                osc.stop(t + dur + 0.03);
-            } catch (e) {}
-        }
-        var ready = unlockAudio();
-        if (ready && typeof ready.then === "function") ready.then(play);
-        else play();
+        unlockAudio();
+        playOsc(freq, dur, peak);
     }
 
     function beep() {
-        tone(2100, 0.09, 0.45);
+        unlockAudio();
+        if (!playHtmlBeep()) playOsc(2100, 0.09, 0.45);
     }
 
     function disarmBeep() {
@@ -709,13 +729,14 @@
     window.arialClicks = loadClicks();
 
     var keypad = document.getElementById("pad-frame") || document.querySelector(".pad");
+    keypad.addEventListener("pointerdown", function () {
+        unlockAudio();
+    }, true);
     keypad.addEventListener("pointerdown", function (ev) {
         var btn = ev.target.closest("[data-key]");
         if (!btn) return;
-        var key = btn.getAttribute("data-key");
-        unlockAudio().then(function () {
-            onKey(key);
-        });
+        unlockAudio();
+        onKey(btn.getAttribute("data-key"));
     });
 
     try {

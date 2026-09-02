@@ -108,6 +108,19 @@ def test_panel_cache_ttl(monkeypatch):
     assert arial_api._cached_panel() is None
 
 
+def test_first_key_beep_plays_inside_pointerdown_gesture():
+    root = Path(__file__).resolve().parent
+    html = (root / "index.html").read_text(encoding="utf-8")
+    js = (root / "app.js").read_text(encoding="utf-8")
+    assert (root / "key-beep.wav").is_file()
+    assert 'id="key-beep"' in html
+    assert "key-beep.wav" in html
+    assert "playHtmlBeep" in js
+    assert "unlockAudio();" in js
+    assert "onKey(btn.getAttribute(\"data-key\"));" in js
+    assert "unlockAudio().then(function () {\n            onKey(key);" not in js
+
+
 def test_up_arrow_is_logout_when_logged_in():
     root = Path(__file__).resolve().parent
     html = (root / "index.html").read_text(encoding="utf-8")
