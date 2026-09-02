@@ -108,6 +108,14 @@ def test_panel_cache_ttl(monkeypatch):
     assert arial_api._cached_panel() is None
 
 
+def test_last_pin_digit_beeps_then_welcome_tune_waits():
+    js = (Path(__file__).resolve().parent / "app.js").read_text(encoding="utf-8")
+    assert "willAccept" not in js
+    assert 'key !== "LOGOUT" && key !== "UP") beep()' in js
+    assert "setTimeout(pinAccepted, 1000)" in js
+    assert "armWelcomeTune()" in js
+
+
 def test_first_key_beep_plays_inside_pointerdown_gesture():
     root = Path(__file__).resolve().parent
     html = (root / "index.html").read_text(encoding="utf-8")

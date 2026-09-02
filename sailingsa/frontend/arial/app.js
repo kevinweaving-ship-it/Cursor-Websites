@@ -570,11 +570,39 @@
             }
         }, 110);
     }
-    function pinAccepted() {
+    function pinOkEl() {
         pinOk = pinOk || document.getElementById("pin-ok") || new Audio("/arial/pin-accepted.wav");
-        pinOk.pause();
-        pinOk.currentTime = 0;
-        var p = pinOk.play();
+        return pinOk;
+    }
+
+    function armWelcomeTune() {
+        var el = pinOkEl();
+        armWelcomeTune._playing = false;
+        try {
+            el.muted = true;
+            var p = el.play();
+            if (p && p.then) {
+                p.then(function () {
+                    if (armWelcomeTune._playing) return;
+                    el.pause();
+                    try { el.currentTime = 0; } catch (e2) {}
+                    el.muted = false;
+                }).catch(function () {
+                    el.muted = false;
+                });
+            }
+        } catch (e) {
+            try { el.muted = false; } catch (e3) {}
+        }
+    }
+
+    function pinAccepted() {
+        var el = pinOkEl();
+        armWelcomeTune._playing = true;
+        el.muted = false;
+        try { el.pause(); } catch (e) {}
+        try { el.currentTime = 0; } catch (e2) {}
+        var p = el.play();
         if (p && p.catch) p.catch(function () { beep(); });
     }
 
@@ -582,7 +610,8 @@
         var user = CODES[pin];
         pin = "";
         if (user) {
-            pinAccepted();
+            armWelcomeTune();
+            setTimeout(pinAccepted, 1000);
             setLoggedIn(user);
             if (lcdHold) clearTimeout(lcdHold);
             lcdHold = setTimeout(function () {
@@ -682,11 +711,10 @@
         if (key === onKey._k && now - onKey._t < 280) return;
         onKey._k = key;
         onKey._t = now;
-        var willAccept = /^[0-9]$/.test(key) && pin.length === 3 && CODES[pin + key];
         var isArmed = panelLooksArmed(window.arialDevice);
         if ((key === "DISARM" || key === "TOGGLE") && isArmed) disarmBeep();
         else if (key === "ARM" || key === "TOGGLE" || (key === "DISARM" && !isArmed)) { /* panel countdown + beeps */ }
-        else if (!willAccept && key !== "LOGOUT" && key !== "UP") beep();
+        else if (key !== "LOGOUT" && key !== "UP") beep();
         if (/^[0-9]$/.test(key)) {
             if (pin.length >= 4) {
                 pin = key;
