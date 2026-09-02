@@ -1042,10 +1042,13 @@
             if (value < 216 || value > 244) return "warn";
             return "ok";
         }
-        var max = kind === "a" ? 32 : 5000;
-        var pct = value / max;
-        if (pct > 0.95) return "crit";
-        if (pct >= 0.8) return "warn";
+        if (kind === "a") {
+            if (value >= 10) return "crit";
+            if (value >= 9.5) return "warn";
+            return "ok";
+        }
+        if (value >= 2300) return "crit";
+        if (value >= 2200) return "warn";
         return "ok";
     }
 
@@ -1204,9 +1207,9 @@
         if (aEl) aEl.textContent = amps != null ? amps.toFixed(2) : "—";
         if (wEl) wEl.textContent = watts != null ? String(Math.round(watts)) : "—";
         if (wNow) wNow.textContent = watts != null ? Math.round(watts) + " W" : "—";
-        setBreakerGauge("v", volts, 180, 260);
-        setBreakerGauge("a", amps, 0, 32);
-        setBreakerGauge("w", watts, 0, 5000);
+        setBreakerGauge("v", volts, 200, 253);
+        setBreakerGauge("a", amps, 0, 11);
+        setBreakerGauge("w", watts, 0, 2530);
         if (watts != null) {
             breakerHist.push({ t: Date.now(), w: watts });
             var cut = Date.now() - BREAKER_HIST_MS;
