@@ -354,31 +354,34 @@ html, body {
 }
 
 .lcd-mid {
+    position: absolute;
+    left: 7px;
+    bottom: 3px;
+    right: 52%;
     display: flex;
     flex-direction: row;
-    align-items: stretch;
-    justify-content: space-between;
+    align-items: flex-end;
+    justify-content: flex-start;
     gap: 8px;
     min-height: 0;
-    flex: 0 0 auto;
+    flex: none;
     z-index: 1;
-    padding: 4px 0 0;
+    padding: 0;
 }
 
 #lcd-user-logo {
     display: none;
-    position: absolute;
-    right: 5px;
-    top: 52%;
-    height: 46%;
+    flex: 1 1 0;
+    min-height: 0;
+    height: 0;
     width: auto;
-    max-width: 48%;
-    margin: 0;
+    max-width: 100%;
+    margin: 2px 0 0;
     object-fit: contain;
     object-position: right bottom;
+    align-self: stretch;
     pointer-events: none;
     filter: drop-shadow(0 0 1px #fff);
-    z-index: 4;
 }
 
 .lcd.logged-in #lcd-user-logo {

@@ -307,13 +307,13 @@ def test_lcd_site_date_time_stack_right():
     assert "align-items: flex-end;" in head
     assert "#lcd-site {\n    font-size: 13.75px;" in css
     assert "object-position: right bottom;" in css
-    assert "padding: 4px 0 0;" in css.split(".lcd-mid {", 1)[1].split("}", 1)[0]
+    assert "position: absolute;" in css.split(".lcd-mid {", 1)[1].split("}", 1)[0]
     assert html.split('id="lcd-time"', 1)[1].split('id="lcd-welcome"', 1)[0].count('id="lcd-user-logo"') == 1
     logo = css.split("#lcd-user-logo {", 1)[1].split("}", 1)[0]
     assert "max-width: 52%;" not in logo
-    assert "top: 52%;" in logo
-    assert "height: 46%;" in logo
-    assert "max-width: 48%;" in logo
+    assert "flex: 1 1 0;" in logo
+    assert "height: 0;" in logo
+    assert "object-position: right bottom;" in logo
 
 
 def test_area_arm_uses_pingoa_not_olarm_user():
