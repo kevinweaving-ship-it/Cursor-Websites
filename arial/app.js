@@ -24,8 +24,7 @@
         if (siteEl) siteEl.textContent = s.name;
         if (!s.linked) {
             lastStatus = "Coming Soon";
-            var stEl = document.getElementById("lcd-2");
-            if (stEl) stEl.textContent = lastStatus;
+            setLcdStatus("Coming Soon", "");
             var lcd = document.querySelector(".lcd");
             if (lcd) lcd.classList.remove("armed", "disarmed", "arming", "arming-fast", "zone-open");
             setLed(document.getElementById("led-status"), "");
@@ -190,8 +189,28 @@
         if (st === "stay") return "Stay Armed";
         if (st === "sleep") return "Sleep Armed";
         if (st === "disarm") return "System Ready";
-        if (st === "notready") return openZoneIssue(device);
+        if (st === "notready") return "System Not Ready";
         return st;
+    }
+
+    var lastIssue = "";
+
+    function setLcdStatus(main, issue) {
+        if (main != null) lastStatus = String(main);
+        lastIssue = issue ? String(issue) : "";
+        var mainEl = document.getElementById("lcd-status-main");
+        var issueEl = document.getElementById("lcd-status-issue");
+        if (mainEl) mainEl.textContent = lastStatus || "";
+        else {
+            var box = document.getElementById("lcd-2");
+            if (box) box.textContent = lastStatus || "";
+        }
+        if (issueEl) {
+            issueEl.textContent = lastIssue;
+            if (lastIssue) issueEl.removeAttribute("hidden");
+            else issueEl.setAttribute("hidden", "");
+        }
+        fitLcdStatus();
     }
 
     function setLed(el, mode) {
@@ -218,21 +237,33 @@
     }
 
     function fitLcdStatus() {
-        var el = document.getElementById("lcd-2");
-        if (!el) return;
+        var el = document.getElementById("lcd-status-main") || document.getElementById("lcd-2");
+        var box = document.getElementById("lcd-2") || el;
+        if (!el || !box) return;
         el.style.fontSize = "";
-        var w = el.clientWidth;
+        var w = box.clientWidth;
         var h = el.clientHeight || 32;
         if (w < 12) return;
         var lcd = document.querySelector(".lcd");
         var shout = !!(lcd && lcd.classList.contains("armed"));
-        var size = Math.min(shout ? 54 : 48, Math.max(22, h + (shout ? 18 : 10)));
+        var size = Math.min(shout ? 54 : 48, Math.max(18, h + (shout ? 18 : 10)));
         el.style.fontSize = size + "px";
         var n = 0;
-        while (n < 28 && size > 11 && (el.scrollWidth > w + 1 || el.scrollHeight > h + 1)) {
+        while (n < 28 && size > 11 && el.scrollWidth > w + 1) {
             size -= 1;
             el.style.fontSize = size + "px";
             n += 1;
+        }
+        var issueEl = document.getElementById("lcd-status-issue");
+        if (issueEl && issueEl.textContent) {
+            var iz = 16;
+            issueEl.style.fontSize = iz + "px";
+            n = 0;
+            while (n < 12 && iz > 10 && issueEl.scrollWidth > w + 1) {
+                iz -= 1;
+                issueEl.style.fontSize = iz + "px";
+                n += 1;
+            }
         }
     }
 
@@ -271,18 +302,14 @@
 
         if (isAlarmState(st)) {
             clearLocalExit();
-            lastStatus = "ALARM";
-            var alarmEl = document.getElementById("lcd-2");
-            if (alarmEl) alarmEl.textContent = lastStatus;
+            setLcdStatus("ALARM", "");
             applyLcd(device);
             setLed(document.getElementById("led-status"), "armed flash-fast");
             return;
         }
         if (st === "arm" || st === "stay" || st === "sleep") {
             clearLocalExit();
-            lastStatus = statusFromDevice(device);
-            var armedEl = document.getElementById("lcd-2");
-            if (armedEl) armedEl.textContent = lastStatus;
+            setLcdStatus(statusFromDevice(device), "");
             applyLcd(device);
             setLed(document.getElementById("led-status"), "armed");
             return;
@@ -293,13 +320,13 @@
             return;
         }
         clearLocalExit();
-        lastStatus = statusFromDevice(device);
-        var readyEl = document.getElementById("lcd-2");
-        if (readyEl) readyEl.textContent = lastStatus;
-        applyLcd(device);
         if (st === "notready") {
+            setLcdStatus("System Not Ready", openZoneIssue(device));
+            applyLcd(device);
             setLed(document.getElementById("led-status"), "disarmed flash");
         } else {
+            setLcdStatus(statusFromDevice(device), "");
+            applyLcd(device);
             setLed(document.getElementById("led-status"), "disarmed");
         }
     }
@@ -328,23 +355,24 @@
             var res = await fetch("/api/arial/panel", { credentials: "same-origin", cache: "no-store" });
             var data = await res.json();
             if (!res.ok) {
-                document.getElementById("lcd-2").textContent = lastStatus || "No Link";
+                setLcdStatus(lastStatus || "No Link", lastIssue);
                 return;
             }
             var hanse = data.device;
             if (!hanse) {
-                document.getElementById("lcd-2").textContent = lastStatus || "No Device";
+                setLcdStatus(lastStatus || "No Device", lastIssue);
                 return;
             }
             document.getElementById("lcd-site").textContent = siteName(hanse);
             window.arialDevice = hanse;
             applyLeds(hanse);
-            lastStatus = document.getElementById("lcd-2").textContent || statusFromDevice(hanse);
+            lastStatus = (document.getElementById("lcd-status-main") || {}).textContent || statusFromDevice(hanse);
             loadStatus._area = areaState(hanse);
             try {
                 var lcd = document.querySelector(".lcd");
                 localStorage.setItem("arialPanel", JSON.stringify({
                     lastStatus: lastStatus,
+                    lastIssue: lastIssue,
                     site: siteName(hanse),
                     armed: !!(lcd && lcd.classList.contains("armed")),
                     arming: !!(lcd && lcd.classList.contains("arming")),
@@ -353,7 +381,7 @@
                 }));
             } catch (e) {}
         } catch (e) {
-            document.getElementById("lcd-2").textContent = lastStatus || "No Link";
+            setLcdStatus(lastStatus || "No Link", lastIssue);
         } finally {
             loadStatus._busy = false;
         }
@@ -544,9 +572,7 @@
     }
 
     function showArmed() {
-        lastStatus = "System Armed";
-        var st = document.getElementById("lcd-2");
-        if (st) st.textContent = lastStatus;
+        setLcdStatus("System Armed", "");
         var lcd = document.querySelector(".lcd");
         if (lcd) {
             lcd.classList.remove("disarmed", "arming", "arming-fast", "zone-open");
@@ -558,9 +584,7 @@
     }
 
     function showArming(n) {
-        lastStatus = n ? ("Exit Delay " + n) : "Exit Delay";
-        var st = document.getElementById("lcd-2");
-        if (st) st.textContent = lastStatus;
+        setLcdStatus(n ? ("Exit Delay " + n) : "Exit Delay", "");
         var lcd = document.querySelector(".lcd");
         if (lcd) {
             lcd.classList.remove("armed", "disarmed", "arming-fast", "zone-open");
@@ -744,9 +768,7 @@
     }
 
     function showDisarmed() {
-        lastStatus = "System Ready";
-        var st = document.getElementById("lcd-2");
-        if (st) st.textContent = lastStatus;
+        setLcdStatus("System Ready", "");
         var lcd = document.querySelector(".lcd");
         if (lcd) {
             lcd.classList.remove("armed", "arming", "arming-fast", "zone-open");
@@ -864,7 +886,7 @@
 
     window.setArialLcd = function (top, bottom) {
         if (top != null) document.getElementById("lcd-site").textContent = String(top);
-        if (bottom != null) document.getElementById("lcd-2").textContent = String(bottom);
+        if (bottom != null) setLcdStatus(String(bottom), "");
     };
 
     window.arialClicks = loadClicks();
@@ -885,7 +907,7 @@
         if (cached) {
             lastStatus = cached.lastStatus || "";
             if (cached.site) document.getElementById("lcd-site").textContent = cached.site;
-            if (lastStatus) document.getElementById("lcd-2").textContent = lastStatus;
+            if (lastStatus) setLcdStatus(lastStatus, cached.lastIssue || "");
             var lcd0 = document.querySelector(".lcd");
             if (lcd0) {
                 lcd0.classList.toggle("armed", !!cached.armed);

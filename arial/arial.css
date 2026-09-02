@@ -177,6 +177,10 @@ html, body {
 }
 
 .lcd.disarmed.zone-open #lcd-2 {
+    animation: none;
+}
+
+.lcd.disarmed.zone-open #lcd-status-issue {
     animation: lcdTextFlash 1.15s step-end infinite;
 }
 
@@ -219,8 +223,10 @@ html, body {
     min-height: 28px;
     z-index: 2;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 1px;
     text-align: center;
     font-family: Anton, Impact, "Arial Black", sans-serif;
     font-weight: 400;
@@ -231,6 +237,25 @@ html, body {
     white-space: nowrap;
     overflow: hidden;
     text-shadow: 0 1px 0 rgba(0, 0, 0, 0.28);
+}
+
+#lcd-status-main,
+#lcd-status-issue {
+    display: block;
+    width: 100%;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+#lcd-status-issue {
+    font-size: 15px;
+    letter-spacing: 0.08em;
+    line-height: 1;
+}
+
+#lcd-status-issue[hidden] {
+    display: none;
 }
 
 .lcd-head {

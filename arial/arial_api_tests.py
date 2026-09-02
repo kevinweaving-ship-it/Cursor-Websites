@@ -218,6 +218,9 @@ def test_lcd_status_text_is_bold():
     assert 'st === "notready"' in js
     assert "openZoneIssue" in js
     assert '"Zone " + n + " Open"' in js
+    assert '"System Not Ready"' in js
+    assert "lcd-status-issue" in html
+    assert "lcd-status-main" in html
     assert "zone-open" in js
     assert "border-radius: 8px;" in css.split(".lcd {", 1)[1].split("}", 1)[0]
 
