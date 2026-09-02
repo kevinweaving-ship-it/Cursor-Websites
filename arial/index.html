@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex,nofollow">
     <title>Arial</title>
-    <link rel="stylesheet" href="/arial/arial.css?v=64">
+    <link rel="stylesheet" href="/arial/arial.css?v=65">
 </head>
 <body>
     <div class="pad-wrap" id="pad-frame">
@@ -52,7 +52,7 @@
                 d="M50 378 H318 C352 378 358 392 358 404 C358 422 328 425 264 425 L104 425 C40 425 10 422 10 404 C10 392 16 378 50 378 Z"/>
         </svg>
         <div class="brand-slot">
-            <img class="brand-logo" src="/arial/logo.png?v=64" alt="Aerial Networks">
+            <img class="brand-logo" src="/arial/logo.png?v=65" alt="Aerial Networks">
         </div>
         <div class="lcd" aria-live="polite">
             <div class="lcd-head">
@@ -73,13 +73,28 @@
         <button type="button" class="hot key-fn" data-key="FORCE" aria-label="FORCE"><span class="key-label">FORCE</span></button>
         <button type="button" class="hot key-fn" data-key="ARM" aria-label="ARM"><span class="key-label">ARM</span></button>
         <button type="button" class="hot key-fn arm-toggle mode-disarm" id="arm-toggle" data-key="TOGGLE" aria-label="DISARM">
-            <span class="key-label" id="arm-toggle-face">DISARM</span>
+            <span class="key-icon-wrap" id="arm-toggle-face">
+                <svg class="key-icon icon-lock" viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="5" y="11" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2.2"/>
+                    <path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2.2"/>
+                </svg>
+                <svg class="key-icon icon-unlock" viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="5" y="11" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2.2"/>
+                    <path d="M8 11V7.5A4 4 0 0 1 16 8" fill="none" stroke="currentColor" stroke-width="2.2"/>
+                </svg>
+            </span>
         </button>
         <button type="button" class="hot key-fn hot-more" data-key="BYP" aria-label="BYP"><span class="key-label">BYP</span></button>
         <button type="button" class="hot key-fn hot-more" data-key="MEM" aria-label="MEM"><span class="key-label">MEM</span></button>
         <button type="button" class="hot key-fn hot-more" data-key="TBL" aria-label="TBL"><span class="key-label">TBL</span></button>
         <button type="button" class="hot key-fn hot-more" data-key="ACC" aria-label="ACC"><span class="key-label">ACC</span></button>
-        <button type="button" class="hot key-arrow" data-key="UP" aria-label="Log Out"><span class="key-arrow-icon" aria-hidden="true"></span></button>
+        <button type="button" class="hot key-arrow" data-key="UP" aria-label="Log Out">
+            <svg class="key-icon icon-logout" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M10 7V5a2 2 0 0 1 2-2h7v18h-7a2 2 0 0 1-2-2v-2" fill="none" stroke="currentColor" stroke-width="2.2"/>
+                <path d="M3 12h11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M11 8l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </button>
         <button type="button" class="hot key-arrow hot-more" data-key="DOWN" aria-label="Down"><span class="key-arrow-icon down" aria-hidden="true"></span></button>
         <span class="sublab sublab-areas">AREAS</span>
         <button type="button" class="hot key-num hot-more" data-key="1" aria-label="1"><span class="key-label">1</span></button>
@@ -117,6 +132,6 @@
         if (when) when.textContent = saNow();
     })();
     </script>
-    <script src="/arial/app.js?v=64"></script>
+    <script src="/arial/app.js?v=65"></script>
 </body>
 </html>

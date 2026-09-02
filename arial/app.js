@@ -212,17 +212,11 @@
         if (armed) {
             btn.setAttribute("aria-label", "DISARM");
             btn.classList.add("mode-disarm");
-            if (face) {
-                if (face.tagName === "IMG") face.src = "/arial/btn-disarm.png?v=45";
-                else face.textContent = "DISARM";
-            }
+            if (face && face.tagName === "IMG") face.src = "/arial/btn-disarm.png?v=45";
         } else {
             btn.setAttribute("aria-label", "ARM");
             btn.classList.add("mode-arm");
-            if (face) {
-                if (face.tagName === "IMG") face.src = "/arial/btn-arm.png?v=45";
-                else face.textContent = "ARM";
-            }
+            if (face && face.tagName === "IMG") face.src = "/arial/btn-arm.png?v=45";
         }
     }
 
