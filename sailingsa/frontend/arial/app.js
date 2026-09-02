@@ -738,7 +738,13 @@
             try { beepEl.load(); } catch (e3) {}
             unlockAudio._html = true;
         }
+        var rejEl = document.getElementById("key-reject");
+        if (rejEl && !unlockAudio._rej) {
+            try { rejEl.load(); } catch (e4) {}
+            unlockAudio._rej = true;
+        }
         loadPinOkBuffer();
+        loadRejectBuffer();
     }
 
     function playOsc(freq, dur, peak, solid) {
@@ -1052,6 +1058,7 @@
         }, 2200);
     }
     var pinOkBuf = null;
+    var rejectBuf = null;
 
     function loadPinOkBuffer() {
         if (pinOkBuf || !audioCtx || loadPinOkBuffer._busy) return;
@@ -1128,17 +1135,52 @@
         fitLcdStatus();
     }
 
+    function loadRejectBuffer() {
+        if (rejectBuf || !audioCtx || loadRejectBuffer._busy) return;
+        loadRejectBuffer._busy = true;
+        fetch("/arial/key-reject.wav?v=151", { credentials: "same-origin" }).then(function (res) {
+            return res.arrayBuffer();
+        }).then(function (ab) {
+            return audioCtx.decodeAudioData(ab);
+        }).then(function (buf) {
+            rejectBuf = buf;
+        }).catch(function () {
+            loadRejectBuffer._busy = false;
+        });
+    }
+
     function rejectGong() {
         if (rejectGong._on) return;
         rejectGong._on = true;
         unlockAudio();
-        playOsc(170, 0.55, 0.95, true);
-        playOsc(85, 0.75, 0.92, true);
-        setTimeout(function () {
-            playOsc(130, 0.45, 0.95, true);
-            playOsc(60, 0.95, 0.95, true);
-        }, 160);
-        setTimeout(function () { rejectGong._on = false; }, 1400);
+        loadRejectBuffer();
+        if (rejectBuf && audioCtx) {
+            try {
+                var src = audioCtx.createBufferSource();
+                var gain = audioCtx.createGain();
+                src.buffer = rejectBuf;
+                gain.gain.setValueAtTime(1.0, audioCtx.currentTime);
+                src.connect(gain);
+                gain.connect(audioCtx.destination);
+                src.start(0);
+                setTimeout(function () { rejectGong._on = false; }, 1200);
+                return;
+            } catch (e) {}
+        }
+        var el = document.getElementById("key-reject");
+        if (el) {
+            try {
+                el.pause();
+                try { el.currentTime = 0; } catch (e2) {}
+                el.volume = 1.0;
+                var p = el.play();
+                if (p && p.catch) p.catch(function () { playOsc(2100, 1.05, 0.95, true); });
+                setTimeout(function () { rejectGong._on = false; }, 1200);
+                return;
+            } catch (e3) {}
+        }
+        playOsc(2100, 1.05, 0.95, true);
+        setTimeout(function () { rejectGong._on = false; }, 1200);
     }
 
     function isLoggedIn() {

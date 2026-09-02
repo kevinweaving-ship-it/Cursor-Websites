@@ -324,8 +324,12 @@ def test_first_key_beep_plays_inside_pointerdown_gesture():
     html = (root / "index.html").read_text(encoding="utf-8")
     js = (root / "app.js").read_text(encoding="utf-8")
     assert (root / "key-beep.wav").is_file()
+    assert (root / "key-reject.wav").is_file()
     assert 'id="key-beep"' in html
+    assert 'id="key-reject"' in html
     assert "key-beep.wav" in html
+    assert "key-reject.wav" in html
+    assert "function loadRejectBuffer()" in js
     assert "playHtmlBeep" in js
     assert "unlockAudio();" in js
     assert "onKey(btn.getAttribute(\"data-key\"));" in js
