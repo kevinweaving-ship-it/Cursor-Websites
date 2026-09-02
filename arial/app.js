@@ -1172,14 +1172,11 @@
             return;
         }
         if (breakerEnergy.last != null && kwh < breakerEnergy.last - 0.001) {
-            if (kwh > 0.05) {
-                breakerEnergy.hidden = true;
-                if (row) row.hidden = true;
-                saveBreakerStore();
-                return;
-            }
-            breakerEnergy.midnightAddEle = kwh;
-            breakerEnergy.midnightYmd = saYmdNow();
+            // A cumulative register never decreases; this meter's add_ele is a per-report pulse, so hide the row.
+            breakerEnergy.hidden = true;
+            if (row) row.hidden = true;
+            saveBreakerStore();
+            return;
         }
         var ymd = saYmdNow();
         if (breakerEnergy.midnightYmd !== ymd || breakerEnergy.midnightAddEle == null) {
@@ -1357,22 +1354,9 @@
     }
 
     function breakerAvgKwh(day) {
-        // Multi-day baseline (kW == kWh per hour) when known; otherwise the mean of this day's own hours.
+        // Only the multi-day baseline (kW == kWh per hour). A single day's own mean is not an average worth colouring against.
         if (breakerEnergyData && breakerEnergyData.baselineKw != null) return breakerEnergyData.baselineKw;
-        var hours = day && Array.isArray(day.hours) ? day.hours : [];
-        var skip = -1;
-        if (day && day.partial) {
-            skip = Number(new Date().toLocaleString("en-GB", { timeZone: "Africa/Johannesburg", hour: "2-digit", hour12: false }).slice(0, 2));
-        }
-        var sum = 0;
-        var n = 0;
-        var i;
-        for (i = 0; i < hours.length; i += 1) {
-            if (i === skip || hours[i] == null) continue;
-            sum += hours[i];
-            n += 1;
-        }
-        return n >= 3 ? sum / n : null;
+        return null;
     }
 
     function breakerBandClass(v, avg) {
