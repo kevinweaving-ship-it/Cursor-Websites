@@ -724,11 +724,14 @@
     }
 
     function disarmBeep() {
-        var n = 0;
+        if (disarmBeep._on) return;
+        disarmBeep._on = true;
+        unlockAudio();
+        var start = Date.now();
         function ping() {
-            tone(1200, 0.1, 0.5);
-            n += 1;
-            if (n < 8) setTimeout(ping, 333);
+            tone(1400, 0.12, 0.58);
+            if (Date.now() - start + 333 <= 2500) setTimeout(ping, 333);
+            else disarmBeep._on = false;
         }
         ping();
     }
@@ -1156,6 +1159,7 @@
 
     function doDisarm() {
         if (!requireLogin()) return;
+        disarmBeep();
         disarmPending = true;
         disarmNeedsStatus = false;
         clearLocalExit();
@@ -1182,7 +1186,7 @@
             if (typeof window.onArialKey === "function") window.onArialKey(key);
             return;
         }
-        if ((key === "DISARM" || key === "TOGGLE") && isArmed) disarmBeep();
+        if ((key === "DISARM" || key === "TOGGLE") && isArmed) { /* disarmBeep in doDisarm */ }
         else if (key === "ARM" || key === "TOGGLE" || (key === "DISARM" && !isArmed)) { /* panel countdown + beeps */ }
         else if (key !== "LOGOUT" && key !== "UP") beep();
         if (/^[0-9]$/.test(key)) {

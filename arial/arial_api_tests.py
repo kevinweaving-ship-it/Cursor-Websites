@@ -132,7 +132,9 @@ def test_arm_disarm_pending_and_thirty_second_exit():
     assert "localStorage.setItem(k, v)" in js
     assert "startExitBeeps._nextFast = now + 500" in js
     assert "tone(1100, 1.35, 0.62)" in js
-    assert "if (n < 8) setTimeout(ping, 333)" in js
+    assert "Date.now() - start + 333 <= 2500" in js
+    assert "setTimeout(ping, 333)" in js
+    assert "disarmBeep();" in js
 
 
 def test_panel_cache_ttl(monkeypatch):
