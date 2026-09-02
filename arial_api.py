@@ -730,13 +730,148 @@ def _energy_note_recent(device: str, status: list[Any], now: float) -> None:
             return
 
 
+def _tuya_logs(creds: dict[str, str], device: str, *, types: str, start_ms: int, end_ms: int, codes: str = "", max_pages: int = 60) -> list[dict[str, Any]]:
+    """Page through GET /v1.0/devices/{id}/logs (newest first). Returns raw rows."""
+    access = str((_tuya_token or {}).get("access_token") or "")
+    if not access:
+        _tuya_ensure_token(creds)
+        access = str((_tuya_token or {}).get("access_token") or "")
+    if not access:
+        return []
+    rows: list[dict[str, Any]] = []
+    row_key = ""
+    for _ in range(max_pages):
+        params: dict[str, Any] = {"type": types, "start_time": start_ms, "end_time": end_ms, "size": "100"}
+        if codes:
+            params["codes"] = codes
+        if row_key:
+            params["start_row_key"] = row_key
+        payload = _tuya_call("GET", f"/v1.0/devices/{device}/logs", creds=creds, params=params, access_token=access)
+        if not payload.get("success"):
+            break
+        result = payload.get("result") if isinstance(payload.get("result"), dict) else {}
+        rows.extend(r for r in (result.get("logs") or []) if isinstance(r, dict))
+        if not result.get("has_next") or not result.get("current_row_key"):
+            break
+        row_key = str(result.get("current_row_key"))
+    return rows
+
+
+_LIFECYCLE_ONLINE, _LIFECYCLE_OFFLINE, _LIFECYCLE_RESTART = 1, 2, 9
+_POWER_LOG_GAP_S = 600.0
+
+
+def _outages_from_lifecycle(rows: list[dict[str, Any]]) -> list[dict[str, float]]:
+    """Mains outages = offline→online gaps ≥10 min, or any online followed by a device restart (power-on boot)."""
+    events = sorted(
+        ((int(r.get("event_time") or 0) / 1000.0, int(r.get("event_id") or 0)) for r in rows if r.get("event_time")),
+        key=lambda x: x[0],
+    )
+    outages: list[dict[str, float]] = []
+    off_since: float | None = None
+    last_online: float | None = None
+    for ts, kind in events:
+        if kind == _LIFECYCLE_OFFLINE:
+            if off_since is None:
+                off_since = ts
+        elif kind == _LIFECYCLE_ONLINE:
+            if off_since is not None and ts - off_since >= _POWER_LOG_GAP_S:
+                outages.append({"from": off_since, "to": ts})
+            off_since = None
+            last_online = ts
+        elif kind == _LIFECYCLE_RESTART:
+            if last_online is not None and ts - last_online <= 120 and not any(abs(o["to"] - last_online) < 1 for o in outages):
+                outages.append({"from": off_since if off_since is not None else last_online, "to": last_online})
+            off_since = None
+    outages.sort(key=lambda o: o["to"])
+    return outages
+
+
+def _power_sync_from_logs(creds: dict[str, str], device: str, days: int = 7) -> dict[str, Any]:
+    end_ms = int(time.time() * 1000)
+    rows = _tuya_logs(creds, device, types="1,2,9", start_ms=end_ms - days * 86_400_000, end_ms=end_ms, max_pages=10)
+    outages = _outages_from_lifecycle(rows)
+    if not rows:
+        return {"rows": 0, "outages": 0}
+    with _energy_lock:
+        _power_load()
+        merged = {round(o["to"]): o for o in (_power_state.get("outages") or []) if isinstance(o, dict)}
+        for o in outages:
+            merged[round(o["to"])] = o
+        ordered = [merged[k] for k in sorted(merged)][-50:]
+        _power_state["outages"] = ordered
+        if ordered:
+            _power_state["restoreAt"] = max(float(o["to"]) for o in ordered)
+        _energy_save()
+    return {"rows": len(rows), "outages": len(outages)}
+
+
+def _energy_backfill_from_logs(creds: dict[str, str], device: str, start_ts: float, end_ts: float | None = None) -> dict[str, Any]:
+    """Rebuild hourly bins in [start, end) from Tuya's cur_power report log (real readings, trapezoid-integrated)."""
+    end_ts = float(end_ts if end_ts is not None else time.time())
+    rows = _tuya_logs(creds, device, types="7", codes="cur_power", start_ms=int(start_ts * 1000), end_ms=int(end_ts * 1000), max_pages=200)
+    samples = sorted(
+        ((int(r.get("event_time")) / 1000.0, _scale_power_w(r.get("value"))) for r in rows if r.get("event_time")),
+        key=lambda x: x[0],
+    )
+    samples = [(t, w) for t, w in samples if w is not None]
+    if len(samples) < 2:
+        return {"rows": len(rows), "hours": 0}
+    hours: dict[str, float] = {}
+    for (t0, w0), (t1, w1) in zip(samples, samples[1:]):
+        dt = t1 - t0
+        if dt <= 0 or dt > _ENERGY_MAX_GAP_S:
+            continue
+        avg_w = (w0 + w1) / 2.0
+        cur = t0
+        while cur < t1:
+            local = datetime.fromtimestamp(cur, tz=timezone.utc).astimezone(_SAST)
+            hour_end = (local.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).timestamp()
+            seg_end = min(t1, hour_end)
+            key = _sa_hour_key(cur)
+            hours[key] = hours.get(key, 0.0) + avg_w * (seg_end - cur) / 3_600_000.0
+            cur = seg_end
+    with _energy_lock:
+        _energy_load()
+        bins = _energy_bins.setdefault(device, {})
+        for key, val in hours.items():
+            # The log covers the whole hour; our sampler may only have part of it. Keep the larger real total.
+            bins[key] = round(max(val, float(bins.get(key) or 0.0)), 6)
+        _energy_save()
+    return {"rows": len(rows), "hours": len(hours), "first": samples[0][0], "last": samples[-1][0]}
+
+
+_power_sync_at = 0.0
+
+
+def _energy_bootstrap(device: str) -> None:
+    """On start: restores from 7 days of lifecycle log, and refill the last 24 h of bins from power reports."""
+    global _power_sync_at
+    creds = _tuya_creds()
+    if not (creds["client_id"] and creds["secret"]):
+        return
+    with _tuya_http_lock:
+        _power_sync_from_logs(creds, device, days=7)
+        _power_sync_at = time.time()
+        _energy_backfill_from_logs(creds, device, time.time() - 86_400)
+
+
 def _energy_sampler_loop(device: str) -> None:
+    global _power_sync_at
+    try:
+        _energy_bootstrap(device)
+    except Exception:
+        pass
     while True:
         time.sleep(_ENERGY_SAMPLE_S)
         try:
             creds = _tuya_creds()
             if not (creds["client_id"] and creds["secret"]):
                 continue
+            if time.time() - _power_sync_at >= 600:
+                _power_sync_at = time.time()
+                with _tuya_http_lock:
+                    _power_sync_from_logs(creds, device, days=2)
             panel = _stale_panel() or {}
             ac = (panel.get("arialPower") or {}).get("acOk") if isinstance(panel.get("arialPower"), dict) else None
             if isinstance(ac, bool):

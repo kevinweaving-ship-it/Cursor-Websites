@@ -623,6 +623,22 @@ def test_breaker_power_restore_and_flags(tmp_path, monkeypatch):
     assert arial_api._energy_analysis(dev, arial_api._energy_days_from_bins(dev, now=later), later)["flag"] == "above"
 
 
+def test_breaker_outages_from_tuya_lifecycle_log():
+    def ev(stamp, kind):
+        ts = datetime.strptime("2026-" + stamp, "%Y-%b %d %H:%M:%S").replace(tzinfo=arial_api._SAST).timestamp()
+        return {"event_time": int(ts * 1000), "event_id": kind}
+    rows = [
+        ev("Aug 31 10:30:56", 2), ev("Sep 01 18:56:42", 1), ev("Sep 01 18:56:50", 9),
+        ev("Sep 01 19:03:04", 2), ev("Sep 01 19:03:09", 1),  # 5 s wifi blip
+        ev("Sep 02 11:19:57", 2), ev("Sep 02 11:26:13", 1),  # 6 min, no restart -> not mains
+        ev("Sep 02 18:01:04", 2), ev("Sep 02 18:01:36", 1),
+    ]
+    out = arial_api._outages_from_lifecycle(rows)
+    assert len(out) == 1
+    assert datetime.fromtimestamp(out[0]["to"], arial_api._SAST).strftime("%d %H:%M:%S") == "01 18:56:42"
+    assert datetime.fromtimestamp(out[0]["from"], arial_api._SAST).strftime("%d %H:%M:%S") == "31 10:30:56"
+
+
 def test_olarm_poll_acks_until_newer_record(tmp_path, monkeypatch):
     _reset_keypad_log(monkeypatch, tmp_path)
     arial_api._activity_cache = {"at": 0.0, "data": None, "last_key": ""}
