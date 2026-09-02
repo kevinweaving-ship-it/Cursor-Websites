@@ -295,14 +295,6 @@ html, body {
     line-height: 1;
 }
 
-.led-mark.ac-wave {
-    left: 13.4%;
-    top: 48.4%;
-    width: 6.0%;
-    font-size: 14px;
-    letter-spacing: 0;
-}
-
 .led-mark.status-word {
     top: 42.4%;
     font-size: 6px;
