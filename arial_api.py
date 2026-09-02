@@ -293,11 +293,14 @@ def _countdown_int(value: Any) -> int | None:
 
 
 def _profile_exit_delay(profile: dict[str, Any]) -> int:
-    for key in ("exitDelay", "exitDelaySeconds", "areasExitDelay", "armDelay"):
-        n = _countdown_int(profile.get(key))
-        if n and n >= 10:
+    for key in ("exitDelay", "exitDelaySeconds", "areasExitDelay", "armDelay", "exitTime"):
+        raw = profile.get(key)
+        if isinstance(raw, list) and raw:
+            raw = raw[0]
+        n = _countdown_int(raw)
+        if n and n > 10:
             return n
-    return 10
+    return 30
 
 
 def _looks_like_timer(detail: Any) -> bool:

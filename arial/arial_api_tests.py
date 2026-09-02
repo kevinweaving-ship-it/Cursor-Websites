@@ -60,7 +60,7 @@ def test_countdown_from_numeric_detail():
     out = arial_api.enrich_device(d)
     assert out["arialCountdown"] == 47
     assert out["arialAreas"][0]["countdown"] == 47
-    assert out["arialExitDelay"] == 10
+    assert out["arialExitDelay"] == 30
 
 
 def test_countdown_from_detail_object():
@@ -90,6 +90,33 @@ def test_profile_exit_delay():
         },
     }
     assert arial_api.enrich_device(d)["arialExitDelay"] == 30
+
+
+def test_profile_exit_delay_ten_is_unset():
+    d = {
+        "deviceState": {"areas": ["disarm"], "areasDetail": [""]},
+        "deviceProfile": {
+            "areasLimit": 1,
+            "areasLabels": ["House"],
+            "zonesLimit": 0,
+            "exitDelay": 10,
+        },
+    }
+    assert arial_api.enrich_device(d)["arialExitDelay"] == 30
+
+
+def test_arm_disarm_pending_and_thirty_second_exit():
+    js = (Path(__file__).resolve().parent / "app.js").read_text(encoding="utf-8")
+    assert "var EXIT_DEFAULT = 30;" in js
+    assert "n > 10 && n <= 180" in js
+    assert "var disarmPending = false;" in js
+    assert "function showSystemDisarmed()" in js
+    assert 'setLcdStatus("System Disarmed", "");' in js
+    assert "disarmPending = true;" in js
+    assert "var delay = exitDelaySecs(window.arialDevice);" in js
+    assert "if (apiCd > 0 && !armPending)" in js
+    assert "if (armPending && local > 0) return local;" in js
+    assert "if (!localExitLeft()) return;\n        showArming(localExitLeft());" in js
 
 
 def test_panel_cache_ttl(monkeypatch):
@@ -226,6 +253,7 @@ def test_lcd_status_text_is_bold():
     assert "ensureIssueCycle" in js
     assert 'return "Zone Open"' not in js
     assert '"System Ready"' in js
+    assert '"System Disarmed"' in js
     assert "disarmed:not(.zone-open)" in css
     assert '"System Not Ready"' in js
     assert "lcd-status-issue" in html
