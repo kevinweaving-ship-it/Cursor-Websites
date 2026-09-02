@@ -446,6 +446,7 @@
             try { beepEl.load(); } catch (e3) {}
             unlockAudio._html = true;
         }
+        loadPinOkBuffer();
     }
 
     function playOsc(freq, dur, peak) {
@@ -489,7 +490,8 @@
 
     function beep() {
         unlockAudio();
-        if (!playHtmlBeep()) playOsc(2100, 0.09, 0.45);
+        playOsc(2100, 0.09, 0.45);
+        if (!audioCtx || audioCtx.state !== "running") playHtmlBeep();
     }
 
     function disarmBeep() {
@@ -570,39 +572,41 @@
             }
         }, 110);
     }
-    function pinOkEl() {
-        pinOk = pinOk || document.getElementById("pin-ok") || new Audio("/arial/pin-accepted.wav");
-        return pinOk;
-    }
+    var pinOkBuf = null;
 
-    function armWelcomeTune() {
-        var el = pinOkEl();
-        armWelcomeTune._playing = false;
-        try {
-            el.muted = true;
-            var p = el.play();
-            if (p && p.then) {
-                p.then(function () {
-                    if (armWelcomeTune._playing) return;
-                    el.pause();
-                    try { el.currentTime = 0; } catch (e2) {}
-                    el.muted = false;
-                }).catch(function () {
-                    el.muted = false;
-                });
-            }
-        } catch (e) {
-            try { el.muted = false; } catch (e3) {}
-        }
+    function loadPinOkBuffer() {
+        if (pinOkBuf || !audioCtx || loadPinOkBuffer._busy) return;
+        loadPinOkBuffer._busy = true;
+        fetch("/arial/pin-accepted.wav", { credentials: "same-origin" }).then(function (res) {
+            return res.arrayBuffer();
+        }).then(function (ab) {
+            return audioCtx.decodeAudioData(ab);
+        }).then(function (buf) {
+            pinOkBuf = buf;
+        }).catch(function () {
+            loadPinOkBuffer._busy = false;
+        });
     }
 
     function pinAccepted() {
-        var el = pinOkEl();
-        armWelcomeTune._playing = true;
-        el.muted = false;
-        try { el.pause(); } catch (e) {}
-        try { el.currentTime = 0; } catch (e2) {}
-        var p = el.play();
+        unlockAudio();
+        if (pinOkBuf && audioCtx) {
+            try {
+                var src = audioCtx.createBufferSource();
+                var gain = audioCtx.createGain();
+                src.buffer = pinOkBuf;
+                gain.gain.setValueAtTime(0.9, audioCtx.currentTime);
+                src.connect(gain);
+                gain.connect(audioCtx.destination);
+                src.start(0);
+                return;
+            } catch (e) {}
+        }
+        pinOk = pinOk || document.getElementById("pin-ok") || new Audio("/arial/pin-accepted.wav");
+        try { pinOk.pause(); } catch (e2) {}
+        try { pinOk.currentTime = 0; } catch (e3) {}
+        pinOk.muted = false;
+        var p = pinOk.play();
         if (p && p.catch) p.catch(function () { beep(); });
     }
 
@@ -610,7 +614,7 @@
         var user = CODES[pin];
         pin = "";
         if (user) {
-            armWelcomeTune();
+            loadPinOkBuffer();
             setTimeout(pinAccepted, 1000);
             setLoggedIn(user);
             if (lcdHold) clearTimeout(lcdHold);

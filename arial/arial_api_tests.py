@@ -113,7 +113,8 @@ def test_last_pin_digit_beeps_then_welcome_tune_waits():
     assert "willAccept" not in js
     assert 'key !== "LOGOUT" && key !== "UP") beep()' in js
     assert "setTimeout(pinAccepted, 1000)" in js
-    assert "armWelcomeTune()" in js
+    assert "armWelcomeTune" not in js
+    assert "loadPinOkBuffer" in js
 
 
 def test_first_key_beep_plays_inside_pointerdown_gesture():
