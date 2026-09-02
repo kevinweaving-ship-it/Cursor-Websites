@@ -310,7 +310,15 @@
     function applyLcd(device) {
         var lcd = document.querySelector(".lcd");
         if (!lcd) return;
-        if (disarmPending) {
+        if (Date.now() < loginErrorUntil) {
+            lcd.classList.remove("disarmed", "arming", "arming-fast", "zone-open", "hold-disarmed");
+            lcd.classList.add("armed", "login-error");
+            syncArmToggle();
+            fitLcdStatus();
+            return;
+        }
+        lcd.classList.remove("login-error");
+        if (disarmPending && isLoggedIn()) {
             lcd.classList.remove("arming", "armed", "arming-fast", "zone-open");
             lcd.classList.add("disarmed", "hold-disarmed");
             syncArmToggle();
@@ -410,6 +418,10 @@
             applyLcd(device);
             setLed(document.getElementById("led-status"), "armed flash-fast");
             return;
+        }
+        if (disarmPending && !isLoggedIn()) {
+            disarmPending = false;
+            disarmNeedsStatus = false;
         }
         if (disarmPending) {
             var confirmed = (st === "disarm" || st === "notready");
@@ -1017,14 +1029,13 @@
 
     function showLoginError(keep) {
         stopIssueCycle();
-        setLcdStatus("Login", "");
+        setLcdStatus("System Armed", "Login");
         var lcd = document.querySelector(".lcd");
         if (lcd) {
             lcd.classList.remove("disarmed", "arming", "arming-fast", "zone-open", "hold-disarmed");
-            lcd.classList.add("login-error");
-            if (lcd.classList.contains("armed") || panelLooksArmed()) lcd.classList.add("armed");
+            lcd.classList.add("armed", "login-error");
         }
-        setLed(document.getElementById("led-status"), "armed flash-fast");
+        setLed(document.getElementById("led-status"), "armed");
         fitLcdStatus();
         if (!keep) setWelcome("Login", 2200);
     }
@@ -1106,14 +1117,18 @@
     }
 
     function showSystemDisarmed() {
+        if (!isLoggedIn()) {
+            rejectNeedLogin();
+            return;
+        }
         stopIssueCycle();
         setLcdStatus("System Disarmed", "");
         var lcd = document.querySelector(".lcd");
         if (lcd) {
-            lcd.classList.remove("armed", "arming", "arming-fast", "zone-open");
+            lcd.classList.remove("armed", "arming", "arming-fast", "zone-open", "login-error");
             lcd.classList.add("disarmed", "hold-disarmed");
         }
-        setLed(document.getElementById("led-status"), "disarmed");
+        setLed(document.getElementById("led-status"), "disarmed flash");
         syncArmToggle();
         fitLcdStatus();
     }

@@ -193,18 +193,25 @@ html, body {
 }
 
 .lcd.hold-disarmed #lcd-2,
-.lcd.hold-disarmed #lcd-status-main,
+.lcd.hold-disarmed #lcd-status-main {
+    animation: lcdTextFlash 1.15s step-end infinite !important;
+}
+
 .lcd.hold-disarmed #lcd-status-issue {
     animation: none !important;
 }
 
 .lcd.login-error {
-    background: #7a0000;
+    background: #ff1a1a;
     color: #fff;
 }
 
 .lcd.login-error #lcd-2,
 .lcd.login-error #lcd-status-main {
+    animation: lcdTextFlashSlow 6s ease-in-out infinite;
+}
+
+.lcd.login-error #lcd-status-issue {
     animation: lcdTextFlash 0.22s step-end infinite;
 }
 
