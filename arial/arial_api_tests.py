@@ -114,6 +114,7 @@ def test_welcome_credits_roll_and_fade():
     js = (root / "app.js").read_text(encoding="utf-8")
     assert "playWelcomeCredits" in js
     assert 'el.textContent = "WELCOME"' in js
+    assert "text-transform: uppercase;" in css.split("#lcd-welcome.credits {", 1)[1].split("}", 1)[0]
     assert "playWelcomeCredits();" in js
     assert "playWelcomeCredits(user.from" not in js
     assert "rollThenFade" not in js

@@ -236,6 +236,7 @@ html, body {
     font-size: 34px;
     font-weight: 900;
     letter-spacing: 0.04em;
+    text-transform: uppercase;
     text-align: left;
     overflow: visible;
     clip-path: inset(0 100% 0 0);
