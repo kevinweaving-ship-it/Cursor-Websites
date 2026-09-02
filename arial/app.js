@@ -581,7 +581,14 @@
         applyLeds(hanse);
         setActivityPower(hanse.arialPower);
         lastStatus = (document.getElementById("lcd-status-main") || {}).textContent || statusFromDevice(hanse);
-        loadStatus._area = areaState(hanse);
+        var st = areaState(hanse);
+        if (isLoggedIn() && applyPanelDevice._area && applyPanelDevice._area !== st) {
+            if (st === "disarm" || st === "notready") prependActivity("DISARMED");
+            else if (st === "countdown") prependActivity("COUNTDOWN");
+            else if (st === "arm" || st === "stay" || st === "sleep") prependActivity("ARMED");
+        }
+        applyPanelDevice._area = st;
+        loadStatus._area = st;
         try {
             var lcd = document.querySelector(".lcd");
             localStorage.setItem("arialPanel", JSON.stringify({
@@ -824,6 +831,25 @@
         }
     }
 
+    function applyActivityPayload(data) {
+        if (!data) return;
+        var incoming = Array.isArray(data.events) ? data.events : [];
+        var key = data.lastKey || (incoming[0] ? activityRecordKey(incoming[0]) : "");
+        setActivityPower(data.power || ((window.arialDevice || {}).arialPower));
+        if (!activityRows.length) {
+            activityRows = pruneActivity(incoming.slice());
+            activityLastKey = key;
+            activityChecksumLocal = data.checksum || activityChecksum(activityRows);
+            saveActivityStore();
+            renderActivity();
+            return;
+        }
+        if ((key && key === activityLastKey) || allActivityThere(incoming)) return;
+        var mode = insertNewerActivity(incoming);
+        if (key) activityLastKey = key;
+        if (mode !== "ack") renderActivity();
+    }
+
     async function loadActivity() {
         if (!isLoggedIn()) return;
         if (currentSite().id !== "hansekop") return;
@@ -833,23 +859,7 @@
             var res = await fetch("/api/arial/activity", { credentials: "same-origin", cache: "no-store" });
             var data = await res.json();
             if (!res.ok) return;
-            var incoming = Array.isArray(data.events) ? data.events : [];
-            var key = data.lastKey || (incoming[0] ? activityRecordKey(incoming[0]) : "");
-            setActivityPower(data.power || ((window.arialDevice || {}).arialPower));
-            if (!activityRows.length) {
-                activityRows = pruneActivity(incoming.slice());
-                activityLastKey = key;
-                activityChecksumLocal = data.checksum || activityChecksum(activityRows);
-                saveActivityStore();
-                renderActivity();
-                return;
-            }
-            if ((key && key === activityLastKey) || allActivityThere(incoming)) {
-                return;
-            }
-            var mode = insertNewerActivity(incoming);
-            if (key) activityLastKey = key;
-            if (mode !== "ack") renderActivity();
+            applyActivityPayload(data);
         } catch (e) {
         } finally {
             loadActivity._busy = false;
@@ -892,6 +902,7 @@
                 try {
                     var data = JSON.parse(ev.data || "{}");
                     if (data && data.device) applyPanelDevice(data.device);
+                    if (data && data.activity && isLoggedIn()) applyActivityPayload(data.activity);
                 } catch (err) {}
             };
         } catch (e2) {}

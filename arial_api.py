@@ -72,7 +72,7 @@ _KEYPAD_CMD_STATE = {
     "area-sleep": "sleep",
     "area-disarm": "disarm",
 }
-_activity_cache: dict[str, Any] = {"at": 0.0, "data": None, "last_key": ""}
+_activity_cache: dict[str, Any] = {"at": 0.0, "data": None, "last_key": "", "seq": 0}
 _ACTIVITY_TTL_SEC = 8.0
 _EVENTS_POLL_SEC = 3.0
 _SAST = timezone(timedelta(hours=2))
@@ -480,28 +480,39 @@ def _ensure_live_session() -> None:
 
 def _olarm_live_loop() -> None:
     last_events_at = 0.0
+    last_area_sig = ""
     while not _live_stop.wait(1.25):
         if not _olarm_token():
             continue
         try:
+            now = time.time()
+            events_resp = None
+            area_changed = False
             with _olarm_http_lock:
                 client = _olarm_sync_client()
                 resp = client.get(
                     f"/api/v4/devices/{HANSEKOP_ID}",
                     params={"deviceApiAccessOnly": "1"},
                 )
-                events_resp = None
-                now = time.time()
-                if now - last_events_at >= _EVENTS_POLL_SEC:
+                if resp.status_code == 200:
+                    raw = resp.json()
+                    if isinstance(raw, dict):
+                        panel = enrich_device(raw)
+                        _cached_panel(panel)
+                        sig = ",".join(
+                            str(a.get("state") or "")
+                            for a in (panel.get("arialAreas") or [])
+                            if isinstance(a, dict)
+                        )
+                        if sig and sig != last_area_sig:
+                            area_changed = last_area_sig != ""
+                            last_area_sig = sig
+                if area_changed or now - last_events_at >= _EVENTS_POLL_SEC:
                     events_resp = client.get(
                         f"/api/v4/devices/{HANSEKOP_ID}/events",
                         params={"limit": 80},
                     )
                     last_events_at = now
-            if resp.status_code == 200:
-                raw = resp.json()
-                if isinstance(raw, dict):
-                    _cached_panel(enrich_device(raw))
             if events_resp is not None and events_resp.status_code == 200:
                 payload = events_resp.json()
                 rows = payload.get("data") if isinstance(payload, dict) else []
@@ -1090,6 +1101,7 @@ def apply_olarm_events(events: list[Any], device: dict[str, Any] | None = None) 
         _activity_cache["data"] = bundle
         _activity_cache["at"] = time.time()
         _activity_cache["last_key"] = newest
+        _activity_cache["seq"] = int(_activity_cache.get("seq") or 0) + 1
     return "insert" if newest else "empty"
 
 
@@ -1498,17 +1510,31 @@ async def arial_live():
     _ensure_live_session()
 
     async def events() -> AsyncIterator[str]:
-        last = -1
+        last_panel = -1
+        last_act = -1
         while True:
-            seq = 0
-            data = None
+            panel_seq = 0
+            act_seq = 0
+            device = None
+            act = None
             with _lock:
-                seq = int(_panel_cache.get("seq") or 0)
+                panel_seq = int(_panel_cache.get("seq") or 0)
                 cached = _panel_cache.get("data")
-                data = cached if isinstance(cached, dict) else None
-            if seq != last and data is not None:
-                last = seq
-                yield "data: " + json.dumps({"ok": True, "device": data, "live": True}) + "\n\n"
+                device = cached if isinstance(cached, dict) else None
+                act_seq = int(_activity_cache.get("seq") or 0)
+                act = _activity_cache.get("data")
+            push: dict[str, Any] = {"ok": True, "live": True}
+            changed = False
+            if panel_seq != last_panel and device is not None:
+                last_panel = panel_seq
+                push["device"] = device
+                changed = True
+            if act_seq != last_act:
+                last_act = act_seq
+                push["activity"] = _activity_payload(act if isinstance(act, dict) else {"ok": True, "events": []}, ack=False)
+                changed = True
+            if changed:
+                yield "data: " + json.dumps(push) + "\n\n"
             await asyncio.sleep(0.25)
 
     return StreamingResponse(
@@ -1569,6 +1595,7 @@ async def arial_keypad(request: Request):
         with _lock:
             _activity_cache["data"] = cached
             _activity_cache["at"] = time.time()
+            _activity_cache["seq"] = int(_activity_cache.get("seq") or 0) + 1
     _ensure_live_session()
     return {"ok": True, "user": KEYPAD_CODES[code], "actor": actor, "result": raw, "device": _stale_panel()}
 

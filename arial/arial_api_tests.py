@@ -489,6 +489,19 @@ def test_olarm_poll_acks_until_newer_record(tmp_path, monkeypatch):
     assert payload["lastKey"]
     assert payload["checksum"]
     assert payload["ack"] is True
+    assert int(arial_api._activity_cache.get("seq") or 0) >= 2
+
+
+def test_live_push_includes_activity():
+    js = (Path(__file__).resolve().parent / "app.js").read_text(encoding="utf-8")
+    assert "function applyActivityPayload" in js
+    assert "data.activity" in js
+    assert 'prependActivity("DISARMED")' in js
+    assert "new EventSource(\"/api/arial/live\")" in js
+    src = Path(__file__).resolve().parents[1] / "arial_api.py"
+    api = src.read_text(encoding="utf-8")
+    assert 'push["activity"]' in api
+    assert "area_changed" in api
 
 
 def test_activity_keeps_30_day_store_and_checksums_on_login():
@@ -505,7 +518,7 @@ def test_activity_keeps_30_day_store_and_checksums_on_login():
     assert 'prependActivity("DISARMED")' in js
     assert "setInterval(loadActivity, 3000)" in js
     assert "restoreActivityStore();" in js
-    assert "app.js?v=170" in html
+    assert "app.js?v=171" in html
 
 
 def test_status_label_under_status_led():
