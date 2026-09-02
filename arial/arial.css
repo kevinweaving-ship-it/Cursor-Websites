@@ -804,9 +804,9 @@ html, body {
     max-width: 100%;
     overflow: hidden;
     background: #ffffff;
-    border: 2px solid #001f3f;
-    border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0, 31, 63, 0.08);
+    border: 1.6px solid #6a7378;
+    border-radius: 13px;
+    box-shadow: none;
     padding: 0.25rem 0.4rem 0.15rem;
     margin: 0;
 }

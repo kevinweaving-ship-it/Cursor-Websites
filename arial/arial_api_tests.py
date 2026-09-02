@@ -121,6 +121,7 @@ def test_activity_card_markup_and_zone_labels():
     assert "below.hidden = !on" in js
     assert "if (!isLoggedIn()) return;" in js
     assert "white-space: nowrap;" in css.split(".activity-text {", 1)[1].split("}", 1)[0]
+    assert "border: 1.6px solid #6a7378;" in css.split(".arial-below .card {", 1)[1].split("}", 1)[0]
 
 
 def test_activity_route_uses_zone_labels(monkeypatch):
