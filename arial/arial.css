@@ -450,14 +450,14 @@ html, body {
     border-top: 9px solid #153e7a;
 }
 
-.hot[data-key="STAY"] { left: 22.9%; top: 37.2%; width: 13.0%; height: 7.2%; }
-.hot[data-key="FORCE"] { left: 37.1%; top: 37.2%; width: 11.3%; height: 7.2%; }
-.hot[data-key="ARM"] { left: 49.4%; top: 37.2%; width: 11.1%; height: 7.2%; }
-.hot[data-key="TOGGLE"] { left: 62.0%; top: 37.2%; width: 13.0%; height: 7.2%; }
-.hot[data-key="BYP"] { left: 22.9%; top: 45.4%; width: 13.0%; height: 7.2%; }
-.hot[data-key="MEM"] { left: 37.1%; top: 45.4%; width: 11.3%; height: 7.2%; }
-.hot[data-key="TBL"] { left: 49.4%; top: 45.4%; width: 11.1%; height: 7.2%; }
-.hot[data-key="ACC"] { left: 62.0%; top: 45.4%; width: 13.0%; height: 7.2%; }
+.hot[data-key="STAY"] { left: 19.9%; top: 37.2%; width: 14.5%; height: 7.2%; }
+.hot[data-key="FORCE"] { left: 35.7%; top: 37.2%; width: 12.6%; height: 7.2%; }
+.hot[data-key="ARM"] { left: 49.5%; top: 37.2%; width: 12.4%; height: 7.2%; }
+.hot[data-key="TOGGLE"] { left: 63.5%; top: 37.2%; width: 14.5%; height: 7.2%; }
+.hot[data-key="BYP"] { left: 19.9%; top: 45.4%; width: 14.5%; height: 7.2%; }
+.hot[data-key="MEM"] { left: 35.7%; top: 45.4%; width: 12.6%; height: 7.2%; }
+.hot[data-key="TBL"] { left: 49.5%; top: 45.4%; width: 12.4%; height: 7.2%; }
+.hot[data-key="ACC"] { left: 63.5%; top: 45.4%; width: 14.5%; height: 7.2%; }
 .pad-wrap.compact .hot[data-key="UP"] {
     display: flex;
 }
@@ -473,18 +473,18 @@ html, body {
     color: #fff;
 }
 .hot[data-key="DOWN"] { left: 84.2%; top: 45.4%; width: 9.4%; height: 7.2%; }
-.hot[data-key="1"] { left: 23.9%; top: 53.4%; width: 14.7%; height: 7.6%; }
-.hot[data-key="2"] { left: 41.0%; top: 53.4%; width: 15.7%; height: 7.6%; }
-.hot[data-key="3"] { left: 59.0%; top: 53.4%; width: 16.0%; height: 7.6%; }
-.hot[data-key="4"] { left: 22.6%; top: 61.8%; width: 16.0%; height: 7.4%; }
-.hot[data-key="5"] { left: 41.0%; top: 61.8%; width: 15.7%; height: 7.4%; }
-.hot[data-key="6"] { left: 59.0%; top: 61.8%; width: 16.0%; height: 7.4%; }
-.hot[data-key="7"] { left: 22.6%; top: 69.8%; width: 16.0%; height: 7.4%; }
-.hot[data-key="8"] { left: 41.0%; top: 69.8%; width: 15.7%; height: 7.4%; }
-.hot[data-key="9"] { left: 59.0%; top: 69.8%; width: 16.0%; height: 7.4%; }
-.hot[data-key="CLEAR"] { left: 22.6%; top: 78.2%; width: 16.0%; height: 8.4%; font-size: 9px; }
-.hot[data-key="0"] { left: 41.0%; top: 78.2%; width: 15.7%; height: 8.4%; }
-.hot[data-key="ENTER"] { left: 59.0%; top: 78.2%; width: 16.0%; height: 8.4%; font-size: 9px; }
+.hot[data-key="1"] { left: 21.1%; top: 53.4%; width: 16.4%; height: 7.6%; }
+.hot[data-key="2"] { left: 40.1%; top: 53.4%; width: 17.5%; height: 7.6%; }
+.hot[data-key="3"] { left: 60.2%; top: 53.4%; width: 17.8%; height: 7.6%; }
+.hot[data-key="4"] { left: 19.6%; top: 61.8%; width: 17.8%; height: 7.4%; }
+.hot[data-key="5"] { left: 40.1%; top: 61.8%; width: 17.5%; height: 7.4%; }
+.hot[data-key="6"] { left: 60.2%; top: 61.8%; width: 17.8%; height: 7.4%; }
+.hot[data-key="7"] { left: 19.6%; top: 69.8%; width: 17.8%; height: 7.4%; }
+.hot[data-key="8"] { left: 40.1%; top: 69.8%; width: 17.5%; height: 7.4%; }
+.hot[data-key="9"] { left: 60.2%; top: 69.8%; width: 17.8%; height: 7.4%; }
+.hot[data-key="CLEAR"] { left: 19.6%; top: 78.2%; width: 17.8%; height: 8.4%; font-size: 9px; }
+.hot[data-key="0"] { left: 40.1%; top: 78.2%; width: 17.5%; height: 8.4%; }
+.hot[data-key="ENTER"] { left: 60.2%; top: 78.2%; width: 17.8%; height: 8.4%; font-size: 9px; }
 
 .sublab {
     position: absolute;
@@ -499,10 +499,10 @@ html, body {
     line-height: 1;
 }
 
-.sublab-areas { left: 23.9%; top: 51.8%; width: 51.1%; }
-.sublab-instant { left: 41.0%; top: 60.4%; width: 15.7%; }
-.sublab-display { left: 59.0%; top: 60.4%; width: 16.0%; }
-.sublab-event { left: 22.6%; top: 68.4%; width: 16.0%; }
-.sublab-test { left: 41.0%; top: 68.4%; width: 15.7%; }
-.sublab-chime { left: 59.0%; top: 68.4%; width: 16.0%; }
-.sublab-prg { left: 41.0%; top: 76.6%; width: 15.7%; }
+.sublab-areas { left: 21.1%; top: 51.8%; width: 56.9%; }
+.sublab-instant { left: 40.1%; top: 60.4%; width: 17.5%; }
+.sublab-display { left: 60.2%; top: 60.4%; width: 17.8%; }
+.sublab-event { left: 19.6%; top: 68.4%; width: 17.8%; }
+.sublab-test { left: 40.1%; top: 68.4%; width: 17.5%; }
+.sublab-chime { left: 60.2%; top: 68.4%; width: 17.8%; }
+.sublab-prg { left: 40.1%; top: 76.6%; width: 17.5%; }
