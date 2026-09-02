@@ -1186,7 +1186,10 @@
             if (typeof window.onArialKey === "function") window.onArialKey(key);
             return;
         }
-        if ((key === "DISARM" || key === "TOGGLE") && isArmed) { /* disarmBeep in doDisarm */ }
+        if ((key === "DISARM" || key === "TOGGLE") && isArmed && isLoggedIn()) {
+            unlockAudio();
+            disarmBeep();
+        }
         else if (key === "ARM" || key === "TOGGLE" || (key === "DISARM" && !isArmed)) { /* panel countdown + beeps */ }
         else if (key !== "LOGOUT" && key !== "UP") beep();
         if (/^[0-9]$/.test(key)) {

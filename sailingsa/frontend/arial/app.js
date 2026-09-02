@@ -730,7 +730,7 @@
         var start = Date.now();
         function ping() {
             tone(1400, 0.12, 0.58);
-            if (Date.now() - start < 2500) setTimeout(ping, 333);
+            if (Date.now() - start + 333 <= 2500) setTimeout(ping, 333);
             else disarmBeep._on = false;
         }
         ping();
@@ -1186,7 +1186,10 @@
             if (typeof window.onArialKey === "function") window.onArialKey(key);
             return;
         }
-        if ((key === "DISARM" || key === "TOGGLE") && isArmed) { /* disarmBeep in doDisarm */ }
+        if ((key === "DISARM" || key === "TOGGLE") && isArmed && isLoggedIn()) {
+            unlockAudio();
+            disarmBeep();
+        }
         else if (key === "ARM" || key === "TOGGLE" || (key === "DISARM" && !isArmed)) { /* panel countdown + beeps */ }
         else if (key !== "LOGOUT" && key !== "UP") beep();
         if (/^[0-9]$/.test(key)) {

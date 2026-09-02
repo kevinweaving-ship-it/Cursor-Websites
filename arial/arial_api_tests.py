@@ -134,6 +134,7 @@ def test_arm_disarm_pending_and_thirty_second_exit():
     assert "tone(1100, 1.35, 0.62)" in js
     assert "Date.now() - start + 333 <= 2500" in js
     assert "setTimeout(ping, 333)" in js
+    assert "if ((key === \"DISARM\" || key === \"TOGGLE\") && isArmed && isLoggedIn())" in js
     assert "disarmBeep();" in js
 
 
