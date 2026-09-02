@@ -1400,10 +1400,11 @@
         if (label) label.textContent = day.label || day.ymd || "";
         if (total) total.textContent = fmtKwhShort(day.totalKwh);
         var hours = Array.isArray(day.hours) ? day.hours : [];
-        var max = 0;
+        var max = breakerDaysMax();
         var i;
-        for (i = 0; i < 24; i += 1) if (hours[i] != null && hours[i] > max) max = hours[i];
-        if (empty) empty.hidden = !!max;
+        var any = false;
+        for (i = 0; i < 24; i += 1) if (hours[i] != null) any = true;
+        if (empty) empty.hidden = any;
         var ns = "http://www.w3.org/2000/svg";
         var base = document.createElementNS(ns, "line");
         base.setAttribute("class", "base");

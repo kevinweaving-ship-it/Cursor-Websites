@@ -1345,12 +1345,22 @@
         var tw = tip.offsetWidth;
         if (x - tw / 2 < 0) x = tw / 2;
         if (x + tw / 2 > rect.width) x = rect.width - tw / 2;
-        var max = 0;
-        for (j = 0; j < 24; j += 1) if (day.hours[j] != null && day.hours[j] > max) max = day.hours[j];
+        var max = breakerDaysMax();
         var y = 60;
         if (val != null && max > 0) y = 60 - (val / max) * 56;
         tip.style.left = x + "px";
         tip.style.top = Math.max(y - 4, 14) + "px";
+    }
+
+    function breakerDaysMax() {
+        // One scale for every day so a quiet day never looks as tall as a busy one.
+        var max = 0;
+        var d, i;
+        for (d = 0; d < breakerDays.length; d += 1) {
+            var hours = breakerDays[d] && Array.isArray(breakerDays[d].hours) ? breakerDays[d].hours : [];
+            for (i = 0; i < hours.length; i += 1) if (hours[i] != null && hours[i] > max) max = hours[i];
+        }
+        return max;
     }
 
     function breakerAvgKwh(day) {
@@ -1400,10 +1410,11 @@
         if (label) label.textContent = day.label || day.ymd || "";
         if (total) total.textContent = fmtKwhShort(day.totalKwh);
         var hours = Array.isArray(day.hours) ? day.hours : [];
-        var max = 0;
+        var max = breakerDaysMax();
         var i;
-        for (i = 0; i < 24; i += 1) if (hours[i] != null && hours[i] > max) max = hours[i];
-        if (empty) empty.hidden = !!max;
+        var any = false;
+        for (i = 0; i < 24; i += 1) if (hours[i] != null) any = true;
+        if (empty) empty.hidden = any;
         var ns = "http://www.w3.org/2000/svg";
         var base = document.createElementNS(ns, "line");
         base.setAttribute("class", "base");
