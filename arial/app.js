@@ -687,7 +687,7 @@
             setLoggedIn(user);
             if (lcdHold) clearTimeout(lcdHold);
             lcdHold = null;
-            playWelcomeCredits(user.from || user.name);
+            playWelcomeCredits();
             } else {
                 beep();
                 setWelcome("Invalid Code", 2000);

@@ -257,7 +257,7 @@ html, body {
 #lcd-2 {
     position: absolute;
     left: 2px;
-    bottom: 3px;
+    top: 3px;
     z-index: 2;
     text-align: left;
     width: auto;

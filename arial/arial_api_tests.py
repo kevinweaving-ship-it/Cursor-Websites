@@ -114,6 +114,8 @@ def test_welcome_credits_roll_and_fade():
     js = (root / "app.js").read_text(encoding="utf-8")
     assert "playWelcomeCredits" in js
     assert 'rollThenFade("Welcome"' in js
+    assert "playWelcomeCredits();" in js
+    assert "playWelcomeCredits(user.from" not in js
     assert ", 240)" in js
     assert "creditScrollFade" in css
     assert "logoRollIn" in css
@@ -183,7 +185,8 @@ def test_compact_crop_shows_full_function_keys():
 
 def test_lcd_status_text_is_bold():
     css = (Path(__file__).resolve().parent / "arial.css").read_text(encoding="utf-8")
-    assert "#lcd-2 {\n    position: absolute;\n    left: 2px;\n    bottom: 3px;" in css
+    assert "#lcd-2 {\n    position: absolute;\n    left: 2px;\n    top: 3px;" in css
+    assert "bottom: 3px;" not in css.split("#lcd-2 {", 1)[1].split("}", 1)[0]
     assert "font-weight: 900;" in css.split("#lcd-2 {", 1)[1].split("}", 1)[0]
     assert "border-radius: 8px;" in css.split(".lcd {", 1)[1].split("}", 1)[0]
 
