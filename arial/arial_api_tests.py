@@ -1,6 +1,7 @@
 """Tests for Arial Olarm enrich + local profile auth (no live Olarm required)."""
 import json
 import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -582,6 +583,44 @@ def test_breaker_energy_bins_and_endpoint(tmp_path, monkeypatch):
     assert "bindBreakerDay();" in js
     assert '.breaker-day[data-day="1"] { --day-colour: #1565c0; }' in css
     assert '.breaker-day[data-day="2"] { --day-colour: #64748b; }' in css
+    assert 'id="breaker-flag"' in html
+    assert "function sinceLabel" in js and "function renderBreakerMeta" in js
+    assert '"Since restore "' in js
+    assert '.breaker-flag[data-flag="check"]' in css
+
+
+def test_breaker_power_restore_and_flags(tmp_path, monkeypatch):
+    monkeypatch.setenv("ARIAL_ENERGY_LOG", str(tmp_path / "energy.json"))
+    arial_api._energy_bins.clear()
+    arial_api._energy_last.clear()
+    arial_api._energy_recent.clear()
+    arial_api._energy_loaded = False
+    arial_api._power_state.update({"loaded": False, "online": None, "acOk": None, "offSince": None, "restoreAt": None, "outages": []})
+    dev = "unit-meter"
+    t0 = 1_756_800_000.0
+    arial_api._power_mark(online=True, now=t0 - 7200)
+    arial_api._power_mark(online=False, now=t0 - 3600)
+    arial_api._power_mark(online=True, now=t0 - 600)
+    snap = arial_api._power_snapshot(t0)
+    assert snap["restoreAt"] == t0 - 600
+    assert snap["recovery"] is True
+    assert snap["sinceRestoreS"] == 600
+    for i in range(3):
+        arial_api._energy_note_recent(dev, [{"code": "cur_power", "value": 120000}], t0 - 120 + 60 * i)
+    an = arial_api._energy_analysis(dev, arial_api._energy_days_from_bins(dev, now=t0), t0)
+    assert an["flag"] == "recovery"
+    assert an["recentKw"] == 1.2
+    later = t0 + 9000
+    yday = (datetime.fromtimestamp(later, tz=timezone.utc).astimezone(arial_api._SAST) - timedelta(days=1)).strftime("%Y%m%d")
+    arial_api._energy_bins[dev] = {f"{yday}{h:02d}": 0.8 for h in range(24)}
+    arial_api._energy_recent[dev] = [(later - 60 * i, 800.0) for i in range(5)]
+    an = arial_api._energy_analysis(dev, arial_api._energy_days_from_bins(dev, now=later), later)
+    assert an["flag"] == "normal" and an["baselineKw"] == 0.8 and an["avgDayKwh"] == 19.2
+    arial_api._energy_recent[dev] = [(later - 60 * i, 1300.0) for i in range(5)]
+    an = arial_api._energy_analysis(dev, arial_api._energy_days_from_bins(dev, now=later), later)
+    assert an["flag"] == "check" and an["deltaPct"] == 62
+    arial_api._energy_recent[dev] = [(later - 60 * i, 1050.0) for i in range(5)]
+    assert arial_api._energy_analysis(dev, arial_api._energy_days_from_bins(dev, now=later), later)["flag"] == "above"
 
 
 def test_olarm_poll_acks_until_newer_record(tmp_path, monkeypatch):
@@ -644,7 +683,7 @@ def test_activity_keeps_30_day_store_and_checksums_on_login():
     assert 'prependActivity("DISARMED")' in js
     assert "setInterval(loadActivity, 3000)" in js
     assert "restoreActivityStore();" in js
-    assert "app.js?v=186" in html
+    assert "app.js?v=187" in html
 
 
 def test_activity_armed_once_remote_no_countdown_or_notready():

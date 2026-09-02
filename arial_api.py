@@ -445,7 +445,9 @@ def tuya_probe(device_id: str | None = None) -> dict[str, Any]:
                 result = status_payload.get("result")
                 out["status"] = result if isinstance(result, list) else result
                 out["dpsCount"] = len(result) if isinstance(result, list) else None
-                _energy_record_sample(out["deviceId"], result if isinstance(result, list) else [])
+                if isinstance(result, list):
+                    _energy_note_recent(out["deviceId"], result, time.time())
+                    _energy_record_sample(out["deviceId"], result)
                 _ensure_energy_sampler(out["deviceId"])
             else:
                 out["hint"] = _tuya_hint(out["tuyaCode"], out["tuyaMsg"], token_ok=True, device_ok=False)
@@ -503,17 +505,6 @@ def _energy_load() -> None:
                 if isinstance(hours, dict)
             }
         return
-
-
-def _energy_save() -> None:
-    payload = json.dumps({"bins": _energy_bins})
-    for path in _energy_log_candidates():
-        try:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(payload, encoding="utf-8")
-            return
-        except OSError:
-            continue
 
 
 def _scale_power_w(raw: Any) -> float | None:
@@ -638,6 +629,102 @@ def _tuya_statistics_hours(creds: dict[str, str], device: str, ts: float) -> dic
 
 _energy_thread: threading.Thread | None = None
 _ENERGY_SAMPLE_S = 60.0
+_RECOVERY_S = 2 * 3600.0
+_RECENT_N = 30
+_energy_recent: dict[str, list[tuple[float, float]]] = {}
+_power_state: dict[str, Any] = {"loaded": False, "online": None, "acOk": None, "offSince": None, "restoreAt": None, "outages": []}
+
+
+def _power_load() -> None:
+    if _power_state["loaded"]:
+        return
+    _power_state["loaded"] = True
+    for path in _energy_log_candidates():
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        saved = data.get("power") if isinstance(data, dict) else None
+        if isinstance(saved, dict):
+            for key in ("online", "acOk", "offSince", "restoreAt"):
+                _power_state[key] = saved.get(key)
+            _power_state["outages"] = [o for o in (saved.get("outages") or []) if isinstance(o, dict)][-50:]
+        return
+
+
+def _energy_save() -> None:
+    payload = json.dumps({"bins": _energy_bins, "power": {k: _power_state[k] for k in ("online", "acOk", "offSince", "restoreAt", "outages")}})
+    for path in _energy_log_candidates():
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(payload, encoding="utf-8")
+            return
+        except OSError:
+            continue
+
+
+def _power_mark(*, online: bool | None = None, ac_ok: bool | None = None, now: float | None = None) -> None:
+    """Track mains loss/restore from the meter's online flag and the Olarm AC state."""
+    ts = float(now if now is not None else time.time())
+    with _energy_lock:
+        _power_load()
+        changed = False
+        for key, val in (("online", online), ("acOk", ac_ok)):
+            if val is None:
+                continue
+            prev = _power_state.get(key)
+            if prev is val:
+                continue
+            _power_state[key] = val
+            changed = True
+            if prev is None:
+                continue
+            if val is False and _power_state.get("offSince") is None:
+                _power_state["offSince"] = ts
+            if val is True and _power_state.get("offSince") is not None:
+                off = float(_power_state["offSince"])
+                _power_state["offSince"] = None
+                _power_state["restoreAt"] = ts
+                _power_state["outages"] = (_power_state.get("outages") or [])[-49:] + [{"from": off, "to": ts}]
+        if changed:
+            _energy_save()
+
+
+def _power_snapshot(now: float) -> dict[str, Any]:
+    with _energy_lock:
+        _power_load()
+        restore = _power_state.get("restoreAt")
+    out = {"restoreAt": restore, "online": _power_state.get("online"), "acOk": _power_state.get("acOk")}
+    out["recovery"] = bool(restore) and (now - float(restore)) < _RECOVERY_S
+    out["sinceRestoreS"] = int(now - float(restore)) if restore else None
+    return out
+
+
+def _tuya_device_detail(creds: dict[str, str], device: str) -> dict[str, Any]:
+    token_payload = _tuya_ensure_token(creds)
+    access = str((_tuya_token or {}).get("access_token") or "")
+    if not access:
+        return token_payload
+    payload = _tuya_call("GET", f"/v1.0/devices/{device}", creds=creds, access_token=access)
+    if int(payload.get("code") or 0) == TUYA_CODE_TOKEN_INVALID:
+        _tuya_reset_token()
+        _tuya_connect(creds)
+        access = str((_tuya_token or {}).get("access_token") or "")
+        if access:
+            payload = _tuya_call("GET", f"/v1.0/devices/{device}", creds=creds, access_token=access)
+    return payload
+
+
+def _energy_note_recent(device: str, status: list[Any], now: float) -> None:
+    for row in status or []:
+        if isinstance(row, dict) and row.get("code") == "cur_power":
+            w = _scale_power_w(row.get("value"))
+            if w is None:
+                return
+            rec = _energy_recent.setdefault(device, [])
+            rec.append((now, w))
+            del rec[:-_RECENT_N]
+            return
 
 
 def _energy_sampler_loop(device: str) -> None:
@@ -647,13 +734,78 @@ def _energy_sampler_loop(device: str) -> None:
             creds = _tuya_creds()
             if not (creds["client_id"] and creds["secret"]):
                 continue
+            panel = _stale_panel() or {}
+            ac = (panel.get("arialPower") or {}).get("acOk") if isinstance(panel.get("arialPower"), dict) else None
+            if isinstance(ac, bool):
+                _power_mark(ac_ok=ac)
             with _tuya_http_lock:
-                payload = _tuya_device_status(creds, device)
-            result = payload.get("result") if payload.get("success") else None
-            if isinstance(result, list):
-                _energy_record_sample(device, result)
+                payload = _tuya_device_detail(creds, device)
+            if not payload.get("success"):
+                continue
+            result = payload.get("result") if isinstance(payload.get("result"), dict) else {}
+            online = result.get("online")
+            if isinstance(online, bool):
+                _power_mark(online=online)
+                if not online:
+                    _energy_last.pop(device, None)
+                    continue
+            status = result.get("status")
+            if isinstance(status, list):
+                now = time.time()
+                _energy_note_recent(device, status, now)
+                _energy_record_sample(device, status, now=now)
         except Exception:
             continue
+
+
+def _energy_analysis(device: str, days: list[dict[str, Any]], now: float) -> dict[str, Any]:
+    """Baseline kW from earlier days vs the last ~30 min, ignoring recovery windows after restores."""
+    with _energy_lock:
+        _power_load()
+        outages = list(_power_state.get("outages") or [])
+        recent = list(_energy_recent.get(device) or [])
+    def in_recovery(hour_key: str) -> bool:
+        try:
+            start = datetime.strptime(hour_key, "%Y%m%d%H").replace(tzinfo=_SAST).timestamp()
+        except ValueError:
+            return False
+        for o in outages:
+            to = float(o.get("to") or 0)
+            if to and start - _RECOVERY_S < to and start + 3600 > to - 60:
+                return True
+        return False
+    base_vals: list[float] = []
+    day_totals: list[float] = []
+    for day in days[1:]:
+        ymd = str(day.get("ymd") or "").replace("-", "")
+        hours = day.get("hours") or []
+        for h, v in enumerate(hours):
+            if v is None:
+                continue
+            if in_recovery(f"{ymd}{h:02d}"):
+                continue
+            base_vals.append(float(v))
+        if int(day.get("hoursWithData") or 0) >= 20 and day.get("totalKwh") is not None:
+            day_totals.append(float(day["totalKwh"]))
+    baseline_kw = round(sum(base_vals) / len(base_vals), 3) if len(base_vals) >= 6 else None
+    recent_w = [w for t, w in recent if now - t <= 1800]
+    recent_kw = round(sum(recent_w) / len(recent_w) / 1000.0, 3) if recent_w else None
+    power = _power_snapshot(now)
+    flag = "learning"
+    delta = None
+    if power["recovery"]:
+        flag = "recovery"
+    elif baseline_kw and recent_kw is not None and baseline_kw > 0:
+        delta = round((recent_kw / baseline_kw - 1.0) * 100.0)
+        flag = "check" if recent_kw >= baseline_kw * 1.5 else ("above" if recent_kw >= baseline_kw * 1.25 else "normal")
+    return {
+        "baselineKw": baseline_kw,
+        "recentKw": recent_kw,
+        "deltaPct": delta,
+        "flag": flag,
+        "avgDayKwh": round(sum(day_totals) / len(day_totals), 3) if day_totals else None,
+        "power": power,
+    }
 
 
 def _ensure_energy_sampler(device: str) -> None:
@@ -694,6 +846,7 @@ def tuya_energy(device_id: str | None = None) -> dict[str, Any]:
     else:
         out["source"] = "sampled"
         out["days"] = _energy_days_from_bins(device, now)
+    out.update(_energy_analysis(device, out["days"], now))
     out["ok"] = True
     return out
 

@@ -1069,23 +1069,69 @@
         }
     }
 
-    function breakerRangeLabel(from, to) {
-        var ms = to - from;
-        if (!(ms > 0)) return "";
-        var sec = Math.round(ms / 1000);
-        if (sec < 45) return sec + " s";
-        var min = Math.round(sec / 60);
-        if (min < 60) return min + " min";
-        return Math.round(min / 60) + " h";
+    function sinceLabel(seconds) {
+        var s = Math.max(0, Math.floor(seconds));
+        var y = Math.floor(s / 31557600); s -= y * 31557600;
+        var mo = Math.floor(s / 2629800); s -= mo * 2629800;
+        var d = Math.floor(s / 86400); s -= d * 86400;
+        var h = Math.floor(s / 3600); s -= h * 3600;
+        var m = Math.floor(s / 60);
+        var parts = [];
+        if (y) parts.push(y + "y");
+        if (y || mo) parts.push(mo + "mo");
+        if (y || mo || d) parts.push(d + "d");
+        parts.push(h + "h");
+        parts.push(m + "m");
+        return parts.join(" ");
+    }
+
+    var breakerEnergyData = null;
+
+    function renderBreakerMeta() {
+        var rangeEl = document.getElementById("breaker-hist-range");
+        var wNow = document.getElementById("breaker-w-now");
+        var flag = document.getElementById("breaker-flag");
+        var flagText = document.getElementById("breaker-flag-text");
+        var flagAvg = document.getElementById("breaker-flag-avg");
+        var d = breakerEnergyData;
+        if (rangeEl) {
+            var pw = d && d.power;
+            if (pw && pw.sinceRestoreS != null) {
+                var since = pw.sinceRestoreS + Math.floor((Date.now() - breakerDayTick) / 1000);
+                rangeEl.textContent = "Since restore " + sinceLabel(since);
+            } else {
+                rangeEl.textContent = "Since restore —";
+            }
+        }
+        if (wNow) {
+            var today = d && d.days && d.days[0];
+            wNow.textContent = today && today.totalKwh != null ? "Today " + fmtKwhShort(today.totalKwh) : "Today —";
+        }
+        if (!flag || !flagText) return;
+        var f = d && d.flag ? d.flag : "learning";
+        flag.setAttribute("data-flag", f);
+        var txt = {
+            learning: "Learning baseline",
+            recovery: "Recovery after restore",
+            normal: "Normal load",
+            above: "Above average",
+            check: "Check load"
+        }[f] || "Learning baseline";
+        if ((f === "above" || f === "check") && d && d.deltaPct != null) txt += " +" + d.deltaPct + "%";
+        flagText.textContent = txt;
+        if (flagAvg) {
+            var bits = [];
+            if (d && d.recentKw != null) bits.push("now " + d.recentKw.toFixed(2) + " kW");
+            if (d && d.baselineKw != null) bits.push("avg " + d.baselineKw.toFixed(2) + " kW");
+            flagAvg.textContent = bits.join(" · ");
+        }
     }
 
     function drawBreakerSpark() {
         var line = document.getElementById("breaker-spark-line");
-        var rangeEl = document.getElementById("breaker-hist-range");
         if (!line) return;
         if (breakerHist.length < 2) {
             line.setAttribute("points", "");
-            if (rangeEl) rangeEl.textContent = "";
             return;
         }
         var w = 320;
@@ -1108,7 +1154,6 @@
             pts.push(x.toFixed(1) + "," + y.toFixed(1));
         }
         line.setAttribute("points", pts.join(" "));
-        if (rangeEl) rangeEl.textContent = breakerRangeLabel(t0, t1);
     }
 
     function fmtKwh(n) {
@@ -1163,7 +1208,6 @@
         var vEl = document.getElementById("breaker-v");
         var aEl = document.getElementById("breaker-a");
         var wEl = document.getElementById("breaker-w");
-        var wNow = document.getElementById("breaker-w-now");
         var energyRow = document.getElementById("breaker-energy");
         if (!stateEl) return;
         function blankGauges() {
@@ -1173,7 +1217,6 @@
             if (vEl) vEl.textContent = "—";
             if (aEl) aEl.textContent = "—";
             if (wEl) wEl.textContent = "—";
-            if (wNow) wNow.textContent = "—";
             if (energyRow) energyRow.hidden = true;
             drawBreakerSpark();
         }
@@ -1206,7 +1249,6 @@
         if (vEl) vEl.textContent = volts != null ? volts.toFixed(1) : "—";
         if (aEl) aEl.textContent = amps != null ? amps.toFixed(2) : "—";
         if (wEl) wEl.textContent = watts != null ? String(Math.round(watts)) : "—";
-        if (wNow) wNow.textContent = watts != null ? Math.round(watts) + " W" : "—";
         setBreakerGauge("v", volts, 200, 253);
         setBreakerGauge("a", amps, 0, 11);
         setBreakerGauge("w", watts, 0, 2530);
@@ -1256,7 +1298,10 @@
         if (!isLoggedIn()) return;
         if (loadBreakerEnergy._busy) return;
         var now = Date.now();
-        if (breakerDayTick && now - breakerDayTick < 55000) return;
+        if (breakerDayTick && now - breakerDayTick < 30000) {
+            renderBreakerMeta();
+            return;
+        }
         loadBreakerEnergy._busy = true;
         try {
             var res = await fetch("/api/arial/tuya/energy?device_id=bf90676b1341ecb34dse39", {
@@ -1265,9 +1310,11 @@
             });
             var data = await res.json();
             breakerDayTick = Date.now();
+            breakerEnergyData = data || null;
             breakerDays = data && Array.isArray(data.days) ? data.days : [];
             if (breakerDayIdx > breakerDays.length - 1) breakerDayIdx = 0;
             renderBreakerDay();
+            renderBreakerMeta();
         } catch (e) {
         } finally {
             loadBreakerEnergy._busy = false;

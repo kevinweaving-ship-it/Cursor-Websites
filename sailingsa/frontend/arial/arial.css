@@ -1232,6 +1232,46 @@ html, body {
     color: #001f3f;
 }
 
+.breaker-flag {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    margin: 2px 0 0;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: #64748b;
+    white-space: nowrap;
+}
+
+.breaker-flag-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex: 0 0 7px;
+    background: #94a3b8;
+}
+
+.breaker-flag-avg {
+    margin-left: auto;
+    flex-shrink: 0;
+    font-weight: 600;
+    text-transform: none;
+    font-variant-numeric: tabular-nums;
+    color: #64748b;
+}
+
+.breaker-flag[data-flag="normal"] { color: #001f3f; }
+.breaker-flag[data-flag="normal"] .breaker-flag-dot { background: #12b028; }
+.breaker-flag[data-flag="recovery"] { color: #1565c0; }
+.breaker-flag[data-flag="recovery"] .breaker-flag-dot { background: #1565c0; }
+.breaker-flag[data-flag="above"] { color: #e67e00; }
+.breaker-flag[data-flag="above"] .breaker-flag-dot { background: #e67e00; }
+.breaker-flag[data-flag="check"] { color: #DC143C; }
+.breaker-flag[data-flag="check"] .breaker-flag-dot { background: #DC143C; }
+
 .breaker-day {
     --day-colour: #001f3f;
     min-width: 0;

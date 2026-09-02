@@ -6,7 +6,7 @@
     <meta name="robots" content="noindex,nofollow">
     <meta http-equiv="Cache-Control" content="no-store">
     <title>Arial</title>
-    <link rel="stylesheet" href="/arial/arial.css?v=186">
+    <link rel="stylesheet" href="/arial/arial.css?v=187">
 </head>
 <body>
     <div class="pad-wrap" id="pad-frame">
@@ -217,9 +217,14 @@
                     <polyline class="line" id="breaker-spark-line" points=""></polyline>
                 </svg>
                 <div class="breaker-hist-meta">
-                    <span id="breaker-hist-range"></span>
+                    <span id="breaker-hist-range" title="Time since mains power was restored">Since restore —</span>
                     <span id="breaker-w-now">—</span>
                 </div>
+                <p class="breaker-flag" id="breaker-flag" data-flag="learning">
+                    <span class="breaker-flag-dot" aria-hidden="true"></span>
+                    <span id="breaker-flag-text">Learning baseline</span>
+                    <span class="breaker-flag-avg" id="breaker-flag-avg"></span>
+                </p>
             </div>
             <div class="breaker-day" id="breaker-day" data-day="0">
                 <div class="breaker-day-head">
@@ -256,6 +261,6 @@
         saStamp();
     })();
     </script>
-    <script src="/arial/app.js?v=186"></script>
+    <script src="/arial/app.js?v=187"></script>
 </body>
 </html>
