@@ -599,7 +599,11 @@
     var activityTab = "all";
     var activityExpanded = false;
     var activityRows = [];
+    var activityLastKey = "";
+    var activityChecksumLocal = "";
     var ACTIVITY_PREVIEW = 4;
+    var ACTIVITY_KEEP_MS = 30 * 24 * 60 * 60 * 1000;
+    var ACTIVITY_STORE = "arialActivity.hansekop";
 
     function activityMark(r) {
         var tab = String(r.tab || "");
@@ -618,6 +622,138 @@
             return "area";
         }
         return tab || "area";
+    }
+
+    function activityRecordKey(r) {
+        return [r.at || "", r.tab || "", r.state || "", r.title || "", r.num || ""].join("|");
+    }
+
+    function areaTitle() {
+        var d = window.arialDevice || {};
+        var areas = d.arialAreas || [];
+        var i;
+        for (i = 0; i < areas.length; i += 1) {
+            if (areas[i] && areas[i].label) return String(areas[i].label);
+        }
+        return "Facility Building";
+    }
+
+    function saHHmm() {
+        var d = new Date(new Date().toLocaleString("en-US", { timeZone: "Africa/Johannesburg" }));
+        return ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2);
+    }
+
+    function prependActivity(stateLab) {
+        var user = resolvedUser(window.arialUser);
+        var who = user && user.from ? String(user.from) : "";
+        var title = areaTitle();
+        var state = String(stateLab || "").toUpperCase();
+        var row = {
+            tab: "areas",
+            time: saHHmm(),
+            title: title,
+            state: state,
+            actor: who,
+            activity: who ? (title + "  " + state + "  ·  " + who) : (title + "  " + state),
+            at: Date.now(),
+            local: true
+        };
+        var top = activityRows[0];
+        if (top && top.local && top.state === state && top.title === title && (Date.now() - (top.at || 0)) < 8000) {
+            return;
+        }
+        activityRows = [row].concat(activityRows);
+        saveActivityStore();
+        renderActivity();
+    }
+
+    function activityChecksum(rows) {
+        var s = "";
+        var i;
+        var list = rows || [];
+        for (i = 0; i < list.length; i += 1) s += activityRecordKey(list[i]) + "\n";
+        var h = 5381;
+        for (i = 0; i < s.length; i += 1) h = ((h << 5) + h) + s.charCodeAt(i);
+        return (h >>> 0).toString(16);
+    }
+
+    function pruneActivity(rows) {
+        var cut = Date.now() - ACTIVITY_KEEP_MS;
+        return (rows || []).filter(function (r) {
+            var t = Number(r && r.at) || 0;
+            if (t && t < 10000000000) t *= 1000;
+            return !t || t >= cut;
+        });
+    }
+
+    function saveActivityStore() {
+        activityRows = pruneActivity(activityRows);
+        activityChecksumLocal = activityChecksum(activityRows);
+        try {
+            localStorage.setItem(ACTIVITY_STORE, JSON.stringify({
+                site: "hansekop",
+                lastKey: activityLastKey,
+                checksum: activityChecksumLocal,
+                savedAt: Date.now(),
+                events: activityRows
+            }));
+        } catch (e) {}
+    }
+
+    function restoreActivityStore() {
+        try {
+            var raw = JSON.parse(localStorage.getItem(ACTIVITY_STORE) || "null");
+            if (!raw || !Array.isArray(raw.events) || !raw.events.length) return false;
+            activityRows = pruneActivity(raw.events);
+            activityLastKey = raw.lastKey || (activityRows[0] ? activityRecordKey(activityRows[0]) : "");
+            activityChecksumLocal = raw.checksum || activityChecksum(activityRows);
+            renderActivity();
+            return true;
+        } catch (e2) {
+            return false;
+        }
+    }
+
+    function allActivityThere(incoming) {
+        if (!incoming || !incoming.length) return true;
+        var have = {};
+        var i;
+        for (i = 0; i < activityRows.length; i += 1) have[activityRecordKey(activityRows[i])] = true;
+        for (i = 0; i < incoming.length; i += 1) {
+            if (!have[activityRecordKey(incoming[i])]) return false;
+        }
+        return true;
+    }
+
+    function insertNewerActivity(incoming) {
+        if (!incoming || !incoming.length) return "ack";
+        if (!activityRows.length) {
+            activityRows = incoming.slice();
+            return "history";
+        }
+        var have = {};
+        var i;
+        for (i = 0; i < activityRows.length; i += 1) {
+            have[activityRecordKey(activityRows[i])] = true;
+        }
+        var added = [];
+        for (i = 0; i < incoming.length; i += 1) {
+            var r = incoming[i];
+            if (have[activityRecordKey(r)]) continue;
+            added.push(r);
+        }
+        if (!added.length) return "ack";
+        activityRows = activityRows.filter(function (row) {
+            if (!row.local) return true;
+            var j;
+            for (j = 0; j < added.length; j += 1) {
+                if (added[j].state === row.state && added[j].title === row.title) return false;
+            }
+            return true;
+        });
+        activityRows = added.concat(activityRows);
+        saveActivityStore();
+        return "insert";
     }
 
     function activityLine(r) {
@@ -697,9 +833,23 @@
             var res = await fetch("/api/arial/activity", { credentials: "same-origin", cache: "no-store" });
             var data = await res.json();
             if (!res.ok) return;
-            activityRows = Array.isArray(data.events) ? data.events : [];
+            var incoming = Array.isArray(data.events) ? data.events : [];
+            var key = data.lastKey || (incoming[0] ? activityRecordKey(incoming[0]) : "");
             setActivityPower(data.power || ((window.arialDevice || {}).arialPower));
-            renderActivity();
+            if (!activityRows.length) {
+                activityRows = pruneActivity(incoming.slice());
+                activityLastKey = key;
+                activityChecksumLocal = data.checksum || activityChecksum(activityRows);
+                saveActivityStore();
+                renderActivity();
+                return;
+            }
+            if ((key && key === activityLastKey) || allActivityThere(incoming)) {
+                return;
+            }
+            var mode = insertNewerActivity(incoming);
+            if (key) activityLastKey = key;
+            if (mode !== "ack") renderActivity();
         } catch (e) {
         } finally {
             loadActivity._busy = false;
@@ -815,7 +965,13 @@
         }
         var below = document.querySelector(".arial-below");
         if (below) below.hidden = !on;
-        if (on) loadActivity();
+        if (on) {
+            restoreActivityStore();
+            loadActivity();
+        } else {
+            saveActivityStore();
+            activityRows = [];
+        }
     }
 
     function logOut() {
@@ -1014,6 +1170,7 @@
         setLed(document.getElementById("led-status"), "armed");
         syncArmToggle();
         fitLcdStatus();
+        prependActivity("ARMED");
     }
 
     function showArming(n) {
@@ -1454,6 +1611,7 @@
         showArming(0);
         unlockAudio();
         tone(1600, 0.14, 0.55);
+        prependActivity("COUNTDOWN");
         sendLiveAction("area-arm").then(function (ok) {
             if (!ok) {
                 clearLocalExit();
@@ -1497,6 +1655,7 @@
         disarmNeedsStatus = false;
         clearLocalExit();
         showSystemDisarmed();
+        prependActivity("DISARMED");
         sendLiveAction("area-disarm").then(function (ok) {
             if (!ok) {
                 disarmPending = false;
@@ -1664,7 +1823,7 @@
     fitLcdStatus();
     window.addEventListener("resize", fitLcdStatus);
     setInterval(tickTime, 1000);
-    setInterval(loadActivity, 8000);
+    setInterval(loadActivity, 3000);
     setInterval(function () {
         if (localExitLeft() > 0 || disarmPending || armPending || panelIsExiting(window.arialDevice)) loadStatus();
     }, 1000);

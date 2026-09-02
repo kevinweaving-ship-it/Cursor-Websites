@@ -461,6 +461,53 @@ def test_keypad_who_survives_api_worker_restart(tmp_path, monkeypatch):
     assert "Pingoa" in bundle["events"][0]["activity"]
 
 
+def test_olarm_poll_acks_until_newer_record(tmp_path, monkeypatch):
+    _reset_keypad_log(monkeypatch, tmp_path)
+    arial_api._activity_cache = {"at": 0.0, "data": None, "last_key": ""}
+    older = {
+        "eventAction": "area",
+        "eventState": "arm",
+        "eventNum": 1,
+        "eventMsg": "ARMED - Area 1 - Facility Building",
+        "eventTime": 1_700_000_000_000,
+        "userFullname": "Kevin",
+    }
+    newer = dict(older)
+    newer["eventTime"] = 1_700_000_100_000
+    newer["eventState"] = "disarm"
+    newer["eventMsg"] = "DISARMED - Area 1 - Facility Building"
+    assert arial_api.apply_olarm_events([older]) == "insert"
+    first = list((arial_api._activity_cache["data"] or {}).get("events") or [])
+    assert arial_api.apply_olarm_events([older]) == "ack"
+    assert list((arial_api._activity_cache["data"] or {}).get("events") or []) == first
+    assert arial_api.apply_olarm_events([newer, older]) == "insert"
+    rows = (arial_api._activity_cache["data"] or {}).get("events") or []
+    assert rows[0]["state"] == "DISARMED"
+    assert any(r.get("state") == "ARMED" for r in rows)
+    assert arial_api.apply_olarm_events([newer, older]) == "ack"
+    payload = arial_api._activity_payload(arial_api._activity_cache["data"], ack=True)
+    assert payload["lastKey"]
+    assert payload["checksum"]
+    assert payload["ack"] is True
+
+
+def test_activity_keeps_30_day_store_and_checksums_on_login():
+    js = (Path(__file__).resolve().parent / "app.js").read_text(encoding="utf-8")
+    html = (Path(__file__).resolve().parent / "index.html").read_text(encoding="utf-8")
+    assert "arialActivity.hansekop" in js
+    assert "30 * 24 * 60 * 60 * 1000" in js
+    assert "function restoreActivityStore" in js
+    assert "function allActivityThere" in js
+    assert "function activityChecksum" in js
+    assert "loadActivity({ history: true })" not in js
+    assert 'prependActivity("ARMED")' in js
+    assert 'prependActivity("COUNTDOWN")' in js
+    assert 'prependActivity("DISARMED")' in js
+    assert "setInterval(loadActivity, 3000)" in js
+    assert "restoreActivityStore();" in js
+    assert "app.js?v=170" in html
+
+
 def test_status_label_under_status_led():
     root = Path(__file__).resolve().parent
     html = (root / "index.html").read_text(encoding="utf-8")

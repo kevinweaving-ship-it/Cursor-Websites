@@ -72,8 +72,9 @@ _KEYPAD_CMD_STATE = {
     "area-sleep": "sleep",
     "area-disarm": "disarm",
 }
-_activity_cache: dict[str, Any] = {"at": 0.0, "data": None}
+_activity_cache: dict[str, Any] = {"at": 0.0, "data": None, "last_key": ""}
 _ACTIVITY_TTL_SEC = 8.0
+_EVENTS_POLL_SEC = 3.0
 _SAST = timezone(timedelta(hours=2))
 _MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 ZONE_EVENT_ACTIONS = {"zone", "zone_watch"}
@@ -478,6 +479,7 @@ def _ensure_live_session() -> None:
 
 
 def _olarm_live_loop() -> None:
+    last_events_at = 0.0
     while not _live_stop.wait(1.25):
         if not _olarm_token():
             continue
@@ -488,10 +490,23 @@ def _olarm_live_loop() -> None:
                     f"/api/v4/devices/{HANSEKOP_ID}",
                     params={"deviceApiAccessOnly": "1"},
                 )
+                events_resp = None
+                now = time.time()
+                if now - last_events_at >= _EVENTS_POLL_SEC:
+                    events_resp = client.get(
+                        f"/api/v4/devices/{HANSEKOP_ID}/events",
+                        params={"limit": 80},
+                    )
+                    last_events_at = now
             if resp.status_code == 200:
                 raw = resp.json()
                 if isinstance(raw, dict):
                     _cached_panel(enrich_device(raw))
+            if events_resp is not None and events_resp.status_code == 200:
+                payload = events_resp.json()
+                rows = payload.get("data") if isinstance(payload, dict) else []
+                if isinstance(rows, list):
+                    apply_olarm_events(rows, _stale_panel())
         except Exception:
             continue
 
@@ -1037,6 +1052,60 @@ def _stamp_activity_actors(bundle: dict[str, Any] | None) -> dict[str, Any]:
     return bundle
 
 
+def olarm_event_key(event: dict[str, Any] | None) -> str:
+    event = event or {}
+    return "|".join(
+        [
+            str(event.get("eventTime") or event.get("at") or ""),
+            str(event.get("eventAction") or event.get("action") or event.get("tab") or ""),
+            str(event.get("eventState") or event.get("state") or ""),
+            str(event.get("eventNum") or event.get("num") or ""),
+            str(event.get("eventMsg") or event.get("title") or "")[:80],
+        ]
+    )
+
+
+def apply_olarm_events(events: list[Any], device: dict[str, Any] | None = None) -> str:
+    """Poll result: ack if the newest Olarm record is unchanged, else insert."""
+    rows = [e for e in events if isinstance(e, dict)]
+    newest = ""
+    best_t = -1
+    for event in rows:
+        t = _event_time_ms(event)
+        if t >= best_t:
+            best_t = t
+            newest = olarm_event_key(event)
+    with _lock:
+        if newest and newest == str(_activity_cache.get("last_key") or "") and _activity_cache.get("data"):
+            _activity_cache["at"] = time.time()
+            data = _activity_cache.get("data")
+            if isinstance(data, dict):
+                data["ack"] = True
+                data["lastKey"] = newest
+            return "ack"
+    bundle = _activity_bundle(device, rows)
+    bundle["lastKey"] = newest
+    bundle["ack"] = False
+    with _lock:
+        _activity_cache["data"] = bundle
+        _activity_cache["at"] = time.time()
+        _activity_cache["last_key"] = newest
+    return "insert" if newest else "empty"
+
+
+def _activity_payload(bundle: dict[str, Any] | None, ack: bool) -> dict[str, Any]:
+    out = _stamp_activity_actors(bundle if isinstance(bundle, dict) else {"ok": True, "events": [], "power": {}})
+    with _lock:
+        last_key = str(_activity_cache.get("last_key") or "")
+    out["lastKey"] = last_key or out.get("lastKey") or ""
+    events = out.get("events") if isinstance(out.get("events"), list) else []
+    digest = hashlib.sha256("\n".join(olarm_event_key(e) for e in events if isinstance(e, dict)).encode("utf-8")).hexdigest()
+    out["checksum"] = digest[:16]
+    out["ack"] = ack
+    out["ok"] = True
+    return out
+
+
 def format_olarm_event(event: dict[str, Any], device: dict[str, Any] | None = None) -> dict[str, Any]:
     device = device or {}
     zones = {int(z.get("num") or 0): z for z in (device.get("arialZones") or []) if isinstance(z, dict)}
@@ -1393,41 +1462,35 @@ def _activity_bundle(device: dict[str, Any] | None, events: list[Any]) -> dict[s
 
 @router.get("/api/arial/activity")
 async def arial_activity():
-    now = time.time()
+    _ensure_live_session()
     with _lock:
         cached = _activity_cache.get("data")
-        if cached is not None and (now - float(_activity_cache.get("at") or 0)) < _ACTIVITY_TTL_SEC:
-            return _stamp_activity_actors(cached)
+        last_at = float(_activity_cache.get("at") or 0)
+    if cached is not None:
+        return _activity_payload(cached, ack=True)
     device = _stale_panel()
     try:
-        raw = await _olarm_request(
-            "GET",
-            f"/api/v4/devices/{HANSEKOP_ID}/events",
-            params={"limit": 80},
+        raw = await asyncio.wait_for(
+            _olarm_request(
+                "GET",
+                f"/api/v4/devices/{HANSEKOP_ID}/events",
+                params={"limit": 80},
+            ),
+            timeout=4.0,
         )
-    except HTTPException as exc:
+    except (HTTPException, asyncio.TimeoutError):
         if cached is not None:
-            return _stamp_activity_actors(cached)
-        raise
+            return _activity_payload(cached, ack=True)
+        return _activity_payload({"ok": True, "power": {}, "events": [], "live": False}, ack=False)
     events = raw.get("data") if isinstance(raw, dict) else []
     if not isinstance(events, list):
         events = []
     if device is None:
-        try:
-            fresh = await _olarm_request(
-                "GET",
-                f"/api/v4/devices/{HANSEKOP_ID}",
-                params={"deviceApiAccessOnly": "1"},
-            )
-            if isinstance(fresh, dict):
-                device = _cached_panel(enrich_device(fresh))
-        except HTTPException:
-            device = _stale_panel()
-    bundle = _activity_bundle(device if isinstance(device, dict) else None, events)
+        device = _stale_panel()
+    apply_olarm_events(events, device if isinstance(device, dict) else None)
     with _lock:
-        _activity_cache["data"] = bundle
-        _activity_cache["at"] = time.time()
-    return bundle
+        cached = _activity_cache.get("data")
+    return _activity_payload(cached, ack=False)
 
 
 @router.get("/api/arial/live")
@@ -1499,8 +1562,13 @@ async def arial_keypad(request: Request):
     except HTTPException:
         _cached_panel(clear=True)
     with _lock:
-        _activity_cache["at"] = 0.0
-        _activity_cache["data"] = None
+        _activity_cache["last_key"] = ""
+        cached = _activity_cache.get("data")
+    if isinstance(cached, dict):
+        _stamp_activity_actors(cached)
+        with _lock:
+            _activity_cache["data"] = cached
+            _activity_cache["at"] = time.time()
     _ensure_live_session()
     return {"ok": True, "user": KEYPAD_CODES[code], "actor": actor, "result": raw, "device": _stale_panel()}
 
