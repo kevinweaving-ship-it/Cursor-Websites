@@ -157,9 +157,9 @@ html, body {
 .lcd.armed #lcd-2 {
     font-family: Anton, Impact, "Arial Black", sans-serif;
     font-weight: 400;
-    font-size: 44px;
-    letter-spacing: 0.08em;
-    line-height: 0.82;
+    font-size: 32px;
+    letter-spacing: 0.04em;
+    line-height: 1;
     color: #fff;
     -webkit-text-stroke: 0.6px #fff;
     text-shadow:
@@ -188,6 +188,12 @@ html, body {
 
 .lcd.disarmed.zone-open #lcd-status-issue {
     animation: lcdTextFlash 1.15s step-end infinite;
+}
+
+.lcd.hold-disarmed #lcd-2,
+.lcd.hold-disarmed #lcd-status-main,
+.lcd.hold-disarmed #lcd-status-issue {
+    animation: none !important;
 }
 
 @keyframes lcdTextFlash {
@@ -238,7 +244,7 @@ html, body {
     font-weight: 400;
     font-size: 32px;
     letter-spacing: 0.04em;
-    line-height: 0.9;
+    line-height: 1;
     text-transform: uppercase;
     white-space: nowrap;
     overflow: hidden;

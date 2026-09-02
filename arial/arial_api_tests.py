@@ -117,6 +117,12 @@ def test_arm_disarm_pending_and_thirty_second_exit():
     assert "if (apiCd > 0 && !armPending)" in js
     assert "if (armPending && local > 0) return local;" in js
     assert "if (!localExitLeft()) return;\n        showArming(localExitLeft());" in js
+    assert "disarmNeedsStatus" in js
+    assert "hold-disarmed" in js
+    assert 'setWelcome("Login", 2200)' in js
+    assert "function startExitBeeps()" in js
+    assert "last10 ? 300 : 900" in js
+    assert "exitIntroUntil" in js
 
 
 def test_panel_cache_ttl(monkeypatch):
@@ -240,7 +246,11 @@ def test_lcd_status_text_is_bold():
     assert "0%, 74% { opacity: 1; }" in css
     armed = css.split(".lcd.armed #lcd-2 {", 1)[1].split("}", 1)[0]
     assert "Anton, Impact" in armed
-    assert "font-size: 44px;" in armed
+    assert "font-size: 32px;" in armed
+    assert "line-height: 1;" in armed
+    assert "font-size: 44px;" not in armed
+    assert "line-height: 0.82;" not in css
+    assert "hold-disarmed" in css
     assert "-webkit-text-stroke: 0.6px #fff;" in armed
     assert "lcdArmedSlow" not in css
     assert "lcdReadyFlash" not in css

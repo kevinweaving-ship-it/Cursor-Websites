@@ -50,7 +50,10 @@
     var pendingExitUntil = 0;
     var armPending = false;
     var disarmPending = false;
+    var disarmNeedsStatus = false;
     var armWaitSince = 0;
+    var exitIntroUntil = 0;
+    var exitBeepTimer = null;
 
     function areaState(device) {
         var areas = (device && device.arialAreas) || [];
@@ -107,13 +110,24 @@
     function startLocalExit(seconds) {
         var n = seconds && seconds > 0 ? seconds : EXIT_DEFAULT;
         pendingExitUntil = Date.now() + n * 1000;
+        exitIntroUntil = Date.now() + 800;
+    }
+
+    function stopExitBeeps() {
+        if (exitBeepTimer) {
+            clearTimeout(exitBeepTimer);
+            exitBeepTimer = null;
+        }
+        startExitBeeps._on = false;
+        maybeExitBeeps._done = false;
     }
 
     function clearLocalExit() {
         pendingExitUntil = 0;
         armPending = false;
         armWaitSince = 0;
-        maybeExitBeeps._done = false;
+        exitIntroUntil = 0;
+        stopExitBeeps();
     }
 
     function stillExiting(device) {
@@ -277,11 +291,12 @@
         if (!lcd) return;
         if (disarmPending) {
             lcd.classList.remove("arming", "armed", "arming-fast", "zone-open");
-            lcd.classList.add("disarmed");
+            lcd.classList.add("disarmed", "hold-disarmed");
             syncArmToggle();
             fitLcdStatus();
             return;
         }
+        lcd.classList.remove("hold-disarmed");
         var st = areaState(device);
         var arming = stillExiting(device) || (armPending && localExitLeft() > 0);
         var armed = !arming && isArmedState(st);
@@ -304,9 +319,7 @@
         var w = box.clientWidth;
         var h = el.clientHeight || 32;
         if (w < 12) return;
-        var lcd = document.querySelector(".lcd");
-        var shout = !!(lcd && lcd.classList.contains("armed"));
-        var size = Math.min(shout ? 54 : 48, Math.max(18, h + (shout ? 18 : 10)));
+        var size = Math.min(48, Math.max(18, h + 10));
         el.style.fontSize = size + "px";
         var n = 0;
         while (n < 28 && size > 11 && el.scrollWidth > w + 1) {
@@ -374,8 +387,15 @@
             return;
         }
         if (disarmPending) {
-            if (st === "disarm" || st === "notready") {
+            var confirmed = (st === "disarm" || st === "notready");
+            if (confirmed && disarmNeedsStatus) {
                 disarmPending = false;
+                disarmNeedsStatus = false;
+            } else if (confirmed) {
+                disarmNeedsStatus = true;
+                showSystemDisarmed();
+                setTimeout(loadStatus, 200);
+                return;
             } else {
                 showSystemDisarmed();
                 return;
@@ -662,7 +682,7 @@
         setLcdStatus("System Armed", "");
         var lcd = document.querySelector(".lcd");
         if (lcd) {
-            lcd.classList.remove("disarmed", "arming", "arming-fast", "zone-open");
+            lcd.classList.remove("disarmed", "arming", "arming-fast", "zone-open", "hold-disarmed");
             lcd.classList.add("armed");
         }
         setLed(document.getElementById("led-status"), "armed");
@@ -672,11 +692,14 @@
 
     function showArming(n) {
         stopIssueCycle();
-        setLcdStatus(n ? ("Exit Delay " + n) : "Exit Delay", "");
+        var intro = exitIntroUntil && Date.now() < exitIntroUntil;
+        setLcdStatus((!intro && n) ? ("Exit Delay " + n) : "Exit Delay", "");
         var lcd = document.querySelector(".lcd");
         if (lcd) {
-            lcd.classList.remove("armed", "disarmed", "arming-fast", "zone-open");
+            lcd.classList.remove("armed", "disarmed", "zone-open", "hold-disarmed");
             lcd.classList.add("arming");
+            if (!intro && n && n <= 10) lcd.classList.add("arming-fast");
+            else lcd.classList.remove("arming-fast");
         }
         var led = document.getElementById("led-status");
         if (led && !led.classList.contains("arming")) {
@@ -687,9 +710,25 @@
     }
 
     function maybeExitBeeps() {
-        if (maybeExitBeeps._done) return;
-        maybeExitBeeps._done = true;
-        armBeeps();
+        startExitBeeps();
+    }
+
+    function startExitBeeps() {
+        if (startExitBeeps._on) return;
+        startExitBeeps._on = true;
+        unlockAudio();
+        function tick() {
+            var left = localExitLeft();
+            if (left <= 0) {
+                startExitBeeps._on = false;
+                exitBeepTimer = null;
+                return;
+            }
+            var last10 = left <= 10;
+            tone(1600, last10 ? 0.08 : 0.1, last10 ? 0.52 : 0.4);
+            exitBeepTimer = setTimeout(tick, last10 ? 300 : 900);
+        }
+        tick();
     }
 
     function armBeeps(done) {
@@ -891,7 +930,7 @@
         if (ensureIssueCycle()) {
             var lcdBusy = document.querySelector(".lcd");
             if (lcdBusy) {
-                lcdBusy.classList.remove("armed", "arming", "arming-fast");
+                lcdBusy.classList.remove("armed", "arming", "arming-fast", "hold-disarmed");
                 lcdBusy.classList.add("disarmed", "zone-open");
             }
             setLed(document.getElementById("led-status"), "disarmed flash");
@@ -902,7 +941,7 @@
         setLcdStatus("System Ready", "");
         var lcd = document.querySelector(".lcd");
         if (lcd) {
-            lcd.classList.remove("armed", "arming", "arming-fast", "zone-open");
+            lcd.classList.remove("armed", "arming", "arming-fast", "zone-open", "hold-disarmed");
             lcd.classList.add("disarmed");
         }
         setLed(document.getElementById("led-status"), "disarmed");
@@ -910,10 +949,31 @@
         fitLcdStatus();
     }
 
+    function rejectBeep() {
+        tone(420, 0.16, 0.55);
+        setTimeout(function () { tone(260, 0.28, 0.5); }, 150);
+    }
+
+    function isLoggedIn() {
+        var u = resolvedUser(window.arialUser);
+        return !!(u && u.code);
+    }
+
+    function rejectNeedLogin() {
+        rejectBeep();
+        setWelcome("Login", 2200);
+    }
+
+    function requireLogin() {
+        if (isLoggedIn()) return true;
+        rejectNeedLogin();
+        return false;
+    }
+
     function sendLiveAction(cmd) {
         var user = resolvedUser(window.arialUser);
         if (!user || !user.code) {
-            setWelcome("Enter Code", 2000);
+            rejectNeedLogin();
             return Promise.resolve(false);
         }
         if (!currentSite().linked) {
@@ -944,11 +1004,7 @@
     }
 
     function doArm() {
-        var user = resolvedUser(window.arialUser);
-        if (!user || !user.code) {
-            setWelcome("Enter Code", 2000);
-            return;
-        }
+        if (!requireLogin()) return;
         if (!currentSite().linked) {
             setWelcome("Not Linked", 2000);
             return;
@@ -956,6 +1012,7 @@
         var delay = exitDelaySecs(window.arialDevice);
         armPending = true;
         disarmPending = false;
+        disarmNeedsStatus = false;
         startLocalExit(delay);
         showArming(localExitLeft());
         maybeExitBeeps();
@@ -973,7 +1030,7 @@
         var lcd = document.querySelector(".lcd");
         if (lcd) {
             lcd.classList.remove("armed", "arming", "arming-fast", "zone-open");
-            lcd.classList.add("disarmed");
+            lcd.classList.add("disarmed", "hold-disarmed");
         }
         setLed(document.getElementById("led-status"), "disarmed");
         syncArmToggle();
@@ -981,12 +1038,15 @@
     }
 
     function doDisarm() {
+        if (!requireLogin()) return;
         disarmPending = true;
+        disarmNeedsStatus = false;
         clearLocalExit();
         showSystemDisarmed();
         sendLiveAction("area-disarm").then(function (ok) {
             if (!ok) {
                 disarmPending = false;
+                disarmNeedsStatus = false;
                 loadStatus();
             }
         });
@@ -999,6 +1059,12 @@
         onKey._k = key;
         onKey._t = now;
         var isArmed = panelLooksArmed(window.arialDevice);
+        if ((key === "DISARM" || key === "TOGGLE" || key === "ARM") && !isLoggedIn()) {
+            rejectNeedLogin();
+            saveClick(key);
+            if (typeof window.onArialKey === "function") window.onArialKey(key);
+            return;
+        }
         if ((key === "DISARM" || key === "TOGGLE") && isArmed) disarmBeep();
         else if (key === "ARM" || key === "TOGGLE" || (key === "DISARM" && !isArmed)) { /* panel countdown + beeps */ }
         else if (key !== "LOGOUT" && key !== "UP") beep();
