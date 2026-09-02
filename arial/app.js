@@ -1240,6 +1240,185 @@
         } finally {
             loadBreaker._busy = false;
         }
+        loadBreakerEnergy();
+    }
+
+    var breakerDays = [];
+    var breakerDayIdx = 0;
+    var breakerDayTick = 0;
+
+    function fmtKwhShort(n) {
+        if (n == null || !isFinite(n)) return "—";
+        return (n >= 10 ? n.toFixed(1) : n.toFixed(2)) + " kWh";
+    }
+
+    async function loadBreakerEnergy() {
+        if (!isLoggedIn()) return;
+        if (loadBreakerEnergy._busy) return;
+        var now = Date.now();
+        if (breakerDayTick && now - breakerDayTick < 55000) return;
+        loadBreakerEnergy._busy = true;
+        try {
+            var res = await fetch("/api/arial/tuya/energy?device_id=bf90676b1341ecb34dse39", {
+                credentials: "same-origin",
+                cache: "no-store"
+            });
+            var data = await res.json();
+            breakerDayTick = Date.now();
+            breakerDays = data && Array.isArray(data.days) ? data.days : [];
+            if (breakerDayIdx > breakerDays.length - 1) breakerDayIdx = 0;
+            renderBreakerDay();
+        } catch (e) {
+        } finally {
+            loadBreakerEnergy._busy = false;
+        }
+    }
+
+    function hideBreakerTip() {
+        var tip = document.getElementById("breaker-tip");
+        if (tip) tip.hidden = true;
+        var hot = document.querySelector("#breaker-bars .bar.hot");
+        if (hot) hot.classList.remove("hot");
+    }
+
+    function showBreakerTip(hour) {
+        var day = breakerDays[breakerDayIdx];
+        var tip = document.getElementById("breaker-tip");
+        var chart = document.getElementById("breaker-day-chart");
+        var svg = document.getElementById("breaker-bars");
+        if (!day || !tip || !chart || !svg) return;
+        var val = day.hours && day.hours[hour];
+        var bars = svg.querySelectorAll(".bar");
+        var j;
+        for (j = 0; j < bars.length; j += 1) bars[j].classList.toggle("hot", Number(bars[j].getAttribute("data-hour")) === hour);
+        var h2 = String(hour).padStart(2, "0");
+        var h3 = String(hour + 1).padStart(2, "0");
+        tip.textContent = h2 + ":00–" + h3 + ":00 · " + (val == null ? "no data" : fmtKwhShort(val));
+        tip.hidden = false;
+        var rect = chart.getBoundingClientRect();
+        var x = ((hour + 0.5) / 24) * rect.width;
+        var tw = tip.offsetWidth;
+        if (x - tw / 2 < 0) x = tw / 2;
+        if (x + tw / 2 > rect.width) x = rect.width - tw / 2;
+        var max = 0;
+        for (j = 0; j < 24; j += 1) if (day.hours[j] != null && day.hours[j] > max) max = day.hours[j];
+        var y = 60;
+        if (val != null && max > 0) y = 60 - (val / max) * 56;
+        tip.style.left = x + "px";
+        tip.style.top = Math.max(y - 4, 14) + "px";
+    }
+
+    function renderBreakerDay() {
+        var wrap = document.getElementById("breaker-day");
+        var svg = document.getElementById("breaker-bars");
+        var label = document.getElementById("breaker-day-label");
+        var total = document.getElementById("breaker-day-total");
+        var empty = document.getElementById("breaker-day-empty");
+        var prev = document.getElementById("breaker-day-prev");
+        var next = document.getElementById("breaker-day-next");
+        if (!wrap || !svg) return;
+        hideBreakerTip();
+        var day = breakerDays[breakerDayIdx];
+        wrap.setAttribute("data-day", String(breakerDayIdx));
+        if (prev) prev.disabled = breakerDayIdx >= breakerDays.length - 1;
+        if (next) next.disabled = breakerDayIdx <= 0;
+        while (svg.firstChild) svg.removeChild(svg.firstChild);
+        if (!day) {
+            if (label) label.textContent = "Today";
+            if (total) total.textContent = "—";
+            if (empty) empty.hidden = false;
+            return;
+        }
+        if (label) label.textContent = day.label || day.ymd || "";
+        if (total) total.textContent = fmtKwhShort(day.totalKwh);
+        var hours = Array.isArray(day.hours) ? day.hours : [];
+        var max = 0;
+        var i;
+        for (i = 0; i < 24; i += 1) if (hours[i] != null && hours[i] > max) max = hours[i];
+        if (empty) empty.hidden = !!max;
+        var ns = "http://www.w3.org/2000/svg";
+        var base = document.createElementNS(ns, "line");
+        base.setAttribute("class", "base");
+        base.setAttribute("x1", "0"); base.setAttribute("x2", "320");
+        base.setAttribute("y1", "59.5"); base.setAttribute("y2", "59.5");
+        svg.appendChild(base);
+        var nowHour = Number(new Date().toLocaleString("en-GB", { timeZone: "Africa/Johannesburg", hour: "2-digit", hour12: false }).slice(0, 2));
+        var slotW = 320 / 24;
+        for (i = 0; i < 24; i += 1) {
+            var slot = document.createElementNS(ns, "rect");
+            slot.setAttribute("class", "slot");
+            slot.setAttribute("x", (i * slotW).toFixed(2));
+            slot.setAttribute("y", "0");
+            slot.setAttribute("width", slotW.toFixed(2));
+            slot.setAttribute("height", "60");
+            slot.setAttribute("data-hour", String(i));
+            svg.appendChild(slot);
+            var v = hours[i];
+            if (v == null || !(max > 0)) continue;
+            var h = Math.max(1.5, (v / max) * 56);
+            var bar = document.createElementNS(ns, "rect");
+            bar.setAttribute("class", "bar" + (breakerDayIdx === 0 && i === nowHour ? " now" : ""));
+            bar.setAttribute("x", (i * slotW + 1.2).toFixed(2));
+            bar.setAttribute("y", (59 - h).toFixed(2));
+            bar.setAttribute("width", (slotW - 2.4).toFixed(2));
+            bar.setAttribute("height", h.toFixed(2));
+            bar.setAttribute("rx", "1");
+            bar.setAttribute("data-hour", String(i));
+            svg.appendChild(bar);
+        }
+    }
+
+    function bindBreakerDay() {
+        var wrap = document.getElementById("breaker-day");
+        var chart = document.getElementById("breaker-day-chart");
+        var prev = document.getElementById("breaker-day-prev");
+        var next = document.getElementById("breaker-day-next");
+        if (!wrap || !chart) return;
+        function go(delta) {
+            var n = breakerDayIdx + delta;
+            if (n < 0 || n > breakerDays.length - 1) return;
+            breakerDayIdx = n;
+            renderBreakerDay();
+        }
+        if (prev) prev.addEventListener("click", function () { go(1); });
+        if (next) next.addEventListener("click", function () { go(-1); });
+        function hourAt(clientX) {
+            var rect = chart.getBoundingClientRect();
+            if (!rect.width) return -1;
+            var h = Math.floor(((clientX - rect.left) / rect.width) * 24);
+            return h < 0 || h > 23 ? -1 : h;
+        }
+        chart.addEventListener("mousemove", function (ev) {
+            var h = hourAt(ev.clientX);
+            if (h < 0) hideBreakerTip(); else showBreakerTip(h);
+        });
+        chart.addEventListener("mouseleave", hideBreakerTip);
+        var sx = 0;
+        var sy = 0;
+        var moved = false;
+        wrap.addEventListener("touchstart", function (ev) {
+            var t = ev.touches[0];
+            sx = t.clientX; sy = t.clientY; moved = false;
+            var h = hourAt(t.clientX);
+            if (h >= 0 && ev.target && ev.target.closest && ev.target.closest(".breaker-day-chart")) showBreakerTip(h);
+        }, { passive: true });
+        wrap.addEventListener("touchmove", function (ev) {
+            var t = ev.touches[0];
+            if (Math.abs(t.clientX - sx) > 10 || Math.abs(t.clientY - sy) > 10) moved = true;
+            if (!moved) return;
+            if (Math.abs(t.clientX - sx) > Math.abs(t.clientY - sy)) hideBreakerTip();
+        }, { passive: true });
+        wrap.addEventListener("touchend", function (ev) {
+            var t = ev.changedTouches[0];
+            var dx = t.clientX - sx;
+            var dy = t.clientY - sy;
+            if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+                hideBreakerTip();
+                go(dx < 0 ? -1 : 1);
+                return;
+            }
+            if (!moved) setTimeout(hideBreakerTip, 2500);
+        });
     }
 
     function bindActivityCard() {
@@ -2202,6 +2381,7 @@
     document.addEventListener("pointerdown", kickExitAudio, true);
     document.addEventListener("keydown", kickExitAudio, true);
     bindActivityCard();
+    bindBreakerDay();
     tickTime();
     loadStatus();
     loadActivity();

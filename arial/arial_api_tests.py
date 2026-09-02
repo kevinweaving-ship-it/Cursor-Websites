@@ -547,6 +547,43 @@ def test_comnet_pin_2640_and_logo(tmp_path, monkeypatch):
     assert arial_api._map_our_actor("Comnet") == "Comnet"
 
 
+def test_breaker_energy_bins_and_endpoint(tmp_path, monkeypatch):
+    monkeypatch.setenv("ARIAL_ENERGY_LOG", str(tmp_path / "energy.json"))
+    arial_api._energy_bins.clear()
+    arial_api._energy_last.clear()
+    arial_api._energy_loaded = False
+    dev = "unit-meter"
+    t0 = 1_756_800_000.0
+    for i in range(3):
+        arial_api._energy_record_sample(dev, [{"code": "cur_power", "value": 100000}], now=t0 + 60 * i)
+    days = arial_api._energy_days_from_bins(dev, now=t0 + 120)
+    assert len(days) == 3
+    assert days[0]["label"] == "Today" and days[1]["label"] == "Yesterday"
+    assert days[0]["totalKwh"] == 0.033
+    assert days[0]["hoursWithData"] == 1
+    assert len(days[0]["hours"]) == 24
+    assert days[1]["totalKwh"] is None
+    arial_api._energy_record_sample(dev, [{"code": "cur_power", "value": 100000}], now=t0 + 1000)
+    assert arial_api._energy_days_from_bins(dev, now=t0 + 1000)[0]["totalKwh"] == 0.033
+    monkeypatch.setattr(arial_api, "_tuya_creds", lambda: {"client_id": "", "secret": "", "endpoint": "", "device_id": dev})
+    app = FastAPI()
+    app.include_router(arial_api.router)
+    out = TestClient(app).get("/api/arial/tuya/energy").json()
+    assert out["source"] == "none" and out["days"] == []
+    root = Path(__file__).resolve().parent
+    html = (root / "index.html").read_text(encoding="utf-8")
+    js = (root / "app.js").read_text(encoding="utf-8")
+    css = (root / "arial.css").read_text(encoding="utf-8")
+    assert 'id="breaker-bars"' in html
+    assert 'id="breaker-day-prev"' in html and 'id="breaker-day-next"' in html
+    assert 'id="breaker-tip"' in html
+    assert "/api/arial/tuya/energy?device_id=bf90676b1341ecb34dse39" in js
+    assert "function bindBreakerDay" in js
+    assert "bindBreakerDay();" in js
+    assert '.breaker-day[data-day="1"] { --day-colour: #1565c0; }' in css
+    assert '.breaker-day[data-day="2"] { --day-colour: #64748b; }' in css
+
+
 def test_olarm_poll_acks_until_newer_record(tmp_path, monkeypatch):
     _reset_keypad_log(monkeypatch, tmp_path)
     arial_api._activity_cache = {"at": 0.0, "data": None, "last_key": ""}
@@ -607,7 +644,7 @@ def test_activity_keeps_30_day_store_and_checksums_on_login():
     assert 'prependActivity("DISARMED")' in js
     assert "setInterval(loadActivity, 3000)" in js
     assert "restoreActivityStore();" in js
-    assert "app.js?v=184" in html
+    assert "app.js?v=185" in html
 
 
 def test_activity_armed_once_remote_no_countdown_or_notready():

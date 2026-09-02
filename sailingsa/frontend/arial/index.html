@@ -6,7 +6,7 @@
     <meta name="robots" content="noindex,nofollow">
     <meta http-equiv="Cache-Control" content="no-store">
     <title>Arial</title>
-    <link rel="stylesheet" href="/arial/arial.css?v=183">
+    <link rel="stylesheet" href="/arial/arial.css?v=185">
 </head>
 <body>
     <div class="pad-wrap" id="pad-frame">
@@ -217,6 +217,24 @@
                     <span id="breaker-w-now">—</span>
                 </div>
             </div>
+            <div class="breaker-day" id="breaker-day" data-day="0">
+                <div class="breaker-day-head">
+                    <button type="button" class="breaker-day-nav" id="breaker-day-prev" aria-label="Earlier day">&#9664;</button>
+                    <span class="breaker-day-title">
+                        <span class="breaker-day-dot" aria-hidden="true"></span>
+                        <span id="breaker-day-label">Today</span>
+                        <span class="breaker-day-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+                    </span>
+                    <span class="breaker-day-total" id="breaker-day-total">—</span>
+                    <button type="button" class="breaker-day-nav" id="breaker-day-next" aria-label="Later day" disabled>&#9654;</button>
+                </div>
+                <div class="breaker-day-chart" id="breaker-day-chart">
+                    <svg class="breaker-bars" id="breaker-bars" viewBox="0 0 320 60" preserveAspectRatio="none" role="img" aria-label="Energy per hour"></svg>
+                    <div class="breaker-day-empty" id="breaker-day-empty" hidden>No hourly data yet</div>
+                    <div class="breaker-tip" id="breaker-tip" hidden></div>
+                </div>
+                <div class="breaker-day-axis" aria-hidden="true"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
+            </div>
         </div>
     </div>
     <script>
@@ -234,6 +252,6 @@
         saStamp();
     })();
     </script>
-    <script src="/arial/app.js?v=184"></script>
+    <script src="/arial/app.js?v=185"></script>
 </body>
 </html>

@@ -445,6 +445,7 @@ def tuya_probe(device_id: str | None = None) -> dict[str, Any]:
                 result = status_payload.get("result")
                 out["status"] = result if isinstance(result, list) else result
                 out["dpsCount"] = len(result) if isinstance(result, list) else None
+                _energy_record_sample(out["deviceId"], result if isinstance(result, list) else [])
             else:
                 out["hint"] = _tuya_hint(out["tuyaCode"], out["tuyaMsg"], token_ok=True, device_ok=False)
                 return out
@@ -454,6 +455,213 @@ def tuya_probe(device_id: str | None = None) -> dict[str, Any]:
         out["tuyaMsg"] = str(exc)
         out["hint"] = f"Tuya OpenAPI unreachable: {exc}"
         return out
+
+
+# ---------------------------------------------------------------------------
+# Hourly energy (kWh x 24) for the breaker card. Two real sources only:
+#   1. Tuya statistics API (hours of add_ele) when the project has it enabled.
+#   2. Bins integrated from live cur_power samples taken on every probe.
+# Never synthesise history; missing hours stay null.
+# ---------------------------------------------------------------------------
+ENERGY_DAYS = 3
+_ENERGY_MAX_GAP_S = 180.0
+_energy_lock = threading.Lock()
+_energy_bins: dict[str, dict[str, float]] = {}
+_energy_last: dict[str, tuple[float, float]] = {}
+_energy_loaded = False
+_energy_stats_cache: dict[str, Any] = {"at": 0.0, "device": "", "days": None}
+
+
+def _energy_log_candidates() -> list[Path]:
+    env = (os.getenv("ARIAL_ENERGY_LOG") or "").strip()
+    if env:
+        return [Path(env)]
+    return [
+        Path("/var/www/sailingsa/data/arial_energy_bins.json"),
+        _DATA_DIR / "arial_energy_bins.json",
+        Path("/var/tmp/arial_energy_bins.json"),
+        Path("/tmp/arial_energy_bins.json"),
+    ]
+
+
+def _energy_load() -> None:
+    global _energy_bins, _energy_loaded
+    if _energy_loaded:
+        return
+    _energy_loaded = True
+    for path in _energy_log_candidates():
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if isinstance(data, dict):
+            bins = data.get("bins") if isinstance(data.get("bins"), dict) else {}
+            _energy_bins = {
+                str(dev): {str(h): float(v) for h, v in (hours or {}).items() if isinstance(v, (int, float))}
+                for dev, hours in bins.items()
+                if isinstance(hours, dict)
+            }
+        return
+
+
+def _energy_save() -> None:
+    payload = json.dumps({"bins": _energy_bins})
+    for path in _energy_log_candidates():
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(payload, encoding="utf-8")
+            return
+        except OSError:
+            continue
+
+
+def _scale_power_w(raw: Any) -> float | None:
+    try:
+        n = float(raw)
+    except (TypeError, ValueError):
+        return None
+    if n > 20000:
+        return n / 100.0
+    if n > 5000:
+        return n / 10.0
+    return n
+
+
+def _sa_hour_key(ts: float) -> str:
+    return datetime.fromtimestamp(ts, tz=timezone.utc).astimezone(_SAST).strftime("%Y%m%d%H")
+
+
+def _energy_prune(device: str, now: float) -> None:
+    keep_from = (datetime.fromtimestamp(now, tz=timezone.utc).astimezone(_SAST) - timedelta(days=ENERGY_DAYS + 1)).strftime("%Y%m%d%H")
+    hours = _energy_bins.get(device) or {}
+    for key in [k for k in hours if k < keep_from]:
+        hours.pop(key, None)
+
+
+def _energy_record_sample(device: str, status: list[Any], now: float | None = None) -> None:
+    """Integrate cur_power (W) between consecutive probes into SA-local hourly kWh bins."""
+    power = None
+    for row in status or []:
+        if isinstance(row, dict) and row.get("code") == "cur_power":
+            power = _scale_power_w(row.get("value"))
+    if power is None:
+        return
+    ts = float(now if now is not None else time.time())
+    with _energy_lock:
+        _energy_load()
+        prev = _energy_last.get(device)
+        _energy_last[device] = (ts, power)
+        if not prev:
+            return
+        prev_ts, prev_w = prev
+        dt = ts - prev_ts
+        if dt <= 0 or dt > _ENERGY_MAX_GAP_S:
+            return
+        # Trapezoid over the interval, split at hour boundaries so each bin is exact.
+        avg_w = (prev_w + power) / 2.0
+        hours = _energy_bins.setdefault(device, {})
+        cur = prev_ts
+        while cur < ts:
+            local = datetime.fromtimestamp(cur, tz=timezone.utc).astimezone(_SAST)
+            hour_end = (local.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)).timestamp()
+            seg_end = min(ts, hour_end)
+            key = _sa_hour_key(cur)
+            hours[key] = round(hours.get(key, 0.0) + avg_w * (seg_end - cur) / 3_600_000.0, 6)
+            cur = seg_end
+        _energy_prune(device, ts)
+        _energy_save()
+
+
+def _energy_days_from_bins(device: str, now: float | None = None) -> list[dict[str, Any]]:
+    ts = float(now if now is not None else time.time())
+    with _energy_lock:
+        _energy_load()
+        hours = dict(_energy_bins.get(device) or {})
+    return _energy_shape_days(hours, ts)
+
+
+def _energy_shape_days(hours: dict[str, float], ts: float) -> list[dict[str, Any]]:
+    local_now = datetime.fromtimestamp(ts, tz=timezone.utc).astimezone(_SAST)
+    days: list[dict[str, Any]] = []
+    for back in range(ENERGY_DAYS):
+        day = (local_now - timedelta(days=back)).replace(hour=0, minute=0, second=0, microsecond=0)
+        ymd = day.strftime("%Y%m%d")
+        vals: list[float | None] = []
+        for h in range(24):
+            key = f"{ymd}{h:02d}"
+            v = hours.get(key)
+            vals.append(round(float(v), 3) if isinstance(v, (int, float)) else None)
+        have = [v for v in vals if v is not None]
+        days.append(
+            {
+                "ymd": day.strftime("%Y-%m-%d"),
+                "label": "Today" if back == 0 else ("Yesterday" if back == 1 else day.strftime("%a %d %b")),
+                "hours": vals,
+                "totalKwh": round(sum(have), 3) if have else None,
+                "hoursWithData": len(have),
+                "partial": back == 0,
+            }
+        )
+    return days
+
+
+def _tuya_statistics_hours(creds: dict[str, str], device: str, ts: float) -> dict[str, float] | None:
+    """Tuya 'statistics by hour' for add_ele. Returns None if the API is not enabled or fails."""
+    access = str((_tuya_token or {}).get("access_token") or "")
+    if not access:
+        return None
+    local_now = datetime.fromtimestamp(ts, tz=timezone.utc).astimezone(_SAST)
+    start = (local_now - timedelta(days=ENERGY_DAYS - 1)).replace(hour=0)
+    payload = _tuya_call(
+        "GET",
+        f"/v1.0/devices/{device}/statistics/hours",
+        creds=creds,
+        params={"code": "add_ele", "start_hour": start.strftime("%Y%m%d%H"), "end_hour": local_now.strftime("%Y%m%d%H")},
+        access_token=access,
+    )
+    if not payload.get("success"):
+        return None
+    result = payload.get("result")
+    raw = result.get("hours") if isinstance(result, dict) else None
+    if not isinstance(raw, dict) or not raw:
+        return None
+    out: dict[str, float] = {}
+    for key, val in raw.items():
+        try:
+            n = float(val)
+        except (TypeError, ValueError):
+            continue
+        out[str(key)] = n / 100.0 if n >= 100 else n
+    return out or None
+
+
+def tuya_energy(device_id: str | None = None) -> dict[str, Any]:
+    creds = _tuya_creds()
+    device = (device_id or creds["device_id"]).strip() or TUYA_MAINS_METER_ID
+    now = time.time()
+    out: dict[str, Any] = {"ok": False, "deviceId": device, "tz": "Africa/Johannesburg", "source": "", "days": []}
+    if not (creds["client_id"] and creds["secret"]):
+        out["source"] = "none"
+        return out
+    stats: dict[str, float] | None = None
+    cache = _energy_stats_cache
+    if cache["device"] == device and cache["days"] is not None and now - float(cache["at"]) < 300:
+        stats = cache["days"]
+    else:
+        try:
+            with _tuya_http_lock:
+                stats = _tuya_statistics_hours(creds, device, now)
+        except httpx.HTTPError:
+            stats = None
+        _energy_stats_cache.update({"at": now, "device": device, "days": stats if stats else {}})
+    if stats:
+        out["source"] = "tuya-statistics"
+        out["days"] = _energy_shape_days(stats, now)
+    else:
+        out["source"] = "sampled"
+        out["days"] = _energy_days_from_bins(device, now)
+    out["ok"] = True
+    return out
 
 
 def _olarm_sync_client() -> httpx.Client:
@@ -1386,6 +1594,12 @@ def arial_status(request: Request):
 def arial_tuya_probe(device_id: Optional[str] = None):
     """Mint a token and GET /v1.0/devices/{id}/status. Does not unpause TUYS UI."""
     return tuya_probe(device_id)
+
+
+@router.get("/api/arial/tuya/energy")
+def arial_tuya_energy(device_id: Optional[str] = None):
+    """kWh x 24 for today, yesterday and the day before (SA time). Real data only."""
+    return tuya_energy(device_id)
 
 
 @router.post("/api/arial/auth/register")
