@@ -1096,6 +1096,23 @@ html, body {
     stroke-linecap: round;
 }
 
+.breaker-gauge .limit {
+    stroke: #DC143C;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+}
+
+.breaker-dial-max {
+    display: block;
+    margin-top: 1px;
+    font-size: 0.48rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #DC143C;
+    white-space: nowrap;
+}
+
 .breaker-gauge .needle {
     stroke: #001f3f;
     stroke-width: 2.6;

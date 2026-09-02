@@ -6,7 +6,7 @@
     <meta name="robots" content="noindex,nofollow">
     <meta http-equiv="Cache-Control" content="no-store">
     <title>Arial</title>
-    <link rel="stylesheet" href="/arial/arial.css?v=185">
+    <link rel="stylesheet" href="/arial/arial.css?v=186">
 </head>
 <body>
     <div class="pad-wrap" id="pad-frame">
@@ -179,11 +179,13 @@
                         <line class="tick" x1="50" y1="12" x2="50" y2="17"/>
                         <line class="tick" x1="76.87" y1="23.13" x2="73.34" y2="26.66"/>
                         <line class="tick" x1="88" y1="50" x2="83" y2="50"/>
+                        <line class="limit" x1="7" y1="50" x2="20" y2="50" transform="rotate(163.64 50 50)"/>
                         <line class="needle" id="breaker-needle-a" x1="50" y1="50" x2="18" y2="50"/>
                         <circle class="hub" cx="50" cy="50" r="2.8"/>
                     </svg>
                     <span class="breaker-dial-val" id="breaker-a">—</span>
                     <span class="breaker-dial-unit">A</span>
+                    <span class="breaker-dial-max">MAX 10 A</span>
                 </div>
                 <div class="breaker-dial breaker-dial-power" data-kind="w">
                     <svg class="breaker-gauge" viewBox="0 0 100 62" aria-hidden="true">
@@ -197,11 +199,13 @@
                         <line class="tick" x1="50" y1="12" x2="50" y2="17"/>
                         <line class="tick" x1="76.87" y1="23.13" x2="73.34" y2="26.66"/>
                         <line class="tick" x1="88" y1="50" x2="83" y2="50"/>
+                        <line class="limit" x1="7" y1="50" x2="20" y2="50" transform="rotate(163.64 50 50)"/>
                         <line class="needle" id="breaker-needle-w" x1="50" y1="50" x2="18" y2="50"/>
                         <circle class="hub" cx="50" cy="50" r="2.8"/>
                     </svg>
                     <span class="breaker-dial-val" id="breaker-w">—</span>
                     <span class="breaker-dial-unit">W</span>
+                    <span class="breaker-dial-max">MAX 2300 W</span>
                 </div>
             </div>
             <p class="breaker-energy" id="breaker-energy" hidden>
@@ -252,6 +256,6 @@
         saStamp();
     })();
     </script>
-    <script src="/arial/app.js?v=185"></script>
+    <script src="/arial/app.js?v=186"></script>
 </body>
 </html>
