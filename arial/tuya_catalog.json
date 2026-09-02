@@ -3,7 +3,19 @@
   "region": "Central Europe",
   "openapiBase": "https://openapi.tuyaeu.com",
   "savedAt": "2026-09-01T21:18:00Z",
-  "statusNote": "consoleOnline/lastSeen are from the Tuya IoT console paste. Live OpenAPI status needs TUYA_CLIENT_ID and TUYA_SECRET (not configured).",
+  "statusNote": "consoleOnline/lastSeen are from the Tuya IoT console paste and are untrusted. TUYS UI stays paused until GET /api/arial/tuya/probe returns ok.",
+  "selfServe": {
+    "supportTicket": "sent; no response as of 2026-09-02 — do not wait on Tuya support",
+    "likelyCause": "1010 on GET /v1.0/devices/{id}/status after a successful /v1.0/token is the usual IoT Core trial-expiry lie (Home Assistant / Homey). HMAC refresh must not sign with a dead access_token.",
+    "consoleSteps": [
+      "iot.tuya.com → Cloud → Cloud Services → IoT Core → View Details → Extend Trial Period",
+      "Direct form: https://iot.tuya.com/cloud/products/apply-extension (if it errors, Back then Extend again)",
+      "After approval: Devices → Link Tuya App Account → unlink Smart Life (Kevin@arial.co.za) → relink, Central Europe",
+      "Set TUYA_CLIENT_ID and TUYA_SECRET on live (never git); TUYA_REGION=eu",
+      "Project IP allowlist empty or include 102.218.215.253",
+      "GET /api/arial/tuya/probe — tokenOk and deviceOk must both be true before unpausing TUYS UI"
+    ]
+  },
   "liveProbe": {
     "deviceId": "bf90676b1341ecb34dse39",
     "endpoint": "GET /v1.0/devices/{id}/status",

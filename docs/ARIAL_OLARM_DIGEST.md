@@ -128,6 +128,16 @@ async with OlarmFlowClient(token) as client:
 
 Arial Dev talks to Olarm over HTTPS from `arial_api.py` so we do not need the package installed on the SailingSA API host.
 
+## Tuya OpenAPI (TUYS — paused)
+
+Support ticket: sent, no response as of 2 Sep 2026. Do not wait. Self-serve:
+
+1. **IoT Core trial** — `1010 token invalid` on `GET /v1.0/devices/{id}/status` while `GET /v1.0/token?grant_type=1` still works is the usual expired-trial response. [iot.tuya.com](https://iot.tuya.com) → Cloud → Cloud Services → IoT Core → Extend Trial Period ([direct form](https://iot.tuya.com/cloud/products/apply-extension); if the form errors, Back then Extend again). Often ~1 working day.
+2. After approval: Devices → Link Tuya App Account → unlink Smart Life (`Kevin@arial.co.za`) → relink, **Central Europe** (`https://openapi.tuyaeu.com`).
+3. Live env (never git): `TUYA_CLIENT_ID`, `TUYA_SECRET`, `TUYA_REGION=eu`. Optional `TUYA_DEVICE_ID` (default HSK Mains Meter `bf90676b1341ecb34dse39`). IP allowlist empty or include `102.218.215.253`.
+4. Probe: `GET /api/arial/tuya/probe`. Token mint uses the new METHOD+SHA256 HMAC. Refresh/re-mint **must not** HMAC-sign with a dead access_token. TUYS keypad UI stays paused until this probe returns `ok`.
+5. Console `online` + ancient `lastSeen` is untrusted. Do not poll energy meters faster than 5–10s once auth works.
+
 ## Keypad reference (saved, not wired yet)
 
 Physical Paradox keypad photo: **`arial/keypad.png`** (copy in `sailingsa/frontend/arial/keypad.png`). Layout later — Stay / Force / Arm / Disarm, Byp / Mem / Tbl / Acc, numeric pad, Areas / Event / Instant / Display / Test / Chime / Prg, AC + Status LEDs.

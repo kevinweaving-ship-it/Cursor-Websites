@@ -369,6 +369,151 @@ def test_tuya_catalog_unique_ids_and_mains_meter():
     meter = next(d for d in catalog["devices"] if d.get("role") == "mains-meter")
     assert meter["id"] == "bf90676b1341ecb34dse39"
     assert meter["name"] == "HSK Mains Meter"
+    assert catalog["openapiBase"] == "https://openapi.tuyaeu.com"
+    assert "IoT Core" in catalog["selfServe"]["likelyCause"]
+
+
+FAKE_TUYA = {
+    "client_id": "cid",
+    "secret": "sec",
+    "endpoint": "https://openapi.tuyaeu.com",
+    "device_id": "bf90676b1341ecb34dse39",
+}
+TOKEN_OK = {
+    "success": True,
+    "t": 1_700_000_000_000,
+    "result": {
+        "access_token": "tok-abc",
+        "refresh_token": "ref-xyz",
+        "expire_time": 7200,
+        "uid": "eu123",
+    },
+}
+
+
+def _assert_no_tuya_secrets(payload):
+    blob = json.dumps(payload)
+    assert "tok-abc" not in blob
+    assert "ref-xyz" not in blob
+    assert FAKE_TUYA["secret"] not in blob
+
+
+def test_tuya_token_paths_omit_access_token_from_hmac():
+    assert arial_api.tuya_sign_access_token("/v1.0/token", "DEAD") == ""
+    assert arial_api.tuya_sign_access_token("/v1.0/token/ref-xyz", "DEAD") == ""
+    assert arial_api.tuya_sign_access_token("/v1.0/devices/x/status", "LIVE") == "LIVE"
+    t = 1588925778000
+    path = "/v1.0/token"
+    str_to_sign = arial_api.tuya_str_to_sign("GET", path, {"grant_type": 1})
+    with_dead = arial_api.tuya_sign("sec", "cid", t, str_to_sign, access_token="DEAD")
+    without = arial_api.tuya_sign("sec", "cid", t, str_to_sign, access_token="")
+    assert with_dead != without
+    assert "grant_type=1" in str_to_sign
+    assert str_to_sign.startswith("GET\n")
+
+
+def test_tuya_refresh_signs_without_dead_access_token(monkeypatch):
+    captured = []
+
+    def send(method, endpoint, path, headers, params=None):
+        captured.append({"path": path, "access_token": headers.get("access_token"), "params": params})
+        return TOKEN_OK
+
+    monkeypatch.setattr(arial_api, "_tuya_send", send)
+    arial_api._tuya_token = {
+        "access_token": "DEAD",
+        "refresh_token": "ref-xyz",
+        "uid": "u",
+        "expire_at_ms": 0,
+    }
+    arial_api._tuya_ensure_token(FAKE_TUYA)
+    assert captured[0]["path"] == "/v1.0/token/ref-xyz"
+    assert captured[0]["access_token"] == ""
+
+
+def test_tuya_probe_unconfigured(monkeypatch):
+    monkeypatch.setattr(
+        arial_api,
+        "_tuya_creds",
+        lambda: {
+            "client_id": "",
+            "secret": "",
+            "endpoint": "https://openapi.tuyaeu.com",
+            "device_id": arial_api.TUYA_MAINS_METER_ID,
+        },
+    )
+    out = arial_api.tuya_probe()
+    assert out["configured"] is False
+    assert out["paused"] is True
+    assert out["ok"] is False
+    assert "TUYA_CLIENT_ID" in out["hint"]
+
+
+def test_tuya_probe_token_ok_status_1010_is_iot_core_hint(monkeypatch):
+    monkeypatch.setattr(arial_api, "_tuya_creds", lambda: dict(FAKE_TUYA))
+
+    def send(method, endpoint, path, headers, params=None):
+        if "/token" in path:
+            return TOKEN_OK
+        return {"success": False, "code": 1010, "msg": "token invalid"}
+
+    monkeypatch.setattr(arial_api, "_tuya_send", send)
+    out = arial_api.tuya_probe()
+    _assert_no_tuya_secrets(out)
+    assert out["configured"] is True
+    assert out["paused"] is True
+    assert out["tokenOk"] is True
+    assert out["deviceOk"] is False
+    assert out["ok"] is False
+    assert out["tuyaCode"] == 1010
+    assert "IoT Core" in out["hint"]
+    assert "apply-extension" in out["hint"]
+
+
+def test_tuya_probe_retries_status_after_fresh_token(monkeypatch):
+    monkeypatch.setattr(arial_api, "_tuya_creds", lambda: dict(FAKE_TUYA))
+    status_hits = {"n": 0}
+
+    def send(method, endpoint, path, headers, params=None):
+        if path.startswith("/v1.0/token"):
+            return TOKEN_OK
+        status_hits["n"] += 1
+        if status_hits["n"] == 1:
+            return {"success": False, "code": 1010, "msg": "token invalid"}
+        return {"success": True, "result": [{"code": "cur_current", "value": 12}]}
+
+    monkeypatch.setattr(arial_api, "_tuya_send", send)
+    out = arial_api.tuya_probe()
+    _assert_no_tuya_secrets(out)
+    assert status_hits["n"] == 2
+    assert out["ok"] is True
+    assert out["deviceOk"] is True
+    assert out["paused"] is True
+    assert out["dpsCount"] == 1
+
+
+def test_tuya_probe_route_and_status_flag(monkeypatch):
+    monkeypatch.setattr(
+        arial_api,
+        "_tuya_creds",
+        lambda: {
+            "client_id": "",
+            "secret": "",
+            "endpoint": "https://openapi.tuyaeu.com",
+            "device_id": arial_api.TUYA_MAINS_METER_ID,
+        },
+    )
+    app = FastAPI()
+    app.include_router(arial_api.router)
+    client = TestClient(app)
+    status = client.get("/api/arial/status")
+    assert status.status_code == 200
+    assert status.json()["tuyaConfigured"] is False
+    assert status.json()["tuyaPaused"] is True
+    probe = client.get("/api/arial/tuya/probe")
+    assert probe.status_code == 200
+    assert probe.json()["configured"] is False
+    assert probe.json()["paused"] is True
 
 
 def test_register_login_profile(tmp_path, monkeypatch):

@@ -32,5 +32,6 @@ Same pattern as `timadvisor.co.za` in `nginx-timadvisor-patched.conf`.
 - API: process already on `127.0.0.1:8000`; nginx proxies `/api/arial/` there.
 - Copy **`arial_api.py`** next to live `api.py` (`/var/www/sailingsa/api/arial_api.py`) whenever `api.py` is deployed.
 - Set **`OLARM_API_TOKEN`** on the API service (never in git). Restart `sailingsa-api`.
+- Tuya (TUYS still paused): set **`TUYA_CLIENT_ID`**, **`TUYA_SECRET`**, **`TUYA_REGION=eu`** the same way. Confirm with `GET /api/arial/tuya/probe` before unpausing the keypad site. If that probe mints a token but `/status` is 1010, extend the IoT Core trial on iot.tuya.com (do not wait for Tuya support).
 
 Until this is done, use **`https://sailingsa.co.za/arial`**.

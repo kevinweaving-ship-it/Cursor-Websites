@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import hmac
 import json
 import os
 import re
@@ -65,6 +66,24 @@ KEYPAD_CODES = {
     "7102": {"name": "Amoroc", "from": "Amoroc"},
 }
 
+# Tuya OpenAPI — TUYS keypad UI stays paused until tuya_probe() returns ok.
+TUYA_DEFAULT_ENDPOINT = "https://openapi.tuyaeu.com"
+TUYA_ENDPOINTS = {
+    "eu": "https://openapi.tuyaeu.com",
+    "us": "https://openapi.tuyaus.com",
+    "cn": "https://openapi.tuyacn.com",
+    "in": "https://openapi.tuyain.com",
+}
+TUYA_MAINS_METER_ID = "bf90676b1341ecb34dse39"
+TUYA_CODE_TOKEN_INVALID = 1010
+TUYA_CODE_SIGN_INVALID = 1004
+TUYA_CODE_PERMISSION = 1106
+TUYA_CODE_SUBSCRIPTION = 28841002
+TUYA_EMPTY_BODY_SHA256 = hashlib.sha256(b"").hexdigest()
+_tuya_http: httpx.Client | None = None
+_tuya_http_lock = threading.Lock()
+_tuya_token: dict[str, Any] | None = None
+
 router = APIRouter()
 
 
@@ -97,6 +116,318 @@ def _olarm_token() -> str:
                 if tok:
                     return tok
     return tok
+
+
+def _dotenv_map() -> dict[str, str]:
+    env_path = _ROOT / ".env"
+    out: dict[str, str] = {}
+    if not env_path.is_file():
+        return out
+    for line in env_path.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, v = line.split("=", 1)
+        out[k.strip()] = v.strip().strip('"').strip("'")
+    return out
+
+
+def _env_first(*names: str) -> str:
+    for name in names:
+        v = (os.getenv(name) or "").strip().strip('"').strip("'")
+        if v:
+            return v
+    dotenv = _dotenv_map()
+    for name in names:
+        v = (dotenv.get(name) or "").strip()
+        if v:
+            return v
+    return ""
+
+
+def tuya_endpoint_for_region(region: str) -> str:
+    key = (region or "eu").strip().lower()
+    if key in ("central europe", "centraleurope", "eu", "europe"):
+        key = "eu"
+    return TUYA_ENDPOINTS.get(key, TUYA_DEFAULT_ENDPOINT)
+
+
+def _tuya_creds() -> dict[str, str]:
+    endpoint = _env_first("TUYA_ENDPOINT")
+    if not endpoint:
+        endpoint = tuya_endpoint_for_region(_env_first("TUYA_REGION") or "eu")
+    return {
+        "client_id": _env_first("TUYA_CLIENT_ID", "TUYA_ACCESS_ID"),
+        "secret": _env_first("TUYA_SECRET", "TUYA_ACCESS_KEY", "TUYA_CLIENT_SECRET"),
+        "endpoint": endpoint.rstrip("/"),
+        "device_id": _env_first("TUYA_DEVICE_ID") or TUYA_MAINS_METER_ID,
+    }
+
+
+def tuya_configured() -> bool:
+    creds = _tuya_creds()
+    return bool(creds["client_id"] and creds["secret"])
+
+
+def tuya_str_to_sign(
+    method: str,
+    path: str,
+    params: Optional[dict[str, Any]] = None,
+    body: Optional[dict[str, Any]] = None,
+) -> str:
+    """New Tuya OpenAPI string-to-sign (official tuya-connector-python)."""
+    if body:
+        content = json.dumps(body)
+        content_sha = hashlib.sha256(content.encode("utf8")).hexdigest()
+    else:
+        content_sha = TUYA_EMPTY_BODY_SHA256
+    signed = f"{method.upper()}\n{content_sha}\n\n{path}"
+    if params:
+        query = "&".join(f"{k}={params[k]}" for k in sorted(params))
+        signed += "?" + query
+    return signed
+
+
+def tuya_sign(
+    secret: str,
+    client_id: str,
+    t: int,
+    str_to_sign: str,
+    access_token: str = "",
+) -> str:
+    message = f"{client_id}{access_token or ''}{t}{str_to_sign}"
+    return hmac.new(secret.encode("utf8"), message.encode("utf8"), hashlib.sha256).hexdigest().upper()
+
+
+def tuya_sign_access_token(path: str, cached_access: str) -> str:
+    """Token get/refresh must HMAC without a (possibly dead) access_token."""
+    if path.startswith("/v1.0/token"):
+        return ""
+    return cached_access or ""
+
+
+def _tuya_reset_token() -> None:
+    global _tuya_token
+    _tuya_token = None
+
+
+def _tuya_sync_client(endpoint: str) -> httpx.Client:
+    global _tuya_http
+    base = endpoint.rstrip("/")
+    current = ""
+    if _tuya_http is not None and not _tuya_http.is_closed:
+        current = str(_tuya_http.base_url).rstrip("/")
+    if _tuya_http is None or _tuya_http.is_closed or current != base:
+        if _tuya_http is not None:
+            try:
+                _tuya_http.close()
+            except Exception:
+                pass
+        _tuya_http = httpx.Client(base_url=base, timeout=20.0)
+    return _tuya_http
+
+
+def _tuya_send(
+    method: str,
+    endpoint: str,
+    path: str,
+    headers: dict[str, str],
+    params: Optional[dict[str, Any]] = None,
+) -> dict[str, Any]:
+    client = _tuya_sync_client(endpoint)
+    resp = client.request(method, path, headers=headers, params=params)
+    try:
+        data = resp.json()
+    except Exception:
+        data = {"success": False, "code": resp.status_code, "msg": (resp.text or "")[:240]}
+    if not isinstance(data, dict):
+        return {"success": False, "msg": "non-object tuya response"}
+    return data
+
+
+def _tuya_call(
+    method: str,
+    path: str,
+    *,
+    creds: dict[str, str],
+    params: Optional[dict[str, Any]] = None,
+    access_token: str = "",
+) -> dict[str, Any]:
+    t = int(time.time() * 1000)
+    token_for_sign = tuya_sign_access_token(path, access_token)
+    sign = tuya_sign(
+        creds["secret"],
+        creds["client_id"],
+        t,
+        tuya_str_to_sign(method, path, params),
+        access_token=token_for_sign,
+    )
+    headers = {
+        "client_id": creds["client_id"],
+        "sign": sign,
+        "sign_method": "HMAC-SHA256",
+        "t": str(t),
+        "lang": "en",
+        "access_token": token_for_sign,
+    }
+    return _tuya_send(method, creds["endpoint"], path, headers, params)
+
+
+def _tuya_store_token(payload: dict[str, Any]) -> dict[str, Any] | None:
+    global _tuya_token
+    result = payload.get("result") if isinstance(payload.get("result"), dict) else {}
+    access = str(result.get("access_token") or "")
+    if not payload.get("success") or not access:
+        return None
+    expire_sec = int(result.get("expire") or result.get("expire_time") or 7200)
+    server_t = int(payload.get("t") or int(time.time() * 1000))
+    _tuya_token = {
+        "access_token": access,
+        "refresh_token": str(result.get("refresh_token") or ""),
+        "uid": str(result.get("uid") or ""),
+        "expire_at_ms": server_t + expire_sec * 1000,
+    }
+    return _tuya_token
+
+
+def _tuya_connect(creds: dict[str, str]) -> dict[str, Any]:
+    payload = _tuya_call("GET", "/v1.0/token", creds=creds, params={"grant_type": 1}, access_token="")
+    stored = _tuya_store_token(payload)
+    if stored is None:
+        return payload
+    return payload
+
+
+def _tuya_refresh(creds: dict[str, str]) -> dict[str, Any]:
+    cached = _tuya_token or {}
+    refresh = str(cached.get("refresh_token") or "")
+    if not refresh:
+        return _tuya_connect(creds)
+    # Official SDK clears access_token before refresh so HMAC does not use a dead token.
+    payload = _tuya_call("GET", f"/v1.0/token/{refresh}", creds=creds, access_token="")
+    stored = _tuya_store_token(payload)
+    if stored is None:
+        _tuya_reset_token()
+        return _tuya_connect(creds)
+    return payload
+
+
+def _tuya_ensure_token(creds: dict[str, str]) -> dict[str, Any]:
+    cached = _tuya_token
+    now = int(time.time() * 1000)
+    if not cached or not cached.get("access_token"):
+        return _tuya_connect(creds)
+    expire_at = int(cached.get("expire_at_ms") or 0)
+    if expire_at - 60_000 <= now:
+        return _tuya_refresh(creds)
+    return {"success": True, "result": cached}
+
+
+def _tuya_device_status(creds: dict[str, str], device_id: str) -> dict[str, Any]:
+    token_payload = _tuya_ensure_token(creds)
+    access = ""
+    if _tuya_token:
+        access = str(_tuya_token.get("access_token") or "")
+    if not access:
+        return token_payload
+    payload = _tuya_call(
+        "GET",
+        f"/v1.0/devices/{device_id}/status",
+        creds=creds,
+        access_token=access,
+    )
+    if int(payload.get("code") or 0) == TUYA_CODE_TOKEN_INVALID:
+        # Fresh simple token, never HMAC-refresh with the dead access_token.
+        _tuya_reset_token()
+        token_payload = _tuya_connect(creds)
+        access = str((_tuya_token or {}).get("access_token") or "")
+        if not access:
+            return token_payload
+        payload = _tuya_call(
+            "GET",
+            f"/v1.0/devices/{device_id}/status",
+            creds=creds,
+            access_token=access,
+        )
+    return payload
+
+
+def _tuya_hint(code: Any, msg: str, *, token_ok: bool, device_ok: bool) -> str:
+    n = int(code or 0) if str(code or "").lstrip("-").isdigit() else 0
+    text = (msg or "").lower()
+    if not token_ok and n == TUYA_CODE_SIGN_INVALID:
+        return "Sign invalid (1004): clock skew, wrong secret, or old HMAC. Server time must be NTP-synced; use the new METHOD+SHA256 signature."
+    if token_ok and not device_ok and (n == TUYA_CODE_TOKEN_INVALID or "token invalid" in text or "token is expired" in text):
+        return (
+            "Token mint succeeded but device /status returned 1010. That is the usual IoT Core trial-expiry "
+            "response, not a dead HMAC. On iot.tuya.com: Cloud → Cloud Services → IoT Core → Extend Trial Period "
+            "(https://iot.tuya.com/cloud/products/apply-extension). If the form errors, Back then Extend again. "
+            "After approval: Devices → Link Tuya App Account → unlink Smart Life then relink (Central Europe). "
+            "Also check the project IP allowlist includes 102.218.215.253 or is empty."
+        )
+    if n == TUYA_CODE_SUBSCRIPTION or "subscription" in text:
+        return "IoT Core / cloud development subscription expired (28841002). Extend the trial, then unlink/relink Smart Life."
+    if n == TUYA_CODE_PERMISSION:
+        return "Permission deny (1106): device is not linked to this cloud project, or the datacenter is wrong (use openapi.tuyaeu.com for Central Europe)."
+    if not token_ok:
+        return "Could not mint a Tuya access token. Check TUYA_CLIENT_ID / TUYA_SECRET and TUYA_REGION=eu."
+    if device_ok:
+        return ""
+    return msg or "Tuya device status failed."
+
+
+def tuya_probe(device_id: str | None = None) -> dict[str, Any]:
+    """On-demand OpenAPI probe. Does not start meter polling or unpause TUYS UI."""
+    creds = _tuya_creds()
+    out: dict[str, Any] = {
+        "ok": False,
+        "configured": bool(creds["client_id"] and creds["secret"]),
+        "paused": True,
+        "endpoint": creds["endpoint"],
+        "deviceId": (device_id or creds["device_id"]).strip() or TUYA_MAINS_METER_ID,
+        "tokenOk": False,
+        "deviceOk": False,
+        "tuyaCode": None,
+        "tuyaMsg": "",
+        "hint": "",
+        "status": None,
+    }
+    if not out["configured"]:
+        out["hint"] = (
+            "TUYA_CLIENT_ID / TUYA_SECRET are not set. Put them in the live process env (never git), "
+            "then GET /api/arial/tuya/probe. TUYS UI stays paused until this probe returns ok."
+        )
+        return out
+    try:
+        with _tuya_http_lock:
+            _tuya_reset_token()
+            token_payload = _tuya_ensure_token(creds)
+            out["tuyaCode"] = token_payload.get("code")
+            out["tuyaMsg"] = str(token_payload.get("msg") or "")
+            if not token_payload.get("success") or not (_tuya_token or {}).get("access_token"):
+                out["hint"] = _tuya_hint(out["tuyaCode"], out["tuyaMsg"], token_ok=False, device_ok=False)
+                return out
+            out["tokenOk"] = True
+            expire_at = int((_tuya_token or {}).get("expire_at_ms") or 0)
+            out["tokenExpireAtMs"] = expire_at
+            status_payload = _tuya_device_status(creds, out["deviceId"])
+            out["tuyaCode"] = status_payload.get("code")
+            out["tuyaMsg"] = str(status_payload.get("msg") or "")
+            if status_payload.get("success"):
+                out["deviceOk"] = True
+                out["ok"] = True
+                result = status_payload.get("result")
+                out["status"] = result if isinstance(result, list) else result
+                out["dpsCount"] = len(result) if isinstance(result, list) else None
+            else:
+                out["hint"] = _tuya_hint(out["tuyaCode"], out["tuyaMsg"], token_ok=True, device_ok=False)
+                return out
+            out["hint"] = ""
+            return out
+    except httpx.HTTPError as exc:
+        out["tuyaMsg"] = str(exc)
+        out["hint"] = f"Tuya OpenAPI unreachable: {exc}"
+        return out
 
 
 def _olarm_sync_client() -> httpx.Client:
@@ -447,10 +778,18 @@ def arial_status(request: Request):
         "ok": True,
         "dev": True,
         "olarmConfigured": bool(_olarm_token()),
+        "tuyaConfigured": tuya_configured(),
+        "tuyaPaused": True,
         "signedIn": bool(user),
         "me": _public_user(user) if user else None,
         "nextDomain": "arial.co.za",
     }
+
+
+@router.get("/api/arial/tuya/probe")
+def arial_tuya_probe(device_id: Optional[str] = None):
+    """Mint a token and GET /v1.0/devices/{id}/status. Does not unpause TUYS UI."""
+    return tuya_probe(device_id)
 
 
 @router.post("/api/arial/auth/register")
