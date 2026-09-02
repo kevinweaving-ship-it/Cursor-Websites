@@ -114,9 +114,15 @@ def test_arm_disarm_pending_and_thirty_second_exit():
     assert 'setLcdStatus("System Disarmed", "");' in js
     assert "disarmPending = true;" in js
     assert "var delay = exitDelaySecs(window.arialDevice);" in js
-    assert "if (apiCd > 0 && !armPending)" in js
-    assert "if (armPending && local > 0) return local;" in js
-    assert "if (!localExitLeft()) return;\n        showArming(localExitLeft());" in js
+    assert "if (apiCd > 0) syncLocalExitFromApi(apiCd)" in js
+    assert "if (apiCd > 0 && !armPending)" not in js
+    assert "if (armPending && local > 0) return local;" not in js
+    assert "var exitCountStarted = false;" in js
+    assert "if (apiCd > 10) syncLocalExitFromApi(apiCd)" in js
+    assert "startOlarmLive();" in js
+    assert "function startOlarmLive()" in js
+    assert "if (!exitCountStarted || localExitLeft() <= 0) return;" in js
+    assert "Date.now() - armWaitSince < 2000" in js
     assert "disarmNeedsStatus" in js
     assert "hold-disarmed" in js
     assert 'setWelcome("Login", 2200)' in js
@@ -127,7 +133,6 @@ def test_arm_disarm_pending_and_thirty_second_exit():
     assert "login-error" in js
     assert "function startExitBeeps()" in js
     assert "exitIntroUntil" in js
-    assert "Date.now() + 1200" in js
     assert "storeSet(\"arialExitUntil\"" in js
     assert "localStorage.setItem(k, v)" in js
     assert "startExitBeeps._nextFast = now + 500" in js

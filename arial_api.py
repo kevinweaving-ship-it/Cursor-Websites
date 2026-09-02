@@ -5,6 +5,7 @@ Users: data/arial_users.json (gitignored), separate from SailingSA accounts.
 """
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import os
@@ -14,11 +15,11 @@ import threading
 import time
 import uuid
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, AsyncIterator
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
 OLARM_BASE = "https://api.olarm.com"
 ALLOWED_ACTIONS = {
@@ -51,7 +52,11 @@ _ROOT = Path(__file__).resolve().parent
 _DATA_DIR = _ROOT / "data"
 _USERS_PATH = _DATA_DIR / "arial_users.json"
 _lock = threading.Lock()
-_panel_cache: dict[str, Any] = {"at": 0.0, "data": None}
+_olarm_http_lock = threading.Lock()
+_olarm_http: httpx.Client | None = None
+_live_thread: threading.Thread | None = None
+_live_stop = threading.Event()
+_panel_cache: dict[str, Any] = {"at": 0.0, "data": None, "seq": 0}
 _PANEL_TTL_SEC = 5.0
 
 HANSEKOP_ID = "0bb544db-30b0-453d-bf39-d323538ebd5e"
@@ -92,6 +97,49 @@ def _olarm_token() -> str:
                 if tok:
                     return tok
     return tok
+
+
+def _olarm_sync_client() -> httpx.Client:
+    global _olarm_http
+    tok = _olarm_token()
+    if _olarm_http is None or _olarm_http.is_closed:
+        _olarm_http = httpx.Client(
+            base_url=OLARM_BASE,
+            timeout=20.0,
+            headers={"Content-Type": "application/json"},
+            limits=httpx.Limits(max_keepalive_connections=4, max_connections=8, keepalive_expiry=90.0),
+        )
+    _olarm_http.headers["Authorization"] = f"Bearer {tok}" if tok else ""
+    return _olarm_http
+
+
+def _ensure_live_session() -> None:
+    global _live_thread
+    with _lock:
+        if _live_thread is not None and _live_thread.is_alive():
+            return
+        _live_stop.clear()
+        _live_thread = threading.Thread(target=_olarm_live_loop, name="arial-olarm-live", daemon=True)
+        _live_thread.start()
+
+
+def _olarm_live_loop() -> None:
+    while not _live_stop.wait(1.25):
+        if not _olarm_token():
+            continue
+        try:
+            with _olarm_http_lock:
+                client = _olarm_sync_client()
+                resp = client.get(
+                    f"/api/v4/devices/{HANSEKOP_ID}",
+                    params={"deviceApiAccessOnly": "1"},
+                )
+            if resp.status_code == 200:
+                raw = resp.json()
+                if isinstance(raw, dict):
+                    _cached_panel(enrich_device(raw))
+        except Exception:
+            continue
 
 
 def _hash_pw(password: str, salt: str) -> str:
@@ -164,16 +212,15 @@ async def _olarm_request(
     token = _olarm_token()
     if not token:
         raise HTTPException(status_code=503, detail="OLARM_API_TOKEN is not configured")
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-    }
-    url = f"{OLARM_BASE}{path}"
+    url = path if path.startswith("http") else f"{OLARM_BASE}{path}"
+
+    def _do() -> httpx.Response:
+        with _olarm_http_lock:
+            client = _olarm_sync_client()
+            return client.request(method, url, params=params, json=json_body)
+
     try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            resp = await client.request(
-                method, url, headers=headers, params=params, json=json_body
-            )
+        resp = await asyncio.to_thread(_do)
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=502, detail=f"Olarm unreachable: {exc}") from exc
     if resp.status_code == 401:
@@ -354,6 +401,7 @@ def _cached_panel(device: dict[str, Any] | None = None, *, clear: bool = False) 
         if device is not None:
             _panel_cache["data"] = device
             _panel_cache["at"] = time.time()
+            _panel_cache["seq"] = int(_panel_cache.get("seq") or 0) + 1
             return device
         cached = _panel_cache.get("data")
         if cached is not None and (time.time() - float(_panel_cache.get("at") or 0)) < _PANEL_TTL_SEC:
@@ -524,9 +572,10 @@ async def arial_devices(request: Request):
 
 @router.get("/api/arial/panel")
 async def arial_panel():
+    _ensure_live_session()
     cached = _cached_panel()
     if cached is not None:
-        return {"ok": True, "device": cached}
+        return {"ok": True, "device": cached, "live": True}
     try:
         raw = await _olarm_request(
             "GET",
@@ -538,7 +587,36 @@ async def arial_panel():
         if exc.status_code == 429 and stale is not None:
             return {"ok": True, "device": stale}
         raise
-    return {"ok": True, "device": _cached_panel(enrich_device(raw))}
+    return {"ok": True, "device": _cached_panel(enrich_device(raw)), "live": True}
+
+
+@router.get("/api/arial/live")
+async def arial_live():
+    _ensure_live_session()
+
+    async def events() -> AsyncIterator[str]:
+        last = -1
+        while True:
+            seq = 0
+            data = None
+            with _lock:
+                seq = int(_panel_cache.get("seq") or 0)
+                cached = _panel_cache.get("data")
+                data = cached if isinstance(cached, dict) else None
+            if seq != last and data is not None:
+                last = seq
+                yield "data: " + json.dumps({"ok": True, "device": data, "live": True}) + "\n\n"
+            await asyncio.sleep(0.25)
+
+    return StreamingResponse(
+        events(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-store",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.post("/api/arial/keypad")
@@ -565,8 +643,20 @@ async def arial_keypad(request: Request):
         f"/api/v4/devices/{HANSEKOP_ID}/actions",
         json_body={"actionCmd": cmd, "actionNum": num},
     )
-    _cached_panel(clear=True)
-    return {"ok": True, "user": KEYPAD_CODES[code], "result": raw}
+    try:
+        fresh = await _olarm_request(
+            "GET",
+            f"/api/v4/devices/{HANSEKOP_ID}",
+            params={"deviceApiAccessOnly": "1"},
+        )
+        if isinstance(fresh, dict):
+            _cached_panel(enrich_device(fresh))
+        else:
+            _cached_panel(clear=True)
+    except HTTPException:
+        _cached_panel(clear=True)
+    _ensure_live_session()
+    return {"ok": True, "user": KEYPAD_CODES[code], "result": raw, "device": _stale_panel()}
 
 
 @router.get("/api/arial/devices/{device_id}")

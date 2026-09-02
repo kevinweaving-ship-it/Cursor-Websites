@@ -49,6 +49,7 @@
     var EXIT_DEFAULT = 30;
     var pendingExitUntil = 0;
     var armPending = false;
+    var exitCountStarted = false;
     var disarmPending = false;
     var disarmNeedsStatus = false;
     var armWaitSince = 0;
@@ -127,19 +128,23 @@
     }
 
     function persistExit() {
-        if (armPending && pendingExitUntil > Date.now()) {
-            storeSet("arialExitUntil", String(pendingExitUntil));
+        if (armPending) {
             storeSet("arialArmPending", "1");
+            storeSet("arialExitStarted", exitCountStarted ? "1" : "0");
+            if (pendingExitUntil) storeSet("arialExitUntil", String(pendingExitUntil));
+            else storeDel("arialExitUntil");
             return;
         }
         storeDel("arialExitUntil");
         storeDel("arialArmPending");
+        storeDel("arialExitStarted");
     }
 
     function startLocalExit(seconds) {
         var n = seconds && seconds > 0 ? seconds : EXIT_DEFAULT;
         pendingExitUntil = Date.now() + n * 1000;
-        exitIntroUntil = Date.now() + 1200;
+        exitCountStarted = true;
+        exitIntroUntil = 0;
         persistExit();
     }
 
@@ -160,6 +165,7 @@
     function clearLocalExit() {
         pendingExitUntil = 0;
         armPending = false;
+        exitCountStarted = false;
         armWaitSince = 0;
         exitIntroUntil = 0;
         longArmedBeep._done = false;
@@ -170,15 +176,24 @@
     function stillExiting(device) {
         if (disarmPending) return false;
         if (localExitLeft() > 0) return true;
-        if (armPending) return false;
         if (deviceCountdown(device) > 0) return true;
         if (stampRemaining(device) > 0) return true;
-        return areaState(device) === "countdown";
+        if (areaState(device) === "countdown") return true;
+        if (armPending && !exitCountStarted) return true;
+        return false;
     }
 
     function syncLocalExitFromApi(seconds) {
         if (!(seconds > 0)) return;
+        var local = localExitLeft();
+        if (local && Math.abs(local - seconds) <= 1) {
+            exitCountStarted = true;
+            return;
+        }
         pendingExitUntil = Date.now() + seconds * 1000;
+        exitCountStarted = true;
+        exitIntroUntil = 0;
+        persistExit();
     }
 
     function isAlarmState(st) {
@@ -190,20 +205,17 @@
     }
 
     function remainingExit(device) {
-        var local = localExitLeft();
-        if (armPending && local > 0) return local;
-        if (local > 0) return local;
         var apiCd = deviceCountdown(device);
-        if (apiCd) return apiCd;
         var stampCd = stampRemaining(device);
-        if (stampCd) return stampCd;
-        return local;
+        if (apiCd > 0) syncLocalExitFromApi(apiCd);
+        else if (stampCd > 0) syncLocalExitFromApi(stampCd);
+        return localExitLeft() || apiCd || stampCd || 0;
     }
 
     function panelIsExiting(device) {
         if (disarmPending) return false;
         if (stillExiting(device)) return true;
-        if (armPending && !isArmedState(areaState(device))) return true;
+        if (armPending && (localExitLeft() > 0 || !exitCountStarted)) return true;
         return false;
     }
 
@@ -343,7 +355,7 @@
         }
         lcd.classList.remove("hold-disarmed");
         var st = areaState(device);
-        var arming = stillExiting(device) || (armPending && localExitLeft() > 0);
+        var arming = stillExiting(device) || (armPending && (localExitLeft() > 0 || !exitCountStarted));
         var armed = !arming && isArmedState(st);
         var zoneOpen = !arming && !armed && openZoneIssues(device).length > 0;
         var disarmed = !arming && !armed && (st === "disarm" || st === "notready" || !st);
@@ -419,9 +431,9 @@
         }
         var st = areaState(device);
         var apiCd = deviceCountdown(device);
-        if (apiCd > 0 && !armPending) syncLocalExitFromApi(apiCd);
+        if (apiCd > 0) syncLocalExitFromApi(apiCd);
         var stampCd = stampRemaining(device);
-        if (!apiCd && stampCd > 0 && localExitLeft() === 0 && !armPending) syncLocalExitFromApi(stampCd);
+        if (!apiCd && stampCd > 0) syncLocalExitFromApi(stampCd);
 
         if (isAlarmState(st)) {
             if (disarmPending) {
@@ -454,21 +466,21 @@
                 return;
             }
         }
-        if (stillExiting(device) || (armPending && localExitLeft() > 0)) {
+        if (stillExiting(device) || (armPending && !exitCountStarted)) {
             stopIssueCycle();
-            showArming(remainingExit(device) || localExitLeft() || exitDelaySecs(device));
+            showArming(remainingExit(device) || localExitLeft());
             maybeExitBeeps();
             return;
         }
-        if (armPending && localExitLeft() === 0) {
+        if (armPending && exitCountStarted && localExitLeft() === 0) {
+            if (!armWaitSince) armWaitSince = Date.now();
+            if (Date.now() - armWaitSince < 2000 && !isArmedState(st)) {
+                showArming(0);
+                return;
+            }
             longArmedBeep();
             showArmed();
-            if (isArmedState(st)) {
-                clearLocalExit();
-            } else {
-                if (!armWaitSince) armWaitSince = Date.now();
-                if (Date.now() - armWaitSince > 2500) clearLocalExit();
-            }
+            if (isArmedState(st) || Date.now() - armWaitSince > 2500) clearLocalExit();
             return;
         }
         if (st === "arm" || st === "stay" || st === "sleep") {
@@ -508,6 +520,43 @@
         }
     }
 
+    function applyPanelDevice(hanse) {
+        if (!hanse) return;
+        var siteEl = document.getElementById("lcd-site");
+        if (siteEl) siteEl.textContent = siteName(hanse);
+        window.arialDevice = hanse;
+        applyLeds(hanse);
+        lastStatus = (document.getElementById("lcd-status-main") || {}).textContent || statusFromDevice(hanse);
+        loadStatus._area = areaState(hanse);
+        try {
+            var lcd = document.querySelector(".lcd");
+            localStorage.setItem("arialPanel", JSON.stringify({
+                lastStatus: lastStatus,
+                lastIssue: lastIssue,
+                site: siteName(hanse),
+                armed: !!(lcd && lcd.classList.contains("armed")),
+                arming: !!(lcd && lcd.classList.contains("arming")),
+                disarmed: !!(lcd && lcd.classList.contains("disarmed")),
+                zoneOpen: !!(lcd && lcd.classList.contains("zone-open"))
+            }));
+        } catch (e) {}
+    }
+
+    function startOlarmLive() {
+        if (startOlarmLive._es) return;
+        if (typeof EventSource === "undefined") return;
+        try {
+            var es = new EventSource("/api/arial/live");
+            startOlarmLive._es = es;
+            es.onmessage = function (ev) {
+                try {
+                    var data = JSON.parse(ev.data || "{}");
+                    if (data && data.device) applyPanelDevice(data.device);
+                } catch (err) {}
+            };
+        } catch (e2) {}
+    }
+
     async function loadStatus() {
         if (currentSite().id !== "hansekop") return;
         if (loadStatus._busy) return;
@@ -524,23 +573,7 @@
                 setLcdStatus(lastStatus || "No Device", lastIssue);
                 return;
             }
-            document.getElementById("lcd-site").textContent = siteName(hanse);
-            window.arialDevice = hanse;
-            applyLeds(hanse);
-            lastStatus = (document.getElementById("lcd-status-main") || {}).textContent || statusFromDevice(hanse);
-            loadStatus._area = areaState(hanse);
-            try {
-                var lcd = document.querySelector(".lcd");
-                localStorage.setItem("arialPanel", JSON.stringify({
-                    lastStatus: lastStatus,
-                    lastIssue: lastIssue,
-                    site: siteName(hanse),
-                    armed: !!(lcd && lcd.classList.contains("armed")),
-                    arming: !!(lcd && lcd.classList.contains("arming")),
-                    disarmed: !!(lcd && lcd.classList.contains("disarmed")),
-                    zoneOpen: !!(lcd && lcd.classList.contains("zone-open"))
-                }));
-            } catch (e) {}
+            applyPanelDevice(hanse);
         } catch (e) {
             setLcdStatus(lastStatus || "No Link", lastIssue);
         } finally {
@@ -775,6 +808,7 @@
     }
 
     function maybeExitBeeps() {
+        if (!exitCountStarted || localExitLeft() <= 0) return;
         startExitBeeps();
     }
 
@@ -1107,6 +1141,7 @@
                     setWelcome((data && data.detail) || "Failed", 2000);
                     return false;
                 }
+                if (data && data.device) applyPanelDevice(data.device);
                 loadStatus();
                 setTimeout(loadStatus, 400);
                 setTimeout(loadStatus, 1200);
@@ -1125,18 +1160,28 @@
             setWelcome("Not Linked", 2000);
             return;
         }
-        var delay = exitDelaySecs(window.arialDevice);
         armPending = true;
+        exitCountStarted = false;
+        pendingExitUntil = 0;
+        armWaitSince = 0;
+        longArmedBeep._done = false;
         disarmPending = false;
         disarmNeedsStatus = false;
-        startLocalExit(delay);
-        showArming(localExitLeft());
-        maybeExitBeeps();
+        exitIntroUntil = Date.now() + 20000;
+        persistExit();
+        showArming(0);
         sendLiveAction("area-arm").then(function (ok) {
             if (!ok) {
                 clearLocalExit();
                 loadStatus();
+                return;
             }
+            var apiCd = deviceCountdown(window.arialDevice);
+            var delay = exitDelaySecs(window.arialDevice);
+            if (apiCd > 10) syncLocalExitFromApi(apiCd);
+            else if (!exitCountStarted) startLocalExit(delay);
+            showArming(remainingExit(window.arialDevice) || localExitLeft());
+            maybeExitBeeps();
         });
     }
 
@@ -1290,22 +1335,30 @@
     try {
         var until = Number(storeGet("arialExitUntil") || 0);
         var pending = storeGet("arialArmPending") === "1";
+        exitCountStarted = storeGet("arialExitStarted") === "1";
         if (pending && until > Date.now()) {
             pendingExitUntil = until;
             armPending = true;
+            exitCountStarted = true;
             exitIntroUntil = 0;
             showArming(localExitLeft());
             startExitBeeps();
         } else if (pending && until && until <= Date.now() && until > Date.now() - 8000) {
             armPending = true;
+            exitCountStarted = true;
             pendingExitUntil = until;
             longArmedBeep();
             showArmed();
+        } else if (pending && !exitCountStarted) {
+            armPending = true;
+            exitIntroUntil = Date.now() + 20000;
+            showArming(0);
         }
     } catch (e2) {}
 
     tickTime();
     loadStatus();
+    startOlarmLive();
     fitLcdStatus();
     window.addEventListener("resize", fitLcdStatus);
     setInterval(tickTime, 1000);
@@ -1314,7 +1367,9 @@
     }, 1000);
     setInterval(loadStatus, 4000);
     setInterval(function () {
-        if (!localExitLeft()) return;
-        showArming(localExitLeft());
+        if (disarmPending) return;
+        if (armPending && exitCountStarted && localExitLeft() === 0) return;
+        if (!(armPending || localExitLeft() > 0 || panelIsExiting(window.arialDevice))) return;
+        showArming(remainingExit(window.arialDevice) || localExitLeft());
     }, 250);
 })();
