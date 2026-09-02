@@ -490,7 +490,7 @@ def tuya_probe(device_id: str | None = None) -> dict[str, Any]:
                 out["dpsCount"] = len(result) if isinstance(result, list) else None
                 if isinstance(result, list):
                     _energy_note_recent(out["deviceId"], result, time.time())
-                    _energy_record_sample(out["deviceId"], result)
+                # Bins are written only by the single sampler thread; probes from browsers must not add to them.
                 _ensure_energy_sampler(out["deviceId"])
             else:
                 out["hint"] = _tuya_hint(out["tuyaCode"], out["tuyaMsg"], token_ok=True, device_ok=False)
