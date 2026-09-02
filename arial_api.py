@@ -1687,18 +1687,32 @@ def arial_power(state: dict[str, Any] | None) -> dict[str, Any]:
     }
 
 
+def normalize_olarm_event(event: dict[str, Any] | None) -> dict[str, Any]:
+    """Olarm quirks: a disarm from the app/panel arrives as eventState 'notready' with an eventMsg 'DISARMED - ...'."""
+    if not isinstance(event, dict):
+        return {}
+    action = str(event.get("eventAction") or "").strip().lower()
+    state = str(event.get("eventState") or "").strip().lower()
+    msg = str(event.get("eventMsg") or "").strip().lower()
+    if action == "area" and state == "notready" and msg.startswith("disarmed"):
+        out = dict(event)
+        out["eventState"] = "disarm"
+        return out
+    return event
+
+
 def classify_olarm_event(event: dict[str, Any] | None) -> str:
-    event = event or {}
+    event = normalize_olarm_event(event or {})
     action = str(event.get("eventAction") or "").strip().lower()
     state = str(event.get("eventState") or "").strip().lower()
     msg = str(event.get("eventMsg") or "").strip().lower()
     if action in POWER_EVENT_ACTIONS or "power" in msg or "battery" in msg or "mains" in msg:
         return "power"
-    if action in ALARM_EVENT_ACTIONS or state in {"emergency", "panic", "fire", "medical"} or "in alarm" in msg:
+    if action in ALARM_EVENT_ACTIONS or state in {"alarm", "emergency", "panic", "fire", "medical"} or "in alarm" in msg or msg.startswith("alarm"):
         return "zones"
     if action in AREA_EVENT_ACTIONS or state in {"arm", "disarm", "stay", "sleep", "countdown"} or "countdown" in msg:
         return "areas"
-    if action in ZONE_EVENT_ACTIONS:
+    if action in ZONE_EVENT_ACTIONS or action.startswith("zone"):
         return "zones"
     return "areas"
 
@@ -1833,7 +1847,7 @@ def _map_our_actor(raw: str) -> str:
 
 
 def is_skip_activity_event(event: dict[str, Any] | None) -> bool:
-    event = event or {}
+    event = normalize_olarm_event(event or {})
     if is_noise_olarm_event(event):
         return True
     return _is_skip_area_text(
@@ -2144,6 +2158,7 @@ def _activity_payload(bundle: dict[str, Any] | None, ack: bool) -> dict[str, Any
 
 
 def format_olarm_event(event: dict[str, Any], device: dict[str, Any] | None = None) -> dict[str, Any]:
+    event = normalize_olarm_event(event)
     device = device or {}
     zones = {int(z.get("num") or 0): z for z in (device.get("arialZones") or []) if isinstance(z, dict)}
     areas = {int(a.get("num") or 0): a for a in (device.get("arialAreas") or []) if isinstance(a, dict)}
@@ -2169,6 +2184,10 @@ def format_olarm_event(event: dict[str, Any], device: dict[str, Any] | None = No
     time_s, date_s = _sa_stamp(event.get("eventTime"))
     actor = _arial_event_actor(tab, event, device)
     via = _activity_via(actor)
+    if not actor and tab == "areas" and str(event.get("eventState") or "").lower() in {"arm", "disarm", "stay", "sleep"}:
+        # No keypad user matched: it came from the Olarm app / panel. Show the source, never the Olarm account name.
+        if str(event.get("userFullname") or "").strip():
+            via = "App"
     activity = _activity_line(label, state_lab, actor, via)
     return {
         "tab": tab,

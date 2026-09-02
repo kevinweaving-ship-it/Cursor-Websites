@@ -454,6 +454,33 @@ def test_area_arm_uses_pingoa_not_olarm_user(tmp_path, monkeypatch):
     )
     assert stray["actor"] == ""
     assert "Kevin" not in stray["activity"]
+    assert stray["via"] == "App"
+    assert stray["activity"].endswith("· App")
+
+
+def test_olarm_app_disarm_arrives_as_notready():
+    row = arial_api.format_olarm_event(
+        {
+            "eventAction": "area",
+            "eventState": "notready",
+            "eventNum": 1,
+            "eventMsg": "DISARMED - Area 1 - Facility Building",
+            "eventTime": 1_788_346_035_000,
+            "userFullname": "Kevin",
+        },
+        {"arialAreas": [{"num": 1, "label": "Facility Building"}]},
+    )
+    assert row["state"] == "DISARMED"
+    assert row["tab"] == "areas"
+    assert "Kevin" not in row["activity"]
+    assert not arial_api.is_skip_activity_event(
+        {"eventAction": "area", "eventState": "notready", "eventMsg": "DISARMED - Area 1 - Facility Building"}
+    )
+    assert arial_api.is_skip_activity_event(
+        {"eventAction": "area", "eventState": "notready", "eventMsg": "NOTREADY - Area 1 - Facility Building"}
+    )
+    assert arial_api.classify_olarm_event({"eventAction": "zone_bypass", "eventState": "bypass_on", "eventMsg": "BYPASS ON - Zone 8"}) == "zones"
+    assert arial_api.classify_olarm_event({"eventAction": "area", "eventState": "alarm", "eventMsg": "ALARM! - Area 1 - Facility Building"}) == "zones"
 
 
 def test_keypad_who_survives_api_worker_restart(tmp_path, monkeypatch):
