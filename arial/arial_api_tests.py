@@ -108,6 +108,14 @@ def test_panel_cache_ttl(monkeypatch):
     assert arial_api._cached_panel() is None
 
 
+def test_housing_sides_inset_toward_leds():
+    html = (Path(__file__).resolve().parent / "index.html").read_text(encoding="utf-8")
+    assert "L19 372" in html
+    assert "L6 372" not in html
+    assert 'x="64"' in html
+    assert 'left: 6.0%' in (Path(__file__).resolve().parent / "arial.css").read_text(encoding="utf-8")
+
+
 def test_keypad_is_scaled_with_side_gaps():
     css = (Path(__file__).resolve().parent / "arial.css").read_text(encoding="utf-8")
     assert "width: 90%;" in css
