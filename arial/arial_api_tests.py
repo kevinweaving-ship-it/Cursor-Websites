@@ -507,6 +507,34 @@ def test_onguard_pin_7777_and_logo(tmp_path, monkeypatch):
     assert "Kevin" not in row["activity"]
 
 
+def test_comnet_pin_2640_and_logo(tmp_path, monkeypatch):
+    root = Path(__file__).resolve().parent
+    assert (root / "users" / "comnet.png").is_file()
+    js = (root / "app.js").read_text(encoding="utf-8")
+    assert '"2640"' in js
+    assert "/arial/users/comnet.png" in js
+    assert 'from: "Comnet"' in js
+    _reset_keypad_log(monkeypatch, tmp_path)
+    actor = arial_api._remember_keypad("2640", "area-disarm")
+    assert actor["from"] == "Comnet"
+    row = arial_api.format_olarm_event(
+        {
+            "eventAction": "area",
+            "eventState": "disarm",
+            "eventNum": 1,
+            "eventMsg": "DISARMED - Area 1 - Facility Building",
+            "eventTime": int(actor["at"] * 1000) + 8_000,
+            "userFullname": "Kevin",
+        },
+        {"arialAreas": [{"num": 1, "label": "Facility Building"}]},
+    )
+    assert row["actor"] == "Comnet"
+    assert "Comnet" in row["activity"]
+    assert "Kevin" not in row["activity"]
+    assert arial_api._activity_via("Comnet") == "Remote"
+    assert arial_api._map_our_actor("Comnet") == "Comnet"
+
+
 def test_olarm_poll_acks_until_newer_record(tmp_path, monkeypatch):
     _reset_keypad_log(monkeypatch, tmp_path)
     arial_api._activity_cache = {"at": 0.0, "data": None, "last_key": ""}
@@ -567,7 +595,7 @@ def test_activity_keeps_30_day_store_and_checksums_on_login():
     assert 'prependActivity("DISARMED")' in js
     assert "setInterval(loadActivity, 3000)" in js
     assert "restoreActivityStore();" in js
-    assert "app.js?v=179" in html
+    assert "app.js?v=180" in html
 
 
 def test_activity_armed_once_remote_no_countdown_or_notready():
