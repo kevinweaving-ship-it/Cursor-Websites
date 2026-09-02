@@ -47,9 +47,11 @@
     }
 
     var EXIT_DEFAULT = 30;
+    var EXIT_ACK_MS = 2500;
     var pendingExitUntil = 0;
     var armPending = false;
     var exitCountStarted = false;
+    var exitClockFromApi = false;
     var disarmPending = false;
     var disarmNeedsStatus = false;
     var armWaitSince = 0;
@@ -166,6 +168,7 @@
         pendingExitUntil = 0;
         armPending = false;
         exitCountStarted = false;
+        exitClockFromApi = false;
         armWaitSince = 0;
         exitIntroUntil = 0;
         longArmedBeep._done = false;
@@ -176,6 +179,7 @@
     function stillExiting(device) {
         if (disarmPending) return false;
         if (localExitLeft() > 0) return true;
+        if (armPending && exitCountStarted && pendingExitUntil && pendingExitUntil <= Date.now()) return false;
         if (deviceCountdown(device) > 0) return true;
         if (stampRemaining(device) > 0) return true;
         if (areaState(device) === "countdown") return true;
@@ -186,14 +190,25 @@
     function syncLocalExitFromApi(seconds) {
         if (!(seconds > 0)) return;
         var local = localExitLeft();
-        if (local && Math.abs(local - seconds) <= 1) {
-            exitCountStarted = true;
+        if (!exitClockFromApi && seconds > 10) {
+            exitClockFromApi = true;
+            startLocalExit(seconds);
             return;
         }
-        pendingExitUntil = Date.now() + seconds * 1000;
-        exitCountStarted = true;
-        exitIntroUntil = 0;
-        persistExit();
+        if (!local) {
+            if (pendingExitUntil && pendingExitUntil <= Date.now()) {
+                if (seconds <= 5) startLocalExit(seconds);
+                return;
+            }
+            startLocalExit(seconds);
+            return;
+        }
+        if (seconds < local - 1) {
+            pendingExitUntil = Date.now() + seconds * 1000;
+            persistExit();
+            return;
+        }
+        if (Math.abs(local - seconds) <= 1) exitCountStarted = true;
     }
 
     function isAlarmState(st) {
@@ -474,12 +489,12 @@
         }
         if (armPending && exitCountStarted && localExitLeft() === 0) {
             if (!armWaitSince) armWaitSince = Date.now();
-            if (Date.now() - armWaitSince < 2000 && !isArmedState(st)) {
+            if (Date.now() - armWaitSince < EXIT_ACK_MS) {
                 showArming(0);
                 return;
             }
             showArmed();
-            if (isArmedState(st) || Date.now() - armWaitSince > 2500) clearLocalExit();
+            clearLocalExit();
             return;
         }
         if (st === "arm" || st === "stay" || st === "sleep") {
@@ -1198,6 +1213,7 @@
         pendingExitUntil = 0;
         armWaitSince = 0;
         longArmedBeep._done = false;
+        exitClockFromApi = false;
         disarmPending = false;
         disarmNeedsStatus = false;
         exitIntroUntil = Date.now() + 20000;
@@ -1213,8 +1229,10 @@
             }
             var apiCd = deviceCountdown(window.arialDevice);
             var delay = exitDelaySecs(window.arialDevice);
-            if (apiCd > 10) syncLocalExitFromApi(apiCd);
-            else if (!exitCountStarted) startLocalExit(delay);
+            if (apiCd > 10) {
+                exitClockFromApi = true;
+                startLocalExit(apiCd);
+            } else if (!exitCountStarted) startLocalExit(delay);
             showArming(remainingExit(window.arialDevice) || localExitLeft());
             maybeExitBeeps();
         });
@@ -1375,6 +1393,7 @@
             pendingExitUntil = until;
             armPending = true;
             exitCountStarted = true;
+            exitClockFromApi = true;
             exitIntroUntil = 0;
             showArming(localExitLeft());
             startExitBeeps();

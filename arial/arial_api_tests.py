@@ -118,7 +118,11 @@ def test_arm_disarm_pending_and_thirty_second_exit():
     assert "if (apiCd > 0 && !armPending)" not in js
     assert "if (armPending && local > 0) return local;" not in js
     assert "var exitCountStarted = false;" in js
-    assert "if (apiCd > 10) syncLocalExitFromApi(apiCd)" in js
+    assert "var EXIT_ACK_MS = 2500;" in js
+    assert "var exitClockFromApi = false;" in js
+    assert "startLocalExit(apiCd);" in js
+    assert "Date.now() - armWaitSince < EXIT_ACK_MS" in js
+    assert "if (apiCd > 10) syncLocalExitFromApi(apiCd)" not in js
     assert "startOlarmLive();" in js
     assert "function startOlarmLive()" in js
     assert "function kickExitAudio()" in js
@@ -130,7 +134,6 @@ def test_arm_disarm_pending_and_thirty_second_exit():
     assert "if (left > 7)" in js
     assert "tone(1600, 0.14, 0.55)" in js
     assert "n <= 7" in js
-    assert "Date.now() - armWaitSince < 2000" in js
     assert "disarmNeedsStatus" in js
     assert "hold-disarmed" in js
     assert 'setWelcome("Login", 2200)' in js
