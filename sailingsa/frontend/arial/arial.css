@@ -10,8 +10,8 @@ html, body {
 .pad-wrap {
     position: sticky;
     top: 16px;
-    width: 90%;
-    max-width: 378px;
+    width: 99%;
+    max-width: 416px;
     margin: 16px auto 0;
 }
 

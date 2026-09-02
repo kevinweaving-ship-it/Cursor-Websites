@@ -135,8 +135,8 @@ def test_housing_sides_inset_toward_leds():
 
 def test_keypad_is_scaled_with_side_gaps():
     css = (Path(__file__).resolve().parent / "arial.css").read_text(encoding="utf-8")
-    assert "width: 90%;" in css
-    assert "max-width: 378px;" in css
+    assert "width: 99%;" in css
+    assert "max-width: 416px;" in css
     assert "position: sticky;" in css
     assert "overscroll-behavior: none;" not in css
     html = (Path(__file__).resolve().parent / "index.html").read_text(encoding="utf-8")
