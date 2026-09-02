@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes">
     <meta name="robots" content="noindex,nofollow">
     <title>Arial</title>
-    <link rel="stylesheet" href="/arial/arial.css?v=159">
+    <link rel="stylesheet" href="/arial/arial.css?v=162">
 </head>
 <body>
     <div class="pad-wrap" id="pad-frame">
@@ -122,30 +122,20 @@
     </div>
     <div class="container arial-below">
         <div class="card" id="arial-activity">
-            <h2 class="section-title">Activity</h2>
-            <p class="activity-power" id="activity-power">AC — · Battery —</p>
+            <div class="activity-head">
+                <h2 class="section-title">Activity</h2>
+                <p class="activity-power" id="activity-power">AC — · Bat —</p>
+            </div>
             <div class="tabs" role="tablist">
-                <button type="button" class="on" data-tab="all" role="tab" aria-selected="true">All</button>
-                <button type="button" data-tab="zones" role="tab" aria-selected="false">Zones</button>
-                <button type="button" data-tab="areas" role="tab" aria-selected="false">Areas</button>
-                <button type="button" data-tab="alarms" role="tab" aria-selected="false">Alarms</button>
-                <button type="button" data-tab="power" role="tab" aria-selected="false">Power</button>
+                <button type="button" class="on" data-tab="all" role="tab" aria-selected="true" title="All"><span class="activity-tab-mark" aria-hidden="true"></span>All</button>
+                <button type="button" data-tab="zones" role="tab" aria-selected="false" title="Zones"><span class="activity-tab-mark" aria-hidden="true"></span>Zones</button>
+                <button type="button" data-tab="areas" role="tab" aria-selected="false" title="Areas"><span class="activity-tab-mark" aria-hidden="true"></span>Areas</button>
+                <button type="button" data-tab="power" role="tab" aria-selected="false" title="Power"><span class="activity-tab-mark" aria-hidden="true"></span>Power</button>
             </div>
-            <div class="table-container">
-                <table class="table" id="arial-activity-table">
-                    <thead>
-                        <tr>
-                            <th>Time</th>
-                            <th>Date</th>
-                            <th>Activity</th>
-                        </tr>
-                    </thead>
-                    <tbody id="arial-activity-body"></tbody>
-                </table>
-            </div>
+            <ul class="activity-list" id="arial-activity-body"></ul>
             <button type="button" class="activity-more" id="activity-more" hidden aria-expanded="false">
                 <span class="activity-more-arrow" aria-hidden="true"></span>
-                <span class="activity-more-label">Show more</span>
+                <span class="activity-more-label">More</span>
             </button>
         </div>
     </div>
@@ -164,6 +154,6 @@
         saStamp();
     })();
     </script>
-    <script src="/arial/app.js?v=159"></script>
+    <script src="/arial/app.js?v=162"></script>
 </body>
 </html>

@@ -68,6 +68,7 @@ _MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct",
 ZONE_EVENT_ACTIONS = {"zone", "zone_watch"}
 AREA_EVENT_ACTIONS = {"area"}
 ALARM_EVENT_ACTIONS = {"zone_alarm", "s_alm", "s_alm_f", "s_alm_m"}
+NOISE_EVENT_ACTIONS = {"zones_idle", "device", "heartbeat"}
 POWER_EVENT_ACTIONS = {"power", "ac", "mains", "battery"}
 ALARM_EVENT_STATES = {"alarm", "emergency", "panic", "fire", "medical"}
 
@@ -686,13 +687,26 @@ def classify_olarm_event(event: dict[str, Any] | None) -> str:
     msg = str(event.get("eventMsg") or "").strip().lower()
     if action in POWER_EVENT_ACTIONS or "power" in msg or "battery" in msg or "mains" in msg:
         return "power"
-    if action in ALARM_EVENT_ACTIONS or state in ALARM_EVENT_STATES or "in alarm" in msg or msg.startswith("alarm"):
-        return "alarms"
+    if action in ALARM_EVENT_ACTIONS or state in {"emergency", "panic", "fire", "medical"} or "in alarm" in msg:
+        return "zones"
     if action in AREA_EVENT_ACTIONS or state in {"arm", "disarm", "stay", "sleep", "countdown"} or "countdown" in msg:
         return "areas"
     if action in ZONE_EVENT_ACTIONS:
         return "zones"
     return "areas"
+
+
+def is_noise_olarm_event(event: dict[str, Any] | None) -> bool:
+    event = event or {}
+    action = str(event.get("eventAction") or "").strip().lower()
+    msg = str(event.get("eventMsg") or "").strip().lower()
+    if action in NOISE_EVENT_ACTIONS:
+        return True
+    if "system idle" in msg or "idle for" in msg:
+        return True
+    if "olarm device" in msg and ("online" in msg or "offline" in msg):
+        return True
+    return False
 
 
 def _sa_stamp(ms: Any) -> tuple[str, str]:
@@ -715,6 +729,7 @@ def _event_state_label(state: str) -> str:
         "disarm": "DISARMED",
         "stay": "STAY ARMED",
         "sleep": "SLEEP ARMED",
+        "alert": "",
         "alarm": "ALARM",
         "countdown": "COUNTDOWN",
         "emergency": "EMERGENCY",
@@ -1119,7 +1134,11 @@ def _activity_bundle(device: dict[str, Any] | None, events: list[Any]) -> dict[s
     power = arial_power((device or {}).get("deviceState") if device else None)
     if device and isinstance(device.get("arialPower"), dict):
         power = device["arialPower"]
-    rows = [format_olarm_event(e, device) for e in events if isinstance(e, dict)]
+    rows = [
+        format_olarm_event(e, device)
+        for e in events
+        if isinstance(e, dict) and not is_noise_olarm_event(e)
+    ]
     return {"ok": True, "power": power, "events": rows, "live": True}
 
 
@@ -1135,7 +1154,7 @@ async def arial_activity():
         raw = await _olarm_request(
             "GET",
             f"/api/v4/devices/{HANSEKOP_ID}/events",
-            params={"limit": 40},
+            params={"limit": 80},
         )
     except HTTPException as exc:
         if cached is not None:

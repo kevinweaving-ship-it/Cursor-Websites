@@ -81,10 +81,19 @@ def test_olarm_power_fault_and_event_tabs():
     ) == "areas"
     assert arial_api.classify_olarm_event(
         {"eventAction": "zone_alarm", "eventState": "alarm", "eventMsg": "ZONE 1 IN ALARM - Zone 1 - Front Door"}
-    ) == "alarms"
+    ) == "zones"
     assert arial_api.classify_olarm_event(
         {"eventAction": "power", "eventState": "fail", "eventMsg": "POWER FAILURE"}
     ) == "power"
+    assert arial_api.is_noise_olarm_event(
+        {"eventAction": "zones_idle", "eventState": "alert", "eventMsg": "System Idle for 60 minutes"}
+    )
+    assert arial_api.is_noise_olarm_event(
+        {"eventAction": "device", "eventState": "online", "eventMsg": "Olarm Device ONLINE"}
+    )
+    assert not arial_api.is_noise_olarm_event(
+        {"eventAction": "zone_alarm", "eventState": "alarm", "eventMsg": "ZONE 1 IN ALARM - Zone 1 - Front Door"}
+    )
 
 
 def test_activity_card_markup_and_zone_labels():
@@ -99,12 +108,16 @@ def test_activity_card_markup_and_zone_labels():
     assert 'data-tab="all"' in html
     assert 'data-tab="zones"' in html
     assert 'data-tab="areas"' in html
-    assert 'data-tab="alarms"' in html
+    assert 'data-tab="alarms"' not in html
     assert 'data-tab="power"' in html
     assert 'id="activity-more"' in html
+    assert 'class="activity-list"' in html
     assert "ACTIVITY_PREVIEW = 4" in js
     assert "/api/arial/activity" in js
     assert "color: #ffe14d" in css
+    assert "activity-mark" in css
+    assert "max-width: 377px;" in css.split(".arial-below {", 1)[1].split("}", 1)[0]
+    assert "white-space: nowrap;" in css.split(".activity-text {", 1)[1].split("}", 1)[0]
 
 
 def test_activity_route_uses_zone_labels(monkeypatch):
@@ -312,8 +325,8 @@ def test_lcd_site_date_time_stack_right():
     logo = css.split("#lcd-user-logo {", 1)[1].split("}", 1)[0]
     assert "max-width: 52%;" not in logo
     assert "position: absolute;" in logo
-    assert "top: 48%;" in logo
-    assert "height: 50%;" in logo
+    assert "bottom: 4px;" in logo
+    assert "height: 32%;" in logo
     assert "object-position: right bottom;" in logo
 
 

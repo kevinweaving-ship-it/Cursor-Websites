@@ -601,13 +601,37 @@
     var activityRows = [];
     var ACTIVITY_PREVIEW = 4;
 
+    function activityMark(r) {
+        var tab = String(r.tab || "");
+        var st = String(r.state || r.action || "").toLowerCase();
+        var act = String(r.action || "").toLowerCase();
+        var text = String(r.activity || r.title || "").toLowerCase();
+        if (act.indexOf("alarm") !== -1 || st === "alarm" || st === "panic" || st === "emergency" || text.indexOf("in alarm") !== -1) return "alarm";
+        if (tab === "power") return /fail|low/.test(st) ? "power" : "power-ok";
+        if (tab === "zones") {
+            if (st === "closed" || st === "restore") return "zone-ok";
+            return "zone";
+        }
+        if (tab === "areas") {
+            if (/disarm/.test(st)) return "disarm";
+            if (/arm|stay|sleep/.test(st)) return "arm";
+            return "area";
+        }
+        return tab || "area";
+    }
+
+    function activityLine(r) {
+        var text = String(r.activity || r.title || "").replace(/\s+/g, " ").trim();
+        return text;
+    }
+
     function setActivityPower(power) {
         var el = document.getElementById("activity-power");
         if (!el) return;
         power = power || {};
         var acOk = power.acOk !== false;
         var batOk = power.batteryOk !== false;
-        el.textContent = "AC " + (acOk ? "OK" : "FAILURE") + " · Battery " + (batOk ? "OK" : "LOW");
+        el.textContent = (acOk ? "●" : "○") + " AC  " + (batOk ? "●" : "○") + " Bat";
         el.classList.toggle("fault", !acOk || !batOk);
     }
 
@@ -623,25 +647,28 @@
         body.textContent = "";
         var i;
         if (!show.length) {
-            var empty = document.createElement("tr");
-            var td = document.createElement("td");
-            td.colSpan = 3;
-            td.textContent = "No activity";
-            empty.appendChild(td);
+            var empty = document.createElement("li");
+            empty.className = "activity-empty";
+            empty.textContent = "No activity";
             body.appendChild(empty);
         } else {
             for (i = 0; i < show.length; i += 1) {
                 var r = show[i];
-                var row = document.createElement("tr");
-                var t1 = document.createElement("td");
-                t1.textContent = r.time || "";
-                var t2 = document.createElement("td");
-                t2.textContent = r.date || "";
-                var t3 = document.createElement("td");
-                t3.textContent = r.activity || r.title || "";
-                row.appendChild(t1);
-                row.appendChild(t2);
-                row.appendChild(t3);
+                var row = document.createElement("li");
+                row.className = "activity-row";
+                var mark = document.createElement("span");
+                mark.className = "activity-mark " + activityMark(r);
+                mark.setAttribute("aria-hidden", "true");
+                var t = document.createElement("span");
+                t.className = "activity-time";
+                t.textContent = r.time || "";
+                var line = document.createElement("span");
+                line.className = "activity-text";
+                line.textContent = activityLine(r);
+                line.title = (r.date ? r.date + "  " : "") + activityLine(r);
+                row.appendChild(mark);
+                row.appendChild(t);
+                row.appendChild(line);
                 body.appendChild(row);
             }
         }
@@ -650,7 +677,7 @@
                 more.hidden = false;
                 more.setAttribute("aria-expanded", activityExpanded ? "true" : "false");
                 var lab = more.querySelector(".activity-more-label");
-                if (lab) lab.textContent = activityExpanded ? "Show less" : "Show more";
+                if (lab) lab.textContent = activityExpanded ? "Less" : "More";
             } else {
                 more.hidden = true;
             }

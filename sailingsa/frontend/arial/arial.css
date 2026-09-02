@@ -373,10 +373,11 @@ html, body {
     display: none;
     position: absolute;
     right: 6px;
-    top: 48%;
-    height: 50%;
+    top: auto;
+    bottom: 4px;
+    height: 32%;
     width: auto;
-    max-width: 44%;
+    max-width: 30%;
     margin: 0;
     object-fit: contain;
     object-position: right bottom;
@@ -783,64 +784,87 @@ html, body {
 .hot[data-key="ENTER"] { left: 59.9%; top: 77.7%; width: 17.8%; height: 7.1%; font-size: 9px; }
 
 .arial-below {
-    max-width: 416px;
-    margin: 8px auto 24px;
-    padding: 0 12px 12px;
+    box-sizing: border-box;
+    width: 89.7%;
+    max-width: 377px;
+    margin: 6px auto 20px;
+    padding: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     color: #1e293b;
 }
 
 .arial-below .card {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
     background: #ffffff;
     border: 2px solid #001f3f;
     border-radius: 8px;
     box-shadow: 0 1px 3px rgba(0, 31, 63, 0.08);
-    padding: 0.5rem 0.75rem;
-    margin-bottom: 16px;
+    padding: 0.25rem 0.4rem 0.15rem;
+    margin: 0;
+}
+
+.activity-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 0 0 0.25rem;
+    padding-bottom: 0.2rem;
+    border-bottom: 1px solid #001f3f;
 }
 
 .arial-below .section-title {
-    margin: 0 0 0.4rem;
-    padding-bottom: 0.35rem;
-    font-size: 0.85rem;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font-size: 0.7rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.04em;
     color: #001f3f;
-    border-bottom: 2px solid #001f3f;
 }
 
 .activity-power {
-    margin: 0 0 0.5rem;
-    font-size: 0.9rem;
+    margin: 0;
+    font-size: 0.65rem;
+    font-weight: 600;
     color: #334155;
+    white-space: nowrap;
 }
 
 .activity-power.fault {
     color: #DC143C;
-    font-weight: 700;
 }
 
 .arial-below .tabs {
     display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin: 0 0 8px;
+    flex-wrap: nowrap;
+    gap: 3px;
+    margin: 0 0 4px;
 }
 
 .arial-below .tabs button {
-    flex: 1 1 18%;
-    min-height: 44px;
-    min-width: 44px;
-    padding: 0 6px;
+    flex: 1 1 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-height: 22px;
+    min-width: 0;
+    padding: 0 3px;
     background: #ffffff;
     color: #001f3f;
     border: 1px solid #001f3f;
-    border-radius: 6px;
-    font-size: 0.75rem;
+    border-radius: 4px;
+    font-size: 0.58rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 .arial-below .tabs button.on {
@@ -848,50 +872,99 @@ html, body {
     color: #ffffff;
 }
 
-.arial-below .table-container {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+.activity-tab-mark {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex: 0 0 7px;
+    background: #94a3b8;
 }
 
-.arial-below .table {
-    width: 100%;
-    border-collapse: collapse;
+.arial-below .tabs button[data-tab="all"] .activity-tab-mark { background: #64748b; }
+.arial-below .tabs button[data-tab="zones"] .activity-tab-mark { background: #e6b800; }
+.arial-below .tabs button[data-tab="areas"] .activity-tab-mark { background: #1565c0; }
+.arial-below .tabs button[data-tab="power"] .activity-tab-mark { background: #e67e00; }
+.arial-below .tabs button.on .activity-tab-mark { box-shadow: 0 0 0 1px #fff; }
+
+.activity-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
 }
 
-.arial-below .table th,
-.arial-below .table td {
-    padding: 0.4rem 0.6rem;
-    text-align: left;
+.activity-row,
+.activity-empty {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    height: 16px;
+    max-height: 16px;
+    margin: 0;
+    padding: 0 1px;
+    font-size: 0.58rem;
+    line-height: 16px;
     white-space: nowrap;
-    border-bottom: 1px solid #e0e0e0;
+    overflow: hidden;
+    border-bottom: 1px solid #eef2f6;
 }
 
-.arial-below .table th {
-    min-height: 44px;
-    color: #001f3f;
-    font-weight: 600;
-    border-bottom: 2px solid #001f3f;
+.activity-row:last-child,
+.activity-empty:last-child {
+    border-bottom: 0;
 }
 
-.arial-below .table td:last-child {
+.activity-mark {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex: 0 0 6px;
+    background: #94a3b8;
+}
+
+.activity-mark.zone { background: #e6b800; }
+.activity-mark.zone-ok { background: #12b028; }
+.activity-mark.alarm { background: #DC143C; }
+.activity-mark.arm { background: #DC143C; }
+.activity-mark.disarm { background: #12b028; }
+.activity-mark.area { background: #1565c0; }
+.activity-mark.power { background: #e67e00; }
+.activity-mark.power-ok { background: #1565c0; }
+
+.activity-time {
+    flex: 0 0 2.4em;
+    font-variant-numeric: tabular-nums;
+    color: #64748b;
     font-weight: 600;
+}
+
+.activity-text {
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     color: #001f3f;
-    white-space: normal;
+    font-weight: 600;
+}
+
+.activity-empty {
+    color: #64748b;
+    font-weight: 600;
 }
 
 .activity-more {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
     width: 100%;
-    min-height: 44px;
-    margin-top: 4px;
+    min-height: 22px;
+    margin-top: 2px;
     background: transparent;
     border: none;
     color: #001f3f;
     font-weight: 700;
-    font-size: 0.85rem;
+    font-size: 0.65rem;
     text-transform: uppercase;
 }
 
@@ -899,13 +972,13 @@ html, body {
     display: inline-block;
     width: 0;
     height: 0;
-    border-left: 7px solid transparent;
-    border-right: 7px solid transparent;
-    border-top: 8px solid #001f3f;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid #001f3f;
 }
 
 .activity-more[aria-expanded="true"] .activity-more-arrow {
     border-top: 0;
-    border-bottom: 8px solid #001f3f;
+    border-bottom: 6px solid #001f3f;
 }
 
