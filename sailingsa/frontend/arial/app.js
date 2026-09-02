@@ -335,16 +335,16 @@
         var el = document.getElementById("lcd-status-main") || document.getElementById("lcd-2");
         var box = document.getElementById("lcd-2") || el;
         if (!el || !box) return;
-        el.style.fontSize = "";
         var w = box.clientWidth;
-        var h = el.clientHeight || 32;
-        if (w < 12) return;
-        var size = Math.min(48, Math.max(18, h + 10));
+        var size = 32;
         el.style.fontSize = size + "px";
+        if (box !== el) box.style.fontSize = size + "px";
+        if (w < 12) return;
         var n = 0;
-        while (n < 28 && size > 11 && el.scrollWidth > w + 1) {
+        while (n < 16 && size > 22 && el.scrollWidth > w + 1) {
             size -= 1;
             el.style.fontSize = size + "px";
+            if (box !== el) box.style.fontSize = size + "px";
             n += 1;
         }
         var issueEl = document.getElementById("lcd-status-issue");

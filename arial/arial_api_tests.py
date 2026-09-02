@@ -249,14 +249,13 @@ def test_lcd_status_text_is_bold():
     assert "lcdTextFlashSlow" in css
     assert "6s ease-in-out infinite" in css
     assert "0%, 74% { opacity: 1; }" in css
-    armed = css.split(".lcd.armed #lcd-2 {", 1)[1].split("}", 1)[0]
-    assert "Anton, Impact" in armed
-    assert "font-size: 32px;" in armed
-    assert "line-height: 1;" in armed
-    assert "font-size: 44px;" not in armed
+    assert ".lcd.armed #lcd-2,\n.lcd.arming #lcd-2,\n.lcd.disarmed #lcd-2" in css
+    assert "font-size: 32px;" in css.split(".lcd.armed #lcd-2,\n.lcd.arming #lcd-2,\n.lcd.disarmed #lcd-2 {", 1)[1].split("}", 1)[0]
+    assert "font-size: 44px;" not in css
     assert "line-height: 0.82;" not in css
-    assert "hold-disarmed" in css
-    assert "-webkit-text-stroke: 0.6px #fff;" in armed
+    assert "-webkit-text-stroke" not in css
+    assert "var size = 32;" in js
+    assert "h + 10" not in js
     assert "lcdArmedSlow" not in css
     assert "lcdReadyFlash" not in css
     assert "animation: lcdflash" not in css
