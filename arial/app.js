@@ -760,6 +760,13 @@
 
     window.arialClicks = loadClicks();
 
+    document.addEventListener("touchmove", function (ev) {
+        ev.preventDefault();
+    }, { passive: false });
+    window.addEventListener("scroll", function () {
+        try { window.scrollTo(0, 0); } catch (e) {}
+    }, { passive: true });
+
     var keypad = document.getElementById("pad-frame") || document.querySelector(".pad");
     keypad.addEventListener("pointerdown", function () {
         unlockAudio();
