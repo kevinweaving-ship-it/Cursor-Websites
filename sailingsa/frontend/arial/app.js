@@ -208,14 +208,14 @@
         var face = document.getElementById("arm-toggle-face");
         if (!btn) return;
         var armed = panelLooksArmed();
-        btn.classList.remove("mode-arm", "mode-disarm");
+        btn.classList.remove("mode-arm", "mode-disarm", "to-arm", "to-disarm");
         if (armed) {
             btn.setAttribute("aria-label", "DISARM");
-            btn.classList.add("mode-disarm");
+            btn.classList.add("to-disarm");
             if (face && face.tagName === "IMG") face.src = "/arial/btn-disarm.png?v=45";
         } else {
             btn.setAttribute("aria-label", "ARM");
-            btn.classList.add("mode-arm");
+            btn.classList.add("to-arm");
             if (face && face.tagName === "IMG") face.src = "/arial/btn-arm.png?v=45";
         }
     }
