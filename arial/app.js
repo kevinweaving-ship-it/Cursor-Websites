@@ -1794,22 +1794,22 @@
         onKey._k = key;
         onKey._t = now;
         var isArmed = panelLooksArmed(window.arialDevice);
-        if (disarmPending && (key === "DISARM" || key === "TOGGLE" || key === "ARM")) {
+        if (disarmPending && key === "TOGGLE") {
             saveClick(key);
             if (typeof window.onArialKey === "function") window.onArialKey(key);
             return;
         }
-        if ((key === "DISARM" || key === "TOGGLE" || key === "ARM") && !isLoggedIn()) {
+        if (key === "TOGGLE" && !isLoggedIn()) {
             rejectNeedLogin();
             saveClick(key);
             if (typeof window.onArialKey === "function") window.onArialKey(key);
             return;
         }
-        if ((key === "DISARM" || key === "TOGGLE") && isArmed && isLoggedIn()) {
+        if (key === "TOGGLE" && isArmed && isLoggedIn()) {
             unlockAudio();
             disarmBeep();
         }
-        else if (key === "ARM" || key === "TOGGLE" || (key === "DISARM" && !isArmed)) { /* panel countdown + beeps */ }
+        else if (key === "TOGGLE") { /* panel countdown + beeps */ }
         else if (key !== "LOGOUT" && key !== "UP") beep();
         if (/^[0-9]$/.test(key)) {
             if (pin.length >= 4) {
@@ -1825,16 +1825,9 @@
             setWelcome("");
         } else if (key === "ENTER") {
             if (pin) submitPin();
-        } else if (key === "DISARM" || key === "TOGGLE") {
+        } else if (key === "TOGGLE") {
             if (isArmed) doDisarm();
             else doArm();
-        } else if (key === "ARM") {
-            doArm();
-        } else if (key === "STAY") {
-            if (window.arialUser && window.arialUser.code) selectSite("hansekop");
-            else sendLiveAction("area-stay");
-        } else if (key === "FORCE") {
-            if (window.arialUser && window.arialUser.code) selectSite("tuys");
         } else if (key === "UP" || key === "LOGOUT") {
             if (window.arialUser && window.arialUser.code) {
                 logoutBeep();
@@ -1902,8 +1895,8 @@
 
     try {
         var savedSite = localStorage.getItem("arialSite");
-        if (window.arialUser && window.arialUser.code && (savedSite === "tuys" || savedSite === "hansekop")) {
-            selectSite(savedSite);
+        if (savedSite === "tuys") {
+            localStorage.setItem("arialSite", "hansekop");
         }
     } catch (e) {}
 

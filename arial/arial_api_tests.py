@@ -265,7 +265,12 @@ def test_arm_disarm_pending_and_thirty_second_exit():
     assert "longArmedBeep();" in js.split("function showArmed()", 1)[1].split("function showArming", 1)[0]
     assert "Date.now() - start + 333 <= 2500" in js
     assert "setTimeout(ping, 333)" in js
-    assert "if ((key === \"DISARM\" || key === \"TOGGLE\") && isArmed && isLoggedIn())" in js
+    assert "if (key === \"TOGGLE\" && isArmed && isLoggedIn())" in js
+    assert "else if (key === \"TOGGLE\") {" in js
+    assert "doArm();" in js
+    assert "selectSite(\"tuys\")" not in js
+    assert "key === \"ARM\") {\n            doArm()" not in js
+    assert "sendLiveAction(\"area-stay\")" not in js
     assert "disarmBeep();" in js
 
 
@@ -549,7 +554,7 @@ def test_activity_keeps_30_day_store_and_checksums_on_login():
     assert 'prependActivity("DISARMED")' in js
     assert "setInterval(loadActivity, 3000)" in js
     assert "restoreActivityStore();" in js
-    assert "app.js?v=175" in html
+    assert "app.js?v=176" in html
 
 
 def test_activity_armed_once_remote_no_countdown_or_notready():
