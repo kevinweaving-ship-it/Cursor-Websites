@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes">
     <meta name="robots" content="noindex,nofollow">
     <title>Arial</title>
-    <link rel="stylesheet" href="/arial/arial.css?v=109">
+    <link rel="stylesheet" href="/arial/arial.css?v=110">
 </head>
 <body>
     <div class="pad-wrap" id="pad-frame">
@@ -58,7 +58,8 @@
         <div class="lcd" aria-live="polite">
             <div class="lcd-head">
                 <span id="lcd-site">HANSEKOP</span>
-                <span id="lcd-when"></span>
+                <span id="lcd-date"></span>
+                <span id="lcd-time"></span>
             </div>
             <div class="lcd-mid">
                 <img id="lcd-user-logo" alt="">
@@ -118,14 +119,16 @@
         var TZ = "Africa/Johannesburg";
         var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
         function pad(n) { return String(n).padStart(2, "0"); }
-        function saNow() {
+        function saStamp() {
             var d = new Date(new Date().toLocaleString("en-US", { timeZone: TZ }));
-            return pad(d.getDate()) + " " + months[d.getMonth()] + " " + d.getFullYear() + "  " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+            var dateEl = document.getElementById("lcd-date");
+            var timeEl = document.getElementById("lcd-time");
+            if (dateEl) dateEl.textContent = pad(d.getDate()) + " " + months[d.getMonth()] + " " + d.getFullYear();
+            if (timeEl) timeEl.textContent = pad(d.getHours()) + ":" + pad(d.getMinutes());
         }
-        var when = document.getElementById("lcd-when");
-        if (when) when.textContent = saNow();
+        saStamp();
     })();
     </script>
-    <script src="/arial/app.js?v=105"></script>
+    <script src="/arial/app.js?v=110"></script>
 </body>
 </html>

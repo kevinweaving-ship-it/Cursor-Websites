@@ -108,6 +108,18 @@ def test_panel_cache_ttl(monkeypatch):
     assert arial_api._cached_panel() is None
 
 
+def test_lcd_site_date_time_stack_right():
+    root = Path(__file__).resolve().parent
+    html = (root / "index.html").read_text(encoding="utf-8")
+    css = (root / "arial.css").read_text(encoding="utf-8")
+    assert 'id="lcd-site"' in html
+    assert 'id="lcd-date"' in html
+    assert 'id="lcd-time"' in html
+    head = css.split(".lcd-head {", 1)[1].split("}", 1)[0]
+    assert "flex-direction: column;" in head
+    assert "align-items: flex-end;" in head
+
+
 def test_status_label_under_status_led():
     root = Path(__file__).resolve().parent
     html = (root / "index.html").read_text(encoding="utf-8")

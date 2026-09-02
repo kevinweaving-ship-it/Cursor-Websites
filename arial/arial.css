@@ -149,15 +149,22 @@ html, body {
 
 .lcd-head {
     display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 0.4em;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: flex-start;
+    text-align: right;
+    gap: 0;
     z-index: 1;
 }
 
-#lcd-site {
+#lcd-site,
+#lcd-date,
+#lcd-time {
+    display: block;
+    width: 100%;
+    text-align: right;
     line-height: 1.2;
-    flex: 0 0 auto;
+    white-space: nowrap;
 }
 
 .lcd-mid {
@@ -199,9 +206,7 @@ html, body {
 }
 
 #lcd-when {
-    text-align: right;
-    white-space: nowrap;
-    flex: 0 0 auto;
+    display: none;
 }
 
 #lcd-2 {
