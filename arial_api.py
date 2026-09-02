@@ -1163,6 +1163,7 @@ def tuya_energy(device_id: str | None = None) -> dict[str, Any]:
         "olarmRole": _live_role,
         "olarmBackfill": _olarm_backfill_info,
         "olarmStoreRows": len(_olarm_store),
+        "olarmLoop": _live_debug,
     }
     out["ok"] = True
     return out
@@ -1397,17 +1398,31 @@ def _olarm_backfill(max_pages: int = 150, pace_s: float = 3.5, stop_when_known: 
     return info
 
 
+_live_debug: dict[str, Any] = {}
+
+
+def _olarm_backfill_thread() -> None:
+    try:
+        _olarm_backfill_info["startedAt"] = time.time()
+        _olarm_backfill_info.update(_olarm_backfill())
+    except Exception as exc:  # history paging must never take the live loop down
+        import traceback
+        _olarm_backfill_info["error"] = f"{exc.__class__.__name__}: {exc}"
+        _olarm_backfill_info["trace"] = traceback.format_exc()[-800:]
+    _olarm_backfill_info["doneAt"] = time.time()
+
+
 def _olarm_live_loop() -> None:
     last_events_at = 0.0
     last_area_sig = ""
     backoff_until = 0.0
-    try:
-        _olarm_backfill_info.update(_olarm_backfill())
-    except Exception as exc:  # keep polling even if history paging fails
-        _olarm_backfill_info["error"] = str(exc)
+    threading.Thread(target=_olarm_backfill_thread, name="arial-olarm-backfill", daemon=True).start()
     while not _live_stop.wait(_LIVE_DEVICE_POLL_SEC):
+        _live_debug["loopAt"] = time.time()
         if not _olarm_token() or time.time() < backoff_until:
+            _live_debug["skip"] = "no token" if not _olarm_token() else "backoff"
             continue
+        _live_debug.pop("skip", None)
         try:
             now = time.time()
             events_resp = None
@@ -1456,7 +1471,10 @@ def _olarm_live_loop() -> None:
                         _olarm_backfill(max_pages=10, pace_s=2.0, stop_when_known=True)
             if panel_changed or events_resp is not None:
                 _live_state_save()
-        except Exception:
+                _live_debug["savedAt"] = time.time()
+        except Exception as exc:
+            _live_debug["lastError"] = f"{exc.__class__.__name__}: {exc}"
+            _live_debug["lastErrorAt"] = time.time()
             continue
 
 
