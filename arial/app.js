@@ -412,17 +412,18 @@
     }
 
     function panelLooksArmed(device) {
-        if (disarmPending) return true;
+        if (disarmPending) return false;
+        if (armPending || localExitLeft() > 0) return true;
         var d = device || window.arialDevice;
-        var st = areaState(d);
-        if (d) {
-            if (panelIsExiting(d)) return true;
-            return isArmedState(st);
-        }
         if (panelIsExiting(d)) return true;
-        if (isArmedState(st)) return true;
-        var lcd = document.querySelector(".lcd");
-        return !!(lcd && (lcd.classList.contains("armed") || lcd.classList.contains("arming")));
+        var st = areaState(d);
+        if (isAlarmState(st) || isArmedState(st)) return true;
+        if (st === "disarm" || st === "notready") return false;
+        var main = String(lastStatus || "").toLowerCase();
+        if (main.indexOf("exit delay") !== -1 || main === "alarm") return true;
+        if (/\barmed\b/.test(main) && main.indexOf("disarm") === -1) return true;
+        if (main.indexOf("ready") !== -1 || main.indexOf("disarm") !== -1 || main.indexOf("coming") !== -1) return false;
+        return false;
     }
 
     function syncArmToggle() {
@@ -434,10 +435,12 @@
         if (armed) {
             btn.setAttribute("aria-label", "DISARM");
             btn.classList.add("to-disarm");
+            btn.setAttribute("data-armed", "1");
             if (face && face.tagName === "IMG") face.src = "/arial/btn-disarm.png?v=45";
         } else {
             btn.setAttribute("aria-label", "ARM");
             btn.classList.add("to-arm");
+            btn.setAttribute("data-armed", "0");
             if (face && face.tagName === "IMG") face.src = "/arial/btn-arm.png?v=45";
         }
     }
@@ -445,6 +448,7 @@
     function applyLeds(device) {
         if (Date.now() < loginErrorUntil) {
             showLoginError(true);
+            syncArmToggle();
             return;
         }
         var st = areaState(device);
@@ -1153,6 +1157,7 @@
         setLcdStatus(main, "Login");
         var lcd = document.querySelector(".lcd");
         if (lcd) lcd.classList.add("login-error");
+        syncArmToggle();
         fitLcdStatus();
     }
 
@@ -1287,6 +1292,11 @@
         onKey._k = key;
         onKey._t = now;
         var isArmed = panelLooksArmed(window.arialDevice);
+        if (disarmPending && (key === "DISARM" || key === "TOGGLE" || key === "ARM")) {
+            saveClick(key);
+            if (typeof window.onArialKey === "function") window.onArialKey(key);
+            return;
+        }
         if ((key === "DISARM" || key === "TOGGLE" || key === "ARM") && !isLoggedIn()) {
             rejectNeedLogin();
             saveClick(key);
@@ -1434,7 +1444,7 @@
     setInterval(function () {
         if (localExitLeft() > 0 || disarmPending || armPending || panelIsExiting(window.arialDevice)) loadStatus();
     }, 1000);
-    setInterval(loadStatus, 4000);
+    setInterval(syncArmToggle, 400);
     setInterval(function () {
         if (disarmPending) return;
         if (armPending && exitCountStarted && localExitLeft() === 0) return;

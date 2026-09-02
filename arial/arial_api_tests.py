@@ -144,6 +144,9 @@ def test_arm_disarm_pending_and_thirty_second_exit():
     assert 'setLcdStatus("System Armed", "Login")' not in js
     assert 'setLcdStatus("Login", "");' not in js
     assert "function rejectNeedLogin()" in js
+    assert "if (disarmPending) return false;" in js
+    assert "btn.setAttribute(\"data-armed\"" in js
+    assert "setInterval(syncArmToggle, 400)" in js
     assert "loginErrorUntil" in js
     assert ".lcd.login-error #lcd-status-issue::before" in css
     assert "function startExitBeeps()" in js

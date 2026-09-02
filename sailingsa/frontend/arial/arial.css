@@ -646,7 +646,9 @@ html, body {
 #arm-toggle.to-arm .icon-unlock,
 #arm-toggle.mode-arm .icon-unlock,
 #arm-toggle.to-disarm .icon-lock,
-#arm-toggle.mode-disarm .icon-lock {
+#arm-toggle.mode-disarm .icon-lock,
+#arm-toggle[data-armed="0"] .icon-unlock,
+#arm-toggle[data-armed="1"] .icon-lock {
     display: none;
 }
 
