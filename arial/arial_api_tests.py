@@ -121,8 +121,13 @@ def test_arm_disarm_pending_and_thirty_second_exit():
     assert "hold-disarmed" in js
     assert 'setWelcome("Login", 2200)' in js
     assert "function startExitBeeps()" in js
-    assert "last10 ? 300 : 900" in js
     assert "exitIntroUntil" in js
+    assert "Date.now() + 1200" in js
+    assert "arialExitUntil" in js
+    assert "inExitIntro()" in js
+    assert "setTimeout(tick, 333)" in js
+    assert "function longArmedBeep()" in js
+    assert "if (n < 8) setTimeout(ping, 333)" in js
 
 
 def test_panel_cache_ttl(monkeypatch):

@@ -107,10 +107,27 @@
         return s > 0 ? s : 0;
     }
 
+    function persistExit() {
+        try {
+            if (armPending && pendingExitUntil > Date.now()) {
+                sessionStorage.setItem("arialExitUntil", String(pendingExitUntil));
+                sessionStorage.setItem("arialArmPending", "1");
+            } else {
+                sessionStorage.removeItem("arialExitUntil");
+                sessionStorage.removeItem("arialArmPending");
+            }
+        } catch (e) {}
+    }
+
     function startLocalExit(seconds) {
         var n = seconds && seconds > 0 ? seconds : EXIT_DEFAULT;
         pendingExitUntil = Date.now() + n * 1000;
-        exitIntroUntil = Date.now() + 800;
+        exitIntroUntil = Date.now() + 1200;
+        persistExit();
+    }
+
+    function inExitIntro() {
+        return !!(exitIntroUntil && Date.now() < exitIntroUntil);
     }
 
     function stopExitBeeps() {
@@ -119,6 +136,7 @@
             exitBeepTimer = null;
         }
         startExitBeeps._on = false;
+        startExitBeeps._lastSec = -1;
         maybeExitBeeps._done = false;
     }
 
@@ -127,7 +145,9 @@
         armPending = false;
         armWaitSince = 0;
         exitIntroUntil = 0;
+        longArmedBeep._done = false;
         stopExitBeeps();
+        persistExit();
     }
 
     function stillExiting(device) {
@@ -407,14 +427,16 @@
             maybeExitBeeps();
             return;
         }
-        if (armPending && !isArmedState(st)) {
-            if (!armWaitSince) armWaitSince = Date.now();
-            if (Date.now() - armWaitSince < 2500) {
-                stopIssueCycle();
-                showArming(1);
-                return;
+        if (armPending && localExitLeft() === 0) {
+            longArmedBeep();
+            showArmed();
+            if (isArmedState(st)) {
+                clearLocalExit();
+            } else {
+                if (!armWaitSince) armWaitSince = Date.now();
+                if (Date.now() - armWaitSince > 2500) clearLocalExit();
             }
-            clearLocalExit();
+            return;
         }
         if (st === "arm" || st === "stay" || st === "sleep") {
             clearLocalExit();
@@ -669,7 +691,13 @@
     }
 
     function disarmBeep() {
-        tone(1200, 0.95, 0.5);
+        var n = 0;
+        function ping() {
+            tone(1200, 0.1, 0.5);
+            n += 1;
+            if (n < 8) setTimeout(ping, 333);
+        }
+        ping();
     }
 
     function logoutBeep() {
@@ -692,7 +720,7 @@
 
     function showArming(n) {
         stopIssueCycle();
-        var intro = exitIntroUntil && Date.now() < exitIntroUntil;
+        var intro = inExitIntro();
         setLcdStatus((!intro && n) ? ("Exit Delay " + n) : "Exit Delay", "");
         var lcd = document.querySelector(".lcd");
         if (lcd) {
@@ -705,6 +733,7 @@
         if (led && !led.classList.contains("arming")) {
             setLed(document.getElementById("led-status"), "arming");
         }
+        persistExit();
         syncArmToggle();
         fitLcdStatus();
     }
@@ -716,19 +745,39 @@
     function startExitBeeps() {
         if (startExitBeeps._on) return;
         startExitBeeps._on = true;
+        startExitBeeps._lastSec = -1;
         unlockAudio();
         function tick() {
+            if (inExitIntro()) {
+                exitBeepTimer = setTimeout(tick, 50);
+                return;
+            }
             var left = localExitLeft();
             if (left <= 0) {
                 startExitBeeps._on = false;
                 exitBeepTimer = null;
+                longArmedBeep();
                 return;
             }
-            var last10 = left <= 10;
-            tone(1600, last10 ? 0.08 : 0.1, last10 ? 0.52 : 0.4);
-            exitBeepTimer = setTimeout(tick, last10 ? 300 : 900);
+            if (left > 10) {
+                if (left !== startExitBeeps._lastSec) {
+                    startExitBeeps._lastSec = left;
+                    tone(1600, 0.1, 0.42);
+                }
+                exitBeepTimer = setTimeout(tick, 50);
+                return;
+            }
+            tone(1600, 0.07, 0.52);
+            exitBeepTimer = setTimeout(tick, 333);
         }
         tick();
+    }
+
+    function longArmedBeep() {
+        if (longArmedBeep._done) return;
+        longArmedBeep._done = true;
+        unlockAudio();
+        tone(1200, 0.9, 0.58);
     }
 
     function armBeeps(done) {
@@ -1162,6 +1211,17 @@
             selectSite(savedSite);
         }
     } catch (e) {}
+
+    try {
+        var until = Number(sessionStorage.getItem("arialExitUntil") || 0);
+        if (until > Date.now() && sessionStorage.getItem("arialArmPending") === "1") {
+            pendingExitUntil = until;
+            armPending = true;
+            exitIntroUntil = 0;
+            showArming(localExitLeft());
+            startExitBeeps();
+        }
+    } catch (e2) {}
 
     tickTime();
     loadStatus();
