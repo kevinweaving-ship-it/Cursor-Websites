@@ -113,10 +113,15 @@ def test_welcome_credits_roll_and_fade():
     css = (root / "arial.css").read_text(encoding="utf-8")
     js = (root / "app.js").read_text(encoding="utf-8")
     assert "playWelcomeCredits" in js
-    assert 'rollThenFade("Welcome"' in js
+    assert 'rollThenFade("WELCOME"' in js
     assert "playWelcomeCredits();" in js
     assert "playWelcomeCredits(user.from" not in js
     assert ", 240)" in js
+    credits = css.split("#lcd-welcome.credits {", 1)[1].split("}", 1)[0]
+    assert "left: 2px;" in credits
+    assert "right: 7px;" not in credits
+    assert "translateX(-120%)" in css
+    assert "translateY(-22px)" not in css
     assert "creditScrollFade" in css
     assert "logoRollIn" in css
     assert "credits-playing" in js

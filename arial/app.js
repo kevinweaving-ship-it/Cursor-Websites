@@ -634,7 +634,7 @@
                 }
             }, 240);
         }
-        rollThenFade("Welcome", function () {
+        rollThenFade("WELCOME", function () {
             el.classList.remove("credits", "credit-out");
             el.textContent = "";
             revealLogo();
