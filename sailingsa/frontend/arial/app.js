@@ -405,13 +405,8 @@
 
     function setWelcome(text, holdMs) {
         var el = document.getElementById("lcd-welcome");
-        if (el) {
-            if (el._roll) {
-                clearInterval(el._roll);
-                el._roll = null;
-            }
-            el.textContent = text || "";
-        }
+        stopWelcomeCredits(el);
+        if (el) el.textContent = text || "";
         if (lcdHold) clearTimeout(lcdHold);
         lcdHold = null;
         if (holdMs) {
@@ -557,6 +552,26 @@
         ping();
     }
 
+    function stopWelcomeCredits(el) {
+        el = el || document.getElementById("lcd-welcome");
+        if (!el) return;
+        if (el._roll) {
+            clearInterval(el._roll);
+            el._roll = null;
+        }
+        if (el._hold) {
+            clearTimeout(el._hold);
+            el._hold = null;
+        }
+        if (el._fade) {
+            clearTimeout(el._fade);
+            el._fade = null;
+        }
+        el.classList.remove("credits", "credit-out");
+        el.style.opacity = "";
+        el.style.transform = "";
+    }
+
     function rollText(el, text) {
         if (!el) return;
         text = text == null ? "" : String(text);
@@ -571,6 +586,48 @@
                 el._roll = null;
             }
         }, 110);
+    }
+
+    function playWelcomeCredits(company) {
+        var el = document.getElementById("lcd-welcome");
+        if (!el) return;
+        stopWelcomeCredits(el);
+        var name = String(company || "").trim();
+        function rollThenFade(word, done) {
+            el.classList.add("credits");
+            el.classList.remove("credit-out");
+            el.style.opacity = "1";
+            el.style.transform = "";
+            el.textContent = "";
+            var i = 0;
+            el._roll = setInterval(function () {
+                i += 1;
+                el.textContent = word.slice(0, i);
+                if (i >= word.length) {
+                    clearInterval(el._roll);
+                    el._roll = null;
+                    el._hold = setTimeout(function () {
+                        el._hold = null;
+                        el.classList.add("credit-out");
+                        el._fade = setTimeout(function () {
+                            el._fade = null;
+                            el.classList.remove("credit-out");
+                            el.textContent = "";
+                            if (done) done();
+                        }, 2200);
+                    }, 900);
+                }
+            }, 320);
+        }
+        rollThenFade("Welcome", function () {
+            if (!name) {
+                stopWelcomeCredits(el);
+                return;
+            }
+            rollThenFade(name, function () {
+                stopWelcomeCredits(el);
+            });
+        });
     }
     var pinOkBuf = null;
 
@@ -618,17 +675,8 @@
             setTimeout(pinAccepted, 1000);
             setLoggedIn(user);
             if (lcdHold) clearTimeout(lcdHold);
-            lcdHold = setTimeout(function () {
-                lcdHold = null;
-                pin = "";
-                var el = document.getElementById("lcd-welcome");
-                if (el && el._roll) {
-                    clearInterval(el._roll);
-                    el._roll = null;
-                }
-                if (el) el.textContent = "";
-            }, 5000);
-            rollText(document.getElementById("lcd-welcome"), "Welcome " + (user.from || user.name));
+            lcdHold = null;
+            playWelcomeCredits(user.from || user.name);
             } else {
                 beep();
                 setWelcome("Invalid Code", 2000);

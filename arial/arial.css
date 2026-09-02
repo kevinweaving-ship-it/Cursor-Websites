@@ -211,6 +211,29 @@ html, body {
     display: block;
 }
 
+#lcd-welcome.credits {
+    position: absolute;
+    left: 8px;
+    top: 52%;
+    z-index: 3;
+    flex: none;
+    max-width: 72%;
+    font-size: 34px;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    transform: translateY(-50%);
+    overflow: visible;
+}
+
+#lcd-welcome.credits.credit-out {
+    animation: creditScrollFade 2.2s ease-in forwards;
+}
+
+@keyframes creditScrollFade {
+    0% { opacity: 1; transform: translateY(-50%); }
+    100% { opacity: 0; transform: translateY(calc(-50% - 28px)); }
+}
+
 #lcd-when {
     display: none;
 }

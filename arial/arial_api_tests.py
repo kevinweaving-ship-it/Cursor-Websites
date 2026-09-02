@@ -108,6 +108,17 @@ def test_panel_cache_ttl(monkeypatch):
     assert arial_api._cached_panel() is None
 
 
+def test_welcome_credits_roll_and_fade():
+    root = Path(__file__).resolve().parent
+    css = (root / "arial.css").read_text(encoding="utf-8")
+    js = (root / "app.js").read_text(encoding="utf-8")
+    assert "playWelcomeCredits" in js
+    assert 'rollThenFade("Welcome"' in js
+    assert ", 320)" in js
+    assert "creditScrollFade" in css
+    assert "font-size: 34px;" in css.split("#lcd-welcome.credits {", 1)[1].split("}", 1)[0]
+
+
 def test_lcd_site_date_time_stack_right():
     root = Path(__file__).resolve().parent
     html = (root / "index.html").read_text(encoding="utf-8")
