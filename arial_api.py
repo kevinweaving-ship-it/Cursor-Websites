@@ -1048,7 +1048,7 @@ def _stamp_activity_actors(bundle: dict[str, Any] | None) -> dict[str, Any]:
     if not isinstance(bundle, dict):
         return {"ok": True, "power": {}, "events": [], "live": True}
     device = _stale_panel() if isinstance(_stale_panel(), dict) else None
-    rows = [r for r in (bundle.get("events") or []) if isinstance(r, dict)]
+    rows = [r for r in (bundle.get("events") or []) if isinstance(r, dict) and not is_skip_activity_event(r)]
     for row in rows:
         if str(row.get("tab") or "") != "areas":
             continue

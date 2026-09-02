@@ -549,12 +549,13 @@ def test_activity_keeps_30_day_store_and_checksums_on_login():
     assert 'prependActivity("DISARMED")' in js
     assert "setInterval(loadActivity, 3000)" in js
     assert "restoreActivityStore();" in js
-    assert "app.js?v=174" in html
+    assert "app.js?v=175" in html
 
 
 def test_activity_armed_once_remote_no_countdown_or_notready():
     js = (Path(__file__).resolve().parent / "app.js").read_text(encoding="utf-8")
     assert "blob.indexOf(\"NOTREADY\")" in js
+    assert "activityRows = tidyActivity(activityRows);" in js.split("function renderActivity()", 1)[1]
     assert "tidyActivity" in js
     assert 'title + " " + state + " · " + who + " · Remote"' in js
     line = arial_api._activity_line("Facility Building", "ARMED", "Onguard", "Remote")

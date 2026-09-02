@@ -711,12 +711,15 @@
     }
 
     function skipActivityRow(r) {
+        if (!r || typeof r !== "object") return false;
         var blob = [
-            r && r.state,
-            r && r.activity,
-            r && r.title,
-            r && r.msg
-        ].join(" ").toUpperCase().replace(/[\s_-]+/g, "");
+            r.state,
+            r.activity,
+            r.title,
+            r.msg,
+            r.action,
+            r.eventState
+        ].join(" ").toUpperCase().replace(/[\s_\-·.]+/g, "");
         return blob.indexOf("COUNTDOWN") !== -1 || blob.indexOf("NOTREADY") !== -1;
     }
 
@@ -811,7 +814,8 @@
             activityRows = pruneActivity(raw.events);
             activityRows = tidyActivity(activityRows);
             activityLastKey = raw.lastKey || (activityRows[0] ? activityRecordKey(activityRows[0]) : "");
-            activityChecksumLocal = raw.checksum || activityChecksum(activityRows);
+            activityChecksumLocal = activityChecksum(activityRows);
+            saveActivityStore();
             renderActivity();
             return true;
         } catch (e2) {
@@ -885,9 +889,10 @@
         var body = document.getElementById("arial-activity-body");
         var more = document.getElementById("activity-more");
         if (!body) return;
-        var rows = activityRows;
+        activityRows = tidyActivity(activityRows);
+        var rows = activityRows.filter(function (r) { return !skipActivityRow(r); });
         if (activityTab !== "all") {
-            rows = activityRows.filter(function (r) { return r.tab === activityTab; });
+            rows = rows.filter(function (r) { return r.tab === activityTab; });
         }
         var show = activityExpanded ? rows : rows.slice(0, ACTIVITY_PREVIEW);
         body.textContent = "";
