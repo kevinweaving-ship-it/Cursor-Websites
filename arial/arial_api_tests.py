@@ -119,8 +119,8 @@ def test_lcd_site_date_time_stack_right():
     assert "flex-direction: column;" in head
     assert "align-items: flex-end;" in head
     assert "#lcd-site {\n    font-size: 13.75px;" in css
-    assert "object-position: right center;" in css
-    assert "padding: 4px 0 3px;" in css.split(".lcd-mid {", 1)[1].split("}", 1)[0]
+    assert "object-position: right bottom;" in css
+    assert "padding: 4px 0 0;" in css.split(".lcd-mid {", 1)[1].split("}", 1)[0]
 
 
 def test_status_label_under_status_led():
@@ -170,7 +170,8 @@ def test_compact_crop_shows_full_function_keys():
 
 def test_lcd_status_text_is_bold():
     css = (Path(__file__).resolve().parent / "arial.css").read_text(encoding="utf-8")
-    assert "#lcd-2 {\n    text-align: right;\n    width: 100%;\n    font-weight: 900;" in css
+    assert "#lcd-2 {\n    position: absolute;\n    left: 7px;\n    bottom: 3px;" in css
+    assert "font-weight: 900;" in css.split("#lcd-2 {", 1)[1].split("}", 1)[0]
     assert "border-radius: 8px;" in css.split(".lcd {", 1)[1].split("}", 1)[0]
 
 
