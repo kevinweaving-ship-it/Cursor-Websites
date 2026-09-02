@@ -125,7 +125,7 @@ html, body {
     letter-spacing: 0.05em;
     line-height: 1.15;
     text-shadow: 0 0 3px rgba(0, 191, 255, 0.45);
-    padding: 3px 7px;
+    padding: 6px 7px 3px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -161,7 +161,7 @@ html, body {
     font-weight: 400;
     font-size: 32px;
     letter-spacing: 0.04em;
-    line-height: 1;
+    line-height: 1.2;
 }
 
 .lcd.armed #lcd-2 {
@@ -219,11 +219,12 @@ html, body {
 .lcd-toprow {
     display: flex;
     flex-direction: row;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 6px;
     flex: 0 0 auto;
     min-height: 0;
+    overflow: visible;
     z-index: 2;
 }
 
@@ -246,11 +247,11 @@ html, body {
     font-weight: 400;
     font-size: 32px;
     letter-spacing: 0.04em;
-    line-height: 1;
+    line-height: 1.2;
     text-transform: uppercase;
     white-space: nowrap;
-    overflow: hidden;
-    padding: 2px 0 0;
+    overflow: visible;
+    padding: 6px 0 2px;
     text-shadow: 0 1px 0 rgba(0, 0, 0, 0.28);
 }
 
@@ -262,8 +263,9 @@ html, body {
     white-space: nowrap;
     overflow: visible;
     font-size: 32px;
-    line-height: 1;
+    line-height: 1.2;
     letter-spacing: 0.04em;
+    padding-top: 0.12em;
 }
 
 #lcd-status-issue {

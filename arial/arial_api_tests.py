@@ -244,6 +244,8 @@ def test_lcd_status_text_is_bold():
     assert "justify-content: center;" in block
     assert "font-family: Anton" in block
     assert "font-size: 32px;" in block
+    assert "overflow: visible;" in block
+    assert "padding: 6px 0 2px;" in block
     assert "text-transform: uppercase;" in block
     assert "lcdTextFlash" in css
     assert "lcdTextFlashSlow" in css
