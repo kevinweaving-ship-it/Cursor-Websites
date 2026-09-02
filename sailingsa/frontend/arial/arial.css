@@ -219,21 +219,22 @@ html, body {
     border-radius: 50%;
     box-sizing: border-box;
     overflow: hidden;
-    background: var(--led-fill, radial-gradient(ellipse at 42% 32%, #eef1f2 0%, #c6cbcd 55%, #9aa0a4 100%));
+    background: var(--led-fill, #c8ccd0);
     border: 1px solid var(--led-edge, #6f7578);
     opacity: 1;
-    box-shadow: var(--led-glow, inset 0 1px 0 rgba(255, 255, 255, 0.45));
+    box-shadow: none;
+    filter: none;
 }
 
 .led.ac {
     top: 48.5%;
-    --led-fill: radial-gradient(ellipse at 42% 32%, #fff 0%, #ff9200 28%, #e07000 100%);
-    --led-glow: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -2px 4px rgba(160, 60, 0, 0.35);
+    --led-fill: #ff8a00;
+    --led-edge: #b35f00;
 }
 
 .led.ac.on {
-    --led-fill: radial-gradient(ellipse at 42% 32%, #fff 0%, #ff9200 28%, #e07000 100%);
-    --led-glow: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -2px 4px rgba(160, 60, 0, 0.35);
+    --led-fill: #ff8a00;
+    --led-edge: #b35f00;
 }
 
 .led.status {
@@ -242,15 +243,15 @@ html, body {
 
 .lcd.armed ~ .led.status,
 .led.status.armed {
-    --led-fill: radial-gradient(ellipse at 42% 32%, #fff 0%, #ff1a1a 28%, #c40000 100%);
-    --led-glow: inset 0 1px 0 rgba(255, 255, 255, 0.5), inset 0 -2px 4px rgba(120, 0, 0, 0.4);
+    --led-fill: #e20b0b;
+    --led-edge: #9a0000;
     animation: ledflash 1.8s step-end infinite;
 }
 
 .lcd.arming ~ .led.status,
 .led.status.arming {
-    --led-fill: radial-gradient(ellipse at 42% 32%, #fff 0%, #ff9900 28%, #e07000 100%);
-    --led-glow: inset 0 1px 0 rgba(255, 255, 255, 0.5), inset 0 -2px 4px rgba(160, 70, 0, 0.35);
+    --led-fill: #ff8a00;
+    --led-edge: #b35f00;
     animation: ledflash 1.2s step-end infinite;
 }
 
@@ -262,8 +263,8 @@ html, body {
 
 .lcd.disarmed ~ .led.status,
 .led.status.disarmed {
-    --led-fill: radial-gradient(ellipse at 42% 32%, #fff 0%, #14d718 28%, #0a9a10 100%);
-    --led-glow: inset 0 1px 0 rgba(255, 255, 255, 0.5), inset 0 -2px 4px rgba(0, 90, 10, 0.3);
+    --led-fill: #12c01a;
+    --led-edge: #0a8a10;
 }
 
 .led.status.flash,
@@ -278,7 +279,7 @@ html, body {
 }
 
 @keyframes ledflash {
-    50% { opacity: 0.12; }
+    50% { opacity: 0; }
 }
 
 .led-mark {
