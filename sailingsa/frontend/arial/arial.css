@@ -245,49 +245,42 @@ html, body {
     position: absolute;
     z-index: 4;
     pointer-events: none;
-    width: 4.6%;
-    height: 2.4%;
-    left: 8.6%;
+    width: 5.0%;
+    height: 2.6%;
+    left: 8.4%;
     border-radius: 50%;
-    background: #c6cbcd;
-    border: 1px solid #6f7578;
     box-sizing: border-box;
-    opacity: 0.95;
-    box-shadow:
-        0 1px 2px rgba(0, 0, 0, 0.28),
-        inset 0 1px 0 rgba(255, 255, 255, 0.45);
+    background: var(--led-fill, radial-gradient(ellipse at 42% 32%, #eef1f2 0%, #c6cbcd 55%, #9aa0a4 100%));
+    border: 1px solid var(--led-edge, #6f7578);
+    opacity: 1;
+    box-shadow: var(--led-glow, inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 1px 2px rgba(0, 0, 0, 0.28));
 }
 
 .led.ac {
     top: 48.5%;
-    height: 2.6%;
+    --led-fill: radial-gradient(ellipse at 42% 32%, #fff 0%, #ff9200 28%, #e07000 100%);
+    --led-glow: 0 0 8px 3px rgba(255, 146, 0, 0.75);
+}
+
+.led.ac.on {
+    --led-fill: radial-gradient(ellipse at 42% 32%, #fff 0%, #ff9200 28%, #e07000 100%);
+    --led-glow: 0 0 8px 3px rgba(255, 146, 0, 0.75);
 }
 
 .led.status {
     top: 39.7%;
 }
 
-.led.ac.on {
-    background: radial-gradient(ellipse at 45% 35%, #fff 0%, #ff9200 22%, #ff9200 100%);
-    border-color: #6f7578;
-    opacity: 1;
-    box-shadow: 0 0 8px 3px rgba(255, 146, 0, 0.75);
-}
-
 .lcd.armed ~ .led.status,
 .led.status.armed {
-    background: radial-gradient(ellipse at 45% 35%, #fff 0%, #ff1a1a 22%, #ff1a1a 100%);
-    border-color: #6f7578;
-    opacity: 1;
-    box-shadow: 0 0 10px 4px rgba(255, 26, 26, 0.95);
+    --led-fill: radial-gradient(ellipse at 42% 32%, #fff 0%, #ff1a1a 28%, #c40000 100%);
+    --led-glow: 0 0 10px 4px rgba(255, 26, 26, 0.95);
 }
 
 .lcd.arming ~ .led.status,
 .led.status.arming {
-    background: radial-gradient(ellipse at 45% 35%, #fff 0%, #ff9900 22%, #ff9900 100%);
-    border-color: #6f7578;
-    opacity: 1;
-    box-shadow: 0 0 12px 5px rgba(255, 153, 0, 0.95);
+    --led-fill: radial-gradient(ellipse at 42% 32%, #fff 0%, #ff9900 28%, #e07000 100%);
+    --led-glow: 0 0 12px 5px rgba(255, 153, 0, 0.95);
     animation: ledflash 1.2s step-end infinite;
 }
 
@@ -299,10 +292,8 @@ html, body {
 
 .lcd.disarmed ~ .led.status,
 .led.status.disarmed {
-    background: radial-gradient(ellipse at 45% 35%, #fff 0%, #14d718 22%, #14d718 100%);
-    border-color: #6f7578;
-    opacity: 1;
-    box-shadow: 0 0 10px 4px rgba(20, 215, 24, 0.75);
+    --led-fill: radial-gradient(ellipse at 42% 32%, #fff 0%, #14d718 28%, #0a9a10 100%);
+    --led-glow: 0 0 10px 4px rgba(20, 215, 24, 0.75);
 }
 
 .led.status.flash,
