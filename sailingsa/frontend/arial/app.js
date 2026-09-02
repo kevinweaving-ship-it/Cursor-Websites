@@ -425,28 +425,47 @@
 
     function unlockAudio() {
         var AC = window.AudioContext || window.webkitAudioContext;
-        if (!AC) return;
+        if (!AC) return Promise.resolve();
         if (!audioCtx) audioCtx = new AC();
-        if (audioCtx.state === "suspended") audioCtx.resume();
+        function prime() {
+            try {
+                var buf = audioCtx.createBuffer(1, 1, audioCtx.sampleRate || 22050);
+                var src = audioCtx.createBufferSource();
+                src.buffer = buf;
+                src.connect(audioCtx.destination);
+                src.start(0);
+            } catch (e) {}
+        }
+        if (audioCtx.state === "suspended") {
+            return audioCtx.resume().then(function () {
+                prime();
+            }).catch(function () {});
+        }
+        prime();
+        return Promise.resolve();
     }
 
     function tone(freq, dur, peak) {
-        unlockAudio();
-        if (!audioCtx) return;
-        try {
-            var t = audioCtx.currentTime;
-            var osc = audioCtx.createOscillator();
-            var gain = audioCtx.createGain();
-            osc.type = "square";
-            osc.frequency.setValueAtTime(freq, t);
-            gain.gain.setValueAtTime(0.0001, t);
-            gain.gain.exponentialRampToValueAtTime(peak || 0.38, t + 0.01);
-            gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start(t);
-            osc.stop(t + dur + 0.03);
-        } catch (e) {}
+        function play() {
+            if (!audioCtx) return;
+            try {
+                var t = audioCtx.currentTime;
+                var osc = audioCtx.createOscillator();
+                var gain = audioCtx.createGain();
+                osc.type = "square";
+                osc.frequency.setValueAtTime(freq, t);
+                gain.gain.setValueAtTime(0.0001, t);
+                gain.gain.exponentialRampToValueAtTime(peak || 0.38, t + 0.01);
+                gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(t);
+                osc.stop(t + dur + 0.03);
+            } catch (e) {}
+        }
+        var ready = unlockAudio();
+        if (ready && typeof ready.then === "function") ready.then(play);
+        else play();
     }
 
     function beep() {
@@ -693,8 +712,10 @@
     keypad.addEventListener("pointerdown", function (ev) {
         var btn = ev.target.closest("[data-key]");
         if (!btn) return;
-        unlockAudio();
-        onKey(btn.getAttribute("data-key"));
+        var key = btn.getAttribute("data-key");
+        unlockAudio().then(function () {
+            onKey(key);
+        });
     });
 
     try {
