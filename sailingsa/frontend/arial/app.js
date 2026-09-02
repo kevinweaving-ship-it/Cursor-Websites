@@ -569,9 +569,12 @@
             clearTimeout(el._fade);
             el._fade = null;
         }
-        el.classList.remove("credits", "credit-out");
+        el.classList.remove("credits", "credit-out", "credit-across");
         el.style.opacity = "";
         el.style.transform = "";
+        el.style.clipPath = "";
+        el.style.transition = "";
+        el.style.removeProperty("--welcome-x");
         var lcd = document.querySelector(".lcd");
         if (lcd) lcd.classList.remove("credits-playing");
     }
@@ -608,37 +611,31 @@
             void lcd.offsetWidth;
             lcd.classList.add("logo-in");
         }
-        function rollThenFade(word, done) {
-            el.classList.add("credits");
-            el.classList.remove("credit-out");
-            el.style.opacity = "1";
-            el.style.transform = "";
-            el.textContent = "";
-            var i = 0;
-            el._roll = setInterval(function () {
-                i += 1;
-                el.textContent = word.slice(0, i);
-                if (i >= word.length) {
-                    clearInterval(el._roll);
-                    el._roll = null;
-                    el._hold = setTimeout(function () {
-                        el._hold = null;
-                        el.classList.add("credit-out");
-                        el._fade = setTimeout(function () {
-                            el._fade = null;
-                            el.classList.remove("credit-out");
-                            el.textContent = "";
-                            if (done) done();
-                        }, 1600);
-                    }, 650);
-                }
-            }, 240);
-        }
-        rollThenFade("WELCOME", function () {
-            el.classList.remove("credits", "credit-out");
-            el.textContent = "";
-            revealLogo();
-        });
+        el.classList.add("credits");
+        el.classList.remove("credit-out", "credit-across");
+        el.textContent = "WELCOME";
+        el.style.opacity = "1";
+        el.style.removeProperty("--welcome-x");
+        void el.offsetWidth;
+        var travel = 0;
+        if (lcd) travel = Math.max(0, lcd.clientWidth - el.offsetWidth - 12);
+        el.style.setProperty("--welcome-x", travel + "px");
+        void el.offsetWidth;
+        el.classList.add("credit-across");
+        el._hold = setTimeout(function () {
+            el._hold = null;
+            el.classList.add("credit-out");
+            el.classList.remove("credit-across");
+            el._fade = setTimeout(function () {
+                el._fade = null;
+                el.classList.remove("credits", "credit-out", "credit-across");
+                el.textContent = "";
+                el.style.opacity = "";
+                el.style.transform = "";
+                el.style.removeProperty("--welcome-x");
+                revealLogo();
+            }, 1500);
+        }, 2200);
     }
     var pinOkBuf = null;
 

@@ -237,17 +237,42 @@ html, body {
     font-weight: 900;
     letter-spacing: 0.04em;
     text-align: left;
-    transform: none;
     overflow: visible;
+    clip-path: inset(0 100% 0 0);
+}
+
+#lcd-welcome.credits.credit-across {
+    animation: welcomeAcross 1.8s ease-out forwards;
 }
 
 #lcd-welcome.credits.credit-out {
-    animation: creditScrollFade 1.6s ease-in forwards;
+    animation: welcomeBackLeft 1.5s ease-in forwards;
 }
 
-@keyframes creditScrollFade {
-    0% { opacity: 1; transform: translateX(0); }
-    100% { opacity: 0; transform: translateX(-120%); }
+@keyframes welcomeAcross {
+    0% {
+        transform: translateX(0);
+        clip-path: inset(0 100% 0 0);
+        opacity: 1;
+    }
+    100% {
+        transform: translateX(var(--welcome-x, 0px));
+        clip-path: inset(0 0 0 0);
+        opacity: 1;
+    }
+}
+
+@keyframes welcomeBackLeft {
+    0% {
+        transform: translateX(var(--welcome-x, 0px));
+        clip-path: inset(0 0 0 0);
+        opacity: 1;
+    }
+    100% {
+        transform: translateX(0);
+        clip-path: inset(0 100% 0 0);
+        opacity: 0;
+    }
 }
 
 #lcd-when {
