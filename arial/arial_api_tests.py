@@ -128,10 +128,10 @@ def test_arm_disarm_pending_and_thirty_second_exit():
     assert "function startExitBeeps()" in js
     assert "exitIntroUntil" in js
     assert "Date.now() + 1200" in js
-    assert "arialExitUntil" in js
-    assert "inExitIntro()" in js
-    assert "setTimeout(tick, 333)" in js
-    assert "function longArmedBeep()" in js
+    assert "storeSet(\"arialExitUntil\"" in js
+    assert "localStorage.setItem(k, v)" in js
+    assert "startExitBeeps._nextFast = now + 500" in js
+    assert "tone(1100, 1.35, 0.62)" in js
     assert "if (n < 8) setTimeout(ping, 333)" in js
 
 

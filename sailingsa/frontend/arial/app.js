@@ -108,16 +108,32 @@
         return s > 0 ? s : 0;
     }
 
-    function persistExit() {
+    function storeSet(k, v) {
+        try { localStorage.setItem(k, v); } catch (e) {}
+        try { sessionStorage.setItem(k, v); } catch (e2) {}
+    }
+
+    function storeGet(k) {
         try {
-            if (armPending && pendingExitUntil > Date.now()) {
-                sessionStorage.setItem("arialExitUntil", String(pendingExitUntil));
-                sessionStorage.setItem("arialArmPending", "1");
-            } else {
-                sessionStorage.removeItem("arialExitUntil");
-                sessionStorage.removeItem("arialArmPending");
-            }
+            var a = localStorage.getItem(k);
+            if (a != null && a !== "") return a;
         } catch (e) {}
+        try { return sessionStorage.getItem(k); } catch (e2) { return null; }
+    }
+
+    function storeDel(k) {
+        try { localStorage.removeItem(k); } catch (e) {}
+        try { sessionStorage.removeItem(k); } catch (e2) {}
+    }
+
+    function persistExit() {
+        if (armPending && pendingExitUntil > Date.now()) {
+            storeSet("arialExitUntil", String(pendingExitUntil));
+            storeSet("arialArmPending", "1");
+            return;
+        }
+        storeDel("arialExitUntil");
+        storeDel("arialArmPending");
     }
 
     function startLocalExit(seconds) {
@@ -763,10 +779,11 @@
         if (startExitBeeps._on) return;
         startExitBeeps._on = true;
         startExitBeeps._lastSec = -1;
+        startExitBeeps._nextFast = 0;
         unlockAudio();
         function tick() {
             if (inExitIntro()) {
-                exitBeepTimer = setTimeout(tick, 50);
+                exitBeepTimer = setTimeout(tick, 40);
                 return;
             }
             var left = localExitLeft();
@@ -779,13 +796,17 @@
             if (left > 10) {
                 if (left !== startExitBeeps._lastSec) {
                     startExitBeeps._lastSec = left;
-                    tone(1600, 0.1, 0.42);
+                    tone(1600, 0.11, 0.45);
                 }
-                exitBeepTimer = setTimeout(tick, 50);
+                exitBeepTimer = setTimeout(tick, 40);
                 return;
             }
-            tone(1600, 0.07, 0.52);
-            exitBeepTimer = setTimeout(tick, 333);
+            var now = Date.now();
+            if (now >= startExitBeeps._nextFast) {
+                startExitBeeps._nextFast = now + 500;
+                tone(1600, 0.08, 0.52);
+            }
+            exitBeepTimer = setTimeout(tick, 40);
         }
         tick();
     }
@@ -794,7 +815,7 @@
         if (longArmedBeep._done) return;
         longArmedBeep._done = true;
         unlockAudio();
-        tone(1200, 0.9, 0.58);
+        tone(1100, 1.35, 0.62);
     }
 
     function armBeeps(done) {
@@ -1260,13 +1281,19 @@
     } catch (e) {}
 
     try {
-        var until = Number(sessionStorage.getItem("arialExitUntil") || 0);
-        if (until > Date.now() && sessionStorage.getItem("arialArmPending") === "1") {
+        var until = Number(storeGet("arialExitUntil") || 0);
+        var pending = storeGet("arialArmPending") === "1";
+        if (pending && until > Date.now()) {
             pendingExitUntil = until;
             armPending = true;
             exitIntroUntil = 0;
             showArming(localExitLeft());
             startExitBeeps();
+        } else if (pending && until && until <= Date.now() && until > Date.now() - 8000) {
+            armPending = true;
+            pendingExitUntil = until;
+            longArmedBeep();
+            showArmed();
         }
     } catch (e2) {}
 
