@@ -24,6 +24,7 @@
         if (siteEl) siteEl.textContent = s.name;
         if (!s.linked) {
             lastStatus = "Coming Soon";
+            stopIssueCycle();
             setLcdStatus("Coming Soon", "");
             var lcd = document.querySelector(".lcd");
             if (lcd) lcd.classList.remove("armed", "disarmed", "arming", "arming-fast", "zone-open");
@@ -154,16 +155,22 @@
         return false;
     }
 
-    function openZoneIssue(device) {
+    function openZoneIssues(device) {
+        var out = [];
         var zones = (device && device.arialZones) || [];
         var i;
         for (i = 0; i < zones.length; i += 1) {
             var z = zones[i];
             if (!zoneIsOpen(z)) continue;
             var n = z.num != null ? z.num : (i + 1);
-            return "Zone " + n + " Open";
+            out.push("Zone " + n + " Open");
         }
-        return "";
+        return out;
+    }
+
+    function openZoneIssue(device) {
+        var all = openZoneIssues(device);
+        return all.length ? all[0] : "";
     }
 
     function openZoneLabel(device) {
@@ -194,6 +201,41 @@
     }
 
     var lastIssue = "";
+    var issueCycle = { i: 0, timer: null };
+
+    function stopIssueCycle() {
+        if (issueCycle.timer) {
+            clearInterval(issueCycle.timer);
+            issueCycle.timer = null;
+        }
+    }
+
+    function showNextIssue() {
+        var issues = openZoneIssues(window.arialDevice);
+        if (!issues.length) {
+            stopIssueCycle();
+            setLcdStatus("System Ready", "");
+            applyLcd(window.arialDevice);
+            setLed(document.getElementById("led-status"), "disarmed");
+            return;
+        }
+        issueCycle.i = (issueCycle.i + 1) % issues.length;
+        setLcdStatus("System Not Ready", issues[issueCycle.i]);
+    }
+
+    function ensureIssueCycle() {
+        var issues = openZoneIssues(window.arialDevice);
+        if (!issues.length) {
+            stopIssueCycle();
+            return false;
+        }
+        if (issueCycle.i >= issues.length) issueCycle.i = 0;
+        setLcdStatus("System Not Ready", issues[issueCycle.i]);
+        if (!issueCycle.timer) {
+            issueCycle.timer = setInterval(showNextIssue, 1150);
+        }
+        return true;
+    }
 
     function setLcdStatus(main, issue) {
         if (main != null) lastStatus = String(main);
@@ -225,7 +267,7 @@
         var st = areaState(device);
         var arming = panelIsExiting(device);
         var armed = !arming && isArmedState(st);
-        var zoneOpen = !arming && !armed && !!openZoneIssue(device);
+        var zoneOpen = !arming && !armed && openZoneIssues(device).length > 0;
         var disarmed = !arming && !armed && (st === "disarm" || st === "notready" || !st);
         lcd.classList.toggle("arming", arming);
         lcd.classList.toggle("armed", armed);
@@ -302,6 +344,7 @@
 
         if (isAlarmState(st)) {
             clearLocalExit();
+            stopIssueCycle();
             setLcdStatus("ALARM", "");
             applyLcd(device);
             setLed(document.getElementById("led-status"), "armed flash-fast");
@@ -309,24 +352,26 @@
         }
         if (st === "arm" || st === "stay" || st === "sleep") {
             clearLocalExit();
+            stopIssueCycle();
             setLcdStatus(statusFromDevice(device), "");
             applyLcd(device);
             setLed(document.getElementById("led-status"), "armed");
             return;
         }
         if (panelIsExiting(device)) {
+            stopIssueCycle();
             showArming(remainingExit(device));
             maybeExitBeeps();
             return;
         }
         clearLocalExit();
-        var issue = openZoneIssue(device);
-        if (st === "notready" && issue) {
-            setLcdStatus("System Not Ready", issue);
+        if (ensureIssueCycle()) {
             applyLcd(device);
             setLed(document.getElementById("led-status"), "disarmed flash");
         } else {
-            setLcdStatus(st === "notready" ? "System Ready" : statusFromDevice(device), "");
+            var readyLabel = statusFromDevice(device);
+            if (readyLabel === "System Not Ready") readyLabel = "System Ready";
+            setLcdStatus(readyLabel, "");
             applyLcd(device);
             setLed(document.getElementById("led-status"), "disarmed");
         }
@@ -573,6 +618,7 @@
     }
 
     function showArmed() {
+        stopIssueCycle();
         setLcdStatus("System Armed", "");
         var lcd = document.querySelector(".lcd");
         if (lcd) {
@@ -585,6 +631,7 @@
     }
 
     function showArming(n) {
+        stopIssueCycle();
         setLcdStatus(n ? ("Exit Delay " + n) : "Exit Delay", "");
         var lcd = document.querySelector(".lcd");
         if (lcd) {
@@ -801,6 +848,17 @@
     }
 
     function showDisarmed() {
+        if (ensureIssueCycle()) {
+            var lcdBusy = document.querySelector(".lcd");
+            if (lcdBusy) {
+                lcdBusy.classList.remove("armed", "arming", "arming-fast");
+                lcdBusy.classList.add("disarmed", "zone-open");
+            }
+            setLed(document.getElementById("led-status"), "disarmed flash");
+            syncArmToggle();
+            return;
+        }
+        stopIssueCycle();
         setLcdStatus("System Ready", "");
         var lcd = document.querySelector(".lcd");
         if (lcd) {

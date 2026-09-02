@@ -219,8 +219,11 @@ def test_lcd_status_text_is_bold():
     assert "lcdReadyFlash" not in css
     assert "animation: lcdflash" not in css
     assert 'st === "notready"' in js
+    assert "openZoneIssues" in js
     assert "openZoneIssue" in js
     assert '"Zone " + n + " Open"' in js
+    assert "setInterval(showNextIssue, 1150)" in js
+    assert "ensureIssueCycle" in js
     assert 'return "Zone Open"' not in js
     assert '"System Ready"' in js
     assert "disarmed:not(.zone-open)" in css
