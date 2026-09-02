@@ -855,13 +855,26 @@ def _tuya_logs(creds: dict[str, str], device: str, *, types: str, start_ms: int,
                 break
             payload = _tuya_call("GET", f"/v1.0/devices/{device}/logs", creds=creds, params=params, access_token=access)
         if not payload.get("success"):
-            break
+            _tuya_logs_last_error.update({"code": payload.get("code"), "msg": payload.get("msg"), "at": time.time()})
+            if _tuya_is_rate_limit(payload):
+                time.sleep(1.5)
+                payload = _tuya_call("GET", f"/v1.0/devices/{device}/logs", creds=creds, params=params, access_token=access)
+            if not payload.get("success"):
+                break
         result = payload.get("result") if isinstance(payload.get("result"), dict) else {}
         rows.extend(r for r in (result.get("logs") or []) if isinstance(r, dict))
         if not result.get("has_next") or not result.get("current_row_key"):
             break
         row_key = str(result.get("current_row_key"))
     return rows
+
+
+_tuya_logs_last_error: dict[str, Any] = {}
+
+
+def _tuya_is_rate_limit(payload: dict[str, Any]) -> bool:
+    text = str(payload.get("msg") or "").lower()
+    return "frequent" in text or "rate" in text or "limit" in text or int(payload.get("code") or 0) in {28841105, 1106, 1101}
 
 
 _LIFECYCLE_ONLINE, _LIFECYCLE_OFFLINE, _LIFECYCLE_RESTART = 1, 2, 9
@@ -923,6 +936,7 @@ def _energy_backfill_from_logs(creds: dict[str, str], device: str, start_ts: flo
         nxt = min(end_ts, win + 3600.0)
         rows.extend(_tuya_logs(creds, device, types="7", codes="cur_power", start_ms=int(win * 1000), end_ms=int(nxt * 1000), max_pages=40))
         win = nxt
+        time.sleep(0.35)
     samples = sorted(
         ((int(r.get("event_time")) / 1000.0, _scale_power_w(r.get("value"))) for r in rows if r.get("event_time")),
         key=lambda x: x[0],
