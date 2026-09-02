@@ -155,10 +155,10 @@ html, body {
 }
 
 .lcd.armed #lcd-2 {
-    font-family: "DSEG7 Classic", "DSEG14 Classic", monospace;
+    font-family: "DSEG14 Classic", Anton, sans-serif;
     font-weight: 700;
     color: #fff;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.04em;
     text-shadow:
         0 0 4px rgba(255, 255, 255, 0.95),
         0 0 10px rgba(255, 255, 255, 0.4);
