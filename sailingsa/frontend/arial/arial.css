@@ -1378,12 +1378,47 @@ html, body {
 
 .breaker-bars .bar {
     fill: var(--day-colour);
-    opacity: 0.85;
+    opacity: 0.9;
 }
 
+.breaker-bars .bar.band-cold2 { fill: #1565c0; }
+.breaker-bars .bar.band-cold { fill: #64a9e8; }
+.breaker-bars .bar.band-avg { fill: #12b028; }
+.breaker-bars .bar.band-warm { fill: #f08080; }
+.breaker-bars .bar.band-hot { fill: #DC143C; }
+.breaker-bars .bar.band-danger { fill: #8b0000; }
+
 .breaker-bars .bar.now {
-    opacity: 1;
+    fill: var(--day-colour);
+    opacity: 0.55;
 }
+
+.breaker-legend {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    margin-top: 1px;
+    font-size: 0.48rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #64748b;
+    white-space: nowrap;
+}
+
+.breaker-legend i {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 2px;
+    margin-right: 2px;
+    vertical-align: -1px;
+}
+
+.breaker-legend .band-cold2 { background: #1565c0; }
+.breaker-legend .band-avg { background: #12b028; }
+.breaker-legend .band-hot { background: #DC143C; }
+.breaker-legend .band-danger { background: #8b0000; }
 
 .breaker-bars .bar.hot {
     opacity: 1;

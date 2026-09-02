@@ -1340,7 +1340,7 @@
         for (j = 0; j < bars.length; j += 1) bars[j].classList.toggle("hot", Number(bars[j].getAttribute("data-hour")) === hour);
         var h2 = String(hour).padStart(2, "0");
         var h3 = String(hour + 1).padStart(2, "0");
-        tip.textContent = h2 + ":00–" + h3 + ":00 · " + (val == null ? "no data" : fmtKwhShort(val));
+        tip.textContent = h2 + ":00–" + h3 + ":00 · " + (val == null ? "no data" : fmtKwhShort(val) + breakerBandText(val, breakerAvgKwh(day)));
         tip.hidden = false;
         var rect = chart.getBoundingClientRect();
         var x = ((hour + 0.5) / 24) * rect.width;
@@ -1353,6 +1353,36 @@
         if (val != null && max > 0) y = 60 - (val / max) * 56;
         tip.style.left = x + "px";
         tip.style.top = Math.max(y - 4, 14) + "px";
+    }
+
+    function breakerAvgKwh(day) {
+        // Multi-day baseline (kW == kWh per hour) when known; otherwise the mean of this day's own hours.
+        if (breakerEnergyData && breakerEnergyData.baselineKw != null) return breakerEnergyData.baselineKw;
+        var hours = day && Array.isArray(day.hours) ? day.hours : [];
+        var sum = 0;
+        var n = 0;
+        var i;
+        for (i = 0; i < hours.length; i += 1) {
+            if (hours[i] != null) { sum += hours[i]; n += 1; }
+        }
+        return n >= 2 ? sum / n : null;
+    }
+
+    function breakerBandClass(v, avg) {
+        if (v == null || avg == null || !(avg > 0)) return "band-none";
+        var r = v / avg;
+        if (r < 0.6) return "band-cold2";
+        if (r < 0.85) return "band-cold";
+        if (r <= 1.15) return "band-avg";
+        if (r <= 1.35) return "band-warm";
+        if (r <= 1.6) return "band-hot";
+        return "band-danger";
+    }
+
+    function breakerBandText(v, avg) {
+        if (v == null || avg == null || !(avg > 0)) return "";
+        var pct = Math.round((v / avg - 1) * 100);
+        return (pct >= 0 ? " · +" : " · ") + pct + "% vs avg";
     }
 
     function renderBreakerDay() {
@@ -1390,6 +1420,7 @@
         base.setAttribute("y1", "59.5"); base.setAttribute("y2", "59.5");
         svg.appendChild(base);
         var nowHour = Number(new Date().toLocaleString("en-GB", { timeZone: "Africa/Johannesburg", hour: "2-digit", hour12: false }).slice(0, 2));
+        var avg = breakerAvgKwh(day);
         var slotW = 320 / 24;
         for (i = 0; i < 24; i += 1) {
             var slot = document.createElementNS(ns, "rect");
@@ -1404,7 +1435,8 @@
             if (v == null || !(max > 0)) continue;
             var h = Math.max(1.5, (v / max) * 56);
             var bar = document.createElementNS(ns, "rect");
-            bar.setAttribute("class", "bar" + (breakerDayIdx === 0 && i === nowHour ? " now" : ""));
+            var isNow = breakerDayIdx === 0 && i === nowHour;
+            bar.setAttribute("class", "bar " + breakerBandClass(isNow ? null : v, avg) + (isNow ? " now" : ""));
             bar.setAttribute("x", (i * slotW + 1.2).toFixed(2));
             bar.setAttribute("y", (59 - h).toFixed(2));
             bar.setAttribute("width", (slotW - 2.4).toFixed(2));

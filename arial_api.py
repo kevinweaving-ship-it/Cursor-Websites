@@ -630,6 +630,7 @@ def _tuya_statistics_hours(creds: dict[str, str], device: str, ts: float) -> dic
 _energy_thread: threading.Thread | None = None
 _ENERGY_SAMPLE_S = 60.0
 _RECOVERY_S = 2 * 3600.0
+_POWER_MIN_OUTAGE_S = 120.0
 _RECENT_N = 30
 _energy_recent: dict[str, list[tuple[float, float]]] = {}
 _power_state: dict[str, Any] = {"loaded": False, "online": None, "acOk": None, "offSince": None, "restoreAt": None, "outages": []}
@@ -684,6 +685,8 @@ def _power_mark(*, online: bool | None = None, ac_ok: bool | None = None, now: f
             if val is True and _power_state.get("offSince") is not None:
                 off = float(_power_state["offSince"])
                 _power_state["offSince"] = None
+                if ts - off < _POWER_MIN_OUTAGE_S:
+                    continue  # blip / API restart, not a mains failure
                 _power_state["restoreAt"] = ts
                 _power_state["outages"] = (_power_state.get("outages") or [])[-49:] + [{"from": off, "to": ts}]
         if changed:
