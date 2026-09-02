@@ -121,6 +121,8 @@ def test_up_arrow_is_logout_when_logged_in():
     assert ">Log<" not in html
     assert 'key === "UP"' in js
     assert "logOut();" in js
+    assert "up.hidden = !on" in js
+    assert ".pad-wrap.compact .hot[data-key=\"UP\"]" in css
 
 
 def test_tuya_catalog_unique_ids_and_mains_meter():

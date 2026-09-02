@@ -354,7 +354,10 @@
         var frame = document.getElementById("pad-frame");
         if (frame) frame.classList.toggle("compact", !!on);
         var up = document.querySelector('[data-key="UP"]');
-        if (up) up.setAttribute("aria-label", on ? "Log Out" : "Up");
+        if (up) {
+            up.hidden = !on;
+            up.setAttribute("aria-label", on ? "Log Out" : "Up");
+        }
     }
 
     function logOut() {
