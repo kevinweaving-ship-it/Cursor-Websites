@@ -446,6 +446,7 @@ def tuya_probe(device_id: str | None = None) -> dict[str, Any]:
                 out["status"] = result if isinstance(result, list) else result
                 out["dpsCount"] = len(result) if isinstance(result, list) else None
                 _energy_record_sample(out["deviceId"], result if isinstance(result, list) else [])
+                _ensure_energy_sampler(out["deviceId"])
             else:
                 out["hint"] = _tuya_hint(out["tuyaCode"], out["tuyaMsg"], token_ok=True, device_ok=False)
                 return out
@@ -635,10 +636,43 @@ def _tuya_statistics_hours(creds: dict[str, str], device: str, ts: float) -> dic
     return out or None
 
 
+_energy_thread: threading.Thread | None = None
+_ENERGY_SAMPLE_S = 60.0
+
+
+def _energy_sampler_loop(device: str) -> None:
+    while True:
+        time.sleep(_ENERGY_SAMPLE_S)
+        try:
+            creds = _tuya_creds()
+            if not (creds["client_id"] and creds["secret"]):
+                continue
+            with _tuya_http_lock:
+                payload = _tuya_device_status(creds, device)
+            result = payload.get("result") if payload.get("success") else None
+            if isinstance(result, list):
+                _energy_record_sample(device, result)
+        except Exception:
+            continue
+
+
+def _ensure_energy_sampler(device: str) -> None:
+    """Keep hourly bins filling even when nobody has the card open."""
+    global _energy_thread
+    if _energy_thread is not None and _energy_thread.is_alive():
+        return
+    if os.getenv("ARIAL_ENERGY_SAMPLER", "1").strip().lower() in {"0", "false", "no"}:
+        return
+    _energy_thread = threading.Thread(target=_energy_sampler_loop, args=(device,), name="arial-energy-sampler", daemon=True)
+    _energy_thread.start()
+
+
 def tuya_energy(device_id: str | None = None) -> dict[str, Any]:
     creds = _tuya_creds()
     device = (device_id or creds["device_id"]).strip() or TUYA_MAINS_METER_ID
     now = time.time()
+    if creds["client_id"] and creds["secret"]:
+        _ensure_energy_sampler(device)
     out: dict[str, Any] = {"ok": False, "deviceId": device, "tz": "Africa/Johannesburg", "source": "", "days": []}
     if not (creds["client_id"] and creds["secret"]):
         out["source"] = "none"
