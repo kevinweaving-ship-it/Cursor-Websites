@@ -228,14 +228,14 @@ html, body {
 }
 
 .led.ac {
-    top: 47.7%;
-    --led-fill: #ff8a00;
-    --led-edge: #b35f00;
+    top: 42.4%;
+    --led-fill: #1565c0;
+    --led-edge: #0d47a1;
 }
 
 .led.ac.on {
-    --led-fill: #ff8a00;
-    --led-edge: #b35f00;
+    --led-fill: #1565c0;
+    --led-edge: #0d47a1;
 }
 
 .led.status {

@@ -108,6 +108,12 @@ def test_panel_cache_ttl(monkeypatch):
     assert arial_api._cached_panel() is None
 
 
+def test_ac_led_is_blue_under_status_led():
+    css = (Path(__file__).resolve().parent / "arial.css").read_text(encoding="utf-8")
+    assert ".led.ac {\n    top: 42.4%;\n    --led-fill: #1565c0;" in css
+    assert ".led.ac.on {\n    --led-fill: #1565c0;" in css
+
+
 def test_housing_sides_inset_toward_leds():
     html = (Path(__file__).resolve().parent / "index.html").read_text(encoding="utf-8")
     assert "L19 372" in html
