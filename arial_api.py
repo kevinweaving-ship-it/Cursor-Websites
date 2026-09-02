@@ -313,7 +313,45 @@ def _tuya_store_token(payload: dict[str, Any]) -> dict[str, Any] | None:
         "uid": str(result.get("uid") or ""),
         "expire_at_ms": server_t + expire_sec * 1000,
     }
+    _tuya_token_file_save(_tuya_token)
     return _tuya_token
+
+
+def _tuya_token_file() -> Path:
+    env = (os.getenv("ARIAL_TUYA_TOKEN_FILE") or "").strip()
+    if env:
+        return Path(env)
+    for base in (Path("/var/www/sailingsa/data"), _DATA_DIR, Path("/var/tmp"), Path("/tmp")):
+        if base.is_dir():
+            return base / "arial_tuya_token.json"
+    return Path("/tmp/arial_tuya_token.json")
+
+
+def _tuya_token_file_save(token: dict[str, Any]) -> None:
+    """Share one token across uvicorn workers; Tuya invalidates older simple-mode tokens when a new one is minted."""
+    path = _tuya_token_file()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(_flock_path(path), "a+", encoding="utf-8") as lockf:
+            fcntl.flock(lockf.fileno(), fcntl.LOCK_EX)
+            path.write_text(json.dumps(token), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def _tuya_token_file_load() -> dict[str, Any] | None:
+    path = _tuya_token_file()
+    try:
+        with open(_flock_path(path), "a+", encoding="utf-8") as lockf:
+            fcntl.flock(lockf.fileno(), fcntl.LOCK_SH)
+            data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(data, dict) or not data.get("access_token"):
+        return None
+    if int(data.get("expire_at_ms") or 0) - 60_000 <= int(time.time() * 1000):
+        return None
+    return data
 
 
 def _tuya_connect(creds: dict[str, str]) -> dict[str, Any]:
@@ -339,8 +377,14 @@ def _tuya_refresh(creds: dict[str, str]) -> dict[str, Any]:
 
 
 def _tuya_ensure_token(creds: dict[str, str]) -> dict[str, Any]:
+    global _tuya_token
     cached = _tuya_token
     now = int(time.time() * 1000)
+    shared = _tuya_token_file_load()
+    if shared and (not cached or shared.get("access_token") != cached.get("access_token")):
+        # Another worker minted a newer token; ours would be rejected by Tuya.
+        if not cached or int(shared.get("expire_at_ms") or 0) >= int(cached.get("expire_at_ms") or 0):
+            _tuya_token = cached = shared
     if not cached or not cached.get("access_token"):
         return _tuya_connect(creds)
     expire_at = int(cached.get("expire_at_ms") or 0)
@@ -426,7 +470,6 @@ def tuya_probe(device_id: str | None = None) -> dict[str, Any]:
         return out
     try:
         with _tuya_http_lock:
-            _tuya_reset_token()
             token_payload = _tuya_ensure_token(creds)
             out["tuyaCode"] = token_payload.get("code")
             out["tuyaMsg"] = str(token_payload.get("msg") or "")
@@ -804,6 +847,13 @@ def _tuya_logs(creds: dict[str, str], device: str, *, types: str, start_ms: int,
         if row_key:
             params["start_row_key"] = row_key
         payload = _tuya_call("GET", f"/v1.0/devices/{device}/logs", creds=creds, params=params, access_token=access)
+        if int(payload.get("code") or 0) == TUYA_CODE_TOKEN_INVALID:
+            _tuya_reset_token()
+            _tuya_ensure_token(creds)
+            access = str((_tuya_token or {}).get("access_token") or "")
+            if not access:
+                break
+            payload = _tuya_call("GET", f"/v1.0/devices/{device}/logs", creds=creds, params=params, access_token=access)
         if not payload.get("success"):
             break
         result = payload.get("result") if isinstance(payload.get("result"), dict) else {}
