@@ -995,7 +995,7 @@
     var breakerEnergy = { hidden: false, last: null, midnightYmd: "", midnightAddEle: null };
 
     function saYmdNow() {
-        return new Date().toLocaleDateString("en-CA", { timeZone: TZ });
+        return new Date().toLocaleDateString("en-CA", { timeZone: "Africa/Johannesburg" });
     }
 
     function restoreBreakerStore() {
