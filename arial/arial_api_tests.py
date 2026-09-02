@@ -114,7 +114,7 @@ def test_welcome_credits_roll_and_fade():
     js = (root / "app.js").read_text(encoding="utf-8")
     assert "playWelcomeCredits" in js
     assert 'rollThenFade("Welcome"' in js
-    assert ", 320)" in js
+    assert ", 240)" in js
     assert "creditScrollFade" in css
     assert "font-size: 34px;" in css.split("#lcd-welcome.credits {", 1)[1].split("}", 1)[0]
 

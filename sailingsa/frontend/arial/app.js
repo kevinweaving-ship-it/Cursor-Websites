@@ -614,10 +614,10 @@
                             el.classList.remove("credit-out");
                             el.textContent = "";
                             if (done) done();
-                        }, 2200);
-                    }, 900);
+                        }, 1600);
+                    }, 650);
                 }
-            }, 320);
+            }, 240);
         }
         rollThenFade("Welcome", function () {
             if (!name) {

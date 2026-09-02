@@ -226,7 +226,7 @@ html, body {
 }
 
 #lcd-welcome.credits.credit-out {
-    animation: creditScrollFade 2.2s ease-in forwards;
+    animation: creditScrollFade 1.6s ease-in forwards;
 }
 
 @keyframes creditScrollFade {
