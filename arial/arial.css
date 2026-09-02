@@ -33,10 +33,10 @@ html, body {
 
 .pad-wrap {
     position: sticky;
-    top: 4px;
+    top: 2px;
     width: 99%;
     max-width: 416px;
-    margin: 4px auto 0;
+    margin: 2px auto 0;
 }
 
 .pad-clip {
