@@ -622,6 +622,10 @@
 
     function activityLine(r) {
         var text = String(r.activity || r.title || "").replace(/\s+/g, " ").trim();
+        var who = String(r.actor || "").trim();
+        if (who && text.toLowerCase().indexOf(who.toLowerCase()) === -1) {
+            text += " · " + who;
+        }
         return text;
     }
 
@@ -1416,9 +1420,13 @@
                 }
                 if (data && data.device) applyPanelDevice(data.device);
                 loadStatus();
+                loadActivity();
                 setTimeout(loadStatus, 400);
+                setTimeout(loadActivity, 400);
                 setTimeout(loadStatus, 1200);
+                setTimeout(loadActivity, 1200);
                 setTimeout(loadStatus, 2800);
+                setTimeout(loadActivity, 2800);
                 return true;
             });
         }).catch(function () {

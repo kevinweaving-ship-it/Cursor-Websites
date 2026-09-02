@@ -1,5 +1,6 @@
 """Tests for Arial Olarm enrich + local profile auth (no live Olarm required)."""
 import json
+import time
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -335,8 +336,18 @@ def test_lcd_site_date_time_stack_right():
     assert "object-position: right bottom;" in logo
 
 
-def test_area_arm_uses_pingoa_not_olarm_user():
+def _reset_keypad_log(monkeypatch, tmp_path):
+    monkeypatch.setenv("ARIAL_KEYPAD_LOG", str(tmp_path / "arial_keypad_log.json"))
     arial_api._last_keypad = None
+    arial_api._keypad_log = []
+    arial_api._keypad_log_mtime = -1.0
+    path = tmp_path / "arial_keypad_log.json"
+    if path.exists():
+        path.unlink()
+
+
+def test_area_arm_uses_pingoa_not_olarm_user(tmp_path, monkeypatch):
+    _reset_keypad_log(monkeypatch, tmp_path)
     actor = arial_api._remember_keypad("7302", "area-arm")
     assert actor["from"] == "Pingoa"
     device = {"arialActor": actor, "arialAreas": [{"num": 1, "label": "Facility Building"}]}
@@ -346,7 +357,7 @@ def test_area_arm_uses_pingoa_not_olarm_user():
             "eventState": "arm",
             "eventNum": 1,
             "eventMsg": "ARMED - Area 1 - Facility Building",
-            "eventTime": int(actor["at"] * 1000) + 500,
+            "eventTime": int(actor["at"] * 1000) + 30_000,
             "userFullname": "Kevin",
         },
         device,
@@ -355,8 +366,99 @@ def test_area_arm_uses_pingoa_not_olarm_user():
     assert "Pingoa" in row["activity"]
     assert "Kevin" not in row["activity"]
     assert "ALARM SYSTEM" not in row["activity"]
+    countdown = arial_api.format_olarm_event(
+        {
+            "eventAction": "area",
+            "eventState": "countdown",
+            "eventNum": 1,
+            "eventMsg": "COUNTDOWN - Area 1 - Facility Building",
+            "eventTime": int(actor["at"] * 1000) + 2_000,
+            "userFullname": "Kevin",
+        },
+        {"arialAreas": [{"num": 1, "label": "Facility Building"}]},
+    )
+    assert countdown["actor"] == "Pingoa"
+    _reset_keypad_log(monkeypatch, tmp_path)
     amoroc = arial_api._remember_keypad("7102", "area-disarm")
     assert amoroc["from"] == "Amoroc"
+    disarmed = arial_api.format_olarm_event(
+        {
+            "eventAction": "area",
+            "eventState": "disarm",
+            "eventNum": 1,
+            "eventMsg": "DISARMED - Area 1 - Facility Building",
+            "eventTime": int(amoroc["at"] * 1000) + 5_000,
+            "userFullname": "Kevin",
+        },
+        {"arialAreas": [{"num": 1, "label": "Facility Building"}]},
+    )
+    assert disarmed["actor"] == "Amoroc"
+    assert "Kevin" not in disarmed["activity"]
+    _reset_keypad_log(monkeypatch, tmp_path)
+    mapped = arial_api.format_olarm_event(
+        {
+            "eventAction": "area",
+            "eventState": "arm",
+            "eventNum": 1,
+            "eventMsg": "ARMED - Area 1 - Facility Building",
+            "eventTime": int(time.time() * 1000),
+            "userFullname": "Marc",
+        },
+        {"arialAreas": [{"num": 1, "label": "Facility Building"}]},
+    )
+    assert mapped["actor"] == "Pingoa"
+    assert "Marc" not in mapped["activity"]
+    stray = arial_api.format_olarm_event(
+        {
+            "eventAction": "area",
+            "eventState": "arm",
+            "eventNum": 1,
+            "eventMsg": "ARMED - Area 1 - Facility Building",
+            "eventTime": int(time.time() * 1000),
+            "userFullname": "Kevin",
+        },
+        {"arialAreas": [{"num": 1, "label": "Facility Building"}]},
+    )
+    assert stray["actor"] == ""
+    assert "Kevin" not in stray["activity"]
+
+
+def test_keypad_who_survives_api_worker_restart(tmp_path, monkeypatch):
+    _reset_keypad_log(monkeypatch, tmp_path)
+    actor = arial_api._remember_keypad("7302", "area-arm")
+    arial_api._last_keypad = None
+    arial_api._keypad_log = []
+    arial_api._keypad_log_mtime = -1.0
+    row = arial_api.format_olarm_event(
+        {
+            "eventAction": "area",
+            "eventState": "arm",
+            "eventNum": 1,
+            "eventMsg": "ARMED - Area 1 - Facility Building",
+            "eventTime": int(actor["at"] * 1000) + 45_000,
+            "userFullname": "Kevin",
+        },
+        {"arialAreas": [{"num": 1, "label": "Facility Building"}]},
+    )
+    assert row["actor"] == "Pingoa"
+    assert "Pingoa" in row["activity"]
+    bundle = arial_api._stamp_activity_actors(
+        {
+            "ok": True,
+            "events": [
+                {
+                    "tab": "areas",
+                    "title": "Facility Building",
+                    "state": "ARMED",
+                    "activity": "Facility Building  ARMED",
+                    "actor": "",
+                    "at": int(actor["at"] * 1000) + 45_000,
+                }
+            ],
+        }
+    )
+    assert bundle["events"][0]["actor"] == "Pingoa"
+    assert "Pingoa" in bundle["events"][0]["activity"]
 
 
 def test_status_label_under_status_led():

@@ -6,6 +6,7 @@ Users: data/arial_users.json (gitignored), separate from SailingSA accounts.
 from __future__ import annotations
 
 import asyncio
+import fcntl
 import hashlib
 import hmac
 import json
@@ -61,6 +62,16 @@ _live_stop = threading.Event()
 _panel_cache: dict[str, Any] = {"at": 0.0, "data": None, "seq": 0}
 _PANEL_TTL_SEC = 5.0
 _last_keypad: dict[str, Any] | None = None
+_keypad_log: list[dict[str, Any]] = []
+_keypad_log_mtime: float = -1.0
+_KEYPAD_LOG_MAX = 80
+_KEYPAD_MATCH_MS = 300_000
+_KEYPAD_CMD_STATE = {
+    "area-arm": "arm",
+    "area-stay": "stay",
+    "area-sleep": "sleep",
+    "area-disarm": "disarm",
+}
 _activity_cache: dict[str, Any] = {"at": 0.0, "data": None}
 _ACTIVITY_TTL_SEC = 8.0
 _SAST = timezone(timedelta(hours=2))
@@ -741,49 +752,289 @@ def _event_state_label(state: str) -> str:
     return mapping.get(raw.lower(), raw.upper()) if raw else ""
 
 
+def _event_time_ms(event: dict[str, Any] | None) -> int:
+    try:
+        n = int((event or {}).get("eventTime") or 0)
+        if n and n < 10_000_000_000:
+            n *= 1000
+        return n
+    except (TypeError, ValueError):
+        return 0
+
+
+def _keypad_log_candidates() -> list[Path]:
+    env = (os.getenv("ARIAL_KEYPAD_LOG") or "").strip()
+    if env:
+        return [Path(env)]
+    return [
+        Path("/var/www/sailingsa/data/arial_keypad_log.json"),
+        _DATA_DIR / "arial_keypad_log.json",
+        Path("/var/tmp/arial_keypad_log.json"),
+        Path("/tmp/arial_keypad_log.json"),
+        _ROOT / "arial_keypad_log.json",
+    ]
+
+
+def _keypad_log_path() -> Path:
+    for path in _keypad_log_candidates():
+        if path.is_file():
+            return path
+    return _keypad_log_candidates()[0]
+
+
+def _hansekop_area_label() -> str:
+    panel = _stale_panel() or {}
+    for area in panel.get("arialAreas") or []:
+        if not isinstance(area, dict):
+            continue
+        label = str(area.get("label") or "").strip()
+        if label:
+            return label
+    return "Facility Building"
+
+
+def _area_state_token(state: str) -> str:
+    s = str(state or "").strip().lower()
+    if s in {"arm", "stay", "sleep", "countdown", "disarm"}:
+        return s
+    if "disarm" in s:
+        return "disarm"
+    if "countdown" in s:
+        return "countdown"
+    if "stay" in s:
+        return "stay"
+    if "sleep" in s:
+        return "sleep"
+    if "arm" in s:
+        return "arm"
+    return s
+
+
+def _map_our_actor(raw: str) -> str:
+    s = str(raw or "").strip().lower()
+    if not s:
+        return ""
+    if "pingoa" in s or s == "marc":
+        return "Pingoa"
+    if "amoroc" in s:
+        return "Amoroc"
+    return ""
+
+
+def _activity_line(label: str, state_lab: str, actor: str) -> str:
+    text = label if not state_lab or state_lab.lower() in label.lower() else f"{label}  {state_lab}"
+    who = str(actor or "").strip()
+    if who and who.lower() not in text.lower():
+        text = f"{text}  ·  {who}"
+    return text
+
+
+def _flock_path(path: Path) -> Path:
+    return Path(str(path) + ".lock")
+
+
+def _load_keypad_log() -> None:
+    global _keypad_log, _last_keypad, _keypad_log_mtime
+    path = _keypad_log_path()
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        return
+    if mtime == _keypad_log_mtime and _keypad_log:
+        return
+    lock_path = _flock_path(path)
+    try:
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(lock_path, "a+", encoding="utf-8") as lockf:
+            fcntl.flock(lockf.fileno(), fcntl.LOCK_SH)
+            data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return
+    if not isinstance(data, list):
+        return
+    rows = [dict(x) for x in data if isinstance(x, dict)]
+    _keypad_log = rows[-_KEYPAD_LOG_MAX:]
+    _keypad_log_mtime = mtime
+    if _keypad_log:
+        _last_keypad = dict(_keypad_log[-1])
+
+
+def _save_keypad_log() -> None:
+    global _keypad_log_mtime
+    payload = json.dumps(_keypad_log[-_KEYPAD_LOG_MAX:])
+    last_err: OSError | None = None
+    for path in _keypad_log_candidates():
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            lock_path = _flock_path(path)
+            with open(lock_path, "a+", encoding="utf-8") as lockf:
+                fcntl.flock(lockf.fileno(), fcntl.LOCK_EX)
+                path.write_text(payload, encoding="utf-8")
+            _keypad_log_mtime = path.stat().st_mtime
+            return
+        except OSError as exc:
+            last_err = exc
+            continue
+    if last_err:
+        pass
+
+
 def _remember_keypad(code: str, cmd: str) -> dict[str, Any]:
     global _last_keypad
+    _load_keypad_log()
     user = KEYPAD_CODES.get(code) or {}
+    who = str(user.get("from") or user.get("name") or "").strip()
     _last_keypad = {
         "from": str(user.get("from") or ""),
         "name": str(user.get("name") or ""),
-        "label": str(user.get("from") or user.get("name") or ""),
+        "label": who,
         "code": code,
         "action": cmd,
+        "area": _hansekop_area_label(),
         "at": time.time(),
     }
+    _keypad_log.append(dict(_last_keypad))
+    del _keypad_log[:-_KEYPAD_LOG_MAX]
+    _save_keypad_log()
     return _last_keypad
 
 
 def _arial_event_actor(tab: str, event: dict[str, Any], device: dict[str, Any] | None) -> str:
-    """Area arm/disarm is our keypad user (Pingoa / Amoroc), never Olarm's userFullname."""
+    """Credit the logged-in keypad user (Pingoa / Amoroc). Never Olarm userFullname."""
     if tab != "areas":
         return ""
-    keypad = None
+    _load_keypad_log()
+    state = _area_state_token(str(event.get("eventState") or event.get("state") or ""))
+    want_arm = state in {"arm", "stay", "sleep", "countdown"}
+    want_disarm = state == "disarm"
+    if not want_arm and not want_disarm:
+        return _map_our_actor(
+            str(event.get("userFullname") or event.get("userName") or event.get("user") or "")
+        )
+    ev_ms = _event_time_ms(event)
+    if not ev_ms:
+        try:
+            ev_ms = int(event.get("at") or 0)
+            if ev_ms and ev_ms < 10_000_000_000:
+                ev_ms *= 1000
+        except (TypeError, ValueError):
+            ev_ms = 0
+    now_ms = int(time.time() * 1000)
+    best: dict[str, Any] | None = None
+    best_dt = None
+    rows = list(_keypad_log)
     if device and isinstance(device.get("arialActor"), dict):
-        keypad = device["arialActor"]
-    elif _last_keypad:
-        keypad = _last_keypad
-    if not keypad:
-        return ""
-    label = str(keypad.get("from") or keypad.get("label") or "").strip()
-    if not label:
-        return ""
-    try:
-        ev_ms = int(event.get("eventTime") or 0)
-        if ev_ms > 10_000_000_000:
-            pass
-        else:
-            ev_ms = ev_ms * 1000
-    except (TypeError, ValueError):
-        ev_ms = 0
-    try:
-        kp_ms = int(float(keypad.get("at") or 0) * 1000)
-    except (TypeError, ValueError):
-        kp_ms = 0
-    if ev_ms and kp_ms and ev_ms + 2000 < kp_ms:
-        return ""
-    return label
+        rows.append(device["arialActor"])
+    if _last_keypad:
+        rows.append(_last_keypad)
+    for row in reversed(rows):
+        if not isinstance(row, dict):
+            continue
+        cmd = str(row.get("action") or "")
+        if want_arm and cmd not in {"area-arm", "area-stay", "area-sleep"}:
+            continue
+        if want_disarm and cmd != "area-disarm":
+            continue
+        try:
+            kp_ms = int(float(row.get("at") or 0) * 1000)
+        except (TypeError, ValueError):
+            kp_ms = 0
+        if not kp_ms:
+            continue
+        point = ev_ms or now_ms
+        dt = point - kp_ms
+        if dt < -15_000 or dt > _KEYPAD_MATCH_MS:
+            continue
+        score = abs(dt)
+        if best_dt is None or score < best_dt:
+            best = row
+            best_dt = score
+    if best:
+        label = _map_our_actor(str(best.get("from") or best.get("label") or best.get("name") or ""))
+        if not label:
+            label = str(best.get("from") or best.get("label") or "").strip()
+        if label in {"Pingoa", "Amoroc"}:
+            return label
+    return _map_our_actor(
+        str(event.get("userFullname") or event.get("userName") or event.get("user") or "")
+    )
+
+
+def _stamp_activity_actors(bundle: dict[str, Any] | None) -> dict[str, Any]:
+    if not isinstance(bundle, dict):
+        return {"ok": True, "power": {}, "events": [], "live": True}
+    device = _stale_panel() if isinstance(_stale_panel(), dict) else None
+    rows = [r for r in (bundle.get("events") or []) if isinstance(r, dict)]
+    for row in rows:
+        if str(row.get("tab") or "") != "areas":
+            continue
+        actor = _arial_event_actor(
+            "areas",
+            {
+                "eventState": _area_state_token(str(row.get("state") or "")),
+                "eventTime": row.get("at"),
+                "at": row.get("at"),
+            },
+            device,
+        )
+        if not actor:
+            continue
+        row["actor"] = actor
+        row["activity"] = _activity_line(str(row.get("title") or ""), str(row.get("state") or ""), actor)
+    have = []
+    for row in rows:
+        if str(row.get("tab") or "") != "areas":
+            continue
+        have.append((_area_state_token(str(row.get("state") or "")), _event_time_ms({"eventTime": row.get("at")})))
+    _load_keypad_log()
+    extras: list[dict[str, Any]] = []
+    for rec in reversed(_keypad_log):
+        state = _KEYPAD_CMD_STATE.get(str(rec.get("action") or ""))
+        if not state:
+            continue
+        try:
+            kp_ms = int(float(rec.get("at") or 0) * 1000)
+        except (TypeError, ValueError):
+            continue
+        if not kp_ms:
+            continue
+        matched = False
+        for ev_state, ev_ms in have:
+            same = (state == "disarm" and ev_state == "disarm") or (
+                state != "disarm" and ev_state in {"arm", "stay", "sleep", "countdown"}
+            )
+            if same and ev_ms and abs(ev_ms - kp_ms) <= _KEYPAD_MATCH_MS:
+                matched = True
+                break
+        if matched:
+            continue
+        actor = _map_our_actor(str(rec.get("from") or rec.get("label") or ""))
+        if actor not in {"Pingoa", "Amoroc"}:
+            continue
+        label = str(rec.get("area") or "").strip() or _hansekop_area_label()
+        state_lab = _event_state_label(state)
+        extras.append(
+            {
+                "tab": "areas",
+                "time": _sa_stamp(kp_ms)[0],
+                "date": _sa_stamp(kp_ms)[1],
+                "title": label,
+                "state": state_lab,
+                "activity": _activity_line(label, state_lab, actor),
+                "actor": actor,
+                "msg": "",
+                "num": 1,
+                "action": "area",
+                "at": kp_ms,
+            }
+        )
+        if len(extras) >= 8:
+            break
+    if extras:
+        rows = extras + rows
+        rows.sort(key=lambda r: int(r.get("at") or 0), reverse=True)
+    bundle["events"] = rows
+    return bundle
 
 
 def format_olarm_event(event: dict[str, Any], device: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -811,9 +1062,7 @@ def format_olarm_event(event: dict[str, Any], device: dict[str, Any] | None = No
         label = msg
     time_s, date_s = _sa_stamp(event.get("eventTime"))
     actor = _arial_event_actor(tab, event, device)
-    activity = label if not state_lab or state_lab.lower() in label.lower() else f"{label}  {state_lab}"
-    if actor:
-        activity = f"{activity}  ·  {actor}"
+    activity = _activity_line(label, state_lab, actor)
     return {
         "tab": tab,
         "time": time_s,
@@ -1139,7 +1388,7 @@ def _activity_bundle(device: dict[str, Any] | None, events: list[Any]) -> dict[s
         for e in events
         if isinstance(e, dict) and not is_noise_olarm_event(e)
     ]
-    return {"ok": True, "power": power, "events": rows, "live": True}
+    return _stamp_activity_actors({"ok": True, "power": power, "events": rows, "live": True})
 
 
 @router.get("/api/arial/activity")
@@ -1148,7 +1397,7 @@ async def arial_activity():
     with _lock:
         cached = _activity_cache.get("data")
         if cached is not None and (now - float(_activity_cache.get("at") or 0)) < _ACTIVITY_TTL_SEC:
-            return cached
+            return _stamp_activity_actors(cached)
     device = _stale_panel()
     try:
         raw = await _olarm_request(
@@ -1158,7 +1407,7 @@ async def arial_activity():
         )
     except HTTPException as exc:
         if cached is not None:
-            return cached
+            return _stamp_activity_actors(cached)
         raise
     events = raw.get("data") if isinstance(raw, dict) else []
     if not isinstance(events, list):

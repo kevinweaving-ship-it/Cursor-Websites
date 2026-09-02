@@ -7,6 +7,8 @@ config.postgres.env
 data/arial_users.json
 data/arial_users.json.tmp
 data/arial_sessions.json
+data/arial_keypad_log.json
+arial_keypad_log.json
 
 # Deploy D/R host (do not commit real IP)
 sailingsa/deploy/DR_HOST
