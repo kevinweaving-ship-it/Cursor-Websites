@@ -311,8 +311,9 @@ def test_lcd_site_date_time_stack_right():
     assert html.split('id="lcd-time"', 1)[1].split('id="lcd-welcome"', 1)[0].count('id="lcd-user-logo"') == 1
     logo = css.split("#lcd-user-logo {", 1)[1].split("}", 1)[0]
     assert "max-width: 52%;" not in logo
-    assert "width: 100%;" in logo
-    assert "flex: 1 1 auto;" in logo
+    assert "top: 52%;" in logo
+    assert "height: 46%;" in logo
+    assert "max-width: 48%;" in logo
 
 
 def test_area_arm_uses_pingoa_not_olarm_user():

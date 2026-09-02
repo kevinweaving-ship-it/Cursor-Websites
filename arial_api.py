@@ -948,6 +948,15 @@ def arial_css():
     return FileResponse(path, media_type="text/css")
 
 
+@router.get("/arial/{asset_path:path}")
+def arial_asset(asset_path: str):
+    root = _arial_dir().resolve()
+    path = (root / asset_path).resolve()
+    if root not in path.parents or not path.is_file():
+        raise HTTPException(status_code=404, detail="missing")
+    return FileResponse(path)
+
+
 @router.get("/api/arial/status")
 def arial_status(request: Request):
     user = _session_user(request)

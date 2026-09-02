@@ -367,16 +367,18 @@ html, body {
 
 #lcd-user-logo {
     display: none;
-    flex: 1 1 auto;
-    width: 100%;
-    height: auto;
-    min-height: 0;
-    max-width: none;
-    margin: 2px 0 0;
+    position: absolute;
+    right: 5px;
+    top: 52%;
+    height: 46%;
+    width: auto;
+    max-width: 48%;
+    margin: 0;
     object-fit: contain;
     object-position: right bottom;
     pointer-events: none;
     filter: drop-shadow(0 0 1px #fff);
+    z-index: 4;
 }
 
 .lcd.logged-in #lcd-user-logo {
