@@ -74,7 +74,7 @@ _KEYPAD_CMD_STATE = {
 }
 _activity_cache: dict[str, Any] = {"at": 0.0, "data": None, "last_key": "", "seq": 0}
 _ACTIVITY_TTL_SEC = 8.0
-_EVENTS_POLL_SEC = 3.0
+_EVENTS_POLL_SEC = 8.0
 _SAST = timezone(timedelta(hours=2))
 _MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 ZONE_EVENT_ACTIONS = {"zone", "zone_watch"}
@@ -1175,37 +1175,199 @@ def _olarm_sync_client() -> httpx.Client:
     return _olarm_http
 
 
+# ---------------------------------------------------------------------------
+# Live state shared across uvicorn workers.
+# Exactly one worker (flock owner) polls Olarm; it writes panel + raw events to a
+# JSON snapshot. Other workers follow that file so SSE / status / activity stay
+# identical everywhere and Olarm is not hammered into 429s.
+# ---------------------------------------------------------------------------
+_OLARM_STORE_DAYS = 30
+_OLARM_STORE_MAX = 6000
+_ACTIVITY_BUNDLE_MAX = 600
+_LIVE_DEVICE_POLL_SEC = 3.0
+_olarm_store: dict[str, dict[str, Any]] = {}
+_live_state_mtime = 0.0
+_live_owner_lockf = None
+_live_role = ""
+
+
+def _live_state_path() -> Path:
+    env = (os.getenv("ARIAL_LIVE_STATE") or "").strip()
+    if env:
+        return Path(env)
+    for base in (Path("/var/www/sailingsa/data"), _DATA_DIR, Path("/var/tmp"), Path("/tmp")):
+        if base.is_dir():
+            return base / "arial_live_state.json"
+    return Path("/tmp/arial_live_state.json")
+
+
+def _olarm_store_add(rows: list[Any]) -> int:
+    """Merge raw Olarm events into the 30-day store. Returns number of new rows."""
+    added = 0
+    newest_ms = max([_event_time_ms(r) for r in rows if isinstance(r, dict)] + [_event_time_ms(r) for r in _olarm_store.values()] + [0])
+    # 30 days relative to the newest event the panel has produced (not wall clock), so history survives quiet spells.
+    cutoff_ms = newest_ms - _OLARM_STORE_DAYS * 86_400_000
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        key = olarm_event_key(row)
+        if not key or key in _olarm_store:
+            continue
+        if _event_time_ms(row) and _event_time_ms(row) < cutoff_ms:
+            continue
+        _olarm_store[key] = row
+        added += 1
+    if len(_olarm_store) > _OLARM_STORE_MAX or added:
+        for key in [k for k, r in _olarm_store.items() if _event_time_ms(r) and _event_time_ms(r) < cutoff_ms]:
+            _olarm_store.pop(key, None)
+        if len(_olarm_store) > _OLARM_STORE_MAX:
+            keep = sorted(_olarm_store.items(), key=lambda kv: _event_time_ms(kv[1]), reverse=True)[:_OLARM_STORE_MAX]
+            _olarm_store.clear()
+            _olarm_store.update(dict(keep))
+    return added
+
+
+def _olarm_store_rows() -> list[dict[str, Any]]:
+    return sorted(_olarm_store.values(), key=lambda r: _event_time_ms(r), reverse=True)
+
+
+def _live_state_save() -> None:
+    path = _live_state_path()
+    with _lock:
+        panel = _panel_cache.get("data")
+        payload = {
+            "at": time.time(),
+            "panel": panel if isinstance(panel, dict) else None,
+            "events": _olarm_store_rows(),
+            "lastKey": str(_activity_cache.get("last_key") or ""),
+        }
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(_flock_path(path), "a+", encoding="utf-8") as lockf:
+            fcntl.flock(lockf.fileno(), fcntl.LOCK_EX)
+            tmp = path.with_suffix(".json.tmp")
+            tmp.write_text(json.dumps(payload), encoding="utf-8")
+            tmp.replace(path)
+    except OSError:
+        pass
+
+
+def _live_state_load(force: bool = False) -> bool:
+    """Follower: pull the owner's snapshot into this process's caches. Returns True when something changed."""
+    global _live_state_mtime
+    path = _live_state_path()
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        return False
+    if not force and mtime == _live_state_mtime:
+        return False
+    try:
+        with open(_flock_path(path), "a+", encoding="utf-8") as lockf:
+            fcntl.flock(lockf.fileno(), fcntl.LOCK_SH)
+            data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    _live_state_mtime = mtime
+    if not isinstance(data, dict):
+        return False
+    panel = data.get("panel")
+    if isinstance(panel, dict):
+        _cached_panel(panel)
+    rows = data.get("events") if isinstance(data.get("events"), list) else []
+    _olarm_store_add(rows)
+    _rebuild_activity_cache(_stale_panel(), str(data.get("lastKey") or ""))
+    return True
+
+
+def _rebuild_activity_cache(device: dict[str, Any] | None, newest: str) -> None:
+    rows = _olarm_store_rows()
+    bundle = _activity_bundle(device, rows)
+    bundle["events"] = (bundle.get("events") or [])[:_ACTIVITY_BUNDLE_MAX]
+    bundle["lastKey"] = newest
+    bundle["ack"] = False
+    with _lock:
+        _activity_cache["data"] = bundle
+        _activity_cache["at"] = time.time()
+        _activity_cache["last_key"] = newest
+        _activity_cache["seq"] = int(_activity_cache.get("seq") or 0) + 1
+
+
+def _try_live_owner() -> bool:
+    global _live_owner_lockf
+    if _live_owner_lockf is not None:
+        return True
+    lock_path = Path(str(_live_state_path()) + ".owner.lock")
+    try:
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        lockf = open(lock_path, "a+", encoding="utf-8")
+        fcntl.flock(lockf.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        return False
+    _live_owner_lockf = lockf
+    return True
+
+
 def _ensure_live_session() -> None:
-    global _live_thread
+    global _live_thread, _live_role
     with _lock:
         if _live_thread is not None and _live_thread.is_alive():
             return
         _live_stop.clear()
-        _live_thread = threading.Thread(target=_olarm_live_loop, name="arial-olarm-live", daemon=True)
+        if _try_live_owner():
+            _live_role = "owner"
+            _live_state_load(force=True)  # inherit history from the previous owner
+            target = _olarm_live_loop
+        else:
+            _live_role = "follower"
+            target = _live_follow_loop
+        _live_thread = threading.Thread(target=target, name=f"arial-olarm-{_live_role}", daemon=True)
         _live_thread.start()
+
+
+def _live_follow_loop() -> None:
+    _live_state_load(force=True)
+    while not _live_stop.wait(0.5):
+        try:
+            if _live_owner_lockf is None and _try_live_owner():
+                # Previous owner died; take over from where its snapshot left off.
+                global _live_role
+                _live_role = "owner"
+                _live_state_load(force=True)
+                _olarm_live_loop()
+                return
+            _live_state_load()
+        except Exception:
+            continue
 
 
 def _olarm_live_loop() -> None:
     last_events_at = 0.0
     last_area_sig = ""
-    while not _live_stop.wait(1.25):
-        if not _olarm_token():
+    backoff_until = 0.0
+    while not _live_stop.wait(_LIVE_DEVICE_POLL_SEC):
+        if not _olarm_token() or time.time() < backoff_until:
             continue
         try:
             now = time.time()
             events_resp = None
             area_changed = False
+            panel_changed = False
             with _olarm_http_lock:
                 client = _olarm_sync_client()
                 resp = client.get(
                     f"/api/v4/devices/{HANSEKOP_ID}",
                     params={"deviceApiAccessOnly": "1"},
                 )
+                if resp.status_code == 429:
+                    backoff_until = time.time() + 15.0
+                    continue
                 if resp.status_code == 200:
                     raw = resp.json()
                     if isinstance(raw, dict):
                         panel = enrich_device(raw)
                         _cached_panel(panel)
+                        panel_changed = True
                         sig = ",".join(
                             str(a.get("state") or "")
                             for a in (panel.get("arialAreas") or [])
@@ -1217,14 +1379,18 @@ def _olarm_live_loop() -> None:
                 if area_changed or now - last_events_at >= _EVENTS_POLL_SEC:
                     events_resp = client.get(
                         f"/api/v4/devices/{HANSEKOP_ID}/events",
-                        params={"limit": 80},
+                        params={"limit": 100},
                     )
                     last_events_at = now
+                    if events_resp.status_code == 429:
+                        backoff_until = time.time() + 15.0
             if events_resp is not None and events_resp.status_code == 200:
                 payload = events_resp.json()
                 rows = payload.get("data") if isinstance(payload, dict) else []
                 if isinstance(rows, list):
                     apply_olarm_events(rows, _stale_panel())
+            if panel_changed or events_resp is not None:
+                _live_state_save()
         except Exception:
             continue
 
@@ -1854,22 +2020,16 @@ def apply_olarm_events(events: list[Any], device: dict[str, Any] | None = None) 
         if t >= best_t:
             best_t = t
             newest = olarm_event_key(event)
+    added = _olarm_store_add(rows)
     with _lock:
-        if newest and newest == str(_activity_cache.get("last_key") or "") and _activity_cache.get("data"):
+        if newest and not added and newest == str(_activity_cache.get("last_key") or "") and _activity_cache.get("data"):
             _activity_cache["at"] = time.time()
             data = _activity_cache.get("data")
             if isinstance(data, dict):
                 data["ack"] = True
                 data["lastKey"] = newest
             return "ack"
-    bundle = _activity_bundle(device, rows)
-    bundle["lastKey"] = newest
-    bundle["ack"] = False
-    with _lock:
-        _activity_cache["data"] = bundle
-        _activity_cache["at"] = time.time()
-        _activity_cache["last_key"] = newest
-        _activity_cache["seq"] = int(_activity_cache.get("seq") or 0) + 1
+    _rebuild_activity_cache(device, newest)
     return "insert" if newest else "empty"
 
 
@@ -2254,6 +2414,9 @@ async def arial_activity():
     with _lock:
         cached = _activity_cache.get("data")
         last_at = float(_activity_cache.get("at") or 0)
+    if cached is None and _live_state_load(force=True):
+        with _lock:
+            cached = _activity_cache.get("data")
     if cached is not None:
         return _activity_payload(cached, ack=True)
     device = _stale_panel()

@@ -642,6 +642,8 @@ def test_breaker_outages_from_tuya_lifecycle_log():
 def test_olarm_poll_acks_until_newer_record(tmp_path, monkeypatch):
     _reset_keypad_log(monkeypatch, tmp_path)
     arial_api._activity_cache = {"at": 0.0, "data": None, "last_key": ""}
+    arial_api._olarm_store.clear()
+    monkeypatch.setenv("ARIAL_LIVE_STATE", str(tmp_path / "live.json"))
     older = {
         "eventAction": "area",
         "eventState": "arm",
