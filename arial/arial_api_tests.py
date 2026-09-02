@@ -683,7 +683,7 @@ def test_activity_keeps_30_day_store_and_checksums_on_login():
     assert 'prependActivity("DISARMED")' in js
     assert "setInterval(loadActivity, 3000)" in js
     assert "restoreActivityStore();" in js
-    assert "app.js?v=188" in html
+    assert "app.js?v=189" in html
 
 
 def test_activity_armed_once_remote_no_countdown_or_notready():

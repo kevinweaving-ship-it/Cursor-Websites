@@ -1359,13 +1359,19 @@
         // Multi-day baseline (kW == kWh per hour) when known; otherwise the mean of this day's own hours.
         if (breakerEnergyData && breakerEnergyData.baselineKw != null) return breakerEnergyData.baselineKw;
         var hours = day && Array.isArray(day.hours) ? day.hours : [];
+        var skip = -1;
+        if (day && day.partial) {
+            skip = Number(new Date().toLocaleString("en-GB", { timeZone: "Africa/Johannesburg", hour: "2-digit", hour12: false }).slice(0, 2));
+        }
         var sum = 0;
         var n = 0;
         var i;
         for (i = 0; i < hours.length; i += 1) {
-            if (hours[i] != null) { sum += hours[i]; n += 1; }
+            if (i === skip || hours[i] == null) continue;
+            sum += hours[i];
+            n += 1;
         }
-        return n >= 2 ? sum / n : null;
+        return n >= 3 ? sum / n : null;
     }
 
     function breakerBandClass(v, avg) {
