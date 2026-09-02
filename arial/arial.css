@@ -162,7 +162,7 @@ html, body {
     text-shadow:
         0 0 4px rgba(255, 255, 255, 0.95),
         0 0 10px rgba(255, 255, 255, 0.4);
-    animation: lcdTextFlashSlow 3.2s step-end infinite;
+    animation: lcdTextFlashSlow 6s ease-in-out infinite;
 }
 
 .lcd.arming #lcd-2 {
@@ -182,7 +182,10 @@ html, body {
 }
 
 @keyframes lcdTextFlashSlow {
-    50% { opacity: 0; }
+    0%, 74% { opacity: 1; }
+    88% { opacity: 0; }
+    92% { opacity: 0; }
+    100% { opacity: 1; }
 }
 
 #lcd-top {
