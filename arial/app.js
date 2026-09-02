@@ -457,6 +457,11 @@
         tone(1200, 0.95, 0.5);
     }
 
+    function logoutBeep() {
+        tone(1500, 0.11, 0.45);
+        setTimeout(function () { tone(880, 0.2, 0.42); }, 120);
+    }
+
     function showArmed() {
         lastStatus = "System Armed";
         var st = document.getElementById("lcd-2");
@@ -668,7 +673,10 @@
         } else if (key === "FORCE") {
             if (window.arialUser && window.arialUser.code) selectSite("tuys");
         } else if (key === "UP" || key === "LOGOUT") {
-            if (window.arialUser && window.arialUser.code) logOut();
+            if (window.arialUser && window.arialUser.code) {
+                logoutBeep();
+                logOut();
+            }
         }
         saveClick(key);
         if (typeof window.onArialKey === "function") window.onArialKey(key);
