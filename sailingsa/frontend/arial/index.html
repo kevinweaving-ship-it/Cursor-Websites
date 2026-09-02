@@ -6,7 +6,7 @@
     <meta name="robots" content="noindex,nofollow">
     <meta http-equiv="Cache-Control" content="no-store">
     <title>Arial</title>
-    <link rel="stylesheet" href="/arial/arial.css?v=197">
+    <link rel="stylesheet" href="/arial/arial.css?v=198">
 </head>
 <body>
     <div class="pad-wrap" id="pad-frame">
@@ -226,24 +226,15 @@
                     <span class="breaker-dial-unit">W</span>
                     <span class="breaker-dial-max">MAX 2300 W</span>
                 </div>
-            </div>
-            <p class="breaker-energy" id="breaker-energy" hidden>
-                <span>Today <b id="breaker-kwh-today">—</b></span>
-                <span>Total <b id="breaker-kwh-total">—</b></span>
-            </p>
-            <div class="breaker-hist">
-                <svg class="breaker-spark" id="breaker-spark" viewBox="0 0 320 28" role="img" aria-label="Power history">
-                    <polyline class="line" id="breaker-spark-line" points=""></polyline>
-                </svg>
-                <div class="breaker-hist-meta">
-                    <span id="breaker-hist-range" title="Time since mains power was restored">Since restore —</span>
-                    <span id="breaker-w-now">—</span>
-                </div>
-                <p class="breaker-flag" id="breaker-flag" data-flag="learning">
-                    <span class="breaker-flag-dot" aria-hidden="true"></span>
-                    <span id="breaker-flag-text">Learning baseline</span>
+                <div class="breaker-info">
+                    <p class="breaker-flag" id="breaker-flag" data-flag="learning">
+                        <span class="breaker-flag-dot" aria-hidden="true"></span>
+                        <span id="breaker-flag-text">Learning baseline</span>
+                    </p>
                     <span class="breaker-flag-avg" id="breaker-flag-avg"></span>
-                </p>
+                    <span class="breaker-today" id="breaker-w-now">Today —</span>
+                    <span class="breaker-since" id="breaker-hist-range" title="Time since mains power was restored">Since restore —</span>
+                </div>
             </div>
             <div class="breaker-day" id="breaker-day" data-day="0">
                 <div class="breaker-day-head">
@@ -286,6 +277,6 @@
         saStamp();
     })();
     </script>
-    <script src="/arial/app.js?v=197"></script>
+    <script src="/arial/app.js?v=198"></script>
 </body>
 </html>

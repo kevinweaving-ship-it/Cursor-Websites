@@ -127,8 +127,8 @@ def test_activity_card_markup_and_zone_labels():
     assert 'id="arial-breaker"' in html
     assert "Hansekop Main Breaker" in html
     assert 'class="breaker-dials"' in html
-    assert 'id="breaker-spark"' in html
-    assert 'id="breaker-energy"' in html
+    assert 'id="breaker-spark"' not in html  # sparkline removed; day chart is the history
+    assert 'class="breaker-info"' in html
     assert 'id="breaker-hist-range"' in html
     assert 'id="breaker-w-now"' in html
     assert 'breaker-dial-power' in html
@@ -138,7 +138,7 @@ def test_activity_card_markup_and_zone_labels():
     assert "breaker-spark-fill" not in html
     assert "function loadBreaker" in js
     assert "function setBreakerGauge" in js
-    assert "function drawBreakerSpark" in js
+    assert '"info info w"' in css
     assert "arialBreaker.hansekop" in js
     assert "/api/arial/tuya/probe?device_id=bf90676b1341ecb34dse39" in js
     assert "loadBreaker();" in js
@@ -756,7 +756,7 @@ def test_activity_keeps_30_day_store_and_checksums_on_login():
     assert 'prependActivity("DISARMED")' in js
     assert "setInterval(loadActivity, 3000)" in js
     assert "restoreActivityStore();" in js
-    assert "app.js?v=197" in html
+    assert "app.js?v=198" in html
 
 
 def test_activity_armed_once_remote_no_countdown_or_notready():
