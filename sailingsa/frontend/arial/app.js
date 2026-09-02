@@ -1056,6 +1056,8 @@
         if (pct > 1) pct = 1;
         var needle = document.getElementById("breaker-needle-" + kind);
         if (needle) needle.setAttribute("transform", "rotate(" + (pct * 180).toFixed(1) + " 50 50)");
+        var arc = document.getElementById("breaker-arc-" + kind);
+        if (arc) arc.setAttribute("stroke-dasharray", (value == null ? 0 : pct * 100).toFixed(1) + " 100");
         var dial = document.querySelector('#arial-breaker .breaker-dial[data-kind="' + kind + '"]');
         if (dial) {
             var state = breakerDialState(kind, value);

@@ -1065,19 +1065,40 @@ html, body {
 .breaker-gauge .track {
     fill: none;
     stroke: #e2e8f0;
-    stroke-width: 2;
-    stroke-linecap: round;
+    stroke-width: 6;
+    stroke-linecap: butt;
 }
+
+.breaker-gauge .zone {
+    fill: none;
+    stroke-width: 6;
+    stroke-linecap: butt;
+    opacity: 0.32;
+}
+
+.breaker-gauge .zone-ok { stroke: #12b028; }
+.breaker-gauge .zone-warn { stroke: #e67e00; }
+.breaker-gauge .zone-crit { stroke: #DC143C; }
+
+.breaker-gauge .arc {
+    fill: none;
+    stroke: #12b028;
+    stroke-width: 6;
+    stroke-linecap: butt;
+}
+
+.breaker-dial[data-state="warn"] .arc { stroke: #e67e00; }
+.breaker-dial[data-state="crit"] .arc { stroke: #DC143C; }
 
 .breaker-gauge .tick {
     stroke: #001f3f;
-    stroke-width: 0.6;
+    stroke-width: 1.1;
     stroke-linecap: round;
 }
 
 .breaker-gauge .needle {
     stroke: #001f3f;
-    stroke-width: 1.2;
+    stroke-width: 2.6;
     stroke-linecap: round;
 }
 

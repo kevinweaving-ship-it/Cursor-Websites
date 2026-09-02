@@ -132,7 +132,8 @@ def test_activity_card_markup_and_zone_labels():
     assert 'id="breaker-w-now"' in html
     assert 'breaker-dial-power' in html
     assert 'id="breaker-detail"' not in html
-    assert "arc-v" not in html
+    assert 'class="zone zone-ok"' in html
+    assert 'id="breaker-arc-w"' in html
     assert "breaker-spark-fill" not in html
     assert "function loadBreaker" in js
     assert "function setBreakerGauge" in js
@@ -142,7 +143,7 @@ def test_activity_card_markup_and_zone_labels():
     assert "loadBreaker();" in js
     assert ".breaker-dials" in css
     assert "grid-template-columns: 0.92fr 0.92fr 1.22fr;" in css
-    assert ".arc-v" not in css
+    assert ".breaker-gauge .zone-ok" in css
     assert ".breaker-detail" not in css
     assert ".arial-below .card + .card" in css
     assert "#arial-activity,\n#arial-breaker" in css
@@ -606,7 +607,7 @@ def test_activity_keeps_30_day_store_and_checksums_on_login():
     assert 'prependActivity("DISARMED")' in js
     assert "setInterval(loadActivity, 3000)" in js
     assert "restoreActivityStore();" in js
-    assert "app.js?v=182" in html
+    assert "app.js?v=183" in html
 
 
 def test_activity_armed_once_remote_no_countdown_or_notready():
