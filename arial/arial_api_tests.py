@@ -108,9 +108,18 @@ def test_panel_cache_ttl(monkeypatch):
     assert arial_api._cached_panel() is None
 
 
+def test_status_label_under_status_led():
+    root = Path(__file__).resolve().parent
+    html = (root / "index.html").read_text(encoding="utf-8")
+    css = (root / "arial.css").read_text(encoding="utf-8")
+    assert 'class="led-status-label">Status</div>' in html
+    assert ".led-status-label" in css
+    assert "font-weight: 900;" in css.split(".led-status-label {", 1)[1].split("}", 1)[0]
+
+
 def test_ac_led_is_blue_under_status_led():
     css = (Path(__file__).resolve().parent / "arial.css").read_text(encoding="utf-8")
-    assert ".led.ac {\n    top: 42.4%;\n    --led-fill: #1565c0;" in css
+    assert ".led.ac {\n    top: 45.2%;\n    --led-fill: #1565c0;" in css
     assert ".led.ac.on {\n    --led-fill: #1565c0;" in css
 
 
