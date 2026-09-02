@@ -367,9 +367,25 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 70%;
-    height: 78%;
+    width: 78%;
+    height: 86%;
     pointer-events: none;
+}
+
+#arm-toggle.mode-arm {
+    color: #fff;
+}
+
+#arm-toggle.mode-disarm {
+    color: #fff;
+}
+
+#arm-toggle.mode-arm .key-icon {
+    filter: drop-shadow(0 0 4px #14d718);
+}
+
+#arm-toggle.mode-disarm .key-icon {
+    filter: drop-shadow(0 0 5px #ff1a1a) drop-shadow(0 0 8px rgba(255, 26, 26, 0.85));
 }
 
 #arm-toggle.mode-arm .icon-unlock,
