@@ -711,8 +711,13 @@
     }
 
     function skipActivityRow(r) {
-        var st = String((r && r.state) || (r && r.activity) || "").toUpperCase();
-        return st.indexOf("COUNTDOWN") !== -1 || st.indexOf("NOT READY") !== -1 || st.indexOf("NOTREADY") !== -1;
+        var blob = [
+            r && r.state,
+            r && r.activity,
+            r && r.title,
+            r && r.msg
+        ].join(" ").toUpperCase().replace(/[\s_-]+/g, "");
+        return blob.indexOf("COUNTDOWN") !== -1 || blob.indexOf("NOTREADY") !== -1;
     }
 
     function tidyActivity(rows) {
@@ -930,18 +935,26 @@
         var incoming = Array.isArray(data.events) ? data.events : [];
         var key = data.lastKey || (incoming[0] ? activityRecordKey(incoming[0]) : "");
         setActivityPower(data.power || ((window.arialDevice || {}).arialPower));
-            if (!activityRows.length) {
-                activityRows = tidyActivity(pruneActivity(incoming.slice()));
+        var before = activityRows.length;
+        activityRows = tidyActivity(activityRows);
+        if (!activityRows.length) {
+            activityRows = tidyActivity(pruneActivity(incoming.slice()));
             activityLastKey = key;
             activityChecksumLocal = data.checksum || activityChecksum(activityRows);
             saveActivityStore();
             renderActivity();
             return;
         }
-        if ((key && key === activityLastKey) || allActivityThere(incoming)) return;
+        if ((key && key === activityLastKey) || allActivityThere(incoming)) {
+            if (activityRows.length !== before) {
+                saveActivityStore();
+                renderActivity();
+            }
+            return;
+        }
         var mode = insertNewerActivity(incoming);
         if (key) activityLastKey = key;
-        if (mode !== "ack") renderActivity();
+        if (mode !== "ack" || activityRows.length !== before) renderActivity();
     }
 
     async function loadActivity() {

@@ -820,14 +820,25 @@ def _hansekop_area_label() -> str:
     return "Facility Building"
 
 
+def _compact_activity_text(*parts: Any) -> str:
+    return "".join(str(p or "") for p in parts).lower().replace(" ", "").replace("_", "").replace("-", "")
+
+
+def _is_skip_area_text(*parts: Any) -> bool:
+    compact = _compact_activity_text(*parts)
+    return "countdown" in compact or "notready" in compact
+
+
 def _area_state_token(state: str) -> str:
     s = str(state or "").strip().lower()
-    if s in {"arm", "stay", "sleep", "countdown", "disarm"}:
+    if s in {"arm", "stay", "sleep", "countdown", "disarm", "notready"}:
         return s
     if "disarm" in s:
         return "disarm"
-    if "countdown" in s:
+    if _is_skip_area_text(s) and "countdown" in _compact_activity_text(s):
         return "countdown"
+    if _is_skip_area_text(s):
+        return "notready"
     if "stay" in s:
         return "stay"
     if "sleep" in s:
@@ -854,13 +865,14 @@ def is_skip_activity_event(event: dict[str, Any] | None) -> bool:
     event = event or {}
     if is_noise_olarm_event(event):
         return True
-    state = str(event.get("eventState") or event.get("state") or "").strip().lower()
-    msg = str(event.get("eventMsg") or event.get("activity") or "").strip().lower()
-    if state in {"countdown", "notready"}:
-        return True
-    if "countdown" in msg or "not ready" in msg or "notready" in msg:
-        return True
-    return False
+    return _is_skip_area_text(
+        event.get("eventState"),
+        event.get("state"),
+        event.get("eventMsg"),
+        event.get("activity"),
+        event.get("title"),
+        event.get("msg"),
+    )
 
 
 def _activity_via(actor: str) -> str:

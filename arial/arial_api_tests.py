@@ -549,12 +549,12 @@ def test_activity_keeps_30_day_store_and_checksums_on_login():
     assert 'prependActivity("DISARMED")' in js
     assert "setInterval(loadActivity, 3000)" in js
     assert "restoreActivityStore();" in js
-    assert "app.js?v=173" in html
+    assert "app.js?v=174" in html
 
 
 def test_activity_armed_once_remote_no_countdown_or_notready():
     js = (Path(__file__).resolve().parent / "app.js").read_text(encoding="utf-8")
-    assert "skipActivityRow" in js
+    assert "blob.indexOf(\"NOTREADY\")" in js
     assert "tidyActivity" in js
     assert 'title + " " + state + " · " + who + " · Remote"' in js
     line = arial_api._activity_line("Facility Building", "ARMED", "Onguard", "Remote")
@@ -565,6 +565,12 @@ def test_activity_armed_once_remote_no_countdown_or_notready():
     assert arial_api.is_skip_activity_event(
         {"eventState": "notready", "eventMsg": "NOTREADY - Area 1 - Facility Building"}
     )
+    assert arial_api.is_skip_activity_event(
+        {"eventState": "not ready", "eventMsg": "System Not Ready - Area 1 - Facility Building"}
+    )
+    assert arial_api.is_skip_activity_event(
+        {"eventState": "arm", "eventMsg": "ARMED", "title": "System Not Ready"}
+    ) is True
     assert not arial_api.is_skip_activity_event(
         {"eventState": "arm", "eventMsg": "ARMED - Area 1 - Facility Building"}
     )
@@ -572,6 +578,7 @@ def test_activity_armed_once_remote_no_countdown_or_notready():
         {"tab": "areas", "title": "Facility Building", "state": "ARMED", "actor": "Onguard", "at": 5},
         {"tab": "areas", "title": "Facility Building", "state": "ARMED", "actor": "Onguard", "at": 4},
         {"tab": "areas", "title": "Facility Building", "state": "COUNTDOWN", "at": 5},
+        {"tab": "areas", "title": "Facility Building", "state": "NOT READY", "activity": "Facility Building NOT READY", "at": 4},
         {"tab": "areas", "title": "Facility Building", "state": "notready", "at": 3},
         {"tab": "areas", "title": "Facility Building", "state": "DISARMED", "actor": "Onguard", "at": 2},
         {"tab": "areas", "title": "Facility Building", "state": "ARMED", "actor": "Pingoa", "at": 1},
@@ -580,6 +587,7 @@ def test_activity_armed_once_remote_no_countdown_or_notready():
     states = [r["state"] for r in out]
     assert "COUNTDOWN" not in states
     assert "notready" not in states
+    assert "NOT READY" not in states
     assert states == ["ARMED", "DISARMED", "ARMED"]
     device = {"arialAreas": [{"num": 1, "label": "Facility Building"}]}
     bundle = arial_api._activity_bundle(
