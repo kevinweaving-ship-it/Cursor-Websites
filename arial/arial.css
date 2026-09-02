@@ -401,8 +401,9 @@ html, body {
 .hot[data-key="UP"] .icon-logout {
     position: relative;
     z-index: 1;
-    width: 58%;
-    height: 70%;
+    width: 78%;
+    height: 84%;
+    color: #6d28d9;
 }
 
 .key-num {
@@ -459,7 +460,7 @@ html, body {
 .hot[data-key="MEM"] { left: 38.7%; top: 45.4%; width: 12.6%; height: 7.2%; }
 .hot[data-key="TBL"] { left: 52.5%; top: 45.4%; width: 12.4%; height: 7.2%; }
 .hot[data-key="ACC"] { left: 66.5%; top: 45.4%; width: 14.5%; height: 7.2%; }
-.hot[data-key="UP"] { left: 84.2%; top: 37.2%; width: 9.4%; height: 7.2%; }
+.hot[data-key="UP"] { left: 84.2%; top: 37.2%; width: 9.4%; height: 7.2%; color: #6d28d9; }
 .hot[data-key="DOWN"] { left: 84.2%; top: 45.4%; width: 9.4%; height: 7.2%; }
 .hot[data-key="1"] { left: 24.1%; top: 53.4%; width: 16.4%; height: 7.6%; }
 .hot[data-key="2"] { left: 43.1%; top: 53.4%; width: 17.5%; height: 7.6%; }
