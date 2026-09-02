@@ -123,6 +123,19 @@ def test_activity_card_markup_and_zone_labels():
     assert "if (!isLoggedIn()) return;" in js
     assert "white-space: nowrap;" in css.split(".activity-text {", 1)[1].split("}", 1)[0]
     assert "border: 1.6px solid #6a7378;" in css.split(".arial-below .card {", 1)[1].split("}", 1)[0]
+    assert 'id="arial-breaker"' in html
+    assert "Hansekop Main Breaker" in html
+    assert 'class="breaker-dials"' in html
+    assert 'id="breaker-spark"' in html
+    assert "function loadBreaker" in js
+    assert "function setBreakerGauge" in js
+    assert "function drawBreakerSpark" in js
+    assert "/api/arial/tuya/probe?device_id=bf90676b1341ecb34dse39" in js
+    assert "loadBreaker();" in js
+    assert ".breaker-dials" in css
+    assert ".arial-below .card + .card" in css
+    assert "#arial-activity,\n#arial-breaker" in css
+    assert "align-items: stretch;" in css.split(".arial-below:not([hidden]) {", 1)[1].split("}", 1)[0]
 
 
 def test_activity_route_uses_zone_labels(monkeypatch):
@@ -554,7 +567,7 @@ def test_activity_keeps_30_day_store_and_checksums_on_login():
     assert 'prependActivity("DISARMED")' in js
     assert "setInterval(loadActivity, 3000)" in js
     assert "restoreActivityStore();" in js
-    assert "app.js?v=176" in html
+    assert "app.js?v=179" in html
 
 
 def test_activity_armed_once_remote_no_countdown_or_notready():

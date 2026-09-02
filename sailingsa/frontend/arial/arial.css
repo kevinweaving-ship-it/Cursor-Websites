@@ -795,13 +795,16 @@ html, body {
 }
 
 .arial-below:not([hidden]) {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
 }
 
 .arial-below .card {
     box-sizing: border-box;
     width: 100%;
     max-width: 100%;
+    min-width: 0;
     overflow: hidden;
     background: #ffffff;
     border: 1.6px solid #6a7378;
@@ -809,6 +812,13 @@ html, body {
     box-shadow: none;
     padding: 0.25rem 0.4rem 0.15rem;
     margin: 0;
+}
+
+#arial-activity,
+#arial-breaker {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
 }
 
 .activity-head {
@@ -819,12 +829,17 @@ html, body {
     margin: 0 0 0.25rem;
     padding-bottom: 0.2rem;
     border-bottom: 1px solid #001f3f;
+    min-width: 0;
 }
 
 .arial-below .section-title {
     margin: 0;
     padding: 0;
     border: 0;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-size: 0.7rem;
     font-weight: 700;
     text-transform: uppercase;
@@ -985,5 +1000,100 @@ html, body {
 .activity-more[aria-expanded="true"] .activity-more-arrow {
     border-top: 0;
     border-bottom: 6px solid #001f3f;
+}
+
+.arial-below .card + .card {
+    margin-top: 10px;
+}
+
+.breaker-dials {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 4px;
+    margin: 2px 0 4px;
+    width: 100%;
+    min-width: 0;
+}
+
+.breaker-dial {
+    text-align: center;
+}
+
+.breaker-gauge {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.breaker-gauge .track {
+    fill: none;
+    stroke: #e0e0e0;
+    stroke-width: 8;
+    stroke-linecap: round;
+}
+
+.breaker-gauge .arc {
+    fill: none;
+    stroke-width: 8;
+    stroke-linecap: round;
+}
+
+.breaker-gauge .arc-v { stroke: #1565c0; }
+.breaker-gauge .arc-a { stroke: #e67e00; }
+.breaker-gauge .arc-w { stroke: #DC143C; }
+
+.breaker-gauge .needle {
+    stroke: #001f3f;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+}
+
+.breaker-gauge .hub {
+    fill: #001f3f;
+}
+
+.breaker-dial-val {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #001f3f;
+    white-space: nowrap;
+}
+
+.breaker-dial-lab {
+    display: block;
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #334155;
+}
+
+.breaker-spark {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: 48px;
+    margin: 0 0 4px;
+}
+
+.breaker-spark .fill {
+    fill: rgba(0, 31, 63, 0.08);
+}
+
+.breaker-spark .line {
+    fill: none;
+    stroke: #001f3f;
+    stroke-width: 1.8;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+.breaker-detail {
+    margin: 0 0 0.2rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #334155;
 }
 

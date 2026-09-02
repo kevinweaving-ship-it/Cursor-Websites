@@ -978,6 +978,146 @@
         }
     }
 
+    function breakerScale(code, value) {
+        var n = Number(value);
+        if (!isFinite(n)) return null;
+        if (code === "cur_voltage") return n > 1000 ? n / 100 : n > 400 ? n / 10 : n;
+        if (code === "cur_current") return n > 100 ? n / 1000 : n;
+        if (code === "cur_power") return n > 20000 ? n / 100 : n > 5000 ? n / 10 : n;
+        return n;
+    }
+
+    var breakerHist = [];
+    var BREAKER_HIST = 36;
+
+    function setBreakerGauge(kind, value, min, max) {
+        var pct = 0;
+        if (value != null && max > min) pct = (value - min) / (max - min);
+        if (pct < 0) pct = 0;
+        if (pct > 1) pct = 1;
+        var arc = document.getElementById("breaker-arc-" + kind);
+        var needle = document.getElementById("breaker-needle-" + kind);
+        if (arc) arc.setAttribute("stroke-dasharray", (pct * 100).toFixed(1) + " 100");
+        if (needle) needle.setAttribute("transform", "rotate(" + (pct * 180).toFixed(1) + " 50 50)");
+    }
+
+    function drawBreakerSpark() {
+        var line = document.getElementById("breaker-spark-line");
+        var fill = document.getElementById("breaker-spark-fill");
+        if (!line) return;
+        if (breakerHist.length < 2) {
+            line.setAttribute("points", "");
+            if (fill) fill.setAttribute("d", "");
+            return;
+        }
+        var w = 320;
+        var h = 56;
+        var pad = 4;
+        var i;
+        var max = 1;
+        for (i = 0; i < breakerHist.length; i += 1) {
+            if (breakerHist[i] > max) max = breakerHist[i];
+        }
+        if (max < 500) max = 500;
+        var pts = [];
+        for (i = 0; i < breakerHist.length; i += 1) {
+            var x = pad + ((BREAKER_HIST - breakerHist.length + i) / (BREAKER_HIST - 1)) * (w - pad * 2);
+            var y = h - pad - (breakerHist[i] / max) * (h - pad * 2);
+            pts.push(x.toFixed(1) + "," + y.toFixed(1));
+        }
+        line.setAttribute("points", pts.join(" "));
+        if (fill) {
+            fill.setAttribute(
+                "d",
+                "M" + pts[0] + " L" + pts.join(" L") +
+                " L" + pts[pts.length - 1].split(",")[0] + "," + (h - pad) +
+                " L" + pts[0].split(",")[0] + "," + (h - pad) + " Z"
+            );
+        }
+    }
+
+    function renderBreaker(data) {
+        var stateEl = document.getElementById("breaker-state");
+        var detailEl = document.getElementById("breaker-detail");
+        var vEl = document.getElementById("breaker-v");
+        var aEl = document.getElementById("breaker-a");
+        var wEl = document.getElementById("breaker-w");
+        if (!stateEl || !detailEl) return;
+        function blankGauges(msg) {
+            setBreakerGauge("v", 0, 0, 1);
+            setBreakerGauge("a", 0, 0, 1);
+            setBreakerGauge("w", 0, 0, 1);
+            if (vEl) vEl.textContent = "—";
+            if (aEl) aEl.textContent = "—";
+            if (wEl) wEl.textContent = "—";
+            detailEl.textContent = msg;
+        }
+        if (!data || !data.configured) {
+            stateEl.textContent = "Tuya off";
+            stateEl.classList.add("fault");
+            blankGauges("Not configured");
+            return;
+        }
+        if (!data.tokenOk) {
+            stateEl.textContent = "No token";
+            stateEl.classList.add("fault");
+            blankGauges(data.tuyaMsg || "Connect failed");
+            return;
+        }
+        if (!data.deviceOk) {
+            stateEl.textContent = "No link";
+            stateEl.classList.add("fault");
+            blankGauges(data.tuyaMsg || "Status failed");
+            return;
+        }
+        var rows = Array.isArray(data.status) ? data.status : [];
+        var map = {};
+        var i;
+        for (i = 0; i < rows.length; i += 1) {
+            if (rows[i] && rows[i].code) map[rows[i].code] = rows[i].value;
+        }
+        var on = map.switch_1 === true || map.switch === true;
+        var volts = breakerScale("cur_voltage", map.cur_voltage);
+        var amps = breakerScale("cur_current", map.cur_current);
+        var watts = breakerScale("cur_power", map.cur_power);
+        stateEl.textContent = on ? "ON" : "OFF";
+        stateEl.classList.toggle("fault", !on);
+        if (vEl) vEl.textContent = volts != null ? volts.toFixed(1) + " V" : "—";
+        if (aEl) aEl.textContent = amps != null ? amps.toFixed(2) + " A" : "—";
+        if (wEl) wEl.textContent = watts != null ? Math.round(watts) + " W" : "—";
+        setBreakerGauge("v", volts, 180, 260);
+        setBreakerGauge("a", amps, 0, 32);
+        setBreakerGauge("w", watts, 0, 5000);
+        if (watts != null) {
+            breakerHist.push(watts);
+            if (breakerHist.length > BREAKER_HIST) breakerHist = breakerHist.slice(-BREAKER_HIST);
+        }
+        drawBreakerSpark();
+        var parts = [];
+        if (volts != null) parts.push(volts.toFixed(1) + " V");
+        if (amps != null) parts.push(amps.toFixed(2) + " A");
+        if (watts != null) parts.push(Math.round(watts) + " W");
+        detailEl.textContent = parts.length ? parts.join(" · ") : "Online";
+    }
+
+    async function loadBreaker() {
+        if (!isLoggedIn()) return;
+        if (loadBreaker._busy) return;
+        loadBreaker._busy = true;
+        try {
+            var res = await fetch("/api/arial/tuya/probe?device_id=bf90676b1341ecb34dse39", {
+                credentials: "same-origin",
+                cache: "no-store"
+            });
+            var data = await res.json();
+            renderBreaker(data);
+        } catch (e) {
+            renderBreaker({ configured: true, tokenOk: false, tuyaMsg: "No link" });
+        } finally {
+            loadBreaker._busy = false;
+        }
+    }
+
     function bindActivityCard() {
         var tabs = document.querySelectorAll("#arial-activity .tabs button");
         var i;
@@ -1093,6 +1233,7 @@
         if (on) {
             restoreActivityStore();
             loadActivity();
+            loadBreaker();
         } else {
             saveActivityStore();
             activityRows = [];
@@ -1942,6 +2083,7 @@
     window.addEventListener("resize", fitLcdStatus);
     setInterval(tickTime, 1000);
     setInterval(loadActivity, 3000);
+    setInterval(loadBreaker, 10000);
     setInterval(function () {
         if (localExitLeft() > 0 || disarmPending || armPending || panelIsExiting(window.arialDevice)) loadStatus();
     }, 1000);
