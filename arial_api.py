@@ -836,6 +836,7 @@ def _tuya_logs(creds: dict[str, str], device: str, *, types: str, start_ms: int,
     if not access:
         return []
     rows: list[dict[str, Any]] = []
+    seen: set[tuple[Any, Any, Any]] = set()
     row_key = ""
     for _ in range(max_pages):
         params: dict[str, Any] = {"type": types, "start_time": start_ms, "end_time": end_ms, "size": "100"}
@@ -851,18 +852,30 @@ def _tuya_logs(creds: dict[str, str], device: str, *, types: str, start_ms: int,
             if not access:
                 break
             payload = _tuya_call("GET", f"/v1.0/devices/{device}/logs", creds=creds, params=params, access_token=access)
+        attempt = 0
+        while not payload.get("success") and _tuya_is_rate_limit(payload) and attempt < 4:
+            attempt += 1
+            _tuya_logs_last_error.update({"code": payload.get("code"), "msg": payload.get("msg"), "at": time.time()})
+            time.sleep(3.0 * attempt)
+            payload = _tuya_call("GET", f"/v1.0/devices/{device}/logs", creds=creds, params=params, access_token=access)
         if not payload.get("success"):
             _tuya_logs_last_error.update({"code": payload.get("code"), "msg": payload.get("msg"), "at": time.time()})
-            if _tuya_is_rate_limit(payload):
-                time.sleep(1.5)
-                payload = _tuya_call("GET", f"/v1.0/devices/{device}/logs", creds=creds, params=params, access_token=access)
-            if not payload.get("success"):
-                break
+            break
         result = payload.get("result") if isinstance(payload.get("result"), dict) else {}
-        rows.extend(r for r in (result.get("logs") or []) if isinstance(r, dict))
-        if not result.get("has_next") or not result.get("current_row_key"):
+        page = [r for r in (result.get("logs") or []) if isinstance(r, dict)]
+        fresh = 0
+        for r in page:
+            key = (r.get("event_time"), r.get("code"), r.get("value"))
+            if key in seen:
+                continue
+            seen.add(key)
+            rows.append(r)
+            fresh += 1
+        # Tuya sometimes reports has_next with a cursor that returns the same page; stop when nothing new arrives.
+        if fresh == 0 or not result.get("has_next") or not result.get("current_row_key"):
             break
         row_key = str(result.get("current_row_key"))
+        time.sleep(0.5)
     return rows
 
 
@@ -871,7 +884,7 @@ _tuya_logs_last_error: dict[str, Any] = {}
 
 def _tuya_is_rate_limit(payload: dict[str, Any]) -> bool:
     text = str(payload.get("msg") or "").lower()
-    return "frequent" in text or "rate" in text or "limit" in text or int(payload.get("code") or 0) in {28841105, 1106, 1101}
+    return "frequent" in text or "rate limit" in text or int(payload.get("code") or 0) in {40000309, 28841105}
 
 
 _LIFECYCLE_ONLINE, _LIFECYCLE_OFFLINE, _LIFECYCLE_RESTART = 1, 2, 9
@@ -931,9 +944,9 @@ def _energy_backfill_from_logs(creds: dict[str, str], device: str, start_ts: flo
     win = float(start_ts)
     while win < end_ts:
         nxt = min(end_ts, win + 3600.0)
-        rows.extend(_tuya_logs(creds, device, types="7", codes="cur_power", start_ms=int(win * 1000), end_ms=int(nxt * 1000), max_pages=40))
+        rows.extend(_tuya_logs(creds, device, types="7", codes="cur_power", start_ms=int(win * 1000), end_ms=int(nxt * 1000), max_pages=12))
         win = nxt
-        time.sleep(0.35)
+        time.sleep(1.0)
     samples = sorted(
         ((int(r.get("event_time")) / 1000.0, _scale_power_w(r.get("value"))) for r in rows if r.get("event_time")),
         key=lambda x: x[0],
@@ -968,6 +981,9 @@ def _energy_backfill_from_logs(creds: dict[str, str], device: str, start_ts: flo
 _power_sync_at = 0.0
 
 
+_energy_bootstrap_info: dict[str, Any] = {}
+
+
 def _energy_bootstrap(device: str) -> None:
     """On start: restores from 7 days of lifecycle log, and refill the last 24 h of bins from power reports."""
     global _power_sync_at
@@ -975,11 +991,14 @@ def _energy_bootstrap(device: str) -> None:
     if not (creds["client_id"] and creds["secret"]):
         return
     with _tuya_http_lock:
-        _power_sync_from_logs(creds, device, days=7)
+        _energy_bootstrap_info["power"] = _power_sync_from_logs(creds, device, days=7)
         _power_sync_at = time.time()
         restore = _power_snapshot(time.time()).get("restoreAt")
         since = max(time.time() - ENERGY_DAYS * 86_400, float(restore) if restore else 0.0)
-        _energy_backfill_from_logs(creds, device, since)
+        _energy_bootstrap_info["backfill"] = _energy_backfill_from_logs(creds, device, since)
+        _energy_bootstrap_info["at"] = time.time()
+        with _energy_lock:
+            _energy_save()
 
 
 def _energy_sampler_loop(device: str) -> None:
@@ -1127,6 +1146,7 @@ def tuya_energy(device_id: str | None = None) -> dict[str, Any]:
         out["source"] = "sampled"
         out["days"] = _energy_days_from_bins(device, now)
     out.update(_energy_analysis(device, out["days"], now))
+    out["debug"] = {"bootstrap": _energy_bootstrap_info, "logsLastError": _tuya_logs_last_error, "samplerHere": bool(_energy_thread and _energy_thread.is_alive())}
     out["ok"] = True
     return out
 
