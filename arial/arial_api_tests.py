@@ -311,8 +311,9 @@ def test_lcd_site_date_time_stack_right():
     assert html.split('id="lcd-time"', 1)[1].split('id="lcd-welcome"', 1)[0].count('id="lcd-user-logo"') == 1
     logo = css.split("#lcd-user-logo {", 1)[1].split("}", 1)[0]
     assert "max-width: 52%;" not in logo
-    assert "flex: 1 1 0;" in logo
-    assert "height: 0;" in logo
+    assert "position: absolute;" in logo
+    assert "top: 48%;" in logo
+    assert "height: 50%;" in logo
     assert "object-position: right bottom;" in logo
 
 
