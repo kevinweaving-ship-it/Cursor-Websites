@@ -350,15 +350,15 @@ html, body {
 }
 
 #arm-toggle.mode-arm {
-    background: linear-gradient(180deg, #eef8f0 0%, #8ed897 52%, #4caf5c 100%);
-    border-color: #2e8a3c;
-    color: #0b4a14;
+    background: linear-gradient(180deg, #fff1f1 0%, #f09a9a 52%, #d94c4c 100%);
+    border-color: #a33030;
+    color: #fff;
 }
 
 #arm-toggle.mode-disarm {
-    background: linear-gradient(180deg, #fff1f1 0%, #f09a9a 52%, #d94c4c 100%);
-    border-color: #a33030;
-    color: #5a1010;
+    background: linear-gradient(180deg, #eef8f0 0%, #8ed897 52%, #4caf5c 100%);
+    border-color: #2e8a3c;
+    color: #fff;
 }
 
 #arm-toggle .key-icon-wrap {
@@ -372,20 +372,12 @@ html, body {
     pointer-events: none;
 }
 
-#arm-toggle.mode-arm {
-    color: #fff;
-}
-
-#arm-toggle.mode-disarm {
-    color: #fff;
-}
-
 #arm-toggle.mode-arm .key-icon {
-    filter: drop-shadow(0 0 4px #14d718);
+    filter: drop-shadow(0 0 5px #ff1a1a) drop-shadow(0 0 8px rgba(255, 26, 26, 0.85));
 }
 
 #arm-toggle.mode-disarm .key-icon {
-    filter: drop-shadow(0 0 5px #ff1a1a) drop-shadow(0 0 8px rgba(255, 26, 26, 0.85));
+    filter: drop-shadow(0 0 4px #14d718);
 }
 
 #arm-toggle.mode-arm .icon-unlock,
