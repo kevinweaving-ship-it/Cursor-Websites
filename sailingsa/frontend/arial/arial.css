@@ -785,12 +785,17 @@ html, body {
 
 .arial-below {
     box-sizing: border-box;
+    display: none;
     width: 89.7%;
     max-width: 377px;
     margin: 6px auto 20px;
     padding: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     color: #1e293b;
+}
+
+.arial-below:not([hidden]) {
+    display: block;
 }
 
 .arial-below .card {

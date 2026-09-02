@@ -685,6 +685,7 @@
     }
 
     async function loadActivity() {
+        if (!isLoggedIn()) return;
         if (currentSite().id !== "hansekop") return;
         if (loadActivity._busy) return;
         loadActivity._busy = true;
@@ -808,6 +809,9 @@
             up.hidden = !on;
             up.setAttribute("aria-label", on ? "Log Out" : "Up");
         }
+        var below = document.querySelector(".arial-below");
+        if (below) below.hidden = !on;
+        if (on) loadActivity();
     }
 
     function logOut() {

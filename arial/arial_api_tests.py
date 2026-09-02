@@ -117,6 +117,9 @@ def test_activity_card_markup_and_zone_labels():
     assert "color: #ffe14d" in css
     assert "activity-mark" in css
     assert "max-width: 377px;" in css.split(".arial-below {", 1)[1].split("}", 1)[0]
+    assert 'class="container arial-below" hidden' in html
+    assert "below.hidden = !on" in js
+    assert "if (!isLoggedIn()) return;" in js
     assert "white-space: nowrap;" in css.split(".activity-text {", 1)[1].split("}", 1)[0]
 
 
