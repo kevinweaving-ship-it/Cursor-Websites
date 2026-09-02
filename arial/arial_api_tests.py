@@ -121,7 +121,11 @@ def test_arm_disarm_pending_and_thirty_second_exit():
     assert "if (apiCd > 10) syncLocalExitFromApi(apiCd)" in js
     assert "startOlarmLive();" in js
     assert "function startOlarmLive()" in js
-    assert "if (!exitCountStarted) return;" in js
+    assert "function kickExitAudio()" in js
+    assert "pageshow" in js
+    assert "visibilitychange" in js
+    assert "function playExitChirp(fast)" in js
+    assert "startExitBeeps._on && !exitBeepTimer" in js
     assert "if (left > 20)" in js
     assert "if (left > 7)" in js
     assert "tone(1600, 0.14, 0.55)" in js
