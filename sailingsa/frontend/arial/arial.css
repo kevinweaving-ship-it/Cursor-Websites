@@ -22,14 +22,14 @@ html, body {
 .pad {
     position: relative;
     width: 100%;
-    aspect-ratio: 521 / 615;
+    aspect-ratio: 368 / 427;
     clip-path: url(#deviceClip);
 }
 
 .pad-wrap.compact .pad-clip {
     position: relative;
     overflow: hidden;
-    aspect-ratio: 521 / 278;
+    aspect-ratio: 368 / 193;
 }
 
 .pad-wrap.compact .hot-more,
@@ -88,10 +88,10 @@ html, body {
 
 .lcd {
     position: absolute;
-    left: 11.32%;
-    top: 12.03%;
-    width: 76.97%;
-    height: 15.61%;
+    left: 11.96%;
+    top: 11.48%;
+    width: 76.09%;
+    height: 16.39%;
     box-sizing: border-box;
     background: linear-gradient(180deg, #1820b8 0%, #2810c8 100%);
     color: #00bfff;
@@ -107,9 +107,9 @@ html, body {
     justify-content: space-between;
     overflow: hidden;
     z-index: 2;
-    border-radius: 5px;
+    border-radius: 2px;
     border: 0;
-    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.4);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
 .lcd.armed {
