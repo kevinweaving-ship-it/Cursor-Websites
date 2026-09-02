@@ -118,6 +118,7 @@ def test_lcd_site_date_time_stack_right():
     head = css.split(".lcd-head {", 1)[1].split("}", 1)[0]
     assert "flex-direction: column;" in head
     assert "align-items: flex-end;" in head
+    assert "#lcd-site {\n    font-size: 13.75px;" in css
 
 
 def test_status_label_under_status_led():

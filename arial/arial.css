@@ -167,6 +167,11 @@ html, body {
     white-space: nowrap;
 }
 
+#lcd-site {
+    font-size: 13.75px;
+    font-weight: 900;
+}
+
 .lcd-mid {
     display: flex;
     flex-direction: row;
