@@ -106,7 +106,9 @@ def test_profile_exit_delay_ten_is_unset():
 
 
 def test_arm_disarm_pending_and_thirty_second_exit():
-    js = (Path(__file__).resolve().parent / "app.js").read_text(encoding="utf-8")
+    root = Path(__file__).resolve().parent
+    js = (root / "app.js").read_text(encoding="utf-8")
+    css = (root / "arial.css").read_text(encoding="utf-8")
     assert "var EXIT_DEFAULT = 30;" in js
     assert "n > 10 && n <= 180" in js
     assert "var disarmPending = false;" in js
@@ -136,12 +138,14 @@ def test_arm_disarm_pending_and_thirty_second_exit():
     assert "n <= 7" in js
     assert "disarmNeedsStatus" in js
     assert "hold-disarmed" in js
-    assert 'setWelcome("Login", 2200)' in js
-    assert 'setLcdStatus("System Armed", "Login")' in js
+    assert "login-error" in js
+    assert "function rejectGong()" in js
+    assert 'setWelcome("Login", 2200)' not in js
+    assert 'setLcdStatus("System Armed", "Login")' not in js
     assert 'setLcdStatus("Login", "");' not in js
     assert "function rejectNeedLogin()" in js
     assert "loginErrorUntil" in js
-    assert "login-error" in js
+    assert ".lcd.login-error #lcd-status-issue::before" in css
     assert "function startExitBeeps()" in js
     assert "exitIntroUntil" in js
     assert "storeSet(\"arialExitUntil\"" in js

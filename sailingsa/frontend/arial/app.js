@@ -354,8 +354,7 @@
         var lcd = document.querySelector(".lcd");
         if (!lcd) return;
         if (Date.now() < loginErrorUntil) {
-            lcd.classList.remove("disarmed", "arming", "arming-fast", "zone-open", "hold-disarmed");
-            lcd.classList.add("armed", "login-error");
+            lcd.classList.add("login-error");
             syncArmToggle();
             fitLcdStatus();
             return;
@@ -416,6 +415,10 @@
         if (disarmPending) return true;
         var d = device || window.arialDevice;
         var st = areaState(d);
+        if (d) {
+            if (panelIsExiting(d)) return true;
+            return isArmedState(st);
+        }
         if (panelIsExiting(d)) return true;
         if (isArmedState(st)) return true;
         var lcd = document.querySelector(".lcd");
@@ -1121,11 +1124,17 @@
         fitLcdStatus();
     }
 
-    function rejectBeep() {
+    function rejectGong() {
+        if (rejectGong._on) return;
+        rejectGong._on = true;
         unlockAudio();
-        tone(220, 0.22, 0.62);
-        setTimeout(function () { tone(140, 0.38, 0.58); }, 200);
-        if (!audioCtx || audioCtx.state !== "running") playHtmlBeep();
+        playOsc(170, 0.55, 0.95, true);
+        playOsc(85, 0.75, 0.92, true);
+        setTimeout(function () {
+            playOsc(130, 0.45, 0.95, true);
+            playOsc(60, 0.95, 0.95, true);
+        }, 160);
+        setTimeout(function () { rejectGong._on = false; }, 1400);
     }
 
     function isLoggedIn() {
@@ -1133,21 +1142,22 @@
         return !!(u && u.code);
     }
 
-    function showLoginError(keep) {
+    function showLoginError() {
         stopIssueCycle();
-        setLcdStatus("System Armed", "Login");
-        var lcd = document.querySelector(".lcd");
-        if (lcd) {
-            lcd.classList.remove("disarmed", "arming", "arming-fast", "zone-open", "hold-disarmed");
-            lcd.classList.add("armed", "login-error");
+        var d = window.arialDevice;
+        var main = lastStatus || "";
+        if (!main || /^login$/i.test(main)) main = statusFromDevice(d) || "System Ready";
+        if (main === "System Armed" && d && !isArmedState(areaState(d)) && !panelIsExiting(d)) {
+            main = statusFromDevice(d) || "System Ready";
         }
-        setLed(document.getElementById("led-status"), "armed");
+        setLcdStatus(main, "Login");
+        var lcd = document.querySelector(".lcd");
+        if (lcd) lcd.classList.add("login-error");
         fitLcdStatus();
-        if (!keep) setWelcome("Login", 2200);
     }
 
     function rejectNeedLogin() {
-        rejectBeep();
+        rejectGong();
         loginErrorUntil = Date.now() + 2200;
         showLoginError();
         if (rejectNeedLogin._t) clearTimeout(rejectNeedLogin._t);
@@ -1157,7 +1167,6 @@
             var lcd = document.querySelector(".lcd");
             if (lcd) lcd.classList.remove("login-error");
             if (window.arialDevice) applyLeds(window.arialDevice);
-            else if (lcd && lcd.classList.contains("armed")) setLcdStatus("System Armed", "");
             setWelcome("");
         }, 2200);
     }

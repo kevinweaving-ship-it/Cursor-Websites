@@ -215,6 +215,33 @@ html, body {
     animation: lcdTextFlash 0.22s step-end infinite;
 }
 
+.lcd.login-error #lcd-status-issue::before {
+    content: "";
+    display: inline-block;
+    width: 0;
+    height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-bottom: 13px solid #ffe14d;
+    margin-right: 7px;
+    vertical-align: 2px;
+    position: relative;
+}
+
+.lcd.login-error #lcd-status-issue::after {
+    content: "!";
+    display: inline-block;
+    width: 13px;
+    margin-left: -20px;
+    margin-right: 10px;
+    color: #111;
+    font-size: 11px;
+    font-weight: 900;
+    line-height: 13px;
+    vertical-align: 3px;
+    position: relative;
+}
+
 @keyframes lcdTextFlash {
     50% { opacity: 0; }
 }
