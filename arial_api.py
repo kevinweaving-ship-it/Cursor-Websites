@@ -809,7 +809,13 @@ def _power_sync_from_logs(creds: dict[str, str], device: str, days: int = 7) -> 
 def _energy_backfill_from_logs(creds: dict[str, str], device: str, start_ts: float, end_ts: float | None = None) -> dict[str, Any]:
     """Rebuild hourly bins in [start, end) from Tuya's cur_power report log (real readings, trapezoid-integrated)."""
     end_ts = float(end_ts if end_ts is not None else time.time())
-    rows = _tuya_logs(creds, device, types="7", codes="cur_power", start_ms=int(start_ts * 1000), end_ms=int(end_ts * 1000), max_pages=200)
+    # Tuya caps a single log query (~3000 rows); walk hour-sized windows so nothing is dropped.
+    rows: list[dict[str, Any]] = []
+    win = float(start_ts)
+    while win < end_ts:
+        nxt = min(end_ts, win + 3600.0)
+        rows.extend(_tuya_logs(creds, device, types="7", codes="cur_power", start_ms=int(win * 1000), end_ms=int(nxt * 1000), max_pages=40))
+        win = nxt
     samples = sorted(
         ((int(r.get("event_time")) / 1000.0, _scale_power_w(r.get("value"))) for r in rows if r.get("event_time")),
         key=lambda x: x[0],
@@ -853,7 +859,9 @@ def _energy_bootstrap(device: str) -> None:
     with _tuya_http_lock:
         _power_sync_from_logs(creds, device, days=7)
         _power_sync_at = time.time()
-        _energy_backfill_from_logs(creds, device, time.time() - 86_400)
+        restore = _power_snapshot(time.time()).get("restoreAt")
+        since = max(time.time() - ENERGY_DAYS * 86_400, float(restore) if restore else 0.0)
+        _energy_backfill_from_logs(creds, device, since)
 
 
 def _energy_sampler_loop(device: str) -> None:
