@@ -2170,7 +2170,9 @@ def format_olarm_event(event: dict[str, Any], device: dict[str, Any] | None = No
     tab = classify_olarm_event(event)
     msg = str(event.get("eventMsg") or "").strip()
     label = ""
-    if tab in {"zones", "alarms"} and num in zones:
+    if action.lower().startswith("area") and num in areas:
+        label = str(areas[num].get("label") or "").strip()  # area alarm rows must not borrow a zone's name
+    elif tab in {"zones", "alarms"} and num in zones:
         label = str(zones[num].get("label") or "").strip()
     elif tab == "areas" and num in areas:
         label = str(areas[num].get("label") or "").strip()
