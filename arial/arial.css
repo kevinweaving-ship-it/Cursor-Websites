@@ -1303,6 +1303,17 @@ html, body {
     align-items: center;
 }
 
+.lights-panel .section-title {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #001f3f;
+}
+
 .lights-all {
     display: inline-flex;
     align-items: center;
