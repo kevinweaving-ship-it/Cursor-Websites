@@ -984,90 +984,207 @@
         if (code === "cur_voltage") return n > 1000 ? n / 100 : n > 400 ? n / 10 : n;
         if (code === "cur_current") return n > 100 ? n / 1000 : n;
         if (code === "cur_power") return n > 20000 ? n / 100 : n > 5000 ? n / 10 : n;
+        if (code === "add_ele") return n >= 100 ? n / 100 : n;
         return n;
     }
 
+    var BREAKER_STORE = "arialBreaker.hansekop";
+    var BREAKER_HIST = 90;
+    var BREAKER_HIST_MS = 15 * 60 * 1000;
     var breakerHist = [];
-    var BREAKER_HIST = 36;
+    var breakerEnergy = { hidden: false, last: null, midnightYmd: "", midnightAddEle: null };
+
+    function saYmdNow() {
+        return new Date().toLocaleDateString("en-CA", { timeZone: TZ });
+    }
+
+    function restoreBreakerStore() {
+        try {
+            var raw = JSON.parse(localStorage.getItem(BREAKER_STORE) || "null");
+            if (!raw || typeof raw !== "object") return;
+            var now = Date.now();
+            var samples = Array.isArray(raw.samples) ? raw.samples : [];
+            var kept = [];
+            var i;
+            for (i = 0; i < samples.length; i += 1) {
+                var t = Number(samples[i] && samples[i].t);
+                var w = Number(samples[i] && samples[i].w);
+                if (!isFinite(t) || !isFinite(w)) continue;
+                if (now - t > BREAKER_HIST_MS) continue;
+                kept.push({ t: t, w: w });
+            }
+            breakerHist = kept.slice(-BREAKER_HIST);
+            breakerEnergy.hidden = !!raw.energyHidden;
+            if (isFinite(Number(raw.lastAddEle))) breakerEnergy.last = Number(raw.lastAddEle);
+            breakerEnergy.midnightYmd = String(raw.midnightYmd || "");
+            if (isFinite(Number(raw.midnightAddEle))) breakerEnergy.midnightAddEle = Number(raw.midnightAddEle);
+        } catch (e) {}
+    }
+
+    function saveBreakerStore() {
+        try {
+            localStorage.setItem(BREAKER_STORE, JSON.stringify({
+                samples: breakerHist,
+                energyHidden: breakerEnergy.hidden,
+                lastAddEle: breakerEnergy.last,
+                midnightYmd: breakerEnergy.midnightYmd,
+                midnightAddEle: breakerEnergy.midnightAddEle
+            }));
+        } catch (e) {}
+    }
+
+    restoreBreakerStore();
+
+    function breakerDialState(kind, value) {
+        if (value == null || !isFinite(value)) return "";
+        if (kind === "v") {
+            if (value < 207 || value > 253) return "crit";
+            if (value < 216 || value > 244) return "warn";
+            return "ok";
+        }
+        var max = kind === "a" ? 32 : 5000;
+        var pct = value / max;
+        if (pct > 0.95) return "crit";
+        if (pct >= 0.8) return "warn";
+        return "ok";
+    }
 
     function setBreakerGauge(kind, value, min, max) {
         var pct = 0;
         if (value != null && max > min) pct = (value - min) / (max - min);
         if (pct < 0) pct = 0;
         if (pct > 1) pct = 1;
-        var arc = document.getElementById("breaker-arc-" + kind);
         var needle = document.getElementById("breaker-needle-" + kind);
-        if (arc) arc.setAttribute("stroke-dasharray", (pct * 100).toFixed(1) + " 100");
         if (needle) needle.setAttribute("transform", "rotate(" + (pct * 180).toFixed(1) + " 50 50)");
+        var dial = document.querySelector('#arial-breaker .breaker-dial[data-kind="' + kind + '"]');
+        if (dial) {
+            var state = breakerDialState(kind, value);
+            if (state) dial.setAttribute("data-state", state);
+            else dial.removeAttribute("data-state");
+        }
+    }
+
+    function breakerRangeLabel(from, to) {
+        var ms = to - from;
+        if (!(ms > 0)) return "";
+        var sec = Math.round(ms / 1000);
+        if (sec < 45) return sec + " s";
+        var min = Math.round(sec / 60);
+        if (min < 60) return min + " min";
+        return Math.round(min / 60) + " h";
     }
 
     function drawBreakerSpark() {
         var line = document.getElementById("breaker-spark-line");
-        var fill = document.getElementById("breaker-spark-fill");
+        var rangeEl = document.getElementById("breaker-hist-range");
         if (!line) return;
         if (breakerHist.length < 2) {
             line.setAttribute("points", "");
-            if (fill) fill.setAttribute("d", "");
+            if (rangeEl) rangeEl.textContent = "";
             return;
         }
         var w = 320;
-        var h = 56;
-        var pad = 4;
+        var h = 28;
+        var pad = 3;
         var i;
         var max = 1;
+        var t0 = breakerHist[0].t;
+        var t1 = breakerHist[breakerHist.length - 1].t;
+        var span = t1 - t0;
         for (i = 0; i < breakerHist.length; i += 1) {
-            if (breakerHist[i] > max) max = breakerHist[i];
+            if (breakerHist[i].w > max) max = breakerHist[i].w;
         }
-        if (max < 500) max = 500;
         var pts = [];
         for (i = 0; i < breakerHist.length; i += 1) {
-            var x = pad + ((BREAKER_HIST - breakerHist.length + i) / (BREAKER_HIST - 1)) * (w - pad * 2);
-            var y = h - pad - (breakerHist[i] / max) * (h - pad * 2);
+            var x = span > 0
+                ? pad + ((breakerHist[i].t - t0) / span) * (w - pad * 2)
+                : pad + (i / (breakerHist.length - 1)) * (w - pad * 2);
+            var y = h - pad - (breakerHist[i].w / max) * (h - pad * 2);
             pts.push(x.toFixed(1) + "," + y.toFixed(1));
         }
         line.setAttribute("points", pts.join(" "));
-        if (fill) {
-            fill.setAttribute(
-                "d",
-                "M" + pts[0] + " L" + pts.join(" L") +
-                " L" + pts[pts.length - 1].split(",")[0] + "," + (h - pad) +
-                " L" + pts[0].split(",")[0] + "," + (h - pad) + " Z"
-            );
+        if (rangeEl) rangeEl.textContent = breakerRangeLabel(t0, t1);
+    }
+
+    function fmtKwh(n) {
+        if (n == null || !isFinite(n)) return "—";
+        return (n >= 10 ? n.toFixed(1) : n.toFixed(2)) + " kWh";
+    }
+
+    function updateBreakerEnergy(rawAdd) {
+        var row = document.getElementById("breaker-energy");
+        var todayEl = document.getElementById("breaker-kwh-today");
+        var totalEl = document.getElementById("breaker-kwh-total");
+        var kwh = breakerScale("add_ele", rawAdd);
+        if (kwh == null || breakerEnergy.hidden) {
+            if (row) row.hidden = true;
+            return;
         }
+        if (breakerEnergy.last != null && kwh < breakerEnergy.last - 0.001) {
+            if (kwh > 0.05) {
+                breakerEnergy.hidden = true;
+                if (row) row.hidden = true;
+                saveBreakerStore();
+                return;
+            }
+            breakerEnergy.midnightAddEle = kwh;
+            breakerEnergy.midnightYmd = saYmdNow();
+        }
+        var ymd = saYmdNow();
+        if (breakerEnergy.midnightYmd !== ymd || breakerEnergy.midnightAddEle == null) {
+            breakerEnergy.midnightYmd = ymd;
+            breakerEnergy.midnightAddEle = kwh;
+        }
+        breakerEnergy.last = kwh;
+        var today = kwh - breakerEnergy.midnightAddEle;
+        if (today < 0) today = 0;
+        if (totalEl) totalEl.textContent = fmtKwh(kwh);
+        if (todayEl) todayEl.textContent = fmtKwh(today);
+        if (row) row.hidden = false;
+    }
+
+    function setBreakerOn(text, fault) {
+        var stateEl = document.getElementById("breaker-state");
+        var label = document.getElementById("breaker-on-label");
+        if (label) label.textContent = text;
+        if (!stateEl) return;
+        stateEl.classList.toggle("fault", !!fault);
+        stateEl.classList.toggle("is-on", text === "ON" && !fault);
+        stateEl.classList.toggle("is-off", text === "OFF");
     }
 
     function renderBreaker(data) {
         var stateEl = document.getElementById("breaker-state");
-        var detailEl = document.getElementById("breaker-detail");
         var vEl = document.getElementById("breaker-v");
         var aEl = document.getElementById("breaker-a");
         var wEl = document.getElementById("breaker-w");
-        if (!stateEl || !detailEl) return;
-        function blankGauges(msg) {
-            setBreakerGauge("v", 0, 0, 1);
-            setBreakerGauge("a", 0, 0, 1);
-            setBreakerGauge("w", 0, 0, 1);
+        var wNow = document.getElementById("breaker-w-now");
+        var energyRow = document.getElementById("breaker-energy");
+        if (!stateEl) return;
+        function blankGauges() {
+            setBreakerGauge("v", null, 0, 1);
+            setBreakerGauge("a", null, 0, 1);
+            setBreakerGauge("w", null, 0, 1);
             if (vEl) vEl.textContent = "—";
             if (aEl) aEl.textContent = "—";
             if (wEl) wEl.textContent = "—";
-            detailEl.textContent = msg;
+            if (wNow) wNow.textContent = "—";
+            if (energyRow) energyRow.hidden = true;
+            drawBreakerSpark();
         }
         if (!data || !data.configured) {
-            stateEl.textContent = "Tuya off";
-            stateEl.classList.add("fault");
-            blankGauges("Not configured");
+            setBreakerOn("Tuya off", true);
+            blankGauges();
             return;
         }
         if (!data.tokenOk) {
-            stateEl.textContent = "No token";
-            stateEl.classList.add("fault");
-            blankGauges(data.tuyaMsg || "Connect failed");
+            setBreakerOn("No token", true);
+            blankGauges();
             return;
         }
         if (!data.deviceOk) {
-            stateEl.textContent = "No link";
-            stateEl.classList.add("fault");
-            blankGauges(data.tuyaMsg || "Status failed");
+            setBreakerOn("No link", true);
+            blankGauges();
             return;
         }
         var rows = Array.isArray(data.status) ? data.status : [];
@@ -1080,24 +1197,26 @@
         var volts = breakerScale("cur_voltage", map.cur_voltage);
         var amps = breakerScale("cur_current", map.cur_current);
         var watts = breakerScale("cur_power", map.cur_power);
-        stateEl.textContent = on ? "ON" : "OFF";
-        stateEl.classList.toggle("fault", !on);
-        if (vEl) vEl.textContent = volts != null ? volts.toFixed(1) + " V" : "—";
-        if (aEl) aEl.textContent = amps != null ? amps.toFixed(2) + " A" : "—";
-        if (wEl) wEl.textContent = watts != null ? Math.round(watts) + " W" : "—";
+        setBreakerOn(on ? "ON" : "OFF", !on);
+        if (vEl) vEl.textContent = volts != null ? volts.toFixed(1) : "—";
+        if (aEl) aEl.textContent = amps != null ? amps.toFixed(2) : "—";
+        if (wEl) wEl.textContent = watts != null ? String(Math.round(watts)) : "—";
+        if (wNow) wNow.textContent = watts != null ? Math.round(watts) + " W" : "—";
         setBreakerGauge("v", volts, 180, 260);
         setBreakerGauge("a", amps, 0, 32);
         setBreakerGauge("w", watts, 0, 5000);
         if (watts != null) {
-            breakerHist.push(watts);
-            if (breakerHist.length > BREAKER_HIST) breakerHist = breakerHist.slice(-BREAKER_HIST);
+            breakerHist.push({ t: Date.now(), w: watts });
+            var cut = Date.now() - BREAKER_HIST_MS;
+            var kept = [];
+            for (i = 0; i < breakerHist.length; i += 1) {
+                if (breakerHist[i].t >= cut) kept.push(breakerHist[i]);
+            }
+            breakerHist = kept.slice(-BREAKER_HIST);
         }
+        updateBreakerEnergy(map.add_ele);
         drawBreakerSpark();
-        var parts = [];
-        if (volts != null) parts.push(volts.toFixed(1) + " V");
-        if (amps != null) parts.push(amps.toFixed(2) + " A");
-        if (watts != null) parts.push(Math.round(watts) + " W");
-        detailEl.textContent = parts.length ? parts.join(" · ") : "Online";
+        saveBreakerStore();
     }
 
     async function loadBreaker() {

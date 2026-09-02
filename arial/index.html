@@ -6,7 +6,7 @@
     <meta name="robots" content="noindex,nofollow">
     <meta http-equiv="Cache-Control" content="no-store">
     <title>Arial</title>
-    <link rel="stylesheet" href="/arial/arial.css?v=179">
+    <link rel="stylesheet" href="/arial/arial.css?v=181">
 </head>
 <body>
     <div class="pad-wrap" id="pad-frame">
@@ -142,45 +142,68 @@
         <div class="card" id="arial-breaker">
             <div class="activity-head">
                 <h2 class="section-title">Hansekop Main Breaker</h2>
-                <p class="activity-power" id="breaker-state">—</p>
+                <p class="breaker-on" id="breaker-state">
+                    <span class="breaker-on-dot" aria-hidden="true"></span>
+                    <span id="breaker-on-label">—</span>
+                </p>
             </div>
             <div class="breaker-dials">
-                <div class="breaker-dial">
+                <div class="breaker-dial" data-kind="v">
                     <svg class="breaker-gauge" viewBox="0 0 100 62" aria-hidden="true">
                         <path class="track" d="M12 50 A38 38 0 0 1 88 50"/>
-                        <path class="arc arc-v" id="breaker-arc-v" d="M12 50 A38 38 0 0 1 88 50" pathLength="100" stroke-dasharray="0 100"/>
-                        <line class="needle" id="breaker-needle-v" x1="50" y1="50" x2="14" y2="50"/>
-                        <circle class="hub" cx="50" cy="50" r="3.2"/>
+                        <line class="tick" x1="12" y1="50" x2="16" y2="50"/>
+                        <line class="tick" x1="23.13" y1="23.13" x2="25.96" y2="25.96"/>
+                        <line class="tick" x1="50" y1="12" x2="50" y2="16"/>
+                        <line class="tick" x1="76.87" y1="23.13" x2="74.04" y2="25.96"/>
+                        <line class="tick" x1="88" y1="50" x2="84" y2="50"/>
+                        <line class="needle" id="breaker-needle-v" x1="50" y1="50" x2="18" y2="50"/>
+                        <circle class="hub" cx="50" cy="50" r="1.6"/>
                     </svg>
                     <span class="breaker-dial-val" id="breaker-v">—</span>
-                    <span class="breaker-dial-lab">Volts</span>
+                    <span class="breaker-dial-unit">V</span>
                 </div>
-                <div class="breaker-dial">
+                <div class="breaker-dial" data-kind="a">
                     <svg class="breaker-gauge" viewBox="0 0 100 62" aria-hidden="true">
                         <path class="track" d="M12 50 A38 38 0 0 1 88 50"/>
-                        <path class="arc arc-a" id="breaker-arc-a" d="M12 50 A38 38 0 0 1 88 50" pathLength="100" stroke-dasharray="0 100"/>
-                        <line class="needle" id="breaker-needle-a" x1="50" y1="50" x2="14" y2="50"/>
-                        <circle class="hub" cx="50" cy="50" r="3.2"/>
+                        <line class="tick" x1="12" y1="50" x2="16" y2="50"/>
+                        <line class="tick" x1="23.13" y1="23.13" x2="25.96" y2="25.96"/>
+                        <line class="tick" x1="50" y1="12" x2="50" y2="16"/>
+                        <line class="tick" x1="76.87" y1="23.13" x2="74.04" y2="25.96"/>
+                        <line class="tick" x1="88" y1="50" x2="84" y2="50"/>
+                        <line class="needle" id="breaker-needle-a" x1="50" y1="50" x2="18" y2="50"/>
+                        <circle class="hub" cx="50" cy="50" r="1.6"/>
                     </svg>
                     <span class="breaker-dial-val" id="breaker-a">—</span>
-                    <span class="breaker-dial-lab">Amps</span>
+                    <span class="breaker-dial-unit">A</span>
                 </div>
-                <div class="breaker-dial">
+                <div class="breaker-dial breaker-dial-power" data-kind="w">
                     <svg class="breaker-gauge" viewBox="0 0 100 62" aria-hidden="true">
                         <path class="track" d="M12 50 A38 38 0 0 1 88 50"/>
-                        <path class="arc arc-w" id="breaker-arc-w" d="M12 50 A38 38 0 0 1 88 50" pathLength="100" stroke-dasharray="0 100"/>
-                        <line class="needle" id="breaker-needle-w" x1="50" y1="50" x2="14" y2="50"/>
-                        <circle class="hub" cx="50" cy="50" r="3.2"/>
+                        <line class="tick" x1="12" y1="50" x2="16" y2="50"/>
+                        <line class="tick" x1="23.13" y1="23.13" x2="25.96" y2="25.96"/>
+                        <line class="tick" x1="50" y1="12" x2="50" y2="16"/>
+                        <line class="tick" x1="76.87" y1="23.13" x2="74.04" y2="25.96"/>
+                        <line class="tick" x1="88" y1="50" x2="84" y2="50"/>
+                        <line class="needle" id="breaker-needle-w" x1="50" y1="50" x2="18" y2="50"/>
+                        <circle class="hub" cx="50" cy="50" r="1.6"/>
                     </svg>
                     <span class="breaker-dial-val" id="breaker-w">—</span>
-                    <span class="breaker-dial-lab">Watts</span>
+                    <span class="breaker-dial-unit">W</span>
                 </div>
             </div>
-            <svg class="breaker-spark" id="breaker-spark" viewBox="0 0 320 56" role="img" aria-label="Power graph">
-                <path class="fill" id="breaker-spark-fill" d=""></path>
-                <polyline class="line" id="breaker-spark-line" points=""></polyline>
-            </svg>
-            <p class="breaker-detail" id="breaker-detail">Waiting</p>
+            <p class="breaker-energy" id="breaker-energy" hidden>
+                <span>Today <b id="breaker-kwh-today">—</b></span>
+                <span>Total <b id="breaker-kwh-total">—</b></span>
+            </p>
+            <div class="breaker-hist">
+                <svg class="breaker-spark" id="breaker-spark" viewBox="0 0 320 28" role="img" aria-label="Power history">
+                    <polyline class="line" id="breaker-spark-line" points=""></polyline>
+                </svg>
+                <div class="breaker-hist-meta">
+                    <span id="breaker-hist-range"></span>
+                    <span id="breaker-w-now">—</span>
+                </div>
+            </div>
         </div>
     </div>
     <script>
@@ -198,6 +221,6 @@
         saStamp();
     })();
     </script>
-    <script src="/arial/app.js?v=180"></script>
+    <script src="/arial/app.js?v=181"></script>
 </body>
 </html>

@@ -1006,9 +1006,45 @@ html, body {
     margin-top: 10px;
 }
 
+.breaker-on {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #334155;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.breaker-on-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex: 0 0 6px;
+    background: #94a3b8;
+}
+
+.breaker-on.is-on .breaker-on-dot {
+    background: #001f3f;
+}
+
+.breaker-on.is-off,
+.breaker-on.fault {
+    color: #DC143C;
+}
+
+.breaker-on.is-off .breaker-on-dot,
+.breaker-on.fault .breaker-on-dot {
+    background: #DC143C;
+}
+
 .breaker-dials {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 0.92fr 0.92fr 1.22fr;
     gap: 4px;
     margin: 2px 0 4px;
     width: 100%;
@@ -1016,6 +1052,7 @@ html, body {
 }
 
 .breaker-dial {
+    min-width: 0;
     text-align: center;
 }
 
@@ -1027,24 +1064,20 @@ html, body {
 
 .breaker-gauge .track {
     fill: none;
-    stroke: #e0e0e0;
-    stroke-width: 8;
+    stroke: #e2e8f0;
+    stroke-width: 2;
     stroke-linecap: round;
 }
 
-.breaker-gauge .arc {
-    fill: none;
-    stroke-width: 8;
+.breaker-gauge .tick {
+    stroke: #001f3f;
+    stroke-width: 0.6;
     stroke-linecap: round;
 }
-
-.breaker-gauge .arc-v { stroke: #1565c0; }
-.breaker-gauge .arc-a { stroke: #e67e00; }
-.breaker-gauge .arc-w { stroke: #DC143C; }
 
 .breaker-gauge .needle {
     stroke: #001f3f;
-    stroke-width: 2.2;
+    stroke-width: 1.2;
     stroke-linecap: round;
 }
 
@@ -1054,46 +1087,110 @@ html, body {
 
 .breaker-dial-val {
     display: block;
-    margin-top: 2px;
-    font-size: 0.72rem;
+    margin-top: 1px;
+    font-size: 0.78rem;
     font-weight: 700;
+    font-variant-numeric: tabular-nums;
     color: #001f3f;
     white-space: nowrap;
 }
 
-.breaker-dial-lab {
+.breaker-dial-unit {
     display: block;
-    font-size: 0.58rem;
+    font-size: 0.5rem;
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: #334155;
 }
 
+.breaker-dial-power .breaker-dial-val {
+    font-size: 1.15rem;
+    font-weight: 800;
+}
+
+.breaker-dial[data-state="warn"] .needle { stroke: #e67e00; }
+.breaker-dial[data-state="warn"] .hub { fill: #e67e00; }
+
+.breaker-dial[data-state="warn"] .breaker-dial-val {
+    color: #e67e00;
+}
+
+.breaker-dial[data-state="crit"] .needle { stroke: #DC143C; }
+.breaker-dial[data-state="crit"] .hub { fill: #DC143C; }
+
+.breaker-dial[data-state="crit"] .breaker-dial-val {
+    color: #DC143C;
+}
+
+.breaker-energy {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 0 0 4px;
+    font-size: 0.58rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: #334155;
+}
+
+.breaker-energy[hidden] {
+    display: none;
+}
+
+.breaker-energy b {
+    font-weight: 700;
+    color: #001f3f;
+    text-transform: none;
+    font-variant-numeric: tabular-nums;
+}
+
+.breaker-hist {
+    min-width: 0;
+    margin: 0 0 0.15rem;
+}
+
 .breaker-spark {
     display: block;
     width: 100%;
     max-width: 100%;
-    height: 48px;
-    margin: 0 0 4px;
-}
-
-.breaker-spark .fill {
-    fill: rgba(0, 31, 63, 0.08);
+    height: 24px;
+    margin: 0;
 }
 
 .breaker-spark .line {
     fill: none;
     stroke: #001f3f;
-    stroke-width: 1.8;
+    stroke-width: 1.4;
     stroke-linejoin: round;
     stroke-linecap: round;
 }
 
-.breaker-detail {
-    margin: 0 0 0.2rem;
-    font-size: 0.75rem;
+.breaker-hist-meta {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+    margin-top: 1px;
+    font-size: 0.65rem;
     font-weight: 600;
-    color: #334155;
+    white-space: nowrap;
+}
+
+#breaker-hist-range {
+    color: #64748b;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#breaker-w-now {
+    flex-shrink: 0;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: #001f3f;
 }
 
