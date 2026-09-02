@@ -487,23 +487,108 @@ def _energy_log_candidates() -> list[Path]:
     ]
 
 
-def _energy_load() -> None:
-    global _energy_bins, _energy_loaded
-    if _energy_loaded:
-        return
-    _energy_loaded = True
+_energy_mtime = 0.0
+_energy_recent: dict[str, list[tuple[float, float]]] = {}
+_power_state: dict[str, Any] = {"loaded": False, "online": None, "acOk": None, "offSince": None, "restoreAt": None, "outages": []}
+_POWER_KEYS = ("online", "acOk", "offSince", "restoreAt", "outages")
+
+
+def _energy_store_path() -> Path:
     for path in _energy_log_candidates():
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
+        if path.is_file():
+            return path
+    return _energy_log_candidates()[0]
+
+
+def _energy_merge_disk(data: Any) -> None:
+    """Fold a store payload from disk into memory (max per hour bin; union of outages; newest restore)."""
+    if not isinstance(data, dict):
+        return
+    bins = data.get("bins") if isinstance(data.get("bins"), dict) else {}
+    for dev, hours in bins.items():
+        if not isinstance(hours, dict):
             continue
-        if isinstance(data, dict):
-            bins = data.get("bins") if isinstance(data.get("bins"), dict) else {}
-            _energy_bins = {
-                str(dev): {str(h): float(v) for h, v in (hours or {}).items() if isinstance(v, (int, float))}
-                for dev, hours in bins.items()
-                if isinstance(hours, dict)
+        mine = _energy_bins.setdefault(str(dev), {})
+        for h, v in hours.items():
+            if isinstance(v, (int, float)):
+                mine[str(h)] = max(float(v), float(mine.get(str(h)) or 0.0))
+    recent = data.get("recent") if isinstance(data.get("recent"), dict) else {}
+    for dev, rows in recent.items():
+        if not isinstance(rows, list):
+            continue
+        merged = {round(float(t), 3): (float(t), float(w)) for t, w in _energy_recent.get(str(dev), [])}
+        for row in rows:
+            if isinstance(row, list) and len(row) == 2:
+                try:
+                    merged[round(float(row[0]), 3)] = (float(row[0]), float(row[1]))
+                except (TypeError, ValueError):
+                    continue
+        _energy_recent[str(dev)] = [merged[k] for k in sorted(merged)][-_RECENT_N:]
+    saved = data.get("power") if isinstance(data.get("power"), dict) else None
+    if isinstance(saved, dict):
+        for key in ("online", "acOk", "offSince"):
+            if _power_state.get(key) is None and saved.get(key) is not None:
+                _power_state[key] = saved.get(key)
+        outs = {round(float(o.get("to") or 0)): o for o in (_power_state.get("outages") or []) if isinstance(o, dict)}
+        for o in saved.get("outages") or []:
+            if isinstance(o, dict) and o.get("to"):
+                outs.setdefault(round(float(o["to"])), o)
+        _power_state["outages"] = [outs[k] for k in sorted(outs)][-50:]
+        mine_r = _power_state.get("restoreAt")
+        theirs_r = saved.get("restoreAt")
+        if theirs_r is not None and (mine_r is None or float(theirs_r) > float(mine_r)):
+            _power_state["restoreAt"] = theirs_r
+    _power_state["loaded"] = True
+
+
+def _energy_load() -> None:
+    """(Re)load the shared store when another worker has written it. Caller holds _energy_lock."""
+    global _energy_loaded, _energy_mtime
+    path = _energy_store_path()
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        _energy_loaded = True
+        _power_state["loaded"] = True
+        return
+    if _energy_loaded and mtime == _energy_mtime:
+        return
+    try:
+        with open(_flock_path(path), "a+", encoding="utf-8") as lockf:
+            fcntl.flock(lockf.fileno(), fcntl.LOCK_SH)
+            data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        _energy_loaded = True
+        return
+    _energy_merge_disk(data)
+    _energy_loaded = True
+    _energy_mtime = mtime
+
+
+def _power_load() -> None:
+    _energy_load()
+
+
+def _energy_save() -> None:
+    """Merge with what is on disk, then write. Caller holds _energy_lock."""
+    global _energy_mtime
+    path = _energy_store_path()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(_flock_path(path), "a+", encoding="utf-8") as lockf:
+            fcntl.flock(lockf.fileno(), fcntl.LOCK_EX)
+            try:
+                _energy_merge_disk(json.loads(path.read_text(encoding="utf-8")))
+            except (OSError, json.JSONDecodeError):
+                pass
+            payload = {
+                "bins": _energy_bins,
+                "recent": {dev: [[t, w] for t, w in rows] for dev, rows in _energy_recent.items()},
+                "power": {k: _power_state[k] for k in _POWER_KEYS},
             }
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            _energy_mtime = path.stat().st_mtime
+    except OSError:
         return
 
 
@@ -632,36 +717,6 @@ _ENERGY_SAMPLE_S = 60.0
 _RECOVERY_S = 2 * 3600.0
 _POWER_MIN_OUTAGE_S = 120.0
 _RECENT_N = 30
-_energy_recent: dict[str, list[tuple[float, float]]] = {}
-_power_state: dict[str, Any] = {"loaded": False, "online": None, "acOk": None, "offSince": None, "restoreAt": None, "outages": []}
-
-
-def _power_load() -> None:
-    if _power_state["loaded"]:
-        return
-    _power_state["loaded"] = True
-    for path in _energy_log_candidates():
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            continue
-        saved = data.get("power") if isinstance(data, dict) else None
-        if isinstance(saved, dict):
-            for key in ("online", "acOk", "offSince", "restoreAt"):
-                _power_state[key] = saved.get(key)
-            _power_state["outages"] = [o for o in (saved.get("outages") or []) if isinstance(o, dict)][-50:]
-        return
-
-
-def _energy_save() -> None:
-    payload = json.dumps({"bins": _energy_bins, "power": {k: _power_state[k] for k in ("online", "acOk", "offSince", "restoreAt", "outages")}})
-    for path in _energy_log_candidates():
-        try:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(payload, encoding="utf-8")
-            return
-        except OSError:
-            continue
 
 
 def _power_mark(*, online: bool | None = None, ac_ok: bool | None = None, now: float | None = None) -> None:
@@ -697,7 +752,7 @@ def _power_snapshot(now: float) -> dict[str, Any]:
     with _energy_lock:
         _power_load()
         restore = _power_state.get("restoreAt")
-    out = {"restoreAt": restore, "online": _power_state.get("online"), "acOk": _power_state.get("acOk")}
+        out = {"restoreAt": restore, "online": _power_state.get("online"), "acOk": _power_state.get("acOk")}
     out["recovery"] = bool(restore) and (now - float(restore)) < _RECOVERY_S
     out["sinceRestoreS"] = int(now - float(restore)) if restore else None
     return out
@@ -724,9 +779,11 @@ def _energy_note_recent(device: str, status: list[Any], now: float) -> None:
             w = _scale_power_w(row.get("value"))
             if w is None:
                 return
-            rec = _energy_recent.setdefault(device, [])
-            rec.append((now, w))
-            del rec[:-_RECENT_N]
+            with _energy_lock:
+                _energy_load()
+                rec = _energy_recent.setdefault(device, [])
+                rec.append((now, w))
+                del rec[:-_RECENT_N]
             return
 
 
@@ -954,13 +1011,29 @@ def _energy_analysis(device: str, days: list[dict[str, Any]], now: float) -> dic
     }
 
 
+_energy_sampler_lockf = None
+_energy_sampler_checked_at = 0.0
+
+
 def _ensure_energy_sampler(device: str) -> None:
-    """Keep hourly bins filling even when nobody has the card open."""
-    global _energy_thread
+    """Keep hourly bins filling even when nobody has the card open. One sampler across all uvicorn workers."""
+    global _energy_thread, _energy_sampler_lockf, _energy_sampler_checked_at
     if _energy_thread is not None and _energy_thread.is_alive():
         return
     if os.getenv("ARIAL_ENERGY_SAMPLER", "1").strip().lower() in {"0", "false", "no"}:
         return
+    now = time.time()
+    if now - _energy_sampler_checked_at < 30:
+        return
+    _energy_sampler_checked_at = now
+    lock_path = Path(str(_energy_store_path()) + ".sampler.lock")
+    try:
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        lockf = open(lock_path, "a+", encoding="utf-8")
+        fcntl.flock(lockf.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        return  # another worker owns the sampler
+    _energy_sampler_lockf = lockf
     _energy_thread = threading.Thread(target=_energy_sampler_loop, args=(device,), name="arial-energy-sampler", daemon=True)
     _energy_thread.start()
 
