@@ -201,9 +201,9 @@
         if (!el) return;
         el.style.fontSize = "";
         var w = el.clientWidth;
-        var h = el.clientHeight || 22;
+        var h = el.clientHeight || 32;
         if (w < 12) return;
-        var size = Math.min(36, Math.max(14, h));
+        var size = Math.min(48, Math.max(22, h + 10));
         el.style.fontSize = size + "px";
         var n = 0;
         while (n < 28 && size > 11 && (el.scrollWidth > w + 1 || el.scrollHeight > h + 1)) {

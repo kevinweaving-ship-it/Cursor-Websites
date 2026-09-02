@@ -121,7 +121,8 @@ def test_welcome_credits_roll_and_fade():
     assert "--welcome-x" in js
     credits = css.split("#lcd-welcome.credits {", 1)[1].split("}", 1)[0]
     assert "left: 2px;" in credits
-    assert "bottom: 1px;" in credits
+    assert "bottom: 0;" in credits
+    assert "font-size: 32px;" in credits
     assert "align-self: flex-end;" in css.split("#lcd-welcome {", 1)[1].split("}", 1)[0]
     assert "welcomeAcross" in css
     assert "welcomeBackLeft" in css
@@ -196,12 +197,15 @@ def test_lcd_status_text_is_bold():
     html = (Path(__file__).resolve().parent / "index.html").read_text(encoding="utf-8")
     js = (Path(__file__).resolve().parent / "app.js").read_text(encoding="utf-8")
     assert 'class="lcd-toprow"' in html
-    block = css.split("#lcd-2 {", 1)[1].split("}", 1)[0]
+    block = css.split("\n#lcd-2 {", 1)[1].split("}", 1)[0]
     assert "justify-content: center;" in block
     assert "font-family: Anton" in block
+    assert "font-size: 32px;" in block
     assert "text-transform: uppercase;" in block
-    assert "lcdArmedSlow" in css
-    assert "lcdReadyFlash" in css
+    assert "lcdTextFlash" in css
+    assert "lcdArmedSlow" not in css
+    assert "lcdReadyFlash" not in css
+    assert "animation: lcdflash" not in css
     assert 'st === "notready"' in js
     assert "zone-open" in js
     assert "border-radius: 8px;" in css.split(".lcd {", 1)[1].split("}", 1)[0]
