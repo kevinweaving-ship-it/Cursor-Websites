@@ -406,6 +406,10 @@ html, body {
     display: block;
 }
 
+.lcd.login-error #lcd-welcome {
+    visibility: hidden;
+}
+
 #lcd-welcome.credits {
     position: absolute;
     left: 2px;

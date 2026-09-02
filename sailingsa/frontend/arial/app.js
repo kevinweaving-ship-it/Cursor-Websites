@@ -1197,6 +1197,7 @@
             main = statusFromDevice(d) || "System Ready";
         }
         setLcdStatus(main, "Login");
+        setWelcome("");
         var lcd = document.querySelector(".lcd");
         if (lcd) lcd.classList.add("login-error");
         syncArmToggle();

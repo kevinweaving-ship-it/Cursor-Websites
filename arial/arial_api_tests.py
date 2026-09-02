@@ -141,6 +141,8 @@ def test_arm_disarm_pending_and_thirty_second_exit():
     assert "login-error" in js
     assert "function rejectGong()" in js
     assert 'setWelcome("Login", 2200)' not in js
+    assert 'setLcdStatus(main, "Login")' in js
+    assert ".lcd.login-error #lcd-welcome" in css
     assert 'setLcdStatus("System Armed", "Login")' not in js
     assert 'setLcdStatus("Login", "");' not in js
     assert "function rejectNeedLogin()" in js
