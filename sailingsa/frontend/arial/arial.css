@@ -1272,6 +1272,191 @@ html, body {
 .breaker-flag[data-flag="check"] { color: #DC143C; }
 .breaker-flag[data-flag="check"] .breaker-flag-dot { background: #DC143C; }
 
+.lights-pop {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(0, 31, 63, 0.45);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+.lights-pop[hidden] {
+    display: none;
+}
+
+.lights-panel {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 300px;
+    background: #ffffff;
+    border: 1.6px solid #6a7378;
+    border-radius: 13px;
+    padding: 0.35rem 0.5rem 0.4rem;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+}
+
+.lights-head {
+    align-items: center;
+}
+
+.lights-all {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.lights-all-btn {
+    min-height: 24px;
+    padding: 0 7px;
+    background: #ffffff;
+    color: #001f3f;
+    border: 1px solid #001f3f;
+    border-radius: 4px;
+    font-size: 0.55rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+}
+
+.lights-all-btn:active {
+    background: #001f3f;
+    color: #ffffff;
+}
+
+.lights-close {
+    width: 28px;
+    height: 24px;
+    background: transparent;
+    border: 0;
+    color: #001f3f;
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.lights-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.light-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-height: 88px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+.light-btn:active {
+    transform: translateY(1px);
+}
+
+.light-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 3px solid #cbd5e1;
+    position: relative;
+    box-sizing: border-box;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.light-icon::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: -5px;
+    width: 3px;
+    height: 12px;
+    margin-left: -1.5px;
+    background: #ffffff;
+    box-shadow: 0 0 0 2px #ffffff;
+}
+
+.light-icon::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 2px;
+    width: 3px;
+    height: 12px;
+    margin-left: -1.5px;
+    border-radius: 2px;
+    background: #cbd5e1;
+    transition: background 0.15s;
+}
+
+.light-btn.on {
+    background: #ffffff;
+    border-color: #12b028;
+}
+
+.light-btn.on .light-icon {
+    border-color: #12b028;
+    box-shadow: 0 0 10px rgba(18, 176, 40, 0.45);
+}
+
+.light-btn.on .light-icon::after {
+    background: #12b028;
+}
+
+.light-btn.pending .light-icon {
+    border-color: #e67e00;
+}
+
+.light-btn.pending .light-icon::after {
+    background: #e67e00;
+}
+
+.light-btn.unknown {
+    opacity: 0.55;
+}
+
+.light-name {
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: #001f3f;
+    letter-spacing: 0.02em;
+}
+
+.light-state {
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: #94a3b8;
+}
+
+.light-btn.on .light-state {
+    color: #12b028;
+}
+
+.lights-note {
+    margin: 5px 0 0;
+    min-height: 0.8rem;
+    font-size: 0.55rem;
+    font-weight: 600;
+    color: #64748b;
+    text-align: center;
+}
+
+.lights-note.fault {
+    color: #DC143C;
+}
+
 .breaker-day {
     --day-colour: #001f3f;
     min-width: 0;

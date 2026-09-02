@@ -2380,6 +2380,139 @@
 
     window.arialClicks = loadClicks();
 
+    // ---- LIGHTS key (was STAY): tap = popup, hold = all lights on ----
+    var LIGHTS_DEVICE = "bf7f4a91ef39b11261xcua";
+    var LIGHTS_HOLD_MS = 650;
+    var lightsPress = null;
+    var lightsPoll = null;
+    var lightsState = {};
+
+    function lightsOpen() {
+        return !document.getElementById("lights-pop").hidden;
+    }
+
+    function renderLights(data) {
+        var note = document.getElementById("lights-note");
+        var rows = data && Array.isArray(data.switches) ? data.switches : [];
+        var i;
+        for (i = 0; i < rows.length; i += 1) {
+            var code = rows[i].code;
+            var on = rows[i].on;
+            lightsState[code] = on;
+            var btn = document.querySelector('#lights-grid .light-btn[data-switch="' + code + '"]');
+            if (!btn) continue;
+            btn.classList.remove("pending");
+            btn.classList.toggle("on", on === true);
+            btn.classList.toggle("unknown", on == null);
+            var st = btn.querySelector(".light-state");
+            if (st) st.textContent = on == null ? "—" : on ? "ON" : "OFF";
+        }
+        if (note) {
+            if (data && data.online === false) { note.textContent = "Switch offline"; note.classList.add("fault"); }
+            else if (data && !data.ok) { note.textContent = data.tuyaMsg || "No link"; note.classList.add("fault"); }
+            else { note.textContent = ""; note.classList.remove("fault"); }
+        }
+    }
+
+    async function loadLights() {
+        if (loadLights._busy) return;
+        loadLights._busy = true;
+        try {
+            var res = await fetch("/api/arial/tuya/lights?device_id=" + LIGHTS_DEVICE, { credentials: "same-origin", cache: "no-store" });
+            renderLights(await res.json());
+        } catch (e) {
+            renderLights({ ok: false, tuyaMsg: "No link", switches: [] });
+        } finally {
+            loadLights._busy = false;
+        }
+    }
+
+    async function setLight(target, value) {
+        var user = window.arialUser;
+        if (!user || !user.code) { rejectNeedLogin(); return; }
+        var sel = target === "all" ? "#lights-grid .light-btn" : '#lights-grid .light-btn[data-switch="' + target + '"]';
+        var btns = document.querySelectorAll(sel);
+        var i;
+        for (i = 0; i < btns.length; i += 1) btns[i].classList.add("pending");
+        try {
+            var res = await fetch("/api/arial/tuya/switch", {
+                method: "POST",
+                credentials: "same-origin",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ code: user.code, device_id: LIGHTS_DEVICE, switch: target, value: !!value })
+            });
+            var data = await res.json();
+            if (!res.ok) {
+                renderLights({ ok: false, tuyaMsg: (data && data.detail) || "Switch failed", switches: [] });
+                for (i = 0; i < btns.length; i += 1) btns[i].classList.remove("pending");
+                return;
+            }
+            renderLights(data);
+        } catch (e) {
+            for (i = 0; i < btns.length; i += 1) btns[i].classList.remove("pending");
+            renderLights({ ok: false, tuyaMsg: "No link", switches: [] });
+        }
+    }
+
+    function openLights() {
+        if (!isLoggedIn()) { rejectNeedLogin(); return; }
+        var pop = document.getElementById("lights-pop");
+        if (!pop) return;
+        pop.hidden = false;
+        loadLights();
+        if (lightsPoll) clearInterval(lightsPoll);
+        lightsPoll = setInterval(loadLights, 5000);
+    }
+
+    function closeLights() {
+        var pop = document.getElementById("lights-pop");
+        if (pop) pop.hidden = true;
+        if (lightsPoll) clearInterval(lightsPoll);
+        lightsPoll = null;
+    }
+
+    function bindLights() {
+        var pop = document.getElementById("lights-pop");
+        if (!pop) return;
+        pop.addEventListener("click", function (ev) {
+            if (ev.target === pop) closeLights();
+        });
+        document.getElementById("lights-close").addEventListener("click", closeLights);
+        document.getElementById("lights-all-on").addEventListener("click", function () { setLight("all", true); });
+        document.getElementById("lights-all-off").addEventListener("click", function () { setLight("all", false); });
+        var grid = document.getElementById("lights-grid");
+        grid.addEventListener("click", function (ev) {
+            var btn = ev.target.closest(".light-btn");
+            if (!btn) return;
+            var code = btn.getAttribute("data-switch");
+            setLight(code, !(lightsState[code] === true));
+        });
+        document.addEventListener("keydown", function (ev) {
+            if (ev.key === "Escape" && lightsOpen()) closeLights();
+        });
+    }
+
+    function lightsPressStart() {
+        if (lightsPress && lightsPress.timer) clearTimeout(lightsPress.timer);
+        lightsPress = { at: Date.now(), fired: false, timer: null };
+        lightsPress.timer = setTimeout(function () {
+            lightsPress.fired = true;
+            if (!isLoggedIn()) { rejectNeedLogin(); return; }
+            openLights();
+            setLight("all", true);
+        }, LIGHTS_HOLD_MS);
+    }
+
+    function lightsPressEnd() {
+        if (!lightsPress) return;
+        var p = lightsPress;
+        lightsPress = null;
+        if (p.timer) clearTimeout(p.timer);
+        if (!p.fired) openLights();
+    }
+
+    bindLights();
+
     var keypad = document.getElementById("pad-frame") || document.querySelector(".pad");
     keypad.addEventListener("pointerdown", function () {
         unlockAudio();
@@ -2388,7 +2521,24 @@
         var btn = ev.target.closest("[data-key]");
         if (!btn) return;
         unlockAudio();
+        if (btn.getAttribute("data-key") === "STAY") lightsPressStart();
         onKey(btn.getAttribute("data-key"));
+    });
+    keypad.addEventListener("pointerup", function (ev) {
+        var btn = ev.target.closest("[data-key]");
+        if (btn && btn.getAttribute("data-key") === "STAY") lightsPressEnd();
+        else if (lightsPress) { clearTimeout(lightsPress.timer); lightsPress = null; }
+    });
+    keypad.addEventListener("pointercancel", function () {
+        if (lightsPress) { clearTimeout(lightsPress.timer); lightsPress = null; }
+    });
+    keypad.addEventListener("contextmenu", function (ev) {
+        // Long-press on the LIGHTS key must not open the browser menu.
+        var btn = ev.target.closest('[data-key="STAY"]');
+        if (btn) ev.preventDefault();
+    });
+    keypad.addEventListener("pointerleave", function () {
+        if (lightsPress) { clearTimeout(lightsPress.timer); lightsPress = null; }
     });
 
     try {

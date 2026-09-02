@@ -491,7 +491,8 @@ def tuya_probe(device_id: str | None = None) -> dict[str, Any]:
                 if isinstance(result, list):
                     _energy_note_recent(out["deviceId"], result, time.time())
                 # Bins are written only by the single sampler thread; probes from browsers must not add to them.
-                _ensure_energy_sampler(out["deviceId"])
+                if out["deviceId"] == ((creds["device_id"] or "").strip() or TUYA_MAINS_METER_ID):
+                    _ensure_energy_sampler(out["deviceId"])
             else:
                 out["hint"] = _tuya_hint(out["tuyaCode"], out["tuyaMsg"], token_ok=True, device_ok=False)
                 return out
@@ -2369,6 +2370,94 @@ def arial_status(request: Request):
 def arial_tuya_probe(device_id: Optional[str] = None):
     """Mint a token and GET /v1.0/devices/{id}/status. Does not unpause TUYS UI."""
     return tuya_probe(device_id)
+
+
+TUYA_LIGHTS_ID = "bf7f4a91ef39b11261xcua"  # HSK - Light Switch x4 (CB04-SBL)
+LIGHT_SWITCHES = ("switch_1", "switch_2", "switch_3", "switch_4")
+
+
+def _tuya_send_commands(creds: dict[str, str], device: str, commands: list[dict[str, Any]]) -> dict[str, Any]:
+    _tuya_ensure_token(creds)
+    access = str((_tuya_token or {}).get("access_token") or "")
+    if not access:
+        return {"success": False, "msg": "no token"}
+    t = int(time.time() * 1000)
+    path = f"/v1.0/devices/{device}/commands"
+    body = json.dumps({"commands": commands}, separators=(",", ":"))
+    body_sha = hashlib.sha256(body.encode("utf-8")).hexdigest()
+    str_to_sign = f"POST\n{body_sha}\n\n{path}"
+    sign = tuya_sign(creds["secret"], creds["client_id"], t, str_to_sign, access_token=access)
+    headers = {
+        "client_id": creds["client_id"],
+        "sign": sign,
+        "sign_method": "HMAC-SHA256",
+        "t": str(t),
+        "lang": "en",
+        "access_token": access,
+        "Content-Type": "application/json",
+    }
+    client = _tuya_sync_client(creds["endpoint"])
+    resp = client.post(path, headers=headers, content=body)
+    try:
+        data = resp.json()
+    except Exception:
+        data = {"success": False, "code": resp.status_code, "msg": (resp.text or "")[:240]}
+    return data if isinstance(data, dict) else {"success": False, "msg": "non-object tuya response"}
+
+
+def _lights_payload(device: str) -> dict[str, Any]:
+    probe = tuya_probe(device)
+    switches: dict[str, bool | None] = {}
+    for row in probe.get("status") or []:
+        if isinstance(row, dict) and row.get("code") in LIGHT_SWITCHES:
+            switches[str(row["code"])] = bool(row.get("value"))
+    return {
+        "ok": bool(probe.get("ok")),
+        "deviceId": device,
+        "online": probe.get("deviceOk"),
+        "switches": [{"code": c, "on": switches.get(c)} for c in LIGHT_SWITCHES],
+        "tuyaMsg": probe.get("tuyaMsg") or "",
+    }
+
+
+@router.get("/api/arial/tuya/lights")
+def arial_tuya_lights(device_id: Optional[str] = None):
+    return _lights_payload((device_id or TUYA_LIGHTS_ID).strip())
+
+
+@router.post("/api/arial/tuya/switch")
+async def arial_tuya_switch(request: Request):
+    """Keypad-PIN protected light switching: {code, switch: switch_n|all, value: bool}."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    code = str(body.get("code") or "").strip()
+    if code not in KEYPAD_CODES:
+        raise HTTPException(status_code=401, detail="Invalid code")
+    device = str(body.get("device_id") or TUYA_LIGHTS_ID).strip()
+    target = str(body.get("switch") or "").strip()
+    value = bool(body.get("value"))
+    if target == "all":
+        commands = [{"code": c, "value": value} for c in LIGHT_SWITCHES]
+    elif target in LIGHT_SWITCHES:
+        commands = [{"code": target, "value": value}]
+    else:
+        raise HTTPException(status_code=400, detail="Unknown switch")
+    creds = _tuya_creds()
+    if not (creds["client_id"] and creds["secret"]):
+        raise HTTPException(status_code=503, detail="Tuya not configured")
+    with _tuya_http_lock:
+        result = _tuya_send_commands(creds, device, commands)
+        if int(result.get("code") or 0) == TUYA_CODE_TOKEN_INVALID:
+            _tuya_reset_token()
+            result = _tuya_send_commands(creds, device, commands)
+    if not result.get("success"):
+        raise HTTPException(status_code=502, detail=f"Tuya: {result.get('msg') or result.get('code') or 'command failed'}")
+    _remember_keypad(code, f"lights-{target}-{'on' if value else 'off'}")
+    out = _lights_payload(device)
+    out["actor"] = KEYPAD_CODES[code]
+    return out
 
 
 @router.get("/api/arial/tuya/energy")

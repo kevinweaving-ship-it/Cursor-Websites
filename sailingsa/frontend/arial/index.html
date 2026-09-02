@@ -6,7 +6,7 @@
     <meta name="robots" content="noindex,nofollow">
     <meta http-equiv="Cache-Control" content="no-store">
     <title>Arial</title>
-    <link rel="stylesheet" href="/arial/arial.css?v=194">
+    <link rel="stylesheet" href="/arial/arial.css?v=195">
 </head>
 <body>
     <div class="pad-wrap" id="pad-frame">
@@ -76,7 +76,7 @@
         <div class="led ac on" id="led-ac" title="AC"></div>
         <div class="led status" id="led-status" title="STATUS"></div>
         <div class="led-status-label">Status</div>
-        <button type="button" class="hot key-fn" data-key="STAY" aria-label="STAY"><span class="key-label">STAY</span></button>
+        <button type="button" class="hot key-fn" data-key="STAY" aria-label="Lights"><span class="key-label">LIGHTS</span></button>
         <button type="button" class="hot key-fn" data-key="FORCE" aria-label="FORCE"><span class="key-label">FORCE</span></button>
         <button type="button" class="hot key-fn" data-key="ARM" aria-label="ARM"><span class="key-label">ARM</span></button>
         <button type="button" class="hot key-fn arm-toggle to-arm" id="arm-toggle" data-key="TOGGLE" aria-label="ARM">
@@ -120,6 +120,25 @@
         <audio id="key-reject" src="/arial/key-reject.wav?v=151" preload="auto" playsinline></audio>
     </div>
     </div>
+    </div>
+    <div class="lights-pop" id="lights-pop" hidden>
+        <div class="lights-panel card" role="dialog" aria-modal="true" aria-labelledby="lights-title">
+            <div class="activity-head lights-head">
+                <h2 class="section-title" id="lights-title">Lights</h2>
+                <div class="lights-all">
+                    <button type="button" class="lights-all-btn" id="lights-all-on">All on</button>
+                    <button type="button" class="lights-all-btn" id="lights-all-off">All off</button>
+                    <button type="button" class="lights-close" id="lights-close" aria-label="Close">&times;</button>
+                </div>
+            </div>
+            <div class="lights-grid" id="lights-grid">
+                <button type="button" class="light-btn" data-switch="switch_1"><span class="light-icon" aria-hidden="true"></span><span class="light-name">Switch 1</span><span class="light-state">—</span></button>
+                <button type="button" class="light-btn" data-switch="switch_2"><span class="light-icon" aria-hidden="true"></span><span class="light-name">Switch 2</span><span class="light-state">—</span></button>
+                <button type="button" class="light-btn" data-switch="switch_3"><span class="light-icon" aria-hidden="true"></span><span class="light-name">Switch 3</span><span class="light-state">—</span></button>
+                <button type="button" class="light-btn" data-switch="switch_4"><span class="light-icon" aria-hidden="true"></span><span class="light-name">Switch 4</span><span class="light-state">—</span></button>
+            </div>
+            <p class="lights-note" id="lights-note"></p>
+        </div>
     </div>
     <div class="container arial-below" hidden>
         <div class="card" id="arial-activity">
@@ -267,6 +286,6 @@
         saStamp();
     })();
     </script>
-    <script src="/arial/app.js?v=194"></script>
+    <script src="/arial/app.js?v=195"></script>
 </body>
 </html>

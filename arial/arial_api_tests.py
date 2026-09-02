@@ -458,6 +458,34 @@ def test_area_arm_uses_pingoa_not_olarm_user(tmp_path, monkeypatch):
     assert stray["activity"].endswith("· App")
 
 
+def test_lights_key_popup_and_switch_endpoint(monkeypatch):
+    root = Path(__file__).resolve().parent
+    html = (root / "index.html").read_text(encoding="utf-8")
+    js = (root / "app.js").read_text(encoding="utf-8")
+    css = (root / "arial.css").read_text(encoding="utf-8")
+    assert '<span class="key-label">LIGHTS</span>' in html
+    assert 'data-key="STAY"' in html  # key geometry untouched
+    assert 'id="lights-pop"' in html and html.count('class="light-btn"') == 4
+    assert "LIGHTS_HOLD_MS = 650" in js and "function lightsPressStart" in js
+    assert '/api/arial/tuya/lights?device_id=' in js and '"/api/arial/tuya/switch"' in js
+    assert ".lights-grid" in css and "grid-template-columns: 1fr 1fr;" in css.split(".lights-grid {", 1)[1].split("}", 1)[0]
+    app = FastAPI()
+    app.include_router(arial_api.router)
+    client = TestClient(app)
+    assert client.post("/api/arial/tuya/switch", json={"code": "0001", "switch": "switch_1", "value": True}).status_code == 401
+    assert client.post("/api/arial/tuya/switch", json={"code": "2640", "switch": "switch_9", "value": True}).status_code == 400
+    sent: list[Any] = []
+    monkeypatch.setattr(arial_api, "_tuya_creds", lambda: {"client_id": "x", "secret": "y", "endpoint": "https://e", "device_id": "m"})
+    monkeypatch.setattr(arial_api, "_tuya_send_commands", lambda creds, device, commands: (sent.append((device, commands)) or {"success": True}))
+    monkeypatch.setattr(arial_api, "_lights_payload", lambda device: {"ok": True, "deviceId": device, "online": True, "switches": [{"code": "switch_1", "on": True}], "tuyaMsg": ""})
+    monkeypatch.setattr(arial_api, "_remember_keypad", lambda code, cmd: {"from": "Comnet", "at": time.time()})
+    out = client.post("/api/arial/tuya/switch", json={"code": "2640", "switch": "all", "value": False}).json()
+    assert out["actor"]["from"] == "Comnet"
+    assert sent[0][0] == arial_api.TUYA_LIGHTS_ID
+    assert [c["code"] for c in sent[0][1]] == list(arial_api.LIGHT_SWITCHES)
+    assert all(c["value"] is False for c in sent[0][1])
+
+
 def test_olarm_app_disarm_arrives_as_notready():
     row = arial_api.format_olarm_event(
         {
@@ -728,7 +756,7 @@ def test_activity_keeps_30_day_store_and_checksums_on_login():
     assert 'prependActivity("DISARMED")' in js
     assert "setInterval(loadActivity, 3000)" in js
     assert "restoreActivityStore();" in js
-    assert "app.js?v=194" in html
+    assert "app.js?v=195" in html
 
 
 def test_activity_armed_once_remote_no_countdown_or_notready():
