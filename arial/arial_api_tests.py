@@ -108,6 +108,11 @@ def test_panel_cache_ttl(monkeypatch):
     assert arial_api._cached_panel() is None
 
 
+def test_lcd_status_text_is_bold():
+    css = (Path(__file__).resolve().parent / "arial.css").read_text(encoding="utf-8")
+    assert "#lcd-2 {\n    text-align: right;\n    width: 100%;\n    font-weight: 900;" in css
+
+
 def test_last_pin_digit_beeps_then_welcome_tune_waits():
     js = (Path(__file__).resolve().parent / "app.js").read_text(encoding="utf-8")
     assert "willAccept" not in js

@@ -143,6 +143,7 @@ html, body {
     position: relative;
     z-index: 1;
     white-space: nowrap;
+    font-weight: 900;
 }
 
 .lcd-head {
@@ -205,6 +206,7 @@ html, body {
 #lcd-2 {
     text-align: right;
     width: 100%;
+    font-weight: 900;
 }
 
 .led {
