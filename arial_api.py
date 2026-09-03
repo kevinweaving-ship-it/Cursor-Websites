@@ -2321,7 +2321,12 @@ def _countdown_int(value: Any) -> int | None:
     return None
 
 
+SITE_EXIT_DELAY = int((os.getenv("ARIAL_EXIT_DELAY") or "0").strip() or 0)
+
+
 def _profile_exit_delay(profile: dict[str, Any]) -> int:
+    if SITE_EXIT_DELAY > 0:
+        return SITE_EXIT_DELAY   # panel's real exit delay, set per site (Olarm's profile does not publish it)
     for key in ("exitDelay", "exitDelaySeconds", "areasExitDelay", "armDelay", "exitTime"):
         raw = profile.get(key)
         if isinstance(raw, list) and raw:

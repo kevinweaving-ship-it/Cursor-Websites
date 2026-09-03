@@ -551,6 +551,11 @@
 
     function applyMultiAreaLcd(device) {
         var areas = device.arialAreas;
+        if (armSettled || armPending || disarmPending || localExitLeft() > 0) {
+            armSettled = false; armPending = false; disarmPending = false; disarmNeedsStatus = false;
+            clearLocalExit();
+            storeDel("arialArmSettled");
+        }
         var lcd = document.querySelector(".lcd");
         var led = document.getElementById("led-status");
         var arming = [], armed = [], alarm = [];
@@ -3032,6 +3037,7 @@
     }, 1000);
     setInterval(syncArmToggle, 400);
     setInterval(function () {
+        if (isMultiArea(window.arialDevice)) return;   // per-area LCD is driven by applyMultiAreaLcd
         if (disarmPending) return;
         if (armSettled) return;
         if (armPending && exitCountStarted && localExitLeft() === 0) {
