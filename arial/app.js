@@ -1098,8 +1098,8 @@
             title: { show: false },
             detail: {
                 valueAnimation: true,
-                offsetCenter: [0, "18%"],
-                fontSize: kind === "w" ? 24 : 15,
+                offsetCenter: [0, "24%"],
+                fontSize: kind === "w" ? 23 : 14,
                 fontWeight: 800,
                 fontFamily: ARIAL_THEME.font,
                 color: ARIAL_THEME.navy,
