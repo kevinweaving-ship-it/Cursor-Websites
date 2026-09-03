@@ -2801,7 +2801,7 @@
     window.addEventListener("resize", fitLcdStatus);
     setInterval(tickTime, 1000);
     setInterval(loadActivity, 3000);
-    setInterval(loadBreaker, 10000);
+    setInterval(loadBreaker, 3000);
     setInterval(function () {
         if (localExitLeft() > 0 || disarmPending || armPending || panelIsExiting(window.arialDevice)) loadStatus();
     }, 1000);
