@@ -6,7 +6,7 @@
     <meta name="robots" content="noindex,nofollow">
     <meta http-equiv="Cache-Control" content="no-store">
     <title>Arial</title>
-    <link rel="stylesheet" href="/arial/arial.css?v=201">
+    <link rel="stylesheet" href="/arial/arial.css?v=202">
 </head>
 <body>
     <div class="pad-wrap" id="pad-frame">
@@ -168,60 +168,18 @@
             </div>
             <div class="breaker-dials">
                 <div class="breaker-dial" data-kind="v">
-                    <svg class="breaker-gauge" viewBox="0 0 100 62" aria-hidden="true">
-                        <path class="track" d="M12 50 A38 38 0 0 1 88 50"/>
-                        <path class="zone zone-crit" d="M12 50 A38 38 0 0 1 88 50" pathLength="100" stroke-dasharray="13.21 100" stroke-dashoffset="0.00"/>
-                        <path class="zone zone-warn" d="M12 50 A38 38 0 0 1 88 50" pathLength="100" stroke-dasharray="16.98 100" stroke-dashoffset="-13.21"/>
-                        <path class="zone zone-ok" d="M12 50 A38 38 0 0 1 88 50" pathLength="100" stroke-dasharray="52.83 100" stroke-dashoffset="-30.19"/>
-                        <path class="zone zone-warn" d="M12 50 A38 38 0 0 1 88 50" pathLength="100" stroke-dasharray="16.98 100" stroke-dashoffset="-83.02"/>
-                        <path class="arc" id="breaker-arc-v" d="M12 50 A38 38 0 0 1 88 50" pathLength="100" stroke-dasharray="0 100"/>
-                        <line class="tick" x1="12" y1="50" x2="17" y2="50"/>
-                        <line class="tick" x1="23.13" y1="23.13" x2="26.66" y2="26.66"/>
-                        <line class="tick" x1="50" y1="12" x2="50" y2="17"/>
-                        <line class="tick" x1="76.87" y1="23.13" x2="73.34" y2="26.66"/>
-                        <line class="tick" x1="88" y1="50" x2="83" y2="50"/>
-                        <line class="needle" id="breaker-needle-v" x1="50" y1="50" x2="18" y2="50"/>
-                        <circle class="hub" cx="50" cy="50" r="2.8"/>
-                    </svg>
+                    <div class="breaker-echart" id="breaker-chart-v" aria-hidden="true"></div>
                     <span class="breaker-dial-val" id="breaker-v">—</span>
                     <span class="breaker-dial-unit">V</span>
                 </div>
                 <div class="breaker-dial" data-kind="a">
-                    <svg class="breaker-gauge" viewBox="0 0 100 62" aria-hidden="true">
-                        <path class="track" d="M12 50 A38 38 0 0 1 88 50"/>
-                        <path class="zone zone-ok" d="M12 50 A38 38 0 0 1 88 50" pathLength="100" stroke-dasharray="86.36 100" stroke-dashoffset="0.00"/>
-                        <path class="zone zone-warn" d="M12 50 A38 38 0 0 1 88 50" pathLength="100" stroke-dasharray="4.55 100" stroke-dashoffset="-86.36"/>
-                        <path class="zone zone-crit" d="M12 50 A38 38 0 0 1 88 50" pathLength="100" stroke-dasharray="9.09 100" stroke-dashoffset="-90.91"/>
-                        <path class="arc" id="breaker-arc-a" d="M12 50 A38 38 0 0 1 88 50" pathLength="100" stroke-dasharray="0 100"/>
-                        <line class="tick" x1="12" y1="50" x2="17" y2="50"/>
-                        <line class="tick" x1="23.13" y1="23.13" x2="26.66" y2="26.66"/>
-                        <line class="tick" x1="50" y1="12" x2="50" y2="17"/>
-                        <line class="tick" x1="76.87" y1="23.13" x2="73.34" y2="26.66"/>
-                        <line class="tick" x1="88" y1="50" x2="83" y2="50"/>
-                        <line class="limit" x1="7" y1="50" x2="20" y2="50" transform="rotate(163.64 50 50)"/>
-                        <line class="needle" id="breaker-needle-a" x1="50" y1="50" x2="18" y2="50"/>
-                        <circle class="hub" cx="50" cy="50" r="2.8"/>
-                    </svg>
+                    <div class="breaker-echart" id="breaker-chart-a" aria-hidden="true"></div>
                     <span class="breaker-dial-val" id="breaker-a">—</span>
                     <span class="breaker-dial-unit">A</span>
                     <span class="breaker-dial-max">MAX 10 A</span>
                 </div>
                 <div class="breaker-dial breaker-dial-power" data-kind="w">
-                    <svg class="breaker-gauge" viewBox="0 0 100 62" aria-hidden="true">
-                        <path class="track" d="M12 50 A38 38 0 0 1 88 50"/>
-                        <path class="zone zone-ok" d="M12 50 A38 38 0 0 1 88 50" pathLength="100" stroke-dasharray="86.96 100" stroke-dashoffset="0.00"/>
-                        <path class="zone zone-warn" d="M12 50 A38 38 0 0 1 88 50" pathLength="100" stroke-dasharray="3.95 100" stroke-dashoffset="-86.96"/>
-                        <path class="zone zone-crit" d="M12 50 A38 38 0 0 1 88 50" pathLength="100" stroke-dasharray="9.09 100" stroke-dashoffset="-90.91"/>
-                        <path class="arc" id="breaker-arc-w" d="M12 50 A38 38 0 0 1 88 50" pathLength="100" stroke-dasharray="0 100"/>
-                        <line class="tick" x1="12" y1="50" x2="17" y2="50"/>
-                        <line class="tick" x1="23.13" y1="23.13" x2="26.66" y2="26.66"/>
-                        <line class="tick" x1="50" y1="12" x2="50" y2="17"/>
-                        <line class="tick" x1="76.87" y1="23.13" x2="73.34" y2="26.66"/>
-                        <line class="tick" x1="88" y1="50" x2="83" y2="50"/>
-                        <line class="limit" x1="7" y1="50" x2="20" y2="50" transform="rotate(163.64 50 50)"/>
-                        <line class="needle" id="breaker-needle-w" x1="50" y1="50" x2="18" y2="50"/>
-                        <circle class="hub" cx="50" cy="50" r="2.8"/>
-                    </svg>
+                    <div class="breaker-echart" id="breaker-chart-w" aria-hidden="true"></div>
                     <span class="breaker-dial-val" id="breaker-w">—</span>
                     <span class="breaker-dial-unit">W</span>
                     <span class="breaker-dial-max">MAX 2300 W</span>
@@ -277,6 +235,7 @@
         saStamp();
     })();
     </script>
-    <script src="/arial/app.js?v=201"></script>
+    <script src="/arial/vendor/echarts-arial.min.js?v=6.1.0"></script>
+    <script src="/arial/app.js?v=202"></script>
 </body>
 </html>

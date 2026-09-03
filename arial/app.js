@@ -1053,20 +1053,147 @@
         return "ok";
     }
 
+    // ---- Arial chart theme (white background always): one palette for every gauge/chart on the site ----
+    var ARIAL_THEME = {
+        navy: "#001f3f",
+        ink: "#0f172a",
+        muted: "#64748b",
+        track: "#e2e8f0",
+        ok: "#12b028",
+        warn: "#e67e00",
+        crit: "#DC143C",
+        band: { ok: "rgba(18,176,40,0.28)", warn: "rgba(230,126,0,0.32)", crit: "rgba(220,20,60,0.32)" },
+        font: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif'
+    };
+
+    // Gauge definitions: scale, threshold bands (fractions of the scale) and the hard limit mark.
+    var BREAKER_GAUGES = {
+        v: { min: 200, max: 253, decimals: 1, bands: [["crit", 207], ["warn", 216], ["ok", 244], ["warn", 253]], limit: null, tip: "Normal 216–244 V · Watch 207–216 / 244–253 V · Out of spec below 207 V" },
+        a: { min: 0, max: 11, decimals: 2, bands: [["ok", 9.5], ["warn", 10], ["crit", 11]], limit: 10, tip: "Supply limit 10 A · Watch from 9.5 A" },
+        w: { min: 0, max: 2530, decimals: 0, bands: [["ok", 2200], ["warn", 2300], ["crit", 2530]], limit: 2300, tip: "Supply limit 2300 W (10 A × 230 V) · Watch from 2200 W" }
+    };
+
+    var breakerCharts = {};
+
+    function breakerGaugeOption(kind) {
+        var g = BREAKER_GAUGES[kind];
+        var span = g.max - g.min;
+        var bands = g.bands.map(function (b) { return [(b[1] - g.min) / span, ARIAL_THEME.band[b[0]]]; });
+        var series = [{
+            type: "gauge",
+            center: ["50%", "64%"],
+            radius: "96%",
+            startAngle: 195,
+            endAngle: -15,
+            min: g.min,
+            max: g.max,
+            splitNumber: kind === "v" ? 5 : 5,
+            axisLine: { lineStyle: { width: 9, color: bands } },
+            progress: { show: true, width: 9, roundCap: false, itemStyle: { color: ARIAL_THEME.ok } },
+            axisTick: { distance: -13, length: 3, splitNumber: 4, lineStyle: { color: ARIAL_THEME.navy, width: 0.8 } },
+            splitLine: { distance: -17, length: 7, lineStyle: { color: ARIAL_THEME.navy, width: 1.4 } },
+            axisLabel: { show: false },
+            pointer: { show: true, length: "38%", width: 3, offsetCenter: [0, "-44%"], itemStyle: { color: ARIAL_THEME.navy } },
+            anchor: { show: false },
+            title: { show: false },
+            detail: {
+                valueAnimation: true,
+                offsetCenter: [0, "8%"],
+                fontSize: kind === "w" ? 26 : 17,
+                fontWeight: 800,
+                fontFamily: ARIAL_THEME.font,
+                color: ARIAL_THEME.navy,
+                formatter: function (v) { return v == null || isNaN(v) ? "—" : Number(v).toFixed(g.decimals); }
+            },
+            data: [{ value: g.min }],
+            animationDuration: 900,
+            animationDurationUpdate: 700,
+            animationEasingUpdate: "cubicOut",
+            silent: false
+        }];
+        if (g.limit != null) {
+            series.push({
+                type: "gauge",
+                center: ["50%", "64%"],
+                radius: "96%",
+                startAngle: 195,
+                endAngle: -15,
+                min: g.min,
+                max: g.max,
+                axisLine: { show: false },
+                progress: { show: false },
+                axisTick: { show: false },
+                splitLine: { show: false },
+                axisLabel: { show: false },
+                pointer: { show: true, length: "16%", width: 4, offsetCenter: [0, "-104%"], itemStyle: { color: ARIAL_THEME.crit } },
+                anchor: { show: false },
+                title: { show: false },
+                detail: { show: false },
+                data: [{ value: g.limit }],
+                silent: true,
+                animation: false
+            });
+        }
+        return {
+            animation: true,
+            tooltip: {
+                trigger: "item",
+                confine: true,
+                backgroundColor: ARIAL_THEME.navy,
+                borderWidth: 0,
+                textStyle: { color: "#fff", fontSize: 11, fontFamily: ARIAL_THEME.font },
+                formatter: function () { return g.tip; }
+            },
+            series: series
+        };
+    }
+
+    function initBreakerCharts() {
+        if (typeof window.echarts === "undefined") return;
+        Object.keys(BREAKER_GAUGES).forEach(function (kind) {
+            var el = document.getElementById("breaker-chart-" + kind);
+            if (!el || breakerCharts[kind]) return;
+            var chart = window.echarts.init(el, null, { renderer: "svg" });
+            chart.setOption(breakerGaugeOption(kind));
+            breakerCharts[kind] = chart;
+            var dial = el.closest(".breaker-dial");
+            if (dial) dial.classList.add("has-chart");
+        });
+        if (!initBreakerCharts._bound) {
+            initBreakerCharts._bound = true;
+            window.addEventListener("resize", function () {
+                Object.keys(breakerCharts).forEach(function (k) { breakerCharts[k].resize(); });
+            });
+        }
+    }
+
     function setBreakerGauge(kind, value, min, max) {
-        var pct = 0;
-        if (value != null && max > min) pct = (value - min) / (max - min);
-        if (pct < 0) pct = 0;
-        if (pct > 1) pct = 1;
-        var needle = document.getElementById("breaker-needle-" + kind);
-        if (needle) needle.setAttribute("transform", "rotate(" + (pct * 180).toFixed(1) + " 50 50)");
-        var arc = document.getElementById("breaker-arc-" + kind);
-        if (arc) arc.setAttribute("stroke-dasharray", (value == null ? 0 : pct * 100).toFixed(1) + " 100");
+        var state = breakerDialState(kind, value);
         var dial = document.querySelector('#arial-breaker .breaker-dial[data-kind="' + kind + '"]');
         if (dial) {
-            var state = breakerDialState(kind, value);
             if (state) dial.setAttribute("data-state", state);
             else dial.removeAttribute("data-state");
+        }
+        var chart = breakerCharts[kind];
+        if (chart) {
+            var g = BREAKER_GAUGES[kind];
+            var colour = state === "crit" ? ARIAL_THEME.crit : state === "warn" ? ARIAL_THEME.warn : state === "ok" ? ARIAL_THEME.ok : ARIAL_THEME.track;
+            chart.setOption({
+                series: [{
+                    data: [{ value: value == null ? g.min : Math.min(g.max, Math.max(g.min, value)) }],
+                    progress: { itemStyle: { color: colour } },
+                    pointer: { itemStyle: { color: state === "crit" ? ARIAL_THEME.crit : state === "warn" ? ARIAL_THEME.warn : ARIAL_THEME.navy } },
+                    detail: { color: state === "crit" ? ARIAL_THEME.crit : state === "warn" ? ARIAL_THEME.warn : ARIAL_THEME.navy }
+                }]
+            });
+            return;
+        }
+        // No ECharts: fall back to the plain number under the dial.
+        var needle = document.getElementById("breaker-needle-" + kind);
+        if (needle) {
+            var pct = 0;
+            if (value != null && max > min) pct = Math.min(1, Math.max(0, (value - min) / (max - min)));
+            needle.setAttribute("transform", "rotate(" + (pct * 180).toFixed(1) + " 50 50)");
         }
     }
 
@@ -1627,6 +1754,9 @@
         if (on) {
             restoreActivityStore();
             loadActivity();
+            // Card is display:none until login, so charts can only size themselves now.
+            initBreakerCharts();
+            Object.keys(breakerCharts).forEach(function (k) { breakerCharts[k].resize(); });
             loadBreaker();
         } else {
             saveActivityStore();
