@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v29";
+  var CACHE = "dev2v30";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -2645,6 +2645,7 @@
     if (camBtn) {
       camBtn.onclick = function () {
         followFleet = true;
+        mapSpinManual = false;
         cam = null;
         overlay.camera = true;
         if (window.__sailfishOverlay) window.__sailfishOverlay.camera = true;
@@ -2978,11 +2979,13 @@
     var chartPointerDown = false;
     var drawingMap = false;
     var mapSpin = 0;
+    var mapSpinManual = false;
     function applyMapSpin() {
       var host = document.querySelector(".tracking-dev2-map-first") || document.getElementById("lipton-dev-chart");
       if (host && host.style) host.style.setProperty("--dev2-map-spin", String(mapSpin) + "deg");
     }
     function bumpMapSpin(delta) {
+      mapSpinManual = true;
       mapSpin = ((mapSpin + delta) % 360 + 360) % 360;
       applyMapSpin();
       if (chartMap) {
@@ -3015,6 +3018,7 @@
       };
       if (north) north.onclick = function (ev) {
         if (ev) ev.stopPropagation();
+        mapSpinManual = true;
         mapSpin = 0;
         applyMapSpin();
       };
@@ -3324,6 +3328,19 @@
       var focus = focusForFleet(ts, fleet);
       focusMarkKey = focus.mark;
       focusGate = focus.gate;
+      if (followFleet && !mapSpinManual) {
+        var aim = focus.mark ? markAt(focus.mark, ts) : null;
+        if (!aim && focus.gate && trail[focus.gate] && trail[focus.gate].left && trail[focus.gate].right) {
+          aim = {
+            lat: (trail[focus.gate].left.lat + trail[focus.gate].right.lat) / 2,
+            lon: (trail[focus.gate].left.lon + trail[focus.gate].right.lon) / 2
+          };
+        }
+        if (aim) {
+          mapSpin = ((360 - bearingDeg(fleet.lat, fleet.lon, aim.lat, aim.lon)) % 360 + 360) % 360;
+          applyMapSpin();
+        }
+      }
       var nearStart = fleetNearStart(boatPts, ts);
       var pts = boatPts.slice();
       if (nearStart) {
