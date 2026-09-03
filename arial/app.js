@@ -636,6 +636,26 @@
         }
     }
 
+    // Multi-partition panels: the HOUSE (FORCE) and GARAGE (ARM) keys show their own area's state.
+    var AREA_KEYS = ["FORCE", "ARM"];
+
+    function syncAreaKeys(device) {
+        var areas = device && Array.isArray(device.arialAreas) ? device.arialAreas : [];
+        var multi = areas.length >= 2;
+        var i;
+        for (i = 0; i < AREA_KEYS.length; i += 1) {
+            var key = document.querySelector('.hot[data-key="' + AREA_KEYS[i] + '"]');
+            if (!key) continue;
+            key.classList.remove("area-armed", "area-disarmed", "area-notready");
+            if (!multi || !areas[i]) continue;
+            var st = String(areas[i].state || "").toLowerCase();
+            if (st === "arm" || st === "stay" || st === "sleep" || st === "countdown") key.classList.add("area-armed");
+            else if (st === "notready") key.classList.add("area-notready");
+            else if (st === "disarm") key.classList.add("area-disarmed");
+            key.title = String(areas[i].label || "") + (st ? " · " + st.toUpperCase() : "");
+        }
+    }
+
     function applyPanelDevice(hanse) {
         if (!hanse) return;
         var siteEl = document.getElementById("lcd-site");
@@ -643,6 +663,7 @@
         window.arialDevice = hanse;
         applyLeds(hanse);
         setActivityPower(hanse.arialPower);
+        syncAreaKeys(hanse);
         lastStatus = (document.getElementById("lcd-status-main") || {}).textContent || statusFromDevice(hanse);
         var st = areaState(hanse);
         if (isLoggedIn() && applyPanelDevice._area && applyPanelDevice._area !== st) {

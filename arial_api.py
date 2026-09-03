@@ -1278,6 +1278,7 @@ def _live_state_save() -> None:
             "events": _olarm_store_rows(),
             "lastKey": str(_activity_cache.get("last_key") or ""),
             "owner": {"pid": os.getpid(), "loop": dict(_live_debug), "backfill": dict(_olarm_backfill_info)},
+            "backfillCursor": dict(_olarm_backfill_cursor),
         }
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -1311,6 +1312,8 @@ def _live_state_load(force: bool = False) -> bool:
         return False
     if isinstance(data.get("owner"), dict):
         _live_debug["owner"] = data["owner"]
+    if isinstance(data.get("backfillCursor"), dict) and not _olarm_backfill_cursor.get("until") and not _olarm_backfill_cursor.get("done"):
+        _olarm_backfill_cursor.update({k: data["backfillCursor"].get(k) for k in ("until", "done")})
     panel = data.get("panel")
     if isinstance(panel, dict):
         _cached_panel(panel)
@@ -1408,11 +1411,23 @@ def _olarm_events_page(client: httpx.Client, until_ms: int | None = None) -> tup
     return 200, [r for r in (rows or []) if isinstance(r, dict)]
 
 
-def _olarm_backfill(max_pages: int = 150, pace_s: float = 3.5, stop_when_known: bool = False) -> dict[str, Any]:
-    """Page backwards through Olarm history (until=oldest-1) into the store. Paced to stay under Olarm's rate limit."""
+_olarm_backfill_cursor: dict[str, Any] = {"until": None, "done": False}
+
+
+def _olarm_backfill(max_pages: int = 600, pace_s: float = 3.0, stop_when_known: bool = False) -> dict[str, Any]:
+    """Page backwards through Olarm history (until=oldest-1) into the store. Paced to stay under Olarm's rate limit.
+    The cursor is persisted in the live-state snapshot so a restart resumes instead of starting over."""
     info = {"pages": 0, "added": 0, "oldest": None, "stopped": ""}
     cutoff_ms = int((time.time() - _OLARM_STORE_DAYS * 86_400) * 1000)
     until: int | None = None
+    if not stop_when_known:
+        if _olarm_backfill_cursor.get("done"):
+            info["stopped"] = "already complete"
+            return info
+        saved = _olarm_backfill_cursor.get("until")
+        if saved:
+            until = int(saved)
+            info["resumedFrom"] = until
     for _ in range(max_pages):
         with _olarm_http_lock:
             client = _olarm_sync_client()
@@ -1437,9 +1452,15 @@ def _olarm_backfill(max_pages: int = 150, pace_s: float = 3.5, stop_when_known: 
             break
         if oldest <= cutoff_ms or oldest <= 0:
             info["stopped"] = "30 days"
+            if not stop_when_known:
+                _olarm_backfill_cursor["done"] = True
             break
         until = oldest - 1
+        if not stop_when_known:
+            _olarm_backfill_cursor["until"] = until
         time.sleep(pace_s)
+    if not stop_when_known and info["stopped"] == "no rows":
+        _olarm_backfill_cursor["done"] = True
     _rebuild_activity_cache(_stale_panel(), str(_activity_cache.get("last_key") or ""))
     _live_state_save()
     return info

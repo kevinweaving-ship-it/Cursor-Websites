@@ -680,6 +680,20 @@ html, body {
     color: #111111;
 }
 
+/* Partition keys (Home): red when that area is armed, green when disarmed. */
+.hot.key-fn.area-armed {
+    background: linear-gradient(180deg, #fff1f1 0%, #f09a9a 52%, #d94c4c 100%);
+    border-color: #a33030;
+    color: #ffffff;
+}
+
+.hot.key-fn.area-disarmed,
+.hot.key-fn.area-notready {
+    background: linear-gradient(180deg, #eef8f0 0%, #8ed897 52%, #4caf5c 100%);
+    border-color: #2e8a3c;
+    color: #ffffff;
+}
+
 #arm-toggle.to-arm,
 #arm-toggle.mode-arm {
     background: linear-gradient(180deg, #fff1f1 0%, #f09a9a 52%, #d94c4c 100%);
