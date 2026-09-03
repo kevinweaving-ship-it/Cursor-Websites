@@ -1,0 +1,26 @@
+[Unit]
+Description=Arial keypad API - Voelklip / HOME (Olarm), independent of sailingsa-api
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/sailingsa/api
+Environment="PYTHONPATH=/var/www/sailingsa/api"
+Environment="PATH=/var/www/sailingsa/api/venv/bin"
+EnvironmentFile=/etc/sailingsa-olarm.env
+Environment="ARIAL_OLARM_DEVICE_ID=d6f25654-5fe8-4a85-a7ba-f8ff1449144a"
+Environment="ARIAL_SITE_ID=voelklip"
+Environment="ARIAL_SITE_LABEL=HOME"
+Environment="ARIAL_AREA_LABEL=Main House"
+Environment="ARIAL_TUYA_ENABLED=0"
+Environment="ARIAL_ENERGY_SAMPLER=0"
+Environment="ARIAL_LIVE_STATE=/var/www/sailingsa/data/voelklip_live_state.json"
+Environment="ARIAL_ENERGY_LOG=/var/www/sailingsa/data/voelklip_energy_bins.json"
+Environment="ARIAL_KEYPAD_LOG=/var/www/sailingsa/data/voelklip_keypad_log.json"
+ExecStart=/var/www/sailingsa/api/venv/bin/uvicorn arial_app:app --host 127.0.0.1 --port 8004 --workers 1
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

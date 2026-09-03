@@ -84,7 +84,12 @@ NOISE_EVENT_ACTIONS = {"zones_idle", "device", "heartbeat"}
 POWER_EVENT_ACTIONS = {"power", "ac", "mains", "battery"}
 ALARM_EVENT_STATES = {"alarm", "emergency", "panic", "fire", "medical"}
 
-HANSEKOP_ID = "0bb544db-30b0-453d-bf39-d323538ebd5e"
+# Site of this API instance. A second instance (e.g. Voelklip / HOME) runs the same code with these env vars set.
+HANSEKOP_ID = (os.getenv("ARIAL_OLARM_DEVICE_ID") or "0bb544db-30b0-453d-bf39-d323538ebd5e").strip()
+SITE_ID = (os.getenv("ARIAL_SITE_ID") or "hansekop").strip()
+SITE_LABEL = (os.getenv("ARIAL_SITE_LABEL") or "HANSEKOP").strip()
+SITE_TUYA = (os.getenv("ARIAL_TUYA_ENABLED") or "1").strip().lower() not in {"0", "false", "no"}
+SITE_AREA_LABEL = (os.getenv("ARIAL_AREA_LABEL") or "Facility Building").strip()
 KEYPAD_CODES = {
     "7302": {"name": "Marc", "from": "Pingoa"},
     "7102": {"name": "Amoroc", "from": "Amoroc"},
@@ -1805,7 +1810,7 @@ def _hansekop_area_label() -> str:
         label = str(area.get("label") or "").strip()
         if label:
             return label
-    return "Facility Building"
+    return SITE_AREA_LABEL
 
 
 def _compact_activity_text(*parts: Any) -> str:
@@ -2364,6 +2369,7 @@ def arial_status(request: Request):
         "olarmConfigured": bool(_olarm_token()),
         "tuyaConfigured": tuya_configured(),
         "tuyaPaused": True,
+        "site": {"id": SITE_ID, "label": SITE_LABEL, "tuya": SITE_TUYA, "deviceId": HANSEKOP_ID},
         "signedIn": bool(user),
         "me": _public_user(user) if user else None,
         "nextDomain": "arial.co.za",

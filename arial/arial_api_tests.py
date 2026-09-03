@@ -115,7 +115,7 @@ def test_activity_card_markup_and_zone_labels():
     assert 'id="activity-more"' in html
     assert 'class="activity-list"' in html
     assert "ACTIVITY_PREVIEW = 4" in js
-    assert "/api/arial/activity" in js
+    assert 'fetch(API + "/activity"' in js
     assert "color: #ffe14d" in css
     assert "activity-mark" in css
     assert "max-width: 377px;" in css.split(".arial-below {", 1)[1].split("}", 1)[0]
@@ -140,8 +140,8 @@ def test_activity_card_markup_and_zone_labels():
     assert "function loadBreaker" in js
     assert "function setBreakerGauge" in js
     assert '"info info w"' in css
-    assert "arialBreaker.hansekop" in js
-    assert "/api/arial/tuya/probe?device_id=bf90676b1341ecb34dse39" in js
+    assert 'var BREAKER_STORE = "arialBreaker." + SITE_ID;' in js
+    assert 'API + "/tuya/probe?device_id=bf90676b1341ecb34dse39"' in js
     assert "loadBreaker();" in js
     assert ".breaker-dials" in css
     assert "grid-template-columns: 0.92fr 0.92fr 1.22fr;" in css
@@ -468,7 +468,7 @@ def test_lights_key_popup_and_switch_endpoint(monkeypatch):
     assert 'data-key="STAY"' in html  # key geometry untouched
     assert 'id="lights-pop"' in html and html.count('class="light-btn"') == 4
     assert "LIGHTS_HOLD_MS = 650" in js and "function lightsPressStart" in js
-    assert '/api/arial/tuya/lights?device_id=' in js and '"/api/arial/tuya/switch"' in js
+    assert 'API + "/tuya/lights?device_id="' in js and 'fetch(API + "/tuya/switch"' in js
     assert ".lights-grid" in css and "grid-template-columns: 1fr 1fr;" in css.split(".lights-grid {", 1)[1].split("}", 1)[0]
     app = FastAPI()
     app.include_router(arial_api.router)
@@ -485,6 +485,21 @@ def test_lights_key_popup_and_switch_endpoint(monkeypatch):
     assert sent[0][0] == arial_api.TUYA_LIGHTS_ID
     assert [c["code"] for c in sent[0][1]] == list(arial_api.LIGHT_SWITCHES)
     assert all(c["value"] is False for c in sent[0][1])
+
+
+def test_voelklip_second_site_page_and_config():
+    root = Path(__file__).resolve().parent
+    arial = (root / "index.html").read_text(encoding="utf-8")
+    voelklip = (root.parent / "voelklip" / "index.html").read_text(encoding="utf-8")
+    js = (root / "app.js").read_text(encoding="utf-8")
+    assert 'apiBase: "/api/arial", siteId: "hansekop", siteLabel: "HANSEKOP", tuya: true' in arial
+    assert 'apiBase: "/api/voelklip", siteId: "voelklip", siteLabel: "HOME", tuya: false' in voelklip
+    assert '<span id="lcd-site">HOME</span>' in voelklip
+    assert "/api/arial/" not in js.replace('"/api/arial"', "")  # every call goes through the configured base
+    assert "function siteKey" in js and 'var ACTIVITY_STORE = "arialActivity." + SITE_ID;' in js
+    unit = (root.parent / "sailingsa" / "deploy" / "arial-voelklip.service").read_text(encoding="utf-8")
+    assert "ARIAL_OLARM_DEVICE_ID=d6f25654-5fe8-4a85-a7ba-f8ff1449144a" in unit and "--port 8004" in unit
+    assert "ARIAL_TUYA_ENABLED=0" in unit
 
 
 def test_olarm_app_disarm_arrives_as_notready():
@@ -634,7 +649,7 @@ def test_breaker_energy_bins_and_endpoint(tmp_path, monkeypatch):
     assert 'id="breaker-bars"' in html
     assert 'id="breaker-day-prev"' in html and 'id="breaker-day-next"' in html
     assert 'id="breaker-tip"' in html
-    assert "/api/arial/tuya/energy?device_id=bf90676b1341ecb34dse39" in js
+    assert 'API + "/tuya/energy?device_id=bf90676b1341ecb34dse39"' in js
     assert "function bindBreakerDay" in js
     assert "bindBreakerDay();" in js
     assert '.breaker-day[data-day="1"] { --day-colour: #1565c0; }' in css
@@ -733,7 +748,7 @@ def test_live_push_includes_activity():
     assert "function applyActivityPayload" in js
     assert "data.activity" in js
     assert 'prependActivity("DISARMED")' in js
-    assert "new EventSource(\"/api/arial/live\")" in js
+    assert 'new EventSource(API + "/live")' in js
     src = Path(__file__).resolve().parents[1] / "arial_api.py"
     api = src.read_text(encoding="utf-8")
     assert 'push["activity"]' in api
@@ -743,7 +758,7 @@ def test_live_push_includes_activity():
 def test_activity_keeps_30_day_store_and_checksums_on_login():
     js = (Path(__file__).resolve().parent / "app.js").read_text(encoding="utf-8")
     html = (Path(__file__).resolve().parent / "index.html").read_text(encoding="utf-8")
-    assert "arialActivity.hansekop" in js
+    assert 'var ACTIVITY_STORE = "arialActivity." + SITE_ID;' in js
     assert "30 * 24 * 60 * 60 * 1000" in js
     assert "function restoreActivityStore" in js
     assert "function allActivityThere" in js
@@ -757,7 +772,7 @@ def test_activity_keeps_30_day_store_and_checksums_on_login():
     assert 'prependActivity("DISARMED")' in js
     assert "setInterval(loadActivity, 3000)" in js
     assert "restoreActivityStore();" in js
-    assert "app.js?v=217" in html
+    assert "app.js?v=218" in html
 
 
 def test_activity_armed_once_remote_no_countdown_or_notready():

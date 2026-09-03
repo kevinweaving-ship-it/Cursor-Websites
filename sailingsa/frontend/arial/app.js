@@ -1,12 +1,18 @@
 (function () {
-    var STORE = "arialKeyClicks";
+    // Per-URL config (set inline in index.html). Same app serves /arial (Hansekop) and /voelklip (Home).
+    var CFG = window.ARIAL_CONFIG || {};
+    var API = String(CFG.apiBase || "/api/arial").replace(/\/$/, "");
+    var SITE_ID = String(CFG.siteId || "hansekop");
+    var SITE_LABEL = String(CFG.siteLabel || "HANSEKOP");
+    var SITE_TUYA = CFG.tuya !== false;
+    var STORE = "arialKeyClicks" + (SITE_ID === "hansekop" ? "" : "." + SITE_ID);
     var audioCtx = null;
     var lastStatus = "";
     var SITES = [
-        { id: "hansekop", name: "HANSEKOP", linked: true },
+        { id: SITE_ID, name: SITE_LABEL, linked: true },
         { id: "tuys", name: "TUYS", linked: false }
     ];
-    var siteId = "hansekop";
+    var siteId = SITE_ID;
 
     function currentSite() {
         var i;
@@ -17,8 +23,8 @@
     }
 
     function selectSite(id) {
-        siteId = id || "hansekop";
-        try { localStorage.setItem("arialSite", siteId); } catch (e) {}
+        siteId = id || SITE_ID;
+        try { localStorage.setItem(siteKey("arialSite"), siteId); } catch (e) {}
         var s = currentSite();
         var siteEl = document.getElementById("lcd-site");
         if (siteEl) siteEl.textContent = s.name;
@@ -40,10 +46,8 @@
     }
 
     function siteName(device) {
-        var name = (device && device.deviceName) || "HANSEKOP";
-        var parts = String(name).split(" - ");
-        var site = (parts.length > 1 ? parts[parts.length - 1] : name).trim();
-        return site.toUpperCase() || "HANSEKOP";
+        // The keypad shows the configured site label (HANSEKOP / HOME), not Olarm's device name.
+        return SITE_LABEL;
     }
 
     var EXIT_DEFAULT = 60;
@@ -113,12 +117,19 @@
         return s > 0 ? s : 0;
     }
 
+    // Panel/exit state is per site; the default site keeps the legacy key names.
+    function siteKey(k) {
+        return SITE_ID === "hansekop" ? k : k + "." + SITE_ID;
+    }
+
     function storeSet(k, v) {
+        k = siteKey(k);
         try { localStorage.setItem(k, v); } catch (e) {}
         try { sessionStorage.setItem(k, v); } catch (e2) {}
     }
 
     function storeGet(k) {
+        k = siteKey(k);
         try {
             var a = localStorage.getItem(k);
             if (a != null && a !== "") return a;
@@ -127,6 +138,7 @@
     }
 
     function storeDel(k) {
+        k = siteKey(k);
         try { localStorage.removeItem(k); } catch (e) {}
         try { sessionStorage.removeItem(k); } catch (e2) {}
     }
@@ -641,7 +653,7 @@
         loadStatus._area = st;
         try {
             var lcd = document.querySelector(".lcd");
-            localStorage.setItem("arialPanel", JSON.stringify({
+            localStorage.setItem(siteKey("arialPanel"), JSON.stringify({
                 lastStatus: lastStatus,
                 lastIssue: lastIssue,
                 site: siteName(hanse),
@@ -660,7 +672,7 @@
     var activityChecksumLocal = "";
     var ACTIVITY_PREVIEW = 4;
     var ACTIVITY_KEEP_MS = 30 * 24 * 60 * 60 * 1000;
-    var ACTIVITY_STORE = "arialActivity.hansekop";
+    var ACTIVITY_STORE = "arialActivity." + SITE_ID;
 
     function activityMark(r) {
         var tab = String(r.tab || "");
@@ -798,7 +810,7 @@
         activityChecksumLocal = activityChecksum(activityRows);
         try {
             localStorage.setItem(ACTIVITY_STORE, JSON.stringify({
-                site: "hansekop",
+                site: SITE_ID,
                 lastKey: activityLastKey,
                 checksum: activityChecksumLocal,
                 savedAt: Date.now(),
@@ -964,11 +976,11 @@
 
     async function loadActivity() {
         if (!isLoggedIn()) return;
-        if (currentSite().id !== "hansekop") return;
+        if (currentSite().id !== SITE_ID) return;
         if (loadActivity._busy) return;
         loadActivity._busy = true;
         try {
-            var res = await fetch("/api/arial/activity", { credentials: "same-origin", cache: "no-store" });
+            var res = await fetch(API + "/activity", { credentials: "same-origin", cache: "no-store" });
             var data = await res.json();
             if (!res.ok) return;
             applyActivityPayload(data);
@@ -989,7 +1001,7 @@
         return n;
     }
 
-    var BREAKER_STORE = "arialBreaker.hansekop";
+    var BREAKER_STORE = "arialBreaker." + SITE_ID;
     var BREAKER_HIST = 90;
     var BREAKER_HIST_MS = 15 * 60 * 1000;
     var breakerHist = [];
@@ -1447,11 +1459,11 @@
     }
 
     async function loadBreaker() {
-        if (!isLoggedIn()) return;
+        if (!isLoggedIn() || !SITE_TUYA) return;
         if (loadBreaker._busy) return;
         loadBreaker._busy = true;
         try {
-            var res = await fetch("/api/arial/tuya/probe?device_id=bf90676b1341ecb34dse39", {
+            var res = await fetch(API + "/tuya/probe?device_id=bf90676b1341ecb34dse39", {
                 credentials: "same-origin",
                 cache: "no-store"
             });
@@ -1484,7 +1496,7 @@
         }
         loadBreakerEnergy._busy = true;
         try {
-            var res = await fetch("/api/arial/tuya/energy?device_id=bf90676b1341ecb34dse39", {
+            var res = await fetch(API + "/tuya/energy?device_id=bf90676b1341ecb34dse39", {
                 credentials: "same-origin",
                 cache: "no-store"
             });
@@ -1716,7 +1728,7 @@
         if (startOlarmLive._es) return;
         if (typeof EventSource === "undefined") return;
         try {
-            var es = new EventSource("/api/arial/live");
+            var es = new EventSource(API + "/live");
             startOlarmLive._es = es;
             es.onmessage = function (ev) {
                 try {
@@ -1729,11 +1741,11 @@
     }
 
     async function loadStatus() {
-        if (currentSite().id !== "hansekop") return;
+        if (currentSite().id !== SITE_ID) return;
         if (loadStatus._busy) return;
         loadStatus._busy = true;
         try {
-            var res = await fetch("/api/arial/panel", { credentials: "same-origin", cache: "no-store" });
+            var res = await fetch(API + "/panel", { credentials: "same-origin", cache: "no-store" });
             var data = await res.json();
             if (!res.ok) {
                 setLcdStatus(lastStatus || "No Link", lastIssue);
@@ -1800,13 +1812,17 @@
         }
         var below = document.querySelector(".arial-below");
         if (below) below.hidden = !on;
+        var breakerCard = document.getElementById("arial-breaker");
+        if (breakerCard) breakerCard.hidden = !SITE_TUYA;
         if (on) {
             restoreActivityStore();
             loadActivity();
             // Card is display:none until login, so charts can only size themselves now.
-            initBreakerCharts();
-            Object.keys(breakerCharts).forEach(function (k) { breakerCharts[k].resize(); });
-            loadBreaker();
+            if (SITE_TUYA) {
+                initBreakerCharts();
+                Object.keys(breakerCharts).forEach(function (k) { breakerCharts[k].resize(); });
+                loadBreaker();
+            }
         } else {
             saveActivityStore();
             activityRows = [];
@@ -1818,8 +1834,8 @@
         pin = "";
         try { localStorage.removeItem("arialUser"); } catch (e) {}
         try { sessionStorage.removeItem("arialUser"); } catch (e) {}
-        try { localStorage.removeItem("arialSite"); } catch (e) {}
-        siteId = "hansekop";
+        try { localStorage.removeItem(siteKey("arialSite")); } catch (e) {}
+        siteId = SITE_ID;
         showUserLogo(null);
         setPadLoggedIn(false);
         setWelcome("");
@@ -2403,7 +2419,7 @@
             setWelcome("Not Linked", 2000);
             return Promise.resolve(false);
         }
-        return fetch("/api/arial/keypad", {
+        return fetch(API + "/keypad", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "same-origin",
@@ -2597,7 +2613,7 @@
         if (loadLights._busy) return;
         loadLights._busy = true;
         try {
-            var res = await fetch("/api/arial/tuya/lights?device_id=" + LIGHTS_DEVICE, { credentials: "same-origin", cache: "no-store" });
+            var res = await fetch(API + "/tuya/lights?device_id=" + LIGHTS_DEVICE, { credentials: "same-origin", cache: "no-store" });
             renderLights(await res.json());
         } catch (e) {
             renderLights({ ok: false, tuyaMsg: "No link", switches: [] });
@@ -2614,7 +2630,7 @@
         var i;
         for (i = 0; i < btns.length; i += 1) btns[i].classList.add("pending");
         try {
-            var res = await fetch("/api/arial/tuya/switch", {
+            var res = await fetch(API + "/tuya/switch", {
                 method: "POST",
                 credentials: "same-origin",
                 headers: { "Content-Type": "application/json" },
@@ -2635,6 +2651,7 @@
 
     function openLights() {
         if (!isLoggedIn()) { rejectNeedLogin(); return; }
+        if (!SITE_TUYA) { setWelcome("No lights here", 1800); return; }
         var pop = document.getElementById("lights-pop");
         if (!pop) return;
         pop.hidden = false;
@@ -2680,6 +2697,7 @@
         lightsPress.timer = setTimeout(function () {
             lightsPress.fired = true;
             if (!isLoggedIn()) { rejectNeedLogin(); return; }
+            if (!SITE_TUYA) { setWelcome("No lights here", 1800); return; }
             openLights();
             setLight("all", true);
         }, LIGHTS_HOLD_MS);
@@ -2724,7 +2742,7 @@
     });
 
     try {
-        var cached = JSON.parse(localStorage.getItem("arialPanel") || "null");
+        var cached = JSON.parse(localStorage.getItem(siteKey("arialPanel")) || "null");
         if (cached) {
             lastStatus = cached.lastStatus || "";
             if (cached.site) document.getElementById("lcd-site").textContent = cached.site;
@@ -2762,9 +2780,9 @@
     } catch (e) {}
 
     try {
-        var savedSite = localStorage.getItem("arialSite");
+        var savedSite = localStorage.getItem(siteKey("arialSite"));
         if (savedSite === "tuys") {
-            localStorage.setItem("arialSite", "hansekop");
+            localStorage.setItem(siteKey("arialSite"), SITE_ID);
         }
     } catch (e) {}
 
