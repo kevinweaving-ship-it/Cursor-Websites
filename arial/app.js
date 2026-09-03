@@ -1066,85 +1066,98 @@
         font: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif'
     };
 
-    // Gauge definitions: scale, threshold bands (fractions of the scale) and the hard limit mark.
+    // Gauge definitions: scale, threshold bands (values) and the hard limit mark.
     var BREAKER_GAUGES = {
-        v: { min: 200, max: 253, decimals: 1, unit: "V", bands: [["crit", 207], ["warn", 216], ["ok", 244], ["warn", 253]], limit: null, tip: "Normal 216–244 V · Watch 207–216 / 244–253 V · Out of spec below 207 V" },
-        a: { min: 0, max: 11, decimals: 2, unit: "A", bands: [["ok", 9.5], ["warn", 10], ["crit", 11]], limit: 10, tip: "Supply limit 10 A · Watch from 9.5 A" },
-        w: { min: 0, max: 2530, decimals: 0, unit: "W", bands: [["ok", 2200], ["warn", 2300], ["crit", 2530]], limit: 2300, tip: "Supply limit 2300 W (10 A × 230 V) · Watch from 2200 W" }
+        v: { min: 200, max: 255, unit: "V", name: "Volts", decimals: 1, bands: [["crit", 207], ["warn", 216], ["ok", 244], ["warn", 253], ["crit", 255]], limit: null, splitNumber: 11, labelEvery: 10, tip: "Normal 216–244 V · Watch 207–216 / 244–253 V · Out of spec below 207 V or above 253 V" },
+        a: { min: 0, max: 11, unit: "A", name: "Amps", decimals: 2, bands: [["ok", 9.5], ["warn", 10], ["crit", 11]], limit: 10, splitNumber: 11, labelEvery: 2, tip: "Supply limit 10 A · Watch from 9.5 A" },
+        w: { min: 0, max: 2600, unit: "W", name: "Watts", decimals: 0, bands: [["ok", 2200], ["warn", 2300], ["crit", 2600]], limit: 2300, splitNumber: 13, labelEvery: 1000, tip: "Supply limit 2300 W (10 A × 230 V) · Watch from 2200 W" }
     };
 
     var breakerCharts = {};
+    var breakerLastValues = {};
 
-    function breakerGaugeOption(kind) {
+    function breakerGaugeOption(kind, widthPx) {
         var g = BREAKER_GAUGES[kind];
         var span = g.max - g.min;
+        var f = Math.max(0.7, Math.min(1.8, (widthPx || 100) / 100));   // scale everything with the dial size
+        var thick = (kind === "w" ? 12 : 9) * f;
         var bands = g.bands.map(function (b) { return [(b[1] - g.min) / span, ARIAL_THEME.band[b[0]]]; });
-        var series = [{
-            type: "gauge",
-            center: ["50%", "58%"],
-            radius: "98%",
-            startAngle: 200,
-            endAngle: -20,
-            min: g.min,
-            max: g.max,
-            splitNumber: 5,
-            axisLine: { lineStyle: { width: 6, color: bands } },
-            progress: { show: true, width: 6, roundCap: false, itemStyle: { color: ARIAL_THEME.ok } },
-            axisTick: { distance: -10, length: 2.5, splitNumber: 4, lineStyle: { color: ARIAL_THEME.navy, width: 0.7 } },
-            splitLine: { distance: -13, length: 5, lineStyle: { color: ARIAL_THEME.navy, width: 1.2 } },
-            axisLabel: { show: false },
-            pointer: { show: false },
-            anchor: { show: false },
-            title: g.limit != null ? {
+        var geo = { center: ["50%", "60%"], radius: "100%", startAngle: 200, endAngle: -20, min: g.min, max: g.max };
+        function base(extra) {
+            var o = { type: "gauge", pointer: { show: false }, anchor: { show: false }, title: { show: false }, detail: { show: false },
+                axisTick: { show: false }, splitLine: { show: false }, axisLabel: { show: false } };
+            Object.keys(geo).forEach(function (k) { o[k] = geo[k]; });
+            Object.keys(extra).forEach(function (k) { o[k] = extra[k]; });
+            return o;
+        }
+        var main = base({
+            splitNumber: g.splitNumber,
+            axisLine: { lineStyle: { width: thick, color: bands } },
+            progress: { show: true, width: thick, roundCap: false, itemStyle: { color: ARIAL_THEME.ok } },
+            axisTick: { show: true, distance: 2 * f, length: 2.5 * f, splitNumber: 2, lineStyle: { color: ARIAL_THEME.navy, width: 0.7 } },
+            splitLine: { show: true, distance: 2 * f, length: 4.5 * f, lineStyle: { color: ARIAL_THEME.navy, width: 1.1 } },
+            axisLabel: {
+                show: false,
+                distance: 13 * f,
+                color: ARIAL_THEME.muted,
+                fontSize: 6.5 * f,
+                fontFamily: ARIAL_THEME.font,
+                fontWeight: 600,
+                formatter: function (v) {
+                    if (Math.round(v) % g.labelEvery !== 0) return "";
+                    return v >= 1000 ? (v / 1000) + "k" : String(Math.round(v));
+                }
+            },
+            title: {
                 show: true,
-                offsetCenter: [0, "78%"],
-                fontSize: kind === "w" ? 9 : 8,
-                fontWeight: 800,
+                offsetCenter: [0, "42%"],
+                fontSize: (kind === "w" ? 7 : 6.2) * f,
+                fontWeight: 700,
                 fontFamily: ARIAL_THEME.font,
-                color: ARIAL_THEME.crit
-            } : { show: false },
+                color: ARIAL_THEME.muted
+            },
             detail: {
+                show: true,
                 valueAnimation: true,
-                offsetCenter: [0, "26%"],
+                offsetCenter: [0, "10%"],
                 fontFamily: ARIAL_THEME.font,
-                color: ARIAL_THEME.navy,
                 formatter: function (v) {
                     var num = v == null || isNaN(v) ? "—" : Number(v).toFixed(g.decimals);
                     return "{v|" + num + "}{u| " + g.unit + "}";
                 },
                 rich: {
-                    v: { fontSize: kind === "w" ? 22 : 14, fontWeight: 800, fontFamily: ARIAL_THEME.font, color: ARIAL_THEME.navy },
-                    u: { fontSize: kind === "w" ? 11 : 8, fontWeight: 700, fontFamily: ARIAL_THEME.font, color: ARIAL_THEME.muted }
+                    v: { fontSize: (kind === "w" ? 16 : 12) * f, fontWeight: 800, fontFamily: ARIAL_THEME.font, color: ARIAL_THEME.navy },
+                    u: { fontSize: (kind === "w" ? 8 : 6.5) * f, fontWeight: 700, fontFamily: ARIAL_THEME.font, color: ARIAL_THEME.muted }
                 }
             },
-            data: [{ value: g.min, name: g.limit != null ? "MAX " + g.limit + " " + g.unit : "" }],
+            data: [{ value: g.min, name: breakerGaugeName(kind) }],
+            animationDuration: 900,
+            animationDurationUpdate: 700,
+            animationEasingUpdate: "cubicOut"
+        });
+        // Thin accent ring just inside the thick arc (the temperature-style second series).
+        var accent = base({
+            radius: "100%",
+            axisLine: { lineStyle: { width: 2.5 * f, color: [[1, ARIAL_THEME.track]] } },
+            progress: { show: true, width: 2.5 * f, roundCap: true, itemStyle: { color: ARIAL_THEME.ok } },
+            data: [{ value: g.min }],
             animationDuration: 900,
             animationDurationUpdate: 700,
             animationEasingUpdate: "cubicOut",
-            silent: false
-        }];
+            z: 3
+        });
+        var half = ((widthPx || 100) * 0.8) / 2;             // container is 100:80, radius % is of the shorter side / 2
+        accent.radius = Math.max(40, 100 - ((thick + 8 * f) / half) * 100) + "%";
+        var series = [main, accent];
         if (g.limit != null) {
-            series.push({
-                type: "gauge",
-                center: ["50%", "58%"],
-                radius: "98%",
-                startAngle: 200,
-                endAngle: -20,
-                min: g.min,
-                max: g.max,
+            series.push(base({
                 axisLine: { show: false },
                 progress: { show: false },
-                axisTick: { show: false },
-                splitLine: { show: false },
-                axisLabel: { show: false },
-                pointer: { show: true, length: "14%", width: 3.5, offsetCenter: [0, "-106%"], itemStyle: { color: ARIAL_THEME.crit } },
-                anchor: { show: false },
-                title: { show: false },
-                detail: { show: false },
+                pointer: { show: true, length: "12%", width: 4 * f, offsetCenter: [0, "-108%"], itemStyle: { color: ARIAL_THEME.crit } },
                 data: [{ value: g.limit }],
                 silent: true,
                 animation: false
-            });
+            }));
         }
         return {
             animation: true,
@@ -1160,13 +1173,18 @@
         };
     }
 
+    function breakerGaugeName(kind) {
+        var g = BREAKER_GAUGES[kind];
+        return g.limit != null ? g.name + "  ·  max " + g.limit + " " + g.unit : g.name;
+    }
+
     function initBreakerCharts() {
         if (typeof window.echarts === "undefined") return;
         Object.keys(BREAKER_GAUGES).forEach(function (kind) {
             var el = document.getElementById("breaker-chart-" + kind);
             if (!el || breakerCharts[kind]) return;
             var chart = window.echarts.init(el, null, { renderer: "svg" });
-            chart.setOption(breakerGaugeOption(kind));
+            chart.setOption(breakerGaugeOption(kind, el.clientWidth));
             breakerCharts[kind] = chart;
             var dial = el.closest(".breaker-dial");
             if (dial) dial.classList.add("has-chart");
@@ -1174,7 +1192,12 @@
         if (!initBreakerCharts._bound) {
             initBreakerCharts._bound = true;
             window.addEventListener("resize", function () {
-                Object.keys(breakerCharts).forEach(function (k) { breakerCharts[k].resize(); });
+                Object.keys(breakerCharts).forEach(function (k) {
+                    var el = document.getElementById("breaker-chart-" + k);
+                    breakerCharts[k].resize();
+                    breakerCharts[k].setOption(breakerGaugeOption(k, el ? el.clientWidth : 100));
+                    breakerLastValues[k] != null && setBreakerGauge(k, breakerLastValues[k], 0, 1);
+                });
             });
         }
     }
@@ -1187,15 +1210,20 @@
             else dial.removeAttribute("data-state");
         }
         var chart = breakerCharts[kind];
+        breakerLastValues[kind] = value;
         if (chart) {
             var g = BREAKER_GAUGES[kind];
             var colour = state === "crit" ? ARIAL_THEME.crit : state === "warn" ? ARIAL_THEME.warn : state === "ok" ? ARIAL_THEME.ok : ARIAL_THEME.track;
+            var v = value == null ? g.min : Math.min(g.max, Math.max(g.min, value));
             chart.setOption({
-                series: [{
-                    data: [{ value: value == null ? g.min : Math.min(g.max, Math.max(g.min, value)), name: g.limit != null ? "MAX " + g.limit + " " + g.unit : "" }],
-                    progress: { itemStyle: { color: colour } },
-                    detail: { rich: { v: { color: state === "crit" ? ARIAL_THEME.crit : state === "warn" ? ARIAL_THEME.warn : ARIAL_THEME.navy } } }
-                }]
+                series: [
+                    {
+                        data: [{ value: v, name: breakerGaugeName(kind) }],
+                        progress: { itemStyle: { color: colour } },
+                        detail: { rich: { v: { color: state === "crit" ? ARIAL_THEME.crit : state === "warn" ? ARIAL_THEME.warn : ARIAL_THEME.navy } } }
+                    },
+                    { data: [{ value: v }], progress: { itemStyle: { color: colour } } }
+                ]
             });
             return;
         }

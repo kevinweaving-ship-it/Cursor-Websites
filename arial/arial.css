@@ -1099,7 +1099,7 @@ html, body {
 .breaker-echart {
     display: block;
     width: 100%;
-    aspect-ratio: 100 / 68;
+    aspect-ratio: 100 / 80;
     min-width: 0;
 }
 
