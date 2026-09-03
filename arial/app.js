@@ -1068,9 +1068,9 @@
 
     // Gauge definitions: scale, threshold bands (fractions of the scale) and the hard limit mark.
     var BREAKER_GAUGES = {
-        v: { min: 200, max: 253, decimals: 1, bands: [["crit", 207], ["warn", 216], ["ok", 244], ["warn", 253]], limit: null, tip: "Normal 216–244 V · Watch 207–216 / 244–253 V · Out of spec below 207 V" },
-        a: { min: 0, max: 11, decimals: 2, bands: [["ok", 9.5], ["warn", 10], ["crit", 11]], limit: 10, tip: "Supply limit 10 A · Watch from 9.5 A" },
-        w: { min: 0, max: 2530, decimals: 0, bands: [["ok", 2200], ["warn", 2300], ["crit", 2530]], limit: 2300, tip: "Supply limit 2300 W (10 A × 230 V) · Watch from 2200 W" }
+        v: { min: 200, max: 253, decimals: 1, unit: "V", bands: [["crit", 207], ["warn", 216], ["ok", 244], ["warn", 253]], limit: null, tip: "Normal 216–244 V · Watch 207–216 / 244–253 V · Out of spec below 207 V" },
+        a: { min: 0, max: 11, decimals: 2, unit: "A", bands: [["ok", 9.5], ["warn", 10], ["crit", 11]], limit: 10, tip: "Supply limit 10 A · Watch from 9.5 A" },
+        w: { min: 0, max: 2530, decimals: 0, unit: "W", bands: [["ok", 2200], ["warn", 2300], ["crit", 2530]], limit: 2300, tip: "Supply limit 2300 W (10 A × 230 V) · Watch from 2200 W" }
     };
 
     var breakerCharts = {};
@@ -1095,17 +1095,29 @@
             axisLabel: { show: false },
             pointer: { show: false },
             anchor: { show: false },
-            title: { show: false },
-            detail: {
-                valueAnimation: true,
-                offsetCenter: [0, "24%"],
-                fontSize: kind === "w" ? 23 : 14,
+            title: g.limit != null ? {
+                show: true,
+                offsetCenter: [0, "78%"],
+                fontSize: kind === "w" ? 9 : 8,
                 fontWeight: 800,
                 fontFamily: ARIAL_THEME.font,
+                color: ARIAL_THEME.crit
+            } : { show: false },
+            detail: {
+                valueAnimation: true,
+                offsetCenter: [0, "26%"],
+                fontFamily: ARIAL_THEME.font,
                 color: ARIAL_THEME.navy,
-                formatter: function (v) { return v == null || isNaN(v) ? "—" : Number(v).toFixed(g.decimals); }
+                formatter: function (v) {
+                    var num = v == null || isNaN(v) ? "—" : Number(v).toFixed(g.decimals);
+                    return "{v|" + num + "}{u| " + g.unit + "}";
+                },
+                rich: {
+                    v: { fontSize: kind === "w" ? 22 : 14, fontWeight: 800, fontFamily: ARIAL_THEME.font, color: ARIAL_THEME.navy },
+                    u: { fontSize: kind === "w" ? 11 : 8, fontWeight: 700, fontFamily: ARIAL_THEME.font, color: ARIAL_THEME.muted }
+                }
             },
-            data: [{ value: g.min }],
+            data: [{ value: g.min, name: g.limit != null ? "MAX " + g.limit + " " + g.unit : "" }],
             animationDuration: 900,
             animationDurationUpdate: 700,
             animationEasingUpdate: "cubicOut",
@@ -1180,9 +1192,9 @@
             var colour = state === "crit" ? ARIAL_THEME.crit : state === "warn" ? ARIAL_THEME.warn : state === "ok" ? ARIAL_THEME.ok : ARIAL_THEME.track;
             chart.setOption({
                 series: [{
-                    data: [{ value: value == null ? g.min : Math.min(g.max, Math.max(g.min, value)) }],
+                    data: [{ value: value == null ? g.min : Math.min(g.max, Math.max(g.min, value)), name: g.limit != null ? "MAX " + g.limit + " " + g.unit : "" }],
                     progress: { itemStyle: { color: colour } },
-                    detail: { color: state === "crit" ? ARIAL_THEME.crit : state === "warn" ? ARIAL_THEME.warn : ARIAL_THEME.navy }
+                    detail: { rich: { v: { color: state === "crit" ? ARIAL_THEME.crit : state === "warn" ? ARIAL_THEME.warn : ARIAL_THEME.navy } } }
                 }]
             });
             return;

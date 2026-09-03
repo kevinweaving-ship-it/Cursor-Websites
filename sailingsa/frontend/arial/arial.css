@@ -1099,7 +1099,7 @@ html, body {
 .breaker-echart {
     display: block;
     width: 100%;
-    aspect-ratio: 100 / 60;
+    aspect-ratio: 100 / 68;
     min-width: 0;
 }
 
@@ -1107,6 +1107,8 @@ html, body {
     display: block;
 }
 
+.breaker-dial.has-chart .breaker-dial-unit,
+.breaker-dial.has-chart .breaker-dial-max,
 .breaker-dial.has-chart .breaker-dial-val {
     /* value is rendered inside the gauge by ECharts (rolling number) */
     position: absolute;
