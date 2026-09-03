@@ -756,8 +756,35 @@
         }
     }
 
+    var lastAreaStates = {};
+
+    function trackRemoteAreaChanges(device) {
+        if (!isMultiArea(device)) return;
+        var areas = device.arialAreas;
+        var i;
+        for (i = 0; i < areas.length && i < AREA_KEYS.length; i += 1) {
+            var num = i + 1;
+            var st = String((areas[i] && areas[i].state) || "").toLowerCase();
+            var prev = lastAreaStates[num];
+            lastAreaStates[num] = st;
+            if (prev === undefined || prev === st) continue;
+            var pending = typeof areaPending !== "undefined" && areaPending[num];
+            if (st === "countdown" && !pending) {
+                // Someone else started arming this area: show the same countdown, flash and beeps here.
+                startAreaPending(num);
+            } else if (st === "arm" || st === "stay" || st === "sleep") {
+                if (pending) stopAreaPending(num);
+                if (isLoggedIn()) { unlockAudio(); tone(1200, 0.35, 0.5); }
+            } else if (st === "disarm" || st === "notready") {
+                if (pending) stopAreaPending(num);
+                if (prev === "arm" || prev === "stay" || prev === "sleep" || prev === "countdown") { if (isLoggedIn()) disarmBeep(); }
+            }
+        }
+    }
+
     function applyPanelDevice(hanse) {
         if (!hanse) return;
+        trackRemoteAreaChanges(hanse);
         var siteEl = document.getElementById("lcd-site");
         if (siteEl) siteEl.textContent = siteName(hanse);
         window.arialDevice = hanse;
@@ -1029,6 +1056,12 @@
         el.classList.toggle("fault", !acOk || !batOk);
     }
 
+    function shortStamp(r) {
+        // "02 Sep 2026" -> "02 Sep 26", then " · 11:25"
+        var d = String(r.date || "").replace(/(\d{2} \w{3}) (\d{2})(\d{2})$/, "$1 $3");
+        return (d ? d + " · " : "") + (r.time || "");
+    }
+
     function renderActivity() {
         var body = document.getElementById("arial-activity-body");
         var more = document.getElementById("activity-more");
@@ -1059,7 +1092,7 @@
                 mark.setAttribute("aria-hidden", "true");
                 var t = document.createElement("span");
                 t.className = "activity-time";
-                t.textContent = r.time || "";
+                t.textContent = shortStamp(r);
                 var line = document.createElement("span");
                 line.className = "activity-text";
                 line.textContent = activityLine(r);
@@ -1870,6 +1903,12 @@
         try {
             var es = new EventSource(API + "/live");
             startOlarmLive._es = es;
+            es.onerror = function () {
+                if (es.readyState === 2) {
+                    startOlarmLive._es = null;
+                    setTimeout(startOlarmLive, 3000);
+                }
+            };
             es.onmessage = function (ev) {
                 try {
                     var data = JSON.parse(ev.data || "{}");
@@ -3051,9 +3090,22 @@
     } catch (e2) {}
 
     window.addEventListener("pageshow", kickExitAudio);
+    function resumeLive() {
+        // Phone came back from the home-screen icon / another tab: get the truth now and make sure the push channel is alive.
+        kickExitAudio();
+        loadStatus();
+        loadActivity();
+        loadBreaker();
+        var es = startOlarmLive._es;
+        if (es && es.readyState === 2) { startOlarmLive._es = null; startOlarmLive(); }
+        else if (!es) startOlarmLive();
+    }
     document.addEventListener("visibilitychange", function () {
-        if (!document.hidden) kickExitAudio();
+        if (!document.hidden) resumeLive();
     });
+    window.addEventListener("pageshow", resumeLive);
+    window.addEventListener("focus", resumeLive);
+    window.addEventListener("online", resumeLive);
     document.addEventListener("pointerdown", kickExitAudio, true);
     document.addEventListener("keydown", kickExitAudio, true);
     bindActivityCard();
@@ -3067,6 +3119,7 @@
     setInterval(tickTime, 1000);
     setInterval(loadActivity, 3000);
     setInterval(loadBreaker, 3000);
+    setInterval(loadStatus, 3000);   // fallback if the push channel is silent; served from the server snapshot
     setInterval(function () {
         if (localExitLeft() > 0 || disarmPending || armPending || panelIsExiting(window.arialDevice)) loadStatus();
     }, 1000);

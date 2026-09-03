@@ -1027,7 +1027,7 @@ html, body {
 .activity-mark.power-ok { background: #1565c0; }
 
 .activity-time {
-    flex: 0 0 2.4em;
+    flex: 0 0 auto;
     font-variant-numeric: tabular-nums;
     color: #64748b;
     font-weight: 600;
