@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v33";
+  var CACHE = "dev2v34";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -267,6 +267,17 @@
       canvas.style.setProperty("inset", "0", "important");
       canvas.style.setProperty("height", "100%", "important");
     }
+    var barH = bar ? Math.round(bar.getBoundingClientRect().height || bar.offsetHeight || 0) : 0;
+    var chromeTop = headerH + barH + 8;
+    var rail = document.getElementById("lipton-dev-race-boxes");
+    var board = document.getElementById("tracking-dev2-ranking");
+    var tools = document.getElementById("tracking-dev2-map-tools");
+    if (rail) rail.style.setProperty("top", chromeTop + "px", "important");
+    if (board) {
+      board.style.setProperty("top", chromeTop + "px", "important");
+      board.style.setProperty("bottom", "72px", "important");
+    }
+    if (tools) tools.style.setProperty("top", chromeTop + "px", "important");
   }
   sizeDev2Map();
   window.addEventListener("resize", function () {
@@ -906,6 +917,7 @@
         markerZoomAnimation: false,
         inertia: true
       }).setView([-33.886, 18.43], 15);
+      window.__dev2ChartMap = chartMap;
       var tileOpts = {
         minZoom: 12, maxZoom: 22, maxNativeZoom: 19, keepBuffer: 8,
         updateWhenIdle: false, updateWhenZooming: false, updateInterval: 400, crossOrigin: true
@@ -3059,6 +3071,7 @@
         markerZoomAnimation: false,
         inertia: true
       }).setView([-33.901, 18.423], 15);
+      window.__dev2ChartMap = chartMap;
       var tileOpts = {
         minZoom: 12,
         maxZoom: 22,

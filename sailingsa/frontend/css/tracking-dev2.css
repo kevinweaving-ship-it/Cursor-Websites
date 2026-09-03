@@ -1498,7 +1498,7 @@ body[data-tracking-dev2="1"] .tracking-dev2-course-hud .lipton-dev-map-hud-name 
 }
 body[data-tracking-dev2="1"] .tracking-dev2-race-rail {
   position: absolute;
-  top: 8px;
+  top: 120px;
   right: 8px;
   left: auto;
   z-index: 80;
