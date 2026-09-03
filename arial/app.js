@@ -1332,7 +1332,12 @@
     }
 
     function initBreakerCharts() {
-        if (typeof window.echarts === "undefined") return;
+        if (typeof window.echarts === "undefined") {
+            // ECharts is deferred so the keypad never waits for it; try again shortly.
+            initBreakerCharts._tries = (initBreakerCharts._tries || 0) + 1;
+            if (initBreakerCharts._tries < 60) setTimeout(function () { initBreakerCharts(); Object.keys(breakerCharts).forEach(function (k) { breakerCharts[k].resize(); }); if (breakerLastValues.w != null) Object.keys(breakerLastValues).forEach(function (k) { setBreakerGauge(k, breakerLastValues[k], 0, 1); }); }, 250);
+            return;
+        }
         Object.keys(BREAKER_GAUGES).forEach(function (kind) {
             var el = document.getElementById("breaker-chart-" + kind);
             if (!el || breakerCharts[kind]) return;

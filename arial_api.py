@@ -74,7 +74,7 @@ _KEYPAD_CMD_STATE = {
 }
 _activity_cache: dict[str, Any] = {"at": 0.0, "data": None, "last_key": "", "seq": 0}
 _ACTIVITY_TTL_SEC = 8.0
-_EVENTS_POLL_SEC = 8.0
+_EVENTS_POLL_SEC = 10.0
 _SAST = timezone(timedelta(hours=2))
 _MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 ZONE_EVENT_ACTIONS = {"zone", "zone_watch"}
@@ -1205,7 +1205,7 @@ def _olarm_sync_client() -> httpx.Client:
 # ---------------------------------------------------------------------------
 _OLARM_STORE_DAYS = 30
 _OLARM_STORE_MAX = 8000
-_ACTIVITY_BUNDLE_MAX = 600
+_ACTIVITY_BUNDLE_MAX = 400
 _LIVE_DEVICE_POLL_SEC = 3.0
 _LIVE_FAST_POLL_SEC = 1.0
 _live_fast_until = 0.0   # after a keypad action, poll Olarm quickly for a short burst so the confirmed state lands fast
@@ -1432,7 +1432,7 @@ def _olarm_events_page(client: httpx.Client, until_ms: int | None = None) -> tup
 _olarm_backfill_cursor: dict[str, Any] = {"until": None, "done": False}
 
 
-def _olarm_backfill(max_pages: int = 600, pace_s: float = 3.0, stop_when_known: bool = False) -> dict[str, Any]:
+def _olarm_backfill(max_pages: int = 600, pace_s: float = 6.0, stop_when_known: bool = False) -> dict[str, Any]:
     """Page backwards through Olarm history (until=oldest-1) into the store. Paced to stay under Olarm's rate limit.
     The cursor is persisted in the live-state snapshot so a restart resumes instead of starting over."""
     info = {"pages": 0, "added": 0, "oldest": None, "stopped": ""}
@@ -2227,7 +2227,17 @@ def apply_olarm_events(events: list[Any], device: dict[str, Any] | None = None) 
     return "insert" if newest else "empty"
 
 
+_activity_payload_memo: dict[str, Any] = {"key": None, "out": None, "at": 0.0}
+
+
 def _activity_payload(bundle: dict[str, Any] | None, ack: bool) -> dict[str, Any]:
+    with _lock:
+        memo_key = (int(_activity_cache.get("seq") or 0), len(_keypad_log), id(bundle))
+    memo = _activity_payload_memo
+    if memo["key"] == memo_key and memo["out"] is not None and time.time() - float(memo["at"]) < 2.0:
+        out = dict(memo["out"])
+        out["ack"] = ack
+        return out
     out = _stamp_activity_actors(bundle if isinstance(bundle, dict) else {"ok": True, "events": [], "power": {}})
     with _lock:
         last_key = str(_activity_cache.get("last_key") or "")
@@ -2237,6 +2247,7 @@ def _activity_payload(bundle: dict[str, Any] | None, ack: bool) -> dict[str, Any
     out["checksum"] = digest[:16]
     out["ack"] = ack
     out["ok"] = True
+    _activity_payload_memo.update({"key": memo_key, "out": dict(out), "at": time.time()})
     return out
 
 
@@ -2677,6 +2688,10 @@ async def arial_panel():
     cached = _cached_panel()
     if cached is not None:
         return {"ok": True, "device": cached, "live": True}
+    stale = _stale_panel()
+    if stale is not None:
+        # Poller refreshes every 1-3 s; answering from the last snapshot keeps the keypad instant and off Olarm's rate limit.
+        return {"ok": True, "device": stale, "live": True, "stale": True}
     stale = _stale_panel()
     if stale is None and _live_state_load(force=True):
         stale = _stale_panel()
