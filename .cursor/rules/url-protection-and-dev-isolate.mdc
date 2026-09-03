@@ -1,5 +1,14 @@
 # URL protection & Lipton/dev isolation (HARD)
 
+## Permanent principle (non-negotiable)
+
+**You never affect good URLs we are not working on.**
+
+- New pages / Lipton / tracking / experiments / overnight cache fixes → **only** the URLs and files in scope for that task.
+- Existing good public URLs stay untouched: hub, sailors, clubs, classes, public regattas, logos, `api.py` unless that file is **explicitly** the task.
+- “Deploy frontend zip”, “sync blank from index”, “redeploy api.py to pick up one route” are **forbidden** when the task is a new/dev page.
+- If unsure whether a path is shared with good URLs → **do not deploy it**. Ask.
+
 ## Never again (Sep 2026 incident)
 
 Agents redeployed **full frontend zip + thin `api.py`** while fixing Lipton/tracking-dev overnight cache. That **gutted** public `/sailor/`, `/club/`, `/class/`, `/regatta/`, and hub URLs.
@@ -8,25 +17,25 @@ Agents redeployed **full frontend zip + thin `api.py`** while fixing Lipton/trac
 
 ## Hard rules for agents
 
-1. **Public URLs are locked** unless the user explicitly authorizes a public restore/deploy in the same message:
+1. **Public / good URLs are locked** unless the user explicitly names those URLs (or writes `deploy public` / `restore …` / `override lock`) in the **same** message:
    - `/`, `/blank.html`, `/index.html`
    - `/sailor/*`, `/club/*`, `/class/*`, `/regatta/*` (non-`-dev` / non-`-dev2`)
    - `/var/www/sailingsa/index.html`, `blank.html`, `js/api.js`, `api/api.py`
 
-2. **Lipton / tracking / -dev work is allowlist-only.**
-   - Allowed URLs: `*-dev`, `*-dev2`, `/tracking-dev2`, `/api/tracking-dev2/*`, `/api/lipton-dev/*`
-   - Allowed files: see allowlist in `sailingsa/deploy/deploy-tracking-dev2-live.sh`
-   - **Forbidden:** unzip of full `sailingsa/frontend/`, scp of `index.html` / `blank.html` / `js/api.js`, default deploy of `api.py`
+2. **New page work is allowlist / scope-only.**
+   - Touch only files that uniquely serve the new/dev URL.
+   - Allowed examples: `*-dev`, `*-dev2`, `/tracking-dev2`, `/api/tracking-dev2/*`, `/api/lipton-dev/*`, and the allowlist in `sailingsa/deploy/deploy-tracking-dev2-live.sh`
+   - **Forbidden:** unzip of full `sailingsa/frontend/`, scp of `index.html` / `blank.html` / `js/api.js`, default deploy of `api.py`, “while we’re here” edits to shared shell
 
-3. **Deploy script:** use only  
+3. **Deploy script for Lipton/tracking:** use only  
    `bash sailingsa/deploy/deploy-tracking-dev2-live.sh`  
-   It scp’s allowlisted files only. It does **not** deploy `api.py` unless  
+   Allowlisted files only. Does **not** deploy `api.py` unless  
    `SAILINGSA_ALLOW_API_DEPLOY=1` **and** user explicitly approved in that message.  
    Size guard rejects local `api.py` &lt; 80% of live size.
 
 4. **Full site / public deploy** requires user to write exactly one of:  
    `deploy public` / `restore 28 Aug` / `override lock`  
-   Prefer Mac `deploy-with-key.sh` only when user asked for full frontend — never from a Lipton-only branch.
+   Prefer Mac `deploy-with-key.sh` only when user asked for full frontend — never from a Lipton-only or “new page” branch.
 
 5. **Before any live write:** `bash sailingsa/deploy/pre-change-backup.sh` (or quick copy of index/blank/api.js/api.py). Confirm backup exists.
 

@@ -1,6 +1,9 @@
 #!/bin/bash
 # Deploy tracking-dev2 / Lipton-dev assets ONLY.
+#
+# PERMANENT RULE: never affect good URLs we are not working on.
 # NEVER unzip full frontend. NEVER overwrite index.html, blank.html, or api.py by default.
+#
 # Run from project root. Requires ~/.ssh/sailingsa_live_key or SSHPASS.
 set -euo pipefail
 

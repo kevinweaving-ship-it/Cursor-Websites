@@ -1,5 +1,11 @@
 # URL protection — SailingSA live
 
+## Permanent principle
+
+**New pages and experiments must never wipe or change good URLs we are not working on.**
+
+We will always be adding new pages. Each task may only touch **that** page’s URLs and files. Shared production files (`index.html`, `blank.html`, `js/api.js`, `api/api.py`, public sailor/club/class/regatta) stay locked unless the user explicitly names them in the same message.
+
 ## Incident (late Aug → early Sep 2026)
 
 While fixing **Lipton / tracking-dev overnight stale pages**, agents repeatedly redeployed:
@@ -13,9 +19,9 @@ While fixing **Lipton / tracking-dev overnight stale pages**, agents repeatedly 
 
 ## Rules
 
-### Public production (protected)
+### Public / good URLs (never collateral)
 
-Do **not** overwrite without explicit user approval in the same message:
+Do **not** overwrite unless the user names that URL or writes `deploy public` / `restore …` / `override lock`:
 
 | Path / URL |
 |------------|
@@ -23,14 +29,14 @@ Do **not** overwrite without explicit user approval in the same message:
 | `api/api.py` |
 | `/sailor/*`, `/club/*`, `/class/*`, public `/regatta/*` (no `-dev`) |
 
-### Dev / Lipton sandbox (isolated)
+### New page / Lipton / tracking sandbox (isolated)
 
 | Allowed | Forbidden |
 |---------|-----------|
-| `tracking-dev2.html`, `css/tracking-dev2.css`, `css/lipton-dev.css` | `index.html`, `blank.html` |
-| `js/tracking-dev2-*.js`, `js/lipton-dev-*` | Full frontend zip extract |
+| Files unique to the new/dev URL only | `index.html`, `blank.html`, shared `js/api.js` |
+| e.g. `tracking-dev2*`, `lipton-dev-*` | Full frontend zip extract |
 | Dev URLs: `*-dev`, `*-dev2`, `/tracking-dev2` | Default `api.py` deploy |
-| `sailingsa/backend/tracking_dev2_sailfish.py` | “Landing fix” scp during Lipton work |
+| Dedicated backend module if any | “While we’re here” edits to good pages |
 
 **Deploy:** `bash sailingsa/deploy/deploy-tracking-dev2-live.sh` (allowlist scp only).
 
@@ -44,8 +50,8 @@ Script aborts if local `api.py` is &lt; 80% of live size.
 
 ## Agent checklist
 
-1. Is this a **dev URL** task? → allowlist deploy only. Stop.
-2. Is this a **public URL** bug? → diagnose layer; do not touch Lipton zip; ask before restore/deploy.
+1. Am I working on a **new/dev URL**? → only those files. Stop. Do not touch good URLs.
+2. Is this a **named public URL** bug? → diagnose that layer only; ask before restore/deploy.
 3. Never claim fixed after curling `/` only.
 4. Overnight cache on **dev** pages: bump `?v=` / `Cache-Control` on **dev assets only** — do not redeploy the whole site.
 
