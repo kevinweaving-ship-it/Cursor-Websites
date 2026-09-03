@@ -1200,7 +1200,7 @@ def _olarm_sync_client() -> httpx.Client:
 # identical everywhere and Olarm is not hammered into 429s.
 # ---------------------------------------------------------------------------
 _OLARM_STORE_DAYS = 30
-_OLARM_STORE_MAX = 6000
+_OLARM_STORE_MAX = 8000
 _ACTIVITY_BUNDLE_MAX = 600
 _LIVE_DEVICE_POLL_SEC = 3.0
 _olarm_store: dict[str, dict[str, Any]] = {}
@@ -1239,9 +1239,24 @@ def _olarm_store_add(rows: list[Any]) -> int:
         for key in [k for k, r in _olarm_store.items() if _event_time_ms(r) and _event_time_ms(r) < cutoff_ms]:
             _olarm_store.pop(key, None)
         if len(_olarm_store) > _OLARM_STORE_MAX:
-            keep = sorted(_olarm_store.items(), key=lambda kv: _event_time_ms(kv[1]), reverse=True)[:_OLARM_STORE_MAX]
-            _olarm_store.clear()
-            _olarm_store.update(dict(keep))
+            # Over the cap: shed the oldest plain zone open/close rows first so arm/disarm/alarm history survives.
+            ordered = sorted(_olarm_store.items(), key=lambda kv: _event_time_ms(kv[1]))  # oldest first
+            excess = len(ordered) - _OLARM_STORE_MAX
+            drop: set[str] = set()
+            for key, row in ordered:
+                if excess <= 0:
+                    break
+                if str(row.get("eventAction") or "").lower() in {"zone", "zone_watch"}:
+                    drop.add(key)
+                    excess -= 1
+            for key, _row in ordered:
+                if excess <= 0:
+                    break
+                if key not in drop:
+                    drop.add(key)
+                    excess -= 1
+            for key in drop:
+                _olarm_store.pop(key, None)
     return added
 
 
