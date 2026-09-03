@@ -668,6 +668,8 @@
         applyLeds(hanse);
         setActivityPower(hanse.arialPower);
         syncAreaKeys(hanse);
+        var padWrap = document.getElementById("pad-frame");
+        if (padWrap) padWrap.classList.toggle("multi-area", Array.isArray(hanse.arialAreas) && hanse.arialAreas.length >= 2);
         lastStatus = (document.getElementById("lcd-status-main") || {}).textContent || statusFromDevice(hanse);
         var st = areaState(hanse);
         if (isLoggedIn() && applyPanelDevice._area && applyPanelDevice._area !== st) {

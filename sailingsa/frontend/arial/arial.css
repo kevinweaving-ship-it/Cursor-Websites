@@ -706,6 +706,18 @@ html, body {
     color: #ffffff;
 }
 
+/* Partitioned panel (Home): the lock key is inert; HOUSE / GARAGE arm their own area. */
+.pad-wrap.multi-area #arm-toggle,
+.pad-wrap.multi-area #arm-toggle.to-arm,
+.pad-wrap.multi-area #arm-toggle.to-disarm,
+.pad-wrap.multi-area #arm-toggle.mode-arm,
+.pad-wrap.multi-area #arm-toggle.mode-disarm {
+    background: linear-gradient(180deg, #f3f4f6 0%, #d5d9dd 52%, #bfc5ca 100%);
+    border-color: #8a9399;
+    color: #6b7280;
+    opacity: 0.75;
+}
+
 #arm-toggle.to-arm,
 #arm-toggle.mode-arm {
     background: linear-gradient(180deg, #fff1f1 0%, #f09a9a 52%, #d94c4c 100%);
