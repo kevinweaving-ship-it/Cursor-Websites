@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v34";
+  var CACHE = "dev2v35";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -3355,26 +3355,11 @@
       var focus = focusForFleet(ts, fleet);
       focusMarkKey = focus.mark;
       focusGate = focus.gate;
-      var nearStart = fleetNearStart(boatPts, ts);
-      var pts = boatPts.slice();
-      if (nearStart) {
-        pinTrio().forEach(function (p) { pts.push(p); });
-        focusGate = "start_line";
-      } else {
-        if (focus.mark) {
-          var mk = markAt(focus.mark, ts);
-          if (mk && pointNearBoatBox(mk, boatPts, 220)) pts.push(mk);
-        }
-        if (focus.gate && trail[focus.gate]) {
-          var ln = trail[focus.gate];
-          if (ln.left && pointNearBoatBox(ln.left, boatPts, 220)) pts.push(ln.left);
-          if (ln.right && pointNearBoatBox(ln.right, boatPts, 220)) pts.push(ln.right);
-        }
-      }
-      var target = boundsFromPts(pts, w, h, {
-        minSpan: nearStart ? 36 : 42,
-        padPx: nearStart ? 18 : 22,
-        padM: nearStart ? 8 : 10
+      if (fleetNearStart(boatPts, ts)) focusGate = "start_line";
+      var target = boundsFromPts(boatPts, w, h, {
+        minSpan: 22,
+        padPx: 64,
+        padM: 4
       });
       if (!cam) {
         cam = target;
@@ -3509,8 +3494,13 @@
     function metersPx(m) {
       return Math.max(4, m * mapBounds.scale);
     }
+    function boatIconR() {
+      var r = 18;
+      if (mapBounds && mapBounds.scale) r = Math.max(16, Math.min(28, mapBounds.scale * 5));
+      return r;
+    }
     function drawBoatIcon(p, hdg, fill, stroke, nose) {
-      var r = 7;
+      var r = boatIconR();
       mapCtx.beginPath();
       mapCtx.arc(p.x, p.y, r, 0, Math.PI * 2);
       mapCtx.fillStyle = fill;
@@ -3940,9 +3930,10 @@
       var paint = boatPaint(sail, info.pending);
       mapCtx.save();
       if (RACE_NO >= 2) drawOverallStickerRing(p, info.overallPos);
+      var br = boatIconR();
       if (info.isLeader) {
         mapCtx.beginPath();
-        mapCtx.arc(p.x, p.y, 14, 0, Math.PI * 2);
+        mapCtx.arc(p.x, p.y, br + 6, 0, Math.PI * 2);
         mapCtx.strokeStyle = "rgba(250,204,21,0.95)";
         mapCtx.lineWidth = 2.4;
         mapCtx.stroke();
@@ -3951,15 +3942,15 @@
       drawBoatIcon(p, hdg, paint.fill, paint.stroke, paint.nose);
       if (info.racePlace != null) {
         mapCtx.fillStyle = paint.ink;
-        mapCtx.font = "bold 9px sans-serif";
+        mapCtx.font = "bold 12px sans-serif";
         mapCtx.textAlign = "center";
         mapCtx.textBaseline = "middle";
         mapCtx.fillText(String(info.racePlace), p.x, p.y + 0.4);
       }
-      if (info.onMark && !info.finished) drawDelta(p.x - 12, p.y - 1, info.leg, "right");
-      var lx = p.x + 12;
+      if (info.onMark && !info.finished) drawDelta(p.x - (br + 6), p.y - 1, info.leg, "right");
+      var lx = p.x + br + 6;
       var ly = p.y - 1;
-      mapCtx.font = "bold 10px sans-serif";
+      mapCtx.font = "bold 13px sans-serif";
       mapCtx.textAlign = "left";
       mapCtx.textBaseline = "middle";
       mapCtx.shadowColor = "rgba(0,0,0,0.9)";
