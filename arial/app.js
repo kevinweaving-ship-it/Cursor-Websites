@@ -76,6 +76,9 @@
     }
 
     function exitDelaySecs(device) {
+        // Site config wins (the installer knows the panel's exit delay); else Olarm profile; else default.
+        var cfg = Number(CFG.exitDelay);
+        if (isFinite(cfg) && cfg >= 5 && cfg <= 180) return cfg;
         var n = device && device.arialExitDelay;
         return (typeof n === "number" && n > 10 && n <= 180) ? n : EXIT_DEFAULT;
     }
@@ -550,6 +553,12 @@
     }
 
     function applyMultiAreaLcd(device) {
+        // Single-area state machine must not fight this display.
+        if (armSettled || armPending || disarmPending || localExitLeft() > 0) {
+            armSettled = false; armPending = false; disarmPending = false; disarmNeedsStatus = false;
+            clearLocalExit();
+            storeDel("arialArmSettled");
+        }
         var areas = device.arialAreas;
         if (armSettled || armPending || disarmPending || localExitLeft() > 0) {
             armSettled = false; armPending = false; disarmPending = false; disarmNeedsStatus = false;

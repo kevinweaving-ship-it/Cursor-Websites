@@ -1207,6 +1207,8 @@ _OLARM_STORE_DAYS = 30
 _OLARM_STORE_MAX = 8000
 _ACTIVITY_BUNDLE_MAX = 600
 _LIVE_DEVICE_POLL_SEC = 3.0
+_LIVE_FAST_POLL_SEC = 1.0
+_live_fast_until = 0.0   # after a keypad action, poll Olarm quickly for a short burst so the confirmed state lands fast
 _olarm_store: dict[str, dict[str, Any]] = {}
 _live_state_mtime = 0.0
 _live_owner_lockf = None
@@ -1501,7 +1503,7 @@ def _olarm_live_loop() -> None:
     last_area_sig = ""
     backoff_until = 0.0
     threading.Thread(target=_olarm_backfill_thread, name="arial-olarm-backfill", daemon=True).start()
-    while not _live_stop.wait(_LIVE_DEVICE_POLL_SEC):
+    while not _live_stop.wait(_LIVE_FAST_POLL_SEC if time.time() < _live_fast_until else _LIVE_DEVICE_POLL_SEC):
         _live_debug["loopAt"] = time.time()
         if not _olarm_token() or time.time() < backoff_until:
             _live_debug["skip"] = "no token" if not _olarm_token() else "backoff"
@@ -2805,6 +2807,8 @@ async def arial_keypad(request: Request):
     if cmd != "user-panic" and num < 1:
         num = 1
     actor = _remember_keypad(code, cmd, num)
+    global _live_fast_until
+    _live_fast_until = time.time() + 75.0   # covers the exit delay + confirmation
     raw = await _olarm_request(
         "POST",
         f"/api/v4/devices/{HANSEKOP_ID}/actions",
