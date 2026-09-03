@@ -2964,7 +2964,69 @@
         });
     }
 
+    // Single-switch mode (Home for now): LIGHTS key toggles one Tuya channel and shows its live state on the key.
+    var SINGLE_LIGHT = CFG.lights && CFG.lights.device ? CFG.lights : null;
+    var singleLightOn = null;
+
+    function renderSingleLight() {
+        var lab = document.querySelector('.hot[data-key="STAY"] .key-label');
+        if (!lab || !SINGLE_LIGHT) return;
+        lab.classList.add("two-line");
+        lab.textContent = "";
+        var l1 = document.createElement("span"); l1.className = "kl-1"; l1.textContent = String(SINGLE_LIGHT.label || "Lights").toUpperCase();
+        var l2 = document.createElement("span"); l2.className = "kl-2"; l2.textContent = singleLightOn == null ? "…" : (singleLightOn ? "On" : "Off");
+        lab.appendChild(l1); lab.appendChild(l2);
+        var key = lab.closest(".hot");
+        if (key) { key.classList.toggle("light-on", singleLightOn === true); key.classList.toggle("light-off", singleLightOn === false); }
+    }
+
+    async function loadSingleLight() {
+        if (!SINGLE_LIGHT || loadSingleLight._busy) return;
+        loadSingleLight._busy = true;
+        try {
+            var res = await fetch(String(SINGLE_LIGHT.api || API) + "/tuya/lights?device_id=" + SINGLE_LIGHT.device, { credentials: "same-origin", cache: "no-store" });
+            var data = await res.json();
+            var row = (data && data.switches || []).filter(function (r) { return r.code === SINGLE_LIGHT.switch; })[0];
+            singleLightOn = row && typeof row.on === "boolean" ? row.on : null;
+        } catch (e) {
+            singleLightOn = null;
+        } finally {
+            loadSingleLight._busy = false;
+            renderSingleLight();
+        }
+    }
+
+    async function toggleSingleLight() {
+        if (!isLoggedIn()) { rejectNeedLogin(); return; }
+        var user = window.arialUser;
+        var want = !(singleLightOn === true);
+        var key = document.querySelector('.hot[data-key="STAY"]');
+        if (key) key.classList.add("light-pending");
+        try {
+            var res = await fetch(String(SINGLE_LIGHT.api || API) + "/tuya/switch", {
+                method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ code: user.code, device_id: SINGLE_LIGHT.device, switch: SINGLE_LIGHT.switch, value: want })
+            });
+            var data = await res.json();
+            if (!res.ok) { setWelcome((data && data.detail) || "Switch failed", 2000); return; }
+            var row = (data && data.switches || []).filter(function (r) { return r.code === SINGLE_LIGHT.switch; })[0];
+            singleLightOn = row && typeof row.on === "boolean" ? row.on : want;
+        } catch (e) {
+            setWelcome("No Link", 2000);
+        } finally {
+            if (key) key.classList.remove("light-pending");
+            renderSingleLight();
+        }
+    }
+
+    if (SINGLE_LIGHT) {
+        renderSingleLight();
+        loadSingleLight();
+        setInterval(loadSingleLight, 5000);
+    }
+
     function lightsPressStart() {
+        if (SINGLE_LIGHT) { unlockAudio(); beep(); toggleSingleLight(); return; }
         if (lightsPress && lightsPress.timer) clearTimeout(lightsPress.timer);
         lightsPress = { at: Date.now(), fired: false, timer: null };
         lightsPress.timer = setTimeout(function () {
@@ -2977,6 +3039,7 @@
     }
 
     function lightsPressEnd() {
+        if (SINGLE_LIGHT) return;
         if (!lightsPress) return;
         var p = lightsPress;
         lightsPress = null;
