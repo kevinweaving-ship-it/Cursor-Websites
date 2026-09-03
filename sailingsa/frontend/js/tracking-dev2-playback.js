@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v27";
+  var CACHE = "dev2v28";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -200,24 +200,44 @@
 
   function sizeDev2Map() {
     var track = document.querySelector(".tracking-dev2-map-first");
+    var bar = document.getElementById("tracking-dev2-sailfish-bar");
+    var header = document.querySelector(".site-header");
     var dock = document.getElementById("lipton-dev-subhead");
     if (!track) return;
-    var top = track.getBoundingClientRect().top;
-    var dockH = dock ? Math.max(64, dock.offsetHeight || 0) : 68;
-    var h = Math.floor(window.innerHeight - top - dockH);
-    if (h < 280) h = Math.floor(window.innerHeight * 0.72);
-    track.style.setProperty("height", h + "px", "important");
-    track.style.setProperty("min-height", h + "px", "important");
+    var top = 140;
+    if (bar) top = Math.ceil(bar.getBoundingClientRect().bottom);
+    else if (header) top = Math.ceil(header.getBoundingClientRect().bottom);
+    var dockH = 68;
+    if (dock) {
+      dock.style.setProperty("position", "fixed", "important");
+      dock.style.setProperty("left", "0", "important");
+      dock.style.setProperty("right", "0", "important");
+      dock.style.setProperty("bottom", "0", "important");
+      dock.style.setProperty("top", "auto", "important");
+      dock.style.setProperty("z-index", "90", "important");
+      dockH = Math.max(64, Math.round(dock.getBoundingClientRect().height || dock.offsetHeight || 68));
+    }
+    track.style.setProperty("position", "fixed", "important");
+    track.style.setProperty("left", "0", "important");
+    track.style.setProperty("right", "0", "important");
+    track.style.setProperty("top", top + "px", "important");
+    track.style.setProperty("bottom", dockH + "px", "important");
+    track.style.setProperty("width", "100%", "important");
+    track.style.setProperty("height", "auto", "important");
+    track.style.setProperty("min-height", "0", "important");
     track.style.setProperty("max-height", "none", "important");
+    track.style.setProperty("z-index", "1", "important");
     var chart = document.getElementById("lipton-dev-chart");
     var canvas = document.getElementById("lipton-dev-map");
     if (chart) {
-      chart.style.height = "100%";
-      chart.style.minHeight = h + "px";
+      chart.style.setProperty("position", "absolute", "important");
+      chart.style.setProperty("inset", "0", "important");
+      chart.style.setProperty("height", "100%", "important");
     }
     if (canvas) {
-      canvas.style.height = "100%";
-      canvas.style.minHeight = h + "px";
+      canvas.style.setProperty("position", "absolute", "important");
+      canvas.style.setProperty("inset", "0", "important");
+      canvas.style.setProperty("height", "100%", "important");
     }
   }
   sizeDev2Map();
