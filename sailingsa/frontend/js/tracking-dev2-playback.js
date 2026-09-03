@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v26";
+  var CACHE = "dev2v27";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -198,6 +198,32 @@
     });
   }
 
+  function sizeDev2Map() {
+    var track = document.querySelector(".tracking-dev2-map-first");
+    var dock = document.getElementById("lipton-dev-subhead");
+    if (!track) return;
+    var top = track.getBoundingClientRect().top;
+    var dockH = dock ? Math.max(64, dock.offsetHeight || 0) : 68;
+    var h = Math.floor(window.innerHeight - top - dockH);
+    if (h < 280) h = Math.floor(window.innerHeight * 0.72);
+    track.style.setProperty("height", h + "px", "important");
+    track.style.setProperty("min-height", h + "px", "important");
+    track.style.setProperty("max-height", "none", "important");
+    var chart = document.getElementById("lipton-dev-chart");
+    var canvas = document.getElementById("lipton-dev-map");
+    if (chart) {
+      chart.style.height = "100%";
+      chart.style.minHeight = h + "px";
+    }
+    if (canvas) {
+      canvas.style.height = "100%";
+      canvas.style.minHeight = h + "px";
+    }
+  }
+  sizeDev2Map();
+  window.addEventListener("resize", function () {
+    sizeDev2Map();
+  });
   var resetPlaybackAudio = function () {};
   function goRace(n) {
     n = Number(n) || 1;
@@ -482,6 +508,7 @@
       window.setTimeout(function () {
         try {
           start(pack[0], pack[1], bootNow, {}, pack[2]);
+          sizeDev2Map();
         } catch (startErr) {
           console.error("[dev2] start", startErr);
           showReplayStatus("Race " + RACE_Q + " start failed: " + (startErr && startErr.message ? startErr.message : startErr));
@@ -5280,6 +5307,7 @@
     });
 
     window.addEventListener("resize", function () {
+      sizeDev2Map();
       if (chartMap) chartMap.invalidateSize({ animate: false });
       if (followFleet) cam = null;
       frameCam(playTs);
@@ -5301,6 +5329,10 @@
     fillHead(0);
     setRateButtons();
     wireMapTools();
+    sizeDev2Map();
+    if (chartMap) {
+      try { chartMap.invalidateSize({ animate: false }); } catch (err) {}
+    }
     waitForTracker();
     window.requestAnimationFrame(tick);
   }
