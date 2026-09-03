@@ -1277,7 +1277,7 @@ def _live_state_save() -> None:
             "panel": panel if isinstance(panel, dict) else None,
             "events": _olarm_store_rows(),
             "lastKey": str(_activity_cache.get("last_key") or ""),
-            "owner": {"pid": os.getpid(), "loop": dict(_live_debug), "backfill": dict(_olarm_backfill_info)},
+            "owner": {"pid": os.getpid(), "loop": {k: v for k, v in _live_debug.items() if k != "owner"}, "backfill": dict(_olarm_backfill_info)},
             "backfillCursor": dict(_olarm_backfill_cursor),
         }
     try:
@@ -1323,10 +1323,26 @@ def _live_state_load(force: bool = False) -> bool:
     return True
 
 
+def _is_plain_zone_row(row: dict[str, Any]) -> bool:
+    if str(row.get("tab") or "") != "zones":
+        return False
+    state = str(row.get("state") or "").upper()
+    action = str(row.get("action") or "").lower()
+    if "alarm" in action or "bypass" in action or "tamper" in action:
+        return False
+    return not any(k in state for k in ("ALARM", "PANIC", "EMERGENCY", "FIRE", "MEDICAL", "BYPASS", "TAMPER", "TROUBLE"))
+
+
 def _rebuild_activity_cache(device: dict[str, Any] | None, newest: str) -> None:
     rows = _olarm_store_rows()
     bundle = _activity_bundle(device, rows)
-    bundle["events"] = (bundle.get("events") or [])[:_ACTIVITY_BUNDLE_MAX]
+    events = bundle.get("events") or []
+    # Keep every headline event (arm/disarm/alarm/bypass/power); trim only plain zone open/close chatter to fit the cap.
+    headline = [r for r in events if not _is_plain_zone_row(r)]
+    room = max(0, _ACTIVITY_BUNDLE_MAX - len(headline))
+    zone_rows = [r for r in events if _is_plain_zone_row(r)][:room]
+    keep = set(map(id, headline)) | set(map(id, zone_rows))
+    bundle["events"] = [r for r in events if id(r) in keep]
     bundle["lastKey"] = newest
     bundle["ack"] = False
     with _lock:
