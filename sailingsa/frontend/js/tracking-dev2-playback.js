@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v22";
+  var CACHE = "dev2v23";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -387,14 +387,31 @@
     LYCN: "#15803d", LYC: "#15803d"
   };
 
+  function fallbackBootstrap(race) {
+    return {
+      status: "99",
+      matchName: "2026 Lipton Challenge Cup",
+      raceName: "Race " + race,
+      raceCd: "R" + race,
+      teamList: [],
+      viewConfig: {
+        leaderline: true,
+        layline: true,
+        windCompass: true,
+        camera: true,
+        replaySpeed: 5
+      }
+    };
+  }
+
   if (LIVE_Q) {
     startLive();
   } else {
   Promise.all([
     fetch("/api/tracking-dev2/bootstrap?race=" + RACE_Q, { cache: "no-store" }).then(function (res) {
-      if (!res.ok) throw new Error("bootstrap " + res.status);
+      if (!res.ok) return fallbackBootstrap(RACE_Q);
       return res.json();
-    }),
+    }).catch(function () { return fallbackBootstrap(RACE_Q); }),
     fetch(DATA_URL, { cache: "no-store" }).then(function (res) {
       if (!res.ok) throw new Error("replay json " + res.status);
       return res.json();
