@@ -1080,9 +1080,9 @@
         var g = BREAKER_GAUGES[kind];
         var span = g.max - g.min;
         var f = Math.max(0.7, Math.min(1.8, (widthPx || 100) / 100));   // scale everything with the dial size
-        var thick = (kind === "w" ? 12 : 9) * f;
+        var thick = (kind === "w" ? 5 : 4) * f;                            // thin, clean arc
         var bands = g.bands.map(function (b) { return [(b[1] - g.min) / span, ARIAL_THEME.band[b[0]]]; });
-        var geo = { center: ["50%", "60%"], radius: "100%", startAngle: 200, endAngle: -20, min: g.min, max: g.max };
+        var geo = { center: ["50%", "58%"], radius: "100%", startAngle: 200, endAngle: -20, min: g.min, max: g.max };
         function base(extra) {
             var o = { type: "gauge", pointer: { show: false }, anchor: { show: false }, title: { show: false }, detail: { show: false },
                 axisTick: { show: false }, splitLine: { show: false }, axisLabel: { show: false } };
@@ -1091,70 +1091,46 @@
             return o;
         }
         var main = base({
-            splitNumber: g.splitNumber,
             axisLine: { lineStyle: { width: thick, color: bands } },
-            progress: { show: true, width: thick, roundCap: false, itemStyle: { color: ARIAL_THEME.ok } },
-            axisTick: { show: true, distance: 2 * f, length: 2.5 * f, splitNumber: 2, lineStyle: { color: ARIAL_THEME.navy, width: 0.7 } },
-            splitLine: { show: true, distance: 2 * f, length: 4.5 * f, lineStyle: { color: ARIAL_THEME.navy, width: 1.1 } },
-            axisLabel: {
-                show: false,
-                distance: 13 * f,
-                color: ARIAL_THEME.muted,
-                fontSize: 6.5 * f,
-                fontFamily: ARIAL_THEME.font,
-                fontWeight: 600,
-                formatter: function (v) {
-                    if (Math.round(v) % g.labelEvery !== 0) return "";
-                    return v >= 1000 ? (v / 1000) + "k" : String(Math.round(v));
-                }
-            },
+            progress: { show: true, width: thick, roundCap: true, itemStyle: { color: ARIAL_THEME.ok } },
             title: {
                 show: true,
-                offsetCenter: [0, "42%"],
-                fontSize: (kind === "w" ? 7 : 6.2) * f,
-                fontWeight: 700,
+                offsetCenter: [0, "38%"],
+                fontSize: (kind === "w" ? 12 : 9) * f,
+                fontWeight: 800,
                 fontFamily: ARIAL_THEME.font,
                 color: ARIAL_THEME.muted
             },
             detail: {
                 show: true,
                 valueAnimation: true,
-                offsetCenter: [0, "10%"],
+                offsetCenter: [0, "-6%"],
+                fontSize: (kind === "w" ? 22 : 15) * f,
+                fontWeight: 800,
                 fontFamily: ARIAL_THEME.font,
-                formatter: function (v) {
-                    var num = v == null || isNaN(v) ? "—" : Number(v).toFixed(g.decimals);
-                    return "{v|" + num + "}{u| " + g.unit + "}";
-                },
-                rich: {
-                    v: { fontSize: (kind === "w" ? 16 : 12) * f, fontWeight: 800, fontFamily: ARIAL_THEME.font, color: ARIAL_THEME.navy },
-                    u: { fontSize: (kind === "w" ? 8 : 6.5) * f, fontWeight: 700, fontFamily: ARIAL_THEME.font, color: ARIAL_THEME.muted }
-                }
+                color: ARIAL_THEME.navy,
+                formatter: function (v) { return v == null || isNaN(v) ? "—" : Number(v).toFixed(g.decimals); }
             },
-            data: [{ value: g.min, name: breakerGaugeName(kind) }],
+            data: [{ value: g.min, name: g.unit }],
             animationDuration: 900,
             animationDurationUpdate: 700,
             animationEasingUpdate: "cubicOut"
         });
-        // Thin accent ring just inside the thick arc (the temperature-style second series).
-        var accent = base({
-            radius: "100%",
-            axisLine: { lineStyle: { width: 2.5 * f, color: [[1, ARIAL_THEME.track]] } },
-            progress: { show: true, width: 2.5 * f, roundCap: true, itemStyle: { color: ARIAL_THEME.ok } },
-            data: [{ value: g.min }],
-            animationDuration: 900,
-            animationDurationUpdate: 700,
-            animationEasingUpdate: "cubicOut",
-            z: 3
-        });
-        var half = ((widthPx || 100) * 0.8) / 2;             // container is 100:80, radius % is of the shorter side / 2
-        accent.radius = Math.max(40, 100 - ((thick + 8 * f) / half) * 100) + "%";
-        var series = [main, accent];
+        var series = [main];
         if (g.limit != null) {
             series.push(base({
                 axisLine: { show: false },
                 progress: { show: false },
-                pointer: { show: true, length: "12%", width: 4 * f, offsetCenter: [0, "-108%"], itemStyle: { color: ARIAL_THEME.crit } },
-                data: [{ value: g.limit }],
+                pointer: { show: true, length: "10%", width: 3.5 * f, offsetCenter: [0, "-104%"], itemStyle: { color: ARIAL_THEME.crit } },
+                title: {
+                    show: true,
+                    offsetCenter: [0, "72%"],
+                    fontSize: 6.5 * f,
+                    fontWeight: 800,
+                    fontFamily: ARIAL_THEME.font,
+                    color: ARIAL_THEME.crit
+                },
+                data: [{ value: g.limit, name: "MAX " + g.limit + " " + g.unit }],
                 silent: true,
                 animation: false
             }));
@@ -1216,14 +1192,11 @@
             var colour = state === "crit" ? ARIAL_THEME.crit : state === "warn" ? ARIAL_THEME.warn : state === "ok" ? ARIAL_THEME.ok : ARIAL_THEME.track;
             var v = value == null ? g.min : Math.min(g.max, Math.max(g.min, value));
             chart.setOption({
-                series: [
-                    {
-                        data: [{ value: v, name: breakerGaugeName(kind) }],
-                        progress: { itemStyle: { color: colour } },
-                        detail: { rich: { v: { color: state === "crit" ? ARIAL_THEME.crit : state === "warn" ? ARIAL_THEME.warn : ARIAL_THEME.navy } } }
-                    },
-                    { data: [{ value: v }], progress: { itemStyle: { color: colour } } }
-                ]
+                series: [{
+                    data: [{ value: v, name: g.unit }],
+                    progress: { itemStyle: { color: colour } },
+                    detail: { color: state === "crit" ? ARIAL_THEME.crit : state === "warn" ? ARIAL_THEME.warn : ARIAL_THEME.navy }
+                }]
             });
             return;
         }
