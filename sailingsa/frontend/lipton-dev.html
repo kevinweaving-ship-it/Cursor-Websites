@@ -21,7 +21,7 @@
   <meta name="twitter:image" content="https://sailingsa.co.za/api/og/regatta/2026-08-29-lipton-challenge-cup/ea4ca8b2a84b036d.png">
   <link rel="stylesheet" href="/css/main.css">
   <link rel="stylesheet" href="/js/vendor/leaflet/leaflet.css?v=20260828dk">
-  <link rel="stylesheet" href="/css/lipton-dev.css?v=20260829r1r10">
+  <link rel="stylesheet" href="/css/lipton-dev.css?v=20260903track">
   <script src="/js/api.js"></script>
   <script src="/js/session.js"></script>
 </head>
@@ -124,38 +124,7 @@
   </div>
 
   <script src="/js/vendor/leaflet/leaflet.js?v=20260828dk"></script>
-  <script src="/js/lipton-event-sheet.js?v=20260829pubtbl"></script>
-  <script>
-  (function () {
-    var clock = document.getElementById("lipton-dev-map-hud-clock");
-    var label = document.getElementById("lipton-dev-race-label");
-    var gunTs = null;
-    function pad(n) { return n < 10 ? "0" + n : String(n); }
-    function fmt(ms) {
-      var a = Math.abs(Number(ms) || 0);
-      var s = Math.floor(a / 1000);
-      return (ms < 0 ? "T−" : "T+") + Math.floor(s / 60) + ":" + pad(s % 60) + "." + Math.floor((a % 1000) / 100);
-    }
-    function tick() {
-      if (!clock || !(gunTs > 0)) return;
-      clock.textContent = fmt(Date.now() - gunTs);
-    }
-    function pull() {
-      fetch("/js/lipton-dev-live-starts.json?v=" + Date.now(), { cache: "no-store" }).then(function (res) {
-        return res.ok ? res.json() : null;
-      }).then(function (d) {
-        if (d && d.gun_ts_ms) gunTs = Number(d.gun_ts_ms);
-        if (label && gunTs > 0) {
-          label.textContent = (Date.now() - gunTs < 0) ? "Race 10 — ARMED" : "Race 10 — LIVE";
-        }
-        tick();
-      }).catch(function () {});
-    }
-    pull();
-    setInterval(pull, 1000);
-    setInterval(tick, 100);
-  })();
-  </script>
-  <script src="/js/lipton-dev-playback-du.js?v=20260829r1r10"></script>
+  <script src="/js/lipton-event-sheet.js?v=20260903track"></script>
+  <script src="/js/lipton-dev-playback-du.js?v=20260903track"></script>
 </body>
 </html>

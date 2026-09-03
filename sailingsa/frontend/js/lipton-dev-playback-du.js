@@ -5,7 +5,7 @@
  * Data: /js/lipton-dev-replay.json
  */
 (function () {
-  var CACHE = "20260829r1r10";
+  var CACHE = "20260903track";
   var params = new URLSearchParams(location.search);
   if (!params.has("race") || params.has("live")) {
     params.delete("live");
