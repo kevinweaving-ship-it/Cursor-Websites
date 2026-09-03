@@ -1409,6 +1409,10 @@ def _olarm_backfill(max_pages: int = 150, pace_s: float = 3.5, stop_when_known: 
         info["added"] += added
         oldest = min(_event_time_ms(r) for r in rows)
         info["oldest"] = oldest
+        if added:
+            # Show history as it arrives instead of only when the whole back-fill finishes.
+            _rebuild_activity_cache(_stale_panel(), str(_activity_cache.get("last_key") or ""))
+            _live_state_save()
         if stop_when_known and added == 0:
             info["stopped"] = "overlap"
             break
@@ -2599,16 +2603,21 @@ async def arial_panel():
     cached = _cached_panel()
     if cached is not None:
         return {"ok": True, "device": cached, "live": True}
+    stale = _stale_panel()
+    if stale is None and _live_state_load(force=True):
+        stale = _stale_panel()
+    if stale is not None and _live_role:
+        # A poller owns Olarm for this site; never race it with extra calls, serve its last snapshot.
+        return {"ok": True, "device": stale, "live": False}
     try:
         raw = await _olarm_request(
             "GET",
             f"/api/v4/devices/{HANSEKOP_ID}",
             params={"deviceApiAccessOnly": "1"},
         )
-    except HTTPException as exc:
-        stale = _stale_panel()
-        if exc.status_code == 429 and stale is not None:
-            return {"ok": True, "device": stale}
+    except HTTPException:
+        if stale is not None:
+            return {"ok": True, "device": stale, "live": False}
         raise
     return {"ok": True, "device": _cached_panel(enrich_device(raw)), "live": True}
 
