@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v37";
+  var CACHE = "dev2v38";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -3972,7 +3972,7 @@
         mapCtx.textBaseline = "middle";
         mapCtx.fillText(String(info.racePlace), p.x, p.y + 0.4);
       }
-      if (info.onMark && !info.finished) drawDelta(p.x - 12, p.y - 1, info.leg, "right");
+      if (info.leg != null && !info.finished) drawDelta(p.x - 12, p.y - 1, info.leg, "right");
       var lx = p.x + 12;
       var ly = p.y - 1;
       mapCtx.font = "bold 10px sans-serif";
@@ -3983,7 +3983,7 @@
       mapCtx.fillStyle = info.pending ? "#f87171" : paint.fill;
       mapCtx.fillText(club, lx, ly);
       mapCtx.shadowBlur = 0;
-      if (info.onMark) {
+      if (info.total != null) {
         var cw = mapCtx.measureText(club).width;
         drawDelta(lx + cw + 3, ly, info.total, "left");
       }
@@ -4536,7 +4536,7 @@
       return n <= 1 ? base : base + "·" + n;
     }
     var lastHeadKey = "";
-    var marksDetailOpen = false;
+    var marksDetailOpen = true;
     function passIsMark(p) {
       if (!p) return false;
       if (p.id === "ST" || p.label === "ST") return false;

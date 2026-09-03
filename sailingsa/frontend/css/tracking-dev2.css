@@ -1351,6 +1351,17 @@ body[data-tracking-dev2="1"] .tracking-dev2-rank-table td.start-rank-col {
   min-width: 2rem;
   font-weight: 700;
 }
+body[data-tracking-dev2="1"] .tracking-dev2-rank-table .place-delta,
+body[data-tracking-dev2="1"] .tracking-dev2-rank-table .ld-tri {
+  display: inline-block;
+  visibility: visible;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-rank-table .ld-tri--up {
+  border-bottom-color: #15803d;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-rank-table .ld-tri--down {
+  border-top-color: #b42318;
+}
 body[data-tracking-dev2="1"] .tracking-dev2-rank-table thead th {
   position: sticky;
   top: 0;
