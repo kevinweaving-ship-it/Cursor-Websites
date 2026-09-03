@@ -3,27 +3,32 @@
   "entries": 17,
   "dnf_points": 18,
   "discards": 0,
-  "source": "Lipton Cup 2026 Overall results after 10 races PDF (liptoncup.com) — 100% matrix match.",
+  "source": "Lipton Cup 2026 Overall results after 10 races PDF (liptoncup.com) \u2014 matrix match; 3 R6 DSQs until Lipton republish.",
   "checksum": {
     "source_pdf": "https://liptoncup.com/backend/wp-content/uploads/2026/08/Lipton-Cup-2026-Overall-results-after-10.pdf",
     "matrix_sha256": "b196e1ae904287da40abbc9f52736df8d642b0403d467193fb990bfe7fd7c27f",
-    "totals_sha256": "bb8906ff1c449f9e583d92ce9a777a080a101186c5e95c73b88404ccd161b733",
-    "verified": "2026-08-29",
+    "totals_sha256": "ffdd1b4822bd47f66d26f6f1a31288b2d6b693c6dd3e8ee974575d9441fe46ff",
+    "verified": "2026-09-01",
     "script": "docs/verify_lipton_series_scores.py"
+  },
+  "publish": {
+    "result_status": "Provisional",
+    "as_at_time": "2026-08-29T15:24:06+02:00",
+    "note": "Sailwave overall after 10 races; provisional until Lipton publishes corrected sheet."
   },
   "ret_tracking": {
     "9": {
       "WYAC": {
         "code": "RET",
         "points": 18,
-        "note": "Official overall R9 18.0 RET (Witbank — not WBYC). GPS: no finish crossing, >350m from line at race end."
+        "note": "Official overall R9 18.0 RET (Witbank \u2014 not WBYC). GPS: no finish crossing, >350m from line at race end."
       }
     },
     "10": {
       "LDYC": {
         "code": "RET",
         "points": 18,
-        "note": "Official overall R10 18.0 RET. No LDYC GPS trail in packed replay — official score only."
+        "note": "Official overall R10 18.0 RET. No LDYC GPS trail in packed replay \u2014 official score only."
       }
     }
   },
@@ -564,7 +569,7 @@
       "RNYC"
     ],
     "dsq_points": 18,
-    "note": "Two protests after R6 (shortened course; finished boats blocking finish). Published overall applies 18.0 DSQ to KYC, LDYC, RNYC in R6. Case 02 (ONB) DSQ'd LDYC & RNYC; cleared KYC in that hearing \u2014 KYC DSQ on final sheet implies second protest/hearing (Case 01 not yet on ONB).",
+    "note": "Published overall after 10 races (liptoncup.com): 18.0 DSQ KYC, LDYC, RNYC in R6. Case 02 cleared KYC in hearing; Lipton sheet not yet corrected post-race 10.",
     "case_02": {
       "protestor": "RCYC",
       "protestees": [
