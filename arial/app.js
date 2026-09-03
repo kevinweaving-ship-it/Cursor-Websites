@@ -1047,9 +1047,9 @@
             if (value < 216) return "low";           // under-voltage: below normal
             return "ok";
         }
-        // Hard supply limits first.
-        if (kind === "a" ? value >= 10 : value >= 2300) return "crit";
-        if (kind === "a" ? value >= 9.5 : value >= 2200) return "warn";
+        // Hard supply limits first (20 A supply).
+        if (kind === "a" ? value >= 19 : value >= 4370) return "crit";
+        if (kind === "a" ? value >= 18 : value >= 4140) return "warn";
         // Then relative to the running average (same bands as the day chart).
         var base = breakerEnergyData && breakerEnergyData.baselineKw != null ? breakerEnergyData.baselineKw * 1000 : null;
         var watts = kind === "w" ? value : breakerLatestWatts;
@@ -1088,8 +1088,8 @@
     // Gauge definitions: scale, threshold bands (values) and the hard limit mark.
     var BREAKER_GAUGES = {
         v: { min: 200, max: 255, unit: "V", name: "Volts", decimals: 1, bands: [["crit", 207], ["warn", 216], ["ok", 244], ["warn", 253], ["crit", 255]], limit: null, splitNumber: 11, labelEvery: 10, tip: "Normal 216–244 V · Watch 207–216 / 244–253 V · Out of spec below 207 V or above 253 V" },
-        a: { min: 0, max: 11, unit: "A", name: "Amps", decimals: 2, bands: [["ok", 9.5], ["warn", 10], ["crit", 11]], limit: 10, splitNumber: 11, labelEvery: 2, tip: "Supply limit 10 A · Watch from 9.5 A" },
-        w: { min: 0, max: 2600, unit: "W", name: "Watts", decimals: 0, bands: [["ok", 2200], ["warn", 2300], ["crit", 2600]], limit: 2300, splitNumber: 13, labelEvery: 1000, tip: "Supply limit 2300 W (10 A × 230 V) · Watch from 2200 W" }
+        a: { min: 0, max: 20, unit: "A", name: "Amps", decimals: 2, bands: [["ok", 18], ["warn", 19], ["crit", 20]], limit: null, splitNumber: 10, labelEvery: 5, tip: "20 A supply · Watch from 18 A" },
+        w: { min: 0, max: 4600, unit: "W", name: "Watts", decimals: 0, bands: [["ok", 4140], ["warn", 4370], ["crit", 4600]], limit: null, splitNumber: 10, labelEvery: 1000, tip: "20 A supply (4600 W at 230 V) · Watch from 4140 W" }
     };
 
     var breakerCharts = {};
@@ -1429,9 +1429,9 @@
         if (aEl) aEl.textContent = amps != null ? amps.toFixed(2) : "—";
         if (wEl) wEl.textContent = watts != null ? String(Math.round(watts)) : "—";
         breakerLatestWatts = watts;
-        setBreakerGauge("v", volts, 200, 253);
-        setBreakerGauge("a", amps, 0, 11);
-        setBreakerGauge("w", watts, 0, 2530);
+        setBreakerGauge("v", volts, 200, 255);
+        setBreakerGauge("a", amps, 0, 20);
+        setBreakerGauge("w", watts, 0, 4600);
         if (watts != null) {
             breakerHist.push({ t: Date.now(), w: watts });
             var cut = Date.now() - BREAKER_HIST_MS;
