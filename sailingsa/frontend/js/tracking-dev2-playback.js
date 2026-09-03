@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v24";
+  var CACHE = "dev2v25";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -445,49 +445,52 @@
     };
   }
 
+  function showReplayStatus(msg) {
+    var tb = document.getElementById("lipton-dev-tbody");
+    var sum = document.getElementById("lipton-dev-checksum");
+    if (tb) tb.innerHTML = "<tr><td colspan=\"5\">" + String(msg || "") + "</td></tr>";
+    if (sum) sum.textContent = String(msg || "");
+  }
+  function loadJson(url) {
+    return fetch(url, { cache: "default" }).then(function (res) {
+      if (!res.ok) throw new Error(url + " " + res.status);
+      return res.json();
+    });
+  }
+
   if (LIVE_Q) {
     startLive();
   } else {
+  var bootNow = fallbackBootstrap(RACE_Q);
+  window.__trackingDev2Bootstrap = bootNow;
+  try {
+    window.__sailfishDev2 = typeof window.applySailfishDev2 === "function"
+      ? window.applySailfishDev2(bootNow)
+      : {};
+  } catch (sfErr) {
+    console.warn("[dev2] sailfish", sfErr);
+    window.__sailfishDev2 = {};
+  }
+  showReplayStatus("Loading Race " + RACE_Q + " GPS…");
   Promise.all([
-    fetch("/api/tracking-dev2/bootstrap?race=" + RACE_Q, { cache: "no-store" }).then(function (res) {
-      if (!res.ok) return fallbackBootstrap(RACE_Q);
-      return res.json();
-    }).catch(function () { return fallbackBootstrap(RACE_Q); }),
-    fetch(DATA_URL, { cache: "no-store" }).then(function (res) {
-      if (!res.ok) throw new Error("replay json " + res.status);
-      return res.json();
-    }),
-    fetch(TRAIL_URL, { cache: "no-store" }).then(function (res) {
-      if (!res.ok) throw new Error("trail json " + res.status);
-      return res.json();
-    }),
-    fetchPriorFinishes(RACE_Q),
+    loadJson(DATA_URL),
+    loadJson(TRAIL_URL),
     fetchSeriesScores()
   ])
-    .then(function (quad) {
-      window.__trackingDev2Bootstrap = quad[0];
-      try {
-        window.__sailfishDev2 = typeof window.applySailfishDev2 === "function"
-          ? window.applySailfishDev2(quad[0])
-          : {};
-      } catch (sfErr) {
-        console.warn("[dev2] sailfish", sfErr);
-        window.__sailfishDev2 = {};
-      }
-      try {
-        start(quad[1], quad[2], quad[0], quad[3], quad[4]);
-      } catch (startErr) {
-        console.error("[dev2] start", startErr);
-        var sailed = document.getElementById("lipton-dev-sailed");
-        if (sailed) sailed.textContent = "Race " + RACE_Q + " replay started with errors.";
-      }
+    .then(function (pack) {
+      showReplayStatus("Starting Race " + RACE_Q + "…");
+      window.setTimeout(function () {
+        try {
+          start(pack[0], pack[1], bootNow, {}, pack[2]);
+        } catch (startErr) {
+          console.error("[dev2] start", startErr);
+          showReplayStatus("Race " + RACE_Q + " start failed: " + (startErr && startErr.message ? startErr.message : startErr));
+        }
+      }, 0);
     })
     .catch(function (err) {
-      var sailed = document.getElementById("lipton-dev-sailed");
-      if (sailed) {
-        sailed.textContent = "Race " + RACE_Q + " replay failed to load (R1–R10 sample set).";
-      }
       console.error(err);
+      showReplayStatus("Race " + RACE_Q + " failed: " + (err && err.message ? err.message : err));
     });
   }
 
