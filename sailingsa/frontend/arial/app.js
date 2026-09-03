@@ -2964,9 +2964,25 @@
         });
     }
 
-    // Single-switch mode (Home for now): LIGHTS key toggles one Tuya channel and shows its live state on the key.
-    var SINGLE_LIGHT = CFG.lights && CFG.lights.device ? CFG.lights : null;
-    var singleLightOn = null;
+    // Grouped-switch mode (Home for now): LIGHTS key drives a set of Tuya channels together and shows the live state.
+    // Config: lights: { label, apiBase, targets: [{ device, code, name }] }  (legacy single form { device, switch } also accepted)
+    var SINGLE_LIGHT = null;
+    if (CFG.lights && Array.isArray(CFG.lights.targets) && CFG.lights.targets.length) {
+        SINGLE_LIGHT = { label: CFG.lights.label, api: CFG.lights.apiBase || CFG.lights.api, targets: CFG.lights.targets };
+    } else if (CFG.lights && CFG.lights.device) {
+        SINGLE_LIGHT = { label: CFG.lights.label, api: CFG.lights.api, targets: [{ device: CFG.lights.device, code: CFG.lights.switch || "switch_1", name: CFG.lights.label }] };
+    }
+    var singleLightOn = null;          // true if any target is on, false if all known off, null unknown
+    var singleLightStates = {};        // "device|code" -> bool
+
+    function recomputeSingleLight() {
+        var known = 0, on = 0;
+        SINGLE_LIGHT.targets.forEach(function (t) {
+            var v = singleLightStates[t.device + "|" + t.code];
+            if (typeof v === "boolean") { known += 1; if (v) on += 1; }
+        });
+        singleLightOn = known ? on > 0 : null;
+    }
 
     function renderSingleLight() {
         var lab = document.querySelector('.hot[data-key="STAY"] .key-label');
@@ -2977,19 +2993,32 @@
         var l2 = document.createElement("span"); l2.className = "kl-2"; l2.textContent = singleLightOn == null ? "…" : (singleLightOn ? "On" : "Off");
         lab.appendChild(l1); lab.appendChild(l2);
         var key = lab.closest(".hot");
-        if (key) { key.classList.toggle("light-on", singleLightOn === true); key.classList.toggle("light-off", singleLightOn === false); }
+        if (key) {
+            key.classList.toggle("light-on", singleLightOn === true);
+            key.classList.toggle("light-off", singleLightOn === false);
+            key.title = SINGLE_LIGHT.targets.map(function (t) {
+                var v = singleLightStates[t.device + "|" + t.code];
+                return (t.name || t.code) + ": " + (v == null ? "?" : v ? "on" : "off");
+            }).join(" · ");
+        }
     }
 
     async function loadSingleLight() {
         if (!SINGLE_LIGHT || loadSingleLight._busy) return;
         loadSingleLight._busy = true;
         try {
-            var res = await fetch(String(SINGLE_LIGHT.api || API) + "/tuya/lights?device_id=" + SINGLE_LIGHT.device, { credentials: "same-origin", cache: "no-store" });
-            var data = await res.json();
-            var row = (data && data.switches || []).filter(function (r) { return r.code === SINGLE_LIGHT.switch; })[0];
-            singleLightOn = row && typeof row.on === "boolean" ? row.on : null;
-        } catch (e) {
-            singleLightOn = null;
+            var devices = {};
+            SINGLE_LIGHT.targets.forEach(function (t) { devices[t.device] = true; });
+            await Promise.all(Object.keys(devices).map(function (dev) {
+                return fetch(String(SINGLE_LIGHT.api || API) + "/tuya/lights?device_id=" + dev, { credentials: "same-origin", cache: "no-store" })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        (data && data.switches || []).forEach(function (row) {
+                            if (typeof row.on === "boolean") singleLightStates[dev + "|" + row.code] = row.on;
+                        });
+                    }).catch(function () {});
+            }));
+            recomputeSingleLight();
         } finally {
             loadSingleLight._busy = false;
             renderSingleLight();
@@ -3003,16 +3032,18 @@
         var key = document.querySelector('.hot[data-key="STAY"]');
         if (key) key.classList.add("light-pending");
         try {
-            var res = await fetch(String(SINGLE_LIGHT.api || API) + "/tuya/switch", {
-                method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ code: user.code, device_id: SINGLE_LIGHT.device, switch: SINGLE_LIGHT.switch, value: want })
-            });
-            var data = await res.json();
-            if (!res.ok) { setWelcome((data && data.detail) || "Switch failed", 2000); return; }
-            var row = (data && data.switches || []).filter(function (r) { return r.code === SINGLE_LIGHT.switch; })[0];
-            singleLightOn = row && typeof row.on === "boolean" ? row.on : want;
-        } catch (e) {
-            setWelcome("No Link", 2000);
+            await Promise.all(SINGLE_LIGHT.targets.map(function (t) {
+                return fetch(String(SINGLE_LIGHT.api || API) + "/tuya/switch", {
+                    method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ code: user.code, device_id: t.device, switch: t.code, value: want })
+                }).then(function (res) { return res.json().then(function (data) {
+                    if (!res.ok) { setWelcome((data && data.detail) || "Switch failed", 2000); return; }
+                    (data && data.switches || []).forEach(function (row) {
+                        if (typeof row.on === "boolean") singleLightStates[t.device + "|" + row.code] = row.on;
+                    });
+                }); }).catch(function () { setWelcome("No Link", 2000); });
+            }));
+            recomputeSingleLight();
         } finally {
             if (key) key.classList.remove("light-pending");
             renderSingleLight();

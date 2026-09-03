@@ -234,7 +234,11 @@
         saStamp();
     })();
     </script>
-    <script>window.ARIAL_CONFIG = { apiBase: "/api/voelklip", siteId: "voelklip", siteLabel: "HOME", tuya: false, exitDelay: 30, lights: { api: "/api/arial", device: "bf77b408c97d4bed9alafg", switch: "switch_1", label: "Outside" } };</script>
+    <script>window.ARIAL_CONFIG = { apiBase: "/api/voelklip", siteId: "voelklip", siteLabel: "HOME", tuya: false, exitDelay: 30,
+        lights: { label: "Outside", apiBase: "/api/arial", targets: [
+            { device: "bf77b408c97d4bed9alafg", code: "switch_1", name: "Passage / Outside" },
+            { device: "bf8e2c6a662fd46f127nvr", code: "switch_1", name: "Upstairs Office / Desktop Lights" }
+        ] } };</script>
     <script src="/arial/app.js?v=232"></script>
 </body>
 </html>
