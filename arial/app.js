@@ -531,6 +531,66 @@
         }
     }
 
+    // ---- Partitioned panel LCD (Home): real per-area countdown, then "System Armed" + which areas ----
+    function isMultiArea(device) {
+        return !!(device && Array.isArray(device.arialAreas) && device.arialAreas.length >= 2);
+    }
+
+    function areaKeyLabel(idx, area) {
+        var key = document.querySelector('.hot[data-key="' + AREA_KEYS[idx] + '"] .key-label');
+        var txt = key ? String(key.textContent || "").trim() : "";
+        return (txt || String((area && area.label) || ("Area " + (idx + 1)))).toUpperCase();
+    }
+
+    function areaCountdownLeft(idx, device) {
+        var p = typeof areaPending !== "undefined" ? areaPending[idx + 1] : null;
+        if (p && p.until) return Math.max(0, Math.ceil((p.until - Date.now()) / 1000));
+        var n = deviceCountdown(device);          // Olarm-reported seconds when someone else armed
+        return n > 0 ? n : 0;
+    }
+
+    function applyMultiAreaLcd(device) {
+        var areas = device.arialAreas;
+        var lcd = document.querySelector(".lcd");
+        var led = document.getElementById("led-status");
+        var arming = [], armed = [], alarm = [];
+        var i;
+        for (i = 0; i < areas.length && i < AREA_KEYS.length; i += 1) {
+            var st = String((areas[i] && areas[i].state) || "").toLowerCase();
+            var pending = typeof areaPending !== "undefined" && areaPending[i + 1];
+            if (isAlarmState(st)) alarm.push(i);
+            else if (st === "countdown" || (pending && st !== "arm" && st !== "stay" && st !== "sleep")) arming.push(i);
+            else if (st === "arm" || st === "stay" || st === "sleep") armed.push(i);
+        }
+        function names(list) { return list.map(function (ix) { return areaKeyLabel(ix, areas[ix]); }).join(" · "); }
+        if (lcd) lcd.classList.remove("armed", "disarmed", "arming", "arming-fast", "zone-open", "hold-disarmed", "alarm");
+        if (alarm.length) {
+            stopIssueCycle();
+            setLcdStatus("ALARM", names(alarm));
+            if (lcd) lcd.classList.add("alarm");
+            setLed(led, "alarm");
+        } else if (arming.length) {
+            stopIssueCycle();
+            var left = 0;
+            for (i = 0; i < arming.length; i += 1) left = Math.max(left, areaCountdownLeft(arming[i], device));
+            setLcdStatus(left ? ("Exit Delay " + left) : "Exit Delay", "ARMING " + names(arming));
+            if (lcd) { lcd.classList.add("arming"); if (left && left <= 7) lcd.classList.add("arming-fast"); }
+            setLed(led, "arming");
+        } else if (armed.length) {
+            stopIssueCycle();
+            setLcdStatus("System Armed", names(armed));
+            if (lcd) lcd.classList.add("armed");
+            setLed(led, "armed");
+        } else {
+            var open = openZoneIssues(device);
+            if (lcd) { lcd.classList.add("disarmed"); lcd.classList.toggle("zone-open", open.length > 0); }
+            if (!ensureIssueCycle()) setLcdStatus("System Ready", "");
+            setLed(led, open.length ? "disarmed flash" : "disarmed");
+        }
+        syncArmToggle();
+        fitLcdStatus();
+    }
+
     function applyLeds(device) {
         if (Date.now() < loginErrorUntil) {
             showLoginError(true);
@@ -538,6 +598,10 @@
             return;
         }
         setLed(document.getElementById("led-ac"), powerAcOk(device) ? "on" : "flash");
+        if (isMultiArea(device)) {
+            applyMultiAreaLcd(device);
+            return;
+        }
         var st = areaState(device);
         var apiCd = deviceCountdown(device);
         var stampCd = stampRemaining(device);
@@ -672,7 +736,7 @@
         if (padWrap) padWrap.classList.toggle("multi-area", Array.isArray(hanse.arialAreas) && hanse.arialAreas.length >= 2);
         lastStatus = (document.getElementById("lcd-status-main") || {}).textContent || statusFromDevice(hanse);
         var st = areaState(hanse);
-        if (isLoggedIn() && applyPanelDevice._area && applyPanelDevice._area !== st) {
+        if (isLoggedIn() && !isMultiArea(hanse) && applyPanelDevice._area && applyPanelDevice._area !== st) {
             if (st === "disarm" || st === "notready") prependActivity("DISARMED");
             else if (st === "arm" || st === "stay" || st === "sleep") prependActivity("ARMED");
         }
@@ -2600,10 +2664,12 @@
         var p = { until: until, timer: null };
         p.timer = setInterval(function () {
             var left = Math.ceil((p.until - Date.now()) / 1000);
-            if (left <= 0) { stopAreaPending(num); syncAreaKeys(window.arialDevice); return; }
+            if (left <= 0) { stopAreaPending(num); syncAreaKeys(window.arialDevice); loadStatus(); return; }
             unlockAudio();
             tone(left <= 7 ? 1900 : 1500, left <= 7 ? 0.08 : 0.06, 0.35);
+            if (window.arialDevice) applyMultiAreaLcd(window.arialDevice);
         }, 1000);
+        if (window.arialDevice) applyMultiAreaLcd(window.arialDevice);
         areaPending[num] = p;
     }
 
@@ -2619,8 +2685,8 @@
         if (armed || areaPending[num]) {
             disarmBeep();
             stopAreaPending(num);
-            if (key) { key.classList.remove("area-armed"); key.classList.add("area-disarmed"); }
-            prependActivity("DISARMED");
+            if (key) { key.classList.remove("area-armed", "area-arming"); key.classList.add("area-disarmed"); }
+            if (window.arialDevice) applyMultiAreaLcd(window.arialDevice);
             sendLiveAction("area-disarm", num).then(function (ok) { if (!ok) loadStatus(); });
             return;
         }
