@@ -1082,6 +1082,7 @@
         var f = Math.max(0.7, Math.min(1.8, (widthPx || 100) / 100));   // scale everything with the dial size
         var thick = (kind === "w" ? 5 : 4) * f;                            // thin, clean arc
         var bands = g.bands.map(function (b) { return [(b[1] - g.min) / span, ARIAL_THEME.band[b[0]]]; });
+        var half = ((widthPx || 100) * 0.8) / 2;                         // container is 100:80; radius % is of the shorter side / 2
         var geo = { center: ["50%", "58%"], radius: "100%", startAngle: 200, endAngle: -20, min: g.min, max: g.max };
         function base(extra) {
             var o = { type: "gauge", pointer: { show: false }, anchor: { show: false }, title: { show: false }, detail: { show: false },
@@ -1093,6 +1094,16 @@
         var main = base({
             axisLine: { lineStyle: { width: thick, color: bands } },
             progress: { show: true, width: thick, roundCap: true, itemStyle: { color: ARIAL_THEME.ok } },
+            // Diamond rides the arc at value / full scale; colour follows state.
+            pointer: {
+                show: true,
+                icon: "path://M0,-10 L8,0 L0,10 L-8,0 Z",
+                length: (12 * f) + "",
+                width: 12 * f,
+                offsetCenter: [0, (-(100 - ((thick / 2 + 6 * f) / half) * 100)).toFixed(1) + "%"],
+                keepAspect: true,
+                itemStyle: { color: ARIAL_THEME.ok, borderColor: "#ffffff", borderWidth: 1.2 }
+            },
             title: {
                 show: true,
                 offsetCenter: [0, "38%"],
@@ -1121,7 +1132,7 @@
             series.push(base({
                 axisLine: { show: false },
                 progress: { show: false },
-                pointer: { show: true, length: "10%", width: 3.5 * f, offsetCenter: [0, "-104%"], itemStyle: { color: ARIAL_THEME.crit } },
+                pointer: { show: false },
                 title: {
                     show: true,
                     offsetCenter: [0, "72%"],
@@ -1195,6 +1206,7 @@
                 series: [{
                     data: [{ value: v, name: g.unit }],
                     progress: { itemStyle: { color: colour } },
+                    pointer: { itemStyle: { color: colour } },
                     detail: { color: state === "crit" ? ARIAL_THEME.crit : state === "warn" ? ARIAL_THEME.warn : ARIAL_THEME.navy }
                 }]
             });
@@ -1340,6 +1352,9 @@
         stateEl.classList.toggle("is-off", text === "OFF");
     }
 
+    var breakerFailStreak = 0;
+    var BREAKER_FAILS_BEFORE_BLANK = 3;
+
     function renderBreaker(data) {
         var stateEl = document.getElementById("breaker-state");
         var vEl = document.getElementById("breaker-v");
@@ -1347,6 +1362,14 @@
         var wEl = document.getElementById("breaker-w");
         var energyRow = document.getElementById("breaker-energy");
         if (!stateEl) return;
+        var healthy = !!(data && data.configured && data.tokenOk && data.deviceOk);
+        if (!healthy) {
+            breakerFailStreak += 1;
+            // Tuya drops the odd request; hold the last good reading unless the link is really down.
+            if (breakerFailStreak < BREAKER_FAILS_BEFORE_BLANK && breakerHist.length) return;
+        } else {
+            breakerFailStreak = 0;
+        }
         function blankGauges() {
             setBreakerGauge("v", null, 0, 1);
             setBreakerGauge("a", null, 0, 1);

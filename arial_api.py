@@ -406,6 +406,10 @@ def _tuya_device_status(creds: dict[str, str], device_id: str) -> dict[str, Any]
         creds=creds,
         access_token=access,
     )
+    if not payload.get("success") and int(payload.get("code") or 0) == 501:
+        # Tuya cloud hiccup ("request fail with unkown error"); one quick retry clears it.
+        time.sleep(0.4)
+        payload = _tuya_call("GET", f"/v1.0/devices/{device_id}/status", creds=creds, access_token=access)
     if int(payload.get("code") or 0) == TUYA_CODE_TOKEN_INVALID:
         # Fresh simple token, never HMAC-refresh with the dead access_token.
         _tuya_reset_token()
