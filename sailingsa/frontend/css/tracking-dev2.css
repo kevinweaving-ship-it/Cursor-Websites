@@ -1605,3 +1605,83 @@ body[data-tracking-dev2="1"] .tracking-dev2-cam-btn-core {
   justify-content: center;
   box-shadow: inset 0 0 0 2px rgba(15,23,42,0.35);
 }
+
+/* Dev2 map must fill the viewport. Beat the old 38vh / 420px Mac strip. */
+html:has(body[data-tracking-dev2="1"]),
+body[data-tracking-dev2="1"] {
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  overflow: hidden !important;
+}
+body[data-tracking-dev2="1"] .lipton-dev-shell,
+body[data-lipton-dev="1"][data-tracking-dev2="1"] .lipton-dev-shell {
+  flex: 1 1 auto !important;
+  height: auto !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+body[data-tracking-dev2="1"] .lipton-dev-split.tracking-dev2-split {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: auto !important;
+  padding-bottom: 68px !important;
+}
+body[data-tracking-dev2="1"] .lipton-dev-track.tracking-dev2-map-first {
+  flex: 1 1 auto !important;
+  height: auto !important;
+  min-height: calc(100dvh - 200px) !important;
+  max-height: none !important;
+}
+@media (hover: hover) and (pointer: fine) {
+  body[data-tracking-dev2="1"] .lipton-dev-shell,
+  body[data-lipton-dev="1"][data-tracking-dev2="1"] .lipton-dev-shell {
+    overflow: hidden !important;
+    height: auto !important;
+    max-height: none !important;
+    flex: 1 1 auto !important;
+  }
+  body[data-tracking-dev2="1"] .lipton-dev-track.tracking-dev2-map-first,
+  body[data-lipton-dev="1"][data-tracking-dev2="1"] .lipton-dev-track {
+    flex: 1 1 auto !important;
+    height: auto !important;
+    min-height: calc(100dvh - 200px) !important;
+    max-height: none !important;
+  }
+}
+body[data-tracking-dev2="1"] .tracking-dev2-map-first #lipton-dev-chart,
+body[data-tracking-dev2="1"] .tracking-dev2-map-first #lipton-dev-map {
+  transform: rotate(var(--dev2-map-spin, 0deg)) !important;
+  transform-origin: center center;
+}
+body[data-tracking-dev2="1"] .leaflet-control-zoom {
+  display: block !important;
+  margin: 10px 0 0 10px;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-map-tools {
+  position: absolute;
+  left: 10px;
+  top: 88px;
+  z-index: 85;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  pointer-events: auto;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-map-tool {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+}

@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v25";
+  var CACHE = "dev2v26";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -813,7 +813,7 @@
       var el = document.getElementById("lipton-dev-chart");
       if (!el || !window.L || chartMap) return;
       chartMap = L.map(el, {
-        zoomControl: false,
+        zoomControl: true,
         attributionControl: true,
         dragging: true,
         scrollWheelZoom: true,
@@ -2909,6 +2909,49 @@
     var chartSyncing = false;
     var chartPointerDown = false;
     var drawingMap = false;
+    var mapSpin = 0;
+    function applyMapSpin() {
+      var host = document.querySelector(".tracking-dev2-map-first") || document.getElementById("lipton-dev-chart");
+      if (host && host.style) host.style.setProperty("--dev2-map-spin", String(mapSpin) + "deg");
+    }
+    function bumpMapSpin(delta) {
+      mapSpin = ((mapSpin + delta) % 360 + 360) % 360;
+      applyMapSpin();
+      if (chartMap) {
+        try { chartMap.invalidateSize({ animate: false }); } catch (err) {}
+      }
+    }
+    function wireMapTools() {
+      var zin = document.getElementById("tracking-dev2-zoom-in");
+      var zout = document.getElementById("tracking-dev2-zoom-out");
+      var ccw = document.getElementById("tracking-dev2-rotate-ccw");
+      var cw = document.getElementById("tracking-dev2-rotate-cw");
+      var north = document.getElementById("tracking-dev2-north-up");
+      if (zin) zin.onclick = function (ev) {
+        if (ev) ev.stopPropagation();
+        followFleet = false;
+        if (chartMap) chartMap.zoomIn();
+      };
+      if (zout) zout.onclick = function (ev) {
+        if (ev) ev.stopPropagation();
+        followFleet = false;
+        if (chartMap) chartMap.zoomOut();
+      };
+      if (ccw) ccw.onclick = function (ev) {
+        if (ev) ev.stopPropagation();
+        bumpMapSpin(-15);
+      };
+      if (cw) cw.onclick = function (ev) {
+        if (ev) ev.stopPropagation();
+        bumpMapSpin(15);
+      };
+      if (north) north.onclick = function (ev) {
+        if (ev) ev.stopPropagation();
+        mapSpin = 0;
+        applyMapSpin();
+      };
+      applyMapSpin();
+    }
     function userFreedMap() {
       if (chartSyncing || !followFleet) return;
       followFleet = false;
@@ -2917,7 +2960,7 @@
       var el = document.getElementById("lipton-dev-chart");
       if (!el || !window.L || chartMap) return;
       chartMap = L.map(el, {
-        zoomControl: false,
+        zoomControl: true,
         attributionControl: true,
         dragging: true,
         scrollWheelZoom: true,
@@ -2972,7 +3015,7 @@
       var track = el.parentNode;
       var ctrls = el.querySelector(".leaflet-control-container");
       if (track && ctrls) track.appendChild(ctrls);
-      ["tracking-dev2-ranking", "lipton-dev-race-boxes", "lipton-dev-subhead", "tracking-dev2-sailfish-bar"].forEach(function (id) {
+      ["tracking-dev2-ranking", "lipton-dev-race-boxes", "lipton-dev-subhead", "tracking-dev2-sailfish-bar", "tracking-dev2-map-tools"].forEach(function (id) {
         var chrome = document.getElementById(id);
         if (chrome && L.DomEvent && L.DomEvent.disableClickPropagation) {
           L.DomEvent.disableClickPropagation(chrome);
@@ -5257,6 +5300,7 @@
     }
     fillHead(0);
     setRateButtons();
+    wireMapTools();
     waitForTracker();
     window.requestAnimationFrame(tick);
   }
