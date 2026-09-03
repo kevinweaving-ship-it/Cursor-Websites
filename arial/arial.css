@@ -1221,6 +1221,8 @@ html, body {
     color: #e67e00;
 }
 
+.breaker-dial[data-state="low"] .breaker-dial-val { color: #1565c0; }
+
 .breaker-dial[data-state="crit"] .needle { stroke: #DC143C; }
 .breaker-dial[data-state="crit"] .hub { fill: #DC143C; }
 

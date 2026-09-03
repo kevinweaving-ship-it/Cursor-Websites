@@ -1036,21 +1036,39 @@
 
     restoreBreakerStore();
 
+    var breakerLatestWatts = null;
+
+    // low = blue (below normal), ok = green, warn = amber, crit = red (too high / out of spec).
     function breakerDialState(kind, value) {
         if (value == null || !isFinite(value)) return "";
         if (kind === "v") {
-            if (value < 207 || value > 253) return "crit";
-            if (value < 216 || value > 244) return "warn";
+            if (value > 253) return "crit";
+            if (value > 244) return "warn";
+            if (value < 216) return "low";           // under-voltage: below normal
             return "ok";
         }
-        if (kind === "a") {
-            if (value >= 10) return "crit";
-            if (value >= 9.5) return "warn";
-            return "ok";
+        // Hard supply limits first.
+        if (kind === "a" ? value >= 10 : value >= 2300) return "crit";
+        if (kind === "a" ? value >= 9.5 : value >= 2200) return "warn";
+        // Then relative to the running average (same bands as the day chart).
+        var base = breakerEnergyData && breakerEnergyData.baselineKw != null ? breakerEnergyData.baselineKw * 1000 : null;
+        var watts = kind === "w" ? value : breakerLatestWatts;
+        if (base && base > 0 && watts != null) {
+            var r = watts / base;
+            if (r < 0.85) return "low";
+            if (r <= 1.15) return "ok";
+            if (r <= 1.35) return "warn";
+            return "crit";
         }
-        if (value >= 2300) return "crit";
-        if (value >= 2200) return "warn";
         return "ok";
+    }
+
+    function breakerStateColour(state) {
+        if (state === "crit") return ARIAL_THEME.crit;
+        if (state === "warn") return ARIAL_THEME.warn;
+        if (state === "low") return ARIAL_THEME.low;
+        if (state === "ok") return ARIAL_THEME.ok;
+        return ARIAL_THEME.track;
     }
 
     // ---- Arial chart theme (white background always): one palette for every gauge/chart on the site ----
@@ -1062,6 +1080,7 @@
         ok: "#12b028",
         warn: "#e67e00",
         crit: "#DC143C",
+        low: "#1565c0",
         band: { ok: "rgba(18,176,40,0.28)", warn: "rgba(230,126,0,0.32)", crit: "rgba(220,20,60,0.32)" },
         font: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif'
     };
@@ -1200,14 +1219,14 @@
         breakerLastValues[kind] = value;
         if (chart) {
             var g = BREAKER_GAUGES[kind];
-            var colour = state === "crit" ? ARIAL_THEME.crit : state === "warn" ? ARIAL_THEME.warn : state === "ok" ? ARIAL_THEME.ok : ARIAL_THEME.track;
+            var colour = breakerStateColour(state);
             var v = value == null ? g.min : Math.min(g.max, Math.max(g.min, value));
             chart.setOption({
                 series: [{
                     data: [{ value: v, name: g.unit }],
                     progress: { itemStyle: { color: colour } },
                     pointer: { itemStyle: { color: colour } },
-                    detail: { color: state === "crit" ? ARIAL_THEME.crit : state === "warn" ? ARIAL_THEME.warn : ARIAL_THEME.navy }
+                    detail: { color: state === "crit" || state === "warn" || state === "low" ? colour : ARIAL_THEME.navy }
                 }]
             });
             return;
@@ -1409,6 +1428,7 @@
         if (vEl) vEl.textContent = volts != null ? volts.toFixed(1) : "—";
         if (aEl) aEl.textContent = amps != null ? amps.toFixed(2) : "—";
         if (wEl) wEl.textContent = watts != null ? String(Math.round(watts)) : "—";
+        breakerLatestWatts = watts;
         setBreakerGauge("v", volts, 200, 253);
         setBreakerGauge("a", amps, 0, 11);
         setBreakerGauge("w", watts, 0, 2530);
