@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v30";
+  var CACHE = "dev2v32";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -248,8 +248,15 @@
     track.style.setProperty("min-height", "100dvh", "important");
     track.style.setProperty("max-height", "none", "important");
     track.style.setProperty("z-index", "1", "important");
+    var spin = document.getElementById("lipton-dev-map-spin");
     var chart = document.getElementById("lipton-dev-chart");
     var canvas = document.getElementById("lipton-dev-map");
+    if (spin) {
+      spin.style.setProperty("position", "absolute", "important");
+      spin.style.setProperty("inset", "0", "important");
+      spin.style.setProperty("height", "100%", "important");
+      spin.style.setProperty("width", "100%", "important");
+    }
     if (chart) {
       chart.style.setProperty("position", "absolute", "important");
       chart.style.setProperty("inset", "0", "important");
@@ -550,6 +557,8 @@
         try {
           start(pack[0], pack[1], bootNow, {}, pack[2]);
           sizeDev2Map();
+          if (chartMap && chartMap.invalidateSize) chartMap.invalidateSize({ animate: false });
+          cam = null;
         } catch (startErr) {
           console.error("[dev2] start", startErr);
           showReplayStatus("Race " + RACE_Q + " start failed: " + (startErr && startErr.message ? startErr.message : startErr));
@@ -890,20 +899,22 @@
         keyboard: true,
         touchZoom: true,
         zoomSnap: 0,
+        minZoom: 12,
+        maxZoom: 22,
         zoomAnimation: false,
         fadeAnimation: false,
         markerZoomAnimation: false,
         inertia: true
       }).setView([-33.886, 18.43], 15);
       var tileOpts = {
-        minZoom: 12, maxZoom: 19, keepBuffer: 8,
+        minZoom: 12, maxZoom: 22, maxNativeZoom: 19, keepBuffer: 8,
         updateWhenIdle: false, updateWhenZooming: false, updateInterval: 400, crossOrigin: true
       };
       L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", Object.assign({
-        maxZoom: 19, attribution: "Tiles © Esri"
+        maxZoom: 22, maxNativeZoom: 19, attribution: "Tiles © Esri"
       }, tileOpts)).addTo(chartMap);
       L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", Object.assign({
-        maxZoom: 18, opacity: 0.85, attribution: "Labels © Esri"
+        maxZoom: 22, maxNativeZoom: 18, opacity: 0.85, attribution: "Labels © Esri"
       }, tileOpts)).addTo(chartMap);
       chartMap.on("dragstart zoomstart boxzoomstart", function () {
         followFleet = false;
@@ -912,7 +923,7 @@
       chartMap.on("move zoom zoomend", function () {
         if (!chartSyncing) drawLiveMap();
       });
-      var track = el.parentNode;
+      var track = document.querySelector(".tracking-dev2-map-first") || el.parentNode;
       var ctrls = el.querySelector(".leaflet-control-container");
       if (track && ctrls) track.appendChild(ctrls);
     }
@@ -1053,7 +1064,7 @@
       });
       if (!pts.length) return;
       chartSyncing = true;
-      chartMap.fitBounds(pts, { padding: [28, 28], maxZoom: 18, animate: false });
+      chartMap.fitBounds(pts, { padding: [28, 28], maxZoom: 21, animate: false });
       chartSyncing = false;
     }
     function drawLiveMap() {
@@ -2981,7 +2992,7 @@
     var mapSpin = 0;
     var mapSpinManual = false;
     function applyMapSpin() {
-      var host = document.querySelector(".tracking-dev2-map-first") || document.getElementById("lipton-dev-chart");
+      var host = document.getElementById("lipton-dev-map-spin") || document.querySelector(".tracking-dev2-map-first");
       if (host && host.style) host.style.setProperty("--dev2-map-spin", String(mapSpin) + "deg");
     }
     function bumpMapSpin(delta) {
@@ -3041,6 +3052,8 @@
         keyboard: true,
         touchZoom: true,
         zoomSnap: 0,
+        minZoom: 12,
+        maxZoom: 22,
         zoomAnimation: false,
         fadeAnimation: false,
         markerZoomAnimation: false,
@@ -3048,7 +3061,8 @@
       }).setView([-33.901, 18.423], 15);
       var tileOpts = {
         minZoom: 12,
-        maxZoom: 19,
+        maxZoom: 22,
+        maxNativeZoom: 19,
         keepBuffer: 8,
         updateWhenIdle: false,
         updateWhenZooming: false,
@@ -3056,11 +3070,13 @@
         crossOrigin: true
       };
       L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", Object.assign({
-        maxZoom: 19,
+        maxZoom: 22,
+        maxNativeZoom: 19,
         attribution: "Tiles © Esri"
       }, tileOpts)).addTo(chartMap);
       L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", Object.assign({
-        maxZoom: 18,
+        maxZoom: 22,
+        maxNativeZoom: 18,
         opacity: 0.85,
         attribution: "Labels © Esri"
       }, tileOpts)).addTo(chartMap);
@@ -3084,7 +3100,7 @@
       window.requestAnimationFrame(function () {
         if (chartMap) chartMap.invalidateSize({ animate: false });
       });
-      var track = el.parentNode;
+      var track = document.querySelector(".tracking-dev2-map-first") || el.parentNode;
       var ctrls = el.querySelector(".leaflet-control-container");
       if (track && ctrls) track.appendChild(ctrls);
       ["tracking-dev2-ranking", "lipton-dev-race-boxes", "lipton-dev-subhead", "tracking-dev2-sailfish-bar", "tracking-dev2-map-tools"].forEach(function (id) {
@@ -3102,9 +3118,9 @@
       var lon = mapBounds.midLon;
       var cos = Math.max(0.2, Math.cos(lat * Math.PI / 180));
       var z = Math.log(mapBounds.scale * 156543.03392 * cos) / Math.LN2;
-      if (!(z > 0)) z = 15;
-      if (z < 14) z = 14;
-      if (z > 17) z = 17;
+      if (!(z > 0)) z = 16;
+      if (z < 13) z = 13;
+      if (z > 21.5) z = 21.5;
       var cur = chartMap.getCenter();
       var curZ = chartMap.getZoom();
       var dz = Math.abs(curZ - z);
@@ -3328,19 +3344,6 @@
       var focus = focusForFleet(ts, fleet);
       focusMarkKey = focus.mark;
       focusGate = focus.gate;
-      if (followFleet && !mapSpinManual) {
-        var aim = focus.mark ? markAt(focus.mark, ts) : null;
-        if (!aim && focus.gate && trail[focus.gate] && trail[focus.gate].left && trail[focus.gate].right) {
-          aim = {
-            lat: (trail[focus.gate].left.lat + trail[focus.gate].right.lat) / 2,
-            lon: (trail[focus.gate].left.lon + trail[focus.gate].right.lon) / 2
-          };
-        }
-        if (aim) {
-          mapSpin = ((360 - bearingDeg(fleet.lat, fleet.lon, aim.lat, aim.lon)) % 360 + 360) % 360;
-          applyMapSpin();
-        }
-      }
       var nearStart = fleetNearStart(boatPts, ts);
       var pts = boatPts.slice();
       if (nearStart) {
@@ -3358,9 +3361,9 @@
         }
       }
       var target = boundsFromPts(pts, w, h, {
-        minSpan: nearStart ? 70 : 90,
-        padPx: nearStart ? 32 : 40,
-        padM: nearStart ? 18 : 24
+        minSpan: nearStart ? 36 : 42,
+        padPx: nearStart ? 18 : 22,
+        padM: nearStart ? 8 : 10
       });
       if (!cam) {
         cam = target;
