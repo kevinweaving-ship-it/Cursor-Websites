@@ -2643,6 +2643,12 @@
             if (typeof window.onArialKey === "function") window.onArialKey(key);
             return;
         }
+        if (multiArea && key === "TOGGLE") {
+            // Multi-partition panel: the lock has no function for now; each area key is its own lock.
+            beep();
+            saveClick(key);
+            return;
+        }
         var isArmed = panelLooksArmed(window.arialDevice);
         if (disarmPending && key === "TOGGLE") {
             saveClick(key);

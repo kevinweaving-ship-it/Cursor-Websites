@@ -688,9 +688,9 @@ html, body {
 }
 
 .hot.key-fn.area-arming {
-    background: linear-gradient(180deg, #ffe4c2 0%, #f5a33a 52%, #d98200 100%);
-    border-color: #a86200;
-    color: #111111;
+    background: linear-gradient(180deg, #dbeafe 0%, #60a5fa 52%, #1d4ed8 100%);
+    border-color: #1e3a8a;
+    color: #ffffff;
     animation: areaArming 1s ease-in-out infinite;
 }
 
