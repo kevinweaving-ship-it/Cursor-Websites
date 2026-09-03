@@ -36,6 +36,16 @@ Dev sandbox for applying **Sailfish Sports (saill.cn)** open-trac patterns to Sa
 
 Expanded mark-time columns still available via the Fin twist control.
 
+## Deploy (allowlist ONLY — do not wipe public site)
+
+**Never** unzip all of `sailingsa/frontend/` onto live. That overwrote `index.html` / shared assets and, with a thin `api.py`, gutted public sailor/club/regatta URLs (Sep 2026).
+
+```bash
+bash sailingsa/deploy/deploy-tracking-dev2-live.sh
+```
+
+Copies **only** `tracking-dev2*` / `lipton-dev*` files. Does **not** deploy `api.py` unless `SAILINGSA_ALLOW_API_DEPLOY=1` **and** the user explicitly approved. See **`docs/URL_PROTECTION.md`**.
+
 ## Files
 
 | Path | Role |

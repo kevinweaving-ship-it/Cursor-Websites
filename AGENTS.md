@@ -29,6 +29,7 @@ This project uses **split tasks** to avoid agent resource limits and crashes.
 
 ## For agents
 
+- **URL protection (HARD — permanent):** You never affect good URLs we are not working on. New pages / Lipton / tracking / experiments touch **only** that task’s URLs and files. Never overwrite hub, `/sailor/`, `/club/`, `/class/`, public `/regatta/`, `index.html`, `blank.html`, or `api.py` as collateral. Dev deploys: **allowlist only** via `bash sailingsa/deploy/deploy-tracking-dev2-live.sh` — never full frontend zip. See **`docs/URL_PROTECTION.md`** and **`.cursor/rules/url-protection-and-dev-isolate.mdc`**. Restore reference: live `/root/backup_20260828_081731.tar.gz` (28 Aug).
 - **Regatta iframe sheets (locked):** Do **not** edit `class-results.html` or `results.html` under `sailingsa/frontend/regatta/` and `public/regatta/` unless the user writes exactly **`override lock`**. See **`.cursor/rules/regatta-results-sheets-readonly.mdc`**. Before other frontend or `api.py` edits, run **`bash sailingsa/deploy/pre-change-backup.sh`** and confirm the server backup tarball exists.
 - Follow the rule in **`.cursor/rules/task-splitting-and-resources.mdc`**: one logical task per session, use todos for multi-step work, narrow scope, targeted reads.
 - If the user’s request is large, propose a short list of steps and do **only the first step** unless they ask for more.
