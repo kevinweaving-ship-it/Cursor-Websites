@@ -552,6 +552,24 @@
         return n > 0 ? n : 0;
     }
 
+    // Optimistic per-area state: what the user just asked for, shown instantly until the panel confirms (max 20 s).
+    var areaOverride = {};   // num -> { state, until }
+
+    function setAreaOverride(num, state) {
+        areaOverride[num] = { state: state, until: Date.now() + 20000 };
+    }
+
+    function effectiveAreaState(idx, areas) {
+        var st = String((areas[idx] && areas[idx].state) || "").toLowerCase();
+        var o = areaOverride[idx + 1];
+        if (!o) return st;
+        if (Date.now() > o.until) { delete areaOverride[idx + 1]; return st; }
+        var armedNow = st === "arm" || st === "stay" || st === "sleep";
+        if (o.state === "disarm" && (st === "disarm" || st === "notready")) { delete areaOverride[idx + 1]; return st; }
+        if (o.state === "countdown" && armedNow) { delete areaOverride[idx + 1]; return st; }
+        return o.state;
+    }
+
     function applyMultiAreaLcd(device) {
         // Single-area state machine must not fight this display.
         if (armSettled || armPending || disarmPending || localExitLeft() > 0) {
@@ -570,7 +588,7 @@
         var arming = [], armed = [], alarm = [];
         var i;
         for (i = 0; i < areas.length && i < AREA_KEYS.length; i += 1) {
-            var st = String((areas[i] && areas[i].state) || "").toLowerCase();
+            var st = effectiveAreaState(i, areas);
             var pending = typeof areaPending !== "undefined" && areaPending[i + 1];
             if (isAlarmState(st)) alarm.push(i);
             else if (st === "countdown" || (pending && st !== "arm" && st !== "stay" && st !== "sleep")) arming.push(i);
@@ -725,7 +743,7 @@
             var key = document.querySelector('.hot[data-key="' + AREA_KEYS[i] + '"]');
             if (!key) continue;
             if (!multi || !areas[i]) { key.classList.remove("area-armed", "area-disarmed", "area-notready", "area-arming"); continue; }
-            var st = String(areas[i].state || "").toLowerCase();
+            var st = effectiveAreaState(i, areas);
             var pending = typeof areaPending !== "undefined" && areaPending[i + 1];
             if (pending && st !== "arm" && st !== "stay" && st !== "sleep") continue;   // keep flashing until the panel says armed
             if (pending) stopAreaPending(i + 1);
@@ -2692,22 +2710,25 @@
         var areas = window.arialDevice && Array.isArray(window.arialDevice.arialAreas) ? window.arialDevice.arialAreas : [];
         var area = areas[num - 1];
         if (!area) { setWelcome("No Area " + num, 1500); return; }
-        var st = String(area.state || "").toLowerCase();
+        var st = effectiveAreaState(num - 1, areas);
         var armed = st === "arm" || st === "stay" || st === "sleep" || st === "countdown";
         var key = areaKeyFor(num);
         unlockAudio();
         if (armed || areaPending[num]) {
             disarmBeep();
             stopAreaPending(num);
+            setAreaOverride(num, "disarm");
+            syncAreaKeys(window.arialDevice);
             if (key) { key.classList.remove("area-armed", "area-arming"); key.classList.add("area-disarmed"); }
             if (window.arialDevice) applyMultiAreaLcd(window.arialDevice);
-            sendLiveAction("area-disarm", num).then(function (ok) { if (!ok) loadStatus(); });
+            sendLiveAction("area-disarm", num).then(function (ok) { if (!ok) { delete areaOverride[num]; loadStatus(); } });
             return;
         }
         tone(1600, 0.14, 0.55);
+        setAreaOverride(num, "countdown");
         startAreaPending(num);
         sendLiveAction("area-arm", num).then(function (ok) {
-            if (!ok) { stopAreaPending(num); syncAreaKeys(window.arialDevice); }
+            if (!ok) { stopAreaPending(num); delete areaOverride[num]; syncAreaKeys(window.arialDevice); if (window.arialDevice) applyMultiAreaLcd(window.arialDevice); }
         });
     }
 
