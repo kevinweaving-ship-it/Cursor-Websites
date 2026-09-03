@@ -1805,7 +1805,8 @@
         "7777": { name: "Onguard", from: "Onguard", logo: "/arial/users/onguard.png?v=1", code: "7777" },
         "2640": { name: "Comnet", from: "Comnet", logo: "/arial/users/comnet.png?v=1", code: "2640" },
         "6114": { name: "Kevin", from: "Kevin", logo: "/arial/users/aerial.png?v=1", code: "6114" },
-        "2525": { name: "Bugsy", from: "Bugsy", logo: "/arial/users/aerial.png?v=1", code: "2525" }
+        "2525": { name: "Bugsy", from: "Bugsy", logo: "/arial/users/aerial.png?v=1", code: "2525" },
+        "1111": { name: "Tim", from: "Tim", logo: "/arial/users/aerial.png?v=1", code: "1111" }
     };
 
     function resolvedUser(user) {
@@ -1814,6 +1815,7 @@
         if (/comnet/i.test(String(user.name || user.from || user.logo || ""))) return CODES["2640"];
         if (/^kevin$/i.test(String(user.name || user.from || ""))) return CODES["6114"];
         if (/^bugsy$/i.test(String(user.name || user.from || ""))) return CODES["2525"];
+        if (/^tim$/i.test(String(user.name || user.from || ""))) return CODES["1111"];
         if (/onguard/i.test(String(user.name || user.from || user.logo || ""))) return CODES["7777"];
         if (/aerial/i.test(String(user.logo || user.name || ""))) return CODES["7102"];
         if (/amoroc/i.test(String(user.name || user.from || user.logo || ""))) return CODES["7102"];
@@ -2790,6 +2792,7 @@
             if (/comnet/i.test(String(saved.name || saved.from || saved.logo || ""))) saved.code = "2640";
             if (/^kevin$/i.test(String(saved.name || saved.from || ""))) saved.code = "6114";
             if (/^bugsy$/i.test(String(saved.name || saved.from || ""))) saved.code = "2525";
+            if (/^tim$/i.test(String(saved.name || saved.from || ""))) saved.code = "1111";
             if (/onguard/i.test(String(saved.name || saved.from || saved.logo || ""))) saved.code = "7777";
             if (!saved.code && /aerial/i.test(String(saved.logo || saved.name || ""))) saved.code = "7102";
             if (/aerial/i.test(String(saved.logo || ""))) saved.code = saved.code || "7102";

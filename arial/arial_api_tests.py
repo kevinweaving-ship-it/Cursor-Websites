@@ -717,6 +717,7 @@ def test_kevin_pin_6114(tmp_path, monkeypatch):
     assert arial_api.KEYPAD_CODES["6114"]["from"] == "Kevin"
     assert arial_api.KEYPAD_CODES["2525"]["from"] == "Bugsy" and "Bugsy" in arial_api.KEYPAD_ACTORS
     assert '"2525": { name: "Bugsy", from: "Bugsy"' in js
+    assert arial_api.KEYPAD_CODES["1111"]["from"] == "Tim" and '"1111": { name: "Tim", from: "Tim"' in js
     assert "Kevin" in arial_api.KEYPAD_ACTORS
     _reset_keypad_log(monkeypatch, tmp_path)
     actor = arial_api._remember_keypad("6114", "area-disarm")
@@ -798,7 +799,7 @@ def test_activity_keeps_30_day_store_and_checksums_on_login():
     assert 'prependActivity("DISARMED")' in js
     assert "setInterval(loadActivity, 3000)" in js
     assert "restoreActivityStore();" in js
-    assert "app.js?v=221" in html
+    assert "app.js?v=222" in html
 
 
 def test_activity_armed_once_remote_no_countdown_or_notready():

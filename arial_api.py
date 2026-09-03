@@ -97,6 +97,7 @@ KEYPAD_CODES = {
     "2640": {"name": "Comnet", "from": "Comnet"},
     "6114": {"name": "Kevin", "from": "Kevin"},
     "2525": {"name": "Bugsy", "from": "Bugsy"},
+    "1111": {"name": "Tim", "from": "Tim"},
 }
 KEYPAD_ACTORS = {str(v["from"]) for v in KEYPAD_CODES.values()}
 
