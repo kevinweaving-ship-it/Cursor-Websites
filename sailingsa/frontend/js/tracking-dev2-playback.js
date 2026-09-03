@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v35";
+  var CACHE = "dev2v36";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -3226,13 +3226,18 @@
     function boundsFromPts(pts, w, h, opts) {
       opts = opts || {};
       var minSpan = opts.minSpan != null ? opts.minSpan : 80;
+      var maxSpan = opts.maxSpan;
       var padPx = opts.padPx != null ? opts.padPx : 44;
       var padM = opts.padM != null ? opts.padM : 0;
       var s = bboxOf(pts);
       var heightM = Math.max(s.heightM + 2 * padM, minSpan * 0.35);
       var widthM = Math.max(s.widthM + 2 * padM, minSpan * 0.35);
       var span = Math.max(heightM, widthM, minSpan);
-      if (span > Math.max(heightM, widthM)) {
+      if (maxSpan && span > maxSpan) {
+        span = maxSpan;
+        heightM = maxSpan;
+        widthM = maxSpan;
+      } else if (span > Math.max(heightM, widthM)) {
         var grow = (span - Math.max(heightM, widthM)) / 2;
         heightM += grow;
         widthM += grow;
@@ -3241,6 +3246,28 @@
       var innerH = Math.max(64, h - 2 * padPx);
       var scale = Math.min(innerW / Math.max(widthM, 1e-3), innerH / Math.max(heightM, 1e-3));
       return { w: w, h: h, midLat: s.midLat, midLon: s.midLon, cos: s.cos, scale: scale };
+    }
+    function packPts(boatPts) {
+      if (!boatPts || boatPts.length < 4) return boatPts || [];
+      var mid = { lat: 0, lon: 0 };
+      boatPts.forEach(function (p) {
+        mid.lat += p.lat;
+        mid.lon += p.lon;
+      });
+      mid.lat /= boatPts.length;
+      mid.lon /= boatPts.length;
+      var scored = boatPts.map(function (p) {
+        return { p: p, d: distM(p, mid) };
+      });
+      scored.sort(function (a, b) { return a.d - b.d; });
+      var cut = scored[Math.max(2, Math.floor(scored.length * 0.75) - 1)].d;
+      cut = Math.min(40, Math.max(18, cut));
+      var kept = [];
+      var i;
+      for (i = 0; i < scored.length; i++) {
+        if (scored[i].d <= cut) kept.push(scored[i].p);
+      }
+      return kept.length ? kept : boatPts;
     }
     function pinTrio() {
       var pts = [];
@@ -3356,10 +3383,11 @@
       focusMarkKey = focus.mark;
       focusGate = focus.gate;
       if (fleetNearStart(boatPts, ts)) focusGate = "start_line";
-      var target = boundsFromPts(boatPts, w, h, {
-        minSpan: 22,
-        padPx: 64,
-        padM: 4
+      var target = boundsFromPts(packPts(boatPts), w, h, {
+        minSpan: 20,
+        maxSpan: 48,
+        padPx: 72,
+        padM: 3
       });
       if (!cam) {
         cam = target;
