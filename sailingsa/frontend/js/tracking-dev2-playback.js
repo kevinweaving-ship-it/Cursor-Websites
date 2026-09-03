@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v36";
+  var CACHE = "dev2v37";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -439,15 +439,18 @@
   }
   function tailBudget(map) {
     var z = 15;
+    var lat = -33.88;
     try {
       if (map && map.getZoom) z = map.getZoom();
+      if (map && map.getCenter) lat = map.getCenter().lat;
     } catch (e) {}
     if (!(z > 0)) z = 15;
     if (z < 12) z = 12;
-    if (z > 19) z = 19;
-    var t = (z - 12) / 7;
+    if (z > 22) z = 22;
+    var mPerPx = 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, z);
+    var t = Math.min(1, Math.max(0, (Math.min(z, 19) - 12) / 7));
     return {
-      m: 16 + t * 204,
+      m: Math.max(14, 168 * mPerPx),
       ms: 6000 + t * 56000,
       w: 1.5 + t * 2.4
     };
@@ -3522,13 +3525,8 @@
     function metersPx(m) {
       return Math.max(4, m * mapBounds.scale);
     }
-    function boatIconR() {
-      var r = 18;
-      if (mapBounds && mapBounds.scale) r = Math.max(16, Math.min(28, mapBounds.scale * 5));
-      return r;
-    }
     function drawBoatIcon(p, hdg, fill, stroke, nose) {
-      var r = boatIconR();
+      var r = 7;
       mapCtx.beginPath();
       mapCtx.arc(p.x, p.y, r, 0, Math.PI * 2);
       mapCtx.fillStyle = fill;
@@ -3958,10 +3956,9 @@
       var paint = boatPaint(sail, info.pending);
       mapCtx.save();
       if (RACE_NO >= 2) drawOverallStickerRing(p, info.overallPos);
-      var br = boatIconR();
       if (info.isLeader) {
         mapCtx.beginPath();
-        mapCtx.arc(p.x, p.y, br + 6, 0, Math.PI * 2);
+        mapCtx.arc(p.x, p.y, 14, 0, Math.PI * 2);
         mapCtx.strokeStyle = "rgba(250,204,21,0.95)";
         mapCtx.lineWidth = 2.4;
         mapCtx.stroke();
@@ -3970,15 +3967,15 @@
       drawBoatIcon(p, hdg, paint.fill, paint.stroke, paint.nose);
       if (info.racePlace != null) {
         mapCtx.fillStyle = paint.ink;
-        mapCtx.font = "bold 12px sans-serif";
+        mapCtx.font = "bold 9px sans-serif";
         mapCtx.textAlign = "center";
         mapCtx.textBaseline = "middle";
         mapCtx.fillText(String(info.racePlace), p.x, p.y + 0.4);
       }
-      if (info.onMark && !info.finished) drawDelta(p.x - (br + 6), p.y - 1, info.leg, "right");
-      var lx = p.x + br + 6;
+      if (info.onMark && !info.finished) drawDelta(p.x - 12, p.y - 1, info.leg, "right");
+      var lx = p.x + 12;
       var ly = p.y - 1;
-      mapCtx.font = "bold 13px sans-serif";
+      mapCtx.font = "bold 10px sans-serif";
       mapCtx.textAlign = "left";
       mapCtx.textBaseline = "middle";
       mapCtx.shadowColor = "rgba(0,0,0,0.9)";
