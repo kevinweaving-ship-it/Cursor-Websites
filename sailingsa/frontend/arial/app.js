@@ -722,6 +722,15 @@
         return "";
     }
 
+    function isPlainZoneTraffic(r) {
+        if (!r || r.tab !== "zones") return false;
+        var st = String(r.state || "").toUpperCase();
+        var act = String(r.action || "").toLowerCase();
+        if (act.indexOf("alarm") !== -1 || act.indexOf("bypass") !== -1 || act.indexOf("tamper") !== -1 || act.indexOf("chime") !== -1) return false;
+        if (/ALARM|PANIC|EMERGENCY|FIRE|MEDICAL|BYPASS|TAMPER|TROUBLE|CHIME/.test(st)) return false;
+        return st === "ACTIVE" || st === "CLOSED" || st === "OPEN" || st === "RESTORE" || st === "";
+    }
+
     function skipActivityRow(r) {
         if (!r || typeof r !== "object") return false;
         var blob = [
@@ -905,6 +914,9 @@
         var rows = activityRows.filter(function (r) { return !skipActivityRow(r); });
         if (activityTab !== "all") {
             rows = rows.filter(function (r) { return r.tab === activityTab; });
+        } else {
+            // All = headline events only. Plain zone open/close traffic lives under Zones.
+            rows = rows.filter(function (r) { return !isPlainZoneTraffic(r); });
         }
         var show = activityExpanded ? rows : rows.slice(0, ACTIVITY_PREVIEW);
         body.textContent = "";
@@ -1748,7 +1760,8 @@
             var res = await fetch(API + "/panel", { credentials: "same-origin", cache: "no-store" });
             var data = await res.json();
             if (!res.ok) {
-                setLcdStatus(lastStatus || "No Link", lastIssue);
+                setLcdStatus(lastStatus || "Connecting", lastIssue);
+                if (!lastStatus) setTimeout(loadStatus, 2000);
                 return;
             }
             var hanse = data.device;
@@ -1758,7 +1771,8 @@
             }
             applyPanelDevice(hanse);
         } catch (e) {
-            setLcdStatus(lastStatus || "No Link", lastIssue);
+            setLcdStatus(lastStatus || "Connecting", lastIssue);
+            if (!lastStatus) setTimeout(loadStatus, 2000);
         } finally {
             loadStatus._busy = false;
         }
