@@ -646,10 +646,14 @@
         for (i = 0; i < AREA_KEYS.length; i += 1) {
             var key = document.querySelector('.hot[data-key="' + AREA_KEYS[i] + '"]');
             if (!key) continue;
-            key.classList.remove("area-armed", "area-disarmed", "area-notready");
-            if (!multi || !areas[i]) continue;
+            if (!multi || !areas[i]) { key.classList.remove("area-armed", "area-disarmed", "area-notready", "area-arming"); continue; }
             var st = String(areas[i].state || "").toLowerCase();
-            if (st === "arm" || st === "stay" || st === "sleep" || st === "countdown") key.classList.add("area-armed");
+            var pending = typeof areaPending !== "undefined" && areaPending[i + 1];
+            if (pending && st !== "arm" && st !== "stay" && st !== "sleep") continue;   // keep flashing until the panel says armed
+            if (pending) stopAreaPending(i + 1);
+            key.classList.remove("area-armed", "area-disarmed", "area-notready", "area-arming");
+            if (st === "arm" || st === "stay" || st === "sleep") key.classList.add("area-armed");
+            else if (st === "countdown") key.classList.add("area-arming");
             else if (st === "notready") key.classList.add("area-notready");
             else if (st === "disarm") key.classList.add("area-disarmed");
             key.title = String(areas[i].label || "") + (st ? " · " + st.toUpperCase() : "");
@@ -2461,7 +2465,7 @@
         return false;
     }
 
-    function sendLiveAction(cmd) {
+    function sendLiveAction(cmd, areaNum) {
         var user = resolvedUser(window.arialUser);
         if (!user || !user.code) {
             rejectNeedLogin();
@@ -2475,7 +2479,7 @@
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "same-origin",
-            body: JSON.stringify({ code: user.code, actionCmd: cmd, actionNum: 1 })
+            body: JSON.stringify({ code: user.code, actionCmd: cmd, actionNum: areaNum || 1 })
         }).then(function (res) {
             return res.json().then(function (data) {
                 if (!res.ok) {
@@ -2569,12 +2573,76 @@
         });
     }
 
+    // ---- Partition keys (HOUSE = area 1, GARAGE = area 2) on multi-area panels ----
+    var areaPending = {};   // areaNum -> { timer, until, key }
+
+    function areaKeyFor(num) {
+        return document.querySelector('.hot[data-key="' + AREA_KEYS[num - 1] + '"]');
+    }
+
+    function stopAreaPending(num) {
+        var p = areaPending[num];
+        if (!p) return;
+        if (p.timer) clearInterval(p.timer);
+        delete areaPending[num];
+        var key = areaKeyFor(num);
+        if (key) key.classList.remove("area-arming");
+    }
+
+    function startAreaPending(num) {
+        stopAreaPending(num);
+        var key = areaKeyFor(num);
+        if (key) { key.classList.remove("area-disarmed", "area-notready"); key.classList.add("area-arming"); }
+        var secs = exitDelaySecs(window.arialDevice);
+        var until = Date.now() + secs * 1000;
+        var p = { until: until, timer: null };
+        p.timer = setInterval(function () {
+            var left = Math.ceil((p.until - Date.now()) / 1000);
+            if (left <= 0) { stopAreaPending(num); syncAreaKeys(window.arialDevice); return; }
+            unlockAudio();
+            tone(left <= 7 ? 1900 : 1500, left <= 7 ? 0.08 : 0.06, 0.35);
+        }, 1000);
+        areaPending[num] = p;
+    }
+
+    function toggleArea(num) {
+        if (!requireLogin()) return;
+        var areas = window.arialDevice && Array.isArray(window.arialDevice.arialAreas) ? window.arialDevice.arialAreas : [];
+        var area = areas[num - 1];
+        if (!area) { setWelcome("No Area " + num, 1500); return; }
+        var st = String(area.state || "").toLowerCase();
+        var armed = st === "arm" || st === "stay" || st === "sleep" || st === "countdown";
+        var key = areaKeyFor(num);
+        unlockAudio();
+        if (armed || areaPending[num]) {
+            disarmBeep();
+            stopAreaPending(num);
+            if (key) { key.classList.remove("area-armed"); key.classList.add("area-disarmed"); }
+            prependActivity("DISARMED");
+            sendLiveAction("area-disarm", num).then(function (ok) { if (!ok) loadStatus(); });
+            return;
+        }
+        tone(1600, 0.14, 0.55);
+        startAreaPending(num);
+        sendLiveAction("area-arm", num).then(function (ok) {
+            if (!ok) { stopAreaPending(num); syncAreaKeys(window.arialDevice); }
+        });
+    }
+
     function onKey(key) {
         if (!key) return;
         var now = Date.now();
         if (key === onKey._k && now - onKey._t < 280) return;
         onKey._k = key;
         onKey._t = now;
+        var multiArea = window.arialDevice && Array.isArray(window.arialDevice.arialAreas) && window.arialDevice.arialAreas.length >= 2;
+        if (multiArea && (key === "FORCE" || key === "ARM")) {
+            if (!isLoggedIn()) { rejectNeedLogin(); saveClick(key); return; }
+            toggleArea(key === "FORCE" ? 1 : 2);
+            saveClick(key);
+            if (typeof window.onArialKey === "function") window.onArialKey(key);
+            return;
+        }
         var isArmed = panelLooksArmed(window.arialDevice);
         if (disarmPending && key === "TOGGLE") {
             saveClick(key);

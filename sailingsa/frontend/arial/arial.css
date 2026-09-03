@@ -687,6 +687,18 @@ html, body {
     color: #ffffff;
 }
 
+.hot.key-fn.area-arming {
+    background: linear-gradient(180deg, #ffe4c2 0%, #f5a33a 52%, #d98200 100%);
+    border-color: #a86200;
+    color: #111111;
+    animation: areaArming 1s ease-in-out infinite;
+}
+
+@keyframes areaArming {
+    0%, 100% { filter: brightness(1); }
+    50% { filter: brightness(0.72); }
+}
+
 .hot.key-fn.area-disarmed,
 .hot.key-fn.area-notready {
     background: linear-gradient(180deg, #eef8f0 0%, #8ed897 52%, #4caf5c 100%);

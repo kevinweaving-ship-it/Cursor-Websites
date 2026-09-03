@@ -2002,7 +2002,17 @@ def _save_keypad_log() -> None:
         pass
 
 
-def _remember_keypad(code: str, cmd: str) -> dict[str, Any]:
+def _area_label_for(num: int) -> str:
+    panel = _stale_panel() or {}
+    for area in panel.get("arialAreas") or []:
+        if isinstance(area, dict) and int(area.get("num") or 0) == num:
+            label = str(area.get("label") or "").strip()
+            if label:
+                return label
+    return _hansekop_area_label()
+
+
+def _remember_keypad(code: str, cmd: str, num: int = 1) -> dict[str, Any]:
     global _last_keypad
     _load_keypad_log()
     user = KEYPAD_CODES.get(code) or {}
@@ -2013,7 +2023,8 @@ def _remember_keypad(code: str, cmd: str) -> dict[str, Any]:
         "label": who,
         "code": code,
         "action": cmd,
-        "area": _hansekop_area_label(),
+        "num": int(num or 1),
+        "area": _area_label_for(int(num or 1)),
         "at": time.time(),
     }
     _keypad_log.append(dict(_last_keypad))
@@ -2772,7 +2783,7 @@ async def arial_keypad(request: Request):
         num = 1
     if cmd != "user-panic" and num < 1:
         num = 1
-    actor = _remember_keypad(code, cmd)
+    actor = _remember_keypad(code, cmd, num)
     raw = await _olarm_request(
         "POST",
         f"/api/v4/devices/{HANSEKOP_ID}/actions",
