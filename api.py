@@ -687,11 +687,12 @@ def _index_redirect(request: Request):
 
 @app.get("/dev-1", response_class=HTMLResponse)
 def dev1_sailor_embed(request: Request, embed: Optional[int] = None, sas_id: Optional[str] = None):
-    """Landing sailor search embed fragment (prod path used by index.html fetch)."""
+    """Landing sailor search embed fragment — rich card with stats."""
     sid = str(sas_id or request.query_params.get("sas_id") or "").strip()
     if not sid or not sid.isdigit():
         raise HTTPException(status_code=404, detail="Not Found")
-    name, club, classes = "Sailor", "—", "—"
+    name, first_name, last_name, club, classes = "Sailor", "", "", "—", "—"
+    total_races, total_regattas, gold, silver, bronze = 0, 0, 0, 0, 0
     conn = None
     try:
         conn = get_db_connection()
@@ -708,12 +709,33 @@ def dev1_sailor_embed(request: Request, embed: Optional[int] = None, sas_id: Opt
             (sid,),
         )
         row = cur.fetchone()
-        cur.close()
         if not row:
+            cur.close()
             raise HTTPException(status_code=404, detail="Not Found")
-        name = " ".join(p for p in [row.get("first_names"), row.get("surname")] if p).strip() or "Sailor"
+        first_name = (row.get("first_names") or "").strip()
+        last_name = (row.get("surname") or "").strip()
+        name = " ".join(p for p in [first_name, last_name] if p).strip() or "Sailor"
         club = row.get("club") or "—"
         classes = row.get("class_name") or "—"
+        cur.execute(
+            """
+            SELECT COUNT(*) AS total_races,
+                   COUNT(DISTINCT regatta_id) AS total_regattas,
+                   SUM(CASE WHEN rank = 1 THEN 1 ELSE 0 END) AS gold,
+                   SUM(CASE WHEN rank = 2 THEN 1 ELSE 0 END) AS silver,
+                   SUM(CASE WHEN rank = 3 THEN 1 ELSE 0 END) AS bronze
+            FROM public.results
+            WHERE helm_sa_sailing_id::text = %s OR crew_sa_sailing_id::text = %s
+            """,
+            (sid, sid),
+        )
+        stats = cur.fetchone() or {}
+        cur.close()
+        total_races = stats.get("total_races") or 0
+        total_regattas = stats.get("total_regattas") or 0
+        gold = stats.get("gold") or 0
+        silver = stats.get("silver") or 0
+        bronze = stats.get("bronze") or 0
     finally:
         if conn:
             return_db_connection(conn)
@@ -722,14 +744,32 @@ def dev1_sailor_embed(request: Request, embed: Optional[int] = None, sas_id: Opt
     js_name = json.dumps(name)
     js_club = json.dumps(club)
     js_classes = json.dumps(classes)
+    total_podiums = gold + silver + bronze
+    medal_rate = round(100 * total_podiums / total_races, 0) if total_races > 0 else 0
     html = (
-        f'<div class="profile-card" role="listitem" data-sas-id="{esc(sid)}" style="cursor:pointer">'
-        f'<div class="profile-card-header">Profile</div>'
-        f'<div class="profile-card-body">'
-        f'<span class="profile-card-label">Name</span><span class="profile-card-value">{esc(name)}</span>'
-        f'<span class="profile-card-label">Club</span><span class="profile-card-value">{esc(club)}</span>'
-        f'<span class="profile-card-label">Classes Sailed</span><span class="profile-card-value">{esc(classes)}</span>'
-        f"</div></div>"
+        f'<div class="sa-approved-sailor-card" role="listitem" data-sas-id="{esc(sid)}" style="cursor:pointer;margin:0;border-radius:10px;border:2px solid #001f3f;padding:12px;background:#fff;">'
+        f'<div style="display:flex;gap:12px;align-items:flex-start;">'
+        f'<div style="width:64px;height:64px;border-radius:50%;background:#e5e7eb;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.2rem;color:#001f3f;flex-shrink:0;">{esc(first_name[:1] + last_name[:1]) if first_name and last_name else "?"}</div>'
+        f'<div style="flex:1;min-width:0;">'
+        f'<div style="font-size:1.1rem;font-weight:800;color:#001f3f;line-height:1.2;">{esc(first_name)}<br><span style="font-weight:600;font-size:0.95rem;">{esc(last_name)}</span></div>'
+        f'<div style="font-size:0.85rem;color:#4b5563;margin-top:4px;">{esc(club)}</div>'
+        f'</div>'
+        f'<div style="text-align:right;">'
+        f'<div style="font-size:0.7rem;color:#6b7280;text-transform:uppercase;">Podiums</div>'
+        f'<div style="display:flex;gap:6px;justify-content:flex-end;margin-top:2px;">'
+        f'<span style="background:#fbbf24;color:#000;padding:2px 6px;border-radius:4px;font-weight:700;font-size:0.8rem;">{gold}</span>'
+        f'<span style="background:#9ca3af;color:#000;padding:2px 6px;border-radius:4px;font-weight:700;font-size:0.8rem;">{silver}</span>'
+        f'<span style="background:#d97706;color:#fff;padding:2px 6px;border-radius:4px;font-weight:700;font-size:0.8rem;">{bronze}</span>'
+        f'</div>'
+        f'<div style="font-size:0.75rem;color:#6b7280;margin-top:4px;">Medal Rate <b>{int(medal_rate)}%</b></div>'
+        f'</div>'
+        f'</div>'
+        f'<div style="display:flex;gap:16px;margin-top:10px;padding-top:10px;border-top:1px solid #e5e7eb;">'
+        f'<div><span style="font-size:0.7rem;color:#6b7280;text-transform:uppercase;">Regattas</span><br><b style="font-size:1rem;color:#001f3f;">{total_regattas}</b></div>'
+        f'<div><span style="font-size:0.7rem;color:#6b7280;text-transform:uppercase;">Races</span><br><b style="font-size:1rem;color:#001f3f;">{total_races}</b></div>'
+        f'<div style="flex:1;text-align:right;"><span style="font-size:0.7rem;color:#6b7280;text-transform:uppercase;">Class</span><br><b style="font-size:0.85rem;color:#001f3f;">{esc(classes)}</b></div>'
+        f'</div>'
+        f'</div>'
         f"<script>(function(){{var c=document.currentScript&&document.currentScript.previousElementSibling;"
         f"if(!c)return;c.addEventListener('click',function(){{"
         f"if(typeof window.showSailorStatsInResults==='function')window.showSailorStatsInResults("

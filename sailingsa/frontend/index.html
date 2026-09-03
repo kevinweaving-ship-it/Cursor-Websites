@@ -8254,12 +8254,7 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                             item.wrap.appendChild(card);
                         }
                         function _ssaUseDev1SailorCards() {
-                            try {
-                                var h = (window.location.hostname || '').toLowerCase();
-                                if (h === 'sailingsa.co.za' || h === 'www.sailingsa.co.za') return false;
-                                if (h === 'localhost' || h.endsWith('.local')) return true;
-                                return /^192\.168\.|^10\.|^127\./.test(h);
-                            } catch (_) { return false; }
+                            return true;
                         }
                         function fetchOne(item) {
                             if (!item || item.wrap.getAttribute('data-card-loaded') === '1') return Promise.resolve();
