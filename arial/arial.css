@@ -390,6 +390,38 @@ html, body {
     display: block;
 }
 
+/* Users without a company logo show their name in the logo slot. */
+#lcd-user-name {
+    position: absolute;
+    right: 6px;
+    top: 52%;
+    height: 44%;
+    max-width: 40%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    font-size: 15px;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 6;
+}
+
+#lcd-user-name[hidden] {
+    display: none;
+}
+
+.lcd.credits-playing #lcd-user-name {
+    opacity: 0;
+}
+
+.lcd.logged-in.logo-in #lcd-user-name {
+    animation: logoRollIn 1.5s ease-out forwards;
+}
+
 .lcd.credits-playing #lcd-user-logo {
     opacity: 0;
 }

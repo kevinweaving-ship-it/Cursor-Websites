@@ -1804,9 +1804,9 @@
         "7102": { name: "Amoroc", from: "Amoroc", logo: "/arial/users/amoroc.png?v=43", code: "7102" },
         "7777": { name: "Onguard", from: "Onguard", logo: "/arial/users/onguard.png?v=1", code: "7777" },
         "2640": { name: "Comnet", from: "Comnet", logo: "/arial/users/comnet.png?v=1", code: "2640" },
-        "6114": { name: "Kevin", from: "Kevin", logo: "/arial/users/aerial.png?v=1", code: "6114" },
-        "2525": { name: "Bugsy", from: "Bugsy", logo: "/arial/users/aerial.png?v=1", code: "2525" },
-        "1111": { name: "Tim", from: "Tim", logo: "/arial/users/aerial.png?v=1", code: "1111" }
+        "6114": { name: "Kevin", from: "Kevin", logo: null, code: "6114" },
+        "2525": { name: "Bugsy", from: "Bugsy", logo: null, code: "2525" },
+        "1111": { name: "Tim", from: "Tim", logo: null, code: "1111" }
     };
 
     function resolvedUser(user) {
@@ -1875,12 +1875,22 @@
     function showUserLogo(user) {
         var lcd = document.querySelector(".lcd");
         var img = document.getElementById("lcd-user-logo");
+        var nameEl = document.getElementById("lcd-user-name");
         if (!lcd || !img) return;
         if (user && user.logo) {
             img.removeAttribute("hidden");
             img.style.display = "";
             img.src = user.logo;
             img.alt = user.from || user.name || "";
+            if (nameEl) { nameEl.hidden = true; nameEl.textContent = ""; }
+            lcd.classList.add("logged-in");
+        } else if (user && (user.name || user.from)) {
+            // No company logo yet: the name stands in the logo slot.
+            img.removeAttribute("src");
+            img.src = "";
+            img.alt = "";
+            img.setAttribute("hidden", "");
+            if (nameEl) { nameEl.textContent = user.from || user.name; nameEl.hidden = false; }
             lcd.classList.add("logged-in");
         } else {
             img.removeAttribute("src");
@@ -1888,6 +1898,7 @@
             img.alt = "";
             img.style.display = "";
             img.setAttribute("hidden", "");
+            if (nameEl) { nameEl.hidden = true; nameEl.textContent = ""; }
             lcd.classList.remove("logged-in");
             lcd.classList.remove("credits-playing");
             lcd.classList.remove("logo-in");
