@@ -1256,13 +1256,17 @@ body[data-tracking-dev2="1"] .tracking-dev2-map-first {
   overflow: hidden;
 }
 /* Sailfish bit: ranking board overlay on left of map */
-body[data-tracking-dev2="1"] .tracking-dev2-ranking {
+body[data-tracking-dev2="1"] .tracking-dev2-ranking,
+body[data-tracking-dev2="1"] .tracking-dev2-ranking.lipton-dev-board,
+body[data-tracking-dev2="1"] .tracking-dev2-ranking.fleet-section {
   position: absolute;
   left: 8px;
   top: 48px;
   bottom: 72px;
-  z-index: 44;
-  width: min(360px, 46vw);
+  z-index: 70;
+  width: min(360px, 46vw) !important;
+  max-width: min(360px, 46vw) !important;
+  height: auto;
   margin: 0;
   padding: 0;
   background: rgba(248, 250, 252, 0.94);
@@ -1274,8 +1278,13 @@ body[data-tracking-dev2="1"] .tracking-dev2-ranking {
   overflow: hidden;
   pointer-events: auto;
 }
-body[data-tracking-dev2="1"] .tracking-dev2-ranking.is-hidden {
+body[data-tracking-dev2="1"] .tracking-dev2-ranking.is-hidden,
+body[data-tracking-dev2="1"] .tracking-dev2-ranking[hidden],
+body[data-tracking-dev2="1"] .tracking-dev2-ranking.lipton-dev-board.is-hidden,
+body[data-tracking-dev2="1"] .tracking-dev2-ranking.lipton-dev-board[hidden] {
   display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 body[data-tracking-dev2="1"] .tracking-dev2-ranking-head {
   display: flex;
@@ -1297,15 +1306,18 @@ body[data-tracking-dev2="1"] .tracking-dev2-ranking .class-header {
 }
 body[data-tracking-dev2="1"] .tracking-dev2-ranking-hide {
   flex: 0 0 auto;
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   border: 1px solid #cbd5e1;
   border-radius: 4px;
   background: #fff;
   color: #334155;
-  font-size: 1.1rem;
+  font-size: 1.4rem;
   line-height: 1;
   cursor: pointer;
+  pointer-events: auto;
+  z-index: 2;
+  position: relative;
 }
 body[data-tracking-dev2="1"] .tracking-dev2-ranking #lipton-dev-checksum {
   margin: 0;
@@ -1352,13 +1364,22 @@ body[data-tracking-dev2="1"] .tracking-dev2-map-first #lipton-dev-map {
   width: 100%;
   height: 100%;
 }
+body[data-tracking-dev2="1"] .tracking-dev2-map-first #lipton-dev-chart {
+  z-index: 1;
+  isolation: isolate;
+  pointer-events: auto;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-map-first #lipton-dev-map {
+  z-index: 2;
+  pointer-events: none;
+}
 /* Sailfish bit: bottom transport dock + green digital REPLAY clock */
 body[data-tracking-dev2="1"] .tracking-dev2-dock {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 60;
+  z-index: 90;
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
@@ -1368,31 +1389,53 @@ body[data-tracking-dev2="1"] .tracking-dev2-dock {
   border-top: 1px solid #334155;
   pointer-events: auto;
   overflow: visible;
-  min-height: 56px;
-  max-height: 72px;
-  height: 64px;
+  min-height: 64px;
+  max-height: none;
+  height: auto;
   top: auto;
   box-sizing: border-box;
 }
 body[data-tracking-dev2="1"] .tracking-dev2-dock .lipton-dev-map-transport,
 body[data-tracking-dev2="1"] .tracking-dev2-dock .lipton-dev-playbox {
-  overflow: visible;
-  width: auto;
-  max-width: none;
+  overflow: visible !important;
+  width: auto !important;
+  max-width: none !important;
   height: auto !important;
-  max-height: none;
+  max-height: none !important;
   min-height: 0;
   flex: 1 1 220px;
+  pointer-events: auto;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-dock .lipton-dev-map-transport .lipton-dev-transport--play {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  grid-template-columns: none;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-dock .lipton-dev-map-transport .lipton-dev-btn {
+  width: 44px !important;
+  height: 36px !important;
+  min-width: 44px !important;
+  min-height: 36px !important;
+  max-width: none !important;
+  max-height: none !important;
+  pointer-events: auto;
 }
 body[data-tracking-dev2="1"] .tracking-dev2-dock .lipton-dev-transport {
   height: auto;
   max-height: none;
 }
-body[data-tracking-dev2="1"] .tracking-dev2-dock .lipton-dev-scrub {
+body[data-tracking-dev2="1"] .tracking-dev2-dock .lipton-dev-scrub,
+body[data-tracking-dev2="1"] .tracking-dev2-dock .lipton-dev-playbox .lipton-dev-scrub {
   width: 100%;
   max-width: none;
-  height: 18px;
+  height: 28px !important;
   accent-color: #f97316;
+  pointer-events: auto;
+  cursor: pointer;
 }
 body[data-tracking-dev2="1"] .tracking-dev2-replay-clock {
   flex: 0 0 auto;
@@ -1448,7 +1491,7 @@ body[data-tracking-dev2="1"] .tracking-dev2-race-rail {
   top: 8px;
   right: 8px;
   left: auto;
-  z-index: 43;
+  z-index: 80;
   height: auto !important;
   min-height: 36px;
   overflow: visible !important;
@@ -1509,8 +1552,10 @@ body[data-tracking-dev2="1"] .tracking-dev2-flag {
     min-height: 70vh;
     height: 70vh;
   }
-  body[data-tracking-dev2="1"] .tracking-dev2-ranking {
-    width: min(92vw, 340px);
+  body[data-tracking-dev2="1"] .tracking-dev2-ranking,
+  body[data-tracking-dev2="1"] .tracking-dev2-ranking.lipton-dev-board {
+    width: min(92vw, 340px) !important;
+    max-width: min(92vw, 340px) !important;
     top: 44px;
     bottom: 78px;
     left: 6px;

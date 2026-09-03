@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v23";
+  var CACHE = "dev2v24";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -200,12 +200,53 @@
 
   var resetPlaybackAudio = function () {};
   function goRace(n) {
+    n = Number(n) || 1;
+    if (n < 1 || n > 10) return;
     try { resetPlaybackAudio(); } catch (err) {}
     var u = new URL(location.href);
     u.searchParams.delete("live");
     u.searchParams.set("race", String(n));
     location.assign(u.pathname + "?" + u.searchParams.toString());
   }
+  function hideRankingBoard() {
+    var board = document.getElementById("tracking-dev2-ranking");
+    var overlay = window.__sailfishOverlay || {};
+    overlay.board = false;
+    window.__sailfishOverlay = overlay;
+    if (typeof window.__sailfishSyncBoard === "function") {
+      window.__sailfishSyncBoard(overlay);
+    } else if (board) {
+      board.classList.add("is-hidden");
+      board.hidden = true;
+      board.setAttribute("aria-hidden", "true");
+      board.style.display = "none";
+    }
+    var boardFlag = document.querySelector('#tracking-dev2-sailfish-flags [data-flag="board"]');
+    if (boardFlag) {
+      boardFlag.classList.remove("tracking-dev2-flag--on");
+      boardFlag.classList.add("tracking-dev2-flag--off");
+    }
+    if (typeof window.__sailfishRedraw === "function") {
+      try { window.__sailfishRedraw(); } catch (err) {}
+    }
+  }
+  document.addEventListener("click", function (ev) {
+    var t = ev.target;
+    if (!t || !t.closest) return;
+    var hideBtn = t.closest("#tracking-dev2-ranking-hide");
+    if (hideBtn) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      hideRankingBoard();
+      return;
+    }
+    var raceBtn = t.closest("#lipton-dev-race-boxes [data-race]");
+    if (raceBtn) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      goRace(raceBtn.getAttribute("data-race"));
+    }
+  }, true);
   function goLive() {
     goRace(1);
   }
@@ -425,10 +466,21 @@
   ])
     .then(function (quad) {
       window.__trackingDev2Bootstrap = quad[0];
-      window.__sailfishDev2 = typeof window.applySailfishDev2 === "function"
-        ? window.applySailfishDev2(quad[0])
-        : {};
-      start(quad[1], quad[2], quad[0], quad[3], quad[4]);
+      try {
+        window.__sailfishDev2 = typeof window.applySailfishDev2 === "function"
+          ? window.applySailfishDev2(quad[0])
+          : {};
+      } catch (sfErr) {
+        console.warn("[dev2] sailfish", sfErr);
+        window.__sailfishDev2 = {};
+      }
+      try {
+        start(quad[1], quad[2], quad[0], quad[3], quad[4]);
+      } catch (startErr) {
+        console.error("[dev2] start", startErr);
+        var sailed = document.getElementById("lipton-dev-sailed");
+        if (sailed) sailed.textContent = "Race " + RACE_Q + " replay started with errors.";
+      }
     })
     .catch(function (err) {
       var sailed = document.getElementById("lipton-dev-sailed");
@@ -2117,8 +2169,15 @@
     seriesFinishes = seriesFinishes || {};
     seriesOfficial = seriesOfficial || null;
     var sailfish = {};
-    if (bootstrap && typeof window.applySailfishDev2 === "function") {
-      sailfish = window.applySailfishDev2(bootstrap) || {};
+    if (window.__sailfishDev2 && typeof window.__sailfishDev2 === "object") {
+      sailfish = window.__sailfishDev2;
+    } else if (bootstrap && typeof window.applySailfishDev2 === "function") {
+      try {
+        sailfish = window.applySailfishDev2(bootstrap) || {};
+      } catch (sfErr2) {
+        console.warn("[dev2] sailfish start", sfErr2);
+        sailfish = {};
+      }
     }
     var PASSES = loadPasses(data);
     var BOATS = data.boats || {};
@@ -2467,13 +2526,14 @@
         applyProtestMode(PROTEST_MODE === "official" ? "provisional" : "official");
       };
     }
+    var prevOverlay = window.__sailfishOverlay || {};
     var overlay = {
-      board: true,
-      marks: true,
-      dots: true,
+      board: prevOverlay.board !== false,
+      marks: prevOverlay.marks !== false,
+      dots: prevOverlay.dots !== false,
       layline: sailfish.layline !== false,
       leaderline: sailfish.leaderline !== false,
-      frontline: true,
+      frontline: prevOverlay.frontline !== false,
       windCompass: sailfish.windCompass !== false,
       colSOG: sailfish.colSOG !== false,
       colCOG: sailfish.colCOG !== false,
@@ -2498,12 +2558,17 @@
         }
       }
       var boardEl = document.getElementById("tracking-dev2-ranking");
-      if (boardEl) boardEl.classList.toggle("is-hidden", !overlay.board);
+      if (boardEl) {
+        boardEl.classList.toggle("is-hidden", !overlay.board);
+        boardEl.hidden = !overlay.board;
+        boardEl.setAttribute("aria-hidden", overlay.board ? "false" : "true");
+        boardEl.style.display = overlay.board ? "" : "none";
+      }
       if (overlay.camera) {
         followFleet = true;
         cam = null;
       }
-      drawMap(playTs);
+      if (typeof drawMap === "function") drawMap(playTs);
     };
     var camBtn = document.getElementById("tracking-dev2-cam-btn");
     if (camBtn) {
@@ -2904,6 +2969,13 @@
       var track = el.parentNode;
       var ctrls = el.querySelector(".leaflet-control-container");
       if (track && ctrls) track.appendChild(ctrls);
+      ["tracking-dev2-ranking", "lipton-dev-race-boxes", "lipton-dev-subhead", "tracking-dev2-sailfish-bar"].forEach(function (id) {
+        var chrome = document.getElementById(id);
+        if (chrome && L.DomEvent && L.DomEvent.disableClickPropagation) {
+          L.DomEvent.disableClickPropagation(chrome);
+          if (L.DomEvent.disableScrollPropagation) L.DomEvent.disableScrollPropagation(chrome);
+        }
+      });
     }
     var lastChartSyncAt = 0;
     function syncChart() {
@@ -4257,7 +4329,8 @@
       scrubEl.value = String(Math.round(u * 1000));
     }
     function applyScrub() {
-      if (!scrubEl || !trackerReady) return;
+      if (!scrubEl) return;
+      if (!trackerReady) beginAfterTracker();
       var ts = PLAY_START_TS + (Number(scrubEl.value) / 1000) * raceSpanMs();
       cancelRecallHorn();
       jump(ts);

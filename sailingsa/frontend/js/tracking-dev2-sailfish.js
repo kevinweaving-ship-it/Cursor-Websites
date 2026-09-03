@@ -19,13 +19,14 @@
   }
 
   function overlayState(vc) {
+    var prev = window.__sailfishOverlay || {};
     return {
-      board: true,
-      marks: true,
-      dots: true,
+      board: prev.board !== false,
+      marks: prev.marks !== false,
+      dots: prev.dots !== false,
       layline: vc.layline !== false,
       leaderline: vc.leaderline !== false,
-      frontline: true,
+      frontline: prev.frontline !== false,
       windCompass: vc.windCompass !== false,
       colSOG: !!vc.ColSOG,
       colCOG: !!vc.ColCOG,
@@ -37,10 +38,13 @@
   function syncBoard(state) {
     var board = el("tracking-dev2-ranking");
     if (!board) return;
-    var on = state.board !== false;
+    var on = !state || state.board !== false;
     board.classList.toggle("is-hidden", !on);
+    board.hidden = !on;
     board.setAttribute("aria-hidden", on ? "false" : "true");
+    board.style.display = on ? "" : "none";
   }
+  window.__sailfishSyncBoard = syncBoard;
 
   function paintFlags(flags, state) {
     if (!flags) return;
@@ -77,12 +81,16 @@
               : pair[1] === "dots"
                 ? " (breadcrumb dotted tracks)"
                 : "");
-      btn.addEventListener("click", function () {
+      btn.addEventListener("click", function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
         state[pair[1]] = !state[pair[1]];
         window.__sailfishOverlay = state;
         syncBoard(state);
         paintFlags(flags, state);
-        if (typeof window.__sailfishRedraw === "function") window.__sailfishRedraw();
+        if (typeof window.__sailfishRedraw === "function") {
+          try { window.__sailfishRedraw(); } catch (err) {}
+        }
       });
       flags.appendChild(btn);
     });
@@ -101,12 +109,18 @@
 
     var hideBtn = el("tracking-dev2-ranking-hide");
     if (hideBtn) {
-      hideBtn.onclick = function () {
+      hideBtn.onclick = function (ev) {
+        if (ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
+        }
         state.board = false;
         window.__sailfishOverlay = state;
         syncBoard(state);
         paintFlags(flags, state);
-        if (typeof window.__sailfishRedraw === "function") window.__sailfishRedraw();
+        if (typeof window.__sailfishRedraw === "function") {
+          try { window.__sailfishRedraw(); } catch (err) {}
+        }
       };
     }
 
