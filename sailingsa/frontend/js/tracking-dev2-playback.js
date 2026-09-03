@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v32";
+  var CACHE = "dev2v33";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -3232,10 +3232,8 @@
     function pinTrio() {
       var pts = [];
       var sl = trail.start_line;
-      var fl = trail.finish_line;
       if (sl && sl.left) pts.push(sl.left);
       if (sl && sl.right) pts.push(sl.right);
-      if (fl && fl.left) pts.push(fl.left);
       return pts;
     }
     function fleetNearStart(boatPts, ts) {
