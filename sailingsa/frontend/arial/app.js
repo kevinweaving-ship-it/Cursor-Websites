@@ -1803,13 +1803,15 @@
         "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png?v=43", code: "7302" },
         "7102": { name: "Amoroc", from: "Amoroc", logo: "/arial/users/amoroc.png?v=43", code: "7102" },
         "7777": { name: "Onguard", from: "Onguard", logo: "/arial/users/onguard.png?v=1", code: "7777" },
-        "2640": { name: "Comnet", from: "Comnet", logo: "/arial/users/comnet.png?v=1", code: "2640" }
+        "2640": { name: "Comnet", from: "Comnet", logo: "/arial/users/comnet.png?v=1", code: "2640" },
+        "6114": { name: "Kevin", from: "Kevin", logo: "/arial/users/aerial.png?v=1", code: "6114" }
     };
 
     function resolvedUser(user) {
         if (!user) return null;
         if (user.code && CODES[user.code]) return CODES[user.code];
         if (/comnet/i.test(String(user.name || user.from || user.logo || ""))) return CODES["2640"];
+        if (/^kevin$/i.test(String(user.name || user.from || ""))) return CODES["6114"];
         if (/onguard/i.test(String(user.name || user.from || user.logo || ""))) return CODES["7777"];
         if (/aerial/i.test(String(user.logo || user.name || ""))) return CODES["7102"];
         if (/amoroc/i.test(String(user.name || user.from || user.logo || ""))) return CODES["7102"];
@@ -2784,6 +2786,7 @@
         if (!saved) saved = JSON.parse(sessionStorage.getItem("arialUser") || "null");
         if (saved) {
             if (/comnet/i.test(String(saved.name || saved.from || saved.logo || ""))) saved.code = "2640";
+            if (/^kevin$/i.test(String(saved.name || saved.from || ""))) saved.code = "6114";
             if (/onguard/i.test(String(saved.name || saved.from || saved.logo || ""))) saved.code = "7777";
             if (!saved.code && /aerial/i.test(String(saved.logo || saved.name || ""))) saved.code = "7102";
             if (/aerial/i.test(String(saved.logo || ""))) saved.code = saved.code || "7102";

@@ -710,6 +710,30 @@ def test_breaker_outages_from_tuya_lifecycle_log():
     assert datetime.fromtimestamp(out[0]["from"], arial_api._SAST).strftime("%d %H:%M:%S") == "31 10:30:56"
 
 
+def test_kevin_pin_6114(tmp_path, monkeypatch):
+    root = Path(__file__).resolve().parent
+    js = (root / "app.js").read_text(encoding="utf-8")
+    assert '"6114": { name: "Kevin", from: "Kevin"' in js
+    assert arial_api.KEYPAD_CODES["6114"]["from"] == "Kevin"
+    assert "Kevin" in arial_api.KEYPAD_ACTORS
+    _reset_keypad_log(monkeypatch, tmp_path)
+    actor = arial_api._remember_keypad("6114", "area-disarm")
+    row = arial_api.format_olarm_event(
+        {"eventAction": "area", "eventState": "disarm", "eventNum": 1, "eventMsg": "DISARMED - Area 1 - Facility Building",
+         "eventTime": int(actor["at"] * 1000) + 5_000, "userFullname": "Kevin"},
+        {"arialAreas": [{"num": 1, "label": "Facility Building"}]},
+    )
+    assert row["actor"] == "Kevin" and row["via"] == "Remote"
+    # An Olarm-side "Kevin" with no keypad action behind it still shows no name.
+    _reset_keypad_log(monkeypatch, tmp_path)
+    stray = arial_api.format_olarm_event(
+        {"eventAction": "area", "eventState": "arm", "eventNum": 1, "eventMsg": "ARMED - Area 1 - Facility Building",
+         "eventTime": int(time.time() * 1000), "userFullname": "Kevin"},
+        {"arialAreas": [{"num": 1, "label": "Facility Building"}]},
+    )
+    assert stray["actor"] == "" and "Kevin" not in stray["activity"]
+
+
 def test_olarm_poll_acks_until_newer_record(tmp_path, monkeypatch):
     _reset_keypad_log(monkeypatch, tmp_path)
     arial_api._activity_cache = {"at": 0.0, "data": None, "last_key": ""}
@@ -772,7 +796,7 @@ def test_activity_keeps_30_day_store_and_checksums_on_login():
     assert 'prependActivity("DISARMED")' in js
     assert "setInterval(loadActivity, 3000)" in js
     assert "restoreActivityStore();" in js
-    assert "app.js?v=219" in html
+    assert "app.js?v=220" in html
 
 
 def test_activity_armed_once_remote_no_countdown_or_notready():

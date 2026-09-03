@@ -95,7 +95,9 @@ KEYPAD_CODES = {
     "7102": {"name": "Amoroc", "from": "Amoroc"},
     "7777": {"name": "Onguard", "from": "Onguard"},
     "2640": {"name": "Comnet", "from": "Comnet"},
+    "6114": {"name": "Kevin", "from": "Kevin"},
 }
+KEYPAD_ACTORS = {str(v["from"]) for v in KEYPAD_CODES.values()}
 
 # Tuya OpenAPI — TUYS keypad UI stays paused until tuya_probe() returns ok.
 TUYA_DEFAULT_ENDPOINT = "https://openapi.tuyaeu.com"
@@ -1890,7 +1892,7 @@ def is_skip_activity_event(event: dict[str, Any] | None) -> bool:
 
 
 def _activity_via(actor: str) -> str:
-    return "Remote" if str(actor or "").strip() in {"Pingoa", "Amoroc", "Onguard", "Comnet"} else ""
+    return "Remote" if str(actor or "").strip() in KEYPAD_ACTORS else ""
 
 
 def _activity_line(label: str, state_lab: str, actor: str, via: str = "") -> str:
@@ -2051,7 +2053,7 @@ def _arial_event_actor(tab: str, event: dict[str, Any], device: dict[str, Any] |
         label = _map_our_actor(str(best.get("from") or best.get("label") or best.get("name") or ""))
         if not label:
             label = str(best.get("from") or best.get("label") or "").strip()
-        if label in {"Pingoa", "Amoroc", "Onguard", "Comnet"}:
+        if label in KEYPAD_ACTORS:
             return label
     return _map_our_actor(
         str(event.get("userFullname") or event.get("userName") or event.get("user") or "")
@@ -2107,8 +2109,8 @@ def _stamp_activity_actors(bundle: dict[str, Any] | None) -> dict[str, Any]:
                 break
         if matched:
             continue
-        actor = _map_our_actor(str(rec.get("from") or rec.get("label") or ""))
-        if actor not in {"Pingoa", "Amoroc", "Onguard", "Comnet"}:
+        actor = _map_our_actor(str(rec.get("from") or rec.get("label") or "")) or str(rec.get("from") or "").strip()
+        if actor not in KEYPAD_ACTORS:
             continue
         label = str(rec.get("area") or "").strip() or _hansekop_area_label()
         state_lab = _event_state_label(state)
