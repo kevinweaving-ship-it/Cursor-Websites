@@ -3120,6 +3120,26 @@
     setInterval(loadActivity, 3000);
     setInterval(loadBreaker, 3000);
     setInterval(loadStatus, 3000);   // fallback if the push channel is silent; served from the server snapshot
+
+    // Auto-update: when a newer app.js is published, reload once the keypad is idle (never mid-countdown).
+    function currentAssetVersion() {
+        var tag = document.querySelector('script[src*="/arial/app.js?v="]');
+        var m = tag && /app\.js\?v=(\d+)/.exec(tag.getAttribute("src") || "");
+        return m ? m[1] : "";
+    }
+    function checkForNewVersion() {
+        var mine = currentAssetVersion();
+        if (!mine) return;
+        fetch(location.pathname, { cache: "no-store", credentials: "same-origin" }).then(function (r) { return r.text(); }).then(function (html) {
+            var m = /app\.js\?v=(\d+)/.exec(html || "");
+            if (!m || m[1] === mine) return;
+            var busy = Object.keys(typeof areaPending !== "undefined" ? areaPending : {}).length > 0 || localExitLeft() > 0 || armPending || disarmPending;
+            if (busy) { setTimeout(checkForNewVersion, 15000); return; }
+            location.reload();
+        }).catch(function () {});
+    }
+    setInterval(checkForNewVersion, 120000);
+    setTimeout(checkForNewVersion, 20000);
     setInterval(function () {
         if (localExitLeft() > 0 || disarmPending || armPending || panelIsExiting(window.arialDevice)) loadStatus();
     }, 1000);
