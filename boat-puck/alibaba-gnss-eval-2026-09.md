@@ -103,3 +103,22 @@ https://www.alibaba.com/product-detail/Archinno-GeoPod-Mini-RTK-GNSS-Rover_16018
 | Price | Ali live **ask seller** (captcha); quote-only on maker site |
 
 **Verdict:** **NO for Puck** — finished survey stick, not a board; **20 Hz** fails [`gnss-50hz-lock.md`](gnss-50hz-lock.md); too big for GoPro. Possible **field trial / committee handheld** only — prefer bare **UM980 board** for race stack.
+
+---
+
+## Paste add-on — XM30R RTK handheld (short link)
+
+Short URL https://www.alibaba.com/x/1lBAuFh?ck=pdp →  
+https://www.alibaba.com/product-detail/subject_1601934271030.html  
+(productId **1601934271030**)
+
+| | |
+|--|--|
+| Product | **XM30R** RTK GNSS handheld / **4G LTE PoC intercom** + rugged camera |
+| Seller | Shanghai Xilin Import And Export Co., Ltd. |
+| Price (live share) | **R2 885–3 211** (~**$180–201**) · MOQ 1 |
+| Form | Android **14** brick · **3.0"** IPS · UIS7863 · 4+64 · IP68 · 5000 mAh hot-swap |
+| GNSS claim | “cm RTK” / &lt;10 cm · multi-constellation — **chip + Hz not stated** |
+| Other | 4G PoC walkie, dual cameras, IR, SOS — bodycam/survey terminal |
+
+**Verdict:** **NO — skip.** Same class as LTE “RTK intercom” walkies: finished Android radio, not embeddable guts. Paying ~R3 200 for a shell you would gut is waste. Do **not** ask for guts (custom mainboard + SoC); if they sell a bare GNSS module, that would be a different SKU — still need **UM980 + 50 Hz** proof. Prefer [`gnss.store` UM980](https://gnss.store/products/elt0223) / Ali UM980 boards.
