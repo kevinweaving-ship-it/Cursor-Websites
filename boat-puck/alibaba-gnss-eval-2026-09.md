@@ -187,3 +187,6 @@ Screenshots (Meshtastic search → WES badge). Model **WE-T350**.
 | Use | Indoor UWB 0D/1D presence / tunnel tags — personnel asset tracking |
 
 **Verdict:** **NO — skip.** Wrong product class (UWB badge + optional dual-band GNSS). Max **20 Hz**, not UM980 guts, not GoPro-fit. Do **not** ask for guts.
+
+**Factory check (海南世电 / WEST-HN / WES):** public store https://store.west-hn.com — **WE-T350 not listed**. Sibling UWB tags (WE-T241-C, WE-T311, WE-UG230, WE-T206-H) all publish **刷新率 0.1~20 Hz**. No factory datasheet found with ≥50 Hz GNSS. Asking OEM for “higher Hz” is unlikely to help the Puck path.
+
