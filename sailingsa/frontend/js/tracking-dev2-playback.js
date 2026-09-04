@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v40";
+  var CACHE = "dev2v41";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -312,32 +312,59 @@
       board.style.display = "none";
     }
   }
-  document.addEventListener("click", function (ev) {
-    var t = ev.target;
-    if (!t || !t.closest) return;
-    var hideBtn = t.closest("#tracking-dev2-ranking-hide");
+  var tapLockUntil = 0;
+  function consumeTap(ev) {
+    if (!ev) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+  }
+  function tapLocked() {
+    return Date.now() < tapLockUntil;
+  }
+  function lockTap() {
+    tapLockUntil = Date.now() + 450;
+  }
+  function onChromeTap(ev) {
+    if (!ev || !ev.target || !ev.target.closest) return;
+    if (ev.pointerType === "mouse" && ev.button != null && ev.button !== 0) return;
+    var hideBtn = ev.target.closest("#tracking-dev2-ranking-hide");
     if (hideBtn) {
-      ev.preventDefault();
-      ev.stopPropagation();
+      if (tapLocked()) {
+        consumeTap(ev);
+        return;
+      }
+      lockTap();
+      consumeTap(ev);
       hideRankingBoard();
       return;
     }
-    var flagBtn = t.closest("#tracking-dev2-sailfish-flags [data-flag]");
+    var flagBtn = ev.target.closest("#tracking-dev2-sailfish-flags [data-flag]");
     if (flagBtn) {
-      ev.preventDefault();
-      ev.stopPropagation();
+      if (tapLocked()) {
+        consumeTap(ev);
+        return;
+      }
+      lockTap();
+      consumeTap(ev);
       if (typeof window.__sailfishToggleFlag === "function") {
         window.__sailfishToggleFlag(flagBtn.getAttribute("data-flag"));
       }
       return;
     }
-    var raceBtn = t.closest("#lipton-dev-race-boxes [data-race]");
+    var raceBtn = ev.target.closest("#lipton-dev-race-boxes [data-race]");
     if (raceBtn) {
-      ev.preventDefault();
-      ev.stopPropagation();
+      if (tapLocked()) {
+        consumeTap(ev);
+        return;
+      }
+      lockTap();
+      consumeTap(ev);
       goRace(raceBtn.getAttribute("data-race"));
     }
-  }, true);
+  }
+  document.addEventListener("pointerup", onChromeTap, true);
+  document.addEventListener("click", onChromeTap, true);
   function goLive() {
     goRace(1);
   }

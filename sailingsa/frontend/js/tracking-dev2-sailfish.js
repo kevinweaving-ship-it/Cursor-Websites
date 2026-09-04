@@ -133,22 +133,7 @@
     syncBoard(state);
 
     var hideBtn = el("tracking-dev2-ranking-hide");
-    if (hideBtn) {
-      hideBtn.onclick = function (ev) {
-        if (ev) {
-          ev.preventDefault();
-          ev.stopPropagation();
-        }
-        if (typeof window.__sailfishSetBoard === "function") {
-          window.__sailfishSetBoard(false);
-        } else {
-          state.board = false;
-          window.__sailfishOverlay = state;
-          syncBoard(state);
-          paintFlags(flags, state);
-        }
-      };
-    }
+    if (hideBtn) hideBtn.onclick = null;
 
     if (mode) {
       mode.textContent = bootstrap.status === "99" ? "REPLAY" : "LIVE";

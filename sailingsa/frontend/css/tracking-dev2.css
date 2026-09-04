@@ -1172,6 +1172,9 @@ body[data-tracking-dev2="1"] .tracking-dev2-flag {
   min-height: 44px;
   pointer-events: auto;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
 }
 body[data-tracking-dev2="1"] .tracking-dev2-flag--on {
   background: #e0f2fe;
@@ -1310,8 +1313,10 @@ body[data-tracking-dev2="1"] .tracking-dev2-ranking .class-header {
 }
 body[data-tracking-dev2="1"] .tracking-dev2-ranking-hide {
   flex: 0 0 auto;
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
   border: 1px solid #cbd5e1;
   border-radius: 4px;
   background: #fff;
@@ -1322,6 +1327,9 @@ body[data-tracking-dev2="1"] .tracking-dev2-ranking-hide {
   pointer-events: auto;
   z-index: 2;
   position: relative;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
 }
 body[data-tracking-dev2="1"] .tracking-dev2-ranking #lipton-dev-checksum {
   margin: 0;
@@ -1539,6 +1547,7 @@ body[data-tracking-dev2="1"] .lipton-dev-race-box {
   min-width: 44px;
   min-height: 44px;
   height: 44px;
+  touch-action: manipulation;
   padding: 0 8px;
   font-size: 12px;
   line-height: 34px;
