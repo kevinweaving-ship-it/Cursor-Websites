@@ -1,0 +1,60 @@
+{
+  "project": "boat-puck",
+  "purpose": "GoPro waterproof housing as cheap enclosure for Boat Puck electronics",
+  "confidence": "provisional",
+  "updated": "2026-09-04",
+  "units": "mm",
+  "primary_housing": {
+    "name": "GoPro Protective Housing HERO9-13",
+    "sku_official": ["ADDIV-001", "ADDIV-001-VT"],
+    "clone_examples": ["Telesin GP-WTP-901"],
+    "compatible_cameras": ["HERO9", "HERO10", "HERO11", "HERO12", "HERO13"],
+    "depth_m_waterproof_backdoor": 60,
+    "camera_body": {
+      "W": 71.8,
+      "H": 50.8,
+      "D": 33.6,
+      "source": "Clifton Cameras / Hypoxic HERO13 teardown; same chassis H9-12"
+    },
+    "camera_body_alt_community": {
+      "W": 71.0,
+      "H": 55.0,
+      "D": 33.6,
+      "source": "GoPro community size articles (rounded; H may include fingers)"
+    },
+    "max_insert_recommended": {
+      "W": 70.0,
+      "H": 49.0,
+      "D": 32.0,
+      "note": "Camera minus ~1mm per side; verify with printed dummy before PCB freeze"
+    },
+    "housing_outer_listed": {
+      "ADDIV_icecat": { "W": 80, "H": 80, "D": 50, "weight_g": 100 },
+      "ADDIV_alt_listing": { "W": 82.6, "H": 76.2, "D": 40.6, "weight_g": 181 },
+      "telesin_gp_wtp_901": { "W": 94, "H": 85, "D": 46, "weight_g": 135, "depth_m": 45 }
+    },
+    "cavity_measured": null,
+    "keepouts_provisional": {
+      "lens_tunnel": "front centre — measure boss OD/ID and depth",
+      "button_plungers": "top / front-side — mark through holes on dummy",
+      "latch_hinge": "top latch + bottom hinge — non-rectangular rear",
+      "oring_gap_mm": 1.0
+    }
+  },
+  "secondary_housing": {
+    "name": "GoPro HERO4 Standard Housing",
+    "camera_body": { "W": 59, "H": 41, "D": 30 },
+    "max_insert_recommended": { "W": 57, "H": 39, "D": 28 },
+    "housing_outer_approx": { "W": 65, "H": 67, "D": 35 },
+    "depth_m_standard": 40,
+    "bacpac_backdoor": {
+      "extra_depth_mm_estimate": [15, 20],
+      "note": "Confirm with physical BacPac door; enables thicker battery stack"
+    }
+  },
+  "axis": {
+    "X": "width left-right",
+    "Y": "height top-bottom",
+    "Z": "depth front(lens)-to-back(door)"
+  }
+}
