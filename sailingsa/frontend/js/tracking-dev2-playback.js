@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v50";
+  var CACHE = "dev2v51";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -258,22 +258,36 @@
     var spin = document.getElementById("lipton-dev-map-spin");
     var chart = document.getElementById("lipton-dev-chart");
     var canvas = document.getElementById("lipton-dev-map");
+    var vw = window.innerWidth || 0;
+    var vh = window.innerHeight || 0;
+    var side = Math.ceil(Math.sqrt(vw * vw + vh * vh)) || Math.max(vw, vh);
+    var chartLeft = (vw - side) / 2;
+    var chartTop = (vh - side) / 2;
+    window.__dev2ChartLayout = { left: chartLeft, top: chartTop, side: side, vw: vw, vh: vh };
     if (spin) {
       spin.style.setProperty("position", "absolute", "important");
       spin.style.setProperty("inset", "0", "important");
       spin.style.setProperty("height", "100%", "important");
       spin.style.setProperty("width", "100%", "important");
+      spin.style.setProperty("overflow", "visible", "important");
     }
     if (chart) {
       chart.style.setProperty("position", "absolute", "important");
-      chart.style.setProperty("inset", "0", "important");
-      chart.style.setProperty("height", "100%", "important");
+      chart.style.setProperty("inset", "auto", "important");
+      chart.style.setProperty("width", side + "px", "important");
+      chart.style.setProperty("height", side + "px", "important");
+      chart.style.setProperty("left", chartLeft + "px", "important");
+      chart.style.setProperty("top", chartTop + "px", "important");
+      chart.style.setProperty("transform", "none", "important");
     }
     if (canvas) {
       canvas.style.setProperty("position", "absolute", "important");
       canvas.style.setProperty("inset", "0", "important");
+      canvas.style.setProperty("width", "100%", "important");
       canvas.style.setProperty("height", "100%", "important");
+      canvas.style.setProperty("transform", "none", "important");
     }
+    if (track) track.style.setProperty("overflow", "hidden", "important");
     var barH = bar ? Math.round(bar.getBoundingClientRect().height || bar.offsetHeight || 0) : 0;
     var chromeTop = headerH + barH + 8;
     var board = document.getElementById("tracking-dev2-ranking");
@@ -289,6 +303,21 @@
       try { liveMap.invalidateSize({ animate: false }); } catch (err) {}
     }
   }
+  window.__dev2MapSpin = 0;
+  window.__dev2MapToScreen = function (x, y) {
+    var layout = window.__dev2ChartLayout || {};
+    var ux = (layout.left || 0) + x;
+    var uy = (layout.top || 0) + y;
+    var rad = (window.__dev2MapSpin || 0) * Math.PI / 180;
+    if (!rad) return { x: ux, y: uy };
+    var cx = (layout.vw || 0) / 2;
+    var cy = (layout.vh || 0) / 2;
+    var dx = ux - cx;
+    var dy = uy - cy;
+    var c = Math.cos(rad);
+    var s = Math.sin(rad);
+    return { x: cx + dx * c - dy * s, y: cy + dx * s + dy * c };
+  };
   window.__dev2SizeMap = sizeDev2Map;
   sizeDev2Map();
   window.addEventListener("resize", function () {
@@ -1013,7 +1042,7 @@
     function xy(lat, lon) {
       if (!chartMap) return { x: 0, y: 0 };
       var pt = chartMap.latLngToContainerPoint([lat, lon]);
-      return { x: pt.x, y: pt.y };
+      return window.__dev2MapToScreen(pt.x, pt.y);
     }
     function drawBoatIcon(p, hdg, fill) {
       var r = 7;
@@ -1026,7 +1055,7 @@
       mapCtx.stroke();
       mapCtx.save();
       mapCtx.translate(p.x, p.y);
-      mapCtx.rotate((hdg || 0) * Math.PI / 180);
+      mapCtx.rotate(((hdg || 0) + (window.__dev2MapSpin || 0)) * Math.PI / 180);
       mapCtx.beginPath();
       mapCtx.moveTo(0, -r - 3.6);
       mapCtx.lineTo(3.1, -r + 1.2);
@@ -3057,8 +3086,12 @@
     var mapSpin = 0;
     var mapSpinManual = false;
     function applyMapSpin() {
+      window.__dev2MapSpin = mapSpin;
       var host = document.getElementById("lipton-dev-map-spin") || document.querySelector(".tracking-dev2-map-first");
       if (host && host.style) host.style.setProperty("--dev2-map-spin", String(mapSpin) + "deg");
+      if (typeof drawMap === "function") {
+        try { drawMap(playTs); } catch (err) {}
+      }
     }
     function bumpMapSpin(delta) {
       mapSpinManual = true;
@@ -3129,7 +3162,7 @@
         minZoom: 12,
         maxZoom: 22,
         maxNativeZoom: 19,
-        keepBuffer: 8,
+        keepBuffer: 12,
         updateWhenIdle: false,
         updateWhenZooming: false,
         updateInterval: 400,
@@ -3464,7 +3497,7 @@
     function xy(lat, lon) {
       if (chartMap) {
         var pt = chartMap.latLngToContainerPoint([lat, lon]);
-        return { x: pt.x, y: pt.y };
+        return window.__dev2MapToScreen(pt.x, pt.y);
       }
       var b = mapBounds;
       return {
@@ -3586,7 +3619,7 @@
       mapCtx.stroke();
       mapCtx.save();
       mapCtx.translate(p.x, p.y);
-      mapCtx.rotate((hdg || 0) * Math.PI / 180);
+      mapCtx.rotate(((hdg || 0) + (window.__dev2MapSpin || 0)) * Math.PI / 180);
       mapCtx.beginPath();
       mapCtx.moveTo(0, -r - 3.6);
       mapCtx.lineTo(3.1, -r + 1.2);
