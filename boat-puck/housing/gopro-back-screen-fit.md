@@ -36,12 +36,36 @@ From GoPro’s own HERO11 rear geometry (same chassis family as 9–13):
 | **Active LCD** (GoPro stock) | **48.0 × 32.0** (~2.27") | What they actually drive |
 | Depth for display stack | typically **~2–4 mm** | Then rest of 33.6 mm = PCB/battery/radio toward front |
 
+### Space around the screen (lid margins)
+
+Assume centred AA in the **rear window** (not the full 71.8×50.8 face — the door frame eats the edge).
+
+| Ring | Size (mm) | Border each side (W / H) |
+|------|-----------|---------------------------|
+| Insert rear face | 71.8 × 50.8 | — |
+| Visible backdoor window | 62.7 × 41.7 | **~4.6 / ~4.6** from face edge to glass |
+| Stock GoPro active (~2.27", 48×32) | 48.0 × 32.0 | **~7.4 / ~4.9** glass → AA |
+| Face edge → stock AA (total) | — | **~11.9 / ~9.4** |
+
+So on a **~2.0–2.3"** (48×32 class) you get roughly **7–8 mm** left/right and **~5 mm** top/bottom of clear window around the active area, plus another **~4.5 mm** of plastic lid frame outside the glass.
+
+| Target AA (approx) | Diagonal | Glass → AA each side (W / H) | Verdict |
+|--------------------|----------|------------------------------|---------|
+| 48 × 32 | ~2.27" | **7.4 / 4.9** | Comfortable (stock) |
+| ~43 × 29 | ~2.0" | **~10 / ~6** | Plenty of bezel |
+| ~55 × 37 | ~2.5" | **~3.9 / ~2.4** | Tight but usable |
+| ~60 × 40 | ~2.8" | **~1.4 / ~0.9** | Almost flush — no room for seal/print error |
+| > 62.7 × 41.7 | — | negative | Clipped by lid window |
+
+**Rule:** keep AA ≤ **~55×37 (~2.5")** if you want a few mm of dark bezel; treat **2.8"** as max theoretical, not a comfortable buy.
+
 ### Practical Boat Puck “back screen” targets
 
 | Option | Fit in stock ADDIV backdoor? | Comment |
 |--------|------------------------------|---------|
-| **~2.0–2.3"** (≈48×32 class) | **Yes — easy** | Matches GoPro’s own rear LCD |
-| **~2.4–2.8"** if AA ≤ ~60×40 | **Maybe** | Needs bezel check; stay under rear glass **62.7×41.7** |
+| **~2.0–2.3"** (≈48×32 class) | **Yes — easy** | ~5–8 mm glass margin; matches GoPro rear LCD |
+| **~2.4–2.5"** if AA ≤ ~55×37 | **Yes — tight** | ~2–4 mm glass margin |
+| **~2.8"** if AA ≤ ~60×40 | **Maybe** | &lt;1.5 mm margin — caliper real door first |
 | **4.2" RLCD** AA **63.6×84.8** | **No** | Longer side **84.8 > 71.8**; needs own housing (Boat Atlas) |
 
 ---
