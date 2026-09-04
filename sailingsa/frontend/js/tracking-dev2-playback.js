@@ -312,58 +312,49 @@
       board.style.display = "none";
     }
   }
-  var tapLockUntil = 0;
+  var lastTap = { key: "", at: 0 };
   function consumeTap(ev) {
     if (!ev) return;
     ev.preventDefault();
     ev.stopPropagation();
     if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
   }
-  function tapLocked() {
-    return Date.now() < tapLockUntil;
-  }
-  function lockTap() {
-    tapLockUntil = Date.now() + 450;
+  function sameTap(key) {
+    var now = Date.now();
+    if (lastTap.key === key && now - lastTap.at < 350) return true;
+    lastTap = { key: key, at: now };
+    return false;
   }
   function onChromeTap(ev) {
     if (!ev || !ev.target || !ev.target.closest) return;
     if (ev.pointerType === "mouse" && ev.button != null && ev.button !== 0) return;
     var hideBtn = ev.target.closest("#tracking-dev2-ranking-hide");
     if (hideBtn) {
-      if (tapLocked()) {
-        consumeTap(ev);
-        return;
-      }
-      lockTap();
       consumeTap(ev);
+      if (sameTap("hide")) return;
       hideRankingBoard();
       return;
     }
     var flagBtn = ev.target.closest("#tracking-dev2-sailfish-flags [data-flag]");
     if (flagBtn) {
-      if (tapLocked()) {
-        consumeTap(ev);
-        return;
-      }
-      lockTap();
+      var flag = flagBtn.getAttribute("data-flag");
       consumeTap(ev);
+      if (sameTap("flag:" + flag)) return;
       if (typeof window.__sailfishToggleFlag === "function") {
-        window.__sailfishToggleFlag(flagBtn.getAttribute("data-flag"));
+        window.__sailfishToggleFlag(flag);
       }
       return;
     }
     var raceBtn = ev.target.closest("#lipton-dev-race-boxes [data-race]");
     if (raceBtn) {
-      if (tapLocked()) {
-        consumeTap(ev);
-        return;
-      }
-      lockTap();
+      var race = raceBtn.getAttribute("data-race");
       consumeTap(ev);
-      goRace(raceBtn.getAttribute("data-race"));
+      if (sameTap("race:" + race)) return;
+      goRace(race);
     }
   }
   document.addEventListener("pointerup", onChromeTap, true);
+  document.addEventListener("touchend", onChromeTap, { capture: true, passive: false });
   document.addEventListener("click", onChromeTap, true);
   function goLive() {
     goRace(1);
