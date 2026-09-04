@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v46";
+  var CACHE = "dev2v47";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -206,9 +206,11 @@
     var bar = document.getElementById("tracking-dev2-sailfish-bar");
     var dock = document.getElementById("lipton-dev-subhead");
     if (!track) return;
-    html.style.setProperty("overflow", "hidden", "important");
+    html.style.setProperty("overflow-x", "hidden", "important");
+    html.style.setProperty("overflow-y", "visible", "important");
     html.style.setProperty("height", "100dvh", "important");
-    body.style.setProperty("overflow", "hidden", "important");
+    body.style.setProperty("overflow-x", "hidden", "important");
+    body.style.setProperty("overflow-y", "visible", "important");
     body.style.setProperty("height", "100dvh", "important");
     html.scrollTop = 0;
     body.scrollTop = 0;
@@ -217,7 +219,8 @@
       header.style.setProperty("top", "0", "important");
       header.style.setProperty("left", "0", "important");
       header.style.setProperty("right", "0", "important");
-      header.style.setProperty("z-index", "40", "important");
+      header.style.setProperty("z-index", "300", "important");
+      header.style.setProperty("display", "block", "important");
     }
     var headerH = header ? Math.round(header.offsetHeight || 0) : 0;
     if (bar) {
@@ -225,8 +228,10 @@
       bar.style.setProperty("top", headerH + "px", "important");
       bar.style.setProperty("left", "6px", "important");
       bar.style.setProperty("right", "6px", "important");
-      bar.style.setProperty("z-index", "95", "important");
+      bar.style.setProperty("z-index", "310", "important");
       bar.style.setProperty("margin", "0", "important");
+      bar.style.setProperty("display", "flex", "important");
+      bar.style.setProperty("visibility", "visible", "important");
     }
     if (dock) {
       dock.style.setProperty("position", "fixed", "important");
@@ -234,9 +239,9 @@
       dock.style.setProperty("right", "0", "important");
       dock.style.setProperty("bottom", "0", "important");
       dock.style.setProperty("top", "auto", "important");
-      dock.style.setProperty("z-index", "100", "important");
+      dock.style.setProperty("z-index", "200", "important");
       dock.style.setProperty("height", "auto", "important");
-      dock.style.setProperty("min-height", "64px", "important");
+      dock.style.setProperty("min-height", "0", "important");
       dock.style.setProperty("max-height", "none", "important");
       dock.style.setProperty("pointer-events", "auto", "important");
     }
