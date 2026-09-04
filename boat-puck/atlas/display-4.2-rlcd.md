@@ -14,8 +14,8 @@ Not colour IPS, not e-ink, not phone-as-display, not Atlas-style transflective c
 | Interface | **SPI** |
 | Backlight | **None** |
 | Active area (AA) | **63.6 × 84.8 mm** |
-| Prototype kit | Waveshare **ESP32-S3-RLCD-4.2-EN** — [SKU 33507](https://www.waveshare.com/esp32-s3-rlcd-4.2.htm?sku=33507) **$24.99** |
-| Production glass | Toppop [`TT420FSN21A`](https://toppoplcd.com/productdetails_5835009.html) / [`TT420FSN10A`](https://toppoplcd.com/productdetails_5685341.html) — **~$6–8** vol |
+| Prototype kit | Waveshare **ESP32-S3-RLCD-4.2-EN** — [SKU 33507](https://www.waveshare.com/esp32-s3-rlcd-4.2.htm?sku=33507) **R400 ($24.99)** |
+| Production glass | Toppop [`TT420FSN21A`](https://toppoplcd.com/productdetails_5835009.html) / [`TT420FSN10A`](https://toppoplcd.com/productdetails_5685341.html) — **~R96–128 ($6–8)** vol |
 | Alt wide-temp | Good Display [`GDTL042T71`](https://www.good-display.com/product/455.html) — RFQ |
 
 Research: [`../display-rlcd-4.2-research.md`](../display-rlcd-4.2-research.md) · buy sheet: [`buy-urls.md`](buy-urls.md).
@@ -29,7 +29,7 @@ Research: [`../display-rlcd-4.2-research.md`](../display-rlcd-4.2-research.md) �
 | Glass | Transflective **colour** + red backlight | **Reflective mono** RLCD |
 | Sunlight | Good | **Excellent** (paper-like) |
 | Power | Higher with backlight | **Lower** — no backlight |
-| BOM | Proprietary / expensive | Glass **~$6–8**; kit **~$25** |
+| BOM | Proprietary / expensive | Glass **~R96–128 ($6–8)**; kit **~R400 ($25)** |
 | Night | Built-in backlight | LED cues; front-light **later** |
 
 ---

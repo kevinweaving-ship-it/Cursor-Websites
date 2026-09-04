@@ -44,7 +44,8 @@ PUCK (GoPro H9–13 or small own shell)     DISPLAY HEAD (own shell)
 - Pros: antenna on deck/rail clean; display can sit in cockpit like Atlas.  
 - Cons: two housings, two batteries (or tethered power).
 
-**Default recommendation:** prototype UI on Waveshare board alone; **product v1 = Architecture A** if we must ship one SKU; move to **B** when RF/GNSS testing shows interference.
+**Default for Boat Atlas (keelboat):** **Architecture A — one unit** (see [`atlas/one-unit-build.md`](atlas/one-unit-build.md)).  
+Prototype UI on Waveshare board alone; move to **B** only if RF/GNSS testing shows interference.
 
 ---
 
@@ -54,7 +55,7 @@ PUCK (GoPro H9–13 or small own shell)     DISPLAY HEAD (own shell)
 
 | # | Component | Notes |
 |---|-----------|--------|
-| 1 | Dual-band **RTK GNSS** rover | Dominates BOM (~$20–80) |
+| 1 | Dual-band **RTK GNSS** rover | Dominates BOM (~R320–1280 / $20–80) |
 | 2 | GNSS antenna (clear sky) | Not under metal / behind thick plastic |
 | 3 | **9-DOF IMU** ≥100 Hz + **temp** | Same as HALO/Atlas parity |
 | 4 | **SX1262** + LoRa antenna | RaceSense substitute |
@@ -66,8 +67,8 @@ PUCK (GoPro H9–13 or small own shell)     DISPLAY HEAD (own shell)
 
 | # | Component | Source / cost class |
 |---|-----------|---------------------|
-| 8 | **4.2" ST7305 RLCD** FOG | Toppop `TT420FSN21A` / `TT420FSN10A` — **~$6–8** vol |
-| 9 | **ESP32-S3-WROOM N16R8** (or S31 later) | **~$3–5** |
+| 8 | **4.2" ST7305 RLCD** FOG | Toppop `TT420FSN21A` / `TT420FSN10A` — **~R96–128 ($6–8)** vol |
+| 9 | **ESP32-S3-WROOM N16R8** (or S31 later) | **~R48–80 ($3–5)** |
 | 10 | Optical window + gasket | Housing shop — marine acrylic/PC |
 | 11 | Soft keys or capacitive buttons | 2–4 keys: Mode / Start / Brightness-n/a / Mark |
 | 12 | Custom PCB (drop Waveshare audio) | Strip mics/speaker/AI |
@@ -110,9 +111,9 @@ GoPro cavity (**71.8 × 50.8 × 33.6 mm**) is **too small** for 4.2" AA (**63.6 
 
 | Process | Unit @ low qty | Notes |
 |---------|----------------|--------|
-| 3D print + gasket DIY | $5–15 | Proto only |
-| Soft tooling / urethane | $15–40 | Small fleet |
-| Injection ABS/PC + overmold | $5–15 @ volume | Real product |
+| 3D print + gasket DIY | R80–240 ($5–15) | Proto only |
+| Soft tooling / urethane | R240–640 ($15–40) | Small fleet |
+| Injection ABS/PC + overmold | R80–240 ($5–15) @ volume | Real product |
 
 ---
 
@@ -120,10 +121,10 @@ GoPro cavity (**71.8 × 50.8 × 33.6 mm**) is **too small** for 4.2" AA (**63.6 
 
 | | Proto | 100–500 |
 |--|-------|---------|
-| Electronics (panel+S3+LoRa+IMU+PCB) | ~$35–70 | ~$25–45 |
-| RTK GNSS | ~$25–80 | ~$20–60 |
-| Battery + housing | ~$15–50 | ~$10–25 |
-| **Total rough** | **~$75–200** | **~$55–130** |
+| Electronics (panel+S3+LoRa+IMU+PCB) | ~R560–1120 ($35–70) | ~R400–720 ($25–45) |
+| RTK GNSS | ~R400–1280 ($25–80) | ~R320–960 ($20–60) |
+| Battery + housing | ~R240–800 ($15–50) | ~R160–400 ($10–25) |
+| **Total rough** | **~R1200–3200 ($75–200)** | **~R880–2080 ($55–130)** |
 
 Still far under Atlas+HALO retail; GNSS quality sets the floor.
 

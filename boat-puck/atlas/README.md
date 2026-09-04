@@ -81,8 +81,10 @@ Exact map can move; keep **one-handed** with gloves in mind (44 mm targets on ho
 | **1** | Spec + parity + UI page list (this folder) | **Now** |
 | 2 | Housing outer envelope CAD from panel AA | Next |
 | 3 | Buy Waveshare **33507** — LVGL race pages on 4.2" RLCD | Next |
-| 4 | Schematic: S3 + RLCD + SX1262 + GNSS + IMU | After UI feels right |
+| 4 | Schematic: S3 + RLCD + SX1262 + GNSS + IMU (**one unit**) | After UI feels right |
 | 5 | Custom PCB + soft-tool housing | After schematic |
+
+One-unit BOM + kit-vs-glass: [`one-unit-build.md`](one-unit-build.md).
 
 Dinghy puck and committee hub stay parallel tracks — do not block Atlas glass on GoPro keepouts.
 
@@ -94,6 +96,7 @@ Dinghy puck and committee hub stay parallel tracks — do not block Atlas glass 
 |------|---------|
 | `README.md` | This product brief |
 | `display-4.2-rlcd.md` | **Locked** 4.2" RLCD decision + mechanical envelope |
-| `buy-urls.md` | **Factory / store URLs, specs, prices** |
+| `buy-urls.md` | Factory / store URLs, specs, **R ($)** prices |
+| `one-unit-build.md` | Kit vs bare glass + **full one-unit Atlas BOM** |
 | `ui-pages.md` | Screen list / layout rules for 300×400 mono |
 | `parity-checklist.md` | Atlas 2 feature → must / later / skip |

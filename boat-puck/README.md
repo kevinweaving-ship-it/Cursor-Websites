@@ -17,10 +17,11 @@ See `markets-dinghy-keelboat.md` and `atlas/`.
 |------|---------|
 | `NORTH_STAR.md` | Beat Vakaros — doctrine |
 | `markets-dinghy-keelboat.md` | Two markets → two SKUs |
-| `atlas/` | **Boat Atlas** — our Atlas 2 (spec, UI, parity) |
+| `PRICE_RULE.md` | Always show **R** and **($)** |
+| `atlas/` | **Boat Atlas** — our Atlas 2 (spec, UI, parity, one-unit BOM) |
 | `housing/` | H9–13 cavity = camera; lens pocket → GPS antenna (dinghy) |
 | `components-requirements.md` | Race-core BOM + committee base/hub |
-| `display-rlcd-4.2-research.md` | Waveshare kit + factory panel suppliers & real $ |
+| `display-rlcd-4.2-research.md` | Waveshare kit + factory panel suppliers & **R ($)** |
 | `system-rlcd-housing.md` | Keelboat components + own housing |
 
 ## Architecture (one line)
