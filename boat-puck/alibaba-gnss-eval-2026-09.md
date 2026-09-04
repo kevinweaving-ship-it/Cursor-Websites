@@ -171,3 +171,19 @@ Screenshots: High Gain multi-band RTK modules.
 > Need **UM980 only** (not UM982 / not F9P). Confirm: (1) firmware **50 Hz** position out as shipped or free upgrade, (2) exact board mm (is 71×46 the only size? any smaller breakout?), (3) NMEA + RTCM base/rover, (4) **sample 1–2 pcs** price despite MOQ 50, (5) 10-pc and 50-pc USD.
 
 Prefer **1-pc** path if they refuse samples: [gnss.store ELT0223](https://gnss.store/products/elt0223) (~R2 720) until HighGain quotes samples + smaller board.
+
+---
+
+## Paste add-on — WES WE-T350 “card fusion” UWB / RTK tag
+
+Screenshots (Meshtastic search → WES badge). Model **WE-T350**.
+
+| | |
+|--|--|
+| Form | Finished ID-card tag **105 × 62.2 × 9.8 mm** · lanyard loop · magnetic charge |
+| Stack | **UWB** (802.15.4z) + BLE 5.1 + optional **CAT1 / LoRa** (470–510 MHz) + RFID + e-ink + voice |
+| GNSS (optional) | L1+L5 class (GPS L1/L5, Galileo E1/E5a, BDS B1I/B2a…) · claim RTK **1 cm+1 ppm** — **chip not named** |
+| Rate | Spec table **refresh 0.1–20 Hz** — **fails 50 Hz lock** |
+| Use | Indoor UWB 0D/1D presence / tunnel tags — personnel asset tracking |
+
+**Verdict:** **NO — skip.** Wrong product class (UWB badge + optional dual-band GNSS). Max **20 Hz**, not UM980 guts, not GoPro-fit. Do **not** ask for guts.
