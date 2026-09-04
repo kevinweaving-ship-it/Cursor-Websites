@@ -70,6 +70,19 @@ def main():
             event_status = "completed" if is_past else "upcoming"
             start_date, event_year = parse_date(row.get("start_date") or "") or (None, None)
             end_date, _ = parse_date(row.get("end_date") or "") or (None, None)
+            # Clamp obvious SAS year typos (e.g. DSO May 2026–May 2029 → May 2026)
+            if start_date and end_date and end_date.year > start_date.year:
+                if end_date.month == start_date.month and 0 < (end_date.day - start_date.day) <= 14:
+                    try:
+                        end_date = end_date.replace(year=start_date.year)
+                    except ValueError:
+                        pass
+            if eid == "361162":
+                # Explicit: Safeguarding DSO Appointments end year is 2026, not SAS list 2029
+                try:
+                    end_date = datetime.strptime("2026-05-31", "%Y-%m-%d").date()
+                except ValueError:
+                    pass
             rows.append({
                 "source": source,
                 "source_event_id": eid,

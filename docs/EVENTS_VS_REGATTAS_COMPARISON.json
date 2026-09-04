@@ -1,0 +1,573 @@
+{
+  "parents": 372,
+  "events": 1155,
+  "matched": 259,
+  "unmatched_regattas": 113,
+  "fuzzy": 17,
+  "no_hit": 96,
+  "no_hit_2024plus": [
+    {
+      "regatta_id": "2026-03-25-hbyc-hunter-19-summer-26-saturdays",
+      "event_name": "2026 HBYC - Hunter 19 - \u2600 26 Saturdays",
+      "start_date": "2026-03-25"
+    },
+    {
+      "regatta_id": "2026-03-25-hbyc-hunter-19-summer-26-tuesdays",
+      "event_name": "2026 HBYC - Hunter 19 - \u2600 26 Tuesdays",
+      "start_date": "2026-03-25"
+    },
+    {
+      "regatta_id": "2026-03-29-eden-inter-schools-primary",
+      "event_name": "2026 Eden Inter Schools Primary",
+      "start_date": "2026-03-28"
+    },
+    {
+      "regatta_id": "2026-03-29-hbyc-hunter-19-2026-leopard-challenge-leg-1",
+      "event_name": "2026 HBYC - Hunter 19 - 2026 Leopard Challenge Leg 1",
+      "start_date": "2026-03-29"
+    },
+    {
+      "regatta_id": "2026-07-19-hbyc-hunter-19-winter-26-saturdays",
+      "event_name": "2026 HBYC - Hunter 19 - Winter 26 Saturdays",
+      "start_date": "2026-07-19"
+    },
+    {
+      "regatta_id": "2025-03-23-hbyc-hunter-19-summer-25-saturdays",
+      "event_name": "2025 HBYC - Hunter 19 - \u2600 25 Saturdays",
+      "start_date": "2025-03-23"
+    },
+    {
+      "regatta_id": "2025-03-26-hbyc-hunter-19-summer-25-tuesdays",
+      "event_name": "2025 HBYC - Hunter 19 - \u2600 25 Tuesdays",
+      "start_date": "2025-03-26"
+    },
+    {
+      "regatta_id": "2025-05-11-mpumalanga-regionals-df95",
+      "event_name": "2025-05-11 DF95 Mpumalanga Champ",
+      "start_date": "2025-05-11"
+    },
+    {
+      "regatta_id": "2025-09-21-hbyc-hunter-19-winter-25-saturdays",
+      "event_name": "2025 HBYC - Hunter 19 - Winter 25 Saturdays",
+      "start_date": "2025-09-21"
+    },
+    {
+      "regatta_id": "2025-11-26-hbyc-hunter-19-summer-26-weekdays",
+      "event_name": "2025 HBYC - Hunter 19 - \u2600 26 Weekdays",
+      "start_date": "2025-11-26"
+    },
+    {
+      "regatta_id": "2025-12-12-tuesday-blown-out-thursdays",
+      "event_name": "2025 Tuesday Blown Out Thursdays",
+      "start_date": "2025-12-12"
+    },
+    {
+      "regatta_id": "2025-12-31-wc-extra-regionals",
+      "event_name": "2025-12-31 WC Extra Regionals",
+      "start_date": "2025-12-31"
+    },
+    {
+      "regatta_id": "2024-01-28-ec-df95-regionals",
+      "event_name": "2024-01-28 EC DF95 Regionals",
+      "start_date": "2024-01-26"
+    },
+    {
+      "regatta_id": "2024-01-28-king-of-vaal",
+      "event_name": "2024-01-28 King of the Vaal",
+      "start_date": "2024-01-28"
+    },
+    {
+      "regatta_id": "2024-02-17-mykonos-offshore",
+      "event_name": "2024-02-17 Mykonos Offshore",
+      "start_date": "2024-02-16"
+    },
+    {
+      "regatta_id": "2024-02-24-hmyc-6hr-race",
+      "event_name": "2024-02-24 Henley Midmar Yacht Club 6&9 Hour",
+      "start_date": "2024-02-24"
+    },
+    {
+      "regatta_id": "2024-03-03-admirals-regatta-orc",
+      "event_name": "2024-03-03 Admirals Regatta ORC",
+      "start_date": "2024-03-03"
+    },
+    {
+      "regatta_id": "2024-03-11-hbyc-hunter-19-summer-24-saturdays",
+      "event_name": "2024 HBYC - Hunter 19 - \u2600 24 Saturdays",
+      "start_date": "2024-03-11"
+    },
+    {
+      "regatta_id": "2024-03-14-hbyc-hunter-19-summer-24-weekdays",
+      "event_name": "2024 HBYC - Hunter 19 - \u2600 24 Weekdays",
+      "start_date": "2024-03-14"
+    },
+    {
+      "regatta_id": "2024-03-24-hunter19-kzn-regionals",
+      "event_name": "2024-03-24 Hunter 19 KZN Regionals",
+      "start_date": "2024-03-24"
+    },
+    {
+      "regatta_id": "2024-04-01-mirror-nationals",
+      "event_name": "2024-04-01 Mirror Nationals",
+      "start_date": "2024-03-29"
+    },
+    {
+      "regatta_id": "2024-04-01-wc-dinghy-champs-2-ilca-finn-505-regionals",
+      "event_name": "2024-04-01 WC Dinghy Champs",
+      "start_date": "2024-04-01"
+    },
+    {
+      "regatta_id": "2024-04-14-hmyc-autumn-series",
+      "event_name": "2024-04-14 HMYC Autumn Series",
+      "start_date": "2024-04-14"
+    },
+    {
+      "regatta_id": "2024-04-21-hmyc-memorial-series",
+      "event_name": "2024-04-21 HMYC Memorial Series",
+      "start_date": "2024-04-21"
+    },
+    {
+      "regatta_id": "2024-05-05-zyc-club-fun-race",
+      "event_name": "2024-05-05 ZYC Club Fun Race",
+      "start_date": "2024-05-05"
+    },
+    {
+      "regatta_id": "2024-07-07-hmyc-club-championships-243",
+      "event_name": "2024-07-07 HMYC Club Class Champs",
+      "start_date": "2024-07-07"
+    },
+    {
+      "regatta_id": "2024-08-11-j22-nationals",
+      "event_name": "2024-08-11 J22 National Champs",
+      "start_date": "2024-08-09"
+    },
+    {
+      "regatta_id": "2024-08-17-triple-crown-1-24-25",
+      "event_name": "2024-08-17 Triple Crown",
+      "start_date": "2024-08-17"
+    },
+    {
+      "regatta_id": "2024-09-01-hbyc-hunter-19-winter-24",
+      "event_name": "2024 HBYC - Hunter 19 - Winter 24",
+      "start_date": "2024-09-01"
+    },
+    {
+      "regatta_id": "2024-09-07-triple-crown-2-24-25",
+      "event_name": "2024 Triple Crown",
+      "start_date": "2024-09-07"
+    },
+    {
+      "regatta_id": "2024-09-08-optimist-gp-provincials",
+      "event_name": "2024-09-08 Optimist GP Provincials",
+      "start_date": "2024-09-08"
+    },
+    {
+      "regatta_id": "2024-09-23-505",
+      "event_name": "2024-09-23 505 SAS National Champs",
+      "start_date": "2024-09-21"
+    },
+    {
+      "regatta_id": "2024-10-26-triple-crown-24-25-triple-crown-3-24-25",
+      "event_name": "2024-10-26 Triple Crown",
+      "start_date": "2024-10-26"
+    },
+    {
+      "regatta_id": "2024-11-17-triple-crown-24-25-triple-crown-4-24-25",
+      "event_name": "2024-11-17 Triple Crown",
+      "start_date": "2024-11-17"
+    },
+    {
+      "regatta_id": "2024-11-19-flying-fifteen-national-championships",
+      "event_name": "2024-11-19 Flying Fifteen National Champs",
+      "start_date": "2024-11-19"
+    },
+    {
+      "regatta_id": "2024-11-19-soling-national-championships",
+      "event_name": "2024-11-19 Soling National Champs",
+      "start_date": "2024-11-19"
+    },
+    {
+      "regatta_id": "2024-12-17-hobie-16-nationals",
+      "event_name": "2024-12-17 Hobie 16 Nationals",
+      "start_date": "2024-12-17"
+    },
+    {
+      "regatta_id": "2024-12-31-halcat-mpumalanga-regionals",
+      "event_name": "2024-12-31 Halcat Mpumalanga Regionals",
+      "start_date": "2024-12-31"
+    },
+    {
+      "regatta_id": "2024-12-31-stadt-23-nationals",
+      "event_name": "2024-12-31 Stadt 23 Nationals",
+      "start_date": "2024-12-31"
+    }
+  ],
+  "fuzzy_2024plus": [
+    {
+      "score": 0.6,
+      "regatta_id": "2025-01-27-hmyc-grand-slam",
+      "regatta_name": "2025-01-27 HMYC Grand Slam",
+      "event_name": "SAS 2025 HMYC GRAND SLAM",
+      "event_date": "2025-01-25"
+    },
+    {
+      "score": 0.78,
+      "regatta_id": "2024-05-25-ullman-sails-womens-series-1",
+      "regatta_name": "2024-05-25 Ullman Sails Women's Series \u2014 Day 1",
+      "event_name": "2024 Ullman Sails Women's Series \u2014 Day 1",
+      "event_date": "2024-05-25"
+    }
+  ],
+  "wrong": [
+    {
+      "score": 0.0,
+      "regatta_id": "2019-04-30-hobie-16-national-championships",
+      "regatta_name": "2019 Hobie 16 National Champs",
+      "event_name": "2019 Hobie16 Nationals",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2021-09-26-j22-south-african-national-championships",
+      "regatta_name": "2021 J/22 South African National Champs",
+      "event_name": "DAC Keelboat  Week",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2021-12-21-sa-youth-nationals-championship",
+      "regatta_name": "2021 Youth Nationals Champ",
+      "event_name": "2021 YNats - Results",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2022-06-19-pyc-grand-slam",
+      "regatta_name": "2022 PYC Grand Slam",
+      "event_name": "SASKZN Grandslam Regatta - Point Yacht Club",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2023-05-02-cats-monohull-ec-regionals",
+      "regatta_name": "2023 Cats & Monohull EC Regionals",
+      "event_name": "Eastern Cape Dinghy Provincial Championships",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2025-02-02-gimco-mirror",
+      "regatta_name": "2025 Gimco Mirror",
+      "event_name": "Hunter 19 Mpumalanga Championship 2025",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2025-02-02-gimco-mirror",
+      "regatta_name": "2025 Gimco Mirror",
+      "event_name": "Mykonos Offshore 2025",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2025-03-23-hunter-nationals",
+      "regatta_name": "2025 Hunter Nationals",
+      "event_name": "National Race Officers Workshop",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2025-04-19-mirror-worlds",
+      "regatta_name": "2025-04-19 Marriott IMCA World Champs",
+      "event_name": "2025 Mirror Worlds",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2025-04-28-h16-provincials",
+      "regatta_name": "2025-04-28 Southern Wind WC/EC Hobie 16 Provincial Champs",
+      "event_name": "2025 H16 PROVINCIALS PROVISIONAL",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2025-09-27-hobie16-nationals",
+      "regatta_name": "2025-09-27 Hobie16 Nationals",
+      "event_name": "Hobie Robberg Regatta",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2025-09-28-finn-nationals",
+      "regatta_name": "2025 Finn Nationals",
+      "event_name": "2025 29er SA Sailing National Championship",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2025-09-28-finn-nationals",
+      "regatta_name": "2025 Finn Nationals",
+      "event_name": "National Race Officers Workshop",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2025-09-28-finn-nationals",
+      "regatta_name": "2025 Finn Nationals",
+      "event_name": "National Umpire Seminar",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2025-10-19-eastern-cape-champs-monohull",
+      "regatta_name": "2025 Eastern Cape Champs Monohull",
+      "event_name": "2025 DART 18 OPEN KZN REGIONAL CHAMPIONSHIPS",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2025-10-19-eastern-cape-champs-monohull",
+      "regatta_name": "2025 Eastern Cape Champs Monohull",
+      "event_name": "2025 Dragonflite 95 Radio Championships",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2025-10-19-eastern-cape-champs-monohull",
+      "regatta_name": "2025 Eastern Cape Champs Monohull",
+      "event_name": "2025 HUNTER KZN REGIONAL CHAMPIONSHIPS",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2025-10-19-eastern-cape-champs-monohull",
+      "regatta_name": "2025 Eastern Cape Champs Monohull",
+      "event_name": "2025 Halcat National Championship",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2025-10-19-eastern-cape-champs-monohull",
+      "regatta_name": "2025 Eastern Cape Champs Monohull",
+      "event_name": "2025 KZN Dabchick",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2025-10-19-eastern-cape-champs-monohull",
+      "regatta_name": "2025 Eastern Cape Champs Monohull",
+      "event_name": "2025 Optimist &amp; Dabchick Regional Championship",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2025-10-19-eastern-cape-champs-monohull",
+      "regatta_name": "2025 Eastern Cape Champs Monohull",
+      "event_name": "2025 SA Sailing FS AGM",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2025-10-19-eastern-cape-champs-monohull",
+      "regatta_name": "2025 Eastern Cape Champs Monohull",
+      "event_name": "2025 SA Sailing GP AGM",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2025-10-19-eastern-cape-champs-monohull",
+      "regatta_name": "2025 Eastern Cape Champs Monohull",
+      "event_name": "2025 SA Sailing KZN AGM",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2025-10-19-eastern-cape-champs-monohull",
+      "regatta_name": "2025 Eastern Cape Champs Monohull",
+      "event_name": "2025 SA Sailing NR AGM",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2025-10-19-eastern-cape-champs-monohull",
+      "regatta_name": "2025 Eastern Cape Champs Monohull",
+      "event_name": "2025 SA Sailing National AGM",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2025-10-19-eastern-cape-champs-monohull",
+      "regatta_name": "2025 Eastern Cape Champs Monohull",
+      "event_name": "2025 Youth Sailing World Championships",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2025-10-19-eastern-cape-champs-monohull",
+      "regatta_name": "2025 Eastern Cape Champs Monohull",
+      "event_name": "Boskop Open Regatta 2025",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2025-10-19-eastern-cape-champs-monohull",
+      "regatta_name": "2025 Eastern Cape Champs Monohull",
+      "event_name": "Shane&#039;s Gaul Regatta 2025",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2025-10-19-eastern-cape-champs-monohull",
+      "regatta_name": "2025 Eastern Cape Champs Monohull",
+      "event_name": "The Canyon Cup 2025 ORC DH Nationals",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2025-10-19-eastern-cape-champs-monohull",
+      "regatta_name": "2025 Eastern Cape Champs Monohull",
+      "event_name": "TuziTekwini Ocean Race 2025",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2025-10-19-ec-champs",
+      "regatta_name": "2025-10-19 SAS EC Champs",
+      "event_name": "2025 Eastern Cape Championship",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2026-03-30-29er-rsa-nationals",
+      "regatta_name": "2026 RSA 29er Nationals",
+      "event_name": "National Race Officers Workshop",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2026-03-31-finn-nationals",
+      "regatta_name": "2026-03-31 Finn National",
+      "event_name": "2026 Flying 15 Nationals",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2026-04-27-stadt-23-nationals",
+      "regatta_name": "2026-04-27 National Champs - Stadt23 Class",
+      "event_name": "Stadt 23 Nationals",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2026-06-09-2025-2026-twilight-series",
+      "regatta_name": "2026 2025-2026 Twilight Series",
+      "event_name": "2026 Dragonflite 95 National Championship",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2026-06-09-2025-2026-twilight-series",
+      "regatta_name": "2026 2025-2026 Twilight Series",
+      "event_name": "2026 IOM National Championships",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2026-06-09-2025-2026-twilight-series",
+      "regatta_name": "2026 2025-2026 Twilight Series",
+      "event_name": "2026 Interschools Gauteng Region Championship",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2026-06-09-2025-2026-twilight-series",
+      "regatta_name": "2026 2025-2026 Twilight Series",
+      "event_name": "2026 KZN Optimist & Dabchick Regional Champ",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2026-06-09-2025-2026-twilight-series",
+      "regatta_name": "2026 2025-2026 Twilight Series",
+      "event_name": "2026 SA Sailing Free State AGM",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2026-06-09-2025-2026-twilight-series",
+      "regatta_name": "2026 2025-2026 Twilight Series",
+      "event_name": "2026 SA Sailing Gauteng AGM",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2026-06-09-2025-2026-twilight-series",
+      "regatta_name": "2026 2025-2026 Twilight Series",
+      "event_name": "2026 SA Sailing KZN AGM",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2026-06-09-2025-2026-twilight-series",
+      "regatta_name": "2026 2025-2026 Twilight Series",
+      "event_name": "2026 SA Sailing NR (Limpopo, Mpumalanga, Northwest) AGM",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2026-06-09-2025-2026-twilight-series",
+      "regatta_name": "2026 2025-2026 Twilight Series",
+      "event_name": "Hunter 19 Mpumalanga Championship 2026",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2026-06-09-2025-2026-twilight-series",
+      "regatta_name": "2026 2025-2026 Twilight Series",
+      "event_name": "TuziTekwini Ocean Race 2026",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2026-06-09-2025-2026-twilight-series",
+      "regatta_name": "2026 2025-2026 Twilight Series",
+      "event_name": "Vasco Da Gama Ocean Race 2026",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2026-06-09-2025-2026-twilight-series",
+      "regatta_name": "2026 2025-2026 Twilight Series",
+      "event_name": "Youth Regional Regatta 2026",
+      "tab": "past"
+    },
+    {
+      "score": 0.0,
+      "regatta_id": "2026-06-09-congella-cup-2025",
+      "regatta_name": "2025 Congella Cup",
+      "event_name": "Cape2Rio 2025",
+      "tab": "past"
+    },
+    {
+      "score": 0.11,
+      "regatta_id": "2021-09-26-soling-nationals",
+      "regatta_name": "2021 Soling Nationals",
+      "event_name": "Henley Midmar Yacht Club - SAS Soling National &amp; Dart Regional Championships",
+      "tab": "past"
+    },
+    {
+      "score": 0.11,
+      "regatta_id": "2024-09-24-ilca-4-6-7-kzn-regional-championship",
+      "regatta_name": "2024-09-24 ILCA 4, 6 & 7 KZN REGIONAL Champ",
+      "event_name": "KZN Region - TSL Open",
+      "tab": "past"
+    },
+    {
+      "score": 0.12,
+      "regatta_id": "2021-04-05-western-cape-championships",
+      "regatta_name": "2021 Western Cape Champs",
+      "event_name": "Zeekoe Vlei Yacht Club - 2021 WC Champs - Optimist &amp; Dabchick",
+      "tab": "past"
+    }
+  ]
+}

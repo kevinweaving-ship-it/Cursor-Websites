@@ -1,0 +1,516 @@
+{
+  "scrape_artifact_id": null,
+  "csv_path": "/workspace/sailingsa/deploy/sas_events_list.csv",
+  "csv_checksum_md5": "027c3741868bc26cb00ee5cd7ef8f014",
+  "scrape_started_at": "2026-08-23T16:16:48.943056+00:00",
+  "scrape_completed_at": "2026-08-23T16:18:17.178978+00:00",
+  "pages_fetched": {
+    "upcoming_landing": 1,
+    "upcoming": 3,
+    "past": 50,
+    "total": 54
+  },
+  "events_count": 1002,
+  "detail_pages_fetched": 0,
+  "html_evidence_stored": false,
+  "source_urls": [
+    "https://www.sailing.org.za/events/",
+    "https://www.sailing.org.za/events/list",
+    "https://www.sailing.org.za/events/list/past"
+  ],
+  "page_checksums": [
+    {
+      "url": "https://www.sailing.org.za/events/",
+      "type": "list",
+      "page_type": "upcoming_landing",
+      "page_num": 1,
+      "checksum_md5": "1714850f70004b6ce8bb41bb85cb4846",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list",
+      "type": "list",
+      "page_type": "upcoming",
+      "page_num": 1,
+      "checksum_md5": "9b68877a12be5995ae4d9c97dcce5de4",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list?page=2",
+      "type": "list",
+      "page_type": "upcoming",
+      "page_num": 2,
+      "checksum_md5": "46dd5fbca447cf7e95524e0623e28041",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list?page=3",
+      "type": "list",
+      "page_type": "upcoming",
+      "page_num": 3,
+      "checksum_md5": "64c74b5afd7b7427e33751ce1b08e92e",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 1,
+      "checksum_md5": "6424d28a30edc775e63426cbef1fb61f",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=2",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 2,
+      "checksum_md5": "94cc6ac6084fc46f2f8c8a2b9abda6d8",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=3",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 3,
+      "checksum_md5": "5093856fdd892f32c13b3992dc703f1c",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=4",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 4,
+      "checksum_md5": "74c1307843b2e3aa9cea12dcf86fd905",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=5",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 5,
+      "checksum_md5": "40ecf35c5605dfdc2fce6e10b6eaf9b9",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=6",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 6,
+      "checksum_md5": "393d2023ab85541ba22790ec7df59f80",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=7",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 7,
+      "checksum_md5": "b11045fe2a647fbf424ed170623abe18",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=8",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 8,
+      "checksum_md5": "608a9e072431365756d083e8a01da3de",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=9",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 9,
+      "checksum_md5": "fe806a4e49f1c9e8da615c00876f8ff2",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=10",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 10,
+      "checksum_md5": "0b1864c37b3f836550a431a180ad78c6",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=11",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 11,
+      "checksum_md5": "d9820e89d43538e6d6b8eace6f7ae65a",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=12",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 12,
+      "checksum_md5": "1b5ec1b654fb0ed4fdaafe7b478aacce",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=13",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 13,
+      "checksum_md5": "ac7f7950b74bb838dddd00b37edafa08",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=14",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 14,
+      "checksum_md5": "884a73c41700963d4436888019070d21",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=15",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 15,
+      "checksum_md5": "6847815b4b974fdf2e705a92079530d8",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=16",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 16,
+      "checksum_md5": "339f887cbfa003bd1653bfd9fcf0d516",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=17",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 17,
+      "checksum_md5": "d4bdb62586150cba5698f8cf1eb8ec53",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=18",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 18,
+      "checksum_md5": "088b9efdbe005cc39ac96196860ca14d",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=19",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 19,
+      "checksum_md5": "8a876113af75d727a0428db61adda91e",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=20",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 20,
+      "checksum_md5": "7b45d4cc6c9566e3f04011c3f7cfa960",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=21",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 21,
+      "checksum_md5": "8078c6272c5e47960b6e4c9d5788cce2",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=22",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 22,
+      "checksum_md5": "aa4c2d16a031db31055b823af013cae5",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=23",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 23,
+      "checksum_md5": "9707777badd102a45e85ec244f02770f",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=24",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 24,
+      "checksum_md5": "8478e880acece20df1fea6d021c4bc0c",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=25",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 25,
+      "checksum_md5": "9f173841a69d1d5411481b8c32953bb4",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=26",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 26,
+      "checksum_md5": "f2dbd4a1951e169ade8c2663b66dd8d1",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=27",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 27,
+      "checksum_md5": "2cf422d0869c6c41494953e90e603b5d",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=28",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 28,
+      "checksum_md5": "b1eda636dc6cbb5019617975577ccdbf",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=29",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 29,
+      "checksum_md5": "e95fb8bd79cc52ed087e5c92d8a98b28",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=30",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 30,
+      "checksum_md5": "73ae5b574b3cf2f3f985297c4b5438bb",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=31",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 31,
+      "checksum_md5": "156eb8e4644cdfb9a9113ca75123e2a2",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=32",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 32,
+      "checksum_md5": "0e91e6ec7f9bb19e2c7ab1db4f88a8ec",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=33",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 33,
+      "checksum_md5": "963e4deeb5a773d2fee1fa34cb497f4f",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=34",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 34,
+      "checksum_md5": "f0037c58f328ed599e1234a818ec8148",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=35",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 35,
+      "checksum_md5": "47546329ce110e429127b51d409e6a39",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=36",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 36,
+      "checksum_md5": "f51cf4d8c406de99010a4ca809b01774",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=37",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 37,
+      "checksum_md5": "9d1353c799d3f3c00e61b63aa3c9a137",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=38",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 38,
+      "checksum_md5": "873fe1d68d66d3fe5c685bf5839449e5",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=39",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 39,
+      "checksum_md5": "d38b4d0cdc03df3927f5b3878ed014c5",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=40",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 40,
+      "checksum_md5": "c4daad1a80d260190a6cd37fc2a13469",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=41",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 41,
+      "checksum_md5": "3d8a9512aaf01ec5ca01a0b0c4e80dd5",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=42",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 42,
+      "checksum_md5": "52d3f226ada2ab7ee9d35f7191670e90",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=43",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 43,
+      "checksum_md5": "f9ba0d1ae3aafd19968c9ec91ceab902",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=44",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 44,
+      "checksum_md5": "e9889f45110b0ccaa74c5faaf49732c9",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=45",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 45,
+      "checksum_md5": "f031f06c085a2d321684abb1ba606a34",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=46",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 46,
+      "checksum_md5": "1b056609637ce595582bb2ce0cc13abc",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=47",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 47,
+      "checksum_md5": "ba7e2087c55e6ccaeb9b5cae18d69adc",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=48",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 48,
+      "checksum_md5": "0771c8218e9e22ab3b7341d6299f16f2",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=49",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 49,
+      "checksum_md5": "021237a70d7596da9e725723db8b0dc0",
+      "html_stored": false,
+      "html_path": null
+    },
+    {
+      "url": "https://www.sailing.org.za/events/list/past?page=50",
+      "type": "list",
+      "page_type": "past",
+      "page_num": 50,
+      "checksum_md5": "c6aa9cd0f4adba24fbc73a2aa372b601",
+      "html_stored": false,
+      "html_path": null
+    }
+  ],
+  "stats": {
+    "events_count": 1002,
+    "pages_fetched": 54,
+    "detail_pages_fetched": 0,
+    "with_host": 0,
+    "with_nor": 0
+  }
+}
