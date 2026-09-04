@@ -83,3 +83,23 @@ Chip size: **17×22×2.6 mm**. Common China PCB breakouts: **~26×38 mm**. Alway
 - “RTK / Anti” in Ali title = marketing; not UM980-class RTK  
 
 Skip for Puck and for committee RTK base.
+
+---
+
+## Paste add-on — Archinno GeoPod Mini (short link)
+
+Short URL https://www.alibaba.com/x/1lBAubT?ck=pdp →  
+https://www.alibaba.com/product-detail/Archinno-GeoPod-Mini-RTK-GNSS-Rover_1601827597937.html  
+
+| | |
+|--|--|
+| Product | **Archinno / A&I GeoPOD Mini** handheld RTK rover |
+| Factory | https://archi-inno.com/geopod/ · [datasheet PDF](https://archi-inno.com/wp-content/uploads/2025/03/GeoPOD-Datasheet.pdf) |
+| Chip class | **1408 ch** full multi-freq (UM980-class engine) |
+| Rate | **20 Hz max** |
+| Size / mass | **⌀47 × 140 mm**, **200 g** capsule |
+| I/O | BLE 5.3 + Type-C; phone app (not embed module) |
+| Acc. | RTK H ±(8+1ppm) mm; tilt IMU to 90° |
+| Price | Ali live **ask seller** (captcha); quote-only on maker site |
+
+**Verdict:** **NO for Puck** — finished survey stick, not a board; **20 Hz** fails [`gnss-50hz-lock.md`](gnss-50hz-lock.md); too big for GoPro. Possible **field trial / committee handheld** only — prefer bare **UM980 board** for race stack.
