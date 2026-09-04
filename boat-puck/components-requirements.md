@@ -55,7 +55,8 @@ Lens pocket **~Ø32 × 5.5 mm** = GNSS antenna.
 |---|-----------|----------------------|
 | 1 | **Dual-band GNSS antenna** (L1+L5) in lens pocket | HALO-class sky view; cm RTK needs good antenna |
 | 2 | **RTK GNSS rover module** (L1+L5, high update) | Match HALO cm; **beat** Atlas 25 Hz → target **50 Hz** class |
-| 3 | **IMU ≥100 Hz** (6- or 9-axis) | Beat Atlas 50 Hz fusion; heel/pitch/heading + outage coasting |
+| 3 | **IMU 9-DOF ≥100 Hz** (accel + gyro + mag) | Match HALO/Atlas/MAX orientation; **beat** Atlas 50 Hz fusion |
+| 3b | **Temperature sensor** | Atlas has it; cheap diagnostics / battery; skip light/baro for v1 |
 | 4 | **Sensor-fusion MCU** | Turn GNSS+IMU into boat state + OCS geometry |
 | 5 | **SX1262 LoRa transceiver + antenna** | Our RaceSense: RTCM in, telemetry out, no cellular |
 | 6 | **BLE** (MCU built-in or module) | Replace Atlas screen with watch/phone |
@@ -139,10 +140,46 @@ This is what makes us a **race system** like Vakaros — Sailmon has **none** of
 
 ---
 
-## 7. Shortest component checklist
+## 7. Extra sensors — gyro / accel / mag / temp / baro / light
 
-**Every boat:** GPS ant + RTK rover + IMU + MCU + SX1262 + BLE + LED + battery + sled in GoPro case.  
+Checked against **official** product pages (not guesswork):
+
+| Sensor | **Vakaros Atlas 2** ([vakaros.com](https://www.vakaros.com/products/atlas2)) | **Vakaros HALO RTK** ([vakaros.com](https://www.vakaros.com/products/atlas-halo-rtk)) | **Sailmon MAX** ([sailmon.com](https://sailmon.com/support-articles/technical-specifications-max/)) | **Boat Puck** |
+|--------|------|------|------|------|
+| GNSS | 25 Hz L1+L5 | L1+L5 **RTK** | 25 Hz multi-GNSS | **Must** L1+L5 RTK rover |
+| Accel 3-axis | Yes | Yes | Yes (in 9-DOF) | **Must** |
+| Gyro 3-axis | Yes (50 Hz fusion) | Yes | Yes (in 9-DOF) | **Must** |
+| Magnetometer 3-axis | Yes (0.1° claim) | Yes | Yes (heading via 9-DOF) | **Must** |
+| Temperature | Yes (listed) | Not listed | Not listed | **Add (cheap)** |
+| Ambient light | Yes (listed) | Not listed | Not listed | **Skip v1** |
+| Barometer | Not on Vakaros official Sensors list\* | Not listed | Not listed | **Optional / later** |
+| Display / LED | LCD + RGB LED | **LED ring** | LCD | LED only (BLE UI) |
+
+\*Some retailers (e.g. Mauripro) also list a barometer for Atlas 2; **Vakaros’s own Atlas 2 Sensors list** on the product page names light + temperature, not baro. Treat baro as **unconfirmed for Atlas**, absent for HALO/MAX.
+
+### What to add beyond the race core
+
+| Extra | Add? | Why |
+|-------|------|-----|
+| **Accel + gyro + mag (full 9-DOF)** | **Yes — required** | HALO/Atlas/MAX all have this. Needed for heel, pitch, heading, fusion, OCS geometry when GNSS blips. Prefer **≥100 Hz** IMU to beat Atlas’s 50 Hz fusion. |
+| **Temperature** | **Yes — cheap win** | Atlas has it; HALO doesn’t list it. Useful for battery derating, log quality, “why did FIX drop” diagnostics. Sensor is pennies / mm² (e.g. on IMU or separate). |
+| **Ambient light** | **No for v1 puck** | Atlas uses it mainly for **display backlight**. We have no LCD. LED brightness can be fixed or app-set. Revisit only if we add a bright outdoor LED ring. |
+| **Barometer** | **Not required to beat RaceSense** | Neither HALO nor Sailmon MAX list it officially. Doesn’t help cm OCS (RTK does). Nice for weather/altitude logs later if PCB space left (BMP388-class). |
+| **External wind / depth / BSP** | **Out of puck v1** | Sailmon/Atlas path via NMEA — instrument feature, not race-mesh. |
+
+### Practical IMU pick for the GoPro box
+
+One chip that covers the must-haves: **9-DOF combo** (accel + gyro + mag), e.g. ICM-20948 / BNO085-class / similar — plus on-die or nearby **temp**.  
+Do **not** spend BOM on light or baro until the RTK+LoRa path is solid.
+
+---
+
+## 8. Shortest component checklist
+
+**Every boat:** GPS ant + RTK rover + **9-DOF IMU** + **temp** + MCU + SX1262 + BLE + LED + battery + sled in GoPro case.  
 
 **Committee:** RTK base + ant + SX1262 hub + Race Control host + line-end refs + power.
 
-That set is the minimum to **equal RaceSense/HALO** and **beat Sailmon** at race management — and the lever to be **best on cost, rate, and display flexibility**.
+**Skip v1:** light sensor, barometer, NMEA instrument hub, on-puck LCD.
+
+That equals HALO’s motion/orientation stack, copies Atlas’s useful temp, and ignores display-only sensors.
