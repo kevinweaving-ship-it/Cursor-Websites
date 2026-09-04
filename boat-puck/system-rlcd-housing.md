@@ -2,7 +2,10 @@
 
 When we adopt the **4.2" ST7305 RLCD** (see [`display-rlcd-4.2-research.md`](display-rlcd-4.2-research.md)), the product stops being “HALO in a GoPro shell” and becomes **HALO sensors + Atlas-like sunlight UI in one (or two) custom housings**.
 
-Phone/watch BLE UI remains valid as the **cheap** SKU. This doc is the **display SKU**.
+Markets ([`markets-dinghy-keelboat.md`](markets-dinghy-keelboat.md)):
+
+- **Dinghy** = cheap puck + BLE (this RLCD path is optional / usually skip)  
+- **Keelboat** = this **display SKU**
 
 ---
 
