@@ -1,12 +1,15 @@
 # Boat Atlas — kit vs bare glass, and one-unit build
 
-Answers:
+## Short formula
 
-1. How hard is it to add **our** parts to **screen-only** glass?  
-2. Is a kit **with ESP32 already on the board** better?  
-3. If we build **everything into one unit** (our Atlas 2), what goes in?
+```
+Boat Puck (dinghy)     =  RTK + IMU + LoRa + battery + LED   (+ BLE phone/watch)
+Boat Atlas (keelboat)  =  Boat Puck guts  +  4.2" RLCD  +  soft keys  +  own IP67 shell
+```
 
-Prices always **R ($)** — FX **R16/$1** ([`../PRICE_RULE.md`](../PRICE_RULE.md)).
+Same race brain. Atlas is **not** a different system — it is the puck with a sunlight screen and a bigger housing (GoPro is too small for 4.2").
+
+Vakaros naming map: puck ≈ **HALO** · Atlas unit ≈ **Atlas 2** · committee ≈ **RaceSense**.
 
 ---
 
