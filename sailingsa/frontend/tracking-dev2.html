@@ -9,7 +9,7 @@
   <meta property="og:type" content="website">
   <meta property="og:title" content="2026 Lipton — Tracking Dev2 | SailingSA">
   <meta property="og:description" content="Replay tracking dev2: Lipton Challenge Cup R1–R10 sample races.">
-  <meta property="og:url" content="https://sailingsa.co.za/regatta/2026-08-29-lipton-challenge-cup-dev">
+  <meta property="og:url" content="https://sailingsa.co.za/regatta/2026-08-29-lipton-challenge-cup-dev2">
   <meta property="og:image" content="https://sailingsa.co.za/api/og/regatta/2026-08-29-lipton-challenge-cup/ea4ca8b2a84b036d.png">
   <meta property="og:image:secure_url" content="https://sailingsa.co.za/api/og/regatta/2026-08-29-lipton-challenge-cup/ea4ca8b2a84b036d.png">
   <meta property="og:image:type" content="image/png">
@@ -77,7 +77,7 @@
           <span class="tracking-dev2-cam-btn-ring" aria-hidden="true"></span>
           <span class="tracking-dev2-cam-btn-core" aria-hidden="true">↻</span>
         </button>
-        <aside class="fleet-section lipton-dev-board tracking-dev2-ranking is-hidden" id="tracking-dev2-ranking" aria-label="Ranking board" hidden>
+        <aside class="fleet-section lipton-dev-board tracking-dev2-ranking is-hidden" id="tracking-dev2-ranking" aria-label="Ranking board" hidden
           <div class="tracking-dev2-ranking-head">
             <h2 class="class-header" id="lipton-dev-race-label">Ranking board</h2>
             <button type="button" class="tracking-dev2-ranking-hide" id="tracking-dev2-ranking-hide" title="Hide ranking board">×</button>
@@ -103,33 +103,33 @@
       </div>
     </div>
     <div class="tracking-dev2-dock" id="lipton-dev-subhead">
-        <div class="lipton-dev-map-transport">
-          <div class="lipton-dev-playbox">
+      <div class="lipton-dev-map-transport">
+        <div class="lipton-dev-playbox">
             <div class="lipton-dev-scrub-pad" id="lipton-dev-scrub-pad">
               <input type="range" class="lipton-dev-scrub" id="lipton-dev-scrub" min="0" max="1000" value="0" aria-label="Race position" tabindex="-1">
             </div>
-            <div class="lipton-dev-transport lipton-dev-transport--play" role="group" aria-label="Playback">
-              <button type="button" class="lipton-dev-btn" id="lipton-dev-play" disabled title="Play" aria-label="Play">
-                <svg class="lipton-dev-ico lipton-dev-ico--play" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.2 2.1v11.8L14.2 8z"/></svg>
-                <svg class="lipton-dev-ico lipton-dev-ico--pause" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2.4h3.6v11.2H3zm6.4 0H13v11.2H9.4z"/></svg>
-              </button>
-              <button type="button" class="lipton-dev-btn" id="lipton-dev-slower" title="Slower" aria-label="Slower">
-                <svg class="lipton-dev-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M8.4 2.4 1.6 8l6.8 5.6V2.4zm6.5 0L8.1 8l6.8 5.6V2.4z"/></svg>
-              </button>
-              <span class="lipton-dev-play-rate" id="lipton-dev-rate">1×</span>
-              <button type="button" class="lipton-dev-btn tracking-dev2-protest-toggle" id="tracking-dev2-protest-toggle" hidden title="Toggle official protest scores vs provisional GPS finish">Scores: Official</button>
-              <button type="button" class="lipton-dev-btn" id="lipton-dev-faster" title="Faster" aria-label="Faster">
-                <svg class="lipton-dev-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.1 2.4v11.2L7.9 8zm6.5 0v11.2L14.4 8z"/></svg>
-              </button>
-            </div>
+          <div class="lipton-dev-transport lipton-dev-transport--play" role="group" aria-label="Playback">
+            <button type="button" class="lipton-dev-btn" id="lipton-dev-play" disabled title="Play" aria-label="Play">
+              <svg class="lipton-dev-ico lipton-dev-ico--play" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.2 2.1v11.8L14.2 8z"/></svg>
+              <svg class="lipton-dev-ico lipton-dev-ico--pause" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2.4h3.6v11.2H3zm6.4 0H13v11.2H9.4z"/></svg>
+            </button>
+            <button type="button" class="lipton-dev-btn" id="lipton-dev-slower" title="Slower" aria-label="Slower">
+              <svg class="lipton-dev-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M8.4 2.4 1.6 8l6.8 5.6V2.4zm6.5 0L8.1 8l6.8 5.6V2.4z"/></svg>
+            </button>
+            <span class="lipton-dev-play-rate" id="lipton-dev-rate">1×</span>
+            <button type="button" class="lipton-dev-btn tracking-dev2-protest-toggle" id="tracking-dev2-protest-toggle" hidden title="Toggle official protest scores vs provisional GPS finish">Scores: Official</button>
+            <button type="button" class="lipton-dev-btn" id="lipton-dev-faster" title="Faster" aria-label="Faster">
+              <svg class="lipton-dev-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.1 2.4v11.2L7.9 8zm6.5 0v11.2L14.4 8z"/></svg>
+            </button>
           </div>
         </div>
-        <div class="tracking-dev2-replay-clock" aria-live="polite">
-          <span class="tracking-dev2-replay-clock-label">REPLAY</span>
-          <div class="lipton-dev-map-hud-clock" id="lipton-dev-map-hud-clock">00:00:00.0</div>
-          <span class="tracking-dev2-replay-clock-units">HRS · MIN · SEC</span>
-        </div>
       </div>
+      <div class="tracking-dev2-replay-clock" aria-live="polite">
+        <span class="tracking-dev2-replay-clock-label">REPLAY</span>
+        <div class="lipton-dev-map-hud-clock" id="lipton-dev-map-hud-clock">00:00:00.0</div>
+        <span class="tracking-dev2-replay-clock-units">HRS · MIN · SEC</span>
+      </div>
+    </div>
   </div>
 
   <script src="/js/vendor/leaflet/leaflet.js?v=20260828dk"></script>

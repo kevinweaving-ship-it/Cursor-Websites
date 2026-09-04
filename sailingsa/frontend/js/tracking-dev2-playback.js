@@ -1,18 +1,22 @@
 /**
- * Lipton 2026 -dev only. Replay sandbox — not live, not Nett.
- * Rank re-sorts at each mark *pass* (M1 can appear again on lap 2+).
- * Place deltas sit between consecutive passes. Times are mm:ss, no T+.
- * Data: /js/lipton-dev-replay.json
+ * Tracking-dev2 — Sailfish-shaped replay shell; Lipton R1–R10 fallback JSON.
+ * Bootstrap: GET /api/tracking-dev2/bootstrap?race=N
+ * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "20260903track";
+  var CACHE = "dev2v51";
+  var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
-  if (!params.has("race") || params.has("live")) {
+  if (params.get("live") === "gps") {
     params.delete("live");
-    if (!params.get("race")) params.set("race", "10");
-    history.replaceState({}, "", location.pathname + "?race=" + encodeURIComponent(params.get("race")));
+    if (!params.get("race")) params.set("race", "1");
+    history.replaceState({}, "", location.pathname + "?" + params.toString());
   }
-  var RACE_Q = Number(params.get("race") || 10) || 10;
+  if (!params.has("race")) {
+    params.set("race", "1");
+    history.replaceState({}, "", location.pathname + "?race=1");
+  }
+  var RACE_Q = Number(params.get("race") || 1) || 1;
   var LIVE_Q = false;
   var liveTablePhase = "armed10";
   var liveHeldN = 0;
@@ -28,6 +32,70 @@
   function jsonUrl(kind, race) {
     if (!race || race === 4) return "/js/lipton-dev-" + kind + ".json?v=" + CACHE;
     return "/js/lipton-dev-" + kind + "-r" + race + ".json?v=" + CACHE;
+  }
+  function fetchPriorFinishes(raceNo) {
+    raceNo = Number(raceNo) || 1;
+    if (raceNo <= 1) return Promise.resolve({});
+    var out = {};
+    var jobs = [];
+    var r;
+    for (r = 1; r < raceNo; r++) {
+      (function (rn) {
+        jobs.push(
+          fetch(jsonUrl("replay", rn), { cache: "no-store" })
+            .then(function (res) { return res.ok ? res.json() : null; })
+            .then(function (data) {
+              out[rn] = data && data.finish
+                ? data.finish.map(function (f) { return f.boat; })
+                : [];
+            })
+            .catch(function () { out[rn] = []; })
+        );
+      })(r);
+    }
+    return Promise.all(jobs).then(function () { return out; });
+  }
+  function fetchSeriesScores() {
+    return fetch("/js/lipton-dev-series-scores.json?v=" + CACHE, { cache: "no-store" })
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .catch(function () { return null; });
+  }
+  function canonicalSeriesMatrix(scores) {
+    if (!scores || !scores.boats) return "";
+    var lines = [];
+    Object.keys(scores.boats).sort().forEach(function (boat) {
+      var row = scores.boats[boat];
+      var pts = [];
+      var codes = [];
+      var i;
+      for (i = 1; i <= 10; i++) {
+        pts.push(String(row.points[String(i)]));
+        codes.push((row.codes && row.codes[String(i)]) || "");
+      }
+      lines.push(boat + "|" + pts.join(",") + "|" + codes.join(","));
+    });
+    return lines.join("\n");
+  }
+  function sha256Hex(text) {
+    if (!text || !window.crypto || !window.crypto.subtle) {
+      return Promise.resolve(null);
+    }
+    var enc = new TextEncoder().encode(text);
+    return window.crypto.subtle.digest("SHA-256", enc).then(function (buf) {
+      return Array.from(new Uint8Array(buf)).map(function (b) {
+        return b.toString(16).padStart(2, "0");
+      }).join("");
+    });
+  }
+  function verifySeriesChecksum(scores) {
+    if (!scores || !scores.checksum || !scores.checksum.matrix_sha256) {
+      return Promise.resolve({ ok: false, reason: "no checksum in series file" });
+    }
+    return sha256Hex(canonicalSeriesMatrix(scores)).then(function (hash) {
+      if (!hash) return { ok: null, reason: "sha256 unavailable" };
+      var ok = hash === scores.checksum.matrix_sha256;
+      return { ok: ok, hash: hash, expected: scores.checksum.matrix_sha256 };
+    });
   }
   var DATA_URL = jsonUrl("replay", RACE_Q);
   var TRAIL_URL = jsonUrl("trail", RACE_Q);
@@ -84,7 +152,7 @@
         scores.push((q.x - g.a.x) * nx + (q.y - g.a.y) * ny);
       });
       scores.sort(function (u, v) { return u - v; });
-      if (scores.length && scores[Math.floor(scores.length / 2)] < 0) {
+      if (scores.length && scores[Math.floor(scores.length / 2)] > 0) {
         nx = -nx;
         ny = -ny;
       }
@@ -130,28 +198,241 @@
     });
   }
 
+  function sizeDev2Map() {
+    var html = document.documentElement;
+    var body = document.body;
+    var track = document.querySelector(".tracking-dev2-map-first");
+    var header = document.querySelector(".site-header");
+    var bar = document.getElementById("tracking-dev2-sailfish-bar");
+    var dock = document.getElementById("lipton-dev-subhead");
+    if (!track) return;
+    html.style.setProperty("overflow-x", "hidden", "important");
+    html.style.setProperty("overflow-y", "visible", "important");
+    html.style.setProperty("height", "100dvh", "important");
+    body.style.setProperty("overflow-x", "hidden", "important");
+    body.style.setProperty("overflow-y", "visible", "important");
+    body.style.setProperty("height", "100dvh", "important");
+    html.scrollTop = 0;
+    body.scrollTop = 0;
+    if (header) {
+      header.style.setProperty("position", "fixed", "important");
+      header.style.setProperty("top", "0", "important");
+      header.style.setProperty("left", "0", "important");
+      header.style.setProperty("right", "0", "important");
+      header.style.setProperty("z-index", "300", "important");
+      header.style.setProperty("display", "block", "important");
+    }
+    var headerH = header ? Math.round(header.offsetHeight || 0) : 0;
+    if (bar) {
+      bar.style.setProperty("position", "fixed", "important");
+      bar.style.setProperty("top", headerH + "px", "important");
+      bar.style.setProperty("left", "6px", "important");
+      bar.style.setProperty("right", "6px", "important");
+      bar.style.setProperty("z-index", "310", "important");
+      bar.style.setProperty("margin", "0", "important");
+      bar.style.setProperty("display", "flex", "important");
+      bar.style.setProperty("visibility", "visible", "important");
+    }
+    if (dock) {
+      dock.style.setProperty("position", "fixed", "important");
+      dock.style.setProperty("left", "0", "important");
+      dock.style.setProperty("right", "0", "important");
+      dock.style.setProperty("bottom", "0", "important");
+      dock.style.setProperty("top", "auto", "important");
+      dock.style.setProperty("z-index", "200", "important");
+      dock.style.setProperty("height", "auto", "important");
+      dock.style.setProperty("min-height", "0", "important");
+      dock.style.setProperty("max-height", "none", "important");
+      dock.style.setProperty("pointer-events", "auto", "important");
+    }
+    track.style.setProperty("position", "fixed", "important");
+    track.style.setProperty("top", "0", "important");
+    track.style.setProperty("left", "0", "important");
+    track.style.setProperty("right", "0", "important");
+    track.style.setProperty("bottom", "0", "important");
+    track.style.setProperty("width", "100vw", "important");
+    track.style.setProperty("height", "100dvh", "important");
+    track.style.setProperty("min-height", "100dvh", "important");
+    track.style.setProperty("max-height", "none", "important");
+    track.style.setProperty("z-index", "1", "important");
+    var spin = document.getElementById("lipton-dev-map-spin");
+    var chart = document.getElementById("lipton-dev-chart");
+    var canvas = document.getElementById("lipton-dev-map");
+    var vw = window.innerWidth || 0;
+    var vh = window.innerHeight || 0;
+    var side = Math.ceil(Math.sqrt(vw * vw + vh * vh)) || Math.max(vw, vh);
+    var chartLeft = (vw - side) / 2;
+    var chartTop = (vh - side) / 2;
+    window.__dev2ChartLayout = { left: chartLeft, top: chartTop, side: side, vw: vw, vh: vh };
+    if (spin) {
+      spin.style.setProperty("position", "absolute", "important");
+      spin.style.setProperty("inset", "0", "important");
+      spin.style.setProperty("height", "100%", "important");
+      spin.style.setProperty("width", "100%", "important");
+      spin.style.setProperty("overflow", "visible", "important");
+    }
+    if (chart) {
+      chart.style.setProperty("position", "absolute", "important");
+      chart.style.setProperty("inset", "auto", "important");
+      chart.style.setProperty("width", side + "px", "important");
+      chart.style.setProperty("height", side + "px", "important");
+      chart.style.setProperty("left", chartLeft + "px", "important");
+      chart.style.setProperty("top", chartTop + "px", "important");
+      chart.style.setProperty("transform", "none", "important");
+    }
+    if (canvas) {
+      canvas.style.setProperty("position", "absolute", "important");
+      canvas.style.setProperty("inset", "0", "important");
+      canvas.style.setProperty("width", "100%", "important");
+      canvas.style.setProperty("height", "100%", "important");
+      canvas.style.setProperty("transform", "none", "important");
+    }
+    if (track) track.style.setProperty("overflow", "hidden", "important");
+    var barH = bar ? Math.round(bar.getBoundingClientRect().height || bar.offsetHeight || 0) : 0;
+    var chromeTop = headerH + barH + 8;
+    var board = document.getElementById("tracking-dev2-ranking");
+    var tools = document.getElementById("tracking-dev2-map-tools");
+    if (board) {
+      board.style.setProperty("top", chromeTop + "px", "important");
+      board.style.setProperty("bottom", "72px", "important");
+      board.style.setProperty("z-index", "96", "important");
+    }
+    if (tools) tools.style.setProperty("top", chromeTop + "px", "important");
+    var liveMap = window.__dev2ChartMap;
+    if (liveMap && typeof liveMap.invalidateSize === "function") {
+      try { liveMap.invalidateSize({ animate: false }); } catch (err) {}
+    }
+  }
+  window.__dev2MapSpin = 0;
+  window.__dev2MapToScreen = function (x, y) {
+    var layout = window.__dev2ChartLayout || {};
+    var ux = (layout.left || 0) + x;
+    var uy = (layout.top || 0) + y;
+    var rad = (window.__dev2MapSpin || 0) * Math.PI / 180;
+    if (!rad) return { x: ux, y: uy };
+    var cx = (layout.vw || 0) / 2;
+    var cy = (layout.vh || 0) / 2;
+    var dx = ux - cx;
+    var dy = uy - cy;
+    var c = Math.cos(rad);
+    var s = Math.sin(rad);
+    return { x: cx + dx * c - dy * s, y: cy + dx * s + dy * c };
+  };
+  window.__dev2SizeMap = sizeDev2Map;
+  sizeDev2Map();
+  window.addEventListener("resize", function () {
+    sizeDev2Map();
+  });
   var resetPlaybackAudio = function () {};
   function goRace(n) {
+    n = Number(n) || 1;
+    if (n < 1 || n > 10) return;
     try { resetPlaybackAudio(); } catch (err) {}
     var u = new URL(location.href);
     u.searchParams.delete("live");
     u.searchParams.set("race", String(n));
     location.assign(u.pathname + "?" + u.searchParams.toString());
   }
+  function hideRankingBoard() {
+    if (typeof window.__sailfishSetBoard === "function") {
+      window.__sailfishSetBoard(false);
+      return;
+    }
+    var board = document.getElementById("tracking-dev2-ranking");
+    var overlay = window.__sailfishOverlay || {};
+    overlay.board = false;
+    window.__sailfishOverlay = overlay;
+    if (typeof window.__sailfishSyncBoard === "function") {
+      window.__sailfishSyncBoard(overlay);
+    } else if (board) {
+      board.classList.add("is-hidden");
+      board.hidden = true;
+      board.setAttribute("aria-hidden", "true");
+      board.style.display = "none";
+    }
+  }
+  var lastPointerTap = {};
+  function consumeTap(ev) {
+    if (!ev) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+  }
+  function isGhostClick(kind, ev) {
+    if (!ev || ev.type !== "click") return false;
+    return Date.now() - (lastPointerTap[kind] || 0) < 500;
+  }
+  function markPointerTap(kind, ev) {
+    if (ev && ev.type === "pointerdown") lastPointerTap[kind] = Date.now();
+  }
+  function onChromeTap(ev) {
+    if (!ev || !ev.target || !ev.target.closest) return;
+    if (ev.type === "pointerdown" && ev.button != null && ev.button !== 0) return;
+    var hideBtn = ev.target.closest("#tracking-dev2-ranking-hide");
+    if (hideBtn) {
+      if (isGhostClick("hide", ev)) {
+        consumeTap(ev);
+        return;
+      }
+      markPointerTap("hide", ev);
+      consumeTap(ev);
+      hideRankingBoard();
+      return;
+    }
+    var flagBtn = ev.target.closest("#tracking-dev2-sailfish-flags [data-flag]");
+    if (flagBtn) {
+      var flag = flagBtn.getAttribute("data-flag");
+      var flagKey = "flag:" + flag;
+      if (isGhostClick(flagKey, ev)) {
+        consumeTap(ev);
+        return;
+      }
+      markPointerTap(flagKey, ev);
+      consumeTap(ev);
+      if (typeof window.__sailfishToggleFlag === "function") {
+        window.__sailfishToggleFlag(flag);
+      }
+      return;
+    }
+    var raceBtn = ev.target.closest("#lipton-dev-race-boxes [data-race]");
+    if (raceBtn) {
+      var race = raceBtn.getAttribute("data-race");
+      var raceKey = "race:" + race;
+      if (isGhostClick(raceKey, ev)) {
+        consumeTap(ev);
+        return;
+      }
+      markPointerTap(raceKey, ev);
+      consumeTap(ev);
+      goRace(race);
+    }
+  }
+  document.addEventListener("pointerdown", onChromeTap, true);
+  document.addEventListener("click", onChromeTap, true);
+  function goLive() {
+    goRace(1);
+  }
   function setRaceTableLabel(n, isLive, tag) {
     var el = document.getElementById("lipton-dev-race-label");
     if (!el) return;
     if (n && tag) el.textContent = "Race " + n + " — " + tag;
     else if (n) el.textContent = "Race " + n;
-    else el.textContent = "";
+    else el.textContent = isLive ? "Live" : "";
   }
-  setRaceTableLabel(RACE_Q, false);
+  setRaceTableLabel(LIVE_Q ? 0 : (RACE_Q || 0), LIVE_Q);
   function bindRaceButtons(active) {
-    var want = Number(active || RACE_Q || 10);
+    var packedHeld = ((raceMeta.races || []).some(function (r) {
+      return r.packed && (r.n === liveHeldN || r.held_live);
+    }));
+    var want = LIVE_Q ? (packedHeld ? -1 : (liveHeldN || heldRaceFromMeta(raceMeta) || -1)) : Number(active || RACE_Q || 1);
     document.querySelectorAll("#lipton-dev-race-boxes [data-race]").forEach(function (btn) {
       var n = Number(btn.getAttribute("data-race"));
       btn.classList.toggle("is-active", n === want);
       btn.setAttribute("aria-pressed", n === want ? "true" : "false");
+    });
+    document.querySelectorAll("#lipton-dev-race-boxes [data-live]").forEach(function (btn) {
+      btn.classList.toggle("is-active", LIVE_Q && want < 1);
+      btn.setAttribute("aria-pressed", LIVE_Q && want < 1 ? "true" : "false");
     });
   }
   function renderRaceBoxes(meta) {
@@ -159,33 +440,45 @@
     if (!host) return;
     if (meta) raceMeta = meta;
     var byN = {};
-    ((raceMeta && raceMeta.races) || []).forEach(function (r) { byN[r.n] = r; });
-    var races = [];
-    var i;
-    for (i = 1; i <= 10; i++) {
-      races.push(byN[i] || { n: i, packed: false, stage: "finished", ocs: [], gun_sast: "", course: "" });
-    }
+    ((raceMeta && raceMeta.races) || []).forEach(function (r) {
+      byN[Number(r.n)] = r;
+    });
     host.innerHTML = "";
-    var activeN = Number(RACE_Q || 10);
+    var heldN = LIVE_Q ? (liveHeldN || heldRaceFromMeta(raceMeta)) : 0;
+    if (heldN && ((raceMeta.races || []).some(function (r) { return r.n === heldN && r.packed; }))) heldN = 0;
+    var activeN = LIVE_Q ? -1 : Number(RACE_Q || 1);
+    var races = [];
+    var n;
+    for (n = 1; n <= 10; n++) races.push(byN[n] || { n: n, packed: true });
     races.forEach(function (r) {
       var b = document.createElement("button");
       b.type = "button";
       b.className = "lipton-dev-race-box";
       b.setAttribute("data-race", String(r.n));
       b.textContent = "R" + r.n;
+      var isHeld = LIVE_Q && heldN && r.n === heldN;
       if (r.n === activeN) b.classList.add("is-active");
-      if (!r.packed) b.disabled = true;
+      b.disabled = false;
       var gun = String(r.gun_sast || "").slice(11, 16);
       var ocs = (r.ocs || []).length ? " · OCS " + r.ocs.join(",") : "";
       var course = r.course ? " · " + r.course : "";
-      b.title = "Race " + r.n + course + " · gun " + gun + (r.packed ? "" : " · GPS not packed yet") + ocs;
+      b.title = "Race " + r.n + course + " · gun " + gun + (r.packed ? "" : (isHeld || r.held_live ? " · last race" : " · GPS not packed yet")) + ocs;
       b.addEventListener("click", function () {
-        if (r.packed) goRace(r.n);
+        goRace(r.n);
       });
       host.appendChild(b);
     });
+    if (!host.getAttribute("data-wired")) {
+      host.setAttribute("data-wired", "1");
+      host.addEventListener("click", function (ev) {
+        var btn = ev.target && ev.target.closest ? ev.target.closest("[data-race]") : null;
+        if (!btn) return;
+        var n = Number(btn.getAttribute("data-race"));
+        if (n >= 1 && n <= 10) goRace(n);
+      });
+    }
   }
-  bindRaceButtons(RACE_Q || 10);
+  bindRaceButtons(RACE_Q || 1);
   (function wireSiteHeader() {
     ["menuBtn", "navMenuOverlay", "menuToggle"].forEach(function (id) {
       var el = document.getElementById(id);
@@ -202,7 +495,14 @@
     .then(function (res) { return res.ok ? res.json() : null; })
     .then(function (meta) {
       renderRaceBoxes(meta);
-      setRaceTableLabel(RACE_Q, false);
+      if (LIVE_Q && liveTablePhase === "hold9") {
+        var h = liveHeldN || heldRaceFromMeta(meta);
+        if (h) setRaceTableLabel(h, true);
+      } else if (LIVE_Q && liveTablePhase === "armed10") {
+        setRaceTableLabel(10, true, "ARMED");
+      } else if (LIVE_Q && liveTablePhase === "live10") {
+        setRaceTableLabel(10, true, "LIVE");
+      }
     })
     .catch(function () { renderRaceBoxes({ races: [] }); });
 
@@ -220,15 +520,18 @@
   }
   function tailBudget(map) {
     var z = 15;
+    var lat = -33.88;
     try {
       if (map && map.getZoom) z = map.getZoom();
+      if (map && map.getCenter) lat = map.getCenter().lat;
     } catch (e) {}
     if (!(z > 0)) z = 15;
     if (z < 12) z = 12;
-    if (z > 19) z = 19;
-    var t = (z - 12) / 7;
+    if (z > 22) z = 22;
+    var mPerPx = 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, z);
+    var t = Math.min(1, Math.max(0, (Math.min(z, 19) - 12) / 7));
     return {
-      m: 16 + t * 204,
+      m: Math.max(14, 168 * mPerPx),
       ms: 6000 + t * 56000,
       w: 1.5 + t * 2.4
     };
@@ -294,28 +597,70 @@
     LYCN: "#15803d", LYC: "#15803d"
   };
 
+  function fallbackBootstrap(race) {
+    return {
+      status: "99",
+      matchName: "2026 Lipton Challenge Cup",
+      raceName: "Race " + race,
+      raceCd: "R" + race,
+      teamList: [],
+      viewConfig: {
+        leaderline: true,
+        layline: true,
+        windCompass: true,
+        camera: true,
+        replaySpeed: 5
+      }
+    };
+  }
+
+  function showReplayStatus(msg) {
+    var tb = document.getElementById("lipton-dev-tbody");
+    var sum = document.getElementById("lipton-dev-checksum");
+    if (tb) tb.innerHTML = "<tr><td colspan=\"5\">" + String(msg || "") + "</td></tr>";
+    if (sum) sum.textContent = String(msg || "");
+  }
+  function loadJson(url) {
+    return fetch(url, { cache: "default" }).then(function (res) {
+      if (!res.ok) throw new Error(url + " " + res.status);
+      return res.json();
+    });
+  }
+
   if (LIVE_Q) {
     startLive();
   } else {
+  var bootNow = fallbackBootstrap(RACE_Q);
+  window.__trackingDev2Bootstrap = bootNow;
+  try {
+    window.__sailfishDev2 = typeof window.applySailfishDev2 === "function"
+      ? window.applySailfishDev2(bootNow)
+      : {};
+  } catch (sfErr) {
+    console.warn("[dev2] sailfish", sfErr);
+    window.__sailfishDev2 = {};
+  }
+  showReplayStatus("Loading Race " + RACE_Q + " GPS…");
   Promise.all([
-    fetch(DATA_URL, { cache: "no-store" }).then(function (res) {
-      if (!res.ok) throw new Error("replay json " + res.status);
-      return res.json();
-    }),
-    fetch(TRAIL_URL, { cache: "no-store" }).then(function (res) {
-      if (!res.ok) throw new Error("trail json " + res.status);
-      return res.json();
-    })
+    loadJson(DATA_URL),
+    loadJson(TRAIL_URL),
+    fetchSeriesScores()
   ])
-    .then(function (pair) { start(pair[0], pair[1]); })
+    .then(function (pack) {
+      showReplayStatus("Starting Race " + RACE_Q + "…");
+      window.setTimeout(function () {
+        try {
+          start(pack[0], pack[1], bootNow, {}, pack[2]);
+          sizeDev2Map();
+        } catch (startErr) {
+          console.error("[dev2] start", startErr);
+          showReplayStatus("Race " + RACE_Q + " start failed: " + (startErr && startErr.message ? startErr.message : startErr));
+        }
+      }, 0);
+    })
     .catch(function (err) {
-      var sailed = document.getElementById("lipton-dev-sailed");
-      if (sailed) {
-        sailed.textContent = RACE_Q && RACE_Q !== 4
-          ? ("Race " + RACE_Q + " GPS not packed on -dev yet. Choose a packed race.")
-          : "Replay data failed to load";
-      }
       console.error(err);
+      showReplayStatus("Race " + RACE_Q + " failed: " + (err && err.message ? err.message : err));
     });
   }
 
@@ -326,8 +671,6 @@
     var liveRaceN = 10;
     var R9_FINISH_ORDER = ["KYC", "RCYC", "PYC", "SBYC", "UCTYC", "RCYC Academy", "WBYC", "FBYC", "HYC", "GLYC", "RNYC", "BYC", "LDYC", "LYC", "IZIVUNGUVUNGU", "TSC", "WYAC"];
     var FLEET_17 = ["RCYC Academy", "GLYC", "KYC", "RCYC", "RNYC", "UCTYC", "HYC", "PYC", "WYAC", "BYC", "LDYC", "FBYC", "SBYC", "LYC", "WBYC", "TSC", "IZIVUNGUVUNGU"];
-    var ROUND_LEGS = ["M1", "PIN", "M1b", "PINb", "M1c", "FIN"];
-    var armedLegIdx = 0;
     var devHoldR9 = false;
     var devArmed = true;
     var devLiveR10 = false;
@@ -495,7 +838,7 @@
       });
     };
     function liveFill(sail) {
-      return LIVE_BOAT_COLORS[sail] || "#94a3b8";
+      return (LIVE_BOAT_COLORS && LIVE_BOAT_COLORS[sail]) || "#94a3b8";
     }
     function rgbaHex(hex, a) {
       var n = parseInt(String(hex).replace("#", ""), 16);
@@ -594,50 +937,6 @@
       hits.reverse();
       return hits;
     }
-    function slimTrail(arr) {
-      if (!arr || !arr.length) return [];
-      var out = [];
-      var last = -1e12;
-      var i;
-      for (i = 0; i < arr.length; i++) {
-        var p = arr[i];
-        if (!p || p.ts_ms == null) continue;
-        if (p.ts_ms - last >= 900 || i === arr.length - 1) {
-          out.push({ lat: p.lat, lon: p.lon, ts_ms: p.ts_ms, hdg: p.hdg });
-          last = p.ts_ms;
-        }
-      }
-      return out;
-    }
-    function persistHist() {
-      if (!gunTs) return;
-      try {
-        var payload = { boats: {}, marks: {}, pin: slimTrail(hist.pin), rc: slimTrail(hist.rc) };
-        Object.keys(hist.boats).forEach(function (s) {
-          payload.boats[s] = slimTrail(hist.boats[s]);
-        });
-        Object.keys(hist.marks).forEach(function (k) {
-          payload.marks[k] = slimTrail(hist.marks[k]);
-        });
-        sessionStorage.setItem("lipton-live-hist-v1-" + gunTs, JSON.stringify(payload));
-      } catch (eH) {}
-    }
-    function loadHist() {
-      if (!gunTs) return;
-      try {
-        var raw = sessionStorage.getItem("lipton-live-hist-v1-" + gunTs);
-        if (!raw) return;
-        var d = JSON.parse(raw);
-        Object.keys((d && d.boats) || {}).forEach(function (s) {
-          hist.boats[s] = mergeTrail(hist.boats[s] || [], d.boats[s]);
-        });
-        Object.keys((d && d.marks) || {}).forEach(function (k) {
-          hist.marks[k] = mergeTrail(hist.marks[k] || [], d.marks[k]);
-        });
-        if (d.pin) hist.pin = mergeTrail(hist.pin, d.pin);
-        if (d.rc) hist.rc = mergeTrail(hist.rc, d.rc);
-      } catch (eL) {}
-    }
     function mergeTrail(dest, pts) {
       if (!pts || !pts.length) return dest || [];
       dest = dest || [];
@@ -693,33 +992,34 @@
         keyboard: true,
         touchZoom: true,
         zoomSnap: 0,
+        minZoom: 12,
+        maxZoom: 22,
         zoomAnimation: false,
         fadeAnimation: false,
         markerZoomAnimation: false,
         inertia: true
       }).setView([-33.886, 18.43], 15);
+      window.__dev2ChartMap = chartMap;
       var tileOpts = {
-        minZoom: 12, maxZoom: 19, keepBuffer: 8,
+        minZoom: 12, maxZoom: 22, maxNativeZoom: 19, keepBuffer: 8,
         updateWhenIdle: false, updateWhenZooming: false, updateInterval: 400, crossOrigin: true
       };
       L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", Object.assign({
-        maxZoom: 19, attribution: "Tiles © Esri"
+        maxZoom: 22, maxNativeZoom: 19, attribution: "Tiles © Esri"
       }, tileOpts)).addTo(chartMap);
       L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", Object.assign({
-        maxZoom: 18, opacity: 0.85, attribution: "Labels © Esri"
+        maxZoom: 22, maxNativeZoom: 18, opacity: 0.85, attribution: "Labels © Esri"
       }, tileOpts)).addTo(chartMap);
       chartMap.on("dragstart zoomstart boxzoomstart", function () {
         followFleet = false;
+        didFit = true;
       });
       chartMap.on("move zoom zoomend", function () {
         if (!chartSyncing) drawLiveMap();
       });
-      var track = el.closest(".lipton-dev-track") || el.parentNode;
+      var track = document.querySelector(".tracking-dev2-map-first") || el.parentNode;
       var ctrls = el.querySelector(".leaflet-control-container");
       if (track && ctrls) track.appendChild(ctrls);
-      window.requestAnimationFrame(function () {
-        if (chartMap) chartMap.invalidateSize({ animate: false });
-      });
     }
     function sizeCanvas() {
       if (!mapEl) return;
@@ -742,39 +1042,7 @@
     function xy(lat, lon) {
       if (!chartMap) return { x: 0, y: 0 };
       var pt = chartMap.latLngToContainerPoint([lat, lon]);
-      return { x: pt.x, y: pt.y };
-    }
-    function armedPid() {
-      return ROUND_LEGS[Math.max(0, Math.min(armedLegIdx, ROUND_LEGS.length - 1))] || "M1";
-    }
-    function armedIsWindward() {
-      var p = armedPid();
-      return p === "M1" || p === "M1b" || p === "M1c";
-    }
-    function armedIsPinGate() {
-      var p = armedPid();
-      return p === "PIN" || p === "PINb" || p === "FIN";
-    }
-    function armedToPos(ts, startMid, pin, rc) {
-      var p = armedPid();
-      if (p === "PIN" || p === "PINb") return atTs(hist.pin, ts) || pin;
-      if (p === "FIN") return startMid || pin || rc;
-      return atTs(hist.marks["1"], ts);
-    }
-    function armedFromPos(ts, startMid, pin) {
-      var p = armedPid();
-      if (p === "M1") return startMid;
-      if (p === "PIN" || p === "PINb") return atTs(hist.marks["1"], ts);
-      if (p === "M1b" || p === "M1c") return pin;
-      if (p === "FIN") return atTs(hist.marks["1"], ts) || pin;
-      return startMid;
-    }
-    function applyCourseOrientation() {
-      var chart = document.getElementById("lipton-dev-chart");
-      if (chart) {
-        chart.style.transform = "";
-        chart.style.transformOrigin = "";
-      }
+      return window.__dev2MapToScreen(pt.x, pt.y);
     }
     function drawBoatIcon(p, hdg, fill) {
       var r = 7;
@@ -787,7 +1055,7 @@
       mapCtx.stroke();
       mapCtx.save();
       mapCtx.translate(p.x, p.y);
-      mapCtx.rotate((hdg || 0) * Math.PI / 180);
+      mapCtx.rotate(((hdg || 0) + (window.__dev2MapSpin || 0)) * Math.PI / 180);
       mapCtx.beginPath();
       mapCtx.moveTo(0, -r - 3.6);
       mapCtx.lineTo(3.1, -r + 1.2);
@@ -804,8 +1072,43 @@
       };
     }
     function startGrid(pin, rc, boatPts) {
-      var m1 = hist.marks["1"] ? atTs(hist.marks["1"], playTs) : null;
-      return startCourseNormal(startLineGeom(pin, rc), m1, boatPts);
+      if (!pin || !rc) return null;
+      var R = 6371000;
+      var lat0 = (pin.lat + rc.lat) / 2;
+      var lon0 = (pin.lon + rc.lon) / 2;
+      var cos = Math.cos(lat0 * Math.PI / 180);
+      function toxy(lat, lon) {
+        return {
+          x: (lon - lon0) * Math.PI / 180 * cos * R,
+          y: (lat - lat0) * Math.PI / 180 * R
+        };
+      }
+      function fromxy(x, y) {
+        return {
+          lat: lat0 + (y / R) * 180 / Math.PI,
+          lon: lon0 + (x / (R * cos)) * 180 / Math.PI
+        };
+      }
+      var a = toxy(pin.lat, pin.lon);
+      var b = toxy(rc.lat, rc.lon);
+      var lx = b.x - a.x;
+      var ly = b.y - a.y;
+      var len = Math.hypot(lx, ly) || 1;
+      var ux = lx / len;
+      var uy = ly / len;
+      var nx = -uy;
+      var ny = ux;
+      var scores = [];
+      (boatPts || []).forEach(function (p) {
+        var q = toxy(p.lat, p.lon);
+        scores.push((q.x - a.x) * nx + (q.y - a.y) * ny);
+      });
+      scores.sort(function (u, v) { return u - v; });
+      if (scores.length && scores[Math.floor(scores.length / 2)] < 0) {
+        nx = -nx;
+        ny = -ny;
+      }
+      return { a: a, ux: ux, uy: uy, nx: nx, ny: ny, len: len, fromxy: fromxy, toxy: toxy };
     }
     function drawStartGrid(pin, rc) {
       var boats = [];
@@ -832,40 +1135,31 @@
       var over = lineAt(-2, 3.2, "rgba(239,68,68,0.85)");
       var base = lineAt(0, 3.4, "#38bdf8");
       var m1p = hist.marks["1"] ? atTs(hist.marks["1"], playTs) : null;
-      drawStartDirArrows(mapCtx, xy, pin, rc, m1p, boats);
+      if (!gunTs || playTs < gunTs + 5 * 60 * 1000) {
+        drawStartDirArrows(mapCtx, xy, pin, rc, m1p, boats);
+      }
       return { g: g, over: over, base: base };
     }
-    function liveFitLatLngs(ts) {
+    function fitLive() {
+      if (!chartMap || !followFleet || didFit) return;
+      var ts = playTs;
       var pts = [];
-      FLEET_17.forEach(function (sail) {
-        var b = atTs(hist.boats[sail], ts);
-        if (b) pts.push(L.latLng(b.lat, b.lon));
-      });
       Object.keys(hist.boats).forEach(function (sail) {
-        if (FLEET_17.indexOf(sail) >= 0) return;
         var b = atTs(hist.boats[sail], ts);
-        if (b) pts.push(L.latLng(b.lat, b.lon));
+        if (b) pts.push([b.lat, b.lon]);
       });
       var pin = atTs(hist.pin, ts);
       var rc = atTs(hist.rc, ts);
-      var startMid = (pin && rc)
-        ? { lat: (pin.lat + rc.lat) / 2, lon: (pin.lon + rc.lon) / 2 }
-        : (pin || rc);
-      var toMk = armedToPos(ts, startMid, pin, rc);
-      var fromMk = armedFromPos(ts, startMid, pin);
-      if (toMk) pts.push(L.latLng(toMk.lat, toMk.lon));
-      if (fromMk) pts.push(L.latLng(fromMk.lat, fromMk.lon));
-      return pts;
-    }
-    function fitLive() {
-      if (!chartMap || !followFleet || !window.L) return;
-      var latlngs = liveFitLatLngs(playTs);
-      if (latlngs.length < 2) return;
+      if (pin) pts.push([pin.lat, pin.lon]);
+      if (rc) pts.push([rc.lat, rc.lon]);
+      Object.keys(hist.marks).forEach(function (k) {
+        var m = atTs(hist.marks[k], ts);
+        if (m) pts.push([m.lat, m.lon]);
+      });
+      if (!pts.length) return;
       chartSyncing = true;
-      if (chartMap.invalidateSize) chartMap.invalidateSize({ animate: false });
-      chartMap.fitBounds(L.latLngBounds(latlngs), { padding: [48, 48], maxZoom: 16, animate: false });
+      chartMap.fitBounds(pts, { padding: [28, 28], maxZoom: 21, animate: false });
       chartSyncing = false;
-      didFit = true;
     }
     function drawLiveMap() {
       if (drawingMap) return;
@@ -884,13 +1178,10 @@
       var startMid = (pin && rc)
         ? { lat: (pin.lat + rc.lat) / 2, lon: (pin.lon + rc.lon) / 2 }
         : (pin || rc);
-      var toMk = armedToPos(ts, startMid, pin, rc);
-      var fromMk = armedFromPos(ts, startMid, pin);
-      applyCourseOrientation();
       Object.keys(hist.marks).forEach(function (k) {
         if (k !== "1") return;
         var arr = hist.marks[k];
-        if (!markValid(arr, ts) && !atTs(arr, ts)) return;
+        if (!markValid(arr, ts)) return;
         var pos = atTs(arr, ts);
         if (!pos) return;
         var p = xy(pos.lat, pos.lon);
@@ -903,10 +1194,9 @@
         mapCtx.arc(p.x, p.y, 4.2, 0, Math.PI * 2);
         mapCtx.fillStyle = "#fbbf24";
         mapCtx.fill();
-        var m1From = fromMk || startMid;
-        var m1Spec = roundArr.M1 || defaultPortSpec(pos, m1From);
-        if (m1Spec && armedIsWindward()) drawRoundArrow(pos, m1Spec, "#fbbf24");
-        var m1Lab = markLabelAway(pos, m1Spec, m1From);
+        var m1Spec = roundArr.M1 || defaultPortSpec(pos, startMid);
+        if (m1Spec) drawRoundArrow(pos, m1Spec, "#fbbf24");
+        var m1Lab = markLabelBack(pos, startMid);
         mapCtx.fillStyle = "#ffffff";
         mapCtx.font = "bold 13px sans-serif";
         mapCtx.textAlign = "center";
@@ -929,46 +1219,29 @@
         mapCtx.strokeStyle = "#38bdf8";
         mapCtx.lineWidth = 1;
         mapCtx.strokeRect(b.x - 7, b.y - 5, 14, 10);
+        mapCtx.fillStyle = "#0b1b33";
+        mapCtx.textAlign = "start";
+        mapCtx.textBaseline = "alphabetic";
+        mapCtx.fillText("RC", b.x - 6, b.y + 3);
         var pinFrom = atTs(hist.marks["1"], ts) || startMid;
-        var pinArmed = armedIsPinGate();
-        var pinSpec = roundArr.PIN || defaultPortSpec(pin, pinFrom);
-        var labBoats = [];
-        Object.keys(hist.boats).forEach(function (sail) {
-          var lb = atTs(hist.boats[sail], ts);
-          if (lb) labBoats.push(lb);
-        });
-        var pinLab = pinArmed
-          ? markLabelAway(pin, pinSpec, pinFrom)
-          : linePassingLabel(pin, pin, rc, pinFrom, labBoats);
-        var rcLab = linePassingLabel(rc, pin, rc, pinFrom, labBoats);
+        var pinLab = markLabelBack(pin, pinFrom);
         mapCtx.fillStyle = "#ffffff";
         mapCtx.font = "bold 10px sans-serif";
         mapCtx.textAlign = "center";
         mapCtx.textBaseline = "middle";
-        mapCtx.fillText("RC", rcLab.x, rcLab.y);
         mapCtx.fillText("Pin", pinLab.x, pinLab.y);
         mapCtx.textAlign = "start";
         mapCtx.textBaseline = "alphabetic";
-        if (pinArmed && pinSpec) drawRoundArrow(pin, pinSpec, "#38bdf8");
-        var sg = startCourseNormal(startLineGeom(pin, rc), pinFrom, null);
-        var midX = (a.x + b.x) / 2;
-        var midY = (a.y + b.y) / 2;
-        if (sg) {
-          var ahead = sg.fromxy(sg.a.x + sg.ux * sg.len / 2 + sg.nx * 36, sg.a.y + sg.uy * sg.len / 2 + sg.ny * 36);
-          var ap = xy(ahead.lat, ahead.lon);
-          midX = ap.x;
-          midY = ap.y;
+        var pinLeeward = gunTs && (ts >= gunTs + 5 * 60 * 1000 || Object.keys(passTs.M1 || {}).length);
+        if (pinLeeward) {
+          var pinSpec = roundArr.PIN || defaultPortSpec(pin, pinFrom);
+          if (pinSpec) drawRoundArrow(pin, pinSpec, "#38bdf8");
         }
-        mapCtx.fillStyle = "#ffffff";
-        mapCtx.font = "bold 10px sans-serif";
-        mapCtx.textAlign = "center";
-        mapCtx.textBaseline = "middle";
-        mapCtx.fillText("START", midX, midY);
-        mapCtx.textAlign = "start";
-        mapCtx.textBaseline = "alphabetic";
-      }
-      if (fromMk && toMk && liveTablePhase !== "hold9") {
-        drawActiveLegChevrons(fromMk, toMk, armedIsPinGate() ? "56,189,248" : "251,191,36");
+        if (gunTs && ts < gunTs + 5 * 60 * 1000) {
+          mapCtx.fillStyle = "#ffffff";
+          mapCtx.font = "bold 10px sans-serif";
+          mapCtx.fillText("START", (a.x + b.x) / 2 + 6, (a.y + b.y) / 2 - 14);
+        }
       }
       var liveTailW = tailBudget(chartMap).w;
       Object.keys(hist.boats).forEach(function (sail) {
@@ -1075,7 +1348,7 @@
       };
     }
     var PASS_ORDER = ["ST", "M1", "PIN", "M1b", "PINb", "M1c", "FIN"];
-    var PASS_LAB = { ST: "ST", M1: "M1", PIN: "Pin", M1b: "M1", PINb: "Pin", M1c: "M1", FIN: "Finish" };
+    var PASS_LAB = { ST: "ST", M1: "M1", PIN: "Pin", M1b: "M1", PINb: "Pin", M1c: "M1", FIN: "Fin" };
     var passTs = { ST: {}, M1: {}, PIN: {}, M1b: {}, PINb: {}, M1c: {}, FIN: {} };
     var roundArr = { M1: null, PIN: null };
     function enuOf(mark, pos) {
@@ -1091,29 +1364,12 @@
       var mag = Math.hypot(e.e, e.n) || 1;
       return { ie: e.e / mag, inn: e.n / mag, sweep: 1.85 };
     }
-    function markLabelAway(mark, spec, fromPt) {
-      if (!mark) return { x: 0, y: 0 };
-      var back = fromPt ? enuOf(mark, fromPt) : { e: 0, n: -1 };
-      var mag = Math.hypot(back.e, back.n) || 1;
-      var be = back.e / mag;
-      var bn = back.n / mag;
-      var boatE = bn;
-      var boatN = -be;
-      var sweep = spec && spec.sweep != null ? Number(spec.sweep) : 1.85;
-      var sign = sweep >= 0 ? -1 : 1;
-      var ll = meterOffset(mark.lat, mark.lon, sign * boatN * 28, sign * boatE * 28);
-      return xy(ll.lat, ll.lon);
-    }
-    function linePassingLabel(pt, pin, rc, m1, boats) {
-      if (!pt) return { x: 0, y: 0 };
-      if (!pin || !rc) return xy(pt.lat, pt.lon);
-      var g = startCourseNormal(startLineGeom(pin, rc), m1, boats);
-      if (!g) return xy(pt.lat, pt.lon);
-      var ll = meterOffset(pt.lat, pt.lon, -g.ny * 26, -g.nx * 26);
-      return xy(ll.lat, ll.lon);
-    }
     function markLabelBack(mark, fromPt) {
-      return markLabelAway(mark, defaultPortSpec(mark, fromPt), fromPt);
+      if (!mark) return { x: 0, y: 0 };
+      var e = fromPt ? enuOf(mark, fromPt) : { e: 1, n: 0 };
+      var mag = Math.hypot(e.e, e.n) || 1;
+      var ll = meterOffset(mark.lat, mark.lon, (e.e / mag) * 22, (-e.n / mag) * 22);
+      return xy(ll.lat, ll.lon);
     }
     function ccwDelta(a, b) {
       var d = b - a;
@@ -1181,42 +1437,6 @@
       mapCtx.closePath();
       mapCtx.fill();
       mapCtx.restore();
-    }
-    function drawActiveLegChevrons(fromPt, toPt, rgb) {
-      if (!fromPt || !toPt || !mapCtx) return;
-      var a = xy(fromPt.lat, fromPt.lon);
-      var b = xy(toPt.lat, toPt.lon);
-      var dx = b.x - a.x;
-      var dy = b.y - a.y;
-      var L = Math.hypot(dx, dy);
-      if (L < 28) return;
-      dx /= L;
-      dy /= L;
-      var px = -dy;
-      var py = dx;
-      var phase = (Date.now() % 1100) / 1100;
-      var n = Math.max(5, Math.min(12, Math.floor(L / 30)));
-      var sz = 11;
-      rgb = rgb || "251,191,36";
-      var i;
-      for (i = 0; i < n; i++) {
-        var f = ((i / n) + phase) % 1;
-        if (f < 0.14 || f > 0.86) continue;
-        var x = a.x + dx * L * f;
-        var y = a.y + dy * L * f;
-        var alpha = 0.22 + 0.7 * (0.5 + 0.5 * Math.sin((phase + i / n) * Math.PI * 2));
-        mapCtx.beginPath();
-        mapCtx.moveTo(x + dx * sz, y + dy * sz);
-        mapCtx.lineTo(x - dx * sz * 0.45 + px * sz * 0.72, y - dy * sz * 0.45 + py * sz * 0.72);
-        mapCtx.lineTo(x - dx * sz * 0.15, y - dy * sz * 0.15);
-        mapCtx.lineTo(x - dx * sz * 0.45 - px * sz * 0.72, y - dy * sz * 0.45 - py * sz * 0.72);
-        mapCtx.closePath();
-        mapCtx.fillStyle = "rgba(" + rgb + "," + alpha.toFixed(3) + ")";
-        mapCtx.fill();
-        mapCtx.strokeStyle = "rgba(255,255,255," + (0.18 + 0.4 * alpha).toFixed(3) + ")";
-        mapCtx.lineWidth = 1;
-        mapCtx.stroke();
-      }
     }
     function markValid(arr, ts) {
       if (!arr || arr.length < 2) return false;
@@ -1390,158 +1610,17 @@
       if (!m1 || !pin) return false;
       return distM(m1, pin) >= 250;
     }
-    function gateTimes(pts, markTrail, afterTs, enterM) {
-      if (!pts || pts.length < 3 || !markTrail || !markTrail.length) return [];
-      enterM = enterM || 110;
-      var out = [];
-      var i = 0;
-      while (i < pts.length) {
-        var p = pts[i];
-        if (afterTs != null && p.ts_ms < afterTs) { i += 1; continue; }
-        var mk = atTs(markTrail, p.ts_ms);
-        if (!mk) { i += 1; continue; }
-        var d = distM(p, mk);
-        if (d > enterM) { i += 1; continue; }
-        var approached = i === 0;
-        var k = i - 1;
-        while (k >= 0 && (p.ts_ms - pts[k].ts_ms) <= 120000) {
-          var mkb = atTs(markTrail, pts[k].ts_ms);
-          if (mkb && distM(pts[k], mkb) >= enterM - 5) { approached = true; break; }
-          k -= 1;
-        }
-        var bestD = d;
-        var bestP = p;
-        var j = i;
-        var left = false;
-        while (j < pts.length && (pts[j].ts_ms - p.ts_ms) < 180000) {
-          var mkj = atTs(markTrail, pts[j].ts_ms);
-          if (mkj) {
-            var dj = distM(pts[j], mkj);
-            if (dj < bestD) { bestD = dj; bestP = pts[j]; }
-            if (dj >= bestD + 8 && dj >= 28) { left = true; break; }
-          }
-          j += 1;
-        }
-        if (!left && approached && bestD <= 45 && j >= pts.length) left = true;
-        if (approached && left && bestD <= 70) {
-          var inn = atTs(pts, bestP.ts_ms - 6000) || atTs(pts, bestP.ts_ms - 3000);
-          var outp = atTs(pts, bestP.ts_ms + 6000) || atTs(pts, bestP.ts_ms + 3000);
-          var mkc = atTs(markTrail, bestP.ts_ms);
-          var ok = true;
-          if (inn && outp && mkc) {
-            var dIn = distM(inn, mkc);
-            var dOut = distM(outp, mkc);
-            var a = enuOf(mkc, inn);
-            var b = enuOf(mkc, outp);
-            var magA = Math.hypot(a.e, a.n) || 1;
-            var magB = Math.hypot(b.e, b.n) || 1;
-            var dot = (a.e * b.e + a.n * b.n) / (magA * magB);
-            if (dot > 1) dot = 1;
-            if (dot < -1) dot = -1;
-            var ang = Math.acos(dot);
-            if (!(dIn > bestD + 3 && dOut > bestD + 3) && ang < 0.18 && bestD > 42) ok = false;
-          }
-          if (ok) {
-            out.push(bestP.ts_ms);
-            var skipUntil = bestP.ts_ms + 80000;
-            while (i < pts.length && pts[i].ts_ms < skipUntil) i += 1;
-            continue;
-          }
-        }
-        i += 1;
-      }
-      if (!out.length) {
-        var close = closestAfter(pts, markTrail, afterTs);
-        var closeLim = Math.max(90, enterM - 20);
-        if (close.ts != null && close.d <= closeLim) {
-          var last = lastPt(pts);
-          var mkL = last ? atTs(markTrail, last.ts_ms) : null;
-          var leaving = mkL && distM(last, mkL) >= close.d + 6;
-          var atMark = close.d <= Math.max(55, enterM * 0.4);
-          if (leaving || atMark) out.push(close.ts);
-        }
-      }
-      return out;
-    }
-    function localMinGates(pts, markTrail, afterTs, maxD) {
-      maxD = maxD || 130;
-      if (!pts || pts.length < 5 || !markTrail || !markTrail.length) return [];
-      var ds = [];
-      var i;
-      for (i = 0; i < pts.length; i++) {
-        var p = pts[i];
-        if (afterTs != null && p.ts_ms < afterTs) continue;
-        var mk = atTs(markTrail, p.ts_ms);
-        if (!mk) continue;
-        ds.push({ t: p.ts_ms, d: distM(p, mk) });
-      }
-      var out = [];
-      for (i = 1; i < ds.length - 1; i++) {
-        if (ds[i].d > maxD) continue;
-        if (ds[i].d <= ds[i - 1].d && ds[i].d <= ds[i + 1].d) {
-          if (!out.length || ds[i].t - out[out.length - 1] >= 80000) out.push(ds[i].t);
-        }
-      }
-      return out;
-    }
-    function mergeGateList(a, b) {
-      var all = (a || []).concat(b || []).sort(function (x, y) { return x - y; });
-      var out = [];
-      var i;
-      for (i = 0; i < all.length; i++) {
-        if (!out.length || all[i] - out[out.length - 1] >= 80000) out.push(all[i]);
-      }
-      return out;
-    }
-    function lineExitTimes(pts, geom, fromTs) {
-      if (!geom || !pts) return [];
-      return collectLineHits(pts, geom, fromTs, null).filter(function (h) {
-        return h.kind === "exit";
-      }).map(function (h) { return h.t; });
-    }
     function firstRounding(pts, markTrail, afterTs, needM1Sep) {
-      var vs = gateTimes(pts, markTrail, afterTs);
+      if (afterTs == null || !pts || !markTrail || !markTrail.length) return null;
+      var vs = roundingCandidates(pts, markTrail, afterTs, 80);
       var i;
       for (i = 0; i < vs.length; i++) {
-        if (needM1Sep && !m1Separated(vs[i])) continue;
-        return vs[i];
+        var t = vs[i];
+        if (!stillEnough(markTrail, t)) continue;
+        if (needM1Sep && !m1Separated(t)) continue;
+        return t;
       }
       return null;
-    }
-    function slotM1(t) {
-      var age = gunTs ? t - gunTs : 0;
-      if (age < 18 * 60 * 1000) return "M1";
-      if (age < 40 * 60 * 1000) return "M1b";
-      return "M1c";
-    }
-    function slotPIN(t) {
-      var age = gunTs ? t - gunTs : 0;
-      if (age < 30 * 60 * 1000) return "PIN";
-      return "PINb";
-    }
-    function nextSameSlot(id) {
-      if (id === "M1") return "M1b";
-      if (id === "M1b") return "M1c";
-      if (id === "PIN") return "PINb";
-      return null;
-    }
-    function placeKind(lock, kind, t) {
-      if (t == null || !lock) return;
-      var ids = kind === "M1" ? ["M1", "M1b", "M1c"] : ["PIN", "PINb"];
-      var i;
-      for (i = 0; i < ids.length; i++) {
-        if (lock[ids[i]] != null && Math.abs(lock[ids[i]] - t) < 50000) return;
-      }
-      var id = kind === "M1" ? slotM1(t) : slotPIN(t);
-      while (id && lock[id] != null) id = nextSameSlot(id);
-      if (id) lock[id] = t;
-    }
-    function trailFromStart(pts) {
-      return !!(pts && pts.length && gunTs && pts[0].ts_ms <= gunTs + 40000);
-    }
-    function stValid(t) {
-      t = Number(t);
-      return !!(gunTs && t && t >= gunTs - 90000 && t <= gunTs + 4 * 60 * 1000);
     }
     function collectLineHits(pts, geom, fromTs, toTs) {
       var hits = [];
@@ -1639,9 +1718,9 @@
       return null;
     }
     function startTsForSail(sail, pts, geom) {
-      var packed = packedStartOf(sail);
-      if (packed && packed.st_ms != null && stValid(packed.st_ms)) return Number(packed.st_ms);
       if (!geom || !gunTs || !pts || pts.length < 2) return null;
+      var packed = packedStartOf(sail);
+      if (packed && packed.st_ms != null) return Number(packed.st_ms);
       var ocs = liveOcsOn(sail);
       var hits = courseEnters(pts, geom, ocs ? gunTs - 90000 : gunTs - 5000, gunTs + 180000);
       if (ocs) return hits.length >= 2 ? hits[1] : null;
@@ -1652,7 +1731,6 @@
       return null;
     }
     var packedStarts = {};
-    var packedStartsGun = null;
     var lockedSt = {};
     var lockedPass = {};
     function persistSt() {
@@ -1665,129 +1743,9 @@
         var raw = sessionStorage.getItem("lipton-live-st-v3-" + gunTs);
         if (raw) {
           var parsed = JSON.parse(raw);
-          if (parsed && typeof parsed === "object") {
-            lockedSt = parsed;
-            Object.keys(lockedSt).forEach(function (s) {
-              if (!stValid(lockedSt[s])) delete lockedSt[s];
-            });
-          }
+          if (parsed && typeof parsed === "object") lockedSt = parsed;
         }
       } catch (e3) {}
-      try {
-        var rawP = sessionStorage.getItem("lipton-live-pass-v1-" + gunTs);
-        if (rawP) {
-          var parsedP = JSON.parse(rawP);
-          if (parsedP && parsedP.lockedPass) lockedPass = parsedP.lockedPass;
-          if (parsedP && parsedP.armedLegIdx != null) armedLegIdx = Number(parsedP.armedLegIdx) || 0;
-        }
-      } catch (e4) {}
-      loadHist();
-    }
-    function persistPass() {
-      if (!gunTs) return;
-      try {
-        sessionStorage.setItem("lipton-live-pass-v1-" + gunTs, JSON.stringify({
-          lockedPass: lockedPass,
-          armedLegIdx: armedLegIdx
-        }));
-      } catch (e5) {}
-    }
-    function gpsRoster() {
-      return FLEET_17.filter(function (sail) {
-        var pts = hist.boats[sail];
-        return pts && pts.length >= 2;
-      });
-    }
-    function afterTsForPid(lock, pid) {
-      if (pid === "M1") return (lock.ST != null ? lock.ST + 6000 : (gunTs ? gunTs + 6000 : 0));
-      if (pid === "PIN") return lock.M1 != null ? lock.M1 + 25000 : null;
-      if (pid === "M1b") return lock.PIN != null ? lock.PIN + 25000 : null;
-      if (pid === "PINb") return lock.M1b != null ? lock.M1b + 25000 : null;
-      if (pid === "M1c") return lock.PINb != null ? lock.PINb + 25000 : null;
-      if (pid === "FIN") return lock.M1c != null ? lock.M1c + 20000 : (lock.PINb != null ? lock.PINb + 45000 : null);
-      return null;
-    }
-    function finishTsFor(pts, lock, geom, pinNow) {
-      if (!geom) return null;
-      var after = null;
-      if (lock.M1c) after = lock.M1c + 20000;
-      else if (lock.PINb) after = lock.PINb + 45000;
-      if (after == null) return null;
-      var finHits = lineExitTimes(pts, geom, after);
-      if (!finHits.length) finHits = courseEnters(pts, geom, after, null);
-      var fi;
-      for (fi = 0; fi < finHits.length; fi++) {
-        var ft = finHits[fi];
-        var fp = atTs(pts, ft) || lastPt(pts);
-        if (!fp) continue;
-        var sg = geom.signed(fp.lat, fp.lon);
-        var alongOk = true;
-        if (sg && (sg.along < -80 || sg.along > geom.len + 80)) alongOk = false;
-        if (alongOk) return ft;
-      }
-      return null;
-    }
-    function detectPidTs(sail, pts, pid, geom, pinNow) {
-      var lock = lockedPass[sail] || {};
-      var after = afterTsForPid(lock, pid);
-      if (after == null) return null;
-      if (pid === "FIN") return finishTsFor(pts, lock, geom, pinNow);
-      var windward = pid.indexOf("M1") === 0;
-      var trail = pid.indexOf("PIN") === 0 ? hist.pin : hist.marks["1"];
-      return firstRounding(pts, trail, after, windward);
-    }
-    function captureArmedMark(geom, pinNow) {
-      gpsRoster().forEach(function (sail) {
-        if (!lockedPass[sail]) lockedPass[sail] = {};
-        var lock = lockedPass[sail];
-        var pts = hist.boats[sail] || [];
-        var afterLast = lock.PINb || lock.M1b || lock.PIN || lock.M1 || (gunTs ? gunTs + 4000 : 0);
-        if (lock.M1c == null) {
-          mergeGateList(
-            gateTimes(pts, hist.marks["1"], afterLast + 25000).filter(function (t) { return m1Separated(t); }),
-            localMinGates(pts, hist.marks["1"], afterLast + 25000, 120)
-          ).forEach(function (t) { placeKind(lock, "M1", t); });
-        }
-        if (lock.PINb == null) {
-          mergeGateList(
-            gateTimes(pts, hist.pin, afterLast + 25000, 150),
-            localMinGates(pts, hist.pin, afterLast + 25000, 150)
-          ).forEach(function (t) { placeKind(lock, "PIN", t); });
-        }
-        if (lock.FIN == null) {
-          var ft = finishTsFor(pts, lock, geom, pinNow);
-          if (ft != null) lock.FIN = ft;
-        }
-      });
-      var roster = gpsRoster();
-      var i;
-      armedLegIdx = 0;
-      for (i = 0; i < ROUND_LEGS.length; i++) {
-        var id = ROUND_LEGS[i];
-        var n = roster.filter(function (sail) {
-          return lockedPass[sail] && lockedPass[sail][id] != null;
-        }).length;
-        var elapsed = gunTs ? Date.now() - gunTs : 0;
-        var skipEmpty = n === 0 && (
-          (id === "M1" && elapsed > 20 * 60 * 1000) ||
-          (id === "PIN" && elapsed > 32 * 60 * 1000) ||
-          (id === "M1b" && elapsed > 50 * 60 * 1000) ||
-          (id === "PINb" && elapsed > 62 * 60 * 1000)
-        );
-        if (n > 0 && n < roster.length) {
-          if (id === "M1b" && elapsed > 38 * 60 * 1000) {
-            armedLegIdx = Math.min(i + 1, ROUND_LEGS.length - 1);
-            continue;
-          }
-          armedLegIdx = i;
-          break;
-        }
-        if (n === 0 && !skipEmpty) {
-          armedLegIdx = i;
-          break;
-        }
-        armedLegIdx = Math.min(i + 1, ROUND_LEGS.length - 1);
-      }
     }
     function detectLivePasses() {
       passTs = { ST: {}, M1: {}, PIN: {}, M1b: {}, PINb: {}, M1c: {}, FIN: {} };
@@ -1802,24 +1760,50 @@
       Object.keys(hist.boats).forEach(function (sail) {
         var pts = hist.boats[sail] || [];
         var st = startTsForSail(sail, pts, geom);
-        if (st != null && !stValid(st)) st = null;
         if (st != null) {
           lockedSt[sail] = st;
-        } else if (stValid(lockedSt[sail])) {
+        } else if (lockedSt[sail] != null && gunTs && lockedSt[sail] <= gunTs + 4 * 60 * 1000) {
           st = lockedSt[sail];
         } else {
           delete lockedSt[sail];
         }
         if (st != null) passTs.ST[sail] = st;
         if (!lockedPass[sail]) lockedPass[sail] = {};
-        if (st != null) lockedPass[sail].ST = st;
-      });
-      FLEET_17.forEach(function (sail) {
-        if (!lockedPass[sail]) lockedPass[sail] = {};
-      });
-      captureArmedMark(geom, pinNow);
-      Object.keys(lockedPass).forEach(function (sail) {
-        var lock = lockedPass[sail] || {};
+        var lock = lockedPass[sail];
+        var afterSt = st != null ? st + 6000 : (gunTs ? gunTs + 6000 : 0);
+        var m1t = firstRounding(pts, hist.marks["1"], afterSt, true);
+        if (m1t != null && lock.M1 == null) lock.M1 = m1t;
+        if (lock.M1 && !m1Separated(lock.M1)) delete lock.M1;
+        var pinT = lock.M1 ? firstRounding(pts, hist.pin, lock.M1 + 45000, false) : null;
+        if (pinT != null && lock.PIN == null) lock.PIN = pinT;
+        if (lock.PIN && !lock.M1) delete lock.PIN;
+        var m1bT = lock.PIN ? firstRounding(pts, hist.marks["1"], lock.PIN + 45000, true) : null;
+        if (m1bT != null && lock.M1b == null) lock.M1b = m1bT;
+        if (lock.M1b && lock.PIN && lock.M1b < lock.PIN + 40000) delete lock.M1b;
+        var pinbT = lock.M1b ? firstRounding(pts, hist.pin, lock.M1b + 45000, false) : null;
+        if (pinbT != null && lock.PINb == null) lock.PINb = pinbT;
+        if (lock.PINb && !lock.M1b) delete lock.PINb;
+        if (lock.PINb && pinNow && lastPt(pts) && distM(lastPt(pts), pinNow) > 150 && lock.M1b && lock.PINb < lock.M1b) delete lock.PINb;
+        var m1cT = lock.PINb ? firstRounding(pts, hist.marks["1"], lock.PINb + 45000, true) : null;
+        if (m1cT != null && lock.M1c == null) lock.M1c = m1cT;
+        if (lock.M1c && geom) {
+          var finHits = courseEnters(pts, geom, lock.M1c + 40000, null);
+          var pinAt = pinNow;
+          var fi;
+          for (fi = 0; fi < finHits.length; fi++) {
+            var ft = finHits[fi];
+            var fp = atTs(pts, ft) || lastPt(pts);
+            if (!fp) continue;
+            var alongOk = true;
+            var sg = geom.signed(fp.lat, fp.lon);
+            if (sg && (sg.along < 20 || sg.along > geom.len - 20)) alongOk = false;
+            if (pinAt && distM(fp, pinAt) < 28) alongOk = false;
+            if (alongOk) {
+              if (lock.FIN == null) lock.FIN = ft;
+              break;
+            }
+          }
+        }
         delete lock.PINc;
         delete lock.M1d;
         delete lock.PINd;
@@ -1828,7 +1812,6 @@
         });
       });
       persistSt();
-      persistPass();
       var startMid = (pin && rc)
         ? { lat: (pin.lat + rc.lat) / 2, lon: (pin.lon + rc.lon) / 2 }
         : pin;
@@ -1886,28 +1869,6 @@
       }
       return {};
     }
-    function liveBowCell(id) {
-      if (!id || id.bow == null || id.bow === "") return "";
-      if (id.boatHref) return "<span class=\"wc-boat-linked\"><a href=\"" + esc(id.boatHref) + "\">" + esc(id.bow) + "</a></span>";
-      return esc(id.bow);
-    }
-    function liveNameCell(id, sail) {
-      if (id && id.nameHref) {
-        return "<a href=\"" + esc(id.nameHref) + "\" class=\"rs-boat-name-sponsors rs-boat-name-sponsors--link\" title=\"" + esc(id.title || "") + "\">" + (id.nameInner || esc(id.title || sail)) + "</a>";
-      }
-      if (id && id.nameInner) return id.nameInner;
-      return esc((id && id.title) || sail);
-    }
-    function liveClubCell(id, pending) {
-      if (!id) return "";
-      var club = id.club || id.mapClub || "";
-      if (id.clubLogo) {
-        var cls = "rs-club-with-logo" + (pending ? " ocs-club" : "");
-        var name = id.clubHref ? ("<a href=\"" + esc(id.clubHref) + "\">" + esc(club) + "</a>") : esc(club);
-        return "<span class=\"" + cls + "\">" + name + "<img class=\"rs-club-row-logo\" src=\"" + esc(id.clubLogo) + "\" alt=\"" + esc(club) + "\" title=\"" + esc(club) + "\"></span>";
-      }
-      return esc(club);
-    }
     function liveOcsOn(sail) {
       var packed = packedStartOf(sail);
       if (packed && typeof packed.ocs === "boolean") return packed.ocs === true;
@@ -1943,9 +1904,9 @@
       return "+" + sec.toFixed(1);
     }
     function liveBoatIcon(sail, rank) {
-      var fill = (LIVE_BOAT_COLORS && LIVE_BOAT_COLORS[sail]) || "#94a3b8";
+      var fill = LIVE_BOAT_COLORS[sail] || "#94a3b8";
       var label = rank != null ? String(rank) : "";
-      return "<svg class=\"lipton-boat-dot r10-live-icon\" viewBox=\"0 0 24 24\" width=\"36\" height=\"36\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"13.2\" r=\"8.1\" fill=\"" + fill + "\" stroke=\"#fff\" stroke-width=\"1.5\"/><polygon points=\"12,3 15.8,8.4 8.2,8.4\" fill=\"" + fill + "\" stroke=\"#fff\" stroke-width=\"1.1\"/><text x=\"12\" y=\"16\" text-anchor=\"middle\" fill=\"#fff\" font-size=\"8\" font-weight=\"800\">" + esc(label) + "</text></svg>";
+      return "<svg class=\"lipton-boat-dot\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"13.2\" r=\"8.1\" fill=\"" + fill + "\" stroke=\"#fff\" stroke-width=\"1.5\"/><polygon points=\"12,3 15.8,8.4 8.2,8.4\" fill=\"" + fill + "\" stroke=\"#fff\" stroke-width=\"1.1\"/><text x=\"12\" y=\"16\" text-anchor=\"middle\" fill=\"#fff\" font-size=\"8\" font-weight=\"800\">" + esc(label) + "</text></svg>";
     }
     function deltaSpan(gained) {
       if (gained == null) return "";
@@ -1956,11 +1917,16 @@
       return "<span class=\"place-delta " + cls + "\" title=\"" + label + "\" aria-label=\"" + label + "\"><i class=\"ld-tri ld-tri--" + tri + "\" aria-hidden=\"true\"></i>" + n + "</span>";
     }
     function usedPassIds() {
-      return PASS_ORDER.slice();
+      var out = [];
+      PASS_ORDER.forEach(function (id) {
+        var any = Object.keys(passTs[id] || {}).some(function (s) { return livePassAt(s, id) != null; });
+        if (any) out.push(id);
+      });
+      return out;
     }
     function fillHoldHead() {
       if (!headRow) return;
-      headRow.innerHTML = "<th class=\"rank-col\">Rank</th><th class=\"wc-meta-col\">Bow</th><th class=\"boat-name-col\">Boat Name</th><th class=\"club-col\">Club</th><th class=\"timer-col\" title=\"Start\"><span class=\"ld-mark-lab\">ST</span></th>";
+      headRow.innerHTML = "<th class=\"rank-col\">Rank</th><th class=\"wc-meta-col\">Bow</th><th class=\"boat-name-col\">Boat</th><th class=\"club-col\">Club</th><th class=\"timer-col\" title=\"Start\"><span class=\"ld-mark-lab\">ST</span></th>";
     }
     function renderHoldOrArmedTable() {
       if (!tbody) return;
@@ -1969,20 +1935,27 @@
       var sails;
       if (devHoldR9) {
         sails = R9_FINISH_ORDER.slice();
+        Object.keys(identity).forEach(function (s) {
+          if (sails.indexOf(s) < 0) sails.push(s);
+        });
+        sails = sails.slice(0, 17);
       } else {
-        sails = FLEET_17.slice();
+        sails = Object.keys(identity);
+        if (!sails.length) sails = R9_FINISH_ORDER.slice();
+        sails.sort(function (a, b) {
+          var ba = liveIdent(a).bow;
+          var bb = liveIdent(b).bow;
+          if (ba != null && bb != null && Number(ba) !== Number(bb)) return Number(ba) - Number(bb);
+          return String(a).localeCompare(String(b));
+        });
       }
-      Object.keys(identity).forEach(function (s) {
-        if (sails.indexOf(s) < 0) sails.push(s);
-      });
-      sails = sails.slice(0, 17);
       var key = (devHoldR9 ? "hold9" : "armed10") + "|" + sails.join(",");
       if (key === lastLiveTableKey) return;
       lastLiveTableKey = key;
       var html = "";
       sails.forEach(function (sail, i) {
         var id = liveIdent(sail);
-        var rank = i + 1;
+        var rank = devHoldR9 ? (i + 1) : "";
         var medal = "";
         if (devHoldR9) {
           if (rank === 1) medal = " medal-gold";
@@ -1990,10 +1963,10 @@
           else if (rank === 3) medal = " medal-bronze";
         }
         html += "<tr class=\"" + medal + "\" data-boat=\"" + esc(sail) + "\">";
-        html += "<td class=\"rank-col rank-col--live-icon\">" + liveBoatIcon(sail, rank || null) + "</td>";
-        html += "<td class=\"wc-meta-col\">" + liveBowCell(id) + "</td>";
-        html += "<td class=\"boat-name-col\">" + liveNameCell(id, sail) + "</td>";
-        html += "<td class=\"club-col\">" + liveClubCell(id, false) + "</td>";
+        html += "<td class=\"rank-col\">" + liveBoatIcon(sail, rank || null) + "</td>";
+        html += "<td class=\"wc-meta-col\">" + (id.bow != null ? esc(id.bow) : "") + "</td>";
+        html += "<td class=\"boat-name-col\">" + (id.nameInner || esc(id.title || sail)) + "</td>";
+        html += "<td class=\"club-col\">" + esc(id.mapClub || id.club || "") + "</td>";
         html += "<td class=\"timer-col\"></td>";
         html += "</tr>";
       });
@@ -2009,14 +1982,13 @@
       devArmed = isArmed;
       devLiveR10 = isLive10;
       devHoldR9 = !isArmed && !isLive10;
-      liveTablePhase = devArmed ? "armed10" : (devLiveR10 ? "live10" : "hold9");
       if (devHoldR9) setRaceTableLabel(9, true);
       else if (devArmed) setRaceTableLabel(10, true, "ARMED");
       else setRaceTableLabel(10, true, "LIVE");
     }
     function fillLiveHead(used) {
       if (!headRow) return;
-      var html = "<th class=\"rank-col\">Rank</th><th class=\"wc-meta-col\">Bow</th><th class=\"boat-name-col\">Boat Name</th><th class=\"club-col\">Club</th>";
+      var html = "<th class=\"rank-col\">Rank</th><th class=\"wc-meta-col\">Bow</th><th class=\"boat-name-col\">Boat</th><th class=\"club-col\">Club</th>";
       used.forEach(function (id, i) {
         var lab = PASS_LAB[id] || id;
         var prevLab = i > 0 ? (PASS_LAB[used[i - 1]] || used[i - 1]) : "Start";
@@ -2031,12 +2003,12 @@
     function renderLiveTable() {
       if (!tbody) return;
       if (wrapEl) wrapEl.hidden = false;
-      if (devHoldR9) {
+      if (devHoldR9 || devArmed) {
         renderHoldOrArmedTable();
         return;
       }
       var raceOver = !!(snap && (snap.holding_last || /finish/i.test(String(snap.stage || ""))));
-      var used = PASS_ORDER.slice();
+      var used = usedPassIds();
       var ranks = {};
       PASS_ORDER.forEach(function (id) { ranks[id] = rankMap(id); });
       var firstSt = null;
@@ -2046,10 +2018,8 @@
         if (t == null) return;
         if (firstSt == null || t < firstSt) firstSt = t;
       });
-      var rowSails = FLEET_17.slice();
-      Object.keys(hist.boats).forEach(function (s) {
-        if (rowSails.indexOf(s) < 0) rowSails.push(s);
-      });
+      var rowSails = Object.keys(hist.boats);
+      if (!rowSails.length) rowSails = Object.keys(identity);
       var rows = rowSails.map(function (sail) {
         var times = {};
         var far = 0;
@@ -2062,8 +2032,6 @@
         var pts = hist.boats[sail] || [];
         var m1 = lastPt(hist.marks["1"]);
         var pinPt = lastPt(hist.pin);
-        var pos = lastPt(pts);
-        var elapsed = gunTs ? ((atLive ? Date.now() : playTs) - gunTs) : 0;
         if (!raceOver && far === 3 && leavingMark(pts, m1, pinPt)) {
           far = 4;
           farTs = null;
@@ -2072,15 +2040,9 @@
           far = 8;
           farTs = times.FIN;
         } else if (!raceOver && times.M1c != null) {
-          if (pos && m1 && distM(pos, m1) > 55) {
+          var here = lastPt(pts);
+          if (here && m1 && distM(here, m1) > 55) {
             far = 7;
-            farTs = null;
-          }
-        } else if (!raceOver && pos && m1 && pinPt && elapsed > 28 * 60 * 1000) {
-          var dM1 = distM(pos, m1);
-          var dPin = distM(pos, pinPt);
-          if (times.PIN == null && times.PINb == null && dM1 > 350 && dPin < dM1 - 40 && far < 4) {
-            far = 4;
             farTs = null;
           }
         }
@@ -2143,10 +2105,10 @@
         else if (r.rank === 2) medal = " medal-silver";
         else if (r.rank === 3) medal = " medal-bronze";
         html += "<tr class=\"" + medal + (ocs ? " ocs-pending" : "") + "\" data-boat=\"" + esc(r.sail) + "\">";
-        html += "<td class=\"rank-col rank-col--live-icon\">" + liveBoatIcon(r.sail, r.rank) + "</td>";
-        html += "<td class=\"wc-meta-col\">" + liveBowCell(id) + "</td>";
-        html += "<td class=\"boat-name-col\">" + liveNameCell(id, r.sail) + "</td>";
-        html += "<td class=\"club-col\">" + liveClubCell(id, ocs) + "</td>";
+        html += "<td class=\"rank-col\">" + liveBoatIcon(r.sail, r.rank) + "</td>";
+        html += "<td class=\"wc-meta-col\">" + (id.bow != null ? esc(id.bow) : "") + "</td>";
+        html += "<td class=\"boat-name-col\">" + (id.nameInner || esc(id.title || r.sail)) + "</td>";
+        html += "<td class=\"club-col\">" + esc(id.mapClub || id.club || "") + "</td>";
         used.forEach(function (pid, i) {
           if (i > 0) {
             var prev = used[i - 1];
@@ -2155,22 +2117,20 @@
           }
           var cell = "";
           if (pid === "ST") {
-            var hasGps = hist.boats[r.sail] && hist.boats[r.sail].length;
-            var hasMarks = r.times.ST != null || r.times.M1 != null || r.times.PIN != null;
-            if (!hasGps && !hasMarks) cell = "NO GPS";
-            else if (r.times.ST == null) cell = liveOcsOn(r.sail) ? "OCS" : "";
+            if (r.times.ST == null) cell = liveOcsOn(r.sail) ? "OCS" : "";
             else {
               var gap = fmtBehindFirst(r.times.ST, firstSt);
               cell = liveOcsOn(r.sail) ? ("OCS " + gap) : gap;
             }
           }
-          else if (pid === "FIN" && r.times.FIN && gunTs) {
-            cell = fmtClock(r.times.FIN - gunTs);
-          }
           else if (r.times[pid]) {
-            var prevId = i > 0 ? used[i - 1] : null;
-            var prevT = prevId ? r.times[prevId] : null;
+            var prevT = null;
+            for (var k = i - 1; k >= 0; k--) {
+              if (r.times[used[k]]) { prevT = r.times[used[k]]; break; }
+            }
             if (prevT) cell = fmtClock(r.times[pid] - prevT);
+            else if (r.times.ST) cell = fmtClock(r.times[pid] - r.times.ST);
+            else if (gunTs) cell = fmtClock(r.times[pid] - gunTs);
           }
           html += "<td class=\"timer-col\">" + cell + "</td>";
         });
@@ -2188,9 +2148,10 @@
     }
     function applySnap(data) {
       if (!data) return;
+      var incomingN = Number(data.race_number || 0) || 0;
       var incomingGun = data.gun_ts_ms != null ? Number(data.gun_ts_ms) : null;
       var newRaceGun = incomingGun && gunTs && incomingGun !== gunTs;
-      if (gunTs && liveRaceN && Number(data.race_number) !== 10 && (data.waiting || !incomingGun) && !newRaceGun) {
+      if (gunTs && liveRaceN && incomingN !== 10 && (data.waiting || !incomingGun) && !newRaceGun) {
         data = Object.assign({}, data, {
           waiting: false,
           gun_ts_ms: gunTs,
@@ -2198,8 +2159,8 @@
         });
       }
       if (!data.ok && !(data.boats && Object.keys(data.boats).length)) return;
-      var n = data.race_number || null;
-      if (n && liveRaceN && n !== liveRaceN && !newRaceGun && Number(data.race_number) !== 10) n = liveRaceN;
+      var n = incomingN || liveRaceN;
+      if (n && liveRaceN && n !== liveRaceN && !newRaceGun && incomingN !== 10) n = liveRaceN;
       if (n && liveRaceN && n !== liveRaceN && newRaceGun) {
         hist = { boats: {}, marks: {}, pin: [], rc: [] };
         loadedHistory = false;
@@ -2257,91 +2218,18 @@
         fitLive();
         didFit = true;
       }
-      applyPackedPasses();
       maybeDetect();
     }
     function pinReady() {
       return hist.pin.length && hist.rc.length && Object.keys(hist.boats).length;
     }
     var lastDetectAt = 0;
-    var lastPersistAt = 0;
     function maybeDetect() {
       var now = Date.now();
       if (now - lastDetectAt < 100) return;
       lastDetectAt = now;
       detectLivePasses();
       renderLiveTable();
-      if (now - lastPersistAt > 2000) {
-        lastPersistAt = now;
-        persistHist();
-      }
-    }
-    var lastPassesDoc = null;
-    function applyPackedPasses(data) {
-      if (data) lastPassesDoc = data;
-      data = data || lastPassesDoc;
-      if (!data) return false;
-      var pg = data.gun_ts_ms != null ? Number(data.gun_ts_ms) : null;
-      if (!pg) return false;
-      if (!gunTs) {
-        gunTs = pg;
-        loadSt();
-      } else if (Math.abs(pg - gunTs) > 120000) {
-        return false;
-      }
-      packedStartsGun = pg;
-      if (Array.isArray(data.ocs) && !liveOcs.length) liveOcs = data.ocs.slice();
-      if (data.starts) {
-        packedStarts = data.starts;
-        Object.keys(packedStarts).forEach(function (sail) {
-          var st = packedStarts[sail] && packedStarts[sail].st_ms;
-          if (stValid(st)) lockedSt[sail] = Number(st);
-        });
-      }
-      Object.keys(data.lockedPass || {}).forEach(function (sail) {
-        if (!lockedPass[sail]) lockedPass[sail] = {};
-        var src = data.lockedPass[sail] || {};
-        Object.keys(src).forEach(function (id) {
-          if (src[id] == null) return;
-          if (lockedPass[sail][id] == null || id === "FIN" || id === "M1c") {
-            lockedPass[sail][id] = Number(src[id]);
-          }
-        });
-      });
-      var delta = Date.now() - gunTs;
-      syncDevRacePhase({
-        race_number: Number(data.race_number || 10),
-        gun_ts_ms: gunTs,
-        delta_ms: delta,
-        sign: delta >= 0 ? "T+" : "T-"
-      });
-      fillLiveChecksum(data.checksum);
-      return true;
-    }
-    function fillLiveChecksum(cs) {
-      var el = document.getElementById("lipton-dev-checksum");
-      if (!el) return;
-      cs = cs || (lastPassesDoc && lastPassesDoc.checksum) || {};
-      var bits = [];
-      if (cs.ok) bits.push("marks ok");
-      else if (cs.gaps && cs.gaps.length) {
-        bits.push("gaps " + cs.gaps.map(function (g) {
-          return g.id + " " + (g.missing || []).join(" ");
-        }).join(" · "));
-      }
-      var san = cs.sanity || {};
-      if (san.ok) {
-        bits.push("± ok");
-        bits.push("times ok");
-      } else {
-        if (san.place_fail && san.place_fail.length) bits.push("± fail " + san.place_fail.join(" "));
-        else bits.push("± ok");
-        if (san.time_fail && san.time_fail.length) bits.push("times " + san.time_fail.join(" "));
-        else if (san.leg_fail && san.leg_fail.length) bits.push("legs " + san.leg_fail.join(" "));
-        else bits.push("times ok");
-      }
-      if (cs.sha256) bits.push(cs.sha256);
-      el.textContent = bits.length ? "checksum " + bits.join(" · ") : "";
     }
     var pollInFlight = false;
     var catchupInFlight = false;
@@ -2377,22 +2265,14 @@
     function poll() {
       if (pollInFlight) return;
       pollInFlight = true;
-      var ac = typeof AbortController !== "undefined" ? new AbortController() : null;
-      var to = setTimeout(function () { if (ac) ac.abort(); }, 8000);
-      fetch("/api/lipton-dev/live", { cache: "no-store", signal: ac ? ac.signal : undefined })
-        .then(function (res) {
-          if (!res.ok) throw new Error("live " + res.status);
-          return res.json();
-        })
+      fetch("/api/lipton-dev/live", { cache: "no-store" })
+        .then(function (res) { return res.json(); })
         .then(applySnap)
         .catch(function () {})
-        .then(function () {
-          clearTimeout(to);
-          pollInFlight = false;
-        });
+        .then(function () { pollInFlight = false; });
     }
     function pollCatchup() {
-      if (catchupInFlight || !needCatchup()) return;
+      if (catchupInFlight || !needCatchup() || !liveRaceN) return;
       catchupInFlight = true;
       lastCatchupAt = Date.now();
       fetch("/js/lipton-dev-live-history.json?v=" + Date.now(), { cache: "no-store" })
@@ -2413,24 +2293,13 @@
         .then(function (res) { return res.ok ? res.json() : null; })
         .then(function (data) {
           if (!data || !data.starts) return;
-          var pg = data.gun_ts_ms != null ? Number(data.gun_ts_ms) : null;
-          packedStarts = data.starts;
-          packedStartsGun = pg;
-          if (gunTs && pg && Math.abs(pg - gunTs) > 120000) return;
           if (!gunTs) return;
+          if (data.gun_ts_ms && Number(data.gun_ts_ms) !== Number(gunTs)) return;
+          packedStarts = data.starts;
           Object.keys(packedStarts).forEach(function (sail) {
             var st = packedStarts[sail] && packedStarts[sail].st_ms;
-            if (stValid(st)) lockedSt[sail] = Number(st);
+            if (st != null) lockedSt[sail] = Number(st);
           });
-          maybeDetect();
-        })
-        .catch(function () {});
-    }
-    function pollPasses() {
-      fetch("/js/lipton-dev-live-passes.json?v=" + Date.now(), { cache: "no-store" })
-        .then(function (res) { return res.ok ? res.json() : null; })
-        .then(function (data) {
-          if (!applyPackedPasses(data)) return;
           maybeDetect();
         })
         .catch(function () {});
@@ -2442,12 +2311,11 @@
         renderLiveTable();
       })
       .catch(function () { renderLiveTable(); });
-    try { paintClock(); } catch (e0) {}
-    try { renderLiveTable(); } catch (e1) {}
+    paintClock();
+    renderLiveTable();
     poll();
     pollCatchup();
     pollStarts();
-    pollPasses();
     function liveTick() {
       if (livePlaying && !atLive && !scrubbing) {
         var now = Date.now();
@@ -2467,25 +2335,201 @@
       window.requestAnimationFrame(liveTick);
     }
     window.requestAnimationFrame(liveTick);
-    setInterval(poll, 1500);
+    setInterval(poll, 400);
     setInterval(pollCatchup, 2000);
     setInterval(pollStarts, 5000);
-    setInterval(pollPasses, 5000);
-    window.addEventListener("resize", function () {
-      if (chartMap) chartMap.invalidateSize({ animate: false });
-      drawLiveMap();
-    });
+    window.addEventListener("resize", function () { drawLiveMap(); });
   }
 
-  function start(data, trail) {
+  function start(data, trail, bootstrap, seriesFinishes, seriesOfficial) {
+    seriesFinishes = seriesFinishes || {};
+    seriesOfficial = seriesOfficial || null;
+    var sailfish = {};
+    if (window.__sailfishDev2 && typeof window.__sailfishDev2 === "object") {
+      sailfish = window.__sailfishDev2;
+    } else if (bootstrap && typeof window.applySailfishDev2 === "function") {
+      try {
+        sailfish = window.applySailfishDev2(bootstrap) || {};
+      } catch (sfErr2) {
+        console.warn("[dev2] sailfish start", sfErr2);
+        sailfish = {};
+      }
+    }
     var PASSES = loadPasses(data);
     var BOATS = data.boats || {};
+    var RACE_NO = Number(data.race_number || RACE_Q || 1);
     var GUN_TS = Number(data.gun_ts_ms);
     var PLAY_START_TS = GUN_TS - 5000;
     var START_LABEL_MS = 5 * 60 * 1000;
     var PLAY_END_TS = Number(data.play_end_ts_ms || data.end_ts_ms);
     var GRID_ORIGIN = trail.grid_start_ts_ms != null ? Number(trail.grid_start_ts_ms) : Number(trail.gun_ts_ms);
-    var FINISH = asBoats(data.finish);
+    var FINISH = asBoats(data.finish).sort(function (a, b) {
+      return (a.ts || 0) - (b.ts || 0);
+    });
+    var FINISH_PLACE = {};
+    FINISH.forEach(function (b, i) {
+      if (b && b.boat) FINISH_PLACE[b.boat] = i + 1;
+    });
+    var FLEET_SZ = Object.keys(trail.boats || {}).length || Object.keys(BOATS).length || 17;
+    var DNF_POINTS = FLEET_SZ + 1;
+    /* Club / inter-club series: sum every prior race — no Olympic-style discard */
+    var CLUB_SERIES = true;
+    var SERIES_OFFICIAL = seriesOfficial;
+    var PROTEST_MODE = "official";
+    var PROTEST_META = (SERIES_OFFICIAL && SERIES_OFFICIAL.race_6_protests) || data.protests || null;
+    var OFFICIAL_POINTS = data.official_points_r6 || data.official_points || null;
+    var OFFICIAL_RACE_RANK = {};
+    var PROTEST_FLAG_TS = null;
+    var SERIES_CHECKSUM = { ok: null, reason: "" };
+    var RETIRED = {};
+    var RET_DETECT = {};
+    function officialCodeForRace(rn, sail) {
+      if (!SERIES_OFFICIAL || !SERIES_OFFICIAL.boats || !SERIES_OFFICIAL.boats[sail]) return null;
+      var codes = SERIES_OFFICIAL.boats[sail].codes || {};
+      return codes[String(rn)] || null;
+    }
+    function loadOfficialPointsForRace(rn) {
+      var out = {};
+      if (!SERIES_OFFICIAL || !SERIES_OFFICIAL.boats) return out;
+      Object.keys(SERIES_OFFICIAL.boats).forEach(function (sail) {
+        var p = officialPointsForRace(rn, sail);
+        if (p != null) out[sail] = p;
+      });
+      return out;
+    }
+    function detectRetirements(trailData, finishList, playEnd) {
+      var out = {};
+      var finished = {};
+      (finishList || []).forEach(function (f) {
+        if (f && f.boat) finished[f.boat] = true;
+      });
+      var lastFinTs = playEnd || 0;
+      (finishList || []).forEach(function (f) {
+        var t = Number(f && f.ts);
+        if (t > lastFinTs) lastFinTs = t;
+      });
+      var grid = trailData.grid_start_ts_ms != null ? Number(trailData.grid_start_ts_ms) : GUN_TS;
+      var step = Number(trailData.step_ms) || 1000;
+      var n = Number(trailData.n) || 0;
+      var pin = (trailData.finish_line && trailData.finish_line.left) ||
+        (trailData.start_line && trailData.start_line.left) || null;
+      Object.keys(trailData.boats || {}).forEach(function (sail) {
+        if (finished[sail]) return;
+        var b = trailData.boats[sail];
+        if (!b || !b.lat) return;
+        var lastI = n - 1;
+        while (lastI >= 0 && b.lat[lastI] == null) lastI--;
+        if (lastI < 60) return;
+        var lastTs = grid + lastI * step;
+        var lat = b.lat[lastI];
+        var lon = b.lon[lastI];
+        if (lat == null || lon == null) return;
+        var gapMs = lastFinTs - lastTs;
+        var far = 0;
+        if (pin && pin.lat != null && pin.lon != null) {
+          var R = 6371000;
+          var p = Math.PI / 180;
+          var dLat = (pin.lat - lat) * p;
+          var dLon = (pin.lon - lon) * p;
+          var x = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat * p) * Math.cos(pin.lat * p) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+          far = 2 * R * Math.asin(Math.sqrt(x));
+        }
+        if (gapMs > 120000 || far > 350) {
+          out[sail] = { ts: lastTs, gap_s: gapMs / 1000, far_m: far };
+        }
+      });
+      return out;
+    }
+    function mergeRetirements() {
+      var i;
+      RETIRED = {};
+      RET_DETECT = detectRetirements(trail, FINISH, PLAY_END_TS);
+      Object.keys(RET_DETECT).forEach(function (sail) {
+        RETIRED[sail] = RET_DETECT[sail];
+      });
+      (data.retired || []).forEach(function (sail) {
+        if (!RETIRED[sail]) RETIRED[sail] = { ts: PLAY_END_TS, source: "replay" };
+      });
+      if (SERIES_OFFICIAL && SERIES_OFFICIAL.ret_tracking) {
+        var rt = SERIES_OFFICIAL.ret_tracking[String(RACE_NO)] || {};
+        Object.keys(rt).forEach(function (sail) {
+          if (!RETIRED[sail]) RETIRED[sail] = { ts: PLAY_END_TS, source: "official" };
+        });
+      }
+    }
+    function officialPointsForRace(rn, sail) {
+      if (!SERIES_OFFICIAL || !SERIES_OFFICIAL.boats || !SERIES_OFFICIAL.boats[sail]) return null;
+      var row = SERIES_OFFICIAL.boats[sail].points || {};
+      var p = row[String(rn)];
+      return p == null ? null : Number(p);
+    }
+    function buildOfficialRaceRanks(pointsMap) {
+      var ranks = {};
+      var dsq = {};
+      if (!pointsMap) return ranks;
+      var rows = Object.keys(pointsMap).map(function (sail) {
+        return { sail: sail, pts: Number(pointsMap[sail]) };
+      });
+      rows.sort(function (a, b) {
+        if (a.pts !== b.pts) return a.pts - b.pts;
+        return String(a.sail).localeCompare(String(b.sail));
+      });
+      var place = 1;
+      rows.forEach(function (r) {
+        if (r.pts >= DNF_POINTS) {
+          dsq[r.sail] = true;
+          ranks[r.sail] = null;
+        } else {
+          ranks[r.sail] = place;
+          place += 1;
+        }
+      });
+      return ranks;
+    }
+    if (RACE_NO === 6 && !OFFICIAL_POINTS && SERIES_OFFICIAL && SERIES_OFFICIAL.boats) {
+      OFFICIAL_POINTS = loadOfficialPointsForRace(6);
+    }
+    if (PROTEST_MODE === "official" && SERIES_OFFICIAL && SERIES_OFFICIAL.boats && !OFFICIAL_POINTS) {
+      OFFICIAL_POINTS = loadOfficialPointsForRace(RACE_NO);
+    }
+    if (OFFICIAL_POINTS) OFFICIAL_RACE_RANK = buildOfficialRaceRanks(OFFICIAL_POINTS);
+    if (PROTEST_META && PROTEST_META.tracking_pre_flag && GUN_TS) {
+      PROTEST_FLAG_TS = GUN_TS + Number(PROTEST_META.tracking_pre_flag.ts_offset_s || 0) * 1000;
+    }
+    mergeRetirements();
+    verifySeriesChecksum(SERIES_OFFICIAL).then(function (chk) {
+      SERIES_CHECKSUM = chk;
+      if (typeof fillChecksum === "function") fillChecksum();
+    });
+    function seriesNettBeforeCurrent(sail) {
+      var scores = [];
+      var r;
+      for (r = 1; r < RACE_NO; r++) {
+        if (PROTEST_MODE === "official") {
+          var op = officialPointsForRace(r, sail);
+          if (op != null) scores.push(op);
+          else {
+            var order = seriesFinishes[r] || [];
+            var idx = order.indexOf(sail);
+            scores.push(idx >= 0 ? idx + 1 : DNF_POINTS);
+          }
+        } else {
+          var orderG = seriesFinishes[r] || [];
+          var idxG = orderG.indexOf(sail);
+          scores.push(idxG >= 0 ? idxG + 1 : DNF_POINTS);
+        }
+      }
+      if (!CLUB_SERIES && scores.length >= 4) {
+        var worst = Math.max.apply(null, scores);
+        var wi = scores.indexOf(worst);
+        scores = scores.slice(0, wi).concat(scores.slice(wi + 1));
+      }
+      var sum = 0;
+      var si;
+      for (si = 0; si < scores.length; si++) sum += scores[si];
+      return sum;
+    }
     if (FINISH.length) {
       PASSES.push({
         id: "FIN",
@@ -2592,6 +2636,42 @@
     }).forEach(function (sail, i) {
       START_RANK[sail] = i + 1;
     });
+    function computeOverallAtGun() {
+      var out = {};
+      if (RACE_NO <= 1) {
+        Object.keys(START_RANK).forEach(function (s) { out[s] = START_RANK[s]; });
+        return out;
+      }
+      var rows = [];
+      Object.keys(trail.boats || {}).forEach(function (sail) {
+        rows.push({ sail: sail, nett: seriesNettBeforeCurrent(sail) });
+      });
+      rows.sort(function (a, b) {
+        if (a.nett !== b.nett) return a.nett - b.nett;
+        return String(a.sail).localeCompare(String(b.sail));
+      });
+      rows.forEach(function (r, i) { out[r.sail] = i + 1; });
+      return out;
+    }
+    var OVERALL_AT_GUN = computeOverallAtGun();
+    function refreshOverallAtGun() {
+      OVERALL_AT_GUN = computeOverallAtGun();
+    }
+    function applyProtestMode(mode) {
+      PROTEST_MODE = mode === "provisional" ? "provisional" : "official";
+      liveRankCache = { ts: -1 };
+      refreshOverallAtGun();
+      if (RACE_NO === 6 && PROTEST_META) {
+        setRaceTableLabel(RACE_NO, false, PROTEST_MODE === "official" ? "Official · 3 DSQ" : "Provisional");
+      }
+      var btn = document.getElementById("tracking-dev2-protest-toggle");
+      if (btn) {
+        btn.textContent = PROTEST_MODE === "official" ? "Scores: Official" : "Scores: Provisional";
+        btn.setAttribute("aria-pressed", PROTEST_MODE === "official" ? "true" : "false");
+      }
+      if (typeof drawMap === "function") drawMap(viewTs || playTs);
+      if (typeof render === "function") render(viewTs || playTs);
+    }
     var ST_LEAD_TS = null;
     Object.keys(LEGAL_TS).forEach(function (sail) {
       if (OCS[sail] && START_RANK[sail] == null) return;
@@ -2605,17 +2685,88 @@
       });
       return earlier + 1;
     }
-    bindRaceButtons(data.race_number || RACE_Q || 4);
+    bindRaceButtons(data.race_number || RACE_Q || 1);
     var GUN_CLOCK = String(data.gun_sast || "").slice(11, 19) || "13:55:01";
-    var RACE_NO = Number(data.race_number || RACE_Q || 4);
     var RACE_LAB = "Race " + RACE_NO;
-    setRaceTableLabel(RACE_NO, false);
-    var RATE = Number(data.default_rate || 1);
-    var RATES = [1, 2, 5, 10, 25, 50];
+    if (RACE_NO === 6 && PROTEST_META) {
+      setRaceTableLabel(RACE_NO, false, PROTEST_MODE === "official" ? "Official · 3 DSQ" : "Provisional");
+    } else {
+      setRaceTableLabel(RACE_NO, false);
+    }
+    var protestToggle = document.getElementById("tracking-dev2-protest-toggle");
+    if (protestToggle) {
+      protestToggle.hidden = !(RACE_NO === 6 && PROTEST_META);
+      protestToggle.textContent = PROTEST_MODE === "official" ? "Scores: Official" : "Scores: Provisional";
+      protestToggle.setAttribute("aria-pressed", PROTEST_MODE === "official" ? "true" : "false");
+      protestToggle.onclick = function () {
+        applyProtestMode(PROTEST_MODE === "official" ? "provisional" : "official");
+      };
+    }
+    var prevOverlay = window.__sailfishOverlay || {};
+    var overlay = {
+      board: prevOverlay.board === true,
+      marks: prevOverlay.marks !== false,
+      dots: prevOverlay.dots !== false,
+      layline: sailfish.layline !== false,
+      leaderline: sailfish.leaderline !== false,
+      frontline: prevOverlay.frontline !== false,
+      windCompass: sailfish.windCompass !== false,
+      colSOG: sailfish.colSOG !== false,
+      colCOG: sailfish.colCOG !== false,
+      camera: sailfish.camera !== false,
+      laylineAngle: sailfish.laylineAngle || 44.2
+    };
+    window.__sailfishOverlay = overlay;
+    window.__sailfishRedraw = function () {
+      if (window.__sailfishOverlay) {
+        overlay.board = !!window.__sailfishOverlay.board;
+        overlay.marks = window.__sailfishOverlay.marks !== false;
+        overlay.dots = window.__sailfishOverlay.dots !== false;
+        overlay.layline = !!window.__sailfishOverlay.layline;
+        overlay.leaderline = !!window.__sailfishOverlay.leaderline;
+        overlay.frontline = window.__sailfishOverlay.frontline !== false;
+        overlay.windCompass = !!window.__sailfishOverlay.windCompass;
+        overlay.colSOG = !!window.__sailfishOverlay.colSOG;
+        overlay.colCOG = !!window.__sailfishOverlay.colCOG;
+        overlay.camera = window.__sailfishOverlay.camera !== false;
+        if (window.__sailfishOverlay.laylineAngle) {
+          overlay.laylineAngle = Number(window.__sailfishOverlay.laylineAngle) || 44.2;
+        }
+      }
+      var boardEl = document.getElementById("tracking-dev2-ranking");
+      if (boardEl) {
+        boardEl.classList.toggle("is-hidden", !overlay.board);
+        boardEl.hidden = !overlay.board;
+        boardEl.setAttribute("aria-hidden", overlay.board ? "false" : "true");
+        boardEl.style.setProperty("display", overlay.board ? "flex" : "none", "important");
+      }
+      if (overlay.camera) {
+        followFleet = true;
+        cam = null;
+      }
+      if (typeof drawMap === "function") drawMap(playTs);
+    };
+    var camBtn = document.getElementById("tracking-dev2-cam-btn");
+    if (camBtn) {
+      camBtn.onclick = function () {
+        followFleet = true;
+        mapSpinManual = false;
+        cam = null;
+        overlay.camera = true;
+        if (window.__sailfishOverlay) window.__sailfishOverlay.camera = true;
+        drawMap(playTs);
+      };
+    }
+    var liveRankCache = { ts: -1, bySail: {}, overallBySail: {}, leader: null, overallLeader: null, target: null, windFrom: 0 };
+    var RATE = Math.max(1, Number(data.default_rate || 1) || 1);
+    var RATES = [1, 2, 5, 10, 25, 50, 100, 500];
+    if (sailfish.replaySpeed && sailfish.nearestRate) {
+      RATE = sailfish.nearestRate(RATES, sailfish.replaySpeed);
+    }
     var SETTLE_MS = 2500;
     var playing = false;
     var trackerReady = false;
-    var playTs = PLAY_END_TS;
+    var playTs = GUN_TS;
     var GUN_HORN_SRC = "/js/lipton-dev-start-airhorn.mp3?v=20260828t";
     var RECALL_HORN_SRC = "/js/lipton-dev-recall-horn.wav?v=20260828t";
     var GUN_HORN_ONSET = 0.05;
@@ -2932,6 +3083,56 @@
     var chartSyncing = false;
     var chartPointerDown = false;
     var drawingMap = false;
+    var mapSpin = 0;
+    var mapSpinManual = false;
+    function applyMapSpin() {
+      window.__dev2MapSpin = mapSpin;
+      var host = document.getElementById("lipton-dev-map-spin") || document.querySelector(".tracking-dev2-map-first");
+      if (host && host.style) host.style.setProperty("--dev2-map-spin", String(mapSpin) + "deg");
+      if (typeof drawMap === "function") {
+        try { drawMap(playTs); } catch (err) {}
+      }
+    }
+    function bumpMapSpin(delta) {
+      mapSpinManual = true;
+      mapSpin = ((mapSpin + delta) % 360 + 360) % 360;
+      applyMapSpin();
+      if (chartMap) {
+        try { chartMap.invalidateSize({ animate: false }); } catch (err) {}
+      }
+    }
+    function wireMapTools() {
+      var zin = document.getElementById("tracking-dev2-zoom-in");
+      var zout = document.getElementById("tracking-dev2-zoom-out");
+      var ccw = document.getElementById("tracking-dev2-rotate-ccw");
+      var cw = document.getElementById("tracking-dev2-rotate-cw");
+      var north = document.getElementById("tracking-dev2-north-up");
+      if (zin) zin.onclick = function (ev) {
+        if (ev) ev.stopPropagation();
+        followFleet = false;
+        if (chartMap) chartMap.zoomIn();
+      };
+      if (zout) zout.onclick = function (ev) {
+        if (ev) ev.stopPropagation();
+        followFleet = false;
+        if (chartMap) chartMap.zoomOut();
+      };
+      if (ccw) ccw.onclick = function (ev) {
+        if (ev) ev.stopPropagation();
+        bumpMapSpin(-15);
+      };
+      if (cw) cw.onclick = function (ev) {
+        if (ev) ev.stopPropagation();
+        bumpMapSpin(15);
+      };
+      if (north) north.onclick = function (ev) {
+        if (ev) ev.stopPropagation();
+        mapSpinManual = true;
+        mapSpin = 0;
+        applyMapSpin();
+      };
+      applyMapSpin();
+    }
     function userFreedMap() {
       if (chartSyncing || !followFleet) return;
       followFleet = false;
@@ -2940,7 +3141,7 @@
       var el = document.getElementById("lipton-dev-chart");
       if (!el || !window.L || chartMap) return;
       chartMap = L.map(el, {
-        zoomControl: false,
+        zoomControl: true,
         attributionControl: true,
         dragging: true,
         scrollWheelZoom: true,
@@ -2949,26 +3150,32 @@
         keyboard: true,
         touchZoom: true,
         zoomSnap: 0,
+        minZoom: 12,
+        maxZoom: 22,
         zoomAnimation: false,
         fadeAnimation: false,
         markerZoomAnimation: false,
         inertia: true
       }).setView([-33.901, 18.423], 15);
+      window.__dev2ChartMap = chartMap;
       var tileOpts = {
         minZoom: 12,
-        maxZoom: 19,
-        keepBuffer: 8,
+        maxZoom: 22,
+        maxNativeZoom: 19,
+        keepBuffer: 12,
         updateWhenIdle: false,
         updateWhenZooming: false,
         updateInterval: 400,
         crossOrigin: true
       };
       L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", Object.assign({
-        maxZoom: 19,
+        maxZoom: 22,
+        maxNativeZoom: 19,
         attribution: "Tiles © Esri"
       }, tileOpts)).addTo(chartMap);
       L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", Object.assign({
-        maxZoom: 18,
+        maxZoom: 22,
+        maxNativeZoom: 18,
         opacity: 0.85,
         attribution: "Labels © Esri"
       }, tileOpts)).addTo(chartMap);
@@ -2992,9 +3199,16 @@
       window.requestAnimationFrame(function () {
         if (chartMap) chartMap.invalidateSize({ animate: false });
       });
-      var track = el.parentNode;
+      var track = document.querySelector(".tracking-dev2-map-first") || el.parentNode;
       var ctrls = el.querySelector(".leaflet-control-container");
       if (track && ctrls) track.appendChild(ctrls);
+      ["tracking-dev2-ranking", "lipton-dev-race-boxes", "lipton-dev-subhead", "tracking-dev2-sailfish-bar", "tracking-dev2-map-tools"].forEach(function (id) {
+        var chrome = document.getElementById(id);
+        if (chrome && L.DomEvent && L.DomEvent.disableClickPropagation) {
+          L.DomEvent.disableClickPropagation(chrome);
+          if (L.DomEvent.disableScrollPropagation) L.DomEvent.disableScrollPropagation(chrome);
+        }
+      });
     }
     var lastChartSyncAt = 0;
     function syncChart() {
@@ -3003,9 +3217,9 @@
       var lon = mapBounds.midLon;
       var cos = Math.max(0.2, Math.cos(lat * Math.PI / 180));
       var z = Math.log(mapBounds.scale * 156543.03392 * cos) / Math.LN2;
-      if (!(z > 0)) z = 15;
-      if (z < 14) z = 14;
-      if (z > 17) z = 17;
+      if (!(z > 0)) z = 16;
+      if (z < 13) z = 13;
+      if (z > 21.5) z = 21.5;
       var cur = chartMap.getCenter();
       var curZ = chartMap.getZoom();
       var dz = Math.abs(curZ - z);
@@ -3046,6 +3260,14 @@
       var y = (a.lat - b.lat) * 111000;
       var x = (a.lon - b.lon) * 111000 * c;
       return Math.sqrt(x * x + y * y);
+    }
+    function bearingDeg(lat1, lon1, lat2, lon2) {
+      var p1 = lat1 * Math.PI / 180;
+      var p2 = lat2 * Math.PI / 180;
+      var dl = (lon2 - lon1) * Math.PI / 180;
+      var x = Math.sin(dl) * Math.cos(p2);
+      var y = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl);
+      return (Math.atan2(x, y) * 180 / Math.PI + 360) % 360;
     }
     var TAIL_CLEAR_MS = 5000;
     var tailsUntil = 0;
@@ -3090,13 +3312,18 @@
     function boundsFromPts(pts, w, h, opts) {
       opts = opts || {};
       var minSpan = opts.minSpan != null ? opts.minSpan : 80;
+      var maxSpan = opts.maxSpan;
       var padPx = opts.padPx != null ? opts.padPx : 44;
       var padM = opts.padM != null ? opts.padM : 0;
       var s = bboxOf(pts);
       var heightM = Math.max(s.heightM + 2 * padM, minSpan * 0.35);
       var widthM = Math.max(s.widthM + 2 * padM, minSpan * 0.35);
       var span = Math.max(heightM, widthM, minSpan);
-      if (span > Math.max(heightM, widthM)) {
+      if (maxSpan && span > maxSpan) {
+        span = maxSpan;
+        heightM = maxSpan;
+        widthM = maxSpan;
+      } else if (span > Math.max(heightM, widthM)) {
         var grow = (span - Math.max(heightM, widthM)) / 2;
         heightM += grow;
         widthM += grow;
@@ -3106,13 +3333,33 @@
       var scale = Math.min(innerW / Math.max(widthM, 1e-3), innerH / Math.max(heightM, 1e-3));
       return { w: w, h: h, midLat: s.midLat, midLon: s.midLon, cos: s.cos, scale: scale };
     }
+    function packPts(boatPts) {
+      if (!boatPts || boatPts.length < 4) return boatPts || [];
+      var mid = { lat: 0, lon: 0 };
+      boatPts.forEach(function (p) {
+        mid.lat += p.lat;
+        mid.lon += p.lon;
+      });
+      mid.lat /= boatPts.length;
+      mid.lon /= boatPts.length;
+      var scored = boatPts.map(function (p) {
+        return { p: p, d: distM(p, mid) };
+      });
+      scored.sort(function (a, b) { return a.d - b.d; });
+      var cut = scored[Math.max(2, Math.floor(scored.length * 0.75) - 1)].d;
+      cut = Math.min(40, Math.max(18, cut));
+      var kept = [];
+      var i;
+      for (i = 0; i < scored.length; i++) {
+        if (scored[i].d <= cut) kept.push(scored[i].p);
+      }
+      return kept.length ? kept : boatPts;
+    }
     function pinTrio() {
       var pts = [];
       var sl = trail.start_line;
-      var fl = trail.finish_line;
       if (sl && sl.left) pts.push(sl.left);
       if (sl && sl.right) pts.push(sl.right);
-      if (fl && fl.left) pts.push(fl.left);
       return pts;
     }
     function fleetNearStart(boatPts, ts) {
@@ -3221,26 +3468,12 @@
       var focus = focusForFleet(ts, fleet);
       focusMarkKey = focus.mark;
       focusGate = focus.gate;
-      var nearStart = fleetNearStart(boatPts, ts);
-      var pts = boatPts.slice();
-      if (nearStart) {
-        pinTrio().forEach(function (p) { pts.push(p); });
-        focusGate = "start_line";
-      } else {
-        if (focus.mark) {
-          var mk = markAt(focus.mark, ts);
-          if (mk && pointNearBoatBox(mk, boatPts, 220)) pts.push(mk);
-        }
-        if (focus.gate && trail[focus.gate]) {
-          var ln = trail[focus.gate];
-          if (ln.left && pointNearBoatBox(ln.left, boatPts, 220)) pts.push(ln.left);
-          if (ln.right && pointNearBoatBox(ln.right, boatPts, 220)) pts.push(ln.right);
-        }
-      }
-      var target = boundsFromPts(pts, w, h, {
-        minSpan: nearStart ? 70 : 90,
-        padPx: nearStart ? 32 : 40,
-        padM: nearStart ? 18 : 24
+      if (fleetNearStart(boatPts, ts)) focusGate = "start_line";
+      var target = boundsFromPts(packPts(boatPts), w, h, {
+        minSpan: 20,
+        maxSpan: 48,
+        padPx: 72,
+        padM: 3
       });
       if (!cam) {
         cam = target;
@@ -3264,7 +3497,7 @@
     function xy(lat, lon) {
       if (chartMap) {
         var pt = chartMap.latLngToContainerPoint([lat, lon]);
-        return { x: pt.x, y: pt.y };
+        return window.__dev2MapToScreen(pt.x, pt.y);
       }
       var b = mapBounds;
       return {
@@ -3386,7 +3619,7 @@
       mapCtx.stroke();
       mapCtx.save();
       mapCtx.translate(p.x, p.y);
-      mapCtx.rotate((hdg || 0) * Math.PI / 180);
+      mapCtx.rotate(((hdg || 0) + (window.__dev2MapSpin || 0)) * Math.PI / 180);
       mapCtx.beginPath();
       mapCtx.moveTo(0, -r - 3.6);
       mapCtx.lineTo(3.1, -r + 1.2);
@@ -3465,18 +3698,30 @@
       if (hits.length < 2) return;
       var hot = ocsPending(sail, ts);
       var fill = boatPaint(sail, hot).fill;
+      if (overlay.dots !== false) {
+        var r = Math.max(1.3, tailBudget(chartMap).w * 0.55);
+        for (var d = 0; d < hits.length; d++) {
+          var pt = xy(hits[d].lat, hits[d].lon);
+          var u = d / Math.max(1, hits.length - 1);
+          mapCtx.beginPath();
+          mapCtx.arc(pt.x, pt.y, r, 0, Math.PI * 2);
+          mapCtx.fillStyle = rgbaHex(fill, 0.25 + 0.7 * u * u);
+          mapCtx.fill();
+        }
+        return;
+      }
       var n = hits.length - 1;
       var tailW = tailBudget(chartMap).w;
       for (var s = 0; s < n; s++) {
         var a = xy(hits[s].lat, hits[s].lon);
         var c = xy(hits[s + 1].lat, hits[s + 1].lon);
-        var u = (s + 1) / n;
-        var alpha = 0.35 + 0.65 * u * u;
+        var lu = (s + 1) / n;
+        var alpha = 0.35 + 0.65 * lu * lu;
         mapCtx.beginPath();
         mapCtx.moveTo(a.x, a.y);
         mapCtx.lineTo(c.x, c.y);
         mapCtx.strokeStyle = rgbaHex(fill, alpha);
-        mapCtx.lineWidth = tailW + 1.6 * u;
+        mapCtx.lineWidth = tailW + 1.6 * lu;
         mapCtx.lineCap = "round";
         mapCtx.lineJoin = "round";
         mapCtx.stroke();
@@ -3511,6 +3756,197 @@
       mapCtx.fillText(pinLabel || "Pin", a.x + 6, a.y - 6);
       if (label) mapCtx.fillText(label, (a.x + b.x) / 2 + 6, (a.y + b.y) / 2 - 6);
     }
+    function markPassList() {
+      var out = [];
+      for (var i = 0; i < PASSES.length; i++) {
+        var p = PASSES[i];
+        if (!p) continue;
+        if (p.id === "ST" || p.label === "ST") continue;
+        out.push(p);
+      }
+      return out;
+    }
+    function boatsRounded(pass, ts) {
+      var n = 0;
+      var first = null;
+      if (!pass || !pass.boats) return { n: 0, first: null };
+      for (var i = 0; i < pass.boats.length; i++) {
+        var b = pass.boats[i];
+        var t = b.ts;
+        if (t != null && t <= ts) {
+          n += 1;
+          if (!first) first = b.boat;
+        }
+      }
+      return { n: n, first: first };
+    }
+    function passMarkKey(pass) {
+      if (!pass) return "1";
+      if (pass.id === "FIN" || pass.label === "Fin") return "3";
+      if (pass.label === "Pin" || Number(pass.mark) === 4) return "4";
+      return String(pass.mark || "1");
+    }
+    function completedPasses(sail, ts) {
+      var n = 0;
+      var list = markPassList();
+      for (var i = 0; i < list.length; i++) {
+        var t = tsAtPass(list[i], sail);
+        if (t != null && t <= ts) n += 1;
+        else break;
+      }
+      return n;
+    }
+    function nextPassFor(sail, ts) {
+      var list = markPassList();
+      for (var i = 0; i < list.length; i++) {
+        var t = tsAtPass(list[i], sail);
+        if (t == null || t > ts) return list[i];
+      }
+      return list.length ? list[list.length - 1] : null;
+    }
+    function leaderLineState(ts) {
+      var fleet = Object.keys(trail.boats || {}).length || Object.keys(BOATS).length;
+      var list = markPassList();
+      for (var i = 0; i < list.length; i++) {
+        var st = boatsRounded(list[i], ts);
+        if (st.n < fleet) {
+          var first = st.first;
+          /* Hold previous mark's first-rounder until someone actually rounds this mark */
+          if (!first && i > 0) first = boatsRounded(list[i - 1], ts).first;
+          return {
+            pass: list[i],
+            first: first,
+            rounded: st.n,
+            fleet: fleet,
+            key: passMarkKey(list[i])
+          };
+        }
+      }
+      var last = list[list.length - 1];
+      return last ? {
+        pass: last,
+        first: boatsRounded(last, ts).first,
+        rounded: fleet,
+        fleet: fleet,
+        key: passMarkKey(last)
+      } : null;
+    }
+    function drawHaloEnd(pt, kind, caption, extra) {
+      if (!pt) return;
+      var p = xy(pt.lat, pt.lon);
+      var r = Math.max(16, Math.min(28, metersPx(12)));
+      mapCtx.beginPath();
+      mapCtx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      mapCtx.fillStyle = "rgba(148,163,184,0.22)";
+      mapCtx.fill();
+      mapCtx.strokeStyle = "rgba(226,232,240,0.35)";
+      mapCtx.lineWidth = 1;
+      mapCtx.stroke();
+      mapCtx.beginPath();
+      mapCtx.arc(p.x, p.y, 7, 0, Math.PI * 2);
+      if (kind === "start-rc") {
+        mapCtx.fillStyle = "#2563eb";
+        mapCtx.fill();
+        mapCtx.beginPath();
+        mapCtx.arc(p.x, p.y, 7, 0, Math.PI, false);
+        mapCtx.fillStyle = "#dc2626";
+        mapCtx.fill();
+      } else if (kind === "finish") {
+        mapCtx.strokeStyle = "#22c55e";
+        mapCtx.lineWidth = 2.4;
+        mapCtx.stroke();
+        mapCtx.beginPath();
+        mapCtx.moveTo(p.x - 4, p.y);
+        mapCtx.lineTo(p.x + 4, p.y);
+        mapCtx.moveTo(p.x, p.y - 4);
+        mapCtx.lineTo(p.x, p.y + 4);
+        mapCtx.stroke();
+      } else {
+        mapCtx.strokeStyle = "#ef4444";
+        mapCtx.lineWidth = 2.4;
+        mapCtx.stroke();
+      }
+      mapCtx.fillStyle = "#ffffff";
+      mapCtx.font = "bold 10px sans-serif";
+      mapCtx.textAlign = "center";
+      mapCtx.fillText(caption, p.x, p.y + r + 11);
+      if (extra) {
+        mapCtx.font = "9px sans-serif";
+        mapCtx.fillStyle = "#e2e8f0";
+        mapCtx.fillText(extra, p.x, p.y + r + 22);
+      }
+      mapCtx.textAlign = "start";
+    }
+    function drawNumberedMark(pos, lab, focus) {
+      if (!pos) return;
+      var p = xy(pos.lat, pos.lon);
+      var r = focus ? 20 : 16;
+      mapCtx.beginPath();
+      mapCtx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      mapCtx.fillStyle = "rgba(148,163,184,0.28)";
+      mapCtx.fill();
+      mapCtx.fillStyle = focus ? "#f8fafc" : "#e2e8f0";
+      mapCtx.fillRect(p.x - 8, p.y - 8, 16, 16);
+      mapCtx.strokeStyle = "#0f172a";
+      mapCtx.lineWidth = 1.2;
+      mapCtx.strokeRect(p.x - 8, p.y - 8, 16, 16);
+      mapCtx.fillStyle = "#0f172a";
+      mapCtx.font = "bold 11px sans-serif";
+      mapCtx.textAlign = "center";
+      mapCtx.textBaseline = "middle";
+      mapCtx.fillText(String(lab), p.x, p.y + 0.5);
+      mapCtx.textAlign = "start";
+      mapCtx.textBaseline = "alphabetic";
+    }
+    function drawSailfishCourse(ts) {
+      var sl = trail.start_line;
+      var fl = trail.finish_line;
+      var m1 = markAt("1", ts);
+      if (sl && sl.left && sl.right) {
+        var a = xy(sl.left.lat, sl.left.lon);
+        var b = xy(sl.right.lat, sl.right.lon);
+        mapCtx.save();
+        mapCtx.setLineDash([6, 5]);
+        mapCtx.strokeStyle = "rgba(248,250,252,0.92)";
+        mapCtx.lineWidth = 1.6;
+        mapCtx.beginPath();
+        mapCtx.moveTo(a.x, a.y);
+        mapCtx.lineTo(b.x, b.y);
+        mapCtx.stroke();
+        var mid = { lat: (sl.left.lat + sl.right.lat) / 2, lon: (sl.left.lon + sl.right.lon) / 2 };
+        if (m1) {
+          var toward = destPoint(mid, bearingDeg(mid.lat, mid.lon, m1.lat, m1.lon), 220);
+          var mp = xy(mid.lat, mid.lon);
+          var tp = xy(toward.lat, toward.lon);
+          mapCtx.beginPath();
+          mapCtx.moveTo(mp.x, mp.y);
+          mapCtx.lineTo(tp.x, tp.y);
+          mapCtx.stroke();
+          var brg = bearingDeg(m1.lat, m1.lon, sl.left.lat, sl.left.lon);
+          var dm = distM(m1, sl.left);
+          var lab = xy((m1.lat + sl.left.lat) / 2, (m1.lon + sl.left.lon) / 2);
+          mapCtx.setLineDash([4, 4]);
+          mapCtx.beginPath();
+          mapCtx.moveTo(xy(m1.lat, m1.lon).x, xy(m1.lat, m1.lon).y);
+          mapCtx.lineTo(a.x, a.y);
+          mapCtx.stroke();
+          mapCtx.setLineDash([]);
+          mapCtx.fillStyle = "#f8fafc";
+          mapCtx.font = "bold 10px sans-serif";
+          mapCtx.fillText("∠" + Math.round(brg) + "° " + dm.toFixed(1) + "m", lab.x + 6, lab.y - 4);
+        }
+        mapCtx.restore();
+        var lineM = distM(sl.left, sl.right);
+        var pinBias = m1 ? Math.abs(distM(sl.left, m1) - distM(sl.right, m1)) : 0;
+        drawHaloEnd(sl.left, "start-pin", "Start", "P#" + pinBias.toFixed(1) + "m/" + lineM.toFixed(1) + "m");
+        drawHaloEnd(sl.right, "start-rc", "Start", "");
+      }
+      if (fl && fl.left) drawHaloEnd(fl.left, "finish", "Finish", "");
+      if (fl && fl.right) drawHaloEnd(fl.right, "finish", "Finish", "");
+      Object.keys(trail.marks || {}).forEach(function (k) {
+        drawNumberedMark(markAt(k, ts), k, k === focusMarkKey);
+      });
+    }
     function passRankOf(pass, sail) {
       if (!pass || !pass.boats) return null;
       if (pass.id === "ST" || pass.label === "ST") {
@@ -3536,6 +3972,8 @@
       return ts < LEGAL_TS[sail];
     }
     function mapBadge(sail, ts) {
+      ensureLiveRanks(ts);
+      var livePlace = liveRankCache.bySail[sail];
       var startNo = START_RANK[sail] != null ? START_RANK[sail] : null;
       var liveNo = liveStartRank(sail, ts);
       var last = -1;
@@ -3547,17 +3985,31 @@
         if ((p.id === "ST" || p.label === "ST") && LEGAL_TS[sail] != null) t = LEGAL_TS[sail];
         if (t != null && t <= ts) last = i;
       }
-      var place = liveNo;
-      if (last > 0) place = passRankOf(PASSES[last], sail);
-      var started = liveNo != null;
+      /* Live race place only — never start-order or rounding-order tags */
+      var place = livePlace != null ? livePlace : null;
+      var started = liveNo != null || livePlace != null;
       var leg = null;
       var total = null;
-      if (last > 0 && place != null) {
+      if (livePlace != null && startNo != null) total = startNo - livePlace;
+      else if (last > 0 && place != null) {
         var prev = passRankOf(PASSES[last - 1], sail);
         if (prev != null) leg = prev - place;
         if (startNo != null) total = startNo - place;
       }
-      return { place: place, pending: pending, started: started, onMark: last > 0, finished: last > 0 && PASSES[last] && (PASSES[last].id === "FIN" || PASSES[last].label === "Fin"), leg: leg, total: total };
+      return {
+        place: place,
+        pending: pending,
+        started: started,
+        onMark: last > 0,
+        finished: last > 0 && PASSES[last] && (PASSES[last].id === "FIN" || PASSES[last].label === "Fin"),
+        leg: leg,
+        total: total,
+        isLeader: RACE_NO < 2
+          ? (liveRankCache.leader && liveRankCache.leader.sail === sail)
+          : (liveRankCache.overallLeader && liveRankCache.overallLeader.sail === sail),
+        overallPos: liveRankCache.overallBySail[sail] || null,
+        racePlace: livePlace
+      };
     }
     function drawDelta(x, y, delta, align) {
       if (delta == null) return x;
@@ -3569,21 +4021,41 @@
       mapCtx.fillText(txt, x, y);
       return mapCtx.measureText(txt).width;
     }
+    /* World Sailing series-leader colours: 1st yellow, 2nd blue, 3rd red (Regulation 20.4.3 bibs) */
+    var OVERALL_STICKER = { 1: "#facc15", 2: "#2563eb", 3: "#dc2626" };
+    function drawOverallStickerRing(p, pos) {
+      if (!pos || pos > 3) return;
+      var stroke = OVERALL_STICKER[pos];
+      if (!stroke) return;
+      mapCtx.beginPath();
+      mapCtx.arc(p.x, p.y, 17, 0, Math.PI * 2);
+      mapCtx.strokeStyle = stroke;
+      mapCtx.lineWidth = 2.8;
+      mapCtx.stroke();
+    }
     function drawBoatLabel(p, hdg, sail, ts) {
       var club = clubCode(sail);
       var info = mapBadge(sail, ts);
       var paint = boatPaint(sail, info.pending);
       mapCtx.save();
+      if (RACE_NO >= 2) drawOverallStickerRing(p, info.overallPos);
+      if (info.isLeader) {
+        mapCtx.beginPath();
+        mapCtx.arc(p.x, p.y, 14, 0, Math.PI * 2);
+        mapCtx.strokeStyle = "rgba(250,204,21,0.95)";
+        mapCtx.lineWidth = 2.4;
+        mapCtx.stroke();
+      }
       drawFinishHalo(p, sail);
       drawBoatIcon(p, hdg, paint.fill, paint.stroke, paint.nose);
-      if (info.place != null) {
+      if (info.racePlace != null) {
         mapCtx.fillStyle = paint.ink;
         mapCtx.font = "bold 9px sans-serif";
         mapCtx.textAlign = "center";
         mapCtx.textBaseline = "middle";
-        mapCtx.fillText(String(info.place), p.x, p.y + 0.4);
+        mapCtx.fillText(String(info.racePlace), p.x, p.y + 0.4);
       }
-      if (info.onMark && !info.finished) drawDelta(p.x - 12, p.y - 1, info.leg, "right");
+      if (info.leg != null && !info.finished) drawDelta(p.x - 12, p.y - 1, info.leg, "right");
       var lx = p.x + 12;
       var ly = p.y - 1;
       mapCtx.font = "bold 10px sans-serif";
@@ -3594,7 +4066,7 @@
       mapCtx.fillStyle = info.pending ? "#f87171" : paint.fill;
       mapCtx.fillText(club, lx, ly);
       mapCtx.shadowBlur = 0;
-      if (info.onMark) {
+      if (info.total != null) {
         var cw = mapCtx.measureText(club).width;
         drawDelta(lx + cw + 3, ly, info.total, "left");
       }
@@ -3605,9 +4077,9 @@
     function drawMap(ts) {
       if (drawingMap) return;
       drawingMap = true;
+      try {
       frameCam(ts);
       if (!mapCtx || !mapBounds) {
-        drawingMap = false;
         return;
       }
       var w = mapBounds.w;
@@ -3615,32 +4087,13 @@
       mapCtx.clearRect(0, 0, w, h);
       mapCtx.fillStyle = "rgba(0, 10, 24, 0.08)";
       mapCtx.fillRect(0, 0, w, h);
-      var zone = Math.min(metersPx(20.1), 8);
-      Object.keys(trail.marks || {}).forEach(function (k) {
-        var pos = markAt(k, ts);
-        if (!pos) return;
-        var p = xy(pos.lat, pos.lon);
-        var focus = k === focusMarkKey;
-        mapCtx.beginPath();
-        mapCtx.arc(p.x, p.y, zone, 0, Math.PI * 2);
-        mapCtx.strokeStyle = focus ? "rgba(251,191,36,0.7)" : "rgba(245,158,11,0.28)";
-        mapCtx.lineWidth = focus ? 2 : 1;
-        mapCtx.stroke();
-        mapCtx.beginPath();
-        mapCtx.arc(p.x, p.y, focus ? 3.2 : 2.2, 0, Math.PI * 2);
-        mapCtx.fillStyle = focus ? "#fbbf24" : "#f59e0b";
-        mapCtx.fill();
-        mapCtx.fillStyle = "#ffffff";
-        mapCtx.font = focus ? "bold 12px sans-serif" : "bold 10px sans-serif";
-        mapCtx.fillText("M" + k, p.x + 8, p.y + 4);
-      });
+      if (overlay.marks) {
+        drawSailfishCourse(ts);
+      }
       Object.keys(trail.boats || {}).forEach(function (sail) {
         drawTail(sail, ts);
       });
-      var startName = ts < PLAY_START_TS + START_LABEL_MS ? "START" : "";
-      var finishName = ts >= GUN_TS ? "FINISH" : "";
-      drawGate(trail.start_line, focusGate === "start_line" ? "#38bdf8" : "rgba(56,189,248,0.4)", startName, "Pin", "RC");
-      if (trail.start_line && ts < GUN_TS + 5 * 60 * 1000) {
+      if (trail.start_line && ts < GUN_TS + 5 * 60 * 1000 && overlay.marks === false) {
         var boatPts = [];
         Object.keys(trail.boats || {}).forEach(function (sail) {
           var bp = posAt(sail, ts);
@@ -3648,7 +4101,7 @@
         });
         drawStartDirArrows(mapCtx, xy, trail.start_line.left, trail.start_line.right, markAt("1", ts), boatPts);
       }
-      drawGate(trail.finish_line, focusGate === "finish_line" ? "#fbbf24" : "rgba(251,191,36,0.35)", finishName, "Pin", "RC");
+      try { drawSailfishOverlays(ts); } catch (overlayErr) { console.warn("[dev2] overlay", overlayErr); }
       Object.keys(trail.boats || {}).forEach(function (sail) {
         var pos = posAt(sail, ts);
         if (!pos) return;
@@ -3656,7 +4109,340 @@
         drawBoatLabel(p, pos.hdg, sail, ts);
       });
       drawCourseLabel(ts);
-      drawingMap = false;
+      } catch (drawErr) {
+        console.warn("[dev2] drawMap", drawErr);
+      } finally {
+        drawingMap = false;
+      }
+    }
+    function destPoint(from, brg, meters) {
+      var R = 6371000;
+      var d = meters / R;
+      var br = brg * Math.PI / 180;
+      var lat1 = from.lat * Math.PI / 180;
+      var lon1 = from.lon * Math.PI / 180;
+      var lat2 = Math.asin(Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(br));
+      var lon2 = lon1 + Math.atan2(Math.sin(br) * Math.sin(d) * Math.cos(lat1), Math.cos(d) - Math.sin(lat1) * Math.sin(lat2));
+      return { lat: lat2 * 180 / Math.PI, lon: lon2 * 180 / Math.PI };
+    }
+    function sogKts(sail, ts) {
+      var b = trail.boats[sail];
+      var now = sampleAt(b, ts);
+      if (!now) return null;
+      var prev = sampleAt(b, ts - 4000);
+      if (!prev) return null;
+      var m = distM(prev, now);
+      return (m / 4) * 1.94384;
+    }
+    function courseAxis(ts) {
+      var sl = trail.start_line;
+      var startMid = sl && sl.left && sl.right
+        ? { lat: (sl.left.lat + sl.right.lat) / 2, lon: (sl.left.lon + sl.right.lon) / 2 }
+        : null;
+      var leg = leaderLineState(ts);
+      var key = (leg && leg.key) || focusMarkKey || "1";
+      var target = markAt(key, ts) || markAt("1", ts) || markAt("3", ts);
+      if (!target) {
+        var keys = Object.keys(trail.marks || {});
+        if (keys.length) target = markAt(keys[0], ts);
+      }
+      var windFrom = (target && startMid && target.lat != null && startMid.lat != null)
+        ? bearingDeg(startMid.lat, startMid.lon, target.lat, target.lon)
+        : 0;
+      return { startMid: startMid, target: target, targetKey: key, windFrom: windFrom, leg: leg };
+    }
+    function boatHasFinished(sail, ts) {
+      var i;
+      for (i = 0; i < FINISH.length; i++) {
+        if (FINISH[i].boat === sail && FINISH[i].ts != null && FINISH[i].ts <= ts) return true;
+      }
+      return false;
+    }
+    function isRetired(sail, ts) {
+      if (!RETIRED[sail]) return false;
+      var r = RETIRED[sail];
+      return !r.ts || ts >= r.ts - 5000;
+    }
+    function currentRacePoints(sail, ts, bySail) {
+      if (PROTEST_MODE === "official" && OFFICIAL_POINTS && OFFICIAL_POINTS[sail] != null &&
+          (ts >= PLAY_END_TS - 5000 || isRetired(sail, ts) || officialCodeForRace(RACE_NO, sail))) {
+        return OFFICIAL_POINTS[sail];
+      }
+      if (isRetired(sail, ts)) return DNF_POINTS;
+      if (boatHasFinished(sail, ts) && FINISH_PLACE[sail] != null) {
+        return FINISH_PLACE[sail];
+      }
+      return bySail[sail] != null ? bySail[sail] : DNF_POINTS;
+    }
+    function buildOverallState(rows, ts, bySail) {
+      var scored = rows.map(function (r) {
+        var prior = seriesNettBeforeCurrent(r.sail);
+        var cur = currentRacePoints(r.sail, ts, bySail);
+        return {
+          sail: r.sail,
+          pos: r.pos,
+          prior: prior,
+          cur: cur,
+          total: prior + cur,
+          raceRank: bySail[r.sail]
+        };
+      });
+      scored.sort(function (a, b) {
+        if (a.total !== b.total) return a.total - b.total;
+        if (a.cur !== b.cur) return a.cur - b.cur;
+        return (a.raceRank || 99) - (b.raceRank || 99);
+      });
+      var overallBySail = {};
+      scored.forEach(function (r, i) { overallBySail[r.sail] = i + 1; });
+      var top = scored[0] || null;
+      return {
+        overallBySail: overallBySail,
+        overallLeader: top ? {
+          sail: top.sail,
+          pos: top.pos,
+          nett: top.prior,
+          racePlace: top.cur,
+          total: top.total
+        } : null
+      };
+    }
+    function ensureLiveRanks(ts) {
+      if (liveRankCache.ts === ts && liveRankCache.leader && liveRankCache.overallLeader && liveRankCache.bySail && liveRankCache.overallBySail) {
+        return liveRankCache;
+      }
+      var axis = courseAxis(ts);
+      var rows = [];
+      Object.keys(trail.boats || {}).forEach(function (sail) {
+        var pos = posAt(sail, ts);
+        if (!pos) return;
+        var nxt = nextPassFor(sail, ts);
+        var done = completedPasses(sail, ts);
+        var markPos = nxt ? (markAt(passMarkKey(nxt), ts) || axis.target) : axis.target;
+        var dtm = markPos ? distM(pos, markPos) : 1e12;
+        rows.push({ sail: sail, pos: pos, dtm: dtm, done: done });
+      });
+      var finishedLocked = {};
+      var fi;
+      var useOfficialRace = PROTEST_MODE === "official" && OFFICIAL_RACE_RANK &&
+        Object.keys(OFFICIAL_RACE_RANK).length && ts >= PLAY_END_TS - 5000;
+      if (useOfficialRace) {
+        Object.keys(OFFICIAL_RACE_RANK).forEach(function (sail) {
+          if (OFFICIAL_RACE_RANK[sail] != null) finishedLocked[sail] = OFFICIAL_RACE_RANK[sail];
+        });
+      } else {
+        for (fi = 0; fi < FINISH.length; fi++) {
+          var fb = FINISH[fi];
+          if (fb.boat && fb.ts != null && fb.ts <= ts && FINISH_PLACE[fb.boat] != null) {
+            finishedLocked[fb.boat] = FINISH_PLACE[fb.boat];
+          }
+        }
+      }
+      var finishedN = Object.keys(finishedLocked).length;
+      var bySail = {};
+      Object.keys(finishedLocked).forEach(function (sail) {
+        bySail[sail] = finishedLocked[sail];
+      });
+      var open = rows.filter(function (r) {
+        if (useOfficialRace && OFFICIAL_POINTS && OFFICIAL_POINTS[r.sail] >= DNF_POINTS) return false;
+        return !boatHasFinished(r.sail, ts) && !(useOfficialRace && finishedLocked[r.sail] != null);
+      });
+      open.sort(function (a, b) {
+        if (b.done !== a.done) return b.done - a.done;
+        return a.dtm - b.dtm;
+      });
+      var nextRank = finishedN + 1;
+      open.forEach(function (r) {
+        bySail[r.sail] = nextRank;
+        nextRank += 1;
+      });
+      rows.sort(function (a, b) {
+        return (bySail[a.sail] || 99) - (bySail[b.sail] || 99);
+      });
+      var raceLeader = rows[0] || null;
+      var overallState;
+      if (RACE_NO < 2) {
+        /* Race 1: no prior nett — overall = this race only */
+        overallState = {
+          overallBySail: {},
+          overallLeader: raceLeader
+        };
+        Object.keys(bySail).forEach(function (sail) {
+          overallState.overallBySail[sail] = bySail[sail];
+        });
+      } else {
+        overallState = buildOverallState(rows, ts, bySail);
+      }
+      liveRankCache = {
+        ts: ts,
+        bySail: bySail,
+        overallBySail: overallState.overallBySail,
+        order: rows,
+        leader: raceLeader,
+        overallLeader: overallState.overallLeader,
+        target: axis.target,
+        targetKey: axis.targetKey,
+        startMid: axis.startMid,
+        windFrom: axis.windFrom,
+        leg: axis.leg
+      };
+      return liveRankCache;
+    }
+    function overallGain(sail, ts) {
+      var live = ensureLiveRanks(ts);
+      var cur = live.overallBySail[sail];
+      var start = OVERALL_AT_GUN[sail];
+      if (cur == null || start == null) return null;
+      return start - cur;
+    }
+    function drawSailfishOverlays(ts) {
+      if (!mapCtx || !mapBounds) return;
+      var live = ensureLiveRanks(ts);
+      var target = live.target;
+      var windFrom = live.windFrom || 0;
+      var raceLeader = live.leader;
+      var overall = live.overallLeader;
+      if (RACE_NO < 2) overall = raceLeader;
+      var sameLead = !raceLeader || !overall || overall.sail === raceLeader.sail;
+
+      /* Laylines from active windward mark (± tacking angle downwind) */
+      if (overlay.layline && target) {
+        var down = (windFrom + 180) % 360;
+        var ang = overlay.laylineAngle || 44.2;
+        var len = 1400;
+        var left = destPoint(target, down - ang, len);
+        var right = destPoint(target, down + ang, len);
+        var p0 = xy(target.lat, target.lon);
+        mapCtx.save();
+        mapCtx.setLineDash([]);
+        mapCtx.strokeStyle = "rgba(239,68,68,0.92)";
+        mapCtx.lineWidth = 1.8;
+        [left, right].forEach(function (pt) {
+          var p = xy(pt.lat, pt.lon);
+          mapCtx.beginPath();
+          mapCtx.moveTo(p0.x, p0.y);
+          mapCtx.lineTo(p.x, p.y);
+          mapCtx.stroke();
+        });
+        mapCtx.setLineDash([]);
+        mapCtx.fillStyle = "rgba(239,68,68,0.95)";
+        mapCtx.font = "bold 10px sans-serif";
+        mapCtx.fillText("Lay " + ang.toFixed(0) + "°", p0.x + 10, p0.y - 12);
+        mapCtx.restore();
+      }
+
+      /* Leader line: regatta overall leader (series nett + current race place) */
+      if (overlay.leaderline && overall && target) {
+        var lp = xy(overall.pos.lat, overall.pos.lon);
+        var mp = xy(target.lat, target.lon);
+        mapCtx.save();
+        mapCtx.setLineDash([5, 5]);
+        mapCtx.strokeStyle = "rgba(250,204,21,0.95)";
+        mapCtx.lineWidth = 2.2;
+        mapCtx.beginPath();
+        mapCtx.moveTo(lp.x, lp.y);
+        mapCtx.lineTo(mp.x, mp.y);
+        mapCtx.stroke();
+        mapCtx.setLineDash([]);
+        mapCtx.fillStyle = "#facc15";
+        mapCtx.font = "bold 10px sans-serif";
+        mapCtx.fillText("LEADER " + clubCode(overall.sail), lp.x + 14, lp.y - (sameLead ? 14 : 24));
+        mapCtx.restore();
+      }
+
+      /* Front line: perpendicular through live race leader (rank 1 this race) */
+      if (overlay.frontline !== false && raceLeader && target) {
+        var courseBrg = bearingDeg(raceLeader.pos.lat, raceLeader.pos.lon, target.lat, target.lon);
+        var leftPt = destPoint(raceLeader.pos, courseBrg - 90, 700);
+        var rightPt = destPoint(raceLeader.pos, courseBrg + 90, 700);
+        var a = xy(leftPt.lat, leftPt.lon);
+        var b = xy(rightPt.lat, rightPt.lon);
+        mapCtx.save();
+        mapCtx.setLineDash([2, 4]);
+        mapCtx.strokeStyle = "rgba(248,113,113,0.9)";
+        mapCtx.lineWidth = 2;
+        mapCtx.beginPath();
+        mapCtx.moveTo(a.x, a.y);
+        mapCtx.lineTo(b.x, b.y);
+        mapCtx.stroke();
+        mapCtx.setLineDash([]);
+        if (!sameLead) {
+          mapCtx.fillStyle = "rgba(248,113,113,0.95)";
+          mapCtx.font = "bold 10px sans-serif";
+          var fp = xy(raceLeader.pos.lat, raceLeader.pos.lon);
+          mapCtx.fillText("FRONT " + clubCode(raceLeader.sail), fp.x + 14, fp.y - 8);
+        }
+        mapCtx.restore();
+      }
+
+      /* Wind compass — always top-right of map canvas */
+      if (overlay.windCompass) {
+        var cx = Math.max(48, mapBounds.w - 48);
+        var cy = 48;
+        mapCtx.save();
+        mapCtx.beginPath();
+        mapCtx.arc(cx, cy, 28, 0, Math.PI * 2);
+        mapCtx.fillStyle = "rgba(15,23,42,0.82)";
+        mapCtx.fill();
+        mapCtx.strokeStyle = "#38bdf8";
+        mapCtx.lineWidth = 2.5;
+        mapCtx.stroke();
+        mapCtx.translate(cx, cy);
+        mapCtx.rotate(windFrom * Math.PI / 180);
+        mapCtx.beginPath();
+        mapCtx.moveTo(0, -22);
+        mapCtx.lineTo(7, 10);
+        mapCtx.lineTo(0, 5);
+        mapCtx.lineTo(-7, 10);
+        mapCtx.closePath();
+        mapCtx.fillStyle = "#f97316";
+        mapCtx.fill();
+        mapCtx.restore();
+        mapCtx.fillStyle = "#f8fafc";
+        mapCtx.font = "bold 11px sans-serif";
+        mapCtx.textAlign = "center";
+        mapCtx.fillText("WIND", cx, cy + 44);
+        mapCtx.fillText(Math.round(windFrom) + "°", cx, cy + 58);
+        mapCtx.textAlign = "start";
+      }
+
+      if (overlay.colSOG || overlay.colCOG) {
+        Object.keys(trail.boats || {}).forEach(function (sail) {
+          var pos = posAt(sail, ts);
+          if (!pos) return;
+          var p = xy(pos.lat, pos.lon);
+          var bits = [];
+          if (overlay.colSOG) {
+            var k = sogKts(sail, ts);
+            if (k != null) bits.push(k.toFixed(1) + "kt");
+          }
+          if (overlay.colCOG) bits.push(Math.round((pos.hdg + 360) % 360) + "°");
+          if (!bits.length) return;
+          mapCtx.fillStyle = "rgba(15,23,42,0.75)";
+          mapCtx.font = "9px sans-serif";
+          mapCtx.fillText(bits.join(" "), p.x + 10, p.y - 12);
+        });
+      }
+
+      /* Pre-flagged possible protest (R6 pin traffic — tracking evidence) */
+      if (PROTEST_FLAG_TS && Math.abs(ts - PROTEST_FLAG_TS) <= 45000) {
+        var pinPt = (trail.finish_line && trail.finish_line.left) ||
+          (trail.start_line && trail.start_line.left) || null;
+        if (pinPt) {
+          var pp = xy(pinPt.lat, pinPt.lon);
+          mapCtx.save();
+          mapCtx.strokeStyle = "rgba(251,146,60,0.95)";
+          mapCtx.lineWidth = 2;
+          mapCtx.setLineDash([4, 3]);
+          mapCtx.beginPath();
+          mapCtx.arc(pp.x, pp.y, 22, 0, Math.PI * 2);
+          mapCtx.stroke();
+          mapCtx.setLineDash([]);
+          mapCtx.fillStyle = "rgba(251,146,60,0.95)";
+          mapCtx.font = "bold 11px system-ui,sans-serif";
+          mapCtx.fillText("⚑ Possible protest · 57:25", pp.x + 26, pp.y - 8);
+          mapCtx.restore();
+        }
+      }
     }
     function courseFromTrail() {
       if (data.course && data.course.label) return data.course.label;
@@ -3707,9 +4493,14 @@
     function fmtLiveClock(ms) {
       var a = Math.abs(Number(ms) || 0);
       var tenths = Math.floor(a / 100);
-      var s = Math.floor(tenths / 10);
+      var totalSec = Math.floor(tenths / 10);
       var t = tenths % 10;
-      return (ms < 0 ? "T−" : "T+") + Math.floor(s / 60) + ":" + pad(s % 60) + "." + t;
+      var h = Math.floor(totalSec / 3600);
+      var m = Math.floor((totalSec % 3600) / 60);
+      var s = totalSec % 60;
+      /* Sailfish-style digital clock: HH:MM:SS.t (sign only for pre-gun) */
+      var body = pad(h) + ":" + pad(m) + ":" + pad(s) + "." + t;
+      return ms < 0 ? "−" + body : body;
     }
     function fitHudName(el, text) {
       if (!el) return;
@@ -3758,10 +4549,14 @@
       scrubEl.value = String(Math.round(u * 1000));
     }
     function applyScrub() {
-      if (!scrubEl || !trackerReady) return;
+      if (!scrubEl) return;
+      if (!trackerReady) beginAfterTracker();
+      playing = false;
+      setPlayLabel();
       var ts = PLAY_START_TS + (Number(scrubEl.value) / 1000) * raceSpanMs();
       cancelRecallHorn();
       jump(ts);
+      drawMap(playTs);
     }
     function setPlayLabel() {
       if (!playBtn) return;
@@ -3803,7 +4598,7 @@
       return n <= 1 ? base : base + "·" + n;
     }
     var lastHeadKey = "";
-    var marksDetailOpen = false;
+    var marksDetailOpen = true;
     function passIsMark(p) {
       if (!p) return false;
       if (p.id === "ST" || p.label === "ST") return false;
@@ -3830,6 +4625,31 @@
       });
       return { n: n, last: last };
     }
+    function compactBoard() {
+      return document.body.getAttribute("data-tracking-dev2") === "1";
+    }
+    function fmtLegGap(sec) {
+      if (sec == null || !isFinite(sec)) return "—";
+      if (Math.abs(sec) < 0.05) return "0.0";
+      return (sec < 0 ? "−" : "+") + Math.abs(sec).toFixed(1);
+    }
+    function legGapSec(sail, ts) {
+      var live = ensureLiveRanks(ts);
+      var lead = live.leader;
+      if (!lead) return null;
+      var me = null;
+      var i;
+      for (i = 0; i < live.order.length; i++) {
+        if (live.order[i].sail === sail) { me = live.order[i]; break; }
+      }
+      if (!me) return null;
+      if (me.sail === lead.sail) return 0;
+      var kts = sogKts(lead.sail, ts);
+      var ms = (kts != null && kts > 0.5) ? kts * 0.514444 : 3;
+      if (me.done === lead.done) return (me.dtm - lead.dtm) / ms;
+      if (me.done < lead.done) return me.dtm / ms;
+      return 0;
+    }
     var FOLD_AFTER_MS = 10000;
     function passFolded(passIdx, ts) {
       if (passIdx < 1 || !PASSES[passIdx]) return false;
@@ -3849,28 +4669,39 @@
       if (!headRow) return;
       if (limit == null) limit = PASSES.length - 1;
       var ts = viewTs;
-      var key = String(limit) + (showStCol(ts) ? "|ST" : "|noST") + (marksDetailOpen ? "|md1" : "|md0");
+      var compact = compactBoard();
+      var key = String(limit) + (compact ? "|gap|start|ov" : (showStCol(ts) ? "|ST" : "|noST")) + (marksDetailOpen ? "|md1" : "|md0");
       for (var i = 0; i < limit; i++) key += showDeltaAfter(i, ts, limit) ? "|d" : "|f";
       if (key === lastHeadKey) return;
       lastHeadKey = key;
-      var html = "<th class=\"rank-col\">Rank</th><th class=\"wc-meta-col\">Bow</th><th class=\"boat-name-col\">Boat Name</th><th class=\"club-col\">Club</th>";
-      for (i = 0; i <= limit; i++) {
-        if (i === 0 && !showStCol(ts)) continue;
-        var p = PASSES[i];
-        var lab = passHeadLabel(i);
-        var title = "Lap " + p.lap + " mark " + p.mark;
-        if (p.id === "FIN" || p.label === "Fin") title = "Finish time. Overall places are in the column to the left.";
-        else if (p.id === "ST" || p.label === "ST") title = "Seconds after first legal start. OCS boats use the recross after they clear, not the OCS dip.";
-        else if (passFolded(i, ts)) title = lab + " places vs previous mark";
-        html += "<th class=\"timer-col" + (passIsFin(p) ? " timer-col--fin" : "") + (passIsMark(p) ? " timer-col--mark" : "") + (!marksDetailOpen && passIsMark(p) && passFolded(i, ts) ? " timer-col--tight" : "") + "\" title=\"" + esc(title) + "\"><span class=\"ld-mark-lab\">" + esc(lab) + "</span></th>";
-        if (showDeltaAfter(i, ts, limit)) {
-          if (passIsFin(PASSES[i + 1])) {
-            html += "<th class=\"place-delta-col ld-overall-head\" title=\"Overall places vs start (sum of mark gains and losses). Arrow shows or hides mark times.\" aria-label=\"Overall place change. Show or hide mark times.\">" +
-              "<span class=\"ld-fin-legend\" aria-hidden=\"true\"><i class=\"ld-tri ld-tri--up\"></i><i class=\"ld-tri ld-tri--down\"></i></span>" +
-              "<button type=\"button\" class=\"ld-mark-twist\" data-mark-twist=\"1\" aria-expanded=\"" + (marksDetailOpen ? "true" : "false") + "\" title=\"" + (marksDetailOpen ? "Hide mark times" : "Show mark times") + "\" aria-label=\"" + (marksDetailOpen ? "Hide mark times" : "Show mark times") + "\">" + (marksDetailOpen ? "▾" : "▸") + "</button></th>";
-          } else {
-            var nlab = passHeadLabel(i + 1);
-            html += "<th class=\"place-delta-col\" title=\"Places gained or lost " + esc(lab) + " to " + esc(nlab) + "\" aria-label=\"Place change " + esc(lab) + " to " + esc(nlab) + "\">±</th>";
+      var html = "<th class=\"rank-col\">Rank</th><th class=\"wc-meta-col\">Bow</th><th class=\"boat-name-col\">Boat</th><th class=\"club-col\">Club</th>";
+      if (compact) {
+        html += "<th class=\"timer-col\" title=\"Seconds behind the race leader on this leg\">Gap</th>";
+        html += "<th class=\"start-rank-col\" title=\"Start position this race\">Start</th>";
+        html += "<th class=\"place-delta-col\" title=\"Overall places gained (+) or lost (−) since race start\">O/all</th>";
+      } else {
+        html += "<th class=\"timer-col\" title=\"Seconds behind the race leader on this leg\">Gap</th>";
+      }
+      if (!compact || marksDetailOpen) {
+        for (i = 0; i <= limit; i++) {
+          if (i === 0 && !showStCol(ts)) continue;
+          if (compact && i === 0) continue;
+          var p = PASSES[i];
+          var lab = passHeadLabel(i);
+          var title = "Lap " + p.lap + " mark " + p.mark + " — confirmed rounding";
+          if (p.id === "FIN" || p.label === "Fin") title = "Finish time. Overall places are in the column to the left.";
+          else if (p.id === "ST" || p.label === "ST") title = "Seconds after first legal start.";
+          else if (passFolded(i, ts)) title = lab + " places vs previous mark";
+          html += "<th class=\"timer-col" + (passIsFin(p) ? " timer-col--fin" : "") + (passIsMark(p) ? " timer-col--mark" : "") + (!marksDetailOpen && passIsMark(p) && passFolded(i, ts) ? " timer-col--tight" : "") + "\" title=\"" + esc(title) + "\"><span class=\"ld-mark-lab\">" + esc(lab) + "</span></th>";
+          if (showDeltaAfter(i, ts, limit)) {
+            if (passIsFin(PASSES[i + 1])) {
+              html += "<th class=\"place-delta-col ld-overall-head\" title=\"Overall places vs start (sum of mark gains and losses). Arrow shows or hides mark times.\" aria-label=\"Overall place change. Show or hide mark times.\">" +
+                "<span class=\"ld-fin-legend\" aria-hidden=\"true\"><i class=\"ld-tri ld-tri--up\"></i><i class=\"ld-tri ld-tri--down\"></i></span>" +
+                "<button type=\"button\" class=\"ld-mark-twist\" data-mark-twist=\"1\" aria-expanded=\"" + (marksDetailOpen ? "true" : "false") + "\" title=\"" + (marksDetailOpen ? "Hide mark times" : "Show mark times") + "\" aria-label=\"" + (marksDetailOpen ? "Hide mark times" : "Show mark times") + "\">" + (marksDetailOpen ? "▾" : "▸") + "</button></th>";
+            } else {
+              var nlab = passHeadLabel(i + 1);
+              html += "<th class=\"place-delta-col\" title=\"Places gained or lost " + esc(lab) + " to " + esc(nlab) + "\" aria-label=\"Place change " + esc(lab) + " to " + esc(nlab) + "\">±</th>";
+            }
           }
         }
       }
@@ -4227,6 +5058,16 @@
         };
       });
       rows.sort(function (a, b) {
+        var live = ensureLiveRanks(ts);
+        if (RACE_NO >= 2) {
+          var oa = live.overallBySail[a.boat] || 99;
+          var ob = live.overallBySail[b.boat] || 99;
+          if (oa !== ob) return oa - ob;
+        } else {
+          var ra = live.bySail[a.boat] || 99;
+          var rb = live.bySail[b.boat] || 99;
+          if (ra !== rb) return ra - rb;
+        }
         if (b.farIdx !== a.farIdx) return b.farIdx - a.farIdx;
         if (a.farTs != null && b.farTs != null && a.farTs !== b.farTs) return a.farTs - b.farTs;
         var ia = ident(a.boat);
@@ -4236,7 +5077,15 @@
         if (ba !== bb) return ba - bb;
         return String(a.boat).localeCompare(String(b.boat));
       });
-      rows.forEach(function (r, i) { r.rank = i + 1; });
+      rows.forEach(function (r) {
+        var live = ensureLiveRanks(ts);
+        r.raceRank = live.bySail[r.boat] || null;
+        r.overallRank = live.overallBySail[r.boat] || r.raceRank;
+        r.rank = RACE_NO >= 2 ? r.overallRank : r.raceRank;
+        r.gap = legGapSec(r.boat, ts);
+        r.startRank = START_RANK[r.boat] != null ? START_RANK[r.boat] : null;
+        r.overallGain = overallGain(r.boat, ts);
+      });
       return rows;
     }
     function leadMark(rows) {
@@ -4248,16 +5097,17 @@
         var pending = ocsPending(r.boat, ts);
         var badge = mapBadge(r.boat, ts);
         var place = badge.place == null ? "" : badge.place;
-        return [r.boat, pending ? "O" : "S", place, r.farIdx, r.farTs || ""].join(":");
+        return [r.boat, pending ? "O" : "S", place, r.rank || "", r.raceRank || "", r.startRank || "", r.overallGain != null ? r.overallGain : "", r.farIdx, r.farTs || "", r.gap != null ? r.gap.toFixed(1) : ""].join(":");
       }).join("|");
     }
     function boatIconHtml(sail, ts, rank) {
       var pending = ocsPending(sail, ts);
+      var retired = isRetired(sail, ts);
       var paint = boatPaint(sail, false);
-      var label = rank != null ? String(rank) : (pending ? "OCS" : "");
-      var fs = label === "OCS" ? "5.2" : "8";
-      var title = label ? (label === "OCS" ? "OCS" : "Rank " + label) : "Boat";
-      return "<svg class=\"lipton-boat-dot r10-live-icon\" viewBox=\"0 0 24 24\" width=\"36\" height=\"36\" aria-hidden=\"true\" title=\"" + esc(title) + "\">" +
+      var label = retired ? "RET" : (rank != null ? String(rank) : (pending ? "OCS" : ""));
+      var fs = (label === "OCS" || label === "RET") ? "5.2" : "8";
+      var title = retired ? "RET" : (label ? (label === "OCS" ? "OCS" : "Rank " + label) : "Boat");
+      return "<svg class=\"lipton-boat-dot\" viewBox=\"0 0 24 24\" aria-hidden=\"true\" title=\"" + esc(title) + "\">" +
         "<circle cx=\"12\" cy=\"13.2\" r=\"8.1\" fill=\"" + paint.fill + "\" stroke=\"#fff\" stroke-width=\"1.5\"/>" +
         "<polygon points=\"12,3 15.8,8.4 8.2,8.4\" fill=\"" + paint.fill + "\" stroke=\"#fff\" stroke-width=\"1.1\"/>" +
         "<text x=\"12\" y=\"16\" text-anchor=\"middle\" fill=\"" + paint.ink + "\" font-size=\"" + fs + "\" font-weight=\"800\">" + esc(label) + "</text>" +
@@ -4267,17 +5117,25 @@
       var id = ident(r.boat);
       var pending = ocsPending(r.boat, viewTs);
       var medal = "";
-      if (r.rank === 1) medal = " medal-gold";
-      else if (r.rank === 2) medal = " medal-silver";
-      else if (r.rank === 3) medal = " medal-bronze";
+      var medalRank = RACE_NO >= 2 ? r.overallRank : r.raceRank;
+      if (medalRank === 1) medal = " medal-gold";
+      else if (medalRank === 2) medal = " medal-silver";
+      else if (medalRank === 3) medal = " medal-bronze";
       var cls = medal + (unroll ? " lipton-unroll" : "") + (pending ? " ocs-pending" : "");
       var html = "<tr class=\"" + cls + "\" data-bow=\"" + esc(id ? id.bow : "") + "\" data-boat=\"" + esc(r.boat) + "\">";
-      html += "<td class=\"rank-col rank-col--live-icon\">" + boatIconHtml(r.boat, viewTs, r.rank) + "</td>";
+      html += "<td class=\"rank-col\">" + boatIconHtml(r.boat, viewTs, r.rank) + "</td>";
       html += "<td class=\"wc-meta-col\">" + bowCell(id) + "</td>";
       html += "<td class=\"boat-name-col\">" + boatNameCell(id) + "</td>";
       html += "<td class=\"club-col\">" + clubCell(id, pending) + "</td>";
+      html += "<td class=\"timer-col\" title=\"Seconds behind race leader this leg\">" + fmtLegGap(r.gap) + "</td>";
+      if (compactBoard()) {
+        html += "<td class=\"start-rank-col\" title=\"Start position this race\">" + (r.startRank != null ? esc(String(r.startRank)) : "—") + "</td>";
+        html += "<td class=\"place-delta-col ld-overall-col\">" + deltaSpan(r.overallGain, rememberDelta(r.boat + "|ovgain", r.overallGain)) + "</td>";
+      }
+      if (!compactBoard() || marksDetailOpen) {
       for (var i = 0; i <= passLimit; i++) {
         if (i === 0 && !showStCol(viewTs)) continue;
+        if (compactBoard() && i === 0) continue;
         html += timerTd(r, i, rankMaps, viewTs);
         if (showDeltaAfter(i, viewTs, passLimit)) {
           if (passIsFin(PASSES[i + 1])) {
@@ -4287,6 +5145,7 @@
             html += deltaCell(r.boat, i, rankMaps[i].prev, rankMaps[i].next);
           }
         }
+      }
       }
       html += "</tr>";
       return html;
@@ -4391,6 +5250,20 @@
         if (san.timeFail.length) bits.push("times " + san.timeFail.join(" "));
         if (san.legFail.length) bits.push("legs " + san.legFail.join(" "));
       }
+      if (RACE_NO === 6 && PROTEST_META) {
+        bits.push("R6 protests: 2 · DSQ KYC LDYC RNYC · pre-flag 57:25");
+      }
+      if (SERIES_CHECKSUM.ok === true) bits.push("series sheet ok");
+      else if (SERIES_CHECKSUM.ok === false) bits.push("series sheet MISMATCH");
+      var retNames = Object.keys(RETIRED);
+      if (retNames.length) bits.push("RET " + retNames.map(clubCode).join(" "));
+      if (SERIES_OFFICIAL && SERIES_OFFICIAL.ret_tracking) {
+        var rt = SERIES_OFFICIAL.ret_tracking[String(RACE_NO)] || {};
+        Object.keys(rt).forEach(function (sail) {
+          if (RET_DETECT[sail]) bits.push("RET detect " + clubCode(sail));
+          else if (!trail.boats || !trail.boats[sail]) bits.push("RET official " + clubCode(sail));
+        });
+      }
       checksumEl.textContent = bits.length ? "checksum " + bits.join(" · ") : "";
     }
     function clockText(ts, rows) {
@@ -4468,13 +5341,18 @@
     }
 
     function tick() {
+      try {
       if (playing && trackerReady) {
         var now = Date.now();
         var prevTs = playTs;
-        playTs += (now - lastWall) * RATE;
+        var rate = Number(RATE);
+        if (!(rate > 0)) rate = 5;
+        playTs += (now - lastWall) * rate;
         lastWall = now;
-        var gunAt = GUN_TS - GUN_HORN_EARLY_MS - GUN_HORN_LEAD_MS * (RATE > 0 ? RATE : 1);
-        if (prevTs < gunAt && playTs >= gunAt) fireGunHorn();
+        var gunAt = GUN_TS - GUN_HORN_EARLY_MS - GUN_HORN_LEAD_MS * rate;
+        if (prevTs < gunAt && playTs >= gunAt) {
+          try { fireGunHorn(); } catch (hornErr) {}
+        }
         if (playTs > PLAY_END_TS) {
           playTs = PLAY_END_TS;
           playing = false;
@@ -4486,10 +5364,10 @@
         var key = stateKey(rows, playTs);
         if (key !== lastKey || postIsDue()) {
           render(playTs);
-        } else if (clockEl) {
-          clockEl.textContent = clockText(playTs, rows);
+        } else {
+          drawCourseLabel(playTs);
+          drawMap(playTs);
         }
-        drawMap(playTs);
         syncScrub();
       } else {
         lastWall = Date.now();
@@ -4498,22 +5376,32 @@
           drawMap(playTs);
         }
       }
+      } catch (tickErr) {
+        console.warn("[dev2] tick", tickErr);
+        lastWall = Date.now();
+      }
       window.requestAnimationFrame(tick);
     }
 
     function beginAfterTracker() {
       if (trackerReady) return;
       trackerReady = true;
-      playTs = PLAY_END_TS;
+      playTs = Math.max(PLAY_START_TS, GUN_TS - 2000);
       lastWall = Date.now();
-      playing = false;
+      playing = true;
+      RATE = Math.max(RATE || 1, 5);
       resetHorns();
-      frameCam(playTs);
-      setPlayLabel();
-      setRateButtons();
-      render(playTs);
-      if (sailedEl) sailedEl.textContent = RACE_LAB + " · gun " + GUN_CLOCK + " · finish · press Play to replay";
+      try {
+        frameCam(playTs);
+        setPlayLabel();
+        setRateButtons();
+        render(playTs);
+      } catch (bootErr) {
+        console.warn("[dev2] begin", bootErr);
+      }
+      if (sailedEl) sailedEl.textContent = RACE_LAB + " · gun " + GUN_CLOCK + " · playing " + RATE + "×";
       fillChecksum();
+      setPlayLabel();
     }
 
     function waitForTracker() {
@@ -4526,7 +5414,51 @@
     if (slowerBtn) slowerBtn.addEventListener("click", function () { if (trackerReady) bumpRate(-1); });
     if (fasterBtn) fasterBtn.addEventListener("click", function () { if (trackerReady) bumpRate(1); });
     if (scrubEl) {
-      scrubEl.addEventListener("pointerdown", function () { scrubbing = true; });
+      var scrubPad = document.getElementById("lipton-dev-scrub-pad") || scrubEl;
+      function scrubEventX(ev) {
+        if (ev.touches && ev.touches[0]) return ev.touches[0].clientX;
+        if (ev.changedTouches && ev.changedTouches[0]) return ev.changedTouches[0].clientX;
+        return ev.clientX;
+      }
+      function scrubFromEvent(ev) {
+        var rect = scrubPad.getBoundingClientRect();
+        if (!rect.width) return;
+        var x = (scrubEventX(ev) - rect.left) / rect.width;
+        if (x < 0) x = 0;
+        if (x > 1) x = 1;
+        scrubEl.value = String(Math.round(x * 1000));
+        applyScrub();
+      }
+      function scrubDown(ev) {
+        if (ev.button != null && ev.button !== 0 && ev.type === "pointerdown") return;
+        scrubbing = true;
+        playing = false;
+        setPlayLabel();
+        if (ev.preventDefault) ev.preventDefault();
+        ev.stopPropagation();
+        if (ev.pointerId != null && scrubPad.setPointerCapture) {
+          try { scrubPad.setPointerCapture(ev.pointerId); } catch (err) {}
+        }
+        scrubFromEvent(ev);
+      }
+      function scrubMove(ev) {
+        if (!scrubbing) return;
+        if (ev.preventDefault) ev.preventDefault();
+        ev.stopPropagation();
+        scrubFromEvent(ev);
+      }
+      function scrubUp(ev) {
+        if (ev && ev.preventDefault) ev.preventDefault();
+        scrubbing = false;
+      }
+      var scrubOpts = { capture: true, passive: false };
+      scrubPad.addEventListener("pointerdown", scrubDown, scrubOpts);
+      scrubPad.addEventListener("pointermove", scrubMove, scrubOpts);
+      scrubPad.addEventListener("pointerup", scrubUp, true);
+      scrubPad.addEventListener("pointercancel", scrubUp, true);
+      scrubPad.addEventListener("touchstart", scrubDown, scrubOpts);
+      scrubPad.addEventListener("touchmove", scrubMove, scrubOpts);
+      scrubPad.addEventListener("touchend", scrubUp, scrubOpts);
       scrubEl.addEventListener("input", applyScrub);
       scrubEl.addEventListener("change", function () {
         applyScrub();
@@ -4537,15 +5469,18 @@
     if (playBtn) {
       playBtn.addEventListener("pointerdown", function () { unlockGunHorn(); });
       playBtn.addEventListener("click", function () {
-        if (!trackerReady) return;
+        if (!trackerReady) {
+          beginAfterTracker();
+          return;
+        }
         if (!playing) {
           unlockGunHorn();
           if (playTs >= PLAY_END_TS - 250) jump(PLAY_START_TS);
           playing = true;
+          lastWall = Date.now();
         } else {
           playing = false;
         }
-        lastWall = Date.now();
         setPlayLabel();
       });
     }
@@ -4566,6 +5501,7 @@
     });
 
     window.addEventListener("resize", function () {
+      sizeDev2Map();
       if (chartMap) chartMap.invalidateSize({ animate: false });
       if (followFleet) cam = null;
       frameCam(playTs);
@@ -4586,6 +5522,11 @@
     }
     fillHead(0);
     setRateButtons();
+    wireMapTools();
+    sizeDev2Map();
+    if (chartMap) {
+      try { chartMap.invalidateSize({ animate: false }); } catch (err) {}
+    }
     waitForTracker();
     window.requestAnimationFrame(tick);
   }
