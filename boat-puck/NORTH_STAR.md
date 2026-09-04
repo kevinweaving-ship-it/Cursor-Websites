@@ -17,19 +17,20 @@ Boat Puck copies the **second** job and beats it on cost, rate, openness, and ma
 | Corrections | RaceSense mesh (no cellular critical) | **LoRa RTCM** from committee (no cellular critical) |
 | Sensors | 25 Hz GNSS / 50 Hz fusion (Atlas) | **≥50 Hz GNSS + ≥100 Hz IMU** |
 | Radio | Proprietary 2.4 GHz | **SX1262 LoRa** — long range, open stack |
-| Sailor UI | Expensive Atlas on boat | **Universal Puck** back-cover LCD + BLE watch/phone/tablet |
-| Shell | Custom only | **Biggest common action-cam case** (production look) |
+| Sailor UI | Expensive Atlas on boat | **Puck** (no glass) + optional **Screen** housing + BLE watch/phone/tablet |
+| Shell | Custom only | **Two** common action-cam cases (production look); mount anywhere |
 | Price | Atlas + HALO stack is elite | Fraction of that BOM; same race jobs |
 | Software | Closed | Own Race Control; iterate UI fast |
 
 ---
 
-## One boat puck, one race network
+## One race network — split boat kit
 
 | | Product | Beats Vakaros by… |
 |--|---------|-------------------|
-| **Universal Puck** | Action-cam case + back-cover screen; Opti → bigger boats | Cost/weight; one SKU for fleets |
-| **Bigger boats** | Same puck + **tablet / smartwatch app** over BLE | Atlas-like UI without a second brick |
+| **Puck** | GoPro case: small MCU + battery + RTK + LoRa + IMU; **no screen** | Cost/weight; sky-friendly mount |
+| **Screen** | Second GoPro case: small MCU + battery + back-cover LCD | Digits where eyes are; optional buy |
+| **Bigger boats** | Same Puck + tablet/watch app (and/or Screen) | Atlas-like UI without a second radio brick |
 | **Boat Atlas** (later) | Optional own shell + 4.2" RLCD | Only if volume pays for custom glass |
 
 Committee gear is shared: RTK base + LoRa hub + Race Control + line ends.

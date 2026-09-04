@@ -1,18 +1,17 @@
 # Boat Puck — markets (updated for Universal Puck)
 
 North star: [`NORTH_STAR.md`](NORTH_STAR.md).  
-**Primary boat SKU:** [`universal-puck.md`](universal-puck.md).
+**Primary boat SKU:** [`universal-puck.md`](universal-puck.md) — **two** GoPro housings (Puck + optional Screen), mount anywhere.
 
 Same **race network** (committee RTK base + LoRa + Race Control).  
-**One** boat-side puck from Optimist through bigger boats. Scale the UI with BLE clients — not a second housing.
+Scale UI with BLE clients (Screen housing, watch, phone, tablet) — not a second radio.
 
-| | **Universal Puck** | **Bigger-boat add-ons** | **Boat Atlas (later)** |
-|--|--------------------|-------------------------|-------------------------|
-| Who | Opti → youth/Olympic dinghies → small keelboats | Keelboat helm / nav | Buyers who want on-device big glass |
-| Offer | Action-cam case + **back-cover screen** + race core | **Tablet / smartwatch / phone app** → same puck | Own IP67 + 4.2" RLCD |
-| Housing | **Largest common action-cam waterproof case** (H9–13 class) | — | Custom shell |
-| Sailor UI | Back LCD (aft on mast) | Large digits / pages on tablet or watch | On-device RLCD |
-| Mount | Mast / rail / clamp (class adapters) | Same puck, different plate | Pedestal / bulkhead |
+| | **Puck** | **Screen** | **Bigger-boat apps** | **Boat Atlas (later)** |
+|--|----------|------------|----------------------|-------------------------|
+| Who | Every boat on the mesh | Helm who wants local digits | Keelboat helm / nav | Buyers who want big on-device glass |
+| Offer | MCU + battery + RTK + LoRa + IMU | MCU + battery + back LCD | Tablet / watch / phone → Puck | Own IP67 + 4.2" RLCD |
+| Housing | Action-cam case, **no screen** | Second action-cam case | — | Custom shell |
+| Mount | Sky / mesh friendly | Anywhere eyes are | — | Pedestal / bulkhead |
 
 ---
 
@@ -22,7 +21,7 @@ Same **race network** (committee RTK base + LoRa + Race Control).
 - Sync start, live line, OCS, finish, scoring  
 - Same boat ID / bow offset / FIX quality uplink  
 
-**One Race Control. One Universal Puck. Companion apps scale the glass.**
+**One Race Control. One Puck radio. Screen / apps are optional glass.**
 
 ```
                     ┌─ Committee (one set per venue) ─┐
@@ -30,12 +29,12 @@ Same **race network** (committee RTK base + LoRa + Race Control).
                     └──────────────┬──────────────────┘
                                    │ LoRa
                                    ▼
-                          UNIVERSAL PUCK
-                     (action-cam · back LCD)
+                         PUCK (GoPro · no screen)
                                    │ BLE
-                    ┌──────────────┼──────────────┐
-                    ▼              ▼              ▼
-                 Watch          Phone          Tablet
+              ┌────────────────────┼────────────────────┐
+              ▼                    ▼                    ▼
+        SCREEN housing         Watch / phone         Tablet
+        (GoPro · LCD)          (optional)            (bigger boats)
 ```
 
 ---
@@ -44,18 +43,19 @@ Same **race network** (committee RTK base + LoRa + Race Control).
 
 | Skip | Why |
 |------|-----|
-| 4.2" in the puck | Does not fit action-cam backdoor; use tablet |
+| One brick with guts + glass | Depth fight; mount compromise — use two housings |
+| 4.2" in either case | Does not fit; use tablet or later Atlas |
 | Junction-box / Pelican as product shell | Looks proto, not production |
 | Phone dive cases | Too thin for full stack |
 | Osmo 360 / Action as compute host | No custom app on camera screen |
-| Separate dinghy-only “no screen” SKU | Back-cover LCD is standard on Universal |
 
 ---
 
 ## Go-to-market order
 
-1. **Universal Puck** in H9–13-class case — Opti fleets + shared mounts.  
-2. **BLE watch + phone app**, then **tablet** layout for bigger boats.  
-3. **Boat Atlas** only if demand wants built-in 4.2" (`atlas/`).
+1. **Puck** in H9–13-class case (no screen) — Opti fleets + shared mounts.  
+2. **Screen** housing (second case) — optional; BLE to Puck.  
+3. **BLE watch + phone app**, then **tablet** for bigger boats.  
+4. **Boat Atlas** only if demand wants built-in 4.2" (`atlas/`).
 
 Firmware and Race Control stay shared.

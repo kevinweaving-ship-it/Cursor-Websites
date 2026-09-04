@@ -108,9 +108,10 @@ O-ring must still close — rear stack must not force the door open.
 
 | Product | Shell | Screen |
 |---------|-------|--------|
-| **Universal Puck** (primary) | GoPro H9–13 / Ace class | **Back-cover LCD ~2.0–2.8"** (required) |
-| **Bigger boats** | Same puck | Same back LCD + **tablet / watch / phone** app |
+| **Puck** | GoPro H9–13 / Ace class | **None** (full cavity for radio/battery) |
+| **Screen** | Second GoPro H9–13 / Ace class | **Back-cover LCD ~2.0–2.8"** |
+| **Bigger boats** | Same Puck | Screen housing and/or **tablet / watch / phone** app |
 | **Boat Atlas** (later) | Own IP67 | **4.2" RLCD** (does not fit GoPro back) |
 
 See [`../universal-puck.md`](../universal-puck.md).  
-**Puck + back screen** = Universal. **4.2" own shell** = optional Atlas later.
+Two housings; Screen is optional. **4.2" own shell** = Atlas later.
