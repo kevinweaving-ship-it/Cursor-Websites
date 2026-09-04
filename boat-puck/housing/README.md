@@ -33,6 +33,7 @@ Working target until calipers: **Ø32 × 5.5 mm** deep (antenna stack ≤ **5.0 
 | `gopro-h9-13-envelope.md` | Doctrine + fit checklist |
 | `gopro-h9-13-lens-gps-pocket.md` | Lens protrusion + GPS antenna volume |
 | `gopro-back-screen-fit.md` | What size screen fits the **backdoor / rear face** |
+| `alternate-waterproof-housings.md` | Common dive/phone housings vs 4.2" + puck depth |
 | `dimensions.json` | Machine-readable cavity = camera + lens pocket |
 | `gopro-h9-13-keepout.svg` | 2D views at exact camera size |
 | `gopro-h9-13-envelope.scad` | Exact positive solid + lens boss |
