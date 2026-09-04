@@ -141,3 +141,33 @@ https://www.alibaba.com/product-detail/subject_10000041644207.html
 | Form | Finished Ø~60–80 mm puck + optional handheld in hero shot |
 
 **Verdict:** **NO — skip.** Title says RTK; product is **M9N drone GPS**. Wrong accuracy class and wrong rate. Do not buy or ask for guts (you already know the chip). Stay on **UM980**.
+
+---
+
+## Paste add-on — HighGain UM980 / UM982 / F9P kit boards
+
+Short URL https://www.alibaba.com/x/1lBAuXL?ck=pdp → product **1601932849835** (captcha; ID from redirect).  
+Screenshots: High Gain multi-band RTK modules.
+
+| | |
+|--|--|
+| Seller | Shanghai HighGain Information Technology |
+| Price | **R1 141–1 939** (~**$71–121**) |
+| MOQ | **50 pcs** — pain for first proto |
+| SKUs shown | **UM980** · **UM982** · **u-blox ZED-F9P** |
+| Spec text | 1408 ch · RTK 0.8 cm+1 ppm · rates **10/20 Hz**, firmware **up to 50 Hz** |
+| Board size | **71 × 46 × 12 mm** · MMCX · multi UART 3.3 V |
+
+**Verdict:** **YES — look / ask** — but only the **UM980** SKU.
+
+| SKU | Puck? | Notes |
+|-----|-------|-------|
+| **UM980** | **Maybe** | Right chip class; **confirm 50 Hz FW as shipped**; size **71×46** is **big** vs gnss.store ~26×39 — may **not fit** GoPro cavity |
+| UM982 | Later / no | Dual-antenna heading; not required for Puck |
+| ZED-F9P | **NO** | Typically **≤20 Hz** RTK — fails 50 Hz lock |
+
+**Ask (paste):**
+
+> Need **UM980 only** (not UM982 / not F9P). Confirm: (1) firmware **50 Hz** position out as shipped or free upgrade, (2) exact board mm (is 71×46 the only size? any smaller breakout?), (3) NMEA + RTCM base/rover, (4) **sample 1–2 pcs** price despite MOQ 50, (5) 10-pc and 50-pc USD.
+
+Prefer **1-pc** path if they refuse samples: [gnss.store ELT0223](https://gnss.store/products/elt0223) (~R2 720) until HighGain quotes samples + smaller board.
