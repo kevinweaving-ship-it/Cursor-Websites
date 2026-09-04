@@ -18,19 +18,26 @@ Site: https://www.sailteck.com · Maker: **Sailteck SARL** (Mark Johnson — ori
 
 FX: R16/$1.
 
-## Reverse image / similar **housing**
+## Triangle / twin-face family (not GPS race recorders)
 
-The **twin-face wedge** (one LCD toward helm, one upward for hike/trapeze) is **Sailteck’s own registered design** (UK designs 6345215–6345231 etc.). No other brand ships that exact shell.
+User correction: the **triangle / dual-angled LCD** is a known dinghy form — mostly **compass + timer**, not Atlas-class race logging. Sailteck’s exact shell is registered, but the *idea* is older.
 
-| Product | Housing vs Sailteck | Notes |
-|---------|---------------------|--------|
-| **Raymarine Tacktick Micro Compass** | Different — low single-face “brick” | Same designer lineage; Sailteck is the intentional upgrade (dual line + twin view) |
-| **Velocitek Prism** | Different — single large face, flat cradle | Shares **mount ecosystem** (Tacktick-compatible hole pitch) |
-| **Nautalytics** | Different — large single display | Class-legal compass competitor |
-| **Vakaros Atlas 2 / Sailmon MAX** | Different — flat rectangular smart GPS | Feature rivals to **SK02**, not housing twins |
+| Product | Shape | What it does | GPS / race log? |
+|---------|-------|--------------|-----------------|
+| **Tacktick / Raymarine Race Master T070** | Classic **triangle**: two LCDs at angles for port/starboard | Magnetic heading, wind-shift, line bias, race timer | **No** — solar tactical compass (now retired) |
+| **Velocitek Prism** | **Prism** body, dual LCDs, ~250° view | Magnetic heading only (stripped) | **No** — compass only |
+| **Sailteck Race Compass SK01** (photo) | Twin-face wedge (front + top) | Heading + countdown (+ tactical) | **No** — class-legal compass/timer |
+| **Sailteck GPS Compass SK02** | Same Sailteck shell | Speed, line distance, RTK option | **Yes** — GPS/RTK sibling |
+| **Tacktick Micro Compass** | Low single-face brick | Heading / simple modes | **No** |
+| **Vakaros Atlas 2 / Sailmon MAX** | Flat rectangle | Full race computer | **Yes** — different form |
 
-**Mount lookalikes (not the instrument body):** Murphy Beeble, CarbonParts EC2 / CP03 — brackets that also take Tacktick / Sailteck / sometimes Prism. Cradle pitch Sailteck: **105 × 60 mm**.
+**Closest housing match to “triangle I’ve seen on dinghies”:** Race Master T070, then Prism, then Sailteck. Same designer thread: Mark Johnson (Tacktick → Sailteck).
 
+**Mount ecosystem:** Murphy Beeble, CarbonParts EC2 — shared cradles across Tacktick / Sailteck / Prism. Sailteck cradle pitch **105 × 60 mm**.
+
+### Earlier overclaim (corrected)
+
+Sailteck’s *exact* twin-wedge CAD is registered; the **triangle dual-view pattern** is not unique to them — Race Master invented the category, Prism continued it.
 ## Takeaway for Boat Puck
 
 - Closest **UI/housing lesson**: dual viewing angles for hiking — not GoPro-puck shaped.
