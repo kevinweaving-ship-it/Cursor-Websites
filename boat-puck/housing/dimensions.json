@@ -1,0 +1,90 @@
+{
+  "project": "boat-puck",
+  "purpose": "GoPro H9-13 waterproof housing as Boat Puck enclosure",
+  "doctrine": "Housing cavity = camera positive (mold clearance microns only)",
+  "confidence": "high_camera_published",
+  "updated": "2026-09-04",
+  "units": "mm",
+  "primary_housing": {
+    "name": "GoPro Protective Housing HERO9-13",
+    "sku_official": ["ADDIV-001", "ADDIV-001-VT"],
+    "clone_examples": ["Telesin GP-WTP-901"],
+    "compatible_cameras": ["HERO9", "HERO10", "HERO11", "HERO12", "HERO13"],
+    "depth_m_waterproof_backdoor": 60,
+    "cavity": {
+      "equals": "camera_positive",
+      "W": 71.8,
+      "H": 50.8,
+      "D": 33.6,
+      "volume_cm3": 122.7,
+      "source": "GoPro HERO9-13 product Design+Dimensions (shared chassis); includes mounting-finger form factor",
+      "mold_clearance_note": "Housing is molded to this positive; typical polycarbonate snap clearance is microns to ~0.1 mm — treat cavity = camera for electronics packing"
+    },
+    "camera_positive": {
+      "W": 71.8,
+      "H": 50.8,
+      "D": 33.6,
+      "source": "GoPro official product specs HERO9/10/11/12/13"
+    },
+    "camera_positive_alt_community_rounded": {
+      "W": 71.0,
+      "H": 55.0,
+      "D": 33.6,
+      "source": "Older GoPro community size articles — do not use for packing; superseded by 71.8 x 50.8 x 33.6 product specs",
+      "use": false
+    },
+    "insert_design_solid": {
+      "W": 71.8,
+      "H": 50.8,
+      "D": 33.6,
+      "note": "Outer envelope of Boat Puck = camera positive. Optional print slip (e.g. -0.15 mm/side) is manufacturing tolerance only, not cavity uncertainty."
+    },
+    "optional_print_slip_mm_per_side": 0.15,
+    "housing_outer_listed": {
+      "ADDIV_icecat": { "W": 80, "H": 80, "D": 50, "weight_g": 100 },
+      "telesin_gp_wtp_901": { "W": 94, "H": 85, "D": 46, "weight_g": 135, "depth_m": 45 }
+    },
+    "keepouts_from_camera_geometry": {
+      "lens_barrel_and_cover_glass": "front centre — part of positive; leave void or blank the glass",
+      "folding_mount_fingers": "bottom — housing has finger wells; reclaim if insert has no fingers",
+      "button_faces": "top shutter / side mode — plunger pads in housing",
+      "battery_door_side": "side door geometry on camera — housing follows it",
+      "rear_screen_plane": "flat to backdoor; O-ring on housing door"
+    },
+    "lens_protrusion_gps_pocket": {
+      "purpose": "Stock protective lens stick-out = housing front tunnel = GPS antenna well",
+      "confidence": "medium_community_calipers",
+      "protrusion_past_front_face_mm": {
+        "nominal": 5.5,
+        "range": [5.0, 6.0],
+        "note": "Included inside published camera D=33.6 mm"
+      },
+      "lens_module_outer_mm": {
+        "square_approx": [31.5, 31.5],
+        "diameter_approx": 33.0
+      },
+      "gps_design_target_mm": {
+        "usable_diameter": 32.0,
+        "antenna_max_od": 30.0,
+        "pocket_depth": 5.5,
+        "antenna_stack_max_thickness": 5.0
+      },
+      "implied_body_depth_without_lens_tip_mm": [27.6, 28.6],
+      "h13_note": "H13 stock protective cover ~1 mm wider and slightly thinner (Hypoxic)",
+      "not_max_lens_mod": "Do not size ADDIV pocket from Max Lens Mod (~40x40x20 package)",
+      "doc": "gopro-h9-13-lens-gps-pocket.md",
+      "status": "provisional_until_bench_calipers"
+    }
+  },
+  "secondary_housing": {
+    "name": "GoPro HERO4 Standard Housing",
+    "camera_positive": { "W": 59, "H": 41, "D": 30 },
+    "cavity_equals_camera": true,
+    "note": "Not primary; see gopro-h4-notes.md"
+  },
+  "axis": {
+    "X": "W — left-right",
+    "Y": "H — top-bottom",
+    "Z": "D — front (lens) to back (door)"
+  }
+}

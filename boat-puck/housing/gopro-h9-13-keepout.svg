@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="700" viewBox="0 0 920 700">
+  <title>Boat Puck  H913 cavity = camera positive 71.8×50.8×33.6</title>
+  <style>
+    .t { font: 700 17px sans-serif; fill: #111; }
+    .s { font: 12px sans-serif; fill: #444; }
+    .l { font: 11px sans-serif; fill: #222; }
+    .d { font: 11px monospace; fill: #1565c0; }
+    .cam { fill: #bbdefb; stroke: #0d47a1; stroke-width: 2.5; }
+    .feat { fill: #ffe0b2; stroke: #ef6c00; stroke-width: 1.5; fill-opacity: 0.9; }
+    .note { font: 11px sans-serif; fill: #b71c1c; }
+  </style>
+
+  <text x="24" y="28" class="t">HERO913 housing cavity = camera positive</text>
+  <text x="24" y="48" class="s">Exact: 71.8 W × 50.8 H × 33.6 D mm · mold clearance microns · scale 5 px/mm</text>
+
+  <text x="24" y="78" class="l">TOP (XY) · lens at bottom · door at top</text>
+  <g transform="translate(40,95)">
+    <rect class="cam" x="0" y="0" width="359" height="254"/>
+    <ellipse class="feat" cx="179.5" cy="230" rx="40" ry="22"/>
+    <text x="155" y="234" class="l">lens</text>
+    <rect class="feat" x="120" y="0" width="119" height="20"/>
+    <text x="155" y="14" class="l">latch</text>
+    <text x="370" y="20" class="d">W 71.8</text>
+    <text x="370" y="38" class="d">H 50.8</text>
+  </g>
+
+  <text x="500" y="78" class="l">FRONT (XZ) · through glass</text>
+  <g transform="translate(520,95)">
+    <rect class="cam" x="0" y="0" width="359" height="168"/>
+    <ellipse class="feat" cx="179.5" cy="84" rx="45" ry="45"/>
+    <text x="155" y="88" class="l">glass</text>
+    <text x="370" y="20" class="d">W 71.8</text>
+    <text x="370" y="38" class="d">D 33.6</text>
+  </g>
+
+  <text x="24" y="400" class="l">SIDE (YZ) · lens left · door right</text>
+  <g transform="translate(40,415)">
+    <rect class="cam" x="0" y="0" width="168" height="254"/>
+    <rect class="feat" x="0" y="85" width="28" height="80"/>
+    <text x="4" y="128" class="l">lens</text>
+    <rect class="feat" x="40" y="220" width="90" height="34"/>
+    <text x="55" y="242" class="l">fingers</text>
+    <text x="180" y="20" class="d">D 33.6</text>
+    <text x="180" y="38" class="d">H 50.8</text>
+  </g>
+
+  <g transform="translate(320,420)">
+    <text x="0" y="0" class="l">Doctrine</text>
+    <text x="0" y="22" class="s">Blue box = camera positive = housing inside.</text>
+    <text x="0" y="40" class="s">Orange = camera features the housing follows.</text>
+    <text x="0" y="58" class="s">Boat Puck outer solid starts as this blue box,</text>
+    <text x="0" y="76" class="s">then subtract features to free electronics volume.</text>
+    <text x="0" y="106" class="note">No arbitrary 1 mm shrink. Slip only for print tolerance.</text>
+  </g>
+</svg>
