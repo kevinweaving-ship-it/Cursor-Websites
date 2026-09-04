@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v39";
+  var CACHE = "dev2v40";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -295,6 +295,10 @@
     location.assign(u.pathname + "?" + u.searchParams.toString());
   }
   function hideRankingBoard() {
+    if (typeof window.__sailfishSetBoard === "function") {
+      window.__sailfishSetBoard(false);
+      return;
+    }
     var board = document.getElementById("tracking-dev2-ranking");
     var overlay = window.__sailfishOverlay || {};
     overlay.board = false;
@@ -306,14 +310,6 @@
       board.hidden = true;
       board.setAttribute("aria-hidden", "true");
       board.style.display = "none";
-    }
-    var boardFlag = document.querySelector('#tracking-dev2-sailfish-flags [data-flag="board"]');
-    if (boardFlag) {
-      boardFlag.classList.remove("tracking-dev2-flag--on");
-      boardFlag.classList.add("tracking-dev2-flag--off");
-    }
-    if (typeof window.__sailfishRedraw === "function") {
-      try { window.__sailfishRedraw(); } catch (err) {}
     }
   }
   document.addEventListener("click", function (ev) {
@@ -2671,7 +2667,7 @@
         boardEl.classList.toggle("is-hidden", !overlay.board);
         boardEl.hidden = !overlay.board;
         boardEl.setAttribute("aria-hidden", overlay.board ? "false" : "true");
-        boardEl.style.display = overlay.board ? "" : "none";
+        boardEl.style.setProperty("display", overlay.board ? "flex" : "none", "important");
       }
       if (overlay.camera) {
         followFleet = true;

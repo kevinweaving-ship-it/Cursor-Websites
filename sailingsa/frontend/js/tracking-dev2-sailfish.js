@@ -42,15 +42,40 @@
     board.classList.toggle("is-hidden", !on);
     board.hidden = !on;
     board.setAttribute("aria-hidden", on ? "false" : "true");
-    board.style.display = on ? "" : "none";
+    board.style.setProperty("display", on ? "flex" : "none", "important");
   }
   window.__sailfishSyncBoard = syncBoard;
+  function syncFlagButtons(state) {
+    var flags = el("tracking-dev2-sailfish-flags");
+    if (!flags) return;
+    if (!flags.querySelector("[data-flag]")) {
+      paintFlags(flags, state);
+      return;
+    }
+    [].forEach.call(flags.querySelectorAll("[data-flag]"), function (btn) {
+      var on = !!(state && state[btn.getAttribute("data-flag")]);
+      btn.classList.toggle("tracking-dev2-flag--on", on);
+      btn.classList.toggle("tracking-dev2-flag--off", !on);
+    });
+  }
+  window.__sailfishSetBoard = function (on) {
+    var state = window.__sailfishOverlay || overlayState({});
+    state.board = !!on;
+    window.__sailfishOverlay = state;
+    syncBoard(state);
+    syncFlagButtons(state);
+    if (typeof window.__sailfishRedraw === "function") {
+      try { window.__sailfishRedraw(); } catch (err) {}
+    }
+    return state.board;
+  };
   window.__sailfishToggleFlag = function (name) {
     var state = window.__sailfishOverlay || overlayState({});
+    if (name === "board") return window.__sailfishSetBoard(!state.board);
     state[name] = !state[name];
     window.__sailfishOverlay = state;
     syncBoard(state);
-    paintFlags(el("tracking-dev2-sailfish-flags"), state);
+    syncFlagButtons(state);
     if (typeof window.__sailfishRedraw === "function") {
       try { window.__sailfishRedraw(); } catch (err) {}
     }
@@ -92,17 +117,6 @@
               : pair[1] === "dots"
                 ? " (breadcrumb dotted tracks)"
                 : "");
-      btn.addEventListener("click", function (ev) {
-        ev.preventDefault();
-        ev.stopPropagation();
-        state[pair[1]] = !state[pair[1]];
-        window.__sailfishOverlay = state;
-        syncBoard(state);
-        paintFlags(flags, state);
-        if (typeof window.__sailfishRedraw === "function") {
-          try { window.__sailfishRedraw(); } catch (err) {}
-        }
-      });
       flags.appendChild(btn);
     });
   }
@@ -125,12 +139,13 @@
           ev.preventDefault();
           ev.stopPropagation();
         }
-        state.board = false;
-        window.__sailfishOverlay = state;
-        syncBoard(state);
-        paintFlags(flags, state);
-        if (typeof window.__sailfishRedraw === "function") {
-          try { window.__sailfishRedraw(); } catch (err) {}
+        if (typeof window.__sailfishSetBoard === "function") {
+          window.__sailfishSetBoard(false);
+        } else {
+          state.board = false;
+          window.__sailfishOverlay = state;
+          syncBoard(state);
+          paintFlags(flags, state);
         }
       };
     }
