@@ -26,6 +26,7 @@ See [`NORTH_STAR.md`](NORTH_STAR.md).
 | `vakaros-gnss-board-id.md` | Atlas 2 GNSS fingerprint → Sony CXD5610 / Telit SE868SY-D class |
 | `gnss-50hz-lock.md` | Puck GNSS ≥50 Hz (UM980); reject LC29H/LG290P |
 | `puck-components-buy-list.md` | **Puck parts + prices + buy URLs** |
+| `alibaba-gnss-eval-2026-09.md` | Alibaba GNSS paste set — price/size; Puck vs committee base |
 | `bom-puck-screen-cost.md` | Cost summary Puck vs Screen (loud speaker on 2a) |
 | `markets-dinghy-keelboat.md` | Markets vs Universal / Atlas |
 | `PRICE_RULE.md` | Always show **R** and **($)** |

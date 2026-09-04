@@ -42,8 +42,17 @@ FX: **R16 / $1**.
 | **UM980 breakout** (gnss.store) | **26×39 mm** | **~R2 720 ($170)** | https://gnss.store/products/elt0223 |
 | SparkFun UM980 Triband | larger | **R7 360 ($459.95)** — skip (expensive + export issues) | https://www.sparkfun.com/products/23286 |
 | Ali “UM980 RTK board 50Hz” | check photo | **~R2 400+ ($150+)** | AliExpress — **verify 50 Hz in listing/firmware** |
+| [Ali UM980/UM982 base+rover](https://www.alibaba.com/product-detail/UM982-UM980-Main-Base-Station-Rover_1601700100272.html) | board ~**26×38 mm** | **~R960–2 880 ($60–180)** — confirm live | **Ask for UM980 + 50 Hz** before pay |
 
 UM980 chip itself is **17×22 mm**. Confirm seller firmware supports **50 Hz** (some need upgrade).
+
+Full paste-set score (incl. reject LC29H / WT-43): [`alibaba-gnss-eval-2026-09.md`](alibaba-gnss-eval-2026-09.md).
+
+---
+
+## Committee boat — RTK **base** (not 50 Hz)
+
+Same **UM980** board as Puck is preferred (RTCM out @ ~1 Hz). Cheap LoRa-integrated trial: OTW **WT-43-RK-Lora** **R867 ($54.17)**, **43×43×14 mm** — max 20 Hz, OK for base experiments only.
 
 ---
 
