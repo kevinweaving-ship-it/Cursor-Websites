@@ -72,7 +72,23 @@ Again: **screen plane OK**, **thickness ~11 mm — not OK** for GNSS module + ce
 
 ### Phone-housing conclusion
 
-Use these only if you build a **flat “display slab”** (S3 + RLCD only) and put radio/GNSS **elsewhere** (split architecture).  
+**12 mm (even Ultra) is not deep enough for all electronics.**
+
+Rough one-unit stack (front → back):
+
+| Layer | Typical depth |
+|-------|----------------|
+| RLCD glass + window/gasket | ~2–4 mm |
+| PCB (ESP32 + LoRa + IMU) | ~8–15 mm |
+| RTK GNSS module | ~3–8 mm |
+| Battery (LiPo / 18650 flat) | ~8–20 mm |
+| Foam / seal clearance | ~1–2 mm |
+| **Total** | **~25–45 mm** |
+
+Phone dive cavities (**~10–12 mm**) only fit a **display slab** (glass + S3).  
+Full Boat Atlas (puck guts + screen) needs **≥ ~30 mm** internal depth → **own shell** or **split** (GoPro puck + thin display head).
+
+Use SeaLife/Divevolk only if radio/GNSS live **elsewhere**.  
 **Not** for one-unit Atlas = puck + 4.2".
 
 ---
