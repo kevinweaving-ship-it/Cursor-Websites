@@ -4,7 +4,7 @@ Do **not** use lcsc.com. Buy from **Ebyte factory** / Alibaba / Waveshare / GNSS
 
 FX: **R16 / $1**.
 
-**Hard lock:** GNSS must do **≥50 Hz**. See [`gnss-50hz-lock.md`](gnss-50hz-lock.md).
+**Hard lock:** GNSS **≥25 Hz** (Atlas parity). **50 Hz** = stretch (UM980). See [`gnss-50hz-lock.md`](gnss-50hz-lock.md). Full chat rescore: [`chat-reassess-gnss-2026-09.md`](chat-reassess-gnss-2026-09.md).
 
 ---
 

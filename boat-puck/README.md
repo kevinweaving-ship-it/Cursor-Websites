@@ -24,7 +24,8 @@ See [`NORTH_STAR.md`](NORTH_STAR.md).
 | `NORTH_STAR.md` | Beat Vakaros — doctrine |
 | `universal-puck.md` | Product tree: Puck + screen options 2a/2b/2c |
 | `vakaros-gnss-board-id.md` | Atlas 2 GNSS fingerprint → Sony CXD5610 / Telit SE868SY-D class |
-| `gnss-50hz-lock.md` | Puck GNSS ≥50 Hz (UM980); reject LC29H/LG290P |
+| `gnss-50hz-lock.md` | GNSS **≥25 Hz** Atlas parity; **50 Hz** stretch (UM980) |
+| `chat-reassess-gnss-2026-09.md` | Full paste rescore after unlocking 50 Hz hard bar |
 | `puck-components-buy-list.md` | **Puck parts + prices + buy URLs** |
 | `alibaba-gnss-eval-2026-09.md` | Alibaba GNSS paste set — price/size; Puck vs committee base |
 | `sailteck-research.md` | Sailteck Race/GPS Compass ID; twin-wedge housing lookalikes |
