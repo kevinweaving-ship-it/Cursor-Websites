@@ -66,3 +66,20 @@ Base does **not** need 50 Hz. Industry normal is **1 Hz** RTCM. Size less critic
 | Known EU breakout (not factory) | https://gnss.store/products/elt0223 | **~R2 720 ($170)** |
 
 Chip size: **17×22×2.6 mm**. Common China PCB breakouts: **~26×38 mm**. Always confirm **50 Hz** before pay.
+
+---
+
+## Paste add-on — JS-ATP38-M
+
+| Listing | Chip / product | Size | Price | Verdict |
+|---------|----------------|------|-------|---------|
+| [JS-ATP38-M Advanced RTK Anti…](https://www.alibaba.com/product-detail/JS-ATP38-M-Advanced-RTK-Anti_1601675645621.html) | **Jumpstar JS-ATP38-M** L1+L5 antenna module | **~38×38×11.5 mm** (factory: 38×11.5 mm class) | Ali live unknown; class typically **~R128–400 ($8–25)** | **NO** |
+
+**Factory:** https://www.jumpstargnss.com/standard-precision--antenna-modules/js-atp38-m.html  
+
+- Category: **standard precision** (not RTK cm board)  
+- Accuracy: **1.0 m** horiz (L1+L5) / 2.5 m (L1)  
+- Rate: **max 10 Hz** (default 1 Hz)  
+- “RTK / Anti” in Ali title = marketing; not UM980-class RTK  
+
+Skip for Puck and for committee RTK base.
