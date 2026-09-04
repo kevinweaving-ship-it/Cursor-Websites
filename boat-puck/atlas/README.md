@@ -94,5 +94,6 @@ Dinghy puck and committee hub stay parallel tracks — do not block Atlas glass 
 |------|---------|
 | `README.md` | This product brief |
 | `display-4.2-rlcd.md` | **Locked** 4.2" RLCD decision + mechanical envelope |
+| `buy-urls.md` | **Factory / store URLs, specs, prices** |
 | `ui-pages.md` | Screen list / layout rules for 300×400 mono |
 | `parity-checklist.md` | Atlas 2 feature → must / later / skip |

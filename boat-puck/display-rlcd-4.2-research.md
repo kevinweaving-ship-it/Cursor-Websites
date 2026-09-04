@@ -124,3 +124,6 @@ Full BOM + housing architecture → [`system-rlcd-housing.md`](system-rlcd-housi
 | Real panel factory cost? | **~$6–8** volume (Toppop / Shineworld); **~$8–12** samples |
 | Better CPU? | **ESP32-S31** next; **P4** only if dual-chip + non-RLCD UI |
 | For Boat Puck? | **Yes as sunlight UI** — custom PCB + **own IP67 housing** + RTK + LoRa + IMU; don’t ship the voice-AI calendar board as-is |
+
+**Clickable URL / factory / price sheet:** [`atlas/buy-urls.md`](atlas/buy-urls.md).
+
