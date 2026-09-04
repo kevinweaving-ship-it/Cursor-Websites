@@ -1746,31 +1746,36 @@ body[data-tracking-dev2="1"] .tracking-dev2-map-tool {
   pointer-events: auto;
 }
 
-/* Compact one-row chrome: R1–R10 + flags same height; slider grab; full map */
+/* Flags on their own readable lines; R1–R10 on a separate full-width row */
 body[data-tracking-dev2="1"] .tracking-dev2-sailfish-bar {
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
+  gap: 4px 6px;
   padding: 4px 6px;
-  overflow: hidden;
+  overflow: visible;
 }
 body[data-tracking-dev2="1"] .tracking-dev2-sailfish-flags {
   display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: 2px;
-  overflow-x: auto;
-  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 4px;
+  overflow: visible;
+  flex: 1 1 100%;
+  width: 100%;
   min-width: 0;
 }
 body[data-tracking-dev2="1"] .tracking-dev2-flag,
 body[data-tracking-dev2="1"] .tracking-dev2-sailfish-flags .tracking-dev2-flag {
-  min-width: 0;
-  min-height: 28px;
-  height: 28px;
-  padding: 0 6px;
-  font-size: 10px;
-  line-height: 26px;
+  flex: 1 1 calc(20% - 4px);
+  min-width: calc(20% - 4px);
+  max-width: calc(20% - 4px);
+  min-height: 32px;
+  height: auto;
+  padding: 4px 4px;
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: normal;
+  text-align: center;
   touch-action: manipulation;
 }
 body[data-tracking-dev2="1"] .tracking-dev2-wind-compass {
@@ -1782,7 +1787,7 @@ body[data-tracking-dev2="1"] .tracking-dev2-wind-compass {
 body[data-tracking-dev2="1"] .tracking-dev2-sailfish-bar .tracking-dev2-race-rail,
 body[data-tracking-dev2="1"] .tracking-dev2-race-rail {
   flex-wrap: nowrap !important;
-  flex: 1 1 auto;
+  flex: 1 1 calc(100% - 36px);
   min-width: 0;
   max-width: none !important;
   height: 28px !important;
@@ -1804,6 +1809,24 @@ body[data-tracking-dev2="1"] .lipton-dev-race-box {
 }
 body[data-tracking-dev2="1"] .tracking-dev2-dock {
   z-index: 100;
+  flex-wrap: nowrap;
+  align-items: center;
+  overflow: hidden;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-dock .lipton-dev-playbox {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: none !important;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-dock .tracking-dev2-protest-toggle,
+body[data-tracking-dev2="1"] .tracking-dev2-dock .tracking-dev2-protest-toggle[hidden] {
+  display: none !important;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-replay-clock {
+  min-width: 0;
+  flex: 0 0 auto;
 }
 body[data-tracking-dev2="1"] .tracking-dev2-dock .lipton-dev-scrub,
 body[data-tracking-dev2="1"] .tracking-dev2-dock .lipton-dev-playbox .lipton-dev-scrub,
