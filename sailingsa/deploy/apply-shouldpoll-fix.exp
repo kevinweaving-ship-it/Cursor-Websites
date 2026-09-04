@@ -1,0 +1,26 @@
+#!/usr/bin/expect -f
+set timeout 60
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+
+spawn scp -o StrictHostKeyChecking=no /workspace/sailingsa/deploy/fix_shouldpoll.py ${user}@${server}:/tmp/
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
+
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "
+chattr -i /var/www/sailingsa/api/api.py
+python3 /tmp/fix_shouldpoll.py
+chattr +i /var/www/sailingsa/api/api.py
+systemctl restart sailingsa-api
+sleep 2
+systemctl is-active sailingsa-api
+"
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait

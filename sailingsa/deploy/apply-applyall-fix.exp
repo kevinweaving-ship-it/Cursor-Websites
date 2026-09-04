@@ -1,0 +1,29 @@
+#!/usr/bin/expect -f
+set timeout 60
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+
+# Upload fix script
+spawn scp -o StrictHostKeyChecking=no sailingsa/deploy/fix_applyall_complete.py ${user}@${server}:/tmp/
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
+
+# Backup, unlock, apply fix, lock, restart
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "
+cp /var/www/sailingsa/api/api.py /var/www/sailingsa/api/api.py.bak.\$(date +%Y%m%d_%H%M%S)
+chattr -i /var/www/sailingsa/api/api.py
+python3 /tmp/fix_applyall_complete.py
+chattr +i /var/www/sailingsa/api/api.py
+systemctl restart sailingsa-api
+sleep 2
+systemctl is-active sailingsa-api
+"
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
