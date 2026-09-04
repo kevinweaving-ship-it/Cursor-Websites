@@ -8,7 +8,7 @@ Compare the two systems we benchmarked, then list **only what we must build** so
 | Positioning | Atlas ~25 cm DGNSS; HALO **~1 cm RTK** | ~metre GNSS (no fleet RTK) | **cm RTK** on every boat |
 | Sensors | 25 Hz GNSS / 50 Hz fusion (Atlas) | 25 Hz GNSS + 9-DOF | Target **≥50 Hz GNSS + ≥100 Hz IMU** (beat on paper) |
 | Radio | Proprietary **2.4 GHz RaceSense mesh** (no cellular for critical) | Wi‑Fi / BT / NMEA to phone-cloud | **LoRa SX1262** fleet net (no cellular for critical) |
-| Display | Expensive Atlas screen on boat | Expensive 4.4" display | **BLE → watch / phone** (cost kill) |
+| Display | Expensive Atlas screen on boat | Expensive 4.4" display | **BLE → watch / phone** (cheap SKU) **or** **4.2" RLCD** in own housing (display SKU) |
 | RC tools | Tablet: sync start, live line, OCS, finish, scoring | None (not race control) | Same class: start / line / OCS / finish |
 | Shell | Custom HALO / Atlas | Custom MAX | **GoPro H9–13 housing** |
 
@@ -71,7 +71,7 @@ Lens pocket **~Ø32 × 5.5 mm** = GNSS antenna.
 |---|---------------------|------------|
 | 11 | **Higher-rate GNSS+IMU than Atlas** | 50 Hz / 100 Hz marketing + better start call resolution |
 | 12 | **Sub‑GHz LoRa range** | Often longer reach than 2.4 GHz BLE-mesh on open water |
-| 13 | **No mandatory display hardware** | Huge cost/weight win vs Atlas+HALO stack |
+| 13 | **No mandatory display** (cheap SKU) **or** low-cost **4.2" RLCD** (display SKU) | Cost win vs Atlas; RLCD still ≪ Atlas retail — see `display-rlcd-4.2-research.md` |
 | 14 | **Commodity waterproof shell** | GoPro ecosystem mounts, cheap spares |
 | 15 | **Open sailor UI** (phone/watch) | Faster iteration than locked Atlas UI |
 | 16 | **On-puck OCS compute** (optional) | Low latency alert even if uplink busy |
@@ -153,7 +153,7 @@ Checked against **official** product pages (not guesswork):
 | Temperature | Yes (listed) | Not listed | Not listed | **Add (cheap)** |
 | Ambient light | Yes (listed) | Not listed | Not listed | **Skip v1** |
 | Barometer | Not on Vakaros official Sensors list\* | Not listed | Not listed | **Optional / later** |
-| Display / LED | LCD + RGB LED | **LED ring** | LCD | LED only (BLE UI) |
+| Display / LED | LCD + RGB LED | **LED ring** | LCD | LED + BLE UI; optional **4.2" RLCD** (`system-rlcd-housing.md`) |
 
 \*Some retailers (e.g. Mauripro) also list a barometer for Atlas 2; **Vakaros’s own Atlas 2 Sensors list** on the product page names light + temperature, not baro. Treat baro as **unconfirmed for Atlas**, absent for HALO/MAX.
 
@@ -180,6 +180,7 @@ Do **not** spend BOM on light or baro until the RTK+LoRa path is solid.
 
 **Committee:** RTK base + ant + SX1262 hub + Race Control host + line-end refs + power.
 
-**Skip v1:** light sensor, barometer, NMEA instrument hub, on-puck LCD.
+**Skip v1 (cheap SKU):** light sensor, barometer, NMEA instrument hub, on-puck LCD.  
+**Display SKU:** add factory **ST7305 4.2" RLCD** + ESP32-S3 + **own housing** — not GoPro (`system-rlcd-housing.md`).
 
-That equals HALO’s motion/orientation stack, copies Atlas’s useful temp, and ignores display-only sensors.
+That equals HALO’s motion/orientation stack, copies Atlas’s useful temp, and keeps display optional until we pay for sunlight UI.
