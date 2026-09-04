@@ -19,13 +19,15 @@ Confirm path before change.
 
 ## SSH key setup (one-time; then no password needed)
 
+**Root password:** `TimAdd#072082`
+
 ```bash
 # Generate key (if not exists)
 ssh-keygen -t ed25519 -f ~/.ssh/sailingsa_live_key -N "" -q
 
 # Copy public key to server (use password once)
-sshpass -p 'YOUR_ROOT_PASSWORD' ssh -o StrictHostKeyChecking=no root@102.218.215.253 "mkdir -p /root/.ssh && chmod 700 /root/.ssh"
-sshpass -p 'YOUR_ROOT_PASSWORD' ssh -o StrictHostKeyChecking=no root@102.218.215.253 "echo \"$(cat ~/.ssh/sailingsa_live_key.pub)\" >> /root/.ssh/authorized_keys && chmod 600 /root/.ssh/authorized_keys"
+sshpass -p 'TimAdd#072082' ssh -o StrictHostKeyChecking=no root@102.218.215.253 "mkdir -p /root/.ssh && chmod 700 /root/.ssh"
+sshpass -p 'TimAdd#072082' ssh -o StrictHostKeyChecking=no root@102.218.215.253 "echo \"$(cat ~/.ssh/sailingsa_live_key.pub)\" >> /root/.ssh/authorized_keys && chmod 600 /root/.ssh/authorized_keys"
 
 # Test
 ssh -i ~/.ssh/sailingsa_live_key root@102.218.215.253 "echo SSH KEY WORKS"

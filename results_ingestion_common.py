@@ -13,8 +13,9 @@ import os
 import re
 import subprocess
 from difflib import SequenceMatcher
-from hashlib import sha256
+from hashlib import md5, sha256
 from pathlib import Path
+from typing import Literal
 import urllib.request
 from urllib.parse import urlparse
 
@@ -626,6 +627,480 @@ def record_ingestion_log(conn, new_regattas: int, new_results_rows: int, parse_f
         )
 
 
+# =============================================================================
+# PROVENANCE FUNCTIONS (Source → Artifact → Regatta/Result linking)
+# =============================================================================
+
+# Authority levels (higher = more trustworthy)
+AUTHORITY_LEVELS = {
+    "sas_pdf": 90,           # Official SAS results PDF
+    "sas_html": 85,          # SAS web page
+    "sailwave_blw": 80,      # Sailwave file from club
+    "club_official": 75,     # Club-published results
+    "external_scrape": 50,   # Third-party scraped
+    "manual_admin": 30,      # Manual admin entry
+    "sailingsa_live": 95,    # SailingSA Live (future)
+    "unknown": 10,           # Unknown source
+}
+
+
+def _compute_file_checksum(file_path: Path | str) -> str | None:
+    """Compute MD5 checksum of a file. Returns None if file doesn't exist."""
+    path = Path(file_path) if isinstance(file_path, str) else file_path
+    if not path.exists():
+        return None
+    hasher = md5()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            hasher.update(chunk)
+    return hasher.hexdigest()
+
+
+def create_source_artifact(
+    conn,
+    source_url: str | None,
+    source_type: str,
+    import_method: str,
+    authority_level: int | None = None,
+    raw_file_path: str | None = None,
+    checksum_md5: str | None = None,
+    captured_by: str = "ingestion",
+    parse_notes: str | None = None,
+) -> int | None:
+    """
+    Create or get existing source_artifact, return artifact_id.
+    
+    Idempotent: if source_url already exists, returns existing artifact_id.
+    If raw_file_path provided and checksum not given, computes it.
+    
+    Args:
+        conn: Database connection
+        source_url: URL of the source (can be None for local-only files)
+        source_type: One of source_types.type_code (sas_pdf, club_official, etc.)
+        import_method: One of import_methods.method_code (scrape_auto, manual_entry, etc.)
+        authority_level: Override authority level (default from AUTHORITY_LEVELS)
+        raw_file_path: Local path to stored file
+        checksum_md5: MD5 hash of file (computed if not provided)
+        captured_by: Who/what captured this artifact
+        parse_notes: Optional notes about parsing
+        
+    Returns:
+        artifact_id (int) or None if creation failed
+    """
+    if authority_level is None:
+        authority_level = AUTHORITY_LEVELS.get(source_type, AUTHORITY_LEVELS["unknown"])
+    
+    # Compute checksum if file exists and not provided
+    if raw_file_path and not checksum_md5:
+        checksum_md5 = _compute_file_checksum(raw_file_path)
+    
+    cur = conn.cursor()
+    
+    # Check for existing artifact by source_url (idempotent)
+    if source_url:
+        cur.execute(
+            "SELECT artifact_id FROM source_artifacts WHERE source_url = %s LIMIT 1",
+            (source_url,),
+        )
+        row = cur.fetchone()
+        if row:
+            cur.close()
+            return row[0] if not isinstance(row, dict) else row["artifact_id"]
+    
+    # Check for existing artifact by checksum (same file, different URL)
+    if checksum_md5:
+        cur.execute(
+            "SELECT artifact_id FROM source_artifacts WHERE checksum_md5 = %s LIMIT 1",
+            (checksum_md5,),
+        )
+        row = cur.fetchone()
+        if row:
+            cur.close()
+            return row[0] if not isinstance(row, dict) else row["artifact_id"]
+    
+    # Insert new artifact
+    try:
+        cur.execute(
+            """
+            INSERT INTO source_artifacts (
+                source_type, import_method, authority_level, artifact_status,
+                source_url, raw_file_path, checksum_md5,
+                first_retrieved_at, last_retrieved_at,
+                captured_by, parse_notes
+            )
+            VALUES (%s, %s, %s, 'active', %s, %s, %s, NOW(), NOW(), %s, %s)
+            RETURNING artifact_id
+            """,
+            (source_type, import_method, authority_level, source_url, raw_file_path, 
+             checksum_md5, captured_by, parse_notes),
+        )
+        row = cur.fetchone()
+        artifact_id = row[0] if row else None
+        conn.commit()
+        cur.close()
+        return artifact_id
+    except Exception as e:
+        conn.rollback()
+        cur.close()
+        # Table may not exist yet - return None gracefully
+        if "source_artifacts" in str(e) and "does not exist" in str(e).lower():
+            return None
+        raise
+
+
+def link_regatta_to_artifact(
+    conn,
+    regatta_id: str,
+    artifact_id: int,
+    source_scope: str = "regatta",
+    is_original: bool = True,
+    is_primary: bool = True,
+    scope_class_id: int | None = None,
+    scope_result_id: int | None = None,
+    covers_all_classes: bool = True,
+    covers_all_races: bool = True,
+    class_ids_covered: list[int] | None = None,
+    race_numbers_covered: list[int] | None = None,
+    validation_status: str = "pending_review",
+    created_by: str = "ingestion",
+    notes: str | None = None,
+) -> int | None:
+    """
+    Create regatta_sources entry linking regatta to artifact.
+    
+    Idempotent: if link already exists, returns existing regatta_source_id.
+    Respects exactly-one-primary constraint via database triggers.
+    
+    Args:
+        conn: Database connection
+        regatta_id: Regatta ID to link
+        artifact_id: Source artifact ID
+        source_scope: One of source_scopes (regatta, class, fleet, race, entry, result, boat)
+        is_original: Whether this is the original source (immutable once set)
+        is_primary: Whether this is the current primary source
+        scope_class_id: For class-scope sources, which class
+        scope_result_id: For result-scope sources, which result
+        covers_all_classes: Whether source covers all classes in regatta
+        covers_all_races: Whether source covers all races
+        class_ids_covered: Array of class_ids if partial coverage
+        race_numbers_covered: Array of race numbers if partial coverage
+        validation_status: One of validation_statuses (draft, pending_review, validated, etc.)
+        created_by: Who created this link
+        notes: Optional notes
+        
+    Returns:
+        regatta_source_id (int) or None if creation failed
+    """
+    cur = conn.cursor()
+    
+    # Get authority_level from artifact
+    cur.execute(
+        "SELECT authority_level FROM source_artifacts WHERE artifact_id = %s",
+        (artifact_id,),
+    )
+    row = cur.fetchone()
+    if not row:
+        cur.close()
+        return None
+    authority_level = row[0] if not isinstance(row, dict) else row["authority_level"]
+    
+    # Check for existing link (idempotent)
+    cur.execute(
+        """
+        SELECT regatta_source_id FROM regatta_sources 
+        WHERE regatta_id = %s AND artifact_id = %s
+        LIMIT 1
+        """,
+        (regatta_id, artifact_id),
+    )
+    row = cur.fetchone()
+    if row:
+        cur.close()
+        return row[0] if not isinstance(row, dict) else row["regatta_source_id"]
+    
+    # Insert new link
+    try:
+        cur.execute(
+            """
+            INSERT INTO regatta_sources (
+                regatta_id, artifact_id, source_scope,
+                scope_class_id, scope_result_id,
+                is_original, is_primary, authority_level,
+                validation_status, covers_all_classes, covers_all_races,
+                class_ids_covered, race_numbers_covered,
+                created_by, notes
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING regatta_source_id
+            """,
+            (regatta_id, artifact_id, source_scope, scope_class_id, scope_result_id,
+             is_original, is_primary, authority_level, validation_status,
+             covers_all_classes, covers_all_races, class_ids_covered, race_numbers_covered,
+             created_by, notes),
+        )
+        row = cur.fetchone()
+        regatta_source_id = row[0] if row else None
+        conn.commit()
+        cur.close()
+        return regatta_source_id
+    except Exception as e:
+        conn.rollback()
+        cur.close()
+        # Table may not exist yet - return None gracefully
+        if "regatta_sources" in str(e) and "does not exist" in str(e).lower():
+            return None
+        raise
+
+
+def link_result_to_artifact(
+    conn,
+    result_id: int,
+    artifact_id: int,
+    is_original: bool = True,
+    is_current: bool = True,
+    source_locator: str | None = None,
+    fields_from_source: list[str] | None = None,
+    race_numbers_from_source: list[int] | None = None,
+    created_by: str = "ingestion",
+    notes: str | None = None,
+) -> int | None:
+    """
+    Create result_sources entry linking result to artifact.
+    
+    Idempotent: if link already exists, returns existing result_source_id.
+    
+    Args:
+        conn: Database connection
+        result_id: Result ID to link
+        artifact_id: Source artifact ID
+        is_original: Whether this is the original source (immutable)
+        is_current: Whether this is the current active source
+        source_locator: Page/row/cell reference within source document
+        fields_from_source: Which fields came from this source
+        race_numbers_from_source: Which race results came from this source
+        created_by: Who created this link
+        notes: Optional notes
+        
+    Returns:
+        result_source_id (int) or None if creation failed
+    """
+    cur = conn.cursor()
+    
+    # Verify artifact exists
+    cur.execute(
+        "SELECT artifact_id FROM source_artifacts WHERE artifact_id = %s",
+        (artifact_id,),
+    )
+    row = cur.fetchone()
+    if not row:
+        cur.close()
+        return None
+    
+    # Check for existing link (idempotent)
+    cur.execute(
+        """
+        SELECT result_source_id FROM result_sources 
+        WHERE result_id = %s AND artifact_id = %s
+        LIMIT 1
+        """,
+        (result_id, artifact_id),
+    )
+    row = cur.fetchone()
+    if row:
+        cur.close()
+        return row[0] if not isinstance(row, dict) else row["result_source_id"]
+    
+    # Insert new link
+    try:
+        cur.execute(
+            """
+            INSERT INTO result_sources (
+                result_id, artifact_id, is_original, is_current,
+                source_locator, fields_from_source, race_numbers_from_source,
+                created_by, notes
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING result_source_id
+            """,
+            (result_id, artifact_id, is_original, is_current,
+             source_locator, fields_from_source, race_numbers_from_source,
+             created_by, notes),
+        )
+        row = cur.fetchone()
+        result_source_id = row[0] if row else None
+        conn.commit()
+        cur.close()
+        return result_source_id
+    except Exception as e:
+        conn.rollback()
+        cur.close()
+        # Table may not exist yet - return None gracefully
+        if "result_sources" in str(e) and "does not exist" in str(e).lower():
+            return None
+        raise
+
+
+def resolve_boat_id(
+    cur,
+    sail_number: str | None,
+    class_id: int | None,
+    class_family_id: int | None = None,
+) -> int | None:
+    """
+    Resolve sail_number + class to boat_id via boat_identifiers.
+    
+    Rules:
+    - Exact normalized match only (no fuzzy)
+    - Class-family aware: ILCA rigs (4.7, 6, 7) share hull identity
+    - Returns boat_id only when exactly one active match found
+    - Multiple matches or no match → returns None (review queue)
+    - Never auto-creates boats
+    
+    Args:
+        cur: Database cursor
+        sail_number: Sail number to match (e.g., "RSA 123", "123")
+        class_id: Class ID from classes table
+        class_family_id: Optional hull family ID (if known)
+        
+    Returns:
+        boat_id (int) or None if no unique match
+    """
+    if not sail_number or not str(sail_number).strip():
+        return None
+    
+    # Normalize sail number: uppercase, strip, collapse whitespace
+    sail_norm = re.sub(r"\s+", " ", str(sail_number).strip().upper())
+    
+    # If no class_family_id provided, try to get it from classes
+    if class_family_id is None and class_id is not None:
+        try:
+            cur.execute(
+                "SELECT hull_family_id FROM classes WHERE class_id = %s",
+                (class_id,),
+            )
+            row = cur.fetchone()
+            if row:
+                class_family_id = row[0] if not isinstance(row, dict) else row.get("hull_family_id")
+        except Exception:
+            pass  # Column may not exist
+    
+    # Build query based on what we have
+    candidates = []
+    
+    try:
+        if class_family_id is not None:
+            # Family-aware match: find boats where identifier class shares same family
+            cur.execute(
+                """
+                SELECT DISTINCT bi.boat_id
+                FROM boat_identifiers bi
+                JOIN classes c ON c.class_id = bi.class_id
+                WHERE bi.sail_number_normalized = %s
+                  AND bi.identifier_status = 'active'
+                  AND (
+                      bi.class_id = %s
+                      OR c.hull_family_id = %s
+                  )
+                """,
+                (sail_norm, class_id, class_family_id),
+            )
+        elif class_id is not None:
+            # Exact class match only
+            cur.execute(
+                """
+                SELECT DISTINCT bi.boat_id
+                FROM boat_identifiers bi
+                WHERE bi.sail_number_normalized = %s
+                  AND bi.class_id = %s
+                  AND bi.identifier_status = 'active'
+                """,
+                (sail_norm, class_id),
+            )
+        else:
+            # No class info - try to match by sail number alone (risky, may have conflicts)
+            cur.execute(
+                """
+                SELECT DISTINCT bi.boat_id
+                FROM boat_identifiers bi
+                WHERE bi.sail_number_normalized = %s
+                  AND bi.identifier_status = 'active'
+                """,
+                (sail_norm,),
+            )
+        
+        for row in cur.fetchall() or []:
+            boat_id = row[0] if not isinstance(row, dict) else row.get("boat_id")
+            if boat_id is not None:
+                candidates.append(boat_id)
+                
+    except Exception as e:
+        # Table may not exist yet
+        if "boat_identifiers" in str(e) and "does not exist" in str(e).lower():
+            return None
+        raise
+    
+    # Return boat_id only if exactly one match
+    if len(candidates) == 1:
+        return candidates[0]
+    
+    # Multiple matches = ambiguity → needs review
+    # No matches = unknown boat → needs review or new boat creation
+    return None
+
+
+def update_artifact_status(
+    conn,
+    artifact_id: int,
+    status: Literal["active", "archived", "corrupted", "deleted_source", "pending_retrieval"],
+    parse_notes: str | None = None,
+) -> bool:
+    """
+    Update artifact_status after parse/validation.
+    
+    Args:
+        conn: Database connection
+        artifact_id: Artifact to update
+        status: New status
+        parse_notes: Optional notes to append
+        
+    Returns:
+        True if updated, False if artifact not found
+    """
+    cur = conn.cursor()
+    try:
+        if parse_notes:
+            cur.execute(
+                """
+                UPDATE source_artifacts 
+                SET artifact_status = %s, 
+                    parse_notes = COALESCE(parse_notes || E'\n', '') || %s
+                WHERE artifact_id = %s
+                RETURNING artifact_id
+                """,
+                (status, parse_notes, artifact_id),
+            )
+        else:
+            cur.execute(
+                """
+                UPDATE source_artifacts 
+                SET artifact_status = %s
+                WHERE artifact_id = %s
+                RETURNING artifact_id
+                """,
+                (status, artifact_id),
+            )
+        row = cur.fetchone()
+        conn.commit()
+        cur.close()
+        return row is not None
+    except Exception as e:
+        conn.rollback()
+        cur.close()
+        if "source_artifacts" in str(e) and "does not exist" in str(e).lower():
+            return False
+        raise
+
+
 def stage_new_sas_results_with_local_pdfs(result_items, dry_run: bool = True, apply: bool = False):
     """
     Stage only new SAS result PDFs into results_staging and store them locally.
@@ -963,6 +1438,44 @@ def detect_new_regattas_from_results(result_items, dry_run: bool = True, apply: 
                         f"INSERT INTO regattas ({cols_sql}) VALUES ({placeholders})",
                         tuple(insert_vals),
                     )
+                    
+                    # --- PROVENANCE TRACKING (graceful, no auto-validate, no auto-truth) ---
+                    # Infer source_type from URL pattern (not authority - that's in provenance layer)
+                    inferred_source_type = "sas_pdf" if "sailing.org.za" in source_url else "external_scrape"
+                    
+                    # Create artifact (idempotent - won't duplicate if URL exists)
+                    artifact_id = create_source_artifact(
+                        conn, source_url, inferred_source_type, "scrape_auto",
+                        captured_by="detect_new_regattas",
+                        parse_notes=f"Auto-detected from {title_text or file_name}"
+                    )
+                    
+                    if artifact_id:
+                        # Link regatta to artifact - validation_status='pending_review' (NO auto-validate)
+                        # is_original=True, is_primary=True only because this is first source
+                        # Truth determination happens later in provenance layer
+                        link_regatta_to_artifact(
+                            conn, regatta_id, artifact_id,
+                            source_scope="regatta",
+                            is_original=True,
+                            is_primary=True,  # First source is primary by default, can be changed later
+                            validation_status="pending_review",  # NO auto-validation
+                            created_by="detect_new_regattas",
+                            notes="Initial source - pending validation"
+                        )
+                        
+                        # Update regatta with artifact reference (if columns exist)
+                        if "original_artifact_id" in optional_cols:
+                            cur.execute(
+                                "UPDATE regattas SET original_artifact_id = %s WHERE regatta_id = %s",
+                                (artifact_id, regatta_id)
+                            )
+                        if "provenance_status" in optional_cols:
+                            cur.execute(
+                                "UPDATE regattas SET provenance_status = 'pending_review' WHERE regatta_id = %s",
+                                (regatta_id,)
+                            )
+                    # --- END PROVENANCE TRACKING ---
 
                 report.append(
                     {
