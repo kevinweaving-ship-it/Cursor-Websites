@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v44";
+  var CACHE = "dev2v45";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -279,6 +279,10 @@
       board.style.setProperty("z-index", "96", "important");
     }
     if (tools) tools.style.setProperty("top", chromeTop + "px", "important");
+    var liveMap = window.__dev2ChartMap;
+    if (liveMap && typeof liveMap.invalidateSize === "function") {
+      try { liveMap.invalidateSize({ animate: false }); } catch (err) {}
+    }
   }
   window.__dev2SizeMap = sizeDev2Map;
   sizeDev2Map();

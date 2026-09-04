@@ -1207,8 +1207,8 @@ body[data-tracking-dev2="1"] .lipton-header-cup {
 body[data-tracking-dev2="1"] .lipton-dev-shell {
   flex: 1 1 auto;
   min-height: 0;
-  height: calc(100dvh - 88px);
-  max-height: calc(100dvh - 88px);
+  height: 100dvh;
+  max-height: 100dvh;
   max-width: none;
   margin: 0;
   padding: 0 6px 0;
@@ -1526,31 +1526,30 @@ body[data-tracking-dev2="1"] .tracking-dev2-race-rail {
   right: auto;
   left: auto;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   left: auto;
   z-index: 80;
-  height: auto !important;
-  min-height: 44px;
-  overflow: visible !important;
-  flex-wrap: wrap;
+  height: 22px !important;
+  min-height: 22px;
+  overflow: hidden !important;
   justify-content: flex-start;
-  gap: 4px;
+  gap: 2px;
   width: auto;
-  max-width: min(70%, 420px);
+  max-width: none;
   margin: 0 !important;
   pointer-events: auto;
   grid-column: auto;
   grid-row: auto;
 }
 body[data-tracking-dev2="1"] .lipton-dev-race-box {
-  flex: 0 0 auto;
-  min-width: 44px;
-  min-height: 44px;
-  height: 44px;
+  flex: 1 1 0%;
+  min-width: 0;
+  min-height: 22px;
+  height: 22px;
   touch-action: manipulation;
-  padding: 0 8px;
-  font-size: 12px;
-  line-height: 34px;
+  padding: 0 1px;
+  font-size: 9px;
+  line-height: 20px;
   pointer-events: auto;
   cursor: pointer;
 }
@@ -1654,12 +1653,11 @@ body[data-tracking-dev2="1"] {
 }
 body[data-tracking-dev2="1"] .lipton-dev-shell,
 body[data-lipton-dev="1"][data-tracking-dev2="1"] .lipton-dev-shell {
-  display: flex !important;
-  flex-direction: column !important;
-  flex: 1 1 auto !important;
-  height: calc(100dvh - 88px) !important;
-  max-height: calc(100dvh - 88px) !important;
-  min-height: 0 !important;
+  display: block !important;
+  flex: none !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  min-height: 100dvh !important;
   overflow: hidden !important;
 }
 body[data-tracking-dev2="1"] .tracking-dev2-sailfish-bar {
@@ -1667,24 +1665,24 @@ body[data-tracking-dev2="1"] .tracking-dev2-sailfish-bar {
 }
 body[data-tracking-dev2="1"] .lipton-dev-split.tracking-dev2-split {
   display: block !important;
-  position: relative !important;
-  flex: 1 1 auto !important;
+  position: static !important;
+  flex: none !important;
   min-height: 0 !important;
   height: 0 !important;
   padding-bottom: 0 !important;
-  overflow: hidden !important;
+  overflow: visible !important;
 }
 body[data-tracking-dev2="1"] .lipton-dev-track.tracking-dev2-map-first,
 body[data-lipton-dev="1"][data-tracking-dev2="1"] .lipton-dev-track.tracking-dev2-map-first {
-  position: absolute !important;
+  position: fixed !important;
   top: 0 !important;
   left: 0 !important;
   right: 0 !important;
   bottom: 0 !important;
   flex: none !important;
-  width: 100% !important;
-  height: auto !important;
-  min-height: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  min-height: 100dvh !important;
   max-height: none !important;
 }
 body[data-tracking-dev2="1"] #lipton-dev-subhead.tracking-dev2-dock {
@@ -1699,16 +1697,16 @@ body[data-tracking-dev2="1"] #lipton-dev-subhead.tracking-dev2-dock {
   body[data-tracking-dev2="1"] .lipton-dev-shell,
   body[data-lipton-dev="1"][data-tracking-dev2="1"] .lipton-dev-shell {
     overflow: hidden !important;
-    height: calc(100dvh - 88px) !important;
-    max-height: calc(100dvh - 88px) !important;
-    flex: 1 1 auto !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    flex: none !important;
   }
   body[data-tracking-dev2="1"] .lipton-dev-track.tracking-dev2-map-first,
   body[data-lipton-dev="1"][data-tracking-dev2="1"] .lipton-dev-track {
-    position: absolute !important;
+    position: fixed !important;
     inset: 0 !important;
-    height: auto !important;
-    min-height: 0 !important;
+    height: 100dvh !important;
+    min-height: 100dvh !important;
     max-height: none !important;
   }
 }
@@ -1748,11 +1746,17 @@ body[data-tracking-dev2="1"] .tracking-dev2-map-tool {
 
 /* Flags on their own readable lines; R1–R10 on a separate full-width row */
 body[data-tracking-dev2="1"] .tracking-dev2-sailfish-bar {
+  position: fixed;
+  left: 6px;
+  right: 6px;
+  z-index: 95;
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 6px;
   padding: 4px 6px;
   overflow: visible;
+  background: rgba(15, 23, 42, 0.78);
+  margin: 0;
 }
 body[data-tracking-dev2="1"] .tracking-dev2-sailfish-flags {
   display: flex;
@@ -1779,32 +1783,34 @@ body[data-tracking-dev2="1"] .tracking-dev2-sailfish-flags .tracking-dev2-flag {
   touch-action: manipulation;
 }
 body[data-tracking-dev2="1"] .tracking-dev2-wind-compass {
-  width: 28px;
-  height: 28px;
-  flex: 0 0 28px;
-  font-size: 11px;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  font-size: 10px;
 }
 body[data-tracking-dev2="1"] .tracking-dev2-sailfish-bar .tracking-dev2-race-rail,
 body[data-tracking-dev2="1"] .tracking-dev2-race-rail {
   flex-wrap: nowrap !important;
-  flex: 1 1 calc(100% - 36px);
-  min-width: 0;
+  flex: 1 1 calc(100% - 28px) !important;
+  width: calc(100% - 28px) !important;
+  min-width: 0 !important;
   max-width: none !important;
-  height: 28px !important;
-  min-height: 28px !important;
+  height: 22px !important;
+  min-height: 22px !important;
   overflow: hidden !important;
   gap: 2px;
 }
 body[data-lipton-dev="1"][data-tracking-dev2="1"] .lipton-dev-race-box,
 body[data-tracking-dev2="1"] .lipton-dev-race-box {
-  flex: 1 1 0;
-  min-width: 0;
-  width: auto;
-  min-height: 28px;
-  height: 28px;
-  padding: 0 2px;
-  font-size: 10px;
-  line-height: 26px;
+  flex: 1 1 0% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  width: auto !important;
+  min-height: 22px !important;
+  height: 22px !important;
+  padding: 0 1px !important;
+  font-size: 9px !important;
+  line-height: 20px !important;
   touch-action: manipulation;
 }
 body[data-tracking-dev2="1"] .tracking-dev2-dock {
