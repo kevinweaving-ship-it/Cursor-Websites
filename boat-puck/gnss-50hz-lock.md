@@ -1,50 +1,45 @@
-# GNSS rate lock — **must be 50 Hz**
+# GNSS rate lock — **Atlas parity ≥25 Hz** (50 Hz stretch)
 
-Boat Puck north star: **≥50 Hz GNSS** (+ ≥100 Hz IMU).  
-See [`NORTH_STAR.md`](NORTH_STAR.md).
+Boat Puck north star: beat Vakaros on cost/openness/RTK-on-every-boat.  
+**Atlas 2 GNSS is ~25 Hz** (+ IMU fusion ~50 Hz). We do **not** need 50 Hz GNSS to match that product.
 
-## Do **not** buy these for the Puck (too slow)
+See [`NORTH_STAR.md`](NORTH_STAR.md) · reassessment [`chat-reassess-gnss-2026-09.md`](chat-reassess-gnss-2026-09.md).
 
-| Module / board | RTK / nav rate | Why reject |
-|----------------|----------------|------------|
-| Quectel **LC29H(DA)** / Waveshare LC29H(DA) | **1 Hz RTK** | Far below 50 Hz |
-| Quectel **LC29H(EA)** | **max 10 Hz RTK** | Still &lt; 50 Hz |
-| Quectel **LG290P** / Waveshare LG290P | **max 20 Hz** | Still &lt; 50 Hz |
-| u-blox **ZED-F9P** class | typically **≤20–25 Hz** | Not 50 Hz RTK |
-
-Cheaper LC29H boards are fine for bench learning — **not** for race Puck.
-
----
-
-## Buy this class — **50 Hz capable**
-
-| Board | Size | Rate | Price (approx) | URL |
-|-------|------|------|----------------|-----|
-| **Unicore UM980** on breakout | chip **17×22 mm**; boards ~**26×39 mm** | **50 Hz** RTK (firmware) | **~R2 400–2 720 ($150–170)** | https://gnss.store/products/elt0223 |
-| SparkFun **UM980 Triband RTK Breakout** | larger breakout | **50 Hz** | check live | https://www.sparkfun.com/sparkfun-triband-gnss-rtk-breakout-um980.html |
-| AliExpress / China **UM980 RTK board** | varies — measure | claim **20–50 Hz** — **verify seller/firmware** | **~R2 400+ ($150+)** | search “UM980 RTK board 50Hz” |
-
-Factory chip docs: Unicore UM980 — data update rate **up to 50 Hz** (some firmware needs upgrade for 50 Hz).
-
----
-
-## Puck GNSS rule (locked)
+## Hard lock (Puck rover)
 
 ```
-GNSS module MUST support ≥50 Hz position output (RTK or fused).
+GNSS MUST support ≥25 Hz position output (RTK preferred, or high-rate PVT).
 IMU MUST be ≥100 Hz.
-If a “cheap” RTK board is only 1–20 Hz → reject.
+Committee RTK base: ~1 Hz RTCM is enough.
 ```
 
-**Cost reality:** true 50 Hz RTK is the expensive line item. LC29H ~$20–55 cannot replace it for this product.
+**Stretch (nice-to-have):** **50 Hz** GNSS when size/BOM allow — Unicore **UM980** path.
 
----
+## Reject for Puck rover
 
-## Suggested v0 cart (50 Hz path)
+| Module / board | Rate | Why |
+|----------------|------|-----|
+| Quectel **LC29H(DA)** | **1 Hz RTK** | Far below 25 Hz |
+| Quectel **LC29H(EA)** | **max 10 Hz RTK** | Below Atlas parity |
+| Meter-level drone GPS (M9N etc.) | any | Not cm RTK |
+| Finished Android “RTK” walkies / UWB badges | — | Not embeddable guts |
+
+## Buy classes
+
+| Board | Size | Rate | Role | URL |
+|-------|------|------|------|-----|
+| **Unicore UM980** breakout | chip 17×22; boards ~26×39 | up to **50 Hz** (FW) | **Preferred Puck** + race base | https://gnss.store/products/elt0223 |
+| **ZED-F9P** class | varies | typically **≤20–25 Hz** | Atlas-parity candidate if ≥25 Hz confirmed | SparkFun / Ali |
+| **OTW WT-43-RK-LORA** | **43×43×14** | **1–20 Hz** + LoRa | **Committee / cheap trial** — not preferred race rover | https://www.ontheway-tech.com/product/wt-43-rk-lora/ |
+
+Always verify seller firmware rate before pay.
+
+## Suggested v0 cart
 
 1. UM980 board — https://gnss.store/products/elt0223 (~**R2 720 / $170**)  
-2. E73 nRF — https://ebyteiot.com/products/2-4ghz-ble-mesh-small-smd-e73-2g4m08s1c-nordic-nrf52840-module-small-size-ble-5-0  
-3. E22 LoRa — https://www.cdebyte.com/products/E22-900M22S  
-4. Housing &lt; R100  
+2. Optional: WT-43-RK-LORA — cheap LoRa+RTK base trial (~**R867 / $54**)  
+3. E73 nRF — https://ebyteiot.com/products/2-4ghz-ble-mesh-small-smd-e73-2g4m08s1c-nordic-nrf52840-module-small-size-ble-5-0  
+4. E22 LoRa — https://www.cdebyte.com/products/E22-900M22S  
+5. Housing &lt; R100  
 
-Detail buy list: [`puck-components-buy-list.md`](puck-components-buy-list.md).
+Detail: [`puck-components-buy-list.md`](puck-components-buy-list.md).

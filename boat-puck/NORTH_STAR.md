@@ -15,7 +15,7 @@ Boat Puck copies the **second** job and beats it on cost, rate, openness, and ma
 |-----------|---------|---------------------|
 | Positioning | Atlas ~25 cm; HALO ~1 cm RTK | **cm RTK on every boat** |
 | Corrections | RaceSense mesh (no cellular critical) | **LoRa RTCM** from committee (no cellular critical) |
-| Sensors | 25 Hz GNSS / 50 Hz fusion (Atlas) | **≥50 Hz GNSS + ≥100 Hz IMU** (hard lock — see `gnss-50hz-lock.md`) |
+| Sensors | 25 Hz GNSS / 50 Hz fusion (Atlas) | **≥25 Hz GNSS** (Atlas parity) + **≥100 Hz IMU**; **50 Hz GNSS** stretch — see `gnss-50hz-lock.md` |
 | Radio | Proprietary 2.4 GHz | **SX1262 LoRa** — long range, open stack |
 | Sailor UI | Expensive Atlas on boat | **Puck** (no glass) + optional **Screen** housing + BLE watch/phone/tablet |
 | Shell | Custom only | **Two** common action-cam cases (production look); mount anywhere |
