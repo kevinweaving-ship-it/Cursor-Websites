@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v41";
+  var CACHE = "dev2v43";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -280,6 +280,7 @@
     }
     if (tools) tools.style.setProperty("top", chromeTop + "px", "important");
   }
+  window.__dev2SizeMap = sizeDev2Map;
   sizeDev2Map();
   window.addEventListener("resize", function () {
     sizeDev2Map();
@@ -312,34 +313,44 @@
       board.style.display = "none";
     }
   }
-  var lastTap = { key: "", at: 0 };
+  var lastPointerTap = {};
   function consumeTap(ev) {
     if (!ev) return;
     ev.preventDefault();
     ev.stopPropagation();
     if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
   }
-  function sameTap(key) {
-    var now = Date.now();
-    if (lastTap.key === key && now - lastTap.at < 350) return true;
-    lastTap = { key: key, at: now };
-    return false;
+  function isGhostClick(kind, ev) {
+    if (!ev || ev.type !== "click") return false;
+    return Date.now() - (lastPointerTap[kind] || 0) < 500;
+  }
+  function markPointerTap(kind, ev) {
+    if (ev && ev.type === "pointerdown") lastPointerTap[kind] = Date.now();
   }
   function onChromeTap(ev) {
     if (!ev || !ev.target || !ev.target.closest) return;
-    if (ev.pointerType === "mouse" && ev.button != null && ev.button !== 0) return;
+    if (ev.type === "pointerdown" && ev.button != null && ev.button !== 0) return;
     var hideBtn = ev.target.closest("#tracking-dev2-ranking-hide");
     if (hideBtn) {
+      if (isGhostClick("hide", ev)) {
+        consumeTap(ev);
+        return;
+      }
+      markPointerTap("hide", ev);
       consumeTap(ev);
-      if (sameTap("hide")) return;
       hideRankingBoard();
       return;
     }
     var flagBtn = ev.target.closest("#tracking-dev2-sailfish-flags [data-flag]");
     if (flagBtn) {
       var flag = flagBtn.getAttribute("data-flag");
+      var flagKey = "flag:" + flag;
+      if (isGhostClick(flagKey, ev)) {
+        consumeTap(ev);
+        return;
+      }
+      markPointerTap(flagKey, ev);
       consumeTap(ev);
-      if (sameTap("flag:" + flag)) return;
       if (typeof window.__sailfishToggleFlag === "function") {
         window.__sailfishToggleFlag(flag);
       }
@@ -348,13 +359,17 @@
     var raceBtn = ev.target.closest("#lipton-dev-race-boxes [data-race]");
     if (raceBtn) {
       var race = raceBtn.getAttribute("data-race");
+      var raceKey = "race:" + race;
+      if (isGhostClick(raceKey, ev)) {
+        consumeTap(ev);
+        return;
+      }
+      markPointerTap(raceKey, ev);
       consumeTap(ev);
-      if (sameTap("race:" + race)) return;
       goRace(race);
     }
   }
-  document.addEventListener("pointerup", onChromeTap, true);
-  document.addEventListener("touchend", onChromeTap, { capture: true, passive: false });
+  document.addEventListener("pointerdown", onChromeTap, true);
   document.addEventListener("click", onChromeTap, true);
   function goLive() {
     goRace(1);
@@ -5357,11 +5372,31 @@
     if (slowerBtn) slowerBtn.addEventListener("click", function () { if (trackerReady) bumpRate(-1); });
     if (fasterBtn) fasterBtn.addEventListener("click", function () { if (trackerReady) bumpRate(1); });
     if (scrubEl) {
-      scrubEl.addEventListener("pointerdown", function () {
+      function scrubFromClientX(clientX) {
+        var rect = scrubEl.getBoundingClientRect();
+        if (!rect.width) return;
+        var x = (clientX - rect.left) / rect.width;
+        if (x < 0) x = 0;
+        if (x > 1) x = 1;
+        scrubEl.value = String(Math.round(x * 1000));
+        applyScrub();
+      }
+      scrubEl.addEventListener("pointerdown", function (ev) {
+        if (ev.button != null && ev.button !== 0) return;
         scrubbing = true;
         playing = false;
         setPlayLabel();
+        try { scrubEl.setPointerCapture(ev.pointerId); } catch (err) {}
+        ev.stopPropagation();
+        scrubFromClientX(ev.clientX);
       });
+      scrubEl.addEventListener("pointermove", function (ev) {
+        if (!scrubbing) return;
+        ev.stopPropagation();
+        scrubFromClientX(ev.clientX);
+      });
+      scrubEl.addEventListener("pointerup", function () { scrubbing = false; });
+      scrubEl.addEventListener("pointercancel", function () { scrubbing = false; });
       scrubEl.addEventListener("input", applyScrub);
       scrubEl.addEventListener("change", function () {
         applyScrub();

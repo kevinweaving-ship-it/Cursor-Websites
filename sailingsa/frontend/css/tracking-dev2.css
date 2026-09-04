@@ -1584,11 +1584,11 @@ body[data-tracking-dev2="1"] .tracking-dev2-flag {
   }
   body[data-tracking-dev2="1"] .tracking-dev2-split {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(55vh, 1fr);
+    grid-template-rows: minmax(0, 1fr);
   }
   body[data-tracking-dev2="1"] .tracking-dev2-map-first {
-    min-height: 70vh;
-    height: 70vh;
+    min-height: 100dvh;
+    height: 100dvh;
   }
   body[data-tracking-dev2="1"] .tracking-dev2-ranking,
   body[data-tracking-dev2="1"] .tracking-dev2-ranking.lipton-dev-board {
@@ -1744,4 +1744,116 @@ body[data-tracking-dev2="1"] .tracking-dev2-map-tool {
   line-height: 1;
   cursor: pointer;
   pointer-events: auto;
+}
+
+/* Compact one-row chrome: R1–R10 + flags same height; slider grab; full map */
+body[data-tracking-dev2="1"] .tracking-dev2-sailfish-bar {
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  overflow: hidden;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-sailfish-flags {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 2px;
+  overflow-x: auto;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-flag,
+body[data-tracking-dev2="1"] .tracking-dev2-sailfish-flags .tracking-dev2-flag {
+  min-width: 0;
+  min-height: 28px;
+  height: 28px;
+  padding: 0 6px;
+  font-size: 10px;
+  line-height: 26px;
+  touch-action: manipulation;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-wind-compass {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  font-size: 11px;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-sailfish-bar .tracking-dev2-race-rail,
+body[data-tracking-dev2="1"] .tracking-dev2-race-rail {
+  flex-wrap: nowrap !important;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: none !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  overflow: hidden !important;
+  gap: 2px;
+}
+body[data-lipton-dev="1"][data-tracking-dev2="1"] .lipton-dev-race-box,
+body[data-tracking-dev2="1"] .lipton-dev-race-box {
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
+  min-height: 28px;
+  height: 28px;
+  padding: 0 2px;
+  font-size: 10px;
+  line-height: 26px;
+  touch-action: manipulation;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-dock {
+  z-index: 100;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-dock .lipton-dev-scrub,
+body[data-tracking-dev2="1"] .tracking-dev2-dock .lipton-dev-playbox .lipton-dev-scrub,
+body[data-lipton-dev="1"][data-tracking-dev2="1"] .lipton-dev-playbox .lipton-dev-scrub {
+  height: 52px !important;
+  margin: 0;
+  touch-action: none;
+  pointer-events: auto;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-dock .lipton-dev-scrub::-webkit-slider-runnable-track,
+body[data-lipton-dev="1"][data-tracking-dev2="1"] .lipton-dev-playbox .lipton-dev-scrub::-webkit-slider-runnable-track {
+  height: 10px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 5px;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-dock .lipton-dev-scrub::-webkit-slider-thumb,
+body[data-lipton-dev="1"][data-tracking-dev2="1"] .lipton-dev-playbox .lipton-dev-scrub::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  margin-top: -9px;
+  border: 0;
+  border-radius: 50%;
+  background: #f97316;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-dock .lipton-dev-scrub::-moz-range-track,
+body[data-lipton-dev="1"][data-tracking-dev2="1"] .lipton-dev-playbox .lipton-dev-scrub::-moz-range-track {
+  height: 10px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 5px;
+  border: 0;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-dock .lipton-dev-scrub::-moz-range-thumb,
+body[data-lipton-dev="1"][data-tracking-dev2="1"] .lipton-dev-playbox .lipton-dev-scrub::-moz-range-thumb {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background: #f97316;
+}
+@media (max-width: 900px) {
+  body[data-tracking-dev2="1"] .tracking-dev2-sailfish-brand,
+  body[data-tracking-dev2="1"] .tracking-dev2-sailfish-mode,
+  body[data-tracking-dev2="1"] .tracking-dev2-sailfish-meta {
+    display: none;
+  }
+  body[data-tracking-dev2="1"] .tracking-dev2-map-first,
+  body[data-lipton-dev="1"][data-tracking-dev2="1"] .lipton-dev-track.tracking-dev2-map-first {
+    min-height: 100dvh !important;
+    height: 100dvh !important;
+  }
 }

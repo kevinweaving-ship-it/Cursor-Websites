@@ -150,6 +150,9 @@
       ].filter(Boolean).join(" · ");
     }
     paintFlags(flags, state);
+    if (typeof window.__dev2SizeMap === "function") {
+      try { window.__dev2SizeMap(); } catch (err) {}
+    }
     if (wind) {
       wind.hidden = false;
       wind.setAttribute("aria-hidden", "false");
