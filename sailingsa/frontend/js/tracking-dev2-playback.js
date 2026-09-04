@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v38";
+  var CACHE = "dev2v39";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -225,7 +225,7 @@
       bar.style.setProperty("top", headerH + "px", "important");
       bar.style.setProperty("left", "6px", "important");
       bar.style.setProperty("right", "6px", "important");
-      bar.style.setProperty("z-index", "41", "important");
+      bar.style.setProperty("z-index", "95", "important");
       bar.style.setProperty("margin", "0", "important");
     }
     if (dock) {
@@ -234,9 +234,11 @@
       dock.style.setProperty("right", "0", "important");
       dock.style.setProperty("bottom", "0", "important");
       dock.style.setProperty("top", "auto", "important");
-      dock.style.setProperty("z-index", "90", "important");
-      dock.style.setProperty("height", "64px", "important");
-      dock.style.setProperty("max-height", "64px", "important");
+      dock.style.setProperty("z-index", "100", "important");
+      dock.style.setProperty("height", "auto", "important");
+      dock.style.setProperty("min-height", "64px", "important");
+      dock.style.setProperty("max-height", "none", "important");
+      dock.style.setProperty("pointer-events", "auto", "important");
     }
     track.style.setProperty("position", "fixed", "important");
     track.style.setProperty("top", "0", "important");
@@ -269,13 +271,12 @@
     }
     var barH = bar ? Math.round(bar.getBoundingClientRect().height || bar.offsetHeight || 0) : 0;
     var chromeTop = headerH + barH + 8;
-    var rail = document.getElementById("lipton-dev-race-boxes");
     var board = document.getElementById("tracking-dev2-ranking");
     var tools = document.getElementById("tracking-dev2-map-tools");
-    if (rail) rail.style.setProperty("top", chromeTop + "px", "important");
     if (board) {
       board.style.setProperty("top", chromeTop + "px", "important");
       board.style.setProperty("bottom", "72px", "important");
+      board.style.setProperty("z-index", "96", "important");
     }
     if (tools) tools.style.setProperty("top", chromeTop + "px", "important");
   }
@@ -325,6 +326,15 @@
       hideRankingBoard();
       return;
     }
+    var flagBtn = t.closest("#tracking-dev2-sailfish-flags [data-flag]");
+    if (flagBtn) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (typeof window.__sailfishToggleFlag === "function") {
+        window.__sailfishToggleFlag(flagBtn.getAttribute("data-flag"));
+      }
+      return;
+    }
     var raceBtn = t.closest("#lipton-dev-race-boxes [data-race]");
     if (raceBtn) {
       ev.preventDefault();
@@ -362,13 +372,17 @@
     var host = document.getElementById("lipton-dev-race-boxes");
     if (!host) return;
     if (meta) raceMeta = meta;
-    var races = ((raceMeta && raceMeta.races) || []).filter(function (r) {
-      return r.stage === "finished" || r.packed || r.held_live || Number(r.finish_n) > 0;
-    }).sort(function (a, b) { return a.n - b.n; }).slice(0, 10);
+    var byN = {};
+    ((raceMeta && raceMeta.races) || []).forEach(function (r) {
+      byN[Number(r.n)] = r;
+    });
     host.innerHTML = "";
     var heldN = LIVE_Q ? (liveHeldN || heldRaceFromMeta(raceMeta)) : 0;
     if (heldN && ((raceMeta.races || []).some(function (r) { return r.n === heldN && r.packed; }))) heldN = 0;
     var activeN = LIVE_Q ? -1 : Number(RACE_Q || 1);
+    var races = [];
+    var n;
+    for (n = 1; n <= 10; n++) races.push(byN[n] || { n: n, packed: true });
     races.forEach(function (r) {
       var b = document.createElement("button");
       b.type = "button";
@@ -571,8 +585,6 @@
         try {
           start(pack[0], pack[1], bootNow, {}, pack[2]);
           sizeDev2Map();
-          if (chartMap && chartMap.invalidateSize) chartMap.invalidateSize({ animate: false });
-          cam = null;
         } catch (startErr) {
           console.error("[dev2] start", startErr);
           showReplayStatus("Race " + RACE_Q + " start failed: " + (startErr && startErr.message ? startErr.message : startErr));
@@ -2625,7 +2637,7 @@
     }
     var prevOverlay = window.__sailfishOverlay || {};
     var overlay = {
-      board: prevOverlay.board !== false,
+      board: prevOverlay.board === true,
       marks: prevOverlay.marks !== false,
       dots: prevOverlay.dots !== false,
       layline: sailfish.layline !== false,
@@ -2640,7 +2652,7 @@
     window.__sailfishOverlay = overlay;
     window.__sailfishRedraw = function () {
       if (window.__sailfishOverlay) {
-        overlay.board = window.__sailfishOverlay.board !== false;
+        overlay.board = !!window.__sailfishOverlay.board;
         overlay.marks = window.__sailfishOverlay.marks !== false;
         overlay.dots = window.__sailfishOverlay.dots !== false;
         overlay.layline = !!window.__sailfishOverlay.layline;
@@ -4004,32 +4016,8 @@
       mapCtx.clearRect(0, 0, w, h);
       mapCtx.fillStyle = "rgba(0, 10, 24, 0.08)";
       mapCtx.fillRect(0, 0, w, h);
-      if (overlay.marks !== false) {
+      if (overlay.marks) {
         drawSailfishCourse(ts);
-      } else {
-        var zone = Math.min(metersPx(20.1), 8);
-        Object.keys(trail.marks || {}).forEach(function (k) {
-          var pos = markAt(k, ts);
-          if (!pos) return;
-          var p = xy(pos.lat, pos.lon);
-          var focus = k === focusMarkKey;
-          mapCtx.beginPath();
-          mapCtx.arc(p.x, p.y, zone, 0, Math.PI * 2);
-          mapCtx.strokeStyle = focus ? "rgba(251,191,36,0.7)" : "rgba(245,158,11,0.28)";
-          mapCtx.lineWidth = focus ? 2 : 1;
-          mapCtx.stroke();
-          mapCtx.beginPath();
-          mapCtx.arc(p.x, p.y, focus ? 3.2 : 2.2, 0, Math.PI * 2);
-          mapCtx.fillStyle = focus ? "#fbbf24" : "#f59e0b";
-          mapCtx.fill();
-          mapCtx.fillStyle = "#ffffff";
-          mapCtx.font = focus ? "bold 12px sans-serif" : "bold 10px sans-serif";
-          mapCtx.fillText("M" + k, p.x + 8, p.y + 4);
-        });
-        var startName = ts < PLAY_START_TS + START_LABEL_MS ? "START" : "";
-        var finishName = ts >= GUN_TS ? "FINISH" : "";
-        drawGate(trail.start_line, focusGate === "start_line" ? "#38bdf8" : "rgba(56,189,248,0.4)", startName, "Pin", "RC");
-        drawGate(trail.finish_line, focusGate === "finish_line" ? "#fbbf24" : "rgba(251,191,36,0.35)", finishName, "Pin", "RC");
       }
       Object.keys(trail.boats || {}).forEach(function (sail) {
         drawTail(sail, ts);
@@ -4492,9 +4480,12 @@
     function applyScrub() {
       if (!scrubEl) return;
       if (!trackerReady) beginAfterTracker();
+      playing = false;
+      setPlayLabel();
       var ts = PLAY_START_TS + (Number(scrubEl.value) / 1000) * raceSpanMs();
       cancelRecallHorn();
       jump(ts);
+      drawMap(playTs);
     }
     function setPlayLabel() {
       if (!playBtn) return;
@@ -5352,7 +5343,11 @@
     if (slowerBtn) slowerBtn.addEventListener("click", function () { if (trackerReady) bumpRate(-1); });
     if (fasterBtn) fasterBtn.addEventListener("click", function () { if (trackerReady) bumpRate(1); });
     if (scrubEl) {
-      scrubEl.addEventListener("pointerdown", function () { scrubbing = true; });
+      scrubEl.addEventListener("pointerdown", function () {
+        scrubbing = true;
+        playing = false;
+        setPlayLabel();
+      });
       scrubEl.addEventListener("input", applyScrub);
       scrubEl.addEventListener("change", function () {
         applyScrub();

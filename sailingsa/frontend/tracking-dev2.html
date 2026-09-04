@@ -21,7 +21,7 @@
   <meta name="twitter:image" content="https://sailingsa.co.za/api/og/regatta/2026-08-29-lipton-challenge-cup/ea4ca8b2a84b036d.png">
   <link rel="stylesheet" href="/css/main.css">
   <link rel="stylesheet" href="/js/vendor/leaflet/leaflet.css?v=20260828dk">
-  <link rel="stylesheet" href="/css/tracking-dev2.css?v=dev2v38">
+  <link rel="stylesheet" href="/css/tracking-dev2.css?v=dev2v39">
   <script src="/js/api.js"></script>
   <script src="/js/session.js"></script>
 </head>
@@ -55,6 +55,7 @@
       <span class="tracking-dev2-sailfish-meta" id="tracking-dev2-sailfish-meta">Lipton R1–R10 sample · status 99</span>
       <span class="tracking-dev2-sailfish-flags" id="tracking-dev2-sailfish-flags" aria-label="Sailfish viewConfig flags"></span>
       <div class="tracking-dev2-wind-compass" id="tracking-dev2-wind-compass" title="Wind compass (Sailfish viewConfig)" aria-hidden="true">W</div>
+      <div class="lipton-dev-race-boxes tracking-dev2-race-rail" id="lipton-dev-race-boxes" role="group" aria-label="Races"></div>
     </div>
     <div class="lipton-dev-split tracking-dev2-split">
       <div class="lipton-dev-track tracking-dev2-map-first">
@@ -65,7 +66,6 @@
         <div class="lipton-dev-map-hud tracking-dev2-course-hud" id="lipton-dev-map-hud">
           <div class="lipton-dev-map-hud-name" id="lipton-dev-map-hud-name"></div>
         </div>
-        <div class="lipton-dev-race-boxes tracking-dev2-race-rail" id="lipton-dev-race-boxes" role="group" aria-label="Races"></div>
         <div class="tracking-dev2-map-tools" id="tracking-dev2-map-tools" role="group" aria-label="Map zoom and rotate">
           <button type="button" class="tracking-dev2-map-tool" id="tracking-dev2-zoom-in" title="Zoom in">+</button>
           <button type="button" class="tracking-dev2-map-tool" id="tracking-dev2-zoom-out" title="Zoom out">−</button>
@@ -77,7 +77,7 @@
           <span class="tracking-dev2-cam-btn-ring" aria-hidden="true"></span>
           <span class="tracking-dev2-cam-btn-core" aria-hidden="true">↻</span>
         </button>
-        <aside class="fleet-section lipton-dev-board tracking-dev2-ranking" id="tracking-dev2-ranking" aria-label="Ranking board">
+        <aside class="fleet-section lipton-dev-board tracking-dev2-ranking is-hidden" id="tracking-dev2-ranking" aria-label="Ranking board" hidden
           <div class="tracking-dev2-ranking-head">
             <h2 class="class-header" id="lipton-dev-race-label">Ranking board</h2>
             <button type="button" class="tracking-dev2-ranking-hide" id="tracking-dev2-ranking-hide" title="Hide ranking board">×</button>
@@ -131,7 +131,7 @@
   </div>
 
   <script src="/js/vendor/leaflet/leaflet.js?v=20260828dk"></script>
-  <script src="/js/tracking-dev2-sailfish.js?v=dev2v38"></script>
-  <script src="/js/tracking-dev2-playback.js?v=dev2v38"></script>
+  <script src="/js/tracking-dev2-sailfish.js?v=dev2v39"></script>
+  <script src="/js/tracking-dev2-playback.js?v=dev2v39"></script>
 </body>
 </html>
