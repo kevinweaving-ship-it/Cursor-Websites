@@ -139,9 +139,34 @@ Phone dive housing OR own thin head →  4.2" RLCD + ESP32 only
 
 Phone housing depth is suddenly enough if **only** glass + S3 (~13 mm Waveshare board).
 
-### Option C — Deck dry box (not scuba)
+### Option C — Deep store-bought boxes (use these instead of phone cases)
 
-Pelican Micro / Hammond / Bud IP67 boxes with a machined window — common in marine electronics, **not** “GoPro aisle at Decathlon”, but real for keelboat deck instruments.
+#### 1) Pelican Micro **1040** clear — best next buy
+
+| | |
+|--|--|
+| **Internal** | **~165 × 98 × 44 mm** |
+| Depth | **44 mm** — enough for full electronics stack |
+| Plane | Fits **4.2" AA** (84.8×63.6) + Waveshare ~92.5×70 |
+| Rating | IP67 (deck / dunk — not 40 m scuba) |
+| Street | ~**R460 ($29)** |
+| URL | https://www.pelican.com/us/en/product/cases/micro/1040 |
+
+Also **1050** if you want more depth (~70 mm internal).
+
+#### 2) IP67 clear-lid junction box — cheap industrial
+
+| Model | Outer | Inner (approx) | Depth |
+|-------|-------|----------------|-------|
+| **ZP150.100.60** (Kradex / RS PRO) | 150 × 100 × 60 | ~140 × 90 × ~50 | **~50 mm** |
+| OEM **158×90×60** | 158 × 90 × 60 | **152 × 84 × 50** | **50 mm** |
+
+| Links | |
+|--|--|
+| RS / Kradex ZP150 | https://ie.rs-online.com/web/p/general-purpose-enclosures/2384026 |
+| Kradex product | https://www.kradex.com.pl/product/enclosures_hermetically_sealed_with_cast_gasket/zp150_100_60sub-ip67_tm_asa?lang=en |
+
+Screw-lid industrial look — good for **proto / volume cheap**, not final Atlas styling.
 
 ---
 
@@ -156,21 +181,29 @@ Pelican Micro / Hammond / Bud IP67 boxes with a machined window — common in ma
 | 18650 / LiPo pack | varies | **often 10–20** |
 | **One-unit stack** | ~90 × 100 | **~25–40** |
 
-Phone dive max thickness **~10–12 mm** → fails one-unit.  
-GoPro depth **33.6 mm** → OK for guts, fails screen.
+| Housing | Plane | Depth | One-unit Atlas? |
+|---------|-------|-------|-----------------|
+| Phone dive (~12 mm) | OK | **Fail** | No |
+| GoPro 33.6 mm | Fail screen | OK guts | Puck only |
+| **Pelican 1040 (44 mm)** | **OK** | **OK** | **Yes (proto)** |
+| **ZP150 ×60 mm** | **OK** | **OK** | **Yes (proto)** |
+| Own CAD | OK | OK | **Product** |
 
 ---
 
 ## 6. Practical next step
 
-1. **Do not** buy SeaLife/Divevolk expecting full Atlas inside — depth is wrong.  
-2. If you want a **store-bought** path for glass + MCU only: Divevolk / SportDiver Ultra as a **display head** + GoPro puck (split).  
-3. For **true one-unit Atlas**: CAD own housing (or quote a Chinese dive-case OEM for a **thick** phone-style shell — custom MOQ).
+1. **Do not** buy SeaLife/Divevolk for full Atlas — depth wrong.  
+2. **Buy Pelican 1040 clear** (or ZP150.100.60) — prove 4.2" + ESP32 + mock battery fit.  
+3. Split path only if you want phone-dive look for display head alone.  
+4. Final product: CAD own IP67 shell (look + rail + GNSS sky face).
 
 ### Buy links (research)
 
 | Product | Link |
 |---------|------|
+| **Pelican 1040 Micro** | https://www.pelican.com/us/en/product/cases/micro/1040 |
+| **ZP150.100.60** clear lid | https://ie.rs-online.com/web/p/general-purpose-enclosures/2384026 |
 | SeaLife SportDiver S | https://www.sealife-cameras.com/product/sportdiver-s-smartphone-housing/ |
 | SeaLife size guide | https://www.sealife-cameras.com/sportdiver-selection-guide/ |
 | Divevolk SeaTouch 4 Max Plus | https://divecatalog.com/products/divevolk-seatouch-4-max-plus-underwater-smartphone-housing |
