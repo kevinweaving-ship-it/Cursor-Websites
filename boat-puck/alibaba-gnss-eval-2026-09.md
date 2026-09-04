@@ -122,3 +122,22 @@ https://www.alibaba.com/product-detail/subject_1601934271030.html
 | Other | 4G PoC walkie, dual cameras, IR, SOS — bodycam/survey terminal |
 
 **Verdict:** **NO — skip.** Same class as LTE “RTK intercom” walkies: finished Android radio, not embeddable guts. Paying ~R3 200 for a shell you would gut is waste. Do **not** ask for guts (custom mainboard + SoC); if they sell a bare GNSS module, that would be a different SKU — still need **UM980 + 50 Hz** proof. Prefer [`gnss.store` UM980](https://gnss.store/products/elt0223) / Ali UM980 boards.
+
+---
+
+## Paste add-on — SIYI / “RTK” ArduPilot puck (short link)
+
+Short URL https://www.alibaba.com/x/1lBAuiT?ck=pdp →  
+https://www.alibaba.com/product-detail/subject_10000041644207.html  
+(productId **10000041644207**)
+
+| | |
+|--|--|
+| Listing title | “Portable RTK GPS Receiver…” (~**R1 076 / ~$67**) |
+| On-device / graphic | **SIYI** · **M9N** · ArduPilot / PX4 drone GPS puck |
+| Seller | Shenzhen Dianju IoT Innovation Technology Co. |
+| Real class | **u-blox M9N** family — meter-level GNSS for drones, **not** cm RTK |
+| Rate | M9N class typically **≤25 Hz** (often lower concurrent) — **fails 50 Hz lock** |
+| Form | Finished Ø~60–80 mm puck + optional handheld in hero shot |
+
+**Verdict:** **NO — skip.** Title says RTK; product is **M9N drone GPS**. Wrong accuracy class and wrong rate. Do not buy or ask for guts (you already know the chip). Stay on **UM980**.
