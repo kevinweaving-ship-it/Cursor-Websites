@@ -43,3 +43,26 @@ Base does **not** need 50 Hz. Industry normal is **1 Hz** RTCM. Size less critic
 ## Next buy message (paste to #5 seller)
 
 > Need **UM980** (not UM960). Confirm: (1) all-constellation multi-freq RTK, (2) NMEA/RTCM out, (3) **position update rate 50 Hz** supported in firmware as shipped or with free upgrade, (4) board dimensions mm, (5) price 1 pc and 10 pcs USD, (6) can same board run as **base** (RTCM out) and **rover**.
+
+---
+
+## Paste add-on (2026-09-04 b)
+
+| Listing | Chip | Size | Price | Verdict |
+|---------|------|------|-------|---------|
+| [LD-29 Dual Band RTK](https://www.alibaba.com/product-detail/LD-29-Dual-Band-RTK-Module_1601753812357.html) | **AK721-JM** / Dalang L1+L5 (not Unicore) | **⌀36 × 11.7 mm** | Retail twin **~$19** → **~R304**; Ali ask live | **NO for Puck** — **1–10 Hz** only. Possible cheap base trial. |
+| [LC29H GPS HAT (Pi)](https://www.alibaba.com/product-detail/LC29H-GPS-HAT-for-Raspberry-Pi_1601810249713.html) | **Quectel LC29H** (Waveshare-class HAT) | Pi HAT footprint (~**65×56 mm** typ.) | Waveshare DA **R880 ($54.99)** | **NO for Puck** — DA **1 Hz** RTK. Lab/Pi only. |
+
+---
+
+## UM980 — factory + buy URLs (price)
+
+| Role | URL | Price |
+|------|-----|-------|
+| **Factory (Unicore)** — datasheet/OEM, no public cart | https://www.unicore.com/products/detail/27 | Quote via Unicore |
+| EN docs / manuals | https://en.unicore.com (UM980 product + PDFs) | — |
+| **Ali buy (module)** — typical | https://www.alibaba.com/product-detail/UM980-RTK-Positioning-GNSS-Rtk-Gps_1601399905021.html | **~$99–130** → **R1 584–2 080** (sample ~$130 / R2 080) |
+| **Ali buy (board / EVK base)** | https://www.alibaba.com/product-detail/Unicorecomm-UM980-GNSS-RTK-Board-Base_1601135459180.html | **~£128** (~**$165 / R2 640**) @ 1–49; lower in volume |
+| Known EU breakout (not factory) | https://gnss.store/products/elt0223 | **~R2 720 ($170)** |
+
+Chip size: **17×22×2.6 mm**. Common China PCB breakouts: **~26×38 mm**. Always confirm **50 Hz** before pay.

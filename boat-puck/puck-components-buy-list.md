@@ -41,12 +41,14 @@ FX: **R16 / $1**.
 |-------|------|-------|-----|
 | **UM980 breakout** (gnss.store) | **26×39 mm** | **~R2 720 ($170)** | https://gnss.store/products/elt0223 |
 | SparkFun UM980 Triband | larger | **R7 360 ($459.95)** — skip (expensive + export issues) | https://www.sparkfun.com/products/23286 |
-| Ali “UM980 RTK board 50Hz” | check photo | **~R2 400+ ($150+)** | AliExpress — **verify 50 Hz in listing/firmware** |
+| **Ali UM980 module** (typical) | chip **17×22 mm** | **R1 584–2 080 ($99–130)** | https://www.alibaba.com/product-detail/UM980-RTK-Positioning-GNSS-Rtk-Gps_1601399905021.html |
+| **Ali UM980 board/EVK** | check listing | **~R2 640 ($165)** @1–49 | https://www.alibaba.com/product-detail/Unicorecomm-UM980-GNSS-RTK-Board-Base_1601135459180.html |
 | [Ali UM980/UM982 base+rover](https://www.alibaba.com/product-detail/UM982-UM980-Main-Base-Station-Rover_1601700100272.html) | board ~**26×38 mm** | **~R960–2 880 ($60–180)** — confirm live | **Ask for UM980 + 50 Hz** before pay |
+| **Factory (Unicore)** — no cart; OEM quote | **17×22×2.6 mm** | quote | https://www.unicore.com/products/detail/27 |
 
 UM980 chip itself is **17×22 mm**. Confirm seller firmware supports **50 Hz** (some need upgrade).
 
-Full paste-set score (incl. reject LC29H / WT-43): [`alibaba-gnss-eval-2026-09.md`](alibaba-gnss-eval-2026-09.md).
+Full paste-set score (incl. reject LC29H / WT-43 / LD-29): [`alibaba-gnss-eval-2026-09.md`](alibaba-gnss-eval-2026-09.md).
 
 ---
 
