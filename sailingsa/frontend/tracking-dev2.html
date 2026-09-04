@@ -21,7 +21,7 @@
   <meta name="twitter:image" content="https://sailingsa.co.za/api/og/regatta/2026-08-29-lipton-challenge-cup/ea4ca8b2a84b036d.png">
   <link rel="stylesheet" href="/css/main.css">
   <link rel="stylesheet" href="/js/vendor/leaflet/leaflet.css?v=20260828dk">
-  <link rel="stylesheet" href="/css/tracking-dev2.css?v=dev2v45">
+  <link rel="stylesheet" href="/css/tracking-dev2.css?v=dev2v46">
   <script src="/js/api.js"></script>
   <script src="/js/session.js"></script>
 </head>
@@ -105,7 +105,9 @@
     <div class="tracking-dev2-dock" id="lipton-dev-subhead">
       <div class="lipton-dev-map-transport">
         <div class="lipton-dev-playbox">
-          <input type="range" class="lipton-dev-scrub" id="lipton-dev-scrub" min="0" max="1000" value="0" aria-label="Race position">
+            <div class="lipton-dev-scrub-pad" id="lipton-dev-scrub-pad">
+              <input type="range" class="lipton-dev-scrub" id="lipton-dev-scrub" min="0" max="1000" value="0" aria-label="Race position" tabindex="-1">
+            </div>
           <div class="lipton-dev-transport lipton-dev-transport--play" role="group" aria-label="Playback">
             <button type="button" class="lipton-dev-btn" id="lipton-dev-play" disabled title="Play" aria-label="Play">
               <svg class="lipton-dev-ico lipton-dev-ico--play" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.2 2.1v11.8L14.2 8z"/></svg>
@@ -131,7 +133,7 @@
   </div>
 
   <script src="/js/vendor/leaflet/leaflet.js?v=20260828dk"></script>
-  <script src="/js/tracking-dev2-sailfish.js?v=dev2v45"></script>
-  <script src="/js/tracking-dev2-playback.js?v=dev2v45"></script>
+  <script src="/js/tracking-dev2-sailfish.js?v=dev2v46"></script>
+  <script src="/js/tracking-dev2-playback.js?v=dev2v46"></script>
 </body>
 </html>

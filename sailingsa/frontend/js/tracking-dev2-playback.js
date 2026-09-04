@@ -4,7 +4,7 @@
  * Replay/trail chunks: /js/lipton-dev-replay[-rN].json (packed sample data)
  */
 (function () {
-  var CACHE = "dev2v45";
+  var CACHE = "dev2v46";
   var LIVE_RACE_LOCK = 8;
   var params = new URLSearchParams(location.search);
   if (params.get("live") === "gps") {
@@ -5376,31 +5376,51 @@
     if (slowerBtn) slowerBtn.addEventListener("click", function () { if (trackerReady) bumpRate(-1); });
     if (fasterBtn) fasterBtn.addEventListener("click", function () { if (trackerReady) bumpRate(1); });
     if (scrubEl) {
-      function scrubFromClientX(clientX) {
-        var rect = scrubEl.getBoundingClientRect();
+      var scrubPad = document.getElementById("lipton-dev-scrub-pad") || scrubEl;
+      function scrubEventX(ev) {
+        if (ev.touches && ev.touches[0]) return ev.touches[0].clientX;
+        if (ev.changedTouches && ev.changedTouches[0]) return ev.changedTouches[0].clientX;
+        return ev.clientX;
+      }
+      function scrubFromEvent(ev) {
+        var rect = scrubPad.getBoundingClientRect();
         if (!rect.width) return;
-        var x = (clientX - rect.left) / rect.width;
+        var x = (scrubEventX(ev) - rect.left) / rect.width;
         if (x < 0) x = 0;
         if (x > 1) x = 1;
         scrubEl.value = String(Math.round(x * 1000));
         applyScrub();
       }
-      scrubEl.addEventListener("pointerdown", function (ev) {
-        if (ev.button != null && ev.button !== 0) return;
+      function scrubDown(ev) {
+        if (ev.button != null && ev.button !== 0 && ev.type === "pointerdown") return;
         scrubbing = true;
         playing = false;
         setPlayLabel();
-        try { scrubEl.setPointerCapture(ev.pointerId); } catch (err) {}
+        if (ev.preventDefault) ev.preventDefault();
         ev.stopPropagation();
-        scrubFromClientX(ev.clientX);
-      });
-      scrubEl.addEventListener("pointermove", function (ev) {
+        if (ev.pointerId != null && scrubPad.setPointerCapture) {
+          try { scrubPad.setPointerCapture(ev.pointerId); } catch (err) {}
+        }
+        scrubFromEvent(ev);
+      }
+      function scrubMove(ev) {
         if (!scrubbing) return;
+        if (ev.preventDefault) ev.preventDefault();
         ev.stopPropagation();
-        scrubFromClientX(ev.clientX);
-      });
-      scrubEl.addEventListener("pointerup", function () { scrubbing = false; });
-      scrubEl.addEventListener("pointercancel", function () { scrubbing = false; });
+        scrubFromEvent(ev);
+      }
+      function scrubUp(ev) {
+        if (ev && ev.preventDefault) ev.preventDefault();
+        scrubbing = false;
+      }
+      var scrubOpts = { capture: true, passive: false };
+      scrubPad.addEventListener("pointerdown", scrubDown, scrubOpts);
+      scrubPad.addEventListener("pointermove", scrubMove, scrubOpts);
+      scrubPad.addEventListener("pointerup", scrubUp, true);
+      scrubPad.addEventListener("pointercancel", scrubUp, true);
+      scrubPad.addEventListener("touchstart", scrubDown, scrubOpts);
+      scrubPad.addEventListener("touchmove", scrubMove, scrubOpts);
+      scrubPad.addEventListener("touchend", scrubUp, scrubOpts);
       scrubEl.addEventListener("input", applyScrub);
       scrubEl.addEventListener("change", function () {
         applyScrub();

@@ -1814,10 +1814,10 @@ body[data-tracking-dev2="1"] .lipton-dev-race-box {
   touch-action: manipulation;
 }
 body[data-tracking-dev2="1"] .tracking-dev2-dock {
-  z-index: 100;
+  z-index: 200;
   flex-wrap: nowrap;
   align-items: center;
-  overflow: hidden;
+  overflow: visible;
 }
 body[data-tracking-dev2="1"] .tracking-dev2-dock .lipton-dev-playbox {
   display: flex;
@@ -1834,13 +1834,25 @@ body[data-tracking-dev2="1"] .tracking-dev2-replay-clock {
   min-width: 0;
   flex: 0 0 auto;
 }
-body[data-tracking-dev2="1"] .tracking-dev2-dock .lipton-dev-scrub,
-body[data-tracking-dev2="1"] .tracking-dev2-dock .lipton-dev-playbox .lipton-dev-scrub,
-body[data-lipton-dev="1"][data-tracking-dev2="1"] .lipton-dev-playbox .lipton-dev-scrub {
-  height: 52px !important;
-  margin: 0;
+body[data-tracking-dev2="1"] .lipton-dev-scrub-pad {
+  position: relative;
+  width: 100%;
+  height: 64px;
+  min-height: 64px;
   touch-action: none;
   pointer-events: auto;
+  z-index: 120;
+  -webkit-user-select: none;
+  user-select: none;
+}
+body[data-tracking-dev2="1"] .tracking-dev2-dock .lipton-dev-scrub,
+body[data-tracking-dev2="1"] .tracking-dev2-dock .lipton-dev-playbox .lipton-dev-scrub,
+body[data-lipton-dev="1"][data-tracking-dev2="1"] .lipton-dev-playbox .lipton-dev-scrub,
+body[data-tracking-dev2="1"] .lipton-dev-scrub-pad .lipton-dev-scrub {
+  height: 64px !important;
+  margin: 0;
+  touch-action: none;
+  pointer-events: none !important;
 }
 body[data-tracking-dev2="1"] .tracking-dev2-dock .lipton-dev-scrub::-webkit-slider-runnable-track,
 body[data-lipton-dev="1"][data-tracking-dev2="1"] .lipton-dev-playbox .lipton-dev-scrub::-webkit-slider-runnable-track {
