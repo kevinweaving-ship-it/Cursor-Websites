@@ -1,36 +1,36 @@
-# Boat Puck — GoPro housing pack (cheap enclosure path)
+# Boat Puck — GoPro H9–13 housing (cheap enclosure)
 
-Reuse commodity GoPro waterproof housings instead of custom IP67 tooling for early Boat Puck prototypes.
+Primary shell: **Protective Housing ADDIV-001** (and clones) for **HERO9–13**.
 
-## Status
+## Core rule
 
-| Item | Status |
-|------|--------|
-| Published camera / outer dims | Captured |
-| Official internal CAD from GoPro | **Does not exist** |
-| Provisional insert envelope | This folder |
-| Physical caliper / scan of empty cavity | **TODO** (required before PCB freeze) |
+The waterproof housing is a **tight negative of the camera**.
 
-## Target housing (most common)
+| | |
+|--|--|
+| **Positive** | GoPro HERO9–13 camera body CAD / published dims |
+| **Negative** | Housing internal cavity |
+| **Clearance** | Mold release only — **microns**, not millimetres |
 
-**GoPro Protective Housing ADDIV-001 / ADDIV-001-VT** (and clones e.g. Telesin GP-WTP-901)  
-Compatible: **HERO9 / 10 / 11 / 12 / 13** (shared chassis).
+So the **exact camera dimensions are the exact inside dimensions** of the housing (for packing purposes). Do not invent a smaller “guess” cavity.
 
-Secondary (cheaper / smaller): HERO4 Standard Housing ± BacPac deep backdoor — see `gopro-h4-notes.md`.
+## Authoritative positive (shared H9–13 chassis)
+
+**71.8 W × 50.8 H × 33.6 D mm**  
+GoPro product specs (HERO9–13); weight listings include mounting fingers on the same chassis.
 
 ## Files
 
 | File | Purpose |
 |------|---------|
-| `gopro-h9-13-envelope.md` | Fit checklist, volumes, keep-outs, RF notes |
-| `gopro-h9-13-keepout.svg` | 2D keep-out sketch (top / front / side) |
-| `gopro-h9-13-envelope.scad` | Parametric max insert + optional print dummy |
-| `gopro-h4-notes.md` | Smaller H4 path + BacPac depth hack |
-| `dimensions.json` | Machine-readable dims for CAD/scripts |
+| `gopro-h9-13-envelope.md` | Envelope doctrine + fit checklist |
+| `dimensions.json` | Machine-readable cavity = camera |
+| `gopro-h9-13-keepout.svg` | 2D views at exact camera size |
+| `gopro-h9-13-envelope.scad` | Exact positive solid for CAD / print |
+| `gopro-h4-notes.md` | Secondary smaller housing (not primary) |
 
-## Next physical step
+## Next
 
-1. Buy one official ADDIV + one cheap Telesin clone.
-2. Caliper empty cavity XYZ, lens boss, button plungers, latch intrusion.
-3. Update `dimensions.json` `confidence` from `provisional` → `measured`.
-4. Print `envelope_dummy()` from the SCAD and drop-fit test.
+1. Prefer a real H9–13 **STEP/STL body** as the insert outer (best).  
+2. Or print the SCAD `camera_positive()` brick at **71.8 × 50.8 × 33.6** and confirm latch close.  
+3. Subtract keep-outs (lens boss, plungers) from that positive for the electronics solid.

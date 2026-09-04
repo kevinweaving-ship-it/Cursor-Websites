@@ -1,83 +1,56 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="900" height="720" viewBox="0 0 900 720">
-  <title>Boat Puck  GoPro H913 housing keep-outs (provisional)</title>
-  <desc>Provisional keep-out sketch from camera chassis 71.8×50.8×33.6 mm. Not a measured cavity scan.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="700" viewBox="0 0 920 700">
+  <title>Boat Puck  H913 cavity = camera positive 71.8×50.8×33.6</title>
   <style>
-    .title { font: 700 18px sans-serif; fill: #111; }
-    .sub { font: 12px sans-serif; fill: #444; }
-    .label { font: 11px sans-serif; fill: #222; }
-    .dim { font: 10px monospace; fill: #333; }
-    .box { fill: #e8f4ff; stroke: #1565c0; stroke-width: 2; }
-    .insert { fill: #c8e6c9; stroke: #2e7d32; stroke-width: 2; stroke-dasharray: 6 3; }
-    .keep { fill: #ffcdd2; stroke: #c62828; stroke-width: 1.5; fill-opacity: 0.85; }
+    .t { font: 700 17px sans-serif; fill: #111; }
+    .s { font: 12px sans-serif; fill: #444; }
+    .l { font: 11px sans-serif; fill: #222; }
+    .d { font: 11px monospace; fill: #1565c0; }
+    .cam { fill: #bbdefb; stroke: #0d47a1; stroke-width: 2.5; }
+    .feat { fill: #ffe0b2; stroke: #ef6c00; stroke-width: 1.5; fill-opacity: 0.9; }
     .note { font: 11px sans-serif; fill: #b71c1c; }
-    .ok { font: 11px sans-serif; fill: #1b5e20; }
   </style>
 
-  <text x="24" y="28" class="title">Boat Puck / GoPro H913 housing  keep-outs (PROVISIONAL)</text>
-  <text x="24" y="48" class="sub">Camera chassis 71.8 × 50.8 × 33.6 mm · max insert d 70 × 49 × 32 mm · update after calipers</text>
+  <text x="24" y="28" class="t">HERO913 housing cavity = camera positive</text>
+  <text x="24" y="48" class="s">Exact: 71.8 W × 50.8 H × 33.6 D mm · mold clearance microns · scale 5 px/mm</text>
 
-  <!-- TOP VIEW (XY) looking down, lens at bottom of drawing = front -->
-  <text x="24" y="84" class="label">TOP VIEW (XY) · front/lens at bottom</text>
-  <g transform="translate(40,100)">
-    <!-- outer camera proxy -->
-    <rect class="box" x="0" y="0" width="286" height="203"/>
-    <!-- scale: 4 px/mm ’ 71.8*4=287.2, 50.8*4=203.2 -->
-    <rect class="insert" x="4" y="4" width="280" height="196"/>
-    <!-- lens tunnel keepout front centre ~18mm dia estimate -->
-    <ellipse class="keep" cx="143" cy="185" rx="36" ry="20"/>
-    <text x="110" y="190" class="dim">lens tunnel</text>
-    <!-- latch keepout top -->
-    <rect class="keep" x="90" y="0" width="106" height="18"/>
-    <text x="115" y="13" class="dim">latch</text>
-    <!-- side plunger estimates -->
-    <rect class="keep" x="0" y="70" width="14" height="40"/>
-    <rect class="keep" x="272" y="70" width="14" height="40"/>
-    <text x="300" y="20" class="dim">W 71.8</text>
-    <text x="300" y="36" class="dim">H 50.8</text>
-    <text x="8" y="220" class="ok">green dashed = max insert 70×49</text>
+  <text x="24" y="78" class="l">TOP (XY) · lens at bottom · door at top</text>
+  <g transform="translate(40,95)">
+    <rect class="cam" x="0" y="0" width="359" height="254"/>
+    <ellipse class="feat" cx="179.5" cy="230" rx="40" ry="22"/>
+    <text x="155" y="234" class="l">lens</text>
+    <rect class="feat" x="120" y="0" width="119" height="20"/>
+    <text x="155" y="14" class="l">latch</text>
+    <text x="370" y="20" class="d">W 71.8</text>
+    <text x="370" y="38" class="d">H 50.8</text>
   </g>
 
-  <!-- FRONT VIEW (XZ) -->
-  <text x="480" y="84" class="label">FRONT VIEW (XZ) · through glass</text>
-  <g transform="translate(500,100)">
-    <!-- W x D : 71.8*4 x 33.6*4 = 287 x 134 -->
-    <rect class="box" x="0" y="0" width="286" height="134"/>
-    <rect class="insert" x="4" y="4" width="280" height="126"/>
-    <ellipse class="keep" cx="143" cy="67" rx="40" ry="40"/>
-    <text x="118" y="72" class="dim">glass/boss</text>
-    <text x="300" y="20" class="dim">W 71.8</text>
-    <text x="300" y="36" class="dim">D 33.6</text>
+  <text x="500" y="78" class="l">FRONT (XZ) · through glass</text>
+  <g transform="translate(520,95)">
+    <rect class="cam" x="0" y="0" width="359" height="168"/>
+    <ellipse class="feat" cx="179.5" cy="84" rx="45" ry="45"/>
+    <text x="155" y="88" class="l">glass</text>
+    <text x="370" y="20" class="d">W 71.8</text>
+    <text x="370" y="38" class="d">D 33.6</text>
   </g>
 
-  <!-- SIDE VIEW (YZ) -->
-  <text x="24" y="380" class="label">SIDE VIEW (YZ) · lens left / door right</text>
-  <g transform="translate(40,400)">
-    <!-- H x D : 50.8*4 x 33.6*4 = 203 x 134 -->
-    <rect class="box" x="0" y="0" width="134" height="203"/>
-    <rect class="insert" x="4" y="4" width="126" height="196"/>
-    <!-- front lens boss -->
-    <rect class="keep" x="0" y="70" width="22" height="60"/>
-    <text x="2" y="100" class="dim" transform="rotate(-90 8,100)">lens</text>
-    <!-- rear door crush -->
-    <rect class="keep" x="118" y="10" width="16" height="183"/>
-    <text x="120" y="100" class="dim" writing-mode="tb">door/O-ring</text>
-    <!-- top latch -->
-    <rect class="keep" x="40" y="0" width="60" height="16"/>
-    <text x="150" y="20" class="dim">H 50.8</text>
-    <text x="150" y="36" class="dim">D 33.6</text>
+  <text x="24" y="400" class="l">SIDE (YZ) · lens left · door right</text>
+  <g transform="translate(40,415)">
+    <rect class="cam" x="0" y="0" width="168" height="254"/>
+    <rect class="feat" x="0" y="85" width="28" height="80"/>
+    <text x="4" y="128" class="l">lens</text>
+    <rect class="feat" x="40" y="220" width="90" height="34"/>
+    <text x="55" y="242" class="l">fingers</text>
+    <text x="180" y="20" class="d">D 33.6</text>
+    <text x="180" y="38" class="d">H 50.8</text>
   </g>
 
-  <g transform="translate(360,400)">
-    <text x="0" y="0" class="label">Legend</text>
-    <rect class="box" x="0" y="16" width="28" height="18"/>
-    <text x="36" y="30" class="label">camera chassis proxy (= cavity until measured)</text>
-    <rect class="insert" x="0" y="44" width="28" height="18"/>
-    <text x="36" y="58" class="label">max recommended insert d 70 × 49 × 32 mm</text>
-    <rect class="keep" x="0" y="72" width="28" height="18"/>
-    <text x="36" y="86" class="label">keep-out (estimate  replace after calipers)</text>
-    <text x="0" y="120" class="note">NOT official GoPro CAD. Do not freeze PCB until</text>
-    <text x="0" y="136" class="note">printed dummy drop-fits and latch closes.</text>
-    <text x="0" y="168" class="sub">Scale ~4 px/mm · boat-puck/housing/</text>
+  <g transform="translate(320,420)">
+    <text x="0" y="0" class="l">Doctrine</text>
+    <text x="0" y="22" class="s">Blue box = camera positive = housing inside.</text>
+    <text x="0" y="40" class="s">Orange = camera features the housing follows.</text>
+    <text x="0" y="58" class="s">Boat Puck outer solid starts as this blue box,</text>
+    <text x="0" y="76" class="s">then subtract features to free electronics volume.</text>
+    <text x="0" y="106" class="note">No arbitrary 1 mm shrink. Slip only for print tolerance.</text>
   </g>
 </svg>
