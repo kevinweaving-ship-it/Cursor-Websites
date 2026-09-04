@@ -93,8 +93,7 @@
       ["Layline", "layline"],
       ["Leader", "leaderline"],
       ["Front", "frontline"],
-      ["Wind", "windCompass"],
-      ["Camera", "camera"]
+      ["Wind", "windCompass"]
     ];
     flags.innerHTML = "";
     var raceN = Number(new URLSearchParams(location.search).get("race") || 1) || 1;

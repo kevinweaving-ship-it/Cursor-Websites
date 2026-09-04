@@ -1787,6 +1787,9 @@ body[data-tracking-dev2="1"] .tracking-dev2-sailfish-flags {
   min-width: 0;
   order: 1;
 }
+body[data-tracking-dev2="1"] .tracking-dev2-flag[data-flag="camera"] {
+  display: none !important;
+}
 body[data-tracking-dev2="1"] .tracking-dev2-flag,
 body[data-tracking-dev2="1"] .tracking-dev2-sailfish-flags .tracking-dev2-flag {
   flex: 0 0 auto;
