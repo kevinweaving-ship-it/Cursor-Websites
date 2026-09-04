@@ -23,6 +23,8 @@ See [`NORTH_STAR.md`](NORTH_STAR.md).
 |------|---------|
 | `NORTH_STAR.md` | Beat Vakaros — doctrine |
 | `universal-puck.md` | Product tree: Puck + screen options 2a/2b/2c |
+| `vakaros-gnss-board-id.md` | Atlas 2 GNSS fingerprint → Sony CXD5610 / Telit SE868SY-D class |
+| `gnss-50hz-lock.md` | Puck GNSS ≥50 Hz (UM980); reject LC29H/LG290P |
 | `puck-components-buy-list.md` | **Puck parts + prices + buy URLs** |
 | `bom-puck-screen-cost.md` | Cost summary Puck vs Screen (loud speaker on 2a) |
 | `markets-dinghy-keelboat.md` | Markets vs Universal / Atlas |
