@@ -27,6 +27,7 @@ See [`NORTH_STAR.md`](NORTH_STAR.md).
 | `gnss-50hz-lock.md` | Puck GNSS ≥50 Hz (UM980); reject LC29H/LG290P |
 | `puck-components-buy-list.md` | **Puck parts + prices + buy URLs** |
 | `alibaba-gnss-eval-2026-09.md` | Alibaba GNSS paste set — price/size; Puck vs committee base |
+| `sailteck-research.md` | Sailteck Race/GPS Compass ID; twin-wedge housing lookalikes |
 | `bom-puck-screen-cost.md` | Cost summary Puck vs Screen (loud speaker on 2a) |
 | `markets-dinghy-keelboat.md` | Markets vs Universal / Atlas |
 | `PRICE_RULE.md` | Always show **R** and **($)** |
