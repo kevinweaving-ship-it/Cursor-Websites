@@ -1,73 +1,61 @@
-# Boat Puck — two markets
+# Boat Puck — markets (updated for Universal Puck)
 
-North star: [`NORTH_STAR.md`](NORTH_STAR.md) — **better Vakaros**, not Sailmon.
+North star: [`NORTH_STAR.md`](NORTH_STAR.md).  
+**Primary boat SKU:** [`universal-puck.md`](universal-puck.md).
 
 Same **race network** (committee RTK base + LoRa + Race Control).  
-Two **boat-side products** because dinghies and keelboats buy for different jobs.
+**One** boat-side puck from Optimist through bigger boats. Scale the UI with BLE clients — not a second housing.
 
-| | **1. Dinghy** | **2. Keelboat** |
-|--|---------------|-----------------|
-| Who | Fleet / club / youth / Olympic-pathway dinghies | Yacht clubs, keelboat fleets, match / inshore |
-| Pain | Cost, weight, spray, no place for a big instrument | Want a **cockpit instrument** + fleet race tools |
-| Competitor shadow | HALO (sensors) + phone; Atlas is often “too much / too dear” | **Atlas 2** / Sailmon MAX on the boat |
-| Our offer | **Sensor puck** — cheap, tiny, tough | **Boat Atlas** — sunlight UI + same race core |
-| Housing | **GoPro H9–13** (or small own shell) | **Own IP67** shell with **4.2" RLCD** |
-| Sailor UI | **BLE → watch / phone** | **On-device RLCD** (+ BLE still useful) |
-| Mount | Transom / mast / hiking strap / rail clamp | Pedestal / bulkhead / tiller / rail |
-| BOM priority | Antenna + RTK + LoRa + IMU; **no glass** | Same core **+** ST7305 + window + keys |
-| Price posture | Undercut HALO-class stack hard | Undercut Atlas+HALO; still far under Sailmon+race kit |
+| | **Universal Puck** | **Bigger-boat add-ons** | **Boat Atlas (later)** |
+|--|--------------------|-------------------------|-------------------------|
+| Who | Opti → youth/Olympic dinghies → small keelboats | Keelboat helm / nav | Buyers who want on-device big glass |
+| Offer | Action-cam case + **back-cover screen** + race core | **Tablet / smartwatch / phone app** → same puck | Own IP67 + 4.2" RLCD |
+| Housing | **Largest common action-cam waterproof case** (H9–13 class) | — | Custom shell |
+| Sailor UI | Back LCD (aft on mast) | Large digits / pages on tablet or watch | On-device RLCD |
+| Mount | Mast / rail / clamp (class adapters) | Same puck, different plate | Pedestal / bulkhead |
 
 ---
 
 ## Shared (do not fork the radio)
 
-Both markets need identical fleet behaviour:
+- cm RTK from **committee base** over LoRa  
+- Sync start, live line, OCS, finish, scoring  
+- Same boat ID / bow offset / FIX quality uplink  
 
-- cm RTK from **committee base** over LoRa (no cellular for critical)
-- Sync start, live line, OCS, finish, scoring
-- Same boat ID / bow offset / FIX quality uplink
-
-**One Race Control. Two boat SKUs.** That is how we stay Vakaros-like without forcing dinghy sailors to buy a keelboat instrument.
-
----
-
-## Product mapping
+**One Race Control. One Universal Puck. Companion apps scale the glass.**
 
 ```
                     ┌─ Committee (one set per venue) ─┐
                     │  RTK base · LoRa hub · RC app   │
                     └──────────────┬──────────────────┘
                                    │ LoRa
-              ┌────────────────────┼────────────────────┐
-              ▼                                         ▼
-     DINGHY SKU                                  KEELBOAT = Boat Atlas
-     GoPro / small puck                          Own housing + 4.2" RLCD
-     BLE watch/phone                             Digits on glass (+ BLE)
-     Max cost/weight kill                        Our Atlas 2
+                                   ▼
+                          UNIVERSAL PUCK
+                     (action-cam · back LCD)
+                                   │ BLE
+                    ┌──────────────┼──────────────┐
+                    ▼              ▼              ▼
+                 Watch          Phone          Tablet
 ```
 
-Docs:
+---
 
-- Dinghy mechanical → `housing/`
-- Boat Atlas (Atlas 2 class) → `atlas/`
-- Keelboat display + housing → `display-rlcd-4.2-research.md`, `system-rlcd-housing.md`
-- Shared electronics checklist → `components-requirements.md`
+## What we skip (for Universal v0)
+
+| Skip | Why |
+|------|-----|
+| 4.2" in the puck | Does not fit action-cam backdoor; use tablet |
+| Junction-box / Pelican as product shell | Looks proto, not production |
+| Phone dive cases | Too thin for full stack |
+| Osmo 360 / Action as compute host | No custom app on camera screen |
+| Separate dinghy-only “no screen” SKU | Back-cover LCD is standard on Universal |
 
 ---
 
-## What each market does *not* need
+## Go-to-market order
 
-| Skip for dinghy | Skip for keelboat (v1) |
-|-----------------|-------------------------|
-| 4.2" display, thick own shell | Fancy NMEA wind/BSP hub (Sailmon extras) |
-| Voice / AI mics | Mandatory phone for race-critical UI |
-| Colour IPS / backlight | GoPro look-and-feel |
+1. **Universal Puck** in H9–13-class case — Opti fleets + shared mounts.  
+2. **BLE watch + phone app**, then **tablet** layout for bigger boats.  
+3. **Boat Atlas** only if demand wants built-in 4.2" (`atlas/`).
 
----
-
-## Go-to-market order (suggested)
-
-1. **Dinghy first** — prove RTK+LoRa+OCS in GoPro envelope; club fleets feel cost win.  
-2. **Boat Atlas (keelboat)** — same radio firmware; RLCD + own housing (`atlas/`).
-
-Firmware and Race Control stay shared; only housing + display BOM diverge.
+Firmware and Race Control stay shared.

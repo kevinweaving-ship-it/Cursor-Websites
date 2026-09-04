@@ -17,23 +17,25 @@ Boat Puck copies the **second** job and beats it on cost, rate, openness, and ma
 | Corrections | RaceSense mesh (no cellular critical) | **LoRa RTCM** from committee (no cellular critical) |
 | Sensors | 25 Hz GNSS / 50 Hz fusion (Atlas) | **≥50 Hz GNSS + ≥100 Hz IMU** |
 | Radio | Proprietary 2.4 GHz | **SX1262 LoRa** — long range, open stack |
-| Sailor UI | Expensive Atlas on boat | **Dinghy:** BLE watch/phone · **Keelboat (Boat Atlas):** **4.2" reflective LCD** |
-| Shell | Custom only | **Dinghy:** GoPro ecosystem · **Keelboat:** own IP67 |
+| Sailor UI | Expensive Atlas on boat | **Universal Puck** back-cover LCD + BLE watch/phone/tablet |
+| Shell | Custom only | **Biggest common action-cam case** (production look) |
 | Price | Atlas + HALO stack is elite | Fraction of that BOM; same race jobs |
 | Software | Closed | Own Race Control; iterate UI fast |
 
 ---
 
-## Two markets, one race network
+## One boat puck, one race network
 
-| Market | Product | Beats Vakaros by… |
-|--------|---------|-------------------|
-| **Dinghy** | Small puck (GoPro) + BLE | Cost/weight; clubs can equip a whole fleet |
-| **Keelboat** | **Puck guts + 4.2" RLCD** in own housing (**Boat Atlas**) | Atlas-like sunlight UI without Atlas price |
+| | Product | Beats Vakaros by… |
+|--|---------|-------------------|
+| **Universal Puck** | Action-cam case + back-cover screen; Opti → bigger boats | Cost/weight; one SKU for fleets |
+| **Bigger boats** | Same puck + **tablet / smartwatch app** over BLE | Atlas-like UI without a second brick |
+| **Boat Atlas** (later) | Optional own shell + 4.2" RLCD | Only if volume pays for custom glass |
 
 Committee gear is shared: RTK base + LoRa hub + Race Control + line ends.
 
-Detail: [`markets-dinghy-keelboat.md`](markets-dinghy-keelboat.md).
+Primary boat doc: [`universal-puck.md`](universal-puck.md).  
+Markets note: [`markets-dinghy-keelboat.md`](markets-dinghy-keelboat.md).
 
 ---
 

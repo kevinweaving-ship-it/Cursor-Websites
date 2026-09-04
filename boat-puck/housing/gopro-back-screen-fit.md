@@ -64,8 +64,9 @@ O-ring must still close — rear stack must not force the door open.
 
 | Product | Shell | Screen |
 |---------|-------|--------|
-| **Dinghy puck** | GoPro H9–13 | **None**, or optional **small** rear LCD (≤~2.3–2.8") |
-| **Boat Atlas** | Own IP67 | **4.2" RLCD** (does not fit GoPro back) |
+| **Universal Puck** (primary) | GoPro H9–13 / Ace class | **Back-cover LCD ~2.0–2.8"** (required) |
+| **Bigger boats** | Same puck | Same back LCD + **tablet / watch / phone** app |
+| **Boat Atlas** (later) | Own IP67 | **4.2" RLCD** (does not fit GoPro back) |
 
-So: **puck + small back screen** ≠ Atlas.  
-**Puck guts + 4.2" in own shell** = Atlas.
+See [`../universal-puck.md`](../universal-puck.md).  
+**Puck + back screen** = Universal. **4.2" own shell** = optional Atlas later.

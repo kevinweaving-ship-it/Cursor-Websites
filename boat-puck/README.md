@@ -4,26 +4,26 @@
 
 See [`NORTH_STAR.md`](NORTH_STAR.md).
 
-Two markets → two boat SKUs (same race network):
+**Primary boat product:** [`universal-puck.md`](universal-puck.md)
 
-1. **Dinghy** — GoPro / small puck + BLE → watch/phone (cost & weight)  
-2. **Keelboat — Boat Atlas** — own IP67 + **locked 4.2" reflective LCD** (our Atlas 2)
-
-See `markets-dinghy-keelboat.md` and `atlas/`.
+- **Universal Puck** — biggest common **action-cam** waterproof case, **screen on back cover**, Opti → bigger boats  
+- **Bigger boats** — same puck + **tablet / smartwatch / phone** app over BLE  
+- **Boat Atlas** — optional later own shell + 4.2" RLCD (`atlas/`)
 
 ## Docs
 
 | Path | Content |
 |------|---------|
 | `NORTH_STAR.md` | Beat Vakaros — doctrine |
-| `markets-dinghy-keelboat.md` | Two markets → two SKUs |
+| `universal-puck.md` | **One puck** Opti→bigger; back LCD; BLE scale-up |
+| `markets-dinghy-keelboat.md` | Markets vs Universal / Atlas |
 | `PRICE_RULE.md` | Always show **R** and **($)** |
-| `atlas/` | **Boat Atlas** — our Atlas 2 (spec, UI, parity, one-unit BOM) |
-| `housing/` | H9–13 cavity = camera; lens pocket → GPS antenna (dinghy) |
+| `housing/` | H9–13 cavity; back-cover screen fit |
+| `atlas/` | Optional future Atlas 2 class |
 | `components-requirements.md` | Race-core BOM + committee base/hub |
-| `display-rlcd-4.2-research.md` | Waveshare kit + factory panel suppliers & **R ($)** |
-| `system-rlcd-housing.md` | Keelboat components + own housing |
+| `display-rlcd-4.2-research.md` | 4.2" research (Atlas path) |
+| `system-rlcd-housing.md` | Keelboat RLCD + own housing notes |
 
 ## Architecture (one line)
 
-Committee RTK base → RTCM over LoRa → each boat FIX; boats → positions over LoRa → Race Control; dinghy UI on phone/watch, keelboat UI on 4.2" RLCD.
+Committee RTK base → RTCM over LoRa → each boat FIX; boats → positions over LoRa → Race Control; sailor UI = puck **back-cover LCD** + optional BLE watch/phone/tablet.

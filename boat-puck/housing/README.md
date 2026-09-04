@@ -1,6 +1,8 @@
-# Boat Puck — GoPro H9–13 housing (cheap enclosure)
+# Boat Puck — GoPro H9–13 housing (Universal Puck shell)
 
-Primary shell: **Protective Housing ADDIV-001** (and clones) for **HERO9–13**.
+**Universal Puck** primary shell: **biggest common action-cam waterproof case** that still looks production — **Protective Housing ADDIV-001** (and clones) for **HERO9–13**, or Ace Pro 60 m in the same class.
+
+Product doctrine: [`../universal-puck.md`](../universal-puck.md) — screen on **back cover**; bigger boats add tablet/watch app.
 
 ## Core rule
 
