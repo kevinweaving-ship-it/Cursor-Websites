@@ -1,0 +1,274 @@
+{
+  "account": "Kevin@arial.co.za/SmartLife",
+  "region": "Central Europe",
+  "openapiBase": "https://openapi.tuyaeu.com",
+  "savedAt": "2026-09-01T21:18:00Z",
+  "statusNote": "consoleOnline/lastSeen are from the Tuya IoT console paste and are untrusted. TUYS UI stays paused until GET /api/arial/tuya/probe returns ok.",
+  "selfServe": {
+    "supportTicket": "sent; no response as of 2026-09-02 — do not wait on Tuya support",
+    "likelyCause": "1010 on GET /v1.0/devices/{id}/status after a successful /v1.0/token is the usual IoT Core trial-expiry lie (Home Assistant / Homey). HMAC refresh must not sign with a dead access_token.",
+    "consoleSteps": [
+      "iot.tuya.com → Cloud → Cloud Services → IoT Core → View Details → Extend Trial Period",
+      "Direct form: https://iot.tuya.com/cloud/products/apply-extension (if it errors, Back then Extend again)",
+      "After approval: Devices → Link Tuya App Account → unlink Smart Life (Kevin@arial.co.za) → relink, Central Europe",
+      "Set TUYA_CLIENT_ID and TUYA_SECRET on live (never git); TUYA_REGION=eu",
+      "Project IP allowlist empty or include 102.218.215.253",
+      "GET /api/arial/tuya/probe — tokenOk and deviceOk must both be true before unpausing TUYS UI"
+    ]
+  },
+  "liveProbe": {
+    "deviceId": "bf90676b1341ecb34dse39",
+    "endpoint": "GET /v1.0/devices/{id}/status",
+    "probedAt": "2026-09-01T21:19:45Z",
+    "response": {
+      "code": 1010,
+      "msg": "token invalid",
+      "success": false,
+      "t": 1788297585926,
+      "tid": "db1f3972a64a11f19c5bd6dbc6e5ffad"
+    }
+  },
+  "devices": [
+    {
+      "id": "bf98e88ad0e2a428c36fdg",
+      "name": "Neighbour Power",
+      "product": "smart plug",
+      "site": "neighbour",
+      "consoleOnline": true,
+      "lastSeen": "2026-08-31 13:46:37"
+    },
+    {
+      "id": "bf8d35d77b1bf16e94birx",
+      "name": "Upstairs Bedroom",
+      "product": "WB03",
+      "site": "house",
+      "consoleOnline": true,
+      "lastSeen": "2025-12-07 10:42:11"
+    },
+    {
+      "id": "bf7ab01e6461e4d767qiiq",
+      "name": "Rack plug",
+      "product": "smart plug",
+      "site": "house",
+      "consoleOnline": false,
+      "lastSeen": "2025-08-03 13:00:59"
+    },
+    {
+      "id": "bf5974b71d013f7b5ev6di",
+      "name": "2-433 2",
+      "product": "2-433",
+      "site": "house",
+      "consoleOnline": false,
+      "lastSeen": "2025-01-08 09:55:54"
+    },
+    {
+      "id": "bf1fe5c5e0fe5b91996bvh",
+      "name": "2-433",
+      "product": "2-433",
+      "site": "house",
+      "consoleOnline": false,
+      "lastSeen": "2025-01-07 12:31:45"
+    },
+    {
+      "id": "bf02f60ffa427a513bjxg5",
+      "name": "Main Bath",
+      "product": "CB01-SBL",
+      "site": "house",
+      "consoleOnline": true,
+      "lastSeen": "2025-01-05 09:50:28"
+    },
+    {
+      "id": "bf8241ec82ff11d6cd3rgt",
+      "name": "Flat Kichen",
+      "product": "CB01-SBL",
+      "site": "house",
+      "consoleOnline": true,
+      "lastSeen": "2024-12-03 14:18:02"
+    },
+    {
+      "id": "bfa9b2e7efc4fa31a3w3ds",
+      "name": "Lounge",
+      "product": "CB02-SBL",
+      "site": "house",
+      "consoleOnline": true,
+      "lastSeen": "2024-12-03 13:49:05"
+    },
+    {
+      "id": "bf8e2c6a662fd46f127nvr",
+      "name": "Upstairs Office",
+      "product": "CB03-SBL",
+      "site": "house",
+      "consoleOnline": true,
+      "lastSeen": "2024-12-03 13:49:02"
+    },
+    {
+      "id": "bf77b408c97d4bed9alafg",
+      "name": "Passage",
+      "product": "CB04-SBL",
+      "site": "house",
+      "consoleOnline": true,
+      "lastSeen": "2024-12-03 13:48:51"
+    },
+    {
+      "id": "bf6ee2169da41cc490rew3",
+      "name": "Main Bedroom",
+      "product": "CB02-SBL",
+      "site": "house",
+      "consoleOnline": true,
+      "lastSeen": "2024-12-03 12:39:36"
+    },
+    {
+      "id": "bf08786b0b4f2b410dovue",
+      "name": "Laundry Light",
+      "product": "CB01-SBL",
+      "site": "house",
+      "consoleOnline": false,
+      "lastSeen": "2024-10-03 12:41:25"
+    },
+    {
+      "id": "bfb571f3608dc1abaaovec",
+      "name": "Main Garage",
+      "product": "CB01-SBL",
+      "site": "house",
+      "consoleOnline": false,
+      "lastSeen": "2024-10-03 12:20:34"
+    },
+    {
+      "id": "bf97cde21285ce5948idym",
+      "name": "Workshop",
+      "product": "CB01-SBL",
+      "site": "house",
+      "consoleOnline": true,
+      "lastSeen": "2024-10-03 12:07:17"
+    },
+    {
+      "id": "bf200739fa365798a2nkfb",
+      "name": "Flat Bedroom",
+      "product": "CB02-SBL",
+      "site": "house",
+      "consoleOnline": true,
+      "lastSeen": "2024-10-03 12:06:00"
+    },
+    {
+      "id": "bfb157525973ae21f9hmxa",
+      "name": "Flat Lounge",
+      "product": "CB01-SBL",
+      "site": "house",
+      "consoleOnline": true,
+      "lastSeen": "2024-10-03 12:02:16"
+    },
+    {
+      "id": "bf69ec9bff417b5489v4ng",
+      "name": "Tim’s Room",
+      "product": "CB01-SBL",
+      "site": "house",
+      "consoleOnline": true,
+      "lastSeen": "2024-10-03 10:47:15"
+    },
+    {
+      "id": "bf2a2d5219caa4eedcbotu",
+      "name": "Spare Room",
+      "product": "CB01-SBL",
+      "site": "house",
+      "consoleOnline": true,
+      "lastSeen": "2024-10-03 10:43:15"
+    },
+    {
+      "id": "bff25080030c3fd8d7aatu",
+      "name": "Bath & Toilet",
+      "product": "CB02-SBL",
+      "site": "house",
+      "consoleOnline": true,
+      "lastSeen": "2024-10-03 10:20:49"
+    },
+    {
+      "id": "bf08d3bc7cc2058129jxtk",
+      "name": "Smart Sprinkler Controller",
+      "product": "灌溉器 5G",
+      "site": "house",
+      "consoleOnline": false,
+      "lastSeen": "2024-09-26 12:49:03"
+    },
+    {
+      "id": "bfae40218a2f390d0eovn6",
+      "name": "Garages’s",
+      "product": "2-433",
+      "site": "house",
+      "consoleOnline": false,
+      "lastSeen": "2024-09-26 11:13:25"
+    },
+    {
+      "id": "bffe7b1bea9159600bojmx",
+      "name": "HSK DC 8Ch Relay",
+      "product": "8路开关",
+      "site": "hansekop",
+      "consoleOnline": false,
+      "lastSeen": "2024-09-22 09:56:37"
+    },
+    {
+      "id": "bfd96ccdc48c9995acegyq",
+      "name": "HSK Weather Station",
+      "product": "Weather2-2",
+      "site": "hansekop",
+      "consoleOnline": false,
+      "lastSeen": "2024-09-22 09:43:58"
+    },
+    {
+      "id": "bfdcd94453d2034d28eazo",
+      "name": "HSK Zigbee Gateway",
+      "product": "mesh网关 CR3L",
+      "site": "hansekop",
+      "consoleOnline": true,
+      "lastSeen": "2024-09-22 09:34:49"
+    },
+    {
+      "id": "bf848f1de980997f52npyx",
+      "name": "HSK Ceiling Sensor",
+      "product": "ZY-M100-WIFI存在感应器",
+      "site": "hansekop",
+      "consoleOnline": false,
+      "lastSeen": "2024-09-22 09:31:25"
+    },
+    {
+      "id": "bf90676b1341ecb34dse39",
+      "name": "HSK Mains Meter",
+      "product": "炬为WiFi联网远控电表(GR2PWS)",
+      "site": "hansekop",
+      "role": "mains-meter",
+      "consoleOnline": true,
+      "lastSeen": "2024-09-22 09:27:52"
+    },
+    {
+      "id": "bf010b07126bea17456iph",
+      "name": "HSK 220v Relay",
+      "product": "Intelligent on-off device",
+      "site": "hansekop",
+      "consoleOnline": false,
+      "lastSeen": "2024-09-22 09:24:10"
+    },
+    {
+      "id": "bf188ba68fafd0cd1bp0xz",
+      "name": "HSK Generator Plug",
+      "product": "smart plug",
+      "site": "hansekop",
+      "consoleOnline": false,
+      "lastSeen": "2024-09-22 09:19:55"
+    },
+    {
+      "id": "bf7c4ac229ef7a38d558vz",
+      "name": "HSK 16A Breaker",
+      "product": "计量过欠压开关",
+      "site": "hansekop",
+      "consoleOnline": false,
+      "lastSeen": "2024-09-22 09:14:03"
+    },
+    {
+      "id": "bf7f4a91ef39b11261xcua",
+      "name": "HSK - Light Switch x4",
+      "product": "CB04-SBL",
+      "site": "hansekop",
+      "consoleOnline": true,
+      "lastSeen": "2024-09-22 09:02:26"
+    }
+  ]
+}

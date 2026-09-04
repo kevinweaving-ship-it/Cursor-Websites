@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en-ZA">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes">
+    <meta name="robots" content="noindex,nofollow">
+    <meta http-equiv="Cache-Control" content="no-store">
+    <title>Arial</title>
+    <link rel="stylesheet" href="/arial/arial.css?v=233">
+</head>
+<body>
+    <div class="pad-wrap" id="pad-frame">
+    <div class="pad-clip">
+    <div class="pad">
+        <svg class="shell-svg" viewBox="0 0 368 427" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+                <clipPath id="deviceClip" clipPathUnits="objectBoundingBox">
+                    <path d="M0.315 0 C0.155 0.008 0.055 0.03 0.047 0.06 L0.047 0.88 C0.055 0.96 0.195 1 0.325 1 L0.675 1 C0.805 1 0.945 0.96 0.953 0.88 L0.953 0.06 C0.945 0.03 0.845 0.008 0.685 0 Z"/>
+                </clipPath>
+                <linearGradient id="bodyFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#f7f7f5"/>
+                    <stop offset="0.55" stop-color="#f4f4f2"/>
+                    <stop offset="1" stop-color="#f1f1ee"/>
+                </linearGradient>
+                <linearGradient id="capFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#b4b6b8"/>
+                    <stop offset="0.4" stop-color="#9a9d9f"/>
+                    <stop offset="1" stop-color="#86898c"/>
+                </linearGradient>
+                <linearGradient id="capSheen" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0" stop-color="#000" stop-opacity="0.08"/>
+                    <stop offset="0.3" stop-color="#fff" stop-opacity="0.1"/>
+                    <stop offset="0.68" stop-color="#fff" stop-opacity="0.04"/>
+                    <stop offset="1" stop-color="#000" stop-opacity="0.1"/>
+                </linearGradient>
+                <linearGradient id="recessFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#dfe2e5"/>
+                    <stop offset="1" stop-color="#eef0f2"/>
+                </linearGradient>
+                <filter id="bodyShadow" x="-8%" y="-4%" width="116%" height="116%">
+                    <feDropShadow dx="0" dy="7" stdDeviation="6" flood-color="#000" flood-opacity="0.15"/>
+                </filter>
+            </defs>
+            <path class="shell-body" filter="url(#bodyShadow)" fill="url(#bodyFill)" stroke="#6a7378" stroke-width="3.2" stroke-linejoin="round"
+                d="M116 2 C68 5 25 16 19 30 L19 372 C21 402 55 423 117 425 L251 425 C313 423 347 402 349 372 L349 30 C343 16 300 5 252 2 Z"/>
+            <path class="shell-cap" fill="url(#capFill)"
+                d="M116 2 C68 5 25 16 19 30 L19 138 Q184 144 349 138 L349 30 C343 16 300 5 252 2 Z"/>
+            <path class="shell-cap" fill="url(#capSheen)"
+                d="M116 2 C68 5 25 16 19 30 L19 138 Q184 144 349 138 L349 30 C343 16 300 5 252 2 Z"/>
+            <rect class="shell-recess" x="64" y="158" width="231" height="216" rx="13" fill="url(#recessFill)" stroke="#6a7378" stroke-width="1.6"/>
+            <path class="shell-cover" fill="#fbfbfa"
+                d="M63 378 H305 C339 378 345 392 345 404 C345 422 315 425 251 425 L117 425 C53 425 23 422 23 404 C23 392 29 378 63 378 Z"/>
+            <path class="shell-outline" fill="none" stroke="#6a7378" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"
+                d="M19 350 L19 370 C21 400 55 421 117 423 L251 423 C313 421 347 400 349 370 L349 350"/>
+        </svg>
+        <div class="brand-slot">
+            <img class="brand-logo" src="/arial/logo.png?v=97" alt="Aerial Networks">
+        </div>
+        <div class="lcd" aria-live="polite">
+            <div class="lcd-toprow">
+                <div id="lcd-2">
+                    <span id="lcd-status-main"></span>
+                    <span id="lcd-status-issue" hidden></span>
+                </div>
+                <div class="lcd-head">
+                    <span id="lcd-site">HANSEKOP</span>
+                    <span id="lcd-date"></span>
+                    <span id="lcd-time"></span>
+                    <img id="lcd-user-logo" alt="">
+                    <span id="lcd-user-name" hidden></span>
+                </div>
+            </div>
+            <div class="lcd-mid">
+                <span id="lcd-welcome"></span>
+            </div>
+        </div>
+        <div class="led ac on" id="led-ac" title="AC"></div>
+        <div class="led status" id="led-status" title="STATUS"></div>
+        <div class="led-status-label">Status</div>
+        <button type="button" class="hot key-fn" data-key="STAY" aria-label="Lights"><span class="key-label">LIGHTS</span></button>
+        <button type="button" class="hot key-fn" data-key="FORCE" aria-label="FORCE"><span class="key-label">FORCE</span></button>
+        <button type="button" class="hot key-fn" data-key="ARM" aria-label="ARM"><span class="key-label">ARM</span></button>
+        <button type="button" class="hot key-fn arm-toggle to-arm" id="arm-toggle" data-key="TOGGLE" aria-label="ARM">
+            <span class="key-icon-wrap" id="arm-toggle-face">
+                <svg class="key-icon icon-lock" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M8.2 11.2V8.1C8.2 6 9.9 4.2 12 4.2s3.8 1.8 3.8 3.9v3.1" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+                    <path fill="currentColor" fill-rule="evenodd" d="M6.2 11.1h11.6c1.2 0 2.2 1 2.2 2.2v6.3c0 1.2-1 2.2-2.2 2.2H6.2c-1.2 0-2.2-1-2.2-2.2v-6.3c0-1.2 1-2.2 2.2-2.2zm5.8 3.05a1.55 1.55 0 1 0 0 3.1 1.55 1.55 0 0 0 0-3.1zm-.7 2.7h1.4l.45 2.15h-2.3l.45-2.15z"/>
+                </svg>
+                <svg class="key-icon icon-unlock" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M8.2 11.2V8.1C8.2 6 9.9 4.2 12 4.2c1.7 0 3.1 1.1 3.6 2.6" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+                    <path fill="currentColor" fill-rule="evenodd" d="M6.2 11.1h11.6c1.2 0 2.2 1 2.2 2.2v6.3c0 1.2-1 2.2-2.2 2.2H6.2c-1.2 0-2.2-1-2.2-2.2v-6.3c0-1.2 1-2.2 2.2-2.2zm5.8 3.05a1.55 1.55 0 1 0 0 3.1 1.55 1.55 0 0 0 0-3.1zm-.7 2.7h1.4l.45 2.15h-2.3l.45-2.15z"/>
+                </svg>
+            </span>
+        </button>
+        <button type="button" class="hot key-fn hot-more" data-key="BYP" aria-label="BYP"><span class="key-label">BYP</span></button>
+        <button type="button" class="hot key-fn hot-more" data-key="MEM" aria-label="MEM"><span class="key-label">MEM</span></button>
+        <button type="button" class="hot key-fn hot-more" data-key="TBL" aria-label="TBL"><span class="key-label">TBL</span></button>
+        <button type="button" class="hot key-fn hot-more" data-key="ACC" aria-label="ACC"><span class="key-label">ACC</span></button>
+        <button type="button" class="hot key-arrow" data-key="UP" aria-label="Log Out" hidden>
+            <svg class="key-icon icon-logout" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M10 5.2H6.8A2.4 2.4 0 0 0 4.4 7.6v8.8A2.4 2.4 0 0 0 6.8 18.8H10" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M11.2 12h8.2" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M16.4 8.2L20.6 12 16.4 15.8" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </button>
+        <button type="button" class="hot key-arrow hot-more" data-key="DOWN" aria-label="Down"><span class="key-arrow-icon down" aria-hidden="true"></span></button>
+        <button type="button" class="hot key-num hot-more" data-key="1" aria-label="1"><span class="key-label">1</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="2" aria-label="2"><span class="key-label">2</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="3" aria-label="3"><span class="key-label">3</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="4" aria-label="4"><span class="key-label">4</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="5" aria-label="5"><span class="key-label">5</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="6" aria-label="6"><span class="key-label">6</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="7" aria-label="7"><span class="key-label">7</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="8" aria-label="8"><span class="key-label">8</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="9" aria-label="9"><span class="key-label">9</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="CLEAR" aria-label="CLEAR"><span class="key-label">CLEAR</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="0" aria-label="0"><span class="key-label">0</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="ENTER" aria-label="ENTER"><span class="key-label">ENTER</span></button>
+        <audio id="pin-ok" src="/arial/pin-accepted.wav" preload="auto"></audio>
+        <audio id="key-beep" src="/arial/key-beep.wav?v=97" preload="auto" playsinline></audio>
+        <audio id="key-reject" src="/arial/key-reject.wav?v=151" preload="auto" playsinline></audio>
+    </div>
+    </div>
+    </div>
+    <div class="lights-pop" id="lights-pop" hidden>
+        <div class="lights-panel card" role="dialog" aria-modal="true" aria-labelledby="lights-title">
+            <div class="activity-head lights-head">
+                <h2 class="section-title" id="lights-title">Lights</h2>
+                <div class="lights-all">
+                    <button type="button" class="lights-all-btn" id="lights-all-on">All on</button>
+                    <button type="button" class="lights-all-btn" id="lights-all-off">All off</button>
+                    <button type="button" class="lights-close" id="lights-close" aria-label="Close">&times;</button>
+                </div>
+            </div>
+            <div class="lights-grid" id="lights-grid">
+                <button type="button" class="light-btn" data-switch="switch_1"><span class="light-icon" aria-hidden="true"></span><span class="light-name">Switch 1</span><span class="light-state">—</span></button>
+                <button type="button" class="light-btn" data-switch="switch_2"><span class="light-icon" aria-hidden="true"></span><span class="light-name">Switch 2</span><span class="light-state">—</span></button>
+                <button type="button" class="light-btn" data-switch="switch_3"><span class="light-icon" aria-hidden="true"></span><span class="light-name">Switch 3</span><span class="light-state">—</span></button>
+                <button type="button" class="light-btn" data-switch="switch_4"><span class="light-icon" aria-hidden="true"></span><span class="light-name">Switch 4</span><span class="light-state">—</span></button>
+            </div>
+            <p class="lights-note" id="lights-note"></p>
+        </div>
+    </div>
+    <div class="container arial-below" hidden>
+        <div class="card" id="arial-activity">
+            <div class="activity-head">
+                <h2 class="section-title">Activity</h2>
+                <p class="activity-power" id="activity-power">AC — · Bat —</p>
+            </div>
+            <div class="tabs" role="tablist">
+                <button type="button" class="on" data-tab="all" role="tab" aria-selected="true" title="All"><span class="activity-tab-mark" aria-hidden="true"></span>All</button>
+                <button type="button" data-tab="zones" role="tab" aria-selected="false" title="Zones"><span class="activity-tab-mark" aria-hidden="true"></span>Zones</button>
+                <button type="button" data-tab="areas" role="tab" aria-selected="false" title="Areas"><span class="activity-tab-mark" aria-hidden="true"></span>Areas</button>
+                <button type="button" data-tab="power" role="tab" aria-selected="false" title="Power"><span class="activity-tab-mark" aria-hidden="true"></span>Power</button>
+            </div>
+            <ul class="activity-list" id="arial-activity-body"></ul>
+            <button type="button" class="activity-more" id="activity-more" hidden aria-expanded="false">
+                <span class="activity-more-arrow" aria-hidden="true"></span>
+                <span class="activity-more-label">More</span>
+            </button>
+        </div>
+        <div class="card" id="arial-breaker">
+            <div class="activity-head">
+                <h2 class="section-title">Hansekop Main Breaker</h2>
+                <p class="breaker-on" id="breaker-state">
+                    <span class="breaker-on-dot" aria-hidden="true"></span>
+                    <span id="breaker-on-label">—</span>
+                </p>
+            </div>
+            <div class="breaker-dials">
+                <div class="breaker-dial" data-kind="v">
+                    <div class="breaker-echart" id="breaker-chart-v" aria-hidden="true"></div>
+                    <span class="breaker-dial-val" id="breaker-v">—</span>
+                    <span class="breaker-dial-unit">V</span>
+                </div>
+                <div class="breaker-dial" data-kind="a">
+                    <div class="breaker-echart" id="breaker-chart-a" aria-hidden="true"></div>
+                    <span class="breaker-dial-val" id="breaker-a">—</span>
+                    <span class="breaker-dial-unit">A</span>
+                </div>
+                <div class="breaker-dial breaker-dial-power" data-kind="w">
+                    <div class="breaker-echart" id="breaker-chart-w" aria-hidden="true"></div>
+                    <span class="breaker-dial-val" id="breaker-w">—</span>
+                    <span class="breaker-dial-unit">W</span>
+                </div>
+                <div class="breaker-info">
+                    <p class="breaker-flag" id="breaker-flag" data-flag="learning">
+                        <span class="breaker-flag-dot" aria-hidden="true"></span>
+                        <span id="breaker-flag-text">Learning baseline</span>
+                    </p>
+                    <span class="breaker-flag-avg" id="breaker-flag-avg"></span>
+                    <span class="breaker-today" id="breaker-w-now">Today —</span>
+                    <span class="breaker-since" id="breaker-hist-range" title="Time since mains power was restored">Since restore —</span>
+                </div>
+            </div>
+            <div class="breaker-day" id="breaker-day" data-day="0">
+                <div class="breaker-day-head">
+                    <button type="button" class="breaker-day-nav" id="breaker-day-prev" aria-label="Earlier day">&#9664;</button>
+                    <span class="breaker-day-title">
+                        <span class="breaker-day-dot" aria-hidden="true"></span>
+                        <span id="breaker-day-label">Today</span>
+                        <span class="breaker-day-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+                    </span>
+                    <span class="breaker-day-total" id="breaker-day-total">—</span>
+                    <button type="button" class="breaker-day-nav" id="breaker-day-next" aria-label="Later day" disabled>&#9654;</button>
+                </div>
+                <div class="breaker-day-chart" id="breaker-day-chart">
+                    <svg class="breaker-bars" id="breaker-bars" viewBox="0 0 320 60" preserveAspectRatio="none" role="img" aria-label="Energy per hour"></svg>
+                    <div class="breaker-day-empty" id="breaker-day-empty" hidden>No hourly data yet</div>
+                    <div class="breaker-tip" id="breaker-tip" hidden></div>
+                </div>
+                <div class="breaker-day-axis" aria-hidden="true"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
+                <div class="breaker-legend" aria-hidden="true">
+                    <span><i class="band-cold2"></i>Below</span>
+                    <span><i class="band-avg"></i>Avg</span>
+                    <span><i class="band-hot"></i>Above</span>
+                    <span><i class="band-danger"></i>Issue</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+    (function () {
+        var TZ = "Africa/Johannesburg";
+        var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        function pad(n) { return String(n).padStart(2, "0"); }
+        function saStamp() {
+            var d = new Date(new Date().toLocaleString("en-US", { timeZone: TZ }));
+            var dateEl = document.getElementById("lcd-date");
+            var timeEl = document.getElementById("lcd-time");
+            if (dateEl) dateEl.textContent = pad(d.getDate()) + " " + months[d.getMonth()] + " " + d.getFullYear();
+            if (timeEl) timeEl.textContent = pad(d.getHours()) + ":" + pad(d.getMinutes());
+        }
+        saStamp();
+    })();
+    </script>
+    <script>window.ARIAL_CONFIG = { apiBase: "/api/arial", siteId: "hansekop", siteLabel: "HANSEKOP", tuya: true };</script>
+    <script src="/arial/app.js?v=234"></script>
+    <script defer src="/arial/vendor/echarts-arial.min.js?v=6.1.0"></script>
+</body>
+</html>

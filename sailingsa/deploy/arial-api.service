@@ -1,0 +1,18 @@
+[Unit]
+Description=Arial keypad API (Olarm + Tuya) - independent of sailingsa-api
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/sailingsa/api
+Environment="PYTHONPATH=/var/www/sailingsa/api"
+Environment="PATH=/var/www/sailingsa/api/venv/bin"
+EnvironmentFile=/etc/sailingsa-olarm.env
+EnvironmentFile=/etc/sailingsa-tuya.env
+ExecStart=/var/www/sailingsa/api/venv/bin/uvicorn arial_app:app --host 127.0.0.1 --port 8003 --workers 1
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
