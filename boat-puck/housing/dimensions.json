@@ -50,6 +50,30 @@
       "button_faces": "top shutter / side mode — plunger pads in housing",
       "battery_door_side": "side door geometry on camera — housing follows it",
       "rear_screen_plane": "flat to backdoor; O-ring on housing door"
+    },
+    "lens_protrusion_gps_pocket": {
+      "purpose": "Stock protective lens stick-out = housing front tunnel = GPS antenna well",
+      "confidence": "medium_community_calipers",
+      "protrusion_past_front_face_mm": {
+        "nominal": 5.5,
+        "range": [5.0, 6.0],
+        "note": "Included inside published camera D=33.6 mm"
+      },
+      "lens_module_outer_mm": {
+        "square_approx": [31.5, 31.5],
+        "diameter_approx": 33.0
+      },
+      "gps_design_target_mm": {
+        "usable_diameter": 32.0,
+        "antenna_max_od": 30.0,
+        "pocket_depth": 5.5,
+        "antenna_stack_max_thickness": 5.0
+      },
+      "implied_body_depth_without_lens_tip_mm": [27.6, 28.6],
+      "h13_note": "H13 stock protective cover ~1 mm wider and slightly thinner (Hypoxic)",
+      "not_max_lens_mod": "Do not size ADDIV pocket from Max Lens Mod (~40x40x20 package)",
+      "doc": "gopro-h9-13-lens-gps-pocket.md",
+      "status": "provisional_until_bench_calipers"
     }
   },
   "secondary_housing": {
