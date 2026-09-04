@@ -19,13 +19,13 @@ Phone dive cases have screen area but **not** depth.
 | Housing class | Screen 4.2"? | Puck guts + ESP32? | Use for Boat Atlas? |
 |---------------|--------------|--------------------|---------------------|
 | GoPro ADDIV | No | Yes (tight) | Dinghy puck only |
-| **Phone dive housings** (SeaLife / Divevolk) | **AA yes (landscape)** | **No — only ~10–12 mm thick** | UI mock in dry box only |
-| Action-cam clones (DJI / Insta360) | No (still small) | Maybe | Not Atlas |
-| Soft Aquapac / OverBoard | Yes (loose) | Yes (floppy) | Splash proto, not product |
-| **Own IP67 shell** | Yes | Yes | **Real Boat Atlas** |
+| Phone dive (SeaLife / Divevolk) | AA yes | **No — ~10–12 mm** | Display head only if split |
+| **Pelican Micro 1040 clear** | **Yes** | **Yes — ~44 mm** | **Best store-bought one-unit proto** |
+| **ZP150.100.60 clear lid** | **Yes** | **Yes — ~50 mm** | Cheap industrial proto |
+| Soft Aquapac / OverBoard | Yes (loose) | Yes (floppy) | Splash proto only |
+| **Own IP67 shell** | Yes | Yes | **Final product** |
 
-**There is no common “GoPro but bigger” hard dive housing that is both phone-wide and instrument-deep.**  
-Atlas stays **custom housing** (or a thick dry box adapted for deck use).
+Phone dive cases are too thin. **Next housing to buy: Pelican 1040 clear** (or ZP150×60). Final Atlas = own shell.
 
 ---
 
