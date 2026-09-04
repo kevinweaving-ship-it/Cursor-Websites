@@ -59,6 +59,26 @@ So on a **~2.0–2.3"** (48×32 class) you get roughly **7–8 mm** left/right a
 
 **Rule:** keep AA ≤ **~55×37 (~2.5")** if you want a few mm of dark bezel; treat **2.8"** as max theoretical, not a comfortable buy.
 
+---
+
+## Small screen + board (no ESP32)
+
+ESP32-on-glass kits are too big. Use a **SPI TFT/OLED module** (driver IC on the LCD FPC/PCB only). MCU lives on the **main puck board**.
+
+Lid window budget: **62.7 × 41.7 mm**. Board must sit ≤ that (or ≤ **71.8 × 50.8** face if you accept clipping under the frame — avoid).
+
+| Module (examples) | AA mm | Board mm | Fit window? |
+|-------------------|-------|----------|-------------|
+| Waveshare **1.54"** SPI ST7789 | 27.7 × 27.7 | **50.0 × 35.0** | **Yes** — easy |
+| Waveshare **2.0"** SPI ST7789 | 30.6 × 40.8 | **58.0 × 35.0** | **Yes** — best size match |
+| Waveshare **1.69"** SPI | 28.0 × 32.6 | **31.5 × 39.0** | **Yes** — small |
+| Bare 1.54" panel+FPC (no big PCB) | 27.7 × 27.7 | outline ~**32 × 35** | **Yes** — thinnest |
+| Waveshare **2.4"** SPI | 36.7 × 49.0 | **70.5 × 43.3** | **No** — board > window |
+| Any **ESP32 + LCD** all-in-one | — | typically ≥70–80+ | **No** |
+
+**v0 buy:** Waveshare **2inch LCD Module** (SPI only, not ESP32) — board **58 × 35 mm**, AA **30.6 × 40.8 mm**.  
+**Better later:** FPC-only glass; ST7789 on main PCB so nothing thick under the lid.
+
 ### Practical Boat Puck “back screen” targets
 
 | Option | Fit in stock ADDIV backdoor? | Comment |
