@@ -23,6 +23,7 @@ See [`NORTH_STAR.md`](NORTH_STAR.md).
 |------|---------|
 | `NORTH_STAR.md` | Beat Vakaros — doctrine |
 | `universal-puck.md` | Product tree: Puck + screen options 2a/2b/2c |
+| `bom-puck-screen-cost.md` | **Cost** Puck vs Screen (loud speaker on 2a) |
 | `markets-dinghy-keelboat.md` | Markets vs Universal / Atlas |
 | `PRICE_RULE.md` | Always show **R** and **($)** |
 | `housing/` | H9–13 cavity; back-cover screen fit |

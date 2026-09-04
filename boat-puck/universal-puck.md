@@ -37,11 +37,12 @@ Detail: [`housing/`](housing/), GPS pocket [`housing/gopro-h9-13-lens-gps-pocket
 
 | | Option | Form | Job |
 |--|--------|------|-----|
-| **a** | **Screen housing** | Second GoPro-class case; SPI LCD on back cover (~2.0–2.8") | Local glance digits; mount anywhere eyes are |
+| **a** | **Screen housing** | Second GoPro-class case; SPI LCD on back cover (~2.0–2.8") + **loud speaker** | Digits + **countdown / OCS beep** |
 | **b** | **Waterproof tablet** | Rugged/waterproof tablet + app | Bigger-boat helm / nav UI (Atlas-like pages) |
 | **c** | **Smartwatch** | Watch + app | Eyes-up speed / start / OCS |
 
-All three are **clients of the Puck**. None carry LoRa/RTK.
+All three are **clients of the Puck**. None carry LoRa/RTK.  
+**2a must be loud** — mylar speaker + Class-D amp (not a weak phone beep). See [`bom-puck-screen-cost.md`](bom-puck-screen-cost.md).
 
 Screen housing fit: [`housing/gopro-back-screen-fit.md`](housing/gopro-back-screen-fit.md) — SPI module only (no ESP32 all-in-one).
 
