@@ -220,3 +220,30 @@ Crawled **132** product URLs from sitemap.
 
 **Factory verdict:** WEST-HN is an **indoor UWB / RFID / IoT** vendor. **No Boat Puck GNSS buy** on this site. Stay on Unicore **UM980**.
 
+
+## Factory page — OTW / Anze **WT-43-RK-LORA**
+
+https://www.ontheway-tech.com/product/wt-43-rk-lora/
+
+| | |
+|--|--|
+| Form | Integrated **GNSS RTK + LoRa + antenna** module, **43×43×14 mm**, 18-pin LCC |
+| Bands | BDS B1I/B1C/B2a · GPS/QZSS L1+L5 · Galileo E1+E5a · GLONASS L1 — **dual-freq L1+L5 class** |
+| Channels | **128** |
+| RTK accuracy | H **1 cm+1 ppm** · V **2 cm+1 ppm** |
+| **Update rate** | **1–20 Hz** (default **1 Hz**) — factory explicit |
+| LoRa | 410–525 MHz · ≤22 dBm · open **~5 km** / urban 1–2 km |
+| I/O | UART TTL/RS232 · NMEA · 3.6–6 V · ~80 mA @5 V |
+| Chip named? | **No** (same L1+L5 fingerprint as LC29H-class / peers — **not UM980**) |
+| Ali live price (earlier) | **~R867 ($54)** |
+
+### GNSS verdict
+
+| Role | |
+|------|--|
+| **Puck rover (≥50 Hz)** | **NO** — hard cap **20 Hz** |
+| **Committee RTK base** | **YES — interesting cheap trial** — LoRa onboard carries corrections; 1 Hz default is fine for base |
+| Ask guts? | Already a **module**. Ask: chip P/N, base+rover pair price, RTCM out confirmed |
+
+Prefer same **UM980** for race stack long-term; WT-43 is the **cheap LoRa+RTK experiment** board.
+
