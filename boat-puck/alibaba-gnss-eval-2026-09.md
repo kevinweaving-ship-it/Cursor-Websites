@@ -174,25 +174,35 @@ Prefer **1-pc** path if they refuse samples: [gnss.store ELT0223](https://gnss.s
 
 ---
 
-## Paste add-on — WES WE-T350 “card fusion” UWB / RTK tag
+## Paste add-on — WES WE-T350 (GNSS/RTK focus)
 
-Screenshots (Meshtastic search → WES badge). Model **WE-T350**.
+Screenshots: **WE-T350** card. Judge **GNSS RTK first**; UWB/4G secondary.
+
+### GNSS facts from listing
 
 | | |
 |--|--|
-| Form | Finished ID-card tag **105 × 62.2 × 9.8 mm** · lanyard loop · magnetic charge |
-| Stack | **UWB** (802.15.4z) + BLE 5.1 + optional **CAT1 / LoRa** (470–510 MHz) + RFID + e-ink + voice |
-| GNSS (optional) | L1+L5 class (GPS L1/L5, Galileo E1/E5a, BDS B1I/B2a…) · claim RTK **1 cm+1 ppm** — **chip not named** |
-| Device refresh | Spec table **0.1–20 Hz (adjustable)** — product report rate |
-| GNSS Hz | **Not stated** in GNSS block (bands + RTK accuracy only) |
-| Use | Indoor UWB 0D/1D presence / tunnel tags — personnel asset tracking |
+| Feature flag | **GNSS(RTK)** listed |
+| Bands | GPS/QZSS **L1+L5**, Galileo **E1+E5a**, BDS **B1I+B2a**, GLONASS **L1** |
+| Accuracy claim | Standalone ~**1 m**; **RTK 1 cm + 1 ppm** |
+| GNSS update rate | **Not published** |
+| Chip name | **Not published** |
+| Class match | Band set = **Quectel LC29H-class** dual-band L1+L5 RTK (DA **1 Hz** / EA **≤10 Hz** RTK in Quectel docs) — **not** Unicore UM980 |
+| Card “refresh rate” | **0.1–20 Hz** = tag report rate (may cap fused output; ≠ proven GNSS Hz) |
 
-**Verdict:** **NO — skip.** Wrong product class (UWB badge + optional dual-band GNSS). Max **20 Hz**, not UM980 guts, not GoPro-fit. Do **not** ask for guts.
+### GNSS verdict (ignore UWB for a moment)
 
-**Correction (re-read screenshots):** “0.1–20 Hz” is the **card refresh rate**, not an explicit GNSS nav-rate line. GNSS section lists L1+L5 dual-band + RTK **1 cm+1 ppm** and **does not publish Hz**. Fair factory ask: *“With GNSS(RTK) option, what is max NMEA/PVT rate?”* Still **skip as Puck guts** (finished badge; dual-band class ≠ UM980; device refresh ≤20 Hz).
+| Use | Verdict |
+|-----|---------|
+| **Race Puck rover (≥50 Hz)** | **NO** — dual-band class tops out **~10 Hz RTK** even if guts are LC29H(EA); no 50 Hz path |
+| **Committee RTK base (1 Hz OK)** | **Maybe as finished handheld** only — not preferred vs bare UM980 board |
+| **Ask for guts?** | **Yes, one question only:** chip P/N + max RTK Hz + bare module SKU. Expect LC29H / peer, not UM980 |
 
+**Seller paste (GNSS-only):**
 
-**Factory check (海南世电 / WEST-HN / WES):** public store https://store.west-hn.com — **WE-T350 not listed**. Sibling UWB tags (WE-T241-C, WE-T311, WE-UG230, WE-T206-H) all publish **刷新率 0.1~20 Hz**. No factory datasheet found with ≥50 Hz GNSS. Asking OEM for “higher Hz” is unlikely to help the Puck path.
+> Ignore UWB. For **GNSS(RTK)** option on WE-T350: (1) exact module part number, (2) max **RTK** NMEA/PVT rate Hz, (3) do you sell that **bare GNSS module/board** alone, (4) 1-pc price USD?
+
+Still buy **UM980** for Puck. WE-T350 RTK is interesting only as “does this seller also stock UM980?” lead.
 
 
 ### Full-site scan — store.west-hn.com (2026-09-04)
