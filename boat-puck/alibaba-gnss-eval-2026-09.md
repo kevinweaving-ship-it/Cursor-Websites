@@ -190,3 +190,19 @@ Screenshots (Meshtastic search → WES badge). Model **WE-T350**.
 
 **Factory check (海南世电 / WEST-HN / WES):** public store https://store.west-hn.com — **WE-T350 not listed**. Sibling UWB tags (WE-T241-C, WE-T311, WE-UG230, WE-T206-H) all publish **刷新率 0.1~20 Hz**. No factory datasheet found with ≥50 Hz GNSS. Asking OEM for “higher Hz” is unlikely to help the Puck path.
 
+
+### Full-site scan — store.west-hn.com (2026-09-04)
+
+Crawled **132** product URLs from sitemap.
+
+| Find | Result |
+|------|--------|
+| **WE-T350** in store | **Not listed** |
+| **UM980 / UM982** | **None** |
+| GPS category | Only **[WE-GT080](https://store.west-hn.com/product/we-gt080/)** livestock tracker (GPS+BDS, **≤10 m**, 2G/4G) — not RTK |
+| UWB tags (T311, T241-C/E, T226, T206-H, UG230…) | Position/range refresh **0.1~20 Hz** across line |
+| F9P | Old blog only: [ZED-F9P core board](https://store.west-hn.com/en/new-product-ublox-f9p-core-board/) (2022) — F9P class **≤20–25 Hz**, not Puck 50 Hz path |
+| BLE AOA (WE-7L / Quuppa) | Indoor **50–200 Hz** marketing — **not GNSS** |
+
+**Factory verdict:** WEST-HN is an **indoor UWB / RFID / IoT** vendor. **No Boat Puck GNSS buy** on this site. Stay on Unicore **UM980**.
+
