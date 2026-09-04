@@ -1,8 +1,10 @@
 # Puck parts — factory / maker URLs only (no LCSC)
 
-Do **not** use lcsc.com. Buy from **Ebyte factory** / Alibaba / Waveshare.
+Do **not** use lcsc.com. Buy from **Ebyte factory** / Alibaba / Waveshare / GNSS specialists.
 
 FX: **R16 / $1**.
+
+**Hard lock:** GNSS must do **≥50 Hz**. See [`gnss-50hz-lock.md`](gnss-50hz-lock.md).
 
 ---
 
@@ -13,9 +15,7 @@ FX: **R16 / $1**.
 | **Ebyte shop (buy)** | https://ebyteiot.com/products/2-4ghz-ble-mesh-small-smd-e73-2g4m08s1c-nordic-nrf52840-module-small-size-ble-5-0 |
 | **Factory product page** | https://www.cdebyte.com/products/E73-2G4M08S1C |
 | **Price** | **~$5–7.60** → **R80–122** |
-| **Note** | Shop sometimes **out of stock** → pick variant **E73-2G4M08S1CX** (IPEX) on same page, or order via Alibaba button on cdebyte page |
-
-Same family on that page: `E73-2G4M08S1C` / `S1CX` / `S1E` / `S1EX`.
+| **Note** | Out of stock → **E73-2G4M08S1CX** on same page |
 
 ---
 
@@ -24,32 +24,40 @@ Same family on that page: `E73-2G4M08S1C` / `S1CX` / `S1E` / `S1EX`.
 | | URL |
 |--|-----|
 | **Factory product page** | https://www.cdebyte.com/products/E22-900M22S |
-| **Alibaba (Ebyte listing)** | https://www.alibaba.com/product-detail/E22-900M22S-TCXO-NEW-SX1262-LoRa_60866055222.html |
 | **Price** | **~$5–7** → **R80–112** |
 
 ---
 
-## Cheaper than LG290P
+## GNSS RTK — **must be 50 Hz** (reject LC29H / LG290P)
 
-LG290P board ≈ **R1 424 ($89)**. Same job (cm RTK) for less:
+| Module | Max rate | Verdict |
+|--------|----------|---------|
+| LC29H(**DA**) | **1 Hz** RTK | **NO** |
+| LC29H(**EA**) | **10 Hz** RTK | **NO** |
+| LG290P | **20 Hz** | **NO** |
+| **UM980** | **50 Hz** | **YES — buy this class** |
 
-| Rank | Board | Size / notes | Price | URL |
-|------|-------|--------------|-------|-----|
-| **1 — buy this** | **LC29H(DA) core board** | Quectel RTK already on PCB; L1+L5 | **~R300–560 ($19–35)** | https://www.alibaba.com/product-detail/Quectel-LC29H-Module-Centimeter-Level-High_1601266516993.html |
-| 2 | Waveshare **LC29H(DA) HAT** | 65×30.5 mm + antenna kit | **R880 ($54.99)** | https://www.waveshare.com/lc29h-gps-hat.htm?sku=25279 |
-| 3 | Ali **EM290PD1** class | Quad-band-ish clone of LG290P family | **~R1 060 ($66)** | AliExpress search “EM290PD1 RTK” |
-| — | Waveshare **LG290P** | 33×33 mm quad-band | **R1 424 ($88.99)** | https://www.waveshare.com/lg290p-gnss-rtk-module.htm |
+| Board | Size | Price | URL |
+|-------|------|-------|-----|
+| **UM980 breakout** (gnss.store) | **26×39 mm** | **~R2 720 ($170)** | https://gnss.store/products/elt0223 |
+| SparkFun UM980 Triband | larger | **R7 360 ($459.95)** — skip (expensive + export issues) | https://www.sparkfun.com/products/23286 |
+| Ali “UM980 RTK board 50Hz” | check photo | **~R2 400+ ($150+)** | AliExpress — **verify 50 Hz in listing/firmware** |
 
-**Pick #1** for Puck cost. You lose L2/E6 bands vs LG290P; still cm RTK with corrections.  
-Confirm board outline in seller photos before order (want ≤ ~40×40 mm if possible).
+UM980 chip itself is **17×22 mm**. Confirm seller firmware supports **50 Hz** (some need upgrade).
 
 ---
 
-## Quick buy order
+## Housing
 
-1. https://ebyteiot.com/products/2-4ghz-ble-mesh-small-smd-e73-2g4m08s1c-nordic-nrf52840-module-small-size-ble-5-0 — nRF  
-2. https://www.cdebyte.com/products/E22-900M22S — LoRa  
-3. https://www.alibaba.com/product-detail/Quectel-LC29H-Module-Centimeter-Level-High_1601266516993.html — **cheap RTK** (not LG290P)  
-4. AliExpress: Hero 9–13 waterproof housing 60m — **&lt; R100**
+AliExpress: Hero 9–13 waterproof housing 60m — **&lt; R100 (~$5–6)**.
 
-Ebyte contact if stock blocked: **ebyteiot@cdebyte.com** · +86-028-61543675
+---
+
+## Quick buy order (50 Hz path)
+
+1. https://gnss.store/products/elt0223 — **UM980 50 Hz**  
+2. https://ebyteiot.com/products/2-4ghz-ble-mesh-small-smd-e73-2g4m08s1c-nordic-nrf52840-module-small-size-ble-5-0 — nRF  
+3. https://www.cdebyte.com/products/E22-900M22S — LoRa  
+4. Ali housing &lt; R100  
+
+Ebyte: **ebyteiot@cdebyte.com**
