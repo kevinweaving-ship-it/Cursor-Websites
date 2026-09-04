@@ -47,15 +47,9 @@ Confirm board outline in seller photos before order (want ≤ ~40×40 mm if poss
 
 ## Quick buy order
 
-AliExpress search: **Hero 9 10 11 12 13 waterproof housing 60m** — **&lt; R100 (~$5–6)**.
-
----
-
-## Quick buy order
-
 1. https://ebyteiot.com/products/2-4ghz-ble-mesh-small-smd-e73-2g4m08s1c-nordic-nrf52840-module-small-size-ble-5-0 — nRF  
 2. https://www.cdebyte.com/products/E22-900M22S — LoRa  
-3. https://www.waveshare.com/lg290p-gnss-rtk-module.htm — RTK board  
-4. Ali housing &lt; R100  
+3. https://www.alibaba.com/product-detail/Quectel-LC29H-Module-Centimeter-Level-High_1601266516993.html — **cheap RTK** (not LG290P)  
+4. AliExpress: Hero 9–13 waterproof housing 60m — **&lt; R100**
 
 Ebyte contact if stock blocked: **ebyteiot@cdebyte.com** · +86-028-61543675
