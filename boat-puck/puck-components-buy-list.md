@@ -29,18 +29,23 @@ Same family on that page: `E73-2G4M08S1C` / `S1CX` / `S1E` / `S1EX`.
 
 ---
 
-## RTK (expensive part onboard) — preferred compact board
+## Cheaper than LG290P
 
-| | URL |
-|--|-----|
-| **Waveshare LG290P 33×33 mm** | https://www.waveshare.com/lg290p-gnss-rtk-module.htm |
-| **Price** | **R1 424 ($88.99)** · antenna in box |
+LG290P board ≈ **R1 424 ($89)**. Same job (cm RTK) for less:
 
-Cheaper bare RTK chip path: Quectel **LC29H(DA)** via Alibaba “LC29HDA core board” ~**R300–560 ($19–35)**.
+| Rank | Board | Size / notes | Price | URL |
+|------|-------|--------------|-------|-----|
+| **1 — buy this** | **LC29H(DA) core board** | Quectel RTK already on PCB; L1+L5 | **~R300–560 ($19–35)** | https://www.alibaba.com/product-detail/Quectel-LC29H-Module-Centimeter-Level-High_1601266516993.html |
+| 2 | Waveshare **LC29H(DA) HAT** | 65×30.5 mm + antenna kit | **R880 ($54.99)** | https://www.waveshare.com/lc29h-gps-hat.htm?sku=25279 |
+| 3 | Ali **EM290PD1** class | Quad-band-ish clone of LG290P family | **~R1 060 ($66)** | AliExpress search “EM290PD1 RTK” |
+| — | Waveshare **LG290P** | 33×33 mm quad-band | **R1 424 ($88.99)** | https://www.waveshare.com/lg290p-gnss-rtk-module.htm |
+
+**Pick #1** for Puck cost. You lose L2/E6 bands vs LG290P; still cm RTK with corrections.  
+Confirm board outline in seller photos before order (want ≤ ~40×40 mm if possible).
 
 ---
 
-## Housing
+## Quick buy order
 
 AliExpress search: **Hero 9 10 11 12 13 waterproof housing 60m** — **&lt; R100 (~$5–6)**.
 
