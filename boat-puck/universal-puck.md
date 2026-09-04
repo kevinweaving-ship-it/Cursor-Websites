@@ -79,15 +79,16 @@ Screen housing fit: [`housing/gopro-back-screen-fit.md`](housing/gopro-back-scre
 
 ---
 
-## Cost snapshot (small-qty BOM)
+## Cost snapshot (recommended buy path)
 
-| SKU | Incl. housing | R | ($) |
-|-----|---------------|---|-----|
-| **1. Puck** (F9P-class RTK) | yes | **~R2 810–5 405** | **(~$176–338)** |
-| **2a. Screen** (LCD + **loud speaker**) | yes | **~R665–1 535** | **(~$42–96)** |
-| **Puck + Screen** | yes | **~R3 475–6 940** | **(~$218–434)** |
+| SKU | R | ($) |
+|-----|---|-----|
+| **1. Puck** (LC29H RTK, not SparkFun F9P) | **~R1 870** | **~$117** |
+| **2a. Screen** (LCD + loud speaker) | **~R870–1 060** | **~$55–66** |
+| **Puck + Screen** | **~R2 740–2 930** | **~$171–183** |
 
-Full line items: [`bom-puck-screen-cost.md`](bom-puck-screen-cost.md). Always **R** + **($)** ([`PRICE_RULE.md`](PRICE_RULE.md)).
+Line items + URLs: [`puck-components-buy-list.md`](puck-components-buy-list.md) · [`bom-puck-screen-cost.md`](bom-puck-screen-cost.md).  
+(SparkFun ZED-F9P alone is **R4 160 ($260)** — optional premium only.)
 
 ## v0 buy
 
