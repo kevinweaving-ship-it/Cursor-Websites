@@ -20,8 +20,9 @@ Phone dive cases have screen area but **not** depth.
 |---------------|--------------|--------------------|---------------------|
 | GoPro ADDIV | No | Yes (tight) | Dinghy puck only |
 | Phone dive (SeaLife / Divevolk) | AA yes | **No — ~10–12 mm** | Display head only if split |
-| **Pelican Micro 1040 clear** | **Yes** | **Yes — ~44 mm** | **Best store-bought one-unit proto** |
-| **ZP150.100.60 clear lid** | **Yes** | **Yes — ~50 mm** | Cheap industrial proto |
+| **Pelican Micro 1040 clear** | **Yes** | **Yes — ~44 mm** | **Best store-bought one-unit proto** (buy **clear** SKU) |
+| **ZP150.100.60 clear lid** | **Yes** | **Yes — ~50 mm** | Cheap industrial; **full clear lid** |
+| Insta360 X4 / Ace dive cases | No | No / too small | Camera-shaped, not flat 4.2" |
 | Soft Aquapac / OverBoard | Yes (loose) | Yes (floppy) | Splash proto only |
 | **Own IP67 shell** | Yes | Yes | **Final product** |
 
@@ -176,14 +177,26 @@ Also **1050 clear** if you want more depth (~70 mm internal).
 Screw-lid industrial look — good for **proto / volume cheap**, not final Atlas styling.
 Fully **transparent lid** = better see-through than opaque Pelican; still not optical glass.
 
-### Option D — Insta360 dive cases? **No**
+### Option D — Insta360 / DJI Osmo Pocket 3 dive cases? **No**
 
 | Case | Outer (approx) | Why not Atlas |
 |------|----------------|---------------|
-| **X4 Invisible Dive Case** | ~165 × 88 × 89 mm | Molded for **360 dual lenses** — no big flat rear window for 4.2" RLCD |
-| **Ace Pro / Ace Pro 2 Dive Case** | ~108 × 87 × 46 mm | GoPro-class action cam — **too small** for 4.2" AA (84.8 mm) |
+| **Insta360 X4 Invisible Dive Case** | ~165 × 88 × 89 mm | 360 dual-lens mold; any flat patch is **tiny** — not a 4.2" window |
+| **Insta360 Ace Pro / Ace Pro 2** | ~108 × 87 × 46 mm | Action-cam size — too small for 4.2" AA |
+| **DJI Osmo Pocket 3 40 m case** | ~**155 × 79 × 79 mm** | Molded to Pocket 3 (**139.7 × 42.2 × 33.5 mm**); clear window only for **2.0" screen** |
 
-Insta360 housings are common watersports gear, but they are **camera-shaped**, not instrument-shaped. Same reject as DJI Action cases.
+Pocket 3 facts:
+
+| | |
+|--|--|
+| Camera body | 139.7 × 42.2 × 33.5 mm |
+| Built-in screen | **2.0"** only |
+| Housing | Form-fit PC shell + small rear flat for that 2" panel |
+| Our 4.2" AA | **63.6 × 84.8 mm** — **wider than the whole Pocket 3 body (42 mm)** |
+
+So even if you ignore the lens bulge and use the “narrow flat” face: that flat is sized for a **phone-status / 2" flip screen**, not Boat Atlas glass. No room for RTK + LoRa + battery + 4.2" in that mold.
+
+Insta360 / Pocket 3 housings stay **camera-shaped**. Same reject as GoPro/DJI Action.
 
 ---
 
