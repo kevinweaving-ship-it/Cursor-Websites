@@ -141,18 +141,25 @@ Phone housing depth is suddenly enough if **only** glass + S3 (~13 mm Waveshare 
 
 ### Option C — Deep store-bought boxes (use these instead of phone cases)
 
-#### 1) Pelican Micro **1040** clear — best next buy
+#### 1) Pelican Micro **1040** — must buy **CLEAR** version
+
+Solid black/yellow Pelican = **opaque** — you cannot see the RLCD.  
+Order the **clear lid / clear body** SKU (e.g. yellow/clear **1040-027-100**).
 
 | | |
 |--|--|
 | **Internal** | **~165 × 98 × 44 mm** |
 | Depth | **44 mm** — enough for full electronics stack |
-| Plane | Fits **4.2" AA** (84.8×63.6) + Waveshare ~92.5×70 |
+| Plane | Fits **4.2" AA** + Waveshare ~92.5×70 |
+| See-through | **Only the clear SKU** — polycarbonate lid (OK for proto; not optical glass) |
 | Rating | IP67 (deck / dunk — not 40 m scuba) |
-| Street | ~**R460 ($29)** |
+| Street | ~**R460–700 ($29–44)** |
 | URL | https://www.pelican.com/us/en/product/cases/micro/1040 |
+| Clear example | https://www.performanceaudio.com/products/pelican-1040-micro-case-clear-yellow |
 
-Also **1050** if you want more depth (~70 mm internal).
+Also **1050 clear** if you want more depth (~70 mm internal).
+
+**Caveat:** clear Pelican lid is cloudy PC, not a flat optical window — fine to **read big digits in sun for a proto**, not as good as a dedicated RLCD window in a custom shell.
 
 #### 2) IP67 clear-lid junction box — cheap industrial
 
@@ -167,6 +174,16 @@ Also **1050** if you want more depth (~70 mm internal).
 | Kradex product | https://www.kradex.com.pl/product/enclosures_hermetically_sealed_with_cast_gasket/zp150_100_60sub-ip67_tm_asa?lang=en |
 
 Screw-lid industrial look — good for **proto / volume cheap**, not final Atlas styling.
+Fully **transparent lid** = better see-through than opaque Pelican; still not optical glass.
+
+### Option D — Insta360 dive cases? **No**
+
+| Case | Outer (approx) | Why not Atlas |
+|------|----------------|---------------|
+| **X4 Invisible Dive Case** | ~165 × 88 × 89 mm | Molded for **360 dual lenses** — no big flat rear window for 4.2" RLCD |
+| **Ace Pro / Ace Pro 2 Dive Case** | ~108 × 87 × 46 mm | GoPro-class action cam — **too small** for 4.2" AA (84.8 mm) |
+
+Insta360 housings are common watersports gear, but they are **camera-shaped**, not instrument-shaped. Same reject as DJI Action cases.
 
 ---
 
