@@ -1,5 +1,7 @@
 # Boat Puck — two markets
 
+North star: [`NORTH_STAR.md`](NORTH_STAR.md) — **better Vakaros**, not Sailmon.
+
 Same **race network** (committee RTK base + LoRa + Race Control).  
 Two **boat-side products** because dinghies and keelboats buy for different jobs.
 

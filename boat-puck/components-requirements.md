@@ -13,7 +13,7 @@ Compare the two systems we benchmarked, then list **only what we must build** so
 | Shell | Custom HALO / Atlas | Custom MAX | **GoPro H9–13 housing** |
 
 **Sailmon is not the architecture to copy** for race management.  
-**Vakaros is.** We win by matching RaceSense/HALO capability, beating sensor rate and cost, and skipping the screen.
+**Vakaros is.** We win by matching RaceSense/HALO capability, beating sensor rate and cost, and fitting **dinghy + keelboat** SKUs — see [`NORTH_STAR.md`](NORTH_STAR.md).
 
 ---
 

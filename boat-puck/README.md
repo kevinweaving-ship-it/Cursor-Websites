@@ -1,6 +1,8 @@
 # Boat Puck
 
-Cheap fleet race-management puck: **RTK rover** + **LoRa (SX1262)** + sailor UI, with an **RTK base on the committee boat**.
+**Own version of Vakaros — better and cheaper.** Fleet race management (cm RTK + LoRa mesh + OCS/line/start), not a Sailmon clone.
+
+See [`NORTH_STAR.md`](NORTH_STAR.md).
 
 Two markets → two boat SKUs (same race network):
 
@@ -13,6 +15,7 @@ See `markets-dinghy-keelboat.md`.
 
 | Path | Content |
 |------|---------|
+| `NORTH_STAR.md` | Beat Vakaros — doctrine |
 | `markets-dinghy-keelboat.md` | Two markets → two SKUs |
 | `housing/` | H9–13 cavity = camera; lens pocket → GPS antenna (dinghy) |
 | `components-requirements.md` | Race-core BOM + committee base/hub |
