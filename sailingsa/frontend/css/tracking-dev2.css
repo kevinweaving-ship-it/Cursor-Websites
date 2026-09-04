@@ -1785,19 +1785,24 @@ body[data-tracking-dev2="1"] .tracking-dev2-sailfish-flags {
   flex: 1 1 100%;
   width: 100%;
   min-width: 0;
+  order: 1;
 }
 body[data-tracking-dev2="1"] .tracking-dev2-flag,
 body[data-tracking-dev2="1"] .tracking-dev2-sailfish-flags .tracking-dev2-flag {
   flex: 1 1 calc(20% - 4px);
   min-width: calc(20% - 4px);
   max-width: calc(20% - 4px);
-  min-height: 22px;
-  height: 22px;
-  padding: 0 3px;
-  font-size: 9px;
-  line-height: 20px;
-  white-space: nowrap;
+  box-sizing: border-box;
+  min-height: 32px;
+  height: auto;
+  max-height: 2.6em;
+  padding: 3px 4px;
+  font-size: 11px;
+  line-height: 1.15;
+  white-space: normal;
+  overflow: hidden;
   text-align: center;
+  word-break: break-word;
   touch-action: manipulation;
 }
 body[data-tracking-dev2="1"] .tracking-dev2-wind-compass {
@@ -1805,6 +1810,7 @@ body[data-tracking-dev2="1"] .tracking-dev2-wind-compass {
   height: 22px;
   flex: 0 0 22px;
   font-size: 10px;
+  order: 2;
 }
 body[data-tracking-dev2="1"] .tracking-dev2-sailfish-bar .tracking-dev2-race-rail,
 body[data-tracking-dev2="1"] .tracking-dev2-race-rail {
@@ -1817,6 +1823,7 @@ body[data-tracking-dev2="1"] .tracking-dev2-race-rail {
   min-height: 22px !important;
   overflow: hidden !important;
   gap: 2px;
+  order: 3;
 }
 body[data-lipton-dev="1"][data-tracking-dev2="1"] .lipton-dev-race-box,
 body[data-tracking-dev2="1"] .lipton-dev-race-box {
