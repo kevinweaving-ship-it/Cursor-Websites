@@ -7,7 +7,7 @@ See [`NORTH_STAR.md`](NORTH_STAR.md).
 Two markets → two boat SKUs (same race network):
 
 1. **Dinghy** — GoPro / small puck + BLE → watch/phone (cost & weight)  
-2. **Keelboat — Boat Atlas** — own IP67 + **4.2" RLCD** (our Atlas 2)
+2. **Keelboat — Boat Atlas** — own IP67 + **locked 4.2" reflective LCD** (our Atlas 2)
 
 See `markets-dinghy-keelboat.md` and `atlas/`.
 

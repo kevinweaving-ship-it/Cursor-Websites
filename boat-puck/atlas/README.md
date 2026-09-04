@@ -3,9 +3,11 @@
 Working name: **Boat Atlas**  
 Role: keelboat / cockpit **sailor instrument** in the Boat Puck stack (Vakaros **Atlas 2** job).
 
+**Display (locked):** **4.2" reflective LCD (RLCD)** — 300×400 mono ST7305 — see [`display-4.2-rlcd.md`](display-4.2-rlcd.md).
+
 North star: [`../NORTH_STAR.md`](../NORTH_STAR.md)  
 Markets: keelboat SKU in [`../markets-dinghy-keelboat.md`](../markets-dinghy-keelboat.md)  
-Display glass: [`../display-rlcd-4.2-research.md`](../display-rlcd-4.2-research.md)  
+Glass research: [`../display-rlcd-4.2-research.md`](../display-rlcd-4.2-research.md)  
 Housing/BOM: [`../system-rlcd-housing.md`](../system-rlcd-housing.md)
 
 **Not this product:** dinghy GoPro puck (HALO-like sensor-only). Same LoRa/RTK network; different shell + UI.
@@ -18,7 +20,7 @@ From Vakaros public specs ([atlas2](https://www.vakaros.com/products/atlas2)):
 
 | Area | Atlas 2 | Boat Atlas (target) |
 |------|---------|---------------------|
-| Display | 4.4" transflective colour LCD 320×240, backlight, Gorilla Glass | **4.2" mono RLCD** 300×400 ST7305 — sunlight, no backlight |
+| Display | 4.4" transflective colour LCD 320×240, backlight, Gorilla Glass | **LOCKED: 4.2" mono reflective LCD** 300×400 ST7305 — no backlight |
 | GNSS | 25 Hz L1+L5; ~25 cm with RaceSense DGNSS | **L1+L5 RTK/DGNSS** via our LoRa; target **≥25 Hz**, stretch **50 Hz** |
 | Motion | Mag + gyro + accel; 50 Hz fusion; 0.1° heading claim | **9-DOF ≥100 Hz** fusion |
 | Race UI | DTL, TTL, burn, countdown, shift, stripchart, VMG | **Same race pages** (mono, big digits) |
@@ -78,7 +80,7 @@ Exact map can move; keep **one-handed** with gloves in mind (44 mm targets on ho
 |------|-------------|--------|
 | **1** | Spec + parity + UI page list (this folder) | **Now** |
 | 2 | Housing outer envelope CAD from panel AA | Next |
-| 3 | Buy Waveshare 33507 — LVGL race pages prototype | Next |
+| 3 | Buy Waveshare **33507** — LVGL race pages on 4.2" RLCD | Next |
 | 4 | Schematic: S3 + RLCD + SX1262 + GNSS + IMU | After UI feels right |
 | 5 | Custom PCB + soft-tool housing | After schematic |
 
@@ -91,5 +93,6 @@ Dinghy puck and committee hub stay parallel tracks — do not block Atlas glass 
 | File | Content |
 |------|---------|
 | `README.md` | This product brief |
+| `display-4.2-rlcd.md` | **Locked** 4.2" RLCD decision + mechanical envelope |
 | `ui-pages.md` | Screen list / layout rules for 300×400 mono |
 | `parity-checklist.md` | Atlas 2 feature → must / later / skip |

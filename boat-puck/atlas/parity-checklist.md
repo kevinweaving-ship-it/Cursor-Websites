@@ -4,7 +4,7 @@ Sources: [Vakaros Atlas 2](https://www.vakaros.com/products/atlas2), public revi
 
 | Feature | Atlas 2 | Boat Atlas v1 | Later |
 |---------|---------|---------------|-------|
-| Sunlight display | 4.4" colour transflective | **4.2" mono RLCD** | Colour only if needed |
+| Sunlight display | 4.4" colour transflective | **LOCKED: 4.2" mono RLCD** | No colour v1 |
 | Night backlight | Red adaptive | **LED only** | Optional front-light |
 | Gorilla + AR + hydrophobic | Yes | Hard-coat window v1 | Optical stack |
 | Digits huge | Up to 90 mm claim | Big mono digits | Tune after glass mockup |

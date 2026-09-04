@@ -17,7 +17,7 @@ Boat Puck copies the **second** job and beats it on cost, rate, openness, and ma
 | Corrections | RaceSense mesh (no cellular critical) | **LoRa RTCM** from committee (no cellular critical) |
 | Sensors | 25 Hz GNSS / 50 Hz fusion (Atlas) | **≥50 Hz GNSS + ≥100 Hz IMU** |
 | Radio | Proprietary 2.4 GHz | **SX1262 LoRa** — long range, open stack |
-| Sailor UI | Expensive Atlas on boat | **Dinghy:** BLE watch/phone · **Keelboat:** cheap **4.2" RLCD** |
+| Sailor UI | Expensive Atlas on boat | **Dinghy:** BLE watch/phone · **Keelboat (Boat Atlas):** **4.2" reflective LCD** |
 | Shell | Custom only | **Dinghy:** GoPro ecosystem · **Keelboat:** own IP67 |
 | Price | Atlas + HALO stack is elite | Fraction of that BOM; same race jobs |
 | Software | Closed | Own Race Control; iterate UI fast |
