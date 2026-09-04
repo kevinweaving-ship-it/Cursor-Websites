@@ -37,6 +37,7 @@ See [`NORTH_STAR.md`](NORTH_STAR.md).
 | `components-requirements.md` | Race-core BOM + committee base/hub |
 | `race-kit-roles-wt43-v1.md` | Committee / pin / marks / finish roles (WT-43) |
 | `accuracy-vs-racesense-pins.md` | Lipton R1–R10 pin/OCS vs Vakaros + Sailfish — accuracy bar |
+| `DEV_DIRECTION_2026-09_to_Shenzhen_2027-04.md` | **Digest:** Sep 2026 → Shenzhen Apr 2027 development direction |
 | `display-rlcd-4.2-research.md` | 4.2" research (Atlas path) |
 | `system-rlcd-housing.md` | Keelboat RLCD + own housing notes |
 
