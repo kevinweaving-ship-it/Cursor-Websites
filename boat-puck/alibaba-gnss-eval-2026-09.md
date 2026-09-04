@@ -183,10 +183,14 @@ Screenshots (Meshtastic search → WES badge). Model **WE-T350**.
 | Form | Finished ID-card tag **105 × 62.2 × 9.8 mm** · lanyard loop · magnetic charge |
 | Stack | **UWB** (802.15.4z) + BLE 5.1 + optional **CAT1 / LoRa** (470–510 MHz) + RFID + e-ink + voice |
 | GNSS (optional) | L1+L5 class (GPS L1/L5, Galileo E1/E5a, BDS B1I/B2a…) · claim RTK **1 cm+1 ppm** — **chip not named** |
-| Rate | Spec table **refresh 0.1–20 Hz** — **fails 50 Hz lock** |
+| Device refresh | Spec table **0.1–20 Hz (adjustable)** — product report rate |
+| GNSS Hz | **Not stated** in GNSS block (bands + RTK accuracy only) |
 | Use | Indoor UWB 0D/1D presence / tunnel tags — personnel asset tracking |
 
 **Verdict:** **NO — skip.** Wrong product class (UWB badge + optional dual-band GNSS). Max **20 Hz**, not UM980 guts, not GoPro-fit. Do **not** ask for guts.
+
+**Correction (re-read screenshots):** “0.1–20 Hz” is the **card refresh rate**, not an explicit GNSS nav-rate line. GNSS section lists L1+L5 dual-band + RTK **1 cm+1 ppm** and **does not publish Hz**. Fair factory ask: *“With GNSS(RTK) option, what is max NMEA/PVT rate?”* Still **skip as Puck guts** (finished badge; dual-band class ≠ UM980; device refresh ≤20 Hz).
+
 
 **Factory check (海南世电 / WEST-HN / WES):** public store https://store.west-hn.com — **WE-T350 not listed**. Sibling UWB tags (WE-T241-C, WE-T311, WE-UG230, WE-T206-H) all publish **刷新率 0.1~20 Hz**. No factory datasheet found with ≥50 Hz GNSS. Asking OEM for “higher Hz” is unlikely to help the Puck path.
 
