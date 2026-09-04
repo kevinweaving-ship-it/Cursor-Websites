@@ -6,17 +6,23 @@ See [`NORTH_STAR.md`](NORTH_STAR.md).
 
 **Primary boat product:** [`universal-puck.md`](universal-puck.md)
 
-- **Puck** — GoPro-class case: small MCU + battery + RTK/LoRa/IMU; **no screen**; mount for sky  
-- **Screen** — second GoPro-class case: small MCU + battery + back-cover LCD; mount anywhere; BLE to Puck  
-- **Bigger boats** — same Puck + tablet / smartwatch / phone app  
+```
+1. Universal Puck (GoPro)     required — no screen
+2. Screen options (BLE → Puck), any mix:
+   a. Screen in GoPro
+   b. Waterproof tablet
+   c. Smartwatch
+```
+
 - **Boat Atlas** — optional later own shell + 4.2" RLCD (`atlas/`)
+
 
 ## Docs
 
 | Path | Content |
 |------|---------|
 | `NORTH_STAR.md` | Beat Vakaros — doctrine |
-| `universal-puck.md` | **Two GoPro housings** — Puck + Screen; mount anywhere |
+| `universal-puck.md` | Product tree: Puck + screen options 2a/2b/2c |
 | `markets-dinghy-keelboat.md` | Markets vs Universal / Atlas |
 | `PRICE_RULE.md` | Always show **R** and **($)** |
 | `housing/` | H9–13 cavity; back-cover screen fit |
@@ -27,4 +33,4 @@ See [`NORTH_STAR.md`](NORTH_STAR.md).
 
 ## Architecture (one line)
 
-Committee RTK base → RTCM over LoRa → each boat FIX; boats → positions over LoRa → Race Control; sailor UI = optional **Screen** housing and/or BLE watch/phone/tablet → **Puck**.
+Committee RTK base → RTCM over LoRa → each boat FIX; boats → positions over LoRa → Race Control; sailor UI = **2a Screen** and/or **2b tablet** and/or **2c watch** → **Puck**.

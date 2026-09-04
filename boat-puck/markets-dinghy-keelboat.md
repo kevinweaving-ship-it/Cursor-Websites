@@ -1,17 +1,24 @@
 # Boat Puck — markets (updated for Universal Puck)
 
 North star: [`NORTH_STAR.md`](NORTH_STAR.md).  
-**Primary boat SKU:** [`universal-puck.md`](universal-puck.md) — **two** GoPro housings (Puck + optional Screen), mount anywhere.
+**Primary boat SKU tree:** [`universal-puck.md`](universal-puck.md)
+
+```
+1. Universal Puck (GoPro)     required
+2. Screen options (any mix):
+   a. Screen in GoPro
+   b. Waterproof tablet
+   c. Smartwatch
+```
 
 Same **race network** (committee RTK base + LoRa + Race Control).  
-Scale UI with BLE clients (Screen housing, watch, phone, tablet) — not a second radio.
+Only the **Puck** has LoRa/RTK. Options **2a/2b/2c** are BLE clients.
 
-| | **Puck** | **Screen** | **Bigger-boat apps** | **Boat Atlas (later)** |
-|--|----------|------------|----------------------|-------------------------|
-| Who | Every boat on the mesh | Helm who wants local digits | Keelboat helm / nav | Buyers who want big on-device glass |
-| Offer | MCU + battery + RTK + LoRa + IMU | MCU + battery + back LCD | Tablet / watch / phone → Puck | Own IP67 + 4.2" RLCD |
-| Housing | Action-cam case, **no screen** | Second action-cam case | — | Custom shell |
-| Mount | Sky / mesh friendly | Anywhere eyes are | — | Pedestal / bulkhead |
+| | **1. Puck** | **2a. Screen** | **2b. Tablet** | **2c. Watch** |
+|--|-------------|----------------|----------------|---------------|
+| Who | Every boat on the mesh | Local glance digits | Bigger-boat helm/nav | Eyes-up alerts |
+| Form | GoPro case, **no screen** | Second GoPro + back LCD | Waterproof tablet app | Smartwatch app |
+| Mount | Sky-friendly / anywhere | Anywhere eyes are | Helm / nav station | Wrist |
 
 ---
 

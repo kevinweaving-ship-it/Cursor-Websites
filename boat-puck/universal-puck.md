@@ -1,121 +1,87 @@
-# Universal Puck — Opti → bigger boats (split housings)
+# Universal Puck — product tree
 
-**Two GoPro-class housings. Sailor mounts each wherever they want.**
+## Design (locked)
 
-| Unit | Inside | Screen |
-|------|--------|--------|
-| **Puck** | Small processor + battery + RTK GNSS + LoRa + IMU | **None** |
-| **Screen** | Small processor + battery + SPI LCD (back cover) | **Yes** (~2.0–2.8") |
+```
+1. UNIVERSAL PUCK          ← required (GoPro-class housing)
+   MCU + battery + RTK + LoRa + IMU
+   no screen · mount anywhere (sky-friendly)
 
-Same race network as before. Bigger boats can still add **tablet / smartwatch / phone** over BLE to the **Puck**.
+2. SCREEN OPTIONS          ← pick any mix (all BLE → Puck)
+   a. Screen housing       GoPro-class case + back-cover LCD
+   b. Waterproof tablet    companion app
+   c. Smartwatch           companion app
+```
+
+Phone app still useful for setup/admin; not required for race UI if a/b/c cover it.
 
 North star: [`NORTH_STAR.md`](NORTH_STAR.md).
 
 ---
 
-## Product lock
+## 1. Universal Puck (required)
 
 | | |
 |--|--|
-| **SKU set** | **Puck** + optional **Screen** (both same shell family) |
-| **Shell** | Biggest common **action-cam** waterproof case (H9–13 / Ace class) — production look |
-| **Puck guts** | Small MCU + battery + GNSS/RTK + LoRa + IMU — **no display** |
-| **Screen guts** | Small MCU + battery + SPI LCD on back cover — **no LoRa/RTK required** |
-| **Link** | **BLE** Screen ↔ Puck (same as watch/tablet) |
-| **Mount** | Each housing mounts **anywhere** (mast, rail, transom, bulkhead, tiller) |
-| **Not v0** | One brick with both guts+glass; custom Atlas shell; ESP32-on-LCD kits |
+| Shell | Biggest common **action-cam** waterproof case (H9–13 / Ace class) |
+| Guts | Small MCU + battery + GNSS/RTK + LoRa + IMU |
+| Screen | **None** |
+| Mount | Anywhere — prefer clear sky for GNSS |
+| Role | Only radio on the boat; boat ID / FIX / OCS live here |
+
+Detail: [`housing/`](housing/), GPS pocket [`housing/gopro-h9-13-lens-gps-pocket.md`](housing/gopro-h9-13-lens-gps-pocket.md).
+
+---
+
+## 2. Screen options (optional, BLE → Puck)
+
+| | Option | Form | Job |
+|--|--------|------|-----|
+| **a** | **Screen housing** | Second GoPro-class case; SPI LCD on back cover (~2.0–2.8") | Local glance digits; mount anywhere eyes are |
+| **b** | **Waterproof tablet** | Rugged/waterproof tablet + app | Bigger-boat helm / nav UI (Atlas-like pages) |
+| **c** | **Smartwatch** | Watch + app | Eyes-up speed / start / OCS |
+
+All three are **clients of the Puck**. None carry LoRa/RTK.
+
+Screen housing fit: [`housing/gopro-back-screen-fit.md`](housing/gopro-back-screen-fit.md) — SPI module only (no ESP32 all-in-one).
 
 ```
                     Committee RTK + LoRa + Race Control
                                     │
                                     ▼
-                         ┌─ PUCK (GoPro case) ─┐
-                         │ MCU · battery       │
-                         │ RTK · LoRa · IMU    │
-                         │ no screen           │
-                         └──────────┬──────────┘
+                    1. UNIVERSAL PUCK (GoPro · no screen)
                                     │ BLE
               ┌─────────────────────┼─────────────────────┐
               ▼                     ▼                     ▼
-     ┌─ SCREEN (GoPro) ─┐      Watch / phone         Tablet
-     │ MCU · battery    │      (optional)            (bigger boats)
-     │ back-cover LCD   │
-     └──────────────────┘
-        mount anywhere
+         2a. Screen            2b. Waterproof         2c. Smartwatch
+             (GoPro LCD)           tablet
 ```
-
----
-
-## Why two housings
-
-| Problem | Split fix |
-|---------|-----------|
-| Screen + full radio stack fight for depth in one case | Puck uses full **33.6 mm** for antennas/battery; Screen uses rear for glass |
-| Opti wants sensors high / clear sky; helm wants digits aft | Mount **Puck** for GNSS sky; mount **Screen** where eyes are |
-| Some sailors only need mesh + phone | Buy **Puck only**; add Screen later |
-| Production look | Both look like normal action cams / accessories |
-
----
-
-## Puck housing (no screen)
-
-- Shell: H9–13 class case (opaque or clear — screen not needed).
-- Front lens pocket → **GPS/RTK antenna** ([`housing/gopro-h9-13-lens-gps-pocket.md`](housing/gopro-h9-13-lens-gps-pocket.md)).
-- Inside: **small MCU + battery** + LoRa + IMU (+ RTK GNSS).
-- No rear LCD — max room for cells and RF.
-- Mount for **sky view** and mesh (mast top-ish, rail, transom) — class rules permitting.
-
----
-
-## Screen housing (display only)
-
-- Same shell family; **clear backdoor**.
-- **SPI LCD only** (no ESP32 all-in-one) — see [`housing/gopro-back-screen-fit.md`](housing/gopro-back-screen-fit.md).
-  - v0: Waveshare **2.0" SPI** board **58 × 35 mm**, AA **30.6 × 40.8 mm**
-- Inside: **small MCU + battery** + BLE; talks to Puck; draws start / speed / OCS / line.
-- Mount **anywhere** helm can see (mast aft below boom, bulkhead, tiller, hiking).
 
 ---
 
 ## Class ladder
 
-| Band | Typical mount |
-|------|----------------|
-| **Optimist** | Puck for sky; Screen aft on mast or boom area (jaw clearance); or Puck-only + watch |
-| **ILCA / 420 / 29er** | Puck rail/mast; Screen at compass height / tiller |
-| **Bigger boats** | Puck on rail/pushpit; Screen at helm **or** tablet/watch only |
-
-Firmware identity lives on the **Puck** (boat ID, FIX, OCS). Screen is a dumb-ish BLE client.
+| Band | Typical kit |
+|------|-------------|
+| **Optimist** | Puck + **2a** and/or **2c** |
+| **ILCA / 420 / 29er** | Puck + **2a** or **2c** |
+| **Bigger boats** | Puck + **2b** and/or **2c** (and optional **2a**) |
 
 ---
 
-## Companion apps (still)
+## Not v0
 
-| Client | Talks to |
-|--------|----------|
-| Screen housing | Puck (BLE) |
-| Smartwatch / phone / tablet | Puck (BLE) |
-
-Race-critical: **Puck ↔ LoRa ↔ Race Control**. Screen/app can drop; puck stays on mesh.
+- One brick with guts + glass together  
+- Custom Atlas 4.2" shell (later optional SKU)  
+- Phone dive cases / junction boxes as product shell  
+- Using Osmo/Action camera as the computer  
 
 ---
 
-## vs one-unit / Boat Atlas
+## v0 buy
 
-| | Split Universal (now) | One-unit (rejected for v0) | Boat Atlas (later) |
-|--|----------------------|----------------------------|--------------------|
-| Housings | **Two** GoPro-class | One brick | Own thin shell |
-| Glass | Second case | Back of same case | 4.2" RLCD |
-| Mount freedom | **Anywhere each** | Compromise one place | Fixed instrument |
+1. One H9–13 (or Ace) **60 m** case → **Puck**  
+2. Optional second case clear backdoor → **2a Screen** + Waveshare **2.0" SPI** (58×35 mm)  
+3. Pair **2b / 2c** apps to Puck over BLE  
 
----
-
-## v0 buy / build
-
-1. **Two** H9–13 (or Ace) **60 m** cases — one can be standard door; Screen needs **clear backdoor**.  
-2. **Puck insert:** MCU + battery + GNSS in lens pocket + LoRa + IMU.  
-3. **Screen insert:** MCU + battery + SPI 2.0" on rear face.  
-4. Pair over BLE; mount independently.  
-5. Phone/watch/tablet apps optional on top.
-
-Price quotes: **R** and **($)** per [`PRICE_RULE.md`](PRICE_RULE.md).
+Prices: **R** and **($)** per [`PRICE_RULE.md`](PRICE_RULE.md).

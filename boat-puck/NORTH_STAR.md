@@ -24,19 +24,29 @@ Boat Puck copies the **second** job and beats it on cost, rate, openness, and ma
 
 ---
 
-## One race network — split boat kit
+## One race network — boat kit
+
+```
+1. Universal Puck (GoPro)     required
+2. Screen options (any mix):
+   a. Screen in GoPro
+   b. Waterproof tablet
+   c. Smartwatch
+```
 
 | | Product | Beats Vakaros by… |
 |--|---------|-------------------|
-| **Puck** | GoPro case: small MCU + battery + RTK + LoRa + IMU; **no screen** | Cost/weight; sky-friendly mount |
-| **Screen** | Second GoPro case: small MCU + battery + back-cover LCD | Digits where eyes are; optional buy |
-| **Bigger boats** | Same Puck + tablet/watch app (and/or Screen) | Atlas-like UI without a second radio brick |
+| **1. Puck** | GoPro case: MCU + battery + RTK + LoRa + IMU; **no screen** | Cost/weight; sky-friendly mount |
+| **2a. Screen** | Second GoPro case: MCU + battery + back LCD | Digits where eyes are |
+| **2b. Tablet** | Waterproof tablet app → Puck | Atlas-like UI without second radio |
+| **2c. Watch** | Smartwatch app → Puck | Eyes-up alerts |
 | **Boat Atlas** (later) | Optional own shell + 4.2" RLCD | Only if volume pays for custom glass |
 
 Committee gear is shared: RTK base + LoRa hub + Race Control + line ends.
 
 Primary boat doc: [`universal-puck.md`](universal-puck.md).  
 Markets note: [`markets-dinghy-keelboat.md`](markets-dinghy-keelboat.md).
+
 
 ---
 
