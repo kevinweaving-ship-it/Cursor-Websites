@@ -8,7 +8,7 @@
    no screen · mount anywhere (sky-friendly)
 
 2. SCREEN OPTIONS          ← pick any mix (all BLE → Puck)
-   a. Screen housing       GoPro-class case + back-cover LCD
+   a. Screen housing       GoPro case + back LCD + **loud speaker**
    b. Waterproof tablet    companion app
    c. Smartwatch           companion app
 ```
@@ -79,10 +79,18 @@ Screen housing fit: [`housing/gopro-back-screen-fit.md`](housing/gopro-back-scre
 
 ---
 
+## Cost snapshot (small-qty BOM)
+
+| SKU | Incl. housing | R | ($) |
+|-----|---------------|---|-----|
+| **1. Puck** (F9P-class RTK) | yes | **~R2 810–5 405** | **(~$176–338)** |
+| **2a. Screen** (LCD + **loud speaker**) | yes | **~R665–1 535** | **(~$42–96)** |
+| **Puck + Screen** | yes | **~R3 475–6 940** | **(~$218–434)** |
+
+Full line items: [`bom-puck-screen-cost.md`](bom-puck-screen-cost.md). Always **R** + **($)** ([`PRICE_RULE.md`](PRICE_RULE.md)).
+
 ## v0 buy
 
 1. One H9–13 (or Ace) **60 m** case → **Puck**  
-2. Optional second case clear backdoor → **2a Screen** + Waveshare **2.0" SPI** (58×35 mm)  
-3. Pair **2b / 2c** apps to Puck over BLE  
-
-Prices: **R** and **($)** per [`PRICE_RULE.md`](PRICE_RULE.md).
+2. Optional second case clear backdoor → **2a Screen** + Waveshare **2.0" SPI** (58×35 mm) + **speaker+amp**  
+3. Pair **2b / 2c** apps to Puck over BLE
