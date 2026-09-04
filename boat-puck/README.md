@@ -35,6 +35,8 @@ See [`NORTH_STAR.md`](NORTH_STAR.md).
 | `housing/` | H9–13 cavity; back-cover screen fit |
 | `atlas/` | Optional future Atlas 2 class |
 | `components-requirements.md` | Race-core BOM + committee base/hub |
+| `race-kit-roles-wt43-v1.md` | Committee / pin / marks / finish roles (WT-43) |
+| `accuracy-vs-racesense-pins.md` | Lipton R1–R10 pin/OCS vs Vakaros + Sailfish — accuracy bar |
 | `display-rlcd-4.2-research.md` | 4.2" research (Atlas path) |
 | `system-rlcd-housing.md` | Keelboat RLCD + own housing notes |
 
