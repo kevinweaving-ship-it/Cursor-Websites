@@ -5,7 +5,7 @@ When we adopt the **4.2" ST7305 RLCD** (see [`display-rlcd-4.2-research.md`](dis
 Markets ([`markets-dinghy-keelboat.md`](markets-dinghy-keelboat.md)):
 
 - **Dinghy** = cheap puck + BLE (this RLCD path is optional / usually skip)  
-- **Keelboat** = this **display SKU**
+- **Keelboat = Boat Atlas** = this **display SKU** (our Atlas 2) — [`atlas/`](atlas/)
 
 ---
 

@@ -9,8 +9,8 @@ Two **boat-side products** because dinghies and keelboats buy for different jobs
 |--|---------------|-----------------|
 | Who | Fleet / club / youth / Olympic-pathway dinghies | Yacht clubs, keelboat fleets, match / inshore |
 | Pain | Cost, weight, spray, no place for a big instrument | Want a **cockpit instrument** + fleet race tools |
-| Competitor shadow | HALO (sensors) + phone; Atlas is often “too much / too dear” | Atlas / Sailmon MAX on the boat |
-| Our offer | **Sensor puck** — cheap, tiny, tough | **Display instrument** — sunlight UI + same puck core |
+| Competitor shadow | HALO (sensors) + phone; Atlas is often “too much / too dear” | **Atlas 2** / Sailmon MAX on the boat |
+| Our offer | **Sensor puck** — cheap, tiny, tough | **Boat Atlas** — sunlight UI + same race core |
 | Housing | **GoPro H9–13** (or small own shell) | **Own IP67** shell with **4.2" RLCD** |
 | Sailor UI | **BLE → watch / phone** | **On-device RLCD** (+ BLE still useful) |
 | Mount | Transom / mast / hiking strap / rail clamp | Pedestal / bulkhead / tiller / rail |
@@ -40,15 +40,16 @@ Both markets need identical fleet behaviour:
                                    │ LoRa
               ┌────────────────────┼────────────────────┐
               ▼                                         ▼
-     DINGHY SKU                                  KEELBOAT SKU
+     DINGHY SKU                                  KEELBOAT = Boat Atlas
      GoPro / small puck                          Own housing + 4.2" RLCD
      BLE watch/phone                             Digits on glass (+ BLE)
-     Max cost/weight kill                        Atlas-like sunlight UI
+     Max cost/weight kill                        Our Atlas 2
 ```
 
 Docs:
 
 - Dinghy mechanical → `housing/`
+- Boat Atlas (Atlas 2 class) → `atlas/`
 - Keelboat display + housing → `display-rlcd-4.2-research.md`, `system-rlcd-housing.md`
 - Shared electronics checklist → `components-requirements.md`
 
@@ -67,6 +68,6 @@ Docs:
 ## Go-to-market order (suggested)
 
 1. **Dinghy first** — prove RTK+LoRa+OCS in GoPro envelope; club fleets feel cost win.  
-2. **Keelboat display** — same radio firmware; add RLCD PCB + own housing once UI and FIX are solid.
+2. **Boat Atlas (keelboat)** — same radio firmware; RLCD + own housing (`atlas/`).
 
 Firmware and Race Control stay shared; only housing + display BOM diverge.

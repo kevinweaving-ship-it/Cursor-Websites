@@ -29,7 +29,7 @@ Boat Puck copies the **second** job and beats it on cost, rate, openness, and ma
 | Market | Product | Beats Vakaros by… |
 |--------|---------|-------------------|
 | **Dinghy** | Small puck (GoPro) + BLE | Cost/weight; clubs can equip a whole fleet |
-| **Keelboat** | Own housing + RLCD | Atlas-like sunlight UI without Atlas price |
+| **Keelboat** | Own housing + RLCD (**Boat Atlas**) | Atlas-like sunlight UI without Atlas price |
 
 Committee gear is shared: RTK base + LoRa hub + Race Control + line ends.
 
