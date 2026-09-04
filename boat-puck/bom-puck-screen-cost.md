@@ -46,3 +46,29 @@ FX: **R16 / $1**. See [`puck-components-buy-list.md`](puck-components-buy-list.m
 | Puck | **~R850–1 350** | **~$53–84** |
 | Screen | **~R470–700** | **~$29–44** |
 | Both | **~R1 320–2 050** | **~$82–128** |
+
+
+## UM980 path (Atlas-parity / stretch) — Puck electronics only
+
+FX **R16/$1**.
+
+| Item | R | $
+|------|--:|--:|
+| UM980 board (Ali typ.) | 1 584–2 080 | 99–130 |
+| UM980 gnss.store | ~2 720 | ~170 |
+| E73 nRF | ~121 | ~7.60 |
+| E22 LoRa | ~106 | ~6.60 |
+| IMU | 30–80 | 2–5 |
+| LiPo + charge | 60–125 | 4–8 |
+| Antenna | 80–160 | 5–10 |
+| Housing | 80–96 | 5–6 |
+| PCB/passives | 50–120 | 3–7.50 |
+| **Puck total (Ali UM980)** | **~R2 200–2 900** | **~$140–180** |
+| **Puck total (gnss.store)** | **~R3 250–3 500** | **~$200–220** |
+
+### Committee add-on
+
+| Item | R | $
+|------|--:|--:|
+| WT-43-RK-LORA trial base | **867** | **54.17** |
+| Or 2nd UM980 as base | 1 584–2 720 | 99–170 |
