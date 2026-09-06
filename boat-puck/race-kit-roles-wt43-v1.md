@@ -25,7 +25,7 @@ One chip family everywhere. Prove **2× boat + 1× base** first, then pins/marks
 | Fit | Need |
 |-----|------|
 | **RTK base (required)** | **1× WT-43 in base mode** + best practical antenna (even a cheap survey patch on a pole beats the onboard chip antenna for the *base*) + 12 V / big battery · LoRa out |
-| **Race Control** | Laptop/tablet on committee — not a Puck |
+| **Race Control** | **IP68 tablet or laptop** on committee — **UI only**, not a puck / not the RTK base |
 | **As start/finish “boat end”?** | **Yes, if** the committee boat *is* that end of the line → use **base antenna position** as that end **or** add a **2nd WT-43 rover** on the bow for a clean line coordinate while base stays on a pole |
 
 **V1 simplest:** base pole on committee = **one end of the start line**. No second unit until you need bow vs pole separation.
