@@ -245,6 +245,40 @@ Almost always **UM980 (or Trimble) inside** + UHF + IMU + Android. **$2k–7k**.
 
 ---
 
-## 14. One-line conclusion
+## 14. Second + third hunt (adversarial) — 2026-09-06
 
-You didn’t miss a secret “better than WT-43 for less” finished puck. The real missables are: **full OTW catalogue (WT-4545 / WT-27 / 4G)**, **Quectel LG290P**, **SA-correct 433 LoRa (E22-400)**, **UM981+ESP32+LoRa AGV boards**, **UM982 / Holybro heading kits**, **SkyTraq PX1125R cheap DIY**, **Bynav/ComNav/Allystar OEM awareness**, and **UHF survey radios** for range. For beta roles, **WT-43 family still fills committee/pin/mark/boat**; use missables as **cheap parallel experiments**, not a second fleet.
+Two independent agent passes forced to find **cheaper or better than WT-43**, not re-list known items.
+
+### What still does **not** exist in this tier
+- Non-OTW **RTK + LoRa** brick **under ~$40–50**
+- **≥25 Hz RTK + LoRa under ~$80**
+- Honest under-$35 “WT-43 clone” from another factory with live cart price
+
+### NEW names from those hunts (not in your earlier paste set)
+
+| Product | ~USD | vs WT-43 | Action |
+|---------|-----:|----------|--------|
+| **OTW factory WT-43** ([gpsgnssmodule](https://www.gpsgnssmodule.com/sale-53628296-wt-43-rk-lora-rtk-gnss-module-with-lora-data-transmission.html)) | **$32–36** | Same product, **cheaper than Ali ~$54** | **Buy factory-direct** |
+| **Dalang AK721-JM / LD-29** | **$19–38** | Cheaper GNSS; **no LoRa**; ≤10 Hz | Bench 1× only |
+| **Beitian BT-M002C** | **$50–57** | Similar $; compass; **no LoRa**; **1 Hz** | Optional rover GNSS |
+| **Quectel LC29H(DA) bare** (JLCPCB etc.) | **$20–27** | Cheapest dual-band RTK die; **1 Hz**; no radio | Custom PCB only |
+| **LOCOSYS RTK-1010** | **$43–100** | Clean L1+L5 SMD; ≤10 Hz; no LoRa | Distro DIY |
+| **Unicore UM960** board/module | **$35–70** | Multi-freq **20 Hz**; better FIX class; no LoRa | DIY + E22-400 |
+| **Telit SE868K5-RTK** bare | **~$30** | Cheap RTK chip; ≤10 Hz; no radio | Custom PCB |
+| **华云时空 Huayuen HY-SA100-9R** | **Quote** | **Full-freq + integrated LoRa** + real antenna Ø~120 mm | **RFQ — best “better integrated” lead** |
+| **海导 Haidao T62** | Quote | Full-freq + heading + LoRa/LTE; Ø~122 mm | RFQ if size OK |
+| **天禾 Tianhe THAM06** | Quote | Tri-band RTK + LoRa antenna terminal Ø~120 | RFQ |
+| **Tianhe TH1100** | **~$20** | Cheap raw/PVT; RTK needs external SDK | Skip beta |
+| **OTW ZED-F9P + LoRa** | **~$120** | Better chip + LoRa | Skip — 2×+ WT-43 |
+| **WitMotion WTRTK-M10 + LoRa** | **~$129** | Better engine + LoRa | Skip — 3× |
+
+### Closest ways to undercut WT-43
+1. **Same brick cheaper:** factory WT-43 **$32–36** (not Ali R867).  
+2. **DIY undercut:** LD-29 / Beitian / UM960 / LC29H + **E22-400** — only cheaper if you own antenna + RF work.  
+3. **Better-but-bigger:** Huayuen / Haidao / Tianhe Ø12 cm LoRa terminals — RFQ; not dinghy-puck shaped.
+
+---
+
+## 15. One-line conclusion
+
+No second factory sells a **cheaper integrated RTK+LoRa puck** than WT-43. Real levers: **buy WT-43 factory-direct ($32–36)**, **DIY GNSS+E22-400 undercut**, or **RFQ Huayuen/Haidao/Tianhe** for a better antenna/FIX terminal that is not puck-sized.
