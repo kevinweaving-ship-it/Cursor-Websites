@@ -39,6 +39,7 @@ See [`NORTH_STAR.md`](NORTH_STAR.md).
 | `accuracy-vs-racesense-pins.md` | Lipton R1–R10 pin/OCS vs Vakaros + Sailfish — accuracy bar |
 | `DEV_DIRECTION_2026-09_to_Shenzhen_2027-04.md` | **Digest:** Sep 2026 → Shenzhen Apr 2027 development direction |
 | **`CHINA_BETA_SOURCING_DEEP_DIVE.md`** | **China missables deep dive:** OTW siblings, LG290P, SA 433 LoRa, UM981 boards, heading kits, OEM map |
+| **`FINAL_BETA_BUY_LIST_RAND.md`** | **Final what-for-what cart in Rand** — core + optional ≤2 + skip |
 | **`ROBBY_FULL_SYSTEM_BREAKDOWN.md`** | **Full engineer/dev map for Robby:** puck BOM+URLs, committee/pin/marks, OCS, radios, software to write, guide prices |
 | `display-rlcd-4.2-research.md` | 4.2" research (Atlas path) |
 | `system-rlcd-housing.md` | Keelboat RLCD + own housing notes |
