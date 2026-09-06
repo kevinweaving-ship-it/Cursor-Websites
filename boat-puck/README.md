@@ -38,6 +38,7 @@ See [`NORTH_STAR.md`](NORTH_STAR.md).
 | `race-kit-roles-wt43-v1.md` | Committee / pin / marks / finish roles (WT-43) |
 | **`race-setup-who-gets-what.md`** | **Full race layout:** tablet vs base, pin, marks, finish boat, rescue |
 | **`lipton-17-event-kit-cost.md`** | **Lipton-shaped 17-boat kit list + Rand total** (puck+tablet per keelboat) |
+| **`lipton-17-vs-vakaros-cost.md`** | **Same event vs Atlas 2 / HALO / RaceSense list prices** |
 | `accuracy-vs-racesense-pins.md` | Lipton R1–R10 pin/OCS vs Vakaros + Sailfish — accuracy bar |
 | `DEV_DIRECTION_2026-09_to_Shenzhen_2027-04.md` | **Digest:** Sep 2026 → Shenzhen Apr 2027 development direction |
 | **`CHINA_BETA_SOURCING_DEEP_DIVE.md`** | **China missables deep dive:** OTW siblings, LG290P, SA 433 LoRa, UM981 boards, heading kits, OEM map |
