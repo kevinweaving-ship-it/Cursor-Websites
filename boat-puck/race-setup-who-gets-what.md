@@ -61,7 +61,7 @@ The tablet never counts as a second WT-43. It’s just the screen.
 |-------------------|------------|----------|------|------------|
 | **Committee — corrections** | Source of cm truth for everyone | **WT-43-BK** + pole antenna + batt/box | **BASE** | **515–571** brick + **~480–1 360** antenna/box/bridge |
 | **Committee — Race Control UI** | Start sequence, line, OCS list, finish, map | **IP68 tablet** *or* laptop + Race Control app | Host | Tablet **~R2 400–3 200** if buying XM30R; **R0** if club already has rugged tablet/laptop |
-| **Committee — line end (optional)** | Clean geometric end of start/finish if pole isn’t on the line | **WT-43-RK** on bow | Rover | **515–571** + pack |
+| **Committee — line end (optional 2nd brick)** | **Skip.** Only if base antenna cannot sit on the line | WT-43-RK on bow | Rover | **don’t buy for V1** |
 | **Start pin** | Other end of start line | **WT-43-RK** float/clip pack + battery | Rover | **~574–773** |
 | **Finish pin** | Other end of finish line **only if finish ≠ start** | Same as start pin | Rover | **~574–773** |
 | **Finish boat** | Committee-style boat at a **separate** finish | **WT-43-RK** rover pack (never a 2nd base) + optional tablet for local finish UI | Rover | **~574–773** (+ tablet if wanted) |
