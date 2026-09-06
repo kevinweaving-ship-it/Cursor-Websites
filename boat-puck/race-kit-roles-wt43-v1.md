@@ -26,11 +26,15 @@ One chip family everywhere. Prove **2× boat + 1× base** first, then pins/marks
 |-----|------|
 | **RTK base (required)** | **1× WT-43 in base mode** + best practical antenna (even a cheap survey patch on a pole beats the onboard chip antenna for the *base*) + 12 V / big battery · LoRa out |
 | **Race Control** | **IP68 tablet or laptop** on committee — **UI only**, not a puck / not the RTK base |
-| **As start/finish “boat end”?** | **Yes, if** the committee boat *is* that end of the line → use **base antenna position** as that end **or** add a **2nd WT-43 rover** on the bow for a clean line coordinate while base stays on a pole |
+| **As start/finish “boat end”?** | **Usually the same one device.** Put the **base antenna on the geometric line end** (bow / staff on the line). **Do not** buy a second WT-43 for committee unless the base antenna *cannot* sit on the line (e.g. pole midships for sky, line is at the bow) — only then add an optional bow **rover**. |
 
-**V1 simplest:** base pole on committee = **one end of the start line**. No second unit until you need bow vs pole separation.
+**V1 default:** **one** WT-43-BK on committee. Antenna **on the line end**. That single position is both “base” and “committee end of the line.”
 
-**Budget (committee core):** **~R850–900** (WT-43) + antenna/pole/battery box.
+**Only split into two** if physics forces it (antenna needs clear sky midships, but the line is at the bow). That is an exception, not the design.
+
+**Tablet note:** An IP68 tablet (XM30R-class or any rugged tablet) is the **Race Control screen** (Vakaros-tablet role). It does **not** replace **WT-43-BK**. Full layout including finish boat / rescue: [`race-setup-who-gets-what.md`](race-setup-who-gets-what.md).
+
+**Budget (committee core):** **~R515–571** (one WT-43-BK factory) + antenna/pole/battery box + **tablet/laptop** (existing or buy).
 
 ---
 

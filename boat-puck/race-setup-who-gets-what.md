@@ -10,17 +10,18 @@
 ```
                          COMMITTEE BOAT
          ┌──────────────────────────────────────────────┐
-         │  A. RADIO / GNSS KIT (required)              │
-         │     WT-43-BK = ONLY RTK base on the bay      │
-         │     + pole antenna + battery + dry box       │
+         │  A. ONE WT-43-BK (required)                  │
+         │     Antenna ON the line end (bow/staff)      │
+         │     = base + committee end of the line       │
+         │     + battery / dry box                      │
          │                                              │
          │  B. RACE CONTROL UI (required)               │
          │     IP68 tablet  OR  laptop                  │
-         │     ← this is NOT a “puck”                   │
+         │     ← this is NOT a second GNSS puck         │
          │     ← talks to base over USB / BLE / Pi      │
          │                                              │
-         │  C. OPTIONAL line-end rover on bow           │
-         │     WT-43-RK if pole ≠ geometric line end    │
+         │  C. 2nd WT-43 on bow — NOT default           │
+         │     Only if A’s antenna cannot sit on line   │
          └────────────────────┬─────────────────────────┘
                               │ LoRa RTCM (corrections)
          ┌────────────────────┼─────────────────────────┐
@@ -34,9 +35,23 @@
 **Hard rules**
 
 1. **One base only** (committee BK). Everything else = **rover**.  
-2. **Tablet ≠ base.** Tablet is the operator screen. Base is the WT-43-BK brick.  
-3. **IP68 tablet** (XM30R class or any rugged Android/iPad) = **nice Race Control host** in spray — still needs the base kit beside it.  
-4. Race-critical path = **LoRa**, not 4G. Tablet 4G = scoring upload / spectators only.
+2. **One GNSS brick on committee by default** — put it where the line end is. Do **not** duplicate BK + bow RK unless forced.  
+3. **Tablet ≠ base.** Tablet is the operator screen. Base is the WT-43-BK brick.  
+4. **IP68 tablet** = **Race Control host** in spray — still needs the **one** base kit.  
+5. Race-critical path = **LoRa**, not 4G. Tablet 4G = scoring upload / spectators only.
+
+---
+
+## Why not two WT-43s on committee?
+
+You don’t need two. That was an **edge-case** note, badly written as if it were normal.
+
+| Setup | Devices on committee |
+|-------|----------------------|
+| **Default (do this)** | **1× WT-43-BK** with antenna **on the geometric line end** + tablet |
+| Exception | Antenna must be midships for sky view, but the **line** is at the bow → then (and only then) add a bow **rover** so the line coordinate is correct while the base stays midships |
+
+The tablet never counts as a second WT-43. It’s just the screen.
 
 ---
 
