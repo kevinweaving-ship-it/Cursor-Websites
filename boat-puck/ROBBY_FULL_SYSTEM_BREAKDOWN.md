@@ -205,7 +205,7 @@ Doctrine: Screen is **BLE client of Puck**, not a second radio brain.
 
 | # | Component | Qty/boat | Guide price | Buy / datasheet |
 |---|-----------|---------:|------------:|-----------------|
-| 1 | **WT-43-RK-LoRa** (rover) | 1 | **R512–900 ($32–56)** | https://www.ontheway-tech.com/product/wt-43-rk-lora/ |
+| 1 | **WT-43-RK-LoRa** (rover) | 1 | **R515–571 ($32.19–35.67)** factory LIST | https://www.gpsgnssmodule.com/sale-53628296-wt-43-rk-lora-rtk-gnss-module-with-lora-data-transmission.html |
 | 2 | **Ebyte E73-2G4M08S1F** nRF54L15 (puck MCU) | 1 | **R90–102 ($5.61–6.40)** JLCPCB/ebyteiot | https://jlcpcb.com/partdetail/57638535-E732G4M08S1F/C54337734 |
 | 2b | **nRF54L15 DK** (lab only — not in housing) | shared | **R928 ($57.97)** DigiKey | https://www.digikey.com/en/products/detail/nordic-semiconductor-asa/NRF54L15-DK/25601516 |
 | 3 | **nRF54L15 Tag** (bow / IMU / CS) | 0–1 | **R499 ($31.16)** DigiKey | https://www.nordicsemi.com/Products/Development-hardware/nRF54L15-Tag |
