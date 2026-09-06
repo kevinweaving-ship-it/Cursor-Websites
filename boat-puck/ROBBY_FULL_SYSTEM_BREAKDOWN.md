@@ -206,14 +206,15 @@ Doctrine: Screen is **BLE client of Puck**, not a second radio brain.
 | # | Component | Qty/boat | Guide price | Buy / datasheet |
 |---|-----------|---------:|------------:|-----------------|
 | 1 | **WT-43-RK-LoRa** (rover) | 1 | **R512–900 ($32–56)** | https://www.ontheway-tech.com/product/wt-43-rk-lora/ |
-| 2 | **nRF54L15 DK** (bench) / module later | shared | DK ~**R1 600–2 400 ($100–150)** class via DigiKey/Mouser | https://www.nordicsemi.com/Products/Development-hardware/nRF54L15-DK |
-| 3 | **nRF54L15 Tag** (bow / IMU / CS) | 0–1 | ~**R480–560 ($30–35)** | https://www.nordicsemi.com/Products/Development-hardware/nRF54L15-Tag |
+| 2 | **Ebyte E73-2G4M08S1F** nRF54L15 (puck MCU) | 1 | **R90–102 ($5.61–6.40)** JLCPCB/ebyteiot | https://jlcpcb.com/partdetail/57638535-E732G4M08S1F/C54337734 |
+| 2b | **nRF54L15 DK** (lab only — not in housing) | shared | **R928 ($57.97)** DigiKey | https://www.digikey.com/en/products/detail/nordic-semiconductor-asa/NRF54L15-DK/25601516 |
+| 3 | **nRF54L15 Tag** (bow / IMU / CS) | 0–1 | **R499 ($31.16)** DigiKey | https://www.nordicsemi.com/Products/Development-hardware/nRF54L15-Tag |
 | 4 | IMU (if not using Tag) | 1 | **R30–80 ($2–5)** BMI270-class | DigiKey / Mouser BMI270 |
-| 5 | LiPo 3–5 Ah + charge | 1 | **R80–200 ($5–12)** | any flat LiPo + TP4056-class |
-| 6 | GoPro H9–13 waterproof case | 1 | **R80–100 ($5–6)** | AliExpress HERO9–13 protective housing |
-| 7 | 3D sled / insert | 1 | **R20–50 ($1–3)** print | design in `housing/` |
-| 8 | LED + passives + wiring | 1 | **R20–40 ($1–2.5)** | — |
-| | **Electronics+shell guide (WT-43 path)** | | **~R850–1 350 ($53–84)** early; volume lower | |
+| 5 | LiPo + charge | 1 | **R59–98 ($3.70–6.10)** | Ali flat cell + TP4056-class |
+| 6 | GoPro H9–13 **China clone** housing | 1 | **R80–104 ($5.00–6.50)** — **not** official ADDIV-001 (~R800–880) | Ali / Made-in-China |
+| 7 | 3D sled / insert | 1 | **R40–88 ($2.50–5.50)** print | design in `housing/` |
+| 8 | LED + passives + wiring | 1 | incl. in sled line | — |
+| | **Puck total (factory WT-43 path)** | | **electronics R664–771 + housing/sled → R784–963** | see [`cost-what-goes-where.md`](cost-what-goes-where.md) |
 
 **Kill / prove gate for this path:** moving **RTK FIX @ up to 20 Hz** with **LoRa RTCM** over water. Fail → UM980 path.
 

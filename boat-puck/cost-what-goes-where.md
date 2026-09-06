@@ -1,155 +1,138 @@
-# What costs what — Puck vs Committee (plain English)
+# What costs what — priced line items (not guesses)
 
-**FX:** R16 / $1 · Guide 1-pc prices · Re-check before pay.
+**FX locked:** **R16 / $1** · **Date:** 2026-09-06  
+**Rule:** every total is the **sum of lines**. Housing is **never** inside the WT-43 price.
 
----
-
-## The one idea
-
-| Box | Job in one line |
-|-----|-----------------|
-| **Committee** | “Here is the centimetre-truth” — broadcasts corrections so everyone else can FIX |
-| **Boat Puck** | “Here I am” — centimetre position on the boat, talks to Race Control, talks BLE to watch/phone |
-| **Pin / mark packs** | Same GNSS+LoRa brick as the puck guts, **without** sailor MCU/BLE — just “here is this mark/pin” |
-
-There is **only one base** (committee). Everything else is a **rover**.
+| Tag | Meaning |
+|-----|---------|
+| **LIVE** | Price seen on a cart / distributor page |
+| **LIST** | Factory published range (ask to confirm) |
+| **EST** | Typical Ali class — re-check before pay |
 
 ---
 
-## What each component *does*
+## Sourced parts (Puck)
 
-| Part | What it is | What it does |
-|------|------------|--------------|
-| **WT-43-BK-LoRa** | GNSS + antenna + LoRa brick in **base** firmware | Sits on committee; computes corrections (**RTCM**) and **broadcasts them over LoRa** |
-| **WT-43-RK-LoRa** | Same hardware family in **rover** firmware | Receives RTCM over LoRa → gets **cm FIX** → outputs position (NMEA/UART) |
-| **LoRa (on the WT-43)** | Long-range radio built into the brick | Carries corrections (and later boat/mark positions). **Not** Wi‑Fi / not cell |
-| **nRF54L15 (MCU)** | Small computer + Bluetooth 6 | Boat ID, race logic, OCS math, store/backfill, **BLE** to watch/phone/screen. Optional later: Channel Sounding to a bow tag |
-| **IMU** | Motion sensor (on Tag / later on PCB) | Heading / heel / bow lever-arm for OCS |
-| **Battery** | USB pack or LiPo | Powers the guts |
-| **Housing** | Waterproof shell | Keeps water out. **Not** sold as part of the WT-43 — you buy or bring it |
-| **Laptop/tablet** | Race Control host | Start sequence, line, OCS list, maps — **software**, not inside the puck |
-| **Survey antenna + pole** (committee) | Better GPS antenna up high | Makes the **base** more accurate/stable than the tiny brick antenna alone |
-| **Bow Tag** (optional experiment) | Tiny nRF54 Tag at the bow | Measures puck→bow distance for sharper OCS — **not** required for first water test |
+| # | Part | Role | USD | Rand | Evidence |
+|---|------|------|----:|-----:|----------|
+| 1 | **WT-43-RK-LoRa** | GNSS + LoRa rover brick | **32.19–35.67** | **515–571** | **LIST** Anzewei/OTW factory: [gpsgnssmodule](https://www.gpsgnssmodule.com/sale-53628296-wt-43-rk-lora-rtk-gnss-module-with-lora-data-transmission.html) |
+| 1b | same, Ali path | same | **54.17** | **867** | **LIVE** prior Ali 1–499 (do not use if factory quotes) |
+| 2a | **Ebyte E73-2G4M08S1F** | nRF54L15 MCU+BLE module | **5.61–6.40** | **90–102** | **LIVE** [JLCPCB $5.61](https://jlcpcb.com/partdetail/57638535-E732G4M08S1F/C54337734) · [ebyteiot ~$6.40](https://ebyteiot.com/products/ebyte-e71-e73-series-soc-wireless-communication-module-low-power-2-4ghz-tl7215d-nrf54l15-chip-multi-protocol-8-10dbm-test-board) |
+| 2b | **Ebyte E73-2G4M08S1C** | nRF52840 interim MCU (no CS) | **7.60** | **122** | **LIVE** [ebyteiot](https://ebyteiot.com/products/2-4ghz-ble-mesh-small-smd-e73-2g4m08s1c-nordic-nrf52840-module-small-size-ble-5-0) |
+| 2c | **nRF54L15 DK** | Lab MCU only (won’t fit production sled) | **57.97** | **928** | **LIVE** [DigiKey](https://www.digikey.com/en/products/detail/nordic-semiconductor-asa/NRF54L15-DK/25601516) |
+| 3 | LiPo cell + charge board | Power | **~3.70–6.10** | **59–98** | **LIVE-ish** Ali 1000 mAh ~$3.69 · 3000 mAh ~$5.09 + TP4056-class ~$1 |
+| 4a | **H9–13 waterproof housing (China clone)** | Shell | **5.00–6.50** | **80–104** | **LIST** Made-in-China kitway **$5.85–6.50**; prior Ali class **$5–6** |
+| 4b | **Official GoPro ADDIV-001** | Shell (do **not** buy for fleet) | **49.99–54.99** | **800–880** | **LIVE** GoPro / scuba.com / Backscatter |
+| 5 | 3D sled + wire + passives | Fit / glue | **~2.50–5.50** | **40–88** | **EST** print + bits |
+
+**Bow Tag (not inside puck):** nRF54L15 Tag **$31.16 → R499** DigiKey — optional OCS experiment only.
 
 ---
 
-## A) Boat Puck — what goes *inside* the housing
+## Boat Puck — additive totals
 
-**Product shell (target):** GoPro H9–13 style waterproof case (~**R80–150** Ali clone).  
-**Beta:** your own waterproof box is fine — housing is **extra**, not inside the WT-43 price.
+### Path A — beta / volume intent (factory WT-43 + Ebyte nRF54 + Ali housing)
+
+| Line | Low R | High R |
+|------|------:|-------:|
+| WT-43-RK factory | 515 | 571 |
+| E73 nRF54L15 | 90 | 102 |
+| Battery + charge | 59 | 98 |
+| **Electronics subtotal** | **664** | **771** |
+| + Ali H9–13 housing | 80 | 104 |
+| + sled/passives (EST) | 40 | 88 |
+| **Puck total Path A** | **784** | **963** |
+
+Math check: 664+80+40 = **784**; 771+104+88 = **963**.
+
+### Path B — same but interim nRF52840 module ($7.60)
+
+| Line | Low R | High R |
+|------|------:|-------:|
+| Electronics (WT-43 + E73-52840 + batt) | 515+122+59 = **696** | 571+122+98 = **791** |
+| + Ali housing + sled | +120 → **816** | +192 → **983** |
+
+### Path C — if you pay Ali WT-43 ($54.17) instead of factory
+
+| Line | Low R | High R |
+|------|------:|-------:|
+| Electronics (Ali WT-43 + nRF54 + batt) | 867+90+59 = **1 016** | 867+102+98 = **1 067** |
+| + Ali housing + sled | **1 136** | **1 259** |
+
+### Lab only (DK does **not** go in the GoPro)
+
+| | R |
+|--|--:|
+| WT-43 factory + **DK $57.97** + batt | 515+928+59 → **1 502** to 571+928+98 → **1 597** |
+| Housing still separate | +80–104 |
+
+Do **not** quote DK as the “puck MCU cost”.
+
+---
+
+## What sits in the housing
 
 ```
-┌──────── GoPro / your box (housing) ────────┐
-│                                            │
-│   ┌─ WT-43-RK-LoRa ─────────────────────┐  │
-│   │  • GPS/RTK chip                      │  │
-│   │  • onboard GNSS antenna (sky face)   │  │
-│   │  • LoRa radio + antenna              │  │
-│   └────────────── UART to MCU ───────────┘  │
-│                                            │
-│   ┌─ nRF54L15 (module or DK for proto) ─┐  │
-│   │  • brain + BLE to watch/phone        │  │
-│   └──────────────────────────────────────┘  │
-│                                            │
-│   Battery (power bank / LiPo)              │
-│   (Later production: IMU on same PCB)      │
-│                                            │
-│   NO screen inside the Universal Puck      │
-└────────────────────────────────────────────┘
+Ali H9–13 case (~R80–104)     ← NOT included in WT-43
+┌─────────────────────────────────────────┐
+│  WT-43-RK (~R515–571 factory)           │  GNSS + LoRa
+│  Ebyte nRF54 module (~R90–102)          │  brain + BLE
+│  Flat LiPo + charge (~R59–98)            │  power
+│  3D sled / wires (~R40–88 EST)          │  fit
+└─────────────────────────────────────────┘
+No screen. Watch/phone = BLE clients, separate.
 ```
 
-| Piece inside puck | Included in WT-43 buy? | ~R |
-|-------------------|------------------------|---:|
-| WT-43-RK-LoRa (GNSS+LoRa brick) | **Yes — this is the buy** | **512–576** factory (Ali ~850–900) |
-| nRF54 MCU | Separate | **80–240** Ebyte / **480–560** Nordic DK |
-| Battery | Separate | **50–150** |
-| GoPro-class housing | Separate | **80–150** (or **R0** if you use your box) |
-| Screen / watch | **Not in puck** | optional BLE client |
+---
 
-### Puck cost (one racing boat)
+## Committee boat — additive
 
-| Build | What’s in it | ~R |
-|-------|--------------|---:|
-| **Electronics only** | WT-43-RK + cheap Ebyte nRF54 + battery | **~650–950** |
-| **With GoPro housing** | above + case | **~750–1 100** |
-| **Proto with Nordic DK** (bigger, for lab) | WT-43-RK + DK + battery + box | **~1 100–1 300** |
+| # | Part | Role | USD | Rand | Tag |
+|---|------|------|----:|-----:|-----|
+| 1 | **WT-43-BK-LoRa** | RTK **base** (only one) | **32.19–35.67** | **515–571** | **LIST** same factory family as RK |
+| 1b | Ali BK (if used) | same | **~54** | **~867** | prior class |
+| 2 | Survey / multi-band patch + pole | Better base antenna | **~15–40** | **240–640** | **EST** Ali survey patch + PVC pole |
+| 3 | Dry box + battery (USB bank or 12 V) | Power / weather | **~10–30** | **160–480** | **EST** |
+| 4 | USB-serial / Pi Zero-class | Host ↔ UART | **~5–15** | **80–240** | **EST** |
+| 5 | Laptop / tablet | Race Control UI | — | **0** | bring existing |
 
-**Sailor UI is extra:** watch you already own, or later a second “screen housing” (~R400–800 parts) that only does BLE — it does **not** hold the RTK/LoRa.
+| Build | Sum |
+|-------|-----|
+| **Minimum electronics** (factory BK only) | **R515–571** |
+| **Working committee kit** (BK + antenna/pole + box/batt + bridge) | **515+240+160+80 = R995** low → **571+640+480+240 = R1 931** high |
+| **If Ali BK** | add ~**R300** vs factory |
+
+Committee is **not** a GoPro puck. Shell = dry box (**EST**), not ADDIV-001.
 
 ---
 
-## B) Committee boat — what it comprises (not one “puck”)
+## Pin / mark pack (no sailor MCU)
 
-Committee is a **small kit**, not one GoPro brick.
-
-```
-COMMITTEE BOAT
-│
-├─ WT-43-BK-LoRa ─────────── RTK BASE (the only base on the bay)
-├─ Survey / patch antenna on a pole ── better sky view for the base
-├─ Battery box (12 V or USB bank) ── all-day power
-├─ Laptop or tablet ──────── Race Control software (you already have a computer)
-├─ Cable / USB-serial or Pi ── talk to the base, log, inject race messages
-│
-└─ OPTIONAL
-     ├─ 2nd WT-43-RK on bow if pole ≠ geometric line end
-     └─ 4G modem for spectators only (never for OCS)
-```
-
-| Piece | In a “housing”? | ~R |
-|-------|-----------------|---:|
-| WT-43-BK-LoRa | In a dry box / soft case — **not** a GoPro puck | **512–576** |
-| Antenna + pole + mounts | On deck / rail | **300–800** |
-| Battery / box | Deck box | **200–500** (or use club 12 V) |
-| Laptop/tablet | Helm / nav table | **R0** if you bring one |
-| USB-serial / Pi | In same dry box as base | **50–200** |
-| **Committee electronics subtotal** | | **~R850–1 700** + host computer |
-| **With antenna/pole/battery if buying all** | | **~R1 100–2 500** |
-
-**Housing included?** No finished “committee product shell” yet — beta = **your dry box** + pole. The expensive clever bit is still just the **WT-43-BK** (~R500–600).
+| Line | R |
+|------|--:|
+| WT-43-RK factory | 515–571 |
+| Battery + charge | 59–98 |
+| Your float / clip box | 0–104 |
+| **Pack** | **~R574–773** (+ box if bought) |
 
 ---
 
-## C) Pin / mark (same guts, simpler)
-
-Same **WT-43-RK** as the boat, in a **float/clip pack** (your box).  
-**Usually no nRF54** on V1 pin/mark — only GNSS+LoRa position uplink.
-
-| Pack | ~R |
-|------|---:|
-| WT-43-RK + battery + your float box | **~600–800** |
-
----
-
-## D) Smallest kit that makes a race line
-
-| Role | Hardware | ~R |
-|------|----------|---:|
-| Committee base | WT-43-BK + pole antenna + box | **850–1 700** |
-| Start pin | WT-43-RK pack | **600–800** |
-| First boat puck | WT-43-RK + nRF54 + battery (+ housing) | **650–1 100** |
-| **Kit total (prove OCS path)** | | **~R2 100–3 600** |
-
-Add marks later: **+R600–800 each**.
-
----
-
-## Quick answers to “et cetera”
+## Corrected one-liners (use these)
 
 | Question | Answer |
 |----------|--------|
-| Is housing in the WT-43 price? | **No** |
-| Is battery in the WT-43 price? | **No** |
-| Is the MCU in the WT-43 price? | **No** — WT-43 is GNSS+LoRa only |
-| Does the puck have a screen? | **No** — Universal Puck is blind; UI is BLE watch/phone/optional 2nd housing |
-| Does committee use a GoPro puck? | **No** — base + pole + laptop |
-| Can one WT-43 do both base and rover? | Buy **BK** for base, **RK** for rovers (same family, different role) |
-| Do I need a bow Tag for beta? | **No** — nice later for OCS sharpness |
+| Electronics in one puck? | **~R664–771** (factory WT-43 + Ebyte nRF54 + battery) |
+| + China GoPro-class housing? | **add R80–104** → **~R744–875** electronics+case, or **~R784–963** with sled |
+| Official GoPro housing? | **~R800–880 alone** — skip for fleet |
+| Committee working kit? | **~R1 000–1 900** (factory BK + antenna + box + bridge; laptop R0) |
+| Was “650–950 then 750–1100” wrong? | **Yes** — those bands did not add; housing was double-counted / guessed |
 
 ---
 
-## One sentence each
+## Still must confirm before money leaves
 
-- **Puck ≈ R750–1 100** in a GoPro case: **WT-43 rover + MCU + battery + housing**.  
-- **Committee ≈ R850–1 700** electronics (+ antenna/pole if needed): **WT-43 base + dry box + computer you already own**.  
-- **Housing is always a separate line** — beta can be your waterproof boxes at R0 hardware cost.
+1. OTW email: BK + RK **1-pc USD**, SA **433 MHz** LoRa, Hz with RTCM.  
+2. Live Ali cart for the exact H9–13 housing SKU (clone **~$5–6.50**, not official **~$55**).  
+3. DigiKey/JLCPCB carts on the day you buy (FX and stock move).
+
+Full cart sheet: [`FINAL_BETA_BUY_LIST_RAND.md`](FINAL_BETA_BUY_LIST_RAND.md) (update to match these sums).
