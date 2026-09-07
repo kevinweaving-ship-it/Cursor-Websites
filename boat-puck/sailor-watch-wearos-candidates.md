@@ -1,24 +1,34 @@
-# Sailor watch hunt — any Android we install our app on
+# Sailor watch — BYOD first; cheap Wear OS for no-watch sailors
 
 **Date:** 2026-09-06 · **FX:** R16 / $1  
 
-**Product note:** Does **not** need to be a sailing watch. Any Android / Wear OS device is fine — **we provide / install Boat Puck**. Sailing branding, marine SKUs, and “yacht watch” marketing are irrelevant.
+## Product framing
 
-**Musts:** install our APK/Play app · ≥2 m / 30 min water (IP67/IP68/5ATM) · **2 physical push buttons** · **no crown** · BLE · touch OK · ~1000 nits prefer · biggest screen · cheapest
+Most sailors already have something on their wrist (Apple Watch, Wear OS, Garmin, etc.) or use a phone/tablet. **For them: install Boat Puck — done.** We are not selling them a sailing watch.
 
-### Hard filter (Alibaba trap)
+This doc’s **top 3** are only for sailors who **don’t already have a usable watch** and still want a wrist UI into the system (BLE → Puck). Not sailing-branded hardware; we provide / install the app.
+
+| Path | Who | What we do |
+|------|-----|------------|
+| **BYOD** | Already own Apple Watch / Wear OS / phone / tablet | Ship app; pair BLE to Puck |
+| **Entry SKU (this list)** | No watch, want wrist UI | Point them at cheap Wear OS below |
+| **Reject as entry** | Locked Ali / Kospet / Amazfit RTOS | Cannot install our app |
+
+**Entry-SKU musts** (buy recommendation only): install our APK/Play app · ≥2 m / 30 min water (IP67+) · **2 physical push buttons** · **no crown** · BLE · touch OK · ~1000 nits prefer · biggest screen · cheapest
+
+### Hard filter (Alibaba trap — entry buys only)
 
 | Class | Install our app? | Verdict |
 |-------|------------------|---------|
-| **Wear OS** (Play Store / ADB sideload) | **Yes** | **Primary** — in scope |
+| **Wear OS** (Play Store / ADB sideload) | **Yes** | Entry SKU scope |
 | Full Android “phone watch” (LEMFO etc.) | Sideload possible | Risky QA / seals — last resort |
-| Generic Ali / Kospet / Amazfit RTOS + vendor app only | **No** | **Reject** even if cheap + bright + buttons |
+| Generic Ali / Kospet / Amazfit RTOS + vendor app only | **No** | **Reject** as entry even if cheap |
 
 “Beerly” = **BLE**. Water bar = **2 m / 30 min** → IP67 minimum; IP68/5ATM fine.
 
 ---
 
-## TOP 3
+## TOP 3 — entry SKU only (sailor has no watch yet)
 
 ### 1) Samsung Galaxy Watch5 **44mm** (used/refurb) — cheapest full pass
 
@@ -77,7 +87,8 @@ Pixel Watch / TicWatch Pro 5 / Xiaomi Watch 2 Pro — Wear OS OK but **crown** f
 
 ---
 
-## Buy order for Boat Puck 2c
+## Buy order (no-watch sailors / our lab only)
 
-1. **Dev:** used Galaxy Watch5 44mm (~**R1 000**)  
-2. **Fleet new:** Xiaomi Watch 2 (~**R2 000–3 000**) *or* OnePlus Watch 2R if you need **1000-nit HBM** (~**R2 800**)
+1. **Default product path:** BYOD — Apple Watch / Wear OS / phone already on the boat; install app  
+2. **Dev / entry loaner:** used Galaxy Watch5 44mm (~**R1 000**)  
+3. **If they want new:** Xiaomi Watch 2 (~**R2 000–3 000**) *or* OnePlus Watch 2R for **1000-nit HBM** (~**R2 800**)

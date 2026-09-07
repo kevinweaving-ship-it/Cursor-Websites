@@ -46,7 +46,7 @@ See [`NORTH_STAR.md`](NORTH_STAR.md).
 | **`FINAL_BETA_BUY_LIST_RAND.md`** | **Final what-for-what cart in Rand** — core + optional ≤2 + skip |
 | **`cost-what-goes-where.md`** | **Plain English:** puck vs committee cost, what each part does, what’s in the housing |
 | **`ROBBY_FULL_SYSTEM_BREAKDOWN.md`** | **Full engineer/dev map for Robby:** puck BOM+URLs, committee/pin/marks, OCS, radios, software to write, guide prices |
-| **`sailor-watch-wearos-candidates.md`** | **2c watch:** any Android/Wear OS we install our app on — top 3 + Ali rejects |
+| **`sailor-watch-wearos-candidates.md`** | **2c watch:** BYOD (install app) first; cheap Wear OS top 3 for no-watch sailors |
 | `display-rlcd-4.2-research.md` | 4.2" research (Atlas path) |
 | `system-rlcd-housing.md` | Keelboat RLCD + own housing notes |
 
