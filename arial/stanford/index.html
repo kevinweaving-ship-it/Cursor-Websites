@@ -305,6 +305,7 @@
     <script src="/arial/arial-pc.js?v=1"></script>
     <script src="/arial/app.js?v=250"></script>
     <style>
+      #stanford-cams .cam-test-tag{font:700 9px Arial,Helvetica,sans-serif;letter-spacing:.08em;color:#b45309;background:#fef3c7;border-radius:4px;padding:2px 6px;margin-left:6px;vertical-align:middle}
       #stanford-cams .cam-grid{display:grid;grid-template-columns:1fr;gap:6px}
       #stanford-cams .cam-grid[hidden]{display:none}
       #stanford-cams .tb{width:1em;height:1em;vertical-align:-0.15em;display:inline-block}
@@ -323,8 +324,8 @@
       #stanford-cams video{background:#000}
       #stanford-cams video::-webkit-media-controls,#stanford-cams video::-webkit-media-controls-enclosure{display:none !important}
       #stanford-cams .cam-cap{position:absolute;left:6px;top:6px;z-index:5;font:700 11px Arial,Helvetica,sans-serif;color:#fff;background:rgba(0,0,0,.7);border-radius:4px;padding:2px 6px}
-      #stanford-cams .cam-spin{width:18px;height:18px;flex:0 0 18px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:stcamspin .8s linear infinite}
-      @keyframes stcamspin{to{transform:rotate(360deg)}}
+      #stanford-cams .cam-spin{width:18px;height:18px;flex:0 0 18px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:bgcamspin .8s linear infinite}
+      @keyframes bgcamspin{to{transform:rotate(360deg)}}
       #stanford-cams .live-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;min-height:48px;margin:8px 0 0;padding:6px 12px;border:0;border-radius:8px;background:#1d6fe0;color:#fff;font:700 15px Arial,Helvetica,sans-serif;cursor:pointer;line-height:1.2}
       #stanford-cams .live-btn .live-btn-sub{font:500 11px Arial,Helvetica,sans-serif;opacity:.9}
       #stanford-cams.live-mode .live-btn{background:#15803d}
@@ -332,7 +333,7 @@
     </style>
     <script type="module">
       (async function () {
-        // Same card as Bing Carport. One EZVIZ cam: Front Garage. EB5 disabled.
+        // EZVIZ via go2rtc stream "stanford_front_garage". Thumb + EZVIZ overlay first; MSE live swaps in.
         var CAM = "https://sailingsa.co.za:8443/";
         var box = document.getElementById("stanford-cams"); if (!box) return;
         var grid = box.querySelector(".cam-grid"), btn = document.getElementById("stanford-live-btn"), upd = document.getElementById("stanford-cams-upd");
@@ -423,7 +424,7 @@
         document.addEventListener("visibilitychange", function () { if (document.hidden && shown) hide(); });
       })();
     </script>
-    <link rel="stylesheet" href="/arial/home-card.css?v=hc2">
+    <link rel="stylesheet" href="/arial/home-card.css?v=hc3">
     <script src="/arial/home-card.js?v=hc5"></script>
 </body>
 </html>
