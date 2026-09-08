@@ -4525,7 +4525,7 @@ header.site-header #headerAuth button {
     </script>
 
     <script>
-Rewire header button callbacks WITHOUT editing the package code:
+/* Rewire header button callbacks WITHOUT editing the package code:
      define window.__GOLD_HEADER_CFG ANYWHERE BEFORE this block
      (or override after load; last-writer-wins for each key):
 
@@ -4540,6 +4540,7 @@ Rewire header button callbacks WITHOUT editing the package code:
        };
      (session.js reads window.__GOLD_HEADER_CALL.fireLogout/fireSignIn/fireSignUp
       which are defined below and respect cfg.)
+*/
 
 (function(){
   var DEFAULTS = {
