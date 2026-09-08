@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs
 
+from oem import OemClient, client_from_session, connect_oem, write_session
 from tuya_sharing import CustomerDevice, Manager, SharingDeviceListener, SharingTokenListener
 from tuya_sharing.version import VERSION as SDK_VERSION
 
@@ -105,22 +106,28 @@ class Worker(SharingDeviceListener):
         self.light_wait = threading.Condition(self.lock)
         self.started = time.time()
         self.mgr: Manager | None = None
+        self.oem: OemClient | None = None
+        self.kind = ""
+        self.devices: dict[str, dict[str, Any]] = {}
         self.home_of: dict[str, str] = {}
         self.home_id_of: dict[str, str] = {}
         self.home_ids: set[str] = set()
         self.mqtt_last_msg = 0.0
         self.auth_failed = False
         self.collecting = False
+        self.auth_error = ""
 
     def health(self) -> dict[str, Any]:
         mapped = load_homes()
         return {
             "ok": bool(self.collecting and not self.auth_failed and SESSION_PATH.exists()),
             "source": "cbi",
+            "kind": self.kind or ("oem" if self.oem else "sharing" if self.mgr else ""),
             "sdk": SDK_VERSION,
             "uptimeS": round(time.time() - self.started, 1),
             "session": SESSION_PATH.exists(),
             "authRequired": not SESSION_PATH.exists() or self.auth_failed,
+            "authError": self.auth_error[:180] if self.auth_error else "",
             "collecting": self.collecting,
             "mappedHomes": list(mapped),
             "watchedDevices": len(self.home_ids),
@@ -138,21 +145,26 @@ class Worker(SharingDeviceListener):
             return False
 
     def connect(self) -> None:
-        sess = _load(SESSION_PATH)
-        if not sess or not sess.get("token_info"):
-            raise SystemExit("no CBI session.json — authorize this CBI account (QR in CBI Home), not Smart Life")
-        self.mgr = Manager(
-            TUYA_CLIENT_ID,
-            sess["user_code"],
-            sess["terminal_id"],
-            sess["endpoint"],
-            sess["token_info"],
-            TokenPersist(),
-        )
-        self.mgr.add_device_listener(self)
-        log.info("CBI session username=%s endpoint=%s", sess.get("username"), sess.get("endpoint"))
+        sess = _load(SESSION_PATH) or {}
+        if sess.get("kind") == "oem" and sess.get("sid"):
+            self.oem = client_from_session(SESSION_PATH)
+            self.kind = "oem"
+            log.info("CBI OEM session uid=%s region=%s", self.oem.uid, self.oem.region)
+            return
+        if sess.get("token_info") and sess.get("kind") != "oem":
+            raise SystemExit("refusing a Smart Life / HA sharing session on the CBI collector")
+        if not sess and os.getenv("CBI_OEM_AUTO_LOGIN") == "1":
+            log.info("CBI OEM password login (white-label Thing SDK 5, not HA QR)")
+            self.oem = connect_oem()
+            write_session(SESSION_PATH, self.oem)
+            self.kind = "oem"
+            log.info("CBI OEM login uid=%s region=%s", self.oem.uid, self.oem.region)
+            return
+        raise SystemExit("no CBI OEM session — run poc.py login (white-label app, not Smart Life / HA QR)")
 
     def sync_devices(self) -> None:
+        if self.oem:
+            return self._sync_oem()
         assert self.mgr
         mapped = load_homes()
         homes = self.mgr.home_repository.query_homes()
@@ -165,7 +177,7 @@ class Worker(SharingDeviceListener):
             name = str(h.name).strip()
             devices = list(self.mgr.device_repository.query_devices_by_home(h.id))
             seen.append({"id": hid, "name": name, "devices": len(devices)})
-            if hid not in mapped:
+            if mapped and hid not in mapped:
                 log.warning("unmapped CBI home %s %r — add to homes.json (Smart Life homes are a different tool)", hid, name)
                 continue
             for d in devices:
@@ -200,8 +212,47 @@ class Worker(SharingDeviceListener):
             log.warning("CBI db seed failed: %s", exc)
         self.write_snapshot()
 
+    def _sync_oem(self) -> None:
+        assert self.oem
+        mapped = load_homes()
+        seen, devices = self.oem.snapshot_devices(mapped)
+        _write_private(SEEN_PATH, {"at": time.time(), "homes": seen})
+        home_of = {d["id"]: d.get("home") or "" for d in devices}
+        home_id_of = {d["id"]: str(d.get("home_id") or "") for d in devices}
+        with self.lock:
+            self.devices = {d["id"]: d for d in devices}
+            self.home_of = home_of
+            self.home_id_of = home_id_of
+            self.home_ids = set(self.devices)
+        log.info("CBI OEM homes=%d watched=%d seen=%d",
+                 len(mapped) or len(seen), len(devices), len(seen))
+        now = time.time()
+        try:
+            with _home_db() as con:
+                for d in devices:
+                    if con.execute("SELECT 1 FROM events WHERE dev=? LIMIT 1", (d["id"],)).fetchone():
+                        continue
+                    hid = home_id_of.get(d["id"])
+                    for c, v in (d.get("status") or {}).items():
+                        if c not in HOME_RECORD_SKIP and c != "add_ele":
+                            con.execute(
+                                "INSERT INTO events VALUES (?,?,?,?,?,?,?)",
+                                (now, hid, d["id"], d.get("name"), "seed", c, json.dumps(v)),
+                            )
+        except sqlite3.Error as exc:
+            log.warning("CBI db seed failed: %s", exc)
+        self.write_snapshot()
+
     def write_snapshot(self) -> None:
         try:
+            if self.oem:
+                with self.lock:
+                    out = [self.devices[i] for i in self.home_ids if i in self.devices]
+                tmp = SNAP_PATH.with_suffix(".json.tmp")
+                tmp.write_text(json.dumps({"at": time.time(), "source": "cbi", "devices": out}), encoding="utf-8")
+                os.chmod(tmp, 0o644)
+                os.replace(tmp, SNAP_PATH)
+                return
             with self.lock:
                 devs = [self.mgr.device_map[i] for i in self.home_ids if self.mgr and i in self.mgr.device_map]
                 out = []
@@ -263,6 +314,8 @@ class Worker(SharingDeviceListener):
     def switch_set(self, device_id: str, target: str, value: bool) -> dict[str, Any]:
         if device_id not in self.home_ids:
             raise ValueError("device not in a mapped CBI home")
+        if self.oem:
+            return self._switch_oem(device_id, target, value)
         assert self.mgr
         dev = self.mgr.device_map.get(device_id)
         if dev is None:
@@ -290,6 +343,37 @@ class Worker(SharingDeviceListener):
             "switches": [{"code": c, "on": dev.status.get(c)} for c in main],
         }
 
+    def _switch_oem(self, device_id: str, target: str, value: bool) -> dict[str, Any]:
+        assert self.oem
+        dev = self.devices.get(device_id) or {}
+        status = dict(dev.get("status") or {})
+        main = [c for c in status if _MAIN_SW.match(c) or c in {"1", "switch"}]
+        if not main and target == "all":
+            main = ["1"]
+        codes = main if target == "all" else [target]
+        if not codes:
+            raise ValueError("unknown switch")
+        dps: dict[str, Any] = {}
+        for c in codes:
+            key = "1" if c in {"switch", "switch_1", "all"} and "1" in status else c
+            dps[key] = bool(value)
+        t0 = time.time()
+        self.oem.send_dps(device_id, self.home_id_of.get(device_id) or "", dps)
+        time.sleep(min(CONFIRM_S, 1.5))
+        self.sync_devices()
+        dev = self.devices.get(device_id) or {}
+        status = dict(dev.get("status") or {})
+        return {
+            "ok": True,
+            "source": "cbi",
+            "confirmed": True,
+            "latencyS": round(time.time() - t0, 2),
+            "deviceId": device_id,
+            "home_id": self.home_id_of.get(device_id),
+            "online": bool(dev.get("online")),
+            "switches": [{"code": c, "on": status.get(c)} for c in codes],
+        }
+
     def heartbeat_loop(self) -> None:
         while not self.stop.wait(HEARTBEAT_S):
             self.write_health()
@@ -311,14 +395,18 @@ class Worker(SharingDeviceListener):
     def run_collect(self) -> None:
         self.connect()
         self.sync_devices()
-        assert self.mgr
-        self.mgr.refresh_mq()
-        for _ in range(100):
-            if self.mqtt_connected():
-                break
-            time.sleep(0.1)
-        log.info("CBI mqtt connected=%s", self.mqtt_connected())
+        if self.mgr:
+            self.mgr.refresh_mq()
+            for _ in range(100):
+                if self.mqtt_connected():
+                    break
+                time.sleep(0.1)
+            log.info("CBI mqtt connected=%s", self.mqtt_connected())
+        else:
+            log.info("CBI OEM poll mode (no HA sharing MQTT)")
         self.collecting = True
+        self.auth_failed = False
+        self.auth_error = ""
         self.write_health()
 
     def run(self) -> None:
@@ -327,22 +415,25 @@ class Worker(SharingDeviceListener):
         threading.Thread(target=self.heartbeat_loop, name="cbi-hb", daemon=True).start()
         log.info("CBI control API on %s:%s (separate from Smart Life :8007)", CTRL_HOST, CTRL_PORT)
         while not self.stop.is_set():
-            if SESSION_PATH.exists() and not self.collecting and not self.auth_failed:
+            if not self.collecting and not self.auth_failed:
                 try:
                     self.run_collect()
                     threading.Thread(target=self.resync_loop, name="cbi-resync", daemon=True).start()
                 except SystemExit as exc:
-                    log.error("CBI waiting for a real session: %s", exc)
+                    log.error("CBI waiting for OEM login: %s", exc)
+                    self.auth_error = str(exc)
                     self.write_health()
-                except Exception:
+                except Exception as exc:
                     log.exception("CBI connect failed")
                     self.auth_failed = True
+                    self.auth_error = str(exc)
                     self.write_health()
-            elif not SESSION_PATH.exists():
+            elif not SESSION_PATH.exists() or self.auth_failed:
                 now = time.time()
                 if now - getattr(self, "_wait_log", 0) > 60:
-                    log.info("CBI has no session yet — authorize CBI Home QR (this is not the Smart Life tool)")
+                    log.info("CBI OEM login retry (white-label app session, not HA QR)")
                     self._wait_log = now
+                    self.auth_failed = False
                 self.write_health()
             self.stop.wait(8)
         srv.shutdown()
