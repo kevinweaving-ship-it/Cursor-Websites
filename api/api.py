@@ -21412,6 +21412,38 @@ def api_club_logo(code: str):
 _REGATTA_STANDALONE_SAILINGSA_LOGO = "/assets/logos/sailingsa-logo.png"
 
 
+_CAPE_CLASSIC_EVENT_LOGO = "/artwork/Event%20Logo/Cape-Classic-Series.png"
+
+
+def _is_cape_classic_regatta(regatta_id: str, event_name: str) -> bool:
+    hay = (str(regatta_id or "") + " " + str(event_name or "")).lower().replace("_", "-")
+    return "cape-classic" in hay.replace(" ", "-") or "cape classic" in hay
+
+
+def _regatta_named_event_logo_url(regatta_id: str, event_name: str) -> Optional[str]:
+    """Named recurring events: left header event logo (not generic Sailing SA)."""
+    rid = str(regatta_id or "").strip().lower()
+    en = str(event_name or "").lower()
+    if "lipton" in rid or "lipton" in en:
+        return "/js/lipton-dev-event-logo.png"
+    if _is_cape_classic_regatta(rid, en):
+        return _CAPE_CLASSIC_EVENT_LOGO
+    return None
+
+
+def _regatta_named_event_logo_href(regatta_id: str, event_name: str) -> Optional[str]:
+    """Events-catalogue link for named event logos (matches live Cape Classic headers)."""
+    if not _is_cape_classic_regatta(regatta_id, event_name):
+        return None
+    rid = str(regatta_id or "").strip().lower()
+    en = str(event_name or "").lower()
+    if "hyc" in rid or "hermanus" in en:
+        return "/events-logos/hyc-cape-classic"
+    if "tsc" in rid or "theewater" in en:
+        return "/events-logos/tsc-cape-classic"
+    return "/events-logos/zvyc-cape-classic"
+
+
 def _club_logo_file_exists_on_disk(code: str) -> bool:
     """True if artwork/Club Logo/{CODE}.(jpg|png|jpeg) exists (same as api_club_logo)."""
     safe = re.sub(r"[^\w\-]", "", (code or "").strip())
@@ -21448,15 +21480,24 @@ def _regatta_header_right_club_logo_html(host_club_abbrev: str, host_club_slug: 
     )
 
 
-def _regatta_standalone_left_logo_column_html(override_url: Optional[str]) -> str:
-    """Left header column: default Sailing SA logo or super-admin WC custom image URL."""
+def _regatta_standalone_left_logo_column_html(
+    override_url: Optional[str],
+    link_href: Optional[str] = None,
+    link_title: Optional[str] = None,
+) -> str:
+    """Left header column: default Sailing SA logo or named-event / WC custom image URL."""
     if not (override_url and str(override_url).strip()):
         return _REGATTA_STANDALONE_HEADER_LOGO_HTML
     src = html_module.escape(str(override_url).strip())
+    href = html_module.escape((link_href or "/").strip() or "/")
+    title = html_module.escape((link_title or "SailingSA home").strip() or "SailingSA home")
+    img_cls = "regatta-header-logo-img"
+    if "event%20logo" in src.lower() or "/event logo/" in src.lower() or "cape-classic" in src.lower():
+        img_cls += " regatta-header-left-logo-img"
     return (
         '<div class="regatta-header-logo-col">'
-        '<a href="/" class="regatta-header-logo-link" title="SailingSA home">'
-        f'<img src="{src}" alt="" class="regatta-header-logo-img" '
+        f'<a href="{href}" class="regatta-header-logo-link" title="{title}">'
+        f'<img src="{src}" alt="" class="{img_cls}" '
         'width="200" height="25" loading="lazy" decoding="async" />'
         "</a></div>"
     )
@@ -25704,7 +25745,11 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
         else:
             back_block = back_link
         _lu, _ru = _wc_regatta_header_icon_urls(str(regatta_id))
-        _left_logo_col = _regatta_standalone_left_logo_column_html(_lu)
+        if not _lu:
+            _lu = _regatta_named_event_logo_url(str(regatta_id), event_name or "")
+        _left_href = _regatta_named_event_logo_href(str(regatta_id), event_name or "")
+        _left_title = "Named event — Events catalogue" if _left_href else None
+        _left_logo_col = _regatta_standalone_left_logo_column_html(_lu, _left_href, _left_title)
         _right_logo_col = _regatta_standalone_right_logo_column_html(host_club_abbrev, host_club_slug, _ru)
         header_html = (
             '<div class="regatta-header-wrap">'
@@ -25858,7 +25903,11 @@ def serve_regatta_standalone(slug: str, request: Request):
             name_html = f'<div class="regatta-name">{escaped_title}</div>'
             host_row = f'<div class="host-club">Host: {host_club_html}</div>'
         lu, ru = _wc_regatta_header_icon_urls(str(regatta_id))
-        left_logo_col = _regatta_standalone_left_logo_column_html(lu)
+        if not lu:
+            lu = _regatta_named_event_logo_url(str(regatta_id), display_name)
+        left_href = _regatta_named_event_logo_href(str(regatta_id), display_name)
+        left_title = "Named event — Events catalogue" if left_href else None
+        left_logo_col = _regatta_standalone_left_logo_column_html(lu, left_href, left_title)
         right_logo_col = _regatta_standalone_right_logo_column_html(host_club_abbrev, host_club_slug, ru)
         wc_icons_frag = ""
         if str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG and _session_role_is_super_admin(request):
