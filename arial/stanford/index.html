@@ -335,19 +335,27 @@
         var grid = box.querySelector(".cam-grid"), btn = document.getElementById("stanford-live-btn"), upd = document.getElementById("stanford-cams-upd");
         try { await import(CAM + "video-stream.js"); } catch (e) { console.warn("cams load failed", e); upd.textContent = "stream module unavailable"; return; }
         var HIDE_MS = 60000, SAFETY_MS = 300000, hideT = null, safeT = null, shown = false, startedAt = 0;
+        var FAIL = {
+          stanford_front_garage: "Issue · needs verification code"
+        };
         function load() {
           grid.querySelectorAll(".cam-cell").forEach(function (cell) {
             var src = cell.getAttribute("data-cam");
             if (!src || cell.classList.contains("cam-off") || cell.querySelector("video-stream")) return;
-            var msg = document.createElement("div"); msg.className = "cam-msg"; msg.innerHTML = '<span class="cam-spin"></span>connecting to EZVIZ cloud… (first frame ~6 s)';
+            var msg = document.createElement("div"); msg.className = "cam-msg";
+            msg.innerHTML = '<span class="cam-spin"></span>connecting to EZVIZ cloud… (first frame ~6 s)';
             cell.appendChild(msg);
             var el = document.createElement("video-stream"); el.mode = "webrtc,mse"; el.background = false;
-            el.src = new URL("api/ws?src=" + cell.getAttribute("data-cam"), CAM);
+            el.src = new URL("api/ws?src=" + src, CAM);
             cell.appendChild(el);
-            var tries = 0, iv = setInterval(function () {
+            var tries = 0, limit = FAIL[src] ? 160 : 400, shownFail = false, iv = setInterval(function () {
               var v = el.video || el.querySelector("video");
               if (v && v.videoWidth > 0 && v.currentTime > 0.2) { clearInterval(iv); msg.remove(); upd.textContent = "live · " + v.videoWidth + "×" + v.videoHeight + " · first frame " + ((Date.now() - startedAt) / 1000).toFixed(1) + " s"; }
-              else if (++tries > 900 || !el.isConnected) { clearInterval(iv); msg.textContent = "no video (camera offline or relay busy)"; }
+              else if (!el.isConnected) { clearInterval(iv); }
+              else if (!shownFail && ++tries > limit) {
+                shownFail = true;
+                msg.textContent = FAIL[src] || "Issue · no video";
+              }
             }, 50);
           });
         }

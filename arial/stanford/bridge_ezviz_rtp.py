@@ -74,13 +74,42 @@ def dec_h265(key: bytes, nal: bytes) -> bytes:
 
 
 def stream_once(client: EzvizClient, key: bytes) -> None:
+    # Same as Hikvision bridge_cam.py: some VCL slices are flagged encrypted but sent clear.
+    # Decrypting those yields green/grey garbage. Learn clear slice-header signatures.
+    clear_sig: dict[tuple[int, int], list[bytes]] = {}
+    au = [None, 0]
     cur = None
     last = time.monotonic()
 
-    def emit(nal: bytes, enc: bool) -> None:
-        n = dec_h265(key, nal) if enc else nal
-        W.write(START)
-        W.write(n)
+    def slice_idx(rts: int) -> int:
+        if rts != au[0]:
+            au[0] = rts
+            au[1] = 0
+        k = au[1]
+        au[1] += 1
+        return k
+
+    def hevc_out(nal: bytes, enc: bool, rts: int) -> bytes:
+        t = (nal[0] >> 1) & 0x3F
+        if t >= 32 or len(nal) < 6:
+            return dec_h265(key, nal) if enc else nal
+        sk = (t, slice_idx(rts))
+        sig = nal[2:4]
+        sigs = clear_sig.setdefault(sk, [])
+        if not enc:
+            if sig not in sigs:
+                sigs.append(sig)
+                if len(sigs) > 64:
+                    del sigs[0]
+            return nal
+        return nal if sig in sigs else dec_h265(key, nal)
+
+    def emit(nal: bytes, enc: bool, rts: int) -> None:
+        try:
+            W.write(START)
+            W.write(hevc_out(nal, enc, rts))
+        except BrokenPipeError:
+            raise
 
     with open_cloud_stream(client, SERIAL, timeout=25) as session:
         session.start()
@@ -89,7 +118,7 @@ def stream_once(client: EzvizClient, key: bytes) -> None:
             rp = rtp_parse(pkt.body or b"")
             if not rp or rp[0] != 96 or not rp[2]:
                 continue
-            _pt, enc, pay, _rts = rp
+            _pt, enc, pay, rts = rp
             t = (pay[0] >> 1) & 0x3F
             if t == 49:
                 fh = pay[2]
@@ -100,7 +129,7 @@ def stream_once(client: EzvizClient, key: bytes) -> None:
                 elif cur:
                     cur[1] += pay[3:]
                 if (fh & 0x40) and cur:
-                    emit(cur[0] + bytes(cur[1]), cur[2])
+                    emit(cur[0] + bytes(cur[1]), cur[2], rts)
                     cur = None
             elif t == 48:
                 i = 2
@@ -109,10 +138,10 @@ def stream_once(client: EzvizClient, key: bytes) -> None:
                     i += 2
                     if sz == 0 or i + sz > len(pay):
                         break
-                    emit(pay[i : i + sz], enc)
+                    emit(pay[i : i + sz], enc, rts)
                     i += sz
             else:
-                emit(pay, enc)
+                emit(pay, enc, rts)
             now = time.monotonic()
             if now - last > 0.2:
                 W.flush()

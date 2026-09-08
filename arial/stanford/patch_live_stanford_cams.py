@@ -29,16 +29,16 @@ def main() -> None:
             YAML.write_text(y, encoding="utf-8")
             y = YAML.read_text(encoding="utf-8")
             print("set go2rtc ffmpeg.bin to hikpoc ffmpeg")
-        if "stanford_eb5:" not in y:
-            extra = "\n".join(
-                ln for ln in SNIP.read_text(encoding="utf-8").splitlines() if ln.startswith("  stanford_")
-            )
-            if not y.endswith("\n"):
-                y += "\n"
-            YAML.write_text(y + extra + "\n", encoding="utf-8")
-            print("appended stanford streams to go2rtc.yaml")
-        else:
-            print("go2rtc.yaml already has stanford streams")
+        extra = "\n".join(
+            ln for ln in SNIP.read_text(encoding="utf-8").splitlines() if ln.startswith("  stanford_")
+        )
+        lines = y.splitlines()
+        kept = [ln for ln in lines if not ln.startswith("  stanford_")]
+        y2 = "\n".join(kept)
+        if not y2.endswith("\n"):
+            y2 += "\n"
+        YAML.write_text(y2 + extra + "\n", encoding="utf-8")
+        print("wrote stanford streams to go2rtc.yaml")
 
 
 if __name__ == "__main__":
