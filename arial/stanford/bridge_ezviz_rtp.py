@@ -61,12 +61,13 @@ def rtp_parse(b: bytes):
     return b[1] & 0x7F, enc, b[off:], int.from_bytes(b[4:8], "big")
 
 
-def ecb(key: bytes, body: bytes, n: int = 4096) -> bytes:
-    m = min(n, len(body))
+def ecb(key: bytes, body: bytes, n: int | None = None) -> bytes:
+    # 4096-only decrypt leaves 4K slices green after a sliver. Decrypt the whole NAL body.
+    m = len(body) if n is None else min(n, len(body))
     m -= m % 16
     if m <= 0:
         return body
-    return b"".join(AES.new(key, AES.MODE_ECB).decrypt(body[i : i + 16]) for i in range(0, m, 16)) + body[m:]
+    return AES.new(key, AES.MODE_ECB).decrypt(body[:m]) + body[m:]
 
 
 def dec_h265(key: bytes, nal: bytes) -> bytes:

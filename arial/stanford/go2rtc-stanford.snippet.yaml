@@ -1,7 +1,7 @@
-# Stanford EZVIZ = exact Bing gold exec (go2rtc streams.carport_test).
-# Only the serials change. Do not edit carport_test.
-#   Bing Carport:          BA3858958  → carport_test
+# Stanford EZVIZ live: Bing 640p card/ffmpeg, Voëlklip-style -f hevc input.
+# Source is encrypted RTP HEVC (not Bing MPEG-PS). Do not edit carport_test.
+#   Bing Carport:          BA3858958  → carport_test (unchanged mpeg)
 #   Stanford EB5:          BF4277838  → stanford_eb5
 #   Stanford Front Garage: BF4277866  → stanford_front_garage
-  stanford_eb5: exec:bash -c "trap 'kill 0' EXIT TERM INT; /opt/ezvizpoc/bridge_ezviz.sh BF4277838 | /opt/hikpoc/bin/ffmpeg -hide_banner -loglevel error -fflags nobuffer+genpts -flags low_delay -err_detect ignore_err -probesize 500000 -analyzeduration 500000 -f mpeg -i pipe:0 -an -vf scale=640:-2 -r 12 -vsync cfr -c:v libx264 -preset ultrafast -tune zerolatency -profile:v baseline -pix_fmt yuv420p -g 12 -muxdelay 0 -muxpreload 0 -rtsp_transport tcp -f rtsp {output}"
-  stanford_front_garage: exec:bash -c "trap 'kill 0' EXIT TERM INT; /opt/ezvizpoc/bridge_ezviz.sh BF4277866 | /opt/hikpoc/bin/ffmpeg -hide_banner -loglevel error -fflags nobuffer+genpts -flags low_delay -err_detect ignore_err -probesize 500000 -analyzeduration 500000 -f mpeg -i pipe:0 -an -vf scale=640:-2 -r 12 -vsync cfr -c:v libx264 -preset ultrafast -tune zerolatency -profile:v baseline -pix_fmt yuv420p -g 12 -muxdelay 0 -muxpreload 0 -rtsp_transport tcp -f rtsp {output}"
+  stanford_eb5: exec:bash -c "trap 'kill 0' EXIT TERM INT; /opt/hikpoc/venv/bin/python /opt/ezvizpoc/bridge_ezviz_rtp.py BF4277838 2>>/opt/ezvizpoc/out/bridge_stanford_eb5.log | /opt/hikpoc/bin/ffmpeg -hide_banner -loglevel error -fflags nobuffer+genpts -flags low_delay -err_detect ignore_err -probesize 32 -analyzeduration 0 -f hevc -i pipe:0 -an -vf scale=640:-2 -r 12 -vsync cfr -c:v libx264 -preset ultrafast -tune zerolatency -profile:v baseline -pix_fmt yuv420p -g 12 -muxdelay 0 -muxpreload 0 -rtsp_transport tcp -f rtsp {output}"
+  stanford_front_garage: exec:bash -c "trap 'kill 0' EXIT TERM INT; /opt/hikpoc/venv/bin/python /opt/ezvizpoc/bridge_ezviz_rtp.py BF4277866 2>>/opt/ezvizpoc/out/bridge_stanford_front_garage.log | /opt/hikpoc/bin/ffmpeg -hide_banner -loglevel error -fflags nobuffer+genpts -flags low_delay -err_detect ignore_err -probesize 32 -analyzeduration 0 -f hevc -i pipe:0 -an -vf scale=640:-2 -r 12 -vsync cfr -c:v libx264 -preset ultrafast -tune zerolatency -profile:v baseline -pix_fmt yuv420p -g 12 -muxdelay 0 -muxpreload 0 -rtsp_transport tcp -f rtsp {output}"

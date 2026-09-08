@@ -224,8 +224,8 @@
         <div class="card" id="stanford-cams">
             <div class="activity-head"><h2 class="section-title">Cameras</h2><span class="hs-upd" id="stanford-cams-upd"></span></div>
             <div class="cam-grid" hidden>
-                <div class="cam-cell cam-big" data-cam="stanford_front_garage" data-thumb="/stanford/thumbs/stanford_front_garage.jpg"><img class="cam-thumb" alt="" width="640" height="360"><span class="cam-cap">Front Garage</span></div>
-                <div class="cam-cell" data-cam="stanford_eb5" data-thumb="/stanford/thumbs/stanford_eb5.jpg"><img class="cam-thumb" alt="" width="640" height="360"><span class="cam-cap">EB5</span></div>
+                <div class="cam-cell cam-big" data-cam="stanford_front_garage" data-thumb="/stanford/thumbs/stanford_front_garage.jpg"><img class="cam-thumb" alt="" width="640" height="360"><div class="cam-ezviz"><span class="cam-ezviz-mark">EZVIZ</span><span class="cam-spin"></span><span class="cam-ezviz-txt">Connecting live…</span></div><span class="cam-cap">Front Garage</span></div>
+                <div class="cam-cell" data-cam="stanford_eb5" data-thumb="/stanford/thumbs/stanford_eb5.jpg"><img class="cam-thumb" alt="" width="640" height="360"><div class="cam-ezviz"><span class="cam-ezviz-mark">EZVIZ</span><span class="cam-spin"></span><span class="cam-ezviz-txt">Connecting live…</span></div><span class="cam-cap">EB5</span></div>
                 <div class="cam-cell cam-off" data-cam="" hidden><span class="cam-cap">Camera 3</span></div>
             </div>
             <button type="button" class="live-btn" id="stanford-live-btn"><span class="live-btn-main"><svg class="tb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 10l4.553 -2.276a1 1 0 0 1 1.447 .894v6.764a1 1 0 0 1 -1.447 .894l-4.553 -2.276v-4" /> <path d="M3 8a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2l0 -8" /></svg> LIVE</span><span class="live-btn-sub">View cameras live</span></button>
@@ -313,16 +313,22 @@
       #stanford-cams .cam-cell.cam-big{grid-column:1/-1;order:-1}
       #stanford-cams .cam-cell.cam-off{display:none}
       #stanford-cams .tb{width:1em;height:1em;vertical-align:-0.15em;display:inline-block}
-      #stanford-cams video-stream .mode{display:none!important}
+      #stanford-cams video-stream .mode,#stanford-cams video-stream .status,#stanford-cams video-stream .info{display:none!important}
       #stanford-cams .cam-cell{position:relative;aspect-ratio:16/9;background:#000;border-radius:6px;overflow:hidden}
-      #stanford-cams .cam-cell video-stream{width:100%;height:100%;display:block;position:relative;z-index:2}
+      #stanford-cams .cam-cell video-stream{width:100%;height:100%;display:block;position:absolute;inset:0;z-index:2;opacity:0}
+      #stanford-cams .cam-cell.is-live video-stream{opacity:1}
       #stanford-cams .cam-thumb{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;background:#111}
       #stanford-cams .cam-cell.is-live .cam-thumb{display:none}
+      #stanford-cams .cam-ezviz{position:absolute;inset:0;z-index:4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:rgba(0,0,0,.45);color:#fff;pointer-events:none}
+      #stanford-cams .cam-cell.is-live .cam-ezviz{display:none}
+      #stanford-cams .cam-ezviz-mark{font:800 16px Arial,Helvetica,sans-serif;letter-spacing:.14em;color:#ff6a00;background:rgba(0,0,0,.55);border-radius:4px;padding:3px 10px}
+      #stanford-cams .cam-ezviz-txt{font:600 12px Arial,Helvetica,sans-serif}
+      #stanford-cams .cam-cell.is-live .cam-live-pill{position:absolute;right:6px;top:6px;z-index:5;font:800 10px Arial,Helvetica,sans-serif;letter-spacing:.08em;color:#fff;background:#dc2626;border-radius:4px;padding:2px 6px}
+      #stanford-cams .cam-cell:not(.is-live) .cam-live-pill{display:none}
       #stanford-cams video{background:#000}
       #stanford-cams video::-webkit-media-controls,#stanford-cams video::-webkit-media-controls-enclosure{display:none !important}
-      #stanford-cams .cam-cap{position:absolute;left:6px;top:6px;z-index:3;font:700 11px Arial,Helvetica,sans-serif;color:#fff;background:rgba(0,0,0,.7);border-radius:4px;padding:2px 6px}
-      #stanford-cams .cam-msg{position:absolute;left:6px;bottom:6px;right:auto;top:auto;inset:auto;z-index:3;display:flex;align-items:center;justify-content:center;font:600 11px Arial,Helvetica,sans-serif;color:#fff;background:rgba(0,0,0,.55);border-radius:4px;padding:4px 8px}
-      #stanford-cams .cam-spin{width:18px;height:18px;flex:0 0 18px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:stcamspin .8s linear infinite;margin-right:8px}
+      #stanford-cams .cam-cap{position:absolute;left:6px;top:6px;z-index:5;font:700 11px Arial,Helvetica,sans-serif;color:#fff;background:rgba(0,0,0,.7);border-radius:4px;padding:2px 6px}
+      #stanford-cams .cam-spin{width:18px;height:18px;flex:0 0 18px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:stcamspin .8s linear infinite}
       @keyframes stcamspin{to{transform:rotate(360deg)}}
       #stanford-cams .live-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;min-height:48px;margin:8px 0 0;padding:6px 12px;border:0;border-radius:8px;background:#1d6fe0;color:#fff;font:700 15px Arial,Helvetica,sans-serif;cursor:pointer;line-height:1.2}
       #stanford-cams .live-btn .live-btn-sub{font:500 11px Arial,Helvetica,sans-serif;opacity:.9}
@@ -336,39 +342,98 @@
         var box = document.getElementById("stanford-cams"); if (!box) return;
         var grid = box.querySelector(".cam-grid"), btn = document.getElementById("stanford-live-btn"), upd = document.getElementById("stanford-cams-upd");
         try { await import(CAM + "video-stream.js"); } catch (e) { console.warn("cams load failed", e); upd.textContent = "stream module unavailable"; return; }
-        var HIDE_MS = 60000, SAFETY_MS = 300000, hideT = null, safeT = null, shown = false, startedAt = 0;
-        function load() {
-          grid.querySelectorAll(".cam-cell").forEach(function (cell) {
+        var HIDE_MS = 60000, SAFETY_MS = 300000, hideT = null, safeT = null, shown = false, startedAt = 0, liveCount = 0, camInView = true, idleAt = 0;
+        function vidOf(el) {
+          return (el && el.video) || (el && el.querySelector && el.querySelector("video")) || null;
+        }
+        function markLive(cell, el) {
+          if (cell.classList.contains("is-live")) return;
+          var v = vidOf(el);
+          cell.classList.add("is-live");
+          if (!cell.querySelector(".cam-live-pill")) {
+            var pill = document.createElement("span"); pill.className = "cam-live-pill"; pill.textContent = "LIVE"; cell.appendChild(pill);
+          }
+          liveCount += 1;
+          var ms = ((Date.now() - startedAt) / 1000).toFixed(1);
+          upd.textContent = "live · " + (v && v.videoWidth ? v.videoWidth + "\u00d7" + v.videoHeight : "EZVIZ") + " · first frame " + ms + " s";
+          if (liveCount === 1) {
+            btn.querySelector(".live-btn-sub").textContent = "Live · stays while you use the page · idle 1 min hides";
+            armIdle();
+          }
+        }
+        function loadOne(cell) {
             var src = cell.getAttribute("data-cam");
             if (!src || cell.classList.contains("cam-off") || cell.querySelector("video-stream")) return;
             var thumb = cell.querySelector(".cam-thumb");
             var thumbSrc = cell.getAttribute("data-thumb");
             if (thumb && thumbSrc) { thumb.src = thumbSrc + "?t=" + Date.now(); thumb.hidden = false; }
-            var msg = document.createElement("div"); msg.className = "cam-msg";
-            msg.innerHTML = '<span class="cam-spin"></span>live…';
-            cell.appendChild(msg);
-            var el = document.createElement("video-stream"); el.mode = "webrtc,mse"; el.background = false;
+            var ov = cell.querySelector(".cam-ezviz");
+            if (!ov) {
+              ov = document.createElement("div"); ov.className = "cam-ezviz";
+              ov.innerHTML = '<span class="cam-ezviz-mark">EZVIZ</span><span class="cam-spin"></span><span class="cam-ezviz-txt">Connecting live\u2026</span>';
+              cell.appendChild(ov);
+            } else {
+              var t = ov.querySelector(".cam-ezviz-txt"); if (t) t.textContent = "Connecting live\u2026";
+            }
+            var el = document.createElement("video-stream");
+            el.mode = "mse,mjpeg"; el.background = false;
             el.src = new URL("api/ws?src=" + src, CAM);
             cell.appendChild(el);
             var tries = 0, iv = setInterval(function () {
-              var v = el.video || el.querySelector("video");
-              if (v && v.videoWidth > 0 && v.currentTime > 0.2) {
-                clearInterval(iv); cell.classList.add("is-live"); msg.remove();
-                upd.textContent = "live · " + v.videoWidth + "×" + v.videoHeight + " · first frame " + ((Date.now() - startedAt) / 1000).toFixed(1) + " s";
-              } else if (++tries > 900 || !el.isConnected) {
-                clearInterval(iv); if (msg.parentNode) msg.remove();
+              var v = vidOf(el);
+              if (v && !v.muted) v.muted = true;
+              if (v && v.videoWidth > 0 && (v.currentTime > 0 || !v.paused)) {
+                clearInterval(iv); markLive(cell, el);
+              } else if (!el.isConnected) {
+                clearInterval(iv);
+              } else if (++tries === 200) {
+                var txt = ov.querySelector(".cam-ezviz-txt");
+                if (txt) txt.textContent = "EZVIZ live still connecting\u2026";
+              } else if (tries > 1200) {
+                clearInterval(iv);
+                var fail = ov.querySelector(".cam-ezviz-txt");
+                if (fail) fail.textContent = "EZVIZ live did not start \u2014 tap LIVE to retry";
               }
             }, 50);
-          });
+        }
+        function load() {
+          liveCount = 0;
+          var cells = Array.prototype.slice.call(grid.querySelectorAll(".cam-cell"));
+          var hero = cells.filter(function (c) { return c.classList.contains("cam-big") && c.getAttribute("data-cam"); });
+          var rest = cells.filter(function (c) { return !c.classList.contains("cam-big") && c.getAttribute("data-cam") && !c.classList.contains("cam-off"); });
+          hero.forEach(loadOne);
+          // Second cam after hero is live, or 2s — do not open both 4K EZVIZ dumps at once.
+          var startedRest = false;
+          function startRest() {
+            if (startedRest) return;
+            startedRest = true;
+            rest.forEach(loadOne);
+          }
+          var restT = setTimeout(startRest, 2000);
+          var wait = setInterval(function () {
+            if (liveCount > 0) { clearInterval(wait); clearTimeout(restT); startRest(); }
+            else if (!shown) { clearInterval(wait); clearTimeout(restT); }
+          }, 200);
         }
         function unload() {
           grid.querySelectorAll(".cam-cell").forEach(function (cell) { cell.classList.remove("is-live"); });
-          grid.querySelectorAll(".cam-cell video-stream, .cam-cell .cam-msg").forEach(function (el) { el.remove(); });
+          grid.querySelectorAll(".cam-cell video-stream, .cam-cell .cam-ezviz, .cam-cell .cam-live-pill").forEach(function (el) { el.remove(); });
+        }
+        function armIdle() {
+          if (!shown) return;
+          if (hideT) clearTimeout(hideT);
+          hideT = setTimeout(function () { if (shown) hide(); }, HIDE_MS);
+        }
+        function bumpIdle() {
+          if (!shown) return;
+          var now = Date.now();
+          if (now - idleAt < 250) return;
+          idleAt = now;
+          if (camInView && liveCount > 0) armIdle();
         }
         function show() {
-          startedAt = Date.now(); shown = true; grid.hidden = false; box.classList.add("live-mode");
-          btn.querySelector(".live-btn-sub").textContent = "Live · hides after 1 min · tap to stop"; load();
-          if (hideT) clearTimeout(hideT); hideT = setTimeout(hide, HIDE_MS);
+          startedAt = Date.now(); shown = true; camInView = true; grid.hidden = false; box.classList.add("live-mode");
+          btn.querySelector(".live-btn-sub").textContent = "Connecting EZVIZ\u2026 tap to stop"; load();
           if (safeT) clearTimeout(safeT); safeT = setTimeout(hide, SAFETY_MS);
         }
         function hide() {
@@ -383,7 +448,18 @@
           var big = cell.classList.contains("cam-big");
           box.querySelectorAll(".cam-cell.cam-big").forEach(function (c) { c.classList.remove("cam-big"); });
           if (!big) cell.classList.add("cam-big");
+          bumpIdle();
         });
+        ["mousemove","mousedown","pointerdown","touchstart","touchmove","wheel","scroll","keydown"].forEach(function (ev) {
+          document.addEventListener(ev, bumpIdle, { passive: true });
+        });
+        if ("IntersectionObserver" in window) {
+          new IntersectionObserver(function (ents) {
+            camInView = !!(ents[0] && ents[0].isIntersecting);
+            if (shown && !camInView) hide();
+            else if (shown && camInView && liveCount > 0) armIdle();
+          }, { threshold: 0.2 }).observe(box);
+        }
         document.addEventListener("visibilitychange", function () { if (document.hidden && shown) hide(); });
       })();
     </script>

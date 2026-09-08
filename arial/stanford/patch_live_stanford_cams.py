@@ -41,13 +41,17 @@ def patch_yaml() -> None:
     if not y2.endswith("\n"):
         y2 += "\n"
     YAML.write_text(y2 + extra + "\n", encoding="utf-8")
-    print("wrote stanford streams (Bing EZVIZ exec) to go2rtc.yaml")
+        print("wrote stanford streams (RTP HEVC + Bing 640p ffmpeg) to go2rtc.yaml")
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--all", action="store_true", help="also write HTML/bridges (dangerous; default is yaml only)")
     args = ap.parse_args()
+    if BRIDGE_SRC.is_file():
+        BRIDGE_DST.write_text(BRIDGE_SRC.read_text(encoding="utf-8"), encoding="utf-8")
+        BRIDGE_DST.chmod(0o755)
+        print("wrote", BRIDGE_DST)
     if LIVE_SRC.is_file():
         LIVE_DST.write_text(LIVE_SRC.read_text(encoding="utf-8"), encoding="utf-8")
         LIVE_DST.chmod(0o755)
