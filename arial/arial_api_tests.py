@@ -1253,6 +1253,47 @@ def test_pgm_pulse_wrong_output_blocked(monkeypatch):
     assert r.status_code == 403
 
 
+def test_home_sensors_cbi_transport_not_sharing(monkeypatch):
+    monkeypatch.setattr(arial_api, "TUYA_TRANSPORT", "cbi")
+    monkeypatch.setattr(arial_api, "TUYA_SHARING", False)
+    monkeypatch.setattr(arial_api, "HOME_TRANSPORT", True)
+    monkeypatch.setattr(arial_api, "CBI_HOME_ID", "")
+
+    def fake_home(path, timeout=8.0):
+        assert path.startswith("/home?home=")
+        return {"ok": True, "source": "cbi", "at": 1, "devices": []}
+
+    monkeypatch.setattr(arial_api, "_home_api_get", fake_home)
+    monkeypatch.setattr(arial_api, "get_tuya_icon", lambda *_a, **_k: "/assets/tuya/fallback/device.svg")
+    app = FastAPI()
+    app.include_router(arial_api.router)
+    client = TestClient(app)
+    r = client.get("/api/arial/home/sensors")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is True
+    assert body["source"] == "cbi"
+    assert body["devices"] == []
+
+
+def test_home_sensors_cloud_transport_rejected(monkeypatch):
+    monkeypatch.setattr(arial_api, "HOME_TRANSPORT", False)
+    app = FastAPI()
+    app.include_router(arial_api.router)
+    client = TestClient(app)
+    r = client.get("/api/arial/home/sensors")
+    assert r.status_code == 503
+
+
+def test_bing_page_enables_home_card_not_smartlife():
+    html = (Path(__file__).resolve().parents[1] / "bing" / "index.html").read_text(encoding="utf-8")
+    assert "homeCard: true" in html
+    assert "tuya: false" in html
+    assert "home-card.js" in html
+    assert 'id="home-sensors"' in html
+    assert "homeCardTitle: \"CBI Home\"" in html
+
+
 if __name__ == "__main__":
     test_enrich_device_areas_and_named_zones()
     print("enrich ok")

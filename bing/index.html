@@ -252,7 +252,7 @@
         saStamp();
     })();
     </script>
-    <script>window.ARIAL_CONFIG = { apiBase: "/api/bing", siteId: "bing", siteLabel: "BING", keypadUsers: ["Kevin","Annette"], tuya: false, homeCard: false, pgm: { label: "Garage", num: 1, cmd: "pgm-pulse", name: "Garage" }, exitDelay: 30, };</script>
+    <script>window.ARIAL_CONFIG = { apiBase: "/api/bing", siteId: "bing", siteLabel: "BING", keypadUsers: ["Kevin","Annette"], tuya: false, homeCard: true, homeCardTitle: "CBI Home", pgm: { label: "Garage", num: 1, cmd: "pgm-pulse", name: "Garage" }, exitDelay: 30, };</script>
     <style>
       /* Garage key is a 1s PGM pulse (RF-remote style). No open/close/half-open state. */
       #voelklip-cams .cam-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
@@ -355,7 +355,7 @@
         document.addEventListener("visibilitychange", function () { if (document.hidden && shown) hide(); });
       })();
     </script>
-    <link rel="stylesheet" href="/arial/home-card.css?v=hc1">
-    <script src="/arial/home-card.js?v=hc2"></script>
+    <link rel="stylesheet" href="/arial/home-card.css?v=hc3">
+    <script src="/arial/home-card.js?v=hc3"></script>
 </body>
 </html>

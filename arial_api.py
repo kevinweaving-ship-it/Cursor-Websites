@@ -13,6 +13,7 @@ import json
 import os
 import re
 import secrets
+import sqlite3
 import threading
 import time
 import uuid
@@ -25,6 +26,9 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
 OLARM_BASE = "https://api.olarm.com"
+# Olarm's deviceApiAccessOnly filter 404s for shared devices whose owner has not enabled API access (Klein River House);
+# ARIAL_OLARM_API_ONLY=0 drops the filter for that site so panel/activity still work from the plain endpoints.
+_OLARM_DEV_PARAMS = {"deviceApiAccessOnly": "1"} if (os.getenv("ARIAL_OLARM_API_ONLY") or "1").strip() != "0" else {}
 ALLOWED_ACTIONS = {
     "area-disarm",
     "area-arm",
@@ -90,7 +94,8 @@ SITE_ID = (os.getenv("ARIAL_SITE_ID") or "hansekop").strip()
 SITE_LABEL = (os.getenv("ARIAL_SITE_LABEL") or "HANSEKOP").strip()
 SITE_TUYA = (os.getenv("ARIAL_TUYA_ENABLED") or "1").strip().lower() not in {"0", "false", "no"}
 SITE_AREA_LABEL = (os.getenv("ARIAL_AREA_LABEL") or "Facility Building").strip()
-PGM_ALLOW = {int(x) for x in (os.getenv("ARIAL_PGM_ALLOW") or "").split(",") if x.strip().isdigit()}  # PGM outputs the keypad may pulse (e.g. garage door), per site
+SITE_AREA_LABELS = [x.strip() for x in (os.getenv("ARIAL_AREA_LABELS") or "").split(",")]
+PGM_ALLOW = {int(x) for x in (os.getenv("ARIAL_PGM_ALLOW") or "").split(",") if x.strip().isdigit()}   # PGM outputs the keypad may pulse (e.g. garage door), per site   # optional per-area display names overriding the Olarm labels (e.g. "House,Flat")
 KEYPAD_CODES = {
     "7302": {"name": "Marc", "from": "Pingoa"},
     "7102": {"name": "Amoroc", "from": "Amoroc"},
@@ -99,7 +104,17 @@ KEYPAD_CODES = {
     "6114": {"name": "Kevin", "from": "Kevin"},
     "2525": {"name": "Bugsy", "from": "Bugsy"},
     "1111": {"name": "Tim", "from": "Tim"},
+    "0843": {"name": "Annette", "from": "Annette"},
 }
+_KEYPAD_USERS = {x.strip().lower() for x in (os.getenv("ARIAL_KEYPAD_USERS") or "").split(",") if x.strip()}
+if _KEYPAD_USERS:   # site-restricted keypad: only these people's existing PINs work here
+    KEYPAD_CODES = {k: v for k, v in KEYPAD_CODES.items() if str(v.get("name", "")).lower() in _KEYPAD_USERS or str(v.get("from", "")).lower() in _KEYPAD_USERS}
+_KEYPAD_USERS = {x.strip().lower() for x in (os.getenv("ARIAL_KEYPAD_USERS") or "").split(",") if x.strip()}
+if _KEYPAD_USERS:   # site-restricted keypad: only these people's existing PINs work here
+    KEYPAD_CODES = {k: v for k, v in KEYPAD_CODES.items() if str(v.get("name", "")).lower() in _KEYPAD_USERS or str(v.get("from", "")).lower() in _KEYPAD_USERS}
+_KEYPAD_USERS = {x.strip().lower() for x in (os.getenv("ARIAL_KEYPAD_USERS") or "").split(",") if x.strip()}
+if _KEYPAD_USERS:   # site-restricted keypad: only these people's existing PINs work here
+    KEYPAD_CODES = {k: v for k, v in KEYPAD_CODES.items() if str(v.get("name", "")).lower() in _KEYPAD_USERS or str(v.get("from", "")).lower() in _KEYPAD_USERS}
 KEYPAD_ACTORS = {str(v["from"]) for v in KEYPAD_CODES.values()}
 
 # Tuya OpenAPI — TUYS keypad UI stays paused until tuya_probe() returns ok.
@@ -111,6 +126,17 @@ TUYA_ENDPOINTS = {
     "in": "https://openapi.tuyain.com",
 }
 TUYA_MAINS_METER_ID = "bf90676b1341ecb34dse39"
+# Transport for the Hansekop Tuya devices. "sharing" = the Smart Life device-sharing worker (tuya-sharing.service,
+# /opt/tuya-sharing) pushes meter readings to /api/arial/meter/ingest and executes light commands; this process
+# then makes NO IoT Core / OpenAPI calls. Any other value keeps the legacy Cloud path unchanged.
+TUYA_TRANSPORT = (os.getenv("ARIAL_TUYA_TRANSPORT") or "cloud").strip().lower()
+TUYA_SHARING = TUYA_TRANSPORT == "sharing"
+# Home card / device list / switch forwarder. Smart Life = "sharing" (:8007/:8008).
+# CBI Home = "cbi" (:8010/:8011). Do not merge the two collectors; a site only subscribes.
+HOME_TRANSPORT = TUYA_TRANSPORT in {"sharing", "cbi"}
+SHARING_CTRL_URL = (os.getenv("ARIAL_SHARING_CTRL_URL") or "http://127.0.0.1:8007").rstrip("/")
+SHARING_CTRL_TOKEN = (os.getenv("ARIAL_SHARING_CTRL_TOKEN") or "").strip()
+CBI_HOME_ID = (os.getenv("ARIAL_CBI_HOME_ID") or "").strip()
 TUYA_CODE_TOKEN_INVALID = 1010
 TUYA_CODE_SIGN_INVALID = 1004
 TUYA_CODE_PERMISSION = 1106
@@ -201,6 +227,8 @@ def _tuya_creds() -> dict[str, str]:
 
 
 def tuya_configured() -> bool:
+    if TUYA_SHARING:
+        return True
     creds = _tuya_creds()
     return bool(creds["client_id"] and creds["secret"])
 
@@ -460,6 +488,459 @@ def _tuya_hint(code: Any, msg: str, *, token_ok: bool, device_ok: bool) -> str:
     return msg or "Tuya device status failed."
 
 
+# ---------------------------------------------------------------------------
+# LAN meter ingest. A site-side collector (tinytuya, read-only) pushes normalized readings of the HSK Mains
+# Meter here. While a push is fresh, /tuya/probe and /tuya/energy answer from it and Tuya Cloud is not polled;
+# when it goes stale the existing Cloud path runs unchanged. Nothing is synthesised: only pushed samples are
+# integrated into the hourly bins (same trapezoid + max-gap rule as the Cloud sampler).
+# ---------------------------------------------------------------------------
+METER_INGEST_TOKEN_ENV = "ARIAL_METER_INGEST_TOKEN"
+METER_FRESH_S = float(os.getenv("ARIAL_METER_FRESH_S") or 60.0)
+METER_MAX_SKEW_S = 300.0
+METER_MAX_BODY = 64 * 1024
+METER_MAX_HISTORY = 720
+METER_HISTORY_MAX_AGE_S = 7 * 86400
+_meter_lock = threading.Lock()
+_meter_latest: dict[str, Any] | None = None
+_meter_latest_mtime = 0.0
+
+
+def _meter_latest_path() -> Path:
+    env = (os.getenv("ARIAL_METER_LATEST_PATH") or "").strip()
+    if env:
+        return Path(env)
+    return Path("/var/www/sailingsa/data") / "arial_meter_latest.json"
+
+
+def _meter_load() -> dict[str, Any] | None:
+    """Latest pushed reading, re-read when the file changes so every worker/process sees the same push."""
+    global _meter_latest, _meter_latest_mtime
+    path = _meter_latest_path()
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        return _meter_latest
+    if mtime != _meter_latest_mtime:
+        try:
+            data = json.loads(path.read_text())
+            _meter_latest = data if isinstance(data, dict) else None
+            _meter_latest_mtime = mtime
+        except Exception:
+            pass
+    return _meter_latest
+
+
+def _meter_fresh(now: float) -> dict[str, Any] | None:
+    with _meter_lock:
+        latest = _meter_load()
+    if not latest or str(latest.get("device") or "") != TUYA_MAINS_METER_ID:
+        return None
+    try:
+        received = float(latest.get("receivedAt") or 0)
+    except (TypeError, ValueError):
+        return None
+    if not received or now - received > METER_FRESH_S:
+        return None
+    return latest
+
+
+def _meter_ts(raw: Any, now: float) -> float:
+    if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+        raise ValueError("ts must be a number")
+    ts = float(raw)
+    if ts > 1e11:  # milliseconds
+        ts /= 1000.0
+    if not (0 < ts < now + 10 * 365 * 86400):
+        raise ValueError("ts out of range")
+    return ts
+
+
+def _meter_num(raw: Any, lo: float, hi: float, name: str) -> float | None:
+    if raw is None:
+        return None
+    if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+        raise ValueError(f"{name} must be a number or null")
+    n = float(raw)
+    if n != n or n in (float("inf"), float("-inf")) or not (lo <= n <= hi):
+        raise ValueError(f"{name} out of range")
+    return n
+
+
+def _meter_point(obj: Any, now: float) -> dict[str, Any]:
+    if not isinstance(obj, dict):
+        raise ValueError("point must be an object")
+    pt = {
+        "ts": _meter_ts(obj.get("ts"), now),
+        "v": _meter_num(obj.get("v"), 0, 500, "v"),
+        "a": _meter_num(obj.get("a"), 0, 500, "a"),
+        "w": _meter_num(obj.get("w"), 0, 200000, "w"),
+        "kwh": _meter_num(obj.get("kwh"), 0, 1e8, "kwh"),
+    }
+    if obj.get("meterKwh") is not None:
+        pt["meterKwh"] = _meter_num(obj.get("meterKwh"), 0, 1e8, "meterKwh")
+    if obj.get("hz") is not None:
+        pt["hz"] = _meter_num(obj.get("hz"), 0, 100, "hz")
+    if obj.get("pf") is not None:
+        pt["pf"] = _meter_num(obj.get("pf"), 0, 1, "pf")
+    if obj.get("tempC") is not None:
+        pt["tempC"] = _meter_num(obj.get("tempC"), -50, 150, "tempC")
+    if "online" in obj:
+        if not isinstance(obj["online"], bool):
+            raise ValueError("online must be true/false")
+        pt["online"] = obj["online"]
+    if "switch" in obj and obj["switch"] is not None:
+        if not isinstance(obj["switch"], bool):
+            raise ValueError("switch must be true/false")
+        pt["switch"] = obj["switch"]
+    return pt
+
+
+def _meter_status_rows(latest: dict[str, Any]) -> list[dict[str, Any]]:
+    """Present the pushed reading in the same shape/scales as the Cloud status rows the card already reads."""
+    rows: list[dict[str, Any]] = []
+    if latest.get("v") is not None:
+        rows.append({"code": "cur_voltage", "value": int(round(float(latest["v"]) * 100))})
+    if latest.get("a") is not None:
+        rows.append({"code": "cur_current", "value": int(round(float(latest["a"]) * 1000))})
+    if latest.get("w") is not None:
+        rows.append({"code": "cur_power", "value": int(round(float(latest["w"]) * 100))})
+    if latest.get("kwh") is not None:
+        rows.append({"code": "add_ele", "value": int(round(float(latest["kwh"]) * 100))})
+    if isinstance(latest.get("switch"), bool):
+        rows.append({"code": "switch", "value": latest["switch"]})
+    for src, code in (("hz", "meter_hz"), ("pf", "meter_pf"), ("tempC", "meter_temp_c")):
+        if latest.get(src) is not None:
+            rows.append({"code": code, "value": float(latest[src])})
+    if latest.get("meterKwh") is not None:
+        # Not Tuya spec codes: the meter's own lifetime register (dp102, kWh) plus server-side references.
+        lifetime = float(latest["meterKwh"])
+        refs = _meter_refs_load()
+        # The device register (dp102) restarts from 0 on power-up, so it is NOT a since-installed total. Only publish
+        # "meter_kwh" (since installed) once a base has been set from a trusted total; the raw register is always available.
+        rows.append({"code": "meter_register_kwh", "value": lifetime})
+        base = refs.get("meterOffsetKwh")
+        if isinstance(base, (int, float)):
+            rows.append({"code": "meter_kwh", "value": round(lifetime + float(base), 3)})
+        anchor = refs.get("meterKwhAtRestore")
+        if isinstance(anchor, (int, float)):
+            rows.append({"code": "meter_since_restore_kwh", "value": round(max(0.0, lifetime - float(anchor)), 3)})
+        offset = refs.get("eskomOffsetKwh")
+        if isinstance(offset, (int, float)):
+            rows.append({"code": "eskom_kwh", "value": round(lifetime + float(offset), 1)})
+    return rows
+
+
+_METER_REFS_PATH = Path("/var/www/sailingsa/data/arial_meter_refs.json")
+_meter_refs_cache: dict[str, Any] = {"mtime": None, "data": {}}
+
+
+def _meter_refs_load() -> dict[str, Any]:
+    """meterKwhAtRestore: lifetime register value when mains was last restored (since-restore = lifetime - anchor).
+    eskomOffsetKwh: Eskom reading minus lifetime register at sync time (Eskom calc = lifetime + offset)."""
+    try:
+        mtime = _METER_REFS_PATH.stat().st_mtime
+    except OSError:
+        return {}
+    if mtime != _meter_refs_cache["mtime"]:
+        try:
+            data = json.loads(_METER_REFS_PATH.read_text())
+            _meter_refs_cache.update({"mtime": mtime, "data": data if isinstance(data, dict) else {}})
+        except (OSError, ValueError):
+            return dict(_meter_refs_cache["data"])
+    return dict(_meter_refs_cache["data"])
+
+
+def _meter_refs_write(update: dict[str, Any]) -> dict[str, Any]:
+    data = _meter_refs_load()
+    data.update(update)
+    tmp = _METER_REFS_PATH.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, indent=1))
+    os.replace(tmp, _METER_REFS_PATH)
+    return data
+
+
+_METER_HISTORY_DB = Path((os.getenv("ARIAL_METER_HISTORY_DB") or "").strip() or "/var/www/sailingsa/data/arial_meter_history.sqlite")
+METER_HISTORY_DAYS = int(os.getenv("ARIAL_METER_HISTORY_DAYS") or 30)
+_meter_db_lock = threading.Lock()
+_meter_db_writes = 0
+_meter_sampler_state_path = Path((os.getenv("ARIAL_METER_SAMPLER_STATE") or "").strip() or "/var/www/sailingsa/data/arial_meter_sampler.json")
+
+
+def _meter_normalize_status(status: list[Any]) -> dict[str, Any]:
+    """Cloud status rows -> V / A / W / kWh / switch using the GR2PWS DP spec scales (same as the card uses).
+    Codes that are absent stay None; nothing is derived."""
+    out: dict[str, Any] = {"v": None, "a": None, "w": None, "kwh": None, "switch": None, "kwhCode": None}
+    vals: dict[str, Any] = {}
+    for row in status or []:
+        if isinstance(row, dict) and row.get("code"):
+            vals[str(row["code"])] = row.get("value")
+
+    def num(code: str, scale: float) -> float | None:
+        raw = vals.get(code)
+        if raw is None or isinstance(raw, bool):
+            return None
+        try:
+            return float(raw) / scale
+        except (TypeError, ValueError):
+            return None
+
+    out["v"] = num("cur_voltage", 100.0)
+    out["a"] = num("cur_current", 1000.0)
+    out["w"] = num("cur_power", 100.0)
+    for code in ("total_forward_energy", "forward_energy_total", "add_ele"):
+        k = num(code, 100.0)
+        if k is not None:
+            out["kwh"] = k
+            out["kwhCode"] = code
+            break
+    for code in ("switch", "switch_1"):
+        if isinstance(vals.get(code), bool):
+            out["switch"] = vals[code]
+            break
+    return out
+
+
+def _meter_latest_write(latest: dict[str, Any]) -> None:
+    global _meter_latest, _meter_latest_mtime
+    path = _meter_latest_path()
+    with _meter_lock:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(latest, separators=(",", ":")))
+        tmp.replace(path)
+        _meter_latest = latest
+        try:
+            _meter_latest_mtime = path.stat().st_mtime
+        except OSError:
+            pass
+
+
+def _meter_db() -> sqlite3.Connection:
+    _METER_HISTORY_DB.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(_METER_HISTORY_DB), timeout=5)
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS readings (ts REAL PRIMARY KEY, device TEXT NOT NULL, online INTEGER NOT NULL, "
+        "v REAL, a REAL, w REAL, kwh REAL, switch INTEGER, src TEXT)"
+    )
+    conn.execute("CREATE INDEX IF NOT EXISTS readings_device_ts ON readings(device, ts)")
+    return conn
+
+
+def _meter_history_write(device: str, ts: float, online: bool, r: dict[str, Any], src: str) -> None:
+    """Persist one real reading (or an offline mark). Prunes rows older than METER_HISTORY_DAYS periodically."""
+    global _meter_db_writes
+    sw = r.get("switch")
+    with _meter_db_lock:
+        try:
+            conn = _meter_db()
+            with conn:
+                conn.execute(
+                    "INSERT OR REPLACE INTO readings (ts, device, online, v, a, w, kwh, switch, src) VALUES (?,?,?,?,?,?,?,?,?)",
+                    (round(float(ts), 3), device, 1 if online else 0, r.get("v"), r.get("a"), r.get("w"), r.get("kwh"),
+                     None if sw is None else (1 if sw else 0), src),
+                )
+                _meter_db_writes += 1
+                if _meter_db_writes % 200 == 1:
+                    conn.execute("DELETE FROM readings WHERE ts < ?", (time.time() - METER_HISTORY_DAYS * 86400,))
+            conn.close()
+        except sqlite3.Error:
+            pass
+
+
+def _meter_history_rows(device: str, since: float, until: float, limit: int) -> list[dict[str, Any]]:
+    with _meter_db_lock:
+        try:
+            conn = _meter_db()
+            cur = conn.execute(
+                "SELECT ts, online, v, a, w, kwh, switch, src FROM readings WHERE device=? AND ts>=? AND ts<=? ORDER BY ts DESC LIMIT ?",
+                (device, since, until, limit),
+            )
+            rows = cur.fetchall()
+            conn.close()
+        except sqlite3.Error:
+            return []
+    out = []
+    for ts, online, v, a, w, kwh, sw, src in reversed(rows):
+        out.append({"ts": ts, "online": bool(online), "v": v, "a": a, "w": w, "kwh": kwh,
+                    "switch": None if sw is None else bool(sw), "src": src})
+    return out
+
+
+def _meter_sampler_note(info: dict[str, Any]) -> None:
+    try:
+        _meter_sampler_state_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = _meter_sampler_state_path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(dict(info, pid=os.getpid(), at=time.time()), separators=(",", ":")))
+        tmp.replace(_meter_sampler_state_path)
+    except OSError:
+        pass
+
+
+def _meter_sampler_state() -> dict[str, Any] | None:
+    try:
+        data = json.loads(_meter_sampler_state_path.read_text())
+        return data if isinstance(data, dict) else None
+    except Exception:
+        return None
+
+
+def _meter_apply(device: str, reading: dict[str, Any], history: list[dict[str, Any]]) -> int:
+    """Feed pushed samples through the existing bin/recent/outage logic. Returns samples integrated."""
+    points = sorted(history + [reading], key=lambda x: x["ts"])
+    used = 0
+    for pt in points:
+        if pt.get("online") is False or pt.get("w") is None:
+            continue
+        rows = [{"code": "cur_power", "value": int(round(pt["w"] * 100))}]
+        _energy_record_sample(device, rows, pt["ts"])
+        used += 1
+    if reading.get("w") is not None and reading.get("online", True):
+        _energy_note_recent(device, [{"code": "cur_power", "value": int(round(reading["w"] * 100))}], reading["ts"])
+    online = reading.get("online")
+    if isinstance(online, bool):
+        _power_mark(online=online, now=reading["ts"])
+        if not online:
+            with _energy_lock:
+                _energy_last.pop(device, None)
+    return used
+
+
+@router.post("/api/arial/meter/ingest")
+async def arial_meter_ingest(request: Request):
+    token = (os.getenv(METER_INGEST_TOKEN_ENV) or "").strip()
+    if not token:
+        return JSONResponse({"ok": False, "error": "ingest disabled"}, status_code=503)
+    auth = request.headers.get("authorization") or ""
+    if not auth.startswith("Bearer ") or not hmac.compare_digest(auth[7:].strip(), token):
+        return JSONResponse({"ok": False, "error": "unauthorized"}, status_code=401)
+    try:
+        declared = int(request.headers.get("content-length") or 0)
+    except ValueError:
+        declared = 0
+    if declared > METER_MAX_BODY:
+        return JSONResponse({"ok": False, "error": "body too large"}, status_code=413)
+    body = await request.body()
+    if len(body) > METER_MAX_BODY:
+        return JSONResponse({"ok": False, "error": "body too large"}, status_code=413)
+    try:
+        payload = json.loads(body.decode("utf-8"))
+    except Exception:
+        return JSONResponse({"ok": False, "error": "invalid json"}, status_code=400)
+    if not isinstance(payload, dict):
+        return JSONResponse({"ok": False, "error": "object expected"}, status_code=400)
+    device = str(payload.get("device") or "")
+    if device != TUYA_MAINS_METER_ID:
+        return JSONResponse({"ok": False, "error": "device not allowed"}, status_code=403)
+    now = time.time()
+    try:
+        reading = _meter_point(payload, now)
+        if not isinstance(payload.get("online"), bool):
+            raise ValueError("online must be true/false")
+        if abs(now - reading["ts"]) > METER_MAX_SKEW_S:
+            raise ValueError("ts skew > 5 minutes")
+        if reading["online"] and all(reading.get(k) is None for k in ("v", "a", "w", "kwh")):
+            raise ValueError("no readings")
+        src = str(payload.get("src") or "lan")[:16]
+        history: list[dict[str, Any]] = []
+        raw_hist = payload.get("history")
+        if raw_hist is not None:
+            if not isinstance(raw_hist, list) or len(raw_hist) > METER_MAX_HISTORY:
+                raise ValueError(f"history must be a list of at most {METER_MAX_HISTORY} points")
+            for item in raw_hist:
+                pt = _meter_point(item, now)
+                if pt["ts"] > now + METER_MAX_SKEW_S or pt["ts"] < now - METER_HISTORY_MAX_AGE_S:
+                    raise ValueError("history ts out of window")
+                history.append(pt)
+    except ValueError as exc:
+        return JSONResponse({"ok": False, "error": str(exc)}, status_code=400)
+    used = _meter_apply(device, reading, history)
+    latest = {
+        "device": device,
+        "ts": reading["ts"],
+        "receivedAt": now,
+        "online": reading["online"],
+        "v": reading["v"],
+        "a": reading["a"],
+        "w": reading["w"],
+        "kwh": reading["kwh"],
+        "src": src,
+        "historyPoints": len(history),
+    }
+    if "switch" in reading:
+        latest["switch"] = reading["switch"]
+    if reading.get("meterKwh") is not None:
+        latest["meterKwh"] = reading["meterKwh"]
+    for k in ("hz", "pf", "tempC"):
+        if reading.get(k) is not None:
+            latest[k] = reading[k]
+    try:
+        _meter_latest_write(latest)
+    except OSError as exc:
+        return JSONResponse({"ok": False, "error": f"store failed: {exc}"}, status_code=500)
+    for pt in history:
+        _meter_history_write(device, pt["ts"], pt.get("online", True), pt, src)
+    _meter_history_write(device, reading["ts"], reading["online"], reading, src)
+    return {"ok": True, "serverTime": now, "stored": True, "historyPoints": len(history), "samplesIntegrated": used}
+
+
+_probe_cache: dict[str, Any] = {"at": 0.0, "device": "", "out": None}
+
+
+def _probe_remember(out: dict[str, Any]) -> dict[str, Any]:
+    if out.get("deviceId") == TUYA_MAINS_METER_ID:
+        sampler = _meter_sampler_state()
+        if sampler:
+            out["sampler"] = {k: sampler.get(k) for k in ("at", "ok", "code", "msg", "online") if k in sampler}
+        _probe_cache.update({"at": time.time(), "device": out["deviceId"], "out": dict(out)})
+    return out
+
+
+HOME_API_URL = (os.getenv("ARIAL_HOME_API_URL") or "http://127.0.0.1:8008").rstrip("/")
+
+
+def _home_api_get(path: str, timeout: float = 8.0) -> dict[str, Any] | None:
+    """Read-only home analytics API (home_api.py). Separate process from the collector so UI/analytics changes never
+    interrupt data collection."""
+    try:
+        r = httpx.get(HOME_API_URL + path, headers={"Authorization": f"Bearer {SHARING_CTRL_TOKEN}"}, timeout=timeout)
+        return r.json()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("home-api %s failed: %s", path, exc)
+        return None
+
+
+def _sharing_get(path: str, timeout: float = 4.0) -> dict[str, Any] | None:
+    """Loopback call to the tuya-sharing worker control API (read-only views + health)."""
+    try:
+        r = httpx.get(SHARING_CTRL_URL + path, headers={"Authorization": f"Bearer {SHARING_CTRL_TOKEN}"}, timeout=timeout)
+        data = r.json()
+        return data if isinstance(data, dict) else None
+    except Exception:
+        return None
+
+
+def _sharing_health() -> dict[str, Any] | None:
+    h = _sharing_get("/health")
+    if not h:
+        return None
+    return {k: h.get(k) for k in ("ok", "mqttConnected", "meterOnline", "meterLastReportAgeS", "meterStale", "authFailed", "tokenExpiresInS")}
+
+
+def _sharing_probe(out: dict[str, Any]) -> dict[str, Any]:
+    """Non-meter device (the light switch): current state as held by the sharing worker (MQTT-fed)."""
+    view = _sharing_get(f"/devices/{out['deviceId']}")
+    out["configured"] = True
+    out["source"] = "sharing"
+    if not view or not view.get("ok"):
+        out["tuyaMsg"] = "sharing worker unavailable" if view is None else str(view.get("error") or "device not watched")
+        return out
+    online = bool(view.get("online"))
+    status = [{"code": k, "value": v} for k, v in (view.get("status") or {}).items()]
+    out.update({"ok": online, "tokenOk": True, "deviceOk": online, "status": status, "dpsCount": len(status),
+                "tuyaMsg": "" if online else "device offline (sharing)", "hint": ""})
+    return out
+
+
 def tuya_probe(device_id: str | None = None) -> dict[str, Any]:
     """On-demand OpenAPI probe. Does not start meter polling or unpause TUYS UI."""
     creds = _tuya_creds()
@@ -476,6 +957,45 @@ def tuya_probe(device_id: str | None = None) -> dict[str, Any]:
         "hint": "",
         "status": None,
     }
+    is_meter = out["deviceId"] == TUYA_MAINS_METER_ID
+    if TUYA_SHARING and not is_meter:
+        return _sharing_probe(out)
+    if is_meter and out["configured"]:
+        _ensure_energy_sampler(out["deviceId"])   # the server sampler feeds the reading below; browsers never poll Cloud
+    latest = _meter_fresh(time.time()) if is_meter else None
+    if latest is not None:
+        # Fresh persisted reading (server Cloud sampler or LAN push): answer from it in the Cloud response shape.
+        online = bool(latest.get("online"))
+        src = str(latest.get("src") or "sampled")
+        out.update({
+            "ok": online,
+            "configured": True,
+            "tokenOk": True,
+            "deviceOk": online,
+            "source": src,
+            "ageS": round(time.time() - float(latest.get("receivedAt") or 0), 1),
+            "readingTs": latest.get("ts"),
+            "tuyaCode": None,
+            "tuyaMsg": "" if online else f"meter offline ({src})",
+            "hint": "",
+            "status": _meter_status_rows(latest) if online else None,
+        })
+        if online:
+            out["dpsCount"] = len(out["status"] or [])
+        return out
+    if TUYA_SHARING:
+        # No fresh sharing push: report the stale link honestly; never fall back to Cloud.
+        out.update({"configured": True, "source": "sharing", "tuyaMsg": "sharing link stale",
+                    "hint": "tuya-sharing worker has no fresh meter report (MQTT/session stale or meter offline)."})
+        out["sharing"] = _sharing_health()
+        return out
+    if is_meter:
+        # No fresh reading: fall back to Cloud, but at most one Cloud call per poll interval across all browsers.
+        cached = _probe_cache.get("out")
+        if cached is not None and _probe_cache.get("device") == out["deviceId"] and time.time() - float(_probe_cache.get("at") or 0) < _ENERGY_SAMPLE_S:
+            res = dict(cached)
+            res["cached"] = True
+            return res
     if not out["configured"]:
         out["hint"] = (
             "TUYA_CLIENT_ID / TUYA_SECRET are not set. Put them in the live process env (never git), "
@@ -509,13 +1029,13 @@ def tuya_probe(device_id: str | None = None) -> dict[str, Any]:
                     _ensure_energy_sampler(out["deviceId"])
             else:
                 out["hint"] = _tuya_hint(out["tuyaCode"], out["tuyaMsg"], token_ok=True, device_ok=False)
-                return out
+                return _probe_remember(out)
             out["hint"] = ""
-            return out
+            return _probe_remember(out)
     except httpx.HTTPError as exc:
         out["tuyaMsg"] = str(exc)
         out["hint"] = f"Tuya OpenAPI unreachable: {exc}"
-        return out
+        return _probe_remember(out)
 
 
 # ---------------------------------------------------------------------------
@@ -524,7 +1044,7 @@ def tuya_probe(device_id: str | None = None) -> dict[str, Any]:
 #   2. Bins integrated from live cur_power samples taken on every probe.
 # Never synthesise history; missing hours stay null.
 # ---------------------------------------------------------------------------
-ENERGY_DAYS = 3
+ENERGY_DAYS = max(1, min(7, int(os.getenv("ARIAL_ENERGY_DAYS") or 3)))  # card window; 4 reaches back to the 2 Sep restore
 _ENERGY_MAX_GAP_S = 180.0
 _energy_lock = threading.Lock()
 _energy_bins: dict[str, dict[str, float]] = {}
@@ -712,6 +1232,26 @@ def _energy_days_from_bins(device: str, now: float | None = None) -> list[dict[s
     return _energy_shape_days(hours, ts)
 
 
+_energy_est_cache: dict[str, Any] = {"at": 0.0, "keys": set()}
+
+
+def _energy_estimated_hours() -> set[str]:
+    """Hour keys whose kWh was back-filled (flat spread from the meter register while the link was down), so the
+    card can draw them as estimates rather than measured bars. Source: data/arial_energy_bins_backfill_*.json."""
+    now = time.time()
+    if now - _energy_est_cache["at"] < 60:
+        return _energy_est_cache["keys"]
+    keys: set[str] = set()
+    for p in Path("/var/www/sailingsa/data").glob("arial_energy_bins_backfill_*.json"):
+        try:
+            for k in json.loads(p.read_text()).get("hours") or []:
+                keys.add(str(k))
+        except (OSError, ValueError):
+            continue
+    _energy_est_cache.update({"at": now, "keys": keys})
+    return keys
+
+
 def _energy_shape_days(hours: dict[str, float], ts: float) -> list[dict[str, Any]]:
     local_now = datetime.fromtimestamp(ts, tz=timezone.utc).astimezone(_SAST)
     days: list[dict[str, Any]] = []
@@ -724,11 +1264,13 @@ def _energy_shape_days(hours: dict[str, float], ts: float) -> list[dict[str, Any
             v = hours.get(key)
             vals.append(round(float(v), 3) if isinstance(v, (int, float)) else None)
         have = [v for v in vals if v is not None]
+        est_keys = _energy_estimated_hours()
         days.append(
             {
                 "ymd": day.strftime("%Y-%m-%d"),
                 "label": "Today" if back == 0 else ("Yesterday" if back == 1 else day.strftime("%a %d %b")),
                 "hours": vals,
+                "estimated": [f"{ymd}{h:02d}" in est_keys for h in range(24)],
                 "totalKwh": round(sum(have), 3) if have else None,
                 "hoursWithData": len(have),
                 "partial": back == 0,
@@ -768,7 +1310,15 @@ def _tuya_statistics_hours(creds: dict[str, str], device: str, ts: float) -> dic
 
 
 _energy_thread: threading.Thread | None = None
-_ENERGY_SAMPLE_S = 60.0
+def _poll_interval() -> float:
+    try:
+        n = float(os.getenv("ARIAL_TUYA_POLL_S") or 15.0)
+    except ValueError:
+        n = 15.0
+    return min(30.0, max(10.0, n))
+
+
+_ENERGY_SAMPLE_S = _poll_interval()
 _RECOVERY_S = 2 * 3600.0
 _POWER_MIN_OUTAGE_S = 120.0
 _RECENT_N = 30
@@ -1016,44 +1566,75 @@ def _energy_bootstrap(device: str) -> None:
             _energy_save()
 
 
-def _energy_sampler_loop(device: str) -> None:
+def _energy_sample_once(device: str) -> dict[str, Any]:
+    """One Cloud poll: device detail -> outage mark, hourly bins, normalized V/A/W/kWh persisted (latest + SQLite)."""
     global _power_sync_at
+    creds = _tuya_creds()
+    if not (creds["client_id"] and creds["secret"]):
+        return {"ok": False, "skipped": "no credentials"}
+    if time.time() - _power_sync_at >= 600:
+        _power_sync_at = time.time()
+        try:
+            with _tuya_http_lock:
+                _power_sync_from_logs(creds, device, days=2)
+        except Exception:
+            pass
+    panel = _stale_panel() or {}
+    ac = (panel.get("arialPower") or {}).get("acOk") if isinstance(panel.get("arialPower"), dict) else None
+    if isinstance(ac, bool):
+        _power_mark(ac_ok=ac)
+    with _tuya_http_lock:
+        payload = _tuya_device_detail(creds, device)
+    now = time.time()
+    if not payload.get("success"):
+        info = {"ok": False, "code": payload.get("code"), "msg": str(payload.get("msg") or "")[:200]}
+        _meter_sampler_note(info)
+        return info
+    result = payload.get("result") if isinstance(payload.get("result"), dict) else {}
+    online = result.get("online")
+    if online is False:
+        _power_mark(online=False, now=now)
+        with _energy_lock:
+            _energy_last.pop(device, None)
+        latest = {"device": device, "ts": now, "receivedAt": now, "online": False, "v": None, "a": None, "w": None,
+                  "kwh": None, "src": "cloud"}
+        _meter_latest_write(latest)
+        _meter_history_write(device, now, False, {}, "cloud")
+        info = {"ok": True, "online": False}
+        _meter_sampler_note(info)
+        return info
+    if isinstance(online, bool):
+        _power_mark(online=True, now=now)
+    status = result.get("status")
+    if not isinstance(status, list):
+        info = {"ok": False, "msg": "no status list"}
+        _meter_sampler_note(info)
+        return info
+    _energy_note_recent(device, status, now)
+    _energy_record_sample(device, status, now=now)
+    r = _meter_normalize_status(status)
+    latest = {"device": device, "ts": now, "receivedAt": now, "online": True, "v": r["v"], "a": r["a"], "w": r["w"],
+              "kwh": r["kwh"], "src": "cloud", "kwhCode": r["kwhCode"]}
+    if isinstance(r.get("switch"), bool):
+        latest["switch"] = r["switch"]
+    _meter_latest_write(latest)
+    _meter_history_write(device, now, True, r, "cloud")
+    info = {"ok": True, "online": True, "w": r["w"], "v": r["v"], "a": r["a"], "kwh": r["kwh"]}
+    _meter_sampler_note(info)
+    return info
+
+
+def _energy_sampler_loop(device: str) -> None:
     try:
         _energy_bootstrap(device)
     except Exception:
         pass
     while True:
-        time.sleep(_ENERGY_SAMPLE_S)
         try:
-            creds = _tuya_creds()
-            if not (creds["client_id"] and creds["secret"]):
-                continue
-            if time.time() - _power_sync_at >= 600:
-                _power_sync_at = time.time()
-                with _tuya_http_lock:
-                    _power_sync_from_logs(creds, device, days=2)
-            panel = _stale_panel() or {}
-            ac = (panel.get("arialPower") or {}).get("acOk") if isinstance(panel.get("arialPower"), dict) else None
-            if isinstance(ac, bool):
-                _power_mark(ac_ok=ac)
-            with _tuya_http_lock:
-                payload = _tuya_device_detail(creds, device)
-            if not payload.get("success"):
-                continue
-            result = payload.get("result") if isinstance(payload.get("result"), dict) else {}
-            online = result.get("online")
-            if isinstance(online, bool):
-                _power_mark(online=online)
-                if not online:
-                    _energy_last.pop(device, None)
-                    continue
-            status = result.get("status")
-            if isinstance(status, list):
-                now = time.time()
-                _energy_note_recent(device, status, now)
-                _energy_record_sample(device, status, now=now)
-        except Exception:
-            continue
+            _energy_sample_once(device)
+        except Exception as exc:  # never let one bad poll end the sampler
+            _meter_sampler_note({"ok": False, "msg": f"exception: {exc}"[:200]})
+        time.sleep(_ENERGY_SAMPLE_S)
 
 
 def _energy_analysis(device: str, days: list[dict[str, Any]], now: float) -> dict[str, Any]:
@@ -1123,6 +1704,8 @@ _energy_sampler_checked_at = 0.0
 def _ensure_energy_sampler(device: str) -> None:
     """Keep hourly bins filling even when nobody has the card open. One sampler across all uvicorn workers."""
     global _energy_thread, _energy_sampler_lockf, _energy_sampler_checked_at
+    if TUYA_SHARING:
+        return
     if _energy_thread is not None and _energy_thread.is_alive():
         return
     if os.getenv("ARIAL_ENERGY_SAMPLER", "1").strip().lower() in {"0", "false", "no"}:
@@ -1131,7 +1714,8 @@ def _ensure_energy_sampler(device: str) -> None:
     if now - _energy_sampler_checked_at < 30:
         return
     _energy_sampler_checked_at = now
-    lock_path = Path(str(_energy_store_path()) + ".sampler.lock")
+    # Own lock for the persisting sampler (legacy 60s loops in older processes hold the old .sampler.lock).
+    lock_path = _meter_sampler_state_path.with_suffix(".lock")
     try:
         lock_path.parent.mkdir(parents=True, exist_ok=True)
         lockf = open(lock_path, "a+", encoding="utf-8")
@@ -1147,9 +1731,33 @@ def tuya_energy(device_id: str | None = None) -> dict[str, Any]:
     creds = _tuya_creds()
     device = (device_id or creds["device_id"]).strip() or TUYA_MAINS_METER_ID
     now = time.time()
+    out: dict[str, Any] = {"ok": False, "deviceId": device, "tz": "Africa/Johannesburg", "source": "", "days": []}
+    if device == TUYA_MAINS_METER_ID and creds["client_id"] and creds["secret"]:
+        _ensure_energy_sampler(device)
+    latest = _meter_fresh(now) if device == TUYA_MAINS_METER_ID else None
+    if latest is not None:
+        # Fresh persisted reading: bins already hold the sampled data; no Cloud statistics call from browsers.
+        src = str(latest.get("src") or "sampled")
+        out["source"] = f"{src}-sampled"
+        out["days"] = _energy_days_from_bins(device, now)
+        out.update(_energy_analysis(device, out["days"], now))
+        out["debug"] = {
+            "latest": {"ageS": round(now - float(latest.get("receivedAt") or 0), 1), "readingTs": latest.get("ts"), "src": src},
+            "sampler": _meter_sampler_state(),
+            "samplerHere": bool(_energy_thread and _energy_thread.is_alive()),
+            "olarmRole": _live_role,
+        }
+        out["ok"] = True
+        return out
+    if TUYA_SHARING:
+        out["source"] = "sharing-stale"
+        out["days"] = _energy_days_from_bins(device, now)
+        out.update(_energy_analysis(device, out["days"], now))
+        out["debug"] = {"sharing": _sharing_health()}
+        out["ok"] = True
+        return out
     if creds["client_id"] and creds["secret"]:
         _ensure_energy_sampler(device)
-    out: dict[str, Any] = {"ok": False, "deviceId": device, "tz": "Africa/Johannesburg", "source": "", "days": []}
     if not (creds["client_id"] and creds["secret"]):
         out["source"] = "none"
         return out
@@ -1519,7 +2127,7 @@ def _olarm_live_loop() -> None:
                 client = _olarm_sync_client()
                 resp = client.get(
                     f"/api/v4/devices/{HANSEKOP_ID}",
-                    params={"deviceApiAccessOnly": "1"},
+                    params=_OLARM_DEV_PARAMS,
                 )
                 if resp.status_code == 429:
                     backoff_until = time.time() + 15.0
@@ -1667,10 +2275,36 @@ async def _olarm_request(
     return {"raw": resp.text}
 
 
+IGNORE_ZONES_PATH = Path("/var/www/sailingsa/data/arial_ignore_zones.json")
+_ignore_zones_cache: dict[str, Any] = {"at": 0.0, "zones": set()}
+
+
+def _ignored_zones() -> set[int]:
+    """Faulty zones (permanently open) hidden from the panel until repaired: {site_id: [zone numbers]} in
+    arial_ignore_zones.json. Re-read every 30 s so edits need no restart. Only affects display/readiness."""
+    now = time.time()
+    if now - float(_ignore_zones_cache["at"]) > 30:
+        try:
+            cfg = json.loads(IGNORE_ZONES_PATH.read_text(encoding="utf-8"))
+            _ignore_zones_cache["zones"] = {int(z) for z in (cfg.get(SITE_ID) or [])}
+        except (OSError, ValueError, TypeError):
+            _ignore_zones_cache["zones"] = set()
+        _ignore_zones_cache["at"] = now
+    return _ignore_zones_cache["zones"]
+
+
 def enrich_device(device: dict[str, Any]) -> dict[str, Any]:
     """Attach display labels for areas and zones. Does not strip raw Olarm fields."""
     profile = device.get("deviceProfile") or {}
     state = device.get("deviceState") or {}
+    ignored = _ignored_zones()
+    if ignored:
+        # Ready-state override: if every open zone is a known-faulty (ignored) one, the panel is shown as ready.
+        raw_zone_states = list(state.get("zones") or [])
+        open_zones = {i + 1 for i, zs in enumerate(raw_zone_states) if str(zs) == "a"}
+        if open_zones and open_zones <= ignored:
+            state = dict(state)
+            state["areas"] = ["disarm" if str(a) == "notready" else a for a in _as_list(state.get("areas"))]
     area_labels = list(profile.get("areasLabels") or [])
     area_states = _as_list(state.get("areas"))
     area_details = _as_list(state.get("areasDetail"))
@@ -1679,7 +2313,7 @@ def enrich_device(device: dict[str, Any]) -> dict[str, Any]:
     countdown = None
     limit = int(profile.get("areasLimit") or max(len(area_labels), len(area_states), 0))
     for i in range(limit):
-        label = (area_labels[i] if i < len(area_labels) else "") or f"Area {i + 1}"
+        label = (SITE_AREA_LABELS[i] if i < len(SITE_AREA_LABELS) else "") or (area_labels[i] if i < len(area_labels) else "") or (SITE_AREA_LABEL if i == 0 else f"Area {i + 1}")   # site override -> Olarm label -> unnamed first area = site label
         st = area_states[i] if i < len(area_states) else ""
         detail = area_details[i] if i < len(area_details) else ""
         stamp = area_stamps[i] if i < len(area_stamps) else None
@@ -1707,6 +2341,8 @@ def enrich_device(device: dict[str, Any]) -> dict[str, Any]:
             continue
         zt = zone_types[i] if i < len(zone_types) else 0
         zs = zone_states[i] if i < len(zone_states) else ""
+        if str(zs) == "b" or (i + 1) in ignored:
+            continue   # bypassed or known-faulty zones are not working zones: keep them off the panel until repaired
         try:
             zt_int = int(zt)
         except (TypeError, ValueError):
@@ -1727,9 +2363,55 @@ def enrich_device(device: dict[str, Any]) -> dict[str, Any]:
     out["arialCountdown"] = countdown
     out["arialExitDelay"] = _profile_exit_delay(profile)
     out["arialPower"] = arial_power(state)
+    try:
+        out["arialPower"].update(_ac_track(bool(out["arialPower"].get("acOk"))))
+    except Exception:
+        pass
     if _last_keypad:
         out["arialActor"] = dict(_last_keypad)
     return out
+
+
+# ---- Panel AC (mains) failure tracking: remembers when Olarm's powerAC left "ok", per site, so the keypad can
+# show "A/C FAILURE <time/date>" for as long as the failure lasts. Olarm exposes only the current state, no event.
+_AC_STATE_PATH = Path("/var/www/sailingsa/data") / f"arial_ac_state_{SITE_ID}.json"   # www-data-writable (api/data is root-owned)
+_ac_state: dict[str, Any] = {"loaded": False, "acOk": None, "failSince": None, "restoredAt": None, "lastFailSince": None}
+_ac_lock = threading.Lock()
+
+
+def _ac_track(ac_ok: bool) -> dict[str, Any]:
+    """Update the persisted AC state with the panel's current acOk; return fields for arialPower."""
+    now_ms = int(time.time() * 1000)
+    with _ac_lock:
+        if not _ac_state["loaded"]:
+            _ac_state["loaded"] = True
+            try:
+                saved = json.loads(_AC_STATE_PATH.read_text())
+                for k in ("acOk", "failSince", "restoredAt", "lastFailSince"):
+                    if k in saved:
+                        _ac_state[k] = saved[k]
+            except Exception:
+                pass
+        prev = _ac_state.get("acOk")
+        changed = prev is not ac_ok
+        if changed:
+            _ac_state["acOk"] = ac_ok
+            if ac_ok is False and _ac_state.get("failSince") is None:
+                # prev None = first observation while already failed: time unknown, leave failSince None
+                if prev is True:
+                    _ac_state["failSince"] = now_ms
+                    _ac_state["lastFailSince"] = now_ms
+            if ac_ok is True and prev is False:
+                _ac_state["restoredAt"] = now_ms
+                _ac_state["failSince"] = None
+            try:
+                _AC_STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
+                tmp = _AC_STATE_PATH.with_suffix(".tmp")
+                tmp.write_text(json.dumps({k: _ac_state[k] for k in ("acOk", "failSince", "restoredAt", "lastFailSince")}))
+                tmp.replace(_AC_STATE_PATH)
+            except Exception:
+                pass
+        return {"acFailSince": _ac_state.get("failSince"), "acRestoredAt": _ac_state.get("restoredAt")}
 
 
 def _power_ok(value: Any) -> bool:
@@ -2113,6 +2795,29 @@ def _arial_event_actor(tab: str, event: dict[str, Any], device: dict[str, Any] |
     )
 
 
+def _matching_press_ms(state_token: str, ev_ms: int) -> int:
+    """Keypad press (ms) that this Olarm area event confirms: same arm/disarm class, closest in time, within the
+    match window and not after the panel event by more than a few seconds."""
+    _load_keypad_log()
+    best = 0
+    for rec in _keypad_log:
+        st = _KEYPAD_CMD_STATE.get(str(rec.get("action") or ""))
+        if not st:
+            continue
+        same = (state_token == "disarm" and st == "disarm") or (state_token in {"arm", "stay", "sleep"} and st != "disarm")
+        if not same:
+            continue
+        try:
+            kp_ms = int(float(rec.get("at") or 0) * 1000)
+        except (TypeError, ValueError):
+            continue
+        if not kp_ms or kp_ms - ev_ms > 5000 or ev_ms - kp_ms > _KEYPAD_MATCH_MS:
+            continue
+        if not best or abs(ev_ms - kp_ms) < abs(ev_ms - best):
+            best = kp_ms
+    return best
+
+
 def _stamp_activity_actors(bundle: dict[str, Any] | None) -> dict[str, Any]:
     if not isinstance(bundle, dict):
         return {"ok": True, "power": {}, "events": [], "live": True}
@@ -2135,6 +2840,11 @@ def _stamp_activity_actors(bundle: dict[str, Any] | None) -> dict[str, Any]:
         row["actor"] = actor
         row["via"] = _activity_via(actor) or row.get("via") or ""
         row["activity"] = _activity_line(str(row.get("title") or ""), str(row.get("state") or ""), actor, str(row.get("via") or ""))
+        press_ms = _matching_press_ms(_area_state_token(str(row.get("state") or "")), _event_time_ms({"eventTime": row.get("at")}))
+        if press_ms and not row.get("confirmedAt"):   # idempotent: cached bundles are re-stamped on every request
+            row["confirmedAt"] = row.get("at")
+            row["at"] = press_ms
+            row["time"], row["date"] = _sa_stamp(press_ms)
     have = []
     for row in rows:
         if str(row.get("tab") or "") != "areas":
@@ -2174,13 +2884,15 @@ def _stamp_activity_actors(bundle: dict[str, Any] | None) -> dict[str, Any]:
                 "date": _sa_stamp(kp_ms)[1],
                 "title": label,
                 "state": state_lab,
-                "activity": _activity_line(label, state_lab, actor, "Remote"),
+                "activity": _activity_line(label, state_lab, actor, "Remote")
+                            + ("  \u26a0 not confirmed by panel" if time.time() * 1000 - kp_ms > 90_000 else ""),
                 "actor": actor,
                 "via": "Remote",
                 "msg": "",
                 "num": 1,
                 "action": "area",
                 "at": kp_ms,
+                "confirmedAt": None,
             }
         )
         if len(extras) >= 8:
@@ -2285,6 +2997,10 @@ def format_olarm_event(event: dict[str, Any], device: dict[str, Any] | None = No
         # No keypad user matched: it came from the Olarm app / panel. Show the source, never the Olarm account name.
         if str(event.get("userFullname") or "").strip():
             via = "App"
+        elif str(event.get("eventState") or "").lower() in {"arm", "stay", "sleep"}:
+            via = "Auto"      # no user at all: the panel's own auto-arm schedule
+        else:
+            via = "Panel"     # disarmed at the physical panel keypad
     activity = _activity_line(label, state_lab, actor, via)
     return {
         "tab": tab,
@@ -2299,6 +3015,7 @@ def format_olarm_event(event: dict[str, Any], device: dict[str, Any] | None = No
         "num": num,
         "action": action,
         "at": event.get("eventTime"),
+        "olarmUser": str(event.get("userFullname") or "").strip(),   # who acted in the Olarm app; used for WhatsApp routing
     }
 
 
@@ -2561,6 +3278,57 @@ def arial_tuya_lights(device_id: Optional[str] = None):
     return _lights_payload((device_id or TUYA_LIGHTS_ID).strip())
 
 
+@router.get("/api/arial/tuya/lights_multi")
+def arial_tuya_lights_multi(ids: str = ""):
+    """State of several light devices in one call (sharing transport only). Switch codes are returned as
+    '<deviceId>:<switch_n>' so the shared lights popup can address gangs on different devices."""
+    if not HOME_TRANSPORT:
+        raise HTTPException(status_code=503, detail="multi-device lights need a home transport")
+    out_devices, switches, any_ok = [], [], False
+    for dev in [d.strip() for d in ids.split(",") if d.strip()][:40]:
+        view = _sharing_get(f"/devices/{dev}")
+        if not view or not view.get("ok"):
+            out_devices.append({"deviceId": dev, "online": False, "error": (view or {}).get("error") or "worker unavailable"})
+            continue
+        any_ok = True
+        st = view.get("status") or {}
+        online = bool(view.get("online"))
+        out_devices.append({"deviceId": dev, "name": view.get("name"), "online": online})
+        for c in sorted(k for k in st if re.fullmatch(r"switch_\d+", k)):
+            switches.append({"code": f"{dev}:{c}", "on": (bool(st[c]) if online else None)})
+    return {"ok": any_ok, "devices": out_devices, "switches": switches, "online": any_ok,
+            "tuyaMsg": "" if any_ok else "sharing worker unavailable"}
+
+
+@router.post("/api/arial/meter/eskom")
+async def arial_meter_eskom(request: Request):
+    """Keypad-PIN protected Eskom sync: {code, reading}. Stores offset = Eskom reading - current lifetime register,
+    so the card can show 'Eskom (calc)' = register + offset from then on. Read-only towards the meter."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    code = str(body.get("code") or "").strip()
+    if code not in KEYPAD_CODES:
+        raise HTTPException(status_code=401, detail="Invalid code")
+    try:
+        reading = float(body.get("reading"))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="reading (kWh) required")
+    if not 0 <= reading < 1e8:
+        raise HTTPException(status_code=400, detail="reading out of range")
+    latest = _meter_fresh(time.time())
+    if not latest or latest.get("meterKwh") is None:
+        raise HTTPException(status_code=503, detail="meter register not available right now")
+    lifetime = float(latest["meterKwh"])
+    now = time.time()
+    refs = _meter_refs_write({"eskomOffsetKwh": round(reading - lifetime, 3), "eskomReading": reading,
+                              "eskomSyncedAt": now, "eskomSyncedRegisterKwh": lifetime, "eskomBy": KEYPAD_CODES[code]})
+    _remember_keypad(code, "eskom-sync")
+    return {"ok": True, "eskomReading": reading, "registerKwh": lifetime, "offsetKwh": refs["eskomOffsetKwh"],
+            "eskomCalcKwh": round(lifetime + refs["eskomOffsetKwh"], 1), "actor": KEYPAD_CODES[code]}
+
+
 @router.post("/api/arial/tuya/switch")
 async def arial_tuya_switch(request: Request):
     """Keypad-PIN protected light switching: {code, switch: switch_n|all, value: bool}."""
@@ -2576,10 +3344,28 @@ async def arial_tuya_switch(request: Request):
     value = bool(body.get("value"))
     if target == "all":
         commands = [{"code": c, "value": value} for c in LIGHT_SWITCHES]
-    elif target in LIGHT_SWITCHES:
+    elif target in LIGHT_SWITCHES or re.fullmatch(r"switch_\d+", target):
         commands = [{"code": target, "value": value}]
     else:
         raise HTTPException(status_code=400, detail="Unknown switch")
+    if HOME_TRANSPORT:
+        # Forward to this site's home collector only (Smart Life :8007 or CBI :8010).
+        try:
+            r = httpx.post(SHARING_CTRL_URL + "/light", json={"device_id": device, "switch": target, "value": value},
+                           headers={"Authorization": f"Bearer {SHARING_CTRL_TOKEN}"}, timeout=12.0)
+            result = r.json()
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"home worker: {exc}") from exc
+        if not isinstance(result, dict) or not result.get("ok"):
+            raise HTTPException(status_code=502, detail=f"{TUYA_TRANSPORT}: {(result or {}).get('error') or 'command failed'}")
+        _remember_keypad(code, f"lights-{target}-{'on' if value else 'off'}")
+        out = _lights_payload(device)
+        if result.get("switches"):
+            out.update({"ok": True, "online": result.get("online"), "switches": result["switches"]})
+        out.update({"actor": KEYPAD_CODES[code], "confirmed": bool(result.get("confirmed")),
+                    "confirmSource": result.get("confirmSource"), "latencyS": result.get("latencyS"),
+                    "source": result.get("source") or TUYA_TRANSPORT})
+        return out
     creds = _tuya_creds()
     if not (creds["client_id"] and creds["secret"]):
         raise HTTPException(status_code=503, detail="Tuya not configured")
@@ -2594,6 +3380,17 @@ async def arial_tuya_switch(request: Request):
     out = _lights_payload(device)
     out["actor"] = KEYPAD_CODES[code]
     return out
+
+
+@router.get("/api/arial/tuya/history")
+def arial_tuya_history(minutes: int = 60, limit: int = 2000):
+    """Persisted real readings (server sampler / LAN pushes) for the mains meter. Read-only; gaps stay gaps."""
+    minutes = max(1, min(int(minutes), 7 * 24 * 60))
+    limit = max(1, min(int(limit), 5000))
+    now = time.time()
+    rows = _meter_history_rows(TUYA_MAINS_METER_ID, now - minutes * 60, now + 60, limit)
+    return {"ok": True, "deviceId": TUYA_MAINS_METER_ID, "minutes": minutes, "count": len(rows), "rows": rows,
+            "pollS": _ENERGY_SAMPLE_S, "sampler": _meter_sampler_state()}
 
 
 @router.get("/api/arial/tuya/energy")
@@ -2708,7 +3505,7 @@ async def arial_devices(request: Request):
     raw = await _olarm_request(
         "GET",
         "/api/v4/devices",
-        params={"page": 1, "pageLength": 100, "deviceApiAccessOnly": "1"},
+        params={"page": 1, "pageLength": 100, **_OLARM_DEV_PARAMS},
     )
     devices = [enrich_device(d) for d in (raw.get("data") or [])]
     return {
@@ -2719,8 +3516,24 @@ async def arial_devices(request: Request):
     }
 
 
+def _with_ac_failure(resp: dict[str, Any]) -> dict[str, Any]:
+    """Stamp acFailSince/acRestoredAt onto the served panel (runs in whichever process answers /panel)."""
+    try:
+        dev = resp.get("device") if isinstance(resp, dict) else None
+        power = dev.get("arialPower") if isinstance(dev, dict) else None
+        if isinstance(power, dict) and "acOk" in power:
+            power.update(_ac_track(bool(power.get("acOk"))))
+    except Exception:
+        pass
+    return resp
+
+
 @router.get("/api/arial/panel")
 async def arial_panel():
+    return _with_ac_failure(await _arial_panel_inner())
+
+
+async def _arial_panel_inner():
     _ensure_live_session()
     cached = _cached_panel()
     if cached is not None:
@@ -2739,7 +3552,7 @@ async def arial_panel():
         raw = await _olarm_request(
             "GET",
             f"/api/v4/devices/{HANSEKOP_ID}",
-            params={"deviceApiAccessOnly": "1"},
+            params=_OLARM_DEV_PARAMS,
         )
     except HTTPException:
         if stale is not None:
@@ -2758,6 +3571,259 @@ def _activity_bundle(device: dict[str, Any] | None, events: list[Any]) -> dict[s
         if isinstance(e, dict) and not is_skip_activity_event(e)
     ]
     return _stamp_activity_actors({"ok": True, "power": power, "events": rows, "live": True})
+
+
+WHATSAPP_LOG = Path(os.getenv("ARIAL_WHATSAPP_LOG") or "/var/www/sailingsa/data/whatsapp_log.jsonl")
+
+
+def _mask_number(n) -> str:
+    s = re.sub(r"\D", "", str(n or ""))
+    return (s[:4] + "\u2022\u2022\u2022" + s[-4:]) if len(s) > 8 else s
+
+
+TUYA_ICON_MANIFEST = Path("/var/www/sailingsa/assets/tuya/manifest.json")
+TUYA_ICON_FALLBACK = "/assets/tuya/fallback/device.svg"
+_icon_manifest_cache: dict[str, Any] = {"mtime": 0.0, "data": {}}
+
+
+def _tuya_manifest() -> dict[str, Any]:
+    try:
+        mt = TUYA_ICON_MANIFEST.stat().st_mtime
+        if mt != _icon_manifest_cache["mtime"]:
+            _icon_manifest_cache["data"] = json.loads(TUYA_ICON_MANIFEST.read_text(encoding="utf-8"))
+            _icon_manifest_cache["mtime"] = mt
+    except (OSError, ValueError):
+        pass
+    return _icon_manifest_cache["data"] or {}
+
+
+def get_tuya_icon(device_id: str = "", product_id: str = "", category: str = "") -> str:
+    """Local icon path for a Tuya device: exact cached device icon -> product icon -> category icon -> generic fallback.
+    Only ever returns /assets/tuya/... paths (never a CDN URL)."""
+    m = _tuya_manifest()
+    for table, key in (("devices", device_id), ("products", product_id), ("categories", category)):
+        rec = (m.get(table) or {}).get(key or "")
+        p = rec and rec.get("local_path")
+        if p and str(p).startswith("/assets/tuya/"):
+            return p
+    if device_id:   # unknown device but known category via its manifest siblings
+        for rec in (m.get("devices") or {}).values():
+            if category and rec.get("category") == category and str(rec.get("local_path", "")).startswith("/assets/tuya/categories/"):
+                return rec["local_path"]
+    return TUYA_ICON_FALLBACK
+
+
+@router.get("/api/arial/tuya/icon")
+def arial_tuya_icon(device: str = "", product: str = "", category: str = ""):
+    return {"ok": True, "local_path": get_tuya_icon(device, product, category)}
+
+
+@router.get("/api/arial/home/sensors")
+def arial_home_sensors():
+    """Home devices for this site: Smart Life (sharing) or CBI. Read-only from that site's home API."""
+    if not HOME_TRANSPORT:
+        raise HTTPException(status_code=503, detail="home transport not enabled")
+    from urllib.parse import quote
+    home_key = CBI_HOME_ID if TUYA_TRANSPORT == "cbi" else (os.getenv("ARIAL_TUYA_HOME") or "")
+    view = _home_api_get("/home?home=" + quote(home_key or ""))
+    if not view or not view.get("ok"):
+        raise HTTPException(status_code=502, detail=(view or {}).get("error") or "home api unavailable")
+    try:
+        # slot -> person, e.g. {"fingerprint": {"17": "Tim"}, "password": {"16": "Kevin"}, "card": {"13": "Birgitta"}}
+        view["lockUsers"] = json.loads(Path("/var/www/sailingsa/data/home_lock_users.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        view["lockUsers"] = {}
+    try:
+        view["lightNames"] = json.loads(Path("/var/www/sailingsa/data/home_light_names.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        view["lightNames"] = {}
+    view["icons"] = {d["id"]: get_tuya_icon(d.get("id", ""), d.get("product_id") or "", d.get("category") or "") for d in view.get("devices") or [] if d.get("id")}
+    return view
+
+
+@router.post("/api/arial/home/lock_user")
+async def arial_home_lock_user(request: Request):
+    """Keypad-PIN protected: name a door-lock credential slot. {code, method: fingerprint|password|card|face|temporary|app, slot, name}"""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    code = str(body.get("code") or "").strip()
+    if code not in KEYPAD_CODES:
+        raise HTTPException(status_code=401, detail="Invalid code")
+    method = str(body.get("method") or "").strip().lower()
+    slot = str(body.get("slot") or "").strip()
+    name = re.sub(r"[^\w .'\-]", "", str(body.get("name") or "")).strip()[:32]
+    if method not in {"fingerprint", "password", "card", "face", "temporary", "app"} or not slot.isdigit() or not name:
+        raise HTTPException(status_code=400, detail="method, numeric slot and name required")
+    path = Path("/var/www/sailingsa/data/home_lock_users.json")
+    with open(path, "a+", encoding="utf-8") as fh:
+        fcntl.flock(fh, fcntl.LOCK_EX)
+        fh.seek(0)
+        try:
+            data = json.loads(fh.read() or "{}")
+        except ValueError:
+            data = {}
+        data.setdefault(method, {})[slot] = name
+        data.setdefault("_history", []).append({"at": time.time(), "by": KEYPAD_CODES[code], "method": method, "slot": slot, "name": name})
+        fh.seek(0); fh.truncate(); fh.write(json.dumps(data, indent=1, ensure_ascii=False))
+    _remember_keypad(code, f"lock-user-{method}-{slot}")
+    return {"ok": True, "method": method, "slot": slot, "name": name}
+
+
+WINDGURU_SPOT = os.getenv("ARIAL_WINDGURU_SPOT") or "1309608"
+WINDGURU_CACHE = Path("/var/www/sailingsa/data/windguru_%s.json" % WINDGURU_SPOT)
+_wg_lock = threading.Lock()
+
+
+def _windguru_fetch() -> dict[str, Any]:
+    """GFS 13 km hourly forecast from Windguru's own site API (same calls its page makes). Cached 1 h on disk."""
+    hdrs = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/128 Safari/537.36",
+            "Referer": f"https://www.windguru.cz/{WINDGURU_SPOT}"}
+    with httpx.Client(timeout=25.0, headers=hdrs) as c:
+        spot = c.get("https://www.windguru.cz/int/iapi.php", params={"q": "forecast_spot", "id_spot": WINDGURU_SPOT}).json()
+        tab = (spot.get("tabs") or [{}])[0]
+        want = int(os.getenv("ARIAL_WINDGURU_MODEL") or 117)          # 117 = ECMWF IFS-HRES 9 km; 3 = GFS 13 km
+        arr = tab.get("id_model_arr") or []
+        m = next((x for x in arr if int(x.get("id_model") or 0) == want), None) or next((x for x in arr if int(x.get("id_model") or 0) == 3), None)
+        if not m:
+            raise RuntimeError("no usable model offered for spot")
+        fc = c.get("https://www.windguru.cz/int/iapi.php", params={"q": "forecast", "id_model": m["id_model"], "rundef": m["rundef"], "initstr": m["initstr"],
+                                                                    "id_spot": WINDGURU_SPOT, "WGCACHEABLE": 21600, "cachefix": m.get("cachefix", "")}).json()
+    f = fc.get("fcst") or {}
+    init = int(f.get("initstamp") or 0)
+    hours = f.get("hours") or []
+    rows = []
+    for i, hh in enumerate(hours):
+        def g(k):
+            v = (f.get(k) or [])
+            return v[i] if i < len(v) else None
+        rows.append({"t": init + int(hh) * 3600, "spd": g("WINDSPD"), "gust": g("GUST"), "dir": g("WINDDIR"), "tmp": g("TMP"),
+                     "rain": g("APCP1"), "cloud": g("TCDC"), "slp": g("SLP")})
+    return {"ok": True, "spot": WINDGURU_SPOT, "model": f.get("model_name") or str(m["id_model"]), "init": init, "fetchedAt": time.time(),
+            "lat": fc.get("lat"), "lon": fc.get("lon"), "sunrise": fc.get("sunrise"), "sunset": fc.get("sunset"), "units": "knots", "rows": rows}
+
+
+FORECAST_DB = Path("/var/www/sailingsa/data/forecast_history.sqlite")
+
+
+def _forecast_store(data: dict[str, Any]) -> None:
+    """Keep every model run: (issued, model, target hour) -> wind/gust/dir/temp/pressure/rain/cloud. Rows are never
+    overwritten, so the same target hour accumulates one row per run (lead-time analysis) and can be compared with
+    the station's recorded actuals to learn the site bias."""
+    import sqlite3
+    con = sqlite3.connect(FORECAST_DB, timeout=10)
+    try:
+        con.execute("CREATE TABLE IF NOT EXISTS forecast (issued INTEGER NOT NULL, model TEXT NOT NULL, spot TEXT NOT NULL, target INTEGER NOT NULL, "
+                    "spd REAL, gust REAL, dir REAL, tmp REAL, slp REAL, rain REAL, cloud REAL, PRIMARY KEY (issued, model, spot, target))")
+        con.executemany("INSERT OR IGNORE INTO forecast VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                        [(int(data["init"]), str(data["model"]), str(data["spot"]), int(r["t"]), r.get("spd"), r.get("gust"), r.get("dir"),
+                          r.get("tmp"), r.get("slp"), r.get("rain"), r.get("cloud")) for r in data.get("rows") or []])
+        con.commit()
+    finally:
+        con.close()
+
+
+@router.get("/api/arial/home/forecast_vs_actual")
+def arial_home_fva(hours: int = 24):
+    """Forecast (latest run per target hour) next to what the station recorded, for the last N hours. Knots / hPa / C."""
+    import sqlite3
+    out = []
+    since = int(time.time() - max(1, min(hours, 24 * 30)) * 3600)
+    try:
+        fcon = sqlite3.connect(FORECAST_DB, timeout=10)
+        rows = fcon.execute("SELECT target, MAX(issued), spd, gust, dir, tmp, slp FROM forecast WHERE target>=? AND target<=? GROUP BY target ORDER BY target",
+                            (since, int(time.time()))).fetchall()
+        fcon.close()
+        # actuals come from the sharing worker's event log (its own process/user), via its history endpoint
+        view = _home_api_get("/home") or {}
+        wxdev = next((d["id"] for d in view.get("devices") or [] if d.get("category") == "qxj"), None)
+        span_h = max(1, int((time.time() - since) / 3600) + 1)
+        def hist(code):
+            r = _home_api_get(f"/home/history?dev={wxdev}&code={code}&hours={span_h}", timeout=15.0) if wxdev else None
+            return [(float(t), float(v)) for t, v in (r or {}).get("rows") or [] if isinstance(v, (int, float))]
+        cur_h, gust_h, slp_h = hist("dp131"), hist("windspeed_gust"), hist("atmospheric_pressture")
+        def actual(rows_, t0, t1, agg="avg"):
+            vals = [v for t, v in rows_ if t0 <= t < t1]
+            if not vals:
+                return None
+            return max(vals) if agg == "max" else sum(vals) / len(vals)
+        for target, issued, spd, gust, d, tmp, slp in rows:
+            t0, t1 = target - 1800, target + 1800
+            a_cur, a_gust, a_slp = actual(cur_h, t0, t1), actual(gust_h, t0, t1, "max"), actual(slp_h, t0, t1)
+            out.append({"t": target, "issued": issued, "lead_h": round((target - issued) / 3600, 1),
+                        "fc": {"spd": spd, "gust": gust, "dir": d, "tmp": tmp, "slp": slp},
+                        "actual": {"spd": round(a_cur / 18.52, 1) if a_cur is not None else None, "gust": round(a_gust / 18.52, 1) if a_gust is not None else None,
+                                   "slp": round(a_slp, 1) if a_slp is not None else None}})
+    except sqlite3.Error as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return {"ok": True, "rows": out}
+
+
+@router.get("/api/arial/home/windguru")
+def arial_home_windguru():
+    with _wg_lock:
+        try:
+            cached = json.loads(WINDGURU_CACHE.read_text(encoding="utf-8"))
+            if time.time() - float(cached.get("fetchedAt") or 0) < 3600:
+                return cached
+        except (OSError, ValueError):
+            cached = None
+        try:
+            data = _windguru_fetch()
+            WINDGURU_CACHE.write_text(json.dumps(data), encoding="utf-8")
+            try:
+                _forecast_store(data)
+            except Exception as exc:  # noqa: BLE001
+                log.warning("forecast store failed: %s", exc)
+            return data
+        except Exception as exc:  # noqa: BLE001
+            if cached:
+                cached["stale"] = True
+                return cached
+            raise HTTPException(status_code=502, detail=f"windguru: {exc}") from exc
+
+
+@router.get("/api/arial/home/history")
+def arial_home_history(dev: str, code: str, hours: float = 24):
+    if not HOME_TRANSPORT:
+        raise HTTPException(status_code=503, detail="home transport not enabled")
+    view = _home_api_get(f"/home/history?dev={dev}&code={code}&hours={hours}", timeout=15.0)
+    if not view or not view.get("ok"):
+        raise HTTPException(status_code=502, detail=(view or {}).get("error") or "home api unavailable")
+    return view
+
+
+@router.get("/api/arial/whatsapp/log")
+async def arial_whatsapp_log(limit: int = 80):
+    """Admin list of WhatsApp alerts sent / replies handled for this site (from the shared watcher log)."""
+    rows = []
+    try:
+        with open(WHATSAPP_LOG, encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    r = json.loads(line)
+                except ValueError:
+                    continue
+                site = str(r.get("site") or "")
+                if site and site != SITE_ID:
+                    continue
+                t = float(r.get("t") or 0)
+                dt = datetime.fromtimestamp(t, _SAST) if t else None
+                rows.append({
+                    "at": int(t * 1000), "date": dt.strftime("%d %b %Y") if dt else "", "time": dt.strftime("%H:%M") if dt else "",
+                    "dir": r.get("dir") or "out", "kind": r.get("kind") or "alert", "to": r.get("to") or "",
+                    "from": r.get("from") or "", "number": _mask_number(r.get("number")), "ok": bool(r.get("ok", True)),
+                    "acks": r.get("acks") or [], "error": r.get("error"), "text": str(r.get("text") or ""),
+                    "trigger": r.get("trigger") or "", "recovered": bool(r.get("recovered")),
+                })
+    except OSError:
+        pass
+    rows.sort(key=lambda x: x["at"], reverse=True)
+    return {"ok": True, "site": SITE_ID, "rows": rows[: max(1, min(int(limit or 80), 500))]}
 
 
 @router.get("/api/arial/activity")
@@ -2873,7 +3939,7 @@ async def arial_keypad(request: Request):
         fresh = await _olarm_request(
             "GET",
             f"/api/v4/devices/{HANSEKOP_ID}",
-            params={"deviceApiAccessOnly": "1"},
+            params=_OLARM_DEV_PARAMS,
         )
         if isinstance(fresh, dict):
             panel = enrich_device(fresh)
@@ -2902,7 +3968,7 @@ async def arial_device(request: Request, device_id: str):
     raw = await _olarm_request(
         "GET",
         f"/api/v4/devices/{device_id}",
-        params={"deviceApiAccessOnly": "1"},
+        params=_OLARM_DEV_PARAMS,
     )
     return {"ok": True, "device": enrich_device(raw)}
 
@@ -2940,3 +4006,12 @@ async def arial_action(request: Request, device_id: str):
         json_body={"actionCmd": cmd, "actionNum": num},
     )
     return {"ok": True, "result": raw}
+
+
+# Start the mains-meter Cloud sampler as soon as a process with Tuya credentials loads this module (flock keeps a
+# single sampler across processes). Browsers then read the persisted reading instead of polling Tuya Cloud.
+if SITE_TUYA and not TUYA_SHARING and tuya_configured() and os.getenv("ARIAL_ENERGY_SAMPLER", "1").strip().lower() not in {"0", "false", "no"}:
+    try:
+        _ensure_energy_sampler(TUYA_MAINS_METER_ID)
+    except Exception:
+        pass
