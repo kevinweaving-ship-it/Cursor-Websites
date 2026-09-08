@@ -42,18 +42,12 @@
       function litres(n) {
         if (n == null || !isFinite(Number(n))) return "\u2014";
         var L = Math.round(Number(n));
-        var s = L.toLocaleString("fr-FR") + " L";
-        if (L <= 1000) return s;
-        var qt = (L / 0.946352946).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        return s + " = " + qt + " US qt " + (L / 1000).toFixed(2) + " kl";
+        if (L > 1000) return (L / 1000).toFixed(3) + " KL";
+        return L.toLocaleString("fr-FR") + " L";
       }
       function waterAmt(n) {
         if (n == null || !isFinite(Number(n))) return "<b>\u2014</b>";
-        var L = Math.round(Number(n));
-        var html = "<b>" + L.toLocaleString("fr-FR") + " L</b>";
-        if (L <= 1000) return html;
-        var qt = (L / 0.946352946).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        return html + '<span class="hs-wmore">= ' + qt + ' US qt</span><span class="hs-wkl">' + (L / 1000).toFixed(2) + " kl</span>";
+        return "<b>" + litres(n) + "</b>";
       }
       function waterLine(l) {
         var wu = l && l.waterUse;
