@@ -1,4 +1,4 @@
-# Stanford EZVIZ live: Bing 640p card/ffmpeg, Voëlklip-style -f hevc input.
+# Stanford EZVIZ live: Bing gold 640p (docs/EZVIZ_BING_GOLD.md). Never 4K.
 # Source is encrypted RTP HEVC (not Bing MPEG-PS). Do not edit carport_test.
 #   Bing Carport:          BA3858958  → carport_test (unchanged mpeg)
 #   Stanford EB5:          BF4277838  → stanford_eb5

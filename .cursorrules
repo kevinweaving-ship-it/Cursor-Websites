@@ -8,3 +8,5 @@
 - **Allowed classes:** container, card, table, tabs, section. **Forbidden:** raw ol/ul for results, inline CSS, custom page-level fonts or colours.
 
 See: `docs/UI_COMPONENTS_README.md`, `docs/design_system.md`, `.cursor/rules/theme-layout-mandatory.mdc`.
+
+- **EZVIZ = Bing gold (locked).** Live EZVIZ is Bing Carport: `bridge_ezviz.sh` + ffmpeg **640p @ 12fps**. **4K / videoLevel 4+ does not comply.** See **`.cursor/rules/ezviz-bing-gold.mdc`** and **`docs/EZVIZ_BING_GOLD.md`**. Do not change `carport_test`.

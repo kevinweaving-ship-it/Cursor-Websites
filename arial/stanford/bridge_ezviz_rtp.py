@@ -22,7 +22,9 @@ START = b"\x00\x00\x00\x01"
 ENV = Path("/opt/ezvizpoc/.env")
 TOKEN = Path("/opt/ezvizpoc/token.json")
 SERIAL = sys.argv[1]
+# Bing gold: C8C videoLevel 0. EB5 lowest listed option is 2. Never 4/6 (4K).
 STREAM = sys.argv[2] if len(sys.argv) > 2 else "2"
+VIDEO_LEVEL = sys.argv[3] if len(sys.argv) > 3 else "2"
 W = open(sys.stdout.fileno(), "wb", closefd=False, buffering=0)
 
 
@@ -77,10 +79,14 @@ def dec_h265(key: bytes, nal: bytes) -> bytes:
     return nal[:2] + ecb(key, nal[2:]) if len(nal) >= 18 else nal
 
 
-def with_stream(url: str, stream: str) -> str:
+def with_stream(url: str, stream: str, video_level: str) -> str:
+    if int(video_level) >= 4:
+        raise SystemExit("EZVIZ Bing gold: videoLevel >= 4 is 4K — refused")
     parts = urlsplit(url)
     q = dict(parse_qsl(parts.query, keep_blank_values=True))
     q["stream"] = stream
+    q["videoLevel"] = video_level
+    q["qn"] = video_level
     return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(q), parts.fragment))
 
 
@@ -117,7 +123,7 @@ class HevcOut:
 def stream_once(client: EzvizClient, key: bytes) -> None:
     hevc_out = HevcOut(key)
     info = get_cloud_stream_info(client, SERIAL, refresh_vtm=True)
-    url = with_stream(info["stream_url"], STREAM)
+    url = with_stream(info["stream_url"], STREAM, VIDEO_LEVEL)
     cur = None
     last = time.monotonic()
     params: dict[int, bytes] = {}
@@ -146,7 +152,7 @@ def stream_once(client: EzvizClient, key: bytes) -> None:
                 write_nal(params[p])
             write_nal(n)
             started = True
-            log("start IDR type=%s bytes=%s stream=%s" % (t, len(n), STREAM))
+            log("start IDR type=%s bytes=%s stream=%s lvl=%s" % (t, len(n), STREAM, VIDEO_LEVEL))
             W.flush()
             return
         write_nal(n)
@@ -154,7 +160,7 @@ def stream_once(client: EzvizClient, key: bytes) -> None:
     session = VtmStreamClient(url, timeout=25)
     with session:
         session.start()
-        log("streaming hevc stream=%s" % STREAM)
+        log("streaming hevc stream=%s lvl=%s" % (STREAM, VIDEO_LEVEL))
         for pkt in session.iter_packets():
             if pkt.channel not in (VtmChannel.STREAM, VtmChannel.ENCRYPTED_STREAM):
                 continue
