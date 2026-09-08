@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Upsert ZVYC Cape Classic 12–13 Sep 2026 into events (SAS listing pending).
+# Upsert ZVYC Cape Classic 12–13 Sep 2026 into events + parent regatta
+# /regatta/2026-09-13-zvyc-cape-classic (SAS listing pending).
 # Live:
 #   bash /var/www/sailingsa/deploy/add_zvyc_cape_classic_2026_event.sh --on-server
 set -euo pipefail
