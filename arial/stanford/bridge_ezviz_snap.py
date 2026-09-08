@@ -68,9 +68,15 @@ def main() -> None:
         resp.raise_for_status()
         if len(resp.content) < 800 or resp.content[:2] != b"\xff\xd8":
             raise RuntimeError("snapshot is not a jpeg")
-        raw = OUT.with_suffix(".full.jpg")
+        raw = Path("/tmp") / f"ezviz_{SERIAL}.jpg"
         raw.write_bytes(resp.content)
-        scale_to(raw, OUT)
+        try:
+            scale_to(raw, OUT)
+        finally:
+            try:
+                raw.unlink()
+            except OSError:
+                pass
         web_name = OUT.name.replace("_640.jpg", ".jpg")
         web = Path("/var/www/sailingsa/stanford/thumbs") / web_name
         web.parent.mkdir(parents=True, exist_ok=True)

@@ -120,7 +120,36 @@ class HevcOut:
         return nal if sig in sigs else dec_h265(self.key, nal)
 
 
+def read_video_level(client: EzvizClient) -> int:
+    pl = client.get_page_list() if hasattr(client, "get_page_list") else client._get_page_list()
+    worst = -1
+    for r in pl.get("resourceInfos") or []:
+        if r.get("deviceSerial") == SERIAL:
+            worst = max(worst, int(r.get("videoLevel") or -1))
+    return worst
+
+
+def drop_to_bing_level(client: EzvizClient) -> int:
+    """EB5 lowest legal level is 2. 4/6 is 4K and does not comply."""
+    try:
+        lvl = int(VIDEO_LEVEL)
+        if lvl >= 4:
+            raise SystemExit("EZVIZ Bing gold: videoLevel >= 4 is 4K — refused")
+        client.set_dev_config_kv(SERIAL, 1, "videoLevel", lvl)
+        log("set videoLevel", lvl)
+    except SystemExit:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        log("videoLevel set skipped", type(exc).__name__)
+    return read_video_level(client)
+
+
 def stream_once(client: EzvizClient, key: bytes) -> None:
+    have = drop_to_bing_level(client)
+    if have >= 4:
+        log("refuse 4K pull videoLevel", have)
+        time.sleep(8)
+        return
     hevc_out = HevcOut(key)
     info = get_cloud_stream_info(client, SERIAL, refresh_vtm=True)
     url = with_stream(info["stream_url"], STREAM, VIDEO_LEVEL)
