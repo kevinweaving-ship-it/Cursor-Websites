@@ -1,13 +1,12 @@
 #!/opt/cbi-sharing/venv/bin/python
-"""CBI Home device-sharing worker — isolated from Smart Life /opt/tuya-sharing.
+"""CBI Home source/listener — isolated from Smart Life /opt/tuya-sharing.
 
-Same SDK (tuya-device-sharing-sdk) and QR session shape as Smart Life, but:
-  - own venv, state, ports, token, systemd user
-  - no Hansekop meter/lights constants
-  - only homes listed in homes.json (home_id -> site)
-  - Bing is the only mapped site at this stage
+Arial rule: Olarm, Hikvision, EZVIZ, Smart Life, CBI are separate sources.
+A site URL (e.g. /bing/) subscribes to the sources it needs. This process is
+only the CBI source. It does not read Smart Life state or serve other brands.
 
-Does not import from /opt/tuya-sharing. Does not write Smart Life state.
+Same SDK shape as Smart Life, but own venv/state/ports. homes.json maps a
+CBI home_id onto a site URL. Bing is the first subscriber.
 """
 from __future__ import annotations
 

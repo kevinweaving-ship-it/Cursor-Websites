@@ -1212,6 +1212,33 @@ def test_pgm_pulse_blocked_when_not_enabled(monkeypatch):
     assert "not enabled" in r.json()["detail"].lower()
 
 
+def test_site_sources_registry_lists_separate_tools(monkeypatch, tmp_path):
+    reg = tmp_path / "registry.json"
+    reg.write_text(json.dumps({
+        "rule": "sources stay separate",
+        "sources": {
+            "olarm": {"kind": "alarm"},
+            "cbi": {"kind": "home"},
+            "smartlife": {"kind": "home"},
+        },
+        "sites": {
+            "bing": {
+                "url": "/bing/",
+                "label": "Bing Heights",
+                "uses": [{"source": "olarm"}, {"source": "cbi"}],
+            }
+        },
+    }))
+    monkeypatch.setenv("ARIAL_SOURCES_REGISTRY", str(reg))
+    monkeypatch.setattr(arial_api, "SITE_ID", "bing")
+    monkeypatch.setattr(arial_api, "SITE_LABEL", "BING")
+    out = arial_api._site_sources()
+    assert out["site"]["url"] == "/bing/"
+    kinds = [u["source"] for u in out["uses"]]
+    assert kinds == ["olarm", "cbi"]
+    assert "smartlife" not in kinds
+
+
 def test_pgm_pulse_wrong_output_blocked(monkeypatch):
     monkeypatch.setattr(arial_api, "PGM_ALLOW", {1})
 

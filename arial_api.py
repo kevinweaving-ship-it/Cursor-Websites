@@ -2450,6 +2450,36 @@ def arial_asset(asset_path: str):
     return FileResponse(path)
 
 
+def _site_sources() -> dict[str, Any]:
+    """Which listeners this site URL uses. Sources stay separate; a site only subscribes."""
+    paths = [
+        Path(os.getenv("ARIAL_SOURCES_REGISTRY") or ""),
+        Path("/opt/arial-sources/registry.json"),
+        Path(__file__).resolve().parent / "arial" / "sources" / "registry.json",
+    ]
+    data: dict[str, Any] = {}
+    for path in paths:
+        if path and path.is_file():
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+                data["_path"] = str(path)
+                break
+            except (OSError, ValueError):
+                continue
+    site = (data.get("sites") or {}).get(SITE_ID) or {}
+    catalog = data.get("sources") or {}
+    uses = []
+    for item in site.get("uses") or []:
+        src_id = item.get("source")
+        uses.append({**(catalog.get(src_id) or {}), **item, "source": src_id})
+    return {
+        "ok": True,
+        "rule": data.get("rule"),
+        "site": {"id": SITE_ID, "url": site.get("url"), "label": site.get("label") or SITE_LABEL},
+        "uses": uses,
+    }
+
+
 @router.get("/api/arial/status")
 def arial_status(request: Request):
     user = _session_user(request)
@@ -2460,10 +2490,16 @@ def arial_status(request: Request):
         "tuyaConfigured": tuya_configured(),
         "tuyaPaused": True,
         "site": {"id": SITE_ID, "label": SITE_LABEL, "tuya": SITE_TUYA, "deviceId": HANSEKOP_ID},
+        "sources": _site_sources(),
         "signedIn": bool(user),
         "me": _public_user(user) if user else None,
         "nextDomain": "arial.co.za",
     }
+
+
+@router.get("/api/arial/sources")
+def arial_sources():
+    return _site_sources()
 
 
 @router.get("/api/arial/tuya/probe")
