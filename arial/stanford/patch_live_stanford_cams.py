@@ -11,6 +11,8 @@ BING_SRC = Path(__file__).with_name("bridge_ezviz_bing.sh")
 BING_DST = Path("/opt/ezvizpoc/bridge_ezviz_bing.sh")
 SNAP_SRC = Path(__file__).with_name("bridge_ezviz_snap.py")
 SNAP_DST = Path("/opt/ezvizpoc/bridge_ezviz_snap.py")
+LIVE_SRC = Path(__file__).with_name("start_stanford_live.sh")
+LIVE_DST = Path("/opt/ezvizpoc/start_stanford_live.sh")
 YAML = Path("/opt/hikpoc/go2rtc.yaml")
 SNIP = Path(__file__).with_name("go2rtc-stanford.snippet.yaml")
 
@@ -34,6 +36,10 @@ def main() -> None:
         SNAP_DST.write_text(SNAP_SRC.read_text(encoding="utf-8"), encoding="utf-8")
         SNAP_DST.chmod(0o755)
         print("wrote", SNAP_DST)
+    if LIVE_SRC.is_file():
+        LIVE_DST.write_text(LIVE_SRC.read_text(encoding="utf-8"), encoding="utf-8")
+        LIVE_DST.chmod(0o755)
+        print("wrote", LIVE_DST)
     if YAML.is_file() and SNIP.is_file():
         y = YAML.read_text(encoding="utf-8")
         if "bin: /opt/hikpoc/bin/ffmpeg" not in y:
