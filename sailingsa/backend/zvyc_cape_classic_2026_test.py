@@ -8,9 +8,24 @@ _FAKE = (
 )
 
 
-def test_adds_site_header_keeps_event_header():
+def test_adds_default_header_keeps_event_header():
     out = add_default_site_header(_FAKE)
     assert 'class="site-header"' in out
+    assert 'id="headerLogoLink"' in out
+    assert 'id="loginBox"' in out
     assert "/css/main.css" in out
+    assert "/js/session.js" in out
+    assert "updateHeaderAuthStatus" in out
+    assert "--sa-header-h" in out
+    assert 'id="ssa-default-site-header-css"' in out
     assert 'class="regatta-name">KEEP' in out
     assert ".header{display:grid}" in out
+    assert "max-height:min(20vw,88px)" not in out
+
+
+def test_idempotent():
+    once = add_default_site_header(_FAKE)
+    twice = add_default_site_header(once)
+    assert twice.count('id="headerLogoLink"') == 1
+    assert twice.count('id="ssa-default-site-header-css"') == 1
+    assert twice.count('id="ssa-default-site-header-boot"') == 1
