@@ -39,11 +39,26 @@
       var MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
       function monLabel() { return MON[new Date(Date.now() + 7200000).getUTCMonth()]; }
       function prevMonLabel() { return MON[(new Date(Date.now() + 7200000).getUTCMonth() + 11) % 12]; }
-      function litres(n) { if (n == null || !isFinite(Number(n))) return "\u2014"; return Math.round(Number(n)).toLocaleString("en-GB") + " L"; }
+      function litres(n) {
+        if (n == null || !isFinite(Number(n))) return "\u2014";
+        var L = Math.round(Number(n));
+        var s = L.toLocaleString("fr-FR") + " L";
+        if (L <= 1000) return s;
+        var qt = (L / 0.946352946).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return s + " = " + qt + " US qt " + (L / 1000).toFixed(2) + " kl";
+      }
+      function waterAmt(n) {
+        if (n == null || !isFinite(Number(n))) return "<b>\u2014</b>";
+        var L = Math.round(Number(n));
+        var html = "<b>" + L.toLocaleString("fr-FR") + " L</b>";
+        if (L <= 1000) return html;
+        var qt = (L / 0.946352946).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return html + '<span class="hs-wmore">= ' + qt + ' US qt</span><span class="hs-wkl">' + (L / 1000).toFixed(2) + " kl</span>";
+      }
       function waterLine(l) {
         var wu = l && l.waterUse;
         if (!wu || (wu.todayL == null && wu.monthL == null && wu.lastMonthL == null)) return "";
-        function cell(n, lab) { return '<span class="hs-wcell"><b>' + litres(n) + "</b><i>" + lab + "</i></span>"; }
+        function cell(n, lab) { return '<span class="hs-wcell">' + waterAmt(n) + "<i>" + lab + "</i></span>"; }
         return '<span class="hs-wuse">' + cell(wu.todayL, "today") + cell(wu.monthL, monLabel()) + cell(wu.lastMonthL, prevMonLabel()) + "</span>";
       }
       var pend = {};   // "dev:code" -> {on, until}: tapped state shown instantly and held until the device confirms
