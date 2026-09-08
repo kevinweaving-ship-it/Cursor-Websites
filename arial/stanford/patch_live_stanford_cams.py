@@ -7,6 +7,10 @@ HTML_SRC = Path(__file__).with_name("index.html")
 HTML_DST = Path("/var/www/sailingsa/stanford/index.html")
 BRIDGE_SRC = Path(__file__).with_name("bridge_ezviz_rtp.py")
 BRIDGE_DST = Path("/opt/ezvizpoc/bridge_ezviz_rtp.py")
+BING_SRC = Path(__file__).with_name("bridge_ezviz_bing.sh")
+BING_DST = Path("/opt/ezvizpoc/bridge_ezviz_bing.sh")
+SNAP_SRC = Path(__file__).with_name("bridge_ezviz_snap.py")
+SNAP_DST = Path("/opt/ezvizpoc/bridge_ezviz_snap.py")
 YAML = Path("/opt/hikpoc/go2rtc.yaml")
 SNIP = Path(__file__).with_name("go2rtc-stanford.snippet.yaml")
 
@@ -22,6 +26,14 @@ def main() -> None:
         BRIDGE_DST.write_text(BRIDGE_SRC.read_text(encoding="utf-8"), encoding="utf-8")
         BRIDGE_DST.chmod(0o755)
         print("wrote", BRIDGE_DST)
+    if BING_SRC.is_file():
+        BING_DST.write_text(BING_SRC.read_text(encoding="utf-8"), encoding="utf-8")
+        BING_DST.chmod(0o755)
+        print("wrote", BING_DST)
+    if SNAP_SRC.is_file():
+        SNAP_DST.write_text(SNAP_SRC.read_text(encoding="utf-8"), encoding="utf-8")
+        SNAP_DST.chmod(0o755)
+        print("wrote", SNAP_DST)
     if YAML.is_file() and SNIP.is_file():
         y = YAML.read_text(encoding="utf-8")
         if "bin: /opt/hikpoc/bin/ffmpeg" not in y:

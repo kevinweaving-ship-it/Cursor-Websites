@@ -74,42 +74,42 @@ def dec_h265(key: bytes, nal: bytes) -> bytes:
 
 
 def stream_once(client: EzvizClient, key: bytes) -> None:
-    # Same as Hikvision bridge_cam.py: some VCL slices are flagged encrypted but sent clear.
-    # Decrypting those yields green/grey garbage. Learn clear slice-header signatures.
-    clear_sig: dict[tuple[int, int], list[bytes]] = {}
-    au = [None, 0]
+    # Always decrypt flagged NALs (proven clean 4K still). Hold stdout until
+    # VPS+SPS+PPS+IDR so ffmpeg can use the same -f hevc flags as Voëlklip.
     cur = None
     last = time.monotonic()
+    params: dict[int, bytes] = {}
+    started = False
 
-    def slice_idx(rts: int) -> int:
-        if rts != au[0]:
-            au[0] = rts
-            au[1] = 0
-        k = au[1]
-        au[1] += 1
-        return k
+    def out_nal(nal: bytes, enc: bool) -> bytes:
+        return dec_h265(key, nal) if enc else nal
 
-    def hevc_out(nal: bytes, enc: bool, rts: int) -> bytes:
-        t = (nal[0] >> 1) & 0x3F
-        if t >= 32 or len(nal) < 6:
-            return dec_h265(key, nal) if enc else nal
-        sk = (t, slice_idx(rts))
-        sig = nal[2:4]
-        sigs = clear_sig.setdefault(sk, [])
-        if not enc:
-            if sig not in sigs:
-                sigs.append(sig)
-                if len(sigs) > 64:
-                    del sigs[0]
-            return nal
-        return nal if sig in sigs else dec_h265(key, nal)
+    def write_nal(nal: bytes) -> None:
+        W.write(START)
+        W.write(nal)
 
-    def emit(nal: bytes, enc: bool, rts: int) -> None:
-        try:
-            W.write(START)
-            W.write(hevc_out(nal, enc, rts))
-        except BrokenPipeError:
-            raise
+    def emit(nal: bytes, enc: bool) -> None:
+        nonlocal started
+        n = out_nal(nal, enc)
+        if len(n) < 2:
+            return
+        t = (n[0] >> 1) & 0x3F
+        if t in (32, 33, 34):
+            params[t] = n
+            return
+        if not started:
+            if t not in (19, 20):
+                return
+            if not all(p in params for p in (32, 33, 34)):
+                return
+            for p in (32, 33, 34):
+                write_nal(params[p])
+            write_nal(n)
+            started = True
+            log("start IDR type=%s vps/sps/pps ok" % t)
+            W.flush()
+            return
+        write_nal(n)
 
     with open_cloud_stream(client, SERIAL, timeout=25) as session:
         session.start()
@@ -118,33 +118,39 @@ def stream_once(client: EzvizClient, key: bytes) -> None:
             rp = rtp_parse(pkt.body or b"")
             if not rp or rp[0] != 96 or not rp[2]:
                 continue
-            _pt, enc, pay, rts = rp
+            _pt, enc, pay, _rts = rp
             t = (pay[0] >> 1) & 0x3F
-            if t == 49:
-                fh = pay[2]
-                ft = fh & 0x3F
-                if fh & 0x80:
-                    nh0 = (pay[0] & 0x81) | (ft << 1)
-                    cur = [bytes([nh0, pay[1]]), bytearray(pay[3:]), enc]
-                elif cur:
-                    cur[1] += pay[3:]
-                if (fh & 0x40) and cur:
-                    emit(cur[0] + bytes(cur[1]), cur[2], rts)
-                    cur = None
-            elif t == 48:
-                i = 2
-                while i + 2 <= len(pay):
-                    sz = int.from_bytes(pay[i : i + 2], "big")
-                    i += 2
-                    if sz == 0 or i + sz > len(pay):
-                        break
-                    emit(pay[i : i + sz], enc, rts)
-                    i += sz
-            else:
-                emit(pay, enc, rts)
+            try:
+                if t == 49:
+                    fh = pay[2]
+                    ft = fh & 0x3F
+                    if fh & 0x80:
+                        nh0 = (pay[0] & 0x81) | (ft << 1)
+                        cur = [bytes([nh0, pay[1]]), bytearray(pay[3:]), enc]
+                    elif cur:
+                        cur[1] += pay[3:]
+                    if (fh & 0x40) and cur:
+                        emit(cur[0] + bytes(cur[1]), cur[2])
+                        cur = None
+                elif t == 48:
+                    i = 2
+                    while i + 2 <= len(pay):
+                        sz = int.from_bytes(pay[i : i + 2], "big")
+                        i += 2
+                        if sz == 0 or i + sz > len(pay):
+                            break
+                        emit(pay[i : i + sz], enc)
+                        i += sz
+                else:
+                    emit(pay, enc)
+            except BrokenPipeError:
+                return
             now = time.monotonic()
             if now - last > 0.2:
-                W.flush()
+                try:
+                    W.flush()
+                except BrokenPipeError:
+                    return
                 last = now
 
 

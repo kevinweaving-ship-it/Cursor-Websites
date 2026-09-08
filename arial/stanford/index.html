@@ -224,8 +224,8 @@
         <div class="card" id="stanford-cams">
             <div class="activity-head"><h2 class="section-title">Cameras</h2><span class="hs-upd" id="stanford-cams-upd"></span></div>
             <div class="cam-grid" hidden>
-                <div class="cam-cell cam-big" data-cam="stanford_eb5"><span class="cam-cap">EB5</span></div>
-                <div class="cam-cell" data-cam="stanford_front_garage"><span class="cam-cap">Front Garage</span></div>
+                <div class="cam-cell cam-big" data-cam="stanford_front_garage"><span class="cam-cap">Front Garage</span></div>
+                <div class="cam-cell" data-cam="stanford_eb5"><span class="cam-cap">EB5</span></div>
                 <div class="cam-cell cam-off" data-cam="" hidden><span class="cam-cap">Camera 3</span></div>
             </div>
             <button type="button" class="live-btn" id="stanford-live-btn"><span class="live-btn-main"><svg class="tb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 10l4.553 -2.276a1 1 0 0 1 1.447 .894v6.764a1 1 0 0 1 -1.447 .894l-4.553 -2.276v-4" /> <path d="M3 8a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2l0 -8" /></svg> LIVE</span><span class="live-btn-sub">View cameras live</span></button>
@@ -329,7 +329,7 @@
     </style>
     <script type="module">
       (async function () {
-        // Stanford EZVIZ: EB5 full-width + Front Garage half-width. 3rd cell stays hidden until a stream exists.
+        // Stanford EZVIZ: Front Garage full-width + EB5 half-width. 3rd cell stays hidden until a stream exists.
         var CAM = "https://sailingsa.co.za:8443/";
         var box = document.getElementById("stanford-cams"); if (!box) return;
         var grid = box.querySelector(".cam-grid"), btn = document.getElementById("stanford-live-btn"), upd = document.getElementById("stanford-cams-upd");
