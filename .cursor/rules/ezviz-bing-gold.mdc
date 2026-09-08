@@ -1,0 +1,37 @@
+---
+description: EZVIZ live gold is Bing Carport. 640p only. 4K is forbidden.
+globs:
+  - arial/**
+  - "**/ezviz*"
+  - "**/bridge_ezviz*"
+  - "**/go2rtc*.yaml"
+alwaysApply: false
+---
+
+# EZVIZ = Bing gold (locked)
+
+**Gold camera:** Bing Carport (`carport_test`, serial `BA3858958`).
+**Gold pipe:** `/opt/ezvizpoc/bridge_ezviz.sh SERIAL | /opt/hikpoc/bin/ffmpeg … -f mpeg … -vf scale=640:-2 -r 12 … baseline h264`
+**Gold card:** Bing EZVIZ cam card (thumb + EZVIZ overlay + MSE `mse,mjpeg`).
+
+If it is not what Bing uses, it is wrong. Do not invent a 4K path.
+
+## Hard limits (non-negotiable)
+
+- Live output **max 640p**, **12 fps**, libx264 baseline, `scale=640:-2`.
+- Camera **videoLevel must be Bing-class** (Bing C8C = `0`). On EB5s the lowest listed option is `2`. Use that. **Never 4 or 6.**
+- **Forbidden:** 4K, 3840×2160, UHD, “main 4K”, videoLevel ≥ 4, pulling stream=1 HD/4K for LIVE.
+- **Forbidden:** JPEG-loop fake live, custom Stanford-only 4K decrypt as the live default.
+- **Do not edit** `carport_test` / Bing dump unless the user names Bing in the same message.
+
+## New / other EZVIZ cams
+
+Copy Bing. Same exec (serial only), same 640p ffmpeg, same card, same overlay/idle. Set videoLevel to the **lowest** option in `VIDEO_QUALITY` that is not 4K. If the only options are 4K, stop and say so — do not enable 4K.
+
+## Stanford
+
+Front Garage stays on the Stanford page. **Protocol is RTP HEVC decrypt**, not Bing MPEG. Output still **640p @ 12fps**. EB5 is off.
+
+Do not put Stanford on `bridge_ezviz.sh | -f mpeg`. That player never frames RTP.
+
+See `docs/EZVIZ_BING_GOLD.md`.

@@ -1,0 +1,3 @@
+# Stanford Front Garage: RTP HEVC decrypt (not Bing MPEG). Output 640p @ 12fps.
+# Do not edit carport_test. EB5 off. Do not call drop_to_bing_level on start.
+  stanford_front_garage: exec:bash -c "trap 'kill 0' EXIT TERM INT; /opt/hikpoc/venv/bin/python /opt/ezvizpoc/bridge_ezviz_rtp.py BF4277866 2>>/opt/ezvizpoc/out/bridge_stanford_front_garage.log | /opt/hikpoc/bin/ffmpeg -hide_banner -loglevel error -fflags nobuffer+genpts -flags low_delay -err_detect ignore_err -probesize 32 -analyzeduration 0 -f hevc -i pipe:0 -an -vf scale=640:-2 -r 12 -vsync cfr -c:v libx264 -preset ultrafast -tune zerolatency -profile:v baseline -pix_fmt yuv420p -g 12 -muxdelay 0 -muxpreload 0 -rtsp_transport tcp -f rtsp {output}"
