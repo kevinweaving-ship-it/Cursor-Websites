@@ -48,33 +48,14 @@ def current_levels(c: EzvizClient) -> dict[str, int]:
 
 
 def set_level(c: EzvizClient, serial: str, level: int) -> str:
-    paths = (
-        f"/v3/userdevices/{serial}/1/1/quality/{level}",
-        f"/v3/userdevices/v1/cameras/{serial}/1/quality/{level}",
-    )
-    last = "no-attempt"
-    for path in paths:
-        try:
-            resp = c._request_json("PUT", path, retry_401=True)
-            meta = resp.get("meta") if isinstance(resp, dict) else None
-            code = (meta or {}).get("code") if isinstance(meta, dict) else None
-            if code in (200, 0, "200", None) or (isinstance(resp, dict) and resp.get("resultCode") in (0, "0")):
-                return f"ok {path} code={code}"
-            last = f"meta={code}"
-        except Exception as exc:  # noqa: BLE001
-            last = type(exc).__name__
     try:
-        resp = c._request_json(
-            "PUT",
-            "/v3/userdevices/v1/cameras/videoQuality",
-            data={"deviceSerial": serial, "channelNo": 1, "videoLevel": level, "streamType": 1},
-            retry_401=True,
-        )
-        meta = resp.get("meta") if isinstance(resp, dict) else None
-        code = (meta or {}).get("code") if isinstance(meta, dict) else None
-        return f"body-put code={code}"
+        c.set_dev_config_kv(serial, 1, "videoLevel", level)
+        return "ok devconfig videoLevel"
     except Exception as exc:  # noqa: BLE001
-        return f"fail {last}/{type(exc).__name__}"
+        msg = str(exc)
+        if "2009" in msg:
+            return "busy 2009 (Stanford uplink / cam busy — retry when idle)"
+        return type(exc).__name__
 
 
 def main() -> int:
@@ -83,8 +64,15 @@ def main() -> int:
         return 2
     c = client()
     print("before", current_levels(c))
+    import time
     for serial, name in STANFORD.items():
-        print(name, serial[-4:], set_level(c, serial, LEVEL))
+        last = ""
+        for attempt in range(4):
+            last = set_level(c, serial, LEVEL)
+            print(name, serial[-4:], last)
+            if last.startswith("ok"):
+                break
+            time.sleep(3)
     print("after", current_levels(c))
     return 0
 
