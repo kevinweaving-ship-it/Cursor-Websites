@@ -25788,6 +25788,49 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
         return HTMLResponse(content=_HTML_SOFT_FAIL_200, status_code=200, media_type="text/html")
 
 
+def _html_with_gold_header(title: str, body: str, extra_head: str = "") -> HTMLResponse:
+    """Wrap page body with the default Sailing SA header.html (logo, Sign Up, Login)."""
+    header_path = Path(STATIC_DIR) / "header.html" if STATIC_DIR else Path()
+    if not header_path.exists():
+        header_path = Path(WEB_ROOT) / "header.html"
+    header_html = ""
+    try:
+        if header_path.exists():
+            header_html = header_path.read_text(encoding="utf-8", errors="ignore")
+    except Exception:
+        header_html = ""
+    et = html_module.escape(title)
+    if not header_html:
+        return HTMLResponse(
+            "<!doctype html><html lang=en><head><meta charset=utf-8>"
+            '<meta name="viewport" content="width=device-width,initial-scale=1">'
+            "<title>" + et + "</title>" + extra_head + "</head><body>" + body + "</body></html>"
+        )
+    if re.search(r"<title>[^<]*</title>", header_html, flags=re.I):
+        header_html = re.sub(r"<title>[^<]*</title>", "<title>" + et + "</title>", header_html, count=1, flags=re.I)
+    if extra_head:
+        header_html = re.sub(r"</head>", extra_head + "</head>", header_html, count=1, flags=re.I)
+    if re.search(r"<main(\s[^>]*)?>\s*</main>", header_html, flags=re.I):
+        def _main_repl(m):
+            attrs = m.group(1) or ""
+            return "<main" + attrs + ">" + body + "</main>"
+        header_html = re.sub(
+            r"<main(\s[^>]*)?>\s*</main>",
+            _main_repl,
+            header_html,
+            count=1,
+            flags=re.I,
+        )
+        return HTMLResponse(header_html)
+    low = header_html.lower()
+    body_close = low.rfind("</body>")
+    if body_close >= 0:
+        combined = header_html[:body_close] + "\n" + body + "\n" + header_html[body_close:]
+    else:
+        combined = header_html + body
+    return HTMLResponse(combined)
+
+
 def serve_regatta_standalone(slug: str, request: Request):
     """Serve one full standalone HTML result sheet for /regatta/{slug}. Unknown regatta → 301 /events (not 404)."""
     start_time = time.time()
@@ -25826,7 +25869,8 @@ def serve_regatta_standalone(slug: str, request: Request):
             if host_club_slug and host_club_text
             else esc_host
         )
-        back_link = '<a href="/" class="back-to-home">← Back to Search</a>'
+        # Default for ALL events: Sailing SA site header. No Back to Search.
+        back_link = ''
         if str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG and _session_role_is_super_admin(request):
             back_block = (
                 '<div class="regatta-back-row">'
@@ -25964,20 +26008,16 @@ def serve_regatta_standalone(slug: str, request: Request):
             if str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG and is_sa
             else ""
         )
-        doc = (
-            "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
-            f"{escaped_title} | SailingSA</title>"
-            f"<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
-            f"<link rel=\"canonical\" href=\"{html_module.escape(canonical_url)}\">"
-            "<link rel=\"icon\" type=\"image/png\" sizes=\"48x48\" href=\"/favicon-48.png\">"
-            "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
+        extra_head = (
+            f'<link rel="canonical" href="{html_module.escape(canonical_url)}">'
             f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
-            f"<style>{_RESULT_SHEET_CSS}</style></head><body>"
+            f"<style>{_RESULT_SHEET_CSS}</style>"
+        )
+        page_inner = (
             f"<div class=\"regatta-page\">{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script}"
-            "</body></html>"
         )
         print("REGATTA: total route time", round(time.time() - start_time, 3))
-        return HTMLResponse(doc)
+        return _html_with_gold_header(f"{escaped_title} | SailingSA", page_inner, extra_head)
     except Exception as e:
         print(f"[serve_regatta_standalone] {e}", flush=True)
         return HTMLResponse(content=_HTML_SOFT_FAIL_200, status_code=200, media_type="text/html")
