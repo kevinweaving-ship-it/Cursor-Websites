@@ -23586,16 +23586,21 @@ _RESULT_SHEET_CSS = (
     ".fleet-section .sailed-line{font-size:calc(11px * .75);line-height:1.25}"
     "}"
     "@media (max-width:768px) and (max-aspect-ratio:1/1){"
-    ".header{width:100%!important;max-width:100%!important;margin-bottom:16px;padding:3px 3px;margin-left:0;margin-right:0;"
-    "grid-template-columns:minmax(0,min(22vw,72px)) minmax(0,1fr) minmax(0,min(22vw,72px));grid-template-rows:auto;align-items:center;align-content:center;"
-    "column-gap:3px;row-gap:2px;min-height:0}"
-    ".regatta-header-logo-col{grid-column:1;grid-row:1;justify-content:flex-start;min-width:0;padding:1px 2px 1px 1px}"
-    ".regatta-header-club-logo-col{grid-column:3;grid-row:1;justify-content:flex-end;min-width:0;padding:1px 1px 1px 2px}"
-    ".regatta-header-main-col{grid-column:2;grid-row:1;justify-self:center;align-self:center;padding-top:0;min-width:0;max-width:100%}"
-    ".regatta-header-logo-img{max-height:min(12vw,44px);max-width:min(18vw,72px);object-fit:contain}"
-    ".regatta-name{font-size:clamp(10.4px,3.04vw,14.4px);line-height:1.2;margin-bottom:3px}"
-    ".host-club{font-size:clamp(9.6px,2.56vw,11.2px);margin-bottom:0;line-height:1.25}"
-    ".status-line{font-size:clamp(8px,2.24vw,9.6px);margin-top:2px;margin-bottom:0;line-height:1.25}"
+    ".header{width:100%!important;max-width:100%!important;margin-bottom:16px;padding:8px 6px;margin-left:0;margin-right:0;"
+    "grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto auto;align-items:center;justify-items:center;"
+    "column-gap:0;row-gap:6px;min-height:0}"
+    ".regatta-header-logo-col{grid-column:1;grid-row:1;justify-content:center;width:100%;min-width:0;padding:4px}"
+    ".regatta-header-main-col{grid-column:1;grid-row:2;justify-self:center;align-self:center;padding:4px;min-width:0;max-width:100%;width:100%}"
+    ".regatta-header-club-logo-col{grid-column:1;grid-row:3;justify-content:center;width:100%;min-width:0;padding:4px}"
+    ".regatta-header-logo-img{max-height:min(24vw,104px);max-width:min(54vw,320px);object-fit:contain}"
+    ".class-header{flex-direction:column;gap:8px}"
+    ".class-header--with-logos{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto auto;justify-items:center;column-gap:0;row-gap:6px}"
+    ".class-header-logo-col{grid-column:1;grid-row:1;justify-content:center}"
+    ".class-header-main-col,.class-header-text-col{grid-column:1;grid-row:2}"
+    ".class-header-club-logo-col{grid-column:1;grid-row:3;justify-content:center}"
+    ".regatta-name{font-size:18px;line-height:1.25;margin-bottom:6px}"
+    ".host-club{font-size:14px;margin-bottom:4px;line-height:1.3}"
+    ".status-line{font-size:12px;margin-top:6px;margin-bottom:0;line-height:1.3}"
     "}"
     "@media (max-width:768px) and (orientation:landscape){"
     ".header{width:100%!important;max-width:100%!important;margin-bottom:20px;padding:4px 6px;margin-left:0;margin-right:0;grid-template-columns:1fr 1fr;grid-template-rows:auto auto}"
@@ -25826,7 +25831,7 @@ def serve_regatta_standalone(slug: str, request: Request):
             if host_club_slug and host_club_text
             else esc_host
         )
-        back_link = '<a href="/" class="back-to-home">← Back to Search</a>'
+        back_link = ""
         if str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG and _session_role_is_super_admin(request):
             back_block = (
                 '<div class="regatta-back-row">'
