@@ -44,4 +44,6 @@ Do **not** call `drop_to_bing_level()` on live start (EZVIZ 2009 stalls first fr
 
 Setter: `arial/stanford/set_ezviz_video_level.py` (Stanford serials only). Not on the live start path.
 
+**4K / too-high P:** URL `stream=2` does not drop encode. FG pagelist is **4**, EB5 is **6**. Gray/green 640 JPEG = 4096 decrypt of a 4K IDR. Full dive: **`docs/EZVIZ_4K_TOO_HIGH_P.md`**.
+
 Cursor rule: `.cursor/rules/ezviz-bing-gold.mdc`.
