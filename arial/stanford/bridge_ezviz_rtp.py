@@ -1,8 +1,9 @@
 #!/opt/hikpoc/venv/bin/python
 """EZVIZ VTM RTP -> decrypted Annex-B HEVC on stdout. Usage: bridge_ezviz_rtp.py SERIAL
 
-Reads EZVIZ_CODE_<SERIAL> from /opt/ezvizpoc/.env. Stanford cameras only.
-Does not touch Hik-Connect, CBI, or other sites. Does not re-pair.
+Stanford only. Same decrypt as /opt/hikpoc/bridge_cam.py (Voëlklip gold):
+per-NAL AES-128-ECB, first 4096, RTP encrypt flag, clear-slice skip.
+Requests EZVIZ substream (stream=2) so first frame is 640-class, not 4K main.
 """
 from __future__ import annotations
 
@@ -10,15 +11,18 @@ import json
 import sys
 import time
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from Crypto.Cipher import AES
 from pyezvizapi.client import EzvizClient
-from pyezvizapi.cloud_stream import open_cloud_stream
+from pyezvizapi.cloud_stream import VtmStreamClient, get_cloud_stream_info
+from pyezvizapi.stream import VtmChannel
 
 START = b"\x00\x00\x00\x01"
 ENV = Path("/opt/ezvizpoc/.env")
 TOKEN = Path("/opt/ezvizpoc/token.json")
 SERIAL = sys.argv[1]
+STREAM = sys.argv[2] if len(sys.argv) > 2 else "2"
 W = open(sys.stdout.fileno(), "wb", closefd=False, buffering=0)
 
 
@@ -61,9 +65,8 @@ def rtp_parse(b: bytes):
     return b[1] & 0x7F, enc, b[off:], int.from_bytes(b[4:8], "big")
 
 
-def ecb(key: bytes, body: bytes, n: int | None = None) -> bytes:
-    # 4096-only decrypt leaves 4K slices green after a sliver. Decrypt the whole NAL body.
-    m = len(body) if n is None else min(n, len(body))
+def ecb(key: bytes, body: bytes, n: int = 4096) -> bytes:
+    m = min(n, len(body))
     m -= m % 16
     if m <= 0:
         return body
@@ -74,24 +77,60 @@ def dec_h265(key: bytes, nal: bytes) -> bytes:
     return nal[:2] + ecb(key, nal[2:]) if len(nal) >= 18 else nal
 
 
+def with_stream(url: str, stream: str) -> str:
+    parts = urlsplit(url)
+    q = dict(parse_qsl(parts.query, keep_blank_values=True))
+    q["stream"] = stream
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(q), parts.fragment))
+
+
+class HevcOut:
+    def __init__(self, key: bytes):
+        self.key = key
+        self.clear_sig: dict[tuple[int, int], list[bytes]] = {}
+        self.au = [None, 0]
+
+    def _slice_idx(self, rts: int) -> int:
+        if rts != self.au[0]:
+            self.au[0] = rts
+            self.au[1] = 0
+        k = self.au[1]
+        self.au[1] += 1
+        return k
+
+    def __call__(self, nal: bytes, enc: bool, rts: int) -> bytes:
+        t = (nal[0] >> 1) & 0x3F
+        if t >= 32 or len(nal) < 6:
+            return dec_h265(self.key, nal) if enc else nal
+        key = (t, self._slice_idx(rts))
+        sig = nal[2:4]
+        sigs = self.clear_sig.setdefault(key, [])
+        if not enc:
+            if sig not in sigs:
+                sigs.append(sig)
+                if len(sigs) > 64:
+                    del sigs[0]
+            return nal
+        return nal if sig in sigs else dec_h265(self.key, nal)
+
+
 def stream_once(client: EzvizClient, key: bytes) -> None:
-    # Always decrypt flagged NALs (proven clean 4K still). Hold stdout until
-    # VPS+SPS+PPS+IDR so ffmpeg can use the same -f hevc flags as Voëlklip.
+    hevc_out = HevcOut(key)
+    info = get_cloud_stream_info(client, SERIAL, refresh_vtm=True)
+    url = with_stream(info["stream_url"], STREAM)
     cur = None
     last = time.monotonic()
     params: dict[int, bytes] = {}
     started = False
-
-    def out_nal(nal: bytes, enc: bool) -> bytes:
-        return dec_h265(key, nal) if enc else nal
+    pkts = 0
 
     def write_nal(nal: bytes) -> None:
         W.write(START)
         W.write(nal)
 
-    def emit(nal: bytes, enc: bool) -> None:
+    def emit(nal: bytes, enc: bool, rts: int) -> None:
         nonlocal started
-        n = out_nal(nal, enc)
+        n = hevc_out(nal, enc, rts)
         if len(n) < 2:
             return
         t = (n[0] >> 1) & 0x3F
@@ -107,20 +146,24 @@ def stream_once(client: EzvizClient, key: bytes) -> None:
                 write_nal(params[p])
             write_nal(n)
             started = True
-            log("start IDR type=%s vps/sps/pps ok" % t)
+            log("start IDR type=%s bytes=%s stream=%s" % (t, len(n), STREAM))
             W.flush()
             return
         write_nal(n)
 
-    with open_cloud_stream(client, SERIAL, timeout=25) as session:
+    session = VtmStreamClient(url, timeout=25)
+    with session:
         session.start()
-        log("streaming hevc")
+        log("streaming hevc stream=%s" % STREAM)
         for pkt in session.iter_packets():
+            if pkt.channel not in (VtmChannel.STREAM, VtmChannel.ENCRYPTED_STREAM):
+                continue
             rp = rtp_parse(pkt.body or b"")
             if not rp or rp[0] != 96 or not rp[2]:
                 continue
-            _pt, enc, pay, _rts = rp
+            _pt, enc, pay, rts = rp
             t = (pay[0] >> 1) & 0x3F
+            pkts += 1
             try:
                 if t == 49:
                     fh = pay[2]
@@ -131,7 +174,7 @@ def stream_once(client: EzvizClient, key: bytes) -> None:
                     elif cur:
                         cur[1] += pay[3:]
                     if (fh & 0x40) and cur:
-                        emit(cur[0] + bytes(cur[1]), cur[2])
+                        emit(cur[0] + bytes(cur[1]), cur[2], rts)
                         cur = None
                 elif t == 48:
                     i = 2
@@ -140,10 +183,10 @@ def stream_once(client: EzvizClient, key: bytes) -> None:
                         i += 2
                         if sz == 0 or i + sz > len(pay):
                             break
-                        emit(pay[i : i + sz], enc)
+                        emit(pay[i : i + sz], enc, rts)
                         i += sz
                 else:
-                    emit(pay, enc)
+                    emit(pay, enc, rts)
             except BrokenPipeError:
                 return
             now = time.monotonic()
@@ -153,6 +196,7 @@ def stream_once(client: EzvizClient, key: bytes) -> None:
                 except BrokenPipeError:
                     return
                 last = now
+    log("session ended packets=%s started=%s" % (pkts, started))
 
 
 def main() -> None:
@@ -166,7 +210,7 @@ def main() -> None:
         except BrokenPipeError:
             return
         except Exception as exc:  # noqa: BLE001
-            log("reconnect:", repr(exc)[:160])
+            log("reconnect:", type(exc).__name__)
             time.sleep(1.0)
 
 

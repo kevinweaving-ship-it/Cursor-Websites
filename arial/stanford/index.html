@@ -342,7 +342,7 @@
         var box = document.getElementById("stanford-cams"); if (!box) return;
         var grid = box.querySelector(".cam-grid"), btn = document.getElementById("stanford-live-btn"), upd = document.getElementById("stanford-cams-upd");
         try { await import(CAM + "video-stream.js"); } catch (e) { console.warn("cams load failed", e); upd.textContent = "stream module unavailable"; return; }
-        var HIDE_MS = 60000, SAFETY_MS = 300000, hideT = null, safeT = null, shown = false, startedAt = 0, liveCount = 0, camInView = true, idleAt = 0;
+        var HIDE_MS = 60000, SAFETY_MS = 300000, hideT = null, safeT = null, shown = false, startedAt = 0, liveCount = 0, camInView = true, idleAt = 0, pendingRest = [];
         function vidOf(el) {
           return (el && el.video) || (el && el.querySelector && el.querySelector("video")) || null;
         }
@@ -360,6 +360,7 @@
             btn.querySelector(".live-btn-sub").textContent = "Live · stays while you use the page · idle 1 min hides";
             armIdle();
           }
+          if (cell.classList.contains("cam-big")) startRest();
         }
         function loadOne(cell) {
             var src = cell.getAttribute("data-cam");
@@ -396,26 +397,38 @@
               }
             }, 50);
         }
+        function thumbOnly(cell, msg) {
+          var thumb = cell.querySelector(".cam-thumb");
+          var thumbSrc = cell.getAttribute("data-thumb");
+          if (thumb && thumbSrc) { thumb.src = thumbSrc + "?t=" + Date.now(); thumb.hidden = false; }
+          var ov = cell.querySelector(".cam-ezviz");
+          if (!ov) {
+            ov = document.createElement("div"); ov.className = "cam-ezviz";
+            ov.innerHTML = '<span class="cam-ezviz-mark">EZVIZ</span><span class="cam-spin"></span><span class="cam-ezviz-txt"></span>';
+            cell.appendChild(ov);
+          }
+          var t = ov.querySelector(".cam-ezviz-txt"); if (t) t.textContent = msg;
+        }
+        function startRest() {
+          if (!shown || !pendingRest.length) return;
+          var next = pendingRest.slice();
+          pendingRest = [];
+          next.forEach(function (cell) {
+            thumbOnly(cell, "Connecting live\u2026");
+            loadOne(cell);
+          });
+        }
         function load() {
           liveCount = 0;
           var cells = Array.prototype.slice.call(grid.querySelectorAll(".cam-cell"));
           var hero = cells.filter(function (c) { return c.classList.contains("cam-big") && c.getAttribute("data-cam"); });
-          var rest = cells.filter(function (c) { return !c.classList.contains("cam-big") && c.getAttribute("data-cam") && !c.classList.contains("cam-off"); });
-          hero.forEach(loadOne);
-          // Second cam after hero is live, or 2s — do not open both 4K EZVIZ dumps at once.
-          var startedRest = false;
-          function startRest() {
-            if (startedRest) return;
-            startedRest = true;
-            rest.forEach(loadOne);
-          }
-          var restT = setTimeout(startRest, 2000);
-          var wait = setInterval(function () {
-            if (liveCount > 0) { clearInterval(wait); clearTimeout(restT); startRest(); }
-            else if (!shown) { clearInterval(wait); clearTimeout(restT); }
-          }, 200);
+          pendingRest = cells.filter(function (c) { return !c.classList.contains("cam-big") && c.getAttribute("data-cam") && !c.classList.contains("cam-off"); });
+          pendingRest.forEach(function (cell) { thumbOnly(cell, "Waiting for Front Garage\u2026"); });
+          if (!hero.length) startRest();
+          else hero.forEach(loadOne);
         }
         function unload() {
+          pendingRest = [];
           grid.querySelectorAll(".cam-cell").forEach(function (cell) { cell.classList.remove("is-live"); });
           grid.querySelectorAll(".cam-cell video-stream, .cam-cell .cam-ezviz, .cam-cell .cam-live-pill").forEach(function (el) { el.remove(); });
         }
