@@ -31,10 +31,10 @@ from tuya_sharing.version import VERSION as SDK_VERSION
 
 # --- verbatim from HA const.py -------------------------------------------------
 TUYA_CLIENT_ID = "HA_3y9q4ak7g4ephrvke"
-# CBI Home OEM schema. haauthorize + tuyaSmart--qrLogin makes CBI say
-# "Logging in Home Assistant" / "use the designated APP".
-TUYA_SCHEMA = "cbilvcbihome"
-QR_FMT = "cbilvcbihome--qrLogin?token={token}"
+# Same constants as the working Smart Life collector (HA const.py / config_flow.py).
+# Scan in Smart Life: + → Scan. Not CBI Add Device.
+TUYA_SCHEMA = "haauthorize"
+QR_FMT = "tuyaSmart--qrLogin?token={token}"
 # ------------------------------------------------------------------------------
 
 ROOT = Path("/opt/cbi-sharing")
@@ -402,7 +402,7 @@ def main() -> int:
     s = sub.add_parser("refresh"); s.add_argument("--force", action="store_true")
     s = sub.add_parser("listen"); s.add_argument("--seconds", type=int, default=300); s.add_argument("--all", action="store_true"); s.add_argument("--drop-after", type=int, default=0)
     args = p.parse_args()
-    print(f"# tuya-device-sharing-sdk {SDK_VERSION}  client_id={TUYA_CLIENT_ID} schema={TUYA_SCHEMA}")
+    print(f"# tuya-device-sharing-sdk {SDK_VERSION}  client_id={TUYA_CLIENT_ID} schema={TUYA_SCHEMA} qr={QR_FMT.split('?')[0]}")
     return {"status": cmd_status, "qr": cmd_qr, "poll": cmd_poll, "enum": cmd_enum, "refresh": cmd_refresh, "listen": cmd_listen}[args.cmd](args)
 
 
