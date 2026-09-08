@@ -1,0 +1,21 @@
+[Unit]
+Description=CBI Home device-sharing worker (Bing) — isolated from Smart Life tuya-sharing
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=cbi-sharing
+Group=cbi-sharing
+WorkingDirectory=/opt/cbi-sharing
+EnvironmentFile=/etc/cbi-sharing.env
+ExecStart=/opt/cbi-sharing/venv/bin/python /opt/cbi-sharing/worker.py
+Restart=always
+RestartSec=15
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/cbi-sharing/state
+
+[Install]
+WantedBy=multi-user.target

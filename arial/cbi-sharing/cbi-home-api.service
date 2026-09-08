@@ -1,0 +1,20 @@
+[Unit]
+Description=CBI Home read API :8011 — isolated from Smart Life home-api :8008
+After=network.target
+
+[Service]
+User=cbi-sharing
+Group=cbi-sharing
+WorkingDirectory=/opt/cbi-sharing
+EnvironmentFile=/etc/cbi-sharing.env
+ExecStart=/opt/cbi-sharing/venv/bin/python /opt/cbi-sharing/home_api.py
+Restart=always
+RestartSec=3
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadOnlyPaths=/opt/cbi-sharing/state /opt/cbi-sharing/homes.json
+
+[Install]
+WantedBy=multi-user.target

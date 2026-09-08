@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "rule": "Each tool is a source/listener. A site URL subscribes to sources. Never merge two sources into one tool.",
+  "sources": {
+    "olarm": {
+      "kind": "alarm",
+      "provides": ["panel", "areas", "zones", "pgm", "events", "power"],
+      "listener": "arial site API (Olarm poller)"
+    },
+    "hikvision": {
+      "kind": "camera",
+      "provides": ["live", "clips", "snaps"],
+      "listener": "/opt/hikpoc + go2rtc :8443"
+    },
+    "ezviz": {
+      "kind": "camera",
+      "provides": ["live"],
+      "listener": "/opt/ezvizpoc + go2rtc :8443"
+    },
+    "smartlife": {
+      "kind": "home",
+      "provides": ["devices", "switches", "energy", "mqtt"],
+      "listener": "/opt/tuya-sharing :8007/:8008"
+    },
+    "cbi": {
+      "kind": "home",
+      "provides": ["devices", "switches", "mqtt"],
+      "listener": "/opt/cbi-sharing :8010/:8011"
+    }
+  },
+  "sites": {
+    "hansekop": {
+      "url": "/arial/",
+      "label": "Hansekop",
+      "uses": [
+        { "source": "olarm", "deviceId": "0bb544db-30b0-453d-bf39-d323538ebd5e" },
+        { "source": "smartlife", "home": "Aerial Networks HSK", "ctrl": "http://127.0.0.1:8007" }
+      ]
+    },
+    "voelklip": {
+      "url": "/voelklip/",
+      "label": "Home",
+      "uses": [
+        { "source": "olarm", "deviceId": "d6f25654-5fe8-4a85-a7ba-f8ff1449144a" },
+        { "source": "smartlife", "home": "Voelklip - Home", "ctrl": "http://127.0.0.1:8007", "homeApi": "http://127.0.0.1:8008" },
+        { "source": "hikvision", "streams": ["garage", "workshop", "pool", "driveway"] }
+      ]
+    },
+    "stanford": {
+      "url": "/stanford/",
+      "label": "Stanford",
+      "uses": [
+        { "source": "olarm", "deviceId": "efd4b247-8ab9-4973-93ab-da168ada17f6" },
+        { "source": "smartlife", "home": "My Home ..", "ctrl": "http://127.0.0.1:8007", "homeApi": "http://127.0.0.1:8008" },
+        { "source": "ezviz", "streams": ["carport_test"] }
+      ]
+    },
+    "bing": {
+      "url": "/bing/",
+      "label": "Bing Heights",
+      "uses": [
+        { "source": "olarm", "deviceId": "de7a7934-a73a-4bdb-87b2-4540a49f455c" },
+        { "source": "cbi", "homeId": "166940142", "ctrl": "http://127.0.0.1:8010", "homeApi": "http://127.0.0.1:8011" },
+        { "source": "ezviz", "streams": ["carport_test"] }
+      ]
+    }
+  }
+}

@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en-ZA">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes">
+    <meta name="robots" content="noindex,nofollow">
+    <meta http-equiv="Cache-Control" content="no-store">
+    <title>Arial · Bing Heights</title>
+    <link rel="stylesheet" href="/arial/arial.css?v=243">
+    <link rel="stylesheet" href="/arial/arial-pc.css?v=1">
+</head>
+<body>
+    <div class="pad-wrap" id="pad-frame">
+    <div class="pad-clip">
+    <div class="pad">
+        <svg class="shell-svg" viewBox="0 0 368 427" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+                <clipPath id="deviceClip" clipPathUnits="objectBoundingBox">
+                    <path d="M0.315 0 C0.155 0.008 0.055 0.03 0.047 0.06 L0.047 0.88 C0.055 0.96 0.195 1 0.325 1 L0.675 1 C0.805 1 0.945 0.96 0.953 0.88 L0.953 0.06 C0.945 0.03 0.845 0.008 0.685 0 Z"/>
+                </clipPath>
+                <linearGradient id="bodyFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#f7f7f5"/>
+                    <stop offset="0.55" stop-color="#f4f4f2"/>
+                    <stop offset="1" stop-color="#f1f1ee"/>
+                </linearGradient>
+                <linearGradient id="capFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#b4b6b8"/>
+                    <stop offset="0.4" stop-color="#9a9d9f"/>
+                    <stop offset="1" stop-color="#86898c"/>
+                </linearGradient>
+                <linearGradient id="capSheen" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0" stop-color="#000" stop-opacity="0.08"/>
+                    <stop offset="0.3" stop-color="#fff" stop-opacity="0.1"/>
+                    <stop offset="0.68" stop-color="#fff" stop-opacity="0.04"/>
+                    <stop offset="1" stop-color="#000" stop-opacity="0.1"/>
+                </linearGradient>
+                <linearGradient id="recessFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#dfe2e5"/>
+                    <stop offset="1" stop-color="#eef0f2"/>
+                </linearGradient>
+                <filter id="bodyShadow" x="-8%" y="-4%" width="116%" height="116%">
+                    <feDropShadow dx="0" dy="7" stdDeviation="6" flood-color="#000" flood-opacity="0.15"/>
+                </filter>
+            </defs>
+            <path class="shell-body" filter="url(#bodyShadow)" fill="url(#bodyFill)" stroke="#6a7378" stroke-width="3.2" stroke-linejoin="round"
+                d="M116 2 C68 5 25 16 19 30 L19 372 C21 402 55 423 117 425 L251 425 C313 423 347 402 349 372 L349 30 C343 16 300 5 252 2 Z"/>
+            <path class="shell-cap" fill="url(#capFill)"
+                d="M116 2 C68 5 25 16 19 30 L19 138 Q184 144 349 138 L349 30 C343 16 300 5 252 2 Z"/>
+            <path class="shell-cap" fill="url(#capSheen)"
+                d="M116 2 C68 5 25 16 19 30 L19 138 Q184 144 349 138 L349 30 C343 16 300 5 252 2 Z"/>
+            <rect class="shell-recess" x="64" y="158" width="231" height="216" rx="13" fill="url(#recessFill)" stroke="#6a7378" stroke-width="1.6"/>
+            <path class="shell-cover" fill="#fbfbfa"
+                d="M63 378 H305 C339 378 345 392 345 404 C345 422 315 425 251 425 L117 425 C53 425 23 422 23 404 C23 392 29 378 63 378 Z"/>
+            <path class="shell-outline" fill="none" stroke="#6a7378" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"
+                d="M19 350 L19 370 C21 400 55 421 117 423 L251 423 C313 421 347 400 349 370 L349 350"/>
+        </svg>
+        <div class="brand-slot">
+            <img class="brand-logo" src="/arial/logo.png?v=97" alt="Aerial Networks">
+        </div>
+        <div class="lcd" aria-live="polite">
+            <div class="lcd-toprow">
+                <div id="lcd-2">
+                    <span id="lcd-status-main"></span>
+                    <span id="lcd-status-issue" hidden></span>
+                </div>
+                <div class="lcd-head">
+                    <span id="lcd-site">HOME</span>
+                    <span id="lcd-date"></span>
+                    <span id="lcd-time"></span>
+                    <img id="lcd-user-logo" alt="">
+                    <span id="lcd-user-name" hidden></span>
+                </div>
+            </div>
+            <div class="lcd-mid">
+                <span id="lcd-welcome"></span>
+            </div>
+        </div>
+        <div class="led ac on" id="led-ac" title="AC"></div>
+        <div class="led status" id="led-status" title="STATUS"></div>
+        <div class="led-status-label">Status</div>
+        <div class="led link" id="led-link" title="Olarm link"></div>
+        <div class="led-link-label">Link</div>
+        <button type="button" class="hot key-fn" data-key="STAY" aria-label="Garage"><span class="key-label">GARAGE</span></button>
+        <button type="button" class="hot key-fn" data-key="FORCE" aria-label="House"><span class="key-label">HOUSE</span></button>
+        <button type="button" class="hot key-fn" data-key="ARM" aria-label="Flat"><span class="key-label">FLAT</span></button>
+        <button type="button" class="hot key-fn arm-toggle to-arm" id="arm-toggle" data-key="TOGGLE" aria-label="ARM">
+            <span class="key-icon-wrap" id="arm-toggle-face">
+                <svg class="key-icon icon-lock" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M8.2 11.2V8.1C8.2 6 9.9 4.2 12 4.2s3.8 1.8 3.8 3.9v3.1" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+                    <path fill="currentColor" fill-rule="evenodd" d="M6.2 11.1h11.6c1.2 0 2.2 1 2.2 2.2v6.3c0 1.2-1 2.2-2.2 2.2H6.2c-1.2 0-2.2-1-2.2-2.2v-6.3c0-1.2 1-2.2 2.2-2.2zm5.8 3.05a1.55 1.55 0 1 0 0 3.1 1.55 1.55 0 0 0 0-3.1zm-.7 2.7h1.4l.45 2.15h-2.3l.45-2.15z"/>
+                </svg>
+                <svg class="key-icon icon-unlock" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M8.2 11.2V8.1C8.2 6 9.9 4.2 12 4.2c1.7 0 3.1 1.1 3.6 2.6" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+                    <path fill="currentColor" fill-rule="evenodd" d="M6.2 11.1h11.6c1.2 0 2.2 1 2.2 2.2v6.3c0 1.2-1 2.2-2.2 2.2H6.2c-1.2 0-2.2-1-2.2-2.2v-6.3c0-1.2 1-2.2 2.2-2.2zm5.8 3.05a1.55 1.55 0 1 0 0 3.1 1.55 1.55 0 0 0 0-3.1zm-.7 2.7h1.4l.45 2.15h-2.3l.45-2.15z"/>
+                </svg>
+            </span>
+        </button>
+        <button type="button" class="hot key-fn hot-more" data-key="BYP" aria-label="BYP"><span class="key-label">BYP</span></button>
+        <button type="button" class="hot key-fn hot-more" data-key="MEM" aria-label="MEM"><span class="key-label">MEM</span></button>
+        <button type="button" class="hot key-fn hot-more" data-key="TBL" aria-label="TBL"><span class="key-label">TBL</span></button>
+        <button type="button" class="hot key-fn hot-more" data-key="ACC" aria-label="ACC"><span class="key-label">ACC</span></button>
+        <button type="button" class="hot key-arrow" data-key="UP" aria-label="Log Out" hidden>
+            <svg class="key-icon icon-logout" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M10 5.2H6.8A2.4 2.4 0 0 0 4.4 7.6v8.8A2.4 2.4 0 0 0 6.8 18.8H10" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M11.2 12h8.2" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M16.4 8.2L20.6 12 16.4 15.8" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </button>
+        <button type="button" class="hot key-arrow hot-more" data-key="DOWN" aria-label="Down"><span class="key-arrow-icon down" aria-hidden="true"></span></button>
+        <button type="button" class="hot key-num hot-more" data-key="1" aria-label="1"><span class="key-label">1</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="2" aria-label="2"><span class="key-label">2</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="3" aria-label="3"><span class="key-label">3</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="4" aria-label="4"><span class="key-label">4</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="5" aria-label="5"><span class="key-label">5</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="6" aria-label="6"><span class="key-label">6</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="7" aria-label="7"><span class="key-label">7</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="8" aria-label="8"><span class="key-label">8</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="9" aria-label="9"><span class="key-label">9</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="CLEAR" aria-label="CLEAR"><span class="key-label">CLEAR</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="0" aria-label="0"><span class="key-label">0</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="ENTER" aria-label="ENTER"><span class="key-label">ENTER</span></button>
+        <audio id="pin-ok" src="/arial/pin-accepted.wav" preload="auto"></audio>
+        <audio id="key-beep" src="/arial/key-beep.wav?v=97" preload="auto" playsinline></audio>
+        <audio id="key-reject" src="/arial/key-reject.wav?v=151" preload="auto" playsinline></audio>
+    </div>
+    </div>
+    </div>
+    <div class="lights-pop" id="lights-pop" hidden>
+        <div class="lights-panel card" role="dialog" aria-modal="true" aria-labelledby="lights-title">
+            <div class="activity-head lights-head">
+                <h2 class="section-title" id="lights-title">Lights</h2>
+                <div class="lights-all">
+                    <button type="button" class="lights-all-btn" id="lights-all-on">All on</button>
+                    <button type="button" class="lights-all-btn" id="lights-all-off">All off</button>
+                    <button type="button" class="lights-close" id="lights-close" aria-label="Close">&times;</button>
+                </div>
+            </div>
+            <div class="lights-grid" id="lights-grid">
+                <button type="button" class="light-btn" data-switch="switch_1"><span class="light-icon" aria-hidden="true"></span><span class="light-name">Switch 1</span><span class="light-state">—</span></button>
+                <button type="button" class="light-btn" data-switch="switch_2"><span class="light-icon" aria-hidden="true"></span><span class="light-name">Switch 2</span><span class="light-state">—</span></button>
+                <button type="button" class="light-btn" data-switch="switch_3"><span class="light-icon" aria-hidden="true"></span><span class="light-name">Switch 3</span><span class="light-state">—</span></button>
+                <button type="button" class="light-btn" data-switch="switch_4"><span class="light-icon" aria-hidden="true"></span><span class="light-name">Switch 4</span><span class="light-state">—</span></button>
+            </div>
+            <p class="lights-note" id="lights-note"></p>
+        </div>
+    </div>
+    <div class="container arial-below" hidden>
+        <div class="card" id="arial-activity">
+            <div class="activity-head">
+                <h2 class="section-title">Activity</h2>
+                <p class="activity-power" id="activity-power">AC — · Bat —</p>
+            </div>
+            <div class="tabs" role="tablist">
+                <button type="button" class="on" data-tab="all" role="tab" aria-selected="true" title="All"><span class="activity-tab-mark" aria-hidden="true"></span>All</button>
+                <button type="button" data-tab="zones" role="tab" aria-selected="false" title="Zones"><span class="activity-tab-mark" aria-hidden="true"></span>Zones</button>
+                <button type="button" data-tab="areas" role="tab" aria-selected="false" title="Areas"><span class="activity-tab-mark" aria-hidden="true"></span>Areas</button>
+                <button type="button" data-tab="whatsapp" role="tab" aria-selected="false" title="WhatsApp"><svg class="activity-tab-wa" viewBox="0 0 24 24" width="13" height="13" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.6.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3a.5.5 0 0 0 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 2.9 2.9 0 0 0-.9 2.2 5 5 0 0 0 1.1 2.7 11.4 11.4 0 0 0 4.4 3.9c1.6.7 2.3.7 3.1.6a2.6 2.6 0 0 0 1.7-1.2 2.1 2.1 0 0 0 .2-1.2c-.1-.2-.3-.2-.5-.3z"/></svg><span class="activity-tab-label">WhatsApp</span></button>
+            </div>
+            <ul class="activity-list" id="arial-activity-body"></ul>
+            <button type="button" class="activity-more" id="activity-more" hidden aria-expanded="false">
+                <span class="activity-more-arrow" aria-hidden="true"></span>
+                <span class="activity-more-label">More</span>
+            </button>
+        </div>
+        <div class="card" id="arial-breaker">
+            <div class="activity-head">
+                <h2 class="section-title">Hansekop Main Breaker</h2>
+                <p class="breaker-on" id="breaker-state">
+                    <span class="breaker-on-dot" aria-hidden="true"></span>
+                    <span id="breaker-on-label">—</span>
+                </p>
+            </div>
+            <div class="breaker-dials">
+                <div class="breaker-dial" data-kind="v">
+                    <div class="breaker-echart" id="breaker-chart-v" aria-hidden="true"></div>
+                    <span class="breaker-dial-val" id="breaker-v">—</span>
+                    <span class="breaker-dial-unit">V</span>
+                </div>
+                <div class="breaker-dial" data-kind="a">
+                    <div class="breaker-echart" id="breaker-chart-a" aria-hidden="true"></div>
+                    <span class="breaker-dial-val" id="breaker-a">—</span>
+                    <span class="breaker-dial-unit">A</span>
+                </div>
+                <div class="breaker-dial breaker-dial-power" data-kind="w">
+                    <div class="breaker-echart" id="breaker-chart-w" aria-hidden="true"></div>
+                    <span class="breaker-dial-val" id="breaker-w">—</span>
+                    <span class="breaker-dial-unit">W</span>
+                </div>
+                <div class="breaker-info">
+                    <p class="breaker-flag" id="breaker-flag" data-flag="learning">
+                        <span class="breaker-flag-dot" aria-hidden="true"></span>
+                        <span id="breaker-flag-text">Learning baseline</span>
+                    </p>
+                    <span class="breaker-flag-avg" id="breaker-flag-avg"></span>
+                    <span class="breaker-today" id="breaker-w-now">Today —</span>
+                    <span class="breaker-since" id="breaker-hist-range" title="Time since mains power was restored">Since restore —</span>
+                </div>
+            </div>
+            <div class="breaker-day" id="breaker-day" data-day="0">
+                <div class="breaker-day-head">
+                    <button type="button" class="breaker-day-nav" id="breaker-day-prev" aria-label="Earlier day">&#9664;</button>
+                    <span class="breaker-day-title">
+                        <span class="breaker-day-dot" aria-hidden="true"></span>
+                        <span id="breaker-day-label">Today</span>
+                        <span class="breaker-day-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+                    </span>
+                    <span class="breaker-day-total" id="breaker-day-total">—</span>
+                    <button type="button" class="breaker-day-nav" id="breaker-day-next" aria-label="Later day" disabled>&#9654;</button>
+                </div>
+                <div class="breaker-day-chart" id="breaker-day-chart">
+                    <svg class="breaker-bars" id="breaker-bars" viewBox="0 0 320 60" preserveAspectRatio="none" role="img" aria-label="Energy per hour"></svg>
+                    <div class="breaker-day-empty" id="breaker-day-empty" hidden>No hourly data yet</div>
+                    <div class="breaker-tip" id="breaker-tip" hidden></div>
+                </div>
+                <div class="breaker-day-axis" aria-hidden="true"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
+                <div class="breaker-legend" aria-hidden="true">
+                    <span><i class="band-cold2"></i>Below</span>
+                    <span><i class="band-avg"></i>Avg</span>
+                    <span><i class="band-hot"></i>Above</span>
+                    <span><i class="band-danger"></i>Issue</span>
+                </div>
+            </div>
+        </div>
+        <div class="card" id="bing-cams">
+            <div class="activity-head"><h2 class="section-title">Cameras</h2><span class="hs-upd" id="bing-cams-upd"></span></div>
+            <div class="cam-grid one" hidden>
+                <div class="cam-cell" data-cam="carport_test"><span class="cam-cap">Carport</span></div>
+            </div>
+            <button type="button" class="live-btn" id="bing-live-btn"><span class="live-btn-main"><svg class="tb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 10l4.553 -2.276a1 1 0 0 1 1.447 .894v6.764a1 1 0 0 1 -1.447 .894l-4.553 -2.276v-4" /> <path d="M3 8a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2l0 -8" /></svg> LIVE</span><span class="live-btn-sub">Carport camera · EZVIZ</span></button>
+        </div>
+        <div class="card hs-card" id="home-weather" hidden>
+            <div class="activity-head"><h2 class="section-title">Weather</h2><span class="hs-upd" id="hw-upd"></span></div>
+            <div class="hs-row" id="hs-weather"></div>
+            <div class="hs-row" id="hs-indoor"></div>
+        </div>
+        <div class="card hs-card" id="home-sensors" hidden>
+            <div class="activity-head"><h2 class="section-title">Home</h2><span class="hs-upd" id="hs-upd"></span></div>
+            <div class="hs-items" id="hs-items"></div>
+        </div>
+    </div>
+    <script>
+    (function () {
+        var TZ = "Africa/Johannesburg";
+        var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        function pad(n) { return String(n).padStart(2, "0"); }
+        function saStamp() {
+            var d = new Date(new Date().toLocaleString("en-US", { timeZone: TZ }));
+            var dateEl = document.getElementById("lcd-date");
+            var timeEl = document.getElementById("lcd-time");
+            if (dateEl) dateEl.textContent = pad(d.getDate()) + " " + months[d.getMonth()] + " " + d.getFullYear();
+            if (timeEl) timeEl.textContent = pad(d.getHours()) + ":" + pad(d.getMinutes());
+        }
+        saStamp();
+    })();
+    </script>
+    <script>window.ARIAL_CONFIG = { apiBase: "/api/bing", siteId: "bing", siteLabel: "BING", keypadUsers: ["Kevin","Annette"], tuya: false, homeCard: true, homeCardTitle: "CBI Home", pgm: { label: "Garage", num: 1, cmd: "pgm-pulse", name: "Garage" }, exitDelay: 30,
+        homeLabels: {
+          "bf37e8a5c2aaf19646e4lm": "Water meter",
+          "bf66db4e0d4f4a0a04raxs": "Flat geyser",
+          "bf339fe9ca3ccdd950rg71": "Noordhoek geyser",
+          "bf523917690e5e7934upvc": "Pool pump"
+        } };</script>
+    <style>
+      /* Garage key is a 1s PGM pulse (RF-remote style). No open/close/half-open state. */
+      #voelklip-cams .cam-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+      #voelklip-cams video-stream .mode{display:none!important}
+      #voelklip-cams .cam-cell{position:relative;aspect-ratio:16/9;background:#000;border-radius:6px;overflow:hidden}
+      #voelklip-cams .cam-cell video-stream{width:100%;height:100%;display:block}
+      #voelklip-cams video{background:#000}
+      #voelklip-cams video::-webkit-media-controls,#voelklip-cams video::-webkit-media-controls-enclosure{display:none !important}
+      #voelklip-cams .cam-snap{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;display:block}
+      #voelklip-cams .cam-replay{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;display:block;background:#000}
+      #voelklip-cams .cam-msg{position:absolute;inset:0;z-index:1;display:flex;align-items:center;justify-content:center;font:600 12px Arial,Helvetica,sans-serif;color:#fff;background:#111;text-align:center;padding:6px}
+      #voelklip-cams .cam-spin{width:18px;height:18px;flex:0 0 18px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:camspin .8s linear infinite;margin-right:8px}
+      @keyframes camspin{to{transform:rotate(360deg)}}
+      #voelklip-cams .cam-cell.cam-off{display:none}
+      #voelklip-replay-bar{display:flex;align-items:center;gap:10px;margin:0 0 8px;padding:8px 10px;border-radius:8px;background:#eef2f7;font:600 12px Arial,Helvetica,sans-serif;color:#1e293b}
+      #voelklip-replay-bar[hidden]{display:none}
+      #voelklip-replay-bar .cam-event-icon{flex:0 0 40px;width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:22px;background:#dcfce7}
+      #voelklip-replay-bar.ev-armed .cam-event-icon{background:#dbeafe}
+      #voelklip-replay-bar.ev-alarm .cam-event-icon{background:#fee2e2}
+      #voelklip-replay-bar .cam-event-text{min-width:0;flex:1 1 auto;line-height:1.35}
+      #voelklip-replay-bar .cam-event-stamp{font-weight:700;font-size:13px}
+      #voelklip-replay-bar .cam-event-line{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      #voelklip-replay-bar .cam-event-line .st{color:#15803d}
+      #voelklip-replay-bar.ev-armed .cam-event-line .st{color:#1d4ed8}
+      #voelklip-replay-bar.ev-alarm .cam-event-line .st{color:#dc2626}
+      #voelklip-replay-bar .cam-event-power{font-weight:500;color:#334155;display:flex;align-items:center;gap:4px}
+      #voelklip-replay-bar .cam-plug{display:inline-block;width:16px;height:16px;line-height:16px;text-align:center;border-radius:4px;font-size:11px;color:#fff;background:#16a34a}
+      #voelklip-replay-bar .cam-plug.bad{background:#dc2626}
+      #voelklip-replay-bar .cam-plug.unknown{background:#94a3b8}
+      #voelklip-cams .live-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;min-height:48px;margin:8px 0 0;padding:6px 12px;border:0;border-radius:8px;background:#1d6fe0;color:#fff;font:700 15px Arial,Helvetica,sans-serif;cursor:pointer;line-height:1.2}
+      #voelklip-cams .live-btn .live-btn-sub{font:500 11px Arial,Helvetica,sans-serif;opacity:.9}
+      #voelklip-cams.live-mode .live-btn{background:#15803d}
+      #voelklip-cams .cam-cell{cursor:pointer}
+      #voelklip-cams .cam-cell.cam-big{grid-column:1/-1;order:-1}
+      #voelklip-cams .cam-play{position:absolute;right:5px;bottom:5px;z-index:2;width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.85);color:#1e293b;font-size:10px;line-height:24px;text-align:center;pointer-events:none}
+      #voelklip-cams.live-mode .cam-play{display:none}
+      .activity-row.has-replay{cursor:pointer}
+      .activity-row .act-play{margin-left:auto;flex:0 0 auto;width:28px;height:28px;border:0;border-radius:50%;background:#e2e8f0;color:#1e293b;font-size:11px;line-height:28px;text-align:center;padding:0;cursor:pointer;position:relative}
+      .activity-row .act-play::after{content:"";position:absolute;inset:-8px}
+      .activity-row.has-replay.act-alarm .act-play{background:#dc2626;color:#fff}
+      #voelklip-cams .cam-cap{position:absolute;top:3px;left:5px;z-index:2;font:600 11px Arial,Helvetica,sans-serif;color:#fff;text-shadow:0 1px 2px #000;background:rgba(0,0,0,.4);padding:1px 6px;border-radius:4px}
+    </style>
+    
+    <script src="/arial/arial-pc.js?v=1"></script>
+    <script src="/arial/app.js?v=249"></script>
+    <style>
+      #bing-cams .cam-test-tag{font:700 9px Arial,Helvetica,sans-serif;letter-spacing:.08em;color:#b45309;background:#fef3c7;border-radius:4px;padding:2px 6px;margin-left:6px;vertical-align:middle}
+      #bing-cams .cam-grid{display:grid;grid-template-columns:1fr;gap:6px}
+      #bing-cams .cam-grid[hidden]{display:none}
+      #bing-cams .tb{width:1em;height:1em;vertical-align:-0.15em;display:inline-block}
+      #bing-cams video-stream .mode{display:none!important}
+      #bing-cams .cam-cell{position:relative;aspect-ratio:16/9;background:#000;border-radius:6px;overflow:hidden}
+      #bing-cams .cam-cell video-stream{width:100%;height:100%;display:block}
+      #bing-cams video{background:#000}
+      #bing-cams video::-webkit-media-controls,#bing-cams video::-webkit-media-controls-enclosure{display:none !important}
+      #bing-cams .cam-cap{position:absolute;left:6px;top:6px;z-index:2;font:700 11px Arial,Helvetica,sans-serif;color:#fff;background:rgba(0,0,0,.7);border-radius:4px;padding:2px 6px}
+      #bing-cams .cam-msg{position:absolute;inset:0;z-index:1;display:flex;align-items:center;justify-content:center;font:600 12px Arial,Helvetica,sans-serif;color:#fff;background:#111;text-align:center;padding:6px}
+      #bing-cams .cam-spin{width:18px;height:18px;flex:0 0 18px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:bgcamspin .8s linear infinite;margin-right:8px}
+      @keyframes bgcamspin{to{transform:rotate(360deg)}}
+      #bing-cams .live-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;min-height:48px;margin:8px 0 0;padding:6px 12px;border:0;border-radius:8px;background:#1d6fe0;color:#fff;font:700 15px Arial,Helvetica,sans-serif;cursor:pointer;line-height:1.2}
+      #bing-cams .live-btn .live-btn-sub{font:500 11px Arial,Helvetica,sans-serif;opacity:.9}
+      #bing-cams.live-mode .live-btn{background:#15803d}
+      #bing-cams .hs-upd{font:500 10px Arial,Helvetica,sans-serif;color:#64748b}
+    </style>
+    <script type="module">
+      (async function () {
+        // TEST camera: EZVIZ C8C via go2rtc stream "carport_test" (VTM cloud relay -> h264 640x360). No replay, no snapshots yet.
+        var CAM = "https://sailingsa.co.za:8443/";
+        var box = document.getElementById("bing-cams"); if (!box) return;
+        var grid = box.querySelector(".cam-grid"), btn = document.getElementById("bing-live-btn"), upd = document.getElementById("bing-cams-upd");
+        try { await import(CAM + "video-stream.js"); } catch (e) { console.warn("cams load failed", e); upd.textContent = "stream module unavailable"; return; }
+        var HIDE_MS = 60000, SAFETY_MS = 300000, hideT = null, safeT = null, shown = false, startedAt = 0;
+        function load() {
+          grid.querySelectorAll(".cam-cell").forEach(function (cell) {
+            if (cell.querySelector("video-stream")) return;
+            var msg = document.createElement("div"); msg.className = "cam-msg"; msg.innerHTML = '<span class="cam-spin"></span>connecting to EZVIZ cloud… (first frame ~6 s)';
+            cell.appendChild(msg);
+            var el = document.createElement("video-stream"); el.mode = "webrtc,mse"; el.background = false;
+            el.src = new URL("api/ws?src=" + cell.getAttribute("data-cam"), CAM);
+            cell.appendChild(el);
+            var tries = 0, iv = setInterval(function () {
+              var v = el.video || el.querySelector("video");
+              if (v && v.videoWidth > 0 && v.currentTime > 0.2) { clearInterval(iv); msg.remove(); upd.textContent = "live · " + v.videoWidth + "×" + v.videoHeight + " · first frame " + ((Date.now() - startedAt) / 1000).toFixed(1) + " s"; }
+              else if (++tries > 900 || !el.isConnected) { clearInterval(iv); msg.textContent = "no video (camera offline or relay busy)"; }
+            }, 50);
+          });
+        }
+        function unload() { grid.querySelectorAll(".cam-cell video-stream, .cam-cell .cam-msg").forEach(function (el) { el.remove(); }); }
+        function show() {
+          startedAt = Date.now(); shown = true; grid.hidden = false; box.classList.add("live-mode");
+          btn.querySelector(".live-btn-sub").textContent = "Live · hides after 1 min · tap to stop"; load();
+          if (hideT) clearTimeout(hideT); hideT = setTimeout(hide, HIDE_MS);
+          if (safeT) clearTimeout(safeT); safeT = setTimeout(hide, SAFETY_MS);
+        }
+        function hide() {
+          shown = false; grid.hidden = true; unload(); box.classList.remove("live-mode"); upd.textContent = "";
+          btn.querySelector(".live-btn-sub").textContent = "Carport camera · EZVIZ";
+          if (hideT) { clearTimeout(hideT); hideT = null; } if (safeT) { clearTimeout(safeT); safeT = null; }
+        }
+        btn.addEventListener("click", function () { if (shown) hide(); else show(); });
+        document.addEventListener("visibilitychange", function () { if (document.hidden && shown) hide(); });
+      })();
+    </script>
+    <link rel="stylesheet" href="/arial/home-card.css?v=hc3">
+    <script src="/arial/home-card.js?v=hc4"></script>
+</body>
+</html>
