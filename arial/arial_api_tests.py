@@ -1285,6 +1285,33 @@ def test_home_sensors_cloud_transport_rejected(monkeypatch):
     assert r.status_code == 503
 
 
+def test_cbi_switch_accepts_numeric_dp(monkeypatch):
+    monkeypatch.setattr(arial_api, "TUYA_TRANSPORT", "cbi")
+    monkeypatch.setattr(arial_api, "HOME_TRANSPORT", True)
+    monkeypatch.setattr(arial_api, "SHARING_CTRL_URL", "http://127.0.0.1:8010")
+    monkeypatch.setattr(arial_api, "SHARING_CTRL_TOKEN", "t")
+    monkeypatch.setattr(arial_api, "KEYPAD_CODES", {"6114": "Kevin"})
+
+    class R:
+        def json(self):
+            return {"ok": True, "source": "cbi", "confirmed": True, "switches": [{"code": "1", "on": True}]}
+
+    def fake_post(url, json=None, headers=None, timeout=12.0):
+        assert json["switch"] == "1"
+        assert json["value"] is True
+        return R()
+
+    monkeypatch.setattr(arial_api.httpx, "post", fake_post)
+    monkeypatch.setattr(arial_api, "_lights_payload", lambda device: {"ok": True, "deviceId": device, "online": True, "switches": []})
+    monkeypatch.setattr(arial_api, "_remember_keypad", lambda *_a, **_k: None)
+    app = FastAPI()
+    app.include_router(arial_api.router)
+    client = TestClient(app)
+    r = client.post("/api/arial/tuya/switch", json={"code": "6114", "device_id": "bf1", "switch": "1", "value": True})
+    assert r.status_code == 200
+    assert r.json()["source"] == "cbi"
+
+
 def test_bing_page_enables_home_card_not_smartlife():
     html = (Path(__file__).resolve().parents[1] / "bing" / "index.html").read_text(encoding="utf-8")
     assert "homeCard: true" in html

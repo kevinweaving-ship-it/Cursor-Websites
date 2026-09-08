@@ -3,6 +3,29 @@
       if (!box || !((window.ARIAL_CONFIG || {}).homeCard || String((window.ARIAL_CONFIG || {}).siteId) === "voelklip")) return;
       var API = String((window.ARIAL_CONFIG || {}).apiBase || "/api/voelklip").replace(/\/$/, "");
       var cardTitle = String((window.ARIAL_CONFIG || {}).homeCardTitle || "").trim();
+      var HOME_LABELS = (window.ARIAL_CONFIG || {}).homeLabels || {};
+      function neatName(x) {
+        if (HOME_LABELS[x.id]) return HOME_LABELS[x.id];
+        var n = String(x.name || "").trim();
+        n = n.replace(/^Smart Water Valve\b.*$/i, "Water meter");
+        n = n.replace(/^Bing Heights\s+/i, "");
+        n = n.replace(/\s+-\s+Noordhoek\s*$/i, "");
+        n = n.replace(/\s+BV\d+\s*$/i, "");
+        return n || x.name || x.id;
+      }
+      function switchCodes(status) {
+        var keys = Object.keys(status || {});
+        var named = keys.filter(function (k) { return /^switch(_\d+)?$/.test(k); });
+        if (named.length) {
+          return named.sort(function (a, b) {
+            var na = a === "switch" ? 0 : Number(String(a).replace(/^switch_?/, "")) || 0;
+            var nb = b === "switch" ? 0 : Number(String(b).replace(/^switch_?/, "")) || 0;
+            return na - nb;
+          });
+        }
+        if (Object.prototype.hasOwnProperty.call(status || {}, "1")) return ["1"];
+        return [];
+      }
       if (cardTitle) {
         var titleEl = box.querySelector(".section-title");
         if (titleEl) titleEl.textContent = cardTitle;
@@ -24,14 +47,14 @@
         lastData = d;
         ICONS = d.icons || {};
         Object.keys(pend).forEach(function (k) { if (Date.now() > pend[k].until) delete pend[k]; });
-        (d.devices || []).forEach(function (x) { Object.keys(x.status || {}).forEach(function (c) { if (/^switch(_\d+)?$/.test(c)) x.status[c] = pendOn(x.id, c, x.status[c]); }); });
+        (d.devices || []).forEach(function (x) { Object.keys(x.status || {}).forEach(function (c) { if (/^switch(_\d+)?$/.test(c) || c === "1") x.status[c] = pendOn(x.id, c, x.status[c]); }); });
         var devs = d.devices || [], wx = null, indoor = null, lock = null, plugs = [], lights = [];
         devs.forEach(function (x) {
           if (x.category === "qxj") wx = x;
           else if (x.category === "wsdcg") indoor = x;
           else if (x.category === "jtmspro") lock = x;
           else if ("cur_power" in x.status) plugs.push(x);
-          else if (x.category === "kg" || x.category === "tdq" || x.category === "dlq" || x.category === "pc") lights.push(x);
+          else if (x.category === "kg" || x.category === "tdq" || x.category === "dlq" || x.category === "pc" || x.category === "sfkzq") lights.push(x);
         });
         var h = "";
         if (wx) {
@@ -332,7 +355,7 @@
           items.push({ grp: pDorm ? "dormant" : "plugs", use: pUse, ts: p.lastEvent || 0, html: '<div class="hs-tile hs-plug' + (!p.online ? " off" : lvl) + '">' +
                '<span class="ic">' + tico(p.id) + '</span>' +
                '<span class="v">' + (w == null ? "\u2014" : Math.round(w) + " W") + '</span>' +
-               '<span class="l">' + p.name + (avg != null ? " \u00b7 avg " + Math.round(avg) + " W" : "") + '</span>' +
+               '<span class="l">' + neatName(p) + (avg != null ? " \u00b7 avg " + Math.round(avg) + " W" : "") + '</span>' +
                '<span class="l">' + (p.usage && p.usage.todayKwh != null ? n1(p.usage.todayKwh) + " kWh today \u00b7 " + n1(p.usage.monthKwh) + " kWh " + monLabel() : (kwh != null ? n1(kwh) + " kWh today" : "")) +
                  (p.usage && p.usage.todayOnS != null ? " \u00b7 on " + hm(p.usage.todayOnS) : "") + '</span>' +
                (sw ? '<button type="button" class="hs-gang hs-plugsw' + (on ? " on" : "") + '" data-dev="' + p.id + '" data-sw="switch_1" data-on="' + (on ? 1 : 0) + '" title="' + p.name + '"><span class="ic ctl ctl-power" aria-hidden="true"></span><span class="gl">' + (on ? "ON" : "OFF") + (on && (p.since || {}).switch_1 ? " \u00b7 " + dur(p.since.switch_1) : "") + '</span></button>' : "") +
@@ -340,26 +363,29 @@
         });
         // Lights by device, one button per gang (icon + app label), lit when on with time-on underneath.
         var ln = d.lightNames || {}, lh = "";
-        lights.filter(function (l) { return ["kg", "tdq", "dlq", "pc"].indexOf(l.category) !== -1; }).sort(function (a, b) { return a.name.localeCompare(b.name); }).forEach(function (l) {
-          var codes = Object.keys(l.status).filter(function (k) { return /^switch(_\d+)?$/.test(k); }).sort(function (a, b) { return Number(a.slice(7)) - Number(b.slice(7)); });
+        lights.filter(function (l) { return ["kg", "tdq", "dlq", "pc", "sfkzq"].indexOf(l.category) !== -1; }).sort(function (a, b) { return neatName(a).localeCompare(neatName(b)); }).forEach(function (l) {
+          var codes = switchCodes(l.status);
           var labels = ln[l.id] || [];
+          var shown = neatName(l);
+          var isWater = l.category === "sfkzq";
           var g = codes.map(function (c, i) {
             var on = l.status[c] === true, lab = labels[i] || (codes.length > 1 ? String(i + 1) : "");
             var gt = l.usage && l.usage.gangs && l.usage.gangs[c] ? l.usage.gangs[c].todayS : null;
-            return '<button type="button" class="hs-gang' + (on ? " on" : "") + '" data-dev="' + l.id + '" data-sw="' + c + '" data-on="' + (on ? 1 : 0) + '" title="' + l.name + (lab ? " \u00b7 " + lab : "") + (gt != null ? " \u00b7 today " + hm(gt) : "") + '">' +
+            return '<button type="button" class="hs-gang' + (on ? " on" : "") + '" data-dev="' + l.id + '" data-sw="' + c + '" data-on="' + (on ? 1 : 0) + '" title="' + shown + (lab ? " \u00b7 " + lab : "") + (gt != null ? " \u00b7 today " + hm(gt) : "") + '">' +
               '<span class="ic ctl ctl-power" aria-hidden="true"></span>' + (lab ? '<span class="gl">' + lab + '</span>' : "") + (on ? '<span class="dur">' + dur((l.since || {})[c]) + '</span>' : (gt ? '<span class="dur">' + hm(gt) + '</span>' : "")) + '</button>';
           }).join("");
           var us = l.usage || {};
-          var lGrp = (l.category === "tdq" || l.category === "pc") ? "relays" : "lights";
+          var lGrp = isWater ? "water" : (l.category === "tdq" || l.category === "pc") ? "relays" : "lights";
           var lUse = (us.monthOnS || 0) + (us.todayOnS || 0);
           var tot = us.todayOnS != null ? '<span class="tot">' + hm(us.todayOnS) + " today \u00b7 " + hm(us.monthOnS) + " " + monLabel() + '</span>' : "";
           var anyOn = codes.some(function (c) { return l.status[c] === true; });
+          var waterCls = isWater ? " hs-water" : "";
           if (codes.length > 1) {
             // compact multi-gang tile: icon + name + ON / OFF / n/m ON + master power (any on -> all off, all off -> all on)
             var nOn = codes.filter(function (c) { return l.status[c] === true; }).length, allOn = nOn === codes.length;
             var stTxt = allOn ? "ON" : nOn === 0 ? "OFF" : nOn + "/" + codes.length + " ON";
-            items.push({ grp: (!l.online || (!nOn && !lUse)) ? "dormant" : lGrp, use: lUse, ts: l.lastEvent || 0, html: '<div class="hs-light gang' + (l.online ? "" : " off") + (nOn ? (allOn ? " allon" : " mixed") : "") + '" data-dev="' + l.id + '" title="' + l.name + ' \u00b7 ' + codes.length + ' gangs' + (us.todayOnS != null ? " \u00b7 " + hm(us.todayOnS) + " today" : "") + '">' +
-              '<span class="nm">' + tico(l.id, "sm") + l.name + '</span><span class="st">' + stTxt + '</span><span class="gc" title="' + codes.length + ' switches \u00b7 tap for each">' + codes.length + '<i>\u203a</i></span>' +
+            items.push({ grp: (!l.online || (!nOn && !lUse)) ? "dormant" : lGrp, use: lUse, ts: l.lastEvent || 0, html: '<div class="hs-light gang' + waterCls + (l.online ? "" : " off") + (nOn ? (allOn ? " allon" : " mixed") : "") + '" data-dev="' + l.id + '" title="' + shown + ' \u00b7 ' + codes.length + ' gangs' + (us.todayOnS != null ? " \u00b7 " + hm(us.todayOnS) + " today" : "") + '">' +
+              '<span class="nm">' + tico(l.id, "sm") + shown + '</span><span class="st">' + stTxt + '</span><span class="gc" title="' + codes.length + ' switches \u00b7 tap for each">' + codes.length + '<i>\u203a</i></span>' +
               '<button type="button" class="hs-master' + (nOn ? " on" : "") + '" data-dev="' + l.id + '" data-any="' + (nOn ? 1 : 0) + '" data-codes="' + codes.join(",") + '" aria-label="' + (nOn ? "all off" : "all on") + '"><span class="ctl ctl-power" aria-hidden="true"></span></button></div>' });
             return;
           }
@@ -367,8 +393,8 @@
           var c1 = codes[0], on1 = l.online && l.status[c1] === true;
           var st1 = !l.online ? "OFFLINE" : on1 ? "ON" : "OFF";
           var sub1 = !l.online ? "" : on1 && (l.since || {})[c1] ? " \u00b7 " + dur(l.since[c1]) : (us.todayOnS >= 60 ? " \u00b7 " + hm(us.todayOnS) + " today" : "");
-          items.push({ grp: (!l.online || (!on1 && !lUse)) ? "dormant" : lGrp, use: lUse, ts: l.lastEvent || 0, html: '<div class="hs-light gang single' + (l.online ? "" : " off") + (on1 ? " allon" : "") + '" data-dev="' + l.id + '" title="' + l.name + (us.todayOnS != null ? " \u00b7 " + hm(us.todayOnS) + " today \u00b7 " + hm(us.monthOnS) + " " + monLabel() : "") + '">' +
-            '<span class="nm">' + tico(l.id, "sm") + l.name + '</span><span class="st">' + st1 + (sub1 ? '<span class="sub">' + sub1 + '</span>' : "") + '</span>' +
+          items.push({ grp: (!l.online || (!on1 && !lUse)) ? "dormant" : lGrp, use: lUse, ts: l.lastEvent || 0, html: '<div class="hs-light gang single' + waterCls + (l.online ? "" : " off") + (on1 ? " allon" : "") + '" data-dev="' + l.id + '" title="' + shown + (us.todayOnS != null ? " \u00b7 " + hm(us.todayOnS) + " today \u00b7 " + hm(us.monthOnS) + " " + monLabel() : "") + '">' +
+            '<span class="nm">' + tico(l.id, "sm") + shown + '</span><span class="st">' + st1 + (sub1 ? '<span class="sub">' + sub1 + '</span>' : "") + '</span>' +
             '<button type="button" class="hs-master hs-gang' + (on1 ? " on" : "") + '" data-dev="' + l.id + '" data-sw="' + c1 + '" data-on="' + (on1 ? 1 : 0) + '" aria-label="' + (on1 ? "turn off" : "turn on") + '"><span class="ctl ctl-power" aria-hidden="true"></span></button></div>' });
         });
         var known = {};
@@ -382,9 +408,9 @@
           items.push({ grp: "other", use: 0, ts: x.lastEvent || 0, html: '<div class="hs-tile' + (x.online ? "" : " off") + '">' +
             '<span class="ic">' + tico(x.id) + '</span>' +
             '<span class="v">' + (x.online ? "ON" : "OFFLINE") + '</span>' +
-            '<span class="l">' + (x.name || x.id) + '</span></div>' });
+            '<span class="l">' + neatName(x) + '</span></div>' });
         });
-        var GROUPS = [["door", "Door"], ["lights", "Lights"], ["plugs", "Smart plugs & timers"], ["relays", "Receivers & relays"], ["other", "Devices"], ["dormant", "Not in use"]];
+        var GROUPS = [["door", "Door"], ["lights", "Lights"], ["water", "Water"], ["plugs", "Smart plugs & timers"], ["relays", "Receivers & relays"], ["other", "Devices"], ["dormant", "Not in use"]];
         var gh = "";
         GROUPS.forEach(function (g) {
           var its = items.filter(function (x) { return x.grp === g[0]; });
@@ -409,7 +435,7 @@
       gp.className = "lights-pop"; gp.id = "gang-pop"; gp.hidden = true;
       gp.innerHTML = '<div class="lights-panel card" role="dialog" aria-modal="true" aria-labelledby="gang-title"><div class="activity-head lights-head"><h2 class="section-title" id="gang-title">Lights</h2><div class="lights-all"><button type="button" class="lights-all-btn" id="gang-all-on">All on</button><button type="button" class="lights-all-btn" id="gang-all-off">All off</button><button type="button" class="lights-close" id="gang-close" aria-label="Close">&times;</button></div></div><div class="lights-grid" id="gang-grid"></div><p class="lights-note" id="gang-note"></p></div>';
       document.body.appendChild(gp);
-      function gangCodes(dev) { return Object.keys(dev.status || {}).filter(function (k) { return /^switch_\d+$/.test(k); }).sort(function (a, b) { return Number(a.slice(7)) - Number(b.slice(7)); }); }
+      function gangCodes(dev) { return switchCodes(dev.status); }
       function renderGangPop() {
         var dev = (lastData && lastData.devices || []).filter(function (x) { return x.id === gangDev; })[0];
         if (!dev) { closeGangPop(); return; }

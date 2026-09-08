@@ -211,6 +211,12 @@
 .hs-card .hs-sub h3{margin:0 0 6px;padding:0 2px;font:700 10px Arial,Helvetica,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#64748b;display:flex;align-items:center;gap:6px}
 .hs-card .hs-sub h3 span{font-weight:600;color:#94a3b8}
 .hs-card .hs-sub-grid{display:grid;grid-template-columns:repeat(3,1fr);grid-auto-flow:dense;gap:6px}
+.hs-card .hs-light.gang.hs-water.allon{background:#dcfce7;border-color:#86efac}
+.hs-card .hs-light.gang.hs-water.allon .st{color:#14532d}
+.hs-card .hs-light.gang.hs-water.allon .st .sub{color:#166534}
+.hs-card .hs-light.gang.hs-water.allon .hs-master{background:#15803d;border-color:#15803d;color:#dcfce7}
+.hs-card .hs-light.gang.hs-water .hs-master.on{background:#15803d;color:#dcfce7}
+.hs-card .hs-sub-water{background:#f0fdf4}
 .hs-card .hs-sub-door{background:#f8fafc}
 .hs-card .hs-sub-dormant{background:#f8fafc;border-style:dashed}
 /* multi-gang popup: easy targets on phones, full labels */

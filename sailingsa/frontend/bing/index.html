@@ -7,6 +7,7 @@
     <meta http-equiv="Cache-Control" content="no-store">
     <title>Arial · Bing Heights</title>
     <link rel="stylesheet" href="/arial/arial.css?v=243">
+    <link rel="stylesheet" href="/arial/arial-pc.css?v=1">
 </head>
 <body>
     <div class="pad-wrap" id="pad-frame">
@@ -252,7 +253,13 @@
         saStamp();
     })();
     </script>
-    <script>window.ARIAL_CONFIG = { apiBase: "/api/bing", siteId: "bing", siteLabel: "BING", keypadUsers: ["Kevin","Annette"], tuya: false, homeCard: true, homeCardTitle: "CBI Home", pgm: { label: "Garage", num: 1, cmd: "pgm-pulse", name: "Garage" }, exitDelay: 30, };</script>
+    <script>window.ARIAL_CONFIG = { apiBase: "/api/bing", siteId: "bing", siteLabel: "BING", keypadUsers: ["Kevin","Annette"], tuya: false, homeCard: true, homeCardTitle: "CBI Home", pgm: { label: "Garage", num: 1, cmd: "pgm-pulse", name: "Garage" }, exitDelay: 30,
+        homeLabels: {
+          "bf37e8a5c2aaf19646e4lm": "Water meter",
+          "bf66db4e0d4f4a0a04raxs": "Flat geyser",
+          "bf339fe9ca3ccdd950rg71": "Noordhoek geyser",
+          "bf523917690e5e7934upvc": "Pool pump"
+        } };</script>
     <style>
       /* Garage key is a 1s PGM pulse (RF-remote style). No open/close/half-open state. */
       #voelklip-cams .cam-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
@@ -296,6 +303,7 @@
       #voelklip-cams .cam-cap{position:absolute;top:3px;left:5px;z-index:2;font:600 11px Arial,Helvetica,sans-serif;color:#fff;text-shadow:0 1px 2px #000;background:rgba(0,0,0,.4);padding:1px 6px;border-radius:4px}
     </style>
     
+    <script src="/arial/arial-pc.js?v=1"></script>
     <script src="/arial/app.js?v=249"></script>
     <style>
       #bing-cams .cam-test-tag{font:700 9px Arial,Helvetica,sans-serif;letter-spacing:.08em;color:#b45309;background:#fef3c7;border-radius:4px;padding:2px 6px;margin-left:6px;vertical-align:middle}
@@ -356,6 +364,6 @@
       })();
     </script>
     <link rel="stylesheet" href="/arial/home-card.css?v=hc3">
-    <script src="/arial/home-card.js?v=hc3"></script>
+    <script src="/arial/home-card.js?v=hc4"></script>
 </body>
 </html>

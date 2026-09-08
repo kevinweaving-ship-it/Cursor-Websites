@@ -3344,7 +3344,7 @@ async def arial_tuya_switch(request: Request):
     value = bool(body.get("value"))
     if target == "all":
         commands = [{"code": c, "value": value} for c in LIGHT_SWITCHES]
-    elif target in LIGHT_SWITCHES or re.fullmatch(r"switch_\d+", target):
+    elif target in LIGHT_SWITCHES or re.fullmatch(r"switch_\d+", target) or target in {"1", "switch"}:
         commands = [{"code": target, "value": value}]
     else:
         raise HTTPException(status_code=400, detail="Unknown switch")
