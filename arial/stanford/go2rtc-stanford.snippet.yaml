@@ -1,0 +1,4 @@
+# Additive go2rtc streams for /stanford/ only. Do not replace Voelklip or Bing streams.
+# Last-used 640p JPEG (same encode as Bing Carport) while a fresh snap refreshes in the background.
+  stanford_eb5: exec:bash /opt/ezvizpoc/start_stanford_live.sh BF4277838 stanford_eb5 {output}
+  stanford_front_garage: exec:bash /opt/ezvizpoc/start_stanford_live.sh BF4277866 stanford_front_garage {output}
