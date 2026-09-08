@@ -31,9 +31,11 @@ from tuya_sharing.version import VERSION as SDK_VERSION
 
 # --- verbatim from HA const.py -------------------------------------------------
 TUYA_CLIENT_ID = "HA_3y9q4ak7g4ephrvke"
-# CBI Home OEM QR — not Smart Life / tuyaSmart--qrLogin.
+# CBI Home (Thing SDK) login QR. tuyaSmart--qrLogin is HA/Smart Life and
+# CBI then says designated app. cbilvcbihome--qrLogin is not parsed as login
+# so CBI falls through to Add Device. APK string: thingSmart--qrLogin?token=
 TUYA_SCHEMA = "cbilvcbihome"
-QR_FMT = "cbilvcbihome--qrLogin?token={token}"
+QR_FMT = "thingSmart--qrLogin?token={token}"
 # ------------------------------------------------------------------------------
 
 ROOT = Path("/opt/cbi-sharing")
