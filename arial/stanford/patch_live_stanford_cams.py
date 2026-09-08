@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Deploy Stanford camera card + additive go2rtc streams. Stanford only."""
+"""Patch Stanford go2rtc streams onto Bing EZVIZ exec. Default: yaml + start script only."""
 
+import argparse
 from pathlib import Path
 
 HTML_SRC = Path(__file__).with_name("index.html")
@@ -13,11 +14,47 @@ SNAP_SRC = Path(__file__).with_name("bridge_ezviz_snap.py")
 SNAP_DST = Path("/opt/ezvizpoc/bridge_ezviz_snap.py")
 LIVE_SRC = Path(__file__).with_name("start_stanford_live.sh")
 LIVE_DST = Path("/opt/ezvizpoc/start_stanford_live.sh")
+BING_HTML_SRC = Path(__file__).resolve().parent.parent / "bing" / "index.html"
+BING_HTML_DST = Path("/var/www/sailingsa/bing/index.html")
 YAML = Path("/opt/hikpoc/go2rtc.yaml")
 SNIP = Path(__file__).with_name("go2rtc-stanford.snippet.yaml")
 
 
+def patch_yaml() -> None:
+    if not YAML.is_file() or not SNIP.is_file():
+        raise SystemExit("missing go2rtc.yaml or snippet")
+    y = YAML.read_text(encoding="utf-8")
+    extra = "\n".join(
+        ln for ln in SNIP.read_text(encoding="utf-8").splitlines() if ln.startswith("  stanford_")
+    )
+    if not extra:
+        raise SystemExit("snippet has no stanford_ stream lines")
+    if "carport_test:" not in y:
+        raise SystemExit("refusing to write yaml: carport_test gold line missing")
+    if "bridge_ezviz.sh BA3858958" not in y:
+        raise SystemExit("refusing to write yaml: Bing carport_test exec missing")
+    if "garage:" not in y or "driveway:" not in y:
+        raise SystemExit("refusing to write yaml: Voëlklip streams missing")
+    lines = y.splitlines()
+    kept = [ln for ln in lines if not ln.startswith("  stanford_")]
+    y2 = "\n".join(kept)
+    if not y2.endswith("\n"):
+        y2 += "\n"
+    YAML.write_text(y2 + extra + "\n", encoding="utf-8")
+    print("wrote stanford streams (Bing EZVIZ exec) to go2rtc.yaml")
+
+
 def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--all", action="store_true", help="also write HTML/bridges (dangerous; default is yaml only)")
+    args = ap.parse_args()
+    if LIVE_SRC.is_file():
+        LIVE_DST.write_text(LIVE_SRC.read_text(encoding="utf-8"), encoding="utf-8")
+        LIVE_DST.chmod(0o755)
+        print("wrote", LIVE_DST)
+    if not args.all:
+        patch_yaml()
+        return
     if HTML_SRC.is_file() and HTML_DST.parent.is_dir():
         bak = HTML_DST.with_name("index.html.bak_stanfordcams_20260908")
         if HTML_DST.is_file() and not bak.is_file():
@@ -40,23 +77,13 @@ def main() -> None:
         LIVE_DST.write_text(LIVE_SRC.read_text(encoding="utf-8"), encoding="utf-8")
         LIVE_DST.chmod(0o755)
         print("wrote", LIVE_DST)
-    if YAML.is_file() and SNIP.is_file():
-        y = YAML.read_text(encoding="utf-8")
-        if "bin: /opt/hikpoc/bin/ffmpeg" not in y:
-            y = y.replace("log:\n", "ffmpeg:\n  bin: /opt/hikpoc/bin/ffmpeg\nlog:\n", 1)
-            YAML.write_text(y, encoding="utf-8")
-            y = YAML.read_text(encoding="utf-8")
-            print("set go2rtc ffmpeg.bin to hikpoc ffmpeg")
-        extra = "\n".join(
-            ln for ln in SNIP.read_text(encoding="utf-8").splitlines() if ln.startswith("  stanford_")
-        )
-        lines = y.splitlines()
-        kept = [ln for ln in lines if not ln.startswith("  stanford_")]
-        y2 = "\n".join(kept)
-        if not y2.endswith("\n"):
-            y2 += "\n"
-        YAML.write_text(y2 + extra + "\n", encoding="utf-8")
-        print("wrote stanford streams to go2rtc.yaml")
+    if BING_HTML_SRC.is_file() and BING_HTML_DST.parent.is_dir():
+        bak = BING_HTML_DST.with_name("index.html.bak_ezvizoverlay_20260908")
+        if BING_HTML_DST.is_file() and not bak.is_file():
+            bak.write_text(BING_HTML_DST.read_text(encoding="utf-8"), encoding="utf-8")
+        BING_HTML_DST.write_text(BING_HTML_SRC.read_text(encoding="utf-8"), encoding="utf-8")
+        print("wrote", BING_HTML_DST)
+    patch_yaml()
 
 
 if __name__ == "__main__":
