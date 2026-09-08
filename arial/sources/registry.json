@@ -60,7 +60,7 @@
       "label": "Bing Heights",
       "uses": [
         { "source": "olarm", "deviceId": "de7a7934-a73a-4bdb-87b2-4540a49f455c" },
-        { "source": "cbi", "homeId": null, "ctrl": "http://127.0.0.1:8010", "homeApi": "http://127.0.0.1:8011" },
+        { "source": "cbi", "homeId": "166940142", "ctrl": "http://127.0.0.1:8010", "homeApi": "http://127.0.0.1:8011" },
         { "source": "ezviz", "streams": ["carport_test"] }
       ]
     }

@@ -57,7 +57,7 @@ def _cfg(name: str, default: str = "") -> str:
 
 def oem_settings() -> dict[str, str]:
     return {
-        "app_key": _cfg("CBI_OEM_APP_KEY", CBI_CV_KEY),
+        "app_key": _cfg("CBI_OEM_APP_KEY", CBI_APP_KEY),
         "hmac_secret": _cfg("CBI_OEM_HMAC_SECRET", CBI_HMAC_SECRET),
         "schema": _cfg("CBI_OEM_SCHEMA", CBI_SCHEMA),
         "country": _cfg("CBI_OEM_COUNTRY", "27"),
@@ -66,7 +66,7 @@ def oem_settings() -> dict[str, str]:
         "region": _cfg("CBI_OEM_REGION", "eu"),
         "package": _cfg("CBI_OEM_PACKAGE", CBI_PACKAGE),
         "cert": _cfg("CBI_OEM_CERT", CBI_CERT),
-        "app_secret": _cfg("CBI_OEM_APP_SECRET", CBI_CV_SECRET),
+        "app_secret": _cfg("CBI_OEM_APP_SECRET", CBI_APP_SECRET),
         "bmp": _cfg("CBI_OEM_BMP", CBI_BMP_TOKEN),
         "app_version": _cfg("CBI_OEM_APP_VERSION", "1.0.9"),
     }
@@ -128,10 +128,13 @@ def thing_profiles(settings: dict[str, str] | None = None) -> list[dict[str, str
     """Candidate Thing SDK 5 identities for this OEM (CBI defaults + env)."""
     s = settings or oem_settings()
     env_id = _cfg("CBI_OEM_APP_ID")
-    ids = [env_id] if env_id else [CBI_CV_KEY, CBI_APP_KEY]
-    secrets = [s["app_secret"], CBI_APP_SECRET, CBI_CV_SECRET]
+    # Live probe: CBI AppKey + AppSecret + BMP is accepted; CV encrypt key is ILLEGAL_CLIENT_ID.
+    ids = [env_id] if env_id else [s["app_key"], CBI_APP_KEY]
+    secrets = [s["app_secret"], CBI_APP_SECRET]
     bmps = [s["bmp"], CBI_BMP_TOKEN]
-    ets = [_cfg("CBI_OEM_ET") or "3", "0.0.1"]
+    ets = [_cfg("CBI_OEM_ET") or "3"]
+    if _cfg("CBI_OEM_TRY_ET"):
+        ets.extend(x for x in _cfg("CBI_OEM_TRY_ET").split(",") if x and x not in ets)
     out: list[dict[str, str]] = []
     seen: set[tuple[str, str, str, str, str]] = set()
     for app_id in ids:
@@ -338,7 +341,10 @@ class OemClient:
         if self.sid:
             params["sid"] = self.sid
         params["sign"] = thing_sign(self.material, thing_canonical(params))
-        r = self.session.post(self.endpoint, data=params, timeout=30)
+        gid = str((payload or {}).get("gid") or "")
+        # Classic OEM device APIs read gid from the query string, not the body.
+        q = {"gid": gid} if gid else None
+        r = self.session.post(self.endpoint, params=q, data=params, timeout=30)
         body = r.json()
         if not body.get("success") and "result" not in body:
             code = body.get("errorCode") or body.get("code")

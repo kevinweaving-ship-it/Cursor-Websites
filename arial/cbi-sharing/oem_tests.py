@@ -81,10 +81,10 @@ def test_thing5_sign_matches_tuya_mobile():
     assert colon_hex(cert) == signer.cert_msg().split("_", 1)[1]
 
 
-def test_cbi_profiles_cover_both_app_ids():
+def test_cbi_profiles_use_apk_app_key():
     ids = {p["app_id"] for p in thing_profiles()}
-    assert "h8h3y3kvpehu88wk9euu" in ids
     assert "a5vnv3q9uxe5w7fsawn5" in ids
+    assert all(p["app_secret"] for p in thing_profiles())
 
 
 def test_enc_password_decimal_modulus():
