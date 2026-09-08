@@ -90,6 +90,7 @@ SITE_ID = (os.getenv("ARIAL_SITE_ID") or "hansekop").strip()
 SITE_LABEL = (os.getenv("ARIAL_SITE_LABEL") or "HANSEKOP").strip()
 SITE_TUYA = (os.getenv("ARIAL_TUYA_ENABLED") or "1").strip().lower() not in {"0", "false", "no"}
 SITE_AREA_LABEL = (os.getenv("ARIAL_AREA_LABEL") or "Facility Building").strip()
+PGM_ALLOW = {int(x) for x in (os.getenv("ARIAL_PGM_ALLOW") or "").split(",") if x.strip().isdigit()}  # PGM outputs the keypad may pulse (e.g. garage door), per site
 KEYPAD_CODES = {
     "7302": {"name": "Marc", "from": "Pingoa"},
     "7102": {"name": "Amoroc", "from": "Amoroc"},
@@ -2813,12 +2814,15 @@ async def arial_keypad(request: Request):
     cmd = str(body.get("actionCmd") or "").strip()
     if code not in KEYPAD_CODES:
         raise HTTPException(status_code=401, detail="Invalid code")
-    if cmd not in ALLOWED_ACTIONS:
-        raise HTTPException(status_code=400, detail="Unknown or disallowed action")
     try:
         num = int(body.get("actionNum") or 1)
     except (TypeError, ValueError):
         num = 1
+    if cmd == "pgm-pulse":
+        if num not in PGM_ALLOW:
+            raise HTTPException(status_code=403, detail="Output not enabled here")
+    elif cmd not in ALLOWED_ACTIONS:
+        raise HTTPException(status_code=400, detail="Unknown or disallowed action")
     if cmd != "user-panic" and num < 1:
         num = 1
     actor = _remember_keypad(code, cmd, num)

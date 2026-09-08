@@ -1197,6 +1197,35 @@ def test_register_login_profile(tmp_path, monkeypatch):
     assert back.status_code == 200
 
 
+def test_pgm_pulse_blocked_when_not_enabled(monkeypatch):
+    monkeypatch.setattr(arial_api, "PGM_ALLOW", set())
+
+    async def boom(*_a, **_k):
+        raise AssertionError("pgm-pulse must not reach Olarm when the output is not enabled")
+
+    monkeypatch.setattr(arial_api, "_olarm_request", boom)
+    app = FastAPI()
+    app.include_router(arial_api.router)
+    client = TestClient(app)
+    r = client.post("/api/arial/keypad", json={"code": "6114", "actionCmd": "pgm-pulse", "actionNum": 1})
+    assert r.status_code == 403
+    assert "not enabled" in r.json()["detail"].lower()
+
+
+def test_pgm_pulse_wrong_output_blocked(monkeypatch):
+    monkeypatch.setattr(arial_api, "PGM_ALLOW", {1})
+
+    async def boom(*_a, **_k):
+        raise AssertionError("pgm-pulse must not reach Olarm for a disallowed PGM number")
+
+    monkeypatch.setattr(arial_api, "_olarm_request", boom)
+    app = FastAPI()
+    app.include_router(arial_api.router)
+    client = TestClient(app)
+    r = client.post("/api/arial/keypad", json={"code": "6114", "actionCmd": "pgm-pulse", "actionNum": 2})
+    assert r.status_code == 403
+
+
 if __name__ == "__main__":
     test_enrich_device_areas_and_named_zones()
     print("enrich ok")

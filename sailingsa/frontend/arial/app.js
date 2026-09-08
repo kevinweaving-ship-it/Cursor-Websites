@@ -2922,8 +2922,35 @@
         }
     }
 
+    // Site PGM key (e.g. garage door motor): CFG.pgm = { label, num, cmd } turns the LIGHTS key into a 1s pulse.
+    // Stateless — like an RF 433 MHz remote. Do not show open/close/half-open; the PGM does not know door position.
+    var PGM = CFG.pgm && CFG.pgm.num ? CFG.pgm : null;
+    if (PGM) {
+        var pgmLab = document.querySelector('.hot[data-key="STAY"] .key-label');
+        if (pgmLab) pgmLab.textContent = String(PGM.label || "PGM").toUpperCase();
+        var pgmKeyInit = document.querySelector('.hot[data-key="STAY"]');
+        if (pgmKeyInit) pgmKeyInit.setAttribute("aria-label", PGM.label || "PGM");
+    }
+    var pgmBusy = false;
+    function pulsePgm() {
+        if (!isLoggedIn()) { rejectNeedLogin(); return; }
+        if (pgmBusy) return; pgmBusy = true;
+        var pgmKey = document.querySelector('.hot[data-key="STAY"]');
+        if (pgmKey) pgmKey.classList.add("light-pending");
+        setWelcome(String(PGM.label || "PGM"), 1000);
+        sendLiveAction(PGM.cmd || "pgm-pulse", PGM.num).then(function (ok) {
+            setTimeout(function () {
+                pgmBusy = false;
+                if (pgmKey) pgmKey.classList.remove("light-pending");
+            }, 1000);
+            if (ok) setWelcome(String(PGM.label || "PGM"), 1200);
+            else { pgmBusy = false; if (pgmKey) pgmKey.classList.remove("light-pending"); }
+        });
+    }
+
     function openLights() {
         if (!isLoggedIn()) { rejectNeedLogin(); return; }
+        if (PGM && !SITE_TUYA) { pulsePgm(); return; }
         if (!SITE_TUYA) { setWelcome("No lights here", 1800); return; }
         var pop = document.getElementById("lights-pop");
         if (!pop) return;
@@ -3063,6 +3090,7 @@
         lightsPress.timer = setTimeout(function () {
             lightsPress.fired = true;
             if (!isLoggedIn()) { rejectNeedLogin(); return; }
+            if (PGM && !SITE_TUYA) { return; }   // PGM key: tap only (handled on release), no hold action
             if (!SITE_TUYA) { setWelcome("No lights here", 1800); return; }
             openLights();
             setLight("all", true);
