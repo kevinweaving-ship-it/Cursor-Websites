@@ -145,7 +145,7 @@ def drop_to_bing_level(client: EzvizClient) -> int:
 
 
 def stream_once(client: EzvizClient, key: bytes) -> None:
-    drop_to_bing_level(client)
+    # Do not call drop_to_bing_level() here. EZVIZ 2009 / pagelist stalls first frame.
     hevc_out = HevcOut(key)
     info = get_cloud_stream_info(client, SERIAL, refresh_vtm=True)
     url = with_stream(info["stream_url"], STREAM, VIDEO_LEVEL)

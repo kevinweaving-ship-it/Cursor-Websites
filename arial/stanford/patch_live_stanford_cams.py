@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Patch Stanford go2rtc streams onto Bing EZVIZ exec. Default: yaml + start script only."""
+"""Patch Stanford Front Garage onto RTP HEVC decrypt + 640p ffmpeg. Default: yaml + start script only."""
 
 import argparse
 from pathlib import Path

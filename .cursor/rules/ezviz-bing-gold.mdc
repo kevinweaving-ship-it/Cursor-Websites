@@ -30,6 +30,8 @@ Copy Bing. Same exec (serial only), same 640p ffmpeg, same card, same overlay/id
 
 ## Stanford
 
-Front Garage + EB5 stay Stanford pages. They must **comply** with this rule (640p / low P), not get a special 4K exception.
+Front Garage stays on the Stanford page. **Protocol is RTP HEVC decrypt**, not Bing MPEG. Output still **640p @ 12fps**. EB5 is off.
+
+Do not put Stanford on `bridge_ezviz.sh | -f mpeg`. That player never frames RTP.
 
 See `docs/EZVIZ_BING_GOLD.md`.

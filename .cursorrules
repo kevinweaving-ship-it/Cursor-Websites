@@ -9,4 +9,4 @@
 
 See: `docs/UI_COMPONENTS_README.md`, `docs/design_system.md`, `.cursor/rules/theme-layout-mandatory.mdc`.
 
-- **EZVIZ = Bing gold (locked).** Live EZVIZ is Bing Carport: `bridge_ezviz.sh` + ffmpeg **640p @ 12fps**. **4K / videoLevel 4+ does not comply.** See **`.cursor/rules/ezviz-bing-gold.mdc`** and **`docs/EZVIZ_BING_GOLD.md`**. Do not change `carport_test`.
+- **EZVIZ = Bing gold (locked).** Bing Carport: `bridge_ezviz.sh` + ffmpeg **MPEG 640p @ 12fps**. Stanford Front Garage: **RTP HEVC decrypt** + same **640p @ 12fps** out. **4K / videoLevel 4+ does not comply.** See **`.cursor/rules/ezviz-bing-gold.mdc`** and **`docs/EZVIZ_BING_GOLD.md`**. Do not change `carport_test`.
