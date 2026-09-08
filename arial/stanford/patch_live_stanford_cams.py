@@ -41,7 +41,7 @@ def patch_yaml() -> None:
     if not y2.endswith("\n"):
         y2 += "\n"
     YAML.write_text(y2 + extra + "\n", encoding="utf-8")
-        print("wrote stanford streams (RTP HEVC + Bing 640p ffmpeg) to go2rtc.yaml")
+    print("wrote stanford streams (RTP HEVC + Bing 640p ffmpeg) to go2rtc.yaml")
 
 
 def main() -> None:
