@@ -31,10 +31,9 @@ from tuya_sharing.version import VERSION as SDK_VERSION
 
 # --- verbatim from HA const.py -------------------------------------------------
 TUYA_CLIENT_ID = "HA_3y9q4ak7g4ephrvke"
-# Same constants as the working Smart Life collector (HA const.py / config_flow.py).
-# Scan in Smart Life: + → Scan. Not CBI Add Device.
-TUYA_SCHEMA = "haauthorize"
-QR_FMT = "tuyaSmart--qrLogin?token={token}"
+# CBI Home OEM QR — not Smart Life / tuyaSmart--qrLogin.
+TUYA_SCHEMA = "cbilvcbihome"
+QR_FMT = "cbilvcbihome--qrLogin?token={token}"
 # ------------------------------------------------------------------------------
 
 ROOT = Path("/opt/cbi-sharing")
