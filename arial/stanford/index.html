@@ -223,12 +223,10 @@
         </div>
         <div class="card" id="stanford-cams">
             <div class="activity-head"><h2 class="section-title">Cameras</h2><span class="hs-upd" id="stanford-cams-upd"></span></div>
-            <div class="cam-grid" hidden>
-                <div class="cam-cell cam-big" data-cam="stanford_front_garage" data-thumb="/stanford/thumbs/stanford_front_garage.jpg"><img class="cam-thumb" alt="" width="640" height="360"><div class="cam-ezviz"><span class="cam-ezviz-mark">EZVIZ</span><span class="cam-spin"></span><span class="cam-ezviz-txt">Connecting live…</span></div><span class="cam-cap">Front Garage</span></div>
-                <div class="cam-cell" data-cam="stanford_eb5" data-thumb="/stanford/thumbs/stanford_eb5.jpg"><img class="cam-thumb" alt="" width="640" height="360"><div class="cam-ezviz"><span class="cam-ezviz-mark">EZVIZ</span><span class="cam-spin"></span><span class="cam-ezviz-txt">Connecting live…</span></div><span class="cam-cap">EB5</span></div>
-                <div class="cam-cell cam-off" data-cam="" hidden><span class="cam-cap">Camera 3</span></div>
+            <div class="cam-grid one" hidden>
+                <div class="cam-cell" data-cam="stanford_front_garage" data-thumb="/stanford/thumbs/stanford_front_garage.jpg"><img class="cam-thumb" alt="" width="640" height="360"><div class="cam-ezviz"><span class="cam-ezviz-mark">EZVIZ</span><span class="cam-spin"></span><span class="cam-ezviz-txt">Connecting live…</span></div><span class="cam-cap">Front Garage</span></div>
             </div>
-            <button type="button" class="live-btn" id="stanford-live-btn"><span class="live-btn-main"><svg class="tb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 10l4.553 -2.276a1 1 0 0 1 1.447 .894v6.764a1 1 0 0 1 -1.447 .894l-4.553 -2.276v-4" /> <path d="M3 8a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2l0 -8" /></svg> LIVE</span><span class="live-btn-sub">View cameras live</span></button>
+            <button type="button" class="live-btn" id="stanford-live-btn"><span class="live-btn-main"><svg class="tb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 10l4.553 -2.276a1 1 0 0 1 1.447 .894v6.764a1 1 0 0 1 -1.447 .894l-4.553 -2.276v-4" /> <path d="M3 8a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2l0 -8" /></svg> LIVE</span><span class="live-btn-sub">Front Garage camera · EZVIZ</span></button>
         </div>
         <div class="card hs-card" id="home-weather" hidden>
             <div class="activity-head"><h2 class="section-title">Weather</h2><span class="hs-upd" id="hw-upd"></span></div>
@@ -307,11 +305,8 @@
     <script src="/arial/arial-pc.js?v=1"></script>
     <script src="/arial/app.js?v=250"></script>
     <style>
-      #stanford-cams .cam-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+      #stanford-cams .cam-grid{display:grid;grid-template-columns:1fr;gap:6px}
       #stanford-cams .cam-grid[hidden]{display:none}
-      #stanford-cams .cam-cell{cursor:pointer}
-      #stanford-cams .cam-cell.cam-big{grid-column:1/-1;order:-1}
-      #stanford-cams .cam-cell.cam-off{display:none}
       #stanford-cams .tb{width:1em;height:1em;vertical-align:-0.15em;display:inline-block}
       #stanford-cams video-stream .mode,#stanford-cams video-stream .status,#stanford-cams video-stream .info{display:none!important}
       #stanford-cams .cam-cell{position:relative;aspect-ratio:16/9;background:#000;border-radius:6px;overflow:hidden}
@@ -337,15 +332,13 @@
     </style>
     <script type="module">
       (async function () {
-        // Stanford EZVIZ: Front Garage full-width + EB5 half-width. 3rd cell stays hidden until a stream exists.
+        // Same card as Bing Carport. One EZVIZ cam: Front Garage. EB5 disabled.
         var CAM = "https://sailingsa.co.za:8443/";
         var box = document.getElementById("stanford-cams"); if (!box) return;
         var grid = box.querySelector(".cam-grid"), btn = document.getElementById("stanford-live-btn"), upd = document.getElementById("stanford-cams-upd");
         try { await import(CAM + "video-stream.js"); } catch (e) { console.warn("cams load failed", e); upd.textContent = "stream module unavailable"; return; }
-        var HIDE_MS = 60000, SAFETY_MS = 300000, hideT = null, safeT = null, shown = false, startedAt = 0, liveCount = 0, camInView = true, idleAt = 0, pendingRest = [];
-        function vidOf(el) {
-          return (el && el.video) || (el && el.querySelector && el.querySelector("video")) || null;
-        }
+        var HIDE_MS = 60000, SAFETY_MS = 300000, hideT = null, safeT = null, shown = false, startedAt = 0, liveCount = 0, camInView = true, idleAt = 0;
+        function vidOf(el) { return (el && el.video) || (el && el.querySelector && el.querySelector("video")) || null; }
         function markLive(cell, el) {
           if (cell.classList.contains("is-live")) return;
           var v = vidOf(el);
@@ -354,17 +347,16 @@
             var pill = document.createElement("span"); pill.className = "cam-live-pill"; pill.textContent = "LIVE"; cell.appendChild(pill);
           }
           liveCount += 1;
-          var ms = ((Date.now() - startedAt) / 1000).toFixed(1);
-          upd.textContent = "live · " + (v && v.videoWidth ? v.videoWidth + "\u00d7" + v.videoHeight : "EZVIZ") + " · first frame " + ms + " s";
+          upd.textContent = "live · " + (v && v.videoWidth ? v.videoWidth + "\u00d7" + v.videoHeight : "EZVIZ") + " · first frame " + ((Date.now() - startedAt) / 1000).toFixed(1) + " s";
           if (liveCount === 1) {
             btn.querySelector(".live-btn-sub").textContent = "Live · stays while you use the page · idle 1 min hides";
             armIdle();
           }
-          if (cell.classList.contains("cam-big")) startRest();
         }
-        function loadOne(cell) {
-            var src = cell.getAttribute("data-cam");
-            if (!src || cell.classList.contains("cam-off") || cell.querySelector("video-stream")) return;
+        function load() {
+          liveCount = 0;
+          grid.querySelectorAll(".cam-cell").forEach(function (cell) {
+            if (cell.querySelector("video-stream")) return;
             var thumb = cell.querySelector(".cam-thumb");
             var thumbSrc = cell.getAttribute("data-thumb");
             if (thumb && thumbSrc) { thumb.src = thumbSrc + "?t=" + Date.now(); thumb.hidden = false; }
@@ -376,61 +368,22 @@
             } else {
               var t = ov.querySelector(".cam-ezviz-txt"); if (t) t.textContent = "Connecting live\u2026";
             }
-            var el = document.createElement("video-stream");
-            el.mode = "mse,mjpeg"; el.background = false;
-            el.src = new URL("api/ws?src=" + src, CAM);
+            var el = document.createElement("video-stream"); el.mode = "mse,mjpeg"; el.background = false;
+            el.src = new URL("api/ws?src=" + cell.getAttribute("data-cam"), CAM);
             cell.appendChild(el);
             var tries = 0, iv = setInterval(function () {
               var v = vidOf(el);
               if (v && !v.muted) v.muted = true;
-              if (v && v.videoWidth > 0 && (v.currentTime > 0 || !v.paused)) {
-                clearInterval(iv); markLive(cell, el);
-              } else if (!el.isConnected) {
-                clearInterval(iv);
-              } else if (++tries === 200) {
-                var txt = ov.querySelector(".cam-ezviz-txt");
-                if (txt) txt.textContent = "EZVIZ live still connecting\u2026";
-              } else if (tries > 1200) {
-                clearInterval(iv);
-                var fail = ov.querySelector(".cam-ezviz-txt");
-                if (fail) fail.textContent = "EZVIZ live did not start \u2014 tap LIVE to retry";
-              }
+              if (v && v.videoWidth > 0 && (v.currentTime > 0 || !v.paused)) { clearInterval(iv); markLive(cell, el); }
+              else if (!el.isConnected) { clearInterval(iv); }
+              else if (++tries === 200) { var txt = ov.querySelector(".cam-ezviz-txt"); if (txt) txt.textContent = "EZVIZ live still connecting\u2026"; }
+              else if (tries > 1200) { clearInterval(iv); var fail = ov.querySelector(".cam-ezviz-txt"); if (fail) fail.textContent = "EZVIZ live did not start \u2014 tap LIVE to retry"; }
             }, 50);
-        }
-        function thumbOnly(cell, msg) {
-          var thumb = cell.querySelector(".cam-thumb");
-          var thumbSrc = cell.getAttribute("data-thumb");
-          if (thumb && thumbSrc) { thumb.src = thumbSrc + "?t=" + Date.now(); thumb.hidden = false; }
-          var ov = cell.querySelector(".cam-ezviz");
-          if (!ov) {
-            ov = document.createElement("div"); ov.className = "cam-ezviz";
-            ov.innerHTML = '<span class="cam-ezviz-mark">EZVIZ</span><span class="cam-spin"></span><span class="cam-ezviz-txt"></span>';
-            cell.appendChild(ov);
-          }
-          var t = ov.querySelector(".cam-ezviz-txt"); if (t) t.textContent = msg;
-        }
-        function startRest() {
-          if (!shown || !pendingRest.length) return;
-          var next = pendingRest.slice();
-          pendingRest = [];
-          next.forEach(function (cell) {
-            thumbOnly(cell, "Connecting live\u2026");
-            loadOne(cell);
           });
         }
-        function load() {
-          liveCount = 0;
-          var cells = Array.prototype.slice.call(grid.querySelectorAll(".cam-cell"));
-          var hero = cells.filter(function (c) { return c.classList.contains("cam-big") && c.getAttribute("data-cam"); });
-          pendingRest = cells.filter(function (c) { return !c.classList.contains("cam-big") && c.getAttribute("data-cam") && !c.classList.contains("cam-off"); });
-          pendingRest.forEach(function (cell) { thumbOnly(cell, "Waiting for Front Garage\u2026"); });
-          if (!hero.length) startRest();
-          else hero.forEach(loadOne);
-        }
         function unload() {
-          pendingRest = [];
-          grid.querySelectorAll(".cam-cell").forEach(function (cell) { cell.classList.remove("is-live"); });
-          grid.querySelectorAll(".cam-cell video-stream, .cam-cell .cam-ezviz, .cam-cell .cam-live-pill").forEach(function (el) { el.remove(); });
+          grid.querySelectorAll(".cam-cell").forEach(function (c) { c.classList.remove("is-live"); });
+          grid.querySelectorAll(".cam-cell video-stream, .cam-cell .cam-live-pill").forEach(function (el) { el.remove(); });
         }
         function armIdle() {
           if (!shown) return;
@@ -442,27 +395,21 @@
           var now = Date.now();
           if (now - idleAt < 250) return;
           idleAt = now;
-          if (camInView && liveCount > 0) armIdle();
+          if (camInView) armIdle();
         }
         function show() {
           startedAt = Date.now(); shown = true; camInView = true; grid.hidden = false; box.classList.add("live-mode");
           btn.querySelector(".live-btn-sub").textContent = "Connecting EZVIZ\u2026 tap to stop"; load();
+          armIdle();
           if (safeT) clearTimeout(safeT); safeT = setTimeout(hide, SAFETY_MS);
         }
         function hide() {
           shown = false; grid.hidden = true; unload(); box.classList.remove("live-mode"); upd.textContent = "";
-          btn.querySelector(".live-btn-sub").textContent = "View cameras live";
+          btn.querySelector(".live-btn-sub").textContent = "Front Garage camera · EZVIZ";
           if (hideT) { clearTimeout(hideT); hideT = null; } if (safeT) { clearTimeout(safeT); safeT = null; }
         }
         btn.addEventListener("click", function () { if (shown) hide(); else show(); });
-        box.addEventListener("click", function (ev) {
-          var cell = ev.target.closest && ev.target.closest(".cam-cell");
-          if (!cell || cell.classList.contains("cam-off") || !cell.getAttribute("data-cam")) return;
-          var big = cell.classList.contains("cam-big");
-          box.querySelectorAll(".cam-cell.cam-big").forEach(function (c) { c.classList.remove("cam-big"); });
-          if (!big) cell.classList.add("cam-big");
-          bumpIdle();
-        });
+        box.addEventListener("click", function () { bumpIdle(); });
         ["mousemove","mousedown","pointerdown","touchstart","touchmove","wheel","scroll","keydown"].forEach(function (ev) {
           document.addEventListener(ev, bumpIdle, { passive: true });
         });
@@ -470,7 +417,7 @@
           new IntersectionObserver(function (ents) {
             camInView = !!(ents[0] && ents[0].isIntersecting);
             if (shown && !camInView) hide();
-            else if (shown && camInView && liveCount > 0) armIdle();
+            else if (shown && camInView) armIdle();
           }, { threshold: 0.2 }).observe(box);
         }
         document.addEventListener("visibilitychange", function () { if (document.hidden && shown) hide(); });

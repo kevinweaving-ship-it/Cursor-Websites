@@ -145,11 +145,7 @@ def drop_to_bing_level(client: EzvizClient) -> int:
 
 
 def stream_once(client: EzvizClient, key: bytes) -> None:
-    have = drop_to_bing_level(client)
-    if have >= 4:
-        log("refuse 4K pull videoLevel", have)
-        time.sleep(8)
-        return
+    drop_to_bing_level(client)
     hevc_out = HevcOut(key)
     info = get_cloud_stream_info(client, SERIAL, refresh_vtm=True)
     url = with_stream(info["stream_url"], STREAM, VIDEO_LEVEL)
