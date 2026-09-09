@@ -180,14 +180,10 @@ def elapsed_label(seconds):
     return f"{m}m"
 
 
-def alarm_ac_line(ac_ok):
-    return "Alarm AC off" if ac_ok is False else "Alarm AC on"
-
-
 def compose_link(cfg, kind, reading, last, ac_ok, elapsed_s=None):
     now = datetime.datetime.now(SAST)
     when = now.strftime("%d %b %y · %H:%M")
-    ac = alarm_ac_line(ac_ok)
+    ac = "Last Alarm AC ="
     if kind == "up":
         lines = [f"{cfg.get('label')} {when}", "Link restored", ac]
         if reading:
@@ -196,9 +192,7 @@ def compose_link(cfg, kind, reading, last, ac_ok, elapsed_s=None):
         el = elapsed_label(elapsed_s or 0)
         loss = f"Link Loss : {last} > {el}" if last else f"Link Loss : {el}"
         lines = [f"{cfg.get('label')} {when}", loss, ac]
-        if ac_ok is False:
-            lines.append("Power off confirmed by alarm — readings 0 V / 0 A / 0 W")
-        elif reading:
+        if reading:
             lines.append(reading)
     if cfg.get("url"):
         lines.append(cfg["url"])

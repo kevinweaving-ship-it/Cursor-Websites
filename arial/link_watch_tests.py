@@ -37,22 +37,22 @@ class ComposeLinkTest(unittest.TestCase):
     cfg = {"label": "Hansekop", "url": "https://sailingsa.co.za/arial/"}
 
     def test_down_keeps_snapshot(self):
-        text = w.compose_link(self.cfg, "down", "231.7 V / 0.30 A / 67 W", "08:31", True, 90 * 60)
-        self.assertIn("Link Loss : 08:31 > 1h30m", text)
-        self.assertIn("Alarm AC on", text)
-        self.assertIn("231.7 V / 0.30 A / 67 W", text)
-        self.assertNotIn("readings 0 V", text)
+        text = w.compose_link(self.cfg, "down", "237.3 V / 5.59 A / 1156 W", "08:31", True, 81 * 60)
+        self.assertIn("Link Loss : 08:31 > 1h21m", text)
+        self.assertIn("Last Alarm AC =", text)
+        self.assertIn("237.3 V / 5.59 A / 1156 W", text)
+        self.assertNotIn("Alarm AC on", text)
+        self.assertNotIn("Alarm AC off", text)
 
-    def test_down_alarm_fail_zeros(self):
-        text = w.compose_link(self.cfg, "down", "", "08:31", False, 30 * 60)
-        self.assertIn("Link Loss : 08:31 > 30m", text)
-        self.assertIn("Alarm AC off", text)
-        self.assertIn("Power off confirmed by alarm — readings 0 V / 0 A / 0 W", text)
+    def test_down_no_ac_claim(self):
+        text = w.compose_link(self.cfg, "down", "237.3 V / 5.59 A / 1156 W", "08:31", False, 30 * 60)
+        self.assertIn("Last Alarm AC =", text)
+        self.assertNotIn("Power off confirmed by alarm", text)
 
     def test_restore(self):
         text = w.compose_link(self.cfg, "up", "230.1 V / 0.10 A / 22 W", "08:47", True)
         self.assertIn("Link restored", text)
-        self.assertIn("Alarm AC on", text)
+        self.assertIn("Last Alarm AC =", text)
         self.assertIn("230.1 V / 0.10 A / 22 W", text)
 
     def test_elapsed_label(self):
