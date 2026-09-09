@@ -4,9 +4,10 @@
  * Clock is the live reel go-live stamp + video time. Boat noses follow the
  * on-screen GPS track. Icons/colours/tails match tracking-dev2. Each clip has
  * its own camera recipe. Rounding keeps one projection: boats approach
- * right → left, the mark stays fixed on the left, then rounded boats sail
- * left → right. The map pans left only to keep the leader on the right;
- * the mark may leave the left edge. Camera eases zoom; icons scale with spacing.
+ * right → left. After rounding they sail left → right; the Pin can leave
+ * the left as the leader goes toward the next mark. Marks never jump:
+ * they are frozen world points that boats sail past. Front pack stays in
+ * view. All icons share one size and step up together when there is gap.
  */
 (function (root) {
   'use strict';
@@ -48,7 +49,7 @@
   var lockApproachHdg = null;
   var markLock = null;
   var loadGen = 0;
-  var heldBoatR = {};
+  var heldIconStep = 2;
 
   function clipR(race, kind, extra) {
     var o = { race: race, kind: kind || 'round', approach: 'rtl', holdN: 6, offsetMs: 0 };
@@ -111,7 +112,7 @@
       lockApproachHdg = null;
       markLock = null;
       camPhase = '';
-      heldBoatR = {};
+      heldIconStep = 2;
     }
     clipId = String(id || '');
     clipRule = rule;
@@ -858,70 +859,23 @@
     return minG;
   }
 
-  function nearestGaps(cam, pack) {
-    var pts = [];
-    var gaps = {};
-    var i;
-    var j;
-    for (i = 0; i < pack.length; i++) {
-      if (!pack[i] || !pack[i].pos || !pack[i].sail) continue;
-      var p = xy(pack[i].pos.lat, pack[i].pos.lon, cam);
-      pts.push({ sail: pack[i].sail, x: p.x, y: p.y });
-    }
-    for (i = 0; i < pts.length; i++) {
-      var minG = Infinity;
-      for (j = 0; j < pts.length; j++) {
-        if (i === j) continue;
-        var g = Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y);
-        if (g < minG) minG = g;
-      }
-      gaps[pts[i].sail] = minG;
-    }
-    return gaps;
-  }
+  /* One size for the whole pack. Step down when bunched so labels stay readable; step up together when there is gap. */
+  var ICON_STEPS = [5, 7, 9, 12];
 
-  /* Full size in open water. Shrink only vs the nearest boat; grow back when the gap returns. */
-  function boatRadiusForGap(gap) {
-    var rMin = 3.4;
-    var rMax = 14;
-    var r = rMax;
+  function collectiveBoatR(cam, pack) {
+    var gap = minBoatGapPx(cam, pack);
+    var i = heldIconStep;
+    if (i < 0 || i >= ICON_STEPS.length) i = 1;
     if (gap < Infinity) {
-      var fit = gap * 0.34;
-      if (fit < r) r = Math.max(rMin, fit);
+      while (i > 0 && gap < ICON_STEPS[i] * 5.2) i -= 1;
+      while (i < ICON_STEPS.length - 1 && gap > ICON_STEPS[i + 1] * 6.8) i += 1;
     }
-    return r;
-  }
-
-  function easeBoatR(sail, target, ts) {
-    var prev = heldBoatR[sail];
-    if (!prev || Math.abs(ts - prev.ts) > 1800) {
-      heldBoatR[sail] = { r: target, ts: ts };
-      return target;
-    }
-    var a = target < prev.r ? 0.45 : 0.16;
-    var r = prev.r + (target - prev.r) * a;
-    heldBoatR[sail] = { r: r, ts: ts };
-    return r;
-  }
-
-  function boatRadii(cam, pack, ts) {
-    var gaps = nearestGaps(cam, pack);
-    var bySail = {};
-    var maxR = 3.4;
-    var i;
-    for (i = 0; i < pack.length; i++) {
-      if (!pack[i] || !pack[i].sail) continue;
-      var gap = gaps[pack[i].sail];
-      if (gap == null) gap = Infinity;
-      var r = easeBoatR(pack[i].sail, boatRadiusForGap(gap), ts);
-      bySail[pack[i].sail] = r;
-      if (r > maxR) maxR = r;
-    }
-    return { bySail: bySail, max: maxR };
+    heldIconStep = i;
+    return ICON_STEPS[i];
   }
 
   function boatRadius(cam, pack) {
-    return boatRadiusForGap(minBoatGapPx(cam, pack));
+    return collectiveBoatR(cam, pack);
   }
 
   function drawBoatIcon(ctx, p, hdg, paint, r) {
@@ -1091,26 +1045,6 @@
           panX: 0
         };
       }
-      /* After rounding, pin 1st on the right. Map slides left; mark may leave shot. */
-      if (phase === 'hold' && leader && leader.pos) {
-        var tPan = camFromMark(
-          { lat: markLock.lat, lon: markLock.lon },
-          cssW,
-          cssH,
-          markLock.hdg,
-          true,
-          markLock.markX,
-          markLock.markY,
-          markLock.scaleX,
-          markLock.scaleY,
-          markLock.panX || 0
-        );
-        var sp = xy(leader.pos.lat, leader.pos.lon, tPan);
-        var pinRight = cssW - 52;
-        if (sp.x > pinRight) {
-          markLock.panX = (markLock.panX || 0) + (pinRight - sp.x);
-        }
-      }
     }
 
     camPhase = phase;
@@ -1134,7 +1068,7 @@
       lockApproachHdg = null;
       markLock = null;
       camPhase = '';
-      heldBoatR = {};
+      heldIconStep = 2;
     }
     var live = ranksAt(ts);
     var plan = camPlan(live, cssW, cssH);
@@ -1148,122 +1082,54 @@
       if (trail.start_line.right) pts.push(trail.start_line.right);
     }
     var cam;
+    var camOpts = { minAlong: 52, minAcross: 40, padAlong: 1.16, padAcross: 1.32, padX: 88, flipX: true };
     if ((plan.phase === 'hold' || plan.phase === 'approach-mark') && markLock) {
       setTrackHeight(canvas, 0.58);
-      cam = camFromMark(
-        { lat: markLock.lat, lon: markLock.lon },
-        cssW,
-        cssH,
-        markLock.hdg,
-        true,
-        markLock.markX,
-        markLock.markY,
-        markLock.scaleX,
-        markLock.scaleY,
-        markLock.panX || 0
-      );
-      heldCam = copyCam(cam);
-      heldCamTs = ts;
+      /* Approach: Pin is in the shot. After rounding, fit boats only so the Pin can leave left. */
+      if (plan.phase === 'approach-mark') {
+        pts.push({ lat: markLock.lat, lon: markLock.lon });
+      }
+      cam = fitCam(pts, cssW, cssH, markLock.hdg, camOpts);
+      cam.flipX = true;
+      cam = easeCam(cam, ts);
     } else {
       setTrackHeight(canvas, pack.length > 6 ? 0.62 : 0.58);
-      var camOpts = { minAlong: 80, minAcross: 36, flipX: true };
       cam = fitCam(pts, cssW, cssH, plan.hdg, camOpts);
       cam.flipX = true;
       cam = easeCam(cam, ts);
     }
-    var radii = boatRadii(cam, pack, ts);
-    cam.boatRs = radii.bySail;
-    cam.boatR = radii.max;
+    cam.boatR = collectiveBoatR(cam, pack);
     ctx.clearRect(0, 0, cssW, cssH);
 
-    var gun = live.gun;
-    var startName = ts < gun + 5 * 60 * 1000 ? 'START' : '';
-    var finishName = ts >= gun ? 'FINISH' : '';
-    drawGate(ctx, cam, trail.start_line, 'rgba(56,189,248,0.9)', startName, 'Pin', 'RC');
-    drawGate(ctx, cam, trail.finish_line, 'rgba(251,191,36,0.9)', finishName, 'Pin', 'RC');
-
-    var mk;
-    if (!markLock) {
-      for (mk in trail.marks || {}) {
-        if (!Object.prototype.hasOwnProperty.call(trail.marks, mk)) continue;
-        var pos = sampleAt(trail.marks[mk], ts);
-        if (!pos) continue;
-        var p = xy(pos.lat, pos.lon, cam);
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 2.4, 0, Math.PI * 2);
-        ctx.fillStyle = '#fbbf24';
-        ctx.fill();
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 9px sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText('M' + mk, p.x + 6, p.y + 3);
-      }
-    }
     if (nearRound && markLock) {
       var fp = xy(markLock.lat, markLock.lon, cam);
-      var mkR = Math.max(10, Math.min(20, metersPx(12, cam)));
-      var box = Math.max(10, Math.min(16, mkR * 0.85));
-      ctx.beginPath();
-      ctx.arc(fp.x, fp.y, mkR, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(148,163,184,0.28)';
-      ctx.fill();
-      ctx.fillStyle = '#f8fafc';
-      ctx.fillRect(fp.x - box / 2, fp.y - box / 2, box, box);
-      ctx.strokeStyle = '#0f172a';
-      ctx.lineWidth = 1.2;
-      ctx.strokeRect(fp.x - box / 2, fp.y - box / 2, box, box);
-      ctx.fillStyle = '#0f172a';
-      ctx.font = 'bold ' + Math.max(8, Math.round(box * 0.7)) + 'px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      var lab = markLock.key === 'pin' || markLock.key === '4' ? 'Pin' : markLock.key === 'fin' ? 'Fin' : String(markLock.key);
-      ctx.fillText(lab, fp.x, fp.y + 0.5);
+      if (fp.x > -36 && fp.x < cssW + 36 && fp.y > -36 && fp.y < cssH + 36) {
+        var mkR = Math.max(10, Math.min(18, metersPx(12, cam)));
+        var box = Math.max(10, Math.min(16, mkR * 0.85));
+        ctx.beginPath();
+        ctx.arc(fp.x, fp.y, mkR, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(148,163,184,0.28)';
+        ctx.fill();
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillRect(fp.x - box / 2, fp.y - box / 2, box, box);
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 1.2;
+        ctx.strokeRect(fp.x - box / 2, fp.y - box / 2, box, box);
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold ' + Math.max(8, Math.round(box * 0.7)) + 'px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        var lab = markLock.key === 'pin' || markLock.key === '4' ? 'Pin' : markLock.key === 'fin' ? 'Fin' : String(markLock.key);
+        ctx.fillText(lab, fp.x, fp.y + 0.5);
+      }
     }
 
-    var raceLeader = live.front;
-    var overall = live.leader;
-    var sameLead = !raceLeader || !overall || overall.sail === raceLeader.sail;
-    if (raceLeader && raceLeader.pos && live.target) {
-      var courseBrg = bearingDeg(raceLeader.pos, live.target);
-      var leftPt = destPoint(raceLeader.pos, courseBrg - 90, 700);
-      var rightPt = destPoint(raceLeader.pos, courseBrg + 90, 700);
-      var a = xy(leftPt.lat, leftPt.lon, cam);
-      var b = xy(rightPt.lat, rightPt.lon, cam);
-      ctx.save();
-      ctx.setLineDash([2, 4]);
-      ctx.strokeStyle = 'rgba(248,113,113,0.9)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.restore();
-    }
-    if (overall && overall.pos && live.target) {
-      var lp = xy(overall.pos.lat, overall.pos.lon, cam);
-      var mp = xy(live.target.lat, live.target.lon, cam);
-      ctx.save();
-      ctx.setLineDash([5, 5]);
-      ctx.strokeStyle = 'rgba(250,204,21,0.95)';
-      ctx.lineWidth = 2.2;
-      ctx.beginPath();
-      ctx.moveTo(lp.x, lp.y);
-      ctx.lineTo(mp.x, mp.y);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.restore();
-    }
-
+    var r = cam.boatR || 7;
     var i;
     for (i = 0; i < pack.length; i++) {
       if (pack[i] && pack[i].sail) drawTail(ctx, cam, pack[i].sail, ts);
     }
-    for (i = pack.length - 1; i >= 0; i--) {
-      var sail = pack[i] && pack[i].sail;
-      var r = (sail && cam.boatRs && cam.boatRs[sail]) || cam.boatR || 7;
-      drawBoat(ctx, cam, pack[i], live, r);
-    }
+    for (i = pack.length - 1; i >= 0; i--) drawBoat(ctx, cam, pack[i], live, r);
   }
 
   root.mmLiptonTrackOverlay = { load: load, draw: draw, usesClip: usesClip, offsetMs: offsetMsFor };
