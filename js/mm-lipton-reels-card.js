@@ -1,6 +1,6 @@
 /**
  * Lipton-only Marine Megastore Event Reels card (#mmLiptonReels).
- * Compact: artwork + FB-source thumbs. Expand: muted autoplay immediately, no forced fullscreen.
+ * Compact: artwork + FB plugin thumbs. Expand: muted autoplay immediately, no forced fullscreen.
  */
 (function () {
   'use strict';
@@ -67,12 +67,19 @@
     return src;
   }
 
-  function metaHtml(text) {
-    if (!text) return '';
-    return '<div class="mm-lipton-reels-meta">' + esc(text) + '</div>';
+  function exitFsIfInside(root) {
+    var fs = document.fullscreenElement || document.webkitFullscreenElement;
+    if (!fs || !root.contains(fs)) return;
+    var exit = document.exitFullscreen || document.webkitExitFullscreen;
+    if (exit) {
+      try {
+        exit.call(document);
+      } catch (e) {}
+    }
   }
 
   function stopAllPlayback(root) {
+    exitFsIfInside(root);
     var iframes = root.querySelectorAll('iframe');
     var i;
     for (i = 0; i < iframes.length; i++) {
@@ -88,12 +95,8 @@
         ? '<img src="' + esc(v.thumb) + '" alt="" loading="lazy" decoding="async">'
         : '<span class="mm-lipton-reels-thumb-ph" aria-hidden="true"></span>';
     }
-    var allow = 'autoplay; muted; encrypted-media; picture-in-picture';
-    var fs = '';
-    if (fullscreenOk) {
-      allow += '; fullscreen';
-      fs = ' allowfullscreen';
-    }
+    var allow = 'autoplay; muted; encrypted-media; picture-in-picture; fullscreen';
+    var fs = fullscreenOk ? ' allowfullscreen webkitallowfullscreen' : '';
     return (
       '<iframe src="' +
       esc(src) +
@@ -101,14 +104,14 @@
       allow +
       '"' +
       fs +
-      ' referrerpolicy="strict-origin-when-cross-origin"></iframe>'
+      ' referrerpolicy="strict-origin-when-cross-origin" playsinline></iframe>'
     );
   }
 
-  function thumbHtml(v, autoplay) {
+  function thumbHtml(v) {
     return (
       '<div class="mm-lipton-reels-thumb" style="aspect-ratio:16 / 9">' +
-      fbFrameHtml(v, autoplay, false) +
+      fbFrameHtml(v, false, false) +
       '<button type="button" class="mm-lipton-reels-thumb-hit" data-mm-vid="' +
       esc((v && v.id) || '') +
       '" aria-label="' +
@@ -118,13 +121,8 @@
     );
   }
 
-  function compactTileHtml(v, autoplay) {
-    return (
-      '<div class="mm-lipton-reels-tile">' +
-      thumbHtml(v, autoplay) +
-      metaHtml((v && v.stamp) || '') +
-      '</div>'
-    );
+  function compactTileHtml(v) {
+    return '<div class="mm-lipton-reels-tile">' + thumbHtml(v) + '</div>';
   }
 
   function thumbsThatFit(avail, total) {
@@ -148,7 +146,7 @@
   function compactTilesHtml(videos, n) {
     var parts = [];
     var i;
-    for (i = 0; i < n; i++) parts.push(compactTileHtml(videos[i], i === 0));
+    for (i = 0; i < n; i++) parts.push(compactTileHtml(videos[i]));
     return parts.join('');
   }
 
@@ -161,8 +159,7 @@
       aspectCss(v) +
       '">' +
       fbFrameHtml(v, true, true) +
-      '</div>' +
-      metaHtml(v.stamp || '')
+      '</div>'
     );
   }
 
@@ -176,13 +173,22 @@
     for (i = 0; i < rest.length; i++) {
       parts.push(
         '<div class="mm-lipton-reels-grid-item" role="listitem">' +
-          thumbHtml(rest[i], false) +
-          metaHtml(rest[i].stamp || '') +
+          thumbHtml(rest[i]) +
           '</div>'
       );
     }
     parts.push('</div>');
     return parts.join('');
+  }
+
+  function expandedHtml(v, videos) {
+    return (
+      '<div class="mm-lipton-reels-expanded-bar">' +
+      '<button type="button" class="mm-lipton-reels-hide" data-mm-hide>Hide</button>' +
+      '</div>' +
+      stageHtml(v) +
+      gridHtml(videos, v && v.id)
+    );
   }
 
   function layoutCompactStrip(root, videos) {
@@ -228,6 +234,17 @@
     return { videos: videos, current: current };
   }
 
+  function collapse(root, payload, state) {
+    state.expanded = false;
+    stopAllPlayback(root);
+    var expanded = root.querySelector('[data-mm-expanded]');
+    if (expanded) {
+      expanded.innerHTML = '';
+      expanded.setAttribute('hidden', '');
+    }
+    paint(root, payload, state);
+  }
+
   function paint(root, payload, state) {
     stopAllPlayback(root);
     var picked = currentVideo(payload, state);
@@ -240,9 +257,13 @@
       compact.removeAttribute('data-mm-n');
     }
     if (expanded) {
-      expanded.innerHTML = state.expanded
-        ? stageHtml(picked.current) + gridHtml(picked.videos, picked.current && picked.current.id)
-        : '';
+      if (state.expanded) {
+        expanded.removeAttribute('hidden');
+        expanded.innerHTML = expandedHtml(picked.current, picked.videos);
+      } else {
+        expanded.innerHTML = '';
+        expanded.setAttribute('hidden', '');
+      }
     }
     if (!state.expanded) {
       layoutCompactStrip(root, picked.videos);
@@ -260,9 +281,7 @@
       var hide = ev.target.closest && ev.target.closest('[data-mm-hide]');
       if (hide) {
         ev.preventDefault();
-        state.expanded = false;
-        stopAllPlayback(root);
-        paint(root, payload, state);
+        collapse(root, payload, state);
         return;
       }
       var brand = ev.target.closest && ev.target.closest('.mm-lipton-reels-brand');

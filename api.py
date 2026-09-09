@@ -20374,19 +20374,21 @@ _LIPTON_MM_REELS_VIDEOS = (
     },
 )
 _LIPTON_MM_REELS_CSS = (
-    ".mm-lipton-reels{width:100%;margin:10px 0 0 0;padding:4px;background:#dce6ef!important;border:2px solid #001f3f;border-radius:8px;box-shadow:0 1px 3px rgba(0,31,63,0.08);box-sizing:border-box}"
-    ".mm-lipton-reels--compact .mm-lipton-reels-expanded{display:none}"
-    ".mm-lipton-reels--expanded .mm-lipton-reels-compact{display:none}"
-    ".mm-lipton-reels-compact{display:flex;align-items:flex-start;justify-content:flex-start;gap:6px;min-width:0}"
+    ".mm-lipton-reels{display:block!important;width:100%;margin:10px 0 0 0;padding:4px;background:#dce6ef!important;border:2px solid #001f3f;border-radius:8px;box-shadow:0 1px 3px rgba(0,31,63,0.08);box-sizing:border-box}"
+    ".mm-lipton-reels-expanded{display:none!important}"
+    ".mm-lipton-reels--compact .mm-lipton-reels-expanded{display:none!important}"
+    ".mm-lipton-reels--expanded .mm-lipton-reels-expanded{display:block!important}"
+    ".mm-lipton-reels--expanded .mm-lipton-reels-compact{display:none!important}"
+    ".mm-lipton-reels-compact{display:flex;align-items:stretch;justify-content:flex-start;gap:6px;min-width:0}"
     ".mm-lipton-reels-brand{display:block;flex:0 0 auto;line-height:0;overflow:hidden;border:2px solid #001f3f;border-radius:8px;background:#001f3f;box-shadow:0 1px 3px rgba(0,31,63,0.14);box-sizing:border-box}"
     ".mm-lipton-reels-brand img{display:block;width:100%;height:100%;object-fit:contain;object-position:center;border:0}"
-    ".mm-lipton-reels-compact [data-mm-compact]{display:flex;align-items:flex-start;gap:6px;flex:0 0 auto;min-width:0}"
-    ".mm-lipton-reels-tile{display:flex;flex-direction:column;gap:0.18rem;flex:0 0 auto;min-width:0}"
-    ".mm-lipton-reels-thumb{position:relative;display:block;width:100%;padding:0;border:2px solid #001f3f;border-radius:8px;background:#0b1c33;overflow:hidden;cursor:pointer;min-height:44px;box-shadow:0 1px 3px rgba(0,31,63,0.14);box-sizing:border-box}"
-    ".mm-lipton-reels-thumb iframe,.mm-lipton-reels-thumb img{position:absolute;inset:0;width:100%;height:100%;border:0;object-fit:cover;object-position:center;pointer-events:none;display:block}"
+    ".mm-lipton-reels-compact [data-mm-compact]{display:flex;align-items:stretch;gap:6px;flex:0 0 auto;min-width:0}"
+    ".mm-lipton-reels-tile{display:flex;flex-direction:column;flex:0 0 auto;min-width:0;height:100%}"
+    ".mm-lipton-reels-thumb{position:relative;display:block;width:100%;height:100%;padding:0;border:2px solid #001f3f;border-radius:8px;background:#0b1c33;overflow:hidden;cursor:pointer;min-height:44px;box-shadow:0 1px 3px rgba(0,31,63,0.14);box-sizing:border-box}"
+    ".mm-lipton-reels-thumb iframe{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none;display:block}"
+    ".mm-lipton-reels-thumb img{position:absolute;inset:0;width:100%;height:100%;border:0;object-fit:contain;object-position:center;pointer-events:none;display:block}"
     ".mm-lipton-reels-thumb-ph{display:block;width:100%;height:100%;background:#0b1c33}"
     ".mm-lipton-reels-thumb-hit{position:absolute;inset:0;z-index:2;margin:0;padding:0;border:0;background:transparent;cursor:pointer;min-height:44px}"
-    ".mm-lipton-reels-meta{margin:0;padding:0 0.05rem;font-size:0.65rem;font-weight:600;line-height:1.2;color:#475569;letter-spacing:0.01em}"
     ".mm-lipton-reels-expanded-bar{display:flex;justify-content:flex-end;margin:0 0 0.3rem 0}"
     ".mm-lipton-reels-hide{min-height:44px;min-width:44px;font-size:0.8rem;font-weight:700;color:#001f3f;background:#fff;border:2px solid #001f3f;border-radius:6px;padding:0.28rem 0.7rem;cursor:pointer}"
     ".mm-lipton-reels-stage{position:relative;width:100%;aspect-ratio:var(--mm-aspect,16/9);overflow:hidden;border-radius:8px;background:#001018;border:2px solid #001f3f}"
@@ -20394,6 +20396,10 @@ _LIPTON_MM_REELS_CSS = (
     ".mm-lipton-reels-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0.35rem 0.35rem;margin-top:0.4rem}"
     ".mm-lipton-reels-grid-item{min-width:0}"
     ".mm-lipton-reels-waiting{margin:0;font-size:0.85rem;color:#334155}"
+    "@media (orientation:landscape) and (max-height:500px){"
+    ".mm-lipton-reels--expanded .mm-lipton-reels-stage{position:fixed;inset:0;z-index:200;width:100vw;height:100dvh;max-width:none;border-radius:0;border:0;aspect-ratio:auto}"
+    ".mm-lipton-reels--expanded .mm-lipton-reels-hide{position:fixed;top:8px;right:8px;z-index:201}"
+    "}"
     "@media (min-width:720px){.mm-lipton-reels-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}"
     "@media (min-width:1024px){.mm-lipton-reels-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}"
     "@media print{.mm-lipton-reels{display:none!important}}"
@@ -20436,12 +20442,7 @@ def _lipton_mm_reels_card_html(regatta_id: str) -> str:
         f"{brand}"
         '<div data-mm-compact></div>'
         "</div>"
-        '<div class="mm-lipton-reels-expanded">'
-        '<div class="mm-lipton-reels-expanded-bar">'
-        '<button type="button" class="mm-lipton-reels-hide" data-mm-hide>Hide</button>'
-        "</div>"
-        '<div data-mm-expanded></div>'
-        "</div>"
+        '<div class="mm-lipton-reels-expanded" data-mm-expanded hidden></div>'
         "</section>"
     )
 
@@ -27348,7 +27349,7 @@ def serve_regatta_standalone(slug: str, request: Request):
         mm_card_js = ""
         if str(regatta_id) == "2026-08-29-lipton-challenge-cup":
             mm_card = _lipton_mm_reels_card_html(str(regatta_id))
-            mm_card_js = '<script src="/js/mm-lipton-reels-card.js?v=mmr7" defer></script>'
+            mm_card_js = '<script src="/js/mm-lipton-reels-card.js?v=mmr8" defer></script>'
         body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()
