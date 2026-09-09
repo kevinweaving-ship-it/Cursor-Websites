@@ -20377,25 +20377,27 @@ _LIPTON_MM_REELS_CSS = (
     ".mm-lipton-reels{width:100%;margin:10px 0 0 0;padding:0.35rem 0.45rem;background:#ffffff;border:2px solid #001f3f;border-radius:8px;box-shadow:0 1px 3px rgba(0,31,63,0.08);box-sizing:border-box}"
     ".mm-lipton-reels--compact .mm-lipton-reels-expanded{display:none}"
     ".mm-lipton-reels--expanded .mm-lipton-reels-compact{display:none}"
-    ".mm-lipton-reels-compact{display:flex;align-items:center;justify-content:flex-start;gap:0.4rem;min-width:0}"
-    ".mm-lipton-reels-brand{flex:1 1 45%;min-width:0;max-width:45%;line-height:0}"
-    ".mm-lipton-reels-brand img{display:block;width:auto!important;height:auto!important;max-width:min(220px,100%)!important;max-height:88px!important;object-fit:contain;object-position:left center}"
-    ".mm-lipton-reels-compact [data-mm-compact]{flex:1 1 55%;min-width:0;max-width:55%}"
-    ".mm-lipton-reels-compact-preview{display:block;width:100%;min-width:0}"
+    ".mm-lipton-reels-compact{display:flex;align-items:flex-start;justify-content:flex-start;gap:0.5rem;min-width:0}"
+    ".mm-lipton-reels-brand{flex:0 0 auto;line-height:0}"
+    ".mm-lipton-reels-brand img{display:block;width:auto;height:auto;object-fit:contain;object-position:left center}"
+    ".mm-lipton-reels-compact [data-mm-compact]{flex:0 0 auto;min-width:0}"
+    ".mm-lipton-reels-compact-preview{display:flex;flex-direction:column;align-items:stretch;min-width:0;gap:0.25rem}"
+    ".mm-lipton-reels-compact-frame{position:relative;flex:0 0 auto;overflow:hidden;border:2px solid #001f3f;border-radius:6px;background:#001018}"
+    ".mm-lipton-reels-compact-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none}"
+    ".mm-lipton-reels-compact-hit{position:absolute;inset:0;z-index:2;margin:0;padding:0;border:0;background:transparent;cursor:pointer;min-height:44px}"
+    ".mm-lipton-reels-meta{margin:0;padding:0;font-size:0.72rem;font-weight:700;line-height:1.25;color:#334155}"
     ".mm-lipton-reels-thumb{position:relative;display:block;width:100%;padding:0;border:2px solid #001f3f;border-radius:6px;background:#e9eefb;overflow:hidden;cursor:pointer;min-height:44px}"
     ".mm-lipton-reels-thumb img{width:100%;height:100%;object-fit:cover;display:block}"
     ".mm-lipton-reels-thumb-ph{display:block;width:100%;height:100%;background:#e9eefb}"
-    ".mm-lipton-reels-stamp{position:absolute;left:0;right:0;bottom:0;background:rgba(0,31,63,0.82);color:#fff;font-size:0.62rem;font-weight:700;padding:0.12rem 0.2rem;text-align:left}"
     ".mm-lipton-reels-expanded-bar{display:flex;justify-content:flex-end;margin:0 0 0.35rem 0}"
     ".mm-lipton-reels-hide{min-height:44px;min-width:44px;font-size:0.8rem;font-weight:700;color:#001f3f;background:#fff;border:2px solid #001f3f;border-radius:6px;padding:0.28rem 0.7rem;cursor:pointer}"
     ".mm-lipton-reels-stage{position:relative;width:100%;aspect-ratio:var(--mm-aspect,16/9);overflow:hidden;border-radius:6px;background:#001018}"
     ".mm-lipton-reels-stage iframe{position:absolute;inset:0;width:100%;height:100%;border:0}"
-    ".mm-lipton-reels-watch{display:inline-block;margin:0.3rem 0 0.1rem;font-size:0.85rem;font-weight:600;color:#001f3f}"
-    ".mm-lipton-reels-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0.35rem;margin-top:0.4rem}"
-    ".mm-lipton-reels-thumb--on{outline:2px solid #2563eb;outline-offset:1px}"
+    ".mm-lipton-reels-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0.35rem 0.45rem;margin-top:0.45rem}"
+    ".mm-lipton-reels-grid-item{min-width:0}"
     ".mm-lipton-reels-waiting{margin:0;font-size:0.85rem;color:#334155}"
-    "@media (min-width:600px){.mm-lipton-reels{padding:0.4rem 0.55rem}.mm-lipton-reels-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.mm-lipton-reels-brand{flex:0 1 auto;max-width:220px}.mm-lipton-reels-compact [data-mm-compact]{flex:0 0 12rem;max-width:12rem}}"
-    "@media (min-width:900px){.mm-lipton-reels-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}"
+    "@media (min-width:720px){.mm-lipton-reels{padding:0.4rem 0.55rem}.mm-lipton-reels-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}"
+    "@media (min-width:1024px){.mm-lipton-reels-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}"
     "@media print{.mm-lipton-reels{display:none!important}}"
 )
 
@@ -20422,9 +20424,8 @@ def _lipton_mm_reels_card_html(regatta_id: str) -> str:
     initial = html_module.escape(json.dumps(payload, separators=(",", ":")), quote=True)
     brand = (
         '<a class="mm-lipton-reels-brand" href="https://marinemegastore.co.za" target="_blank" rel="noopener noreferrer">'
-        '<img src="/assets/adverts/mm-powered-by-event-reels.png?v=mmr1" '
-        'alt="Powered by Marine Megastore Event Reels" width="220" height="146" '
-        'style="max-width:220px !important;max-height:88px !important;width:auto !important;height:auto !important;" '
+        '<img src="/assets/adverts/mm-powered-by-event-reels.png?v=mmr2" '
+        'alt="Powered by Marine Megastore Event Reels" width="320" height="213" '
         'loading="lazy" decoding="async">'
         "</a>"
     )
@@ -27349,7 +27350,7 @@ def serve_regatta_standalone(slug: str, request: Request):
         mm_card_js = ""
         if str(regatta_id) == "2026-08-29-lipton-challenge-cup":
             mm_card = _lipton_mm_reels_card_html(str(regatta_id))
-            mm_card_js = '<script src="/js/mm-lipton-reels-card.js?v=mmr1" defer></script>'
+            mm_card_js = '<script src="/js/mm-lipton-reels-card.js?v=mmr2" defer></script>'
         body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()
