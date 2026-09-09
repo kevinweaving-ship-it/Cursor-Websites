@@ -1,6 +1,6 @@
 /**
  * Compact / expand MM video card (manual Facebook URLs, no Graph).
- * Compact: logo left + newest or LIVE thumb right. Tap expands. Hide collapses.
+ * Compact: branding left + newest or LIVE thumb right. Tap expands. Hide collapses.
  */
 (function () {
   'use strict';
@@ -32,20 +32,39 @@
     });
   }
 
+  function aspectCss(v) {
+    var w = parseInt(v && v.width, 10) || 0;
+    var h = parseInt(v && v.height, 10) || 0;
+    if (w > 0 && h > 0) return w + ' / ' + h;
+    var a = String((v && v.aspect) || '').trim();
+    if (/^\d+\s*[:/]\s*\d+$/.test(a)) return a.replace(':', ' / ');
+    return '16 / 9';
+  }
+
+  function isPortrait(v) {
+    var w = parseInt(v && v.width, 10) || 0;
+    var h = parseInt(v && v.height, 10) || 0;
+    if (w > 0 && h > 0) return h > w;
+    return String((v && v.aspect) || '').replace(/\s/g, '') === '9:16';
+  }
+
   function thumbHtml(v, extraClass) {
-    var cls = 'mm-live-fb-thumb' + (extraClass ? ' ' + extraClass : '');
+    var cls = 'mm-live-fb-thumb' + (isPortrait(v) ? ' mm-live-fb-thumb--portrait' : ' mm-live-fb-thumb--landscape');
+    if (extraClass) cls += ' ' + extraClass;
     var stamp = v && v.stamp ? esc(v.stamp) : '';
     var live = v && v.is_live;
     var img = v && v.thumb
-      ? '<img src="' + esc(v.thumb) + '" alt="" width="72" height="128" loading="lazy">'
+      ? '<img src="' + esc(v.thumb) + '" alt="' + esc((v && v.title) || '') + '" loading="lazy">'
       : '<span class="mm-live-fb-thumb-ph" aria-hidden="true"></span>';
     return (
       '<button type="button" class="' +
       cls +
+      '" style="aspect-ratio:' +
+      aspectCss(v) +
       '" data-mm-vid="' +
       esc((v && v.id) || '') +
       '" aria-label="' +
-      esc(live ? 'Play LIVE video' : 'Play clip ' + stamp) +
+      esc(live ? 'Play LIVE video' : 'Play ' + ((v && v.title) || stamp || 'clip')) +
       '">' +
       img +
       (live ? '<span class="mm-live-fb-live-flag">LIVE</span>' : '') +
@@ -60,6 +79,7 @@
     }
     var src = v.embed_url || '';
     var href = v.url || v.permalink || '';
+    var orient = isPortrait(v) ? ' mm-live-fb-stage--portrait' : ' mm-live-fb-stage--landscape';
     var frame = src
       ? '<iframe src="' +
         esc(src) +
@@ -73,7 +93,11 @@
         '" target="_blank" rel="noopener noreferrer">Watch on Facebook</a>'
       : '';
     return (
-      '<div class="mm-live-fb-stage" data-mm-stage>' +
+      '<div class="mm-live-fb-stage' +
+      orient +
+      '" data-mm-stage style="--mm-aspect:' +
+      aspectCss(v) +
+      '">' +
       frame +
       '</div>' +
       watch
@@ -81,13 +105,14 @@
   }
 
   function carouselHtml(videos, currentId) {
-    if (!videos || videos.length < 2) return '';
+    var rest = (videos || []).filter(function (v) {
+      return v && v.id !== currentId;
+    });
+    if (!rest.length) return '';
     var parts = ['<div class="mm-live-fb-carousel" role="list">'];
     var i;
-    for (i = 0; i < videos.length; i++) {
-      var v = videos[i] || {};
-      var on = v.id === currentId ? ' mm-live-fb-thumb--on' : '';
-      parts.push('<div role="listitem">' + thumbHtml(v, on) + '</div>');
+    for (i = 0; i < rest.length; i++) {
+      parts.push('<div role="listitem">' + thumbHtml(rest[i], '') + '</div>');
     }
     parts.push('</div>');
     return parts.join('');
@@ -104,7 +129,7 @@
       }
     }
     var current = null;
-    if (live) current = live;
+    if (live && !state.currentId) current = live;
     else {
       for (i = 0; i < videos.length; i++) {
         if (videos[i] && videos[i].id === state.currentId) {
@@ -112,7 +137,7 @@
           break;
         }
       }
-      if (!current) current = videos[0] || null;
+      if (!current) current = live || videos[0] || null;
     }
     if (current) state.currentId = current.id;
 

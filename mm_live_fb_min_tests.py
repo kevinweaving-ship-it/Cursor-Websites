@@ -25,6 +25,8 @@ class MinimalMmFeedTest(unittest.TestCase):
         self.assertIn("mm-live-fb-card--compact", self.src)
         self.assertIn("data-mm-hide", self.src)
         self.assertIn("data-mm-fs", self.src)
+        self.assertIn("mm-powered-by-event-reels.png", self.src)
+        self.assertIn("mm-powered-by-live.png", self.src)
         self.assertIn("/js/mm-live-fb-card.js", self.src)
         self.assertIn("2026-08-29-lipton-challenge-cup", self.src)
         self.assertIn("2026-09-13-zvyc-cape-classic", self.src)
@@ -33,7 +35,11 @@ class MinimalMmFeedTest(unittest.TestCase):
         self.assertTrue(self.feed["2026-08-29-lipton-challenge-cup"]["enabled"])
         self.assertTrue(self.feed["2026-09-13-zvyc-cape-classic"]["enabled"])
         self.assertEqual(self.feed["2026-08-29-lipton-challenge-cup"]["feed_source"], "marine-megastore")
-        self.assertIn("https://www.facebook.com/share/v/1957ykQ9qA/", json.dumps(self.feed))
+        lipton = json.dumps(self.feed["2026-08-29-lipton-challenge-cup"])
+        self.assertIn("marin.megastoresa", lipton)
+        self.assertIn("lipton-race-7-1st-downwind", lipton)
+        self.assertNotIn("timadvisor", lipton)
+        self.assertGreaterEqual(len(self.feed["2026-08-29-lipton-challenge-cup"]["videos"]), 7)
 
 
 if __name__ == "__main__":

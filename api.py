@@ -20052,6 +20052,9 @@ def _mm_normalize_video(item: dict) -> Optional[dict]:
         "is_live": bool(item.get("is_live")),
         "stamp": str(item.get("stamp") or _mm_stamp_from_iso(started)),
         "thumb": str(item.get("thumb") or "").strip(),
+        "width": int(item["width"]) if str(item.get("width") or "").isdigit() else item.get("width") or 0,
+        "height": int(item["height"]) if str(item.get("height") or "").isdigit() else item.get("height") or 0,
+        "aspect": str(item.get("aspect") or "").strip(),
     }
 
 
@@ -20231,14 +20234,16 @@ def _mm_live_fb_card_html(regatta_id: str) -> str:
         f'data-regatta-id="{rid}" data-mm-source="{html_module.escape(source)}" '
         f'data-mm-initial="{initial}" aria-label="Marine Megastore video">'
         '<div class="mm-live-fb-compact">'
-        '<a class="mm-live-fb-logo-link" href="https://marinemegastore.co.za" target="_blank" rel="noopener noreferrer">'
-        '<img class="mm-live-fb-logo" src="/assets/adverts/marine-megastore-logo.png" alt="Marine Megastore" width="1748" height="330" loading="lazy" decoding="async">'
+        '<a class="mm-live-fb-brand-link" href="https://marinemegastore.co.za" target="_blank" rel="noopener noreferrer">'
+        '<img class="mm-live-fb-brand mm-live-fb-brand--reels" src="/assets/adverts/mm-powered-by-event-reels.png" alt="Powered by Marine Megastore Event Reels" width="1024" height="1024" loading="lazy" decoding="async">'
+        '<img class="mm-live-fb-brand mm-live-fb-brand--live" src="/assets/adverts/mm-powered-by-live.png" alt="Powered by Marine Megastore Live Streaming" width="1536" height="1024" loading="lazy" decoding="async">'
         "</a>"
         '<div data-mm-compact></div>'
         "</div>"
         '<div class="mm-live-fb-expanded">'
         '<div class="mm-live-fb-expanded-bar">'
-        '<h2 class="section-title">LIVE VIDEO</h2>'
+        '<h2 class="section-title mm-live-fb-title--live">LIVE VIDEO</h2>'
+        '<h2 class="section-title mm-live-fb-title--reels">EVENT REELS</h2>'
         '<div class="mm-live-fb-expanded-actions">'
         '<button type="button" class="mm-live-fb-fs" data-mm-fs>Fullscreen</button>'
         '<button type="button" class="mm-live-fb-hide" data-mm-hide>Hide</button>'
@@ -24635,10 +24640,12 @@ _RESULT_SHEET_CSS = (
     ".mm-live-fb-compact{display:flex;align-items:center;gap:0.75rem}"
     ".mm-live-fb-card--expanded .mm-live-fb-compact{display:none}"
     ".mm-live-fb-card--compact .mm-live-fb-expanded{display:none}"
-    ".mm-live-fb-logo-link{display:block;flex:1 1 auto;min-width:0;max-width:58%;line-height:0}"
-    ".mm-live-fb-logo{display:block;width:100%;max-width:180px;height:auto}"
-    ".mm-live-fb-compact-preview{flex:0 0 auto}"
-    ".mm-live-fb-thumb{position:relative;display:block;padding:0;border:2px solid #001f3f;border-radius:6px;background:#e9eefb;width:72px;height:96px;overflow:hidden;cursor:pointer}"
+    ".mm-live-fb-brand-link{display:block;flex:1 1 auto;min-width:0;max-width:58%;line-height:0}"
+    ".mm-live-fb-brand{display:block;width:100%;max-width:220px;height:auto}"
+    ".mm-live-fb-card:not(.mm-live-fb-card--live) .mm-live-fb-brand--live,.mm-live-fb-card--live .mm-live-fb-brand--reels{display:none}"
+    ".mm-live-fb-card:not(.mm-live-fb-card--live) .mm-live-fb-title--live,.mm-live-fb-card--live .mm-live-fb-title--reels{display:none}"
+    ".mm-live-fb-compact-preview{flex:0 0 42%;max-width:12.5rem}"
+    ".mm-live-fb-thumb{position:relative;display:block;padding:0;border:2px solid #001f3f;border-radius:6px;background:#e9eefb;width:100%;aspect-ratio:16/9;overflow:hidden;cursor:pointer}"
     ".mm-live-fb-thumb img{width:100%;height:100%;object-fit:cover;display:block}"
     ".mm-live-fb-thumb-ph{display:block;width:100%;height:100%;background:#e9eefb}"
     ".mm-live-fb-thumb-ph:after{content:'';position:absolute;left:50%;top:42%;width:0;height:0;border-style:solid;border-width:8px 0 8px 14px;border-color:transparent transparent transparent #001f3f;transform:translate(-40%,-50%)}"
@@ -24647,17 +24654,20 @@ _RESULT_SHEET_CSS = (
     ".mm-live-fb-expanded-bar{display:flex;align-items:center;justify-content:space-between;gap:0.5rem;margin-bottom:0.45rem}"
     ".mm-live-fb-expanded-actions{display:flex;gap:0.4rem}"
     ".mm-live-fb-hide,.mm-live-fb-fs{font-size:0.8rem;font-weight:700;color:#001f3f;background:#fff;border:2px solid #001f3f;border-radius:6px;padding:0.28rem 0.55rem;cursor:pointer}"
-    ".mm-live-fb-stage{position:relative;width:100%;max-height:52vh;aspect-ratio:9/16;max-width:min(100%,calc(52vh * 9 / 16));margin:0 auto;overflow:hidden;border-radius:6px;background:#e9eefb}"
+    ".mm-live-fb-stage{position:relative;width:100%;max-height:52vh;aspect-ratio:var(--mm-aspect,16/9);max-width:min(100%,calc(52vh * 16 / 9));margin:0 auto;overflow:hidden;border-radius:6px;background:#001018}"
+    ".mm-live-fb-stage--portrait{max-width:min(100%,calc(52vh * 9 / 16))}"
     ".mm-live-fb-stage iframe{position:absolute;inset:0;width:100%;height:100%;border:0}"
     ".mm-live-fb-watch{display:inline-block;margin:0.35rem 0 0.15rem;font-size:0.85rem;font-weight:600;color:#001f3f}"
-    ".mm-live-fb-carousel{display:flex;gap:0.45rem;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:0.55rem;padding-bottom:0.2rem}"
+    ".mm-live-fb-carousel{display:flex;gap:0.45rem;overflow-x:auto;-webkit-overflow-scrolling:touch;scroll-snap-type:x mandatory;margin-top:0.55rem;padding-bottom:0.2rem}"
+    ".mm-live-fb-carousel [role=listitem]{flex:0 0 calc((100% - 0.45rem) / 2);scroll-snap-align:start}"
     ".mm-live-fb-thumb--on{outline:2px solid #2563eb;outline-offset:1px}"
     ".mm-live-fb-waiting{margin:0;font-size:0.85rem;color:#334155}"
     ".regatta-mm-clip-urls{width:min(100%,16rem);min-height:3.4rem;font:inherit;font-size:0.8rem}"
     ".mm-live-fb-card--fs-fallback{position:fixed;inset:0;z-index:80;margin:0;border-radius:0;background:#fff;padding:0.75rem;overflow:auto}"
-    ".mm-live-fb-card--fs-fallback .mm-live-fb-stage{max-height:none;max-width:100%;aspect-ratio:9/16;height:min(86vh,100vw)}"
-    "@media (max-width:480px){.mm-live-fb-card{padding:0.45rem 0.6rem;margin-top:10px}.mm-live-fb-logo{max-width:140px}.mm-live-fb-thumb{width:64px;height:86px}}"
-    "@media (min-width:600px){.mm-live-fb-card{padding:0.5rem 0.85rem}.mm-live-fb-logo{max-width:200px}}"
+    ".mm-live-fb-card--fs-fallback .mm-live-fb-stage{max-height:none;max-width:100%;height:auto}"
+    "@media (max-width:480px){.mm-live-fb-card{padding:0.45rem 0.6rem;margin-top:10px}.mm-live-fb-brand{max-width:160px}.mm-live-fb-compact-preview{max-width:9.5rem}}"
+    "@media (min-width:600px){.mm-live-fb-card{padding:0.5rem 0.85rem}.mm-live-fb-brand{max-width:240px}.mm-live-fb-carousel [role=listitem]{flex-basis:calc((100% - 1.35rem) / 4)}}"
+    "@media (min-width:900px){.mm-live-fb-carousel [role=listitem]{flex-basis:calc((100% - 1.8rem) / 5)}}"
 )
 
 
@@ -27127,7 +27137,7 @@ def serve_regatta_standalone(slug: str, request: Request):
             else ""
         )
         sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js?v=mm2" defer></script>' if is_sa else ""
-        mm_card_js = '<script src="/js/mm-live-fb-card.js?v=mm2" defer></script>' if mm_feed_on else ""
+        mm_card_js = '<script src="/js/mm-live-fb-card.js?v=mm3lipton" defer></script>' if mm_feed_on else ""
         doc = (
             "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
             f"{escaped_title} | SailingSA</title>"
