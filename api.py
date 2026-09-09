@@ -27759,7 +27759,10 @@ def serve_regatta_standalone(slug: str, request: Request):
         mm_card_js = ""
         if str(regatta_id) == "2026-08-29-lipton-challenge-cup":
             mm_card = _lipton_mm_reels_card_html(str(regatta_id))
-            mm_card_js = '<script src="/js/mm-lipton-reels-card.js?v=mmr46" defer></script>'
+            mm_card_js = (
+                '<script src="/js/mm-lipton-track-overlay.js?v=mmr47" defer></script>'
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr47" defer></script>'
+            )
         body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()
