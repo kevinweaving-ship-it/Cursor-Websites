@@ -107,11 +107,10 @@
       video.setAttribute('data-mm-hero-video', '');
       video.setAttribute('playsinline', '');
       video.setAttribute('webkit-playsinline', '');
-      video.setAttribute('muted', '');
-      video.setAttribute('autoplay', '');
       video.setAttribute('preload', 'auto');
-      video.muted = true;
-      video.defaultMuted = true;
+      video.muted = false;
+      video.defaultMuted = false;
+      video.volume = 1;
       video.playsInline = true;
       video.controls = true;
       video.preload = 'auto';
@@ -220,12 +219,13 @@
     var stage = root.querySelector('[data-mm-stage]');
     if (!video || !clip) return;
     var src = playUrl(clip);
-    video.muted = true;
-    video.defaultMuted = true;
+    video.muted = false;
+    video.defaultMuted = false;
+    video.volume = 1;
     video.playsInline = true;
     video.setAttribute('playsinline', '');
     video.setAttribute('webkit-playsinline', '');
-    video.setAttribute('muted', '');
+    video.removeAttribute('muted');
     if (clip.thumb) video.setAttribute('poster', clip.thumb);
     if (src && video.getAttribute('src') !== src) {
       video.src = src;
@@ -236,7 +236,18 @@
     }
     var playPromise = video.play();
     if (playPromise && playPromise.catch) {
-      playPromise.catch(function () {});
+      playPromise.catch(function () {
+        video.muted = true;
+        var retry = video.play();
+        if (retry && retry.then) {
+          retry
+            .then(function () {
+              video.muted = false;
+              video.volume = 1;
+            })
+            .catch(function () {});
+        }
+      });
     }
   }
 
