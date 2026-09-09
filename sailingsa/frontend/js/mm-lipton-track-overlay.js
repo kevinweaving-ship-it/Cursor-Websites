@@ -777,8 +777,8 @@
     return rows.slice(0, leadN);
   }
 
-  /* Front cluster around the leader — tight enough to read places, not the whole run. */
-  function viewPack(live) {
+  /* Leading boats always, plus anyone in the mark/camera scene (not only the GPS front four). */
+  function viewPack(live, mark) {
     var rows = [];
     var i;
     for (i = 0; i < (live.rows || []).length; i++) {
@@ -787,32 +787,26 @@
     rows.sort(function (a, b) {
       return (a.racePlace || 99) - (b.racePlace || 99);
     });
-    if (!rows.length) return rows;
     var lead = rows[0];
-    var pack = [];
+    var out = [];
     var seen = {};
-    for (i = 0; i < rows.length; i++) {
-      var d = distM(rows[i].pos, lead.pos);
-      if (pack.length < 4 && d < 160) {
-        pack.push(rows[i]);
-        seen[rows[i].sail] = true;
-      } else if (d < 85) {
-        pack.push(rows[i]);
-        seen[rows[i].sail] = true;
-      } else if (pack.length >= 4) {
-        break;
-      }
+    function add(row) {
+      if (!row || !row.sail || seen[row.sail]) return;
+      seen[row.sail] = true;
+      out.push(row);
     }
     for (i = 0; i < rows.length; i++) {
-      if (isHycRow(rows[i]) && !seen[rows[i].sail] && distM(rows[i].pos, lead.pos) < 140) {
-        pack.push(rows[i]);
-      }
+      if (rows[i].racePlace <= 6) add(rows[i]);
     }
-    return pack.length ? pack : rows.slice(0, 4);
+    for (i = 0; i < rows.length; i++) {
+      if (mark && distM(rows[i].pos, mark) < 250) add(rows[i]);
+      else if (lead && distM(rows[i].pos, lead.pos) < 200) add(rows[i]);
+    }
+    return out.length ? out : rows.slice(0, 6);
   }
 
   function roundingPack(live, mark) {
-    return viewPack(live);
+    return viewPack(live, mark);
   }
 
   function acrossM(pos, mark, hdg) {
@@ -1107,12 +1101,13 @@
     var live = ranksAt(ts);
     var plan = camPlan(live, cssW, cssH);
     var focus = plan.focus;
-    var pack = roundingPack(live, focus || plan.last);
+    var pack = roundingPack(live, focus || plan.last || markLock);
     var pts = packPoints(pack, ts);
     if (!pts.length) return;
     var nearRound = plan.phase === 'hold' || plan.phase === 'approach-mark';
+    if (markLock) pts.push({ lat: markLock.lat, lon: markLock.lon });
     var cam;
-    var camOpts = { minAlong: 22, minAcross: 18, padAlong: 1.28, padAcross: 1.32, padX: 84, padY: 22, flipX: true };
+    var camOpts = { minAlong: 28, minAcross: 24, padAlong: 1.24, padAcross: 1.42, padX: 84, padY: 36, flipX: true };
     if ((plan.phase === 'hold' || plan.phase === 'approach-mark') && markLock) {
       setTrackHeight(canvas, 0.66);
       cam = fitCam(pts, cssW, cssH, markLock.hdg, camOpts);
@@ -1127,16 +1122,25 @@
     cam.boatR = collectiveBoatR(cam, pack);
     ctx.clearRect(0, 0, cssW, cssH);
 
-    if (nearRound && markLock) {
+    if (markLock) {
       var fp = xy(markLock.lat, markLock.lon, cam);
-      if (fp.x > -20 && fp.x < cssW + 20 && fp.y > -20 && fp.y < cssH + 20) {
-        var box = 7;
-        ctx.fillStyle = '#f8fafc';
-        ctx.fillRect(fp.x - box / 2, fp.y - box / 2, box, box);
-        ctx.strokeStyle = '#0f172a';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(fp.x - box / 2, fp.y - box / 2, box, box);
-      }
+      var mkR = Math.max(12, Math.min(20, metersPx(10, cam)));
+      var box = Math.max(11, Math.min(16, mkR * 0.8));
+      ctx.beginPath();
+      ctx.arc(fp.x, fp.y, mkR, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(248,250,252,0.35)';
+      ctx.fill();
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(fp.x - box / 2, fp.y - box / 2, box, box);
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.4;
+      ctx.strokeRect(fp.x - box / 2, fp.y - box / 2, box, box);
+      ctx.fillStyle = '#0f172a';
+      ctx.font = 'bold ' + Math.max(9, Math.round(box * 0.72)) + 'px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      var lab = markLock.key === 'pin' || markLock.key === '4' ? 'Pin' : markLock.key === 'fin' ? 'Fin' : String(markLock.key);
+      ctx.fillText(lab, fp.x, fp.y + 0.5);
     }
 
     var r = cam.boatR || 7;
