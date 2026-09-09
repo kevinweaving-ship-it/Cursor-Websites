@@ -23,7 +23,6 @@ import html as html_module
 import json
 import difflib
 from urllib.parse import urlparse, unquote
-import mm_live_fb
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
@@ -16508,7 +16507,6 @@ def _regatta_results_summary_payload(regatta_id: str) -> Optional[dict]:
                 "blank_hub_news_album",
                 "card_results_url",
                 "card_calendar_url",
-                "mm_live_fb_feed",
             ):
                 if column_exists("regattas", col):
                     hub_select.append(f"r.{col}")
@@ -16560,10 +16558,7 @@ def _regatta_results_summary_payload(regatta_id: str) -> Optional[dict]:
                 elif not isinstance(raw_al, list):
                     out["blank_hub_news_album"] = []
 
-            if "mm_live_fb_feed" in out:
-                out["mm_live_fb_feed"] = bool(out.get("mm_live_fb_feed"))
-            else:
-                out["mm_live_fb_feed"] = _mm_live_fb_is_enabled(rid)
+            out["mm_live_fb_feed"] = _mm_live_fb_is_enabled(rid)
 
             entries_total = 0
             races_total = 0
@@ -19947,12 +19942,8 @@ async def api_super_admin_regatta_event_name_patch(request: Request, regatta_id:
     return {"ok": True, "event_name": name}
 
 
-_MM_FB_GRAPH_CACHE = {"ts": 0.0, "videos": []}
-_MM_FB_COLS_OK = None
-
-
-def _mm_live_fb_json_path() -> Path:
-    return Path(__file__).resolve().parent / "data" / "mm_live_fb_feed.json"
+# Process-local Upcoming Event MM card toggle. No DB column, file, or Facebook fetch.
+_MM_LIVE_FB_ON = {"2026-09-13-zvyc-cape-classic"}
 
 
 def _mm_live_fb_parse_on(raw) -> bool:
@@ -19963,135 +19954,8 @@ def _mm_live_fb_parse_on(raw) -> bool:
     return str(raw).strip().lower() in ("1", "true", "on", "yes")
 
 
-def _mm_live_fb_read_file() -> dict:
-    try:
-        p = _mm_live_fb_json_path()
-        if p.is_file():
-            data = json.loads(p.read_text(encoding="utf-8") or "{}")
-            return data if isinstance(data, dict) else {}
-    except Exception as e:
-        print(f"[mm_live_fb] read file failed: {e}", flush=True)
-    return {}
-
-
-def _mm_live_fb_write_file(regatta_id: str, enabled=None, videos=None) -> None:
-    rid = str(regatta_id or "").strip()
-    if not rid:
-        return
-    p = _mm_live_fb_json_path()
-    try:
-        p.parent.mkdir(parents=True, exist_ok=True)
-        data = _mm_live_fb_read_file()
-        row = data.get(rid) if isinstance(data.get(rid), dict) else {}
-        if enabled is not None:
-            row["enabled"] = bool(enabled)
-        if videos is not None:
-            row["videos"] = videos
-        data[rid] = row
-        tmp = p.with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
-        tmp.replace(p)
-    except Exception as e:
-        print(f"[mm_live_fb] write file failed: {e}", flush=True)
-
-
-def _mm_live_fb_ensure_cols() -> bool:
-    global _MM_FB_COLS_OK
-    if _MM_FB_COLS_OK is True:
-        return True
-    if _MM_FB_COLS_OK is False:
-        return False
-    if not table_exists("regattas"):
-        _MM_FB_COLS_OK = False
-        return False
-    conn = get_db_connection()
-    cur = conn.cursor()
-    try:
-        if not column_exists("regattas", "mm_live_fb_feed"):
-            cur.execute("ALTER TABLE regattas ADD COLUMN mm_live_fb_feed BOOLEAN NOT NULL DEFAULT false")
-        if not column_exists("regattas", "mm_live_fb_videos"):
-            cur.execute("ALTER TABLE regattas ADD COLUMN mm_live_fb_videos JSONB NOT NULL DEFAULT '[]'::jsonb")
-        conn.commit()
-        _MM_FB_COLS_OK = True
-        return True
-    except Exception as e:
-        try:
-            conn.rollback()
-        except Exception:
-            pass
-        print(f"[mm_live_fb] ensure cols failed: {e}", flush=True)
-        _MM_FB_COLS_OK = False
-        return False
-    finally:
-        cur.close()
-        return_db_connection(conn)
-
-
-def _mm_live_fb_file_row(regatta_id: str) -> dict:
-    rid = str(regatta_id or "").strip()
-    row = _mm_live_fb_read_file().get(rid)
-    return row if isinstance(row, dict) else {}
-
-
 def _mm_live_fb_is_enabled(regatta_id: str) -> bool:
-    rid = str(regatta_id or "").strip()
-    if not rid:
-        return False
-    if table_exists("regattas") and column_exists("regattas", "mm_live_fb_feed"):
-        try:
-            rows = q("SELECT mm_live_fb_feed FROM regattas WHERE regatta_id = %s LIMIT 1", rid)
-            if rows:
-                val = rows[0].get("mm_live_fb_feed") if isinstance(rows[0], dict) else rows[0][0]
-                return bool(val)
-        except Exception as e:
-            print(f"[mm_live_fb] read enabled failed: {e}", flush=True)
-    return bool(_mm_live_fb_file_row(rid).get("enabled"))
-
-
-def _mm_live_fb_load_videos(regatta_id: str) -> list:
-    rid = str(regatta_id or "").strip()
-    stored = []
-    if table_exists("regattas") and column_exists("regattas", "mm_live_fb_videos"):
-        try:
-            rows = q("SELECT mm_live_fb_videos FROM regattas WHERE regatta_id = %s LIMIT 1", rid)
-            if rows:
-                raw = rows[0].get("mm_live_fb_videos") if isinstance(rows[0], dict) else rows[0][0]
-                if isinstance(raw, str) and raw.strip():
-                    raw = json.loads(raw)
-                if isinstance(raw, list):
-                    stored = raw
-        except Exception as e:
-            print(f"[mm_live_fb] read videos failed: {e}", flush=True)
-    if not stored:
-        file_vids = _mm_live_fb_file_row(rid).get("videos")
-        if isinstance(file_vids, list):
-            stored = file_vids
-    return stored
-
-
-def _mm_live_fb_save_videos(regatta_id: str, videos: list) -> None:
-    rid = str(regatta_id or "").strip()
-    if not rid:
-        return
-    if _mm_live_fb_ensure_cols() and column_exists("regattas", "mm_live_fb_videos"):
-        conn = get_db_connection()
-        cur = conn.cursor()
-        try:
-            cur.execute(
-                "UPDATE regattas SET mm_live_fb_videos = %s::jsonb WHERE regatta_id = %s",
-                (json.dumps(videos), rid),
-            )
-            conn.commit()
-        except Exception as e:
-            try:
-                conn.rollback()
-            except Exception:
-                pass
-            print(f"[mm_live_fb] save videos failed: {e}", flush=True)
-        finally:
-            cur.close()
-            return_db_connection(conn)
-    _mm_live_fb_write_file(rid, videos=videos)
+    return str(regatta_id or "").strip() in _MM_LIVE_FB_ON
 
 
 def _mm_live_fb_set_enabled(regatta_id: str, enabled: bool) -> bool:
@@ -20108,169 +19972,22 @@ def _mm_live_fb_set_enabled(regatta_id: str, enabled: bool) -> bool:
         except Exception:
             pass
     on = bool(enabled)
-    db_ok = False
-    if _mm_live_fb_ensure_cols() and column_exists("regattas", "mm_live_fb_feed"):
-        conn = get_db_connection()
-        cur = conn.cursor()
-        try:
-            cur.execute("UPDATE regattas SET mm_live_fb_feed = %s WHERE regatta_id = %s", (on, rid))
-            if cur.rowcount == 0:
-                conn.rollback()
-                raise HTTPException(status_code=404, detail="regatta not found")
-            conn.commit()
-            db_ok = True
-        except HTTPException:
-            raise
-        except Exception as e:
-            try:
-                conn.rollback()
-            except Exception:
-                pass
-            print(f"[mm_live_fb] set enabled failed: {e}", flush=True)
-        finally:
-            cur.close()
-            return_db_connection(conn)
-    _mm_live_fb_write_file(rid, enabled=on)
-    if not db_ok and _mm_live_fb_ensure_cols():
-        raise HTTPException(status_code=500, detail="could not save Marine Megastore Live FB Feed")
+    if on:
+        _MM_LIVE_FB_ON.add(rid)
+    else:
+        _MM_LIVE_FB_ON.discard(rid)
     return on
 
 
-def _mm_live_fb_regatta_meta(regatta_id: str) -> dict:
-    rid = str(regatta_id or "").strip()
-    out = {"event_name": "", "start_date": None, "end_date": None}
-    if not rid or not table_exists("regattas"):
-        return out
-    try:
-        rows = q(
-            "SELECT event_name, start_date, end_date FROM regattas WHERE regatta_id = %s LIMIT 1",
-            rid,
-        )
-        if not rows:
-            return out
-        raw = rows[0]
-        if isinstance(raw, dict):
-            ev, sd, ed = raw.get("event_name"), raw.get("start_date"), raw.get("end_date")
-        else:
-            ev, sd, ed = raw[0], raw[1], raw[2]
-        out["event_name"] = (ev or "").strip()
-        for dk, v in (("start_date", sd), ("end_date", ed)):
-            if v is not None and hasattr(v, "isoformat"):
-                out[dk] = v.isoformat()[:10]
-            elif v is not None:
-                out[dk] = str(v)[:10]
-    except Exception as e:
-        print(f"[mm_live_fb] meta failed: {e}", flush=True)
-    return out
-
-
-def _mm_live_fb_fetch_graph() -> list:
-    now = time.time()
-    if now - float(_MM_FB_GRAPH_CACHE.get("ts") or 0) < 15 and _MM_FB_GRAPH_CACHE.get("videos") is not None:
-        return list(_MM_FB_GRAPH_CACHE.get("videos") or [])
-    app_id = os.getenv("FACEBOOK_APP_ID", "").strip()
-    app_secret = os.getenv("FACEBOOK_APP_SECRET", "").strip()
-    if not app_id or not app_secret:
-        return []
-    token = f"{app_id}|{app_secret}"
-    page = (os.getenv("MM_FB_PAGE_ID") or mm_live_fb.MM_FB_PAGE_SLUG).strip()
-    found = []
-    try:
-        live_r = httpx.get(
-            f"https://graph.facebook.com/v18.0/{page}/live_videos",
-            params={
-                "broadcast_status": "LIVE",
-                "fields": "id,title,permalink_url,creation_time,status",
-                "access_token": token,
-                "limit": "5",
-            },
-            timeout=5.0,
-        )
-        if live_r.status_code == 200:
-            for item in (live_r.json() or {}).get("data") or []:
-                v = mm_live_fb.graph_item_to_video(item, is_live_hint=True)
-                if v:
-                    found.append(v)
-        vid_r = httpx.get(
-            f"https://graph.facebook.com/v18.0/{page}/videos",
-            params={
-                "fields": "id,title,permalink_url,created_time,picture,live_status",
-                "access_token": token,
-                "limit": "25",
-            },
-            timeout=5.0,
-        )
-        if vid_r.status_code == 200:
-            for item in (vid_r.json() or {}).get("data") or []:
-                v = mm_live_fb.graph_item_to_video(item, is_live_hint=False)
-                if v:
-                    found.append(v)
-    except Exception as e:
-        print(f"[mm_live_fb] graph fetch failed: {e}", flush=True)
-    _MM_FB_GRAPH_CACHE["ts"] = now
-    _MM_FB_GRAPH_CACHE["videos"] = found
-    return list(found)
-
-
-def _mm_live_fb_payload(regatta_id: str, refresh: bool = False) -> dict:
-    rid = str(regatta_id or "").strip()
-    enabled = _mm_live_fb_is_enabled(rid)
-    meta = _mm_live_fb_regatta_meta(rid)
-    stored = _mm_live_fb_load_videos(rid)
-    incoming = _mm_live_fb_fetch_graph() if (enabled and refresh) else []
-    videos = mm_live_fb.merge_mm_videos(
-        stored,
-        incoming,
-        start_date=meta.get("start_date"),
-        end_date=meta.get("end_date"),
-        event_name=meta.get("event_name") or "",
-    )
-    if refresh and videos != stored:
-        _mm_live_fb_save_videos(rid, videos)
-    live, replays = mm_live_fb.pick_mm_stage(videos) if enabled else (None, [])
-    return {
-        "enabled": enabled,
-        "page_url": mm_live_fb.MM_FB_PAGE_URL,
-        "page_name": mm_live_fb.MM_FB_PAGE_NAME,
-        "live": live,
-        "replays": replays,
-    }
-
-
-def _mm_live_fb_card_html(regatta_id: str, payload: Optional[dict] = None) -> str:
+def _mm_live_fb_card_html(regatta_id: str) -> str:
     rid = html_module.escape(str(regatta_id or "").strip())
-    data = payload if isinstance(payload, dict) else _mm_live_fb_payload(str(regatta_id or "").strip(), refresh=False)
-    initial = html_module.escape(json.dumps(data, separators=(",", ":")))
     return (
         '<section class="card mm-live-fb-card" id="mmLiveFbCard" '
-        f'data-regatta-id="{rid}" data-mm-initial="{initial}" '
-        'aria-label="Marine Megastore live video">'
+        f'data-regatta-id="{rid}" aria-label="Marine Megastore video">'
         '<h2 class="section-title">LIVE VIDEO</h2>'
-        '<p class="mm-live-fb-powered">Powered by <a href="'
-        + html_module.escape(mm_live_fb.MM_FB_SITE_URL)
-        + '" target="_blank" rel="noopener noreferrer">Marine Megastore</a></p>'
-        '<div class="mm-live-fb-stage" data-mm-stage></div>'
-        '<div class="mm-live-fb-replays" data-mm-replays></div>'
+        '<p class="mm-live-fb-powered">Powered by Marine Megastore</p>'
         "</section>"
     )
-
-
-@app.get("/api/regatta/{regatta_id}/mm-live-fb")
-def api_regatta_mm_live_fb(regatta_id: str):
-    rid = str(regatta_id or "").strip()
-    if not rid:
-        raise HTTPException(status_code=400, detail="regatta_id required")
-    if not table_exists("regattas"):
-        raise HTTPException(status_code=404, detail="Regatta not found")
-    try:
-        rows = q("SELECT 1 FROM regattas WHERE regatta_id = %s LIMIT 1", rid)
-        if not rows:
-            raise HTTPException(status_code=404, detail="Regatta not found")
-    except HTTPException:
-        raise
-    except Exception:
-        raise HTTPException(status_code=404, detail="Regatta not found")
-    return _mm_live_fb_payload(rid, refresh=True)
 
 
 @app.patch("/api/super-admin/regatta/{regatta_id}/mm-live-fb-feed")
@@ -24637,25 +24354,8 @@ _RESULT_SHEET_CSS = (
     ".regatta-page--super-admin-edit .wc-sa-ac-wrap .wc-result-field-input{min-width:5rem}"
     ".mm-live-fb-card{width:100%;margin:16px 0 0 0;padding:0.5rem 0.75rem;background:#ffffff;border:2px solid #001f3f;border-radius:8px;box-shadow:0 1px 3px rgba(0,31,63,0.08);box-sizing:border-box}"
     ".mm-live-fb-card .section-title{margin:0 0 0.4rem 0;padding-bottom:0.35rem;font-size:0.85rem;font-weight:700;letter-spacing:0.02em;text-transform:uppercase;color:#001f3f;border-bottom:2px solid #001f3f}"
-    ".mm-live-fb-powered{margin:0 0 0.75rem 0;font-size:0.9rem;color:#334155}"
-    ".mm-live-fb-powered a{color:#1a2750;font-weight:700}"
-    ".mm-live-fb-stage{position:relative;width:100%;aspect-ratio:16/9;background:#001f3f;border-radius:8px;overflow:hidden}"
-    ".mm-live-fb-stage-frame{position:absolute;inset:0}"
-    ".mm-live-fb-stage iframe{position:absolute;inset:0;width:100%;height:100%;border:0}"
-    ".mm-live-fb-badge{position:absolute;top:8px;left:8px;z-index:2;padding:4px 8px;border-radius:4px;background:#001f3f;color:#ffffff;font-size:12px;font-weight:700;letter-spacing:0.04em}"
-    ".mm-live-fb-badge--live{background:#DC143C}"
-    ".mm-live-fb-stage-stamp{position:absolute;top:8px;right:8px;z-index:2;padding:4px 8px;border-radius:4px;background:rgba(0,31,63,0.85);color:#ffffff;font-size:12px;font-weight:600}"
-    ".mm-live-fb-waiting{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;text-align:center;color:#ffffff;box-sizing:border-box}"
-    ".mm-live-fb-waiting-kicker{margin:0 0 8px 0;font-size:1rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase}"
-    ".mm-live-fb-waiting p{margin:0 0 10px 0;font-size:0.9rem;line-height:1.45;color:#e2e8f0;max-width:36rem}"
-    ".mm-live-fb-waiting-link{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:8px 14px;border-radius:6px;background:#ffffff;color:#001f3f;font-weight:700;text-decoration:none}"
-    ".mm-live-fb-replays{margin-top:12px}"
-    ".mm-live-fb-replays-title{margin:0 0 8px 0;font-size:0.85rem;font-weight:700;color:#001f3f}"
-    ".mm-live-fb-replays-row{display:flex;gap:10px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}"
-    ".mm-live-fb-thumb{flex:0 0 160px;min-width:160px;min-height:44px;display:flex;flex-direction:column;text-decoration:none;color:#1a2750;border:1px solid #001f3f;border-radius:8px;overflow:hidden;background:#fff}"
-    ".mm-live-fb-thumb img,.mm-live-fb-thumb-ph{display:block;width:100%;height:90px;object-fit:cover;background:#e2e8f0}"
-    ".mm-live-fb-thumb-stamp{display:block;padding:8px;font-size:12px;font-weight:700;line-height:1.3}"
-    "@media (max-width:480px){.mm-live-fb-card{padding:0.5rem 0.75rem;margin-top:12px}.mm-live-fb-thumb{flex:0 0 132px;min-width:132px}.mm-live-fb-thumb img,.mm-live-fb-thumb-ph{height:74px}.mm-live-fb-waiting p{font-size:0.85rem}}"
+    ".mm-live-fb-powered{margin:0;font-size:0.9rem;color:#334155}"
+    "@media (max-width:480px){.mm-live-fb-card{padding:0.5rem 0.75rem;margin-top:12px}}"
     "@media (min-width:600px){.mm-live-fb-card{padding:0.5rem 0.85rem}}"
 )
 
@@ -27117,7 +26817,6 @@ def serve_regatta_standalone(slug: str, request: Request):
         print_btn = '<div class="action-buttons"><button class="action-button" onclick="window.print()">Print</button></div>'
         mm_feed_on = _mm_live_fb_is_enabled(str(regatta_id))
         mm_card = _mm_live_fb_card_html(str(regatta_id)) if mm_feed_on else ""
-        mm_card_js = '<script src="/js/mm-live-fb-card.js?v=1" defer></script>' if mm_feed_on else ""
         body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()
@@ -27136,7 +26835,7 @@ def serve_regatta_standalone(slug: str, request: Request):
             "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
             f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
             f"<style>{_RESULT_SHEET_CSS}</style></head><body>"
-            f"<div class=\"regatta-page\">{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script}{sa_toolbar_js}{mm_card_js}"
+            f"<div class=\"regatta-page\">{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script}{sa_toolbar_js}"
             "</body></html>"
         )
         print("REGATTA: total route time", round(time.time() - start_time, 3))
