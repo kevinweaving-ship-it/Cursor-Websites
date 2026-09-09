@@ -67,20 +67,6 @@
     return src;
   }
 
-  function fbLabelHtml(v) {
-    var title = (v && v.title) || '';
-    return (
-      '<div class="mm-lipton-reels-fb-label">' +
-      '<img class="mm-lipton-reels-fb-mark" src="/assets/adverts/mm-mark.png?v=mmr6" alt="">' +
-      '<div class="mm-lipton-reels-fb-copy">' +
-      '<div class="mm-lipton-reels-fb-title">' +
-      esc(title) +
-      '</div>' +
-      '<div class="mm-lipton-reels-fb-sub">Marine Megastore was live</div>' +
-      '</div></div>'
-    );
-  }
-
   function metaHtml(text) {
     if (!text) return '';
     return '<div class="mm-lipton-reels-meta">' + esc(text) + '</div>';
@@ -123,7 +109,6 @@
     return (
       '<div class="mm-lipton-reels-thumb" style="aspect-ratio:16 / 9">' +
       fbFrameHtml(v, autoplay, false) +
-      fbLabelHtml(v) +
       '<button type="button" class="mm-lipton-reels-thumb-hit" data-mm-vid="' +
       esc((v && v.id) || '') +
       '" aria-label="' +
@@ -176,7 +161,6 @@
       aspectCss(v) +
       '">' +
       fbFrameHtml(v, true, true) +
-      fbLabelHtml(v) +
       '</div>' +
       metaHtml(v.stamp || '')
     );
