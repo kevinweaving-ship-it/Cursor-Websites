@@ -70,6 +70,7 @@ STATE_DIR = Path(os.getenv("TUYA_SHARING_STATE") or "/opt/tuya-sharing/state")
 SESSION_PATH = STATE_DIR / "session.json"
 ENERGY_PATH = STATE_DIR / "meter_energy.json"
 HEALTH_PATH = STATE_DIR / "health.json"
+LAST_READ_PATH = STATE_DIR / "meter_last_reading.json"
 INGEST_URL = os.getenv("ARIAL_INGEST_URL") or "http://127.0.0.1:8003/api/arial/meter/ingest"
 INGEST_TOKEN = (os.getenv("ARIAL_METER_INGEST_TOKEN") or "").strip()
 CTRL_HOST = os.getenv("TUYA_SHARING_CTRL_HOST") or "127.0.0.1"
@@ -165,12 +166,23 @@ class Worker(SharingDeviceListener):
         return n if n > 1e9 else 0.0
 
     def _seed_last_reading(self) -> None:
-        """Recover the last real reading time from disk. Never use process/resync now."""
+        """Last time the meter was actually online with V/A/W. Ignore startup/resync/offline stamps."""
         cands: list[float] = []
-        h = _load(HEALTH_PATH) or {}
-        lp = h.get("lastPush") if isinstance(h, dict) else None
-        if isinstance(lp, dict):
-            cands.append(self._as_unix(lp.get("ts")))
+        saved = _load(LAST_READ_PATH) or {}
+        if isinstance(saved, dict):
+            cands.append(self._as_unix(saved.get("ts")))
+        try:
+            con = sqlite3.connect("/var/www/sailingsa/data/arial_meter_history.sqlite")
+            row = con.execute(
+                "SELECT ts FROM readings WHERE device=? AND online=1 AND v IS NOT NULL AND w IS NOT NULL "
+                "ORDER BY ts DESC LIMIT 1",
+                (METER_ID,),
+            ).fetchone()
+            con.close()
+            if row:
+                cands.append(self._as_unix(row[0]))
+        except sqlite3.Error:
+            pass
         for rec in self.raw_dps.values():
             if isinstance(rec, dict):
                 cands.append(self._as_unix(rec.get("t")))
@@ -179,8 +191,15 @@ class Worker(SharingDeviceListener):
             return
         ts = max(cands)
         if ts > self.meter_last_ts:
-            self.meter_last_ts = ts
-            self.meter_last_report = ts
+            self._set_last_reading(ts)
+
+    def _set_last_reading(self, ts: float) -> None:
+        self.meter_last_ts = ts
+        self.meter_last_report = ts
+        try:
+            _write_private(LAST_READ_PATH, {"ts": ts})
+        except OSError:
+            pass
 
     def _raw_scaled(self, dp: int, div: float) -> float | None:
         rec = self.raw_dps.get(dp)
@@ -503,12 +522,11 @@ class Worker(SharingDeviceListener):
                     self.energy["last_inc_kwh"] = inc
                     _write_private(ENERGY_PATH, self.energy)
             reading = [c for c in changed if c in self.READING_CODES]
-            if reading:
+            if reading and device.online:
                 taken = max((self._as_unix(dp_ts.get(c)) for c in reading), default=0.0)
-                if not taken:
-                    taken = now
-                self.meter_last_ts = taken
-                self.meter_last_report = taken
+                # Only stamp a device reading time. A resync/snapshot with no DP ts is not a new reading.
+                if taken:
+                    self._set_last_reading(taken)
         if prev_online is not None and prev_online != self.meter_online:
             log.warning("meter online -> %s", self.meter_online)
         if changed or prev_online != self.meter_online:
@@ -557,7 +575,9 @@ class Worker(SharingDeviceListener):
             return False
         with self.lock:
             n = self.normalized()
-            ts = self.meter_last_ts or time.time()
+            ts = self.meter_last_ts
+            if not ts:
+                return False
         payload = {"device": METER_ID, "ts": ts, "online": n["online"], "v": n["v"], "a": n["a"], "w": n["w"],
                    "kwh": n["kwh"], "src": "sharing"}
         if n.get("meterKwh") is not None:

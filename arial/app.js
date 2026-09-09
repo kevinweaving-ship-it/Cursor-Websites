@@ -1696,12 +1696,12 @@
         stateEl.classList.toggle("is-on", text === "ON" && !fault && !warn);
         stateEl.classList.toggle("is-off", text === "OFF");
         stateEl.title = title || "";
-        if (text !== "No link") setBreakerLastLink("");
+        if (text !== "No link" && text !== "Power out") setBreakerLastLink("");
     }
 
     function noteBreakerLink(data) {
         var sh = (data && data.sharing) || ((data && data.debug && data.debug.sharing) || {});
-        var at = Number(sh.meterLastReadingAt);
+        var at = Number(sh.meterLastReadingAt != null ? sh.meterLastReadingAt : data && data.readingTs);
         if (isFinite(at) && at > 1e12) at = at / 1000;
         if (isFinite(at) && at > 1e9) {
             breakerLastReportAt = at * 1000;
@@ -1850,8 +1850,8 @@
             setBreakerOn("Power out", true, false, "Meter silent and alarm panel reports mains (A/C) failure");
         } else {
             setBreakerOn("No link", false, true, "Meter not reporting but alarm panel has mains: connection issue, not a power outage");
-            setBreakerLastLink(breakerLastLinkStamp());
         }
+        setBreakerLastLink(breakerLastLinkStamp());
     }
 
     function breakerNoLink(data) {
@@ -1863,9 +1863,9 @@
             applyBreakerSnapshot(true);
         } else {
             setBreakerOn("No link", false, true, "Meter not reporting but alarm panel has mains: connection issue, not a power outage");
-            setBreakerLastLink(breakerLastLinkStamp());
             applyBreakerSnapshot(false);
         }
+        setBreakerLastLink(breakerLastLinkStamp());
     }
 
     var breakerFailStreak = 0;
