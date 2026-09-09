@@ -20290,11 +20290,11 @@ _LIPTON_MM_REELS_VIDEOS = (
         "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race-7-1st-downwind/2622643364847262/",
         "permalink": "https://www.facebook.com/reel/2622643364847262/",
         "title": "Lipton Race 7 1st downwind",
-        "fb_title": "Lipton  Race 7 1st downwind",
+        "fb_title": "Lipton Race 7 1st downwind",
         "fb_sub": "Marine Megastore was live",
         "fb_owner_logo": "/assets/adverts/mm-lipton/fb-page-marine-megastore.jpg",
-        "started_at": "2026-08-28T14:19:00+02:00",
-        "stamp": "28 Aug · 14:19",
+        "started_at": "2026-08-28T16:19:00+02:00",
+        "stamp": "28 Aug · 16:19",
         "thumb": "/assets/adverts/mm-lipton/2622643364847262.jpg",
         "width": 1280,
         "height": 720,
@@ -20305,8 +20305,9 @@ _LIPTON_MM_REELS_VIDEOS = (
         "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race-7-1st-top/2410502969472697/",
         "permalink": "https://www.facebook.com/reel/2410502969472697/",
         "title": "Lipton Race 7 1st top",
-        "started_at": "2026-08-28T14:12:00+02:00",
-        "stamp": "28 Aug · 14:12",
+        "fb_title": "Lipton Race 7 1st top",
+        "started_at": "2026-08-28T16:12:00+02:00",
+        "stamp": "28 Aug · 16:12",
         "thumb": "/assets/adverts/mm-lipton/2410502969472697.jpg",
         "width": 1280,
         "height": 720,
@@ -20317,8 +20318,9 @@ _LIPTON_MM_REELS_VIDEOS = (
         "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race-7-start/1014880974840710/",
         "permalink": "https://www.facebook.com/reel/1014880974840710/",
         "title": "Lipton Race 7 Start",
-        "started_at": "2026-08-28T13:55:00+02:00",
-        "stamp": "28 Aug · 13:55",
+        "fb_title": "Lipton Race 7 Start",
+        "started_at": "2026-08-28T15:55:00+02:00",
+        "stamp": "28 Aug · 15:55",
         "thumb": "/assets/adverts/mm-lipton/1014880974840710.jpg",
         "width": 1280,
         "height": 720,
@@ -20329,8 +20331,9 @@ _LIPTON_MM_REELS_VIDEOS = (
         "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-r5/26023759437321260/",
         "permalink": "https://www.facebook.com/reel/26023759437321260/",
         "title": "Lipton R5",
-        "started_at": "2026-08-27T14:47:00+02:00",
-        "stamp": "27 Aug · 14:47",
+        "fb_title": "Lipton R5",
+        "started_at": "2026-08-27T16:47:00+02:00",
+        "stamp": "27 Aug · 16:47",
         "thumb": "/assets/adverts/mm-lipton/26023759437321260.jpg",
         "width": 1280,
         "height": 720,
@@ -20341,8 +20344,9 @@ _LIPTON_MM_REELS_VIDEOS = (
         "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race-5/1587763379559775/",
         "permalink": "https://www.facebook.com/reel/1587763379559775/",
         "title": "Lipton Race 5",
-        "started_at": "2026-08-27T14:03:00+02:00",
-        "stamp": "27 Aug · 14:03",
+        "fb_title": "Lipton Race 5",
+        "started_at": "2026-08-27T16:03:00+02:00",
+        "stamp": "27 Aug · 16:03",
         "thumb": "/assets/adverts/mm-lipton/1587763379559775.jpg",
         "width": 1280,
         "height": 720,
@@ -20353,8 +20357,9 @@ _LIPTON_MM_REELS_VIDEOS = (
         "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-r5-start/4518629078350390/",
         "permalink": "https://www.facebook.com/reel/4518629078350390/",
         "title": "Lipton R5 Start",
-        "started_at": "2026-08-27T13:48:00+02:00",
-        "stamp": "27 Aug · 13:48",
+        "fb_title": "Lipton R5 Start",
+        "started_at": "2026-08-27T15:48:00+02:00",
+        "stamp": "27 Aug · 15:48",
         "thumb": "/assets/adverts/mm-lipton/4518629078350390.jpg",
         "width": 1280,
         "height": 720,
@@ -20365,8 +20370,9 @@ _LIPTON_MM_REELS_VIDEOS = (
         "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-r4-finish/1751846282795149/",
         "permalink": "https://www.facebook.com/reel/1751846282795149/",
         "title": "Lipton R4 Finish",
-        "started_at": "2026-08-27T13:24:00+02:00",
-        "stamp": "27 Aug · 13:24",
+        "fb_title": "Lipton R4 Finish",
+        "started_at": "2026-08-27T15:24:00+02:00",
+        "stamp": "27 Aug · 15:24",
         "thumb": "/assets/adverts/mm-lipton/1751846282795149.jpg",
         "width": 1280,
         "height": 720,
@@ -20376,10 +20382,180 @@ _LIPTON_MM_REELS_VIDEOS = (
         "id": "2111285223132517",
         "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-r4-2nd-quad/2111285223132517/",
         "permalink": "https://www.facebook.com/reel/2111285223132517/",
-        "title": "Lipton R4 2nd quad",
-        "started_at": "2026-08-27T12:00:00+02:00",
-        "stamp": "R4 · 2nd quad",
+        "title": "Lipton R4 2nd Quad",
+        "fb_title": "Lipton R4 2nd Quad",
+        "started_at": "2026-08-27T15:03:00+02:00",
+        "stamp": "27 Aug · 15:03",
         "thumb": "/assets/adverts/mm-lipton/2111285223132517.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "1588170962712352",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race4/1588170962712352/",
+        "permalink": "https://www.facebook.com/reel/1588170962712352/",
+        "title": "Lipton race4",
+        "fb_title": "Lipton race4",
+        "started_at": "2026-08-27T14:36:00+02:00",
+        "stamp": "27 Aug · 14:36",
+        "thumb": "/assets/adverts/mm-lipton/1588170962712352.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "1582165340314238",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race-4-1st-windward/1582165340314238/",
+        "permalink": "https://www.facebook.com/reel/1582165340314238/",
+        "title": "Lipton race 4 1st windward",
+        "fb_title": "Lipton race 4 1st windward",
+        "started_at": "2026-08-27T14:16:00+02:00",
+        "stamp": "27 Aug · 14:16",
+        "thumb": "/assets/adverts/mm-lipton/1582165340314238.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "1079923421076157",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race-4-start/1079923421076157/",
+        "permalink": "https://www.facebook.com/reel/1079923421076157/",
+        "title": "Lipton Race 4 start",
+        "fb_title": "Lipton Race 4 start",
+        "started_at": "2026-08-27T13:52:00+02:00",
+        "stamp": "27 Aug · 13:52",
+        "thumb": "/assets/adverts/mm-lipton/1079923421076157.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "983599421402934",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-day3/983599421402934/",
+        "permalink": "https://www.facebook.com/reel/983599421402934/",
+        "title": "Lipton day3",
+        "fb_title": "Lipton day3",
+        "started_at": "2026-08-27T12:49:00+02:00",
+        "stamp": "27 Aug · 12:49",
+        "thumb": "/assets/adverts/mm-lipton/983599421402934.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "825961863876577",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-r3-3rd-downwind/825961863876577/",
+        "permalink": "https://www.facebook.com/reel/825961863876577/",
+        "title": "Lipton R3 3rd Downwind",
+        "fb_title": "Lipton R3 3rd Downwind",
+        "started_at": "2026-08-26T16:12:00+02:00",
+        "stamp": "26 Aug · 16:12",
+        "thumb": "/assets/adverts/mm-lipton/825961863876577.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "1530770848344300",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-r3-downwind-2/1530770848344300/",
+        "permalink": "https://www.facebook.com/reel/1530770848344300/",
+        "title": "Lipton R3 Downwind 2",
+        "fb_title": "Lipton R3 Downwind 2",
+        "started_at": "2026-08-26T15:51:00+02:00",
+        "stamp": "26 Aug · 15:51",
+        "thumb": "/assets/adverts/mm-lipton/1530770848344300.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "1802153794291569",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race-3-leeward-1/1802153794291569/",
+        "permalink": "https://www.facebook.com/reel/1802153794291569/",
+        "title": "Lipton Race 3 leeward 1",
+        "fb_title": "Lipton Race 3 leeward 1",
+        "started_at": "2026-08-26T15:34:00+02:00",
+        "stamp": "26 Aug · 15:34",
+        "thumb": "/assets/adverts/mm-lipton/1802153794291569.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "1813350889838726",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race-3-windward-1/1813350889838726/",
+        "permalink": "https://www.facebook.com/reel/1813350889838726/",
+        "title": "Lipton Race 3 windward 1",
+        "fb_title": "Lipton Race 3 windward 1",
+        "started_at": "2026-08-26T15:24:00+02:00",
+        "stamp": "26 Aug · 15:24",
+        "thumb": "/assets/adverts/mm-lipton/1813350889838726.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "1025386753667866",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race-3-start/1025386753667866/",
+        "permalink": "https://www.facebook.com/reel/1025386753667866/",
+        "title": "Lipton Race 3 start",
+        "fb_title": "Lipton Race 3 start",
+        "started_at": "2026-08-26T15:07:00+02:00",
+        "stamp": "26 Aug · 15:07",
+        "thumb": "/assets/adverts/mm-lipton/1025386753667866.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "940083808452432",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-r2-finish/940083808452432/",
+        "permalink": "https://www.facebook.com/reel/940083808452432/",
+        "title": "Lipton R2 Finish",
+        "fb_title": "Lipton R2 Finish",
+        "started_at": "2026-08-26T14:42:00+02:00",
+        "stamp": "26 Aug · 14:42",
+        "thumb": "/assets/adverts/mm-lipton/940083808452432.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "942850414812890",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race-2-2nd-leeward/942850414812890/",
+        "permalink": "https://www.facebook.com/reel/942850414812890/",
+        "title": "Lipton Race 2 2nd leeward",
+        "fb_title": "Lipton Race 2 2nd leeward",
+        "started_at": "2026-08-26T14:16:00+02:00",
+        "stamp": "26 Aug · 14:16",
+        "thumb": "/assets/adverts/mm-lipton/942850414812890.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "3239679922895545",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race-2-2nd-lap/3239679922895545/",
+        "permalink": "https://www.facebook.com/reel/3239679922895545/",
+        "title": "Lipton Race 2 2nd Lap",
+        "fb_title": "Lipton Race 2 2nd Lap",
+        "started_at": "2026-08-26T14:04:00+02:00",
+        "stamp": "26 Aug · 14:04",
+        "thumb": "/assets/adverts/mm-lipton/3239679922895545.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "1384453329808359",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-r2/1384453329808359/",
+        "permalink": "https://www.facebook.com/reel/1384453329808359/",
+        "title": "Lipton R2",
+        "fb_title": "Lipton R2",
+        "started_at": "2026-08-26T13:45:00+02:00",
+        "stamp": "26 Aug · 13:45",
+        "thumb": "/assets/adverts/mm-lipton/1384453329808359.jpg",
         "width": 1280,
         "height": 720,
         "aspect": "16:9",
@@ -20460,12 +20636,18 @@ _LIPTON_MM_REELS_CSS = (
     ".mm-lipton-reels-stage .mm-lipton-reels-play{position:absolute;left:50%;top:50%;z-index:3;width:44px;height:44px;margin:0;padding:0;transform:translate(-50%,-50%);border-radius:50%;background:transparent;border:3px solid #00B4FF;pointer-events:none;box-sizing:border-box;box-shadow:0 0 8px #00B4FF}"
     ".mm-lipton-reels-stage .mm-lipton-reels-play:after{content:\"\";position:absolute;left:54%;top:50%;width:0;height:0;border-style:solid;border-width:10px 0 10px 16px;border-color:transparent transparent transparent #fff;transform:translate(-30%,-50%)}"
     ".mm-lipton-reels-stage--playing .mm-lipton-reels-hero-ui{display:none!important}"
-    ".mm-lipton-reels-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;margin-top:6px;overflow-anchor:none}"
+    ".mm-lipton-reels-days{margin-top:6px;overflow-anchor:none}"
+    ".mm-lipton-reels-day{margin:0;padding:0}"
+    ".mm-lipton-reels-day+.mm-lipton-reels-day{margin-top:10px;padding-top:10px;border-top:4px solid #001f3f}"
+    ".mm-lipton-reels-day-label,.mm-lipton-reels-race-label{margin:0 0 6px;color:#001f3f;font-size:0.72rem;font-weight:800;letter-spacing:0.04em;text-transform:uppercase;line-height:1.2}"
+    ".mm-lipton-reels-race{margin:0;padding:0}"
+    ".mm-lipton-reels-race+.mm-lipton-reels-race{margin-top:10px;padding-top:10px;border-top:4px solid #001f3f}"
+    ".mm-lipton-reels-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;margin-top:0;overflow-anchor:none}"
     ".mm-lipton-reels-grid-item{min-width:0}"
     ".mm-lipton-reels-waiting{margin:0;font-size:0.85rem;color:#334155}"
     "@media (orientation:landscape) and (max-height:540px){"
     "body:has(.mm-lipton-reels--expanded) .site-header{display:none!important}"
-    ".mm-lipton-reels--expanded .mm-lipton-reels-grid{display:none!important}"
+    ".mm-lipton-reels--expanded .mm-lipton-reels-days,.mm-lipton-reels--expanded .mm-lipton-reels-grid{display:none!important}"
     ".mm-lipton-reels--expanded .mm-lipton-reels-expanded-bar,.mm-lipton-reels--expanded .mm-lipton-reels-hide{display:none!important}"
     ".mm-lipton-reels--expanded .mm-lipton-reels-player-wrap{position:fixed;inset:0;z-index:2147483000;width:100vw;height:100dvh;max-width:none;border-radius:0;border:0;aspect-ratio:auto}"
     ".mm-lipton-reels--expanded .mm-lipton-reels-stage{position:absolute;inset:0;z-index:0}"
@@ -20542,6 +20724,57 @@ def _mm_video_matches_event(item, start, end) -> bool:
     return True
 
 
+# Lipton 2026 J22 guns + finish from tracking-dev replay (packed GPS).
+_LIPTON_MM_RACE_GUNS = (
+    (1, "2026-08-26T11:30:01+02:00", "2026-08-26T13:02:33+02:00"),
+    (2, "2026-08-26T13:20:01+02:00", "2026-08-26T14:47:26+02:00"),
+    (3, "2026-08-26T15:10:01+02:00", "2026-08-26T16:26:36+02:00"),
+    (4, "2026-08-27T13:55:01+02:00", "2026-08-27T15:33:04+02:00"),
+    (5, "2026-08-27T15:50:01+02:00", "2026-08-27T17:09:28+02:00"),
+    (6, "2026-08-28T14:05:01+02:00", "2026-08-28T15:07:02+02:00"),
+    (7, "2026-08-28T15:57:01+02:00", "2026-08-28T17:20:37+02:00"),
+    (8, "2026-08-29T10:30:01+02:00", "2026-08-29T11:52:18+02:00"),
+    (9, "2026-08-29T12:15:01+02:00", "2026-08-29T13:28:27+02:00"),
+    (10, "2026-08-29T13:50:01+02:00", "2026-08-29T15:05:44+02:00"),
+)
+
+
+def _mm_as_dt(value):
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    try:
+        return datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except Exception:
+        return None
+
+
+def _mm_lipton_clip_race(item) -> tuple:
+    """Map a clip to Race 1–10 from its label, else tracking gun/finish window."""
+    title = f"{(item or {}).get('title') or ''} {(item or {}).get('fb_title') or ''}"
+    labeled = re.search(r"\b(?:race|r)\s*(10|[1-9])\b", title, re.I)
+    if labeled:
+        n = int(labeled.group(1))
+        return n, f"Race {n}"
+    t = _mm_as_dt((item or {}).get("started_at"))
+    races = []
+    for n, gun, finish in _LIPTON_MM_RACE_GUNS:
+        gdt = _mm_as_dt(gun)
+        fdt = _mm_as_dt(finish)
+        if gdt is not None and fdt is not None:
+            races.append((n, gdt, fdt))
+    if t is not None:
+        for n, gun, finish in races:
+            start = gun - timedelta(minutes=25)
+            end = finish + timedelta(minutes=20)
+            if start <= t < end:
+                return n, f"Race {n}"
+    day = re.search(r"\bday\s*(\d+)\b", title, re.I)
+    if day:
+        return 0, f"Day {day.group(1)}"
+    return 0, "Other"
+
+
 def _mm_apply_page_chrome(videos: list) -> list:
     """Paint FB page chrome (logo / live label / title) onto every clip from that fetch."""
     page_logo = ""
@@ -20583,6 +20816,9 @@ def _lipton_mm_reels_payload() -> dict:
         row["play_url"] = "/assets/adverts/mm-lipton/" + str(item.get("id") or "") + ".mp4"
         row["is_live"] = bool(item.get("is_live"))
         row["fb_page"] = str(item.get("fb_page") or "marin.megastoresa").strip()
+        race_n, race_label = _mm_lipton_clip_race(row)
+        row["race"] = race_n
+        row["race_label"] = race_label
         videos.append(row)
     videos.sort(key=lambda v: str(v.get("started_at") or ""), reverse=True)
     return {"videos": _mm_apply_page_chrome(videos)}
@@ -27520,7 +27756,7 @@ def serve_regatta_standalone(slug: str, request: Request):
         mm_card_js = ""
         if str(regatta_id) == "2026-08-29-lipton-challenge-cup":
             mm_card = _lipton_mm_reels_card_html(str(regatta_id))
-            mm_card_js = '<script src="/js/mm-lipton-reels-card.js?v=mmr42" defer></script>'
+            mm_card_js = '<script src="/js/mm-lipton-reels-card.js?v=mmr43" defer></script>'
         body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()

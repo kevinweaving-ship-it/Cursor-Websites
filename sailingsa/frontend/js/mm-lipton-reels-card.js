@@ -409,19 +409,89 @@
     }
   }
 
+  function clipDayKey(v) {
+    var raw = String((v && v.started_at) || '');
+    var m = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+    return m ? m[1] : '';
+  }
+
+  function clipDayLabel(key) {
+    var parts = String(key || '').split('-');
+    if (parts.length !== 3) return key || '';
+    var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    var days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    var y = parseInt(parts[0], 10);
+    var mo = parseInt(parts[1], 10) - 1;
+    var da = parseInt(parts[2], 10);
+    if (!y || mo < 0 || mo > 11 || !da) return key;
+    var dt = new Date(y, mo, da);
+    return days[dt.getDay()] + ' ' + da + ' ' + months[mo];
+  }
+
+  function clipRace(v) {
+    var n = parseInt(v && v.race, 10);
+    if (n >= 1 && n <= 10) return n;
+    var t = String((v && (v.fb_title || v.title)) || '');
+    var m = t.match(/\b(?:race|r)\s*(10|[1-9])\b/i);
+    return m ? parseInt(m[1], 10) : 0;
+  }
+
+  function clipRaceLabel(v) {
+    var custom = String((v && v.race_label) || '').trim();
+    if (custom) return custom;
+    var n = clipRace(v);
+    if (n) return 'Race ' + n;
+    var t = String((v && (v.fb_title || v.title)) || '');
+    var day = t.match(/\bday\s*(\d+)\b/i);
+    if (day) return 'Day ' + day[1];
+    return 'Other';
+  }
+
   function gridHtml(videos, currentId) {
     var rest = (videos || []).filter(function (v) {
       return v && v.id !== currentId;
     });
     if (!rest.length) return '';
-    var parts = ['<div class="mm-lipton-reels-grid" role="list">'];
+    var days = [];
+    var dayMap = {};
     var i;
     for (i = 0; i < rest.length; i++) {
-      parts.push(
-        '<div class="mm-lipton-reels-grid-item" role="listitem">' +
-          latestThumbHtml(rest[i], videos) +
-          '</div>'
-      );
+      var clip = rest[i];
+      var dayKey = clipDayKey(clip) || 'other';
+      var raceKey = String(clipRace(clip));
+      if (!dayMap[dayKey]) {
+        dayMap[dayKey] = { key: dayKey, races: [], raceMap: {} };
+        days.push(dayMap[dayKey]);
+      }
+      var day = dayMap[dayKey];
+      if (!day.raceMap[raceKey]) {
+        day.raceMap[raceKey] = { key: raceKey, label: clipRaceLabel(clip), items: [] };
+        day.races.push(day.raceMap[raceKey]);
+      }
+      day.raceMap[raceKey].items.push(clip);
+    }
+    var parts = ['<div class="mm-lipton-reels-days" data-mm-days>'];
+    for (i = 0; i < days.length; i++) {
+      var d = days[i];
+      parts.push('<section class="mm-lipton-reels-day">');
+      parts.push('<div class="mm-lipton-reels-day-label">' + esc(clipDayLabel(d.key)) + '</div>');
+      var r;
+      for (r = 0; r < d.races.length; r++) {
+        var g = d.races[r];
+        parts.push('<section class="mm-lipton-reels-race">');
+        parts.push('<div class="mm-lipton-reels-race-label">' + esc(g.label) + '</div>');
+        parts.push('<div class="mm-lipton-reels-grid" role="list">');
+        var j;
+        for (j = 0; j < g.items.length; j++) {
+          parts.push(
+            '<div class="mm-lipton-reels-grid-item" role="listitem">' +
+              latestThumbHtml(g.items[j], videos) +
+              '</div>'
+          );
+        }
+        parts.push('</div></section>');
+      }
+      parts.push('</section>');
     }
     parts.push('</div>');
     return parts.join('');
@@ -590,13 +660,13 @@
     var expanded = root.querySelector('[data-mm-expanded]');
     if (!expanded) return;
     var html = gridHtml(videos, currentId);
-    var grid = expanded.querySelector('.mm-lipton-reels-grid');
+    var days = expanded.querySelector('[data-mm-days]');
     if (!html) {
-      if (grid && grid.parentNode) grid.parentNode.removeChild(grid);
+      if (days && days.parentNode) days.parentNode.removeChild(days);
       return;
     }
-    if (grid) {
-      grid.outerHTML = html;
+    if (days) {
+      days.outerHTML = html;
       return;
     }
     expanded.insertAdjacentHTML('beforeend', html);

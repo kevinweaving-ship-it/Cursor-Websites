@@ -69,7 +69,7 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("max-width:14ch", css)
         self.assertIn(".mm-lipton-reels-clip-chrome", css)
         self.assertIn("fb-page-marine-megastore.jpg", seed)
-        self.assertIn("Lipton  Race 7 1st downwind", seed)
+        self.assertIn("Lipton Race 7 1st downwind", seed)
         self.assertIn(".regatta-page>.regatta-header-wrap{order:1}", css)
         self.assertIn(".regatta-page>.mm-lipton-reels{order:2}", css)
         self.assertIn(".regatta-page>.fleet-section{order:3}", css)
@@ -100,7 +100,7 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("playsinline", js)
         src = Path("api.py").read_text(encoding="utf-8")
         self.assertIn('row["play_url"]', src)
-        self.assertIn("mmr42", src)
+        self.assertIn("mmr43", src)
         self.assertIn("scrollTo", js)
         self.assertIn("bumpSlide", js)
         self.assertIn("preloadNeighbors", js)
@@ -113,7 +113,9 @@ class LiptonMmCardUnitTest(unittest.TestCase):
             ".mm-lipton-reels-hide{pointer-events:auto;min-height:44px;min-width:44px;margin:0;padding:0 6px;border:0;background:none;color:#64748b",
             src,
         )
-        self.assertIn(".mm-lipton-reels-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;margin-top:6px;overflow-anchor:none}", src)
+        self.assertIn(".mm-lipton-reels-days{margin-top:6px;overflow-anchor:none}", src)
+        self.assertIn(".mm-lipton-reels-race+.mm-lipton-reels-race{margin-top:10px;padding-top:10px;border-top:4px solid #001f3f}", src)
+        self.assertIn(".mm-lipton-reels-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;margin-top:0;overflow-anchor:none}", src)
         self.assertIn(".mm-lipton-reels-expanded-bar{position:absolute;top:0;right:0;z-index:6", src)
         self.assertIn(
             ".mm-lipton-reels--expanded .mm-lipton-reels-expanded-bar,.mm-lipton-reels--expanded .mm-lipton-reels-hide{display:none!important}",
@@ -124,7 +126,16 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("def _mm_apply_page_chrome", src)
         self.assertIn("_mm_video_matches_event(item, start, end)", src)
         self.assertIn('row["fb_title"]', src)
-        self.assertIn("latestThumbHtml(rest[i], videos)", js)
+        self.assertIn("latestThumbHtml(g.items[j], videos)", js)
+        self.assertIn("data-mm-days", js)
+        self.assertIn("mm-lipton-reels-race", js)
+        self.assertIn("clipRaceLabel", js)
+        self.assertIn("def _mm_lipton_clip_race", src)
+        self.assertIn("_LIPTON_MM_RACE_GUNS", src)
+        self.assertIn("2026-08-26T11:30:01+02:00", src)
+        self.assertIn("2026-08-26T13:02:33+02:00", src)
+        self.assertIn("1384453329808359", src)
+        self.assertIn("Lipton Race 7 1st downwind", seed)
         self.assertIn("data-mm-hud", js)
         self.assertIn("mm-lipton-reels-player-wrap", src)
         self.assertIn(
