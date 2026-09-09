@@ -1,0 +1,150 @@
+{
+  "2026-08-29-lipton-challenge-cup": {
+    "enabled": true,
+    "feed_source": "marine-megastore",
+    "fb_page": "marin.megastoresa",
+    "videos": [
+      {
+        "id": "2622643364847262",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race-7-1st-downwind/2622643364847262/",
+        "permalink": "https://www.facebook.com/reel/2622643364847262/",
+        "embed_url": "https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Fmarin.megastoresa%2Fvideos%2Flipton-race-7-1st-downwind%2F2622643364847262%2F&show_text=false",
+        "title": "Lipton Race 7 1st downwind",
+        "started_at": "2026-08-28T14:19:00+02:00",
+        "is_live": false,
+        "stamp": "28 Aug · 14:19",
+        "thumb": "/assets/adverts/mm-lipton/2622643364847262.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9"
+      },
+      {
+        "id": "2410502969472697",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race-7-1st-top/2410502969472697/",
+        "permalink": "https://www.facebook.com/reel/2410502969472697/",
+        "embed_url": "https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Fmarin.megastoresa%2Fvideos%2Flipton-race-7-1st-top%2F2410502969472697%2F&show_text=false",
+        "title": "Lipton Race 7 1st top",
+        "started_at": "2026-08-28T14:12:00+02:00",
+        "is_live": false,
+        "stamp": "28 Aug · 14:12",
+        "thumb": "/assets/adverts/mm-lipton/2410502969472697.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9"
+      },
+      {
+        "id": "1014880974840710",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race-7-start/1014880974840710/",
+        "permalink": "https://www.facebook.com/reel/1014880974840710/",
+        "embed_url": "https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Fmarin.megastoresa%2Fvideos%2Flipton-race-7-start%2F1014880974840710%2F&show_text=false",
+        "title": "Lipton Race 7 Start",
+        "started_at": "2026-08-28T13:55:00+02:00",
+        "is_live": false,
+        "stamp": "28 Aug · 13:55",
+        "thumb": "/assets/adverts/mm-lipton/1014880974840710.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9"
+      },
+      {
+        "id": "26023759437321260",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-r5/26023759437321260/",
+        "permalink": "https://www.facebook.com/reel/26023759437321260/",
+        "embed_url": "https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Fmarin.megastoresa%2Fvideos%2Flipton-r5%2F26023759437321260%2F&show_text=false",
+        "title": "Lipton R5",
+        "started_at": "2026-08-27T14:47:00+02:00",
+        "is_live": false,
+        "stamp": "27 Aug · 14:47",
+        "thumb": "/assets/adverts/mm-lipton/26023759437321260.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9"
+      },
+      {
+        "id": "1587763379559775",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race-5/1587763379559775/",
+        "permalink": "https://www.facebook.com/reel/1587763379559775/",
+        "embed_url": "https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Fmarin.megastoresa%2Fvideos%2Flipton-race-5%2F1587763379559775%2F&show_text=false",
+        "title": "Lipton Race 5",
+        "started_at": "2026-08-27T14:03:00+02:00",
+        "is_live": false,
+        "stamp": "27 Aug · 14:03",
+        "thumb": "/assets/adverts/mm-lipton/1587763379559775.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9"
+      },
+      {
+        "id": "4518629078350390",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-r5-start/4518629078350390/",
+        "permalink": "https://www.facebook.com/reel/4518629078350390/",
+        "embed_url": "https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Fmarin.megastoresa%2Fvideos%2Flipton-r5-start%2F4518629078350390%2F&show_text=false",
+        "title": "Lipton R5 Start",
+        "started_at": "2026-08-27T13:48:00+02:00",
+        "is_live": false,
+        "stamp": "27 Aug · 13:48",
+        "thumb": "/assets/adverts/mm-lipton/4518629078350390.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9"
+      },
+      {
+        "id": "1751846282795149",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-r4-finish/1751846282795149/",
+        "permalink": "https://www.facebook.com/reel/1751846282795149/",
+        "embed_url": "https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Fmarin.megastoresa%2Fvideos%2Flipton-r4-finish%2F1751846282795149%2F&show_text=false",
+        "title": "Lipton R4 Finish",
+        "started_at": "2026-08-27T13:24:00+02:00",
+        "is_live": false,
+        "stamp": "27 Aug · 13:24",
+        "thumb": "/assets/adverts/mm-lipton/1751846282795149.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9"
+      },
+      {
+        "id": "2111285223132517",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-r4-2nd-quad/2111285223132517/",
+        "permalink": "https://www.facebook.com/reel/2111285223132517/",
+        "embed_url": "https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Fmarin.megastoresa%2Fvideos%2Flipton-r4-2nd-quad%2F2111285223132517%2F&show_text=false",
+        "title": "Lipton R4 2nd quad",
+        "started_at": "",
+        "is_live": false,
+        "stamp": "R4 · 2nd quad",
+        "thumb": "/assets/adverts/mm-lipton/2111285223132517.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9"
+      }
+    ]
+  },
+  "2026-09-13-zvyc-cape-classic": {
+    "enabled": true,
+    "feed_source": "marine-megastore",
+    "fb_page": "marin.megastoresa",
+    "videos": [
+      {
+        "id": "1378276337799152",
+        "url": "https://www.facebook.com/share/v/1957ykQ9qA/",
+        "permalink": "https://www.facebook.com/timadvisor/videos/1378276337799152/",
+        "embed_url": "https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Ftimadvisor%2Fvideos%2F1378276337799152%2F&show_text=false",
+        "title": "Marine Megastore reel",
+        "started_at": "2026-09-13T10:00:00+02:00",
+        "is_live": false,
+        "stamp": "13 Sep · 10:00",
+        "thumb": ""
+      },
+      {
+        "id": "1378276337799152-older",
+        "url": "https://www.facebook.com/timadvisor/videos/1378276337799152/",
+        "permalink": "https://www.facebook.com/timadvisor/videos/1378276337799152/",
+        "embed_url": "https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Ftimadvisor%2Fvideos%2F1378276337799152%2F&show_text=false",
+        "title": "Marine Megastore reel",
+        "started_at": "2026-09-12T15:00:00+02:00",
+        "is_live": false,
+        "stamp": "12 Sep · 15:00",
+        "thumb": ""
+      }
+    ]
+  }
+}
