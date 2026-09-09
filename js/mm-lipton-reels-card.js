@@ -397,7 +397,9 @@
     if (startMs !== startMs) return;
     if (video.playbackRate !== 1) video.playbackRate = 1;
     var off = Number(trackClip.track_offset_ms);
-    if (off !== off) off = String(trackClip.id) === TRACK_TEST_ID ? 36000 : 0;
+    if (off !== off) {
+      off = overlay.offsetMs ? overlay.offsetMs(trackClip.id) : String(trackClip.id) === TRACK_TEST_ID ? 36000 : 0;
+    }
     var ts = startMs + (Number(video.currentTime) || 0) * 1000 + off;
     overlay.draw(canvas, ts, cssW, cssH);
   }
@@ -419,7 +421,7 @@
     trackRoot = root;
     var box = root && root.querySelector('[data-mm-track]');
     if (!box) return;
-    if (!clip || String(clip.id) !== TRACK_TEST_ID) {
+    if (!clip || !window.mmLiptonTrackOverlay || !window.mmLiptonTrackOverlay.usesClip(clip.id)) {
       stopTrackOverlay();
       trackRoot = root;
       return;
@@ -428,7 +430,7 @@
     box.setAttribute('data-mm-track-on', '');
     var overlay = window.mmLiptonTrackOverlay;
     if (!overlay || !overlay.load) return;
-    overlay.load(function () {
+    overlay.load(String(clip.id), function () {
       drawTrackFrame();
       loopTrack();
     });

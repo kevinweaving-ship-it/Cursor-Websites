@@ -2,9 +2,11 @@
  * MM Event Reels tracking overlay — boats/marks only on the video water.
  * No map tiles. Race 7 test clip races right → left across the bottom strip.
  * Clock is the live reel go-live stamp + video time. Boat noses follow the
- * on-screen GPS track. Icons/colours/tails match tracking-dev2. Camera eases
- * zoom in/out like tracking-dev2; boat icons scale with zoom and spacing so
- * a mark rounding stays readable instead of a clustered blob.
+ * on-screen GPS track. Icons/colours/tails match tracking-dev2. Each clip has
+ * its own camera recipe. Rounding holds the approach direction (Race 7
+ * downwind: right → left, mark on the left) until ~6 boats round or the
+ * leader is about to leave going the other way, then tracking follows that
+ * leader toward the next mark. Camera eases zoom; icons scale with spacing.
  */
 (function (root) {
   'use strict';
@@ -37,34 +39,111 @@
   var replay = null;
   var scores = null;
   var ready = false;
-  var wait = [];
   var heldCam = null;
   var heldCamTs = 0;
+  var clipId = '';
+  var clipRule = null;
+  var raceCache = {};
+  var camPhase = '';
+  var lockApproachHdg = null;
+  var loadGen = 0;
 
-  function load(done) {
-    if (ready) {
+  function clipR(race, kind, extra) {
+    var o = { race: race, kind: kind || 'round', approach: 'rtl', holdN: 6, offsetMs: 0 };
+    var k;
+    if (extra) {
+      for (k in extra) {
+        if (Object.prototype.hasOwnProperty.call(extra, k)) o[k] = extra[k];
+      }
+    }
+    return o;
+  }
+
+  /* Per-clip recipes. Offset 36000 is STT vs GPS Pin on Race 7 1st downwind only. */
+  var CLIP_RULES = {
+    '2622643364847262': clipR(7, 'round', { offsetMs: 36000 }),
+    '2410502969472697': clipR(7, 'round'),
+    '1014880974840710': clipR(7, 'start'),
+    '26023759437321260': clipR(5, 'round'),
+    '1587763379559775': clipR(5, 'round'),
+    '4518629078350390': clipR(5, 'start'),
+    '1751846282795149': clipR(4, 'finish'),
+    '2111285223132517': clipR(4, 'round'),
+    '1588170962712352': clipR(4, 'round'),
+    '1582165340314238': clipR(4, 'round'),
+    '1079923421076157': clipR(4, 'start'),
+    '825961863876577': clipR(3, 'round'),
+    '1530770848344300': clipR(3, 'round'),
+    '1802153794291569': clipR(3, 'round'),
+    '1813350889838726': clipR(3, 'round'),
+    '1025386753667866': clipR(3, 'start'),
+    '940083808452432': clipR(2, 'finish'),
+    '942850414812890': clipR(2, 'round'),
+    '3239679922895545': clipR(2, 'round'),
+    '1384453329808359': clipR(2, 'round')
+  };
+  /* Race files e.g. /js/lipton-dev-trail-r7.json /js/lipton-dev-replay-r7.json */
+
+  function ruleFor(id) {
+    return CLIP_RULES[String(id || '')] || null;
+  }
+
+  function usesClip(id) {
+    return !!ruleFor(id);
+  }
+
+  function offsetMsFor(id) {
+    var r = ruleFor(id);
+    return r && r.offsetMs != null ? r.offsetMs : 0;
+  }
+
+  function load(id, done) {
+    if (typeof id === 'function') {
+      done = id;
+      id = clipId;
+    }
+    var rule = ruleFor(id);
+    if (String(id || '') !== clipId) {
+      heldCam = null;
+      heldCamTs = 0;
+      lockApproachHdg = null;
+      camPhase = '';
+    }
+    clipId = String(id || '');
+    clipRule = rule;
+    if (!done) done = function () {};
+    if (!rule) {
+      ready = false;
       done();
       return;
     }
-    wait.push(done);
-    if (wait.length > 1) return;
+    if (raceCache[rule.race] && scores) {
+      trail = raceCache[rule.race].trail;
+      replay = raceCache[rule.race].replay;
+      ready = true;
+      done();
+      return;
+    }
+    var gen = ++loadGen;
     Promise.all([
-      fetch('/js/lipton-dev-trail-r7.json').then(function (r) { return r.json(); }),
-      fetch('/js/lipton-dev-replay-r7.json').then(function (r) { return r.json(); }),
-      fetch('/js/lipton-dev-series-scores.json').then(function (r) { return r.json(); })
+      fetch('/js/lipton-dev-trail-r' + rule.race + '.json').then(function (r) { return r.json(); }),
+      fetch('/js/lipton-dev-replay-r' + rule.race + '.json').then(function (r) { return r.json(); }),
+      scores
+        ? Promise.resolve(scores)
+        : fetch('/js/lipton-dev-series-scores.json').then(function (r) { return r.json(); })
     ])
       .then(function (pack) {
+        if (gen !== loadGen) return;
         trail = pack[0];
         replay = pack[1];
         scores = pack[2];
+        raceCache[rule.race] = { trail: trail, replay: replay };
         ready = true;
-        var cbs = wait;
-        wait = [];
-        var i;
-        for (i = 0; i < cbs.length; i++) cbs[i]();
+        done();
       })
       .catch(function () {
-        wait = [];
+        if (gen !== loadGen) return;
+        ready = false;
       });
   }
 
@@ -382,14 +461,20 @@
     return hs[Math.floor(hs.length / 2)];
   }
 
+  function angDiff(a, b) {
+    var d = Math.abs((a || 0) - (b || 0)) % 360;
+    return d > 180 ? 360 - d : d;
+  }
+
   /* Race 7 test clip: travel maps to -X so boats run right → left across the strip. */
   function project(lat, lon, cam) {
     var north = (lat - cam.midLat) * 111000;
     var east = (lon - cam.midLon) * 111000 * cam.cos;
     var along = north * cam.cosH + east * cam.sinH;
     var across = east * cam.cosH - north * cam.sinH;
+    var x = cam.flipX === false ? cam.cx + along * cam.scaleX : cam.cx - along * cam.scaleX;
     return {
-      x: cam.cx - along * cam.scaleX,
+      x: x,
       y: cam.cy - across * cam.scaleY
     };
   }
@@ -412,7 +497,8 @@
       h: cam.h,
       hdg: cam.hdg,
       cx: cam.cx,
-      cy: cam.cy
+      cy: cam.cy,
+      flipX: cam.flipX
     };
   }
 
@@ -442,6 +528,7 @@
     heldCam.cosH = target.cosH;
     heldCam.sinH = target.sinH;
     heldCam.hdg = target.hdg;
+    heldCam.flipX = target.flipX;
     heldCam.scale = heldCam.scaleX;
     heldCam.w = target.w;
     heldCam.h = target.h;
@@ -488,6 +575,7 @@
     var scaleY = (h - padY * 2) / spanAcross;
     var midAlong = (minA + maxA) / 2;
     var midAcross = (minC + maxC) / 2;
+    var flipX = opts.flipX !== false;
     return {
       midLat: midLat,
       midLon: midLon,
@@ -500,7 +588,8 @@
       w: w,
       h: h,
       hdg: hdg || 0,
-      cx: w / 2 + midAlong * scaleX,
+      flipX: flipX,
+      cx: flipX ? w / 2 + midAlong * scaleX : w / 2 - midAlong * scaleX,
       cy: h / 2 + midAcross * scaleY
     };
   }
@@ -722,6 +811,108 @@
     }
   }
 
+  function countDoneAtLeast(live, n) {
+    var c = 0;
+    var i;
+    for (i = 0; i < (live.rows || []).length; i++) {
+      if (live.rows[i] && live.rows[i].done >= n) c += 1;
+    }
+    return c;
+  }
+
+  function incomingHdg(live, mark, leader) {
+    var hs = [];
+    var i;
+    for (i = 0; i < (live.rows || []).length; i++) {
+      var row = live.rows[i];
+      if (!row || !row.pos || !mark) continue;
+      if (leader && row.done >= leader.done) continue;
+      hs.push(bearingDeg(row.pos, mark));
+    }
+    if (hs.length) {
+      hs.sort(function (a, b) {
+        return a - b;
+      });
+      return hs[Math.floor(hs.length / 2)];
+    }
+    if (leader && leader.pos && mark) return bearingDeg(leader.pos, mark);
+    return 90;
+  }
+
+  function camPlan(live, cssW) {
+    var rule = clipRule || { kind: 'round', approach: 'rtl', holdN: 6 };
+    var flipApproach = rule.approach !== 'ltr';
+    var holdN = rule.holdN || 6;
+    var kind = rule.kind || 'round';
+    var leader = live.front;
+    var passes = passList();
+    var next = leader ? markPosForPass(passes[leader.done], live.ts) : null;
+    var last = leader && leader.done ? markPosForPass(passes[leader.done - 1], live.ts) : null;
+    var nRounded = leader ? countDoneAtLeast(live, leader.done) : 0;
+    var distLast = last && leader && leader.pos ? distM(leader.pos, last) : 1e9;
+    var distNext = next && leader && leader.pos ? distM(leader.pos, next) : 1e9;
+    var away = !!(last && leader && leader.pos && angDiff(leader.hdg || 0, bearingDeg(leader.pos, last)) > 95);
+    var exiting = false;
+    if (heldCam && leader && leader.pos && away) {
+      var sp = xy(leader.pos.lat, leader.pos.lon, heldCam);
+      exiting = sp.x > cssW - 56;
+    }
+    var phase = 'leg';
+    var focus = next;
+    var hdg = medianHdg(frontPack(live));
+    var flipX = flipApproach;
+    var markX = null;
+    var release = !!(last && nRounded >= 1 && away && (exiting || (nRounded >= holdN && distLast > 220)));
+    var holding = !!(last && nRounded >= 1 && distLast < 520 && !release);
+
+    if (kind === 'start' && (!leader || leader.done < 1) && distNext > 280) {
+      phase = 'start';
+      focus = trail.start_line && trail.start_line.left;
+      hdg = next && leader && leader.pos ? bearingDeg(leader.pos, next) : hdg;
+      lockApproachHdg = null;
+    } else if (holding) {
+      phase = 'hold';
+      focus = last;
+      if (lockApproachHdg == null) lockApproachHdg = incomingHdg(live, last, leader);
+      hdg = lockApproachHdg;
+      flipX = flipApproach;
+      markX = 0.22;
+    } else if (release) {
+      phase = 'follow';
+      lockApproachHdg = null;
+      focus = next;
+      hdg = next && leader && leader.pos ? bearingDeg(leader.pos, next) : leader && leader.hdg ? leader.hdg : hdg;
+      flipX = !flipApproach;
+      markX = null;
+    } else if (next && leader && leader.pos && distNext < 280) {
+      phase = 'approach-mark';
+      focus = next;
+      lockApproachHdg = bearingDeg(leader.pos, next);
+      hdg = lockApproachHdg;
+      flipX = flipApproach;
+      markX = 0.38;
+    } else {
+      lockApproachHdg = null;
+      hdg = medianHdg(frontPack(live));
+      flipX = flipApproach;
+    }
+    if (camPhase && camPhase !== phase) {
+      heldCam = null;
+      heldCamTs = 0;
+    }
+    camPhase = phase;
+    return {
+      phase: phase,
+      focus: focus,
+      next: next,
+      last: last,
+      hdg: hdg,
+      flipX: flipX,
+      markX: markX,
+      nRounded: nRounded
+    };
+  }
+
   function draw(canvas, ts, cssW, cssH) {
     if (!ready || !trail || !canvas || cssW < 8 || cssH < 8) return;
     var ctx = canvas.getContext('2d');
@@ -730,11 +921,26 @@
     var pack = frontPack(live);
     var pts = packPoints(pack, ts);
     if (!pts.length) return;
-    var focus = live.nextMark;
-    var nearRound = !!(focus && pack[0] && pack[0].pos && distM(pack[0].pos, focus) < 280);
-    if (nearRound) {
+    if (heldCamTs && Math.abs(ts - heldCamTs) > 1800) {
+      lockApproachHdg = null;
+      camPhase = '';
+    }
+    var plan = camPlan(live, cssW);
+    var focus = plan.focus;
+    var nearRound = plan.phase === 'hold' || plan.phase === 'approach-mark';
+    if (plan.phase === 'hold' && focus) {
       pts.push(focus);
-      var brg = bearingDeg(pack[0].pos, focus);
+      pts.push(destPoint(focus, plan.hdg, 90));
+      pts.push(destPoint(focus, plan.hdg + 180, 200));
+      pts.push(destPoint(focus, plan.hdg - 90, 110));
+      pts.push(destPoint(focus, plan.hdg + 90, 110));
+      if ((focus.key === 'pin' || focus.key === '4') && trail.start_line) {
+        if (trail.start_line.left) pts.push(trail.start_line.left);
+        if (trail.start_line.right) pts.push(trail.start_line.right);
+      }
+    } else if (plan.phase === 'approach-mark' && focus) {
+      pts.push(focus);
+      var brg = plan.hdg;
       pts.push(destPoint(focus, brg, 140));
       pts.push(destPoint(focus, brg - 90, 110));
       pts.push(destPoint(focus, brg + 90, 110));
@@ -742,14 +948,30 @@
         if (trail.start_line.left) pts.push(trail.start_line.left);
         if (trail.start_line.right) pts.push(trail.start_line.right);
       }
+    } else if (plan.phase === 'follow' && pack[0] && pack[0].pos) {
+      if (plan.next) pts.push(plan.next);
+      pts.push(destPoint(pack[0].pos, plan.hdg, 140));
+    } else if (plan.phase === 'start' && trail.start_line) {
+      if (trail.start_line.left) pts.push(trail.start_line.left);
+      if (trail.start_line.right) pts.push(trail.start_line.right);
     }
-    var cam = fitCam(pts, cssW, cssH, medianHdg(pack), nearRound
-      ? { minAlong: 220, minAcross: 90, padAlong: 1.28, padAcross: 1.45 }
-      : { minAlong: 80, minAcross: 36 });
-    if (nearRound) {
+    var camOpts =
+      plan.phase === 'hold'
+        ? { minAlong: 260, minAcross: 100, padAlong: 1.28, padAcross: 1.45, flipX: plan.flipX }
+        : plan.phase === 'follow'
+          ? { minAlong: 160, minAcross: 50, flipX: plan.flipX }
+          : plan.phase === 'approach-mark'
+            ? { minAlong: 220, minAcross: 90, padAlong: 1.28, padAcross: 1.45, flipX: plan.flipX }
+            : { minAlong: 80, minAcross: 36, flipX: plan.flipX };
+    var cam = fitCam(pts, cssW, cssH, plan.hdg, camOpts);
+    if (plan.markX != null && focus) {
       var mp = xy(focus.lat, focus.lon, cam);
-      cam.cx += cssW * 0.38 - mp.x;
+      cam.cx += cssW * plan.markX - mp.x;
+    } else if (plan.phase === 'follow' && pack[0] && pack[0].pos) {
+      var lp = xy(pack[0].pos.lat, pack[0].pos.lon, cam);
+      cam.cx += cssW * 0.32 - lp.x;
     }
+    cam.flipX = plan.flipX;
     cam = easeCam(cam, ts);
     cam.boatR = boatRadius(cam, pack);
     ctx.clearRect(0, 0, cssW, cssH);
@@ -839,5 +1061,5 @@
     for (i = pack.length - 1; i >= 0; i--) drawBoat(ctx, cam, pack[i], live, r);
   }
 
-  root.mmLiptonTrackOverlay = { load: load, draw: draw };
+  root.mmLiptonTrackOverlay = { load: load, draw: draw, usesClip: usesClip, offsetMs: offsetMsFor };
 })(window);
