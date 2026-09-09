@@ -214,7 +214,10 @@
     return (
       '<div class="mm-lipton-reels-player-ui" data-mm-player-ui>' +
       '<div class="mm-lipton-reels-player-hud" data-mm-player-hud>' +
-      '<button type="button" class="mm-lipton-reels-player-toggle" data-mm-toggle-play aria-label="Pause"></button>' +
+      '<button type="button" class="mm-lipton-reels-player-toggle" data-mm-toggle-play aria-label="Pause">' +
+      '<span class="mm-lipton-reels-icon-play" aria-hidden="true"></span>' +
+      '<span class="mm-lipton-reels-icon-pause" aria-hidden="true"><span></span><span></span></span>' +
+      '</button>' +
       '<div class="mm-lipton-reels-player-bar">' +
       '<span class="mm-lipton-reels-player-time" data-mm-time>0:00 / 0:00</span>' +
       '<input class="mm-lipton-reels-player-seek" data-mm-seek type="range" min="0" max="1000" value="0" step="1" aria-label="Seek">' +
