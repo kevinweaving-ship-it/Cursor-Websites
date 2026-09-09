@@ -3,10 +3,10 @@
  * No map tiles. Race 7 test clip races right → left across the bottom strip.
  * Clock is the live reel go-live stamp + video time. Boat noses follow the
  * on-screen GPS track. Icons/colours/tails match tracking-dev2. Each clip has
- * its own camera recipe. Rounding holds the approach direction (Race 7
- * downwind: right → left, mark on the left) until ~6 boats round or the
- * leader is about to leave going the other way, then tracking follows that
- * leader toward the next mark. Camera eases zoom; icons scale with spacing.
+ * its own camera recipe. Rounding keeps one projection: boats approach
+ * right → left, the mark stays fixed on the left, then rounded boats sail
+ * left → right. The map pans left only to keep the leader on the right;
+ * the mark may leave the left edge. Camera eases zoom; icons scale with spacing.
  */
 (function (root) {
   'use strict';
@@ -510,8 +510,7 @@
       !heldCam ||
       !heldCamTs ||
       Math.abs(ts - heldCamTs) > 1800 ||
-      heldCam.w !== target.w ||
-      heldCam.h !== target.h
+      heldCam.w !== target.w
     ) {
       heldCam = copyCam(target);
       heldCamTs = ts;
@@ -606,10 +605,10 @@
     };
   }
 
-  function camFromMark(mark, w, h, hdg, flipX, markX, markY, scaleX, scaleY) {
+  function camFromMark(mark, w, h, hdg, flipX, markX, markY, scaleX, scaleY, panX) {
     var rad = ((hdg || 0) * Math.PI) / 180;
     var mx = markX != null ? markX : 0.2;
-    var my = markY != null ? markY : 0.5;
+    var my = markY != null ? markY : 0.38;
     return {
       midLat: mark.lat,
       midLon: mark.lon,
@@ -622,8 +621,8 @@
       w: w,
       h: h,
       hdg: hdg || 0,
-      flipX: flipX !== false,
-      cx: w * mx,
+      flipX: true,
+      cx: w * mx + (panX || 0),
       cy: h * my
     };
   }
@@ -719,14 +718,98 @@
     }
   }
 
+  function isHycRow(row) {
+    if (!row) return false;
+    var c = clubCode(row.sail);
+    return c === 'HYC' || row.sail === 'HYC';
+  }
+
   function frontPack(live) {
+    var rows = (live && live.rows) || [];
+    var n = rows.length;
+    var leadN = Math.max(6, Math.ceil(n * 0.5));
     var out = [];
+    var seen = {};
     var i;
-    for (i = 0; i < live.rows.length; i++) {
-      if (live.rows[i] && live.rows[i].pos && live.rows[i].racePlace <= 6) out.push(live.rows[i]);
+    for (i = 0; i < rows.length; i++) {
+      if (rows[i] && rows[i].pos && rows[i].racePlace <= leadN) {
+        out.push(rows[i]);
+        seen[rows[i].sail] = true;
+      }
+    }
+    for (i = 0; i < rows.length; i++) {
+      if (rows[i] && rows[i].pos && isHycRow(rows[i]) && !seen[rows[i].sail]) {
+        out.push(rows[i]);
+        seen[rows[i].sail] = true;
+      }
     }
     if (out.length) return out;
-    return (live.rows || []).slice(0, 6);
+    return rows.slice(0, leadN);
+  }
+
+  function roundingPack(live, mark) {
+    var pack = frontPack(live);
+    if (!mark) return pack;
+    var seen = {};
+    var i;
+    for (i = 0; i < pack.length; i++) seen[pack[i].sail] = true;
+    var rows = (live && live.rows) || [];
+    for (i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      if (!row || !row.pos || seen[row.sail]) continue;
+      if (distM(row.pos, mark) < 280) {
+        pack.push(row);
+        seen[row.sail] = true;
+      }
+    }
+    return pack;
+  }
+
+  function acrossM(pos, mark, hdg) {
+    if (!pos || !mark) return 0;
+    var cos = Math.cos((mark.lat * Math.PI) / 180);
+    var north = (pos.lat - mark.lat) * 111000;
+    var east = (pos.lon - mark.lon) * 111000 * cos;
+    var rad = ((hdg || 0) * Math.PI) / 180;
+    return east * Math.cos(rad) - north * Math.sin(rad);
+  }
+
+  function setTrackHeight(canvas, frac) {
+    var box = canvas && canvas.parentNode;
+    if (!box || !box.style) return;
+    if (frac < 0.5) frac = 0.5;
+    if (frac > 0.78) frac = 0.78;
+    var prev = box._mmTrackH;
+    if (prev != null && Math.abs(frac - prev) < 0.015) return;
+    box._mmTrackH = frac;
+    box.style.setProperty('--mm-track-h', Math.round(frac * 1000) / 10 + '%');
+  }
+
+  /* Keep all leading boats on canvas; extra room at the bottom for camera-near boats (HYC). */
+  function fitLockVertical(lock, pack, w, h) {
+    if (!lock || !pack || h < 8) return;
+    var mark = { lat: lock.lat, lon: lock.lon };
+    var minA = 0;
+    var maxA = 0;
+    var i;
+    for (i = 0; i < pack.length; i++) {
+      if (!pack[i] || !pack[i].pos) continue;
+      var a = acrossM(pack[i].pos, mark, lock.hdg);
+      if (a < minA) minA = a;
+      if (a > maxA) maxA = a;
+    }
+    var span = Math.max(140, maxA - minA) * 1.35;
+    var padTop = 22;
+    var padBot = 44;
+    var need = Math.max(0.04, (h - padTop - padBot) / span);
+    if (!lock.scaleY || Math.abs(lock.scaleY) > need + 0.001) lock.scaleY = need;
+    var sy = lock.scaleY;
+    var markY = (h - padBot + minA * sy) / h;
+    if (markY > 0.68) markY = 0.68;
+    if (markY < 0.2) markY = 0.2;
+    if (lock.markY == null || markY < lock.markY) lock.markY = markY;
+    var trackFrac = 0.5 + Math.min(0.28, Math.max(0, (span - 120) / 400) * 0.28);
+    lock.trackFrac = trackFrac;
   }
 
   function packPoints(pack, ts) {
@@ -764,11 +847,16 @@
     return minG;
   }
 
-  /* Dev icons are 7px; shrink with zoom and when boats sit closer than ~4 radii. */
+  /* Big until boats bunch; shrink to the nearest-neighbour gap; grow back when clear. */
   function boatRadius(cam, pack) {
-    var r = Math.max(3.2, Math.min(7, metersPx(9, cam) * 0.42));
+    var rMin = 3.2;
+    var rMax = 11;
+    var r = Math.max(rMin, Math.min(rMax, metersPx(16, cam) * 0.58));
     var gap = minBoatGapPx(cam, pack);
-    if (gap < Infinity && gap < r * 4.2) r = Math.max(3.2, gap * 0.22);
+    if (gap < Infinity) {
+      var fit = gap * 0.28;
+      if (fit < r) r = Math.max(rMin, fit);
+    }
     return r;
   }
 
@@ -881,7 +969,6 @@
 
   function camPlan(live, cssW, cssH) {
     var rule = clipRule || { kind: 'round', approach: 'rtl', holdN: 6 };
-    var flipApproach = rule.approach !== 'ltr';
     var kind = rule.kind || 'round';
     var leader = live.front;
     var passes = passList();
@@ -889,31 +976,11 @@
     var last = leader && leader.done ? markPosForPass(passes[leader.done - 1], live.ts) : null;
     var nRounded = leader ? countDoneAtLeast(live, leader.done) : 0;
     var distNext = next && leader && leader.pos ? distM(leader.pos, next) : 1e9;
-    var away = !!(last && leader && leader.pos && angDiff(leader.hdg || 0, bearingDeg(leader.pos, last)) > 95);
     var markX = 0.2;
-    var trial = null;
-    if (markLock) {
-      trial = camFromMark(
-        { lat: markLock.lat, lon: markLock.lon },
-        cssW,
-        cssH,
-        markLock.hdg,
-        markLock.flipX,
-        markLock.markX,
-        markLock.markY,
-        markLock.scaleX,
-        markLock.scaleY
-      );
-    } else if (last && nRounded >= 1) {
-      var sc0 = frozenMarkScale(cssW, cssH);
-      var hdg0 = lockApproachHdg != null ? lockApproachHdg : incomingHdg(live, last, leader);
-      trial = camFromMark(last, cssW, cssH, hdg0, flipApproach, markX, 0.5, sc0.scaleX, sc0.scaleY);
-    }
-    var tooFarRight = !!(trial && away && nRounded >= 1 && leaderOffRight(trial, leader, cssW));
     var phase = 'leg';
     var focus = next;
-    var hdg = medianHdg(frontPack(live));
-    var flipX = flipApproach;
+    var hdg = lockApproachHdg != null ? lockApproachHdg : incomingHdg(live, next || last, leader);
+    var flipX = true;
 
     if (kind === 'start' && (!leader || leader.done < 1) && distNext > 280) {
       phase = 'start';
@@ -921,34 +988,25 @@
       hdg = next && leader && leader.pos ? bearingDeg(leader.pos, next) : hdg;
       lockApproachHdg = null;
       markLock = null;
-    } else if (last && nRounded >= 1 && tooFarRight) {
-      phase = 'follow';
-      lockApproachHdg = null;
-      markLock = null;
-      focus = next;
-      hdg = next && leader && leader.pos ? bearingDeg(leader.pos, next) : leader && leader.hdg ? leader.hdg : hdg;
-      flipX = !flipApproach;
     } else if (last && nRounded >= 1) {
       phase = 'hold';
       focus = last;
       if (lockApproachHdg == null) lockApproachHdg = incomingHdg(live, last, leader);
       hdg = lockApproachHdg;
-      flipX = flipApproach;
     } else if (next && leader && leader.pos && distNext < 400) {
       phase = 'approach-mark';
       focus = next;
       if (lockApproachHdg == null) lockApproachHdg = bearingDeg(leader.pos, next);
       hdg = lockApproachHdg;
-      flipX = flipApproach;
     } else {
       lockApproachHdg = null;
       markLock = null;
       hdg = medianHdg(frontPack(live));
-      flipX = flipApproach;
     }
 
     if (phase === 'hold' || phase === 'approach-mark') {
       var key = focus && focus.key != null ? String(focus.key) : '';
+      var pack = roundingPack(live, focus || last);
       if (!markLock || markLock.key !== key) {
         var sc = frozenMarkScale(cssW, cssH);
         markLock = {
@@ -956,22 +1014,36 @@
           lat: focus.lat,
           lon: focus.lon,
           hdg: hdg,
-          flipX: flipX,
+          flipX: true,
           markX: markX,
-          markY: 0.5,
+          markY: 0.38,
           scaleX: sc.scaleX,
-          scaleY: sc.scaleY
+          scaleY: sc.scaleY,
+          panX: 0
         };
+      }
+      fitLockVertical(markLock, pack, cssW, cssH);
+      /* Keep 1st on the right; pan the group left. Mark may leave the left. Never flip. */
+      if (nRounded >= 1 && leader && leader.pos) {
+        var tPan = camFromMark(
+          { lat: markLock.lat, lon: markLock.lon },
+          cssW,
+          cssH,
+          markLock.hdg,
+          true,
+          markLock.markX,
+          markLock.markY,
+          markLock.scaleX,
+          markLock.scaleY,
+          markLock.panX || 0
+        );
+        var sp = xy(leader.pos.lat, leader.pos.lon, tPan);
+        if (sp.x > cssW - 48) {
+          markLock.panX = (markLock.panX || 0) + (cssW - 48 - sp.x);
+        }
       }
     }
 
-    if (camPhase === 'follow' && phase !== 'follow') {
-      heldCam = null;
-      heldCamTs = 0;
-    } else if ((camPhase === 'hold' || camPhase === 'approach-mark') && phase === 'follow') {
-      heldCam = null;
-      heldCamTs = 0;
-    }
     camPhase = phase;
     return {
       phase: phase,
@@ -989,51 +1061,45 @@
     if (!ready || !trail || !canvas || cssW < 8 || cssH < 8) return;
     var ctx = canvas.getContext('2d');
     if (!ctx) return;
-    var live = ranksAt(ts);
-    var pack = frontPack(live);
-    var pts = packPoints(pack, ts);
-    if (!pts.length) return;
     if (heldCamTs && Math.abs(ts - heldCamTs) > 1800) {
       lockApproachHdg = null;
       markLock = null;
       camPhase = '';
     }
+    var live = ranksAt(ts);
     var plan = camPlan(live, cssW, cssH);
     var focus = plan.focus;
+    var pack = roundingPack(live, focus || plan.last);
+    var pts = packPoints(pack, ts);
+    if (!pts.length) return;
     var nearRound = plan.phase === 'hold' || plan.phase === 'approach-mark';
-    if (plan.phase === 'follow' && pack[0] && pack[0].pos) {
-      if (plan.next) pts.push(plan.next);
-      pts.push(destPoint(pack[0].pos, plan.hdg, 140));
-    } else if (plan.phase === 'start' && trail.start_line) {
+    if (plan.phase === 'start' && trail.start_line) {
       if (trail.start_line.left) pts.push(trail.start_line.left);
       if (trail.start_line.right) pts.push(trail.start_line.right);
     }
     var cam;
     if ((plan.phase === 'hold' || plan.phase === 'approach-mark') && markLock) {
+      fitLockVertical(markLock, pack, cssW, cssH);
+      setTrackHeight(canvas, markLock.trackFrac || 0.58);
       cam = camFromMark(
         { lat: markLock.lat, lon: markLock.lon },
         cssW,
         cssH,
         markLock.hdg,
-        markLock.flipX,
+        true,
         markLock.markX,
         markLock.markY,
         markLock.scaleX,
-        markLock.scaleY
+        markLock.scaleY,
+        markLock.panX || 0
       );
       heldCam = copyCam(cam);
       heldCamTs = ts;
     } else {
-      var camOpts =
-        plan.phase === 'follow'
-          ? { minAlong: 160, minAcross: 50, flipX: plan.flipX }
-          : { minAlong: 80, minAcross: 36, flipX: plan.flipX };
+      setTrackHeight(canvas, pack.length > 6 ? 0.62 : 0.58);
+      var camOpts = { minAlong: 80, minAcross: 36, flipX: true };
       cam = fitCam(pts, cssW, cssH, plan.hdg, camOpts);
-      if (plan.phase === 'follow' && pack[0] && pack[0].pos) {
-        var lpFollow = xy(pack[0].pos.lat, pack[0].pos.lon, cam);
-        cam.cx += cssW * 0.32 - lpFollow.x;
-      }
-      cam.flipX = plan.flipX;
+      cam.flipX = true;
       cam = easeCam(cam, ts);
     }
     cam.boatR = boatRadius(cam, pack);

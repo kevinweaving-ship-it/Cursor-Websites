@@ -101,11 +101,11 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("playsinline", js)
         src = Path("api.py").read_text(encoding="utf-8")
         self.assertIn('row["play_url"]', src)
-        self.assertIn("mmr56", src)
+        self.assertIn("mmr57", src)
         self.assertIn("mm-lipton-track-overlay.js", src)
         self.assertLess(
             src.find("mm-lipton-track-overlay.js"),
-            src.find("mm-lipton-reels-card.js?v=mmr56"),
+            src.find("mm-lipton-reels-card.js?v=mmr57"),
         )
         self.assertIn("scrollTo", js)
         self.assertIn("bumpSlide", js)
@@ -119,7 +119,7 @@ class LiptonMmCardUnitTest(unittest.TestCase):
             ".mm-lipton-reels-hide{pointer-events:auto;min-height:44px;min-width:44px;margin:0;padding:0 6px;border:0;background:none;color:#64748b",
             src,
         )
-        self.assertIn(".mm-lipton-reels-track{position:absolute;left:0;right:0;bottom:0;height:50%;z-index:3;pointer-events:none;display:none;background:none}", src)
+        self.assertIn(".mm-lipton-reels-track{position:absolute;left:0;right:0;bottom:0;height:var(--mm-track-h,58%);z-index:3;pointer-events:none;display:none;background:none}", src)
         self.assertNotIn(".mm-lipton-reels-track{position:absolute;left:0;right:0;bottom:0;height:50%;z-index:3;pointer-events:none;display:none;background:linear-gradient", src)
         self.assertIn(".mm-lipton-reels-race+.mm-lipton-reels-race{margin-top:10px;padding-top:10px;border-top:4px solid #001f3f}", src)
         self.assertIn(".mm-lipton-reels-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;margin-top:0;overflow-anchor:none}", src)
@@ -165,7 +165,14 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("CLIP_RULES", overlay)
         self.assertIn("camPlan", overlay)
         self.assertIn("phase = 'hold'", overlay)
-        self.assertIn("phase = 'follow'", overlay)
+        self.assertNotIn("phase = 'follow'", overlay)
+        self.assertNotIn("flipX = !flipApproach", overlay)
+        self.assertIn("panX", overlay)
+        self.assertIn("roundingPack", overlay)
+        self.assertIn("isHycRow", overlay)
+        self.assertIn("setTrackHeight", overlay)
+        self.assertIn("flipX = true", overlay)
+        self.assertIn("rMax = 11", overlay)
         self.assertIn("usesClip", overlay)
         self.assertIn("2410502969472697", overlay)
         self.assertIn("lockApproachHdg", overlay)
