@@ -397,9 +397,15 @@
       stage.classList.add('mm-lipton-reels-stage--playing');
       if (video.parentNode !== stage) stage.appendChild(video);
     }
+    try {
+      video.load();
+    } catch (e) {}
     var playPromise = video.play();
     if (playPromise && playPromise.catch) {
-      playPromise.catch(function () {});
+      playPromise.catch(function () {
+        var retry = video.play();
+        if (retry && retry.catch) retry.catch(function () {});
+      });
     }
   }
 
@@ -451,12 +457,30 @@
     else next.removeAttribute('hidden');
   }
 
-  function scrollRail(root, dir) {
+  function scrollRail(root, videos, dir) {
+    layoutCompactStrip(root, videos || []);
     var rail = root.querySelector('[data-mm-compact]');
     if (!rail) return;
     var tile = rail.querySelector('.mm-lipton-reels-tile');
-    var step = tile ? tile.getBoundingClientRect().width + GAP : Math.max(120, rail.clientWidth * 0.8);
-    rail.scrollBy({ left: dir * step, behavior: 'smooth' });
+    var step = tile ? tile.getBoundingClientRect().width + GAP : 0;
+    if (step < 8) step = Math.max(120, rail.clientWidth * 0.85);
+    var max = Math.max(0, rail.scrollWidth - rail.clientWidth);
+    var target = rail.scrollLeft + dir * step;
+    if (target < 0) target = 0;
+    if (target > max) target = max;
+    function go() {
+      if (typeof rail.scrollTo === 'function') {
+        try {
+          rail.scrollTo({ left: target, behavior: 'smooth' });
+          return;
+        } catch (e) {}
+      }
+      rail.scrollLeft = target;
+    }
+    go();
+    window.requestAnimationFrame(function () {
+      if (Math.abs(rail.scrollLeft - target) > 8) go();
+    });
   }
 
   function layoutCompactStrip(root, videos) {
@@ -535,15 +559,93 @@
     }
   }
 
+  function bumpSlide(root, dir) {
+    var stage = root.querySelector('[data-mm-stage]');
+    if (!stage) return;
+    stage.style.transition = 'none';
+    stage.style.transform = 'translateX(' + (dir > 0 ? '18%' : '-18%') + ')';
+    stage.offsetHeight;
+    stage.style.transition = 'transform .28s ease';
+    stage.style.transform = 'translateX(0)';
+  }
+
+  function setOverlayChrome(root, clip, videos, snap) {
+    var hud = root.querySelector('[data-mm-hud]');
+    if (!hud) return;
+    var html = latestChromeHtml(chromeSource(clip, videos), 'mm-lipton-reels-clip-chrome--overlay');
+    var old = hud.querySelector('.mm-lipton-reels-clip-chrome--overlay');
+    if (!html) {
+      if (old && old.parentNode) old.parentNode.removeChild(old);
+      return;
+    }
+    var box = document.createElement('div');
+    box.innerHTML = html;
+    var neu = box.firstChild;
+    if (old && old.parentNode) old.parentNode.replaceChild(neu, old);
+    else hud.insertBefore(neu, hud.firstChild);
+    applyFrozenChrome(root, snap);
+  }
+
+  function updateExpandedGrid(root, videos, currentId) {
+    var expanded = root.querySelector('[data-mm-expanded]');
+    if (!expanded) return;
+    var html = gridHtml(videos, currentId);
+    var grid = expanded.querySelector('.mm-lipton-reels-grid');
+    if (!html) {
+      if (grid && grid.parentNode) grid.parentNode.removeChild(grid);
+      return;
+    }
+    if (grid) {
+      grid.outerHTML = html;
+      return;
+    }
+    expanded.insertAdjacentHTML('beforeend', html);
+  }
+
+  function preloadNeighbors(root, payload, state) {
+    var picked = currentVideo(payload, state);
+    var idx = clipIndex(picked.videos, state.currentId);
+    var hold = root.querySelector('[data-mm-video-hold]');
+    if (!hold) return;
+    var spots = [idx - 1, idx + 1];
+    var s;
+    for (s = 0; s < spots.length; s++) {
+      var clip = picked.videos[spots[s]];
+      if (!clip) continue;
+      var src = playUrl(clip);
+      if (!src) continue;
+      var el = hold.querySelector('video[data-mm-pre="' + clip.id + '"]');
+      if (!el) {
+        el = document.createElement('video');
+        el.setAttribute('data-mm-pre', clip.id);
+        el.setAttribute('preload', 'auto');
+        el.muted = true;
+        el.playsInline = true;
+        hold.appendChild(el);
+      }
+      if (el.getAttribute('src') !== src) el.src = src;
+    }
+  }
+
   function skipClip(root, payload, state, dir) {
+    if (state.sliding) return;
     var picked = currentVideo(payload, state);
     var idx = clipIndex(picked.videos, state.currentId) + dir;
     if (idx < 0 || idx >= picked.videos.length || !picked.videos[idx]) return;
-    state.currentId = picked.videos[idx].id;
+    var clip = picked.videos[idx];
+    state.currentId = clip.id;
     state.expanded = true;
-    paint(root, payload, state);
-    startHeroPlayback(root, currentVideo(payload, state).current);
+    state.sliding = true;
+    startHeroPlayback(root, clip);
+    setOverlayChrome(root, clip, picked.videos, state.chromeSnap);
+    updateExpandedGrid(root, picked.videos, clip.id);
+    syncSkipButtons(root, payload, state);
     showPlayerUi(root, state, root.querySelector('[data-mm-hero-video]'));
+    bumpSlide(root, dir);
+    preloadNeighbors(root, payload, state);
+    window.setTimeout(function () {
+      state.sliding = false;
+    }, 280);
   }
 
   function ensureExpanded(root) {
@@ -593,6 +695,7 @@
       wirePlayer(root, state);
       syncSkipButtons(root, payload, state);
       hidePlayerUi(root, state);
+      preloadNeighbors(root, payload, state);
     } else {
       removeExpanded(root);
       layoutCompactStrip(root, picked.videos);
@@ -603,7 +706,7 @@
     var root = cardEl();
     if (!root) return;
     var payload = readPayload(root);
-    var state = { expanded: false, currentId: '', chromeSnap: null, hideTimer: null, playerWired: false };
+    var state = { expanded: false, currentId: '', chromeSnap: null, hideTimer: null, playerWired: false, sliding: false, didSwipe: false };
     var video = ensureHeroVideo(root);
     var first = sortVideos(payload.videos || [])[0];
     if (first && video) {
@@ -619,14 +722,14 @@
       if (prev) {
         ev.preventDefault();
         ev.stopPropagation();
-        scrollRail(root, -1);
+        scrollRail(root, sortVideos(payload.videos || []), -1);
         return;
       }
       var next = ev.target.closest && ev.target.closest('[data-mm-rail-next]');
       if (next) {
         ev.preventDefault();
         ev.stopPropagation();
-        scrollRail(root, 1);
+        scrollRail(root, sortVideos(payload.videos || []), 1);
         return;
       }
       var hide = ev.target.closest && ev.target.closest('[data-mm-hide]');
@@ -639,6 +742,10 @@
       if (brand) return;
       var playerUi = ev.target.closest && ev.target.closest('[data-mm-player-ui]');
       if (playerUi && root.contains(playerUi)) {
+        if (state.didSwipe) {
+          state.didSwipe = false;
+          return;
+        }
         ev.preventDefault();
         ev.stopPropagation();
         var video = root.querySelector('[data-mm-hero-video]');
@@ -685,7 +792,33 @@
         state.expanded = true;
         paint(root, payload, state);
         startHeroPlayback(root, currentVideo(payload, state).current);
+        preloadNeighbors(root, payload, state);
       }
+    });
+
+    var ptr = { on: false, x: 0, y: 0 };
+    root.addEventListener('pointerdown', function (ev) {
+      if (!state.expanded) return;
+      var ui = ev.target.closest && ev.target.closest('[data-mm-player-ui]');
+      if (!ui || !root.contains(ui)) return;
+      if (ev.target.closest('[data-mm-seek],[data-mm-toggle-play],[data-mm-mute],[data-mm-skip]')) return;
+      ptr.on = true;
+      ptr.x = ev.clientX;
+      ptr.y = ev.clientY;
+      state.didSwipe = false;
+    });
+    root.addEventListener('pointerup', function (ev) {
+      if (!ptr.on) return;
+      ptr.on = false;
+      var dx = ev.clientX - ptr.x;
+      var dy = ev.clientY - ptr.y;
+      if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.35) {
+        state.didSwipe = true;
+        skipClip(root, payload, state, dx < 0 ? 1 : -1);
+      }
+    });
+    root.addEventListener('pointercancel', function () {
+      ptr.on = false;
     });
 
     var rail = root.querySelector('[data-mm-compact]');
