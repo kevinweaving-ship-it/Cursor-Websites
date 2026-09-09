@@ -278,10 +278,10 @@
 @media (max-width:480px){.hs-card .hs-row{grid-template-columns:repeat(3,1fr)} .hs-card .hs-tile{font-size:12px}}
 
 /* HOME devices only — do not touch Weather tiles */
-#home-sensors .hs-dev{display:grid;grid-template-columns:56px minmax(0,1fr) auto;grid-template-rows:auto auto auto;column-gap:8px;align-items:center;min-height:72px;padding:8px 8px 8px 6px;text-align:center;opacity:1;background:#e8eef4;border:1px solid #d5dee8}
-#home-sensors .hs-dev.off,#home-sensors .hs-dev.allon,#home-sensors .hs-dev.run,#home-sensors .hs-dev.mid,#home-sensors .hs-dev.hi,#home-sensors .hs-light.gang.allon,#home-sensors .hs-light.gang.mixed{opacity:1;background:#e8eef4}
-#home-sensors .hs-dev .hs-ico{grid-column:1;grid-row:1/-1;align-self:stretch;display:flex;align-items:center;justify-content:center}
-#home-sensors .hs-dev .hs-ico .tico{width:52px;height:52px;margin:0;object-fit:contain;border-radius:6px;filter:brightness(0.42) contrast(1.35) saturate(1.15)}
+#home-sensors .hs-dev{display:grid;grid-template-columns:56px minmax(0,1fr) auto;grid-template-rows:auto auto auto;column-gap:8px;align-items:center;min-height:72px;padding:8px 8px 8px 6px;text-align:center;opacity:1;background:#f3efe4;border:1px solid #e2dac8}
+#home-sensors .hs-dev.off,#home-sensors .hs-dev.allon,#home-sensors .hs-dev.run,#home-sensors .hs-dev.mid,#home-sensors .hs-dev.hi,#home-sensors .hs-light.gang.allon,#home-sensors .hs-light.gang.mixed{opacity:1;background:#f3efe4}
+#home-sensors .hs-dev .hs-ico{grid-column:1;grid-row:1/-1;align-self:stretch;display:flex;align-items:center;justify-content:center;background:transparent}
+#home-sensors .hs-dev .hs-ico .tico{width:52px;height:52px;margin:0;object-fit:contain;border-radius:0;background:transparent;filter:none;mix-blend-mode:multiply}
 #home-sensors .hs-dev .hs-body{grid-column:2;grid-row:1/-1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
 #home-sensors .hs-dev .hs-act,#home-sensors .hs-dev>.hs-master,#home-sensors .hs-dev>.hs-gang{grid-column:3;grid-row:1/-1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
 #home-sensors .hs-dev .v,#home-sensors .hs-dev .hs-elive{display:block;font:500 16px Arial,Helvetica,sans-serif;color:#94a3b8;line-height:1.15;text-align:center}
