@@ -20,6 +20,19 @@ class SpreadTest(unittest.TestCase):
         self.assertAlmostEqual(sum(adds.values()), 2.69, places=3)
         self.assertGreater(adds["2026090909"], adds["2026090908"])
 
+    def test_empty_hour_capped_at_avg_leftover_on_partial(self):
+        measured = {
+            "2026090906": 1.172, "2026090907": 1.178, "2026090908": 0.612,
+            "2026090909": None, "2026090910": 0.25,
+        }
+        adds = {"2026090908": 0.633, "2026090909": 1.315, "2026090910": 0.742}
+        avg = b.neighbor_avg(measured, "2026090909")
+        self.assertAlmostEqual(avg, 1.175, places=3)
+        bins, est = b.apply_adds(measured, adds, avg)
+        self.assertEqual(est, ["2026090909"])
+        self.assertAlmostEqual(bins["2026090909"], 1.175, places=3)
+        self.assertGreater(bins["2026090910"], 0.99)
+
     def test_empty_hour_is_est(self):
         adds = {"2026090908": 0.5, "2026090909": 1.15, "2026090910": 0.6}
         measured = {"2026090908": 0.612, "2026090909": None, "2026090910": 0.25}

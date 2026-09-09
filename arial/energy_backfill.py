@@ -46,23 +46,48 @@ def spread_register_delta(
     return out
 
 
+def neighbor_avg(measured: dict[str, float | None], before_key: str) -> float | None:
+    """Mean of complete measured hours on the same day before the silent hour (not invented)."""
+    day = before_key[:8]
+    vals = []
+    for key in sorted(k for k in measured if k.startswith(day) and k < before_key):
+        v = measured.get(key)
+        if isinstance(v, (int, float)) and v >= 0.9:
+            vals.append(float(v))
+    if not vals:
+        return None
+    return round(sum(vals) / len(vals), 6)
+
+
 def apply_adds(
     measured: dict[str, float | None],
     adds: dict[str, float],
+    avg_kwh: float | None = None,
 ) -> tuple[dict[str, float], list[str]]:
-    """Merge adds into bins. Empty hours become EST. Hours that already have data are topped up, not relabelled."""
+    """Merge adds into bins. Empty full hours use neighbor avg; leftover register delta goes on the partial restore hour."""
     bins: dict[str, float] = {}
     est: list[str] = []
     keys = sorted(set(measured) | set(adds))
+    leftover = 0.0
     for key in keys:
         have = measured.get(key)
         add = float(adds.get(key) or 0.0)
         if have is None:
-            if add > 0:
-                bins[key] = round(add, 6)
-                est.append(key)
+            if add <= 0:
+                continue
+            if avg_kwh and add > avg_kwh:
+                leftover += add - avg_kwh
+                add = avg_kwh
+            bins[key] = round(add, 6)
+            est.append(key)
             continue
         bins[key] = round(float(have) + add, 6)
+    if leftover and keys:
+        last = keys[-1]
+        if last in bins:
+            bins[last] = round(bins[last] + leftover, 6)
+        elif adds.get(last):
+            bins[last] = round(float(adds[last]) + leftover, 6)
     return bins, est
 
 
@@ -79,12 +104,15 @@ def backfill_payload(
     adds = spread_register_delta(delta_kwh, start_ts, end_ts)
     if not adds:
         return None
-    bins, est = apply_adds(measured, adds)
+    empty = sorted(k for k, v in measured.items() if v is None and k in adds) or sorted(adds)
+    avg = neighbor_avg(measured, empty[0]) if empty else None
+    bins, est = apply_adds(measured, adds, avg)
     if not est and not adds:
         return None
     return {
         "appliedAt": applied_at,
-        "method": "register-delta dp102 spread across silent window only",
+        "method": "register-delta dp102; empty hours capped at neighbor avg; leftover on partial restore hour",
+        "neighborAvgKwh": avg,
         "gapKwh": round(float(delta_kwh), 6),
         "registerFromWh": register_from_wh,
         "registerToWh": register_to_wh,
