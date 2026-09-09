@@ -388,7 +388,7 @@
           if (p.online && w != null && w > 5) lvl = avg == null ? " run" : (w > avg * 1.1 ? " hi" : (w < avg * 0.5 ? " run" : " mid"));
           var pUse = (p.usage && p.usage.monthKwh ? p.usage.monthKwh * 1000 : 0) + (p.usage && p.usage.monthOnS ? p.usage.monthOnS / 3600 : 0) + (w || 0);
           var pDorm = !p.online || (!on && !pUse && !(w > 5));
-          items.push({ grp: pDorm ? "dormant" : "plugs", use: pUse, ts: p.lastEvent || 0, html: '<div class="hs-dev hs-tile hs-plug' + (!p.online ? " off" : lvl) + (on || (w != null && w > 5) ? " inuse" : "") + '">' +
+          items.push({ grp: pDorm ? "dormant" : "plugs", use: pUse, ts: p.lastEvent || 0, html: '<div class="hs-dev hs-tile hs-plug' + (!p.online ? " off is-dead" : lvl + (on ? " is-on inuse" : " is-off")) + (pDorm ? " is-dead" : "") + '">' +
                '<span class="hs-ico">' + tico(p.id) + '</span>' +
                '<span class="hs-body"><span class="v">' + (w == null ? "\u2014" : Math.round(w) + " W") + '</span>' +
                '<span class="l">' + neatName(p) + '</span>' +
@@ -425,7 +425,7 @@
             // compact multi-gang tile: icon + name + ON / OFF / n/m ON + master power (any on -> all off, all off -> all on)
             var nOn = codes.filter(function (c) { return l.status[c] === true; }).length, allOn = nOn === codes.length;
             var stTxt = allOn ? "ON" : nOn === 0 ? "OFF" : nOn + "/" + codes.length + " ON";
-            items.push({ grp: (!l.online || (!keepDev && !nOn && !lUse && !hasWater)) ? "dormant" : lGrp, use: lUse, ts: l.lastEvent || 0, html: '<div class="hs-dev hs-light gang' + waterCls + (l.online ? "" : " off") + (nOn ? (allOn ? " allon" : " mixed") + " inuse" : "") + '" data-dev="' + l.id + '" title="' + shown + ' \u00b7 ' + codes.length + ' gangs' + (us.todayOnS != null ? " \u00b7 " + hm(us.todayOnS) + " today" : "") + wTip + '">' +
+            items.push({ grp: (!l.online || (!keepDev && !nOn && !lUse && !hasWater)) ? "dormant" : lGrp, use: lUse, ts: l.lastEvent || 0, html: '<div class="hs-dev hs-light gang' + waterCls + (l.online ? (nOn ? (allOn ? " allon is-on inuse" : " mixed is-on inuse") : " is-off") : " off is-dead") + '" data-dev="' + l.id + '" title="' + shown + ' \u00b7 ' + codes.length + ' gangs' + (us.todayOnS != null ? " \u00b7 " + hm(us.todayOnS) + " today" : "") + wTip + '">' +
               '<span class="hs-ico">' + tico(l.id) + '</span><span class="hs-body"><span class="v">' + stTxt + '</span><span class="l">' + shown + '</span></span><span class="hs-act"><span class="gc" title="' + codes.length + ' switches \u00b7 tap for each">' + codes.length + '<i>\u203a</i></span>' +
               '<button type="button" class="hs-master' + (nOn ? " on" : "") + '" data-dev="' + l.id + '" data-any="' + (nOn ? 1 : 0) + '" data-codes="' + codes.join(",") + '" aria-label="' + (nOn ? "all off" : "all on") + '"><span class="ctl ctl-power" aria-hidden="true"></span></button></span>' + wHtml + '</div>' });
             return;
@@ -434,7 +434,7 @@
           var c1 = codes[0], on1 = l.online && l.status[c1] === true;
           var st1 = !l.online ? "OFFLINE" : on1 ? "ON" : "OFF";
           var sub1 = !l.online ? "" : on1 && (l.since || {})[c1] ? " \u00b7 " + dur(l.since[c1]) : (us.todayOnS >= 60 ? " \u00b7 " + hm(us.todayOnS) + " today" : "");
-          items.push({ grp: (!l.online || (!keepDev && !on1 && !lUse && !hasWater)) ? "dormant" : lGrp, use: lUse, ts: l.lastEvent || 0, html: '<div class="hs-dev hs-light gang single' + waterCls + (l.online ? "" : " off") + (on1 ? " allon inuse" : "") + '" data-dev="' + l.id + '" title="' + shown + (us.todayOnS != null ? " \u00b7 " + hm(us.todayOnS) + " today \u00b7 " + hm(us.monthOnS) + " " + monLabel() : "") + wTip + '">' +
+          items.push({ grp: (!l.online || (!keepDev && !on1 && !lUse && !hasWater)) ? "dormant" : lGrp, use: lUse, ts: l.lastEvent || 0, html: '<div class="hs-dev hs-light gang single' + waterCls + (l.online ? (on1 ? " allon is-on inuse" : " is-off") : " off is-dead") + '" data-dev="' + l.id + '" title="' + shown + (us.todayOnS != null ? " \u00b7 " + hm(us.todayOnS) + " today \u00b7 " + hm(us.monthOnS) + " " + monLabel() : "") + wTip + '">' +
             '<span class="hs-ico">' + tico(l.id) + '</span><span class="hs-body"><span class="v">' + st1 + '</span><span class="l">' + shown + (sub1 ? " ·" + sub1 : "") + '</span></span>' +
             '<button type="button" class="hs-master hs-gang' + (on1 ? " on" : "") + '" data-dev="' + l.id + '" data-sw="' + c1 + '" data-on="' + (on1 ? 1 : 0) + '" aria-label="' + (on1 ? "turn off" : "turn on") + '"><span class="ctl ctl-power" aria-hidden="true"></span></button>' + wHtml + '</div>' });
         });
@@ -442,7 +442,7 @@
           var eu = e.eleUse || {};
           var eUse = Number(eu.monthKwh) || 0;
           var eTip = eu.todayKwh != null ? " \u00b7 " + Number(eu.todayKwh).toFixed(2) + " kWh today \u00b7 " + Number(eu.monthKwh).toFixed(2) + " kWh " + monLabel() + " \u00b7 " + Number(eu.lastMonthKwh).toFixed(2) + " kWh " + prevMonLabel() : "";
-          items.push({ grp: e.online || eUse ? "power" : "dormant", use: eUse, ts: e.lastEvent || 0, html: '<div class="hs-dev hs-light gang single hs-power' + (e.online ? " inuse" : " off") + '" data-dev="' + e.id + '" title="' + neatName(e) + eTip + '">' +
+          items.push({ grp: e.online || eUse ? "power" : "dormant", use: eUse, ts: e.lastEvent || 0, html: '<div class="hs-dev hs-light gang single hs-power' + (e.online ? " is-on inuse" : " off is-dead") + '" data-dev="' + e.id + '" title="' + neatName(e) + eTip + '">' +
             '<span class="hs-ico">' + tico(e.id) + '</span><span class="hs-body">' + eleLive(e) + '<span class="l">' + neatName(e) + "</span></span>" +
             eleLine(e) + "</div>" });
         });
@@ -455,7 +455,7 @@
         meters.forEach(function (e) { known[e.id] = 1; });
         devs.forEach(function (x) {
           if (!x || !x.id || known[x.id]) return;
-          items.push({ grp: "other", use: 0, ts: x.lastEvent || 0, html: '<div class="hs-dev hs-tile' + (x.online ? " inuse" : " off") + '">' +
+          items.push({ grp: "other", use: 0, ts: x.lastEvent || 0, html: '<div class="hs-dev hs-tile' + (x.online ? " is-on inuse" : " off is-dead") + '">' +
             '<span class="hs-ico">' + tico(x.id) + '</span>' +
             '<span class="hs-body"><span class="v">' + (x.online ? "ON" : "OFFLINE") + '</span>' +
             '<span class="l">' + neatName(x) + '</span></span></div>' });
