@@ -1,6 +1,6 @@
 /**
  * Lipton-only Marine Megastore Event Reels card (#mmLiptonReels).
- * Compact: fixed artwork + swipeable FB clip rail. Expand: muted autoplay, Hide only while open.
+ * Compact: fixed artwork + swipeable clip rail. One tap expands and plays hosted mp4.
  */
 (function () {
   'use strict';
@@ -46,25 +46,15 @@
     return '16 / 9';
   }
 
-  function pluginSrc(v, autoplay) {
-    var href = (v && (v.url || v.permalink)) || '';
-    var src = (v && v.embed_url) || '';
-    if (!src && href) {
-      src =
-        'https://www.facebook.com/plugins/video.php?href=' +
-        encodeURIComponent(href) +
-        '&show_text=false';
+  function playUrl(v) {
+    return String((v && v.play_url) || '').trim();
+  }
+
+  function posterHtml(v) {
+    if (v && v.thumb) {
+      return '<img src="' + esc(v.thumb) + '" alt="" loading="lazy" decoding="async">';
     }
-    if (!src) return '';
-    src = src
-      .replace(/&autoplay=(true|false|1|0)/gi, '')
-      .replace(/&mute=\d+/gi, '')
-      .replace(/&muted=\d+/gi, '')
-      .replace(/&playsinline=\d+/gi, '');
-    if (autoplay) src += '&autoplay=true&autoplay=1';
-    src += '&mute=1&muted=1&playsinline=1';
-    if (autoplay) src += '&_mm=' + Date.now();
-    return src;
+    return '<span class="mm-lipton-reels-thumb-ph" aria-hidden="true"></span>';
   }
 
   function exitFsIfInside(root) {
@@ -80,32 +70,22 @@
 
   function stopAllPlayback(root) {
     exitFsIfInside(root);
-    var iframes = root.querySelectorAll('[data-mm-expanded] iframe');
+    var videos = root.querySelectorAll('video');
     var i;
+    for (i = 0; i < videos.length; i++) {
+      try {
+        videos[i].pause();
+      } catch (e) {}
+      try {
+        videos[i].removeAttribute('src');
+        videos[i].load();
+      } catch (e2) {}
+    }
+    var iframes = root.querySelectorAll('[data-mm-expanded] iframe');
     for (i = 0; i < iframes.length; i++) {
       iframes[i].src = 'about:blank';
       iframes[i].removeAttribute('src');
     }
-  }
-
-  function fbFrameHtml(v, autoplay, fullscreenOk) {
-    var src = pluginSrc(v, autoplay);
-    if (!src) {
-      return v && v.thumb
-        ? '<img src="' + esc(v.thumb) + '" alt="" loading="lazy" decoding="async">'
-        : '<span class="mm-lipton-reels-thumb-ph" aria-hidden="true"></span>';
-    }
-    var allow = 'autoplay *; muted *; encrypted-media; picture-in-picture; fullscreen';
-    var fs = fullscreenOk ? ' allowfullscreen webkitallowfullscreen' : '';
-    return (
-      '<iframe src="' +
-      esc(src) +
-      '" title="Marine Megastore Event Reel" allow="' +
-      allow +
-      '"' +
-      fs +
-      ' referrerpolicy="strict-origin-when-cross-origin" playsinline></iframe>'
-    );
   }
 
   function thumbHit(v) {
@@ -119,7 +99,7 @@
   function thumbHtml(v) {
     return (
       '<div class="mm-lipton-reels-thumb" style="aspect-ratio:16 / 9">' +
-      fbFrameHtml(v, false, false) +
+      posterHtml(v) +
       thumbHit(v) +
       '</div>'
     );
@@ -143,13 +123,9 @@
   }
 
   function latestThumbHtml(v) {
-    var poster =
-      v && v.thumb
-        ? '<img src="' + esc(v.thumb) + '" alt="" loading="lazy" decoding="async">'
-        : fbFrameHtml(v, false, false);
     return (
       '<div class="mm-lipton-reels-thumb mm-lipton-reels-thumb--latest" style="aspect-ratio:16 / 9">' +
-      poster +
+      posterHtml(v) +
       latestChromeHtml(v) +
       '<span class="mm-lipton-reels-play" aria-hidden="true"></span>' +
       thumbHit(v) +
@@ -189,49 +165,38 @@
     return parts.join('');
   }
 
-  function heroUiHtml(v) {
-    var poster =
-      v && v.thumb
-        ? '<img class="mm-lipton-reels-hero-poster" src="' +
-          esc(v.thumb) +
-          '" alt="" decoding="async">'
-        : '';
-    return (
-      '<div class="mm-lipton-reels-hero-ui">' +
-      poster +
-      '<span class="mm-lipton-reels-play" aria-hidden="true"></span>' +
-      '<button type="button" class="mm-lipton-reels-thumb-hit" data-mm-hero-play aria-label="Play reel"></button>' +
-      '</div>'
-    );
-  }
-
   function stageHtml(v) {
     if (!v) return '<p class="mm-lipton-reels-waiting">No clip yet.</p>';
-    var allow = 'autoplay *; muted *; encrypted-media; picture-in-picture; fullscreen';
+    var src = playUrl(v);
+    var poster = (v && v.thumb) || '';
     return (
-      '<div class="mm-lipton-reels-stage" data-mm-stage style="--mm-aspect:' +
+      '<div class="mm-lipton-reels-stage mm-lipton-reels-stage--playing" data-mm-stage style="--mm-aspect:' +
       aspectCss(v) +
       ';aspect-ratio:' +
       aspectCss(v) +
       '">' +
-      '<iframe title="Marine Megastore Event Reel" allow="' +
-      allow +
-      '" allowfullscreen webkitallowfullscreen referrerpolicy="strict-origin-when-cross-origin" playsinline></iframe>' +
-      heroUiHtml(v) +
+      '<video data-mm-hero-video muted playsinline webkit-playsinline autoplay controls preload="auto"' +
+      (poster ? ' poster="' + esc(poster) + '"' : '') +
+      (src ? ' src="' + esc(src) + '"' : '') +
+      '></video>' +
       '</div>'
     );
   }
 
   function startHeroPlayback(root, v) {
+    var video = root.querySelector('[data-mm-hero-video]');
     var stage = root.querySelector('[data-mm-stage]');
-    var iframe = stage && stage.querySelector('iframe');
-    if (!iframe || !v) return;
-    iframe.setAttribute(
-      'allow',
-      'autoplay *; muted *; encrypted-media; picture-in-picture; fullscreen'
-    );
-    iframe.src = pluginSrc(v, true);
+    if (!video || !v) return;
+    var src = playUrl(v);
+    if (src && video.getAttribute('src') !== src) video.src = src;
+    video.muted = true;
+    video.setAttribute('playsinline', '');
+    video.setAttribute('webkit-playsinline', '');
     if (stage) stage.classList.add('mm-lipton-reels-stage--playing');
+    var playPromise = video.play();
+    if (playPromise && playPromise.catch) {
+      playPromise.catch(function () {});
+    }
   }
 
   function gridHtml(videos, currentId) {
@@ -360,12 +325,7 @@
   function removeExpanded(root) {
     var el = root.querySelector('[data-mm-expanded]');
     if (!el) return;
-    var iframes = el.querySelectorAll('iframe');
-    var i;
-    for (i = 0; i < iframes.length; i++) {
-      iframes[i].src = 'about:blank';
-      iframes[i].removeAttribute('src');
-    }
+    stopAllPlayback(el);
     el.parentNode.removeChild(el);
   }
 
@@ -420,13 +380,6 @@
         collapse(root, payload, state);
         return;
       }
-      var heroPlay = ev.target.closest && ev.target.closest('[data-mm-hero-play]');
-      if (heroPlay && root.contains(heroPlay)) {
-        ev.preventDefault();
-        ev.stopPropagation();
-        startHeroPlayback(root, currentVideo(payload, state).current);
-        return;
-      }
       var brand = ev.target.closest && ev.target.closest('.mm-lipton-reels-brand');
       if (brand) return;
       var thumb = ev.target.closest && ev.target.closest('[data-mm-vid]');
@@ -435,6 +388,7 @@
         state.currentId = thumb.getAttribute('data-mm-vid') || state.currentId;
         state.expanded = true;
         paint(root, payload, state);
+        startHeroPlayback(root, currentVideo(payload, state).current);
       }
     });
 
