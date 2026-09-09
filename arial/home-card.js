@@ -55,6 +55,16 @@
         function cell(n, lab) { return '<span class="hs-wcell">' + waterAmt(n) + "<i>" + lab + "</i></span>"; }
         return '<span class="hs-wuse">' + cell(wu.todayL, "today") + cell(wu.monthL, monLabel()) + cell(wu.lastMonthL, prevMonLabel()) + "</span>";
       }
+      function kwhAmt(n) {
+        if (n == null || !isFinite(Number(n))) return "<b>\u2014</b>";
+        return "<b>" + Number(n).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " kWh</b>";
+      }
+      function eleLine(l) {
+        var eu = l && l.eleUse;
+        if (!eu || (eu.todayKwh == null && eu.monthKwh == null && eu.lastMonthKwh == null)) return "";
+        function cell(n, lab) { return '<span class="hs-wcell">' + kwhAmt(n) + "<i>" + lab + "</i></span>"; }
+        return '<span class="hs-wuse">' + cell(eu.todayKwh, "today") + cell(eu.monthKwh, monLabel()) + cell(eu.lastMonthKwh, prevMonLabel()) + "</span>";
+      }
       var pend = {};   // "dev:code" -> {on, until}: tapped state shown instantly and held until the device confirms
       function pendOn(dev, code, on) { var k = dev + ":" + code, p = pend[k]; if (p && Date.now() < p.until) return p.on; return on; }
       var ICONS = {};   // device id -> local /assets/tuya/... path (from the resolver; never a CDN URL)
@@ -65,11 +75,12 @@
         ICONS = d.icons || {};
         Object.keys(pend).forEach(function (k) { if (Date.now() > pend[k].until) delete pend[k]; });
         (d.devices || []).forEach(function (x) { Object.keys(x.status || {}).forEach(function (c) { if (/^switch(_\d+)?$/.test(c) || c === "1") x.status[c] = pendOn(x.id, c, x.status[c]); }); });
-        var devs = d.devices || [], wx = null, indoor = null, lock = null, plugs = [], lights = [];
+        var devs = d.devices || [], wx = null, indoor = null, lock = null, plugs = [], lights = [], meters = [];
         devs.forEach(function (x) {
           if (x.category === "qxj") wx = x;
           else if (x.category === "wsdcg") indoor = x;
           else if (x.category === "jtmspro") lock = x;
+          else if (x.eleUse || x.category === "cz") meters.push(x);
           else if ("cur_power" in x.status) plugs.push(x);
           else if (x.category === "kg" || x.category === "tdq" || x.category === "dlq" || x.category === "pc" || x.category === "sfkzq") lights.push(x);
         });
@@ -418,12 +429,21 @@
             '<span class="nm">' + tico(l.id, "sm") + shown + '</span><span class="st">' + st1 + (sub1 ? '<span class="sub">' + sub1 + '</span>' : "") + '</span>' +
             '<button type="button" class="hs-master hs-gang' + (on1 ? " on" : "") + '" data-dev="' + l.id + '" data-sw="' + c1 + '" data-on="' + (on1 ? 1 : 0) + '" aria-label="' + (on1 ? "turn off" : "turn on") + '"><span class="ctl ctl-power" aria-hidden="true"></span></button>' + wHtml + '</div>' });
         });
+        meters.sort(function (a, b) { return neatName(a).localeCompare(neatName(b)); }).forEach(function (e) {
+          var eu = e.eleUse || {};
+          var eUse = Number(eu.monthKwh) || 0;
+          var eTip = eu.todayKwh != null ? " \u00b7 " + Number(eu.todayKwh).toFixed(2) + " kWh today \u00b7 " + Number(eu.monthKwh).toFixed(2) + " kWh " + monLabel() + " \u00b7 " + Number(eu.lastMonthKwh).toFixed(2) + " kWh " + prevMonLabel() : "";
+          items.push({ grp: e.online || eUse ? "power" : "dormant", use: eUse, ts: e.lastEvent || 0, html: '<div class="hs-light gang single hs-power' + (e.online ? "" : " off") + '" data-dev="' + e.id + '" title="' + neatName(e) + eTip + '">' +
+            '<span class="nm">' + tico(e.id, "sm") + neatName(e) + '</span><span class="st">' + (e.online ? "LIVE" : "OFFLINE") + '</span>' +
+            eleLine(e) + '</div>' });
+        });
         var known = {};
         if (wx) known[wx.id] = 1;
         if (indoor) known[indoor.id] = 1;
         if (lock) known[lock.id] = 1;
         plugs.forEach(function (p) { known[p.id] = 1; });
         lights.forEach(function (l) { known[l.id] = 1; });
+        meters.forEach(function (e) { known[e.id] = 1; });
         devs.forEach(function (x) {
           if (!x || !x.id || known[x.id]) return;
           items.push({ grp: "other", use: 0, ts: x.lastEvent || 0, html: '<div class="hs-tile' + (x.online ? "" : " off") + '">' +
@@ -431,7 +451,7 @@
             '<span class="v">' + (x.online ? "ON" : "OFFLINE") + '</span>' +
             '<span class="l">' + neatName(x) + '</span></div>' });
         });
-        var GROUPS = [["door", "Door"], ["lights", "Lights"], ["water", "Water"], ["plugs", "Smart plugs & timers"], ["relays", "Receivers & relays"], ["other", "Devices"], ["dormant", "Not in use"]];
+        var GROUPS = [["door", "Door"], ["lights", "Lights"], ["water", "Water"], ["power", "Power"], ["plugs", "Smart plugs & timers"], ["relays", "Receivers & relays"], ["other", "Devices"], ["dormant", "Not in use"]];
         var gh = "";
         GROUPS.forEach(function (g) {
           var its = items.filter(function (x) { return x.grp === g[0]; });

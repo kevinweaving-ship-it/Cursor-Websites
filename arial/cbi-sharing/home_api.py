@@ -23,6 +23,7 @@ DB = STATE / "home_events.sqlite"
 SNAP = STATE / "home_snapshot.json"
 SEEN = STATE / "homes_seen.json"
 WATER = STATE / "water_stats.json"
+ELE = STATE / "ele_stats.json"
 HOST = os.getenv("CBI_HOME_API_HOST") or "127.0.0.1"
 PORT = int(os.getenv("CBI_SHARING_HOME_API_PORT") or 8011)
 TOKEN = (os.getenv("CBI_SHARING_CTRL_TOKEN") or "").strip()
@@ -98,6 +99,24 @@ def water_use_for(o: dict[str, Any]) -> dict[str, Any] | None:
     return hit if isinstance(hit, dict) else None
 
 
+def ele_use_for(o: dict[str, Any]) -> dict[str, Any] | None:
+    eu = o.get("eleUse")
+    if isinstance(eu, dict) and any(k in eu for k in ("todayKwh", "monthKwh", "lastMonthKwh")):
+        return eu
+    cache = (_load(ELE, {}).get("devices") or {})
+    hit = cache.get(o.get("id"))
+    return hit if isinstance(hit, dict) else None
+
+
+def _attach_meter_stats(o: dict[str, Any]) -> None:
+    wu = water_use_for(o)
+    if wu:
+        o["waterUse"] = wu
+    eu = ele_use_for(o)
+    if eu:
+        o["eleUse"] = eu
+
+
 def home_view(home: str = "") -> dict[str, Any]:
     snap = _load(SNAP, {"at": 0, "devices": []})
     out = [
@@ -112,14 +131,10 @@ def home_view(home: str = "") -> dict[str, Any]:
                     o["usage"] = usage_for(con, o)
                 except (sqlite3.Error, ValueError, TypeError) as exc:
                     log.warning("usage calc failed for %s: %s", o.get("name"), exc)
-                wu = water_use_for(o)
-                if wu:
-                    o["waterUse"] = wu
+                _attach_meter_stats(o)
     else:
         for o in out:
-            wu = water_use_for(o)
-            if wu:
-                o["waterUse"] = wu
+            _attach_meter_stats(o)
     return {
         "ok": True,
         "source": "cbi",

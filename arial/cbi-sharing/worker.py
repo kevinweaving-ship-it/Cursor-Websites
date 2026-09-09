@@ -45,8 +45,10 @@ HEALTH_PATH = STATE_DIR / "health.json"
 SNAP_PATH = STATE_DIR / "home_snapshot.json"
 SEEN_PATH = STATE_DIR / "homes_seen.json"
 WATER_STATS_PATH = STATE_DIR / "water_stats.json"
+ELE_STATS_PATH = STATE_DIR / "ele_stats.json"
 HOME_DB = STATE_DIR / "home_events.sqlite"
 WATER_REFRESH_S = float(os.getenv("CBI_WATER_REFRESH_S") or 600)
+ELE_REFRESH_S = float(os.getenv("CBI_ELE_REFRESH_S") or 600)
 CTRL_HOST = os.getenv("CBI_SHARING_CTRL_HOST") or "127.0.0.1"
 CTRL_PORT = int(os.getenv("CBI_SHARING_CTRL_PORT") or 8010)
 CTRL_TOKEN = (os.getenv("CBI_SHARING_CTRL_TOKEN") or "").strip()
@@ -86,8 +88,8 @@ def _sast_year_month(now: float | None = None) -> tuple[int, int]:
     return lt.tm_year, lt.tm_mon
 
 
-def parse_water_month(raw: dict[str, Any], now: float | None = None) -> dict[str, float]:
-    """today / this month / last month litres from tuya.m.dp.stat.month.list (minux)."""
+def parse_month_bins(raw: dict[str, Any], now: float | None = None) -> dict[str, float]:
+    """today / this month / last month from tuya.m.dp.stat.month.list."""
     years = raw.get("years") if isinstance(raw.get("years"), dict) else {}
     y, m = _sast_year_month(now)
     py, pm = (y, m - 1) if m > 1 else (y - 1, 12)
@@ -106,11 +108,23 @@ def parse_water_month(raw: dict[str, Any], now: float | None = None) -> dict[str
             return 0.0
 
     return {
-        "todayL": num("thisDay"),
-        "monthL": pick(y, m),
-        "lastMonthL": pick(py, pm),
-        "totalL": num("sum"),
+        "today": num("thisDay"),
+        "month": pick(y, m),
+        "lastMonth": pick(py, pm),
+        "total": num("sum"),
     }
+
+
+def parse_water_month(raw: dict[str, Any], now: float | None = None) -> dict[str, float]:
+    """today / this month / last month litres from tuya.m.dp.stat.month.list (minux)."""
+    b = parse_month_bins(raw, now)
+    return {"todayL": b["today"], "monthL": b["month"], "lastMonthL": b["lastMonth"], "totalL": b["total"]}
+
+
+def parse_ele_month(raw: dict[str, Any], now: float | None = None) -> dict[str, float]:
+    """today / this month / last month kWh from tuya.m.dp.stat.month.list (sum)."""
+    b = parse_month_bins(raw, now)
+    return {"todayKwh": b["today"], "monthKwh": b["month"], "lastMonthKwh": b["lastMonth"], "totalKwh": b["total"]}
 
 
 def _home_db() -> sqlite3.Connection:
@@ -275,7 +289,58 @@ class Worker(SharingDeviceListener):
                             )
         except sqlite3.Error as exc:
             log.warning("CBI db seed failed: %s", exc)
+        self._merge_shared_devices()
         self.write_snapshot()
+
+    def _bing_home(self) -> tuple[str, str]:
+        mapped = load_homes()
+        for hid, meta in mapped.items():
+            if str((meta or {}).get("site") or "") == "bing":
+                return str(hid), str((meta or {}).get("label") or "HH House")
+        if mapped:
+            hid = next(iter(mapped))
+            return str(hid), str((mapped.get(hid) or {}).get("label") or "")
+        return "", ""
+
+    def _merge_shared_devices(self) -> None:
+        """Shared CBI devices (e.g. Bing Flat kWh meter) are not in the home group list."""
+        if not self.oem:
+            return
+        hid, hname = self._bing_home()
+        try:
+            shared = self.oem._api("tuya.m.my.shared.device.list", {}, version="1.0")
+        except Exception as exc:
+            log.warning("CBI shared list skipped: %s", type(exc).__name__)
+            return
+        if not isinstance(shared, list):
+            return
+        added = 0
+        with self.lock:
+            for raw in shared:
+                if not isinstance(raw, dict):
+                    continue
+                did = str(raw.get("devId") or "")
+                if not did or did in self.devices:
+                    continue
+                wifi = ((raw.get("moduleMap") or {}).get("wifi") or {})
+                row = {
+                    "id": did,
+                    "name": (raw.get("name") or "").strip() or did,
+                    "category": raw.get("category") or "",
+                    "online": bool(wifi.get("isOnline", True)),
+                    "status": dict(raw.get("dps") or {}),
+                    "home": hname,
+                    "home_id": hid,
+                    "product_id": raw.get("productId"),
+                    "shared": True,
+                }
+                self.devices[did] = row
+                self.home_of[did] = hname
+                self.home_id_of[did] = hid
+                self.home_ids.add(did)
+                added += 1
+        if added:
+            log.info("CBI shared devices added=%d", added)
 
     def refresh_water_stats(self, force: bool = False) -> None:
         """Read-only Tuya month bins for BV05 / sfkzq. Cached — cloud rate-limits this API."""
@@ -313,13 +378,54 @@ class Worker(SharingDeviceListener):
             if wu:
                 row["waterUse"] = wu
 
+    def refresh_ele_stats(self, force: bool = False) -> None:
+        """Read-only Tuya month bins for shared kWh meters (add_ele DP 17, type sum)."""
+        if not self.oem:
+            return
+        prev = _load(ELE_STATS_PATH, {}) or {}
+        if not force and time.time() - float(prev.get("at") or 0) < ELE_REFRESH_S:
+            return
+        devices: dict[str, dict[str, float]] = dict(prev.get("devices") or {})
+        with self.lock:
+            rows = [self.devices[i] for i in self.home_ids if i in self.devices]
+        for d in rows:
+            st = d.get("status") or {}
+            if str(d.get("category") or "") != "cz" and "17" not in st and "add_ele" not in st:
+                continue
+            extra = None if d.get("shared") else ({"gid": str(d.get("home_id") or self.home_id_of.get(d["id"]) or "")} or None)
+            if extra and not extra.get("gid"):
+                extra = None
+            try:
+                raw = self.oem._api(
+                    "tuya.m.dp.stat.month.list",
+                    {"devId": d["id"], "gwId": d["id"], "dpId": "17", "type": "sum"},
+                    extra=extra,
+                )
+                if isinstance(raw, dict):
+                    devices[d["id"]] = parse_ele_month(raw)
+                    log.info("CBI ele stats %s today=%.2f month=%.2f last=%.2f",
+                             d.get("name"), devices[d["id"]]["todayKwh"],
+                             devices[d["id"]]["monthKwh"], devices[d["id"]]["lastMonthKwh"])
+            except Exception as exc:
+                log.warning("CBI ele stats skipped: %s", type(exc).__name__)
+        _write_private(ELE_STATS_PATH, {"at": time.time(), "devices": devices})
+
+    def _attach_ele(self, out: list[dict[str, Any]]) -> None:
+        cache = ((_load(ELE_STATS_PATH, {}) or {}).get("devices") or {})
+        for row in out:
+            eu = cache.get(row.get("id"))
+            if eu:
+                row["eleUse"] = eu
+
     def write_snapshot(self) -> None:
         try:
             if self.oem:
                 self.refresh_water_stats()
+                self.refresh_ele_stats()
                 with self.lock:
                     out = [dict(self.devices[i]) for i in self.home_ids if i in self.devices]
                 self._attach_water(out)
+                self._attach_ele(out)
                 tmp = SNAP_PATH.with_suffix(".json.tmp")
                 tmp.write_text(json.dumps({"at": time.time(), "source": "cbi", "devices": out}), encoding="utf-8")
                 os.chmod(tmp, 0o644)
@@ -346,6 +452,7 @@ class Worker(SharingDeviceListener):
                         },
                     })
             self._attach_water(out)
+            self._attach_ele(out)
             tmp = SNAP_PATH.with_suffix(".json.tmp")
             tmp.write_text(json.dumps({"at": time.time(), "source": "cbi", "devices": out}), encoding="utf-8")
             os.chmod(tmp, 0o644)
