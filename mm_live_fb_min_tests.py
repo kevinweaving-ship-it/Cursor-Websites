@@ -57,7 +57,8 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("2622643364847262", seed)
         css = src[src.find("_LIPTON_MM_REELS_CSS"): src.find("def _lipton_mm_reels_payload")]
         self.assertNotIn("mm-lipton-reels-stamp", css)
-        self.assertIn("mm-lipton-reels-thumb--latest .mm-lipton-reels-play", css)
+        self.assertIn(".mm-lipton-reels-hero-ui", css)
+        self.assertIn("mm-lipton-reels-stage--playing", css)
         self.assertIn("width:44px", css)
         self.assertIn("margin:auto", css)
         self.assertIn("flex-direction:column", css)
@@ -91,6 +92,8 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("mute=1", js)
         self.assertIn("autoplay=1", js)
         self.assertIn("startHeroPlayback", js)
+        self.assertIn("data-mm-hero-play", js)
+        self.assertIn("mm-lipton-reels-hero-ui", js)
         self.assertIn("playsinline=1", js)
         self.assertIn("mm-lipton-reels-thumb-hit", js)
         self.assertIn("latestThumbHtml", js)

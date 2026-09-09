@@ -189,6 +189,22 @@
     return parts.join('');
   }
 
+  function heroUiHtml(v) {
+    var poster =
+      v && v.thumb
+        ? '<img class="mm-lipton-reels-hero-poster" src="' +
+          esc(v.thumb) +
+          '" alt="" decoding="async">'
+        : '';
+    return (
+      '<div class="mm-lipton-reels-hero-ui">' +
+      poster +
+      '<span class="mm-lipton-reels-play" aria-hidden="true"></span>' +
+      '<button type="button" class="mm-lipton-reels-thumb-hit" data-mm-hero-play aria-label="Play reel"></button>' +
+      '</div>'
+    );
+  }
+
   function stageHtml(v) {
     if (!v) return '<p class="mm-lipton-reels-waiting">No clip yet.</p>';
     var allow = 'autoplay *; muted *; encrypted-media; picture-in-picture; fullscreen';
@@ -201,18 +217,21 @@
       '<iframe title="Marine Megastore Event Reel" allow="' +
       allow +
       '" allowfullscreen webkitallowfullscreen referrerpolicy="strict-origin-when-cross-origin" playsinline></iframe>' +
+      heroUiHtml(v) +
       '</div>'
     );
   }
 
   function startHeroPlayback(root, v) {
-    var iframe = root.querySelector('[data-mm-stage] iframe');
+    var stage = root.querySelector('[data-mm-stage]');
+    var iframe = stage && stage.querySelector('iframe');
     if (!iframe || !v) return;
     iframe.setAttribute(
       'allow',
       'autoplay *; muted *; encrypted-media; picture-in-picture; fullscreen'
     );
     iframe.src = pluginSrc(v, true);
+    if (stage) stage.classList.add('mm-lipton-reels-stage--playing');
   }
 
   function gridHtml(videos, currentId) {
@@ -367,7 +386,6 @@
       stopAllPlayback(root);
       var expanded = ensureExpanded(root);
       expanded.innerHTML = expandedHtml(picked.current, picked.videos);
-      startHeroPlayback(root, picked.current);
     } else {
       removeExpanded(root);
       layoutCompactStrip(root, picked.videos);
@@ -400,6 +418,13 @@
       if (hide) {
         ev.preventDefault();
         collapse(root, payload, state);
+        return;
+      }
+      var heroPlay = ev.target.closest && ev.target.closest('[data-mm-hero-play]');
+      if (heroPlay && root.contains(heroPlay)) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        startHeroPlayback(root, currentVideo(payload, state).current);
         return;
       }
       var brand = ev.target.closest && ev.target.closest('.mm-lipton-reels-brand');
