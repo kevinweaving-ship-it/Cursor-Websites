@@ -2312,7 +2312,8 @@
         "6114": { name: "Kevin", from: "Kevin", logo: null, code: "6114" },
         "2525": { name: "Bugsy", from: "Bugsy", logo: null, code: "2525" },
         "1111": { name: "Tim", from: "Tim", logo: null, code: "1111" },
-        "0843": { name: "Annette", from: "Annette", logo: null, code: "0843" }
+        "0843": { name: "Annette", from: "Annette", logo: null, code: "0843" },
+        "0765": { name: "Jenny", from: "Jenny", logo: "/arial/users/jenny.png?v=1", code: "0765" }
     };
     // Per-site keypad users (mirrors ARIAL_KEYPAD_USERS on the API): a PIN not assigned to this alarm is rejected at login.
     var SITE_USERS = Array.isArray(CFG.keypadUsers) && CFG.keypadUsers.length ? CFG.keypadUsers.map(function (n) { return String(n).toLowerCase(); }) : null;
@@ -2331,6 +2332,7 @@
         if (/onguard/i.test(String(user.name || user.from || user.logo || ""))) return CODES["7777"];
         if (/aerial/i.test(String(user.logo || user.name || ""))) return CODES["7102"];
         if (/amoroc/i.test(String(user.name || user.from || user.logo || ""))) return CODES["7102"];
+        if (/^jenny$/i.test(String(user.name || user.from || ""))) return CODES["0765"];
         return user;
     }
 
@@ -3588,6 +3590,7 @@
             if (/aerial/i.test(String(saved.logo || ""))) saved.code = saved.code || "7102";
             if (!saved.code && saved.name === "Marc") saved.code = "7302";
             if (/amoroc/i.test(String(saved.name || saved.from || saved.logo || ""))) saved.code = "7102";
+            if (/^jenny$/i.test(String(saved.name || saved.from || ""))) saved.code = "0765";
             if (saved.code && CODES[saved.code] && userAllowedHere(CODES[saved.code])) setLoggedIn(CODES[saved.code]);
         }
     } catch (e) {}
