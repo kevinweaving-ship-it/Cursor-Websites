@@ -1811,6 +1811,8 @@
     }
 
     function setBreakerReadingsFlash(on) {
+        var card = document.getElementById("arial-breaker");
+        if (card) card.classList.toggle("link-lost", !!on);
         var ids = ["breaker-v", "breaker-a", "breaker-w"];
         var i;
         for (i = 0; i < ids.length; i += 1) {

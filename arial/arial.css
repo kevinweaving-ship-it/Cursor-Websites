@@ -1382,12 +1382,18 @@ html, body {
     white-space: nowrap;
 }
 
-/* Same slow flash as weather outdoor-unit low battery (.obatt / slowblink). */
+/* Same slow flash as weather outdoor-unit low battery (.obatt / slowblink).
+   One parent class so the No-link line and the ECharts V/A/W numbers stay in sync.
+   HTML .breaker-dial-val is clipped once charts are up; the visible numbers are SVG text. */
 @keyframes slowblink {
     50% { opacity: 0.25; }
 }
 
-.breaker-dial-val.link-lost {
+#arial-breaker.link-lost #breaker-state .breaker-link-ago,
+#arial-breaker.link-lost #breaker-state .breaker-last-link,
+#arial-breaker.link-lost #breaker-state #breaker-on-label,
+#arial-breaker.link-lost #breaker-state .breaker-on-dot,
+#arial-breaker.link-lost .breaker-echart text {
     animation: slowblink 1.2s steps(2, end) infinite;
 }
 
