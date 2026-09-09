@@ -355,12 +355,20 @@
 
   function markPosForPass(pass, ts) {
     if (!pass) return null;
+    /* Pin is the start-line pin. Do not sample drifting GPS mark 4 (it jumps ~74m). */
+    if (pass.label === 'Pin' || Number(pass.mark) === 4) {
+      if (trail.start_line && trail.start_line.left) {
+        return {
+          lat: trail.start_line.left.lat,
+          lon: trail.start_line.left.lon,
+          key: 'pin',
+          pass: pass
+        };
+      }
+    }
     var key = markKeyForPass(pass);
     var pos = sampleAt((trail.marks || {})[key], ts);
     if (pos) return { lat: pos.lat, lon: pos.lon, key: key, pass: pass };
-    if ((pass.label === 'Pin' || key === '4') && trail.start_line && trail.start_line.left) {
-      return { lat: trail.start_line.left.lat, lon: trail.start_line.left.lon, key: 'pin', pass: pass };
-    }
     if ((pass.id === 'FIN' || pass.label === 'Fin') && trail.finish_line && trail.finish_line.left) {
       var fl = trail.finish_line;
       return {
@@ -600,7 +608,7 @@
   /* Fixed geographic window so the mark stays put and boats sail through it. */
   function frozenMarkScale(w, h) {
     var minAlong = 340;
-    var minAcross = 120;
+    var minAcross = 260;
     return {
       scaleX: Math.max(0.05, (Math.max(64, w) - 112) / minAlong),
       scaleY: Math.max(0.05, (Math.max(48, h) - 36) / minAcross)
@@ -1048,17 +1056,17 @@
       hdg = next && leader && leader.pos ? bearingDeg(leader.pos, next) : hdg;
       lockApproachHdg = null;
       markLock = null;
-    } else if (next && leader && leader.pos && distNext < 700 && distNext <= distLast) {
-      /* Still heading to this mark: RTL, mark pinned left. Do not lock the previous weather. */
-      phase = 'approach-mark';
-      focus = next;
-      if (lockApproachHdg == null) lockApproachHdg = incomingHdg(live, next, leader);
-      hdg = lockApproachHdg;
-    } else if (last && leader && leader.pos && (distLast < 480 || lockMatchesLast)) {
+    } else if (last && leader && leader.pos && (lockMatchesLast || distLast + 40 < distNext)) {
       /* Rounded this mark: keep it geographic, boats go LTR, pin 1st on the right. */
       phase = 'hold';
       focus = last;
       if (lockApproachHdg == null) lockApproachHdg = incomingHdg(live, last, leader);
+      hdg = lockApproachHdg;
+    } else if (next && leader && leader.pos && distNext <= distLast) {
+      /* Still heading to this mark: RTL, mark pinned left. Do not lock the previous weather. */
+      phase = 'approach-mark';
+      focus = next;
+      if (lockApproachHdg == null) lockApproachHdg = incomingHdg(live, next, leader);
       hdg = lockApproachHdg;
     } else {
       lockApproachHdg = null;
@@ -1068,7 +1076,6 @@
 
     if (phase === 'hold' || phase === 'approach-mark') {
       var key = focus && focus.key != null ? String(focus.key) : '';
-      var pack = roundingPack(live, focus || last);
       if (!markLock || markLock.key !== key) {
         var sc = frozenMarkScale(cssW, cssH);
         markLock = {
@@ -1084,7 +1091,6 @@
           panX: 0
         };
       }
-      fitLockVertical(markLock, pack, cssW, cssH);
       /* After rounding, pin 1st on the right. Map slides left; mark may leave shot. */
       if (phase === 'hold' && leader && leader.pos) {
         var tPan = camFromMark(
@@ -1143,8 +1149,7 @@
     }
     var cam;
     if ((plan.phase === 'hold' || plan.phase === 'approach-mark') && markLock) {
-      fitLockVertical(markLock, pack, cssW, cssH);
-      setTrackHeight(canvas, markLock.trackFrac || 0.58);
+      setTrackHeight(canvas, 0.58);
       cam = camFromMark(
         { lat: markLock.lat, lon: markLock.lon },
         cssW,
@@ -1178,22 +1183,24 @@
     drawGate(ctx, cam, trail.finish_line, 'rgba(251,191,36,0.9)', finishName, 'Pin', 'RC');
 
     var mk;
-    for (mk in trail.marks || {}) {
-      if (!Object.prototype.hasOwnProperty.call(trail.marks, mk)) continue;
-      var pos = sampleAt(trail.marks[mk], ts);
-      if (!pos) continue;
-      var p = xy(pos.lat, pos.lon, cam);
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 2.4, 0, Math.PI * 2);
-      ctx.fillStyle = '#fbbf24';
-      ctx.fill();
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 9px sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText('M' + mk, p.x + 6, p.y + 3);
+    if (!markLock) {
+      for (mk in trail.marks || {}) {
+        if (!Object.prototype.hasOwnProperty.call(trail.marks, mk)) continue;
+        var pos = sampleAt(trail.marks[mk], ts);
+        if (!pos) continue;
+        var p = xy(pos.lat, pos.lon, cam);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 2.4, 0, Math.PI * 2);
+        ctx.fillStyle = '#fbbf24';
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 9px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('M' + mk, p.x + 6, p.y + 3);
+      }
     }
-    if (nearRound && focus) {
-      var fp = xy(focus.lat, focus.lon, cam);
+    if (nearRound && markLock) {
+      var fp = xy(markLock.lat, markLock.lon, cam);
       var mkR = Math.max(10, Math.min(20, metersPx(12, cam)));
       var box = Math.max(10, Math.min(16, mkR * 0.85));
       ctx.beginPath();
@@ -1209,7 +1216,7 @@
       ctx.font = 'bold ' + Math.max(8, Math.round(box * 0.7)) + 'px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      var lab = focus.key === 'pin' || focus.key === '4' ? 'Pin' : focus.key === 'fin' ? 'Fin' : String(focus.key);
+      var lab = markLock.key === 'pin' || markLock.key === '4' ? 'Pin' : markLock.key === 'fin' ? 'Fin' : String(markLock.key);
       ctx.fillText(lab, fp.x, fp.y + 0.5);
     }
 
