@@ -392,11 +392,13 @@
     var ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    /* Live go-live stamp + video time at 1x. One video second = one tracking second. */
+    /* Live go-live stamp + video time at 1x, plus clip offset from commentary vs GPS. */
     var startMs = Date.parse(String(trackClip.started_at || ''));
     if (startMs !== startMs) return;
     if (video.playbackRate !== 1) video.playbackRate = 1;
-    var ts = startMs + (Number(video.currentTime) || 0) * 1000;
+    var off = Number(trackClip.track_offset_ms);
+    if (off !== off) off = String(trackClip.id) === TRACK_TEST_ID ? 36000 : 0;
+    var ts = startMs + (Number(video.currentTime) || 0) * 1000 + off;
     overlay.draw(canvas, ts, cssW, cssH);
   }
 

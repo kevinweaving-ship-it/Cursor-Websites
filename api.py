@@ -20055,6 +20055,7 @@ def _mm_normalize_video(item: dict) -> Optional[dict]:
         "fb_page": str(item.get("fb_page") or "").strip(),
         "play_url": str(item.get("play_url") or "").strip(),
         "started_at": started,
+        "track_offset_ms": int(item.get("track_offset_ms") or 0),
         "is_live": bool(item.get("is_live")),
         "stamp": str(item.get("stamp") or _mm_stamp_from_iso(started)),
         "thumb": str(item.get("thumb") or "").strip(),
@@ -20294,6 +20295,7 @@ _LIPTON_MM_REELS_VIDEOS = (
         "fb_sub": "Marine Megastore was live",
         "fb_owner_logo": "/assets/adverts/mm-lipton/fb-page-marine-megastore.jpg",
         "started_at": "2026-08-28T16:19:00+02:00",
+        "track_offset_ms": 36000,
         "stamp": "28 Aug · 16:19",
         "thumb": "/assets/adverts/mm-lipton/2622643364847262.jpg",
         "width": 1280,
@@ -27760,8 +27762,8 @@ def serve_regatta_standalone(slug: str, request: Request):
         if str(regatta_id) == "2026-08-29-lipton-challenge-cup":
             mm_card = _lipton_mm_reels_card_html(str(regatta_id))
             mm_card_js = (
-                '<script src="/js/mm-lipton-track-overlay.js?v=mmr52" defer></script>'
-                '<script src="/js/mm-lipton-reels-card.js?v=mmr52" defer></script>'
+                '<script src="/js/mm-lipton-track-overlay.js?v=mmr53" defer></script>'
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr53" defer></script>'
             )
         body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))

@@ -266,6 +266,26 @@
     return String(pass.mark || '1');
   }
 
+  function markPosForPass(pass, ts) {
+    if (!pass) return null;
+    var key = markKeyForPass(pass);
+    var pos = sampleAt((trail.marks || {})[key], ts);
+    if (pos) return { lat: pos.lat, lon: pos.lon, key: key, pass: pass };
+    if ((pass.label === 'Pin' || key === '4') && trail.start_line && trail.start_line.left) {
+      return { lat: trail.start_line.left.lat, lon: trail.start_line.left.lon, key: 'pin', pass: pass };
+    }
+    if ((pass.id === 'FIN' || pass.label === 'Fin') && trail.finish_line && trail.finish_line.left) {
+      var fl = trail.finish_line;
+      return {
+        lat: (fl.left.lat + fl.right.lat) / 2,
+        lon: (fl.left.lon + fl.right.lon) / 2,
+        key: 'fin',
+        pass: pass
+      };
+    }
+    return null;
+  }
+
   function priorNett(sail) {
     var pts = scores && scores.boats && scores.boats[sail] && scores.boats[sail].points;
     if (!pts) return 0;
@@ -295,10 +315,7 @@
         } else break;
       }
       var next = passes[done] || null;
-      var nextPos = null;
-      if (next && trail.marks) {
-        nextPos = sampleAt(trail.marks[markKeyForPass(next)], ts);
-      }
+      var nextPos = markPosForPass(next, ts);
       var pos = sampleAt(trail.boats[sail], ts);
       var toNext = nextPos && pos ? distM(pos, nextPos) : 1e8;
       rows.push({
@@ -340,6 +357,7 @@
       leader: leaderSail ? bySail[leaderSail] : front,
       gun: gun,
       ts: ts,
+      nextMark: front ? markPosForPass(passList()[front.done], ts) : null,
       target: (function () {
         var mk = sampleAt((trail.marks || {})['1'], ts);
         return mk;
@@ -622,7 +640,24 @@
     var pack = frontPack(live);
     var pts = packPoints(pack, ts);
     if (!pts.length) return;
+    var focus = live.nextMark;
+    var nearRound = !!(focus && pack[0] && pack[0].pos && distM(pack[0].pos, focus) < 280);
+    if (nearRound) {
+      pts.push(focus);
+      var brg = bearingDeg(pack[0].pos, focus);
+      pts.push(destPoint(focus, brg, 100));
+      pts.push(destPoint(focus, brg - 90, 90));
+      pts.push(destPoint(focus, brg + 90, 90));
+      if ((focus.key === 'pin' || focus.key === '4') && trail.start_line) {
+        if (trail.start_line.left) pts.push(trail.start_line.left);
+        if (trail.start_line.right) pts.push(trail.start_line.right);
+      }
+    }
     var cam = fitCam(pts, cssW, cssH, medianHdg(pack));
+    if (nearRound) {
+      var mp = xy(focus.lat, focus.lon, cam);
+      cam.cx += cssW * 0.38 - mp.x;
+    }
     ctx.clearRect(0, 0, cssW, cssH);
 
     var gun = live.gun;
@@ -645,6 +680,24 @@
       ctx.font = 'bold 9px sans-serif';
       ctx.textAlign = 'left';
       ctx.fillText('M' + mk, p.x + 6, p.y + 3);
+    }
+    if (nearRound && focus) {
+      var fp = xy(focus.lat, focus.lon, cam);
+      ctx.beginPath();
+      ctx.arc(fp.x, fp.y, 16, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(148,163,184,0.28)';
+      ctx.fill();
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(fp.x - 8, fp.y - 8, 16, 16);
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.2;
+      ctx.strokeRect(fp.x - 8, fp.y - 8, 16, 16);
+      ctx.fillStyle = '#0f172a';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      var lab = focus.key === 'pin' || focus.key === '4' ? 'Pin' : focus.key === 'fin' ? 'Fin' : String(focus.key);
+      ctx.fillText(lab, fp.x, fp.y + 0.5);
     }
 
     var raceLeader = live.front;

@@ -11,6 +11,7 @@
         "embed_url": "https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Fmarin.megastoresa%2Fvideos%2Flipton-race-7-1st-downwind%2F2622643364847262%2F&show_text=false",
         "title": "Lipton Race 7 1st downwind",
         "started_at": "2026-08-28T16:19:00+02:00",
+        "track_offset_ms": 36000,
         "is_live": false,
         "stamp": "28 Aug · 16:19",
         "thumb": "/assets/adverts/mm-lipton/2622643364847262.jpg",
