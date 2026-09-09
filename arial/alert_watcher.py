@@ -149,6 +149,11 @@ def meter_reading(p):
 
 def last_report_hhmm(p, now=None):
     sh = (p or {}).get("sharing") or {}
+    at = sh.get("meterLastReadingAt") or (p or {}).get("readingTs")
+    if isinstance(at, (int, float)) and at > 1e9:
+        if at > 1e12:
+            at = at / 1000.0
+        return datetime.datetime.fromtimestamp(float(at), SAST).strftime("%H:%M")
     age = sh.get("meterLastReportAgeS")
     if not isinstance(age, (int, float)) or age < 0:
         return ""
@@ -156,31 +161,45 @@ def last_report_hhmm(p, now=None):
     return (now - datetime.timedelta(seconds=float(age))).strftime("%H:%M")
 
 
-def compose_link(cfg, kind, reading, last, mains, mins=None):
+def last_reading_unix(p):
+    sh = (p or {}).get("sharing") or {}
+    at = sh.get("meterLastReadingAt") or (p or {}).get("readingTs")
+    if isinstance(at, (int, float)) and at > 1e9:
+        return float(at) / 1000.0 if at > 1e12 else float(at)
+    return 0.0
+
+
+def elapsed_label(seconds):
+    s = max(0, int(seconds))
+    h, rem = divmod(s, 3600)
+    m = rem // 60
+    if h and m:
+        return f"{h}h{m:02d}m"
+    if h:
+        return f"{h}h"
+    return f"{m}m"
+
+
+def alarm_ac_line(ac_ok):
+    return "Alarm AC off" if ac_ok is False else "Alarm AC on"
+
+
+def compose_link(cfg, kind, reading, last, ac_ok, elapsed_s=None):
     now = datetime.datetime.now(SAST)
     when = now.strftime("%d %b %y · %H:%M")
-    if kind == "down":
-        title = "Main breaker NO LINK"
-    elif kind == "nag":
-        title = f"Main breaker STILL NO LINK ({mins} min)" if mins else "Main breaker STILL NO LINK"
-    else:
-        title = "Main breaker LINK RESTORED"
-    extra = ""
+    ac = alarm_ac_line(ac_ok)
     if kind == "up":
-        extra = reading
-    else:
-        bits = []
-        if last:
-            bits.append(f"Last report {last}")
+        lines = [f"{cfg.get('label')} {when}", "Link restored", ac]
         if reading:
-            bits.append(f"last reading {reading}")
-        extra = " · ".join(bits)
-    lines = [f"{cfg.get('label')} {when}", title]
-    if extra:
-        lines.append(extra)
-    lines.append(f"Alarm mains: {mains}")
-    if kind != "up" and "FAILURE" in str(mains):
-        lines.append("Power off confirmed by alarm — readings 0 V / 0 A / 0 W")
+            lines.append(reading)
+    else:
+        el = elapsed_label(elapsed_s or 0)
+        loss = f"Link Loss : {last} > {el}" if last else f"Link Loss : {el}"
+        lines = [f"{cfg.get('label')} {when}", loss, ac]
+        if ac_ok is False:
+            lines.append("Power off confirmed by alarm — readings 0 V / 0 A / 0 W")
+        elif reading:
+            lines.append(reading)
     if cfg.get("url"):
         lines.append(cfg["url"])
     return "\n".join(lines)
@@ -208,7 +227,6 @@ def check_meter_link(site, cfg, watch, sent_times, act):
         return
     st = dict(watch.get(site) or {})
     ac_ok = ((act or {}).get("power") or {}).get("acOk")
-    mains = "Power OK" if ac_ok is not False else "A/C FAILURE (alarm on battery)"
     p = None
     try:
         p = get(f"{cfg['api']}/api/arial/tuya/probe?device_id={cfg['meter']}")
@@ -218,14 +236,18 @@ def check_meter_link(site, cfg, watch, sent_times, act):
         log.warning("%s meter probe: %s", site, e.__class__.__name__)
     reading = meter_reading(p) or st.get("last_reading") or ""
     last = last_report_hhmm(p) or st.get("last_hhmm") or ""
+    loss_at = last_reading_unix(p) or float(st.get("loss_at") or 0)
     if reading:
         st["last_reading"] = reading
     if last:
         st["last_hhmm"] = last
+    if loss_at:
+        st["loss_at"] = loss_at
     now = time.time()
+    elapsed_s = now - loss_at if loss_at else 0
     if linked:
         if st.get("down"):
-            if not send_admin(cfg, compose_link(cfg, "up", reading, last, mains), sent_times, site, "up"):
+            if not send_admin(cfg, compose_link(cfg, "up", reading, last, ac_ok, elapsed_s), sent_times, site, "up"):
                 watch[site] = st
                 return
         st["down"] = False
@@ -233,6 +255,7 @@ def check_meter_link(site, cfg, watch, sent_times, act):
         st["alerted"] = False
         st["last_alert"] = 0
         st["down_since"] = 0
+        st["loss_at"] = 0
         watch[site] = st
         return
     streak = int(st.get("streak") or 0) + 1
@@ -242,15 +265,14 @@ def check_meter_link(site, cfg, watch, sent_times, act):
         return
     if not st.get("down"):
         st["down"] = True
-        st["down_since"] = now
+        st["down_since"] = loss_at or now
     last_alert = float(st.get("last_alert") or 0)
     if not st.get("alerted"):
-        if send_admin(cfg, compose_link(cfg, "down", reading, last, mains), sent_times, site, "down"):
+        if send_admin(cfg, compose_link(cfg, "down", reading, last, ac_ok, elapsed_s), sent_times, site, "down"):
             st["alerted"] = True
             st["last_alert"] = now
     elif now - last_alert >= LINK_NAG_S:
-        mins = int(max(30, round((now - float(st.get("down_since") or now)) / 60)))
-        if send_admin(cfg, compose_link(cfg, "nag", reading, last, mains, mins), sent_times, site, "nag"):
+        if send_admin(cfg, compose_link(cfg, "nag", reading, last, ac_ok, elapsed_s), sent_times, site, "nag"):
             st["last_alert"] = now
     watch[site] = st
 

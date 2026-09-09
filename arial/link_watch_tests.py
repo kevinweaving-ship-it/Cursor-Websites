@@ -37,21 +37,27 @@ class ComposeLinkTest(unittest.TestCase):
     cfg = {"label": "Hansekop", "url": "https://sailingsa.co.za/arial/"}
 
     def test_down_keeps_snapshot(self):
-        text = w.compose_link(self.cfg, "down", "231.7 V / 0.30 A / 67 W", "08:19", "Power OK")
-        self.assertIn("Main breaker NO LINK", text)
-        self.assertIn("Last report 08:19", text)
-        self.assertIn("last reading 231.7 V / 0.30 A / 67 W", text)
-        self.assertIn("Alarm mains: Power OK", text)
+        text = w.compose_link(self.cfg, "down", "231.7 V / 0.30 A / 67 W", "08:31", True, 90 * 60)
+        self.assertIn("Link Loss : 08:31 > 1h30m", text)
+        self.assertIn("Alarm AC on", text)
+        self.assertIn("231.7 V / 0.30 A / 67 W", text)
         self.assertNotIn("readings 0 V", text)
 
     def test_down_alarm_fail_zeros(self):
-        text = w.compose_link(self.cfg, "down", "", "08:19", "A/C FAILURE (alarm on battery)")
+        text = w.compose_link(self.cfg, "down", "", "08:31", False, 30 * 60)
+        self.assertIn("Link Loss : 08:31 > 30m", text)
+        self.assertIn("Alarm AC off", text)
         self.assertIn("Power off confirmed by alarm — readings 0 V / 0 A / 0 W", text)
 
     def test_restore(self):
-        text = w.compose_link(self.cfg, "up", "230.1 V / 0.10 A / 22 W", "08:47", "Power OK")
-        self.assertIn("LINK RESTORED", text)
+        text = w.compose_link(self.cfg, "up", "230.1 V / 0.10 A / 22 W", "08:47", True)
+        self.assertIn("Link restored", text)
+        self.assertIn("Alarm AC on", text)
         self.assertIn("230.1 V / 0.10 A / 22 W", text)
+
+    def test_elapsed_label(self):
+        self.assertEqual(w.elapsed_label(90 * 60), "1h30m")
+        self.assertEqual(w.elapsed_label(5 * 60), "5m")
 
 
 if __name__ == "__main__":
