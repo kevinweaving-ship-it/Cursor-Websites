@@ -51,6 +51,8 @@
   var markLock = null;
   var loadGen = 0;
   var heldIconStep = 1;
+  var tightMarkHold = false;
+  var heldSceneScale = null;
 
   function clipR(race, kind, extra) {
     var o = { race: race, kind: kind || 'round', approach: 'rtl', holdN: 6, offsetMs: 0 };
@@ -114,6 +116,8 @@
       markLock = null;
       camPhase = '';
       heldIconStep = 1;
+      tightMarkHold = false;
+      heldSceneScale = null;
     }
     clipId = String(id || '');
     clipRule = rule;
@@ -519,7 +523,8 @@
       hdg: cam.hdg,
       cx: cam.cx,
       cy: cam.cy,
-      flipX: cam.flipX
+      flipX: cam.flipX,
+      lockMark: cam.lockMark
     };
   }
 
@@ -555,6 +560,12 @@
     heldCam.sinH = target.sinH;
     heldCam.hdg = target.hdg;
     heldCam.flipX = target.flipX;
+    if (target.lockMark) {
+      heldCam.midLat = target.midLat;
+      heldCam.midLon = target.midLon;
+      heldCam.cy = target.cy;
+      heldCam.lockMark = true;
+    }
     heldCam.scale = heldCam.scaleX;
     heldCam.w = target.w;
     heldCam.h = target.h;
@@ -655,10 +666,10 @@
     });
     var k = Math.max(2, Math.ceil(rows.length * 0.65));
     if (k > rows.length) k = rows.length;
-    var lo = 0;
-    var hi = 0;
-    var minC = 0;
-    var maxC = 0;
+    var lo = Infinity;
+    var hi = -Infinity;
+    var minC = Infinity;
+    var maxC = -Infinity;
     var seen = {};
     function eat(item) {
       if (!item || seen[item.sail]) return;
@@ -672,43 +683,119 @@
     for (i = 0; i < rows.length; i++) {
       if (front && rows[i].sail === front.sail) eat(rows[i]);
     }
+    if (lo === Infinity) {
+      lo = 0;
+      hi = 0;
+      minC = 0;
+      maxC = 0;
+    }
     return { lo: lo, hi: hi, minC: minC, maxC: maxC };
   }
 
-  /* Pin on the far left. Zoom so Pin + 60–70% of the fleet fill the width.
-   * 1st always in view. Stragglers stay off-frame until they sail into that
-   * pack. Scale from that along span only. Do not shrink X to fit Y —
-   * after rounding, boats stay on the right side instead of sailing down. */
-  function pinLeftCam(mark, pack, live, w, h, hdg) {
+  function boatSpeedMps(sail, ts) {
+    var series = trail.boats && trail.boats[sail];
+    var now = sampleAt(series, ts);
+    var prev = sampleAt(series, ts - 4000);
+    if (!now || !prev) return 3;
+    var v = distM(now, prev) / 4;
+    return v > 0.5 ? v : 0.5;
+  }
+
+  function secsToMark(row, mark, ts) {
+    if (!row || !row.pos || !mark) return 1e9;
+    return distM(row.pos, mark) / boatSpeedMps(row.sail, ts);
+  }
+
+  function nRoundedPass(pass, ts) {
+    var boats = (pass && pass.boats) || [];
+    var n = 0;
+    var i;
+    for (i = 0; i < boats.length; i++) {
+      var t = boats[i] && (boats[i].ts_ms != null ? Number(boats[i].ts_ms) : Number(boats[i].ts));
+      if (t != null && t <= ts) n += 1;
+    }
+    return n;
+  }
+
+  function stillIncomingTo(row, mark, live) {
+    if (!row || !mark) return false;
+    var nxt = markPosForPass(passList()[row.done], live && live.ts);
+    return !!(nxt && String(nxt.key) === String(mark.key));
+  }
+
+  function roundingMode(mark, live) {
+    var front = live && live.front;
+    var nR = nRoundedPass(mark && mark.pass, live && live.ts);
+    var incoming = stillIncomingTo(front, mark, live);
+    var tta = secsToMark(front, mark, live && live.ts);
+    var wasTight = tightMarkHold;
+    if (incoming && tta <= 10) tightMarkHold = true;
+    if (nR >= 5) tightMarkHold = false;
+    if (tightMarkHold && !wasTight) heldSceneScale = null;
+    if (tightMarkHold) return 'tight';
+    if (nR >= 5 || (front && !incoming)) return 'pack';
+    return 'approach';
+  }
+
+  /* Mark stays upper-left — never against the bottom. 1st always in view.
+   * Do not shrink X to fit Y. After rounding, boats stay on the right side instead of sailing down.
+   * Zoom in when 1st is 10s from the mark. Hold until 4–5 boats round. Then zoom
+   * out in small steps so 1st stays in view with 60–70% of the fleet. 1st sits
+   * far right and the last of that pack sits left; the mark can leave left. */
+  function pinLeftCam(mark, pack, live, w, h, hdg, mode) {
     var win = coreFleetAlong(mark, pack, live, hdg);
-    var lo = win.lo;
-    var hi = win.hi;
-    if (lo > 0) lo = 0;
-    if (hi < 0) hi = 0;
-    var pinLeft = Math.max(24, w * 0.08);
-    var rightPad = 48;
-    var padY = 18;
-    var spanAlong = Math.max(48, (hi - lo) * 1.06);
-    var scale = (w - pinLeft - rightPad) / spanAlong;
-    if (!(scale > 0.08)) scale = 0.08;
-    var rad = ((hdg || 0) * Math.PI) / 180;
-    var cx = pinLeft;
     var front = live && live.front;
     var frontAA = front && front.pos ? alongAcross(front.pos, mark, hdg) : null;
+    var pinLeft = Math.max(28, w * 0.1);
+    var rightPad = 52;
+    var lo;
+    var hi;
+    if (mode === 'tight') {
+      lo = frontAA ? Math.min(frontAA.along, -40) : -40;
+      hi = 8;
+    } else if (mode === 'pack') {
+      lo = win.lo;
+      hi = win.hi;
+      if (frontAA && frontAA.along < lo) lo = frontAA.along;
+    } else {
+      lo = win.lo;
+      hi = win.hi;
+      if (lo > 0) lo = 0;
+      if (hi < 0) hi = 0;
+    }
+    var spanAlong = Math.max(mode === 'tight' ? 52 : 48, (hi - lo) * 1.06);
+    var scale = (w - pinLeft - rightPad) / spanAlong;
+    if (!(scale > 0.08)) scale = 0.08;
+    /* Mark in the upper third, never against the bottom. */
+    var cy = Math.max(36, Math.min(h * 0.34, h * 0.4));
+    var below = Math.max(36, h - cy - 24);
+    var needAcross = Math.max(
+      20,
+      Math.abs(win.minC),
+      Math.abs(win.maxC),
+      frontAA ? Math.abs(frontAA.across) : 0
+    );
+    var scaleYfit = below / needAcross;
+    if (scaleYfit > 0 && scale > scaleYfit) scale = scaleYfit;
+    if (frontAA) {
+      var alongNeed = Math.abs(frontAA.along);
+      if (alongNeed > 8) {
+        var scaleX1 = (w - pinLeft - rightPad) / alongNeed;
+        if (scale > scaleX1) scale = scaleX1;
+      }
+    }
+    if (heldSceneScale != null && mode !== 'approach' && scale > heldSceneScale) scale = heldSceneScale;
+    heldSceneScale = scale;
+    var rad = ((hdg || 0) * Math.PI) / 180;
+    var cx = pinLeft;
+    if (mode === 'pack' && frontAA) {
+      cx = w - rightPad + frontAA.along * scale;
+    }
     if (frontAA) {
       var x1 = cx - frontAA.along * scale;
       if (x1 > w - rightPad) cx -= x1 - (w - rightPad);
-      if (x1 < pinLeft) cx += pinLeft - x1;
+      if (mode !== 'pack' && x1 < pinLeft) cx += pinLeft - x1;
     }
-    var midC = (win.minC + win.maxC) / 2;
-    var cy = h / 2 + midC * scale;
-    if (frontAA) {
-      var y1 = cy - frontAA.across * scale;
-      if (y1 < padY) cy += padY - y1;
-      if (y1 > h - padY) cy -= y1 - (h - padY);
-    }
-    if (cy < padY) cy = padY;
-    if (cy > h - padY) cy = h - padY;
     return {
       midLat: mark.lat,
       midLon: mark.lon,
@@ -723,7 +810,8 @@
       hdg: hdg || 0,
       flipX: true,
       cx: cx,
-      cy: cy
+      cy: cy,
+      lockMark: true
     };
   }
 
@@ -872,18 +960,25 @@
     if (focus && focus.lat != null) {
       var fp = xy(focus.lat, focus.lon, cam);
       ctx.beginPath();
-      ctx.arc(fp.x, fp.y, 14, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(248,250,252,0.95)';
-      ctx.lineWidth = 3;
+      ctx.arc(fp.x, fp.y, 22, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(248,250,252,0.98)';
+      ctx.lineWidth = 4;
       ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(fp.x, fp.y, 7, 0, Math.PI * 2);
+      ctx.fillStyle = '#38bdf8';
+      ctx.fill();
       var fromPt = m1 || (trail.start_line && trail.start_line.right);
       if (fromPt) drawRoundArrow(ctx, cam, focus, fromPt, '#38bdf8');
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 13px sans-serif';
+      ctx.font = 'bold 14px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
+      ctx.shadowColor = 'rgba(0,0,0,0.85)';
+      ctx.shadowBlur = 4;
       var lab = focus.key === 'pin' || focus.key === '4' ? 'Pin' : focus.key === 'fin' ? 'Fin' : focus.key === '1' ? 'M1' : 'Mark';
-      ctx.fillText(lab, fp.x, fp.y - 22);
+      ctx.fillText(lab, fp.x, fp.y - 32);
+      ctx.shadowBlur = 0;
     }
   }
 
@@ -1252,12 +1347,14 @@
           hdg: hdg,
           flipX: true,
           markX: markX,
-          markY: 0.38,
+          markY: 0.34,
           scaleX: sc.scaleX,
           scaleY: sc.scaleY,
-          panX: 0
+          panX: 0,
+          pass: focus.pass || null
         };
       }
+      if (markLock && focus && focus.pass) markLock.pass = focus.pass;
     }
 
     camPhase = phase;
@@ -1282,6 +1379,8 @@
       markLock = null;
       camPhase = '';
       heldIconStep = 1;
+      tightMarkHold = false;
+      heldSceneScale = null;
     }
     var live = ranksAt(ts);
     var plan = camPlan(live, cssW, cssH);
@@ -1293,8 +1392,9 @@
     var cam;
     var camOpts = { minAlong: 40, minAcross: 28, padAlong: 1.18, padAcross: 1.35, padX: 70, padY: 28, flipX: true };
     if (nearRound && markLock) {
-      setTrackHeight(canvas, 0.72);
-      cam = pinLeftCam(markLock, pack, live, cssW, cssH, markLock.hdg);
+      setTrackHeight(canvas, 0.74);
+      var mode = roundingMode(markLock, live);
+      cam = pinLeftCam(markLock, pack, live, cssW, cssH, markLock.hdg, mode);
       cam.flipX = true;
       cam = easeCam(cam, ts);
     } else {
