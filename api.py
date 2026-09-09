@@ -20451,9 +20451,18 @@ _LIPTON_MM_REELS_CSS = (
     ".mm-lipton-reels-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0.35rem 0.35rem;margin-top:0.4rem}"
     ".mm-lipton-reels-grid-item{min-width:0}"
     ".mm-lipton-reels-waiting{margin:0;font-size:0.85rem;color:#334155}"
-    "@media (orientation:landscape) and (max-height:500px){"
-    ".mm-lipton-reels--expanded .mm-lipton-reels-stage{position:fixed;inset:0;z-index:200;width:100vw;height:100dvh;max-width:none;border-radius:0;border:0;aspect-ratio:auto}"
-    ".mm-lipton-reels--expanded .mm-lipton-reels-hide{position:fixed;top:8px;right:8px;z-index:201}"
+    "@media (orientation:landscape) and (max-height:540px){"
+    ".mm-lipton-reels--expanded .mm-lipton-reels-grid{display:none!important}"
+    ".mm-lipton-reels--expanded .mm-lipton-reels-expanded-bar{position:static;height:0;margin:0;overflow:visible}"
+    ".mm-lipton-reels--expanded .mm-lipton-reels-stage{position:fixed;inset:0;z-index:200;width:100vw;height:100dvh;max-width:none;border-radius:0;border:0;aspect-ratio:auto;isolation:isolate;-webkit-transform:translateZ(0);transform:translateZ(0)}"
+    ".mm-lipton-reels--expanded .mm-lipton-reels-stage video{z-index:0;-webkit-transform:translateZ(0);transform:translateZ(0)}"
+    ".mm-lipton-reels--expanded .mm-lipton-reels-player-ui{z-index:5;-webkit-transform:translate3d(0,0,1px);transform:translate3d(0,0,1px)}"
+    ".mm-lipton-reels--expanded .mm-lipton-reels-clip-chrome--overlay{z-index:6;top:env(safe-area-inset-top,0);left:env(safe-area-inset-left,0);-webkit-transform:translate3d(0,0,2px);transform:translate3d(0,0,2px)}"
+    ".mm-lipton-reels--expanded .mm-lipton-reels-player-toggle{width:56px;height:56px;-webkit-transform:translate3d(-50%,-50%,2px);transform:translate3d(-50%,-50%,2px)}"
+    ".mm-lipton-reels--expanded .mm-lipton-reels-skip{width:52px;height:52px;font-size:2.4rem;-webkit-transform:translate3d(0,-50%,2px);transform:translate3d(0,-50%,2px)}"
+    ".mm-lipton-reels--expanded .mm-lipton-reels-skip--prev{left:max(4px,env(safe-area-inset-left,0px))}"
+    ".mm-lipton-reels--expanded .mm-lipton-reels-skip--next{right:max(4px,env(safe-area-inset-right,0px))}"
+    ".mm-lipton-reels--expanded .mm-lipton-reels-hide{position:fixed;top:max(8px,env(safe-area-inset-top,0px));right:max(8px,env(safe-area-inset-right,0px));z-index:201}"
     "}"
     "@media (min-width:720px){.mm-lipton-reels-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}"
     "@media (min-width:1024px){.mm-lipton-reels-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}"
@@ -27420,7 +27429,7 @@ def serve_regatta_standalone(slug: str, request: Request):
         mm_card_js = ""
         if str(regatta_id) == "2026-08-29-lipton-challenge-cup":
             mm_card = _lipton_mm_reels_card_html(str(regatta_id))
-            mm_card_js = '<script src="/js/mm-lipton-reels-card.js?v=mmr29" defer></script>'
+            mm_card_js = '<script src="/js/mm-lipton-reels-card.js?v=mmr30" defer></script>'
         body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()
