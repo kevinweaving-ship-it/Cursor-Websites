@@ -193,9 +193,9 @@
   function applyFrozenChrome(root, snap) {
     var el = root.querySelector('.mm-lipton-reels-clip-chrome--overlay');
     if (!el || !snap) return;
-    el.style.width = snap.w + 'px';
-    el.style.maxWidth = snap.w + 'px';
-    el.style.setProperty('--mm-chrome-w', snap.w + 'px');
+    el.style.width = 'auto';
+    el.style.maxWidth = 'none';
+    el.style.background = 'none';
     if (snap.gap) el.style.setProperty('--mm-chrome-gap', snap.gap);
     if (snap.pad) el.style.setProperty('--mm-chrome-pad', snap.pad);
     if (snap.logo) el.style.setProperty('--mm-chrome-logo', snap.logo + 'px');
