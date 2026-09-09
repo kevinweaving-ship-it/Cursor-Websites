@@ -451,44 +451,9 @@
     return { minLat: minLat, maxLat: maxLat, minLon: minLon, maxLon: maxLon };
   }
 
-  function trackMinGapM(rows) {
-    var min = 1e9;
-    var i;
-    var j;
-    for (i = 0; i < rows.length; i++) {
-      for (j = i + 1; j < rows.length; j++) {
-        var dlat = (rows[i].lat - rows[j].lat) * 110540;
-        var dlon =
-          (rows[i].lon - rows[j].lon) *
-          111320 *
-          Math.cos((rows[i].lat * Math.PI) / 180);
-        var d = Math.sqrt(dlat * dlat + dlon * dlon);
-        if (d < min) min = d;
-      }
-    }
-    return min;
-  }
-
   function pickFrontPack(ranked, cssW, cssH) {
     if (!ranked.length) return [];
-    var pad = 16;
-    var usableW = Math.max(40, cssW - pad * 2);
-    var usableH = Math.max(28, cssH - pad * 2);
-    var pack = [ranked[0]];
-    var i;
-    for (i = 1; i < ranked.length; i++) {
-      var trial = pack.concat([ranked[i]]);
-      var b = trackBounds(trial);
-      var midLat = (b.minLat + b.maxLat) / 2;
-      var spanN = Math.max(18, (b.maxLat - b.minLat) * 110540);
-      var spanE = Math.max(18, (b.maxLon - b.minLon) * 111320 * Math.cos((midLat * Math.PI) / 180));
-      var scale = Math.min(usableW / spanE, usableH / spanN);
-      var gap = trial.length < 2 ? 999 : trackMinGapM(trial) * scale;
-      if (trial.length > 1 && (gap < 16 || scale < 0.35)) break;
-      pack = trial;
-      if (pack.length >= 8) break;
-    }
-    return pack;
+    return ranked.slice(0, Math.min(6, ranked.length));
   }
 
   function drawTrackBoat(ctx, x, y, hdg, place, r) {
@@ -564,7 +529,7 @@
     var scale = Math.min(usableW / spanE, usableH / spanN);
     var originN = midLat * 110540;
     var originE = midLon * 111320 * Math.cos((midLat * Math.PI) / 180);
-    var r = Math.max(7, Math.min(11, 8 + pack.length * 0.2));
+    var r = Math.max(6, Math.min(10, cssH / 7.5));
     for (i = pack.length - 1; i >= 0; i--) {
       var row = pack[i];
       var north = row.lat * 110540;
