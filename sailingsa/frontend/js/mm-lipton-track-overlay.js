@@ -529,7 +529,10 @@
       !heldCam ||
       !heldCamTs ||
       Math.abs(ts - heldCamTs) > 1800 ||
-      heldCam.w !== target.w
+      heldCam.w !== target.w ||
+      !isFinite(heldCam.scaleX) ||
+      heldCam.scaleX < target.scaleX * 0.35 ||
+      heldCam.scaleX > target.scaleX * 3
     ) {
       heldCam = copyCam(target);
       heldCamTs = ts;
@@ -594,8 +597,10 @@
     var spanAcross = Math.max(minAcross, maxC - minC) * (opts.padAcross || 1.4);
     var padX = opts.padX != null ? opts.padX : 72;
     var padY = opts.padY != null ? opts.padY : 22;
+    var scaleX = (w - padX * 2) / spanAlong;
+    var scaleY = (h - padY * 2) / spanAcross;
     var scaleFit = Math.min(scaleX, scaleY);
-    if (!(scaleFit > 0.04)) scaleFit = 0.04;
+    if (!(scaleFit > 0.08)) scaleFit = 0.08;
     scaleX = scaleFit;
     scaleY = scaleFit;
     var midAlong = (minA + maxA) / 2;
@@ -888,15 +893,15 @@
   }
 
   /* One size for every boat in view. Step down when bunched so labels stay readable; step up together when there is gap. */
-  var ICON_STEPS = [8, 10, 12];
+  var ICON_STEPS = [10, 12, 14];
 
   function collectiveBoatR(cam, pack) {
     var gap = minBoatGapPx(cam, pack);
     var i = heldIconStep;
     if (i < 0 || i >= ICON_STEPS.length) i = 1;
     if (gap < Infinity) {
-      while (i > 0 && gap < ICON_STEPS[i] * 2 + 40) i -= 1;
-      while (i < ICON_STEPS.length - 1 && gap > ICON_STEPS[i + 1] * 2 + 58) i += 1;
+      while (i > 0 && gap < ICON_STEPS[i] * 2 + 44) i -= 1;
+      while (i < ICON_STEPS.length - 1 && gap > ICON_STEPS[i + 1] * 2 + 62) i += 1;
     }
     heldIconStep = i;
     return ICON_STEPS[i];
@@ -940,20 +945,20 @@
     var total = row.start != null && row.racePlace != null ? row.start - row.racePlace : null;
     var series = trail.boats && trail.boats[sail];
     var hdg = screenNoseRad(series, row.pos, cam, live.ts);
-    var placePx = Math.max(6, Math.min(Math.round(r * 1.15), Math.round(r * 1.6)));
-    var labPx = Math.max(8, Math.min(12, Math.round(r * 1.05)));
+    var placePx = Math.max(8, Math.min(Math.round(r * 1.15), Math.round(r * 1.45)));
+    var labPx = Math.max(10, Math.min(13, Math.round(r * 0.95)));
     if (overallPos && overallPos <= 3) {
       ctx.beginPath();
-      ctx.arc(p.x, p.y, r + 2.4, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, r + 2.2, 0, Math.PI * 2);
       ctx.strokeStyle = OVERALL_STICKER[overallPos];
-      ctx.lineWidth = Math.max(1.2, r * 0.22);
+      ctx.lineWidth = 2;
       ctx.stroke();
     }
-    if (isLeader) {
+    if (isFront) {
       ctx.beginPath();
-      ctx.arc(p.x, p.y, r + 1.6, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, r + 0.8, 0, Math.PI * 2);
       ctx.strokeStyle = 'rgba(250,204,21,0.95)';
-      ctx.lineWidth = Math.max(1.1, r * 0.2);
+      ctx.lineWidth = 1.6;
       ctx.stroke();
     }
     drawBoatIcon(ctx, p, hdg, paint, r);
@@ -974,14 +979,15 @@
     ctx.shadowBlur = 0;
     var cw = ctx.measureText(club).width;
     drawDelta(ctx, lx + cw + 3, ly, total, 'left');
-    if (r >= 7 && isLeader) {
+    if (isFront) {
       ctx.fillStyle = '#facc15';
       ctx.font = 'bold ' + labPx + 'px sans-serif';
-      ctx.fillText('LEADER', lx, ly - (sameLead ? r + 7 : r + 16));
-    } else if (r >= 7 && isFront) {
-      ctx.fillStyle = 'rgba(248,113,113,0.95)';
+      ctx.fillText('RACE', lx, ly - r - 8);
+    }
+    if (overallPos === 1) {
+      ctx.fillStyle = '#facc15';
       ctx.font = 'bold ' + labPx + 'px sans-serif';
-      ctx.fillText('FRONT', lx, ly - (r + 4));
+      ctx.fillText('OVERALL', lx, ly - r - (isFront ? 22 : 8));
     }
   }
 
@@ -1106,9 +1112,9 @@
     if (!pts.length) return;
     var nearRound = plan.phase === 'hold' || plan.phase === 'approach-mark';
     var cam;
-    var camOpts = { minAlong: 18, minAcross: 16, padAlong: 1.22, padAcross: 1.28, padX: 72, padY: 20, flipX: true };
+    var camOpts = { minAlong: 22, minAcross: 18, padAlong: 1.28, padAcross: 1.32, padX: 84, padY: 22, flipX: true };
     if ((plan.phase === 'hold' || plan.phase === 'approach-mark') && markLock) {
-      setTrackHeight(canvas, 0.58);
+      setTrackHeight(canvas, 0.66);
       cam = fitCam(pts, cssW, cssH, markLock.hdg, camOpts);
       cam.flipX = true;
       cam = easeCam(cam, ts);
