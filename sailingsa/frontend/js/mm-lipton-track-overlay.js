@@ -111,24 +111,27 @@
     return hdg < 0 ? hdg + 360 : hdg;
   }
 
-  /* Nose follows the on-screen GPS track (after RTL + width stretch), not raw geo heading. */
-  function screenNoseRad(series, pos, cam) {
-    if (!pos || !series) return (3 * Math.PI) / 2;
-    var k = hitBack(series, (pos.i != null ? pos.i : 0) - 1);
-    var n = 0;
-    while (k >= 0 && n < 16) {
+  /* Nose continues the on-screen wake (oldest→newest GPS), never into the tail. */
+  function screenNoseRad(series, pos, cam, ts) {
+    var hits = tailHits(series, ts);
+    var a;
+    var b;
+    if (hits && hits.length >= 2) {
+      a = xy(hits[0].lat, hits[0].lon, cam);
+      b = xy(hits[hits.length - 1].lat, hits[hits.length - 1].lon, cam);
+    } else if (pos && series) {
+      var k = hitBack(series, (pos.i != null ? pos.i : 0) - 8);
       var prev = ptAt(series, k);
-      if (prev && distM(prev, pos) >= 3) {
-        var a = xy(prev.lat, prev.lon, cam);
-        var b = xy(pos.lat, pos.lon, cam);
-        var dx = b.x - a.x;
-        var dy = b.y - a.y;
-        if (dx * dx + dy * dy > 0.4) return Math.atan2(dy, dx) + Math.PI / 2;
-      }
-      k = hitBack(series, k - 1);
-      n += 1;
+      if (!prev) return -Math.PI / 2;
+      a = xy(prev.lat, prev.lon, cam);
+      b = xy(pos.lat, pos.lon, cam);
+    } else {
+      return -Math.PI / 2;
     }
-    return Math.atan2(0, -1) + Math.PI / 2;
+    var dx = b.x - a.x;
+    var dy = b.y - a.y;
+    if (dx * dx + dy * dy < 4) return -Math.PI / 2;
+    return Math.atan2(dx, -dy);
   }
 
   function distM(a, b) {
@@ -335,6 +338,7 @@
       front: front,
       leader: leaderSail ? bySail[leaderSail] : front,
       gun: gun,
+      ts: ts,
       target: (function () {
         var mk = sampleAt((trail.marks || {})['1'], ts);
         return mk;
@@ -346,7 +350,7 @@
     var hs = [];
     var i;
     for (i = 0; i < rows.length; i++) {
-      if (rows[i] && rows[i].pos) hs.push(rows[i].hdg || 0);
+      if (rows[i] && rows[i].pos && rows[i].hdg) hs.push(rows[i].hdg);
     }
     if (!hs.length) return 90;
     hs.sort(function (a, b) {
@@ -540,7 +544,7 @@
     var isFront = live.front && live.front.sail === sail;
     var total = row.start != null && row.racePlace != null ? row.start - row.racePlace : null;
     var series = trail.boats && trail.boats[sail];
-    var noseRad = screenNoseRad(series, row.pos, cam);
+    var noseRad = screenNoseRad(series, row.pos, cam, live.ts);
     if (overallPos && overallPos <= 3) {
       ctx.beginPath();
       ctx.arc(p.x, p.y, r + 6, 0, Math.PI * 2);
