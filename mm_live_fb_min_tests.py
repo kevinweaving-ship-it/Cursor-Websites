@@ -100,11 +100,11 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("playsinline", js)
         src = Path("api.py").read_text(encoding="utf-8")
         self.assertIn('row["play_url"]', src)
-        self.assertIn("mmr48", src)
+        self.assertIn("mmr49", src)
         self.assertIn("mm-lipton-track-overlay.js", src)
         self.assertLess(
             src.find("mm-lipton-track-overlay.js"),
-            src.find("mm-lipton-reels-card.js?v=mmr48"),
+            src.find("mm-lipton-reels-card.js?v=mmr49"),
         )
         self.assertIn("scrollTo", js)
         self.assertIn("bumpSlide", js)
@@ -118,8 +118,8 @@ class LiptonMmCardUnitTest(unittest.TestCase):
             ".mm-lipton-reels-hide{pointer-events:auto;min-height:44px;min-width:44px;margin:0;padding:0 6px;border:0;background:none;color:#64748b",
             src,
         )
-        self.assertIn(".mm-lipton-reels-track{position:absolute;left:0;right:0;bottom:0;height:33.333%;z-index:3;pointer-events:none;display:none;background:none}", src)
-        self.assertNotIn(".mm-lipton-reels-track{position:absolute;left:0;right:0;bottom:0;height:33.333%;z-index:3;pointer-events:none;display:none;background:linear-gradient", src)
+        self.assertIn(".mm-lipton-reels-track{position:absolute;left:0;right:0;bottom:0;height:50%;z-index:3;pointer-events:none;display:none;background:none}", src)
+        self.assertNotIn(".mm-lipton-reels-track{position:absolute;left:0;right:0;bottom:0;height:50%;z-index:3;pointer-events:none;display:none;background:linear-gradient", src)
         self.assertIn(".mm-lipton-reels-race+.mm-lipton-reels-race{margin-top:10px;padding-top:10px;border-top:4px solid #001f3f}", src)
         self.assertIn(".mm-lipton-reels-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;margin-top:0;overflow-anchor:none}", src)
         self.assertIn(".mm-lipton-reels-expanded-bar{position:absolute;top:0;right:0;z-index:6", src)
@@ -153,6 +153,8 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("boatPaint", overlay)
         self.assertIn("drawBoatIcon", overlay)
         self.assertIn("go-live", js)
+        self.assertIn("playbackRate = 1", js)
+        self.assertIn("One video second = one tracking second", js)
         self.assertIn("def _mm_lipton_clip_race", src)
         self.assertIn("_LIPTON_MM_RACE_GUNS", src)
         self.assertIn("2026-08-26T11:30:01+02:00", src)

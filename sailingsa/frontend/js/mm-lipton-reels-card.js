@@ -115,6 +115,7 @@
       video.defaultMuted = false;
       video.volume = 1;
       video.playsInline = true;
+      video.playbackRate = 1;
       video.controls = false;
       video.removeAttribute('controls');
       video.preload = 'auto';
@@ -391,9 +392,10 @@
     var ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    /* Live reel go-live stamp = tracking clock. A few seconds of FB lag is close enough. */
+    /* Live go-live stamp + video time at 1x. One video second = one tracking second. */
     var startMs = Date.parse(String(trackClip.started_at || ''));
     if (startMs !== startMs) return;
+    if (video.playbackRate !== 1) video.playbackRate = 1;
     var ts = startMs + (Number(video.currentTime) || 0) * 1000;
     overlay.draw(canvas, ts, cssW, cssH);
   }
@@ -458,6 +460,7 @@
     video.playsInline = true;
     video.setAttribute('playsinline', '');
     video.setAttribute('webkit-playsinline', '');
+    video.playbackRate = 1;
     video.removeAttribute('muted');
     video.removeAttribute('controls');
     video.controls = false;
