@@ -20042,12 +20042,18 @@ def _mm_normalize_video(item: dict) -> Optional[dict]:
     permalink = str(item.get("permalink") or url).strip()
     embed = str(item.get("embed_url") or "").strip() or _mm_embed_src(permalink or url)
     started = str(item.get("started_at") or "").strip()
+    title = str(item.get("title") or "").strip()
     return {
         "id": vid,
         "url": url,
         "permalink": permalink,
         "embed_url": embed,
-        "title": str(item.get("title") or "").strip(),
+        "title": title,
+        "fb_title": str(item.get("fb_title") or title).strip(),
+        "fb_sub": str(item.get("fb_sub") or "").strip(),
+        "fb_owner_logo": str(item.get("fb_owner_logo") or "").strip(),
+        "fb_page": str(item.get("fb_page") or "").strip(),
+        "play_url": str(item.get("play_url") or "").strip(),
         "started_at": started,
         "is_live": bool(item.get("is_live")),
         "stamp": str(item.get("stamp") or _mm_stamp_from_iso(started)),
@@ -20113,6 +20119,9 @@ def _mm_feed_payload(regatta_id: str) -> dict:
         if n:
             videos.append(n)
     videos = _mm_sorted_newest(videos)
+    start, end = _mm_regatta_date_window(rid)
+    videos = [v for v in videos if _mm_video_matches_event(v, start, end)]
+    videos = _mm_apply_page_chrome(videos)
     enabled = _mm_live_fb_is_enabled(rid)
     return {
         "enabled": enabled,
@@ -20481,19 +20490,102 @@ _LIPTON_MM_REELS_CSS = (
 )
 
 
+def _mm_as_date(value):
+    d = _event_date_only(value)
+    if d is not None:
+        return d
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    try:
+        return datetime.fromisoformat(raw.replace("Z", "+00:00")).date()
+    except Exception:
+        pass
+    try:
+        return datetime.strptime(raw[:10], "%Y-%m-%d").date()
+    except Exception:
+        return None
+
+
+def _mm_regatta_date_window(regatta_id: str):
+    """Event start/end dates for the regatta. None, None if unknown."""
+    rid = str(regatta_id or "").strip()
+    if not rid:
+        return None, None
+    try:
+        if not table_exists("regattas"):
+            return None, None
+        row = one(
+            "SELECT start_date, end_date FROM regattas WHERE CAST(regatta_id AS text) = %s LIMIT 1",
+            rid,
+        )
+    except Exception:
+        return None, None
+    if not row:
+        return None, None
+    start = _mm_as_date(row[0] if not isinstance(row, dict) else row.get("start_date"))
+    end = _mm_as_date(row[1] if not isinstance(row, dict) else row.get("end_date")) or start
+    return start, end
+
+
+def _mm_video_matches_event(item, start, end) -> bool:
+    """Keep a clip only when its date sits inside the event window."""
+    if start is None and end is None:
+        return True
+    vd = _mm_as_date((item or {}).get("started_at"))
+    if vd is None:
+        return False
+    if start is not None and vd < start:
+        return False
+    if end is not None and vd > end:
+        return False
+    return True
+
+
+def _mm_apply_page_chrome(videos: list) -> list:
+    """Paint FB page chrome (logo / live label / title) onto every clip from that fetch."""
+    page_logo = ""
+    page_sub = ""
+    page = ""
+    for v in videos or []:
+        if not page_logo:
+            page_logo = str((v or {}).get("fb_owner_logo") or "").strip()
+        if not page_sub:
+            page_sub = str((v or {}).get("fb_sub") or "").strip()
+        if not page:
+            page = str((v or {}).get("fb_page") or "").strip()
+    out = []
+    for v in videos or []:
+        row = dict(v or {})
+        if not str(row.get("fb_owner_logo") or "").strip() and page_logo:
+            row["fb_owner_logo"] = page_logo
+        if not str(row.get("fb_sub") or "").strip() and page_sub:
+            row["fb_sub"] = page_sub
+        if not str(row.get("fb_page") or "").strip() and page:
+            row["fb_page"] = page
+        if not str(row.get("fb_title") or "").strip():
+            row["fb_title"] = str(row.get("title") or "").strip()
+        out.append(row)
+    return out
+
+
 def _lipton_mm_reels_payload() -> dict:
+    start, end = _mm_regatta_date_window(_LIPTON_MM_REGATTA_ID)
     videos = []
     for item in _LIPTON_MM_REELS_VIDEOS:
         url = str(item.get("url") or "")
         if "timadvisor" in url.lower() or "marin.megastoresa" not in url.lower():
             continue
+        if not _mm_video_matches_event(item, start, end):
+            continue
         row = dict(item)
         row["embed_url"] = _mm_embed_src(url)
         row["play_url"] = "/assets/adverts/mm-lipton/" + str(item.get("id") or "") + ".mp4"
-        row["is_live"] = False
+        row["is_live"] = bool(item.get("is_live"))
+        row["fb_page"] = str(item.get("fb_page") or "marin.megastoresa").strip()
         videos.append(row)
     videos.sort(key=lambda v: str(v.get("started_at") or ""), reverse=True)
-    return {"videos": videos}
+    return {"videos": _mm_apply_page_chrome(videos)}
 
 
 def _lipton_mm_reels_card_html(regatta_id: str) -> str:
@@ -27428,7 +27520,7 @@ def serve_regatta_standalone(slug: str, request: Request):
         mm_card_js = ""
         if str(regatta_id) == "2026-08-29-lipton-challenge-cup":
             mm_card = _lipton_mm_reels_card_html(str(regatta_id))
-            mm_card_js = '<script src="/js/mm-lipton-reels-card.js?v=mmr35" defer></script>'
+            mm_card_js = '<script src="/js/mm-lipton-reels-card.js?v=mmr36" defer></script>'
         body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()

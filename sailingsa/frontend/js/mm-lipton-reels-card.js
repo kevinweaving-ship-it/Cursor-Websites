@@ -1,8 +1,7 @@
 /**
- * Lipton-only Marine Megastore Event Reels card (#mmLiptonReels).
- * Compact: artwork + poster rail. One tap expands and plays a hosted mp4.
- * Facebook plugin iframes cannot start from a parent click — one persistent
- * HTML5 <video> is reused so play() stays inside the same user gesture.
+ * Same clip in three views: compact (next to MM logo), expanded (grid below),
+ * and phone landscape. Expanded and landscape paint the same FB logo, labels,
+ * arrows, and touch tools. Live / clip / reel rows use this player.
  */
 (function () {
   'use strict';
@@ -414,7 +413,7 @@
     for (i = 0; i < rest.length; i++) {
       parts.push(
         '<div class="mm-lipton-reels-grid-item" role="listitem">' +
-          thumbHtml(rest[i]) +
+          latestThumbHtml(rest[i], videos) +
           '</div>'
       );
     }
