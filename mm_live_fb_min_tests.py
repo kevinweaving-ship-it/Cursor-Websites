@@ -60,7 +60,7 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertNotIn("mm-lipton-reels-play", css)
         self.assertIn(".regatta-page>.regatta-header-wrap{order:1}", css)
         self.assertIn(".regatta-page>.mm-lipton-reels{order:2}", css)
-        self.assertIn(".regatta-page>.fleet-section{order:3}", css)
+        self.assertIn(".regatta-page>.action-buttons{order:10}", css)
         self.assertNotIn("mm-lipton-reels-fb-label", css)
         self.assertIn("display:none!important", css)
         js = Path("js/mm-lipton-reels-card.js").read_text(encoding="utf-8")

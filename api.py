@@ -20377,6 +20377,7 @@ _LIPTON_MM_REELS_CSS = (
     ".regatta-page>.regatta-header-wrap{order:1}"
     ".regatta-page>.mm-lipton-reels{order:2}"
     ".regatta-page>.fleet-section{order:3}"
+    ".regatta-page>.action-buttons{order:10}"
     ".regatta-page[data-live-lipton=\"1\"]>.mm-lipton-reels,.regatta-page[data-live-race-underway=\"1\"]>.mm-lipton-reels,.regatta-page[data-live-board-page-status=\"RACING\"]>.mm-lipton-reels{order:2}"
     ".regatta-page[data-live-lipton=\"1\"]>.regatta-live-wx,.regatta-page[data-live-race-underway=\"1\"]>.regatta-live-wx,.regatta-page[data-live-board-page-status=\"RACING\"]>.regatta-live-wx{order:4}"
     ".mm-lipton-reels{display:block!important;width:100%;margin:10px 0 0 0;padding:4px;background:#dce6ef!important;border:2px solid #001f3f;border-radius:8px;box-shadow:0 1px 3px rgba(0,31,63,0.08);box-sizing:border-box}"
