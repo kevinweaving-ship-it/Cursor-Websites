@@ -100,9 +100,13 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("playsinline", js)
         src = Path("api.py").read_text(encoding="utf-8")
         self.assertIn('row["play_url"]', src)
-        self.assertIn("mmr31", src)
+        self.assertIn("mmr32", src)
         self.assertIn("data-mm-hud", js)
         self.assertIn("mm-lipton-reels-player-wrap", src)
+        self.assertIn(
+            ".mm-lipton-reels--expanded .mm-lipton-reels-player-wrap{position:fixed;inset:0;z-index:2147483000",
+            src,
+        )
         self.assertIn("scale(1.65)", src)
         self.assertIn("data-mm-skip", js)
         self.assertIn("skipClip", js)
