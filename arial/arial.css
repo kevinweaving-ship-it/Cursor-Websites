@@ -1167,12 +1167,17 @@ html, body {
     flex-shrink: 0;
 }
 
+.breaker-link-ago,
 .breaker-last-link {
     font-variant-numeric: tabular-nums;
     letter-spacing: 0;
     text-transform: none;
     font-weight: 600;
     color: #92400e;
+}
+
+.breaker-link-ago {
+    min-width: 4.2em;
 }
 
 .breaker-on-dot {

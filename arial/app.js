@@ -1295,6 +1295,8 @@
     var breakerEnergy = { hidden: false, last: null, midnightYmd: "", midnightAddEle: null };
     var breakerSnap = { v: null, a: null, w: null, at: null };
     var breakerLinkLost = false;
+    var breakerLastReportAt = null;
+    var breakerLinkAgoTick = null;
 
     function saYmdNow() {
         return new Date().toLocaleDateString("en-CA", { timeZone: "Africa/Johannesburg" });
@@ -1320,6 +1322,7 @@
             if (isFinite(Number(raw.lastAddEle))) breakerEnergy.last = Number(raw.lastAddEle);
             breakerEnergy.midnightYmd = String(raw.midnightYmd || "");
             if (isFinite(Number(raw.midnightAddEle))) breakerEnergy.midnightAddEle = Number(raw.midnightAddEle);
+            if (isFinite(Number(raw.lastReportAt))) breakerLastReportAt = Number(raw.lastReportAt);
             if (raw.snap && typeof raw.snap === "object") {
                 var sv = Number(raw.snap.v);
                 var sa = Number(raw.snap.a);
@@ -1342,6 +1345,7 @@
                 lastAddEle: breakerEnergy.last,
                 midnightYmd: breakerEnergy.midnightYmd,
                 midnightAddEle: breakerEnergy.midnightAddEle,
+                lastReportAt: breakerLastReportAt,
                 snap: breakerSnap
             }));
         } catch (e) {}
@@ -1695,20 +1699,63 @@
         if (text !== "No link") setBreakerLastLink("");
     }
 
-    var breakerLastReportAt = null;
-
     function noteBreakerLink(data) {
         var sh = (data && data.sharing) || ((data && data.debug && data.debug.sharing) || {});
         var age = Number(sh.meterLastReportAgeS);
-        if (isFinite(age) && age >= 0) breakerLastReportAt = Date.now() - age * 1000;
+        if (isFinite(age) && age >= 0) {
+            breakerLastReportAt = Date.now() - age * 1000;
+            saveBreakerStore();
+        }
+    }
+
+    function breakerLinkAgoLabel(seconds) {
+        var s = Math.max(0, Math.floor(seconds));
+        var d = Math.floor(s / 86400);
+        var h = Math.floor((s % 86400) / 3600);
+        var m = Math.floor((s % 3600) / 60);
+        var sec = s % 60;
+        function pad(n) { return (n < 10 ? "0" : "") + n; }
+        if (d) return d + "d " + h + "h";
+        if (h) return h + "h " + m + "m";
+        return m + "m " + pad(sec) + "s";
+    }
+
+    function stopBreakerLinkAgoTick() {
+        if (breakerLinkAgoTick) {
+            clearInterval(breakerLinkAgoTick);
+            breakerLinkAgoTick = null;
+        }
+    }
+
+    function paintBreakerLastLink(show) {
+        var timeEl = document.getElementById("breaker-last-link");
+        var agoEl = document.getElementById("breaker-link-ago");
+        if (!show || !breakerLastReportAt) {
+            if (timeEl) { timeEl.textContent = ""; timeEl.hidden = true; }
+            if (agoEl) { agoEl.textContent = ""; agoEl.hidden = true; }
+            stopBreakerLinkAgoTick();
+            return;
+        }
+        if (timeEl) {
+            timeEl.textContent = breakerLastLinkStamp();
+            timeEl.hidden = false;
+        }
+        if (agoEl) {
+            agoEl.textContent = breakerLinkAgoLabel((Date.now() - breakerLastReportAt) / 1000);
+            agoEl.title = "Running time since last meter link";
+            agoEl.hidden = false;
+        }
+        if (!breakerLinkAgoTick) {
+            breakerLinkAgoTick = setInterval(function () {
+                if (!breakerLastReportAt) { stopBreakerLinkAgoTick(); return; }
+                var el = document.getElementById("breaker-link-ago");
+                if (el) el.textContent = breakerLinkAgoLabel((Date.now() - breakerLastReportAt) / 1000);
+            }, 1000);
+        }
     }
 
     function setBreakerLastLink(text) {
-        var el = document.getElementById("breaker-last-link");
-        if (!el) return;
-        if (!text) { el.textContent = ""; el.hidden = true; return; }
-        el.textContent = text;
-        el.hidden = false;
+        paintBreakerLastLink(!!text);
     }
 
     function breakerLastLinkStamp() {
