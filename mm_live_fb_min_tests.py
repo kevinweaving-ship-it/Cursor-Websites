@@ -23,6 +23,7 @@ class MinimalMmFeedTest(unittest.TestCase):
         self.assertIn("header_html + mm_card + sa_columns_frag", self.src)
         self.assertIn('id="mmLiveFbCard"', self.src)
         self.assertIn("mm-live-fb-card--compact", self.src)
+        self.assertIn("mm-live-fb-card--lipton", self.src)
         self.assertIn("data-mm-hide", self.src)
         self.assertIn("data-mm-fs", self.src)
         self.assertIn("mm-powered-by-event-reels.png", self.src)

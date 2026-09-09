@@ -20229,21 +20229,34 @@ def _mm_live_fb_card_html(regatta_id: str) -> str:
     payload = _mm_feed_payload(rid_raw)
     initial = html_module.escape(json.dumps(payload, separators=(",", ":")), quote=True)
     source = payload.get("feed_source") or "marine-megastore"
-    return (
-        '<section class="card mm-live-fb-card mm-live-fb-card--compact" id="mmLiveFbCard" '
-        f'data-regatta-id="{rid}" data-mm-source="{html_module.escape(source)}" '
-        f'data-mm-initial="{initial}" aria-label="Marine Megastore video">'
-        '<div class="mm-live-fb-compact">'
+    is_lipton = rid_raw == "2026-08-29-lipton-challenge-cup"
+    extra_cls = " mm-live-fb-card--lipton" if is_lipton else ""
+    brand = (
         '<a class="mm-live-fb-brand-link" href="https://marinemegastore.co.za" target="_blank" rel="noopener noreferrer">'
         '<img class="mm-live-fb-brand mm-live-fb-brand--reels" src="/assets/adverts/mm-powered-by-event-reels.png" alt="Powered by Marine Megastore Event Reels" width="1024" height="1024" loading="lazy" decoding="async">'
         '<img class="mm-live-fb-brand mm-live-fb-brand--live" src="/assets/adverts/mm-powered-by-live.png" alt="Powered by Marine Megastore Live Streaming" width="1536" height="1024" loading="lazy" decoding="async">'
         "</a>"
+    )
+    titles = (
+        ""
+        if is_lipton
+        else (
+            '<h2 class="section-title mm-live-fb-title--live">LIVE VIDEO</h2>'
+            '<h2 class="section-title mm-live-fb-title--reels">EVENT REELS</h2>'
+        )
+    )
+    expanded_brand = brand if is_lipton else ""
+    return (
+        f'<section class="card mm-live-fb-card mm-live-fb-card--compact{extra_cls}" id="mmLiveFbCard" '
+        f'data-regatta-id="{rid}" data-mm-source="{html_module.escape(source)}" '
+        f'data-mm-initial="{initial}" aria-label="Marine Megastore video">'
+        '<div class="mm-live-fb-compact">'
+        f"{brand}"
         '<div data-mm-compact></div>'
         "</div>"
         '<div class="mm-live-fb-expanded">'
         '<div class="mm-live-fb-expanded-bar">'
-        '<h2 class="section-title mm-live-fb-title--live">LIVE VIDEO</h2>'
-        '<h2 class="section-title mm-live-fb-title--reels">EVENT REELS</h2>'
+        f"{expanded_brand}{titles}"
         '<div class="mm-live-fb-expanded-actions">'
         '<button type="button" class="mm-live-fb-fs" data-mm-fs>Fullscreen</button>'
         '<button type="button" class="mm-live-fb-hide" data-mm-hide>Hide</button>'
@@ -24668,6 +24681,21 @@ _RESULT_SHEET_CSS = (
     "@media (max-width:480px){.mm-live-fb-card{padding:0.45rem 0.6rem;margin-top:10px}.mm-live-fb-brand{max-width:160px}.mm-live-fb-compact-preview{max-width:9.5rem}}"
     "@media (min-width:600px){.mm-live-fb-card{padding:0.5rem 0.85rem}.mm-live-fb-brand{max-width:240px}.mm-live-fb-carousel [role=listitem]{flex-basis:calc((100% - 1.35rem) / 4)}}"
     "@media (min-width:900px){.mm-live-fb-carousel [role=listitem]{flex-basis:calc((100% - 1.8rem) / 5)}}"
+    ".mm-live-fb-card--lipton{padding:0.35rem}"
+    ".mm-live-fb-card--lipton .mm-live-fb-compact{display:grid;grid-template-columns:45% 55%;gap:0.3rem;align-items:stretch}"
+    ".mm-live-fb-card--lipton .mm-live-fb-brand-link{display:flex;align-items:center;max-width:none;width:100%;min-width:0;line-height:0}"
+    ".mm-live-fb-card--lipton .mm-live-fb-brand{display:block;width:100%;max-width:none;height:auto;object-fit:contain;object-position:left center}"
+    ".mm-live-fb-card--lipton [data-mm-compact]{min-width:0;display:flex}"
+    ".mm-live-fb-card--lipton .mm-live-fb-compact-preview{flex:1;max-width:none;width:100%;display:flex}"
+    ".mm-live-fb-card--lipton .mm-live-fb-thumb--hero{width:100%;height:100%;min-height:100%;aspect-ratio:auto!important;align-self:stretch;border-radius:6px}"
+    ".mm-live-fb-card--lipton .mm-live-fb-title--live,.mm-live-fb-card--lipton .mm-live-fb-title--reels{display:none!important}"
+    ".mm-live-fb-card--lipton .mm-live-fb-expanded-bar{align-items:center;gap:0.35rem;margin:0 0 0.35rem 0}"
+    ".mm-live-fb-card--lipton .mm-live-fb-expanded-bar .mm-live-fb-brand-link{flex:1 1 auto;max-width:48%}"
+    ".mm-live-fb-card--lipton .mm-live-fb-stage{max-width:100%;margin:0;aspect-ratio:var(--mm-aspect,16/9)}"
+    ".mm-live-fb-card--lipton .mm-live-fb-watch{margin:0.25rem 0 0.1rem}"
+    ".mm-live-fb-card--lipton .mm-live-fb-carousel{display:grid;grid-template-columns:1fr 1fr;gap:0.35rem;overflow-x:auto;margin-top:0.35rem;scroll-snap-type:none}"
+    ".mm-live-fb-card--lipton .mm-live-fb-carousel [role=listitem]{flex:none;min-width:0}"
+    "@media (max-width:480px){.mm-live-fb-card--lipton{padding:0.3rem}.mm-live-fb-card--lipton .mm-live-fb-brand{max-width:none}.mm-live-fb-card--lipton .mm-live-fb-compact-preview{max-width:none}}"
 )
 
 
@@ -27137,7 +27165,7 @@ def serve_regatta_standalone(slug: str, request: Request):
             else ""
         )
         sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js?v=mm2" defer></script>' if is_sa else ""
-        mm_card_js = '<script src="/js/mm-live-fb-card.js?v=mm3lipton" defer></script>' if mm_feed_on else ""
+        mm_card_js = '<script src="/js/mm-live-fb-card.js?v=mm4mp" defer></script>' if mm_feed_on else ""
         doc = (
             "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
             f"{escaped_title} | SailingSA</title>"

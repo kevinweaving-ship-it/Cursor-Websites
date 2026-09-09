@@ -51,6 +51,7 @@
   function thumbHtml(v, extraClass) {
     var cls = 'mm-live-fb-thumb' + (isPortrait(v) ? ' mm-live-fb-thumb--portrait' : ' mm-live-fb-thumb--landscape');
     if (extraClass) cls += ' ' + extraClass;
+    var hero = extraClass && extraClass.indexOf('mm-live-fb-thumb--hero') >= 0;
     var stamp = v && v.stamp ? esc(v.stamp) : '';
     var live = v && v.is_live;
     var img = v && v.thumb
@@ -59,9 +60,9 @@
     return (
       '<button type="button" class="' +
       cls +
-      '" style="aspect-ratio:' +
-      aspectCss(v) +
-      '" data-mm-vid="' +
+      '"' +
+      (hero ? '' : ' style="aspect-ratio:' + aspectCss(v) + '"') +
+      ' data-mm-vid="' +
       esc((v && v.id) || '') +
       '" aria-label="' +
       esc(live ? 'Play LIVE video' : 'Play ' + ((v && v.title) || stamp || 'clip')) +
@@ -145,7 +146,7 @@
     var expanded = root.querySelector('[data-mm-expanded]');
     if (compact) {
       compact.innerHTML = current
-        ? '<div class="mm-live-fb-compact-preview">' + thumbHtml(current, 'mm-live-fb-thumb--hero') + '</div>'
+        ? thumbHtml(current, 'mm-live-fb-thumb--hero')
         : '<p class="mm-live-fb-waiting">No clip yet.</p>';
     }
     if (expanded) {
