@@ -11,6 +11,13 @@
   var VID_W = 16;
   var VID_H = 9;
   var GAP = 6;
+  var TRACK_TEST_ID = '2622643364847262';
+  var TRACK_TRAIL_URL = '/js/lipton-dev-trail-r7.json';
+  var trackTrail = null;
+  var trackWait = [];
+  var trackRaf = 0;
+  var trackRoot = null;
+  var trackClip = null;
 
   function esc(s) {
     return String(s == null ? '' : s)
@@ -286,10 +293,12 @@
     var video = ensureHeroVideo(root);
     video.addEventListener('timeupdate', function () {
       syncPlayerUi(root, video);
+      drawTrackFrame();
     });
     video.addEventListener('play', function () {
       syncPlayerUi(root, video);
       scheduleHidePlayerUi(root, state, video);
+      loopTrack();
     });
     video.addEventListener('pause', function () {
       syncPlayerUi(root, video);
@@ -355,6 +364,247 @@
     return parts.join('');
   }
 
+  function loadTrackTrail(done) {
+    if (trackTrail) {
+      done(trackTrail);
+      return;
+    }
+    trackWait.push(done);
+    if (trackWait.length > 1) return;
+    fetch(TRACK_TRAIL_URL)
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (d) {
+        trackTrail = d;
+        var cbs = trackWait;
+        trackWait = [];
+        var i;
+        for (i = 0; i < cbs.length; i++) cbs[i](d);
+      })
+      .catch(function () {
+        trackWait = [];
+      });
+  }
+
+  function stopTrackOverlay() {
+    if (trackRaf) {
+      window.cancelAnimationFrame(trackRaf);
+      trackRaf = 0;
+    }
+    trackClip = null;
+    if (!trackRoot) return;
+    var box = trackRoot.querySelector('[data-mm-track]');
+    if (box) box.removeAttribute('data-mm-track-on');
+  }
+
+  function trackSample(trail, ts) {
+    var origin = Number(trail.grid_start_ts_ms);
+    var step = Number(trail.step_ms) || 1000;
+    var n = Number(trail.n) || 0;
+    var i = Math.floor((ts - origin) / step);
+    if (i < 0) i = 0;
+    if (i > n - 1) i = n - 1;
+    var out = [];
+    var boats = trail.boats || {};
+    var sail;
+    for (sail in boats) {
+      if (!Object.prototype.hasOwnProperty.call(boats, sail)) continue;
+      var b = boats[sail];
+      if (!b || !b.lat || b.lat[i] == null || b.lon[i] == null) continue;
+      var lat = b.lat[i];
+      var lon = b.lon[i];
+      var j = i > 3 ? i - 3 : 0;
+      var hdg = 0;
+      if (j !== i && b.lat[j] != null && b.lon[j] != null) {
+        var dLat = lat - b.lat[j];
+        var dLon = lon - b.lon[j];
+        if (dLat || dLon) {
+          hdg = (Math.atan2(dLon * Math.cos((lat * Math.PI) / 180), dLat) * 180) / Math.PI;
+          if (hdg < 0) hdg += 360;
+        }
+      }
+      out.push({ sail: sail, lat: lat, lon: lon, hdg: hdg });
+    }
+    return out;
+  }
+
+  function trackAlong(row, hdg) {
+    var rad = (hdg * Math.PI) / 180;
+    var north = row.lat * 110540;
+    var east = row.lon * 111320 * Math.cos((row.lat * Math.PI) / 180);
+    return north * Math.cos(rad) + east * Math.sin(rad);
+  }
+
+  function trackBounds(rows) {
+    var minLat = rows[0].lat;
+    var maxLat = rows[0].lat;
+    var minLon = rows[0].lon;
+    var maxLon = rows[0].lon;
+    var i;
+    for (i = 1; i < rows.length; i++) {
+      if (rows[i].lat < minLat) minLat = rows[i].lat;
+      if (rows[i].lat > maxLat) maxLat = rows[i].lat;
+      if (rows[i].lon < minLon) minLon = rows[i].lon;
+      if (rows[i].lon > maxLon) maxLon = rows[i].lon;
+    }
+    return { minLat: minLat, maxLat: maxLat, minLon: minLon, maxLon: maxLon };
+  }
+
+  function trackMinGapM(rows) {
+    var min = 1e9;
+    var i;
+    var j;
+    for (i = 0; i < rows.length; i++) {
+      for (j = i + 1; j < rows.length; j++) {
+        var dlat = (rows[i].lat - rows[j].lat) * 110540;
+        var dlon =
+          (rows[i].lon - rows[j].lon) *
+          111320 *
+          Math.cos((rows[i].lat * Math.PI) / 180);
+        var d = Math.sqrt(dlat * dlat + dlon * dlon);
+        if (d < min) min = d;
+      }
+    }
+    return min;
+  }
+
+  function pickFrontPack(ranked, cssW, cssH) {
+    if (!ranked.length) return [];
+    var pad = 16;
+    var usableW = Math.max(40, cssW - pad * 2);
+    var usableH = Math.max(28, cssH - pad * 2);
+    var pack = [ranked[0]];
+    var i;
+    for (i = 1; i < ranked.length; i++) {
+      var trial = pack.concat([ranked[i]]);
+      var b = trackBounds(trial);
+      var midLat = (b.minLat + b.maxLat) / 2;
+      var spanN = Math.max(18, (b.maxLat - b.minLat) * 110540);
+      var spanE = Math.max(18, (b.maxLon - b.minLon) * 111320 * Math.cos((midLat * Math.PI) / 180));
+      var scale = Math.min(usableW / spanE, usableH / spanN);
+      var gap = trial.length < 2 ? 999 : trackMinGapM(trial) * scale;
+      if (trial.length > 1 && (gap < 16 || scale < 0.35)) break;
+      pack = trial;
+      if (pack.length >= 8) break;
+    }
+    return pack;
+  }
+
+  function drawTrackBoat(ctx, x, y, hdg, place, r) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(((hdg || 0) * Math.PI) / 180);
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fillStyle = '#001f3f';
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, -r - 4);
+    ctx.lineTo(3.4, -r + 1.2);
+    ctx.lineTo(-3.4, -r + 1.2);
+    ctx.closePath();
+    ctx.fillStyle = '#00B4FF';
+    ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold ' + Math.max(8, Math.round(r * 1.15)) + 'px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(place), x, y + 0.4);
+  }
+
+  function drawTrackFrame() {
+    if (!trackRoot || !trackClip || !trackTrail) return;
+    var box = trackRoot.querySelector('[data-mm-track]');
+    var canvas = trackRoot.querySelector('[data-mm-track-canvas]');
+    var video = trackRoot.querySelector('[data-mm-hero-video]');
+    if (!box || !canvas || !video) return;
+    var cssW = box.clientWidth || 0;
+    var cssH = box.clientHeight || 0;
+    if (cssW < 8 || cssH < 8) return;
+    var dpr = window.devicePixelRatio || 1;
+    var pw = Math.round(cssW * dpr);
+    var ph = Math.round(cssH * dpr);
+    if (canvas.width !== pw) canvas.width = pw;
+    if (canvas.height !== ph) canvas.height = ph;
+    var ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cssW, cssH);
+    var startMs = Date.parse(String(trackClip.started_at || ''));
+    if (startMs !== startMs) return;
+    var ts = startMs + (Number(video.currentTime) || 0) * 1000;
+    var rows = trackSample(trackTrail, ts);
+    if (!rows.length) return;
+    var hs = [];
+    var i;
+    for (i = 0; i < rows.length; i++) hs.push(rows[i].hdg);
+    hs.sort(function (a, b) {
+      return a - b;
+    });
+    var hdg = hs[Math.floor(hs.length / 2)] || 0;
+    rows.sort(function (a, b) {
+      return trackAlong(b, hdg) - trackAlong(a, hdg);
+    });
+    for (i = 0; i < rows.length; i++) rows[i].place = i + 1;
+    var pack = pickFrontPack(rows, cssW, cssH);
+    if (!pack.length) return;
+    var b = trackBounds(pack);
+    var midLat = (b.minLat + b.maxLat) / 2;
+    var midLon = (b.minLon + b.maxLon) / 2;
+    var spanN = Math.max(22, (b.maxLat - b.minLat) * 110540) * 1.3;
+    var spanE = Math.max(22, (b.maxLon - b.minLon) * 111320 * Math.cos((midLat * Math.PI) / 180)) * 1.3;
+    var pad = 16;
+    var usableW = Math.max(40, cssW - pad * 2);
+    var usableH = Math.max(28, cssH - pad * 2);
+    var scale = Math.min(usableW / spanE, usableH / spanN);
+    var originN = midLat * 110540;
+    var originE = midLon * 111320 * Math.cos((midLat * Math.PI) / 180);
+    var r = Math.max(7, Math.min(11, 8 + pack.length * 0.2));
+    for (i = pack.length - 1; i >= 0; i--) {
+      var row = pack[i];
+      var north = row.lat * 110540;
+      var east = row.lon * 111320 * Math.cos((midLat * Math.PI) / 180);
+      var x = cssW / 2 + (east - originE) * scale;
+      var y = cssH / 2 - (north - originN) * scale;
+      drawTrackBoat(ctx, x, y, row.hdg, row.place, r);
+    }
+  }
+
+  function loopTrack() {
+    if (trackRaf) window.cancelAnimationFrame(trackRaf);
+    function tick() {
+      trackRaf = 0;
+      drawTrackFrame();
+      var video = trackRoot && trackRoot.querySelector('[data-mm-hero-video]');
+      if (trackClip && video && !video.paused) {
+        trackRaf = window.requestAnimationFrame(tick);
+      }
+    }
+    trackRaf = window.requestAnimationFrame(tick);
+  }
+
+  function syncTrackOverlay(root, clip) {
+    trackRoot = root;
+    var box = root && root.querySelector('[data-mm-track]');
+    if (!box) return;
+    if (!clip || String(clip.id) !== TRACK_TEST_ID) {
+      stopTrackOverlay();
+      trackRoot = root;
+      return;
+    }
+    trackClip = clip;
+    box.setAttribute('data-mm-track-on', '');
+    loadTrackTrail(function () {
+      drawTrackFrame();
+      loopTrack();
+    });
+  }
+
   function stageHtml(v, videos) {
     if (!v) return '<p class="mm-lipton-reels-waiting">No clip yet.</p>';
     return (
@@ -364,6 +614,7 @@
       aspectCss(v) +
       '">' +
       '<div class="mm-lipton-reels-stage mm-lipton-reels-stage--playing" data-mm-stage></div>' +
+      '<div class="mm-lipton-reels-track" data-mm-track aria-hidden="true"><canvas data-mm-track-canvas></canvas></div>' +
       '<div class="mm-lipton-reels-hud" data-mm-hud>' +
       latestChromeHtml(chromeSource(v, videos), 'mm-lipton-reels-clip-chrome--overlay') +
       playerUiHtml() +
@@ -407,6 +658,7 @@
         if (retry && retry.catch) retry.catch(function () {});
       });
     }
+    syncTrackOverlay(root, clip);
   }
 
   function clipDayKey(v) {
@@ -848,6 +1100,7 @@
 
   function collapse(root, payload, state) {
     state.expanded = false;
+    stopTrackOverlay();
     stopAllPlayback(root);
     hidePlayerUi(root, state);
     removeExpanded(root);
@@ -877,6 +1130,7 @@
       syncSkipButtons(root, payload, state);
       hidePlayerUi(root, state);
       preloadNeighbors(root, payload, state);
+      syncTrackOverlay(root, picked.current);
     } else {
       removeExpanded(root);
       layoutCompactStrip(root, picked.videos);
