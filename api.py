@@ -20419,7 +20419,8 @@ _LIPTON_MM_REELS_CSS = (
     ".mm-lipton-reels-expanded-bar{display:flex;justify-content:flex-end;margin:0 0 0.3rem 0}"
     ".mm-lipton-reels-hide{min-height:44px;min-width:44px;font-size:0.8rem;font-weight:700;color:#001f3f;background:#fff;border:2px solid #001f3f;border-radius:6px;padding:0.28rem 0.7rem;cursor:pointer}"
     ".mm-lipton-reels-stage{position:relative;width:100%;aspect-ratio:var(--mm-aspect,16/9);overflow:hidden;border-radius:8px;background:#001018;border:2px solid #001f3f}"
-    ".mm-lipton-reels-stage iframe,.mm-lipton-reels-stage video{position:absolute;inset:0;width:100%;height:100%;border:0;object-fit:contain;background:#001018}"
+    ".mm-lipton-reels-stage iframe,.mm-lipton-reels-stage video{position:absolute;inset:0;width:100%;height:100%;border:0;object-fit:cover;background:#001018;filter:none;opacity:1}"
+    ".mm-lipton-reels-stage video::-webkit-media-controls,.mm-lipton-reels-stage video::-webkit-media-controls-enclosure,.mm-lipton-reels-stage video::-webkit-media-controls-overlay-enclosure,.mm-lipton-reels-stage video::-webkit-media-controls-panel,.mm-lipton-reels-stage video::-webkit-media-controls-start-playback-button,.mm-lipton-reels-stage video::-webkit-media-controls-overlay-play-fill{display:none!important;opacity:0!important;-webkit-appearance:none}"
     ".mm-lipton-reels-video-hold{position:absolute;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none}"
     ".mm-lipton-reels-hero-ui{position:absolute;inset:0;z-index:2}"
     ".mm-lipton-reels-hero-poster{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center;pointer-events:none;border:0;display:block;background:#0b1c33}"
@@ -27398,7 +27399,7 @@ def serve_regatta_standalone(slug: str, request: Request):
         mm_card_js = ""
         if str(regatta_id) == "2026-08-29-lipton-challenge-cup":
             mm_card = _lipton_mm_reels_card_html(str(regatta_id))
-            mm_card_js = '<script src="/js/mm-lipton-reels-card.js?v=mmr23" defer></script>'
+            mm_card_js = '<script src="/js/mm-lipton-reels-card.js?v=mmr24" defer></script>'
         body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()

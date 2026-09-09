@@ -112,7 +112,8 @@
       video.defaultMuted = false;
       video.volume = 1;
       video.playsInline = true;
-      video.controls = true;
+      video.controls = false;
+      video.removeAttribute('controls');
       video.preload = 'auto';
       hold.appendChild(video);
     }
@@ -226,6 +227,8 @@
     video.setAttribute('playsinline', '');
     video.setAttribute('webkit-playsinline', '');
     video.removeAttribute('muted');
+    video.removeAttribute('controls');
+    video.controls = false;
     if (clip.thumb) video.setAttribute('poster', clip.thumb);
     if (src && video.getAttribute('src') !== src) {
       video.src = src;
@@ -236,18 +239,7 @@
     }
     var playPromise = video.play();
     if (playPromise && playPromise.catch) {
-      playPromise.catch(function () {
-        video.muted = true;
-        var retry = video.play();
-        if (retry && retry.then) {
-          retry
-            .then(function () {
-              video.muted = false;
-              video.volume = 1;
-            })
-            .catch(function () {});
-        }
-      });
+      playPromise.catch(function () {});
     }
   }
 
