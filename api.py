@@ -20377,7 +20377,7 @@ _LIPTON_MM_REELS_CSS = (
     ".mm-lipton-reels{width:100%;margin:10px 0 0 0;padding:0.35rem 0.45rem;background:#ffffff;border:2px solid #001f3f;border-radius:8px;box-shadow:0 1px 3px rgba(0,31,63,0.08);box-sizing:border-box}"
     ".mm-lipton-reels--compact .mm-lipton-reels-expanded{display:none}"
     ".mm-lipton-reels--expanded .mm-lipton-reels-compact{display:none}"
-    ".mm-lipton-reels-compact{display:flex;align-items:center;gap:0.4rem;min-width:0}"
+    ".mm-lipton-reels-compact{display:flex;align-items:center;justify-content:flex-start;gap:0.4rem;min-width:0}"
     ".mm-lipton-reels-brand{flex:1 1 45%;min-width:0;max-width:45%;line-height:0}"
     ".mm-lipton-reels-brand img{display:block;width:auto!important;height:auto!important;max-width:min(220px,100%)!important;max-height:88px!important;object-fit:contain;object-position:left center}"
     ".mm-lipton-reels-compact [data-mm-compact]{flex:1 1 55%;min-width:0;max-width:55%}"
@@ -20394,7 +20394,7 @@ _LIPTON_MM_REELS_CSS = (
     ".mm-lipton-reels-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0.35rem;margin-top:0.4rem}"
     ".mm-lipton-reels-thumb--on{outline:2px solid #2563eb;outline-offset:1px}"
     ".mm-lipton-reels-waiting{margin:0;font-size:0.85rem;color:#334155}"
-    "@media (min-width:600px){.mm-lipton-reels{padding:0.4rem 0.55rem}.mm-lipton-reels-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}"
+    "@media (min-width:600px){.mm-lipton-reels{padding:0.4rem 0.55rem}.mm-lipton-reels-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.mm-lipton-reels-brand{flex:0 1 auto;max-width:220px}.mm-lipton-reels-compact [data-mm-compact]{flex:0 0 12rem;max-width:12rem}}"
     "@media (min-width:900px){.mm-lipton-reels-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}"
     "@media print{.mm-lipton-reels{display:none!important}}"
 )
