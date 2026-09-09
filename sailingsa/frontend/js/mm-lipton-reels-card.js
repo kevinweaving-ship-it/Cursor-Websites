@@ -108,20 +108,41 @@
     );
   }
 
+  function thumbHit(v) {
+    return (
+      '<button type="button" class="mm-lipton-reels-thumb-hit" data-mm-vid="' +
+      esc((v && v.id) || '') +
+      '" aria-label="Play reel"></button>'
+    );
+  }
+
   function thumbHtml(v) {
     return (
       '<div class="mm-lipton-reels-thumb" style="aspect-ratio:16 / 9">' +
       fbFrameHtml(v, false, false) +
-      '<button type="button" class="mm-lipton-reels-thumb-hit" data-mm-vid="' +
-      esc((v && v.id) || '') +
-      '" aria-label="' +
-      esc((v && v.title) || (v && v.stamp) || 'Play reel') +
-      '"></button>' +
+      thumbHit(v) +
       '</div>'
     );
   }
 
-  function compactTileHtml(v) {
+  function latestThumbHtml(v) {
+    var poster =
+      v && v.thumb
+        ? '<img src="' + esc(v.thumb) + '" alt="" loading="lazy" decoding="async">'
+        : fbFrameHtml(v, false, false);
+    return (
+      '<div class="mm-lipton-reels-thumb mm-lipton-reels-thumb--latest" style="aspect-ratio:16 / 9">' +
+      poster +
+      '<span class="mm-lipton-reels-play" aria-hidden="true"></span>' +
+      thumbHit(v) +
+      '</div>'
+    );
+  }
+
+  function compactTileHtml(v, isLatest) {
+    if (isLatest) {
+      return '<div class="mm-lipton-reels-tile mm-lipton-reels-tile--latest">' + latestThumbHtml(v) + '</div>';
+    }
     return '<div class="mm-lipton-reels-tile">' + thumbHtml(v) + '</div>';
   }
 
@@ -146,7 +167,7 @@
   function compactTilesHtml(videos) {
     var parts = [];
     var i;
-    for (i = 0; i < videos.length; i++) parts.push(compactTileHtml(videos[i]));
+    for (i = 0; i < videos.length; i++) parts.push(compactTileHtml(videos[i], i === 0));
     return parts.join('');
   }
 
