@@ -48,6 +48,7 @@
   var lockApproachHdg = null;
   var markLock = null;
   var loadGen = 0;
+  var heldBoatR = {};
 
   function clipR(race, kind, extra) {
     var o = { race: race, kind: kind || 'round', approach: 'rtl', holdN: 6, offsetMs: 0 };
@@ -110,6 +111,7 @@
       lockApproachHdg = null;
       markLock = null;
       camPhase = '';
+      heldBoatR = {};
     }
     clipId = String(id || '');
     clipRule = rule;
@@ -706,7 +708,8 @@
     var hits = tailHits(series, ts);
     if (hits.length < 2) return;
     var fill = boatPaint(sail).fill;
-    var r = Math.max(1, (cam.boatR || 7) * 0.22);
+    var boatR = (cam.boatRs && cam.boatRs[sail]) || cam.boatR || 7;
+    var r = Math.max(1, boatR * 0.22);
     var d;
     for (d = 0; d < hits.length; d++) {
       var pt = xy(hits[d].lat, hits[d].lon, cam);
@@ -847,17 +850,70 @@
     return minG;
   }
 
-  /* Big until boats bunch; shrink to the nearest-neighbour gap; grow back when clear. */
-  function boatRadius(cam, pack) {
-    var rMin = 3.2;
-    var rMax = 11;
-    var r = Math.max(rMin, Math.min(rMax, metersPx(16, cam) * 0.58));
-    var gap = minBoatGapPx(cam, pack);
+  function nearestGaps(cam, pack) {
+    var pts = [];
+    var gaps = {};
+    var i;
+    var j;
+    for (i = 0; i < pack.length; i++) {
+      if (!pack[i] || !pack[i].pos || !pack[i].sail) continue;
+      var p = xy(pack[i].pos.lat, pack[i].pos.lon, cam);
+      pts.push({ sail: pack[i].sail, x: p.x, y: p.y });
+    }
+    for (i = 0; i < pts.length; i++) {
+      var minG = Infinity;
+      for (j = 0; j < pts.length; j++) {
+        if (i === j) continue;
+        var g = Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y);
+        if (g < minG) minG = g;
+      }
+      gaps[pts[i].sail] = minG;
+    }
+    return gaps;
+  }
+
+  /* Full size in open water. Shrink only vs the nearest boat; grow back when the gap returns. */
+  function boatRadiusForGap(gap) {
+    var rMin = 3.4;
+    var rMax = 14;
+    var r = rMax;
     if (gap < Infinity) {
-      var fit = gap * 0.28;
+      var fit = gap * 0.34;
       if (fit < r) r = Math.max(rMin, fit);
     }
     return r;
+  }
+
+  function easeBoatR(sail, target, ts) {
+    var prev = heldBoatR[sail];
+    if (!prev || Math.abs(ts - prev.ts) > 1800) {
+      heldBoatR[sail] = { r: target, ts: ts };
+      return target;
+    }
+    var a = target < prev.r ? 0.45 : 0.16;
+    var r = prev.r + (target - prev.r) * a;
+    heldBoatR[sail] = { r: r, ts: ts };
+    return r;
+  }
+
+  function boatRadii(cam, pack, ts) {
+    var gaps = nearestGaps(cam, pack);
+    var bySail = {};
+    var maxR = 3.4;
+    var i;
+    for (i = 0; i < pack.length; i++) {
+      if (!pack[i] || !pack[i].sail) continue;
+      var gap = gaps[pack[i].sail];
+      if (gap == null) gap = Infinity;
+      var r = easeBoatR(pack[i].sail, boatRadiusForGap(gap), ts);
+      bySail[pack[i].sail] = r;
+      if (r > maxR) maxR = r;
+    }
+    return { bySail: bySail, max: maxR };
+  }
+
+  function boatRadius(cam, pack) {
+    return boatRadiusForGap(minBoatGapPx(cam, pack));
   }
 
   function drawBoatIcon(ctx, p, hdg, paint, r) {
@@ -1065,6 +1121,7 @@
       lockApproachHdg = null;
       markLock = null;
       camPhase = '';
+      heldBoatR = {};
     }
     var live = ranksAt(ts);
     var plan = camPlan(live, cssW, cssH);
@@ -1102,7 +1159,9 @@
       cam.flipX = true;
       cam = easeCam(cam, ts);
     }
-    cam.boatR = boatRadius(cam, pack);
+    var radii = boatRadii(cam, pack, ts);
+    cam.boatRs = radii.bySail;
+    cam.boatR = radii.max;
     ctx.clearRect(0, 0, cssW, cssH);
 
     var gun = live.gun;
@@ -1182,12 +1241,15 @@
       ctx.restore();
     }
 
-    var r = cam.boatR || 7;
     var i;
     for (i = 0; i < pack.length; i++) {
       if (pack[i] && pack[i].sail) drawTail(ctx, cam, pack[i].sail, ts);
     }
-    for (i = pack.length - 1; i >= 0; i--) drawBoat(ctx, cam, pack[i], live, r);
+    for (i = pack.length - 1; i >= 0; i--) {
+      var sail = pack[i] && pack[i].sail;
+      var r = (sail && cam.boatRs && cam.boatRs[sail]) || cam.boatR || 7;
+      drawBoat(ctx, cam, pack[i], live, r);
+    }
   }
 
   root.mmLiptonTrackOverlay = { load: load, draw: draw, usesClip: usesClip, offsetMs: offsetMsFor };
