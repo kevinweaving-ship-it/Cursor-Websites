@@ -65,6 +65,14 @@
         function cell(n, lab) { return '<span class="hs-wcell">' + kwhAmt(n) + "<i>" + lab + "</i></span>"; }
         return '<span class="hs-wuse">' + cell(eu.todayKwh, "today") + cell(eu.monthKwh, monLabel()) + cell(eu.lastMonthKwh, prevMonLabel()) + "</span>";
       }
+      function eleLive(e) {
+        var st = (e && e.status) || {};
+        var V = sc(st.cur_voltage != null ? st.cur_voltage : st["20"], e.units, "cur_voltage", 1);
+        var A = sc(st.cur_current != null ? st.cur_current : st["18"], e.units, "cur_current", 3);
+        var W = sc(st.cur_power != null ? st.cur_power : st["19"], e.units, "cur_power", 1);
+        function f(v, d, u) { return "<span>" + (v == null || !isFinite(v) ? "\u2014" : v.toFixed(d)) + " " + u + "</span>"; }
+        return '<span class="hs-elive">' + f(V, 1, "V") + f(A, 3, "A") + f(W, 1, "W") + "</span>";
+      }
       var pend = {};   // "dev:code" -> {on, until}: tapped state shown instantly and held until the device confirms
       function pendOn(dev, code, on) { var k = dev + ":" + code, p = pend[k]; if (p && Date.now() < p.until) return p.on; return on; }
       var ICONS = {};   // device id -> local /assets/tuya/... path (from the resolver; never a CDN URL)
@@ -406,6 +414,7 @@
           var wu = l.waterUse || {};
           var hasWater = isWater && (wu.todayL != null || wu.monthL != null || wu.lastMonthL != null);
           var lGrp = isWater ? "water" : (l.category === "tdq" || l.category === "pc") ? "relays" : "lights";
+          var keepDev = String((window.ARIAL_CONFIG || {}).siteId) === "bing" && !isWater;
           var lUse = hasWater ? (Number(wu.monthL) || 0) + (Number(wu.todayL) || 0) : ((us.monthOnS || 0) + (us.todayOnS || 0));
           var tot = us.todayOnS != null ? '<span class="tot">' + hm(us.todayOnS) + " today \u00b7 " + hm(us.monthOnS) + " " + monLabel() + '</span>' : "";
           var anyOn = codes.some(function (c) { return l.status[c] === true; });
@@ -416,7 +425,7 @@
             // compact multi-gang tile: icon + name + ON / OFF / n/m ON + master power (any on -> all off, all off -> all on)
             var nOn = codes.filter(function (c) { return l.status[c] === true; }).length, allOn = nOn === codes.length;
             var stTxt = allOn ? "ON" : nOn === 0 ? "OFF" : nOn + "/" + codes.length + " ON";
-            items.push({ grp: (!l.online || (!nOn && !lUse && !hasWater)) ? "dormant" : lGrp, use: lUse, ts: l.lastEvent || 0, html: '<div class="hs-light gang' + waterCls + (l.online ? "" : " off") + (nOn ? (allOn ? " allon" : " mixed") : "") + '" data-dev="' + l.id + '" title="' + shown + ' \u00b7 ' + codes.length + ' gangs' + (us.todayOnS != null ? " \u00b7 " + hm(us.todayOnS) + " today" : "") + wTip + '">' +
+            items.push({ grp: (!l.online || (!keepDev && !nOn && !lUse && !hasWater)) ? "dormant" : lGrp, use: lUse, ts: l.lastEvent || 0, html: '<div class="hs-light gang' + waterCls + (l.online ? "" : " off") + (nOn ? (allOn ? " allon" : " mixed") : "") + '" data-dev="' + l.id + '" title="' + shown + ' \u00b7 ' + codes.length + ' gangs' + (us.todayOnS != null ? " \u00b7 " + hm(us.todayOnS) + " today" : "") + wTip + '">' +
               '<span class="nm">' + tico(l.id, "sm") + shown + '</span><span class="st">' + stTxt + '</span><span class="gc" title="' + codes.length + ' switches \u00b7 tap for each">' + codes.length + '<i>\u203a</i></span>' +
               '<button type="button" class="hs-master' + (nOn ? " on" : "") + '" data-dev="' + l.id + '" data-any="' + (nOn ? 1 : 0) + '" data-codes="' + codes.join(",") + '" aria-label="' + (nOn ? "all off" : "all on") + '"><span class="ctl ctl-power" aria-hidden="true"></span></button>' + wHtml + '</div>' });
             return;
@@ -425,7 +434,7 @@
           var c1 = codes[0], on1 = l.online && l.status[c1] === true;
           var st1 = !l.online ? "OFFLINE" : on1 ? "ON" : "OFF";
           var sub1 = !l.online ? "" : on1 && (l.since || {})[c1] ? " \u00b7 " + dur(l.since[c1]) : (us.todayOnS >= 60 ? " \u00b7 " + hm(us.todayOnS) + " today" : "");
-          items.push({ grp: (!l.online || (!on1 && !lUse && !hasWater)) ? "dormant" : lGrp, use: lUse, ts: l.lastEvent || 0, html: '<div class="hs-light gang single' + waterCls + (l.online ? "" : " off") + (on1 ? " allon" : "") + '" data-dev="' + l.id + '" title="' + shown + (us.todayOnS != null ? " \u00b7 " + hm(us.todayOnS) + " today \u00b7 " + hm(us.monthOnS) + " " + monLabel() : "") + wTip + '">' +
+          items.push({ grp: (!l.online || (!keepDev && !on1 && !lUse && !hasWater)) ? "dormant" : lGrp, use: lUse, ts: l.lastEvent || 0, html: '<div class="hs-light gang single' + waterCls + (l.online ? "" : " off") + (on1 ? " allon" : "") + '" data-dev="' + l.id + '" title="' + shown + (us.todayOnS != null ? " \u00b7 " + hm(us.todayOnS) + " today \u00b7 " + hm(us.monthOnS) + " " + monLabel() : "") + wTip + '">' +
             '<span class="nm">' + tico(l.id, "sm") + shown + '</span><span class="st">' + st1 + (sub1 ? '<span class="sub">' + sub1 + '</span>' : "") + '</span>' +
             '<button type="button" class="hs-master hs-gang' + (on1 ? " on" : "") + '" data-dev="' + l.id + '" data-sw="' + c1 + '" data-on="' + (on1 ? 1 : 0) + '" aria-label="' + (on1 ? "turn off" : "turn on") + '"><span class="ctl ctl-power" aria-hidden="true"></span></button>' + wHtml + '</div>' });
         });
@@ -434,8 +443,8 @@
           var eUse = Number(eu.monthKwh) || 0;
           var eTip = eu.todayKwh != null ? " \u00b7 " + Number(eu.todayKwh).toFixed(2) + " kWh today \u00b7 " + Number(eu.monthKwh).toFixed(2) + " kWh " + monLabel() + " \u00b7 " + Number(eu.lastMonthKwh).toFixed(2) + " kWh " + prevMonLabel() : "";
           items.push({ grp: e.online || eUse ? "power" : "dormant", use: eUse, ts: e.lastEvent || 0, html: '<div class="hs-light gang single hs-power' + (e.online ? "" : " off") + '" data-dev="' + e.id + '" title="' + neatName(e) + eTip + '">' +
-            '<span class="nm">' + tico(e.id, "sm") + neatName(e) + '</span><span class="st">' + (e.online ? "LIVE" : "OFFLINE") + '</span>' +
-            eleLine(e) + '</div>' });
+            '<span class="nm">' + tico(e.id, "sm") + '<span class="hs-enm">' + neatName(e) + "</span>" + eleLive(e) + "</span>" +
+            eleLine(e) + "</div>" });
         });
         var known = {};
         if (wx) known[wx.id] = 1;

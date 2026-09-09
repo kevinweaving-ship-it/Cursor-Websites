@@ -231,8 +231,10 @@
 .hs-card .hs-sub-water{background:#f0fdf4}
 .hs-card .hs-sub-power .hs-sub-grid{grid-template-columns:1fr}
 .hs-card .hs-light.gang.hs-power{grid-column:1/-1;min-height:88px;padding:8px 10px 10px;align-content:flex-start}
-.hs-card .hs-light.gang.hs-power .nm{font-size:13px;-webkit-line-clamp:1}
-.hs-card .hs-light.gang.hs-power .st{font-size:12px;color:#92400e}
+.hs-card .hs-light.gang.hs-power .nm{flex:1 0 100%;display:flex;align-items:center;gap:8px;font-size:13px;-webkit-line-clamp:unset;white-space:nowrap;overflow:hidden}
+.hs-card .hs-light.gang.hs-power .hs-enm{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.hs-card .hs-light.gang.hs-power .hs-elive{display:inline-flex;gap:14px;margin-left:auto;font:700 13px Arial,Helvetica,sans-serif;color:#78350f;white-space:nowrap}
+@media (max-width:480px){.hs-card .hs-light.gang.hs-power .hs-elive{gap:8px;font-size:12px}}
 .hs-card .hs-light.gang.hs-power{background:#fffbeb;border-color:#f6d365}
 .hs-card .hs-light.gang.hs-power .hs-wuse{flex:1 0 100%;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:6px 0 0;color:#92400e}
 .hs-card .hs-light.gang.hs-power .hs-wcell{display:flex;flex-direction:column;align-items:flex-start;gap:1px;min-width:0;padding:4px 6px;background:rgba(255,255,255,.55);border-radius:6px}
