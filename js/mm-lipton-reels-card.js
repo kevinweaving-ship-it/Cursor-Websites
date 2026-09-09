@@ -355,14 +355,16 @@
   function stageHtml(v, videos) {
     if (!v) return '<p class="mm-lipton-reels-waiting">No clip yet.</p>';
     return (
-      '<div class="mm-lipton-reels-stage mm-lipton-reels-stage--playing" data-mm-stage style="--mm-aspect:' +
+      '<div class="mm-lipton-reels-player-wrap" data-mm-wrap style="--mm-aspect:' +
       aspectCss(v) +
       ';aspect-ratio:' +
       aspectCss(v) +
       '">' +
+      '<div class="mm-lipton-reels-stage mm-lipton-reels-stage--playing" data-mm-stage></div>' +
+      '<div class="mm-lipton-reels-hud" data-mm-hud>' +
       latestChromeHtml(chromeSource(v, videos), 'mm-lipton-reels-clip-chrome--overlay') +
       playerUiHtml() +
-      '</div>'
+      '</div></div>'
     );
   }
 
@@ -581,12 +583,13 @@
       var expanded = ensureExpanded(root);
       expanded.innerHTML = expandedHtml(picked.current, picked.videos);
       var stage = expanded.querySelector('[data-mm-stage]');
+      var hud = expanded.querySelector('[data-mm-hud]');
       var video = ensureHeroVideo(root);
       if (stage && video) stage.appendChild(video);
-      var playerUi = stage && stage.querySelector('[data-mm-player-ui]');
-      if (stage && playerUi) stage.appendChild(playerUi);
-      var overlay = stage && stage.querySelector('.mm-lipton-reels-clip-chrome--overlay');
-      if (stage && overlay) stage.appendChild(overlay);
+      var playerUi = (hud || expanded).querySelector('[data-mm-player-ui]');
+      if (hud && playerUi) hud.appendChild(playerUi);
+      var overlay = (hud || expanded).querySelector('.mm-lipton-reels-clip-chrome--overlay');
+      if (hud && overlay) hud.appendChild(overlay);
       applyFrozenChrome(root, state.chromeSnap);
       wirePlayer(root, state);
       syncSkipButtons(root, payload, state);
