@@ -648,6 +648,73 @@
     }, 280);
   }
 
+  function revealPlayingClip(root) {
+    var wrap = root.querySelector('[data-mm-wrap]') || root;
+    if (!wrap || !wrap.getBoundingClientRect) return;
+    function go() {
+      var cs = window.getComputedStyle ? window.getComputedStyle(wrap) : null;
+      if (cs && cs.position === 'fixed') return;
+      var rect = wrap.getBoundingClientRect();
+      var header = document.querySelector('.site-header');
+      var pad = 6;
+      if (header) {
+        var hr = header.getBoundingClientRect();
+        var viewH = window.innerHeight || document.documentElement.clientHeight || 0;
+        if (hr.height && hr.bottom > 0 && hr.top < viewH * 0.5) pad = Math.round(hr.bottom) + 6;
+      }
+      var viewH = window.innerHeight || document.documentElement.clientHeight || 0;
+      if (rect.top >= pad - 1 && rect.bottom <= viewH + 1) return;
+      var y = (window.pageYOffset || document.documentElement.scrollTop || 0) + rect.top - pad;
+      if (y < 0) y = 0;
+      try {
+        window.scrollTo({ top: y, behavior: 'smooth' });
+      } catch (e) {
+        window.scrollTo(0, y);
+      }
+    }
+    go();
+    window.requestAnimationFrame(function () {
+      go();
+      window.setTimeout(go, 140);
+    });
+  }
+
+  function openClip(root, payload, state, id) {
+    var prevId = state.currentId;
+    var wasExpanded = !!state.expanded && root.classList.contains('mm-lipton-reels--expanded');
+    state.chromeSnap = snapshotChromeSize(root) || state.chromeSnap;
+    state.currentId = id || state.currentId;
+    state.expanded = true;
+    var picked = currentVideo(payload, state);
+    if (!picked.current) return;
+    if (wasExpanded && picked.current.id === prevId) {
+      revealPlayingClip(root);
+      return;
+    }
+    if (!wasExpanded) {
+      paint(root, payload, state);
+      startHeroPlayback(root, picked.current);
+      preloadNeighbors(root, payload, state);
+      revealPlayingClip(root);
+      return;
+    }
+    var before = clipIndex(picked.videos, prevId);
+    var after = clipIndex(picked.videos, picked.current.id);
+    var dir = after >= before ? 1 : -1;
+    state.sliding = true;
+    startHeroPlayback(root, picked.current);
+    setOverlayChrome(root, picked.current, picked.videos, state.chromeSnap);
+    updateExpandedGrid(root, picked.videos, picked.current.id);
+    syncSkipButtons(root, payload, state);
+    showPlayerUi(root, state, root.querySelector('[data-mm-hero-video]'));
+    bumpSlide(root, dir);
+    preloadNeighbors(root, payload, state);
+    window.setTimeout(function () {
+      state.sliding = false;
+    }, 280);
+    revealPlayingClip(root);
+  }
+
   function ensureExpanded(root) {
     var el = root.querySelector('[data-mm-expanded]');
     if (el) return el;
@@ -787,12 +854,7 @@
       var thumb = ev.target.closest && ev.target.closest('[data-mm-vid]');
       if (thumb && root.contains(thumb)) {
         ev.preventDefault();
-        state.chromeSnap = snapshotChromeSize(root) || state.chromeSnap;
-        state.currentId = thumb.getAttribute('data-mm-vid') || state.currentId;
-        state.expanded = true;
-        paint(root, payload, state);
-        startHeroPlayback(root, currentVideo(payload, state).current);
-        preloadNeighbors(root, payload, state);
+        openClip(root, payload, state, thumb.getAttribute('data-mm-vid') || state.currentId);
       }
     });
 
