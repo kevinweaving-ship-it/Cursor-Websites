@@ -20418,13 +20418,15 @@ _LIPTON_MM_REELS_CSS = (
     "}"
     "@media (min-width:720px){.mm-lipton-reels-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}"
     "@media (min-width:1024px){.mm-lipton-reels-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}"
-    "@media (max-width:768px) and (orientation:portrait), (max-width:768px) and (max-aspect-ratio:1/1){"
+    "@media (max-width:768px){"
     ".header.header--lipton{display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-template-rows:auto auto auto!important;justify-items:center!important;align-items:center!important;column-gap:0!important;row-gap:6px!important;padding:8px 6px}"
-    ".header.header--lipton .regatta-header-logo-col{grid-column:1!important;grid-row:1!important;justify-content:center!important;justify-self:center!important;width:100%;padding:2px}"
-    ".header.header--lipton .regatta-header-main-col{grid-column:1!important;grid-row:2!important;justify-self:center!important;width:100%;max-width:100%;text-align:center}"
-    ".header.header--lipton .regatta-header-club-logo-col{grid-column:1!important;grid-row:3!important;justify-content:center!important;justify-self:center!important;width:100%;padding:2px}"
-    ".header.header--lipton .regatta-header-logo-img,.header.header--lipton .regatta-header-left-logo-img{max-height:min(22vw,96px)!important;max-width:min(70vw,280px)!important}"
-    ".header.header--lipton .regatta-header-club-logo-img{max-height:min(18vw,80px)!important;max-width:min(42vw,160px)!important}"
+    ".header.header--lipton .regatta-header-logo-col,.header.header--lipton .regatta-header-club-logo-col{display:flex!important;justify-content:center!important;align-items:center!important;justify-self:center!important;align-self:center!important;width:auto!important;max-width:100%;margin:0 auto;padding:2px}"
+    ".header.header--lipton .regatta-header-logo-col{grid-column:1!important;grid-row:1!important}"
+    ".header.header--lipton .regatta-header-main-col{grid-column:1!important;grid-row:2!important;justify-self:center!important;align-self:center!important;width:100%;max-width:100%;text-align:center}"
+    ".header.header--lipton .regatta-header-club-logo-col{grid-column:1!important;grid-row:3!important}"
+    ".header.header--lipton .regatta-header-logo-col .regatta-header-logo-link,.header.header--lipton .regatta-header-club-logo-col .regatta-header-logo-link{margin:0 auto;justify-content:center!important}"
+    ".header.header--lipton .regatta-header-logo-img,.header.header--lipton .regatta-header-left-logo-img{max-height:min(22vw,96px)!important;max-width:min(70vw,280px)!important;margin:0 auto}"
+    ".header.header--lipton .regatta-header-club-logo-img{max-height:min(18vw,80px)!important;max-width:min(42vw,160px)!important;margin:0 auto}"
     ".header.header--lipton .host-club,.header.header--lipton .regatta-lipton-venue-line,.header.header--lipton .regatta-lipton-host-line,.header.header--lipton .status-line{text-align:center;width:100%;white-space:normal!important;overflow:visible!important}"
     "}"
     "@media print{.mm-lipton-reels{display:none!important}}"
@@ -27377,7 +27379,7 @@ def serve_regatta_standalone(slug: str, request: Request):
         mm_card_js = ""
         if str(regatta_id) == "2026-08-29-lipton-challenge-cup":
             mm_card = _lipton_mm_reels_card_html(str(regatta_id))
-            mm_card_js = '<script src="/js/mm-lipton-reels-card.js?v=mmr11" defer></script>'
+            mm_card_js = '<script src="/js/mm-lipton-reels-card.js?v=mmr12" defer></script>'
         body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()
