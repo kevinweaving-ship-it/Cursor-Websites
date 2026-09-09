@@ -12,7 +12,7 @@
   var VID_H = 9;
   var GAP = 6;
   var TRACK_TEST_ID = '2622643364847262';
-  var TRACK_TRAIL_URL = '/js/lipton-dev-trail-r7.json';
+  var TRACK_TRAIL_URL = '/js/lipton-dev-trail-r7.json'; // GPS points only — no map/tiles; video water is the background
   var trackTrail = null;
   var trackWait = [];
   var trackRaf = 0;
