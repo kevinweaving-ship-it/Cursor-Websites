@@ -1,6 +1,8 @@
 /**
  * Lipton-only Marine Megastore Event Reels card (#mmLiptonReels).
- * Compact: fixed artwork + swipeable clip rail. One tap expands and plays hosted mp4.
+ * Compact: artwork + poster rail. One tap expands and plays a hosted mp4.
+ * Facebook plugin iframes cannot start from a parent click — one persistent
+ * HTML5 <video> is reused so play() stays inside the same user gesture.
  */
 (function () {
   'use strict';
@@ -47,7 +49,10 @@
   }
 
   function playUrl(v) {
-    return String((v && v.play_url) || '').trim();
+    var u = String((v && v.play_url) || '').trim();
+    if (u) return u;
+    var id = String((v && v.id) || '').replace(/[^0-9]/g, '');
+    return id ? '/assets/adverts/mm-lipton/' + id + '.mp4' : '';
   }
 
   function posterHtml(v) {
@@ -68,24 +73,58 @@
     }
   }
 
+  function pauseHero(root) {
+    var video = root.querySelector('[data-mm-hero-video]');
+    if (!video) return;
+    try {
+      video.pause();
+    } catch (e) {}
+  }
+
   function stopAllPlayback(root) {
     exitFsIfInside(root);
-    var videos = root.querySelectorAll('video');
-    var i;
-    for (i = 0; i < videos.length; i++) {
-      try {
-        videos[i].pause();
-      } catch (e) {}
-      try {
-        videos[i].removeAttribute('src');
-        videos[i].load();
-      } catch (e2) {}
-    }
+    pauseHero(root);
     var iframes = root.querySelectorAll('[data-mm-expanded] iframe');
+    var i;
     for (i = 0; i < iframes.length; i++) {
       iframes[i].src = 'about:blank';
       iframes[i].removeAttribute('src');
     }
+  }
+
+  function ensureHeroVideo(root) {
+    var hold = root.querySelector('[data-mm-video-hold]');
+    if (!hold) {
+      hold = document.createElement('div');
+      hold.className = 'mm-lipton-reels-video-hold';
+      hold.setAttribute('data-mm-video-hold', '');
+      hold.setAttribute('aria-hidden', 'true');
+      root.appendChild(hold);
+    }
+    var video = root.querySelector('[data-mm-hero-video]');
+    if (!video) {
+      video = document.createElement('video');
+      video.setAttribute('data-mm-hero-video', '');
+      video.setAttribute('playsinline', '');
+      video.setAttribute('webkit-playsinline', '');
+      video.setAttribute('muted', '');
+      video.setAttribute('autoplay', '');
+      video.setAttribute('preload', 'auto');
+      video.muted = true;
+      video.defaultMuted = true;
+      video.playsInline = true;
+      video.controls = true;
+      video.preload = 'auto';
+      hold.appendChild(video);
+    }
+    return video;
+  }
+
+  function parkHeroVideo(root) {
+    var hold = root.querySelector('[data-mm-video-hold]');
+    var video = root.querySelector('[data-mm-hero-video]');
+    if (!hold) hold = ensureHeroVideo(root) && root.querySelector('[data-mm-video-hold]');
+    if (hold && video && video.parentNode !== hold) hold.appendChild(video);
   }
 
   function thumbHit(v) {
@@ -167,32 +206,34 @@
 
   function stageHtml(v) {
     if (!v) return '<p class="mm-lipton-reels-waiting">No clip yet.</p>';
-    var src = playUrl(v);
-    var poster = (v && v.thumb) || '';
     return (
       '<div class="mm-lipton-reels-stage mm-lipton-reels-stage--playing" data-mm-stage style="--mm-aspect:' +
       aspectCss(v) +
       ';aspect-ratio:' +
       aspectCss(v) +
-      '">' +
-      '<video data-mm-hero-video muted playsinline webkit-playsinline autoplay controls preload="auto"' +
-      (poster ? ' poster="' + esc(poster) + '"' : '') +
-      (src ? ' src="' + esc(src) + '"' : '') +
-      '></video>' +
-      '</div>'
+      '"></div>'
     );
   }
 
-  function startHeroPlayback(root, v) {
-    var video = root.querySelector('[data-mm-hero-video]');
+  function startHeroPlayback(root, clip) {
+    var video = ensureHeroVideo(root);
     var stage = root.querySelector('[data-mm-stage]');
-    if (!video || !v) return;
-    var src = playUrl(v);
-    if (src && video.getAttribute('src') !== src) video.src = src;
+    if (!video || !clip) return;
+    var src = playUrl(clip);
     video.muted = true;
+    video.defaultMuted = true;
+    video.playsInline = true;
     video.setAttribute('playsinline', '');
     video.setAttribute('webkit-playsinline', '');
-    if (stage) stage.classList.add('mm-lipton-reels-stage--playing');
+    video.setAttribute('muted', '');
+    if (clip.thumb) video.setAttribute('poster', clip.thumb);
+    if (src && video.getAttribute('src') !== src) {
+      video.src = src;
+    }
+    if (stage) {
+      stage.classList.add('mm-lipton-reels-stage--playing');
+      if (video.parentNode !== stage) stage.appendChild(video);
+    }
     var playPromise = video.play();
     if (playPromise && playPromise.catch) {
       playPromise.catch(function () {});
@@ -323,9 +364,9 @@
   }
 
   function removeExpanded(root) {
+    parkHeroVideo(root);
     var el = root.querySelector('[data-mm-expanded]');
     if (!el) return;
-    stopAllPlayback(el);
     el.parentNode.removeChild(el);
   }
 
@@ -340,12 +381,15 @@
 
   function paint(root, payload, state) {
     var picked = currentVideo(payload, state);
+    parkHeroVideo(root);
     root.classList.toggle('mm-lipton-reels--expanded', !!state.expanded);
     root.classList.toggle('mm-lipton-reels--compact', !state.expanded);
     if (state.expanded) {
-      stopAllPlayback(root);
       var expanded = ensureExpanded(root);
       expanded.innerHTML = expandedHtml(picked.current, picked.videos);
+      var stage = expanded.querySelector('[data-mm-stage]');
+      var video = ensureHeroVideo(root);
+      if (stage && video) stage.appendChild(video);
     } else {
       removeExpanded(root);
       layoutCompactStrip(root, picked.videos);
@@ -357,6 +401,13 @@
     if (!root) return;
     var payload = readPayload(root);
     var state = { expanded: false, currentId: '' };
+    var video = ensureHeroVideo(root);
+    var first = sortVideos(payload.videos || [])[0];
+    if (first && video) {
+      var src = playUrl(first);
+      if (first.thumb) video.setAttribute('poster', first.thumb);
+      if (src) video.src = src;
+    }
     paint(root, payload, state);
 
     root.addEventListener('click', function (ev) {
@@ -394,9 +445,13 @@
 
     var rail = root.querySelector('[data-mm-compact]');
     if (rail) {
-      rail.addEventListener('scroll', function () {
-        syncRailButtons(root);
-      }, { passive: true });
+      rail.addEventListener(
+        'scroll',
+        function () {
+          syncRailButtons(root);
+        },
+        { passive: true }
+      );
     }
 
     if (window.ResizeObserver) {
