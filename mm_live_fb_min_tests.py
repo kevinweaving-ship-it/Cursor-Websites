@@ -58,6 +58,9 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         css = src[src.find("_LIPTON_MM_REELS_CSS"): src.find("def _lipton_mm_reels_payload")]
         self.assertNotIn("mm-lipton-reels-stamp", css)
         self.assertIn("mm-lipton-reels-thumb--latest .mm-lipton-reels-play", css)
+        self.assertIn(".mm-lipton-reels-clip-chrome", css)
+        self.assertIn("fb-page-marine-megastore.jpg", seed)
+        self.assertIn("Lipton  Race 7 1st downwind", seed)
         self.assertIn(".regatta-page>.regatta-header-wrap{order:1}", css)
         self.assertIn(".regatta-page>.mm-lipton-reels{order:2}", css)
         self.assertIn(".regatta-page>.fleet-section{order:3}", css)
@@ -82,6 +85,8 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("mm-lipton-reels-thumb-hit", js)
         self.assertIn("latestThumbHtml", js)
         self.assertIn("mm-lipton-reels-thumb--latest", js)
+        self.assertIn("latestChromeHtml", js)
+        self.assertIn("fb_owner_logo", js)
         self.assertNotIn("requestFullscreen", js)
         self.assertNotIn("mm-lipton-reels-stamp", js)
         self.assertNotIn("Latest Reel", js)

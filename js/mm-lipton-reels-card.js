@@ -125,6 +125,23 @@
     );
   }
 
+  function latestChromeHtml(v) {
+    var logo = (v && v.fb_owner_logo) || '';
+    var title = (v && v.fb_title) || '';
+    var sub = (v && v.fb_sub) || '';
+    if (!logo && !title && !sub) return '';
+    var img = logo
+      ? '<img class="mm-lipton-reels-owner-logo" src="' +
+        esc(logo) +
+        '" alt="" width="40" height="40" decoding="async">'
+      : '';
+    var copy = '<div class="mm-lipton-reels-clip-copy">';
+    if (title) copy += '<div class="mm-lipton-reels-clip-title">' + esc(title) + '</div>';
+    if (sub) copy += '<div class="mm-lipton-reels-clip-sub">' + esc(sub) + '</div>';
+    copy += '</div>';
+    return '<div class="mm-lipton-reels-clip-chrome" aria-hidden="true">' + img + copy + '</div>';
+  }
+
   function latestThumbHtml(v) {
     var poster =
       v && v.thumb
@@ -133,6 +150,7 @@
     return (
       '<div class="mm-lipton-reels-thumb mm-lipton-reels-thumb--latest" style="aspect-ratio:16 / 9">' +
       poster +
+      latestChromeHtml(v) +
       '<span class="mm-lipton-reels-play" aria-hidden="true"></span>' +
       thumbHit(v) +
       '</div>'
