@@ -60,5 +60,45 @@ class ComposeLinkTest(unittest.TestCase):
         self.assertEqual(w.elapsed_label(5 * 60), "5m")
 
 
+class SendAdminRateCapTest(unittest.TestCase):
+    def setUp(self):
+        self.cfg = {
+            "recipients": [
+                {"name": "Kevin", "number": "111", "scope": "all"},
+                {"name": "Pingoa", "number": "222", "scope": "all"},
+            ]
+        }
+        self.calls = []
+        now = __import__("time").time()
+        self.full = [now - i for i in range(20)]
+
+    def _post(self, url, body, timeout=40):
+        self.calls.append(body)
+        return {"ok": True, "id": "x"}
+
+    def test_failed_send_does_not_count(self):
+        def fail(url, body, timeout=40):
+            return {"ok": False, "error": "down"}
+        w.post = fail
+        sent = list(self.full[:19])
+        ok = w.send_admin(self.cfg, "x", sent, "hansekop", "nag")
+        self.assertFalse(ok)
+        self.assertEqual(len(sent), 19)
+
+    def test_restore_exempt_from_cap(self):
+        w.post = self._post
+        sent = list(self.full)
+        ok = w.send_admin(self.cfg, "Link restored", sent, "hansekop", "up")
+        self.assertTrue(ok)
+        self.assertEqual(len(self.calls), 2)
+
+    def test_nag_blocked_at_cap(self):
+        w.post = self._post
+        sent = list(self.full)
+        ok = w.send_admin(self.cfg, "nag", sent, "hansekop", "nag")
+        self.assertFalse(ok)
+        self.assertEqual(self.calls, [])
+
+
 if __name__ == "__main__":
     unittest.main()

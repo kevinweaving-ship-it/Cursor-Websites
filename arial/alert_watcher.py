@@ -203,16 +203,19 @@ def send_admin(cfg, text, sent_times, site, kind):
     ok_any = False
     for name, number in admin_targets(cfg):
         sent_times[:] = [t for t in sent_times if time.time() - t < 3600]
-        if len(sent_times) >= MAX_PER_HOUR:
+        # Link restored must always go out. Failed sends do not burn the hourly cap.
+        if kind != "up" and len(sent_times) >= MAX_PER_HOUR:
             log.warning("rate cap hit; not sending link %s to %s", kind, name)
             break
         res = post(f"{CTRL}/send", {"number": number, "text": text})
-        sent_times.append(time.time())
+        ok = bool(res.get("ok"))
+        if ok:
+            sent_times.append(time.time())
         admin_log({"t": time.time(), "dir": "out", "kind": "link-" + kind, "site": site, "to": name,
-                   "ok": bool(res.get("ok")), "id": res.get("id"), "error": res.get("error"),
+                   "ok": ok, "id": res.get("id"), "error": res.get("error"),
                    "text": text})
         log.info("link %s %s -> %s ok=%s", kind, site, name, res.get("ok"))
-        ok_any = ok_any or bool(res.get("ok"))
+        ok_any = ok_any or ok
     return ok_any
 
 

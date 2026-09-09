@@ -878,6 +878,11 @@ def make_handler(w: Worker):
             return self._json(404, {"ok": False})
 
         def do_POST(self):
+            if self.path == "/push":
+                if not self._authed():
+                    return self._json(401, {"ok": False, "error": "unauthorized"})
+                ok = w._push_now("manual")
+                return self._json(200, {"ok": ok, "lastPush": w.last_push, "pushErrors": w.push_errors})
             if self.path != "/light":
                 return self._json(404, {"ok": False})
             if not self._authed():

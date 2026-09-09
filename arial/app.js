@@ -1699,20 +1699,22 @@
         if (text !== "No link" && text !== "Power out") setBreakerLastLink("");
     }
 
-    function noteBreakerLink(data) {
+    function noteBreakerLink(data, freeze) {
         var sh = (data && data.sharing) || ((data && data.debug && data.debug.sharing) || {});
         var at = Number(sh.meterLastReadingAt != null ? sh.meterLastReadingAt : data && data.readingTs);
         if (isFinite(at) && at > 1e12) at = at / 1000;
+        var ms = null;
         if (isFinite(at) && at > 1e9) {
-            breakerLastReportAt = at * 1000;
-            saveBreakerStore();
-            return;
+            ms = at * 1000;
+        } else {
+            var age = Number(sh.meterLastReportAgeS);
+            if (isFinite(age) && age >= 0) ms = Date.now() - age * 1000;
         }
-        var age = Number(sh.meterLastReportAgeS);
-        if (isFinite(age) && age >= 0) {
-            breakerLastReportAt = Date.now() - age * 1000;
-            saveBreakerStore();
-        }
+        if (ms == null) return;
+        // No-link / power-out: keep the last real reading. Do not walk the clock forward to "now".
+        if (freeze && breakerLastReportAt && ms > breakerLastReportAt) return;
+        breakerLastReportAt = ms;
+        saveBreakerStore();
     }
 
     function breakerLinkAgoLabel(seconds) {
@@ -1767,7 +1769,10 @@
 
     function breakerLastLinkStamp() {
         if (!breakerLastReportAt) return "";
-        return new Date(breakerLastReportAt).toLocaleTimeString("en-GB", { timeZone: "Africa/Johannesburg", hour: "2-digit", minute: "2-digit", hour12: false });
+        var d = new Date(breakerLastReportAt);
+        var date = d.toLocaleDateString("en-GB", { timeZone: "Africa/Johannesburg", day: "2-digit", month: "short", year: "2-digit" });
+        var time = d.toLocaleTimeString("en-GB", { timeZone: "Africa/Johannesburg", hour: "2-digit", minute: "2-digit", hour12: false });
+        return date + " · " + time;
     }
 
     var alarmAcOk = null; // last Olarm mains state seen by the activity/panel feed (true/false/null=unknown)
@@ -1857,7 +1862,7 @@
     }
 
     function breakerNoLink(data) {
-        noteBreakerLink(data);
+        noteBreakerLink(data, true);
         breakerLinkLost = true;
         var ac = alarmAcOk !== null ? alarmAcOk : powerAcOk(window.arialDevice);
         if (ac === false) {
@@ -1905,7 +1910,6 @@
             blankGauges();
             return;
         }
-        noteBreakerLink(data);
         if (!data.tokenOk || !data.deviceOk) {
             var staleRows = Array.isArray(data.status) ? data.status : [];
             var stale = {};
@@ -1920,6 +1924,7 @@
             breakerNoLink(data);
             return;
         }
+        noteBreakerLink(data);
         var rows = Array.isArray(data.status) ? data.status : [];
         var map = {};
         var i;
@@ -2004,7 +2009,7 @@
             var data = await res.json();
             breakerDayTick = Date.now();
             breakerEnergyData = data || null;
-            if (data) noteBreakerLink(data);
+            if (data && !breakerLinkLost) noteBreakerLink(data);
             breakerDays = data && Array.isArray(data.days) ? data.days : [];
             if (breakerDayIdx > breakerDays.length - 1) breakerDayIdx = 0;
             renderBreakerDay();
