@@ -23,6 +23,9 @@ class MinimalMmFeedTest(unittest.TestCase):
         self.assertIn("header_html + mm_card + sa_columns_frag", self.src)
         self.assertIn('id="mmLiveFbCard"', self.src)
         self.assertIn('id="regattaMmLiveFbFeed"', self.src)
+        self.assertIn(">LIVE VIDEO</h2>", self.src)
+        self.assertIn('src="/assets/adverts/marine-megastore-logo.png"', self.src)
+        self.assertIn('href="https://marinemegastore.co.za"', self.src)
 
 
 if __name__ == "__main__":

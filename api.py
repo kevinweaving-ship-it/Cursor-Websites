@@ -19985,7 +19985,9 @@ def _mm_live_fb_card_html(regatta_id: str) -> str:
         '<section class="card mm-live-fb-card" id="mmLiveFbCard" '
         f'data-regatta-id="{rid}" aria-label="Marine Megastore video">'
         '<h2 class="section-title">LIVE VIDEO</h2>'
-        '<p class="mm-live-fb-powered">Powered by Marine Megastore</p>'
+        '<a class="mm-live-fb-logo-link" href="https://marinemegastore.co.za" target="_blank" rel="noopener noreferrer">'
+        '<img class="mm-live-fb-logo" src="/assets/adverts/marine-megastore-logo.png" alt="Marine Megastore" width="1748" height="330" loading="lazy" decoding="async">'
+        "</a>"
         "</section>"
     )
 
@@ -24355,6 +24357,8 @@ _RESULT_SHEET_CSS = (
     ".mm-live-fb-card{width:100%;margin:16px 0 0 0;padding:0.5rem 0.75rem;background:#ffffff;border:2px solid #001f3f;border-radius:8px;box-shadow:0 1px 3px rgba(0,31,63,0.08);box-sizing:border-box}"
     ".mm-live-fb-card .section-title{margin:0 0 0.4rem 0;padding-bottom:0.35rem;font-size:0.85rem;font-weight:700;letter-spacing:0.02em;text-transform:uppercase;color:#001f3f;border-bottom:2px solid #001f3f}"
     ".mm-live-fb-powered{margin:0;font-size:0.9rem;color:#334155}"
+    ".mm-live-fb-logo-link{display:inline-block;line-height:0;margin:0.15rem 0 0.35rem 0}"
+    ".mm-live-fb-logo{display:block;max-width:min(280px,100%);height:auto}"
     "@media (max-width:480px){.mm-live-fb-card{padding:0.5rem 0.75rem;margin-top:12px}}"
     "@media (min-width:600px){.mm-live-fb-card{padding:0.5rem 0.85rem}}"
 )
