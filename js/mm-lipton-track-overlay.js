@@ -111,27 +111,28 @@
     return hdg < 0 ? hdg + 360 : hdg;
   }
 
-  /* Nose continues the on-screen wake (oldest→newest GPS), never into the tail. */
+  /* On-screen COG from the last few GPS seconds (same idea as tracking-dev2 headingAt). */
   function screenNoseRad(series, pos, cam, ts) {
     var hits = tailHits(series, ts);
     var a;
     var b;
     if (hits && hits.length >= 2) {
-      a = xy(hits[0].lat, hits[0].lon, cam);
+      var from = hits[Math.max(0, hits.length - 6)];
+      a = xy(from.lat, from.lon, cam);
       b = xy(hits[hits.length - 1].lat, hits[hits.length - 1].lon, cam);
     } else if (pos && series) {
-      var k = hitBack(series, (pos.i != null ? pos.i : 0) - 8);
+      var k = hitBack(series, (pos.i != null ? pos.i : 0) - 5);
       var prev = ptAt(series, k);
-      if (!prev) return -Math.PI / 2;
+      if (!prev) return -90;
       a = xy(prev.lat, prev.lon, cam);
       b = xy(pos.lat, pos.lon, cam);
     } else {
-      return -Math.PI / 2;
+      return -90;
     }
     var dx = b.x - a.x;
     var dy = b.y - a.y;
-    if (dx * dx + dy * dy < 4) return -Math.PI / 2;
-    return Math.atan2(dx, -dy);
+    if (dx * dx + dy * dy < 4) return -90;
+    return (Math.atan2(dx, -dy) * 180) / Math.PI;
   }
 
   function distM(a, b) {
@@ -513,7 +514,7 @@
     }
   }
 
-  function drawBoatIcon(ctx, p, noseRad, paint, r) {
+  function drawBoatIcon(ctx, p, hdg, paint, r) {
     ctx.beginPath();
     ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
     ctx.fillStyle = paint.fill;
@@ -523,11 +524,11 @@
     ctx.stroke();
     ctx.save();
     ctx.translate(p.x, p.y);
-    ctx.rotate(noseRad);
+    ctx.rotate(((hdg || 0) * Math.PI) / 180);
     ctx.beginPath();
-    ctx.moveTo(0, -r - 2.4);
-    ctx.lineTo(2.1, -r + 0.8);
-    ctx.lineTo(-2.1, -r + 0.8);
+    ctx.moveTo(0, -r - 2.8);
+    ctx.lineTo(2.2, -r + 0.9);
+    ctx.lineTo(-2.2, -r + 0.9);
     ctx.closePath();
     ctx.fillStyle = paint.nose || '#ffffff';
     ctx.fill();
