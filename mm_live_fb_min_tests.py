@@ -63,6 +63,8 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn(".regatta-page>.fleet-section{order:3}", css)
         self.assertIn(".regatta-page>.action-buttons{order:10}", css)
         self.assertIn(".header.header--lipton{display:grid!important", css)
+        self.assertIn(".header.header--lipton .regatta-lipton-venue-cohost .regatta-lipton-host-logo", css)
+        self.assertIn("max-height:24px!important", css)
         self.assertIn("#dce6ef", css)
         self.assertNotIn("mm-lipton-reels-fb-label", css)
         self.assertIn("display:none!important", css)
