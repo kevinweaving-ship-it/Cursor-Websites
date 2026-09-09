@@ -20274,6 +20274,179 @@ def _mm_live_fb_card_html(regatta_id: str) -> str:
     )
 
 
+_LIPTON_MM_REGATTA_ID = "2026-08-29-lipton-challenge-cup"
+_LIPTON_MM_REELS_VIDEOS = (
+    {
+        "id": "2622643364847262",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race-7-1st-downwind/2622643364847262/",
+        "permalink": "https://www.facebook.com/reel/2622643364847262/",
+        "title": "Lipton Race 7 1st downwind",
+        "started_at": "2026-08-28T14:19:00+02:00",
+        "stamp": "28 Aug · 14:19",
+        "thumb": "/assets/adverts/mm-lipton/2622643364847262.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "2410502969472697",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race-7-1st-top/2410502969472697/",
+        "permalink": "https://www.facebook.com/reel/2410502969472697/",
+        "title": "Lipton Race 7 1st top",
+        "started_at": "2026-08-28T14:12:00+02:00",
+        "stamp": "28 Aug · 14:12",
+        "thumb": "/assets/adverts/mm-lipton/2410502969472697.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "1014880974840710",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race-7-start/1014880974840710/",
+        "permalink": "https://www.facebook.com/reel/1014880974840710/",
+        "title": "Lipton Race 7 Start",
+        "started_at": "2026-08-28T13:55:00+02:00",
+        "stamp": "28 Aug · 13:55",
+        "thumb": "/assets/adverts/mm-lipton/1014880974840710.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "26023759437321260",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-r5/26023759437321260/",
+        "permalink": "https://www.facebook.com/reel/26023759437321260/",
+        "title": "Lipton R5",
+        "started_at": "2026-08-27T14:47:00+02:00",
+        "stamp": "27 Aug · 14:47",
+        "thumb": "/assets/adverts/mm-lipton/26023759437321260.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "1587763379559775",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race-5/1587763379559775/",
+        "permalink": "https://www.facebook.com/reel/1587763379559775/",
+        "title": "Lipton Race 5",
+        "started_at": "2026-08-27T14:03:00+02:00",
+        "stamp": "27 Aug · 14:03",
+        "thumb": "/assets/adverts/mm-lipton/1587763379559775.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "4518629078350390",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-r5-start/4518629078350390/",
+        "permalink": "https://www.facebook.com/reel/4518629078350390/",
+        "title": "Lipton R5 Start",
+        "started_at": "2026-08-27T13:48:00+02:00",
+        "stamp": "27 Aug · 13:48",
+        "thumb": "/assets/adverts/mm-lipton/4518629078350390.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "1751846282795149",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-r4-finish/1751846282795149/",
+        "permalink": "https://www.facebook.com/reel/1751846282795149/",
+        "title": "Lipton R4 Finish",
+        "started_at": "2026-08-27T13:24:00+02:00",
+        "stamp": "27 Aug · 13:24",
+        "thumb": "/assets/adverts/mm-lipton/1751846282795149.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "2111285223132517",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-r4-2nd-quad/2111285223132517/",
+        "permalink": "https://www.facebook.com/reel/2111285223132517/",
+        "title": "Lipton R4 2nd quad",
+        "started_at": "2026-08-27T12:00:00+02:00",
+        "stamp": "R4 · 2nd quad",
+        "thumb": "/assets/adverts/mm-lipton/2111285223132517.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+)
+_LIPTON_MM_REELS_CSS = (
+    ".mm-lipton-reels{width:100%;margin:10px 0 0 0;padding:0.35rem 0.45rem;background:#ffffff;border:2px solid #001f3f;border-radius:8px;box-shadow:0 1px 3px rgba(0,31,63,0.08);box-sizing:border-box}"
+    ".mm-lipton-reels--compact .mm-lipton-reels-expanded{display:none}"
+    ".mm-lipton-reels--expanded .mm-lipton-reels-compact{display:none}"
+    ".mm-lipton-reels-compact{display:flex;align-items:center;gap:0.4rem;min-width:0}"
+    ".mm-lipton-reels-brand{flex:1 1 45%;min-width:0;max-width:45%;line-height:0}"
+    ".mm-lipton-reels-brand img{display:block;width:auto!important;height:auto!important;max-width:min(220px,100%)!important;max-height:88px!important;object-fit:contain;object-position:left center}"
+    ".mm-lipton-reels-compact [data-mm-compact]{flex:1 1 55%;min-width:0;max-width:55%}"
+    ".mm-lipton-reels-compact-preview{display:block;width:100%;min-width:0}"
+    ".mm-lipton-reels-thumb{position:relative;display:block;width:100%;padding:0;border:2px solid #001f3f;border-radius:6px;background:#e9eefb;overflow:hidden;cursor:pointer;min-height:44px}"
+    ".mm-lipton-reels-thumb img{width:100%;height:100%;object-fit:cover;display:block}"
+    ".mm-lipton-reels-thumb-ph{display:block;width:100%;height:100%;background:#e9eefb}"
+    ".mm-lipton-reels-stamp{position:absolute;left:0;right:0;bottom:0;background:rgba(0,31,63,0.82);color:#fff;font-size:0.62rem;font-weight:700;padding:0.12rem 0.2rem;text-align:left}"
+    ".mm-lipton-reels-expanded-bar{display:flex;justify-content:flex-end;margin:0 0 0.35rem 0}"
+    ".mm-lipton-reels-hide{min-height:44px;min-width:44px;font-size:0.8rem;font-weight:700;color:#001f3f;background:#fff;border:2px solid #001f3f;border-radius:6px;padding:0.28rem 0.7rem;cursor:pointer}"
+    ".mm-lipton-reels-stage{position:relative;width:100%;aspect-ratio:var(--mm-aspect,16/9);overflow:hidden;border-radius:6px;background:#001018}"
+    ".mm-lipton-reels-stage iframe{position:absolute;inset:0;width:100%;height:100%;border:0}"
+    ".mm-lipton-reels-watch{display:inline-block;margin:0.3rem 0 0.1rem;font-size:0.85rem;font-weight:600;color:#001f3f}"
+    ".mm-lipton-reels-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0.35rem;margin-top:0.4rem}"
+    ".mm-lipton-reels-thumb--on{outline:2px solid #2563eb;outline-offset:1px}"
+    ".mm-lipton-reels-waiting{margin:0;font-size:0.85rem;color:#334155}"
+    "@media (min-width:600px){.mm-lipton-reels{padding:0.4rem 0.55rem}.mm-lipton-reels-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}"
+    "@media (min-width:900px){.mm-lipton-reels-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}"
+    "@media print{.mm-lipton-reels{display:none!important}}"
+)
+
+
+def _lipton_mm_reels_payload() -> dict:
+    videos = []
+    for item in _LIPTON_MM_REELS_VIDEOS:
+        url = str(item.get("url") or "")
+        if "timadvisor" in url.lower() or "marin.megastoresa" not in url.lower():
+            continue
+        row = dict(item)
+        row["embed_url"] = _mm_embed_src(url)
+        row["is_live"] = False
+        videos.append(row)
+    videos.sort(key=lambda v: str(v.get("started_at") or ""), reverse=True)
+    return {"videos": videos}
+
+
+def _lipton_mm_reels_card_html(regatta_id: str) -> str:
+    """Lipton 2026 only. Empty for every other regatta_id."""
+    if str(regatta_id or "").strip() != _LIPTON_MM_REGATTA_ID:
+        return ""
+    payload = _lipton_mm_reels_payload()
+    initial = html_module.escape(json.dumps(payload, separators=(",", ":")), quote=True)
+    brand = (
+        '<a class="mm-lipton-reels-brand" href="https://marinemegastore.co.za" target="_blank" rel="noopener noreferrer">'
+        '<img src="/assets/adverts/mm-powered-by-event-reels.png?v=mmr1" '
+        'alt="Powered by Marine Megastore Event Reels" width="220" height="146" '
+        'style="max-width:220px !important;max-height:88px !important;width:auto !important;height:auto !important;" '
+        'loading="lazy" decoding="async">'
+        "</a>"
+    )
+    return (
+        f"<style>{_LIPTON_MM_REELS_CSS}</style>"
+        f'<section class="card mm-lipton-reels mm-lipton-reels--compact" id="mmLiptonReels" '
+        f'data-regatta-id="{html_module.escape(_LIPTON_MM_REGATTA_ID)}" data-mm-initial="{initial}" '
+        'aria-label="Marine Megastore Event Reels">'
+        '<div class="mm-lipton-reels-compact">'
+        f"{brand}"
+        '<div data-mm-compact></div>'
+        "</div>"
+        '<div class="mm-lipton-reels-expanded">'
+        '<div class="mm-lipton-reels-expanded-bar">'
+        '<button type="button" class="mm-lipton-reels-hide" data-mm-hide>Hide</button>'
+        "</div>"
+        '<div data-mm-expanded></div>'
+        "</div>"
+        "</section>"
+    )
+
+
 
 @app.patch("/api/super-admin/regatta/{regatta_id}/mm-live-fb-feed")
 async def api_super_admin_regatta_mm_live_fb_feed(request: Request, regatta_id: str, body: dict = Body(...)):
@@ -27173,6 +27346,10 @@ def serve_regatta_standalone(slug: str, request: Request):
         print_btn = '<div class="action-buttons"><button class="action-button" onclick="window.print()">Print</button></div>'
         mm_feed_on = False
         mm_card = ""
+        mm_card_js = ""
+        if str(regatta_id) == "2026-08-29-lipton-challenge-cup":
+            mm_card = _lipton_mm_reels_card_html(str(regatta_id))
+            mm_card_js = '<script src="/js/mm-lipton-reels-card.js?v=mmr1" defer></script>'
         body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()
@@ -27182,7 +27359,6 @@ def serve_regatta_standalone(slug: str, request: Request):
             else ""
         )
         sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js?v=mm2" defer></script>' if is_sa else ""
-        mm_card_js = ""
         doc = (
             "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
             f"{escaped_title} | SailingSA</title>"
