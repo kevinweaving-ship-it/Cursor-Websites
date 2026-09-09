@@ -3930,6 +3930,30 @@
       '-std-category" name="category" maxlength="500" value="' +
       escapeHtml(cat).replace(/"/g, '&quot;') +
       '" placeholder="e.g. Regional, Nationals" aria-label="Category"></div>' +
+      (function () {
+        var hasRid = String(summary.regatta_id || '').trim();
+        if (!hasRid) return '';
+        var on =
+          summary.mm_live_fb_feed === true ||
+          summary.mm_live_fb_feed === 1 ||
+          String(summary.mm_live_fb_feed || '').toLowerCase() === 'on';
+        return (
+          '<div class="bn-card__sa-field bn-card__sa-field--mm-feed">' +
+          '<label for="' +
+          NS +
+          '-std-mm-feed">Marine Megastore Live FB Feed</label>' +
+          '<select id="' +
+          NS +
+          '-std-mm-feed" name="mm_live_fb_feed" aria-label="Marine Megastore Live FB Feed">' +
+          '<option value="OFF"' +
+          (!on ? ' selected' : '') +
+          '>OFF</option>' +
+          '<option value="ON"' +
+          (on ? ' selected' : '') +
+          '>ON</option></select>' +
+          '<span class="bn-card__sa-hint">ON inserts the live video card on the event page between Event Header and Fleet 1.</span></div>'
+        );
+      })() +
       '<div class="bn-card__sa-dates">' +
       '<div class="bn-card__sa-field"><label>Start date</label>' +
       '<input type="date" name="start_date" value="' +
@@ -4067,6 +4091,23 @@
         }
         return;
       }
+      var mmCal = formEl.querySelector('[name="mm_live_fb_feed"]');
+      var calRid = String(summary.regatta_id || '').trim();
+      if (mmCal && calRid) {
+        try {
+          await fetch(
+            b + '/api/super-admin/regatta/' + encodeURIComponent(calRid) + '/mm-live-fb-feed',
+            {
+              method: 'PATCH',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                mm_live_fb_feed: String(mmCal.value || '').toUpperCase() === 'ON'
+              })
+            }
+          );
+        } catch (eMm) {}
+      }
       exitBnSaInlineEdit(root);
       try {
         localStorage.setItem('sailsa_hub_news_dirty', String(Date.now()));
@@ -4140,6 +4181,35 @@
         '</option>';
     }
     badgeSelectHtml += '</select></div>';
+
+    var showMmFeed = false;
+    try {
+      var slotSec = root.closest('[data-bn-slot]');
+      var slotName = slotSec ? String(slotSec.getAttribute('data-bn-slot') || '') : '';
+      showMmFeed = slotName === 'upcoming-events' || curBadge === 'Upcoming Event';
+    } catch (eSlotMm) {}
+    var mmOn =
+      summary.mm_live_fb_feed === true ||
+      summary.mm_live_fb_feed === 1 ||
+      String(summary.mm_live_fb_feed || '').toLowerCase() === 'on';
+    var mmFeedHtml = '';
+    if (showMmFeed) {
+      mmFeedHtml =
+        '<div class="bn-card__sa-field bn-card__sa-field--mm-feed">' +
+        '<label for="' +
+        NS +
+        '-sa-mm-feed">Marine Megastore Live FB Feed</label>' +
+        '<select id="' +
+        NS +
+        '-sa-mm-feed" name="mm_live_fb_feed" aria-label="Marine Megastore Live FB Feed">' +
+        '<option value="OFF"' +
+        (!mmOn ? ' selected' : '') +
+        '>OFF</option>' +
+        '<option value="ON"' +
+        (mmOn ? ' selected' : '') +
+        '>ON</option></select>' +
+        '<span class="bn-card__sa-hint">ON inserts the live video card on the event page between Event Header and Fleet 1.</span></div>';
+    }
 
     var clubHtml =
       '<div class="bn-card__sa-field bn-card__sa-club-field"><label for="' +
@@ -4265,6 +4335,7 @@
       '-sa-open-url="events">Open</button>' +
       '</div></div>' +
       badgeSelectHtml +
+      mmFeedHtml +
       clubHtml +
       '<div class="bn-card__sa-field"><label>Results</label>' +
       '<select name="result_status" aria-label="Final, Provisional, or None">' +
@@ -4493,6 +4564,10 @@
     if (ceIn) {
       var cev = String(ceIn.value || '').trim();
       body.card_calendar_url = cev || null;
+    }
+    var mmIn = formEl.querySelector('[name="mm_live_fb_feed"]');
+    if (mmIn) {
+      body.mm_live_fb_feed = String(mmIn.value || '').toUpperCase() === 'ON';
     }
     if (root._bncardHubManual && typeof root._bncardHubManual === 'object') {
       body.blank_hub_sa_manual_entries = root._bncardHubManual;
