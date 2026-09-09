@@ -20455,6 +20455,7 @@ _LIPTON_MM_REELS_CSS = (
     ".mm-lipton-reels-grid-item{min-width:0}"
     ".mm-lipton-reels-waiting{margin:0;font-size:0.85rem;color:#334155}"
     "@media (orientation:landscape) and (max-height:540px){"
+    "body:has(.mm-lipton-reels--expanded) .site-header{display:none!important}"
     ".mm-lipton-reels--expanded .mm-lipton-reels-grid{display:none!important}"
     ".mm-lipton-reels--expanded .mm-lipton-reels-expanded-bar{position:static;height:0;margin:0;overflow:visible}"
     ".mm-lipton-reels--expanded .mm-lipton-reels-player-wrap{position:fixed;inset:0;z-index:2147483000;width:100vw;height:100dvh;max-width:none;border-radius:0;border:0;aspect-ratio:auto}"
@@ -27433,7 +27434,7 @@ def serve_regatta_standalone(slug: str, request: Request):
         mm_card_js = ""
         if str(regatta_id) == "2026-08-29-lipton-challenge-cup":
             mm_card = _lipton_mm_reels_card_html(str(regatta_id))
-            mm_card_js = '<script src="/js/mm-lipton-reels-card.js?v=mmr32" defer></script>'
+            mm_card_js = '<script src="/js/mm-lipton-reels-card.js?v=mmr33" defer></script>'
         body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()
