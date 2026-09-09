@@ -203,6 +203,107 @@
     if (snap.sub) el.style.setProperty('--mm-chrome-sub', snap.sub);
   }
 
+  function fmtTime(secs) {
+    secs = Math.max(0, Math.floor(Number(secs) || 0));
+    var m = Math.floor(secs / 60);
+    var r = secs % 60;
+    return m + ':' + (r < 10 ? '0' : '') + r;
+  }
+
+  function playerUiHtml() {
+    return (
+      '<div class="mm-lipton-reels-player-ui" data-mm-player-ui>' +
+      '<div class="mm-lipton-reels-player-hud" data-mm-player-hud>' +
+      '<button type="button" class="mm-lipton-reels-player-toggle" data-mm-toggle-play aria-label="Pause"></button>' +
+      '<div class="mm-lipton-reels-player-bar">' +
+      '<span class="mm-lipton-reels-player-time" data-mm-time>0:00 / 0:00</span>' +
+      '<input class="mm-lipton-reels-player-seek" data-mm-seek type="range" min="0" max="1000" value="0" step="1" aria-label="Seek">' +
+      '<button type="button" class="mm-lipton-reels-player-mute" data-mm-mute aria-label="Mute">🔊</button>' +
+      '</div></div></div>'
+    );
+  }
+
+  function clearHideTimer(state) {
+    if (state && state.hideTimer) {
+      window.clearTimeout(state.hideTimer);
+      state.hideTimer = null;
+    }
+  }
+
+  function hidePlayerUi(root, state) {
+    clearHideTimer(state);
+    var ui = root.querySelector('[data-mm-player-ui]');
+    if (ui) ui.classList.remove('mm-lipton-reels-player-ui--on');
+  }
+
+  function scheduleHidePlayerUi(root, state, video) {
+    clearHideTimer(state);
+    if (!video || video.paused) return;
+    state.hideTimer = window.setTimeout(function () {
+      state.hideTimer = null;
+      if (video && !video.paused) hidePlayerUi(root, state);
+    }, 3000);
+  }
+
+  function showPlayerUi(root, state, video) {
+    var ui = root.querySelector('[data-mm-player-ui]');
+    if (!ui) return;
+    ui.classList.add('mm-lipton-reels-player-ui--on');
+    syncPlayerUi(root, video);
+    scheduleHidePlayerUi(root, state, video);
+  }
+
+  function syncPlayerUi(root, video) {
+    if (!video) return;
+    var toggle = root.querySelector('[data-mm-toggle-play]');
+    var timeEl = root.querySelector('[data-mm-time]');
+    var seek = root.querySelector('[data-mm-seek]');
+    var mute = root.querySelector('[data-mm-mute]');
+    var paused = !!video.paused;
+    if (toggle) {
+      toggle.classList.toggle('is-playing', !paused);
+      toggle.setAttribute('aria-label', paused ? 'Play' : 'Pause');
+    }
+    if (timeEl) timeEl.textContent = fmtTime(video.currentTime) + ' / ' + fmtTime(video.duration);
+    if (seek && !seek.hasAttribute('data-mm-seeking')) {
+      var dur = video.duration;
+      seek.value = dur ? String(Math.round((video.currentTime / dur) * 1000)) : '0';
+    }
+    if (mute) {
+      mute.textContent = video.muted || video.volume === 0 ? '🔇' : '🔊';
+      mute.setAttribute('aria-label', video.muted ? 'Unmute' : 'Mute');
+    }
+  }
+
+  function wirePlayer(root, state) {
+    if (state.playerWired) return;
+    state.playerWired = true;
+    var video = ensureHeroVideo(root);
+    video.addEventListener('timeupdate', function () {
+      syncPlayerUi(root, video);
+    });
+    video.addEventListener('play', function () {
+      syncPlayerUi(root, video);
+      scheduleHidePlayerUi(root, state, video);
+    });
+    video.addEventListener('pause', function () {
+      syncPlayerUi(root, video);
+    });
+    root.addEventListener('input', function (ev) {
+      var seek = ev.target.closest && ev.target.closest('[data-mm-seek]');
+      if (!seek || !root.contains(seek)) return;
+      seek.setAttribute('data-mm-seeking', '');
+      var dur = video.duration;
+      if (dur) video.currentTime = (Number(seek.value) / 1000) * dur;
+      scheduleHidePlayerUi(root, state, video);
+    });
+    root.addEventListener('change', function (ev) {
+      var seek = ev.target.closest && ev.target.closest('[data-mm-seek]');
+      if (!seek || !root.contains(seek)) return;
+      seek.removeAttribute('data-mm-seeking');
+    });
+  }
+
   function latestThumbHtml(v) {
     return (
       '<div class="mm-lipton-reels-thumb mm-lipton-reels-thumb--latest" style="aspect-ratio:16 / 9">' +
@@ -255,6 +356,7 @@
       aspectCss(v) +
       '">' +
       latestChromeHtml(chromeSource(v, videos), 'mm-lipton-reels-clip-chrome--overlay') +
+      playerUiHtml() +
       '</div>'
     );
   }
@@ -420,6 +522,7 @@
   function collapse(root, payload, state) {
     state.expanded = false;
     stopAllPlayback(root);
+    hidePlayerUi(root, state);
     removeExpanded(root);
     root.classList.remove('mm-lipton-reels--expanded');
     root.classList.add('mm-lipton-reels--compact');
@@ -437,9 +540,13 @@
       var stage = expanded.querySelector('[data-mm-stage]');
       var video = ensureHeroVideo(root);
       if (stage && video) stage.appendChild(video);
+      var playerUi = stage && stage.querySelector('[data-mm-player-ui]');
+      if (stage && playerUi) stage.appendChild(playerUi);
       var overlay = stage && stage.querySelector('.mm-lipton-reels-clip-chrome--overlay');
       if (stage && overlay) stage.appendChild(overlay);
       applyFrozenChrome(root, state.chromeSnap);
+      wirePlayer(root, state);
+      hidePlayerUi(root, state);
     } else {
       removeExpanded(root);
       layoutCompactStrip(root, picked.videos);
@@ -450,7 +557,7 @@
     var root = cardEl();
     if (!root) return;
     var payload = readPayload(root);
-    var state = { expanded: false, currentId: '', chromeSnap: null };
+    var state = { expanded: false, currentId: '', chromeSnap: null, hideTimer: null, playerWired: false };
     var video = ensureHeroVideo(root);
     var first = sortVideos(payload.videos || [])[0];
     if (first && video) {
@@ -484,6 +591,41 @@
       }
       var brand = ev.target.closest && ev.target.closest('.mm-lipton-reels-brand');
       if (brand) return;
+      var playerUi = ev.target.closest && ev.target.closest('[data-mm-player-ui]');
+      if (playerUi && root.contains(playerUi)) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        var video = root.querySelector('[data-mm-hero-video]');
+        if (!video) return;
+        var playHit = ev.target.closest('[data-mm-toggle-play]');
+        var muteHit = ev.target.closest('[data-mm-mute]');
+        var seekHit = ev.target.closest('[data-mm-seek]');
+        if (playHit) {
+          if (video.paused) {
+            video.muted = false;
+            video.volume = 1;
+            var p = video.play();
+            if (p && p.catch) p.catch(function () {});
+          } else {
+            video.pause();
+          }
+          showPlayerUi(root, state, video);
+          return;
+        }
+        if (muteHit) {
+          video.muted = !video.muted;
+          if (!video.muted) video.volume = 1;
+          showPlayerUi(root, state, video);
+          return;
+        }
+        if (seekHit) {
+          showPlayerUi(root, state, video);
+          return;
+        }
+        if (playerUi.classList.contains('mm-lipton-reels-player-ui--on')) hidePlayerUi(root, state);
+        else showPlayerUi(root, state, video);
+        return;
+      }
       var thumb = ev.target.closest && ev.target.closest('[data-mm-vid]');
       if (thumb && root.contains(thumb)) {
         ev.preventDefault();
