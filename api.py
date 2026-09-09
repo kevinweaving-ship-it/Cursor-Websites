@@ -20383,10 +20383,9 @@ _LIPTON_MM_REELS_CSS = (
     ".mm-lipton-reels-compact [data-mm-compact]{display:flex;align-items:flex-start;gap:6px;flex:0 0 auto;min-width:0}"
     ".mm-lipton-reels-tile{display:flex;flex-direction:column;gap:0.18rem;flex:0 0 auto;min-width:0}"
     ".mm-lipton-reels-thumb{position:relative;display:block;width:100%;padding:0;border:2px solid #001f3f;border-radius:8px;background:#0b1c33;overflow:hidden;cursor:pointer;min-height:44px;box-shadow:0 1px 3px rgba(0,31,63,0.14);box-sizing:border-box}"
-    ".mm-lipton-reels-thumb img{width:100%;height:100%;object-fit:cover;object-position:center 6%;transform:scale(1.34);transform-origin:center 6%;display:block}"
+    ".mm-lipton-reels-thumb iframe,.mm-lipton-reels-thumb img{position:absolute;inset:0;width:100%;height:100%;border:0;object-fit:cover;object-position:center;pointer-events:none;display:block}"
     ".mm-lipton-reels-thumb-ph{display:block;width:100%;height:100%;background:#0b1c33}"
-    ".mm-lipton-reels-play{position:absolute;left:50%;top:50%;width:2.1rem;height:2.1rem;margin:-1.05rem 0 0 -1.05rem;border-radius:50%;background:rgba(0,31,63,0.62);box-shadow:0 1px 4px rgba(0,31,63,0.28);pointer-events:none}"
-    ".mm-lipton-reels-play:after{content:'';position:absolute;left:0.78rem;top:0.58rem;border-style:solid;border-width:0.48rem 0 0.48rem 0.78rem;border-color:transparent transparent transparent #fff}"
+    ".mm-lipton-reels-thumb-hit{position:absolute;inset:0;z-index:2;margin:0;padding:0;border:0;background:transparent;cursor:pointer;min-height:44px}"
     ".mm-lipton-reels-meta{margin:0;padding:0 0.05rem;font-size:0.65rem;font-weight:600;line-height:1.2;color:#475569;letter-spacing:0.01em}"
     ".mm-lipton-reels-expanded-bar{display:flex;justify-content:flex-end;margin:0 0 0.3rem 0}"
     ".mm-lipton-reels-hide{min-height:44px;min-width:44px;font-size:0.8rem;font-weight:700;color:#001f3f;background:#fff;border:2px solid #001f3f;border-radius:6px;padding:0.28rem 0.7rem;cursor:pointer}"
@@ -27349,7 +27348,7 @@ def serve_regatta_standalone(slug: str, request: Request):
         mm_card_js = ""
         if str(regatta_id) == "2026-08-29-lipton-challenge-cup":
             mm_card = _lipton_mm_reels_card_html(str(regatta_id))
-            mm_card_js = '<script src="/js/mm-lipton-reels-card.js?v=mmr4" defer></script>'
+            mm_card_js = '<script src="/js/mm-lipton-reels-card.js?v=mmr5" defer></script>'
         body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()

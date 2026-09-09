@@ -1,7 +1,6 @@
 /**
  * Lipton-only Marine Megastore Event Reels card (#mmLiptonReels).
- * Compact strip: equal-height artwork + landscape thumbs, captions outside the image.
- * Expand: autoplay in place, no automatic fullscreen.
+ * Compact: artwork + FB-source thumbs. Expand: muted autoplay immediately, no forced fullscreen.
  */
 (function () {
   'use strict';
@@ -47,32 +46,30 @@
     return '16 / 9';
   }
 
-  function pluginSrc(v, autoplay, mute) {
+  function pluginSrc(v, autoplay) {
+    var href = (v && (v.url || v.permalink)) || '';
     var src = (v && v.embed_url) || '';
-    if (!src && v && (v.url || v.permalink)) {
+    if (!src && href) {
       src =
         'https://www.facebook.com/plugins/video.php?href=' +
-        encodeURIComponent(v.url || v.permalink) +
+        encodeURIComponent(href) +
         '&show_text=false';
     }
     if (!src) return '';
     src = src
       .replace(/&autoplay=(true|false|1|0)/gi, '')
       .replace(/&mute=\d+/gi, '')
+      .replace(/&muted=\d+/gi, '')
       .replace(/&playsinline=\d+/gi, '');
     if (autoplay) src += '&autoplay=true';
-    if (mute) src += '&mute=1';
-    src += '&playsinline=1';
+    src += '&mute=1&muted=1&playsinline=1';
+    if (autoplay) src += '&_mm=' + Date.now();
     return src;
   }
 
   function metaHtml(text) {
     if (!text) return '';
     return '<div class="mm-lipton-reels-meta">' + esc(text) + '</div>';
-  }
-
-  function playMark() {
-    return '<span class="mm-lipton-reels-play" aria-hidden="true"></span>';
   }
 
   function stopAllPlayback(root) {
@@ -84,26 +81,47 @@
     }
   }
 
-  function thumbButtonHtml(v) {
-    var img = v && v.thumb
-      ? '<img src="' + esc(v.thumb) + '" alt="" loading="lazy" decoding="async">'
-      : '<span class="mm-lipton-reels-thumb-ph" aria-hidden="true"></span>';
+  function fbFrameHtml(v, autoplay, fullscreenOk) {
+    var src = pluginSrc(v, autoplay);
+    if (!src) {
+      return v && v.thumb
+        ? '<img src="' + esc(v.thumb) + '" alt="" loading="lazy" decoding="async">'
+        : '<span class="mm-lipton-reels-thumb-ph" aria-hidden="true"></span>';
+    }
+    var allow = 'autoplay; muted; encrypted-media; picture-in-picture';
+    var fs = '';
+    if (fullscreenOk) {
+      allow += '; fullscreen';
+      fs = ' allowfullscreen';
+    }
     return (
-      '<button type="button" class="mm-lipton-reels-thumb" style="aspect-ratio:16 / 9" data-mm-vid="' +
-      esc((v && v.id) || '') +
-      '" aria-label="' +
-      esc((v && v.stamp) || 'Play reel') +
-      '">' +
-      img +
-      playMark() +
-      '</button>'
+      '<iframe src="' +
+      esc(src) +
+      '" title="Marine Megastore Event Reel" allow="' +
+      allow +
+      '"' +
+      fs +
+      ' referrerpolicy="strict-origin-when-cross-origin"></iframe>'
     );
   }
 
-  function compactTileHtml(v) {
+  function thumbHtml(v, autoplay) {
+    return (
+      '<div class="mm-lipton-reels-thumb" style="aspect-ratio:16 / 9">' +
+      fbFrameHtml(v, autoplay, false) +
+      '<button type="button" class="mm-lipton-reels-thumb-hit" data-mm-vid="' +
+      esc((v && v.id) || '') +
+      '" aria-label="' +
+      esc((v && v.stamp) || 'Play reel') +
+      '"></button>' +
+      '</div>'
+    );
+  }
+
+  function compactTileHtml(v, autoplay) {
     return (
       '<div class="mm-lipton-reels-tile">' +
-      thumbButtonHtml(v) +
+      thumbHtml(v, autoplay) +
       metaHtml((v && v.stamp) || '') +
       '</div>'
     );
@@ -130,27 +148,21 @@
   function compactTilesHtml(videos, n) {
     var parts = [];
     var i;
-    for (i = 0; i < n; i++) parts.push(compactTileHtml(videos[i]));
+    for (i = 0; i < n; i++) parts.push(compactTileHtml(videos[i], i === 0));
     return parts.join('');
   }
 
   function stageHtml(v) {
     if (!v) return '<p class="mm-lipton-reels-waiting">No clip yet.</p>';
-    var src = pluginSrc(v, true, false);
-    var stamp = v.stamp || '';
     return (
       '<div class="mm-lipton-reels-stage" data-mm-stage style="--mm-aspect:' +
       aspectCss(v) +
       ';aspect-ratio:' +
       aspectCss(v) +
       '">' +
-      (src
-        ? '<iframe src="' +
-          esc(src) +
-          '" title="Marine Megastore Event Reel" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>'
-        : '') +
+      fbFrameHtml(v, true, true) +
       '</div>' +
-      metaHtml(stamp)
+      metaHtml(v.stamp || '')
     );
   }
 
@@ -164,7 +176,7 @@
     for (i = 0; i < rest.length; i++) {
       parts.push(
         '<div class="mm-lipton-reels-grid-item" role="listitem">' +
-          thumbButtonHtml(rest[i]) +
+          thumbHtml(rest[i], false) +
           metaHtml(rest[i].stamp || '') +
           '</div>'
       );
