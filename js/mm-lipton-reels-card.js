@@ -218,6 +218,8 @@
       '<span class="mm-lipton-reels-icon-play" aria-hidden="true"></span>' +
       '<span class="mm-lipton-reels-icon-pause" aria-hidden="true"><span></span><span></span></span>' +
       '</button>' +
+      '<button type="button" class="mm-lipton-reels-skip mm-lipton-reels-skip--prev" data-mm-skip="-1" aria-label="Previous clip" hidden>‹</button>' +
+      '<button type="button" class="mm-lipton-reels-skip mm-lipton-reels-skip--next" data-mm-skip="1" aria-label="Next clip" hidden>›</button>' +
       '<div class="mm-lipton-reels-player-bar">' +
       '<span class="mm-lipton-reels-player-time" data-mm-time>0:00 / 0:00</span>' +
       '<input class="mm-lipton-reels-player-seek" data-mm-seek type="range" min="0" max="1000" value="0" step="1" aria-label="Seek">' +
@@ -381,6 +383,10 @@
     if (clip.thumb) video.setAttribute('poster', clip.thumb);
     if (src && video.getAttribute('src') !== src) {
       video.src = src;
+    } else {
+      try {
+        video.currentTime = 0;
+      } catch (e) {}
     }
     if (stage) {
       stage.classList.add('mm-lipton-reels-stage--playing');
@@ -505,6 +511,40 @@
     return { videos: videos, current: current };
   }
 
+  function clipIndex(videos, id) {
+    var i;
+    for (i = 0; i < (videos || []).length; i++) {
+      if (videos[i] && videos[i].id === id) return i;
+    }
+    return 0;
+  }
+
+  function syncSkipButtons(root, payload, state) {
+    var picked = currentVideo(payload, state);
+    var idx = clipIndex(picked.videos, state.currentId);
+    var prev = root.querySelector('[data-mm-skip="-1"]');
+    var next = root.querySelector('[data-mm-skip="1"]');
+    if (prev) {
+      if (idx <= 0) prev.setAttribute('hidden', '');
+      else prev.removeAttribute('hidden');
+    }
+    if (next) {
+      if (idx >= picked.videos.length - 1) next.setAttribute('hidden', '');
+      else next.removeAttribute('hidden');
+    }
+  }
+
+  function skipClip(root, payload, state, dir) {
+    var picked = currentVideo(payload, state);
+    var idx = clipIndex(picked.videos, state.currentId) + dir;
+    if (idx < 0 || idx >= picked.videos.length || !picked.videos[idx]) return;
+    state.currentId = picked.videos[idx].id;
+    state.expanded = true;
+    paint(root, payload, state);
+    startHeroPlayback(root, currentVideo(payload, state).current);
+    showPlayerUi(root, state, root.querySelector('[data-mm-hero-video]'));
+  }
+
   function ensureExpanded(root) {
     var el = root.querySelector('[data-mm-expanded]');
     if (el) return el;
@@ -549,6 +589,7 @@
       if (stage && overlay) stage.appendChild(overlay);
       applyFrozenChrome(root, state.chromeSnap);
       wirePlayer(root, state);
+      syncSkipButtons(root, payload, state);
       hidePlayerUi(root, state);
     } else {
       removeExpanded(root);
@@ -603,6 +644,11 @@
         var playHit = ev.target.closest('[data-mm-toggle-play]');
         var muteHit = ev.target.closest('[data-mm-mute]');
         var seekHit = ev.target.closest('[data-mm-seek]');
+        var skipHit = ev.target.closest('[data-mm-skip]');
+        if (skipHit) {
+          skipClip(root, payload, state, parseInt(skipHit.getAttribute('data-mm-skip'), 10) || 0);
+          return;
+        }
         if (playHit) {
           if (video.paused) {
             video.muted = false;
