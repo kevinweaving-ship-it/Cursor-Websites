@@ -61,7 +61,7 @@
       .replace(/&mute=\d+/gi, '')
       .replace(/&muted=\d+/gi, '')
       .replace(/&playsinline=\d+/gi, '');
-    if (autoplay) src += '&autoplay=true';
+    if (autoplay) src += '&autoplay=true&autoplay=1';
     src += '&mute=1&muted=1&playsinline=1';
     if (autoplay) src += '&_mm=' + Date.now();
     return src;
@@ -95,7 +95,7 @@
         ? '<img src="' + esc(v.thumb) + '" alt="" loading="lazy" decoding="async">'
         : '<span class="mm-lipton-reels-thumb-ph" aria-hidden="true"></span>';
     }
-    var allow = 'autoplay; muted; encrypted-media; picture-in-picture; fullscreen';
+    var allow = 'autoplay *; muted *; encrypted-media; picture-in-picture; fullscreen';
     var fs = fullscreenOk ? ' allowfullscreen webkitallowfullscreen' : '';
     return (
       '<iframe src="' +
@@ -191,15 +191,28 @@
 
   function stageHtml(v) {
     if (!v) return '<p class="mm-lipton-reels-waiting">No clip yet.</p>';
+    var allow = 'autoplay *; muted *; encrypted-media; picture-in-picture; fullscreen';
     return (
       '<div class="mm-lipton-reels-stage" data-mm-stage style="--mm-aspect:' +
       aspectCss(v) +
       ';aspect-ratio:' +
       aspectCss(v) +
       '">' +
-      fbFrameHtml(v, true, true) +
+      '<iframe title="Marine Megastore Event Reel" allow="' +
+      allow +
+      '" allowfullscreen webkitallowfullscreen referrerpolicy="strict-origin-when-cross-origin" playsinline></iframe>' +
       '</div>'
     );
+  }
+
+  function startHeroPlayback(root, v) {
+    var iframe = root.querySelector('[data-mm-stage] iframe');
+    if (!iframe || !v) return;
+    iframe.setAttribute(
+      'allow',
+      'autoplay *; muted *; encrypted-media; picture-in-picture; fullscreen'
+    );
+    iframe.src = pluginSrc(v, true);
   }
 
   function gridHtml(videos, currentId) {
@@ -354,6 +367,7 @@
       stopAllPlayback(root);
       var expanded = ensureExpanded(root);
       expanded.innerHTML = expandedHtml(picked.current, picked.videos);
+      startHeroPlayback(root, picked.current);
     } else {
       removeExpanded(root);
       layoutCompactStrip(root, picked.videos);
