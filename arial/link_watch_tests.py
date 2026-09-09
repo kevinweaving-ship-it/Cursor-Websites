@@ -81,6 +81,7 @@ class ComposeLinkTest(unittest.TestCase):
 
 class SendAdminRateCapTest(unittest.TestCase):
     def setUp(self):
+        w.LINK_ALERTS = True
         self.cfg = {
             "recipients": [
                 {"name": "Kevin", "number": "111", "scope": "all"},
@@ -110,6 +111,14 @@ class SendAdminRateCapTest(unittest.TestCase):
         ok = w.send_admin(self.cfg, "Link restored", sent, "hansekop", "up")
         self.assertTrue(ok)
         self.assertEqual(len(self.calls), 2)
+
+    def test_paused_does_not_send(self):
+        w.LINK_ALERTS = False
+        w.post = self._post
+        ok = w.send_admin(self.cfg, "down", [], "hansekop", "down")
+        self.assertTrue(ok)
+        self.assertEqual(self.calls, [])
+        w.LINK_ALERTS = True
 
     def test_nag_blocked_at_cap(self):
         w.post = self._post

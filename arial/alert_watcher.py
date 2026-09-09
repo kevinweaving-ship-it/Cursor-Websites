@@ -121,6 +121,8 @@ LINK_PATH = f"{STATE}/link_watch.json"
 LINK_POLL_S = 20
 LINK_CONFIRM = 3
 LINK_NAG_S = 30 * 60
+# Paused until the false link-loss probe is fixed. Set WA_LINK_ALERTS=1 to restore.
+LINK_ALERTS = os.getenv("WA_LINK_ALERTS", "0").strip().lower() not in {"0", "false", "off", "no"}
 
 
 def admin_targets(cfg):
@@ -200,6 +202,9 @@ def compose_link(cfg, kind, reading, last, ac_ok, elapsed_s=None):
 
 
 def send_admin(cfg, text, sent_times, site, kind):
+    if not LINK_ALERTS:
+        log.info("link %s %s paused (WA_LINK_ALERTS=0)", kind, site)
+        return True
     ok_any = False
     for name, number in admin_targets(cfg):
         sent_times[:] = [t for t in sent_times if time.time() - t < 3600]
