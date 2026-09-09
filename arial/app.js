@@ -1701,6 +1701,13 @@
 
     function noteBreakerLink(data) {
         var sh = (data && data.sharing) || ((data && data.debug && data.debug.sharing) || {});
+        var at = Number(sh.meterLastReadingAt);
+        if (isFinite(at) && at > 1e12) at = at / 1000;
+        if (isFinite(at) && at > 1e9) {
+            breakerLastReportAt = at * 1000;
+            saveBreakerStore();
+            return;
+        }
         var age = Number(sh.meterLastReportAgeS);
         if (isFinite(age) && age >= 0) {
             breakerLastReportAt = Date.now() - age * 1000;
