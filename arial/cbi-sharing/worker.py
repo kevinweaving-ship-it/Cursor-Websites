@@ -378,6 +378,38 @@ class Worker(SharingDeviceListener):
             if wu:
                 row["waterUse"] = wu
 
+    def refresh_ele_live(self) -> None:
+        """Pull live V/A/W (DPs 20/18/19) for kWh meters. Device reports ~10–30s; heartbeat is 20s."""
+        if not self.oem:
+            return
+        with self.lock:
+            rows = [self.devices[i] for i in self.home_ids if i in self.devices]
+        for d in rows:
+            st = d.get("status") or {}
+            if str(d.get("category") or "") != "cz" and "18" not in st and "19" not in st:
+                continue
+            extra = None if d.get("shared") else ({"gid": str(d.get("home_id") or self.home_id_of.get(d["id"]) or "")} or None)
+            if extra and not extra.get("gid"):
+                extra = None
+            try:
+                live = self.oem._api(
+                    "tuya.m.device.dp.get",
+                    {"devId": d["id"], "gwId": d["id"]},
+                    extra=extra,
+                )
+                if not isinstance(live, dict) or not live:
+                    continue
+                with self.lock:
+                    cur = self.devices.get(d["id"])
+                    if not cur:
+                        continue
+                    status = dict(cur.get("status") or {})
+                    status.update({str(k): v for k, v in live.items()})
+                    cur["status"] = status
+                    self.devices[d["id"]] = cur
+            except Exception as exc:
+                log.warning("CBI ele live skipped: %s", type(exc).__name__)
+
     def refresh_ele_stats(self, force: bool = False) -> None:
         """Read-only Tuya month bins for shared kWh meters (add_ele DP 17, type sum)."""
         if not self.oem:
@@ -420,6 +452,7 @@ class Worker(SharingDeviceListener):
     def write_snapshot(self) -> None:
         try:
             if self.oem:
+                self.refresh_ele_live()
                 self.refresh_water_stats()
                 self.refresh_ele_stats()
                 with self.lock:
