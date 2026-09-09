@@ -46,6 +46,7 @@
   var raceCache = {};
   var camPhase = '';
   var lockApproachHdg = null;
+  var markLock = null;
   var loadGen = 0;
 
   function clipR(race, kind, extra) {
@@ -107,6 +108,7 @@
       heldCam = null;
       heldCamTs = 0;
       lockApproachHdg = null;
+      markLock = null;
       camPhase = '';
     }
     clipId = String(id || '');
@@ -594,6 +596,44 @@
     };
   }
 
+  /* Fixed geographic window so the mark stays put and boats sail through it. */
+  function frozenMarkScale(w, h) {
+    var minAlong = 340;
+    var minAcross = 120;
+    return {
+      scaleX: Math.max(0.05, (Math.max(64, w) - 112) / minAlong),
+      scaleY: Math.max(0.05, (Math.max(48, h) - 36) / minAcross)
+    };
+  }
+
+  function camFromMark(mark, w, h, hdg, flipX, markX, markY, scaleX, scaleY) {
+    var rad = ((hdg || 0) * Math.PI) / 180;
+    var mx = markX != null ? markX : 0.2;
+    var my = markY != null ? markY : 0.5;
+    return {
+      midLat: mark.lat,
+      midLon: mark.lon,
+      cos: Math.cos((mark.lat * Math.PI) / 180),
+      cosH: Math.cos(rad),
+      sinH: Math.sin(rad),
+      scale: scaleX,
+      scaleX: scaleX,
+      scaleY: scaleY,
+      w: w,
+      h: h,
+      hdg: hdg || 0,
+      flipX: flipX !== false,
+      cx: w * mx,
+      cy: h * my
+    };
+  }
+
+  function leaderOffRight(cam, leader, w) {
+    if (!cam || !leader || !leader.pos) return false;
+    var p = xy(leader.pos.lat, leader.pos.lon, cam);
+    return p.x > w - 40;
+  }
+
   function drawDelta(ctx, x, y, delta, align) {
     if (delta == null) return;
     var txt = delta > 0 ? '▲' + delta : delta < 0 ? '▼' + -delta : '■0';
@@ -839,64 +879,96 @@
     return 90;
   }
 
-  function camPlan(live, cssW) {
+  function camPlan(live, cssW, cssH) {
     var rule = clipRule || { kind: 'round', approach: 'rtl', holdN: 6 };
     var flipApproach = rule.approach !== 'ltr';
-    var holdN = rule.holdN || 6;
     var kind = rule.kind || 'round';
     var leader = live.front;
     var passes = passList();
     var next = leader ? markPosForPass(passes[leader.done], live.ts) : null;
     var last = leader && leader.done ? markPosForPass(passes[leader.done - 1], live.ts) : null;
     var nRounded = leader ? countDoneAtLeast(live, leader.done) : 0;
-    var distLast = last && leader && leader.pos ? distM(leader.pos, last) : 1e9;
     var distNext = next && leader && leader.pos ? distM(leader.pos, next) : 1e9;
     var away = !!(last && leader && leader.pos && angDiff(leader.hdg || 0, bearingDeg(leader.pos, last)) > 95);
-    var exiting = false;
-    if (heldCam && leader && leader.pos && away) {
-      var sp = xy(leader.pos.lat, leader.pos.lon, heldCam);
-      exiting = sp.x > cssW - 56;
+    var markX = 0.2;
+    var trial = null;
+    if (markLock) {
+      trial = camFromMark(
+        { lat: markLock.lat, lon: markLock.lon },
+        cssW,
+        cssH,
+        markLock.hdg,
+        markLock.flipX,
+        markLock.markX,
+        markLock.markY,
+        markLock.scaleX,
+        markLock.scaleY
+      );
+    } else if (last && nRounded >= 1) {
+      var sc0 = frozenMarkScale(cssW, cssH);
+      var hdg0 = lockApproachHdg != null ? lockApproachHdg : incomingHdg(live, last, leader);
+      trial = camFromMark(last, cssW, cssH, hdg0, flipApproach, markX, 0.5, sc0.scaleX, sc0.scaleY);
     }
+    var tooFarRight = !!(trial && away && nRounded >= 1 && leaderOffRight(trial, leader, cssW));
     var phase = 'leg';
     var focus = next;
     var hdg = medianHdg(frontPack(live));
     var flipX = flipApproach;
-    var markX = null;
-    var release = !!(last && nRounded >= 1 && away && (exiting || (nRounded >= holdN && distLast > 220)));
-    var holding = !!(last && nRounded >= 1 && distLast < 520 && !release);
 
     if (kind === 'start' && (!leader || leader.done < 1) && distNext > 280) {
       phase = 'start';
       focus = trail.start_line && trail.start_line.left;
       hdg = next && leader && leader.pos ? bearingDeg(leader.pos, next) : hdg;
       lockApproachHdg = null;
-    } else if (holding) {
+      markLock = null;
+    } else if (last && nRounded >= 1 && tooFarRight) {
+      phase = 'follow';
+      lockApproachHdg = null;
+      markLock = null;
+      focus = next;
+      hdg = next && leader && leader.pos ? bearingDeg(leader.pos, next) : leader && leader.hdg ? leader.hdg : hdg;
+      flipX = !flipApproach;
+    } else if (last && nRounded >= 1) {
       phase = 'hold';
       focus = last;
       if (lockApproachHdg == null) lockApproachHdg = incomingHdg(live, last, leader);
       hdg = lockApproachHdg;
       flipX = flipApproach;
-      markX = 0.22;
-    } else if (release) {
-      phase = 'follow';
-      lockApproachHdg = null;
-      focus = next;
-      hdg = next && leader && leader.pos ? bearingDeg(leader.pos, next) : leader && leader.hdg ? leader.hdg : hdg;
-      flipX = !flipApproach;
-      markX = null;
-    } else if (next && leader && leader.pos && distNext < 280) {
+    } else if (next && leader && leader.pos && distNext < 400) {
       phase = 'approach-mark';
       focus = next;
-      lockApproachHdg = bearingDeg(leader.pos, next);
+      if (lockApproachHdg == null) lockApproachHdg = bearingDeg(leader.pos, next);
       hdg = lockApproachHdg;
       flipX = flipApproach;
-      markX = 0.38;
     } else {
       lockApproachHdg = null;
+      markLock = null;
       hdg = medianHdg(frontPack(live));
       flipX = flipApproach;
     }
-    if (camPhase && camPhase !== phase) {
+
+    if (phase === 'hold' || phase === 'approach-mark') {
+      var key = focus && focus.key != null ? String(focus.key) : '';
+      if (!markLock || markLock.key !== key) {
+        var sc = frozenMarkScale(cssW, cssH);
+        markLock = {
+          key: key,
+          lat: focus.lat,
+          lon: focus.lon,
+          hdg: hdg,
+          flipX: flipX,
+          markX: markX,
+          markY: 0.5,
+          scaleX: sc.scaleX,
+          scaleY: sc.scaleY
+        };
+      }
+    }
+
+    if (camPhase === 'follow' && phase !== 'follow') {
+      heldCam = null;
+      heldCamTs = 0;
+    } else if ((camPhase === 'hold' || camPhase === 'approach-mark') && phase === 'follow') {
       heldCam = null;
       heldCamTs = 0;
     }
@@ -908,7 +980,7 @@
       last: last,
       hdg: hdg,
       flipX: flipX,
-      markX: markX,
+      markX: phase === 'hold' || phase === 'approach-mark' ? markX : null,
       nRounded: nRounded
     };
   }
@@ -923,56 +995,47 @@
     if (!pts.length) return;
     if (heldCamTs && Math.abs(ts - heldCamTs) > 1800) {
       lockApproachHdg = null;
+      markLock = null;
       camPhase = '';
     }
-    var plan = camPlan(live, cssW);
+    var plan = camPlan(live, cssW, cssH);
     var focus = plan.focus;
     var nearRound = plan.phase === 'hold' || plan.phase === 'approach-mark';
-    if (plan.phase === 'hold' && focus) {
-      pts.push(focus);
-      pts.push(destPoint(focus, plan.hdg, 90));
-      pts.push(destPoint(focus, plan.hdg + 180, 200));
-      pts.push(destPoint(focus, plan.hdg - 90, 110));
-      pts.push(destPoint(focus, plan.hdg + 90, 110));
-      if ((focus.key === 'pin' || focus.key === '4') && trail.start_line) {
-        if (trail.start_line.left) pts.push(trail.start_line.left);
-        if (trail.start_line.right) pts.push(trail.start_line.right);
-      }
-    } else if (plan.phase === 'approach-mark' && focus) {
-      pts.push(focus);
-      var brg = plan.hdg;
-      pts.push(destPoint(focus, brg, 140));
-      pts.push(destPoint(focus, brg - 90, 110));
-      pts.push(destPoint(focus, brg + 90, 110));
-      if ((focus.key === 'pin' || focus.key === '4') && trail.start_line) {
-        if (trail.start_line.left) pts.push(trail.start_line.left);
-        if (trail.start_line.right) pts.push(trail.start_line.right);
-      }
-    } else if (plan.phase === 'follow' && pack[0] && pack[0].pos) {
+    if (plan.phase === 'follow' && pack[0] && pack[0].pos) {
       if (plan.next) pts.push(plan.next);
       pts.push(destPoint(pack[0].pos, plan.hdg, 140));
     } else if (plan.phase === 'start' && trail.start_line) {
       if (trail.start_line.left) pts.push(trail.start_line.left);
       if (trail.start_line.right) pts.push(trail.start_line.right);
     }
-    var camOpts =
-      plan.phase === 'hold'
-        ? { minAlong: 260, minAcross: 100, padAlong: 1.28, padAcross: 1.45, flipX: plan.flipX }
-        : plan.phase === 'follow'
+    var cam;
+    if ((plan.phase === 'hold' || plan.phase === 'approach-mark') && markLock) {
+      cam = camFromMark(
+        { lat: markLock.lat, lon: markLock.lon },
+        cssW,
+        cssH,
+        markLock.hdg,
+        markLock.flipX,
+        markLock.markX,
+        markLock.markY,
+        markLock.scaleX,
+        markLock.scaleY
+      );
+      heldCam = copyCam(cam);
+      heldCamTs = ts;
+    } else {
+      var camOpts =
+        plan.phase === 'follow'
           ? { minAlong: 160, minAcross: 50, flipX: plan.flipX }
-          : plan.phase === 'approach-mark'
-            ? { minAlong: 220, minAcross: 90, padAlong: 1.28, padAcross: 1.45, flipX: plan.flipX }
-            : { minAlong: 80, minAcross: 36, flipX: plan.flipX };
-    var cam = fitCam(pts, cssW, cssH, plan.hdg, camOpts);
-    if (plan.markX != null && focus) {
-      var mp = xy(focus.lat, focus.lon, cam);
-      cam.cx += cssW * plan.markX - mp.x;
-    } else if (plan.phase === 'follow' && pack[0] && pack[0].pos) {
-      var lp = xy(pack[0].pos.lat, pack[0].pos.lon, cam);
-      cam.cx += cssW * 0.32 - lp.x;
+          : { minAlong: 80, minAcross: 36, flipX: plan.flipX };
+      cam = fitCam(pts, cssW, cssH, plan.hdg, camOpts);
+      if (plan.phase === 'follow' && pack[0] && pack[0].pos) {
+        var lpFollow = xy(pack[0].pos.lat, pack[0].pos.lon, cam);
+        cam.cx += cssW * 0.32 - lpFollow.x;
+      }
+      cam.flipX = plan.flipX;
+      cam = easeCam(cam, ts);
     }
-    cam.flipX = plan.flipX;
-    cam = easeCam(cam, ts);
     cam.boatR = boatRadius(cam, pack);
     ctx.clearRect(0, 0, cssW, cssH);
 
