@@ -457,7 +457,9 @@ def main():
                         prebuild_clips(cfg, float(r["at"]))
                     for name, number in targets(cfg, r):
                         sent_times[:] = [t for t in sent_times if time.time() - t < 3600]
-                        if len(sent_times) >= MAX_PER_HOUR:
+                        # Keypad arm/disarm always goes out (admins + the logged-in user).
+                        # Failed sends must not burn the hourly cap or skip later recipients (e.g. Jenny).
+                        if not is_press and len(sent_times) >= MAX_PER_HOUR:
                             log.warning("rate cap hit; not sending %s to %s", k, name); break
                         res, live_res = {}, None
                         if card_img and cfg.get("clip_page"):
@@ -473,7 +475,8 @@ def main():
                                 res = post(f"{CTRL}/send-image", {"number": number, "caption": text, "image": card_img["main"]})
                         if not res.get("ok"):
                             res = post(f"{CTRL}/send", {"number": number, "text": text})
-                        sent_times.append(time.time())
+                        if res.get("ok"):
+                            sent_times.append(time.time())
                         acks = [x.get("name") for x in (res.get("acks") or [])]
                         admin_log({"t": time.time(), "dir": "out", "kind": "alert", "site": site, "to": name, "number": number,
                                    "ok": bool(res.get("ok")), "id": res.get("id"), "acks": acks, "error": res.get("error"),

@@ -4,6 +4,25 @@ import unittest
 import alert_watcher as w
 
 
+class TargetsOwnTest(unittest.TestCase):
+    cfg = {
+        "recipients": [
+            {"name": "Kevin", "number": "111", "scope": "all"},
+            {"name": "Pingoa", "number": "222", "scope": "all"},
+            {"name": "Jenny", "number": "333", "scope": "own"},
+            {"name": "Amoroc", "number": "444", "scope": "own"},
+        ]
+    }
+
+    def test_jenny_disarm_includes_admins_and_jenny(self):
+        names = [n for n, _ in w.targets(self.cfg, {"actor": "Jenny", "state": "DISARMED"})]
+        self.assertEqual(names, ["Kevin", "Pingoa", "Jenny"])
+
+    def test_kevin_disarm_skips_own_users(self):
+        names = [n for n, _ in w.targets(self.cfg, {"actor": "Kevin", "state": "DISARMED"})]
+        self.assertEqual(names, ["Kevin", "Pingoa"])
+
+
 class AdminTargetsTest(unittest.TestCase):
     def test_scope_all_only(self):
         cfg = {
