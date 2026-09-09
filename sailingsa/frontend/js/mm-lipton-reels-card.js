@@ -218,13 +218,14 @@
       '<span class="mm-lipton-reels-icon-play" aria-hidden="true"></span>' +
       '<span class="mm-lipton-reels-icon-pause" aria-hidden="true"><span></span><span></span></span>' +
       '</button>' +
-      '<button type="button" class="mm-lipton-reels-skip mm-lipton-reels-skip--prev" data-mm-skip="-1" aria-label="Previous clip" hidden>‹</button>' +
-      '<button type="button" class="mm-lipton-reels-skip mm-lipton-reels-skip--next" data-mm-skip="1" aria-label="Next clip" hidden>›</button>' +
       '<div class="mm-lipton-reels-player-bar">' +
       '<span class="mm-lipton-reels-player-time" data-mm-time>0:00 / 0:00</span>' +
       '<input class="mm-lipton-reels-player-seek" data-mm-seek type="range" min="0" max="1000" value="0" step="1" aria-label="Seek">' +
       '<button type="button" class="mm-lipton-reels-player-mute" data-mm-mute aria-label="Mute">🔊</button>' +
-      '</div></div></div>'
+      '</div></div>' +
+      '<button type="button" class="mm-lipton-reels-skip mm-lipton-reels-skip--prev" data-mm-skip="-1" aria-label="Previous clip" hidden>‹</button>' +
+      '<button type="button" class="mm-lipton-reels-skip mm-lipton-reels-skip--next" data-mm-skip="1" aria-label="Next clip" hidden>›</button>' +
+      '</div>'
     );
   }
 
