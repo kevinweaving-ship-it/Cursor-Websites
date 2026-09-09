@@ -50,7 +50,7 @@
   var lockApproachHdg = null;
   var markLock = null;
   var loadGen = 0;
-  var heldIconStep = 2;
+  var heldIconStep = 1;
 
   function clipR(race, kind, extra) {
     var o = { race: race, kind: kind || 'round', approach: 'rtl', holdN: 6, offsetMs: 0 };
@@ -113,7 +113,7 @@
       lockApproachHdg = null;
       markLock = null;
       camPhase = '';
-      heldIconStep = 2;
+      heldIconStep = 1;
     }
     clipId = String(id || '');
     clipRule = rule;
@@ -777,7 +777,7 @@
     return rows.slice(0, leadN);
   }
 
-  /* Leading boats always, plus anyone in the mark/camera scene (not only the GPS front four). */
+  /* Every boat with GPS — the video shows 6th onward rounding too. */
   function viewPack(live, mark) {
     var rows = [];
     var i;
@@ -787,22 +787,7 @@
     rows.sort(function (a, b) {
       return (a.racePlace || 99) - (b.racePlace || 99);
     });
-    var lead = rows[0];
-    var out = [];
-    var seen = {};
-    function add(row) {
-      if (!row || !row.sail || seen[row.sail]) return;
-      seen[row.sail] = true;
-      out.push(row);
-    }
-    for (i = 0; i < rows.length; i++) {
-      if (rows[i].racePlace <= 6) add(rows[i]);
-    }
-    for (i = 0; i < rows.length; i++) {
-      if (mark && distM(rows[i].pos, mark) < 250) add(rows[i]);
-      else if (lead && distM(rows[i].pos, lead.pos) < 200) add(rows[i]);
-    }
-    return out.length ? out : rows.slice(0, 6);
+    return rows;
   }
 
   function roundingPack(live, mark) {
@@ -887,15 +872,15 @@
   }
 
   /* One size for every boat in view. Step down when bunched so labels stay readable; step up together when there is gap. */
-  var ICON_STEPS = [10, 12, 14];
+  var ICON_STEPS = [5, 7, 9];
 
   function collectiveBoatR(cam, pack) {
     var gap = minBoatGapPx(cam, pack);
     var i = heldIconStep;
     if (i < 0 || i >= ICON_STEPS.length) i = 1;
     if (gap < Infinity) {
-      while (i > 0 && gap < ICON_STEPS[i] * 2 + 44) i -= 1;
-      while (i < ICON_STEPS.length - 1 && gap > ICON_STEPS[i + 1] * 2 + 62) i += 1;
+      while (i > 0 && gap < ICON_STEPS[i] * 2 + 38) i -= 1;
+      while (i < ICON_STEPS.length - 1 && gap > ICON_STEPS[i + 1] * 2 + 54) i += 1;
     }
     heldIconStep = i;
     return ICON_STEPS[i];
@@ -1096,7 +1081,7 @@
       lockApproachHdg = null;
       markLock = null;
       camPhase = '';
-      heldIconStep = 2;
+      heldIconStep = 1;
     }
     var live = ranksAt(ts);
     var plan = camPlan(live, cssW, cssH);
@@ -1107,7 +1092,7 @@
     var nearRound = plan.phase === 'hold' || plan.phase === 'approach-mark';
     if (markLock) pts.push({ lat: markLock.lat, lon: markLock.lon });
     var cam;
-    var camOpts = { minAlong: 28, minAcross: 24, padAlong: 1.24, padAcross: 1.42, padX: 84, padY: 36, flipX: true };
+    var camOpts = { minAlong: 40, minAcross: 28, padAlong: 1.18, padAcross: 1.35, padX: 70, padY: 28, flipX: true };
     if ((plan.phase === 'hold' || plan.phase === 'approach-mark') && markLock) {
       setTrackHeight(canvas, 0.66);
       cam = fitCam(pts, cssW, cssH, markLock.hdg, camOpts);
