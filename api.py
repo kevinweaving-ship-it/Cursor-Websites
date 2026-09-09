@@ -20233,8 +20233,8 @@ def _mm_live_fb_card_html(regatta_id: str) -> str:
     extra_cls = " mm-live-fb-card--lipton" if is_lipton else ""
     brand = (
         '<a class="mm-live-fb-brand-link" href="https://marinemegastore.co.za" target="_blank" rel="noopener noreferrer">'
-        '<img class="mm-live-fb-brand mm-live-fb-brand--reels" src="/assets/adverts/mm-powered-by-event-reels.png" alt="Powered by Marine Megastore Event Reels" width="1024" height="1024" loading="lazy" decoding="async">'
-        '<img class="mm-live-fb-brand mm-live-fb-brand--live" src="/assets/adverts/mm-powered-by-live.png" alt="Powered by Marine Megastore Live Streaming" width="1536" height="1024" loading="lazy" decoding="async">'
+        '<img class="mm-live-fb-brand mm-live-fb-brand--reels" src="/assets/adverts/mm-powered-by-event-reels.png" alt="Powered by Marine Megastore Event Reels" width="320" height="320" loading="lazy" decoding="async">'
+        '<img class="mm-live-fb-brand mm-live-fb-brand--live" src="/assets/adverts/mm-powered-by-live.png" alt="Powered by Marine Megastore Live Streaming" width="480" height="320" loading="lazy" decoding="async">'
         "</a>"
     )
     titles = (
@@ -24681,21 +24681,23 @@ _RESULT_SHEET_CSS = (
     "@media (max-width:480px){.mm-live-fb-card{padding:0.45rem 0.6rem;margin-top:10px}.mm-live-fb-brand{max-width:160px}.mm-live-fb-compact-preview{max-width:9.5rem}}"
     "@media (min-width:600px){.mm-live-fb-card{padding:0.5rem 0.85rem}.mm-live-fb-brand{max-width:240px}.mm-live-fb-carousel [role=listitem]{flex-basis:calc((100% - 1.35rem) / 4)}}"
     "@media (min-width:900px){.mm-live-fb-carousel [role=listitem]{flex-basis:calc((100% - 1.8rem) / 5)}}"
-    ".mm-live-fb-card--lipton{padding:0.35rem}"
-    ".mm-live-fb-card--lipton .mm-live-fb-compact{display:grid;grid-template-columns:45% 55%;gap:0.3rem;align-items:stretch}"
-    ".mm-live-fb-card--lipton .mm-live-fb-brand-link{display:flex;align-items:center;max-width:none;width:100%;min-width:0;line-height:0}"
-    ".mm-live-fb-card--lipton .mm-live-fb-brand{display:block;width:100%;max-width:none;height:auto;object-fit:contain;object-position:left center}"
-    ".mm-live-fb-card--lipton [data-mm-compact]{min-width:0;display:flex}"
+    ".mm-live-fb-card--lipton{padding:0.35rem;overflow:hidden}"
+    ".mm-live-fb-card--lipton .mm-live-fb-compact{display:grid;grid-template-columns:minmax(0,45%) minmax(0,55%);gap:0.3rem;align-items:stretch}"
+    ".mm-live-fb-card--lipton .mm-live-fb-brand-link{display:flex;align-items:center;max-width:100%;width:100%;min-width:0;line-height:0;overflow:hidden}"
+    ".mm-live-fb-card--lipton .mm-live-fb-brand{display:block;width:100%;max-width:100%;height:auto;object-fit:contain;object-position:left center}"
+    ".mm-live-fb-card--lipton [data-mm-compact]{min-width:0;display:flex;overflow:hidden}"
     ".mm-live-fb-card--lipton .mm-live-fb-compact-preview{flex:1;max-width:none;width:100%;display:flex}"
     ".mm-live-fb-card--lipton .mm-live-fb-thumb--hero{width:100%;height:100%;min-height:100%;aspect-ratio:auto!important;align-self:stretch;border-radius:6px}"
+    ".mm-live-fb-card--lipton .mm-live-fb-thumb--hero img{width:100%;height:100%;object-fit:cover}"
     ".mm-live-fb-card--lipton .mm-live-fb-title--live,.mm-live-fb-card--lipton .mm-live-fb-title--reels{display:none!important}"
     ".mm-live-fb-card--lipton .mm-live-fb-expanded-bar{align-items:center;gap:0.35rem;margin:0 0 0.35rem 0}"
-    ".mm-live-fb-card--lipton .mm-live-fb-expanded-bar .mm-live-fb-brand-link{flex:1 1 auto;max-width:48%}"
+    ".mm-live-fb-card--lipton .mm-live-fb-expanded-bar .mm-live-fb-brand-link{flex:1 1 auto;max-width:48%;min-width:0}"
     ".mm-live-fb-card--lipton .mm-live-fb-stage{max-width:100%;margin:0;aspect-ratio:var(--mm-aspect,16/9)}"
     ".mm-live-fb-card--lipton .mm-live-fb-watch{margin:0.25rem 0 0.1rem}"
-    ".mm-live-fb-card--lipton .mm-live-fb-carousel{display:grid;grid-template-columns:1fr 1fr;gap:0.35rem;overflow-x:auto;margin-top:0.35rem;scroll-snap-type:none}"
+    ".mm-live-fb-card--lipton .mm-live-fb-carousel{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0.35rem;overflow-x:auto;margin-top:0.35rem;scroll-snap-type:none}"
     ".mm-live-fb-card--lipton .mm-live-fb-carousel [role=listitem]{flex:none;min-width:0}"
-    "@media (max-width:480px){.mm-live-fb-card--lipton{padding:0.3rem}.mm-live-fb-card--lipton .mm-live-fb-brand{max-width:none}.mm-live-fb-card--lipton .mm-live-fb-compact-preview{max-width:none}}"
+    ".mm-live-fb-card--lipton .mm-live-fb-carousel .mm-live-fb-thumb{width:100%;max-width:100%}"
+    "@media (max-width:480px){.mm-live-fb-card--lipton{padding:0.3rem}.mm-live-fb-card--lipton .mm-live-fb-brand{max-width:100%}.mm-live-fb-card--lipton .mm-live-fb-compact-preview{max-width:none}}"
 )
 
 
