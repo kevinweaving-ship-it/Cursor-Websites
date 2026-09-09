@@ -404,10 +404,10 @@
       if (across < minC) minC = across;
       if (across > maxC) maxC = across;
     }
-    var spanAlong = Math.max(50, maxA - minA) * 1.12;
-    var spanAcross = Math.max(22, maxC - minC) * 1.28;
-    var padX = 40;
-    var padY = 16;
+    var spanAlong = Math.max(40, maxA - minA) * 1.18;
+    var spanAcross = Math.max(18, maxC - minC) * 1.35;
+    var padX = 72;
+    var padY = 22;
     var scaleX = (w - padX * 2) / spanAlong;
     var scaleY = (h - padY * 2) / spanAcross;
     var midAlong = (minA + maxA) / 2;
@@ -432,7 +432,7 @@
   function drawDelta(ctx, x, y, delta, align) {
     if (delta == null) return;
     var txt = delta > 0 ? '▲' + delta : delta < 0 ? '▼' + -delta : '■0';
-    ctx.font = 'bold 7px sans-serif';
+    ctx.font = 'bold 8px sans-serif';
     ctx.textAlign = align || 'left';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = delta > 0 ? '#4ade80' : delta < 0 ? '#f87171' : '#cbd5e1';
@@ -502,7 +502,7 @@
     var hits = tailHits(series, ts);
     if (hits.length < 2) return;
     var fill = boatPaint(sail).fill;
-    var r = 1.15;
+    var r = 1.5;
     var d;
     for (d = 0; d < hits.length; d++) {
       var pt = xy(hits[d].lat, hits[d].lon, cam);
@@ -514,21 +514,45 @@
     }
   }
 
+  function frontPack(live) {
+    var out = [];
+    var i;
+    for (i = 0; i < live.rows.length; i++) {
+      if (live.rows[i] && live.rows[i].pos && live.rows[i].racePlace <= 6) out.push(live.rows[i]);
+    }
+    if (out.length) return out;
+    return (live.rows || []).slice(0, 6);
+  }
+
+  function packPoints(pack, ts) {
+    var pts = [];
+    var i;
+    var d;
+    for (i = 0; i < pack.length; i++) {
+      pts.push(pack[i].pos);
+      var series = trail.boats && trail.boats[pack[i].sail];
+      var hits = tailHits(series, ts);
+      var keep = hits.length > 8 ? hits.slice(hits.length - 8) : hits;
+      for (d = 0; d < keep.length; d++) pts.push(keep[d]);
+    }
+    return pts;
+  }
+
   function drawBoatIcon(ctx, p, hdg, paint, r) {
     ctx.beginPath();
     ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
     ctx.fillStyle = paint.fill;
     ctx.fill();
     ctx.strokeStyle = paint.stroke;
-    ctx.lineWidth = 1.1;
+    ctx.lineWidth = 1.4;
     ctx.stroke();
     ctx.save();
     ctx.translate(p.x, p.y);
     ctx.rotate(((hdg || 0) * Math.PI) / 180);
     ctx.beginPath();
-    ctx.moveTo(0, -r - 2.8);
-    ctx.lineTo(2.2, -r + 0.9);
-    ctx.lineTo(-2.2, -r + 0.9);
+    ctx.moveTo(0, -r - 3.6);
+    ctx.lineTo(3.1, -r + 1.2);
+    ctx.lineTo(-3.1, -r + 1.2);
     ctx.closePath();
     ctx.fillStyle = paint.nose || '#ffffff';
     ctx.fill();
@@ -543,39 +567,34 @@
     var overallPos = live.overallBySail[sail];
     var isLeader = live.leader && live.leader.sail === sail;
     var isFront = live.front && live.front.sail === sail;
+    var sameLead = isLeader && isFront;
     var total = row.start != null && row.racePlace != null ? row.start - row.racePlace : null;
     var series = trail.boats && trail.boats[sail];
-    var noseRad = screenNoseRad(series, row.pos, cam, live.ts);
+    var hdg = screenNoseRad(series, row.pos, cam, live.ts);
     if (overallPos && overallPos <= 3) {
       ctx.beginPath();
-      ctx.arc(p.x, p.y, r + 6, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, 17, 0, Math.PI * 2);
       ctx.strokeStyle = OVERALL_STICKER[overallPos];
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2.8;
       ctx.stroke();
     }
     if (isLeader) {
       ctx.beginPath();
-      ctx.arc(p.x, p.y, r + 4, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, 14, 0, Math.PI * 2);
       ctx.strokeStyle = 'rgba(250,204,21,0.95)';
-      ctx.lineWidth = 1.8;
-      ctx.stroke();
-    } else if (isFront) {
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, r + 4, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(248,113,113,0.95)';
-      ctx.lineWidth = 1.8;
+      ctx.lineWidth = 2.4;
       ctx.stroke();
     }
-    drawBoatIcon(ctx, p, noseRad, paint, r);
+    drawBoatIcon(ctx, p, hdg, paint, r);
     ctx.fillStyle = paint.ink;
-    ctx.font = 'bold 7px sans-serif';
+    ctx.font = 'bold 9px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(String(row.racePlace || ''), p.x, p.y + 0.4);
     var club = clubCode(sail);
-    var lx = p.x + r + 4;
+    var lx = p.x + 12;
     var ly = p.y - 1;
-    ctx.font = 'bold 8px sans-serif';
+    ctx.font = 'bold 10px sans-serif';
     ctx.textAlign = 'left';
     ctx.shadowColor = 'rgba(0,0,0,0.9)';
     ctx.shadowBlur = 3;
@@ -583,11 +602,15 @@
     ctx.fillText(club, lx, ly);
     ctx.shadowBlur = 0;
     var cw = ctx.measureText(club).width;
-    drawDelta(ctx, lx + cw + 2, ly, total, 'left');
-    if (overallPos) {
-      ctx.font = 'bold 7px sans-serif';
-      ctx.fillStyle = '#e2e8f0';
-      ctx.fillText('O' + overallPos, lx, ly + 8);
+    drawDelta(ctx, lx + cw + 3, ly, total, 'left');
+    if (isLeader) {
+      ctx.fillStyle = '#facc15';
+      ctx.font = 'bold 10px sans-serif';
+      ctx.fillText('LEADER', lx, ly - (sameLead ? 14 : 24));
+    } else if (isFront) {
+      ctx.fillStyle = 'rgba(248,113,113,0.95)';
+      ctx.font = 'bold 10px sans-serif';
+      ctx.fillText('FRONT', lx, ly - 8);
     }
   }
 
@@ -596,36 +619,10 @@
     var ctx = canvas.getContext('2d');
     if (!ctx) return;
     var live = ranksAt(ts);
-    var pts = [];
-    var i;
-    for (i = 0; i < live.rows.length; i++) {
-      if (live.rows[i].pos) pts.push(live.rows[i].pos);
-    }
+    var pack = frontPack(live);
+    var pts = packPoints(pack, ts);
     if (!pts.length) return;
-    var near = [];
-    function maybe(pt) {
-      if (!pt) return;
-      var n;
-      for (n = 0; n < pts.length; n++) {
-        if (distM(pt, pts[n]) < 280) {
-          near.push(pt);
-          return;
-        }
-      }
-    }
-    var mk;
-    for (mk in trail.marks || {}) {
-      if (Object.prototype.hasOwnProperty.call(trail.marks, mk)) maybe(sampleAt(trail.marks[mk], ts));
-    }
-    if (trail.start_line) {
-      maybe(trail.start_line.left);
-      maybe(trail.start_line.right);
-    }
-    if (trail.finish_line) {
-      maybe(trail.finish_line.left);
-      maybe(trail.finish_line.right);
-    }
-    var cam = fitCam(pts.concat(near), cssW, cssH, medianHdg(live.rows));
+    var cam = fitCam(pts, cssW, cssH, medianHdg(pack));
     ctx.clearRect(0, 0, cssW, cssH);
 
     var gun = live.gun;
@@ -634,6 +631,7 @@
     drawGate(ctx, cam, trail.start_line, 'rgba(56,189,248,0.9)', startName, 'Pin', 'RC');
     drawGate(ctx, cam, trail.finish_line, 'rgba(251,191,36,0.9)', finishName, 'Pin', 'RC');
 
+    var mk;
     for (mk in trail.marks || {}) {
       if (!Object.prototype.hasOwnProperty.call(trail.marks, mk)) continue;
       var pos = sampleAt(trail.marks[mk], ts);
@@ -649,16 +647,19 @@
       ctx.fillText('M' + mk, p.x + 6, p.y + 3);
     }
 
-    if (live.front && live.front.pos && live.target) {
-      var courseBrg = bearingDeg(live.front.pos, live.target);
-      var leftPt = destPoint(live.front.pos, courseBrg - 90, 220);
-      var rightPt = destPoint(live.front.pos, courseBrg + 90, 220);
+    var raceLeader = live.front;
+    var overall = live.leader;
+    var sameLead = !raceLeader || !overall || overall.sail === raceLeader.sail;
+    if (raceLeader && raceLeader.pos && live.target) {
+      var courseBrg = bearingDeg(raceLeader.pos, live.target);
+      var leftPt = destPoint(raceLeader.pos, courseBrg - 90, 700);
+      var rightPt = destPoint(raceLeader.pos, courseBrg + 90, 700);
       var a = xy(leftPt.lat, leftPt.lon, cam);
       var b = xy(rightPt.lat, rightPt.lon, cam);
       ctx.save();
       ctx.setLineDash([2, 4]);
       ctx.strokeStyle = 'rgba(248,113,113,0.9)';
-      ctx.lineWidth = 1.8;
+      ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
@@ -666,13 +667,13 @@
       ctx.setLineDash([]);
       ctx.restore();
     }
-    if (live.leader && live.leader.pos && live.target) {
-      var lp = xy(live.leader.pos.lat, live.leader.pos.lon, cam);
+    if (overall && overall.pos && live.target) {
+      var lp = xy(overall.pos.lat, overall.pos.lon, cam);
       var mp = xy(live.target.lat, live.target.lon, cam);
       ctx.save();
       ctx.setLineDash([5, 5]);
       ctx.strokeStyle = 'rgba(250,204,21,0.95)';
-      ctx.lineWidth = 1.8;
+      ctx.lineWidth = 2.2;
       ctx.beginPath();
       ctx.moveTo(lp.x, lp.y);
       ctx.lineTo(mp.x, mp.y);
@@ -681,11 +682,12 @@
       ctx.restore();
     }
 
-    var r = 4.5;
-    for (i = 0; i < live.rows.length; i++) {
-      if (live.rows[i] && live.rows[i].sail) drawTail(ctx, cam, live.rows[i].sail, ts);
+    var r = 7;
+    var i;
+    for (i = 0; i < pack.length; i++) {
+      if (pack[i] && pack[i].sail) drawTail(ctx, cam, pack[i].sail, ts);
     }
-    for (i = live.rows.length - 1; i >= 0; i--) drawBoat(ctx, cam, live.rows[i], live, r);
+    for (i = pack.length - 1; i >= 0; i--) drawBoat(ctx, cam, pack[i], live, r);
   }
 
   root.mmLiptonTrackOverlay = { load: load, draw: draw };
