@@ -2313,7 +2313,7 @@
         "2525": { name: "Bugsy", from: "Bugsy", logo: null, code: "2525" },
         "1111": { name: "Tim", from: "Tim", logo: null, code: "1111" },
         "0843": { name: "Annette", from: "Annette", logo: null, code: "0843" },
-        "0765": { name: "Jenny", from: "Jenny", logo: "/arial/users/jenny.png?v=1", code: "0765" }
+        "0765": { name: "Jenny", from: "Jenny", logo: "/arial/users/jenny.png?v=2", code: "0765" }
     };
     // Per-site keypad users (mirrors ARIAL_KEYPAD_USERS on the API): a PIN not assigned to this alarm is rejected at login.
     var SITE_USERS = Array.isArray(CFG.keypadUsers) && CFG.keypadUsers.length ? CFG.keypadUsers.map(function (n) { return String(n).toLowerCase(); }) : null;
