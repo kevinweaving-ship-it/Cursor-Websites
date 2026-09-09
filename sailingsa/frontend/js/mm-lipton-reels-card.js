@@ -120,7 +120,7 @@
     var k;
     var h;
     for (k = 2; k <= maxN; k++) {
-      h = (avail - GAP * k) / (art + k * vid);
+      h = (avail - GAP * k - 4 * (1 + k)) / (art + k * vid);
       if (h >= minH) n = k;
       else break;
     }
@@ -187,15 +187,17 @@
     }
     var art = ART_W / ART_H;
     var vid = VID_W / VID_H;
-    var h = (avail - GAP * n) / (art + n * vid);
-    if (h < 44) h = 44;
-    brand.style.width = h * art + 'px';
-    brand.style.height = h + 'px';
+    var border = 4;
+    var innerH = (avail - GAP * n - border * (1 + n)) / (art + n * vid);
+    if (innerH < 40) innerH = 40;
+    var outerH = innerH + border;
+    brand.style.width = innerH * art + border + 'px';
+    brand.style.height = outerH + 'px';
     var thumbs = compact.querySelectorAll('.mm-lipton-reels-thumb');
     var i;
     for (i = 0; i < thumbs.length; i++) {
-      thumbs[i].style.width = h * vid + 'px';
-      thumbs[i].style.height = h + 'px';
+      thumbs[i].style.width = innerH * vid + border + 'px';
+      thumbs[i].style.height = outerH + 'px';
     }
   }
 

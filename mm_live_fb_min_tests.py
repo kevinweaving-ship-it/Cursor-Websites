@@ -53,7 +53,7 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         css = src[src.find("_LIPTON_MM_REELS_CSS"): src.find("def _lipton_mm_reels_payload")]
         self.assertNotIn("mm-lipton-reels-stamp", css)
         self.assertIn("mm-lipton-reels-play", css)
-        self.assertIn("#e8eef4", css)
+        self.assertIn("#dce6ef", css)
         js = Path("js/mm-lipton-reels-card.js").read_text(encoding="utf-8")
         self.assertIn("mm-lipton-reels-play", js)
         self.assertIn("mm-lipton-reels-meta", js)
