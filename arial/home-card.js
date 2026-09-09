@@ -53,7 +53,7 @@
         var wu = l && l.waterUse;
         if (!wu || (wu.todayL == null && wu.monthL == null && wu.lastMonthL == null)) return "";
         function cell(n, lab) { return '<span class="hs-wcell">' + waterAmt(n) + "<i>" + lab + "</i></span>"; }
-        return '<span class="hs-wuse">' + cell(wu.todayL, "today") + cell(wu.monthL, monLabel()) + cell(wu.lastMonthL, prevMonLabel()) + "</span>";
+        return '<span class="hs-wuse">' + cell(wu.todayL, "today") + cell(wu.monthL, "this month") + cell(wu.lastMonthL, "last month") + "</span>";
       }
       function kwhAmt(n) {
         if (n == null || !isFinite(Number(n))) return "<b>\u2014</b>";
@@ -63,7 +63,7 @@
         var eu = l && l.eleUse;
         if (!eu || (eu.todayKwh == null && eu.monthKwh == null && eu.lastMonthKwh == null)) return "";
         function cell(n, lab) { return '<span class="hs-wcell">' + kwhAmt(n) + "<i>" + lab + "</i></span>"; }
-        return '<span class="hs-wuse">' + cell(eu.todayKwh, "today") + cell(eu.monthKwh, monLabel()) + cell(eu.lastMonthKwh, prevMonLabel()) + "</span>";
+        return '<span class="hs-wuse">' + cell(eu.todayKwh, "today") + cell(eu.monthKwh, "this month") + cell(eu.lastMonthKwh, "last month") + "</span>";
       }
       function eleLive(e) {
         var st = (e && e.status) || {};
@@ -77,14 +77,38 @@
       function pendOn(dev, code, on) { var k = dev + ":" + code, p = pend[k]; if (p && Date.now() < p.until) return p.on; return on; }
       var ICONS = {};   // device id -> local /assets/tuya/... path (from the resolver; never a CDN URL)
       function tico(id, cls) { var p = ICONS[id] || "/assets/tuya/fallback/device.svg"; return '<img class="tico ' + (cls || "") + '" src="' + p + '" alt="" loading="lazy" decoding="async">'; }
-      function powerBtn(dev, codes) {
+      function fmtKwh(n) {
+        if (n == null || !isFinite(Number(n))) return "0";
+        var x = Math.round(Number(n) * 10) / 10;
+        return x === 0 ? "0" : String(x);
+      }
+      function lastUseMeta(dev, codes, fallbackKwh) {
+        var us = (dev && dev.usage) || {};
+        var eu = (dev && dev.eleUse) || {};
+        var todayK = us.todayKwh != null ? us.todayKwh : (eu.todayKwh != null ? eu.todayKwh : fallbackKwh);
+        var monK = us.monthKwh != null ? us.monthKwh : eu.monthKwh;
+        var meta = [];
+        if (us.todayOnS != null) meta.push("on " + hm(us.todayOnS));
+        else if (codes && codes[0] && (dev.since || {})[codes[0]]) meta.push("on " + dur(dev.since[codes[0]]));
+        if (todayK != null) meta.push(fmtKwh(todayK) + " kWh today");
+        if (monK != null) meta.push(fmtKwh(monK) + " kWh this month");
+        return meta;
+      }
+      function powerBtn(dev, codes, extra) {
+        extra = extra || {};
         if (!codes || !codes.length) return "";
         var nOn = codes.filter(function (c) { return (dev.status || {})[c] === true; }).length;
         var on = nOn > 0;
+        var st = extra.status || (!dev.online ? "OFFLINE" : (codes.length > 1 && nOn && nOn < codes.length ? nOn + "/" + codes.length + " ON" : on ? "ON" : "OFF"));
+        var btn;
         if (codes.length === 1) {
-          return '<button type="button" class="hs-master hs-gang' + (on ? " on" : "") + '" data-dev="' + dev.id + '" data-sw="' + codes[0] + '" data-on="' + (on ? 1 : 0) + '" aria-label="' + (on ? "turn off" : "turn on") + '"><span class="ctl ctl-power" aria-hidden="true"></span></button>';
+          btn = '<button type="button" class="hs-master' + (on ? " on" : "") + '" data-dev="' + dev.id + '" data-sw="' + codes[0] + '" data-on="' + (on ? 1 : 0) + '" aria-label="' + (on ? "turn off" : "turn on") + '"><span class="ctl ctl-power" aria-hidden="true"></span></button>';
+        } else {
+          btn = '<button type="button" class="hs-master' + (on ? " on" : "") + '" data-dev="' + dev.id + '" data-any="' + (on ? 1 : 0) + '" data-codes="' + codes.join(",") + '" aria-label="' + (on ? "all off" : "all on") + '"><span class="ctl ctl-power" aria-hidden="true"></span></button>';
         }
-        return '<button type="button" class="hs-master' + (on ? " on" : "") + '" data-dev="' + dev.id + '" data-any="' + (on ? 1 : 0) + '" data-codes="' + codes.join(",") + '" aria-label="' + (on ? "all off" : "all on") + '"><span class="ctl ctl-power" aria-hidden="true"></span></button>';
+        var meta = extra.meta || lastUseMeta(dev, codes, extra.fallbackKwh);
+        return '<span class="hs-act">' + (extra.head || "") + btn + '<span class="hs-swst">' + st + "</span>" +
+          meta.map(function (m) { return m ? '<span class="hs-swmeta">' + m + "</span>" : ""; }).join("") + "</span>";
       }
       var lastData = null, gangDev = null;
       function render(d) {
@@ -401,9 +425,8 @@
                '<span class="hs-ico">' + tico(p.id) + '</span>' +
                '<span class="hs-body"><span class="v">' + (w == null ? "\u2014" : Math.round(w) + " W") + '</span>' +
                '<span class="l">' + neatName(p) + '</span>' +
-               '<span class="l">' + (p.usage && p.usage.todayKwh != null ? n1(p.usage.todayKwh) + " kWh today \u00b7 " + n1(p.usage.monthKwh) + " kWh " + monLabel() : (kwh != null ? n1(kwh) + " kWh today" : "")) +
-                 (p.usage && p.usage.todayOnS != null ? " \u00b7 on " + hm(p.usage.todayOnS) : "") + '</span></span>' +
-               powerBtn(p, pCodes) +
+               '</span>' +
+               powerBtn(p, pCodes, { fallbackKwh: kwh }) +
                '</div>' });
         });
         // Lights by device, one button per gang (icon + app label), lit when on with time-on underneath.
@@ -435,24 +458,22 @@
             var nOn = codes.filter(function (c) { return l.status[c] === true; }).length, allOn = nOn === codes.length;
             var stTxt = allOn ? "ON" : nOn === 0 ? "OFF" : nOn + "/" + codes.length + " ON";
             items.push({ grp: (!l.online || (!keepDev && !nOn && !lUse && !hasWater)) ? "dormant" : lGrp, use: lUse, ts: l.lastEvent || 0, html: '<div class="hs-dev hs-light gang' + waterCls + (l.online ? (nOn ? (allOn ? " allon is-on inuse" : " mixed is-on inuse") : " is-off") : " off is-dead") + '" data-dev="' + l.id + '" title="' + shown + ' \u00b7 ' + codes.length + ' gangs' + (us.todayOnS != null ? " \u00b7 " + hm(us.todayOnS) + " today" : "") + wTip + '">' +
-              '<span class="hs-ico">' + tico(l.id) + '</span><span class="hs-body"><span class="v">' + stTxt + '</span><span class="l">' + shown + '</span></span><span class="hs-act"><span class="gc" title="' + codes.length + ' switches \u00b7 tap for each">' + codes.length + '<i>\u203a</i></span>' +
-              '<button type="button" class="hs-master' + (nOn ? " on" : "") + '" data-dev="' + l.id + '" data-any="' + (nOn ? 1 : 0) + '" data-codes="' + codes.join(",") + '" aria-label="' + (nOn ? "all off" : "all on") + '"><span class="ctl ctl-power" aria-hidden="true"></span></button></span>' + wHtml + '</div>' });
+              '<span class="hs-ico">' + tico(l.id) + '</span><span class="hs-body"><span class="l">' + shown + '</span></span>' +
+              powerBtn(l, codes, { status: stTxt, head: '<span class="gc" title="' + codes.length + ' switches \u00b7 tap for each">' + codes.length + '<i>\u203a</i></span>' }) + wHtml + '</div>' });
             return;
           }
           // single gang: same compact tile as multi-gang (one cell, name, ON/OFF/OFFLINE, one power button via gangTap)
           var c1 = codes[0], on1 = l.online && l.status[c1] === true;
-          var st1 = !l.online ? "OFFLINE" : on1 ? "ON" : "OFF";
-          var sub1 = !l.online ? "" : on1 && (l.since || {})[c1] ? " \u00b7 " + dur(l.since[c1]) : (us.todayOnS >= 60 ? " \u00b7 " + hm(us.todayOnS) + " today" : "");
-          items.push({ grp: (!l.online || (!keepDev && !on1 && !lUse && !hasWater)) ? "dormant" : lGrp, use: lUse, ts: l.lastEvent || 0, html: '<div class="hs-dev hs-light gang single' + waterCls + (l.online ? (on1 ? " allon is-on inuse" : " is-off") : " off is-dead") + '" data-dev="' + l.id + '" title="' + shown + (us.todayOnS != null ? " \u00b7 " + hm(us.todayOnS) + " today \u00b7 " + hm(us.monthOnS) + " " + monLabel() : "") + wTip + '">' +
-            '<span class="hs-ico">' + tico(l.id) + '</span><span class="hs-body"><span class="v">' + st1 + '</span><span class="l">' + shown + (sub1 ? " ·" + sub1 : "") + '</span></span>' +
-            '<button type="button" class="hs-master hs-gang' + (on1 ? " on" : "") + '" data-dev="' + l.id + '" data-sw="' + c1 + '" data-on="' + (on1 ? 1 : 0) + '" aria-label="' + (on1 ? "turn off" : "turn on") + '"><span class="ctl ctl-power" aria-hidden="true"></span></button>' + wHtml + '</div>' });
+          items.push({ grp: (!l.online || (!keepDev && !on1 && !lUse && !hasWater)) ? "dormant" : lGrp, use: lUse, ts: l.lastEvent || 0, html: '<div class="hs-dev hs-light gang single' + waterCls + (l.online ? (on1 ? " allon is-on inuse" : " is-off") : " off is-dead") + '" data-dev="' + l.id + '" title="' + shown + (us.todayOnS != null ? " \u00b7 " + hm(us.todayOnS) + " today \u00b7 " + hm(us.monthOnS) + " this month" : "") + wTip + '">' +
+            '<span class="hs-ico">' + tico(l.id) + '</span><span class="hs-body"><span class="l">' + shown + '</span></span>' +
+            powerBtn(l, codes) + wHtml + '</div>' });
         });
         meters.sort(function (a, b) { return neatName(a).localeCompare(neatName(b)); }).forEach(function (e) {
           var eu = e.eleUse || {};
           var eUse = Number(eu.monthKwh) || 0;
           var eCodes = switchCodes(e.status);
           var eOn = eCodes.some(function (c) { return e.status[c] === true; });
-          var eTip = eu.todayKwh != null ? " \u00b7 " + Number(eu.todayKwh).toFixed(2) + " kWh today \u00b7 " + Number(eu.monthKwh).toFixed(2) + " kWh " + monLabel() + " \u00b7 " + Number(eu.lastMonthKwh).toFixed(2) + " kWh " + prevMonLabel() : "";
+          var eTip = eu.todayKwh != null ? " \u00b7 " + Number(eu.todayKwh).toFixed(2) + " kWh today \u00b7 " + Number(eu.monthKwh).toFixed(2) + " kWh this month \u00b7 " + Number(eu.lastMonthKwh).toFixed(2) + " kWh last month" : "";
           var eState = !e.online ? " off is-dead" : eOn ? " is-on inuse" : eCodes.length ? " is-off" : " is-on inuse";
           items.push({ grp: e.online || eUse ? "power" : "dormant", use: eUse, ts: e.lastEvent || 0, html: '<div class="hs-dev hs-light gang single hs-power' + eState + '" data-dev="' + e.id + '" title="' + neatName(e) + eTip + '">' +
             '<span class="hs-ico">' + tico(e.id) + '</span><span class="hs-body">' + eleLive(e) + '<span class="l">' + neatName(e) + "</span></span>" +

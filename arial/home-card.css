@@ -300,3 +300,19 @@
 #home-sensors .hs-dev.is-on .hs-master,#home-sensors .hs-dev.is-on .hs-plugsw,#home-sensors .hs-dev.allon .hs-master,#home-sensors .hs-dev.is-on .hs-master.on{background:#16a34a;border-color:#16a34a;color:#fff}
 #home-sensors .hs-dev.is-off .hs-master,#home-sensors .hs-dev.is-off .hs-plugsw,#home-sensors .hs-dev.is-off .hs-master:not(.on){background:#ea580c;border-color:#ea580c;color:#fff}
 #home-sensors .hs-dev.is-dead .hs-master,#home-sensors .hs-dev.is-dead .hs-plugsw,#home-sensors .hs-dev.off .hs-master,#home-sensors .hs-sub-dormant .hs-dev .hs-master,#home-sensors .hs-sub-dormant .hs-dev .hs-plugsw{background:#dc2626;border-color:#dc2626;color:#fff}
+#home-sensors .hs-dev .l,#home-sensors .hs-dev .st,#home-sensors .hs-dev .nm{font-weight:700;color:#334155}
+#home-sensors .hs-sub-dormant .hs-dev .l,#home-sensors .hs-sub-dormant .hs-dev .st{color:#64748b;font-weight:600}
+#home-sensors .hs-master{margin-left:0;border-radius:6px;background-clip:padding-box}
+#home-sensors .hs-master.hs-gang{width:30px;height:28px;min-height:0;flex:0 0 30px;flex-direction:row;padding:0;gap:0;box-shadow:none;border-radius:6px}
+#home-sensors .hs-swst{display:block;font:700 11px Arial,Helvetica,sans-serif;color:#1e293b;background:none;line-height:1.15;text-align:center}
+#home-sensors .hs-swmeta{display:block;font:600 10px Arial,Helvetica,sans-serif;color:#334155;background:none;line-height:1.2;text-align:center;white-space:nowrap}
+#home-sensors .hs-items,#home-sensors .hs-sub-grid{grid-template-columns:1fr}
+@media (min-width:420px){#home-sensors .hs-sub-grid{grid-template-columns:1fr 1fr}}
+@media (orientation:landscape) and (min-width:640px){#home-sensors .hs-sub-grid{grid-template-columns:1fr 1fr}}
+/* MP only: drop device icons so name + switch use the full card. ML / tablet / PC keep icons. */
+@media (max-width:480px) and (orientation:portrait){
+  #home-sensors .hs-dev{grid-template-columns:minmax(0,1fr) auto;min-height:56px;column-gap:6px;padding:6px 8px}
+  #home-sensors .hs-dev .hs-ico{display:none}
+  #home-sensors .hs-dev .hs-body{grid-column:1}
+  #home-sensors .hs-dev .hs-act,#home-sensors .hs-dev>.hs-master,#home-sensors .hs-dev>.hs-gang{grid-column:2}
+}

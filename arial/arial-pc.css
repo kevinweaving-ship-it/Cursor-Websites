@@ -1,0 +1,79 @@
+/* One column on every width: keypad on top, cards the same width (MP layout, bigger on PC). */
+.arial-desk {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  box-sizing: border-box;
+  width: 92%;
+  max-width: 416px;
+  margin: 0 auto;
+  padding: 0 0 24px;
+}
+
+.arial-desk .pad-wrap {
+  width: 100%;
+  max-width: none;
+  margin: 2px 0 0;
+}
+
+.arial-desk .arial-below:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  max-width: none;
+  margin: 8px 0 0;
+}
+
+@media (min-width: 700px) {
+  .arial-desk {
+    width: min(92vw, 560px);
+    max-width: 560px;
+    padding: 8px 0 28px;
+  }
+}
+
+@media (min-width: 1100px) {
+  .arial-desk {
+    width: min(90vw, 640px);
+    max-width: 640px;
+  }
+}
+
+/* Mobile landscape: stay inside the viewport; live/replay video slightly under full width so the whole frame is visible. */
+@media (orientation: landscape) and (max-height: 560px) {
+  .arial-desk {
+    width: min(96vw, 860px);
+    max-width: 860px;
+    padding: 4px 0 20px;
+  }
+
+  [id$="-cams"] .cam-grid {
+    justify-items: center;
+  }
+
+  [id$="-cams"] .cam-cell {
+    width: 100%;
+    max-width: min(96%, calc((100dvh - 64px) * 16 / 9));
+    max-height: calc(100dvh - 64px);
+  }
+
+  [id$="-cams"] .cam-cell.cam-big,
+  [id$="-cams"].live-mode .cam-cell.cam-big {
+    grid-column: 1 / -1;
+    width: min(96%, calc((100dvh - 64px) * 16 / 9));
+    max-height: calc(100dvh - 64px);
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  [id$="-cams"] .cam-cell video-stream,
+  [id$="-cams"] .cam-cell video,
+  [id$="-cams"] .cam-replay,
+  [id$="-cams"] .cam-snap {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #000;
+  }
+}
