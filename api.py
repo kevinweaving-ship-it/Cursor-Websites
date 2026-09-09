@@ -20374,7 +20374,7 @@ _LIPTON_MM_REELS_VIDEOS = (
     },
 )
 _LIPTON_MM_REELS_CSS = (
-    ".mm-lipton-reels{width:100%;margin:10px 0 0 0;padding:6px;background:#dce6ef!important;border:2px solid #001f3f;border-radius:8px;box-shadow:0 1px 3px rgba(0,31,63,0.08);box-sizing:border-box}"
+    ".mm-lipton-reels{width:100%;margin:10px 0 0 0;padding:4px;background:#dce6ef!important;border:2px solid #001f3f;border-radius:8px;box-shadow:0 1px 3px rgba(0,31,63,0.08);box-sizing:border-box}"
     ".mm-lipton-reels--compact .mm-lipton-reels-expanded{display:none}"
     ".mm-lipton-reels--expanded .mm-lipton-reels-compact{display:none}"
     ".mm-lipton-reels-compact{display:flex;align-items:flex-start;justify-content:flex-start;gap:6px;min-width:0}"
@@ -20383,7 +20383,7 @@ _LIPTON_MM_REELS_CSS = (
     ".mm-lipton-reels-compact [data-mm-compact]{display:flex;align-items:flex-start;gap:6px;flex:0 0 auto;min-width:0}"
     ".mm-lipton-reels-tile{display:flex;flex-direction:column;gap:0.18rem;flex:0 0 auto;min-width:0}"
     ".mm-lipton-reels-thumb{position:relative;display:block;width:100%;padding:0;border:2px solid #001f3f;border-radius:8px;background:#0b1c33;overflow:hidden;cursor:pointer;min-height:44px;box-shadow:0 1px 3px rgba(0,31,63,0.14);box-sizing:border-box}"
-    ".mm-lipton-reels-thumb img{width:100%;height:100%;object-fit:cover;object-position:center 20%;transform:scale(1.2);transform-origin:center 18%;display:block}"
+    ".mm-lipton-reels-thumb img{width:100%;height:100%;object-fit:cover;object-position:center 6%;transform:scale(1.34);transform-origin:center 6%;display:block}"
     ".mm-lipton-reels-thumb-ph{display:block;width:100%;height:100%;background:#0b1c33}"
     ".mm-lipton-reels-play{position:absolute;left:50%;top:50%;width:2.1rem;height:2.1rem;margin:-1.05rem 0 0 -1.05rem;border-radius:50%;background:rgba(0,31,63,0.62);box-shadow:0 1px 4px rgba(0,31,63,0.28);pointer-events:none}"
     ".mm-lipton-reels-play:after{content:'';position:absolute;left:0.78rem;top:0.58rem;border-style:solid;border-width:0.48rem 0 0.48rem 0.78rem;border-color:transparent transparent transparent #fff}"
