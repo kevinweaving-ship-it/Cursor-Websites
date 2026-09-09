@@ -16558,6 +16558,8 @@ def _regatta_results_summary_payload(regatta_id: str) -> Optional[dict]:
                 elif not isinstance(raw_al, list):
                     out["blank_hub_news_album"] = []
 
+            out["mm_live_fb_feed"] = _mm_live_fb_is_enabled(rid)
+
             entries_total = 0
             races_total = 0
             fleet_stats: list = []
@@ -19940,6 +19942,95 @@ async def api_super_admin_regatta_event_name_patch(request: Request, regatta_id:
     return {"ok": True, "event_name": name}
 
 
+# Process-local Upcoming Event MM card toggle. No DB column, file, or Facebook fetch.
+_MM_LIVE_FB_ON = {"2026-09-13-zvyc-cape-classic"}
+# Temporary Cape Classic proof: one Facebook share URL as primary video (no auto-discovery / replay).
+_MM_FB_TEST_REGATTA_ID = "2026-09-13-zvyc-cape-classic"
+_MM_FB_TEST_SHARE_URL = "https://www.facebook.com/share/v/1957ykQ9qA/"
+_MM_FB_TEST_PERMALINK = "https://www.facebook.com/timadvisor/videos/1378276337799152/"
+_MM_FB_TEST_EMBED_SRC = (
+    "https://www.facebook.com/plugins/video.php?href="
+    "https%3A%2F%2Fwww.facebook.com%2Ftimadvisor%2Fvideos%2F1378276337799152%2F"
+    "&show_text=false"
+)
+
+
+def _mm_live_fb_parse_on(raw) -> bool:
+    if raw is True or raw == 1:
+        return True
+    if raw is False or raw == 0 or raw is None:
+        return False
+    return str(raw).strip().lower() in ("1", "true", "on", "yes")
+
+
+def _mm_live_fb_is_enabled(regatta_id: str) -> bool:
+    return str(regatta_id or "").strip() in _MM_LIVE_FB_ON
+
+
+def _mm_live_fb_set_enabled(regatta_id: str, enabled: bool) -> bool:
+    rid = str(regatta_id or "").strip()
+    if not rid:
+        raise HTTPException(status_code=400, detail="regatta_id required")
+    if table_exists("regattas"):
+        try:
+            found = q("SELECT 1 FROM regattas WHERE regatta_id = %s LIMIT 1", rid)
+            if not found:
+                raise HTTPException(status_code=404, detail="regatta not found")
+        except HTTPException:
+            raise
+        except Exception:
+            pass
+    on = bool(enabled)
+    if on:
+        _MM_LIVE_FB_ON.add(rid)
+    else:
+        _MM_LIVE_FB_ON.discard(rid)
+    return on
+
+
+def _mm_live_fb_card_html(regatta_id: str) -> str:
+    rid_raw = str(regatta_id or "").strip()
+    rid = html_module.escape(rid_raw)
+    stage = ""
+    if rid_raw == _MM_FB_TEST_REGATTA_ID:
+        share = html_module.escape(_MM_FB_TEST_SHARE_URL, quote=True)
+        embed = html_module.escape(_MM_FB_TEST_EMBED_SRC, quote=True)
+        stage = (
+            '<div class="mm-live-fb-stage">'
+            f'<iframe src="{embed}" title="Cape Classic Facebook video" '
+            'allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" '
+            'allowfullscreen loading="lazy"></iframe></div>'
+            f'<a class="mm-live-fb-watch" href="{share}" target="_blank" rel="noopener noreferrer">'
+            "Watch on Facebook</a>"
+        )
+    return (
+        '<section class="card mm-live-fb-card" id="mmLiveFbCard" '
+        f'data-regatta-id="{rid}" aria-label="Marine Megastore video">'
+        '<h2 class="section-title">LIVE VIDEO</h2>'
+        '<a class="mm-live-fb-logo-link" href="https://marinemegastore.co.za" target="_blank" rel="noopener noreferrer">'
+        '<img class="mm-live-fb-logo" src="/assets/adverts/marine-megastore-logo.png" alt="Marine Megastore" width="1748" height="330" loading="lazy" decoding="async">'
+        "</a>"
+        f"{stage}"
+        "</section>"
+    )
+
+
+@app.patch("/api/super-admin/regatta/{regatta_id}/mm-live-fb-feed")
+async def api_super_admin_regatta_mm_live_fb_feed(request: Request, regatta_id: str, body: dict = Body(...)):
+    if not _session_role_is_super_admin(request):
+        raise HTTPException(status_code=403, detail="super_admin only")
+    rid = str(regatta_id or "").strip()
+    if not rid:
+        raise HTTPException(status_code=400, detail="regatta_id required")
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="JSON object expected")
+    raw = body.get("mm_live_fb_feed")
+    if raw is None:
+        raw = body.get("enabled")
+    on = _mm_live_fb_set_enabled(rid, _mm_live_fb_parse_on(raw))
+    return {"ok": True, "mm_live_fb_feed": on}
+
+
 @app.post("/api/super-admin/regatta/{regatta_id}/breaking-news-meta")
 @app.patch("/api/super-admin/regatta/{regatta_id}/breaking-news-meta")
 async def api_super_admin_regatta_breaking_news_meta(request: Request, regatta_id: str, body: dict = Body(...)):
@@ -19990,7 +20081,15 @@ async def api_super_admin_regatta_breaking_news_meta(request: Request, regatta_i
     finally:
         cur.close()
         return_db_connection(conn)
-    return {"ok": True, "blank_hub_news_badge_label": val}
+    out = {"ok": True, "blank_hub_news_badge_label": val}
+    if isinstance(body, dict) and "mm_live_fb_feed" in body:
+        try:
+            out["mm_live_fb_feed"] = _mm_live_fb_set_enabled(rid, _mm_live_fb_parse_on(body.get("mm_live_fb_feed")))
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"[api_super_admin_regatta_breaking_news_meta] mm_live_fb_feed {e}", flush=True)
+    return out
 
 
 @app.get("/api/super-admin/clubs-search")
@@ -23479,6 +23578,12 @@ def _regatta_sa_toolbar_html(regatta_id: str) -> str:
         '<option value="Archive">Archive</option>'
         '<option value="Upcoming Event">Upcoming Event</option>'
         "</select>"
+        '<label class="regatta-hub-news-type-label" for="regattaMmLiveFbFeed">Marine Megastore Live FB Feed</label>'
+        '<select id="regattaMmLiveFbFeed" class="regatta-hub-news-type-select" name="mm_live_fb_feed" '
+        'aria-label="Marine Megastore Live FB Feed">'
+        '<option value="OFF">OFF</option>'
+        '<option value="ON">ON</option>'
+        "</select>"
         "</div>"
     )
 
@@ -24139,7 +24244,7 @@ _RESULT_SHEET_CSS = (
     ".regatta-name-editor{display:none!important}.regatta-name-view{display:block!important}"
     ".host-club-sa-edit-hit{display:none!important}.host-club-wrap .host-club-public-nav{display:inline!important}"
     ".fleet-sa-edit-hit{display:none!important}.fleet-title-public-nav{display:inline!important}"
-    ".regatta-host-picker{display:none!important}}"
+    ".regatta-host-picker{display:none!important}.mm-live-fb-card{display:none!important}}"
     ".action-button{padding:12px 24px;border:2px solid #1a2750;border-radius:6px;background:#ffffff;color:#1a2750;font-weight:bold;font-size:14px;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,0.2);min-width:120px}"
     ".action-button:hover{background:#1a2750;color:#ffffff}"
     ".regatta-header-wrap{width:100%}"
@@ -24272,6 +24377,16 @@ _RESULT_SHEET_CSS = (
     ".wc-sa-ac-list li:hover,.wc-sa-ac-list li.wc-sa-ac-li-active{background:#e0e7ff}"
     ".wc-sa-ac-list .wc-sa-ac-li-sub{font-size:11px;font-weight:500;color:#64748b}"
     ".regatta-page--super-admin-edit .wc-sa-ac-wrap .wc-result-field-input{min-width:5rem}"
+    ".mm-live-fb-card{width:100%;margin:16px 0 0 0;padding:0.5rem 0.75rem;background:#ffffff;border:2px solid #001f3f;border-radius:8px;box-shadow:0 1px 3px rgba(0,31,63,0.08);box-sizing:border-box}"
+    ".mm-live-fb-card .section-title{margin:0 0 0.4rem 0;padding-bottom:0.35rem;font-size:0.85rem;font-weight:700;letter-spacing:0.02em;text-transform:uppercase;color:#001f3f;border-bottom:2px solid #001f3f}"
+    ".mm-live-fb-powered{margin:0;font-size:0.9rem;color:#334155}"
+    ".mm-live-fb-logo-link{display:inline-block;line-height:0;margin:0.15rem 0 0.35rem 0}"
+    ".mm-live-fb-logo{display:block;max-width:min(280px,100%);height:auto}"
+    ".mm-live-fb-stage{position:relative;width:100%;margin:0.5rem 0 0.35rem;aspect-ratio:16/9;background:#001f3f;overflow:hidden;border-radius:6px}"
+    ".mm-live-fb-stage iframe{position:absolute;inset:0;width:100%;height:100%;border:0}"
+    ".mm-live-fb-watch{display:inline-block;margin:0.2rem 0 0.15rem;font-size:0.85rem;font-weight:600;color:#001f3f}"
+    "@media (max-width:480px){.mm-live-fb-card{padding:0.5rem 0.75rem;margin-top:12px}.mm-live-fb-stage{margin-top:0.4rem}}"
+    "@media (min-width:600px){.mm-live-fb-card{padding:0.5rem 0.85rem}}"
 )
 
 
@@ -26390,7 +26505,7 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
             if str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG and is_sa
             else ""
         )
-        sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js" defer></script>' if is_sa else ""
+        sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js?v=mm1" defer></script>' if is_sa else ""
         doc = (
             "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
             f"{html_module.escape(class_name)} – {escaped_title} | SailingSA</title>"
@@ -26730,7 +26845,9 @@ def serve_regatta_standalone(slug: str, request: Request):
                 "})();</script>"
             )
         print_btn = '<div class="action-buttons"><button class="action-button" onclick="window.print()">Print</button></div>'
-        body_html = header_html + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
+        mm_feed_on = _mm_live_fb_is_enabled(str(regatta_id))
+        mm_card = _mm_live_fb_card_html(str(regatta_id)) if mm_feed_on else ""
+        body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()
         wc_club_edit_script = (
@@ -26738,7 +26855,7 @@ def serve_regatta_standalone(slug: str, request: Request):
             if str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG and is_sa
             else ""
         )
-        sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js" defer></script>' if is_sa else ""
+        sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js?v=mm1" defer></script>' if is_sa else ""
         doc = (
             "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
             f"{escaped_title} | SailingSA</title>"
