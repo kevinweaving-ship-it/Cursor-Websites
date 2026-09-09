@@ -1,8 +1,8 @@
 /**
  * MM Event Reels tracking overlay — boats/marks only on the video water.
  * No map tiles. Race 7 test clip races right → left across the bottom strip.
- * Same language as tracking-dev2 (club, place, overall rings, leader/front,
- * pin/RC, finish).
+ * Clock is the live reel go-live stamp + video time. Boat noses follow the
+ * on-screen GPS track. Icons/colours/tails match tracking-dev2, drawn smaller.
  */
 (function (root) {
   'use strict';
@@ -82,15 +82,53 @@
     return { lat: series.lat[i], lon: series.lon[i], i: i };
   }
 
+  function hitBack(series, i) {
+    var k = i;
+    while (k >= 0 && (!series || series.lat == null || series.lat[k] == null)) k -= 1;
+    return k;
+  }
+
+  function ptAt(series, i) {
+    if (i < 0 || !series || series.lat == null || series.lat[i] == null) return null;
+    return { lat: series.lat[i], lon: series.lon[i], i: i };
+  }
+
   function headingAt(series, pos) {
     if (!pos) return 0;
-    var j = pos.i > 3 ? pos.i - 3 : 0;
-    if (!series || series.lat[j] == null || j === pos.i) return 0;
-    var dLat = pos.lat - series.lat[j];
-    var dLon = pos.lon - series.lon[j];
+    var i = pos.i != null ? pos.i : 0;
+    var k = hitBack(series, i - 1);
+    if (k < 0 || !series) return 0;
+    var dLat = pos.lat - series.lat[k];
+    var dLon = pos.lon - series.lon[k];
+    if (!dLat && !dLon) {
+      k = hitBack(series, k - 1);
+      if (k < 0) return 0;
+      dLat = pos.lat - series.lat[k];
+      dLon = pos.lon - series.lon[k];
+    }
     if (!dLat && !dLon) return 0;
     var hdg = (Math.atan2(dLon * Math.cos((pos.lat * Math.PI) / 180), dLat) * 180) / Math.PI;
     return hdg < 0 ? hdg + 360 : hdg;
+  }
+
+  /* Nose follows the on-screen GPS track (after RTL + width stretch), not raw geo heading. */
+  function screenNoseRad(series, pos, cam) {
+    if (!pos || !series) return (3 * Math.PI) / 2;
+    var k = hitBack(series, (pos.i != null ? pos.i : 0) - 1);
+    var n = 0;
+    while (k >= 0 && n < 16) {
+      var prev = ptAt(series, k);
+      if (prev && distM(prev, pos) >= 3) {
+        var a = xy(prev.lat, prev.lon, cam);
+        var b = xy(pos.lat, pos.lon, cam);
+        var dx = b.x - a.x;
+        var dy = b.y - a.y;
+        if (dx * dx + dy * dy > 0.4) return Math.atan2(dy, dx) + Math.PI / 2;
+      }
+      k = hitBack(series, k - 1);
+      n += 1;
+    }
+    return Math.atan2(0, -1) + Math.PI / 2;
   }
 
   function distM(a, b) {
@@ -133,8 +171,35 @@
     return id.mapClub || id.club || sail;
   }
 
+  function hexRgb(hex) {
+    var n = parseInt(String(hex).replace('#', ''), 16);
+    if (!(n >= 0)) return [148, 163, 184];
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+
+  function hexLuma(hex) {
+    var c = hexRgb(hex);
+    return 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2];
+  }
+
+  function rgbaHex(hex, a) {
+    var c = hexRgb(hex);
+    return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')';
+  }
+
   function boatColor(sail) {
-    return COLORS[sail] || COLORS[clubCode(sail)] || '#64748b';
+    return COLORS[sail] || COLORS[clubCode(sail)] || '#94a3b8';
+  }
+
+  function boatPaint(sail) {
+    var fill = boatColor(sail);
+    var dark = hexLuma(fill) < 165;
+    return {
+      fill: fill,
+      stroke: 'rgba(15,23,42,0.75)',
+      ink: dark ? '#ffffff' : '#0f172a',
+      nose: dark ? '#ffffff' : '#0f172a'
+    };
   }
 
   function passTs(pass, sail) {
@@ -297,8 +362,8 @@
     var along = north * cam.cosH + east * cam.sinH;
     var across = east * cam.cosH - north * cam.sinH;
     return {
-      x: cam.cx - along * cam.scale,
-      y: cam.cy - across * cam.scale
+      x: cam.cx - along * cam.scaleX,
+      y: cam.cy - across * cam.scaleY
     };
   }
 
@@ -334,11 +399,12 @@
       if (across < minC) minC = across;
       if (across > maxC) maxC = across;
     }
-    var spanAlong = Math.max(50, maxA - minA) * 1.22;
-    var spanAcross = Math.max(28, maxC - minC) * 1.55;
-    var padX = 36;
-    var padY = 14;
-    var scale = Math.min((w - padX * 2) / spanAlong, (h - padY * 2) / spanAcross);
+    var spanAlong = Math.max(50, maxA - minA) * 1.12;
+    var spanAcross = Math.max(22, maxC - minC) * 1.28;
+    var padX = 40;
+    var padY = 16;
+    var scaleX = (w - padX * 2) / spanAlong;
+    var scaleY = (h - padY * 2) / spanAcross;
     var midAlong = (minA + maxA) / 2;
     var midAcross = (minC + maxC) / 2;
     return {
@@ -347,19 +413,21 @@
       cos: cos,
       cosH: cosH,
       sinH: sinH,
-      scale: scale,
+      scale: scaleX,
+      scaleX: scaleX,
+      scaleY: scaleY,
       w: w,
       h: h,
       hdg: hdg || 0,
-      cx: w / 2 + midAlong * scale,
-      cy: h / 2 + midAcross * scale
+      cx: w / 2 + midAlong * scaleX,
+      cy: h / 2 + midAcross * scaleY
     };
   }
 
   function drawDelta(ctx, x, y, delta, align) {
     if (delta == null) return;
     var txt = delta > 0 ? '▲' + delta : delta < 0 ? '▼' + -delta : '■0';
-    ctx.font = 'bold 8px sans-serif';
+    ctx.font = 'bold 7px sans-serif';
     ctx.textAlign = align || 'left';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = delta > 0 ? '#4ade80' : delta < 0 ? '#f87171' : '#cbd5e1';
@@ -396,74 +464,125 @@
     if (label) ctx.fillText(label, (a.x + b.x) / 2 + 5, (a.y + b.y) / 2 - 5);
   }
 
+  function tailHits(series, ts) {
+    var now = sampleAt(series, ts);
+    if (!now) return [];
+    var hits = [now];
+    var acc = 0;
+    var lastI = now.i != null ? now.i : 0;
+    var idx = hitBack(series, lastI - 1);
+    var stepMs = Number(trail.step_ms) || 1000;
+    var maxM = 90;
+    var maxMs = 20000;
+    while (idx >= 0) {
+      var gap = lastI - idx;
+      var cur = ptAt(series, idx);
+      if (!cur) break;
+      var step = distM(hits[hits.length - 1], cur);
+      if (gap > 45) break;
+      if (step > 14 * Math.min(gap, 8)) break;
+      acc += step;
+      hits.push(cur);
+      if (acc >= maxM) break;
+      if ((now.i - idx) * stepMs >= maxMs) break;
+      lastI = idx;
+      idx = hitBack(series, idx - 1);
+    }
+    hits.reverse();
+    return hits;
+  }
+
+  function drawTail(ctx, cam, sail, ts) {
+    var series = trail.boats && trail.boats[sail];
+    var hits = tailHits(series, ts);
+    if (hits.length < 2) return;
+    var fill = boatPaint(sail).fill;
+    var r = 1.15;
+    var d;
+    for (d = 0; d < hits.length; d++) {
+      var pt = xy(hits[d].lat, hits[d].lon, cam);
+      var u = d / Math.max(1, hits.length - 1);
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = rgbaHex(fill, 0.25 + 0.7 * u * u);
+      ctx.fill();
+    }
+  }
+
+  function drawBoatIcon(ctx, p, noseRad, paint, r) {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = paint.fill;
+    ctx.fill();
+    ctx.strokeStyle = paint.stroke;
+    ctx.lineWidth = 1.1;
+    ctx.stroke();
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(noseRad);
+    ctx.beginPath();
+    ctx.moveTo(0, -r - 2.4);
+    ctx.lineTo(2.1, -r + 0.8);
+    ctx.lineTo(-2.1, -r + 0.8);
+    ctx.closePath();
+    ctx.fillStyle = paint.nose || '#ffffff';
+    ctx.fill();
+    ctx.restore();
+  }
+
   function drawBoat(ctx, cam, row, live, r) {
     if (!row.pos) return;
     var p = xy(row.pos.lat, row.pos.lon, cam);
     var sail = row.sail;
-    var fill = boatColor(sail);
+    var paint = boatPaint(sail);
     var overallPos = live.overallBySail[sail];
     var isLeader = live.leader && live.leader.sail === sail;
     var isFront = live.front && live.front.sail === sail;
     var total = row.start != null && row.racePlace != null ? row.start - row.racePlace : null;
-    ctx.save();
+    var series = trail.boats && trail.boats[sail];
+    var noseRad = screenNoseRad(series, row.pos, cam);
     if (overallPos && overallPos <= 3) {
       ctx.beginPath();
-      ctx.arc(p.x, p.y, r + 9, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, r + 6, 0, Math.PI * 2);
       ctx.strokeStyle = OVERALL_STICKER[overallPos];
-      ctx.lineWidth = 2.4;
+      ctx.lineWidth = 2;
       ctx.stroke();
     }
     if (isLeader) {
       ctx.beginPath();
-      ctx.arc(p.x, p.y, r + 6, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, r + 4, 0, Math.PI * 2);
       ctx.strokeStyle = 'rgba(250,204,21,0.95)';
-      ctx.lineWidth = 2.2;
+      ctx.lineWidth = 1.8;
       ctx.stroke();
     } else if (isFront) {
       ctx.beginPath();
-      ctx.arc(p.x, p.y, r + 6, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, r + 4, 0, Math.PI * 2);
       ctx.strokeStyle = 'rgba(248,113,113,0.95)';
-      ctx.lineWidth = 2.2;
+      ctx.lineWidth = 1.8;
       ctx.stroke();
     }
-    ctx.translate(p.x, p.y);
-    ctx.rotate((((row.hdg || 0) - (cam.hdg || 0) - 90) * Math.PI) / 180);
-    ctx.beginPath();
-    ctx.arc(0, 0, r, 0, Math.PI * 2);
-    ctx.fillStyle = fill;
-    ctx.fill();
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 1.1;
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(0, -r - 3.2);
-    ctx.lineTo(2.8, -r + 1);
-    ctx.lineTo(-2.8, -r + 1);
-    ctx.closePath();
-    ctx.fillStyle = '#ffffff';
-    ctx.fill();
-    ctx.restore();
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 8px sans-serif';
+    drawBoatIcon(ctx, p, noseRad, paint, r);
+    ctx.fillStyle = paint.ink;
+    ctx.font = 'bold 7px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(String(row.racePlace || ''), p.x, p.y + 0.4);
     var club = clubCode(sail);
-    var lx = p.x + r + 5;
+    var lx = p.x + r + 4;
     var ly = p.y - 1;
-    ctx.font = 'bold 9px sans-serif';
+    ctx.font = 'bold 8px sans-serif';
     ctx.textAlign = 'left';
     ctx.shadowColor = 'rgba(0,0,0,0.9)';
     ctx.shadowBlur = 3;
-    ctx.fillStyle = fill;
+    ctx.fillStyle = paint.fill;
     ctx.fillText(club, lx, ly);
     ctx.shadowBlur = 0;
     var cw = ctx.measureText(club).width;
-    drawDelta(ctx, lx + cw + 3, ly, total, 'left');
+    drawDelta(ctx, lx + cw + 2, ly, total, 'left');
     if (overallPos) {
       ctx.font = 'bold 7px sans-serif';
       ctx.fillStyle = '#e2e8f0';
-      ctx.fillText('O' + overallPos, lx, ly + 9);
+      ctx.fillText('O' + overallPos, lx, ly + 8);
     }
   }
 
@@ -557,7 +676,10 @@
       ctx.restore();
     }
 
-    var r = Math.max(5, Math.min(8, cssH / 10));
+    var r = 4.5;
+    for (i = 0; i < live.rows.length; i++) {
+      if (live.rows[i] && live.rows[i].sail) drawTail(ctx, cam, live.rows[i].sail, ts);
+    }
     for (i = live.rows.length - 1; i >= 0; i--) drawBoat(ctx, cam, live.rows[i], live, r);
   }
 

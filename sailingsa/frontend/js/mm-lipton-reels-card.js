@@ -391,6 +391,7 @@
     var ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    /* Live reel go-live stamp = tracking clock. A few seconds of FB lag is close enough. */
     var startMs = Date.parse(String(trackClip.started_at || ''));
     if (startMs !== startMs) return;
     var ts = startMs + (Number(video.currentTime) || 0) * 1000;
