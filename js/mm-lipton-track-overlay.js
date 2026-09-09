@@ -1006,11 +1006,13 @@
 
   function incomingHdg(live, mark, leader) {
     var hs = [];
+    var passes = passList();
     var i;
     for (i = 0; i < (live.rows || []).length; i++) {
       var row = live.rows[i];
       if (!row || !row.pos || !mark) continue;
-      if (leader && row.done >= leader.done) continue;
+      var nxt = markPosForPass(passes[row.done], live.ts);
+      if (!nxt || String(nxt.key) !== String(mark.key)) continue;
       hs.push(bearingDeg(row.pos, mark));
     }
     if (hs.length) {
@@ -1030,13 +1032,15 @@
     var passes = passList();
     var next = leader ? markPosForPass(passes[leader.done], live.ts) : null;
     var last = leader && leader.done ? markPosForPass(passes[leader.done - 1], live.ts) : null;
-    var nRounded = leader ? countDoneAtLeast(live, leader.done) : 0;
     var distNext = next && leader && leader.pos ? distM(leader.pos, next) : 1e9;
+    var distLast = last && leader && leader.pos ? distM(leader.pos, last) : 1e9;
     var markX = 0.2;
     var phase = 'leg';
     var focus = next;
     var hdg = lockApproachHdg != null ? lockApproachHdg : incomingHdg(live, next || last, leader);
     var flipX = true;
+    var lastKey = last && last.key != null ? String(last.key) : '';
+    var lockMatchesLast = !!(markLock && lastKey && String(markLock.key) === lastKey);
 
     if (kind === 'start' && (!leader || leader.done < 1) && distNext > 280) {
       phase = 'start';
@@ -1044,15 +1048,17 @@
       hdg = next && leader && leader.pos ? bearingDeg(leader.pos, next) : hdg;
       lockApproachHdg = null;
       markLock = null;
-    } else if (last && nRounded >= 1) {
+    } else if (next && leader && leader.pos && distNext < 700 && distNext <= distLast) {
+      /* Still heading to this mark: RTL, mark pinned left. Do not lock the previous weather. */
+      phase = 'approach-mark';
+      focus = next;
+      if (lockApproachHdg == null) lockApproachHdg = incomingHdg(live, next, leader);
+      hdg = lockApproachHdg;
+    } else if (last && leader && leader.pos && (distLast < 480 || lockMatchesLast)) {
+      /* Rounded this mark: keep it geographic, boats go LTR, pin 1st on the right. */
       phase = 'hold';
       focus = last;
       if (lockApproachHdg == null) lockApproachHdg = incomingHdg(live, last, leader);
-      hdg = lockApproachHdg;
-    } else if (next && leader && leader.pos && distNext < 400) {
-      phase = 'approach-mark';
-      focus = next;
-      if (lockApproachHdg == null) lockApproachHdg = bearingDeg(leader.pos, next);
       hdg = lockApproachHdg;
     } else {
       lockApproachHdg = null;
@@ -1079,8 +1085,8 @@
         };
       }
       fitLockVertical(markLock, pack, cssW, cssH);
-      /* Keep 1st on the right; pan the group left. Mark may leave the left. Never flip. */
-      if (nRounded >= 1 && leader && leader.pos) {
+      /* After rounding, pin 1st on the right. Map slides left; mark may leave shot. */
+      if (phase === 'hold' && leader && leader.pos) {
         var tPan = camFromMark(
           { lat: markLock.lat, lon: markLock.lon },
           cssW,
@@ -1094,8 +1100,9 @@
           markLock.panX || 0
         );
         var sp = xy(leader.pos.lat, leader.pos.lon, tPan);
-        if (sp.x > cssW - 48) {
-          markLock.panX = (markLock.panX || 0) + (cssW - 48 - sp.x);
+        var pinRight = cssW - 52;
+        if (sp.x > pinRight) {
+          markLock.panX = (markLock.panX || 0) + (pinRight - sp.x);
         }
       }
     }
@@ -1109,7 +1116,7 @@
       hdg: hdg,
       flipX: flipX,
       markX: phase === 'hold' || phase === 'approach-mark' ? markX : null,
-      nRounded: nRounded
+      nRounded: last ? countDoneAtLeast(live, leader && leader.done ? leader.done : 1) : 0
     };
   }
 
