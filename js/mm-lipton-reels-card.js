@@ -459,6 +459,7 @@
       if (src) video.src = src;
     }
     paint(root, payload, state);
+    state.chromeSnap = snapshotChromeSize(root);
 
     root.addEventListener('click', function (ev) {
       var prev = ev.target.closest && ev.target.closest('[data-mm-rail-prev]');
