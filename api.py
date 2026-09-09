@@ -20374,29 +20374,28 @@ _LIPTON_MM_REELS_VIDEOS = (
     },
 )
 _LIPTON_MM_REELS_CSS = (
-    ".mm-lipton-reels{width:100%;margin:10px 0 0 0;padding:0.35rem 0.45rem;background:#ffffff;border:2px solid #001f3f;border-radius:8px;box-shadow:0 1px 3px rgba(0,31,63,0.08);box-sizing:border-box}"
+    ".mm-lipton-reels{width:100%;margin:10px 0 0 0;padding:0.28rem;background:#e8eef4;border:2px solid #001f3f;border-radius:8px;box-shadow:0 1px 3px rgba(0,31,63,0.08);box-sizing:border-box}"
     ".mm-lipton-reels--compact .mm-lipton-reels-expanded{display:none}"
     ".mm-lipton-reels--expanded .mm-lipton-reels-compact{display:none}"
-    ".mm-lipton-reels-compact{display:flex;align-items:flex-start;justify-content:flex-start;gap:0.5rem;min-width:0}"
-    ".mm-lipton-reels-brand{flex:0 0 auto;line-height:0}"
-    ".mm-lipton-reels-brand img{display:block;width:auto;height:auto;object-fit:contain;object-position:left center}"
-    ".mm-lipton-reels-compact [data-mm-compact]{flex:0 0 auto;min-width:0}"
-    ".mm-lipton-reels-compact-preview{display:flex;flex-direction:column;align-items:stretch;min-width:0;gap:0.25rem}"
-    ".mm-lipton-reels-compact-frame{position:relative;flex:0 0 auto;overflow:hidden;border:2px solid #001f3f;border-radius:6px;background:#001018}"
-    ".mm-lipton-reels-compact-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none}"
-    ".mm-lipton-reels-compact-hit{position:absolute;inset:0;z-index:2;margin:0;padding:0;border:0;background:transparent;cursor:pointer;min-height:44px}"
-    ".mm-lipton-reels-meta{margin:0;padding:0;font-size:0.72rem;font-weight:700;line-height:1.25;color:#334155}"
-    ".mm-lipton-reels-thumb{position:relative;display:block;width:100%;padding:0;border:2px solid #001f3f;border-radius:6px;background:#e9eefb;overflow:hidden;cursor:pointer;min-height:44px}"
-    ".mm-lipton-reels-thumb img{width:100%;height:100%;object-fit:cover;display:block}"
-    ".mm-lipton-reels-thumb-ph{display:block;width:100%;height:100%;background:#e9eefb}"
-    ".mm-lipton-reels-expanded-bar{display:flex;justify-content:flex-end;margin:0 0 0.35rem 0}"
+    ".mm-lipton-reels-compact{display:flex;align-items:flex-start;justify-content:flex-start;gap:0.35rem;min-width:0}"
+    ".mm-lipton-reels-brand{display:block;flex:0 0 auto;line-height:0;overflow:hidden;border:2px solid #001f3f;border-radius:8px;background:#001f3f;box-shadow:0 1px 3px rgba(0,31,63,0.14)}"
+    ".mm-lipton-reels-brand img{display:block;width:100%;height:100%;object-fit:contain;object-position:center;border:0}"
+    ".mm-lipton-reels-compact [data-mm-compact]{display:flex;align-items:flex-start;gap:0.35rem;flex:0 0 auto;min-width:0}"
+    ".mm-lipton-reels-tile{display:flex;flex-direction:column;gap:0.18rem;flex:0 0 auto;min-width:0}"
+    ".mm-lipton-reels-thumb{position:relative;display:block;width:100%;padding:0;border:2px solid #001f3f;border-radius:8px;background:#0b1c33;overflow:hidden;cursor:pointer;min-height:44px;box-shadow:0 1px 3px rgba(0,31,63,0.14)}"
+    ".mm-lipton-reels-thumb img{width:100%;height:100%;object-fit:cover;object-position:center;display:block}"
+    ".mm-lipton-reels-thumb-ph{display:block;width:100%;height:100%;background:#0b1c33}"
+    ".mm-lipton-reels-play{position:absolute;left:50%;top:50%;width:2.1rem;height:2.1rem;margin:-1.05rem 0 0 -1.05rem;border-radius:50%;background:rgba(0,31,63,0.62);box-shadow:0 1px 4px rgba(0,31,63,0.28);pointer-events:none}"
+    ".mm-lipton-reels-play:after{content:'';position:absolute;left:0.78rem;top:0.58rem;border-style:solid;border-width:0.48rem 0 0.48rem 0.78rem;border-color:transparent transparent transparent #fff}"
+    ".mm-lipton-reels-meta{margin:0;padding:0 0.05rem;font-size:0.65rem;font-weight:600;line-height:1.2;color:#475569;letter-spacing:0.01em}"
+    ".mm-lipton-reels-expanded-bar{display:flex;justify-content:flex-end;margin:0 0 0.3rem 0}"
     ".mm-lipton-reels-hide{min-height:44px;min-width:44px;font-size:0.8rem;font-weight:700;color:#001f3f;background:#fff;border:2px solid #001f3f;border-radius:6px;padding:0.28rem 0.7rem;cursor:pointer}"
-    ".mm-lipton-reels-stage{position:relative;width:100%;aspect-ratio:var(--mm-aspect,16/9);overflow:hidden;border-radius:6px;background:#001018}"
+    ".mm-lipton-reels-stage{position:relative;width:100%;aspect-ratio:var(--mm-aspect,16/9);overflow:hidden;border-radius:8px;background:#001018;border:2px solid #001f3f}"
     ".mm-lipton-reels-stage iframe{position:absolute;inset:0;width:100%;height:100%;border:0}"
-    ".mm-lipton-reels-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0.35rem 0.45rem;margin-top:0.45rem}"
+    ".mm-lipton-reels-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0.35rem 0.35rem;margin-top:0.4rem}"
     ".mm-lipton-reels-grid-item{min-width:0}"
     ".mm-lipton-reels-waiting{margin:0;font-size:0.85rem;color:#334155}"
-    "@media (min-width:720px){.mm-lipton-reels{padding:0.4rem 0.55rem}.mm-lipton-reels-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}"
+    "@media (min-width:720px){.mm-lipton-reels-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}"
     "@media (min-width:1024px){.mm-lipton-reels-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}"
     "@media print{.mm-lipton-reels{display:none!important}}"
 )
@@ -27350,7 +27349,7 @@ def serve_regatta_standalone(slug: str, request: Request):
         mm_card_js = ""
         if str(regatta_id) == "2026-08-29-lipton-challenge-cup":
             mm_card = _lipton_mm_reels_card_html(str(regatta_id))
-            mm_card_js = '<script src="/js/mm-lipton-reels-card.js?v=mmr2" defer></script>'
+            mm_card_js = '<script src="/js/mm-lipton-reels-card.js?v=mmr3" defer></script>'
         body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()

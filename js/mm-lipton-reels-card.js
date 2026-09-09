@@ -1,6 +1,6 @@
 /**
  * Lipton-only Marine Megastore Event Reels card (#mmLiptonReels).
- * Compact: muted autoplay, labels outside the video frame.
+ * Compact strip: equal-height artwork + landscape thumbs, captions outside the image.
  * Expand: autoplay in place, no automatic fullscreen.
  */
 (function () {
@@ -8,6 +8,9 @@
 
   var ART_W = 320;
   var ART_H = 213;
+  var VID_W = 16;
+  var VID_H = 9;
+  var GAP = 6;
 
   function esc(s) {
     return String(s == null ? '' : s)
@@ -44,13 +47,6 @@
     return '16 / 9';
   }
 
-  function vidSize(v) {
-    var w = parseInt(v && v.width, 10) || 0;
-    var h = parseInt(v && v.height, 10) || 0;
-    if (w > 0 && h > 0) return { w: w, h: h };
-    return { w: 16, h: 9 };
-  }
-
   function pluginSrc(v, autoplay, mute) {
     var src = (v && v.embed_url) || '';
     if (!src && v && (v.url || v.permalink)) {
@@ -75,6 +71,10 @@
     return '<div class="mm-lipton-reels-meta">' + esc(text) + '</div>';
   }
 
+  function playMark() {
+    return '<span class="mm-lipton-reels-play" aria-hidden="true"></span>';
+  }
+
   function stopAllPlayback(root) {
     var iframes = root.querySelectorAll('iframe');
     var i;
@@ -84,37 +84,54 @@
     }
   }
 
-  function compactPreviewHtml(v) {
-    if (!v) return '<p class="mm-lipton-reels-waiting">No clip yet.</p>';
-    var size = vidSize(v);
-    var src = pluginSrc(v, true, true);
-    var stamp = v.stamp || '';
-    var label = stamp ? 'Latest Reel · ' + stamp : 'Latest Reel';
-    var frame =
-      '<div class="mm-lipton-reels-compact-frame" data-mm-w="' +
-      size.w +
-      '" data-mm-h="' +
-      size.h +
-      '" style="aspect-ratio:' +
-      aspectCss(v) +
-      '">' +
-      (src
-        ? '<iframe src="' +
-          esc(src) +
-          '" title="Marine Megastore Event Reel" allow="autoplay; muted; encrypted-media" referrerpolicy="strict-origin-when-cross-origin"></iframe>'
-        : '') +
-      '<button type="button" class="mm-lipton-reels-compact-hit" data-mm-expand data-mm-vid="' +
-      esc(v.id || '') +
-      '" aria-label="' +
-      esc(label) +
-      '"></button>' +
-      '</div>';
+  function thumbButtonHtml(v) {
+    var img = v && v.thumb
+      ? '<img src="' + esc(v.thumb) + '" alt="" loading="lazy" decoding="async">'
+      : '<span class="mm-lipton-reels-thumb-ph" aria-hidden="true"></span>';
     return (
-      '<div class="mm-lipton-reels-compact-preview">' +
-      frame +
-      metaHtml(label) +
+      '<button type="button" class="mm-lipton-reels-thumb" style="aspect-ratio:16 / 9" data-mm-vid="' +
+      esc((v && v.id) || '') +
+      '" aria-label="' +
+      esc((v && v.stamp) || 'Play reel') +
+      '">' +
+      img +
+      playMark() +
+      '</button>'
+    );
+  }
+
+  function compactTileHtml(v) {
+    return (
+      '<div class="mm-lipton-reels-tile">' +
+      thumbButtonHtml(v) +
+      metaHtml((v && v.stamp) || '') +
       '</div>'
     );
+  }
+
+  function thumbsThatFit(avail, total) {
+    var maxN = Math.min(total || 1, 5);
+    if (avail <= 0) return 1;
+    if (window.matchMedia('(max-width: 599px)').matches) return 1;
+    var art = ART_W / ART_H;
+    var vid = VID_W / VID_H;
+    var minH = 76;
+    var n = 1;
+    var k;
+    var h;
+    for (k = 2; k <= maxN; k++) {
+      h = (avail - GAP * k) / (art + k * vid);
+      if (h >= minH) n = k;
+      else break;
+    }
+    return n;
+  }
+
+  function compactTilesHtml(videos, n) {
+    var parts = [];
+    var i;
+    for (i = 0; i < n; i++) parts.push(compactTileHtml(videos[i]));
+    return parts.join('');
   }
 
   function stageHtml(v) {
@@ -144,23 +161,11 @@
     if (!rest.length) return '';
     var parts = ['<div class="mm-lipton-reels-grid" role="list">'];
     var i;
-    var v;
     for (i = 0; i < rest.length; i++) {
-      v = rest[i];
       parts.push(
         '<div class="mm-lipton-reels-grid-item" role="listitem">' +
-          '<button type="button" class="mm-lipton-reels-thumb" style="aspect-ratio:' +
-          aspectCss(v) +
-          '" data-mm-vid="' +
-          esc(v.id || '') +
-          '" aria-label="' +
-          esc(v.stamp || v.title || 'Play reel') +
-          '">' +
-          (v.thumb
-            ? '<img src="' + esc(v.thumb) + '" alt="" loading="lazy" decoding="async">'
-            : '<span class="mm-lipton-reels-thumb-ph" aria-hidden="true"></span>') +
-          '</button>' +
-          metaHtml(v.stamp || '') +
+          thumbButtonHtml(rest[i]) +
+          metaHtml(rest[i].stamp || '') +
           '</div>'
       );
     }
@@ -168,29 +173,30 @@
     return parts.join('');
   }
 
-  function layoutCompactPair(root) {
+  function layoutCompactStrip(root, videos) {
     var row = root.querySelector('.mm-lipton-reels-compact');
-    var img = root.querySelector('.mm-lipton-reels-brand img');
-    var frame = root.querySelector('.mm-lipton-reels-compact-frame');
-    if (!row || !img || !frame || root.classList.contains('mm-lipton-reels--expanded')) return;
+    var brand = root.querySelector('.mm-lipton-reels-brand');
+    var compact = root.querySelector('[data-mm-compact]');
+    if (!row || !brand || !compact || root.classList.contains('mm-lipton-reels--expanded')) return;
     var avail = row.clientWidth;
     if (avail <= 0) return;
-    var gap = 8;
-    var art = ART_W / ART_H;
-    var sizeW = parseInt(frame.getAttribute('data-mm-w'), 10) || 16;
-    var sizeH = parseInt(frame.getAttribute('data-mm-h'), 10) || 9;
-    var vid = sizeW / sizeH;
-    var h = (avail - gap) / (art + vid);
-    if (window.matchMedia('(min-width: 600px)').matches) {
-      h = Math.min(h, 120);
+    var n = thumbsThatFit(avail, videos.length);
+    if (compact.getAttribute('data-mm-n') !== String(n)) {
+      compact.innerHTML = compactTilesHtml(videos, n);
+      compact.setAttribute('data-mm-n', String(n));
     }
+    var art = ART_W / ART_H;
+    var vid = VID_W / VID_H;
+    var h = (avail - GAP * n) / (art + n * vid);
     if (h < 44) h = 44;
-    img.style.width = h * art + 'px';
-    img.style.height = h + 'px';
-    img.style.maxWidth = 'none';
-    img.style.maxHeight = 'none';
-    frame.style.width = h * vid + 'px';
-    frame.style.height = h + 'px';
+    brand.style.width = h * art + 'px';
+    brand.style.height = h + 'px';
+    var thumbs = compact.querySelectorAll('.mm-lipton-reels-thumb');
+    var i;
+    for (i = 0; i < thumbs.length; i++) {
+      thumbs[i].style.width = h * vid + 'px';
+      thumbs[i].style.height = h + 'px';
+    }
   }
 
   function currentVideo(payload, state) {
@@ -213,18 +219,19 @@
     var picked = currentVideo(payload, state);
     var compact = root.querySelector('[data-mm-compact]');
     var expanded = root.querySelector('[data-mm-expanded]');
-    if (compact) {
-      compact.innerHTML = state.expanded ? '' : compactPreviewHtml(picked.current);
+    root.classList.toggle('mm-lipton-reels--expanded', !!state.expanded);
+    root.classList.toggle('mm-lipton-reels--compact', !state.expanded);
+    if (compact && state.expanded) {
+      compact.innerHTML = '';
+      compact.removeAttribute('data-mm-n');
     }
     if (expanded) {
       expanded.innerHTML = state.expanded
         ? stageHtml(picked.current) + gridHtml(picked.videos, picked.current && picked.current.id)
         : '';
     }
-    root.classList.toggle('mm-lipton-reels--expanded', !!state.expanded);
-    root.classList.toggle('mm-lipton-reels--compact', !state.expanded);
     if (!state.expanded) {
-      layoutCompactPair(root);
+      layoutCompactStrip(root, picked.videos);
     }
   }
 
@@ -252,30 +259,23 @@
         state.currentId = thumb.getAttribute('data-mm-vid') || state.currentId;
         state.expanded = true;
         paint(root, payload, state);
-        return;
-      }
-      var expand = ev.target.closest && ev.target.closest('[data-mm-expand]');
-      if (expand && root.contains(expand)) {
-        ev.preventDefault();
-        state.expanded = true;
-        paint(root, payload, state);
       }
     });
 
     if (window.ResizeObserver) {
       var ro = new ResizeObserver(function () {
-        if (!state.expanded) layoutCompactPair(root);
+        if (!state.expanded) layoutCompactStrip(root, sortVideos(payload.videos || []));
       });
       ro.observe(root);
     } else {
       window.addEventListener('resize', function () {
-        if (!state.expanded) layoutCompactPair(root);
+        if (!state.expanded) layoutCompactStrip(root, sortVideos(payload.videos || []));
       });
     }
     window.addEventListener('orientationchange', function () {
       if (!state.expanded) {
         window.setTimeout(function () {
-          layoutCompactPair(root);
+          layoutCompactStrip(root, sortVideos(payload.videos || []));
         }, 80);
       }
     });

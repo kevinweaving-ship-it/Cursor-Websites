@@ -52,14 +52,17 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("2622643364847262", seed)
         css = src[src.find("_LIPTON_MM_REELS_CSS"): src.find("def _lipton_mm_reels_payload")]
         self.assertNotIn("mm-lipton-reels-stamp", css)
-        self.assertNotIn("position:absolute;left:0;right:0;bottom:0", css)
+        self.assertIn("mm-lipton-reels-play", css)
+        self.assertIn("#e8eef4", css)
         js = Path("js/mm-lipton-reels-card.js").read_text(encoding="utf-8")
-        self.assertIn("Latest Reel", js)
+        self.assertIn("mm-lipton-reels-play", js)
         self.assertIn("mm-lipton-reels-meta", js)
+        self.assertIn("thumbsThatFit", js)
         self.assertIn("mute=1", js)
         self.assertIn("playsinline=1", js)
         self.assertNotIn("requestFullscreen", js)
         self.assertNotIn("mm-lipton-reels-stamp", js)
+        self.assertNotIn("Latest Reel", js)
 
 
 if __name__ == "__main__":
