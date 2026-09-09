@@ -61,6 +61,53 @@
       if (e.persisted) load();
     });
 
+    var mmSel = document.getElementById('regattaMmLiveFbFeed');
+    var mmPrev = mmSel ? String(mmSel.value || 'OFF') : 'OFF';
+
+    function saveMmFeed(v) {
+      if (!rid || !mmSel) return;
+      fetch('/api/super-admin/regatta/' + encodeURIComponent(rid) + '/mm-live-fb-feed', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mm_live_fb_feed: v })
+      })
+        .then(function (r) {
+          return r.text().then(function (t) {
+            var j = null;
+            try {
+              j = t ? JSON.parse(t) : null;
+            } catch (e) {}
+            return { ok: r.ok, j: j, raw: t };
+          });
+        })
+        .then(function (o) {
+          if (!o.ok) {
+            mmSel.value = mmPrev;
+            var d = o.j && o.j.detail;
+            alert(typeof d === 'string' ? d : JSON.stringify(d || o.raw || 'Save failed'));
+            return;
+          }
+          if (o.j && Object.prototype.hasOwnProperty.call(o.j, 'mm_live_fb_feed')) {
+            mmSel.value = o.j.mm_live_fb_feed ? 'ON' : 'OFF';
+          }
+          mmPrev = String(mmSel.value || 'OFF');
+          try {
+            window.location.reload();
+          } catch (eRel) {}
+        })
+        .catch(function () {
+          mmSel.value = mmPrev;
+          alert('Network error.');
+        });
+    }
+
+    if (mmSel && rid) {
+      mmSel.addEventListener('change', function () {
+        saveMmFeed(String(mmSel.value || 'OFF'));
+      });
+    }
+
     if (!hubSel || !rid) return;
 
     hubSel.addEventListener('change', function () {
@@ -120,20 +167,26 @@
         return r.ok ? r.json() : null;
       })
       .then(function (s) {
-        if (!s || !hubSel) return;
-        var lab = String(s.blank_hub_news_badge_label || '').trim();
-        var opts = hubSel.options;
-        var oi,
-          h = -1;
-        for (oi = 0; oi < opts.length; oi++) {
-          if ((opts[oi].value || '') === lab) {
-            h = oi;
-            break;
+        if (!s) return;
+        if (hubSel) {
+          var lab = String(s.blank_hub_news_badge_label || '').trim();
+          var opts = hubSel.options;
+          var oi,
+            h = -1;
+          for (oi = 0; oi < opts.length; oi++) {
+            if ((opts[oi].value || '') === lab) {
+              h = oi;
+              break;
+            }
+          }
+          if (h >= 0) {
+            hubSel.selectedIndex = h;
+            hubPrev = String(hubSel.value || '');
           }
         }
-        if (h >= 0) {
-          hubSel.selectedIndex = h;
-          hubPrev = String(hubSel.value || '');
+        if (mmSel) {
+          mmSel.value = s.mm_live_fb_feed ? 'ON' : 'OFF';
+          mmPrev = String(mmSel.value || 'OFF');
         }
       })
       .catch(function () {});
