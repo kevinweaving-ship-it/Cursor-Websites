@@ -451,7 +451,8 @@
             '<span class="v">' + (x.online ? "ON" : "OFFLINE") + '</span>' +
             '<span class="l">' + neatName(x) + '</span></div>' });
         });
-        var GROUPS = [["door", "Door"], ["lights", "Lights"], ["water", "Water"], ["power", "Power"], ["plugs", "Smart plugs & timers"], ["relays", "Receivers & relays"], ["other", "Devices"], ["dormant", "Not in use"]];
+        var lightHead = String((window.ARIAL_CONFIG || {}).siteId) === "bing" ? "Devices" : "Lights";
+        var GROUPS = [["door", "Door"], ["water", "Water"], ["power", "Power"], ["lights", lightHead], ["plugs", "Smart plugs & timers"], ["relays", "Receivers & relays"], ["other", "Other"], ["dormant", "Not in use"]];
         var gh = "";
         GROUPS.forEach(function (g) {
           var its = items.filter(function (x) { return x.grp === g[0]; });
