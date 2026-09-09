@@ -6,8 +6,9 @@
  * its own camera recipe. Rounding keeps one projection: boats approach
  * right → left. After rounding they sail left → right; the Pin can leave
  * the left as the leader goes toward the next mark. Marks never jump:
- * they are frozen world points that boats sail past. Front pack stays in
- * view. All icons share one size and step up together when there is gap.
+ * they are frozen world points that boats sail past. The camera follows
+ * the front boats and leader, not the course. Marks only show when those
+ * boats reach them. Icons stay large enough to read 1st–4th and club labels.
  */
 (function (root) {
   'use strict';
@@ -771,8 +772,42 @@
     return rows.slice(0, leadN);
   }
 
+  /* Front cluster around the leader — tight enough to read places, not the whole run. */
+  function viewPack(live) {
+    var rows = [];
+    var i;
+    for (i = 0; i < (live.rows || []).length; i++) {
+      if (live.rows[i] && live.rows[i].pos) rows.push(live.rows[i]);
+    }
+    rows.sort(function (a, b) {
+      return (a.racePlace || 99) - (b.racePlace || 99);
+    });
+    if (!rows.length) return rows;
+    var lead = rows[0];
+    var pack = [];
+    var seen = {};
+    for (i = 0; i < rows.length; i++) {
+      var d = distM(rows[i].pos, lead.pos);
+      if (pack.length < 4 && d < 160) {
+        pack.push(rows[i]);
+        seen[rows[i].sail] = true;
+      } else if (d < 85) {
+        pack.push(rows[i]);
+        seen[rows[i].sail] = true;
+      } else if (pack.length >= 4) {
+        break;
+      }
+    }
+    for (i = 0; i < rows.length; i++) {
+      if (isHycRow(rows[i]) && !seen[rows[i].sail] && distM(rows[i].pos, lead.pos) < 140) {
+        pack.push(rows[i]);
+      }
+    }
+    return pack.length ? pack : rows.slice(0, 4);
+  }
+
   function roundingPack(live, mark) {
-    return frontPack(live);
+    return viewPack(live);
   }
 
   function acrossM(pos, mark, hdg) {
@@ -853,15 +888,15 @@
   }
 
   /* One size for every boat in view. Step down when bunched so labels stay readable; step up together when there is gap. */
-  var ICON_STEPS = [5, 7, 9, 11];
+  var ICON_STEPS = [8, 10, 12];
 
   function collectiveBoatR(cam, pack) {
     var gap = minBoatGapPx(cam, pack);
     var i = heldIconStep;
     if (i < 0 || i >= ICON_STEPS.length) i = 1;
     if (gap < Infinity) {
-      while (i > 0 && gap < ICON_STEPS[i] * 2 + 36) i -= 1;
-      while (i < ICON_STEPS.length - 1 && gap > ICON_STEPS[i + 1] * 2 + 56) i += 1;
+      while (i > 0 && gap < ICON_STEPS[i] * 2 + 40) i -= 1;
+      while (i < ICON_STEPS.length - 1 && gap > ICON_STEPS[i + 1] * 2 + 58) i += 1;
     }
     heldIconStep = i;
     return ICON_STEPS[i];
@@ -1070,12 +1105,8 @@
     var pts = packPoints(pack, ts);
     if (!pts.length) return;
     var nearRound = plan.phase === 'hold' || plan.phase === 'approach-mark';
-    if (plan.phase === 'start' && trail.start_line) {
-      if (trail.start_line.left) pts.push(trail.start_line.left);
-      if (trail.start_line.right) pts.push(trail.start_line.right);
-    }
     var cam;
-    var camOpts = { minAlong: 36, minAcross: 28, padAlong: 1.1, padAcross: 1.18, padX: 64, padY: 18, flipX: true };
+    var camOpts = { minAlong: 18, minAcross: 16, padAlong: 1.22, padAcross: 1.28, padX: 72, padY: 20, flipX: true };
     if ((plan.phase === 'hold' || plan.phase === 'approach-mark') && markLock) {
       setTrackHeight(canvas, 0.58);
       cam = fitCam(pts, cssW, cssH, markLock.hdg, camOpts);
@@ -1092,24 +1123,13 @@
 
     if (nearRound && markLock) {
       var fp = xy(markLock.lat, markLock.lon, cam);
-      if (fp.x > -36 && fp.x < cssW + 36 && fp.y > -36 && fp.y < cssH + 36) {
-        var mkR = Math.max(10, Math.min(18, metersPx(12, cam)));
-        var box = Math.max(10, Math.min(16, mkR * 0.85));
-        ctx.beginPath();
-        ctx.arc(fp.x, fp.y, mkR, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(148,163,184,0.28)';
-        ctx.fill();
+      if (fp.x > -20 && fp.x < cssW + 20 && fp.y > -20 && fp.y < cssH + 20) {
+        var box = 7;
         ctx.fillStyle = '#f8fafc';
         ctx.fillRect(fp.x - box / 2, fp.y - box / 2, box, box);
         ctx.strokeStyle = '#0f172a';
-        ctx.lineWidth = 1.2;
+        ctx.lineWidth = 1;
         ctx.strokeRect(fp.x - box / 2, fp.y - box / 2, box, box);
-        ctx.fillStyle = '#0f172a';
-        ctx.font = 'bold ' + Math.max(8, Math.round(box * 0.7)) + 'px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        var lab = markLock.key === 'pin' || markLock.key === '4' ? 'Pin' : markLock.key === 'fin' ? 'Fin' : String(markLock.key);
-        ctx.fillText(lab, fp.x, fp.y + 0.5);
       }
     }
 

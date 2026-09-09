@@ -101,11 +101,11 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("playsinline", js)
         src = Path("api.py").read_text(encoding="utf-8")
         self.assertIn('row["play_url"]', src)
-        self.assertIn("mmr62", src)
+        self.assertIn("mmr63", src)
         self.assertIn("mm-lipton-track-overlay.js", src)
         self.assertLess(
             src.find("mm-lipton-track-overlay.js"),
-            src.find("mm-lipton-reels-card.js?v=mmr62"),
+            src.find("mm-lipton-reels-card.js?v=mmr63"),
         )
         self.assertIn("scrollTo", js)
         self.assertIn("bumpSlide", js)
@@ -176,8 +176,8 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("distNext <= distLast", overlay)
         self.assertIn("ICON_STEPS", overlay)
         self.assertIn("collectiveBoatR", overlay)
-        self.assertIn("clubLabel", overlay)
-        self.assertIn("scaleFit", overlay)
+        self.assertIn("viewPack", overlay)
+        self.assertIn("[8, 10, 12]", overlay)
         self.assertIn("minAcross = 260", overlay)
         self.assertIn("drifting GPS mark 4", overlay)
         self.assertIn("key: 'pin'", overlay)
