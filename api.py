@@ -20407,13 +20407,13 @@ _LIPTON_MM_REELS_CSS = (
     ".mm-lipton-reels-thumb iframe{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none;display:block}"
     ".mm-lipton-reels-thumb img{position:absolute;inset:0;width:100%;height:100%;border:0;object-fit:contain;object-position:center;pointer-events:none;display:block}"
     ".mm-lipton-reels-thumb--latest{container-type:size}"
-    ".mm-lipton-reels-clip-chrome{position:absolute;top:0;left:0;right:0;z-index:1;display:flex;align-items:center;gap:clamp(4px,4cqh,8px);padding:clamp(4px,5cqh,8px) clamp(6px,5cqw,10px) clamp(10px,12cqh,16px);box-sizing:border-box;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.58) 0%,rgba(0,0,0,.2) 72%,rgba(0,0,0,0) 100%)}"
+    ".mm-lipton-reels-clip-chrome{position:absolute;top:0;left:0;right:0;z-index:1;display:flex;align-items:flex-start;gap:clamp(4px,4cqh,8px);padding:clamp(4px,5cqh,8px) clamp(6px,5cqw,10px) clamp(10px,12cqh,16px);box-sizing:border-box;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.58) 0%,rgba(0,0,0,.2) 72%,rgba(0,0,0,0) 100%)}"
     ".mm-lipton-reels-thumb--latest .mm-lipton-reels-owner-logo{position:relative!important;inset:auto!important;flex:0 0 auto;width:clamp(14px,20cqh,28px)!important;height:clamp(14px,20cqh,28px)!important;max-width:none;max-height:none;border:0;border-radius:50%;object-fit:cover!important;object-position:center;display:block}"
     ".mm-lipton-reels-clip-copy{min-width:0;flex:1 1 auto;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.85);line-height:1.15}"
-    ".mm-lipton-reels-clip-title{font-size:clamp(8px,8cqh,13px);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}"
+    ".mm-lipton-reels-clip-title{font-size:clamp(8px,8cqh,13px);font-weight:700;white-space:normal;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;line-height:1.2;max-height:2.4em;max-width:14ch}"
     ".mm-lipton-reels-clip-sub{font-size:clamp(7px,6.5cqh,11px);font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.95}"
-    ".mm-lipton-reels-thumb--latest .mm-lipton-reels-play{position:absolute;left:50%;top:50%;z-index:1;width:22px;height:22px;margin:0;padding:0;transform:translate(-50%,-50%);border-radius:50%;background:rgba(0,0,0,.5);pointer-events:none;box-sizing:border-box}"
-    ".mm-lipton-reels-thumb--latest .mm-lipton-reels-play:after{content:\"\";position:absolute;left:54%;top:50%;width:0;height:0;border-style:solid;border-width:5px 0 5px 8px;border-color:transparent transparent transparent #fff;transform:translate(-30%,-50%)}"
+    ".mm-lipton-reels-thumb--latest .mm-lipton-reels-play{position:absolute;left:50%;top:50%;z-index:1;width:44px;height:44px;margin:0;padding:0;transform:translate(-50%,-50%);border-radius:50%;background:transparent;border:3px solid #00B4FF;pointer-events:none;box-sizing:border-box;box-shadow:0 0 8px #00B4FF}"
+    ".mm-lipton-reels-thumb--latest .mm-lipton-reels-play:after{content:\"\";position:absolute;left:54%;top:50%;width:0;height:0;border-style:solid;border-width:10px 0 10px 16px;border-color:transparent transparent transparent #fff;transform:translate(-30%,-50%)}"
     ".mm-lipton-reels-thumb-ph{display:block;width:100%;height:100%;background:#0b1c33}"
     ".mm-lipton-reels-thumb-hit{position:absolute;inset:0;z-index:2;margin:0;padding:0;border:0;background:transparent;cursor:pointer;min-height:44px}"
     ".mm-lipton-reels-expanded-bar{display:flex;justify-content:flex-end;margin:0 0 0.3rem 0}"
@@ -27391,7 +27391,7 @@ def serve_regatta_standalone(slug: str, request: Request):
         mm_card_js = ""
         if str(regatta_id) == "2026-08-29-lipton-challenge-cup":
             mm_card = _lipton_mm_reels_card_html(str(regatta_id))
-            mm_card_js = '<script src="/js/mm-lipton-reels-card.js?v=mmr15" defer></script>'
+            mm_card_js = '<script src="/js/mm-lipton-reels-card.js?v=mmr17" defer></script>'
         body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()

@@ -58,6 +58,12 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         css = src[src.find("_LIPTON_MM_REELS_CSS"): src.find("def _lipton_mm_reels_payload")]
         self.assertNotIn("mm-lipton-reels-stamp", css)
         self.assertIn("mm-lipton-reels-thumb--latest .mm-lipton-reels-play", css)
+        self.assertIn("width:44px", css)
+        self.assertIn("#00B4FF", css)
+        self.assertIn("background:transparent", css)
+        self.assertNotIn("#50C0F8", css)
+        self.assertIn("-webkit-line-clamp:2", css)
+        self.assertIn("max-width:14ch", css)
         self.assertIn(".mm-lipton-reels-clip-chrome", css)
         self.assertIn("fb-page-marine-megastore.jpg", seed)
         self.assertIn("Lipton  Race 7 1st downwind", seed)
