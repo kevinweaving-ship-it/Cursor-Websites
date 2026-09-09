@@ -4,11 +4,11 @@
  * Clock is the live reel go-live stamp + video time. Boat noses follow the
  * on-screen GPS track. Icons/colours/tails match tracking-dev2. Each clip has
  * its own camera recipe. Rounding keeps one projection: boats approach
- * right → left. After rounding they sail left → right; the Pin can leave
- * the left as the leader goes toward the next mark. Marks never jump:
- * they are frozen world points that boats sail past. The camera follows
- * the front boats and leader, not the course. Marks only show when those
- * boats reach them. Icons stay large enough to read 1st–4th and club labels.
+ * right → left. After rounding they sail left → right. Zoom on where
+ * 60–70% of the fleet is; stragglers sail into view. 1st is always in
+ * view. The mark being rounded stays on screen. Pin/RC, M1 and Fin come
+ * from the GPS map. Scale is along-span only (true px/m). Do not shrink
+ * X to fit Y. Marks never jump: they are frozen world points.
  */
 (function (root) {
   'use strict';
@@ -624,6 +624,109 @@
     };
   }
 
+  function alongAcross(pos, origin, hdg) {
+    var cos = Math.cos((origin.lat * Math.PI) / 180);
+    var north = (pos.lat - origin.lat) * 111000;
+    var east = (pos.lon - origin.lon) * 111000 * cos;
+    var rad = ((hdg || 0) * Math.PI) / 180;
+    return {
+      along: north * Math.cos(rad) + east * Math.sin(rad),
+      across: east * Math.cos(rad) - north * Math.sin(rad)
+    };
+  }
+
+  /* 60–70% of the fleet closest to the mark. 1st is always included. */
+  function coreFleetAlong(mark, pack, live, hdg) {
+    var rows = [];
+    var i;
+    var front = live && live.front;
+    for (i = 0; i < (pack || []).length; i++) {
+      if (!pack[i] || !pack[i].pos || !mark) continue;
+      var aa = alongAcross(pack[i].pos, mark, hdg);
+      rows.push({
+        sail: pack[i].sail,
+        dist: distM(pack[i].pos, mark),
+        along: aa.along,
+        across: aa.across
+      });
+    }
+    rows.sort(function (a, b) {
+      return a.dist - b.dist;
+    });
+    var k = Math.max(2, Math.ceil(rows.length * 0.65));
+    if (k > rows.length) k = rows.length;
+    var lo = 0;
+    var hi = 0;
+    var minC = 0;
+    var maxC = 0;
+    var seen = {};
+    function eat(item) {
+      if (!item || seen[item.sail]) return;
+      seen[item.sail] = true;
+      if (item.along < lo) lo = item.along;
+      if (item.along > hi) hi = item.along;
+      if (item.across < minC) minC = item.across;
+      if (item.across > maxC) maxC = item.across;
+    }
+    for (i = 0; i < k; i++) eat(rows[i]);
+    for (i = 0; i < rows.length; i++) {
+      if (front && rows[i].sail === front.sail) eat(rows[i]);
+    }
+    return { lo: lo, hi: hi, minC: minC, maxC: maxC };
+  }
+
+  /* Pin on the far left. Zoom so Pin + 60–70% of the fleet fill the width.
+   * 1st always in view. Stragglers stay off-frame until they sail into that
+   * pack. Scale from that along span only. Do not shrink X to fit Y —
+   * after rounding, boats stay on the right side instead of sailing down. */
+  function pinLeftCam(mark, pack, live, w, h, hdg) {
+    var win = coreFleetAlong(mark, pack, live, hdg);
+    var lo = win.lo;
+    var hi = win.hi;
+    if (lo > 0) lo = 0;
+    if (hi < 0) hi = 0;
+    var pinLeft = Math.max(24, w * 0.08);
+    var rightPad = 48;
+    var padY = 18;
+    var spanAlong = Math.max(48, (hi - lo) * 1.06);
+    var scale = (w - pinLeft - rightPad) / spanAlong;
+    if (!(scale > 0.08)) scale = 0.08;
+    var rad = ((hdg || 0) * Math.PI) / 180;
+    var cx = pinLeft;
+    var front = live && live.front;
+    var frontAA = front && front.pos ? alongAcross(front.pos, mark, hdg) : null;
+    if (frontAA) {
+      var x1 = cx - frontAA.along * scale;
+      if (x1 > w - rightPad) cx -= x1 - (w - rightPad);
+      if (x1 < pinLeft) cx += pinLeft - x1;
+    }
+    var midC = (win.minC + win.maxC) / 2;
+    var cy = h / 2 + midC * scale;
+    if (frontAA) {
+      var y1 = cy - frontAA.across * scale;
+      if (y1 < padY) cy += padY - y1;
+      if (y1 > h - padY) cy -= y1 - (h - padY);
+    }
+    if (cy < padY) cy = padY;
+    if (cy > h - padY) cy = h - padY;
+    return {
+      midLat: mark.lat,
+      midLon: mark.lon,
+      cos: Math.cos((mark.lat * Math.PI) / 180),
+      cosH: Math.cos(rad),
+      sinH: Math.sin(rad),
+      scale: scale,
+      scaleX: scale,
+      scaleY: scale,
+      w: w,
+      h: h,
+      hdg: hdg || 0,
+      flipX: true,
+      cx: cx,
+      cy: cy
+    };
+  }
+
   /* Fixed geographic window so the mark stays put and boats sail through it. */
   function frozenMarkScale(w, h) {
     var minAlong = 340;
@@ -685,7 +788,7 @@
     ctx.stroke();
     ctx.setLineDash([]);
     ctx.beginPath();
-    ctx.arc(a.x, a.y, 3.2, 0, Math.PI * 2);
+    ctx.arc(a.x, a.y, 4.2, 0, Math.PI * 2);
     ctx.fillStyle = color;
     ctx.fill();
     ctx.fillStyle = '#e2e8f0';
@@ -700,6 +803,88 @@
     ctx.font = 'bold 9px sans-serif';
     ctx.fillText(pinLabel || 'Pin', a.x + 5, a.y - 5);
     if (label) ctx.fillText(label, (a.x + b.x) / 2 + 5, (a.y + b.y) / 2 - 5);
+  }
+
+  function markOnCanvas(p, w, h) {
+    return p && p.x > -48 && p.x < w + 48 && p.y > -48 && p.y < h + 48;
+  }
+
+  function drawRoundArrow(ctx, cam, mark, fromPt, color) {
+    if (!mark || !fromPt) return;
+    var p = xy(mark.lat, mark.lon, cam);
+    var f = xy(fromPt.lat, fromPt.lon, cam);
+    var a0 = Math.atan2(f.y - p.y, f.x - p.x);
+    var sweep = 1.85;
+    var r = 16;
+    var a1 = a0 - sweep;
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r, a0, a1, true);
+    ctx.stroke();
+    var ax = p.x + r * Math.cos(a1);
+    var ay = p.y + r * Math.sin(a1);
+    var tx = Math.sin(a1);
+    var ty = -Math.cos(a1);
+    ctx.beginPath();
+    ctx.moveTo(ax + tx * 5, ay + ty * 5);
+    ctx.lineTo(ax - tx * 4 - ty * 4.2, ay - ty * 4 + tx * 4.2);
+    ctx.lineTo(ax - tx * 4 + ty * 4.2, ay - ty * 4 - tx * 4.2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawCourseMarks(ctx, cam, ts, w, h, focus) {
+    var m1 = sampleAt((trail.marks || {})['1'], ts);
+    if (m1) {
+      var mp = xy(m1.lat, m1.lon, cam);
+      if (markOnCanvas(mp, w, h)) {
+        ctx.beginPath();
+        ctx.arc(mp.x, mp.y, 11, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(251,191,36,0.85)';
+        ctx.lineWidth = 2.2;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(mp.x, mp.y, 4.2, 0, Math.PI * 2);
+        ctx.fillStyle = '#fbbf24';
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('M1', mp.x, mp.y - 16);
+      }
+    }
+    if (trail.start_line && trail.start_line.left && trail.start_line.right) {
+      drawGate(ctx, cam, trail.start_line, 'rgba(56,189,248,0.95)', '', 'Pin', 'RC');
+    }
+    if (trail.finish_line && trail.finish_line.left && trail.finish_line.right) {
+      var fl = trail.finish_line;
+      var fm = xy((fl.left.lat + fl.right.lat) / 2, (fl.left.lon + fl.right.lon) / 2, cam);
+      if (markOnCanvas(fm, w, h)) {
+        drawGate(ctx, cam, fl, 'rgba(251,191,36,0.8)', 'Fin', 'Pin', 'RC');
+      }
+    }
+    if (focus && focus.lat != null) {
+      var fp = xy(focus.lat, focus.lon, cam);
+      ctx.beginPath();
+      ctx.arc(fp.x, fp.y, 14, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(248,250,252,0.95)';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      var fromPt = m1 || (trail.start_line && trail.start_line.right);
+      if (fromPt) drawRoundArrow(ctx, cam, focus, fromPt, '#38bdf8');
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 13px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      var lab = focus.key === 'pin' || focus.key === '4' ? 'Pin' : focus.key === 'fin' ? 'Fin' : focus.key === '1' ? 'M1' : 'Mark';
+      ctx.fillText(lab, fp.x, fp.y - 22);
+    }
   }
 
   function tailHits(series, ts) {
@@ -1000,6 +1185,21 @@
     return 90;
   }
 
+  function courseHdgToMark(mark, live) {
+    if (!mark) return incomingHdg(live, mark, live && live.front);
+    var k = String(mark.key || '');
+    var ts = live && live.ts;
+    if (k === 'pin' || k === '4') {
+      var m1 = sampleAt((trail.marks || {})['1'], ts);
+      if (m1) return bearingDeg(m1, mark);
+    }
+    if (k === '1') {
+      var pin = trail.start_line && trail.start_line.left;
+      if (pin) return bearingDeg(pin, mark);
+    }
+    return incomingHdg(live, mark, live && live.front);
+  }
+
   function camPlan(live, cssW, cssH) {
     var rule = clipRule || { kind: 'round', approach: 'rtl', holdN: 6 };
     var kind = rule.kind || 'round';
@@ -1090,43 +1290,23 @@
     var pts = packPoints(pack, ts);
     if (!pts.length) return;
     var nearRound = plan.phase === 'hold' || plan.phase === 'approach-mark';
-    if (markLock) pts.push({ lat: markLock.lat, lon: markLock.lon });
     var cam;
     var camOpts = { minAlong: 40, minAcross: 28, padAlong: 1.18, padAcross: 1.35, padX: 70, padY: 28, flipX: true };
-    if ((plan.phase === 'hold' || plan.phase === 'approach-mark') && markLock) {
-      setTrackHeight(canvas, 0.66);
-      cam = fitCam(pts, cssW, cssH, markLock.hdg, camOpts);
+    if (nearRound && markLock) {
+      setTrackHeight(canvas, 0.72);
+      cam = pinLeftCam(markLock, pack, live, cssW, cssH, markLock.hdg);
       cam.flipX = true;
       cam = easeCam(cam, ts);
     } else {
       setTrackHeight(canvas, pack.length > 6 ? 0.62 : 0.58);
+      if (markLock) pts.push({ lat: markLock.lat, lon: markLock.lon });
       cam = fitCam(pts, cssW, cssH, plan.hdg, camOpts);
       cam.flipX = true;
       cam = easeCam(cam, ts);
     }
     cam.boatR = collectiveBoatR(cam, pack);
     ctx.clearRect(0, 0, cssW, cssH);
-
-    if (markLock) {
-      var fp = xy(markLock.lat, markLock.lon, cam);
-      var mkR = Math.max(12, Math.min(20, metersPx(10, cam)));
-      var box = Math.max(11, Math.min(16, mkR * 0.8));
-      ctx.beginPath();
-      ctx.arc(fp.x, fp.y, mkR, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(248,250,252,0.35)';
-      ctx.fill();
-      ctx.fillStyle = '#f8fafc';
-      ctx.fillRect(fp.x - box / 2, fp.y - box / 2, box, box);
-      ctx.strokeStyle = '#0f172a';
-      ctx.lineWidth = 1.4;
-      ctx.strokeRect(fp.x - box / 2, fp.y - box / 2, box, box);
-      ctx.fillStyle = '#0f172a';
-      ctx.font = 'bold ' + Math.max(9, Math.round(box * 0.72)) + 'px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      var lab = markLock.key === 'pin' || markLock.key === '4' ? 'Pin' : markLock.key === 'fin' ? 'Fin' : String(markLock.key);
-      ctx.fillText(lab, fp.x, fp.y + 0.5);
-    }
+    drawCourseMarks(ctx, cam, ts, cssW, cssH, markLock || focus);
 
     var r = cam.boatR || 7;
     var i;
