@@ -100,7 +100,7 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("playsinline", js)
         src = Path("api.py").read_text(encoding="utf-8")
         self.assertIn('row["play_url"]', src)
-        self.assertIn("mmr34", src)
+        self.assertIn("mmr35", src)
         self.assertIn("data-mm-hud", js)
         self.assertIn("mm-lipton-reels-player-wrap", src)
         self.assertIn(
@@ -112,6 +112,12 @@ class LiptonMmCardUnitTest(unittest.TestCase):
             src,
         )
         self.assertNotIn("scale(1.65)", src)
+        self.assertNotIn(
+            "@media (hover:none),(pointer:coarse){.mm-lipton-reels-rail-btn{display:none!important}}",
+            src,
+        )
+        self.assertIn("chromeSource(v, videos)", js)
+        self.assertIn("compactTileHtml(videos[i], videos, i === 0)", js)
         self.assertNotIn("width:56px", src[src.find("_LIPTON_MM_REELS_CSS"): src.find("def _lipton_mm_reels_payload")])
         self.assertIn("data-mm-skip", js)
         self.assertLess(

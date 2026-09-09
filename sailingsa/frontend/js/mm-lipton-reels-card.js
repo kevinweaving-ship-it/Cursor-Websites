@@ -310,22 +310,25 @@
     });
   }
 
-  function latestThumbHtml(v) {
+  function latestThumbHtml(v, videos) {
     return (
       '<div class="mm-lipton-reels-thumb mm-lipton-reels-thumb--latest" style="aspect-ratio:16 / 9">' +
       posterHtml(v) +
-      latestChromeHtml(v) +
+      latestChromeHtml(chromeSource(v, videos)) +
       '<span class="mm-lipton-reels-play" aria-hidden="true"></span>' +
       thumbHit(v) +
       '</div>'
     );
   }
 
-  function compactTileHtml(v, isLatest) {
-    if (isLatest) {
-      return '<div class="mm-lipton-reels-tile mm-lipton-reels-tile--latest">' + latestThumbHtml(v) + '</div>';
-    }
-    return '<div class="mm-lipton-reels-tile">' + thumbHtml(v) + '</div>';
+  function compactTileHtml(v, videos, isLatest) {
+    return (
+      '<div class="mm-lipton-reels-tile' +
+      (isLatest ? ' mm-lipton-reels-tile--latest' : '') +
+      '">' +
+      latestThumbHtml(v, videos) +
+      '</div>'
+    );
   }
 
   function thumbsThatFit(avail, total) {
@@ -349,7 +352,7 @@
   function compactTilesHtml(videos) {
     var parts = [];
     var i;
-    for (i = 0; i < videos.length; i++) parts.push(compactTileHtml(videos[i], i === 0));
+    for (i = 0; i < videos.length; i++) parts.push(compactTileHtml(videos[i], videos, i === 0));
     return parts.join('');
   }
 
@@ -429,17 +432,13 @@
     );
   }
 
-  function finePointer() {
-    return window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-  }
-
   function syncRailButtons(root) {
     var rail = root.querySelector('[data-mm-compact]');
     var prev = root.querySelector('[data-mm-rail-prev]');
     var next = root.querySelector('[data-mm-rail-next]');
     if (!rail || !prev || !next) return;
     var overflow = rail.scrollWidth - rail.clientWidth > 4;
-    var show = overflow && finePointer() && !root.classList.contains('mm-lipton-reels--expanded');
+    var show = overflow && !root.classList.contains('mm-lipton-reels--expanded');
     if (!show) {
       prev.setAttribute('hidden', '');
       next.setAttribute('hidden', '');
