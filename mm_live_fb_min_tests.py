@@ -26,6 +26,8 @@ class MinimalMmFeedTest(unittest.TestCase):
         self.assertIn(">LIVE VIDEO</h2>", self.src)
         self.assertIn('src="/assets/adverts/marine-megastore-logo.png"', self.src)
         self.assertIn('href="https://marinemegastore.co.za"', self.src)
+        self.assertIn("https://www.facebook.com/share/v/1957ykQ9qA/", self.src)
+        self.assertIn("plugins/video.php", self.src)
 
 
 if __name__ == "__main__":

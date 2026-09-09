@@ -19944,6 +19944,15 @@ async def api_super_admin_regatta_event_name_patch(request: Request, regatta_id:
 
 # Process-local Upcoming Event MM card toggle. No DB column, file, or Facebook fetch.
 _MM_LIVE_FB_ON = {"2026-09-13-zvyc-cape-classic"}
+# Temporary Cape Classic proof: one Facebook share URL as primary video (no auto-discovery / replay).
+_MM_FB_TEST_REGATTA_ID = "2026-09-13-zvyc-cape-classic"
+_MM_FB_TEST_SHARE_URL = "https://www.facebook.com/share/v/1957ykQ9qA/"
+_MM_FB_TEST_PERMALINK = "https://www.facebook.com/timadvisor/videos/1378276337799152/"
+_MM_FB_TEST_EMBED_SRC = (
+    "https://www.facebook.com/plugins/video.php?href="
+    "https%3A%2F%2Fwww.facebook.com%2Ftimadvisor%2Fvideos%2F1378276337799152%2F"
+    "&show_text=false"
+)
 
 
 def _mm_live_fb_parse_on(raw) -> bool:
@@ -19980,7 +19989,20 @@ def _mm_live_fb_set_enabled(regatta_id: str, enabled: bool) -> bool:
 
 
 def _mm_live_fb_card_html(regatta_id: str) -> str:
-    rid = html_module.escape(str(regatta_id or "").strip())
+    rid_raw = str(regatta_id or "").strip()
+    rid = html_module.escape(rid_raw)
+    stage = ""
+    if rid_raw == _MM_FB_TEST_REGATTA_ID:
+        share = html_module.escape(_MM_FB_TEST_SHARE_URL, quote=True)
+        embed = html_module.escape(_MM_FB_TEST_EMBED_SRC, quote=True)
+        stage = (
+            '<div class="mm-live-fb-stage">'
+            f'<iframe src="{embed}" title="Cape Classic Facebook video" '
+            'allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" '
+            'allowfullscreen loading="lazy"></iframe></div>'
+            f'<a class="mm-live-fb-watch" href="{share}" target="_blank" rel="noopener noreferrer">'
+            "Watch on Facebook</a>"
+        )
     return (
         '<section class="card mm-live-fb-card" id="mmLiveFbCard" '
         f'data-regatta-id="{rid}" aria-label="Marine Megastore video">'
@@ -19988,6 +20010,7 @@ def _mm_live_fb_card_html(regatta_id: str) -> str:
         '<a class="mm-live-fb-logo-link" href="https://marinemegastore.co.za" target="_blank" rel="noopener noreferrer">'
         '<img class="mm-live-fb-logo" src="/assets/adverts/marine-megastore-logo.png" alt="Marine Megastore" width="1748" height="330" loading="lazy" decoding="async">'
         "</a>"
+        f"{stage}"
         "</section>"
     )
 
@@ -24359,7 +24382,10 @@ _RESULT_SHEET_CSS = (
     ".mm-live-fb-powered{margin:0;font-size:0.9rem;color:#334155}"
     ".mm-live-fb-logo-link{display:inline-block;line-height:0;margin:0.15rem 0 0.35rem 0}"
     ".mm-live-fb-logo{display:block;max-width:min(280px,100%);height:auto}"
-    "@media (max-width:480px){.mm-live-fb-card{padding:0.5rem 0.75rem;margin-top:12px}}"
+    ".mm-live-fb-stage{position:relative;width:100%;margin:0.5rem 0 0.35rem;aspect-ratio:16/9;background:#001f3f;overflow:hidden;border-radius:6px}"
+    ".mm-live-fb-stage iframe{position:absolute;inset:0;width:100%;height:100%;border:0}"
+    ".mm-live-fb-watch{display:inline-block;margin:0.2rem 0 0.15rem;font-size:0.85rem;font-weight:600;color:#001f3f}"
+    "@media (max-width:480px){.mm-live-fb-card{padding:0.5rem 0.75rem;margin-top:12px}.mm-live-fb-stage{margin-top:0.4rem}}"
     "@media (min-width:600px){.mm-live-fb-card{padding:0.5rem 0.85rem}}"
 )
 
