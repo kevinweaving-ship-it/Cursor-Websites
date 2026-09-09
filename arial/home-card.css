@@ -277,29 +277,29 @@
 .hs-card .hs-none{color:#64748b;font-weight:500}
 @media (max-width:480px){.hs-card .hs-row{grid-template-columns:repeat(3,1fr)} .hs-card .hs-tile{font-size:12px}}
 
-/* HOME devices only — do not touch Weather tiles */
-#home-sensors .hs-dev{display:grid;grid-template-columns:56px minmax(0,1fr) auto;grid-template-rows:auto auto auto;column-gap:8px;align-items:center;min-height:72px;padding:8px 8px 8px 6px;text-align:center;opacity:1;background:#fff1e4;border:1px solid #f0c9a0}
-#home-sensors .hs-dev.is-on,#home-sensors .hs-dev.allon,#home-sensors .hs-light.gang.allon{background:#e7f6ea;border-color:#b7e0c0}
-#home-sensors .hs-dev.is-off,#home-sensors .hs-light.gang.mixed{background:#fff1e4;border-color:#f0c9a0}
-#home-sensors .hs-dev.is-dead,#home-sensors .hs-dev.off,#home-sensors .hs-sub-dormant .hs-dev{background:#fdecea;border-color:#f0b8b4}
-#home-sensors .hs-dev .hs-ico{grid-column:1;grid-row:1/-1;align-self:stretch;display:flex;align-items:center;justify-content:center;background:transparent}
-#home-sensors .hs-dev .hs-ico .tico{width:52px;height:52px;margin:0;object-fit:contain;border-radius:0;background:transparent;filter:none;mix-blend-mode:multiply}
-#home-sensors .hs-dev .hs-body{grid-column:2;grid-row:1/-1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
-#home-sensors .hs-dev .hs-act,#home-sensors .hs-dev>.hs-master,#home-sensors .hs-dev>.hs-gang{grid-column:3;grid-row:1/-1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
-#home-sensors .hs-dev .v,#home-sensors .hs-dev .hs-elive{display:block;font:500 16px Arial,Helvetica,sans-serif;color:#94a3b8;line-height:1.15;text-align:center}
-#home-sensors .hs-dev .l,#home-sensors .hs-dev .st,#home-sensors .hs-dev .nm{display:block;font:500 11px Arial,Helvetica,sans-serif;color:#94a3b8;line-height:1.2;text-align:center;white-space:normal}
+/* HOME devices = same tile language as Weather. Do not change Weather rules. */
+#home-sensors .hs-items,
+#home-sensors .hs-sub-grid,
+#home-sensors .hs-sub-water .hs-sub-grid,
+#home-sensors .hs-sub-power .hs-sub-grid{display:grid;grid-template-columns:repeat(3,1fr);grid-auto-flow:dense;gap:6px}
+#home-sensors .hs-dev{display:flex;flex-direction:column;align-items:center;text-align:center;min-width:0;min-height:0;padding:5px 3px 4px;border-radius:8px;background:#fff;border:1px solid #e2e8f0;font:600 12px/1.15 Arial,Helvetica,sans-serif;color:#1e293b;opacity:1}
+#home-sensors .hs-dev.is-on,#home-sensors .hs-dev.allon,#home-sensors .hs-light.gang.allon{background:#e6f7ea;border-color:#bbe5c4}
+#home-sensors .hs-dev.is-off,#home-sensors .hs-light.gang.mixed{background:#fff7ed;border-color:#fed7aa}
+#home-sensors .hs-dev.is-dead,#home-sensors .hs-dev.off,#home-sensors .hs-sub-dormant .hs-dev{background:#fde8e8;border-color:#f3b4b4}
+#home-sensors .hs-dev .hs-ico{display:block;background:transparent}
+#home-sensors .hs-dev .hs-ico .tico{width:22px;height:22px;margin:0 auto 1px;object-fit:contain;border-radius:0;background:transparent;mix-blend-mode:multiply}
+#home-sensors .hs-dev .hs-body{display:contents}
+#home-sensors .hs-dev .v,#home-sensors .hs-dev .hs-elive{display:block;font:600 13px Arial,Helvetica,sans-serif;color:#1e293b;line-height:1.15;text-align:center}
+#home-sensors .hs-dev .l,#home-sensors .hs-dev .st,#home-sensors .hs-dev .nm{display:block;font:500 10px Arial,Helvetica,sans-serif;color:#64748b;line-height:1.2;text-align:center;white-space:normal}
 #home-sensors .hs-dev.inuse .v,#home-sensors .hs-dev.inuse .hs-elive{color:#111;font-weight:700}
-#home-sensors .hs-dev.inuse .l,#home-sensors .hs-dev.inuse .st,#home-sensors .hs-dev.inuse .nm{color:#111;font-weight:700}
-#home-sensors .hs-sub-dormant .hs-dev .v,#home-sensors .hs-sub-dormant .hs-dev .hs-elive,
-#home-sensors .hs-sub-dormant .hs-dev .l,#home-sensors .hs-sub-dormant .hs-dev .st{color:#94a3b8;font-weight:500}
-#home-sensors .hs-dev .hs-elive{display:flex;flex-wrap:wrap;justify-content:center;gap:6px}
-#home-sensors .hs-dev.hs-power{grid-column:1/-1}
-#home-sensors .hs-dev.hs-light.gang{flex-wrap:unset;align-content:unset}
-#home-sensors .hs-dev.hs-light.gang .nm{flex:unset;margin:0;-webkit-line-clamp:unset}
-#home-sensors .hs-dev .hs-wuse{grid-column:1/-1}
-#home-sensors .hs-dev .l,#home-sensors .hs-dev .st,#home-sensors .hs-dev .nm{font-weight:700;color:#334155}
-#home-sensors .hs-sub-dormant .hs-dev .l,#home-sensors .hs-sub-dormant .hs-dev .st{color:#64748b;font-weight:600}
-/* Power glyph only — no square, no white disc. Darker shade of the card colour. */
+#home-sensors .hs-dev.inuse .l{color:#334155}
+#home-sensors .hs-dev.src-off .v,#home-sensors .hs-sub-dormant .hs-dev .v{color:#94a3b8}
+#home-sensors .hs-dev .hs-elive{display:flex;flex-wrap:wrap;justify-content:center;gap:4px}
+#home-sensors .hs-dev.hs-power,#home-sensors .hs-dev.hs-water{grid-column:1/-1}
+#home-sensors .hs-dev.hs-light.gang{flex-wrap:unset;align-content:unset;cursor:pointer}
+#home-sensors .hs-dev.hs-light.gang.single{cursor:default}
+#home-sensors .hs-dev .hs-wuse{width:100%}
+#home-sensors .hs-dev .hs-act,#home-sensors .hs-dev>.hs-master{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:1px;margin-top:2px}
 #home-sensors .ctl-power{--ctl:url(/arial/power-glyph.svg)}
 #home-sensors .hs-master,
 #home-sensors .hs-master.on,
@@ -310,37 +310,18 @@
 #home-sensors .hs-dev.is-dead .hs-master,
 #home-sensors .hs-dev.allon .hs-master,
 #home-sensors .hs-dev.off .hs-master,
-#home-sensors .hs-dev.is-on .hs-plugsw,
-#home-sensors .hs-dev.is-off .hs-plugsw,
-#home-sensors .hs-dev.is-dead .hs-plugsw,
-#home-sensors .hs-sub-dormant .hs-dev .hs-master,
-#home-sensors .hs-sub-dormant .hs-dev .hs-plugsw,
 #home-sensors .hs-light.gang .hs-master,
 #home-sensors .hs-light.gang.allon .hs-master,
 #home-sensors .hs-light.gang.mixed .hs-master,
-#home-sensors .hs-light.gang .hs-master:not(.on),
 #home-sensors .hs-light.gang.hs-water .hs-master,
-#home-sensors .hs-light.gang.hs-water.allon .hs-master{
-  background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0!important;margin-left:0;width:44px;height:44px;min-height:44px;flex:0 0 44px;padding:0
+#home-sensors .hs-light.gang.hs-water.allon .hs-master,
+#home-sensors .hs-sub-dormant .hs-dev .hs-master{
+  background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0!important;margin:0;width:22px;height:22px;min-height:22px;flex:0 0 22px;padding:0
 }
-#home-sensors .hs-master .ctl,#home-sensors .hs-master.hs-gang .ctl{width:28px;height:28px}
-#home-sensors .hs-dev.is-on .hs-master,#home-sensors .hs-dev.allon .hs-master,#home-sensors .hs-dev.is-on .hs-plugsw{color:#2f6b3c}
-#home-sensors .hs-dev.is-off .hs-master,#home-sensors .hs-dev.is-off .hs-plugsw,#home-sensors .hs-light.gang.mixed .hs-master{color:#c2410c}
-#home-sensors .hs-dev.is-dead .hs-master,#home-sensors .hs-dev.off .hs-master,#home-sensors .hs-sub-dormant .hs-dev .hs-master,#home-sensors .hs-sub-dormant .hs-dev .hs-plugsw,#home-sensors .hs-dev.is-dead .hs-plugsw{color:#b91c1c}
-#home-sensors .hs-swst{display:block;font:700 11px Arial,Helvetica,sans-serif;color:#1e293b;background:none;line-height:1.15;text-align:center}
-#home-sensors .hs-swmeta{display:block;font:600 10px Arial,Helvetica,sans-serif;color:#334155;background:none;line-height:1.2;text-align:center;white-space:nowrap}
-#home-sensors .hs-items,#home-sensors .hs-sub-grid{grid-template-columns:1fr}
-@media (orientation:landscape) and (min-width:640px), (min-width:700px){
-  #home-sensors .hs-sub-grid{grid-template-columns:1fr 1fr}
-}
-/* MP: one full-width row, no icons, name left, switch stack right */
-@media (max-width:480px) and (orientation:portrait){
-  #home-sensors .hs-items,#home-sensors .hs-sub-grid{grid-template-columns:1fr!important}
-  #home-sensors .hs-dev{grid-template-columns:minmax(0,1fr) auto;min-height:56px;column-gap:8px;padding:10px 10px;text-align:left}
-  #home-sensors .hs-dev .hs-ico{display:none!important}
-  #home-sensors .hs-dev .hs-body{grid-column:1;align-items:flex-start;justify-content:center}
-  #home-sensors .hs-dev .v{font-size:18px;font-weight:700;color:#1e293b;text-align:left}
-  #home-sensors .hs-dev .l,#home-sensors .hs-dev .hs-elive{text-align:left;font-size:13px;font-weight:700;color:#1e293b}
-  #home-sensors .hs-dev .hs-act,#home-sensors .hs-dev>.hs-master,#home-sensors .hs-dev>.hs-gang{grid-column:2}
-  #home-sensors .hs-light.gang .gc{background:none;padding:0;margin:0;color:#334155;border-radius:0}
-}
+#home-sensors .hs-master .ctl,#home-sensors .hs-master.hs-gang .ctl{width:20px;height:20px}
+#home-sensors .hs-dev.is-on .hs-master,#home-sensors .hs-dev.allon .hs-master{color:#2f6b3c}
+#home-sensors .hs-dev.is-off .hs-master,#home-sensors .hs-light.gang.mixed .hs-master{color:#c2410c}
+#home-sensors .hs-dev.is-dead .hs-master,#home-sensors .hs-dev.off .hs-master,#home-sensors .hs-sub-dormant .hs-dev .hs-master{color:#b91c1c}
+#home-sensors .hs-swst{display:block;font:600 10px Arial,Helvetica,sans-serif;color:#334155;background:none;line-height:1.15}
+#home-sensors .hs-swmeta{display:block;font:500 9px Arial,Helvetica,sans-serif;color:#64748b;background:none;line-height:1.15;text-align:center;white-space:nowrap}
+#home-sensors .hs-light.gang .gc{background:none;padding:0;margin:0;color:#64748b;border-radius:0;font:600 9px Arial,Helvetica,sans-serif}

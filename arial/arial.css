@@ -31,18 +31,31 @@ html, body {
     display: none;
 }
 
+:root {
+    --arial-col: min(92vw, 416px);
+}
+@media (min-width: 700px) {
+    :root { --arial-col: min(92vw, 480px); }
+}
+
 .pad-wrap {
     position: sticky;
-    top: 2px;
-    z-index: 20; /* keypad/LCD always above the scrolling cards */
-    width: 92%;
-    max-width: 416px;
-    margin: 2px auto 0;
+    top: 0;
+    z-index: 20; /* full-width white bar; cards scroll under and cannot show through */
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 2px 0 8px;
+    box-sizing: border-box;
+    background: #fff;
 }
 
 .pad-clip {
     position: relative;
-    width: 100%;
+    width: var(--arial-col);
+    max-width: 480px;
+    margin: 0 auto;
+    background: #fff;
 }
 
 .pad {
@@ -924,8 +937,8 @@ html, body {
     z-index: 1; /* cards scroll underneath the sticky keypad */
     box-sizing: border-box;
     display: none;
-    width: 92%;
-    max-width: 416px;
+    width: var(--arial-col);
+    max-width: 480px;
     margin: 6px auto 20px;
     padding: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
