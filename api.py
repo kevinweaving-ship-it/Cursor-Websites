@@ -20374,7 +20374,11 @@ _LIPTON_MM_REELS_VIDEOS = (
     },
 )
 _LIPTON_MM_REELS_CSS = (
+    ".regatta-page>.regatta-header-wrap{order:1}"
     ".regatta-page>.mm-lipton-reels{order:2}"
+    ".regatta-page>.fleet-section{order:3}"
+    ".regatta-page[data-live-lipton=\"1\"]>.mm-lipton-reels,.regatta-page[data-live-race-underway=\"1\"]>.mm-lipton-reels,.regatta-page[data-live-board-page-status=\"RACING\"]>.mm-lipton-reels{order:2}"
+    ".regatta-page[data-live-lipton=\"1\"]>.regatta-live-wx,.regatta-page[data-live-race-underway=\"1\"]>.regatta-live-wx,.regatta-page[data-live-board-page-status=\"RACING\"]>.regatta-live-wx{order:4}"
     ".mm-lipton-reels{display:block!important;width:100%;margin:10px 0 0 0;padding:4px;background:#dce6ef!important;border:2px solid #001f3f;border-radius:8px;box-shadow:0 1px 3px rgba(0,31,63,0.08);box-sizing:border-box}"
     ".mm-lipton-reels:not(.mm-lipton-reels--expanded) .mm-lipton-reels-expanded,"
     ".mm-lipton-reels:not(.mm-lipton-reels--expanded) .mm-lipton-reels-hide,"
@@ -27363,7 +27367,7 @@ def serve_regatta_standalone(slug: str, request: Request):
         mm_card_js = ""
         if str(regatta_id) == "2026-08-29-lipton-challenge-cup":
             mm_card = _lipton_mm_reels_card_html(str(regatta_id))
-            mm_card_js = '<script src="/js/mm-lipton-reels-card.js?v=mmr9" defer></script>'
+            mm_card_js = '<script src="/js/mm-lipton-reels-card.js?v=mmr10" defer></script>'
         body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()

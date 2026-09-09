@@ -58,7 +58,9 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         css = src[src.find("_LIPTON_MM_REELS_CSS"): src.find("def _lipton_mm_reels_payload")]
         self.assertNotIn("mm-lipton-reels-stamp", css)
         self.assertNotIn("mm-lipton-reels-play", css)
-        self.assertIn("#dce6ef", css)
+        self.assertIn(".regatta-page>.regatta-header-wrap{order:1}", css)
+        self.assertIn(".regatta-page>.mm-lipton-reels{order:2}", css)
+        self.assertIn(".regatta-page>.fleet-section{order:3}", css)
         self.assertNotIn("mm-lipton-reels-fb-label", css)
         self.assertIn("display:none!important", css)
         js = Path("js/mm-lipton-reels-card.js").read_text(encoding="utf-8")
