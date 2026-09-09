@@ -1,6 +1,6 @@
 /**
  * Lipton-only Marine Megastore Event Reels card (#mmLiptonReels).
- * Compact: artwork + FB plugin thumbs. Expand: muted autoplay immediately, no forced fullscreen.
+ * Compact: fixed artwork + swipeable FB clip rail. Expand: muted autoplay, Hide only while open.
  */
 (function () {
   'use strict';
@@ -80,7 +80,7 @@
 
   function stopAllPlayback(root) {
     exitFsIfInside(root);
-    var iframes = root.querySelectorAll('iframe');
+    var iframes = root.querySelectorAll('[data-mm-expanded] iframe');
     var i;
     for (i = 0; i < iframes.length; i++) {
       iframes[i].src = 'about:blank';
@@ -143,10 +143,10 @@
     return n;
   }
 
-  function compactTilesHtml(videos, n) {
+  function compactTilesHtml(videos) {
     var parts = [];
     var i;
-    for (i = 0; i < n; i++) parts.push(compactTileHtml(videos[i]));
+    for (i = 0; i < videos.length; i++) parts.push(compactTileHtml(videos[i]));
     return parts.join('');
   }
 
@@ -191,6 +191,38 @@
     );
   }
 
+  function finePointer() {
+    return window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  }
+
+  function syncRailButtons(root) {
+    var rail = root.querySelector('[data-mm-compact]');
+    var prev = root.querySelector('[data-mm-rail-prev]');
+    var next = root.querySelector('[data-mm-rail-next]');
+    if (!rail || !prev || !next) return;
+    var overflow = rail.scrollWidth - rail.clientWidth > 4;
+    var show = overflow && finePointer() && !root.classList.contains('mm-lipton-reels--expanded');
+    if (!show) {
+      prev.setAttribute('hidden', '');
+      next.setAttribute('hidden', '');
+      return;
+    }
+    var sl = rail.scrollLeft;
+    var max = rail.scrollWidth - rail.clientWidth;
+    if (sl <= 2) prev.setAttribute('hidden', '');
+    else prev.removeAttribute('hidden');
+    if (sl >= max - 2) next.setAttribute('hidden', '');
+    else next.removeAttribute('hidden');
+  }
+
+  function scrollRail(root, dir) {
+    var rail = root.querySelector('[data-mm-compact]');
+    if (!rail) return;
+    var tile = rail.querySelector('.mm-lipton-reels-tile');
+    var step = tile ? tile.getBoundingClientRect().width + GAP : Math.max(120, rail.clientWidth * 0.8);
+    rail.scrollBy({ left: dir * step, behavior: 'smooth' });
+  }
+
   function layoutCompactStrip(root, videos) {
     var row = root.querySelector('.mm-lipton-reels-compact');
     var brand = root.querySelector('.mm-lipton-reels-brand');
@@ -198,25 +230,35 @@
     if (!row || !brand || !compact || root.classList.contains('mm-lipton-reels--expanded')) return;
     var avail = row.clientWidth;
     if (avail <= 0) return;
-    var n = thumbsThatFit(avail, videos.length);
-    if (compact.getAttribute('data-mm-n') !== String(n)) {
-      compact.innerHTML = compactTilesHtml(videos, n);
-      compact.setAttribute('data-mm-n', String(n));
+    var nFit = thumbsThatFit(avail, videos.length);
+    if (compact.getAttribute('data-mm-count') !== String(videos.length)) {
+      compact.innerHTML = compactTilesHtml(videos);
+      compact.setAttribute('data-mm-count', String(videos.length));
     }
     var art = ART_W / ART_H;
     var vid = VID_W / VID_H;
     var border = 4;
-    var innerH = (avail - GAP * n - border * (1 + n)) / (art + n * vid);
+    var innerH = (avail - GAP * nFit - border * (1 + nFit)) / (art + nFit * vid);
     if (innerH < 40) innerH = 40;
     var outerH = innerH + border;
+    var thumbW = innerH * vid + border;
     brand.style.width = innerH * art + border + 'px';
     brand.style.height = outerH + 'px';
+    var wrap = root.querySelector('.mm-lipton-reels-rail-wrap');
+    if (wrap) wrap.style.height = outerH + 'px';
     var thumbs = compact.querySelectorAll('.mm-lipton-reels-thumb');
+    var tiles = compact.querySelectorAll('.mm-lipton-reels-tile');
     var i;
     for (i = 0; i < thumbs.length; i++) {
-      thumbs[i].style.width = innerH * vid + border + 'px';
+      thumbs[i].style.width = thumbW + 'px';
       thumbs[i].style.height = outerH + 'px';
     }
+    for (i = 0; i < tiles.length; i++) {
+      tiles[i].style.width = thumbW + 'px';
+      tiles[i].style.height = outerH + 'px';
+    }
+    compact.style.height = outerH + 'px';
+    syncRailButtons(root);
   }
 
   function currentVideo(payload, state) {
@@ -234,38 +276,47 @@
     return { videos: videos, current: current };
   }
 
+  function ensureExpanded(root) {
+    var el = root.querySelector('[data-mm-expanded]');
+    if (el) return el;
+    el = document.createElement('div');
+    el.className = 'mm-lipton-reels-expanded';
+    el.setAttribute('data-mm-expanded', '');
+    root.appendChild(el);
+    return el;
+  }
+
+  function removeExpanded(root) {
+    var el = root.querySelector('[data-mm-expanded]');
+    if (!el) return;
+    var iframes = el.querySelectorAll('iframe');
+    var i;
+    for (i = 0; i < iframes.length; i++) {
+      iframes[i].src = 'about:blank';
+      iframes[i].removeAttribute('src');
+    }
+    el.parentNode.removeChild(el);
+  }
+
   function collapse(root, payload, state) {
     state.expanded = false;
     stopAllPlayback(root);
-    var expanded = root.querySelector('[data-mm-expanded]');
-    if (expanded) {
-      expanded.innerHTML = '';
-      expanded.setAttribute('hidden', '');
-    }
-    paint(root, payload, state);
+    removeExpanded(root);
+    root.classList.remove('mm-lipton-reels--expanded');
+    root.classList.add('mm-lipton-reels--compact');
+    layoutCompactStrip(root, sortVideos(payload.videos || []));
   }
 
   function paint(root, payload, state) {
-    stopAllPlayback(root);
     var picked = currentVideo(payload, state);
-    var compact = root.querySelector('[data-mm-compact]');
-    var expanded = root.querySelector('[data-mm-expanded]');
     root.classList.toggle('mm-lipton-reels--expanded', !!state.expanded);
     root.classList.toggle('mm-lipton-reels--compact', !state.expanded);
-    if (compact && state.expanded) {
-      compact.innerHTML = '';
-      compact.removeAttribute('data-mm-n');
-    }
-    if (expanded) {
-      if (state.expanded) {
-        expanded.removeAttribute('hidden');
-        expanded.innerHTML = expandedHtml(picked.current, picked.videos);
-      } else {
-        expanded.innerHTML = '';
-        expanded.setAttribute('hidden', '');
-      }
-    }
-    if (!state.expanded) {
+    if (state.expanded) {
+      stopAllPlayback(root);
+      var expanded = ensureExpanded(root);
+      expanded.innerHTML = expandedHtml(picked.current, picked.videos);
+    } else {
+      removeExpanded(root);
       layoutCompactStrip(root, picked.videos);
     }
   }
@@ -278,6 +329,20 @@
     paint(root, payload, state);
 
     root.addEventListener('click', function (ev) {
+      var prev = ev.target.closest && ev.target.closest('[data-mm-rail-prev]');
+      if (prev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        scrollRail(root, -1);
+        return;
+      }
+      var next = ev.target.closest && ev.target.closest('[data-mm-rail-next]');
+      if (next) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        scrollRail(root, 1);
+        return;
+      }
       var hide = ev.target.closest && ev.target.closest('[data-mm-hide]');
       if (hide) {
         ev.preventDefault();
@@ -294,6 +359,13 @@
         paint(root, payload, state);
       }
     });
+
+    var rail = root.querySelector('[data-mm-compact]');
+    if (rail) {
+      rail.addEventListener('scroll', function () {
+        syncRailButtons(root);
+      }, { passive: true });
+    }
 
     if (window.ResizeObserver) {
       var ro = new ResizeObserver(function () {
