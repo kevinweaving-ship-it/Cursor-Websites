@@ -263,6 +263,13 @@
     return id.mapClub || id.club || sail;
   }
 
+  function clubLabel(sail) {
+    var c = clubCode(sail);
+    if (c === 'IZIVUNGUVUNGU' || c === 'IZI') return 'IZI';
+    if (c === 'RCYC Academy' || c === 'RCYCA') return 'RCYCA';
+    return c;
+  }
+
   function hexRgb(hex) {
     var n = parseInt(String(hex).replace('#', ''), 16);
     if (!(n >= 0)) return [148, 163, 184];
@@ -534,6 +541,9 @@
     heldCam.midLon += (target.midLon - heldCam.midLon) * aPan;
     heldCam.scaleX += (target.scaleX - heldCam.scaleX) * aZoom;
     heldCam.scaleY += (target.scaleY - heldCam.scaleY) * aZoom;
+    var uni = Math.min(heldCam.scaleX, heldCam.scaleY);
+    heldCam.scaleX = uni;
+    heldCam.scaleY = uni;
     heldCam.cx += (target.cx - heldCam.cx) * aPan;
     heldCam.cy += (target.cy - heldCam.cy) * aPan;
     heldCam.cos = Math.cos((heldCam.midLat * Math.PI) / 180);
@@ -583,8 +593,10 @@
     var spanAcross = Math.max(minAcross, maxC - minC) * (opts.padAcross || 1.4);
     var padX = opts.padX != null ? opts.padX : 72;
     var padY = opts.padY != null ? opts.padY : 22;
-    var scaleX = (w - padX * 2) / spanAlong;
-    var scaleY = (h - padY * 2) / spanAcross;
+    var scaleFit = Math.min(scaleX, scaleY);
+    if (!(scaleFit > 0.04)) scaleFit = 0.04;
+    scaleX = scaleFit;
+    scaleY = scaleFit;
     var midAlong = (minA + maxA) / 2;
     var midAcross = (minC + maxC) / 2;
     var flipX = opts.flipX !== false;
@@ -594,7 +606,7 @@
       cos: cos,
       cosH: cosH,
       sinH: sinH,
-      scale: scaleX,
+      scale: scaleFit,
       scaleX: scaleX,
       scaleY: scaleY,
       w: w,
@@ -717,7 +729,7 @@
     var hits = tailHits(series, ts);
     if (hits.length < 2) return;
     var fill = boatPaint(sail).fill;
-    var boatR = (cam.boatRs && cam.boatRs[sail]) || cam.boatR || 7;
+    var boatR = cam.boatR || 7;
     var r = Math.max(1, boatR * 0.22);
     var d;
     for (d = 0; d < hits.length; d++) {
@@ -760,21 +772,7 @@
   }
 
   function roundingPack(live, mark) {
-    var pack = frontPack(live);
-    if (!mark) return pack;
-    var seen = {};
-    var i;
-    for (i = 0; i < pack.length; i++) seen[pack[i].sail] = true;
-    var rows = (live && live.rows) || [];
-    for (i = 0; i < rows.length; i++) {
-      var row = rows[i];
-      if (!row || !row.pos || seen[row.sail]) continue;
-      if (distM(row.pos, mark) < 280) {
-        pack.push(row);
-        seen[row.sail] = true;
-      }
-    }
-    return pack;
+    return frontPack(live);
   }
 
   function acrossM(pos, mark, hdg) {
@@ -827,13 +825,8 @@
   function packPoints(pack, ts) {
     var pts = [];
     var i;
-    var d;
     for (i = 0; i < pack.length; i++) {
-      pts.push(pack[i].pos);
-      var series = trail.boats && trail.boats[pack[i].sail];
-      var hits = tailHits(series, ts);
-      var keep = hits.length > 8 ? hits.slice(hits.length - 8) : hits;
-      for (d = 0; d < keep.length; d++) pts.push(keep[d]);
+      if (pack[i] && pack[i].pos) pts.push(pack[i].pos);
     }
     return pts;
   }
@@ -859,16 +852,16 @@
     return minG;
   }
 
-  /* One size for the whole pack. Step down when bunched so labels stay readable; step up together when there is gap. */
-  var ICON_STEPS = [5, 7, 9, 12];
+  /* One size for every boat in view. Step down when bunched so labels stay readable; step up together when there is gap. */
+  var ICON_STEPS = [5, 7, 9, 11];
 
   function collectiveBoatR(cam, pack) {
     var gap = minBoatGapPx(cam, pack);
     var i = heldIconStep;
     if (i < 0 || i >= ICON_STEPS.length) i = 1;
     if (gap < Infinity) {
-      while (i > 0 && gap < ICON_STEPS[i] * 5.2) i -= 1;
-      while (i < ICON_STEPS.length - 1 && gap > ICON_STEPS[i + 1] * 6.8) i += 1;
+      while (i > 0 && gap < ICON_STEPS[i] * 2 + 36) i -= 1;
+      while (i < ICON_STEPS.length - 1 && gap > ICON_STEPS[i + 1] * 2 + 56) i += 1;
     }
     heldIconStep = i;
     return ICON_STEPS[i];
@@ -912,20 +905,20 @@
     var total = row.start != null && row.racePlace != null ? row.start - row.racePlace : null;
     var series = trail.boats && trail.boats[sail];
     var hdg = screenNoseRad(series, row.pos, cam, live.ts);
-    var placePx = Math.max(7, Math.round(r * 1.25));
-    var labPx = Math.max(7, Math.round(r * 1.35));
+    var placePx = Math.max(6, Math.min(Math.round(r * 1.15), Math.round(r * 1.6)));
+    var labPx = Math.max(8, Math.min(12, Math.round(r * 1.05)));
     if (overallPos && overallPos <= 3) {
       ctx.beginPath();
-      ctx.arc(p.x, p.y, r * 2.4, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, r + 2.4, 0, Math.PI * 2);
       ctx.strokeStyle = OVERALL_STICKER[overallPos];
-      ctx.lineWidth = Math.max(1.4, r * 0.4);
+      ctx.lineWidth = Math.max(1.2, r * 0.22);
       ctx.stroke();
     }
     if (isLeader) {
       ctx.beginPath();
-      ctx.arc(p.x, p.y, r * 2, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, r + 1.6, 0, Math.PI * 2);
       ctx.strokeStyle = 'rgba(250,204,21,0.95)';
-      ctx.lineWidth = Math.max(1.2, r * 0.34);
+      ctx.lineWidth = Math.max(1.1, r * 0.2);
       ctx.stroke();
     }
     drawBoatIcon(ctx, p, hdg, paint, r);
@@ -934,8 +927,8 @@
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(String(row.racePlace || ''), p.x, p.y + 0.4);
-    var club = clubCode(sail);
-    var lx = p.x + r + 5;
+    var club = clubLabel(sail);
+    var lx = p.x + r + 4;
     var ly = p.y - 1;
     ctx.font = 'bold ' + labPx + 'px sans-serif';
     ctx.textAlign = 'left';
@@ -946,11 +939,11 @@
     ctx.shadowBlur = 0;
     var cw = ctx.measureText(club).width;
     drawDelta(ctx, lx + cw + 3, ly, total, 'left');
-    if (isLeader) {
+    if (r >= 7 && isLeader) {
       ctx.fillStyle = '#facc15';
       ctx.font = 'bold ' + labPx + 'px sans-serif';
       ctx.fillText('LEADER', lx, ly - (sameLead ? r + 7 : r + 16));
-    } else if (isFront) {
+    } else if (r >= 7 && isFront) {
       ctx.fillStyle = 'rgba(248,113,113,0.95)';
       ctx.font = 'bold ' + labPx + 'px sans-serif';
       ctx.fillText('FRONT', lx, ly - (r + 4));
@@ -1082,13 +1075,9 @@
       if (trail.start_line.right) pts.push(trail.start_line.right);
     }
     var cam;
-    var camOpts = { minAlong: 52, minAcross: 40, padAlong: 1.16, padAcross: 1.32, padX: 88, flipX: true };
+    var camOpts = { minAlong: 36, minAcross: 28, padAlong: 1.1, padAcross: 1.18, padX: 64, padY: 18, flipX: true };
     if ((plan.phase === 'hold' || plan.phase === 'approach-mark') && markLock) {
       setTrackHeight(canvas, 0.58);
-      /* Approach: Pin is in the shot. After rounding, fit boats only so the Pin can leave left. */
-      if (plan.phase === 'approach-mark') {
-        pts.push({ lat: markLock.lat, lon: markLock.lon });
-      }
       cam = fitCam(pts, cssW, cssH, markLock.hdg, camOpts);
       cam.flipX = true;
       cam = easeCam(cam, ts);
