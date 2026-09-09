@@ -77,6 +77,15 @@
       function pendOn(dev, code, on) { var k = dev + ":" + code, p = pend[k]; if (p && Date.now() < p.until) return p.on; return on; }
       var ICONS = {};   // device id -> local /assets/tuya/... path (from the resolver; never a CDN URL)
       function tico(id, cls) { var p = ICONS[id] || "/assets/tuya/fallback/device.svg"; return '<img class="tico ' + (cls || "") + '" src="' + p + '" alt="" loading="lazy" decoding="async">'; }
+      function powerBtn(dev, codes) {
+        if (!codes || !codes.length) return "";
+        var nOn = codes.filter(function (c) { return (dev.status || {})[c] === true; }).length;
+        var on = nOn > 0;
+        if (codes.length === 1) {
+          return '<button type="button" class="hs-master hs-gang' + (on ? " on" : "") + '" data-dev="' + dev.id + '" data-sw="' + codes[0] + '" data-on="' + (on ? 1 : 0) + '" aria-label="' + (on ? "turn off" : "turn on") + '"><span class="ctl ctl-power" aria-hidden="true"></span></button>';
+        }
+        return '<button type="button" class="hs-master' + (on ? " on" : "") + '" data-dev="' + dev.id + '" data-any="' + (on ? 1 : 0) + '" data-codes="' + codes.join(",") + '" aria-label="' + (on ? "all off" : "all on") + '"><span class="ctl ctl-power" aria-hidden="true"></span></button>';
+      }
       var lastData = null, gangDev = null;
       function render(d) {
         lastData = d;
@@ -381,7 +390,7 @@
         plugs.sort(function (a, b) { return (b.status.cur_power || 0) - (a.status.cur_power || 0); });
         plugs.forEach(function (p) {
           var w = sc(p.status.cur_power, p.units, "cur_power", 1), kwh = p.todayAddEle != null ? sc(p.todayAddEle, p.units, "add_ele", 3) : null;
-          var on = p.status.switch_1 === true, sw = "switch_1" in p.status;
+          var pCodes = switchCodes(p.status), on = pCodes.some(function (c) { return p.status[c] === true; });
           // Plug tile = power reading + its own switch button (tap to turn the plug/pump on or off, PIN login required).
           // Colour by draw vs this plug's own 7-day average: green = light load, orange = around average, red = >10% above average.
           var avg = p.avgPowerRaw != null ? sc(p.avgPowerRaw, p.units, "cur_power", 1) : null, lvl = "";
@@ -394,7 +403,7 @@
                '<span class="l">' + neatName(p) + '</span>' +
                '<span class="l">' + (p.usage && p.usage.todayKwh != null ? n1(p.usage.todayKwh) + " kWh today \u00b7 " + n1(p.usage.monthKwh) + " kWh " + monLabel() : (kwh != null ? n1(kwh) + " kWh today" : "")) +
                  (p.usage && p.usage.todayOnS != null ? " \u00b7 on " + hm(p.usage.todayOnS) : "") + '</span></span>' +
-               (sw ? '<button type="button" class="hs-gang hs-plugsw' + (on ? " on" : "") + '" data-dev="' + p.id + '" data-sw="switch_1" data-on="' + (on ? 1 : 0) + '" title="' + p.name + '"><span class="ic ctl ctl-power" aria-hidden="true"></span><span class="gl">' + (on ? "ON" : "OFF") + (on && (p.since || {}).switch_1 ? " \u00b7 " + dur(p.since.switch_1) : "") + '</span></button>' : "") +
+               powerBtn(p, pCodes) +
                '</div>' });
         });
         // Lights by device, one button per gang (icon + app label), lit when on with time-on underneath.
@@ -441,10 +450,13 @@
         meters.sort(function (a, b) { return neatName(a).localeCompare(neatName(b)); }).forEach(function (e) {
           var eu = e.eleUse || {};
           var eUse = Number(eu.monthKwh) || 0;
+          var eCodes = switchCodes(e.status);
+          var eOn = eCodes.some(function (c) { return e.status[c] === true; });
           var eTip = eu.todayKwh != null ? " \u00b7 " + Number(eu.todayKwh).toFixed(2) + " kWh today \u00b7 " + Number(eu.monthKwh).toFixed(2) + " kWh " + monLabel() + " \u00b7 " + Number(eu.lastMonthKwh).toFixed(2) + " kWh " + prevMonLabel() : "";
-          items.push({ grp: e.online || eUse ? "power" : "dormant", use: eUse, ts: e.lastEvent || 0, html: '<div class="hs-dev hs-light gang single hs-power' + (e.online ? " is-on inuse" : " off is-dead") + '" data-dev="' + e.id + '" title="' + neatName(e) + eTip + '">' +
+          var eState = !e.online ? " off is-dead" : eOn ? " is-on inuse" : eCodes.length ? " is-off" : " is-on inuse";
+          items.push({ grp: e.online || eUse ? "power" : "dormant", use: eUse, ts: e.lastEvent || 0, html: '<div class="hs-dev hs-light gang single hs-power' + eState + '" data-dev="' + e.id + '" title="' + neatName(e) + eTip + '">' +
             '<span class="hs-ico">' + tico(e.id) + '</span><span class="hs-body">' + eleLive(e) + '<span class="l">' + neatName(e) + "</span></span>" +
-            eleLine(e) + "</div>" });
+            powerBtn(e, eCodes) + eleLine(e) + "</div>" });
         });
         var known = {};
         if (wx) known[wx.id] = 1;
@@ -455,10 +467,13 @@
         meters.forEach(function (e) { known[e.id] = 1; });
         devs.forEach(function (x) {
           if (!x || !x.id || known[x.id]) return;
-          items.push({ grp: "other", use: 0, ts: x.lastEvent || 0, html: '<div class="hs-dev hs-tile' + (x.online ? " is-on inuse" : " off is-dead") + '">' +
+          var xCodes = switchCodes(x.status);
+          var xOn = xCodes.some(function (c) { return x.status[c] === true; });
+          var xState = !x.online ? " off is-dead" : xOn ? " is-on inuse" : xCodes.length ? " is-off" : " is-on inuse";
+          items.push({ grp: "other", use: 0, ts: x.lastEvent || 0, html: '<div class="hs-dev hs-tile' + xState + '">' +
             '<span class="hs-ico">' + tico(x.id) + '</span>' +
-            '<span class="hs-body"><span class="v">' + (x.online ? "ON" : "OFFLINE") + '</span>' +
-            '<span class="l">' + neatName(x) + '</span></span></div>' });
+            '<span class="hs-body"><span class="v">' + (x.online ? (xCodes.length ? (xOn ? "ON" : "OFF") : "ON") : "OFFLINE") + '</span>' +
+            '<span class="l">' + neatName(x) + '</span></span>' + powerBtn(x, xCodes) + '</div>' });
         });
         var lightHead = String((window.ARIAL_CONFIG || {}).siteId) === "bing" ? "Devices" : "Lights";
         var GROUPS = [["door", "Door"], ["water", "Water"], ["power", "Power"], ["lights", lightHead], ["plugs", "Smart plugs & timers"], ["relays", "Receivers & relays"], ["other", "Other"], ["dormant", "Not in use"]];
