@@ -144,11 +144,12 @@
     );
   }
 
-  function latestChromeHtml(v) {
+  function latestChromeHtml(v, extraClass) {
     var logo = (v && v.fb_owner_logo) || '';
     var title = (v && v.fb_title) || '';
     var sub = (v && v.fb_sub) || '';
     if (!logo && !title && !sub) return '';
+    var extra = extraClass ? ' ' + extraClass : '';
     var img = logo
       ? '<img class="mm-lipton-reels-owner-logo" src="' +
         esc(logo) +
@@ -158,7 +159,48 @@
     if (title) copy += '<div class="mm-lipton-reels-clip-title">' + esc(title) + '</div>';
     if (sub) copy += '<div class="mm-lipton-reels-clip-sub">' + esc(sub) + '</div>';
     copy += '</div>';
-    return '<div class="mm-lipton-reels-clip-chrome" aria-hidden="true">' + img + copy + '</div>';
+    return '<div class="mm-lipton-reels-clip-chrome' + extra + '" aria-hidden="true">' + img + copy + '</div>';
+  }
+
+  function chromeSource(clip, videos) {
+    var first = (videos && videos[0]) || {};
+    return {
+      fb_owner_logo: (clip && clip.fb_owner_logo) || first.fb_owner_logo || '',
+      fb_title: (clip && (clip.fb_title || clip.title)) || first.fb_title || '',
+      fb_sub: (clip && clip.fb_sub) || first.fb_sub || '',
+    };
+  }
+
+  function snapshotChromeSize(root) {
+    var chrome = root.querySelector('.mm-lipton-reels-thumb--latest .mm-lipton-reels-clip-chrome');
+    if (!chrome) return null;
+    var box = chrome.getBoundingClientRect();
+    if (!box.width) return null;
+    var logo = chrome.querySelector('.mm-lipton-reels-owner-logo');
+    var title = chrome.querySelector('.mm-lipton-reels-clip-title');
+    var sub = chrome.querySelector('.mm-lipton-reels-clip-sub');
+    var cs = window.getComputedStyle(chrome);
+    return {
+      w: Math.round(box.width),
+      pad: cs.padding,
+      gap: cs.gap || cs.columnGap,
+      logo: logo ? Math.round(logo.getBoundingClientRect().width) : 0,
+      title: title ? window.getComputedStyle(title).fontSize : '',
+      sub: sub ? window.getComputedStyle(sub).fontSize : '',
+    };
+  }
+
+  function applyFrozenChrome(root, snap) {
+    var el = root.querySelector('.mm-lipton-reels-clip-chrome--overlay');
+    if (!el || !snap) return;
+    el.style.width = snap.w + 'px';
+    el.style.maxWidth = snap.w + 'px';
+    el.style.setProperty('--mm-chrome-w', snap.w + 'px');
+    if (snap.gap) el.style.setProperty('--mm-chrome-gap', snap.gap);
+    if (snap.pad) el.style.setProperty('--mm-chrome-pad', snap.pad);
+    if (snap.logo) el.style.setProperty('--mm-chrome-logo', snap.logo + 'px');
+    if (snap.title) el.style.setProperty('--mm-chrome-title', snap.title);
+    if (snap.sub) el.style.setProperty('--mm-chrome-sub', snap.sub);
   }
 
   function latestThumbHtml(v) {
@@ -204,14 +246,16 @@
     return parts.join('');
   }
 
-  function stageHtml(v) {
+  function stageHtml(v, videos) {
     if (!v) return '<p class="mm-lipton-reels-waiting">No clip yet.</p>';
     return (
       '<div class="mm-lipton-reels-stage mm-lipton-reels-stage--playing" data-mm-stage style="--mm-aspect:' +
       aspectCss(v) +
       ';aspect-ratio:' +
       aspectCss(v) +
-      '"></div>'
+      '">' +
+      latestChromeHtml(chromeSource(v, videos), 'mm-lipton-reels-clip-chrome--overlay') +
+      '</div>'
     );
   }
 
@@ -266,7 +310,7 @@
       '<div class="mm-lipton-reels-expanded-bar">' +
       '<button type="button" class="mm-lipton-reels-hide" data-mm-hide>Hide</button>' +
       '</div>' +
-      stageHtml(v) +
+      stageHtml(v, videos) +
       gridHtml(videos, v && v.id)
     );
   }
@@ -393,6 +437,9 @@
       var stage = expanded.querySelector('[data-mm-stage]');
       var video = ensureHeroVideo(root);
       if (stage && video) stage.appendChild(video);
+      var overlay = stage && stage.querySelector('.mm-lipton-reels-clip-chrome--overlay');
+      if (stage && overlay) stage.appendChild(overlay);
+      applyFrozenChrome(root, state.chromeSnap);
     } else {
       removeExpanded(root);
       layoutCompactStrip(root, picked.videos);
@@ -403,7 +450,7 @@
     var root = cardEl();
     if (!root) return;
     var payload = readPayload(root);
-    var state = { expanded: false, currentId: '' };
+    var state = { expanded: false, currentId: '', chromeSnap: null };
     var video = ensureHeroVideo(root);
     var first = sortVideos(payload.videos || [])[0];
     if (first && video) {
@@ -439,6 +486,7 @@
       var thumb = ev.target.closest && ev.target.closest('[data-mm-vid]');
       if (thumb && root.contains(thumb)) {
         ev.preventDefault();
+        state.chromeSnap = snapshotChromeSize(root) || state.chromeSnap;
         state.currentId = thumb.getAttribute('data-mm-vid') || state.currentId;
         state.expanded = true;
         paint(root, payload, state);
