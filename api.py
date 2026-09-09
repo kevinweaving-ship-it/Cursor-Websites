@@ -20392,7 +20392,7 @@ _LIPTON_MM_REELS_CSS = (
     ".regatta-page>.action-buttons{order:10}"
     ".regatta-page[data-live-lipton=\"1\"]>.mm-lipton-reels,.regatta-page[data-live-race-underway=\"1\"]>.mm-lipton-reels,.regatta-page[data-live-board-page-status=\"RACING\"]>.mm-lipton-reels{order:2}"
     ".regatta-page[data-live-lipton=\"1\"]>.regatta-live-wx,.regatta-page[data-live-race-underway=\"1\"]>.regatta-live-wx,.regatta-page[data-live-board-page-status=\"RACING\"]>.regatta-live-wx{order:4}"
-    ".mm-lipton-reels{display:block!important;width:100%;margin:10px 0 0 0;padding:6px;background:#dce6ef!important;border:2px solid #001f3f;border-radius:8px;box-shadow:0 1px 3px rgba(0,31,63,0.08);box-sizing:border-box}"
+    ".mm-lipton-reels{display:block!important;width:100%;margin:10px 0 0 0;padding:6px;background:#dce6ef!important;border:2px solid #001f3f;border-radius:8px;box-shadow:0 1px 3px rgba(0,31,63,0.08);box-sizing:border-box;overflow-anchor:none}"
     ".mm-lipton-reels:not(.mm-lipton-reels--expanded) .mm-lipton-reels-expanded,"
     ".mm-lipton-reels:not(.mm-lipton-reels--expanded) .mm-lipton-reels-hide,"
     ".mm-lipton-reels:not(.mm-lipton-reels--expanded) .mm-lipton-reels-expanded-bar,"
@@ -20460,7 +20460,7 @@ _LIPTON_MM_REELS_CSS = (
     ".mm-lipton-reels-stage .mm-lipton-reels-play{position:absolute;left:50%;top:50%;z-index:3;width:44px;height:44px;margin:0;padding:0;transform:translate(-50%,-50%);border-radius:50%;background:transparent;border:3px solid #00B4FF;pointer-events:none;box-sizing:border-box;box-shadow:0 0 8px #00B4FF}"
     ".mm-lipton-reels-stage .mm-lipton-reels-play:after{content:\"\";position:absolute;left:54%;top:50%;width:0;height:0;border-style:solid;border-width:10px 0 10px 16px;border-color:transparent transparent transparent #fff;transform:translate(-30%,-50%)}"
     ".mm-lipton-reels-stage--playing .mm-lipton-reels-hero-ui{display:none!important}"
-    ".mm-lipton-reels-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;margin-top:6px}"
+    ".mm-lipton-reels-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;margin-top:6px;overflow-anchor:none}"
     ".mm-lipton-reels-grid-item{min-width:0}"
     ".mm-lipton-reels-waiting{margin:0;font-size:0.85rem;color:#334155}"
     "@media (orientation:landscape) and (max-height:540px){"
@@ -27520,7 +27520,7 @@ def serve_regatta_standalone(slug: str, request: Request):
         mm_card_js = ""
         if str(regatta_id) == "2026-08-29-lipton-challenge-cup":
             mm_card = _lipton_mm_reels_card_html(str(regatta_id))
-            mm_card_js = '<script src="/js/mm-lipton-reels-card.js?v=mmr41" defer></script>'
+            mm_card_js = '<script src="/js/mm-lipton-reels-card.js?v=mmr42" defer></script>'
         body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()

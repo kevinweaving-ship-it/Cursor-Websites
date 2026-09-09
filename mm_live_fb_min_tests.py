@@ -100,18 +100,20 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("playsinline", js)
         src = Path("api.py").read_text(encoding="utf-8")
         self.assertIn('row["play_url"]', src)
-        self.assertIn("mmr41", src)
+        self.assertIn("mmr42", src)
         self.assertIn("scrollTo", js)
         self.assertIn("bumpSlide", js)
         self.assertIn("preloadNeighbors", js)
         self.assertIn("state.sliding", js)
         self.assertIn("revealPlayingClip", js)
         self.assertIn("openClip", js)
+        self.assertIn("scrollIntoView", js)
+        self.assertIn("overflow-anchor:none", src)
         self.assertIn(
             ".mm-lipton-reels-hide{pointer-events:auto;min-height:44px;min-width:44px;margin:0;padding:0 6px;border:0;background:none;color:#64748b",
             src,
         )
-        self.assertIn(".mm-lipton-reels-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;margin-top:6px}", src)
+        self.assertIn(".mm-lipton-reels-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;margin-top:6px;overflow-anchor:none}", src)
         self.assertIn(".mm-lipton-reels-expanded-bar{position:absolute;top:0;right:0;z-index:6", src)
         self.assertIn(
             ".mm-lipton-reels--expanded .mm-lipton-reels-expanded-bar,.mm-lipton-reels--expanded .mm-lipton-reels-hide{display:none!important}",

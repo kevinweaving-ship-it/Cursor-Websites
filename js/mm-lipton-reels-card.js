@@ -648,35 +648,77 @@
     }, 280);
   }
 
+  function revealTopInset() {
+    var pad = 8;
+    var header = document.querySelector('.site-header');
+    if (header && header.getBoundingClientRect) {
+      var hr = header.getBoundingClientRect();
+      var viewH = (window.visualViewport && window.visualViewport.height) || window.innerHeight || 0;
+      if (hr.height > 8 && hr.bottom > 0 && hr.top < viewH * 0.5) pad = Math.round(hr.bottom) + 8;
+    }
+    return pad;
+  }
+
+  function revealScrollParents(el) {
+    var out = [];
+    var n = el;
+    while (n && n !== document.body && n !== document.documentElement) {
+      n = n.parentElement;
+      if (!n) break;
+      var st = window.getComputedStyle ? window.getComputedStyle(n) : null;
+      var oy = st ? String(st.overflowY || st.overflow || '') : '';
+      if ((oy === 'auto' || oy === 'scroll' || oy === 'overlay') && n.scrollHeight > n.clientHeight + 4) {
+        out.push(n);
+      }
+    }
+    out.push(document.scrollingElement || document.documentElement);
+    if (document.body && out.indexOf(document.body) < 0) out.push(document.body);
+    return out;
+  }
+
   function revealPlayingClip(root) {
-    var wrap = root.querySelector('[data-mm-wrap]') || root;
+    var wrap = (root && root.querySelector('[data-mm-wrap]')) || root;
     if (!wrap || !wrap.getBoundingClientRect) return;
     function go() {
       var cs = window.getComputedStyle ? window.getComputedStyle(wrap) : null;
       if (cs && cs.position === 'fixed') return;
-      var rect = wrap.getBoundingClientRect();
-      var header = document.querySelector('.site-header');
-      var pad = 6;
-      if (header) {
-        var hr = header.getBoundingClientRect();
-        var viewH = window.innerHeight || document.documentElement.clientHeight || 0;
-        if (hr.height && hr.bottom > 0 && hr.top < viewH * 0.5) pad = Math.round(hr.bottom) + 6;
-      }
-      var viewH = window.innerHeight || document.documentElement.clientHeight || 0;
-      if (rect.top >= pad - 1 && rect.bottom <= viewH + 1) return;
-      var y = (window.pageYOffset || document.documentElement.scrollTop || 0) + rect.top - pad;
-      if (y < 0) y = 0;
+      var pad = revealTopInset();
       try {
-        window.scrollTo({ top: y, behavior: 'smooth' });
-      } catch (e) {
-        window.scrollTo(0, y);
+        wrap.style.scrollMarginTop = pad + 'px';
+      } catch (e0) {}
+      try {
+        wrap.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'instant' });
+      } catch (e1) {
+        try {
+          wrap.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'auto' });
+        } catch (e2) {
+          try {
+            wrap.scrollIntoView(true);
+          } catch (e3) {}
+        }
       }
+      var rect = wrap.getBoundingClientRect();
+      var delta = rect.top - pad;
+      if (Math.abs(delta) < 2) return;
+      var parents = revealScrollParents(wrap);
+      var i;
+      for (i = 0; i < parents.length; i++) {
+        try {
+          parents[i].scrollTop = (parents[i].scrollTop || 0) + delta;
+        } catch (e4) {}
+      }
+      try {
+        window.scrollTo(0, (window.pageYOffset || 0) + delta);
+      } catch (e5) {}
     }
     go();
     window.requestAnimationFrame(function () {
       go();
-      window.setTimeout(go, 140);
+      window.requestAnimationFrame(go);
     });
+    window.setTimeout(go, 50);
+    window.setTimeout(go, 160);
+    window.setTimeout(go, 320);
   }
 
   function openClip(root, payload, state, id) {
@@ -693,6 +735,7 @@
     }
     if (!wasExpanded) {
       paint(root, payload, state);
+      revealPlayingClip(root);
       startHeroPlayback(root, picked.current);
       preloadNeighbors(root, payload, state);
       revealPlayingClip(root);
@@ -702,6 +745,7 @@
     var after = clipIndex(picked.videos, picked.current.id);
     var dir = after >= before ? 1 : -1;
     state.sliding = true;
+    revealPlayingClip(root);
     startHeroPlayback(root, picked.current);
     setOverlayChrome(root, picked.current, picked.videos, state.chromeSnap);
     updateExpandedGrid(root, picked.videos, picked.current.id);
