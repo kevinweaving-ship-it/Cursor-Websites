@@ -25826,10 +25826,15 @@ def _render_result_sheet_fleet(
     races_sailed_db = int(fleet.get("races_sailed") or 0)
     max_race_from_scores = _max_race_idx_from_result_rows(rows)
     races_sailed = max(races_sailed_db, max_race_from_scores)
+    if str(regatta_id or "").strip() == _CAPE_CLASSIC_MM_REGATTA_ID:
+        races_sailed = max(int(races_sailed or 0), 1)
     discard_count = fleet.get("discard_count") or 0
     to_count = fleet.get("to_count")
     if to_count is None and discard_count is not None:
         to_count = max(0, int(races_sailed) - int(discard_count))
+    if str(regatta_id or "").strip() == _CAPE_CLASSIC_MM_REGATTA_ID and int(races_sailed or 0) >= 1:
+        if to_count is None or int(to_count or 0) < 1:
+            to_count = max(0, int(races_sailed) - int(discard_count or 0))
     entries = fleet.get("entries") or 0
     scoring_system = fleet.get("scoring_system") or "Appendix A"
     sailed_line = f"Sailed: {races_sailed}, Discards: {discard_count}, To count: {to_count}, Entries: {entries}, Scoring system: {scoring_system}"
@@ -25856,6 +25861,12 @@ def _render_result_sheet_fleet(
         elif _pref_on("race_scores"):
             for i in range(1, n + 1):
                 race_columns.append(f"R{i}")
+    if str(regatta_id or "").strip() == _CAPE_CLASSIC_MM_REGATTA_ID:
+        for i in range(1, int(races_sailed or 1) + 1):
+            rkey = f"R{i}"
+            if rkey not in race_columns:
+                race_columns.append(rkey)
+        race_columns.sort(key=lambda k: int(k[1:]) if isinstance(k, str) and k[1:].isdigit() else 0)
 
     show_boat = _optional_col_visible("boat_name", has_boat_name)
     show_jib = _optional_col_visible("jib", has_jib_no)

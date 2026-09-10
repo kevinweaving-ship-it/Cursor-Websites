@@ -47,6 +47,12 @@ class MinimalMmFeedTest(unittest.TestCase):
         self.assertFalse(fn("2026-09-13-zvyc-cape-classic", False))
         self.assertTrue(fn("2026-08-29-lipton-challenge-cup", True))
         self.assertFalse(fn("2026-08-29-lipton-challenge-cup", False))
+        render = self.src[
+            self.src.find("def _render_result_sheet_fleet") : self.src.find("_REGATTA_404_HTML")
+        ]
+        self.assertIn("_CAPE_CLASSIC_MM_REGATTA_ID", render)
+        self.assertIn('rkey = f"R{i}"', render)
+        self.assertGreaterEqual(render.count("_CAPE_CLASSIC_MM_REGATTA_ID"), 2)
 
 
 class LiptonMmCardUnitTest(unittest.TestCase):
