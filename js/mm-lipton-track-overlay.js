@@ -1088,6 +1088,15 @@
    * continues to the end of the video full screen: 1st right side and
    * appropriate zoom for the 60–70% boats behind it. Forget stragglers.
    * Do not shrink X to fit Y. Pin never pans right. */
+  /* After rounding, rotate so 1st's run to clip end is screen-X (right). */
+  function keepFirstOnRightHdg(origin, live) {
+    var endLive = clipEndLive();
+    var aim = endLive && endLive.front && endLive.front.pos;
+    if (!aim && live && live.front) aim = live.front.pos;
+    if (!origin || !aim || aim.lat == null) return null;
+    return bearingDeg(aim, origin);
+  }
+
   function roundPackCam(live, w, h, mark) {
     var origin = roundOrigin(mark) || { lat: 0, lon: 0, key: '' };
     if (roundLock && roundLock.key && origin.key && roundLock.key !== origin.key) {
@@ -1096,15 +1105,18 @@
     var stay = roundPinMustStay(live, origin);
     var tight = roundTightNow(live, origin);
     var boxed = sameCamBox(roundLock, w, h);
-    var hdg = boxed && roundLock.hdg != null
-      ? roundLock.hdg
-      : roundCourseHdg(live, origin);
+    var hdg = roundCourseHdg(live, origin);
+    if (tight && boxed && roundLock.tight && roundLock.hdg != null) {
+      hdg = roundLock.hdg;
+    } else if (!tight) {
+      var exitHdg = keepFirstOnRightHdg(origin, live);
+      if (exitHdg != null) hdg = exitHdg;
+    }
     /* Inset so boats show fully at the rounding — not clipped on the mark. */
     var pinX = Math.max(56, Math.min(96, w * 0.2));
     var pinY = Math.max(44, Math.min(h * 0.42, h * 0.46));
-    if (boxed && roundLock.pinX != null) {
+    if (tight && boxed && roundLock.pinX != null && roundLock.tight) {
       pinY = roundLock.pinY;
-      hdg = roundLock.hdg;
       pinX = roundLock.pinX;
     }
     var win = { minA: 0, maxA: 0, minC: -20, maxC: 20 };
@@ -1117,6 +1129,11 @@
       if (win.maxC > 70) win.maxC = 70;
     } else {
       eatAlongRows(dropFarMarkBoats(packBehindFirst(live), origin, live), origin, hdg, win);
+      var endLive = clipEndLive();
+      if (endLive && endLive.front && endLive.front.pos) {
+        eatAlongRows([endLive.front], origin, hdg, win);
+        eatAlongRows(dropFarMarkBoats(packBehindFirst(endLive), origin, endLive), origin, hdg, win);
+      }
     }
     /* Padding so boats show fully at rounding. */
     var boatPad = 36;
@@ -1672,60 +1689,40 @@
     ctx.restore();
   }
 
+  function drawSmallMark(ctx, lat, lon, cam, lab) {
+    if (lat == null || lon == null) return;
+    var p = xy(lat, lon, cam);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 4.5, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(251,191,36,0.95)';
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+    ctx.fillStyle = '#fbbf24';
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    ctx.shadowColor = 'rgba(0,0,0,0.85)';
+    ctx.shadowBlur = 3;
+    ctx.fillText(lab || 'Mark', p.x + 7, p.y - 5);
+    ctx.shadowBlur = 0;
+  }
+
   function drawCourseMarks(ctx, cam, ts, w, h, focus, phase) {
     var showStart = phase === 'start' || (focus && (focus.key === 'start' || isPinKey(focus.key)));
     var showM1 = !!(focus && isTopKey(focus.key));
-    var m1 = (showM1 && fixedM1()) || sampleAt((trail.marks || {})['1'], ts);
-    /* Only the mark being rounded. Far pin / mark / start can be out of view. */
-    if (showM1 && m1) {
-      var mp = xy(m1.lat, m1.lon, cam);
-      ctx.beginPath();
-      ctx.arc(mp.x, mp.y, 16, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(251,191,36,0.95)';
-      ctx.lineWidth = 3;
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(mp.x, mp.y, 6, 0, Math.PI * 2);
-      ctx.fillStyle = '#fbbf24';
-      ctx.fill();
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 13px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('M1', mp.x, mp.y - 22);
-    }
+    /* One small mark — no stacked rings covering boats / names. */
     if (showStart && trail.start_line && trail.start_line.left && trail.start_line.right) {
       drawGate(ctx, cam, trail.start_line, 'rgba(56,189,248,0.95)', '', 'Pin', 'RC');
-    }
-    if (showStart && trail.finish_line && trail.finish_line.left && trail.finish_line.right) {
-      var fl = trail.finish_line;
-      var fm = xy((fl.left.lat + fl.right.lat) / 2, (fl.left.lon + fl.right.lon) / 2, cam);
-      if (markOnCanvas(fm, w, h)) {
-        drawGate(ctx, cam, fl, 'rgba(251,191,36,0.8)', 'Fin', 'Pin', 'RC');
-      }
-    }
-    if (focus && focus.lat != null) {
-      var fp = xy(focus.lat, focus.lon, cam);
-      ctx.beginPath();
-      ctx.arc(fp.x, fp.y, 30, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(248,250,252,0.98)';
-      ctx.lineWidth = 5;
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(fp.x, fp.y, 9, 0, Math.PI * 2);
-      ctx.fillStyle = '#38bdf8';
-      ctx.fill();
-      var fromPt = m1 || (trail.start_line && trail.start_line.right);
-      if (fromPt) drawRoundArrow(ctx, cam, focus, fromPt, '#38bdf8');
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 14px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.shadowColor = 'rgba(0,0,0,0.85)';
-      ctx.shadowBlur = 4;
-      var lab = focus.key === 'pin' || focus.key === '4' ? 'Pin' : focus.key === 'fin' ? 'Fin' : focus.key === '1' ? 'M1' : 'Mark';
-      ctx.fillText(lab, fp.x, fp.y - 32);
-      ctx.shadowBlur = 0;
+    } else if (showM1) {
+      var m1 = fixedM1() || sampleAt((trail.marks || {})['1'], ts) || focus;
+      if (m1) drawSmallMark(ctx, m1.lat, m1.lon, cam, 'M1');
+    } else if (focus && focus.lat != null) {
+      var lab = focus.key === 'fin' ? 'Fin' : 'Mark';
+      drawSmallMark(ctx, focus.lat, focus.lon, cam, lab);
     }
   }
 
