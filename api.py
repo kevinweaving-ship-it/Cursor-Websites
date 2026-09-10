@@ -20654,7 +20654,7 @@ _LIPTON_MM_REELS_CSS = (
     ".mm-lipton-reels-hide{pointer-events:auto;min-height:44px;min-width:44px;margin:0;padding:0 6px;border:0;background:none;color:#64748b;font-size:0.68rem;font-weight:500;letter-spacing:0.04em;line-height:1;cursor:pointer;-webkit-appearance:none;appearance:none}"
     ".mm-lipton-reels-player-wrap{position:relative;width:100%;aspect-ratio:var(--mm-aspect,16/9);overflow:hidden;border-radius:8px;background:#001018;border:2px solid #001f3f;scroll-margin-top:72px}"
     ".mm-lipton-reels-stage{position:absolute;inset:0;width:100%;height:100%;overflow:hidden;background:#001018;transition:transform .28s ease}"
-    ".mm-lipton-reels-stage iframe,.mm-lipton-reels-stage video{position:absolute;inset:0;z-index:0;width:100%;height:100%;border:0;object-fit:cover;background:#001018;filter:none;opacity:1}"
+    ".mm-lipton-reels-stage iframe,.mm-lipton-reels-stage video,.mm-lipton-reels-stage img{position:absolute;inset:0;z-index:0;width:100%;height:100%;border:0;object-fit:cover;background:#001018;filter:none;opacity:1}"
     ".mm-lipton-reels-stage video::-webkit-media-controls,.mm-lipton-reels-stage video::-webkit-media-controls-enclosure,.mm-lipton-reels-stage video::-webkit-media-controls-overlay-enclosure,.mm-lipton-reels-stage video::-webkit-media-controls-panel,.mm-lipton-reels-stage video::-webkit-media-controls-start-playback-button,.mm-lipton-reels-stage video::-webkit-media-controls-overlay-play-fill{display:none!important;opacity:0!important;-webkit-appearance:none}"
     ".mm-lipton-reels-video-hold{position:absolute;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none}"
     ".mm-lipton-reels-track{position:absolute;left:0;right:0;bottom:0;height:var(--mm-track-h,58%);z-index:3;pointer-events:none;display:none;background:none}"
@@ -20864,8 +20864,37 @@ def _mm_title_from_fb_url(url: str) -> str:
     return re.sub(r"[-_]+", " ", slug).strip().title()
 
 
+_ZVYC_LIVE_CAM = {
+    "id": "zvyc-live-cam",
+    "kind": "webcam",
+    "placeholder": True,
+    "url": "https://www.skylinewebcams.com/en/webcam/south-africa/western-cape/cape-town/zeekoevlei.html",
+    "permalink": "https://www.skylinewebcams.com/en/webcam/south-africa/western-cape/cape-town/zeekoevlei.html",
+    "title": "ZVYC Live Cam",
+    "fb_title": "ZVYC Live Cam",
+    "fb_sub": "Zeekoevlei · live",
+    "fb_owner_logo": "https://cdn.skylinewebcams.com/as/img/hosts/4040.jpg",
+    "thumb": "https://www.skylinewebcams.com/temp/4040.jpg",
+    "play_url": "",
+    "is_live": True,
+    "started_at": "",
+    "stamp": "LIVE",
+    "width": 1280,
+    "height": 720,
+    "aspect": "16:9",
+}
+
+
+def _cape_classic_has_real_reels(videos: list) -> bool:
+    for item in videos or []:
+        if item.get("placeholder") or item.get("kind") == "webcam" or item.get("id") == "zvyc-live-cam":
+            continue
+        return True
+    return False
+
+
 def _cape_classic_mm_reels_payload() -> dict:
-    """MM Facebook clips only. Empty until the first Saturday reel is saved.
+    """MM Facebook clips when saved. Until then show the ZVYC Skyline live cam.
 
     Reel dates after the event end stay valid — do not window-filter here.
     """
@@ -20895,6 +20924,8 @@ def _cape_classic_mm_reels_payload() -> dict:
         if not n.get("fb_page"):
             n["fb_page"] = "marin.megastoresa"
         videos.append(n)
+    if not videos:
+        videos = [dict(_ZVYC_LIVE_CAM)]
     return {
         "enabled": True,
         "feed_source": "marine-megastore",
@@ -20909,7 +20940,7 @@ def _cape_classic_mm_reels_card_html(regatta_id: str) -> str:
         return ""
     payload = _cape_classic_mm_reels_payload()
     initial = html_module.escape(json.dumps(payload, separators=(",", ":")), quote=True)
-    has_clips = bool(payload.get("videos"))
+    has_clips = _cape_classic_has_real_reels(payload.get("videos") or [])
     brand_src = _MM_EVENT_REELS_BRAND_SRC if has_clips else _MM_COMING_SOON_BRAND_SRC
     brand_alt = (
         "Powered by Marine Megastore Event Reels"
@@ -27888,12 +27919,12 @@ def serve_regatta_standalone(slug: str, request: Request):
             mm_card = _lipton_mm_reels_card_html(str(regatta_id))
             mm_card_js = (
                 '<script src="/js/mm-lipton-track-overlay.js?v=mmr102" defer></script>'
-                '<script src="/js/mm-lipton-reels-card.js?v=mmr104" defer></script>'
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr105" defer></script>'
             )
         elif str(regatta_id) == "2026-09-13-zvyc-cape-classic":
             mm_card = _cape_classic_mm_reels_card_html(str(regatta_id))
             mm_card_js = (
-                '<script src="/js/mm-lipton-reels-card.js?v=mmr104" defer></script>'
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr105" defer></script>'
             )
         body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))

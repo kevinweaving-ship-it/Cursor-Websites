@@ -58,6 +58,23 @@
     return 'mm-lipton';
   }
 
+  function isWebcam(v) {
+    return !!(v && (v.kind === 'webcam' || v.placeholder || v.id === 'zvyc-live-cam'));
+  }
+
+  function hasRealReels(videos) {
+    var i;
+    for (i = 0; i < (videos || []).length; i++) {
+      if (!isWebcam(videos[i])) return true;
+    }
+    return false;
+  }
+
+  function liveThumbSrc(v) {
+    var base = String((v && v.thumb) || '').split('?')[0];
+    return base ? base + '?t=' + Date.now() : '';
+  }
+
   function playUrl(v) {
     var u = String((v && v.play_url) || '').trim();
     if (u) return u;
@@ -351,6 +368,34 @@
     );
   }
 
+  function stopWebcamLive(root) {
+    if (root && root._mmCamTimer) {
+      window.clearInterval(root._mmCamTimer);
+      root._mmCamTimer = 0;
+    }
+  }
+
+  function startWebcamLive(root, clip) {
+    if (!root || !isWebcam(clip)) {
+      stopWebcamLive(root);
+      return;
+    }
+    var imgs = root.querySelectorAll('.mm-lipton-reels-thumb img, [data-mm-webcam-live]');
+    function bump() {
+      var src = liveThumbSrc(clip);
+      var i;
+      for (i = 0; i < imgs.length; i++) {
+        if (src) imgs[i].src = src;
+      }
+    }
+    bump();
+    stopWebcamLive(root);
+    root._mmCamTimer = window.setInterval(function () {
+      imgs = root.querySelectorAll('.mm-lipton-reels-thumb img, [data-mm-webcam-live]');
+      bump();
+    }, 4000);
+  }
+
   function emptyReelSlotHtml() {
     return (
       '<div class="mm-lipton-reels-tile mm-lipton-reels-tile--slot">' +
@@ -499,8 +544,23 @@
   }
 
   function startHeroPlayback(root, clip) {
-    var video = ensureHeroVideo(root);
     var stage = root.querySelector('[data-mm-stage]');
+    if (isWebcam(clip) && stage) {
+      stopTrackOverlay();
+      var hold = root.querySelector('[data-mm-hero-video]');
+      if (hold && hold.parentNode) hold.parentNode.removeChild(hold);
+      var img = stage.querySelector('[data-mm-webcam-live]');
+      if (!img) {
+        img = document.createElement('img');
+        img.setAttribute('data-mm-webcam-live', '');
+        img.alt = 'ZVYC live cam';
+        stage.appendChild(img);
+      }
+      stage.classList.add('mm-lipton-reels-stage--playing');
+      startWebcamLive(root, clip);
+      return;
+    }
+    var video = ensureHeroVideo(root);
     if (!video || !clip) return;
     var src = playUrl(clip);
     video.muted = false;
@@ -687,7 +747,7 @@
     var soon = root.getAttribute('data-mm-brand-soon') || '';
     var live = root.getAttribute('data-mm-brand-live') || '';
     if (!img || !soon) return;
-    var has = !!(videos && videos.length);
+    var has = hasRealReels(videos);
     var next = has ? live || '/assets/adverts/mm-powered-by-event-reels.png?v=mmr2' : soon;
     if (img.getAttribute('src') !== next) img.setAttribute('src', next);
     img.setAttribute('alt', has ? 'Powered by Marine Megastore Event Reels' : 'Powered by Marine Megastore Coming Soon');
@@ -741,6 +801,7 @@
       compact.innerHTML = compactTilesHtml(videos);
       compact.setAttribute('data-mm-count', String(videos.length));
     }
+    startWebcamLive(root, (videos || []).filter(isWebcam)[0]);
     var art = ART_W / ART_H;
     var vid = VID_W / VID_H;
     var border = 4;
