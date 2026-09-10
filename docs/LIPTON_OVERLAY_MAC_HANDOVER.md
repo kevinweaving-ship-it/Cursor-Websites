@@ -1,6 +1,6 @@
 # Lipton Event Reels — Mac morning handover
 
-**Updated 10 Sep 2026.** R3 leeward 1 is measured (FBYC M2 at video 0:37). Cache tag: **`mmr99`**. PR: https://github.com/kevinweaving-ship-it/Cursor-Websites/pull/66
+**Updated 10 Sep 2026.** R3 Downwind 2 is measured (HYC M2 at video 0:10). Cache tag: **`mmr100`**. PR: https://github.com/kevinweaving-ship-it/Cursor-Websites/pull/66
 
 This report lists **only clips that still cannot be synced accurately**. Everything else is either measured (Race 7) or stamp-assumed (ear-check on Mac if you want measured).
 
@@ -9,12 +9,6 @@ No Whisper/STT on the VM. Do not treat assumed offsets as heard guns or “round
 ---
 
 ## Still the issue (cannot lock accurately)
-
-### Race 3 — trail exists, but the named event is not at the stamp
-
-| Clip | Title | Stamp | Why it cannot lock | GPS around the stamp |
-|---|---|---|---|---|
-| `1530770848344300` | Race 3 Downwind 2 | 26 Aug **15:51** | Mid-leg. No mark at open. Next GPS is **L1 M3 HYC 15:59:28** (~**8:28** after stamp). Title says downwind; that leg is the beat to M3. | Play to ~8:28. If 1st rounds there, `offsetMs = 0` and mark `3`. If they say someone rounds earlier, use that boat’s GPS time. |
 
 ### Race 2 — generic clip, named moment already over
 
@@ -41,6 +35,7 @@ No Whisper/STT on the VM. Do not treat assumed offsets as heard guns or “round
 - `2410502969472697` R7 1st top — `offsetMs -88000` (1st M1 16:10:56 ~0:25)
 - `2622643364847262` R7 1st downwind — `offsetMs +36000` (Pin 16:22:43, STT ~3:07)
 - `1802153794291569` R3 leeward 1 — `offsetMs -252000` (1st FBYC M2 15:30:25 at video **0:37**)
+- `1530770848344300` R3 Downwind 2 — `offsetMs +1524000` (HYC L2 M2 16:16:34 at video **0:10**, FBYC 2nd 16:17:05)
 
 **Stamp-assumed (clock = stamp + videoTime; offset 0 unless noted).** Mac can confirm with one horn / “rounds” call:
 
@@ -68,7 +63,7 @@ If a horn/rounding is **not** at that video time, send the video time — `offse
 ## Mac first actions
 
 1. Open `docs/LIPTON_OVERLAY_MAC_HANDOVER.md` (this file).
-2. Ear-check the two **cannot-lock** clips (R3 Downwind 2, R2 generic). Write `offsetMs` + mark from a real in-video event.
+2. Ear-check the one **cannot-lock** clip (R2 generic). Write `offsetMs` + mark from a real in-video event.
 3. Optional: ear-check assumed starts/finishes (R5/R4/R3 start, R4/R2 finish). R7 start needed **+24.2s** after STT — the same trap.
 4. Surgical deploy only: overlay JS both paths, race JSON under `/js/`, cache tag in live `api.py`, restart `sailingsa-api`. **Do not overwrite live `api.py` wholesale.**
 

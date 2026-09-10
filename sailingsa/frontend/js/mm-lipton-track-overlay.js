@@ -204,14 +204,14 @@
     }),
     '1530770848344300': clipR(3, 'round', {
       approach: 'rtl',
-      mark: '3',
-      offsetMs: 0,
+      mark: '2',
+      offsetMs: 1524000,
       stamp: '2026-08-26T15:51:00+02:00',
-      videoEvent: 'NO event at open — next GPS is M3 ~8:28 later',
-      gpsEvent: 'R3 L1 M3 HYC 15:59:28 — not at stamp',
-      stampOff: '0 — cannot lock',
-      assumed: true,
-      cannotLock: true
+      videoEvent: 'HYC reaches mark ~0:10, FBYC 2nd',
+      gpsEvent: 'R3 L2 M2 HYC 16:16:34 / FBYC 16:17:05',
+      stampOff: '+25:24',
+      talkRoundFromSec: 0,
+      talkRoundToSec: 90
     }),
     '1802153794291569': clipR(3, 'round', {
       approach: 'rtl',
