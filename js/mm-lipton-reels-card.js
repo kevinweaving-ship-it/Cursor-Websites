@@ -247,7 +247,7 @@
       var root = cardEl();
       var tok = camTokenOf(root);
       if (tok) return 'https://hd-auth.skylinewebcams.com/live.m3u8?a=' + encodeURIComponent(tok);
-      return withCamQuery(u, tok, true);
+      return '';
     }
     if (u) return u;
     var id = String((v && v.id) || '').replace(/[^0-9]/g, '');
@@ -933,8 +933,8 @@
       stage.classList.add('mm-lipton-reels-stage--playing');
       paintWebcamPoster(root, clip);
       showCamLoad(root);
-      scrapeZvycCamToken(true).then(function () {
-        var src = playUrl(clip);
+      scrapeZvycCamToken(true).then(function (tok) {
+        var src = tok ? playUrl(clip) : '';
         var video = ensureHeroVideo(root);
         if (video && src) {
           if (video.parentNode !== stage) stage.appendChild(video);

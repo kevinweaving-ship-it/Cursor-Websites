@@ -150,6 +150,7 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("CAM_SNAP", js)
         self.assertIn("temp/4040.jpg", js)
         self.assertIn("_mmCamUseDirectSnap", js)
+        self.assertIn("var src = tok ? playUrl(clip) : ''", js)
         self.assertIn("data-mm-webcam-pending", Path("api.py").read_text(encoding="utf-8"))
         self.assertIn("MM_STORE_HOME", js)
         self.assertIn("withCamQuery", js)
@@ -165,7 +166,7 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn('row["play_url"]', src)
         self.assertIn("mmr102", src)
         self.assertIn("mmr111", src)
-        self.assertIn("mmr114", src)
+        self.assertIn("mmr117", src)
         self.assertIn("mm-lipton-track-overlay.js", src)
         self.assertLess(
             src.find("mm-lipton-track-overlay.js"),

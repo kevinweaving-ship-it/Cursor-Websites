@@ -29448,7 +29448,7 @@ def serve_regatta_standalone(slug: str, request: Request):
         elif str(regatta_id) == "2026-09-13-zvyc-cape-classic":
             mm_card = _cape_classic_mm_reels_card_html(str(regatta_id))
             mm_card_js = (
-                '<script src="/js/mm-lipton-reels-card.js?v=mmr116" defer></script>'
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr117" defer></script>'
             )
         crew_frag = ""
         if _cape_classic_event_id(regatta_id):
