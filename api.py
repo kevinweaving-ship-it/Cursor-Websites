@@ -26403,6 +26403,14 @@ _RESULT_SHEET_CSS = (
     ".regatta-page--club-score-edit .club-score-view{display:none}"
     ".regatta-page--club-score-edit .club-score-input{display:inline-block}"
     ".club-score-input.club-score-input--saved{background:#bbf7d0}"
+    ".regatta-page--club-score-edit td.club-score-auto,"
+    ".regatta-page--club-score-edit td.total-col,"
+    ".regatta-page--club-score-edit td.nett-col{pointer-events:none;user-select:none}"
+    ".regatta-page--club-score-edit td.club-score-auto input,"
+    ".regatta-page--club-score-edit td.total-col input,"
+    ".regatta-page--club-score-edit td.nett-col input,"
+    ".regatta-page--club-score-edit .wc-result-field-input[data-field=\"total_points_raw\"],"
+    ".regatta-page--club-score-edit .wc-result-field-input[data-field=\"nett_points_raw\"]{display:none!important}"
 )
 
 _MM_LIVE_FB_CSS = (
@@ -26532,7 +26540,8 @@ def _club_score_banner_html(club_abbrev: Optional[str]) -> str:
         f'<div class="club-score-banner" id="clubScoreBanner">'
         f"{label} club admin — type 1–n once each (finishing place). "
         f"Type n+1 or OCS/DSQ/DNC for a code (score = n+1, can repeat). "
-        f"After save: totals, Low Point Appendix A discards (1 after 5 races, 2 after 10), "
+        f"Total and Nett are automatic — do not type them. "
+        f"After save: Low Point Appendix A discards (1 after 5 races, 2 after 10) "
         f"and rank by lowest nett (1st down to last).</div>"
     )
 
@@ -26541,8 +26550,9 @@ def _club_score_edit_script_html() -> str:
     return (
         "<script>(function(){var page=document.querySelector('.regatta-page.regatta-page--club-score-edit');"
         "if(!page)return;"
-        "function save(inp){var rid=inp.getAttribute('data-result-id');var race=inp.getAttribute('data-race');"
-        "if(!rid||!race)return;var v=(inp.value||'').trim();var orig=(inp.getAttribute('data-original')||'').trim();"
+        "function save(inp){if(!inp||!inp.classList||!inp.classList.contains('club-score-input'))return;"
+        "var rid=inp.getAttribute('data-result-id');var race=inp.getAttribute('data-race');"
+        "if(!rid||!race||race.charAt(0)!=='R')return;var v=(inp.value||'').trim();var orig=(inp.getAttribute('data-original')||'').trim();"
         "if(v===orig)return;inp.disabled=true;"
         "fetch('/api/result/'+encodeURIComponent(rid)+'/race',{method:'PATCH',"
         "headers:{'Content-Type':'application/json'},credentials:'same-origin',"
@@ -26728,7 +26738,7 @@ def _render_result_sheet_fleet(
         for rc in race_columns:
             thead += f"<th>{html_module.escape(rc)}</th>"
     if _pref_on("total"):
-        thead += "<th>Total</th>"
+        thead += '<th class="total-col">Total</th>'
     if _pref_on("nett"):
         thead += '<th class="nett-col">Nett</th>'
 
@@ -26865,7 +26875,10 @@ def _render_result_sheet_fleet(
             else f'<tr class="{row_classes}">'
         )
         if _pref_on("rank"):
-            row_html += f'<td class="rank-col">{_wc_cell(html_module.escape(rank_str), rank_plain, "rank", None, 8)}</td>'
+            if race_score_edit and not wc_sa_fleet_edit:
+                row_html += f'<td class="rank-col club-score-auto">{html_module.escape(rank_str)}</td>'
+            else:
+                row_html += f'<td class="rank-col">{_wc_cell(html_module.escape(rank_str), rank_plain, "rank", None, 8)}</td>'
         if _pref_on("fleet"):
             row_html += f"<td>{fleet_str}</td>"
         if _pref_on("class"):
@@ -26902,9 +26915,15 @@ def _render_result_sheet_fleet(
                     cell_html = _wc_cell(html_module.escape(score), score, None, rkey, 48)
                 row_html += f'<td class="{cell_class}">{cell_html}</td>'
         if _pref_on("total"):
-            row_html += f'<td class="{strike_class}">{_wc_cell(total_str, total_plain, "total_points_raw", None, 24)}</td>'
+            if race_score_edit and not wc_sa_fleet_edit:
+                row_html += f'<td class="total-col club-score-auto {strike_class}">{total_str}</td>'
+            else:
+                row_html += f'<td class="total-col {strike_class}">{_wc_cell(total_str, total_plain, "total_points_raw", None, 24)}</td>'
         if _pref_on("nett"):
-            row_html += f'<td class="nett-col {strike_class}">{_wc_cell(nett_str, nett_plain, "nett_points_raw", None, 24)}</td>'
+            if race_score_edit and not wc_sa_fleet_edit:
+                row_html += f'<td class="nett-col club-score-auto {strike_class}">{nett_str}</td>'
+            else:
+                row_html += f'<td class="nett-col {strike_class}">{_wc_cell(nett_str, nett_plain, "nett_points_raw", None, 24)}</td>'
         row_html += "</tr>"
         trs.append(row_html)
     table_html = f"<table><thead><tr>{thead}</tr></thead><tbody>{''.join(trs)}</tbody></table>"

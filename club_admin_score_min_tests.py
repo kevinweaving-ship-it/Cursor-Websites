@@ -138,6 +138,15 @@ class ClubAdminScoreMinTest(unittest.TestCase):
         self.assertIn("_appendix_a_apply_series", self.src)
         self.assertIn("_appendix_a_rank_entries", self.src)
         self.assertIn("rank by lowest nett", self.src)
+        self.assertIn("Total and Nett are automatic", self.src)
+        self.assertIn("club-score-auto", self.src)
+        self.assertIn("total_points_raw", self.src[self.src.find("def _render_result_sheet_fleet") :])
+        render = self.src[
+            self.src.find("def _render_result_sheet_fleet") : self.src.find("_REGATTA_404_HTML")
+        ]
+        self.assertIn('td class="total-col club-score-auto', render)
+        self.assertIn('td class="nett-col club-score-auto', render)
+        self.assertIn("if race_score_edit and not wc_sa_fleet_edit:", render)
 
     def test_places_unique_codes_repeat(self):
         h = _load_score_helpers()
