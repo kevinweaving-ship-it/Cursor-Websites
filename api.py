@@ -12625,6 +12625,31 @@ def _appendix_a_discard_count(races_sailed: int) -> int:
     return max(int(races_sailed or 0), 0) // 5
 
 
+def _next_fleet_races_sailed(current: int, delta: int, last_race_filled: bool) -> int:
+    """Club admin R+/R−: one race at a time. Floor 1, cap 20. Refuse remove if last race has scores."""
+    cur = max(int(current or 0), 1)
+    try:
+        step = int(delta)
+    except (TypeError, ValueError):
+        step = 0
+    if step > 0:
+        nxt = min(cur + 1, 20)
+        if nxt == cur:
+            raise HTTPException(status_code=400, detail="Maximum 20 races")
+        return nxt
+    if step < 0:
+        if last_race_filled:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Clear R{cur} first before removing that race",
+            )
+        nxt = max(cur - 1, 1)
+        if nxt == cur:
+            raise HTTPException(status_code=400, detail="Need at least R1")
+        return nxt
+    raise HTTPException(status_code=400, detail="Use +1 or -1")
+
+
 def _appendix_a_cell_points(raw, entries: int) -> float:
     """A5.2: OCS/DSQ/DNC/… always score entries+1. Else the typed finishing place."""
     v = str(raw or "").strip()
@@ -14877,6 +14902,182 @@ def cape_live_fleets(regatta_id: str):
                     }
                 )
     return {"ok": True, "fleets": fleets}
+
+
+@app.patch("/api/result/{result_id}/fleet-races")
+def patch_fleet_races(request: Request, result_id: int, body: dict):
+    """Club/Super Admin: add or remove the last race column for this Cape Classic fleet."""
+    import json
+
+    payload = body if isinstance(body, dict) else {}
+    try:
+        delta = int(payload.get("delta"))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Use +1 or -1")
+
+    with psycopg2.connect(DB_URL) as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT r.result_id, r.block_id, r.regatta_id,
+                       rb.races_sailed
+                FROM results r
+                JOIN regatta_blocks rb ON rb.block_id = r.block_id
+                WHERE r.result_id = %s
+                """,
+                (result_id,),
+            )
+            result = cur.fetchone()
+            if not result:
+                raise HTTPException(status_code=404, detail="Result not found")
+            regatta_id = result.get("regatta_id")
+            if not _cape_classic_event_id(regatta_id):
+                raise HTTPException(status_code=404, detail="not Cape Classic")
+            _require_regatta_score_edit(request, regatta_id)
+
+            block_id = result["block_id"]
+            current = max(int(result.get("races_sailed") or 0), 1)
+            last_key = f"R{current}"
+            last_filled = False
+            cur.execute(
+                "SELECT race_scores FROM results WHERE block_id = %s",
+                (block_id,),
+            )
+            for row in cur.fetchall() or []:
+                rs = row.get("race_scores") or {}
+                if isinstance(rs, str):
+                    rs = json.loads(rs)
+                if str((rs or {}).get(last_key) or "").strip():
+                    last_filled = True
+                    break
+
+            nxt = _next_fleet_races_sailed(current, delta, last_filled)
+            if nxt < current:
+                cur.execute(
+                    "SELECT result_id, race_scores FROM results WHERE block_id = %s",
+                    (block_id,),
+                )
+                for row in cur.fetchall() or []:
+                    rs = row.get("race_scores") or {}
+                    if isinstance(rs, str):
+                        rs = json.loads(rs)
+                    if not isinstance(rs, dict):
+                        rs = {}
+                    changed = False
+                    for drop_n in range(nxt + 1, current + 1):
+                        if rs.pop(f"R{drop_n}", None) is not None:
+                            changed = True
+                    if changed:
+                        cur.execute(
+                            "UPDATE results SET race_scores = %s WHERE result_id = %s",
+                            (json.dumps(rs), row["result_id"]),
+                        )
+
+            cur.execute("SELECT COUNT(*) AS cnt FROM results WHERE block_id = %s", (block_id,))
+            entries_count = int((cur.fetchone() or {}).get("cnt") or 0)
+            discard_count = _appendix_a_discard_count(nxt)
+            to_count = max(0, int(nxt) - int(discard_count))
+            cur.execute(
+                """
+                UPDATE regatta_blocks
+                SET races_sailed = %s,
+                    discard_count = %s,
+                    to_count = %s
+                WHERE block_id = %s
+                """,
+                (nxt, discard_count, to_count, block_id),
+            )
+
+            cur.execute(
+                "SELECT result_id, race_scores FROM results WHERE block_id = %s",
+                (block_id,),
+            )
+            for res in cur.fetchall() or []:
+                res_race_scores = res.get("race_scores") or {}
+                if isinstance(res_race_scores, str):
+                    res_race_scores = json.loads(res_race_scores)
+                res_race_scores, res_total, res_nett = _appendix_a_apply_series(
+                    res_race_scores, nxt, entries_count, discard_count
+                )
+                cur.execute(
+                    """
+                    UPDATE results
+                    SET race_scores = %s,
+                        total_points_raw = %s,
+                        nett_points_raw = %s,
+                        races_sailed = %s,
+                        discard_count = %s
+                    WHERE result_id = %s
+                    """,
+                    (
+                        json.dumps(res_race_scores),
+                        res_total,
+                        res_nett,
+                        nxt,
+                        discard_count,
+                        res["result_id"],
+                    ),
+                )
+
+            cur.execute(
+                """
+                WITH ranked AS (
+                    SELECT result_id,
+                           ROW_NUMBER() OVER (
+                               ORDER BY
+                                   CASE
+                                       WHEN nett_points_raw IS NULL OR nett_points_raw = 0 THEN 1
+                                       ELSE 0
+                                   END ASC,
+                                   nett_points_raw ASC,
+                                   result_id ASC
+                           ) as new_rank
+                    FROM results
+                    WHERE block_id = %s
+                )
+                UPDATE results r
+                SET rank = ranked.new_rank
+                FROM ranked
+                WHERE r.result_id = ranked.result_id
+                """,
+                (block_id,),
+            )
+            conn.commit()
+
+            cur.execute(
+                """
+                SELECT result_id, rank, total_points_raw, nett_points_raw, race_scores
+                FROM results
+                WHERE block_id = %s
+                ORDER BY rank NULLS LAST, result_id
+                """,
+                (block_id,),
+            )
+            fleet = []
+            for row in cur.fetchall() or []:
+                rs = row.get("race_scores") or {}
+                if isinstance(rs, str):
+                    rs = json.loads(rs)
+                fleet.append(
+                    {
+                        "result_id": row["result_id"],
+                        "rank": row["rank"],
+                        "total_points_raw": row["total_points_raw"],
+                        "nett_points_raw": row["nett_points_raw"],
+                        "race_scores": rs,
+                    }
+                )
+
+    return {
+        "ok": True,
+        "result_id": result_id,
+        "block_id": str(block_id),
+        "races_sailed": nxt,
+        "discard_count": discard_count,
+        "to_count": to_count,
+        "fleet": fleet,
+    }
+
 
 def auto_verify_regatta_data(regatta_id: str):
     """Auto-verify and update all regatta data against database tables"""
@@ -26841,7 +27042,8 @@ def _render_result_sheet_fleet(
         thead += "<th>Crew</th>"
     if show_races:
         for rc in race_columns:
-            thead += f"<th>{html_module.escape(rc)}</th>"
+            rk = html_module.escape(str(rc), quote=True)
+            thead += f'<th class="race-col" data-race-key="{rk}">{html_module.escape(rc)}</th>'
     if _pref_on("total"):
         thead += '<th class="total-col">Total</th>'
     if _pref_on("nett"):
@@ -27018,7 +27220,9 @@ def _render_result_sheet_fleet(
                     cell_html = _club_score_race_cell(result_id_row, score, rkey)
                 else:
                     cell_html = _wc_cell(html_module.escape(score), score, None, rkey, 48)
-                row_html += f'<td class="{cell_class}">{cell_html}</td>'
+                rk_attr = html_module.escape(str(rkey), quote=True)
+                extra_cls = f"{cell_class} race-col".strip()
+                row_html += f'<td class="{extra_cls}" data-race-key="{rk_attr}">{cell_html}</td>'
         if _pref_on("total"):
             if race_score_edit and not wc_sa_fleet_edit:
                 row_html += f'<td class="total-col club-score-auto {strike_class}">{total_str}</td>'
@@ -27031,7 +27235,7 @@ def _render_result_sheet_fleet(
                 row_html += f'<td class="nett-col {strike_class}">{_wc_cell(nett_str, nett_plain, "nett_points_raw", None, 24)}</td>'
         row_html += "</tr>"
         trs.append(row_html)
-    table_html = f"<table><thead><tr>{thead}</tr></thead><tbody>{''.join(trs)}</tbody></table>"
+    table_html = f'<table class="fleet-results-table"><thead><tr>{thead}</tr></thead><tbody>{"".join(trs)}</tbody></table>'
     class_logo_src = _class_logo_url_from_fleet_name(class_canonical or fleet_label or fname)
     class_logo_col = ""
     if class_logo_src:
@@ -27041,8 +27245,12 @@ def _render_result_sheet_fleet(
             'loading="lazy" decoding="async" />'
             f"</div>"
         )
+    bid_attr = (
+        f' data-block-id="{html_module.escape(block_id, quote=True)}"' if block_id else ""
+    )
+    rs_attr = f' data-races-sailed="{int(races_sailed or 0)}"'
     return (
-        f'<div class="fleet-section">'
+        f'<div class="fleet-section"{bid_attr}{rs_attr}>'
         f'<div class="class-header">'
         f"{class_logo_col}"
         f'<div class="class-header-text-col"><div class="fleet-title-row">{fleet_header_html}</div>'

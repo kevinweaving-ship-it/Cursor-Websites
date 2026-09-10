@@ -53,7 +53,11 @@
       ".regatta-page--club-score-edit td.rank-col{pointer-events:none;user-select:none}" +
       ".regatta-page--club-score-edit td.total-col input," +
       ".regatta-page--club-score-edit td.nett-col input," +
-      ".regatta-page--club-score-edit td.rank-col input{display:none!important}";
+      ".regatta-page--club-score-edit td.rank-col input{display:none!important}" +
+      ".club-race-step{display:flex;flex-direction:column;gap:3px;margin-right:6px;flex:0 0 auto;align-items:stretch}" +
+      ".club-race-step button{box-sizing:border-box;min-width:44px;min-height:32px;padding:0 6px;border:1.5px solid #1a2750;border-radius:4px;background:#fff;color:#1a2750;font:inherit;font-size:12px;font-weight:700;line-height:1;cursor:pointer}" +
+      ".club-race-step button:disabled{opacity:.45;cursor:not-allowed}" +
+      ".class-header-club-logo-col .club-race-step{order:-1}";
     document.head.appendChild(st);
   }
 
@@ -121,7 +125,15 @@
     inp.value = v;
     var orig = (inp.getAttribute("data-original") || "").trim();
     if (v === orig) return;
-    var instantPts = /[A-Z]/.test(v) ? entries + 1 : parseFloat(v);
+    if (v && /^\d+(\.0+)?$/.test(v) && entries > 0) {
+      var typed = parseInt(v, 10);
+      if (typed > entries + 1) {
+        inp.value = orig;
+        inp.title = "Use 1–" + entries + " for a place, or " + (entries + 1) + " / DSQ";
+        return;
+      }
+    }
+    var instantPts = !v ? 0 : /[A-Z]/.test(v) ? entries + 1 : parseFloat(v);
     if (isFinite(instantPts)) {
       applyFleetRow({
         result_id: rid,
@@ -173,7 +185,11 @@
   }
 
   function setPlain(td, val) {
-    if (!td || val == null || val === "") return;
+    if (!td) return;
+    if (val == null || val === "") {
+      td.textContent = "";
+      return;
+    }
     var n = Number(val);
     td.textContent = isFinite(n) ? String(n) : String(val);
   }
@@ -354,33 +370,197 @@
     });
   }
 
-  function ensureR1(table) {
+  function raceKeyNum(key) {
+    var m = String(key || "").toUpperCase().match(/^R(\d+)$/);
+    return m ? parseInt(m[1], 10) : 0;
+  }
+
+  function fleetRaceCount(table) {
+    var n = 0;
+    if (!table) return 1;
+    table.querySelectorAll("th.race-col[data-race-key], td.race-col[data-race-key]").forEach(function (el) {
+      n = Math.max(n, raceKeyNum(el.getAttribute("data-race-key")));
+    });
+    table.querySelectorAll("thead th").forEach(function (th) {
+      n = Math.max(n, raceKeyNum(String(th.textContent || "").replace(/\s+/g, "")));
+    });
+    return Math.max(n, 1);
+  }
+
+  function totalAnchor(row) {
+    return (
+      row.querySelector("th.total-col, td.total-col") ||
+      Array.prototype.find.call(row.children || [], function (el) {
+        return String(el.textContent || "").trim().toUpperCase() === "TOTAL";
+      })
+    );
+  }
+
+  function hasRaceHead(thead, key) {
+    if (thead.querySelector('th.race-col[data-race-key="' + key + '"]')) return true;
+    return Array.prototype.some.call(thead.querySelectorAll("th"), function (th) {
+      return String(th.textContent || "").replace(/\s+/g, "").toUpperCase() === key;
+    });
+  }
+
+  function ensureRace(table, n) {
     if (!table) return;
+    var key = "R" + n;
     var thead = table.querySelector("thead tr");
     if (!thead) return;
-    var hasR1 =
-      thead.querySelector('th.race-col[data-race-key="R1"]') ||
-      Array.prototype.some.call(thead.querySelectorAll("th"), function (th) {
-        return String(th.textContent || "").replace(/\s+/g, "").toUpperCase() === "R1";
-      });
-    if (!hasR1) {
+    if (!hasRaceHead(thead, key)) {
       var th = document.createElement("th");
       th.className = "race-col";
-      th.setAttribute("data-race-key", "R1");
-      th.textContent = "R1";
-      var totalTh = thead.querySelector("th.total-col");
+      th.setAttribute("data-race-key", key);
+      th.textContent = key;
+      var totalTh = totalAnchor(thead);
       if (totalTh) thead.insertBefore(th, totalTh);
       else thead.appendChild(th);
     }
     table.querySelectorAll("tbody tr[data-result-id]").forEach(function (tr) {
-      if (tr.querySelector('td.race-col[data-race-key="R1"]')) return;
+      if (tr.querySelector('td.race-col[data-race-key="' + key + '"]')) return;
       var td = document.createElement("td");
       td.className = "race-col";
-      td.setAttribute("data-race-key", "R1");
-      var totalTd = tr.querySelector("td.total-col");
+      td.setAttribute("data-race-key", key);
+      var totalTd = totalAnchor(tr);
       if (totalTd) tr.insertBefore(td, totalTd);
       else tr.appendChild(td);
+      wireCell(td, tr.getAttribute("data-result-id"));
     });
+  }
+
+  function ensureR1(table) {
+    ensureRace(table, 1);
+  }
+
+  function dropRaceCol(table, n) {
+    if (!table || n < 2) return;
+    var key = "R" + n;
+    table.querySelectorAll('[data-race-key="' + key + '"]').forEach(function (el) {
+      if (el.parentNode) el.parentNode.removeChild(el);
+    });
+    table.querySelectorAll("thead th").forEach(function (th) {
+      if (String(th.textContent || "").replace(/\s+/g, "").toUpperCase() === key && th.parentNode) {
+        th.parentNode.removeChild(th);
+      }
+    });
+  }
+
+  function setSailedLine(sec, n) {
+    if (!sec) return;
+    var line = sec.querySelector(".sailed-line");
+    if (!line) return;
+    var disc = Math.floor(n / 5);
+    var to = Math.max(0, n - disc);
+    var entries = sec.querySelectorAll("tr[data-result-id]").length;
+    var text = line.textContent || "";
+    var em = text.match(/Entries:\s*(\d+)/i);
+    if (em) entries = parseInt(em[1], 10) || entries;
+    var scoring = "Appendix A";
+    var sm = text.match(/Scoring system:\s*(.+)$/i);
+    if (sm) scoring = sm[1].trim();
+    line.textContent =
+      "Sailed: " + n + ", Discards: " + disc + ", To count: " + to + ", Entries: " + entries + ", Scoring system: " + scoring;
+    sec.setAttribute("data-races-sailed", String(n));
+  }
+
+  function lastRaceFilled(table, n) {
+    var key = "R" + n;
+    return Array.prototype.some.call(table.querySelectorAll('.club-score-input[data-race="' + key + '"]'), function (box) {
+      return String(box.value || "").trim();
+    });
+  }
+
+  function stepRaces(sec, delta) {
+    if (!sec) return;
+    var table = fleetTable(sec);
+    var ridEl = sec.querySelector("tr[data-result-id]");
+    var rid = ridEl && ridEl.getAttribute("data-result-id");
+    if (!table || !rid) return;
+    var current = fleetRaceCount(table);
+    if (delta < 0 && lastRaceFilled(table, current)) {
+      var minus = sec.querySelector(".club-race-step-sub");
+      if (minus) minus.title = "Clear R" + current + " first";
+      return;
+    }
+    var tok = sessionToken();
+    var btns = sec.querySelectorAll(".club-race-step button");
+    Array.prototype.forEach.call(btns, function (b) {
+      b.disabled = true;
+    });
+    fetch(withSession("/api/result/" + encodeURIComponent(rid) + "/fleet-races"), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ delta: delta, session: tok }),
+    })
+      .then(function (r) {
+        return r.json().then(function (j) {
+          return { ok: r.ok, j: j };
+        });
+      })
+      .then(function (o) {
+        Array.prototype.forEach.call(btns, function (b) {
+          b.disabled = false;
+          if (b.classList.contains("club-race-step-sub")) b.title = "Remove last race";
+        });
+        if (!o.ok) {
+          var err = (o.j && (o.j.detail || o.j.error)) || "Could not change races";
+          var minusBtn = sec.querySelector(".club-race-step-sub");
+          if (minusBtn) minusBtn.title = err;
+          return;
+        }
+        var n = parseInt((o.j && o.j.races_sailed) || current + delta, 10) || current;
+        if (n > current) {
+          for (var i = current + 1; i <= n; i++) ensureRace(table, i);
+        } else if (n < current) {
+          for (var d = current; d > n; d--) dropRaceCol(table, d);
+        }
+        setSailedLine(sec, n);
+        applyServerFleet(o.j, table);
+        pushLive();
+      })
+      .catch(function () {
+        Array.prototype.forEach.call(btns, function (b) {
+          b.disabled = false;
+        });
+      });
+  }
+
+  function injectRaceStepper(sec) {
+    if (!sec || sec.querySelector(".club-race-step")) return;
+    var box = document.createElement("div");
+    box.className = "club-race-step";
+    box.setAttribute("role", "group");
+    box.setAttribute("aria-label", "Add or remove race");
+    var add = document.createElement("button");
+    add.type = "button";
+    add.className = "club-race-step-add";
+    add.setAttribute("aria-label", "Add race");
+    add.textContent = "R+";
+    var sub = document.createElement("button");
+    sub.type = "button";
+    sub.className = "club-race-step-sub";
+    sub.setAttribute("aria-label", "Remove last race");
+    sub.title = "Remove last race";
+    sub.textContent = "R−";
+    box.appendChild(add);
+    box.appendChild(sub);
+    add.addEventListener("click", function () {
+      stepRaces(sec, 1);
+    });
+    sub.addEventListener("click", function () {
+      stepRaces(sec, -1);
+    });
+    var club = sec.querySelector(".class-header-club-logo-col");
+    if (club) {
+      club.insertBefore(box, club.firstChild);
+      return;
+    }
+    var hdr = sec.querySelector(".class-header");
+    var logo = hdr && hdr.querySelector(".class-header-logo-col");
+    if (logo) hdr.insertBefore(box, logo);
+    else if (hdr) hdr.insertBefore(box, hdr.firstChild);
   }
 
   function activate() {
@@ -389,6 +569,7 @@
     if (!page) return;
     page.classList.add("regatta-page--club-score-edit");
     banner();
+    page.querySelectorAll(".fleet-section").forEach(injectRaceStepper);
     page.querySelectorAll("table.fleet-results-table").forEach(ensureR1);
     page.querySelectorAll("tr[data-result-id]").forEach(function (tr) {
       var rid = tr.getAttribute("data-result-id");

@@ -176,6 +176,7 @@ class ClubAdminScoreMinTest(unittest.TestCase):
         self.assertIn("function publicCell", self.club_js)
         self.assertIn("function applyServerFleet", self.club_js)
         self.assertIn("function rerankFleet", self.club_js)
+        self.assertIn("function injectRaceStepper", self.club_js)
         self.assertIn("cape-live-fleets", self.club_js)
         self.assertIn("BroadcastChannel", self.club_js)
         self.assertIn("cape-live-fleets", self.src)
@@ -208,6 +209,23 @@ class ClubAdminScoreMinTest(unittest.TestCase):
         self.assertIsNone(h["_race_score_unique_place"]("10.0 DSQ", 9))
         with self.assertRaises(_FakeHTTPException):
             h["_validate_race_score_value"]("11", 9)
+
+        self.assertEqual(h["_next_fleet_races_sailed"](1, 1, False), 2)
+        self.assertEqual(h["_next_fleet_races_sailed"](2, -1, False), 1)
+        with self.assertRaises(_FakeHTTPException):
+            h["_next_fleet_races_sailed"](1, -1, False)
+        with self.assertRaises(_FakeHTTPException):
+            h["_next_fleet_races_sailed"](2, -1, True)
+        self.assertIn("def patch_fleet_races", self.src)
+        self.assertIn("/api/result/{result_id}/fleet-races", self.src)
+        self.assertIn("class-header-club-logo-col", self.club_js)
+        self.assertIn("club-race-step", self.club_js)
+        self.assertIn("function injectRaceStepper", self.club_js)
+        self.assertIn("function stepRaces", self.club_js)
+        self.assertIn("R+", self.club_js)
+        self.assertIn("R−", self.club_js)
+        self.assertIn("typed > entries + 1", self.club_js)
+        self.assertIn('td.textContent = ""', self.club_js)
 
 
 if __name__ == "__main__":
