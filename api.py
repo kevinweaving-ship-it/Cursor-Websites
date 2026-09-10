@@ -20489,6 +20489,7 @@ _LIPTON_MM_REELS_VIDEOS = (
         "title": "Lipton Race 3 leeward 1",
         "fb_title": "Lipton Race 3 leeward 1",
         "started_at": "2026-08-26T15:34:00+02:00",
+        "track_offset_ms": -252000,
         "stamp": "26 Aug · 15:34",
         "thumb": "/assets/adverts/mm-lipton/1802153794291569.jpg",
         "width": 1280,
@@ -27778,8 +27779,8 @@ def serve_regatta_standalone(slug: str, request: Request):
         if str(regatta_id) == "2026-08-29-lipton-challenge-cup":
             mm_card = _lipton_mm_reels_card_html(str(regatta_id))
             mm_card_js = (
-                '<script src="/js/mm-lipton-track-overlay.js?v=mmr98" defer></script>'
-                '<script src="/js/mm-lipton-reels-card.js?v=mmr98" defer></script>'
+                '<script src="/js/mm-lipton-track-overlay.js?v=mmr99" defer></script>'
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr99" defer></script>'
             )
         body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))

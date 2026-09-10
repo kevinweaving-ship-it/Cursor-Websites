@@ -216,13 +216,13 @@
     '1802153794291569': clipR(3, 'round', {
       approach: 'rtl',
       mark: '2',
-      offsetMs: 0,
+      offsetMs: -252000,
       stamp: '2026-08-26T15:34:00+02:00',
-      videoEvent: 'Fleet finished M2 by 15:32:19; stamp 15:34',
-      gpsEvent: 'R3 L1 M2 FBYC 15:30:25 — 3:35 before stamp',
-      stampOff: '0 — cannot lock',
-      assumed: true,
-      cannotLock: true
+      videoEvent: '1st FBYC rounds M2 ~0:37',
+      gpsEvent: 'R3 L1 M2 FBYC 15:30:25',
+      stampOff: '-252s',
+      talkRoundFromSec: 20,
+      talkRoundToSec: 120
     }),
     '1813350889838726': clipR(3, 'round', {
       approach: 'rtl',
