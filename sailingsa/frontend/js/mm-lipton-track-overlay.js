@@ -54,6 +54,7 @@
   var tightMarkHold = false;
   var heldSceneScale = null;
   var startLock = null;
+  var roundLock = null;
   var clipDurationSec = 0;
 
   function clipR(race, kind, extra) {
@@ -78,6 +79,7 @@
    */
   var CLIP_RULES = {
     '2622643364847262': clipR(7, 'round', {
+      approach: 'rtl',
       offsetMs: 36000,
       durationSec: 315,
       stamp: '2026-08-28T16:19:00+02:00',
@@ -149,6 +151,7 @@
       tightMarkHold = false;
       heldSceneScale = null;
       startLock = null;
+      roundLock = null;
       clipDurationSec = 0;
     }
     clipId = String(id || '');
@@ -802,6 +805,119 @@
 
   function startPadR(w) {
     return Math.max(56, Math.round(w * 0.16));
+  }
+
+  function fixedPin() {
+    var sl = trail && trail.start_line;
+    if (!sl || !sl.left) return null;
+    return { lat: sl.left.lat, lon: sl.left.lon, key: 'pin' };
+  }
+
+  function roundOrigin(mark) {
+    if (mark && (String(mark.key) === 'pin' || String(mark.key) === '4')) {
+      var pin = fixedPin();
+      if (pin) return pin;
+    }
+    if (mark && mark.lat != null) return { lat: mark.lat, lon: mark.lon, key: mark.key || '' };
+    return fixedPin();
+  }
+
+  function roundCourseHdg(live, mark) {
+    var origin = roundOrigin(mark);
+    if (origin && (origin.key === 'pin' || origin.key === '4')) {
+      var m1 = sampleAt((trail.marks || {})['1'], (live && live.ts) || (replay && replay.gun_ts_ms) || 0);
+      if (m1) return bearingDeg(m1, origin);
+    }
+    return (mark && mark.hdg) || 180;
+  }
+
+  function eatAlongAcross(live, origin, hdg, win) {
+    var rows = (live && live.rows) || [];
+    var i;
+    for (i = 0; i < rows.length; i++) {
+      if (!rows[i] || !rows[i].pos) continue;
+      var aa = alongAcross(rows[i].pos, origin, hdg);
+      if (aa.along < win.minA) win.minA = aa.along;
+      if (aa.along > win.maxA) win.maxA = aa.along;
+      if (aa.across < win.minC) win.minC = aa.across;
+      if (aa.across > win.maxC) win.maxC = aa.across;
+    }
+  }
+
+  /* ROUND CAM LOCKED — Race 7 1st downwind (and other pin rounds):
+   * Pin is the fixed start-line pin, not drifting GPS mark 4. Mark stays
+   * LEFT. Approach RTL, after rounding boats sail LTR (back toward M1).
+   * Scale X from clip-end GPS + time left. Right buffer so 1st stays in
+   * view. Do not shrink X to fit Y. Mark does not pan. */
+  function roundPackCam(live, w, h, mark) {
+    var origin = roundOrigin(mark) || { lat: 0, lon: 0, key: '' };
+    var hdg = roundLock && roundLock.w === w && roundLock.h === h && roundLock.hdg != null
+      ? roundLock.hdg
+      : roundCourseHdg(live, origin);
+    var pinX = Math.max(28, Math.min(64, w * 0.16));
+    var pinY = Math.max(36, Math.min(h * 0.38, h * 0.42));
+    if (roundLock && roundLock.w === w && roundLock.h === h && roundLock.pinX) {
+      pinX = roundLock.pinX;
+      pinY = roundLock.pinY;
+      hdg = roundLock.hdg;
+    }
+    var win = { minA: 0, maxA: 0, minC: -20, maxC: 20 };
+    eatAlongAcross(live, origin, hdg, win);
+    var endLive = clipEndLive();
+    if (endLive) eatAlongAcross(endLive, origin, hdg, win);
+    var padR = startPadR(w);
+    var rightNeed = Math.max(48, -win.minA);
+    var leftNeed = Math.max(8, win.maxA);
+    var scaleX = (w - pinX - padR) / rightNeed;
+    if (leftNeed > 4) {
+      var sL = (pinX - 14) / leftNeed;
+      if (sL > 0 && scaleX > sL) scaleX = sL;
+    }
+    if (!(scaleX > 0.04)) scaleX = 0.04;
+    var padT = 22;
+    var padB = 28;
+    var extraC = 18;
+    var topA = win.maxC + extraC;
+    var botA = win.minC - extraC;
+    var scaleY = (h - padT - padB) / Math.max(40, win.maxC - win.minC + extraC * 2);
+    if (topA > 1) scaleY = Math.min(scaleY, (pinY - padT) / topA);
+    if (botA < -1) scaleY = Math.min(scaleY, (h - padB - pinY) / -botA);
+    if (!(scaleY > 0.04)) scaleY = 0.04;
+    if (roundLock && roundLock.w === w && roundLock.h === h) {
+      if (roundLock.scaleX > 0 && scaleX > roundLock.scaleX) scaleX = roundLock.scaleX;
+      if (roundLock.scaleY > 0 && scaleY > roundLock.scaleY) scaleY = roundLock.scaleY;
+    }
+    var front = live && live.front;
+    if (front && front.pos) {
+      var fa = alongAcross(front.pos, origin, hdg).along;
+      var fx = pinX - fa * scaleX;
+      if (fx > w - padR && -fa > 8) {
+        var need = (w - pinX - padR) / -fa;
+        if (need > 0 && scaleX > need) scaleX = need;
+      }
+      if (fx < 16 && fa > 8) {
+        var needL = (pinX - 16) / fa;
+        if (needL > 0 && scaleX > needL) scaleX = needL;
+      }
+    }
+    roundLock = { w: w, h: h, pinX: pinX, pinY: pinY, scaleX: scaleX, scaleY: scaleY, hdg: hdg };
+    return {
+      midLat: origin.lat,
+      midLon: origin.lon,
+      cos: Math.cos((origin.lat * Math.PI) / 180),
+      cosH: Math.cos((hdg * Math.PI) / 180),
+      sinH: Math.sin((hdg * Math.PI) / 180),
+      scale: scaleX,
+      scaleX: scaleX,
+      scaleY: scaleY,
+      w: w,
+      h: h,
+      hdg: hdg,
+      flipX: true,
+      cx: pinX,
+      cy: pinY,
+      lockMark: true
+    };
   }
 
   /* Mark stays upper-left — never against the bottom. 1st always in view.
@@ -1636,13 +1752,14 @@
 
     if (phase === 'hold' || phase === 'approach-mark') {
       var key = focus && focus.key != null ? String(focus.key) : '';
+      var frozen = (key === 'pin' || key === '4') ? fixedPin() : null;
       if (!markLock || markLock.key !== key) {
         var sc = frozenMarkScale(cssW, cssH);
         markLock = {
           key: key,
-          lat: focus.lat,
-          lon: focus.lon,
-          hdg: hdg,
+          lat: (frozen && frozen.lat) || focus.lat,
+          lon: (frozen && frozen.lon) || focus.lon,
+          hdg: key === 'pin' || key === '4' ? roundCourseHdg(live, focus) : hdg,
           flipX: true,
           markX: markX,
           markY: 0.34,
@@ -1651,6 +1768,9 @@
           panX: 0,
           pass: focus.pass || null
         };
+      } else if (frozen) {
+        markLock.lat = frozen.lat;
+        markLock.lon = frozen.lon;
       }
       if (markLock && focus && focus.pass) markLock.pass = focus.pass;
     }
@@ -1695,12 +1815,11 @@
       cam = startPackCam(live, cssW, cssH);
       heldCam = copyCam(cam);
       heldCamTs = ts;
-    } else if (nearRound && markLock) {
+    } else if (nearRound && (markLock || focus)) {
       setTrackHeight(canvas, 0.74);
-      var mode = roundingMode(markLock, live);
-      cam = pinLeftCam(markLock, pack, live, cssW, cssH, markLock.hdg, mode);
-      cam.flipX = true;
-      cam = easeCam(cam, ts);
+      cam = roundPackCam(live, cssW, cssH, markLock || focus);
+      heldCam = copyCam(cam);
+      heldCamTs = ts;
     } else {
       setTrackHeight(canvas, pack.length > 6 ? 0.62 : 0.58);
       if (markLock) pts.push({ lat: markLock.lat, lon: markLock.lon });
