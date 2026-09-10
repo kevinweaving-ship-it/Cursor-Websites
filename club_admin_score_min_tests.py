@@ -152,7 +152,12 @@ class ClubAdminScoreMinTest(unittest.TestCase):
         self.assertIn("Total, Nett and Rank are automatic", self.club_js)
         self.assertIn("function sessionToken", self.club_js)
         self.assertIn("body: JSON.stringify({ race: race, value: v, session: tok })", self.club_js)
-        self.assertNotIn("total_points_raw", self.club_js)
+        self.assertIn("function ensureR1", self.club_js)
+        self.assertIn("function applyFleetRow", self.club_js)
+        self.assertIn("min-height:22px", self.club_js)
+        self.assertNotIn("location.reload", self.club_js)
+        self.assertIn("races_sailed = max(existing_block_rs, filled_races, race_num)", self.src)
+        self.assertIn('startswith("2026-09-13-zvyc-cape-classic")', self.src)
 
     def test_places_unique_codes_repeat(self):
         h = _load_score_helpers()

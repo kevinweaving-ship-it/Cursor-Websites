@@ -37,8 +37,9 @@
     st.id = "clubScoreEditCss";
     st.textContent =
       ".club-score-banner{margin:12px 0 0;padding:10px 12px;border:2px solid #1a2750;border-radius:8px;background:#f8fafc;color:#1a2750;font-weight:700;font-size:13px}" +
-      ".club-score-input{box-sizing:border-box;width:3.5rem;min-width:44px;min-height:44px;padding:8px 6px;text-align:center;font:inherit;font-weight:700;border:2px solid #1a2750;border-radius:6px;background:#fff;color:#1a2750}" +
+      ".club-score-input{box-sizing:border-box;width:2.4rem;min-width:2.2rem;height:22px;min-height:22px;max-height:22px;padding:0 2px;text-align:center;font:inherit;font-size:12px;line-height:20px;font-weight:700;border:1.5px solid #1a2750;border-radius:4px;background:#fff;color:#1a2750}" +
       ".club-score-input.club-score-input--saved{background:#bbf7d0}" +
+      ".regatta-page--club-score-edit .fleet-results-table td.race-col{padding:2px 3px;vertical-align:middle}" +
       ".regatta-page--club-score-edit td.total-col," +
       ".regatta-page--club-score-edit td.nett-col," +
       ".regatta-page--club-score-edit td.rank-col{pointer-events:none;user-select:none}" +
@@ -93,14 +94,33 @@
         inp.setAttribute("data-original", v);
         inp.value = v;
         inp.classList.add("club-score-input--saved");
-        setTimeout(function () {
-          location.reload();
-        }, 400);
+        applyFleetRow({
+          result_id: rid,
+          total_points_raw: o.j.total_points_raw,
+          nett_points_raw: o.j.nett_points_raw,
+          rank: o.j.rank,
+        });
+        if (o.j.fleet && o.j.fleet.length) o.j.fleet.forEach(applyFleetRow);
       })
       .catch(function () {
         inp.disabled = false;
         inp.value = inp.getAttribute("data-original") || "";
       });
+  }
+
+  function setPlain(td, val) {
+    if (!td || val == null || val === "") return;
+    var n = Number(val);
+    td.textContent = isFinite(n) ? String(n) : String(val);
+  }
+
+  function applyFleetRow(row) {
+    if (!row || row.result_id == null) return;
+    var tr = document.querySelector('tr[data-result-id="' + row.result_id + '"]');
+    if (!tr) return;
+    setPlain(tr.querySelector("td.total-col"), row.total_points_raw);
+    setPlain(tr.querySelector("td.nett-col"), row.nett_points_raw);
+    setPlain(tr.querySelector("td.rank-col"), row.rank);
   }
 
   function wireCell(td, resultId) {
@@ -133,12 +153,42 @@
     });
   }
 
+  function ensureR1(table) {
+    if (!table) return;
+    var thead = table.querySelector("thead tr");
+    if (!thead) return;
+    var hasR1 =
+      thead.querySelector('th.race-col[data-race-key="R1"]') ||
+      Array.prototype.some.call(thead.querySelectorAll("th"), function (th) {
+        return String(th.textContent || "").replace(/\s+/g, "").toUpperCase() === "R1";
+      });
+    if (!hasR1) {
+      var th = document.createElement("th");
+      th.className = "race-col";
+      th.setAttribute("data-race-key", "R1");
+      th.textContent = "R1";
+      var totalTh = thead.querySelector("th.total-col");
+      if (totalTh) thead.insertBefore(th, totalTh);
+      else thead.appendChild(th);
+    }
+    table.querySelectorAll("tbody tr[data-result-id]").forEach(function (tr) {
+      if (tr.querySelector('td.race-col[data-race-key="R1"]')) return;
+      var td = document.createElement("td");
+      td.className = "race-col";
+      td.setAttribute("data-race-key", "R1");
+      var totalTd = tr.querySelector("td.total-col");
+      if (totalTd) tr.insertBefore(td, totalTd);
+      else tr.appendChild(td);
+    });
+  }
+
   function activate() {
     injectStyles();
     var page = document.querySelector(".regatta-page");
     if (!page) return;
     page.classList.add("regatta-page--club-score-edit");
     banner();
+    page.querySelectorAll("table.fleet-results-table").forEach(ensureR1);
     page.querySelectorAll("tr[data-result-id]").forEach(function (tr) {
       var rid = tr.getAttribute("data-result-id");
       if (!rid) return;

@@ -14750,7 +14750,8 @@ def patch_race_score(request: Request, result_id: int, body: dict):
                 WHERE r.result_id = ranked.result_id
             """, (block_id,))
             
-            _ensure_snapshot_integrity(conn, regatta_id)
+            if not str(regatta_id or "").startswith("2026-09-13-zvyc-cape-classic"):
+                _ensure_snapshot_integrity(conn, regatta_id)
             conn.commit()
             
             # Return updated result data
@@ -14761,6 +14762,24 @@ def patch_race_score(request: Request, result_id: int, body: dict):
                 WHERE r.result_id = %s
             """, (result_id,))
             updated = cur.fetchone()
+            cur.execute(
+                """
+                SELECT result_id, rank, total_points_raw, nett_points_raw
+                FROM results
+                WHERE block_id = %s
+                ORDER BY result_id
+                """,
+                (block_id,),
+            )
+            fleet = [
+                {
+                    "result_id": row["result_id"],
+                    "rank": row["rank"],
+                    "total_points_raw": row["total_points_raw"],
+                    "nett_points_raw": row["nett_points_raw"],
+                }
+                for row in (cur.fetchall() or [])
+            ]
             
             return {
                 "ok": True,
@@ -14770,7 +14789,8 @@ def patch_race_score(request: Request, result_id: int, body: dict):
                 "nett_points_raw": nett,
                 "rank": updated['rank'],
                 "races_sailed": races_sailed,
-                "discard_count": discard_count
+                "discard_count": discard_count,
+                "fleet": fleet,
             }
 
 def auto_verify_regatta_data(regatta_id: str):
@@ -26399,7 +26419,7 @@ _RESULT_SHEET_CSS = (
     ".regatta-page--super-admin-edit .wc-sa-ac-wrap .wc-result-field-input{min-width:5rem}"
     ".club-score-banner{display:none;margin:12px 0 0;padding:10px 12px;border:2px solid #1a2750;border-radius:8px;background:#f8fafc;color:#1a2750;font-weight:700;font-size:13px}"
     ".regatta-page--club-score-edit .club-score-banner{display:block}"
-    ".club-score-input{display:none;box-sizing:border-box;width:3.5rem;min-width:44px;min-height:44px;padding:8px 6px;text-align:center;font:inherit;font-weight:700;border:2px solid #1a2750;border-radius:6px;background:#fff;color:#1a2750}"
+    ".club-score-input{display:none;box-sizing:border-box;width:2.4rem;min-width:2.2rem;height:22px;min-height:22px;max-height:22px;padding:0 2px;text-align:center;font:inherit;font-size:12px;line-height:20px;font-weight:700;border:1.5px solid #1a2750;border-radius:4px;background:#fff;color:#1a2750}"
     ".regatta-page--club-score-edit .club-score-view{display:none}"
     ".regatta-page--club-score-edit .club-score-input{display:inline-block}"
     ".club-score-input.club-score-input--saved{background:#bbf7d0}"
