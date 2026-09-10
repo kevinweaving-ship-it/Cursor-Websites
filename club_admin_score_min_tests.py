@@ -2,8 +2,30 @@
 
 import ast
 import hashlib
+import re
 import unittest
 from pathlib import Path
+from typing import Optional
+
+
+class _FakeHTTPException(Exception):
+    def __init__(self, status_code=400, detail=""):
+        self.status_code = status_code
+        self.detail = detail
+        super().__init__(detail)
+
+
+def _load_score_helpers():
+    src = Path("api.py").read_text(encoding="utf-8")
+    start = src.find("_RACE_PENALTY_CODES =")
+    end = src.find("def _lookup_club_id_by_abbrev")
+    ns = {
+        "re": re,
+        "Optional": Optional,
+        "HTTPException": _FakeHTTPException,
+    }
+    exec(src[start:end], ns)
+    return ns
 
 
 class ClubAdminScoreMinTest(unittest.TestCase):
@@ -67,6 +89,66 @@ class ClubAdminScoreMinTest(unittest.TestCase):
         self.assertNotIn("14496", desk)
         self.assertNotIn("live_videos", self.src)
         self.assertIn("mm-lipton-track-overlay.js?v=mmr102", self.src)
+
+    def test_appendix_a_discard_and_rank(self):
+        h = _load_score_helpers()
+        self.assertEqual(h["_appendix_a_discard_count"](4), 0)
+        self.assertEqual(h["_appendix_a_discard_count"](5), 1)
+        self.assertEqual(h["_appendix_a_discard_count"](9), 1)
+        self.assertEqual(h["_appendix_a_discard_count"](10), 2)
+        self.assertEqual(h["_appendix_a_discard_count"](15), 3)
+
+        # ILCA 9 boats: place is the place; OCS / 10 score 10
+        self.assertEqual(h["_appendix_a_cell_points"]("1", 9), 1.0)
+        self.assertEqual(h["_appendix_a_cell_points"]("ocs", 9), 10.0)
+        self.assertEqual(h["_appendix_a_cell_points"]("OCS", 9), 10.0)
+        self.assertEqual(h["_appendix_a_cell_points"]("10", 9), 10.0)
+        self.assertEqual(h["_appendix_a_cell_points"]("DSQ", 9), 10.0)
+
+        scores, total, nett = h["_appendix_a_apply_series"](
+            {"R1": "1", "R2": "2", "R3": "3", "R4": "4", "R5": "9"},
+            5,
+            9,
+        )
+        self.assertEqual(total, 19.0)
+        self.assertEqual(nett, 10.0)
+        self.assertEqual(scores["R5"], "(9)")
+        self.assertEqual(scores["R1"], "1")
+
+        # Five-race series with a code: discard the n+1, keep places
+        scores, total, nett = h["_appendix_a_apply_series"](
+            {"R1": "2", "R2": "OCS", "R3": "1", "R4": "3", "R5": "4"},
+            5,
+            9,
+        )
+        self.assertEqual(total, 20.0)
+        self.assertEqual(nett, 10.0)
+        self.assertEqual(scores["R2"], "(OCS)")
+
+        ranked = h["_appendix_a_rank_entries"](
+            [
+                {"result_id": 3, "nett": 12},
+                {"result_id": 1, "nett": 6},
+                {"result_id": 2, "nett": 6},
+                {"result_id": 4, "nett": None},
+            ]
+        )
+        self.assertEqual([r["result_id"] for r in ranked], [1, 2, 3, 4])
+        self.assertEqual([r["rank"] for r in ranked], [1, 2, 3, 4])
+        self.assertIn("_appendix_a_apply_series", self.src)
+        self.assertIn("_appendix_a_rank_entries", self.src)
+        self.assertIn("rank by lowest nett", self.src)
+
+    def test_places_unique_codes_repeat(self):
+        h = _load_score_helpers()
+        self.assertEqual(h["_validate_race_score_value"]("3", 9), "3")
+        self.assertEqual(h["_validate_race_score_value"]("10", 9), "10")
+        self.assertEqual(h["_validate_race_score_value"]("ocs", 9), "OCS")
+        self.assertEqual(h["_race_score_unique_place"]("3", 9), 3)
+        self.assertIsNone(h["_race_score_unique_place"]("10", 9))
+        self.assertIsNone(h["_race_score_unique_place"]("OCS", 9))
+        with self.assertRaises(_FakeHTTPException):
+            h["_validate_race_score_value"]("11", 9)
 
 
 if __name__ == "__main__":

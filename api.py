@@ -12513,6 +12513,164 @@ def _require_regatta_score_edit(request: Request, regatta_id) -> None:
         )
 
 
+_RACE_PENALTY_CODES = ("DNC", "DNS", "DNF", "RET", "DSQ", "UFD", "BFD", "DPI", "OCS", "NSC", "DNE")
+
+
+def _normalize_race_score_value(raw) -> str:
+    """Free-field race cell: '3', '10', or 'OCS' / 'ocs' → stored code or place."""
+    v = str(raw or "").strip()
+    if not v:
+        return ""
+    bare = v.strip("()").strip()
+    up = bare.upper()
+    if up in _RACE_PENALTY_CODES:
+        return up
+    if re.fullmatch(r"\d+", bare):
+        return str(int(bare))
+    return bare
+
+
+def _race_score_is_code(value: str) -> bool:
+    return _normalize_race_score_value(value) in _RACE_PENALTY_CODES
+
+
+def _race_score_unique_place(value: str, entries: int) -> Optional[int]:
+    """Finishing place 1..entries, or None if code / entries+1 / empty / invalid."""
+    v = _normalize_race_score_value(value)
+    if not v or _race_score_is_code(v):
+        return None
+    if not re.fullmatch(r"\d+", v):
+        return None
+    n = int(v)
+    entries_n = max(int(entries or 0), 0)
+    if entries_n and n == entries_n + 1:
+        return None
+    if n >= 1 and (not entries_n or n <= entries_n):
+        return n
+    return None
+
+
+def _validate_race_score_value(value: str, entries: int) -> str:
+    """Accept 1..n (unique later), n+1, or a standard code. Empty clears."""
+    v = _normalize_race_score_value(value)
+    if not v:
+        return ""
+    entries_n = max(int(entries or 0), 0)
+    max_pts = entries_n + 1 if entries_n else 0
+    if _race_score_is_code(v):
+        return v
+    if re.fullmatch(r"\d+", v):
+        n = int(v)
+        if entries_n and 1 <= n <= max_pts:
+            return str(n)
+        if not entries_n and n >= 1:
+            return str(n)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Use 1–{entries_n} for a place, or {max_pts} / OCS / DSQ for a code",
+        )
+    codes = "/".join(_RACE_PENALTY_CODES)
+    raise HTTPException(
+        status_code=400,
+        detail=f"Use a place 1–{entries_n or 'n'}, {max_pts or 'n+1'}, or a code ({codes})",
+    )
+
+
+def _appendix_a_discard_count(races_sailed: int) -> int:
+    """Low Point Appendix A schedule on SailingSA: 1 discard after 5, 2 after 10, 3 after 15."""
+    return max(int(races_sailed or 0), 0) // 5
+
+
+def _appendix_a_cell_points(raw, entries: int) -> float:
+    """A5.2: OCS/DSQ/DNC/… always score entries+1. Else the typed finishing place."""
+    v = str(raw or "").strip()
+    if not v:
+        return 0.0
+    if _race_score_is_code(v):
+        return float(max(int(entries or 0), 0) + 1)
+    bare = v.strip("()").strip()
+    num_match = re.search(r"[\d.]+", bare)
+    if num_match:
+        return abs(float(num_match.group(0)))
+    return 0.0
+
+
+def _appendix_a_apply_series(
+    race_scores: Optional[dict],
+    races_sailed: int,
+    entries: int,
+    discard_count: Optional[int] = None,
+):
+    """Total, nett, and discard brackets for one boat. Lowest unused scores stay; worst discarded."""
+    out = dict(race_scores or {})
+    n_races = max(int(races_sailed or 0), 0)
+    if discard_count is None:
+        discard_count = _appendix_a_discard_count(n_races)
+    discard_count = max(int(discard_count or 0), 0)
+    scores_list = []
+    for i in range(1, n_races + 1):
+        rkey = f"R{i}"
+        val = out.get(rkey, "")
+        if not val:
+            continue
+        val = str(val)
+        scores_list.append(
+            {
+                "key": rkey,
+                "val": _appendix_a_cell_points(val, entries),
+                "is_br": val.startswith("(") and val.endswith(")"),
+                "raw": val,
+            }
+        )
+    total = sum(s["val"] for s in scores_list)
+    discard_idxs = set()
+    if discard_count > 0 and scores_list:
+        bracketed = [i for i, s in enumerate(scores_list) if s["is_br"]]
+        for idx in bracketed[:discard_count]:
+            discard_idxs.add(idx)
+        remaining_needed = discard_count - len(discard_idxs)
+        if remaining_needed > 0:
+            remaining = [(i, s) for i, s in enumerate(scores_list) if i not in discard_idxs]
+            remaining.sort(key=lambda x: x[1]["val"], reverse=True)
+            for i in range(min(remaining_needed, len(remaining))):
+                discard_idxs.add(remaining[i][0])
+    for i, score_info in enumerate(scores_list):
+        rkey = score_info["key"]
+        should_be_bracketed = i in discard_idxs
+        current_val = score_info["raw"]
+        is_currently_bracketed = score_info["is_br"]
+        if should_be_bracketed and not is_currently_bracketed:
+            out[rkey] = f"({current_val})"
+        elif not should_be_bracketed and is_currently_bracketed:
+            out[rkey] = current_val.strip("()")
+    nett = total - sum(scores_list[i]["val"] for i in discard_idxs)
+    return out, total, nett
+
+
+def _appendix_a_rank_entries(rows):
+    """Lowest nett = 1st, then down the fleet. Unscored (NULL/0 nett) last. Tie-break result_id."""
+    def _key(r):
+        nett = r.get("nett")
+        try:
+            nett_f = float(nett) if nett is not None else 0.0
+        except (TypeError, ValueError):
+            nett_f = 0.0
+        unscored = 1 if (nett is None or nett_f == 0.0) else 0
+        try:
+            rid = int(r.get("result_id") or 0)
+        except (TypeError, ValueError):
+            rid = 0
+        return (unscored, nett_f, rid)
+
+    ordered = sorted(list(rows or []), key=_key)
+    ranked = []
+    for i, r in enumerate(ordered, start=1):
+        item = dict(r)
+        item["rank"] = i
+        ranked.append(item)
+    return ranked
+
+
 def _lookup_club_id_by_abbrev(abbrev: str) -> Optional[int]:
     code = str(abbrev or "").strip().upper()
     if not code or not table_exists("clubs"):
@@ -14476,48 +14634,33 @@ def patch_race_score(request: Request, result_id: int, body: dict):
             race_scores = result['race_scores'] or {}
             if isinstance(race_scores, str):
                 race_scores = json.loads(race_scores)
-            
-            # Validate: Check for duplicate race positions (except ISP codes)
-            if value:
-                # Extract numeric position from value (e.g., "3" from "3" or "3 (DNS)")
-                num_match = re.search(r'^(\d+)', value.strip())
-                has_penalty = bool(re.search(r'(DNC|DNS|DNF|RET|DSQ|UFD|BFD|DPI|OCS)', value, re.I))
-                
-                # Only validate position if it's a numeric score (not ISP-only like "(DNS)")
-                if num_match and not value.strip().startswith('('):
-                    position = int(num_match.group(1))
-                    
-                    # Check if this position is already taken by another sailor in this fleet
-                    cur.execute("""
-                        SELECT r.result_id, r.race_scores
-                        FROM results r
-                        WHERE r.block_id = %s
-                        AND r.result_id != %s
-                        AND r.race_scores IS NOT NULL
-                    """, (block_id, result_id))
-                    other_results = cur.fetchall()
-                    
-                    for other_res in other_results:
-                        other_scores = other_res['race_scores'] or {}
-                        if isinstance(other_scores, str):
-                            other_scores = json.loads(other_scores)
-                        
-                        other_value = other_scores.get(race_key, "").strip()
-                        if not other_value:
-                            continue
-                        
-                        # Extract position from other sailor's score
-                        other_num_match = re.search(r'^(\d+)', other_value)
-                        other_has_penalty = bool(re.search(r'(DNC|DNS|DNF|RET|DSQ|UFD|BFD|DPI|OCS)', other_value, re.I))
-                        
-                        # If other sailor has same position and it's not ISP-only, reject
-                        if other_num_match and not other_value.startswith('('):
-                            other_position = int(other_num_match.group(1))
-                            if other_position == position:
-                                raise HTTPException(
-                                    status_code=400, 
-                                    detail=f"Position {position} is already taken by another sailor in this race. Each position can only be used once."
-                                )
+
+            cur.execute("SELECT COUNT(*) as cnt FROM results WHERE block_id = %s", (block_id,))
+            entries_row = cur.fetchone()
+            entries_count = int(entries_row['cnt'] if entries_row else 0)
+            value = _validate_race_score_value(value, entries_count)
+            place = _race_score_unique_place(value, entries_count)
+            if place is not None:
+                cur.execute("""
+                    SELECT r.result_id, r.race_scores
+                    FROM results r
+                    WHERE r.block_id = %s
+                    AND r.result_id != %s
+                    AND r.race_scores IS NOT NULL
+                """, (block_id, result_id))
+                for other_res in cur.fetchall() or []:
+                    other_scores = other_res['race_scores'] or {}
+                    if isinstance(other_scores, str):
+                        other_scores = json.loads(other_scores)
+                    other_place = _race_score_unique_place(
+                        other_scores.get(race_key, ""), entries_count
+                    )
+                    if other_place == place:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Place {place} is already used in this race. "
+                            f"{entries_count + 1} or OCS/DSQ can be used more than once.",
+                        )
             
             # Update race score (empty value removes the score)
             if value:
@@ -14533,78 +14676,13 @@ def patch_race_score(request: Request, result_id: int, body: dict):
             existing_block_rs = int(result.get("races_sailed") or 0)
             races_sailed = max(existing_block_rs, filled_races, race_num)
             
-            # Calculate discard count based on races_sailed
-            discard_count = races_sailed // 5  # 1 discard after 5, 2 after 10, etc.
-            
-            # Parse scores and calculate totals
-            entries_plus_one = None
-            cur.execute("SELECT COUNT(*) as cnt FROM results WHERE block_id = %s", (block_id,))
-            entries_row = cur.fetchone()
-            entries_count = entries_row['cnt'] if entries_row else 0
-            entries_plus_one = entries_count + 1
-            
-            # Parse all race scores
-            scores_list = []
-            for i in range(1, races_sailed + 1):
-                rkey = f"R{i}"
-                val = race_scores.get(rkey, "")
-                if not val:
-                    continue
-                
-                # Parse score value (extract numeric, handle brackets, penalty codes)
-                is_bracket = val.startswith("(") and val.endswith(")")
-                num_match = re.search(r'[\d.]+', val)
-                has_penalty = bool(re.search(r'(DNC|DNS|DNF|RET|DSQ|UFD|BFD|DPI|OCS)', val, re.I))
-                
-                if num_match:
-                    score_val = abs(float(num_match.group(0)))
-                elif has_penalty:
-                    score_val = float(entries_plus_one)
-                else:
-                    score_val = 0.0
-                
-                scores_list.append({
-                    'key': rkey,
-                    'val': score_val,
-                    'is_br': is_bracket,
-                    'raw': val
-                })
-            
-            # Calculate total (sum of all scores)
-            total = sum(s['val'] for s in scores_list)
-            
-            # Identify discards (worst scores, prefer already bracketed)
-            discard_idxs = set()
-            if discard_count > 0 and scores_list:
-                # First, prefer already bracketed scores
-                bracketed = [i for i, s in enumerate(scores_list) if s['is_br']]
-                for idx in bracketed[:discard_count]:
-                    discard_idxs.add(idx)
-                
-                # If we need more discards, pick worst remaining scores
-                remaining_needed = discard_count - len(discard_idxs)
-                if remaining_needed > 0:
-                    remaining = [(i, s) for i, s in enumerate(scores_list) if i not in discard_idxs]
-                    remaining.sort(key=lambda x: x[1]['val'], reverse=True)  # Worst first
-                    for i in range(min(remaining_needed, len(remaining))):
-                        discard_idxs.add(remaining[i][0])
-            
-            # Update brackets in race_scores JSONB
-            for i, score_info in enumerate(scores_list):
-                rkey = score_info['key']
-                should_be_bracketed = i in discard_idxs
-                current_val = score_info['raw']
-                is_currently_bracketed = score_info['is_br']
-                
-                if should_be_bracketed and not is_currently_bracketed:
-                    # Add brackets (preserve penalty codes)
-                    race_scores[rkey] = f"({current_val})"
-                elif not should_be_bracketed and is_currently_bracketed:
-                    # Remove brackets (preserve penalty codes)
-                    race_scores[rkey] = current_val.strip("()")
-            
-            # Calculate nett (total minus discarded scores)
-            nett = total - sum(scores_list[i]['val'] for i in discard_idxs)
+            # Low Point Appendix A: 1 discard after 5 races, 2 after 10, …
+            discard_count = _appendix_a_discard_count(races_sailed)
+            to_count = max(0, int(races_sailed) - int(discard_count))
+
+            race_scores, total, nett = _appendix_a_apply_series(
+                race_scores, races_sailed, entries_count, discard_count
+            )
             
             # Update this result
             cur.execute("""
@@ -14615,15 +14693,16 @@ def patch_race_score(request: Request, result_id: int, body: dict):
                 WHERE result_id = %s
             """, (json.dumps(race_scores), total, nett, result_id))
             
-            # Update block races_sailed and discard_count
+            # Update block races_sailed, discard_count, to_count
             cur.execute("""
                 UPDATE regatta_blocks
                 SET races_sailed = %s,
-                    discard_count = %s
+                    discard_count = %s,
+                    to_count = %s
                 WHERE block_id = %s
-            """, (races_sailed, discard_count, block_id))
+            """, (races_sailed, discard_count, to_count, block_id))
             
-            # Recalculate ALL sailors in this fleet (in case discard_count changed)
+            # Recalculate ALL sailors in this fleet (discards / nett / brackets)
             cur.execute("""
                 SELECT result_id, race_scores
                 FROM results
@@ -14637,69 +14716,9 @@ def patch_race_score(request: Request, result_id: int, body: dict):
                 res_race_scores = res['race_scores'] or {}
                 if isinstance(res_race_scores, str):
                     res_race_scores = json.loads(res_race_scores)
-                
-                # Count races sailed
-                res_races_sailed = len([k for k in res_race_scores.keys() if k.startswith('R') and res_race_scores[k]])
-                
-                # Parse scores
-                res_scores_list = []
-                for i in range(1, res_races_sailed + 1):
-                    rkey = f"R{i}"
-                    val = res_race_scores.get(rkey, "")
-                    if not val:
-                        continue
-                    
-                    is_bracket = val.startswith("(") and val.endswith(")")
-                    num_match = re.search(r'[\d.]+', val)
-                    has_penalty = bool(re.search(r'(DNC|DNS|DNF|RET|DSQ|UFD|BFD|DPI|OCS)', val, re.I))
-                    
-                    if num_match:
-                        score_val = abs(float(num_match.group(0)))
-                    elif has_penalty:
-                        score_val = float(entries_plus_one)
-                    else:
-                        score_val = 0.0
-                    
-                    res_scores_list.append({
-                        'key': rkey,
-                        'val': score_val,
-                        'is_br': is_bracket,
-                        'raw': val
-                    })
-                
-                # Calculate total
-                res_total = sum(s['val'] for s in res_scores_list)
-                
-                # Identify discards
-                res_discard_idxs = set()
-                if discard_count > 0 and res_scores_list:
-                    bracketed = [i for i, s in enumerate(res_scores_list) if s['is_br']]
-                    for idx in bracketed[:discard_count]:
-                        res_discard_idxs.add(idx)
-                    
-                    remaining_needed = discard_count - len(res_discard_idxs)
-                    if remaining_needed > 0:
-                        remaining = [(i, s) for i, s in enumerate(res_scores_list) if i not in res_discard_idxs]
-                        remaining.sort(key=lambda x: x[1]['val'], reverse=True)
-                        for i in range(min(remaining_needed, len(remaining))):
-                            res_discard_idxs.add(remaining[i][0])
-                
-                # Update brackets
-                for i, score_info in enumerate(res_scores_list):
-                    rkey = score_info['key']
-                    should_be_bracketed = i in res_discard_idxs
-                    current_val = score_info['raw']
-                    is_currently_bracketed = score_info['is_br']
-                    
-                    if should_be_bracketed and not is_currently_bracketed:
-                        res_race_scores[rkey] = f"({current_val})"
-                    elif not should_be_bracketed and is_currently_bracketed:
-                        res_race_scores[rkey] = current_val.strip("()")
-                
-                # Calculate nett
-                res_nett = res_total - sum(res_scores_list[i]['val'] for i in res_discard_idxs)
-                
-                # Update this result
+                res_race_scores, res_total, res_nett = _appendix_a_apply_series(
+                    res_race_scores, races_sailed, entries_count, discard_count
+                )
                 cur.execute("""
                     UPDATE results
                     SET race_scores = %s,
@@ -14708,18 +14727,18 @@ def patch_race_score(request: Request, result_id: int, body: dict):
                     WHERE result_id = %s
                 """, (json.dumps(res_race_scores), res_total, res_nett, res['result_id']))
             
-            # Re-rank entire fleet by nett scores (lower nett = better rank)
-            # Each sailor must have unique rank (no ties) - break ties by result_id
-            # NULL/0 nett scores rank last (treated as 999999)
+            # Re-rank the fleet: lowest nett = 1st, then down to last entry.
+            # Unscored (NULL/0 nett) last. Ties broken by result_id.
             cur.execute("""
                 WITH ranked AS (
                     SELECT result_id,
                            ROW_NUMBER() OVER (
-                               ORDER BY 
-                                   COALESCE(
-                                       NULLIF(nett_points_raw, 0), 
-                                       999999
-                                   ) ASC, 
+                               ORDER BY
+                                   CASE
+                                       WHEN nett_points_raw IS NULL OR nett_points_raw = 0 THEN 1
+                                       ELSE 0
+                                   END ASC,
+                                   nett_points_raw ASC,
                                    result_id ASC
                            ) as new_rank
                     FROM results
@@ -26511,8 +26530,10 @@ def _club_score_banner_html(club_abbrev: Optional[str]) -> str:
     label = html_module.escape((club_abbrev or "Club").strip() or "Club")
     return (
         f'<div class="club-score-banner" id="clubScoreBanner">'
-        f"{label} club admin — enter race positions for this event only. "
-        f"Other clubs' events stay read-only.</div>"
+        f"{label} club admin — type 1–n once each (finishing place). "
+        f"Type n+1 or OCS/DSQ/DNC for a code (score = n+1, can repeat). "
+        f"After save: totals, Low Point Appendix A discards (1 after 5 races, 2 after 10), "
+        f"and rank by lowest nett (1st down to last).</div>"
     )
 
 
@@ -26837,7 +26858,12 @@ def _render_result_sheet_fleet(
         rank_plain = "" if r.get("rank") is None else str(r.get("rank")).strip()
         total_str = html_module.escape(total_plain)
         nett_str = html_module.escape(nett_plain)
-        row_html = f'<tr class="{row_classes}">'
+        rid_tr = html_module.escape(str(result_id_row), quote=True) if result_id_row else ""
+        row_html = (
+            f'<tr class="{row_classes}" data-result-id="{rid_tr}">'
+            if rid_tr
+            else f'<tr class="{row_classes}">'
+        )
         if _pref_on("rank"):
             row_html += f'<td class="rank-col">{_wc_cell(html_module.escape(rank_str), rank_plain, "rank", None, 8)}</td>'
         if _pref_on("fleet"):
@@ -26868,7 +26894,7 @@ def _render_result_sheet_fleet(
             for rkey in race_columns:
                 score = (race_scores.get(rkey) or "").strip()
                 is_discarded = score.startswith("(") and score.endswith(")")
-                has_penalty = bool(re.search(r"\b(DNC|DNS|DNF|RET|DSQ|UFD|BFD|DPI|OCS)\b", score, re.I)) if score else False
+                has_penalty = bool(re.search(r"\b(DNC|DNS|DNF|RET|DSQ|UFD|BFD|DPI|OCS|NSC|DNE)\b", score, re.I)) if score else False
                 cell_class = "code" if has_penalty else ("disc" if is_discarded else ("score-counts" if score else ""))
                 if race_score_edit and not wc_sa_fleet_edit:
                     cell_html = _club_score_race_cell(result_id_row, score, rkey)
