@@ -22,7 +22,7 @@ import hashlib
 import html as html_module
 import json
 import difflib
-from urllib.parse import urlparse, unquote, quote
+from urllib.parse import urlparse, unquote, quote, urljoin
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
@@ -20866,7 +20866,16 @@ def _mm_title_from_fb_url(url: str) -> str:
 
 _ZVYC_LIVE_CAM_PAGE = "https://www.skylinewebcams.com/en/webcam/south-africa/western-cape/cape-town/zeekoevlei.html"
 _ZVYC_LIVE_CAM_SNAP = "https://www.skylinewebcams.com/temp/4040.jpg"
+_ZVYC_CLUB_LOGO = "/artwork/Club Logo/ZVYC.png"
 _ZVYC_LIVE_M3U8_RE = re.compile(r"livee\.m3u8\?a=([A-Za-z0-9]+)")
+_ZVYC_CAM_FETCH_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+    ),
+    "Referer": _ZVYC_LIVE_CAM_PAGE,
+    "Accept": "*/*",
+}
 _ZVYC_LIVE_CAM = {
     "id": "zvyc-live-cam",
     "kind": "webcam",
@@ -20876,8 +20885,9 @@ _ZVYC_LIVE_CAM = {
     "title": "ZVYC Live Cam",
     "fb_title": "ZVYC Live Cam",
     "fb_sub": "Zeekoevlei · live",
-    "fb_owner_logo": "https://cdn.skylinewebcams.com/as/img/hosts/4040.jpg",
-    "thumb": "/api/regatta/2026-09-13-zvyc-cape-classic/zvyc-live-cam-thumb",
+    "fb_owner_logo": _ZVYC_CLUB_LOGO,
+    "thumb": _ZVYC_CLUB_LOGO,
+    "live_snap": "/api/regatta/2026-09-13-zvyc-cape-classic/zvyc-live-cam-thumb",
     "play_url": "/api/regatta/2026-09-13-zvyc-cape-classic/zvyc-live-cam",
     "is_live": True,
     "started_at": "",
@@ -20888,10 +20898,57 @@ _ZVYC_LIVE_CAM = {
 }
 
 
+def _zvyc_allowed_cam_url(url: str) -> bool:
+    try:
+        parsed = urlparse(str(url or "").strip())
+    except Exception:
+        return False
+    host = (parsed.hostname or "").lower()
+    if parsed.scheme != "https" or not host.endswith("skylinewebcams.com"):
+        return False
+    if parsed.username or parsed.password:
+        return False
+    return True
+
+
+def _zvyc_cam_proxy_url(regatta_id: str, dest: str) -> str:
+    return (
+        f"/api/regatta/{regatta_id}/zvyc-live-cam-seg?u="
+        + quote(dest, safe="")
+    )
+
+
+def _zvyc_rewrite_playlist(text: str, base_url: str, regatta_id: str) -> str:
+    """Point playlist URIs at our pass-through. Do not store the feed."""
+    lines = []
+    for line in str(text or "").splitlines():
+        stripped = line.strip()
+
+        def _rewrite_uri(match):
+            dest = urljoin(base_url, match.group(1))
+            if _zvyc_allowed_cam_url(dest):
+                return 'URI="' + _zvyc_cam_proxy_url(regatta_id, dest) + '"'
+            return match.group(0)
+
+        if stripped.startswith("#") and "URI=" in stripped:
+            lines.append(re.sub(r'URI="([^"]+)"', _rewrite_uri, line))
+        elif stripped and not stripped.startswith("#"):
+            dest = urljoin(base_url, stripped)
+            if _zvyc_allowed_cam_url(dest):
+                lines.append(_zvyc_cam_proxy_url(regatta_id, dest))
+            else:
+                lines.append(line)
+        else:
+            lines.append(line)
+    return "\n".join(lines) + "\n"
+
+
 def _zvyc_live_cam_stream_url() -> str:
     """Resolve the current Skyline HLS URL. Do not store the feed."""
     try:
-        with httpx.Client(timeout=8.0, follow_redirects=True, headers={"User-Agent": "Mozilla/5.0"}) as client:
+        with httpx.Client(
+            timeout=8.0, follow_redirects=True, headers=_ZVYC_CAM_FETCH_HEADERS
+        ) as client:
             html = client.get(_ZVYC_LIVE_CAM_PAGE).text or ""
         m = _ZVYC_LIVE_M3U8_RE.search(html)
         if m:
@@ -21042,11 +21099,60 @@ async def api_zvyc_live_cam_thumb(regatta_id: str):
 
 @app.get("/api/regatta/{regatta_id}/zvyc-live-cam")
 async def api_zvyc_live_cam(regatta_id: str):
-    """Pass through the current Skyline HLS URL. Do not store the feed."""
-    if str(regatta_id or "").strip() != _CAPE_CLASSIC_MM_REGATTA_ID:
+    """Pass through the current Skyline HLS playlist. Do not store the feed."""
+    rid = str(regatta_id or "").strip()
+    if rid != _CAPE_CLASSIC_MM_REGATTA_ID:
         raise HTTPException(status_code=404, detail="not found")
     url = _zvyc_live_cam_stream_url()
-    return RedirectResponse(url or _ZVYC_LIVE_CAM_SNAP, status_code=302)
+    if not url:
+        return RedirectResponse(_ZVYC_LIVE_CAM_SNAP, status_code=302)
+    try:
+        with httpx.Client(
+            timeout=8.0, follow_redirects=True, headers=_ZVYC_CAM_FETCH_HEADERS
+        ) as client:
+            resp = client.get(url)
+        body = resp.text or ""
+        if resp.status_code >= 400 or "#EXTM3U" not in body:
+            return RedirectResponse(_ZVYC_LIVE_CAM_SNAP, status_code=302)
+        playlist = _zvyc_rewrite_playlist(body, str(resp.url), rid)
+        return Response(
+            content=playlist,
+            media_type="application/vnd.apple.mpegurl",
+            headers={"Cache-Control": "no-store"},
+        )
+    except Exception as e:
+        print(f"[zvyc_live_cam] playlist failed: {e}", flush=True)
+        return RedirectResponse(_ZVYC_LIVE_CAM_SNAP, status_code=302)
+
+
+@app.get("/api/regatta/{regatta_id}/zvyc-live-cam-seg")
+async def api_zvyc_live_cam_seg(regatta_id: str, u: str = Query("")):
+    """Pass through one Skyline HLS segment or key. Do not store the feed."""
+    if str(regatta_id or "").strip() != _CAPE_CLASSIC_MM_REGATTA_ID:
+        raise HTTPException(status_code=404, detail="not found")
+    dest = str(u or "").strip()
+    if not _zvyc_allowed_cam_url(dest):
+        raise HTTPException(status_code=400, detail="invalid cam url")
+    try:
+        with httpx.Client(
+            timeout=15.0, follow_redirects=True, headers=_ZVYC_CAM_FETCH_HEADERS
+        ) as client:
+            resp = client.get(dest)
+        if resp.status_code >= 400:
+            raise HTTPException(status_code=502, detail="cam segment failed")
+        ctype = (resp.headers.get("content-type") or "").split(";")[0].strip()
+        if not ctype or ctype in ("text/html", "application/octet-stream"):
+            ctype = "video/MP2T" if dest.endswith(".ts") else (ctype or "application/octet-stream")
+        return Response(
+            content=resp.content,
+            media_type=ctype,
+            headers={"Cache-Control": "no-store"},
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[zvyc_live_cam] segment failed: {e}", flush=True)
+        raise HTTPException(status_code=502, detail="cam segment failed")
 
 
 @app.patch("/api/super-admin/regatta/{regatta_id}/mm-live-fb-feed")
@@ -27952,12 +28058,12 @@ def serve_regatta_standalone(slug: str, request: Request):
             mm_card = _lipton_mm_reels_card_html(str(regatta_id))
             mm_card_js = (
                 '<script src="/js/mm-lipton-track-overlay.js?v=mmr102" defer></script>'
-                '<script src="/js/mm-lipton-reels-card.js?v=mmr106" defer></script>'
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr107" defer></script>'
             )
         elif str(regatta_id) == "2026-09-13-zvyc-cape-classic":
             mm_card = _cape_classic_mm_reels_card_html(str(regatta_id))
             mm_card_js = (
-                '<script src="/js/mm-lipton-reels-card.js?v=mmr106" defer></script>'
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr107" defer></script>'
             )
         body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))

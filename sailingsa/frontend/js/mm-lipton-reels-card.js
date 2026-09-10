@@ -70,9 +70,54 @@
     return false;
   }
 
+  var HLS_SRC = 'https://cdn.jsdelivr.net/npm/hls.js@1.5.20/dist/hls.min.js';
+  var hlsWait = null;
+
   function liveThumbSrc(v) {
+    if (isWebcam(v)) {
+      var snap = String((v && (v.live_snap || v.snap)) || '').split('?')[0];
+      if (!snap) snap = '/api/regatta/2026-09-13-zvyc-cape-classic/zvyc-live-cam-thumb';
+      return snap + '?t=' + Date.now();
+    }
     var base = String((v && v.thumb) || '').split('?')[0];
     return base ? base + '?t=' + Date.now() : '';
+  }
+
+  function withHls(cb) {
+    if (window.Hls) {
+      cb(window.Hls);
+      return;
+    }
+    if (hlsWait) {
+      hlsWait.push(cb);
+      return;
+    }
+    hlsWait = [cb];
+    var s = document.createElement('script');
+    s.src = HLS_SRC;
+    s.async = true;
+    s.onload = function () {
+      var q = hlsWait;
+      hlsWait = null;
+      var i;
+      for (i = 0; i < q.length; i++) q[i](window.Hls);
+    };
+    s.onerror = function () {
+      var q = hlsWait;
+      hlsWait = null;
+      var i;
+      for (i = 0; i < q.length; i++) q[i](null);
+    };
+    document.head.appendChild(s);
+  }
+
+  function destroyWebcamHls(root) {
+    if (root && root._mmHls) {
+      try {
+        root._mmHls.destroy();
+      } catch (e0) {}
+      root._mmHls = null;
+    }
   }
 
   function playUrl(v) {
@@ -112,6 +157,7 @@
 
   function stopAllPlayback(root) {
     exitFsIfInside(root);
+    destroyWebcamHls(root);
     pauseHero(root);
     var iframes = root.querySelectorAll('[data-mm-expanded] iframe');
     var i;
@@ -380,7 +426,7 @@
       stopWebcamLive(root);
       return;
     }
-    var imgs = root.querySelectorAll('.mm-lipton-reels-thumb img, [data-mm-webcam-live]');
+    var imgs = root.querySelectorAll('[data-mm-webcam-live]');
     function bump() {
       var src = liveThumbSrc(clip);
       var i;
@@ -391,7 +437,7 @@
     bump();
     stopWebcamLive(root);
     root._mmCamTimer = window.setInterval(function () {
-      imgs = root.querySelectorAll('.mm-lipton-reels-thumb img, [data-mm-webcam-live]');
+      imgs = root.querySelectorAll('[data-mm-webcam-live]');
       bump();
     }, 4000);
   }
@@ -544,6 +590,7 @@
   }
 
   function showWebcamSnap(root, clip) {
+    destroyWebcamHls(root);
     var stage = root.querySelector('[data-mm-stage]');
     if (!stage) return;
     var video = root.querySelector('[data-mm-hero-video]');
@@ -565,6 +612,42 @@
     startWebcamLive(root, clip);
   }
 
+  function playWebcamVideo(root, clip, video, src) {
+    destroyWebcamHls(root);
+    video.muted = true;
+    video.defaultMuted = true;
+    video.setAttribute('muted', '');
+    video.playsInline = true;
+    var poster = liveThumbSrc(clip);
+    if (poster) video.setAttribute('poster', poster);
+    function onFail() {
+      showWebcamSnap(root, clip);
+    }
+    function goPlay() {
+      var p = video.play();
+      if (p && p.catch) p.catch(onFail);
+    }
+    if (video.canPlayType && video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = src;
+      goPlay();
+      return;
+    }
+    withHls(function (Hls) {
+      if (!Hls || !Hls.isSupported) {
+        onFail();
+        return;
+      }
+      var hls = new Hls({ enableWorker: true, lowLatencyMode: true });
+      root._mmHls = hls;
+      hls.loadSource(src);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, goPlay);
+      hls.on(Hls.Events.ERROR, function (_ev, data) {
+        if (data && data.fatal) onFail();
+      });
+    });
+  }
+
   function startHeroPlayback(root, clip) {
     var stage = root.querySelector('[data-mm-stage]');
     if (isWebcam(clip) && stage) {
@@ -572,20 +655,11 @@
       var src = playUrl(clip);
       var video = ensureHeroVideo(root);
       stage.classList.add('mm-lipton-reels-stage--playing');
-      if (video && src && video.canPlayType && video.canPlayType('application/vnd.apple.mpegurl')) {
-        var snap = stage.querySelector('[data-mm-webcam-live]');
-        if (snap && snap.parentNode) snap.parentNode.removeChild(snap);
-        video.setAttribute('poster', liveThumbSrc(clip));
-        video.src = src;
+      var snapEl = stage.querySelector('[data-mm-webcam-live]');
+      if (snapEl && snapEl.parentNode) snapEl.parentNode.removeChild(snapEl);
+      if (video && src) {
         if (video.parentNode !== stage) stage.appendChild(video);
-        video.onerror = function () {
-          showWebcamSnap(root, clip);
-        };
-        var playP = video.play();
-        if (playP && playP.catch) playP.catch(function () {
-          showWebcamSnap(root, clip);
-        });
-        startWebcamLive(root, clip);
+        playWebcamVideo(root, clip, video, src);
         return;
       }
       showWebcamSnap(root, clip);
