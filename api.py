@@ -12537,13 +12537,13 @@ def _extract_penalty_code(raw) -> Optional[str]:
 
 
 def _public_race_code_cell(code: str, entries: int) -> str:
-    """Public results-sheet code: '10.0 DSQ' (points = entries+1)."""
+    """Public results-sheet code: Extra 14 boats → '15 DSQ' (entries+1)."""
     pts = max(int(entries or 0), 0) + 1
     return f"{pts} {str(code or '').strip().upper()}"
 
 
 def _public_race_cell(raw, entries: int, discarded: bool = False) -> str:
-    """Public sheet cell: '1', '10.0 DSQ', '(10.0 DSQ)'."""
+    """Public sheet cell: '1', '15 DSQ', discarded '(15 DSQ)'."""
     v = str(raw or "").strip()
     if not v:
         return ""

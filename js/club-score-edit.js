@@ -65,7 +65,7 @@
     el.className = "club-score-banner";
     el.id = "clubScoreBanner";
     el.textContent =
-      "Type place or DSQ — writes 15 DSQ (entries+1). Enter = next. Rank updates live.";
+      "Type place or DSQ. Extra DSQ = 15 DSQ; discarded is (15 DSQ). Enter = next. Rank live.";
     var firstFleet = page.querySelector(".fleet-section");
     if (firstFleet) page.insertBefore(el, firstFleet);
     else page.insertBefore(el, page.firstChild);

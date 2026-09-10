@@ -134,6 +134,15 @@ class ClubAdminScoreMinTest(unittest.TestCase):
         self.assertEqual(nett, 10.0)
         self.assertEqual(scores["R2"], "(10 OCS)")
 
+        extra, extra_total, extra_nett = h["_appendix_a_apply_series"](
+            {"R1": "2", "R2": "DSQ", "R3": "1", "R4": "3", "R5": "4"},
+            5,
+            14,
+        )
+        self.assertEqual(extra_total, 25.0)
+        self.assertEqual(extra_nett, 10.0)
+        self.assertEqual(extra["R2"], "(15 DSQ)")
+
         ranked = h["_appendix_a_rank_entries"](
             [
                 {"result_id": 3, "nett": 12},
@@ -158,7 +167,7 @@ class ClubAdminScoreMinTest(unittest.TestCase):
         self.assertIn("if race_score_edit and not wc_sa_fleet_edit:", render)
         self.assertIn("td.race-col[data-race-key]", self.club_js)
         self.assertIn("Enter = next", self.club_js)
-        self.assertIn("Rank updates live", self.club_js)
+        self.assertIn("Extra DSQ = 15 DSQ", self.club_js)
         self.assertIn("function sessionToken", self.club_js)
         self.assertIn("body: JSON.stringify({ race: race, value: v, session: tok })", self.club_js)
         self.assertIn("function ensureR1", self.club_js)
