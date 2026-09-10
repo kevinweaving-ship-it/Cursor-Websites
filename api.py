@@ -20663,6 +20663,9 @@ _LIPTON_MM_REELS_CSS = (
     ".mm-lipton-reels-cam-load[hidden]{display:none!important}"
     ".mm-lipton-reels-cam-spin{width:44px;height:44px;border:3px solid rgba(0,180,255,.28);border-top-color:#00B4FF;border-radius:50%;box-sizing:border-box;box-shadow:0 0 8px #00B4FF;animation:mm-cam-spin .8s linear infinite}"
     ".mm-lipton-reels-cam-load-txt{color:#fff;font-size:12px;font-weight:700;letter-spacing:.04em;text-shadow:0 1px 2px rgba(0,0,0,.85)}"
+    ".mm-lipton-reels-thumb .mm-lipton-reels-cam-load{z-index:3}"
+    ".mm-lipton-reels-thumb .mm-lipton-reels-cam-load-txt{display:none}"
+    ".mm-lipton-reels-thumb--cam-load .mm-lipton-reels-play{opacity:0}"
     ".mm-lipton-reels-stage video::-webkit-media-controls,.mm-lipton-reels-stage video::-webkit-media-controls-enclosure,.mm-lipton-reels-stage video::-webkit-media-controls-overlay-enclosure,.mm-lipton-reels-stage video::-webkit-media-controls-panel,.mm-lipton-reels-stage video::-webkit-media-controls-start-playback-button,.mm-lipton-reels-stage video::-webkit-media-controls-overlay-play-fill{display:none!important;opacity:0!important;-webkit-appearance:none}"
     ".mm-lipton-reels-video-hold{position:absolute;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none}"
     ".mm-lipton-reels-track{position:absolute;left:0;right:0;bottom:0;height:var(--mm-track-h,58%);z-index:3;pointer-events:none;display:none;background:none}"
@@ -20875,7 +20878,9 @@ def _mm_title_from_fb_url(url: str) -> str:
 _ZVYC_LIVE_CAM_PAGE = "https://www.skylinewebcams.com/en/webcam/south-africa/western-cape/cape-town/zeekoevlei.html"
 _ZVYC_LIVE_CAM_SNAP = "https://www.skylinewebcams.com/temp/4040.jpg"
 _ZVYC_CLUB_LOGO = "/artwork/Club Logo/ZVYC.png"
-_ZVYC_LIVE_M3U8_RE = re.compile(r"livee\.m3u8\?a=([A-Za-z0-9]+)")
+_ZVYC_FFMPEG = "/usr/bin/ffmpeg"
+_ZVYC_LIVE_M3U8_RE = re.compile(r"livee\.m3u8\?a=([A-Za-z0-9_\-=]+)")
+_ZVYC_TOKEN_RE = re.compile(r"^[A-Za-z0-9_\-=]{8,80}$")
 _ZVYC_CAM_FETCH_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -20951,11 +20956,24 @@ def _zvyc_rewrite_playlist(text: str, base_url: str, regatta_id: str) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _zvyc_live_cam_stream_url() -> str:
+def _zvyc_normalize_cam_token(raw: str) -> str:
+    tok = str(raw or "").strip()
+    if not _ZVYC_TOKEN_RE.match(tok):
+        return ""
+    return tok
+
+
+def _zvyc_live_cam_stream_url(explicit_token: str = "") -> str:
     """Resolve the current Skyline HLS URL. Do not store the feed."""
+    tok = _zvyc_normalize_cam_token(explicit_token)
+    if tok:
+        return "https://hd-auth.skylinewebcams.com/live.m3u8?a=" + tok
     try:
+        html_headers = dict(_ZVYC_CAM_FETCH_HEADERS)
+        html_headers["Accept"] = "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8"
+        html_headers["Accept-Encoding"] = "identity"
         with httpx.Client(
-            timeout=8.0, follow_redirects=True, headers=_ZVYC_CAM_FETCH_HEADERS
+            timeout=8.0, follow_redirects=True, headers=html_headers
         ) as client:
             html = client.get(_ZVYC_LIVE_CAM_PAGE).text or ""
         m = _ZVYC_LIVE_M3U8_RE.search(html)
@@ -20971,20 +20989,21 @@ _ZVYC_GRAB_MEM = {"t": 0.0, "jpg": b""}
 _ZVYC_GRAB_TTL_SEC = 8.0
 
 
-def _zvyc_live_cam_frame_jpeg() -> bytes:
+def _zvyc_live_cam_frame_jpeg(explicit_token: str = "", fresh: bool = False) -> bytes:
     """Grab one JPEG after the live feed has played ~2s. Do not store the feed."""
     now = time.time()
-    with _ZVYC_GRAB_LOCK:
-        cached = _ZVYC_GRAB_MEM.get("jpg") or b""
-        if cached[:2] == b"\xff\xd8" and now - float(_ZVYC_GRAB_MEM.get("t") or 0) < _ZVYC_GRAB_TTL_SEC:
-            return cached
-    url = _zvyc_live_cam_stream_url()
+    if not fresh:
+        with _ZVYC_GRAB_LOCK:
+            cached = _ZVYC_GRAB_MEM.get("jpg") or b""
+            if cached[:2] == b"\xff\xd8" and now - float(_ZVYC_GRAB_MEM.get("t") or 0) < _ZVYC_GRAB_TTL_SEC:
+                return cached
+    url = _zvyc_live_cam_stream_url(explicit_token)
     if not url:
         return b""
     ua = _ZVYC_CAM_FETCH_HEADERS.get("User-Agent") or "Mozilla/5.0"
     headers = f"Referer: {_ZVYC_LIVE_CAM_PAGE}\r\nUser-Agent: {ua}\r\n"
     cmd = [
-        "ffmpeg",
+        _ZVYC_FFMPEG,
         "-hide_banner",
         "-loglevel",
         "error",
@@ -21090,6 +21109,7 @@ def _cape_classic_mm_reels_card_html(regatta_id: str) -> str:
         f'<section class="card mm-lipton-reels mm-lipton-reels--compact" id="mmLiptonReels" '
         f'data-regatta-id="{html_module.escape(_CAPE_CLASSIC_MM_REGATTA_ID)}" '
         'data-mm-poll="1" '
+        f'{"" if has_clips else "data-mm-webcam-pending=\"1\" "}'
         f'data-mm-brand-soon="{html_module.escape(_MM_COMING_SOON_BRAND_SRC)}" '
         f'data-mm-brand-live="{html_module.escape(_MM_EVENT_REELS_BRAND_SRC)}" '
         f'data-mm-initial="{initial}" '
@@ -21148,31 +21168,33 @@ async def api_regatta_mm_live_fb_feed(regatta_id: str):
 
 
 @app.get("/api/regatta/{regatta_id}/zvyc-live-cam-thumb")
-async def api_zvyc_live_cam_thumb(regatta_id: str):
+async def api_zvyc_live_cam_thumb(
+    regatta_id: str, a: str = Query(""), fresh: int = Query(0)
+):
     """Return a live-feed screenshot after ~2s of play. Do not store the feed."""
     if str(regatta_id or "").strip() != _CAPE_CLASSIC_MM_REGATTA_ID:
         raise HTTPException(status_code=404, detail="not found")
     import asyncio
 
-    jpg = await asyncio.to_thread(_zvyc_live_cam_frame_jpeg)
+    jpg = await asyncio.to_thread(_zvyc_live_cam_frame_jpeg, a, bool(fresh))
     if jpg[:2] == b"\xff\xd8":
         return Response(
             content=jpg,
             media_type="image/jpeg",
             headers={"Cache-Control": "no-store"},
         )
-    return RedirectResponse(_ZVYC_LIVE_CAM_SNAP, status_code=302)
+    return Response(status_code=204, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/api/regatta/{regatta_id}/zvyc-live-cam")
-async def api_zvyc_live_cam(regatta_id: str):
+async def api_zvyc_live_cam(regatta_id: str, a: str = Query("")):
     """Pass through the current Skyline HLS playlist. Do not store the feed."""
     rid = str(regatta_id or "").strip()
     if rid != _CAPE_CLASSIC_MM_REGATTA_ID:
         raise HTTPException(status_code=404, detail="not found")
-    url = _zvyc_live_cam_stream_url()
+    url = _zvyc_live_cam_stream_url(a)
     if not url:
-        return RedirectResponse(_ZVYC_LIVE_CAM_SNAP, status_code=302)
+        return Response(status_code=204, headers={"Cache-Control": "no-store"})
     try:
         with httpx.Client(
             timeout=8.0, follow_redirects=True, headers=_ZVYC_CAM_FETCH_HEADERS
@@ -21180,7 +21202,7 @@ async def api_zvyc_live_cam(regatta_id: str):
             resp = client.get(url)
         body = resp.text or ""
         if resp.status_code >= 400 or "#EXTM3U" not in body:
-            return RedirectResponse(_ZVYC_LIVE_CAM_SNAP, status_code=302)
+            return Response(status_code=204, headers={"Cache-Control": "no-store"})
         playlist = _zvyc_rewrite_playlist(body, str(resp.url), rid)
         return Response(
             content=playlist,
@@ -21189,7 +21211,7 @@ async def api_zvyc_live_cam(regatta_id: str):
         )
     except Exception as e:
         print(f"[zvyc_live_cam] playlist failed: {e}", flush=True)
-        return RedirectResponse(_ZVYC_LIVE_CAM_SNAP, status_code=302)
+        return Response(status_code=204, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/api/regatta/{regatta_id}/zvyc-live-cam-seg")
@@ -28130,7 +28152,7 @@ def serve_regatta_standalone(slug: str, request: Request):
         elif str(regatta_id) == "2026-09-13-zvyc-cape-classic":
             mm_card = _cape_classic_mm_reels_card_html(str(regatta_id))
             mm_card_js = (
-                '<script src="/js/mm-lipton-reels-card.js?v=mmr111" defer></script>'
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr112" defer></script>'
             )
         body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))

@@ -71,6 +71,9 @@
   }
 
   var HLS_SRC = 'https://cdn.jsdelivr.net/npm/hls.js@1.5.20/dist/hls.min.js';
+  var CAM_PAGE =
+    'https://www.skylinewebcams.com/en/webcam/south-africa/western-cape/cape-town/zeekoevlei.html';
+  var CAM_TOKEN_TTL_MS = 240000;
   var hlsWait = null;
 
   function isCapeClassic() {
@@ -88,13 +91,58 @@
     return 4;
   }
 
-  function liveThumbSrc(v) {
+  function camTokenOf(root) {
+    if (!root || !root._mmCamToken) return '';
+    if (Date.now() - (root._mmCamTokenAt || 0) >= CAM_TOKEN_TTL_MS) return '';
+    return root._mmCamToken;
+  }
+
+  function withCamQuery(url, token, fresh) {
+    var base = String(url || '').split('?')[0];
+    if (!base) return '';
+    var q = 't=' + Date.now();
+    if (token) q += '&a=' + encodeURIComponent(token);
+    if (fresh) q += '&fresh=1';
+    return base + '?' + q;
+  }
+
+  function scrapeZvycCamToken(force) {
     var root = cardEl();
-    if (isWebcam(v) && root && root._mmLiveGrab) return root._mmLiveGrab;
+    if (!force) {
+      var cached = camTokenOf(root);
+      if (cached) return Promise.resolve(cached);
+      if (root && root._mmCamTokenWait) return root._mmCamTokenWait;
+    }
+    var wait = fetch(CAM_PAGE, { mode: 'cors', credentials: 'omit', cache: 'no-store' })
+      .then(function (r) {
+        return r.text();
+      })
+      .then(function (html) {
+        var m = String(html || '').match(/livee\.m3u8\?a=([A-Za-z0-9_\-=]+)/);
+        var tok = m ? m[1] : '';
+        if (tok && root) {
+          root._mmCamToken = tok;
+          root._mmCamTokenAt = Date.now();
+        }
+        return tok;
+      })
+      .catch(function () {
+        return '';
+      });
+    if (root) root._mmCamTokenWait = wait;
+    return wait.then(function (tok) {
+      if (root && root._mmCamTokenWait === wait) root._mmCamTokenWait = null;
+      return tok;
+    });
+  }
+
+  function liveThumbSrc(v, fresh) {
+    var root = cardEl();
+    if (isWebcam(v) && root && root._mmLiveGrab && !fresh) return root._mmLiveGrab;
     if (isWebcam(v)) {
       var snap = String((v && (v.live_snap || v.snap)) || '').split('?')[0];
       if (!snap) snap = '/api/regatta/2026-09-13-zvyc-cape-classic/zvyc-live-cam-thumb';
-      return snap + '?t=' + Date.now();
+      return withCamQuery(snap, camTokenOf(root), fresh);
     }
     var base = String((v && v.thumb) || '').split('?')[0];
     return base ? base + '?t=' + Date.now() : '';
@@ -113,12 +161,34 @@
     }
   }
 
+  function hideThumbCamLoad(root) {
+    if (!root) return;
+    var boxes = root.querySelectorAll('.mm-lipton-reels-thumb [data-mm-cam-load]');
+    var i;
+    for (i = 0; i < boxes.length; i++) boxes[i].hidden = true;
+    var thumbs = root.querySelectorAll('.mm-lipton-reels-thumb--cam-load');
+    for (i = 0; i < thumbs.length; i++) thumbs[i].classList.remove('mm-lipton-reels-thumb--cam-load');
+  }
+
+  function showThumbCamLoad(root) {
+    if (!root) return;
+    var thumbs = root.querySelectorAll('.mm-lipton-reels-thumb--latest');
+    var i;
+    for (i = 0; i < thumbs.length; i++) {
+      if (!thumbs[i].querySelector('[data-mm-webcam-live]')) continue;
+      thumbs[i].classList.add('mm-lipton-reels-thumb--cam-load');
+      var box = thumbs[i].querySelector('[data-mm-cam-load]');
+      if (box) box.hidden = false;
+    }
+  }
+
   function applyLiveGrab(root, dataUrl) {
     if (!root || !dataUrl || dataUrl.indexOf('data:image') !== 0) return;
     root._mmLiveGrab = dataUrl;
     var imgs = root.querySelectorAll('[data-mm-webcam-live]');
     var i;
     for (i = 0; i < imgs.length; i++) imgs[i].src = dataUrl;
+    hideThumbCamLoad(root);
   }
 
   function scheduleVideoGrab(root, video) {
@@ -170,6 +240,10 @@
 
   function playUrl(v) {
     var u = String((v && v.play_url) || '').trim();
+    if (isWebcam(v)) {
+      var root = cardEl();
+      return withCamQuery(u, camTokenOf(root), true);
+    }
     if (u) return u;
     var id = String((v && v.id) || '').replace(/[^0-9]/g, '');
     if (!id) return '';
@@ -466,11 +540,24 @@
     });
   }
 
-  function latestThumbHtml(v, videos) {
+  function camLoadHtml() {
     return (
-      '<div class="mm-lipton-reels-thumb mm-lipton-reels-thumb--latest" style="aspect-ratio:16 / 9">' +
+      '<div class="mm-lipton-reels-cam-load" data-mm-cam-load aria-live="polite" aria-label="Loading">' +
+      '<span class="mm-lipton-reels-cam-spin" aria-hidden="true"></span>' +
+      '<span class="mm-lipton-reels-cam-load-txt">Loading</span>' +
+      '</div>'
+    );
+  }
+
+  function latestThumbHtml(v, videos) {
+    var cam = isWebcam(v);
+    return (
+      '<div class="mm-lipton-reels-thumb mm-lipton-reels-thumb--latest' +
+      (cam ? ' mm-lipton-reels-thumb--cam-load' : '') +
+      '" style="aspect-ratio:16 / 9">' +
       posterHtml(v) +
-      latestChromeHtml(chromeSource(v, videos), isWebcam(v) ? 'mm-lipton-reels-clip-chrome--zvyc' : '') +
+      latestChromeHtml(chromeSource(v, videos), cam ? 'mm-lipton-reels-clip-chrome--zvyc' : '') +
+      (cam ? camLoadHtml() : '') +
       '<span class="mm-lipton-reels-play" aria-hidden="true"></span>' +
       thumbHit(v) +
       '</div>'
@@ -494,35 +581,65 @@
     }
   }
 
+  function wireWebcamThumbLoad(root, clip) {
+    var imgs = root.querySelectorAll('[data-mm-webcam-live]');
+    var i;
+    for (i = 0; i < imgs.length; i++) {
+      if (imgs[i].getAttribute('data-mm-wired') === '1') continue;
+      imgs[i].setAttribute('data-mm-wired', '1');
+      imgs[i].addEventListener('load', function () {
+        if (this.naturalWidth > 16) hideThumbCamLoad(root);
+      });
+      imgs[i].addEventListener('error', function () {
+        var n = parseInt(this.getAttribute('data-mm-retry') || '0', 10);
+        if (n >= 2) return;
+        this.setAttribute('data-mm-retry', String(n + 1));
+        var img = this;
+        scrapeZvycCamToken(true).then(function (tok) {
+          if (!tok) return;
+          img.src = liveThumbSrc(clip, true);
+        });
+      });
+    }
+  }
+
   function startWebcamLive(root, clip) {
     if (!root || !isWebcam(clip)) {
       stopWebcamLive(root);
       return;
     }
+    showThumbCamLoad(root);
     if (root._mmLiveGrab) {
       applyLiveGrab(root, root._mmLiveGrab);
       stopWebcamLive(root);
       return;
     }
-    var imgs = root.querySelectorAll('[data-mm-webcam-live]');
     function bump() {
+      var imgs = root.querySelectorAll('[data-mm-webcam-live]');
       if (root._mmLiveGrab) {
         applyLiveGrab(root, root._mmLiveGrab);
         stopWebcamLive(root);
         return;
       }
-      var src = liveThumbSrc(clip);
+      var src = liveThumbSrc(clip, true);
       var i;
       for (i = 0; i < imgs.length; i++) {
         if (src) imgs[i].src = src;
       }
+      wireWebcamThumbLoad(root, clip);
     }
-    bump();
-    stopWebcamLive(root);
-    root._mmCamTimer = window.setInterval(function () {
-      imgs = root.querySelectorAll('[data-mm-webcam-live]');
+    function go() {
       bump();
-    }, 4000);
+      stopWebcamLive(root);
+      root._mmCamTimer = window.setInterval(function () {
+        bump();
+      }, 4000);
+    }
+    if (camTokenOf(root)) {
+      go();
+      return;
+    }
+    scrapeZvycCamToken().then(go);
   }
 
   function emptyReelSlotHtml() {
@@ -810,15 +927,20 @@
     var stage = root.querySelector('[data-mm-stage]');
     if (isWebcam(clip) && stage) {
       stopTrackOverlay();
-      var src = playUrl(clip);
-      var video = ensureHeroVideo(root);
+      root._mmLiveGrab = '';
       stage.classList.add('mm-lipton-reels-stage--playing');
-      if (video && src) {
-        if (video.parentNode !== stage) stage.appendChild(video);
-        playWebcamVideo(root, clip, video, src);
-        return;
-      }
-      showWebcamSnap(root, clip);
+      paintWebcamPoster(root, clip);
+      showCamLoad(root);
+      scrapeZvycCamToken(true).then(function () {
+        var src = playUrl(clip);
+        var video = ensureHeroVideo(root);
+        if (video && src) {
+          if (video.parentNode !== stage) stage.appendChild(video);
+          playWebcamVideo(root, clip, video, src);
+          return;
+        }
+        showWebcamSnap(root, clip);
+      });
       return;
     }
     var video = ensureHeroVideo(root);
@@ -1301,6 +1423,7 @@
     var picked = currentVideo(payload, state);
     if (!picked.current) return;
     if (wasExpanded && picked.current.id === prevId) {
+      if (isWebcam(picked.current)) startHeroPlayback(root, picked.current);
       revealPlayingClip(root);
       return;
     }
@@ -1393,7 +1516,7 @@
     var state = { expanded: false, currentId: '', chromeSnap: null, hideTimer: null, playerWired: false, sliding: false, didSwipe: false };
     var video = ensureHeroVideo(root);
     var first = sortVideos(payload.videos || [])[0];
-    if (first && video) {
+    if (first && video && !isWebcam(first)) {
       var src = playUrl(first);
       if (first.thumb) video.setAttribute('poster', first.thumb);
       if (src) video.src = src;
@@ -1425,7 +1548,21 @@
         return;
       }
       var brand = ev.target.closest && ev.target.closest('.mm-lipton-reels-brand');
-      if (brand) return;
+      if (brand) {
+        if (
+          isCapeClassic() &&
+          (root.getAttribute('data-mm-webcam-pending') === '1' || !hasRealReels(payload.videos || []))
+        ) {
+          var cam = (payload.videos || []).filter(isWebcam)[0];
+          if (cam) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            root._mmLiveGrab = '';
+            openClip(root, payload, state, cam.id);
+          }
+        }
+        return;
+      }
       var playerUi = ev.target.closest && ev.target.closest('[data-mm-player-ui]');
       if (playerUi && root.contains(playerUi)) {
         if (state.didSwipe) {
