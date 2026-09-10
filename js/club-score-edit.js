@@ -689,6 +689,8 @@
     var page = document.querySelector(".regatta-page");
     if (!page) return;
     page.classList.add("regatta-page--club-score-edit");
+    var crew = page.querySelector("#capeClassicCrew");
+    if (crew) crew.classList.add("cape-crew--admin");
     banner();
     page.querySelectorAll(".fleet-section").forEach(injectRaceStepper);
     page.querySelectorAll("table.fleet-results-table").forEach(ensureR1);

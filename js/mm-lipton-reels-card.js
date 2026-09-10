@@ -74,6 +74,7 @@
   var HLS_SRC = 'https://cdn.jsdelivr.net/npm/hls.js@1.5.20/dist/hls.min.js';
   var CAM_PAGE =
     'https://www.skylinewebcams.com/en/webcam/south-africa/western-cape/cape-town/zeekoevlei.html';
+  var CAM_SNAP = 'https://www.skylinewebcams.com/temp/4040.jpg';
   var CAM_TOKEN_TTL_MS = 240000;
   var hlsWait = null;
 
@@ -143,6 +144,7 @@
     if (isWebcam(v)) {
       var snap = String((v && (v.live_snap || v.snap)) || '').split('?')[0];
       if (!snap) snap = '/api/regatta/2026-09-13-zvyc-cape-classic/zvyc-live-cam-thumb';
+      if (root && root._mmCamUseDirectSnap) return CAM_SNAP + '?t=' + Date.now();
       return withCamQuery(snap, camTokenOf(root), fresh);
     }
     var base = String((v && v.thumb) || '').split('?')[0];
@@ -243,7 +245,9 @@
     var u = String((v && v.play_url) || '').trim();
     if (isWebcam(v)) {
       var root = cardEl();
-      return withCamQuery(u, camTokenOf(root), true);
+      var tok = camTokenOf(root);
+      if (tok) return 'https://hd-auth.skylinewebcams.com/live.m3u8?a=' + encodeURIComponent(tok);
+      return withCamQuery(u, tok, true);
     }
     if (u) return u;
     var id = String((v && v.id) || '').replace(/[^0-9]/g, '');
@@ -592,11 +596,9 @@
         var n = parseInt(this.getAttribute('data-mm-retry') || '0', 10);
         if (n >= 2) return;
         this.setAttribute('data-mm-retry', String(n + 1));
-        var img = this;
-        scrapeZvycCamToken(true).then(function (tok) {
-          if (!tok) return;
-          img.src = liveThumbSrc(clip, true);
-        });
+        var rootNow = cardEl();
+        if (rootNow) rootNow._mmCamUseDirectSnap = true;
+        this.src = CAM_SNAP + '?t=' + Date.now();
       });
     }
   }
@@ -632,11 +634,8 @@
         bump();
       }, 4000);
     }
-    if (camTokenOf(root)) {
-      go();
-      return;
-    }
-    scrapeZvycCamToken().then(go);
+    scrapeZvycCamToken();
+    go();
   }
 
   function emptyReelSlotHtml() {
@@ -841,6 +840,7 @@
   function showWebcamSnap(root, clip) {
     destroyWebcamHls(root);
     hideCamLoad(root);
+    if (root) root._mmCamUseDirectSnap = true;
     var stage = root.querySelector('[data-mm-stage]');
     if (!stage) return;
     var video = root.querySelector('[data-mm-hero-video]');
@@ -852,6 +852,7 @@
       if (hold) hold.appendChild(video);
     }
     paintWebcamPoster(root, clip);
+    startWebcamLive(root, clip);
   }
 
   /* Timed 2026-09-10 live: playlist 2.0-3.2s, first seg 3.4-4.4s, playlist+2seg 9-11s. */

@@ -21094,7 +21094,13 @@ _CAPE_CLASSIC_CREW_ROWS = (
 _CAPE_CLASSIC_CREW_CSS = (
     ".cape-crew-sa{display:none;margin-top:12px;justify-content:flex-end;gap:10px;width:100%}"
     ".regatta-page--super-admin-edit .cape-crew-sa,.cape-crew--admin .cape-crew-sa{display:flex}"
-    ".cape-crew--hidden .table-wrapper{opacity:0.55}"
+    ".cape-crew--hidden{display:none}"
+    ".regatta-page--club-score-edit .cape-crew--hidden,"
+    ".regatta-page--super-admin-edit .cape-crew--hidden,"
+    ".cape-crew--admin.cape-crew--hidden{display:block}"
+    ".regatta-page--club-score-edit .cape-crew--hidden .table-wrapper,"
+    ".regatta-page--super-admin-edit .cape-crew--hidden .table-wrapper,"
+    ".cape-crew--admin.cape-crew--hidden .table-wrapper{opacity:0.55}"
     ".cape-crew .helm-col a{color:#1a2750;font-weight:700;text-decoration:underline}"
     ".cape-crew .fleet-title-row a{color:#1a2750;font-weight:bold;text-decoration:none}"
     ".cape-crew .fleet-title-row a:hover{color:#e65100}"
@@ -21124,10 +21130,8 @@ def _cape_classic_crew_table_html(
     always_show_button: bool = False,
     link_title: bool = True,
 ) -> str:
-    """Staff table below last fleet. Public sees it only when shown. No DB rows."""
+    """Staff table below last fleet. Always in the HTML; public CSS hides it until shown."""
     show = _cape_classic_crew_show()
-    if not show and not is_editor:
-        return ""
     sas_ids = [sid for *_, sid in _CAPE_CLASSIC_CREW_ROWS if str(sid or "").strip().isdigit()]
     slug_map = _batch_sailor_slugs_for_sas_ids(sas_ids) if sas_ids else {}
     rows_html = []
@@ -21956,6 +21960,23 @@ def _zvyc_live_cam_frame_jpeg(explicit_token: str = "", fresh: bool = False) -> 
             cached = _ZVYC_GRAB_MEM.get("jpg") or b""
             if cached[:2] == b"\xff\xd8" and now - float(_ZVYC_GRAB_MEM.get("t") or 0) < _ZVYC_GRAB_TTL_SEC:
                 return cached
+    def _keep(jpg: bytes) -> bytes:
+        with _ZVYC_GRAB_LOCK:
+            _ZVYC_GRAB_MEM["t"] = time.time()
+            _ZVYC_GRAB_MEM["jpg"] = jpg
+        return jpg
+
+    try:
+        with httpx.Client(
+            timeout=8.0, follow_redirects=True, headers=_ZVYC_CAM_FETCH_HEADERS
+        ) as client:
+            snap = client.get(_ZVYC_LIVE_CAM_SNAP)
+        jpg = snap.content or b""
+        if snap.status_code < 400 and jpg[:2] == b"\xff\xd8":
+            return _keep(jpg)
+    except Exception as e:
+        print(f"[zvyc_live_cam] snap failed: {e}", flush=True)
+
     url = _zvyc_live_cam_stream_url(explicit_token)
     if not url:
         return b""
@@ -21984,10 +22005,7 @@ def _zvyc_live_cam_frame_jpeg(explicit_token: str = "", fresh: bool = False) -> 
         proc = subprocess.run(cmd, capture_output=True, timeout=20)
         jpg = proc.stdout or b""
         if proc.returncode == 0 and jpg[:2] == b"\xff\xd8":
-            with _ZVYC_GRAB_LOCK:
-                _ZVYC_GRAB_MEM["t"] = time.time()
-                _ZVYC_GRAB_MEM["jpg"] = jpg
-            return jpg
+            return _keep(jpg)
         print(f"[zvyc_live_cam] grab failed rc={proc.returncode}", flush=True)
     except Exception as e:
         print(f"[zvyc_live_cam] grab failed: {e}", flush=True)
@@ -29419,7 +29437,7 @@ def serve_regatta_standalone(slug: str, request: Request):
         elif str(regatta_id) == "2026-09-13-zvyc-cape-classic":
             mm_card = _cape_classic_mm_reels_card_html(str(regatta_id))
             mm_card_js = (
-                '<script src="/js/mm-lipton-reels-card.js?v=mmr114" defer></script>'
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr116" defer></script>'
             )
         crew_frag = ""
         if _cape_classic_event_id(regatta_id):
