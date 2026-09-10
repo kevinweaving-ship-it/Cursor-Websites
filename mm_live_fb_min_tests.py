@@ -101,11 +101,11 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("playsinline", js)
         src = Path("api.py").read_text(encoding="utf-8")
         self.assertIn('row["play_url"]', src)
-        self.assertIn("mmr70", src)
+        self.assertIn("mmr71", src)
         self.assertIn("mm-lipton-track-overlay.js", src)
         self.assertLess(
             src.find("mm-lipton-track-overlay.js"),
-            src.find("mm-lipton-reels-card.js?v=mmr70"),
+            src.find("mm-lipton-reels-card.js?v=mmr71"),
         )
         self.assertIn("scrollTo", js)
         self.assertIn("bumpSlide", js)

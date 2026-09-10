@@ -69,7 +69,7 @@
   var CLIP_RULES = {
     '2622643364847262': clipR(7, 'round', { offsetMs: 36000 }),
     '2410502969472697': clipR(7, 'round'),
-    '1014880974840710': clipR(7, 'start', { approach: 'ltr', offsetMs: 0 }),
+    '1014880974840710': clipR(7, 'start', { approach: 'ltr', offsetMs: 24500 }),
     '26023759437321260': clipR(5, 'round'),
     '1587763379559775': clipR(5, 'round'),
     '4518629078350390': clipR(5, 'start'),
