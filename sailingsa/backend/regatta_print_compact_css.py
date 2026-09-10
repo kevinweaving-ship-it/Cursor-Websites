@@ -174,6 +174,8 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
     min-width: 0 !important;
     max-width: 100% !important;
     table-layout: fixed !important;
+    border-collapse: collapse !important;
+    border: 0.7pt solid #1a2750 !important;
     page-break-inside: avoid !important;
     break-inside: avoid-page !important;
   }
@@ -185,7 +187,19 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
     overflow: visible !important;
     font-stretch: condensed;
     letter-spacing: -0.01em !important;
+    border: 0.5pt solid #1a2750 !important;
+    background: #fff !important;
   }
+  th {
+    background: #e9eefb !important;
+    font-weight: 700 !important;
+    text-align: center !important;
+  }
+  td { text-align: center !important; }
+  td.helm-col, th.helm-col, td.crew-col, th.crew-col { text-align: left !important; }
+  tr.medal-gold td { background: #D4AF37 !important; }
+  tr.medal-silver td { background: #D7D7D7 !important; }
+  tr.medal-bronze td { background: #CE8946 !important; }
   .fleet-results-table th.class-col, .fleet-results-table td.class-col,
   th.class-col, td.class-col { display: none !important; }
   .rank-col, .total-col, .nett-col { width: 3.3% !important; }

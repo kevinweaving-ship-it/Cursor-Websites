@@ -38,6 +38,8 @@ def test_compact_print_css_portrait_header_and_fleet_line():
     assert "th.class-col, td.class-col { display: none !important; }" in css
     assert "font-size: 5.5pt" in css
     assert "overflow: visible" in css
+    assert "border-collapse: collapse" in css
+    assert "border: 0.5pt solid #1a2750" in css
     assert "2025-12-19-hyc-youth-nationals" in Path(
         ROOT / "sailingsa" / "backend" / "regatta_print_compact_css.py"
     ).read_text(encoding="utf-8")
