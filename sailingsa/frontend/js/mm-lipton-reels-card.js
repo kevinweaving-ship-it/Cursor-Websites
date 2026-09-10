@@ -73,7 +73,24 @@
   var HLS_SRC = 'https://cdn.jsdelivr.net/npm/hls.js@1.5.20/dist/hls.min.js';
   var hlsWait = null;
 
+  function isCapeClassic() {
+    var root = cardEl();
+    return !!(root && root.getAttribute('data-regatta-id') === '2026-09-13-zvyc-cape-classic');
+  }
+
+  function isMobilePortrait() {
+    return window.matchMedia('(max-width: 599px) and (orientation: portrait)').matches;
+  }
+
+  function placeholderCount(videos) {
+    if (!isCapeClassic() || hasRealReels(videos)) return 0;
+    if (isMobilePortrait()) return 0;
+    return 4;
+  }
+
   function liveThumbSrc(v) {
+    var root = cardEl();
+    if (isWebcam(v) && root && root._mmLiveGrab) return root._mmLiveGrab;
     if (isWebcam(v)) {
       var snap = String((v && (v.live_snap || v.snap)) || '').split('?')[0];
       if (!snap) snap = '/api/regatta/2026-09-13-zvyc-cape-classic/zvyc-live-cam-thumb';
@@ -81,6 +98,37 @@
     }
     var base = String((v && v.thumb) || '').split('?')[0];
     return base ? base + '?t=' + Date.now() : '';
+  }
+
+  function grabVideoFrame(video) {
+    if (!video || video.readyState < 2 || video.videoWidth < 16) return '';
+    var canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    try {
+      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL('image/jpeg', 0.74);
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function applyLiveGrab(root, dataUrl) {
+    if (!root || !dataUrl || dataUrl.indexOf('data:image') !== 0) return;
+    root._mmLiveGrab = dataUrl;
+    var imgs = root.querySelectorAll('[data-mm-webcam-live]');
+    var i;
+    for (i = 0; i < imgs.length; i++) imgs[i].src = dataUrl;
+  }
+
+  function scheduleVideoGrab(root, video) {
+    if (!root || !video) return;
+    function shoot() {
+      var grab = grabVideoFrame(video);
+      if (grab) applyLiveGrab(root, grab);
+    }
+    window.setTimeout(shoot, 1000);
+    window.setTimeout(shoot, 3000);
   }
 
   function withHls(cb) {
@@ -451,8 +499,18 @@
       stopWebcamLive(root);
       return;
     }
+    if (root._mmLiveGrab) {
+      applyLiveGrab(root, root._mmLiveGrab);
+      stopWebcamLive(root);
+      return;
+    }
     var imgs = root.querySelectorAll('[data-mm-webcam-live]');
     function bump() {
+      if (root._mmLiveGrab) {
+        applyLiveGrab(root, root._mmLiveGrab);
+        stopWebcamLive(root);
+        return;
+      }
       var src = liveThumbSrc(clip);
       var i;
       for (i = 0; i < imgs.length; i++) {
@@ -480,7 +538,9 @@
     var count = total || 1;
     var maxN = Math.min(count, 5);
     if (avail <= 0) return 1;
-    if (window.matchMedia('(max-width: 599px)').matches) return 1;
+    if (window.matchMedia('(max-width: 599px)').matches) {
+      if (!isCapeClassic() || isMobilePortrait()) return 1;
+    }
     var art = ART_W / ART_H;
     var vid = VID_W / VID_H;
     var minH = 76;
@@ -496,11 +556,16 @@
   }
 
   function compactTilesHtml(videos) {
-    if (!(videos && videos.length)) return emptyReelSlotHtml();
     var parts = [];
     var i;
-    for (i = 0; i < videos.length; i++) parts.push(compactTileHtml(videos[i], videos, i === 0));
-    return parts.join('');
+    if (videos && videos.length) {
+      for (i = 0; i < videos.length; i++) parts.push(compactTileHtml(videos[i], videos, i === 0));
+    } else {
+      parts.push(emptyReelSlotHtml());
+    }
+    var extra = placeholderCount(videos);
+    for (i = 0; i < extra; i++) parts.push(emptyReelSlotHtml());
+    return parts.join('') || emptyReelSlotHtml();
   }
 
   function stopTrackOverlay() {
@@ -712,7 +777,10 @@
       var p = video.play();
       if (p && p.catch) p.catch(onFail);
     }
-    video.addEventListener('playing', reveal, { once: true });
+    video.addEventListener('playing', function () {
+      reveal();
+      scheduleVideoGrab(root, video);
+    }, { once: true });
     root._mmCamLoadTimer = window.setTimeout(function () {
       root._mmCamLoadTimer = 0;
       if (!root._mmCamReady) hideCamLoad(root);
@@ -987,12 +1055,16 @@
     var avail = row.clientWidth;
     if (avail <= 0) return;
     syncBrand(root, videos);
-    var nFit = thumbsThatFit(avail, videos.length || 1);
+    var extra = placeholderCount(videos);
+    var tileCount = (videos.length || 1) + extra;
+    var nFit = thumbsThatFit(avail, tileCount);
+    if (isCapeClassic() && !hasRealReels(videos) && !isMobilePortrait()) nFit = 5;
     var wrap = root.querySelector('.mm-lipton-reels-rail-wrap');
     if (wrap) wrap.style.display = '';
-    if (compact.getAttribute('data-mm-count') !== String(videos.length)) {
+    var countKey = String((videos || []).length) + ':' + extra + ':' + (isMobilePortrait() ? 'mp' : 'w');
+    if (compact.getAttribute('data-mm-count') !== countKey) {
       compact.innerHTML = compactTilesHtml(videos);
-      compact.setAttribute('data-mm-count', String(videos.length));
+      compact.setAttribute('data-mm-count', countKey);
     }
     startWebcamLive(root, (videos || []).filter(isWebcam)[0]);
     var art = ART_W / ART_H;

@@ -112,6 +112,10 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("mm-lipton-reels-cam-spin", js)
         self.assertIn("CAM_LOAD_HANG_MS", js)
         self.assertIn("paintWebcamPoster", js)
+        self.assertIn("placeholderCount", js)
+        self.assertIn("isMobilePortrait", js)
+        self.assertIn("grabVideoFrame", js)
+        self.assertIn("scheduleVideoGrab", js)
         self.assertIn("play_url", js)
         self.assertIn("data-mm-hero-video", js)
         self.assertIn("video.play()", js)
@@ -124,11 +128,11 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         src = Path("api.py").read_text(encoding="utf-8")
         self.assertIn('row["play_url"]', src)
         self.assertIn("mmr102", src)
-        self.assertIn("mmr110", src)
+        self.assertIn("mmr111", src)
         self.assertIn("mm-lipton-track-overlay.js", src)
         self.assertLess(
             src.find("mm-lipton-track-overlay.js"),
-            src.find("mm-lipton-reels-card.js?v=mmr110"),
+            src.find("mm-lipton-reels-card.js?v=mmr111"),
         )
         self.assertIn("scrollTo", js)
         self.assertIn("bumpSlide", js)
@@ -432,6 +436,9 @@ class CapeClassicMmCardUnitTest(unittest.TestCase):
         self.assertIn("/artwork/Club Logo/ZVYC.png", src)
         self.assertIn("mm-lipton-reels-clip-chrome--zvyc", src)
         self.assertIn("mm-lipton-reels-cam-spin", src)
+        self.assertIn("_zvyc_live_cam_frame_jpeg", src)
+        self.assertIn("-frames:v", src)
+        self.assertIn("mm-lipton-reels-tile--slot", src)
         self.assertIn("@keyframes mm-cam-spin", src)
         self.assertIn('"thumb": "/api/regatta/2026-09-13-zvyc-cape-classic/zvyc-live-cam-thumb"', src)
         self.assertNotIn('"thumb": _ZVYC_CLUB_LOGO', src)

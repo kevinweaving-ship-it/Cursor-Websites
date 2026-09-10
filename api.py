@@ -20649,6 +20649,7 @@ _LIPTON_MM_REELS_CSS = (
     ".mm-lipton-reels-thumb--latest .mm-lipton-reels-play{position:relative;left:auto;top:auto;z-index:1;width:44px;height:44px;margin:auto;padding:0;transform:none;border-radius:50%;background:transparent;border:3px solid #00B4FF;pointer-events:none;box-sizing:border-box;box-shadow:0 0 8px #00B4FF;flex:0 0 auto}"
     ".mm-lipton-reels-thumb--latest .mm-lipton-reels-play:after{content:\"\";position:absolute;left:54%;top:50%;width:0;height:0;border-style:solid;border-width:10px 0 10px 16px;border-color:transparent transparent transparent #fff;transform:translate(-30%,-50%)}"
     ".mm-lipton-reels-thumb-ph{display:block;width:100%;height:100%;background:#0b1c33}"
+    ".mm-lipton-reels-tile--slot .mm-lipton-reels-thumb{cursor:default;background:#0b1c33}"
     ".mm-lipton-reels-thumb-hit{position:absolute;inset:0;z-index:2;margin:0;padding:0;border:0;background:transparent;cursor:pointer;min-height:44px}"
     ".mm-lipton-reels-expanded{position:relative}"
     ".mm-lipton-reels-expanded-bar{position:absolute;top:0;right:0;z-index:6;display:flex;justify-content:flex-end;align-items:flex-start;margin:0;padding:0;min-height:0;pointer-events:none}"
@@ -20965,6 +20966,56 @@ def _zvyc_live_cam_stream_url() -> str:
     return ""
 
 
+_ZVYC_GRAB_LOCK = threading.Lock()
+_ZVYC_GRAB_MEM = {"t": 0.0, "jpg": b""}
+_ZVYC_GRAB_TTL_SEC = 8.0
+
+
+def _zvyc_live_cam_frame_jpeg() -> bytes:
+    """Grab one JPEG after the live feed has played ~2s. Do not store the feed."""
+    now = time.time()
+    with _ZVYC_GRAB_LOCK:
+        cached = _ZVYC_GRAB_MEM.get("jpg") or b""
+        if cached[:2] == b"\xff\xd8" and now - float(_ZVYC_GRAB_MEM.get("t") or 0) < _ZVYC_GRAB_TTL_SEC:
+            return cached
+    url = _zvyc_live_cam_stream_url()
+    if not url:
+        return b""
+    ua = _ZVYC_CAM_FETCH_HEADERS.get("User-Agent") or "Mozilla/5.0"
+    headers = f"Referer: {_ZVYC_LIVE_CAM_PAGE}\r\nUser-Agent: {ua}\r\n"
+    cmd = [
+        "ffmpeg",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-headers",
+        headers,
+        "-i",
+        url,
+        "-ss",
+        "2",
+        "-frames:v",
+        "1",
+        "-q:v",
+        "5",
+        "-f",
+        "image2",
+        "pipe:1",
+    ]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, timeout=20)
+        jpg = proc.stdout or b""
+        if proc.returncode == 0 and jpg[:2] == b"\xff\xd8":
+            with _ZVYC_GRAB_LOCK:
+                _ZVYC_GRAB_MEM["t"] = time.time()
+                _ZVYC_GRAB_MEM["jpg"] = jpg
+            return jpg
+        print(f"[zvyc_live_cam] grab failed rc={proc.returncode}", flush=True)
+    except Exception as e:
+        print(f"[zvyc_live_cam] grab failed: {e}", flush=True)
+    return b""
+
+
 def _cape_classic_has_real_reels(videos: list) -> bool:
     for item in videos or []:
         if item.get("placeholder") or item.get("kind") == "webcam" or item.get("id") == "zvyc-live-cam":
@@ -21098,9 +21149,18 @@ async def api_regatta_mm_live_fb_feed(regatta_id: str):
 
 @app.get("/api/regatta/{regatta_id}/zvyc-live-cam-thumb")
 async def api_zvyc_live_cam_thumb(regatta_id: str):
-    """Pass through the Skyline snapshot. Do not store the image."""
+    """Return a live-feed screenshot after ~2s of play. Do not store the feed."""
     if str(regatta_id or "").strip() != _CAPE_CLASSIC_MM_REGATTA_ID:
         raise HTTPException(status_code=404, detail="not found")
+    import asyncio
+
+    jpg = await asyncio.to_thread(_zvyc_live_cam_frame_jpeg)
+    if jpg[:2] == b"\xff\xd8":
+        return Response(
+            content=jpg,
+            media_type="image/jpeg",
+            headers={"Cache-Control": "no-store"},
+        )
     return RedirectResponse(_ZVYC_LIVE_CAM_SNAP, status_code=302)
 
 
@@ -28065,12 +28125,12 @@ def serve_regatta_standalone(slug: str, request: Request):
             mm_card = _lipton_mm_reels_card_html(str(regatta_id))
             mm_card_js = (
                 '<script src="/js/mm-lipton-track-overlay.js?v=mmr102" defer></script>'
-                '<script src="/js/mm-lipton-reels-card.js?v=mmr110" defer></script>'
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr111" defer></script>'
             )
         elif str(regatta_id) == "2026-09-13-zvyc-cape-classic":
             mm_card = _cape_classic_mm_reels_card_html(str(regatta_id))
             mm_card_js = (
-                '<script src="/js/mm-lipton-reels-card.js?v=mmr110" defer></script>'
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr111" defer></script>'
             )
         body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
