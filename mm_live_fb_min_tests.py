@@ -411,6 +411,8 @@ class CapeClassicMmCardUnitTest(unittest.TestCase):
         self.assertIn("fb-page-marine-megastore.jpg", js)
         self.assertIn("stopTrackOverlay();", js)
         self.assertNotIn("_mm_video_matches_event", payload_fn)
+        feed_fn = src[src.find("def _mm_feed_payload"): src.find("def _mm_live_fb_parse_on")]
+        self.assertIn('rid != "2026-09-13-zvyc-cape-classic"', feed_fn)
         self.assertNotIn("LIVE VIDEO", fn)
         self.assertNotIn("Fullscreen", fn)
         self.assertNotIn("timadvisor", fn.lower())

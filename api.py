@@ -20120,8 +20120,10 @@ def _mm_feed_payload(regatta_id: str) -> dict:
         if n:
             videos.append(n)
     videos = _mm_sorted_newest(videos)
-    start, end = _mm_regatta_date_window(rid)
-    videos = [v for v in videos if _mm_video_matches_event(v, start, end)]
+    # Cape Classic: reel dates after the event end stay valid.
+    if rid != "2026-09-13-zvyc-cape-classic":
+        start, end = _mm_regatta_date_window(rid)
+        videos = [v for v in videos if _mm_video_matches_event(v, start, end)]
     videos = _mm_apply_page_chrome(videos)
     enabled = _mm_live_fb_is_enabled(rid)
     return {
@@ -20865,7 +20867,10 @@ def _mm_title_from_fb_url(url: str) -> str:
 
 
 def _cape_classic_mm_reels_payload() -> dict:
-    """MM Facebook clips only. Empty until the first Saturday reel is saved."""
+    """MM Facebook clips only. Empty until the first Saturday reel is saved.
+
+    Reel dates after the event end stay valid — do not window-filter here.
+    """
     row = _mm_feed_row(_CAPE_CLASSIC_MM_REGATTA_ID)
     videos = []
     for item in row.get("videos") or []:
