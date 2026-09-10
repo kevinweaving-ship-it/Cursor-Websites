@@ -381,6 +381,10 @@
     var canvas = trackRoot.querySelector('[data-mm-track-canvas]');
     var video = trackRoot.querySelector('[data-mm-hero-video]');
     if (!box || !canvas || !video) return;
+    if (overlay.kind && overlay.kind(trackClip.id) === 'start') {
+      box.style.setProperty('--mm-track-h', '88%');
+      void box.offsetHeight;
+    }
     var cssW = box.clientWidth || 0;
     var cssH = box.clientHeight || 0;
     if (cssW < 8 || cssH < 8) return;

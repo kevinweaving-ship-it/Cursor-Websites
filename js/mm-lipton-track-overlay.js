@@ -120,6 +120,11 @@
     return !!ruleFor(id);
   }
 
+  function kindFor(id) {
+    var r = ruleFor(id);
+    return r && r.kind ? r.kind : '';
+  }
+
   function offsetMsFor(id) {
     var r = ruleFor(id);
     return r && r.offsetMs != null ? r.offsetMs : 0;
@@ -961,6 +966,19 @@
     return cam;
   }
 
+  /* 1st must stay on the strip — Start was clipping them off the top. */
+  function keepFirstOnCanvas(cam, front, w, h) {
+    if (!cam || !front || !front.pos || w < 8 || h < 8) return cam;
+    var p = xy(front.pos.lat, front.pos.lon, cam);
+    var padX = 22;
+    var padY = 14;
+    if (p.x < padX) cam.cx += padX - p.x;
+    if (p.x > w - padX) cam.cx += w - padX - p.x;
+    if (p.y < padY) cam.cy += padY - p.y;
+    if (p.y > h - padY) cam.cy += h - padY - p.y;
+    return cam;
+  }
+
   function startPackCam(live, w, h, endFrac) {
     var line = startLineMid();
     var pin = line && line.pin;
@@ -1003,19 +1021,24 @@
     var lineA = 0;
     if (pinAA && rcAA) lineA = (pinAA.across + rcAA.across) / 2;
     else if (pinAA) lineA = pinAA.across;
-    /* Line high — room below for boats that duck under it. */
-    var lineY = Math.max(26, h * 0.28);
-    var belowM = Math.max(18, lineA - win.minC);
-    var scaleBelow = (h - lineY - 14) / belowM;
-    if (scaleBelow > 0 && scale > scaleBelow) scale = scaleBelow;
+    /* Whole Pin–RC line must fit. Old path only reserved room below
+     * the midline, so RC and 1st clipped off the top (overlay looked gone). */
+    var padT = 16;
+    var padB = 16;
+    var spanC = Math.max(40, win.maxC - win.minC);
+    var scaleLine = (h - padT - padB) / spanC;
+    if (scaleLine > 0 && scale > scaleLine) scale = scaleLine;
     var lineX = padL + behind * scale;
     if (lineX > w * 0.34) {
       scale = (w * 0.34 - padL) / behind;
       if (!(scale > 0.08)) scale = 0.08;
+      if (scaleLine > 0 && scale > scaleLine) scale = scaleLine;
       lineX = padL + behind * scale;
     }
     var cx = lineX;
-    var cy = lineY + lineA * scale;
+    var cyLo = padT + win.maxC * scale;
+    var cyHi = h - padB + win.minC * scale;
+    var cy = cyHi >= cyLo ? (cyLo + cyHi) / 2 : (padT + h - padB) / 2 + lineA * scale;
     var cam = {
       midLat: origin.lat,
       midLon: origin.lon,
@@ -1033,7 +1056,8 @@
       cy: cy,
       lockMark: true
     };
-    return parkFirstAtRight(cam, front, w, endFrac);
+    cam = parkFirstAtRight(cam, front, w, endFrac);
+    return keepFirstOnCanvas(cam, front, w, h);
   }
 
   /* Fixed geographic window so the mark stays put and boats sail through it. */
@@ -1348,6 +1372,7 @@
     var frac = 0.5 + 0.36 * t * (1 - 0.7 * leave);
     if (signed < 25) frac = Math.max(frac, 0.72);
     if (rows.length > 12) frac = Math.max(frac, 0.8);
+    if (signed < 80) frac = Math.max(frac, 0.86);
     return frac;
   }
 
@@ -1645,7 +1670,7 @@
     var focus = plan.focus;
     var pack = roundingPack(live, focus || plan.last || markLock);
     var pts = packPoints(pack, ts);
-    if (!pts.length) return;
+    if (!pts.length && plan.phase !== 'start') return;
     var nearRound = plan.phase === 'hold' || plan.phase === 'approach-mark';
     var cam;
     var camOpts = { minAlong: 40, minAcross: 28, padAlong: 1.18, padAcross: 1.35, padX: 70, padY: 28, flipX: true };
@@ -1655,6 +1680,7 @@
       cam = startPackCam(live, cssW, cssH, endFrac);
       cam = easeCam(cam, ts);
       cam = parkFirstAtRight(cam, live.front, cssW, endFrac);
+      cam = keepFirstOnCanvas(cam, live.front, cssW, cssH);
     } else if (nearRound && markLock) {
       setTrackHeight(canvas, 0.74);
       var mode = roundingMode(markLock, live);
@@ -1670,7 +1696,7 @@
     }
     cam.boatR = collectiveBoatR(cam, pack);
     ctx.clearRect(0, 0, cssW, cssH);
-    drawCourseMarks(ctx, cam, ts, cssW, cssH, markLock || focus);
+    drawCourseMarks(ctx, cam, ts, cssW, cssH, plan.phase === 'start' ? null : markLock || focus);
 
     var r = cam.boatR || 7;
     var i;
@@ -1680,5 +1706,5 @@
     for (i = pack.length - 1; i >= 0; i--) drawBoat(ctx, cam, pack[i], live, r);
   }
 
-  root.mmLiptonTrackOverlay = { load: load, draw: draw, usesClip: usesClip, offsetMs: offsetMsFor };
+  root.mmLiptonTrackOverlay = { load: load, draw: draw, usesClip: usesClip, kind: kindFor, offsetMs: offsetMsFor };
 })(window);
