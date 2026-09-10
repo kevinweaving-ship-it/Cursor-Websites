@@ -28,7 +28,14 @@
     var role = String(session.role || "")
       .toLowerCase()
       .replace(/[\s-]+/g, "_");
-    return role === "club_admin" || role === "clubadmin" || !!session.is_super_admin;
+    return (
+      role === "club_admin" ||
+      role === "clubadmin" ||
+      role === "admin" ||
+      role === "super_admin" ||
+      role === "superadmin" ||
+      !!session.is_super_admin
+    );
   }
 
   function injectStyles() {
@@ -58,7 +65,7 @@
     el.className = "club-score-banner";
     el.id = "clubScoreBanner";
     el.textContent =
-      "Type place or DSQ — writes 10.0 DSQ instantly. Enter = next boat. Total, Nett, Rank auto.";
+      "Type place or DSQ — writes 15 DSQ (entries+1). Enter = next. Rank updates live.";
     var firstFleet = page.querySelector(".fleet-section");
     if (firstFleet) page.insertBefore(el, firstFleet);
     else page.insertBefore(el, page.firstChild);
@@ -98,7 +105,7 @@
       if (m && PENALTY_CODES.indexOf(m[2]) >= 0) code = m[2];
     }
     var n = Math.max(parseInt(entries, 10) || 0, 0);
-    if (code) return String(n + 1) + ".0 " + code;
+    if (code) return String(n + 1) + " " + code;
     var num = v.replace(/^\(|\)$/g, "").trim();
     if (/^\d+(\.0+)?$/.test(num)) return String(parseInt(num, 10));
     return v;
@@ -144,21 +151,17 @@
         if (!o.ok) {
           inp.value = inp.getAttribute("data-original") || "";
           inp.classList.remove("club-score-input--saved");
+          inp.title = (o.j && (o.j.detail || o.j.error)) || "Save failed";
           return;
         }
+        inp.title = "";
         if (o.j && o.j.race_scores && o.j.race_scores[race] != null) {
           v = String(o.j.race_scores[race]);
           inp.value = v;
         }
         inp.setAttribute("data-original", v);
         inp.classList.add("club-score-input--saved");
-        applyFleetRow({
-          result_id: rid,
-          total_points_raw: o.j.total_points_raw,
-          nett_points_raw: o.j.nett_points_raw,
-          rank: o.j.rank,
-        });
-        if (o.j.fleet && o.j.fleet.length) o.j.fleet.forEach(applyFleetRow);
+        applyServerFleet(o.j, inp.closest("table"));
       })
       .catch(function () {
         if (inp.getAttribute("data-save-seq") !== seq) return;
@@ -173,13 +176,71 @@
     td.textContent = isFinite(n) ? String(n) : String(val);
   }
 
+  function rankLabel(rank) {
+    var n = parseInt(rank, 10);
+    if (!isFinite(n) || n < 1) return "";
+    if (n === 1) return "1st";
+    if (n === 2) return "2nd";
+    if (n === 3) return "3rd";
+    return String(n) + "th";
+  }
+
   function applyFleetRow(row) {
     if (!row || row.result_id == null) return;
     var tr = document.querySelector('tr[data-result-id="' + row.result_id + '"]');
     if (!tr) return;
     setPlain(tr.querySelector("td.total-col"), row.total_points_raw);
     setPlain(tr.querySelector("td.nett-col"), row.nett_points_raw);
-    setPlain(tr.querySelector("td.rank-col"), row.rank);
+    var rankTd = tr.querySelector("td.rank-col") || tr.children[0];
+    if (rankTd && row.rank != null && row.rank !== "") {
+      rankTd.textContent = rankLabel(row.rank);
+    }
+    if (row.race_scores && typeof row.race_scores === "object") {
+      Object.keys(row.race_scores).forEach(function (rk) {
+        var box = tr.querySelector('.club-score-input[data-race="' + rk + '"]');
+        if (!box) return;
+        var cell = String(row.race_scores[rk] == null ? "" : row.race_scores[rk]);
+        if (document.activeElement === box) return;
+        box.value = cell;
+        box.setAttribute("data-original", cell);
+      });
+    }
+  }
+
+  function sortFleetTable(table) {
+    if (!table) return;
+    var tb = table.tBodies && table.tBodies[0];
+    if (!tb) return;
+    var rows = Array.prototype.slice.call(tb.querySelectorAll("tr[data-result-id]"));
+    rows.sort(function (a, b) {
+      var ra = parseInt(((a.querySelector("td.rank-col") || a.children[0] || {}).textContent || ""), 10);
+      var rb = parseInt(((b.querySelector("td.rank-col") || b.children[0] || {}).textContent || ""), 10);
+      if (!isFinite(ra)) ra = 9999;
+      if (!isFinite(rb)) rb = 9999;
+      return ra - rb;
+    });
+    rows.forEach(function (tr, i) {
+      tr.classList.remove("medal-gold", "medal-silver", "medal-bronze");
+      if (i === 0) tr.classList.add("medal-gold");
+      else if (i === 1) tr.classList.add("medal-silver");
+      else if (i === 2) tr.classList.add("medal-bronze");
+      tb.appendChild(tr);
+    });
+  }
+
+  function applyServerFleet(j, table) {
+    if (!j) return;
+    if (j.fleet && j.fleet.length) j.fleet.forEach(applyFleetRow);
+    else {
+      applyFleetRow({
+        result_id: j.result_id,
+        total_points_raw: j.total_points_raw,
+        nett_points_raw: j.nett_points_raw,
+        rank: j.rank,
+        race_scores: j.race_scores,
+      });
+    }
+    sortFleetTable(table);
   }
 
   function wireCell(td, resultId) {

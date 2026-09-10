@@ -12492,6 +12492,11 @@ def _regatta_host_club_id(regatta_id) -> Optional[int]:
         return None
 
 
+def _cape_classic_event_id(regatta_id) -> bool:
+    """True for the Cape Classic event URL and its child fleet slugs only."""
+    return str(regatta_id or "").startswith("2026-09-13-zvyc-cape-classic")
+
+
 def _session_can_edit_regatta_scores(request: Request, regatta_id) -> bool:
     """Super Admin: any event. Club Admin: only regattas hosted by their club."""
     if _session_role_is_super_admin(request):
@@ -12534,7 +12539,7 @@ def _extract_penalty_code(raw) -> Optional[str]:
 def _public_race_code_cell(code: str, entries: int) -> str:
     """Public results-sheet code: '10.0 DSQ' (points = entries+1)."""
     pts = max(int(entries or 0), 0) + 1
-    return f"{pts}.0 {str(code or '').strip().upper()}"
+    return f"{pts} {str(code or '').strip().upper()}"
 
 
 def _public_race_cell(raw, entries: int, discarded: bool = False) -> str:
@@ -14785,7 +14790,7 @@ def patch_race_score(request: Request, result_id: int, body: dict):
                 WHERE r.result_id = ranked.result_id
             """, (block_id,))
             
-            if not str(regatta_id or "").startswith("2026-09-13-zvyc-cape-classic"):
+            if not _cape_classic_event_id(regatta_id):
                 _ensure_snapshot_integrity(conn, regatta_id)
             conn.commit()
             
@@ -14799,22 +14804,27 @@ def patch_race_score(request: Request, result_id: int, body: dict):
             updated = cur.fetchone()
             cur.execute(
                 """
-                SELECT result_id, rank, total_points_raw, nett_points_raw
+                SELECT result_id, rank, total_points_raw, nett_points_raw, race_scores
                 FROM results
                 WHERE block_id = %s
-                ORDER BY result_id
+                ORDER BY rank NULLS LAST, result_id
                 """,
                 (block_id,),
             )
-            fleet = [
-                {
-                    "result_id": row["result_id"],
-                    "rank": row["rank"],
-                    "total_points_raw": row["total_points_raw"],
-                    "nett_points_raw": row["nett_points_raw"],
-                }
-                for row in (cur.fetchall() or [])
-            ]
+            fleet = []
+            for row in cur.fetchall() or []:
+                rs = row.get("race_scores") or {}
+                if isinstance(rs, str):
+                    rs = json.loads(rs)
+                fleet.append(
+                    {
+                        "result_id": row["result_id"],
+                        "rank": row["rank"],
+                        "total_points_raw": row["total_points_raw"],
+                        "nett_points_raw": row["nett_points_raw"],
+                        "race_scores": rs,
+                    }
+                )
             
             return {
                 "ok": True,
