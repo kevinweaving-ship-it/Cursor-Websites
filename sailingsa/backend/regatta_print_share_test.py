@@ -47,6 +47,13 @@ def test_compact_print_css_portrait_header_and_fleet_line():
     assert "position: fixed" in css
     assert "fillFooter" in bar
     assert "link[rel=" in bar
+    assert "ssa-print-new-page" in css
+    assert "keepFleetsOnOnePage" in bar
+    assert "ssaRegattaPrint" in bar
+    src = Path(ROOT / "sailingsa" / "backend" / "regatta_print_compact_css.py").read_text(
+        encoding="utf-8"
+    )
+    assert "A fleet is never split across two pages" in src
 
 
 def test_live_patch_replaces_print_only_markup():

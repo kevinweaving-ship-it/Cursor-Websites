@@ -12,6 +12,9 @@ Pagination (A4):
 - The next fleet stays on that page only if the whole fleet fits; otherwise it
   moves to the next page. Same rule for every following fleet.
 - A fleet header must never sit on one page with its results table on the next.
+- A fleet is never split across two pages. If it does not fit the leftover space,
+  the whole fleet (header + table) moves to the next page. If it is taller than
+  one A4 page, it is tightened so it still stays on a single page.
 - Every page footer (one small line): event name + the results URL. The URL is a
   real link in Print-to-PDF; on paper it can be typed to open the same sheet.
 """
@@ -79,6 +82,14 @@ PRINT_COMPACT_CSS = """
     margin-top: 6px !important;
     page-break-before: avoid !important;
     break-before: avoid-page !important;
+  }
+  .fleet-section.ssa-print-new-page {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+  .fleet-section tbody {
+    page-break-inside: avoid !important;
+    break-inside: avoid-page !important;
   }
 
   /* Fleet card: one centred line — small class chip (event-list size) + title + sailed */
@@ -165,7 +176,11 @@ PRINT_COMPACT_CSS = """
   .fleet-results-table .rs-boat-sponsor-logo { display: none !important; }
   .rs-club-with-logo, .rs-boat-name-sponsors { white-space: nowrap !important; }
   thead { display: table-header-group; }
+  tbody { page-break-inside: avoid !important; break-inside: avoid-page !important; }
   tr { page-break-inside: avoid; break-inside: avoid; }
+  .fleet-section.ssa-print-fit-1 th, .fleet-section.ssa-print-fit-1 td { font-size: 5.8pt !important; padding: 0 1px !important; line-height: 1.08 !important; }
+  .fleet-section.ssa-print-fit-2 th, .fleet-section.ssa-print-fit-2 td { font-size: 5.2pt !important; padding: 0 !important; line-height: 1.05 !important; }
+  .fleet-section.ssa-print-fit-3 th, .fleet-section.ssa-print-fit-3 td { font-size: 4.6pt !important; padding: 0 !important; line-height: 1.02 !important; }
 
   a, a:visited { color: #0000ee !important; text-decoration: underline !important; }
   html, body, .regatta-page {
@@ -206,6 +221,38 @@ PRINT_COMPACT_CSS = """
 """.strip()
 
 
+PRINT_PAGINATE_JS = r"""
+function pagePx(){return (297-8-14)*96/25.4;}
+function fleetH(el){
+  var rows=el.querySelectorAll('table.fleet-results-table tbody tr').length;
+  return 42+16+rows*13;
+}
+function clearPrintPages(){
+  document.querySelectorAll('.fleet-section').forEach(function(el){
+    el.classList.remove('ssa-print-new-page','ssa-print-fit-1','ssa-print-fit-2','ssa-print-fit-3');
+  });
+}
+function keepFleetsOnOnePage(){
+  clearPrintPages();
+  var page=pagePx()-8;
+  var used=document.querySelector('.regatta-header-wrap,.header')?58:0;
+  document.querySelectorAll('.fleet-section').forEach(function(el,i){
+    var h=fleetH(el);
+    if(h>page){
+      el.classList.add(h>page*1.35?'ssa-print-fit-3':h>page*1.15?'ssa-print-fit-2':'ssa-print-fit-1');
+      h=page;
+    }
+    if(i===0){used+=h;return;}
+    if(used+h>page){el.classList.add('ssa-print-new-page');used=h;}
+    else used+=h;
+  });
+}
+window.ssaRegattaPrint=function(){fillFooter();keepFleetsOnOnePage();window.print();};
+window.addEventListener('beforeprint',keepFleetsOnOnePage);
+window.addEventListener('afterprint',clearPrintPages);
+""".replace("\n", "")
+
+
 def print_share_bar_html() -> str:
     """Print + Share controls plus compact print CSS (one inject for live + repo)."""
     return (
@@ -215,7 +262,7 @@ def print_share_bar_html() -> str:
         '<a class="ssa-print-footer-url" href="#"></a>'
         "</div>"
         '<div class="action-buttons">'
-        '<button type="button" class="action-button" onclick="window.print()">Print</button>'
+        '<button type="button" class="action-button" onclick="window.ssaRegattaPrint?window.ssaRegattaPrint():window.print()">Print</button>'
         '<button type="button" class="action-button" id="regattaShareBtn">Share</button>'
         "</div>"
         "<script>(function(){"
@@ -240,7 +287,8 @@ def print_share_bar_html() -> str:
         "}"
         "fillFooter();"
         "if(!document.querySelector('.regatta-name'))document.addEventListener('DOMContentLoaded',fillFooter);"
-        "var b=document.getElementById('regattaShareBtn');"
+        + PRINT_PAGINATE_JS
+        + "var b=document.getElementById('regattaShareBtn');"
         "if(!b)return;"
         "b.addEventListener('click',function(){"
         "var t=document.title||'SailingSA',u=sheetUrl()||location.href;"
