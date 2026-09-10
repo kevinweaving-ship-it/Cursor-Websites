@@ -20288,6 +20288,15 @@ def _mm_live_fb_card_html(regatta_id: str) -> str:
 
 _LIPTON_MM_REGATTA_ID = "2026-08-29-lipton-challenge-cup"
 _CAPE_CLASSIC_MM_REGATTA_ID = "2026-09-13-zvyc-cape-classic"
+
+
+def _regatta_event_info_strip_sa_edit(regatta_id: str, is_super_admin: bool = False) -> bool:
+    """Cape Classic Event Header is locked — Super Admin / Admin never get the editor shell."""
+    if str(regatta_id or "").strip() == _CAPE_CLASSIC_MM_REGATTA_ID:
+        return False
+    return bool(is_super_admin)
+
+
 _MM_COMING_SOON_BRAND_SRC = "/assets/adverts/mm-powered-by-coming-soon.jpg?v=mmcc1"
 _MM_EVENT_REELS_BRAND_SRC = "/assets/adverts/mm-powered-by-event-reels.png?v=mmr2"
 _LIPTON_MM_REELS_VIDEOS = (

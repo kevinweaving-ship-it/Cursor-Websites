@@ -36,6 +36,17 @@ class MinimalMmFeedTest(unittest.TestCase):
         self.assertTrue(cape_branch)
         self.assertNotIn("mm-lipton-track-overlay.js", cape_branch)
         self.assertIn("_cape_classic_mm_reels_card_html", cape_branch)
+        self.assertIn("def _regatta_event_info_strip_sa_edit", self.src)
+        self.assertIn("Cape Classic Event Header is locked", self.src)
+        ns = {}
+        start = self.src.find("def _regatta_event_info_strip_sa_edit")
+        end = self.src.find("\n_MM_COMING_SOON_BRAND_SRC", start)
+        exec(self.src[start:end], {"_CAPE_CLASSIC_MM_REGATTA_ID": "2026-09-13-zvyc-cape-classic"}, ns)
+        fn = ns["_regatta_event_info_strip_sa_edit"]
+        self.assertFalse(fn("2026-09-13-zvyc-cape-classic", True))
+        self.assertFalse(fn("2026-09-13-zvyc-cape-classic", False))
+        self.assertTrue(fn("2026-08-29-lipton-challenge-cup", True))
+        self.assertFalse(fn("2026-08-29-lipton-challenge-cup", False))
 
 
 class LiptonMmCardUnitTest(unittest.TestCase):
