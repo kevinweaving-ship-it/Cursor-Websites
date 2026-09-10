@@ -139,7 +139,8 @@ PRINT_COMPACT_CSS = """
   .fleet-title-row { font-size: 9pt !important; font-weight: 700 !important; margin: 0 !important; line-height: 1.15 !important; white-space: nowrap !important; }
   .sailed-line { font-size: 7pt !important; margin: 0 !important; line-height: 1.15 !important; white-space: nowrap !important; }
 
-  /* Single-line rank table — A4 portrait, including 12-race Youth Nationals */
+  /* Rank table: smaller type, full cell text (no clip). Class is already on
+     the fleet card so that column is dropped to free width for helm + races. */
   .table-wrapper {
     overflow: visible !important;
     margin-top: 3px !important;
@@ -159,18 +160,33 @@ PRINT_COMPACT_CSS = """
     break-inside: avoid-page !important;
   }
   th, td {
-    padding: 1px 1px !important;
-    font-size: 6.5pt !important;
-    line-height: 1.15 !important;
+    padding: 1.5px 2px !important;
+    font-size: 5.5pt !important;
+    line-height: 1.25 !important;
     white-space: nowrap !important;
-    overflow: hidden !important;
+    overflow: visible !important;
+    font-stretch: condensed;
+    letter-spacing: -0.01em !important;
   }
-  .rank-col, .total-col, .nett-col, .wc-meta-col { width: 3.6% !important; }
-  .class-col { width: 7% !important; }
-  .sail-col { width: 6% !important; }
-  .club-col { width: 5.5% !important; }
-  .helm-col, td.crew-col, th.crew-col { width: 10% !important; }
-  .race-col { width: 3.15% !important; padding-left: 0 !important; padding-right: 0 !important; }
+  .fleet-results-table th.class-col, .fleet-results-table td.class-col,
+  th.class-col, td.class-col { display: none !important; }
+  .rank-col, .total-col, .nett-col { width: 3.3% !important; }
+  .wc-meta-col { width: 3% !important; }
+  .sail-col { width: 5.4% !important; }
+  .club-col { width: 4.2% !important; }
+  .helm-col { width: 16.5% !important; }
+  th.crew-col, td.crew-col { width: 12.5% !important; }
+  .fleet-section:has(th.crew-col) .helm-col { width: 12.5% !important; }
+  .fleet-section:has(th.crew-col) .race-col { width: 3.35% !important; }
+  .race-col {
+    width: 3.85% !important;
+    padding-left: 0.5px !important;
+    padding-right: 0.5px !important;
+    font-size: 5.1pt !important;
+    letter-spacing: -0.03em !important;
+  }
+  .fleet-results-table .wc-score { font-size: inherit !important; font-weight: 600 !important; }
+  .fleet-results-table .wc-code { font-size: 5pt !important; margin-left: 1px !important; opacity: 1 !important; }
   .fleet-results-table tbody tr, .fleet-results-table tbody td { height: auto !important; max-height: none !important; }
   .rs-club-row-logo, .rs-boat-sponsor-logo, .fleet-results-table .rs-club-row-logo,
   .fleet-results-table .rs-boat-sponsor-logo { display: none !important; }
