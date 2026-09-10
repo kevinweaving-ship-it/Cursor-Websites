@@ -65,11 +65,13 @@
     return o;
   }
 
-  /* Per-clip recipes. Offset 36000 is STT vs GPS Pin on Race 7 1st downwind only. */
+  /* Per-clip recipes. 36000 = R7 1st downwind STT vs GPS Pin.
+   * 24200 = R7 Start: STT 5-4-3-2-1 at 0:31 (1 min), 3-2-1 at 1:32,
+   * horn 1:36.8 = GPS gun 15:57:01. */
   var CLIP_RULES = {
     '2622643364847262': clipR(7, 'round', { offsetMs: 36000 }),
     '2410502969472697': clipR(7, 'round'),
-    '1014880974840710': clipR(7, 'start', { approach: 'ltr', offsetMs: 24500 }),
+    '1014880974840710': clipR(7, 'start', { approach: 'ltr', offsetMs: 24200 }),
     '26023759437321260': clipR(5, 'round'),
     '1587763379559775': clipR(5, 'round'),
     '4518629078350390': clipR(5, 'start'),

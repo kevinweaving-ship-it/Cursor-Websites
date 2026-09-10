@@ -20322,7 +20322,7 @@ _LIPTON_MM_REELS_VIDEOS = (
         "title": "Lipton Race 7 Start",
         "fb_title": "Lipton Race 7 Start",
         "started_at": "2026-08-28T15:55:00+02:00",
-        "track_offset_ms": 24500,
+        "track_offset_ms": 24200,
         "stamp": "28 Aug · 15:55",
         "thumb": "/assets/adverts/mm-lipton/1014880974840710.jpg",
         "width": 1280,
@@ -27763,8 +27763,8 @@ def serve_regatta_standalone(slug: str, request: Request):
         if str(regatta_id) == "2026-08-29-lipton-challenge-cup":
             mm_card = _lipton_mm_reels_card_html(str(regatta_id))
             mm_card_js = (
-                '<script src="/js/mm-lipton-track-overlay.js?v=mmr71" defer></script>'
-                '<script src="/js/mm-lipton-reels-card.js?v=mmr71" defer></script>'
+                '<script src="/js/mm-lipton-track-overlay.js?v=mmr72" defer></script>'
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr72" defer></script>'
             )
         body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
