@@ -2307,7 +2307,7 @@
     var CODES = {
         "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png?v=43", code: "7302" },
         "7102": { name: "Amoroc", from: "Amoroc", logo: "/arial/users/amoroc.png?v=43", code: "7102" },
-        "7777": { name: "Onguard", from: "Onguard", logo: "/arial/users/onguard.png?v=1", code: "7777" },
+        "9876": { name: "Onguard", from: "Onguard", logo: "/arial/users/onguard.png?v=1", code: "9876" },
         "2640": { name: "Comnet", from: "Comnet", logo: "/arial/users/comnet.png?v=1", code: "2640" },
         "6114": { name: "Kevin", from: "Kevin", logo: null, code: "6114" },
         "2525": { name: "Bugsy", from: "Bugsy", logo: null, code: "2525" },
@@ -2329,7 +2329,7 @@
         if (/^kevin$/i.test(String(user.name || user.from || ""))) return CODES["6114"];
         if (/^bugsy$/i.test(String(user.name || user.from || ""))) return CODES["2525"];
         if (/^tim$/i.test(String(user.name || user.from || ""))) return CODES["1111"];
-        if (/onguard/i.test(String(user.name || user.from || user.logo || ""))) return CODES["7777"];
+        if (/onguard/i.test(String(user.name || user.from || user.logo || ""))) return CODES["9876"];
         if (/aerial/i.test(String(user.logo || user.name || ""))) return CODES["7102"];
         if (/amoroc/i.test(String(user.name || user.from || user.logo || ""))) return CODES["7102"];
         if (/^jenny$/i.test(String(user.name || user.from || ""))) return CODES["0765"];
@@ -3585,7 +3585,7 @@
             if (/^kevin$/i.test(String(saved.name || saved.from || ""))) saved.code = "6114";
             if (/^bugsy$/i.test(String(saved.name || saved.from || ""))) saved.code = "2525";
             if (/^tim$/i.test(String(saved.name || saved.from || ""))) saved.code = "1111";
-            if (/onguard/i.test(String(saved.name || saved.from || saved.logo || ""))) saved.code = "7777";
+            if (/onguard/i.test(String(saved.name || saved.from || saved.logo || ""))) saved.code = "9876";
             if (!saved.code && /aerial/i.test(String(saved.logo || saved.name || ""))) saved.code = "7102";
             if (/aerial/i.test(String(saved.logo || ""))) saved.code = saved.code || "7102";
             if (!saved.code && saved.name === "Marc") saved.code = "7302";
