@@ -26556,7 +26556,7 @@ def _club_score_edit_script_html() -> str:
         "if(v===orig)return;inp.disabled=true;"
         "fetch('/api/result/'+encodeURIComponent(rid)+'/race',{method:'PATCH',"
         "headers:{'Content-Type':'application/json'},credentials:'same-origin',"
-        "body:JSON.stringify({race:race,value:v})})"
+        "body:JSON.stringify({race:race,value:v,session:(function(){try{var a=localStorage.getItem('session');if(a&&a.charAt(0)!=='{'&&a.trim())return a.trim();var b=localStorage.getItem('sailing_session');if(b){var o=JSON.parse(b);return String((o&&(o.session||o.session_token))||'').trim();}}catch(e){}return '';})()})})"
         ".then(function(r){return r.json().then(function(j){return{ok:r.ok,j:j};});})"
         ".then(function(o){inp.disabled=false;if(!o.ok){alert((o.j&&(o.j.detail||o.j.error))||'Could not save score');"
         "inp.value=inp.getAttribute('data-original')||'';return;}"

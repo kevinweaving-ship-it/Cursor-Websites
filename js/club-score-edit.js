@@ -3,6 +3,26 @@
   var path = String((window.location && window.location.pathname) || "");
   if (path.indexOf("2026-09-13-zvyc-cape-classic") === -1) return;
 
+  function sessionToken() {
+    try {
+      var a = localStorage.getItem("session");
+      if (a && a.charAt(0) !== "{" && String(a).trim().length > 8) return String(a).trim();
+      var b = localStorage.getItem("sailing_session");
+      if (b) {
+        var o = JSON.parse(b);
+        var t = String((o && (o.session || o.session_token || o.session_id)) || "").trim();
+        if (t) return t;
+      }
+    } catch (e) {}
+    return "";
+  }
+
+  function withSession(url) {
+    var t = sessionToken();
+    if (!t) return url;
+    return url + (url.indexOf("?") >= 0 ? "&" : "?") + "session=" + encodeURIComponent(t);
+  }
+
   function canScore(session) {
     if (!session || !session.valid) return false;
     var role = String(session.role || "")
@@ -51,11 +71,12 @@
     var orig = (inp.getAttribute("data-original") || "").trim();
     if (v === orig) return;
     inp.disabled = true;
-    fetch("/api/result/" + encodeURIComponent(rid) + "/race", {
+    var tok = sessionToken();
+    fetch(withSession("/api/result/" + encodeURIComponent(rid) + "/race"), {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      credentials: "same-origin",
-      body: JSON.stringify({ race: race, value: v }),
+      credentials: "include",
+      body: JSON.stringify({ race: race, value: v, session: tok }),
     })
       .then(function (r) {
         return r.json().then(function (j) {
@@ -127,7 +148,7 @@
     });
   }
 
-  fetch("/auth/session?path=" + encodeURIComponent(path), {
+  fetch(withSession("/auth/session?path=" + encodeURIComponent(path)), {
     credentials: "include",
     cache: "no-store",
   })

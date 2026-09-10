@@ -150,6 +150,8 @@ class ClubAdminScoreMinTest(unittest.TestCase):
         self.assertIn("if race_score_edit and not wc_sa_fleet_edit:", render)
         self.assertIn("td.race-col[data-race-key]", self.club_js)
         self.assertIn("Total, Nett and Rank are automatic", self.club_js)
+        self.assertIn("function sessionToken", self.club_js)
+        self.assertIn("body: JSON.stringify({ race: race, value: v, session: tok })", self.club_js)
         self.assertNotIn("total_points_raw", self.club_js)
 
     def test_places_unique_codes_repeat(self):
