@@ -22,7 +22,7 @@ import hashlib
 import html as html_module
 import json
 import difflib
-from urllib.parse import urlparse, unquote, quote
+from urllib.parse import urlparse, unquote, quote, urljoin
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
@@ -12388,6 +12388,20 @@ def _session_role_is_super_admin(request: Request) -> bool:
     return s in ("super_admin", "superadmin")
 
 
+def _session_role_is_admin(request: Request) -> bool:
+    """True for Admin (not Super Admin)."""
+    r = _get_session_role(request)
+    if not r:
+        return False
+    s = str(r).strip().lower().replace(" ", "_").replace("-", "_")
+    return s == "admin"
+
+
+def _session_can_toggle_event_crew(request: Request) -> bool:
+    """Super Admin or Admin may show/hide the Cape Classic Crew table for Public."""
+    return _session_role_is_super_admin(request) or _session_role_is_admin(request)
+
+
 def _require_super_admin(request: Request) -> None:
     """Raise 403 unless the session is super admin (inline result PATCH, etc.)."""
     if not _session_role_is_super_admin(request):
@@ -20120,8 +20134,10 @@ def _mm_feed_payload(regatta_id: str) -> dict:
         if n:
             videos.append(n)
     videos = _mm_sorted_newest(videos)
-    start, end = _mm_regatta_date_window(rid)
-    videos = [v for v in videos if _mm_video_matches_event(v, start, end)]
+    # Cape Classic: reel dates after the event end stay valid.
+    if rid != "2026-09-13-zvyc-cape-classic":
+        start, end = _mm_regatta_date_window(rid)
+        videos = [v for v in videos if _mm_video_matches_event(v, start, end)]
     videos = _mm_apply_page_chrome(videos)
     enabled = _mm_live_fb_is_enabled(rid)
     return {
@@ -20285,6 +20301,195 @@ def _mm_live_fb_card_html(regatta_id: str) -> str:
 
 
 _LIPTON_MM_REGATTA_ID = "2026-08-29-lipton-challenge-cup"
+_CAPE_CLASSIC_MM_REGATTA_ID = "2026-09-13-zvyc-cape-classic"
+
+
+def _regatta_event_info_strip_sa_edit(regatta_id: str, is_super_admin: bool = False) -> bool:
+    """Cape Classic Event Header is locked — Super Admin / Admin never get the editor shell."""
+    if str(regatta_id or "").strip() == _CAPE_CLASSIC_MM_REGATTA_ID:
+        return False
+    return bool(is_super_admin)
+
+
+_CAPE_CLASSIC_CREW_CHILD_SLUG = "2026-09-13-zvyc-cape-classic-crew"
+_CAPE_CLASSIC_CREW_HREF = "/regatta/2026-09-13-zvyc-cape-classic-crew"
+# name, role, station, days, sas_id (only after exact / unique validate — never invent)
+_CAPE_CLASSIC_CREW_ROWS = (
+    ("Craig Leslie", "RO", "Bridge", "Sat/Sun", "165"),
+    ("Mascha Ainslie", "Timekeeper / flags", "Bridge", "Sat/Sun", "14422"),
+    ("Millicent Keen", "Timekeeper / flags", "Bridge", "Sat/Sun", "369"),
+    ("Karyn McCombe", "Finish / Regatta Officer", "Bridge", "Sat/Sun", "8546"),
+    ("Jody Cilliers", "Finish recorder", "Bridge", "Sat/Sun", ""),
+    ("Jonathan Dugas", "Finish recorder", "Bridge", "Sunday", "14463"),
+    ("Alex Falconer", "Safety", "Bridge", "Sat/Sun", ""),
+    ("Max Cilliers", "Safety", "Boat 1", "Sat/Sun", ""),
+    ("Rudi Fokkens", "Safety", "Boat 2", "Sat/Sun", "3720"),
+    ("Michael Kavanagh", "Safety", "Boat 3", "Sat/Sun", "172"),
+    ("Anna Keytel", "Regatta Secretary", "Admin", "Sat/Sun", "3692"),
+    ("Alan Keen", "Head of Protest Committee", "Admin", "Sat/Sun", "295"),
+    ("Michelle Keytel", "Results", "Admin", "Sat/Sun", "14496"),
+    ("Kendal Madel", "Assistant / prizegiving", "Admin", "Sat/Sun", "12709"),
+    ("Carolyn Matschke", "Manager", "Admin", "Sat/Sun", "18666"),
+    ("Courtney Clifton", "Admin support / bar", "Admin", "Sat/Sun", ""),
+    ("Jemayne Wolmarans", "Staff support / bar", "Admin", "Sat/Sun", "1521"),
+)
+_CAPE_CLASSIC_CREW_CSS = (
+    ".cape-crew-sa{display:none;margin-top:12px;justify-content:flex-end;gap:10px;width:100%}"
+    ".regatta-page--super-admin-edit .cape-crew-sa,.cape-crew--admin .cape-crew-sa{display:flex}"
+    ".cape-crew--hidden .table-wrapper{opacity:0.55}"
+    ".cape-crew .helm-col a{color:#1a2750;font-weight:700;text-decoration:underline}"
+    ".cape-crew .fleet-title-row a{color:#1a2750;font-weight:bold;text-decoration:none}"
+    ".cape-crew .fleet-title-row a:hover{color:#e65100}"
+    "@media print{.cape-crew-sa{display:none!important}.cape-crew--hidden{display:none!important}}"
+)
+
+
+def _cape_classic_crew_show() -> bool:
+    raw = _read_wc_regatta_header_icons().get(_CAPE_CLASSIC_MM_REGATTA_ID)
+    if not isinstance(raw, dict):
+        return False
+    return bool(raw.get("event_crew_show"))
+
+
+def _cape_classic_crew_set_show(show: bool) -> None:
+    all_d = dict(_read_wc_regatta_header_icons())
+    rid = _CAPE_CLASSIC_MM_REGATTA_ID
+    entry = dict(all_d.get(rid)) if isinstance(all_d.get(rid), dict) else {}
+    entry["event_crew_show"] = bool(show)
+    all_d[rid] = entry
+    _write_wc_regatta_header_icons(all_d)
+
+
+def _cape_classic_crew_table_html(
+    *,
+    is_editor: bool,
+    always_show_button: bool = False,
+    link_title: bool = True,
+) -> str:
+    """Crew table below last fleet. Public sees it only when shown. No DB rows."""
+    show = _cape_classic_crew_show()
+    if not show and not is_editor:
+        return ""
+    sas_ids = [sid for *_, sid in _CAPE_CLASSIC_CREW_ROWS if str(sid or "").strip().isdigit()]
+    slug_map = _batch_sailor_slugs_for_sas_ids(sas_ids) if sas_ids else {}
+    rows_html = []
+    for name, role, station, days, sid in _CAPE_CLASSIC_CREW_ROWS:
+        slug = slug_map.get(str(sid)) if str(sid or "").strip().isdigit() else None
+        if slug:
+            name_html = (
+                f'<a href="/sailor/{html_module.escape(slug)}">{html_module.escape(name)}</a>'
+            )
+        else:
+            name_html = html_module.escape(name)
+        rows_html.append(
+            "<tr>"
+            f'<td class="helm-col">{name_html}</td>'
+            f"<td>{html_module.escape(role)}</td>"
+            f"<td>{html_module.escape(station)}</td>"
+            f"<td>{html_module.escape(days)}</td>"
+            "</tr>"
+        )
+    btn_label = "Hide from public" if show else "Show to public"
+    note = "" if show else "Hidden from public"
+    admin_cls = " cape-crew--admin" if always_show_button else ""
+    hidden_cls = "" if show else " cape-crew--hidden"
+    sa_bar = ""
+    if is_editor:
+        sa_bar = (
+            '<div class="cape-crew-sa" id="capeCrewSa">'
+            f'<button type="button" class="action-button" id="capeCrewToggle">{html_module.escape(btn_label)}</button>'
+            "</div>"
+            "<script>(function(){var b=document.getElementById('capeCrewToggle');if(!b)return;"
+            "b.addEventListener('click',function(){b.disabled=true;"
+            "fetch('/api/super-admin/regatta/2026-09-13-zvyc-cape-classic/event-crew',{method:'PATCH',"
+            "headers:{'Content-Type':'application/json'},credentials:'include',"
+            "body:JSON.stringify({show:" + ("false" if show else "true") + "})})"
+            ".then(function(r){return r.json().then(function(j){return{ok:r.ok,j:j};});})"
+            ".then(function(o){if(!o.ok){b.disabled=false;return;}window.location.reload();})"
+            ".catch(function(){b.disabled=false;});});})();</script>"
+        )
+    sailed = html_module.escape(note) if note else "Event crew"
+    return (
+        f"<style>{_CAPE_CLASSIC_CREW_CSS}</style>"
+        f'<div class="fleet-section cape-crew{admin_cls}{hidden_cls}" id="capeClassicCrew" aria-label="Crew">'
+        '<div class="class-header"><div class="class-header-text-col">'
+        '<div class="fleet-title-row">'
+        + (
+            f'<a href="{html_module.escape(_CAPE_CLASSIC_CREW_HREF)}">Crew</a>'
+            if link_title
+            else "Crew"
+        )
+        + "</div>"
+        f'<div class="sailed-line">{sailed}</div>'
+        "</div></div>"
+        '<div class="table-wrapper"><table><thead><tr>'
+        '<th class="helm-col">Name</th><th>Role</th><th>Station</th><th>Days</th>'
+        "</tr></thead><tbody>"
+        + "".join(rows_html)
+        + "</tbody></table></div>"
+        + sa_bar
+        + "</div>"
+    )
+
+
+def serve_cape_classic_crew_standalone(request: Request):
+    """Child URL matching Extra/ILCA/Optimist/Sonnet fleet shells: /regatta/...-crew."""
+    rid = _CAPE_CLASSIC_MM_REGATTA_ID
+    can_crew = _session_can_toggle_event_crew(request)
+    if not _cape_classic_crew_show() and not can_crew:
+        return RedirectResponse(url=f"/regatta/{rid}", status_code=302)
+    reg = _get_regatta_by_slug(rid)
+    if not reg:
+        return RedirectResponse(url="/events", status_code=301)
+    event_name = (reg[1] or "").strip()
+    escaped_title = html_module.escape(event_name)
+    host_club_id = reg[5] if len(reg) > 5 else None
+    host_club_slug = _get_club_slug_by_id(host_club_id) if host_club_id else None
+    host_club_text = (reg[4] or "").strip() if len(reg) > 4 else ""
+    host_html = (
+        f'<a href="/club/{html_module.escape(host_club_slug)}">{html_module.escape(host_club_text)}</a>'
+        if host_club_slug and host_club_text
+        else html_module.escape(host_club_text)
+    )
+    is_sa = _session_role_is_super_admin(request)
+    back_link = f'<a href="/regatta/{html_module.escape(rid)}" class="back-to-home">← Back to full regatta</a>'
+    if is_sa:
+        back_block = (
+            '<div class="regatta-back-row">'
+            + back_link
+            + _regatta_sa_toolbar_html(rid)
+            + "</div>"
+        )
+    else:
+        back_block = back_link
+    header_html = (
+        '<div class="regatta-header-wrap">'
+        + back_block
+        + '<div class="header"><div class="regatta-header-main-col">'
+        f'<div class="regatta-name">{escaped_title}</div>'
+        f'<div class="host-club">Host: {host_html}</div>'
+        + "</div></div></div>"
+    )
+    crew_frag = _cape_classic_crew_table_html(
+        is_editor=can_crew,
+        always_show_button=_session_role_is_admin(request),
+        link_title=False,
+    )
+    print_btn = '<div class="action-buttons"><button class="action-button" onclick="window.print()">Print</button></div>'
+    sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js?v=mm2" defer></script>' if is_sa else ""
+    doc = (
+        "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
+        f"Crew – {escaped_title} | SailingSA</title>"
+        "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+        f"<style>{_RESULT_SHEET_CSS}</style></head><body>"
+        f'<div class="regatta-page">{header_html}{crew_frag}{print_btn}</div>{sa_toolbar_js}'
+        "</body></html>"
+    )
+    return HTMLResponse(doc)
+
+
+_MM_COMING_SOON_BRAND_SRC = "/assets/adverts/mm-powered-by-coming-soon.jpg?v=mmcc1"
+_MM_EVENT_REELS_BRAND_SRC = "/assets/adverts/mm-powered-by-event-reels.png?v=mmr2"
 _LIPTON_MM_REELS_VIDEOS = (
     {
         "id": "2622643364847262",
@@ -20615,6 +20820,7 @@ _LIPTON_MM_REELS_CSS = (
     ".mm-lipton-reels-thumb--latest{container-type:size;display:flex;flex-direction:column}"
     ".mm-lipton-reels-clip-chrome{position:relative;top:auto;left:auto;right:auto;width:100%;flex:0 0 auto;z-index:1;display:flex;align-items:flex-start;gap:clamp(4px,4cqh,8px);padding:clamp(4px,5cqh,8px) clamp(6px,5cqw,10px);box-sizing:border-box;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.58) 0%,rgba(0,0,0,.2) 72%,rgba(0,0,0,0) 100%)}"
     ".mm-lipton-reels-thumb--latest .mm-lipton-reels-owner-logo{position:relative!important;inset:auto!important;flex:0 0 auto;width:clamp(14px,20cqh,28px)!important;height:clamp(14px,20cqh,28px)!important;max-width:none;max-height:none;border:0;border-radius:50%;object-fit:cover!important;object-position:center;display:block}"
+    ".mm-lipton-reels-clip-chrome--zvyc .mm-lipton-reels-owner-logo{width:clamp(28px,40cqh,56px)!important;height:clamp(28px,40cqh,56px)!important;border-radius:4px!important;object-fit:contain!important;object-position:center;background:#fff;padding:2px;box-sizing:border-box}"
     ".mm-lipton-reels-clip-copy{min-width:0;flex:1 1 auto;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.85);line-height:1.15}"
     ".mm-lipton-reels-clip-title{font-size:clamp(8px,8cqh,13px);font-weight:700;white-space:normal;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;line-height:1.2;max-height:2.4em;max-width:14ch}"
     ".mm-lipton-reels-clip-sub{font-size:clamp(7px,6.5cqh,11px);font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.95}"
@@ -20643,13 +20849,23 @@ _LIPTON_MM_REELS_CSS = (
     ".mm-lipton-reels-thumb--latest .mm-lipton-reels-play{position:relative;left:auto;top:auto;z-index:1;width:44px;height:44px;margin:auto;padding:0;transform:none;border-radius:50%;background:transparent;border:3px solid #00B4FF;pointer-events:none;box-sizing:border-box;box-shadow:0 0 8px #00B4FF;flex:0 0 auto}"
     ".mm-lipton-reels-thumb--latest .mm-lipton-reels-play:after{content:\"\";position:absolute;left:54%;top:50%;width:0;height:0;border-style:solid;border-width:10px 0 10px 16px;border-color:transparent transparent transparent #fff;transform:translate(-30%,-50%)}"
     ".mm-lipton-reels-thumb-ph{display:block;width:100%;height:100%;background:#0b1c33}"
+    ".mm-lipton-reels-tile--slot .mm-lipton-reels-thumb{cursor:default;background:#0b1c33}"
     ".mm-lipton-reels-thumb-hit{position:absolute;inset:0;z-index:2;margin:0;padding:0;border:0;background:transparent;cursor:pointer;min-height:44px}"
     ".mm-lipton-reels-expanded{position:relative}"
     ".mm-lipton-reels-expanded-bar{position:absolute;top:0;right:0;z-index:6;display:flex;justify-content:flex-end;align-items:flex-start;margin:0;padding:0;min-height:0;pointer-events:none}"
     ".mm-lipton-reels-hide{pointer-events:auto;min-height:44px;min-width:44px;margin:0;padding:0 6px;border:0;background:none;color:#64748b;font-size:0.68rem;font-weight:500;letter-spacing:0.04em;line-height:1;cursor:pointer;-webkit-appearance:none;appearance:none}"
     ".mm-lipton-reels-player-wrap{position:relative;width:100%;aspect-ratio:var(--mm-aspect,16/9);overflow:hidden;border-radius:8px;background:#001018;border:2px solid #001f3f;scroll-margin-top:72px}"
     ".mm-lipton-reels-stage{position:absolute;inset:0;width:100%;height:100%;overflow:hidden;background:#001018;transition:transform .28s ease}"
-    ".mm-lipton-reels-stage iframe,.mm-lipton-reels-stage video{position:absolute;inset:0;z-index:0;width:100%;height:100%;border:0;object-fit:cover;background:#001018;filter:none;opacity:1}"
+    ".mm-lipton-reels-stage iframe,.mm-lipton-reels-stage video,.mm-lipton-reels-stage img{position:absolute;inset:0;z-index:0;width:100%;height:100%;border:0;object-fit:cover;background:#001018;filter:none;opacity:1}"
+    ".mm-lipton-reels-stage img[data-mm-webcam-live]{z-index:1}"
+    "@keyframes mm-cam-spin{to{transform:rotate(360deg)}}"
+    ".mm-lipton-reels-cam-load{position:absolute;inset:0;z-index:4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;pointer-events:none;background:none}"
+    ".mm-lipton-reels-cam-load[hidden]{display:none!important}"
+    ".mm-lipton-reels-cam-spin{width:44px;height:44px;border:3px solid rgba(0,180,255,.28);border-top-color:#00B4FF;border-radius:50%;box-sizing:border-box;box-shadow:0 0 8px #00B4FF;animation:mm-cam-spin .8s linear infinite}"
+    ".mm-lipton-reels-cam-load-txt{color:#fff;font-size:12px;font-weight:700;letter-spacing:.04em;text-shadow:0 1px 2px rgba(0,0,0,.85)}"
+    ".mm-lipton-reels-thumb .mm-lipton-reels-cam-load{z-index:3}"
+    ".mm-lipton-reels-thumb .mm-lipton-reels-cam-load-txt{display:none}"
+    ".mm-lipton-reels-thumb--cam-load .mm-lipton-reels-play{opacity:0}"
     ".mm-lipton-reels-stage video::-webkit-media-controls,.mm-lipton-reels-stage video::-webkit-media-controls-enclosure,.mm-lipton-reels-stage video::-webkit-media-controls-overlay-enclosure,.mm-lipton-reels-stage video::-webkit-media-controls-panel,.mm-lipton-reels-stage video::-webkit-media-controls-start-playback-button,.mm-lipton-reels-stage video::-webkit-media-controls-overlay-play-fill{display:none!important;opacity:0!important;-webkit-appearance:none}"
     ".mm-lipton-reels-video-hold{position:absolute;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none}"
     ".mm-lipton-reels-track{position:absolute;left:0;right:0;bottom:0;height:var(--mm-track-h,58%);z-index:3;pointer-events:none;display:none;background:none}"
@@ -20848,6 +21064,268 @@ def _lipton_mm_reels_payload() -> dict:
     return {"videos": _mm_apply_page_chrome(videos)}
 
 
+def _mm_title_from_fb_url(url: str) -> str:
+    raw = str(url or "")
+    m = re.search(r"/videos/([^/?#]+)/", raw, re.I)
+    if not m:
+        return ""
+    slug = m.group(1)
+    if slug.isdigit() or slug.lower() in ("watch", "reel", "reels"):
+        return ""
+    return re.sub(r"[-_]+", " ", slug).strip().title()
+
+
+_ZVYC_LIVE_CAM_PAGE = "https://www.skylinewebcams.com/en/webcam/south-africa/western-cape/cape-town/zeekoevlei.html"
+_ZVYC_LIVE_CAM_SNAP = "https://www.skylinewebcams.com/temp/4040.jpg"
+_ZVYC_CLUB_LOGO = "/artwork/Club Logo/ZVYC.png"
+_ZVYC_FFMPEG = "/usr/bin/ffmpeg"
+_ZVYC_LIVE_M3U8_RE = re.compile(r"livee\.m3u8\?a=([A-Za-z0-9_\-=]+)")
+_ZVYC_TOKEN_RE = re.compile(r"^[A-Za-z0-9_\-=]{8,80}$")
+_ZVYC_CAM_FETCH_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+    ),
+    "Referer": _ZVYC_LIVE_CAM_PAGE,
+    "Accept": "*/*",
+}
+_ZVYC_LIVE_CAM = {
+    "id": "zvyc-live-cam",
+    "kind": "webcam",
+    "placeholder": True,
+    "url": _ZVYC_LIVE_CAM_PAGE,
+    "permalink": _ZVYC_LIVE_CAM_PAGE,
+    "title": "ZVYC Live Cam",
+    "fb_title": "ZVYC Live Cam",
+    "fb_sub": "Zeekoevlei · live",
+    "fb_owner_logo": _ZVYC_CLUB_LOGO,
+    "thumb": "/api/regatta/2026-09-13-zvyc-cape-classic/zvyc-live-cam-thumb",
+    "live_snap": "/api/regatta/2026-09-13-zvyc-cape-classic/zvyc-live-cam-thumb",
+    "play_url": "/api/regatta/2026-09-13-zvyc-cape-classic/zvyc-live-cam",
+    "is_live": True,
+    "started_at": "",
+    "stamp": "LIVE",
+    "width": 1280,
+    "height": 720,
+    "aspect": "16:9",
+}
+
+
+def _zvyc_allowed_cam_url(url: str) -> bool:
+    try:
+        parsed = urlparse(str(url or "").strip())
+    except Exception:
+        return False
+    host = (parsed.hostname or "").lower()
+    if parsed.scheme != "https" or not host.endswith("skylinewebcams.com"):
+        return False
+    if parsed.username or parsed.password:
+        return False
+    return True
+
+
+def _zvyc_cam_proxy_url(regatta_id: str, dest: str) -> str:
+    return (
+        f"/api/regatta/{regatta_id}/zvyc-live-cam-seg?u="
+        + quote(dest, safe="")
+    )
+
+
+def _zvyc_rewrite_playlist(text: str, base_url: str, regatta_id: str) -> str:
+    """Point playlist URIs at our pass-through. Do not store the feed."""
+    lines = []
+    for line in str(text or "").splitlines():
+        stripped = line.strip()
+
+        def _rewrite_uri(match):
+            dest = urljoin(base_url, match.group(1))
+            if _zvyc_allowed_cam_url(dest):
+                return 'URI="' + _zvyc_cam_proxy_url(regatta_id, dest) + '"'
+            return match.group(0)
+
+        if stripped.startswith("#") and "URI=" in stripped:
+            lines.append(re.sub(r'URI="([^"]+)"', _rewrite_uri, line))
+        elif stripped and not stripped.startswith("#"):
+            dest = urljoin(base_url, stripped)
+            if _zvyc_allowed_cam_url(dest):
+                lines.append(_zvyc_cam_proxy_url(regatta_id, dest))
+            else:
+                lines.append(line)
+        else:
+            lines.append(line)
+    return "\n".join(lines) + "\n"
+
+
+def _zvyc_normalize_cam_token(raw: str) -> str:
+    tok = str(raw or "").strip()
+    if not _ZVYC_TOKEN_RE.match(tok):
+        return ""
+    return tok
+
+
+def _zvyc_live_cam_stream_url(explicit_token: str = "") -> str:
+    """Resolve the current Skyline HLS URL. Do not store the feed."""
+    tok = _zvyc_normalize_cam_token(explicit_token)
+    if tok:
+        return "https://hd-auth.skylinewebcams.com/live.m3u8?a=" + tok
+    try:
+        html_headers = dict(_ZVYC_CAM_FETCH_HEADERS)
+        html_headers["Accept"] = "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8"
+        html_headers["Accept-Encoding"] = "identity"
+        with httpx.Client(
+            timeout=8.0, follow_redirects=True, headers=html_headers
+        ) as client:
+            html = client.get(_ZVYC_LIVE_CAM_PAGE).text or ""
+        m = _ZVYC_LIVE_M3U8_RE.search(html)
+        if m:
+            return "https://hd-auth.skylinewebcams.com/live.m3u8?a=" + m.group(1)
+    except Exception as e:
+        print(f"[zvyc_live_cam] resolve failed: {e}", flush=True)
+    return ""
+
+
+_ZVYC_GRAB_LOCK = threading.Lock()
+_ZVYC_GRAB_MEM = {"t": 0.0, "jpg": b""}
+_ZVYC_GRAB_TTL_SEC = 8.0
+
+
+def _zvyc_live_cam_frame_jpeg(explicit_token: str = "", fresh: bool = False) -> bytes:
+    """Grab one JPEG after the live feed has played ~2s. Do not store the feed."""
+    now = time.time()
+    if not fresh:
+        with _ZVYC_GRAB_LOCK:
+            cached = _ZVYC_GRAB_MEM.get("jpg") or b""
+            if cached[:2] == b"\xff\xd8" and now - float(_ZVYC_GRAB_MEM.get("t") or 0) < _ZVYC_GRAB_TTL_SEC:
+                return cached
+    url = _zvyc_live_cam_stream_url(explicit_token)
+    if not url:
+        return b""
+    ua = _ZVYC_CAM_FETCH_HEADERS.get("User-Agent") or "Mozilla/5.0"
+    headers = f"Referer: {_ZVYC_LIVE_CAM_PAGE}\r\nUser-Agent: {ua}\r\n"
+    cmd = [
+        _ZVYC_FFMPEG,
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-headers",
+        headers,
+        "-i",
+        url,
+        "-ss",
+        "2",
+        "-frames:v",
+        "1",
+        "-q:v",
+        "5",
+        "-f",
+        "image2",
+        "pipe:1",
+    ]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, timeout=20)
+        jpg = proc.stdout or b""
+        if proc.returncode == 0 and jpg[:2] == b"\xff\xd8":
+            with _ZVYC_GRAB_LOCK:
+                _ZVYC_GRAB_MEM["t"] = time.time()
+                _ZVYC_GRAB_MEM["jpg"] = jpg
+            return jpg
+        print(f"[zvyc_live_cam] grab failed rc={proc.returncode}", flush=True)
+    except Exception as e:
+        print(f"[zvyc_live_cam] grab failed: {e}", flush=True)
+    return b""
+
+
+def _cape_classic_has_real_reels(videos: list) -> bool:
+    for item in videos or []:
+        if item.get("placeholder") or item.get("kind") == "webcam" or item.get("id") == "zvyc-live-cam":
+            continue
+        return True
+    return False
+
+
+def _cape_classic_mm_reels_payload() -> dict:
+    """MM Facebook clips when saved. Until then show the ZVYC Skyline live cam.
+
+    Reel dates after the event end stay valid — do not window-filter here.
+    """
+    row = _mm_feed_row(_CAPE_CLASSIC_MM_REGATTA_ID)
+    videos = []
+    for item in row.get("videos") or []:
+        n = _mm_normalize_video(item)
+        if not n:
+            continue
+        blob = " ".join(
+            str(n.get(k) or "")
+            for k in ("url", "permalink", "embed_url", "fb_page")
+        ).lower()
+        if "timadvisor" in blob:
+            continue
+        page = str(n.get("fb_page") or row.get("fb_page") or "marin.megastoresa").lower()
+        if "marin.megastoresa" not in blob and page != "marin.megastoresa":
+            continue
+        if not n.get("title"):
+            n["title"] = _mm_title_from_fb_url(n.get("url") or n.get("permalink") or "")
+        if not n.get("fb_title"):
+            n["fb_title"] = n.get("title") or "Marine Megastore reel"
+        if not n.get("fb_owner_logo"):
+            n["fb_owner_logo"] = "/assets/adverts/mm-lipton/fb-page-marine-megastore.jpg"
+        if not n.get("fb_sub"):
+            n["fb_sub"] = "Marine Megastore was live"
+        if not n.get("fb_page"):
+            n["fb_page"] = "marin.megastoresa"
+        videos.append(n)
+    if not videos:
+        videos = [dict(_ZVYC_LIVE_CAM)]
+    return {
+        "enabled": True,
+        "feed_source": "marine-megastore",
+        "fb_page": "marin.megastoresa",
+        "videos": _mm_apply_page_chrome(_mm_sorted_newest(videos)),
+    }
+
+
+def _cape_classic_mm_reels_card_html(regatta_id: str) -> str:
+    """ZVYC Cape Classic 2026 only. Coming Soon until the first MM clip exists."""
+    if str(regatta_id or "").strip() != _CAPE_CLASSIC_MM_REGATTA_ID:
+        return ""
+    payload = _cape_classic_mm_reels_payload()
+    initial = html_module.escape(json.dumps(payload, separators=(",", ":")), quote=True)
+    has_clips = _cape_classic_has_real_reels(payload.get("videos") or [])
+    brand_src = _MM_EVENT_REELS_BRAND_SRC if has_clips else _MM_COMING_SOON_BRAND_SRC
+    brand_alt = (
+        "Powered by Marine Megastore Event Reels"
+        if has_clips
+        else "Powered by Marine Megastore Coming Soon"
+    )
+    brand = (
+        '<a class="mm-lipton-reels-brand" href="https://marinemegastore.co.za" target="_blank" rel="noopener noreferrer">'
+        f'<img src="{html_module.escape(brand_src)}" '
+        f'alt="{html_module.escape(brand_alt)}" width="320" height="213" '
+        'loading="lazy" decoding="async">'
+        "</a>"
+    )
+    return (
+        f"<style>{_LIPTON_MM_REELS_CSS}</style>"
+        f'<section class="card mm-lipton-reels mm-lipton-reels--compact" id="mmLiptonReels" '
+        f'data-regatta-id="{html_module.escape(_CAPE_CLASSIC_MM_REGATTA_ID)}" '
+        'data-mm-poll="1" '
+        f'{"" if has_clips else "data-mm-webcam-pending=\"1\" "}'
+        f'data-mm-brand-soon="{html_module.escape(_MM_COMING_SOON_BRAND_SRC)}" '
+        f'data-mm-brand-live="{html_module.escape(_MM_EVENT_REELS_BRAND_SRC)}" '
+        f'data-mm-initial="{initial}" '
+        'aria-label="Marine Megastore Event Reels">'
+        '<div class="mm-lipton-reels-compact">'
+        f"{brand}"
+        '<div class="mm-lipton-reels-rail-wrap">'
+        '<button type="button" class="mm-lipton-reels-rail-btn mm-lipton-reels-rail-btn--prev" data-mm-rail-prev aria-label="Previous clips" hidden>‹</button>'
+        '<div class="mm-lipton-reels-rail" data-mm-compact></div>'
+        '<button type="button" class="mm-lipton-reels-rail-btn mm-lipton-reels-rail-btn--next" data-mm-rail-next aria-label="Next clips" hidden>›</button>'
+        "</div>"
+        "</div>"
+        "</section>"
+    )
+
+
 def _lipton_mm_reels_card_html(regatta_id: str) -> str:
     """Lipton 2026 only. Empty for every other regatta_id."""
     if str(regatta_id or "").strip() != _LIPTON_MM_REGATTA_ID:
@@ -20877,6 +21355,107 @@ def _lipton_mm_reels_card_html(regatta_id: str) -> str:
         "</section>"
     )
 
+
+
+@app.get("/api/regatta/{regatta_id}/mm-live-fb-feed")
+async def api_regatta_mm_live_fb_feed(regatta_id: str):
+    rid = str(regatta_id or "").strip()
+    if rid == _LIPTON_MM_REGATTA_ID:
+        return _lipton_mm_reels_payload()
+    if rid == _CAPE_CLASSIC_MM_REGATTA_ID:
+        return _cape_classic_mm_reels_payload()
+    raise HTTPException(status_code=404, detail="not found")
+
+
+@app.patch("/api/super-admin/regatta/{regatta_id}/event-crew")
+async def api_super_admin_regatta_event_crew_patch(request: Request, regatta_id: str, body: dict = Body(...)):
+    """Super Admin or Admin: show/hide Cape Classic Crew table for Public. JSON file only — no DB."""
+    if not _session_can_toggle_event_crew(request):
+        raise HTTPException(status_code=403, detail="admin or super_admin only")
+    rid = str(regatta_id or "").strip()
+    if rid != _CAPE_CLASSIC_MM_REGATTA_ID:
+        raise HTTPException(status_code=403, detail="not editable for this regatta")
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="JSON object expected")
+    _cape_classic_crew_set_show(bool(body.get("show")))
+    return {"ok": True, "show": _cape_classic_crew_show()}
+
+
+@app.get("/api/regatta/{regatta_id}/zvyc-live-cam-thumb")
+async def api_zvyc_live_cam_thumb(
+    regatta_id: str, a: str = Query(""), fresh: int = Query(0)
+):
+    """Return a live-feed screenshot after ~2s of play. Do not store the feed."""
+    if str(regatta_id or "").strip() != _CAPE_CLASSIC_MM_REGATTA_ID:
+        raise HTTPException(status_code=404, detail="not found")
+    import asyncio
+
+    jpg = await asyncio.to_thread(_zvyc_live_cam_frame_jpeg, a, bool(fresh))
+    if jpg[:2] == b"\xff\xd8":
+        return Response(
+            content=jpg,
+            media_type="image/jpeg",
+            headers={"Cache-Control": "no-store"},
+        )
+    return Response(status_code=204, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/regatta/{regatta_id}/zvyc-live-cam")
+async def api_zvyc_live_cam(regatta_id: str, a: str = Query("")):
+    """Pass through the current Skyline HLS playlist. Do not store the feed."""
+    rid = str(regatta_id or "").strip()
+    if rid != _CAPE_CLASSIC_MM_REGATTA_ID:
+        raise HTTPException(status_code=404, detail="not found")
+    url = _zvyc_live_cam_stream_url(a)
+    if not url:
+        return Response(status_code=204, headers={"Cache-Control": "no-store"})
+    try:
+        with httpx.Client(
+            timeout=8.0, follow_redirects=True, headers=_ZVYC_CAM_FETCH_HEADERS
+        ) as client:
+            resp = client.get(url)
+        body = resp.text or ""
+        if resp.status_code >= 400 or "#EXTM3U" not in body:
+            return Response(status_code=204, headers={"Cache-Control": "no-store"})
+        playlist = _zvyc_rewrite_playlist(body, str(resp.url), rid)
+        return Response(
+            content=playlist,
+            media_type="application/vnd.apple.mpegurl",
+            headers={"Cache-Control": "no-store"},
+        )
+    except Exception as e:
+        print(f"[zvyc_live_cam] playlist failed: {e}", flush=True)
+        return Response(status_code=204, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/regatta/{regatta_id}/zvyc-live-cam-seg")
+async def api_zvyc_live_cam_seg(regatta_id: str, u: str = Query("")):
+    """Pass through one Skyline HLS segment or key. Do not store the feed."""
+    if str(regatta_id or "").strip() != _CAPE_CLASSIC_MM_REGATTA_ID:
+        raise HTTPException(status_code=404, detail="not found")
+    dest = str(u or "").strip()
+    if not _zvyc_allowed_cam_url(dest):
+        raise HTTPException(status_code=400, detail="invalid cam url")
+    try:
+        with httpx.Client(
+            timeout=15.0, follow_redirects=True, headers=_ZVYC_CAM_FETCH_HEADERS
+        ) as client:
+            resp = client.get(dest)
+        if resp.status_code >= 400:
+            raise HTTPException(status_code=502, detail="cam segment failed")
+        ctype = (resp.headers.get("content-type") or "").split(";")[0].strip()
+        if not ctype or ctype in ("text/html", "application/octet-stream"):
+            ctype = "video/MP2T" if dest.endswith(".ts") else (ctype or "application/octet-stream")
+        return Response(
+            content=resp.content,
+            media_type=ctype,
+            headers={"Cache-Control": "no-store"},
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[zvyc_live_cam] segment failed: {e}", flush=True)
+        raise HTTPException(status_code=502, detail="cam segment failed")
 
 
 @app.patch("/api/super-admin/regatta/{regatta_id}/mm-live-fb-feed")
@@ -25452,10 +26031,15 @@ def _render_result_sheet_fleet(
     races_sailed_db = int(fleet.get("races_sailed") or 0)
     max_race_from_scores = _max_race_idx_from_result_rows(rows)
     races_sailed = max(races_sailed_db, max_race_from_scores)
+    if str(regatta_id or "").strip() == _CAPE_CLASSIC_MM_REGATTA_ID:
+        races_sailed = max(int(races_sailed or 0), 1)
     discard_count = fleet.get("discard_count") or 0
     to_count = fleet.get("to_count")
     if to_count is None and discard_count is not None:
         to_count = max(0, int(races_sailed) - int(discard_count))
+    if str(regatta_id or "").strip() == _CAPE_CLASSIC_MM_REGATTA_ID and int(races_sailed or 0) >= 1:
+        if to_count is None or int(to_count or 0) < 1:
+            to_count = max(0, int(races_sailed) - int(discard_count or 0))
     entries = fleet.get("entries") or 0
     scoring_system = fleet.get("scoring_system") or "Appendix A"
     sailed_line = f"Sailed: {races_sailed}, Discards: {discard_count}, To count: {to_count}, Entries: {entries}, Scoring system: {scoring_system}"
@@ -25482,6 +26066,12 @@ def _render_result_sheet_fleet(
         elif _pref_on("race_scores"):
             for i in range(1, n + 1):
                 race_columns.append(f"R{i}")
+    if str(regatta_id or "").strip() == _CAPE_CLASSIC_MM_REGATTA_ID:
+        for i in range(1, int(races_sailed or 1) + 1):
+            rkey = f"R{i}"
+            if rkey not in race_columns:
+                race_columns.append(rkey)
+        race_columns.sort(key=lambda k: int(k[1:]) if isinstance(k, str) and k[1:].isdigit() else 0)
 
     show_boat = _optional_col_visible("boat_name", has_boat_name)
     show_jib = _optional_col_visible("jib", has_jib_no)
@@ -27602,6 +28192,8 @@ def tracking_dev2_shortcut(request: Request):
 def serve_regatta_standalone(slug: str, request: Request):
     """Serve one full standalone HTML result sheet for /regatta/{slug}. Unknown regatta → 301 /events (not 404)."""
     slug_s = str(slug or "").strip()
+    if slug_s == _CAPE_CLASSIC_CREW_CHILD_SLUG:
+        return serve_cape_classic_crew_standalone(request)
     if slug_s == TRACKING_DEV2_SLUG:
         return serve_tracking_dev2_page(request)
     start_time = time.time()
@@ -27782,9 +28374,21 @@ def serve_regatta_standalone(slug: str, request: Request):
             mm_card = _lipton_mm_reels_card_html(str(regatta_id))
             mm_card_js = (
                 '<script src="/js/mm-lipton-track-overlay.js?v=mmr102" defer></script>'
-                '<script src="/js/mm-lipton-reels-card.js?v=mmr102" defer></script>'
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr111" defer></script>'
             )
-        body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
+        elif str(regatta_id) == "2026-09-13-zvyc-cape-classic":
+            mm_card = _cape_classic_mm_reels_card_html(str(regatta_id))
+            mm_card_js = (
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr113" defer></script>'
+            )
+        crew_frag = ""
+        if str(regatta_id) == _CAPE_CLASSIC_MM_REGATTA_ID:
+            can_crew = _session_can_toggle_event_crew(request)
+            crew_frag = _cape_classic_crew_table_html(
+                is_editor=can_crew,
+                always_show_button=_session_role_is_admin(request),
+            )
+        body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + crew_frag + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()
         wc_club_edit_script = (

@@ -1,4 +1,4 @@
-"""Smoke checks: MM helpers may exist, but only Lipton 2026 injects the Event Reels card."""
+"""Smoke checks: MM Event Reels card is Lipton + ZVYC Cape Classic only."""
 
 import ast
 import unittest
@@ -26,10 +26,44 @@ class MinimalMmFeedTest(unittest.TestCase):
         self.assertNotIn("mm-live-fb-card.js", serve)
         self.assertNotIn("_mm_live_fb_card_html(str(regatta_id))", serve)
         self.assertIn("_lipton_mm_reels_card_html(str(regatta_id))", serve)
+        self.assertIn("_cape_classic_mm_reels_card_html(str(regatta_id))", serve)
         self.assertIn('2026-08-29-lipton-challenge-cup', serve)
+        self.assertIn("2026-09-13-zvyc-cape-classic", serve)
         self.assertIn("mm-lipton-reels-card.js", serve)
         self.assertIn("onclick=\"window.print()\"", serve)
-        self.assertNotIn("2026-09-13-zvyc-cape-classic", serve)
+        self.assertIn("mm-lipton-track-overlay.js?v=mmr102", serve)
+        cape_branch = serve[serve.find('elif str(regatta_id) == "2026-09-13-zvyc-cape-classic"'):]
+        self.assertTrue(cape_branch)
+        self.assertNotIn("mm-lipton-track-overlay.js", cape_branch)
+        self.assertIn("_cape_classic_mm_reels_card_html", cape_branch)
+        self.assertIn("def _regatta_event_info_strip_sa_edit", self.src)
+        self.assertIn("Cape Classic Event Header is locked", self.src)
+        ns = {}
+        start = self.src.find("def _regatta_event_info_strip_sa_edit")
+        end = self.src.find("\n_CAPE_CLASSIC_CREW_CHILD_SLUG", start)
+        exec(self.src[start:end], {"_CAPE_CLASSIC_MM_REGATTA_ID": "2026-09-13-zvyc-cape-classic"}, ns)
+        fn = ns["_regatta_event_info_strip_sa_edit"]
+        self.assertFalse(fn("2026-09-13-zvyc-cape-classic", True))
+        self.assertFalse(fn("2026-09-13-zvyc-cape-classic", False))
+        self.assertTrue(fn("2026-08-29-lipton-challenge-cup", True))
+        self.assertFalse(fn("2026-08-29-lipton-challenge-cup", False))
+        render = self.src[
+            self.src.find("def _render_result_sheet_fleet") : self.src.find("_REGATTA_404_HTML")
+        ]
+        self.assertIn("_CAPE_CLASSIC_MM_REGATTA_ID", render)
+        self.assertIn('rkey = f"R{i}"', render)
+        self.assertGreaterEqual(render.count("_CAPE_CLASSIC_MM_REGATTA_ID"), 2)
+        self.assertIn("def _cape_classic_crew_table_html", self.src)
+        self.assertIn('id="capeClassicCrew"', self.src)
+        self.assertIn("event_crew_show", self.src)
+        self.assertIn("/event-crew", self.src)
+        self.assertIn("fleet_joined + crew_frag", self.src)
+        self.assertNotIn("CREATE TABLE", self.src[self.src.find("_CAPE_CLASSIC_CREW_ROWS"): self.src.find("_MM_COMING_SOON_BRAND_SRC")])
+        self.assertIn("Craig Leslie", self.src)
+        self.assertIn("_CAPE_CLASSIC_CREW_HREF", self.src)
+        self.assertIn("/sailor/", self.src[self.src.find("def _cape_classic_crew_table_html") : self.src.find("def serve_cape_classic_crew_standalone")])
+        self.assertIn("serve_cape_classic_crew_standalone", self.src)
+        self.assertIn('"165"', self.src[self.src.find("_CAPE_CLASSIC_CREW_ROWS") : self.src.find("_CAPE_CLASSIC_CREW_CSS")])
 
 
 class LiptonMmCardUnitTest(unittest.TestCase):
@@ -90,7 +124,30 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("compactTilesHtml", js)
         self.assertIn("scrollRail", js)
         self.assertIn("thumbsThatFit", js)
+        self.assertIn("emptyReelSlotHtml", js)
+        self.assertIn("isWebcam", js)
+        self.assertIn("hasRealReels", js)
+        self.assertIn("zvyc-live-cam", js)
+        self.assertIn("showWebcamSnap", js)
+        self.assertIn("playWebcamVideo", js)
+        self.assertIn("withHls", js)
+        self.assertIn("hls.js@1.5.20", js)
+        self.assertIn("live_snap", js)
+        self.assertIn("data-mm-webcam-live", js)
+        self.assertIn("mm-lipton-reels-clip-chrome--zvyc", js)
+        self.assertIn("/artwork/Club Logo/ZVYC.png", js)
+        self.assertIn("data-mm-cam-load", js)
+        self.assertIn("mm-lipton-reels-cam-spin", js)
+        self.assertIn("CAM_LOAD_HANG_MS", js)
+        self.assertIn("paintWebcamPoster", js)
+        self.assertIn("placeholderCount", js)
+        self.assertIn("isMobilePortrait", js)
+        self.assertIn("grabVideoFrame", js)
+        self.assertIn("scheduleVideoGrab", js)
         self.assertIn("play_url", js)
+        self.assertIn("scrapeZvycCamToken", js)
+        self.assertIn("data-mm-webcam-pending", js)
+        self.assertIn("withCamQuery", js)
         self.assertIn("data-mm-hero-video", js)
         self.assertIn("video.play()", js)
         self.assertIn("startHeroPlayback", js)
@@ -102,11 +159,14 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         src = Path("api.py").read_text(encoding="utf-8")
         self.assertIn('row["play_url"]', src)
         self.assertIn("mmr102", src)
+        self.assertIn("mmr111", src)
+        self.assertIn("mmr112", src)
         self.assertIn("mm-lipton-track-overlay.js", src)
         self.assertLess(
             src.find("mm-lipton-track-overlay.js"),
-            src.find("mm-lipton-reels-card.js?v=mmr102"),
+            src.find("mm-lipton-reels-card.js?v=mmr111"),
         )
+        self.assertIn("mm-lipton-reels-card.js?v=mmr112", src)
         self.assertIn("scrollTo", js)
         self.assertIn("bumpSlide", js)
         self.assertIn("preloadNeighbors", js)
@@ -376,6 +436,69 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertNotIn("requestFullscreen", js)
         self.assertNotIn("mm-lipton-reels-stamp", js)
         self.assertNotIn("Latest Reel", js)
+        self.assertIn("syncBrand", js)
+        self.assertIn("startFeedPoll", js)
+        self.assertIn("data-mm-poll", js)
+        self.assertIn("mm-cape-classic", js)
+
+
+class CapeClassicMmCardUnitTest(unittest.TestCase):
+    def test_helper_is_hard_scoped_and_starts_empty(self):
+        src = Path("api.py").read_text(encoding="utf-8")
+        start = src.find("def _cape_classic_mm_reels_card_html")
+        end = src.find("def _lipton_mm_reels_card_html")
+        fn = src[start:end]
+        self.assertIn('_CAPE_CLASSIC_MM_REGATTA_ID = "2026-09-13-zvyc-cape-classic"', src)
+        self.assertIn('if str(regatta_id or "").strip() != _CAPE_CLASSIC_MM_REGATTA_ID:', fn)
+        self.assertIn("_MM_COMING_SOON_BRAND_SRC", fn)
+        self.assertIn("_MM_EVENT_REELS_BRAND_SRC", fn)
+        self.assertIn("mm-powered-by-coming-soon.jpg", src)
+        self.assertIn("mm-powered-by-event-reels.png", src)
+        self.assertIn('data-mm-poll="1"', fn)
+        payload_fn = src[src.find("def _cape_classic_mm_reels_payload"): end]
+        self.assertIn("marin.megastoresa", payload_fn)
+        self.assertIn("fb-page-marine-megastore.jpg", payload_fn)
+        self.assertIn("Marine Megastore was live", payload_fn)
+        self.assertIn("zvyc-live-cam", src)
+        self.assertIn("skylinewebcams.com", src)
+        self.assertIn("temp/4040.jpg", src)
+        self.assertIn("_cape_classic_has_real_reels", src)
+        self.assertIn("zvyc-live-cam-thumb", src)
+        self.assertIn("zvyc-live-cam-seg", src)
+        self.assertIn("_zvyc_rewrite_playlist", src)
+        self.assertIn("/artwork/Club Logo/ZVYC.png", src)
+        self.assertIn("mm-lipton-reels-clip-chrome--zvyc", src)
+        self.assertIn("mm-lipton-reels-cam-spin", src)
+        self.assertIn("_zvyc_live_cam_frame_jpeg", src)
+        self.assertIn("_zvyc_normalize_cam_token", src)
+        self.assertIn("/usr/bin/ffmpeg", src)
+        self.assertIn("-frames:v", src)
+        self.assertIn("mm-lipton-reels-tile--slot", src)
+        self.assertIn("@keyframes mm-cam-spin", src)
+        self.assertIn('"thumb": "/api/regatta/2026-09-13-zvyc-cape-classic/zvyc-live-cam-thumb"', src)
+        self.assertNotIn('"thumb": _ZVYC_CLUB_LOGO', src)
+        self.assertNotIn("cdn.skylinewebcams.com/as/img/hosts/4040.jpg", src)
+        self.assertIn("Do not store the feed", src)
+        self.assertIn("data-mm-webcam-pending", src)
+        self.assertIn("status_code=204", src)
+        self.assertNotIn("RedirectResponse(_ZVYC_LIVE_CAM_SNAP", src)
+        js = Path("js/mm-lipton-reels-card.js").read_text(encoding="utf-8")
+        self.assertIn("2026-09-13-zvyc-cape-classic", js)
+        self.assertIn("fb-page-marine-megastore.jpg", js)
+        self.assertIn("stopTrackOverlay();", js)
+        self.assertNotIn("_mm_video_matches_event", payload_fn)
+        feed_fn = src[src.find("def _mm_feed_payload"): src.find("def _mm_live_fb_parse_on")]
+        self.assertIn('rid != "2026-09-13-zvyc-cape-classic"', feed_fn)
+        self.assertNotIn("LIVE VIDEO", fn)
+        self.assertNotIn("Fullscreen", fn)
+        self.assertNotIn("timadvisor", fn.lower())
+        feed = Path("sailingsa/deploy/event_fb_feeds.json").read_text(encoding="utf-8")
+        self.assertIn("2026-09-13-zvyc-cape-classic", feed)
+        cape = feed[feed.find("2026-09-13-zvyc-cape-classic") :]
+        self.assertIn('"videos": []', cape)
+        self.assertNotIn("timadvisor", cape.lower())
+        self.assertIn('@app.get("/api/regatta/{regatta_id}/mm-live-fb-feed")', src)
+        self.assertTrue(Path("sailingsa/frontend/assets/adverts/mm-powered-by-coming-soon.jpg").is_file())
 
 
 if __name__ == "__main__":
