@@ -89,7 +89,18 @@
       talkRoundFromSec: 170,
       talkRoundToSec: 285
     }),
-    '2410502969472697': clipR(7, 'round'),
+    '2410502969472697': clipR(7, 'round', {
+      approach: 'rtl',
+      mark: '1',
+      offsetMs: -88000,
+      durationSec: 200,
+      stamp: '2026-08-28T16:12:00+02:00',
+      videoEvent: '1st at M1 ~0:25',
+      gpsEvent: 'R7 1st at M1 16:10:56',
+      stampOff: '-88s',
+      talkRoundFromSec: 10,
+      talkRoundToSec: 130
+    }),
     '1014880974840710': clipR(7, 'start', {
       approach: 'ltr',
       offsetMs: 24200,
@@ -820,6 +831,16 @@
     return k === 'pin' || k === '4';
   }
 
+  function isTopKey(k) {
+    return String(k == null ? '' : k) === '1';
+  }
+
+  function sameRoundMark(a, b) {
+    if (!a || !b) return false;
+    if (isPinKey(a.key) && isPinKey(b.key)) return true;
+    return String(a.key || '') === String(b.key || '');
+  }
+
   function sameCamBox(lock, w, h) {
     return !!(lock && Math.abs(lock.w - w) < 2 && Math.abs(lock.h - h) < 2);
   }
@@ -838,6 +859,10 @@
     if (origin && (origin.key === 'pin' || origin.key === '4')) {
       var m1 = sampleAt((trail.marks || {})['1'], (live && live.ts) || (replay && replay.gun_ts_ms) || 0);
       if (m1) return bearingDeg(m1, origin);
+    }
+    if (origin && isTopKey(origin.key)) {
+      var pin = trail.start_line && trail.start_line.left;
+      if (pin) return bearingDeg(pin, origin);
     }
     return (mark && mark.hdg) || 180;
   }
@@ -869,6 +894,25 @@
 
   function nRoundedPin(live) {
     return nRoundedPass(pinPass(), live && live.ts);
+  }
+
+  function topPass() {
+    var passes = passList();
+    var i;
+    for (i = 0; i < passes.length; i++) {
+      if (passes[i] && (passes[i].label === 'M1' || Number(passes[i].mark) === 1)) return passes[i];
+    }
+    return null;
+  }
+
+  function markPassForOrigin(origin) {
+    if (origin && isPinKey(origin.key)) return pinPass();
+    if (origin && isTopKey(origin.key)) return topPass();
+    return (origin && origin.pass) || null;
+  }
+
+  function nRoundedMark(live, origin) {
+    return nRoundedPass(markPassForOrigin(origin), live && live.ts);
   }
 
   function isStraggler(row) {
@@ -937,13 +981,13 @@
    * rounding order forces the same close-up. Forget stragglers. */
   function roundTightNow(live, origin) {
     if (roundTalkNow(live)) return true;
-    var nR = nRoundedPin(live);
+    var nR = nRoundedMark(live, origin);
     if (nR >= 12) return false;
     var front = live && live.front;
     var incoming = false;
     if (front) {
       var nxt = markPosForPass(passList()[front.done], live && live.ts);
-      incoming = !!(nxt && isPinKey(nxt.key));
+      incoming = !!(nxt && sameRoundMark(nxt, origin));
     }
     var tta = secsToMark(front, origin, live && live.ts);
     var d = front && front.pos && origin ? distM(front.pos, origin) : 1e9;
@@ -1252,7 +1296,7 @@
     var front = live.front;
     if (!front) return true;
     var nxt = markPosForPass(passList()[front.done], live.ts);
-    if (nxt && isPinKey(nxt.key)) return true;
+    if (nxt && sameRoundMark(nxt, pin)) return true;
     if (front.pos && distM(front.pos, pin) < 90) return true;
     return roundMarkInFirstPack(live, pin);
   }
@@ -1935,6 +1979,7 @@
     var lockMatchesLast = !!(markLock && lastKey && String(markLock.key) === lastKey);
 
     var pinRound = kind === 'round' && (isPinKey(last && last.key) || isPinKey(next && next.key));
+    var topRound = kind === 'round' && (isTopKey(last && last.key) || isTopKey(next && next.key) || (rule && rule.mark === '1'));
 
     if (kind === 'start' && (!leader || leader.done < 1) && distNext > 280) {
       phase = 'start';
@@ -1947,6 +1992,18 @@
       /* Pin-round clip: pin stays left the whole way. Do not hold M1
        * just because 1st is still closer to weather. */
       if (isPinKey(last && last.key)) {
+        phase = 'hold';
+        focus = last;
+      } else {
+        phase = 'approach-mark';
+        focus = next;
+      }
+      hdg = roundCourseHdg(live, focus);
+      flipX = true;
+      lockApproachHdg = hdg;
+    } else if (topRound) {
+      /* Race 7 1st top: M1 stays left the whole way. Same rules as pin. */
+      if (isTopKey(last && last.key)) {
         phase = 'hold';
         focus = last;
       } else {
@@ -1983,7 +2040,7 @@
           key: key,
           lat: (frozen && frozen.lat) || focus.lat,
           lon: (frozen && frozen.lon) || focus.lon,
-          hdg: key === 'pin' || key === '4' ? roundCourseHdg(live, focus) : hdg,
+          hdg: key === 'pin' || key === '4' || key === '1' ? roundCourseHdg(live, focus) : hdg,
           flipX: true,
           markX: markX,
           markY: 0.34,

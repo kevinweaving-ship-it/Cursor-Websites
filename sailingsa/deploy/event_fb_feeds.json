@@ -26,6 +26,7 @@
         "embed_url": "https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Fmarin.megastoresa%2Fvideos%2Flipton-race-7-1st-top%2F2410502969472697%2F&show_text=false",
         "title": "Lipton Race 7 1st top",
         "started_at": "2026-08-28T16:12:00+02:00",
+        "track_offset_ms": -88000,
         "is_live": false,
         "stamp": "28 Aug · 16:12",
         "thumb": "/assets/adverts/mm-lipton/2410502969472697.jpg",
