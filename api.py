@@ -20620,6 +20620,7 @@ _LIPTON_MM_REELS_CSS = (
     ".mm-lipton-reels-thumb--latest{container-type:size;display:flex;flex-direction:column}"
     ".mm-lipton-reels-clip-chrome{position:relative;top:auto;left:auto;right:auto;width:100%;flex:0 0 auto;z-index:1;display:flex;align-items:flex-start;gap:clamp(4px,4cqh,8px);padding:clamp(4px,5cqh,8px) clamp(6px,5cqw,10px);box-sizing:border-box;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.58) 0%,rgba(0,0,0,.2) 72%,rgba(0,0,0,0) 100%)}"
     ".mm-lipton-reels-thumb--latest .mm-lipton-reels-owner-logo{position:relative!important;inset:auto!important;flex:0 0 auto;width:clamp(14px,20cqh,28px)!important;height:clamp(14px,20cqh,28px)!important;max-width:none;max-height:none;border:0;border-radius:50%;object-fit:cover!important;object-position:center;display:block}"
+    ".mm-lipton-reels-clip-chrome--zvyc .mm-lipton-reels-owner-logo{width:clamp(28px,40cqh,56px)!important;height:clamp(28px,40cqh,56px)!important;border-radius:4px!important;object-fit:contain!important;object-position:center;background:#fff;padding:2px;box-sizing:border-box}"
     ".mm-lipton-reels-clip-copy{min-width:0;flex:1 1 auto;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.85);line-height:1.15}"
     ".mm-lipton-reels-clip-title{font-size:clamp(8px,8cqh,13px);font-weight:700;white-space:normal;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;line-height:1.2;max-height:2.4em;max-width:14ch}"
     ".mm-lipton-reels-clip-sub{font-size:clamp(7px,6.5cqh,11px);font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.95}"
@@ -28058,12 +28059,12 @@ def serve_regatta_standalone(slug: str, request: Request):
             mm_card = _lipton_mm_reels_card_html(str(regatta_id))
             mm_card_js = (
                 '<script src="/js/mm-lipton-track-overlay.js?v=mmr102" defer></script>'
-                '<script src="/js/mm-lipton-reels-card.js?v=mmr108" defer></script>'
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr109" defer></script>'
             )
         elif str(regatta_id) == "2026-09-13-zvyc-cape-classic":
             mm_card = _cape_classic_mm_reels_card_html(str(regatta_id))
             mm_card_js = (
-                '<script src="/js/mm-lipton-reels-card.js?v=mmr108" defer></script>'
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr109" defer></script>'
             )
         body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))

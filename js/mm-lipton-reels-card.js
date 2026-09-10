@@ -227,16 +227,26 @@
     );
   }
 
+  function overlayChromeClass(clip) {
+    return (
+      'mm-lipton-reels-clip-chrome--overlay' +
+      (isWebcam(clip) ? ' mm-lipton-reels-clip-chrome--zvyc' : '')
+    );
+  }
+
   function latestChromeHtml(v, extraClass) {
     var logo = (v && v.fb_owner_logo) || '';
     var title = (v && v.fb_title) || '';
     var sub = (v && v.fb_sub) || '';
     if (!logo && !title && !sub) return '';
     var extra = extraClass ? ' ' + extraClass : '';
+    var logoAlt = logo.indexOf('Club Logo/ZVYC') !== -1 ? 'ZVYC' : '';
     var img = logo
       ? '<img class="mm-lipton-reels-owner-logo" src="' +
         esc(logo) +
-        '" alt="" width="40" height="40" decoding="async">'
+        '" alt="' +
+        esc(logoAlt) +
+        '" width="40" height="40" decoding="async">'
       : '';
     var copy = '<div class="mm-lipton-reels-clip-copy">';
     if (title) copy += '<div class="mm-lipton-reels-clip-title">' + esc(title) + '</div>';
@@ -249,6 +259,13 @@
     var first = (videos && videos[0]) || {};
     var root = cardEl();
     var isCape = root && root.getAttribute('data-regatta-id') === '2026-09-13-zvyc-cape-classic';
+    if (isWebcam(clip) || (!clip && isWebcam(first))) {
+      return {
+        fb_owner_logo: '/artwork/Club Logo/ZVYC.png',
+        fb_title: (clip && (clip.fb_title || clip.title)) || first.fb_title || 'ZVYC Live Cam',
+        fb_sub: (clip && clip.fb_sub) || first.fb_sub || 'Zeekoevlei · live',
+      };
+    }
     return {
       fb_owner_logo:
         (clip && clip.fb_owner_logo) ||
@@ -404,7 +421,7 @@
     return (
       '<div class="mm-lipton-reels-thumb mm-lipton-reels-thumb--latest" style="aspect-ratio:16 / 9">' +
       posterHtml(v) +
-      latestChromeHtml(chromeSource(v, videos)) +
+      latestChromeHtml(chromeSource(v, videos), isWebcam(v) ? 'mm-lipton-reels-clip-chrome--zvyc' : '') +
       '<span class="mm-lipton-reels-play" aria-hidden="true"></span>' +
       thumbHit(v) +
       '</div>'
@@ -590,7 +607,7 @@
       '<div class="mm-lipton-reels-stage mm-lipton-reels-stage--playing" data-mm-stage></div>' +
       track +
       '<div class="mm-lipton-reels-hud" data-mm-hud>' +
-      latestChromeHtml(chromeSource(v, videos), 'mm-lipton-reels-clip-chrome--overlay') +
+      latestChromeHtml(chromeSource(v, videos), overlayChromeClass(v)) +
       playerUiHtml() +
       '</div></div>'
     );
@@ -990,7 +1007,7 @@
   function setOverlayChrome(root, clip, videos, snap) {
     var hud = root.querySelector('[data-mm-hud]');
     if (!hud) return;
-    var html = latestChromeHtml(chromeSource(clip, videos), 'mm-lipton-reels-clip-chrome--overlay');
+    var html = latestChromeHtml(chromeSource(clip, videos), overlayChromeClass(clip));
     var old = hud.querySelector('.mm-lipton-reels-clip-chrome--overlay');
     if (!html) {
       if (old && old.parentNode) old.parentNode.removeChild(old);
