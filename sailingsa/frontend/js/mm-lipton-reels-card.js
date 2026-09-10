@@ -401,7 +401,9 @@
       off = overlay.offsetMs ? overlay.offsetMs(trackClip.id) : String(trackClip.id) === TRACK_TEST_ID ? 36000 : 0;
     }
     var ts = startMs + (Number(video.currentTime) || 0) * 1000 + off;
-    overlay.draw(canvas, ts, cssW, cssH);
+    var dur = Number(video.duration);
+    var vidFrac = dur > 1 && dur === dur ? (Number(video.currentTime) || 0) / dur : NaN;
+    overlay.draw(canvas, ts, cssW, cssH, vidFrac);
   }
 
   function loopTrack() {

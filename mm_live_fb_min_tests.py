@@ -101,11 +101,11 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("playsinline", js)
         src = Path("api.py").read_text(encoding="utf-8")
         self.assertIn('row["play_url"]', src)
-        self.assertIn("mmr75", src)
+        self.assertIn("mmr76", src)
         self.assertIn("mm-lipton-track-overlay.js", src)
         self.assertLess(
             src.find("mm-lipton-track-overlay.js"),
-            src.find("mm-lipton-reels-card.js?v=mmr75"),
+            src.find("mm-lipton-reels-card.js?v=mmr76"),
         )
         self.assertIn("scrollTo", js)
         self.assertIn("bumpSlide", js)
@@ -141,6 +141,7 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("TRACK_TEST_ID", js)
         self.assertIn("mmLiptonTrackOverlay", js)
         self.assertIn("usesClip", js)
+        self.assertIn("vidFrac", js)
         self.assertIn("2622643364847262", js)
         overlay = Path("js/mm-lipton-track-overlay.js").read_text(encoding="utf-8")
         self.assertIn("lipton-dev-trail-r7.json", overlay)
@@ -171,6 +172,8 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("startCourseHdg", overlay)
         self.assertIn("startCamPack", overlay)
         self.assertIn("VERTICAL", overlay)
+        self.assertIn("parkFirstAtRight", overlay)
+        self.assertIn("durationSec: 175", overlay)
         self.assertIn("1014880974840710", overlay)
         self.assertIn("approach: 'ltr'", overlay)
         self.assertIn("camPlan", overlay)

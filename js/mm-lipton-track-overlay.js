@@ -86,6 +86,7 @@
     '1014880974840710': clipR(7, 'start', {
       approach: 'ltr',
       offsetMs: 24200,
+      durationSec: 175,
       stamp: '2026-08-28T15:55:00+02:00',
       videoEvent: 'STT 3-2-1 + gun horn 1:36.8',
       gpsEvent: 'R7 gun 15:57:01',
@@ -928,7 +929,39 @@
     return pack;
   }
 
-  function startPackCam(live, w, h) {
+  /* Short Start clip: after the gun, slide so 1st sits near the right
+   * edge when the video ends (they are 1st, sailing LTR). */
+  function startEndT(endFrac) {
+    var f = Number(endFrac);
+    if (!(f > 0.55)) return 0;
+    var t = (f - 0.55) / 0.45;
+    if (t > 1) t = 1;
+    return t * t * (3 - 2 * t);
+  }
+
+  function clipVidFrac(ts, passed) {
+    var p = Number(passed);
+    if (p === p && p >= 0) return p > 1 ? 1 : p;
+    var rule = clipRule;
+    if (!rule || !rule.stamp || !rule.durationSec) return 0;
+    var stamp = Date.parse(rule.stamp);
+    if (stamp !== stamp) return 0;
+    var off = rule.offsetMs != null ? rule.offsetMs : 0;
+    var sec = (ts - stamp - off) / 1000;
+    var f = sec / rule.durationSec;
+    if (f < 0) return 0;
+    return f > 1 ? 1 : f;
+  }
+
+  function parkFirstAtRight(cam, front, w, endFrac) {
+    var endT = startEndT(endFrac);
+    if (!endT || !cam || !front || !front.pos) return cam;
+    var p = xy(front.pos.lat, front.pos.lon, cam);
+    cam.cx += (w - 26 - p.x) * endT;
+    return cam;
+  }
+
+  function startPackCam(live, w, h, endFrac) {
     var line = startLineMid();
     var pin = line && line.pin;
     var rc = line && line.rc;
@@ -983,7 +1016,7 @@
     }
     var cx = lineX;
     var cy = lineY + lineA * scale;
-    return {
+    var cam = {
       midLat: origin.lat,
       midLon: origin.lon,
       cos: Math.cos((origin.lat * Math.PI) / 180),
@@ -1000,6 +1033,7 @@
       cy: cy,
       lockMark: true
     };
+    return parkFirstAtRight(cam, front, w, endFrac);
   }
 
   /* Fixed geographic window so the mark stays put and boats sail through it. */
@@ -1594,7 +1628,7 @@
     };
   }
 
-  function draw(canvas, ts, cssW, cssH) {
+  function draw(canvas, ts, cssW, cssH, vidFrac) {
     if (!ready || !trail || !canvas || cssW < 8 || cssH < 8) return;
     var ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -1616,9 +1650,11 @@
     var cam;
     var camOpts = { minAlong: 40, minAcross: 28, padAlong: 1.18, padAcross: 1.35, padX: 70, padY: 28, flipX: true };
     if (plan.phase === 'start') {
+      var endFrac = clipVidFrac(ts, vidFrac);
       setTrackHeight(canvas, startTrackFrac(live), 0.88);
-      cam = startPackCam(live, cssW, cssH);
+      cam = startPackCam(live, cssW, cssH, endFrac);
       cam = easeCam(cam, ts);
+      cam = parkFirstAtRight(cam, live.front, cssW, endFrac);
     } else if (nearRound && markLock) {
       setTrackHeight(canvas, 0.74);
       var mode = roundingMode(markLock, live);
