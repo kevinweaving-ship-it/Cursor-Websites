@@ -29,6 +29,8 @@ def test_compact_print_css_portrait_header_and_fleet_line():
     assert ".class-header-club-logo-col { display: none !important; }" in css
     assert "min-width: 0 !important" in css
     assert "white-space: nowrap" in css
+    assert "table-layout: fixed" in css
+    assert ".race-col" in css
     bar = print_share_bar_html()
     assert "ssa-print-compact" in bar
     assert "regattaShareBtn" in bar

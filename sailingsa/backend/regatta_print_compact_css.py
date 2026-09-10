@@ -1,5 +1,9 @@
 """Compact portrait print stylesheet for standalone /regatta result sheets.
 
+Print test / example sheet:
+https://sailingsa.co.za/regatta/2025-12-19-hyc-youth-nationals
+(7 fleets, 12 races, Age + Crew — must fit A4 portrait.)
+
 Print and Save-as-PDF both use this CSS on the live HTML tables so sailor / club /
 class / sail links stay real hyperlinks in the PDF (not a screenshot).
 """
@@ -95,21 +99,28 @@ PRINT_COMPACT_CSS = """
   .fleet-title-row { font-size: 9pt !important; font-weight: 700 !important; margin: 0 !important; line-height: 1.15 !important; white-space: nowrap !important; }
   .sailed-line { font-size: 7pt !important; margin: 0 !important; line-height: 1.15 !important; white-space: nowrap !important; }
 
-  /* Single-line rank table — must fit portrait page width */
+  /* Single-line rank table — A4 portrait, including 12-race Youth Nationals */
   .table-wrapper { overflow: visible !important; margin-top: 3px !important; width: 100% !important; max-width: 100% !important; }
   .table-wrapper table, table.fleet-results-table, .fleet-section .table-wrapper table.fleet-results-table {
     width: 100% !important;
     min-width: 0 !important;
     max-width: 100% !important;
-    table-layout: auto !important;
+    table-layout: fixed !important;
   }
   th, td {
-    padding: 1px 2px !important;
-    font-size: 7pt !important;
+    padding: 1px 1px !important;
+    font-size: 6.5pt !important;
     line-height: 1.15 !important;
     white-space: nowrap !important;
+    overflow: hidden !important;
   }
-  .fleet-results-table tbody tr, .fleet-results-table tbody td { height: auto !important; max-height: none !important; overflow: visible !important; }
+  .rank-col, .total-col, .nett-col, .wc-meta-col { width: 3.6% !important; }
+  .class-col { width: 7% !important; }
+  .sail-col { width: 6% !important; }
+  .club-col { width: 5.5% !important; }
+  .helm-col, td.crew-col, th.crew-col { width: 10% !important; }
+  .race-col { width: 3.15% !important; padding-left: 0 !important; padding-right: 0 !important; }
+  .fleet-results-table tbody tr, .fleet-results-table tbody td { height: auto !important; max-height: none !important; }
   .rs-club-row-logo, .rs-boat-sponsor-logo, .fleet-results-table .rs-club-row-logo,
   .fleet-results-table .rs-boat-sponsor-logo { display: none !important; }
   .rs-club-with-logo, .rs-boat-name-sponsors { white-space: nowrap !important; }
