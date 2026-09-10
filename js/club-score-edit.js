@@ -111,7 +111,10 @@
     var n = Math.max(parseInt(entries, 10) || 0, 0);
     if (code) return String(n + 1) + " " + code;
     var num = v.replace(/^\(|\)$/g, "").trim();
-    if (/^\d+(\.0+)?$/.test(num)) return String(parseInt(num, 10));
+    if (/^\d+(\.0+)?$/.test(num)) {
+      var place = parseInt(num, 10);
+      return place > 0 ? String(place) : "";
+    }
     return v;
   }
 
@@ -214,15 +217,15 @@
       rankTd.textContent = rankLabel(row.rank);
     }
     if (row.race_scores && typeof row.race_scores === "object") {
+      tr.querySelectorAll(".club-score-input").forEach(function (box) {
+        if (document.activeElement === box) return;
+        var rk = box.getAttribute("data-race");
+        var cell = String(row.race_scores[rk] == null ? "" : row.race_scores[rk]);
+        box.value = cell;
+        box.setAttribute("data-original", cell);
+      });
       Object.keys(row.race_scores).forEach(function (rk) {
         var cell = String(row.race_scores[rk] == null ? "" : row.race_scores[rk]);
-        var box = tr.querySelector('.club-score-input[data-race="' + rk + '"]');
-        if (box) {
-          if (document.activeElement === box) return;
-          box.value = cell;
-          box.setAttribute("data-original", cell);
-          return;
-        }
         var td = tr.querySelector('td.race-col[data-race-key="' + rk + '"]');
         if (td && !td.querySelector("input")) td.textContent = cell;
       });
@@ -478,11 +481,6 @@
     var rid = ridEl && ridEl.getAttribute("data-result-id");
     if (!table || !rid) return;
     var current = fleetRaceCount(table);
-    if (delta < 0 && lastRaceFilled(table, current)) {
-      var minus = sec.querySelector(".club-race-step-sub");
-      if (minus) minus.title = "Clear R" + current + " first";
-      return;
-    }
     var tok = sessionToken();
     var btns = sec.querySelectorAll(".club-race-step button");
     Array.prototype.forEach.call(btns, function (b) {

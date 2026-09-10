@@ -12605,6 +12605,8 @@ def _validate_race_score_value(value: str, entries: int) -> str:
         return _public_race_code_cell(code, entries_n)
     if re.fullmatch(r"\d+", v):
         n = int(v)
+        if n == 0:
+            return ""
         if entries_n and 1 <= n <= max_pts:
             return str(n)
         if not entries_n and n >= 1:
@@ -12625,8 +12627,8 @@ def _appendix_a_discard_count(races_sailed: int) -> int:
     return max(int(races_sailed or 0), 0) // 5
 
 
-def _next_fleet_races_sailed(current: int, delta: int, last_race_filled: bool) -> int:
-    """Club admin R+/R−: one race at a time. Floor 1, cap 20. Refuse remove if last race has scores."""
+def _fleet_races_step(current: int, delta: int, last_race_filled: bool):
+    """R+ adds a column. R− clears last-race scores, then drops an empty extra column. R1 stays."""
     cur = max(int(current or 0), 1)
     try:
         step = int(delta)
@@ -12636,18 +12638,20 @@ def _next_fleet_races_sailed(current: int, delta: int, last_race_filled: bool) -
         nxt = min(cur + 1, 20)
         if nxt == cur:
             raise HTTPException(status_code=400, detail="Maximum 20 races")
-        return nxt
+        return nxt, "add"
     if step < 0:
         if last_race_filled:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Clear R{cur} first before removing that race",
-            )
-        nxt = max(cur - 1, 1)
-        if nxt == cur:
-            raise HTTPException(status_code=400, detail="Need at least R1")
-        return nxt
+            return cur, "clear"
+        if cur <= 1:
+            return 1, "noop"
+        return cur - 1, "drop"
     raise HTTPException(status_code=400, detail="Use +1 or -1")
+
+
+def _next_fleet_races_sailed(current: int, delta: int, last_race_filled: bool) -> int:
+    """Club admin R+/R−: one race at a time. Floor 1, cap 20. R− clears scores before dropping."""
+    nxt, _action = _fleet_races_step(current, delta, last_race_filled)
+    return nxt
 
 
 def _appendix_a_cell_points(raw, entries: int) -> float:
@@ -14951,8 +14955,8 @@ def patch_fleet_races(request: Request, result_id: int, body: dict):
                     last_filled = True
                     break
 
-            nxt = _next_fleet_races_sailed(current, delta, last_filled)
-            if nxt < current:
+            nxt, action = _fleet_races_step(current, delta, last_filled)
+            if action == "clear" or nxt < current:
                 cur.execute(
                     "SELECT result_id, race_scores FROM results WHERE block_id = %s",
                     (block_id,),
@@ -14964,6 +14968,9 @@ def patch_fleet_races(request: Request, result_id: int, body: dict):
                     if not isinstance(rs, dict):
                         rs = {}
                     changed = False
+                    if action == "clear":
+                        rs[last_key] = ""
+                        changed = True
                     for drop_n in range(nxt + 1, current + 1):
                         if rs.pop(f"R{drop_n}", None) is not None:
                             changed = True

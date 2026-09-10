@@ -210,12 +210,19 @@ class ClubAdminScoreMinTest(unittest.TestCase):
         with self.assertRaises(_FakeHTTPException):
             h["_validate_race_score_value"]("11", 9)
 
+        self.assertEqual(h["_validate_race_score_value"]("0", 3), "")
+        self.assertEqual(h["_validate_race_score_value"]("", 3), "")
         self.assertEqual(h["_next_fleet_races_sailed"](1, 1, False), 2)
         self.assertEqual(h["_next_fleet_races_sailed"](2, -1, False), 1)
-        with self.assertRaises(_FakeHTTPException):
-            h["_next_fleet_races_sailed"](1, -1, False)
-        with self.assertRaises(_FakeHTTPException):
-            h["_next_fleet_races_sailed"](2, -1, True)
+        self.assertEqual(h["_next_fleet_races_sailed"](1, -1, False), 1)
+        self.assertEqual(h["_next_fleet_races_sailed"](2, -1, True), 2)
+        self.assertEqual(h["_fleet_races_step"](1, -1, True), (1, "clear"))
+        self.assertEqual(h["_fleet_races_step"](2, -1, True), (2, "clear"))
+        self.assertEqual(h["_fleet_races_step"](2, -1, False), (1, "drop"))
+        self.assertEqual(h["_fleet_races_step"](1, -1, False), (1, "noop"))
+        self.assertIn("action == \"clear\"", self.src)
+        self.assertIn('place > 0 ? String(place) : ""', self.club_js)
+        self.assertNotIn("Clear R\" + current + \" first", self.club_js)
         self.assertIn("def patch_fleet_races", self.src)
         self.assertIn("/api/result/{result_id}/fleet-races", self.src)
         self.assertIn("class-header-club-logo-col", self.club_js)
