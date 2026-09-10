@@ -53,6 +53,13 @@ class MinimalMmFeedTest(unittest.TestCase):
         self.assertIn("_CAPE_CLASSIC_MM_REGATTA_ID", render)
         self.assertIn('rkey = f"R{i}"', render)
         self.assertGreaterEqual(render.count("_CAPE_CLASSIC_MM_REGATTA_ID"), 2)
+        self.assertIn("def _cape_classic_crew_table_html", self.src)
+        self.assertIn('id="capeClassicCrew"', self.src)
+        self.assertIn("event_crew_show", self.src)
+        self.assertIn("/event-crew", self.src)
+        self.assertIn("fleet_joined + crew_frag", self.src)
+        self.assertNotIn("CREATE TABLE", self.src[self.src.find("_CAPE_CLASSIC_CREW_ROWS"): self.src.find("_MM_COMING_SOON_BRAND_SRC")])
+        self.assertIn("Craig Leslie", self.src)
 
 
 class LiptonMmCardUnitTest(unittest.TestCase):

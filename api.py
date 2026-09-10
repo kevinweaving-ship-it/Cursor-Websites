@@ -12388,6 +12388,20 @@ def _session_role_is_super_admin(request: Request) -> bool:
     return s in ("super_admin", "superadmin")
 
 
+def _session_role_is_admin(request: Request) -> bool:
+    """True for Admin (not Super Admin)."""
+    r = _get_session_role(request)
+    if not r:
+        return False
+    s = str(r).strip().lower().replace(" ", "_").replace("-", "_")
+    return s == "admin"
+
+
+def _session_can_toggle_event_crew(request: Request) -> bool:
+    """Super Admin or Admin may show/hide the Cape Classic Crew table for Public."""
+    return _session_role_is_super_admin(request) or _session_role_is_admin(request)
+
+
 def _require_super_admin(request: Request) -> None:
     """Raise 403 unless the session is super admin (inline result PATCH, etc.)."""
     if not _session_role_is_super_admin(request):
@@ -20297,6 +20311,102 @@ def _regatta_event_info_strip_sa_edit(regatta_id: str, is_super_admin: bool = Fa
     return bool(is_super_admin)
 
 
+_CAPE_CLASSIC_CREW_ROWS = (
+    ("Craig Leslie", "RO", "Bridge", "Sat/Sun"),
+    ("Masha Ainslie", "Timekeeper / flags", "Bridge", "Sat/Sun"),
+    ("Millicent", "Timekeeper / flags", "Bridge", "Sat/Sun"),
+    ("Karyn McCombe", "Finish / Regatta Officer", "Bridge", "Sat/Sun"),
+    ("Jody Cilliers", "Finish recorder", "Bridge", "Sat/Sun"),
+    ("Jonathan Dugas", "Finish recorder", "Bridge", "Sunday"),
+    ("Alex Falconer", "Safety", "Bridge", "Sat/Sun"),
+    ("Max Cilliers", "Safety", "Boat 1", "Sat/Sun"),
+    ("Rudi Fokkens", "Safety", "Boat 2", "Sat/Sun"),
+    ("Mike Kavanagh", "Safety", "Boat 3", "Sat/Sun"),
+    ("Anna Keytel", "Regatta Secretary", "Admin", "Sat/Sun"),
+    ("Alan Keen", "Head of Protest Committee", "Admin", "Sat/Sun"),
+    ("Michele Keytel", "Results", "Admin", "Sat/Sun"),
+    ("Kendall Madel", "Assistant / prizegiving", "Admin", "Sat/Sun"),
+    ("Carolyn Matschke", "Manager", "Admin", "Sat/Sun"),
+    ("Courtney Clifton", "Admin support / bar", "Admin", "Sat/Sun"),
+    ("Jermaine", "Staff support / bar", "Admin", "Sat/Sun"),
+    ("Wolmarans", "Support", "Support", "Sat/Sun"),
+)
+_CAPE_CLASSIC_CREW_CSS = (
+    ".cape-crew-sa{display:none;margin-top:12px;justify-content:flex-end;gap:10px;width:100%}"
+    ".regatta-page--super-admin-edit .cape-crew-sa,.cape-crew--admin .cape-crew-sa{display:flex}"
+    ".cape-crew--hidden .table-wrapper{opacity:0.55}"
+    "@media print{.cape-crew-sa{display:none!important}.cape-crew--hidden{display:none!important}}"
+)
+
+
+def _cape_classic_crew_show() -> bool:
+    raw = _read_wc_regatta_header_icons().get(_CAPE_CLASSIC_MM_REGATTA_ID)
+    if not isinstance(raw, dict):
+        return False
+    return bool(raw.get("event_crew_show"))
+
+
+def _cape_classic_crew_set_show(show: bool) -> None:
+    all_d = dict(_read_wc_regatta_header_icons())
+    rid = _CAPE_CLASSIC_MM_REGATTA_ID
+    entry = dict(all_d.get(rid)) if isinstance(all_d.get(rid), dict) else {}
+    entry["event_crew_show"] = bool(show)
+    all_d[rid] = entry
+    _write_wc_regatta_header_icons(all_d)
+
+
+def _cape_classic_crew_table_html(*, is_editor: bool, always_show_button: bool = False) -> str:
+    """Crew table below last fleet. Public sees it only when shown. No DB rows."""
+    show = _cape_classic_crew_show()
+    if not show and not is_editor:
+        return ""
+    rows_html = []
+    for name, role, station, days in _CAPE_CLASSIC_CREW_ROWS:
+        rows_html.append(
+            "<tr>"
+            f'<td class="helm-col">{html_module.escape(name)}</td>'
+            f"<td>{html_module.escape(role)}</td>"
+            f"<td>{html_module.escape(station)}</td>"
+            f"<td>{html_module.escape(days)}</td>"
+            "</tr>"
+        )
+    btn_label = "Hide from public" if show else "Show to public"
+    note = "" if show else "Hidden from public"
+    admin_cls = " cape-crew--admin" if always_show_button else ""
+    hidden_cls = "" if show else " cape-crew--hidden"
+    sa_bar = ""
+    if is_editor:
+        sa_bar = (
+            '<div class="cape-crew-sa" id="capeCrewSa">'
+            f'<button type="button" class="action-button" id="capeCrewToggle">{html_module.escape(btn_label)}</button>'
+            "</div>"
+            "<script>(function(){var b=document.getElementById('capeCrewToggle');if(!b)return;"
+            "b.addEventListener('click',function(){b.disabled=true;"
+            "fetch('/api/super-admin/regatta/2026-09-13-zvyc-cape-classic/event-crew',{method:'PATCH',"
+            "headers:{'Content-Type':'application/json'},credentials:'include',"
+            "body:JSON.stringify({show:" + ("false" if show else "true") + "})})"
+            ".then(function(r){return r.json().then(function(j){return{ok:r.ok,j:j};});})"
+            ".then(function(o){if(!o.ok){b.disabled=false;return;}window.location.reload();})"
+            ".catch(function(){b.disabled=false;});});})();</script>"
+        )
+    sailed = html_module.escape(note) if note else "Event crew"
+    return (
+        f"<style>{_CAPE_CLASSIC_CREW_CSS}</style>"
+        f'<div class="fleet-section cape-crew{admin_cls}{hidden_cls}" id="capeClassicCrew" aria-label="Crew">'
+        '<div class="class-header"><div class="class-header-text-col">'
+        '<div class="fleet-title-row">Crew</div>'
+        f'<div class="sailed-line">{sailed}</div>'
+        "</div></div>"
+        '<div class="table-wrapper"><table><thead><tr>'
+        '<th class="helm-col">Name</th><th>Role</th><th>Station</th><th>Days</th>'
+        "</tr></thead><tbody>"
+        + "".join(rows_html)
+        + "</tbody></table></div>"
+        + sa_bar
+        + "</div>"
+    )
+
+
 _MM_COMING_SOON_BRAND_SRC = "/assets/adverts/mm-powered-by-coming-soon.jpg?v=mmcc1"
 _MM_EVENT_REELS_BRAND_SRC = "/assets/adverts/mm-powered-by-event-reels.png?v=mmr2"
 _LIPTON_MM_REELS_VIDEOS = (
@@ -21174,6 +21284,20 @@ async def api_regatta_mm_live_fb_feed(regatta_id: str):
     if rid == _CAPE_CLASSIC_MM_REGATTA_ID:
         return _cape_classic_mm_reels_payload()
     raise HTTPException(status_code=404, detail="not found")
+
+
+@app.patch("/api/super-admin/regatta/{regatta_id}/event-crew")
+async def api_super_admin_regatta_event_crew_patch(request: Request, regatta_id: str, body: dict = Body(...)):
+    """Super Admin or Admin: show/hide Cape Classic Crew table for Public. JSON file only — no DB."""
+    if not _session_can_toggle_event_crew(request):
+        raise HTTPException(status_code=403, detail="admin or super_admin only")
+    rid = str(regatta_id or "").strip()
+    if rid != _CAPE_CLASSIC_MM_REGATTA_ID:
+        raise HTTPException(status_code=403, detail="not editable for this regatta")
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="JSON object expected")
+    _cape_classic_crew_set_show(bool(body.get("show")))
+    return {"ok": True, "show": _cape_classic_crew_show()}
 
 
 @app.get("/api/regatta/{regatta_id}/zvyc-live-cam-thumb")
@@ -28174,7 +28298,14 @@ def serve_regatta_standalone(slug: str, request: Request):
             mm_card_js = (
                 '<script src="/js/mm-lipton-reels-card.js?v=mmr113" defer></script>'
             )
-        body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
+        crew_frag = ""
+        if str(regatta_id) == _CAPE_CLASSIC_MM_REGATTA_ID:
+            can_crew = _session_can_toggle_event_crew(request)
+            crew_frag = _cape_classic_crew_table_html(
+                is_editor=can_crew,
+                always_show_button=_session_role_is_admin(request),
+            )
+        body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + crew_frag + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()
         wc_club_edit_script = (
