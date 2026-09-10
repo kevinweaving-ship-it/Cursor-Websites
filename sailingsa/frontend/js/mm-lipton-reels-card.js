@@ -552,12 +552,9 @@
   function latestThumbHtml(v, videos) {
     var cam = isWebcam(v);
     return (
-      '<div class="mm-lipton-reels-thumb mm-lipton-reels-thumb--latest' +
-      (cam ? ' mm-lipton-reels-thumb--cam-load' : '') +
-      '" style="aspect-ratio:16 / 9">' +
+      '<div class="mm-lipton-reels-thumb mm-lipton-reels-thumb--latest" style="aspect-ratio:16 / 9">' +
       posterHtml(v) +
       latestChromeHtml(chromeSource(v, videos), cam ? 'mm-lipton-reels-clip-chrome--zvyc' : '') +
-      (cam ? camLoadHtml() : '') +
       '<span class="mm-lipton-reels-play" aria-hidden="true"></span>' +
       thumbHit(v) +
       '</div>'
@@ -608,7 +605,6 @@
       stopWebcamLive(root);
       return;
     }
-    showThumbCamLoad(root);
     if (root._mmLiveGrab) {
       applyLiveGrab(root, root._mmLiveGrab);
       stopWebcamLive(root);
@@ -815,8 +811,12 @@
       window.clearTimeout(root._mmCamLoadTimer);
       root._mmCamLoadTimer = 0;
     }
-    var box = root && root.querySelector('[data-mm-cam-load]');
-    if (box) box.hidden = true;
+    var boxes = root && root.querySelectorAll('[data-mm-cam-load]');
+    var i;
+    if (boxes) {
+      for (i = 0; i < boxes.length; i++) boxes[i].hidden = true;
+    }
+    hideThumbCamLoad(root);
   }
 
   function showCamLoad(root) {
