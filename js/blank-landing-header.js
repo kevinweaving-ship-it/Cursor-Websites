@@ -109,7 +109,18 @@
       var full = (u.full_name || [u.first_name, u.last_name].filter(Boolean).join(' ') || 'Member').trim();
       nm.textContent = full;
       sasEl.textContent = s.sas_id != null ? 'SAS ID: ' + String(s.sas_id) : 'SAS ID: —';
-      if (s.sas_id != null && typeof applySailingAvatarToImg === 'function') {
+      if (s.avatar_url && typeof applySailingAvatarToImg === 'function') {
+        applySailingAvatarToImg(av, s.sas_id, full, {
+          apiBase: (window.API_BASE || '').replace(/\/$/, ''),
+          headerMode: true,
+          includeMediaCache: false,
+          avatarUrl: s.avatar_url
+        });
+      } else if (s.avatar_url) {
+        av.src = s.avatar_url;
+        av.style.display = 'block';
+        av.onerror = function () { av.style.display = 'none'; };
+      } else if (s.sas_id != null && typeof applySailingAvatarToImg === 'function') {
         applySailingAvatarToImg(av, s.sas_id, full, {
           apiBase: (window.API_BASE || '').replace(/\/$/, ''),
           headerMode: true,

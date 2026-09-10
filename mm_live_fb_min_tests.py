@@ -18,7 +18,7 @@ class MinimalMmFeedTest(unittest.TestCase):
         self.assertNotIn("ALTER TABLE regattas ADD COLUMN mm_live_fb", self.src)
 
     def test_regatta_renderer_injects_mm_on_lipton_only(self):
-        self.assertIn("header_html + mm_card + sa_columns_frag", self.src)
+        self.assertIn("header_html + mm_card + score_banner + sa_columns_frag", self.src)
         self.assertIn("mm_card = \"\"", self.src)
         self.assertIn('mm_feed_on = False', self.src)
         self.assertNotIn("{(_MM_LIVE_FB_CSS if mm_feed_on else '')}", self.src)
@@ -146,7 +146,8 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("scheduleVideoGrab", js)
         self.assertIn("play_url", js)
         self.assertIn("scrapeZvycCamToken", js)
-        self.assertIn("data-mm-webcam-pending", js)
+        self.assertIn("data-mm-webcam-pending", Path("api.py").read_text(encoding="utf-8"))
+        self.assertIn("MM_STORE_HOME", js)
         self.assertIn("withCamQuery", js)
         self.assertIn("data-mm-hero-video", js)
         self.assertIn("video.play()", js)
@@ -160,13 +161,17 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn('row["play_url"]', src)
         self.assertIn("mmr102", src)
         self.assertIn("mmr111", src)
-        self.assertIn("mmr112", src)
+        self.assertIn("mmr114", src)
         self.assertIn("mm-lipton-track-overlay.js", src)
         self.assertLess(
             src.find("mm-lipton-track-overlay.js"),
             src.find("mm-lipton-reels-card.js?v=mmr111"),
         )
-        self.assertIn("mm-lipton-reels-card.js?v=mmr112", src)
+        self.assertIn("mm-lipton-reels-card.js?v=mmr114", src)
+        self.assertIn("https://www.marinemegastore.co.za/", src)
+        self.assertIn("https://www.marinemegastore.co.za/", js)
+        self.assertIn("MM_STORE_HOME", js)
+        self.assertNotIn("openClip(root, payload, state, cam.id)", js)
         self.assertIn("scrollTo", js)
         self.assertIn("bumpSlide", js)
         self.assertIn("preloadNeighbors", js)

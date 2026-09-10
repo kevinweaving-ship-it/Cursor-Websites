@@ -12408,6 +12408,282 @@ def _require_super_admin(request: Request) -> None:
         raise HTTPException(status_code=403, detail="Super admin required")
 
 
+def _normalize_account_role(role) -> str:
+    if not role:
+        return ""
+    return str(role).strip().lower().replace(" ", "_").replace("-", "_")
+
+
+def _session_role_is_club_admin(request: Request) -> bool:
+    """True for Club Admin (scoped to one host club). Not Super Admin or generic Admin."""
+    return _normalize_account_role(_get_session_role(request)) in ("club_admin", "clubadmin")
+
+
+def _ensure_user_accounts_admin_club_id_column() -> None:
+    """Add user_accounts.admin_club_id when missing. No new table."""
+    if not table_exists("user_accounts") or column_exists("user_accounts", "admin_club_id"):
+        return
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            "ALTER TABLE public.user_accounts ADD COLUMN IF NOT EXISTS admin_club_id INTEGER"
+        )
+        conn.commit()
+    finally:
+        cur.close()
+        return_db_connection(conn)
+
+
+def _session_admin_club_id(request: Request) -> Optional[int]:
+    """Host club this Club Admin may score. None if column/session missing."""
+    try:
+        if not table_exists("user_accounts") or not column_exists("user_accounts", "admin_club_id"):
+            return None
+        token = request.cookies.get("session") or (
+            request.query_params.get("session") if request.query_params else None
+        )
+        if not token:
+            return None
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            where_extra = " AND s.logout_time IS NULL" if column_exists("user_sessions", "logout_time") else ""
+            cur.execute(
+                """
+                SELECT ua.admin_club_id FROM public.user_sessions s
+                JOIN public.user_accounts ua ON ua.account_id = s.account_id
+                WHERE s.session_id = %s AND s.expires_at > NOW()
+                """
+                + where_extra,
+                (token,),
+            )
+            row = cur.fetchone()
+            if not row or row.get("admin_club_id") is None:
+                return None
+            return int(row["admin_club_id"])
+        finally:
+            cur.close()
+            return_db_connection(conn)
+    except Exception:
+        return None
+
+
+def _regatta_host_club_id(regatta_id) -> Optional[int]:
+    rid = str(regatta_id or "").strip()
+    if not rid or not table_exists("regattas") or not column_exists("regattas", "host_club_id"):
+        return None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                "SELECT host_club_id FROM public.regattas WHERE regatta_id = %s LIMIT 1",
+                (rid,),
+            )
+            row = cur.fetchone()
+            if not row or row[0] is None:
+                return None
+            return int(row[0])
+        finally:
+            cur.close()
+            return_db_connection(conn)
+    except Exception:
+        return None
+
+
+def _session_can_edit_regatta_scores(request: Request, regatta_id) -> bool:
+    """Super Admin: any event. Club Admin: only regattas hosted by their club."""
+    if _session_role_is_super_admin(request):
+        return True
+    if not _session_role_is_club_admin(request):
+        return False
+    club_id = _session_admin_club_id(request)
+    host_id = _regatta_host_club_id(regatta_id)
+    if club_id is None or host_id is None:
+        return False
+    return int(club_id) == int(host_id)
+
+
+def _require_regatta_score_edit(request: Request, regatta_id) -> None:
+    if not _session_can_edit_regatta_scores(request, regatta_id):
+        raise HTTPException(
+            status_code=403,
+            detail="Club admin can only enter scores for events hosted by their club",
+        )
+
+
+def _lookup_club_id_by_abbrev(abbrev: str) -> Optional[int]:
+    code = str(abbrev or "").strip().upper()
+    if not code or not table_exists("clubs"):
+        return None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                "SELECT club_id FROM public.clubs WHERE upper(trim(club_abbrev)) = %s LIMIT 1",
+                (code,),
+            )
+            row = cur.fetchone()
+            return int(row[0]) if row and row[0] is not None else None
+        finally:
+            cur.close()
+            return_db_connection(conn)
+    except Exception:
+        return None
+
+
+def _club_abbrev_for_id(club_id) -> Optional[str]:
+    if club_id is None or not table_exists("clubs"):
+        return None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                "SELECT club_abbrev FROM public.clubs WHERE club_id = %s LIMIT 1",
+                (int(club_id),),
+            )
+            row = cur.fetchone()
+            return str(row[0]).strip() if row and row[0] else None
+        finally:
+            cur.close()
+            return_db_connection(conn)
+    except Exception:
+        return None
+
+
+# ZVYC club-desk login (WhatsApp field on /login.html). Not a sailor SAS ID.
+_ZVYC_CLUB_WHATSAPP = "0217053373"
+_ZVYC_CLUB_LOGIN_SAS = "ZVYC"
+_ZVYC_CLUB_LOGIN_NAME = "ZVYC Club Admin"
+
+
+def _club_admin_avatar_url(club_abbrev: Optional[str]) -> Optional[str]:
+    """Club Admin header avatar is the host club logo, not a sailor photo."""
+    code = str(club_abbrev or "").strip().upper()
+    if not code or not re.match(r"^[A-Z0-9]+$", code):
+        return None
+    return f"/api/club-logo/{code}"
+
+
+def _zvyc_club_password_hash() -> str:
+    pw = os.getenv("ZVYC_CLUB_ADMIN_PASSWORD", "ZVYC1234")
+    return hashlib.sha256(str(pw).encode("utf-8")).hexdigest()
+
+
+def _ensure_zvyc_club_whatsapp_admin() -> dict:
+    """Create or refresh the ZVYC WhatsApp club-admin login. Does not add a sailor."""
+    if not table_exists("user_accounts"):
+        return {"ok": False, "error": "user_accounts not found"}
+    club_id = _lookup_club_id_by_abbrev("ZVYC")
+    if not club_id:
+        return {"ok": False, "error": "ZVYC club not found"}
+    _ensure_user_accounts_admin_club_id_column()
+    phone = _ZVYC_CLUB_WHATSAPP
+    pw_hash = _zvyc_club_password_hash()
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        cur.execute(
+            """
+            SELECT account_id, sas_id, role FROM public.user_accounts
+            WHERE login_method = 'whatsapp' AND provider_id = %s
+            LIMIT 1
+            """,
+            (phone,),
+        )
+        row = cur.fetchone()
+        if row and _normalize_account_role(row.get("role")) in ("super_admin", "superadmin"):
+            return {"ok": False, "error": "That WhatsApp belongs to a Super Admin"}
+        if row:
+            sets = ["password_hash = %s", "role = 'club_admin'"]
+            params: list = [pw_hash]
+            if column_exists("user_accounts", "admin_club_id"):
+                sets.append("admin_club_id = %s")
+                params.append(int(club_id))
+            if column_exists("user_accounts", "profile_picture_path"):
+                sets.append("profile_picture_path = %s")
+                params.append("/api/club-logo/ZVYC")
+            params.append(row["account_id"])
+            cur.execute(
+                "UPDATE public.user_accounts SET " + ", ".join(sets) + " WHERE account_id = %s",
+                params,
+            )
+            if row.get("sas_id") is not None:
+                sib = ["role = 'club_admin'"]
+                sib_params: list = []
+                if column_exists("user_accounts", "admin_club_id"):
+                    sib.append("admin_club_id = %s")
+                    sib_params.append(int(club_id))
+                sib_params.append(row["sas_id"])
+                cur.execute(
+                    "UPDATE public.user_accounts SET "
+                    + ", ".join(sib)
+                    + " WHERE sas_id = %s AND (role IS NULL OR lower(replace(replace(trim(role), ' ', '_'), '-', '_')) "
+                    "NOT IN ('super_admin', 'superadmin'))",
+                    sib_params,
+                )
+            conn.commit()
+            return {
+                "ok": True,
+                "updated": True,
+                "sas_id": str(row.get("sas_id") or _ZVYC_CLUB_LOGIN_SAS),
+                "whatsapp": phone,
+                "admin_club_id": int(club_id),
+                "club_abbrev": "ZVYC",
+                "role": "club_admin",
+            }
+        cols = ["sas_id", "login_method", "provider_id", "password_hash", "role"]
+        vals: list = [_ZVYC_CLUB_LOGIN_SAS, "whatsapp", phone, pw_hash, "club_admin"]
+        if column_exists("user_accounts", "admin_club_id"):
+            cols.append("admin_club_id")
+            vals.append(int(club_id))
+        if column_exists("user_accounts", "full_name"):
+            cols.append("full_name")
+            vals.append(_ZVYC_CLUB_LOGIN_NAME)
+        if column_exists("user_accounts", "first_name"):
+            cols.append("first_name")
+            vals.append("ZVYC")
+        if column_exists("user_accounts", "last_name"):
+            cols.append("last_name")
+            vals.append("Club Admin")
+        if column_exists("user_accounts", "profile_picture_path"):
+            cols.append("profile_picture_path")
+            vals.append("/api/club-logo/ZVYC")
+        cur.execute(
+            "INSERT INTO public.user_accounts ("
+            + ", ".join(cols)
+            + ") VALUES ("
+            + ", ".join(["%s"] * len(vals))
+            + ") RETURNING account_id, sas_id",
+            vals,
+        )
+        created = cur.fetchone() or {}
+        conn.commit()
+        return {
+            "ok": True,
+            "created": True,
+            "sas_id": str(created.get("sas_id") or _ZVYC_CLUB_LOGIN_SAS),
+            "whatsapp": phone,
+            "admin_club_id": int(club_id),
+            "club_abbrev": "ZVYC",
+            "role": "club_admin",
+        }
+    except Exception as e:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        print(f"[club-admin] ensure ZVYC WhatsApp login failed: {e}")
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+    finally:
+        cur.close()
+        return_db_connection(conn)
+
+
 def _fetch_og_metadata(url: str) -> dict:
     """Fetch URL and extract og:title, og:description, og:image. Also try first <h2> as headline when page title is long (section heading often more relevant)."""
     out = {"headline": None, "snippet": None, "thumb_url": None}
@@ -14094,8 +14370,8 @@ def api_get_result_regatta_row(request: Request, result_id: int):
 
 @app.patch("/api/result/{result_id}/race")
 def patch_race_score(request: Request, result_id: int, body: dict):
-    """Update a race score and automatically recalculate total/nett/discards and re-rank fleet"""
-    _require_super_admin(request)
+    """Update a race score and automatically recalculate total/nett/discards and re-rank fleet.
+    Super Admin: any event. Club Admin: only events hosted by their club."""
     import json
     import re
     
@@ -14118,6 +14394,7 @@ def patch_race_score(request: Request, result_id: int, body: dict):
             result = cur.fetchone()
             if not result:
                 raise HTTPException(status_code=404, detail="Result not found")
+            _require_regatta_score_edit(request, result.get("regatta_id"))
             
             block_id = result['block_id']
             regatta_id = result['regatta_id']
@@ -14174,8 +14451,12 @@ def patch_race_score(request: Request, result_id: int, body: dict):
                 # Remove the race score if value is empty
                 race_scores.pop(race_key, None)
             
-            # Count races sailed (non-empty race scores)
-            races_sailed = len([k for k in race_scores.keys() if k.startswith('R') and race_scores[k]])
+            # Count races sailed (non-empty race scores). Never shrink the block
+            # when one boat still has fewer races than the fleet.
+            filled_races = len([k for k in race_scores.keys() if k.startswith('R') and race_scores[k]])
+            race_num = int(race_key[1:]) if str(race_key)[1:].isdigit() else 0
+            existing_block_rs = int(result.get("races_sailed") or 0)
+            races_sailed = max(existing_block_rs, filled_races, race_num)
             
             # Calculate discard count based on races_sailed
             discard_count = races_sailed // 5  # 1 discard after 5, 2 after 10, etc.
@@ -19351,6 +19632,13 @@ async def check_session(request: Request):
             
             # Session is valid
             role = _get_session_role(request)
+            is_club_admin = _session_role_is_club_admin(request)
+            admin_club_id = _session_admin_club_id(request) if is_club_admin else None
+            admin_club_abbrev = _club_abbrev_for_id(admin_club_id) if admin_club_id else None
+            if is_club_admin and not (full_name or "").strip():
+                first_name = first_name or (admin_club_abbrev or "Club")
+                last_name = last_name or "Club Admin"
+                full_name = _ZVYC_CLUB_LOGIN_NAME if (admin_club_abbrev or "") == "ZVYC" else f"{admin_club_abbrev or 'Club'} Club Admin"
             return {
                 "valid": True,
                 "session_id": session['session_id'],
@@ -19358,6 +19646,10 @@ async def check_session(request: Request):
                 "login_method": session['login_method'],
                 "role": role,
                 "is_super_admin": _session_role_is_super_admin(request),
+                "is_club_admin": is_club_admin,
+                "admin_club_id": admin_club_id,
+                "admin_club_abbrev": admin_club_abbrev,
+                "avatar_url": _club_admin_avatar_url(admin_club_abbrev) if is_club_admin else None,
                 "user": {
                     "first_name": first_name,
                     "last_name": last_name,
@@ -20266,7 +20558,7 @@ def _mm_live_fb_card_html(regatta_id: str) -> str:
         else '<img class="mm-live-fb-brand mm-live-fb-brand--live" src="/assets/adverts/mm-powered-by-live.png?v=mmcap1" alt="Powered by Marine Megastore Live Streaming" width="160" height="107" style="max-width:160px !important;max-height:72px !important;width:auto !important;height:auto !important;" loading="lazy" decoding="async">'
     )
     brand = (
-        '<a class="mm-live-fb-brand-link" href="https://marinemegastore.co.za" target="_blank" rel="noopener noreferrer">'
+        f'<a class="mm-live-fb-brand-link" href="{_MM_STORE_HOME}" target="_blank" rel="noopener noreferrer">'
         f"{reels_img}{live_img}"
         "</a>"
     )
@@ -20488,6 +20780,7 @@ def serve_cape_classic_crew_standalone(request: Request):
     return HTMLResponse(doc)
 
 
+_MM_STORE_HOME = "https://www.marinemegastore.co.za/"
 _MM_COMING_SOON_BRAND_SRC = "/assets/adverts/mm-powered-by-coming-soon.jpg?v=mmcc1"
 _MM_EVENT_REELS_BRAND_SRC = "/assets/adverts/mm-powered-by-event-reels.png?v=mmr2"
 _LIPTON_MM_REELS_VIDEOS = (
@@ -21298,7 +21591,7 @@ def _cape_classic_mm_reels_card_html(regatta_id: str) -> str:
         else "Powered by Marine Megastore Coming Soon"
     )
     brand = (
-        '<a class="mm-lipton-reels-brand" href="https://marinemegastore.co.za" target="_blank" rel="noopener noreferrer">'
+        f'<a class="mm-lipton-reels-brand" href="{_MM_STORE_HOME}" target="_blank" rel="noopener noreferrer">'
         f'<img src="{html_module.escape(brand_src)}" '
         f'alt="{html_module.escape(brand_alt)}" width="320" height="213" '
         'loading="lazy" decoding="async">'
@@ -21333,7 +21626,7 @@ def _lipton_mm_reels_card_html(regatta_id: str) -> str:
     payload = _lipton_mm_reels_payload()
     initial = html_module.escape(json.dumps(payload, separators=(",", ":")), quote=True)
     brand = (
-        '<a class="mm-lipton-reels-brand" href="https://marinemegastore.co.za" target="_blank" rel="noopener noreferrer">'
+        f'<a class="mm-lipton-reels-brand" href="{_MM_STORE_HOME}" target="_blank" rel="noopener noreferrer">'
         '<img src="/assets/adverts/mm-powered-by-event-reels.png?v=mmr2" '
         'alt="Powered by Marine Megastore Event Reels" width="320" height="213" '
         'loading="lazy" decoding="async">'
@@ -21379,6 +21672,173 @@ async def api_super_admin_regatta_event_crew_patch(request: Request, regatta_id:
         raise HTTPException(status_code=400, detail="JSON object expected")
     _cape_classic_crew_set_show(bool(body.get("show")))
     return {"ok": True, "show": _cape_classic_crew_show()}
+
+
+def _list_club_admins(club_id: Optional[int] = None) -> list:
+    if not table_exists("user_accounts") or not column_exists("user_accounts", "role"):
+        return []
+    has_club_col = column_exists("user_accounts", "admin_club_id")
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        params = []
+        club_filter = ""
+        if has_club_col and club_id is not None:
+            club_filter = " AND ua.admin_club_id = %s"
+            params.append(int(club_id))
+        club_join = "LEFT JOIN public.clubs c ON c.club_id = ua.admin_club_id" if has_club_col else ""
+        club_sel = "ua.admin_club_id, c.club_abbrev" if has_club_col else "NULL::int AS admin_club_id, NULL::text AS club_abbrev"
+        name_sel = "MAX(NULLIF(trim(ua.full_name), '')) AS full_name" if column_exists("user_accounts", "full_name") else "NULL::text AS full_name"
+        cur.execute(
+            f"""
+            SELECT ua.sas_id, {club_sel}, {name_sel}
+            FROM public.user_accounts ua
+            {club_join}
+            WHERE lower(replace(replace(trim(COALESCE(ua.role,'')), ' ', '_'), '-', '_'))
+                  IN ('club_admin', 'clubadmin')
+            {club_filter}
+            GROUP BY ua.sas_id{', ua.admin_club_id, c.club_abbrev' if has_club_col else ''}
+            ORDER BY ua.sas_id
+            """,
+            params,
+        )
+        rows = cur.fetchall() or []
+        out = []
+        for r in rows:
+            out.append(
+                {
+                    "sas_id": str(r.get("sas_id") or "").strip(),
+                    "full_name": (r.get("full_name") or "").strip() or None,
+                    "admin_club_id": int(r["admin_club_id"]) if r.get("admin_club_id") is not None else None,
+                    "club_abbrev": (r.get("club_abbrev") or "").strip() or None,
+                }
+            )
+        return out
+    finally:
+        cur.close()
+        return_db_connection(conn)
+
+
+@app.get("/api/super-admin/club-admin")
+def api_super_admin_list_club_admin(request: Request, club_abbrev: str = Query("ZVYC")):
+    """Super Admin: list Club Admin accounts for a host club (default ZVYC)."""
+    _require_super_admin(request)
+    club_id = _lookup_club_id_by_abbrev(club_abbrev)
+    return {"ok": True, "club_abbrev": str(club_abbrev or "").strip().upper(), "club_id": club_id, "admins": _list_club_admins(club_id)}
+
+
+@app.post("/api/super-admin/club-admin")
+def api_super_admin_assign_club_admin(request: Request, body: dict = Body(...)):
+    """Super Admin: grant club_admin to an existing registered SAS ID for one host club.
+    Does not create a person or invent a SAS ID."""
+    _require_super_admin(request)
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="JSON object expected")
+    sas_id = str(body.get("sas_id") or "").strip()
+    club_abbrev = str(body.get("club_abbrev") or "ZVYC").strip().upper() or "ZVYC"
+    if club_abbrev == "ZVYC" and (not sas_id or str(body.get("desk") or "").strip() in ("1", "true", "True")):
+        desk = _ensure_zvyc_club_whatsapp_admin()
+        if not desk.get("ok"):
+            raise HTTPException(status_code=400, detail=desk.get("error") or "Could not create ZVYC club login")
+        if not sas_id.isdigit():
+            desk["admins"] = _list_club_admins(desk.get("admin_club_id"))
+            return desk
+    if not sas_id.isdigit():
+        raise HTTPException(status_code=400, detail="Real numeric SAS ID required")
+    club_id = _lookup_club_id_by_abbrev(club_abbrev)
+    if not club_id:
+        raise HTTPException(status_code=404, detail=f"Club {club_abbrev} not found")
+    if not table_exists("user_accounts"):
+        raise HTTPException(status_code=500, detail="user_accounts not found")
+    _ensure_user_accounts_admin_club_id_column()
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        cur.execute(
+            """
+            SELECT account_id, role FROM public.user_accounts
+            WHERE sas_id = %s
+            """,
+            (sas_id,),
+        )
+        rows = cur.fetchall() or []
+        if not rows:
+            raise HTTPException(
+                status_code=404,
+                detail="No registered account for this SAS ID. They must sign in with their real SAS ID first.",
+            )
+        for r in rows:
+            if _normalize_account_role(r.get("role")) in ("super_admin", "superadmin"):
+                raise HTTPException(status_code=400, detail="Cannot change a Super Admin account to Club Admin")
+        cur.execute(
+            """
+            UPDATE public.user_accounts
+            SET role = 'club_admin', admin_club_id = %s
+            WHERE sas_id = %s
+              AND (role IS NULL OR lower(replace(replace(trim(role), ' ', '_'), '-', '_'))
+                   NOT IN ('super_admin', 'superadmin'))
+            """,
+            (int(club_id), sas_id),
+        )
+        if cur.rowcount < 1:
+            raise HTTPException(status_code=400, detail="Could not assign Club Admin")
+        conn.commit()
+    finally:
+        cur.close()
+        return_db_connection(conn)
+    return {
+        "ok": True,
+        "sas_id": sas_id,
+        "role": "club_admin",
+        "admin_club_id": int(club_id),
+        "club_abbrev": club_abbrev,
+        "admins": _list_club_admins(club_id),
+    }
+
+
+@app.delete("/api/super-admin/club-admin")
+def api_super_admin_revoke_club_admin(request: Request, body: dict = Body(...)):
+    """Super Admin: remove Club Admin from an existing SAS ID."""
+    _require_super_admin(request)
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="JSON object expected")
+    sas_id = str(body.get("sas_id") or "").strip()
+    if not sas_id.isdigit():
+        raise HTTPException(status_code=400, detail="Real numeric SAS ID required")
+    if not table_exists("user_accounts") or not column_exists("user_accounts", "role"):
+        raise HTTPException(status_code=500, detail="user_accounts not found")
+    has_club_col = column_exists("user_accounts", "admin_club_id")
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        if has_club_col:
+            cur.execute(
+                """
+                UPDATE public.user_accounts
+                SET role = NULL, admin_club_id = NULL
+                WHERE sas_id = %s
+                  AND lower(replace(replace(trim(COALESCE(role,'')), ' ', '_'), '-', '_'))
+                      IN ('club_admin', 'clubadmin')
+                """,
+                (sas_id,),
+            )
+        else:
+            cur.execute(
+                """
+                UPDATE public.user_accounts
+                SET role = NULL
+                WHERE sas_id = %s
+                  AND lower(replace(replace(trim(COALESCE(role,'')), ' ', '_'), '-', '_'))
+                      IN ('club_admin', 'clubadmin')
+                """,
+                (sas_id,),
+            )
+        conn.commit()
+    finally:
+        cur.close()
+        return_db_connection(conn)
+    club_abbrev = str(body.get("club_abbrev") or "ZVYC").strip().upper() or "ZVYC"
+    return {"ok": True, "sas_id": sas_id, "admins": _list_club_admins(_lookup_club_id_by_abbrev(club_abbrev))}
 
 
 @app.get("/api/regatta/{regatta_id}/zvyc-live-cam-thumb")
@@ -22213,6 +22673,8 @@ async def login(request: Request):
         # Check if username looks like SAS ID (numeric) or WhatsApp (10 digits starting with 0)
         is_sas_id = username.isdigit() and len(username) <= 10
         is_whatsapp = len(whatsapp_clean) == 10 and whatsapp_clean.startswith('0')
+        if is_whatsapp and whatsapp_clean == _ZVYC_CLUB_WHATSAPP:
+            _ensure_zvyc_club_whatsapp_admin()
         
         cur.execute("""
             SELECT account_id, sas_id, login_method, provider_id, email
@@ -25838,6 +26300,12 @@ _RESULT_SHEET_CSS = (
     ".wc-sa-ac-list li:hover,.wc-sa-ac-list li.wc-sa-ac-li-active{background:#e0e7ff}"
     ".wc-sa-ac-list .wc-sa-ac-li-sub{font-size:11px;font-weight:500;color:#64748b}"
     ".regatta-page--super-admin-edit .wc-sa-ac-wrap .wc-result-field-input{min-width:5rem}"
+    ".club-score-banner{display:none;margin:12px 0 0;padding:10px 12px;border:2px solid #1a2750;border-radius:8px;background:#f8fafc;color:#1a2750;font-weight:700;font-size:13px}"
+    ".regatta-page--club-score-edit .club-score-banner{display:block}"
+    ".club-score-input{display:none;box-sizing:border-box;width:3.5rem;min-width:44px;min-height:44px;padding:8px 6px;text-align:center;font:inherit;font-weight:700;border:2px solid #1a2750;border-radius:6px;background:#fff;color:#1a2750}"
+    ".regatta-page--club-score-edit .club-score-view{display:none}"
+    ".regatta-page--club-score-edit .club-score-input{display:inline-block}"
+    ".club-score-input.club-score-input--saved{background:#bbf7d0}"
 )
 
 _MM_LIVE_FB_CSS = (
@@ -25946,12 +26414,60 @@ def _wc_fleet_editable_cell(
     return f'<span class="wc-sa-edit-hide">{public_inner_html}</span>' + inp
 
 
+def _club_score_race_cell(result_id_row, score: str, race_key: str) -> str:
+    public = html_module.escape(score or "")
+    if not result_id_row:
+        return public
+    rid_attr = html_module.escape(str(result_id_row), quote=True)
+    rk = html_module.escape(race_key, quote=True)
+    vq = html_module.escape(score or "", quote=True)
+    return (
+        f'<span class="club-score-view">{public}</span>'
+        f'<input type="text" class="club-score-input" inputmode="text" '
+        f'data-result-id="{rid_attr}" data-race="{rk}" data-original="{vq}" '
+        f'value="{vq}" maxlength="48" autocomplete="off" aria-label="{rk} position" />'
+    )
+
+
+def _club_score_banner_html(club_abbrev: Optional[str]) -> str:
+    label = html_module.escape((club_abbrev or "Club").strip() or "Club")
+    return (
+        f'<div class="club-score-banner" id="clubScoreBanner">'
+        f"{label} club admin — enter race positions for this event only. "
+        f"Other clubs' events stay read-only.</div>"
+    )
+
+
+def _club_score_edit_script_html() -> str:
+    return (
+        "<script>(function(){var page=document.querySelector('.regatta-page.regatta-page--club-score-edit');"
+        "if(!page)return;"
+        "function save(inp){var rid=inp.getAttribute('data-result-id');var race=inp.getAttribute('data-race');"
+        "if(!rid||!race)return;var v=(inp.value||'').trim();var orig=(inp.getAttribute('data-original')||'').trim();"
+        "if(v===orig)return;inp.disabled=true;"
+        "fetch('/api/result/'+encodeURIComponent(rid)+'/race',{method:'PATCH',"
+        "headers:{'Content-Type':'application/json'},credentials:'same-origin',"
+        "body:JSON.stringify({race:race,value:v})})"
+        ".then(function(r){return r.json().then(function(j){return{ok:r.ok,j:j};});})"
+        ".then(function(o){inp.disabled=false;if(!o.ok){alert((o.j&&(o.j.detail||o.j.error))||'Could not save score');"
+        "inp.value=inp.getAttribute('data-original')||'';return;}"
+        "inp.setAttribute('data-original',v);inp.value=v;inp.classList.add('club-score-input--saved');"
+        "setTimeout(function(){location.reload();},400);})"
+        ".catch(function(){inp.disabled=false;inp.value=inp.getAttribute('data-original')||'';});}"
+        "page.querySelectorAll('.club-score-input').forEach(function(el){"
+        "el.addEventListener('blur',function(){save(el);});"
+        "el.addEventListener('keydown',function(ev){if(ev.key==='Enter'){ev.preventDefault();el.blur();}});});"
+        "})();</script>"
+    )
+
+
 def _render_result_sheet_fleet(
     fleet: dict,
     standalone_class_page: bool = False,
     *,
     column_prefs: Optional[dict] = None,
     wc_sa_fleet_edit: bool = False,
+    race_score_edit: bool = False,
 ) -> str:
     """Render one fleet as HTML using the same structure and class names as admin regatta_viewer result sheet popup.
     When standalone_class_page is True (e.g. /regatta/{id}/class-{slug}), header is class name only, no 'Fleet' suffix.
@@ -26071,6 +26587,12 @@ def _render_result_sheet_fleet(
             rkey = f"R{i}"
             if rkey not in race_columns:
                 race_columns.append(rkey)
+        race_columns.sort(key=lambda k: int(k[1:]) if isinstance(k, str) and k[1:].isdigit() else 0)
+    if race_score_edit:
+        n_edit = max(int(races_sailed or 0), 1)
+        extra_key = f"R{n_edit + 1}"
+        if extra_key not in race_columns:
+            race_columns.append(extra_key)
         race_columns.sort(key=lambda k: int(k[1:]) if isinstance(k, str) and k[1:].isdigit() else 0)
 
     show_boat = _optional_col_visible("boat_name", has_boat_name)
@@ -26270,7 +26792,11 @@ def _render_result_sheet_fleet(
                 is_discarded = score.startswith("(") and score.endswith(")")
                 has_penalty = bool(re.search(r"\b(DNC|DNS|DNF|RET|DSQ|UFD|BFD|DPI|OCS)\b", score, re.I)) if score else False
                 cell_class = "code" if has_penalty else ("disc" if is_discarded else ("score-counts" if score else ""))
-                row_html += f'<td class="{cell_class}">{_wc_cell(html_module.escape(score), score, None, rkey, 48)}</td>'
+                if race_score_edit and not wc_sa_fleet_edit:
+                    cell_html = _club_score_race_cell(result_id_row, score, rkey)
+                else:
+                    cell_html = _wc_cell(html_module.escape(score), score, None, rkey, 48)
+                row_html += f'<td class="{cell_class}">{cell_html}</td>'
         if _pref_on("total"):
             row_html += f'<td class="{strike_class}">{_wc_cell(total_str, total_plain, "total_points_raw", None, 24)}</td>'
         if _pref_on("nett"):
@@ -27948,6 +28474,8 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
         host_club_html = f'<a href="/club/{html_module.escape(host_club_slug)}">{html_module.escape(host_club_text)}</a>' if host_club_slug and host_club_text else html_module.escape(host_club_text)
         use_wc_cols = str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG
         is_sa = _session_role_is_super_admin(request)
+        can_score = _session_can_edit_regatta_scores(request, regatta_id)
+        race_score_edit = bool(can_score and not (use_wc_cols and is_sa))
         back_link = f'<a href="/regatta/{html_module.escape(regatta_id)}" class="back-to-home">← Back to full regatta</a>'
         if is_sa:
             back_block = (
@@ -28010,6 +28538,7 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
                 standalone_class_page=True,
                 column_prefs=wc_prefs if use_wc_cols else None,
                 wc_sa_fleet_edit=bool(use_wc_cols and is_sa),
+                race_score_edit=race_score_edit,
             )
             for f in fleets
         ]
@@ -28017,7 +28546,8 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
         if use_wc_cols and is_sa:
             fleet_picker_frag = _wc_regatta_fleet_picker_fragment(str(regatta_id))
         print_btn = '<div class="action-buttons"><button class="action-button" onclick="window.print()">Print</button></div>'
-        body_html = header_html + sa_columns_frag + fleet_picker_frag + "\n".join(fleet_sections) + "\n" + print_btn
+        score_banner = _club_score_banner_html(host_club_abbrev) if race_score_edit else ""
+        body_html = header_html + score_banner + sa_columns_frag + fleet_picker_frag + "\n".join(fleet_sections) + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()
         wc_club_edit_script_c = (
@@ -28025,7 +28555,9 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
             if str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG and is_sa
             else ""
         )
+        club_score_js = _club_score_edit_script_html() if race_score_edit else ""
         sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js?v=mm1" defer></script>' if is_sa else ""
+        page_cls = "regatta-page regatta-page--club-score-edit" if race_score_edit else "regatta-page"
         doc = (
             "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
             f"{html_module.escape(class_name)} – {escaped_title} | SailingSA</title>"
@@ -28035,7 +28567,7 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
             "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
             f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
             f"<style>{_RESULT_SHEET_CSS}</style></head><body>"
-            f"<div class=\"regatta-page\">{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script_c}{sa_toolbar_js}"
+            f"<div class=\"{page_cls}\">{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script_c}{club_score_js}{sa_toolbar_js}"
             "</body></html>"
         )
         return HTMLResponse(doc)
@@ -28234,6 +28766,8 @@ def serve_regatta_standalone(slug: str, request: Request):
         )
         is_sa = _session_role_is_super_admin(request)
         is_wc = str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG
+        can_score = _session_can_edit_regatta_scores(request, regatta_id)
+        race_score_edit = bool(can_score and not (is_wc and is_sa))
         back_link = '<a href="/" class="back-to-home">← Back to Search</a>'
         if is_sa:
             back_block = (
@@ -28337,6 +28871,7 @@ def serve_regatta_standalone(slug: str, request: Request):
                 f,
                 column_prefs=wc_prefs if use_wc_cols else None,
                 wc_sa_fleet_edit=bool(use_wc_cols and is_sa),
+                race_score_edit=race_score_edit,
             )
             for f in fleets
         ]
@@ -28379,7 +28914,7 @@ def serve_regatta_standalone(slug: str, request: Request):
         elif str(regatta_id) == "2026-09-13-zvyc-cape-classic":
             mm_card = _cape_classic_mm_reels_card_html(str(regatta_id))
             mm_card_js = (
-                '<script src="/js/mm-lipton-reels-card.js?v=mmr113" defer></script>'
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr114" defer></script>'
             )
         crew_frag = ""
         if str(regatta_id) == _CAPE_CLASSIC_MM_REGATTA_ID:
@@ -28388,7 +28923,8 @@ def serve_regatta_standalone(slug: str, request: Request):
                 is_editor=can_crew,
                 always_show_button=_session_role_is_admin(request),
             )
-        body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + crew_frag + "\n" + print_btn
+        score_banner = _club_score_banner_html(host_club_abbrev) if race_score_edit else ""
+        body_html = header_html + mm_card + score_banner + sa_columns_frag + "\n" + fleet_joined + crew_frag + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()
         wc_club_edit_script = (
@@ -28396,7 +28932,9 @@ def serve_regatta_standalone(slug: str, request: Request):
             if str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG and is_sa
             else ""
         )
+        club_score_js = _club_score_edit_script_html() if race_score_edit else ""
         sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js?v=mm2" defer></script>' if is_sa else ""
+        page_cls = "regatta-page regatta-page--club-score-edit" if race_score_edit else "regatta-page"
         doc = (
             "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
             f"{escaped_title} | SailingSA</title>"
@@ -28406,7 +28944,7 @@ def serve_regatta_standalone(slug: str, request: Request):
             "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
             f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
             f"<style>{_RESULT_SHEET_CSS}</style></head><body>"
-            f"<div class=\"regatta-page\">{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script}{mm_card_js}{sa_toolbar_js}"
+            f"<div class=\"{page_cls}\">{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script}{club_score_js}{mm_card_js}{sa_toolbar_js}"
             "</body></html>"
         )
         print("REGATTA: total route time", round(time.time() - start_time, 3))
