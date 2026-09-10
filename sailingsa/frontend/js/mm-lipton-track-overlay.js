@@ -78,8 +78,9 @@
   /* SYNC RULE — every clip:
    * 1. Start from the video date stamp (started_at).
    * 2. Find an event IN the video: on-screen text, STT countdown, gun horn,
-   *    or commentary (“round 1st boat”).
-   * 3. Tracking already has that event’s exact time (gun, 1st mark rounding).
+   *    finish horn, or commentary (“round 1st boat”).
+   * 3. Tracking already has that event’s exact time (gun, 1st mark rounding,
+   *    1st finish). Finish horn = 1st boat finish GPS. That is the sync.
    * 4. offsetMs = gpsEvent − (stamp + videoTimeOfEvent).
    *    That is how much the stamp was off. Use it for the whole clip.
    * Clock = stamp + video.currentTime + offsetMs. Always 1×.
@@ -143,7 +144,13 @@
       gpsEvent: 'R5 gun 15:50:01',
       stampOff: '0'
     }),
-    '1751846282795149': clipR(4, 'finish'),
+    '1751846282795149': clipR(4, 'finish', {
+      approach: 'rtl',
+      stamp: '2026-08-27T15:24:00+02:00',
+      videoEvent: 'finish horn',
+      gpsEvent: 'R4 trail missing — horn sync pending',
+      needsTrail: true
+    }),
     '2111285223132517': clipR(4, 'round'),
     '1588170962712352': clipR(4, 'round'),
     '1582165340314238': clipR(4, 'round'),
@@ -153,7 +160,14 @@
     '1802153794291569': clipR(3, 'round'),
     '1813350889838726': clipR(3, 'round'),
     '1025386753667866': clipR(3, 'start', { approach: 'ltr' }),
-    '940083808452432': clipR(2, 'finish'),
+    '940083808452432': clipR(2, 'finish', {
+      approach: 'rtl',
+      offsetMs: 0,
+      stamp: '2026-08-26T14:42:00+02:00',
+      videoEvent: 'finish horn',
+      gpsEvent: 'R2 1st finish WBYC 14:44:11',
+      stampOff: '0 — horn at ~2:11 if stamp is go-live'
+    }),
     '942850414812890': clipR(2, 'round'),
     '3239679922895545': clipR(2, 'round'),
     '1384453329808359': clipR(2, 'round')
@@ -1756,11 +1770,12 @@
   }
 
   function drawCourseMarks(ctx, cam, ts, w, h, focus, phase) {
-    var showStart = phase === 'start' || (focus && (focus.key === 'start' || isPinKey(focus.key)));
+    var showFin = phase === 'finish' || (clipRule && clipRule.kind === 'finish') || (focus && focus.key === 'fin');
+    var showStart = !showFin && (phase === 'start' || (focus && (focus.key === 'start' || isPinKey(focus.key))));
     /* One small mark — no stacked rings covering boats / names. */
     if (showStart && trail.start_line && trail.start_line.left && trail.start_line.right) {
       drawGate(ctx, cam, trail.start_line, 'rgba(56,189,248,0.95)', '', 'Pin', 'RC');
-    } else if (phase === 'finish' && trail.finish_line) {
+    } else if (showFin && trail.finish_line) {
       drawGate(ctx, cam, trail.finish_line, 'rgba(251,191,36,0.9)', 'Fin', 'Pin', 'RC');
     } else if (focus && focus.lat != null) {
       var lab =
@@ -2175,7 +2190,7 @@
       lockApproachHdg = null;
       markLock = null;
     } else if (kind === 'finish') {
-      phase = 'approach-mark';
+      phase = 'finish';
       focus = frozenMark('fin') || nearFocus;
       hdg = roundCourseHdg(live, focus);
       flipX = clipFlipX();
@@ -2261,7 +2276,7 @@
     var live = ranksAt(ts);
     var plan = camPlan(live, cssW, cssH);
     var focus = plan.focus;
-    var nearRound = plan.phase === 'hold' || plan.phase === 'approach-mark';
+    var nearRound = plan.phase === 'hold' || plan.phase === 'approach-mark' || plan.phase === 'finish';
     var pack = roundingPack(live, focus || plan.last || markLock);
     if (nearRound || (clipRule && (clipRule.kind === 'round' || clipRule.kind === 'finish'))) {
       pack = roundViewPack(live, markLock || focus);
