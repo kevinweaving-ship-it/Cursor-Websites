@@ -53,6 +53,7 @@
   var heldIconStep = 1;
   var tightMarkHold = false;
   var heldSceneScale = null;
+  var startLock = null;
 
   function clipR(race, kind, extra) {
     var o = { race: race, kind: kind || 'round', approach: 'rtl', holdN: 6, offsetMs: 0 };
@@ -145,6 +146,7 @@
       heldIconStep = 1;
       tightMarkHold = false;
       heldSceneScale = null;
+      startLock = null;
     }
     clipId = String(id || '');
     clipRule = rule;
@@ -934,130 +936,89 @@
     return pack;
   }
 
-  /* Short Start clip: after the gun, slide so 1st sits near the right
-   * edge when the video ends (they are 1st, sailing LTR). */
-  function startEndT(endFrac) {
-    var f = Number(endFrac);
-    if (!(f > 0.55)) return 0;
-    var t = (f - 0.55) / 0.45;
-    if (t > 1) t = 1;
-    return t * t * (3 - 2 * t);
-  }
-
-  function clipVidFrac(ts, passed) {
-    var p = Number(passed);
-    if (p === p && p >= 0) return p > 1 ? 1 : p;
+  function clipEndTs() {
     var rule = clipRule;
     if (!rule || !rule.stamp || !rule.durationSec) return 0;
     var stamp = Date.parse(rule.stamp);
     if (stamp !== stamp) return 0;
-    var off = rule.offsetMs != null ? rule.offsetMs : 0;
-    var sec = (ts - stamp - off) / 1000;
-    var f = sec / rule.durationSec;
-    if (f < 0) return 0;
-    return f > 1 ? 1 : f;
+    return stamp + (rule.offsetMs || 0) + rule.durationSec * 1000;
   }
 
-  function parkFirstAtRight(cam, front, w, endFrac) {
-    var endT = startEndT(endFrac);
-    if (!endT || !cam || !front || !front.pos) return cam;
-    var p = xy(front.pos.lat, front.pos.lon, cam);
-    cam.cx += (w - 26 - p.x) * endT;
-    return cam;
+  /* How far 1st is at clip end — sizes X so they finish far right. */
+  function startAheadM(live, origin, hdg) {
+    var ahead = 80;
+    var endTs = clipEndTs();
+    if (endTs) {
+      var endLive = ranksAt(endTs);
+      if (endLive && endLive.front && endLive.front.pos) {
+        ahead = Math.max(ahead, alongAcross(endLive.front.pos, origin, hdg).along);
+      }
+    }
+    if (live && live.front && live.front.pos) {
+      ahead = Math.max(ahead, alongAcross(live.front.pos, origin, hdg).along);
+    }
+    return ahead;
   }
 
-  /* 1st must stay on the strip — Start was clipping them off the top. */
-  function keepFirstOnCanvas(cam, front, w, h) {
-    if (!cam || !front || !front.pos || w < 8 || h < 8) return cam;
-    var p = xy(front.pos.lat, front.pos.lon, cam);
-    var padX = 22;
-    var padY = 14;
-    if (p.x < padX) cam.cx += padX - p.x;
-    if (p.x > w - padX) cam.cx += w - padX - p.x;
-    if (p.y < padY) cam.cy += padY - p.y;
-    if (p.y > h - padY) cam.cy += h - padY - p.y;
-    return cam;
-  }
-
-  function startPackCam(live, w, h, endFrac) {
+  /* Start line stays LEFT and does not move. It can only shrink (zoom out).
+   * Boats sail to the right. Line stays behind them. 1st is far right at end. */
+  function startPackCam(live, w, h) {
     var line = startLineMid();
     var pin = line && line.pin;
     var rc = line && line.rc;
     var front = live && live.front;
     var hdg = startCourseHdg(live);
     var origin = line || (front && front.pos) || { lat: 0, lon: 0 };
-    var pack = startCamPack(live, hdg, origin);
-    var signed = front && front.pos ? signedDistToStart(front.pos) : 0;
-    var win = { lo: 0, hi: 0, minC: Infinity, maxC: -Infinity };
-    function eat(pos) {
-      if (!pos) return null;
-      var aa = alongAcross(pos, origin, hdg);
-      if (aa.along < win.lo) win.lo = aa.along;
-      if (aa.along > win.hi) win.hi = aa.along;
-      if (aa.across < win.minC) win.minC = aa.across;
-      if (aa.across > win.maxC) win.maxC = aa.across;
-      return aa;
+    var lineX = Math.min(72, Math.max(22, w * 0.2));
+    var lineY = h * 0.5;
+    var ahead = startAheadM(live, origin, hdg);
+    if (startLock && startLock.w === w && startLock.h === h && startLock.ahead > 0) {
+      ahead = Math.max(ahead, startLock.ahead);
     }
+    var scaleX = (w - lineX - 26) / Math.max(40, ahead);
+    if (!(scaleX > 0.05)) scaleX = 0.05;
+    var pinA = pin ? alongAcross(pin, origin, hdg).across : 40;
+    var rcA = rc ? alongAcross(rc, origin, hdg).across : -40;
+    var lineMin = Math.min(pinA, rcA);
+    var lineMax = Math.max(pinA, rcA);
+    var lineSpan = Math.max(40, lineMax - lineMin);
+    var padT = 14;
+    var padB = 14;
+    var fullScaleY = (h - padT - padB) / lineSpan;
+    var packMin = lineMin;
+    var packMax = lineMax;
+    var rows = (live && live.rows) || [];
     var i;
-    for (i = 0; i < pack.length; i++) eat(pack[i].pos);
-    var fAA = front && front.pos ? eat(front.pos) : null;
-    var pinAA = pin ? eat(pin) : null;
-    var rcAA = rc ? eat(rc) : null;
-    if (win.minC === Infinity) {
-      win.minC = -40;
-      win.maxC = 40;
+    for (i = 0; i < rows.length; i++) {
+      if (!rows[i] || !rows[i].pos) continue;
+      var ac = alongAcross(rows[i].pos, origin, hdg).across;
+      if (ac < packMin) packMin = ac;
+      if (ac > packMax) packMax = ac;
     }
-    /* Always keep along=0 (the line) in frame while near the start. */
-    if (signed < 140) {
-      if (win.lo > -16) win.lo = -16;
-      if (win.hi < 24) win.hi = 24;
+    var scaleY = (h - padT - padB) / Math.max(lineSpan, packMax - packMin);
+    if (!(scaleY > 0.05)) scaleY = 0.05;
+    if (fullScaleY > 0 && scaleY > fullScaleY) scaleY = fullScaleY;
+    if (startLock && startLock.w === w && startLock.h === h && startLock.scaleY > 0) {
+      if (scaleY > startLock.scaleY) scaleY = startLock.scaleY;
     }
-    var behind = Math.max(16, -win.lo);
-    var ahead = Math.max(28, win.hi);
-    var padL = 18;
-    var padR = 40;
-    var scale = (w - padL - padR) / (behind + ahead);
-    if (!(scale > 0.08)) scale = 0.08;
-    var lineA = 0;
-    if (pinAA && rcAA) lineA = (pinAA.across + rcAA.across) / 2;
-    else if (pinAA) lineA = pinAA.across;
-    /* Whole Pin–RC line must fit. Old path only reserved room below
-     * the midline, so RC and 1st clipped off the top (overlay looked gone). */
-    var padT = 16;
-    var padB = 16;
-    var spanC = Math.max(40, win.maxC - win.minC);
-    var scaleLine = (h - padT - padB) / spanC;
-    if (scaleLine > 0 && scale > scaleLine) scale = scaleLine;
-    var lineX = padL + behind * scale;
-    if (lineX > w * 0.34) {
-      scale = (w * 0.34 - padL) / behind;
-      if (!(scale > 0.08)) scale = 0.08;
-      if (scaleLine > 0 && scale > scaleLine) scale = scaleLine;
-      lineX = padL + behind * scale;
-    }
-    var cx = lineX;
-    var cyLo = padT + win.maxC * scale;
-    var cyHi = h - padB + win.minC * scale;
-    var cy = cyHi >= cyLo ? (cyLo + cyHi) / 2 : (padT + h - padB) / 2 + lineA * scale;
-    var cam = {
+    startLock = { w: w, h: h, ahead: ahead, scaleY: scaleY };
+    return {
       midLat: origin.lat,
       midLon: origin.lon,
       cos: Math.cos((origin.lat * Math.PI) / 180),
       cosH: Math.cos((hdg * Math.PI) / 180),
       sinH: Math.sin((hdg * Math.PI) / 180),
-      scale: scale,
-      scaleX: scale,
-      scaleY: scale,
+      scale: scaleX,
+      scaleX: scaleX,
+      scaleY: scaleY,
       w: w,
       h: h,
       hdg: hdg,
       flipX: false,
-      cx: cx,
-      cy: cy,
+      cx: lineX,
+      cy: lineY,
       lockMark: true
     };
-    cam = parkFirstAtRight(cam, front, w, endFrac);
-    return keepFirstOnCanvas(cam, front, w, h);
   }
 
   /* Fixed geographic window so the mark stays put and boats sail through it. */
@@ -1340,40 +1301,10 @@
     box.style.setProperty('--mm-track-h', Math.round(frac * 1000) / 10 + '%');
   }
 
-  /* Start: taller than half so the line and all boats on it are clear.
-   * After they sail they converge — drop height toward half. */
+  /* Start strip stays tall. Do not resize it — that moves the line.
+   * The line can only shrink (scaleY) inside this strip. */
   function startTrackFrac(live) {
-    var line = startLineMid();
-    var front = live && live.front;
-    var signed = front && front.pos ? signedDistToStart(front.pos) : 0;
-    var hdg = startCourseHdg(live);
-    var origin = line || (front && front.pos);
-    var minC = Infinity;
-    var maxC = -Infinity;
-    var i;
-    var rows = origin ? startCamPack(live, hdg, origin) : coreClosestToFirst(live, 0.65);
-    for (i = 0; i < rows.length; i++) {
-      if (!rows[i].pos || !origin) continue;
-      var a = alongAcross(rows[i].pos, origin, hdg).across;
-      if (a < minC) minC = a;
-      if (a > maxC) maxC = a;
-    }
-    var span = minC === Infinity ? 40 : maxC - minC;
-    if (signed < 40 && line && line.pin && line.rc) {
-      var lineM = distM(line.pin, line.rc);
-      if (lineM > span) span = lineM * 0.9;
-    }
-    var t = (span - 35) / 130;
-    if (t < 0) t = 0;
-    if (t > 1) t = 1;
-    var leave = signed / 160;
-    if (leave < 0) leave = 0;
-    if (leave > 1) leave = 1;
-    var frac = 0.5 + 0.36 * t * (1 - 0.7 * leave);
-    if (signed < 25) frac = Math.max(frac, 0.72);
-    if (rows.length > 12) frac = Math.max(frac, 0.8);
-    if (signed < 80) frac = Math.max(frac, 0.86);
-    return frac;
+    return 0.88;
   }
 
   /* Keep all leading boats on canvas; extra room at the bottom for camera-near boats (HYC). */
@@ -1675,12 +1606,10 @@
     var cam;
     var camOpts = { minAlong: 40, minAcross: 28, padAlong: 1.18, padAcross: 1.35, padX: 70, padY: 28, flipX: true };
     if (plan.phase === 'start') {
-      var endFrac = clipVidFrac(ts, vidFrac);
       setTrackHeight(canvas, startTrackFrac(live), 0.88);
-      cam = startPackCam(live, cssW, cssH, endFrac);
-      cam = easeCam(cam, ts);
-      cam = parkFirstAtRight(cam, live.front, cssW, endFrac);
-      cam = keepFirstOnCanvas(cam, live.front, cssW, cssH);
+      cam = startPackCam(live, cssW, cssH);
+      heldCam = copyCam(cam);
+      heldCamTs = ts;
     } else if (nearRound && markLock) {
       setTrackHeight(canvas, 0.74);
       var mode = roundingMode(markLock, live);
