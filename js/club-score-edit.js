@@ -129,6 +129,7 @@
         nett_points_raw: instantPts,
       });
     }
+    rerankFleet(inp.closest("table"));
     var seq = String(Number(inp.getAttribute("data-save-seq") || 0) + 1);
     inp.setAttribute("data-save-seq", seq);
     inp.classList.add("club-score-input--saving");
@@ -207,24 +208,47 @@
     }
   }
 
-  function sortFleetTable(table) {
+  function rowNett(tr) {
+    var nettTd = tr.querySelector("td.nett-col");
+    var n = parseFloat((nettTd && nettTd.textContent) || "");
+    if (isFinite(n) && n > 0) return n;
+    var totTd = tr.querySelector("td.total-col");
+    n = parseFloat((totTd && totTd.textContent) || "");
+    if (isFinite(n) && n > 0) return n;
+    var sum = 0;
+    var any = false;
+    Array.prototype.forEach.call(tr.querySelectorAll(".club-score-input"), function (box) {
+      var v = (box.value || "").trim();
+      if (!v) return;
+      any = true;
+      var lead = parseFloat(v);
+      if (isFinite(lead)) sum += lead;
+      else if (/[A-Za-z]/.test(v)) sum += entriesFor(box) + 1;
+    });
+    return any ? sum : 9999;
+  }
+
+  function rerankFleet(table) {
     if (!table) return;
     var tb = table.tBodies && table.tBodies[0];
     if (!tb) return;
-    var rows = Array.prototype.slice.call(tb.querySelectorAll("tr[data-result-id]"));
-    rows.sort(function (a, b) {
-      var ra = parseInt(((a.querySelector("td.rank-col") || a.children[0] || {}).textContent || ""), 10);
-      var rb = parseInt(((b.querySelector("td.rank-col") || b.children[0] || {}).textContent || ""), 10);
-      if (!isFinite(ra)) ra = 9999;
-      if (!isFinite(rb)) rb = 9999;
-      return ra - rb;
+    var items = Array.prototype.map.call(tb.querySelectorAll("tr[data-result-id]"), function (tr) {
+      return { tr: tr, nett: rowNett(tr) };
     });
-    rows.forEach(function (tr, i) {
-      tr.classList.remove("medal-gold", "medal-silver", "medal-bronze");
-      if (i === 0) tr.classList.add("medal-gold");
-      else if (i === 1) tr.classList.add("medal-silver");
-      else if (i === 2) tr.classList.add("medal-bronze");
-      tb.appendChild(tr);
+    items.sort(function (a, b) {
+      if (a.nett !== b.nett) return a.nett - b.nett;
+      return Number(a.tr.getAttribute("data-result-id")) - Number(b.tr.getAttribute("data-result-id"));
+    });
+    items.forEach(function (it, i) {
+      var rankTd = it.tr.querySelector("td.rank-col") || it.tr.children[0];
+      if (rankTd) rankTd.textContent = it.nett >= 9999 ? "" : rankLabel(i + 1);
+      it.tr.classList.remove("medal-gold", "medal-silver", "medal-bronze");
+      if (it.nett < 9999) {
+        if (i === 0) it.tr.classList.add("medal-gold");
+        else if (i === 1) it.tr.classList.add("medal-silver");
+        else if (i === 2) it.tr.classList.add("medal-bronze");
+      }
+      tb.appendChild(it.tr);
     });
   }
 
@@ -240,7 +264,7 @@
         race_scores: j.race_scores,
       });
     }
-    sortFleetTable(table);
+    rerankFleet(table);
   }
 
   function wireCell(td, resultId) {
@@ -335,6 +359,7 @@
       if (!start && !(box.value || "").trim()) start = box;
     });
     if (!start && boxes[0]) start = boxes[0];
+    page.querySelectorAll("table.fleet-results-table").forEach(rerankFleet);
     if (start) start.focus();
   }
 
