@@ -12398,8 +12398,10 @@ def _session_role_is_admin(request: Request) -> bool:
 
 
 def _session_can_toggle_event_crew(request: Request) -> bool:
-    """Super Admin or Admin may show/hide the Cape Classic Crew table for Public."""
-    return _session_role_is_super_admin(request) or _session_role_is_admin(request)
+    """Super Admin, Admin, or host Club Admin may see/show the Cape Classic Staff table."""
+    if _session_role_is_super_admin(request) or _session_role_is_admin(request):
+        return True
+    return _session_can_edit_regatta_scores(request, "2026-09-13-zvyc-cape-classic")
 
 
 def _require_super_admin(request: Request) -> None:
@@ -21065,7 +21067,7 @@ def _cape_classic_crew_table_html(
     always_show_button: bool = False,
     link_title: bool = True,
 ) -> str:
-    """Crew table below last fleet. Public sees it only when shown. No DB rows."""
+    """Staff table below last fleet. Public sees it only when shown. No DB rows."""
     show = _cape_classic_crew_show()
     if not show and not is_editor:
         return ""
@@ -21107,16 +21109,16 @@ def _cape_classic_crew_table_html(
             ".then(function(o){if(!o.ok){b.disabled=false;return;}window.location.reload();})"
             ".catch(function(){b.disabled=false;});});})();</script>"
         )
-    sailed = html_module.escape(note) if note else "Event crew"
+    sailed = html_module.escape(note) if note else "Event staff"
     return (
         f"<style>{_CAPE_CLASSIC_CREW_CSS}</style>"
-        f'<div class="fleet-section cape-crew{admin_cls}{hidden_cls}" id="capeClassicCrew" aria-label="Crew">'
+        f'<div class="fleet-section cape-crew{admin_cls}{hidden_cls}" id="capeClassicCrew" aria-label="Staff">'
         '<div class="class-header"><div class="class-header-text-col">'
         '<div class="fleet-title-row">'
         + (
-            f'<a href="{html_module.escape(_CAPE_CLASSIC_CREW_HREF)}">Crew</a>'
+            f'<a href="{html_module.escape(_CAPE_CLASSIC_CREW_HREF)}">Staff</a>'
             if link_title
-            else "Crew"
+            else "Staff"
         )
         + "</div>"
         f'<div class="sailed-line">{sailed}</div>'
@@ -21171,14 +21173,14 @@ def serve_cape_classic_crew_standalone(request: Request):
     )
     crew_frag = _cape_classic_crew_table_html(
         is_editor=can_crew,
-        always_show_button=_session_role_is_admin(request),
+        always_show_button=can_crew,
         link_title=False,
     )
     print_btn = '<div class="action-buttons"><button class="action-button" onclick="window.print()">Print</button></div>'
     sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js?v=mm2" defer></script>' if is_sa else ""
     doc = (
         "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
-        f"Crew – {escaped_title} | SailingSA</title>"
+        f"Staff – {escaped_title} | SailingSA</title>"
         "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
         f"<style>{_RESULT_SHEET_CSS}</style></head><body>"
         f'<div class="regatta-page">{header_html}{crew_frag}{print_btn}</div>{sa_toolbar_js}'
@@ -29360,11 +29362,12 @@ def serve_regatta_standalone(slug: str, request: Request):
                 '<script src="/js/mm-lipton-reels-card.js?v=mmr114" defer></script>'
             )
         crew_frag = ""
-        if str(regatta_id) == _CAPE_CLASSIC_MM_REGATTA_ID:
+        if _cape_classic_event_id(regatta_id):
             can_crew = _session_can_toggle_event_crew(request)
             crew_frag = _cape_classic_crew_table_html(
                 is_editor=can_crew,
-                always_show_button=_session_role_is_admin(request),
+                always_show_button=can_crew,
+                link_title=str(regatta_id) == _CAPE_CLASSIC_MM_REGATTA_ID,
             )
         score_banner = _club_score_banner_html(host_club_abbrev) if race_score_edit else ""
         body_html = header_html + mm_card + score_banner + sa_columns_frag + "\n" + fleet_joined + crew_frag + "\n" + print_btn

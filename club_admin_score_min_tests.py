@@ -40,6 +40,12 @@ class ClubAdminScoreMinTest(unittest.TestCase):
     def test_club_admin_role_and_host_scope(self):
         self.assertIn("def _session_role_is_club_admin", self.src)
         self.assertIn("def _session_can_edit_regatta_scores", self.src)
+        self.assertIn(
+            '_session_can_edit_regatta_scores(request, "2026-09-13-zvyc-cape-classic")',
+            self.src[self.src.find("def _session_can_toggle_event_crew") : self.src.find("def _require_super_admin")],
+        )
+        self.assertIn("always_show_button=can_crew", self.src)
+        self.assertIn('aria-label="Staff"', self.src)
         self.assertIn("def _require_regatta_score_edit", self.src)
         self.assertIn("_require_regatta_score_edit(request, result.get(\"regatta_id\"))", self.src)
         self.assertNotIn(
@@ -228,6 +234,8 @@ class ClubAdminScoreMinTest(unittest.TestCase):
         self.assertIn("class-header-club-logo-col", self.club_js)
         self.assertIn("club-race-step", self.club_js)
         self.assertIn("function injectRaceStepper", self.club_js)
+        self.assertIn('sec.classList.contains("cape-crew")', self.club_js)
+        self.assertIn(".cape-crew .club-race-step{display:none!important}", self.club_js)
         self.assertIn("function stepRaces", self.club_js)
         self.assertIn("R+", self.club_js)
         self.assertIn("R−", self.club_js)

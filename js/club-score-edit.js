@@ -57,7 +57,8 @@
       ".club-race-step{display:flex;flex-direction:column;gap:3px;margin-right:6px;flex:0 0 auto;align-items:stretch}" +
       ".club-race-step button{box-sizing:border-box;min-width:44px;min-height:32px;padding:0 6px;border:1.5px solid #1a2750;border-radius:4px;background:#fff;color:#1a2750;font:inherit;font-size:12px;font-weight:700;line-height:1;cursor:pointer}" +
       ".club-race-step button:disabled{opacity:.45;cursor:not-allowed}" +
-      ".class-header-club-logo-col .club-race-step{order:-1}";
+      ".class-header-club-logo-col .club-race-step{order:-1}" +
+      ".cape-crew .club-race-step{display:none!important}";
     document.head.appendChild(st);
   }
 
@@ -526,7 +527,8 @@
   }
 
   function injectRaceStepper(sec) {
-    if (!sec || sec.querySelector(".club-race-step")) return;
+    if (!sec || sec.classList.contains("cape-crew") || sec.id === "capeClassicCrew") return;
+    if (sec.querySelector(".club-race-step")) return;
     var box = document.createElement("div");
     box.className = "club-race-step";
     box.setAttribute("role", "group");
