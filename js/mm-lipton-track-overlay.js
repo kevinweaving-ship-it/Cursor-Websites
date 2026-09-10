@@ -69,7 +69,7 @@
   var CLIP_RULES = {
     '2622643364847262': clipR(7, 'round', { offsetMs: 36000 }),
     '2410502969472697': clipR(7, 'round'),
-    '1014880974840710': clipR(7, 'start'),
+    '1014880974840710': clipR(7, 'start', { approach: 'ltr', offsetMs: 0 }),
     '26023759437321260': clipR(5, 'round'),
     '1587763379559775': clipR(5, 'round'),
     '4518629078350390': clipR(5, 'start'),
@@ -815,6 +815,142 @@
     };
   }
 
+  function startLineMid() {
+    var sl = trail && trail.start_line;
+    if (!sl || !sl.left || !sl.right) return null;
+    return {
+      lat: (sl.left.lat + sl.right.lat) / 2,
+      lon: (sl.left.lon + sl.right.lon) / 2,
+      key: 'start',
+      pin: sl.left,
+      rc: sl.right
+    };
+  }
+
+  function signedDistToStart(pos) {
+    var line = startLineMid();
+    if (!line || !pos) return 0;
+    var weather = sampleAt((trail.marks || {})['1'], (replay && replay.gun_ts_ms) || 0);
+    var hdg = weather ? bearingDeg(line, weather) : 136;
+    return alongAcross(pos, line, hdg).along;
+  }
+
+  function coreClosestToFirst(live, frac) {
+    var front = live && live.front;
+    var rows = [];
+    var i;
+    for (i = 0; i < (live.rows || []).length; i++) {
+      if (!live.rows[i] || !live.rows[i].pos) continue;
+      rows.push({
+        row: live.rows[i],
+        dist: front && front.pos ? distM(live.rows[i].pos, front.pos) : live.rows[i].racePlace || 99
+      });
+    }
+    rows.sort(function (a, b) {
+      return a.dist - b.dist;
+    });
+    var k = Math.max(2, Math.ceil(rows.length * (frac || 0.65)));
+    if (k > rows.length) k = rows.length;
+    var out = [];
+    var seen = {};
+    for (i = 0; i < k; i++) {
+      out.push(rows[i].row);
+      seen[rows[i].row.sail] = true;
+    }
+    if (front && front.pos && !seen[front.sail]) out.unshift(front);
+    return out;
+  }
+
+  /* Race 7 Start: LTR toward weather. Frame 60–70% closest to 1st.
+   * Pin/mark stays off-screen until it sits in that pack or 1st is ~10s from it.
+   * Virtual 1st→mark line is horizontal at mid-height (not drawn). Slide it
+   * up/down so the pack below 1st stays in view. */
+  function startPackCam(live, w, h) {
+    var line = startLineMid();
+    var pin = line && line.pin;
+    var rc = line && line.rc;
+    var front = live && live.front;
+    var next = live && live.nextMark;
+    var past = front && front.pos ? signedDistToStart(front.pos) : 0;
+    var aim = pin;
+    if (past > 80 && next) aim = next;
+    var hdg = front && front.pos && aim ? bearingDeg(front.pos, aim) : 136;
+    var pack = coreClosestToFirst(live, 0.65);
+    var origin = line || (front && front.pos) || { lat: 0, lon: 0 };
+    var pinClose = !!(front && pin && secsToMark(front, pin, live.ts) <= 10);
+    var win = { lo: Infinity, hi: -Infinity, minC: Infinity, maxC: -Infinity };
+    function eat(pos) {
+      if (!pos) return null;
+      var aa = alongAcross(pos, origin, hdg);
+      if (aa.along < win.lo) win.lo = aa.along;
+      if (aa.along > win.hi) win.hi = aa.along;
+      if (aa.across < win.minC) win.minC = aa.across;
+      if (aa.across > win.maxC) win.maxC = aa.across;
+      return aa;
+    }
+    var i;
+    for (i = 0; i < pack.length; i++) eat(pack[i].pos);
+    var fAA = front && front.pos ? eat(front.pos) : null;
+    var pinAA = pin ? alongAcross(pin, origin, hdg) : null;
+    var pinInWin = !!(pinAA && pinAA.along >= win.lo && pinAA.along <= win.hi);
+    var showPin = !!(pin && (pinInWin || pinClose));
+    if (showPin) eat(pin);
+    if (showPin && rc) {
+      var rcAA = alongAcross(rc, origin, hdg);
+      if (rcAA.along >= win.lo - 10 && rcAA.along <= win.hi + 10) eat(rc);
+    }
+    if (win.lo === Infinity) {
+      win.lo = -40;
+      win.hi = 40;
+      win.minC = -20;
+      win.maxC = 20;
+    }
+    var spanAlong = Math.max(52, (win.hi - win.lo) * 1.08);
+    var padL = 36;
+    var padR = 44;
+    var scale = (w - padL - padR) / spanAlong;
+    if (!(scale > 0.08)) scale = 0.08;
+    var cy = h * 0.5;
+    if (fAA) cy = h * 0.5 + fAA.across * scale;
+    if (fAA) {
+      var belowNeed = Math.max(0, fAA.across - win.minC);
+      var roomBelow = h - cy - 16;
+      if (belowNeed > 4 && roomBelow > 8) {
+        var fit = roomBelow / belowNeed;
+        if (fit > 0 && scale > fit) scale = fit;
+      }
+      cy = h * 0.5 + fAA.across * scale;
+      var yBot = cy - win.minC * scale;
+      if (yBot > h - 12) cy -= yBot - (h - 12);
+      var yTop = cy - win.maxC * scale;
+      if (yTop < 12) cy += 12 - yTop;
+    }
+    var midAlong = (win.lo + win.hi) / 2;
+    var cx = w / 2 - midAlong * scale;
+    if (fAA) {
+      var x1 = cx + fAA.along * scale;
+      if (x1 < padL) cx += padL - x1;
+      if (x1 > w - padR) cx -= x1 - (w - padR);
+    }
+    return {
+      midLat: origin.lat,
+      midLon: origin.lon,
+      cos: Math.cos((origin.lat * Math.PI) / 180),
+      cosH: Math.cos((hdg * Math.PI) / 180),
+      sinH: Math.sin((hdg * Math.PI) / 180),
+      scale: scale,
+      scaleX: scale,
+      scaleY: scale,
+      w: w,
+      h: h,
+      hdg: hdg,
+      flipX: false,
+      cx: cx,
+      cy: cy,
+      lockMark: false
+    };
+  }
+
   /* Fixed geographic window so the mark stays put and boats sail through it. */
   function frozenMarkScale(w, h) {
     var minAlong = 340;
@@ -1316,6 +1452,7 @@
       phase = 'start';
       focus = trail.start_line && trail.start_line.left;
       hdg = next && leader && leader.pos ? bearingDeg(leader.pos, next) : hdg;
+      flipX = rule.approach === 'ltr' ? false : true;
       lockApproachHdg = null;
       markLock = null;
     } else if (last && leader && leader.pos && (lockMatchesLast || distLast + 40 < distNext)) {
@@ -1391,7 +1528,11 @@
     var nearRound = plan.phase === 'hold' || plan.phase === 'approach-mark';
     var cam;
     var camOpts = { minAlong: 40, minAcross: 28, padAlong: 1.18, padAcross: 1.35, padX: 70, padY: 28, flipX: true };
-    if (nearRound && markLock) {
+    if (plan.phase === 'start') {
+      setTrackHeight(canvas, 0.62);
+      cam = startPackCam(live, cssW, cssH);
+      cam = easeCam(cam, ts);
+    } else if (nearRound && markLock) {
       setTrackHeight(canvas, 0.74);
       var mode = roundingMode(markLock, live);
       cam = pinLeftCam(markLock, pack, live, cssW, cssH, markLock.hdg, mode);
