@@ -901,14 +901,41 @@
     return 136;
   }
 
+  function headingTowardMark(row, course) {
+    if (!row || row.hdg == null) return false;
+    return angDiff(row.hdg, course) < 55;
+  }
+
+  /* Keep boats that duck below the line until they tack back toward M1. */
+  function startCamPack(live, hdg, origin) {
+    var pack = coreClosestToFirst(live, 0.65);
+    var seen = {};
+    var i;
+    for (i = 0; i < pack.length; i++) seen[pack[i].sail] = true;
+    var sl = trail && trail.start_line;
+    var pinA = sl && sl.left ? alongAcross(sl.left, origin, hdg).across : 0;
+    var rcA = sl && sl.right ? alongAcross(sl.right, origin, hdg).across : 0;
+    var lineLo = Math.min(pinA, rcA);
+    for (i = 0; i < (live.rows || []).length; i++) {
+      var row = live.rows[i];
+      if (!row || !row.pos || seen[row.sail]) continue;
+      var aa = alongAcross(row.pos, origin, hdg);
+      if (aa.across < lineLo + 12 && !headingTowardMark(row, hdg)) {
+        pack.push(row);
+        seen[row.sail] = true;
+      }
+    }
+    return pack;
+  }
+
   function startPackCam(live, w, h) {
     var line = startLineMid();
     var pin = line && line.pin;
     var rc = line && line.rc;
     var front = live && live.front;
     var hdg = startCourseHdg(live);
-    var pack = coreClosestToFirst(live, 0.65);
     var origin = line || (front && front.pos) || { lat: 0, lon: 0 };
+    var pack = startCamPack(live, hdg, origin);
     var signed = front && front.pos ? signedDistToStart(front.pos) : 0;
     var win = { lo: 0, hi: 0, minC: Infinity, maxC: -Infinity };
     function eat(pos) {
@@ -923,8 +950,8 @@
     var i;
     for (i = 0; i < pack.length; i++) eat(pack[i].pos);
     var fAA = front && front.pos ? eat(front.pos) : null;
-    if (pin) eat(pin);
-    if (rc) eat(rc);
+    var pinAA = pin ? eat(pin) : null;
+    var rcAA = rc ? eat(rc) : null;
     if (win.minC === Infinity) {
       win.minC = -40;
       win.maxC = 40;
@@ -940,10 +967,14 @@
     var padR = 40;
     var scale = (w - padL - padR) / (behind + ahead);
     if (!(scale > 0.08)) scale = 0.08;
-    var acrossSpan = Math.max(40, win.maxC - win.minC);
-    var scaleYfit = (h - 28) / acrossSpan;
-    if (scaleYfit > 0 && scale > scaleYfit) scale = scaleYfit;
-    /* Vertical line on the LEFT — only enough room for the lineup. */
+    var lineA = 0;
+    if (pinAA && rcAA) lineA = (pinAA.across + rcAA.across) / 2;
+    else if (pinAA) lineA = pinAA.across;
+    /* Line high — room below for boats that duck under it. */
+    var lineY = Math.max(26, h * 0.28);
+    var belowM = Math.max(18, lineA - win.minC);
+    var scaleBelow = (h - lineY - 14) / belowM;
+    if (scaleBelow > 0 && scale > scaleBelow) scale = scaleBelow;
     var lineX = padL + behind * scale;
     if (lineX > w * 0.34) {
       scale = (w * 0.34 - padL) / behind;
@@ -951,12 +982,7 @@
       lineX = padL + behind * scale;
     }
     var cx = lineX;
-    var cy = h * 0.5;
-    if (fAA) cy = h * 0.5 + fAA.across * scale;
-    var yBot = cy - win.minC * scale;
-    if (yBot > h - 12) cy -= yBot - (h - 12);
-    var yTop = cy - win.maxC * scale;
-    if (yTop < 12) cy += 12 - yTop;
+    var cy = lineY + lineA * scale;
     return {
       midLat: origin.lat,
       midLon: origin.lon,
@@ -1262,20 +1288,12 @@
     var line = startLineMid();
     var front = live && live.front;
     var signed = front && front.pos ? signedDistToStart(front.pos) : 0;
-    var weather = sampleAt((trail.marks || {})['1'], (replay && replay.gun_ts_ms) || 0);
-    var hdg = line && weather ? bearingDeg(line, weather) : 136;
+    var hdg = startCourseHdg(live);
     var origin = line || (front && front.pos);
     var minC = Infinity;
     var maxC = -Infinity;
     var i;
-    var rows = [];
-    if (signed < 40) {
-      for (i = 0; i < (live.rows || []).length; i++) {
-        if (!live.rows[i] || !live.rows[i].pos) continue;
-        if (Math.abs(signedDistToStart(live.rows[i].pos)) < 55) rows.push(live.rows[i]);
-      }
-    }
-    if (rows.length < 3) rows = coreClosestToFirst(live, 0.65);
+    var rows = origin ? startCamPack(live, hdg, origin) : coreClosestToFirst(live, 0.65);
     for (i = 0; i < rows.length; i++) {
       if (!rows[i].pos || !origin) continue;
       var a = alongAcross(rows[i].pos, origin, hdg).across;
@@ -1295,6 +1313,7 @@
     if (leave > 1) leave = 1;
     var frac = 0.5 + 0.36 * t * (1 - 0.7 * leave);
     if (signed < 25) frac = Math.max(frac, 0.72);
+    if (rows.length > 12) frac = Math.max(frac, 0.8);
     return frac;
   }
 
