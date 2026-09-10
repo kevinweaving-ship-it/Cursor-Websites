@@ -929,7 +929,9 @@
     if (tight) {
       eatAlongRows(leadRoundRows(live, showN), origin, hdg, win);
     } else {
-      eatAlongAcross(live, origin, hdg, win);
+      /* 60–70% closest to 1st only. Stragglers (WYAC, TSC, …) stay out
+       * unless they sail into that pack. */
+      eatAlongRows(coreClosestToFirst(live, 0.65), origin, hdg, win);
     }
     if (!tight && !stay) {
       var remain = 0;
@@ -1601,6 +1603,19 @@
     return viewPack(live, mark);
   }
 
+  /* Round clips: 1st–8th while tight, else 60–70% closest to 1st.
+   * Stragglers (WYAC, TSC) are out unless they sail within 60–70. */
+  function roundViewPack(live, mark) {
+    var origin = roundOrigin(mark);
+    if (roundTightNow(live, origin)) {
+      var nR = nRoundedPin(live);
+      var showN = 7;
+      if (nR >= 1) showN = Math.min(8, Math.max(6, nR + 2));
+      return leadRoundRows(live, showN);
+    }
+    return coreClosestToFirst(live, 0.65);
+  }
+
   function acrossM(pos, mark, hdg) {
     if (!pos || !mark) return 0;
     var cos = Math.cos((mark.lat * Math.PI) / 180);
@@ -1940,10 +1955,13 @@
     var live = ranksAt(ts);
     var plan = camPlan(live, cssW, cssH);
     var focus = plan.focus;
+    var nearRound = plan.phase === 'hold' || plan.phase === 'approach-mark';
     var pack = roundingPack(live, focus || plan.last || markLock);
+    if (nearRound || (clipRule && clipRule.kind === 'round')) {
+      pack = roundViewPack(live, markLock || focus);
+    }
     var pts = packPoints(pack, ts);
     if (!pts.length && plan.phase !== 'start') return;
-    var nearRound = plan.phase === 'hold' || plan.phase === 'approach-mark';
     var cam;
     var camOpts = { minAlong: 40, minAcross: 28, padAlong: 1.18, padAcross: 1.35, padX: 70, padY: 28, flipX: true };
     if (plan.phase === 'start') {
