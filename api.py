@@ -14838,6 +14838,46 @@ def patch_race_score(request: Request, result_id: int, body: dict):
                 "fleet": fleet,
             }
 
+
+@app.get("/api/regatta/{regatta_id}/cape-live-fleets")
+def cape_live_fleets(regatta_id: str):
+    """Cape Classic only: live rank/total/nett/race cells for open pages (no refresh)."""
+    if not _cape_classic_event_id(regatta_id):
+        raise HTTPException(status_code=404, detail="not Cape Classic")
+    import json
+
+    with psycopg2.connect(DB_URL) as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT r.result_id, r.block_id, r.rank,
+                       r.total_points_raw, r.nett_points_raw, r.race_scores
+                FROM results r
+                WHERE r.block_id LIKE %s
+                   OR CAST(r.regatta_id AS TEXT) LIKE %s
+                ORDER BY r.block_id, r.rank NULLS LAST, r.result_id
+                """,
+                ("2026-09-13-zvyc-cape-classic%", "2026-09-13-zvyc-cape-classic%"),
+            )
+            fleets = {}
+            for row in cur.fetchall() or []:
+                bid = str(row.get("block_id") or "")
+                if not bid:
+                    continue
+                rs = row.get("race_scores") or {}
+                if isinstance(rs, str):
+                    rs = json.loads(rs)
+                fleets.setdefault(bid, []).append(
+                    {
+                        "result_id": row["result_id"],
+                        "rank": row["rank"],
+                        "total_points_raw": row["total_points_raw"],
+                        "nett_points_raw": row["nett_points_raw"],
+                        "race_scores": rs,
+                    }
+                )
+    return {"ok": True, "fleets": fleets}
+
 def auto_verify_regatta_data(regatta_id: str):
     """Auto-verify and update all regatta data against database tables"""
     with psycopg2.connect(DB_URL) as conn:

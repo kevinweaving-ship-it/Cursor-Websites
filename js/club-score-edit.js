@@ -129,7 +129,7 @@
         nett_points_raw: instantPts,
       });
     }
-    rerankFleet(inp.closest("table"));
+    rerankFleet(fleetTable(inp));
     var seq = String(Number(inp.getAttribute("data-save-seq") || 0) + 1);
     inp.setAttribute("data-save-seq", seq);
     inp.classList.add("club-score-input--saving");
@@ -162,7 +162,8 @@
         }
         inp.setAttribute("data-original", v);
         inp.classList.add("club-score-input--saved");
-        applyServerFleet(o.j, inp.closest("table"));
+        applyServerFleet(o.j, fleetTable(inp));
+        pushLive();
       })
       .catch(function () {
         if (inp.getAttribute("data-save-seq") !== seq) return;
@@ -198,14 +199,57 @@
     }
     if (row.race_scores && typeof row.race_scores === "object") {
       Object.keys(row.race_scores).forEach(function (rk) {
-        var box = tr.querySelector('.club-score-input[data-race="' + rk + '"]');
-        if (!box) return;
         var cell = String(row.race_scores[rk] == null ? "" : row.race_scores[rk]);
-        if (document.activeElement === box) return;
-        box.value = cell;
-        box.setAttribute("data-original", cell);
+        var box = tr.querySelector('.club-score-input[data-race="' + rk + '"]');
+        if (box) {
+          if (document.activeElement === box) return;
+          box.value = cell;
+          box.setAttribute("data-original", cell);
+          return;
+        }
+        var td = tr.querySelector('td.race-col[data-race-key="' + rk + '"]');
+        if (td && !td.querySelector("input")) td.textContent = cell;
       });
     }
+  }
+
+  function fleetTable(from) {
+    var sec = from && from.closest ? from.closest(".fleet-section") : null;
+    if (sec) return sec.querySelector("table.fleet-results-table") || sec.querySelector("table");
+    return from && from.closest ? from.closest("table") : null;
+  }
+
+  function applyLiveFleets(data) {
+    if (!data || !data.fleets) return;
+    Object.keys(data.fleets).forEach(function (bid) {
+      var rows = data.fleets[bid] || [];
+      rows.forEach(applyFleetRow);
+      var sec = document.querySelector('.fleet-section[data-block-id="' + bid + '"]');
+      rerankFleet(fleetTable(sec) || (sec && sec.querySelector("table")));
+    });
+    document.querySelectorAll("table.fleet-results-table").forEach(rerankFleet);
+  }
+
+  function pollLive() {
+    if (document.hidden) return;
+    fetch("/api/regatta/2026-09-13-zvyc-cape-classic/cape-live-fleets", {
+      credentials: "include",
+      cache: "no-store",
+    })
+      .then(function (r) {
+        return r.ok ? r.json() : null;
+      })
+      .then(function (j) {
+        if (j && j.ok) applyLiveFleets(j);
+      })
+      .catch(function () {});
+  }
+
+  function pushLive() {
+    pollLive();
+    try {
+      if (window.__capeLiveCh) window.__capeLiveCh.postMessage({ t: Date.now() });
+    } catch (e) {}
   }
 
   function rowNett(tr) {
@@ -362,6 +406,17 @@
     page.querySelectorAll("table.fleet-results-table").forEach(rerankFleet);
     if (start) start.focus();
   }
+
+  pollLive();
+  setInterval(function () {
+    if (!document.hidden) pollLive();
+  }, 2000);
+  try {
+    window.__capeLiveCh = new BroadcastChannel("cape-classic-live");
+    window.__capeLiveCh.onmessage = function () {
+      pollLive();
+    };
+  } catch (e) {}
 
   fetch(withSession("/auth/session?path=" + encodeURIComponent(path)), {
     credentials: "include",
