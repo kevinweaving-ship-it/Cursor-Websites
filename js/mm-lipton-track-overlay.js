@@ -9,6 +9,13 @@
  * view. The mark being rounded stays on screen. Pin/RC, M1 and Fin come
  * from the GPS map. Scale is along-span only (true px/m). Do not shrink
  * X to fit Y. Marks never jump: they are frozen world points.
+ * All races are rendered left → right or right → left horizontally
+ * regardless of actual geographic direction. Rotate according to the
+ * mark being rounded (or the start). If two of pin / mark / start
+ * would show, ignore the one far away from first — it can be out of
+ * view. Focus the one being rounded. After that rounding a long clip
+ * may change to the next mark. Leave padding so boats show fully.
+ * regardless of actual direction — rotate according
  */
 (function (root) {
   'use strict';
@@ -112,17 +119,17 @@
     }),
     '26023759437321260': clipR(5, 'round'),
     '1587763379559775': clipR(5, 'round'),
-    '4518629078350390': clipR(5, 'start'),
+    '4518629078350390': clipR(5, 'start', { approach: 'ltr' }),
     '1751846282795149': clipR(4, 'finish'),
     '2111285223132517': clipR(4, 'round'),
     '1588170962712352': clipR(4, 'round'),
     '1582165340314238': clipR(4, 'round'),
-    '1079923421076157': clipR(4, 'start'),
+    '1079923421076157': clipR(4, 'start', { approach: 'ltr' }),
     '825961863876577': clipR(3, 'round'),
     '1530770848344300': clipR(3, 'round'),
     '1802153794291569': clipR(3, 'round'),
     '1813350889838726': clipR(3, 'round'),
-    '1025386753667866': clipR(3, 'start'),
+    '1025386753667866': clipR(3, 'start', { approach: 'ltr' }),
     '940083808452432': clipR(2, 'finish'),
     '942850414812890': clipR(2, 'round'),
     '3239679922895545': clipR(2, 'round'),
@@ -539,6 +546,56 @@
     return d > 180 ? 360 - d : d;
   }
 
+  function signedAngDiff(a, b) {
+    return ((a || 0) - (b || 0) + 540) % 360 - 180;
+  }
+
+  function normHdg(h) {
+    h = (h || 0) % 360;
+    return h < 0 ? h + 360 : h;
+  }
+
+  function clipApproach() {
+    var rule = clipRule || {};
+    if (rule.kind === 'start' || rule.approach === 'ltr') return 'ltr';
+    return 'rtl';
+  }
+
+  function clipFlipX() {
+    return clipApproach() !== 'ltr';
+  }
+
+  function packTravelHdg(live) {
+    var sx = 0;
+    var sy = 0;
+    var n = 0;
+    var rows = (live && live.rows) || [];
+    var i;
+    for (i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      if (!row || !row.pos || row.hdg == null) continue;
+      if (isStraggler(row)) continue;
+      var rad = (row.hdg * Math.PI) / 180;
+      sx += Math.sin(rad);
+      sy += Math.cos(rad);
+      n += 1;
+    }
+    if (!n) return null;
+    return normHdg((Math.atan2(sx, sy) * 180) / Math.PI);
+  }
+
+  /* Rotate according to actual inbound/travel so the race is horizontal
+   * LTR or RTL, regardless of actual geographic direction. Keep geo's
+   * 180° sense so after rounding boats reverse on screen. */
+  function rotateAccordingHdg(geo, live, mark) {
+    var actual = null;
+    if (live && mark) actual = incomingHdg(live, mark, live.front);
+    if (actual == null) actual = packTravelHdg(live);
+    if (actual == null || geo == null) return geo;
+    if (Math.abs(signedAngDiff(actual, geo)) > 90) return normHdg(actual + 180);
+    return actual;
+  }
+
   /* Race 7 test clip: travel maps to -X so boats run right → left across the strip. */
   function project(lat, lon, cam) {
     var north = (lat - cam.midLat) * 111000;
@@ -856,15 +913,15 @@
 
   function roundCourseHdg(live, mark) {
     var origin = roundOrigin(mark);
+    var geo = (mark && mark.hdg) || 180;
     if (origin && (origin.key === 'pin' || origin.key === '4')) {
       var m1 = sampleAt((trail.marks || {})['1'], (live && live.ts) || (replay && replay.gun_ts_ms) || 0);
-      if (m1) return bearingDeg(m1, origin);
-    }
-    if (origin && isTopKey(origin.key)) {
+      if (m1) geo = bearingDeg(m1, origin);
+    } else if (origin && isTopKey(origin.key)) {
       var pin = trail.start_line && trail.start_line.left;
-      if (pin) return bearingDeg(pin, origin);
+      if (pin) geo = bearingDeg(pin, origin);
     }
-    return (mark && mark.hdg) || 180;
+    return rotateAccordingHdg(geo, live, origin || mark);
   }
 
   function eatAlongRows(rows, origin, hdg, win) {
@@ -1013,14 +1070,18 @@
    * Do not shrink X to fit Y. Pin never pans right. */
   function roundPackCam(live, w, h, mark) {
     var origin = roundOrigin(mark) || { lat: 0, lon: 0, key: '' };
+    if (roundLock && roundLock.key && origin.key && roundLock.key !== origin.key) {
+      roundLock = null;
+    }
     var stay = roundPinMustStay(live, origin);
     var tight = roundTightNow(live, origin);
     var boxed = sameCamBox(roundLock, w, h);
     var hdg = boxed && roundLock.hdg != null
       ? roundLock.hdg
       : roundCourseHdg(live, origin);
-    var pinX = Math.max(28, Math.min(64, w * 0.16));
-    var pinY = Math.max(36, Math.min(h * 0.38, h * 0.42));
+    /* Inset so boats show fully at the rounding — not clipped on the mark. */
+    var pinX = Math.max(56, Math.min(96, w * 0.2));
+    var pinY = Math.max(44, Math.min(h * 0.42, h * 0.46));
     if (boxed && roundLock.pinX != null) {
       pinY = roundLock.pinY;
       hdg = roundLock.hdg;
@@ -1030,10 +1091,18 @@
     if (tight) {
       eatAlongRows(tightViewRows(live, origin), origin, hdg, win);
     } else {
-      eatAlongRows(packBehindFirst(live), origin, hdg, win);
+      eatAlongRows(dropFarMarkBoats(packBehindFirst(live), origin, live), origin, hdg, win);
       var endLive = clipEndLive();
-      if (endLive) eatAlongRows(packBehindFirst(endLive), origin, hdg, win);
+      if (endLive) {
+        eatAlongRows(dropFarMarkBoats(packBehindFirst(endLive), origin, endLive), origin, hdg, win);
+      }
     }
+    /* Padding so boats show fully at rounding. */
+    var boatPad = 36;
+    if (win.minA > -boatPad) win.minA = -boatPad;
+    if (win.maxA < boatPad) win.maxA = boatPad;
+    if (win.minC > -boatPad) win.minC = -boatPad;
+    if (win.maxC < boatPad) win.maxC = boatPad;
     var padR = startPadR(w);
     var rightNeed = Math.max(48, -win.minA);
     var leftNeed = Math.max(8, win.maxA);
@@ -1090,7 +1159,7 @@
         if (needLeave > 0 && scaleX > needLeave) scaleX = needLeave;
       }
     }
-    roundLock = { w: w, h: h, pinX: pinX, pinY: pinY, scaleX: scaleX, scaleY: scaleY, hdg: hdg, stay: stay, tight: tight };
+    roundLock = { w: w, h: h, pinX: pinX, pinY: pinY, scaleX: scaleX, scaleY: scaleY, hdg: hdg, stay: stay, tight: tight, key: origin.key || '' };
     return {
       midLat: origin.lat,
       midLon: origin.lon,
@@ -1215,9 +1284,7 @@
   function signedDistToStart(pos) {
     var line = startLineMid();
     if (!line || !pos) return 0;
-    var weather = sampleAt((trail.marks || {})['1'], (replay && replay.gun_ts_ms) || 0);
-    var hdg = weather ? bearingDeg(line, weather) : 136;
-    return alongAcross(pos, line, hdg).along;
+    return alongAcross(pos, line, startCourseHdg(null)).along;
   }
 
   /* 60–70% of the fleet closest to 1st. Forget stragglers. */
@@ -1301,8 +1368,9 @@
     return roundMarkInFirstPack(live, pin);
   }
 
-  /* Race 7 Start: start line is VERTICAL. Course heading is perpendicular
-   * to Pin–RC toward weather so boats sail horizontally LTR.
+  /* Race 7 Start: start line is VERTICAL. Rotate according to Pin–RC
+   * (perpendicular toward weather) so boats sail horizontally LTR
+   * regardless of actual geographic direction.
    * Line sits on the LEFT. Only enough width left of the line for boats
    * lining up. They cross and sail away to the RIGHT. */
   function startCourseHdg(live) {
@@ -1312,11 +1380,17 @@
     if (!weather || weather.lat == null) {
       weather = sampleAt((trail.marks || {})['1'], (replay && replay.gun_ts_ms) || 0);
     }
-    if (weather && weather.lat != null) return bearingDeg(line, weather);
     if (line.pin && line.rc) {
       var alongLine = bearingDeg(line.pin, line.rc);
-      return (alongLine + 90) % 360;
+      var perpA = (alongLine + 90) % 360;
+      var perpB = (alongLine + 270) % 360;
+      if (weather && weather.lat != null) {
+        var toW = bearingDeg(line, weather);
+        return angDiff(perpA, toW) <= angDiff(perpB, toW) ? perpA : perpB;
+      }
+      return perpA;
     }
+    if (weather && weather.lat != null) return bearingDeg(line, weather);
     return 136;
   }
 
@@ -1577,9 +1651,12 @@
     ctx.restore();
   }
 
-  function drawCourseMarks(ctx, cam, ts, w, h, focus) {
+  function drawCourseMarks(ctx, cam, ts, w, h, focus, phase) {
+    var showStart = phase === 'start' || (focus && (focus.key === 'start' || isPinKey(focus.key)));
+    var showM1 = !!(focus && isTopKey(focus.key));
     var m1 = sampleAt((trail.marks || {})['1'], ts);
-    if (m1) {
+    /* Only the mark being rounded. Far pin / mark / start can be out of view. */
+    if (showM1 && m1) {
       var mp = xy(m1.lat, m1.lon, cam);
       if (markOnCanvas(mp, w, h)) {
         ctx.beginPath();
@@ -1598,10 +1675,10 @@
         ctx.fillText('M1', mp.x, mp.y - 16);
       }
     }
-    if (trail.start_line && trail.start_line.left && trail.start_line.right) {
+    if (showStart && trail.start_line && trail.start_line.left && trail.start_line.right) {
       drawGate(ctx, cam, trail.start_line, 'rgba(56,189,248,0.95)', '', 'Pin', 'RC');
     }
-    if (trail.finish_line && trail.finish_line.left && trail.finish_line.right) {
+    if (showStart && trail.finish_line && trail.finish_line.left && trail.finish_line.right) {
       var fl = trail.finish_line;
       var fm = xy((fl.left.lat + fl.right.lat) / 2, (fl.left.lon + fl.right.lon) / 2, cam);
       if (markOnCanvas(fm, w, h)) {
@@ -1730,7 +1807,7 @@
   function roundViewPack(live, mark) {
     var origin = roundOrigin(mark);
     if (roundTightNow(live, origin)) return tightViewRows(live, origin);
-    return packBehindFirst(live);
+    return dropFarMarkBoats(packBehindFirst(live), origin, live);
   }
 
   function acrossM(pos, mark, hdg) {
@@ -1961,6 +2038,50 @@
     return incomingHdg(live, mark, live && live.front);
   }
 
+  /* One being rounded: if two pin / mark or start would show, ignore
+   * the one far away from first (can be out of view). After rounding,
+   * a long video may change to the next mark. */
+  function focusNearFirst(live, rule) {
+    rule = rule || {};
+    var leader = live && live.front;
+    var ts = (live && live.ts) || 0;
+    var pin = fixedPin();
+    var m1s = sampleAt((trail.marks || {})['1'], ts);
+    var m1 = m1s && m1s.lat != null ? { lat: m1s.lat, lon: m1s.lon, key: '1' } : null;
+    var dPin = leader && leader.pos && pin ? distM(leader.pos, pin) : 1e9;
+    var dM1 = leader && leader.pos && m1 ? distM(leader.pos, m1) : 1e9;
+    var nTop = m1 ? nRoundedMark(live, m1) : 0;
+    var nxt = leader ? markPosForPass(passList()[leader.done], ts) : null;
+    var nextIsPin = !!(nxt && isPinKey(nxt.key));
+    var leftTop = nTop >= 12 && dM1 > 420 && nextIsPin && dPin < dM1 - 80;
+    if (rule.kind === 'start') return pin;
+    if (m1 && (String(rule.mark) === '1' || dM1 + 60 < dPin) && !leftTop) return m1;
+    if (pin && (dPin + 60 < dM1 || leftTop)) return pin;
+    if (m1 && dM1 <= dPin) return m1;
+    return pin || m1;
+  }
+
+  function dropFarMarkBoats(rows, origin, live) {
+    var front = live && live.front;
+    var out = [];
+    var i;
+    for (i = 0; i < (rows || []).length; i++) {
+      var r = rows[i];
+      if (!r || !r.pos) continue;
+      if (
+        origin &&
+        front &&
+        front.pos &&
+        distM(r.pos, origin) > 700 &&
+        distM(r.pos, front.pos) > 350
+      ) {
+        continue;
+      }
+      out.push(r);
+    }
+    return out.length ? out : rows || [];
+  }
+
   function camPlan(live, cssW, cssH) {
     var rule = clipRule || { kind: 'round', approach: 'rtl', holdN: 6 };
     var kind = rule.kind || 'round';
@@ -1972,14 +2093,15 @@
     var distLast = last && leader && leader.pos ? distM(leader.pos, last) : 1e9;
     var markX = 0.2;
     var phase = 'leg';
-    var focus = next;
+    var nearFocus = focusNearFirst(live, rule);
+    var focus = nearFocus || next;
     var hdg = lockApproachHdg != null ? lockApproachHdg : incomingHdg(live, next || last, leader);
-    var flipX = true;
+    var flipX = clipFlipX();
     var lastKey = last && last.key != null ? String(last.key) : '';
     var lockMatchesLast = !!(markLock && lastKey && String(markLock.key) === lastKey);
 
-    var pinRound = kind === 'round' && (isPinKey(last && last.key) || isPinKey(next && next.key));
-    var topRound = kind === 'round' && (isTopKey(last && last.key) || isTopKey(next && next.key) || (rule && rule.mark === '1'));
+    var pinRound = kind === 'round' && nearFocus && isPinKey(nearFocus.key);
+    var topRound = kind === 'round' && nearFocus && isTopKey(nearFocus.key);
 
     if (kind === 'start' && (!leader || leader.done < 1) && distNext > 280) {
       phase = 'start';
@@ -1988,28 +2110,26 @@
       flipX = false;
       lockApproachHdg = null;
       markLock = null;
-    } else if (pinRound) {
-      /* Pin-round clip: pin stays left the whole way. Do not hold M1
-       * just because 1st is still closer to weather. */
-      if (isPinKey(last && last.key)) {
+    } else if (topRound) {
+      /* One being rounded: M1. Do not steal to pin just because 1st's
+       * next mark is pin while boats are still at the top. */
+      if (isTopKey(last && last.key)) {
         phase = 'hold';
-        focus = last;
       } else {
         phase = 'approach-mark';
-        focus = next;
       }
+      focus = nearFocus;
       hdg = roundCourseHdg(live, focus);
       flipX = true;
       lockApproachHdg = hdg;
-    } else if (topRound) {
-      /* Race 7 1st top: M1 stays left the whole way. Same rules as pin. */
-      if (isTopKey(last && last.key)) {
+    } else if (pinRound) {
+      /* Pin-round: pin stays left. Far M1 can be out of view. */
+      if (isPinKey(last && last.key)) {
         phase = 'hold';
-        focus = last;
       } else {
         phase = 'approach-mark';
-        focus = next;
       }
+      focus = nearFocus;
       hdg = roundCourseHdg(live, focus);
       flipX = true;
       lockApproachHdg = hdg;
@@ -2028,7 +2148,8 @@
     } else {
       lockApproachHdg = null;
       markLock = null;
-      hdg = medianHdg(frontPack(live));
+      hdg = rotateAccordingHdg(medianHdg(frontPack(live)), live, next || last);
+      flipX = clipFlipX();
     }
 
     if (phase === 'hold' || phase === 'approach-mark') {
@@ -2120,7 +2241,15 @@
     }
     cam.boatR = collectiveBoatR(cam, pack);
     ctx.clearRect(0, 0, cssW, cssH);
-    drawCourseMarks(ctx, cam, ts, cssW, cssH, plan.phase === 'start' ? null : markLock || focus);
+    drawCourseMarks(
+      ctx,
+      cam,
+      ts,
+      cssW,
+      cssH,
+      plan.phase === 'start' ? { key: 'start' } : markLock || focus,
+      plan.phase
+    );
 
     var r = cam.boatR || 7;
     var i;
