@@ -543,21 +543,52 @@
     );
   }
 
+  function showWebcamSnap(root, clip) {
+    var stage = root.querySelector('[data-mm-stage]');
+    if (!stage) return;
+    var video = root.querySelector('[data-mm-hero-video]');
+    if (video && video.parentNode === stage) {
+      try {
+        video.pause();
+      } catch (e) {}
+      var hold = root.querySelector('[data-mm-video-hold]');
+      if (hold) hold.appendChild(video);
+    }
+    var img = stage.querySelector('[data-mm-webcam-live]');
+    if (!img) {
+      img = document.createElement('img');
+      img.setAttribute('data-mm-webcam-live', '');
+      img.alt = 'ZVYC live cam';
+      stage.appendChild(img);
+    }
+    stage.classList.add('mm-lipton-reels-stage--playing');
+    startWebcamLive(root, clip);
+  }
+
   function startHeroPlayback(root, clip) {
     var stage = root.querySelector('[data-mm-stage]');
     if (isWebcam(clip) && stage) {
       stopTrackOverlay();
-      var hold = root.querySelector('[data-mm-hero-video]');
-      if (hold && hold.parentNode) hold.parentNode.removeChild(hold);
-      var img = stage.querySelector('[data-mm-webcam-live]');
-      if (!img) {
-        img = document.createElement('img');
-        img.setAttribute('data-mm-webcam-live', '');
-        img.alt = 'ZVYC live cam';
-        stage.appendChild(img);
-      }
+      var src = playUrl(clip);
+      var video = ensureHeroVideo(root);
       stage.classList.add('mm-lipton-reels-stage--playing');
-      startWebcamLive(root, clip);
+      if (video && src && video.canPlayType && video.canPlayType('application/vnd.apple.mpegurl')) {
+        var snap = stage.querySelector('[data-mm-webcam-live]');
+        if (snap && snap.parentNode) snap.parentNode.removeChild(snap);
+        video.setAttribute('poster', liveThumbSrc(clip));
+        video.src = src;
+        if (video.parentNode !== stage) stage.appendChild(video);
+        video.onerror = function () {
+          showWebcamSnap(root, clip);
+        };
+        var playP = video.play();
+        if (playP && playP.catch) playP.catch(function () {
+          showWebcamSnap(root, clip);
+        });
+        startWebcamLive(root, clip);
+        return;
+      }
+      showWebcamSnap(root, clip);
       return;
     }
     var video = ensureHeroVideo(root);

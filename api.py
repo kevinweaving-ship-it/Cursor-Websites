@@ -20864,18 +20864,21 @@ def _mm_title_from_fb_url(url: str) -> str:
     return re.sub(r"[-_]+", " ", slug).strip().title()
 
 
+_ZVYC_LIVE_CAM_PAGE = "https://www.skylinewebcams.com/en/webcam/south-africa/western-cape/cape-town/zeekoevlei.html"
+_ZVYC_LIVE_CAM_SNAP = "https://www.skylinewebcams.com/temp/4040.jpg"
+_ZVYC_LIVE_M3U8_RE = re.compile(r"livee\.m3u8\?a=([A-Za-z0-9]+)")
 _ZVYC_LIVE_CAM = {
     "id": "zvyc-live-cam",
     "kind": "webcam",
     "placeholder": True,
-    "url": "https://www.skylinewebcams.com/en/webcam/south-africa/western-cape/cape-town/zeekoevlei.html",
-    "permalink": "https://www.skylinewebcams.com/en/webcam/south-africa/western-cape/cape-town/zeekoevlei.html",
+    "url": _ZVYC_LIVE_CAM_PAGE,
+    "permalink": _ZVYC_LIVE_CAM_PAGE,
     "title": "ZVYC Live Cam",
     "fb_title": "ZVYC Live Cam",
     "fb_sub": "Zeekoevlei · live",
     "fb_owner_logo": "https://cdn.skylinewebcams.com/as/img/hosts/4040.jpg",
-    "thumb": "https://www.skylinewebcams.com/temp/4040.jpg",
-    "play_url": "",
+    "thumb": "/api/regatta/2026-09-13-zvyc-cape-classic/zvyc-live-cam-thumb",
+    "play_url": "/api/regatta/2026-09-13-zvyc-cape-classic/zvyc-live-cam",
     "is_live": True,
     "started_at": "",
     "stamp": "LIVE",
@@ -20883,6 +20886,19 @@ _ZVYC_LIVE_CAM = {
     "height": 720,
     "aspect": "16:9",
 }
+
+
+def _zvyc_live_cam_stream_url() -> str:
+    """Resolve the current Skyline HLS URL. Do not store the feed."""
+    try:
+        with httpx.Client(timeout=8.0, follow_redirects=True, headers={"User-Agent": "Mozilla/5.0"}) as client:
+            html = client.get(_ZVYC_LIVE_CAM_PAGE).text or ""
+        m = _ZVYC_LIVE_M3U8_RE.search(html)
+        if m:
+            return "https://hd-auth.skylinewebcams.com/live.m3u8?a=" + m.group(1)
+    except Exception as e:
+        print(f"[zvyc_live_cam] resolve failed: {e}", flush=True)
+    return ""
 
 
 def _cape_classic_has_real_reels(videos: list) -> bool:
@@ -21014,6 +21030,23 @@ async def api_regatta_mm_live_fb_feed(regatta_id: str):
     if rid == _CAPE_CLASSIC_MM_REGATTA_ID:
         return _cape_classic_mm_reels_payload()
     raise HTTPException(status_code=404, detail="not found")
+
+
+@app.get("/api/regatta/{regatta_id}/zvyc-live-cam-thumb")
+async def api_zvyc_live_cam_thumb(regatta_id: str):
+    """Pass through the Skyline snapshot. Do not store the image."""
+    if str(regatta_id or "").strip() != _CAPE_CLASSIC_MM_REGATTA_ID:
+        raise HTTPException(status_code=404, detail="not found")
+    return RedirectResponse(_ZVYC_LIVE_CAM_SNAP, status_code=302)
+
+
+@app.get("/api/regatta/{regatta_id}/zvyc-live-cam")
+async def api_zvyc_live_cam(regatta_id: str):
+    """Pass through the current Skyline HLS URL. Do not store the feed."""
+    if str(regatta_id or "").strip() != _CAPE_CLASSIC_MM_REGATTA_ID:
+        raise HTTPException(status_code=404, detail="not found")
+    url = _zvyc_live_cam_stream_url()
+    return RedirectResponse(url or _ZVYC_LIVE_CAM_SNAP, status_code=302)
 
 
 @app.patch("/api/super-admin/regatta/{regatta_id}/mm-live-fb-feed")
@@ -27919,12 +27952,12 @@ def serve_regatta_standalone(slug: str, request: Request):
             mm_card = _lipton_mm_reels_card_html(str(regatta_id))
             mm_card_js = (
                 '<script src="/js/mm-lipton-track-overlay.js?v=mmr102" defer></script>'
-                '<script src="/js/mm-lipton-reels-card.js?v=mmr105" defer></script>'
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr106" defer></script>'
             )
         elif str(regatta_id) == "2026-09-13-zvyc-cape-classic":
             mm_card = _cape_classic_mm_reels_card_html(str(regatta_id))
             mm_card_js = (
-                '<script src="/js/mm-lipton-reels-card.js?v=mmr105" defer></script>'
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr106" defer></script>'
             )
         body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
