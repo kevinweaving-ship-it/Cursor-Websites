@@ -12573,8 +12573,82 @@ def _zvyc_club_password_hash() -> str:
     return hashlib.sha256(str(pw).encode("utf-8")).hexdigest()
 
 
+def _normalize_za_whatsapp(raw) -> str:
+    digits = re.sub(r"\D", "", str(raw or ""))
+    if digits.startswith("27") and len(digits) >= 11:
+        digits = "0" + digits[2:]
+    elif len(digits) == 9 and digits == _ZVYC_CLUB_WHATSAPP[1:]:
+        digits = "0" + digits
+    return digits[:10] if digits else ""
+
+
+def _is_zvyc_club_whatsapp(raw) -> bool:
+    return _normalize_za_whatsapp(raw) == _ZVYC_CLUB_WHATSAPP
+
+
+def _ensure_zvyc_club_desk_personal(cur) -> None:
+    """Club-desk key in sas_id_personal so user_accounts FK can point at ZVYC, not a sailor number."""
+    if not table_exists("sas_id_personal"):
+        raise RuntimeError("sas_id_personal not found")
+    cur.execute(
+        """
+        SELECT sa_sailing_id FROM public.sas_id_personal
+        WHERE sa_sailing_id = %s
+        LIMIT 1
+        """,
+        (_ZVYC_CLUB_LOGIN_SAS,),
+    )
+    if cur.fetchone():
+        sets = []
+        params: list = []
+        if column_exists("sas_id_personal", "full_name"):
+            sets.append("full_name = COALESCE(NULLIF(trim(full_name), ''), %s)")
+            params.append(_ZVYC_CLUB_LOGIN_NAME)
+        if column_exists("sas_id_personal", "phone_primary"):
+            sets.append("phone_primary = COALESCE(NULLIF(trim(phone_primary), ''), %s)")
+            params.append(_ZVYC_CLUB_WHATSAPP)
+        if column_exists("sas_id_personal", "profile_photo_path"):
+            sets.append("profile_photo_path = COALESCE(NULLIF(trim(profile_photo_path), ''), %s)")
+            params.append("/api/club-logo/ZVYC")
+        if sets:
+            params.append(_ZVYC_CLUB_LOGIN_SAS)
+            cur.execute(
+                "UPDATE public.sas_id_personal SET " + ", ".join(sets) + " WHERE sa_sailing_id = %s",
+                params,
+            )
+        return
+    cols = ["sa_sailing_id"]
+    vals: list = [_ZVYC_CLUB_LOGIN_SAS]
+    if column_exists("sas_id_personal", "full_name"):
+        cols.append("full_name")
+        vals.append(_ZVYC_CLUB_LOGIN_NAME)
+    if column_exists("sas_id_personal", "first_name"):
+        cols.append("first_name")
+        vals.append("ZVYC")
+    if column_exists("sas_id_personal", "last_name"):
+        cols.append("last_name")
+        vals.append("Club Admin")
+    if column_exists("sas_id_personal", "club_1"):
+        cols.append("club_1")
+        vals.append("ZVYC")
+    if column_exists("sas_id_personal", "phone_primary"):
+        cols.append("phone_primary")
+        vals.append(_ZVYC_CLUB_WHATSAPP)
+    if column_exists("sas_id_personal", "profile_photo_path"):
+        cols.append("profile_photo_path")
+        vals.append("/api/club-logo/ZVYC")
+    cur.execute(
+        "INSERT INTO public.sas_id_personal ("
+        + ", ".join(cols)
+        + ") VALUES ("
+        + ", ".join(["%s"] * len(vals))
+        + ")",
+        vals,
+    )
+
+
 def _ensure_zvyc_club_whatsapp_admin() -> dict:
-    """Create or refresh the ZVYC WhatsApp club-admin login. Does not add a sailor."""
+    """Create or refresh the ZVYC WhatsApp club-admin login. Does not invent a numeric SAS ID."""
     if not table_exists("user_accounts"):
         return {"ok": False, "error": "user_accounts not found"}
     club_id = _lookup_club_id_by_abbrev("ZVYC")
@@ -12586,6 +12660,7 @@ def _ensure_zvyc_club_whatsapp_admin() -> dict:
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     try:
+        _ensure_zvyc_club_desk_personal(cur)
         cur.execute(
             """
             SELECT account_id, sas_id, role FROM public.user_accounts
@@ -22668,13 +22743,16 @@ async def login(request: Request):
         
         # Try to find account by SAS ID or WhatsApp number
         # Username can be SAS ID (numeric) or WhatsApp (10 digits)
-        whatsapp_clean = re.sub(r'\D', '', str(username))[:10] if username else ''
+        whatsapp_clean = _normalize_za_whatsapp(username)
         
         # Check if username looks like SAS ID (numeric) or WhatsApp (10 digits starting with 0)
         is_sas_id = username.isdigit() and len(username) <= 10
         is_whatsapp = len(whatsapp_clean) == 10 and whatsapp_clean.startswith('0')
-        if is_whatsapp and whatsapp_clean == _ZVYC_CLUB_WHATSAPP:
-            _ensure_zvyc_club_whatsapp_admin()
+        if _is_zvyc_club_whatsapp(username):
+            desk = _ensure_zvyc_club_whatsapp_admin()
+            if not desk.get("ok"):
+                return {"success": False, "error": desk.get("error") or "ZVYC club login is not ready"}
+            whatsapp_clean = _ZVYC_CLUB_WHATSAPP
         
         cur.execute("""
             SELECT account_id, sas_id, login_method, provider_id, email

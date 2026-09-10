@@ -28,7 +28,9 @@ class ClubAdminScoreMinTest(unittest.TestCase):
         self.assertIn('_ZVYC_CLUB_WHATSAPP = "0217053373"', self.src)
         self.assertIn('_ZVYC_CLUB_LOGIN_SAS = "ZVYC"', self.src)
         self.assertIn("def _ensure_zvyc_club_whatsapp_admin", self.src)
-        self.assertIn("whatsapp_clean == _ZVYC_CLUB_WHATSAPP", self.src)
+        self.assertIn("def _ensure_zvyc_club_desk_personal", self.src)
+        self.assertIn("_is_zvyc_club_whatsapp(username)", self.src)
+        self.assertIn("INSERT INTO public.sas_id_personal", self.src)
         self.assertIn("ZVYC_CLUB_ADMIN_PASSWORD", self.src)
         self.assertEqual(
             hashlib.sha256(b"ZVYC1234").hexdigest(),
@@ -60,7 +62,9 @@ class ClubAdminScoreMinTest(unittest.TestCase):
         desk = self.src[
             self.src.find("_ZVYC_CLUB_WHATSAPP") : self.src.find("def _fetch_og_metadata")
         ]
-        self.assertNotIn("INSERT INTO public.sas_id_personal", desk)
+        self.assertIn("INSERT INTO public.sas_id_personal", desk)
+        self.assertIn('_ZVYC_CLUB_LOGIN_SAS = "ZVYC"', desk)
+        self.assertNotIn("14496", desk)
         self.assertNotIn("live_videos", self.src)
         self.assertIn("mm-lipton-track-overlay.js?v=mmr102", self.src)
 
