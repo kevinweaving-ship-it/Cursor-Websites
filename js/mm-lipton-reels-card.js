@@ -165,6 +165,7 @@
   function stopAllPlayback(root) {
     exitFsIfInside(root);
     destroyWebcamHls(root);
+    hideCamLoad(root);
     pauseHero(root);
     var iframes = root.querySelectorAll('[data-mm-expanded] iframe');
     var i;
@@ -613,18 +614,9 @@
     );
   }
 
-  function showWebcamSnap(root, clip) {
-    destroyWebcamHls(root);
+  function paintWebcamPoster(root, clip) {
     var stage = root.querySelector('[data-mm-stage]');
     if (!stage) return;
-    var video = root.querySelector('[data-mm-hero-video]');
-    if (video && video.parentNode === stage) {
-      try {
-        video.pause();
-      } catch (e) {}
-      var hold = root.querySelector('[data-mm-video-hold]');
-      if (hold) hold.appendChild(video);
-    }
     var img = stage.querySelector('[data-mm-webcam-live]');
     if (!img) {
       img = document.createElement('img');
@@ -636,21 +628,95 @@
     startWebcamLive(root, clip);
   }
 
+  function hideCamLoad(root) {
+    if (root && root._mmCamLoadTimer) {
+      window.clearTimeout(root._mmCamLoadTimer);
+      root._mmCamLoadTimer = 0;
+    }
+    var box = root && root.querySelector('[data-mm-cam-load]');
+    if (box) box.hidden = true;
+  }
+
+  function showCamLoad(root) {
+    var stage = root && root.querySelector('[data-mm-stage]');
+    if (!stage) return;
+    var box = stage.querySelector('[data-mm-cam-load]');
+    if (!box) {
+      box = document.createElement('div');
+      box.className = 'mm-lipton-reels-cam-load';
+      box.setAttribute('data-mm-cam-load', '');
+      box.setAttribute('aria-live', 'polite');
+      box.setAttribute('aria-label', 'Loading');
+      box.innerHTML =
+        '<span class="mm-lipton-reels-cam-spin" aria-hidden="true"></span>' +
+        '<span class="mm-lipton-reels-cam-load-txt">Loading</span>';
+      stage.appendChild(box);
+    }
+    box.hidden = false;
+  }
+
+  function showWebcamSnap(root, clip) {
+    destroyWebcamHls(root);
+    hideCamLoad(root);
+    var stage = root.querySelector('[data-mm-stage]');
+    if (!stage) return;
+    var video = root.querySelector('[data-mm-hero-video]');
+    if (video && video.parentNode === stage) {
+      try {
+        video.pause();
+      } catch (e) {}
+      var hold = root.querySelector('[data-mm-video-hold]');
+      if (hold) hold.appendChild(video);
+    }
+    paintWebcamPoster(root, clip);
+  }
+
+  /* Timed 2026-09-10 live: playlist 2.0-3.2s, first seg 3.4-4.4s, playlist+2seg 9-11s. */
+  var CAM_LOAD_MIN_MS = 600;
+  var CAM_LOAD_HANG_MS = 15000;
+
   function playWebcamVideo(root, clip, video, src) {
     destroyWebcamHls(root);
+    root._mmCamReady = false;
+    paintWebcamPoster(root, clip);
+    showCamLoad(root);
     video.muted = true;
     video.defaultMuted = true;
     video.setAttribute('muted', '');
     video.playsInline = true;
+    video.style.opacity = '0';
     var poster = liveThumbSrc(clip);
     if (poster) video.setAttribute('poster', poster);
+    var started = Date.now();
     function onFail() {
+      video.style.opacity = '';
       showWebcamSnap(root, clip);
+    }
+    function reveal() {
+      if (root._mmCamReady) return;
+      var wait = CAM_LOAD_MIN_MS - (Date.now() - started);
+      function go() {
+        if (root._mmCamReady) return;
+        root._mmCamReady = true;
+        hideCamLoad(root);
+        stopWebcamLive(root);
+        video.style.opacity = '';
+        var stage = root.querySelector('[data-mm-stage]');
+        var snap = stage && stage.querySelector('[data-mm-webcam-live]');
+        if (snap && snap.parentNode) snap.parentNode.removeChild(snap);
+      }
+      if (wait > 0) window.setTimeout(go, wait);
+      else go();
     }
     function goPlay() {
       var p = video.play();
       if (p && p.catch) p.catch(onFail);
     }
+    video.addEventListener('playing', reveal, { once: true });
+    root._mmCamLoadTimer = window.setTimeout(function () {
+      root._mmCamLoadTimer = 0;
+      if (!root._mmCamReady) hideCamLoad(root);
+    }, CAM_LOAD_HANG_MS);
     if (video.canPlayType && video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = src;
       goPlay();
@@ -679,8 +745,6 @@
       var src = playUrl(clip);
       var video = ensureHeroVideo(root);
       stage.classList.add('mm-lipton-reels-stage--playing');
-      var snapEl = stage.querySelector('[data-mm-webcam-live]');
-      if (snapEl && snapEl.parentNode) snapEl.parentNode.removeChild(snapEl);
       if (video && src) {
         if (video.parentNode !== stage) stage.appendChild(video);
         playWebcamVideo(root, clip, video, src);

@@ -20656,6 +20656,12 @@ _LIPTON_MM_REELS_CSS = (
     ".mm-lipton-reels-player-wrap{position:relative;width:100%;aspect-ratio:var(--mm-aspect,16/9);overflow:hidden;border-radius:8px;background:#001018;border:2px solid #001f3f;scroll-margin-top:72px}"
     ".mm-lipton-reels-stage{position:absolute;inset:0;width:100%;height:100%;overflow:hidden;background:#001018;transition:transform .28s ease}"
     ".mm-lipton-reels-stage iframe,.mm-lipton-reels-stage video,.mm-lipton-reels-stage img{position:absolute;inset:0;z-index:0;width:100%;height:100%;border:0;object-fit:cover;background:#001018;filter:none;opacity:1}"
+    ".mm-lipton-reels-stage img[data-mm-webcam-live]{z-index:1}"
+    "@keyframes mm-cam-spin{to{transform:rotate(360deg)}}"
+    ".mm-lipton-reels-cam-load{position:absolute;inset:0;z-index:4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;pointer-events:none;background:none}"
+    ".mm-lipton-reels-cam-load[hidden]{display:none!important}"
+    ".mm-lipton-reels-cam-spin{width:44px;height:44px;border:3px solid rgba(0,180,255,.28);border-top-color:#00B4FF;border-radius:50%;box-sizing:border-box;box-shadow:0 0 8px #00B4FF;animation:mm-cam-spin .8s linear infinite}"
+    ".mm-lipton-reels-cam-load-txt{color:#fff;font-size:12px;font-weight:700;letter-spacing:.04em;text-shadow:0 1px 2px rgba(0,0,0,.85)}"
     ".mm-lipton-reels-stage video::-webkit-media-controls,.mm-lipton-reels-stage video::-webkit-media-controls-enclosure,.mm-lipton-reels-stage video::-webkit-media-controls-overlay-enclosure,.mm-lipton-reels-stage video::-webkit-media-controls-panel,.mm-lipton-reels-stage video::-webkit-media-controls-start-playback-button,.mm-lipton-reels-stage video::-webkit-media-controls-overlay-play-fill{display:none!important;opacity:0!important;-webkit-appearance:none}"
     ".mm-lipton-reels-video-hold{position:absolute;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none}"
     ".mm-lipton-reels-track{position:absolute;left:0;right:0;bottom:0;height:var(--mm-track-h,58%);z-index:3;pointer-events:none;display:none;background:none}"
@@ -28059,12 +28065,12 @@ def serve_regatta_standalone(slug: str, request: Request):
             mm_card = _lipton_mm_reels_card_html(str(regatta_id))
             mm_card_js = (
                 '<script src="/js/mm-lipton-track-overlay.js?v=mmr102" defer></script>'
-                '<script src="/js/mm-lipton-reels-card.js?v=mmr109" defer></script>'
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr110" defer></script>'
             )
         elif str(regatta_id) == "2026-09-13-zvyc-cape-classic":
             mm_card = _cape_classic_mm_reels_card_html(str(regatta_id))
             mm_card_js = (
-                '<script src="/js/mm-lipton-reels-card.js?v=mmr109" defer></script>'
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr110" defer></script>'
             )
         body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
