@@ -840,10 +840,9 @@
     return (mark && mark.hdg) || 180;
   }
 
-  function eatAlongAcross(live, origin, hdg, win) {
-    var rows = (live && live.rows) || [];
+  function eatAlongRows(rows, origin, hdg, win) {
     var i;
-    for (i = 0; i < rows.length; i++) {
+    for (i = 0; i < (rows || []).length; i++) {
       if (!rows[i] || !rows[i].pos) continue;
       var aa = alongAcross(rows[i].pos, origin, hdg);
       if (aa.along < win.minA) win.minA = aa.along;
@@ -853,16 +852,65 @@
     }
   }
 
+  function eatAlongAcross(live, origin, hdg, win) {
+    eatAlongRows((live && live.rows) || [], origin, hdg, win);
+  }
+
+  function pinPass() {
+    var passes = passList();
+    var i;
+    for (i = 0; i < passes.length; i++) {
+      if (passes[i] && (passes[i].label === 'Pin' || Number(passes[i].mark) === 4)) return passes[i];
+    }
+    return null;
+  }
+
+  function nRoundedPin(live) {
+    return nRoundedPass(pinPass(), live && live.ts);
+  }
+
+  function leadRoundRows(live, n) {
+    var rows = [];
+    var i;
+    for (i = 0; i < ((live && live.rows) || []).length; i++) {
+      if (live.rows[i] && live.rows[i].pos) rows.push(live.rows[i]);
+    }
+    rows.sort(function (a, b) {
+      return (a.racePlace || 99) - (b.racePlace || 99);
+    });
+    return rows.slice(0, n || 7);
+  }
+
+  /* Zoom in around the pin while 1st through 6–8th are rounding. */
+  function roundTightNow(live, origin) {
+    var front = live && live.front;
+    var nR = nRoundedPin(live);
+    var incoming = false;
+    if (front) {
+      var nxt = markPosForPass(passList()[front.done], live && live.ts);
+      incoming = !!(nxt && isPinKey(nxt.key));
+    }
+    var tta = secsToMark(front, origin, live && live.ts);
+    var d = front && front.pos && origin ? distM(front.pos, origin) : 1e9;
+    if (incoming && (tta <= 12 || d < 110)) return true;
+    if (nR >= 1 && nR < 7) return true;
+    if (!incoming && d < 90 && nR < 7) return true;
+    return false;
+  }
+
   /* ROUND CAM LOCKED — Race 7 1st downwind (and other pin rounds):
    * Pin is the fixed start-line pin, not drifting GPS mark 4. Mark stays
    * LEFT and does not move from left unless it goes out of view left as
    * 1st heads away and the mark is no longer in the 60–70% of the fleet
    * closest to 1st. Approach RTL, after rounding boats sail LTR (back
-   * toward M1). Scale X from clip-end GPS + time left. Right buffer so
-   * 1st stays in view. Do not shrink X to fit Y. Pin never pans right. */
+   * toward M1). Zoom in around the pin to show 1st through 6–8th rounding.
+   * After that, only zoom out to keep 1st on the right with buffer; by the
+   * end of the video 1st is far right with buffer. Do not shrink X to fit
+   * Y. Pin never pans right. */
   function roundPackCam(live, w, h, mark) {
     var origin = roundOrigin(mark) || { lat: 0, lon: 0, key: '' };
     var stay = roundPinMustStay(live, origin);
+    var tight = roundTightNow(live, origin);
     var boxed = sameCamBox(roundLock, w, h);
     var hdg = boxed && roundLock.hdg != null
       ? roundLock.hdg
@@ -874,10 +922,22 @@
       hdg = roundLock.hdg;
       pinX = roundLock.pinX;
     }
+    var nR = nRoundedPin(live);
+    var showN = 7;
+    if (nR >= 1) showN = Math.min(8, Math.max(6, nR + 2));
     var win = { minA: 0, maxA: 0, minC: -20, maxC: 20 };
-    eatAlongAcross(live, origin, hdg, win);
-    var endLive = clipEndLive();
-    if (endLive) eatAlongAcross(endLive, origin, hdg, win);
+    if (tight) {
+      eatAlongRows(leadRoundRows(live, showN), origin, hdg, win);
+    } else {
+      eatAlongAcross(live, origin, hdg, win);
+    }
+    if (!tight && !stay) {
+      var remain = 0;
+      var endTs = clipEndTs();
+      if (endTs && live && live.ts) remain = (endTs - live.ts) / 1000;
+      var endLive = remain < 25 ? clipEndLive() : null;
+      if (endLive) eatAlongAcross(endLive, origin, hdg, win);
+    }
     var padR = startPadR(w);
     var rightNeed = Math.max(48, -win.minA);
     var leftNeed = Math.max(8, win.maxA);
@@ -896,7 +956,7 @@
     if (topA > 1) scaleY = Math.min(scaleY, (pinY - padT) / topA);
     if (botA < -1) scaleY = Math.min(scaleY, (h - padB - pinY) / -botA);
     if (!(scaleY > 0.04)) scaleY = 0.04;
-    if (boxed) {
+    if (boxed && !tight) {
       if (roundLock.scaleX > 0 && scaleX > roundLock.scaleX) scaleX = roundLock.scaleX;
       if (roundLock.scaleY > 0 && scaleY > roundLock.scaleY) scaleY = roundLock.scaleY;
     }
@@ -934,7 +994,7 @@
         if (needLeave > 0 && scaleX > needLeave) scaleX = needLeave;
       }
     }
-    roundLock = { w: w, h: h, pinX: pinX, pinY: pinY, scaleX: scaleX, scaleY: scaleY, hdg: hdg, stay: stay };
+    roundLock = { w: w, h: h, pinX: pinX, pinY: pinY, scaleX: scaleX, scaleY: scaleY, hdg: hdg, stay: stay, tight: tight };
     return {
       midLat: origin.lat,
       midLon: origin.lon,
