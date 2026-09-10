@@ -21,6 +21,7 @@ def _load_score_helpers():
     end = src.find("def _lookup_club_id_by_abbrev")
     ns = {
         "re": re,
+        "json": __import__("json"),
         "Optional": Optional,
         "HTTPException": _FakeHTTPException,
     }
@@ -192,7 +193,8 @@ class ClubAdminScoreMinTest(unittest.TestCase):
         self.assertNotIn("location.reload", self.club_js)
         self.assertNotIn("inp.disabled = true", self.club_js)
         self.assertNotIn("alert(", self.club_js)
-        self.assertIn("races_sailed = max(existing_block_rs, filled_races, race_num)", self.src)
+        self.assertIn("discard_count = _appendix_a_discard_count(completed)", self.src)
+        self.assertIn("def _fleet_scored_race_count", self.src)
         self.assertIn('startswith("2026-09-13-zvyc-cape-classic")', self.src)
         self.assertIn("def _cape_classic_event_id", self.src)
         sql = Path("sailingsa/deploy/live_scope_score_triggers_to_event.sql").read_text(encoding="utf-8")
@@ -205,6 +207,11 @@ class ClubAdminScoreMinTest(unittest.TestCase):
         self.assertEqual(h["_validate_race_score_value"]("3", 9), "3")
         self.assertEqual(h["_validate_race_score_value"]("10", 9), "10")
         self.assertEqual(h["_validate_race_score_value"]("ocs", 9), "10 OCS")
+        self.assertEqual(h["_validate_race_score_value"]("OCS", 3), "4 OCS")
+        self.assertEqual(h["_validate_race_score_value"]("ocs", 3), "4 OCS")
+        self.assertEqual(h["_fleet_scored_race_count"]([{"R1": "1", "R2": "2", "R3": "OCS"}]), 3)
+        self.assertEqual(h["_appendix_a_discard_count"](3), 0)
+        self.assertEqual(h["_appendix_a_discard_count"](4), 0)
         self.assertEqual(h["_validate_race_score_value"]("DSQ", 9), "10 DSQ")
         self.assertEqual(h["_validate_race_score_value"]("DSQ", 14), "15 DSQ")
         self.assertEqual(h["_validate_race_score_value"]("32DSQ", 9), "10 DSQ")
@@ -241,6 +248,8 @@ class ClubAdminScoreMinTest(unittest.TestCase):
         self.assertIn("R−", self.club_js)
         self.assertIn("typed > entries + 1", self.club_js)
         self.assertIn('td.textContent = ""', self.club_js)
+        self.assertIn("function scoredRaceCount", self.club_js)
+        self.assertIn('publicCell(inp.getAttribute("data-original")', self.club_js)
 
 
 if __name__ == "__main__":

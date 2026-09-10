@@ -12629,6 +12629,49 @@ def _appendix_a_discard_count(races_sailed: int) -> int:
     return max(int(races_sailed or 0), 0) // 5
 
 
+def _race_key_num(key) -> int:
+    m = re.fullmatch(r"R(\d+)", str(key or "").strip().upper())
+    return int(m.group(1)) if m else 0
+
+
+def _race_score_filled(val) -> bool:
+    return bool(str(val or "").strip())
+
+
+def _fleet_scored_race_count(score_maps) -> int:
+    """Distinct R* keys that have a place or code. Empty R+ columns do not count."""
+    keys = set()
+    for rs in score_maps or []:
+        if isinstance(rs, str):
+            try:
+                rs = json.loads(rs)
+            except Exception:
+                continue
+        if not isinstance(rs, dict):
+            continue
+        for k, v in rs.items():
+            n = _race_key_num(k)
+            if n and _race_score_filled(v):
+                keys.add(n)
+    return len(keys)
+
+
+def _fleet_max_race_num(score_maps) -> int:
+    n = 0
+    for rs in score_maps or []:
+        if isinstance(rs, str):
+            try:
+                rs = json.loads(rs)
+            except Exception:
+                continue
+        if not isinstance(rs, dict):
+            continue
+        for k, v in rs.items():
+            if _race_score_filled(v):
+                n = max(n, _race_key_num(k))
+    return n
+
+
 def _fleet_races_step(current: int, delta: int, last_race_filled: bool):
     """R+ adds a column. R− clears last-race scores, then drops an empty extra column. R1 stays."""
     cur = max(int(current or 0), 1)
@@ -12678,9 +12721,9 @@ def _appendix_a_apply_series(
 ):
     """Total, nett, and discard brackets for one boat. Lowest unused scores stay; worst discarded."""
     out = dict(race_scores or {})
-    n_races = max(int(races_sailed or 0), 0)
+    n_races = max(int(races_sailed or 0), _fleet_max_race_num([out]), 0)
     if discard_count is None:
-        discard_count = _appendix_a_discard_count(n_races)
+        discard_count = _appendix_a_discard_count(_fleet_scored_race_count([out]))
     discard_count = max(int(discard_count or 0), 0)
     scores_list = []
     for i in range(1, n_races + 1):
@@ -14742,14 +14785,20 @@ def patch_race_score(request: Request, result_id: int, body: dict):
             
             # Count races sailed (non-empty race scores). Never shrink the block
             # when one boat still has fewer races than the fleet.
-            filled_races = len([k for k in race_scores.keys() if k.startswith('R') and race_scores[k]])
-            race_num = int(race_key[1:]) if str(race_key)[1:].isdigit() else 0
-            existing_block_rs = int(result.get("races_sailed") or 0)
-            races_sailed = max(existing_block_rs, filled_races, race_num)
-            
-            # Low Point Appendix A: 1 discard after 5 races, 2 after 10, …
-            discard_count = _appendix_a_discard_count(races_sailed)
-            to_count = max(0, int(races_sailed) - int(discard_count))
+            fleet_maps = [race_scores]
+            cur.execute(
+                "SELECT race_scores FROM results WHERE block_id = %s AND result_id != %s",
+                (block_id, result_id),
+            )
+            for row in cur.fetchall() or []:
+                rs = row.get("race_scores") or {}
+                if isinstance(rs, str):
+                    rs = json.loads(rs)
+                fleet_maps.append(rs if isinstance(rs, dict) else {})
+            completed = _fleet_scored_race_count(fleet_maps)
+            races_sailed = max(completed, _fleet_max_race_num(fleet_maps), 1)
+            discard_count = _appendix_a_discard_count(completed)
+            to_count = max(0, int(completed) - int(discard_count))
 
             race_scores, total, nett = _appendix_a_apply_series(
                 race_scores, races_sailed, entries_count, discard_count
@@ -14984,8 +15033,16 @@ def patch_fleet_races(request: Request, result_id: int, body: dict):
 
             cur.execute("SELECT COUNT(*) AS cnt FROM results WHERE block_id = %s", (block_id,))
             entries_count = int((cur.fetchone() or {}).get("cnt") or 0)
-            discard_count = _appendix_a_discard_count(nxt)
-            to_count = max(0, int(nxt) - int(discard_count))
+            cur.execute("SELECT race_scores FROM results WHERE block_id = %s", (block_id,))
+            fleet_maps = []
+            for row in cur.fetchall() or []:
+                rs = row.get("race_scores") or {}
+                if isinstance(rs, str):
+                    rs = json.loads(rs)
+                fleet_maps.append(rs if isinstance(rs, dict) else {})
+            completed = _fleet_scored_race_count(fleet_maps)
+            discard_count = _appendix_a_discard_count(completed)
+            to_count = max(0, int(completed) - int(discard_count))
             cur.execute(
                 """
                 UPDATE regatta_blocks
@@ -26971,18 +27028,21 @@ def _render_result_sheet_fleet(
     races_sailed_db = int(fleet.get("races_sailed") or 0)
     max_race_from_scores = _max_race_idx_from_result_rows(rows)
     races_sailed = max(races_sailed_db, max_race_from_scores)
-    if str(regatta_id or "").strip() == _CAPE_CLASSIC_MM_REGATTA_ID:
-        races_sailed = max(int(races_sailed or 0), 1)
-    discard_count = fleet.get("discard_count") or 0
-    to_count = fleet.get("to_count")
-    if to_count is None and discard_count is not None:
-        to_count = max(0, int(races_sailed) - int(discard_count))
-    if str(regatta_id or "").strip() == _CAPE_CLASSIC_MM_REGATTA_ID and int(races_sailed or 0) >= 1:
-        if to_count is None or int(to_count or 0) < 1:
-            to_count = max(0, int(races_sailed) - int(discard_count or 0))
+    if _cape_classic_event_id(regatta_id):
+        completed = _fleet_scored_race_count([r.get("race_scores") for r in rows])
+        races_sailed = max(int(races_sailed or 0), completed, 1)
+        discard_count = _appendix_a_discard_count(completed)
+        to_count = max(0, completed - discard_count)
+        sailed_line_n = completed
+    else:
+        discard_count = fleet.get("discard_count") or 0
+        to_count = fleet.get("to_count")
+        if to_count is None and discard_count is not None:
+            to_count = max(0, int(races_sailed) - int(discard_count))
+        sailed_line_n = races_sailed
     entries = fleet.get("entries") or 0
     scoring_system = fleet.get("scoring_system") or "Appendix A"
-    sailed_line = f"Sailed: {races_sailed}, Discards: {discard_count}, To count: {to_count}, Entries: {entries}, Scoring system: {scoring_system}"
+    sailed_line = f"Sailed: {sailed_line_n}, Discards: {discard_count}, To count: {to_count}, Entries: {entries}, Scoring system: {scoring_system}"
 
     def _row_has_crew(row):
         if (row.get("crew_name") or "").strip():

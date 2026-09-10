@@ -109,6 +109,10 @@
       var m = bare.match(/^(\d+(?:\.\d+)?)([A-Z]+)$/);
       if (m && PENALTY_CODES.indexOf(m[2]) >= 0) code = m[2];
     }
+    if (!code) {
+      var cm = bare.match(/^(DNC|DNS|DNF|RET|DSQ|UFD|BFD|DPI|OCS|NSC|DNE)$/);
+      if (cm) code = cm[1];
+    }
     var n = Math.max(parseInt(entries, 10) || 0, 0);
     if (code) return String(n + 1) + " " + code;
     var num = v.replace(/^\(|\)$/g, "").trim();
@@ -127,7 +131,7 @@
     var entries = entriesFor(inp);
     var v = publicCell(inp.value, entries);
     inp.value = v;
-    var orig = (inp.getAttribute("data-original") || "").trim();
+    var orig = publicCell(inp.getAttribute("data-original") || "", entries);
     if (v === orig) return;
     if (v && /^\d+(\.0+)?$/.test(v) && entries > 0) {
       var typed = parseInt(v, 10);
@@ -220,6 +224,7 @@
     if (row.race_scores && typeof row.race_scores === "object") {
       tr.querySelectorAll(".club-score-input").forEach(function (box) {
         if (document.activeElement === box) return;
+        if (box.classList.contains("club-score-input--saving")) return;
         var rk = box.getAttribute("data-race");
         var cell = String(row.race_scores[rk] == null ? "" : row.race_scores[rk]);
         box.value = cell;
@@ -450,10 +455,22 @@
     });
   }
 
+  function scoredRaceCount(table) {
+    var keys = {};
+    if (!table) return 0;
+    table.querySelectorAll(".club-score-input").forEach(function (box) {
+      if (String(box.value || "").replace(/[()]/g, "").trim()) {
+        keys[box.getAttribute("data-race")] = 1;
+      }
+    });
+    return Object.keys(keys).length;
+  }
+
   function setSailedLine(sec, n) {
     if (!sec) return;
     var line = sec.querySelector(".sailed-line");
     if (!line) return;
+    if (n == null) n = scoredRaceCount(fleetTable(sec));
     var disc = Math.floor(n / 5);
     var to = Math.max(0, n - disc);
     var entries = sec.querySelectorAll("tr[data-result-id]").length;
@@ -515,7 +532,7 @@
         } else if (n < current) {
           for (var d = current; d > n; d--) dropRaceCol(table, d);
         }
-        setSailedLine(sec, n);
+        setSailedLine(sec, scoredRaceCount(table));
         applyServerFleet(o.j, table);
         pushLive();
       })
