@@ -6,11 +6,19 @@ Copy this file and sailingsa/backend/regatta_print_compact_css.py to the server.
 """
 
 from pathlib import Path
+import re
 import sys
 
 LIVE_API = Path("/var/www/sailingsa/api/api.py")
 OLD = '<div class="action-buttons"><button class="action-button" onclick="window.print()">Print</button></div>'
 STYLE_ID = "ssa-print-compact"
+INJECT_RE = re.compile(
+    r'<style id="ssa-print-compact">.*?</style>'
+    r'(?:\s*<div id="ssaPrintPageFooter"[^>]*>.*?</div>)?'
+    r'\s*<div class="action-buttons">.*?</div>'
+    r'(?:\s*<script>\(function\(\)\{.*?\}\)\(\);</script>)?',
+    re.S,
+)
 
 
 def _load_bar_html() -> str:
@@ -36,24 +44,26 @@ def _load_bar_html() -> str:
 def main() -> None:
     text = LIVE_API.read_text(encoding="utf-8")
     bar = _load_bar_html()
-    if STYLE_ID in text and "regattaShareBtn" in text:
-        print("already patched")
+    if INJECT_RE.search(text):
+        LIVE_API.write_text(INJECT_RE.sub(bar, text, count=1), encoding="utf-8")
+        print("updated existing Print/Share inject")
         return
     if OLD in text:
-        text = text.replace(OLD, bar)
-        LIVE_API.write_text(text, encoding="utf-8")
+        LIVE_API.write_text(text.replace(OLD, bar), encoding="utf-8")
         print("patched Print/Share + compact print CSS")
         return
     if "regattaShareBtn" in text and STYLE_ID not in text:
         needle = '<button type="button" class="action-button" id="regattaShareBtn">Share</button>'
         if needle not in text:
             raise SystemExit("Share button found but compact CSS inject point missing")
-        text = text.replace(
-            '<div class="action-buttons">',
-            '<style id="ssa-print-compact">' + _css_only() + "</style>" + '<div class="action-buttons">',
-            1,
+        LIVE_API.write_text(
+            text.replace(
+                '<div class="action-buttons">',
+                '<style id="ssa-print-compact">' + _css_only() + "</style>" + '<div class="action-buttons">',
+                1,
+            ),
+            encoding="utf-8",
         )
-        LIVE_API.write_text(text, encoding="utf-8")
         print("injected compact print CSS beside existing Share button")
         return
     raise SystemExit("Print action-buttons HTML not found")
