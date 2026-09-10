@@ -85,7 +85,9 @@
       stamp: '2026-08-28T16:19:00+02:00',
       videoEvent: 'STT around the mark ~3:07',
       gpsEvent: 'R7 1st at Pin 16:22:43',
-      stampOff: '+36s'
+      stampOff: '+36s',
+      talkRoundFromSec: 170,
+      talkRoundToSec: 260
     }),
     '2410502969472697': clipR(7, 'round'),
     '1014880974840710': clipR(7, 'start', {
@@ -898,10 +900,39 @@
     return lead.slice(0, 3);
   }
 
+  function videoSecAt(ts) {
+    var rule = clipRule;
+    if (!rule || !rule.stamp || ts == null) return -1;
+    var stamp = Date.parse(rule.stamp);
+    if (stamp !== stamp) return -1;
+    return (Number(ts) - stamp - (rule.offsetMs || 0)) / 1000;
+  }
+
+  /* Cue from the commentary transcript: when they talk rounding order,
+   * stay zoomed in around the mark. */
+  function roundTalkNow(live) {
+    var rule = clipRule || {};
+    if (rule.talkRoundFromSec == null) return false;
+    var sec = videoSecAt(live && live.ts);
+    if (!(sec >= 0)) return false;
+    return sec >= rule.talkRoundFromSec && (rule.talkRoundToSec == null || sec <= rule.talkRoundToSec);
+  }
+
+  function tightViewRows(live, origin) {
+    var rows = markRoundRows(live, origin).slice();
+    var front = live && live.front;
+    var seen = {};
+    var i;
+    for (i = 0; i < rows.length; i++) seen[rows[i].sail] = true;
+    if (front && front.pos && !seen[front.sail]) rows.unshift(front);
+    return rows;
+  }
+
   /* Zoom in around the pin while 1st through 6–8th are rounding.
-   * Hold the close-up until 8th has rounded. Do not zoom out from the
-   * mark just because 1st has already left. */
+   * Hold the close-up until 8th has rounded. Commentary talking
+   * rounding order forces the same close-up. Keep 1st in view right side. */
   function roundTightNow(live, origin) {
+    if (roundTalkNow(live)) return true;
     var nR = nRoundedPin(live);
     if (nR >= 8) return false;
     var front = live && live.front;
@@ -925,9 +956,11 @@
    * closest to 1st. Approach RTL, after rounding boats sail LTR (back
    * toward M1). Zoom in around the pin to show 1st through 6–8th rounding.
    * Hold until 8th has rounded — more boats must round before zoom out
-   * from the mark. Then only zoom out to keep 1st on the right with
-   * buffer; by the end of the video 1st is far right with buffer. Do not
-   * shrink X to fit Y. Pin never pans right. Forget stragglers. */
+   * from the mark. Cue from the commentary transcript: if they are
+   * talking rounding order, stay as tight / close as can still keeping
+   * 1st in view right side. Then only zoom out to keep 1st on the right
+   * with buffer; by the end of the video 1st is far right with buffer.
+   * Do not shrink X to fit Y. Pin never pans right. Forget stragglers. */
   function roundPackCam(live, w, h, mark) {
     var origin = roundOrigin(mark) || { lat: 0, lon: 0, key: '' };
     var stay = roundPinMustStay(live, origin);
@@ -945,7 +978,7 @@
     }
     var win = { minA: 0, maxA: 0, minC: -20, maxC: 20 };
     if (tight) {
-      eatAlongRows(markRoundRows(live, origin), origin, hdg, win);
+      eatAlongRows(tightViewRows(live, origin), origin, hdg, win);
     } else {
       eatAlongRows(topEightRows(live), origin, hdg, win);
     }
@@ -979,20 +1012,20 @@
       if (roundLock.scaleY > 0 && scaleY > roundLock.scaleY) scaleY = roundLock.scaleY;
     }
     var front = live && live.front;
-    if (front && front.pos && !tight) {
+    if (front && front.pos) {
       var fa = alongAcross(front.pos, origin, hdg).along;
       var fx = pinX - fa * scaleX;
       if (fx > w - padR && -fa > 8) {
         var need = (w - Math.max(28, pinX) - padR) / -fa;
         if (need > 0 && scaleX > need) scaleX = need;
       }
-      if (stay && fx < 16 && fa > 8) {
+      if (stay && !tight && fx < 16 && fa > 8) {
         var needL = (pinX - 16) / fa;
         if (needL > 0 && scaleX > needL) scaleX = needL;
       }
     }
     /* leave LEFT only: 1st has gone and mark is outside the 60–70% pack. */
-    if (!stay && front && front.pos) {
+    if (!stay && !tight && front && front.pos) {
       var core = topEightRows(live);
       var loA = alongAcross(front.pos, origin, hdg).along;
       var hiA = loA;
@@ -1173,7 +1206,7 @@
     if (!live || !pin) return false;
     var front = live.front;
     if (!front || !front.pos) return false;
-    var pack = coreClosestToFirst(live, 0.65);
+    var pack = topEightRows(live);
     var pinD = distM(front.pos, pin);
     var farthest = 0;
     var i;
@@ -1623,7 +1656,7 @@
    * Stragglers (WYAC, TSC) are out unless they sail within 60–70. */
   function roundViewPack(live, mark) {
     var origin = roundOrigin(mark);
-    if (roundTightNow(live, origin)) return markRoundRows(live, origin);
+    if (roundTightNow(live, origin)) return tightViewRows(live, origin);
     return topEightRows(live);
   }
 
