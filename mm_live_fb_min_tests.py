@@ -402,7 +402,11 @@ class CapeClassicMmCardUnitTest(unittest.TestCase):
         self.assertIn("mm-powered-by-coming-soon.jpg", src)
         self.assertIn("mm-powered-by-event-reels.png", src)
         self.assertIn('data-mm-poll="1"', fn)
-        self.assertIn("marin.megastoresa", src[src.find("def _cape_classic_mm_reels_payload"): end])
+        payload_fn = src[src.find("def _cape_classic_mm_reels_payload"): end]
+        self.assertIn("marin.megastoresa", payload_fn)
+        self.assertIn("fb-page-marine-megastore.jpg", payload_fn)
+        self.assertIn("Marine Megastore", payload_fn)
+        self.assertNotIn("_mm_video_matches_event", payload_fn)
         self.assertNotIn("LIVE VIDEO", fn)
         self.assertNotIn("Fullscreen", fn)
         self.assertNotIn("timadvisor", fn.lower())

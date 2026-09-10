@@ -20853,10 +20853,20 @@ def _lipton_mm_reels_payload() -> dict:
     return {"videos": _mm_apply_page_chrome(videos)}
 
 
+def _mm_title_from_fb_url(url: str) -> str:
+    raw = str(url or "")
+    m = re.search(r"/videos/([^/?#]+)/", raw, re.I)
+    if not m:
+        return ""
+    slug = m.group(1)
+    if slug.isdigit() or slug.lower() in ("watch", "reel", "reels"):
+        return ""
+    return re.sub(r"[-_]+", " ", slug).strip().title()
+
+
 def _cape_classic_mm_reels_payload() -> dict:
     """MM Facebook clips only. Empty until the first Saturday reel is saved."""
     row = _mm_feed_row(_CAPE_CLASSIC_MM_REGATTA_ID)
-    start, end = _mm_regatta_date_window(_CAPE_CLASSIC_MM_REGATTA_ID)
     videos = []
     for item in row.get("videos") or []:
         n = _mm_normalize_video(item)
@@ -20871,8 +20881,16 @@ def _cape_classic_mm_reels_payload() -> dict:
         page = str(n.get("fb_page") or row.get("fb_page") or "marin.megastoresa").lower()
         if "marin.megastoresa" not in blob and page != "marin.megastoresa":
             continue
-        if n.get("started_at") and not _mm_video_matches_event(n, start, end):
-            continue
+        if not n.get("title"):
+            n["title"] = _mm_title_from_fb_url(n.get("url") or n.get("permalink") or "")
+        if not n.get("fb_title"):
+            n["fb_title"] = n.get("title") or "Marine Megastore reel"
+        if not n.get("fb_owner_logo"):
+            n["fb_owner_logo"] = "/assets/adverts/mm-lipton/fb-page-marine-megastore.jpg"
+        if not n.get("fb_sub"):
+            n["fb_sub"] = "Marine Megastore"
+        if not n.get("fb_page"):
+            n["fb_page"] = "marin.megastoresa"
         videos.append(n)
     return {
         "enabled": True,
