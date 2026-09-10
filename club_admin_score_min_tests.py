@@ -35,6 +35,7 @@ class ClubAdminScoreMinTest(unittest.TestCase):
         ast.parse(cls.src)
         cls.session_js = Path("js/session.js").read_text(encoding="utf-8")
         cls.header_js = Path("js/blank-landing-header.js").read_text(encoding="utf-8")
+        cls.club_js = Path("js/club-score-edit.js").read_text(encoding="utf-8")
 
     def test_club_admin_role_and_host_scope(self):
         self.assertIn("def _session_role_is_club_admin", self.src)
@@ -147,6 +148,9 @@ class ClubAdminScoreMinTest(unittest.TestCase):
         self.assertIn('td class="total-col club-score-auto', render)
         self.assertIn('td class="nett-col club-score-auto', render)
         self.assertIn("if race_score_edit and not wc_sa_fleet_edit:", render)
+        self.assertIn("td.race-col[data-race-key]", self.club_js)
+        self.assertIn("Total, Nett and Rank are automatic", self.club_js)
+        self.assertNotIn("total_points_raw", self.club_js)
 
     def test_places_unique_codes_repeat(self):
         h = _load_score_helpers()
