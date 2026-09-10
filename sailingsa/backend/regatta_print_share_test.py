@@ -19,7 +19,11 @@ def test_print_share_helper_wired_on_standalone_sheets():
 
 
 def test_compact_print_css_portrait_header_and_fleet_line():
-    from sailingsa.backend.regatta_print_compact_css import PRINT_COMPACT_CSS, print_share_bar_html
+    from sailingsa.backend.regatta_print_compact_css import (
+        PRINT_COMPACT_CSS,
+        PRINT_DOCUMENT_CSS,
+        print_share_bar_html,
+    )
 
     css = PRINT_COMPACT_CSS
     assert "size: A4 portrait" in css
@@ -53,8 +57,14 @@ def test_compact_print_css_portrait_header_and_fleet_line():
     assert "ssa-print-new-page" in css
     assert "keepFleetsOnOnePage" in bar
     assert "ssaRegattaPrint" in bar
-    assert "prepPrintPage" in bar
-    assert "ssa-printing" in css
+    assert "ssaPrintChooser" in bar
+    assert 'data-ssa-print="pdf"' in bar
+    assert 'data-ssa-print="printer"' in bar
+    assert "buildPrintDoc" in bar
+    assert "ssaPrintDocumentCss" in bar
+    assert "size: A4 portrait" in PRINT_DOCUMENT_CSS
+    assert "font-size: 5.5pt" in PRINT_DOCUMENT_CSS
+    assert "#ssaPrintChooser" not in PRINT_DOCUMENT_CSS
     assert ".regatta-back-row" in css
     src = Path(ROOT / "sailingsa" / "backend" / "regatta_print_compact_css.py").read_text(
         encoding="utf-8"

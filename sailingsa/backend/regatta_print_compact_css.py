@@ -17,6 +17,9 @@ Pagination (A4):
   one A4 page, it is tightened so it still stays on a single page.
 - Every page footer (one small line): event name + the results URL. The URL is a
   real link in Print-to-PDF; on paper it can be typed to open the same sheet.
+- Print button offers Printer or PDF. Both publish the same standalone A4
+  document (header + fleets + footer only). Layout does not follow the screen
+  URL (mobile stack, live cards, site chrome).
 """
 
 PRINT_COMPACT_CSS = """
@@ -257,7 +260,24 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
     overflow: hidden !important;
   }
 }
+#ssaPrintChooser { display: none; position: fixed; inset: 0; z-index: 2147483000; align-items: center; justify-content: center; background: rgba(0,31,63,.45); }
+#ssaPrintChooser.is-open { display: flex; }
+#ssaPrintChooser .card { max-width: 22rem; width: 92%; padding: 16px; }
+#ssaPrintChooser .ssa-print-chooser-note { font-size: 13px; color: #1a2750; margin: 0 0 8px; line-height: 1.35; }
+#ssaPrintChooser .ssa-print-chooser-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; margin-top: 12px; }
 """.strip()
+
+def _document_css() -> str:
+    text = PRINT_COMPACT_CSS
+    start = text.find("@media print {")
+    end = text.find("\n#ssaPrintChooser")
+    inner = text[start + len("@media print {") : end if end > 0 else None].rstrip()
+    if inner.endswith("}"):
+        inner = inner[: inner.rfind("}")].rstrip()
+    return "@page { size: A4 portrait; margin: 8mm 8mm 14mm; }\n" + inner
+
+
+PRINT_DOCUMENT_CSS = _document_css()
 
 
 PRINT_PAGINATE_JS = r"""
@@ -286,22 +306,50 @@ function keepFleetsOnOnePage(){
     else used+=h;
   });
 }
-function prepPrintPage(){
-  var s=document.getElementById('ssa-print-compact');
-  if(s&&s.parentNode!==document.head)document.head.appendChild(s);
-  document.documentElement.classList.add('ssa-printing');
-  fillFooter();
-  keepFleetsOnOnePage();
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function eventName(){var n=document.querySelector('.regatta-name');return (n&&n.textContent||document.title||'').replace(/\\s*\\|\\s*SailingSA\\s*$/i,'').replace(/\\s+/g,' ').trim();}
+function buildPrintDoc(){
+  var name=eventName(),url=sheetUrl()||location.href,cssEl=document.getElementById('ssaPrintDocumentCss');
+  var css=cssEl?cssEl.textContent:'';
+  var chunks=[],hdr=document.querySelector('.regatta-header-wrap');
+  if(hdr){var h=hdr.cloneNode(true);h.querySelectorAll('.regatta-back-row,.back-to-home,.regatta-sa-mode-wrap,.regatta-live-board-row,.regatta-name-editor,.regatta-sa-hub-news-wrap').forEach(function(n){n.remove();});chunks.push(h.outerHTML);}
+  document.querySelectorAll('.regatta-page > .fleet-section').forEach(function(sec){
+    if(sec.classList.contains('cape-crew'))return;
+    var c=sec.cloneNode(true);
+    c.querySelectorAll('script,.fleet-sa-edit-hit,.wc-sa-ac-wrap,.wc-rank-action-pop,.regatta-sa-columns-panel,.wc-late-entry-strip').forEach(function(n){n.remove();});
+    chunks.push(c.outerHTML);
+  });
+  chunks.push('<div class=\"ssa-print-page-footer\"><span class=\"ssa-print-footer-name\">'+esc(name)+'</span><a class=\"ssa-print-footer-url\" href=\"'+esc(url)+'\">'+esc(url)+'</a></div>');
+  return '<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><base href=\"'+esc(location.origin)+'/\"><title>'+esc(name)+'</title><style>'+css+'</style></head><body class=\"ssa-print-doc\">'+chunks.join('')+'</body></html>';
 }
-function endPrintPage(){
-  document.documentElement.classList.remove('ssa-printing');
-  clearPrintPages();
+function paginatePrintDoc(doc){
+  var page=pagePx()-8,used=58;
+  doc.querySelectorAll('.fleet-section').forEach(function(el,i){
+    var h=fleetH(el);
+    if(h>page){el.classList.add('ssa-print-fit-1');h=page;}
+    if(i===0){used+=h;return;}
+    if(used+h>page){el.classList.add('ssa-print-new-page');used=h;}else used+=h;
+  });
 }
-window.ssaRegattaPrint=function(){prepPrintPage();setTimeout(function(){window.print();},50);};
-window.addEventListener('beforeprint',prepPrintPage);
-window.addEventListener('afterprint',endPrintPage);
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){var s=document.getElementById('ssa-print-compact');if(s)document.head.appendChild(s);});
-else {var s=document.getElementById('ssa-print-compact');if(s)document.head.appendChild(s);}
+function openPrintSheet(){
+  var w=window.open('', 'ssaRegattaPrint');
+  if(!w){window.print();return;}
+  w.document.open();w.document.write(buildPrintDoc());w.document.close();
+  function go(){try{paginatePrintDoc(w.document);}catch(e){}w.focus();w.print();}
+  var imgs=[].slice.call(w.document.images||[]),left=0;
+  imgs.forEach(function(im){if(!im.complete){left+=1;im.onload=im.onerror=function(){left-=1;if(left<=0)go();};}});
+  if(!left)setTimeout(go,200);else setTimeout(go,1500);
+}
+function openChooser(){var el=document.getElementById('ssaPrintChooser');if(el)el.classList.add('is-open');}
+function closeChooser(){var el=document.getElementById('ssaPrintChooser');if(el)el.classList.remove('is-open');}
+window.ssaRegattaPrint=openChooser;
+window.ssaRegattaPrintSheet=openPrintSheet;
+document.addEventListener('click',function(ev){
+  var t=ev.target;if(!t||!t.getAttribute)return;
+  var act=t.getAttribute('data-ssa-print');
+  if(act==='printer'||act==='pdf'){ev.preventDefault();closeChooser();openPrintSheet();return;}
+  if(act==='cancel'||(t.id==='ssaPrintChooser'&&t.classList.contains('is-open')))closeChooser();
+});
 """.replace("\n", "")
 
 
@@ -309,10 +357,20 @@ def print_share_bar_html() -> str:
     """Print + Share controls plus compact print CSS (one inject for live + repo)."""
     return (
         '<style id="ssa-print-compact">' + PRINT_COMPACT_CSS + "</style>"
+        '<script type="text/plain" id="ssaPrintDocumentCss">' + PRINT_DOCUMENT_CSS + "</script>"
         '<div id="ssaPrintPageFooter" class="ssa-print-page-footer">'
         '<span class="ssa-print-footer-name"></span>'
         '<a class="ssa-print-footer-url" href="#"></a>'
         "</div>"
+        '<div id="ssaPrintChooser" role="dialog" aria-label="Print or PDF">'
+        '<div class="card">'
+        '<div class="section-title">Print</div>'
+        '<p class="ssa-print-chooser-note">Same A4 results sheet for paper or PDF. Layout does not follow the screen.</p>'
+        '<div class="ssa-print-chooser-actions">'
+        '<button type="button" class="action-button" data-ssa-print="cancel">Cancel</button>'
+        '<button type="button" class="action-button" data-ssa-print="pdf">PDF</button>'
+        '<button type="button" class="action-button" data-ssa-print="printer">Printer</button>'
+        "</div></div></div>"
         '<div class="action-buttons">'
         '<button type="button" class="action-button" onclick="window.ssaRegattaPrint?window.ssaRegattaPrint():window.print()">Print</button>'
         '<button type="button" class="action-button" id="regattaShareBtn">Share</button>'
