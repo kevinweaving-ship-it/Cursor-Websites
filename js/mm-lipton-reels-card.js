@@ -74,7 +74,6 @@
   var HLS_SRC = 'https://cdn.jsdelivr.net/npm/hls.js@1.5.20/dist/hls.min.js';
   var CAM_PAGE =
     'https://www.skylinewebcams.com/en/webcam/south-africa/western-cape/cape-town/zeekoevlei.html';
-  var CAM_SNAP = 'https://www.skylinewebcams.com/temp/4040.jpg';
   var CAM_TOKEN_TTL_MS = 240000;
   var hlsWait = null;
 
@@ -144,7 +143,6 @@
     if (isWebcam(v)) {
       var snap = String((v && (v.live_snap || v.snap)) || '').split('?')[0];
       if (!snap) snap = '/api/regatta/2026-09-13-zvyc-cape-classic/zvyc-live-cam-thumb';
-      if (root && root._mmCamUseDirectSnap) return CAM_SNAP + '?t=' + Date.now();
       return withCamQuery(snap, camTokenOf(root), fresh);
     }
     var base = String((v && v.thumb) || '').split('?')[0];
@@ -245,9 +243,7 @@
     var u = String((v && v.play_url) || '').trim();
     if (isWebcam(v)) {
       var root = cardEl();
-      var tok = camTokenOf(root);
-      if (tok) return 'https://hd-auth.skylinewebcams.com/live.m3u8?a=' + encodeURIComponent(tok);
-      return '';
+      return withCamQuery(u, camTokenOf(root), true);
     }
     if (u) return u;
     var id = String((v && v.id) || '').replace(/[^0-9]/g, '');
@@ -596,9 +592,11 @@
         var n = parseInt(this.getAttribute('data-mm-retry') || '0', 10);
         if (n >= 2) return;
         this.setAttribute('data-mm-retry', String(n + 1));
-        var rootNow = cardEl();
-        if (rootNow) rootNow._mmCamUseDirectSnap = true;
-        this.src = CAM_SNAP + '?t=' + Date.now();
+        var img = this;
+        scrapeZvycCamToken(true).then(function (tok) {
+          if (!tok) return;
+          img.src = liveThumbSrc(clip, true);
+        });
       });
     }
   }
@@ -840,7 +838,6 @@
   function showWebcamSnap(root, clip) {
     destroyWebcamHls(root);
     hideCamLoad(root);
-    if (root) root._mmCamUseDirectSnap = true;
     var stage = root.querySelector('[data-mm-stage]');
     if (!stage) return;
     var video = root.querySelector('[data-mm-hero-video]');
@@ -933,8 +930,8 @@
       stage.classList.add('mm-lipton-reels-stage--playing');
       paintWebcamPoster(root, clip);
       showCamLoad(root);
-      scrapeZvycCamToken(true).then(function (tok) {
-        var src = tok ? playUrl(clip) : '';
+      scrapeZvycCamToken(true).then(function () {
+        var src = playUrl(clip);
         var video = ensureHeroVideo(root);
         if (video && src) {
           if (video.parentNode !== stage) stage.appendChild(video);

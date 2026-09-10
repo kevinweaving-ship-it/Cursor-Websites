@@ -21971,23 +21971,6 @@ def _zvyc_live_cam_frame_jpeg(explicit_token: str = "", fresh: bool = False) -> 
             cached = _ZVYC_GRAB_MEM.get("jpg") or b""
             if cached[:2] == b"\xff\xd8" and now - float(_ZVYC_GRAB_MEM.get("t") or 0) < _ZVYC_GRAB_TTL_SEC:
                 return cached
-    def _keep(jpg: bytes) -> bytes:
-        with _ZVYC_GRAB_LOCK:
-            _ZVYC_GRAB_MEM["t"] = time.time()
-            _ZVYC_GRAB_MEM["jpg"] = jpg
-        return jpg
-
-    try:
-        with httpx.Client(
-            timeout=8.0, follow_redirects=True, headers=_ZVYC_CAM_FETCH_HEADERS
-        ) as client:
-            snap = client.get(_ZVYC_LIVE_CAM_SNAP)
-        jpg = snap.content or b""
-        if snap.status_code < 400 and jpg[:2] == b"\xff\xd8":
-            return _keep(jpg)
-    except Exception as e:
-        print(f"[zvyc_live_cam] snap failed: {e}", flush=True)
-
     url = _zvyc_live_cam_stream_url(explicit_token)
     if not url:
         return b""
@@ -22016,7 +21999,10 @@ def _zvyc_live_cam_frame_jpeg(explicit_token: str = "", fresh: bool = False) -> 
         proc = subprocess.run(cmd, capture_output=True, timeout=20)
         jpg = proc.stdout or b""
         if proc.returncode == 0 and jpg[:2] == b"\xff\xd8":
-            return _keep(jpg)
+            with _ZVYC_GRAB_LOCK:
+                _ZVYC_GRAB_MEM["t"] = time.time()
+                _ZVYC_GRAB_MEM["jpg"] = jpg
+            return jpg
         print(f"[zvyc_live_cam] grab failed rc={proc.returncode}", flush=True)
     except Exception as e:
         print(f"[zvyc_live_cam] grab failed: {e}", flush=True)
@@ -29448,7 +29434,7 @@ def serve_regatta_standalone(slug: str, request: Request):
         elif str(regatta_id) == "2026-09-13-zvyc-cape-classic":
             mm_card = _cape_classic_mm_reels_card_html(str(regatta_id))
             mm_card_js = (
-                '<script src="/js/mm-lipton-reels-card.js?v=mmr117" defer></script>'
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr118" defer></script>'
             )
         crew_frag = ""
         if _cape_classic_event_id(regatta_id):

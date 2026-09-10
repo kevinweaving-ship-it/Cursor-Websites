@@ -632,11 +632,8 @@
         bump();
       }, 4000);
     }
-    if (camTokenOf(root)) {
-      go();
-      return;
-    }
-    scrapeZvycCamToken().then(go);
+    scrapeZvycCamToken();
+    go();
   }
 
   function emptyReelSlotHtml() {
@@ -852,6 +849,7 @@
       if (hold) hold.appendChild(video);
     }
     paintWebcamPoster(root, clip);
+    startWebcamLive(root, clip);
   }
 
   /* Timed 2026-09-10 live: playlist 2.0-3.2s, first seg 3.4-4.4s, playlist+2seg 9-11s. */
