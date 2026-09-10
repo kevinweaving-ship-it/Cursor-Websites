@@ -24051,6 +24051,8 @@ def _wc_standalone_fleet_autocomplete_script_html() -> str:
 
 
 # Same CSS as admin regatta_viewer.html result sheet popup, with mobile-friendly widths so headers match tables
+from sailingsa.backend.regatta_print_compact_css import PRINT_COMPACT_CSS as _RESULT_SHEET_PRINT_COMPACT_CSS
+
 _RESULT_SHEET_CSS = (
     "*{box-sizing:border-box}"
     "html,body{background:#ffffff;color:#1a2750;font-family:system-ui,sans-serif;margin:0;padding:0;width:100%;max-width:100%;overflow-x:hidden}"
@@ -24135,11 +24137,6 @@ _RESULT_SHEET_CSS = (
     ".disc{color:#6a1b9a;font-weight:bold;text-decoration:line-through;opacity:0.8}"
     ".strike-out{text-decoration:line-through;opacity:0.6}"
     ".action-buttons{display:flex;gap:10px;justify-content:flex-end;margin-top:30px;margin-bottom:20px;padding:10px;width:100%}"
-    "@media print{.action-buttons{display:none!important}.back-to-home{display:none!important}.regatta-sa-mode-wrap{display:none!important}.regatta-wc-icons-row{display:none!important}.regatta-sa-columns-panel{display:none!important}"
-    ".regatta-name-editor{display:none!important}.regatta-name-view{display:block!important}"
-    ".host-club-sa-edit-hit{display:none!important}.host-club-wrap .host-club-public-nav{display:inline!important}"
-    ".fleet-sa-edit-hit{display:none!important}.fleet-title-public-nav{display:inline!important}"
-    ".regatta-host-picker{display:none!important}}"
     ".action-button{padding:12px 24px;border:2px solid #1a2750;border-radius:6px;background:#ffffff;color:#1a2750;font-weight:bold;font-size:14px;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,0.2);min-width:120px}"
     ".action-button:hover{background:#1a2750;color:#ffffff}"
     ".regatta-header-wrap{width:100%}"
@@ -24272,7 +24269,7 @@ _RESULT_SHEET_CSS = (
     ".wc-sa-ac-list li:hover,.wc-sa-ac-list li.wc-sa-ac-li-active{background:#e0e7ff}"
     ".wc-sa-ac-list .wc-sa-ac-li-sub{font-size:11px;font-weight:500;color:#64748b}"
     ".regatta-page--super-admin-edit .wc-sa-ac-wrap .wc-result-field-input{min-width:5rem}"
-)
+) + _RESULT_SHEET_PRINT_COMPACT_CSS
 
 
 def _wc_fleet_editable_cell(
@@ -26277,25 +26274,9 @@ def _get_regatta_class_page_data(regatta_id: str, class_id: int):
 
 def _regatta_print_share_buttons_html() -> str:
     """Print + Share on standalone /regatta pages (ZVYC Cape Classic and all other sheets)."""
-    return (
-        '<div class="action-buttons">'
-        '<button type="button" class="action-button" onclick="window.print()">Print</button>'
-        '<button type="button" class="action-button" id="regattaShareBtn">Share</button>'
-        "</div>"
-        "<script>(function(){"
-        "var b=document.getElementById('regattaShareBtn');"
-        "if(!b)return;"
-        "b.addEventListener('click',function(){"
-        "var t=document.title||'SailingSA',u=location.href;"
-        "if(navigator.share){navigator.share({title:t,url:u}).catch(function(){});return;}"
-        "function copied(){b.textContent='Link copied';setTimeout(function(){b.textContent='Share';},1600);}"
-        "if(navigator.clipboard&&navigator.clipboard.writeText){"
-        "navigator.clipboard.writeText(u).then(copied).catch(function(){prompt('Copy this link:',u);});"
-        "return;}"
-        "prompt('Copy this link:',u);"
-        "});"
-        "})();</script>"
-    )
+    from sailingsa.backend.regatta_print_compact_css import print_share_bar_html
+
+    return print_share_bar_html()
 
 
 def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request):

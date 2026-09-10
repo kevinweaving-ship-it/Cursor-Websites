@@ -1,4 +1,4 @@
-"""Contract tests: standalone /regatta pages expose Print + Share."""
+"""Contract tests: standalone /regatta Print/Share + compact portrait print CSS."""
 
 from pathlib import Path
 
@@ -10,9 +10,7 @@ def test_print_share_helper_wired_on_standalone_sheets():
     for path in API_FILES:
         text = path.read_text(encoding="utf-8")
         assert "def _regatta_print_share_buttons_html" in text, path
-        assert "id='regattaShareBtn'" in text, path
-        assert "navigator.share" in text, path
-        assert "window.print()" in text, path
+        assert "print_share_bar_html" in text, path
         assert text.count("print_btn = _regatta_print_share_buttons_html()") == 2, path
         assert (
             '<div class="action-buttons"><button class="action-button" onclick="window.print()">Print</button></div>'
@@ -20,16 +18,33 @@ def test_print_share_helper_wired_on_standalone_sheets():
         ), path
 
 
+def test_compact_print_css_portrait_header_and_fleet_line():
+    from sailingsa.backend.regatta_print_compact_css import PRINT_COMPACT_CSS, print_share_bar_html
+
+    css = PRINT_COMPACT_CSS
+    assert "size: A4 portrait" in css
+    assert "grid-template-columns: auto minmax(0,1fr) auto" in css
+    assert "max-height: 22px" in css
+    assert "max-width: 48px" in css
+    assert ".class-header-club-logo-col { display: none !important; }" in css
+    assert "min-width: 0 !important" in css
+    assert "white-space: nowrap" in css
+    bar = print_share_bar_html()
+    assert "ssa-print-compact" in bar
+    assert "regattaShareBtn" in bar
+    assert "navigator.share" in bar
+
+
 def test_live_patch_replaces_print_only_markup():
     patch = (ROOT / "sailingsa" / "deploy" / "live_patch_zvyc_cc_print_share.py").read_text(
         encoding="utf-8"
     )
-    assert "regattaShareBtn" in patch
-    assert "navigator.share" in patch
-    assert "window.print()" in patch
+    assert "ssa-print-compact" in patch
+    assert "print_share_bar_html" in patch
 
 
 if __name__ == "__main__":
     test_print_share_helper_wired_on_standalone_sheets()
+    test_compact_print_css_portrait_header_and_fleet_line()
     test_live_patch_replaces_print_only_markup()
     print("ok")
