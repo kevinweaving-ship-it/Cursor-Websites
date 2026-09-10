@@ -117,9 +117,32 @@
       gpsEvent: 'R7 gun 15:57:01',
       stampOff: '+24.2s'
     }),
-    '26023759437321260': clipR(5, 'round'),
-    '1587763379559775': clipR(5, 'round'),
-    '4518629078350390': clipR(5, 'start', { approach: 'ltr' }),
+    '26023759437321260': clipR(5, 'round', {
+      approach: 'rtl',
+      mark: '1',
+      offsetMs: 0,
+      stamp: '2026-08-27T16:47:00+02:00',
+      videoEvent: 'stamp open; 1st at 3rd M1 ~0:35',
+      gpsEvent: 'R5 L3 M1 16:47:35',
+      stampOff: '0'
+    }),
+    '1587763379559775': clipR(5, 'round', {
+      approach: 'rtl',
+      mark: '2',
+      offsetMs: -42000,
+      stamp: '2026-08-27T16:03:00+02:00',
+      videoEvent: 'stamp late; clip open = 1st at M2',
+      gpsEvent: 'R5 L1 M2 16:02:18',
+      stampOff: '-42s'
+    }),
+    '4518629078350390': clipR(5, 'start', {
+      approach: 'ltr',
+      offsetMs: 0,
+      stamp: '2026-08-27T15:48:00+02:00',
+      videoEvent: 'stamp; gun ~2:01',
+      gpsEvent: 'R5 gun 15:50:01',
+      stampOff: '0'
+    }),
     '1751846282795149': clipR(4, 'finish'),
     '2111285223132517': clipR(4, 'round'),
     '1588170962712352': clipR(4, 'round'),
@@ -883,6 +906,29 @@
     return { lat: sl.left.lat, lon: sl.left.lon, key: 'pin' };
   }
 
+  function frozenMark(key) {
+    key = String(key == null ? '' : key);
+    if (key === 'pin' || key === '4') return fixedPin();
+    if (key === '1') return fixedM1();
+    if (key === 'fin') {
+      var fl = trail && trail.finish_line;
+      if (fl && fl.left) return { lat: fl.left.lat, lon: fl.left.lon, key: 'fin' };
+      return null;
+    }
+    var ts = (replay && replay.gun_ts_ms) || (trail && trail.gun_ts_ms) || 0;
+    var passes = passList();
+    var i;
+    for (i = 0; i < passes.length; i++) {
+      if (String(passes[i].mark) === key && passes[i].boats && passes[i].boats[0]) {
+        ts = Number(passes[i].boats[0].ts_ms != null ? passes[i].boats[0].ts_ms : passes[i].boats[0].ts) || ts;
+        break;
+      }
+    }
+    var p = sampleAt((trail.marks || {})[key], ts);
+    if (p && p.lat != null) return { lat: p.lat, lon: p.lon, key: key };
+    return null;
+  }
+
   /* Frozen M1 — do not lose the rounding mark. */
   function fixedM1() {
     var pass = topPass();
@@ -918,17 +964,11 @@
   }
 
   function roundOrigin(mark) {
-    if (mark && (String(mark.key) === 'pin' || String(mark.key) === '4')) {
-      var pin = fixedPin();
-      if (pin) return pin;
-    }
-    if (mark && isTopKey(mark.key)) {
-      var m1 = fixedM1();
-      if (m1) return m1;
-    }
+    var want = mark && mark.key != null ? String(mark.key) : clipRule && clipRule.mark != null ? String(clipRule.mark) : '';
+    var frozen = want ? frozenMark(want) : null;
+    if (frozen) return frozen;
     if (mark && mark.lat != null) return { lat: mark.lat, lon: mark.lon, key: mark.key || '' };
-    if (clipRule && String(clipRule.mark) === '1') return fixedM1();
-    return fixedPin();
+    return frozenMark(clipRule && clipRule.mark) || fixedPin();
   }
 
   function roundCourseHdg(live, mark) {
@@ -940,6 +980,10 @@
     } else if (origin && isTopKey(origin.key)) {
       var pin = trail.start_line && trail.start_line.left;
       if (pin) geo = bearingDeg(pin, origin);
+    } else if (origin && origin.key) {
+      var prevN = Number(origin.key) - 1;
+      var prev = prevN >= 1 ? frozenMark(String(prevN)) : fixedPin();
+      if (prev) geo = bearingDeg(prev, origin);
     }
     return rotateAccordingHdg(geo, live, origin || mark);
   }
@@ -1713,16 +1757,16 @@
 
   function drawCourseMarks(ctx, cam, ts, w, h, focus, phase) {
     var showStart = phase === 'start' || (focus && (focus.key === 'start' || isPinKey(focus.key)));
-    var showM1 = !!(focus && isTopKey(focus.key));
     /* One small mark — no stacked rings covering boats / names. */
     if (showStart && trail.start_line && trail.start_line.left && trail.start_line.right) {
       drawGate(ctx, cam, trail.start_line, 'rgba(56,189,248,0.95)', '', 'Pin', 'RC');
-    } else if (showM1) {
-      var m1 = fixedM1() || sampleAt((trail.marks || {})['1'], ts) || focus;
-      if (m1) drawSmallMark(ctx, m1.lat, m1.lon, cam, 'M1');
+    } else if (phase === 'finish' && trail.finish_line) {
+      drawGate(ctx, cam, trail.finish_line, 'rgba(251,191,36,0.9)', 'Fin', 'Pin', 'RC');
     } else if (focus && focus.lat != null) {
-      var lab = focus.key === 'fin' ? 'Fin' : 'Mark';
-      drawSmallMark(ctx, focus.lat, focus.lon, cam, lab);
+      var lab =
+        isTopKey(focus.key) ? 'M1' : isPinKey(focus.key) ? 'Pin' : focus.key === 'fin' ? 'Fin' : focus.key ? 'M' + focus.key : 'Mark';
+      var mk = frozenMark(focus.key) || focus;
+      drawSmallMark(ctx, mk.lat, mk.lon, cam, lab);
     }
   }
 
@@ -2071,8 +2115,9 @@
     var nextIsPin = !!(nxt && isPinKey(nxt.key));
     var leftTop = nTop >= 12 && dM1 > 420 && nextIsPin && dPin < dM1 - 80;
     if (rule.kind === 'start') return pin;
-    /* Clip locked to M1: keep the rounding in view. Do not jump to pin. */
-    if (String(rule.mark) === '1') return m1 || fixedM1() || pin;
+    if (rule.kind === 'finish') return frozenMark('fin') || pin;
+    /* Clip locked to its mark: do not jump to the far pin/M1. */
+    if (rule.mark) return frozenMark(rule.mark) || m1 || pin;
     if (m1 && dM1 + 60 < dPin && !leftTop) return m1;
     if (pin && (dPin + 60 < dM1 || leftTop)) return pin;
     if (m1 && dM1 <= dPin) return m1;
@@ -2120,36 +2165,28 @@
 
     var pinRound = kind === 'round' && nearFocus && isPinKey(nearFocus.key);
     var topRound = kind === 'round' && nearFocus && isTopKey(nearFocus.key);
+    var ruleRound = kind === 'round' && !!(rule.mark || nearFocus);
 
-    if (kind === 'start' && (!leader || leader.done < 1) && distNext > 280) {
+    if (kind === 'start') {
       phase = 'start';
       focus = trail.start_line && trail.start_line.left;
       hdg = startCourseHdg(live);
       flipX = false;
       lockApproachHdg = null;
       markLock = null;
-    } else if (topRound) {
-      /* One being rounded: M1. Do not steal to pin just because 1st's
-       * next mark is pin while boats are still at the top. */
-      if (isTopKey(last && last.key)) {
-        phase = 'hold';
-      } else {
-        phase = 'approach-mark';
-      }
-      focus = nearFocus;
+    } else if (kind === 'finish') {
+      phase = 'approach-mark';
+      focus = frozenMark('fin') || nearFocus;
       hdg = roundCourseHdg(live, focus);
-      flipX = true;
+      flipX = clipFlipX();
       lockApproachHdg = hdg;
-    } else if (pinRound) {
-      /* Pin-round: pin stays left. Far M1 can be out of view. */
-      if (isPinKey(last && last.key)) {
-        phase = 'hold';
-      } else {
-        phase = 'approach-mark';
-      }
-      focus = nearFocus;
+    } else if (ruleRound) {
+      /* One mark only. Locked clip mark wins so Pin cannot steal M1/M2. */
+      focus = (rule.mark ? frozenMark(rule.mark) : null) || nearFocus;
+      if (last && focus && sameRoundMark(last, focus)) phase = 'hold';
+      else phase = 'approach-mark';
       hdg = roundCourseHdg(live, focus);
-      flipX = true;
+      flipX = clipFlipX();
       lockApproachHdg = hdg;
     } else if (last && leader && leader.pos && (lockMatchesLast || distLast + 40 < distNext)) {
       /* Rounded this mark: keep it geographic, boats go LTR, pin 1st on the right. */
@@ -2226,7 +2263,7 @@
     var focus = plan.focus;
     var nearRound = plan.phase === 'hold' || plan.phase === 'approach-mark';
     var pack = roundingPack(live, focus || plan.last || markLock);
-    if (nearRound || (clipRule && clipRule.kind === 'round')) {
+    if (nearRound || (clipRule && (clipRule.kind === 'round' || clipRule.kind === 'finish'))) {
       pack = roundViewPack(live, markLock || focus);
     }
     var pts = packPoints(pack, ts);
@@ -2245,7 +2282,7 @@
       cam = roundPackCam(live, cssW, cssH, markLock || focus);
       heldCam = copyCam(cam);
       heldCamTs = ts;
-    } else if (clipRule && clipRule.kind === 'round') {
+    } else if (clipRule && (clipRule.kind === 'round' || clipRule.kind === 'finish')) {
       setTrackHeight(canvas, 0.88, 0.92);
       cam = roundPackCam(live, cssW, cssH, markLock || focus);
       heldCam = copyCam(cam);
