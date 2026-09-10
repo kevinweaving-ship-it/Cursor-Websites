@@ -53,6 +53,9 @@ def test_compact_print_css_portrait_header_and_fleet_line():
     assert "ssa-print-new-page" in css
     assert "keepFleetsOnOnePage" in bar
     assert "ssaRegattaPrint" in bar
+    assert "prepPrintPage" in bar
+    assert "ssa-printing" in css
+    assert ".regatta-back-row" in css
     src = Path(ROOT / "sailingsa" / "backend" / "regatta_print_compact_css.py").read_text(
         encoding="utf-8"
     )

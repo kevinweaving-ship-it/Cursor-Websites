@@ -22,9 +22,24 @@ Pagination (A4):
 PRINT_COMPACT_CSS = """
 @page { size: A4 portrait; margin: 8mm 8mm 14mm; }
 .ssa-print-page-footer { display: none !important; }
+html.ssa-printing .site-header, html.ssa-printing footer, html.ssa-printing .site-footer,
+html.ssa-printing .app-footer, html.ssa-printing .action-buttons, html.ssa-printing .back-to-home,
+html.ssa-printing .regatta-back-row, html.ssa-printing .regatta-source-banner,
+html.ssa-printing .regatta-sa-mode-wrap, html.ssa-printing .regatta-live-wx,
+html.ssa-printing .regatta-live-track, html.ssa-printing .regatta-live-clip,
+html.ssa-printing .mm-lipton-reels, html.ssa-printing #mmLiptonReels,
+html.ssa-printing .cape-crew { display: none !important; }
+html.ssa-printing .header, html.ssa-printing .header.header--lipton {
+  display: grid !important;
+  grid-template-columns: auto minmax(0,1fr) auto !important;
+  grid-template-rows: auto !important;
+}
+html.ssa-printing th.class-col, html.ssa-printing td.class-col { display: none !important; }
+html.ssa-printing .ssa-print-page-footer { display: flex !important; position: static !important; margin-top: 8px !important; }
 @media print {
   html, body { background: #fff !important; color: #1a2750 !important; margin: 0 !important; padding: 0 !important; }
   .site-header, footer, .site-footer, .app-footer, .action-buttons, .back-to-home,
+  .regatta-back-row, .regatta-source-banner,
   .regatta-sa-mode-wrap, .regatta-wc-icons-row, .regatta-sa-columns-panel, .regatta-sa-hub-news-wrap,
   .mm-lipton-reels, #mmLiptonReels, .regatta-live-wx, .regatta-live-track, .regatta-live-clip,
   .cape-crew, .cape-crew-sa, .seo-discovery-block, .regatta-name-editor, .host-club-sa-edit-hit,
@@ -187,7 +202,15 @@ PRINT_COMPACT_CSS = """
   }
   .fleet-results-table .wc-score { font-size: inherit !important; font-weight: 600 !important; }
   .fleet-results-table .wc-code { font-size: 5pt !important; margin-left: 1px !important; opacity: 1 !important; }
-  .fleet-results-table tbody tr, .fleet-results-table tbody td { height: auto !important; max-height: none !important; }
+  .fleet-results-table tbody tr, .fleet-results-table tbody td,
+  html.ssa-printing .fleet-results-table tbody tr, html.ssa-printing .fleet-results-table tbody td {
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    font-size: 5.5pt !important;
+    line-height: 1.25 !important;
+  }
   .rs-club-row-logo, .rs-boat-sponsor-logo, .fleet-results-table .rs-club-row-logo,
   .fleet-results-table .rs-boat-sponsor-logo { display: none !important; }
   .rs-club-with-logo, .rs-boat-name-sponsors { white-space: nowrap !important; }
@@ -263,9 +286,22 @@ function keepFleetsOnOnePage(){
     else used+=h;
   });
 }
-window.ssaRegattaPrint=function(){fillFooter();keepFleetsOnOnePage();window.print();};
-window.addEventListener('beforeprint',keepFleetsOnOnePage);
-window.addEventListener('afterprint',clearPrintPages);
+function prepPrintPage(){
+  var s=document.getElementById('ssa-print-compact');
+  if(s&&s.parentNode!==document.head)document.head.appendChild(s);
+  document.documentElement.classList.add('ssa-printing');
+  fillFooter();
+  keepFleetsOnOnePage();
+}
+function endPrintPage(){
+  document.documentElement.classList.remove('ssa-printing');
+  clearPrintPages();
+}
+window.ssaRegattaPrint=function(){prepPrintPage();setTimeout(function(){window.print();},50);};
+window.addEventListener('beforeprint',prepPrintPage);
+window.addEventListener('afterprint',endPrintPage);
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){var s=document.getElementById('ssa-print-compact');if(s)document.head.appendChild(s);});
+else {var s=document.getElementById('ssa-print-compact');if(s)document.head.appendChild(s);}
 """.replace("\n", "")
 
 
