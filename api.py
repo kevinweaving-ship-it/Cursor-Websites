@@ -12398,14 +12398,733 @@ def _session_role_is_admin(request: Request) -> bool:
 
 
 def _session_can_toggle_event_crew(request: Request) -> bool:
-    """Super Admin or Admin may show/hide the Cape Classic Crew table for Public."""
-    return _session_role_is_super_admin(request) or _session_role_is_admin(request)
+    """Super Admin, Admin, or host Club Admin may see/show the Cape Classic Staff table."""
+    if _session_role_is_super_admin(request) or _session_role_is_admin(request):
+        return True
+    return _session_can_edit_regatta_scores(request, "2026-09-13-zvyc-cape-classic")
 
 
 def _require_super_admin(request: Request) -> None:
     """Raise 403 unless the session is super admin (inline result PATCH, etc.)."""
     if not _session_role_is_super_admin(request):
         raise HTTPException(status_code=403, detail="Super admin required")
+
+
+def _normalize_account_role(role) -> str:
+    if not role:
+        return ""
+    return str(role).strip().lower().replace(" ", "_").replace("-", "_")
+
+
+def _session_role_is_club_admin(request: Request) -> bool:
+    """True for Club Admin (scoped to one host club). Not Super Admin or generic Admin."""
+    return _normalize_account_role(_get_session_role(request)) in ("club_admin", "clubadmin")
+
+
+def _ensure_user_accounts_admin_club_id_column() -> None:
+    """Add user_accounts.admin_club_id when missing. No new table."""
+    if not table_exists("user_accounts") or column_exists("user_accounts", "admin_club_id"):
+        return
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            "ALTER TABLE public.user_accounts ADD COLUMN IF NOT EXISTS admin_club_id INTEGER"
+        )
+        conn.commit()
+    finally:
+        cur.close()
+        return_db_connection(conn)
+
+
+def _session_admin_club_id(request: Request) -> Optional[int]:
+    """Host club this Club Admin may score. None if column/session missing."""
+    try:
+        if not table_exists("user_accounts") or not column_exists("user_accounts", "admin_club_id"):
+            return None
+        token = request.cookies.get("session") or (
+            request.query_params.get("session") if request.query_params else None
+        )
+        if not token:
+            return None
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            where_extra = " AND s.logout_time IS NULL" if column_exists("user_sessions", "logout_time") else ""
+            cur.execute(
+                """
+                SELECT ua.admin_club_id FROM public.user_sessions s
+                JOIN public.user_accounts ua ON ua.account_id = s.account_id
+                WHERE s.session_id = %s AND s.expires_at > NOW()
+                """
+                + where_extra,
+                (token,),
+            )
+            row = cur.fetchone()
+            if not row or row.get("admin_club_id") is None:
+                return None
+            return int(row["admin_club_id"])
+        finally:
+            cur.close()
+            return_db_connection(conn)
+    except Exception:
+        return None
+
+
+def _regatta_host_club_id(regatta_id) -> Optional[int]:
+    rid = str(regatta_id or "").strip()
+    if not rid or not table_exists("regattas") or not column_exists("regattas", "host_club_id"):
+        return None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                "SELECT host_club_id FROM public.regattas WHERE regatta_id = %s LIMIT 1",
+                (rid,),
+            )
+            row = cur.fetchone()
+            if not row or row[0] is None:
+                return None
+            return int(row[0])
+        finally:
+            cur.close()
+            return_db_connection(conn)
+    except Exception:
+        return None
+
+
+def _cape_classic_event_id(regatta_id) -> bool:
+    """True for the Cape Classic event URL and its child fleet slugs only."""
+    return str(regatta_id or "").startswith("2026-09-13-zvyc-cape-classic")
+
+
+def _session_can_edit_regatta_scores(request: Request, regatta_id) -> bool:
+    """Super Admin: any event. Club Admin: only regattas hosted by their club."""
+    if _session_role_is_super_admin(request):
+        return True
+    if not _session_role_is_club_admin(request):
+        return False
+    club_id = _session_admin_club_id(request)
+    host_id = _regatta_host_club_id(regatta_id)
+    if club_id is None or host_id is None:
+        return False
+    return int(club_id) == int(host_id)
+
+
+def _require_regatta_score_edit(request: Request, regatta_id) -> None:
+    if not _session_can_edit_regatta_scores(request, regatta_id):
+        raise HTTPException(
+            status_code=403,
+            detail="Club admin can only enter scores for events hosted by their club",
+        )
+
+
+_RACE_PENALTY_CODES = ("DNC", "DNS", "DNF", "RET", "DSQ", "UFD", "BFD", "DPI", "OCS", "NSC", "DNE")
+_RACE_PENALTY_CODE_RE = re.compile(
+    r"(?:^|\d(?:\.\d+)?)(" + "|".join(_RACE_PENALTY_CODES) + r")$",
+    re.I,
+)
+
+
+def _extract_penalty_code(raw) -> Optional[str]:
+    """DSQ, 10.0 DSQ, 32DSQ, (32DSQ) → DSQ."""
+    bare = re.sub(r"\s+", "", str(raw or "").strip().strip("()").strip()).upper()
+    if not bare:
+        return None
+    if bare in _RACE_PENALTY_CODES:
+        return bare
+    m = _RACE_PENALTY_CODE_RE.search(bare)
+    return m.group(1).upper() if m else None
+
+
+def _public_race_code_cell(code: str, entries: int) -> str:
+    """Public results-sheet code: Extra 14 boats → '15 DSQ' (entries+1)."""
+    pts = max(int(entries or 0), 0) + 1
+    return f"{pts} {str(code or '').strip().upper()}"
+
+
+def _public_race_cell(raw, entries: int, discarded: bool = False) -> str:
+    """Public sheet cell: '1', '15 DSQ', discarded '(15 DSQ)'."""
+    v = str(raw or "").strip()
+    if not v:
+        return ""
+    code = _extract_penalty_code(v)
+    if code:
+        cell = _public_race_code_cell(code, entries)
+    else:
+        bare = v.strip("()").strip()
+        if re.fullmatch(r"\d+(?:\.\d+)?", bare):
+            cell = str(int(float(bare)))
+        else:
+            cell = bare
+    return f"({cell})" if discarded else cell
+
+
+def _normalize_race_score_value(raw) -> str:
+    """Free-field race cell: '3', '10', or 'OCS' / '10.0 DSQ' / '32DSQ' → place or code."""
+    v = str(raw or "").strip()
+    if not v:
+        return ""
+    code = _extract_penalty_code(v)
+    if code:
+        return code
+    bare = v.strip("()").strip()
+    if re.fullmatch(r"\d+(?:\.\d+)?", bare):
+        return str(int(float(bare)))
+    return bare
+
+
+def _race_score_is_code(value: str) -> bool:
+    return _extract_penalty_code(value) is not None
+
+
+def _race_score_unique_place(value: str, entries: int) -> Optional[int]:
+    """Finishing place 1..entries, or None if code / entries+1 / empty / invalid."""
+    v = _normalize_race_score_value(value)
+    if not v or _race_score_is_code(v):
+        return None
+    if not re.fullmatch(r"\d+", v):
+        return None
+    n = int(v)
+    entries_n = max(int(entries or 0), 0)
+    if entries_n and n == entries_n + 1:
+        return None
+    if n >= 1 and (not entries_n or n <= entries_n):
+        return n
+    return None
+
+
+def _validate_race_score_value(value: str, entries: int) -> str:
+    """Accept 1..n (unique later) or a standard code (stores as '{n+1} CODE'). Empty clears."""
+    v = _normalize_race_score_value(value)
+    if not v:
+        return ""
+    entries_n = max(int(entries or 0), 0)
+    max_pts = entries_n + 1 if entries_n else 0
+    code = _extract_penalty_code(v)
+    if code:
+        return _public_race_code_cell(code, entries_n)
+    if re.fullmatch(r"\d+", v):
+        n = int(v)
+        if n == 0:
+            return ""
+        if entries_n and 1 <= n <= entries_n:
+            return str(n)
+        if not entries_n and n >= 1:
+            return str(n)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Use 1–{entries_n} for a place, or OCS/DSQ (scores {max_pts})",
+        )
+    codes = "/".join(_RACE_PENALTY_CODES)
+    raise HTTPException(
+        status_code=400,
+        detail=f"Use a place 1–{entries_n or 'n'}, {max_pts or 'n+1'}, or a code ({codes})",
+    )
+
+
+def _appendix_a_discard_count(races_sailed: int) -> int:
+    """Low Point Appendix A schedule on SailingSA: 1 discard after 5, 2 after 10, 3 after 15."""
+    return max(int(races_sailed or 0), 0) // 5
+
+
+def _appendix_a_discard_gates(score_map) -> int:
+    """1 discard when Race 5 has a score, 2 at Race 10, 3 at Race 15, 4 at Race 20."""
+    rs = score_map or {}
+    if isinstance(rs, str):
+        try:
+            rs = json.loads(rs)
+        except Exception:
+            rs = {}
+    if not isinstance(rs, dict):
+        return 0
+    n = 0
+    for gate in (5, 10, 15, 20):
+        if _race_score_filled(rs.get(f"R{gate}")):
+            n += 1
+    return n
+
+
+def _appendix_a_fleet_discard_count(score_maps, races_sailed=0, entries=0) -> int:
+    """Discards unlock only when the series leader has Race 5 / 10 / 15 / 20."""
+    n_races = max(int(races_sailed or 0), _fleet_max_race_num(score_maps), 0)
+    ents = max(int(entries or 0), 0)
+    leader = None
+    leader_key = None
+    for i, rs in enumerate(score_maps or []):
+        if isinstance(rs, str):
+            try:
+                rs = json.loads(rs)
+            except Exception:
+                continue
+        if not isinstance(rs, dict):
+            continue
+        _out, _tot, nett = _appendix_a_apply_series(rs, n_races, ents, 0)
+        try:
+            nett_f = float(nett or 0)
+        except (TypeError, ValueError):
+            nett_f = 0.0
+        if nett_f <= 0:
+            continue
+        key = (nett_f, i)
+        if leader_key is None or key < leader_key:
+            leader_key = key
+            leader = rs
+    if not leader:
+        return 0
+    return _appendix_a_discard_gates(leader)
+
+
+def _race_key_num(key) -> int:
+    m = re.fullmatch(r"R(\d+)", str(key or "").strip().upper())
+    return int(m.group(1)) if m else 0
+
+
+def _race_score_filled(val) -> bool:
+    return bool(str(val or "").strip())
+
+
+def _fleet_scored_race_count(score_maps) -> int:
+    """Distinct R* keys that have a place or code. Empty R+ columns do not count."""
+    keys = set()
+    for rs in score_maps or []:
+        if isinstance(rs, str):
+            try:
+                rs = json.loads(rs)
+            except Exception:
+                continue
+        if not isinstance(rs, dict):
+            continue
+        for k, v in rs.items():
+            n = _race_key_num(k)
+            if n and _race_score_filled(v):
+                keys.add(n)
+    return len(keys)
+
+
+def _fleet_max_race_num(score_maps) -> int:
+    n = 0
+    for rs in score_maps or []:
+        if isinstance(rs, str):
+            try:
+                rs = json.loads(rs)
+            except Exception:
+                continue
+        if not isinstance(rs, dict):
+            continue
+        for k, v in rs.items():
+            if _race_score_filled(v):
+                n = max(n, _race_key_num(k))
+    return n
+
+
+def _fleet_races_step(current: int, delta: int, last_race_filled: bool):
+    """R+ adds a column. R− clears last-race scores, then drops an empty extra column. R1 stays."""
+    cur = max(int(current or 0), 1)
+    try:
+        step = int(delta)
+    except (TypeError, ValueError):
+        step = 0
+    if step > 0:
+        nxt = min(cur + 1, 20)
+        if nxt == cur:
+            raise HTTPException(status_code=400, detail="Maximum 20 races")
+        return nxt, "add"
+    if step < 0:
+        if last_race_filled:
+            return cur, "clear"
+        if cur <= 1:
+            return 1, "noop"
+        return cur - 1, "drop"
+    raise HTTPException(status_code=400, detail="Use +1 or -1")
+
+
+def _next_fleet_races_sailed(current: int, delta: int, last_race_filled: bool) -> int:
+    """Club admin R+/R−: one race at a time. Floor 1, cap 20. R− clears scores before dropping."""
+    nxt, _action = _fleet_races_step(current, delta, last_race_filled)
+    return nxt
+
+
+def _appendix_a_cell_points(raw, entries: int) -> float:
+    """A5.2: OCS/DSQ/DNC/… always score entries+1. Else the typed finishing place."""
+    v = str(raw or "").strip()
+    if not v:
+        return 0.0
+    if _race_score_is_code(v):
+        return float(max(int(entries or 0), 0) + 1)
+    bare = v.strip("()").strip()
+    num_match = re.search(r"[\d.]+", bare)
+    if num_match:
+        return abs(float(num_match.group(0)))
+    return 0.0
+
+
+def _appendix_a_apply_series(
+    race_scores: Optional[dict],
+    races_sailed: int,
+    entries: int,
+    discard_count: Optional[int] = None,
+):
+    """Total, nett, and discard brackets for one boat. Lowest unused scores stay; worst discarded."""
+    out = dict(race_scores or {})
+    n_races = max(int(races_sailed or 0), _fleet_max_race_num([out]), 0)
+    if discard_count is None:
+        discard_count = _appendix_a_discard_gates(out)
+    discard_count = max(int(discard_count or 0), 0)
+    scores_list = []
+    for i in range(1, n_races + 1):
+        rkey = f"R{i}"
+        val = out.get(rkey, "")
+        if not val:
+            continue
+        val = str(val)
+        scores_list.append(
+            {
+                "key": rkey,
+                "val": _appendix_a_cell_points(val, entries),
+                "raw": val,
+                "race": i,
+            }
+        )
+    total = sum(s["val"] for s in scores_list)
+    discard_idxs = set()
+    if discard_count > 0 and scores_list:
+        remaining = list(enumerate(scores_list))
+        remaining.sort(key=lambda x: (-x[1]["val"], -x[1]["race"]))
+        for i in range(min(discard_count, len(remaining))):
+            discard_idxs.add(remaining[i][0])
+    for i, score_info in enumerate(scores_list):
+        rkey = score_info["key"]
+        out[rkey] = _public_race_cell(
+            score_info["raw"], entries, discarded=(i in discard_idxs)
+        )
+    nett = total - sum(scores_list[i]["val"] for i in discard_idxs)
+    return out, total, nett
+
+
+def _row_has_busy_race(row, busy: int) -> bool:
+    if not busy:
+        return True
+    rs = row.get("race_scores") or {}
+    if isinstance(rs, str):
+        try:
+            rs = json.loads(rs)
+        except Exception:
+            rs = {}
+    if not isinstance(rs, dict):
+        return False
+    return _race_score_filled(rs.get(f"R{int(busy)}"))
+
+
+def _appendix_a_rank_entries(rows):
+    """Lowest nett = 1st. Boats missing the race being entered stay last."""
+    maps = []
+    for r in rows or []:
+        rs = r.get("race_scores")
+        if isinstance(rs, str):
+            try:
+                rs = json.loads(rs)
+            except Exception:
+                rs = {}
+        if isinstance(rs, dict):
+            maps.append(rs)
+    busy = _fleet_max_race_num(maps) if maps else 0
+
+    def _key(r):
+        nett = r.get("nett")
+        try:
+            nett_f = float(nett) if nett is not None else 0.0
+        except (TypeError, ValueError):
+            nett_f = 0.0
+        waiting = 0 if _row_has_busy_race(r, busy) else 1
+        unscored = 1 if (nett is None or nett_f == 0.0) else 0
+        try:
+            rid = int(r.get("result_id") or 0)
+        except (TypeError, ValueError):
+            rid = 0
+        return (waiting, unscored, nett_f, rid)
+
+    ordered = sorted(list(rows or []), key=_key)
+    ranked = []
+    for i, r in enumerate(ordered, start=1):
+        item = dict(r)
+        item["rank"] = i
+        ranked.append(item)
+    return ranked
+
+
+def _persist_fleet_ranks(cur, block_id) -> None:
+    cur.execute(
+        "SELECT result_id, nett_points_raw, race_scores FROM results WHERE block_id = %s",
+        (block_id,),
+    )
+    rows = []
+    for r in cur.fetchall() or []:
+        rs = r.get("race_scores") or {}
+        if isinstance(rs, str):
+            try:
+                rs = json.loads(rs)
+            except Exception:
+                rs = {}
+        rows.append(
+            {
+                "result_id": r["result_id"],
+                "nett": r.get("nett_points_raw"),
+                "race_scores": rs if isinstance(rs, dict) else {},
+            }
+        )
+    for item in _appendix_a_rank_entries(rows):
+        cur.execute(
+            "UPDATE results SET rank = %s WHERE result_id = %s",
+            (item["rank"], item["result_id"]),
+        )
+
+
+def _lookup_club_id_by_abbrev(abbrev: str) -> Optional[int]:
+    code = str(abbrev or "").strip().upper()
+    if not code or not table_exists("clubs"):
+        return None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                "SELECT club_id FROM public.clubs WHERE upper(trim(club_abbrev)) = %s LIMIT 1",
+                (code,),
+            )
+            row = cur.fetchone()
+            return int(row[0]) if row and row[0] is not None else None
+        finally:
+            cur.close()
+            return_db_connection(conn)
+    except Exception:
+        return None
+
+
+def _club_abbrev_for_id(club_id) -> Optional[str]:
+    if club_id is None or not table_exists("clubs"):
+        return None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                "SELECT club_abbrev FROM public.clubs WHERE club_id = %s LIMIT 1",
+                (int(club_id),),
+            )
+            row = cur.fetchone()
+            return str(row[0]).strip() if row and row[0] else None
+        finally:
+            cur.close()
+            return_db_connection(conn)
+    except Exception:
+        return None
+
+
+# ZVYC club-desk login (WhatsApp field on /login.html). Not a sailor SAS ID.
+_ZVYC_CLUB_WHATSAPP = "0217053373"
+_ZVYC_CLUB_LOGIN_SAS = "ZVYC"
+_ZVYC_CLUB_LOGIN_NAME = "ZVYC Club Admin"
+
+
+def _club_admin_avatar_url(club_abbrev: Optional[str]) -> Optional[str]:
+    """Club Admin header avatar is the host club logo, not a sailor photo."""
+    code = str(club_abbrev or "").strip().upper()
+    if not code or not re.match(r"^[A-Z0-9]+$", code):
+        return None
+    return f"/api/club-logo/{code}"
+
+
+def _zvyc_club_password_hash() -> str:
+    pw = os.getenv("ZVYC_CLUB_ADMIN_PASSWORD", "ZVYC1234")
+    return hashlib.sha256(str(pw).encode("utf-8")).hexdigest()
+
+
+def _normalize_za_whatsapp(raw) -> str:
+    digits = re.sub(r"\D", "", str(raw or ""))
+    if digits.startswith("27") and len(digits) >= 11:
+        digits = "0" + digits[2:]
+    elif len(digits) == 9 and digits == _ZVYC_CLUB_WHATSAPP[1:]:
+        digits = "0" + digits
+    return digits[:10] if digits else ""
+
+
+def _is_zvyc_club_whatsapp(raw) -> bool:
+    return _normalize_za_whatsapp(raw) == _ZVYC_CLUB_WHATSAPP
+
+
+def _ensure_zvyc_club_desk_personal(cur) -> None:
+    """Club-desk key in sas_id_personal so user_accounts FK can point at ZVYC, not a sailor number."""
+    if not table_exists("sas_id_personal"):
+        raise RuntimeError("sas_id_personal not found")
+    cur.execute(
+        """
+        SELECT sa_sailing_id FROM public.sas_id_personal
+        WHERE sa_sailing_id = %s
+        LIMIT 1
+        """,
+        (_ZVYC_CLUB_LOGIN_SAS,),
+    )
+    if cur.fetchone():
+        sets = []
+        params: list = []
+        if column_exists("sas_id_personal", "full_name"):
+            sets.append("full_name = COALESCE(NULLIF(trim(full_name), ''), %s)")
+            params.append(_ZVYC_CLUB_LOGIN_NAME)
+        if column_exists("sas_id_personal", "phone_primary"):
+            sets.append("phone_primary = COALESCE(NULLIF(trim(phone_primary), ''), %s)")
+            params.append(_ZVYC_CLUB_WHATSAPP)
+        if column_exists("sas_id_personal", "profile_photo_path"):
+            sets.append("profile_photo_path = COALESCE(NULLIF(trim(profile_photo_path), ''), %s)")
+            params.append("/api/club-logo/ZVYC")
+        if sets:
+            params.append(_ZVYC_CLUB_LOGIN_SAS)
+            cur.execute(
+                "UPDATE public.sas_id_personal SET " + ", ".join(sets) + " WHERE sa_sailing_id = %s",
+                params,
+            )
+        return
+    cols = ["sa_sailing_id"]
+    vals: list = [_ZVYC_CLUB_LOGIN_SAS]
+    if column_exists("sas_id_personal", "full_name"):
+        cols.append("full_name")
+        vals.append(_ZVYC_CLUB_LOGIN_NAME)
+    if column_exists("sas_id_personal", "first_name"):
+        cols.append("first_name")
+        vals.append("ZVYC")
+    if column_exists("sas_id_personal", "last_name"):
+        cols.append("last_name")
+        vals.append("Club Admin")
+    if column_exists("sas_id_personal", "club_1"):
+        cols.append("club_1")
+        vals.append("ZVYC")
+    if column_exists("sas_id_personal", "phone_primary"):
+        cols.append("phone_primary")
+        vals.append(_ZVYC_CLUB_WHATSAPP)
+    if column_exists("sas_id_personal", "profile_photo_path"):
+        cols.append("profile_photo_path")
+        vals.append("/api/club-logo/ZVYC")
+    cur.execute(
+        "INSERT INTO public.sas_id_personal ("
+        + ", ".join(cols)
+        + ") VALUES ("
+        + ", ".join(["%s"] * len(vals))
+        + ")",
+        vals,
+    )
+
+
+def _ensure_zvyc_club_whatsapp_admin() -> dict:
+    """Create or refresh the ZVYC WhatsApp club-admin login. Does not invent a numeric SAS ID."""
+    if not table_exists("user_accounts"):
+        return {"ok": False, "error": "user_accounts not found"}
+    club_id = _lookup_club_id_by_abbrev("ZVYC")
+    if not club_id:
+        return {"ok": False, "error": "ZVYC club not found"}
+    _ensure_user_accounts_admin_club_id_column()
+    phone = _ZVYC_CLUB_WHATSAPP
+    pw_hash = _zvyc_club_password_hash()
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        _ensure_zvyc_club_desk_personal(cur)
+        cur.execute(
+            """
+            SELECT account_id, sas_id, role FROM public.user_accounts
+            WHERE login_method = 'whatsapp' AND provider_id = %s
+            LIMIT 1
+            """,
+            (phone,),
+        )
+        row = cur.fetchone()
+        if row and _normalize_account_role(row.get("role")) in ("super_admin", "superadmin"):
+            return {"ok": False, "error": "That WhatsApp belongs to a Super Admin"}
+        if row:
+            sets = ["password_hash = %s", "role = 'club_admin'"]
+            params: list = [pw_hash]
+            if column_exists("user_accounts", "admin_club_id"):
+                sets.append("admin_club_id = %s")
+                params.append(int(club_id))
+            if column_exists("user_accounts", "profile_picture_path"):
+                sets.append("profile_picture_path = %s")
+                params.append("/api/club-logo/ZVYC")
+            params.append(row["account_id"])
+            cur.execute(
+                "UPDATE public.user_accounts SET " + ", ".join(sets) + " WHERE account_id = %s",
+                params,
+            )
+            if row.get("sas_id") is not None:
+                sib = ["role = 'club_admin'"]
+                sib_params: list = []
+                if column_exists("user_accounts", "admin_club_id"):
+                    sib.append("admin_club_id = %s")
+                    sib_params.append(int(club_id))
+                sib_params.append(row["sas_id"])
+                cur.execute(
+                    "UPDATE public.user_accounts SET "
+                    + ", ".join(sib)
+                    + " WHERE sas_id = %s AND (role IS NULL OR lower(replace(replace(trim(role), ' ', '_'), '-', '_')) "
+                    "NOT IN ('super_admin', 'superadmin'))",
+                    sib_params,
+                )
+            conn.commit()
+            return {
+                "ok": True,
+                "updated": True,
+                "sas_id": str(row.get("sas_id") or _ZVYC_CLUB_LOGIN_SAS),
+                "whatsapp": phone,
+                "admin_club_id": int(club_id),
+                "club_abbrev": "ZVYC",
+                "role": "club_admin",
+            }
+        cols = ["sas_id", "login_method", "provider_id", "password_hash", "role"]
+        vals: list = [_ZVYC_CLUB_LOGIN_SAS, "whatsapp", phone, pw_hash, "club_admin"]
+        if column_exists("user_accounts", "admin_club_id"):
+            cols.append("admin_club_id")
+            vals.append(int(club_id))
+        if column_exists("user_accounts", "full_name"):
+            cols.append("full_name")
+            vals.append(_ZVYC_CLUB_LOGIN_NAME)
+        if column_exists("user_accounts", "first_name"):
+            cols.append("first_name")
+            vals.append("ZVYC")
+        if column_exists("user_accounts", "last_name"):
+            cols.append("last_name")
+            vals.append("Club Admin")
+        if column_exists("user_accounts", "profile_picture_path"):
+            cols.append("profile_picture_path")
+            vals.append("/api/club-logo/ZVYC")
+        cur.execute(
+            "INSERT INTO public.user_accounts ("
+            + ", ".join(cols)
+            + ") VALUES ("
+            + ", ".join(["%s"] * len(vals))
+            + ") RETURNING account_id, sas_id",
+            vals,
+        )
+        created = cur.fetchone() or {}
+        conn.commit()
+        return {
+            "ok": True,
+            "created": True,
+            "sas_id": str(created.get("sas_id") or _ZVYC_CLUB_LOGIN_SAS),
+            "whatsapp": phone,
+            "admin_club_id": int(club_id),
+            "club_abbrev": "ZVYC",
+            "role": "club_admin",
+        }
+    except Exception as e:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        print(f"[club-admin] ensure ZVYC WhatsApp login failed: {e}")
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+    finally:
+        cur.close()
+        return_db_connection(conn)
 
 
 def _fetch_og_metadata(url: str) -> dict:
@@ -14094,8 +14813,8 @@ def api_get_result_regatta_row(request: Request, result_id: int):
 
 @app.patch("/api/result/{result_id}/race")
 def patch_race_score(request: Request, result_id: int, body: dict):
-    """Update a race score and automatically recalculate total/nett/discards and re-rank fleet"""
-    _require_super_admin(request)
+    """Update a race score and automatically recalculate total/nett/discards and re-rank fleet.
+    Super Admin: any event. Club Admin: only events hosted by their club."""
     import json
     import re
     
@@ -14118,54 +14837,40 @@ def patch_race_score(request: Request, result_id: int, body: dict):
             result = cur.fetchone()
             if not result:
                 raise HTTPException(status_code=404, detail="Result not found")
+            _require_regatta_score_edit(request, result.get("regatta_id"))
             
             block_id = result['block_id']
             regatta_id = result['regatta_id']
             race_scores = result['race_scores'] or {}
             if isinstance(race_scores, str):
                 race_scores = json.loads(race_scores)
-            
-            # Validate: Check for duplicate race positions (except ISP codes)
-            if value:
-                # Extract numeric position from value (e.g., "3" from "3" or "3 (DNS)")
-                num_match = re.search(r'^(\d+)', value.strip())
-                has_penalty = bool(re.search(r'(DNC|DNS|DNF|RET|DSQ|UFD|BFD|DPI|OCS)', value, re.I))
-                
-                # Only validate position if it's a numeric score (not ISP-only like "(DNS)")
-                if num_match and not value.strip().startswith('('):
-                    position = int(num_match.group(1))
-                    
-                    # Check if this position is already taken by another sailor in this fleet
-                    cur.execute("""
-                        SELECT r.result_id, r.race_scores
-                        FROM results r
-                        WHERE r.block_id = %s
-                        AND r.result_id != %s
-                        AND r.race_scores IS NOT NULL
-                    """, (block_id, result_id))
-                    other_results = cur.fetchall()
-                    
-                    for other_res in other_results:
-                        other_scores = other_res['race_scores'] or {}
-                        if isinstance(other_scores, str):
-                            other_scores = json.loads(other_scores)
-                        
-                        other_value = other_scores.get(race_key, "").strip()
-                        if not other_value:
-                            continue
-                        
-                        # Extract position from other sailor's score
-                        other_num_match = re.search(r'^(\d+)', other_value)
-                        other_has_penalty = bool(re.search(r'(DNC|DNS|DNF|RET|DSQ|UFD|BFD|DPI|OCS)', other_value, re.I))
-                        
-                        # If other sailor has same position and it's not ISP-only, reject
-                        if other_num_match and not other_value.startswith('('):
-                            other_position = int(other_num_match.group(1))
-                            if other_position == position:
-                                raise HTTPException(
-                                    status_code=400, 
-                                    detail=f"Position {position} is already taken by another sailor in this race. Each position can only be used once."
-                                )
+
+            cur.execute("SELECT COUNT(*) as cnt FROM results WHERE block_id = %s", (block_id,))
+            entries_row = cur.fetchone()
+            entries_count = int(entries_row['cnt'] if entries_row else 0)
+            value = _validate_race_score_value(value, entries_count)
+            place = _race_score_unique_place(value, entries_count)
+            if place is not None:
+                cur.execute("""
+                    SELECT r.result_id, r.race_scores
+                    FROM results r
+                    WHERE r.block_id = %s
+                    AND r.result_id != %s
+                    AND r.race_scores IS NOT NULL
+                """, (block_id, result_id))
+                for other_res in cur.fetchall() or []:
+                    other_scores = other_res['race_scores'] or {}
+                    if isinstance(other_scores, str):
+                        other_scores = json.loads(other_scores)
+                    other_place = _race_score_unique_place(
+                        other_scores.get(race_key, ""), entries_count
+                    )
+                    if other_place == place:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Place {place} is already used in this race. "
+                            f"{entries_count + 1} or OCS/DSQ can be used more than once.",
+                        )
             
             # Update race score (empty value removes the score)
             if value:
@@ -14174,81 +14879,28 @@ def patch_race_score(request: Request, result_id: int, body: dict):
                 # Remove the race score if value is empty
                 race_scores.pop(race_key, None)
             
-            # Count races sailed (non-empty race scores)
-            races_sailed = len([k for k in race_scores.keys() if k.startswith('R') and race_scores[k]])
-            
-            # Calculate discard count based on races_sailed
-            discard_count = races_sailed // 5  # 1 discard after 5, 2 after 10, etc.
-            
-            # Parse scores and calculate totals
-            entries_plus_one = None
-            cur.execute("SELECT COUNT(*) as cnt FROM results WHERE block_id = %s", (block_id,))
-            entries_row = cur.fetchone()
-            entries_count = entries_row['cnt'] if entries_row else 0
-            entries_plus_one = entries_count + 1
-            
-            # Parse all race scores
-            scores_list = []
-            for i in range(1, races_sailed + 1):
-                rkey = f"R{i}"
-                val = race_scores.get(rkey, "")
-                if not val:
-                    continue
-                
-                # Parse score value (extract numeric, handle brackets, penalty codes)
-                is_bracket = val.startswith("(") and val.endswith(")")
-                num_match = re.search(r'[\d.]+', val)
-                has_penalty = bool(re.search(r'(DNC|DNS|DNF|RET|DSQ|UFD|BFD|DPI|OCS)', val, re.I))
-                
-                if num_match:
-                    score_val = abs(float(num_match.group(0)))
-                elif has_penalty:
-                    score_val = float(entries_plus_one)
-                else:
-                    score_val = 0.0
-                
-                scores_list.append({
-                    'key': rkey,
-                    'val': score_val,
-                    'is_br': is_bracket,
-                    'raw': val
-                })
-            
-            # Calculate total (sum of all scores)
-            total = sum(s['val'] for s in scores_list)
-            
-            # Identify discards (worst scores, prefer already bracketed)
-            discard_idxs = set()
-            if discard_count > 0 and scores_list:
-                # First, prefer already bracketed scores
-                bracketed = [i for i, s in enumerate(scores_list) if s['is_br']]
-                for idx in bracketed[:discard_count]:
-                    discard_idxs.add(idx)
-                
-                # If we need more discards, pick worst remaining scores
-                remaining_needed = discard_count - len(discard_idxs)
-                if remaining_needed > 0:
-                    remaining = [(i, s) for i, s in enumerate(scores_list) if i not in discard_idxs]
-                    remaining.sort(key=lambda x: x[1]['val'], reverse=True)  # Worst first
-                    for i in range(min(remaining_needed, len(remaining))):
-                        discard_idxs.add(remaining[i][0])
-            
-            # Update brackets in race_scores JSONB
-            for i, score_info in enumerate(scores_list):
-                rkey = score_info['key']
-                should_be_bracketed = i in discard_idxs
-                current_val = score_info['raw']
-                is_currently_bracketed = score_info['is_br']
-                
-                if should_be_bracketed and not is_currently_bracketed:
-                    # Add brackets (preserve penalty codes)
-                    race_scores[rkey] = f"({current_val})"
-                elif not should_be_bracketed and is_currently_bracketed:
-                    # Remove brackets (preserve penalty codes)
-                    race_scores[rkey] = current_val.strip("()")
-            
-            # Calculate nett (total minus discarded scores)
-            nett = total - sum(scores_list[i]['val'] for i in discard_idxs)
+            # Count races sailed (non-empty race scores). Never shrink the block
+            # when one boat still has fewer races than the fleet.
+            fleet_maps = [race_scores]
+            cur.execute(
+                "SELECT race_scores FROM results WHERE block_id = %s AND result_id != %s",
+                (block_id, result_id),
+            )
+            for row in cur.fetchall() or []:
+                rs = row.get("race_scores") or {}
+                if isinstance(rs, str):
+                    rs = json.loads(rs)
+                fleet_maps.append(rs if isinstance(rs, dict) else {})
+            completed = _fleet_scored_race_count(fleet_maps)
+            races_sailed = max(completed, _fleet_max_race_num(fleet_maps), 1)
+            discard_count = _appendix_a_fleet_discard_count(
+                fleet_maps, races_sailed, entries_count
+            )
+            to_count = max(0, int(completed) - int(discard_count))
+
+            race_scores, total, nett = _appendix_a_apply_series(
+                race_scores, races_sailed, entries_count, discard_count
+            )
             
             # Update this result
             cur.execute("""
@@ -14259,15 +14911,16 @@ def patch_race_score(request: Request, result_id: int, body: dict):
                 WHERE result_id = %s
             """, (json.dumps(race_scores), total, nett, result_id))
             
-            # Update block races_sailed and discard_count
+            # Update block races_sailed, discard_count, to_count
             cur.execute("""
                 UPDATE regatta_blocks
                 SET races_sailed = %s,
-                    discard_count = %s
+                    discard_count = %s,
+                    to_count = %s
                 WHERE block_id = %s
-            """, (races_sailed, discard_count, block_id))
+            """, (races_sailed, discard_count, to_count, block_id))
             
-            # Recalculate ALL sailors in this fleet (in case discard_count changed)
+            # Recalculate ALL sailors in this fleet (discards / nett / brackets)
             cur.execute("""
                 SELECT result_id, race_scores
                 FROM results
@@ -14281,69 +14934,9 @@ def patch_race_score(request: Request, result_id: int, body: dict):
                 res_race_scores = res['race_scores'] or {}
                 if isinstance(res_race_scores, str):
                     res_race_scores = json.loads(res_race_scores)
-                
-                # Count races sailed
-                res_races_sailed = len([k for k in res_race_scores.keys() if k.startswith('R') and res_race_scores[k]])
-                
-                # Parse scores
-                res_scores_list = []
-                for i in range(1, res_races_sailed + 1):
-                    rkey = f"R{i}"
-                    val = res_race_scores.get(rkey, "")
-                    if not val:
-                        continue
-                    
-                    is_bracket = val.startswith("(") and val.endswith(")")
-                    num_match = re.search(r'[\d.]+', val)
-                    has_penalty = bool(re.search(r'(DNC|DNS|DNF|RET|DSQ|UFD|BFD|DPI|OCS)', val, re.I))
-                    
-                    if num_match:
-                        score_val = abs(float(num_match.group(0)))
-                    elif has_penalty:
-                        score_val = float(entries_plus_one)
-                    else:
-                        score_val = 0.0
-                    
-                    res_scores_list.append({
-                        'key': rkey,
-                        'val': score_val,
-                        'is_br': is_bracket,
-                        'raw': val
-                    })
-                
-                # Calculate total
-                res_total = sum(s['val'] for s in res_scores_list)
-                
-                # Identify discards
-                res_discard_idxs = set()
-                if discard_count > 0 and res_scores_list:
-                    bracketed = [i for i, s in enumerate(res_scores_list) if s['is_br']]
-                    for idx in bracketed[:discard_count]:
-                        res_discard_idxs.add(idx)
-                    
-                    remaining_needed = discard_count - len(res_discard_idxs)
-                    if remaining_needed > 0:
-                        remaining = [(i, s) for i, s in enumerate(res_scores_list) if i not in res_discard_idxs]
-                        remaining.sort(key=lambda x: x[1]['val'], reverse=True)
-                        for i in range(min(remaining_needed, len(remaining))):
-                            res_discard_idxs.add(remaining[i][0])
-                
-                # Update brackets
-                for i, score_info in enumerate(res_scores_list):
-                    rkey = score_info['key']
-                    should_be_bracketed = i in res_discard_idxs
-                    current_val = score_info['raw']
-                    is_currently_bracketed = score_info['is_br']
-                    
-                    if should_be_bracketed and not is_currently_bracketed:
-                        res_race_scores[rkey] = f"({current_val})"
-                    elif not should_be_bracketed and is_currently_bracketed:
-                        res_race_scores[rkey] = current_val.strip("()")
-                
-                # Calculate nett
-                res_nett = res_total - sum(res_scores_list[i]['val'] for i in res_discard_idxs)
-                
-                # Update this result
+                res_race_scores, res_total, res_nett = _appendix_a_apply_series(
+                    res_race_scores, races_sailed, entries_count, discard_count
+                )
                 cur.execute("""
                     UPDATE results
                     SET race_scores = %s,
@@ -14352,30 +14945,10 @@ def patch_race_score(request: Request, result_id: int, body: dict):
                     WHERE result_id = %s
                 """, (json.dumps(res_race_scores), res_total, res_nett, res['result_id']))
             
-            # Re-rank entire fleet by nett scores (lower nett = better rank)
-            # Each sailor must have unique rank (no ties) - break ties by result_id
-            # NULL/0 nett scores rank last (treated as 999999)
-            cur.execute("""
-                WITH ranked AS (
-                    SELECT result_id,
-                           ROW_NUMBER() OVER (
-                               ORDER BY 
-                                   COALESCE(
-                                       NULLIF(nett_points_raw, 0), 
-                                       999999
-                                   ) ASC, 
-                                   result_id ASC
-                           ) as new_rank
-                    FROM results
-                    WHERE block_id = %s
-                )
-                UPDATE results r
-                SET rank = ranked.new_rank
-                FROM ranked
-                WHERE r.result_id = ranked.result_id
-            """, (block_id,))
+            _persist_fleet_ranks(cur, block_id)
             
-            _ensure_snapshot_integrity(conn, regatta_id)
+            if not _cape_classic_event_id(regatta_id):
+                _ensure_snapshot_integrity(conn, regatta_id)
             conn.commit()
             
             # Return updated result data
@@ -14386,6 +14959,29 @@ def patch_race_score(request: Request, result_id: int, body: dict):
                 WHERE r.result_id = %s
             """, (result_id,))
             updated = cur.fetchone()
+            cur.execute(
+                """
+                SELECT result_id, rank, total_points_raw, nett_points_raw, race_scores
+                FROM results
+                WHERE block_id = %s
+                ORDER BY rank NULLS LAST, result_id
+                """,
+                (block_id,),
+            )
+            fleet = []
+            for row in cur.fetchall() or []:
+                rs = row.get("race_scores") or {}
+                if isinstance(rs, str):
+                    rs = json.loads(rs)
+                fleet.append(
+                    {
+                        "result_id": row["result_id"],
+                        "rank": row["rank"],
+                        "total_points_raw": row["total_points_raw"],
+                        "nett_points_raw": row["nett_points_raw"],
+                        "race_scores": rs,
+                    }
+                )
             
             return {
                 "ok": True,
@@ -14395,8 +14991,216 @@ def patch_race_score(request: Request, result_id: int, body: dict):
                 "nett_points_raw": nett,
                 "rank": updated['rank'],
                 "races_sailed": races_sailed,
-                "discard_count": discard_count
+                "discard_count": discard_count,
+                "fleet": fleet,
             }
+
+
+@app.get("/api/regatta/{regatta_id}/cape-live-fleets")
+def cape_live_fleets(regatta_id: str):
+    """Cape Classic only: live rank/total/nett/race cells for open pages (no refresh)."""
+    if not _cape_classic_event_id(regatta_id):
+        raise HTTPException(status_code=404, detail="not Cape Classic")
+    import json
+
+    with psycopg2.connect(DB_URL) as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT r.result_id, r.block_id, r.rank,
+                       r.total_points_raw, r.nett_points_raw, r.race_scores
+                FROM results r
+                WHERE r.block_id LIKE %s
+                   OR CAST(r.regatta_id AS TEXT) LIKE %s
+                ORDER BY r.block_id, r.rank NULLS LAST, r.result_id
+                """,
+                ("2026-09-13-zvyc-cape-classic%", "2026-09-13-zvyc-cape-classic%"),
+            )
+            fleets = {}
+            for row in cur.fetchall() or []:
+                bid = str(row.get("block_id") or "")
+                if not bid:
+                    continue
+                rs = row.get("race_scores") or {}
+                if isinstance(rs, str):
+                    rs = json.loads(rs)
+                fleets.setdefault(bid, []).append(
+                    {
+                        "result_id": row["result_id"],
+                        "rank": row["rank"],
+                        "total_points_raw": row["total_points_raw"],
+                        "nett_points_raw": row["nett_points_raw"],
+                        "race_scores": rs,
+                    }
+                )
+    return {"ok": True, "fleets": fleets}
+
+
+@app.patch("/api/result/{result_id}/fleet-races")
+def patch_fleet_races(request: Request, result_id: int, body: dict):
+    """Club/Super Admin: add or remove the last race column for this Cape Classic fleet."""
+    import json
+
+    payload = body if isinstance(body, dict) else {}
+    try:
+        delta = int(payload.get("delta"))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Use +1 or -1")
+
+    with psycopg2.connect(DB_URL) as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT r.result_id, r.block_id, r.regatta_id,
+                       rb.races_sailed
+                FROM results r
+                JOIN regatta_blocks rb ON rb.block_id = r.block_id
+                WHERE r.result_id = %s
+                """,
+                (result_id,),
+            )
+            result = cur.fetchone()
+            if not result:
+                raise HTTPException(status_code=404, detail="Result not found")
+            regatta_id = result.get("regatta_id")
+            if not _cape_classic_event_id(regatta_id):
+                raise HTTPException(status_code=404, detail="not Cape Classic")
+            _require_regatta_score_edit(request, regatta_id)
+
+            block_id = result["block_id"]
+            current = max(int(result.get("races_sailed") or 0), 1)
+            last_key = f"R{current}"
+            last_filled = False
+            cur.execute(
+                "SELECT race_scores FROM results WHERE block_id = %s",
+                (block_id,),
+            )
+            for row in cur.fetchall() or []:
+                rs = row.get("race_scores") or {}
+                if isinstance(rs, str):
+                    rs = json.loads(rs)
+                if str((rs or {}).get(last_key) or "").strip():
+                    last_filled = True
+                    break
+
+            nxt, action = _fleet_races_step(current, delta, last_filled)
+            if action == "clear" or nxt < current:
+                cur.execute(
+                    "SELECT result_id, race_scores FROM results WHERE block_id = %s",
+                    (block_id,),
+                )
+                for row in cur.fetchall() or []:
+                    rs = row.get("race_scores") or {}
+                    if isinstance(rs, str):
+                        rs = json.loads(rs)
+                    if not isinstance(rs, dict):
+                        rs = {}
+                    changed = False
+                    if action == "clear":
+                        rs[last_key] = ""
+                        changed = True
+                    for drop_n in range(nxt + 1, current + 1):
+                        if rs.pop(f"R{drop_n}", None) is not None:
+                            changed = True
+                    if changed:
+                        cur.execute(
+                            "UPDATE results SET race_scores = %s WHERE result_id = %s",
+                            (json.dumps(rs), row["result_id"]),
+                        )
+
+            cur.execute("SELECT COUNT(*) AS cnt FROM results WHERE block_id = %s", (block_id,))
+            entries_count = int((cur.fetchone() or {}).get("cnt") or 0)
+            cur.execute("SELECT race_scores FROM results WHERE block_id = %s", (block_id,))
+            fleet_maps = []
+            for row in cur.fetchall() or []:
+                rs = row.get("race_scores") or {}
+                if isinstance(rs, str):
+                    rs = json.loads(rs)
+                fleet_maps.append(rs if isinstance(rs, dict) else {})
+            completed = _fleet_scored_race_count(fleet_maps)
+            discard_count = _appendix_a_fleet_discard_count(
+                fleet_maps, nxt, entries_count
+            )
+            to_count = max(0, int(completed) - int(discard_count))
+            cur.execute(
+                """
+                UPDATE regatta_blocks
+                SET races_sailed = %s,
+                    discard_count = %s,
+                    to_count = %s
+                WHERE block_id = %s
+                """,
+                (nxt, discard_count, to_count, block_id),
+            )
+
+            cur.execute(
+                "SELECT result_id, race_scores FROM results WHERE block_id = %s",
+                (block_id,),
+            )
+            for res in cur.fetchall() or []:
+                res_race_scores = res.get("race_scores") or {}
+                if isinstance(res_race_scores, str):
+                    res_race_scores = json.loads(res_race_scores)
+                res_race_scores, res_total, res_nett = _appendix_a_apply_series(
+                    res_race_scores, nxt, entries_count, discard_count
+                )
+                cur.execute(
+                    """
+                    UPDATE results
+                    SET race_scores = %s,
+                        total_points_raw = %s,
+                        nett_points_raw = %s,
+                        races_sailed = %s,
+                        discard_count = %s
+                    WHERE result_id = %s
+                    """,
+                    (
+                        json.dumps(res_race_scores),
+                        res_total,
+                        res_nett,
+                        nxt,
+                        discard_count,
+                        res["result_id"],
+                    ),
+                )
+
+            _persist_fleet_ranks(cur, block_id)
+            conn.commit()
+
+            cur.execute(
+                """
+                SELECT result_id, rank, total_points_raw, nett_points_raw, race_scores
+                FROM results
+                WHERE block_id = %s
+                ORDER BY rank NULLS LAST, result_id
+                """,
+                (block_id,),
+            )
+            fleet = []
+            for row in cur.fetchall() or []:
+                rs = row.get("race_scores") or {}
+                if isinstance(rs, str):
+                    rs = json.loads(rs)
+                fleet.append(
+                    {
+                        "result_id": row["result_id"],
+                        "rank": row["rank"],
+                        "total_points_raw": row["total_points_raw"],
+                        "nett_points_raw": row["nett_points_raw"],
+                        "race_scores": rs,
+                    }
+                )
+
+    return {
+        "ok": True,
+        "result_id": result_id,
+        "block_id": str(block_id),
+        "races_sailed": nxt,
+        "discard_count": discard_count,
+        "to_count": to_count,
+        "fleet": fleet,
+    }
+
 
 def auto_verify_regatta_data(regatta_id: str):
     """Auto-verify and update all regatta data against database tables"""
@@ -19351,6 +20155,13 @@ async def check_session(request: Request):
             
             # Session is valid
             role = _get_session_role(request)
+            is_club_admin = _session_role_is_club_admin(request)
+            admin_club_id = _session_admin_club_id(request) if is_club_admin else None
+            admin_club_abbrev = _club_abbrev_for_id(admin_club_id) if admin_club_id else None
+            if is_club_admin and not (full_name or "").strip():
+                first_name = first_name or (admin_club_abbrev or "Club")
+                last_name = last_name or "Club Admin"
+                full_name = _ZVYC_CLUB_LOGIN_NAME if (admin_club_abbrev or "") == "ZVYC" else f"{admin_club_abbrev or 'Club'} Club Admin"
             return {
                 "valid": True,
                 "session_id": session['session_id'],
@@ -19358,6 +20169,10 @@ async def check_session(request: Request):
                 "login_method": session['login_method'],
                 "role": role,
                 "is_super_admin": _session_role_is_super_admin(request),
+                "is_club_admin": is_club_admin,
+                "admin_club_id": admin_club_id,
+                "admin_club_abbrev": admin_club_abbrev,
+                "avatar_url": _club_admin_avatar_url(admin_club_abbrev) if is_club_admin else None,
                 "user": {
                     "first_name": first_name,
                     "last_name": last_name,
@@ -20266,7 +21081,7 @@ def _mm_live_fb_card_html(regatta_id: str) -> str:
         else '<img class="mm-live-fb-brand mm-live-fb-brand--live" src="/assets/adverts/mm-powered-by-live.png?v=mmcap1" alt="Powered by Marine Megastore Live Streaming" width="160" height="107" style="max-width:160px !important;max-height:72px !important;width:auto !important;height:auto !important;" loading="lazy" decoding="async">'
     )
     brand = (
-        '<a class="mm-live-fb-brand-link" href="https://marinemegastore.co.za" target="_blank" rel="noopener noreferrer">'
+        f'<a class="mm-live-fb-brand-link" href="{_MM_STORE_HOME}" target="_blank" rel="noopener noreferrer">'
         f"{reels_img}{live_img}"
         "</a>"
     )
@@ -20336,7 +21151,13 @@ _CAPE_CLASSIC_CREW_ROWS = (
 _CAPE_CLASSIC_CREW_CSS = (
     ".cape-crew-sa{display:none;margin-top:12px;justify-content:flex-end;gap:10px;width:100%}"
     ".regatta-page--super-admin-edit .cape-crew-sa,.cape-crew--admin .cape-crew-sa{display:flex}"
-    ".cape-crew--hidden .table-wrapper{opacity:0.55}"
+    ".cape-crew--hidden{display:none}"
+    ".regatta-page--club-score-edit .cape-crew--hidden,"
+    ".regatta-page--super-admin-edit .cape-crew--hidden,"
+    ".cape-crew--admin.cape-crew--hidden{display:block}"
+    ".regatta-page--club-score-edit .cape-crew--hidden .table-wrapper,"
+    ".regatta-page--super-admin-edit .cape-crew--hidden .table-wrapper,"
+    ".cape-crew--admin.cape-crew--hidden .table-wrapper{opacity:0.55}"
     ".cape-crew .helm-col a{color:#1a2750;font-weight:700;text-decoration:underline}"
     ".cape-crew .fleet-title-row a{color:#1a2750;font-weight:bold;text-decoration:none}"
     ".cape-crew .fleet-title-row a:hover{color:#e65100}"
@@ -20366,10 +21187,8 @@ def _cape_classic_crew_table_html(
     always_show_button: bool = False,
     link_title: bool = True,
 ) -> str:
-    """Crew table below last fleet. Public sees it only when shown. No DB rows."""
+    """Staff table below last fleet. Always in the HTML; public CSS hides it until shown."""
     show = _cape_classic_crew_show()
-    if not show and not is_editor:
-        return ""
     sas_ids = [sid for *_, sid in _CAPE_CLASSIC_CREW_ROWS if str(sid or "").strip().isdigit()]
     slug_map = _batch_sailor_slugs_for_sas_ids(sas_ids) if sas_ids else {}
     rows_html = []
@@ -20408,16 +21227,16 @@ def _cape_classic_crew_table_html(
             ".then(function(o){if(!o.ok){b.disabled=false;return;}window.location.reload();})"
             ".catch(function(){b.disabled=false;});});})();</script>"
         )
-    sailed = html_module.escape(note) if note else "Event crew"
+    sailed = html_module.escape(note) if note else "Event staff"
     return (
         f"<style>{_CAPE_CLASSIC_CREW_CSS}</style>"
-        f'<div class="fleet-section cape-crew{admin_cls}{hidden_cls}" id="capeClassicCrew" aria-label="Crew">'
+        f'<div class="fleet-section cape-crew{admin_cls}{hidden_cls}" id="capeClassicCrew" aria-label="Staff">'
         '<div class="class-header"><div class="class-header-text-col">'
         '<div class="fleet-title-row">'
         + (
-            f'<a href="{html_module.escape(_CAPE_CLASSIC_CREW_HREF)}">Crew</a>'
+            f'<a href="{html_module.escape(_CAPE_CLASSIC_CREW_HREF)}">Staff</a>'
             if link_title
-            else "Crew"
+            else "Staff"
         )
         + "</div>"
         f'<div class="sailed-line">{sailed}</div>'
@@ -20472,14 +21291,14 @@ def serve_cape_classic_crew_standalone(request: Request):
     )
     crew_frag = _cape_classic_crew_table_html(
         is_editor=can_crew,
-        always_show_button=_session_role_is_admin(request),
+        always_show_button=can_crew,
         link_title=False,
     )
     print_btn = '<div class="action-buttons"><button class="action-button" onclick="window.print()">Print</button></div>'
     sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js?v=mm2" defer></script>' if is_sa else ""
     doc = (
         "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
-        f"Crew – {escaped_title} | SailingSA</title>"
+        f"Staff – {escaped_title} | SailingSA</title>"
         "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
         f"<style>{_RESULT_SHEET_CSS}</style></head><body>"
         f'<div class="regatta-page">{header_html}{crew_frag}{print_btn}</div>{sa_toolbar_js}'
@@ -20488,6 +21307,7 @@ def serve_cape_classic_crew_standalone(request: Request):
     return HTMLResponse(doc)
 
 
+_MM_STORE_HOME = "https://www.marinemegastore.co.za/"
 _MM_COMING_SOON_BRAND_SRC = "/assets/adverts/mm-powered-by-coming-soon.jpg?v=mmcc1"
 _MM_EVENT_REELS_BRAND_SRC = "/assets/adverts/mm-powered-by-event-reels.png?v=mmr2"
 _LIPTON_MM_REELS_VIDEOS = (
@@ -21298,7 +22118,7 @@ def _cape_classic_mm_reels_card_html(regatta_id: str) -> str:
         else "Powered by Marine Megastore Coming Soon"
     )
     brand = (
-        '<a class="mm-lipton-reels-brand" href="https://marinemegastore.co.za" target="_blank" rel="noopener noreferrer">'
+        f'<a class="mm-lipton-reels-brand" href="{_MM_STORE_HOME}" target="_blank" rel="noopener noreferrer">'
         f'<img src="{html_module.escape(brand_src)}" '
         f'alt="{html_module.escape(brand_alt)}" width="320" height="213" '
         'loading="lazy" decoding="async">'
@@ -21333,7 +22153,7 @@ def _lipton_mm_reels_card_html(regatta_id: str) -> str:
     payload = _lipton_mm_reels_payload()
     initial = html_module.escape(json.dumps(payload, separators=(",", ":")), quote=True)
     brand = (
-        '<a class="mm-lipton-reels-brand" href="https://marinemegastore.co.za" target="_blank" rel="noopener noreferrer">'
+        f'<a class="mm-lipton-reels-brand" href="{_MM_STORE_HOME}" target="_blank" rel="noopener noreferrer">'
         '<img src="/assets/adverts/mm-powered-by-event-reels.png?v=mmr2" '
         'alt="Powered by Marine Megastore Event Reels" width="320" height="213" '
         'loading="lazy" decoding="async">'
@@ -21379,6 +22199,173 @@ async def api_super_admin_regatta_event_crew_patch(request: Request, regatta_id:
         raise HTTPException(status_code=400, detail="JSON object expected")
     _cape_classic_crew_set_show(bool(body.get("show")))
     return {"ok": True, "show": _cape_classic_crew_show()}
+
+
+def _list_club_admins(club_id: Optional[int] = None) -> list:
+    if not table_exists("user_accounts") or not column_exists("user_accounts", "role"):
+        return []
+    has_club_col = column_exists("user_accounts", "admin_club_id")
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        params = []
+        club_filter = ""
+        if has_club_col and club_id is not None:
+            club_filter = " AND ua.admin_club_id = %s"
+            params.append(int(club_id))
+        club_join = "LEFT JOIN public.clubs c ON c.club_id = ua.admin_club_id" if has_club_col else ""
+        club_sel = "ua.admin_club_id, c.club_abbrev" if has_club_col else "NULL::int AS admin_club_id, NULL::text AS club_abbrev"
+        name_sel = "MAX(NULLIF(trim(ua.full_name), '')) AS full_name" if column_exists("user_accounts", "full_name") else "NULL::text AS full_name"
+        cur.execute(
+            f"""
+            SELECT ua.sas_id, {club_sel}, {name_sel}
+            FROM public.user_accounts ua
+            {club_join}
+            WHERE lower(replace(replace(trim(COALESCE(ua.role,'')), ' ', '_'), '-', '_'))
+                  IN ('club_admin', 'clubadmin')
+            {club_filter}
+            GROUP BY ua.sas_id{', ua.admin_club_id, c.club_abbrev' if has_club_col else ''}
+            ORDER BY ua.sas_id
+            """,
+            params,
+        )
+        rows = cur.fetchall() or []
+        out = []
+        for r in rows:
+            out.append(
+                {
+                    "sas_id": str(r.get("sas_id") or "").strip(),
+                    "full_name": (r.get("full_name") or "").strip() or None,
+                    "admin_club_id": int(r["admin_club_id"]) if r.get("admin_club_id") is not None else None,
+                    "club_abbrev": (r.get("club_abbrev") or "").strip() or None,
+                }
+            )
+        return out
+    finally:
+        cur.close()
+        return_db_connection(conn)
+
+
+@app.get("/api/super-admin/club-admin")
+def api_super_admin_list_club_admin(request: Request, club_abbrev: str = Query("ZVYC")):
+    """Super Admin: list Club Admin accounts for a host club (default ZVYC)."""
+    _require_super_admin(request)
+    club_id = _lookup_club_id_by_abbrev(club_abbrev)
+    return {"ok": True, "club_abbrev": str(club_abbrev or "").strip().upper(), "club_id": club_id, "admins": _list_club_admins(club_id)}
+
+
+@app.post("/api/super-admin/club-admin")
+def api_super_admin_assign_club_admin(request: Request, body: dict = Body(...)):
+    """Super Admin: grant club_admin to an existing registered SAS ID for one host club.
+    Does not create a person or invent a SAS ID."""
+    _require_super_admin(request)
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="JSON object expected")
+    sas_id = str(body.get("sas_id") or "").strip()
+    club_abbrev = str(body.get("club_abbrev") or "ZVYC").strip().upper() or "ZVYC"
+    if club_abbrev == "ZVYC" and (not sas_id or str(body.get("desk") or "").strip() in ("1", "true", "True")):
+        desk = _ensure_zvyc_club_whatsapp_admin()
+        if not desk.get("ok"):
+            raise HTTPException(status_code=400, detail=desk.get("error") or "Could not create ZVYC club login")
+        if not sas_id.isdigit():
+            desk["admins"] = _list_club_admins(desk.get("admin_club_id"))
+            return desk
+    if not sas_id.isdigit():
+        raise HTTPException(status_code=400, detail="Real numeric SAS ID required")
+    club_id = _lookup_club_id_by_abbrev(club_abbrev)
+    if not club_id:
+        raise HTTPException(status_code=404, detail=f"Club {club_abbrev} not found")
+    if not table_exists("user_accounts"):
+        raise HTTPException(status_code=500, detail="user_accounts not found")
+    _ensure_user_accounts_admin_club_id_column()
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        cur.execute(
+            """
+            SELECT account_id, role FROM public.user_accounts
+            WHERE sas_id = %s
+            """,
+            (sas_id,),
+        )
+        rows = cur.fetchall() or []
+        if not rows:
+            raise HTTPException(
+                status_code=404,
+                detail="No registered account for this SAS ID. They must sign in with their real SAS ID first.",
+            )
+        for r in rows:
+            if _normalize_account_role(r.get("role")) in ("super_admin", "superadmin"):
+                raise HTTPException(status_code=400, detail="Cannot change a Super Admin account to Club Admin")
+        cur.execute(
+            """
+            UPDATE public.user_accounts
+            SET role = 'club_admin', admin_club_id = %s
+            WHERE sas_id = %s
+              AND (role IS NULL OR lower(replace(replace(trim(role), ' ', '_'), '-', '_'))
+                   NOT IN ('super_admin', 'superadmin'))
+            """,
+            (int(club_id), sas_id),
+        )
+        if cur.rowcount < 1:
+            raise HTTPException(status_code=400, detail="Could not assign Club Admin")
+        conn.commit()
+    finally:
+        cur.close()
+        return_db_connection(conn)
+    return {
+        "ok": True,
+        "sas_id": sas_id,
+        "role": "club_admin",
+        "admin_club_id": int(club_id),
+        "club_abbrev": club_abbrev,
+        "admins": _list_club_admins(club_id),
+    }
+
+
+@app.delete("/api/super-admin/club-admin")
+def api_super_admin_revoke_club_admin(request: Request, body: dict = Body(...)):
+    """Super Admin: remove Club Admin from an existing SAS ID."""
+    _require_super_admin(request)
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="JSON object expected")
+    sas_id = str(body.get("sas_id") or "").strip()
+    if not sas_id.isdigit():
+        raise HTTPException(status_code=400, detail="Real numeric SAS ID required")
+    if not table_exists("user_accounts") or not column_exists("user_accounts", "role"):
+        raise HTTPException(status_code=500, detail="user_accounts not found")
+    has_club_col = column_exists("user_accounts", "admin_club_id")
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        if has_club_col:
+            cur.execute(
+                """
+                UPDATE public.user_accounts
+                SET role = NULL, admin_club_id = NULL
+                WHERE sas_id = %s
+                  AND lower(replace(replace(trim(COALESCE(role,'')), ' ', '_'), '-', '_'))
+                      IN ('club_admin', 'clubadmin')
+                """,
+                (sas_id,),
+            )
+        else:
+            cur.execute(
+                """
+                UPDATE public.user_accounts
+                SET role = NULL
+                WHERE sas_id = %s
+                  AND lower(replace(replace(trim(COALESCE(role,'')), ' ', '_'), '-', '_'))
+                      IN ('club_admin', 'clubadmin')
+                """,
+                (sas_id,),
+            )
+        conn.commit()
+    finally:
+        cur.close()
+        return_db_connection(conn)
+    club_abbrev = str(body.get("club_abbrev") or "ZVYC").strip().upper() or "ZVYC"
+    return {"ok": True, "sas_id": sas_id, "admins": _list_club_admins(_lookup_club_id_by_abbrev(club_abbrev))}
 
 
 @app.get("/api/regatta/{regatta_id}/zvyc-live-cam-thumb")
@@ -22208,11 +23195,16 @@ async def login(request: Request):
         
         # Try to find account by SAS ID or WhatsApp number
         # Username can be SAS ID (numeric) or WhatsApp (10 digits)
-        whatsapp_clean = re.sub(r'\D', '', str(username))[:10] if username else ''
+        whatsapp_clean = _normalize_za_whatsapp(username)
         
         # Check if username looks like SAS ID (numeric) or WhatsApp (10 digits starting with 0)
         is_sas_id = username.isdigit() and len(username) <= 10
         is_whatsapp = len(whatsapp_clean) == 10 and whatsapp_clean.startswith('0')
+        if _is_zvyc_club_whatsapp(username):
+            desk = _ensure_zvyc_club_whatsapp_admin()
+            if not desk.get("ok"):
+                return {"success": False, "error": desk.get("error") or "ZVYC club login is not ready"}
+            whatsapp_clean = _ZVYC_CLUB_WHATSAPP
         
         cur.execute("""
             SELECT account_id, sas_id, login_method, provider_id, email
@@ -25838,6 +26830,20 @@ _RESULT_SHEET_CSS = (
     ".wc-sa-ac-list li:hover,.wc-sa-ac-list li.wc-sa-ac-li-active{background:#e0e7ff}"
     ".wc-sa-ac-list .wc-sa-ac-li-sub{font-size:11px;font-weight:500;color:#64748b}"
     ".regatta-page--super-admin-edit .wc-sa-ac-wrap .wc-result-field-input{min-width:5rem}"
+    ".club-score-banner{display:none;margin:12px 0 0;padding:10px 12px;border:2px solid #1a2750;border-radius:8px;background:#f8fafc;color:#1a2750;font-weight:700;font-size:13px}"
+    ".regatta-page--club-score-edit .club-score-banner{display:block}"
+    ".club-score-input{display:none;box-sizing:border-box;width:2.4rem;min-width:2.2rem;height:22px;min-height:22px;max-height:22px;padding:0 2px;text-align:center;font:inherit;font-size:12px;line-height:20px;font-weight:700;border:1.5px solid #1a2750;border-radius:4px;background:#fff;color:#1a2750}"
+    ".regatta-page--club-score-edit .club-score-view{display:none}"
+    ".regatta-page--club-score-edit .club-score-input{display:inline-block}"
+    ".club-score-input.club-score-input--saved{background:#bbf7d0}"
+    ".regatta-page--club-score-edit td.club-score-auto,"
+    ".regatta-page--club-score-edit td.total-col,"
+    ".regatta-page--club-score-edit td.nett-col{pointer-events:none;user-select:none}"
+    ".regatta-page--club-score-edit td.club-score-auto input,"
+    ".regatta-page--club-score-edit td.total-col input,"
+    ".regatta-page--club-score-edit td.nett-col input,"
+    ".regatta-page--club-score-edit .wc-result-field-input[data-field=\"total_points_raw\"],"
+    ".regatta-page--club-score-edit .wc-result-field-input[data-field=\"nett_points_raw\"]{display:none!important}"
 )
 
 _MM_LIVE_FB_CSS = (
@@ -25946,12 +26952,64 @@ def _wc_fleet_editable_cell(
     return f'<span class="wc-sa-edit-hide">{public_inner_html}</span>' + inp
 
 
+def _club_score_race_cell(result_id_row, score: str, race_key: str) -> str:
+    public = html_module.escape(score or "")
+    if not result_id_row:
+        return public
+    rid_attr = html_module.escape(str(result_id_row), quote=True)
+    rk = html_module.escape(race_key, quote=True)
+    vq = html_module.escape(score or "", quote=True)
+    return (
+        f'<span class="club-score-view">{public}</span>'
+        f'<input type="text" class="club-score-input" inputmode="text" '
+        f'data-result-id="{rid_attr}" data-race="{rk}" data-original="{vq}" '
+        f'value="{vq}" maxlength="48" autocomplete="off" aria-label="{rk} position" />'
+    )
+
+
+def _club_score_banner_html(club_abbrev: Optional[str]) -> str:
+    label = html_module.escape((club_abbrev or "Club").strip() or "Club")
+    return (
+        f'<div class="club-score-banner" id="clubScoreBanner">'
+        f"{label} club admin — type 1–n once each (finishing place). "
+        f"Type n+1 or OCS/DSQ/DNC for a code (score = n+1, can repeat). "
+        f"Total and Nett are automatic — do not type them. "
+        f"After save: Low Point Appendix A discards (1 after 1st has Race 5, 2 after Race 10) "
+        f"and rank by lowest nett (1st down to last).</div>"
+    )
+
+
+def _club_score_edit_script_html() -> str:
+    return (
+        "<script>(function(){var page=document.querySelector('.regatta-page.regatta-page--club-score-edit');"
+        "if(!page)return;"
+        "function save(inp){if(!inp||!inp.classList||!inp.classList.contains('club-score-input'))return;"
+        "var rid=inp.getAttribute('data-result-id');var race=inp.getAttribute('data-race');"
+        "if(!rid||!race||race.charAt(0)!=='R')return;var v=(inp.value||'').trim();var orig=(inp.getAttribute('data-original')||'').trim();"
+        "if(v===orig)return;inp.disabled=true;"
+        "fetch('/api/result/'+encodeURIComponent(rid)+'/race',{method:'PATCH',"
+        "headers:{'Content-Type':'application/json'},credentials:'same-origin',"
+        "body:JSON.stringify({race:race,value:v,session:(function(){try{var a=localStorage.getItem('session');if(a&&a.charAt(0)!=='{'&&a.trim())return a.trim();var b=localStorage.getItem('sailing_session');if(b){var o=JSON.parse(b);return String((o&&(o.session||o.session_token))||'').trim();}}catch(e){}return '';})()})})"
+        ".then(function(r){return r.json().then(function(j){return{ok:r.ok,j:j};});})"
+        ".then(function(o){inp.disabled=false;if(!o.ok){alert((o.j&&(o.j.detail||o.j.error))||'Could not save score');"
+        "inp.value=inp.getAttribute('data-original')||'';return;}"
+        "inp.setAttribute('data-original',v);inp.value=v;inp.classList.add('club-score-input--saved');"
+        "setTimeout(function(){location.reload();},400);})"
+        ".catch(function(){inp.disabled=false;inp.value=inp.getAttribute('data-original')||'';});}"
+        "page.querySelectorAll('.club-score-input').forEach(function(el){"
+        "el.addEventListener('blur',function(){save(el);});"
+        "el.addEventListener('keydown',function(ev){if(ev.key==='Enter'){ev.preventDefault();el.blur();}});});"
+        "})();</script>"
+    )
+
+
 def _render_result_sheet_fleet(
     fleet: dict,
     standalone_class_page: bool = False,
     *,
     column_prefs: Optional[dict] = None,
     wc_sa_fleet_edit: bool = False,
+    race_score_edit: bool = False,
 ) -> str:
     """Render one fleet as HTML using the same structure and class names as admin regatta_viewer result sheet popup.
     When standalone_class_page is True (e.g. /regatta/{id}/class-{slug}), header is class name only, no 'Fleet' suffix.
@@ -26031,18 +27089,21 @@ def _render_result_sheet_fleet(
     races_sailed_db = int(fleet.get("races_sailed") or 0)
     max_race_from_scores = _max_race_idx_from_result_rows(rows)
     races_sailed = max(races_sailed_db, max_race_from_scores)
-    if str(regatta_id or "").strip() == _CAPE_CLASSIC_MM_REGATTA_ID:
-        races_sailed = max(int(races_sailed or 0), 1)
-    discard_count = fleet.get("discard_count") or 0
-    to_count = fleet.get("to_count")
-    if to_count is None and discard_count is not None:
-        to_count = max(0, int(races_sailed) - int(discard_count))
-    if str(regatta_id or "").strip() == _CAPE_CLASSIC_MM_REGATTA_ID and int(races_sailed or 0) >= 1:
-        if to_count is None or int(to_count or 0) < 1:
-            to_count = max(0, int(races_sailed) - int(discard_count or 0))
+    if _cape_classic_event_id(regatta_id):
+        completed = _fleet_scored_race_count([r.get("race_scores") for r in rows])
+        races_sailed = max(int(races_sailed or 0), completed, 1)
+        discard_count = _appendix_a_discard_count(completed)
+        to_count = max(0, completed - discard_count)
+        sailed_line_n = completed
+    else:
+        discard_count = fleet.get("discard_count") or 0
+        to_count = fleet.get("to_count")
+        if to_count is None and discard_count is not None:
+            to_count = max(0, int(races_sailed) - int(discard_count))
+        sailed_line_n = races_sailed
     entries = fleet.get("entries") or 0
     scoring_system = fleet.get("scoring_system") or "Appendix A"
-    sailed_line = f"Sailed: {races_sailed}, Discards: {discard_count}, To count: {to_count}, Entries: {entries}, Scoring system: {scoring_system}"
+    sailed_line = f"Sailed: {sailed_line_n}, Discards: {discard_count}, To count: {to_count}, Entries: {entries}, Scoring system: {scoring_system}"
 
     def _row_has_crew(row):
         if (row.get("crew_name") or "").strip():
@@ -26071,6 +27132,12 @@ def _render_result_sheet_fleet(
             rkey = f"R{i}"
             if rkey not in race_columns:
                 race_columns.append(rkey)
+        race_columns.sort(key=lambda k: int(k[1:]) if isinstance(k, str) and k[1:].isdigit() else 0)
+    if race_score_edit:
+        n_edit = max(int(races_sailed or 0), 1)
+        extra_key = f"R{n_edit + 1}"
+        if extra_key not in race_columns:
+            race_columns.append(extra_key)
         race_columns.sort(key=lambda k: int(k[1:]) if isinstance(k, str) and k[1:].isdigit() else 0)
 
     show_boat = _optional_col_visible("boat_name", has_boat_name)
@@ -26105,9 +27172,10 @@ def _render_result_sheet_fleet(
         thead += "<th>Crew</th>"
     if show_races:
         for rc in race_columns:
-            thead += f"<th>{html_module.escape(rc)}</th>"
+            rk = html_module.escape(str(rc), quote=True)
+            thead += f'<th class="race-col" data-race-key="{rk}">{html_module.escape(rc)}</th>'
     if _pref_on("total"):
-        thead += "<th>Total</th>"
+        thead += '<th class="total-col">Total</th>'
     if _pref_on("nett"):
         thead += '<th class="nett-col">Nett</th>'
 
@@ -26237,9 +27305,17 @@ def _render_result_sheet_fleet(
         rank_plain = "" if r.get("rank") is None else str(r.get("rank")).strip()
         total_str = html_module.escape(total_plain)
         nett_str = html_module.escape(nett_plain)
-        row_html = f'<tr class="{row_classes}">'
+        rid_tr = html_module.escape(str(result_id_row), quote=True) if result_id_row else ""
+        row_html = (
+            f'<tr class="{row_classes}" data-result-id="{rid_tr}">'
+            if rid_tr
+            else f'<tr class="{row_classes}">'
+        )
         if _pref_on("rank"):
-            row_html += f'<td class="rank-col">{_wc_cell(html_module.escape(rank_str), rank_plain, "rank", None, 8)}</td>'
+            if race_score_edit and not wc_sa_fleet_edit:
+                row_html += f'<td class="rank-col club-score-auto">{html_module.escape(rank_str)}</td>'
+            else:
+                row_html += f'<td class="rank-col">{_wc_cell(html_module.escape(rank_str), rank_plain, "rank", None, 8)}</td>'
         if _pref_on("fleet"):
             row_html += f"<td>{fleet_str}</td>"
         if _pref_on("class"):
@@ -26268,16 +27344,28 @@ def _render_result_sheet_fleet(
             for rkey in race_columns:
                 score = (race_scores.get(rkey) or "").strip()
                 is_discarded = score.startswith("(") and score.endswith(")")
-                has_penalty = bool(re.search(r"\b(DNC|DNS|DNF|RET|DSQ|UFD|BFD|DPI|OCS)\b", score, re.I)) if score else False
+                has_penalty = bool(re.search(r"\b(DNC|DNS|DNF|RET|DSQ|UFD|BFD|DPI|OCS|NSC|DNE)\b", score, re.I)) if score else False
                 cell_class = "code" if has_penalty else ("disc" if is_discarded else ("score-counts" if score else ""))
-                row_html += f'<td class="{cell_class}">{_wc_cell(html_module.escape(score), score, None, rkey, 48)}</td>'
+                if race_score_edit and not wc_sa_fleet_edit:
+                    cell_html = _club_score_race_cell(result_id_row, score, rkey)
+                else:
+                    cell_html = _wc_cell(html_module.escape(score), score, None, rkey, 48)
+                rk_attr = html_module.escape(str(rkey), quote=True)
+                extra_cls = f"{cell_class} race-col".strip()
+                row_html += f'<td class="{extra_cls}" data-race-key="{rk_attr}">{cell_html}</td>'
         if _pref_on("total"):
-            row_html += f'<td class="{strike_class}">{_wc_cell(total_str, total_plain, "total_points_raw", None, 24)}</td>'
+            if race_score_edit and not wc_sa_fleet_edit:
+                row_html += f'<td class="total-col club-score-auto {strike_class}">{total_str}</td>'
+            else:
+                row_html += f'<td class="total-col {strike_class}">{_wc_cell(total_str, total_plain, "total_points_raw", None, 24)}</td>'
         if _pref_on("nett"):
-            row_html += f'<td class="nett-col {strike_class}">{_wc_cell(nett_str, nett_plain, "nett_points_raw", None, 24)}</td>'
+            if race_score_edit and not wc_sa_fleet_edit:
+                row_html += f'<td class="nett-col club-score-auto {strike_class}">{nett_str}</td>'
+            else:
+                row_html += f'<td class="nett-col {strike_class}">{_wc_cell(nett_str, nett_plain, "nett_points_raw", None, 24)}</td>'
         row_html += "</tr>"
         trs.append(row_html)
-    table_html = f"<table><thead><tr>{thead}</tr></thead><tbody>{''.join(trs)}</tbody></table>"
+    table_html = f'<table class="fleet-results-table"><thead><tr>{thead}</tr></thead><tbody>{"".join(trs)}</tbody></table>'
     class_logo_src = _class_logo_url_from_fleet_name(class_canonical or fleet_label or fname)
     class_logo_col = ""
     if class_logo_src:
@@ -26287,8 +27375,12 @@ def _render_result_sheet_fleet(
             'loading="lazy" decoding="async" />'
             f"</div>"
         )
+    bid_attr = (
+        f' data-block-id="{html_module.escape(block_id, quote=True)}"' if block_id else ""
+    )
+    rs_attr = f' data-races-sailed="{int(races_sailed or 0)}"'
     return (
-        f'<div class="fleet-section">'
+        f'<div class="fleet-section"{bid_attr}{rs_attr}>'
         f'<div class="class-header">'
         f"{class_logo_col}"
         f'<div class="class-header-text-col"><div class="fleet-title-row">{fleet_header_html}</div>'
@@ -27948,6 +29040,8 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
         host_club_html = f'<a href="/club/{html_module.escape(host_club_slug)}">{html_module.escape(host_club_text)}</a>' if host_club_slug and host_club_text else html_module.escape(host_club_text)
         use_wc_cols = str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG
         is_sa = _session_role_is_super_admin(request)
+        can_score = _session_can_edit_regatta_scores(request, regatta_id)
+        race_score_edit = bool(can_score and not (use_wc_cols and is_sa))
         back_link = f'<a href="/regatta/{html_module.escape(regatta_id)}" class="back-to-home">← Back to full regatta</a>'
         if is_sa:
             back_block = (
@@ -28010,6 +29104,7 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
                 standalone_class_page=True,
                 column_prefs=wc_prefs if use_wc_cols else None,
                 wc_sa_fleet_edit=bool(use_wc_cols and is_sa),
+                race_score_edit=race_score_edit,
             )
             for f in fleets
         ]
@@ -28017,7 +29112,8 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
         if use_wc_cols and is_sa:
             fleet_picker_frag = _wc_regatta_fleet_picker_fragment(str(regatta_id))
         print_btn = '<div class="action-buttons"><button class="action-button" onclick="window.print()">Print</button></div>'
-        body_html = header_html + sa_columns_frag + fleet_picker_frag + "\n".join(fleet_sections) + "\n" + print_btn
+        score_banner = _club_score_banner_html(host_club_abbrev) if race_score_edit else ""
+        body_html = header_html + score_banner + sa_columns_frag + fleet_picker_frag + "\n".join(fleet_sections) + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()
         wc_club_edit_script_c = (
@@ -28025,7 +29121,9 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
             if str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG and is_sa
             else ""
         )
+        club_score_js = _club_score_edit_script_html() if race_score_edit else ""
         sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js?v=mm1" defer></script>' if is_sa else ""
+        page_cls = "regatta-page regatta-page--club-score-edit" if race_score_edit else "regatta-page"
         doc = (
             "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
             f"{html_module.escape(class_name)} – {escaped_title} | SailingSA</title>"
@@ -28035,7 +29133,7 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
             "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
             f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
             f"<style>{_RESULT_SHEET_CSS}</style></head><body>"
-            f"<div class=\"regatta-page\">{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script_c}{sa_toolbar_js}"
+            f"<div class=\"{page_cls}\">{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script_c}{club_score_js}{sa_toolbar_js}"
             "</body></html>"
         )
         return HTMLResponse(doc)
@@ -28234,6 +29332,8 @@ def serve_regatta_standalone(slug: str, request: Request):
         )
         is_sa = _session_role_is_super_admin(request)
         is_wc = str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG
+        can_score = _session_can_edit_regatta_scores(request, regatta_id)
+        race_score_edit = bool(can_score and not (is_wc and is_sa))
         back_link = '<a href="/" class="back-to-home">← Back to Search</a>'
         if is_sa:
             back_block = (
@@ -28337,6 +29437,7 @@ def serve_regatta_standalone(slug: str, request: Request):
                 f,
                 column_prefs=wc_prefs if use_wc_cols else None,
                 wc_sa_fleet_edit=bool(use_wc_cols and is_sa),
+                race_score_edit=race_score_edit,
             )
             for f in fleets
         ]
@@ -28379,16 +29480,18 @@ def serve_regatta_standalone(slug: str, request: Request):
         elif str(regatta_id) == "2026-09-13-zvyc-cape-classic":
             mm_card = _cape_classic_mm_reels_card_html(str(regatta_id))
             mm_card_js = (
-                '<script src="/js/mm-lipton-reels-card.js?v=mmr113" defer></script>'
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr118" defer></script>'
             )
         crew_frag = ""
-        if str(regatta_id) == _CAPE_CLASSIC_MM_REGATTA_ID:
+        if _cape_classic_event_id(regatta_id):
             can_crew = _session_can_toggle_event_crew(request)
             crew_frag = _cape_classic_crew_table_html(
                 is_editor=can_crew,
-                always_show_button=_session_role_is_admin(request),
+                always_show_button=can_crew,
+                link_title=str(regatta_id) == _CAPE_CLASSIC_MM_REGATTA_ID,
             )
-        body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + crew_frag + "\n" + print_btn
+        score_banner = _club_score_banner_html(host_club_abbrev) if race_score_edit else ""
+        body_html = header_html + mm_card + score_banner + sa_columns_frag + "\n" + fleet_joined + crew_frag + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()
         wc_club_edit_script = (
@@ -28396,7 +29499,9 @@ def serve_regatta_standalone(slug: str, request: Request):
             if str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG and is_sa
             else ""
         )
+        club_score_js = _club_score_edit_script_html() if race_score_edit else ""
         sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js?v=mm2" defer></script>' if is_sa else ""
+        page_cls = "regatta-page regatta-page--club-score-edit" if race_score_edit else "regatta-page"
         doc = (
             "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
             f"{escaped_title} | SailingSA</title>"
@@ -28406,7 +29511,7 @@ def serve_regatta_standalone(slug: str, request: Request):
             "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
             f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
             f"<style>{_RESULT_SHEET_CSS}</style></head><body>"
-            f"<div class=\"regatta-page\">{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script}{mm_card_js}{sa_toolbar_js}"
+            f"<div class=\"{page_cls}\">{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script}{club_score_js}{mm_card_js}{sa_toolbar_js}"
             "</body></html>"
         )
         print("REGATTA: total route time", round(time.time() - start_time, 3))

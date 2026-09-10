@@ -12,6 +12,7 @@
   var VID_H = 9;
   var GAP = 6;
   var TRACK_TEST_ID = '2622643364847262';
+  var MM_STORE_HOME = 'https://www.marinemegastore.co.za/';
   var trackRaf = 0;
   var trackRoot = null;
   var trackClip = null;
@@ -631,11 +632,8 @@
         bump();
       }, 4000);
     }
-    if (camTokenOf(root)) {
-      go();
-      return;
-    }
-    scrapeZvycCamToken().then(go);
+    scrapeZvycCamToken();
+    go();
   }
 
   function emptyReelSlotHtml() {
@@ -851,6 +849,7 @@
       if (hold) hold.appendChild(video);
     }
     paintWebcamPoster(root, clip);
+    startWebcamLive(root, clip);
   }
 
   /* Timed 2026-09-10 live: playlist 2.0-3.2s, first seg 3.4-4.4s, playlist+2seg 9-11s. */
@@ -1134,6 +1133,8 @@
     var next = has ? live || '/assets/adverts/mm-powered-by-event-reels.png?v=mmr2' : soon;
     if (img.getAttribute('src') !== next) img.setAttribute('src', next);
     img.setAttribute('alt', has ? 'Powered by Marine Megastore Event Reels' : 'Powered by Marine Megastore Coming Soon');
+    var link = img.closest && img.closest('.mm-lipton-reels-brand');
+    if (link) link.setAttribute('href', MM_STORE_HOME);
   }
 
   function videoKey(videos) {
@@ -1549,18 +1550,10 @@
       }
       var brand = ev.target.closest && ev.target.closest('.mm-lipton-reels-brand');
       if (brand) {
-        if (
-          isCapeClassic() &&
-          (root.getAttribute('data-mm-webcam-pending') === '1' || !hasRealReels(payload.videos || []))
-        ) {
-          var cam = (payload.videos || []).filter(isWebcam)[0];
-          if (cam) {
-            ev.preventDefault();
-            ev.stopPropagation();
-            root._mmLiveGrab = '';
-            openClip(root, payload, state, cam.id);
-          }
-        }
+        ev.preventDefault();
+        ev.stopPropagation();
+        var href = (brand.getAttribute('href') || '').trim() || MM_STORE_HOME;
+        window.open(href, '_blank', 'noopener,noreferrer');
         return;
       }
       var playerUi = ev.target.closest && ev.target.closest('[data-mm-player-ui]');

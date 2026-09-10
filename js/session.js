@@ -60,10 +60,27 @@ function sailingPersonalAvatarNameSlug(fullName) {
 function sailingBuildSailorAvatarCandidates(apiBase, sasId, fullName, opts) {
     opts = opts || {};
     const id = sasId != null ? String(sasId).trim() : '';
-    if (!/^\d+$/.test(id)) return [];
     const pre = apiBase && String(apiBase).trim() ? String(apiBase).replace(/\/$/, '') + '/' : '';
     const slug = sailingPersonalAvatarNameSlug(fullName);
     const urls = [];
+    if (opts.avatarUrl) {
+        var rawAv = String(opts.avatarUrl).trim();
+        if (rawAv) {
+            if (/^https?:\/\//i.test(rawAv) || rawAv.charAt(0) === '/') urls.push(rawAv);
+            else urls.push(pre + rawAv);
+        }
+    }
+    if (!/^\d+$/.test(id)) {
+        const seenEarly = {};
+        const outEarly = [];
+        for (let u = 0; u < urls.length; u++) {
+            if (!seenEarly[urls[u]]) {
+                seenEarly[urls[u]] = true;
+                outEarly.push(urls[u]);
+            }
+        }
+        return outEarly;
+    }
     urls.push(pre + 'assets/personal-avatars/' + encodeURIComponent(id) + '-' + slug + '.png');
     urls.push(pre + 'assets/personal-avatars/' + encodeURIComponent(id) + '-' + slug + '.jpg');
     /* SAS-only filenames in personal-avatars/ (if full name slug does not match session string) */
@@ -137,7 +154,7 @@ function applySailingAvatarToImg(imgEl, sasId, fullName, opts) {
     imgEl.src = urls[0];
 }
 
-function applySailingLoginAvatarsFromSession(sasId, displayName) {
+function applySailingLoginAvatarsFromSession(sasId, displayName, avatarUrl) {
     const apiBase = (window.API_BASE || '').replace(/\/$/, '');
     const ids =
         typeof sailingsaHubHeaderOwnedByBlankLandingJs === 'function' && sailingsaHubHeaderOwnedByBlankLandingJs()
@@ -149,7 +166,8 @@ function applySailingLoginAvatarsFromSession(sasId, displayName) {
             applySailingAvatarToImg(el, sasId, displayName, {
                 apiBase,
                 headerMode: true,
-                includeMediaCache: false
+                includeMediaCache: false,
+                avatarUrl: avatarUrl || ''
             });
         }
     });
@@ -379,7 +397,7 @@ async function updateHeaderAuthStatus() {
                     console.log('[DEBUG] updateHeaderAuthStatus: Logged in status displayed');
                 }
 
-                applySailingLoginAvatarsFromSession(sasId, displayName);
+                applySailingLoginAvatarsFromSession(sasId, displayName, session.avatar_url || '');
                 
                 // Update auth button to "Logout" (same button, different text/function)
                 // Remove any existing buttons with old IDs first
