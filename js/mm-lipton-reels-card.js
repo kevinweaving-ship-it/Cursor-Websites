@@ -392,7 +392,7 @@
     var ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    /* Live go-live stamp + video time at 1x, plus clip offset from commentary vs GPS. */
+    /* Stamp first (go-live / started_at), then offset from video vs tracking. */
     var startMs = Date.parse(String(trackClip.started_at || ''));
     if (startMs !== startMs) return;
     if (video.playbackRate !== 1) video.playbackRate = 1;
