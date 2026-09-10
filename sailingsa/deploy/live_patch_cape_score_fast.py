@@ -15,26 +15,20 @@ else:
     src = src.replace(old_js, new_js, 1)
     print("JS_BUMPED_CCR4")
 
-old_snap = """            WHERE r.result_id = ranked.result_id
-            """,
-            (block_id,),
-        )
-
-    _ensure_snapshot_integrity(conn, regatta_id)
-
-
-def _recalculate_fleet_block_scoring_and_ranks"""
-new_snap = """            WHERE r.result_id = ranked.result_id
-            """,
-            (block_id,),
-        )
-
-    if not str(regatta_id or "").startswith("2026-09-13-zvyc-cape-classic"):
-        _ensure_snapshot_integrity(conn, regatta_id)
-
-
-def _recalculate_fleet_block_scoring_and_ranks"""
-if "if not str(regatta_id or \"\").startswith(\"2026-09-13-zvyc-cape-classic\"):\n        _ensure_snapshot_integrity(conn, regatta_id)" in src:
+old_snap = (
+    "    _ensure_snapshot_integrity(conn, regatta_id)\n"
+    "\n"
+    "\n"
+    "def _recalculate_fleet_block_scoring_and_ranks"
+)
+new_snap = (
+    "    if not str(regatta_id or \"\").startswith(\"2026-09-13-zvyc-cape-classic\"):\n"
+    "        _ensure_snapshot_integrity(conn, regatta_id)\n"
+    "\n"
+    "\n"
+    "def _recalculate_fleet_block_scoring_and_ranks"
+)
+if new_snap in src:
     print("SNAP_ALREADY")
 elif old_snap not in src:
     raise SystemExit("ANCHOR_SNAP_MISSING")
