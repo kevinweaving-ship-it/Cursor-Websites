@@ -49,21 +49,34 @@ repls = [
         'f"Staff – {escaped_title} | SailingSA</title>"',
     ),
     (
-        """            crew_frag = _cape_classic_crew_table_html(
+        """        if str(regatta_id) == "2026-09-13-zvyc-cape-classic":
+            can_crew = _session_can_toggle_event_crew(request)
+            crew_frag = _cape_classic_crew_table_html(
                 is_editor=can_crew,
                 always_show_button=_session_role_is_admin(request),
             )""",
-        """            crew_frag = _cape_classic_crew_table_html(
+        """        if str(regatta_id).startswith("2026-09-13-zvyc-cape-classic"):
+            can_crew = _session_can_toggle_event_crew(request)
+            crew_frag = _cape_classic_crew_table_html(
                 is_editor=can_crew,
                 always_show_button=can_crew,
-                link_title=str(regatta_id) == _CAPE_CLASSIC_MM_REGATTA_ID,
+                link_title=str(regatta_id) == "2026-09-13-zvyc-cape-classic",
             )""",
     ),
     (
         """        if str(regatta_id) == _CAPE_CLASSIC_MM_REGATTA_ID:
-            can_crew = _session_can_toggle_event_crew(request)""",
+            can_crew = _session_can_toggle_event_crew(request)
+            crew_frag = _cape_classic_crew_table_html(
+                is_editor=can_crew,
+                always_show_button=_session_role_is_admin(request),
+            )""",
         """        if _cape_classic_event_id(regatta_id):
-            can_crew = _session_can_toggle_event_crew(request)""",
+            can_crew = _session_can_toggle_event_crew(request)
+            crew_frag = _cape_classic_crew_table_html(
+                is_editor=can_crew,
+                always_show_button=can_crew,
+                link_title=str(regatta_id) == _CAPE_CLASSIC_MM_REGATTA_ID,
+            )""",
     ),
     (
         """        always_show_button=_session_role_is_admin(request),
@@ -78,9 +91,20 @@ for old, new in repls:
         print("SKIP_ALREADY", old[:40].replace("\n", " "))
         continue
     if old not in src:
-        raise SystemExit("ANCHOR_MISSING " + old[:60].replace("\n", " "))
+        print("SKIP_ABSENT", old[:40].replace("\n", " "))
+        continue
     src = src.replace(old, new, 1)
     print("OK", old[:40].replace("\n", " "))
+
+if 'aria-label="Staff"' not in src:
+    raise SystemExit("STAFF_LABEL_MISSING")
+if "always_show_button=can_crew" not in src:
+    raise SystemExit("ALWAYS_SHOW_MISSING")
+if not (
+    'str(regatta_id).startswith("2026-09-13-zvyc-cape-classic")' in src
+    or "if _cape_classic_event_id(regatta_id):" in src
+):
+    raise SystemExit("FLEET_PAGES_MISSING")
 
 old_js = "club-score-edit.js?v=ccr11"
 new_js = "club-score-edit.js?v=ccr12"
@@ -95,6 +119,10 @@ else:
 API.write_text(src, encoding="utf-8")
 print("PATCHED_OK")
 print("staff", 'aria-label="Staff"' in src)
-print("fleet_pages", "if _cape_classic_event_id(regatta_id):" in src)
+print(
+    "fleet_pages",
+    "if _cape_classic_event_id(regatta_id):" in src
+    or 'str(regatta_id).startswith("2026-09-13-zvyc-cape-classic")' in src,
+)
 print("club_see", "_session_can_edit_regatta_scores(request, \"2026-09-13-zvyc-cape-classic\")" in src)
 print("ccr12", new_js in src)
