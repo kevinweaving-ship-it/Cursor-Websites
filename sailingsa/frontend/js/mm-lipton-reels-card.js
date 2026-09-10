@@ -130,6 +130,13 @@
   }
 
   function posterHtml(v) {
+    if (isWebcam(v)) {
+      return (
+        '<img src="' +
+        esc(liveThumbSrc(v)) +
+        '" alt="ZVYC live cam" data-mm-webcam-live loading="lazy" decoding="async">'
+      );
+    }
     if (v && v.thumb) {
       return '<img src="' + esc(v.thumb) + '" alt="" loading="lazy" decoding="async">';
     }

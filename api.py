@@ -20886,7 +20886,7 @@ _ZVYC_LIVE_CAM = {
     "fb_title": "ZVYC Live Cam",
     "fb_sub": "Zeekoevlei · live",
     "fb_owner_logo": _ZVYC_CLUB_LOGO,
-    "thumb": _ZVYC_CLUB_LOGO,
+    "thumb": "/api/regatta/2026-09-13-zvyc-cape-classic/zvyc-live-cam-thumb",
     "live_snap": "/api/regatta/2026-09-13-zvyc-cape-classic/zvyc-live-cam-thumb",
     "play_url": "/api/regatta/2026-09-13-zvyc-cape-classic/zvyc-live-cam",
     "is_live": True,
@@ -28058,12 +28058,12 @@ def serve_regatta_standalone(slug: str, request: Request):
             mm_card = _lipton_mm_reels_card_html(str(regatta_id))
             mm_card_js = (
                 '<script src="/js/mm-lipton-track-overlay.js?v=mmr102" defer></script>'
-                '<script src="/js/mm-lipton-reels-card.js?v=mmr107" defer></script>'
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr108" defer></script>'
             )
         elif str(regatta_id) == "2026-09-13-zvyc-cape-classic":
             mm_card = _cape_classic_mm_reels_card_html(str(regatta_id))
             mm_card_js = (
-                '<script src="/js/mm-lipton-reels-card.js?v=mmr107" defer></script>'
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr108" defer></script>'
             )
         body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))

@@ -105,6 +105,7 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("withHls", js)
         self.assertIn("hls.js@1.5.20", js)
         self.assertIn("live_snap", js)
+        self.assertIn("data-mm-webcam-live", js)
         self.assertIn("play_url", js)
         self.assertIn("data-mm-hero-video", js)
         self.assertIn("video.play()", js)
@@ -117,11 +118,11 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         src = Path("api.py").read_text(encoding="utf-8")
         self.assertIn('row["play_url"]', src)
         self.assertIn("mmr102", src)
-        self.assertIn("mmr107", src)
+        self.assertIn("mmr108", src)
         self.assertIn("mm-lipton-track-overlay.js", src)
         self.assertLess(
             src.find("mm-lipton-track-overlay.js"),
-            src.find("mm-lipton-reels-card.js?v=mmr107"),
+            src.find("mm-lipton-reels-card.js?v=mmr108"),
         )
         self.assertIn("scrollTo", js)
         self.assertIn("bumpSlide", js)
@@ -423,6 +424,8 @@ class CapeClassicMmCardUnitTest(unittest.TestCase):
         self.assertIn("zvyc-live-cam-seg", src)
         self.assertIn("_zvyc_rewrite_playlist", src)
         self.assertIn("/artwork/Club Logo/ZVYC.png", src)
+        self.assertIn('"thumb": "/api/regatta/2026-09-13-zvyc-cape-classic/zvyc-live-cam-thumb"', src)
+        self.assertNotIn('"thumb": _ZVYC_CLUB_LOGO', src)
         self.assertNotIn("cdn.skylinewebcams.com/as/img/hosts/4040.jpg", src)
         self.assertIn("Do not store the feed", src)
         self.assertIn("RedirectResponse(_ZVYC_LIVE_CAM_SNAP", src)
