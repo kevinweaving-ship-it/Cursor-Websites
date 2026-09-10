@@ -12514,24 +12514,62 @@ def _require_regatta_score_edit(request: Request, regatta_id) -> None:
 
 
 _RACE_PENALTY_CODES = ("DNC", "DNS", "DNF", "RET", "DSQ", "UFD", "BFD", "DPI", "OCS", "NSC", "DNE")
+_RACE_PENALTY_CODE_RE = re.compile(
+    r"(?:^|\d(?:\.\d+)?)(" + "|".join(_RACE_PENALTY_CODES) + r")$",
+    re.I,
+)
 
 
-def _normalize_race_score_value(raw) -> str:
-    """Free-field race cell: '3', '10', or 'OCS' / 'ocs' → stored code or place."""
+def _extract_penalty_code(raw) -> Optional[str]:
+    """DSQ, 10.0 DSQ, 32DSQ, (32DSQ) → DSQ."""
+    bare = re.sub(r"\s+", "", str(raw or "").strip().strip("()").strip()).upper()
+    if not bare:
+        return None
+    if bare in _RACE_PENALTY_CODES:
+        return bare
+    m = _RACE_PENALTY_CODE_RE.search(bare)
+    return m.group(1).upper() if m else None
+
+
+def _public_race_code_cell(code: str, entries: int) -> str:
+    """Public results-sheet code: '10.0 DSQ' (points = entries+1)."""
+    pts = max(int(entries or 0), 0) + 1
+    return f"{pts}.0 {str(code or '').strip().upper()}"
+
+
+def _public_race_cell(raw, entries: int, discarded: bool = False) -> str:
+    """Public sheet cell: '1', '10.0 DSQ', '(10.0 DSQ)'."""
     v = str(raw or "").strip()
     if not v:
         return ""
+    code = _extract_penalty_code(v)
+    if code:
+        cell = _public_race_code_cell(code, entries)
+    else:
+        bare = v.strip("()").strip()
+        if re.fullmatch(r"\d+(?:\.\d+)?", bare):
+            cell = str(int(float(bare)))
+        else:
+            cell = bare
+    return f"({cell})" if discarded else cell
+
+
+def _normalize_race_score_value(raw) -> str:
+    """Free-field race cell: '3', '10', or 'OCS' / '10.0 DSQ' / '32DSQ' → place or code."""
+    v = str(raw or "").strip()
+    if not v:
+        return ""
+    code = _extract_penalty_code(v)
+    if code:
+        return code
     bare = v.strip("()").strip()
-    up = bare.upper()
-    if up in _RACE_PENALTY_CODES:
-        return up
-    if re.fullmatch(r"\d+", bare):
-        return str(int(bare))
+    if re.fullmatch(r"\d+(?:\.\d+)?", bare):
+        return str(int(float(bare)))
     return bare
 
 
 def _race_score_is_code(value: str) -> bool:
-    return _normalize_race_score_value(value) in _RACE_PENALTY_CODES
+    return _extract_penalty_code(value) is not None
 
 
 def _race_score_unique_place(value: str, entries: int) -> Optional[int]:
@@ -12557,8 +12595,9 @@ def _validate_race_score_value(value: str, entries: int) -> str:
         return ""
     entries_n = max(int(entries or 0), 0)
     max_pts = entries_n + 1 if entries_n else 0
-    if _race_score_is_code(v):
-        return v
+    code = _extract_penalty_code(v)
+    if code:
+        return _public_race_code_cell(code, entries_n)
     if re.fullmatch(r"\d+", v):
         n = int(v)
         if entries_n and 1 <= n <= max_pts:
@@ -12636,13 +12675,9 @@ def _appendix_a_apply_series(
                 discard_idxs.add(remaining[i][0])
     for i, score_info in enumerate(scores_list):
         rkey = score_info["key"]
-        should_be_bracketed = i in discard_idxs
-        current_val = score_info["raw"]
-        is_currently_bracketed = score_info["is_br"]
-        if should_be_bracketed and not is_currently_bracketed:
-            out[rkey] = f"({current_val})"
-        elif not should_be_bracketed and is_currently_bracketed:
-            out[rkey] = current_val.strip("()")
+        out[rkey] = _public_race_cell(
+            score_info["raw"], entries, discarded=(i in discard_idxs)
+        )
     nett = total - sum(scores_list[i]["val"] for i in discard_idxs)
     return out, total, nett
 

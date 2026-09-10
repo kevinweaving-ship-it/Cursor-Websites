@@ -37,7 +37,7 @@
     st.id = "clubScoreEditCss";
     st.textContent =
       ".club-score-banner{margin:12px 0 0;padding:10px 12px;border:2px solid #1a2750;border-radius:8px;background:#f8fafc;color:#1a2750;font-weight:700;font-size:13px}" +
-      ".club-score-input{box-sizing:border-box;width:2.4rem;min-width:2.2rem;height:22px;min-height:22px;max-height:22px;padding:0 2px;text-align:center;font:inherit;font-size:12px;line-height:20px;font-weight:700;border:1.5px solid #1a2750;border-radius:4px;background:#fff;color:#1a2750}" +
+      ".club-score-input{box-sizing:border-box;width:4.8rem;min-width:4.4rem;height:22px;min-height:22px;max-height:22px;padding:0 3px;text-align:center;font:inherit;font-size:12px;line-height:20px;font-weight:700;border:1.5px solid #1a2750;border-radius:4px;background:#fff;color:#1a2750}" +
       ".club-score-input.club-score-input--saving{background:#fef08a}" +
       ".club-score-input.club-score-input--saved{background:#bbf7d0}" +
       ".regatta-page--club-score-edit .fleet-results-table td.race-col{padding:2px 3px;vertical-align:middle}" +
@@ -58,7 +58,7 @@
     el.className = "club-score-banner";
     el.id = "clubScoreBanner";
     el.textContent =
-      "Type place, Enter = next boat. 1–n once each. 10 / OCS / DSQ for a code. Total, Nett, Rank auto.";
+      "Type place or DSQ — writes 10.0 DSQ instantly. Enter = next boat. Total, Nett, Rank auto.";
     var firstFleet = page.querySelector(".fleet-section");
     if (firstFleet) page.insertBefore(el, firstFleet);
     else page.insertBefore(el, page.firstChild);
@@ -78,14 +78,50 @@
     if (typeof next.select === "function") next.select();
   }
 
+  var PENALTY_CODES = ["DNC", "DNS", "DNF", "RET", "DSQ", "UFD", "BFD", "DPI", "OCS", "NSC", "DNE"];
+
+  function entriesFor(inp) {
+    var n = parseInt(inp.getAttribute("data-entries") || "0", 10);
+    if (n > 0) return n;
+    var fleet = inp.closest(".fleet-section");
+    return fleet ? fleet.querySelectorAll("tr[data-result-id]").length : 0;
+  }
+
+  function publicCell(raw, entries) {
+    var v = String(raw || "").trim();
+    if (!v) return "";
+    var bare = v.replace(/^\(|\)$/g, "").replace(/\s+/g, "").toUpperCase();
+    var code = null;
+    if (PENALTY_CODES.indexOf(bare) >= 0) code = bare;
+    else {
+      var m = bare.match(/^(\d+(?:\.\d+)?)([A-Z]+)$/);
+      if (m && PENALTY_CODES.indexOf(m[2]) >= 0) code = m[2];
+    }
+    var n = Math.max(parseInt(entries, 10) || 0, 0);
+    if (code) return String(n + 1) + ".0 " + code;
+    var num = v.replace(/^\(|\)$/g, "").trim();
+    if (/^\d+(\.0+)?$/.test(num)) return String(parseInt(num, 10));
+    return v;
+  }
+
   function save(inp) {
     if (!inp || !inp.classList.contains("club-score-input")) return;
     var rid = inp.getAttribute("data-result-id");
     var race = inp.getAttribute("data-race");
     if (!rid || !race || race.charAt(0) !== "R") return;
-    var v = (inp.value || "").trim();
+    var entries = entriesFor(inp);
+    var v = publicCell(inp.value, entries);
+    inp.value = v;
     var orig = (inp.getAttribute("data-original") || "").trim();
     if (v === orig) return;
+    var instantPts = /[A-Z]/.test(v) ? entries + 1 : parseFloat(v);
+    if (isFinite(instantPts)) {
+      applyFleetRow({
+        result_id: rid,
+        total_points_raw: instantPts,
+        nett_points_raw: instantPts,
+      });
+    }
     var seq = String(Number(inp.getAttribute("data-save-seq") || 0) + 1);
     inp.setAttribute("data-save-seq", seq);
     inp.classList.add("club-score-input--saving");
@@ -109,6 +145,10 @@
           inp.value = inp.getAttribute("data-original") || "";
           inp.classList.remove("club-score-input--saved");
           return;
+        }
+        if (o.j && o.j.race_scores && o.j.race_scores[race] != null) {
+          v = String(o.j.race_scores[race]);
+          inp.value = v;
         }
         inp.setAttribute("data-original", v);
         inp.classList.add("club-score-input--saved");
@@ -157,10 +197,16 @@
     inp.setAttribute("maxlength", "48");
     inp.setAttribute("data-result-id", resultId);
     inp.setAttribute("data-race", race);
+    var fleet = td.closest(".fleet-section");
+    var entries = fleet ? fleet.querySelectorAll("tr[data-result-id]").length : 0;
+    inp.setAttribute("data-entries", String(entries));
     inp.setAttribute("data-original", current);
     inp.setAttribute("aria-label", race + " position");
     inp.value = current;
     td.appendChild(inp);
+    td.addEventListener("click", function () {
+      inp.focus();
+    });
     inp.addEventListener("blur", function () {
       save(inp);
     });

@@ -105,6 +105,12 @@ class ClubAdminScoreMinTest(unittest.TestCase):
         self.assertEqual(h["_appendix_a_cell_points"]("OCS", 9), 10.0)
         self.assertEqual(h["_appendix_a_cell_points"]("10", 9), 10.0)
         self.assertEqual(h["_appendix_a_cell_points"]("DSQ", 9), 10.0)
+        self.assertEqual(h["_appendix_a_cell_points"]("10.0 DSQ", 9), 10.0)
+        self.assertEqual(h["_appendix_a_cell_points"]("32DSQ", 9), 10.0)
+        self.assertEqual(h["_appendix_a_cell_points"]("(32DSQ)", 9), 10.0)
+        self.assertEqual(h["_public_race_code_cell"]("DSQ", 9), "10.0 DSQ")
+        self.assertEqual(h["_public_race_cell"]("DSQ", 9), "10.0 DSQ")
+        self.assertEqual(h["_public_race_cell"]("32DSQ", 31, True), "(32.0 DSQ)")
 
         scores, total, nett = h["_appendix_a_apply_series"](
             {"R1": "1", "R2": "2", "R3": "3", "R4": "4", "R5": "9"},
@@ -124,7 +130,7 @@ class ClubAdminScoreMinTest(unittest.TestCase):
         )
         self.assertEqual(total, 20.0)
         self.assertEqual(nett, 10.0)
-        self.assertEqual(scores["R2"], "(OCS)")
+        self.assertEqual(scores["R2"], "(10.0 OCS)")
 
         ranked = h["_appendix_a_rank_entries"](
             [
@@ -156,6 +162,8 @@ class ClubAdminScoreMinTest(unittest.TestCase):
         self.assertIn("function ensureR1", self.club_js)
         self.assertIn("function applyFleetRow", self.club_js)
         self.assertIn("function focusOffset", self.club_js)
+        self.assertIn("function publicCell", self.club_js)
+        self.assertIn(".0 ", self.club_js)
         self.assertIn("min-height:22px", self.club_js)
         self.assertNotIn("location.reload", self.club_js)
         self.assertNotIn("inp.disabled = true", self.club_js)
@@ -167,10 +175,14 @@ class ClubAdminScoreMinTest(unittest.TestCase):
         h = _load_score_helpers()
         self.assertEqual(h["_validate_race_score_value"]("3", 9), "3")
         self.assertEqual(h["_validate_race_score_value"]("10", 9), "10")
-        self.assertEqual(h["_validate_race_score_value"]("ocs", 9), "OCS")
+        self.assertEqual(h["_validate_race_score_value"]("ocs", 9), "10.0 OCS")
+        self.assertEqual(h["_validate_race_score_value"]("DSQ", 9), "10.0 DSQ")
+        self.assertEqual(h["_validate_race_score_value"]("32DSQ", 9), "10.0 DSQ")
+        self.assertEqual(h["_validate_race_score_value"]("10.0 DSQ", 9), "10.0 DSQ")
         self.assertEqual(h["_race_score_unique_place"]("3", 9), 3)
         self.assertIsNone(h["_race_score_unique_place"]("10", 9))
         self.assertIsNone(h["_race_score_unique_place"]("OCS", 9))
+        self.assertIsNone(h["_race_score_unique_place"]("10.0 DSQ", 9))
         with self.assertRaises(_FakeHTTPException):
             h["_validate_race_score_value"]("11", 9)
 
