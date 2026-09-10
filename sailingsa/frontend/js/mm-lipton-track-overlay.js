@@ -944,20 +944,30 @@
     return stamp + (rule.offsetMs || 0) + rule.durationSec * 1000;
   }
 
-  /* How far 1st is at clip end — sizes X so they finish far right. */
+  function startMaxAlong(live, origin, hdg) {
+    var ahead = 0;
+    var rows = (live && live.rows) || [];
+    var i;
+    for (i = 0; i < rows.length; i++) {
+      if (!rows[i] || !rows[i].pos) continue;
+      var al = alongAcross(rows[i].pos, origin, hdg).along;
+      if (al > ahead) ahead = al;
+    }
+    return ahead;
+  }
+
+  /* Size X from the rightmost boat at clip end (and now), plus a right
+   * buffer so 1st and anyone passing on the right stay in view. */
   function startAheadM(live, origin, hdg) {
     var ahead = 80;
     var endTs = clipEndTs();
-    if (endTs) {
-      var endLive = ranksAt(endTs);
-      if (endLive && endLive.front && endLive.front.pos) {
-        ahead = Math.max(ahead, alongAcross(endLive.front.pos, origin, hdg).along);
-      }
-    }
-    if (live && live.front && live.front.pos) {
-      ahead = Math.max(ahead, alongAcross(live.front.pos, origin, hdg).along);
-    }
+    if (endTs) ahead = Math.max(ahead, startMaxAlong(ranksAt(endTs), origin, hdg));
+    ahead = Math.max(ahead, startMaxAlong(live, origin, hdg));
     return ahead;
+  }
+
+  function startPadR(w) {
+    return Math.max(56, Math.round(w * 0.16));
   }
 
   /* Full start line must show before start. Start line stays LEFT and does not move.
@@ -979,8 +989,16 @@
     if (startLock && startLock.w === w && startLock.h === h && startLock.ahead > 0) {
       ahead = Math.max(ahead, startLock.ahead);
     }
-    var scaleX = (w - lineX - 26) / Math.max(40, ahead);
+    var padR = startPadR(w);
+    var scaleX = (w - lineX - padR) / Math.max(40, ahead);
     if (!(scaleX > 0.05)) scaleX = 0.05;
+    if (front && front.pos) {
+      var firstAlong = alongAcross(front.pos, origin, hdg).along;
+      if (firstAlong > 8) {
+        var needX = (w - lineX - padR) / firstAlong;
+        if (needX > 0 && scaleX > needX) scaleX = needX;
+      }
+    }
     if (startLock && startLock.w === w && startLock.h === h && startLock.scaleX > 0) {
       if (scaleX > startLock.scaleX) scaleX = startLock.scaleX;
     }
