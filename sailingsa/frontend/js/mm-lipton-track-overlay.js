@@ -883,6 +883,21 @@
     return { lat: sl.left.lat, lon: sl.left.lon, key: 'pin' };
   }
 
+  /* Frozen M1 — do not lose the rounding mark. */
+  function fixedM1() {
+    var pass = topPass();
+    var ts = 0;
+    if (pass && pass.boats && pass.boats[0]) {
+      ts = Number(pass.boats[0].ts_ms != null ? pass.boats[0].ts_ms : pass.boats[0].ts) || 0;
+    }
+    if (!ts) ts = (replay && replay.gun_ts_ms) || (trail && trail.gun_ts_ms) || 0;
+    var p = sampleAt((trail.marks || {})['1'], ts);
+    if (p && p.lat != null) return { lat: p.lat, lon: p.lon, key: '1' };
+    p = sampleAt((trail.marks || {})['1'], ts + 60000);
+    if (p && p.lat != null) return { lat: p.lat, lon: p.lon, key: '1' };
+    return null;
+  }
+
   function isPinKey(k) {
     k = String(k == null ? '' : k);
     return k === 'pin' || k === '4';
@@ -907,7 +922,12 @@
       var pin = fixedPin();
       if (pin) return pin;
     }
+    if (mark && isTopKey(mark.key)) {
+      var m1 = fixedM1();
+      if (m1) return m1;
+    }
     if (mark && mark.lat != null) return { lat: mark.lat, lon: mark.lon, key: mark.key || '' };
+    if (clipRule && String(clipRule.mark) === '1') return fixedM1();
     return fixedPin();
   }
 
@@ -1090,12 +1110,13 @@
     var win = { minA: 0, maxA: 0, minC: -20, maxC: 20 };
     if (tight) {
       eatAlongRows(tightViewRows(live, origin), origin, hdg, win);
+      /* see the round: keep boats + mark in a tight window. */
+      if (win.minA < -90) win.minA = -90;
+      if (win.maxA > 70) win.maxA = 70;
+      if (win.minC < -70) win.minC = -70;
+      if (win.maxC > 70) win.maxC = 70;
     } else {
       eatAlongRows(dropFarMarkBoats(packBehindFirst(live), origin, live), origin, hdg, win);
-      var endLive = clipEndLive();
-      if (endLive) {
-        eatAlongRows(dropFarMarkBoats(packBehindFirst(endLive), origin, endLive), origin, hdg, win);
-      }
     }
     /* Padding so boats show fully at rounding. */
     var boatPad = 36;
@@ -1654,26 +1675,24 @@
   function drawCourseMarks(ctx, cam, ts, w, h, focus, phase) {
     var showStart = phase === 'start' || (focus && (focus.key === 'start' || isPinKey(focus.key)));
     var showM1 = !!(focus && isTopKey(focus.key));
-    var m1 = sampleAt((trail.marks || {})['1'], ts);
+    var m1 = (showM1 && fixedM1()) || sampleAt((trail.marks || {})['1'], ts);
     /* Only the mark being rounded. Far pin / mark / start can be out of view. */
     if (showM1 && m1) {
       var mp = xy(m1.lat, m1.lon, cam);
-      if (markOnCanvas(mp, w, h)) {
-        ctx.beginPath();
-        ctx.arc(mp.x, mp.y, 11, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(251,191,36,0.85)';
-        ctx.lineWidth = 2.2;
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.arc(mp.x, mp.y, 4.2, 0, Math.PI * 2);
-        ctx.fillStyle = '#fbbf24';
-        ctx.fill();
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 11px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('M1', mp.x, mp.y - 16);
-      }
+      ctx.beginPath();
+      ctx.arc(mp.x, mp.y, 16, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(251,191,36,0.95)';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(mp.x, mp.y, 6, 0, Math.PI * 2);
+      ctx.fillStyle = '#fbbf24';
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 13px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('M1', mp.x, mp.y - 22);
     }
     if (showStart && trail.start_line && trail.start_line.left && trail.start_line.right) {
       drawGate(ctx, cam, trail.start_line, 'rgba(56,189,248,0.95)', '', 'Pin', 'RC');
@@ -1688,12 +1707,12 @@
     if (focus && focus.lat != null) {
       var fp = xy(focus.lat, focus.lon, cam);
       ctx.beginPath();
-      ctx.arc(fp.x, fp.y, 22, 0, Math.PI * 2);
+      ctx.arc(fp.x, fp.y, 30, 0, Math.PI * 2);
       ctx.strokeStyle = 'rgba(248,250,252,0.98)';
-      ctx.lineWidth = 4;
+      ctx.lineWidth = 5;
       ctx.stroke();
       ctx.beginPath();
-      ctx.arc(fp.x, fp.y, 7, 0, Math.PI * 2);
+      ctx.arc(fp.x, fp.y, 9, 0, Math.PI * 2);
       ctx.fillStyle = '#38bdf8';
       ctx.fill();
       var fromPt = m1 || (trail.start_line && trail.start_line.right);
@@ -2055,7 +2074,9 @@
     var nextIsPin = !!(nxt && isPinKey(nxt.key));
     var leftTop = nTop >= 12 && dM1 > 420 && nextIsPin && dPin < dM1 - 80;
     if (rule.kind === 'start') return pin;
-    if (m1 && (String(rule.mark) === '1' || dM1 + 60 < dPin) && !leftTop) return m1;
+    /* Clip locked to M1: keep the rounding in view. Do not jump to pin. */
+    if (String(rule.mark) === '1') return m1 || fixedM1() || pin;
+    if (m1 && dM1 + 60 < dPin && !leftTop) return m1;
     if (pin && (dPin + 60 < dM1 || leftTop)) return pin;
     if (m1 && dM1 <= dPin) return m1;
     return pin || m1;
