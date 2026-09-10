@@ -38,6 +38,7 @@
     st.textContent =
       ".club-score-banner{margin:12px 0 0;padding:10px 12px;border:2px solid #1a2750;border-radius:8px;background:#f8fafc;color:#1a2750;font-weight:700;font-size:13px}" +
       ".club-score-input{box-sizing:border-box;width:2.4rem;min-width:2.2rem;height:22px;min-height:22px;max-height:22px;padding:0 2px;text-align:center;font:inherit;font-size:12px;line-height:20px;font-weight:700;border:1.5px solid #1a2750;border-radius:4px;background:#fff;color:#1a2750}" +
+      ".club-score-input.club-score-input--saving{background:#fef08a}" +
       ".club-score-input.club-score-input--saved{background:#bbf7d0}" +
       ".regatta-page--club-score-edit .fleet-results-table td.race-col{padding:2px 3px;vertical-align:middle}" +
       ".regatta-page--club-score-edit td.total-col," +
@@ -57,10 +58,24 @@
     el.className = "club-score-banner";
     el.id = "clubScoreBanner";
     el.textContent =
-      "ZVYC club admin — type 1–n once each in R1. Type n+1 or OCS/DSQ/DNC for a code (can repeat). Total, Nett and Rank are automatic.";
+      "Type place, Enter = next boat. 1–n once each. 10 / OCS / DSQ for a code. Total, Nett, Rank auto.";
     var firstFleet = page.querySelector(".fleet-section");
     if (firstFleet) page.insertBefore(el, firstFleet);
     else page.insertBefore(el, page.firstChild);
+  }
+
+  function fleetInputs(from) {
+    var root = (from && from.closest(".fleet-section")) || document;
+    return Array.prototype.slice.call(root.querySelectorAll(".club-score-input"));
+  }
+
+  function focusOffset(inp, dir) {
+    var list = fleetInputs(inp);
+    var i = list.indexOf(inp);
+    var next = i >= 0 ? list[i + dir] : null;
+    if (!next) return;
+    next.focus();
+    if (typeof next.select === "function") next.select();
   }
 
   function save(inp) {
@@ -71,7 +86,10 @@
     var v = (inp.value || "").trim();
     var orig = (inp.getAttribute("data-original") || "").trim();
     if (v === orig) return;
-    inp.disabled = true;
+    var seq = String(Number(inp.getAttribute("data-save-seq") || 0) + 1);
+    inp.setAttribute("data-save-seq", seq);
+    inp.classList.add("club-score-input--saving");
+    inp.classList.remove("club-score-input--saved");
     var tok = sessionToken();
     fetch(withSession("/api/result/" + encodeURIComponent(rid) + "/race"), {
       method: "PATCH",
@@ -85,14 +103,14 @@
         });
       })
       .then(function (o) {
-        inp.disabled = false;
+        if (inp.getAttribute("data-save-seq") !== seq) return;
+        inp.classList.remove("club-score-input--saving");
         if (!o.ok) {
-          alert((o.j && (o.j.detail || o.j.error)) || "Could not save score");
           inp.value = inp.getAttribute("data-original") || "";
+          inp.classList.remove("club-score-input--saved");
           return;
         }
         inp.setAttribute("data-original", v);
-        inp.value = v;
         inp.classList.add("club-score-input--saved");
         applyFleetRow({
           result_id: rid,
@@ -103,7 +121,8 @@
         if (o.j.fleet && o.j.fleet.length) o.j.fleet.forEach(applyFleetRow);
       })
       .catch(function () {
-        inp.disabled = false;
+        if (inp.getAttribute("data-save-seq") !== seq) return;
+        inp.classList.remove("club-score-input--saving");
         inp.value = inp.getAttribute("data-original") || "";
       });
   }
@@ -146,9 +165,16 @@
       save(inp);
     });
     inp.addEventListener("keydown", function (ev) {
-      if (ev.key === "Enter") {
+      if (ev.key === "Enter" || ev.key === "ArrowDown") {
         ev.preventDefault();
-        inp.blur();
+        save(inp);
+        focusOffset(inp, 1);
+        return;
+      }
+      if (ev.key === "ArrowUp") {
+        ev.preventDefault();
+        save(inp);
+        focusOffset(inp, -1);
       }
     });
   }
@@ -196,6 +222,13 @@
         wireCell(td, rid);
       });
     });
+    var boxes = page.querySelectorAll(".club-score-input");
+    var start = null;
+    Array.prototype.forEach.call(boxes, function (box) {
+      if (!start && !(box.value || "").trim()) start = box;
+    });
+    if (!start && boxes[0]) start = boxes[0];
+    if (start) start.focus();
   }
 
   fetch(withSession("/auth/session?path=" + encodeURIComponent(path)), {
