@@ -26275,6 +26275,29 @@ def _get_regatta_class_page_data(regatta_id: str, class_id: int):
     )
 
 
+def _regatta_print_share_buttons_html() -> str:
+    """Print + Share on standalone /regatta pages (ZVYC Cape Classic and all other sheets)."""
+    return (
+        '<div class="action-buttons">'
+        '<button type="button" class="action-button" onclick="window.print()">Print</button>'
+        '<button type="button" class="action-button" id="regattaShareBtn">Share</button>'
+        "</div>"
+        "<script>(function(){"
+        "var b=document.getElementById('regattaShareBtn');"
+        "if(!b)return;"
+        "b.addEventListener('click',function(){"
+        "var t=document.title||'SailingSA',u=location.href;"
+        "if(navigator.share){navigator.share({title:t,url:u}).catch(function(){});return;}"
+        "function copied(){b.textContent='Link copied';setTimeout(function(){b.textContent='Share';},1600);}"
+        "if(navigator.clipboard&&navigator.clipboard.writeText){"
+        "navigator.clipboard.writeText(u).then(copied).catch(function(){prompt('Copy this link:',u);});"
+        "return;}"
+        "prompt('Copy this link:',u);"
+        "});"
+        "})();</script>"
+    )
+
+
 def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request):
     """Serve single-class regatta page at /regatta/{slug}/class-{class_slug}. Reuses regatta header and fleet renderer."""
     reg = _get_regatta_by_slug(slug)
@@ -26381,7 +26404,7 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
         fleet_picker_frag = ""
         if use_wc_cols and is_sa:
             fleet_picker_frag = _wc_regatta_fleet_picker_fragment(str(regatta_id))
-        print_btn = '<div class="action-buttons"><button class="action-button" onclick="window.print()">Print</button></div>'
+        print_btn = _regatta_print_share_buttons_html()
         body_html = header_html + sa_columns_frag + fleet_picker_frag + "\n".join(fleet_sections) + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()
@@ -26729,7 +26752,7 @@ def serve_regatta_standalone(slug: str, request: Request):
                 'root.addEventListener("click",onCap,true);'
                 "})();</script>"
             )
-        print_btn = '<div class="action-buttons"><button class="action-button" onclick="window.print()">Print</button></div>'
+        print_btn = _regatta_print_share_buttons_html()
         body_html = header_html + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()
