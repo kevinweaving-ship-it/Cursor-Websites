@@ -160,6 +160,19 @@ class ClubAdminScoreMinTest(unittest.TestCase):
         )
         self.assertEqual([r["result_id"] for r in ranked], [1, 2, 3, 4])
         self.assertEqual([r["rank"] for r in ranked], [1, 2, 3, 4])
+        waiting = h["_appendix_a_rank_entries"](
+            [
+                {"result_id": 21153, "nett": 3, "race_scores": {"R1": "3"}},
+                {"result_id": 21154, "nett": 3, "race_scores": {"R1": "2", "R2": "1"}},
+                {"result_id": 21155, "nett": 3, "race_scores": {"R1": "1", "R2": "2"}},
+            ]
+        )
+        self.assertEqual(waiting[-1]["result_id"], 21153)
+        self.assertEqual(waiting[-1]["rank"], 3)
+        self.assertEqual([r["result_id"] for r in waiting[:2]], [21154, 21155])
+        self.assertIn("def _persist_fleet_ranks", self.src)
+        self.assertIn("function busyRaceKey", self.club_js)
+        self.assertIn("function rowHasRace", self.club_js)
         self.assertIn("_appendix_a_apply_series", self.src)
         self.assertIn("_appendix_a_rank_entries", self.src)
         self.assertIn("rank by lowest nett", self.src)

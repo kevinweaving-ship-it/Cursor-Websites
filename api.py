@@ -12761,20 +12761,47 @@ def _appendix_a_apply_series(
     return out, total, nett
 
 
+def _row_has_busy_race(row, busy: int) -> bool:
+    if not busy:
+        return True
+    rs = row.get("race_scores") or {}
+    if isinstance(rs, str):
+        try:
+            rs = json.loads(rs)
+        except Exception:
+            rs = {}
+    if not isinstance(rs, dict):
+        return False
+    return _race_score_filled(rs.get(f"R{int(busy)}"))
+
+
 def _appendix_a_rank_entries(rows):
-    """Lowest nett = 1st, then down the fleet. Unscored (NULL/0 nett) last. Tie-break result_id."""
+    """Lowest nett = 1st. Boats missing the race being entered stay last."""
+    maps = []
+    for r in rows or []:
+        rs = r.get("race_scores")
+        if isinstance(rs, str):
+            try:
+                rs = json.loads(rs)
+            except Exception:
+                rs = {}
+        if isinstance(rs, dict):
+            maps.append(rs)
+    busy = _fleet_max_race_num(maps) if maps else 0
+
     def _key(r):
         nett = r.get("nett")
         try:
             nett_f = float(nett) if nett is not None else 0.0
         except (TypeError, ValueError):
             nett_f = 0.0
+        waiting = 0 if _row_has_busy_race(r, busy) else 1
         unscored = 1 if (nett is None or nett_f == 0.0) else 0
         try:
             rid = int(r.get("result_id") or 0)
         except (TypeError, ValueError):
             rid = 0
-        return (unscored, nett_f, rid)
+        return (waiting, unscored, nett_f, rid)
 
     ordered = sorted(list(rows or []), key=_key)
     ranked = []
@@ -12783,6 +12810,33 @@ def _appendix_a_rank_entries(rows):
         item["rank"] = i
         ranked.append(item)
     return ranked
+
+
+def _persist_fleet_ranks(cur, block_id) -> None:
+    cur.execute(
+        "SELECT result_id, nett_points_raw, race_scores FROM results WHERE block_id = %s",
+        (block_id,),
+    )
+    rows = []
+    for r in cur.fetchall() or []:
+        rs = r.get("race_scores") or {}
+        if isinstance(rs, str):
+            try:
+                rs = json.loads(rs)
+            except Exception:
+                rs = {}
+        rows.append(
+            {
+                "result_id": r["result_id"],
+                "nett": r.get("nett_points_raw"),
+                "race_scores": rs if isinstance(rs, dict) else {},
+            }
+        )
+    for item in _appendix_a_rank_entries(rows):
+        cur.execute(
+            "UPDATE results SET rank = %s WHERE result_id = %s",
+            (item["rank"], item["result_id"]),
+        )
 
 
 def _lookup_club_id_by_abbrev(abbrev: str) -> Optional[int]:
@@ -14847,28 +14901,7 @@ def patch_race_score(request: Request, result_id: int, body: dict):
                     WHERE result_id = %s
                 """, (json.dumps(res_race_scores), res_total, res_nett, res['result_id']))
             
-            # Re-rank the fleet: lowest nett = 1st, then down to last entry.
-            # Unscored (NULL/0 nett) last. Ties broken by result_id.
-            cur.execute("""
-                WITH ranked AS (
-                    SELECT result_id,
-                           ROW_NUMBER() OVER (
-                               ORDER BY
-                                   CASE
-                                       WHEN nett_points_raw IS NULL OR nett_points_raw = 0 THEN 1
-                                       ELSE 0
-                                   END ASC,
-                                   nett_points_raw ASC,
-                                   result_id ASC
-                           ) as new_rank
-                    FROM results
-                    WHERE block_id = %s
-                )
-                UPDATE results r
-                SET rank = ranked.new_rank
-                FROM ranked
-                WHERE r.result_id = ranked.result_id
-            """, (block_id,))
+            _persist_fleet_ranks(cur, block_id)
             
             if not _cape_classic_event_id(regatta_id):
                 _ensure_snapshot_integrity(conn, regatta_id)
@@ -15085,29 +15118,7 @@ def patch_fleet_races(request: Request, result_id: int, body: dict):
                     ),
                 )
 
-            cur.execute(
-                """
-                WITH ranked AS (
-                    SELECT result_id,
-                           ROW_NUMBER() OVER (
-                               ORDER BY
-                                   CASE
-                                       WHEN nett_points_raw IS NULL OR nett_points_raw = 0 THEN 1
-                                       ELSE 0
-                                   END ASC,
-                                   nett_points_raw ASC,
-                                   result_id ASC
-                           ) as new_rank
-                    FROM results
-                    WHERE block_id = %s
-                )
-                UPDATE results r
-                SET rank = ranked.new_rank
-                FROM ranked
-                WHERE r.result_id = ranked.result_id
-                """,
-                (block_id,),
-            )
+            _persist_fleet_ranks(cur, block_id)
             conn.commit()
 
             cur.execute(

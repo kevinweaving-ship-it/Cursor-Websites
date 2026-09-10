@@ -346,6 +346,32 @@
     } catch (e) {}
   }
 
+  function cellScore(el) {
+    if (!el) return "";
+    if (el.classList && el.classList.contains("club-score-input")) {
+      return String(el.value || "").replace(/[()]/g, "").trim();
+    }
+    if (el.querySelector && el.querySelector("input")) return "";
+    return String(el.textContent || "").replace(/[()]/g, "").trim();
+  }
+
+  function busyRaceKey(table) {
+    var n = 0;
+    if (!table) return "";
+    table.querySelectorAll(".club-score-input, td.race-col[data-race-key]").forEach(function (el) {
+      var key = el.getAttribute("data-race") || el.getAttribute("data-race-key");
+      if (cellScore(el)) n = Math.max(n, raceKeyNum(key));
+    });
+    return n ? "R" + n : "";
+  }
+
+  function rowHasRace(tr, key) {
+    if (!key || !tr) return false;
+    var box = tr.querySelector('.club-score-input[data-race="' + key + '"]');
+    if (box) return !!cellScore(box);
+    return !!cellScore(tr.querySelector('td.race-col[data-race-key="' + key + '"]'));
+  }
+
   function rowNett(tr) {
     var nettTd = tr.querySelector("td.nett-col");
     var n = parseFloat((nettTd && nettTd.textContent) || "");
@@ -370,21 +396,27 @@
     if (!table) return;
     var tb = table.tBodies && table.tBodies[0];
     if (!tb) return;
+    var busy = busyRaceKey(table);
     var items = Array.prototype.map.call(tb.querySelectorAll("tr[data-result-id]"), function (tr) {
-      return { tr: tr, nett: rowNett(tr) };
+      return { tr: tr, nett: rowNett(tr), qual: !busy || rowHasRace(tr, busy) };
     });
     items.sort(function (a, b) {
+      if (a.qual !== b.qual) return a.qual ? -1 : 1;
       if (a.nett !== b.nett) return a.nett - b.nett;
       return Number(a.tr.getAttribute("data-result-id")) - Number(b.tr.getAttribute("data-result-id"));
     });
-    items.forEach(function (it, i) {
+    var q = 0;
+    items.forEach(function (it) {
       var rankTd = it.tr.querySelector("td.rank-col") || it.tr.children[0];
-      if (rankTd) rankTd.textContent = it.nett >= 9999 ? "" : rankLabel(i + 1);
       it.tr.classList.remove("medal-gold", "medal-silver", "medal-bronze");
-      if (it.nett < 9999) {
-        if (i === 0) it.tr.classList.add("medal-gold");
-        else if (i === 1) it.tr.classList.add("medal-silver");
-        else if (i === 2) it.tr.classList.add("medal-bronze");
+      if (it.qual && it.nett < 9999) {
+        q += 1;
+        if (rankTd) rankTd.textContent = rankLabel(q);
+        if (q === 1) it.tr.classList.add("medal-gold");
+        else if (q === 2) it.tr.classList.add("medal-silver");
+        else if (q === 3) it.tr.classList.add("medal-bronze");
+      } else if (rankTd) {
+        rankTd.textContent = "";
       }
       tb.appendChild(it.tr);
     });
