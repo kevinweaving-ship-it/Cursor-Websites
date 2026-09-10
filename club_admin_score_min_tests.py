@@ -234,7 +234,7 @@ class ClubAdminScoreMinTest(unittest.TestCase):
         self.assertEqual(h["_fleet_races_step"](2, -1, False), (1, "drop"))
         self.assertEqual(h["_fleet_races_step"](1, -1, False), (1, "noop"))
         self.assertIn("action == \"clear\"", self.src)
-        self.assertIn('place > 0 ? String(place) : ""', self.club_js)
+        self.assertIn("function parseScore", self.club_js)
         self.assertNotIn("Clear R\" + current + \" first", self.club_js)
         self.assertIn("def patch_fleet_races", self.src)
         self.assertIn("/api/result/{result_id}/fleet-races", self.src)
@@ -246,10 +246,12 @@ class ClubAdminScoreMinTest(unittest.TestCase):
         self.assertIn("function stepRaces", self.club_js)
         self.assertIn("R+", self.club_js)
         self.assertIn("R−", self.club_js)
-        self.assertIn("typed > entries + 1", self.club_js)
+        self.assertIn("function boxBusy", self.club_js)
         self.assertIn('td.textContent = ""', self.club_js)
         self.assertIn("function scoredRaceCount", self.club_js)
-        self.assertIn('publicCell(inp.getAttribute("data-original")', self.club_js)
+        self.assertIn('ev.key === "Tab"', self.club_js)
+        self.assertIn("inp.select()", self.club_js)
+        self.assertIn("Empty clears", self.club_js)
 
 
 if __name__ == "__main__":

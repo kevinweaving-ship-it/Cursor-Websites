@@ -70,7 +70,7 @@
     el.className = "club-score-banner";
     el.id = "clubScoreBanner";
     el.textContent =
-      "Type place or DSQ. Extra DSQ = 15 DSQ; discarded is (15 DSQ). Enter = next. Rank live.";
+      "Type a place or OCS/DSQ. Extra DSQ = 15 DSQ. Empty clears. Enter = next. Tab/arrows save.";
     var firstFleet = page.querySelector(".fleet-section");
     if (firstFleet) page.insertBefore(el, firstFleet);
     else page.insertBefore(el, page.firstChild);
@@ -99,9 +99,9 @@
     return fleet ? fleet.querySelectorAll("tr[data-result-id]").length : 0;
   }
 
-  function publicCell(raw, entries) {
+  function parseScore(raw, entries) {
     var v = String(raw || "").trim();
-    if (!v) return "";
+    if (!v) return { ok: true, value: "" };
     var bare = v.replace(/^\(|\)$/g, "").replace(/\s+/g, "").toUpperCase();
     var code = null;
     if (PENALTY_CODES.indexOf(bare) >= 0) code = bare;
@@ -109,49 +109,75 @@
       var m = bare.match(/^(\d+(?:\.\d+)?)([A-Z]+)$/);
       if (m && PENALTY_CODES.indexOf(m[2]) >= 0) code = m[2];
     }
-    if (!code) {
-      var cm = bare.match(/^(DNC|DNS|DNF|RET|DSQ|UFD|BFD|DPI|OCS|NSC|DNE)$/);
-      if (cm) code = cm[1];
-    }
     var n = Math.max(parseInt(entries, 10) || 0, 0);
-    if (code) return String(n + 1) + " " + code;
+    if (code) return { ok: true, value: n ? String(n + 1) + " " + code : code };
     var num = v.replace(/^\(|\)$/g, "").trim();
     if (/^\d+(\.0+)?$/.test(num)) {
       var place = parseInt(num, 10);
-      return place > 0 ? String(place) : "";
+      if (place === 0) return { ok: true, value: "" };
+      if (n && (place < 1 || place > n + 1)) {
+        return { ok: false, value: "", error: "Use 1–" + n + " or " + (n + 1) + " / OCS / DSQ" };
+      }
+      if (place < 1) return { ok: false, value: "", error: "Use a place or a code" };
+      return { ok: true, value: String(place) };
     }
-    return v;
+    return {
+      ok: false,
+      value: "",
+      error: "Use a place 1–" + (n || "n") + " or OCS/DSQ/DNC",
+    };
+  }
+
+  function publicCell(raw, entries) {
+    var p = parseScore(raw, entries);
+    return p.ok ? p.value : String(raw || "").trim();
+  }
+
+  function boxBusy(box) {
+    return !!(
+      box &&
+      (box === document.activeElement ||
+        box.classList.contains("club-score-input--saving") ||
+        box.getAttribute("data-dirty") === "1")
+    );
+  }
+
+  function markDirty(inp) {
+    var entries = entriesFor(inp);
+    var now = parseScore(inp.value, entries);
+    var orig = parseScore(inp.getAttribute("data-original") || "", entries);
+    if (now.ok && now.value === orig.value) inp.removeAttribute("data-dirty");
+    else inp.setAttribute("data-dirty", "1");
+  }
+
+  function wholeSelected(inp) {
+    return inp.selectionStart === 0 && inp.selectionEnd === String(inp.value || "").length;
   }
 
   function save(inp) {
     if (!inp || !inp.classList.contains("club-score-input")) return;
+    if (inp._wcSaving) return;
     var rid = inp.getAttribute("data-result-id");
     var race = inp.getAttribute("data-race");
     if (!rid || !race || race.charAt(0) !== "R") return;
     var entries = entriesFor(inp);
-    var v = publicCell(inp.value, entries);
-    inp.value = v;
-    var orig = publicCell(inp.getAttribute("data-original") || "", entries);
-    if (v === orig) return;
-    if (v && /^\d+(\.0+)?$/.test(v) && entries > 0) {
-      var typed = parseInt(v, 10);
-      if (typed > entries + 1) {
-        inp.value = orig;
-        inp.title = "Use 1–" + entries + " for a place, or " + (entries + 1) + " / DSQ";
-        return;
-      }
+    var parsed = parseScore(inp.value, entries);
+    var orig = String(inp.getAttribute("data-original") || "");
+    if (!parsed.ok) {
+      inp.value = orig;
+      inp.removeAttribute("data-dirty");
+      inp.title = parsed.error;
+      return;
     }
-    var instantPts = !v ? 0 : /[A-Z]/.test(v) ? entries + 1 : parseFloat(v);
-    if (isFinite(instantPts)) {
-      applyFleetRow({
-        result_id: rid,
-        total_points_raw: instantPts,
-        nett_points_raw: instantPts,
-      });
+    var v = parsed.value;
+    if (v === parseScore(orig, entries).value) {
+      inp.removeAttribute("data-dirty");
+      inp.title = "";
+      return;
     }
-    rerankFleet(fleetTable(inp));
     var seq = String(Number(inp.getAttribute("data-save-seq") || 0) + 1);
     inp.setAttribute("data-save-seq", seq);
+    inp._wcSaving = true;
     inp.classList.add("club-score-input--saving");
     inp.classList.remove("club-score-input--saved");
     var tok = sessionToken();
@@ -168,27 +194,32 @@
       })
       .then(function (o) {
         if (inp.getAttribute("data-save-seq") !== seq) return;
+        inp._wcSaving = false;
         inp.classList.remove("club-score-input--saving");
         if (!o.ok) {
-          inp.value = inp.getAttribute("data-original") || "";
+          inp.value = orig;
+          inp.removeAttribute("data-dirty");
           inp.classList.remove("club-score-input--saved");
           inp.title = (o.j && (o.j.detail || o.j.error)) || "Save failed";
           return;
         }
         inp.title = "";
+        inp.removeAttribute("data-dirty");
         if (o.j && o.j.race_scores && o.j.race_scores[race] != null) {
           v = String(o.j.race_scores[race]);
-          inp.value = v;
         }
         inp.setAttribute("data-original", v);
+        if (document.activeElement !== inp) inp.value = v;
         inp.classList.add("club-score-input--saved");
         applyServerFleet(o.j, fleetTable(inp));
         pushLive();
       })
       .catch(function () {
         if (inp.getAttribute("data-save-seq") !== seq) return;
+        inp._wcSaving = false;
         inp.classList.remove("club-score-input--saving");
-        inp.value = inp.getAttribute("data-original") || "";
+        inp.value = orig;
+        inp.removeAttribute("data-dirty");
       });
   }
 
@@ -223,8 +254,7 @@
     }
     if (row.race_scores && typeof row.race_scores === "object") {
       tr.querySelectorAll(".club-score-input").forEach(function (box) {
-        if (document.activeElement === box) return;
-        if (box.classList.contains("club-score-input--saving")) return;
+        if (boxBusy(box)) return;
         var rk = box.getAttribute("data-race");
         var cell = String(row.race_scores[rk] == null ? "" : row.race_scores[rk]);
         box.value = cell;
@@ -247,16 +277,20 @@
   function applyLiveFleets(data) {
     if (!data || !data.fleets) return;
     Object.keys(data.fleets).forEach(function (bid) {
+      var sec = document.querySelector('.fleet-section[data-block-id="' + bid + '"]');
+      var table = fleetTable(sec) || (sec && sec.querySelector("table"));
+      if (table && table.querySelector(".club-score-input[data-dirty='1'], .club-score-input--saving, .club-score-input:focus")) {
+        return;
+      }
       var rows = data.fleets[bid] || [];
       rows.forEach(applyFleetRow);
-      var sec = document.querySelector('.fleet-section[data-block-id="' + bid + '"]');
-      rerankFleet(fleetTable(sec) || (sec && sec.querySelector("table")));
+      rerankFleet(table);
     });
-    document.querySelectorAll("table.fleet-results-table").forEach(rerankFleet);
   }
 
   function pollLive() {
     if (document.hidden) return;
+    if (document.activeElement && document.activeElement.classList.contains("club-score-input")) return;
     fetch("/api/regatta/2026-09-13-zvyc-cape-classic/cape-live-fleets", {
       credentials: "include",
       cache: "no-store",
@@ -358,13 +392,30 @@
     inp.setAttribute("aria-label", race + " position");
     inp.value = current;
     td.appendChild(inp);
-    td.addEventListener("click", function () {
+    td.addEventListener("click", function (ev) {
+      if (ev.target === inp) return;
       inp.focus();
+    });
+    inp.addEventListener("input", function () {
+      markDirty(inp);
+      inp.title = "";
+    });
+    inp.addEventListener("focus", function () {
+      requestAnimationFrame(function () {
+        if (document.activeElement === inp && typeof inp.select === "function") inp.select();
+      });
     });
     inp.addEventListener("blur", function () {
       save(inp);
     });
     inp.addEventListener("keydown", function (ev) {
+      if (ev.key === "Escape") {
+        ev.preventDefault();
+        inp.value = inp.getAttribute("data-original") || "";
+        inp.removeAttribute("data-dirty");
+        inp.title = "";
+        return;
+      }
       if (ev.key === "Enter" || ev.key === "ArrowDown") {
         ev.preventDefault();
         save(inp);
@@ -375,6 +426,24 @@
         ev.preventDefault();
         save(inp);
         focusOffset(inp, -1);
+        return;
+      }
+      if (ev.key === "Tab") {
+        ev.preventDefault();
+        save(inp);
+        focusOffset(inp, ev.shiftKey ? -1 : 1);
+        return;
+      }
+      if (ev.key === "ArrowLeft" && (inp.selectionStart === 0 || wholeSelected(inp))) {
+        ev.preventDefault();
+        save(inp);
+        focusOffset(inp, -1);
+        return;
+      }
+      if (ev.key === "ArrowRight" && (inp.selectionEnd === String(inp.value || "").length || wholeSelected(inp))) {
+        ev.preventDefault();
+        save(inp);
+        focusOffset(inp, 1);
       }
     });
   }
