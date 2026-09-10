@@ -150,6 +150,65 @@ class ClubAdminScoreMinTest(unittest.TestCase):
         self.assertEqual(extra_nett, 10.0)
         self.assertEqual(extra["R2"], "(15 DSQ)")
 
+        # No discard until 1st has Race 5, even if another boat already has R5/R6
+        self.assertEqual(
+            h["_appendix_a_fleet_discard_count"](
+                [
+                    {"R1": "1", "R2": "1", "R3": "1", "R4": "1"},
+                    {"R1": "4", "R2": "4", "R3": "4", "R4": "4", "R5": "8", "R6": "9"},
+                ],
+                6,
+                9,
+            ),
+            0,
+        )
+        self.assertEqual(
+            h["_appendix_a_fleet_discard_count"](
+                [
+                    {"R1": "1", "R2": "1", "R3": "1", "R4": "1", "R5": "1"},
+                    {"R1": "2", "R2": "3", "R3": "5", "R4": "4", "R5": "6"},
+                ],
+                5,
+                9,
+            ),
+            1,
+        )
+        # Previous bracket does not stick: 4th's 6 in R5 is worse than the old (5)
+        fourth, fourth_total, fourth_nett = h["_appendix_a_apply_series"](
+            {"R1": "2", "R2": "3", "R3": "(5)", "R4": "4", "R5": "6"},
+            5,
+            9,
+            1,
+        )
+        self.assertEqual(fourth_total, 20.0)
+        self.assertEqual(fourth_nett, 14.0)
+        self.assertEqual(fourth["R3"], "5")
+        self.assertEqual(fourth["R5"], "(6)")
+
+        # After 10 races the two worst now win; the old Race 4 discard counts again
+        ten, ten_total, ten_nett = h["_appendix_a_apply_series"](
+            {
+                "R1": "1",
+                "R2": "2",
+                "R3": "3",
+                "R4": "(10)",
+                "R5": "4",
+                "R6": "5",
+                "R7": "12",
+                "R8": "13",
+                "R9": "6",
+                "R10": "7",
+            },
+            10,
+            14,
+        )
+        self.assertEqual(h["_appendix_a_discard_gates"](ten), 2)
+        self.assertEqual(ten["R4"], "10")
+        self.assertEqual(ten["R7"], "(12)")
+        self.assertEqual(ten["R8"], "(13)")
+        self.assertEqual(ten_total, 63.0)
+        self.assertEqual(ten_nett, 38.0)
+
         ranked = h["_appendix_a_rank_entries"](
             [
                 {"result_id": 3, "nett": 12},
@@ -206,7 +265,9 @@ class ClubAdminScoreMinTest(unittest.TestCase):
         self.assertNotIn("location.reload", self.club_js)
         self.assertNotIn("inp.disabled = true", self.club_js)
         self.assertNotIn("alert(", self.club_js)
-        self.assertIn("discard_count = _appendix_a_discard_count(completed)", self.src)
+        self.assertIn("discard_count = _appendix_a_fleet_discard_count(", self.src)
+        self.assertIn("def _appendix_a_discard_gates", self.src)
+        self.assertIn("def _appendix_a_fleet_discard_count", self.src)
         self.assertIn("def _fleet_scored_race_count", self.src)
         self.assertIn('startswith("2026-09-13-zvyc-cape-classic")', self.src)
         self.assertIn("def _cape_classic_event_id", self.src)

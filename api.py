@@ -12629,6 +12629,53 @@ def _appendix_a_discard_count(races_sailed: int) -> int:
     return max(int(races_sailed or 0), 0) // 5
 
 
+def _appendix_a_discard_gates(score_map) -> int:
+    """1 discard when Race 5 has a score, 2 at Race 10, 3 at Race 15, 4 at Race 20."""
+    rs = score_map or {}
+    if isinstance(rs, str):
+        try:
+            rs = json.loads(rs)
+        except Exception:
+            rs = {}
+    if not isinstance(rs, dict):
+        return 0
+    n = 0
+    for gate in (5, 10, 15, 20):
+        if _race_score_filled(rs.get(f"R{gate}")):
+            n += 1
+    return n
+
+
+def _appendix_a_fleet_discard_count(score_maps, races_sailed=0, entries=0) -> int:
+    """Discards unlock only when the series leader has Race 5 / 10 / 15 / 20."""
+    n_races = max(int(races_sailed or 0), _fleet_max_race_num(score_maps), 0)
+    ents = max(int(entries or 0), 0)
+    leader = None
+    leader_key = None
+    for i, rs in enumerate(score_maps or []):
+        if isinstance(rs, str):
+            try:
+                rs = json.loads(rs)
+            except Exception:
+                continue
+        if not isinstance(rs, dict):
+            continue
+        _out, _tot, nett = _appendix_a_apply_series(rs, n_races, ents, 0)
+        try:
+            nett_f = float(nett or 0)
+        except (TypeError, ValueError):
+            nett_f = 0.0
+        if nett_f <= 0:
+            continue
+        key = (nett_f, i)
+        if leader_key is None or key < leader_key:
+            leader_key = key
+            leader = rs
+    if not leader:
+        return 0
+    return _appendix_a_discard_gates(leader)
+
+
 def _race_key_num(key) -> int:
     m = re.fullmatch(r"R(\d+)", str(key or "").strip().upper())
     return int(m.group(1)) if m else 0
@@ -12723,7 +12770,7 @@ def _appendix_a_apply_series(
     out = dict(race_scores or {})
     n_races = max(int(races_sailed or 0), _fleet_max_race_num([out]), 0)
     if discard_count is None:
-        discard_count = _appendix_a_discard_count(_fleet_scored_race_count([out]))
+        discard_count = _appendix_a_discard_gates(out)
     discard_count = max(int(discard_count or 0), 0)
     scores_list = []
     for i in range(1, n_races + 1):
@@ -12736,22 +12783,17 @@ def _appendix_a_apply_series(
             {
                 "key": rkey,
                 "val": _appendix_a_cell_points(val, entries),
-                "is_br": val.startswith("(") and val.endswith(")"),
                 "raw": val,
+                "race": i,
             }
         )
     total = sum(s["val"] for s in scores_list)
     discard_idxs = set()
     if discard_count > 0 and scores_list:
-        bracketed = [i for i, s in enumerate(scores_list) if s["is_br"]]
-        for idx in bracketed[:discard_count]:
-            discard_idxs.add(idx)
-        remaining_needed = discard_count - len(discard_idxs)
-        if remaining_needed > 0:
-            remaining = [(i, s) for i, s in enumerate(scores_list) if i not in discard_idxs]
-            remaining.sort(key=lambda x: x[1]["val"], reverse=True)
-            for i in range(min(remaining_needed, len(remaining))):
-                discard_idxs.add(remaining[i][0])
+        remaining = list(enumerate(scores_list))
+        remaining.sort(key=lambda x: (-x[1]["val"], -x[1]["race"]))
+        for i in range(min(discard_count, len(remaining))):
+            discard_idxs.add(remaining[i][0])
     for i, score_info in enumerate(scores_list):
         rkey = score_info["key"]
         out[rkey] = _public_race_cell(
@@ -14851,7 +14893,9 @@ def patch_race_score(request: Request, result_id: int, body: dict):
                 fleet_maps.append(rs if isinstance(rs, dict) else {})
             completed = _fleet_scored_race_count(fleet_maps)
             races_sailed = max(completed, _fleet_max_race_num(fleet_maps), 1)
-            discard_count = _appendix_a_discard_count(completed)
+            discard_count = _appendix_a_fleet_discard_count(
+                fleet_maps, races_sailed, entries_count
+            )
             to_count = max(0, int(completed) - int(discard_count))
 
             race_scores, total, nett = _appendix_a_apply_series(
@@ -15074,7 +15118,9 @@ def patch_fleet_races(request: Request, result_id: int, body: dict):
                     rs = json.loads(rs)
                 fleet_maps.append(rs if isinstance(rs, dict) else {})
             completed = _fleet_scored_race_count(fleet_maps)
-            discard_count = _appendix_a_discard_count(completed)
+            discard_count = _appendix_a_fleet_discard_count(
+                fleet_maps, nxt, entries_count
+            )
             to_count = max(0, int(completed) - int(discard_count))
             cur.execute(
                 """
@@ -26928,7 +26974,7 @@ def _club_score_banner_html(club_abbrev: Optional[str]) -> str:
         f"{label} club admin — type 1–n once each (finishing place). "
         f"Type n+1 or OCS/DSQ/DNC for a code (score = n+1, can repeat). "
         f"Total and Nett are automatic — do not type them. "
-        f"After save: Low Point Appendix A discards (1 after 5 races, 2 after 10) "
+        f"After save: Low Point Appendix A discards (1 after 1st has Race 5, 2 after Race 10) "
         f"and rank by lowest nett (1st down to last).</div>"
     )
 
