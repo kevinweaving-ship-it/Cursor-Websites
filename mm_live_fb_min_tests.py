@@ -101,11 +101,11 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("playsinline", js)
         src = Path("api.py").read_text(encoding="utf-8")
         self.assertIn('row["play_url"]', src)
-        self.assertIn("mmr79", src)
+        self.assertIn("mmr80", src)
         self.assertIn("mm-lipton-track-overlay.js", src)
         self.assertLess(
             src.find("mm-lipton-track-overlay.js"),
-            src.find("mm-lipton-reels-card.js?v=mmr79"),
+            src.find("mm-lipton-reels-card.js?v=mmr80"),
         )
         self.assertIn("scrollTo", js)
         self.assertIn("bumpSlide", js)
@@ -174,8 +174,8 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("startCamPack", overlay)
         self.assertIn("VERTICAL", overlay)
         self.assertIn("Start line stays LEFT and does not move", overlay)
+        self.assertIn("Full start line must show before start", overlay)
         self.assertIn("can only shrink", overlay)
-        self.assertIn("shrink the line in place", overlay)
         self.assertIn("afterStart", overlay)
         self.assertIn("startLock", overlay)
         self.assertIn("durationSec: 175", overlay)

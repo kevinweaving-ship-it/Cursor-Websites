@@ -960,8 +960,8 @@
     return ahead;
   }
 
-  /* Start line stays LEFT and does not move. It can only shrink (zoom out).
-   * Boats sail to the right. Line stays behind them. 1st is far right at end. */
+  /* Full start line must show before start. Start line stays LEFT and does not move.
+   * It can only shrink (zoom out). Boats above/below stay in view. */
   function startPackCam(live, w, h) {
     var line = startLineMid();
     var pin = line && line.pin;
@@ -971,12 +971,19 @@
     var origin = line || (front && front.pos) || { lat: 0, lon: 0 };
     var lineX = Math.min(72, Math.max(22, w * 0.2));
     var lineY = h * 0.5;
+    if (startLock && startLock.w === w && startLock.h === h && startLock.lineX) {
+      lineX = startLock.lineX;
+      lineY = startLock.lineY;
+    }
     var ahead = startAheadM(live, origin, hdg);
     if (startLock && startLock.w === w && startLock.h === h && startLock.ahead > 0) {
       ahead = Math.max(ahead, startLock.ahead);
     }
     var scaleX = (w - lineX - 26) / Math.max(40, ahead);
     if (!(scaleX > 0.05)) scaleX = 0.05;
+    if (startLock && startLock.w === w && startLock.h === h && startLock.scaleX > 0) {
+      if (scaleX > startLock.scaleX) scaleX = startLock.scaleX;
+    }
     var pinA = pin ? alongAcross(pin, origin, hdg).across : 40;
     var rcA = rc ? alongAcross(rc, origin, hdg).across : -40;
     var lineMin = Math.min(pinA, rcA);
@@ -984,7 +991,7 @@
     var lineSpan = Math.max(40, lineMax - lineMin);
     var padT = 24;
     var padB = 30;
-    var fullScaleY = (h - padT - padB) / lineSpan;
+    var fullScaleY = (h - 12 - 12) / lineSpan;
     var gun = live && live.gun;
     var signed = front && front.pos ? signedDistToStart(front.pos) : 0;
     var afterStart = (gun && live.ts >= gun) || signed > 8;
@@ -998,23 +1005,28 @@
       if (ac < packMin) packMin = ac;
       if (ac > packMax) packMax = ac;
     }
-    /* After the gun, shrink the line in place so ducks above and below
-     * stay in view. Do not pan — scaleY is limited by room above/below
-     * the locked line, not by fleet span alone. */
-    var extraM = afterStart ? 16 : 0;
+    /* Always keep Pin+RC on screen. Shrink in place if boats sail
+     * above or below — never pan the line. */
+    var extraM = afterStart ? 16 : 8;
     var topA = Math.max(packMax, lineMax) + extraM;
     var botA = Math.min(packMin, lineMin) - extraM;
     var scaleY = fullScaleY;
-    if (afterStart) {
-      if (topA > 1) scaleY = Math.min(scaleY, (lineY - padT) / topA);
-      if (botA < -1) scaleY = Math.min(scaleY, (h - padB - lineY) / -botA);
-    }
+    if (topA > 1) scaleY = Math.min(scaleY, (lineY - padT) / topA);
+    if (botA < -1) scaleY = Math.min(scaleY, (h - padB - lineY) / -botA);
     if (!(scaleY > 0.05)) scaleY = 0.05;
     if (fullScaleY > 0 && scaleY > fullScaleY) scaleY = fullScaleY;
     if (startLock && startLock.w === w && startLock.h === h && startLock.scaleY > 0) {
       if (scaleY > startLock.scaleY) scaleY = startLock.scaleY;
     }
-    startLock = { w: w, h: h, ahead: ahead, scaleY: scaleY };
+    startLock = {
+      w: w,
+      h: h,
+      ahead: ahead,
+      scaleX: scaleX,
+      scaleY: scaleY,
+      lineX: lineX,
+      lineY: lineY
+    };
     return {
       midLat: origin.lat,
       midLon: origin.lon,
