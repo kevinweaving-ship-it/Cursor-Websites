@@ -20285,6 +20285,9 @@ def _mm_live_fb_card_html(regatta_id: str) -> str:
 
 
 _LIPTON_MM_REGATTA_ID = "2026-08-29-lipton-challenge-cup"
+_CAPE_CLASSIC_MM_REGATTA_ID = "2026-09-13-zvyc-cape-classic"
+_MM_COMING_SOON_BRAND_SRC = "/assets/adverts/mm-powered-by-coming-soon.jpg?v=mmcc1"
+_MM_EVENT_REELS_BRAND_SRC = "/assets/adverts/mm-powered-by-event-reels.png?v=mmr2"
 _LIPTON_MM_REELS_VIDEOS = (
     {
         "id": "2622643364847262",
@@ -20599,6 +20602,8 @@ _LIPTON_MM_REELS_CSS = (
     ".mm-lipton-reels--expanded .mm-lipton-reels-expanded{display:block!important}"
     ".mm-lipton-reels-compact{display:flex;flex-wrap:nowrap;align-items:stretch;justify-content:flex-start;gap:6px;min-width:0;overflow:hidden}"
     ".mm-lipton-reels-brand{display:block;flex:0 0 auto;line-height:0;overflow:hidden;border:2px solid #001f3f;border-radius:8px;background:#001f3f;box-shadow:0 1px 3px rgba(0,31,63,0.14);box-sizing:border-box}"
+    ".mm-lipton-reels--soon .mm-lipton-reels-brand{flex:1 1 auto;max-width:100%}"
+    ".mm-lipton-reels--soon .mm-lipton-reels-rail-wrap{display:none!important}"
     ".mm-lipton-reels-brand img{display:block;width:100%;height:100%;object-fit:contain;object-position:center;border:0}"
     ".mm-lipton-reels-rail-wrap{position:relative;flex:1 1 auto;min-width:0;height:100%;overflow:hidden}"
     ".mm-lipton-reels-rail,"
@@ -20848,6 +20853,68 @@ def _lipton_mm_reels_payload() -> dict:
     return {"videos": _mm_apply_page_chrome(videos)}
 
 
+def _cape_classic_mm_reels_payload() -> dict:
+    """MM Facebook clips only. Empty until the first Saturday reel is saved."""
+    payload = _mm_feed_payload(_CAPE_CLASSIC_MM_REGATTA_ID)
+    videos = []
+    for item in payload.get("videos") or []:
+        blob = " ".join(
+            str(item.get(k) or "")
+            for k in ("url", "permalink", "embed_url", "fb_page")
+        ).lower()
+        if "timadvisor" in blob or "marin.megastoresa" not in blob:
+            continue
+        videos.append(item)
+    return {
+        "enabled": True,
+        "feed_source": "marine-megastore",
+        "fb_page": "marin.megastoresa",
+        "videos": videos,
+    }
+
+
+def _cape_classic_mm_reels_card_html(regatta_id: str) -> str:
+    """ZVYC Cape Classic 2026 only. Coming Soon until the first MM clip exists."""
+    if str(regatta_id or "").strip() != _CAPE_CLASSIC_MM_REGATTA_ID:
+        return ""
+    payload = _cape_classic_mm_reels_payload()
+    initial = html_module.escape(json.dumps(payload, separators=(",", ":")), quote=True)
+    has_clips = bool(payload.get("videos"))
+    brand_src = _MM_EVENT_REELS_BRAND_SRC if has_clips else _MM_COMING_SOON_BRAND_SRC
+    brand_alt = (
+        "Powered by Marine Megastore Event Reels"
+        if has_clips
+        else "Powered by Marine Megastore Coming Soon"
+    )
+    soon_cls = "" if has_clips else " mm-lipton-reels--soon"
+    brand = (
+        '<a class="mm-lipton-reels-brand" href="https://marinemegastore.co.za" target="_blank" rel="noopener noreferrer">'
+        f'<img src="{html_module.escape(brand_src)}" '
+        f'alt="{html_module.escape(brand_alt)}" width="320" height="213" '
+        'loading="lazy" decoding="async">'
+        "</a>"
+    )
+    return (
+        f"<style>{_LIPTON_MM_REELS_CSS}</style>"
+        f'<section class="card mm-lipton-reels mm-lipton-reels--compact{soon_cls}" id="mmLiptonReels" '
+        f'data-regatta-id="{html_module.escape(_CAPE_CLASSIC_MM_REGATTA_ID)}" '
+        'data-mm-poll="1" '
+        f'data-mm-brand-soon="{html_module.escape(_MM_COMING_SOON_BRAND_SRC)}" '
+        f'data-mm-brand-live="{html_module.escape(_MM_EVENT_REELS_BRAND_SRC)}" '
+        f'data-mm-initial="{initial}" '
+        'aria-label="Marine Megastore Event Reels">'
+        '<div class="mm-lipton-reels-compact">'
+        f"{brand}"
+        '<div class="mm-lipton-reels-rail-wrap">'
+        '<button type="button" class="mm-lipton-reels-rail-btn mm-lipton-reels-rail-btn--prev" data-mm-rail-prev aria-label="Previous clips" hidden>‹</button>'
+        '<div class="mm-lipton-reels-rail" data-mm-compact></div>'
+        '<button type="button" class="mm-lipton-reels-rail-btn mm-lipton-reels-rail-btn--next" data-mm-rail-next aria-label="Next clips" hidden>›</button>'
+        "</div>"
+        "</div>"
+        "</section>"
+    )
+
+
 def _lipton_mm_reels_card_html(regatta_id: str) -> str:
     """Lipton 2026 only. Empty for every other regatta_id."""
     if str(regatta_id or "").strip() != _LIPTON_MM_REGATTA_ID:
@@ -20877,6 +20944,16 @@ def _lipton_mm_reels_card_html(regatta_id: str) -> str:
         "</section>"
     )
 
+
+
+@app.get("/api/regatta/{regatta_id}/mm-live-fb-feed")
+async def api_regatta_mm_live_fb_feed(regatta_id: str):
+    rid = str(regatta_id or "").strip()
+    if rid == _LIPTON_MM_REGATTA_ID:
+        return _lipton_mm_reels_payload()
+    if rid == _CAPE_CLASSIC_MM_REGATTA_ID:
+        return _cape_classic_mm_reels_payload()
+    raise HTTPException(status_code=404, detail="not found")
 
 
 @app.patch("/api/super-admin/regatta/{regatta_id}/mm-live-fb-feed")
@@ -27782,7 +27859,12 @@ def serve_regatta_standalone(slug: str, request: Request):
             mm_card = _lipton_mm_reels_card_html(str(regatta_id))
             mm_card_js = (
                 '<script src="/js/mm-lipton-track-overlay.js?v=mmr102" defer></script>'
-                '<script src="/js/mm-lipton-reels-card.js?v=mmr102" defer></script>'
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr103" defer></script>'
+            )
+        elif str(regatta_id) == "2026-09-13-zvyc-cape-classic":
+            mm_card = _cape_classic_mm_reels_card_html(str(regatta_id))
+            mm_card_js = (
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr103" defer></script>'
             )
         body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))

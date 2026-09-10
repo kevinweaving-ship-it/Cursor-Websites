@@ -311,29 +311,6 @@
     "enabled": true,
     "feed_source": "marine-megastore",
     "fb_page": "marin.megastoresa",
-    "videos": [
-      {
-        "id": "1378276337799152",
-        "url": "https://www.facebook.com/share/v/1957ykQ9qA/",
-        "permalink": "https://www.facebook.com/timadvisor/videos/1378276337799152/",
-        "embed_url": "https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Ftimadvisor%2Fvideos%2F1378276337799152%2F&show_text=false",
-        "title": "Marine Megastore reel",
-        "started_at": "2026-09-13T10:00:00+02:00",
-        "is_live": false,
-        "stamp": "13 Sep · 10:00",
-        "thumb": ""
-      },
-      {
-        "id": "1378276337799152-older",
-        "url": "https://www.facebook.com/timadvisor/videos/1378276337799152/",
-        "permalink": "https://www.facebook.com/timadvisor/videos/1378276337799152/",
-        "embed_url": "https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Ftimadvisor%2Fvideos%2F1378276337799152%2F&show_text=false",
-        "title": "Marine Megastore reel",
-        "started_at": "2026-09-12T15:00:00+02:00",
-        "is_live": false,
-        "stamp": "12 Sep · 15:00",
-        "thumb": ""
-      }
-    ]
+    "videos": []
   }
 }

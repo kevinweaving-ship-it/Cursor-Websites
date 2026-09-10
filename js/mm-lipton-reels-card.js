@@ -51,11 +51,20 @@
     return '16 / 9';
   }
 
+  function advertFolder() {
+    var root = cardEl();
+    var rid = (root && root.getAttribute('data-regatta-id')) || '';
+    if (rid === '2026-09-13-zvyc-cape-classic') return 'mm-cape-classic';
+    return 'mm-lipton';
+  }
+
   function playUrl(v) {
     var u = String((v && v.play_url) || '').trim();
     if (u) return u;
     var id = String((v && v.id) || '').replace(/[^0-9]/g, '');
-    return id ? '/assets/adverts/mm-lipton/' + id + '.mp4' : '';
+    if (!id) return '';
+    if (advertFolder() === 'mm-cape-classic') return '/assets/adverts/mm-cape-classic/' + id + '.mp4';
+    return '/assets/adverts/mm-lipton/' + id + '.mp4';
   }
 
   function posterHtml(v) {
@@ -338,7 +347,9 @@
   }
 
   function thumbsThatFit(avail, total) {
-    var maxN = Math.min(total || 1, 5);
+    var count = total || 0;
+    if (count <= 0) return 0;
+    var maxN = Math.min(count, 5);
     if (avail <= 0) return 1;
     if (window.matchMedia('(max-width: 599px)').matches) return 1;
     var art = ART_W / ART_H;
@@ -648,6 +659,51 @@
     });
   }
 
+  function syncBrand(root, videos) {
+    var img = root.querySelector('.mm-lipton-reels-brand img');
+    var soon = root.getAttribute('data-mm-brand-soon') || '';
+    var live = root.getAttribute('data-mm-brand-live') || '';
+    if (!img || !soon) return;
+    var has = !!(videos && videos.length);
+    var next = has ? live || '/assets/adverts/mm-powered-by-event-reels.png?v=mmr2' : soon;
+    if (img.getAttribute('src') !== next) img.setAttribute('src', next);
+    img.setAttribute('alt', has ? 'Powered by Marine Megastore Event Reels' : 'Powered by Marine Megastore Coming Soon');
+    root.classList.toggle('mm-lipton-reels--soon', !has);
+  }
+
+  function videoKey(videos) {
+    return (videos || [])
+      .map(function (v) {
+        return String((v && (v.id || v.url)) || '');
+      })
+      .join('|');
+  }
+
+  function startFeedPoll(root, payload, state) {
+    if (root.getAttribute('data-mm-poll') !== '1') return;
+    var rid = root.getAttribute('data-regatta-id') || '';
+    if (!rid) return;
+    var url = '/api/regatta/' + encodeURIComponent(rid) + '/mm-live-fb-feed';
+    function apply(data) {
+      var videos = (data && data.videos) || [];
+      if (videoKey(videos) === videoKey(payload.videos)) return;
+      payload.videos = videos;
+      syncBrand(root, videos);
+      if (!state.expanded) paint(root, payload, state);
+    }
+    function tick() {
+      fetch(url, { credentials: 'same-origin' })
+        .then(function (r) {
+          return r.ok ? r.json() : null;
+        })
+        .then(function (data) {
+          if (data) apply(data);
+        })
+        .catch(function () {});
+    }
+    window.setInterval(tick, (payload.videos || []).length ? 300000 : 60000);
+  }
+
   function layoutCompactStrip(root, videos) {
     var row = root.querySelector('.mm-lipton-reels-compact');
     var brand = root.querySelector('.mm-lipton-reels-brand');
@@ -655,7 +711,10 @@
     if (!row || !brand || !compact || root.classList.contains('mm-lipton-reels--expanded')) return;
     var avail = row.clientWidth;
     if (avail <= 0) return;
+    syncBrand(root, videos);
     var nFit = thumbsThatFit(avail, videos.length);
+    var wrap = root.querySelector('.mm-lipton-reels-rail-wrap');
+    if (wrap) wrap.style.display = videos.length ? '' : 'none';
     if (compact.getAttribute('data-mm-count') !== String(videos.length)) {
       compact.innerHTML = compactTilesHtml(videos);
       compact.setAttribute('data-mm-count', String(videos.length));
@@ -669,7 +728,6 @@
     var thumbW = innerH * vid + border;
     brand.style.width = innerH * art + border + 'px';
     brand.style.height = outerH + 'px';
-    var wrap = root.querySelector('.mm-lipton-reels-rail-wrap');
     if (wrap) wrap.style.height = outerH + 'px';
     var thumbs = compact.querySelectorAll('.mm-lipton-reels-thumb');
     var tiles = compact.querySelectorAll('.mm-lipton-reels-tile');
@@ -993,6 +1051,8 @@
       if (src) video.src = src;
     }
     paint(root, payload, state);
+    syncBrand(root, payload.videos || []);
+    startFeedPoll(root, payload, state);
     state.chromeSnap = snapshotChromeSize(root);
 
     root.addEventListener('click', function (ev) {
