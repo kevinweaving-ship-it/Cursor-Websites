@@ -20311,30 +20311,35 @@ def _regatta_event_info_strip_sa_edit(regatta_id: str, is_super_admin: bool = Fa
     return bool(is_super_admin)
 
 
+_CAPE_CLASSIC_CREW_CHILD_SLUG = "2026-09-13-zvyc-cape-classic-crew"
+_CAPE_CLASSIC_CREW_HREF = "/regatta/2026-09-13-zvyc-cape-classic-crew"
+# name, role, station, days, sas_id (only after exact / unique validate — never invent)
 _CAPE_CLASSIC_CREW_ROWS = (
-    ("Craig Leslie", "RO", "Bridge", "Sat/Sun"),
-    ("Masha Ainslie", "Timekeeper / flags", "Bridge", "Sat/Sun"),
-    ("Millicent", "Timekeeper / flags", "Bridge", "Sat/Sun"),
-    ("Karyn McCombe", "Finish / Regatta Officer", "Bridge", "Sat/Sun"),
-    ("Jody Cilliers", "Finish recorder", "Bridge", "Sat/Sun"),
-    ("Jonathan Dugas", "Finish recorder", "Bridge", "Sunday"),
-    ("Alex Falconer", "Safety", "Bridge", "Sat/Sun"),
-    ("Max Cilliers", "Safety", "Boat 1", "Sat/Sun"),
-    ("Rudi Fokkens", "Safety", "Boat 2", "Sat/Sun"),
-    ("Mike Kavanagh", "Safety", "Boat 3", "Sat/Sun"),
-    ("Anna Keytel", "Regatta Secretary", "Admin", "Sat/Sun"),
-    ("Alan Keen", "Head of Protest Committee", "Admin", "Sat/Sun"),
-    ("Michele Keytel", "Results", "Admin", "Sat/Sun"),
-    ("Kendall Madel", "Assistant / prizegiving", "Admin", "Sat/Sun"),
-    ("Carolyn Matschke", "Manager", "Admin", "Sat/Sun"),
-    ("Courtney Clifton", "Admin support / bar", "Admin", "Sat/Sun"),
-    ("Jermaine", "Staff support / bar", "Admin", "Sat/Sun"),
-    ("Wolmarans", "Support", "Support", "Sat/Sun"),
+    ("Craig Leslie", "RO", "Bridge", "Sat/Sun", "165"),
+    ("Mascha Ainslie", "Timekeeper / flags", "Bridge", "Sat/Sun", "14422"),
+    ("Millicent Keen", "Timekeeper / flags", "Bridge", "Sat/Sun", "369"),
+    ("Karyn McCombe", "Finish / Regatta Officer", "Bridge", "Sat/Sun", "8546"),
+    ("Jody Cilliers", "Finish recorder", "Bridge", "Sat/Sun", ""),
+    ("Jonathan Dugas", "Finish recorder", "Bridge", "Sunday", "14463"),
+    ("Alex Falconer", "Safety", "Bridge", "Sat/Sun", ""),
+    ("Max Cilliers", "Safety", "Boat 1", "Sat/Sun", ""),
+    ("Rudi Fokkens", "Safety", "Boat 2", "Sat/Sun", "3720"),
+    ("Michael Kavanagh", "Safety", "Boat 3", "Sat/Sun", "172"),
+    ("Anna Keytel", "Regatta Secretary", "Admin", "Sat/Sun", "3692"),
+    ("Alan Keen", "Head of Protest Committee", "Admin", "Sat/Sun", "295"),
+    ("Michelle Keytel", "Results", "Admin", "Sat/Sun", "14496"),
+    ("Kendal Madel", "Assistant / prizegiving", "Admin", "Sat/Sun", "12709"),
+    ("Carolyn Matschke", "Manager", "Admin", "Sat/Sun", "18666"),
+    ("Courtney Clifton", "Admin support / bar", "Admin", "Sat/Sun", ""),
+    ("Jemayne Wolmarans", "Staff support / bar", "Admin", "Sat/Sun", "1521"),
 )
 _CAPE_CLASSIC_CREW_CSS = (
     ".cape-crew-sa{display:none;margin-top:12px;justify-content:flex-end;gap:10px;width:100%}"
     ".regatta-page--super-admin-edit .cape-crew-sa,.cape-crew--admin .cape-crew-sa{display:flex}"
     ".cape-crew--hidden .table-wrapper{opacity:0.55}"
+    ".cape-crew .helm-col a{color:#1a2750;font-weight:700;text-decoration:underline}"
+    ".cape-crew .fleet-title-row a{color:#1a2750;font-weight:bold;text-decoration:none}"
+    ".cape-crew .fleet-title-row a:hover{color:#e65100}"
     "@media print{.cape-crew-sa{display:none!important}.cape-crew--hidden{display:none!important}}"
 )
 
@@ -20355,16 +20360,30 @@ def _cape_classic_crew_set_show(show: bool) -> None:
     _write_wc_regatta_header_icons(all_d)
 
 
-def _cape_classic_crew_table_html(*, is_editor: bool, always_show_button: bool = False) -> str:
+def _cape_classic_crew_table_html(
+    *,
+    is_editor: bool,
+    always_show_button: bool = False,
+    link_title: bool = True,
+) -> str:
     """Crew table below last fleet. Public sees it only when shown. No DB rows."""
     show = _cape_classic_crew_show()
     if not show and not is_editor:
         return ""
+    sas_ids = [sid for *_, sid in _CAPE_CLASSIC_CREW_ROWS if str(sid or "").strip().isdigit()]
+    slug_map = _batch_sailor_slugs_for_sas_ids(sas_ids) if sas_ids else {}
     rows_html = []
-    for name, role, station, days in _CAPE_CLASSIC_CREW_ROWS:
+    for name, role, station, days, sid in _CAPE_CLASSIC_CREW_ROWS:
+        slug = slug_map.get(str(sid)) if str(sid or "").strip().isdigit() else None
+        if slug:
+            name_html = (
+                f'<a href="/sailor/{html_module.escape(slug)}">{html_module.escape(name)}</a>'
+            )
+        else:
+            name_html = html_module.escape(name)
         rows_html.append(
             "<tr>"
-            f'<td class="helm-col">{html_module.escape(name)}</td>'
+            f'<td class="helm-col">{name_html}</td>'
             f"<td>{html_module.escape(role)}</td>"
             f"<td>{html_module.escape(station)}</td>"
             f"<td>{html_module.escape(days)}</td>"
@@ -20394,7 +20413,13 @@ def _cape_classic_crew_table_html(*, is_editor: bool, always_show_button: bool =
         f"<style>{_CAPE_CLASSIC_CREW_CSS}</style>"
         f'<div class="fleet-section cape-crew{admin_cls}{hidden_cls}" id="capeClassicCrew" aria-label="Crew">'
         '<div class="class-header"><div class="class-header-text-col">'
-        '<div class="fleet-title-row">Crew</div>'
+        '<div class="fleet-title-row">'
+        + (
+            f'<a href="{html_module.escape(_CAPE_CLASSIC_CREW_HREF)}">Crew</a>'
+            if link_title
+            else "Crew"
+        )
+        + "</div>"
         f'<div class="sailed-line">{sailed}</div>'
         "</div></div>"
         '<div class="table-wrapper"><table><thead><tr>'
@@ -20405,6 +20430,62 @@ def _cape_classic_crew_table_html(*, is_editor: bool, always_show_button: bool =
         + sa_bar
         + "</div>"
     )
+
+
+def serve_cape_classic_crew_standalone(request: Request):
+    """Child URL matching Extra/ILCA/Optimist/Sonnet fleet shells: /regatta/...-crew."""
+    rid = _CAPE_CLASSIC_MM_REGATTA_ID
+    can_crew = _session_can_toggle_event_crew(request)
+    if not _cape_classic_crew_show() and not can_crew:
+        return RedirectResponse(url=f"/regatta/{rid}", status_code=302)
+    reg = _get_regatta_by_slug(rid)
+    if not reg:
+        return RedirectResponse(url="/events", status_code=301)
+    event_name = (reg[1] or "").strip()
+    escaped_title = html_module.escape(event_name)
+    host_club_id = reg[5] if len(reg) > 5 else None
+    host_club_slug = _get_club_slug_by_id(host_club_id) if host_club_id else None
+    host_club_text = (reg[4] or "").strip() if len(reg) > 4 else ""
+    host_html = (
+        f'<a href="/club/{html_module.escape(host_club_slug)}">{html_module.escape(host_club_text)}</a>'
+        if host_club_slug and host_club_text
+        else html_module.escape(host_club_text)
+    )
+    is_sa = _session_role_is_super_admin(request)
+    back_link = f'<a href="/regatta/{html_module.escape(rid)}" class="back-to-home">← Back to full regatta</a>'
+    if is_sa:
+        back_block = (
+            '<div class="regatta-back-row">'
+            + back_link
+            + _regatta_sa_toolbar_html(rid)
+            + "</div>"
+        )
+    else:
+        back_block = back_link
+    header_html = (
+        '<div class="regatta-header-wrap">'
+        + back_block
+        + '<div class="header"><div class="regatta-header-main-col">'
+        f'<div class="regatta-name">{escaped_title}</div>'
+        f'<div class="host-club">Host: {host_html}</div>'
+        + "</div></div></div>"
+    )
+    crew_frag = _cape_classic_crew_table_html(
+        is_editor=can_crew,
+        always_show_button=_session_role_is_admin(request),
+        link_title=False,
+    )
+    print_btn = '<div class="action-buttons"><button class="action-button" onclick="window.print()">Print</button></div>'
+    sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js?v=mm2" defer></script>' if is_sa else ""
+    doc = (
+        "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
+        f"Crew – {escaped_title} | SailingSA</title>"
+        "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+        f"<style>{_RESULT_SHEET_CSS}</style></head><body>"
+        f'<div class="regatta-page">{header_html}{crew_frag}{print_btn}</div>{sa_toolbar_js}'
+        "</body></html>"
+    )
+    return HTMLResponse(doc)
 
 
 _MM_COMING_SOON_BRAND_SRC = "/assets/adverts/mm-powered-by-coming-soon.jpg?v=mmcc1"
@@ -28111,6 +28192,8 @@ def tracking_dev2_shortcut(request: Request):
 def serve_regatta_standalone(slug: str, request: Request):
     """Serve one full standalone HTML result sheet for /regatta/{slug}. Unknown regatta → 301 /events (not 404)."""
     slug_s = str(slug or "").strip()
+    if slug_s == _CAPE_CLASSIC_CREW_CHILD_SLUG:
+        return serve_cape_classic_crew_standalone(request)
     if slug_s == TRACKING_DEV2_SLUG:
         return serve_tracking_dev2_page(request)
     start_time = time.time()

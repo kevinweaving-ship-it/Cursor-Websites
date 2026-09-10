@@ -40,7 +40,7 @@ class MinimalMmFeedTest(unittest.TestCase):
         self.assertIn("Cape Classic Event Header is locked", self.src)
         ns = {}
         start = self.src.find("def _regatta_event_info_strip_sa_edit")
-        end = self.src.find("\n_MM_COMING_SOON_BRAND_SRC", start)
+        end = self.src.find("\n_CAPE_CLASSIC_CREW_CHILD_SLUG", start)
         exec(self.src[start:end], {"_CAPE_CLASSIC_MM_REGATTA_ID": "2026-09-13-zvyc-cape-classic"}, ns)
         fn = ns["_regatta_event_info_strip_sa_edit"]
         self.assertFalse(fn("2026-09-13-zvyc-cape-classic", True))
@@ -60,6 +60,10 @@ class MinimalMmFeedTest(unittest.TestCase):
         self.assertIn("fleet_joined + crew_frag", self.src)
         self.assertNotIn("CREATE TABLE", self.src[self.src.find("_CAPE_CLASSIC_CREW_ROWS"): self.src.find("_MM_COMING_SOON_BRAND_SRC")])
         self.assertIn("Craig Leslie", self.src)
+        self.assertIn("_CAPE_CLASSIC_CREW_HREF", self.src)
+        self.assertIn("/sailor/", self.src[self.src.find("def _cape_classic_crew_table_html") : self.src.find("def serve_cape_classic_crew_standalone")])
+        self.assertIn("serve_cape_classic_crew_standalone", self.src)
+        self.assertIn('"165"', self.src[self.src.find("_CAPE_CLASSIC_CREW_ROWS") : self.src.find("_CAPE_CLASSIC_CREW_CSS")])
 
 
 class LiptonMmCardUnitTest(unittest.TestCase):
