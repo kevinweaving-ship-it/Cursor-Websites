@@ -87,7 +87,7 @@
       gpsEvent: 'R7 1st at Pin 16:22:43',
       stampOff: '+36s',
       talkRoundFromSec: 170,
-      talkRoundToSec: 260
+      talkRoundToSec: 285
     }),
     '2410502969472697': clipR(7, 'round'),
     '1014880974840710': clipR(7, 'start', {
@@ -871,26 +871,34 @@
     return nRoundedPass(pinPass(), live && live.ts);
   }
 
+  function isStraggler(row) {
+    if (!row) return true;
+    var s = String(row.sail || '');
+    return s === 'TSC' || s === 'WYAC';
+  }
+
   function leadRoundRows(live, n) {
     var rows = [];
     var i;
     for (i = 0; i < ((live && live.rows) || []).length; i++) {
-      if (live.rows[i] && live.rows[i].pos) rows.push(live.rows[i]);
+      if (!live.rows[i] || !live.rows[i].pos) continue;
+      if (isStraggler(live.rows[i])) continue;
+      rows.push(live.rows[i]);
     }
     rows.sort(function (a, b) {
       return (a.racePlace || 99) - (b.racePlace || 99);
     });
-    return rows.slice(0, n || 8);
+    return rows.slice(0, n || 12);
   }
 
-  /* Top 8 only. Stragglers (WYAC, TSC) are out unless they are in here. */
+  /* Lead pack only. Forget stragglers — WYAC, TSC are out. */
   function topEightRows(live) {
-    return leadRoundRows(live, 8);
+    return leadRoundRows(live, 12);
   }
 
   /* Boats actually at the pin — not 1st after they have sailed away. */
   function markRoundRows(live, origin) {
-    var lead = topEightRows(live);
+    var lead = leadRoundRows(live, 12);
     var near = [];
     var i;
     for (i = 0; i < lead.length; i++) {
@@ -919,22 +927,18 @@
   }
 
   function tightViewRows(live, origin) {
-    var rows = markRoundRows(live, origin).slice();
-    var front = live && live.front;
-    var seen = {};
-    var i;
-    for (i = 0; i < rows.length; i++) seen[rows[i].sail] = true;
-    if (front && front.pos && !seen[front.sail]) rows.unshift(front);
-    return rows;
+    /* Stay on the mark. Do not pull 1st back in after they have left —
+     * that zooms out. More boats must round before zoom out from mark. */
+    return markRoundRows(live, origin);
   }
 
-  /* Zoom in around the pin while 1st through 6–8th are rounding.
-   * Hold the close-up until 8th has rounded. Commentary talking
-   * rounding order forces the same close-up. Keep 1st in view right side. */
+  /* Zoom in around the pin while boats are rounding.
+   * Hold the close-up until 12th has rounded. Commentary talking
+   * rounding order forces the same close-up. Forget stragglers. */
   function roundTightNow(live, origin) {
     if (roundTalkNow(live)) return true;
     var nR = nRoundedPin(live);
-    if (nR >= 8) return false;
+    if (nR >= 12) return false;
     var front = live && live.front;
     var incoming = false;
     if (front) {
@@ -955,12 +959,13 @@
    * 1st heads away and the mark is no longer in the 60–70% of the fleet
    * closest to 1st. Approach RTL, after rounding boats sail LTR (back
    * toward M1). Zoom in around the pin to show 1st through 6–8th rounding.
-   * Hold until 8th has rounded — more boats must round before zoom out
-   * from the mark. Cue from the commentary transcript: if they are
-   * talking rounding order, stay as tight / close as can still keeping
-   * 1st in view right side. Then only zoom out to keep 1st on the right
-   * with buffer; by the end of the video 1st is far right with buffer.
-   * Do not shrink X to fit Y. Pin never pans right. Forget stragglers. */
+   * Hold until 12th has rounded — more boats must round before zoom out
+   * from the mark. Do not zoom out to chase 1st. Forget stragglers.
+   * Cue from the commentary transcript: if they are talking rounding
+   * order, stay tight on the mark. After enough boats have rounded,
+   * only zoom out to keep 1st on the right with buffer; by the end of
+   * the video 1st is far right with buffer. Do not shrink X to fit Y.
+   * Pin never pans right. */
   function roundPackCam(live, w, h, mark) {
     var origin = roundOrigin(mark) || { lat: 0, lon: 0, key: '' };
     var stay = roundPinMustStay(live, origin);
@@ -1012,14 +1017,14 @@
       if (roundLock.scaleY > 0 && scaleY > roundLock.scaleY) scaleY = roundLock.scaleY;
     }
     var front = live && live.front;
-    if (front && front.pos) {
+    if (front && front.pos && !tight) {
       var fa = alongAcross(front.pos, origin, hdg).along;
       var fx = pinX - fa * scaleX;
       if (fx > w - padR && -fa > 8) {
         var need = (w - Math.max(28, pinX) - padR) / -fa;
         if (need > 0 && scaleX > need) scaleX = need;
       }
-      if (stay && !tight && fx < 16 && fa > 8) {
+      if (stay && fx < 16 && fa > 8) {
         var needL = (pinX - 16) / fa;
         if (needL > 0 && scaleX > needL) scaleX = needL;
       }
