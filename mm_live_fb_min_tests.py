@@ -101,11 +101,11 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("playsinline", js)
         src = Path("api.py").read_text(encoding="utf-8")
         self.assertIn('row["play_url"]', src)
-        self.assertIn("mmr96", src)
+        self.assertIn("mmr97", src)
         self.assertIn("mm-lipton-track-overlay.js", src)
         self.assertLess(
             src.find("mm-lipton-track-overlay.js"),
-            src.find("mm-lipton-reels-card.js?v=mmr96"),
+            src.find("mm-lipton-reels-card.js?v=mmr97"),
         )
         self.assertIn("scrollTo", js)
         self.assertIn("bumpSlide", js)
@@ -145,6 +145,8 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("overlay.draw(canvas, ts, cssW, cssH, dur)", js)
         self.assertIn("2622643364847262", js)
         overlay = Path("js/mm-lipton-track-overlay.js").read_text(encoding="utf-8")
+        self.assertTrue(Path("js/lipton-dev-trail-r3.json").is_file())
+        self.assertTrue(Path("js/lipton-dev-replay-r3.json").is_file())
         self.assertIn("lipton-dev-trail-r7.json", overlay)
         self.assertIn("lipton-dev-replay-r7.json", overlay)
         self.assertIn("right → left", overlay)
@@ -282,6 +284,12 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("R5 gun 15:50:01", overlay)
         self.assertIn("finish horn", overlay)
         self.assertIn("R2 1st finish WBYC 14:44:11", overlay)
+        self.assertIn("cannotLock", overlay)
+        self.assertIn("R3 L1 M1 FBYC 15:24:21", overlay)
+        self.assertIn("R3 gun 15:10:01", overlay)
+        self.assertIn("R3 L2 M1 HYC 16:11:09", overlay)
+        self.assertIn("R2 L2 M1 LDYC 14:05:37", overlay)
+        self.assertIn("R2 L2 M3 LDYC 14:18:12", overlay)
         self.assertIn("mark: '2'", overlay)
         self.assertIn("lipton-dev-trail-r' + rule.race", overlay)
         self.assertIn("markLock", overlay)

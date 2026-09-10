@@ -147,30 +147,131 @@
     '1751846282795149': clipR(4, 'finish', {
       approach: 'rtl',
       stamp: '2026-08-27T15:24:00+02:00',
-      videoEvent: 'finish horn',
+      videoEvent: 'finish horn — cannot lock, no R4 trail',
       gpsEvent: 'R4 trail missing — horn sync pending',
-      needsTrail: true
+      needsTrail: true,
+      cannotLock: true
     }),
-    '2111285223132517': clipR(4, 'round'),
-    '1588170962712352': clipR(4, 'round'),
-    '1582165340314238': clipR(4, 'round'),
-    '1079923421076157': clipR(4, 'start', { approach: 'ltr' }),
-    '825961863876577': clipR(3, 'round'),
-    '1530770848344300': clipR(3, 'round'),
-    '1802153794291569': clipR(3, 'round'),
-    '1813350889838726': clipR(3, 'round'),
-    '1025386753667866': clipR(3, 'start', { approach: 'ltr' }),
+    '2111285223132517': clipR(4, 'round', {
+      stamp: '2026-08-27T15:03:00+02:00',
+      videoEvent: 'no GPS — R4 trail missing',
+      gpsEvent: 'R4 trail missing',
+      needsTrail: true,
+      cannotLock: true
+    }),
+    '1588170962712352': clipR(4, 'round', {
+      stamp: '2026-08-27T14:36:00+02:00',
+      videoEvent: 'no GPS — R4 trail missing',
+      gpsEvent: 'R4 trail missing',
+      needsTrail: true,
+      cannotLock: true
+    }),
+    '1582165340314238': clipR(4, 'round', {
+      stamp: '2026-08-27T14:16:00+02:00',
+      videoEvent: 'no GPS — R4 trail missing',
+      gpsEvent: 'R4 trail missing',
+      needsTrail: true,
+      cannotLock: true
+    }),
+    '1079923421076157': clipR(4, 'start', {
+      approach: 'ltr',
+      stamp: '2026-08-27T13:52:00+02:00',
+      videoEvent: 'start gun — cannot lock, no R4 trail',
+      gpsEvent: 'R4 trail missing',
+      needsTrail: true,
+      cannotLock: true
+    }),
+    '825961863876577': clipR(3, 'round', {
+      approach: 'rtl',
+      mark: '1',
+      offsetMs: 0,
+      stamp: '2026-08-26T16:12:00+02:00',
+      videoEvent: 'ASSUMED pack at L2 M1 at open (2 already rounded)',
+      gpsEvent: 'R3 L2 M1 HYC 16:11:09 / FBYC 16:11:39',
+      stampOff: '0',
+      assumed: true
+    }),
+    '1530770848344300': clipR(3, 'round', {
+      approach: 'rtl',
+      mark: '3',
+      offsetMs: 0,
+      stamp: '2026-08-26T15:51:00+02:00',
+      videoEvent: 'NO event at open — next GPS is M3 ~8:28 later',
+      gpsEvent: 'R3 L1 M3 HYC 15:59:28 — not at stamp',
+      stampOff: '0 — cannot lock',
+      assumed: true,
+      cannotLock: true
+    }),
+    '1802153794291569': clipR(3, 'round', {
+      approach: 'rtl',
+      mark: '2',
+      offsetMs: 0,
+      stamp: '2026-08-26T15:34:00+02:00',
+      videoEvent: 'Fleet finished M2 by 15:32:19; stamp 15:34',
+      gpsEvent: 'R3 L1 M2 FBYC 15:30:25 — 3:35 before stamp',
+      stampOff: '0 — cannot lock',
+      assumed: true,
+      cannotLock: true
+    }),
+    '1813350889838726': clipR(3, 'round', {
+      approach: 'rtl',
+      mark: '1',
+      offsetMs: 0,
+      stamp: '2026-08-26T15:24:00+02:00',
+      videoEvent: 'ASSUMED 1st at M1 ~0:21',
+      gpsEvent: 'R3 L1 M1 FBYC 15:24:21',
+      stampOff: '0',
+      assumed: true
+    }),
+    '1025386753667866': clipR(3, 'start', {
+      approach: 'ltr',
+      offsetMs: 0,
+      stamp: '2026-08-26T15:07:00+02:00',
+      videoEvent: 'ASSUMED gun ~3:01',
+      gpsEvent: 'R3 gun 15:10:01',
+      stampOff: '0',
+      assumed: true
+    }),
     '940083808452432': clipR(2, 'finish', {
       approach: 'rtl',
       offsetMs: 0,
       stamp: '2026-08-26T14:42:00+02:00',
       videoEvent: 'finish horn',
       gpsEvent: 'R2 1st finish WBYC 14:44:11',
-      stampOff: '0 — horn at ~2:11 if stamp is go-live'
+      stampOff: '0 — horn at ~2:11 if stamp is go-live',
+      assumed: true
     }),
-    '942850414812890': clipR(2, 'round'),
-    '3239679922895545': clipR(2, 'round'),
-    '1384453329808359': clipR(2, 'round')
+    '942850414812890': clipR(2, 'round', {
+      approach: 'rtl',
+      mark: '3',
+      offsetMs: 0,
+      stamp: '2026-08-26T14:16:00+02:00',
+      videoEvent: 'ASSUMED 1st at M3 ~2:12',
+      gpsEvent: 'R2 L2 M3 LDYC 14:18:12',
+      stampOff: '0',
+      assumed: true
+    }),
+    '3239679922895545': clipR(2, 'round', {
+      approach: 'rtl',
+      mark: '1',
+      offsetMs: 0,
+      stamp: '2026-08-26T14:04:00+02:00',
+      videoEvent: 'ASSUMED 1st at M1 ~1:37',
+      gpsEvent: 'R2 L2 M1 LDYC 14:05:37',
+      stampOff: '0',
+      assumed: true
+    }),
+    '1384453329808359': clipR(2, 'round', {
+      approach: 'rtl',
+      mark: '2',
+      offsetMs: 0,
+      stamp: '2026-08-26T13:45:00+02:00',
+      videoEvent: '16/17 already rounded M2 by 13:45; next M3 13:49:50',
+      gpsEvent: 'R2 L1 M2 LDYC 13:42:59 — 2:01 before stamp',
+      stampOff: '0 — cannot lock',
+      assumed: true,
+      cannotLock: true
+    })
   };
   /* Race files e.g. /js/lipton-dev-trail-r7.json /js/lipton-dev-replay-r7.json */
 
