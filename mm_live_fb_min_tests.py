@@ -101,11 +101,11 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("playsinline", js)
         src = Path("api.py").read_text(encoding="utf-8")
         self.assertIn('row["play_url"]', src)
-        self.assertIn("mmr89", src)
+        self.assertIn("mmr90", src)
         self.assertIn("mm-lipton-track-overlay.js", src)
         self.assertLess(
             src.find("mm-lipton-track-overlay.js"),
-            src.find("mm-lipton-reels-card.js?v=mmr89"),
+            src.find("mm-lipton-reels-card.js?v=mmr90"),
         )
         self.assertIn("scrollTo", js)
         self.assertIn("bumpSlide", js)
@@ -202,6 +202,8 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("until 12th has rounded", overlay)
         self.assertIn("isStraggler", overlay)
         self.assertIn("Forget stragglers", overlay)
+        self.assertIn("packBehindFirst", overlay)
+        self.assertIn("end of the video full screen", overlay)
         self.assertIn("markRoundRows", overlay)
         self.assertIn("more boats must round", overlay)
         self.assertIn("roundTalkNow", overlay)

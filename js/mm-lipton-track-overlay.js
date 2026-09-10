@@ -963,9 +963,10 @@
    * from the mark. Do not zoom out to chase 1st. Forget stragglers.
    * Cue from the commentary transcript: if they are talking rounding
    * order, stay tight on the mark. After enough boats have rounded,
-   * only zoom out to Keep 1st in view right side with buffer; by the
-   * end of the video 1st is far right with buffer. Do not shrink X to fit Y.
-   * Pin never pans right. */
+   * only zoom out to Keep 1st in view right side with buffer. Tracking
+   * continues to the end of the video full screen: 1st right side and
+   * appropriate zoom for the 60–70% boats behind it. Forget stragglers.
+   * Do not shrink X to fit Y. Pin never pans right. */
   function roundPackCam(live, w, h, mark) {
     var origin = roundOrigin(mark) || { lat: 0, lon: 0, key: '' };
     var stay = roundPinMustStay(live, origin);
@@ -985,14 +986,9 @@
     if (tight) {
       eatAlongRows(tightViewRows(live, origin), origin, hdg, win);
     } else {
-      eatAlongRows(topEightRows(live), origin, hdg, win);
-    }
-    if (!tight && !stay) {
-      var remain = 0;
-      var endTs = clipEndTs();
-      if (endTs && live && live.ts) remain = (endTs - live.ts) / 1000;
-      var endLive = remain < 25 ? clipEndLive() : null;
-      if (endLive) eatAlongAcross(endLive, origin, hdg, win);
+      eatAlongRows(packBehindFirst(live), origin, hdg, win);
+      var endLive = clipEndLive();
+      if (endLive) eatAlongRows(packBehindFirst(endLive), origin, hdg, win);
     }
     var padR = startPadR(w);
     var rightNeed = Math.max(48, -win.minA);
@@ -1012,7 +1008,7 @@
     if (topA > 1) scaleY = Math.min(scaleY, (pinY - padT) / topA);
     if (botA < -1) scaleY = Math.min(scaleY, (h - padB - pinY) / -botA);
     if (!(scaleY > 0.04)) scaleY = 0.04;
-    if (boxed && !tight) {
+    if (boxed && !tight && !roundLock.tight) {
       if (roundLock.scaleX > 0 && scaleX > roundLock.scaleX) scaleX = roundLock.scaleX;
       if (roundLock.scaleY > 0 && scaleY > roundLock.scaleY) scaleY = roundLock.scaleY;
     }
@@ -1031,7 +1027,7 @@
     }
     /* leave LEFT only: 1st has gone and mark is outside the 60–70% pack. */
     if (!stay && !tight && front && front.pos) {
-      var core = topEightRows(live);
+      var core = packBehindFirst(live);
       var loA = alongAcross(front.pos, origin, hdg).along;
       var hiA = loA;
       var ci;
@@ -1178,6 +1174,34 @@
     var weather = sampleAt((trail.marks || {})['1'], (replay && replay.gun_ts_ms) || 0);
     var hdg = weather ? bearingDeg(line, weather) : 136;
     return alongAcross(pos, line, hdg).along;
+  }
+
+  /* 60–70% of the fleet closest to 1st. Forget stragglers. */
+  function packBehindFirst(live) {
+    var front = live && live.front;
+    var rows = [];
+    var i;
+    for (i = 0; i < ((live && live.rows) || []).length; i++) {
+      if (!live.rows[i] || !live.rows[i].pos) continue;
+      if (isStraggler(live.rows[i])) continue;
+      rows.push({
+        row: live.rows[i],
+        dist: front && front.pos ? distM(live.rows[i].pos, front.pos) : live.rows[i].racePlace || 99
+      });
+    }
+    rows.sort(function (a, b) {
+      return a.dist - b.dist;
+    });
+    var k = Math.max(3, Math.ceil(rows.length * 0.65));
+    if (k > rows.length) k = rows.length;
+    var out = [];
+    var seen = {};
+    for (i = 0; i < k; i++) {
+      out.push(rows[i].row);
+      seen[rows[i].row.sail] = true;
+    }
+    if (front && front.pos && !seen[front.sail] && !isStraggler(front)) out.unshift(front);
+    return out;
   }
 
   function coreClosestToFirst(live, frac) {
@@ -1662,7 +1686,7 @@
   function roundViewPack(live, mark) {
     var origin = roundOrigin(mark);
     if (roundTightNow(live, origin)) return tightViewRows(live, origin);
-    return topEightRows(live);
+    return packBehindFirst(live);
   }
 
   function acrossM(pos, mark, hdg) {
@@ -2019,7 +2043,14 @@
       heldCam = copyCam(cam);
       heldCamTs = ts;
     } else if (nearRound && (markLock || focus)) {
-      setTrackHeight(canvas, 0.74);
+      var originNow = roundOrigin(markLock || focus);
+      var exitRun = clipRule && clipRule.kind === 'round' && !roundTightNow(live, originNow);
+      setTrackHeight(canvas, exitRun ? 0.88 : 0.74, exitRun ? 0.92 : 0.78);
+      cam = roundPackCam(live, cssW, cssH, markLock || focus);
+      heldCam = copyCam(cam);
+      heldCamTs = ts;
+    } else if (clipRule && clipRule.kind === 'round') {
+      setTrackHeight(canvas, 0.88, 0.92);
       cam = roundPackCam(live, cssW, cssH, markLock || focus);
       heldCam = copyCam(cam);
       heldCamTs = ts;
