@@ -54,6 +54,7 @@
   var tightMarkHold = false;
   var heldSceneScale = null;
   var startLock = null;
+  var clipDurationSec = 0;
 
   function clipR(race, kind, extra) {
     var o = { race: race, kind: kind || 'round', approach: 'rtl', holdN: 6, offsetMs: 0 };
@@ -78,6 +79,7 @@
   var CLIP_RULES = {
     '2622643364847262': clipR(7, 'round', {
       offsetMs: 36000,
+      durationSec: 315,
       stamp: '2026-08-28T16:19:00+02:00',
       videoEvent: 'STT around the mark ~3:07',
       gpsEvent: 'R7 1st at Pin 16:22:43',
@@ -147,6 +149,7 @@
       tightMarkHold = false;
       heldSceneScale = null;
       startLock = null;
+      clipDurationSec = 0;
     }
     clipId = String(id || '');
     clipRule = rule;
@@ -766,6 +769,41 @@
     return 'approach';
   }
 
+  function rememberDuration(sec) {
+    sec = Number(sec);
+    if (sec > 1 && sec === sec) clipDurationSec = sec;
+  }
+
+  function clipEndTs() {
+    var rule = clipRule;
+    if (!rule || !rule.stamp) return 0;
+    var dur = clipDurationSec || rule.durationSec || 0;
+    if (!(dur > 1)) return 0;
+    var stamp = Date.parse(rule.stamp);
+    if (stamp !== stamp) return 0;
+    return stamp + (rule.offsetMs || 0) + dur * 1000;
+  }
+
+  function clipEndLive() {
+    var t = clipEndTs();
+    return t ? ranksAt(t) : null;
+  }
+
+  /* After sync we know time left in the video. Start clips stay one-way
+   * (LTR → pad right). Rounding: if the clip ends after the mark, boats
+   * exit LTR (pad right); if still inbound, they run RTL (pad left). */
+  function endExitSide() {
+    var rule = clipRule || {};
+    if (rule.kind === 'start') return 'right';
+    var endLive = clipEndLive();
+    if (endLive && endLive.front && endLive.front.done >= 1) return 'right';
+    return 'left';
+  }
+
+  function startPadR(w) {
+    return Math.max(56, Math.round(w * 0.16));
+  }
+
   /* Mark stays upper-left — never against the bottom. 1st always in view.
    * Do not shrink X to fit Y. After rounding, boats stay on the right side instead of sailing down.
    * Zoom in when 1st is 10s from the mark. Hold until 4–5 boats round. Then zoom
@@ -775,8 +813,20 @@
     var win = coreFleetAlong(mark, pack, live, hdg);
     var front = live && live.front;
     var frontAA = front && front.pos ? alongAcross(front.pos, mark, hdg) : null;
-    var pinLeft = Math.max(28, w * 0.1);
-    var rightPad = 52;
+    var side = endExitSide();
+    var pinLeft = side === 'left' ? Math.max(40, w * 0.14) : Math.max(28, w * 0.1);
+    var rightPad = side === 'right' ? startPadR(w) : 40;
+    var endLive = clipEndLive();
+    if (endLive && mark) {
+      var endWin = coreFleetAlong(mark, viewPack(endLive, mark), endLive, hdg);
+      if (endWin.lo < win.lo) win.lo = endWin.lo;
+      if (endWin.hi > win.hi) win.hi = endWin.hi;
+      if (endLive.front && endLive.front.pos) {
+        var endAA = alongAcross(endLive.front.pos, mark, hdg);
+        if (endAA.along < win.lo) win.lo = endAA.along;
+        if (endAA.along > win.hi) win.hi = endAA.along;
+      }
+    }
     var lo;
     var hi;
     if (mode === 'tight') {
@@ -936,14 +986,6 @@
     return pack;
   }
 
-  function clipEndTs() {
-    var rule = clipRule;
-    if (!rule || !rule.stamp || !rule.durationSec) return 0;
-    var stamp = Date.parse(rule.stamp);
-    if (stamp !== stamp) return 0;
-    return stamp + (rule.offsetMs || 0) + rule.durationSec * 1000;
-  }
-
   function startMaxAlong(live, origin, hdg) {
     var ahead = 0;
     var rows = (live && live.rows) || [];
@@ -966,11 +1008,10 @@
     return ahead;
   }
 
-  function startPadR(w) {
-    return Math.max(56, Math.round(w * 0.16));
-  }
-
-  /* Full start line must show before start. Start line stays LEFT and does not move.
+  /* START CAM LOCKED (save that):
+   * Line left, does not pan, only shrinks. Full line before the gun.
+   * Boats LTR. Right buffer from clip-end GPS + time left. 1st always in view.
+   * Full start line must show before start. Start line stays LEFT and does not move.
    * It can only shrink (zoom out). Boats above/below stay in view. */
   function startPackCam(live, w, h) {
     var line = startLineMid();
@@ -1627,7 +1668,8 @@
     };
   }
 
-  function draw(canvas, ts, cssW, cssH, vidFrac) {
+  function draw(canvas, ts, cssW, cssH, durationSec) {
+    rememberDuration(durationSec);
     if (!ready || !trail || !canvas || cssW < 8 || cssH < 8) return;
     var ctx = canvas.getContext('2d');
     if (!ctx) return;

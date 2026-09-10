@@ -406,8 +406,7 @@
     }
     var ts = startMs + (Number(video.currentTime) || 0) * 1000 + off;
     var dur = Number(video.duration);
-    var vidFrac = dur > 1 && dur === dur ? (Number(video.currentTime) || 0) / dur : NaN;
-    overlay.draw(canvas, ts, cssW, cssH, vidFrac);
+    overlay.draw(canvas, ts, cssW, cssH, dur);
   }
 
   function loopTrack() {
