@@ -20379,6 +20379,7 @@ _LIPTON_MM_REELS_VIDEOS = (
         "title": "Lipton R4 Finish",
         "fb_title": "Lipton R4 Finish",
         "started_at": "2026-08-27T15:24:00+02:00",
+        "track_offset_ms": 0,
         "stamp": "27 Aug · 15:24",
         "thumb": "/assets/adverts/mm-lipton/1751846282795149.jpg",
         "width": 1280,
@@ -20392,6 +20393,7 @@ _LIPTON_MM_REELS_VIDEOS = (
         "title": "Lipton R4 2nd Quad",
         "fb_title": "Lipton R4 2nd Quad",
         "started_at": "2026-08-27T15:03:00+02:00",
+        "track_offset_ms": 0,
         "stamp": "27 Aug · 15:03",
         "thumb": "/assets/adverts/mm-lipton/2111285223132517.jpg",
         "width": 1280,
@@ -20405,6 +20407,7 @@ _LIPTON_MM_REELS_VIDEOS = (
         "title": "Lipton race4",
         "fb_title": "Lipton race4",
         "started_at": "2026-08-27T14:36:00+02:00",
+        "track_offset_ms": 0,
         "stamp": "27 Aug · 14:36",
         "thumb": "/assets/adverts/mm-lipton/1588170962712352.jpg",
         "width": 1280,
@@ -20418,6 +20421,7 @@ _LIPTON_MM_REELS_VIDEOS = (
         "title": "Lipton race 4 1st windward",
         "fb_title": "Lipton race 4 1st windward",
         "started_at": "2026-08-27T14:16:00+02:00",
+        "track_offset_ms": 0,
         "stamp": "27 Aug · 14:16",
         "thumb": "/assets/adverts/mm-lipton/1582165340314238.jpg",
         "width": 1280,
@@ -20431,6 +20435,7 @@ _LIPTON_MM_REELS_VIDEOS = (
         "title": "Lipton Race 4 start",
         "fb_title": "Lipton Race 4 start",
         "started_at": "2026-08-27T13:52:00+02:00",
+        "track_offset_ms": 0,
         "stamp": "27 Aug · 13:52",
         "thumb": "/assets/adverts/mm-lipton/1079923421076157.jpg",
         "width": 1280,
@@ -27773,8 +27778,8 @@ def serve_regatta_standalone(slug: str, request: Request):
         if str(regatta_id) == "2026-08-29-lipton-challenge-cup":
             mm_card = _lipton_mm_reels_card_html(str(regatta_id))
             mm_card_js = (
-                '<script src="/js/mm-lipton-track-overlay.js?v=mmr97" defer></script>'
-                '<script src="/js/mm-lipton-reels-card.js?v=mmr97" defer></script>'
+                '<script src="/js/mm-lipton-track-overlay.js?v=mmr98" defer></script>'
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr98" defer></script>'
             )
         body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))

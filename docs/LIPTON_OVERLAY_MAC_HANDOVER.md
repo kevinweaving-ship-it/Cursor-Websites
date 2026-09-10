@@ -1,6 +1,6 @@
 # Lipton Event Reels — Mac morning handover
 
-**Night of 10 Sep 2026.** Cloud/mobile finished GPS+stamp analysis most recent first. Live cache tag after this pass: **`mmr97`**. PR: https://github.com/kevinweaving-ship-it/Cursor-Websites/pull/66
+**Updated 10 Sep 2026 morning.** Live Race 4 trail is up. R4 clips are now stamp-assumed (not blocked). Cache tag: **`mmr98`**. PR: https://github.com/kevinweaving-ship-it/Cursor-Websites/pull/66
 
 This report lists **only clips that still cannot be synced accurately**. Everything else is either measured (Race 7) or stamp-assumed (ear-check on Mac if you want measured).
 
@@ -9,18 +9,6 @@ No Whisper/STT on the VM. Do not treat assumed offsets as heard guns or “round
 ---
 
 ## Still the issue (cannot lock accurately)
-
-### Race 4 — no trail / replay (`lipton-dev-trail-r4.json` does not exist)
-
-Cannot tie gun, finish horn, or any rounding to GPS. Overlay will not load boats.
-
-| Clip | Title | Stamp | What Mac must do |
-|---|---|---|---|
-| `1079923421076157` | Race 4 start | 27 Aug 13:52 | Build R4 trail+replay from Vakaros, then lock **start gun** |
-| `1582165340314238` | Race 4 1st windward | 27 Aug 14:16 | Same trail, then lock **1st at M1** from commentary or on-screen |
-| `1588170962712352` | Lipton race4 | 27 Aug 14:36 | Same trail; listen for a rounding — title does not name the mark |
-| `2111285223132517` | Race 4 2nd Quad | 27 Aug 15:03 | Same trail; listen for which mark |
-| `1751846282795149` | Race 4 Finish | 27 Aug 15:24 | Same trail; **finish horn = 1st finish GPS** |
 
 ### Race 3 — trail exists, but the named event is not at the stamp
 
@@ -42,7 +30,7 @@ Cannot tie gun, finish horn, or any rounding to GPS. Overlay will not load boats
 | Race 2 **start** | Not in the Event Reels feed. No start-gun clip to lock. |
 | `983599421402934` Lipton day3 | Day reel, not a race overlay clip. |
 | Races 1, 6, 8, 9, 10 | Trails exist under `sailingsa/frontend/js/`, but there are **no Event Reels clips** for them. |
-| Race 4 gun / finish GPS | Unknown until R4 trail is built. |
+| Race 4 gun / finish GPS | Now known: gun **13:55:01**, 1st finish WBYC **15:25:32**. |
 
 ---
 
@@ -67,6 +55,11 @@ Cannot tie gun, finish horn, or any rounding to GPS. Overlay will not load boats
 | `940083808452432` | R2 Finish | WBYC **14:44:11** horn ~2:11 |
 | `942850414812890` | R2 2nd leeward | L2 M3 LDYC 14:18:12 ~2:12 |
 | `3239679922895545` | R2 2nd Lap | L2 M1 LDYC 14:05:37 ~1:37 |
+| `1079923421076157` | R4 start | gun 13:55:01 ~3:01 |
+| `1582165340314238` | R4 1st windward | L1 M1 WBYC 14:15:19 (pack still rounding) |
+| `1588170962712352` | Lipton race4 | L1 M3 WBYC 14:34:51 (pack still rounding) |
+| `2111285223132517` | R4 2nd Quad | L2 M1 WBYC 15:00:54 (pack still rounding) |
+| `1751846282795149` | R4 Finish | WBYC **15:25:32** horn ~1:32 |
 
 If a horn/rounding is **not** at that video time, send the video time — `offsetMs = gpsEvent − (stamp + videoTimeOfEvent)`.
 
@@ -75,9 +68,8 @@ If a horn/rounding is **not** at that video time, send the video time — `offse
 ## Mac first actions
 
 1. Open `docs/LIPTON_OVERLAY_MAC_HANDOVER.md` (this file).
-2. **Race 4 trail** — highest blocker. Without it, five clips stay dark.
-3. Ear-check the three **cannot-lock** clips that already have GPS (R3 leeward 1, R3 Downwind 2, R2 generic). Write `offsetMs` + mark from a real in-video event.
-4. Optional: ear-check assumed starts/finishes (R5 start, R3 start, R2 finish). R7 start needed **+24.2s** after STT — the same trap.
-5. Surgical deploy only: overlay JS both paths, R3/R4 JSON under `/js/`, cache tag in live `api.py`, restart `sailingsa-api`. **Do not overwrite live `api.py` wholesale.**
+2. Ear-check the three **cannot-lock** clips (R3 leeward 1, R3 Downwind 2, R2 generic). Write `offsetMs` + mark from a real in-video event.
+3. Optional: ear-check assumed starts/finishes (R5/R4/R3 start, R4/R2 finish). R7 start needed **+24.2s** after STT — the same trap.
+4. Surgical deploy only: overlay JS both paths, race JSON under `/js/`, cache tag in live `api.py`, restart `sailingsa-api`. **Do not overwrite live `api.py` wholesale.**
 
 Live page: https://sailingsa.co.za/regatta/2026-08-29-lipton-challenge-cup

@@ -146,40 +146,51 @@
     }),
     '1751846282795149': clipR(4, 'finish', {
       approach: 'rtl',
+      offsetMs: 0,
       stamp: '2026-08-27T15:24:00+02:00',
-      videoEvent: 'finish horn — cannot lock, no R4 trail',
-      gpsEvent: 'R4 trail missing — horn sync pending',
-      needsTrail: true,
-      cannotLock: true
+      videoEvent: 'ASSUMED finish horn ~1:32',
+      gpsEvent: 'R4 1st finish WBYC 15:25:32',
+      stampOff: '0',
+      assumed: true
     }),
     '2111285223132517': clipR(4, 'round', {
+      approach: 'rtl',
+      mark: '1',
+      offsetMs: 0,
       stamp: '2026-08-27T15:03:00+02:00',
-      videoEvent: 'no GPS — R4 trail missing',
-      gpsEvent: 'R4 trail missing',
-      needsTrail: true,
-      cannotLock: true
+      videoEvent: 'ASSUMED pack at L2 M1 at open (5 already rounded)',
+      gpsEvent: 'R4 L2 M1 WBYC 15:00:54',
+      stampOff: '0',
+      assumed: true
     }),
     '1588170962712352': clipR(4, 'round', {
+      approach: 'rtl',
+      mark: '3',
+      offsetMs: 0,
       stamp: '2026-08-27T14:36:00+02:00',
-      videoEvent: 'no GPS — R4 trail missing',
-      gpsEvent: 'R4 trail missing',
-      needsTrail: true,
-      cannotLock: true
+      videoEvent: 'ASSUMED pack at L1 M3 at open (2 already rounded)',
+      gpsEvent: 'R4 L1 M3 WBYC 14:34:51',
+      stampOff: '0',
+      assumed: true
     }),
     '1582165340314238': clipR(4, 'round', {
+      approach: 'rtl',
+      mark: '1',
+      offsetMs: 0,
       stamp: '2026-08-27T14:16:00+02:00',
-      videoEvent: 'no GPS — R4 trail missing',
-      gpsEvent: 'R4 trail missing',
-      needsTrail: true,
-      cannotLock: true
+      videoEvent: 'ASSUMED pack at L1 M1 at open (5 already rounded)',
+      gpsEvent: 'R4 L1 M1 WBYC 14:15:19',
+      stampOff: '0',
+      assumed: true
     }),
     '1079923421076157': clipR(4, 'start', {
       approach: 'ltr',
+      offsetMs: 0,
       stamp: '2026-08-27T13:52:00+02:00',
-      videoEvent: 'start gun — cannot lock, no R4 trail',
-      gpsEvent: 'R4 trail missing',
-      needsTrail: true,
-      cannotLock: true
+      videoEvent: 'ASSUMED gun ~3:01',
+      gpsEvent: 'R4 gun 13:55:01',
+      stampOff: '0',
+      assumed: true
     }),
     '825961863876577': clipR(3, 'round', {
       approach: 'rtl',
