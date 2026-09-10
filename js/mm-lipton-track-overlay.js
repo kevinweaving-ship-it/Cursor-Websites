@@ -882,24 +882,35 @@
     return out;
   }
 
-  /* Race 7 Start: LTR toward weather. Frame 60–70% closest to 1st.
-   * Pin/mark stays off-screen until it sits in that pack or 1st is ~10s from it.
-   * Virtual 1st→mark line is horizontal at mid-height (not drawn). Slide it
-   * up/down so the pack below 1st stays in view. */
+  /* Race 7 Start: start line is VERTICAL. Course heading is perpendicular
+   * to Pin–RC toward weather so boats sail horizontally LTR.
+   * Line sits on the LEFT. Only enough width left of the line for boats
+   * lining up. They cross and sail away to the RIGHT. */
+  function startCourseHdg(live) {
+    var line = startLineMid();
+    if (!line) return 136;
+    var weather = sampleAt((trail.marks || {})['1'], (live && live.ts) || 0);
+    if (!weather || weather.lat == null) {
+      weather = sampleAt((trail.marks || {})['1'], (replay && replay.gun_ts_ms) || 0);
+    }
+    if (weather && weather.lat != null) return bearingDeg(line, weather);
+    if (line.pin && line.rc) {
+      var alongLine = bearingDeg(line.pin, line.rc);
+      return (alongLine + 90) % 360;
+    }
+    return 136;
+  }
+
   function startPackCam(live, w, h) {
     var line = startLineMid();
     var pin = line && line.pin;
     var rc = line && line.rc;
     var front = live && live.front;
-    var next = live && live.nextMark;
-    var past = front && front.pos ? signedDistToStart(front.pos) : 0;
-    var aim = pin;
-    if (past > 80 && next) aim = next;
-    var hdg = front && front.pos && aim ? bearingDeg(front.pos, aim) : 136;
+    var hdg = startCourseHdg(live);
     var pack = coreClosestToFirst(live, 0.65);
     var origin = line || (front && front.pos) || { lat: 0, lon: 0 };
-    var pinClose = !!(front && pin && secsToMark(front, pin, live.ts) <= 10);
-    var win = { lo: Infinity, hi: -Infinity, minC: Infinity, maxC: -Infinity };
+    var signed = front && front.pos ? signedDistToStart(front.pos) : 0;
+    var win = { lo: 0, hi: 0, minC: Infinity, maxC: -Infinity };
     function eat(pos) {
       if (!pos) return null;
       var aa = alongAcross(pos, origin, hdg);
@@ -912,47 +923,40 @@
     var i;
     for (i = 0; i < pack.length; i++) eat(pack[i].pos);
     var fAA = front && front.pos ? eat(front.pos) : null;
-    var pinAA = pin ? alongAcross(pin, origin, hdg) : null;
-    var pinInWin = !!(pinAA && pinAA.along >= win.lo && pinAA.along <= win.hi);
-    var showPin = !!(pin && (pinInWin || pinClose));
-    if (showPin) eat(pin);
-    if (showPin && rc) {
-      var rcAA = alongAcross(rc, origin, hdg);
-      if (rcAA.along >= win.lo - 10 && rcAA.along <= win.hi + 10) eat(rc);
+    if (pin) eat(pin);
+    if (rc) eat(rc);
+    if (win.minC === Infinity) {
+      win.minC = -40;
+      win.maxC = 40;
     }
-    if (win.lo === Infinity) {
-      win.lo = -40;
-      win.hi = 40;
-      win.minC = -20;
-      win.maxC = 20;
+    /* Always keep along=0 (the line) in frame while near the start. */
+    if (signed < 140) {
+      if (win.lo > -16) win.lo = -16;
+      if (win.hi < 24) win.hi = 24;
     }
-    var spanAlong = Math.max(52, (win.hi - win.lo) * 1.08);
-    var padL = 36;
-    var padR = 44;
-    var scale = (w - padL - padR) / spanAlong;
+    var behind = Math.max(16, -win.lo);
+    var ahead = Math.max(28, win.hi);
+    var padL = 18;
+    var padR = 40;
+    var scale = (w - padL - padR) / (behind + ahead);
     if (!(scale > 0.08)) scale = 0.08;
+    var acrossSpan = Math.max(40, win.maxC - win.minC);
+    var scaleYfit = (h - 28) / acrossSpan;
+    if (scaleYfit > 0 && scale > scaleYfit) scale = scaleYfit;
+    /* Vertical line on the LEFT — only enough room for the lineup. */
+    var lineX = padL + behind * scale;
+    if (lineX > w * 0.34) {
+      scale = (w * 0.34 - padL) / behind;
+      if (!(scale > 0.08)) scale = 0.08;
+      lineX = padL + behind * scale;
+    }
+    var cx = lineX;
     var cy = h * 0.5;
     if (fAA) cy = h * 0.5 + fAA.across * scale;
-    if (fAA) {
-      var belowNeed = Math.max(0, fAA.across - win.minC);
-      var roomBelow = h - cy - 16;
-      if (belowNeed > 4 && roomBelow > 8) {
-        var fit = roomBelow / belowNeed;
-        if (fit > 0 && scale > fit) scale = fit;
-      }
-      cy = h * 0.5 + fAA.across * scale;
-      var yBot = cy - win.minC * scale;
-      if (yBot > h - 12) cy -= yBot - (h - 12);
-      var yTop = cy - win.maxC * scale;
-      if (yTop < 12) cy += 12 - yTop;
-    }
-    var midAlong = (win.lo + win.hi) / 2;
-    var cx = w / 2 - midAlong * scale;
-    if (fAA) {
-      var x1 = cx + fAA.along * scale;
-      if (x1 < padL) cx += padL - x1;
-      if (x1 > w - padR) cx -= x1 - (w - padR);
-    }
+    var yBot = cy - win.minC * scale;
+    if (yBot > h - 12) cy -= yBot - (h - 12);
+    var yTop = cy - win.maxC * scale;
+    if (yTop < 12) cy += 12 - yTop;
     return {
       midLat: origin.lat,
       midLon: origin.lon,
@@ -968,7 +972,7 @@
       flipX: false,
       cx: cx,
       cy: cy,
-      lockMark: false
+      lockMark: true
     };
   }
 
@@ -1515,8 +1519,8 @@
     if (kind === 'start' && (!leader || leader.done < 1) && distNext > 280) {
       phase = 'start';
       focus = trail.start_line && trail.start_line.left;
-      hdg = next && leader && leader.pos ? bearingDeg(leader.pos, next) : hdg;
-      flipX = rule.approach === 'ltr' ? false : true;
+      hdg = startCourseHdg(live);
+      flipX = false;
       lockApproachHdg = null;
       markLock = null;
     } else if (last && leader && leader.pos && (lockMatchesLast || distLast + 40 < distNext)) {
