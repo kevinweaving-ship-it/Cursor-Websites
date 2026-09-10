@@ -2,7 +2,7 @@
 
 Print test / example sheet:
 https://sailingsa.co.za/regatta/2025-12-19-hyc-youth-nationals
-(7 fleets, 12 races, Age + Crew — A4 portrait, SA.)
+(7 fleets, 12 races, Age + Crew — A4 landscape so the race grid fits, SA.)
 
 Print and Save-as-PDF both use this CSS on the live HTML tables so sailor / club /
 class / sail links stay real hyperlinks in the PDF (not a screenshot).
@@ -20,6 +20,9 @@ Pagination (A4):
 - Print button offers Printer or PDF. Both publish the same standalone A4
   document (header + fleets + footer only). Layout does not follow the screen
   URL (mobile stack, live cards, site chrome).
+- Page is A4 portrait or landscape automatically from table fit: each fleet's
+  columns are given a minimum readable width (mm). If any fleet is wider than
+  A4 portrait (194mm), the sheet is landscape; otherwise portrait.
 """
 
 PRINT_COMPACT_CSS = """
@@ -200,6 +203,11 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
   tr.medal-gold td { background: #D4AF37 !important; }
   tr.medal-silver td { background: #D7D7D7 !important; }
   tr.medal-bronze td { background: #CE8946 !important; }
+  html.ssa-print-landscape th, html.ssa-print-landscape td { font-size: 7pt !important; }
+  html.ssa-print-landscape .race-col { font-size: 6.5pt !important; width: 4.15% !important; }
+  html.ssa-print-landscape .helm-col { width: 17% !important; }
+  html.ssa-print-landscape .fleet-section:has(th.crew-col) .helm-col { width: 13% !important; }
+  html.ssa-print-landscape .fleet-section:has(th.crew-col) .race-col { width: 3.65% !important; }
   .fleet-results-table th.class-col, .fleet-results-table td.class-col,
   th.class-col, td.class-col { display: none !important; }
   .rank-col, .total-col, .nett-col { width: 3.3% !important; }
@@ -293,9 +301,94 @@ def _document_css() -> str:
 
 PRINT_DOCUMENT_CSS = _document_css()
 
+# Minimum readable print widths (mm) at ~6.5pt. Class is hidden on the sheet.
+PRINT_COL_MIN_MM = {
+    "class": 0,
+    "race": 11,
+    "helm": 30,
+    "crew": 26,
+    "sail": 12,
+    "club": 11,
+    "rank": 8,
+    "total": 8,
+    "nett": 8,
+    "disc": 8,
+    "boat": 22,
+    "meta": 9,
+}
+PRINT_COL_OTHER_MM = 10
+PRINT_A4_PORTRAIT_CONTENT_MM = 194  # 210mm minus 8mm side margins
 
-PRINT_PAGINATE_JS = r"""
-function pagePx(){return (297-8-14)*96/25.4;}
+
+def print_col_need_mm(kind: str) -> int:
+    return PRINT_COL_MIN_MM.get(kind, PRINT_COL_OTHER_MM)
+
+
+def print_table_need_mm(kinds: list) -> int:
+    return sum(print_col_need_mm(k) for k in kinds)
+
+
+def print_orientation_for_tables(tables: list) -> str:
+    worst = max((print_table_need_mm(cols) for cols in tables), default=0)
+    return "landscape" if worst > PRINT_A4_PORTRAIT_CONTENT_MM else "portrait"
+
+
+def _print_orientation_js() -> str:
+    need_js = "".join(f"if(kind==='{k}')return {mm};" for k, mm in PRINT_COL_MIN_MM.items())
+    return (
+        "function printHeaderKind(el){"
+        "var c=el.className||'';"
+        "if(/\\bclass-col\\b/.test(c))return 'class';"
+        "if(/\\brace-col\\b/.test(c))return 'race';"
+        "if(/\\bhelm-col\\b/.test(c))return 'helm';"
+        "if(/\\bcrew-col\\b/.test(c))return 'crew';"
+        "if(/\\bsail-col\\b/.test(c))return 'sail';"
+        "if(/\\bclub-col\\b/.test(c))return 'club';"
+        "if(/\\brank-col\\b/.test(c))return 'rank';"
+        "if(/\\btotal-col\\b/.test(c))return 'total';"
+        "if(/\\bnett-col\\b/.test(c))return 'nett';"
+        "if(/\\bdisc-col\\b/.test(c))return 'disc';"
+        "if(/\\bboat-name-col\\b/.test(c))return 'boat';"
+        "if(/\\bwc-meta-col\\b/.test(c))return 'meta';"
+        "var t=(el.textContent||'').replace(/\\s+/g,' ').trim().toLowerCase();"
+        "if(t==='class')return 'class';"
+        "if(/^r\\d+$/.test(t))return 'race';"
+        "if(t==='helm')return 'helm';"
+        "if(t==='crew')return 'crew';"
+        "if(t==='sail no'||t==='sail'||t==='sailno')return 'sail';"
+        "if(t==='club')return 'club';"
+        "if(t==='rank')return 'rank';"
+        "if(t==='total')return 'total';"
+        "if(t==='nett')return 'nett';"
+        "if(t==='disc'||t==='discard')return 'disc';"
+        "if(t==='boat name'||t==='boat')return 'boat';"
+        "if(t==='age'||t==='bow'||t==='bow no'||t==='jib'||t==='jib no'||t==='hull'||t==='hull no')return 'meta';"
+        "return 'other';"
+        "}"
+        "function printColNeedMm(kind){"
+        + need_js
+        + f"return {PRINT_COL_OTHER_MM};"
+        "}"
+        "function printTableNeedMm(t){"
+        "var need=0,cells=t.querySelectorAll('thead th');"
+        "if(!cells.length)cells=t.querySelectorAll('tbody tr:first-child td');"
+        "cells.forEach(function(el){need+=printColNeedMm(printHeaderKind(el));});"
+        "return need;"
+        "}"
+        "function printOrientation(){"
+        "var worst=0;"
+        "document.querySelectorAll('.fleet-section table').forEach(function(t){"
+        "var n=printTableNeedMm(t);if(n>worst)worst=n;"
+        "});"
+        f"return worst>{PRINT_A4_PORTRAIT_CONTENT_MM}?'landscape':'portrait';"
+        "}"
+    )
+
+
+PRINT_PAGINATE_JS = (
+    _print_orientation_js()
+    + r"""
+function pagePx(orient){var h=(orient==='landscape')?(210-8-14):(297-8-14);return h*96/25.4;}
 function fleetH(el){
   var rows=el.querySelectorAll('table.fleet-results-table tbody tr').length;
   return 42+16+rows*13;
@@ -307,7 +400,7 @@ function clearPrintPages(){
 }
 function keepFleetsOnOnePage(){
   clearPrintPages();
-  var page=pagePx()-8;
+  var page=pagePx(printOrientation())-8;
   var used=document.querySelector('.regatta-header-wrap,.header')?58:0;
   document.querySelectorAll('.fleet-section').forEach(function(el,i){
     var h=fleetH(el);
@@ -324,7 +417,9 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 function eventName(){var n=document.querySelector('.regatta-name');return (n&&n.textContent||document.title||'').replace(/\\s*\\|\\s*SailingSA\\s*$/i,'').replace(/\\s+/g,' ').trim();}
 function buildPrintDoc(){
   var name=eventName(),url=sheetUrl()||location.href,cssEl=document.getElementById('ssaPrintDocumentCss');
+  var orient=printOrientation();
   var css=cssEl?cssEl.textContent:'';
+  css=css.replace('A4 portrait','A4 '+orient);
   var chunks=[],hdr=document.querySelector('.regatta-header-wrap');
   if(hdr){var h=hdr.cloneNode(true);h.querySelectorAll('.regatta-back-row,.back-to-home,.regatta-sa-mode-wrap,.regatta-live-board-row,.regatta-name-editor,.regatta-sa-hub-news-wrap').forEach(function(n){n.remove();});chunks.push(h.outerHTML);}
   document.querySelectorAll('.regatta-page > .fleet-section').forEach(function(sec){
@@ -334,10 +429,11 @@ function buildPrintDoc(){
     chunks.push(c.outerHTML);
   });
   chunks.push('<div class=\"ssa-print-page-footer\"><span class=\"ssa-print-footer-name\">'+esc(name)+'</span><a class=\"ssa-print-footer-url\" href=\"'+esc(url)+'\">'+esc(url)+'</a></div>');
-  return '<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><base href=\"'+esc(location.origin)+'/\"><title>'+esc(name)+'</title><style>'+css+'</style></head><body class=\"ssa-print-doc\">'+chunks.join('')+'</body></html>';
+  return '<!DOCTYPE html><html class=\"ssa-print-'+orient+'\" data-ssa-print-orient=\"'+orient+'\"><head><meta charset=\"UTF-8\"><base href=\"'+esc(location.origin)+'/\"><title>'+esc(name)+'</title><style>'+css+'</style></head><body class=\"ssa-print-doc\">'+chunks.join('')+'</body></html>';
 }
 function paginatePrintDoc(doc){
-  var page=pagePx()-8,used=58;
+  var orient=(doc.documentElement.getAttribute('data-ssa-print-orient')||'portrait');
+  var page=pagePx(orient)-8,used=58;
   doc.querySelectorAll('.fleet-section').forEach(function(el,i){
     var h=fleetH(el);
     if(h>page){el.classList.add('ssa-print-fit-1');h=page;}
@@ -365,6 +461,7 @@ document.addEventListener('click',function(ev){
   if(act==='cancel'||(t.id==='ssaPrintChooser'&&t.classList.contains('is-open')))closeChooser();
 });
 """.replace("\n", "")
+)
 
 
 def print_share_bar_html() -> str:
@@ -379,7 +476,7 @@ def print_share_bar_html() -> str:
         '<div id="ssaPrintChooser" role="dialog" aria-label="Print or PDF">'
         '<div class="card">'
         '<div class="section-title">Print</div>'
-        '<p class="ssa-print-chooser-note">Same A4 results sheet for paper or PDF. Layout does not follow the screen.</p>'
+        '<p class="ssa-print-chooser-note">Same A4 results sheet for paper or PDF. Portrait or landscape is chosen so the table fits.</p>'
         '<div class="ssa-print-chooser-actions">'
         '<button type="button" class="action-button" data-ssa-print="cancel">Cancel</button>'
         '<button type="button" class="action-button" data-ssa-print="pdf">PDF</button>'

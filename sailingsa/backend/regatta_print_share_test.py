@@ -64,6 +64,13 @@ def test_compact_print_css_portrait_header_and_fleet_line():
     assert 'data-ssa-print="printer"' in bar
     assert "buildPrintDoc" in bar
     assert "ssaPrintDocumentCss" in bar
+    assert "printOrientation" in bar
+    assert "printTableNeedMm" in bar
+    assert "printHeaderKind" in bar
+    assert "A4 '+orient" in bar
+    assert "ssa-print-landscape" in css
+    assert "maxRaces>=10" not in bar
+    assert "worst>194" in bar
     assert "size: A4 portrait" in PRINT_DOCUMENT_CSS
     assert "font-size: 5.5pt" in PRINT_DOCUMENT_CSS
     assert "#ssaPrintChooser" not in PRINT_DOCUMENT_CSS
@@ -72,6 +79,36 @@ def test_compact_print_css_portrait_header_and_fleet_line():
         encoding="utf-8"
     )
     assert "A fleet is never split across two pages" in src
+
+
+def test_print_orientation_follows_a4_portrait_fit():
+    from sailingsa.backend.regatta_print_compact_css import (
+        PRINT_A4_PORTRAIT_CONTENT_MM,
+        print_orientation_for_tables,
+        print_share_bar_html,
+        print_table_need_mm,
+    )
+
+    yn_single = (
+        ["rank", "class", "sail", "club", "meta", "helm"]
+        + ["race"] * 12
+        + ["total", "nett"]
+    )
+    yn_mirror = (
+        ["rank", "class", "sail", "club", "meta", "helm", "crew"]
+        + ["race"] * 12
+        + ["total", "nett"]
+    )
+    short_four = ["rank", "class", "sail", "club", "helm"] + ["race"] * 4 + ["total", "nett"]
+    eight_no_age = ["rank", "class", "sail", "club", "helm"] + ["race"] * 8 + ["total", "nett"]
+
+    assert print_table_need_mm(yn_single) > PRINT_A4_PORTRAIT_CONTENT_MM
+    assert print_orientation_for_tables([yn_single, yn_mirror]) == "landscape"
+    assert print_orientation_for_tables([short_four]) == "portrait"
+    assert print_orientation_for_tables([eight_no_age]) == "portrait"
+    bar = print_share_bar_html()
+    assert "function printOrientation()" in bar
+    assert str(PRINT_A4_PORTRAIT_CONTENT_MM) in bar
 
 
 def test_live_patch_replaces_print_only_markup():
@@ -85,5 +122,6 @@ def test_live_patch_replaces_print_only_markup():
 if __name__ == "__main__":
     test_print_share_helper_wired_on_standalone_sheets()
     test_compact_print_css_portrait_header_and_fleet_line()
+    test_print_orientation_follows_a4_portrait_fit()
     test_live_patch_replaces_print_only_markup()
     print("ok")
