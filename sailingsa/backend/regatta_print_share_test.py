@@ -60,8 +60,8 @@ def test_live_patch_replaces_print_only_markup():
     patch = (ROOT / "sailingsa" / "deploy" / "live_patch_zvyc_cc_print_share.py").read_text(
         encoding="utf-8"
     )
-    assert "ssa-print-compact" in patch
     assert "print_share_bar_html" in patch
+    assert "print_btn = _regatta_print_share_buttons_html()" in patch
 
 
 if __name__ == "__main__":

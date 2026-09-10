@@ -6,19 +6,24 @@ Copy this file and sailingsa/backend/regatta_print_compact_css.py to the server.
 """
 
 from pathlib import Path
-import re
 import sys
 
 LIVE_API = Path("/var/www/sailingsa/api/api.py")
-OLD = '<div class="action-buttons"><button class="action-button" onclick="window.print()">Print</button></div>'
-STYLE_ID = "ssa-print-compact"
-INJECT_RE = re.compile(
-    r'<style id="ssa-print-compact">.*?</style>'
-    r'(?:\s*<div id="ssaPrintPageFooter"[^>]*>.*?</div>)?'
-    r'\s*<div class="action-buttons">.*?</div>'
-    r'(?:\s*<script>\(function\(\)\{.*?\}\)\(\);</script>)?',
-    re.S,
+OLD_ASSIGN = (
+    "print_btn = "
+    '\'<div class="action-buttons"><button class="action-button" onclick="window.print()">Print</button></div>\''
 )
+NEW_ASSIGN = "print_btn = _regatta_print_share_buttons_html()"
+HELPER = (
+    "def _regatta_print_share_buttons_html() -> str:\n"
+    '    """Print + Share + compact A4 CSS for standalone /regatta sheets."""\n'
+    "    from sailingsa.backend.regatta_print_compact_css import print_share_bar_html\n"
+    "\n"
+    "    return print_share_bar_html()\n"
+    "\n"
+    "\n"
+)
+HELPER_ANCHOR = "def serve_cape_classic_crew_standalone(request: Request):"
 
 
 def _load_bar_html() -> str:
@@ -43,30 +48,18 @@ def _load_bar_html() -> str:
 
 def main() -> None:
     text = LIVE_API.read_text(encoding="utf-8")
-    bar = _load_bar_html()
-    if INJECT_RE.search(text):
-        LIVE_API.write_text(INJECT_RE.sub(bar, text, count=1), encoding="utf-8")
-        print("updated existing Print/Share inject")
-        return
-    if OLD in text:
-        LIVE_API.write_text(text.replace(OLD, bar), encoding="utf-8")
-        print("patched Print/Share + compact print CSS")
-        return
-    if "regattaShareBtn" in text and STYLE_ID not in text:
-        needle = '<button type="button" class="action-button" id="regattaShareBtn">Share</button>'
-        if needle not in text:
-            raise SystemExit("Share button found but compact CSS inject point missing")
-        LIVE_API.write_text(
-            text.replace(
-                '<div class="action-buttons">',
-                '<style id="ssa-print-compact">' + _css_only() + "</style>" + '<div class="action-buttons">',
-                1,
-            ),
-            encoding="utf-8",
-        )
-        print("injected compact print CSS beside existing Share button")
-        return
-    raise SystemExit("Print action-buttons HTML not found")
+    _load_bar_html()
+    if "def _regatta_print_share_buttons_html" not in text:
+        if HELPER_ANCHOR not in text:
+            raise SystemExit("helper anchor serve_cape_classic_crew_standalone not found")
+        text = text.replace(HELPER_ANCHOR, HELPER + HELPER_ANCHOR, 1)
+    n = text.count(OLD_ASSIGN)
+    if n:
+        text = text.replace(OLD_ASSIGN, NEW_ASSIGN)
+    if text.count(NEW_ASSIGN) < 1:
+        raise SystemExit("print_btn helper assignment not found after patch")
+    LIVE_API.write_text(text, encoding="utf-8")
+    print(f"wired print_btn helper (replaced {n} print-only buttons)")
 
 
 def _css_only() -> str:
