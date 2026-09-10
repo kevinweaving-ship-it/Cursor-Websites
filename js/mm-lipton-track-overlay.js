@@ -1240,15 +1240,58 @@
     return east * Math.cos(rad) - north * Math.sin(rad);
   }
 
-  function setTrackHeight(canvas, frac) {
+  function setTrackHeight(canvas, frac, maxFrac) {
     var box = canvas && canvas.parentNode;
     if (!box || !box.style) return;
     if (frac < 0.5) frac = 0.5;
-    if (frac > 0.78) frac = 0.78;
+    if (maxFrac == null) maxFrac = 0.78;
+    if (frac > maxFrac) frac = maxFrac;
     var prev = box._mmTrackH;
     if (prev != null && Math.abs(frac - prev) < 0.015) return;
     box._mmTrackH = frac;
     box.style.setProperty('--mm-track-h', Math.round(frac * 1000) / 10 + '%');
+  }
+
+  /* Start: taller than half so the line and all boats on it are clear.
+   * After they sail they converge — drop height toward half. */
+  function startTrackFrac(live) {
+    var line = startLineMid();
+    var front = live && live.front;
+    var signed = front && front.pos ? signedDistToStart(front.pos) : 0;
+    var weather = sampleAt((trail.marks || {})['1'], (replay && replay.gun_ts_ms) || 0);
+    var hdg = line && weather ? bearingDeg(line, weather) : 136;
+    var origin = line || (front && front.pos);
+    var minC = Infinity;
+    var maxC = -Infinity;
+    var i;
+    var rows = [];
+    if (signed < 40) {
+      for (i = 0; i < (live.rows || []).length; i++) {
+        if (!live.rows[i] || !live.rows[i].pos) continue;
+        if (Math.abs(signedDistToStart(live.rows[i].pos)) < 55) rows.push(live.rows[i]);
+      }
+    }
+    if (rows.length < 3) rows = coreClosestToFirst(live, 0.65);
+    for (i = 0; i < rows.length; i++) {
+      if (!rows[i].pos || !origin) continue;
+      var a = alongAcross(rows[i].pos, origin, hdg).across;
+      if (a < minC) minC = a;
+      if (a > maxC) maxC = a;
+    }
+    var span = minC === Infinity ? 40 : maxC - minC;
+    if (signed < 40 && line && line.pin && line.rc) {
+      var lineM = distM(line.pin, line.rc);
+      if (lineM > span) span = lineM * 0.9;
+    }
+    var t = (span - 35) / 130;
+    if (t < 0) t = 0;
+    if (t > 1) t = 1;
+    var leave = signed / 160;
+    if (leave < 0) leave = 0;
+    if (leave > 1) leave = 1;
+    var frac = 0.5 + 0.36 * t * (1 - 0.7 * leave);
+    if (signed < 25) frac = Math.max(frac, 0.72);
+    return frac;
   }
 
   /* Keep all leading boats on canvas; extra room at the bottom for camera-near boats (HYC). */
@@ -1550,7 +1593,7 @@
     var cam;
     var camOpts = { minAlong: 40, minAcross: 28, padAlong: 1.18, padAcross: 1.35, padX: 70, padY: 28, flipX: true };
     if (plan.phase === 'start') {
-      setTrackHeight(canvas, 0.62);
+      setTrackHeight(canvas, startTrackFrac(live), 0.88);
       cam = startPackCam(live, cssW, cssH);
       cam = easeCam(cam, ts);
     } else if (nearRound && markLock) {
