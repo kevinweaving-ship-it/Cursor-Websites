@@ -177,10 +177,15 @@
 
   function chromeSource(clip, videos) {
     var first = (videos && videos[0]) || {};
+    var root = cardEl();
+    var isCape = root && root.getAttribute('data-regatta-id') === '2026-09-13-zvyc-cape-classic';
     return {
-      fb_owner_logo: (clip && clip.fb_owner_logo) || first.fb_owner_logo || '',
+      fb_owner_logo:
+        (clip && clip.fb_owner_logo) ||
+        first.fb_owner_logo ||
+        (isCape ? '/assets/adverts/mm-lipton/fb-page-marine-megastore.jpg' : ''),
       fb_title: (clip && (clip.fb_title || clip.title)) || first.fb_title || '',
-      fb_sub: (clip && clip.fb_sub) || first.fb_sub || '',
+      fb_sub: (clip && clip.fb_sub) || first.fb_sub || (isCape ? 'Marine Megastore' : ''),
     };
   }
 
@@ -441,6 +446,10 @@
 
   function syncTrackOverlay(root, clip) {
     trackRoot = root;
+    if (root && root.getAttribute('data-regatta-id') === '2026-09-13-zvyc-cape-classic') {
+      stopTrackOverlay();
+      return;
+    }
     var box = root && root.querySelector('[data-mm-track]');
     if (!box) return;
     if (!clip || !window.mmLiptonTrackOverlay || !window.mmLiptonTrackOverlay.usesClip(clip.id)) {
@@ -460,6 +469,11 @@
 
   function stageHtml(v, videos) {
     if (!v) return '<p class="mm-lipton-reels-waiting">No clip yet.</p>';
+    var root = cardEl();
+    var isCape = root && root.getAttribute('data-regatta-id') === '2026-09-13-zvyc-cape-classic';
+    var track = isCape
+      ? ''
+      : '<div class="mm-lipton-reels-track" data-mm-track aria-hidden="true"><canvas data-mm-track-canvas></canvas></div>';
     return (
       '<div class="mm-lipton-reels-player-wrap" data-mm-wrap style="--mm-aspect:' +
       aspectCss(v) +
@@ -467,7 +481,7 @@
       aspectCss(v) +
       '">' +
       '<div class="mm-lipton-reels-stage mm-lipton-reels-stage--playing" data-mm-stage></div>' +
-      '<div class="mm-lipton-reels-track" data-mm-track aria-hidden="true"><canvas data-mm-track-canvas></canvas></div>' +
+      track +
       '<div class="mm-lipton-reels-hud" data-mm-hud>' +
       latestChromeHtml(chromeSource(v, videos), 'mm-lipton-reels-clip-chrome--overlay') +
       playerUiHtml() +

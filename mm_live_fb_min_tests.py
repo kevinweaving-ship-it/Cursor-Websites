@@ -405,7 +405,11 @@ class CapeClassicMmCardUnitTest(unittest.TestCase):
         payload_fn = src[src.find("def _cape_classic_mm_reels_payload"): end]
         self.assertIn("marin.megastoresa", payload_fn)
         self.assertIn("fb-page-marine-megastore.jpg", payload_fn)
-        self.assertIn("Marine Megastore", payload_fn)
+        self.assertIn("Marine Megastore was live", payload_fn)
+        js = Path("js/mm-lipton-reels-card.js").read_text(encoding="utf-8")
+        self.assertIn("2026-09-13-zvyc-cape-classic", js)
+        self.assertIn("fb-page-marine-megastore.jpg", js)
+        self.assertIn("stopTrackOverlay();", js)
         self.assertNotIn("_mm_video_matches_event", payload_fn)
         self.assertNotIn("LIVE VIDEO", fn)
         self.assertNotIn("Fullscreen", fn)

@@ -20888,7 +20888,7 @@ def _cape_classic_mm_reels_payload() -> dict:
         if not n.get("fb_owner_logo"):
             n["fb_owner_logo"] = "/assets/adverts/mm-lipton/fb-page-marine-megastore.jpg"
         if not n.get("fb_sub"):
-            n["fb_sub"] = "Marine Megastore"
+            n["fb_sub"] = "Marine Megastore was live"
         if not n.get("fb_page"):
             n["fb_page"] = "marin.megastoresa"
         videos.append(n)
