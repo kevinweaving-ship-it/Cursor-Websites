@@ -20855,21 +20855,30 @@ def _lipton_mm_reels_payload() -> dict:
 
 def _cape_classic_mm_reels_payload() -> dict:
     """MM Facebook clips only. Empty until the first Saturday reel is saved."""
-    payload = _mm_feed_payload(_CAPE_CLASSIC_MM_REGATTA_ID)
+    row = _mm_feed_row(_CAPE_CLASSIC_MM_REGATTA_ID)
+    start, end = _mm_regatta_date_window(_CAPE_CLASSIC_MM_REGATTA_ID)
     videos = []
-    for item in payload.get("videos") or []:
+    for item in row.get("videos") or []:
+        n = _mm_normalize_video(item)
+        if not n:
+            continue
         blob = " ".join(
-            str(item.get(k) or "")
+            str(n.get(k) or "")
             for k in ("url", "permalink", "embed_url", "fb_page")
         ).lower()
-        if "timadvisor" in blob or "marin.megastoresa" not in blob:
+        if "timadvisor" in blob:
             continue
-        videos.append(item)
+        page = str(n.get("fb_page") or row.get("fb_page") or "marin.megastoresa").lower()
+        if "marin.megastoresa" not in blob and page != "marin.megastoresa":
+            continue
+        if n.get("started_at") and not _mm_video_matches_event(n, start, end):
+            continue
+        videos.append(n)
     return {
         "enabled": True,
         "feed_source": "marine-megastore",
         "fb_page": "marin.megastoresa",
-        "videos": videos,
+        "videos": _mm_apply_page_chrome(_mm_sorted_newest(videos)),
     }
 
 
