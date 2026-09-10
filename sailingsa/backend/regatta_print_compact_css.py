@@ -2,14 +2,23 @@
 
 Print test / example sheet:
 https://sailingsa.co.za/regatta/2025-12-19-hyc-youth-nationals
-(7 fleets, 12 races, Age + Crew — must fit A4 portrait.)
+(7 fleets, 12 races, Age + Crew — A4 portrait, SA.)
 
 Print and Save-as-PDF both use this CSS on the live HTML tables so sailor / club /
 class / sail links stay real hyperlinks in the PDF (not a screenshot).
+
+Pagination (A4):
+- Page 1 always starts with the event header + first fleet.
+- The next fleet stays on that page only if the whole fleet fits; otherwise it
+  moves to the next page. Same rule for every following fleet.
+- A fleet header must never sit on one page with its results table on the next.
+- Every page footer (one small line): event name + the results URL. The URL is a
+  real link in Print-to-PDF; on paper it can be typed to open the same sheet.
 """
 
 PRINT_COMPACT_CSS = """
-@page { size: A4 portrait; margin: 8mm 8mm 10mm; }
+@page { size: A4 portrait; margin: 8mm 8mm 14mm; }
+.ssa-print-page-footer { display: none !important; }
 @media print {
   html, body { background: #fff !important; color: #1a2750 !important; margin: 0 !important; padding: 0 !important; }
   .site-header, footer, .site-footer, .app-footer, .action-buttons, .back-to-home,
@@ -38,7 +47,11 @@ PRINT_COMPACT_CSS = """
     border-width: 1.5px !important;
     border-radius: 6px !important;
     page-break-after: avoid;
-    break-after: avoid;
+    break-after: avoid-page;
+  }
+  .regatta-header-wrap {
+    page-break-after: avoid;
+    break-after: avoid-page;
   }
   .regatta-header-logo-col { grid-column: 1 !important; grid-row: 1 !important; justify-content: flex-start !important; padding: 0 4px 0 0 !important; width: auto !important; }
   .regatta-header-main-col { grid-column: 2 !important; grid-row: 1 !important; justify-self: stretch !important; padding: 0 4px !important; width: 100% !important; }
@@ -50,9 +63,23 @@ PRINT_COMPACT_CSS = """
   .status-line { font-size: 7.5pt !important; line-height: 1.2 !important; margin: 2px 0 0 0 !important; }
   .regatta-live-board-row { display: none !important; }
 
-  /* Tight gap: main header → first fleet card */
-  .fleet-section { width: 100% !important; margin-top: 6px !important; page-break-inside: auto; }
-  .regatta-page > .fleet-section:first-of-type { margin-top: 6px !important; }
+  /* Tight gap: main header → first fleet. Keep each fleet together so a
+     leftover sliver never gets a header with the table on the next page.
+     If the next fleet does not fit, the whole fleet moves to the next page. */
+  .fleet-section {
+    display: inline-block !important;
+    width: 100% !important;
+    margin-top: 6px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid-page !important;
+    page-break-before: auto;
+    break-before: auto;
+  }
+  .regatta-page > .fleet-section:first-of-type {
+    margin-top: 6px !important;
+    page-break-before: avoid !important;
+    break-before: avoid-page !important;
+  }
 
   /* Fleet card: one centred line — small class chip (event-list size) + title + sailed */
   .class-header, .class-header--with-logos {
@@ -73,7 +100,9 @@ PRINT_COMPACT_CSS = """
     border-radius: 6px !important;
     font-size: 9pt !important;
     page-break-after: avoid;
-    break-after: avoid;
+    break-after: avoid-page;
+    page-break-inside: avoid;
+    break-inside: avoid-page;
   }
   .class-header-logo-col { display: flex !important; grid-column: auto !important; grid-row: auto !important; justify-content: center !important; padding: 0 !important; min-width: 0 !important; }
   .class-header-logo-img, .class-header-class-icon-img {
@@ -100,12 +129,23 @@ PRINT_COMPACT_CSS = """
   .sailed-line { font-size: 7pt !important; margin: 0 !important; line-height: 1.15 !important; white-space: nowrap !important; }
 
   /* Single-line rank table — A4 portrait, including 12-race Youth Nationals */
-  .table-wrapper { overflow: visible !important; margin-top: 3px !important; width: 100% !important; max-width: 100% !important; }
+  .table-wrapper {
+    overflow: visible !important;
+    margin-top: 3px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    page-break-before: avoid !important;
+    break-before: avoid-page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid-page !important;
+  }
   .table-wrapper table, table.fleet-results-table, .fleet-section .table-wrapper table.fleet-results-table {
     width: 100% !important;
     min-width: 0 !important;
     max-width: 100% !important;
     table-layout: fixed !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid-page !important;
   }
   th, td {
     padding: 1px 1px !important;
@@ -132,6 +172,36 @@ PRINT_COMPACT_CSS = """
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+
+  /* Small repeating footer: event name + URL on one line (clickable in PDF). */
+  .ssa-print-page-footer {
+    display: flex !important;
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 2px 0 0 !important;
+    border-top: 0.4pt solid #1a2750 !important;
+    background: #fff !important;
+    color: #1a2750 !important;
+    font-size: 6.5pt !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    align-items: baseline !important;
+    gap: 6px !important;
+    z-index: 9999 !important;
+  }
+  .ssa-print-footer-name { font-weight: 700 !important; flex: 0 0 auto !important; }
+  .ssa-print-page-footer a, .ssa-print-page-footer a:visited {
+    color: #0000ee !important;
+    text-decoration: underline !important;
+    font-weight: 400 !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
 }
 """.strip()
 
@@ -140,15 +210,40 @@ def print_share_bar_html() -> str:
     """Print + Share controls plus compact print CSS (one inject for live + repo)."""
     return (
         '<style id="ssa-print-compact">' + PRINT_COMPACT_CSS + "</style>"
+        '<div id="ssaPrintPageFooter" class="ssa-print-page-footer">'
+        '<span class="ssa-print-footer-name"></span>'
+        '<a class="ssa-print-footer-url" href="#"></a>'
+        "</div>"
         '<div class="action-buttons">'
         '<button type="button" class="action-button" onclick="window.print()">Print</button>'
         '<button type="button" class="action-button" id="regattaShareBtn">Share</button>'
         "</div>"
         "<script>(function(){"
+        "function sheetUrl(){"
+        "var c=document.querySelector('link[rel=\"canonical\"]');"
+        "if(c&&c.href&&c.href.indexOf('http')===0)return c.href.split('#')[0].split('?')[0];"
+        "var u=(location.href||'').split('#')[0].split('?')[0];"
+        "if(u.indexOf('http')===0)return u;"
+        "var p=location.pathname||'';"
+        "if(p.indexOf('/regatta/')===0)return 'https://sailingsa.co.za'+p.replace(/\\/+$/,'');"
+        "return '';"
+        "}"
+        "function fillFooter(){"
+        "var f=document.getElementById('ssaPrintPageFooter');if(!f)return;"
+        "var n=document.querySelector('.regatta-name');"
+        "var name=(n&&n.textContent||document.title||'').replace(/\\s*\\|\\s*SailingSA\\s*$/i,'').replace(/\\s+/g,' ').trim();"
+        "var url=sheetUrl();"
+        "var ns=f.querySelector('.ssa-print-footer-name');"
+        "var a=f.querySelector('a');"
+        "if(ns)ns.textContent=name;"
+        "if(a&&url){a.setAttribute('href',url);a.textContent=url;}"
+        "}"
+        "fillFooter();"
+        "if(!document.querySelector('.regatta-name'))document.addEventListener('DOMContentLoaded',fillFooter);"
         "var b=document.getElementById('regattaShareBtn');"
         "if(!b)return;"
         "b.addEventListener('click',function(){"
-        "var t=document.title||'SailingSA',u=location.href;"
+        "var t=document.title||'SailingSA',u=sheetUrl()||location.href;"
         "if(navigator.share){navigator.share({title:t,url:u}).catch(function(){});return;}"
         "function copied(){b.textContent='Link copied';setTimeout(function(){b.textContent='Share';},1600);}"
         "if(navigator.clipboard&&navigator.clipboard.writeText){"

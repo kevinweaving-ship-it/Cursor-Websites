@@ -31,10 +31,22 @@ def test_compact_print_css_portrait_header_and_fleet_line():
     assert "white-space: nowrap" in css
     assert "table-layout: fixed" in css
     assert ".race-col" in css
+    assert "2025-12-19-hyc-youth-nationals" in Path(
+        ROOT / "sailingsa" / "backend" / "regatta_print_compact_css.py"
+    ).read_text(encoding="utf-8")
+    assert "break-inside: avoid-page" in css
+    assert ".regatta-page > .fleet-section:first-of-type" in css
+    assert "page-break-before: avoid" in css
+    assert "break-after: avoid-page" in css
     bar = print_share_bar_html()
     assert "ssa-print-compact" in bar
     assert "regattaShareBtn" in bar
     assert "navigator.share" in bar
+    assert 'id="ssaPrintPageFooter"' in bar
+    assert "ssa-print-page-footer" in css
+    assert "position: fixed" in css
+    assert "fillFooter" in bar
+    assert "link[rel=" in bar
 
 
 def test_live_patch_replaces_print_only_markup():
