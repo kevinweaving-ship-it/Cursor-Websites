@@ -982,9 +982,12 @@
     var lineMin = Math.min(pinA, rcA);
     var lineMax = Math.max(pinA, rcA);
     var lineSpan = Math.max(40, lineMax - lineMin);
-    var padT = 14;
-    var padB = 14;
+    var padT = 24;
+    var padB = 30;
     var fullScaleY = (h - padT - padB) / lineSpan;
+    var gun = live && live.gun;
+    var signed = front && front.pos ? signedDistToStart(front.pos) : 0;
+    var afterStart = (gun && live.ts >= gun) || signed > 8;
     var packMin = lineMin;
     var packMax = lineMax;
     var rows = (live && live.rows) || [];
@@ -995,7 +998,17 @@
       if (ac < packMin) packMin = ac;
       if (ac > packMax) packMax = ac;
     }
-    var scaleY = (h - padT - padB) / Math.max(lineSpan, packMax - packMin);
+    /* After the gun, shrink the line in place so ducks above and below
+     * stay in view. Do not pan — scaleY is limited by room above/below
+     * the locked line, not by fleet span alone. */
+    var extraM = afterStart ? 16 : 0;
+    var topA = Math.max(packMax, lineMax) + extraM;
+    var botA = Math.min(packMin, lineMin) - extraM;
+    var scaleY = fullScaleY;
+    if (afterStart) {
+      if (topA > 1) scaleY = Math.min(scaleY, (lineY - padT) / topA);
+      if (botA < -1) scaleY = Math.min(scaleY, (h - padB - lineY) / -botA);
+    }
     if (!(scaleY > 0.05)) scaleY = 0.05;
     if (fullScaleY > 0 && scaleY > fullScaleY) scaleY = fullScaleY;
     if (startLock && startLock.w === w && startLock.h === h && startLock.scaleY > 0) {
