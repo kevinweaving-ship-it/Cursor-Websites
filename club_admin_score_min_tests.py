@@ -205,10 +205,14 @@ class ClubAdminScoreMinTest(unittest.TestCase):
     def test_places_unique_codes_repeat(self):
         h = _load_score_helpers()
         self.assertEqual(h["_validate_race_score_value"]("3", 9), "3")
-        self.assertEqual(h["_validate_race_score_value"]("10", 9), "10")
         self.assertEqual(h["_validate_race_score_value"]("ocs", 9), "10 OCS")
         self.assertEqual(h["_validate_race_score_value"]("OCS", 3), "4 OCS")
         self.assertEqual(h["_validate_race_score_value"]("ocs", 3), "4 OCS")
+        self.assertEqual(h["_validate_race_score_value"]("DSQ", 3), "4 DSQ")
+        with self.assertRaises(_FakeHTTPException):
+            h["_validate_race_score_value"]("4", 3)
+        with self.assertRaises(_FakeHTTPException):
+            h["_validate_race_score_value"]("10", 9)
         self.assertEqual(h["_fleet_scored_race_count"]([{"R1": "1", "R2": "2", "R3": "OCS"}]), 3)
         self.assertEqual(h["_appendix_a_discard_count"](3), 0)
         self.assertEqual(h["_appendix_a_discard_count"](4), 0)
@@ -235,6 +239,10 @@ class ClubAdminScoreMinTest(unittest.TestCase):
         self.assertEqual(h["_fleet_races_step"](1, -1, False), (1, "noop"))
         self.assertIn("action == \"clear\"", self.src)
         self.assertIn("function parseScore", self.club_js)
+        self.assertIn("function placeTaken", self.club_js)
+        self.assertIn("function rejectDup", self.club_js)
+        self.assertIn("club-score-input--dup", self.club_js)
+        self.assertIn("place > n", self.club_js)
         self.assertNotIn("Clear R\" + current + \" first", self.club_js)
         self.assertIn("def patch_fleet_races", self.src)
         self.assertIn("/api/result/{result_id}/fleet-races", self.src)

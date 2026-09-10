@@ -12596,7 +12596,7 @@ def _race_score_unique_place(value: str, entries: int) -> Optional[int]:
 
 
 def _validate_race_score_value(value: str, entries: int) -> str:
-    """Accept 1..n (unique later), n+1, or a standard code. Empty clears."""
+    """Accept 1..n (unique later) or a standard code (stores as '{n+1} CODE'). Empty clears."""
     v = _normalize_race_score_value(value)
     if not v:
         return ""
@@ -12609,13 +12609,13 @@ def _validate_race_score_value(value: str, entries: int) -> str:
         n = int(v)
         if n == 0:
             return ""
-        if entries_n and 1 <= n <= max_pts:
+        if entries_n and 1 <= n <= entries_n:
             return str(n)
         if not entries_n and n >= 1:
             return str(n)
         raise HTTPException(
             status_code=400,
-            detail=f"Use 1–{entries_n} for a place, or {max_pts} / OCS / DSQ for a code",
+            detail=f"Use 1–{entries_n} for a place, or OCS/DSQ (scores {max_pts})",
         )
     codes = "/".join(_RACE_PENALTY_CODES)
     raise HTTPException(

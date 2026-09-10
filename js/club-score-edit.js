@@ -47,6 +47,7 @@
       ".club-score-input{box-sizing:border-box;width:4.8rem;min-width:4.4rem;height:22px;min-height:22px;max-height:22px;padding:0 3px;text-align:center;font:inherit;font-size:12px;line-height:20px;font-weight:700;border:1.5px solid #1a2750;border-radius:4px;background:#fff;color:#1a2750}" +
       ".club-score-input.club-score-input--saving{background:#fef08a}" +
       ".club-score-input.club-score-input--saved{background:#bbf7d0}" +
+      ".club-score-input.club-score-input--dup{background:#fecaca;border-color:#b91c1c}" +
       ".regatta-page--club-score-edit .fleet-results-table td.race-col{padding:2px 3px;vertical-align:middle}" +
       ".regatta-page--club-score-edit td.total-col," +
       ".regatta-page--club-score-edit td.nett-col," +
@@ -115,8 +116,8 @@
     if (/^\d+(\.0+)?$/.test(num)) {
       var place = parseInt(num, 10);
       if (place === 0) return { ok: true, value: "" };
-      if (n && (place < 1 || place > n + 1)) {
-        return { ok: false, value: "", error: "Use 1–" + n + " or " + (n + 1) + " / OCS / DSQ" };
+      if (n && (place < 1 || place > n)) {
+        return { ok: false, value: "", error: "Use 1–" + n + " or OCS/DSQ" };
       }
       if (place < 1) return { ok: false, value: "", error: "Use a place or a code" };
       return { ok: true, value: String(place) };
@@ -154,6 +155,41 @@
     return inp.selectionStart === 0 && inp.selectionEnd === String(inp.value || "").length;
   }
 
+  function uniquePlace(raw, entries) {
+    var p = parseScore(raw, entries);
+    if (!p.ok || !p.value || /[A-Z]/.test(p.value)) return null;
+    if (!/^\d+$/.test(p.value)) return null;
+    var n = parseInt(p.value, 10);
+    var max = Math.max(parseInt(entries, 10) || 0, 0);
+    if (max && n === max + 1) return null;
+    if (n >= 1 && (!max || n <= max)) return n;
+    return null;
+  }
+
+  function placeTaken(inp, place) {
+    if (place == null) return false;
+    var race = inp.getAttribute("data-race");
+    var entries = entriesFor(inp);
+    return fleetInputs(inp).some(function (box) {
+      if (box === inp) return false;
+      if (box.getAttribute("data-race") !== race) return false;
+      return uniquePlace(box.getAttribute("data-original") || box.value, entries) === place;
+    });
+  }
+
+  function rejectDup(inp) {
+    inp.value = inp.getAttribute("data-original") || "";
+    inp.removeAttribute("data-dirty");
+    inp.title = "";
+    inp.classList.remove("club-score-input--saving", "club-score-input--saved");
+    inp.classList.add("club-score-input--dup");
+    if (inp._dupFlash) window.clearTimeout(inp._dupFlash);
+    inp._dupFlash = window.setTimeout(function () {
+      inp.classList.remove("club-score-input--dup");
+      inp._dupFlash = null;
+    }, 700);
+  }
+
   function save(inp) {
     if (!inp || !inp.classList.contains("club-score-input")) return;
     if (inp._wcSaving) return;
@@ -164,15 +200,17 @@
     var parsed = parseScore(inp.value, entries);
     var orig = String(inp.getAttribute("data-original") || "");
     if (!parsed.ok) {
-      inp.value = orig;
-      inp.removeAttribute("data-dirty");
-      inp.title = parsed.error;
+      rejectDup(inp);
       return;
     }
     var v = parsed.value;
     if (v === parseScore(orig, entries).value) {
       inp.removeAttribute("data-dirty");
       inp.title = "";
+      return;
+    }
+    if (placeTaken(inp, uniquePlace(v, entries))) {
+      rejectDup(inp);
       return;
     }
     var seq = String(Number(inp.getAttribute("data-save-seq") || 0) + 1);
@@ -197,10 +235,7 @@
         inp._wcSaving = false;
         inp.classList.remove("club-score-input--saving");
         if (!o.ok) {
-          inp.value = orig;
-          inp.removeAttribute("data-dirty");
-          inp.classList.remove("club-score-input--saved");
-          inp.title = (o.j && (o.j.detail || o.j.error)) || "Save failed";
+          rejectDup(inp);
           return;
         }
         inp.title = "";
