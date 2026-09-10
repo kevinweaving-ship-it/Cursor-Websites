@@ -96,6 +96,7 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("compactTilesHtml", js)
         self.assertIn("scrollRail", js)
         self.assertIn("thumbsThatFit", js)
+        self.assertIn("emptyReelSlotHtml", js)
         self.assertIn("play_url", js)
         self.assertIn("data-mm-hero-video", js)
         self.assertIn("video.play()", js)
@@ -108,11 +109,11 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         src = Path("api.py").read_text(encoding="utf-8")
         self.assertIn('row["play_url"]', src)
         self.assertIn("mmr102", src)
-        self.assertIn("mmr103", src)
+        self.assertIn("mmr104", src)
         self.assertIn("mm-lipton-track-overlay.js", src)
         self.assertLess(
             src.find("mm-lipton-track-overlay.js"),
-            src.find("mm-lipton-reels-card.js?v=mmr103"),
+            src.find("mm-lipton-reels-card.js?v=mmr104"),
         )
         self.assertIn("scrollTo", js)
         self.assertIn("bumpSlide", js)

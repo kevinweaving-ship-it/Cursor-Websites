@@ -20604,8 +20604,6 @@ _LIPTON_MM_REELS_CSS = (
     ".mm-lipton-reels--expanded .mm-lipton-reels-expanded{display:block!important}"
     ".mm-lipton-reels-compact{display:flex;flex-wrap:nowrap;align-items:stretch;justify-content:flex-start;gap:6px;min-width:0;overflow:hidden}"
     ".mm-lipton-reels-brand{display:block;flex:0 0 auto;line-height:0;overflow:hidden;border:2px solid #001f3f;border-radius:8px;background:#001f3f;box-shadow:0 1px 3px rgba(0,31,63,0.14);box-sizing:border-box}"
-    ".mm-lipton-reels--soon .mm-lipton-reels-brand{flex:1 1 auto;max-width:100%}"
-    ".mm-lipton-reels--soon .mm-lipton-reels-rail-wrap{display:none!important}"
     ".mm-lipton-reels-brand img{display:block;width:100%;height:100%;object-fit:contain;object-position:center;border:0}"
     ".mm-lipton-reels-rail-wrap{position:relative;flex:1 1 auto;min-width:0;height:100%;overflow:hidden}"
     ".mm-lipton-reels-rail,"
@@ -20918,7 +20916,6 @@ def _cape_classic_mm_reels_card_html(regatta_id: str) -> str:
         if has_clips
         else "Powered by Marine Megastore Coming Soon"
     )
-    soon_cls = "" if has_clips else " mm-lipton-reels--soon"
     brand = (
         '<a class="mm-lipton-reels-brand" href="https://marinemegastore.co.za" target="_blank" rel="noopener noreferrer">'
         f'<img src="{html_module.escape(brand_src)}" '
@@ -20928,7 +20925,7 @@ def _cape_classic_mm_reels_card_html(regatta_id: str) -> str:
     )
     return (
         f"<style>{_LIPTON_MM_REELS_CSS}</style>"
-        f'<section class="card mm-lipton-reels mm-lipton-reels--compact{soon_cls}" id="mmLiptonReels" '
+        f'<section class="card mm-lipton-reels mm-lipton-reels--compact" id="mmLiptonReels" '
         f'data-regatta-id="{html_module.escape(_CAPE_CLASSIC_MM_REGATTA_ID)}" '
         'data-mm-poll="1" '
         f'data-mm-brand-soon="{html_module.escape(_MM_COMING_SOON_BRAND_SRC)}" '
@@ -27891,12 +27888,12 @@ def serve_regatta_standalone(slug: str, request: Request):
             mm_card = _lipton_mm_reels_card_html(str(regatta_id))
             mm_card_js = (
                 '<script src="/js/mm-lipton-track-overlay.js?v=mmr102" defer></script>'
-                '<script src="/js/mm-lipton-reels-card.js?v=mmr103" defer></script>'
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr104" defer></script>'
             )
         elif str(regatta_id) == "2026-09-13-zvyc-cape-classic":
             mm_card = _cape_classic_mm_reels_card_html(str(regatta_id))
             mm_card_js = (
-                '<script src="/js/mm-lipton-reels-card.js?v=mmr103" defer></script>'
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr104" defer></script>'
             )
         body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))

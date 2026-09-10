@@ -351,9 +351,17 @@
     );
   }
 
+  function emptyReelSlotHtml() {
+    return (
+      '<div class="mm-lipton-reels-tile mm-lipton-reels-tile--slot">' +
+      '<div class="mm-lipton-reels-thumb" style="aspect-ratio:16 / 9">' +
+      '<span class="mm-lipton-reels-thumb-ph" aria-hidden="true"></span>' +
+      '</div></div>'
+    );
+  }
+
   function thumbsThatFit(avail, total) {
-    var count = total || 0;
-    if (count <= 0) return 0;
+    var count = total || 1;
     var maxN = Math.min(count, 5);
     if (avail <= 0) return 1;
     if (window.matchMedia('(max-width: 599px)').matches) return 1;
@@ -372,6 +380,7 @@
   }
 
   function compactTilesHtml(videos) {
+    if (!(videos && videos.length)) return emptyReelSlotHtml();
     var parts = [];
     var i;
     for (i = 0; i < videos.length; i++) parts.push(compactTileHtml(videos[i], videos, i === 0));
@@ -682,7 +691,6 @@
     var next = has ? live || '/assets/adverts/mm-powered-by-event-reels.png?v=mmr2' : soon;
     if (img.getAttribute('src') !== next) img.setAttribute('src', next);
     img.setAttribute('alt', has ? 'Powered by Marine Megastore Event Reels' : 'Powered by Marine Megastore Coming Soon');
-    root.classList.toggle('mm-lipton-reels--soon', !has);
   }
 
   function videoKey(videos) {
@@ -726,9 +734,9 @@
     var avail = row.clientWidth;
     if (avail <= 0) return;
     syncBrand(root, videos);
-    var nFit = thumbsThatFit(avail, videos.length);
+    var nFit = thumbsThatFit(avail, videos.length || 1);
     var wrap = root.querySelector('.mm-lipton-reels-rail-wrap');
-    if (wrap) wrap.style.display = videos.length ? '' : 'none';
+    if (wrap) wrap.style.display = '';
     if (compact.getAttribute('data-mm-count') !== String(videos.length)) {
       compact.innerHTML = compactTilesHtml(videos);
       compact.setAttribute('data-mm-count', String(videos.length));
