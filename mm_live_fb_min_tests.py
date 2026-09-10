@@ -172,7 +172,7 @@ class LiptonMmCardUnitTest(unittest.TestCase):
             src.find("mm-lipton-track-overlay.js"),
             src.find("mm-lipton-reels-card.js?v=mmr111"),
         )
-        self.assertIn("mm-lipton-reels-card.js?v=mmr114", src)
+        self.assertIn("mm-lipton-reels-card.js?v=mmr117", src)
         self.assertIn("https://www.marinemegastore.co.za/", src)
         self.assertIn("https://www.marinemegastore.co.za/", js)
         self.assertIn("MM_STORE_HOME", js)
