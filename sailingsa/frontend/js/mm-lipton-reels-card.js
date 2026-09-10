@@ -298,6 +298,13 @@
       scheduleHidePlayerUi(root, state, video);
       loopTrack();
     });
+    video.addEventListener('playing', function () {
+      loopTrack();
+    });
+    video.addEventListener('seeked', function () {
+      drawTrackFrame();
+      loopTrack();
+    });
     video.addEventListener('pause', function () {
       syncPlayerUi(root, video);
     });
@@ -402,26 +409,28 @@
     var ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    /* Stamp first (go-live / started_at), then offset from video vs tracking. */
-    var startMs = Date.parse(String(trackClip.started_at || ''));
-    if (startMs !== startMs) return;
+    /* Stamp first (go-live / clip stamp), then offset from video vs tracking. Always 1×. */
     if (video.playbackRate !== 1) video.playbackRate = 1;
-    var off = Number(trackClip.track_offset_ms);
-    if (off !== off) {
-      off = overlay.offsetMs ? overlay.offsetMs(trackClip.id) : String(trackClip.id) === TRACK_TEST_ID ? 36000 : 0;
+    var ts = overlay.clockMs ? overlay.clockMs(trackClip.id, video.currentTime) : NaN;
+    if (!(ts > 0)) {
+      var startMs = Date.parse(String(trackClip.started_at || ''));
+      if (startMs !== startMs) return;
+      var off = Number(trackClip.track_offset_ms);
+      if (off !== off) {
+        off = overlay.offsetMs ? overlay.offsetMs(trackClip.id) : String(trackClip.id) === TRACK_TEST_ID ? 36000 : 0;
+      }
+      ts = startMs + (Number(video.currentTime) || 0) * 1000 + off;
     }
-    var ts = startMs + (Number(video.currentTime) || 0) * 1000 + off;
     var dur = Number(video.duration);
     overlay.draw(canvas, ts, cssW, cssH, dur);
   }
 
   function loopTrack() {
-    if (trackRaf) window.cancelAnimationFrame(trackRaf);
+    if (trackRaf) return;
     function tick() {
       trackRaf = 0;
       drawTrackFrame();
-      var video = trackRoot && trackRoot.querySelector('[data-mm-hero-video]');
-      if (trackClip && video && !video.paused) {
+      if (trackClip && trackRoot) {
         trackRaf = window.requestAnimationFrame(tick);
       }
     }

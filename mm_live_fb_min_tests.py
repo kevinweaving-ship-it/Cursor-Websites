@@ -95,17 +95,19 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("video.play()", js)
         self.assertIn("startHeroPlayback", js)
         self.assertIn("ensureHeroVideo", js)
+        self.assertIn("overlay.clockMs", js)
+        self.assertIn("if (trackClip && trackRoot)", js)
         self.assertIn("/assets/adverts/mm-lipton/", js)
         self.assertNotIn("data-mm-hero-play", js)
         self.assertNotIn("facebook.com/plugins/video.php", js)
         self.assertIn("playsinline", js)
         src = Path("api.py").read_text(encoding="utf-8")
         self.assertIn('row["play_url"]', src)
-        self.assertIn("mmr102", src)
+        self.assertIn("mmr103", src)
         self.assertIn("mm-lipton-track-overlay.js", src)
         self.assertLess(
             src.find("mm-lipton-track-overlay.js"),
-            src.find("mm-lipton-reels-card.js?v=mmr102"),
+            src.find("mm-lipton-reels-card.js?v=mmr103"),
         )
         self.assertIn("scrollTo", js)
         self.assertIn("bumpSlide", js)
@@ -188,6 +190,10 @@ class LiptonMmCardUnitTest(unittest.TestCase):
         self.assertIn("durationSec: 315", overlay)
         self.assertIn("endExitSide", overlay)
         self.assertIn("rememberDuration", overlay)
+        self.assertIn("function clockMs", overlay)
+        self.assertIn("isFinite(sec)", overlay)
+        self.assertIn("pins everyone to the line", overlay)
+        self.assertIn("clockMs: clockMs", overlay)
         self.assertIn("START CAM LOCKED", overlay)
         self.assertIn("ROUND CAM LOCKED", overlay)
         self.assertIn("roundPackCam", overlay)

@@ -305,6 +305,13 @@
     return r && r.offsetMs != null ? r.offsetMs : 0;
   }
 
+  function clockMs(id, videoSec) {
+    var rule = ruleFor(id);
+    var stamp = Date.parse((rule && rule.stamp) || '');
+    if (stamp !== stamp) return NaN;
+    return stamp + (rule.offsetMs || 0) + (Number(videoSec) || 0) * 1000;
+  }
+
   function load(id, done) {
     if (typeof id === 'function') {
       done = id;
@@ -994,7 +1001,10 @@
 
   function rememberDuration(sec) {
     sec = Number(sec);
-    if (sec > 1 && sec === sec) clipDurationSec = sec;
+    if (!isFinite(sec) || sec < 2 || sec > 1200) return;
+    var cap = clipRule && clipRule.durationSec ? Number(clipRule.durationSec) : 0;
+    if (cap >= 2 && sec > cap + 15) sec = cap;
+    clipDurationSec = sec;
   }
 
   function clipEndTs() {
@@ -1662,19 +1672,15 @@
     return ahead;
   }
 
-  /* Size X from the rightmost boat at clip end (and now), plus a right
-   * buffer so 1st and anyone passing on the right stay in view. */
+  /* Size X from boats now, plus a short right buffer. Do not pre-fit the
+   * whole clip — that pins everyone to the line so they look frozen. */
   function startAheadM(live, origin, hdg) {
-    var ahead = 80;
-    var endTs = clipEndTs();
-    if (endTs) ahead = Math.max(ahead, startMaxAlong(ranksAt(endTs), origin, hdg));
-    ahead = Math.max(ahead, startMaxAlong(live, origin, hdg));
-    return ahead;
+    return Math.max(80, startMaxAlong(live, origin, hdg) + 56);
   }
 
   /* START CAM LOCKED (save that):
    * Line left, does not pan, only shrinks. Full line before the gun.
-   * Boats LTR. Right buffer from clip-end GPS + time left. 1st always in view.
+   * Boats LTR. Zoom out as they sail. 1st always in view; boats on the right stay in view.
    * Full start line must show before start. Start line stays LEFT and does not move.
    * It can only shrink (zoom out). Boats above/below stay in view. */
   function startPackCam(live, w, h) {
@@ -2464,5 +2470,5 @@
     for (i = pack.length - 1; i >= 0; i--) drawBoat(ctx, cam, pack[i], live, r);
   }
 
-  root.mmLiptonTrackOverlay = { load: load, draw: draw, usesClip: usesClip, kind: kindFor, offsetMs: offsetMsFor };
+  root.mmLiptonTrackOverlay = { load: load, draw: draw, usesClip: usesClip, kind: kindFor, offsetMs: offsetMsFor, clockMs: clockMs };
 })(window);
