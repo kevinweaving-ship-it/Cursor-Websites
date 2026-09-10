@@ -1,29 +1,16 @@
 # Lipton Event Reels — Mac morning handover
 
-**Updated 10 Sep 2026.** R3 Downwind 2 is measured (HYC M2 at video 0:10). Cache tag: **`mmr100`**. PR: https://github.com/kevinweaving-ship-it/Cursor-Websites/pull/66
+**Updated 10 Sep 2026.** Lipton R2 generic is locked to triangle-1 M2 at video 0:00. Cache tag: **`mmr102`**. PR: https://github.com/kevinweaving-ship-it/Cursor-Websites/pull/66
 
-This report lists **only clips that still cannot be synced accurately**. Everything else is either measured (Race 7) or stamp-assumed (ear-check on Mac if you want measured).
+No clip in the feed = no clip. Do not invent Race 2 start or extra races.
 
-No Whisper/STT on the VM. Do not treat assumed offsets as heard guns or “round 1st” calls.
+No Whisper/STT on the VM. Do not treat assumed offsets as heard guns unless a video time was given.
 
 ---
 
-## Still the issue (cannot lock accurately)
+## Still the issue
 
-### Race 2 — generic clip, named moment already over
-
-| Clip | Title | Stamp | Why it cannot lock | GPS around the stamp |
-|---|---|---|---|---|
-| `1384453329808359` | Lipton R2 | 26 Aug **13:45** | **16/17** already rounded **L1 M2** (1st LDYC **13:42:59**). Only WYAC left (**13:45:01**). Next mark **L1 M3 FBYC 13:49:50** (~4:50). Title does not say which. | Listen: last M2 (WYAC) at open, or 1st M3 at ~4:50. Then set mark + `offsetMs`. |
-
-### No clip / no overlay
-
-| Item | Why |
-|---|---|
-| Race 2 **start** | Not in the Event Reels feed. No start-gun clip to lock. |
-| `983599421402934` Lipton day3 | Day reel, not a race overlay clip. |
-| Races 1, 6, 8, 9, 10 | Trails exist under `sailingsa/frontend/js/`, but there are **no Event Reels clips** for them. |
-| Race 4 gun / finish GPS | Now known: gun **13:55:01**, 1st finish WBYC **15:25:32**. |
+None of the Event Reels race clips are unlockable. Remaining work is optional ear-check of stamp-assumed starts/finishes.
 
 ---
 
@@ -36,6 +23,7 @@ No Whisper/STT on the VM. Do not treat assumed offsets as heard guns or “round
 - `2622643364847262` R7 1st downwind — `offsetMs +36000` (Pin 16:22:43, STT ~3:07)
 - `1802153794291569` R3 leeward 1 — `offsetMs -252000` (1st FBYC M2 15:30:25 at video **0:37**)
 - `1530770848344300` R3 Downwind 2 — `offsetMs +1524000` (HYC L2 M2 16:16:34 at video **0:10**, FBYC 2nd 16:17:05)
+- `1384453329808359` Lipton R2 — `offsetMs 0` (triangle 1 **M2** at **0:00**; WYAC passing 13:45:01, LDYC already leading from 13:42:59)
 
 **Stamp-assumed (clock = stamp + videoTime; offset 0 unless noted).** Mac can confirm with one horn / “rounds” call:
 
@@ -63,7 +51,7 @@ If a horn/rounding is **not** at that video time, send the video time — `offse
 ## Mac first actions
 
 1. Open `docs/LIPTON_OVERLAY_MAC_HANDOVER.md` (this file).
-2. Ear-check the one **cannot-lock** clip (R2 generic). Write `offsetMs` + mark from a real in-video event.
+2. Optional: ear-check stamp-assumed starts/finishes only.
 3. Optional: ear-check assumed starts/finishes (R5/R4/R3 start, R4/R2 finish). R7 start needed **+24.2s** after STT — the same trap.
 4. Surgical deploy only: overlay JS both paths, race JSON under `/js/`, cache tag in live `api.py`, restart `sailingsa-api`. **Do not overwrite live `api.py` wholesale.**
 

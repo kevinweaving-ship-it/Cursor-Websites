@@ -278,11 +278,11 @@
       mark: '2',
       offsetMs: 0,
       stamp: '2026-08-26T13:45:00+02:00',
-      videoEvent: '16/17 already rounded M2 by 13:45; next M3 13:49:50',
-      gpsEvent: 'R2 L1 M2 LDYC 13:42:59 — 2:01 before stamp',
-      stampOff: '0 — cannot lock',
-      assumed: true,
-      cannotLock: true
+      videoEvent: 'triangle 1 M2 at 0:00; WYAC passing, LDYC already leading',
+      gpsEvent: 'R2 L1 M2 WYAC 13:45:01 / LDYC led 13:42:59',
+      stampOff: '0',
+      talkRoundFromSec: 0,
+      talkRoundToSec: 80
     })
   };
   /* Race files e.g. /js/lipton-dev-trail-r7.json /js/lipton-dev-replay-r7.json */
