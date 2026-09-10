@@ -88,6 +88,7 @@
   var CLIP_RULES = {
     '2622643364847262': clipR(7, 'round', {
       approach: 'rtl',
+      mark: '4',
       offsetMs: 36000,
       durationSec: 315,
       stamp: '2026-08-28T16:19:00+02:00',
@@ -1032,9 +1033,29 @@
     return { lat: sl.left.lat, lon: sl.left.lon, key: 'pin' };
   }
 
+  /* Leeward buoy they actually round — not the start pin.
+   * drifting GPS mark 4 is frozen at first rounding (R7 ~75m from start pin). */
+  function fixedMark4() {
+    var ts = (replay && replay.gun_ts_ms) || (trail && trail.gun_ts_ms) || 0;
+    var passes = passList();
+    var i;
+    for (i = 0; i < passes.length; i++) {
+      if (String(passes[i].mark) === '4' && passes[i].boats && passes[i].boats[0]) {
+        ts = Number(passes[i].boats[0].ts_ms != null ? passes[i].boats[0].ts_ms : passes[i].boats[0].ts) || ts;
+        break;
+      }
+    }
+    var p = sampleAt((trail.marks || {})['4'], ts);
+    if (p && p.lat != null) return { lat: p.lat, lon: p.lon, key: '4' };
+    p = sampleAt((trail.marks || {})['4'], ts + 60000);
+    if (p && p.lat != null) return { lat: p.lat, lon: p.lon, key: '4' };
+    return fixedPin();
+  }
+
   function frozenMark(key) {
     key = String(key == null ? '' : key);
-    if (key === 'pin' || key === '4') return fixedPin();
+    if (key === 'pin') return fixedPin();
+    if (key === '4') return fixedMark4();
     if (key === '1') return fixedM1();
     if (key === 'fin') {
       var fl = trail && trail.finish_line;
@@ -1883,7 +1904,9 @@
 
   function drawCourseMarks(ctx, cam, ts, w, h, focus, phase) {
     var showFin = phase === 'finish' || (clipRule && clipRule.kind === 'finish') || (focus && focus.key === 'fin');
-    var showStart = !showFin && (phase === 'start' || (focus && (focus.key === 'start' || isPinKey(focus.key))));
+    /* Start gate only on a start clip. Pin/M4 rounding is one small mark,
+     * not Pin+RC — the start pin can be ~75m from the buoy they round. */
+    var showStart = !showFin && (phase === 'start' || (focus && focus.key === 'start'));
     /* One small mark — no stacked rings covering boats / names. */
     if (showStart && trail.start_line && trail.start_line.left && trail.start_line.right) {
       drawGate(ctx, cam, trail.start_line, 'rgba(56,189,248,0.95)', '', 'Pin', 'RC');
@@ -2336,7 +2359,7 @@
 
     if (phase === 'hold' || phase === 'approach-mark') {
       var key = focus && focus.key != null ? String(focus.key) : '';
-      var frozen = (key === 'pin' || key === '4') ? fixedPin() : null;
+      var frozen = frozenMark(key);
       if (!markLock || markLock.key !== key) {
         var sc = frozenMarkScale(cssW, cssH);
         markLock = {
