@@ -813,6 +813,15 @@
     return { lat: sl.left.lat, lon: sl.left.lon, key: 'pin' };
   }
 
+  function isPinKey(k) {
+    k = String(k == null ? '' : k);
+    return k === 'pin' || k === '4';
+  }
+
+  function sameCamBox(lock, w, h) {
+    return !!(lock && Math.abs(lock.w - w) < 2 && Math.abs(lock.h - h) < 2);
+  }
+
   function roundOrigin(mark) {
     if (mark && (String(mark.key) === 'pin' || String(mark.key) === '4')) {
       var pin = fixedPin();
@@ -846,20 +855,24 @@
 
   /* ROUND CAM LOCKED — Race 7 1st downwind (and other pin rounds):
    * Pin is the fixed start-line pin, not drifting GPS mark 4. Mark stays
-   * LEFT. Approach RTL, after rounding boats sail LTR (back toward M1).
-   * Scale X from clip-end GPS + time left. Right buffer so 1st stays in
-   * view. Do not shrink X to fit Y. Mark does not pan. */
+   * LEFT and does not move from left unless it goes out of view left as
+   * 1st heads away and the mark is no longer in the 60–70% of the fleet
+   * closest to 1st. Approach RTL, after rounding boats sail LTR (back
+   * toward M1). Scale X from clip-end GPS + time left. Right buffer so
+   * 1st stays in view. Do not shrink X to fit Y. Pin never pans right. */
   function roundPackCam(live, w, h, mark) {
     var origin = roundOrigin(mark) || { lat: 0, lon: 0, key: '' };
-    var hdg = roundLock && roundLock.w === w && roundLock.h === h && roundLock.hdg != null
+    var stay = roundPinMustStay(live, origin);
+    var boxed = sameCamBox(roundLock, w, h);
+    var hdg = boxed && roundLock.hdg != null
       ? roundLock.hdg
       : roundCourseHdg(live, origin);
     var pinX = Math.max(28, Math.min(64, w * 0.16));
     var pinY = Math.max(36, Math.min(h * 0.38, h * 0.42));
-    if (roundLock && roundLock.w === w && roundLock.h === h && roundLock.pinX) {
-      pinX = roundLock.pinX;
+    if (boxed && roundLock.pinX != null) {
       pinY = roundLock.pinY;
       hdg = roundLock.hdg;
+      pinX = roundLock.pinX;
     }
     var win = { minA: 0, maxA: 0, minC: -20, maxC: 20 };
     eatAlongAcross(live, origin, hdg, win);
@@ -868,8 +881,8 @@
     var padR = startPadR(w);
     var rightNeed = Math.max(48, -win.minA);
     var leftNeed = Math.max(8, win.maxA);
-    var scaleX = (w - pinX - padR) / rightNeed;
-    if (leftNeed > 4) {
+    var scaleX = (w - Math.max(28, pinX) - padR) / rightNeed;
+    if (stay && leftNeed > 4) {
       var sL = (pinX - 14) / leftNeed;
       if (sL > 0 && scaleX > sL) scaleX = sL;
     }
@@ -883,7 +896,7 @@
     if (topA > 1) scaleY = Math.min(scaleY, (pinY - padT) / topA);
     if (botA < -1) scaleY = Math.min(scaleY, (h - padB - pinY) / -botA);
     if (!(scaleY > 0.04)) scaleY = 0.04;
-    if (roundLock && roundLock.w === w && roundLock.h === h) {
+    if (boxed) {
       if (roundLock.scaleX > 0 && scaleX > roundLock.scaleX) scaleX = roundLock.scaleX;
       if (roundLock.scaleY > 0 && scaleY > roundLock.scaleY) scaleY = roundLock.scaleY;
     }
@@ -892,15 +905,36 @@
       var fa = alongAcross(front.pos, origin, hdg).along;
       var fx = pinX - fa * scaleX;
       if (fx > w - padR && -fa > 8) {
-        var need = (w - pinX - padR) / -fa;
+        var need = (w - Math.max(28, pinX) - padR) / -fa;
         if (need > 0 && scaleX > need) scaleX = need;
       }
-      if (fx < 16 && fa > 8) {
+      if (stay && fx < 16 && fa > 8) {
         var needL = (pinX - 16) / fa;
         if (needL > 0 && scaleX > needL) scaleX = needL;
       }
     }
-    roundLock = { w: w, h: h, pinX: pinX, pinY: pinY, scaleX: scaleX, scaleY: scaleY, hdg: hdg };
+    /* leave LEFT only: 1st has gone and mark is outside the 60–70% pack. */
+    if (!stay && front && front.pos) {
+      var core = coreClosestToFirst(live, 0.65);
+      var loA = alongAcross(front.pos, origin, hdg).along;
+      var hiA = loA;
+      var ci;
+      for (ci = 0; ci < core.length; ci++) {
+        if (!core[ci] || !core[ci].pos) continue;
+        var ca = alongAcross(core[ci].pos, origin, hdg).along;
+        if (ca < loA) loA = ca;
+        if (ca > hiA) hiA = ca;
+      }
+      var wantX = (w - padR) + loA * scaleX;
+      if (wantX < pinX) pinX = wantX;
+      if (boxed) pinX = Math.min(roundLock.pinX, pinX);
+      var leftX = pinX - hiA * scaleX;
+      if (leftX < 8 && hiA > 1) {
+        var needLeave = (pinX - 8) / hiA;
+        if (needLeave > 0 && scaleX > needLeave) scaleX = needLeave;
+      }
+    }
+    roundLock = { w: w, h: h, pinX: pinX, pinY: pinY, scaleX: scaleX, scaleY: scaleY, hdg: hdg, stay: stay };
     return {
       midLat: origin.lat,
       midLon: origin.lon,
@@ -1054,6 +1088,33 @@
     }
     if (front && front.pos && !seen[front.sail]) out.unshift(front);
     return out;
+  }
+
+  /* Pin is still in the 60–70% of the fleet closest to 1st. */
+  function roundMarkInFirstPack(live, pin) {
+    if (!live || !pin) return false;
+    var front = live.front;
+    if (!front || !front.pos) return false;
+    var pack = coreClosestToFirst(live, 0.65);
+    var pinD = distM(front.pos, pin);
+    var farthest = 0;
+    var i;
+    for (i = 0; i < pack.length; i++) {
+      if (!pack[i] || !pack[i].pos) continue;
+      farthest = Math.max(farthest, distM(front.pos, pack[i].pos));
+    }
+    return pinD <= Math.max(farthest, 80);
+  }
+
+  /* Pin stays left until 1st has gone AND mark is outside that 60–70% pack. */
+  function roundPinMustStay(live, pin) {
+    if (!live || !pin) return true;
+    var front = live.front;
+    if (!front) return true;
+    var nxt = markPosForPass(passList()[front.done], live.ts);
+    if (nxt && isPinKey(nxt.key)) return true;
+    if (front.pos && distM(front.pos, pin) < 90) return true;
+    return roundMarkInFirstPack(live, pin);
   }
 
   /* Race 7 Start: start line is VERTICAL. Course heading is perpendicular
@@ -1725,6 +1786,8 @@
     var lastKey = last && last.key != null ? String(last.key) : '';
     var lockMatchesLast = !!(markLock && lastKey && String(markLock.key) === lastKey);
 
+    var pinRound = kind === 'round' && (isPinKey(last && last.key) || isPinKey(next && next.key));
+
     if (kind === 'start' && (!leader || leader.done < 1) && distNext > 280) {
       phase = 'start';
       focus = trail.start_line && trail.start_line.left;
@@ -1732,6 +1795,19 @@
       flipX = false;
       lockApproachHdg = null;
       markLock = null;
+    } else if (pinRound) {
+      /* Pin-round clip: pin stays left the whole way. Do not hold M1
+       * just because 1st is still closer to weather. */
+      if (isPinKey(last && last.key)) {
+        phase = 'hold';
+        focus = last;
+      } else {
+        phase = 'approach-mark';
+        focus = next;
+      }
+      hdg = roundCourseHdg(live, focus);
+      flipX = true;
+      lockApproachHdg = hdg;
     } else if (last && leader && leader.pos && (lockMatchesLast || distLast + 40 < distNext)) {
       /* Rounded this mark: keep it geographic, boats go LTR, pin 1st on the right. */
       phase = 'hold';

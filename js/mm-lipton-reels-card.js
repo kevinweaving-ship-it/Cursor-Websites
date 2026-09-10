@@ -384,6 +384,9 @@
     if (overlay.kind && overlay.kind(trackClip.id) === 'start') {
       box.style.setProperty('--mm-track-h', '88%');
       void box.offsetHeight;
+    } else if (overlay.kind && overlay.kind(trackClip.id) === 'round') {
+      box.style.setProperty('--mm-track-h', '74%');
+      void box.offsetHeight;
     }
     var cssW = box.clientWidth || 0;
     var cssH = box.clientHeight || 0;
