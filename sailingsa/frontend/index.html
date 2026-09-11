@@ -3300,6 +3300,11 @@
 .temp-landing-secondary-image ~ .temp-landing-secondary-image {
     display: none !important;
 }
+/* Reserved landing Hero + Hero 2 under the main banner — hidden until new creatives. */
+#temp-landing-hero-image,
+#temp-landing-claim-profile-banner {
+    display: none !important;
+}
 /* ================================================================
    GOLD HEADER — 3-column pure CSS grid (logo | center | auth).
    ZERO JavaScript translate/position hacks; name/SAS true-center
@@ -4192,10 +4197,10 @@ header.site-header #headerAuth button {
             <section id="site-stats-embed" class="site-stats-embed" aria-label="Site statistics" hidden></section>
             <!-- Search Header -->
             
-<section id="temp-landing-hero-image" class="temp-landing-hero-image" aria-label="SailingSA feedback hero">
+<section id="temp-landing-hero-image" class="temp-landing-hero-image" hidden aria-hidden="true" aria-label="SailingSA feedback hero">
     <img src="assets/temp-landing-feedback-hero.png" alt="SailingSA feedback banner">
 </section>
-<section id="temp-landing-claim-profile-banner" class="temp-landing-secondary-image" aria-label="Claim your SailingSA profile banner">
+<section id="temp-landing-claim-profile-banner" class="temp-landing-secondary-image" hidden aria-hidden="true" aria-label="Claim your SailingSA profile banner">
     <img src="assets/temp-landing-claim-profile-banner.png" alt="Claim your Sailing profile banner">
 </section>
 
