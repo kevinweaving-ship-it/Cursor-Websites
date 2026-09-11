@@ -1,0 +1,1127 @@
+/**
+ * Hub: one outer card. Inside it: 48h PNG (already a card — no nested
+ * .card), then event header and weather with no inner card borders.
+ * Equal --ssa-48h-gap on every side and between those three blocks.
+ * MM strip is not shown. Clicks go to /regatta/2026-09-13-zvyc-cape-classic.
+ *
+ * Visible on hub home only, when that event is loaded and now is within
+ * 48 hours before start through event end (Africa/Johannesburg).
+ *
+ * Logged-in home: keep the new sailor card (above 48h). The old
+ * KW / SSL / All Classes card below search stays parked and hidden.
+ *
+ * Header arrow (under sailor name): toggles the logged-in profile
+ * card. Default hidden. Click show / hide; arrow flips up when shown.
+ */
+(function () {
+  "use strict";
+
+  var JS_VER = "20260911u49d";
+  var PROFILE_OPEN = false;
+  window.__ssaSkipBelowSearchLoggedInProfile = true;
+  var ORANGE_CARET_PATH = "M231.39,132.94A8,8,0,0,0,224,128H184V104a8,8,0,0,0-8-8H80a8,8,0,0,0-8,8v24H32a8,8,0,0,0-5.66,13.66l96,96a8,8,0,0,0,11.32,0l96-96A8,8,0,0,0,231.39,132.94ZM72,40a8,8,0,0,1,8-8h96a8,8,0,0,1,0,16H80A8,8,0,0,1,72,40Zm0,32a8,8,0,0,1,8-8h96a8,8,0,0,1,0,16H80A8,8,0,0,1,72,72Z";
+  var ROOT_ID = "ssa-upcoming-48h";
+  var PARK_ID = "ssa-saved-logged-in-home-card";
+  var CSS_ID = "ssa-upcoming-48h-css";
+  var HIDE_LOGGED_IN_HOME_CARD = true;
+  var EVENT_HREF = "/regatta/2026-09-13-zvyc-cape-classic";
+  var EVENT_ID = "2026-09-13-zvyc-cape-classic";
+  var START_MS = Date.parse("2026-09-12T08:00:00+02:00");
+  var END_MS = Date.parse("2026-09-13T17:00:00+02:00");
+  var WINDOW_MS = 48 * 60 * 60 * 1000;
+  var PTS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+  var BANDS = [[0, 5, "#12b028"], [5, 11, "#2563eb"], [11, 17, "#e67e00"], [17, 23, "#7c3aed"], [23, 60, "#DC143C"]];
+  var windSlot = null;
+  var windTimer = null;
+  var windLoading = false;
+
+  function isHubHome() {
+    try {
+      var path = String((window.location && window.location.pathname) || "/").replace(/\/+$/, "") || "/";
+      if (path.indexOf("/sailor/") === 0) return false;
+      if (path.indexOf("/class/") === 0) return false;
+      if (path.indexOf("/regatta/") === 0) return false;
+      if (path.indexOf("/club/") === 0) return false;
+      if (path.indexOf("/events") === 0) return false;
+      return path === "/" || path === "/index.html" || path === "/blank.html";
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function inFortyEightHourWindow(nowMs) {
+    var now = nowMs != null ? nowMs : Date.now();
+    if (!START_MS || !END_MS) return false;
+    return now >= START_MS - WINDOW_MS && now <= END_MS;
+  }
+
+  function sailorSearchHasQuery() {
+    try {
+      var a = document.getElementById("sailor-search-input");
+      var b = document.getElementById("temp-landing-regatta-input");
+      if (a && String(a.value || "").trim()) return true;
+      if (b && String(b.value || "").trim()) return true;
+    } catch (e) {}
+    return false;
+  }
+
+  function injectCss() {
+    var s = document.getElementById(CSS_ID);
+    if (!s) {
+      s = document.createElement("style");
+      s.id = CSS_ID;
+      document.head.appendChild(s);
+    }
+    s.textContent = [
+      ".ssa-upcoming-48h{--ssa-48h-pair-h:52px;--ssa-48h-gap:4px;width:100%;max-width:100%;margin:calc(var(--ssa-48h-gap) - var(--sa-header-gap,12px)) 0 0;display:block;}",
+      ".ssa-upcoming-48h.ssa-upcoming-48h--after-sailor,.ssa-48h-match-card+.ssa-upcoming-48h{margin-top:var(--ssa-48h-gap)!important;}",
+      ".ssa-upcoming-48h[hidden]{display:none!important;}",
+      ".ssa-upcoming-48h-shell.card{display:flex;flex-direction:column;gap:var(--ssa-48h-gap);margin:0!important;padding:var(--ssa-48h-gap)!important;background:#fff;border:2px solid #1a2750;border-radius:8px;box-shadow:none;box-sizing:border-box;}",
+      ".ssa-upcoming-48h-banner-link,.ssa-upcoming-48h-header,.ssa-upcoming-48h-wx-link{display:block;width:100%;margin:0!important;padding:0!important;border:0;border-radius:0;box-shadow:none;background:transparent;box-sizing:border-box;text-decoration:none;color:inherit;}",
+      ".ssa-upcoming-48h-banner-link{line-height:0;overflow:hidden;border-radius:8px;}",
+      ".ssa-upcoming-48h-banner{display:block;width:100%;height:auto;object-fit:fill;object-position:center;border-radius:8px;margin:0;padding:0;}",
+      ".ssa-upcoming-48h-header{display:grid;grid-template-columns:minmax(0,auto) minmax(0,3fr) minmax(0,auto);align-items:center;column-gap:var(--ssa-48h-gap);row-gap:0;min-height:0;}",
+      ".ssa-upcoming-48h-logo-col,.ssa-upcoming-48h-club-col{display:flex;align-items:center;min-width:0;}",
+      ".ssa-upcoming-48h-logo-col{justify-content:flex-start;}",
+      ".ssa-upcoming-48h-club-col{justify-content:flex-end;}",
+      ".ssa-upcoming-48h-logo-col img,.ssa-upcoming-48h-club-col img{display:block;max-height:72px;max-width:96px;width:auto;height:auto;object-fit:contain;pointer-events:none;}",
+      ".ssa-upcoming-48h-main-col{min-width:0;text-align:center;}",
+      ".ssa-upcoming-48h-name{font:700 clamp(11px,3.2vw,18px)/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1a2750;margin:0 0 2px;}",
+      ".ssa-upcoming-48h-host,.ssa-upcoming-48h-venue{font:600 clamp(9px,2.5vw,13px)/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1a2750;margin:0;}",
+      ".ssa-upcoming-48h-status{display:none!important;}",
+      ".ssa-upcoming-48h-entries{font:400 clamp(8px,2.2vw,12px)/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#334155;margin:1px 0 0;}",
+      ".ssa-upcoming-48h-wx{height:var(--ssa-48h-pair-h);padding:0;display:flex;align-items:stretch;gap:var(--ssa-48h-gap);box-sizing:border-box;}",
+      ".ssa-upcoming-48h-wx .wx-wp-comp{flex:0 0 auto;height:100%;aspect-ratio:1/1;}",
+      ".ssa-upcoming-48h-wx .wx-dial{display:block;width:100%;height:100%;overflow:visible;}",
+      ".ssa-upcoming-48h-wx .wx-spark{flex:1 1 0;min-width:36px;height:100%;display:flex;flex-direction:column;padding:0;box-sizing:border-box;min-height:0;}",
+      ".ssa-upcoming-48h-wx .wx-spark-row{flex:1 1 auto;min-height:0;display:flex;align-items:stretch;gap:3px;}",
+      ".ssa-upcoming-48h-wx .wx-scale{flex:0 0 12px;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end;padding:1px 0;}",
+      ".ssa-upcoming-48h-wx .wx-scale span{font:700 7px/1 Arial,Helvetica,sans-serif;color:#64748b;}",
+      ".ssa-upcoming-48h-wx .wx-plot{flex:1 1 auto;min-width:0;height:100%;display:block;}",
+      ".ssa-upcoming-48h-wx .wx-spark-x{flex:0 0 auto;display:flex;justify-content:space-between;padding:1px 0 0 15px;}",
+      ".ssa-upcoming-48h-wx .wx-spark-x span{font:700 7px/1 Arial,Helvetica,sans-serif;color:#64748b;}",
+      ".ssa-upcoming-48h-wx .wx-info{flex:0 0 auto;min-width:68px;height:100%;display:flex;flex-direction:column;justify-content:stretch;gap:var(--ssa-48h-gap);padding:0;box-sizing:border-box;}",
+      ".ssa-upcoming-48h-wx .wx-dial .dt{stroke:#9ca3af;stroke-width:1;}",
+      ".ssa-upcoming-48h-wx .wx-dial .dt.card{stroke:#111;stroke-width:1.4;}",
+      ".ssa-upcoming-48h-wx .wx-dial .darc{fill:none;stroke:#93c5fd;stroke-width:7;stroke-linecap:butt;}",
+      ".ssa-upcoming-48h-wx .wx-dial .darc.prev{opacity:.45;}",
+      ".ssa-upcoming-48h-wx .wx-dial .dhead{fill:#3b82f6;}",
+      ".ssa-upcoming-48h-wx .wx-dial .dpt{font:700 13px Arial,Helvetica,sans-serif;fill:#15803d;}",
+      ".ssa-upcoming-48h-wx .wx-dial .ddeg{font:700 10px Arial,Helvetica,sans-serif;fill:#166534;}",
+      ".ssa-upcoming-48h-wx .wx-ir{flex:1 1 0;display:flex;flex-direction:row;justify-content:flex-end;align-items:baseline;gap:4px;min-width:0;}",
+      ".ssa-upcoming-48h-wx .wx-il,.ssa-upcoming-48h-wx .wx-iv,.ssa-upcoming-48h-wx .wx-iv small{font:800 11px/1 Arial,Helvetica,sans-serif;white-space:nowrap;}",
+      ".ssa-upcoming-48h-wx .wx-il{color:#334155;}",
+      ".ssa-upcoming-48h-wx .wx-iv{text-align:right;}",
+      "#ssa-saved-logged-in-home-card[hidden]{display:none!important;}",
+      "body.ssa-hub-home .search-to-profile-separator{display:none!important;}",
+      "body.ssa-hub-48h-on .search-header-container{margin-top:var(--ssa-48h-gap,4px)!important;}",
+      "body.ssa-hub-home [data-ssa-old-sailor-card='1']{display:none!important;}",
+      "body.ssa-hub-home .ssa-upcoming-48h,body.ssa-hub-home .ssa-upcoming-48h-shell.card{width:100%!important;max-width:100%!important;box-sizing:border-box!important;}",
+      "body.ssa-hub-home .ssa-48h-match-card{width:100%!important;max-width:100%!important;margin-top:calc(var(--ssa-48h-gap,4px) - var(--sa-header-gap,12px))!important;margin-bottom:0!important;margin-left:0!important;margin-right:0!important;box-sizing:border-box!important;border:2px solid #1a2750!important;border-radius:8px!important;box-shadow:none!important;}",
+      "body.ssa-hub-home .ssa-48h-match-card .sa-approved-sailor-card{margin-top:0!important;margin-bottom:0!important;}",
+      "body.ssa-hub-home:not(.ssa-hub-profile-open) .ssa-48h-match-card{display:none!important;}",
+      "body.ssa-hub-home #sailor-search-results:not([data-ssa-search-list='1']){display:none!important;}",
+      "body.ssa-hub-home #sailor-search-results .ssa-48h-match-card{display:block!important;}",
+      "#public-regattas-list.ssa-regatta-click-guard,#public-regattas-section.ssa-regatta-click-guard{pointer-events:none!important;}",
+      "body.ssa-block-regatta-nav a[href*='/regatta']{pointer-events:none!important;}",
+      "body.ssa-hub-home .search-header-container.sailor-search-pills,body.ssa-hub-home .temp-landing-search-stack{position:relative;z-index:40;}",
+      "header.site-header #headerUserCenter{position:relative!important;}",
+      "header.site-header #headerUserCenter .ssa-header-name-arrow,.ssa-header-name-arrow{position:absolute!important;left:50%!important;transform:translateX(-50%)!important;display:block!important;margin:0!important;padding:0!important;width:18px!important;height:18px!important;min-width:0!important;min-height:0!important;max-width:18px!important;max-height:18px!important;border:0!important;border-radius:0!important;background:transparent!important;background-color:transparent!important;box-shadow:none!important;color:#FF5A00!important;line-height:0!important;pointer-events:auto!important;cursor:pointer!important;-webkit-appearance:none!important;appearance:none!important;}",
+      "header.site-header #headerUserCenter .ssa-header-name-arrow svg,.ssa-header-name-arrow svg{display:block!important;width:18px!important;height:18px!important;margin:0!important;padding:0!important;fill:#FF5A00!important;color:#FF5A00!important;background:transparent!important;transition:transform .18s ease;}",
+      "body.ssa-hub-profile-open .ssa-header-name-arrow svg{transform:rotate(180deg);}",
+      "@media screen and (min-width:768px){",
+      ".ssa-upcoming-48h{--ssa-48h-pair-h:60px;}",
+      ".ssa-upcoming-48h-wx .wx-il,.ssa-upcoming-48h-wx .wx-iv,.ssa-upcoming-48h-wx .wx-iv small{font-size:12px;}",
+      "}",
+      "@media screen and (max-width:767px){",
+      ".ssa-upcoming-48h-header{grid-template-columns:minmax(0,min(22vw,72px)) minmax(0,1fr) minmax(0,min(22vw,72px));column-gap:var(--ssa-48h-gap);padding:0;}",
+      ".ssa-upcoming-48h-logo-col img,.ssa-upcoming-48h-club-col img{max-height:min(14vw,52px);max-width:min(20vw,80px);}",
+      "}"
+    ].join("");
+  }
+
+  function n1(x) {
+    return x == null || isNaN(x) ? "—" : String(Math.round(Number(x) * 10) / 10);
+  }
+  function pol(cx, cy, r, a) {
+    var t = (a - 90) * Math.PI / 180;
+    return [cx + r * Math.cos(t), cy + r * Math.sin(t)];
+  }
+  function bandCol(kn) {
+    if (kn == null || isNaN(kn)) return "#94a3b8";
+    var i;
+    for (i = 0; i < BANDS.length; i += 1) {
+      if (kn < BANDS[i][1]) return BANDS[i][2];
+    }
+    return "#DC143C";
+  }
+  function dirIdx(deg) {
+    if (deg == null || isNaN(deg)) return null;
+    return Math.round((((Number(deg) % 360) + 360) % 360) / 22.5) % 16;
+  }
+  function recentIdx(data) {
+    var last = dirIdx(data.wind_dir);
+    var out = [];
+    var wds = data.wds;
+    var i;
+    if (Array.isArray(wds)) {
+      for (i = 0; i < wds.length && i < 16; i += 1) {
+        if (Number(wds[i]) > 0) out.push(i);
+      }
+    }
+    if (last != null && out.indexOf(last) === -1) out.push(last);
+    return { last: last, uniq: out };
+  }
+
+  function drawDial(data) {
+    var CX = 50, CY = 50, R = 44;
+    var lastDeg = data.wind_dir;
+    var rec = recentIdx(data);
+    var dirLast = rec.last;
+    var deg = lastDeg != null && !isNaN(lastDeg) ? Number(lastDeg) : (dirLast != null ? dirLast * 22.5 : null);
+    var pt = data.wind_dir_name || (dirLast != null ? PTS[dirLast] : "");
+    var col = bandCol(data.wind_kt);
+    var svg = '<svg class="wx-dial" viewBox="-10 -10 120 120" aria-hidden="true">';
+    var k;
+    for (k = 0; k < 72; k += 1) {
+      var card = k % 18 === 0;
+      var q0 = pol(CX, CY, R - (card ? 7 : 4.5), k * 5);
+      var q1 = pol(CX, CY, R + (card ? 2 : 0), k * 5);
+      svg += '<line class="' + (card ? "dt card" : "dt") + '" x1="' + q0[0].toFixed(1) + '" y1="' + q0[1].toFixed(1) + '" x2="' + q1[0].toFixed(1) + '" y2="' + q1[1].toFixed(1) + '"/>';
+    }
+    if (dirLast != null) {
+      rec.uniq.forEach(function (idx) {
+        var a0 = idx * 22.5 - 11.25;
+        var a1 = idx * 22.5 + 11.25;
+        var p0 = pol(CX, CY, R - 2, a0);
+        var p1 = pol(CX, CY, R - 2, a1);
+        svg += '<path class="darc' + (idx === dirLast ? "" : " prev") + '" style="stroke:' + col + '" d="M' + p0[0].toFixed(1) + " " + p0[1].toFixed(1) + " A" + (R - 2) + " " + (R - 2) + " 0 0 1 " + p1[0].toFixed(1) + " " + p1[1].toFixed(1) + '"/>';
+      });
+      if (deg != null) {
+        var hp = pol(CX, CY, R + 4, deg);
+        svg += '<g transform="translate(' + hp[0].toFixed(1) + " " + hp[1].toFixed(1) + ") rotate(" + (deg + 180) + ')"><path class="dhead" style="fill:' + col + '" d="M0 -14L11 7L0 2.5L-11 7Z"/></g>';
+      }
+    }
+    svg += '<text class="dpt" x="50" y="45" text-anchor="middle" dominant-baseline="central">' + (pt || "—") + "</text>";
+    if (deg != null) {
+      svg += '<text class="ddeg" x="50" y="70" text-anchor="middle">' + Math.round(deg) + "°</text>";
+    }
+    svg += "</svg>";
+    return svg;
+  }
+
+  function drawSpark(data) {
+    var pts = (data.hour || []).filter(function (p) { return p && p.avg_kt != null && !isNaN(p.avg_kt); });
+    var html = '<div class="wx-spark" aria-hidden="true">';
+    if (pts.length < 2) return html + "</div>";
+    var W = 100, H = 100, i;
+    var maxKn = 10;
+    for (i = 0; i < pts.length; i += 1) {
+      var hi = pts[i].high_kt != null ? Number(pts[i].high_kt) : Number(pts[i].avg_kt);
+      if (hi > maxKn) maxKn = hi;
+    }
+    maxKn = Math.max(10, Math.ceil(maxKn / 5) * 5);
+    var ticks = [];
+    var step = maxKn <= 20 ? 5 : 10;
+    for (i = maxKn; i >= 0; i -= step) ticks.push(i);
+    function x(idx) { return (W * idx) / (pts.length - 1); }
+    function y(kn) { return H * (1 - Math.max(0, Math.min(maxKn, Number(kn))) / maxKn); }
+    var svg = '<svg class="wx-plot" viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none" aria-hidden="true">';
+    BANDS.forEach(function (b) {
+      var y0 = y(Math.min(maxKn, b[1]));
+      var y1 = y(Math.min(maxKn, b[0]));
+      if (y1 <= y0) return;
+      svg += '<rect x="0" y="' + y0.toFixed(1) + '" width="' + W + '" height="' + (y1 - y0).toFixed(1) + '" fill="' + b[2] + '" opacity=".22"/>';
+    });
+    var highD = "", avgD = "";
+    for (i = 0; i < pts.length; i += 1) {
+      var xi = x(i).toFixed(1);
+      avgD += (i ? "L" : "M") + xi + " " + y(pts[i].avg_kt).toFixed(1);
+      highD += (i ? "L" : "M") + xi + " " + y(pts[i].high_kt != null ? pts[i].high_kt : pts[i].avg_kt).toFixed(1);
+    }
+    var last = pts[pts.length - 1];
+    svg += '<path d="' + highD + "L" + x(pts.length - 1).toFixed(1) + " " + H + "L0 " + H + 'Z" fill="#1a2750" opacity=".12"/>';
+    svg += '<path d="' + highD + '" fill="none" stroke="#64748b" stroke-width="1.4" stroke-dasharray="3 2" vector-effect="non-scaling-stroke"/>';
+    svg += '<path d="' + avgD + '" fill="none" stroke="#1a2750" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>';
+    svg += '<circle cx="' + x(pts.length - 1).toFixed(1) + '" cy="' + y(last.avg_kt).toFixed(1) + '" r="1.8" fill="' + bandCol(last.avg_kt) + '" vector-effect="non-scaling-stroke"/>';
+    svg += "</svg>";
+    html += '<div class="wx-spark-row"><div class="wx-scale">' + ticks.map(function (t) { return "<span>" + t + "</span>"; }).join("") + "</div>" + svg + "</div>";
+    html += '<div class="wx-spark-x"><span>1h</span><span>now</span></div>';
+    return html + "</div>";
+  }
+
+  function renderWind(slot, data) {
+    var wnow = data.wind_kt;
+    var wavg = data.avg_kt;
+    var whigh = data.high_kt != null ? data.high_kt : data.gust_kt;
+    slot.innerHTML =
+      '<div class="ssa-upcoming-48h-wx">' +
+        '<div class="wx-wp-comp">' + drawDial(data) + "</div>" +
+        drawSpark(data) +
+        '<div class="wx-info">' +
+          '<div class="wx-ir"><span class="wx-il">Now</span><span class="wx-iv" style="color:' + bandCol(wnow) + '">' + n1(wnow) + " <small>kn</small></span></div>" +
+          '<div class="wx-ir"><span class="wx-il">Avg</span><span class="wx-iv" style="color:' + bandCol(wavg) + '">' + n1(wavg) + " <small>kn</small></span></div>" +
+          '<div class="wx-ir"><span class="wx-il">High</span><span class="wx-iv" style="color:' + bandCol(whigh) + '">' + n1(whigh) + " <small>kn</small></span></div>" +
+        "</div>" +
+      "</div>";
+  }
+
+  function loadWind() {
+    if (!windSlot || windLoading) return;
+    windLoading = true;
+    fetch("/api/wind2speed/zeekoevlei?_=" + Date.now(), { cache: "no-store", credentials: "same-origin" })
+      .then(function (res) {
+        if (!res.ok) throw new Error("w2s " + res.status);
+        return res.json();
+      })
+      .then(function (data) {
+        if (!data || data.ok === false) throw new Error("w2s fail");
+        renderWind(windSlot, data);
+      })
+      .catch(function () {})
+      .then(function () { windLoading = false; });
+  }
+
+  function cardsHtml() {
+    return (
+      '<div class="card ssa-upcoming-48h-shell">' +
+        '<a class="ssa-upcoming-48h-banner-link" href="' + EVENT_HREF + '" aria-label="Upcoming events in the next 48 hours">' +
+          '<img class="ssa-upcoming-48h-banner" src="/assets/upcoming-48h-banner.png?v=' + JS_VER + '" alt="Upcoming event(s) in the next 48 hours">' +
+        "</a>" +
+        '<a class="ssa-upcoming-48h-header" href="' + EVENT_HREF + '" aria-label="2026-09-13 ZVYC Cape Classic">' +
+          '<div class="ssa-upcoming-48h-logo-col"><img src="/artwork/Event%20Logo/Cape-Classic-Series.png?v=20260827a" alt=""></div>' +
+          '<div class="ssa-upcoming-48h-main-col">' +
+            '<div class="ssa-upcoming-48h-name">2026-09-13 ZVYC Cape Classic</div>' +
+            '<div class="ssa-upcoming-48h-host">Host: ZVYC - Zeekoe Vlei Yacht Club</div>' +
+            '<div class="ssa-upcoming-48h-venue">Venue : Zeekoe Vlei Yacht Club</div>' +
+            '<div class="ssa-upcoming-48h-entries">Total Entries = 51</div>' +
+          "</div>" +
+          '<div class="ssa-upcoming-48h-club-col"><img src="/artwork/Club%20Logo/ZVYC.png" alt=""></div>' +
+        "</a>" +
+        '<a class="ssa-upcoming-48h-wx-link" href="' + EVENT_HREF + '" aria-label="Zeekoevlei wind — open ZVYC Cape Classic">' +
+          '<div class="ssa-upcoming-48h-wx-host" data-ssa-48h-wind></div>' +
+        "</a>" +
+      "</div>"
+    );
+  }
+
+  function ensurePark() {
+    var park = document.getElementById(PARK_ID);
+    if (park) return park;
+    park = document.createElement("div");
+    park.id = PARK_ID;
+    park.hidden = true;
+    park.setAttribute("data-ssa-saved", "logged-in-home-profile");
+    var results = document.getElementById("sailor-search-results");
+    if (results && results.parentNode) {
+      results.parentNode.insertBefore(park, results.nextSibling);
+    } else {
+      document.body.appendChild(park);
+    }
+    return park;
+  }
+
+  function isOldRetiredSailorCard(el) {
+    if (!el || !el.querySelector) return false;
+    if (el.getAttribute("data-ssa-old-sailor-card") === "1") return true;
+    if (el.querySelector(".sa-approved-sailor-sailing-for-icon")) return true;
+    if (el.querySelector(".sa-approved-ssl-col-label")) return true;
+    if (el.querySelector(".sa-approved-sailor-class-cards")) return true;
+    var t = String(el.textContent || "");
+    if (/SSL RANK/i.test(t) && /All Classes/i.test(t)) return true;
+    return false;
+  }
+
+  function clearBelowSearchProfile() {
+    if (!isHubHome() || sailorSearchHasQuery()) return;
+    var results = document.getElementById("sailor-search-results");
+    if (!results) return;
+    results.removeAttribute("data-ssa-search-list");
+    Array.prototype.slice.call(results.querySelectorAll("#chosen-sailor-before-profile, .sailor-stats-before-profile, .sa-approved-sailor-card, .ssa-dev1-inject, .profile-card")).forEach(function (el) {
+      if (!el || !results.contains(el)) return;
+      if (el.parentNode) el.parentNode.removeChild(el);
+    });
+    if (!results.firstElementChild) {
+      results.innerHTML = "";
+      results.style.display = "none";
+    }
+  }
+
+  function parkLoggedInHomeCard() {
+    if (!isHubHome() || sailorSearchHasQuery()) {
+      document.body.classList.remove("ssa-hub-48h-no-home-profile");
+      var resultsLive = document.getElementById("sailor-search-results");
+      if (resultsLive && sailorSearchHasQuery()) resultsLive.setAttribute("data-ssa-search-list", "1");
+      return;
+    }
+    clearBelowSearchProfile();
+    placeLoggedInCardAtTop();
+  }
+
+  function wrapShowSailorStats() {
+    var orig = window.showSailorStatsInResults;
+    if (!orig || orig.__ssa48hWrapped) return !!orig;
+    function wrapped(sid, name, club, classes, options) {
+      options = options || {};
+      if (
+        options.isLoggedInUser === true &&
+        isHubHome() &&
+        !sailorSearchHasQuery() &&
+        window.__ssaSkipBelowSearchLoggedInProfile
+      ) {
+        window.__ssaPendingHomeProfile = { sid: sid, name: name, club: club, classes: classes, options: options };
+        clearBelowSearchProfile();
+        return Promise.resolve();
+      }
+      var ret = orig.apply(this, arguments);
+      function afterPaint() {
+        if (
+          options.isLoggedInUser === true &&
+          isHubHome() &&
+          !sailorSearchHasQuery()
+        ) {
+          placeLoggedInCardAtTop();
+          clearBelowSearchProfile();
+        }
+        syncSailorCardWidth();
+      }
+      if (ret && typeof ret.then === "function") {
+        return ret.then(function (v) {
+          afterPaint();
+          return v;
+        });
+      }
+      afterPaint();
+      return ret;
+    }
+    wrapped.__ssa48hWrapped = true;
+    window.showSailorStatsInResults = wrapped;
+    return true;
+  }
+
+  function shouldShow() {
+    return isHubHome() && inFortyEightHourWindow();
+  }
+
+  function mountRoot() {
+    injectCss();
+    if (isHubHome()) document.body.classList.add("ssa-hub-home");
+    else document.body.classList.remove("ssa-hub-home", "ssa-hub-48h-on");
+    var root = document.getElementById(ROOT_ID);
+    var search = document.querySelector(".search-header-container");
+    if (!root) {
+      root = document.createElement("section");
+      root.id = ROOT_ID;
+      root.className = "ssa-upcoming-48h";
+      root.setAttribute("aria-label", "Upcoming events in the next 48 hours");
+      if (search && search.parentNode) {
+        search.parentNode.insertBefore(root, search);
+      } else {
+        var col = document.querySelector(".main-column .container") || document.querySelector(".container");
+        if (col) col.insertBefore(root, col.firstChild);
+      }
+    }
+    if (!shouldShow()) {
+      root.hidden = true;
+      root.setAttribute("hidden", "");
+      document.body.classList.remove("ssa-hub-48h-on");
+      if (windTimer) {
+        clearInterval(windTimer);
+        windTimer = null;
+      }
+      return root;
+    }
+    root.hidden = false;
+    root.removeAttribute("hidden");
+    document.body.classList.add("ssa-hub-48h-on");
+    if (
+      !root.querySelector(".ssa-upcoming-48h-shell > .ssa-upcoming-48h-banner-link") ||
+      !root.querySelector('img.ssa-upcoming-48h-banner[src*="' + JS_VER + '"]') ||
+      root.querySelector(".ssa-upcoming-48h-card") ||
+      root.querySelector(".ssa-upcoming-48h-status")
+    ) {
+      root.innerHTML = cardsHtml();
+    }
+    windSlot = root.querySelector("[data-ssa-48h-wind]");
+    if (windSlot) {
+      loadWind();
+      if (!windTimer) {
+        windTimer = setInterval(function () {
+          if (!document.hidden) loadWind();
+        }, 40000);
+      }
+    }
+    syncSailorCardWidth();
+    return root;
+  }
+
+  function armRegattaListClickGuard(ms) {
+    var hold = typeof ms === "number" ? ms : 1200;
+    window.__ssaRegattaListGuardUntil = Math.max(window.__ssaRegattaListGuardUntil || 0, Date.now() + hold);
+    window.__ssaBlockRegattaNavUntil = Math.max(window.__ssaBlockRegattaNavUntil || 0, Date.now() + hold);
+    try {
+      document.body.classList.add("ssa-block-regatta-nav");
+    } catch (_) {}
+    ["public-regattas-list", "public-regattas-section"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.classList.add("ssa-regatta-click-guard");
+    });
+    window.setTimeout(function () {
+      if (Date.now() < (window.__ssaRegattaListGuardUntil || 0)) return;
+      try {
+        document.body.classList.remove("ssa-block-regatta-nav");
+      } catch (_) {}
+      ["public-regattas-list", "public-regattas-section"].forEach(function (id) {
+        var live = document.getElementById(id);
+        if (live) live.classList.remove("ssa-regatta-click-guard");
+      });
+    }, hold + 40);
+  }
+
+  function regattaListGuardActive() {
+    var now = Date.now();
+    return now < (window.__ssaRegattaListGuardUntil || 0) || now < (window.__ssaBlockRegattaNavUntil || 0);
+  }
+
+  function isSailorSearchUi(el) {
+    if (!el || !el.closest) return false;
+    return !!(
+      el.id === "sailor-search-input" ||
+      el.closest("#sailor-search-input") ||
+      el.closest("#sailor-search-form") ||
+      el.closest("#temp-landing-sailor-row") ||
+      el.closest('.search-mode-btn[data-mode="sailor"]')
+    );
+  }
+
+  function isRegattaListUi(el) {
+    if (!el || !el.closest) return false;
+    return !!(el.closest("#public-regattas-list") || el.closest("#public-regattas-section"));
+  }
+
+  function clearRegattaListNow() {
+    window.__ssaRegattaListCollapsed = true;
+    window.__ssaRegattaDeliberateHref = "";
+    window.__ssaRegattaDeliberateAt = 0;
+    var list = document.getElementById("public-regattas-list");
+    if (list) {
+      list.innerHTML = "";
+      list.classList.add("ssa-regatta-click-guard");
+    }
+    var section = document.getElementById("public-regattas-section");
+    if (section) section.classList.add("ssa-regatta-click-guard");
+  }
+
+  function focusSailorField() {
+    var input = document.getElementById("sailor-search-input");
+    if (!input) return;
+    try {
+      input.focus({ preventScroll: true });
+    } catch (_) {
+      try {
+        input.focus();
+      } catch (__) {}
+    }
+  }
+
+  function leaveRegattaForSailor() {
+    armRegattaListClickGuard(1600);
+    clearRegattaListNow();
+    if ((window.searchMode || "sailor") === "regatta") {
+      window.searchMode = "sailor";
+      if (typeof window.setSearchMode === "function") {
+        try {
+          window.setSearchMode("sailor", true);
+        } catch (_) {}
+      }
+    }
+  }
+
+  function blockRegattaNavEvent(ev) {
+    if (!ev) return;
+    try {
+      ev.preventDefault();
+    } catch (_) {}
+    try {
+      ev.stopPropagation();
+    } catch (_) {}
+    try {
+      if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+    } catch (_) {}
+  }
+
+  function bindRegattaDeliberateOpen() {
+    if (window.__ssaRegattaDeliberateBound) return;
+    window.__ssaRegattaDeliberateBound = true;
+    function onSailorStart(ev) {
+      if (!isSailorSearchUi(ev.target)) return;
+      var t = ev.target;
+      var onField = !!(
+        t.id === "sailor-search-input" ||
+        (t.closest && t.closest("#sailor-search-form .sailor-search-input-wrap"))
+      );
+      if (onField) {
+        window.__ssaKeepSailorFocusUntil = Date.now() + 1200;
+        // Do not input.focus() here. iOS Safari consumes that first tap
+        // and only places the caret on a second tap.
+      }
+      if ((window.searchMode || "sailor") !== "regatta") return;
+      if (onField) {
+        window.searchMode = "sailor";
+        window.requestAnimationFrame(function () {
+          leaveRegattaForSailor();
+        });
+        return;
+      }
+      leaveRegattaForSailor();
+    }
+    ["touchstart", "pointerdown", "mousedown"].forEach(function (type) {
+      document.addEventListener(type, onSailorStart, true);
+    });
+    document.addEventListener(
+      "pointerdown",
+      function (ev) {
+        var t = ev.target;
+        if (!t || !t.closest) return;
+        if (isSailorSearchUi(t)) return;
+        var regattaInput =
+          t.id === "temp-landing-regatta-input" || t.closest(".temp-landing-regatta-input-wrap");
+        var listLink = t.closest("#public-regattas-list a[href], #public-regattas-section a[href]");
+        if (regattaInput) {
+          armRegattaListClickGuard(500);
+          window.__ssaRegattaDeliberateHref = "";
+          var el = document.getElementById("temp-landing-regatta-input");
+          var firstTap = !el || document.activeElement !== el;
+          var now = Date.now();
+          window.__ssaRegattaListCollapsed = false;
+          if (firstTap) {
+            window.__ssaRegattaListOpenedAt = now;
+            window.searchMode = "regatta";
+            if (typeof window.setSearchMode === "function") {
+              try {
+                window.setSearchMode("regatta", true);
+              } catch (_) {}
+            }
+            if (typeof window.applyRegattaFilter === "function") {
+              try {
+                window.applyRegattaFilter();
+              } catch (_) {}
+            } else {
+              var tries = 0;
+              var iv = window.setInterval(function () {
+                tries += 1;
+                if (typeof window.setSearchMode === "function") {
+                  try {
+                    window.setSearchMode("regatta", true);
+                  } catch (_) {}
+                }
+                if (typeof window.applyRegattaFilter === "function") {
+                  try {
+                    window.applyRegattaFilter();
+                  } catch (_) {}
+                  window.clearInterval(iv);
+                } else if (tries > 50) {
+                  window.clearInterval(iv);
+                }
+              }, 100);
+            }
+            return;
+          } else if (now - (window.__ssaRegattaListOpenedAt || 0) < 450) {
+            ev.stopPropagation();
+            return;
+          } else {
+            var list = document.getElementById("public-regattas-list");
+            var open = list && String(list.innerHTML || "").trim() !== "";
+            if (open) {
+              window.__ssaRegattaListCollapsed = true;
+              if (list) list.innerHTML = "";
+            } else if (typeof window.applyRegattaFilter === "function") {
+              window.__ssaRegattaListOpenedAt = now;
+              try {
+                window.applyRegattaFilter();
+              } catch (_) {}
+            }
+            ev.stopPropagation();
+            return;
+          }
+        }
+        if (listLink && !regattaListGuardActive() && (window.searchMode || "sailor") === "regatta") {
+          window.__ssaRegattaDeliberateHref = listLink.getAttribute("href") || "";
+          window.__ssaRegattaDeliberateAt = Date.now();
+        } else if (!isRegattaListUi(t)) {
+          window.__ssaRegattaDeliberateHref = "";
+        }
+      },
+      true
+    );
+    function isRegattaHrefAnchor(el) {
+      var a = el && el.closest ? el.closest("a[href]") : null;
+      if (!a) return null;
+      var href = a.getAttribute("href") || "";
+      if (href.indexOf("/regatta") !== -1) return a;
+      try {
+        if (a.pathname && a.pathname.indexOf("/regatta") === 0) return a;
+      } catch (_) {}
+      return null;
+    }
+    function onRegattaNavAttempt(ev) {
+      var a = isRegattaHrefAnchor(ev.target);
+      if (!a) return;
+      if (regattaListGuardActive()) {
+        blockRegattaNavEvent(ev);
+        return;
+      }
+      if (!isRegattaListUi(a)) return;
+      if ((window.searchMode || "sailor") === "sailor") {
+        blockRegattaNavEvent(ev);
+        return;
+      }
+      if (ev.type !== "click") return;
+      var href = a.getAttribute("href") || "";
+      var deliberate =
+        !!href &&
+        href === window.__ssaRegattaDeliberateHref &&
+        Date.now() - (window.__ssaRegattaDeliberateAt || 0) < 900;
+      if (!deliberate) blockRegattaNavEvent(ev);
+    }
+    ["click", "touchend", "pointerup"].forEach(function (type) {
+      document.addEventListener(type, onRegattaNavAttempt, true);
+    });
+    document.addEventListener(
+      "dblclick",
+      function (ev) {
+        var t = ev.target;
+        if (!t) return;
+        if (
+          t.id === "temp-landing-regatta-input" ||
+          (t.closest && (t.closest("#temp-landing-regatta-row") || isRegattaListUi(t)))
+        ) {
+          blockRegattaNavEvent(ev);
+        }
+      },
+      true
+    );
+    var list = document.getElementById("public-regattas-list");
+    if (list && !list.__ssaPaintWatch && typeof MutationObserver === "function") {
+      list.__ssaPaintWatch = true;
+      var prevEmpty = !String(list.innerHTML || "").trim();
+      var obs = new MutationObserver(function () {
+        var empty = !String(list.innerHTML || "").trim();
+        if (prevEmpty && !empty) armRegattaListClickGuard(550);
+        prevEmpty = empty;
+      });
+      obs.observe(list, { childList: true });
+    }
+  }
+
+  function bindRegattaListToggle() {
+    bindRegattaDeliberateOpen();
+    var el = document.getElementById("temp-landing-regatta-input");
+    if (!el || el.__ssaRegattaToggleBound) return;
+    el.__ssaRegattaToggleBound = true;
+    el.addEventListener("pointerdown", function () {
+      armRegattaListClickGuard(500);
+      var now = Date.now();
+      if (document.activeElement !== el) {
+        window.__ssaRegattaListCollapsed = false;
+        window.__ssaRegattaListOpenedAt = now;
+        if (typeof window.applyRegattaFilter === "function") window.applyRegattaFilter();
+        return;
+      }
+      if (now - (window.__ssaRegattaListOpenedAt || 0) < 450) return;
+      var list = document.getElementById("public-regattas-list");
+      var open = !window.__ssaRegattaListCollapsed && list && String(list.innerHTML || "").trim() !== "";
+      if (open) {
+        window.__ssaRegattaListCollapsed = true;
+        if (list) list.innerHTML = "";
+      } else {
+        window.__ssaRegattaListCollapsed = false;
+        window.__ssaRegattaListOpenedAt = now;
+        if (typeof window.applyRegattaFilter === "function") window.applyRegattaFilter();
+      }
+    });
+    el.addEventListener("input", function () {
+      window.__ssaRegattaListCollapsed = false;
+    });
+  }
+
+  function sailorSearchIsFocused() {
+    try {
+      var ae = document.activeElement;
+      return !!(ae && (ae.id === "sailor-search-input" || ae.id === "temp-landing-regatta-input"));
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function bindSailorSearchStayInBox() {
+    if (!window.__ssaSailorStayScrollPatched) {
+      window.__ssaSailorStayScrollPatched = true;
+      var origTo = window.scrollTo;
+      var origScroll = window.scroll;
+      var origBy = window.scrollBy;
+      window.scrollTo = function () {
+        if (sailorSearchIsFocused()) return;
+        return origTo.apply(window, arguments);
+      };
+      if (typeof origScroll === "function") {
+        window.scroll = function () {
+          if (sailorSearchIsFocused()) return;
+          return origScroll.apply(window, arguments);
+        };
+      }
+      if (typeof origBy === "function") {
+        window.scrollBy = function () {
+          if (sailorSearchIsFocused()) return;
+          return origBy.apply(window, arguments);
+        };
+      }
+      document.addEventListener(
+        "click",
+        function (ev) {
+          if (!sailorSearchIsFocused()) return;
+          var t = ev.target;
+          var inside =
+            t &&
+            (t.id === "sailor-search-input" ||
+              (t.closest &&
+                (t.closest("#sailor-search-form") ||
+                  t.closest("#temp-landing-sailor-row") ||
+                  t.closest(".sailor-search-input-wrap"))));
+          if (inside) return;
+          ev.stopPropagation();
+        },
+        true
+      );
+    }
+    var el = document.getElementById("sailor-search-input");
+    if (!el || el.__ssaSailorStayBound) return;
+    el.__ssaSailorStayBound = true;
+  }
+
+  function bindSearch() {
+    ["sailor-search-input", "temp-landing-regatta-input"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el || el.__ssa48hBound) return;
+      el.__ssa48hBound = true;
+      el.addEventListener("input", function () {
+        if (sailorSearchHasQuery()) {
+          document.body.classList.remove("ssa-hub-48h-no-home-profile");
+          var results = document.getElementById("sailor-search-results");
+          if (results) results.setAttribute("data-ssa-search-list", "1");
+        } else {
+          syncHomeSailorCard();
+        }
+      });
+    });
+    bindRegattaListToggle();
+    bindSailorSearchStayInBox();
+    bindRegattaDeliberateOpen();
+  }
+
+  function restoreLoggedInHomeCard() {
+    document.body.classList.remove("ssa-hub-48h-no-home-profile");
+    unparkKeptCards();
+    placeLoggedInCardAtTop();
+    syncSailorCardWidth();
+  }
+
+  function unparkKeptCards() {
+    var park = document.getElementById(PARK_ID);
+    var root = document.getElementById(ROOT_ID);
+    if (!park) return;
+    Array.prototype.slice.call(park.children).forEach(function (child) {
+      if (isOldRetiredSailorCard(child)) return;
+      child.removeAttribute("hidden");
+      child.removeAttribute("data-ssa-old-sailor-card");
+      child.style.display = "";
+      if (root && root.parentNode) root.parentNode.insertBefore(child, root);
+    });
+  }
+
+  function placeLoggedInCardAtTop() {
+    if (!isHubHome() || sailorSearchHasQuery()) return;
+    var root = document.getElementById(ROOT_ID);
+    if (!root || !root.parentNode) return;
+    var card = newSailorCardAbove48h();
+    if (card && isOldRetiredSailorCard(card)) card = null;
+    if (!card) {
+      var results = document.getElementById("sailor-search-results");
+      var park = document.getElementById(PARK_ID);
+      var lists = [];
+      if (results) lists.push(results.querySelectorAll(".ssa-dev1-inject, .sa-approved-sailor-card, .profile-card"));
+      if (park) lists.push(park.querySelectorAll(".ssa-dev1-inject, .sa-approved-sailor-card, .profile-card"));
+      lists.forEach(function (nl) {
+        Array.prototype.forEach.call(nl, function (el) {
+          if (!card && el && !isOldRetiredSailorCard(el) && !el.closest(".site-header")) card = el;
+        });
+      });
+    }
+    if (!card) {
+      root.classList.remove("ssa-upcoming-48h--after-sailor");
+      applyProfileCardVisibility();
+      return;
+    }
+    card.removeAttribute("data-ssa-old-sailor-card");
+    if (card.parentNode !== root.parentNode || card.nextElementSibling !== root) {
+      root.parentNode.insertBefore(card, root);
+    }
+    applyProfileCardVisibility();
+  }
+
+  function isHiddenHero(el) {
+    if (!el) return true;
+    var id = el.id || "";
+    if (id === "site-stats-embed" || id === "temp-landing-hero-image" || id === "temp-landing-claim-profile-banner") return true;
+    if (el.hidden || el.getAttribute("hidden") != null) return true;
+    return false;
+  }
+
+  function newSailorCardAbove48h() {
+    var root = document.getElementById(ROOT_ID);
+    var el = root && root.previousElementSibling;
+    while (el) {
+      if (!isHiddenHero(el) && el.id !== ROOT_ID) {
+        if (el.classList.contains("ssa-dev1-inject") || el.classList.contains("sa-approved-sailor-card")) return el;
+        var inner = el.querySelector(".ssa-dev1-inject, .sa-approved-sailor-card");
+        if (inner && !inner.closest("#sailor-search-results") && !inner.closest(".site-header")) return inner;
+      }
+      el = el.previousElementSibling;
+    }
+    var nodes = document.querySelectorAll(".ssa-dev1-inject, .sa-approved-sailor-card");
+    var i;
+    for (i = 0; i < nodes.length; i += 1) {
+      el = nodes[i];
+      if (el.closest("#sailor-search-results") || el.closest("#ssa-saved-logged-in-home-card") || el.closest(".site-header")) continue;
+      return el;
+    }
+    return null;
+  }
+
+  function syncSailorCardWidth() {
+    if (!isHubHome()) return;
+    var card = newSailorCardAbove48h();
+    var ref = document.querySelector(".ssa-upcoming-48h-shell");
+    if (!card) return;
+    card.classList.add("ssa-48h-match-card");
+    if (!ref) return;
+    var w = Math.round(ref.getBoundingClientRect().width);
+    if (w < 40) return;
+    var px = w + "px";
+    card.style.setProperty("width", px, "important");
+    card.style.setProperty("max-width", px, "important");
+    card.style.setProperty("box-sizing", "border-box", "important");
+    card.style.setProperty("margin-left", "0", "important");
+    card.style.setProperty("margin-right", "0", "important");
+    card.style.setProperty("border", "2px solid #1a2750", "important");
+    card.style.setProperty("border-radius", "8px", "important");
+    card.style.setProperty("box-shadow", "none", "important");
+  }
+
+  function homeProfileCard() {
+    var root = document.getElementById(ROOT_ID);
+    var el = root && root.previousElementSibling;
+    while (el) {
+      var id = el.id || "";
+      if (id === "site-stats-embed" || id === "temp-landing-hero-image" || id === "temp-landing-claim-profile-banner") {
+        el = el.previousElementSibling;
+        continue;
+      }
+      if (
+        (el.classList.contains("ssa-48h-match-card") || el.classList.contains("ssa-dev1-inject") || el.classList.contains("sa-approved-sailor-card")) &&
+        !isOldRetiredSailorCard(el) &&
+        !el.closest("#sailor-search-results") &&
+        !el.closest(".site-header")
+      ) {
+        return el;
+      }
+      el = el.previousElementSibling;
+    }
+    return newSailorCardAbove48h();
+  }
+
+  function applyProfileCardVisibility() {
+    var card = homeProfileCard();
+    var root = document.getElementById(ROOT_ID);
+    var onHome = isHubHome() && !sailorSearchHasQuery();
+    var show = onHome && PROFILE_OPEN;
+    if (show) {
+      document.body.classList.add("ssa-hub-profile-open");
+      if (card) {
+        card.removeAttribute("hidden");
+        card.style.removeProperty("display");
+        card.classList.add("ssa-48h-match-card");
+      }
+      if (root) root.classList.add("ssa-upcoming-48h--after-sailor");
+    } else {
+      document.body.classList.remove("ssa-hub-profile-open");
+      if (root) root.classList.remove("ssa-upcoming-48h--after-sailor");
+      if (card && onHome && !card.closest("#sailor-search-results")) {
+        card.setAttribute("hidden", "");
+        card.style.setProperty("display", "none", "important");
+      }
+    }
+    var arrow = document.getElementById("ssa-header-name-arrow");
+    if (arrow) {
+      arrow.setAttribute("aria-expanded", show ? "true" : "false");
+      arrow.setAttribute("title", show ? "Hide sailor profile" : "Show sailor profile");
+      var svg = arrow.querySelector("svg");
+      if (svg) svg.style.setProperty("transform", show ? "rotate(180deg)" : "rotate(0deg)");
+    }
+  }
+
+  function toggleHeaderProfile(ev) {
+    if (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+    }
+    PROFILE_OPEN = !PROFILE_OPEN;
+    window.__ssaSkipBelowSearchLoggedInProfile = !PROFILE_OPEN;
+    if (PROFILE_OPEN && !homeProfileCard()) {
+      var p = window.__ssaPendingHomeProfile;
+      var fn = window.showSailorStatsInResults;
+      if (p && typeof fn === "function") {
+        var ret = fn(p.sid, p.name, p.club, p.classes, p.options);
+        if (ret && typeof ret.then === "function") {
+          ret.then(function () {
+            window.__ssaSkipBelowSearchLoggedInProfile = true;
+            applyProfileCardVisibility();
+            ensureHeaderNameArrow();
+          });
+          return;
+        }
+      }
+    }
+    window.__ssaSkipBelowSearchLoggedInProfile = !PROFILE_OPEN;
+    applyProfileCardVisibility();
+    ensureHeaderNameArrow();
+  }
+
+  function orangeCaretSvgHtml() {
+    var src = document.querySelector(".sa-avatar-expand-btn svg");
+    if (src) {
+      return src.outerHTML.replace(/transform:\s*rotate\([^)]*\)/gi, "transform:rotate(0deg)");
+    }
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="18" height="18" aria-hidden="true" style="display:block;width:18px;height:18px;margin:0 auto;fill:#FF5A00;color:#FF5A00;"><path fill="#FF5A00" d="' + ORANGE_CARET_PATH + '"/></svg>';
+  }
+
+  function ensureHeaderNameArrow() {
+    var center = document.getElementById("headerUserCenter");
+    if (!center) return;
+    var name = center.querySelector(".user-center-row-name");
+    var existing = document.getElementById("ssa-header-name-arrow");
+    if (!name || !String(name.textContent || "").trim()) {
+      if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+      return;
+    }
+    if (existing && existing.tagName === "BUTTON") {
+      existing.parentNode.removeChild(existing);
+      existing = null;
+    }
+    if (!existing) {
+      existing = document.createElement("span");
+      existing.id = "ssa-header-name-arrow";
+      existing.className = "ssa-header-name-arrow";
+    }
+    existing.removeAttribute("aria-hidden");
+    existing.setAttribute("role", "button");
+    existing.setAttribute("tabindex", "0");
+    existing.setAttribute("aria-expanded", PROFILE_OPEN ? "true" : "false");
+    existing.setAttribute("title", PROFILE_OPEN ? "Hide sailor profile" : "Show sailor profile");
+    if (!existing.querySelector("svg")) existing.innerHTML = orangeCaretSvgHtml();
+    if (existing.parentNode !== center) center.appendChild(existing);
+    existing.style.setProperty("top", (name.offsetTop + name.offsetHeight + 1) + "px", "important");
+    var svg = existing.querySelector("svg");
+    if (svg) svg.style.setProperty("transform", PROFILE_OPEN ? "rotate(180deg)" : "rotate(0deg)");
+  }
+
+  function watchHeaderNameArrow() {
+    if (!window.__ssaHeaderArrowClickBound) {
+      window.__ssaHeaderArrowClickBound = true;
+      document.addEventListener("click", function (ev) {
+        var t = ev.target && ev.target.closest ? ev.target.closest("#ssa-header-name-arrow") : null;
+        if (!t) return;
+        toggleHeaderProfile(ev);
+      }, true);
+      document.addEventListener("keydown", function (ev) {
+        if (ev.key !== "Enter" && ev.key !== " ") return;
+        var t = ev.target && ev.target.closest ? ev.target.closest("#ssa-header-name-arrow") : null;
+        if (!t) return;
+        toggleHeaderProfile(ev);
+      }, true);
+    }
+    if (window.__ssaHeaderNameArrowBound) return;
+    window.__ssaHeaderNameArrowBound = true;
+    var center = document.getElementById("headerUserCenter");
+    if (center && typeof MutationObserver === "function") {
+      var obs = new MutationObserver(function () {
+        ensureHeaderNameArrow();
+      });
+      obs.observe(center, { childList: true, subtree: true, characterData: true });
+    }
+  }
+
+  function syncHomeSailorCard() {
+    unparkKeptCards();
+    parkLoggedInHomeCard();
+    placeLoggedInCardAtTop();
+    syncSailorCardWidth();
+    ensureHeaderNameArrow();
+    applyProfileCardVisibility();
+  }
+
+  function boot() {
+    wrapShowSailorStats();
+    bindSearch();
+    ensurePark();
+    mountRoot();
+    syncHomeSailorCard();
+    ensureHeaderNameArrow();
+    watchHeaderNameArrow();
+    var n = 0;
+    var t = setInterval(function () {
+      n += 1;
+      wrapShowSailorStats();
+      bindSearch();
+      syncHomeSailorCard();
+      ensureHeaderNameArrow();
+      if (isHubHome()) mountRoot();
+      if (n > 40) clearInterval(t);
+    }, 250);
+    var origMode = window.setMainColumnMode;
+    if (origMode && !origMode.__ssa48hWrapped) {
+      window.setMainColumnMode = function (mode) {
+        origMode.apply(this, arguments);
+        mountRoot();
+      };
+      window.setMainColumnMode.__ssa48hWrapped = true;
+    }
+    document.addEventListener("visibilitychange", function () {
+      if (!document.hidden && shouldShow()) loadWind();
+    });
+    if (!window.__ssa48hWidthBound) {
+      window.__ssa48hWidthBound = true;
+      window.addEventListener("resize", function () {
+        syncSailorCardWidth();
+      });
+    }
+  }
+
+  window.__ssaUpcoming48h = JS_VER;
+  window.__ssaUpcoming48hRestoreHomeCard = function () {
+    restoreLoggedInHomeCard();
+  };
+
+  if (isHubHome() && document.body) document.body.classList.add("ssa-hub-home");
+  injectCss();
+  wrapShowSailorStats();
+  bindSailorSearchStayInBox();
+  bindRegattaDeliberateOpen();
+  clearBelowSearchProfile();
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
