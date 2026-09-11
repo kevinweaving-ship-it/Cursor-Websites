@@ -1,77 +1,41 @@
-# Dragino + Moko — future add-ons only (not race core)
+# Dragino + Moko — future add-ons (verified product URLs)
 
 **Date:** 2026-09-11  
-**Catalog source:** Dragino *New product catalog (1).pdf* 2026 (26 pp) — **Dragino only** (no Moko SKUs in that PDF).  
-**Moko:** separate vendor (mokosmart.com / mokolora.com) — BLE + LoRaWAN trackers/gateways for future add-ons.
+**Framing:** NOT race core (puck / committee / marks). Future / venue add-ons only.  
+**China cadence:** ~every 6 months → **order samples next week** or wait.
 
-## Hard framing
+> Earlier sheet links used wrong Dragino `item/###` IDs (titles did not match).  
+> URLs below were **HTTP-checked** (Dragino title match) or taken from Moko official/store pages (Moko site blocks datacenter IP with 403).
 
-| Layer | What | Dragino / Moko? |
-|-------|------|-----------------|
-| **Race core (V1)** | Boat Puck · committee WT-43 base · pin/marks | **No** — stay on OTW WT-43 + Ebyte nRF54 |
-| **Future / add-on** | Club IoT, asset tags, weather, BLE presence, LoRaWAN venue net | **Yes — sample now if useful** |
+## Dragino tab — verified
 
-**China order cadence:** ~**every 6 months**. **Next order: next week.**  
-Anything you might want in the next half-year → **put on next week’s cart**. Waiting = ~6 months delay.
+| Product | Official page (title checked) | Shop page (title checked) |
+|---------|-------------------------------|---------------------------|
+| **LPS8v2** Indoor LoRaWAN Gateway | https://www.dragino.com/products/lora-lorawan-gateway/item/228-lps8v2.html | https://shop.dragino.com/index.php?product_id=266&rt=product/product |
+| **TrackerD** LoRaWAN Tracker | https://www.dragino.com/products/tracker/item/234-trackerd.html | https://shop.dragino.com/index.php?product_id=164&rt=product/product |
+| **LA66** LoRaWAN Module | https://www.dragino.com/products/lora/item/230-la66-lorawan-module.html | https://shop.dragino.com/index.php?product_id=159&rt=product/product |
+| **BCN02** BLE iBeacon | https://www.dragino.com/products/tracker/item/243-bcn02.html | https://shop.dragino.com/index.php?product_id=157&rt=product/product |
+| **BH01-LB** BLE→LoRaWAN Hub | https://www.dragino.com/products/lora-lorawan-end-node/item/359-bh01-lb-ls-bluetooth-to-lorawan-hub.html | ask sales / shop search |
+| **TrackerD-LS** solar tracker | category https://www.dragino.com/products/tracker.html | https://shop.dragino.com/index.php?product_id=227&rt=product/product |
 
----
+**Order AS923** on PO for SA.
 
-## ORDER NEXT WEEK — Dragino (from catalog)
+## Moko tab — official/store pages (site 403 from cloud; URLs from Moko site/search)
 
-| Priority | Product | Qty | Why sample (future / add-on) | Direct URL | Skip-if |
-|----------|---------|----:|------------------------------|------------|---------|
-| **A** | **LPS8v2** indoor multi-ch LoRaWAN gateway | **1** | Stand up a **club/venue LoRaWAN** sandbox (ChirpStack built-in). Needed before any LoRaWAN end-node is useful. | https://www.dragino.com/products/lora-lorawan-gateway/item/228-lps8v2.html | You already own a multi-ch gateway |
-| **A** | **TrackerD** LoRaWAN GPS+BLE+WiFi tracker | **2** | Coarse GPS tag for **RIB / tractor / gear bag** — *not* cm race OCS. Tests GPS+motion+alarm UX we may mirror later. | https://www.dragino.com/products/lora-lorawan-end-node/item/192-trackerd.html | Pure firmware curiosity only |
-| **A** | **LA66** LoRaWAN module | **2** | Tiny module to **benchmark LoRaWAN vs our proprietary LoRa** on the bench; Arduino/AT path for Robby. | https://www.dragino.com/products/lora-lorawan-end-node/item/178-la66-lorawan-module.html | Never touching LoRaWAN |
-| **B** | **BCN02** BLE iBeacon | **5** | Cheap **BLE presence** for clubhouse / boat park / start box experiments (walk-up detect). | https://www.dragino.com/products/lora-lorawan-end-node/item/225-bcn02.html | Watch/phone BLE only forever |
-| **B** | **BH01-LB** BLE→LoRaWAN hub | **1** | Bridges BLE tags → LoRaWAN — pattern for “many BLE stickers → one long-range uplink”. | https://www.dragino.com/products/lora-lorawan-end-node/item/265-bh01-lb.html | No BLE beacon plan |
-| **B** | **TrackerD-LS** solar asset tracker | **1** | Same as TrackerD but **solar** — useful mental model for unattended mark-boat *asset* tag (still not RTK). | Ask Dragino sales / shop.dragino.com for TrackerD-LS | TrackerD enough |
-| **C** | **DLOS8N** outdoor gateway *or* **LG308N** indoor | **0–1** | Only if LPS8v2 indoor is too weak for harbour. Prefer **one** outdoor later; indoor first. | shop.dragino.com (confirm AS923/AU915/EU868 for SA) | LPS8v2 covers lab |
-| **C** | **WSC / WSS-09** weather kit | **0–1** | Club **race-day weather** on LoRaWAN (wind/rain) as Race Control add-on — not OCS. | shop.dragino.com weather | Phone weather OK |
-| **C** | **LoRaWAN IoT Kit v3** | **0–1** | Training kit if someone new joins RF work. Overlap with A-items. | shop.dragino.com | Already buying gateway+nodes |
+| Product | Official page | Store page |
+|---------|---------------|------------|
+| **LW001-BG PRO** GPS Tracker | https://www.mokosmart.com/lorawan-tracker-lw001-bg-pro/ | https://store.mokosmart.com/product/lw001-bg-pro-lorawan-gps-tracker/ |
+| **LW003-B** BLE→LoRaWAN | https://www.mokosmart.com/lorawan-probe-lw003-b/ | https://store.mokosmart.com/product/lw003b-bluetooth-to-lorawan-gateway/ |
+| **H2** Beacon | https://www.mokosmart.com/navigation-beacon-h2/ | https://store.mokosmart.com/product/h2-navigation-beacon/ |
+| **MKGW2-LW** gateway (maybe) | https://www.mokosmart.com/lorawan-gateway-mkgw2-lw/ | https://store.mokosmart.com/product/mkgw2-lw-indoor-lorawan-gateway/ |
 
-**Band note (SA):** order gateways/nodes as **AS923** (or confirm ICASA plan) — do **not** default EU868/US915 without checking.
+## Lean next-week cart
 
-### Dragino — do **not** burn next-week budget on
+1. Dragino LPS8v2 ×1 (AS923)  
+2. Dragino TrackerD ×2  
+3. Dragino LA66 ×2  
+4. Dragino BCN02 ×5  
+5. Moko LW001-BG PRO ×1–2  
+6. Moko LW003-B **or** Dragino BH01-LB ×1  
 
-Temp/humidity farms (LHT*), soil, CO₂, water leak, door (LDS/LWL), AI meter camera, RS485 converters, relays — fine IoT, **zero leverage** for sailing race product in next 6 months.
-
----
-
-## ORDER NEXT WEEK — Moko (not in Dragino PDF)
-
-| Priority | Product | Qty | Why sample (future / add-on) | URL | Skip-if |
-|----------|---------|----:|------------------------------|-----|---------|
-| **A** | **LW001-BG PRO** LoRaWAN GPS tracker | **2** | Compare vs Dragino TrackerD for **asset/RIB** tagging (GNSS+WiFi+BLE). Pick a winner later. | https://www.mokosmart.com/lorawan-tracker/ | Buying TrackerD only is OK |
-| **A** | **LW003-B** BLE→LoRaWAN probe/gateway | **1** | Same job as Dragino BH01 — BLE beacons → LoRaWAN. Good A/B. | https://www.mokosmart.com/lorawan-probe-lw003-b/ | BH01 covers it |
-| **B** | **MKGW2-LW** indoor LoRaWAN gateway | **0–1** | Only if **not** buying Dragino LPS8v2. One venue gateway is enough. | https://www.mokosmart.com/lorawan-gateways/ | LPS8v2 ordered |
-| **B** | **H2 / H4 BLE beacon** (or Moko iBeacon pack) | **5–10** | Stick-on BLE for dinghy park / container / trolley — feeds LW003-B or BH01. | https://www.mokosmart.com/beacon/ | BCN02 pack ordered |
-| **C** | Wearable/badge LoRaWAN tracker | **0–1** | Future “crew ashore / junior safety” — not helm race UI. | mokosmart.com trackers | Out of scope 6 mo |
-
-**Pick rule:** don’t buy **two** full gateway stacks. Prefer **Dragino LPS8v2 + mixed end-nodes** (TrackerD + LA66 + BCN02) **or** **Moko LW001 + LW003-B + beacons** if you want one vendor. Best learning: **1 Dragino gateway + 1 Moko tracker + 1 Dragino tracker** for A/B.
-
----
-
-## Suggested NEXT-WEEK cart (lean)
-
-| # | Item | Qty | Vendor |
-|---|------|----:|--------|
-| 1 | LPS8v2 gateway (SA band) | 1 | Dragino |
-| 2 | TrackerD | 2 | Dragino |
-| 3 | LA66 module | 2 | Dragino |
-| 4 | BCN02 beacon | 5 | Dragino |
-| 5 | LW001-BG PRO | 1–2 | Moko |
-| 6 | LW003-B *or* BH01-LB | 1 | Moko *or* Dragino |
-
-≈ enough to demo: venue LoRaWAN + asset GPS + BLE presence — **without** touching puck/committee/marks BOM.
-
----
-
-## What this is **not**
-
-- Not a substitute for **WT-43** cm RTK  
-- Not sailor watch / Race Control UI  
-- Not pin/mark infra packs  
-- Not “order everything in the 1000+ SKU catalog”
-
-Email Dragino `sales@dragino.com` + Moko sales **this week** with: SA frequency, 1-pc pricing, DHL to SA, lead time before your China consolidation ships.
+Sheet: **Dragino** tab = Dragino only · **Moko** tab = Moko only.

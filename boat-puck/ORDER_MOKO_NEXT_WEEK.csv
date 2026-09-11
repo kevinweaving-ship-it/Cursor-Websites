@@ -1,9 +1,9 @@
-Order next week?,Priority,Product,Qty,Factory,Direct product URL,What it's for (future / add-on ONLY),Why sample now (6-mo China cadence),NOT for
-YES — A,A,LW001-BG PRO LoRaWAN GPS tracker,1–2,Moko Smart,https://www.mokosmart.com/lorawan-tracker/,Asset/RIB coarse GPS tag — A/B vs Dragino TrackerD,Next China cycle; pick tracker winner for future add-on,cm RTK puck / marks / committee base
-YES — A,A,LW003-B BLE→LoRaWAN probe,1,Moko Smart,https://www.mokosmart.com/lorawan-probe-lw003-b/,Scan BLE beacons → LoRaWAN (venue presence),Need with beacon pack; skip if Dragino BH01-LB ordered,Puck↔watch BLE (our stack)
-YES — B,B,H2/H4 BLE beacon pack,5–10,Moko Smart,https://www.mokosmart.com/beacon/,Stick-on BLE for dinghy park / container / trolley,Feeds LW003-B; skip if Dragino BCN02×5 enough,Race timing
-MAYBE — B,B,MKGW2-LW indoor LoRaWAN gateway,0–1,Moko Smart,https://www.mokosmart.com/lorawan-gateways/,Venue gateway ONLY if NOT buying Dragino LPS8v2,One gateway stack max — prefer LPS8v2,—
-MAYBE — C,C,LoRaWAN badge / wearable tracker,0–1,Moko Smart,https://www.mokosmart.com/lorawan-tracker/,Future junior/crew ashore safety concept,Defer unless safety pilot funded this season,Helm race UI
-NO for now,SKIP,Duplicate env sensors / 2nd gateway stack,0,Moko Smart,https://www.mokosmart.com/,Don't double-buy same role as Dragino cart,Consolidate vendors,—
-NOTE,,Vendor rule,,Moko,sales via mokosmart.com,Lean cart: Dragino LPS8v2 + TrackerD + LA66 + BCN02 + Moko LW001 (± LW003-B),Order next week or wait ~6 months,—
-NOTE,,Framing,,Moko,—,Future add-on ONLY. Not boat puck · not committee · not marks,PDF was Dragino-only; Moko is separate factory,V1 race kit
+Order next week?,Priority,Product,Qty,Factory,Official product page,Buy / store URL,What for (future add-on ONLY),NOT for
+YES - A,A,LW001-BG PRO LoRaWAN GPS Tracker,1-2,Moko Smart,https://www.mokosmart.com/lorawan-tracker-lw001-bg-pro/,https://store.mokosmart.com/product/lw001-bg-pro-lorawan-gps-tracker/,Asset/RIB coarse GPS+WiFi+BLE tracker. A/B vs Dragino TrackerD.,cm RTK puck / marks / committee base
+YES - A,A,LW003-B Bluetooth to LoRaWAN Gateway,1,Moko Smart,https://www.mokosmart.com/lorawan-probe-lw003-b/,https://store.mokosmart.com/product/lw003b-bluetooth-to-lorawan-gateway/,Scans BLE beacons and uplinks over LoRaWAN. Skip if Dragino BH01-LB ordered.,Puck-to-watch BLE (our stack)
+YES - B,B,H2 Indoor Navigation Beacon,5-10,Moko Smart,https://www.mokosmart.com/navigation-beacon-h2/,https://store.mokosmart.com/product/h2-navigation-beacon/,Stick-on BLE for dinghy park / container / trolley. Feeds LW003-B.,Race timing
+MAYBE - B,B,MKGW2-LW Indoor LoRaWAN Gateway,0-1,Moko Smart,https://www.mokosmart.com/lorawan-gateway-mkgw2-lw/,https://store.mokosmart.com/product/mkgw2-lw-indoor-lorawan-gateway/,ONLY if NOT buying Dragino LPS8v2. One gateway stack max.,-
+MAYBE - C,C,LoRaWAN badge / wearable tracker,0-1,Moko Smart,https://www.mokosmart.com/lorawan-tracker/,store.mokosmart.com trackers,Future junior/crew ashore safety. Defer unless funded this season.,Helm race UI
+NO for now,SKIP,Duplicate env sensors / second gateway stack,0,Moko Smart,https://www.mokosmart.com/,n/a,Do not double-buy same role as Dragino cart.,-
+NOTE,,Confirm band AS923 / AU915 for SA on Moko SKUs,,Moko,sales@mokosmart.com,store.mokosmart.com,State frequency on PO.,Wrong band
+NOTE,,Tab rule,,Moko only on this tab,,Do not put Dragino SKUs here.,Future add-on ONLY — not V1 race kit. PDF catalog was Dragino-only.,-
