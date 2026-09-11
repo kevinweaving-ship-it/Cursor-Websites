@@ -22712,28 +22712,33 @@ def _sa_whatsapp_intl(local10: str) -> str:
 
 
 def _send_via_whatsapp_engine(phone_intl: str, text: str) -> tuple[bool, str]:
-    """Send via the live WhatsApp engine (WHATSAPP_ENGINE_URL / WA_ENGINE_URL / WA_ENGINE_CMD)."""
+    """Send via the live WhatsApp engine (loopback POST /send, Bearer WAPOC_TOKEN)."""
     url = (os.getenv("WHATSAPP_ENGINE_URL") or os.getenv("WA_ENGINE_URL") or "").strip()
-    cmd = (os.getenv("WA_ENGINE_CMD") or "").strip()
-    if url:
-        try:
-            r = httpx.post(
-                url,
-                json={"to": phone_intl, "phone": phone_intl, "text": text, "message": text},
-                timeout=12.0,
-            )
-            if r.status_code < 400:
-                return True, "sent"
-            return False, f"WhatsApp engine HTTP {r.status_code}"
-        except Exception as e:
-            return False, str(e)[:180]
-    if cmd:
-        try:
-            subprocess.run([cmd, phone_intl, text], check=True, timeout=15)
+    token = (os.getenv("WHATSAPP_ENGINE_TOKEN") or os.getenv("WAPOC_TOKEN") or "").strip()
+    if not url:
+        port = (os.getenv("WAPOC_PORT") or "8009").strip() or "8009"
+        url = f"http://127.0.0.1:{port}/send"
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["Authorization"] = "Bearer " + token
+    try:
+        r = httpx.post(
+            url,
+            json={"number": phone_intl, "text": text, "to": phone_intl, "phone": phone_intl, "message": text},
+            headers=headers,
+            timeout=25.0,
+        )
+        if r.status_code < 400:
+            try:
+                j = r.json()
+                if isinstance(j, dict) and j.get("ok") is False:
+                    return False, str(j.get("error") or "WhatsApp send failed")[:180]
+            except Exception:
+                pass
             return True, "sent"
-        except Exception as e:
-            return False, str(e)[:180]
-    return False, "WhatsApp engine not configured (set WHATSAPP_ENGINE_URL)"
+        return False, f"WhatsApp engine HTTP {r.status_code}"
+    except Exception as e:
+        return False, str(e)[:180]
 
 
 @app.post("/api/claim/whatsapp/send-code")
