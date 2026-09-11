@@ -3662,6 +3662,7 @@ html.temp-landing-layout-pending .search-header-container.sailor-search-pills {
     color: #0f172a !important;
     caret-color: #0f172a !important;
     height: 38px !important;
+    font-size: 16px !important;
     box-shadow: none !important;
 }
 .temp-landing-search-stack .sailor-search-input::placeholder,
@@ -4655,7 +4656,7 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
     <script src="/js/api.js?v=20260901landingfix"></script>
     <script src="/js/results.js?v=FORCE_CLEAN_1"></script>
     <script src="/js/session.js?v=20260813_SILENT_LOGIN"></script>
-    <script src="/js/upcoming-48h-event.js?v=20260911u48v"></script>
+    <script src="/js/upcoming-48h-event.js?v=20260911u48w"></script>
     
     <script>
         // Function to close popup and return to landing page
@@ -8592,6 +8593,13 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                     // Never show sailor profile when user clicked regatta results (so regatta row opens regatta, not sailor popup)
                     var inRegattaResults = ev.target && ev.target.closest && (ev.target.closest('#public-regattas-section') || ev.target.closest('#public-regattas-list'));
                     if (inRegattaResults) return;
+                    var inSailorSearchBox = ev.target && ev.target.closest && (
+                        ev.target.closest('#sailor-search-form') ||
+                        ev.target.closest('#sailor-search-input') ||
+                        ev.target.closest('#temp-landing-sailor-row')
+                    );
+                    if (inSailorSearchBox) return;
+                    if (document.activeElement && document.activeElement.id === 'sailor-search-input') return;
                     if (!sailorSearchForm.contains(ev.target) && !sailorSearchResults.contains(ev.target)) {
                         // Only handle click-outside for Sailor mode
                         if (searchMode === 'sailor') {
@@ -13147,6 +13155,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
         function keepTempLandingSearchVisible(preferSmooth) {
             try {
+                var aeKeep = document.activeElement;
+                if (aeKeep && aeKeep.id === 'sailor-search-input') return;
                 var target = getTempLandingSearchTarget();
                 if (!target) return;
                 var desiredTop = getTempLandingSearchTargetTop();
@@ -13321,7 +13331,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 window.setTimeout(function () {
                     restoreVisibleSailorInput();
                     refreshTempLandingSearchState();
-                    scheduleKeepTempLandingSearchVisible(false);
+                    if (!(document.activeElement && document.activeElement.id === 'sailor-search-input')) {
+                        scheduleKeepTempLandingSearchVisible(false);
+                    }
                 }, 0);
             }
 
@@ -13359,7 +13371,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 sailorInput.dataset.tempLandingBound = '1';
                 sailorInput.addEventListener('focus', function () {
                     activateSailorModeFromTemp();
-                    scheduleKeepTempLandingSearchVisible(true);
                 });
                 sailorInput.addEventListener('input', function () {
                     sailorDraft = sailorInput.value;
@@ -13367,7 +13378,6 @@ document.addEventListener('DOMContentLoaded', function () {
                         activateSailorModeFromTemp();
                     } else {
                         refreshTempLandingSearchState();
-                        scheduleKeepTempLandingSearchVisible(false);
                     }
                 });
             }
@@ -13375,6 +13385,15 @@ document.addEventListener('DOMContentLoaded', function () {
             bindFieldModeActivation(sailorForm, activateSailorModeFromTemp, 'sailor');
             bindFieldModeActivation(sailorWrap, activateSailorModeFromTemp, 'sailor');
             bindFieldModeActivation(sailorRow, activateSailorModeFromTemp, 'sailor');
+            if (sailorWrap && !sailorWrap.dataset.ssaStayFocusBound) {
+                sailorWrap.dataset.ssaStayFocusBound = '1';
+                sailorWrap.addEventListener('pointerdown', function (e) {
+                    if (!sailorInput || e.target === sailorInput) return;
+                    try { sailorInput.focus({ preventScroll: true }); } catch (_) {
+                        try { sailorInput.focus(); } catch (__) {}
+                    }
+                });
+            }
 
             if (!regattaInput.dataset.tempLandingBound) {
                 regattaInput.dataset.tempLandingBound = '1';

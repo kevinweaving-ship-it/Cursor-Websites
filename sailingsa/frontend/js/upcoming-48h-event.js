@@ -16,7 +16,7 @@
 (function () {
   "use strict";
 
-  var JS_VER = "20260911u48v";
+  var JS_VER = "20260911u48w";
   var PROFILE_OPEN = false;
   window.__ssaSkipBelowSearchLoggedInProfile = true;
   var ORANGE_CARET_PATH = "M231.39,132.94A8,8,0,0,0,224,128H184V104a8,8,0,0,0-8-8H80a8,8,0,0,0-8,8v24H32a8,8,0,0,0-5.66,13.66l96,96a8,8,0,0,0,11.32,0l96-96A8,8,0,0,0,231.39,132.94ZM72,40a8,8,0,0,1,8-8h96a8,8,0,0,1,0,16H80A8,8,0,0,1,72,40Zm0,32a8,8,0,0,1,8-8h96a8,8,0,0,1,0,16H80A8,8,0,0,1,72,72Z";
@@ -476,6 +476,69 @@
     });
   }
 
+  function sailorSearchIsFocused() {
+    try {
+      var ae = document.activeElement;
+      return !!(ae && ae.id === "sailor-search-input");
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function bindSailorSearchStayInBox() {
+    if (!window.__ssaSailorStayScrollPatched) {
+      window.__ssaSailorStayScrollPatched = true;
+      var origTo = window.scrollTo;
+      var origScroll = window.scroll;
+      var origBy = window.scrollBy;
+      window.scrollTo = function () {
+        if (sailorSearchIsFocused()) return;
+        return origTo.apply(window, arguments);
+      };
+      if (typeof origScroll === "function") {
+        window.scroll = function () {
+          if (sailorSearchIsFocused()) return;
+          return origScroll.apply(window, arguments);
+        };
+      }
+      if (typeof origBy === "function") {
+        window.scrollBy = function () {
+          if (sailorSearchIsFocused()) return;
+          return origBy.apply(window, arguments);
+        };
+      }
+      document.addEventListener(
+        "click",
+        function (ev) {
+          if (!sailorSearchIsFocused()) return;
+          var t = ev.target;
+          var inside =
+            t &&
+            (t.id === "sailor-search-input" ||
+              (t.closest &&
+                (t.closest("#sailor-search-form") ||
+                  t.closest("#temp-landing-sailor-row") ||
+                  t.closest(".sailor-search-input-wrap"))));
+          if (inside) return;
+          ev.stopPropagation();
+        },
+        true
+      );
+    }
+    var el = document.getElementById("sailor-search-input");
+    if (!el || el.__ssaSailorStayBound) return;
+    el.__ssaSailorStayBound = true;
+    el.addEventListener("pointerdown", function () {
+      try {
+        el.focus({ preventScroll: true });
+      } catch (_) {
+        try {
+          el.focus();
+        } catch (__) {}
+      }
+    });
+  }
+
   function bindSearch() {
     ["sailor-search-input", "temp-landing-regatta-input"].forEach(function (id) {
       var el = document.getElementById(id);
@@ -492,6 +555,7 @@
       });
     });
     bindRegattaListToggle();
+    bindSailorSearchStayInBox();
   }
 
   function restoreLoggedInHomeCard() {
@@ -790,6 +854,7 @@
   if (isHubHome() && document.body) document.body.classList.add("ssa-hub-home");
   injectCss();
   wrapShowSailorStats();
+  bindSailorSearchStayInBox();
   clearBelowSearchProfile();
 
   if (document.readyState === "loading") {
