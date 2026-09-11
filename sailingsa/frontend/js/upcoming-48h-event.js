@@ -16,7 +16,7 @@
 (function () {
   "use strict";
 
-  var JS_VER = "20260911u48q";
+  var JS_VER = "20260911u48s";
   var ORANGE_CARET_PATH = "M231.39,132.94A8,8,0,0,0,224,128H184V104a8,8,0,0,0-8-8H80a8,8,0,0,0-8,8v24H32a8,8,0,0,0-5.66,13.66l96,96a8,8,0,0,0,11.32,0l96-96A8,8,0,0,0,231.39,132.94ZM72,40a8,8,0,0,1,8-8h96a8,8,0,0,1,0,16H80A8,8,0,0,1,72,40Zm0,32a8,8,0,0,1,8-8h96a8,8,0,0,1,0,16H80A8,8,0,0,1,72,72Z";
   var ROOT_ID = "ssa-upcoming-48h";
   var PARK_ID = "ssa-saved-logged-in-home-card";
@@ -117,8 +117,9 @@
       "body.ssa-hub-home .ssa-upcoming-48h,body.ssa-hub-home .ssa-upcoming-48h-shell.card{width:100%!important;max-width:100%!important;box-sizing:border-box!important;}",
       "body.ssa-hub-home .ssa-48h-match-card{width:100%!important;max-width:100%!important;margin-top:calc(var(--ssa-48h-gap,4px) - var(--sa-header-gap,12px))!important;margin-bottom:0!important;margin-left:0!important;margin-right:0!important;box-sizing:border-box!important;border:2px solid #1a2750!important;border-radius:8px!important;box-shadow:none!important;}",
       "body.ssa-hub-home .ssa-48h-match-card .sa-approved-sailor-card{margin-top:0!important;margin-bottom:0!important;}",
-      ".ssa-header-name-arrow{display:flex!important;align-items:center!important;justify-content:center!important;margin:1px auto 0 auto!important;padding:0!important;width:22px!important;height:18px!important;min-width:22px!important;min-height:18px!important;border:0!important;background:transparent!important;color:#FF5A00!important;line-height:1!important;flex:0 0 auto!important;box-shadow:none!important;pointer-events:none!important;}",
-      ".ssa-header-name-arrow svg{display:block!important;width:18px!important;height:18px!important;margin:0 auto!important;fill:#FF5A00!important;color:#FF5A00!important;}",
+      "header.site-header #headerUserCenter{position:relative!important;}",
+      "header.site-header #headerUserCenter .ssa-header-name-arrow,.ssa-header-name-arrow{position:absolute!important;left:50%!important;transform:translateX(-50%)!important;display:block!important;margin:0!important;padding:0!important;width:18px!important;height:18px!important;min-width:0!important;min-height:0!important;max-width:18px!important;max-height:18px!important;border:0!important;border-radius:0!important;background:transparent!important;background-color:transparent!important;box-shadow:none!important;color:#FF5A00!important;line-height:0!important;pointer-events:none!important;-webkit-appearance:none!important;appearance:none!important;}",
+      "header.site-header #headerUserCenter .ssa-header-name-arrow svg,.ssa-header-name-arrow svg{display:block!important;width:18px!important;height:18px!important;margin:0!important;padding:0!important;fill:#FF5A00!important;color:#FF5A00!important;background:transparent!important;}",
       "@media screen and (min-width:768px){",
       ".ssa-upcoming-48h{--ssa-48h-pair-h:60px;}",
       ".ssa-upcoming-48h-wx .wx-il,.ssa-upcoming-48h-wx .wx-iv,.ssa-upcoming-48h-wx .wx-iv small{font-size:12px;}",
@@ -576,16 +577,19 @@
       if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
       return;
     }
+    if (existing && existing.tagName === "BUTTON") {
+      existing.parentNode.removeChild(existing);
+      existing = null;
+    }
     if (!existing) {
-      existing = document.createElement("button");
-      existing.type = "button";
+      existing = document.createElement("span");
       existing.id = "ssa-header-name-arrow";
       existing.className = "ssa-header-name-arrow";
       existing.setAttribute("aria-hidden", "true");
-      existing.tabIndex = -1;
     }
     if (!existing.querySelector("svg")) existing.innerHTML = orangeCaretSvgHtml();
-    if (existing.previousElementSibling !== name) name.insertAdjacentElement("afterend", existing);
+    if (existing.parentNode !== center) center.appendChild(existing);
+    existing.style.setProperty("top", (name.offsetTop + name.offsetHeight + 1) + "px", "important");
   }
 
   function watchHeaderNameArrow() {
