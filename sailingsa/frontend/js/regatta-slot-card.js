@@ -6,7 +6,7 @@
   var CSS_ID = "ssa-regatta-slot-card-css";
   var ROOT_ID = "ssa-regatta-slot-card";
   var CAPE_CLASSIC_ID = "2026-09-13-zvyc-cape-classic";
-  var JS_VER = "20260911w2s7";
+  var JS_VER = "20260911w2s8";
   var PTS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
   var BANDS = [[0, 5, "#12b028"], [5, 11, "#2563eb"], [11, 17, "#e67e00"], [17, 23, "#7c3aed"], [23, 60, "#DC143C"]];
 
@@ -30,21 +30,23 @@
       ".ssa-regatta-slot-card .wx-plot{flex:1 1 auto;min-width:0;height:100%;display:block;}",
       ".ssa-regatta-slot-card .wx-spark-x{flex:0 0 auto;display:flex;justify-content:space-between;padding:2px 0 0 19px;}",
       ".ssa-regatta-slot-card .wx-spark-x span{font:700 9px/1 Arial,Helvetica,sans-serif;color:#64748b;}",
-      ".ssa-regatta-slot-card .wx-info{flex:0 0 auto;min-width:104px;height:100%;display:flex;flex-direction:column;justify-content:stretch;gap:6px;padding:8px 4px 8px 2px;box-sizing:border-box;}",
+      ".ssa-regatta-slot-card .wx-info{flex:0 0 auto;min-width:92px;height:100%;display:flex;flex-direction:column;justify-content:stretch;gap:4px;padding:8px 8px 8px 4px;box-sizing:border-box;}",
       ".ssa-regatta-slot-card .wx-dial .dt{stroke:#9ca3af;stroke-width:1;}",
       ".ssa-regatta-slot-card .wx-dial .dt.card{stroke:#111;stroke-width:1.4;}",
       ".ssa-regatta-slot-card .wx-dial .darc{fill:none;stroke:#93c5fd;stroke-width:7;stroke-linecap:butt;}",
       ".ssa-regatta-slot-card .wx-dial .darc.prev{opacity:.45;}",
       ".ssa-regatta-slot-card .wx-dial .dhead{fill:#3b82f6;}",
-      ".ssa-regatta-slot-card .wx-dial .dpt{font:700 26px Arial,Helvetica,sans-serif;fill:#15803d;}",
-      ".ssa-regatta-slot-card .wx-ir{flex:1 1 0;display:flex;justify-content:space-between;align-items:center;gap:6px;min-width:0;min-height:0;}",
-      ".ssa-regatta-slot-card .wx-il,.ssa-regatta-slot-card .wx-iv,.ssa-regatta-slot-card .wx-iv small{font:800 20px/1 Arial,Helvetica,sans-serif;white-space:nowrap;}",
-      ".ssa-regatta-slot-card .wx-il{color:#334155;letter-spacing:.04em;text-transform:uppercase;}",
+      ".ssa-regatta-slot-card .wx-dial .dpt{font:700 22px Arial,Helvetica,sans-serif;fill:#15803d;}",
+      ".ssa-regatta-slot-card .wx-dial .ddeg{font:700 11px Arial,Helvetica,sans-serif;fill:#15803d;}",
+      ".ssa-regatta-slot-card .wx-ir{flex:1 1 0;display:flex;flex-direction:column;justify-content:center;align-items:flex-end;gap:2px;min-width:0;min-height:0;}",
+      ".ssa-regatta-slot-card .wx-il{font:700 10px/1 Arial,Helvetica,sans-serif;color:#64748b;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;}",
+      ".ssa-regatta-slot-card .wx-iv,.ssa-regatta-slot-card .wx-iv small{font:800 18px/1 Arial,Helvetica,sans-serif;white-space:nowrap;}",
       ".ssa-regatta-slot-card .wx-iv{color:#1a2750;text-align:right;}",
-      ".ssa-regatta-slot-card .wx-iv small{margin-left:4px;color:inherit;}",
+      ".ssa-regatta-slot-card .wx-iv small{margin-left:3px;color:inherit;font-size:11px;}",
       "@media screen and (orientation:portrait) and (max-width:767px){",
       ".ssa-regatta-slot-card{margin-top:10px;}",
-      ".ssa-regatta-slot-card .wx-il,.ssa-regatta-slot-card .wx-iv,.ssa-regatta-slot-card .wx-iv small{font-size:16px;}",
+      ".ssa-regatta-slot-card .wx-iv,.ssa-regatta-slot-card .wx-iv small{font-size:16px;}",
+      ".ssa-regatta-slot-card .wx-iv small{font-size:10px;}",
       "}"
     ].join("");
   }
@@ -111,7 +113,11 @@
         svg += '<g transform="translate(' + hp[0].toFixed(1) + " " + hp[1].toFixed(1) + ") rotate(" + (deg + 180) + ')"><path class="dhead" style="fill:' + col + '" d="M0 -14L11 7L0 2.5L-11 7Z"/></g>';
       }
     }
-    svg += '<text class="dpt" x="50" y="50" text-anchor="middle" dominant-baseline="central">' + (pt || "—") + "</text></svg>";
+    svg += '<text class="dpt" x="50" y="46" text-anchor="middle" dominant-baseline="central">' + (pt || "—") + "</text>";
+    if (deg != null) {
+      svg += '<text class="ddeg" x="50" y="62" text-anchor="middle" dominant-baseline="central">' + Math.round(deg) + "°</text>";
+    }
+    svg += "</svg>";
     return svg;
   }
 
@@ -165,19 +171,20 @@
   }
 
   function render(slot, data) {
+    var wnow = data.wind_kt;
     var wavg = data.avg_kt;
     var whigh = data.high_kt != null ? data.high_kt : data.gust_kt;
+    var colN = bandCol(wnow);
     var colA = bandCol(wavg);
     var colH = bandCol(whigh);
-    var from = (data.wind_dir_name || "—") + (data.wind_dir != null ? " " + Math.round(Number(data.wind_dir)) + "°" : "");
     slot.innerHTML =
       '<div class="wx-wp-top">' +
         '<div class="wx-wp-comp">' + drawDial(data) + "</div>" +
         drawSpark(data) +
         '<div class="wx-info">' +
+          '<div class="wx-ir"><span class="wx-il">Now</span><span class="wx-iv" style="color:' + colN + '">' + n1(wnow) + " <small>kn</small></span></div>" +
           '<div class="wx-ir"><span class="wx-il">Avg</span><span class="wx-iv" style="color:' + colA + '">' + n1(wavg) + " <small>kn</small></span></div>" +
           '<div class="wx-ir"><span class="wx-il">High</span><span class="wx-iv" style="color:' + colH + '">' + n1(whigh) + " <small>kn</small></span></div>" +
-          '<div class="wx-ir"><span class="wx-il">From</span><span class="wx-iv">' + from + "</span></div>" +
         "</div>" +
       "</div>";
   }
