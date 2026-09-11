@@ -779,6 +779,92 @@ def dev1_sailor_embed(request: Request, embed: Optional[int] = None, sas_id: Opt
     return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
 
+@app.get("/api/wind2speed/zeekoevlei")
+def api_wind2speed_zeekoevlei():
+    """Zeekoevlei Wind2Speed station 35 — knots + direction for the Cape Classic wind card."""
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            r = client.get("https://wind2speed.africa/apidata/wsdata/35")
+            r.raise_for_status()
+            payload = r.json()
+        raw = payload.get("data") if isinstance(payload, dict) else None
+        inner = json.loads(raw) if isinstance(raw, str) else (raw or {})
+        stats = inner.get("stats") or {}
+        station = inner.get("station") or {}
+        kmh_kn = 1.852
+
+        def _kn(v):
+            if v is None:
+                return None
+            try:
+                return round(float(v) / kmh_kn, 1)
+            except (TypeError, ValueError):
+                return None
+
+        hour = []
+        for row in inner.get("tableData") or []:
+            if not isinstance(row, dict):
+                continue
+            hour.append(
+                {
+                    "t": row.get("obsTimeLocal"),
+                    "avg_kt": _kn(row.get("windspeedAvg")),
+                    "high_kt": _kn(row.get("windspeedHigh")),
+                    "low_kt": _kn(row.get("windspeedLow")),
+                }
+            )
+        hour.sort(key=lambda p: p.get("t") or "")
+        if hour and hour[-1].get("t"):
+            try:
+                t1 = datetime.fromisoformat(str(hour[-1]["t"]).replace("Z", "").split(".")[0])
+                t0 = t1 - timedelta(hours=1)
+                hour = [
+                    p
+                    for p in hour
+                    if p.get("t")
+                    and datetime.fromisoformat(str(p["t"]).replace("Z", "").split(".")[0]) >= t0
+                ]
+            except Exception:
+                hour = hour[-24:]
+
+        body = {
+            "ok": True,
+            "source": "wind2speed.africa/widgetPage/35",
+            "station": station.get("nam") or "Zeekoevlei",
+            "code": station.get("cod"),
+            "lr": stats.get("lr"),
+            "wind_kt": stats.get("wslr"),
+            "gust_kt": stats.get("wshlr"),
+            "avg_kt": stats.get("wsa"),
+            "low_kt": stats.get("wsl"),
+            "high_kt": stats.get("wsh"),
+            "wind_dir": stats.get("wdlr"),
+            "wind_dir_name": stats.get("wdlrn"),
+            "avg_dir": stats.get("wda"),
+            "avg_dir_name": stats.get("wdn"),
+            "dir_low": stats.get("wdrl"),
+            "dir_high": stats.get("wdrh"),
+            "wds": stats.get("wds") or [],
+            "wdsm": stats.get("wdsm") or [],
+            "hour": hour,
+            "interval": payload.get("interval") or 40000,
+            "pressure": stats.get("prs"),
+        }
+        return JSONResponse(
+            content=body,
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+            },
+        )
+    except Exception as e:
+        return JSONResponse(
+            content={"ok": False, "err": str(e)[:200]},
+            status_code=502,
+            headers={"Cache-Control": "no-store"},
+        )
+
+
 @app.get("/api/stats")
 async def api_stats():
     """Public stats for /stats page. Registered before /sailor/{slug} so /stats is not caught as slug."""
