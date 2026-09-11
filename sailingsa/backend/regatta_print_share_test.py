@@ -1,4 +1,4 @@
-"""Contract tests: standalone /regatta Print/Share + compact portrait print CSS."""
+"""Contract tests: stored /regatta results PDFs + Print viewer."""
 
 from pathlib import Path
 
@@ -12,103 +12,78 @@ def test_print_share_helper_wired_on_standalone_sheets():
         assert "def _regatta_print_share_buttons_html" in text, path
         assert "print_share_bar_html" in text, path
         assert text.count("print_btn = _regatta_print_share_buttons_html()") == 2, path
+        assert "def _rebuild_regatta_stored_pdfs" in text, path
+        assert "def _serve_regatta_stored_pdf" in text, path
+        assert '@app.get("/regatta/{slug}/results.pdf")' in text, path
+        assert '@app.get("/regatta/{slug}/class-{class_slug}/results.pdf")' in text, path
+        assert "_schedule_regatta_pdf_rebuild" in text, path
         assert (
             '<div class="action-buttons"><button class="action-button" onclick="window.print()">Print</button></div>'
             not in text
         ), path
 
 
-def test_compact_print_css_portrait_header_and_fleet_line():
-    from sailingsa.backend.regatta_print_compact_css import (
-        PRINT_COMPACT_CSS,
-        PRINT_DOCUMENT_CSS,
-        print_share_bar_html,
-    )
+def test_print_button_opens_stored_pdf_not_screen():
+    from sailingsa.backend.regatta_print_compact_css import print_share_bar_html
 
-    css = PRINT_COMPACT_CSS
-    assert "size: A4 portrait" in css
-    assert "grid-template-columns: auto minmax(0,1fr) auto" in css
-    assert "max-height: 22px" in css
-    assert "max-width: 48px" in css
-    assert ".class-header-club-logo-col { display: none !important; }" in css
-    assert "min-width: 0 !important" in css
-    assert "white-space: nowrap" in css
-    assert "table-layout: fixed" in css
-    assert ".race-col" in css
-    assert "th.class-col, td.class-col { display: none !important; }" in css
-    assert "font-size: 5.5pt" in css
-    assert "overflow: visible" in css
-    assert "border-collapse: collapse" in css
-    assert "border: 0.5pt solid #1a2750" in css
-    assert "2025-12-19-hyc-youth-nationals" in Path(
-        ROOT / "sailingsa" / "backend" / "regatta_print_compact_css.py"
-    ).read_text(encoding="utf-8")
-    assert "break-inside: avoid-page" in css
-    assert ".regatta-page > .fleet-section:first-of-type" in css
-    assert "page-break-before: avoid" in css
-    assert "break-after: avoid-page" in css
     bar = print_share_bar_html()
-    assert "ssa-print-compact" in bar
-    assert "regattaShareBtn" in bar
-    assert "navigator.share" in bar
-    assert 'id="ssaPrintPageFooter"' in bar
-    assert "ssa-print-page-footer" in css
-    assert "position: fixed" in css
-    assert "fillFooter" in bar
-    assert "link[rel=" in bar
-    assert "ssa-print-new-page" in css
-    assert "keepFleetsOnOnePage" in bar
-    assert "ssaRegattaPrint" in bar
-    assert "ssaPrintChooser" in bar
-    assert 'data-ssa-print="pdf"' in bar
-    assert 'data-ssa-print="printer"' in bar
-    assert "buildPrintDoc" in bar
-    assert "ssaPrintDocumentCss" in bar
-    assert "printOrientation" in bar
-    assert "printTableNeedMm" in bar
-    assert "printHeaderKind" in bar
-    assert "A4 '+orient" in bar
-    assert "ssa-print-landscape" in css
-    assert "maxRaces>=10" not in bar
-    assert "worst>194" in bar
-    assert "size: A4 portrait" in PRINT_DOCUMENT_CSS
-    assert "font-size: 5.5pt" in PRINT_DOCUMENT_CSS
-    assert "#ssaPrintChooser" not in PRINT_DOCUMENT_CSS
-    assert ".regatta-back-row" in css
-    src = Path(ROOT / "sailingsa" / "backend" / "regatta_print_compact_css.py").read_text(
-        encoding="utf-8"
-    )
-    assert "A fleet is never split across two pages" in src
+    assert "ssaPdfFrame" in bar
+    assert "results.pdf" in bar
+    assert "ssaPdfDownload" in bar
+    assert "data-ssa-print=\"printer\"" in bar
+    assert "data-ssa-print=\"share\"" in bar
+    assert "buildPrintDoc" not in bar
+    assert "window.print()" not in bar
+    assert "html2canvas" not in bar
 
 
-def test_print_orientation_follows_a4_portrait_fit():
-    from sailingsa.backend.regatta_print_compact_css import (
-        PRINT_A4_PORTRAIT_CONTENT_MM,
-        print_orientation_for_tables,
-        print_share_bar_html,
-        print_table_need_mm,
+def test_stored_pdf_urls_and_orientation():
+    from sailingsa.backend.regatta_stored_pdf import (
+        kinds_from_fleet_html,
+        orientation_from_fleet_htmls,
+        pdf_abs_path,
+        pdf_rel_url,
+        paginate_fleet_htmls,
     )
 
-    yn_single = (
-        ["rank", "class", "sail", "club", "meta", "helm"]
-        + ["race"] * 12
-        + ["total", "nett"]
+    assert pdf_rel_url("2025-12-19-hyc-youth-nationals") == (
+        "/regatta/2025-12-19-hyc-youth-nationals/results.pdf"
     )
-    yn_mirror = (
-        ["rank", "class", "sail", "club", "meta", "helm", "crew"]
-        + ["race"] * 12
-        + ["total", "nett"]
+    assert pdf_rel_url("2025-12-19-hyc-youth-nationals", "dabchick") == (
+        "/regatta/2025-12-19-hyc-youth-nationals/class-dabchick/results.pdf"
     )
-    short_four = ["rank", "class", "sail", "club", "helm"] + ["race"] * 4 + ["total", "nett"]
-    eight_no_age = ["rank", "class", "sail", "club", "helm"] + ["race"] * 8 + ["total", "nett"]
+    assert pdf_abs_path("2025-12-19-hyc-youth-nationals").name == "results.pdf"
+    assert pdf_abs_path("2025-12-19-hyc-youth-nationals", "mirror").name == "class-mirror.pdf"
 
-    assert print_table_need_mm(yn_single) > PRINT_A4_PORTRAIT_CONTENT_MM
-    assert print_orientation_for_tables([yn_single, yn_mirror]) == "landscape"
-    assert print_orientation_for_tables([short_four]) == "portrait"
-    assert print_orientation_for_tables([eight_no_age]) == "portrait"
-    bar = print_share_bar_html()
-    assert "function printOrientation()" in bar
-    assert str(PRINT_A4_PORTRAIT_CONTENT_MM) in bar
+    yn = (
+        '<table><thead><tr>'
+        '<th class="rank-col">Rank</th><th class="class-col">Class</th>'
+        '<th class="sail-col">Sail No</th><th class="club-col">Club</th>'
+        '<th class="wc-meta-col">Age</th><th class="helm-col">Helm</th>'
+        + "".join(f'<th class="race-col">R{i}</th>' for i in range(1, 13))
+        + '<th class="total-col">Total</th><th class="nett-col">Nett</th>'
+        "</tr></thead></table>"
+    )
+    short = (
+        '<table><thead><tr>'
+        '<th class="rank-col">Rank</th><th class="class-col">Class</th>'
+        '<th class="sail-col">Sail No</th><th class="club-col">Club</th>'
+        '<th class="helm-col">Helm</th>'
+        '<th class="race-col">R1</th><th class="race-col">R2</th>'
+        '<th class="race-col">R3</th><th class="race-col">R4</th>'
+        '<th class="total-col">Total</th><th class="nett-col">Nett</th>'
+        "</tr></thead></table>"
+    )
+    assert kinds_from_fleet_html(yn).count("race") == 12
+    assert orientation_from_fleet_htmls([yn]) == "landscape"
+    assert orientation_from_fleet_htmls([short]) == "portrait"
+
+    fleets = [
+        {"html": '<div class="fleet-section">A</div>', "n_rows": 10, "class_slug": "a"},
+        {"html": '<div class="fleet-section">B</div>', "n_rows": 30, "class_slug": "b"},
+    ]
+    paged = paginate_fleet_htmls(fleets, "landscape")
+    assert "ssa-print-new-page" in paged[1]["html"]
 
 
 def test_live_patch_replaces_print_only_markup():
@@ -117,11 +92,16 @@ def test_live_patch_replaces_print_only_markup():
     )
     assert "print_share_bar_html" in patch
     assert "print_btn = _regatta_print_share_buttons_html()" in patch
+    stored = (ROOT / "sailingsa" / "deploy" / "live_patch_regatta_stored_pdf.py").read_text(
+        encoding="utf-8"
+    )
+    assert "results.pdf" in stored
+    assert "_rebuild_regatta_stored_pdfs" in stored
 
 
 if __name__ == "__main__":
     test_print_share_helper_wired_on_standalone_sheets()
-    test_compact_print_css_portrait_header_and_fleet_line()
-    test_print_orientation_follows_a4_portrait_fit()
+    test_print_button_opens_stored_pdf_not_screen()
+    test_stored_pdf_urls_and_orientation()
     test_live_patch_replaces_print_only_markup()
     print("ok")

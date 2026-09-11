@@ -284,9 +284,11 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
 }
 #ssaPrintChooser { display: none; position: fixed; inset: 0; z-index: 2147483000; align-items: center; justify-content: center; background: rgba(0,31,63,.45); }
 #ssaPrintChooser.is-open { display: flex; }
-#ssaPrintChooser .card { max-width: 22rem; width: 92%; padding: 16px; }
+#ssaPrintChooser .card { max-width: 56rem; width: 96%; padding: 16px; }
 #ssaPrintChooser .ssa-print-chooser-note { font-size: 13px; color: #1a2750; margin: 0 0 8px; line-height: 1.35; }
 #ssaPrintChooser .ssa-print-chooser-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; margin-top: 12px; }
+#ssaPrintChooser .ssa-pdf-frame { width: 100%; height: 62vh; border: 1px solid #1a2750; background: #fff; margin: 0; }
+#ssaPrintChooser a.action-button { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
 """.strip()
 
 def _document_css() -> str:
@@ -465,25 +467,22 @@ document.addEventListener('click',function(ev){
 
 
 def print_share_bar_html() -> str:
-    """Print + Share controls plus compact print CSS (one inject for live + repo)."""
+    """Print + Share: open the server-made results.pdf for this parent or child URL."""
     return (
         '<style id="ssa-print-compact">' + PRINT_COMPACT_CSS + "</style>"
-        '<script type="text/plain" id="ssaPrintDocumentCss">' + PRINT_DOCUMENT_CSS + "</script>"
-        '<div id="ssaPrintPageFooter" class="ssa-print-page-footer">'
-        '<span class="ssa-print-footer-name"></span>'
-        '<a class="ssa-print-footer-url" href="#"></a>'
-        "</div>"
-        '<div id="ssaPrintChooser" role="dialog" aria-label="Print or PDF">'
+        '<div id="ssaPrintChooser" role="dialog" aria-label="Results PDF">'
         '<div class="card">'
-        '<div class="section-title">Print</div>'
-        '<p class="ssa-print-chooser-note">Same A4 results sheet for paper or PDF. Portrait or landscape is chosen so the table fits.</p>'
+        '<div class="section-title">Results PDF</div>'
+        '<p class="ssa-print-chooser-note">Server-made A4 sheet for this URL. Landscape if the table is too wide for portrait. Each fleet stays on one page.</p>'
+        '<iframe id="ssaPdfFrame" class="ssa-pdf-frame" title="Results PDF"></iframe>'
         '<div class="ssa-print-chooser-actions">'
-        '<button type="button" class="action-button" data-ssa-print="cancel">Cancel</button>'
-        '<button type="button" class="action-button" data-ssa-print="pdf">PDF</button>'
-        '<button type="button" class="action-button" data-ssa-print="printer">Printer</button>'
+        '<button type="button" class="action-button" data-ssa-print="cancel">Close</button>'
+        '<button type="button" class="action-button" data-ssa-print="share">Share</button>'
+        '<a class="action-button" id="ssaPdfDownload" href="#" download>Download</a>'
+        '<button type="button" class="action-button" data-ssa-print="printer">Print</button>'
         "</div></div></div>"
         '<div class="action-buttons">'
-        '<button type="button" class="action-button" onclick="window.ssaRegattaPrint?window.ssaRegattaPrint():window.print()">Print</button>'
+        '<button type="button" class="action-button" onclick="window.ssaRegattaPrint&&window.ssaRegattaPrint()">Print</button>'
         '<button type="button" class="action-button" id="regattaShareBtn">Share</button>'
         "</div>"
         "<script>(function(){"
@@ -496,29 +495,51 @@ def print_share_bar_html() -> str:
         "if(p.indexOf('/regatta/')===0)return 'https://sailingsa.co.za'+p.replace(/\\/+$/,'');"
         "return '';"
         "}"
-        "function fillFooter(){"
-        "var f=document.getElementById('ssaPrintPageFooter');if(!f)return;"
-        "var n=document.querySelector('.regatta-name');"
-        "var name=(n&&n.textContent||document.title||'').replace(/\\s*\\|\\s*SailingSA\\s*$/i,'').replace(/\\s+/g,' ').trim();"
-        "var url=sheetUrl();"
-        "var ns=f.querySelector('.ssa-print-footer-name');"
-        "var a=f.querySelector('a');"
-        "if(ns)ns.textContent=name;"
-        "if(a&&url){a.setAttribute('href',url);a.textContent=url;}"
+        "function pdfPath(){"
+        "var p=(location.pathname||'').replace(/\\/+$/,'');"
+        "if(p.indexOf('/regatta/')!==0)return '';"
+        "if(/\\/results\\.pdf$/i.test(p))return p;"
+        "return p+'/results.pdf';"
         "}"
-        "fillFooter();"
-        "if(!document.querySelector('.regatta-name'))document.addEventListener('DOMContentLoaded',fillFooter);"
-        + PRINT_PAGINATE_JS
-        + "var b=document.getElementById('regattaShareBtn');"
-        "if(!b)return;"
-        "b.addEventListener('click',function(){"
-        "var t=document.title||'SailingSA',u=sheetUrl()||location.href;"
+        "function pdfAbs(){"
+        "var p=pdfPath();if(!p)return '';"
+        "if(p.indexOf('http')===0)return p;"
+        "return (location.origin||'https://sailingsa.co.za')+p;"
+        "}"
+        "function sharePdf(){"
+        "var t=document.title||'SailingSA',u=pdfAbs()||sheetUrl()||location.href;"
         "if(navigator.share){navigator.share({title:t,url:u}).catch(function(){});return;}"
-        "function copied(){b.textContent='Link copied';setTimeout(function(){b.textContent='Share';},1600);}"
+        "var b=document.getElementById('regattaShareBtn');"
+        "function copied(){if(b){b.textContent='PDF link copied';setTimeout(function(){b.textContent='Share';},1600);}}"
         "if(navigator.clipboard&&navigator.clipboard.writeText){"
-        "navigator.clipboard.writeText(u).then(copied).catch(function(){prompt('Copy this link:',u);});"
+        "navigator.clipboard.writeText(u).then(copied).catch(function(){prompt('Copy this PDF link:',u);});"
         "return;}"
-        "prompt('Copy this link:',u);"
+        "prompt('Copy this PDF link:',u);"
+        "}"
+        "function openChooser(){"
+        "var el=document.getElementById('ssaPrintChooser');if(!el)return;"
+        "var u=pdfPath();if(!u)return;"
+        "var fr=document.getElementById('ssaPdfFrame');"
+        "var dl=document.getElementById('ssaPdfDownload');"
+        "if(fr)fr.src=u+'?t='+Date.now();"
+        "if(dl){dl.setAttribute('href',u+'?download=1');dl.setAttribute('download','');}"
+        "el.classList.add('is-open');"
+        "}"
+        "function closeChooser(){var el=document.getElementById('ssaPrintChooser');if(el)el.classList.remove('is-open');}"
+        "function printPdf(){"
+        "var fr=document.getElementById('ssaPdfFrame');"
+        "try{if(fr&&fr.contentWindow){fr.contentWindow.focus();fr.contentWindow.print();return;}}catch(e){}"
+        "var u=pdfAbs();if(u)window.open(u,'_blank');"
+        "}"
+        "window.ssaRegattaPrint=openChooser;"
+        "document.addEventListener('click',function(ev){"
+        "var t=ev.target;if(!t||!t.getAttribute)return;"
+        "var act=t.getAttribute('data-ssa-print');"
+        "if(act==='printer'){ev.preventDefault();printPdf();return;}"
+        "if(act==='share'){ev.preventDefault();sharePdf();return;}"
+        "if(act==='cancel'||(t.id==='ssaPrintChooser'&&t.classList.contains('is-open')))closeChooser();"
         "});"
+        "var b=document.getElementById('regattaShareBtn');"
+        "if(b)b.addEventListener('click',function(){sharePdf();});"
         "})();</script>"
     )

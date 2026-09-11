@@ -9444,6 +9444,18 @@ def admin_dashboard_v10(request: Request):
     return HTMLResponse(content=html, headers={"Cache-Control": "no-store"})
 
 
+@app.get("/regatta/{slug}/results.pdf")
+@app.head("/regatta/{slug}/results.pdf")
+def _regatta_parent_results_pdf(slug: str, download: int = 0):
+    return _serve_regatta_stored_pdf(slug, None, bool(download))
+
+
+@app.get("/regatta/{slug}/class-{class_slug}/results.pdf")
+@app.head("/regatta/{slug}/class-{class_slug}/results.pdf")
+def _regatta_child_results_pdf(slug: str, class_slug: str, download: int = 0):
+    return _serve_regatta_stored_pdf(slug, class_slug, bool(download))
+
+
 @app.get("/regatta/{slug}/class-{class_slug}")
 @app.head("/regatta/{slug}/class-{class_slug}")
 def _regatta_class_standalone(request: Request, slug: str, class_slug: str):
@@ -13649,6 +13661,7 @@ def _fetch_regatta_result_row_by_id(result_id: int):
 @app.patch("/api/result/{result_id}")
 def patch_result(request: Request, result_id: int, p: ResultPatch):
     _require_super_admin(request)
+    regatta_id = None
     with psycopg2.connect(DB_URL) as conn:
         with conn.cursor() as cur:
             if p.helm_key is not None:
@@ -13723,6 +13736,8 @@ def patch_result(request: Request, result_id: int, p: ResultPatch):
                 regatta_id = row[0]
                 _ensure_snapshot_integrity(conn, regatta_id, [result_id])
         conn.commit()
+    if regatta_id:
+        _schedule_regatta_pdf_rebuild(str(regatta_id))
     out_row = _fetch_regatta_result_row_by_id(result_id)
     if isinstance(out_row, dict):
         if out_row.get("club_id"):
@@ -14032,6 +14047,7 @@ def patch_race_score(request: Request, result_id: int, body: dict):
             
             _ensure_snapshot_integrity(conn, regatta_id)
             conn.commit()
+            _schedule_regatta_pdf_rebuild(str(regatta_id))
             
             # Return updated result data
             cur.execute("""
@@ -25657,6 +25673,90 @@ def _regatta_print_share_buttons_html() -> str:
     from sailingsa.backend.regatta_print_compact_css import print_share_bar_html
 
     return print_share_bar_html()
+
+
+def _schedule_regatta_pdf_rebuild(slug: str) -> None:
+    rid = str(slug or "").strip()
+    if not rid:
+        return
+    threading.Thread(target=_rebuild_regatta_stored_pdfs, args=(rid,), daemon=True).start()
+
+
+def _rebuild_regatta_stored_pdfs(slug: str):
+    """Write parent + child results PDFs for one event (called on save and first Print)."""
+    from sailingsa.backend.regatta_stored_pdf import write_event_pdfs
+
+    rid = str(slug or "").strip()
+    if not rid:
+        return None
+    data = _get_regatta_full_page_data(rid)
+    if not data:
+        return None
+    ev_name = data[0] if data else rid
+    fleets = data[4] if len(data) > 4 else []
+    result_status = data[5] if len(data) > 5 else "Final"
+    as_at_time = data[6] if len(data) > 6 else None
+    host_abbrev = data[8] if len(data) > 8 else ""
+    host_full = data[9] if len(data) > 9 else ""
+    host_legacy = data[1] if len(data) > 1 else ""
+    host = _format_regatta_host_display(host_abbrev, host_full, host_legacy or "")
+    status_line = _format_regatta_status_line((result_status or "Final").strip() or "Final", as_at_time)
+    left_logo = ""
+    right_logo = ""
+    try:
+        lu, ru = _wc_regatta_header_icon_urls(rid)
+        left_logo = lu or _regatta_named_event_logo_url(rid, ev_name or "") or ""
+        right_logo = ru or ""
+    except Exception:
+        pass
+    fleet_jobs = []
+    for f in fleets or []:
+        html = _render_result_sheet_fleet(f, wc_sa_fleet_edit=False)
+        fleet_jobs.append(
+            {
+                "class_slug": (f.get("class_slug") or "").strip(),
+                "html": html,
+                "n_rows": len(f.get("rows") or []),
+            }
+        )
+    return write_event_pdfs(
+        slug=rid,
+        event_name=(ev_name or rid).strip() or rid,
+        host=host,
+        status_line=status_line,
+        sheet_url=f"https://sailingsa.co.za/regatta/{rid}",
+        fleets=fleet_jobs,
+        left_logo=left_logo,
+        right_logo=right_logo,
+    )
+
+
+def _serve_regatta_stored_pdf(slug: str, class_slug: Optional[str], download: bool):
+    from sailingsa.backend.regatta_stored_pdf import pdf_abs_path, pdf_download_name
+
+    rid = str(slug or "").strip()
+    cslug = (class_slug or "").strip() or None
+    if not rid:
+        raise HTTPException(status_code=404, detail="PDF not found")
+    path = pdf_abs_path(rid, cslug)
+    if not path.is_file() or path.stat().st_size < 500:
+        try:
+            _rebuild_regatta_stored_pdfs(rid)
+        except Exception as exc:
+            print(f"[regatta-pdf] rebuild {rid}: {exc}", flush=True)
+        path = pdf_abs_path(rid, cslug)
+    if not path.is_file() or path.stat().st_size < 500:
+        raise HTTPException(status_code=404, detail="PDF not found")
+    fn = pdf_download_name(rid, cslug)
+    disp = "attachment" if download else "inline"
+    return FileResponse(
+        path,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'{disp}; filename="{fn}"',
+            "Cache-Control": "public, max-age=60",
+        },
+    )
 
 
 def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request):
