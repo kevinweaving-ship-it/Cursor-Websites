@@ -953,6 +953,11 @@
     .popup-card[data-claimed="1"] .sa-looked-signup {
       display: none !important;
     }
+    /* Step 1 is open → hide the “Is this yours” claim card */
+    .lab-card-wrap.is-step1 .sa-looked-cta,
+    .lab-card-wrap:has(.sa-looked-signup.is-open) .sa-looked-cta {
+      display: none !important;
+    }
     .sa-looked-claim {
       display: flex;
       flex-direction: column;
@@ -1259,9 +1264,38 @@
       font-weight: 800;
       cursor: pointer;
     }
-    .sa-looked-wa-input[data-wa-code] {
-      letter-spacing: 0.35em;
+    .sa-looked-wa-boxes {
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+    }
+    .sa-looked-wa-box {
+      flex: 0 0 48px;
+      width: 48px;
+      height: 48px;
+      min-width: 44px;
+      min-height: 44px;
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      border-radius: 10px;
+      border: 1.5px solid #e2e8f0;
+      background: #fff;
+      color: #0a2351;
+      font: inherit;
       font-size: 22px;
+      font-weight: 800;
+      line-height: 48px;
+      text-align: center;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+    .sa-looked-wa-box:focus {
+      outline: none;
+      border-color: #25D366;
     }
     .sa-looked-wa-msg {
       margin: 0;
@@ -1618,7 +1652,12 @@
             </div>
             <div class="sa-looked-wa-code-step" data-wa-code-step hidden>
               <span class="sa-looked-wa-label">Enter your 4-digit code</span>
-              <input class="sa-looked-wa-input" data-wa-code type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="••••" maxlength="4">
+              <div class="sa-looked-wa-boxes" data-wa-boxes>
+                <input class="sa-looked-wa-box" data-wa-digit="0" type="text" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Code digit 1">
+                <input class="sa-looked-wa-box" data-wa-digit="1" type="text" inputmode="numeric" maxlength="1" aria-label="Code digit 2">
+                <input class="sa-looked-wa-box" data-wa-digit="2" type="text" inputmode="numeric" maxlength="1" aria-label="Code digit 3">
+                <input class="sa-looked-wa-box" data-wa-digit="3" type="text" inputmode="numeric" maxlength="1" aria-label="Code digit 4">
+              </div>
             </div>
             <p class="sa-looked-wa-msg" data-wa-msg></p>
           </div>
@@ -1904,7 +1943,12 @@
             </div>
             <div class="sa-looked-wa-code-step" data-wa-code-step hidden>
               <span class="sa-looked-wa-label">Enter your 4-digit code</span>
-              <input class="sa-looked-wa-input" data-wa-code type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="••••" maxlength="4">
+              <div class="sa-looked-wa-boxes" data-wa-boxes>
+                <input class="sa-looked-wa-box" data-wa-digit="0" type="text" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Code digit 1">
+                <input class="sa-looked-wa-box" data-wa-digit="1" type="text" inputmode="numeric" maxlength="1" aria-label="Code digit 2">
+                <input class="sa-looked-wa-box" data-wa-digit="2" type="text" inputmode="numeric" maxlength="1" aria-label="Code digit 3">
+                <input class="sa-looked-wa-box" data-wa-digit="3" type="text" inputmode="numeric" maxlength="1" aria-label="Code digit 4">
+              </div>
             </div>
             <p class="sa-looked-wa-msg" data-wa-msg></p>
           </div>
@@ -1925,17 +1969,23 @@
       var claimBtn = document.getElementById(claimId);
       var panel = document.getElementById(panelId);
       if (!claimBtn || !panel) return;
+      var wrap = claimBtn.closest('.lab-card-wrap');
+      var cta = wrap ? wrap.querySelector('.sa-looked-cta') : claimBtn.closest('.sa-looked-cta');
       claimBtn.addEventListener('click', function () {
         if (panel.classList.contains('is-open')) {
           panel.hidden = true;
           panel.classList.remove('is-open');
           claimBtn.classList.remove('is-open');
           claimBtn.setAttribute('aria-expanded', 'false');
+          if (wrap) wrap.classList.remove('is-step1');
+          if (cta) cta.hidden = false;
         } else {
           panel.hidden = false;
           panel.classList.add('is-open');
           claimBtn.classList.add('is-open');
           claimBtn.setAttribute('aria-expanded', 'true');
+          if (wrap) wrap.classList.add('is-step1');
+          if (cta) cta.hidden = true;
           panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
         }
       });
@@ -1953,7 +2003,7 @@
         var codeStep = wrap.querySelector('[data-wa-code-step]');
         var phone = wrap.querySelector('[data-wa-phone]');
         var sendBtn = wrap.querySelector('[data-wa-send]');
-        var code = wrap.querySelector('[data-wa-code]');
+        var codeBoxes = wrap.querySelectorAll('[data-wa-digit]');
         var msg = wrap.querySelector('[data-wa-msg]');
         var verifying = false;
         if (!signupCard) return;
@@ -1964,6 +2014,24 @@
           if (kind) msg.classList.add(kind);
         }
         function digits(v) { return String(v || '').replace(/\D/g, ''); }
+        function readCode() {
+          var out = '';
+          codeBoxes.forEach(function (box) { out += digits(box.value).slice(0, 1); });
+          return out;
+        }
+        function fillBoxes(val) {
+          var d = digits(val).slice(0, 4).split('');
+          codeBoxes.forEach(function (box, i) { box.value = d[i] || ''; });
+        }
+        function clearBoxes() {
+          codeBoxes.forEach(function (box) { box.value = ''; box.disabled = false; });
+        }
+        function setBoxesDisabled(on) {
+          codeBoxes.forEach(function (box) { box.disabled = !!on; });
+        }
+        function focusBox(i) {
+          if (codeBoxes[i]) codeBoxes[i].focus();
+        }
         function pickMethod(el) {
           signupCard.classList.add('is-method-picked');
           signupCard.querySelectorAll('.sa-looked-auth').forEach(function (a) {
@@ -2023,7 +2091,8 @@
             if (d.sas_id && card) card.setAttribute('data-sas-id', String(d.sas_id));
             if (phoneStep) phoneStep.hidden = true;
             if (codeStep) codeStep.hidden = false;
-            if (code) { code.value = ''; code.focus(); }
+            clearBoxes();
+            focusBox(0);
             setMsg('Code sent on WhatsApp. Enter the 4 digits.', 'is-ok');
           }).catch(function () {
             sendBtn.disabled = false;
@@ -2032,10 +2101,10 @@
         });
         function verifyCode() {
           if (verifying) return;
-          var c = digits(code && code.value);
+          var c = readCode();
           if (c.length !== 4) return;
           verifying = true;
-          if (code) code.disabled = true;
+          setBoxesDisabled(true);
           setMsg('Checking code…');
           var body = sailorPayload();
           body.code = c;
@@ -2047,7 +2116,8 @@
           }).then(function (r) { return r.json(); }).then(function (d) {
             if (!d || d.error) {
               verifying = false;
-              if (code) { code.disabled = false; code.value = ''; code.focus(); }
+              clearBoxes();
+              focusBox(0);
               setMsg((d && d.error) || 'Code not accepted', 'is-err');
               return;
             }
@@ -2061,22 +2131,42 @@
             goProfile(d);
           }).catch(function () {
             verifying = false;
-            if (code) { code.disabled = false; code.focus(); }
+            setBoxesDisabled(false);
+            focusBox(0);
             setMsg('Code not accepted', 'is-err');
           });
         }
-        if (code) {
-          code.addEventListener('input', function () {
-            code.value = digits(code.value).slice(0, 4);
-            if (code.value.length === 4) verifyCode();
+        codeBoxes.forEach(function (box, idx) {
+          box.addEventListener('input', function () {
+            var extra = digits(box.value);
+            if (!extra) { box.value = ''; return; }
+            if (extra.length > 1) {
+              fillBoxes((readCode().slice(0, idx) + extra).slice(0, 4));
+              if (readCode().length === 4) verifyCode();
+              else focusBox(Math.min(idx + extra.length, 3));
+              return;
+            }
+            box.value = extra.slice(0, 1);
+            if (idx < 3) focusBox(idx + 1);
+            if (readCode().length === 4) verifyCode();
           });
-          code.addEventListener('paste', function () {
-            setTimeout(function () {
-              code.value = digits(code.value).slice(0, 4);
-              if (code.value.length === 4) verifyCode();
-            }, 0);
+          box.addEventListener('keydown', function (e) {
+            if (e.key === 'Backspace' && !digits(box.value) && idx > 0) {
+              e.preventDefault();
+              codeBoxes[idx - 1].value = '';
+              focusBox(idx - 1);
+            }
           });
-        }
+          box.addEventListener('paste', function (e) {
+            var text = (e.clipboardData && e.clipboardData.getData('text')) || '';
+            var d = digits(text).slice(0, 4);
+            if (!d) return;
+            e.preventDefault();
+            fillBoxes(d);
+            if (d.length === 4) verifyCode();
+            else focusBox(d.length);
+          });
+        });
       });
     }
     wireSignupChoices();
