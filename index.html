@@ -4656,7 +4656,7 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
     <script src="/js/api.js?v=20260901landingfix"></script>
     <script src="/js/results.js?v=FORCE_CLEAN_1"></script>
     <script src="/js/session.js?v=20260813_SILENT_LOGIN"></script>
-    <script src="/js/upcoming-48h-event.js?v=20260911u48x"></script>
+    <script src="/js/upcoming-48h-event.js?v=20260911u48y"></script>
     
     <script>
         // Function to close popup and return to landing page
@@ -8588,6 +8588,7 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                         if (typeof applyRegattaFilter === 'function') applyRegattaFilter();
                     }
                 }
+                window.setSearchMode = setSearchMode;
                 // Toggle Sailor / Regatta: click switches mode without navigating
                 updateSearchModeFlashState();
                 if (sailorBtn) sailorBtn.addEventListener('click', function(e) { e.preventDefault(); setSearchMode('sailor'); });
