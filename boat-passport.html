@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Boat Passport — SailingSA</title>
+    <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="description" content="Boat passport and racing history on SailingSA">
+  
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+
+    /* Std/Gold main header */
+    .site-header { background: #001f3f !important; color: #fff; padding: 12px 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .site-header a { color: #fff !important; text-decoration: none; }
+    .site-header a:hover { color: #ffcc66 !important; }
+    .site-header-brand, .site-header-brand { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 1.1rem; color: #fff; }
+    .site-header-brand img, .site-header .logo img { height: 40px; width: auto; border-radius: 4px; display: block; }
+    .site-header-nav, .nav-inline { margin-left: auto; display: flex; gap: 14px; font-size: 0.9rem; flex-wrap: wrap; align-items: center; }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background: #f0f4f8; color: #1a1a1a; }
+    .site-header { background: #001f3f; color: #fff; padding: 12px 16px; display: flex; align-items: center; gap: 12px; }
+    .site-header a { color: #fff; text-decoration: none; }
+    .site-header-brand { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 1.1rem; }
+    .site-header-brand img { width: 36px; height: auto; border-radius: 4px; }
+    .site-header-nav { margin-left: auto; display: flex; gap: 16px; font-size: 0.9rem; }
+    .site-header-nav a:hover { text-decoration: underline; }
+    .boat-passport-container { max-width: 900px; margin: 0 auto; padding: 16px; }
+    .boat-passport-card { background: #fff; border: 2px solid #1d294d; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 20px; }
+    .boat-passport-title { font-size: 1.5rem; font-weight: 700; color: #0f172a; margin: 0 0 10px 0; }
+    .boat-passport-class-row { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .boat-passport-class-label { color: #334155; font-size: 1rem; font-weight: 700; }
+    .boat-passport-class-logo { width: 56px; height: 56px; object-fit: contain; }
+    .boat-passport-subtitle { color: #64748b; margin-bottom: 16px; font-size: 0.95rem; }
+    .boat-passport-meta { display: flex; flex-wrap: wrap; gap: 16px; padding: 12px; background: #f8fafc; border: 2px solid #1d294d; border-radius: 8px; margin-bottom: 20px; font-size: 0.9rem; }
+    .boat-passport-meta-item span:first-child { color: #64748b; }
+    .boat-passport-meta-item span:last-child { font-weight: 600; color: #0f172a; margin-left: 4px; }
+    .boat-passport-section { margin-bottom: 24px; }
+    .boat-passport-section h2 { font-size: 1rem; color: #334155; border-bottom: 3px solid #1d294d; padding-bottom: 8px; margin: 0 0 12px 0; }
+    .boat-passport-table { width: 100%; border-collapse: collapse; border: 2px solid #1d294d; font-size: 0.9rem; }
+    .boat-passport-table th, .boat-passport-table td { padding: 10px 8px; text-align: left; border: 1px solid #1d294d; }
+    .boat-passport-table th { background: #f8fafc; font-weight: 600; color: #475569; }
+    .boat-passport-table tr:hover { background: #f8fafc; }
+    .boat-passport-table a { color: #001f3f; text-decoration: none; }
+    .boat-passport-table a:hover { text-decoration: underline; }
+    .family-tag { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; margin-left: 8px; }
+    .family-ilca { background: #dbeafe; color: #1e40af; }
+    .family-optimist { background: #dcfce7; color: #166534; }
+    .family-other { background: #f3e8ff; color: #7c3aed; }
+    .back-link { display: inline-block; margin-bottom: 12px; color: #001f3f; text-decoration: none; font-size: 0.9rem; }
+    .back-link:hover { text-decoration: underline; }
+    @media (max-width: 640px) {
+      .site-header { padding: 10px 12px; }
+      .site-header-nav { gap: 12px; font-size: 0.85rem; }
+      .boat-passport-container { padding: 12px; }
+      .boat-passport-card { padding: 14px; }
+      .boat-passport-title { font-size: 1.25rem; }
+      .boat-passport-table { font-size: 0.85rem; }
+      .boat-passport-table th, .boat-passport-table td { padding: 8px 6px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <a href="/" class="site-header-brand" title="Home">
+      <img src="/assets/logos/sailingsa-logo.png" alt="SailingSA">
+      <span>SailingSA</span>
+    </a>
+    <nav class="site-header-nav" aria-label="Main">
+      <a href="/">Home</a>
+      <a href="/sailors">Sailors</a>
+      <a href="/regattas">Regattas</a>
+      <a href="/classes">Classes</a>
+      <a href="/clubs">Clubs</a>
+      <a href="/boat-names">Boats</a>
+      <a href="/events">Events</a>
+      <a href="/named-events">Named Events</a>
+      <a href="/stats">Statistics</a>
+      <a href="/about">About</a>
+    </nav>
+  </header>
+  <main class="boat-passport-container">
+    <!-- BOAT_PASSPORT_CONTENT -->
+  </main>
+</body>
+</html>
