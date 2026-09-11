@@ -13,7 +13,7 @@
 (function () {
   "use strict";
 
-  var JS_VER = "20260911u48g";
+  var JS_VER = "20260911u48h";
   var ROOT_ID = "ssa-upcoming-48h";
   var PARK_ID = "ssa-saved-logged-in-home-card";
   var CSS_ID = "ssa-upcoming-48h-css";
@@ -67,11 +67,12 @@
       document.head.appendChild(s);
     }
     s.textContent = [
-      ".ssa-upcoming-48h{--ssa-48h-pair-h:52px;--ssa-48h-gap:6px;width:100%;max-width:100%;margin:calc(var(--ssa-48h-gap) - var(--sa-header-gap,12px)) 0 var(--ssa-48h-gap);}",
+      ".ssa-upcoming-48h{--ssa-48h-pair-h:52px;--ssa-48h-gap:4px;width:100%;max-width:100%;margin:calc(var(--ssa-48h-gap) - var(--sa-header-gap,12px)) 0 var(--ssa-48h-gap);}",
       ".ssa-upcoming-48h[hidden]{display:none!important;}",
       ".ssa-upcoming-48h-shell.card{display:flex;flex-direction:column;gap:var(--ssa-48h-gap);margin:0!important;padding:var(--ssa-48h-gap)!important;background:#fff;border:2px solid #1a2750;border-radius:8px;box-shadow:0 1px 3px rgba(0,31,63,.08);box-sizing:border-box;}",
       ".ssa-upcoming-48h-card{display:block;width:100%;overflow:hidden;text-decoration:none;color:inherit;background:#fff;border:2px solid #1a2750;border-radius:8px;box-shadow:none;box-sizing:border-box;margin:0!important;padding:0!important;}",
-      ".ssa-upcoming-48h-banner{display:block;width:100%;height:56px;object-fit:cover;object-position:center;}",
+      ".ssa-upcoming-48h-banner-link{display:block;line-height:0;overflow:hidden;border-radius:8px;}",
+      ".ssa-upcoming-48h-banner{display:block;width:100%;height:56px;object-fit:cover;object-position:center;border-radius:8px;}",
       ".ssa-upcoming-48h-cards{display:flex;flex-direction:column;gap:var(--ssa-48h-gap);margin:0;padding:0;align-items:stretch;}",
       ".ssa-upcoming-48h-header{display:grid;grid-template-columns:minmax(0,auto) minmax(0,3fr) minmax(0,auto);align-items:center;column-gap:6px;row-gap:0;padding:4px 6px;min-height:calc(var(--ssa-48h-pair-h) + 20px);}",
       ".ssa-upcoming-48h-logo-col,.ssa-upcoming-48h-club-col{display:flex;align-items:center;min-width:0;}",
@@ -265,7 +266,7 @@
     return (
       '<div class="card ssa-upcoming-48h-shell">' +
         '<div class="ssa-upcoming-48h-cards">' +
-          '<a class="card ssa-upcoming-48h-card" href="' + EVENT_HREF + '" aria-label="Upcoming events in the next 48 hours">' +
+          '<a class="ssa-upcoming-48h-banner-link" href="' + EVENT_HREF + '" aria-label="Upcoming events in the next 48 hours">' +
             '<img class="ssa-upcoming-48h-banner" src="/assets/upcoming-48h-banner.png" alt="Upcoming event(s) in the next 48 hours">' +
           "</a>" +
           '<a class="card ssa-upcoming-48h-card ssa-upcoming-48h-header" href="' + EVENT_HREF + '" aria-label="2026-09-13 ZVYC Cape Classic">' +
