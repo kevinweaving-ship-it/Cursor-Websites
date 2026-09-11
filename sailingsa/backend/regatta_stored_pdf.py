@@ -179,20 +179,18 @@ def build_print_document(
     host_s = escape(host or "")
     status_s = escape(status_line or "")
     url_s = escape(sheet_url or "")
-    left = ""
-    if left_logo:
-        left = (
-            f'<div class="regatta-header-logo-col">'
-            f'<img src="{escape(left_logo)}" alt="" class="regatta-header-logo-img" />'
-            f"</div>"
-        )
-    right = ""
-    if right_logo:
-        right = (
-            f'<div class="regatta-header-club-logo-col">'
-            f'<img src="{escape(right_logo)}" alt="" class="regatta-header-club-logo-img" />'
-            f"</div>"
-        )
+    left_img = (
+        f'<img src="{escape(left_logo)}" alt="" class="regatta-header-logo-img" />'
+        if left_logo
+        else ""
+    )
+    right_img = (
+        f'<img src="{escape(right_logo)}" alt="" class="regatta-header-club-logo-img" />'
+        if right_logo
+        else ""
+    )
+    left = f'<div class="regatta-header-logo-col">{left_img}</div>'
+    right = f'<div class="regatta-header-club-logo-col">{right_img}</div>'
     header = (
         '<div class="regatta-header-wrap"><div class="header">'
         f"{left}"
@@ -276,11 +274,11 @@ def html_to_pdf(html: str, dest: Path, timeout_sec: int = 90) -> Path:
             src.resolve().as_uri(),
         ]
         env = os.environ.copy()
-        home = env.get("HOME") or "/tmp/ssa-chrome-home"
-        Path(home).mkdir(parents=True, exist_ok=True)
-        env["HOME"] = home
-        env.setdefault("XDG_CONFIG_HOME", str(Path(home) / ".config"))
-        env.setdefault("XDG_CACHE_HOME", str(Path(home) / ".cache"))
+        home = Path(td) / "home"
+        home.mkdir(parents=True, exist_ok=True)
+        env["HOME"] = str(home)
+        env["XDG_CONFIG_HOME"] = str(home / ".config")
+        env["XDG_CACHE_HOME"] = str(home / ".cache")
         env["PATH"] = "/usr/bin:/bin:" + (env.get("PATH") or "")
         chrome_bin = "/opt/google/chrome/chrome"
         if os.path.isfile(chrome_bin) and os.access(chrome_bin, os.X_OK):

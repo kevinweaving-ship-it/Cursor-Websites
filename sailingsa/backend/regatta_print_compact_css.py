@@ -60,7 +60,7 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
   /* Event header: left event logo | centre details | right host — same as the URL, not the stacked MP layout */
   .header, .header.header--lipton {
     display: grid !important;
-    grid-template-columns: auto minmax(0,1fr) auto !important;
+    grid-template-columns: 72px minmax(0,1fr) 72px !important;
     grid-template-rows: auto !important;
     align-items: center !important;
     justify-items: stretch !important;
@@ -77,14 +77,43 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
     page-break-after: avoid;
     break-after: avoid-page;
   }
-  .regatta-header-logo-col { grid-column: 1 !important; grid-row: 1 !important; justify-content: flex-start !important; padding: 0 4px 0 0 !important; width: auto !important; }
-  .regatta-header-main-col { grid-column: 2 !important; grid-row: 1 !important; justify-self: stretch !important; padding: 0 4px !important; width: 100% !important; }
-  .regatta-header-club-logo-col { grid-column: 3 !important; grid-row: 1 !important; justify-content: flex-end !important; padding: 0 0 0 4px !important; width: auto !important; }
-  .regatta-header-logo-img, .regatta-header-left-logo-img { max-height: 40px !important; max-width: 96px !important; height: auto !important; width: auto !important; }
-  .regatta-header-club-logo-img { max-height: 40px !important; max-width: 96px !important; height: auto !important; width: auto !important; }
-  .regatta-name { font-size: 11pt !important; line-height: 1.15 !important; margin: 0 0 1px 0 !important; }
-  .host-club, .regatta-venue, .regatta-lipton-venue-line, .regatta-lipton-host-line { font-size: 8pt !important; line-height: 1.2 !important; margin: 0 0 1px 0 !important; }
-  .status-line { font-size: 7.5pt !important; line-height: 1.2 !important; margin: 2px 0 0 0 !important; }
+  .regatta-header-logo-col {
+    display: flex !important;
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    padding: 0 !important;
+    width: 72px !important;
+    min-width: 72px !important;
+  }
+  .regatta-header-main-col {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    justify-self: stretch !important;
+    padding: 0 6px !important;
+    width: 100% !important;
+    text-align: center !important;
+  }
+  .regatta-header-club-logo-col {
+    display: flex !important;
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    justify-content: flex-end !important;
+    align-items: center !important;
+    padding: 0 !important;
+    width: 72px !important;
+    min-width: 72px !important;
+  }
+  .regatta-header-logo-img, .regatta-header-left-logo-img { max-height: 40px !important; max-width: 72px !important; height: auto !important; width: auto !important; }
+  .regatta-header-club-logo-img { max-height: 40px !important; max-width: 72px !important; height: auto !important; width: auto !important; }
+  .regatta-name { font-size: 11pt !important; line-height: 1.15 !important; margin: 0 0 1px 0 !important; text-align: center !important; width: 100% !important; }
+  .host-club, .regatta-venue, .regatta-lipton-venue-line, .regatta-lipton-host-line { font-size: 8pt !important; line-height: 1.2 !important; margin: 0 0 1px 0 !important; text-align: center !important; width: 100% !important; }
+  .status-line { font-size: 7.5pt !important; line-height: 1.2 !important; margin: 2px 0 0 0 !important; text-align: center !important; width: 100% !important; }
   .regatta-live-board-row { display: none !important; }
 
   /* Tight gap: main header → first fleet. Keep each fleet together so a

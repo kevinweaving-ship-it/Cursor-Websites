@@ -40,13 +40,19 @@ def _rebuild_regatta_stored_pdfs(slug: str):
         return None
     ev_name = data[0] if data else rid
     fleets = data[4] if len(data) > 4 else []
-    result_status = data[5] if len(data) > 5 else "Final"
+    result_status = data[5] if len(data) > 5 else "Provisional"
     as_at_time = data[6] if len(data) > 6 else None
+    start_d = data[2] if len(data) > 2 else None
+    end_d = data[3] if len(data) > 3 else None
     host_abbrev = data[8] if len(data) > 8 else ""
     host_full = data[9] if len(data) > 9 else ""
     host_legacy = data[1] if len(data) > 1 else ""
     host = _format_regatta_host_display(host_abbrev, host_full, host_legacy or "")
-    status_line = _format_regatta_status_line((result_status or "Final").strip() or "Final", as_at_time)
+    from sailingsa.backend.regatta_status_line import format_results_status_line
+
+    status_line = format_results_status_line(
+        result_status, as_at_time, end_date=end_d, start_date=start_d
+    )
     left_logo = ""
     right_logo = ""
     try:

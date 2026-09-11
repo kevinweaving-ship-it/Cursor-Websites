@@ -23165,8 +23165,8 @@ def _get_regatta_full_page_data(regatta_id: str):
     host_club_abbrev / host_club_fullname: from clubs join for 'CODE - Full name' header.
     fleets = [{name, races_sailed, discard_count, to_count, scoring_system, entries, rows}].
     Each row = {rank, sail_number, helm_name, club, total, nett, race_scores, raced, class_name}.
-    result_status: from regattas.result_status.
-    as_at_time: for status line; from results table (one row) per Result rule, fallback to regattas.as_at_time."""
+    result_status: from regattas.result_status (default Provisional).
+    as_at_time: regattas.as_at_time; empty means last event day at 17:30."""
     t0 = time.time()
     print(f"REGATTA_DATA: step=start time={time.time() - t0:.3f}", flush=True)
     if not regatta_id or not table_exists("regattas") or not table_exists("regatta_blocks") or not table_exists("results"):
@@ -23208,18 +23208,10 @@ def _get_regatta_full_page_data(regatta_id: str):
             host_club_province = (row.get("host_club_province") or "").strip() or None
             start_date = row.get("start_date")
             end_date = row.get("end_date")
-            result_status = (row.get("result_status") or "").strip() or "Final"
+            result_status = (row.get("result_status") or "").strip() or "Provisional"
             as_at_time = row.get("as_at_time")
             print(f"REGATTA_DATA: step=after_regatta_meta time={time.time() - t0:.3f}", flush=True)
-            # Status-line timestamp: prefer results table (per Result rule), fallback to regattas.as_at_time
-            cur.execute("""
-                SELECT as_at_time FROM results
-                WHERE regatta_id = %s AND as_at_time IS NOT NULL
-                ORDER BY result_id LIMIT 1
-            """, (regatta_id,))
-            res_row = cur.fetchone()
-            if res_row and res_row.get("as_at_time"):
-                as_at_time = res_row["as_at_time"]
+            # Status line: regattas.as_at_time, else last event day 17:30. Never results.as_at_time.
             print(f"REGATTA_DATA: step=after_as_at_time time={time.time() - t0:.3f}", flush=True)
 
             cur.execute("""
@@ -26035,33 +26027,18 @@ def _format_regatta_host_display(abbrev: str, fullname: str, legacy_coalesce: st
     return leg
 
 
-def _format_regatta_status_line(status_word: str, as_at_time) -> str:
-    """Format status line per RESULTS_HTML_STATUS_LINE_RULE. as_at_time from API (results table then regattas). No datetime.now/start_date.
-    If as_at_time exists and is formattable: 'Results are <Status> as at DD Month YYYY at HH:MM'.
-    If as_at_time is NULL or invalid: 'Results are <Status> (snapshot time not recorded)'."""
-    word = (status_word or "Final").strip() or "Final"
-    escaped_word = html_module.escape(word)
-    if not as_at_time:
-        return f"Results are {escaped_word} (snapshot time not recorded)"
-    if hasattr(as_at_time, "strftime"):
-        status_date = as_at_time.strftime("%d %B %Y at %H:%M")
-        return f"Results are {escaped_word} as at {html_module.escape(status_date)}"
-    if isinstance(as_at_time, str) and as_at_time.strip():
-        try:
-            from datetime import datetime as _dt
-            s = as_at_time.strip()
-            s2 = s[:19].replace("Z", "").replace("+00:00", "").strip()
-            if "T" in s2:
-                t = _dt.strptime(s2, "%Y-%m-%dT%H:%M:%S")
-            elif len(s2) >= 16 and (" " in s2 or "-" in s2):
-                t = _dt.strptime(s2[:16], "%Y-%m-%d %H:%M")
-            else:
-                t = _dt.strptime(s[:10], "%Y-%m-%d")
-            status_date = t.strftime("%d %B %Y at %H:%M")
-            return f"Results are {escaped_word} as at {html_module.escape(status_date)}"
-        except Exception:
-            pass
-    return f"Results are {escaped_word} (snapshot time not recorded)"
+def _format_regatta_status_line(status_word: str, as_at_time, end_date=None, start_date=None) -> str:
+    """Results are [Provisional|Final] as at DD Month YYYY at HH:MM.
+
+    Default time is the event's last day at 17:30 when regattas.as_at_time is empty.
+    """
+    from sailingsa.backend.regatta_status_line import format_results_status_line
+
+    return html_module.escape(
+        format_results_status_line(
+            status_word, as_at_time, end_date=end_date, start_date=start_date
+        )
+    )
 
 
 def _resolve_class_slug_to_class_id(class_slug: str):
@@ -26124,16 +26101,8 @@ def _get_regatta_class_page_data(regatta_id: str, class_id: int):
             host_club_province = (row.get("host_club_province") or "").strip() or None
             start_date = row.get("start_date")
             end_date = row.get("end_date")
-            result_status = (row.get("result_status") or "").strip() or "Final"
+            result_status = (row.get("result_status") or "").strip() or "Provisional"
             as_at_time = row.get("as_at_time")
-            cur.execute("""
-                SELECT as_at_time FROM results
-                WHERE regatta_id = %s AND as_at_time IS NOT NULL
-                ORDER BY result_id LIMIT 1
-            """, (regatta_id,))
-            res_row = cur.fetchone()
-            if res_row and res_row.get("as_at_time"):
-                as_at_time = res_row["as_at_time"]
             cur.execute("""
                 SELECT rb.block_id,
                        COALESCE(TRIM(rb.fleet_label), TRIM(rb.class_canonical), TRIM(rb.class_original), 'Fleet') AS fleet_name,
@@ -26314,13 +26283,19 @@ def _rebuild_regatta_stored_pdfs(slug: str):
         return None
     ev_name = data[0] if data else rid
     fleets = data[4] if len(data) > 4 else []
-    result_status = data[5] if len(data) > 5 else "Final"
+    result_status = data[5] if len(data) > 5 else "Provisional"
     as_at_time = data[6] if len(data) > 6 else None
+    start_d = data[2] if len(data) > 2 else None
+    end_d = data[3] if len(data) > 3 else None
     host_abbrev = data[8] if len(data) > 8 else ""
     host_full = data[9] if len(data) > 9 else ""
     host_legacy = data[1] if len(data) > 1 else ""
     host = _format_regatta_host_display(host_abbrev, host_full, host_legacy or "")
-    status_line = _format_regatta_status_line((result_status or "Final").strip() or "Final", as_at_time)
+    from sailingsa.backend.regatta_status_line import format_results_status_line
+
+    status_line = format_results_status_line(
+        result_status, as_at_time, end_date=end_d, start_date=start_d
+    )
     left_logo = ""
     right_logo = ""
     try:
@@ -26422,8 +26397,10 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
         base_url = _canonical_base_url()
         canonical_url = f"{base_url}/regatta/{regatta_id}/class-{_class_canonical_slug(class_name)}"
         escaped_title = html_module.escape(event_name or "")
-        status_word = (result_status or "Final").strip() or "Final"
-        status_line_text = _format_regatta_status_line(status_word, as_at_time)
+        status_word = (result_status or "Provisional").strip() or "Provisional"
+        status_line_text = _format_regatta_status_line(
+            status_word, as_at_time, end_date=end_d, start_date=start_d
+        )
         host_club_id = reg[5] if len(reg) > 5 else None
         host_club_slug = _get_club_slug_by_id(host_club_id) if host_club_id else None
         host_club_text = _format_regatta_host_display(host_club_abbrev, host_club_fullname, host_club_name or "")
@@ -26700,8 +26677,10 @@ def serve_regatta_standalone(slug: str, request: Request):
         canonical_url = f"{base_url}/regatta/{regatta_id}"
         display_name = (ev_name or event_name or "").strip()
         escaped_title = html_module.escape(display_name)
-        status_word = (result_status or "Final").strip() or "Final"
-        status_line_text = _format_regatta_status_line(status_word, as_at_time)
+        status_word = (result_status or "Provisional").strip() or "Provisional"
+        status_line_text = _format_regatta_status_line(
+            status_word, as_at_time, end_date=end_d, start_date=start_d
+        )
         host_club_slug = _get_club_slug_by_id(host_club_id) if host_club_id else None
         host_club_text = _format_regatta_host_display(
             host_club_abbrev, host_club_fullname, (host_club_legacy or host_club_name or "")

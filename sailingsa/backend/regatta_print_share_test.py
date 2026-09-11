@@ -86,6 +86,46 @@ def test_stored_pdf_urls_and_orientation():
     assert "ssa-print-new-page" in paged[1]["html"]
 
 
+def test_print_header_text_is_centered():
+    from sailingsa.backend.regatta_print_compact_css import PRINT_DOCUMENT_CSS
+    from sailingsa.backend.regatta_stored_pdf import build_print_document
+
+    assert ".regatta-header-main-col" in PRINT_DOCUMENT_CSS
+    assert "text-align: center !important" in PRINT_DOCUMENT_CSS
+    assert "grid-template-columns: 72px minmax(0,1fr) 72px" in PRINT_DOCUMENT_CSS
+    html = build_print_document(
+        event_name="Cape Classic",
+        host="ZVYC",
+        status_line="Results are Provisional as at 13 September 2026 at 17:30",
+        sheet_url="https://sailingsa.co.za/regatta/2026-09-13-zvyc-cape-classic",
+        fleets=[{"html": "<div class='fleet-section'>X</div>"}],
+        orient="portrait",
+        left_logo="/logo.png",
+        right_logo="",
+    )
+    assert 'class="regatta-header-logo-col"' in html
+    assert 'class="regatta-header-club-logo-col"' in html
+    assert 'class="regatta-header-main-col"' in html
+
+
+def test_status_line_defaults_to_end_date_1730():
+    from datetime import date, datetime
+
+    from sailingsa.backend.regatta_status_line import format_results_status_line
+
+    assert format_results_status_line(
+        "Provisional", None, end_date=date(2026, 9, 13), start_date=date(2026, 9, 12)
+    ) == "Results are Provisional as at 13 September 2026 at 17:30"
+    assert format_results_status_line(
+        "", None, end_date=date(2026, 9, 13)
+    ) == "Results are Provisional as at 13 September 2026 at 17:30"
+    assert format_results_status_line(
+        "Final",
+        datetime(2026, 9, 13, 18, 5),
+        end_date=date(2026, 9, 13),
+    ) == "Results are Final as at 13 September 2026 at 18:05"
+
+
 def test_live_patch_replaces_print_only_markup():
     patch = (ROOT / "sailingsa" / "deploy" / "live_patch_zvyc_cc_print_share.py").read_text(
         encoding="utf-8"
@@ -103,5 +143,7 @@ if __name__ == "__main__":
     test_print_share_helper_wired_on_standalone_sheets()
     test_print_button_opens_stored_pdf_not_screen()
     test_stored_pdf_urls_and_orientation()
+    test_print_header_text_is_centered()
+    test_status_line_defaults_to_end_date_1730()
     test_live_patch_replaces_print_only_markup()
     print("ok")
