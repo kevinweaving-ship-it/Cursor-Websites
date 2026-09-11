@@ -16,7 +16,7 @@
 (function () {
   "use strict";
 
-  var JS_VER = "20260911u49a";
+  var JS_VER = "20260911u49b";
   var PROFILE_OPEN = false;
   window.__ssaSkipBelowSearchLoggedInProfile = true;
   var ORANGE_CARET_PATH = "M231.39,132.94A8,8,0,0,0,224,128H184V104a8,8,0,0,0-8-8H80a8,8,0,0,0-8,8v24H32a8,8,0,0,0-5.66,13.66l96,96a8,8,0,0,0,11.32,0l96-96A8,8,0,0,0,231.39,132.94ZM72,40a8,8,0,0,1,8-8h96a8,8,0,0,1,0,16H80A8,8,0,0,1,72,40Zm0,32a8,8,0,0,1,8-8h96a8,8,0,0,1,0,16H80A8,8,0,0,1,72,72Z";
@@ -123,6 +123,8 @@
       "body.ssa-hub-home #sailor-search-results:not([data-ssa-search-list='1']){display:none!important;}",
       "body.ssa-hub-home #sailor-search-results .ssa-48h-match-card{display:block!important;}",
       "#public-regattas-list.ssa-regatta-click-guard,#public-regattas-section.ssa-regatta-click-guard{pointer-events:none!important;}",
+      "body.ssa-block-regatta-nav a[href*='/regatta']{pointer-events:none!important;}",
+      "body.ssa-hub-home .search-header-container.sailor-search-pills,body.ssa-hub-home .temp-landing-search-stack{position:relative;z-index:40;}",
       "header.site-header #headerUserCenter{position:relative!important;}",
       "header.site-header #headerUserCenter .ssa-header-name-arrow,.ssa-header-name-arrow{position:absolute!important;left:50%!important;transform:translateX(-50%)!important;display:block!important;margin:0!important;padding:0!important;width:18px!important;height:18px!important;min-width:0!important;min-height:0!important;max-width:18px!important;max-height:18px!important;border:0!important;border-radius:0!important;background:transparent!important;background-color:transparent!important;box-shadow:none!important;color:#FF5A00!important;line-height:0!important;pointer-events:auto!important;cursor:pointer!important;-webkit-appearance:none!important;appearance:none!important;}",
       "header.site-header #headerUserCenter .ssa-header-name-arrow svg,.ssa-header-name-arrow svg{display:block!important;width:18px!important;height:18px!important;margin:0!important;padding:0!important;fill:#FF5A00!important;color:#FF5A00!important;background:transparent!important;transition:transform .18s ease;}",
@@ -457,12 +459,18 @@
     var hold = typeof ms === "number" ? ms : 1200;
     window.__ssaRegattaListGuardUntil = Math.max(window.__ssaRegattaListGuardUntil || 0, Date.now() + hold);
     window.__ssaBlockRegattaNavUntil = Math.max(window.__ssaBlockRegattaNavUntil || 0, Date.now() + hold);
+    try {
+      document.body.classList.add("ssa-block-regatta-nav");
+    } catch (_) {}
     ["public-regattas-list", "public-regattas-section"].forEach(function (id) {
       var el = document.getElementById(id);
       if (el) el.classList.add("ssa-regatta-click-guard");
     });
     window.setTimeout(function () {
       if (Date.now() < (window.__ssaRegattaListGuardUntil || 0)) return;
+      try {
+        document.body.classList.remove("ssa-block-regatta-nav");
+      } catch (_) {}
       ["public-regattas-list", "public-regattas-section"].forEach(function (id) {
         var live = document.getElementById(id);
         if (live) live.classList.remove("ssa-regatta-click-guard");
@@ -616,16 +624,29 @@
       },
       true
     );
+    function isRegattaHrefAnchor(el) {
+      var a = el && el.closest ? el.closest("a[href]") : null;
+      if (!a) return null;
+      var href = a.getAttribute("href") || "";
+      if (href.indexOf("/regatta") !== -1) return a;
+      try {
+        if (a.pathname && a.pathname.indexOf("/regatta") === 0) return a;
+      } catch (_) {}
+      return null;
+    }
     function onRegattaNavAttempt(ev) {
-      var t = ev.target;
-      if (!isRegattaListUi(t)) return;
-      if (regattaListGuardActive() || (window.searchMode || "sailor") === "sailor") {
+      var a = isRegattaHrefAnchor(ev.target);
+      if (!a) return;
+      if (regattaListGuardActive()) {
+        blockRegattaNavEvent(ev);
+        return;
+      }
+      if (!isRegattaListUi(a)) return;
+      if ((window.searchMode || "sailor") === "sailor") {
         blockRegattaNavEvent(ev);
         return;
       }
       if (ev.type !== "click") return;
-      var a = t.closest ? t.closest("#public-regattas-list a[href], #public-regattas-section a[href]") : null;
-      if (!a) return;
       var href = a.getAttribute("href") || "";
       var deliberate =
         !!href &&
