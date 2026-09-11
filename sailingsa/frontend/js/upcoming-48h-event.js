@@ -16,7 +16,7 @@
 (function () {
   "use strict";
 
-  var JS_VER = "20260911u49b";
+  var JS_VER = "20260911u49d";
   var PROFILE_OPEN = false;
   window.__ssaSkipBelowSearchLoggedInProfile = true;
   var ORANGE_CARET_PATH = "M231.39,132.94A8,8,0,0,0,224,128H184V104a8,8,0,0,0-8-8H80a8,8,0,0,0-8,8v24H32a8,8,0,0,0-5.66,13.66l96,96a8,8,0,0,0,11.32,0l96-96A8,8,0,0,0,231.39,132.94ZM72,40a8,8,0,0,1,8-8h96a8,8,0,0,1,0,16H80A8,8,0,0,1,72,40Zm0,32a8,8,0,0,1,8-8h96a8,8,0,0,1,0,16H80A8,8,0,0,1,72,72Z";
@@ -512,8 +512,20 @@
     if (section) section.classList.add("ssa-regatta-click-guard");
   }
 
+  function focusSailorField() {
+    var input = document.getElementById("sailor-search-input");
+    if (!input) return;
+    try {
+      input.focus({ preventScroll: true });
+    } catch (_) {
+      try {
+        input.focus();
+      } catch (__) {}
+    }
+  }
+
   function leaveRegattaForSailor() {
-    armRegattaListClickGuard(1200);
+    armRegattaListClickGuard(1600);
     clearRegattaListNow();
     if ((window.searchMode || "sailor") === "regatta") {
       window.searchMode = "sailor";
@@ -543,6 +555,24 @@
     window.__ssaRegattaDeliberateBound = true;
     function onSailorStart(ev) {
       if (!isSailorSearchUi(ev.target)) return;
+      var t = ev.target;
+      var onField = !!(
+        t.id === "sailor-search-input" ||
+        (t.closest && t.closest("#sailor-search-form .sailor-search-input-wrap"))
+      );
+      if (onField) {
+        window.__ssaKeepSailorFocusUntil = Date.now() + 1200;
+        // Do not input.focus() here. iOS Safari consumes that first tap
+        // and only places the caret on a second tap.
+      }
+      if ((window.searchMode || "sailor") !== "regatta") return;
+      if (onField) {
+        window.searchMode = "sailor";
+        window.requestAnimationFrame(function () {
+          leaveRegattaForSailor();
+        });
+        return;
+      }
       leaveRegattaForSailor();
     }
     ["touchstart", "pointerdown", "mousedown"].forEach(function (type) {
@@ -767,15 +797,6 @@
     var el = document.getElementById("sailor-search-input");
     if (!el || el.__ssaSailorStayBound) return;
     el.__ssaSailorStayBound = true;
-    el.addEventListener("pointerdown", function () {
-      try {
-        el.focus({ preventScroll: true });
-      } catch (_) {
-        try {
-          el.focus();
-        } catch (__) {}
-      }
-    });
   }
 
   function bindSearch() {
