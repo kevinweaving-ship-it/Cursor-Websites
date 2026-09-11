@@ -3,7 +3,7 @@
   var CSS_ID = "ssa-regatta-slot-card-css";
   var ROOT_ID = "ssa-regatta-slot-card";
   var CAPE_CLASSIC_ID = "2026-09-13-zvyc-cape-classic";
-  var JS_VER = "20260911w2s1";
+  var JS_VER = "20260911w2s2";
   var PTS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
 
   function injectCss() {
@@ -12,16 +12,16 @@
     s.id = CSS_ID;
     s.textContent = [
       ".regatta-page:has(#ssa-regatta-slot-card)>.regatta-header-wrap .header{margin-bottom:0!important;}",
-      ".ssa-regatta-slot-card{display:block;width:100%;order:2;margin:10px 0 0;padding:0;box-sizing:border-box;height:122px;min-height:122px;background:#fff;border:1.5px solid #1a2750;border-radius:8px;box-shadow:0 1px 3px rgba(0,31,63,.08);overflow:hidden;}",
-      ".ssa-regatta-slot-card .wx-wp-top{display:flex;align-items:center;height:100%;padding:6px 8px;gap:8px;box-sizing:border-box;}",
-      ".ssa-regatta-slot-card .wx-wp-comp{flex:0 0 110px;width:110px;height:110px;}",
-      ".ssa-regatta-slot-card .wx-dial{display:block;width:110px;height:110px;overflow:visible;}",
+      ".ssa-regatta-slot-card{display:flex;width:100%;order:2;margin:10px 0 0;padding:0;box-sizing:border-box;height:122px;min-height:122px;background:#fff;border:1.5px solid #1a2750;border-radius:8px;box-shadow:0 1px 3px rgba(0,31,63,.08);overflow:hidden;}",
+      ".ssa-regatta-slot-card .wx-wp-top{display:flex;align-items:stretch;flex:1;height:100%;width:100%;padding:0 8px 0 0;gap:8px;box-sizing:border-box;}",
+      ".ssa-regatta-slot-card .wx-wp-comp{flex:0 0 auto;height:100%;aspect-ratio:1/1;}",
+      ".ssa-regatta-slot-card .wx-dial{display:block;width:100%;height:100%;overflow:visible;}",
       ".ssa-regatta-slot-card .wx-dial .dt{stroke:#9ca3af;stroke-width:1;}",
       ".ssa-regatta-slot-card .wx-dial .dt.card{stroke:#111;stroke-width:1.4;}",
       ".ssa-regatta-slot-card .wx-dial .darc{fill:none;stroke:#93c5fd;stroke-width:7;stroke-linecap:butt;}",
       ".ssa-regatta-slot-card .wx-dial .dhead{fill:#3b82f6;}",
       ".ssa-regatta-slot-card .wx-dial .dpt{font:700 22px Arial,Helvetica,sans-serif;fill:#15803d;}",
-      ".ssa-regatta-slot-card .wx-info{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:3px;padding-left:2px;}",
+      ".ssa-regatta-slot-card .wx-info{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:4px;padding:6px 0;}",
       ".ssa-regatta-slot-card .wx-ir{display:flex;justify-content:space-between;align-items:baseline;gap:6px;min-width:0;}",
       ".ssa-regatta-slot-card .wx-il{font:700 11px Arial,Helvetica,sans-serif;color:#111;white-space:nowrap;}",
       ".ssa-regatta-slot-card .wx-iv{font:700 13px Arial,Helvetica,sans-serif;color:#1a2750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right;}",
@@ -112,6 +112,16 @@
       "</div>";
   }
 
+  function fitGauge(slot) {
+    var comp = slot && slot.querySelector(".wx-wp-comp");
+    if (!slot || !comp) return;
+    var h = slot.clientHeight;
+    if (h > 0) {
+      comp.style.height = h + "px";
+      comp.style.width = h + "px";
+    }
+  }
+
   function syncToMarine(slot, marine) {
     if (!slot || !marine) return;
     var h = Math.round(marine.getBoundingClientRect().height);
@@ -121,6 +131,7 @@
     }
     var mt = getComputedStyle(marine).marginTop;
     if (mt) slot.style.marginTop = mt;
+    fitGauge(slot);
   }
 
   var loading = false;
@@ -136,6 +147,7 @@
       var data = await res.json();
       if (!data || data.ok === false) throw new Error((data && data.err) || "w2s fail");
       render(slot, data);
+      fitGauge(slot);
     } catch (err) {
       try { console.warn(err); } catch (e) {}
     } finally {
