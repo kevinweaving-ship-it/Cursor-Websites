@@ -19,6 +19,7 @@ import feedparser
 import httpx
 import traceback
 import hashlib
+import secrets
 import html as html_module
 import json
 import difflib
@@ -21776,6 +21777,19 @@ if STATIC_DIR:
 else:
     STATIC_DIR = str(WEB_ROOT)
 
+
+@app.get("/pop-up")
+@app.get("/pop-up/")
+@app.head("/pop-up")
+@app.head("/pop-up/")
+def serve_popup_lab():
+    """Claim-card lab: Tim vs Calvin signup compare."""
+    path = os.path.join(str(WEB_ROOT), "pop-up.html")
+    if os.path.isfile(path):
+        return FileResponse(path, media_type="text/html", headers={"Cache-Control": "no-store"})
+    raise HTTPException(status_code=404, detail="pop-up.html not found")
+
+
 CLUB_LOGO_DIR = os.path.join(BASE_DIR, "artwork", "Club Logo")
 
 # ---------- SEO: clean /sailor/<slug> URLs (name-first), 301 from ?sas_id= ----------
@@ -22678,6 +22692,179 @@ def _get_sailor_sas_id_from_slug(slug: str) -> str:
             conn.close()
     except Exception:
         return ""
+
+
+_WA_CLAIM_CODES = {}
+_WA_CLAIM_LOCK = threading.Lock()
+
+
+def _sa_whatsapp_local(raw: str) -> str:
+    d = re.sub(r"\D", "", str(raw or ""))
+    if d.startswith("27") and len(d) >= 11:
+        d = "0" + d[2:]
+    return d[:10]
+
+
+def _sa_whatsapp_intl(local10: str) -> str:
+    if local10.startswith("0") and len(local10) == 10:
+        return "27" + local10[1:]
+    return local10
+
+
+def _send_via_whatsapp_engine(phone_intl: str, text: str) -> tuple[bool, str]:
+    """Send via the live WhatsApp engine (WHATSAPP_ENGINE_URL / WA_ENGINE_URL / WA_ENGINE_CMD)."""
+    url = (os.getenv("WHATSAPP_ENGINE_URL") or os.getenv("WA_ENGINE_URL") or "").strip()
+    cmd = (os.getenv("WA_ENGINE_CMD") or "").strip()
+    if url:
+        try:
+            r = httpx.post(
+                url,
+                json={"to": phone_intl, "phone": phone_intl, "text": text, "message": text},
+                timeout=12.0,
+            )
+            if r.status_code < 400:
+                return True, "sent"
+            return False, f"WhatsApp engine HTTP {r.status_code}"
+        except Exception as e:
+            return False, str(e)[:180]
+    if cmd:
+        try:
+            subprocess.run([cmd, phone_intl, text], check=True, timeout=15)
+            return True, "sent"
+        except Exception as e:
+            return False, str(e)[:180]
+    return False, "WhatsApp engine not configured (set WHATSAPP_ENGINE_URL)"
+
+
+@app.post("/api/claim/whatsapp/send-code")
+async def api_claim_whatsapp_send_code(request: Request):
+    """Send a 6-digit claim code on WhatsApp, then verify to claim the sailor profile."""
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid request"}, status_code=400)
+    slug = str(body.get("slug") or "").strip()
+    sas_id = str(body.get("sas_id") or "").strip()
+    local = _sa_whatsapp_local(body.get("whatsapp"))
+    if len(local) != 10 or not local.startswith("0"):
+        return JSONResponse({"error": "Enter a 10-digit WhatsApp number starting with 0"}, status_code=400)
+    if not sas_id.isdigit():
+        sas_id = _get_sailor_sas_id_from_slug(slug)
+    if not sas_id:
+        return JSONResponse({"error": "Sailor not found"}, status_code=404)
+    now = time.time()
+    key = f"{sas_id}:{local}"
+    with _WA_CLAIM_LOCK:
+        prev = _WA_CLAIM_CODES.get(key) or {}
+        if now - float(prev.get("sent_at") or 0) < 45:
+            return JSONResponse({"error": "Wait a moment before sending another code"}, status_code=429)
+        code = f"{secrets.randbelow(1000000):06d}"
+        _WA_CLAIM_CODES[key] = {
+            "code_hash": hashlib.sha256(code.encode("utf-8")).hexdigest(),
+            "expires": now + 600,
+            "sent_at": now,
+            "sas_id": sas_id,
+            "whatsapp": local,
+        }
+    intl = _sa_whatsapp_intl(local)
+    msg = f"SailingSA code: {code}\nUse this to claim your sailor profile. It expires in 10 minutes."
+    ok, err = _send_via_whatsapp_engine(intl, msg)
+    if not ok:
+        return JSONResponse({"error": err or "Could not send WhatsApp"}, status_code=502)
+    return {"ok": True, "sas_id": sas_id}
+
+
+@app.post("/api/claim/whatsapp/verify-code")
+async def api_claim_whatsapp_verify_code(request: Request):
+    """Confirm the WhatsApp code and claim the sailor profile."""
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid request"}, status_code=400)
+    slug = str(body.get("slug") or "").strip()
+    sas_id = str(body.get("sas_id") or "").strip()
+    local = _sa_whatsapp_local(body.get("whatsapp"))
+    code = re.sub(r"\D", "", str(body.get("code") or ""))
+    if len(local) != 10 or not local.startswith("0"):
+        return JSONResponse({"error": "Enter a 10-digit WhatsApp number starting with 0"}, status_code=400)
+    if len(code) != 6:
+        return JSONResponse({"error": "Enter the 6-digit code"}, status_code=400)
+    if not sas_id.isdigit():
+        sas_id = _get_sailor_sas_id_from_slug(slug)
+    if not sas_id:
+        return JSONResponse({"error": "Sailor not found"}, status_code=404)
+    key = f"{sas_id}:{local}"
+    now = time.time()
+    with _WA_CLAIM_LOCK:
+        rec = _WA_CLAIM_CODES.get(key)
+        if not rec or now > float(rec.get("expires") or 0):
+            return JSONResponse({"error": "Code expired — send a new one"}, status_code=400)
+        want = rec.get("code_hash") or ""
+        got = hashlib.sha256(code.encode("utf-8")).hexdigest()
+        if not secrets.compare_digest(want, got):
+            return JSONResponse({"error": "That code is not right"}, status_code=400)
+        _WA_CLAIM_CODES.pop(key, None)
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(
+            """
+            SELECT account_id FROM public.user_accounts
+            WHERE sas_id::text = %s
+            LIMIT 1
+            """,
+            (sas_id,),
+        )
+        existing = cur.fetchone()
+        if existing:
+            return JSONResponse({"error": "This profile is already claimed — sign in"}, status_code=409)
+        if column_exists("sas_id_personal", "phone_primary"):
+            cur.execute(
+                "UPDATE public.sas_id_personal SET phone_primary = %s WHERE sa_sailing_id::text = %s",
+                (local, sas_id),
+            )
+        cur.execute(
+            """
+            INSERT INTO public.user_accounts
+            (sas_id, login_method, provider_id)
+            VALUES (%s, 'whatsapp', %s)
+            ON CONFLICT (sas_id, login_method, provider_id) DO UPDATE SET provider_id = EXCLUDED.provider_id
+            RETURNING account_id
+            """,
+            (sas_id, local),
+        )
+        row = cur.fetchone()
+        account_id = row["account_id"] if row else None
+        session_token = str(uuid.uuid4())
+        expires_at = datetime.now() + timedelta(days=30)
+        client_ip = _get_client_ip(request)
+        user_agent = (request.headers.get("user-agent") or "")[:500]
+        device_type = _derive_device_type(user_agent)
+        cols = ["session_id", "account_id", "sas_id", "login_method", "expires_at", "ip_address", "user_agent"]
+        vals = [session_token, account_id, sas_id, "whatsapp", expires_at, client_ip or None, user_agent or None]
+        if table_exists("user_sessions") and column_exists("user_sessions", "device_type"):
+            cols.append("device_type")
+            vals.append(device_type)
+        cur.execute(
+            "INSERT INTO public.user_sessions (" + ", ".join(cols) + ") VALUES (" + ", ".join(["%s"] * len(vals)) + ")",
+            vals,
+        )
+        conn.commit()
+        cur.close()
+        return {"ok": True, "success": True, "sas_id": sas_id, "session_token": session_token, "claimed": True}
+    except Exception as e:
+        traceback.print_exc()
+        return JSONResponse({"error": "Could not claim profile"}, status_code=500)
+    finally:
+        if conn:
+            try:
+                return_db_connection(conn)
+            except Exception:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
 
 
 def serve_sailor_spa(slug: str):
