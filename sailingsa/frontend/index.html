@@ -4656,7 +4656,7 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
     <script src="/js/api.js?v=20260901landingfix"></script>
     <script src="/js/results.js?v=FORCE_CLEAN_1"></script>
     <script src="/js/session.js?v=20260813_SILENT_LOGIN"></script>
-    <script src="/js/upcoming-48h-event.js?v=20260911u48y"></script>
+    <script src="/js/upcoming-48h-event.js?v=20260911u48z"></script>
     
     <script>
         // Function to close popup and return to landing page
@@ -12238,9 +12238,7 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                 publicRegattasList.innerHTML = '<p>Unable to load regattas. Try again.</p>';
             }
         }
-        /**
-         * Load regattas for public view — only when Regatta pill is active.
-         */
+        window.applyRegattaFilter = applyRegattaFilter;
         async function loadPublicRegattas() {
             if ((window.searchMode || 'sailor') !== 'regatta') {
                 _clearPublicRegattasList();
@@ -13341,10 +13339,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 } catch (_) {}
                 if (typeof window.setSearchMode === 'function' && (window.searchMode || 'sailor') !== 'sailor') {
                     window.setSearchMode('sailor', true);
-                } else if (typeof window.setSearchMode !== 'function' && sailorBtn && !tempModeBootstrapGuard) {
-                    tempModeBootstrapGuard = true;
-                    sailorBtn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-                    tempModeBootstrapGuard = false;
                 }
                 window.setTimeout(function () {
                     restoreVisibleSailorInput();
@@ -13356,17 +13350,19 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             function activateRegattaModeFromTemp() {
+                window.searchMode = window.searchMode || 'sailor';
                 if (typeof window.setSearchMode === 'function' && (window.searchMode || 'sailor') !== 'regatta') {
                     window.setSearchMode('regatta', true);
-                } else if (typeof window.setSearchMode !== 'function' && regattaBtn && !tempModeBootstrapGuard) {
-                    tempModeBootstrapGuard = true;
-                    regattaBtn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-                    tempModeBootstrapGuard = false;
+                } else if (typeof window.applyRegattaFilter === 'function') {
+                    window.searchMode = 'regatta';
+                    try { window.applyRegattaFilter(); } catch (_) {}
                 }
                 window.setTimeout(function () {
                     restoreVisibleSailorInput();
                     refreshTempLandingSearchState();
-                    scheduleKeepTempLandingSearchVisible(false);
+                    if (!(document.activeElement && (document.activeElement.id === 'temp-landing-regatta-input' || document.activeElement.id === 'sailor-search-input'))) {
+                        scheduleKeepTempLandingSearchVisible(false);
+                    }
                 }, 0);
             }
 
