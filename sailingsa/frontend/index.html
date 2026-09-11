@@ -4655,7 +4655,7 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
     <script src="/js/api.js?v=20260901landingfix"></script>
     <script src="/js/results.js?v=FORCE_CLEAN_1"></script>
     <script src="/js/session.js?v=20260813_SILENT_LOGIN"></script>
-    <script src="/js/upcoming-48h-event.js?v=20260911u48t"></script>
+    <script src="/js/upcoming-48h-event.js?v=20260911u48u"></script>
     
     <script>
         // Function to close popup and return to landing page
@@ -5477,6 +5477,7 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                     }
                     /** True while sailor search box has text — never paint logged-in profile over the list. */
                     function shouldSuppressLoggedInProfile() {
+                        if (window.__ssaSkipBelowSearchLoggedInProfile) return true;
                         if (isSearchInteractionActive()) return true;
                         try {
                             if (sailorSearchInput && String(sailorSearchInput.value || '').trim() !== '') return true;
