@@ -6,7 +6,7 @@
 
   var CSS_ID = "ssa-landing-claim-popup-css";
   var CSS_LINK_ID = "ssa-landing-claim-popup-css-link";
-  var JS_VER = "20260911mp2";
+  var JS_VER = "20260911mp3";
   var prevOverflow = "";
 
   var CLAIM_INNER =
@@ -80,11 +80,12 @@
       "#ssa-claim-modal .lab-card-wrap.is-done .sa-looked-pw,",
       "#ssa-claim-modal .lab-card-wrap.is-done .sa-looked-signup-choose,",
       "#ssa-claim-modal .lab-card-wrap.is-done .sa-looked-signup-welcome{display:none!important;}",
-      "#ssa-claim-modal.is-open{top:calc(var(--sa-header-h,80px) + env(safe-area-inset-top,0px))!important;right:0!important;bottom:0!important;left:0!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;}",
+      "#ssa-claim-modal.is-open{top:calc(var(--sa-header-h,80px) + env(safe-area-inset-top,0px))!important;right:0!important;bottom:0!important;left:0!important;flex-direction:column!important;align-items:center!important;justify-content:flex-start!important;}",
       "#ssa-claim-modal .ssa-claim-modal-backdrop{top:calc(var(--sa-header-h,80px) + env(safe-area-inset-top,0px))!important;right:0!important;bottom:0!important;left:0!important;}",
+      "#ssa-claim-modal .ssa-claim-modal-panel{margin:auto!important;}",
       "@media screen and (orientation:portrait) and (max-width:767px){",
-      "#ssa-claim-modal.is-open{justify-content:flex-start!important;padding-top:20px!important;padding-bottom:calc(28px + env(safe-area-inset-bottom,0px))!important;}",
-      "#ssa-claim-modal .ssa-claim-modal-panel{margin-top:12px!important;margin-bottom:auto!important;}",
+      "#ssa-claim-modal.is-open{padding-top:16px!important;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))!important;}",
+      "#ssa-claim-modal .ssa-claim-modal-panel{margin:auto!important;}",
       "}",
     ].join("");
     document.head.appendChild(s);

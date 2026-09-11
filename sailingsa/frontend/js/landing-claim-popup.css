@@ -10,7 +10,7 @@
   display:none;
   flex-direction:column;
   align-items:center;
-  justify-content:center;
+  justify-content:flex-start;
   padding:16px 12px calc(20px + env(safe-area-inset-bottom, 0px));
   overflow:auto;
   -webkit-overflow-scrolling:touch;
@@ -32,18 +32,17 @@
   z-index:1;
   width:max-content;
   max-width:calc(100vw - 24px);
-  margin:0 auto;
+  margin:auto;
   box-sizing:border-box;
 }
 @media screen and (orientation:portrait) and (max-width:767px){
   #ssa-claim-modal{
     justify-content:flex-start;
-    padding-top:20px;
-    padding-bottom:calc(28px + env(safe-area-inset-bottom, 0px));
+    padding-top:16px;
+    padding-bottom:calc(20px + env(safe-area-inset-bottom, 0px));
   }
   #ssa-claim-modal .ssa-claim-modal-panel{
-    margin-top:12px;
-    margin-bottom:auto;
+    margin:auto;
   }
 }
 #ssa-claim-modal .lab-card-wrap{
