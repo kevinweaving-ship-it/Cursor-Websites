@@ -22951,6 +22951,86 @@ async def api_claim_whatsapp_verify_code(request: Request):
                     pass
 
 
+@app.post("/api/claim/whatsapp/set-password")
+async def api_claim_whatsapp_set_password(request: Request):
+    """After WhatsApp PIN verify, save the password used for later WhatsApp login."""
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid request"}, status_code=400)
+    pw = str(body.get("password") or "")
+    confirm = str(body.get("confirm") or body.get("confirm_password") or "")
+    if len(pw) < 6:
+        return JSONResponse({"error": "Password must be at least 6 characters"}, status_code=400)
+    if pw != confirm:
+        return JSONResponse({"error": "Passwords do not match"}, status_code=400)
+    sas_id = str(body.get("sas_id") or "").strip()
+    token = (
+        (request.cookies.get("session") if request else None)
+        or str(body.get("session_token") or body.get("session") or "")
+    ).strip()
+    if not token:
+        return JSONResponse({"error": "Sign in again to save your password"}, status_code=401)
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(
+            """
+            SELECT sas_id::text AS sas_id
+            FROM public.user_sessions
+            WHERE session_id::text = %s
+              AND (expires_at IS NULL OR expires_at > NOW())
+            LIMIT 1
+            """,
+            (token,),
+        )
+        sess = cur.fetchone()
+        if not sess:
+            return JSONResponse({"error": "Sign in again to save your password"}, status_code=401)
+        sess_sas = str(sess.get("sas_id") or "").strip()
+        if sas_id and sess_sas and sas_id != sess_sas:
+            return JSONResponse({"error": "Session does not match this sailor"}, status_code=403)
+        sas_id = sess_sas or sas_id
+        if not sas_id:
+            return JSONResponse({"error": "Sailor not found"}, status_code=404)
+        password_hash = hashlib.sha256(pw.encode("utf-8")).hexdigest()
+        cur.execute(
+            """
+            UPDATE public.user_accounts
+            SET password_hash = %s
+            WHERE sas_id::text = %s
+              AND login_method = 'whatsapp'
+            """,
+            (password_hash, sas_id),
+        )
+        if cur.rowcount < 1:
+            return JSONResponse({"error": "Claim this profile first"}, status_code=409)
+        conn.commit()
+        cur.close()
+        sailor_name, canon = _claim_sailor_name_and_slug(sas_id, str(body.get("slug") or "").strip())
+        profile_url = f"/sailor/{canon}" if canon else "/"
+        return {
+            "ok": True,
+            "sas_id": sas_id,
+            "name": sailor_name,
+            "slug": canon,
+            "profile_url": profile_url,
+        }
+    except Exception:
+        traceback.print_exc()
+        return JSONResponse({"error": "Could not save password"}, status_code=500)
+    finally:
+        if conn:
+            try:
+                return_db_connection(conn)
+            except Exception:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+
+
 def serve_sailor_spa(slug: str):
     """Serve SPA with server-side SEO: inject title, meta, canonical, h1, JSON-LD for crawlers; SPA loads normally. 404 if unknown slug."""
     if not os.path.isfile(_INDEX_HTML_PATH):

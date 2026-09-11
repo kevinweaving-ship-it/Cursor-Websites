@@ -6,7 +6,7 @@
 
   var CSS_ID = "ssa-landing-claim-popup-css";
   var CSS_LINK_ID = "ssa-landing-claim-popup-css-link";
-  var JS_VER = "20260911mplow";
+  var JS_VER = "20260911pw";
   var prevOverflow = "";
 
   var CLAIM_INNER =
@@ -70,7 +70,17 @@
       "body.ssa-claim-modal-open .ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-cta,",
       "body.ssa-claim-modal-open .ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim{",
       "visibility:hidden!important;opacity:0!important;pointer-events:none!important;z-index:0!important;",
-      "}"
+      "}",
+      "#ssa-claim-modal .lab-card-wrap.is-password .sa-looked-auth,",
+      "#ssa-claim-modal .lab-card-wrap.is-password .sa-looked-wa,",
+      "#ssa-claim-modal .lab-card-wrap.is-password .sa-looked-signup-choose,",
+      "#ssa-claim-modal .lab-card-wrap.is-password .sa-looked-signup-welcome{display:none!important;}",
+      "#ssa-claim-modal .lab-card-wrap.is-done .sa-looked-auth,",
+      "#ssa-claim-modal .lab-card-wrap.is-done .sa-looked-wa,",
+      "#ssa-claim-modal .lab-card-wrap.is-done .sa-looked-pw,",
+      "#ssa-claim-modal .lab-card-wrap.is-done .sa-looked-signup-choose,",
+      "#ssa-claim-modal .lab-card-wrap.is-done .sa-looked-signup-welcome,",
+      "#ssa-claim-modal .lab-card-wrap.is-done .ssa-claim-quit{display:none!important;}"
     ].join("");
     document.head.appendChild(s);
   }
@@ -297,6 +307,19 @@
           "</div>" +
           '<p class="sa-looked-wa-msg" data-wa-msg></p>' +
         "</div>" +
+        '<div class="sa-looked-pw" data-pw-panel hidden>' +
+          '<span class="sa-looked-wa-label">Create a password</span>' +
+          '<input class="sa-looked-wa-input" data-pw-1 type="password" autocomplete="new-password" placeholder="Password">' +
+          '<input class="sa-looked-wa-input" data-pw-2 type="password" autocomplete="new-password" placeholder="Confirm password">' +
+          '<button type="button" class="sa-looked-wa-send sa-looked-pw-save" data-pw-save>Save</button>' +
+          '<p class="sa-looked-wa-msg" data-pw-msg></p>' +
+        "</div>" +
+        '<div class="sa-looked-done" data-done-panel hidden>' +
+          '<span class="sa-looked-signup-step-lbl">Well Done</span>' +
+          '<span class="sa-looked-done-name" data-done-name></span>' +
+          '<p class="sa-looked-done-copy">You have successfully<br>claimed your profile</p>' +
+          '<p class="sa-looked-done-copy">Next time login with your<br>WhatsApp number<br>and password</p>' +
+        "</div>" +
       "</div>"
     );
   }
@@ -477,6 +500,32 @@
       msg.textContent = "";
       msg.classList.remove("is-err", "is-ok");
     }
+    wrap.classList.remove("is-password", "is-done");
+    var pwPanel = wrap.querySelector("[data-pw-panel]");
+    var donePanel = wrap.querySelector("[data-done-panel]");
+    var pw1 = wrap.querySelector("[data-pw-1]");
+    var pw2 = wrap.querySelector("[data-pw-2]");
+    var pwMsg = wrap.querySelector("[data-pw-msg]");
+    var stepLbl = wrap.querySelector(".sa-looked-signup-step-lbl");
+    if (pwPanel) {
+      pwPanel.hidden = true;
+      pwPanel.classList.remove("is-open");
+    }
+    if (donePanel) {
+      donePanel.hidden = true;
+      donePanel.classList.remove("is-open");
+    }
+    if (pw1) pw1.value = "";
+    if (pw2) pw2.value = "";
+    if (pwMsg) {
+      pwMsg.textContent = "";
+      pwMsg.classList.remove("is-err", "is-ok");
+    }
+    if (stepLbl && !stepLbl.closest("[data-done-panel]")) stepLbl.textContent = "Step 1";
+    if (wrap.__ssaDoneTimer) {
+      try { clearTimeout(wrap.__ssaDoneTimer); } catch (_) {}
+      wrap.__ssaDoneTimer = null;
+    }
   }
 
   function showPreview(wrap) {
@@ -520,12 +569,61 @@
     var sendBtn = wrap.querySelector("[data-wa-send]");
     var codeBoxes = wrap.querySelectorAll("[data-wa-digit]");
     var msg = wrap.querySelector("[data-wa-msg]");
+    var pwPanel = wrap.querySelector("[data-pw-panel]");
+    var donePanel = wrap.querySelector("[data-done-panel]");
+    var pw1 = wrap.querySelector("[data-pw-1]");
+    var pw2 = wrap.querySelector("[data-pw-2]");
+    var pwSave = wrap.querySelector("[data-pw-save]");
+    var pwMsg = wrap.querySelector("[data-pw-msg]");
+    var stepLbl = wrap.querySelector(".sa-looked-signup-card > .sa-looked-signup-step-lbl");
     var verifying = false;
     function setMsg(text, kind) {
       if (!msg) return;
       msg.textContent = text || "";
       msg.classList.remove("is-err", "is-ok");
       if (kind) msg.classList.add(kind);
+    }
+    function setPwMsg(text, kind) {
+      if (!pwMsg) return;
+      pwMsg.textContent = text || "";
+      pwMsg.classList.remove("is-err", "is-ok");
+      if (kind) pwMsg.classList.add(kind);
+    }
+    function showPasswordStep() {
+      wrap.classList.add("is-password");
+      wrap.classList.remove("is-done");
+      if (panel) {
+        panel.hidden = true;
+        panel.classList.remove("is-open");
+      }
+      if (pwPanel) {
+        pwPanel.hidden = false;
+        pwPanel.removeAttribute("hidden");
+        pwPanel.classList.add("is-open");
+      }
+      if (stepLbl) stepLbl.textContent = "Step 2";
+      if (pw1) pw1.focus();
+    }
+    function showDoneStep(name, url) {
+      wrap.classList.add("is-done");
+      wrap.classList.remove("is-password");
+      if (pwPanel) {
+        pwPanel.hidden = true;
+        pwPanel.classList.remove("is-open");
+      }
+      if (donePanel) {
+        donePanel.hidden = false;
+        donePanel.removeAttribute("hidden");
+        donePanel.classList.add("is-open");
+        var nEl = donePanel.querySelector("[data-done-name]");
+        if (nEl) nEl.textContent = name || "Sailor";
+      }
+      if (wrap.__ssaDoneTimer) {
+        try { clearTimeout(wrap.__ssaDoneTimer); } catch (_) {}
+      }
+      wrap.__ssaDoneTimer = setTimeout(function () {
+        window.location.href = url || "/";
+      }, 5000);
     }
     function readCode() {
       var out = "";
@@ -627,6 +725,52 @@
       try { localStorage.setItem("session", token); } catch (err) {}
       document.cookie = "session=" + encodeURIComponent(token) + "; path=/; max-age=" + 30 * 24 * 60 * 60 + "; SameSite=Lax";
     }
+    if (pwSave) {
+      pwSave.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var a = pw1 ? String(pw1.value || "") : "";
+        var b = pw2 ? String(pw2.value || "") : "";
+        if (a.length < 6) {
+          setPwMsg("Password must be at least 6 characters", "is-err");
+          return;
+        }
+        if (a !== b) {
+          setPwMsg("Passwords do not match", "is-err");
+          return;
+        }
+        pwSave.disabled = true;
+        setPwMsg("Saving…");
+        var info = wrap.__ssaClaimInfo || {};
+        fetch("/api/claim/whatsapp/set-password", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sas_id: info.sid || "",
+            slug: info.slug || "",
+            session_token: info.session || "",
+            password: a,
+            confirm: b
+          })
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            pwSave.disabled = false;
+            if (!d || d.error) {
+              setPwMsg((d && d.error) || "Could not save password", "is-err");
+              return;
+            }
+            var name = (d && d.name) || info.name || "Sailor";
+            var slug = (d && d.slug) || info.slug || "";
+            var url = (d && d.profile_url) || info.profile_url || (slug ? "/sailor/" + slug : "/");
+            showDoneStep(name, url);
+          })
+          .catch(function () {
+            pwSave.disabled = false;
+            setPwMsg("Could not save password", "is-err");
+          });
+      });
+    }
     function verifyCode() {
       if (verifying) return;
       var c = readCode();
@@ -653,9 +797,13 @@
             return;
           }
           keepSession(d.session_token || d.session);
-          setMsg("Profile claimed. Opening your sailor page…", "is-ok");
-          var slug = (d && d.slug) || (wrap.__ssaClaimInfo && wrap.__ssaClaimInfo.slug) || "";
-          window.location.href = (d && d.profile_url) || (slug ? "/sailor/" + slug : "/");
+          wrap.__ssaClaimInfo = wrap.__ssaClaimInfo || {};
+          if (d.sas_id) wrap.__ssaClaimInfo.sid = String(d.sas_id);
+          if (d.slug) wrap.__ssaClaimInfo.slug = d.slug;
+          if (d.name) wrap.__ssaClaimInfo.name = d.name;
+          wrap.__ssaClaimInfo.profile_url = d.profile_url || wrap.__ssaClaimInfo.profile_url;
+          wrap.__ssaClaimInfo.session = d.session_token || d.session || wrap.__ssaClaimInfo.session;
+          showPasswordStep();
         })
         .catch(function () {
           verifying = false;

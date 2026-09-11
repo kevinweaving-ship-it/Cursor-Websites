@@ -54,6 +54,53 @@
   max-width:100% !important;
   box-sizing:border-box;
 }
+#ssa-claim-modal .sa-looked-pw{
+  display:none;
+  flex-direction:column;
+  gap:8px;
+  width:100%;
+  margin:2px 0 0;
+}
+#ssa-claim-modal .sa-looked-pw.is-open,
+#ssa-claim-modal .lab-card-wrap.is-password .sa-looked-pw{
+  display:flex;
+}
+#ssa-claim-modal .sa-looked-pw[hidden]{display:none!important;}
+#ssa-claim-modal .sa-looked-done{
+  display:none;
+  flex-direction:column;
+  align-items:center;
+  gap:10px;
+  width:100%;
+  margin:2px 0 0;
+  text-align:center;
+}
+#ssa-claim-modal .sa-looked-done.is-open,
+#ssa-claim-modal .lab-card-wrap.is-done .sa-looked-done{
+  display:flex;
+}
+#ssa-claim-modal .sa-looked-done[hidden]{display:none!important;}
+#ssa-claim-modal .sa-looked-done-name{
+  display:block;
+  color:#c4a26f;
+  font:800 16px/1.2 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+#ssa-claim-modal .sa-looked-done-copy{
+  margin:0;
+  color:#fff;
+  font:600 13px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+#ssa-claim-modal .lab-card-wrap.is-password .sa-looked-auth,
+#ssa-claim-modal .lab-card-wrap.is-password .sa-looked-wa,
+#ssa-claim-modal .lab-card-wrap.is-password .sa-looked-signup-choose,
+#ssa-claim-modal .lab-card-wrap.is-password .sa-looked-signup-welcome{display:none!important;}
+#ssa-claim-modal .lab-card-wrap.is-done .sa-looked-auth,
+#ssa-claim-modal .lab-card-wrap.is-done .sa-looked-wa,
+#ssa-claim-modal .lab-card-wrap.is-done .sa-looked-pw,
+#ssa-claim-modal .lab-card-wrap.is-done .sa-looked-signup-choose,
+#ssa-claim-modal .lab-card-wrap.is-done .sa-looked-signup-welcome{display:none!important;}
+#ssa-claim-modal .lab-card-wrap.is-done .ssa-claim-quit{display:none!important;}
+#ssa-claim-modal .lab-card-wrap.is-done .sa-looked-signup-card > .sa-looked-signup-step-lbl{display:none!important;}
 #ssa-claim-modal .popup-card > .sa-looked-cta{
   width:0;
   min-width:100%;
