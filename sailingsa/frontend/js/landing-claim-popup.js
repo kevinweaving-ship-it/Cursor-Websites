@@ -1,12 +1,16 @@
-/* Landing /dev-1: claim card in identity strip; Step 1 opens inside THAT sailor card only. */
+/* Landing search: compact claim chip stays in the list card.
+   Click opens a 360px /pop-up overlay: preview (podiums / classes / last 3) then Step 1.
+   Quit Sign Up returns to the search list. */
 (function () {
   window.__ssaLandingClaimPopup = true;
 
   var CSS_ID = "ssa-landing-claim-popup-css";
-  var JS_VER = "20260911widefix";
+  var CSS_LINK_ID = "ssa-landing-claim-popup-css-link";
+  var JS_VER = "20260911modal";
+  var prevOverflow = "";
 
   var CLAIM_INNER =
-    '<button type="button" class="sa-looked-claim" id="dev1-claim-banner" title="Claim your profile" aria-expanded="false">' +
+    '<button type="button" class="sa-looked-claim" data-ssa-list-claim title="Claim your profile">' +
       '<span class="sa-looked-claim-top">' +
         '<span class="sa-looked-claim-ask">Is this your sailing profile?</span>' +
         '<span class="sa-looked-claim-sub">Unlock your full results and stats</span>' +
@@ -21,16 +25,30 @@
   var GOOGLE_SVG = '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>';
   var FB_SVG = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="12" fill="white"/><path d="M13.44 20V13.44H15.64L15.97 10.88H13.44V9.24C13.44 8.5 13.64 8 14.7 8H16V5.72C15.37 5.63 14.74 5.59 14.1 5.6C12.21 5.6 10.92 6.75 10.92 8.86V10.88H8.8V13.44H10.92V20H13.44Z" fill="#1877F2"/></svg>';
   var MAIL_SVG = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 6.5H20C20.83 6.5 21.5 7.17 21.5 8V16C21.5 16.83 20.83 17.5 20 17.5H4C3.17 17.5 2.5 16.83 2.5 16V8C2.5 7.17 3.17 6.5 4 6.5Z" stroke="#fff" stroke-width="1.8"/><path d="M3 8L12 14L21 8" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var BOAT_ICO = "/icons/assets/phosphor/fill/sailboat-fill.svg";
+  var FLAG_ICO = "/icons/assets/phosphor/fill/flag-checkered-fill.svg";
+  var CAL_ICO = "/icons/assets/phosphor/fill/calendar-blank-fill.svg";
 
   function injectCss() {
+    var link = document.getElementById(CSS_LINK_ID);
+    if (!link) {
+      link = document.createElement("link");
+      link.id = CSS_LINK_ID;
+      link.rel = "stylesheet";
+      link.href = "/js/landing-claim-popup.css?v=" + JS_VER;
+      document.head.appendChild(link);
+    }
     var s = document.getElementById(CSS_ID);
     if (s) s.parentNode.removeChild(s);
     s = document.createElement("style");
     s.id = CSS_ID;
     s.textContent = [
-      ".ssa-dev1-inject .ssa-popup-claim-slot{display:flex;justify-content:center;align-items:center;width:100%;height:100%;min-width:0;min-height:0;box-sizing:border-box;overflow:visible;position:relative;z-index:1;}",
-      ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-cta{display:flex;flex-direction:column;width:max-content;max-width:100%;height:auto;min-width:220px;margin:0 auto;padding:0;box-sizing:border-box;border:1px solid #c4a26f;border-radius:12px;overflow:hidden;background:#fefaf5;}",
-      ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim{display:flex!important;flex-direction:column;align-items:stretch;justify-content:flex-start;width:auto!important;height:auto!important;max-width:100%!important;margin:0;padding:0;box-sizing:border-box;background:transparent;border:0;text-decoration:none;color:inherit;line-height:1;cursor:pointer;font:inherit;transform:none!important;}",
+      ".ssa-dev1-inject .sa-header-mid-slot > .sa-claim-slot.ssa-popup-claim-slot,",
+      ".ssa-dev1-inject .sa-header-mid-slot > #dev1-claim-slot.ssa-popup-claim-slot,",
+      ".ssa-dev1-inject #dev1-claim-slot.ssa-popup-claim-slot,",
+      ".ssa-dev1-inject .ssa-popup-claim-slot{display:flex!important;justify-content:center!important;align-items:center!important;align-self:stretch!important;width:100%!important;height:100%!important;max-height:100%!important;min-width:0;min-height:0;margin:0!important;padding:0!important;box-sizing:border-box;overflow:visible;position:relative;z-index:1;}",
+      ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-cta{display:flex;flex-direction:column;width:max-content;max-width:100%;height:auto!important;min-width:220px;margin:0 auto;padding:0;box-sizing:border-box;border:1px solid #c4a26f;border-radius:12px;overflow:hidden;background:#fefaf5;transform:none!important;transform-origin:center center!important;}",
+      ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim{display:flex!important;flex-direction:column;align-items:stretch;justify-content:flex-start;width:auto!important;height:auto!important;max-width:100%!important;margin:0;padding:0;box-sizing:border-box;background:transparent;border:0;text-decoration:none;color:inherit;line-height:1;cursor:pointer;font:inherit;transform:none!important;transform-origin:center center!important;}",
       ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim-top{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex:0 0 auto;width:100%;margin:0;padding:12px 14px 11px;box-sizing:border-box;background:#fefaf5;text-align:center;min-height:0;}",
       ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim-ask{margin:0;padding:0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-weight:800;font-size:15px;line-height:1.15;color:#0a2351;letter-spacing:-0.01em;white-space:nowrap;}",
       ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim-sub{margin:0;padding:0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-weight:500;font-size:12px;line-height:1.2;color:#0a2351;white-space:nowrap;}",
@@ -38,8 +56,8 @@
       ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim-txt{flex:1 1 auto;min-width:0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-weight:800;font-size:12px;line-height:1;color:#fff;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;}",
       ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim-go{position:absolute;right:10px;top:50%;transform:translateY(-50%);flex:0 0 auto;width:22px;height:22px;border-radius:999px;background:#c4a26f;color:#0a2351;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;line-height:1;box-sizing:border-box;}",
       "@media screen and (orientation:portrait) and (max-width:767px){",
-      ".ssa-dev1-inject .ssa-popup-claim-slot{justify-content:stretch;align-items:stretch;overflow:hidden;}",
-      ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-cta{width:100%;height:100%;min-width:0;}",
+      ".ssa-dev1-inject .ssa-popup-claim-slot{justify-content:stretch!important;align-items:stretch!important;overflow:hidden;}",
+      ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-cta{width:100%;height:100%!important;min-width:0;}",
       ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim{width:100%!important;height:100%!important;}",
       ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim-top{flex:1 1 auto;padding:8px 8px 7px;gap:3px;}",
       ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim-ask{font-size:13px;white-space:normal;}",
@@ -47,56 +65,196 @@
       ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim-bar{padding:9px 32px 9px 10px;}",
       ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim-txt{font-size:11px;}",
       ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim-go{right:8px;width:18px;height:18px;font-size:12px;}",
-      "}",
-      ".ssa-dev1-inject.is-step1 .ssa-popup-claim-slot .sa-looked-cta,",
-      ".ssa-dev1-inject.is-step1 #dev1-event-results,",
-      ".ssa-dev1-inject.is-step1 .dev1-er{display:none!important;}",
-      ".ssa-dev1-inject .sa-looked-signup{display:none;width:100%;max-width:100%;min-width:0;margin:8px 0 0;padding:0;box-sizing:border-box;}",
-      ".ssa-dev1-inject.is-step1 .sa-looked-signup.is-open{display:block!important;}",
-      ".ssa-dev1-inject .sa-looked-signup-card{display:flex;flex-direction:column;align-items:stretch;gap:10px;width:100%;margin:0;padding:12px 10px;box-sizing:border-box;background:#0a2351;border:1px solid #142b5f;border-radius:12px;position:relative;}",
-      ".ssa-dev1-inject .sa-looked-signup-step-lbl{display:block;margin:0;font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#c4a26f;text-align:center;}",
-      ".ssa-dev1-inject .sa-looked-signup-welcome{display:block;margin:2px 0 0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:15px;font-weight:800;line-height:1.2;color:#fff;text-align:center;}",
-      ".ssa-dev1-inject .sa-looked-signup-welcome-name{color:#c4a26f;}",
-      ".ssa-dev1-inject .sa-looked-signup-choose{display:block;margin:0 0 2px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:12px;font-weight:600;line-height:1.25;color:rgba(255,255,255,.88);text-align:center;}",
-      ".ssa-dev1-inject .sa-looked-auth{display:flex;flex-direction:row;align-items:center;gap:10px;width:100%;margin:0;padding:8px 10px;box-sizing:border-box;border-radius:999px;border:3px solid transparent;text-decoration:none;cursor:pointer;font:inherit;line-height:1;appearance:none;-webkit-appearance:none;background:transparent;}",
-      ".ssa-dev1-inject .sa-looked-auth-ico{flex:0 0 auto;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;}",
-      ".ssa-dev1-inject .sa-looked-auth-ico svg{display:block;width:22px;height:22px;}",
-      ".ssa-dev1-inject .sa-looked-auth-txt{flex:1 1 auto;min-width:0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-weight:800;font-size:13px;line-height:1.1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}",
-      ".ssa-dev1-inject .sa-looked-auth-go{flex:0 0 auto;width:22px;height:22px;border-radius:999px;background:#0a2351;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;line-height:1;}",
-      ".ssa-dev1-inject .sa-looked-auth--google{background:#fff;border-color:#c4a26f;color:#0a2351;}",
-      ".ssa-dev1-inject .sa-looked-auth--google .sa-looked-auth-txt{color:#0a2351;}",
-      ".ssa-dev1-inject .sa-looked-auth--facebook{background:#1877f2;border-color:#0f5ecf;color:#fff;}",
-      ".ssa-dev1-inject .sa-looked-auth--facebook .sa-looked-auth-txt{color:#fff;}",
-      ".ssa-dev1-inject .sa-looked-auth--email{background:#0a2351;border:1.5px solid #e2e8f0;color:#fff;padding:10px 14px;}",
-      ".ssa-dev1-inject .sa-looked-auth--email .sa-looked-auth-txt{color:#fff;}",
-      ".ssa-dev1-inject .sa-looked-auth--email .sa-looked-auth-go{display:none;}",
-      ".ssa-dev1-inject .sa-looked-auth--whatsapp{background:#25D366;border-color:#128C7E;color:#fff;}",
-      ".ssa-dev1-inject .sa-looked-auth--whatsapp .sa-looked-auth-txt{color:#fff;}",
-      ".ssa-dev1-inject .sa-looked-auth--whatsapp .sa-looked-auth-go{background:#075E54;color:#fff;}",
-      ".ssa-dev1-inject .sa-looked-signup-card.is-method-picked .sa-looked-auth:not(.is-chosen){display:none;}",
-      ".ssa-dev1-inject .sa-looked-wa{display:none;flex-direction:column;gap:8px;width:100%;margin:2px 0 0;}",
-      ".ssa-dev1-inject .sa-looked-wa.is-open{display:flex;}",
-      ".ssa-dev1-inject .sa-looked-wa-phone-step,.ssa-dev1-inject .sa-looked-wa-code-step{display:flex;flex-direction:column;gap:8px;width:100%;}",
-      ".ssa-dev1-inject .sa-looked-wa-phone-step[hidden],.ssa-dev1-inject .sa-looked-wa-code-step[hidden]{display:none!important;}",
-      ".ssa-dev1-inject .sa-looked-wa-label{margin:0;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#c4a26f;text-align:center;}",
-      ".ssa-dev1-inject .sa-looked-wa-input{width:100%;box-sizing:border-box;margin:0;padding:10px 12px;border-radius:999px;border:1.5px solid #e2e8f0;background:#fff;color:#0a2351;font:inherit;font-size:15px;font-weight:700;text-align:center;}",
-      ".ssa-dev1-inject .sa-looked-wa-send{width:100%;margin:0;padding:10px 12px;border:0;border-radius:999px;background:#25D366;color:#fff;font:inherit;font-size:13px;font-weight:800;cursor:pointer;}",
-      ".ssa-dev1-inject .sa-looked-wa-boxes{display:flex;flex-direction:row;justify-content:stretch;align-items:stretch;gap:6px;width:100%;box-sizing:border-box;}",
-      ".ssa-dev1-inject .sa-looked-wa-box{flex:1 1 0;width:0;min-width:0;height:38px;min-height:38px;box-sizing:border-box;margin:0;padding:0;border-radius:10px;border:1.5px solid #e2e8f0;background:#fff;color:#0a2351;font:inherit;font-size:18px;font-weight:800;line-height:36px;text-align:center;appearance:none;-webkit-appearance:none;}",
-      ".ssa-dev1-inject .sa-looked-wa-box:focus{outline:none;border-color:#25D366;}",
-      ".ssa-dev1-inject .sa-looked-wa-msg{margin:0;min-height:1.2em;font-size:12px;font-weight:600;line-height:1.3;color:#fff;text-align:center;}",
-      ".ssa-dev1-inject .sa-looked-wa-msg.is-err{color:#fecaca;}",
-      ".ssa-dev1-inject .sa-looked-wa-msg.is-ok{color:#bbf7d0;}",
-      "#ssa-landing-claim-overlay{display:none!important;}"
+      "}"
     ].join("");
     document.head.appendChild(s);
   }
 
-  function signupHtml() {
+  function esc(v) {
+    return String(v == null ? "" : v)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function digits(v) {
+    return String(v || "").replace(/\D/g, "");
+  }
+
+  function txt(root, sel) {
+    if (!root || !root.querySelector) return "";
+    var el = root.querySelector(sel);
+    return el ? String(el.textContent || "").replace(/\s+/g, " ").trim() : "";
+  }
+
+  function attr(el, name) {
+    return el && el.getAttribute ? String(el.getAttribute(name) || "") : "";
+  }
+
+  function safeHref(u, fallback) {
+    var s = String(u || "");
+    if (s.charAt(0) === "/" && s.charAt(1) !== "/") return s;
+    if (/^https?:\/\//i.test(s)) return s;
+    return fallback || "#";
+  }
+
+  function classSlug(n) {
+    return String(n || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  }
+
+  function classLogoUrl(name, fallback) {
+    if (fallback) return fallback;
+    var key = String(name || "").trim().toLowerCase();
+    var ssot = window.__SSA_CLASS_LOGO_SSOT || {};
+    if (ssot[key]) return ssot[key];
+    if (ssot[classSlug(key)]) return ssot[classSlug(key)];
+    var slug = classSlug(name);
+    return slug ? "/artwork/Class Logo/" + slug.replace(/(^|-)(\w)/g, function (_, a, b) { return (a ? "-" : "") + b.toUpperCase(); }) + "-Class-Logo.png" : "";
+  }
+
+  function ordinal(n) {
+    var v = parseInt(n, 10);
+    if (!v || isNaN(v)) return "—";
+    var d = v % 100;
+    if (d >= 11 && d <= 13) return v + "th";
+    return v + ({ 1: "st", 2: "nd", 3: "rd" }[v % 10] || "th");
+  }
+
+  function formatEventDates(start, end) {
+    function parse(x) {
+      var m = String(x || "").slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!m) return null;
+      return { y: +m[1], mo: +m[2], d: +m[3], raw: m[0] };
+    }
+    var mon = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    var s = parse(start);
+    var e = parse(end || start) || s;
+    if (!s) return "";
+    if (!e || e.raw === s.raw) return s.d + " " + mon[s.mo - 1] + " " + s.y;
+    if (s.y === e.y && s.mo === e.mo) return s.d + "–" + e.d + " " + mon[s.mo - 1] + " " + s.y;
+    if (s.y === e.y) return s.d + " " + mon[s.mo - 1] + " – " + e.d + " " + mon[e.mo - 1] + " " + e.y;
+    return s.d + " " + mon[s.mo - 1] + " " + s.y + " – " + e.d + " " + mon[e.mo - 1] + " " + e.y;
+  }
+
+  function raceCount(row) {
+    var rs = row && row.race_scores;
+    if (!rs) return 0;
+    if (Array.isArray(rs)) return rs.length;
+    if (typeof rs === "object") return Object.keys(rs).length;
+    return 0;
+  }
+
+  function isSeries(row) {
+    return !!(row && (row.is_series === true || row.regatta_number === "S" ||
+      (row.event_name && String(row.event_name).indexOf("Series") >= 0 && String(row.event_name).indexOf("> Overall") >= 0)));
+  }
+
+  function extHref(provider, info) {
+    var u = "/signup.html?signup=1&provider=" + encodeURIComponent(provider) + "&from=claim";
+    if (info && info.sid) u += "&sas_id=" + encodeURIComponent(info.sid);
+    if (info && info.name) u += "&name=" + encodeURIComponent(info.name);
+    try {
+      u += "&returnTo=" + encodeURIComponent(window.location.href || "/");
+    } catch (_) {}
+    return u;
+  }
+
+  function sailorInfo(slot, fallback) {
+    var live = fallback ? { sid: fallback.sid || "", name: fallback.name || "", slug: fallback.slug || "" } : { sid: "", name: "", slug: "" };
+    live.sid = live.sid || (slot && slot.dataset && slot.dataset.sasId) || "";
+    if (!live.name && slot) {
+      live.name = [txt(slot, ".sa-approved-sailor-name-first"), txt(slot, ".sa-approved-sailor-name-last")]
+        .filter(Boolean)
+        .join(" ");
+    }
+    if (!live.slug && slot) {
+      var a = slot.querySelector('a[href^="/sailor/"]');
+      if (a) live.slug = String(attr(a, "href") || "").replace(/^\/sailor\//, "").split("?")[0];
+    }
+    return live;
+  }
+
+  function extractProfile(slot, info) {
+    var live = sailorInfo(slot, info);
+    var first = txt(slot, ".sa-approved-sailor-name-first");
+    var last = txt(slot, ".sa-approved-sailor-name-last");
+    if (!first && live.name) {
+      var parts = String(live.name).split(" ");
+      first = parts.shift() || "";
+      last = parts.join(" ");
+    }
+    var avatar = slot && slot.querySelector(".sa-approved-sailor-avatar-clip img, .sa-approved-sailor-avatar img");
+    var club = txt(slot, ".sa-approved-sailor-club-code");
+    var clubImg = slot && slot.querySelector(".sa-approved-sailor-club-icon img");
+    var sslA = slot && slot.querySelector(".sa-ssl-brand-box, a.brand-box");
+    var sslPoints = [];
+    if (slot) {
+      slot.querySelectorAll(".sa-ssl-point-box").forEach(function (el) {
+        var t = String(el.textContent || "").trim();
+        if (t) sslPoints.push(t);
+      });
+    }
+    var podiumRoot = slot && slot.querySelector("[data-ns-podiums]");
+    var gold = 0, silver = 0, bronze = 0;
+    if (podiumRoot) {
+      var ns = podiumRoot.querySelectorAll("[data-ns-medal-n]");
+      gold = parseInt(ns[0] && ns[0].textContent, 10) || 0;
+      silver = parseInt(ns[1] && ns[1].textContent, 10) || 0;
+      bronze = parseInt(ns[2] && ns[2].textContent, 10) || 0;
+    }
+    var medalRate = podiumRoot ? txt(podiumRoot, "[data-ns-medal-rate-n]") : "";
+    var regattas = "", races = "";
+    if (slot) {
+      slot.querySelectorAll("[data-ns-stat-line]").forEach(function (line) {
+        var lbl = txt(line, "[data-ns-stat-lbl]").toLowerCase();
+        var num = txt(line, "[data-ns-stat-num]");
+        if (lbl.indexOf("regatta") >= 0 && !regattas) regattas = num;
+        if (lbl.indexOf("race") >= 0 && !races) races = num;
+      });
+    }
+    var classes = [];
+    var classRoot = slot && slot.querySelector("[data-ns-classes]");
+    if (classRoot) {
+      classRoot.querySelectorAll("img").forEach(function (img) {
+        var src = attr(img, "src");
+        if (!src) return;
+        var a = img.closest("a");
+        classes.push({ src: src, alt: attr(img, "alt") || attr(img, "title"), href: a ? attr(a, "href") : "" });
+      });
+    }
+    return {
+      sid: live.sid,
+      name: live.name || [first, last].filter(Boolean).join(" "),
+      first: first,
+      last: last,
+      slug: live.slug || "",
+      avatar: avatar ? attr(avatar, "src") : "/assets/avatars/default-youth.png",
+      alt: avatar ? (attr(avatar, "alt") || live.name) : live.name,
+      club: club,
+      clubLogo: clubImg ? attr(clubImg, "src") : (club ? "/api/club-logo/" + encodeURIComponent(club) : ""),
+      sslRank: txt(slot, ".sa-ssl-rank-digits") || txt(slot, ".sa-approved-ssl-rank-number"),
+      sslPoints: sslPoints,
+      sslHref: sslA ? attr(sslA, "href") : "",
+      gold: gold,
+      silver: silver,
+      bronze: bronze,
+      medalRate: medalRate,
+      regattas: regattas,
+      races: races,
+      classes: classes
+    };
+  }
+
+  function signupHtml(name) {
     return (
       '<div class="sa-looked-signup-card">' +
         '<span class="sa-looked-signup-step-lbl">Step 1</span>' +
-        '<span class="sa-looked-signup-welcome">Welcome <span class="sa-looked-signup-welcome-name" data-ssa-claim-name>Sailor</span></span>' +
+        '<span class="sa-looked-signup-welcome">Welcome <span class="sa-looked-signup-welcome-name" data-ssa-claim-name>' + esc(name || "Sailor") + "</span></span>" +
         '<span class="sa-looked-signup-choose">Please choose method to register</span>' +
         '<button type="button" class="sa-looked-auth sa-looked-auth--whatsapp" data-wa-open>' +
           '<span class="sa-looked-auth-ico" aria-hidden="true">' + WA_SVG + "</span>" +
@@ -138,33 +296,154 @@
     );
   }
 
-  function digits(v) {
-    return String(v || "").replace(/\D/g, "");
+  function medalHtml(title, ico, n) {
+    return (
+      '<span class="sa-looked-medal" title="' + esc(title) + '">' +
+        '<span class="sa-looked-medal-ico" aria-hidden="true">' + ico + "</span>" +
+        '<span class="sa-looked-medal-n-row" aria-label="' + esc(String(n)) + '">' +
+          '<span class="sa-looked-medal-n">' + esc(String(n)) + "</span>" +
+        "</span>" +
+      "</span>"
+    );
   }
 
-  function extHref(provider, info) {
-    var u = "/signup.html?signup=1&provider=" + encodeURIComponent(provider) + "&from=claim";
-    if (info && info.sid) u += "&sas_id=" + encodeURIComponent(info.sid);
-    if (info && info.name) u += "&name=" + encodeURIComponent(info.name);
-    try {
-      u += "&returnTo=" + encodeURIComponent(window.location.href || "/");
-    } catch (_) {}
-    return u;
+  function classesHtml(list) {
+    if (!list || !list.length) return "";
+    return (
+      '<div class="sa-looked-classes"><div class="sa-looked-classes-row">' +
+      list.map(function (c, i) {
+        var img = '<img class="sa-looked-class-logo' + (i < 2 ? " sa-looked-class-logo--top" : "") + '" src="' + esc(c.src) + '" alt="' + esc(c.alt || "") + '">';
+        if (c.href) return '<a class="sa-looked-class-link" href="' + esc(safeHref(c.href, "#")) + '" title="' + esc(c.alt || "") + '">' + img + "</a>";
+        return '<span class="sa-looked-class-link">' + img + "</span>";
+      }).join("") +
+      "</div></div>"
+    );
   }
 
-  function sailorInfo(slot, fallback) {
-    var live = fallback ? { sid: fallback.sid || "", name: fallback.name || "", slug: fallback.slug || "" } : { sid: "", name: "", slug: "" };
-    live.sid = live.sid || (slot && slot.dataset && slot.dataset.sasId) || "";
-    if (!live.name && slot) {
-      var firstEl = slot.querySelector(".sa-approved-sailor-name-first");
-      var lastEl = slot.querySelector(".sa-approved-sailor-name-last");
-      live.name = [firstEl && firstEl.textContent, lastEl && lastEl.textContent]
-        .filter(Boolean)
-        .join(" ")
-        .replace(/\s+/g, " ")
-        .trim();
-    }
-    return live;
+  function eventRowHtml(row) {
+    var rank = parseInt(row.rank, 10);
+    var cls = "sa-looked-ev";
+    if (rank === 1) cls += " rank-1";
+    else if (rank === 2) cls += " rank-2";
+    var liveSt = String(row.live_board_status || "").toUpperCase();
+    if (!liveSt && row.is_live) liveSt = "LIVE";
+    var liveCls = "";
+    if (liveSt === "RACING") liveCls = "racing";
+    else if (liveSt === "POSTPONED") liveCls = "postponed";
+    else if (liveSt === "LIVE" || row.is_live) liveCls = "live";
+    if (liveCls) cls += " is-live-" + liveCls;
+    var href = safeHref(row.event_url || (row.regatta_id ? "/regatta/" + row.regatta_id : ""), "#");
+    var className = row.class_canonical || row.class_original || "";
+    var classSrc = classLogoUrl(className, row.class_logo_url);
+    var club = row.club || "";
+    var liveBadge = liveCls
+      ? '<span class="sa-looked-ev-live sa-looked-ev-live--' + liveCls + '" data-live-badge="1">' + (liveCls === "live" ? "Live" : liveSt) + "</span>"
+      : "";
+    var eventLogo = row.event_logo_url
+      ? '<img class="sa-looked-ev-eventlogo" src="' + esc(row.event_logo_url) + '" alt="">'
+      : "";
+    return (
+      '<a class="' + cls + '" href="' + esc(href) + '">' +
+        '<div class="sa-looked-ev-left">' +
+          '<div class="sa-looked-ev-rank"><div class="sa-looked-ev-rankstack">' +
+            '<span class="sa-looked-ev-place">' + esc(ordinal(rank)) + "</span>" +
+            '<span class="sa-looked-ev-rankline" aria-hidden="true"></span>' +
+            '<span class="sa-looked-ev-fleet">' + esc(row.entries != null ? String(row.entries) : "—") + "</span>" +
+          "</div></div>" +
+          '<div class="sa-looked-ev-class">' +
+            (classSrc ? '<img src="' + esc(classSrc) + '" alt="' + esc(className) + '">' : "") +
+          "</div>" +
+        "</div>" +
+        '<div class="sa-looked-ev-main">' +
+          '<div class="sa-looked-ev-title">' + esc(row.event_name || "Event") + "</div>" +
+          '<div class="sa-looked-ev-date"><img src="' + CAL_ICO + '" alt="" aria-hidden="true"><span>' +
+            esc(formatEventDates(row.start_date, row.end_date)) + "</span></div>" +
+          liveBadge +
+          '<div class="sa-looked-ev-logos">' +
+            (club
+              ? '<span class="sa-looked-ev-club"><img src="/api/club-logo/' + esc(club) + '" alt="' + esc(club) + '"><span class="sa-looked-ev-club-code">' + esc(club) + "</span></span>"
+              : "") +
+            eventLogo +
+          "</div>" +
+        "</div>" +
+      "</a>"
+    );
+  }
+
+  function cardHtml(p) {
+    var clubHref = p.club ? "/club/" + encodeURIComponent(String(p.club).toLowerCase()) : "#";
+    var sslHref = safeHref(p.sslHref, "#");
+    var points = (p.sslPoints || []).map(function (d) {
+      return '<span class="sa-ssl-point-box">' + esc(d) + "</span>";
+    }).join("");
+    return (
+      '<div class="popup-card">' +
+        '<div class="sa-approved-sailor-header">' +
+          '<div class="sa-approved-sailor-avatar-col"><div class="sa-approved-sailor-avatar"><div class="sa-approved-sailor-avatar-clip">' +
+            '<img src="' + esc(p.avatar || "/assets/avatars/default-youth.png") + '" alt="' + esc(p.alt || p.name) + '" width="76" height="76">' +
+          "</div></div></div>" +
+          '<div class="sa-approved-sailor-main">' +
+            '<div class="sa-approved-sailor-id-band">' +
+              '<h2 class="sa-approved-sailor-name"><span class="sa-approved-sailor-name-first">' + esc(p.first || "Sailor") + '</span>' +
+              '<span class="sa-approved-sailor-name-last">' + esc(p.last || "") + "</span></h2>" +
+              (p.club
+                ? '<a class="sa-approved-sailor-club-link sa-approved-sailor-club-icon-link" href="' + esc(clubHref) + '" title="' + esc(p.club) + '"><span class="sa-approved-sailor-club-icon"><img src="' + esc(p.clubLogo) + '" alt="' + esc(p.club) + '"></span></a>'
+                : "") +
+            "</div>" +
+            (p.club
+              ? '<div class="sa-approved-sailor-club"><a class="sa-approved-sailor-club-link" href="' + esc(clubHref) + '" title="' + esc(p.club) + '"><span class="sa-approved-sailor-club-code">' + esc(p.club) + "</span></a></div>"
+              : "") +
+          "</div>" +
+          '<div class="sa-header-ssl-col">' +
+            '<a class="brand-box sa-ssl-brand-box" href="' + esc(sslHref) + '" target="_blank" rel="noopener noreferrer" title="SSL ranking / World of Sailors">' +
+              '<img class="brand-icon sa-ssl-brand-icon" src="/artwork/SSL-Ranking-Star.png?v=20260811b" alt="SSL Ranking Star Icon">' +
+              '<div class="sa-ssl-rank-stack">' +
+                '<h2 class="brand-wordmark sa-ssl-wordmark">SSL RANK</h2>' +
+                '<div class="rank-hero sa-ssl-rank-hero">' +
+                  '<span class="sa-ssl-rank-line" aria-hidden="true"></span>' +
+                  '<div class="rank-num sa-ssl-rank-num"><span class="sa-ssl-rank-wrap"><span class="sa-ssl-rank-digits">' + esc(p.sslRank || "—") + "</span></span></div>" +
+                  '<span class="sa-ssl-rank-line" aria-hidden="true"></span>' +
+                "</div>" +
+                '<div class="sa-ssl-points-label">POINTS</div>' +
+                '<div class="sa-ssl-points-row">' + points + "</div>" +
+              "</div>" +
+            "</a>" +
+          "</div>" +
+        "</div>" +
+        '<div class="sa-looked-summary">' +
+          '<div class="sa-looked-podiums" data-ns-podiums="1">' +
+            '<span class="sa-looked-podiums-hdr">PODIUMS</span>' +
+            '<span class="sa-looked-medal-row">' +
+              medalHtml("1st", "🥇", p.gold || 0) +
+              medalHtml("2nd", "🥈", p.silver || 0) +
+              medalHtml("3rd", "🥉", p.bronze || 0) +
+            "</span>" +
+            '<span class="sa-looked-medal-rate"><span class="sa-looked-medal-rate-stack">' +
+              '<span class="sa-looked-medal-rate-labels"><span class="sa-looked-medal-rate-lbl">Medal Rate</span></span>' +
+              '<span class="sa-looked-medal-rate-val" data-ssa-medal-rate>' + esc(p.medalRate || "—") + "</span>" +
+            "</span></span>" +
+          "</div>" +
+          '<div class="sa-looked-rule" role="separator" aria-hidden="true"></div>' +
+          '<div class="sa-looked-stats"><div class="sa-looked-stats-rows">' +
+            '<div class="sa-looked-stat-row"><span class="sa-looked-stat-lbl">Regattas</span><img class="sa-looked-stat-ico sa-looked-stat-ico--boat" src="' + BOAT_ICO + '" alt="" aria-hidden="true"><span class="sa-looked-stat-n" data-ssa-regattas>' + esc(p.regattas || "—") + "</span></div>" +
+            '<div class="sa-looked-stat-row"><span class="sa-looked-stat-lbl">Races</span><img class="sa-looked-stat-ico sa-looked-stat-ico--flag" src="' + FLAG_ICO + '" alt="" aria-hidden="true"><span class="sa-looked-stat-n" data-ssa-races>' + esc(p.races || "—") + "</span></div>" +
+          "</div></div>" +
+          '<div data-ssa-classes-host>' + classesHtml(p.classes) + "</div>" +
+        "</div>" +
+        '<div class="sa-looked-events" data-ssa-events>' +
+          '<span class="sa-looked-events-hdr">Last 3 <img class="sa-looked-events-hdr-ico" src="' + BOAT_ICO + '" alt="" aria-hidden="true"> Events of <span data-ssa-event-total>' + esc(p.regattas || "…") + '</span> <img class="sa-looked-events-hdr-ico" src="' + BOAT_ICO + '" alt="" aria-hidden="true"></span>' +
+          '<div class="sa-looked-events-list" data-ssa-events-list>Loading…</div>' +
+        "</div>" +
+        '<div class="sa-looked-cta">' +
+          '<button type="button" class="sa-looked-claim" data-ssa-modal-claim title="Claim your profile" aria-expanded="false">' +
+            '<span class="sa-looked-claim-top"><span class="sa-looked-claim-ask">Is this your sailing profile?</span><span class="sa-looked-claim-sub">Unlock your full results and stats</span></span>' +
+            '<span class="sa-looked-claim-bar"><span class="sa-looked-claim-txt">Claim my profile</span><span class="sa-looked-claim-go" aria-hidden="true">∨</span></span>' +
+          "</button>" +
+        "</div>" +
+        '<div class="sa-looked-signup" hidden>' + signupHtml(p.name) + "</div>" +
+      "</div>" +
+      '<button type="button" class="ssa-claim-quit" data-ssa-quit>Quit Sign Up</button>'
+    );
   }
 
   function resetWa(wrap) {
@@ -195,11 +474,10 @@
     }
   }
 
-  function closeCard(slot) {
-    if (!slot) return;
-    slot.classList.remove("is-step1");
-    var panel = slot.querySelector(".sa-looked-signup");
-    var btn = slot.querySelector(".ssa-popup-claim-slot .sa-looked-claim");
+  function showPreview(wrap) {
+    wrap.classList.remove("is-step1");
+    var panel = wrap.querySelector(".sa-looked-signup");
+    var btn = wrap.querySelector("[data-ssa-modal-claim]");
     if (panel) {
       panel.hidden = true;
       panel.classList.remove("is-open");
@@ -208,39 +486,17 @@
       btn.classList.remove("is-open");
       btn.setAttribute("aria-expanded", "false");
     }
-    resetWa(slot);
+    resetWa(wrap);
   }
 
-  function closeAllExcept(keep) {
-    document.querySelectorAll(".ssa-dev1-inject.is-step1").forEach(function (el) {
-      if (el !== keep) closeCard(el);
-    });
-  }
-
-  function openCard(slot, info) {
-    closeAllExcept(slot);
-    var live = sailorInfo(slot, info);
-    slot.__ssaClaimInfo = live;
-    try {
-      window.__ssaClaimSailor = { sid: live.sid || "", name: live.name || "" };
-    } catch (_) {}
-    ensurePanel(slot);
-    var nameEl = slot.querySelector("[data-ssa-claim-name]");
-    if (nameEl) nameEl.textContent = live.name || "Sailor";
-    slot.querySelectorAll("[data-ssa-claim-ext]").forEach(function (a) {
-      a.setAttribute("href", extHref(a.getAttribute("data-ssa-claim-ext"), live));
-    });
-    resetWa(slot);
-    var panel = slot.querySelector(".sa-looked-signup");
-    var btn = slot.querySelector(".ssa-popup-claim-slot .sa-looked-claim");
-    slot.classList.add("is-step1");
+  function showStep1(wrap) {
+    wrap.classList.add("is-step1");
+    var panel = wrap.querySelector(".sa-looked-signup");
+    var btn = wrap.querySelector("[data-ssa-modal-claim]");
     if (panel) {
       panel.hidden = false;
       panel.removeAttribute("hidden");
       panel.classList.add("is-open");
-      try {
-        panel.scrollIntoView({ block: "nearest", behavior: "smooth" });
-      } catch (_) {}
     }
     if (btn) {
       btn.classList.add("is-open");
@@ -248,43 +504,17 @@
     }
   }
 
-  function toggleCard(slot, info) {
-    if (slot.classList.contains("is-step1")) closeCard(slot);
-    else openCard(slot, info);
-  }
-
-  function ensurePanel(slot) {
-    var panel = slot.querySelector(".sa-looked-signup");
-    var trapped = panel && panel.closest("#dev1-rank-expand-panel, .dev1-rank-expand-panel, #dev1-event-results, .dev1-er");
-    if (panel && trapped && panel.parentNode) {
-      panel.parentNode.removeChild(panel);
-      panel = null;
-      slot.removeAttribute("data-ssa-signup-wired");
-    }
-    if (panel) return panel;
-    panel = document.createElement("div");
-    panel.className = "sa-looked-signup";
-    panel.hidden = true;
-    panel.innerHTML = signupHtml();
-    var host = slot.querySelector(".sa-approved-sailor-card") || slot;
-    var header = host.querySelector(".sa-approved-sailor-header");
-    if (header && header.parentNode) header.parentNode.insertBefore(panel, header.nextSibling);
-    else host.appendChild(panel);
-    wireSignup(slot);
-    return panel;
-  }
-
-  function wireSignup(slot) {
-    if (slot.getAttribute("data-ssa-signup-wired") === "1") return;
-    slot.setAttribute("data-ssa-signup-wired", "1");
-    var signupCard = slot.querySelector(".sa-looked-signup-card");
-    var panel = slot.querySelector("[data-wa-panel]");
-    var phoneStep = slot.querySelector("[data-wa-phone-step]");
-    var codeStep = slot.querySelector("[data-wa-code-step]");
-    var phone = slot.querySelector("[data-wa-phone]");
-    var sendBtn = slot.querySelector("[data-wa-send]");
-    var codeBoxes = slot.querySelectorAll("[data-wa-digit]");
-    var msg = slot.querySelector("[data-wa-msg]");
+  function wireSignup(wrap) {
+    if (wrap.getAttribute("data-ssa-signup-wired") === "1") return;
+    wrap.setAttribute("data-ssa-signup-wired", "1");
+    var signupCard = wrap.querySelector(".sa-looked-signup-card");
+    var panel = wrap.querySelector("[data-wa-panel]");
+    var phoneStep = wrap.querySelector("[data-wa-phone-step]");
+    var codeStep = wrap.querySelector("[data-wa-code-step]");
+    var phone = wrap.querySelector("[data-wa-phone]");
+    var sendBtn = wrap.querySelector("[data-wa-send]");
+    var codeBoxes = wrap.querySelectorAll("[data-wa-digit]");
+    var msg = wrap.querySelector("[data-wa-msg]");
     var verifying = false;
     function setMsg(text, kind) {
       if (!msg) return;
@@ -326,7 +556,7 @@
         a.classList.toggle("is-chosen", a === el);
       });
     }
-    slot.querySelectorAll(".sa-looked-auth").forEach(function (el) {
+    wrap.querySelectorAll(".sa-looked-auth").forEach(function (el) {
       el.addEventListener("click", function (e) {
         e.stopPropagation();
         pickMethod(el);
@@ -341,7 +571,7 @@
       });
     });
     function sailorPayload() {
-      var info = slot.__ssaClaimInfo || sailorInfo(slot);
+      var info = wrap.__ssaClaimInfo || {};
       return {
         sas_id: info.sid || "",
         slug: info.slug || "",
@@ -364,9 +594,7 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(sailorPayload())
         })
-          .then(function (r) {
-            return r.json();
-          })
+          .then(function (r) { return r.json(); })
           .then(function (d) {
             sendBtn.disabled = false;
             if (!d || d.error) {
@@ -374,8 +602,8 @@
               return;
             }
             if (d.sas_id) {
-              slot.__ssaClaimInfo = slot.__ssaClaimInfo || {};
-              slot.__ssaClaimInfo.sid = String(d.sas_id);
+              wrap.__ssaClaimInfo = wrap.__ssaClaimInfo || {};
+              wrap.__ssaClaimInfo.sid = String(d.sas_id);
             }
             if (phoneStep) phoneStep.hidden = true;
             if (codeStep) codeStep.hidden = false;
@@ -391,11 +619,8 @@
     }
     function keepSession(token) {
       if (!token) return;
-      try {
-        localStorage.setItem("session", token);
-      } catch (err) {}
-      document.cookie =
-        "session=" + encodeURIComponent(token) + "; path=/; max-age=" + 30 * 24 * 60 * 60 + "; SameSite=Lax";
+      try { localStorage.setItem("session", token); } catch (err) {}
+      document.cookie = "session=" + encodeURIComponent(token) + "; path=/; max-age=" + 30 * 24 * 60 * 60 + "; SameSite=Lax";
     }
     function verifyCode() {
       if (verifying) return;
@@ -412,9 +637,7 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body)
       })
-        .then(function (r) {
-          return r.json();
-        })
+        .then(function (r) { return r.json(); })
         .then(function (d) {
           if (!d || d.error) {
             verifying = false;
@@ -426,9 +649,8 @@
           }
           keepSession(d.session_token || d.session);
           setMsg("Profile claimed. Opening your sailor page…", "is-ok");
-          var slug = (d && d.slug) || (slot.__ssaClaimInfo && slot.__ssaClaimInfo.slug) || "";
-          var url = (d && d.profile_url) || (slug ? "/sailor/" + slug : "/");
-          window.location.href = url;
+          var slug = (d && d.slug) || (wrap.__ssaClaimInfo && wrap.__ssaClaimInfo.slug) || "";
+          window.location.href = (d && d.profile_url) || (slug ? "/sailor/" + slug : "/");
         })
         .catch(function () {
           verifying = false;
@@ -440,10 +662,7 @@
     codeBoxes.forEach(function (box, idx) {
       box.addEventListener("input", function () {
         var extra = digits(box.value);
-        if (!extra) {
-          box.value = "";
-          return;
-        }
+        if (!extra) { box.value = ""; return; }
         if (extra.length > 1) {
           fillBoxes((readCode().slice(0, idx) + extra).slice(0, 4));
           if (readCode().length === 4) verifyCode();
@@ -473,6 +692,191 @@
     });
   }
 
+  function fillFromResults(wrap, profile) {
+    if (!profile.sid) return;
+    fetch("/api/member/" + encodeURIComponent(profile.sid) + "/results", { credentials: "same-origin" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        var rows = (d && d.results) || [];
+        var events = rows.filter(function (r) { return r && r.regatta_id && !isSeries(r); });
+        var seen = {};
+        var unique = [];
+        events.forEach(function (r) {
+          if (seen[r.regatta_id]) return;
+          seen[r.regatta_id] = true;
+          unique.push(r);
+        });
+        unique.sort(function (a, b) {
+          return String(b.end_date || b.start_date || "").localeCompare(String(a.end_date || a.start_date || ""));
+        });
+        var last3 = unique.slice(0, 3);
+        var list = wrap.querySelector("[data-ssa-events-list]");
+        var host = wrap.querySelector("[data-ssa-events]");
+        if (list) {
+          if (!last3.length) {
+            if (host) host.setAttribute("data-empty", "1");
+            list.textContent = "No recent events";
+          } else {
+            if (host) host.removeAttribute("data-empty");
+            list.innerHTML = last3.map(eventRowHtml).join("");
+          }
+        }
+        var totalEl = wrap.querySelector("[data-ssa-event-total]");
+        var nReg = unique.length;
+        if (totalEl && (profile.regattas === "" || profile.regattas == null || profile.regattas === "—")) {
+          totalEl.textContent = String(nReg);
+        } else if (totalEl && profile.regattas) {
+          totalEl.textContent = String(profile.regattas);
+        }
+        if (!profile.regattas) {
+          var rg = wrap.querySelector("[data-ssa-regattas]");
+          if (rg) rg.textContent = String(nReg || "—");
+        }
+        if (!profile.races) {
+          var rc = wrap.querySelector("[data-ssa-races]");
+          var nRace = rows.reduce(function (sum, r) { return sum + raceCount(r); }, 0);
+          if (rc) rc.textContent = String(nRace || "—");
+        }
+        if (!profile.gold && !profile.silver && !profile.bronze) {
+          var g = 0, s = 0, b = 0;
+          unique.forEach(function (r) {
+            if (r.rank === 1) g += 1;
+            else if (r.rank === 2) s += 1;
+            else if (r.rank === 3) b += 1;
+          });
+          var medals = wrap.querySelectorAll(".sa-looked-medal-n");
+          if (medals[0]) medals[0].textContent = String(g);
+          if (medals[1]) medals[1].textContent = String(s);
+          if (medals[2]) medals[2].textContent = String(b);
+          var rateEl = wrap.querySelector("[data-ssa-medal-rate]");
+          if (rateEl && nReg) rateEl.textContent = Math.round(100 * (g + s + b) / nReg) + "%";
+        }
+        if (!profile.classes || !profile.classes.length) {
+          var counts = {};
+          unique.forEach(function (r) {
+            var name = r.class_canonical || r.class_original || "";
+            if (!name) return;
+            if (!counts[name]) counts[name] = { n: 0, src: r.class_logo_url, alt: name };
+            counts[name].n += 1;
+            if (r.class_logo_url) counts[name].src = r.class_logo_url;
+          });
+          var listC = Object.keys(counts).map(function (name) {
+            return {
+              name: name,
+              n: counts[name].n,
+              src: classLogoUrl(name, counts[name].src),
+              alt: name,
+              href: "/class/" + classSlug(name)
+            };
+          }).sort(function (a, b) { return b.n - a.n; });
+          var ch = wrap.querySelector("[data-ssa-classes-host]");
+          if (ch) ch.innerHTML = classesHtml(listC);
+        }
+      })
+      .catch(function () {
+        var list = wrap.querySelector("[data-ssa-events-list]");
+        var host = wrap.querySelector("[data-ssa-events]");
+        if (host) host.setAttribute("data-empty", "1");
+        if (list) list.textContent = "Could not load events";
+      });
+  }
+
+  function closeModal() {
+    var overlay = document.getElementById("ssa-claim-modal");
+    if (overlay) {
+      overlay.classList.remove("is-open");
+      overlay.hidden = true;
+      overlay.setAttribute("aria-hidden", "true");
+      var wrap = overlay.querySelector(".lab-card-wrap");
+      if (wrap) showPreview(wrap);
+    }
+    try {
+      document.body.style.overflow = prevOverflow || "";
+    } catch (_) {}
+  }
+
+  function onKey(e) {
+    if (e.key === "Escape") closeModal();
+  }
+
+  function ensureModal() {
+    var overlay = document.getElementById("ssa-claim-modal");
+    if (overlay) return overlay;
+    overlay = document.createElement("div");
+    overlay.id = "ssa-claim-modal";
+    overlay.hidden = true;
+    overlay.setAttribute("aria-hidden", "true");
+    overlay.innerHTML =
+      '<div class="ssa-claim-modal-backdrop" data-ssa-quit></div>' +
+      '<div class="ssa-claim-modal-panel" role="dialog" aria-modal="true" aria-label="Claim sailing profile">' +
+        '<div class="lab-card-wrap" data-ssa-claim-wrap></div>' +
+      "</div>";
+    document.body.appendChild(overlay);
+    overlay.addEventListener("click", function (e) {
+      var quit = e.target && e.target.closest ? e.target.closest("[data-ssa-quit]") : null;
+      if (quit) {
+        e.preventDefault();
+        closeModal();
+      }
+    });
+    overlay.querySelector(".ssa-claim-modal-panel").addEventListener("click", function (e) {
+      if (e.target && e.target.getAttribute && e.target.getAttribute("data-ssa-quit") != null) return;
+      e.stopPropagation();
+    });
+    return overlay;
+  }
+
+  function openModal(slot, info) {
+    injectCss();
+    scrubListSlot(slot);
+    var profile = extractProfile(slot, info);
+    try { window.__ssaClaimSailor = { sid: profile.sid || "", name: profile.name || "" }; } catch (_) {}
+    var overlay = ensureModal();
+    var wrap = overlay.querySelector("[data-ssa-claim-wrap]");
+    wrap.innerHTML = cardHtml(profile);
+    wrap.__ssaClaimInfo = { sid: profile.sid, name: profile.name, slug: profile.slug };
+    wrap.querySelectorAll("[data-ssa-claim-ext]").forEach(function (a) {
+      a.setAttribute("href", extHref(a.getAttribute("data-ssa-claim-ext"), wrap.__ssaClaimInfo));
+    });
+    showPreview(wrap);
+    wireSignup(wrap);
+    var claimBtn = wrap.querySelector("[data-ssa-modal-claim]");
+    if (claimBtn) {
+      claimBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        showStep1(wrap);
+      });
+    }
+    fillFromResults(wrap, profile);
+    overlay.hidden = false;
+    overlay.classList.add("is-open");
+    overlay.setAttribute("aria-hidden", "false");
+    try {
+      prevOverflow = document.body.style.overflow || "";
+      document.body.style.overflow = "hidden";
+    } catch (_) {}
+    document.removeEventListener("keydown", onKey);
+    document.addEventListener("keydown", onKey);
+  }
+
+  function scrubListSlot(slot) {
+    if (!slot) return;
+    slot.classList.remove("is-step1");
+    var extra = slot.querySelector(":scope > .sa-looked-signup, .sa-approved-sailor-card > .sa-looked-signup");
+    if (!extra) extra = slot.querySelector(".sa-looked-signup");
+    if (extra && extra.parentNode && !extra.closest("#ssa-claim-modal")) extra.parentNode.removeChild(extra);
+  }
+
+  function neutralizeDev1Scale(slot) {
+    var ban = slot && slot.querySelector("[data-ssa-list-claim], .ssa-popup-claim-slot .sa-looked-claim");
+    if (!ban || !ban.style) return;
+    ban.style.transform = "none";
+    ban.style.transformOrigin = "center center";
+    ban.style.top = "";
+    ban.style.position = "";
+  }
+
   function replaceLandingClaimBanner(root) {
     if (!root || !root.querySelector) return false;
     injectCss();
@@ -482,15 +886,13 @@
     if (!old) return false;
     slotEl.classList.add("ssa-popup-claim-slot");
     slotEl.innerHTML = '<div class="sa-looked-cta">' + CLAIM_INNER + "</div>";
+    neutralizeDev1Scale(root);
     return true;
   }
 
   function killLegacyOverlay() {
     var old = document.getElementById("ssa-landing-claim-overlay");
     if (old && old.parentNode) old.parentNode.removeChild(old);
-    try {
-      document.body.style.removeProperty("overflow");
-    } catch (_) {}
   }
 
   function mountLandingClaimPopup(slot, info) {
@@ -498,7 +900,12 @@
     injectCss();
     killLegacyOverlay();
     replaceLandingClaimBanner(slot);
-    var btn = slot.querySelector(".ssa-popup-claim-slot .sa-looked-claim");
+    scrubListSlot(slot);
+    neutralizeDev1Scale(slot);
+    setTimeout(function () { neutralizeDev1Scale(slot); }, 60);
+    setTimeout(function () { neutralizeDev1Scale(slot); }, 220);
+    setTimeout(function () { neutralizeDev1Scale(slot); }, 520);
+    var btn = slot.querySelector(".ssa-popup-claim-slot [data-ssa-list-claim]");
     if (!btn) return;
     if (btn.getAttribute("data-ssa-claim-wired") === "1") return;
     btn.setAttribute("data-ssa-claim-wired", "1");
@@ -506,7 +913,7 @@
       e.preventDefault();
       e.stopPropagation();
       if (e.stopImmediatePropagation) e.stopImmediatePropagation();
-      toggleCard(slot, info);
+      openModal(slot, info);
     });
   }
 
@@ -516,12 +923,13 @@
   window.replaceLandingClaimBanner = replaceLandingClaimBanner;
   window.mountLandingClaimPopup = mountLandingClaimPopup;
   window.openLandingClaimPopup = function (info) {
-    var slot = document.querySelector(".ssa-dev1-inject.is-step1") || document.querySelector(".ssa-dev1-inject");
-    if (slot) openCard(slot, info);
+    var slot = null;
+    if (info && info.sid) {
+      slot = document.querySelector('.ssa-dev1-inject[data-sas-id="' + String(info.sid).replace(/"/g, "") + '"]');
+    }
+    slot = slot || document.querySelector(".ssa-dev1-inject");
+    if (slot) openModal(slot, info);
   };
-  window.closeLandingClaimPopup = function () {
-    closeAllExcept(null);
-    killLegacyOverlay();
-  };
+  window.closeLandingClaimPopup = closeModal;
   window.__ssaLandingClaimPopupVer = JS_VER;
 })();
