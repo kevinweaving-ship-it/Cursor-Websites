@@ -6,7 +6,7 @@
 
   var CSS_ID = "ssa-landing-claim-popup-css";
   var CSS_LINK_ID = "ssa-landing-claim-popup-css-link";
-  var JS_VER = "20260911pw";
+  var JS_VER = "20260911mpdown";
   var prevOverflow = "";
 
   var CLAIM_INNER =
@@ -80,7 +80,11 @@
       "#ssa-claim-modal .lab-card-wrap.is-done .sa-looked-pw,",
       "#ssa-claim-modal .lab-card-wrap.is-done .sa-looked-signup-choose,",
       "#ssa-claim-modal .lab-card-wrap.is-done .sa-looked-signup-welcome,",
-      "#ssa-claim-modal .lab-card-wrap.is-done .ssa-claim-quit{display:none!important;}"
+      "#ssa-claim-modal.is-open{top:calc(var(--sa-header-h,80px) + env(safe-area-inset-top,0px))!important;right:0!important;bottom:0!important;left:0!important;inset:auto!important;flex-direction:column!important;align-items:center!important;justify-content:flex-start!important;}",
+      "@media screen and (orientation:portrait) and (max-width:767px){",
+      "#ssa-claim-modal.is-open{padding-top:36px!important;padding-bottom:calc(32px + env(safe-area-inset-bottom,0px))!important;}",
+      "#ssa-claim-modal .ssa-claim-modal-panel{margin-top:28px!important;margin-bottom:auto!important;}",
+      "}",
     ].join("");
     document.head.appendChild(s);
   }
