@@ -20,7 +20,7 @@
       ".ssa-regatta-slot-card .wx-dial .dt.card{stroke:#111;stroke-width:1.4;}",
       ".ssa-regatta-slot-card .wx-dial .darc{fill:none;stroke:#93c5fd;stroke-width:7;stroke-linecap:butt;}",
       ".ssa-regatta-slot-card .wx-dial .dhead{fill:#3b82f6;}",
-      ".ssa-regatta-slot-card .wx-dial .dpt{font:700 22px Arial,Helvetica,sans-serif;fill:#15803d;}",
+      ".ssa-regatta-slot-card .wx-dial .dpt{font:700 26px Arial,Helvetica,sans-serif;fill:#15803d;}",
       ".ssa-regatta-slot-card .wx-info{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:4px;padding:6px 0;}",
       ".ssa-regatta-slot-card .wx-ir{display:flex;justify-content:space-between;align-items:baseline;gap:6px;min-width:0;}",
       ".ssa-regatta-slot-card .wx-il{font:700 11px Arial,Helvetica,sans-serif;color:#111;white-space:nowrap;}",
