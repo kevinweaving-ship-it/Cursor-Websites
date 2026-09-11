@@ -3,7 +3,7 @@
   window.__ssaLandingClaimPopup = true;
 
   var CSS_ID = "ssa-landing-claim-popup-css";
-  var JS_VER = "20260911incard";
+  var JS_VER = "20260911widefix";
 
   var CLAIM_INNER =
     '<button type="button" class="sa-looked-claim" id="dev1-claim-banner" title="Claim your profile" aria-expanded="false">' +
@@ -28,22 +28,31 @@
     s = document.createElement("style");
     s.id = CSS_ID;
     s.textContent = [
-      ".ssa-dev1-inject .ssa-popup-claim-slot{display:flex;justify-content:stretch;align-items:stretch;width:100%;height:100%;min-width:0;min-height:0;box-sizing:border-box;overflow:hidden;position:relative;z-index:1;}",
-      ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-cta{display:flex;flex-direction:column;width:100%;height:100%;max-width:100%;min-width:0;margin:0;padding:0;box-sizing:border-box;border:1px solid #c4a26f;border-radius:12px;overflow:hidden;background:#fefaf5;}",
-      ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim{display:flex!important;flex-direction:column;align-items:stretch;justify-content:flex-start;width:100%!important;height:100%!important;max-width:100%!important;margin:0;padding:0;box-sizing:border-box;background:transparent;border:0;text-decoration:none;color:inherit;line-height:1;cursor:pointer;font:inherit;transform:none!important;}",
-      ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim-top{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;flex:1 1 auto;width:100%;margin:0;padding:8px 8px 7px;box-sizing:border-box;background:#fefaf5;text-align:center;min-height:0;}",
-      ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim-ask{margin:0;padding:0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-weight:800;font-size:13px;line-height:1.15;color:#0a2351;letter-spacing:-0.01em;}",
-      ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim-sub{margin:0;padding:0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-weight:500;font-size:11px;line-height:1.2;color:#0a2351;}",
-      ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim-bar{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:8px;flex:0 0 auto;width:100%;margin:0;padding:9px 32px 9px 10px;box-sizing:border-box;background:#0a2351;position:relative;}",
-      ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim-txt{flex:1 1 auto;min-width:0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-weight:800;font-size:11px;line-height:1;color:#fff;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;}",
-      ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim-go{position:absolute;right:8px;top:50%;transform:translateY(-50%);flex:0 0 auto;width:18px;height:18px;border-radius:999px;background:#c4a26f;color:#0a2351;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;line-height:1;box-sizing:border-box;}",
+      ".ssa-dev1-inject .ssa-popup-claim-slot{display:flex;justify-content:center;align-items:center;width:100%;height:100%;min-width:0;min-height:0;box-sizing:border-box;overflow:visible;position:relative;z-index:1;}",
+      ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-cta{display:flex;flex-direction:column;width:max-content;max-width:100%;height:auto;min-width:220px;margin:0 auto;padding:0;box-sizing:border-box;border:1px solid #c4a26f;border-radius:12px;overflow:hidden;background:#fefaf5;}",
+      ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim{display:flex!important;flex-direction:column;align-items:stretch;justify-content:flex-start;width:auto!important;height:auto!important;max-width:100%!important;margin:0;padding:0;box-sizing:border-box;background:transparent;border:0;text-decoration:none;color:inherit;line-height:1;cursor:pointer;font:inherit;transform:none!important;}",
+      ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim-top{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex:0 0 auto;width:100%;margin:0;padding:12px 14px 11px;box-sizing:border-box;background:#fefaf5;text-align:center;min-height:0;}",
+      ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim-ask{margin:0;padding:0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-weight:800;font-size:15px;line-height:1.15;color:#0a2351;letter-spacing:-0.01em;white-space:nowrap;}",
+      ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim-sub{margin:0;padding:0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-weight:500;font-size:12px;line-height:1.2;color:#0a2351;white-space:nowrap;}",
+      ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim-bar{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:8px;flex:0 0 auto;width:100%;margin:0;padding:11px 40px 11px 14px;box-sizing:border-box;background:#0a2351;position:relative;}",
+      ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim-txt{flex:1 1 auto;min-width:0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-weight:800;font-size:12px;line-height:1;color:#fff;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;}",
+      ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim-go{position:absolute;right:10px;top:50%;transform:translateY(-50%);flex:0 0 auto;width:22px;height:22px;border-radius:999px;background:#c4a26f;color:#0a2351;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;line-height:1;box-sizing:border-box;}",
+      "@media screen and (orientation:portrait) and (max-width:767px){",
+      ".ssa-dev1-inject .ssa-popup-claim-slot{justify-content:stretch;align-items:stretch;overflow:hidden;}",
+      ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-cta{width:100%;height:100%;min-width:0;}",
+      ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim{width:100%!important;height:100%!important;}",
+      ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim-top{flex:1 1 auto;padding:8px 8px 7px;gap:3px;}",
+      ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim-ask{font-size:13px;white-space:normal;}",
+      ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim-sub{font-size:11px;white-space:normal;}",
+      ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim-bar{padding:9px 32px 9px 10px;}",
+      ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim-txt{font-size:11px;}",
+      ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim-go{right:8px;width:18px;height:18px;font-size:12px;}",
+      "}",
       ".ssa-dev1-inject.is-step1 .ssa-popup-claim-slot .sa-looked-cta,",
       ".ssa-dev1-inject.is-step1 #dev1-event-results,",
-      ".ssa-dev1-inject.is-step1 .dev1-er,",
-      ".ssa-dev1-inject.is-step1 .dev1-rank-expand-panel{display:none!important;}",
+      ".ssa-dev1-inject.is-step1 .dev1-er{display:none!important;}",
       ".ssa-dev1-inject .sa-looked-signup{display:none;width:100%;max-width:100%;min-width:0;margin:8px 0 0;padding:0;box-sizing:border-box;}",
-      ".ssa-dev1-inject.is-step1 .sa-looked-signup,",
-      ".ssa-dev1-inject .sa-looked-signup.is-open{display:block;}",
+      ".ssa-dev1-inject.is-step1 .sa-looked-signup.is-open{display:block!important;}",
       ".ssa-dev1-inject .sa-looked-signup-card{display:flex;flex-direction:column;align-items:stretch;gap:10px;width:100%;margin:0;padding:12px 10px;box-sizing:border-box;background:#0a2351;border:1px solid #142b5f;border-radius:12px;position:relative;}",
       ".ssa-dev1-inject .sa-looked-signup-step-lbl{display:block;margin:0;font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#c4a26f;text-align:center;}",
       ".ssa-dev1-inject .sa-looked-signup-welcome{display:block;margin:2px 0 0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:15px;font-weight:800;line-height:1.2;color:#fff;text-align:center;}",
@@ -227,6 +236,7 @@
     slot.classList.add("is-step1");
     if (panel) {
       panel.hidden = false;
+      panel.removeAttribute("hidden");
       panel.classList.add("is-open");
       try {
         panel.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -244,15 +254,21 @@
   }
 
   function ensurePanel(slot) {
-    var panel = slot.querySelector(":scope > .sa-looked-signup, .sa-approved-sailor-card > .sa-looked-signup");
+    var panel = slot.querySelector(".sa-looked-signup");
+    var trapped = panel && panel.closest("#dev1-rank-expand-panel, .dev1-rank-expand-panel, #dev1-event-results, .dev1-er");
+    if (panel && trapped && panel.parentNode) {
+      panel.parentNode.removeChild(panel);
+      panel = null;
+      slot.removeAttribute("data-ssa-signup-wired");
+    }
     if (panel) return panel;
     panel = document.createElement("div");
     panel.className = "sa-looked-signup";
     panel.hidden = true;
     panel.innerHTML = signupHtml();
     var host = slot.querySelector(".sa-approved-sailor-card") || slot;
-    var events = host.querySelector("#dev1-event-results, .dev1-er");
-    if (events && events.parentNode) events.parentNode.insertBefore(panel, events);
+    var header = host.querySelector(".sa-approved-sailor-header");
+    if (header && header.parentNode) header.parentNode.insertBefore(panel, header.nextSibling);
     else host.appendChild(panel);
     wireSignup(slot);
     return panel;
