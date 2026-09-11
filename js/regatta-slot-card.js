@@ -6,7 +6,7 @@
   var CSS_ID = "ssa-regatta-slot-card-css";
   var ROOT_ID = "ssa-regatta-slot-card";
   var CAPE_CLASSIC_ID = "2026-09-13-zvyc-cape-classic";
-  var JS_VER = "20260911w2s10";
+  var JS_VER = "20260911w2s11";
   var PTS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
   var BANDS = [[0, 5, "#12b028"], [5, 11, "#2563eb"], [11, 17, "#e67e00"], [17, 23, "#7c3aed"], [23, 60, "#DC143C"]];
 
@@ -37,7 +37,7 @@
       ".ssa-regatta-slot-card .wx-dial .darc.prev{opacity:.45;}",
       ".ssa-regatta-slot-card .wx-dial .dhead{fill:#3b82f6;}",
       ".ssa-regatta-slot-card .wx-dial .dpt{font:700 24px Arial,Helvetica,sans-serif;fill:#15803d;}",
-      ".ssa-regatta-slot-card .wx-dial .ddeg{font:700 9px Arial,Helvetica,sans-serif;fill:#166534;}",
+      ".ssa-regatta-slot-card .wx-dial .ddeg{font:700 18px Arial,Helvetica,sans-serif;fill:#166534;}",
       ".ssa-regatta-slot-card .wx-ir{flex:1 1 0;display:flex;flex-direction:row;justify-content:flex-end;align-items:baseline;gap:6px;min-width:0;min-height:0;}",
       ".ssa-regatta-slot-card .wx-il,.ssa-regatta-slot-card .wx-iv,.ssa-regatta-slot-card .wx-iv small{font:800 18px/1 Arial,Helvetica,sans-serif;white-space:nowrap;}",
       ".ssa-regatta-slot-card .wx-il{color:#334155;letter-spacing:0;text-transform:none;}",
@@ -114,7 +114,7 @@
     }
     svg += '<text class="dpt" x="50" y="45" text-anchor="middle" dominant-baseline="central">' + (pt || "—") + "</text>";
     if (deg != null) {
-      svg += '<text class="ddeg" x="50" y="64" text-anchor="middle">' + Math.round(deg) + "°</text>";
+      svg += '<text class="ddeg" x="50" y="70" text-anchor="middle">' + Math.round(deg) + "°</text>";
     }
     svg += "</svg>";
     return svg;
