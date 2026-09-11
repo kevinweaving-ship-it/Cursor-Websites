@@ -22728,8 +22728,37 @@ def _claim_sailor_name_and_slug(sas_id: str, slug: str):
     return name, canon
 
 
+_WA_BANNER_B64 = None
+
+
+def _whatsapp_claim_banner_b64() -> str:
+    global _WA_BANNER_B64
+    if _WA_BANNER_B64 is not None:
+        return _WA_BANNER_B64
+    import base64
+    roots = []
+    try:
+        roots.append(str(WEB_ROOT))
+    except Exception:
+        pass
+    roots.extend(["/var/www/sailingsa", os.path.dirname(os.path.abspath(__file__))])
+    names = [
+        "assets/logos/whatsapp-claim-banner.jpg",
+        "assets/whatsapp-claim-banner.jpg",
+    ]
+    for root in roots:
+        for name in names:
+            path = os.path.join(root, name)
+            if os.path.isfile(path):
+                with open(path, "rb") as f:
+                    _WA_BANNER_B64 = base64.b64encode(f.read()).decode("ascii")
+                return _WA_BANNER_B64
+    _WA_BANNER_B64 = ""
+    return ""
+
+
 def _send_via_whatsapp_engine(phone_intl: str, text: str) -> tuple[bool, str]:
-    """Send via the live WhatsApp engine (loopback POST /send, Bearer WAPOC_TOKEN)."""
+    """Send via the live WhatsApp engine: logo banner image + caption, else text."""
     url = (os.getenv("WHATSAPP_ENGINE_URL") or os.getenv("WA_ENGINE_URL") or "").strip()
     token = (os.getenv("WHATSAPP_ENGINE_TOKEN") or os.getenv("WAPOC_TOKEN") or "").strip()
     if not url:
@@ -22738,13 +22767,17 @@ def _send_via_whatsapp_engine(phone_intl: str, text: str) -> tuple[bool, str]:
     headers = {"Content-Type": "application/json"}
     if token:
         headers["Authorization"] = "Bearer " + token
+    img = _whatsapp_claim_banner_b64()
+    send_url = url
+    payload = {"number": phone_intl, "text": text, "to": phone_intl, "phone": phone_intl, "message": text}
+    if img:
+        if send_url.rstrip("/").endswith("/send"):
+            send_url = send_url.rstrip("/") + "-image"
+        elif "/send-image" not in send_url:
+            send_url = send_url.rstrip("/") + "/send-image"
+        payload = {"number": phone_intl, "caption": text, "image": img, "text": text}
     try:
-        r = httpx.post(
-            url,
-            json={"number": phone_intl, "text": text, "to": phone_intl, "phone": phone_intl, "message": text},
-            headers=headers,
-            timeout=25.0,
-        )
+        r = httpx.post(send_url, json=payload, headers=headers, timeout=25.0)
         if r.status_code < 400:
             try:
                 j = r.json()
@@ -22792,7 +22825,7 @@ async def api_claim_whatsapp_send_code(request: Request):
     intl = _sa_whatsapp_intl(local)
     msg = (
         f"Welcome {sailor_name} to Sailing SA\n"
-        f"Here is your code {code}\n"
+        f"Here is your code *{code}*\n"
         f"\n"
         f"Please enter it to complete your registration on SailingSA and claim your profile"
     )
