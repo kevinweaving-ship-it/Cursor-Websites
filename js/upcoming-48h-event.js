@@ -1,7 +1,8 @@
 /**
- * Hub: 48h banner, then the Cape Classic page stack (one below the other):
- * event header, wind bar, MM + Live Cam strip. Any of the 3 opens
- * /regatta/2026-09-13-zvyc-cape-classic. Compact, mobile-portrait first.
+ * Hub: 48h banner, then Cape Classic event header, then wind.
+ * Compact, mobile-portrait first. Equal gaps: site header → 48h banner →
+ * event header → weather (same as --sa-header-gap). MM strip is not shown
+ * on the hub. Clicks go to /regatta/2026-09-13-zvyc-cape-classic.
  *
  * Visible on hub home only, when that event is loaded and now is within
  * 48 hours before start through event end (Africa/Johannesburg).
@@ -12,7 +13,7 @@
 (function () {
   "use strict";
 
-  var JS_VER = "20260911u48d";
+  var JS_VER = "20260911u48f";
   var ROOT_ID = "ssa-upcoming-48h";
   var PARK_ID = "ssa-saved-logged-in-home-card";
   var CSS_ID = "ssa-upcoming-48h-css";
@@ -66,12 +67,12 @@
       document.head.appendChild(s);
     }
     s.textContent = [
-      ".ssa-upcoming-48h{--ssa-48h-pair-h:52px;width:100%;max-width:100%;margin:6px 0 8px;}",
+      ".ssa-upcoming-48h{--ssa-48h-pair-h:52px;--ssa-48h-gap:var(--sa-header-gap,12px);width:100%;max-width:100%;margin:0 0 var(--ssa-48h-gap);}",
       ".ssa-upcoming-48h[hidden]{display:none!important;}",
-      ".ssa-upcoming-48h .card{margin:0!important;padding:0!important;}",
-      ".ssa-upcoming-48h-banner{display:block;width:100%;height:auto;border-radius:8px;margin:0;}",
-      ".ssa-upcoming-48h-cards{display:flex;flex-direction:column;gap:6px;margin:6px 0 0;align-items:stretch;}",
-      ".ssa-upcoming-48h-card{display:block;width:100%;overflow:hidden;text-decoration:none;color:inherit;background:#fff;border:2px solid #1a2750;border-radius:8px;box-shadow:0 1px 3px rgba(0,31,63,.08);box-sizing:border-box;}",
+      ".ssa-upcoming-48h-shell.card{display:flex;flex-direction:column;gap:var(--ssa-48h-gap);margin:0 0 var(--ssa-48h-gap)!important;padding:var(--ssa-48h-gap)!important;background:#fff;border:2px solid #1a2750;border-radius:8px;box-shadow:0 1px 3px rgba(0,31,63,.08);box-sizing:border-box;}",
+      ".ssa-upcoming-48h-card{display:block;width:100%;overflow:hidden;text-decoration:none;color:inherit;background:#fff;border:2px solid #1a2750;border-radius:8px;box-shadow:none;box-sizing:border-box;margin:0!important;padding:0!important;}",
+      ".ssa-upcoming-48h-banner{display:block;width:100%;height:56px;object-fit:cover;object-position:center;}",
+      ".ssa-upcoming-48h-cards{display:flex;flex-direction:column;gap:var(--ssa-48h-gap);margin:0;align-items:stretch;}",
       ".ssa-upcoming-48h-header{display:grid;grid-template-columns:minmax(0,auto) minmax(0,3fr) minmax(0,auto);align-items:center;column-gap:6px;row-gap:0;padding:4px 6px;min-height:calc(var(--ssa-48h-pair-h) + 20px);}",
       ".ssa-upcoming-48h-logo-col,.ssa-upcoming-48h-club-col{display:flex;align-items:center;min-width:0;}",
       ".ssa-upcoming-48h-logo-col{justify-content:flex-start;}",
@@ -103,29 +104,17 @@
       ".ssa-upcoming-48h-wx .wx-il,.ssa-upcoming-48h-wx .wx-iv,.ssa-upcoming-48h-wx .wx-iv small{font:800 11px/1 Arial,Helvetica,sans-serif;white-space:nowrap;}",
       ".ssa-upcoming-48h-wx .wx-il{color:#334155;}",
       ".ssa-upcoming-48h-wx .wx-iv{text-align:right;}",
-      ".ssa-upcoming-48h-media-row{display:flex;flex-wrap:nowrap;align-items:stretch;gap:6px;height:var(--ssa-48h-pair-h);padding:4px;box-sizing:border-box;background:#fff;}",
-      ".ssa-upcoming-48h-mm{flex:0 0 auto;height:100%;aspect-ratio:320/213;overflow:hidden;border-radius:4px;background:#fff;}",
-      ".ssa-upcoming-48h-mm img{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none;}",
-      ".ssa-upcoming-48h-cam{flex:0 0 auto;height:100%;aspect-ratio:16/9;position:relative;overflow:hidden;border-radius:4px;background:#000;}",
-      ".ssa-upcoming-48h-cam img{display:block;width:100%;height:100%;object-fit:cover;pointer-events:none;}",
-      ".ssa-upcoming-48h-ph{flex:1 1 0;min-width:0;background:#e8eef4;border-radius:4px;}",
-      ".ssa-upcoming-48h-cam-chrome{position:absolute;top:3px;left:3px;display:flex;align-items:center;gap:3px;pointer-events:none;}",
-      ".ssa-upcoming-48h-cam-chrome img{width:16px;height:16px;object-fit:contain;border-radius:2px;}",
-      ".ssa-upcoming-48h-cam-copy{color:#fff;font:700 8px/1.1 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;text-shadow:0 1px 2px rgba(0,0,0,.65);}",
-      ".ssa-upcoming-48h-cam-sub{font-weight:600;opacity:.9;}",
-      ".ssa-upcoming-48h-play{position:absolute;left:50%;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;background:rgba(0,0,0,.55);pointer-events:none;}",
-      ".ssa-upcoming-48h-play:after{content:'';position:absolute;left:8px;top:6px;border-style:solid;border-width:5px 0 5px 8px;border-color:transparent transparent transparent #fff;}",
       "#ssa-saved-logged-in-home-card[hidden]{display:none!important;}",
       "body.ssa-hub-48h-no-home-profile .search-to-profile-separator{display:none;}",
       "body.ssa-hub-48h-no-home-profile #sailor-search-results:not([data-ssa-search-list='1']){display:none!important;}",
       "@media screen and (min-width:768px){",
       ".ssa-upcoming-48h{--ssa-48h-pair-h:60px;}",
+      ".ssa-upcoming-48h-banner{height:64px;}",
       ".ssa-upcoming-48h-wx .wx-il,.ssa-upcoming-48h-wx .wx-iv,.ssa-upcoming-48h-wx .wx-iv small{font-size:12px;}",
       "}",
       "@media screen and (max-width:767px){",
       ".ssa-upcoming-48h-header{grid-template-columns:minmax(0,min(22vw,72px)) minmax(0,1fr) minmax(0,min(22vw,72px));column-gap:3px;padding:3px;}",
       ".ssa-upcoming-48h-logo-col img,.ssa-upcoming-48h-club-col img{max-height:min(14vw,52px);max-width:min(20vw,80px);}",
-      ".ssa-upcoming-48h-ph{display:none;}",
       "}"
     ].join("");
   }
@@ -274,39 +263,26 @@
 
   function cardsHtml() {
     return (
-      '<img class="ssa-upcoming-48h-banner" src="/assets/upcoming-48h-banner.png" alt="Upcoming event(s) in the next 48 hours">' +
-      '<div class="ssa-upcoming-48h-cards">' +
-        '<a class="card ssa-upcoming-48h-card ssa-upcoming-48h-header" href="' + EVENT_HREF + '" aria-label="2026-09-13 ZVYC Cape Classic">' +
-          '<div class="ssa-upcoming-48h-logo-col"><img src="/artwork/Event%20Logo/Cape-Classic-Series.png?v=20260827a" alt=""></div>' +
-          '<div class="ssa-upcoming-48h-main-col">' +
-            '<div class="ssa-upcoming-48h-name">2026-09-13 ZVYC Cape Classic</div>' +
-            '<div class="ssa-upcoming-48h-host">Host: ZVYC - Zeekoe Vlei Yacht Club</div>' +
-            '<div class="ssa-upcoming-48h-venue">Venue : Zeekoe Vlei Yacht Club</div>' +
-            '<div class="ssa-upcoming-48h-status">Results are Provisional as at 13 September 2026 at 17:30</div>' +
-            '<div class="ssa-upcoming-48h-entries">Total Entries = 51</div>' +
-          "</div>" +
-          '<div class="ssa-upcoming-48h-club-col"><img src="/artwork/Club%20Logo/ZVYC.png" alt=""></div>' +
-        "</a>" +
-        '<a class="card ssa-upcoming-48h-card" href="' + EVENT_HREF + '" aria-label="Zeekoevlei wind — open ZVYC Cape Classic">' +
-          '<div class="ssa-upcoming-48h-wx-host" data-ssa-48h-wind></div>' +
-        "</a>" +
-        '<a class="card ssa-upcoming-48h-card" href="' + EVENT_HREF + '" aria-label="Marine Megastore and ZVYC Live Cam — open ZVYC Cape Classic">' +
-          '<div class="ssa-upcoming-48h-media-row">' +
-            '<div class="ssa-upcoming-48h-mm"><img src="/assets/adverts/mm-powered-by-coming-soon.jpg" alt="Powered by Marine Megastore Coming Soon"></div>' +
-            '<div class="ssa-upcoming-48h-cam">' +
-              '<img src="/api/regatta/' + EVENT_ID + '/zvyc-live-cam-thumb?t=' + Date.now() + '" alt="ZVYC Live Cam">' +
-              '<div class="ssa-upcoming-48h-cam-chrome">' +
-                '<img src="/artwork/Club%20Logo/ZVYC.png" alt="">' +
-                '<div class="ssa-upcoming-48h-cam-copy">ZVYC Live Cam<div class="ssa-upcoming-48h-cam-sub">Zeekoevlei · live</div></div>' +
-              "</div>" +
-              '<span class="ssa-upcoming-48h-play" aria-hidden="true"></span>' +
+      '<div class="card ssa-upcoming-48h-shell">' +
+        '<div class="ssa-upcoming-48h-cards">' +
+          '<a class="card ssa-upcoming-48h-card" href="' + EVENT_HREF + '" aria-label="Upcoming events in the next 48 hours">' +
+            '<img class="ssa-upcoming-48h-banner" src="/assets/upcoming-48h-banner.png" alt="Upcoming event(s) in the next 48 hours">' +
+          "</a>" +
+          '<a class="card ssa-upcoming-48h-card ssa-upcoming-48h-header" href="' + EVENT_HREF + '" aria-label="2026-09-13 ZVYC Cape Classic">' +
+            '<div class="ssa-upcoming-48h-logo-col"><img src="/artwork/Event%20Logo/Cape-Classic-Series.png?v=20260827a" alt=""></div>' +
+            '<div class="ssa-upcoming-48h-main-col">' +
+              '<div class="ssa-upcoming-48h-name">2026-09-13 ZVYC Cape Classic</div>' +
+              '<div class="ssa-upcoming-48h-host">Host: ZVYC - Zeekoe Vlei Yacht Club</div>' +
+              '<div class="ssa-upcoming-48h-venue">Venue : Zeekoe Vlei Yacht Club</div>' +
+              '<div class="ssa-upcoming-48h-status">Results are Provisional as at 13 September 2026 at 17:30</div>' +
+              '<div class="ssa-upcoming-48h-entries">Total Entries = 51</div>' +
             "</div>" +
-            '<span class="ssa-upcoming-48h-ph" aria-hidden="true"></span>' +
-            '<span class="ssa-upcoming-48h-ph" aria-hidden="true"></span>' +
-            '<span class="ssa-upcoming-48h-ph" aria-hidden="true"></span>' +
-            '<span class="ssa-upcoming-48h-ph" aria-hidden="true"></span>' +
-          "</div>" +
-        "</a>" +
+            '<div class="ssa-upcoming-48h-club-col"><img src="/artwork/Club%20Logo/ZVYC.png" alt=""></div>' +
+          "</a>" +
+          '<a class="card ssa-upcoming-48h-card" href="' + EVENT_HREF + '" aria-label="Zeekoevlei wind — open ZVYC Cape Classic">' +
+            '<div class="ssa-upcoming-48h-wx-host" data-ssa-48h-wind></div>' +
+          "</a>" +
+        "</div>" +
       "</div>"
     );
   }
@@ -413,7 +389,7 @@
     }
     root.hidden = false;
     root.removeAttribute("hidden");
-    if (!root.querySelector(".ssa-upcoming-48h-header")) {
+    if (!root.querySelector(".ssa-upcoming-48h-shell")) {
       root.innerHTML = cardsHtml();
     }
     windSlot = root.querySelector("[data-ssa-48h-wind]");
