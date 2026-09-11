@@ -4656,7 +4656,7 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
     <script src="/js/api.js?v=20260901landingfix"></script>
     <script src="/js/results.js?v=FORCE_CLEAN_1"></script>
     <script src="/js/session.js?v=20260813_SILENT_LOGIN"></script>
-    <script src="/js/upcoming-48h-event.js?v=20260911u48z"></script>
+    <script src="/js/upcoming-48h-event.js?v=20260911u49a"></script>
     
     <script>
         // Function to close popup and return to landing page
@@ -13328,16 +13328,22 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             function activateSailorModeFromTemp() {
+                var wasRegatta = (window.searchMode || 'sailor') === 'regatta';
+                window.searchMode = 'sailor';
                 window.__ssaRegattaListCollapsed = true;
                 window.__ssaRegattaDeliberateHref = '';
+                window.__ssaBlockRegattaNavUntil = Date.now() + 1200;
+                window.__ssaRegattaListGuardUntil = Date.now() + 1200;
                 try {
                     var _clr = document.getElementById('public-regattas-list');
                     if (_clr) {
                         _clr.innerHTML = '';
                         _clr.classList.add('ssa-regatta-click-guard');
                     }
+                    var _sec = document.getElementById('public-regattas-section');
+                    if (_sec) _sec.classList.add('ssa-regatta-click-guard');
                 } catch (_) {}
-                if (typeof window.setSearchMode === 'function' && (window.searchMode || 'sailor') !== 'sailor') {
+                if (wasRegatta && typeof window.setSearchMode === 'function') {
                     window.setSearchMode('sailor', true);
                 }
                 window.setTimeout(function () {
