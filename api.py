@@ -808,6 +808,9 @@ def api_wind2speed_zeekoevlei():
             "avg_dir_name": stats.get("wdn"),
             "dir_low": stats.get("wdrl"),
             "dir_high": stats.get("wdrh"),
+            "wds": stats.get("wds") or [],
+            "wdsm": stats.get("wdsm") or [],
+            "interval": payload.get("interval") or 40000,
             "pressure": stats.get("prs"),
         }
         return JSONResponse(

@@ -1,42 +1,53 @@
-/* Cape Classic slot: Voelklip wind dial + Wind2Speed Zeekoevlei (station 35) data. */
+/* Cape Classic slot: Voelklip wind dial + Wind2Speed Zeekoevlei (station 35).
+   Dial copied from live /voelklip/index.html.bak_shared_202609070100:
+   72-tick compass, 16-point history marks (not min–max blob), inward FROM arrow,
+   BANDS colours on arc/arrow/values. */
 (function () {
   var CSS_ID = "ssa-regatta-slot-card-css";
   var ROOT_ID = "ssa-regatta-slot-card";
   var CAPE_CLASSIC_ID = "2026-09-13-zvyc-cape-classic";
-  var JS_VER = "20260911w2s2";
+  var JS_VER = "20260911w2s3";
   var PTS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+  var BANDS = [[0, 10, "#12b028"], [10, 20, "#e67e00"], [20, 30, "#7c3aed"], [30, 50, "#DC143C"], [50, 60, "#7f0d1f"]];
 
   function injectCss() {
-    if (document.getElementById(CSS_ID)) return;
-    var s = document.createElement("style");
-    s.id = CSS_ID;
+    var s = document.getElementById(CSS_ID);
+    if (!s) {
+      s = document.createElement("style");
+      s.id = CSS_ID;
+      document.head.appendChild(s);
+    }
     s.textContent = [
       ".regatta-page:has(#ssa-regatta-slot-card)>.regatta-header-wrap .header{margin-bottom:0!important;}",
       ".ssa-regatta-slot-card{display:flex;width:100%;order:2;margin:10px 0 0;padding:0;box-sizing:border-box;height:122px;min-height:122px;background:#fff;border:1.5px solid #1a2750;border-radius:8px;box-shadow:0 1px 3px rgba(0,31,63,.08);overflow:hidden;}",
-      ".ssa-regatta-slot-card .wx-wp-top{display:flex;align-items:stretch;flex:1;height:100%;width:100%;padding:0 8px 0 0;gap:8px;box-sizing:border-box;}",
-      ".ssa-regatta-slot-card .wx-wp-comp{flex:0 0 auto;height:100%;aspect-ratio:1/1;}",
+      ".ssa-regatta-slot-card .wx-wp-top{display:flex;align-items:stretch;flex:1;height:100%;width:100%;padding:0 8px 0 0;gap:6px;box-sizing:border-box;}",
+      ".ssa-regatta-slot-card .wx-wp-comp{flex:0 0 auto;height:100%;aspect-ratio:1/1;overflow:visible;}",
       ".ssa-regatta-slot-card .wx-dial{display:block;width:100%;height:100%;overflow:visible;}",
       ".ssa-regatta-slot-card .wx-dial .dt{stroke:#9ca3af;stroke-width:1;}",
       ".ssa-regatta-slot-card .wx-dial .dt.card{stroke:#111;stroke-width:1.4;}",
       ".ssa-regatta-slot-card .wx-dial .darc{fill:none;stroke:#93c5fd;stroke-width:7;stroke-linecap:butt;}",
+      ".ssa-regatta-slot-card .wx-dial .darc.prev{opacity:.45;}",
       ".ssa-regatta-slot-card .wx-dial .dhead{fill:#3b82f6;}",
       ".ssa-regatta-slot-card .wx-dial .dpt{font:700 26px Arial,Helvetica,sans-serif;fill:#15803d;}",
-      ".ssa-regatta-slot-card .wx-info{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:4px;padding:6px 0;}",
+      ".ssa-regatta-slot-card .wx-info{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:2px;padding:4px 0;}",
       ".ssa-regatta-slot-card .wx-ir{display:flex;justify-content:space-between;align-items:baseline;gap:6px;min-width:0;}",
-      ".ssa-regatta-slot-card .wx-il{font:700 11px Arial,Helvetica,sans-serif;color:#111;white-space:nowrap;}",
-      ".ssa-regatta-slot-card .wx-iv{font:700 13px Arial,Helvetica,sans-serif;color:#1a2750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right;}",
-      ".ssa-regatta-slot-card .wx-iv.big{font-size:22px;line-height:1;}",
-      ".ssa-regatta-slot-card .wx-iv.big2{font-size:16px;line-height:1.1;color:#111;}",
-      ".ssa-regatta-slot-card .wx-iv small{font-size:10px;font-weight:600;color:#475569;}",
-      ".ssa-regatta-slot-card .wx-ir .l{font:500 10px Arial,Helvetica,sans-serif;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}",
-      ".ssa-regatta-slot-card .wx-ir .l b{color:#1e293b;}",
+      ".ssa-regatta-slot-card .wx-il{font:700 10px Arial,Helvetica,sans-serif;color:#64748b;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;}",
+      ".ssa-regatta-slot-card .wx-iv{font:800 22px/1 Arial,Helvetica,sans-serif;color:#1a2750;white-space:nowrap;text-align:right;}",
+      ".ssa-regatta-slot-card .wx-iv.gust{font-size:18px;}",
+      ".ssa-regatta-slot-card .wx-iv.avg{font-size:16px;}",
+      ".ssa-regatta-slot-card .wx-iv small{font-size:10px;font-weight:700;color:#475569;margin-left:2px;}",
+      ".ssa-regatta-slot-card .wx-from{font:700 12px Arial,Helvetica,sans-serif;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}",
+      ".ssa-regatta-slot-card .wx-meta{font:500 10px Arial,Helvetica,sans-serif;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}",
+      ".ssa-regatta-slot-card .wx-bands{position:relative;display:flex;height:7px;border-radius:4px;overflow:hidden;margin:3px 0 1px;background:#e5e7eb;}",
+      ".ssa-regatta-slot-card .wx-bands span{display:block;height:100%;}",
+      ".ssa-regatta-slot-card .wx-bands i{position:absolute;top:-2px;width:3px;height:11px;background:#111;border-radius:1px;margin-left:-1.5px;}",
       "@media screen and (orientation:portrait) and (max-width:767px){",
       ".ssa-regatta-slot-card{margin-top:10px;}",
-      ".ssa-regatta-slot-card .wx-iv.big{font-size:20px;}",
-      ".ssa-regatta-slot-card .wx-iv.big2{font-size:14px;}",
+      ".ssa-regatta-slot-card .wx-iv{font-size:20px;}",
+      ".ssa-regatta-slot-card .wx-iv.gust{font-size:16px;}",
+      ".ssa-regatta-slot-card .wx-iv.avg{font-size:15px;}",
       "}"
     ].join("");
-    document.head.appendChild(s);
   }
 
   function n1(x) {
@@ -48,22 +59,39 @@
   }
   function bandCol(kn) {
     if (kn == null || isNaN(kn)) return "#94a3b8";
-    if (kn < 10) return "#12b028";
-    if (kn < 20) return "#e67e00";
-    if (kn < 30) return "#7c3aed";
-    if (kn < 50) return "#DC143C";
+    var i;
+    for (i = 0; i < BANDS.length; i += 1) {
+      if (kn < BANDS[i][1]) return BANDS[i][2];
+    }
     return "#7f0d1f";
   }
   function dirIdx(deg) {
     if (deg == null || isNaN(deg)) return null;
-    return Math.round(((Number(deg) % 360) + 360) % 360 / 22.5) % 16;
+    return Math.round((((Number(deg) % 360) + 360) % 360) / 22.5) % 16;
+  }
+  function recentIdx(data) {
+    var last = dirIdx(data.wind_dir);
+    var out = [];
+    var wds = data.wds;
+    var i;
+    if (Array.isArray(wds)) {
+      for (i = 0; i < wds.length && i < 16; i += 1) {
+        if (Number(wds[i]) > 0) out.push(i);
+      }
+    }
+    if (last != null && out.indexOf(last) === -1) out.push(last);
+    return { last: last, uniq: out };
   }
 
   function drawDial(data) {
     var CX = 50, CY = 50, R = 44;
     var lastDeg = data.wind_dir;
-    var pt = data.wind_dir_name || (lastDeg != null ? PTS[dirIdx(lastDeg)] : "");
-    var svg = '<svg class="wx-dial" viewBox="0 0 100 100" aria-hidden="true">';
+    var rec = recentIdx(data);
+    var dirLast = rec.last;
+    var deg = lastDeg != null && !isNaN(lastDeg) ? Number(lastDeg) : (dirLast != null ? dirLast * 22.5 : null);
+    var pt = data.wind_dir_name || (dirLast != null ? PTS[dirLast] : "");
+    var col = bandCol(data.wind_kt);
+    var svg = '<svg class="wx-dial" viewBox="-10 -10 120 120" aria-hidden="true">';
     var k;
     for (k = 0; k < 72; k += 1) {
       var card = k % 18 === 0;
@@ -71,26 +99,31 @@
       var q1 = pol(CX, CY, R + (card ? 2 : 0), k * 5);
       svg += '<line class="' + (card ? "dt card" : "dt") + '" x1="' + q0[0].toFixed(1) + '" y1="' + q0[1].toFixed(1) + '" x2="' + q1[0].toFixed(1) + '" y2="' + q1[1].toFixed(1) + '"/>';
     }
-    var a0 = data.dir_low;
-    var a1 = data.dir_high;
-    if (a0 != null && a1 != null && !isNaN(a0) && !isNaN(a1)) {
-      a0 = Number(a0);
-      a1 = Number(a1);
-      var sweep = (a1 - a0 + 360) % 360;
-      if (sweep < 2) sweep = 22.5;
-      var aEnd = a0 + sweep;
-      var p0 = pol(CX, CY, R - 2, a0);
-      var p1 = pol(CX, CY, R - 2, aEnd);
-      svg += '<path class="darc" d="M' + p0[0].toFixed(1) + " " + p0[1].toFixed(1) + " A" + (R - 2) + " " + (R - 2) + " 0 " + (sweep > 180 ? 1 : 0) + " 1 " + p1[0].toFixed(1) + " " + p1[1].toFixed(1) + '"/>';
-      var headAt = lastDeg != null ? Number(lastDeg) : a0;
-      var hp = pol(CX, CY, R - 2, headAt);
-      svg += '<g transform="translate(' + hp[0].toFixed(1) + " " + hp[1].toFixed(1) + ") rotate(" + (headAt - 90) + ')"><path class="dhead" d="M0 -12L10 0L0 12L3 0Z"/></g>';
-    } else if (lastDeg != null) {
-      var hp2 = pol(CX, CY, R - 2, Number(lastDeg));
-      svg += '<g transform="translate(' + hp2[0].toFixed(1) + " " + hp2[1].toFixed(1) + ") rotate(" + (Number(lastDeg) - 90) + ')"><path class="dhead" d="M0 -12L10 0L0 12L3 0Z"/></g>';
+    if (dirLast != null) {
+      rec.uniq.forEach(function (idx) {
+        var a0 = idx * 22.5 - 11.25;
+        var a1 = idx * 22.5 + 11.25;
+        var p0 = pol(CX, CY, R - 2, a0);
+        var p1 = pol(CX, CY, R - 2, a1);
+        svg += '<path class="darc' + (idx === dirLast ? "" : " prev") + '" style="stroke:' + col + '" d="M' + p0[0].toFixed(1) + " " + p0[1].toFixed(1) + " A" + (R - 2) + " " + (R - 2) + " 0 0 1 " + p1[0].toFixed(1) + " " + p1[1].toFixed(1) + '"/>';
+      });
+      if (deg != null) {
+        var hp = pol(CX, CY, R + 4, deg);
+        svg += '<g transform="translate(' + hp[0].toFixed(1) + " " + hp[1].toFixed(1) + ") rotate(" + (deg + 180) + ')"><path class="dhead" style="fill:' + col + '" d="M0 -14L11 7L0 2.5L-11 7Z"/></g>';
+      }
     }
     svg += '<text class="dpt" x="50" y="50" text-anchor="middle" dominant-baseline="central">' + (pt || "—") + "</text></svg>";
     return svg;
+  }
+
+  function bandBar(kn) {
+    var mark = kn == null || isNaN(kn) ? null : Math.max(0, Math.min(60, Number(kn)));
+    var html = '<div class="wx-bands" title="0–10 green · 10–20 orange · 20–30 purple · 30–50 red · 50+ dark">';
+    BANDS.forEach(function (b) {
+      html += '<span style="background:' + b[2] + ";flex:" + (b[1] - b[0]) + '"></span>';
+    });
+    if (mark != null) html += '<i style="left:' + ((mark / 60) * 100).toFixed(1) + '%"></i>';
+    return html + "</div>";
   }
 
   function render(slot, data) {
@@ -98,16 +131,20 @@
     var wgust = data.gust_kt;
     var wavg = data.avg_kt;
     var col = bandCol(wcur);
+    var colG = bandCol(wgust);
     var stamp = data.lr || "—";
     var name = data.station || "Zeekoevlei";
+    var from = (data.wind_dir_name || "—") + (data.wind_dir != null ? " " + Math.round(Number(data.wind_dir)) + "°" : "");
     slot.innerHTML =
       '<div class="wx-wp-top">' +
         '<div class="wx-wp-comp">' + drawDial(data) + "</div>" +
         '<div class="wx-info">' +
-          '<div class="wx-ir"><span class="wx-il">Wind Speed</span><span class="wx-iv big" style="color:' + (wcur != null && wcur > 10 ? col : "#3b82f6") + '">' + n1(wcur) + ' <small>knots</small></span></div>' +
-          '<div class="wx-ir"><span class="wx-il">GUST | AVG</span><span class="wx-iv big2">' + n1(wgust) + " | " + n1(wavg) + ' <small>knots</small></span></div>' +
-          '<div class="wx-ir"><span class="l"><b>' + name + "</b> · " + (data.wind_dir_name || "—") + (data.wind_dir != null ? " " + Math.round(Number(data.wind_dir)) + "°" : "") + "</span></div>" +
-          '<div class="wx-ir"><span class="l">' + stamp + "</span></div>" +
+          '<div class="wx-ir"><span class="wx-il">Last</span><span class="wx-iv" style="color:' + col + '">' + n1(wcur) + " <small>kn</small></span></div>" +
+          '<div class="wx-ir"><span class="wx-il">Gust</span><span class="wx-iv gust" style="color:' + colG + '">' + n1(wgust) + " <small>kn</small></span></div>" +
+          '<div class="wx-ir"><span class="wx-il">Avg</span><span class="wx-iv avg">' + n1(wavg) + " <small>kn</small></span></div>" +
+          bandBar(wcur) +
+          '<div class="wx-from">From ' + from + "</div>" +
+          '<div class="wx-meta">' + name + " · " + stamp + "</div>" +
         "</div>" +
       "</div>";
   }
@@ -135,6 +172,9 @@
   }
 
   var loading = false;
+  var pollTimer = null;
+  var POLL_MS = 40000;
+
   async function load(slot) {
     if (loading) return;
     loading = true;
@@ -148,6 +188,14 @@
       if (!data || data.ok === false) throw new Error((data && data.err) || "w2s fail");
       render(slot, data);
       fitGauge(slot);
+      var next = Number(data.interval);
+      if (next >= 10000 && next <= 120000 && next !== POLL_MS) {
+        POLL_MS = next;
+        if (pollTimer) {
+          clearInterval(pollTimer);
+          pollTimer = setInterval(function () { if (!document.hidden) load(slot); }, POLL_MS);
+        }
+      }
     } catch (err) {
       try { console.warn(err); } catch (e) {}
     } finally {
@@ -173,7 +221,7 @@
     }
     window.addEventListener("resize", function () { syncToMarine(el, marine); });
     load(el);
-    setInterval(function () { if (!document.hidden) load(el); }, 40000);
+    pollTimer = setInterval(function () { if (!document.hidden) load(el); }, POLL_MS);
     document.addEventListener("visibilitychange", function () { if (!document.hidden) load(el); });
   }
 
