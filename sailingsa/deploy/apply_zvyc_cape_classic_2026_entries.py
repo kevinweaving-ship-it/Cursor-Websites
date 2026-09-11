@@ -150,9 +150,9 @@ SAILOR_MATCH = {
         "sail": "",
         "club": "IZI",
         "club_id": 28,
-        # CSV "Laser" / no ILCA history (Mirror + 420 only). Age 17 → ILCA 6 inferred, not Standard.
-        "class_override": ("Laser", "Ilca 6", 45, "ilca-fleet"),
-        "note": "UNDETERMINED from ILCA history (none). Age 17 Mirror/420 sailor; parked in ILCA 6 not 7.",
+        # CSV "Laser"; no ILCA history. Parked in ILCA 7 for now (organizer).
+        "class_override": ("Laser", "Ilca 7", 46, "ilca-fleet"),
+        "note": "CSV Laser; no ILCA history — ILCA 7 for now.",
     },
     "simamkele mtshofeni": {
         "helm_name": "Simamkele Mtshofeni",
@@ -457,8 +457,7 @@ def main() -> int:
         "  Jacques Dugas  CSV=ILCA   → ILCA 6 (23× ILCA 6, primary Ilca 6, age 17, sail 161599)\n"
         "  Jens Dugas     CSV=ILCA   → ILCA 4.7 (8× 4.7 vs 3× 6, age 15, last Cape Classic 4.7 sail 14;\n"
         "                              May 2026 ILCA Nationals was 6 / 171060 — confirm if stepping up)\n"
-        "  Kayo Roberts   CSV=Laser  → NOT determined from ILCA history (Mirror+420 only, age 17).\n"
-        "                              Parked in ILCA 6, not Standard. Needs confirmation.\n",
+        "  Kayo Roberts   CSV=Laser  → ILCA 7 for now (no ILCA history; organizer call).\n",
         file=sys.stderr,
     )
     conn, extras = connect()
