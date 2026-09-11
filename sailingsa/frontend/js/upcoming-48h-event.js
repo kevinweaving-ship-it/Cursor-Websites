@@ -7,17 +7,18 @@
  * Visible on hub home only, when that event is loaded and now is within
  * 48 hours before start through event end (Africa/Johannesburg).
  *
- * Logged-in home sailor card below Regatta search is parked (not deleted)
- * so it can be restored. Set HIDE_LOGGED_IN_HOME_CARD = false to show it again.
+ * Logged-in home sailor card sits below search. Outer border matches
+ * the 48h card (2px #1a2750, radius 8px) with the same 4px gap down
+ * to the list below.
  */
 (function () {
   "use strict";
 
-  var JS_VER = "20260911u48k";
+  var JS_VER = "20260911u48l";
   var ROOT_ID = "ssa-upcoming-48h";
   var PARK_ID = "ssa-saved-logged-in-home-card";
   var CSS_ID = "ssa-upcoming-48h-css";
-  var HIDE_LOGGED_IN_HOME_CARD = true;
+  var HIDE_LOGGED_IN_HOME_CARD = false;
   var EVENT_HREF = "/regatta/2026-09-13-zvyc-cape-classic";
   var EVENT_ID = "2026-09-13-zvyc-cape-classic";
   var START_MS = Date.parse("2026-09-12T08:00:00+02:00");
@@ -106,6 +107,11 @@
       ".ssa-upcoming-48h-wx .wx-il{color:#334155;}",
       ".ssa-upcoming-48h-wx .wx-iv{text-align:right;}",
       "#ssa-saved-logged-in-home-card[hidden]{display:none!important;}",
+      "body.ssa-hub-home .search-to-profile-separator{display:none!important;}",
+      "body.ssa-hub-home .search-row-container{margin:var(--ssa-48h-gap,4px) 0!important;padding:0!important;width:100%!important;max-width:100%!important;box-sizing:border-box!important;}",
+      "body.ssa-hub-home .sailor-search-results{margin:0!important;padding:0!important;width:100%!important;max-width:100%!important;box-sizing:border-box!important;}",
+      "body.ssa-hub-home #sailor-search-results .sa-approved-sailor-card,body.ssa-hub-home #sailor-search-results #chosen-sailor-before-profile.profile-card{margin:0!important;padding:0!important;width:100%!important;max-width:100%!important;box-sizing:border-box!important;background:#fff;border:2px solid #1a2750!important;border-radius:8px!important;box-shadow:none!important;}",
+      "body.ssa-hub-home #public-regattas-section{margin-top:0!important;}",
       "body.ssa-hub-48h-on .search-header-container{margin-top:var(--ssa-48h-gap,4px)!important;}",
       "body.ssa-hub-48h-no-home-profile .search-to-profile-separator{display:none;}",
       "body.ssa-hub-48h-no-home-profile #sailor-search-results:not([data-ssa-search-list='1']){display:none!important;}",
@@ -362,6 +368,8 @@
 
   function mountRoot() {
     injectCss();
+    if (isHubHome()) document.body.classList.add("ssa-hub-home");
+    else document.body.classList.remove("ssa-hub-home", "ssa-hub-48h-on");
     var root = document.getElementById(ROOT_ID);
     var search = document.querySelector(".search-header-container");
     if (!root) {
@@ -420,10 +428,25 @@
           var results = document.getElementById("sailor-search-results");
           if (results) results.setAttribute("data-ssa-search-list", "1");
         } else {
-          parkLoggedInHomeCard();
+          syncHomeSailorCard();
         }
       });
     });
+  }
+
+  function restoreLoggedInHomeCard() {
+    document.body.classList.remove("ssa-hub-48h-no-home-profile");
+    var park = document.getElementById(PARK_ID);
+    var results = document.getElementById("sailor-search-results");
+    if (park && results && park.firstChild) {
+      while (park.firstChild) results.appendChild(park.firstChild);
+      results.style.display = "block";
+    }
+  }
+
+  function syncHomeSailorCard() {
+    if (HIDE_LOGGED_IN_HOME_CARD) parkLoggedInHomeCard();
+    else restoreLoggedInHomeCard();
   }
 
   function boot() {
@@ -431,14 +454,14 @@
     bindSearch();
     ensurePark();
     mountRoot();
-    parkLoggedInHomeCard();
+    syncHomeSailorCard();
     var n = 0;
     var t = setInterval(function () {
       n += 1;
       wrapShowSailorStats();
       bindSearch();
-      parkLoggedInHomeCard();
-      if (shouldShow()) mountRoot();
+      syncHomeSailorCard();
+      if (isHubHome()) mountRoot();
       if (n > 40) clearInterval(t);
     }, 250);
     var origMode = window.setMainColumnMode;
@@ -457,13 +480,7 @@
   window.__ssaUpcoming48h = JS_VER;
   window.__ssaUpcoming48hRestoreHomeCard = function () {
     HIDE_LOGGED_IN_HOME_CARD = false;
-    document.body.classList.remove("ssa-hub-48h-no-home-profile");
-    var park = document.getElementById(PARK_ID);
-    var results = document.getElementById("sailor-search-results");
-    if (park && results && park.firstChild) {
-      while (park.firstChild) results.appendChild(park.firstChild);
-      results.style.display = "block";
-    }
+    restoreLoggedInHomeCard();
   };
 
   if (document.readyState === "loading") {
