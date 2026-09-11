@@ -6,7 +6,7 @@
 
   var CSS_ID = "ssa-landing-claim-popup-css";
   var CSS_LINK_ID = "ssa-landing-claim-popup-css-link";
-  var JS_VER = "20260911hidechip";
+  var JS_VER = "20260911last2";
   var prevOverflow = "";
 
   var CLAIM_INNER =
@@ -436,7 +436,7 @@
           '<div data-ssa-classes-host>' + classesHtml(p.classes) + "</div>" +
         "</div>" +
         '<div class="sa-looked-events" data-ssa-events>' +
-          '<span class="sa-looked-events-hdr">Last 3 <img class="sa-looked-events-hdr-ico" src="' + BOAT_ICO + '" alt="" aria-hidden="true"> Events of <span data-ssa-event-total>' + esc(p.regattas || "…") + '</span> <img class="sa-looked-events-hdr-ico" src="' + BOAT_ICO + '" alt="" aria-hidden="true"></span>' +
+          '<span class="sa-looked-events-hdr">Last 2 <img class="sa-looked-events-hdr-ico" src="' + BOAT_ICO + '" alt="" aria-hidden="true"> Events of <span data-ssa-event-total>' + esc(p.regattas || "…") + '</span> <img class="sa-looked-events-hdr-ico" src="' + BOAT_ICO + '" alt="" aria-hidden="true"></span>' +
           '<div class="sa-looked-events-list" data-ssa-events-list>Loading…</div>' +
         "</div>" +
         '<div class="sa-looked-cta">' +
@@ -714,16 +714,16 @@
         unique.sort(function (a, b) {
           return String(b.end_date || b.start_date || "").localeCompare(String(a.end_date || a.start_date || ""));
         });
-        var last3 = unique.slice(0, 3);
+        var last2 = unique.slice(0, 2);
         var list = wrap.querySelector("[data-ssa-events-list]");
         var host = wrap.querySelector("[data-ssa-events]");
         if (list) {
-          if (!last3.length) {
+          if (!last2.length) {
             if (host) host.setAttribute("data-empty", "1");
             list.textContent = "No recent events";
           } else {
             if (host) host.removeAttribute("data-empty");
-            list.innerHTML = last3.map(eventRowHtml).join("");
+            list.innerHTML = last2.map(eventRowHtml).join("");
           }
         }
         var totalEl = wrap.querySelector("[data-ssa-event-total]");
