@@ -3662,6 +3662,7 @@ html.temp-landing-layout-pending .search-header-container.sailor-search-pills {
     color: #0f172a !important;
     caret-color: #0f172a !important;
     height: 38px !important;
+    font-size: 16px !important;
     box-shadow: none !important;
 }
 .temp-landing-search-stack .sailor-search-input::placeholder,
@@ -4198,6 +4199,7 @@ header.site-header #headerAuth button {
 <section id="temp-landing-claim-profile-banner" class="temp-landing-secondary-image" aria-label="Claim your SailingSA profile banner">
     <img src="assets/temp-landing-claim-profile-banner.png" alt="Claim your Sailing profile banner">
 </section>
+<section id="ssa-upcoming-48h" class="ssa-upcoming-48h" hidden aria-label="Upcoming events in the next 48 hours"></section>
 
 <div class="search-header-container sailor-search-pills">
                 <section id="sailor-search-section" class="sailor-search-section" aria-label="Sailor search">
@@ -4231,6 +4233,8 @@ header.site-header #headerAuth button {
             <!-- Sailor search results — below search fields and divider -->
             <div class="search-row-container">
                 <div id="sailor-search-results" class="sailor-search-results" role="list" style="display:none;"></div>
+                <!-- Saved for reuse: logged-in home sailor card parked here. Restore with window.__ssaUpcoming48hRestoreHomeCard() -->
+                <div id="ssa-saved-logged-in-home-card" hidden data-ssa-saved="logged-in-home-profile"></div>
             </div>
             <!-- Regatta Search Results -->
             <section id="public-regattas-section" aria-label="Regatta search results">
@@ -4652,6 +4656,7 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
     <script src="/js/api.js?v=20260901landingfix"></script>
     <script src="/js/results.js?v=FORCE_CLEAN_1"></script>
     <script src="/js/session.js?v=20260813_SILENT_LOGIN"></script>
+    <script src="/js/upcoming-48h-event.js?v=20260911u49d"></script>
     
     <script>
         // Function to close popup and return to landing page
@@ -4684,6 +4689,7 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
             var hr = document.querySelector('.search-to-profile-separator');
             if (hr) hr.style.display = isClass ? 'none' : '';
             show(document.getElementById('landing-news-embed'), isHome);
+            show(document.getElementById('ssa-upcoming-48h'), isHome);
             var browse = document.querySelector('section.browse-sailingsa');
             if (browse) show(browse, isHome);
             show(document.getElementById('public-view'), !isClass);
@@ -4730,6 +4736,8 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                 if (heroBanner && heroBanner.parentNode) heroBanner.parentNode.removeChild(heroBanner);
                 var claimBanner = document.getElementById('temp-landing-claim-profile-banner');
                 if (claimBanner && claimBanner.parentNode) claimBanner.parentNode.removeChild(claimBanner);
+                var upcoming48h = document.getElementById('ssa-upcoming-48h');
+                if (upcoming48h && upcoming48h.parentNode) upcoming48h.parentNode.removeChild(upcoming48h);
                 var homeSearchSection = document.getElementById('sailor-search-section');
                 var homeSearchWrapper = homeSearchSection ? homeSearchSection.closest('div.search-header-container.sailor-search-pills, div.search-header-container') : null;
                 if (!homeSearchWrapper) {
@@ -5470,6 +5478,7 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                     }
                     /** True while sailor search box has text — never paint logged-in profile over the list. */
                     function shouldSuppressLoggedInProfile() {
+                        if (window.__ssaSkipBelowSearchLoggedInProfile) return true;
                         if (isSearchInteractionActive()) return true;
                         try {
                             if (sailorSearchInput && String(sailorSearchInput.value || '').trim() !== '') return true;
@@ -8434,11 +8443,38 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                         }, (regattaInput.value || '').trim() === '' ? 0 : 280);
                     }
                     regattaInput.addEventListener('input', function(ev) {
+                        window.__ssaRegattaListCollapsed = false;
                         setSearchInteractionActive(true);
                         ensureRegattaMode();
                         clearSailorInput();
                         scheduleRegattaFilter();
                     });
+                    if (!regattaInput.__ssaRegattaToggleBound) {
+                        regattaInput.__ssaRegattaToggleBound = true;
+                        regattaInput.addEventListener('pointerdown', function () {
+                            window.__ssaRegattaListGuardUntil = Date.now() + 500;
+                            var guardList = document.getElementById('public-regattas-list');
+                            if (guardList) guardList.classList.add('ssa-regatta-click-guard');
+                            var now = Date.now();
+                            if (document.activeElement !== regattaInput) {
+                                window.__ssaRegattaListCollapsed = false;
+                                window.__ssaRegattaListOpenedAt = now;
+                                if (typeof applyRegattaFilter === 'function') applyRegattaFilter();
+                                return;
+                            }
+                            if (now - (window.__ssaRegattaListOpenedAt || 0) < 450) return;
+                            var list = document.getElementById('public-regattas-list');
+                            var open = !window.__ssaRegattaListCollapsed && list && String(list.innerHTML || '').trim() !== '';
+                            if (open) {
+                                window.__ssaRegattaListCollapsed = true;
+                                if (list) list.innerHTML = '';
+                            } else {
+                                window.__ssaRegattaListCollapsed = false;
+                                window.__ssaRegattaListOpenedAt = now;
+                                if (typeof applyRegattaFilter === 'function') applyRegattaFilter();
+                            }
+                        });
+                    }
                     regattaInput.addEventListener('focus', function(ev) {
                         setSearchInteractionActive(true);
                         ensureRegattaMode();
@@ -8462,6 +8498,9 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                     var active = (searchMode === 'sailor' ? sailorBtn : regattaBtn);
                     if (active) requestAnimationFrame(function() { active.classList.add('btn-flash-active'); });
                 }
+                function sailorFieldGestureActive() {
+                    return Date.now() < (window.__ssaKeepSailorFocusUntil || 0);
+                }
                 function setSearchModeSoft(mode) {
                     if (!mode || mode === searchMode) return;
                     searchMode = mode;
@@ -8472,7 +8511,11 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                         if (publicRegattasList) publicRegattasList.innerHTML = '';
                         sailorSearchResults.style.display = 'block';
                         try { if (regattaInputSoft) regattaInputSoft.value = ''; } catch (_) {}
-                        try { if (sailorSearchInput) sailorSearchInput.focus(); } catch (_) {}
+                        try {
+                            if (sailorSearchInput && !sailorFieldGestureActive() && document.activeElement !== sailorSearchInput) {
+                                sailorSearchInput.focus();
+                            }
+                        } catch (_) {}
                     } else if (mode === 'regatta') {
                         try {
                             var _sm1 = (window.location.pathname || '').replace(/\/+$/, '') || '/';
@@ -8513,7 +8556,11 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                     if (mode === 'sailor' && typeof window.closeRegattaResultSheetModal === 'function') window.closeRegattaResultSheetModal();
                     if (mode === 'sailor') {
                         try { if (regattaInput) regattaInput.value = ''; } catch (_) {}
-                        try { if (sailorSearchInput) sailorSearchInput.focus(); } catch (_) {}
+                        try {
+                            if (sailorSearchInput && !sailorFieldGestureActive() && document.activeElement !== sailorSearchInput) {
+                                sailorSearchInput.focus();
+                            }
+                        } catch (_) {}
                         // Clear regatta results list and show sailor profile area (return to Sailor profile)
                         var publicRegattasList = document.getElementById('public-regattas-list');
                         if (publicRegattasList) publicRegattasList.innerHTML = '';
@@ -8529,7 +8576,9 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                     }
                     updateSearchModeFlashState();
                     if (mode === 'sailor') {
-                        try { if (sailorSearchInput) sailorSearchInput.value = ''; } catch (_) {}
+                        if (!sailorFieldGestureActive()) {
+                            try { if (sailorSearchInput) sailorSearchInput.value = ''; } catch (_) {}
+                        }
                         if (!skipDelayedSearch) {
                             try { runSailorSearch(); } catch (_) {}
                         }
@@ -8552,6 +8601,7 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                         if (typeof applyRegattaFilter === 'function') applyRegattaFilter();
                     }
                 }
+                window.setSearchMode = setSearchMode;
                 // Toggle Sailor / Regatta: click switches mode without navigating
                 updateSearchModeFlashState();
                 if (sailorBtn) sailorBtn.addEventListener('click', function(e) { e.preventDefault(); setSearchMode('sailor'); });
@@ -8565,6 +8615,13 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                     // Never show sailor profile when user clicked regatta results (so regatta row opens regatta, not sailor popup)
                     var inRegattaResults = ev.target && ev.target.closest && (ev.target.closest('#public-regattas-section') || ev.target.closest('#public-regattas-list'));
                     if (inRegattaResults) return;
+                    var inSailorSearchBox = ev.target && ev.target.closest && (
+                        ev.target.closest('#sailor-search-form') ||
+                        ev.target.closest('#sailor-search-input') ||
+                        ev.target.closest('#temp-landing-sailor-row')
+                    );
+                    if (inSailorSearchBox) return;
+                    if (document.activeElement && document.activeElement.id === 'sailor-search-input') return;
                     if (!sailorSearchForm.contains(ev.target) && !sailorSearchResults.contains(ev.target)) {
                         // Only handle click-outside for Sailor mode
                         if (searchMode === 'sailor') {
@@ -12104,6 +12161,10 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                 _clearPublicRegattasList();
                 return;
             }
+            if (window.__ssaRegattaListCollapsed) {
+                _clearPublicRegattasList();
+                return;
+            }
             var sailorSearchInput = document.getElementById('sailor-search-input');
             var regattaInput = document.getElementById('temp-landing-regatta-input');
             var useRegattaInput = !!(regattaInput && (document.activeElement === regattaInput || regattaInput.offsetParent !== null));
@@ -12142,6 +12203,7 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                                 var qNow = useRi
                                     ? (ri.value || '').trim()
                                     : (si ? si.value.trim() : '');
+                                if (window.__ssaRegattaListCollapsed) return;
                                 if (!qNow || qNow.toLowerCase() === 'all') {
                                     renderRegattasTable(all, qNow.toLowerCase() === 'all' ? 'all' : '');
                                 }
@@ -12189,9 +12251,7 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                 publicRegattasList.innerHTML = '<p>Unable to load regattas. Try again.</p>';
             }
         }
-        /**
-         * Load regattas for public view — only when Regatta pill is active.
-         */
+        window.applyRegattaFilter = applyRegattaFilter;
         async function loadPublicRegattas() {
             if ((window.searchMode || 'sailor') !== 'regatta') {
                 _clearPublicRegattasList();
@@ -13115,6 +13175,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         function keepTempLandingSearchVisible(preferSmooth) {
             try {
+                var aeKeep = document.activeElement;
+                if (Date.now() < (window.__ssaKeepSailorFocusUntil || 0)) return;
+                if (aeKeep && (aeKeep.id === 'sailor-search-input' || aeKeep.id === 'temp-landing-regatta-input')) return;
                 var target = getTempLandingSearchTarget();
                 if (!target) return;
                 var desiredTop = getTempLandingSearchTargetTop();
@@ -13279,32 +13342,51 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             function activateSailorModeFromTemp() {
-                if (typeof window.setSearchMode === 'function' && (window.searchMode || 'sailor') !== 'sailor') {
-                    window.setSearchMode('sailor', true);
-                } else if (typeof window.setSearchMode !== 'function' && sailorBtn && !tempModeBootstrapGuard) {
-                    tempModeBootstrapGuard = true;
-                    sailorBtn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-                    tempModeBootstrapGuard = false;
+                var wasRegatta = (window.searchMode || 'sailor') === 'regatta';
+                if (!wasRegatta) {
+                    refreshTempLandingSearchState();
+                    return;
                 }
+                window.searchMode = 'sailor';
+                window.__ssaRegattaListCollapsed = true;
+                window.__ssaRegattaDeliberateHref = '';
+                window.__ssaBlockRegattaNavUntil = Date.now() + 1600;
+                window.__ssaRegattaListGuardUntil = Date.now() + 1600;
+                function clearRegattaUi() {
+                    try {
+                        var _clr = document.getElementById('public-regattas-list');
+                        if (_clr) {
+                            _clr.innerHTML = '';
+                            _clr.classList.add('ssa-regatta-click-guard');
+                        }
+                        var _sec = document.getElementById('public-regattas-section');
+                        if (_sec) _sec.classList.add('ssa-regatta-click-guard');
+                    } catch (_) {}
+                    if (typeof window.setSearchMode === 'function') {
+                        window.setSearchMode('sailor', true);
+                    }
+                }
+                window.requestAnimationFrame(clearRegattaUi);
                 window.setTimeout(function () {
                     restoreVisibleSailorInput();
                     refreshTempLandingSearchState();
-                    scheduleKeepTempLandingSearchVisible(false);
                 }, 0);
             }
 
             function activateRegattaModeFromTemp() {
+                window.searchMode = window.searchMode || 'sailor';
                 if (typeof window.setSearchMode === 'function' && (window.searchMode || 'sailor') !== 'regatta') {
                     window.setSearchMode('regatta', true);
-                } else if (typeof window.setSearchMode !== 'function' && regattaBtn && !tempModeBootstrapGuard) {
-                    tempModeBootstrapGuard = true;
-                    regattaBtn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-                    tempModeBootstrapGuard = false;
+                } else if (typeof window.applyRegattaFilter === 'function') {
+                    window.searchMode = 'regatta';
+                    try { window.applyRegattaFilter(); } catch (_) {}
                 }
                 window.setTimeout(function () {
                     restoreVisibleSailorInput();
                     refreshTempLandingSearchState();
-                    scheduleKeepTempLandingSearchVisible(false);
+                    if (!(document.activeElement && (document.activeElement.id === 'temp-landing-regatta-input' || document.activeElement.id === 'sailor-search-input'))) {
+                        scheduleKeepTempLandingSearchVisible(false);
+                    }
                 }, 0);
             }
 
@@ -13312,6 +13394,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (!field || field.dataset.tempLandingFieldModeBound) return;
                 field.dataset.tempLandingFieldModeBound = '1';
                 field.addEventListener('pointerdown', function () {
+                    if (targetMode === 'sailor') {
+                        window.__ssaKeepSailorFocusUntil = Date.now() + 1200;
+                    }
                     if ((window.searchMode || 'sailor') !== targetMode) {
                         activateFn();
                     }
@@ -13326,8 +13411,10 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!sailorInput.dataset.tempLandingBound) {
                 sailorInput.dataset.tempLandingBound = '1';
                 sailorInput.addEventListener('focus', function () {
-                    activateSailorModeFromTemp();
-                    scheduleKeepTempLandingSearchVisible(true);
+                    window.__ssaKeepSailorFocusUntil = Date.now() + 1200;
+                    if ((window.searchMode || 'sailor') === 'regatta') {
+                        activateSailorModeFromTemp();
+                    }
                 });
                 sailorInput.addEventListener('input', function () {
                     sailorDraft = sailorInput.value;
@@ -13335,7 +13422,6 @@ document.addEventListener('DOMContentLoaded', function () {
                         activateSailorModeFromTemp();
                     } else {
                         refreshTempLandingSearchState();
-                        scheduleKeepTempLandingSearchVisible(false);
                     }
                 });
             }
@@ -13343,6 +13429,16 @@ document.addEventListener('DOMContentLoaded', function () {
             bindFieldModeActivation(sailorForm, activateSailorModeFromTemp, 'sailor');
             bindFieldModeActivation(sailorWrap, activateSailorModeFromTemp, 'sailor');
             bindFieldModeActivation(sailorRow, activateSailorModeFromTemp, 'sailor');
+            if (sailorWrap && !sailorWrap.dataset.ssaStayFocusBound) {
+                sailorWrap.dataset.ssaStayFocusBound = '1';
+                sailorWrap.addEventListener('pointerdown', function (e) {
+                    window.__ssaKeepSailorFocusUntil = Date.now() + 1200;
+                    if (!sailorInput || e.target === sailorInput) return;
+                    try { sailorInput.focus({ preventScroll: true }); } catch (_) {
+                        try { sailorInput.focus(); } catch (__) {}
+                    }
+                });
+            }
 
             if (!regattaInput.dataset.tempLandingBound) {
                 regattaInput.dataset.tempLandingBound = '1';
