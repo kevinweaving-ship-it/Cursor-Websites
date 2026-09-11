@@ -4198,6 +4198,7 @@ header.site-header #headerAuth button {
 <section id="temp-landing-claim-profile-banner" class="temp-landing-secondary-image" aria-label="Claim your SailingSA profile banner">
     <img src="assets/temp-landing-claim-profile-banner.png" alt="Claim your Sailing profile banner">
 </section>
+<section id="ssa-upcoming-48h" class="ssa-upcoming-48h" hidden aria-label="Upcoming events in the next 48 hours"></section>
 
 <div class="search-header-container sailor-search-pills">
                 <section id="sailor-search-section" class="sailor-search-section" aria-label="Sailor search">
@@ -4231,6 +4232,8 @@ header.site-header #headerAuth button {
             <!-- Sailor search results — below search fields and divider -->
             <div class="search-row-container">
                 <div id="sailor-search-results" class="sailor-search-results" role="list" style="display:none;"></div>
+                <!-- Saved for reuse: logged-in home sailor card parked here. Restore with window.__ssaUpcoming48hRestoreHomeCard() -->
+                <div id="ssa-saved-logged-in-home-card" hidden data-ssa-saved="logged-in-home-profile"></div>
             </div>
             <!-- Regatta Search Results -->
             <section id="public-regattas-section" aria-label="Regatta search results">
@@ -4652,6 +4655,7 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
     <script src="/js/api.js?v=20260901landingfix"></script>
     <script src="/js/results.js?v=FORCE_CLEAN_1"></script>
     <script src="/js/session.js?v=20260813_SILENT_LOGIN"></script>
+    <script src="/js/upcoming-48h-event.js?v=20260911u48"></script>
     
     <script>
         // Function to close popup and return to landing page
@@ -4684,6 +4688,7 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
             var hr = document.querySelector('.search-to-profile-separator');
             if (hr) hr.style.display = isClass ? 'none' : '';
             show(document.getElementById('landing-news-embed'), isHome);
+            show(document.getElementById('ssa-upcoming-48h'), isHome);
             var browse = document.querySelector('section.browse-sailingsa');
             if (browse) show(browse, isHome);
             show(document.getElementById('public-view'), !isClass);
@@ -4730,6 +4735,8 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                 if (heroBanner && heroBanner.parentNode) heroBanner.parentNode.removeChild(heroBanner);
                 var claimBanner = document.getElementById('temp-landing-claim-profile-banner');
                 if (claimBanner && claimBanner.parentNode) claimBanner.parentNode.removeChild(claimBanner);
+                var upcoming48h = document.getElementById('ssa-upcoming-48h');
+                if (upcoming48h && upcoming48h.parentNode) upcoming48h.parentNode.removeChild(upcoming48h);
                 var homeSearchSection = document.getElementById('sailor-search-section');
                 var homeSearchWrapper = homeSearchSection ? homeSearchSection.closest('div.search-header-container.sailor-search-pills, div.search-header-container') : null;
                 if (!homeSearchWrapper) {
