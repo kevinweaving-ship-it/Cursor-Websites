@@ -14,7 +14,7 @@
 (function () {
   "use strict";
 
-  var JS_VER = "20260911u48l";
+  var JS_VER = "20260911u48m";
   var ROOT_ID = "ssa-upcoming-48h";
   var PARK_ID = "ssa-saved-logged-in-home-card";
   var CSS_ID = "ssa-upcoming-48h-css";
@@ -108,9 +108,10 @@
       ".ssa-upcoming-48h-wx .wx-iv{text-align:right;}",
       "#ssa-saved-logged-in-home-card[hidden]{display:none!important;}",
       "body.ssa-hub-home .search-to-profile-separator{display:none!important;}",
-      "body.ssa-hub-home .search-row-container{margin:var(--ssa-48h-gap,4px) 0!important;padding:0!important;width:100%!important;max-width:100%!important;box-sizing:border-box!important;}",
-      "body.ssa-hub-home .sailor-search-results{margin:0!important;padding:0!important;width:100%!important;max-width:100%!important;box-sizing:border-box!important;}",
-      "body.ssa-hub-home #sailor-search-results .sa-approved-sailor-card,body.ssa-hub-home #sailor-search-results #chosen-sailor-before-profile.profile-card{margin:0!important;padding:0!important;width:100%!important;max-width:100%!important;box-sizing:border-box!important;background:#fff;border:2px solid #1a2750!important;border-radius:8px!important;box-shadow:none!important;}",
+      "body.ssa-hub-home .ssa-upcoming-48h,body.ssa-hub-home .ssa-upcoming-48h-shell.card,body.ssa-hub-home .search-header-container,body.ssa-hub-home .search-row-container,body.ssa-hub-home .sailor-search-results,body.ssa-hub-home #sailor-search-results,body.ssa-hub-home #sailor-search-results .sa-approved-sailor-card,body.ssa-hub-home #sailor-search-results #chosen-sailor-before-profile,body.ssa-hub-home #public-regattas-section,body.ssa-hub-home #public-regattas-list,body.ssa-hub-home .sa-home-regatta-wrap,body.ssa-hub-home .sa-home-regatta-list,body.ssa-hub-home .sa-home-regatta-card{width:100%!important;max-width:100%!important;min-width:0!important;margin-left:0!important;margin-right:0!important;box-sizing:border-box!important;}",
+      "body.ssa-hub-home .search-row-container{margin-top:var(--ssa-48h-gap,4px)!important;margin-bottom:var(--ssa-48h-gap,4px)!important;padding:0!important;}",
+      "body.ssa-hub-home .sailor-search-results{margin:0!important;padding:0!important;display:flex!important;flex-direction:column!important;align-items:stretch!important;}",
+      "body.ssa-hub-home #sailor-search-results .sa-approved-sailor-card,body.ssa-hub-home #sailor-search-results #chosen-sailor-before-profile.profile-card{display:block!important;align-self:stretch!important;padding:0!important;background:#fff;border:2px solid #1a2750!important;border-radius:8px!important;box-shadow:none!important;}",
       "body.ssa-hub-home #public-regattas-section{margin-top:0!important;}",
       "body.ssa-hub-48h-on .search-header-container{margin-top:var(--ssa-48h-gap,4px)!important;}",
       "body.ssa-hub-48h-no-home-profile .search-to-profile-separator{display:none;}",
@@ -347,6 +348,7 @@
         ) {
           parkLoggedInHomeCard();
         }
+        syncSailorCardWidth();
       }
       if (ret && typeof ret.then === "function") {
         return ret.then(function (v) {
@@ -414,6 +416,7 @@
         }, 40000);
       }
     }
+    syncSailorCardWidth();
     return root;
   }
 
@@ -440,8 +443,32 @@
     var results = document.getElementById("sailor-search-results");
     if (park && results && park.firstChild) {
       while (park.firstChild) results.appendChild(park.firstChild);
-      results.style.display = "block";
+      results.style.display = "flex";
     }
+    syncSailorCardWidth();
+  }
+
+  function eventCardBelowProfile() {
+    return document.querySelector("#public-regattas-list .sa-home-regatta-card") ||
+      document.querySelector(".ssa-upcoming-48h-shell");
+  }
+
+  function syncSailorCardWidth() {
+    if (!isHubHome()) return;
+    var card = document.querySelector("#sailor-search-results .sa-approved-sailor-card");
+    var ref = eventCardBelowProfile();
+    if (!card || !ref) return;
+    var w = Math.round(ref.getBoundingClientRect().width);
+    if (w < 40) return;
+    var px = w + "px";
+    [card, card.parentElement, document.querySelector(".search-row-container")].forEach(function (el) {
+      if (!el) return;
+      el.style.setProperty("width", px, "important");
+      el.style.setProperty("max-width", px, "important");
+      el.style.setProperty("box-sizing", "border-box", "important");
+      el.style.setProperty("margin-left", "0", "important");
+      el.style.setProperty("margin-right", "0", "important");
+    });
   }
 
   function syncHomeSailorCard() {
@@ -475,6 +502,12 @@
     document.addEventListener("visibilitychange", function () {
       if (!document.hidden && shouldShow()) loadWind();
     });
+    if (!window.__ssa48hWidthBound) {
+      window.__ssa48hWidthBound = true;
+      window.addEventListener("resize", function () {
+        syncSailorCardWidth();
+      });
+    }
   }
 
   window.__ssaUpcoming48h = JS_VER;
