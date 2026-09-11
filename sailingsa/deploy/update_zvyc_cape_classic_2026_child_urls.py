@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
 """Correct ZVYC Cape Classic 2026 fleet labels and the ILCA 4.7 child URL.
 
-Live child URLs are fluid `{parent}-{block-tail}` while the event is
-upcoming/happening. Additional classes (420, Mirror, Open) already have
-shells; ILCA 4.7 was still published as `…-ilca-4-fleet` with no class logo.
-
-Usage on live (DB_URL from sailingsa-api.service):
-  python3 fix_zvyc_cape_classic_2026_child_urls.py
-  python3 fix_zvyc_cape_classic_2026_child_urls.py --apply
+Superseded for new classes: live api.py derives child URLs from class
+(`_fleet_shell_public_tail`). Do not add more per-regatta rename scripts.
+This file remains as the one-off that repaired the 2026 truncated ILCA tail.
 """
 from __future__ import annotations
 
