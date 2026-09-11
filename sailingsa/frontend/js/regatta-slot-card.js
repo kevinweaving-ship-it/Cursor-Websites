@@ -6,9 +6,9 @@
   var CSS_ID = "ssa-regatta-slot-card-css";
   var ROOT_ID = "ssa-regatta-slot-card";
   var CAPE_CLASSIC_ID = "2026-09-13-zvyc-cape-classic";
-  var JS_VER = "20260911w2s6";
+  var JS_VER = "20260911w2s7";
   var PTS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
-  var BANDS = [[0, 5, "#12b028"], [5, 25, "#e67e00"], [25, 60, "#DC143C"]];
+  var BANDS = [[0, 5, "#12b028"], [5, 11, "#2563eb"], [11, 17, "#e67e00"], [17, 23, "#7c3aed"], [23, 60, "#DC143C"]];
 
   function injectCss() {
     var s = document.getElementById(CSS_ID);
@@ -23,8 +23,13 @@
       ".ssa-regatta-slot-card .wx-wp-top{display:flex;align-items:stretch;flex:1;height:100%;width:100%;padding:0 6px 0 0;gap:4px;box-sizing:border-box;}",
       ".ssa-regatta-slot-card .wx-wp-comp{flex:0 0 auto;height:100%;aspect-ratio:1/1;overflow:visible;}",
       ".ssa-regatta-slot-card .wx-dial{display:block;width:100%;height:100%;overflow:visible;}",
-      ".ssa-regatta-slot-card .wx-spark{flex:1 1 0;min-width:36px;height:100%;padding:8px 2px;box-sizing:border-box;}",
-      ".ssa-regatta-slot-card .wx-spark svg{display:block;width:100%;height:100%;}",
+      ".ssa-regatta-slot-card .wx-spark{flex:1 1 0;min-width:48px;height:100%;display:flex;flex-direction:column;padding:6px 2px 4px;box-sizing:border-box;min-height:0;}",
+      ".ssa-regatta-slot-card .wx-spark-row{flex:1 1 auto;min-height:0;display:flex;align-items:stretch;gap:3px;}",
+      ".ssa-regatta-slot-card .wx-scale{flex:0 0 16px;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end;padding:1px 0;box-sizing:border-box;}",
+      ".ssa-regatta-slot-card .wx-scale span{font:700 9px/1 Arial,Helvetica,sans-serif;color:#64748b;}",
+      ".ssa-regatta-slot-card .wx-plot{flex:1 1 auto;min-width:0;height:100%;display:block;}",
+      ".ssa-regatta-slot-card .wx-spark-x{flex:0 0 auto;display:flex;justify-content:space-between;padding:2px 0 0 19px;}",
+      ".ssa-regatta-slot-card .wx-spark-x span{font:700 9px/1 Arial,Helvetica,sans-serif;color:#64748b;}",
       ".ssa-regatta-slot-card .wx-info{flex:0 0 auto;min-width:104px;height:100%;display:flex;flex-direction:column;justify-content:stretch;gap:6px;padding:8px 4px 8px 2px;box-sizing:border-box;}",
       ".ssa-regatta-slot-card .wx-dial .dt{stroke:#9ca3af;stroke-width:1;}",
       ".ssa-regatta-slot-card .wx-dial .dt.card{stroke:#111;stroke-width:1.4;}",
@@ -116,35 +121,47 @@
     if (pts.length < 2) {
       return html + "</div>";
     }
-    var W = 100, H = 100, L = 2, R = 2, T = 4, B = 14;
-    var maxKn = 8, i;
+    var W = 100, H = 100, i;
+    var maxKn = 10;
     for (i = 0; i < pts.length; i += 1) {
       var hi = pts[i].high_kt != null ? Number(pts[i].high_kt) : Number(pts[i].avg_kt);
       if (hi > maxKn) maxKn = hi;
     }
     maxKn = Math.max(10, Math.ceil(maxKn / 5) * 5);
-    function x(idx) { return L + (W - L - R) * idx / (pts.length - 1); }
-    function y(kn) { return T + (H - T - B) * (1 - Math.max(0, Number(kn)) / maxKn); }
-    function bandY(kn) { return y(Math.min(maxKn, kn)); }
-    var svg = '<svg viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none" aria-hidden="true">';
-    svg += '<rect x="' + L + '" y="' + bandY(5) + '" width="' + (W - L - R) + '" height="' + (y(0) - bandY(5)).toFixed(1) + '" fill="#12b028" opacity=".18"/>';
-    svg += '<rect x="' + L + '" y="' + bandY(25) + '" width="' + (W - L - R) + '" height="' + (bandY(5) - bandY(25)).toFixed(1) + '" fill="#e67e00" opacity=".18"/>';
-    if (maxKn > 25) {
-      svg += '<rect x="' + L + '" y="' + T + '" width="' + (W - L - R) + '" height="' + (bandY(25) - T).toFixed(1) + '" fill="#DC143C" opacity=".18"/>';
-    }
+    var ticks = [];
+    var step = maxKn <= 20 ? 5 : 10;
+    for (i = maxKn; i >= 0; i -= step) ticks.push(i);
+    function x(idx) { return (W * idx) / (pts.length - 1); }
+    function y(kn) { return H * (1 - Math.max(0, Math.min(maxKn, Number(kn))) / maxKn); }
+    var svg = '<svg class="wx-plot" viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none" aria-hidden="true">';
+    BANDS.forEach(function (b) {
+      var y0 = y(Math.min(maxKn, b[1]));
+      var y1 = y(Math.min(maxKn, b[0]));
+      if (y1 <= y0) return;
+      svg += '<rect x="0" y="' + y0.toFixed(1) + '" width="' + W + '" height="' + (y1 - y0).toFixed(1) + '" fill="' + b[2] + '" opacity=".22"/>';
+    });
+    ticks.forEach(function (t) {
+      if (t === 0 || t === maxKn) return;
+      var yy = y(t).toFixed(1);
+      svg += '<line x1="0" y1="' + yy + '" x2="' + W + '" y2="' + yy + '" stroke="#fff" stroke-width="0.6" vector-effect="non-scaling-stroke"/>';
+    });
     var highD = "", avgD = "";
     for (i = 0; i < pts.length; i += 1) {
       var xi = x(i).toFixed(1);
-      var ya = y(pts[i].avg_kt).toFixed(1);
-      var yh = y(pts[i].high_kt != null ? pts[i].high_kt : pts[i].avg_kt).toFixed(1);
-      avgD += (i ? "L" : "M") + xi + " " + ya;
-      highD += (i ? "L" : "M") + xi + " " + yh;
+      avgD += (i ? "L" : "M") + xi + " " + y(pts[i].avg_kt).toFixed(1);
+      highD += (i ? "L" : "M") + xi + " " + y(pts[i].high_kt != null ? pts[i].high_kt : pts[i].avg_kt).toFixed(1);
     }
-    svg += '<path d="' + highD + '" fill="none" stroke="#94a3b8" stroke-width="1.2" vector-effect="non-scaling-stroke"/>';
-    svg += '<path d="' + avgD + '" fill="none" stroke="#1a2750" stroke-width="2" vector-effect="non-scaling-stroke"/>';
-    svg += '<text x="' + L + '" y="' + (H - 3) + '" font-size="7" fill="#64748b">1h</text>';
-    svg += '<text x="' + (W - R) + '" y="' + (H - 3) + '" font-size="7" fill="#64748b" text-anchor="end">now</text>';
-    return html + svg + "</svg></div>";
+    var last = pts[pts.length - 1];
+    var area = highD + "L" + x(pts.length - 1).toFixed(1) + " " + H + "L0 " + H + "Z";
+    svg += '<path d="' + area + '" fill="#1a2750" opacity=".12"/>';
+    svg += '<path d="' + highD + '" fill="none" stroke="#64748b" stroke-width="1.4" stroke-dasharray="3 2" vector-effect="non-scaling-stroke"/>';
+    svg += '<path d="' + avgD + '" fill="none" stroke="#1a2750" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>';
+    svg += '<circle cx="' + x(pts.length - 1).toFixed(1) + '" cy="' + y(last.avg_kt).toFixed(1) + '" r="1.8" fill="' + bandCol(last.avg_kt) + '" vector-effect="non-scaling-stroke"/>';
+    svg += "</svg>";
+    var scale = '<div class="wx-scale">' + ticks.map(function (t) { return "<span>" + t + "</span>"; }).join("") + "</div>";
+    html += '<div class="wx-spark-row">' + scale + svg + "</div>";
+    html += '<div class="wx-spark-x"><span>1h</span><span>now</span></div>';
+    return html + "</div>";
   }
 
   function render(slot, data) {
