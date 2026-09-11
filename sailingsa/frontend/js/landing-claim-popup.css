@@ -3,7 +3,7 @@
 #ssa-claim-modal{
   position:fixed;
   inset:0;
-  z-index:400000;
+  z-index:2147483000;
   display:none;
   align-items:flex-start;
   justify-content:center;

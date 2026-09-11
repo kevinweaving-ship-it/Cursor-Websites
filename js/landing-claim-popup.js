@@ -6,7 +6,7 @@
 
   var CSS_ID = "ssa-landing-claim-popup-css";
   var CSS_LINK_ID = "ssa-landing-claim-popup-css-link";
-  var JS_VER = "20260911hug";
+  var JS_VER = "20260911hidechip";
   var prevOverflow = "";
 
   var CLAIM_INNER =
@@ -65,6 +65,11 @@
       ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim-bar{padding:9px 32px 9px 10px;}",
       ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim-txt{font-size:11px;}",
       ".ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim-go{right:8px;width:18px;height:18px;font-size:12px;}",
+      "}",
+      "body.ssa-claim-modal-open .ssa-dev1-inject .ssa-popup-claim-slot,",
+      "body.ssa-claim-modal-open .ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-cta,",
+      "body.ssa-claim-modal-open .ssa-dev1-inject .ssa-popup-claim-slot .sa-looked-claim{",
+      "visibility:hidden!important;opacity:0!important;pointer-events:none!important;z-index:0!important;",
       "}"
     ].join("");
     document.head.appendChild(s);
@@ -790,7 +795,11 @@
       var wrap = overlay.querySelector(".lab-card-wrap");
       if (wrap) showPreview(wrap);
     }
+    document.querySelectorAll(".ssa-dev1-inject.is-claim-popup-open").forEach(function (el) {
+      el.classList.remove("is-claim-popup-open");
+    });
     try {
+      document.body.classList.remove("ssa-claim-modal-open");
       document.body.style.overflow = prevOverflow || "";
     } catch (_) {}
   }
@@ -849,10 +858,15 @@
       });
     }
     fillFromResults(wrap, profile);
+    document.querySelectorAll(".ssa-dev1-inject.is-claim-popup-open").forEach(function (el) {
+      el.classList.remove("is-claim-popup-open");
+    });
+    if (slot) slot.classList.add("is-claim-popup-open");
     overlay.hidden = false;
     overlay.classList.add("is-open");
     overlay.setAttribute("aria-hidden", "false");
     try {
+      document.body.classList.add("ssa-claim-modal-open");
       prevOverflow = document.body.style.overflow || "";
       document.body.style.overflow = "hidden";
     } catch (_) {}
