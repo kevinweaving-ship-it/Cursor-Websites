@@ -28,12 +28,15 @@
   box-sizing:border-box;
 }
 #ssa-claim-modal .lab-card-wrap{
-  width:360px;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  width:max-content;
   max-width:calc(100vw - 24px);
   box-sizing:border-box;
 }
 #ssa-claim-modal .popup-card{
-  width:360px !important;
+  width:max-content !important;
   max-width:100% !important;
   box-sizing:border-box;
 }
