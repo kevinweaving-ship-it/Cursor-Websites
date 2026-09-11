@@ -791,6 +791,42 @@ def api_wind2speed_zeekoevlei():
         inner = json.loads(raw) if isinstance(raw, str) else (raw or {})
         stats = inner.get("stats") or {}
         station = inner.get("station") or {}
+        kmh_kn = 1.852
+
+        def _kn(v):
+            if v is None:
+                return None
+            try:
+                return round(float(v) / kmh_kn, 1)
+            except (TypeError, ValueError):
+                return None
+
+        hour = []
+        for row in inner.get("tableData") or []:
+            if not isinstance(row, dict):
+                continue
+            hour.append(
+                {
+                    "t": row.get("obsTimeLocal"),
+                    "avg_kt": _kn(row.get("windspeedAvg")),
+                    "high_kt": _kn(row.get("windspeedHigh")),
+                    "low_kt": _kn(row.get("windspeedLow")),
+                }
+            )
+        hour.sort(key=lambda p: p.get("t") or "")
+        if hour and hour[-1].get("t"):
+            try:
+                t1 = datetime.fromisoformat(str(hour[-1]["t"]).replace("Z", "").split(".")[0])
+                t0 = t1 - timedelta(hours=1)
+                hour = [
+                    p
+                    for p in hour
+                    if p.get("t")
+                    and datetime.fromisoformat(str(p["t"]).replace("Z", "").split(".")[0]) >= t0
+                ]
+            except Exception:
+                hour = hour[-24:]
+
         body = {
             "ok": True,
             "source": "wind2speed.africa/widgetPage/35",
@@ -810,6 +846,7 @@ def api_wind2speed_zeekoevlei():
             "dir_high": stats.get("wdrh"),
             "wds": stats.get("wds") or [],
             "wdsm": stats.get("wdsm") or [],
+            "hour": hour,
             "interval": payload.get("interval") or 40000,
             "pressure": stats.get("prs"),
         }
