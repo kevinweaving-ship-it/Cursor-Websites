@@ -13,7 +13,7 @@
 (function () {
   "use strict";
 
-  var JS_VER = "20260911u48j";
+  var JS_VER = "20260911u48k";
   var ROOT_ID = "ssa-upcoming-48h";
   var PARK_ID = "ssa-saved-logged-in-home-card";
   var CSS_ID = "ssa-upcoming-48h-css";
@@ -67,12 +67,13 @@
       document.head.appendChild(s);
     }
     s.textContent = [
-      ".ssa-upcoming-48h{--ssa-48h-pair-h:52px;--ssa-48h-gap:4px;width:100%;max-width:100%;margin:calc(var(--ssa-48h-gap) - var(--sa-header-gap,12px)) 0 var(--ssa-48h-gap);display:block;}",
+      ".ssa-upcoming-48h{--ssa-48h-pair-h:52px;--ssa-48h-gap:4px;width:100%;max-width:100%;margin:calc(var(--ssa-48h-gap) - var(--sa-header-gap,12px)) 0 0;display:block;}",
       ".ssa-upcoming-48h[hidden]{display:none!important;}",
-      ".ssa-upcoming-48h-shell.card{display:flex;flex-direction:column;gap:var(--ssa-48h-gap);margin:0!important;padding:var(--ssa-48h-gap)!important;background:#fff;border:2px solid #1a2750;border-radius:8px;box-shadow:0 1px 3px rgba(0,31,63,.08);box-sizing:border-box;}",
-      ".ssa-upcoming-48h-banner-link{display:block;line-height:0;overflow:hidden;border-radius:8px;margin:0;padding:0;}",
-      ".ssa-upcoming-48h-banner{display:block;width:100%;height:56px;object-fit:cover;object-position:center;border-radius:8px;}",
-      ".ssa-upcoming-48h-header{display:grid;grid-template-columns:minmax(0,auto) minmax(0,3fr) minmax(0,auto);align-items:center;column-gap:6px;row-gap:0;padding:0;min-height:calc(var(--ssa-48h-pair-h) + 20px);text-decoration:none;color:inherit;background:transparent;border:0;border-radius:0;box-shadow:none;box-sizing:border-box;margin:0!important;}",
+      ".ssa-upcoming-48h-shell.card{display:flex;flex-direction:column;gap:var(--ssa-48h-gap);margin:0!important;padding:var(--ssa-48h-gap)!important;background:#fff;border:2px solid #1a2750;border-radius:8px;box-shadow:none;box-sizing:border-box;}",
+      ".ssa-upcoming-48h-banner-link,.ssa-upcoming-48h-header,.ssa-upcoming-48h-wx-link{display:block;width:100%;margin:0!important;padding:0!important;border:0;border-radius:0;box-shadow:none;background:transparent;box-sizing:border-box;text-decoration:none;color:inherit;}",
+      ".ssa-upcoming-48h-banner-link{line-height:0;overflow:hidden;border-radius:8px;}",
+      ".ssa-upcoming-48h-banner{display:block;width:100%;height:auto;object-fit:fill;object-position:center;border-radius:8px;margin:0;padding:0;}",
+      ".ssa-upcoming-48h-header{display:grid;grid-template-columns:minmax(0,auto) minmax(0,3fr) minmax(0,auto);align-items:center;column-gap:var(--ssa-48h-gap);row-gap:0;min-height:0;}",
       ".ssa-upcoming-48h-logo-col,.ssa-upcoming-48h-club-col{display:flex;align-items:center;min-width:0;}",
       ".ssa-upcoming-48h-logo-col{justify-content:flex-start;}",
       ".ssa-upcoming-48h-club-col{justify-content:flex-end;}",
@@ -82,18 +83,17 @@
       ".ssa-upcoming-48h-host,.ssa-upcoming-48h-venue{font:600 clamp(9px,2.5vw,13px)/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1a2750;margin:0;}",
       ".ssa-upcoming-48h-status{display:none!important;}",
       ".ssa-upcoming-48h-entries{font:400 clamp(8px,2.2vw,12px)/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#334155;margin:1px 0 0;}",
-      ".ssa-upcoming-48h-wx-link{display:block;width:100%;margin:0;padding:0;text-decoration:none;color:inherit;background:transparent;border:0;border-radius:0;box-shadow:none;box-sizing:border-box;}",
       ".ssa-upcoming-48h-wx{height:var(--ssa-48h-pair-h);padding:0;display:flex;align-items:stretch;gap:var(--ssa-48h-gap);box-sizing:border-box;}",
       ".ssa-upcoming-48h-wx .wx-wp-comp{flex:0 0 auto;height:100%;aspect-ratio:1/1;}",
       ".ssa-upcoming-48h-wx .wx-dial{display:block;width:100%;height:100%;overflow:visible;}",
-      ".ssa-upcoming-48h-wx .wx-spark{flex:1 1 0;min-width:36px;height:100%;display:flex;flex-direction:column;padding:2px 2px 1px;box-sizing:border-box;min-height:0;}",
+      ".ssa-upcoming-48h-wx .wx-spark{flex:1 1 0;min-width:36px;height:100%;display:flex;flex-direction:column;padding:0;box-sizing:border-box;min-height:0;}",
       ".ssa-upcoming-48h-wx .wx-spark-row{flex:1 1 auto;min-height:0;display:flex;align-items:stretch;gap:3px;}",
       ".ssa-upcoming-48h-wx .wx-scale{flex:0 0 12px;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end;padding:1px 0;}",
       ".ssa-upcoming-48h-wx .wx-scale span{font:700 7px/1 Arial,Helvetica,sans-serif;color:#64748b;}",
       ".ssa-upcoming-48h-wx .wx-plot{flex:1 1 auto;min-width:0;height:100%;display:block;}",
       ".ssa-upcoming-48h-wx .wx-spark-x{flex:0 0 auto;display:flex;justify-content:space-between;padding:1px 0 0 15px;}",
       ".ssa-upcoming-48h-wx .wx-spark-x span{font:700 7px/1 Arial,Helvetica,sans-serif;color:#64748b;}",
-      ".ssa-upcoming-48h-wx .wx-info{flex:0 0 auto;min-width:68px;height:100%;display:flex;flex-direction:column;justify-content:stretch;gap:2px;padding:4px 6px 4px 2px;box-sizing:border-box;}",
+      ".ssa-upcoming-48h-wx .wx-info{flex:0 0 auto;min-width:68px;height:100%;display:flex;flex-direction:column;justify-content:stretch;gap:var(--ssa-48h-gap);padding:0;box-sizing:border-box;}",
       ".ssa-upcoming-48h-wx .wx-dial .dt{stroke:#9ca3af;stroke-width:1;}",
       ".ssa-upcoming-48h-wx .wx-dial .dt.card{stroke:#111;stroke-width:1.4;}",
       ".ssa-upcoming-48h-wx .wx-dial .darc{fill:none;stroke:#93c5fd;stroke-width:7;stroke-linecap:butt;}",
@@ -106,15 +106,15 @@
       ".ssa-upcoming-48h-wx .wx-il{color:#334155;}",
       ".ssa-upcoming-48h-wx .wx-iv{text-align:right;}",
       "#ssa-saved-logged-in-home-card[hidden]{display:none!important;}",
+      "body.ssa-hub-48h-on .search-header-container{margin-top:var(--ssa-48h-gap,4px)!important;}",
       "body.ssa-hub-48h-no-home-profile .search-to-profile-separator{display:none;}",
       "body.ssa-hub-48h-no-home-profile #sailor-search-results:not([data-ssa-search-list='1']){display:none!important;}",
       "@media screen and (min-width:768px){",
       ".ssa-upcoming-48h{--ssa-48h-pair-h:60px;}",
-      ".ssa-upcoming-48h-banner{height:64px;}",
       ".ssa-upcoming-48h-wx .wx-il,.ssa-upcoming-48h-wx .wx-iv,.ssa-upcoming-48h-wx .wx-iv small{font-size:12px;}",
       "}",
       "@media screen and (max-width:767px){",
-      ".ssa-upcoming-48h-header{grid-template-columns:minmax(0,min(22vw,72px)) minmax(0,1fr) minmax(0,min(22vw,72px));column-gap:4px;padding:0;}",
+      ".ssa-upcoming-48h-header{grid-template-columns:minmax(0,min(22vw,72px)) minmax(0,1fr) minmax(0,min(22vw,72px));column-gap:var(--ssa-48h-gap);padding:0;}",
       ".ssa-upcoming-48h-logo-col img,.ssa-upcoming-48h-club-col img{max-height:min(14vw,52px);max-width:min(20vw,80px);}",
       "}"
     ].join("");
@@ -266,7 +266,7 @@
     return (
       '<div class="card ssa-upcoming-48h-shell">' +
         '<a class="ssa-upcoming-48h-banner-link" href="' + EVENT_HREF + '" aria-label="Upcoming events in the next 48 hours">' +
-          '<img class="ssa-upcoming-48h-banner" src="/assets/upcoming-48h-banner.png" alt="Upcoming event(s) in the next 48 hours">' +
+          '<img class="ssa-upcoming-48h-banner" src="/assets/upcoming-48h-banner.png?v=' + JS_VER + '" alt="Upcoming event(s) in the next 48 hours">' +
         "</a>" +
         '<a class="ssa-upcoming-48h-header" href="' + EVENT_HREF + '" aria-label="2026-09-13 ZVYC Cape Classic">' +
           '<div class="ssa-upcoming-48h-logo-col"><img src="/artwork/Event%20Logo/Cape-Classic-Series.png?v=20260827a" alt=""></div>' +
@@ -379,6 +379,7 @@
     if (!shouldShow()) {
       root.hidden = true;
       root.setAttribute("hidden", "");
+      document.body.classList.remove("ssa-hub-48h-on");
       if (windTimer) {
         clearInterval(windTimer);
         windTimer = null;
@@ -387,8 +388,10 @@
     }
     root.hidden = false;
     root.removeAttribute("hidden");
+    document.body.classList.add("ssa-hub-48h-on");
     if (
       !root.querySelector(".ssa-upcoming-48h-shell > .ssa-upcoming-48h-banner-link") ||
+      !root.querySelector('img.ssa-upcoming-48h-banner[src*="' + JS_VER + '"]') ||
       root.querySelector(".ssa-upcoming-48h-card") ||
       root.querySelector(".ssa-upcoming-48h-status")
     ) {
