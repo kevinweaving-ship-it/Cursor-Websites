@@ -1,7 +1,7 @@
 /**
- * Hub: "Upcoming event(s) in the next 48 hours" banner + 3 cards from the
- * loaded Cape Classic page (wind, Marine Megastore Coming Soon, ZVYC Live Cam).
- * Any card click goes to /regatta/2026-09-13-zvyc-cape-classic.
+ * Hub: 48h banner, then the Cape Classic page stack (one below the other):
+ * event header, wind bar, MM + Live Cam strip. Any of the 3 opens
+ * /regatta/2026-09-13-zvyc-cape-classic. Compact, mobile-portrait first.
  *
  * Visible on hub home only, when that event is loaded and now is within
  * 48 hours before start through event end (Africa/Johannesburg).
@@ -12,7 +12,7 @@
 (function () {
   "use strict";
 
-  var JS_VER = "20260911u48";
+  var JS_VER = "20260911u48c";
   var ROOT_ID = "ssa-upcoming-48h";
   var PARK_ID = "ssa-saved-logged-in-home-card";
   var CSS_ID = "ssa-upcoming-48h-css";
@@ -66,48 +66,67 @@
       document.head.appendChild(s);
     }
     s.textContent = [
-      ".ssa-upcoming-48h{width:100%;max-width:100%;margin:0.75rem 0 1rem;}",
+      ".ssa-upcoming-48h{width:100%;max-width:100%;margin:6px 0 8px;}",
       ".ssa-upcoming-48h[hidden]{display:none!important;}",
-      ".ssa-upcoming-48h-banner{display:block;width:100%;height:auto;border-radius:8px;}",
-      ".ssa-upcoming-48h-cards{display:flex;gap:10px;margin-top:10px;align-items:stretch;}",
-      ".ssa-upcoming-48h-card{flex:1 1 0;min-width:0;min-height:122px;display:block;overflow:hidden;text-decoration:none;color:inherit;background:#fff;border:2px solid #001f3f;border-radius:8px;box-shadow:0 1px 3px rgba(0,31,63,.08);box-sizing:border-box;}",
-      ".ssa-upcoming-48h-card:hover{box-shadow:0 4px 12px rgba(0,31,63,.12);}",
-      ".ssa-upcoming-48h-card img{display:block;width:100%;height:100%;object-fit:cover;pointer-events:none;}",
-      ".ssa-upcoming-48h-wx{height:122px;padding:0 6px 0 0;display:flex;align-items:stretch;gap:4px;box-sizing:border-box;}",
+      ".ssa-upcoming-48h .card{margin:0!important;padding:0!important;}",
+      ".ssa-upcoming-48h-banner{display:block;width:100%;height:auto;border-radius:8px;margin:0;}",
+      ".ssa-upcoming-48h-cards{display:flex;flex-direction:column;gap:6px;margin:6px 0 0;align-items:stretch;}",
+      ".ssa-upcoming-48h-card{display:block;width:100%;overflow:hidden;text-decoration:none;color:inherit;background:#fff;border:2px solid #1a2750;border-radius:8px;box-shadow:0 1px 3px rgba(0,31,63,.08);box-sizing:border-box;}",
+      ".ssa-upcoming-48h-header{display:grid;grid-template-columns:minmax(0,auto) minmax(0,3fr) minmax(0,auto);align-items:center;column-gap:6px;row-gap:0;padding:4px 6px;}",
+      ".ssa-upcoming-48h-logo-col,.ssa-upcoming-48h-club-col{display:flex;align-items:center;min-width:0;}",
+      ".ssa-upcoming-48h-logo-col{justify-content:flex-start;}",
+      ".ssa-upcoming-48h-club-col{justify-content:flex-end;}",
+      ".ssa-upcoming-48h-logo-col img,.ssa-upcoming-48h-club-col img{display:block;max-height:72px;max-width:96px;width:auto;height:auto;object-fit:contain;pointer-events:none;}",
+      ".ssa-upcoming-48h-main-col{min-width:0;text-align:center;}",
+      ".ssa-upcoming-48h-name{font:700 clamp(11px,3.2vw,18px)/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1a2750;margin:0 0 2px;}",
+      ".ssa-upcoming-48h-host,.ssa-upcoming-48h-venue{font:600 clamp(9px,2.5vw,13px)/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1a2750;margin:0;}",
+      ".ssa-upcoming-48h-status,.ssa-upcoming-48h-entries{font:400 clamp(8px,2.2vw,12px)/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#334155;margin:1px 0 0;}",
+      ".ssa-upcoming-48h-wx{height:96px;padding:0 4px 0 0;display:flex;align-items:stretch;gap:4px;box-sizing:border-box;}",
       ".ssa-upcoming-48h-wx .wx-wp-comp{flex:0 0 auto;height:100%;aspect-ratio:1/1;}",
       ".ssa-upcoming-48h-wx .wx-dial{display:block;width:100%;height:100%;overflow:visible;}",
-      ".ssa-upcoming-48h-wx .wx-spark{flex:1 1 0;min-width:36px;height:100%;display:flex;flex-direction:column;padding:6px 2px 4px;box-sizing:border-box;min-height:0;}",
+      ".ssa-upcoming-48h-wx .wx-spark{flex:1 1 0;min-width:36px;height:100%;display:flex;flex-direction:column;padding:4px 2px 2px;box-sizing:border-box;min-height:0;}",
       ".ssa-upcoming-48h-wx .wx-spark-row{flex:1 1 auto;min-height:0;display:flex;align-items:stretch;gap:3px;}",
-      ".ssa-upcoming-48h-wx .wx-scale{flex:0 0 16px;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end;padding:1px 0;}",
-      ".ssa-upcoming-48h-wx .wx-scale span{font:700 9px/1 Arial,Helvetica,sans-serif;color:#64748b;}",
+      ".ssa-upcoming-48h-wx .wx-scale{flex:0 0 14px;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end;padding:1px 0;}",
+      ".ssa-upcoming-48h-wx .wx-scale span{font:700 8px/1 Arial,Helvetica,sans-serif;color:#64748b;}",
       ".ssa-upcoming-48h-wx .wx-plot{flex:1 1 auto;min-width:0;height:100%;display:block;}",
-      ".ssa-upcoming-48h-wx .wx-spark-x{flex:0 0 auto;display:flex;justify-content:space-between;padding:2px 0 0 19px;}",
-      ".ssa-upcoming-48h-wx .wx-spark-x span{font:700 9px/1 Arial,Helvetica,sans-serif;color:#64748b;}",
-      ".ssa-upcoming-48h-wx .wx-info{flex:0 0 auto;min-width:92px;height:100%;display:flex;flex-direction:column;justify-content:stretch;gap:6px;padding:10px 8px 10px 4px;box-sizing:border-box;}",
+      ".ssa-upcoming-48h-wx .wx-spark-x{flex:0 0 auto;display:flex;justify-content:space-between;padding:1px 0 0 17px;}",
+      ".ssa-upcoming-48h-wx .wx-spark-x span{font:700 8px/1 Arial,Helvetica,sans-serif;color:#64748b;}",
+      ".ssa-upcoming-48h-wx .wx-info{flex:0 0 auto;min-width:78px;height:100%;display:flex;flex-direction:column;justify-content:stretch;gap:4px;padding:6px 6px 6px 2px;box-sizing:border-box;}",
       ".ssa-upcoming-48h-wx .wx-dial .dt{stroke:#9ca3af;stroke-width:1;}",
       ".ssa-upcoming-48h-wx .wx-dial .dt.card{stroke:#111;stroke-width:1.4;}",
       ".ssa-upcoming-48h-wx .wx-dial .darc{fill:none;stroke:#93c5fd;stroke-width:7;stroke-linecap:butt;}",
       ".ssa-upcoming-48h-wx .wx-dial .darc.prev{opacity:.45;}",
       ".ssa-upcoming-48h-wx .wx-dial .dhead{fill:#3b82f6;}",
-      ".ssa-upcoming-48h-wx .wx-dial .dpt{font:700 22px Arial,Helvetica,sans-serif;fill:#15803d;}",
-      ".ssa-upcoming-48h-wx .wx-dial .ddeg{font:700 16px Arial,Helvetica,sans-serif;fill:#166534;}",
-      ".ssa-upcoming-48h-wx .wx-ir{flex:1 1 0;display:flex;flex-direction:row;justify-content:flex-end;align-items:baseline;gap:6px;min-width:0;}",
-      ".ssa-upcoming-48h-wx .wx-il,.ssa-upcoming-48h-wx .wx-iv,.ssa-upcoming-48h-wx .wx-iv small{font:800 16px/1 Arial,Helvetica,sans-serif;white-space:nowrap;}",
+      ".ssa-upcoming-48h-wx .wx-dial .dpt{font:700 18px Arial,Helvetica,sans-serif;fill:#15803d;}",
+      ".ssa-upcoming-48h-wx .wx-dial .ddeg{font:700 13px Arial,Helvetica,sans-serif;fill:#166534;}",
+      ".ssa-upcoming-48h-wx .wx-ir{flex:1 1 0;display:flex;flex-direction:row;justify-content:flex-end;align-items:baseline;gap:4px;min-width:0;}",
+      ".ssa-upcoming-48h-wx .wx-il,.ssa-upcoming-48h-wx .wx-iv,.ssa-upcoming-48h-wx .wx-iv small{font:800 14px/1 Arial,Helvetica,sans-serif;white-space:nowrap;}",
       ".ssa-upcoming-48h-wx .wx-il{color:#334155;}",
       ".ssa-upcoming-48h-wx .wx-iv{text-align:right;}",
-      ".ssa-upcoming-48h-media{position:relative;height:122px;background:#001f3f;}",
-      ".ssa-upcoming-48h-cam-chrome{position:absolute;top:6px;left:6px;display:flex;align-items:center;gap:6px;pointer-events:none;}",
-      ".ssa-upcoming-48h-cam-chrome img{width:32px;height:32px;object-fit:contain;border-radius:4px;}",
-      ".ssa-upcoming-48h-cam-copy{color:#fff;font:700 11px/1.15 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;text-shadow:0 1px 2px rgba(0,0,0,.65);}",
+      ".ssa-upcoming-48h-media-row{display:flex;flex-wrap:nowrap;align-items:stretch;gap:6px;height:76px;padding:4px;box-sizing:border-box;background:#001f3f;}",
+      ".ssa-upcoming-48h-mm{flex:0 0 auto;height:100%;aspect-ratio:320/213;overflow:hidden;border-radius:4px;background:#001f3f;}",
+      ".ssa-upcoming-48h-mm img{display:block;width:100%;height:100%;object-fit:cover;pointer-events:none;}",
+      ".ssa-upcoming-48h-cam{flex:0 0 auto;height:100%;aspect-ratio:16/9;position:relative;overflow:hidden;border-radius:4px;background:#000;}",
+      ".ssa-upcoming-48h-cam img{display:block;width:100%;height:100%;object-fit:cover;pointer-events:none;}",
+      ".ssa-upcoming-48h-ph{flex:1 1 0;min-width:0;background:#0a1630;border-radius:4px;}",
+      ".ssa-upcoming-48h-cam-chrome{position:absolute;top:4px;left:4px;display:flex;align-items:center;gap:4px;pointer-events:none;}",
+      ".ssa-upcoming-48h-cam-chrome img{width:22px;height:22px;object-fit:contain;border-radius:3px;}",
+      ".ssa-upcoming-48h-cam-copy{color:#fff;font:700 9px/1.1 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;text-shadow:0 1px 2px rgba(0,0,0,.65);}",
       ".ssa-upcoming-48h-cam-sub{font-weight:600;opacity:.9;}",
-      ".ssa-upcoming-48h-play{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:rgba(0,0,0,.55);pointer-events:none;}",
-      ".ssa-upcoming-48h-play:after{content:'';position:absolute;left:17px;top:13px;border-style:solid;border-width:9px 0 9px 14px;border-color:transparent transparent transparent #fff;}",
+      ".ssa-upcoming-48h-play{position:absolute;left:50%;top:50%;width:28px;height:28px;margin:-14px 0 0 -14px;border-radius:50%;background:rgba(0,0,0,.55);pointer-events:none;}",
+      ".ssa-upcoming-48h-play:after{content:'';position:absolute;left:10px;top:8px;border-style:solid;border-width:6px 0 6px 10px;border-color:transparent transparent transparent #fff;}",
       "#ssa-saved-logged-in-home-card[hidden]{display:none!important;}",
       "body.ssa-hub-48h-no-home-profile .search-to-profile-separator{display:none;}",
       "body.ssa-hub-48h-no-home-profile #sailor-search-results:not([data-ssa-search-list='1']){display:none!important;}",
+      "@media screen and (min-width:768px){",
+      ".ssa-upcoming-48h-wx{height:110px;}",
+      ".ssa-upcoming-48h-media-row{height:88px;}",
+      ".ssa-upcoming-48h-wx .wx-il,.ssa-upcoming-48h-wx .wx-iv,.ssa-upcoming-48h-wx .wx-iv small{font-size:16px;}",
+      "}",
       "@media screen and (max-width:767px){",
-      ".ssa-upcoming-48h-cards{flex-direction:column;}",
-      ".ssa-upcoming-48h-media{height:auto;aspect-ratio:16/9;}",
+      ".ssa-upcoming-48h-header{grid-template-columns:minmax(0,min(22vw,72px)) minmax(0,1fr) minmax(0,min(22vw,72px));column-gap:3px;padding:3px;}",
+      ".ssa-upcoming-48h-logo-col img,.ssa-upcoming-48h-club-col img{max-height:min(12vw,44px);max-width:min(18vw,72px);}",
+      ".ssa-upcoming-48h-ph{display:none;}",
       "}"
     ].join("");
   }
@@ -258,19 +277,36 @@
     return (
       '<img class="ssa-upcoming-48h-banner" src="/assets/upcoming-48h-banner.png" alt="Upcoming event(s) in the next 48 hours">' +
       '<div class="ssa-upcoming-48h-cards">' +
+        '<a class="card ssa-upcoming-48h-card ssa-upcoming-48h-header" href="' + EVENT_HREF + '" aria-label="2026-09-13 ZVYC Cape Classic">' +
+          '<div class="ssa-upcoming-48h-logo-col"><img src="/artwork/Event%20Logo/Cape-Classic-Series.png?v=20260827a" alt=""></div>' +
+          '<div class="ssa-upcoming-48h-main-col">' +
+            '<div class="ssa-upcoming-48h-name">2026-09-13 ZVYC Cape Classic</div>' +
+            '<div class="ssa-upcoming-48h-host">Host: ZVYC - Zeekoe Vlei Yacht Club</div>' +
+            '<div class="ssa-upcoming-48h-venue">Venue : Zeekoe Vlei Yacht Club</div>' +
+            '<div class="ssa-upcoming-48h-status">Results are Provisional as at 13 September 2026 at 17:30</div>' +
+            '<div class="ssa-upcoming-48h-entries">Total Entries = 51</div>' +
+          "</div>" +
+          '<div class="ssa-upcoming-48h-club-col"><img src="/artwork/Club%20Logo/ZVYC.png" alt=""></div>' +
+        "</a>" +
         '<a class="card ssa-upcoming-48h-card" href="' + EVENT_HREF + '" aria-label="Zeekoevlei wind — open ZVYC Cape Classic">' +
           '<div class="ssa-upcoming-48h-wx-host" data-ssa-48h-wind></div>' +
         "</a>" +
-        '<a class="card ssa-upcoming-48h-card ssa-upcoming-48h-media" href="' + EVENT_HREF + '" aria-label="Marine Megastore Coming Soon — open ZVYC Cape Classic">' +
-          '<img src="/assets/adverts/mm-powered-by-coming-soon.jpg" alt="Powered by Marine Megastore Coming Soon">' +
-        "</a>" +
-        '<a class="card ssa-upcoming-48h-card ssa-upcoming-48h-media" href="' + EVENT_HREF + '" aria-label="ZVYC Live Cam — open ZVYC Cape Classic">' +
-          '<img src="/api/regatta/' + EVENT_ID + '/zvyc-live-cam-thumb?t=' + Date.now() + '" alt="ZVYC Live Cam">' +
-          '<div class="ssa-upcoming-48h-cam-chrome">' +
-            '<img src="/artwork/Club%20Logo/ZVYC.png" alt="">' +
-            '<div class="ssa-upcoming-48h-cam-copy">ZVYC Live Cam<div class="ssa-upcoming-48h-cam-sub">Zeekoevlei · live</div></div>' +
+        '<a class="card ssa-upcoming-48h-card" href="' + EVENT_HREF + '" aria-label="Marine Megastore and ZVYC Live Cam — open ZVYC Cape Classic">' +
+          '<div class="ssa-upcoming-48h-media-row">' +
+            '<div class="ssa-upcoming-48h-mm"><img src="/assets/adverts/mm-powered-by-coming-soon.jpg" alt="Powered by Marine Megastore Coming Soon"></div>' +
+            '<div class="ssa-upcoming-48h-cam">' +
+              '<img src="/api/regatta/' + EVENT_ID + '/zvyc-live-cam-thumb?t=' + Date.now() + '" alt="ZVYC Live Cam">' +
+              '<div class="ssa-upcoming-48h-cam-chrome">' +
+                '<img src="/artwork/Club%20Logo/ZVYC.png" alt="">' +
+                '<div class="ssa-upcoming-48h-cam-copy">ZVYC Live Cam<div class="ssa-upcoming-48h-cam-sub">Zeekoevlei · live</div></div>' +
+              "</div>" +
+              '<span class="ssa-upcoming-48h-play" aria-hidden="true"></span>' +
+            "</div>" +
+            '<span class="ssa-upcoming-48h-ph" aria-hidden="true"></span>' +
+            '<span class="ssa-upcoming-48h-ph" aria-hidden="true"></span>' +
+            '<span class="ssa-upcoming-48h-ph" aria-hidden="true"></span>' +
+            '<span class="ssa-upcoming-48h-ph" aria-hidden="true"></span>' +
           "</div>" +
-          '<span class="ssa-upcoming-48h-play" aria-hidden="true"></span>' +
         "</a>" +
       "</div>"
     );
@@ -378,7 +414,7 @@
     }
     root.hidden = false;
     root.removeAttribute("hidden");
-    if (!root.querySelector(".ssa-upcoming-48h-cards")) {
+    if (!root.querySelector(".ssa-upcoming-48h-header")) {
       root.innerHTML = cardsHtml();
     }
     windSlot = root.querySelector("[data-ssa-48h-wind]");
