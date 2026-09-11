@@ -6,9 +6,9 @@
   var CSS_ID = "ssa-regatta-slot-card-css";
   var ROOT_ID = "ssa-regatta-slot-card";
   var CAPE_CLASSIC_ID = "2026-09-13-zvyc-cape-classic";
-  var JS_VER = "20260911w2s3";
+  var JS_VER = "20260911w2s4";
   var PTS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
-  var BANDS = [[0, 10, "#12b028"], [10, 20, "#e67e00"], [20, 30, "#7c3aed"], [30, 50, "#DC143C"], [50, 60, "#7f0d1f"]];
+  var BANDS = [[0, 5, "#12b028"], [5, 25, "#e67e00"], [25, 60, "#DC143C"]];
 
   function injectCss() {
     var s = document.getElementById(CSS_ID);
@@ -63,7 +63,7 @@
     for (i = 0; i < BANDS.length; i += 1) {
       if (kn < BANDS[i][1]) return BANDS[i][2];
     }
-    return "#7f0d1f";
+    return "#DC143C";
   }
   function dirIdx(deg) {
     if (deg == null || isNaN(deg)) return null;
@@ -118,7 +118,7 @@
 
   function bandBar(kn) {
     var mark = kn == null || isNaN(kn) ? null : Math.max(0, Math.min(60, Number(kn)));
-    var html = '<div class="wx-bands" title="0–10 green · 10–20 orange · 20–30 purple · 30–50 red · 50+ dark">';
+    var html = '<div class="wx-bands" title="0–4 kn green · 5–24 kn orange · 25+ kn red">';
     BANDS.forEach(function (b) {
       html += '<span style="background:' + b[2] + ";flex:" + (b[1] - b[0]) + '"></span>';
     });
