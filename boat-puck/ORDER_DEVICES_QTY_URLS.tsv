@@ -1,0 +1,17 @@
+Must order	#	Device	Qty	Factory	Direct product URL	Role / where it goes	~USD ea	~R ea	Notes
+YES	1	WT-43-BK-LoRa	1	Anzewei / On The Way (OTW)	https://www.ontheway-tech.com/product/wt-43-bk-lora-module/	Committee RTK base (only one)	32–36	515–571	Factory-direct. Confirm SA 433 MHz before pay. Do not buy Ali if factory quotes.
+YES	2	WT-43-RK-LoRa	3	Anzewei / On The Way (OTW)	https://www.ontheway-tech.com/product/wt-43-rk-lora/	1× pin + 1× boat puck + 1× mark/spare	32–36	515–571	Alt catalog: https://www.gpsgnssmodule.com/sale-53628296-wt-43-rk-lora-rtk-gnss-module-with-lora-data-transmission.html
+YES	3	E73-2G4M08S1F (nRF54L15 module)	2	Ebyte (Chengdu)	https://www.cdebyte.com/products/E73-2G4M08S1F	Boat-puck BLE MCU (inside housing)	5.6–6.4	90–102	Alt cart: https://jlcpcb.com/partdetail/57638535-E732G4M08S1F/C54337734
+YES	4	H9–13 GoPro clone waterproof housing	1	AliExpress / Made-in-China OEM	https://www.aliexpress.com/w/wholesale-gopro-hero9-hero10-hero11-hero12-hero13-waterproof-housing.html	Boat puck shell	5–6.5	80–104	Pick one H9–13 compatible clone (~$5–6.50). Not official GoPro ADDIV-001 (~$50).
+YES	5	LiPo cell + TP4056 charge board	4	AliExpress (commodity)	https://www.aliexpress.com/w/wholesale-3.7v-lipo-battery-1000mah.html	1 committee + 3 rovers (pin/puck/spare)	3.7–6.1	59–98	Also buy charge boards: https://www.aliexpress.com/w/wholesale-tp4056.html — flat pack to fit H9–13.
+YES	6	Multi-band survey GNSS antenna + pole mount	1	AliExpress (survey patch class)	https://www.aliexpress.com/w/wholesale-rtk-gnss-survey-antenna.html	Committee base antenna ON start-line end	15–40	240–640	Must be on committee end of line. Pair with PVC/carbon pole.
+YES	7	IP65/IP67 dry box	1	AliExpress	https://www.aliexpress.com/w/wholesale-ip67-plastic-waterproof-box.html	Committee weather enclosure for BK + battery	5–15	80–240	Committee is NOT a GoPro puck.
+YES	8	USB power bank (or 12V pack)	1	AliExpress / retail	https://www.aliexpress.com/w/wholesale-20000mah-power-bank.html	Committee power	10–25	160–400	Or use boat 12V with USB buck.
+YES	9	USB-UART bridge (CP2102/CH340) or Pi Zero 2 W	1	AliExpress / Pi	https://www.aliexpress.com/w/wholesale-cp2102-usb-ttl.html	Committee UART ↔ Race Control laptop	5–15	80–240	Pi Zero alt: https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/
+LAB	10	nRF54L15 DK	1	Nordic via Mouser	https://www.mouser.com/ProductDetail/Nordic-Semiconductor/nRF54L15-DK	Firmware lab only — NOT inside puck	~58	~928	Shared lab board.
+LAB	11	nRF54L15 Tag	0–1	Nordic via Mouser	https://www.mouser.com/ProductDetail/Nordic-Semiconductor/nRF54L15-Tag	Optional bow Channel Sounding experiment	~31	~499	Skip for first water test if budget tight.
+OPTIONAL	12	E22-400M22S (433 MHz LoRa)	2	Ebyte	https://www.cdebyte.com/products/E22-400M22S	Only if DIY GNSS path (not needed for WT-43 path)	~6	~96	SA band. Skip while on factory WT-43 LoRa.
+DO NOT BUY		Official GoPro ADDIV-001 housing		GoPro / scuba retailers	https://gopro.com/en/us/shop/mounts-accessories/protective-housing/ADDIV-001.html	—	~50–55	800–880	Shell alone too expensive for fleet.
+DO NOT BUY		Ali WT-43 if factory quotes		AliExpress	(any Ali WT-43 listing)	—	~54	~867	Use OTW factory pages above instead.
+DO NOT BUY		Second WT-43-BK		OTW	https://www.ontheway-tech.com/product/wt-43-bk-lora-module/	—			One base only; put antenna on line.
+BYOD — no order		Sailor watch / phone / Race Control laptop		Sailor owns	n/a — install Boat Puck app	BYOD UI			Apple Watch / Wear OS / phone / laptop already on boat.
