@@ -6,7 +6,7 @@
 
   var CSS_ID = "ssa-landing-claim-popup-css";
   var CSS_LINK_ID = "ssa-landing-claim-popup-css-link";
-  var JS_VER = "20260911last2";
+  var JS_VER = "20260911mplow";
   var prevOverflow = "";
 
   var CLAIM_INNER =
