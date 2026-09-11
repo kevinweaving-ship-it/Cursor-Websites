@@ -18,12 +18,13 @@
   `Results are Provisional as at 15 February 2026 at 14:20`
 
 - **Source (database):**  
-  - `regattas.result_status` (e.g. `'Provisional'`, `'Final'`).  
-  - `regattas.as_at_time` as timestamp (e.g. `'2026-02-15 14:20:00'`).  
-  - API may fall back to `results.result_status` / `results.as_at_time` when regattas is null.
+  - `regattas.result_status` (e.g. `'Provisional'`, `'Final'`). Default **Provisional**.  
+  - `regattas.as_at_time` when an explicit stamp was saved (e.g. `'2026-02-15 14:20:00'`).  
+  - If `regattas.as_at_time` is empty: **last day of the event at 17:30** (`end_date`, else `start_date`).  
+  - Do **not** use `results.as_at_time` (that is the row-save clock).
 
 - **Do not:**  
-  Use current date/time, or event start/end date, as placeholder for "as at".
+  Use current date/time as the "as at" stamp.
 
 ## How it’s applied (from results/regattas → header of each results page)
 
