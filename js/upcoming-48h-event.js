@@ -9,11 +9,15 @@
  *
  * Logged-in home: keep the new sailor card (above 48h). The old
  * KW / SSL / All Classes card below search stays parked and hidden.
+ *
+ * Header only: identical orange caret-double-down (#FF5A00) as the
+ * avatar expand arrow, centered under the sailor name. Not wired.
  */
 (function () {
   "use strict";
 
-  var JS_VER = "20260911u48p";
+  var JS_VER = "20260911u48q";
+  var ORANGE_CARET_PATH = "M231.39,132.94A8,8,0,0,0,224,128H184V104a8,8,0,0,0-8-8H80a8,8,0,0,0-8,8v24H32a8,8,0,0,0-5.66,13.66l96,96a8,8,0,0,0,11.32,0l96-96A8,8,0,0,0,231.39,132.94ZM72,40a8,8,0,0,1,8-8h96a8,8,0,0,1,0,16H80A8,8,0,0,1,72,40Zm0,32a8,8,0,0,1,8-8h96a8,8,0,0,1,0,16H80A8,8,0,0,1,72,72Z";
   var ROOT_ID = "ssa-upcoming-48h";
   var PARK_ID = "ssa-saved-logged-in-home-card";
   var CSS_ID = "ssa-upcoming-48h-css";
@@ -113,6 +117,8 @@
       "body.ssa-hub-home .ssa-upcoming-48h,body.ssa-hub-home .ssa-upcoming-48h-shell.card{width:100%!important;max-width:100%!important;box-sizing:border-box!important;}",
       "body.ssa-hub-home .ssa-48h-match-card{width:100%!important;max-width:100%!important;margin-top:calc(var(--ssa-48h-gap,4px) - var(--sa-header-gap,12px))!important;margin-bottom:0!important;margin-left:0!important;margin-right:0!important;box-sizing:border-box!important;border:2px solid #1a2750!important;border-radius:8px!important;box-shadow:none!important;}",
       "body.ssa-hub-home .ssa-48h-match-card .sa-approved-sailor-card{margin-top:0!important;margin-bottom:0!important;}",
+      ".ssa-header-name-arrow{display:flex!important;align-items:center!important;justify-content:center!important;margin:1px auto 0 auto!important;padding:0!important;width:22px!important;height:18px!important;min-width:22px!important;min-height:18px!important;border:0!important;background:transparent!important;color:#FF5A00!important;line-height:1!important;flex:0 0 auto!important;box-shadow:none!important;pointer-events:none!important;}",
+      ".ssa-header-name-arrow svg{display:block!important;width:18px!important;height:18px!important;margin:0 auto!important;fill:#FF5A00!important;color:#FF5A00!important;}",
       "@media screen and (min-width:768px){",
       ".ssa-upcoming-48h{--ssa-48h-pair-h:60px;}",
       ".ssa-upcoming-48h-wx .wx-il,.ssa-upcoming-48h-wx .wx-iv,.ssa-upcoming-48h-wx .wx-iv small{font-size:12px;}",
@@ -553,11 +559,53 @@
     card.style.setProperty("box-shadow", "none", "important");
   }
 
+  function orangeCaretSvgHtml() {
+    var src = document.querySelector(".sa-avatar-expand-btn svg");
+    if (src) {
+      return src.outerHTML.replace(/transform:\s*rotate\([^)]*\)/gi, "transform:rotate(0deg)");
+    }
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="18" height="18" aria-hidden="true" style="display:block;width:18px;height:18px;margin:0 auto;fill:#FF5A00;color:#FF5A00;"><path fill="#FF5A00" d="' + ORANGE_CARET_PATH + '"/></svg>';
+  }
+
+  function ensureHeaderNameArrow() {
+    var center = document.getElementById("headerUserCenter");
+    if (!center) return;
+    var name = center.querySelector(".user-center-row-name");
+    var existing = document.getElementById("ssa-header-name-arrow");
+    if (!name || !String(name.textContent || "").trim()) {
+      if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+      return;
+    }
+    if (!existing) {
+      existing = document.createElement("button");
+      existing.type = "button";
+      existing.id = "ssa-header-name-arrow";
+      existing.className = "ssa-header-name-arrow";
+      existing.setAttribute("aria-hidden", "true");
+      existing.tabIndex = -1;
+    }
+    if (!existing.querySelector("svg")) existing.innerHTML = orangeCaretSvgHtml();
+    if (existing.previousElementSibling !== name) name.insertAdjacentElement("afterend", existing);
+  }
+
+  function watchHeaderNameArrow() {
+    if (window.__ssaHeaderNameArrowBound) return;
+    window.__ssaHeaderNameArrowBound = true;
+    var center = document.getElementById("headerUserCenter");
+    if (center && typeof MutationObserver === "function") {
+      var obs = new MutationObserver(function () {
+        ensureHeaderNameArrow();
+      });
+      obs.observe(center, { childList: true, subtree: true, characterData: true });
+    }
+  }
+
   function syncHomeSailorCard() {
     unparkKeptCards();
     parkLoggedInHomeCard();
     placeLoggedInCardAtTop();
     syncSailorCardWidth();
+    ensureHeaderNameArrow();
   }
 
   function boot() {
@@ -566,12 +614,15 @@
     ensurePark();
     mountRoot();
     syncHomeSailorCard();
+    ensureHeaderNameArrow();
+    watchHeaderNameArrow();
     var n = 0;
     var t = setInterval(function () {
       n += 1;
       wrapShowSailorStats();
       bindSearch();
       syncHomeSailorCard();
+      ensureHeaderNameArrow();
       if (isHubHome()) mountRoot();
       if (n > 40) clearInterval(t);
     }, 250);
