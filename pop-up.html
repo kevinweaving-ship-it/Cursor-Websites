@@ -1196,7 +1196,6 @@
       background: #25D366;
       border-color: #128C7E;
       color: #fff;
-      order: -1;
     }
     .sa-looked-auth--whatsapp .sa-looked-auth-txt { color: #fff; }
     .sa-looked-auth--whatsapp .sa-looked-auth-go { background: #075E54; color: #fff; }
@@ -1206,6 +1205,9 @@
       align-items: stretch;
       gap: 10px;
     }
+    .sa-looked-signup-card.is-method-picked .sa-looked-auth:not(.is-chosen) {
+      display: none;
+    }
     .sa-looked-wa {
       display: none;
       flex-direction: column;
@@ -1214,6 +1216,13 @@
       margin: 2px 0 0 0;
     }
     .sa-looked-wa.is-open { display: flex; }
+    .sa-looked-wa-phone-step,
+    .sa-looked-wa-code-step {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+    }
     .sa-looked-wa-label {
       margin: 0;
       font-size: 11px;
@@ -1237,8 +1246,7 @@
       font-weight: 700;
       text-align: center;
     }
-    .sa-looked-wa-send,
-    .sa-looked-wa-confirm {
+    .sa-looked-wa-send {
       width: 100%;
       margin: 0;
       padding: 10px 12px;
@@ -1250,6 +1258,10 @@
       font-size: 13px;
       font-weight: 800;
       cursor: pointer;
+    }
+    .sa-looked-wa-input[data-wa-code] {
+      letter-spacing: 0.35em;
+      font-size: 22px;
     }
     .sa-looked-wa-msg {
       margin: 0;
@@ -1599,11 +1611,15 @@
             <span class="sa-looked-auth-txt">Sign up with email</span>
           </a>
           <div class="sa-looked-wa" data-wa-panel hidden>
-            <span class="sa-looked-wa-label">WhatsApp number</span>
-            <input class="sa-looked-wa-input" data-wa-phone type="tel" inputmode="tel" autocomplete="tel" placeholder="082 123 4567" maxlength="16">
-            <button type="button" class="sa-looked-wa-send" data-wa-send>Send code</button>
-            <input class="sa-looked-wa-input" data-wa-code type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="6-digit code" maxlength="6" hidden>
-            <button type="button" class="sa-looked-wa-confirm" data-wa-confirm hidden>Confirm and claim</button>
+            <div class="sa-looked-wa-phone-step" data-wa-phone-step>
+              <span class="sa-looked-wa-label">Enter Your WhatsApp No</span>
+              <input class="sa-looked-wa-input" data-wa-phone type="tel" inputmode="tel" autocomplete="tel" placeholder="082 123 4567" maxlength="16">
+              <button type="button" class="sa-looked-wa-send" data-wa-send>Request Code</button>
+            </div>
+            <div class="sa-looked-wa-code-step" data-wa-code-step hidden>
+              <span class="sa-looked-wa-label">Enter your 4-digit code</span>
+              <input class="sa-looked-wa-input" data-wa-code type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="••••" maxlength="4">
+            </div>
             <p class="sa-looked-wa-msg" data-wa-msg></p>
           </div>
 
@@ -1881,11 +1897,15 @@
             <span class="sa-looked-auth-txt">Sign up with email</span>
           </a>
           <div class="sa-looked-wa" data-wa-panel hidden>
-            <span class="sa-looked-wa-label">WhatsApp number</span>
-            <input class="sa-looked-wa-input" data-wa-phone type="tel" inputmode="tel" autocomplete="tel" placeholder="082 123 4567" maxlength="16">
-            <button type="button" class="sa-looked-wa-send" data-wa-send>Send code</button>
-            <input class="sa-looked-wa-input" data-wa-code type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="6-digit code" maxlength="6" hidden>
-            <button type="button" class="sa-looked-wa-confirm" data-wa-confirm hidden>Confirm and claim</button>
+            <div class="sa-looked-wa-phone-step" data-wa-phone-step>
+              <span class="sa-looked-wa-label">Enter Your WhatsApp No</span>
+              <input class="sa-looked-wa-input" data-wa-phone type="tel" inputmode="tel" autocomplete="tel" placeholder="082 123 4567" maxlength="16">
+              <button type="button" class="sa-looked-wa-send" data-wa-send>Request Code</button>
+            </div>
+            <div class="sa-looked-wa-code-step" data-wa-code-step hidden>
+              <span class="sa-looked-wa-label">Enter your 4-digit code</span>
+              <input class="sa-looked-wa-input" data-wa-code type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="••••" maxlength="4">
+            </div>
             <p class="sa-looked-wa-msg" data-wa-msg></p>
           </div>
 
@@ -1923,17 +1943,20 @@
     wire('popup-claim-btn', 'popup-signup');
     wire('popup-claim-btn-calvin', 'popup-signup-calvin');
 
-    function wireWhatsAppClaim() {
+    function wireSignupChoices() {
       document.querySelectorAll('.lab-card-wrap').forEach(function (wrap) {
+        var signupCard = wrap.querySelector('.sa-looked-signup-card');
         var card = wrap.querySelector('.popup-card');
         var openBtn = wrap.querySelector('[data-wa-open]');
         var panel = wrap.querySelector('[data-wa-panel]');
+        var phoneStep = wrap.querySelector('[data-wa-phone-step]');
+        var codeStep = wrap.querySelector('[data-wa-code-step]');
         var phone = wrap.querySelector('[data-wa-phone]');
         var sendBtn = wrap.querySelector('[data-wa-send]');
         var code = wrap.querySelector('[data-wa-code]');
-        var confirmBtn = wrap.querySelector('[data-wa-confirm]');
         var msg = wrap.querySelector('[data-wa-msg]');
-        if (!openBtn || !panel) return;
+        var verifying = false;
+        if (!signupCard) return;
         function setMsg(text, kind) {
           if (!msg) return;
           msg.textContent = text || '';
@@ -1941,12 +1964,42 @@
           if (kind) msg.classList.add(kind);
         }
         function digits(v) { return String(v || '').replace(/\D/g, ''); }
-        openBtn.addEventListener('click', function (e) {
-          e.preventDefault();
-          panel.hidden = false;
-          panel.classList.add('is-open');
-          if (phone) phone.focus();
+        function pickMethod(el) {
+          signupCard.classList.add('is-method-picked');
+          signupCard.querySelectorAll('.sa-looked-auth').forEach(function (a) {
+            a.classList.toggle('is-chosen', a === el);
+          });
+        }
+        signupCard.querySelectorAll('.sa-looked-auth').forEach(function (el) {
+          el.addEventListener('click', function (e) {
+            pickMethod(el);
+            if (!el.hasAttribute('data-wa-open')) return;
+            e.preventDefault();
+            if (!panel) return;
+            panel.hidden = false;
+            panel.classList.add('is-open');
+            if (phoneStep) phoneStep.hidden = false;
+            if (codeStep) codeStep.hidden = true;
+            if (phone) phone.focus();
+          });
         });
+        function sailorPayload() {
+          return {
+            sas_id: (card && card.getAttribute('data-sas-id')) || '',
+            slug: (card && (card.getAttribute('data-sailor') || card.getAttribute('data-slug'))) || '',
+            whatsapp: digits(phone && phone.value)
+          };
+        }
+        function keepSession(token) {
+          if (!token) return;
+          try { localStorage.setItem('session', token); } catch (err) {}
+          document.cookie = 'session=' + encodeURIComponent(token) + '; path=/; max-age=' + (30 * 24 * 60 * 60) + '; SameSite=Lax';
+        }
+        function goProfile(d) {
+          var slug = (d && d.slug) || (card && (card.getAttribute('data-sailor') || card.getAttribute('data-slug'))) || '';
+          var url = (d && d.profile_url) || (slug ? '/sailor/' + slug : '/');
+          window.location.href = url;
+        }
         if (sendBtn) sendBtn.addEventListener('click', function () {
           var n = digits(phone && phone.value);
           if (n.length !== 10 || n.charAt(0) !== '0') {
@@ -1955,15 +2008,12 @@
           }
           sendBtn.disabled = true;
           setMsg('Sending code…');
+          var body = sailorPayload();
           fetch('/api/claim/whatsapp/send-code', {
             method: 'POST',
             credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              sas_id: (card && card.getAttribute('data-sas-id')) || '',
-              slug: (card && (card.getAttribute('data-sailor') || card.getAttribute('data-slug'))) || '',
-              whatsapp: n
-            })
+            body: JSON.stringify(body)
           }).then(function (r) { return r.json(); }).then(function (d) {
             sendBtn.disabled = false;
             if (!d || d.error) {
@@ -1971,53 +2021,65 @@
               return;
             }
             if (d.sas_id && card) card.setAttribute('data-sas-id', String(d.sas_id));
-            if (code) { code.hidden = false; code.focus(); }
-            if (confirmBtn) confirmBtn.hidden = false;
-            setMsg('Code sent on WhatsApp. Enter it below.', 'is-ok');
+            if (phoneStep) phoneStep.hidden = true;
+            if (codeStep) codeStep.hidden = false;
+            if (code) { code.value = ''; code.focus(); }
+            setMsg('Code sent on WhatsApp. Enter the 4 digits.', 'is-ok');
           }).catch(function () {
             sendBtn.disabled = false;
             setMsg('Could not send code', 'is-err');
           });
         });
-        if (confirmBtn) confirmBtn.addEventListener('click', function () {
-          var n = digits(phone && phone.value);
+        function verifyCode() {
+          if (verifying) return;
           var c = digits(code && code.value);
-          if (c.length !== 6) {
-            setMsg('Enter the 6-digit code', 'is-err');
-            return;
-          }
-          confirmBtn.disabled = true;
+          if (c.length !== 4) return;
+          verifying = true;
+          if (code) code.disabled = true;
           setMsg('Checking code…');
+          var body = sailorPayload();
+          body.code = c;
           fetch('/api/claim/whatsapp/verify-code', {
             method: 'POST',
             credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              sas_id: (card && card.getAttribute('data-sas-id')) || '',
-              slug: (card && (card.getAttribute('data-sailor') || card.getAttribute('data-slug'))) || '',
-              whatsapp: n,
-              code: c
-            })
+            body: JSON.stringify(body)
           }).then(function (r) { return r.json(); }).then(function (d) {
-            confirmBtn.disabled = false;
             if (!d || d.error) {
+              verifying = false;
+              if (code) { code.disabled = false; code.value = ''; code.focus(); }
               setMsg((d && d.error) || 'Code not accepted', 'is-err');
               return;
             }
+            keepSession(d.session_token || d.session);
             if (card) {
               card.setAttribute('data-claimed', '1');
               card.classList.add('is-wa-claimed');
             }
             wrap.classList.add('is-wa-claimed');
-            setMsg('Profile claimed. Done.', 'is-ok');
+            setMsg('Profile claimed. Opening your sailor page…', 'is-ok');
+            goProfile(d);
           }).catch(function () {
-            confirmBtn.disabled = false;
+            verifying = false;
+            if (code) { code.disabled = false; code.focus(); }
             setMsg('Code not accepted', 'is-err');
           });
-        });
+        }
+        if (code) {
+          code.addEventListener('input', function () {
+            code.value = digits(code.value).slice(0, 4);
+            if (code.value.length === 4) verifyCode();
+          });
+          code.addEventListener('paste', function () {
+            setTimeout(function () {
+              code.value = digits(code.value).slice(0, 4);
+              if (code.value.length === 4) verifyCode();
+            }, 0);
+          });
+        }
       });
     }
-    wireWhatsAppClaim();
+    wireSignupChoices();
   })();
 
     /* Live board status poll — LIVE / RACING / POSTPONED */

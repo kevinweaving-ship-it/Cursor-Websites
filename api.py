@@ -22711,6 +22711,23 @@ def _sa_whatsapp_intl(local10: str) -> str:
     return local10
 
 
+def _claim_sailor_name_and_slug(sas_id: str, slug: str):
+    name, canon = None, None
+    if slug:
+        try:
+            name, canon = _get_sailor_name_by_slug(slug)
+        except Exception:
+            name, canon = None, None
+    if (not name) and sas_id and str(sas_id).isdigit():
+        try:
+            name, canon = _get_sailor_name_by_slug(f"s-{sas_id}")
+        except Exception:
+            name, canon = None, None
+    name = (name or "").strip() or "Sailor"
+    canon = (canon or slug or "").strip()
+    return name, canon
+
+
 def _send_via_whatsapp_engine(phone_intl: str, text: str) -> tuple[bool, str]:
     """Send via the live WhatsApp engine (loopback POST /send, Bearer WAPOC_TOKEN)."""
     url = (os.getenv("WHATSAPP_ENGINE_URL") or os.getenv("WA_ENGINE_URL") or "").strip()
@@ -22743,7 +22760,7 @@ def _send_via_whatsapp_engine(phone_intl: str, text: str) -> tuple[bool, str]:
 
 @app.post("/api/claim/whatsapp/send-code")
 async def api_claim_whatsapp_send_code(request: Request):
-    """Send a 6-digit claim code on WhatsApp, then verify to claim the sailor profile."""
+    """Send a 4-digit claim code on WhatsApp, then verify to claim the sailor profile."""
     try:
         body = await request.json()
     except Exception:
@@ -22763,7 +22780,7 @@ async def api_claim_whatsapp_send_code(request: Request):
         prev = _WA_CLAIM_CODES.get(key) or {}
         if now - float(prev.get("sent_at") or 0) < 45:
             return JSONResponse({"error": "Wait a moment before sending another code"}, status_code=429)
-        code = f"{secrets.randbelow(1000000):06d}"
+        code = f"{secrets.randbelow(9000) + 1000}"
         _WA_CLAIM_CODES[key] = {
             "code_hash": hashlib.sha256(code.encode("utf-8")).hexdigest(),
             "expires": now + 600,
@@ -22771,8 +22788,14 @@ async def api_claim_whatsapp_send_code(request: Request):
             "sas_id": sas_id,
             "whatsapp": local,
         }
+    sailor_name, _canon = _claim_sailor_name_and_slug(sas_id, slug)
     intl = _sa_whatsapp_intl(local)
-    msg = f"SailingSA code: {code}\nUse this to claim your sailor profile. It expires in 10 minutes."
+    msg = (
+        f"Welcome {sailor_name} to Sailing SA\n"
+        f"Here is your code {code}\n"
+        f"\n"
+        f"Please enter it to complete your registration on SailingSA and claim your profile"
+    )
     ok, err = _send_via_whatsapp_engine(intl, msg)
     if not ok:
         return JSONResponse({"error": err or "Could not send WhatsApp"}, status_code=502)
@@ -22792,8 +22815,8 @@ async def api_claim_whatsapp_verify_code(request: Request):
     code = re.sub(r"\D", "", str(body.get("code") or ""))
     if len(local) != 10 or not local.startswith("0"):
         return JSONResponse({"error": "Enter a 10-digit WhatsApp number starting with 0"}, status_code=400)
-    if len(code) != 6:
-        return JSONResponse({"error": "Enter the 6-digit code"}, status_code=400)
+    if len(code) != 4:
+        return JSONResponse({"error": "Enter the 4-digit code"}, status_code=400)
     if not sas_id.isdigit():
         sas_id = _get_sailor_sas_id_from_slug(slug)
     if not sas_id:
@@ -22857,7 +22880,30 @@ async def api_claim_whatsapp_verify_code(request: Request):
         )
         conn.commit()
         cur.close()
-        return {"ok": True, "success": True, "sas_id": sas_id, "session_token": session_token, "claimed": True}
+        sailor_name, canon = _claim_sailor_name_and_slug(sas_id, slug)
+        profile_url = f"/sailor/{canon}" if canon else (f"/sailor/{slug}" if slug else "/")
+        payload = {
+            "ok": True,
+            "success": True,
+            "sas_id": sas_id,
+            "session_token": session_token,
+            "session": session_token,
+            "claimed": True,
+            "slug": canon or slug,
+            "name": sailor_name,
+            "profile_url": profile_url,
+        }
+        response = JSONResponse(content=payload)
+        response.set_cookie(
+            key="session",
+            value=session_token,
+            max_age=int(timedelta(days=30).total_seconds()),
+            path="/",
+            httponly=True,
+            secure=True,
+            samesite="lax",
+        )
+        return response
     except Exception as e:
         traceback.print_exc()
         return JSONResponse({"error": "Could not claim profile"}, status_code=500)
