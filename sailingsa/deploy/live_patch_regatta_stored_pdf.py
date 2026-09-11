@@ -58,6 +58,8 @@ def _rebuild_regatta_stored_pdfs(slug: str):
     fleet_jobs = []
     for f in fleets or []:
         html = _render_result_sheet_fleet(f, wc_sa_fleet_edit=False)
+        if isinstance(html, tuple):
+            html = html[0]
         fleet_jobs.append(
             {
                 "class_slug": (f.get("class_slug") or "").strip(),

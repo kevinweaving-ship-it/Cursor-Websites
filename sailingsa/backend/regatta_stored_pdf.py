@@ -227,15 +227,15 @@ def find_chrome() -> Optional[str]:
     env = (os.environ.get("SSA_CHROME") or "").strip()
     candidates = [
         env,
-        "google-chrome",
+        "/opt/google/chrome/chrome",
+        "/usr/bin/google-chrome-stable",
+        "/usr/bin/google-chrome",
         "google-chrome-stable",
+        "google-chrome",
         "chromium",
         "chromium-browser",
-        "/usr/bin/google-chrome",
-        "/usr/bin/google-chrome-stable",
         "/usr/bin/chromium",
         "/usr/bin/chromium-browser",
-        "/opt/google/chrome/chrome",
     ]
     for c in candidates:
         if not c:
@@ -258,6 +258,8 @@ def html_to_pdf(html: str, dest: Path, timeout_sec: int = 90) -> Path:
         src = Path(td) / "sheet.html"
         tmp_pdf = Path(td) / "sheet.pdf"
         src.write_text(html, encoding="utf-8")
+        user_data = Path(td) / "chrome-user"
+        user_data.mkdir(parents=True, exist_ok=True)
         cmd = [
             chrome,
             "--headless",
@@ -268,18 +270,38 @@ def html_to_pdf(html: str, dest: Path, timeout_sec: int = 90) -> Path:
             "--no-pdf-header-footer",
             "--hide-scrollbars",
             "--run-all-compositor-stages-before-draw",
+            f"--user-data-dir={user_data}",
             f"--timeout={max(5000, int(timeout_sec * 1000))}",
             f"--print-to-pdf={tmp_pdf}",
             src.resolve().as_uri(),
         ]
-        proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        env = os.environ.copy()
+        home = env.get("HOME") or "/tmp/ssa-chrome-home"
+        Path(home).mkdir(parents=True, exist_ok=True)
+        env["HOME"] = home
+        env.setdefault("XDG_CONFIG_HOME", str(Path(home) / ".config"))
+        env.setdefault("XDG_CACHE_HOME", str(Path(home) / ".cache"))
+        env["PATH"] = "/usr/bin:/bin:" + (env.get("PATH") or "")
+        chrome_bin = "/opt/google/chrome/chrome"
+        if os.path.isfile(chrome_bin) and os.access(chrome_bin, os.X_OK):
+            cmd[0] = chrome_bin
+        err_path = Path(td) / "chrome.err"
+        err_f = open(err_path, "wb")
+        proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=err_f, env=env)
         deadline = timeout_sec
         waited = 0.0
+        last_sz = -1
+        stable = 0
         while waited < deadline:
-            if tmp_pdf.is_file() and tmp_pdf.stat().st_size >= 500:
-                # Chrome often keeps the file open; wait a beat then stop it.
-                time.sleep(0.4)
-                break
+            if tmp_pdf.is_file():
+                sz = tmp_pdf.stat().st_size
+                if sz >= 500 and sz == last_sz:
+                    stable += 1
+                    if stable >= 5:
+                        break
+                else:
+                    stable = 0
+                last_sz = sz
             if proc.poll() is not None:
                 break
             time.sleep(0.2)
@@ -290,8 +312,17 @@ def html_to_pdf(html: str, dest: Path, timeout_sec: int = 90) -> Path:
                 proc.wait(timeout=3)
             except Exception:
                 proc.kill()
+        try:
+            err_f.close()
+        except Exception:
+            pass
         if not tmp_pdf.is_file() or tmp_pdf.stat().st_size < 500:
-            raise RuntimeError("Chrome did not write a results PDF")
+            err_txt = ""
+            try:
+                err_txt = err_path.read_text(encoding="utf-8", errors="replace")[-800:]
+            except Exception:
+                pass
+            raise RuntimeError("Chrome did not write a results PDF" + (f": {err_txt}" if err_txt else ""))
         os.replace(tmp_pdf, dest)
     return dest
 
@@ -337,11 +368,17 @@ def write_event_pdfs(
         html_to_pdf(parent_html, parent_path)
         for fleet in fleets:
             cslug = (fleet.get("class_slug") or "").strip()
-            if not cslug:
+            pdf_slug = (fleet.get("pdf_slug") or "").strip()
+            child_html_src = fleet.get("html") or ""
+            if not child_html_src or not (cslug or pdf_slug):
                 continue
-            child_orient = orientation_from_fleet_htmls([fleet.get("html") or ""])
+            child_orient = orientation_from_fleet_htmls([child_html_src])
             child_fleets = paginate_fleet_htmls([fleet], child_orient)
-            child_url = f"https://sailingsa.co.za/regatta/{slug}/class-{cslug}"
+            child_url = (
+                f"https://sailingsa.co.za/regatta/{pdf_slug}"
+                if pdf_slug
+                else f"https://sailingsa.co.za/regatta/{slug}/class-{cslug}"
+            )
             child_html = build_print_document(
                 event_name=event_name,
                 host=host,
@@ -352,7 +389,12 @@ def write_event_pdfs(
                 left_logo=left_logo,
                 right_logo=right_logo,
             )
-            cpath = pdf_abs_path(slug, cslug)
-            html_to_pdf(child_html, cpath)
-            children[cslug] = cpath
+            if cslug:
+                cpath = pdf_abs_path(slug, cslug)
+                html_to_pdf(child_html, cpath)
+                children[cslug] = cpath
+            if pdf_slug and pdf_slug != slug:
+                spath = pdf_abs_path(pdf_slug)
+                html_to_pdf(child_html, spath)
+                children[pdf_slug] = spath
     return WrittenPdfs(slug=slug, orient=orient, parent=parent_path, children=children)
