@@ -136,12 +136,16 @@ def main() -> int:
         if apply:
             cur.execute(
                 """
-                UPDATE regatta_blocks
-                SET block_id = %s,
-                    fleet_label = 'ILCA 4.7',
-                    block_label_raw = 'ILCA 4.7',
-                    class_canonical = 'Ilca 4.7',
-                    class_original = COALESCE(NULLIF(TRIM(class_original), ''), 'Ilca 4.7')
+                INSERT INTO regatta_blocks (
+                  block_id, regatta_id, class_original, class_canonical, fleet_label,
+                  races_sailed, discard_count, to_count, scoring_system, block_label_raw,
+                  class_id, entries_raced, race_column_labels, rating_system, entries_closed, artifact_id
+                )
+                SELECT
+                  %s, regatta_id, class_original, 'Ilca 4.7', 'ILCA 4.7',
+                  races_sailed, discard_count, to_count, scoring_system, 'ILCA 4.7',
+                  class_id, entries_raced, race_column_labels, rating_system, entries_closed, artifact_id
+                FROM regatta_blocks
                 WHERE block_id = %s
                 """,
                 (NEW_BID, OLD_BID),
@@ -158,6 +162,7 @@ def main() -> int:
                         f"UPDATE {tbl} SET block_id = %s WHERE block_id = %s",
                         (NEW_BID, OLD_BID),
                     )
+            cur.execute("DELETE FROM regatta_blocks WHERE block_id = %s", (OLD_BID,))
         else:
             for tbl in tables:
                 try:
