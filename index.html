@@ -4655,7 +4655,7 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
     <script src="/js/api.js?v=20260901landingfix"></script>
     <script src="/js/results.js?v=FORCE_CLEAN_1"></script>
     <script src="/js/session.js?v=20260813_SILENT_LOGIN"></script>
-    <script src="/js/upcoming-48h-event.js?v=20260911u48u"></script>
+    <script src="/js/upcoming-48h-event.js?v=20260911u48v"></script>
     
     <script>
         // Function to close popup and return to landing page
@@ -8442,11 +8442,30 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                         }, (regattaInput.value || '').trim() === '' ? 0 : 280);
                     }
                     regattaInput.addEventListener('input', function(ev) {
+                        window.__ssaRegattaListCollapsed = false;
                         setSearchInteractionActive(true);
                         ensureRegattaMode();
                         clearSailorInput();
                         scheduleRegattaFilter();
                     });
+                    if (!regattaInput.__ssaRegattaToggleBound) {
+                        regattaInput.__ssaRegattaToggleBound = true;
+                        regattaInput.addEventListener('pointerdown', function () {
+                            if (document.activeElement !== regattaInput) {
+                                window.__ssaRegattaListCollapsed = false;
+                                return;
+                            }
+                            var list = document.getElementById('public-regattas-list');
+                            var open = !window.__ssaRegattaListCollapsed && list && String(list.innerHTML || '').trim() !== '';
+                            if (open) {
+                                window.__ssaRegattaListCollapsed = true;
+                                if (list) list.innerHTML = '';
+                            } else {
+                                window.__ssaRegattaListCollapsed = false;
+                                if (typeof applyRegattaFilter === 'function') applyRegattaFilter();
+                            }
+                        });
+                    }
                     regattaInput.addEventListener('focus', function(ev) {
                         setSearchInteractionActive(true);
                         ensureRegattaMode();
@@ -12112,6 +12131,10 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                 _clearPublicRegattasList();
                 return;
             }
+            if (window.__ssaRegattaListCollapsed) {
+                _clearPublicRegattasList();
+                return;
+            }
             var sailorSearchInput = document.getElementById('sailor-search-input');
             var regattaInput = document.getElementById('temp-landing-regatta-input');
             var useRegattaInput = !!(regattaInput && (document.activeElement === regattaInput || regattaInput.offsetParent !== null));
@@ -12150,6 +12173,7 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                                 var qNow = useRi
                                     ? (ri.value || '').trim()
                                     : (si ? si.value.trim() : '');
+                                if (window.__ssaRegattaListCollapsed) return;
                                 if (!qNow || qNow.toLowerCase() === 'all') {
                                     renderRegattasTable(all, qNow.toLowerCase() === 'all' ? 'all' : '');
                                 }
