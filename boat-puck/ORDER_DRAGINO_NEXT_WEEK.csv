@@ -1,0 +1,12 @@
+Order next week?,Priority,Product,Qty,Factory,Direct product URL,What it's for (future / add-on ONLY),Why sample now (6-mo China cadence),NOT for
+YES — A,A,LPS8v2 indoor multi-channel LoRaWAN gateway,1,Dragino,https://www.dragino.com/products/lora-lorawan-gateway/item/228-lps8v2.html,Club/venue LoRaWAN sandbox (ChirpStack). Unlocks all LoRaWAN end-nodes.,Next order next week; without gateway trackers useless for 6 months,Race puck / committee WT-43 / marks RTK
+YES — A,A,TrackerD LoRaWAN GPS+BLE+WiFi tracker,2,Dragino,https://www.dragino.com/products/lora-lorawan-end-node/item/192-trackerd.html,Coarse GPS asset tag for RIB / tractor / gear — future logistics add-on,A/B vs Moko tracker before next China cycle,cm OCS / start-line / sailor helm UI
+YES — A,A,LA66 LoRaWAN module,2,Dragino,https://www.dragino.com/products/lora-lorawan-end-node/item/178-la66-lorawan-module.html,Bench module: LoRaWAN vs our proprietary LoRa,Cheap RF learning this half-year,Production puck MCU (Ebyte nRF54)
+YES — B,B,BCN02 BLE iBeacon,5,Dragino,https://www.dragino.com/products/lora-lorawan-end-node/item/225-bcn02.html,BLE presence stickers (clubhouse / boat park / start box),Need physical beacons to test with BH01/LW003-B,Race timing / RTK
+YES — B,B,BH01-LB BLE→LoRaWAN hub,1,Dragino,https://www.dragino.com/products/lora-lorawan-end-node/item/265-bh01-lb.html,Many BLE tags → one long-range uplink,Pairs with BCN02; skip if Moko LW003-B ordered,Puck BLE to watch
+MAYBE — B,B,TrackerD-LS solar asset tracker,1,Dragino,https://shop.dragino.com/,Unattended solar asset-tag model (RIB on mooring),Only if budget; TrackerD covers learning,Mark RTK pack
+MAYBE — C,C,DLOS8N outdoor gateway,0–1,Dragino,https://shop.dragino.com/,Harbour coverage if LPS8v2 indoor too weak,Defer unless outdoor install this season,—
+MAYBE — C,C,WSC / WSS-09 weather station,0–1,Dragino,https://shop.dragino.com/,Club race-day weather add-on for Race Control,Nice-to-have; phone weather works,OCS accuracy
+NO for now,SKIP,LHT / soil / CO2 / leak / door / AI camera,0,Dragino,catalog PDF,General IoT — no sailing-product leverage next 6 months,Don't burn consolidation budget,—
+NOTE,,Confirm SA band AS923 on ALL radios,,Dragino,sales@dragino.com,Wrong band = brick in SA,Must specify on next-week PO,EU868/US915 default
+NOTE,,Framing,,Dragino,—,Future add-on / venue IoT ONLY. Not puck · not committee · not marks,China order every ~6 months → sample now or wait,V1 race kit
