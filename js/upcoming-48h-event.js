@@ -13,7 +13,7 @@
 (function () {
   "use strict";
 
-  var JS_VER = "20260911u48o";
+  var JS_VER = "20260911u48p";
   var ROOT_ID = "ssa-upcoming-48h";
   var PARK_ID = "ssa-saved-logged-in-home-card";
   var CSS_ID = "ssa-upcoming-48h-css";
@@ -68,6 +68,7 @@
     }
     s.textContent = [
       ".ssa-upcoming-48h{--ssa-48h-pair-h:52px;--ssa-48h-gap:4px;width:100%;max-width:100%;margin:calc(var(--ssa-48h-gap) - var(--sa-header-gap,12px)) 0 0;display:block;}",
+      ".ssa-upcoming-48h.ssa-upcoming-48h--after-sailor,.ssa-48h-match-card+.ssa-upcoming-48h{margin-top:var(--ssa-48h-gap)!important;}",
       ".ssa-upcoming-48h[hidden]{display:none!important;}",
       ".ssa-upcoming-48h-shell.card{display:flex;flex-direction:column;gap:var(--ssa-48h-gap);margin:0!important;padding:var(--ssa-48h-gap)!important;background:#fff;border:2px solid #1a2750;border-radius:8px;box-shadow:none;box-sizing:border-box;}",
       ".ssa-upcoming-48h-banner-link,.ssa-upcoming-48h-header,.ssa-upcoming-48h-wx-link{display:block;width:100%;margin:0!important;padding:0!important;border:0;border-radius:0;box-shadow:none;background:transparent;box-sizing:border-box;text-decoration:none;color:inherit;}",
@@ -110,7 +111,8 @@
       "body.ssa-hub-48h-on .search-header-container{margin-top:var(--ssa-48h-gap,4px)!important;}",
       "body.ssa-hub-home [data-ssa-old-sailor-card='1']{display:none!important;}",
       "body.ssa-hub-home .ssa-upcoming-48h,body.ssa-hub-home .ssa-upcoming-48h-shell.card{width:100%!important;max-width:100%!important;box-sizing:border-box!important;}",
-      "body.ssa-hub-home .ssa-48h-match-card{width:100%!important;max-width:100%!important;margin-left:0!important;margin-right:0!important;margin-bottom:var(--ssa-48h-gap,4px)!important;box-sizing:border-box!important;border:2px solid #1a2750!important;border-radius:8px!important;box-shadow:none!important;}",
+      "body.ssa-hub-home .ssa-48h-match-card{width:100%!important;max-width:100%!important;margin-top:calc(var(--ssa-48h-gap,4px) - var(--sa-header-gap,12px))!important;margin-bottom:0!important;margin-left:0!important;margin-right:0!important;box-sizing:border-box!important;border:2px solid #1a2750!important;border-radius:8px!important;box-shadow:none!important;}",
+      "body.ssa-hub-home .ssa-48h-match-card .sa-approved-sailor-card{margin-top:0!important;margin-bottom:0!important;}",
       "@media screen and (min-width:768px){",
       ".ssa-upcoming-48h{--ssa-48h-pair-h:60px;}",
       ".ssa-upcoming-48h-wx .wx-il,.ssa-upcoming-48h-wx .wx-iv,.ssa-upcoming-48h-wx .wx-iv small{font-size:12px;}",
@@ -489,13 +491,17 @@
         });
       });
     }
-    if (!card) return;
+    if (!card) {
+      root.classList.remove("ssa-upcoming-48h--after-sailor");
+      return;
+    }
     card.removeAttribute("hidden");
     card.removeAttribute("data-ssa-old-sailor-card");
     card.style.display = "";
     if (card.parentNode !== root.parentNode || card.nextElementSibling !== root) {
       root.parentNode.insertBefore(card, root);
     }
+    root.classList.add("ssa-upcoming-48h--after-sailor");
   }
 
   function isHiddenHero(el) {
