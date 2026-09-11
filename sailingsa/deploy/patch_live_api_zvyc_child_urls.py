@@ -58,7 +58,21 @@ REPLACEMENTS = [
             except (TypeError, ValueError):
                 _nblocks = 0
             _bid = str(r.get("class_block_id") or "").strip()
-            if _nblocks > 1 and _bid and ":" in _bid:
+            _parent_rid = str(r.get("regatta_id") or "").strip()
+            _live_window = _parent_rid.startswith("2026-09-13-zvyc-cape-classic")
+            try:
+                _end = r.get("end_date") or r.get("start_date")
+                if hasattr(_end, "date"):
+                    _end = _end.date()
+                elif isinstance(_end, str) and len(_end) >= 10:
+                    from datetime import date as _date_cls
+                    _end = _date_cls.fromisoformat(_end[:10])
+                from datetime import date as _date_today
+                if hasattr(_end, "isoformat") and str(_end)[:10] >= _date_today.today().isoformat():
+                    _live_window = True
+            except Exception:
+                pass
+            if _live_window and _nblocks > 1 and _bid and ":" in _bid:
                 _tail = _bid.split(":", 1)[1].strip()
                 if _tail:
                     _rid = f"{str(r.get('regatta_id') or '').strip()}-{_tail}"
@@ -98,6 +112,7 @@ REPLACEMENTS = [
                 LEFT JOIN results res ON res.block_id = rb.block_id
                 LEFT JOIN clubs c ON c.club_id = r.host_club_id
                 WHERE rb.class_id = %s
+                  AND r.regatta_id = '2026-09-13-zvyc-cape-classic'
                 GROUP BY r.regatta_id, r.event_name, r.start_date, r.end_date,
                          c.club_abbrev, c.club_fullname
                 """,
