@@ -1,0 +1,42 @@
+Section,#,Component,Qty,Factory / seller,Contact / store,~USD,~Rand,Role / notes
+FACTORIES,1,Anzewei / OTW (安泽微 / On The Way),,factory,https://www.ontheway-tech.com/ · https://www.gpsgnssmodule.com/ · Lucaszhang@ontheway-tech.com,,,"Core WT-43-BK + WT-43-RK — buy factory-direct $32–36, not Ali ~$54"
+FACTORIES,2,Ebyte (Chengdu 亿佰特),,factory,https://www.cdebyte.com/ · https://ebyteiot.com/ · ebyteiot@cdebyte.com,,,E73 nRF54L15 MCU+BLE · optional E22-400 LoRa (SA 433)
+FACTORIES,3,Ali / Made-in-China,,any reliable seller,AliExpress / Made-in-China,,,"H9–13 shell, LiPo, dry box, antenna/pole — not critical OEM"
+FACTORIES,4,Nordic via DigiKey/Mouser,,DigiKey,DigiKey nRF54L15 DK / Tag,,,Lab / Channel Sounding only — NOT in puck BOM
+FACTORIES,5,Unicore (和芯星通),,factory,https://en.unicore.com/ · info@unicorecomm.com · +86-10-69939828,,,Optional DIY GNSS fallback UM980/UM960 — Path B if WT-43 fails water test
+FACTORIES,6,Quectel (移远),,factory/disti,https://www.quectel.com/ · SparkFun LG290P,,,Optional ≤2 learn GNSS
+FACTORIES,7,gnss.store (EU),,reseller,https://gnss.store/products/elt0223,,,Trusted UM980 breakout if Ali flaky
+FACTORIES,8,BYOD / retail,,sailor owns,Apple / Wear OS / phone / laptop,,,No factory sample — install Boat Puck app
+BUY NOW,1,WT-43-BK-LoRa,1,Anzewei/OTW factory,Lucaszhang@ontheway-tech.com,32–36,515–571,Committee RTK base (only one)
+BUY NOW,2,WT-43-RK-LoRa,2–3,Anzewei/OTW factory,same,32–36,515–571,1× pin + 1× boat puck (+1 mark/spare)
+BUY NOW,3,E73-2G4M08S1F (nRF54L15),2,Ebyte,ebyteiot@cdebyte.com,5.6–6.4,90–102,Inside boat puck only (BLE brain)
+BUY NOW,4,H9–13 GoPro clone housing,1/puck,Ali / Made-in-China,AliExpress,5–6.5,80–104,Boat puck shell
+BUY NOW,5,LiPo + charge board,1/unit,Ali,AliExpress,3.7–6.1,59–98,Puck + pin + committee box
+BUY NOW,6,Committee antenna + pole,1,Ali survey patch,AliExpress,15–40,240–640,Antenna ON start-line committee end
+BUY NOW,7,Dry box + USB bank / 12V,1,Ali,AliExpress,10–30,160–480,Committee weather/power
+BUY NOW,8,USB-serial / Pi Zero-class,1,Ali / Pi,,5–15,80–240,Committee UART ↔ Race Control
+BUY NOW,9,3D sled + wire + passives,1/puck,Print in-house,,2.5–5.5,40–88,Fit WT-43 + MCU in shell
+LAB OPTIONAL,10,nRF54L15 DK,0–1,Nordic/DigiKey,DigiKey,58,928,Firmware lab — not in housing
+LAB OPTIONAL,11,nRF54L15 Tag,0–1,Nordic/DigiKey,DigiKey,31,499,Bow Channel Sounding experiment
+OPTIONAL LEARN,L1,Quectel LG290P board + E22-400M22S ×2,1–2 + 2,Quectel + Ebyte,,50–120 + ~6,,DIY GNSS+SA LoRa if WT-43 disappoints
+OPTIONAL LEARN,L2,Unicore UM980 board,1,Unicore/Ali/gnss.store,,60–170,,≥25 Hz discrete path
+OPTIONAL LEARN,L3,E22-400 (433 MHz),2,Ebyte,,~6,,SA band DIY LoRa
+OPTIONAL LEARN,L4,WT-4545-RK,1,Anzewei/OTW,RFQ,RFQ,,GNSS-only sibling + own LoRa
+OPTIONAL LEARN,L5,UM981+ESP32+LoRa mower PCB,1,Ali,,80–200,,Teardown all-in-one claim
+OPTIONAL LEARN,L6,UM982 / Holybro heading,1,Unicore/Holybro,RFQ,RFQ,,Dual-antenna heading learn
+OPTIONAL LEARN,L7,SkyTraq PX1125R,2,Disti/Ali,,cheap,,Cheapest dual-band pair
+OPTIONAL LEARN,L8,Dalang LD-29 / Beitian BT-M002C,1,Ali,,19–57,,Cheap GNSS bench only (no LoRa)
+SKIP,,Official GoPro ADDIV-001,,,,,,R800–880 shell alone
+SKIP,,Ali WT-43 if factory quotes,,,,,,~$54 vs factory $32–36
+SKIP,,Second committee WT-43,,,,,,"One base, antenna on line"
+SKIP,,UWB bricks,,,,,,Off every-boat BOM
+SKIP,,XM30R as helm glass,,,,,,"Survey handset, not sailor UI"
+SKIP,,Locked Ali smartwatches (Kospet etc.),,,,,,Cannot install our app
+EMAILS,1,Anzewei/OTW,,,,,,"Quote 1-pc and 10-pc USD for WT-43-BK-LoRa, WT-43-RK-LoRa (also WT-4545-RK if available). Confirm LoRa for South Africa 433 MHz, max Hz while RTK FIX + LoRa RTCM active, NMEA sample, chipset, antenna type, base+rover pairing."
+EMAILS,2,Ebyte,,,,,,Order E73-2G4M08S1F ×2. Quote E22-400M22S ×2 (433 MHz SA). Bulk at 50 pcs each?
+EMAILS,3,Unicore/Ali UM980 (Path B only),,,,,,Need UM980 (not UM960/982 unless separate). Confirm max position rate Hz (≥25; prefer 50 FW). Board mm. Price 1/10/100 USD.
+NOTES,,FX,,,,,,R16 / $1 · Date 2026-09-11
+NOTES,,Core sample spend,,,,,,~R2.6k–4k for 1 base + 2–3 RK + 2× nRF54 + 1 housing + batteries + committee bits (no DigiKey)
+NOTES,,Product framing,,,,,,Sailor UI + Race Control UI = BYOD install app. Entry Wear OS only if sailor has no watch.
+NOTES,,Locked V1 path,,,,,,Factory WT-43 + Ebyte nRF54 + Ali GoPro clone
+NOTES,,Source doc,,,,,,boat-puck/SAMPLES_COMPONENTS_FACTORIES.md
