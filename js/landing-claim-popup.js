@@ -1,5 +1,5 @@
 /* Landing search: compact claim chip stays in the list card.
-   Click opens a 360px /pop-up overlay: preview (podiums / classes / last 3) then Step 1.
+   Click opens a /pop-up overlay sized to the inner card: preview then Step 1.
    Quit Sign Up returns to the search list. */
 (function () {
   window.__ssaLandingClaimPopup = true;
