@@ -6,7 +6,7 @@
   var CSS_ID = "ssa-regatta-slot-card-css";
   var ROOT_ID = "ssa-regatta-slot-card";
   var CAPE_CLASSIC_ID = "2026-09-13-zvyc-cape-classic";
-  var JS_VER = "20260911w2s4";
+  var JS_VER = "20260911w2s5";
   var PTS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
   var BANDS = [[0, 5, "#12b028"], [5, 25, "#e67e00"], [25, 60, "#DC143C"]];
 
@@ -29,23 +29,14 @@
       ".ssa-regatta-slot-card .wx-dial .darc.prev{opacity:.45;}",
       ".ssa-regatta-slot-card .wx-dial .dhead{fill:#3b82f6;}",
       ".ssa-regatta-slot-card .wx-dial .dpt{font:700 26px Arial,Helvetica,sans-serif;fill:#15803d;}",
-      ".ssa-regatta-slot-card .wx-info{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:2px;padding:4px 0;}",
-      ".ssa-regatta-slot-card .wx-ir{display:flex;justify-content:space-between;align-items:baseline;gap:6px;min-width:0;}",
-      ".ssa-regatta-slot-card .wx-il{font:700 10px Arial,Helvetica,sans-serif;color:#64748b;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;}",
-      ".ssa-regatta-slot-card .wx-iv{font:800 22px/1 Arial,Helvetica,sans-serif;color:#1a2750;white-space:nowrap;text-align:right;}",
-      ".ssa-regatta-slot-card .wx-iv.gust{font-size:18px;}",
-      ".ssa-regatta-slot-card .wx-iv.avg{font-size:16px;}",
-      ".ssa-regatta-slot-card .wx-iv small{font-size:10px;font-weight:700;color:#475569;margin-left:2px;}",
-      ".ssa-regatta-slot-card .wx-from{font:700 12px Arial,Helvetica,sans-serif;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}",
-      ".ssa-regatta-slot-card .wx-meta{font:500 10px Arial,Helvetica,sans-serif;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}",
-      ".ssa-regatta-slot-card .wx-bands{position:relative;display:flex;height:7px;border-radius:4px;overflow:hidden;margin:3px 0 1px;background:#e5e7eb;}",
-      ".ssa-regatta-slot-card .wx-bands span{display:block;height:100%;}",
-      ".ssa-regatta-slot-card .wx-bands i{position:absolute;top:-2px;width:3px;height:11px;background:#111;border-radius:1px;margin-left:-1.5px;}",
+      ".ssa-regatta-slot-card .wx-info{flex:1 1 auto;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:stretch;gap:6px;padding:8px 2px 8px 0;box-sizing:border-box;}",
+      ".ssa-regatta-slot-card .wx-ir{flex:1 1 0;display:flex;justify-content:space-between;align-items:center;gap:8px;min-width:0;min-height:0;}",
+      ".ssa-regatta-slot-card .wx-il,.ssa-regatta-slot-card .wx-iv,.ssa-regatta-slot-card .wx-iv small{font:800 20px/1 Arial,Helvetica,sans-serif;white-space:nowrap;}",
+      ".ssa-regatta-slot-card .wx-il{color:#334155;letter-spacing:.04em;text-transform:uppercase;}",
+      ".ssa-regatta-slot-card .wx-iv{color:#1a2750;text-align:right;}",
+      ".ssa-regatta-slot-card .wx-iv small{margin-left:4px;color:inherit;}",
       "@media screen and (orientation:portrait) and (max-width:767px){",
       ".ssa-regatta-slot-card{margin-top:10px;}",
-      ".ssa-regatta-slot-card .wx-iv{font-size:20px;}",
-      ".ssa-regatta-slot-card .wx-iv.gust{font-size:16px;}",
-      ".ssa-regatta-slot-card .wx-iv.avg{font-size:15px;}",
       "}"
     ].join("");
   }
@@ -116,35 +107,19 @@
     return svg;
   }
 
-  function bandBar(kn) {
-    var mark = kn == null || isNaN(kn) ? null : Math.max(0, Math.min(60, Number(kn)));
-    var html = '<div class="wx-bands" title="0–4 kn green · 5–24 kn orange · 25+ kn red">';
-    BANDS.forEach(function (b) {
-      html += '<span style="background:' + b[2] + ";flex:" + (b[1] - b[0]) + '"></span>';
-    });
-    if (mark != null) html += '<i style="left:' + ((mark / 60) * 100).toFixed(1) + '%"></i>';
-    return html + "</div>";
-  }
-
   function render(slot, data) {
-    var wcur = data.wind_kt;
-    var wgust = data.gust_kt;
     var wavg = data.avg_kt;
-    var col = bandCol(wcur);
-    var colG = bandCol(wgust);
-    var stamp = data.lr || "—";
-    var name = data.station || "Zeekoevlei";
+    var whigh = data.high_kt != null ? data.high_kt : data.gust_kt;
+    var colA = bandCol(wavg);
+    var colH = bandCol(whigh);
     var from = (data.wind_dir_name || "—") + (data.wind_dir != null ? " " + Math.round(Number(data.wind_dir)) + "°" : "");
     slot.innerHTML =
       '<div class="wx-wp-top">' +
         '<div class="wx-wp-comp">' + drawDial(data) + "</div>" +
         '<div class="wx-info">' +
-          '<div class="wx-ir"><span class="wx-il">Last</span><span class="wx-iv" style="color:' + col + '">' + n1(wcur) + " <small>kn</small></span></div>" +
-          '<div class="wx-ir"><span class="wx-il">Gust</span><span class="wx-iv gust" style="color:' + colG + '">' + n1(wgust) + " <small>kn</small></span></div>" +
-          '<div class="wx-ir"><span class="wx-il">Avg</span><span class="wx-iv avg">' + n1(wavg) + " <small>kn</small></span></div>" +
-          bandBar(wcur) +
-          '<div class="wx-from">From ' + from + "</div>" +
-          '<div class="wx-meta">' + name + " · " + stamp + "</div>" +
+          '<div class="wx-ir"><span class="wx-il">Avg</span><span class="wx-iv" style="color:' + colA + '">' + n1(wavg) + " <small>kn</small></span></div>" +
+          '<div class="wx-ir"><span class="wx-il">High</span><span class="wx-iv" style="color:' + colH + '">' + n1(whigh) + " <small>kn</small></span></div>" +
+          '<div class="wx-ir"><span class="wx-il">From</span><span class="wx-iv">' + from + "</span></div>" +
         "</div>" +
       "</div>";
   }
