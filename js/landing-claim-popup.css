@@ -1,0 +1,1637 @@
+/* Scoped /pop-up card styles for the landing claim modal. Do not apply to search list cards. */
+
+#ssa-claim-modal{
+  position:fixed;
+  top:calc(var(--sa-header-h, 80px) + env(safe-area-inset-top, 0px));
+  right:0;
+  bottom:0;
+  left:0;
+  z-index:2147483000;
+  display:none;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-start;
+  padding:16px 12px calc(20px + env(safe-area-inset-bottom, 0px));
+  overflow:auto;
+  -webkit-overflow-scrolling:touch;
+  background:rgba(11,31,59,.55);
+  box-sizing:border-box;
+}
+#ssa-claim-modal.is-open{display:flex;}
+#ssa-claim-modal .ssa-claim-modal-backdrop{
+  position:fixed;
+  top:calc(var(--sa-header-h, 80px) + env(safe-area-inset-top, 0px));
+  right:0;
+  bottom:0;
+  left:0;
+  z-index:0;
+  background:transparent;
+}
+#ssa-claim-modal .ssa-claim-modal-panel{
+  position:relative;
+  z-index:1;
+  width:max-content;
+  max-width:calc(100vw - 24px);
+  margin:auto;
+  box-sizing:border-box;
+}
+@media screen and (orientation:portrait) and (max-width:767px){
+  #ssa-claim-modal{
+    justify-content:flex-start;
+    padding-top:16px;
+    padding-bottom:calc(20px + env(safe-area-inset-bottom, 0px));
+  }
+  #ssa-claim-modal .ssa-claim-modal-panel{
+    margin:auto;
+  }
+}
+#ssa-claim-modal .lab-card-wrap{
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  width:max-content;
+  max-width:calc(100vw - 24px);
+  box-sizing:border-box;
+}
+#ssa-claim-modal .popup-card{
+  width:max-content !important;
+  max-width:100% !important;
+  box-sizing:border-box;
+}
+#ssa-claim-modal .sa-looked-pw{
+  display:none;
+  flex-direction:column;
+  gap:8px;
+  width:100%;
+  margin:2px 0 0;
+}
+#ssa-claim-modal .sa-looked-pw.is-open,
+#ssa-claim-modal .lab-card-wrap.is-password .sa-looked-pw{
+  display:flex;
+}
+#ssa-claim-modal .sa-looked-pw[hidden]{display:none!important;}
+#ssa-claim-modal .sa-looked-done{
+  display:none;
+  flex-direction:column;
+  align-items:center;
+  gap:10px;
+  width:100%;
+  margin:2px 0 0;
+  text-align:center;
+}
+#ssa-claim-modal .sa-looked-done.is-open,
+#ssa-claim-modal .lab-card-wrap.is-done .sa-looked-done{
+  display:flex;
+}
+#ssa-claim-modal .sa-looked-done[hidden]{display:none!important;}
+#ssa-claim-modal .sa-looked-done-name{
+  display:block;
+  color:#c4a26f;
+  font:800 16px/1.2 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+#ssa-claim-modal .sa-looked-done-copy{
+  margin:0;
+  color:#fff;
+  font:600 13px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+#ssa-claim-modal .lab-card-wrap.is-password .sa-looked-auth,
+#ssa-claim-modal .lab-card-wrap.is-password .sa-looked-wa,
+#ssa-claim-modal .lab-card-wrap.is-password .sa-looked-signup-choose,
+#ssa-claim-modal .lab-card-wrap.is-password .sa-looked-signup-welcome{display:none!important;}
+#ssa-claim-modal .lab-card-wrap.is-done .sa-looked-auth,
+#ssa-claim-modal .lab-card-wrap.is-done .sa-looked-wa,
+#ssa-claim-modal .lab-card-wrap.is-done .sa-looked-pw,
+#ssa-claim-modal .lab-card-wrap.is-done .sa-looked-signup-choose,
+#ssa-claim-modal .lab-card-wrap.is-done .sa-looked-signup-welcome{display:none!important;}
+#ssa-claim-modal .lab-card-wrap.is-done .ssa-claim-quit{display:none!important;}
+#ssa-claim-modal .lab-card-wrap.is-done .sa-looked-signup-card > .sa-looked-signup-step-lbl{display:none!important;}
+#ssa-claim-modal .popup-card > .sa-looked-cta{
+  width:0;
+  min-width:100%;
+  max-width:100%;
+  box-sizing:border-box;
+  margin:8px 0 0 0;
+}
+#ssa-claim-modal .ssa-claim-quit{
+  display:block;
+  width:100%;
+  margin:10px 0 0;
+  padding:14px 14px;
+  min-height:44px;
+  border:1px solid rgba(11,31,59,.28);
+  border-radius:12px;
+  background:#fff;
+  color:#0b1f3b;
+  font:800 13px/1.2 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  cursor:pointer;
+  text-align:center;
+  box-sizing:border-box;
+}
+#ssa-claim-modal .ssa-claim-quit:hover,
+#ssa-claim-modal .ssa-claim-quit:focus{
+  background:#f8fafc;
+  outline:none;
+}
+#ssa-claim-modal .sa-looked-events[data-empty="1"] .sa-looked-events-list{
+  font:600 12px/1.3 system-ui,sans-serif;
+  color:#64748b;
+  text-align:center;
+  padding:8px 4px;
+}
+#ssa-claim-modal .sa-avatar-tools,
+#ssa-claim-modal .sa-avatar-expand-btn,
+#ssa-claim-modal .sa-avatar-bell-btn,
+#ssa-claim-modal .sa-avatar-msg-btn,
+#ssa-claim-modal #dev1-claim-slot,
+#ssa-claim-modal .ssa-popup-claim-slot{
+  display:none !important;
+}
+
+
+    
+    
+    
+    
+    
+    
+    #ssa-claim-modal .lab-card-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: stretch;
+      max-width: 100%;
+    }
+
+    
+    
+
+    /* —— Identity strip: same classes / sizes as sailor profile (V1) —— */
+    #ssa-claim-modal .popup-card {
+      --dev1-left-col: 76px;
+      --dev1-avatar-size: 76px;
+      --dev1-club-logo-gap: 5px;
+      --dev1-col-gap: 5px;
+      --dev1-right-col: 76px;
+      --dev1-ssl-rank-icon: 29px;
+      --dev1-rank-wordmark-fs: 8px;
+      --dev1-rank-pill-h: 16px;
+      --dev1-pill-fs: 7px;
+      --dev1-pill-pad: 1px 5px;
+      background: #fff;
+      border: 1px solid #142b5f;
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: inline-grid;
+      grid-template-columns: minmax(0, max-content);
+      justify-items: stretch;
+      align-content: start;
+      gap: 0;
+      width: max-content;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
+    /* Below-header blocks: fill header width, never widen the card */
+    #ssa-claim-modal .popup-card > .sa-looked-rule,
+#ssa-claim-modal .popup-card > .sa-looked-summary,
+#ssa-claim-modal .popup-card > .sa-looked-events,
+#ssa-claim-modal .popup-card > .sa-looked-signup {
+      width: 0;
+      min-width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
+    /* Podiums + stats + classes in one card; mid separator kept */
+    #ssa-claim-modal .sa-looked-summary {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0;
+      width: 100%;
+      margin: 4px 0 0 0;
+      padding: 6px 8px;
+      box-sizing: border-box;
+      border: 1px solid #142b5f;
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    #ssa-claim-modal .sa-looked-summary > .sa-looked-rule {
+      margin: 4px 0;
+    }
+
+    #ssa-claim-modal .sa-looked-summary > .sa-looked-podiums {
+      margin: 0;
+    }
+
+    #ssa-claim-modal .sa-looked-summary > .sa-looked-stats {
+      margin: 0;
+    }
+
+    #ssa-claim-modal .sa-looked-summary > .sa-looked-classes {
+      margin: 2px 0 0 0;
+    }
+
+    #ssa-claim-modal .sa-approved-sailor-header {
+      display: grid !important;
+      grid-template-columns: var(--dev1-left-col) minmax(0, max-content) var(--dev1-right-col) !important;
+      column-gap: var(--dev1-col-gap, 5px) !important;
+      align-items: start !important;
+      width: max-content;
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+      justify-self: start;
+    }
+
+    /* Full-width rule: avatar left edge → SSL right edge */
+    #ssa-claim-modal .sa-looked-rule {
+      display: block;
+      width: 100%;
+      height: 0;
+      margin: 4px 0 0 0;
+      padding: 0;
+      border: 0;
+      border-top: 1px solid #142b5f;
+      box-sizing: border-box;
+    }
+
+    #ssa-claim-modal .sa-approved-sailor-avatar-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      box-sizing: border-box;
+      overflow: visible;
+    }
+
+    #ssa-claim-modal .sa-approved-sailor-avatar {
+      margin: 0 !important;
+      padding: 0 !important;
+      position: relative !important;
+      width: 76px !important;
+      height: 76px !important;
+      border-radius: 999px !important;
+      overflow: visible !important;
+      background: #eef4fb;
+      border: 1px solid #dbe4ee;
+      flex: 0 0 auto;
+    }
+
+    #ssa-claim-modal .sa-approved-sailor-avatar-clip {
+      width: 100%;
+      height: 100%;
+      border-radius: 999px;
+      overflow: hidden;
+      position: relative;
+      display: block;
+      box-sizing: border-box;
+      background: #eef4fb;
+      border: 1px solid #dbe4ee;
+    }
+
+    #ssa-claim-modal .sa-approved-sailor-avatar-clip img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+      object-position: 36% 22%;
+    }
+
+    #ssa-claim-modal .sa-sailor-verified-badge {
+      position: absolute !important;
+      z-index: 99999 !important;
+      pointer-events: none !important;
+    }
+
+    #ssa-claim-modal .sa-approved-sailor-main {
+      position: relative;
+      display: grid;
+      grid-template-rows: var(--dev1-avatar-size, 76px) auto;
+      justify-items: stretch;
+      justify-self: start;
+      width: max-content;
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+      min-height: 0;
+      line-height: 1;
+      text-align: center;
+      box-sizing: border-box;
+    }
+
+    #ssa-claim-modal .sa-approved-sailor-id-band {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      width: max-content;
+      max-width: 100%;
+      height: 100%;
+      min-height: 0;
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    #ssa-claim-modal .sa-approved-sailor-name {
+      display: block;
+      margin: 0;
+      padding: 0;
+      line-height: 1.05;
+      text-align: center;
+      width: 100%;
+      color: #142b5f;
+    }
+
+    #ssa-claim-modal .sa-approved-sailor-name-first {
+      display: block;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+      font-size: 1.12rem;
+      font-weight: 800;
+      color: #142b5f;
+    }
+
+    #ssa-claim-modal .sa-approved-sailor-name-last {
+      display: block;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+      font-size: 0.98rem;
+      font-weight: 400;
+      color: #142b5f;
+    }
+
+    #ssa-claim-modal .sa-approved-sailor-club-link.sa-approved-sailor-club-icon-link {
+      display: flex;
+      flex: 1 1 auto;
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
+      width: 0;
+      min-width: 100%;
+      max-width: 100%;
+      margin: 0;
+      padding: var(--dev1-club-logo-gap, 5px) 0;
+      text-decoration: none;
+      box-sizing: border-box;
+      overflow: hidden;
+      color: inherit;
+    }
+
+    #ssa-claim-modal .sa-approved-sailor-club-icon {
+      display: flex;
+      flex: 1 1 auto;
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
+      height: 100%;
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      text-align: center;
+    }
+
+    #ssa-claim-modal .sa-approved-sailor-club-icon img {
+      display: block;
+      margin: 0 auto;
+      padding: 0;
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+    }
+
+    #ssa-claim-modal .sa-approved-sailor-club {
+      display: block;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      line-height: 1;
+      text-align: center;
+    }
+
+    #ssa-claim-modal .sa-approved-sailor-club .sa-approved-sailor-club-link {
+      display: block;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    #ssa-claim-modal .sa-approved-sailor-club-code {
+      display: block;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+      line-height: 1;
+      width: 100%;
+      font-size: 0.98rem;
+      font-weight: 900;
+      color: #142b5f;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+
+
+    /* —— PODIUMS (gold box) | bigger medals | Medal Rate —— */
+    #ssa-claim-modal .sa-looked-podiums {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      width: 100%;
+      margin: 3px 0;
+      padding: 0;
+      box-sizing: border-box;
+      line-height: 1;
+    }
+
+    #ssa-claim-modal .sa-looked-podiums-hdr {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      writing-mode: horizontal-tb;
+      transform: none;
+      margin: 0;
+      padding: 4px 6px;
+      background: #D9BB75;
+      color: #fff;
+      border: 0;
+      border-radius: 3px;
+      font-size: 8px;
+      font-weight: 900;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      line-height: 1;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    #ssa-claim-modal .sa-looked-medal-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 8px;
+      flex: 1 1 auto;
+      margin: 0;
+      padding: 0;
+      line-height: 1;
+    }
+
+    #ssa-claim-modal .sa-looked-medal {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 0;
+      flex: 0 0 auto;
+      min-width: 0;
+      line-height: 1;
+      text-align: center;
+    }
+
+    #ssa-claim-modal .sa-looked-medal-ico {
+      display: block;
+      font-size: 18px;
+      line-height: 1;
+      height: 18px;
+      margin: 0;
+      padding: 0 0 6px 0;
+      text-align: center;
+      box-sizing: content-box;
+    }
+
+    #ssa-claim-modal .sa-looked-medal-n-row {
+      display: inline-flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      margin: 0;
+      padding: 0;
+      line-height: 1;
+    }
+
+    #ssa-claim-modal .sa-looked-medal-n {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      margin: 0;
+      padding: 1px;
+      min-width: 11px;
+      width: auto;
+      height: auto;
+      border: 1px solid #9aa8b8;
+      border-radius: 2px;
+      background: transparent;
+      font-size: 9px;
+      font-weight: 800;
+      color: #003366;
+      line-height: 1;
+      text-align: center;
+    }
+
+    /* Medal / Rate / 55% — one tight component */
+    #ssa-claim-modal .sa-looked-medal-rate {
+      display: inline-flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      align-self: center;
+      flex: 0 0 auto;
+      height: auto;
+      margin: 0 0 0 -8px;
+      padding: 0;
+      line-height: 1;
+      box-sizing: border-box;
+    }
+
+    #ssa-claim-modal .sa-looked-medal-rate-stack {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: max-content;
+      margin: 0;
+      padding: 0;
+      line-height: 1;
+      text-align: center;
+    }
+
+    #ssa-claim-modal .sa-looked-medal-rate-val {
+      display: block;
+      width: max-content;
+      max-width: none;
+      font-size: 16px;
+      font-weight: 900;
+      color: #003366;
+      line-height: 1;
+      letter-spacing: 0;
+      white-space: nowrap;
+      text-align: center;
+      margin: 0 auto;
+      padding: 0;
+    }
+
+    #ssa-claim-modal .sa-looked-medal-rate-labels {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: max-content;
+      max-width: none;
+      margin: 0 auto 2px auto;
+      padding: 0;
+      line-height: 1;
+      text-align: center;
+      box-sizing: border-box;
+    }
+
+    #ssa-claim-modal .sa-looked-medal-rate-lbl {
+      display: block;
+      width: max-content;
+      max-width: none;
+      font-size: 8px;
+      font-weight: 800;
+      letter-spacing: 0;
+      color: #166534;
+      text-transform: none;
+      line-height: 1.1;
+      margin: 0 auto;
+      padding: 0;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+
+    /* —— Stats / Classes —— */
+    #ssa-claim-modal .sa-looked-stats {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: stretch;
+      gap: 0;
+      width: 100%;
+      margin: 4px 0 0 0;
+      padding: 0;
+      box-sizing: border-box;
+      line-height: 1;
+    }
+
+    #ssa-claim-modal .sa-looked-stats-rows {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    #ssa-claim-modal .sa-looked-stat-row {
+      display: inline-flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 3px;
+      margin: 0;
+      padding: 0;
+      line-height: 1;
+      flex: 0 0 auto;
+    }
+
+    #ssa-claim-modal .sa-looked-stat-lbl {
+      flex: 0 0 auto;
+      min-width: 0;
+      font-size: 9px;
+      font-weight: 800;
+      color: #003366;
+      text-align: left;
+      margin: 0;
+      padding: 0;
+    }
+
+    #ssa-claim-modal .sa-looked-stat-ico {
+      display: block;
+      flex: 0 0 auto;
+      width: 14px;
+      height: 14px;
+      margin: 0;
+      padding: 0;
+      object-fit: contain;
+    }
+
+    #ssa-claim-modal .sa-looked-stat-ico--boat {
+      filter: brightness(0) saturate(100%) invert(42%) sepia(72%) saturate(500%) hue-rotate(130deg) brightness(0.95);
+    }
+
+    #ssa-claim-modal .sa-looked-stat-ico--flag {
+      filter: brightness(0) saturate(100%) invert(18%) sepia(40%) saturate(1200%) hue-rotate(190deg) brightness(0.85);
+    }
+
+    #ssa-claim-modal .sa-looked-stat-n {
+      flex: 0 0 auto;
+      font-size: 13px;
+      font-weight: 900;
+      color: #003366;
+      line-height: 1;
+      margin: 0 0 0 1px;
+      padding: 0;
+    }
+
+    #ssa-claim-modal .sa-looked-classes {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 4px;
+      width: 100%;
+      margin: 6px 0 0 0;
+      padding: 0;
+      box-sizing: border-box;
+      line-height: 1;
+    }
+
+    #ssa-claim-modal .sa-looked-classes-hdr {
+      display: block;
+      font-size: 8px;
+      font-weight: 900;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: #142b5f;
+      text-align: left;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Class logos: H19 height lock; wrap to 2nd line when many/wide (e.g. J22); both lines centred */
+    #ssa-claim-modal .sa-looked-classes-row {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      align-content: center;
+      gap: 5px;
+      row-gap: 5px;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: visible;
+    }
+
+    #ssa-claim-modal .sa-looked-class-link {
+      display: inline-flex;
+      flex: 0 0 auto;
+      min-width: 0;
+      align-items: center;
+      justify-content: center;
+      line-height: 0;
+    }
+
+    #ssa-claim-modal .sa-looked-class-logo {
+      display: block;
+      flex: 0 0 auto;
+      width: auto;
+      height: 21px;
+      max-height: 21px;
+      object-fit: contain;
+      object-position: center center;
+      margin: 0;
+      padding: 0;
+    }
+
+    #ssa-claim-modal .sa-looked-class-logo--top {
+      width: auto;
+      height: 21px;
+      max-height: 21px;
+    }
+
+
+    /* —— Last 3 Events —— */
+    #ssa-claim-modal .sa-looked-events {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 6px;
+      width: 100%;
+      margin: 8px 0 0 0;
+      padding: 6px;
+      box-sizing: border-box;
+      border: 1px solid #142b5f;
+      border-radius: 8px;
+      background: #fff;
+      line-height: 1;
+    }
+
+    #ssa-claim-modal .sa-looked-events-hdr {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 3px;
+      font-size: 9px;
+      font-weight: 900;
+      letter-spacing: .02em;
+      color: #142b5f;
+      text-align: center;
+      margin: 0 0 2px 0;
+      padding: 0;
+      line-height: 1;
+      width: 100%;
+    }
+
+    #ssa-claim-modal .sa-looked-events-hdr-ico {
+      display: block;
+      flex: 0 0 auto;
+      width: 12px;
+      height: 12px;
+      margin: 0;
+      padding: 0;
+      object-fit: contain;
+      filter: brightness(0) saturate(100%) invert(42%) sepia(72%) saturate(500%) hue-rotate(130deg) brightness(0.95);
+    }
+
+    #ssa-claim-modal .sa-looked-events-list {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    #ssa-claim-modal .sa-looked-ev {
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      border: 2px solid #1e3a8a;
+      border-radius: 8px;
+      background: #faf8f3;
+      overflow: hidden;
+      box-sizing: border-box;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    #ssa-claim-modal .sa-looked-ev.rank-1 { border-color: #B89400; }
+
+    #ssa-claim-modal .sa-looked-ev.rank-2 { border-color: #7A8088; }
+
+    #ssa-claim-modal .sa-looked-ev-left {
+      flex: 0 0 48px;
+      width: 48px;
+      max-width: 48px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      align-self: stretch;
+      border-right: 1px solid #1e3a8a;
+      box-sizing: border-box;
+      background: #fff;
+    }
+
+    #ssa-claim-modal .sa-looked-ev.rank-1 .sa-looked-ev-left { border-right-color: #B89400; }
+
+    #ssa-claim-modal .sa-looked-ev.rank-2 .sa-looked-ev-left { border-right-color: #7A8088; }
+
+    /* Rank out of — match profile .dev1-er-rankblock + .dev1-er-rankstack
+       Gold fills left column; line is only as wide as place/fleet text (stack = max-content). */
+    #ssa-claim-modal .sa-looked-ev-rank {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 0;
+      flex: 0 0 auto;
+      align-self: stretch;
+      margin: 0;
+      padding: 6px 4px 1px;
+      box-sizing: border-box;
+      border-bottom: 1px solid #1e3a8a;
+      background: #faf8f3;
+    }
+
+    #ssa-claim-modal .sa-looked-ev.rank-1 .sa-looked-ev-rank {
+      background:
+        radial-gradient(ellipse 95% 85% at 0% 0%, #B89400 0%, rgba(184,148,0,0.7) 22%, transparent 52%),
+        radial-gradient(ellipse 95% 85% at 100% 100%, #B89400 0%, rgba(184,148,0,0.7) 22%, transparent 52%),
+        linear-gradient(115deg, #F0D56A 0%, #FFF3B8 45%, #FFFCE8 55%, #FFF3B8 70%, #F0D56A 100%);
+      border-bottom-color: #B89400;
+    }
+
+    #ssa-claim-modal .sa-looked-ev.rank-2 .sa-looked-ev-rank {
+      background:
+        radial-gradient(ellipse 95% 85% at 0% 0%, #7A8088 0%, rgba(122,128,136,0.7) 22%, transparent 52%),
+        radial-gradient(ellipse 95% 85% at 100% 100%, #7A8088 0%, rgba(122,128,136,0.7) 22%, transparent 52%),
+        linear-gradient(115deg, #D5D8DC 0%, #F0F1F3 45%, #FAFBFC 55%, #F0F1F3 70%, #D5D8DC 100%);
+      border-bottom-color: #7A8088;
+    }
+
+    #ssa-claim-modal .sa-looked-ev-rankstack {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 0;
+      width: max-content;
+      max-width: 100%;
+    }
+
+    #ssa-claim-modal .sa-looked-ev-place {
+      font: 900 14.4px/1 system-ui, -apple-system, sans-serif;
+      color: #000;
+      margin: 0;
+      padding: 0;
+      -webkit-text-stroke: 0;
+      text-shadow: none;
+    }
+
+    #ssa-claim-modal .sa-looked-ev-rankline {
+      display: block;
+      height: 0;
+      width: calc(100% + 2px);
+      margin: 1px -1px 0;
+      border: 0;
+      border-top: 1px solid #1e3a8a;
+      box-sizing: border-box;
+      flex: 0 0 auto;
+    }
+
+    #ssa-claim-modal .sa-looked-ev.rank-1 .sa-looked-ev-rankline { border-top-color: #B89400; }
+
+    #ssa-claim-modal .sa-looked-ev.rank-2 .sa-looked-ev-rankline { border-top-color: #7A8088; }
+
+    #ssa-claim-modal .sa-looked-ev-fleet {
+      font: 900 12.8px/1 system-ui, -apple-system, sans-serif;
+      color: #000;
+      margin: 0;
+      padding: 0;
+      -webkit-text-stroke: 0;
+      text-shadow: none;
+    }
+
+    /* Class logo: fill leftover left column under rank; centre logo top↔bottom */
+    #ssa-claim-modal .sa-looked-ev-class {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      align-self: stretch;
+      flex: 1 1 auto;
+      width: 100%;
+      min-height: 28px;
+      height: auto;
+      max-height: none;
+      margin: 0;
+      padding: 4px 2px;
+      box-sizing: border-box;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    #ssa-claim-modal .sa-looked-ev-class img {
+      display: block;
+      width: auto;
+      height: auto;
+      max-width: 100%;
+      max-height: 28px;
+      margin: 0 auto;
+      padding: 0;
+      object-fit: contain;
+      object-position: center center;
+    }
+
+    #ssa-claim-modal .sa-looked-ev-class img.sa-looked-ev-class-fill {
+      width: 100%;
+      height: auto;
+      max-width: 100%;
+      max-height: 28px;
+      object-fit: contain;
+      object-position: center center;
+    }
+
+    /* Live board badge — same as profile .dev1-er-live-badge */
+    #ssa-claim-modal .sa-looked-ev-live {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin: 2px 0 0 0;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font: 800 9px/1 system-ui, -apple-system, sans-serif;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: #fff;
+      max-width: 100%;
+      box-sizing: border-box;
+      align-self: flex-start;
+    }
+
+    #ssa-claim-modal .sa-looked-ev-live--live { background: #ea580c; }
+
+    #ssa-claim-modal .sa-looked-ev-live--racing { background: #15803d; }
+
+    #ssa-claim-modal .sa-looked-ev-live--postponed { background: #b91c1c; }
+
+    /* Slow pulse/blink on live status pills */
+    #ssa-claim-modal .sa-looked-ev-live--live,
+#ssa-claim-modal .sa-looked-ev-live--racing,
+#ssa-claim-modal .sa-looked-ev-live--postponed {
+      animation: sa-looked-live-blink 1.8s ease-in-out infinite;
+    }
+
+    @keyframes sa-looked-live-blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.42; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+
+      #ssa-claim-modal .sa-looked-ev-live--live,
+#ssa-claim-modal .sa-looked-ev-live--racing,
+#ssa-claim-modal .sa-looked-ev-live--postponed {
+        animation: none;
+      }
+
+    }
+
+    /* Live tint: right panel only (match event header) — left rank/class stays */
+    #ssa-claim-modal .sa-looked-ev.is-live-live { border-color: #f5ac86; }
+
+    #ssa-claim-modal .sa-looked-ev.is-live-racing { border-color: #86efac; }
+
+    #ssa-claim-modal .sa-looked-ev.is-live-postponed { border-color: #fca5a5; }
+
+    #ssa-claim-modal .sa-looked-ev.is-live-live .sa-looked-ev-main { background: #fff1e6; }
+
+    #ssa-claim-modal .sa-looked-ev.is-live-racing .sa-looked-ev-main { background: #dcfce7; }
+
+    #ssa-claim-modal .sa-looked-ev.is-live-postponed .sa-looked-ev-main { background: #fee2e2; }
+
+    #ssa-claim-modal .sa-looked-ev-main {
+      flex: 1 1 auto;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 5px 7px 6px;
+      box-sizing: border-box;
+      overflow: hidden;
+      background: #faf8f3;
+    }
+
+    #ssa-claim-modal .sa-looked-ev-title {
+      font: 700 11px/1.15 system-ui, -apple-system, sans-serif;
+      color: #1e3a8a;
+      margin: 0;
+      padding: 0;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      overflow: hidden;
+      max-width: 100%;
+    }
+
+    #ssa-claim-modal .sa-looked-ev-date {
+      display: inline-flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 3px;
+      font: 800 9px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: #1e3a8a;
+      margin: 0;
+      padding: 0;
+    }
+
+    #ssa-claim-modal .sa-looked-ev-date img {
+      width: 10px;
+      height: 10px;
+      flex: 0 0 auto;
+      filter: brightness(0) saturate(100%) invert(18%) sepia(55%) saturate(1600%) hue-rotate(201deg) brightness(92%) contrast(95%);
+    }
+
+    #ssa-claim-modal .sa-looked-ev-logos {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 6px;
+      margin: 2px 0 0 0;
+      padding: 0;
+      max-width: 100%;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    #ssa-claim-modal .sa-looked-ev-club {
+      display: inline-flex;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      align-items: center;
+      gap: 3px;
+      text-decoration: none;
+      color: #1e3a8a;
+      line-height: 1;
+      flex: 0 0 auto;
+      white-space: nowrap;
+    }
+
+    #ssa-claim-modal .sa-looked-ev-club img {
+      display: block;
+      height: 14px;
+      width: auto;
+      max-height: 14px;
+      max-width: 28px;
+      object-fit: contain;
+      flex: 0 0 auto;
+    }
+
+    #ssa-claim-modal .sa-looked-ev-club-code {
+      font: 800 8px/1 system-ui, -apple-system, sans-serif;
+      color: #1e3a8a;
+      flex: 0 0 auto;
+      white-space: nowrap;
+    }
+
+    #ssa-claim-modal .sa-looked-ev-eventlogo {
+      display: block;
+      height: 18px;
+      width: auto;
+      max-height: 18px;
+      max-width: 40px;
+      object-fit: contain;
+      flex: 0 1 auto;
+      min-width: 0;
+    }
+
+    /* Claim banner — cream ask + navy CLAIM bar (replaces Is This / Claim stack) */
+    #ssa-claim-modal .sa-looked-cta {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      border: 1px solid #c4a26f;
+      border-radius: 14px;
+      overflow: hidden;
+      background: #fefaf5;
+    }
+
+    /* Already registered (green verified badge) → hide claim CTA + signup */
+    #ssa-claim-modal .popup-card[data-claimed="1"] .sa-looked-cta,
+#ssa-claim-modal .popup-card[data-claimed="1"] .sa-looked-signup {
+      display: none !important;
+    }
+
+    /* Step 1 is open → hide the “Is this yours” claim card and Last 3 Events */
+    #ssa-claim-modal .lab-card-wrap.is-step1 .sa-looked-cta,
+#ssa-claim-modal .lab-card-wrap:has(.sa-looked-signup.is-open) .sa-looked-cta,
+#ssa-claim-modal .lab-card-wrap.is-step1 .sa-looked-events,
+#ssa-claim-modal .lab-card-wrap:has(.sa-looked-signup.is-open) .sa-looked-events {
+      display: none !important;
+    }
+
+    #ssa-claim-modal .sa-looked-claim {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-start;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      background: transparent;
+      border: 0;
+      text-decoration: none;
+      color: inherit;
+      line-height: 1;
+      cursor: pointer;
+      font: inherit;
+    }
+
+    #ssa-claim-modal .sa-looked-claim-top {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      width: 100%;
+      margin: 0;
+      padding: 12px 14px 11px;
+      box-sizing: border-box;
+      background: #fefaf5;
+      text-align: center;
+    }
+
+    #ssa-claim-modal .sa-looked-claim-ask {
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-weight: 800;
+      font-size: 15px;
+      line-height: 1.15;
+      color: #0a2351;
+      letter-spacing: -0.01em;
+    }
+
+    #ssa-claim-modal .sa-looked-claim-sub {
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-weight: 500;
+      font-size: 12px;
+      line-height: 1.2;
+      color: #0a2351;
+    }
+
+    #ssa-claim-modal .sa-looked-claim-bar {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      margin: 0;
+      padding: 11px 40px 11px 14px;
+      box-sizing: border-box;
+      background: #0a2351;
+      position: relative;
+    }
+
+    #ssa-claim-modal .sa-looked-claim-txt {
+      flex: 1 1 auto;
+      min-width: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-weight: 800;
+      font-size: 12px;
+      line-height: 1;
+      color: #fff;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: center;
+    }
+
+    #ssa-claim-modal .sa-looked-claim-go {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      flex: 0 0 auto;
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      background: #c4a26f;
+      color: #0a2351;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 900;
+      line-height: 1;
+      box-sizing: border-box;
+    }
+
+    #ssa-claim-modal .sa-looked-claim.is-open .sa-looked-claim-go {
+      transform: translateY(-50%) rotate(180deg);
+    }
+
+    /* STEP 1 signup card — sits where Last 3 Events was, below Classes */
+    #ssa-claim-modal .sa-looked-signup {
+      display: none;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      margin: 8px 0 0 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    #ssa-claim-modal .sa-looked-signup.is-open {
+      display: block;
+    }
+
+    #ssa-claim-modal .sa-looked-signup-card {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+      width: 100%;
+      margin: 0;
+      padding: 12px 10px 12px;
+      box-sizing: border-box;
+      background: #0a2351;
+      border: 1px solid #142b5f;
+      border-radius: 12px;
+    }
+
+    #ssa-claim-modal .sa-looked-signup-step-lbl {
+      display: block;
+      margin: 0;
+      padding: 0;
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: #c4a26f;
+      text-align: center;
+    }
+
+    #ssa-claim-modal .sa-looked-signup-welcome {
+      display: block;
+      margin: 2px 0 0 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-size: 15px;
+      font-weight: 800;
+      line-height: 1.2;
+      color: #fff;
+      text-align: center;
+    }
+
+    #ssa-claim-modal .sa-looked-signup-welcome-name {
+      color: #c4a26f;
+    }
+
+    #ssa-claim-modal .sa-looked-signup-choose {
+      display: block;
+      margin: 0 0 2px 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.25;
+      color: rgba(255,255,255,.88);
+      text-align: center;
+    }
+
+    #ssa-claim-modal .sa-looked-auth {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      margin: 0;
+      padding: 8px 10px;
+      box-sizing: border-box;
+      border-radius: 999px;
+      border: 3px solid transparent;
+      text-decoration: none;
+      cursor: pointer;
+      font: inherit;
+      line-height: 1;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    #ssa-claim-modal .sa-looked-auth-ico {
+      flex: 0 0 auto;
+      width: 22px;
+      height: 22px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #ssa-claim-modal .sa-looked-auth-ico svg {
+      display: block;
+      width: 22px;
+      height: 22px;
+    }
+
+    #ssa-claim-modal .sa-looked-auth-txt {
+      flex: 1 1 auto;
+      min-width: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-weight: 800;
+      font-size: 13px;
+      line-height: 1.1;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #ssa-claim-modal .sa-looked-auth-go {
+      flex: 0 0 auto;
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      background: #0a2351;
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    #ssa-claim-modal .sa-looked-auth--google {
+      background: #fff;
+      border-color: #c4a26f;
+      color: #0a2351;
+    }
+
+    #ssa-claim-modal .sa-looked-auth--google .sa-looked-auth-txt { color: #0a2351; }
+
+    #ssa-claim-modal .sa-looked-auth--facebook {
+      background: #1877f2;
+      border-color: #0f5ecf;
+      color: #fff;
+    }
+
+    #ssa-claim-modal .sa-looked-auth--facebook .sa-looked-auth-txt { color: #fff; }
+
+    #ssa-claim-modal .sa-looked-auth--email {
+      background: #0a2351;
+      border: 1.5px solid #e2e8f0;
+      color: #fff;
+      padding: 10px 14px;
+    }
+
+    #ssa-claim-modal .sa-looked-auth--email .sa-looked-auth-txt { color: #fff; }
+
+    #ssa-claim-modal .sa-looked-auth--email .sa-looked-auth-go { display: none; }
+
+
+    #ssa-claim-modal .sa-looked-auth--whatsapp {
+      background: #25D366;
+      border-color: #128C7E;
+      color: #fff;
+    }
+
+    #ssa-claim-modal .sa-looked-auth--whatsapp .sa-looked-auth-txt { color: #fff; }
+
+    #ssa-claim-modal .sa-looked-auth--whatsapp .sa-looked-auth-go { background: #075E54; color: #fff; }
+
+    #ssa-claim-modal .sa-looked-signup-methods {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+    }
+
+    #ssa-claim-modal .sa-looked-signup-card.is-method-picked .sa-looked-auth:not(.is-chosen) {
+      display: none;
+    }
+
+    #ssa-claim-modal .sa-looked-wa {
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+      margin: 2px 0 0 0;
+    }
+
+    #ssa-claim-modal .sa-looked-wa.is-open { display: flex; }
+
+    #ssa-claim-modal .sa-looked-wa-phone-step,
+#ssa-claim-modal .sa-looked-wa-code-step {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+    }
+
+    #ssa-claim-modal .sa-looked-wa-phone-step[hidden],
+#ssa-claim-modal .sa-looked-wa-code-step[hidden] {
+      display: none !important;
+    }
+
+    #ssa-claim-modal .sa-looked-wa-label {
+      margin: 0;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: #c4a26f;
+      text-align: center;
+    }
+
+    #ssa-claim-modal .sa-looked-wa-input {
+      width: 100%;
+      box-sizing: border-box;
+      margin: 0;
+      padding: 10px 12px;
+      border-radius: 999px;
+      border: 1.5px solid #e2e8f0;
+      background: #fff;
+      color: #0a2351;
+      font: inherit;
+      font-size: 15px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    #ssa-claim-modal .sa-looked-wa-send {
+      width: 100%;
+      margin: 0;
+      padding: 10px 12px;
+      border: 0;
+      border-radius: 999px;
+      background: #25D366;
+      color: #fff;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    #ssa-claim-modal .sa-looked-wa-boxes {
+      display: flex;
+      flex-direction: row;
+      justify-content: stretch;
+      align-items: stretch;
+      gap: 6px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    #ssa-claim-modal .sa-looked-wa-box {
+      flex: 1 1 0;
+      width: 0;
+      min-width: 0;
+      height: 38px;
+      min-height: 38px;
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      border-radius: 10px;
+      border: 1.5px solid #e2e8f0;
+      background: #fff;
+      color: #0a2351;
+      font: inherit;
+      font-size: 18px;
+      font-weight: 800;
+      line-height: 36px;
+      text-align: center;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    #ssa-claim-modal .sa-looked-wa-box:focus {
+      outline: none;
+      border-color: #25D366;
+    }
+
+    #ssa-claim-modal .sa-looked-wa-msg {
+      margin: 0;
+      min-height: 1.2em;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.3;
+      color: #fff;
+      text-align: center;
+    }
+
+    #ssa-claim-modal .sa-looked-wa-msg.is-err { color: #fecaca; }
+
+    #ssa-claim-modal .sa-looked-wa-msg.is-ok { color: #bbf7d0; }
+
+    #ssa-claim-modal .lab-card-wrap.is-wa-claimed .sa-looked-claim,
+#ssa-claim-modal .lab-card-wrap.is-wa-claimed .sa-looked-signup { display: none !important; }
+
+
+
+    /* —— SSL RANK (same card as profile) —— */
+    #ssa-claim-modal .sa-header-ssl-col {
+      grid-column: 3;
+      justify-self: center;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      margin: 0;
+      padding: 0;
+    }
+
+    #ssa-claim-modal .brand-box.sa-ssl-brand-box {
+      margin: 0 !important;
+      padding: 0 !important;
+      flex: 0 0 auto !important;
+      width: max-content !important;
+      max-width: none !important;
+      height: auto !important;
+      min-height: 0 !important;
+      display: inline-flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      gap: 1px !important;
+      border: 0 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      text-decoration: none !important;
+      color: inherit !important;
+      cursor: pointer !important;
+    }
+
+    #ssa-claim-modal .brand-icon.sa-ssl-brand-icon {
+      width: var(--dev1-ssl-rank-icon);
+      height: var(--dev1-ssl-rank-icon);
+      margin: 0 auto !important;
+      padding: 0 !important;
+      display: block !important;
+      object-fit: contain !important;
+      background: transparent !important;
+    }
+
+    #ssa-claim-modal .brand-wordmark.sa-ssl-wordmark {
+      margin: 0 auto !important;
+      padding: 0 !important;
+      line-height: 1 !important;
+      letter-spacing: 0.02em !important;
+      text-align: center !important;
+      white-space: nowrap !important;
+      width: max-content !important;
+      color: #000 !important;
+      background: transparent !important;
+      font-size: var(--dev1-rank-wordmark-fs);
+      font-weight: 800;
+    }
+
+    #ssa-claim-modal .rank-num.sa-ssl-rank-num {
+      height: var(--dev1-rank-pill-h);
+      padding: var(--dev1-pill-pad);
+      font-size: var(--dev1-pill-fs);
+    }
+#ssa-claim-modal .sa-ssl-rank-stack{display:inline-flex;flex-direction:column;align-items:stretch;justify-content:flex-start;width:max-content;max-width:100%;margin:0 auto;padding:0;background:transparent;box-sizing:border-box;}
+#ssa-claim-modal .sa-ssl-rank-hero{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:2px;width:0;min-width:100%;max-width:100%;margin:2px 0 0;padding:0;background:transparent;box-sizing:border-box;}
+#ssa-claim-modal .sa-ssl-rank-line{flex:0 0 5px;width:5px;min-width:5px;max-width:5px;height:2px;background:#D9BB75;border:0;border-radius:1px;}
+#ssa-claim-modal .sa-ssl-rank-num{flex:0 1 auto;display:inline-flex;align-items:center;justify-content:center;margin:0;min-width:14px;max-width:100%;box-sizing:border-box;border-radius:999px;background:#D9BB75;color:#fff;font-weight:800;line-height:1;text-align:center;white-space:nowrap;}
+#ssa-claim-modal .sa-ssl-rank-wrap{display:inline-flex;flex-direction:row;align-items:baseline;justify-content:center;gap:.5px;line-height:1;white-space:nowrap;}
+#ssa-claim-modal .sa-ssl-rank-digits{display:inline-block;font-size:100%;font-weight:800;line-height:1;color:#fff;}
+#ssa-claim-modal .sa-ssl-points-label{display:block;margin:1px auto 0;padding:0;width:auto;height:7px;min-height:7px;max-height:7px;line-height:7px;font-size:6px;font-weight:800;letter-spacing:.04em;text-align:center;color:#D9BB75;background:transparent;white-space:nowrap;}
+#ssa-claim-modal .sa-ssl-points-row{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:2px;width:0;min-width:100%;margin:2px 0 0;padding:0;box-sizing:border-box;background:transparent;}
+#ssa-claim-modal .sa-ssl-point-box{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;margin:0;padding:1px;border:1px solid #9aa8b8;border-radius:2px;background:transparent;color:#D9BB75;font-size:9px;font-weight:800;line-height:1;text-align:center;min-width:0;width:auto;height:auto;}
+
+  
