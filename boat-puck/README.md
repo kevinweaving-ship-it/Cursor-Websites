@@ -44,6 +44,7 @@ See [`NORTH_STAR.md`](NORTH_STAR.md).
 | `DEV_DIRECTION_2026-09_to_Shenzhen_2027-04.md` | **Digest:** Sep 2026 → Shenzhen Apr 2027 development direction |
 | **`CHINA_BETA_SOURCING_DEEP_DIVE.md`** | **China missables deep dive:** OTW siblings, LG290P, SA 433 LoRa, UM981 boards, heading kits, OEM map |
 | **`FINAL_BETA_BUY_LIST_RAND.md`** | **Final what-for-what cart in Rand** — core + optional ≤2 + skip |
+| **`SAMPLES_COMPONENTS_FACTORIES.md`** | **All sample components + factories** — who to email, qty, roles |
 | **`cost-what-goes-where.md`** | **Plain English:** puck vs committee cost, what each part does, what’s in the housing |
 | **`ROBBY_FULL_SYSTEM_BREAKDOWN.md`** | **Full engineer/dev map for Robby:** puck BOM+URLs, committee/pin/marks, OCS, radios, software to write, guide prices |
 | **`sailor-watch-wearos-candidates.md`** | **2c watch:** BYOD (install app) first; cheap Wear OS top 3 for no-watch sailors |
