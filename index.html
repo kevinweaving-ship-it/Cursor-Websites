@@ -8060,17 +8060,19 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                     // Full fuzzy list via q= (includes nicknames). Do NOT early-stop on first_names/surname —
                     // that missed Rick→Richard Nankin for "Rick n".
                     const parts = q.split(/\s+/).filter(Boolean);
-                    var limitParam = '&hub=1&limit=12';
+                    var limitParam = '&hub=1&limit=30';
 
                     function fetchSearch(u) {
                         return fetch(u, { signal: sailorSearchAbort.signal })
                             .then(function(res) { return res.ok ? res.json() : Promise.resolve([]); })
-                            .then(function(data) { return Array.isArray(data) ? data : []; });
+                            .then(function(data) { return Array.isArray(data) ? data : []; })
+                            .catch(function() { return []; });
                     }
                     function sortSailorList(list) {
                         var qn = String(q || '').toLowerCase().replace(/\s+/g, ' ').trim();
                         var tokens = qn.split(' ').filter(Boolean);
                         function score(row) {
+                            if (!row) return 9;
                             var fn = String(row.first_names || row.first_name || '').toLowerCase();
                             var ln = String(row.surname || row.last_name || '').toLowerCase();
                             var full = (fn + ' ' + ln).replace(/\s+/g, ' ').trim();
@@ -8104,7 +8106,11 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                             if (/^\/sailor\//i.test(_rsl) || /[?&]sas[_-]?id=/i.test(window.location.search || '')) return;
                         } catch (_) {}
                         if (typeof setSearchInteractionActive === 'function') setSearchInteractionActive(true);
-                        list = sortSailorList(list);
+                        try {
+                            list = sortSailorList(Array.isArray(list) ? list : []);
+                        } catch (_) {
+                            list = Array.isArray(list) ? list.slice() : [];
+                        }
                         sailorSearchResults.innerHTML = '';
                         sailorSearchResults.style.display = 'block';
                         if (list.length === 0) {
@@ -8253,43 +8259,20 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                             item.wrap.innerHTML = '';
                             item.wrap.appendChild(card);
                         }
-                        function _ssaUseDev1SailorCards() {
-                            // Landing list: JSON cards only. /dev-1 embed scans all results per sailor (~2s, 80KB) and makes typing glitchy.
-                            return false;
-                        }
                         function fetchOne(item) {
-                            if (!item || item.wrap.getAttribute('data-card-loaded') === '1') return Promise.resolve();
+                            if (!item || !item.wrap || item.wrap.getAttribute('data-card-loaded') === '1') return Promise.resolve();
                             item.wrap.setAttribute('data-card-loaded', '1');
                             if (!item.sid) {
                                 item.wrap.innerHTML = '<div class="profile-card" style="cursor:default;">No SAS ID.</div>';
                                 return Promise.resolve();
                             }
-                            window.__ssaDev1CardCache = window.__ssaDev1CardCache || {};
-                            var cached = window.__ssaDev1CardCache[item.sid];
-                            if (cached) {
-                                mountDev1Card(item.wrap, cached);
-                                return Promise.resolve();
-                            }
-                            if (!_ssaUseDev1SailorCards()) {
+                            try {
                                 mountSimpleSailorCard(item);
-                                return Promise.resolve();
+                            } catch (e) {
+                                try { console.warn('sailor card', e); } catch (_) {}
+                                item.wrap.innerHTML = '<div class="profile-card" style="cursor:default;">Could not load card.</div>';
                             }
-                            return fetch('/dev-1?embed=1&sas_id=' + encodeURIComponent(item.sid), { credentials: 'same-origin' })
-                                .then(function(r) {
-                                    if (!r.ok) throw new Error('dev1 ' + r.status);
-                                    return r.text();
-                                })
-                                .then(function(html) {
-                                    if (gen !== (window.__sailorSearchGen || 0)) return;
-                                    var t = (html || '').trim();
-                                    if (!t || t.charAt(0) === '{' ) throw new Error('dev1 bad body');
-                                    window.__ssaDev1CardCache[item.sid] = html;
-                                    mountDev1Card(item.wrap, html);
-                                })
-                                .catch(function() {
-                                    if (gen !== (window.__sailorSearchGen || 0)) return;
-                                    mountSimpleSailorCard(item);
-                                });
+                            return Promise.resolve();
                         }
                         function loadRange(start, end, conc) {
                             var i = start;

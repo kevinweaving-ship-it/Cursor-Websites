@@ -15266,7 +15266,7 @@ def api_search(
         except Exception:
             pass
     
-    max_cap = 24 if int(hub or 0) == 1 else 200
+    max_cap = 100 if int(hub or 0) == 1 else 200
     limit = min(max(1, int(limit or 200)), max_cap)
     
     rows = []
