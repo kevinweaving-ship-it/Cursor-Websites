@@ -6,7 +6,7 @@
   var CSS_ID = "ssa-regatta-slot-card-css";
   var ROOT_ID = "ssa-regatta-slot-card";
   var CAPE_CLASSIC_ID = "2026-09-13-zvyc-cape-classic";
-  var JS_VER = "20260912wa1";
+  var JS_VER = "20260912wa2";
   var WA_FEED = "/js/event-whatsapp-live.json";
   var WA_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#25D366"/><path fill="#fff" d="M17.5 14.4c-.3-.1-1.6-.8-1.8-.9-.2-.1-.4-.1-.6.1-.2.3-.7.9-.8 1-.1.2-.3.2-.6.1-.3-.1-1.2-.4-2.2-1.4-1-1.1-1.4-1.9-1.5-2.2-.2-.3 0-.4.1-.6l.4-.5c.1-.1.2-.3.2-.4 0-.2 0-.4-.1-.5l-.8-1.9c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.3.3-.9.9-.9 2.1 0 1.2.9 2.4 1 2.5.1.2 1.8 2.8 4.4 3.9 1.6.7 2.2.8 3 .7.5-.1 1.6-.6 1.8-1.3.2-.6.2-1.2.1-1.3 0-.1-.2-.2-.5-.3z"/></svg>';
   var PTS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
@@ -50,6 +50,7 @@
       ".ssa-regatta-slot-card .wx-wa-btn svg{width:28px;height:28px;display:block;filter:drop-shadow(0 1px 1px rgba(0,0,0,.28));}",
       ".ssa-regatta-slot-card .wx-wa-layer{display:none;position:absolute;inset:0;z-index:5;background:#ece5dd;overflow:auto;-webkit-overflow-scrolling:touch;padding:6px 8px 6px 48px;box-sizing:border-box;}",
       ".ssa-regatta-slot-card.ssa-wa-open .wx-wa-layer{display:block;}",
+      ".ssa-regatta-slot-card.ssa-wa-off .wx-wa-btn,.ssa-regatta-slot-card.ssa-wa-off .wx-wa-layer{display:none!important;}",
       ".ssa-regatta-slot-card .wx-wa-row{display:flex;margin:0 0 4px;}",
       ".ssa-regatta-slot-card .wx-wa-row.is-out{justify-content:flex-end;}",
       ".ssa-regatta-slot-card .wx-wa-b{max-width:92%;border-radius:10px;padding:5px 7px 3px;font:600 11px/1.25 -apple-system,BlinkMacSystemFont,Arial,sans-serif;box-shadow:0 1px 0 rgba(0,0,0,.08);}",
@@ -266,6 +267,7 @@
     btn.addEventListener("click", function (e) {
       e.preventDefault();
       e.stopPropagation();
+      if (waShow === false) return;
       var open = slot.classList.toggle("ssa-wa-open");
       btn.setAttribute("aria-pressed", open ? "true" : "false");
       if (open) loadWa(slot);
@@ -292,6 +294,8 @@
       '<button type="button" class="wx-wa-btn" aria-label="Cape Classic WhatsApp" aria-pressed="false">' + WA_ICON + "</button>" +
       '<div class="wx-wa-layer" aria-label="Cape Classic WhatsApp"></div>';
     bindWa(slot);
+    applyWaShow(slot);
+    refreshWaShow(slot);
   }
 
   function fitGauge(slot) {
@@ -319,6 +323,28 @@
   var loading = false;
   var pollTimer = null;
   var POLL_MS = 40000;
+  var waShow = true;
+
+  function applyWaShow(slot) {
+    if (!slot) return;
+    if (waShow === false) {
+      slot.classList.add("ssa-wa-off");
+      slot.classList.remove("ssa-wa-open");
+    } else {
+      slot.classList.remove("ssa-wa-off");
+    }
+  }
+
+  function refreshWaShow(slot) {
+    fetch(WA_FEED + "?_=" + Date.now(), { cache: "no-store", credentials: "same-origin" })
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .then(function (data) {
+        if (data && data.show === false) waShow = false;
+        else if (data && data.show === true) waShow = true;
+        applyWaShow(slot);
+      })
+      .catch(function () {});
+  }
 
   async function load(slot) {
     if (loading) return;

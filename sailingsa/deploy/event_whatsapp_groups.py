@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS public.event_whatsapp_groups (
   created_at timestamptz NOT NULL DEFAULT now(),
   retired_at timestamptz,
   notes text,
+  show_on_event boolean NOT NULL DEFAULT false,
   CONSTRAINT event_whatsapp_groups_window CHECK (valid_until >= valid_from)
 );
 

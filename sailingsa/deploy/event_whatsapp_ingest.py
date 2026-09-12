@@ -177,11 +177,18 @@ _ddl_done = False
 _groups_mtime = None
 
 
+SHOW_DDL = r"""
+ALTER TABLE public.event_whatsapp_groups
+  ADD COLUMN IF NOT EXISTS show_on_event boolean NOT NULL DEFAULT false;
+"""
+
+
 def ensure_ddl() -> None:
     global _ddl_done
     if _ddl_done:
         return
     psql(MESSAGES_DDL)
+    psql(SHOW_DDL)
     _ddl_done = True
 
 
@@ -208,25 +215,40 @@ DUMP_SQL = r"""
 SELECT json_build_object(
   'ok', true,
   'regatta_id', '2026-09-13-zvyc-cape-classic',
-  'messages', COALESCE((
-    SELECT json_agg(row_to_json(x))
-    FROM (
-      SELECT from_me, sender_name, kind,
-             left(coalesce(body, ''), 500) AS body,
-             left(coalesce(caption, ''), 200) AS caption,
-             duration_sec,
-             to_char(occurred_at AT TIME ZONE 'Africa/Johannesburg', 'YYYY-MM-DD"T"HH24:MI:SS') AS occurred_at
+  'show', COALESCE((
+    SELECT g.show_on_event
+    FROM public.event_whatsapp_groups g
+    WHERE g.regatta_id = '2026-09-13-zvyc-cape-classic' AND g.is_current
+    LIMIT 1
+  ), false),
+  'messages', CASE
+    WHEN COALESCE((
+      SELECT g.show_on_event
+      FROM public.event_whatsapp_groups g
+      WHERE g.regatta_id = '2026-09-13-zvyc-cape-classic' AND g.is_current
+      LIMIT 1
+    ), false)
+    THEN COALESCE((
+      SELECT json_agg(row_to_json(x))
       FROM (
-        SELECT from_me, sender_name, kind, body, caption, duration_sec, occurred_at
-        FROM public.event_whatsapp_messages
-        WHERE regatta_id = '2026-09-13-zvyc-cape-classic'
-          AND COALESCE(kind, '') NOT IN ('empty', 'group-list')
-        ORDER BY occurred_at DESC NULLS LAST
-        LIMIT 40
-      ) newest
-      ORDER BY occurred_at ASC NULLS LAST
-    ) x
-  ), '[]'::json)
+        SELECT from_me, sender_name, kind,
+               left(coalesce(body, ''), 500) AS body,
+               left(coalesce(caption, ''), 200) AS caption,
+               duration_sec,
+               to_char(occurred_at AT TIME ZONE 'Africa/Johannesburg', 'YYYY-MM-DD"T"HH24:MI:SS') AS occurred_at
+        FROM (
+          SELECT from_me, sender_name, kind, body, caption, duration_sec, occurred_at
+          FROM public.event_whatsapp_messages
+          WHERE regatta_id = '2026-09-13-zvyc-cape-classic'
+            AND COALESCE(kind, '') NOT IN ('empty', 'group-list')
+          ORDER BY occurred_at DESC NULLS LAST
+          LIMIT 40
+        ) newest
+        ORDER BY occurred_at ASC NULLS LAST
+      ) x
+    ), '[]'::json)
+    ELSE '[]'::json
+  END
 );
 """
 
@@ -274,13 +296,14 @@ def one_pass() -> int:
 
 def main() -> int:
     watch = "--watch" in sys.argv
+    force_dump = "--dump" in sys.argv
     while True:
         try:
             n = one_pass()
             if n:
                 print("ingested", n, flush=True)
             try:
-                if n or not LIVE_JSON.exists():
+                if n or force_dump or not LIVE_JSON.exists():
                     dump_live_json()
             except Exception as dump_err:
                 print("live json", dump_err, file=sys.stderr, flush=True)
