@@ -11,6 +11,9 @@ You do not need to keep these. They are on the live server. **Do not put the App
 - **Use case:** Manage everything on your Page
 - **Business portfolio:** none connected yet
 - **Product:** Facebook Login for Business (added by Meta with the Page use case)
+- **Login config:** `MM Page LIVE` — ID `1475623934360046`
+- **Config permissions so far:** `business_management`, `pages_show_list`
+- **OAuth redirect:** `https://sailingsa.co.za/auth/facebook/callback`
 
 **Secret and full record (live only, root):**
 
