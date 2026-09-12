@@ -33,11 +33,11 @@ def _env(name: str) -> str:
 
 
 def app_id() -> str:
-    return _env("FACEBOOK_APP_ID")
+    return _env("MM_FB_APP_ID") or _env("FACEBOOK_APP_ID")
 
 
 def app_secret() -> str:
-    return _env("FACEBOOK_APP_SECRET")
+    return _env("MM_FB_APP_SECRET") or _env("FACEBOOK_APP_SECRET")
 
 
 def app_token() -> str:
