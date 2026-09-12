@@ -34,6 +34,10 @@ FROM public.event_whatsapp_groups g
 WHERE e.event_id = g.event_id
   AND g.is_current
   AND g.regatta_id = '2026-09-13-zvyc-cape-classic';
+
+GRANT SELECT, INSERT, UPDATE ON public.event_whatsapp_groups TO sailors_user;
+GRANT SELECT, INSERT, UPDATE ON public.event_whatsapp_messages TO sailors_user;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO sailors_user;
 """
 
 

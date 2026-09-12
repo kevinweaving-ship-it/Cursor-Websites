@@ -180,6 +180,8 @@ _groups_mtime = None
 SHOW_DDL = r"""
 ALTER TABLE public.event_whatsapp_groups
   ADD COLUMN IF NOT EXISTS show_on_event boolean NOT NULL DEFAULT false;
+GRANT SELECT, INSERT, UPDATE ON public.event_whatsapp_groups TO sailors_user;
+GRANT SELECT, INSERT, UPDATE ON public.event_whatsapp_messages TO sailors_user;
 """
 
 
