@@ -892,8 +892,9 @@
     );
   }
 
-  function thumbsThatFit(avail, total) {
+  function thumbsThatFit(avail, total, liveN) {
     var count = total || 1;
+    var extraLive = liveN ? 1 : 0;
     var maxN = Math.min(count, 5);
     if (avail <= 0) return 1;
     if (window.matchMedia('(max-width: 599px)').matches) {
@@ -906,18 +907,67 @@
     var k;
     var h;
     for (k = 2; k <= maxN; k++) {
-      h = (avail - GAP * k - 4 * (1 + k)) / (art + k * vid);
+      h = (avail - GAP * (k + extraLive) - 4 * (1 + k + extraLive)) / (art + (k + extraLive) * vid);
       if (h >= minH) n = k;
       else break;
     }
     return n;
   }
 
+
+  function reelVideos(videos) {
+    var out = [];
+    var i;
+    for (i = 0; i < (videos || []).length; i++) {
+      if (!mmFbLive(videos[i])) out.push(videos[i]);
+    }
+    return out;
+  }
+
+  function ensureLiveSlot(root) {
+    var slot = root.querySelector('[data-mm-live-slot]');
+    if (slot) return slot;
+    var row = root.querySelector('.mm-lipton-reels-compact');
+    var brand = root.querySelector('.mm-lipton-reels-brand');
+    if (!row || !brand) return null;
+    slot = document.createElement('div');
+    slot.className = 'mm-lipton-reels-live-slot';
+    slot.setAttribute('data-mm-live-slot', '');
+    slot.setAttribute('hidden', '');
+    slot.setAttribute('aria-label', 'Marine Megastore LIVE');
+    row.insertBefore(slot, brand.nextSibling);
+    return slot;
+  }
+
+  function paintLiveSlot(root, videos) {
+    var slot = ensureLiveSlot(root);
+    if (!slot) return null;
+    var live = firstMmFbLive(videos);
+    if (!live) {
+      slot.setAttribute('hidden', '');
+      slot.innerHTML = '';
+      slot.removeAttribute('data-mm-live-id');
+      slot.style.display = 'none';
+      slot.style.width = '';
+      slot.style.height = '';
+      return null;
+    }
+    slot.removeAttribute('hidden');
+    slot.style.display = 'block';
+    var key = String(live.id || '');
+    if (slot.getAttribute('data-mm-live-id') !== key) {
+      slot.innerHTML = compactTileHtml(live, videos, true);
+      slot.setAttribute('data-mm-live-id', key);
+    }
+    return live;
+  }
+
   function compactTilesHtml(videos) {
     var parts = [];
     var i;
-    if (videos && videos.length) {
-      for (i = 0; i < videos.length; i++) parts.push(compactTileHtml(videos[i], videos, i === 0));
+    var reels = reelVideos(videos);
+    if (reels.length) {
+      for (i = 0; i < reels.length; i++) parts.push(compactTileHtml(reels[i], videos, i === 0));
     } else {
       parts.push(emptyReelSlotHtml());
     }
@@ -1473,14 +1523,16 @@
     var avail = row.clientWidth;
     if (avail <= 0) return;
     syncBrand(root, videos);
-    var extra = placeholderCount(videos);
-    var tileCount = (videos.length || 1) + extra;
-    var nFit = thumbsThatFit(avail, tileCount);
+    var live = paintLiveSlot(root, videos);
+    var liveN = live ? 1 : 0;
+    var extra = placeholderCount(reelVideos(videos));
+    var tileCount = (reelVideos(videos).length || 1) + extra;
+    var nFit = thumbsThatFit(avail, tileCount, liveN);
     if (isCapeClassic() && !hasRealReels(videos) && !isMobilePortrait()) nFit = 5;
     var wrap = root.querySelector('.mm-lipton-reels-rail-wrap');
     if (wrap) wrap.style.display = '';
     var countKey =
-      videoKey(videos) + ':' + extra + ':' + (isMobilePortrait() ? 'mp' : 'w');
+      videoKey(videos) + ':' + extra + ':' + liveN + ':' + (isMobilePortrait() ? 'mp' : 'w');
     if (compact.getAttribute('data-mm-count') !== countKey) {
       compact.innerHTML = compactTilesHtml(videos);
       compact.setAttribute('data-mm-count', countKey);
@@ -1489,13 +1541,25 @@
     var art = ART_W / ART_H;
     var vid = VID_W / VID_H;
     var border = 4;
-    var innerH = (avail - GAP * nFit - border * (1 + nFit)) / (art + nFit * vid);
+    var cols = nFit + liveN;
+    var innerH = (avail - GAP * cols - border * (1 + cols)) / (art + cols * vid);
     if (innerH < 40) innerH = 40;
     var outerH = innerH + border;
     var thumbW = innerH * vid + border;
     brand.style.width = innerH * art + border + 'px';
     brand.style.height = outerH + 'px';
     if (wrap) wrap.style.height = outerH + 'px';
+    var liveSlot = root.querySelector('[data-mm-live-slot]');
+    if (liveSlot && live) {
+      liveSlot.style.width = thumbW + 'px';
+      liveSlot.style.height = outerH + 'px';
+      var liveThumbs = liveSlot.querySelectorAll('.mm-lipton-reels-thumb, .mm-lipton-reels-tile');
+      var li;
+      for (li = 0; li < liveThumbs.length; li++) {
+        liveThumbs[li].style.width = thumbW + 'px';
+        liveThumbs[li].style.height = outerH + 'px';
+      }
+    }
     var thumbs = compact.querySelectorAll('.mm-lipton-reels-thumb');
     var tiles = compact.querySelectorAll('.mm-lipton-reels-tile');
     var i;
@@ -1880,7 +1944,10 @@
       '@keyframes mm-cam-live-pulse{0%,100%{opacity:1}50%{opacity:.35}}' +
       '.mm-lipton-reels-cam-stamp-title{font-weight:800;letter-spacing:.02em}' +
       '.mm-lipton-reels-cam-stamp-last,.mm-lipton-reels-cam-stamp-note{font-weight:600;opacity:.95}' +
-      '.mm-lipton-reels-cam-stamp-note{font-style:italic}';
+      '.mm-lipton-reels-cam-stamp-note{font-style:italic}' +
+      '.mm-lipton-reels-live-slot{flex:0 0 auto;min-width:0;align-self:stretch}' +
+      '.mm-lipton-reels-live-slot[hidden]{display:none!important;width:0!important;min-width:0!important;margin:0!important;padding:0!important;border:0!important;overflow:hidden}' +
+      '.mm-lipton-reels-live-slot .mm-lipton-reels-tile{display:block;width:100%;height:100%}';
   }
 
   function init() {
