@@ -1,8 +1,12 @@
 # Results print / PDF — product rule
 
+**This is why SailingSA exists.** The thing the user prints, saves, downloads, or shares is **our** curated results PDF — one standard format, every event, every time.
+
+SAS source is random (PDF / PNG / XLS / photo / whatever they uploaded). We ingest that only to get the data right. The **output** is our sheet: event header + fleet headers + fleet results, print rules, same layout for every event. Not their file, not a screenshot of their file, not a PNG of our HTML.
+
 **Read first:** event URL is truth while live. Children, landing search, tables, reports, and PDFs must sync to it, and again if a closed event is corrected later.
 
-Four PDF points. Do not mix source PDFs into this.
+Four PDF points. Do not mix source files into the product.
 
 ## 1. Source PDF is irrelevant here
 

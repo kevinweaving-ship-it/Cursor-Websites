@@ -1,11 +1,14 @@
-"""Server-made A4 results PDFs for standalone /regatta parent and child URLs.
+"""Our curated A4 results PDFs — the product, not the SAS source file.
+
+This is the standard SailingSA sheet: same format every event. SAS uploads
+(PDF/PNG/XLS/photo) are ingest only. Print / save / download / share must
+open these files.
 
 Each event keeps a parent PDF; each fleet child URL keeps its own PDF.
 Orientation is portrait unless any table is wider than A4 portrait (194mm).
 A fleet is never split across pages.
 
-Print / Download / Share open these files. They are written on save and
-rebuilt on first request if missing.
+Closed events: store and fetch. Live: generate now from the event URL.
 """
 
 from __future__ import annotations
