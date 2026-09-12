@@ -8305,8 +8305,49 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                             try { window.__ssaSailorCardIO.disconnect(); } catch (_) {}
                             window.__ssaSailorCardIO = null;
                         }
-                        // After typing has stopped: only the current #1 (best match). Do not pre-build the rest.
-                        return slots[0] ? fetchOne(slots[0]) : Promise.resolve();
+                        /* LANDING_SAILOR_SEARCH_VISIBLE_CARDS_v7 every on-screen match gets a real /dev-1 card */
+                        var cardQ = [];
+                        var cardBusy = 0;
+                        var cardMax = 2;
+                        function pumpCards() {
+                            if (gen !== (window.__sailorSearchGen || 0)) return;
+                            while (cardBusy < cardMax && cardQ.length) {
+                                var it = cardQ.shift();
+                                cardBusy += 1;
+                                Promise.resolve(fetchOne(it)).then(function() {
+                                    cardBusy -= 1;
+                                    pumpCards();
+                                }, function() {
+                                    cardBusy -= 1;
+                                    pumpCards();
+                                });
+                            }
+                        }
+                        function enqueueCard(item) {
+                            if (!item || item.wrap.getAttribute('data-card-queued') === '1') return;
+                            item.wrap.setAttribute('data-card-queued', '1');
+                            cardQ.push(item);
+                            pumpCards();
+                        }
+                        if (typeof IntersectionObserver === 'function') {
+                            var io = new IntersectionObserver(function(entries) {
+                                if (gen !== (window.__sailorSearchGen || 0)) return;
+                                entries.forEach(function(en) {
+                                    if (!en.isIntersecting) return;
+                                    io.unobserve(en.target);
+                                    var item = null;
+                                    for (var si = 0; si < slots.length; si++) {
+                                        if (slots[si].wrap === en.target) { item = slots[si]; break; }
+                                    }
+                                    if (item) enqueueCard(item);
+                                });
+                            }, { root: null, rootMargin: '100px 0px', threshold: 0.01 });
+                            window.__ssaSailorCardIO = io;
+                            for (var so = 0; so < slots.length; so++) io.observe(slots[so].wrap);
+                        } else {
+                            for (var sf = 0; sf < slots.length; sf++) enqueueCard(slots[sf]);
+                        }
+                        return Promise.resolve();
                     }
 
                     var url = API + '/api/search?q=' + encodeURIComponent(q) + limitParam;

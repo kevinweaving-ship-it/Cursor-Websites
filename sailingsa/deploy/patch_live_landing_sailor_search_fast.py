@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""After typing stops: names list only, then one best-match /dev-1 card.
+"""After typing stops: names first, then a real /dev-1 card for every on-screen match.
 
-Never pre-build the rest of the list. Marker: LANDING_SAILOR_SEARCH_TOP1_AFTER_IDLE_v6
+Do not fetch cards while typing. Abort in-flight /dev-1 on each keystroke.
+Marker: LANDING_SAILOR_SEARCH_VISIBLE_CARDS_v7
 """
 from __future__ import annotations
 
@@ -11,89 +12,88 @@ HTMLS = [
     Path("/var/www/sailingsa/blank.html"),
     Path("/var/www/sailingsa/index.html"),
 ]
-MARKER = "LANDING_SAILOR_SEARCH_TOP1_AFTER_IDLE_v6"
+MARKER = "LANDING_SAILOR_SEARCH_VISIBLE_CARDS_v7"
 
-OLD_DEBOUNCE_A = """                        if (q === '') {
-                            runSailorSearch();
-                        } else {
-                            if (q.length >= 2) instantFilterSailorResults(q);
-                            var _tokN = q.split(/\\s+/).filter(Boolean).length;
-                            sailorSearchDebounce = setTimeout(runSailorSearch, _tokN >= 2 ? 0 : 180);
-                        }"""
-OLD_DEBOUNCE_B = """                        if (q === '') {
-                            runSailorSearch();
-                        } else {
-                            sailorSearchDebounce = setTimeout(runSailorSearch, 280);
-                        }"""
-NEW_DEBOUNCE = """                        if (q === '') {
-                            runSailorSearch();
-                        } else {
-                            if (sailorSearchAbort) sailorSearchAbort.abort();
-                            if (q.length >= 2 && typeof instantFilterSailorResults === 'function') instantFilterSailorResults(q);
-                            sailorSearchDebounce = setTimeout(runSailorSearch, 350);
-                        }"""
-
-
-def _strip_preload(text: str) -> str:
-    start = text.find("                        window.__ssaDev1CardCache = window.__ssaDev1CardCache || {};")
-    if start < 0:
-        start = text.find("                        function fetchOne(item) {")
-    if start < 0:
-        raise SystemExit("fetchOne block missing")
-    end = text.find("                    var url = API + '/api/search?q='", start)
-    if end < 0:
-        raise SystemExit("search url missing")
-    fetch_start = text.find("                        function fetchOne(item) {", start)
-    if fetch_start < 0 or fetch_start > end:
-        raise SystemExit("fetchOne missing in block")
-    load_start = text.find("                        function loadRange", fetch_start)
-    if load_start < 0 or load_start > end:
-        fetch_end = text.find("                        if (window.__ssaSailorCardIO)", fetch_start)
-        if fetch_end < 0 or fetch_end > end:
-            fetch_end = end
-    else:
-        fetch_end = load_start
-    fetch_fn = text[fetch_start:fetch_end]
-    new = (
-        "                        window.__ssaDev1CardCache = window.__ssaDev1CardCache || {};\n"
-        + fetch_fn
-        + """                        if (window.__ssaSailorCardIO) {
+VISIBLE_CARDS = """                        if (window.__ssaSailorCardIO) {
                             try { window.__ssaSailorCardIO.disconnect(); } catch (_) {}
                             window.__ssaSailorCardIO = null;
                         }
-                        /* """
-        + MARKER
-        + """ only #1 card after typing stops */
-                        return slots[0] ? fetchOne(slots[0]) : Promise.resolve();
-                    }
-
+                        /* """ + MARKER + """ every on-screen match gets a real /dev-1 card */
+                        var cardQ = [];
+                        var cardBusy = 0;
+                        var cardMax = 2;
+                        function pumpCards() {
+                            if (gen !== (window.__sailorSearchGen || 0)) return;
+                            while (cardBusy < cardMax && cardQ.length) {
+                                var it = cardQ.shift();
+                                cardBusy += 1;
+                                Promise.resolve(fetchOne(it)).then(function() {
+                                    cardBusy -= 1;
+                                    pumpCards();
+                                }, function() {
+                                    cardBusy -= 1;
+                                    pumpCards();
+                                });
+                            }
+                        }
+                        function enqueueCard(item) {
+                            if (!item || item.wrap.getAttribute('data-card-queued') === '1') return;
+                            item.wrap.setAttribute('data-card-queued', '1');
+                            cardQ.push(item);
+                            pumpCards();
+                        }
+                        if (typeof IntersectionObserver === 'function') {
+                            var io = new IntersectionObserver(function(entries) {
+                                if (gen !== (window.__sailorSearchGen || 0)) return;
+                                entries.forEach(function(en) {
+                                    if (!en.isIntersecting) return;
+                                    io.unobserve(en.target);
+                                    var item = null;
+                                    for (var si = 0; si < slots.length; si++) {
+                                        if (slots[si].wrap === en.target) { item = slots[si]; break; }
+                                    }
+                                    if (item) enqueueCard(item);
+                                });
+                            }, { root: null, rootMargin: '100px 0px', threshold: 0.01 });
+                            window.__ssaSailorCardIO = io;
+                            for (var so = 0; so < slots.length; so++) io.observe(slots[so].wrap);
+                        } else {
+                            for (var sf = 0; sf < slots.length; sf++) enqueueCard(slots[sf]);
+                        }
+                        return Promise.resolve();
 """
-    )
-    return text[:start] + new + text[end:]
+
+OLD_TOP1_A = """                        if (window.__ssaSailorCardIO) {
+                            try { window.__ssaSailorCardIO.disconnect(); } catch (_) {}
+                            window.__ssaSailorCardIO = null;
+                        }
+                        /* LANDING_SAILOR_SEARCH_TOP1_AFTER_IDLE_v6 only #1 card after typing stops */
+                        return slots[0] ? fetchOne(slots[0]) : Promise.resolve();"""
+
+OLD_TOP1_B = """                        if (window.__ssaSailorCardIO) {
+                            try { window.__ssaSailorCardIO.disconnect(); } catch (_) {}
+                            window.__ssaSailorCardIO = null;
+                        }
+                        // After typing has stopped: only the current #1 (best match). Do not pre-build the rest.
+                        return slots[0] ? fetchOne(slots[0]) : Promise.resolve();"""
 
 
 def patch_html(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     orig = text
-    if OLD_DEBOUNCE_A in text:
-        text = text.replace(OLD_DEBOUNCE_A, NEW_DEBOUNCE, 1)
-    elif OLD_DEBOUNCE_B in text:
-        text = text.replace(OLD_DEBOUNCE_B, NEW_DEBOUNCE, 1)
-    elif "setTimeout(runSailorSearch, 350)" not in text:
-        # already patched with abort+instant? try 0/180 variant without instantFilter prefix
-        old = """                            if (q.length >= 2) instantFilterSailorResults(q);
-                            var _tokN = q.split(/\\s+/).filter(Boolean).length;
-                            sailorSearchDebounce = setTimeout(runSailorSearch, _tokN >= 2 ? 0 : 180);"""
-        new = """                            if (sailorSearchAbort) sailorSearchAbort.abort();
-                            if (q.length >= 2) instantFilterSailorResults(q);
-                            sailorSearchDebounce = setTimeout(runSailorSearch, 350);"""
-        if old in text:
-            text = text.replace(old, new, 1)
-    text = _strip_preload(text)
+    if MARKER in text and "enqueueCard" in text:
+        print("HTML", path, "already v7")
+        return
+    if OLD_TOP1_A in text:
+        text = text.replace(OLD_TOP1_A, VISIBLE_CARDS, 1)
+    elif OLD_TOP1_B in text:
+        text = text.replace(OLD_TOP1_B, VISIBLE_CARDS, 1)
+    else:
+        raise SystemExit(f"top-1 block missing {path}")
     if "/dev-1?embed=1" not in text:
         raise SystemExit(f"dev-1 missing {path}")
-    if "only #1 card after typing stops" not in text and MARKER not in text:
-        raise SystemExit(f"top1 marker missing {path}")
+    if MARKER not in text:
+        raise SystemExit(f"v7 marker missing {path}")
     if text == orig:
         raise SystemExit(f"no html changes {path}")
     path.write_text(text, encoding="utf-8")
