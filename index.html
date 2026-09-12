@@ -8233,46 +8233,30 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                             slots.push({ wrap: wrap, sid: sid, row: row });
                         });
 
-                        function mountSimpleSailorCard(item) {
-                            var row = item.row || {};
-                            var sid = String(item.sid || '').trim();
-                            var name = [row.first_names || row.first_name, row.surname || row.last_name].filter(Boolean).join(' ') || row.full_name || 'Sailor';
-                            var club = row.club || row.primary_club || row.club_1 || '—';
-                            var classesSailed = row.class_name || row.primary_class || '—';
-                            function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-                            var card = document.createElement('div');
-                            card.className = 'profile-card';
-                            card.setAttribute('role', 'listitem');
-                            card.dataset.sasId = sid;
-                            card.innerHTML = '<div class="profile-card-header">Profile</div><div class="profile-card-body">' +
-                                '<span class="profile-card-label">Name</span><span class="profile-card-value">' + esc(name) + '</span>' +
-                                '<span class="profile-card-label">Club</span><span class="profile-card-value">' + esc(club) + '</span>' +
-                                '<span class="profile-card-label">Classes Sailed</span><span class="profile-card-value">' + esc(classesSailed) + '</span></div>';
-                            card.style.cursor = 'pointer';
-                            card.addEventListener('click', function(ev) {
-                                ev.preventDefault();
-                                if (!sid) return;
-                                if (typeof window.showSailorStatsInResults === 'function') {
-                                    window.showSailorStatsInResults(sid, name, club, classesSailed);
-                                }
-                            });
-                            item.wrap.innerHTML = '';
-                            item.wrap.appendChild(card);
-                        }
                         function fetchOne(item) {
-                            if (!item || !item.wrap || item.wrap.getAttribute('data-card-loaded') === '1') return Promise.resolve();
+                            if (!item || item.wrap.getAttribute('data-card-loaded') === '1') return Promise.resolve();
                             item.wrap.setAttribute('data-card-loaded', '1');
                             if (!item.sid) {
                                 item.wrap.innerHTML = '<div class="profile-card" style="cursor:default;">No SAS ID.</div>';
                                 return Promise.resolve();
                             }
-                            try {
-                                mountSimpleSailorCard(item);
-                            } catch (e) {
-                                try { console.warn('sailor card', e); } catch (_) {}
-                                item.wrap.innerHTML = '<div class="profile-card" style="cursor:default;">Could not load card.</div>';
+                            window.__ssaDev1CardCache = window.__ssaDev1CardCache || {};
+                            var cached = window.__ssaDev1CardCache[item.sid];
+                            if (cached) {
+                                mountDev1Card(item.wrap, cached);
+                                return Promise.resolve();
                             }
-                            return Promise.resolve();
+                            return fetch('/dev-1?embed=1&sas_id=' + encodeURIComponent(item.sid), { credentials: 'same-origin' })
+                                .then(function(r) { return r.text(); })
+                                .then(function(html) {
+                                    if (gen !== (window.__sailorSearchGen || 0)) return;
+                                    window.__ssaDev1CardCache[item.sid] = html;
+                                    mountDev1Card(item.wrap, html);
+                                })
+                                .catch(function() {
+                                    if (gen !== (window.__sailorSearchGen || 0)) return;
+                                    item.wrap.innerHTML = '<div class="profile-card" style="cursor:default;">Could not load card.</div>';
+                                });
                         }
                         function loadRange(start, end, conc) {
                             var i = start;
