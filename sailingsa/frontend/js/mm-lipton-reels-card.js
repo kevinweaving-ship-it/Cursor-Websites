@@ -154,13 +154,23 @@
     });
   }
 
+  var LAST_CAM_STILL = '/assets/adverts/mm-cape-classic/zvyc-live-cam.jpg';
+  var CAM_THUMB_API = '/api/regatta/2026-09-13-zvyc-cape-classic/zvyc-live-cam-thumb';
+
+  function camStillSrc(v) {
+    var snap = String((v && (v.live_snap || v.snap || v.thumb)) || '').split('?')[0];
+    if (!snap || /4040\.jpg|skylinewebcams\.com\/temp\//i.test(snap) || snap.indexOf('/zvyc-live-cam-thumb') >= 0) {
+      return LAST_CAM_STILL;
+    }
+    return snap;
+  }
+
   function liveThumbSrc(v, fresh) {
     var root = cardEl();
     if (isWebcam(v) && root && root._mmLiveGrab && !fresh) return root._mmLiveGrab;
     if (isWebcam(v)) {
-      var snap = String((v && (v.live_snap || v.snap)) || '').split('?')[0];
-      if (!snap) snap = '/api/regatta/2026-09-13-zvyc-cape-classic/zvyc-live-cam-thumb';
-      return withCamQuery(snap, camTokenOf(root), fresh);
+      if (fresh) return withCamQuery(CAM_THUMB_API, '', true);
+      return withCamQuery(camStillSrc(v), '', false);
     }
     var base = String((v && v.thumb) || '').split('?')[0];
     return base ? base + '?t=' + Date.now() : '';
@@ -653,14 +663,9 @@
         if (this.naturalWidth > 16) hideThumbCamLoad(root);
       });
       imgs[i].addEventListener('error', function () {
-        var n = parseInt(this.getAttribute('data-mm-retry') || '0', 10);
-        if (n >= 2) return;
-        this.setAttribute('data-mm-retry', String(n + 1));
-        var img = this;
-        scrapeZvycCamToken(true).then(function (tok) {
-          if (!tok) return;
-          img.src = liveThumbSrc(clip, true);
-        });
+        if (this.getAttribute('data-mm-last-still') === '1') return;
+        this.setAttribute('data-mm-last-still', '1');
+        this.src = LAST_CAM_STILL;
       });
     }
   }
@@ -1595,9 +1600,22 @@
     }
   }
 
+  function injectHideCss() {
+    var id = 'mm-lipton-reels-hide-css';
+    var s = document.getElementById(id);
+    if (!s) {
+      s = document.createElement('style');
+      s.id = id;
+      document.head.appendChild(s);
+    }
+    s.textContent =
+      '.mm-lipton-reels-hide{color:#dc2626!important;font-size:0.95rem!important;font-weight:800!important;letter-spacing:.02em;}';
+  }
+
   function init() {
     var root = cardEl();
     if (!root) return;
+    injectHideCss();
     var payload = readPayload(root);
     var state = { expanded: false, currentId: '', chromeSnap: null, hideTimer: null, playerWired: false, sliding: false, didSwipe: false };
     var video = ensureHeroVideo(root);
