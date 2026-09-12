@@ -12941,7 +12941,104 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
             bindBarButton('btn-podium-sheet-modal', function() {
                 if (typeof navigateToResultView === 'function') navigateToResultView('podium');
             });
+            function resultsPdfUrlFromIframe(iframe) {
+                if (!iframe || !iframe.src) return '';
+                var u;
+                try { u = new URL(iframe.src, location.origin); } catch (e) { return ''; }
+                var path = u.pathname || '';
+                if (/podium\.html/i.test(path)) return '';
+                // Event URL is truth: parent path → one PDF with every fleet;
+                // child path → that fleet only. Do not use leftover class_slug
+                // from a class iframe when the page (or Full view) is the parent.
+                var pagePath = (location.pathname || '').replace(/\/+$/, '');
+                var pageM = pagePath.match(/^\/regatta\/([^\/]+)(?:\/class-([^\/]+))?$/i);
+                if (pageM && pageM[1] && pageM[1] !== 'results.html' && pageM[1] !== 'class') {
+                    var pslug = pageM[1];
+                    if (pageM[2]) {
+                        return '/regatta/' + encodeURIComponent(pslug) + '/class-' + encodeURIComponent(pageM[2].replace(/\/results\.pdf$/i, '')) + '/results.pdf';
+                    }
+                    return '/regatta/' + encodeURIComponent(pslug) + '/results.pdf';
+                }
+                var rid = (u.searchParams.get('regatta_id') || '').trim();
+                var cslug = (u.searchParams.get('class_slug') || '').trim();
+                var m = path.match(/^\/regatta\/([^\/]+)(?:\/class-([^\/]+))?/i);
+                if (m && m[1] && m[1] !== 'results.html' && m[1] !== 'class') {
+                    try { rid = decodeURIComponent(m[1]); } catch (e2) { rid = m[1]; }
+                    if (m[2]) {
+                        try { cslug = decodeURIComponent(m[2]).replace(/\/results\.pdf$/i, ''); } catch (e3) { cslug = m[2]; }
+                    }
+                }
+                if (!rid) return '';
+                var view = window._currentResultContentView || (typeof detectViewFromUrl === 'function' ? detectViewFromUrl(iframe.src) : '');
+                var isFull = view === 'full' || /\/results\.html/i.test(path);
+                var base = '/regatta/' + encodeURIComponent(rid);
+                if (isFull) return base + '/results.pdf';
+                if (cslug) return base + '/class-' + encodeURIComponent(cslug) + '/results.pdf';
+                return base + '/results.pdf';
+            }
+            function useStoredResultsPdf(intent) {
+                var iframe = getResultIframe();
+                var pdf = resultsPdfUrlFromIframe(iframe);
+                if (!pdf) return false;
+                var abs = pdf.indexOf('http') === 0 ? pdf : (location.origin + pdf);
+                if (intent === 'print') {
+                    var fr = document.getElementById('ssaBarPdfFrame');
+                    if (!fr) {
+                        fr = document.createElement('iframe');
+                        fr.id = 'ssaBarPdfFrame';
+                        fr.setAttribute('title', 'Results PDF');
+                        fr.style.cssText = 'position:fixed;right:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;';
+                        document.body.appendChild(fr);
+                    }
+                    fr.onload = function() {
+                        try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch (e) { window.open(abs, '_blank'); }
+                    };
+                    fr.src = abs + (abs.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
+                    return true;
+                }
+                if (intent === 'save' || intent === 'download') {
+                    var a = document.createElement('a');
+                    a.href = abs + (abs.indexOf('?') >= 0 ? '&' : '?') + 'download=1';
+                    a.setAttribute('download', '');
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    return true;
+                }
+                if (intent === 'share') {
+                    var title = 'SailingSA results PDF';
+                    function shareUrl() {
+                        if (navigator.share) {
+                            navigator.share({ title: title, url: abs }).catch(function() {
+                                if (navigator.clipboard) navigator.clipboard.writeText(abs);
+                            });
+                        } else if (navigator.clipboard) {
+                            navigator.clipboard.writeText(abs).then(function() { alert('PDF link copied.'); }).catch(function() { prompt('Copy this PDF link:', abs); });
+                        } else {
+                            prompt('Copy this PDF link:', abs);
+                        }
+                    }
+                    if (navigator.share && navigator.canShare) {
+                        fetch(abs, { credentials: 'same-origin' }).then(function(r) {
+                            if (!r.ok) throw new Error('pdf');
+                            return r.blob();
+                        }).then(function(blob) {
+                            var name = (pdf.split('/').pop() || 'results') + (/\.pdf$/i.test(pdf) ? '' : '.pdf');
+                            var file = new File([blob], name.replace(/results\.pdf$/i, 'results.pdf'), { type: 'application/pdf' });
+                            if (navigator.canShare({ files: [file] })) {
+                                return navigator.share({ title: title, files: [file], url: abs });
+                            }
+                            throw new Error('no-files');
+                        }).catch(shareUrl);
+                    } else {
+                        shareUrl();
+                    }
+                    return true;
+                }
+                return false;
+            }
             bindBarButton('btn-save-sheet-modal', function() {
+                if (useStoredResultsPdf('save')) return;
                 var iframe = getResultIframe();
                 if (!iframe || !iframe.contentWindow) return;
                 var view = (document.getElementById('btn-view-expanded-modal') && document.getElementById('btn-view-expanded-modal').classList.contains('bar-view-active')) ? 'expanded' : 'lite';
@@ -12949,6 +13046,7 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                 iframe.contentWindow.postMessage({ type: 'captureSheet', view: view }, '*');
             });
             bindBarButton('btn-share-sheet-modal', function() {
+                if (useStoredResultsPdf('share')) return;
                 var iframe = getResultIframe();
                 if (!iframe || !iframe.contentWindow) return;
                 if (navigator.share) {
@@ -12962,6 +13060,7 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                 }
             });
             bindBarButton('btn-print-sheet-modal', function() {
+                if (useStoredResultsPdf('print')) return;
                 var iframe = getResultIframe();
                 if (iframe && iframe.contentWindow && iframe.contentWindow.print) iframe.contentWindow.print();
             });
