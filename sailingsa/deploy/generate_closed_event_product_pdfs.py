@@ -2,8 +2,10 @@
 """Write stored product PDFs for closed events (parent + children).
 
 Live / fluid events are skipped (generate-now on request).
-Always regenerates so parent and child event URLs match the sample sheet
-(header + every fleet on the parent; that fleet only on the child).
+Child PDF files are written at the public child event URL
+(`{parent}-{fleet-tail}/results.pdf` via `_fleet_shell_public_url_slug`).
+If live api.py still uses raw block_id tails, run
+`python3 sailingsa/deploy/patch_rebuild_pdf_child_slug.py` on the server.
 
   cd /var/www/sailingsa
   PYTHONPATH=/var/www/sailingsa/api:/var/www/sailingsa \
