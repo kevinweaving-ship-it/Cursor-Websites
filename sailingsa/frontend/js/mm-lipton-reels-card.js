@@ -1228,6 +1228,19 @@
       .join('|');
   }
 
+  function mmFbLive(v) {
+    return !!(v && v.is_live && !isWebcam(v));
+  }
+
+  function firstMmFbLive(videos) {
+    var list = sortVideos(videos || []);
+    var i;
+    for (i = 0; i < list.length; i++) {
+      if (mmFbLive(list[i])) return list[i];
+    }
+    return null;
+  }
+
   function startFeedPoll(root, payload, state) {
     if (root.getAttribute('data-mm-poll') !== '1') return;
     var rid = root.getAttribute('data-regatta-id') || '';
@@ -1235,13 +1248,23 @@
     var url = '/api/regatta/' + encodeURIComponent(rid) + '/mm-live-fb-feed';
     function apply(data) {
       var videos = (data && data.videos) || [];
+      var prevLive = firstMmFbLive(payload.videos);
       if (videoKey(videos) === videoKey(payload.videos)) return;
       payload.videos = videos;
       syncBrand(root, videos);
+      var live = firstMmFbLive(videos);
+      if (live && (!prevLive || String(prevLive.id) !== String(live.id))) {
+        openClip(root, payload, state, live.id);
+        return;
+      }
+      if (prevLive && !live && state.expanded) {
+        collapse(root, payload, state);
+        return;
+      }
       if (!state.expanded) paint(root, payload, state);
     }
     function tick() {
-      fetch(url, { credentials: 'same-origin' })
+      fetch(url, { credentials: 'same-origin', cache: 'no-store' })
         .then(function (r) {
           return r.ok ? r.json() : null;
         })
@@ -1252,11 +1275,11 @@
     }
     var pollMs = 60000;
     try {
-      if (isCapeClassic()) pollMs = 8000;
+      if (isCapeClassic()) pollMs = 2000;
       else if ((payload.videos || []).length) pollMs = 300000;
     } catch (e1) {}
     window.setInterval(tick, pollMs);
-    if (isCapeClassic()) tick();
+    tick();
   }
 
   function layoutCompactStrip(root, videos) {
@@ -1629,6 +1652,8 @@
     syncBrand(root, payload.videos || []);
     startFeedPoll(root, payload, state);
     state.chromeSnap = snapshotChromeSize(root);
+    var bootLive = firstMmFbLive(payload.videos || []);
+    if (bootLive) openClip(root, payload, state, bootLive.id);
 
     root.addEventListener('click', function (ev) {
       var prev = ev.target.closest && ev.target.closest('[data-mm-rail-prev]');
