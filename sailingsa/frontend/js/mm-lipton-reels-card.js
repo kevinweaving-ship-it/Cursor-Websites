@@ -39,11 +39,14 @@
 
   function sortVideos(videos) {
     var list = (videos || []).slice();
+    function recency(v) {
+      return String((v && (v.ended_at || v.started_at)) || '');
+    }
     function byRecent(a, b) {
       var al = mmFbLive(a) ? 1 : 0;
       var bl = mmFbLive(b) ? 1 : 0;
       if (bl !== al) return bl - al;
-      return String((b && b.started_at) || '').localeCompare(String((a && a.started_at) || ''));
+      return recency(b).localeCompare(recency(a));
     }
     if (!isCapeClassic()) {
       list.sort(byRecent);
@@ -1487,11 +1490,13 @@
       syncBrand(root, videos);
       var live = firstMmFbLive(videos);
       if (live && (!prevLive || String(prevLive.id) !== String(live.id))) {
+        paintLiveSlot(root, videos);
         openClip(root, payload, state, live.id);
         return;
       }
-      if (prevLive && !live && state.expanded) {
-        collapse(root, payload, state);
+      if (prevLive && !live) {
+        if (state.expanded) collapse(root, payload, state);
+        else paint(root, payload, state);
         return;
       }
       if (!state.expanded) paint(root, payload, state);
