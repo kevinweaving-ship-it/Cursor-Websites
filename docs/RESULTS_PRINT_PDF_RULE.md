@@ -1,101 +1,55 @@
-# Results print / PDF — full product rule
+# Results print / PDF — product rule
 
-Every item below is required. Do not collapse live and closed into one file policy. Do not treat an old SAS PDF as our output.
+Four points. Do not mix source PDFs into this.
 
----
+## 1. Source PDF is irrelevant here
 
-## 1. Old SAS PDF (archive / scrape)
+Old SAS / scrape / official file is only parse, audit, checksum.
 
-Has **nothing to do with our event results output**.
-
-It is only:
-
-- the **source document** we **parse**
-- then **audit / checksum** against what we stored
-
-It is not the URL sheet. It is not Print. It is not Save. It is not Share. It is not the parent/child PDF we give users.
+It is **not** used to generate, print, save, download, or share **our** event PDF.
 
 ---
 
-## 2. Official **event PDF** during a live event (e.g. after results day 1)
+## 2. Passed / closed events — generate, store, fetch
 
-Different from (1). During the event we **use that event’s official results PDF** and **correct our data** so **our URL matches official results**, except:
+Event is **closed** (passed, finalised, Final or Provisional we closed).
 
-- sailor **spelling** — we fix via SAS / validation (canonical names)
-- **bad class names** — we fix to real classes
+- Generate **our** PDFs using the print rules (orientation, fleet header + that fleet’s results on the **same page**, parent + all children).
+- **Store** those files.
+- Print / save / download / share on any **past** event **fetches** that stored PDF.
 
-Add/remove sailors, class changes, and **language / name** changes can happen in **build-up** and **while live**. The URL is allowed to change **race by race by design**.
+Data is frozen, so the file can be reused. Do not rebuild from a source PDF. Do not mass-rewrite other closed events unasked.
 
-After those corrections, **users do not print the official event PDF**. They print **our URL** (see 5).
-
----
-
-## 3. What our PDF contains (the results sheet)
-
-Generated from **what is on the URL at that second**:
-
-- **Event header**
-- **Each fleet / class header**
-- **That fleet’s results**
-
-Not weather. Not MM card. Not staff list. Not other live URL chrome.
-
-Cape Classic live URL has those extras **on purpose**. They are **URL features**. Print / save / share **ignore them** — left out of the PDF.
+If we later amend a closed event’s results, regenerate and replace **that** event’s stored PDFs, then fetch again.
 
 ---
 
-## 4. Page rules (parent and every child, portrait and landscape)
+## 3. Live events (e.g. Cape Classic) — no stored product PDF
 
-**Width:** if the sheet is **too wide** (many races) → **landscape**, not portrait. If it **fits** → portrait is fine.
+Live is **dynamic / fluid**. Sailors, classes, fleets, scores change (add/remove, amendments, race by race).
 
-**Same-page rule (both orientations):** **class/fleet header and that class/fleet’s results stay on the same page.** Must **not** render the header on one page and the table on the next. Cannot split one fleet across two pages.
+PDF **changes when the data changes**. There is no trusted stored file.
 
-**Parent** = full event (all fleets); each fleet still obeys the same-page rule.  
-**Child** = one class/fleet URL; same rules.
+Print / save / download / share **generates now** from what is on the **URL** at that second (event header + fleet headers + fleet results only).
 
----
+URL-only live chrome is **out** of the PDF: weather, MM card, staff list, etc.
 
-## 5. User action: Print on the URL
-
-At **any** point (live or closed), if the user wants what is on the URL **right now**:
-
-**Push Print → create a PDF** that obeys section 4, from **event header + fleets + results at that second**.
-
-Then they **choose**:
-
-1. **Save PDF** — **clickable areas like the URL** (same destinations: sailor, club, class, etc.)
-2. **Print hard copy**
-3. **Share** (whatever share path)
-
-Same generated PDF. Not a PNG screenshot. Not `window.print()` of the whole live page including widgets.
+User then: save (clickable like the URL), hard copy, or share.
 
 ---
 
-## 6. Live events — different **file** rule
+## 4. When the event closes → it becomes (2)
 
-Live is **dynamic**. Do **not** keep a pre-created PDF as the product.
-
-If results, sailors, or fleets are **updated**, that PDF is **wrong** and **must be redone**. Generation is **on Print**, from **what is currently on the URL**.
+Once **passed / finalised / closed**, it **leaves (3) and falls into (2)**: generate under the print rules, **store**, thereafter **fetch** on print / save / download / share.
 
 ---
 
-## 7. Closed events (passed; **Final or Provisional**; we closed)
+## Print rules (used in 2 and 3)
 
-May **pre-create** PDFs for:
+- Too many races (too wide) → **landscape**; if it fits → **portrait**.
+- **Class/fleet header and that class/fleet’s results stay on one page** — never split across two pages.
+- Parent = full event; children = each class/fleet. Same rules.
 
-- **parent** (full event), and
-- **all children** (every class/fleet sheet)
+## Today (gap)
 
-Those are **our** sheets (from our URL/results), still under section 4. **Not** copies of the old SAS PDF.
-
-If we later change stored results, those files are stale and must be remade. Do not batch-rewrite other closed events unasked.
-
----
-
-## 8. What the code does today (gap — not the rule)
-
-- Print = browser print of HTML (widgets can appear; no landscape/same-page guarantee).
-- Save on the iframe bar = **PNG**, not a clickable PDF.
-- `local_file_path` = old SAS/club file (section 1 only).
-
-The generator in 5–7 is **not built yet**.
+Print is browser HTML; Save on the sheet bar is a PNG. Stored `local_file_path` is the **source** file (1), not (2). Live generate (3) and close→store (4) are **not built**.
