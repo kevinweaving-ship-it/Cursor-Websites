@@ -7993,6 +7993,40 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                             sailorSearchResults.style.display = 'block';
                         }
                     };
+                function sailorSearchRowSid(row) {
+                    if (!row) return '';
+                    return row.sa_sailing_id != null ? String(row.sa_sailing_id) : String(row.sas_id || row.sa_id || '');
+                }
+                function sailorSearchRowName(row) {
+                    if (!row) return '';
+                    return [row.first_names || row.first_name, row.surname || row.last_name].filter(Boolean).join(' ') || String(row.full_name || '').trim();
+                }
+                function sailorSearchRowMatches(row, q) {
+                    var tokens = String(q || '').toLowerCase().replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
+                    if (!tokens.length) return true;
+                    var fn = String(row.first_names || row.first_name || '').toLowerCase();
+                    var ln = String(row.surname || row.last_name || '').toLowerCase();
+                    var full = (fn + ' ' + ln).replace(/\s+/g, ' ').trim();
+                    var club = String(row.club || row.primary_club || row.club_1 || '').toLowerCase();
+                    return tokens.every(function(tok) {
+                        return full.indexOf(tok) !== -1 || fn.indexOf(tok) === 0 || ln.indexOf(tok) === 0 || club.indexOf(tok) !== -1;
+                    });
+                }
+                function instantFilterSailorResults(q) {
+                    if (!sailorSearchResults) return;
+                    var src = window.__ssaSailorLastList;
+                    if (!Array.isArray(src) || !src.length) return;
+                    sailorSearchResults.querySelectorAll('.ssa-dev1-inject').forEach(function(el) {
+                        var sid = String(el.getAttribute('data-sas-id') || '');
+                        var row = null;
+                        for (var i = 0; i < src.length; i++) {
+                            if (sailorSearchRowSid(src[i]) === sid) { row = src[i]; break; }
+                        }
+                        var ok = row ? sailorSearchRowMatches(row, q) : false;
+                        el.style.display = ok ? '' : 'none';
+                    });
+                    sailorSearchResults.style.display = 'block';
+                }
                 function runSailorSearch() {
                     try {
                         var _clsPathRs = (window.location.pathname || '').replace(/\/+$/, '') || '/';
@@ -8056,7 +8090,9 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                     window.__sailorSearchGen = (window.__sailorSearchGen || 0) + 1;
                     var _searchGen = window.__sailorSearchGen;
                     sailorSearchResults.style.display = 'block';
-                    sailorSearchResults.innerHTML = '<div class="profile-card" style="cursor:default;">Searching…</div>';
+                    if (!sailorSearchResults.querySelector('.ssa-dev1-inject')) {
+                        sailorSearchResults.innerHTML = '<div class="profile-card" style="cursor:default;">Searching…</div>';
+                    }
                     // Full fuzzy list via q= (includes nicknames). Do NOT early-stop on first_names/surname —
                     // that missed Rick→Richard Nankin for "Rick n".
                     const parts = q.split(/\s+/).filter(Boolean);
@@ -8223,16 +8259,23 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                         var gen = window.__sailorSearchGen || 0;
                         var slots = [];
                         list.forEach(function(row) {
-                            var sid = row.sa_sailing_id != null ? String(row.sa_sailing_id) : String(row.sas_id || row.sa_id || '');
+                            var sid = sailorSearchRowSid(row);
                             var wrap = document.createElement('div');
                             wrap.className = 'ssa-dev1-inject';
                             wrap.setAttribute('role', 'listitem');
                             wrap.dataset.sasId = sid;
-                            wrap.innerHTML = '<div class="profile-card" style="cursor:default;">Loading…</div>';
+                            wrap.style.display = '';
+                            var pendingName = sailorSearchRowName(row) || 'Sailor';
+                            function escPend(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+                            wrap.innerHTML = '<div class="profile-card" style="cursor:pointer;"><div class="profile-card-body"><span class="profile-card-value">' + escPend(pendingName) + '</span></div></div>';
                             sailorSearchResults.appendChild(wrap);
                             slots.push({ wrap: wrap, sid: sid, row: row });
                         });
 
+                        window.__ssaDev1CardCache = window.__ssaDev1CardCache || {};
+                        slots.forEach(function(item) {
+                            if (item.sid && window.__ssaDev1CardCache[item.sid]) fetchOne(item);
+                        });
                         function fetchOne(item) {
                             if (!item || item.wrap.getAttribute('data-card-loaded') === '1') return Promise.resolve();
                             item.wrap.setAttribute('data-card-loaded', '1');
@@ -8255,7 +8298,9 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                                 })
                                 .catch(function() {
                                     if (gen !== (window.__sailorSearchGen || 0)) return;
-                                    item.wrap.innerHTML = '<div class="profile-card" style="cursor:default;">Could not load card.</div>';
+                                    var keepName = sailorSearchRowName(item.row) || 'Sailor';
+                                    function escE(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+                                    item.wrap.innerHTML = '<div class="profile-card" style="cursor:pointer;"><div class="profile-card-body"><span class="profile-card-value">' + escE(keepName) + '</span></div></div>';
                                 });
                         }
                         function loadRange(start, end, conc) {
@@ -8290,7 +8335,7 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                                     }
                                     if (item) fetchOne(item);
                                 });
-                            }, { root: null, rootMargin: '600px 0px', threshold: 0.01 });
+                            }, { root: null, rootMargin: '80px 0px', threshold: 0.01 });
                             window.__ssaSailorCardIO = io;
                             for (var s = topN; s < slots.length; s++) io.observe(slots[s].wrap);
                         } else if (slots.length > topN) {
@@ -8301,7 +8346,10 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
 
                     var url = API + '/api/search?q=' + encodeURIComponent(q) + limitParam;
                     fetchSearch(url)
-                        .then(function(list) { return renderSailorList(list); })
+                        .then(function(list) {
+                            window.__ssaSailorLastList = Array.isArray(list) ? list : [];
+                            return renderSailorList(list);
+                        })
                         .catch(function(err) {
                             if (err && err.name === 'AbortError') return;
                             if (_searchGen !== (window.__sailorSearchGen || 0)) return;
@@ -8326,7 +8374,9 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                         if (q === '') {
                             runSailorSearch();
                         } else {
-                            sailorSearchDebounce = setTimeout(runSailorSearch, 280);
+                            if (q.length >= 2) instantFilterSailorResults(q);
+                            var _tokN = q.split(/\s+/).filter(Boolean).length;
+                            sailorSearchDebounce = setTimeout(runSailorSearch, _tokN >= 2 ? 0 : 180);
                         }
                     } else {
                         // Regatta mode: never show sailor profile. Empty = show regatta list/hint; typed = filter regattas.
