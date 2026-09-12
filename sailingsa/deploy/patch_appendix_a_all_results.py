@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Surgical live api.py: Appendix A order for ALL result sheets. Never result_id."""
+"""OBSOLETE for live display. Do not run — it re-sorted every event sheet.
+
+Appendix A is for NEW rank assignment only. See patch_revert_global_a8_display.py
+and appendix_a.py.
+"""
 from __future__ import annotations
 
 import shutil

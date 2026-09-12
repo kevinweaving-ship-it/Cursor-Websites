@@ -97,7 +97,7 @@ CREATE TABLE results (
 1. `result_id`: Auto-increment, NEVER set manually
 2. `regatta_id`: Single year format, lowercase, no quotes, FK to `regattas`
 3. `block_id`: Colon separator, single year, no quotes, FK to `regatta_blocks`
-4. `rank`: Integer (1, 2, 3, etc.)
+4. `rank`: Integer (1, 2, 3, etc.). **New results:** Appendix A (low nett; tie → last race, not `result_id`). Do not mass-rewrite other events.
 5. `rank_ordinal`: **CRITICAL** - Must be spelled correctly: `"1st"`, `"2nd"`, `"3rd"`, `"4th"`, `"5th"`, etc.
    - **NEVER use**: `"2st"`, `"3st"`, `"4st"` (these are WRONG)
    - **Correct ordinals**: 
@@ -167,7 +167,7 @@ INSERT INTO results (regatta_id, block_id, rank, class_original, sail_number, cl
 1. `result_id`: Auto-increment, NEVER set manually
 2. `regatta_id`: Single year format, lowercase, no quotes, FK to `regattas`
 3. `block_id`: Colon separator, single year, no quotes, FK to `regatta_blocks`
-4. `rank`: Integer (1, 2, 3, etc.)
+4. `rank`: Integer (1, 2, 3, etc.). **New results:** Appendix A (low nett; tie → last race, not `result_id`). Do not mass-rewrite other events.
 5. `rank_ordinal`: **CRITICAL** - Must be spelled correctly: `"1st"`, `"2nd"`, `"3rd"`, `"4th"`, `"5th"`, etc.
    - **NEVER use**: `"2st"`, `"3st"`, `"4st"` (these are WRONG)
    - **Correct ordinals**: 

@@ -21,7 +21,7 @@ import traceback
 import hashlib
 import html as html_module
 import json
-from appendix_a import appendix_a_result_sort_key, sort_result_rows_appendix_a
+from appendix_a import sort_result_rows_appendix_a
 import difflib
 from urllib.parse import urlparse, unquote
 import unicodedata
@@ -14339,28 +14339,22 @@ def patch_race_score(request: Request, result_id: int, body: dict):
                     WHERE result_id = %s
                 """, (json.dumps(res_race_scores), res_total, res_nett, res['result_id']))
             
-            # Re-rank entire fleet by nett scores (lower nett = better rank)
-            # Each sailor must have unique rank (no ties) - break ties by result_id
-            # NULL/0 nett scores rank last (treated as 999999)
-            cur.execute("""
-                WITH ranked AS (
-                    SELECT result_id,
-                           ROW_NUMBER() OVER (
-                               ORDER BY 
-                                   COALESCE(
-                                       NULLIF(nett_points_raw, 0), 
-                                       999999
-                                   ) ASC, 
-                                   result_id ASC
-                           ) as new_rank
-                    FROM results
-                    WHERE block_id = %s
+            # Re-rank this fleet only (score save). Appendix A: low nett, then A8.1, then last race.
+            # Never result_id. Does not rewrite other events.
+            cur.execute(
+                """
+                SELECT result_id, nett_points_raw, race_scores
+                FROM results
+                WHERE block_id = %s
+                """,
+                (block_id,),
+            )
+            fleet_for_rank = cur.fetchall() or []
+            for i, row in enumerate(sort_result_rows_appendix_a(fleet_for_rank), 1):
+                cur.execute(
+                    "UPDATE results SET rank = %s WHERE result_id = %s AND block_id = %s",
+                    (i, row["result_id"], block_id),
                 )
-                UPDATE results r
-                SET rank = ranked.new_rank
-                FROM ranked
-                WHERE r.result_id = ranked.result_id
-            """, (block_id,))
             
             _ensure_snapshot_integrity(conn, regatta_id)
             conn.commit()
@@ -16750,8 +16744,6 @@ def api_regatta(regatta_id: str, request: Request = None):
             )
             return []
 
-        rows = sort_result_rows_appendix_a(rows)
-
         # SPECIAL CASE: For Regatta 374, sort by master standings for all classes that have standings
         first_row = rows[0]
         regatta_number = first_row.get('regatta_number')
@@ -16994,7 +16986,7 @@ def _filter_regatta_rows_by_class(rows: list, class_id: str):
             continue
         if class_id_lower in class_canonical.lower() or class_canonical.lower() in class_id_lower:
             out.append(r)
-    out.sort(key=appendix_a_result_sort_key)
+    out.sort(key=lambda x: (int(x.get("rank")) if x.get("rank") is not None and str(x.get("rank")).isdigit() else 9999, x.get("result_id") or 0))
     return out
 
 
@@ -23231,7 +23223,6 @@ def _get_regatta_full_page_data(regatta_id: str):
                 ORDER BY rb.block_id, COALESCE(res.rank, 99999), res.result_id
             """, (regatta_id,))
             raw = cur.fetchall() or []
-            raw = sort_result_rows_appendix_a(raw)
             print(f"REGATTA_DATA: step=after_main_join time={time.time() - t0:.3f}", flush=True)
             dup_names = set()
             cur.execute("""
@@ -24386,7 +24377,7 @@ def _render_result_sheet_fleet(
         )
     else:
         fleet_header_html = fleet_header_title
-    rows = sort_result_rows_appendix_a(fleet.get("rows") or [])
+    rows = fleet.get("rows") or []
 
     def _max_race_idx_from_result_rows(result_rows):
         """If block.races_sailed is 0 but JSON has R1..Rn, infer n so public sheet shows race columns."""
@@ -26147,7 +26138,6 @@ def _get_regatta_class_page_data(regatta_id: str, class_id: int):
                 ORDER BY rb.block_id, COALESCE(res.rank, 99999), res.result_id
             """, (regatta_id, class_id))
             raw = cur.fetchall() or []
-            raw = sort_result_rows_appendix_a(raw)
             if not raw:
                 return None
             dup_names = set()

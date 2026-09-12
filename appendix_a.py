@@ -1,10 +1,14 @@
-"""World Sailing RRS Appendix A — series order for every result sheet.
+"""World Sailing RRS Appendix A — series order when **assigning rank** on new/updated results.
 
 Low score wins. A tie is not broken by result_id, row id, or DOM order.
 
 A8.1: list counted race scores best → worst; first difference wins.
 A8.2: if still tied, last race in sail order (then the race before that, …).
       A8.2 uses those race scores even if a discard is shown in parens.
+
+Do **not** use this to re-order already-published result pages / other events.
+Existing sheets keep stored rank. New events and score-saves that compute rank
+must use this key instead of result_id.
 """
 from __future__ import annotations
 

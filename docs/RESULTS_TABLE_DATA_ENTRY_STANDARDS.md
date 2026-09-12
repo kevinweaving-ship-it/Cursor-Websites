@@ -150,11 +150,13 @@ INSERT INTO public.results (result_id, regatta_id, ...) VALUES (123, ...);
 
 **Rules**:
 - ✅ Positive integer (1, 2, 3, ...)
-- ✅ Sequential within fleet/block (no gaps unless ISP-coded entries not ranked)
-- ✅ Duplicates allowed if same `nett_points_raw` (legitimate ties)
+- ✅ Sequential within fleet/block after Appendix A
+- ✅ **NEW results — series ties:** same nett is **not** broken by `result_id`. Use RRS Appendix A: A8.1 best→worst counted scores, then A8.2 **last race** (lowest score wins). Helper: `appendix_a.py`.
+- ⚠️ Do not batch-rewrite ranks on already-published events to apply this.
 - ⚠️ NULL allowed for DNS/DNC/DSQ entries that don't have final rank
 - ❌ Never zero or negative
 - ❌ Never decimals (INTEGER type enforces this)
+- ❌ Never use `result_id` / insert order as a tie-break
 
 **HTML Usage**: Displayed directly, formatted with ordinal (1st, 2nd, 3rd) - no transformation needed
 
@@ -940,11 +942,13 @@ INSERT INTO public.results (result_id, regatta_id, ...) VALUES (123, ...);
 
 **Rules**:
 - ✅ Positive integer (1, 2, 3, ...)
-- ✅ Sequential within fleet/block (no gaps unless ISP-coded entries not ranked)
-- ✅ Duplicates allowed if same `nett_points_raw` (legitimate ties)
+- ✅ Sequential within fleet/block after Appendix A
+- ✅ **NEW results — series ties:** same nett is **not** broken by `result_id`. Use RRS Appendix A: A8.1 best→worst counted scores, then A8.2 **last race** (lowest score wins). Helper: `appendix_a.py`.
+- ⚠️ Do not batch-rewrite ranks on already-published events to apply this.
 - ⚠️ NULL allowed for DNS/DNC/DSQ entries that don't have final rank
 - ❌ Never zero or negative
 - ❌ Never decimals (INTEGER type enforces this)
+- ❌ Never use `result_id` / insert order as a tie-break
 
 **HTML Usage**: Displayed directly, formatted with ordinal (1st, 2nd, 3rd) - no transformation needed
 

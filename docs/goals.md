@@ -63,7 +63,18 @@ This document captures the core goals, entity model, data contracts, and the del
 - **name_aliases**: aliasing for matching.
 - **country_flags**: cached assets for UI.
 
-## Scoring & Series Rules (Appendix A style)
+## Scoring & Series Rules (Appendix A — ALL new results)
+
+Low score wins. **`result_id` is not a racing rule** (it is only a database row number).
+
+On a **series-score tie** (same nett):
+
+1. **A8.1** — list each boat’s counted race scores best → worst; first difference wins (discards out).
+2. **A8.2** — if still tied, better (lower) score in the **last race** wins; then the race before that, and so on.
+
+Do **not** re-sort or rewrite published results on other events to “fix” this. New events / new rank assignment must use this rule (`appendix_a.py`). Existing sheets stay as stored unless that event is being scored.
+
+Helper: `appendix_a.sort_result_rows_appendix_a` / `appendix_a_result_sort_key`.
 
 - **Per-race points**: exact decimals from source; penalties recorded as given; do not infer.
 - **Totals**: `total_points = SUM(points)`; **Nett** = `total_points - sum(discarded)`.
