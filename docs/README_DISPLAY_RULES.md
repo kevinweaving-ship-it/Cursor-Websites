@@ -3,6 +3,10 @@
 ## Purpose
 Documents the visual formatting rules for displaying regatta results in the HTML viewer, including rank ordinals, name display, and score formatting with colors and brackets.
 
+## Event URL is truth (HARD)
+
+**`docs/EVENT_URL_IS_TRUTH.md`**. What the **event URL** shows **after JS** is truth while live. Child sheets, landing search, and print/save must match it. Do not re-rank with `result_id` / DOM order. Ties = Appendix A last race. **Curl / first paint is not proof** if `club-score-edit.js` or live autoscore still rewrites. Print/PDF: **`docs/RESULTS_PRINT_PDF_RULE.md`**.
+
 ## Rank Ordinal Display Rules (CRITICAL)
 
 ### Correct Ordinal Formatting

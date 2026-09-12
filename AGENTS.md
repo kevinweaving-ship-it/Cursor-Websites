@@ -49,6 +49,16 @@ Use these names to scope work and split agents:
 - **Always reuse existing components** (`.container`, `.card`, `.table`, `buildMasterPageLayout`). Do not invent new CSS frameworks; follow **`docs/design_system.md`** and `sailingsa/frontend/css/main.css`.
 - **Modify only components or page sections, not global layout.** See `.cursorrules` and `.cursor/rules/design-system-and-components.mdc`.
 
+## Event URL is truth (live) — DO NOT FUCK THIS UP AGAIN
+
+**`docs/EVENT_URL_IS_TRUTH.md`**. Print/PDF: **`docs/RESULTS_PRINT_PDF_RULE.md`**. Appendix A helper: **`appendix_a.py`**.
+
+- While **live**, the **event (parent) URL** is truth. Child class/fleet URLs, landing search, entry counts, sailors, tables, reports, and print/save/share **must stay in sync** with it. Live is fluid: race scores, fleets, sailors, sail numbers can change any time.
+- Do **not** invent a second ranking with `result_id`, DOM order, or “ties keep original sheet order”. Same nett → Appendix A last race (A8), not row id. Do **not** mass-rewrite other events’ stored ranks.
+- **Live PDF:** no stored product file; generate from the URL **now** (event header + fleets only). Weather / MM / staff stay on the URL, out of print. **Closed:** generate our PDFs, store, fetch. When the event **closes**, it falls into closed. A **correction months later** is still truth — sync auto.
+- Old SAS PDF = parse/audit/checksum only. Not our event PDF.
+- Do **not** special-case one live event with different ranking/sync rules. Do **not** declare the sheet “fixed” from raw HTML / curl if JS (`club-score-edit.js` `rerankFleet`, live autoscore `sortRowsBySheetNett`) still rewrites ranks. The user’s URL is what they see **after JS**.
+
 ## Logical areas in this repo (for scoping)
 
 - **Frontend**: `sailingsa/frontend/` (e.g. `index.html`, assets, css)

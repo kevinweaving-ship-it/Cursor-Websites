@@ -1,0 +1,14 @@
+---
+description: Event URL is truth while live; do not fork ranks or PDFs
+alwaysApply: true
+---
+
+# Event URL is truth
+
+Full rule: `docs/EVENT_URL_IS_TRUTH.md`. Print/PDF: `docs/RESULTS_PRINT_PDF_RULE.md`.
+
+- While **live**, the **event (parent) URL** is truth. Child URLs, landing search, tables, reports, print/save/share **must auto-sync** from it. Live is fluid (scores, fleets, sailors, sail numbers).
+- Do **not** re-rank with `result_id` / DOM / original sheet order. Ties = Appendix A last race. Do not mass-rewrite other events.
+- **Live PDF:** generate from URL now (header + fleets; no weather/MM/staff). **Closed:** store and fetch. Close → closed. Later correction → still truth, sync auto.
+- Old SAS PDF = parse/checksum only. Not our event PDF.
+- Do **not** special-case one live event with different sync/ranking rules. Do **not** call a sheet fixed from raw HTML / curl if `club-score-edit.js` or live autoscore still rewrites ranks. The user’s URL is what they see **after JS**.

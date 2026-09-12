@@ -52,6 +52,10 @@ Once **passed / finalised / closed**, it **leaves (3) and falls into (2)**: gene
 - **Class/fleet header and that class/fleet’s results stay on one page** — never split across two pages.
 - Parent = full event; children = each class/fleet. Same rules.
 
+## During live, official PDF vs our URL
+
+Official event PDF is used only to **correct the URL to official scores** (except SAS spelling and bad class names). Users then print **our URL**, not that official file.
+
 ## Today (gap)
 
-Print is browser HTML; Save on the sheet bar is a PNG. Stored `local_file_path` is the **source** file (1), not (2). Live generate (3) and close→store (4) are **not built**.
+Print is browser HTML (`window.print()`); Save on the sheet bar is `html2canvas` **PNG**, not a clickable PDF. Stored `local_file_path` is the **source** file (1), not (2). Live generate (3) and close→store (4) are **not built**. Do not treat a stored source PDF as the product.

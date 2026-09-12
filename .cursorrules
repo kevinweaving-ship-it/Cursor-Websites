@@ -7,4 +7,6 @@
 - **Modify only components or page sections, not global layout.** Do not add extra wrappers, change order of Back/Title/Stats/Data cards, or remove `.table-container` from the master template.
 - **Allowed classes:** container, card, table, tabs, section. **Forbidden:** raw ol/ul for results, inline CSS, custom page-level fonts or colours.
 
+- **Event URL is truth (live).** See **`docs/EVENT_URL_IS_TRUTH.md`**. Children, landing search, tables, reports, PDFs sync from the event URL until closed (and again on later corrections). No `result_id` tie-break. **Never declare a live sheet fixed from raw HTML** if JS still rewrites ranks. Live print = generate now from URL (no weather/MM/staff). Closed = store and fetch. **`docs/RESULTS_PRINT_PDF_RULE.md`**.
+
 See: `docs/UI_COMPONENTS_README.md`, `docs/design_system.md`, `.cursor/rules/theme-layout-mandatory.mdc`.

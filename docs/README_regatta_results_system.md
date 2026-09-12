@@ -3,6 +3,10 @@
 ## Overview
 The Regatta Results Management System is a web-based application that displays sailing regatta results dynamically from a PostgreSQL database. It supports multiple fleets, classes, and implements a sophisticated discard system for fair competition scoring.
 
+## Event URL is truth (HARD — do not fork live data)
+
+**`docs/EVENT_URL_IS_TRUTH.md`**. While live, the **event (parent) URL** is truth. Child class URLs, landing search, tables, reports, print/save/share must sync from it (fleets, entries, sailors, scores can all change). `result_id` is not a tie-break. **Never declare a live sheet fixed from raw HTML** if JS still rewrites ranks. Live = generate PDF from URL now; closed = store and fetch; later corrections still sync. Print rules: **`docs/RESULTS_PRINT_PDF_RULE.md`**.
+
 ## Database Structure: `app.regatta_359_results`
 
 ### Key Data Types

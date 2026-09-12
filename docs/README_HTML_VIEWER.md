@@ -3,6 +3,8 @@
 ## Overview
 The HTML viewer (`Regatta results managementV19.html`) displays sailing regatta results in a Sailwave-style format with inline editing capabilities.
 
+**Event URL is truth** while live: **`docs/EVENT_URL_IS_TRUTH.md`**. Print/PDF: **`docs/RESULTS_PRINT_PDF_RULE.md`**. Do not rank by `result_id`. Do not declare the sheet fixed from raw HTML if JS (`club-score-edit.js`, live autoscore) still rewrites ranks after paint.
+
 ## File Structure
 - **Main File**: `Regatta results managementV19.html`
 - **API Backend**: `api.py` (FastAPI server on port 8082)

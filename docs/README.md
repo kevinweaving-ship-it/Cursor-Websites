@@ -6,6 +6,12 @@
 
 **VIOLATION OF DATA INTEGRITY RULES WILL CAUSE SYSTEM FAILURE AND DATA CORRUPTION.**
 
+## Event URL is truth (HARD — do not fuck this up again)
+
+**MUST READ:** `EVENT_URL_IS_TRUTH.md` and `RESULTS_PRINT_PDF_RULE.md`.
+
+The **event (parent) URL** is truth while live. Child URLs, landing search, tables, reports, and PDFs must **auto-sync** from it. `result_id` is not a racing rule — ties are Appendix A last race. **Never declare a live sheet fixed from raw HTML** if JS still rewrites ranks. Live PDFs generate from the URL now; closed events store and fetch; a later correction still syncs. Old SAS PDFs are source/checksum only.
+
 ## Creating New Regatta Results Tables
 
 ### Process for New Regattas (e.g., Reg no 258)

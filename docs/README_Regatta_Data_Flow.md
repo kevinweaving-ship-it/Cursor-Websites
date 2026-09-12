@@ -3,6 +3,8 @@
 ## Overview
 This document describes the complete data flow from regatta search through the 14 header fields to the results section in the Regatta Results Management system.
 
+**Event URL is truth** while live (`docs/EVENT_URL_IS_TRUTH.md`). Landing search and child URLs must follow the event, not a stale copy. Do not declare a live sheet fixed from raw HTML if JS still rewrites ranks. Print/PDF: `docs/RESULTS_PRINT_PDF_RULE.md`.
+
 ## Search Process
 
 ### 1. Regatta Number Entry

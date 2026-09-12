@@ -7,6 +7,7 @@ This document captures the core goals, entity model, data contracts, and the del
 - **Accurate regatta storage**
   - Preserve race-by-race values including decimals (e.g., 3.4, 4.4) with exact points from source sheets.
 - **Single source of truth**
+  - **Event URL** while live: children, landing search, tables, reports, PDFs sync from it (`docs/EVENT_URL_IS_TRUTH.md`). Later corrections still sync.
   - Normalised People, Clubs, Classes, Boats, Sail Numbers.
 - **Normalised roles & qualifications**
   - Replace 27 booleans with `roles` + `person_roles` time-bound assignments.
@@ -73,6 +74,8 @@ On a **series-score tie** (same nett):
 2. **A8.2** — if still tied, better (lower) score in the **last race** wins; then the race before that, and so on.
 
 Do **not** re-sort or rewrite published results on other events to “fix” this. New events / new rank assignment must use this rule (`appendix_a.py`). Existing sheets stay as stored unless that event is being scored.
+
+**Live event URL is truth** (`docs/EVENT_URL_IS_TRUTH.md`): children, landing search, reports, PDFs sync from it until closed; later corrections still sync. **Never declare a live sheet fixed from raw HTML** if JS still rewrites ranks.
 
 Helper: `appendix_a.sort_result_rows_appendix_a` / `appendix_a_result_sort_key`.
 

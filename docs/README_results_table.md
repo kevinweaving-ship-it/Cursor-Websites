@@ -3,6 +3,8 @@
 ## Purpose
 Stores individual race results with proper scoring, discards, and sailor information.
 
+**Event URL is truth** while live: `docs/EVENT_URL_IS_TRUTH.md`. Do not rank ties with `result_id`. Do not declare a live sheet fixed from raw HTML if JS still rewrites ranks. Print/PDF: `docs/RESULTS_PRINT_PDF_RULE.md`.
+
 ## Table Structure
 ```sql
 CREATE TABLE results (

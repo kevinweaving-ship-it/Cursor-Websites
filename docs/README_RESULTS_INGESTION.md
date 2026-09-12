@@ -2,6 +2,8 @@
 
 Manual parsed-results ingestion (scripts that insert into `results`, e.g. `add_regatta_385_420_fleet.py`) uses **strict class resolution**. No fuzzy matching, no auto-creation of classes, no guessing.
 
+**Live event URL is truth:** `docs/EVENT_URL_IS_TRUTH.md`. Do not re-rank ingested ties with `result_id`. Do not mass-rewrite other events’ stored ranks.
+
 ---
 
 ## 🔐 Canonical URL & Date Authority Rules (LOCKED)
