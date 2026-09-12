@@ -15597,7 +15597,7 @@ def api_search(
         except Exception:
             pass
     
-    max_cap = 500 if int(hub or 0) == 1 else 200
+    max_cap = 24 if int(hub or 0) == 1 else 200
     limit = min(max(1, int(limit or 200)), max_cap)
     
     rows = []
@@ -15750,7 +15750,7 @@ def api_search(
                     sail_boat_join = ""
                     sail_boat_filter = ""
                     sail_boat_params = []
-                    if needs_sail_boat_search and q and len(q.strip()) >= 2:
+                    if needs_sail_boat_search and int(hub or 0) != 1 and q and len(q.strip()) >= 2:
                         # Only do sail/boat search for 2+ character queries to avoid slow scans
                         sail_boat_join = """
                             LEFT JOIN (
@@ -15859,8 +15859,7 @@ def api_search(
                         else:
                             temp_conditions.append("(LOWER(t.full_name) LIKE %s" + exists_tail)
                             temp_params.extend([q_lower, f"%{qt}%", q_lower])
-                elif q:
-                    # Name / sail / boat (not temp-ID listing). Single digit keeps legacy LIKE; multi-word uses AND on tokens.
+                elif q and int(hub or 0) != 1:
                     qt = q.strip()
                     exists_tail = """
                          OR EXISTS (

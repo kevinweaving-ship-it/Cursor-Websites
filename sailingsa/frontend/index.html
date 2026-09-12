@@ -8060,7 +8060,7 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                     // Full fuzzy list via q= (includes nicknames). Do NOT early-stop on first_names/surname —
                     // that missed Rick→Richard Nankin for "Rick n".
                     const parts = q.split(/\s+/).filter(Boolean);
-                    var limitParam = '&hub=1&limit=500';
+                    var limitParam = '&hub=1&limit=12';
 
                     function fetchSearch(u) {
                         return fetch(u, { signal: sailorSearchAbort.signal })
@@ -8254,7 +8254,8 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                             item.wrap.appendChild(card);
                         }
                         function _ssaUseDev1SailorCards() {
-                            return true;
+                            // Landing list: JSON cards only. /dev-1 embed scans all results per sailor (~2s, 80KB) and makes typing glitchy.
+                            return false;
                         }
                         function fetchOne(item) {
                             if (!item || item.wrap.getAttribute('data-card-loaded') === '1') return Promise.resolve();
@@ -8348,19 +8349,9 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                     if (hasRegattaField && searchMode !== 'sailor') setSearchModeSoft('sailor');
                     if (typeof setSearchInteractionActive === 'function') setSearchInteractionActive(q !== '');
                     if (q !== '') {
-                        window.__sailorSearchGen = (window.__sailorSearchGen || 0) + 1;
                         if (q.length >= 2 && regattaInput && (regattaInput.value || '').trim()) {
                             regattaInput.value = '';
                         }
-                        // Hard-hide logged-in profile immediately so the full search list owns the space.
-                        try {
-                            var _hp = (window.location.pathname || '').replace(/\/+$/, '') || '/';
-                            if (!(/^\/sailor\//i.test(_hp) || /[?&]sas[_-]?id=/i.test(window.location.search || ''))) {
-                                sailorSearchResults.style.display = 'block';
-                                if (q.length >= 2) sailorSearchResults.innerHTML = '<div class="profile-card" style="cursor:default;">Searching…</div>';
-                                else sailorSearchResults.innerHTML = '<div class="profile-card" style="cursor:default;">Type at least 2 characters to search.</div>';
-                            }
-                        } catch (_) {}
                     }
                     if (searchMode === 'sailor') {
                         clearTimeout(sailorSearchDebounce);
