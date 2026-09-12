@@ -223,34 +223,7 @@ SELECT json_build_object(
     WHERE g.regatta_id = '2026-09-13-zvyc-cape-classic' AND g.is_current
     LIMIT 1
   ), false),
-  'messages', CASE
-    WHEN COALESCE((
-      SELECT g.show_on_event
-      FROM public.event_whatsapp_groups g
-      WHERE g.regatta_id = '2026-09-13-zvyc-cape-classic' AND g.is_current
-      LIMIT 1
-    ), false)
-    THEN COALESCE((
-      SELECT json_agg(row_to_json(x))
-      FROM (
-        SELECT from_me, sender_name, kind,
-               left(coalesce(body, ''), 500) AS body,
-               left(coalesce(caption, ''), 200) AS caption,
-               duration_sec,
-               to_char(occurred_at AT TIME ZONE 'Africa/Johannesburg', 'YYYY-MM-DD"T"HH24:MI:SS') AS occurred_at
-        FROM (
-          SELECT from_me, sender_name, kind, body, caption, duration_sec, occurred_at
-          FROM public.event_whatsapp_messages
-          WHERE regatta_id = '2026-09-13-zvyc-cape-classic'
-            AND COALESCE(kind, '') NOT IN ('empty', 'group-list')
-          ORDER BY occurred_at DESC NULLS LAST
-          LIMIT 40
-        ) newest
-        ORDER BY occurred_at ASC NULLS LAST
-      ) x
-    ), '[]'::json)
-    ELSE '[]'::json
-  END
+  'messages', '[]'::json
 );
 """
 
