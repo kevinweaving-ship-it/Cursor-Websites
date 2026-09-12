@@ -21,6 +21,7 @@ import traceback
 import hashlib
 import html as html_module
 import json
+from appendix_a import sort_result_rows_appendix_a
 import difflib
 from urllib.parse import urlparse, unquote
 import unicodedata
@@ -14338,28 +14339,22 @@ def patch_race_score(request: Request, result_id: int, body: dict):
                     WHERE result_id = %s
                 """, (json.dumps(res_race_scores), res_total, res_nett, res['result_id']))
             
-            # Re-rank entire fleet by nett scores (lower nett = better rank)
-            # Each sailor must have unique rank (no ties) - break ties by result_id
-            # NULL/0 nett scores rank last (treated as 999999)
-            cur.execute("""
-                WITH ranked AS (
-                    SELECT result_id,
-                           ROW_NUMBER() OVER (
-                               ORDER BY 
-                                   COALESCE(
-                                       NULLIF(nett_points_raw, 0), 
-                                       999999
-                                   ) ASC, 
-                                   result_id ASC
-                           ) as new_rank
-                    FROM results
-                    WHERE block_id = %s
+            # Re-rank this fleet only (score save). Appendix A: low nett, then A8.1, then last race.
+            # Never result_id. Does not rewrite other events.
+            cur.execute(
+                """
+                SELECT result_id, nett_points_raw, race_scores
+                FROM results
+                WHERE block_id = %s
+                """,
+                (block_id,),
+            )
+            fleet_for_rank = cur.fetchall() or []
+            for i, row in enumerate(sort_result_rows_appendix_a(fleet_for_rank), 1):
+                cur.execute(
+                    "UPDATE results SET rank = %s WHERE result_id = %s AND block_id = %s",
+                    (i, row["result_id"], block_id),
                 )
-                UPDATE results r
-                SET rank = ranked.new_rank
-                FROM ranked
-                WHERE r.result_id = ranked.result_id
-            """, (block_id,))
             
             _ensure_snapshot_integrity(conn, regatta_id)
             conn.commit()

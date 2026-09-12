@@ -12,7 +12,11 @@
    - "Failed to load regatta data" / 404 on `/api/regatta/{id}`: first **diagnose** whether the API is running, whether the SQL returns 200, and whether the regatta_id exists in the DB. Fix the backend (e.g. SQL type mismatch in `api.py`) or data/DB alignment. Do not add parent.API_BASE, base tags, or new error copy in the frontend as the primary fix.
    - If LIVE works with the same frontend code, the problem is **environment or data** (local API, local DB, port, regatta_id in DB). Fix that layer; do not change the frontend to "work around" it.
 
-3. **Match live first**
+3. **Live event URL is truth** (`docs/EVENT_URL_IS_TRUTH.md`)
+   - Do not “fix” a child URL, landing card, or print file with different ranks/sailors than the **event URL**. Sync from the event. Do not re-sort with `result_id`.
+   - **Do not declare a live sheet fixed from curl / View Source / first paint.** `club-score-edit.js` and live autoscore can rewrite rank after paint. The user’s URL is what they see **after JS**.
+
+4. **Match live first**
    - When the user reports that something works on live but not local, compare LIVE vs LOCAL (e.g. `sailingsa/deploy/read-live-index.exp`, diagnosis docs). Identify the **exact** difference. If the fix is "make local match live", revert or align code to live; do not add new local-only logic.
 
 ## Do this instead
