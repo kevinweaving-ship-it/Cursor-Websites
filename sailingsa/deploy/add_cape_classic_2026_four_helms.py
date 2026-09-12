@@ -217,6 +217,17 @@ def main() -> int:
         )
         for r in cur.fetchall():
             print(dict(r))
+        try:
+            import sys
+            from pathlib import Path as _P
+
+            sys.path.insert(0, str(_P(__file__).resolve().parent))
+            from invalidate_regatta_list_and_events_logos_cache import invalidate
+
+            gone = invalidate(named_event_slug="zvyc-cape-classic")
+            print("CACHE_BUST", gone)
+        except Exception as exc:
+            print("CACHE_BUST_FAIL", exc)
         return 0
     finally:
         conn.close()
