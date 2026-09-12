@@ -21,6 +21,7 @@ import traceback
 import hashlib
 import html as html_module
 import json
+from appendix_a import appendix_a_result_sort_key, sort_result_rows_appendix_a
 import difflib
 from urllib.parse import urlparse, unquote
 import unicodedata
@@ -16749,6 +16750,8 @@ def api_regatta(regatta_id: str, request: Request = None):
             )
             return []
 
+        rows = sort_result_rows_appendix_a(rows)
+
         # SPECIAL CASE: For Regatta 374, sort by master standings for all classes that have standings
         first_row = rows[0]
         regatta_number = first_row.get('regatta_number')
@@ -16991,7 +16994,7 @@ def _filter_regatta_rows_by_class(rows: list, class_id: str):
             continue
         if class_id_lower in class_canonical.lower() or class_canonical.lower() in class_id_lower:
             out.append(r)
-    out.sort(key=lambda x: (int(x.get("rank")) if x.get("rank") is not None and str(x.get("rank")).isdigit() else 9999, x.get("result_id") or 0))
+    out.sort(key=appendix_a_result_sort_key)
     return out
 
 
@@ -23228,6 +23231,7 @@ def _get_regatta_full_page_data(regatta_id: str):
                 ORDER BY rb.block_id, COALESCE(res.rank, 99999), res.result_id
             """, (regatta_id,))
             raw = cur.fetchall() or []
+            raw = sort_result_rows_appendix_a(raw)
             print(f"REGATTA_DATA: step=after_main_join time={time.time() - t0:.3f}", flush=True)
             dup_names = set()
             cur.execute("""
@@ -24382,7 +24386,7 @@ def _render_result_sheet_fleet(
         )
     else:
         fleet_header_html = fleet_header_title
-    rows = fleet.get("rows") or []
+    rows = sort_result_rows_appendix_a(fleet.get("rows") or [])
 
     def _max_race_idx_from_result_rows(result_rows):
         """If block.races_sailed is 0 but JSON has R1..Rn, infer n so public sheet shows race columns."""
@@ -26143,6 +26147,7 @@ def _get_regatta_class_page_data(regatta_id: str, class_id: int):
                 ORDER BY rb.block_id, COALESCE(res.rank, 99999), res.result_id
             """, (regatta_id, class_id))
             raw = cur.fetchall() or []
+            raw = sort_result_rows_appendix_a(raw)
             if not raw:
                 return None
             dup_names = set()

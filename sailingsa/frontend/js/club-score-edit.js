@@ -319,6 +319,7 @@
       }
       var rows = data.fleets[bid] || [];
       rows.forEach(applyFleetRow);
+      /* Official A8 order on the sheet: rerankFleet restores it and rejects result_id order. */
       rerankFleet(table);
     });
   }
@@ -392,19 +393,50 @@
     return any ? sum : 9999;
   }
 
-  function lastRacePlace(tr) {
-    var cells = tr.querySelectorAll("td.race-col[data-race-key]");
-    if (!cells.length) return 9999;
-    var n = parseFloat(String(cells[cells.length - 1].textContent || "").replace(/[()]/g, "").trim());
-    return isFinite(n) ? n : 9999;
+  function racePlacesSailOrder(tr) {
+    var out = [];
+    tr.querySelectorAll("td.race-col[data-race-key]").forEach(function (td) {
+      var box = td.querySelector(".club-score-input");
+      var raw = box ? String(box.value || "") : String(td.textContent || "");
+      var n = parseFloat(raw.replace(/[()]/g, "").trim());
+      if (isFinite(n)) out.push(n);
+    });
+    return out;
+  }
+
+  /* Appendix A8: A8.1 best→worst, then A8.2 last race in sail order. Never result_id. */
+  function a8cmp(trA, trB) {
+    var a = racePlacesSailOrder(trA);
+    var b = racePlacesSailOrder(trB);
+    var as = a.slice().sort(function (x, y) { return x - y; });
+    var bs = b.slice().sort(function (x, y) { return x - y; });
+    var n = Math.max(as.length, bs.length);
+    var i, va, vb;
+    for (i = 0; i < n; i++) {
+      va = i < as.length ? as[i] : 9999;
+      vb = i < bs.length ? bs[i] : 9999;
+      if (va !== vb) return va - vb;
+    }
+    va = a.length ? a[a.length - 1] : 9999;
+    vb = b.length ? b[b.length - 1] : 9999;
+    return va - vb;
   }
 
   function rerankFleet(table) {
     if (!table) return;
-    /* Official PDF + A8 ranks are already on the sheet. Do not invent 1st/2nd from result_id. */
-    if (table.querySelector("tr[data-official-rank]")) return;
     var tb = table.tBodies && table.tBodies[0];
     if (!tb) return;
+    var official = tb.querySelectorAll("tr[data-official-rank]");
+    if (official.length) {
+      /* Rule-compliant ranks already on the URL. Reject any other order. */
+      var locked = Array.prototype.slice.call(official);
+      locked.sort(function (a, b) {
+        return (Number(a.getAttribute("data-official-rank")) || 9999) -
+          (Number(b.getAttribute("data-official-rank")) || 9999);
+      });
+      locked.forEach(function (tr) { tb.appendChild(tr); });
+      return;
+    }
     var busy = busyRaceKey(table);
     var items = Array.prototype.map.call(tb.querySelectorAll("tr[data-result-id]"), function (tr) {
       return { tr: tr, nett: rowNett(tr), qual: !busy || rowHasRace(tr, busy) };
@@ -412,7 +444,7 @@
     items.sort(function (a, b) {
       if (a.qual !== b.qual) return a.qual ? -1 : 1;
       if (a.nett !== b.nett) return a.nett - b.nett;
-      return lastRacePlace(a.tr) - lastRacePlace(b.tr);
+      return a8cmp(a.tr, b.tr);
     });
     var q = 0;
     items.forEach(function (it) {
