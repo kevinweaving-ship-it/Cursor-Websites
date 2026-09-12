@@ -121,19 +121,8 @@ async function archiveGroupMessage(sock, m, log) {
   const inner = unwrap(m.message);
   const cls = classify(inner);
   if (cls.kind === 'empty' || cls.kind === 'other') {
-    // still keep a stub so nothing from the group is silently dropped
-    appendInbox({
-      t: Date.now(),
-      group_jid: jid,
-      wa_message_id: m.key.id || '',
-      from_me: !!m.key.fromMe,
-      sender_jid: m.key.participant || m.key.participantPn || '',
-      sender_name: m.pushName || '',
-      kind: cls.kind === 'empty' ? 'empty' : 'other',
-      body: '',
-      caption: '',
-    });
-    return true;
+    // Ciphertext / retry upserts often arrive empty first; wait for the decrypted body.
+    return false;
   }
   const row = {
     t: Date.now(),

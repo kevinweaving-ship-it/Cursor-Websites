@@ -141,7 +141,21 @@ INSERT INTO public.event_whatsapp_messages (
   {dur if dur is not None else 'NULL'},
   {sql_str(o.get('media_error'))}, {occurred_sql}
 )
-ON CONFLICT (group_jid, wa_message_id) DO NOTHING;
+ON CONFLICT (group_jid, wa_message_id) DO UPDATE SET
+  kind = EXCLUDED.kind,
+  body = COALESCE(NULLIF(EXCLUDED.body, ''), event_whatsapp_messages.body),
+  caption = COALESCE(NULLIF(EXCLUDED.caption, ''), event_whatsapp_messages.caption),
+  media_mime = COALESCE(EXCLUDED.media_mime, event_whatsapp_messages.media_mime),
+  media_filename = COALESCE(EXCLUDED.media_filename, event_whatsapp_messages.media_filename),
+  media_relpath = COALESCE(EXCLUDED.media_relpath, event_whatsapp_messages.media_relpath),
+  media_bytes = COALESCE(EXCLUDED.media_bytes, event_whatsapp_messages.media_bytes),
+  duration_sec = COALESCE(EXCLUDED.duration_sec, event_whatsapp_messages.duration_sec),
+  media_error = EXCLUDED.media_error,
+  sender_name = COALESCE(NULLIF(EXCLUDED.sender_name, ''), event_whatsapp_messages.sender_name),
+  event_whatsapp_id = COALESCE(EXCLUDED.event_whatsapp_id, event_whatsapp_messages.event_whatsapp_id),
+  regatta_id = COALESCE(EXCLUDED.regatta_id, event_whatsapp_messages.regatta_id)
+WHERE event_whatsapp_messages.kind IN ('empty', 'other')
+   OR length(COALESCE(EXCLUDED.body, '')) > length(COALESCE(event_whatsapp_messages.body, ''));
 """
     )
 
