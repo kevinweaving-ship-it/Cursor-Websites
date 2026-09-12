@@ -23,6 +23,7 @@ PAGE = "marin.megastoresa"
 PAGE_NAMES = ("marine megastore", "marin.megastoresa")
 TOKEN_PATH = Path("/var/www/sailingsa/api/data/mm_fb_page.token")
 VERIFY_PATH = Path("/var/www/sailingsa/api/data/mm_fb_verify.token")
+CONFIG_PATH = Path("/var/www/sailingsa/api/data/mm_fb_config_id.txt")
 WEBHOOK_URL = "https://sailingsa.co.za/api/facebook/mm-live-webhook"
 GRAPH = "https://graph.facebook.com/v21.0"
 
@@ -77,7 +78,8 @@ def save_page_token(token: str) -> None:
     TOKEN_PATH.parent.mkdir(parents=True, exist_ok=True)
     TOKEN_PATH.write_text(token.strip() + "\n", encoding="utf-8")
     try:
-        os.chmod(TOKEN_PATH, 0o600)
+        os.chmod(TOKEN_PATH, 0o640)
+        os.chown(TOKEN_PATH, 33, 33)
         os.chown(TOKEN_PATH, 33, 33)
     except Exception:
         pass
@@ -255,3 +257,117 @@ def webhook_verify(mode: str, token: str, challenge: str) -> str | None:
     if mode == "subscribe" and token and token == verify_token():
         return challenge
     return None
+
+
+def html_esc(s: str) -> str:
+    return (
+        str(s or "")
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )
+
+
+def save_config_id(cid: str) -> None:
+    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CONFIG_PATH.write_text(str(cid or "").strip() + "\n", encoding="utf-8")
+    try:
+        os.chmod(CONFIG_PATH, 0o640)
+        os.chown(CONFIG_PATH, 33, 33)
+    except Exception:
+        pass
+
+
+def config_id() -> str:
+    if CONFIG_PATH.is_file():
+        return CONFIG_PATH.read_text(encoding="utf-8").strip()
+    return _env("MM_FB_CONFIG_ID")
+
+
+def accept_page_token(raw: str) -> dict:
+    """Save a Graph Explorer / Page token and subscribe live_videos."""
+    tok = str(raw or "").strip()
+    if not tok or len(tok) < 20:
+        return {"ok": False, "error": "token_too_short"}
+    try:
+        accts = graph(
+            "me/accounts",
+            tok,
+            {"fields": "id,name,access_token,username,link", "limit": "50"},
+        )
+        page = pick_mm_page(accts.get("data") or [])
+        if page and page.get("access_token"):
+            tok = str(page.get("access_token") or tok)
+            pid = str(page.get("id") or "")
+            save_page_token(tok)
+            sub = subscribe_page(pid, tok) if pid else {}
+            live = commit_graph_now()
+            return {
+                "ok": True,
+                "via": "user_accounts",
+                "page_id": pid,
+                "page_name": page.get("name"),
+                "subscribed": sub,
+                "live": live,
+            }
+    except Exception:
+        pass
+    try:
+        me = graph("me", tok, {"fields": "id,name"})
+    except Exception as e:
+        return {"ok": False, "error": f"token_rejected:{e}"}
+    save_page_token(tok)
+    pid = str(me.get("id") or "")
+    sub = subscribe_page(pid, tok) if pid else {}
+    live = commit_graph_now()
+    return {
+        "ok": True,
+        "via": "page_token",
+        "page_id": pid,
+        "page_name": me.get("name"),
+        "subscribed": sub,
+        "live": live,
+    }
+
+
+def setup_html(has_page_token: bool) -> str:
+    has = "YES — Graph LIVE is armed" if has_page_token else "NO — still scraping"
+    cfg = html_esc(config_id() or "")
+    return (
+        "<!doctype html><html><head><meta charset=\"utf-8\">"
+        "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+        "<title>MM Facebook LIVE</title>"
+        "<link rel=\"stylesheet\" href=\"/css/main.css\"></head><body>"
+        "<div class=\"container\"><div class=\"card\">"
+        "<h1 class=\"section-title\">MM Facebook LIVE</h1>"
+        "<p>SailingSA Login is consumer Facebook Login. Page scopes are invalid there. "
+        "That wrench dialog is Facebook blocking pages_show_list on that product. "
+        "Use Graph API Explorer or Facebook Login for Business.</p>"
+        f"<p><b>Page token on server:</b> {has}</p>"
+        "<h2 class=\"section-title\">Paste a Page token</h2>"
+        "<ol><li>Open <a href=\"https://developers.facebook.com/tools/explorer/\" "
+        "target=\"_blank\" rel=\"noopener\">Graph API Explorer</a></li>"
+        "<li>Meta App: <b>SailingSA Login</b></li>"
+        "<li>Get token → User token or the <b>Marine Megastore</b> Page</li>"
+        "<li>If the permissions picker shows them, add pages_show_list, "
+        "pages_read_engagement, pages_manage_metadata</li>"
+        "<li>Paste the token below.</li></ol>"
+        "<form method=\"post\" action=\"/api/super-admin/mm-fb/page-token\">"
+        "<p><textarea name=\"token\" rows=\"5\" required "
+        "style=\"width:100%;min-height:96px\" placeholder=\"Page access token\"></textarea></p>"
+        "<p><button type=\"submit\" class=\"btn\">Save MM Page token</button></p>"
+        "</form>"
+        "<h2 class=\"section-title\">Or Login for Business config id</h2>"
+        "<p>developers.facebook.com → SailingSA Login → Facebook Login for Business → "
+        "Configurations. User token. Assets: Pages. Permissions: pages_show_list, "
+        "pages_read_engagement, pages_manage_metadata, pages_read_user_content.</p>"
+        "<form method=\"post\" action=\"/api/super-admin/mm-fb/config-id\">"
+        f"<p><input name=\"config_id\" value=\"{cfg}\" placeholder=\"config_id\" "
+        "style=\"width:100%;min-height:44px\"></p>"
+        "<p><button type=\"submit\" class=\"btn\">Save config id</button></p>"
+        "</form>"
+        "<p><a href=\"/api/super-admin/mm-fb/connect-business\">"
+        "Continue with Facebook Login for Business</a> (needs config id)</p>"
+        "</div></div></body></html>"
+    )
