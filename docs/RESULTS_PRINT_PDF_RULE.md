@@ -1,6 +1,8 @@
 # Results print / PDF — product rule
 
-Four points. Do not mix source PDFs into this.
+**Read first:** `docs/EVENT_URL_IS_TRUTH.md`. Event URL is truth. Children, landing search, tables, reports, and PDFs must sync to it while live, and again if a closed event is corrected later.
+
+Four PDF points. Do not mix source PDFs into this.
 
 ## 1. Source PDF is irrelevant here
 
