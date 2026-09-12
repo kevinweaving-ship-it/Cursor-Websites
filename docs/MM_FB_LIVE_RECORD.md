@@ -14,7 +14,7 @@ You do not need to keep these. They are on the live server. **Do not put the App
 - **Login config:** `MM Page LIVE` — ID `1475623934360046`
 - **Config permissions:** `business_management`, `pages_show_list`, `pages_read_engagement`, `pages_read_user_content`, `pages_manage_metadata`
 - **Live Video API:** Ready for testing
-- **OAuth connect:** `https://sailingsa.co.za/api/super-admin/mm-fb/connect-business` (super-admin). Uses MM Live App ID, not SailingSA Login.
+**Paused 2026-09-12:** Facebook Login dialog “Choose the Businesses…”. Kevin’s list was Go-Wifi, Matthew Baker’s Business, Tim Advisor — **Marine Megastore was not listed**. Page token still empty. Resume at `https://sailingsa.co.za/api/super-admin/mm-fb/connect-business`. Do not grant Go-Wifi / Tim Advisor / Matthew Baker.
 - **OAuth redirect:** `https://sailingsa.co.za/auth/facebook/callback`
 
 **Secret and full record (live only, root):**
