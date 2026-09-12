@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Audiowide&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="/js/landing-claim-popup.css?v=20260912signupwa">
     <style>
         .login-page {
             min-height: 100vh;
@@ -598,6 +599,109 @@
         }
         #profileDetails .ssa-dev1-inject .sa-approved-sailor-card { margin-top: 0; }
         #profileDetails a.sa-claim-banner { pointer-events: none; cursor: default; }
+        #confirmProfile .ssa-dev1-inject .sa-looked-cta,
+        #confirmProfile .ssa-dev1-inject .sa-looked-signup,
+        #confirmProfile .ssa-dev1-inject a.sa-claim-banner { display: none !important; }
+        #confirmProfile .login-art-card.signup-confirm-popup {
+            background: transparent;
+            padding: 0;
+            overflow: visible;
+        }
+        #confirmProfile .login-art-card.signup-confirm-popup::before { display: none; }
+        #confirmProfile .signup-confirm-popup > h2 { display: none; }
+        #confirmProfile #ssa-claim-modal.signup-confirm-inline {
+            position: static;
+            inset: auto;
+            display: flex;
+            z-index: 1;
+            padding: 0;
+            background: transparent;
+            overflow: visible;
+            min-height: 0;
+        }
+        #confirmProfile #ssa-claim-modal.signup-confirm-inline .ssa-claim-modal-panel {
+            width: 100%;
+            max-width: 360px;
+            margin: 0 auto;
+        }
+        #confirmProfile #ssa-claim-modal.signup-confirm-inline .popup-card {
+            width: 100%;
+            max-width: 360px;
+        }
+        #confirmProfile .signup-confirm-family {
+            margin-top: 8px;
+        }
+        #confirmProfile .signup-confirm-family .btn-login {
+            background: #fff;
+            color: #0a2351;
+            border: 1.5px solid #cbd5e1;
+        }
+        #registrationForm .login-art-card {
+            border-radius: 18px;
+            border: 2px solid #7f97bc;
+            background: #fff;
+            box-shadow: 0 3px 10px rgba(15, 23, 42, 0.1);
+        }
+        #registrationForm .login-art-card::before { display: none; }
+        #registrationForm .login-art-brand {
+            max-width: 100%;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        #registrationForm .login-art-logo {
+            margin: 0 auto;
+            max-width: 168px;
+        }
+        #registrationForm .login-art-title {
+            font-size: 1.05rem;
+            letter-spacing: 0.04em;
+        }
+        .signup-pick-card {
+            display: block;
+            width: 100%;
+            margin: 0.65rem 0 0;
+            padding: 12px;
+            background: #fff;
+            border: 2px solid #7f97bc;
+            border-radius: 18px;
+            box-shadow: 0 3px 10px rgba(15, 23, 42, 0.1);
+            cursor: pointer;
+            text-align: left;
+            box-sizing: border-box;
+        }
+        .signup-pick-card:hover,
+        .signup-pick-card:focus {
+            border-color: #0a2351;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.16);
+        }
+        .signup-pick-name {
+            margin: 0 0 4px;
+            color: #142b5f;
+            line-height: 1.1;
+        }
+        .signup-pick-name-first {
+            display: block;
+            font-size: 1.12rem;
+            font-weight: 800;
+        }
+        .signup-pick-name-last {
+            display: block;
+            font-size: 0.98rem;
+            font-weight: 500;
+            margin-top: 0.12rem;
+            color: #111827;
+        }
+        .signup-pick-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+        .signup-pick-claimed {
+            color: #9a3412;
+            font-size: 12px;
+            font-weight: 700;
+        }
         .confirm-id-card {
             margin: 0 0 12px 0;
             padding: 12px 12px 10px;
@@ -1441,9 +1545,17 @@
                         </h1>
                     </div>
                     <div class="signup-splash-subbar">Free sign-up · 30 seconds</div>
-                    <p class="signup-splash-copy">Sign up with Google, Facebook or WhatsApp ↓</p>
+                    <p class="signup-splash-copy">Sign up with WhatsApp, Google or Facebook ↓</p>
                     <div class="signup-splash-actions">
-                        <button type="button" class="signup-splash-button signup-splash-button--google" onclick="loginWithGoogle()">
+                        <button type="button" class="signup-splash-button signup-splash-button--whatsapp" onclick="showSignupWithMethod('whatsapp', event)">
+                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                <circle cx="12" cy="12" r="12" fill="#fff"/>
+                                <path fill="#25D366" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.435 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                            </svg>
+                            <span class="signup-splash-button-label">Sign up with WhatsApp</span>
+                            <span class="signup-splash-button-arrow" aria-hidden="true">›</span>
+                        </button>
+                        <button type="button" class="signup-splash-button signup-splash-button--google" onclick="showSignupWithMethod('google', event)">
                             <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -1453,20 +1565,12 @@
                             <span class="signup-splash-button-label">Sign up with Google</span>
                             <span class="signup-splash-button-arrow" aria-hidden="true">›</span>
                         </button>
-                        <button type="button" class="signup-splash-button signup-splash-button--facebook" onclick="loginWithFacebook()">
+                        <button type="button" class="signup-splash-button signup-splash-button--facebook" onclick="showSignupWithMethod('facebook', event)">
                             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                                 <circle cx="12" cy="12" r="12" fill="white"/>
                                 <path d="M13.44 20V13.44H15.64L15.97 10.88H13.44V9.24C13.44 8.5 13.64 8 14.7 8H16V5.72C15.37 5.63 14.74 5.59 14.1 5.6C12.21 5.6 10.92 6.75 10.92 8.86V10.88H8.8V13.44H10.92V20H13.44Z" fill="#0F39C9"/>
                             </svg>
                             <span class="signup-splash-button-label">Sign up with Facebook</span>
-                            <span class="signup-splash-button-arrow" aria-hidden="true">›</span>
-                        </button>
-                        <button type="button" class="signup-splash-button signup-splash-button--whatsapp" onclick="showSignupWithWhatsApp(event)">
-                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                                <circle cx="12" cy="12" r="12" fill="#fff"/>
-                                <path fill="#25D366" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.435 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
-                            </svg>
-                            <span class="signup-splash-button-label">Sign up with WhatsApp</span>
                             <span class="signup-splash-button-arrow" aria-hidden="true">›</span>
                         </button>
                         <div class="signup-splash-separator">or</div>
@@ -1494,17 +1598,17 @@
                     </div>
 
                     <h2>Find Your Profile</h2>
-                    <p>Search by SAS ID or Name &amp; Surname</p>
+                    <p>Search by name and surname</p>
                     <form id="searchProfileForm" onsubmit="handleProfileSearch(event)">
                         <div class="login-art-fields">
                             <div class="login-art-field">
-                                <label class="login-art-field-label" for="searchInput">SAS ID or Name &amp; Surname</label>
+                                <label class="login-art-field-label" for="searchInput">Name and surname</label>
                                 <div class="login-art-input-wrap">
                                     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                                         <path d="M11 4.5C7.41 4.5 4.5 7.41 4.5 11C4.5 14.59 7.41 17.5 11 17.5C12.54 17.5 13.96 16.97 15.08 16.08L18.5 19.5" stroke="#1D2A57" stroke-width="1.8" stroke-linecap="round"/>
                                         <circle cx="11" cy="11" r="6.5" stroke="#1D2A57" stroke-width="1.8"/>
                                     </svg>
-                                    <input type="text" id="searchInput" placeholder="SAS ID or Name &amp; Surname" required>
+                                    <input type="text" id="searchInput" placeholder="Name and surname" required>
                                 </div>
                             </div>
                             <button type="submit" class="login-art-submit">Continue</button>
@@ -1523,27 +1627,63 @@
 
             <!-- Confirm Profile -->
             <div id="confirmProfile" class="login-section">
-                <div class="login-art-card signup-step-card">
+                <div class="login-art-card signup-step-card signup-confirm-popup">
                     <h2>Confirm Your Profile</h2>
-                    <div id="profileDetails"></div>
-                    <div class="confirm-social-loud" id="confirmSocialLoud">
-                        <button type="button" class="reg-social-loud-btn reg-social-loud-btn--google" onclick="loginWithGoogle()">
-                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-                            Sign up with Google — fastest
-                        </button>
-                        <button type="button" class="reg-social-loud-btn reg-social-loud-btn--facebook" onclick="loginWithFacebook()">
-                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="white"/><path d="M13.44 20V13.44H15.64L15.97 10.88H13.44V9.24C13.44 8.5 13.64 8 14.7 8H16V5.72C15.37 5.63 14.74 5.59 14.1 5.6C12.21 5.6 10.92 6.75 10.92 8.86V10.88H8.8V13.44H10.92V20H13.44Z" fill="#1877F2"/></svg>
-                            Sign up with Facebook — easy
-                        </button>
-                        <button type="button" class="reg-social-loud-btn reg-social-loud-btn--whatsapp" onclick="continueClaimWithWhatsApp(event)">
-                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#fff"/><path fill="#25D366" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.435 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
-                            Sign up with WhatsApp
-                        </button>
-                    </div>
-                    <div class="btn-group" id="profileConfirmButtons">
-                        <button class="btn-login btn-primary" onclick="handleProfileConfirm('me', currentProfile?.sas_id || '')">This is me — use email form</button>
-                        <button class="btn-login btn-secondary" onclick="handleProfileConfirm('child', currentProfile?.sas_id || '')">This is my child / family member</button>
-                        <button class="btn-login btn-back" onclick="showRegistrationForm()">Not me</button>
+                    <div id="ssa-claim-modal" class="is-open signup-confirm-inline">
+                        <div class="ssa-claim-modal-panel">
+                            <div class="lab-card-wrap is-step1">
+                                <div class="popup-card">
+                                    <div id="profileDetails"></div>
+                                    <div class="sa-looked-signup is-open" id="confirmSignupPanel">
+                                        <div class="sa-looked-signup-card" id="confirmSignupCard">
+                                            <span class="sa-looked-signup-step-lbl">Step 1</span>
+                                            <span class="sa-looked-signup-welcome">Welcome <span class="sa-looked-signup-welcome-name" id="confirmWelcomeName">Sailor</span></span>
+                                            <span class="sa-looked-signup-choose">Please choose method to register</span>
+                                            <button type="button" class="sa-looked-auth sa-looked-auth--whatsapp" data-wa-open>
+                                                <span class="sa-looked-auth-ico" aria-hidden="true"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="#fff" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.435 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg></span>
+                                                <span class="sa-looked-auth-txt">Signup With</span>
+                                                <span class="sa-looked-auth-go" aria-hidden="true">›</span>
+                                            </button>
+                                            <button type="button" class="sa-looked-auth sa-looked-auth--google" data-ssa-claim-ext="google">
+                                                <span class="sa-looked-auth-ico" aria-hidden="true"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg></span>
+                                                <span class="sa-looked-auth-txt">Sign up with Google</span>
+                                                <span class="sa-looked-auth-go" aria-hidden="true">›</span>
+                                            </button>
+                                            <button type="button" class="sa-looked-auth sa-looked-auth--facebook" data-ssa-claim-ext="facebook">
+                                                <span class="sa-looked-auth-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="12" fill="white"/><path d="M13.44 20V13.44H15.64L15.97 10.88H13.44V9.24C13.44 8.5 13.64 8 14.7 8H16V5.72C15.37 5.63 14.74 5.59 14.1 5.6C12.21 5.6 10.92 6.75 10.92 8.86V10.88H8.8V13.44H10.92V20H13.44Z" fill="#1877F2"/></svg></span>
+                                                <span class="sa-looked-auth-txt">Sign up with Facebook</span>
+                                                <span class="sa-looked-auth-go" aria-hidden="true">›</span>
+                                            </button>
+                                            <button type="button" class="sa-looked-auth sa-looked-auth--email" data-ssa-claim-ext="email">
+                                                <span class="sa-looked-auth-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 6.5H20C20.83 6.5 21.5 7.17 21.5 8V16C21.5 16.83 20.83 17.5 20 17.5H4C3.17 17.5 2.5 16.83 2.5 16V8C2.5 7.17 3.17 6.5 4 6.5Z" stroke="#fff" stroke-width="1.8"/><path d="M3 8L12 14L21 8" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                                                <span class="sa-looked-auth-txt">Sign up with email</span>
+                                            </button>
+                                            <div class="sa-looked-wa" data-wa-panel hidden>
+                                                <div class="sa-looked-wa-phone-step" data-wa-phone-step>
+                                                    <span class="sa-looked-wa-label">Enter Your WhatsApp No</span>
+                                                    <input class="sa-looked-wa-input" data-wa-phone type="tel" inputmode="tel" autocomplete="tel" placeholder="082 123 4567" maxlength="16">
+                                                    <button type="button" class="sa-looked-wa-send" data-wa-send>Request Code</button>
+                                                </div>
+                                                <div class="sa-looked-wa-code-step" data-wa-code-step hidden>
+                                                    <span class="sa-looked-wa-label">Enter your 4-digit code</span>
+                                                    <div class="sa-looked-wa-boxes" data-wa-boxes>
+                                                        <input class="sa-looked-wa-box" data-wa-digit="0" type="text" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Code digit 1">
+                                                        <input class="sa-looked-wa-box" data-wa-digit="1" type="text" inputmode="numeric" maxlength="1" aria-label="Code digit 2">
+                                                        <input class="sa-looked-wa-box" data-wa-digit="2" type="text" inputmode="numeric" maxlength="1" aria-label="Code digit 3">
+                                                        <input class="sa-looked-wa-box" data-wa-digit="3" type="text" inputmode="numeric" maxlength="1" aria-label="Code digit 4">
+                                                    </div>
+                                                </div>
+                                                <p class="sa-looked-wa-msg" data-wa-msg></p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" class="ssa-claim-quit" onclick="showRegistrationForm()">Quit Sign Up</button>
+                            </div>
+                            <div class="btn-group signup-confirm-family" id="profileConfirmButtons">
+                                <button class="btn-login btn-secondary" onclick="handleProfileConfirm('child', currentProfile?.sas_id || '')">This is my child / family member</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1588,9 +1728,13 @@
                 </div>
                 
                 <div class="reg-social-loud" id="regSocialLoud">
-                    <p class="reg-social-loud-title">⚡ Easiest — Google, Facebook or WhatsApp</p>
+                    <p class="reg-social-loud-title">⚡ Easiest — WhatsApp, Google or Facebook</p>
                     <p class="reg-social-loud-sub">About 30 seconds · no password to remember · tap one:</p>
                     <div class="reg-social-loud-stack">
+                        <button type="button" class="reg-social-loud-btn reg-social-loud-btn--whatsapp" onclick="focusSignupWhatsApp(event)">
+                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#fff"/><path fill="#25D366" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.435 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+                            Sign up with WhatsApp
+                        </button>
                         <button type="button" class="reg-social-loud-btn reg-social-loud-btn--google" onclick="loginWithGoogle()">
                             <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
                             Sign up with Google
@@ -1598,10 +1742,6 @@
                         <button type="button" class="reg-social-loud-btn reg-social-loud-btn--facebook" onclick="loginWithFacebook()">
                             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="white"/><path d="M13.44 20V13.44H15.64L15.97 10.88H13.44V9.24C13.44 8.5 13.64 8 14.7 8H16V5.72C15.37 5.63 14.74 5.59 14.1 5.6C12.21 5.6 10.92 6.75 10.92 8.86V10.88H8.8V13.44H10.92V20H13.44Z" fill="#1877F2"/></svg>
                             Sign up with Facebook
-                        </button>
-                        <button type="button" class="reg-social-loud-btn reg-social-loud-btn--whatsapp" onclick="focusSignupWhatsApp(event)">
-                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#fff"/><path fill="#25D366" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.435 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
-                            Sign up with WhatsApp
                         </button>
                     </div>
                 </div>
@@ -1889,7 +2029,7 @@
                         }
                         if (picked) {
                             currentProfile = picked;
-                            claimSailorName = currentProfile.full_name || ((currentProfile.first_name||'') + ' ' + (currentProfile.last_name||'')).trim() || claimSailorName;
+                            claimSailorName = profileGivenSurname(currentProfile) || claimSailorName;
                             trackClaimFunnel('sailor_preselected', currentProfile.sas_id || claimSelectedSasId, true, '', { sailor_name: claimSailorName, entry: claimEntry });
                             displayProfileConfirmation(currentProfile);
                         } else if (results && results.length > 1) {
@@ -2122,21 +2262,251 @@
             if (e) e.preventDefault();
             var btns = document.getElementById('profileConfirmButtons');
             if (btns) btns.style.display = '';
+            var signupPanel = document.getElementById('confirmSignupPanel');
+            if (signupPanel) signupPanel.style.display = '';
+            var quit = document.querySelector('#confirmProfile .ssa-claim-quit');
+            if (quit) quit.style.display = '';
             showSection('registrationForm');
         }
 
-        function showSignupWithWhatsApp(e) {
+        function rememberClaimProfile() {
+            if (!currentProfile) return;
+            try {
+                var sid = String(currentProfile.sas_id || currentProfile.sasId || '');
+                if (sid) sessionStorage.setItem('claim_sas_id', sid);
+                sessionStorage.setItem('claim_sailor_name', profileGivenSurname(currentProfile));
+            } catch (err) {}
+        }
+
+        function profileGivenSurname(profile) {
+            var first = String((profile && (profile.first_name || profile.first_names || profile.firstName)) || '').trim();
+            var last = String((profile && (profile.last_name || profile.surname)) || '').trim();
+            if (first && last) return first + ' ' + last;
+            if (first) return first;
+            if (last) return last;
+            var full = String((profile && profile.full_name) || '').trim();
+            if (full.indexOf(',') >= 0) {
+                var bits = full.split(',');
+                var ln = String(bits[0] || '').trim();
+                var fn = bits.slice(1).join(',').trim();
+                if (fn && ln) return fn + ' ' + ln;
+            }
+            return full || 'Sailor';
+        }
+
+        function profileNameParts(profile) {
+            var first = String((profile && (profile.first_name || profile.first_names || profile.firstName)) || '').trim();
+            var last = String((profile && (profile.last_name || profile.surname)) || '').trim();
+            if (!first && !last) {
+                var assembled = profileGivenSurname(profile);
+                var parts = assembled.split(/\s+/);
+                first = parts.shift() || 'Sailor';
+                last = parts.join(' ');
+            }
+            return { first: first, last: last };
+        }
+
+        function resetConfirmWhatsApp() {
+            var wrap = document.getElementById('confirmSignupPanel');
+            if (!wrap) return;
+            var card = wrap.querySelector('.sa-looked-signup-card');
+            var panel = wrap.querySelector('[data-wa-panel]');
+            var phoneStep = wrap.querySelector('[data-wa-phone-step]');
+            var codeStep = wrap.querySelector('[data-wa-code-step]');
+            var phone = wrap.querySelector('[data-wa-phone]');
+            var msg = wrap.querySelector('[data-wa-msg]');
+            if (card) card.classList.remove('is-method-picked');
+            wrap.querySelectorAll('.sa-looked-auth').forEach(function (a) { a.classList.remove('is-chosen'); });
+            if (panel) { panel.hidden = true; panel.classList.remove('is-open'); }
+            if (phoneStep) phoneStep.hidden = false;
+            if (codeStep) codeStep.hidden = true;
+            if (phone) phone.value = '';
+            wrap.querySelectorAll('[data-wa-digit]').forEach(function (box) { box.value = ''; box.disabled = false; });
+            if (msg) { msg.textContent = ''; msg.classList.remove('is-err', 'is-ok'); }
+        }
+
+        function wireConfirmSignupPanel() {
+            var wrap = document.getElementById('confirmSignupPanel');
+            if (!wrap || wrap.getAttribute('data-ssa-signup-wired') === '1') return;
+            wrap.setAttribute('data-ssa-signup-wired', '1');
+            var signupCard = wrap.querySelector('.sa-looked-signup-card');
+            var panel = wrap.querySelector('[data-wa-panel]');
+            var phoneStep = wrap.querySelector('[data-wa-phone-step]');
+            var codeStep = wrap.querySelector('[data-wa-code-step]');
+            var phone = wrap.querySelector('[data-wa-phone]');
+            var sendBtn = wrap.querySelector('[data-wa-send]');
+            var codeBoxes = wrap.querySelectorAll('[data-wa-digit]');
+            var msg = wrap.querySelector('[data-wa-msg]');
+            var verifying = false;
+            function digits(v) { return String(v || '').replace(/\D/g, ''); }
+            function setMsg(text, kind) {
+                if (!msg) return;
+                msg.textContent = text || '';
+                msg.classList.remove('is-err', 'is-ok');
+                if (kind) msg.classList.add(kind);
+            }
+            function readCode() {
+                var out = '';
+                codeBoxes.forEach(function (box) { out += digits(box.value).slice(0, 1); });
+                return out;
+            }
+            function fillBoxes(val) {
+                var d = digits(val).slice(0, 4).split('');
+                codeBoxes.forEach(function (box, i) { box.value = d[i] || ''; });
+            }
+            function clearBoxes() {
+                codeBoxes.forEach(function (box) { box.value = ''; box.disabled = false; });
+            }
+            function setBoxesDisabled(on) {
+                codeBoxes.forEach(function (box) { box.disabled = !!on; });
+            }
+            function focusBox(i) { if (codeBoxes[i]) codeBoxes[i].focus(); }
+            function pickMethod(el) {
+                if (!signupCard) return;
+                signupCard.classList.add('is-method-picked');
+                signupCard.querySelectorAll('.sa-looked-auth').forEach(function (a) {
+                    a.classList.toggle('is-chosen', a === el);
+                });
+            }
+            wrap.querySelectorAll('.sa-looked-auth').forEach(function (el) {
+                el.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    rememberClaimProfile();
+                    var ext = el.getAttribute('data-ssa-claim-ext');
+                    if (ext === 'google') { loginWithGoogle(); return; }
+                    if (ext === 'facebook') { loginWithFacebook(); return; }
+                    if (ext === 'email') {
+                        handleProfileConfirm('me', (currentProfile && currentProfile.sas_id) || '');
+                        return;
+                    }
+                    if (!el.hasAttribute('data-wa-open')) return;
+                    pickMethod(el);
+                    if (!panel) return;
+                    panel.hidden = false;
+                    panel.classList.add('is-open');
+                    if (phoneStep) phoneStep.hidden = false;
+                    if (codeStep) codeStep.hidden = true;
+                    if (phone) phone.focus();
+                });
+            });
+            function sailorPayload() {
+                return {
+                    sas_id: (currentProfile && (currentProfile.sas_id || currentProfile.sasId)) || '',
+                    slug: (currentProfile && (currentProfile.slug || currentProfile.sailor_slug)) || '',
+                    whatsapp: digits(phone && phone.value)
+                };
+            }
+            if (sendBtn) {
+                sendBtn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    var n = digits(phone && phone.value);
+                    if (n.length !== 10 || n.charAt(0) !== '0') {
+                        setMsg('Enter a 10-digit WhatsApp number starting with 0', 'is-err');
+                        return;
+                    }
+                    sendBtn.disabled = true;
+                    setMsg('Sending code…');
+                    fetch('/api/claim/whatsapp/send-code', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(sailorPayload())
+                    })
+                        .then(function (r) { return r.json(); })
+                        .then(function (d) {
+                            sendBtn.disabled = false;
+                            if (!d || d.error) {
+                                setMsg((d && d.error) || 'Could not send code', 'is-err');
+                                return;
+                            }
+                            if (phoneStep) phoneStep.hidden = true;
+                            if (codeStep) codeStep.hidden = false;
+                            clearBoxes();
+                            focusBox(0);
+                            setMsg('Code sent on WhatsApp. Enter the 4 digits.', 'is-ok');
+                        })
+                        .catch(function () {
+                            sendBtn.disabled = false;
+                            setMsg('Could not send code', 'is-err');
+                        });
+                });
+            }
+            function keepSession(token) {
+                if (!token) return;
+                try { localStorage.setItem('session', token); } catch (err) {}
+                document.cookie = 'session=' + encodeURIComponent(token) + '; path=/; max-age=' + 30 * 24 * 60 * 60 + '; SameSite=Lax';
+            }
+            function verifyCode() {
+                if (verifying) return;
+                var c = readCode();
+                if (c.length !== 4) return;
+                verifying = true;
+                setBoxesDisabled(true);
+                setMsg('Checking code…');
+                var body = sailorPayload();
+                body.code = c;
+                fetch('/api/claim/whatsapp/verify-code', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                })
+                    .then(function (r) { return r.json(); })
+                    .then(function (d) {
+                        if (!d || d.error) {
+                            verifying = false;
+                            setBoxesDisabled(false);
+                            clearBoxes();
+                            focusBox(0);
+                            setMsg((d && d.error) || 'Code not accepted', 'is-err');
+                            return;
+                        }
+                        keepSession(d.session_token || d.session);
+                        setMsg('Profile claimed. Opening your page…', 'is-ok');
+                        var slug = (d && d.slug) || (currentProfile && (currentProfile.slug || currentProfile.sailor_slug)) || '';
+                        window.location.href = (d && d.profile_url) || (slug ? '/sailor/' + slug : '/');
+                    })
+                    .catch(function () {
+                        verifying = false;
+                        setBoxesDisabled(false);
+                        focusBox(0);
+                        setMsg('Code not accepted', 'is-err');
+                    });
+            }
+            codeBoxes.forEach(function (box, idx) {
+                box.addEventListener('input', function () {
+                    var extra = digits(box.value);
+                    if (!extra) { box.value = ''; return; }
+                    if (extra.length > 1) {
+                        fillBoxes((readCode().slice(0, idx) + extra).slice(0, 4));
+                        if (readCode().length === 4) verifyCode();
+                        else focusBox(Math.min(idx + extra.length, 3));
+                        return;
+                    }
+                    box.value = extra.slice(0, 1);
+                    if (idx < 3) focusBox(idx + 1);
+                    if (readCode().length === 4) verifyCode();
+                });
+            });
+        }
+
+        function showSignupWithMethod(method, e) {
             if (e) e.preventDefault();
-            try { sessionStorage.setItem('signup_method', 'whatsapp'); } catch (err) {}
+            try { sessionStorage.setItem('signup_method', method || ''); } catch (err) {}
             showRegistrationForm(e);
             window.setTimeout(function () {
                 var search = document.getElementById('searchInput');
                 if (search) {
-                    search.setAttribute('placeholder', 'SAS ID, name, or WhatsApp number');
+                    search.setAttribute('placeholder', 'Name and surname');
                     try { search.focus(); } catch (e2) {}
                 }
             }, 50);
         }
+        function showSignupWithWhatsApp(e) {
+            showSignupWithMethod('whatsapp', e);
+        }
+        window.showSignupWithMethod = showSignupWithMethod;
         window.showSignupWithWhatsApp = showSignupWithWhatsApp;
 
         function focusSignupWhatsApp(e) {
@@ -2167,6 +2537,8 @@
         }
 
         function showConfirmProfile() {
+            wireConfirmSignupPanel();
+            resetConfirmWhatsApp();
             showSection('confirmProfile');
         }
 
@@ -2362,6 +2734,7 @@
         // Login functions
         function loginWithGoogle() {
             try {
+                rememberClaimProfile();
                 const oauthUrl = new URL((window.location.origin || '') + '/auth/google');
                 oauthUrl.searchParams.set('flow', 'signup');
                 const returnTo = getAuthReturnToValue();
@@ -2378,6 +2751,7 @@
         function loginWithFacebook() {
             console.log('[DEBUG] loginWithFacebook() function called');
             try {
+                rememberClaimProfile();
                 const oauthUrl = new URL((window.location.origin || '') + '/auth/facebook');
                 oauthUrl.searchParams.set('flow', 'signup');
                 const returnTo = getAuthReturnToValue();
@@ -2446,7 +2820,7 @@
             const query = document.getElementById('searchInput').value.trim();
 
             if (!query) {
-                showError('Please enter a SAS ID or Name & Surname');
+                showError('Please enter a name and surname');
                 return;
             }
 
@@ -2566,13 +2940,9 @@
             console.log('[DEBUG] displayProfileConfirmation: Profile does not have existing login, showing confirmation');
             const detailsDiv = document.getElementById('profileDetails');
             
-            // Get name - handle both API formats
-            const first = profile.first_name || profile.first_names || '';
-            const last = profile.last_name || profile.surname || '';
-            const fullName = (first && last) ? (last + ', ' + first) :
-                           (profile.full_name ||
-                           (profile.firstName && profile.surname ? `${profile.firstName} ${profile.surname}` : '') ||
-                           'Name not available');
+            // Get name — given name first, surname second
+            const parts = profileNameParts(profile);
+            const fullName = profileGivenSurname(profile);
             const club = profile.primary_club || profile.club || '';
             const province = profile.province || '';
             
@@ -2638,13 +3008,20 @@
                 classesHtml = '<div class="confirm-classes-label">Classes</div><div class="confirm-class-list"><span class="confirm-pill">None listed</span></div>';
             }
             detailsDiv.innerHTML = '<div class="confirm-id-card">' +
-                '<div class="confirm-id-name">' + esc(fullName) + '</div>' +
+                '<div class="confirm-id-name"><span class="signup-pick-name-first">' + esc(parts.first) + '</span>' +
+                (parts.last ? '<span class="signup-pick-name-last">' + esc(parts.last) + '</span>' : '') + '</div>' +
                 '<div class="confirm-id-meta">' +
-                ((!hidePublicSasIds && sasId && sasId !== 'N/A') ? '<span class="confirm-pill confirm-pill--navy">SAS ' + esc(String(sasId)) + '</span>' : '') +
                 (ageDisplay ? '<span class="confirm-pill">Age ' + esc(ageDisplay) + '</span>' : '') +
                 (club ? '<span class="confirm-pill">' + esc(String(club)) + '</span>' : '') +
                 (province ? '<span class="confirm-pill">' + esc(String(province)) + '</span>' : '') +
                 '</div>' + classesHtml + '</div>';
+            var welcome = document.getElementById('confirmWelcomeName');
+            if (welcome) welcome.textContent = fullName;
+            var signupPanel = document.getElementById('confirmSignupPanel');
+            if (signupPanel) signupPanel.style.display = '';
+            var familyBtns = document.getElementById('profileConfirmButtons');
+            if (familyBtns) familyBtns.style.display = '';
+            injectDev1ConfirmCard(detailsDiv, sasId, detailsDiv.innerHTML);
             console.log('[DEBUG] displayProfileConfirmation: Profile HTML set, showing confirm section');
             showConfirmProfile();
         }
@@ -2660,14 +3037,16 @@
                 if (s == null || s === '') return '';
                 return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
             }
-            const fullName = profile.full_name ||
-                           (profile.first_name && profile.last_name ? `${profile.first_name} ${profile.last_name}` : '') ||
-                           'Name not available';
+            const fullName = profileGivenSurname(profile);
             const sasId = profile.sas_id || profile.sasId || 'N/A';
             // PUBLIC_SAS_ID_PAUSE: omit entire visible SAS ID line on already-claimed card
             var hidePublicSasIds = (typeof window.sailingsaHidePublicSasIds === 'function' ? window.sailingsaHidePublicSasIds() : (window.__SSA_HIDE_PUBLIC_SAS_IDS !== false));
             var btns = document.getElementById('profileConfirmButtons');
             if (btns) btns.style.display = 'none';
+            var signupPanel = document.getElementById('confirmSignupPanel');
+            if (signupPanel) signupPanel.style.display = 'none';
+            var quit = document.querySelector('#confirmProfile .ssa-claim-quit');
+            if (quit) quit.style.display = 'none';
             detailsDiv.innerHTML =
                 '<div style="padding:1rem;background:#fff7ed;border:1px solid #fdba74;border-radius:8px;margin-bottom:0.75rem;">' +
                 '<h3 style="margin:0 0 0.5rem;color:#9a3412;font-size:1rem;">This profile is already claimed</h3>' +
@@ -2708,11 +3087,8 @@
             results.forEach((profile, index) => {
                 console.log(`[DEBUG] displayProfileResults: Processing result ${index}:`, profile);
                 
-                // Get name - handle both API formats
-                const fullName = profile.full_name || 
-                               (profile.first_name && profile.last_name ? `${profile.first_name} ${profile.last_name}` : '') ||
-                               (profile.firstName && profile.surname ? `${profile.firstName} ${profile.surname}` : '') ||
-                               'Name not available';
+                const nameParts = profileNameParts(profile);
+                const fullName = profileGivenSurname(profile);
                 
                 // Get SAS ID (kept for select/confirm; not painted when pause on)
                 const sasId = profile.sas_id || profile.sasId || 'N/A';
@@ -2734,23 +3110,28 @@
                 
                 const yob = profile.year_of_birth || (profile.date_of_birth ? String(profile.date_of_birth).slice(0, 4) : '');
                 const claimed = !!profile.has_existing_login;
+                const club = profile.primary_club || profile.club || '';
                 const div = document.createElement('div');
-                div.style.cssText = 'padding: 1rem; margin: 0.5rem 0; background: #f5f5f5; border-radius: 8px; cursor: pointer;';
+                div.className = 'signup-pick-card';
+                div.setAttribute('role', 'button');
+                div.tabIndex = 0;
                 div.innerHTML =
-                    '<p><strong>' + String(fullName).replace(/</g, '&lt;') + '</strong>' +
-                    (claimed ? ' <span style="color:#9a3412;font-size:12px;font-weight:700;">Already claimed</span>' : '') +
-                    '</p>' +
+                    '<div class="signup-pick-name"><span class="signup-pick-name-first">' + String(nameParts.first).replace(/</g, '&lt;') + '</span>' +
+                    (nameParts.last ? '<span class="signup-pick-name-last">' + String(nameParts.last).replace(/</g, '&lt;') + '</span>' : '') + '</div>' +
+                    (claimed ? '<div class="signup-pick-claimed">Already claimed</div>' : '') +
+                    '<div class="signup-pick-meta">' +
+                    (club ? '<span class="confirm-pill">' + String(club).replace(/</g, '&lt;') + '</span>' : '') +
                     (hidePublicSasIds
-                        ? (yob ? ('<p>Born ' + String(yob).replace(/</g, '&lt;') + '</p>') : '')
-                        : ('<p>SAS ID: ' + String(sasId).replace(/</g, '&lt;') +
-                    (yob ? ' · Born ' + String(yob).replace(/</g, '&lt;') : '') + '</p>')) +
-                    '<p>Class: ' + String(classesDisplay).replace(/</g, '&lt;') + '</p>';
+                        ? (yob ? '<span class="confirm-pill">Born ' + String(yob).replace(/</g, '&lt;') + '</span>' : '')
+                        : '') +
+                    (classesDisplay && classesDisplay !== 'N/A' ? '<span class="confirm-pill">' + String(classesDisplay).replace(/</g, '&lt;') + '</span>' : '') +
+                    '</div>';
                 div.onclick = () => {
                     console.log('[DEBUG] displayProfileResults: Profile clicked:', profile);
                     try {
                         currentProfile = profile;
                         claimSelectedSasId = String(profile.sas_id || profile.sasId || claimSelectedSasId || '');
-                        claimSailorName = profile.full_name || ((profile.first_name||'') + ' ' + (profile.last_name||'')).trim() || claimSailorName;
+                        claimSailorName = profileGivenSurname(profile) || claimSailorName;
                         trackClaimFunnel('sailor_selected', claimSelectedSasId, true, '', {
                             sailor_name: claimSailorName,
                             search_query: claimSearchQuery || '',
