@@ -67,15 +67,17 @@ async def api_super_admin_mm_fb_connect_business(request: Request):
     """Facebook Login for Business — config_id, never Page scopes on consumer Login."""
     if not _session_role_is_super_admin(request):
         raise HTTPException(status_code=403, detail="super_admin only")
-    if not FACEBOOK_APP_ID:
-        raise HTTPException(status_code=500, detail="FACEBOOK_APP_ID missing")
-    cid = _mm_fb_graph_mod().config_id()
+    mod = _mm_fb_graph_mod()
+    aid = mod.app_id()
+    if not aid:
+        raise HTTPException(status_code=500, detail="MM_FB_APP_ID missing")
+    cid = mod.config_id()
     if not cid:
         return RedirectResponse("/api/super-admin/mm-fb/connect?error=noconfig", status_code=303)
     redirect_uri = f"{_public_https_origin(request)}/auth/facebook/callback"
     state = _build_facebook_state("mm_fb", "/regatta/2026-09-13-zvyc-cape-classic")
     params = {
-        "client_id": FACEBOOK_APP_ID,
+        "client_id": aid,
         "redirect_uri": redirect_uri,
         "state": state,
         "response_type": "code",
