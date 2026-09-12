@@ -58,9 +58,8 @@ LIVE_PROBE_URLS = (
     "https://m.facebook.com/marin.megastoresa",
 )
 SCRAPE_PAGES = (
-    "https://www.facebook.com/marin.megastoresa/live",
     "https://www.facebook.com/marin.megastoresa/videos",
-    "https://www.facebook.com/marin.megastoresa/reels",
+    "https://www.facebook.com/marin.megastoresa/live",
 )
 
 
@@ -89,11 +88,18 @@ def title_from_slug(slug: str) -> str:
     return re.sub(r"\bZvyc\b", "ZVYC", titled)
 
 
-def embed_src(url: str) -> str:
+def video_watch_url(vid: str) -> str:
+    return f"https://www.facebook.com/{PAGE}/videos/{vid}/"
+
+
+def embed_src(url: str, autoplay: bool = False) -> str:
     href = (url or "").strip()
     if not href:
         return ""
-    return "https://www.facebook.com/plugins/video.php?href=" + quote(href, safe="") + "&show_text=false"
+    src = "https://www.facebook.com/plugins/video.php?href=" + quote(href, safe="") + "&show_text=false"
+    if autoplay:
+        src += "&autoplay=1"
+    return src
 
 
 def parse_videos(html: str) -> list[dict]:
@@ -110,7 +116,7 @@ def parse_videos(html: str) -> list[dict]:
                 "id": vid,
                 "slug": slug,
                 "url": url,
-                "permalink": f"https://www.facebook.com/reel/{vid}/",
+                "permalink": url,
                 "title": title_from_slug(slug) or "Marine Megastore reel",
             }
         )
@@ -168,7 +174,7 @@ def parse_video_ids(html: str) -> list[dict]:
                 "id": vid,
                 "slug": "",
                 "url": f"https://www.facebook.com/marin.megastoresa/videos/{vid}/",
-                "permalink": f"https://www.facebook.com/reel/{vid}/",
+                "permalink": f"https://www.facebook.com/marin.megastoresa/videos/{vid}/",
                 "title": "Marine Megastore LIVE",
             }
         )
@@ -206,6 +212,8 @@ def probe_live() -> list | None:
             seen.add(vid)
             item["is_live"] = True
             item["play_url"] = ""
+            item["url"] = video_watch_url(vid)
+            item["permalink"] = item["url"]
             item["title"] = item.get("title") or "Marine Megastore LIVE"
             found.append(item)
     return found[:4]
@@ -264,10 +272,13 @@ def graph_item(node: dict, live: bool) -> dict:
     permalink = str((node or {}).get("permalink_url") or "").strip()
     if permalink and permalink.startswith("/"):
         permalink = "https://www.facebook.com" + permalink
-    url = permalink or f"https://www.facebook.com/marin.megastoresa/videos/{vid}/"
     title = str((node or {}).get("title") or (node or {}).get("description") or "").strip()
     if live:
+        url = video_watch_url(vid)
+        permalink = url
         title = title or "Marine Megastore LIVE"
+    else:
+        url = permalink or video_watch_url(vid)
     return {
         "id": vid,
         "slug": "",
@@ -518,17 +529,21 @@ def merge_videos(existing: list, fetched: list) -> list:
             continue
         prev = by_id.get(vid, {})
         live = bool(item.get("is_live"))
+        watch = video_watch_url(vid)
+        href = watch if live else (item.get("url") or prev.get("url") or watch)
+        if "/reel/" in str(href):
+            href = watch
         row = dict(prev)
         row.update(
             {
                 "id": vid,
-                "url": item.get("url") or prev.get("url") or "",
-                "permalink": item.get("permalink") or prev.get("permalink") or "",
+                "url": href,
+                "permalink": href,
                 "title": item.get("title") or prev.get("title") or "Marine Megastore reel",
                 "fb_title": item.get("title") or prev.get("fb_title") or item.get("title"),
                 "fb_page": PAGE,
                 "fb_owner_logo": LOGO,
-                "embed_url": embed_src(item.get("permalink") or item.get("url") or ""),
+                "embed_url": embed_src(href, autoplay=live),
                 "is_live": live,
                 "fb_sub": "LIVE" if live else "Marine Megastore was live",
             }
@@ -580,15 +595,10 @@ def fetch() -> list:
             return graphed
     live_now = probe_live() or []
     if live_now:
-        commit_videos(live_now)
+        return list(live_now)
     found = scrape_found()
     kept = []
     seen = set()
-    for item in live_now:
-        vid = str(item.get("id") or "")
-        if vid and vid not in seen:
-            seen.add(vid)
-            kept.append(item)
     existing_ids = set()
     row = load_feed().get(RID) or {}
     for prev in row.get("videos") or []:
@@ -597,20 +607,18 @@ def fetch() -> list:
     inspected = 0
     for item in found:
         vid = str(item.get("id") or "")
-        if not vid or vid in seen:
+        if not vid or vid in seen or vid in existing_ids:
             continue
-        if vid in existing_ids and inspected >= 2:
-            item["is_live"] = False
-            kept.append(item)
-            seen.add(vid)
-            continue
-        if inspected < 6:
-            inspected += 1
-            item = inspect_video(item)
+        if inspected >= 2:
+            break
+        inspected += 1
+        item = inspect_video(item)
         if not keep_clip(item, bool(item.get("is_live"))):
             continue
         if item.get("is_live"):
             item["play_url"] = ""
+            item["url"] = video_watch_url(vid)
+            item["permalink"] = item["url"]
         kept.append(item)
         seen.add(vid)
     return kept

@@ -64,15 +64,22 @@ def main() -> int:
         text = text.replace(OLD, NEW, 1)
         if MARKER not in text:
             raise SystemExit("marker failed")
-    if "mm-lipton-reels-card.js?v=mmr127" in text:
+    if "mm-lipton-reels-card.js?v=mmr128" in text:
         text = text.replace(
-            "mm-lipton-reels-card.js?v=mmr127",
             "mm-lipton-reels-card.js?v=mmr128",
+            "mm-lipton-reels-card.js?v=mmr129",
             1,
         )
-        print("BUMPED mmr128")
-    elif "mm-lipton-reels-card.js?v=mmr128" in text:
-        print("already mmr128")
+        print("BUMPED mmr129")
+    elif "mm-lipton-reels-card.js?v=mmr129" in text:
+        print("already mmr129")
+    elif "mm-lipton-reels-card.js?v=mmr127" in text:
+        text = text.replace(
+            "mm-lipton-reels-card.js?v=mmr127",
+            "mm-lipton-reels-card.js?v=mmr129",
+            1,
+        )
+        print("BUMPED mmr129")
     else:
         raise SystemExit("mmr127/128 script tag missing")
     API.write_text(text, encoding="utf-8")

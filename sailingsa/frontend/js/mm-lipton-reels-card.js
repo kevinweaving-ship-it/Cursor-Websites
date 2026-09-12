@@ -150,7 +150,6 @@
         if (tok && root) {
           root._mmCamToken = tok;
           root._mmCamTokenAt = Date.now();
-          refreshSavedCamStill(root);
         }
         return tok;
       })
@@ -179,9 +178,11 @@
   function liveThumbSrc(v, fresh) {
     var root = cardEl();
     if (isWebcam(v) && root && root._mmLiveGrab && !fresh) return root._mmLiveGrab;
-    if (isWebcam(v)) return withCamQuery(LAST_CAM_STILL, '', !!fresh);
+    // Compact thumb is a still + stamp, not a live stream. Do not cache-bust
+    // on every layout — that re-downloads the jpg and slows the page.
+    if (isWebcam(v)) return LAST_CAM_STILL;
     var base = String((v && v.thumb) || '').split('?')[0];
-    return base ? base + '?t=' + Date.now() : '';
+    return base || '';
   }
 
   function parseStillAt(value) {
@@ -303,11 +304,11 @@
     paintCamStamps(root);
     pollCamStatus(root);
     root._mmCamStampTimer = window.setInterval(function () {
-      paintCamStamps(root);
+      if (root._mmCamUpstream || root._mmCamReady) paintCamStamps(root);
     }, 1000);
     root._mmCamStatusTimer = window.setInterval(function () {
       if (!root._mmCamReady) pollCamStatus(root);
-    }, 10000);
+    }, 20000);
   }
 
   function refreshSavedCamStill(root) {
@@ -445,9 +446,29 @@
     return '/assets/adverts/' + advertFolder() + '/' + id + '.jpg';
   }
 
+  function facebookVideoHref(v) {
+    var id = String((v && v.id) || '').replace(/[^0-9]/g, '');
+    var href = String((v && (v.url || v.permalink)) || '').trim();
+    if (href.charAt(0) === '/') href = 'https://www.facebook.com' + href;
+    // Meta Embedded Video / Live player wants /{page}/videos/{id}/ or
+    // video.php?v={id}. /reel/{id}/ is oEmbed-post for Reels, not Live.
+    if (id && (!href || /\/reel\//i.test(href) || mmFbLive(v))) {
+      href = 'https://www.facebook.com/marin.megastoresa/videos/' + id + '/';
+    }
+    return href;
+  }
+
   function embedUrl(v) {
-    var u = String((v && v.embed_url) || '').trim();
-    var href = String((v && (v.permalink || v.url)) || '').trim();
+    var href = facebookVideoHref(v);
+    var u = '';
+    if (mmFbLive(v) && href) {
+      u =
+        'https://www.facebook.com/plugins/video.php?href=' +
+        encodeURIComponent(href) +
+        '&show_text=false&autoplay=1';
+      return u;
+    }
+    u = String((v && v.embed_url) || '').trim();
     if (!u && href) {
       u =
         'https://www.facebook.com/plugins/video.php?href=' +
@@ -485,7 +506,7 @@
     if (isWebcam(v)) {
       return (
         '<img src="' +
-        esc(liveThumbSrc(v)) +
+        esc(LAST_CAM_STILL) +
         '" alt="ZVYC live cam" data-mm-webcam-live loading="lazy" decoding="async">' +
         camStampHtml()
       );
@@ -838,30 +859,8 @@
       stopWebcamLive(root);
       return;
     }
-    function bump() {
-      var imgs = root.querySelectorAll('[data-mm-webcam-live]');
-      if (root._mmLiveGrab) {
-        applyLiveGrab(root, root._mmLiveGrab);
-        stopWebcamLive(root);
-        return;
-      }
-      var src = liveThumbSrc(clip, true);
-      var i;
-      for (i = 0; i < imgs.length; i++) {
-        if (src) imgs[i].src = src;
-      }
-      wireWebcamThumbLoad(root, clip);
-      refreshSavedCamStill(root);
-    }
-    function go() {
-      bump();
-      stopWebcamLive(root);
-      root._mmCamTimer = window.setInterval(function () {
-        bump();
-      }, 8000);
-    }
-    scrapeZvycCamToken();
-    go();
+    wireWebcamThumbLoad(root, clip);
+    pollCamStatus(root);
   }
 
   function emptyReelSlotHtml() {
@@ -1030,7 +1029,6 @@
     }
     stage.classList.add('mm-lipton-reels-stage--playing');
     ensureCamStampOn(stage);
-    startWebcamLive(root, clip);
     paintCamStamps(root);
   }
 
@@ -1079,7 +1077,6 @@
       if (hold) hold.appendChild(video);
     }
     paintWebcamPoster(root, clip);
-    startWebcamLive(root, clip);
   }
 
   /* Timed 2026-09-10 live: playlist 2.0-3.2s, first seg 3.4-4.4s, playlist+2seg 9-11s. */
@@ -1441,7 +1438,7 @@
     }
     var pollMs = 60000;
     try {
-      if (isCapeClassic()) pollMs = 2000;
+      if (isCapeClassic()) pollMs = firstMmFbLive(payload.videos || []) ? 8000 : 15000;
       else if ((payload.videos || []).length) pollMs = 300000;
     } catch (e1) {}
     window.setInterval(tick, pollMs);
@@ -1467,8 +1464,8 @@
     if (compact.getAttribute('data-mm-count') !== countKey) {
       compact.innerHTML = compactTilesHtml(videos);
       compact.setAttribute('data-mm-count', countKey);
+      wireWebcamThumbLoad(root, (videos || []).filter(isWebcam)[0]);
     }
-    startWebcamLive(root, (videos || []).filter(isWebcam)[0]);
     var art = ART_W / ART_H;
     var vid = VID_W / VID_H;
     var border = 4;
@@ -1584,7 +1581,7 @@
     var s;
     for (s = 0; s < spots.length; s++) {
       var clip = picked.videos[spots[s]];
-      if (!clip) continue;
+      if (!clip || isWebcam(clip) || mmFbLive(clip)) continue;
       var src = playUrl(clip);
       if (!src) continue;
       var el = hold.querySelector('video[data-mm-pre="' + clip.id + '"]');
