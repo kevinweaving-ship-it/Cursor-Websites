@@ -58,7 +58,7 @@ _CAPE_CLASSIC_CREW_LOGIN_GATE_JS = (
     "if(!el){var ret=encodeURIComponent(String(location.href||'/'));"
     "el=document.createElement('div');el.id='ssaWaGate';el.className='ssa-wa-gate';"
     "el.setAttribute('role','dialog');el.innerHTML='<div class=\"ssa-wa-gate-card\"><p></p>"
-    "<div class=\"ssa-wa-gate-actions\"><a class=\"ssa-wa-gate-in\" href=\"/login.html?returnTo='+ret+'\">Sign In</a>"
+    "<div class=\"ssa-wa-gate-actions\"><a class=\"ssa-wa-gate-in\" href=\"/login.html?returnTo='+ret+'\">Login</a>"
     "<a class=\"ssa-wa-gate-up\" href=\"/signup.html?signup=1&amp;returnTo='+ret+'\">Sign Up</a>"
     "<button type=\"button\" data-wa-gate-close=\"1\">Close</button></div></div>';"
     "document.body.appendChild(el);"
