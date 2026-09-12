@@ -48,4 +48,4 @@ Print / save / download / share **generates now** from the event URL (header + f
 
 ## Batch closed events
 
-`python3 sailingsa/deploy/generate_closed_event_product_pdfs.py` on the live server (uses existing `_rebuild_regatta_stored_pdfs`). Skip live/fluid events.
+`python3 sailingsa/deploy/generate_closed_event_product_pdfs.py` on the live server (uses existing `_rebuild_regatta_stored_pdfs`). Regenerates every closed parent + child so `/regatta/{id}/results.pdf` is all fleets and a child URL PDF is that fleet only. Skip live/fluid events.

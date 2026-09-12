@@ -2,7 +2,8 @@
 """Write stored product PDFs for closed events (parent + children).
 
 Live / fluid events are skipped (generate-now on request).
-Run on the live API host with the same PYTHONPATH as sailingsa-api.
+Always regenerates so parent and child event URLs match the sample sheet
+(header + every fleet on the parent; that fleet only on the child).
 
   cd /var/www/sailingsa
   PYTHONPATH=/var/www/sailingsa/api:/var/www/sailingsa \
@@ -82,16 +83,28 @@ def main() -> int:
             pass
         closed.append(rid)
 
-    print(f"closed={len(closed)} skipped_live={len(skipped_live)} today={today}", flush=True)
-    ok = fail = skip_exists = 0
+    fluid_fn = getattr(api_mod, "_event_still_fluid", None)
+    if callable(fluid_fn):
+        still_live = []
+        for rid in list(closed):
+            try:
+                if fluid_fn(rid):
+                    skipped_live.append(rid)
+                    still_live.append(rid)
+            except Exception:
+                pass
+        if still_live:
+            closed = [rid for rid in closed if rid not in set(still_live)]
+
+    print(
+        f"closed={len(closed)} skipped_live={len(skipped_live)} today={today} force=1",
+        flush=True,
+    )
+    if skipped_live:
+        print("skip_live " + ",".join(skipped_live[:20]), flush=True)
+    ok = fail = 0
     t0 = time.time()
     for i, rid in enumerate(closed, 1):
-        parent = pdf_abs_path(rid)
-        if parent.is_file() and parent.stat().st_size >= 500:
-            skip_exists += 1
-            if i % 50 == 0:
-                print(f"[{i}/{len(closed)}] exists {rid}", flush=True)
-            continue
         try:
             rebuild(rid)
             path = pdf_abs_path(rid)
@@ -105,7 +118,7 @@ def main() -> int:
             fail += 1
             print(f"[{i}/{len(closed)}] FAIL {rid}: {exc}", flush=True)
     print(
-        f"done ok={ok} already={skip_exists} fail={fail} sec={time.time()-t0:.0f}",
+        f"done ok={ok} fail={fail} sec={time.time()-t0:.0f}",
         flush=True,
     )
     return 0 if fail == 0 else 1
