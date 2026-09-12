@@ -47,7 +47,7 @@ def _event_whatsapp_show_on_event(regatta_id: str) -> bool:
         try:
             cur.execute(
                 """
-                SELECT COALESCE(show_on_event, false)
+                SELECT COALESCE(show_on_event, false) AS show_on_event
                 FROM public.event_whatsapp_groups
                 WHERE is_current AND regatta_id = %s
                 LIMIT 1
@@ -55,7 +55,11 @@ def _event_whatsapp_show_on_event(regatta_id: str) -> bool:
                 (rid,),
             )
             row = cur.fetchone()
-            return bool(row and row[0])
+            if not row:
+                return False
+            if isinstance(row, dict):
+                return bool(row.get("show_on_event"))
+            return bool(row[0])
         finally:
             cur.close()
             return_db_connection(conn)
