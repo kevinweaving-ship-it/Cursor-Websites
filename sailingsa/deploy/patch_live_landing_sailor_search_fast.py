@@ -65,6 +65,8 @@ def _strip_preload(text: str) -> str:
         + MARKER
         + """ only #1 card after typing stops */
                         return slots[0] ? fetchOne(slots[0]) : Promise.resolve();
+                    }
+
 """
     )
     return text[:start] + new + text[end:]
