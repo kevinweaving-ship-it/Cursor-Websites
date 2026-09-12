@@ -15,6 +15,8 @@ Confirm path before change.
 
 **Blank hub UI:** Use **`https://sailingsa.co.za/blank.html`** as the canonical URL for hub work and verification. Nginx may also serve the same `blank.html` at **`/`**; see **`sailingsa/deploy/nginx-root-blank-hub.conf`** and the optional split there if root must show a different file.
 
+**MM Facebook LIVE records (do not ask Kevin to re-find these):** App ID `1614644650032287` (SailingSA MM Live). Login config `1475623934360046` (`MM Page LIVE`). Secret and full record are on live at `/root/SAILINGSA_MM_FB_LIVE.txt` and `/etc/sailingsa/mm-fb-app.env`. Sailor login stays on SailingSA Login `885045914172033`. See **`docs/MM_FB_LIVE_RECORD.md`**. Never commit the App secret.
+
 ---
 
 ## SSH key setup (one-time; then no password needed)
