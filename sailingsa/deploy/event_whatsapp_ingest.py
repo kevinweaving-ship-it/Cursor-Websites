@@ -9,6 +9,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import time
@@ -202,6 +203,48 @@ def maybe_bind_groups_file() -> None:
         print("groups.json", e, file=sys.stderr)
 
 
+LIVE_JSON = Path("/var/www/sailingsa/js/event-whatsapp-live.json")
+DUMP_SQL = r"""
+SELECT json_build_object(
+  'ok', true,
+  'regatta_id', '2026-09-13-zvyc-cape-classic',
+  'messages', COALESCE((
+    SELECT json_agg(row_to_json(x))
+    FROM (
+      SELECT from_me, sender_name, kind,
+             left(coalesce(body, ''), 500) AS body,
+             left(coalesce(caption, ''), 200) AS caption,
+             duration_sec,
+             to_char(occurred_at AT TIME ZONE 'Africa/Johannesburg', 'YYYY-MM-DD"T"HH24:MI:SS') AS occurred_at
+      FROM (
+        SELECT from_me, sender_name, kind, body, caption, duration_sec, occurred_at
+        FROM public.event_whatsapp_messages
+        WHERE regatta_id = '2026-09-13-zvyc-cape-classic'
+          AND COALESCE(kind, '') NOT IN ('empty', 'group-list')
+        ORDER BY occurred_at DESC NULLS LAST
+        LIMIT 40
+      ) newest
+      ORDER BY occurred_at ASC NULLS LAST
+    ) x
+  ), '[]'::json)
+);
+"""
+
+
+def dump_live_json() -> None:
+    raw = (psql(DUMP_SQL) or "").strip()
+    if not raw:
+        return
+    LIVE_JSON.parent.mkdir(parents=True, exist_ok=True)
+    tmp = LIVE_JSON.with_suffix(".json.tmp")
+    tmp.write_text(raw + "\n", encoding="utf-8")
+    tmp.replace(LIVE_JSON)
+    try:
+        os.chmod(LIVE_JSON, 0o644)
+    except Exception:
+        pass
+
+
 def one_pass() -> int:
     ensure_ddl()
     maybe_bind_groups_file()
@@ -236,6 +279,11 @@ def main() -> int:
             n = one_pass()
             if n:
                 print("ingested", n, flush=True)
+            try:
+                if n or not LIVE_JSON.exists():
+                    dump_live_json()
+            except Exception as dump_err:
+                print("live json", dump_err, file=sys.stderr, flush=True)
         except Exception as e:
             print("ingest error", e, file=sys.stderr, flush=True)
         if not watch:
