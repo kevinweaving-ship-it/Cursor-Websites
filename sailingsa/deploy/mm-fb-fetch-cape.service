@@ -1,0 +1,7 @@
+[Unit]
+Description=Fetch Marine Megastore Facebook reels for Cape Classic
+
+[Service]
+Type=oneshot
+Nice=10
+ExecStart=/usr/bin/flock -n /run/mm-fb-fetch-cape.lock /usr/bin/python3 /var/www/sailingsa/deploy/mm_fb_fetch_cape.py
