@@ -141,6 +141,7 @@
         if (tok && root) {
           root._mmCamToken = tok;
           root._mmCamTokenAt = Date.now();
+          refreshSavedCamStill(root);
         }
         return tok;
       })
@@ -168,12 +169,29 @@
   function liveThumbSrc(v, fresh) {
     var root = cardEl();
     if (isWebcam(v) && root && root._mmLiveGrab && !fresh) return root._mmLiveGrab;
-    if (isWebcam(v)) {
-      if (fresh) return withCamQuery(CAM_THUMB_API, '', true);
-      return withCamQuery(camStillSrc(v), '', false);
-    }
+    if (isWebcam(v)) return withCamQuery(LAST_CAM_STILL, '', !!fresh);
     var base = String((v && v.thumb) || '').split('?')[0];
     return base ? base + '?t=' + Date.now() : '';
+  }
+
+  function refreshSavedCamStill(root) {
+    if (!root) return Promise.resolve(false);
+    var tok = camTokenOf(root);
+    var url = CAM_THUMB_API + '?t=' + Date.now();
+    if (tok) url += '&a=' + encodeURIComponent(tok);
+    return fetch(url, { credentials: 'same-origin', cache: 'no-store' })
+      .then(function (r) {
+        if (!r.ok) return false;
+        var imgs = root.querySelectorAll('[data-mm-webcam-live]');
+        var src = LAST_CAM_STILL + '?t=' + Date.now();
+        var i;
+        for (i = 0; i < imgs.length; i++) imgs[i].src = src;
+        hideThumbCamLoad(root);
+        return true;
+      })
+      .catch(function () {
+        return false;
+      });
   }
 
   function grabVideoFrame(video) {
@@ -693,13 +711,14 @@
         if (src) imgs[i].src = src;
       }
       wireWebcamThumbLoad(root, clip);
+      refreshSavedCamStill(root);
     }
     function go() {
       bump();
       stopWebcamLive(root);
       root._mmCamTimer = window.setInterval(function () {
         bump();
-      }, 4000);
+      }, 8000);
     }
     scrapeZvycCamToken();
     go();
