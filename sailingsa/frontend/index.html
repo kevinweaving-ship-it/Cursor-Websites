@@ -8273,9 +8273,6 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                         });
 
                         window.__ssaDev1CardCache = window.__ssaDev1CardCache || {};
-                        slots.forEach(function(item) {
-                            if (item.sid && window.__ssaDev1CardCache[item.sid]) fetchOne(item);
-                        });
                         function fetchOne(item) {
                             if (!item || item.wrap.getAttribute('data-card-loaded') === '1') return Promise.resolve();
                             item.wrap.setAttribute('data-card-loaded', '1');
@@ -8289,59 +8286,27 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                                 mountDev1Card(item.wrap, cached);
                                 return Promise.resolve();
                             }
-                            return fetch('/dev-1?embed=1&sas_id=' + encodeURIComponent(item.sid), { credentials: 'same-origin' })
+                            return fetch('/dev-1?embed=1&sas_id=' + encodeURIComponent(item.sid), { credentials: 'same-origin', signal: sailorSearchAbort && sailorSearchAbort.signal })
                                 .then(function(r) { return r.text(); })
                                 .then(function(html) {
                                     if (gen !== (window.__sailorSearchGen || 0)) return;
                                     window.__ssaDev1CardCache[item.sid] = html;
                                     mountDev1Card(item.wrap, html);
                                 })
-                                .catch(function() {
+                                .catch(function(err) {
+                                    if (err && err.name === 'AbortError') return;
                                     if (gen !== (window.__sailorSearchGen || 0)) return;
                                     var keepName = sailorSearchRowName(item.row) || 'Sailor';
                                     function escE(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
                                     item.wrap.innerHTML = '<div class="profile-card" style="cursor:pointer;"><div class="profile-card-body"><span class="profile-card-value">' + escE(keepName) + '</span></div></div>';
                                 });
                         }
-                        function loadRange(start, end, conc) {
-                            var i = start;
-                            var stop = Math.min(end, slots.length);
-                            function worker() {
-                                if (gen !== (window.__sailorSearchGen || 0)) return Promise.resolve();
-                                if (i >= stop) return Promise.resolve();
-                                var item = slots[i++];
-                                return fetchOne(item).then(worker);
-                            }
-                            var pool = [];
-                            var n = Math.min(conc, Math.max(0, stop - start));
-                            for (var k = 0; k < n; k++) pool.push(worker());
-                            return Promise.all(pool);
-                        }
                         if (window.__ssaSailorCardIO) {
                             try { window.__ssaSailorCardIO.disconnect(); } catch (_) {}
                             window.__ssaSailorCardIO = null;
                         }
-                        var topN = Math.min(3, slots.length);
-                        var topLoad = loadRange(0, topN, 3);
-                        if (slots.length > topN && typeof IntersectionObserver === 'function') {
-                            var io = new IntersectionObserver(function(entries) {
-                                if (gen !== (window.__sailorSearchGen || 0)) return;
-                                entries.forEach(function(en) {
-                                    if (!en.isIntersecting) return;
-                                    io.unobserve(en.target);
-                                    var item = null;
-                                    for (var s = topN; s < slots.length; s++) {
-                                        if (slots[s].wrap === en.target) { item = slots[s]; break; }
-                                    }
-                                    if (item) fetchOne(item);
-                                });
-                            }, { root: null, rootMargin: '80px 0px', threshold: 0.01 });
-                            window.__ssaSailorCardIO = io;
-                            for (var s = topN; s < slots.length; s++) io.observe(slots[s].wrap);
-                        } else if (slots.length > topN) {
-                            loadRange(topN, slots.length, 2);
-                        }
-                        return topLoad;
+                        // After typing has stopped: only the current #1 (best match). Do not pre-build the rest.
+                        return slots[0] ? fetchOne(slots[0]) : Promise.resolve();
                     }
 
                     var url = API + '/api/search?q=' + encodeURIComponent(q) + limitParam;
@@ -8374,9 +8339,9 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                         if (q === '') {
                             runSailorSearch();
                         } else {
+                            if (sailorSearchAbort) sailorSearchAbort.abort();
                             if (q.length >= 2) instantFilterSailorResults(q);
-                            var _tokN = q.split(/\s+/).filter(Boolean).length;
-                            sailorSearchDebounce = setTimeout(runSailorSearch, _tokN >= 2 ? 0 : 180);
+                            sailorSearchDebounce = setTimeout(runSailorSearch, 350);
                         }
                     } else {
                         // Regatta mode: never show sailor profile. Empty = show regatta list/hint; typed = filter regattas.

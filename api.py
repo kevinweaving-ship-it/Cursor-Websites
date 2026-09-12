@@ -15677,7 +15677,7 @@ def api_search(
                                 for tok in tokens:
                                     _append_sailor_token_sql(tok, include_clubs=True)
                             elif hub_on and tokens:
-                                _append_sailor_token_sql(tokens[0], include_clubs=True)
+                                _append_sailor_token_sql(tokens[0], include_clubs=False)
                             else:
                                 # Single token: prefix on names + substring on full-name strings + SA ID (legacy)
                                 conditions.append("""
