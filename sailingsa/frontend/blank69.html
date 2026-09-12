@@ -10122,7 +10122,7 @@
     meta.textContent = 'Searching…';
     area.innerHTML = '<div class="blank-loading">Loading…</div>';
 
-    var sailorsP = fetchJson(window.API_BASE + '/api/search?q=' + encodeURIComponent(trimmed) + '&hub=1&limit=500').catch(function () { return []; });
+    var sailorsP = fetchJson(window.API_BASE + '/api/search?q=' + encodeURIComponent(trimmed) + '&hub=1&limit=12').catch(function () { return []; });
     var regattasP = fetchJson(window.API_BASE + '/api/regattas/with-counts?q=' + encodeURIComponent(trimmed)).catch(function () { return []; });
 
     var sailors, regattas;
