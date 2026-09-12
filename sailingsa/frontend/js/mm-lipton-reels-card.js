@@ -40,8 +40,8 @@
   function sortVideos(videos) {
     var list = (videos || []).slice();
     function byRecent(a, b) {
-      var al = a && a.is_live ? 1 : 0;
-      var bl = b && b.is_live ? 1 : 0;
+      var al = mmFbLive(a) ? 1 : 0;
+      var bl = mmFbLive(b) ? 1 : 0;
       if (bl !== al) return bl - al;
       return String((b && b.started_at) || '').localeCompare(String((a && a.started_at) || ''));
     }
@@ -78,6 +78,15 @@
 
   function isWebcam(v) {
     return !!(v && (v.kind === 'webcam' || v.placeholder || v.id === 'zvyc-live-cam'));
+  }
+
+  function isAdvertFile(v) {
+    return String((v && v.play_url) || '').indexOf('/assets/adverts/') === 0;
+  }
+
+  function hasFacebookEmbed(v) {
+    var href = String((v && (v.embed_url || v.permalink || v.url)) || '').trim();
+    return /facebook\.com/i.test(href);
   }
 
   function hasRealReels(videos) {
@@ -1167,7 +1176,7 @@
       });
       return;
     }
-    if (clip && clip.is_live && String(clip.play_url || '').indexOf('/assets/adverts/') !== 0) {
+    if (mmFbLive(clip)) {
       startEmbedPlayback(root, clip);
       return;
     }
@@ -1385,7 +1394,8 @@
   }
 
   function mmFbLive(v) {
-    return !!(v && v.is_live && !isWebcam(v));
+    // Live is Facebook embed only. A file under /assets/adverts/ is a reel.
+    return !!(v && v.is_live && !isWebcam(v) && !isAdvertFile(v) && hasFacebookEmbed(v));
   }
 
   function firstMmFbLive(videos) {
@@ -1812,7 +1822,7 @@
     var state = { expanded: false, currentId: '', chromeSnap: null, hideTimer: null, playerWired: false, sliding: false, didSwipe: false };
     var video = ensureHeroVideo(root);
     var first = sortVideos(payload.videos || [])[0];
-    if (first && video && !isWebcam(first)) {
+    if (first && video && !isWebcam(first) && !mmFbLive(first)) {
       var src = playUrl(first);
       if (first.thumb) video.setAttribute('poster', first.thumb);
       if (src) video.src = src;
