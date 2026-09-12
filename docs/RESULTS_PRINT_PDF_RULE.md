@@ -21,8 +21,10 @@ It is **not** used to generate, print, save, download, or share **our** event PD
 Event is **closed** (passed: `end_date` / `start_date` before today in Africa/Johannesburg).
 
 - Generate **our** PDFs (event header + fleet headers + fleet results). Landscape if the table is too wide for portrait. Each fleet stays on one page.
-- **Store** under `/var/www/sailingsa/data/regatta-pdfs/{regatta_id}/results.pdf` and `class-{slug}.pdf`.
-- Print / save / download / share **fetches** that file: `/regatta/{id}/results.pdf` (parent) or `/regatta/{id}/class-{slug}/results.pdf` (child). `?download=1` for save/download.
+- **Parent URL** (`/regatta/{id}`): one PDF with **every** fleet. Print / save / share that file — never the first fleet only.
+- **Child URL** (`/regatta/{id}-{fleet}` or `/regatta/{id}/class-{slug}`): PDF of **that fleet only**.
+- **Store** under `/var/www/sailingsa/data/regatta-pdfs/{regatta_id}/results.pdf` (all fleets), `class-{slug}.pdf`, and `{child-slug}/results.pdf`.
+- Print / save / download / share **fetches** that file: `/regatta/{id}/results.pdf` (parent, all fleets) or the child path `/results.pdf`. `?download=1` for save/download.
 
 Do not rebuild from a source SAS PDF. If we later amend that event, regenerate and replace **that** event’s stored PDFs.
 

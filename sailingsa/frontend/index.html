@@ -12947,6 +12947,18 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                 try { u = new URL(iframe.src, location.origin); } catch (e) { return ''; }
                 var path = u.pathname || '';
                 if (/podium\.html/i.test(path)) return '';
+                // Event URL is truth: parent path → one PDF with every fleet;
+                // child path → that fleet only. Do not use leftover class_slug
+                // from a class iframe when the page (or Full view) is the parent.
+                var pagePath = (location.pathname || '').replace(/\/+$/, '');
+                var pageM = pagePath.match(/^\/regatta\/([^\/]+)(?:\/class-([^\/]+))?$/i);
+                if (pageM && pageM[1] && pageM[1] !== 'results.html' && pageM[1] !== 'class') {
+                    var pslug = pageM[1];
+                    if (pageM[2]) {
+                        return '/regatta/' + encodeURIComponent(pslug) + '/class-' + encodeURIComponent(pageM[2].replace(/\/results\.pdf$/i, '')) + '/results.pdf';
+                    }
+                    return '/regatta/' + encodeURIComponent(pslug) + '/results.pdf';
+                }
                 var rid = (u.searchParams.get('regatta_id') || '').trim();
                 var cslug = (u.searchParams.get('class_slug') || '').trim();
                 var m = path.match(/^\/regatta\/([^\/]+)(?:\/class-([^\/]+))?/i);
@@ -12957,7 +12969,10 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                     }
                 }
                 if (!rid) return '';
+                var view = window._currentResultContentView || (typeof detectViewFromUrl === 'function' ? detectViewFromUrl(iframe.src) : '');
+                var isFull = view === 'full' || /\/results\.html/i.test(path);
                 var base = '/regatta/' + encodeURIComponent(rid);
+                if (isFull) return base + '/results.pdf';
                 if (cslug) return base + '/class-' + encodeURIComponent(cslug) + '/results.pdf';
                 return base + '/results.pdf';
             }

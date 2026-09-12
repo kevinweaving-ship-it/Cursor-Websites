@@ -4,7 +4,7 @@ This is the standard SailingSA sheet: same format every event. SAS uploads
 (PDF/PNG/XLS/photo) are ingest only. Print / save / download / share must
 open these files.
 
-Each event keeps a parent PDF; each fleet child URL keeps its own PDF.
+Each event keeps a parent PDF with **every fleet**; each child URL keeps a PDF of **that fleet only**.
 Orientation is portrait unless any table is wider than A4 portrait (194mm).
 A fleet is never split across pages.
 
@@ -32,8 +32,39 @@ from sailingsa.backend.regatta_print_compact_css import (
 )
 
 PDF_URL_SUFFIX = "/results.pdf"
+_SITE = "https://sailingsa.co.za"
+_SSA_LOGO = "/assets/logos/sailingsa-logo.png"
 _LOCKS: dict[str, threading.Lock] = {}
 _LOCKS_GUARD = threading.Lock()
+
+
+def abs_asset_url(src: str) -> str:
+    """Make sheet image URLs fetchable from Chrome's file:// print."""
+    from urllib.parse import quote, unquote
+
+    s = (src or "").strip()
+    if not s or s.startswith("data:"):
+        return s
+    if s.startswith("//"):
+        return "https:" + s
+    if s.startswith("http://") or s.startswith("https://"):
+        return s
+    path = s if s.startswith("/") else "/" + s
+    # Fleet HTML often already has %20; unquote first so we do not emit %2520.
+    path = unquote(path)
+    enc = "/".join(quote(part, safe=".-_~") for part in path.split("/"))
+    if not enc.startswith("/"):
+        enc = "/" + enc
+    return _SITE + enc
+
+
+def rewrite_print_images(html: str) -> str:
+    def _src(m: re.Match) -> str:
+        return f"{m.group(1)}{abs_asset_url(m.group(2))}{m.group(3)}"
+
+    html = re.sub(r"""(src=["'])([^"']+)(["'])""", _src, html or "", flags=re.I)
+    html = re.sub(r"""\sloading=["']lazy["']""", "", html, flags=re.I)
+    return html
 
 
 def pdf_root() -> Path:
@@ -182,16 +213,10 @@ def build_print_document(
     host_s = escape(host or "")
     status_s = escape(status_line or "")
     url_s = escape(sheet_url or "")
-    left_img = (
-        f'<img src="{escape(left_logo)}" alt="" class="regatta-header-logo-img" />'
-        if left_logo
-        else ""
-    )
-    right_img = (
-        f'<img src="{escape(right_logo)}" alt="" class="regatta-header-club-logo-img" />'
-        if right_logo
-        else ""
-    )
+    left_src = abs_asset_url(left_logo or _SSA_LOGO)
+    right_src = abs_asset_url(right_logo or _SSA_LOGO)
+    left_img = f'<img src="{escape(left_src)}" alt="SailingSA" class="regatta-header-logo-img" />'
+    right_img = f'<img src="{escape(right_src)}" alt="" class="regatta-header-club-logo-img" />'
     left = f'<div class="regatta-header-logo-col">{left_img}</div>'
     right = f'<div class="regatta-header-club-logo-col">{right_img}</div>'
     header = (
@@ -211,14 +236,13 @@ def build_print_document(
         f'<a class="ssa-print-footer-url" href="{url_s}">{url_s}</a></div>'
     )
     css = PRINT_DOCUMENT_CSS.replace("A4 portrait", f"A4 {orient}")
-    base = ""
-    if left_logo or right_logo:
-        base = '<base href="https://sailingsa.co.za/">'
+    body = rewrite_print_images(body)
+    header = rewrite_print_images(header)
     return (
         "<!DOCTYPE html><html class=\"ssa-print-"
         f'{orient}" data-ssa-print-orient="{orient}">'
         '<head><meta charset="UTF-8">'
-        f"{base}"
+        f'<base href="{_SITE}/">'
         f"<title>{name}</title><style>{css}</style></head>"
         f'<body class="ssa-print-doc">{header}{body}{footer}</body></html>'
     )
@@ -350,6 +374,7 @@ def write_event_pdfs(
     slug = (slug or "").strip()
     if not slug:
         raise ValueError("slug required")
+    fleets = [dict(f, html=rewrite_print_images(f.get("html") or "")) for f in fleets]
     htmls = [f.get("html") or "" for f in fleets]
     orient = orientation_from_fleet_htmls(htmls)
     parent_fleets = paginate_fleet_htmls(fleets, orient)
@@ -375,31 +400,31 @@ def write_event_pdfs(
                 continue
             child_orient = orientation_from_fleet_htmls([child_html_src])
             child_fleets = paginate_fleet_htmls([fleet], child_orient)
-            child_url = (
-                f"https://sailingsa.co.za/regatta/{slug}/class-{cslug}"
-                if cslug
-                else (
-                    f"https://sailingsa.co.za/regatta/{pdf_slug}"
-                    if pdf_slug
-                    else f"https://sailingsa.co.za/regatta/{slug}"
+
+            def _write_child(url: str, dest: Path, key: str) -> None:
+                html = build_print_document(
+                    event_name=event_name,
+                    host=host,
+                    status_line=status_line,
+                    sheet_url=url,
+                    fleets=child_fleets,
+                    orient=child_orient,
+                    left_logo=left_logo,
+                    right_logo=right_logo,
                 )
-            )
-            child_html = build_print_document(
-                event_name=event_name,
-                host=host,
-                status_line=status_line,
-                sheet_url=child_url,
-                fleets=child_fleets,
-                orient=child_orient,
-                left_logo=left_logo,
-                right_logo=right_logo,
-            )
+                html_to_pdf(html, dest)
+                children[key] = dest
+
             if cslug:
-                cpath = pdf_abs_path(slug, cslug)
-                html_to_pdf(child_html, cpath)
-                children[cslug] = cpath
+                _write_child(
+                    f"https://sailingsa.co.za/regatta/{slug}/class-{cslug}",
+                    pdf_abs_path(slug, cslug),
+                    cslug,
+                )
             if pdf_slug and pdf_slug != slug:
-                spath = pdf_abs_path(pdf_slug)
-                html_to_pdf(child_html, spath)
-                children[pdf_slug] = spath
+                _write_child(
+                    f"https://sailingsa.co.za/regatta/{pdf_slug}",
+                    pdf_abs_path(pdf_slug),
+                    pdf_slug,
+                )
     return WrittenPdfs(slug=slug, orient=orient, parent=parent_path, children=children)
