@@ -79,6 +79,7 @@
   var highRows = [];
   var HIGH_MS = 3600000;
   var LIVE_N = 3;
+  var MAJOR_DEG = 60;
   var t0 = 0;
   var trail = [];
   var lastU = 0;
@@ -111,6 +112,38 @@
   function lerpDeg(a, b, u) {
     var d = ((b - a + 540) % 360) - 180;
     return ((a + d * u) + 360) % 360;
+  }
+  function degSpanShort(a, b) {
+    return Math.abs(((Number(b) - Number(a) + 540) % 360) - 180);
+  }
+  function tidyDirs(pts) {
+    var lastGust = null;
+    var i;
+    var pt;
+    var avgJump;
+    var gustJump;
+    var avgVsMax;
+    for (i = 0; i < pts.length; i += 1) {
+      pt = pts[i];
+      if (pt.degAvg == null) pt.degAvg = pt.deg;
+      if (lastGust == null) {
+        lastGust = pt.dirMax;
+        continue;
+      }
+      avgJump = degSpanShort(pt.degAvg, lastGust);
+      gustJump = degSpanShort(pt.dirMax, lastGust);
+      avgVsMax = degSpanShort(pt.degAvg, pt.dirMax);
+      if (avgJump >= MAJOR_DEG && avgVsMax >= MAJOR_DEG && gustJump < MAJOR_DEG) {
+        pt.deg = pt.dirMax;
+        lastGust = pt.dirMax;
+      } else if (gustJump >= MAJOR_DEG && avgJump < MAJOR_DEG) {
+        pt.deg = pt.degAvg;
+      } else {
+        pt.deg = pt.degAvg;
+        lastGust = pt.dirMax;
+      }
+    }
+    return pts;
   }
   function xy(deg, r) {
     var rad = deg * Math.PI / 180;
@@ -281,6 +314,7 @@
     var span = Math.abs(turn);
     var k0 = Math.max(0, Number(kt0) || 0);
     var k1 = Math.max(0, Number(kt1) || 0);
+    if (span >= 90) return null;
     if (span < 0.35 && Math.abs(k1 - k0) < 0.2) return null;
     var n = Math.max(8, Math.min(42, Math.round(span / 2) + Math.round(Math.abs(k1 - k0) * 2)));
     var pts = [];
@@ -307,6 +341,7 @@
   function stampJoin(maxR, deg0, deg1, kt0, kt1) {
     var turn = ((deg1 - deg0 + 540) % 360) - 180;
     var span = Math.abs(turn);
+    if (span >= 90) return;
     var k0 = Math.max(0, Number(kt0) || 0);
     var k1 = Math.max(0, Number(kt1) || 0);
     var n = Math.max(1, Math.ceil(span));
@@ -558,6 +593,13 @@
     }
     op = (0.55 * liveOp).toFixed(2);
     for (i = 0; i < livePts.length; i += 1) {
+      if (i > 0 && degSpanShort(livePts[i - 1].deg, livePts[i].deg) >= MAJOR_DEG) {
+        if (n > 1 && liveOp > 0) {
+          h += '<path d="' + d + '" fill="none" stroke="#111" stroke-width="0.35" stroke-opacity="' + op + '" stroke-linecap="round" stroke-linejoin="round"/>';
+        }
+        d = "";
+        n = 0;
+      }
       r = Math.max(R_MIN + 2, radiusForKt(livePts[i].kt));
       p = xy(livePts[i].deg, r);
       d += (n === 0 ? "M " : " L ") + p[0].toFixed(1) + "," + p[1].toFixed(1);
@@ -585,7 +627,7 @@
       if (!res.ok) return;
       var body = await res.json();
       var rows = (body.readings || body.history || []).map(asSample).filter(Boolean).sort(function (a, b) { return a.t - b.t; });
-      highRows = rows;
+      highRows = tidyDirs(rows);
       paintHigh();
       paintLive();
     } catch (e) {}
@@ -677,6 +719,7 @@
   function loadHour(list) {
     var pts = (list || []).map(asSample).filter(Boolean).sort(function (a, b) { return a.t - b.t; });
     if (!pts.length) return [];
+    tidyDirs(pts);
     var end = pts[pts.length - 1].t;
     return pts.filter(function (p) { return end - p.t <= 3600000; });
   }
