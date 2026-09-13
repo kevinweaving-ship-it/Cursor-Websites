@@ -61,10 +61,23 @@ def cape_classic_hide_duplicate_venue(regatta_id: Optional[str] = None) -> bool:
     return is_cape_classic_2026_zvy_event(regatta_id)
 
 
+# Same two-heads mark as the hub entries pill (svgIcon('users')).
+_ENTRIES_USERS_SVG = (
+    '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" '
+    'stroke="currentColor" stroke-width="1.6" stroke-linecap="round" '
+    'stroke-linejoin="round" aria-hidden="true" focusable="false">'
+    '<circle cx="6" cy="5.5" r="2.1"/>'
+    '<circle cx="10.5" cy="6.2" r="1.8"/>'
+    '<path d="M2.7 12.4c.45-1.9 2.05-3 4.2-3 2.15 0 3.75 1.1 4.2 3"/>'
+    '<path d="M9.4 11.8c.35-1.2 1.35-1.95 2.7-1.95 1.05 0 1.95.45 2.5 1.25"/>'
+    "</svg>"
+)
+
+
 def cape_classic_event_header_status_html(
     status_line_text: str, regatta_id: Optional[str] = None
 ) -> str:
-    """Header only: 'Results are Provisional' then 'as at 12 Sep 2026 at 17:46'."""
+    """Header only: 'Results are Provisional' then '12 Sep 2026 17:46'."""
     raw = str(status_line_text or "").strip()
     wrapped = f'<div class="status-line">{raw}</div>'
     if not is_cape_classic_2026_zvy_event(regatta_id):
@@ -75,12 +88,27 @@ def cape_classic_event_header_status_html(
     if len(parts) != 2:
         return wrapped
     head, rest = parts[0].strip(), parts[1].strip()
-    as_at = "as at " + rest
     for full, short in _MONTH_ABBREV:
-        as_at = re.sub(rf"\b{full}\b", short, as_at)
+        rest = re.sub(rf"\b{full}\b", short, rest)
+    rest = re.sub(r"\s+at\s+", " ", rest, flags=re.I).strip()
     return (
         f'<div class="status-line">{head}</div>'
-        f'<div class="status-line">{as_at}</div>'
+        f'<div class="status-line">{rest}</div>'
+    )
+
+
+def cape_classic_entries_line_html(n: int) -> str:
+    """Header: people icon + '52 Entries'."""
+    try:
+        count = int(n)
+    except (TypeError, ValueError):
+        return ""
+    if count <= 0:
+        return ""
+    return (
+        '<div class="entry-total-line entry-total-line--icon">'
+        f'<span class="entry-total-ico">{_ENTRIES_USERS_SVG}</span>'
+        f"{count} Entries</div>"
     )
 
 
@@ -265,8 +293,11 @@ if __name__ == "__main__":
             "2026-09-13-zvyc-cape-classic",
         )
         == '<div class="status-line">Results are Provisional</div>'
-        '<div class="status-line">as at 12 Sep 2026 at 17:46</div>'
+        '<div class="status-line">12 Sep 2026 17:46</div>'
     )
+    assert "entry-total-ico" in cape_classic_entries_line_html(52)
+    assert cape_classic_entries_line_html(52).endswith("52 Entries</div>")
+    assert "Total Entries" not in cape_classic_entries_line_html(52)
     assert (
         cape_classic_event_header_title("HYC Cape Classic", "2026-02-16-hyc-cape-classic")
         == "HYC Cape Classic"
