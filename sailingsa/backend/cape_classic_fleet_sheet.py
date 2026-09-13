@@ -12,10 +12,15 @@ CAPE_CLASSIC_2026_ZVY_ID = "2026-09-13-zvyc-cape-classic"
 _STAFF_TITLES = {"staff", "event staff", "crew"}
 _RACE_CODE = r"(DNC|DNS|DNF|DNR|RET|DSQ|UFD|BFD|DPI|OCS|NSC|DNE|ZFP|SCP|RDG|TLE)"
 _SPLIT_NUM_CODE = re.compile(
-    r'(<span\b[^>]*\bclass="[^"]*\bcode\b[^"]*"[^>]*>)\s*\(?\s*'
+    r'(<span\b[^>]*\bclass="[^"]*\bcode\b[^"]*"[^>]*>)\s*(\()?\s*'
     r"(\d+(?:\.\d+)?)\s+"
     + _RACE_CODE
-    + r"\s*\)?\s*(</span>)",
+    + r"\s*(\))?\s*(</span>)",
+    re.I,
+)
+_DISC_WC_SCORE = re.compile(
+    r'(<span\b[^>]*\bclass="[^"]*\bdisc\b[^"]*"[^>]*>\s*'
+    r'<span class="wc-score">)(?!\()(\d+(?:\.\d+)?)(</span>)',
     re.I,
 )
 
@@ -99,14 +104,31 @@ def print_header_links_to_event_child(html: str, child_href: str) -> str:
     return raw
 
 
+def _fmt_race_score(num: str) -> str:
+    raw = str(num or "").strip()
+    if not raw:
+        return ""
+    try:
+        n = float(raw)
+    except ValueError:
+        return raw
+    if n == int(n):
+        return str(int(n))
+    return raw
+
+
 def race_points_and_code_html(
     score_display: str, cell_class: str = "", extra_style: str = ""
 ) -> str:
-    """Split '20 DNC' / '(20 DNC)' so the score stays full size and the code can shrink."""
+    """Split '20 DNC' / '(20 DNC)' so the score stays full size and the code can shrink.
+
+    Discarded cells keep brackets on the number only: (20) + small DNC, never (20 DNC).
+    """
     raw = str(score_display or "").strip()
     if not raw:
         return ""
-    src = raw[1:-1].strip() if raw.startswith("(") and raw.endswith(")") else raw
+    discarded = raw.startswith("(") and raw.endswith(")")
+    src = raw[1:-1].strip() if discarded else raw
     m = re.match(rf"^(\d+(?:\.\d+)?)\s+{_RACE_CODE}$", src, re.I)
     if m:
         score, code = m.group(1), m.group(2).upper()
@@ -117,7 +139,10 @@ def race_points_and_code_html(
         score, code = "", m2.group(1).upper()
     inner = ""
     if score:
-        inner += f'<span class="wc-score">{score}</span>'
+        shown = _fmt_race_score(score)
+        if discarded:
+            shown = f"({shown})"
+        inner += f'<span class="wc-score">{shown}</span>'
     inner += f'<span class="wc-code">{code}</span>'
     cls = str(cell_class or "code").strip() or "code"
     return f'<span class="{cls}"{extra_style}>{inner}</span>'
@@ -127,12 +152,28 @@ def split_plain_race_code_spans(html: str) -> str:
     """Rewrite already-rendered '20 DNC' spans into score + code (print/PDF width)."""
 
     def _sub(m: re.Match[str]) -> str:
+        open_span, lpar, num, code, rpar, close = (
+            m.group(1),
+            m.group(2),
+            m.group(3),
+            m.group(4),
+            m.group(5),
+            m.group(6),
+        )
+        shown = _fmt_race_score(num)
+        discarded = bool(lpar or rpar) or "disc" in open_span.lower()
+        if discarded:
+            shown = f"({shown})"
         return (
-            f'{m.group(1)}<span class="wc-score">{m.group(2)}</span>'
-            f'<span class="wc-code">{m.group(3).upper()}</span>{m.group(4)}'
+            f'{open_span}<span class="wc-score">{shown}</span>'
+            f'<span class="wc-code">{code.upper()}</span>{close}'
         )
 
-    return _SPLIT_NUM_CODE.sub(_sub, html or "")
+    out = _SPLIT_NUM_CODE.sub(_sub, html or "")
+    return _DISC_WC_SCORE.sub(
+        lambda m: f"{m.group(1)}({_fmt_race_score(m.group(2))}){m.group(3)}",
+        out,
+    )
 
 
 def class_link_html_logo_only(class_link_html: str, img_html: str, class_name: str = "") -> str:
@@ -191,12 +232,20 @@ if __name__ == "__main__":
     assert "/regatta/2026-09-13-zvyc-cape-classic-420-fleet" in child
     assert 'href="/class/sonnet"' in child
     split_cell = race_points_and_code_html("(20 DNC)", "code disc")
-    assert 'class="wc-score">20</span>' in split_cell
+    assert 'class="wc-score">(20)</span>' in split_cell
     assert 'class="wc-code">DNC</span>' in split_cell
-    assert "(20" not in split_cell
+    assert "(20 DNC)" not in split_cell
+    counting = race_points_and_code_html("6 DNC", "code")
+    assert 'class="wc-score">6</span>' in counting
+    assert "(6)" not in counting
     rewritten = split_plain_race_code_spans(
         '<td class="code disc race-col"><span class="code disc">(20 DNC)</span></td>'
     )
-    assert 'class="wc-score">20</span>' in rewritten
+    assert 'class="wc-score">(20)</span>' in rewritten
     assert 'class="wc-code">DNC</span>' in rewritten
+    already = split_plain_race_code_spans(
+        '<span class="code disc"><span class="wc-score">20</span>'
+        '<span class="wc-code">DNC</span></span>'
+    )
+    assert 'class="wc-score">(20)</span>' in already
     print("ok")

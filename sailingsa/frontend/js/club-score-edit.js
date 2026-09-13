@@ -287,7 +287,7 @@
     var discarded = cell.charAt(0) === "(" && cell.slice(-1) === ")";
     var src = discarded ? cell.slice(1, -1).trim() : cell;
     var m = src.match(NUM_CODE_RE);
-    if (m) return (discarded ? "D|" : "C|") + fmtScoreNum(m[1]) + "|" + m[2].toUpperCase();
+    if (m) return (discarded ? "D|" : "C|") + (discarded ? "(" + fmtScoreNum(m[1]) + ")" : fmtScoreNum(m[1])) + "|" + m[2].toUpperCase();
     if (src && RACE_CODE_RE.test(src)) return (discarded ? "D|" : "C|") + "|" + src.toUpperCase();
     return (discarded ? "N|" : "S|") + fmtScoreNum(src.replace(/[()]/g, "").trim());
   }
@@ -321,11 +321,13 @@
     } else if (m) {
       td.classList.add("code");
       if (discarded) td.classList.add("disc");
+      var shown = fmtScoreNum(m[1]);
+      if (discarded) shown = "(" + shown + ")";
       html =
         '<span class="' +
         (discarded ? "code disc" : "code") +
         '"><span class="wc-score">' +
-        fmtScoreNum(m[1]) +
+        shown +
         '</span><span class="wc-code">' +
         m[2].toUpperCase() +
         "</span></span>";
