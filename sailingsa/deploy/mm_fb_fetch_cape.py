@@ -413,13 +413,18 @@ def probe_live() -> list | None:
     if not found:
         return []
     page_state = broadcast_state(html)
+    flags_all = listing_live_flags(html)
     for item in found:
         vid = str(item.get("id") or "")
         if not vid or vid in LIPTON_IDS:
             continue
+        streaming = (flags_all.get(vid) or {}).get("is_live_streaming")
+        # Facebook can show LIVE/paused on the last reel. Do not copy that.
+        if streaming is False:
+            continue
         state = broadcast_state(html, vid)
-        if state in {"live", "paused"} or (page_state in {"live", "paused"} and vid not in existing):
-            return [as_live_item(item, paused=(state == "paused" or page_state == "paused"))]
+        if streaming is True or state in {"live", "paused"}:
+            return [as_live_item(item, paused=(state == "paused"))]
     inspect_ids: list[dict] = []
     seen: set[str] = set()
     for item in found:
@@ -441,10 +446,13 @@ def probe_live() -> list | None:
         current["permalink"] = current["url"]
         state = str(current.get("live_state") or "unknown")
         if state in {"live", "paused"}:
+            flags = listing_live_flags(html).get(vid) or {}
+            if flags.get("is_live_streaming") is False:
+                continue
             return [as_live_item(current, paused=(state == "paused"))]
         if state == "unknown" and vid not in existing:
             flags = listing_live_flags(html).get(vid) or {}
-            if flags.get("is_live_streaming") or page_state in {"live", "paused"}:
+            if flags.get("is_live_streaming") is True:
                 return [as_live_item(current, paused=True)]
             continue
         if state == "vod" and (vid not in existing or vid in prev_live):
