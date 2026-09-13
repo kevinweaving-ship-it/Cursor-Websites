@@ -74,6 +74,7 @@
   var t0 = 0;
   var trail = [];
   var lastU = 0;
+  var ringRadii = [];
   var btn = document.getElementById("btn");
   var ringsG = document.getElementById("rings");
   var histG = document.getElementById("history");
@@ -160,17 +161,28 @@
     var h = "";
     var prev = 0;
     var i;
+    ringRadii = [];
     h += '<circle cx="160" cy="160" r="' + radiusForKt(0).toFixed(1) + '" fill="none" stroke="#e5e7eb" stroke-width="1.1"/>';
     for (i = 0; i < BANDS.length; i += 1) {
       var top = BANDS[i].max;
       if (top > KT_MAX) top = KT_MAX;
       if (top <= prev) continue;
       var r1 = radiusForKt(top);
-      h += '<circle cx="160" cy="160" r="' + r1.toFixed(1) + '" fill="none" stroke="#cbd5e1" stroke-width="1.15"/>';
+      ringRadii.push(r1);
       if (top >= KT_MAX) break;
       prev = top;
     }
+    for (i = 0; i < ringRadii.length; i += 1) {
+      var rail = (i === ringRadii.length - 2);
+      h += '<circle cx="160" cy="160" r="' + ringRadii[i].toFixed(1) + '" fill="none" stroke="' + (rail ? "#94a3b8" : "#cbd5e1") + '" stroke-width="' + (rail ? "1.7" : "1.15") + '"/>';
+    }
     ringsG.innerHTML = h;
+  }
+
+  function railRadius() {
+    if (ringRadii.length >= 2) return ringRadii[ringRadii.length - 2];
+    if (ringRadii.length === 1) return ringRadii[0] * 0.72;
+    return R_MAX * 0.72;
   }
 
   function bandSlice(kt) {
@@ -238,21 +250,21 @@
   }
 
   function vectorParts(pt) {
-    var r = radiusForKt(pt.kt);
+    var r = Math.max(R_MIN + 8, radiusForKt(pt.kt));
+    var rail = railRadius();
+    var base = Math.max(R_MIN, r - 14);
     return {
       r: r,
       deg: pt.deg,
-      outer: xy(pt.deg, R_MAX),
-      opp: xy(pt.deg + 180, R_MAX),
-      dot: xy(pt.deg, r),
-      tip: xy(pt.deg, Math.max(R_MIN, r - 16)),
-      left: xy(pt.deg - 10, Math.max(R_MIN - 2, r - 30)),
-      right: xy(pt.deg + 10, Math.max(R_MIN - 2, r - 30))
+      tip: xy(pt.deg, r),
+      left: xy(pt.deg - 10, base),
+      right: xy(pt.deg + 10, base),
+      dot: xy(pt.deg + 180, rail)
     };
   }
 
   function lineSvg(v, color) {
-    return '<line x1="' + v.opp[0].toFixed(1) + '" y1="' + v.opp[1].toFixed(1) + '" x2="' + v.outer[0].toFixed(1) + '" y2="' + v.outer[1].toFixed(1) + '" stroke="' + color + '" stroke-width="1.7" stroke-dasharray="2.6 3.6" stroke-linecap="round"/>';
+    return '<line x1="' + v.dot[0].toFixed(1) + '" y1="' + v.dot[1].toFixed(1) + '" x2="' + v.tip[0].toFixed(1) + '" y2="' + v.tip[1].toFixed(1) + '" stroke="' + color + '" stroke-width="1.7" stroke-dasharray="2.6 3.6" stroke-linecap="round"/>';
   }
 
   function markSvg(v, color) {
