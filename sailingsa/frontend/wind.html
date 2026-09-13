@@ -14,8 +14,7 @@
     svg.dial { display: block; width: 78%; max-width: 280px; height: auto; margin: 0 auto; }
     .spd { margin: 14px 0 0; text-align: center; font: 700 34px/1 Arial, Helvetica, sans-serif; color: #111; }
     .spd .kn { display: block; margin-top: 4px; font: 700 12px/1 Arial, Helvetica, sans-serif; letter-spacing: 1.2px; color: #9ca3af; }
-    .stats { margin: 10px auto 0; width: 78%; max-width: 280px; display: flex; justify-content: space-between; font: 700 12px/1.2 Arial, Helvetica, sans-serif; color: #6b7280; letter-spacing: 0.04em; }
-    .stats span:last-child { text-align: right; }
+    .stats { margin: 10px auto 0; width: 78%; max-width: 280px; text-align: center; font: 700 12px/1.2 Arial, Helvetica, sans-serif; color: #6b7280; letter-spacing: 0.04em; }
     .stats b { display: block; margin-top: 4px; font: 700 16px/1 Arial, Helvetica, sans-serif; color: #111; }
     .time { margin: 10px 0 0; text-align: center; font: 700 22px/1 Arial, Helvetica, sans-serif; color: #111; letter-spacing: 0.06em; }
     .tl { margin: 10px auto 0; width: 78%; max-width: 280px; }
@@ -42,12 +41,10 @@
         <g id="playMark"></g>
         <g id="nowLine"></g>
         <g id="nowMark"></g>
+        <g id="highDot"></g>
       </svg>
       <p class="spd"><span id="spd">—</span><span class="kn">KN</span></p>
-      <div class="stats">
-        <span>AVG<b id="avg">—</b></span>
-        <span>HIGH<b id="high">—</b></span>
-      </div>
+      <div class="stats"><span>AVG<b id="avg">—</b></span></div>
       <p class="time" id="time">60 min</p>
       <div class="tl" aria-hidden="true"><div class="tl-track"><div class="tl-fill" id="tlFill"></div></div></div>
       <p class="cap" id="cap">Last hour · sped up</p>
@@ -91,7 +88,7 @@
   var nowMark = document.getElementById("nowMark");
   var spdEl = document.getElementById("spd");
   var avgEl = document.getElementById("avg");
-  var highEl = document.getElementById("high");
+  var highG = document.getElementById("highDot");
   var timeEl = document.getElementById("time");
   var tlFill = document.getElementById("tlFill");
   var capEl = document.getElementById("cap");
@@ -468,6 +465,21 @@
       '<polygon points="' + v.tip[0].toFixed(1) + ',' + v.tip[1].toFixed(1) + ' ' + v.left[0].toFixed(1) + ',' + v.left[1].toFixed(1) + ' ' + v.right[0].toFixed(1) + ',' + v.right[1].toFixed(1) + '" fill="' + color + '"/>';
   }
 
+  function paintHigh() {
+    var i;
+    var best = null;
+    for (i = 0; i < samples.length; i += 1) {
+      if (samples[i].gust == null) continue;
+      if (best == null || samples[i].gust > best.gust) best = samples[i];
+    }
+    if (!best) {
+      highG.innerHTML = "";
+      return;
+    }
+    var p = xy(best.dirMax, Math.max(R_MIN + 2, radiusForKt(best.gust)));
+    highG.innerHTML = '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="5.2" fill="#DC143C"/>';
+  }
+
   function draw(pt, u) {
     if (!pt || !samples.length) return;
     var nowPt = samples[samples.length - 1];
@@ -487,12 +499,11 @@
     nowLine.innerHTML = lineSvg(live, "#86efac");
     nowMark.innerHTML = markSvg(live, "#22c55e");
     paintHistory(pt, u);
+    var nSeen = reachedCount(pt, u);
 
     spdEl.textContent = (Math.round(pt.kt * 10) / 10).toFixed(1);
-    var nSeen = reachedCount(pt, u);
     var st = reachedStats(nSeen);
     avgEl.textContent = st.avg == null ? "—" : (Math.round(st.avg * 10) / 10).toFixed(1);
-    highEl.textContent = st.high == null ? "—" : (Math.round(st.high * 10) / 10).toFixed(1);
     timeEl.textContent = fmtRemain(pt.t);
     tlFill.style.width = (Math.max(0, Math.min(1, u)) * 100).toFixed(1) + "%";
     capEl.textContent = "Real-time Vector (" + card(pt.deg) + " " + Math.round(pt.deg) + "°)";
@@ -536,13 +547,16 @@
     var t = parseMs(r.observed_at);
     var gust = r.wind_gust_kt != null ? Number(r.wind_gust_kt) : NaN;
     var avg = r.wind_avg_kt != null ? Number(r.wind_avg_kt) : NaN;
+    var dirMax = r.wind_dir_max_deg != null ? Number(r.wind_dir_max_deg) : deg;
     if (isNaN(kt) || isNaN(deg) || isNaN(t)) return null;
+    if (isNaN(dirMax)) dirMax = deg;
     return {
       t: t,
       kt: kt,
       deg: ((deg % 360) + 360) % 360,
       avg: isNaN(avg) ? null : avg,
       gust: isNaN(gust) ? null : gust,
+      dirMax: ((dirMax % 360) + 360) % 360,
       name: r.station_name || slug
     };
   }
@@ -571,9 +585,11 @@
           var s;
           for (s = 0; s < samples.length; s += 1) {
             if (samples[s].kt > peak) peak = samples[s].kt;
+            if (samples[s].gust != null && samples[s].gust > peak) peak = samples[s].gust;
           }
           KT_MAX = bandCeiling(peak);
           drawRings();
+          paintHigh();
           metaEl.textContent = (samples[0].name || "Zeekoevlei") + " · last hour sped up";
           t0 = 0;
           window._u = at0;
