@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Wind | SailingSA</title>
+  <meta name="robots" content="noindex"/>
+  <style>
+    html, body { margin: 0; min-height: 100%; background: #f3f4f6; font-family: Arial, Helvetica, sans-serif; }
+    .wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 16px; box-sizing: border-box; }
+    .card { position: relative; width: min(420px, 100%); background: #fff; border-radius: 28px; box-shadow: 0 8px 28px rgba(15, 23, 42, .08); padding: 36px 28px 28px; box-sizing: border-box; }
+    .modes { position: absolute; top: 14px; right: 14px; display: flex; gap: 8px; }
+    .mode { width: 44px; height: 44px; border: 0; border-radius: 50%; background: #f3f4f6; color: #111; cursor: pointer; font-size: 18px; line-height: 44px; }
+    .mode.on { background: #111; color: #fff; }
+    .mode:focus { outline: 2px solid #3b82f6; }
+    svg.dial { display: block; width: 78%; max-width: 280px; height: auto; margin: 0 auto; }
+    .spd { margin: 14px 0 0; text-align: center; font: 700 34px/1 Arial, Helvetica, sans-serif; color: #111; }
+    .spd .kn { display: block; margin-top: 4px; font: 700 12px/1 Arial, Helvetica, sans-serif; letter-spacing: 1.2px; color: #9ca3af; }
+    .stats { margin: 10px auto 0; width: 78%; max-width: 280px; text-align: center; font: 700 12px/1.2 Arial, Helvetica, sans-serif; color: #6b7280; letter-spacing: 0.04em; }
+    .stats b { display: block; margin-top: 4px; font: 700 16px/1 Arial, Helvetica, sans-serif; color: #111; }
+    .time { margin: 10px 0 0; text-align: center; font: 700 22px/1 Arial, Helvetica, sans-serif; color: #111; letter-spacing: 0.06em; }
+    .tl { margin: 10px auto 0; width: 78%; max-width: 280px; }
+    .tl-track { height: 4px; background: #e5e7eb; border-radius: 99px; overflow: hidden; }
+    .tl-fill { height: 100%; width: 0; background: #3b82f6; border-radius: 99px; }
+    .cap { margin: 10px 0 0; text-align: center; font: 600 14px/1.3 Arial, Helvetica, sans-serif; color: #6b7280; }
+    .meta { margin: 6px 0 0; text-align: center; font: 700 12px/1.3 Arial, Helvetica, sans-serif; color: #94a3b8; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="modes">
+        <button class="mode" id="btnUp" type="button" aria-label="Paint 60 minutes ago to now">▲</button>
+        <button class="mode" id="btnDown" type="button" aria-label="Paint now back to 60 minutes ago">▼</button>
+      </div>
+      <svg class="dial" viewBox="0 0 320 320" aria-label="Wind gauge">
+        <g id="rings"></g>
+        <line x1="160" y1="42" x2="160" y2="278" stroke="#e5e7eb" stroke-width="1"/>
+        <line x1="42" y1="160" x2="278" y2="160" stroke="#e5e7eb" stroke-width="1"/>
+        <g id="history"></g>
+        <g id="avgRing"></g>
+        <text x="160" y="28" text-anchor="middle" font-family="Arial" font-weight="700" font-size="16" fill="#9ca3af">N</text>
+        <text x="306" y="166" text-anchor="middle" font-family="Arial" font-weight="700" font-size="16" fill="#9ca3af">E</text>
+        <text x="160" y="312" text-anchor="middle" font-family="Arial" font-weight="700" font-size="16" fill="#9ca3af">S</text>
+        <text x="14" y="166" text-anchor="middle" font-family="Arial" font-weight="700" font-size="16" fill="#9ca3af">W</text>
+        <g id="playLine"></g>
+        <g id="playMark"></g>
+        <g id="liveTrail"></g>
+        <g id="nowLine"></g>
+        <g id="nowMark"></g>
+        <g id="highDot"></g>
+      </svg>
+      <p class="spd"><span id="spd">—</span><span class="kn">KN</span></p>
+      <div class="stats"><span>AVG<b id="avg">—</b></span></div>
+      <p class="time" id="time">now</p>
+      <div class="tl" aria-hidden="true"><div class="tl-track"><div class="tl-fill" id="tlFill"></div></div></div>
+      <p class="cap" id="cap">Last hour · sped up</p>
+      <p class="meta" id="meta">Zeekoevlei</p>
+    </div>
+  </div>
+  <script>
+(function () {
+  var PTS = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
+  var PLAY_MS = 36000;
+  var HOLD_MS = 5000;
+  var R_MAX = 118;
+  var R_MIN = 10;
+  var KT_MAX = 17;
+  var BANDS = [
+    { max: 5, color: "#12b028" },
+    { max: 11, color: "#2563eb" },
+    { max: 17, color: "#e67e00" },
+    { max: 23, color: "#7c3aed" },
+    { max: 60, color: "#DC143C" }
+  ];
+  var q = new URLSearchParams(location.search);
+  var slug = (q.get("station") || "w2s-zeekoevlei").trim();
+  var at0 = parseFloat(q.get("at"));
+  if (isNaN(at0)) at0 = 0;
+  at0 = Math.max(0, Math.min(1, at0));
+  var dirQ = (q.get("dir") || "").toLowerCase();
+  var mode = (dirQ === "up" || dirQ === "down") ? dirQ : null;
+  var freeze = q.get("pause") === "1";
+  var playing = !freeze && !!mode;
+  var playU = mode === "up" ? 0 : 1;
+  var playVel = mode === "up" ? 1 : -1;
+  var holdKind = (!freeze && mode === "down") ? "rest" : null;
+  var holdLeft = holdKind === "rest" ? HOLD_MS : 0;
+  var lastTick = 0;
+  var samples = [];
+  var highRows = [];
+  var HIGH_MS = 3600000;
+  var LIVE_N = 3;
+  var MAJOR_DEG = 60;
+  var t0 = 0;
+  var ringRadii = [];
+  var btnUp = document.getElementById("btnUp");
+  var btnDown = document.getElementById("btnDown");
+  var ringsG = document.getElementById("rings");
+  var histG = document.getElementById("history");
+  var avgRing = document.getElementById("avgRing");
+  var playLine = document.getElementById("playLine");
+  var playMark = document.getElementById("playMark");
+  var nowLine = document.getElementById("nowLine");
+  var nowMark = document.getElementById("nowMark");
+  var liveG = document.getElementById("liveTrail");
+  var spdEl = document.getElementById("spd");
+  var avgEl = document.getElementById("avg");
+  var highG = document.getElementById("highDot");
+  var timeEl = document.getElementById("time");
+  var tlFill = document.getElementById("tlFill");
+  var capEl = document.getElementById("cap");
+  var metaEl = document.getElementById("meta");
+
+  function card(deg) {
+    var d = ((Number(deg) % 360) + 360) % 360;
+    return PTS[Math.round(d / 22.5) % 16];
+  }
+  function parseMs(s) {
+    var t = Date.parse(s);
+    return isNaN(t) ? NaN : t;
+  }
+  function lerp(a, b, u) { return a + (b - a) * u; }
+  function lerpDeg(a, b, u) {
+    var d = ((b - a + 540) % 360) - 180;
+    return ((a + d * u) + 360) % 360;
+  }
+  function degSpanShort(a, b) {
+    return Math.abs(((Number(b) - Number(a) + 540) % 360) - 180);
+  }
+  function tidyDirs(pts) {
+    var lastGust = null;
+    var i;
+    var pt;
+    var avgJump;
+    var gustJump;
+    var avgVsMax;
+    for (i = 0; i < pts.length; i += 1) {
+      pt = pts[i];
+      if (pt.degAvg == null) pt.degAvg = pt.deg;
+      if (lastGust == null) {
+        lastGust = pt.dirMax;
+        continue;
+      }
+      avgJump = degSpanShort(pt.degAvg, lastGust);
+      gustJump = degSpanShort(pt.dirMax, lastGust);
+      avgVsMax = degSpanShort(pt.degAvg, pt.dirMax);
+      if (avgJump >= MAJOR_DEG && avgVsMax >= MAJOR_DEG && gustJump < MAJOR_DEG) {
+        pt.deg = pt.dirMax;
+        lastGust = pt.dirMax;
+      } else if (gustJump >= MAJOR_DEG && avgJump < MAJOR_DEG) {
+        pt.deg = pt.degAvg;
+      } else {
+        pt.deg = pt.degAvg;
+        lastGust = pt.dirMax;
+      }
+    }
+    return pts;
+  }
+  function xy(deg, r) {
+    var rad = deg * Math.PI / 180;
+    return [160 + r * Math.sin(rad), 160 - r * Math.cos(rad)];
+  }
+  function fmtRemain(ms) {
+    if (!samples.length) return "now";
+    var end = samples[samples.length - 1].t;
+    var left = end - ms;
+    if (left <= 1500) return "now";
+    var mins = Math.max(1, Math.round(left / 60000));
+    return mins + " min";
+  }
+
+  function pick(u) {
+    if (!samples.length) return null;
+    var nowPt = liveNow() || samples[samples.length - 1];
+    var n = reachedN(u);
+    if (n >= samples.length) {
+      return { kt: nowPt.kt, deg: nowPt.deg, t: nowPt.t };
+    }
+    if (n <= 0) return samples[0];
+    return samples[n - 1];
+  }
+
+  function reachedN(u) {
+    if (!samples.length || u <= 0) return 0;
+    if (u >= 1) return samples.length;
+    return Math.max(0, Math.ceil(u * samples.length));
+  }
+
+  function radiusForKt(kt) {
+    var k = Math.max(0, Number(kt) || 0);
+    var uu = Math.min(1, k / KT_MAX);
+    return R_MIN + uu * (R_MAX - R_MIN);
+  }
+
+  function bandColor(kt) {
+    var k = Math.max(0, Number(kt) || 0);
+    var i;
+    for (i = 0; i < BANDS.length; i += 1) {
+      if (k < BANDS[i].max) return BANDS[i].color;
+    }
+    return BANDS[BANDS.length - 1].color;
+  }
+
+  function bandCeiling(kt) {
+    var k = Math.max(0, Number(kt) || 0);
+    var i;
+    for (i = 0; i < BANDS.length; i += 1) {
+      if (k <= BANDS[i].max) return BANDS[i].max;
+    }
+    return BANDS[BANDS.length - 1].max;
+  }
+
+  function drawRings() {
+    var h = "";
+    var prev = 0;
+    var i;
+    ringRadii = [];
+    h += '<circle cx="160" cy="160" r="' + radiusForKt(0).toFixed(1) + '" fill="none" stroke="#e5e7eb" stroke-width="1.1"/>';
+    for (i = 0; i < BANDS.length; i += 1) {
+      var top = BANDS[i].max;
+      if (top > KT_MAX) top = KT_MAX;
+      if (top <= prev) continue;
+      var r1 = radiusForKt(top);
+      ringRadii.push(r1);
+      if (top >= KT_MAX) break;
+      prev = top;
+    }
+    for (i = 0; i < ringRadii.length; i += 1) {
+      var rail = (i === railRingIndex());
+      h += '<circle cx="160" cy="160" r="' + ringRadii[i].toFixed(1) + '" fill="none" stroke="' + (rail ? "#94a3b8" : "#cbd5e1") + '" stroke-width="' + (rail ? "1.7" : "1.15") + '"/>';
+    }
+    ringsG.innerHTML = h;
+  }
+
+  function railRingIndex() {
+    if (ringRadii.length >= 3) return ringRadii.length - 3;
+    if (ringRadii.length >= 2) return ringRadii.length - 2;
+    return 0;
+  }
+
+  function railRadius() {
+    if (!ringRadii.length) return R_MAX * 0.72;
+    return ringRadii[railRingIndex()];
+  }
+
+  function bandEdges() {
+    var edges = [];
+    var prev = 0;
+    var i;
+    var top;
+    for (i = 0; i < BANDS.length; i += 1) {
+      top = BANDS[i].max > KT_MAX ? KT_MAX : BANDS[i].max;
+      if (top <= prev) continue;
+      edges.push({
+        r0: radiusForKt(prev),
+        r1: radiusForKt(top),
+        color: BANDS[i].color
+      });
+      if (top >= KT_MAX) break;
+      prev = top;
+    }
+    return edges;
+  }
+
+  function bandRun(pts, s, e, band, op) {
+    if (e <= s) return "";
+    var inner = band.r0 < R_MIN ? R_MIN : band.r0;
+    var d = "";
+    var i;
+    var p;
+    var outer;
+    for (i = s; i <= e; i += 1) {
+      outer = pts[i].r;
+      if (outer > band.r1) outer = band.r1;
+      if (outer < inner) outer = inner;
+      p = xy(pts[i].deg, outer);
+      d += (i === s ? "M " : " L ") + p[0].toFixed(1) + "," + p[1].toFixed(1);
+    }
+    for (i = e; i >= s; i -= 1) {
+      p = xy(pts[i].deg, inner);
+      d += " L " + p[0].toFixed(1) + "," + p[1].toFixed(1);
+    }
+    d += " Z";
+    return '<path d="' + d + '" fill="' + band.color + '" fill-opacity="' + op + '" stroke="none"/>';
+  }
+
+  function binDeg(deg) {
+    var a = Math.round(((Number(deg) % 360) + 360) % 360);
+    return a === 360 ? 0 : a;
+  }
+
+  function stampJoin(maxR, deg0, deg1, kt0, kt1) {
+    var turn = ((deg1 - deg0 + 540) % 360) - 180;
+    var span = Math.abs(turn);
+    if (span >= 90) return;
+    var k0 = Math.max(0, Number(kt0) || 0);
+    var k1 = Math.max(0, Number(kt1) || 0);
+    var n = Math.max(1, Math.ceil(span));
+    var i;
+    var u;
+    var kt;
+    var r;
+    var a;
+    for (i = 0; i <= n; i += 1) {
+      u = i / n;
+      kt = lerp(k0, k1, u);
+      r = Math.max(R_MIN, radiusForKt(kt));
+      a = binDeg(lerpDeg(deg0, deg1, u));
+      if (r > maxR[a]) maxR[a] = r;
+    }
+  }
+
+  function stampReading(maxR, pt) {
+    var r = Math.max(R_MIN, radiusForKt(pt.kt));
+    var a0 = binDeg(pt.deg);
+    var k;
+    var a;
+    for (k = -1; k <= 1; k += 1) {
+      a = (a0 + k + 360) % 360;
+      if (r > maxR[a]) maxR[a] = r;
+    }
+  }
+
+  function fillEnvelope(maxR, op) {
+    var edges = bandEdges();
+    var html = "";
+    var b;
+    var d;
+    var s;
+    var band;
+    var pts;
+    var wrap;
+    for (b = 0; b < edges.length; b += 1) {
+      band = edges[b];
+      s = -1;
+      wrap = [];
+      for (d = 0; d < 360; d += 1) {
+        if (maxR[d] > band.r0 + 0.25) {
+          if (s < 0) s = d;
+        } else if (s >= 0) {
+          wrap.push([s, d - 1]);
+          s = -1;
+        }
+      }
+      if (s >= 0) wrap.push([s, 359]);
+      if (wrap.length >= 2 && wrap[0][0] === 0 && wrap[wrap.length - 1][1] === 359) {
+        wrap[0][0] = wrap.pop()[0];
+      }
+      for (d = 0; d < wrap.length; d += 1) {
+        pts = degSpan(maxR, wrap[d][0], wrap[d][1]);
+        html += bandRun(pts, 0, pts.length - 1, band, op);
+      }
+    }
+    return html;
+  }
+
+  function degSpan(maxR, s, e) {
+    var pts = [];
+    var d = s;
+    while (true) {
+      pts.push({ deg: d, r: maxR[d] });
+      if (d === e) break;
+      d = (d + 1) % 360;
+    }
+    return pts;
+  }
+
+  function reachedRange(pt, u) {
+    return [0, reachedN(u)];
+  }
+
+  function paintHistory(pt, u) {
+    var b = reachedN(u);
+    var maxR = [];
+    var i;
+    if (!b) {
+      histG.innerHTML = "";
+      return;
+    }
+    for (i = 0; i < 360; i += 1) maxR[i] = 0;
+    for (i = 0; i < b; i += 1) {
+      stampReading(maxR, samples[i]);
+      if (i < b - 1) {
+        stampJoin(maxR, samples[i].deg, samples[i + 1].deg, samples[i].kt, samples[i + 1].kt);
+      }
+    }
+    histG.innerHTML = fillEnvelope(maxR, "0.38");
+  }
+
+  function vectorParts(pt) {
+    var r = Math.max(R_MIN + 8, radiusForKt(pt.kt));
+    var rail = railRadius();
+    var base = Math.max(R_MIN, r - 7);
+    return {
+      r: r,
+      deg: pt.deg,
+      tip: xy(pt.deg, r),
+      left: xy(pt.deg - 5, base),
+      right: xy(pt.deg + 5, base),
+      dot: xy(pt.deg + 180, rail)
+    };
+  }
+
+  function lineSvg(v, color) {
+    return '<line x1="' + v.dot[0].toFixed(1) + '" y1="' + v.dot[1].toFixed(1) + '" x2="' + v.tip[0].toFixed(1) + '" y2="' + v.tip[1].toFixed(1) + '" stroke="' + color + '" stroke-width="1.7" stroke-dasharray="2.6 3.6" stroke-linecap="round"/>';
+  }
+
+  function markSvg(v, color) {
+    return '<circle cx="' + v.dot[0].toFixed(1) + '" cy="' + v.dot[1].toFixed(1) + '" r="4.4" fill="#111"/>' +
+      '<polygon points="' + v.tip[0].toFixed(1) + ',' + v.tip[1].toFixed(1) + ' ' + v.left[0].toFixed(1) + ',' + v.left[1].toFixed(1) + ' ' + v.right[0].toFixed(1) + ',' + v.right[1].toFixed(1) + '" fill="' + color + '" stroke="none"/>';
+  }
+
+  function liveRows() {
+    var rows = highRows.length ? highRows : samples;
+    var now = Date.now();
+    var out = [];
+    var i;
+    for (i = 0; i < rows.length; i += 1) {
+      if (now - rows[i].t > HIGH_MS) continue;
+      out.push(rows[i]);
+    }
+    return out;
+  }
+
+  function liveRecent() {
+    var out = liveRows();
+    return out.slice(Math.max(0, out.length - LIVE_N));
+  }
+
+  function liveNow() {
+    var out = liveRows();
+    return out.length ? out[out.length - 1] : null;
+  }
+
+  var highPoint = null;
+  var lastNowT = null;
+  var livePts = [];
+  var liveOp = 0;
+
+  function highOfHour() {
+    var now = Date.now();
+    var rows = highRows.length ? highRows : samples;
+    var i;
+    var best = null;
+    for (i = 0; i < rows.length; i += 1) {
+      if (now - rows[i].t > HIGH_MS) continue;
+      if (best == null || rows[i].kt > best.kt) best = rows[i];
+    }
+    return best;
+  }
+
+  function isHighPoint(pt) {
+    return highPoint && pt && pt.t === highPoint.t;
+  }
+
+  function clampPlayU(u) {
+    u = Number(u);
+    if (isNaN(u) || u < 0 || u > 1) u = window._u || 0;
+    return u;
+  }
+
+  function historyCoversLive(u) {
+    var pt;
+    var range;
+    if (!livePts.length || !samples.length) return false;
+    u = clampPlayU(u);
+    pt = pick(u);
+    range = reachedRange(pt, u);
+    if (range[0] >= range[1]) return false;
+    return samples[range[1] - 1].t >= livePts[0].t;
+  }
+
+  function armLiveFromNow() {
+    var pts = liveRecent();
+    livePts = pts.slice(Math.max(0, pts.length - LIVE_N));
+    liveOp = livePts.length > 1 ? 1 : 0;
+  }
+
+  function paintLive(u) {
+    if (!mode) {
+      liveG.innerHTML = "";
+      return;
+    }
+    var nowPt = liveNow();
+    var h = "";
+    var d = "";
+    var i;
+    var p;
+    var r;
+    var n = 0;
+    var op;
+    if (nowPt && lastNowT == null) {
+      lastNowT = nowPt.t;
+      armLiveFromNow();
+    } else if (nowPt && nowPt.t !== lastNowT) {
+      lastNowT = nowPt.t;
+      armLiveFromNow();
+    }
+    if (livePts.length && liveOp > 0 && historyCoversLive(u)) {
+      liveOp = (!playing || freeze) ? 0 : Math.max(0, liveOp - 0.05);
+      if (liveOp === 0) livePts = [];
+    }
+    op = (0.55 * liveOp).toFixed(2);
+    for (i = 0; i < livePts.length; i += 1) {
+      if (i > 0 && degSpanShort(livePts[i - 1].deg, livePts[i].deg) >= MAJOR_DEG) {
+        if (n > 1 && liveOp > 0) {
+          h += '<path d="' + d + '" fill="none" stroke="#111" stroke-width="0.35" stroke-opacity="' + op + '" stroke-linecap="round" stroke-linejoin="round"/>';
+        }
+        d = "";
+        n = 0;
+      }
+      r = Math.max(R_MIN + 2, radiusForKt(livePts[i].kt));
+      p = xy(livePts[i].deg, r);
+      d += (n === 0 ? "M " : " L ") + p[0].toFixed(1) + "," + p[1].toFixed(1);
+      n += 1;
+    }
+    if (n > 1 && liveOp > 0) {
+      h += '<path d="' + d + '" fill="none" stroke="#111" stroke-width="0.35" stroke-opacity="' + op + '" stroke-linecap="round" stroke-linejoin="round"/>';
+    }
+    liveG.innerHTML = h;
+  }
+
+  function paintAvgRing(avg) {
+    if (avg == null || !(avg > 0)) {
+      avgRing.innerHTML = "";
+      return;
+    }
+    var r = Math.max(R_MIN, radiusForKt(avg));
+    avgRing.innerHTML = '<circle cx="160" cy="160" r="' + r.toFixed(2) + '" fill="none" stroke="#DC143C" stroke-width="0.45"/>';
+  }
+
+  function periodAvg() {
+    var rows = liveRows();
+    var i;
+    var sum = 0;
+    var n = 0;
+    if (!rows.length) rows = samples;
+    for (i = 0; i < rows.length; i += 1) {
+      sum += rows[i].kt;
+      n += 1;
+    }
+    if (!n) return null;
+    return sum / n;
+  }
+
+  function paintHigh() {
+    highPoint = highOfHour();
+    if (!highPoint) {
+      highG.innerHTML = "";
+      return;
+    }
+    var p = xy(highPoint.deg, Math.max(R_MIN + 2, radiusForKt(highPoint.kt)));
+    highG.innerHTML = '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="2" fill="#DC143C"/>';
+  }
+
+  async function pullHigh() {
+    try {
+      var res = await fetch("/api/weather/stations/" + encodeURIComponent(slug) + "/history?hours=2&_=" + Date.now(), { cache: "no-store", credentials: "same-origin" });
+      if (!res.ok) return;
+      var body = await res.json();
+      var rows = (body.readings || body.history || []).map(asSample).filter(Boolean).sort(function (a, b) { return a.t - b.t; });
+      highRows = tidyDirs(rows);
+      paintHigh();
+      if (!mode) drawIdle();
+      else {
+        paintLive();
+        paintAvgRing(periodAvg());
+      }
+    } catch (e) {}
+  }
+
+  function syncModeBtns() {
+    btnUp.className = "mode" + (mode === "up" ? " on" : "");
+    btnDown.className = "mode" + (mode === "down" ? " on" : "");
+  }
+
+  function stopIdle() {
+    mode = null;
+    playing = false;
+    holdKind = null;
+    holdLeft = 0;
+    lastTick = 0;
+    t0 = 0;
+    window._u = 1;
+    syncModeBtns();
+    drawIdle();
+  }
+
+  function setMode(next) {
+    if (mode === next) {
+      stopIdle();
+      return;
+    }
+    if (mode && mode !== next) {
+      mode = next;
+      playVel = next === "up" ? 1 : -1;
+      holdKind = null;
+      holdLeft = 0;
+      syncModeBtns();
+      if ((playVel > 0 && playU >= 1) || (playVel < 0 && playU <= 0)) {
+        stopIdle();
+        return;
+      }
+      if (!playing) {
+        playing = !freeze;
+        lastTick = 0;
+        if (playing) requestAnimationFrame(tick);
+        else draw(pick(playU), playU);
+      }
+      return;
+    }
+    mode = next;
+    playVel = next === "up" ? 1 : -1;
+    playU = next === "down" ? 1 : 0;
+    holdKind = next === "down" ? "rest" : null;
+    holdLeft = holdKind === "rest" ? HOLD_MS : 0;
+    playing = !freeze;
+    lastTick = 0;
+    t0 = 0;
+    window._u = playU;
+    syncModeBtns();
+    if (playing) requestAnimationFrame(tick);
+    else draw(pick(playU), playU);
+  }
+
+  function drawIdle() {
+    var nowPt = liveNow() || (samples.length ? samples[samples.length - 1] : null);
+    if (!nowPt) return;
+    playLine.innerHTML = "";
+    playMark.innerHTML = "";
+    liveG.innerHTML = "";
+    histG.innerHTML = "";
+    nowLine.innerHTML = lineSvg(vectorParts(nowPt), "#86efac");
+    nowMark.innerHTML = markSvg(vectorParts(nowPt), "#22c55e");
+    paintHigh();
+    var avg = periodAvg();
+    paintAvgRing(avg);
+    spdEl.textContent = (Math.round(nowPt.kt * 10) / 10).toFixed(1);
+    avgEl.textContent = avg == null ? "—" : (Math.round(avg * 10) / 10).toFixed(1);
+    timeEl.textContent = "now";
+    tlFill.style.width = "0";
+    capEl.textContent = "Now (" + card(nowPt.deg) + " " + Math.round(nowPt.deg) + "°)";
+  }
+
+  function draw(pt, u) {
+    if (!mode) {
+      drawIdle();
+      return;
+    }
+    if (!pt || !samples.length) return;
+    var nowPt = liveNow() || samples[samples.length - 1];
+    var play = vectorParts(u >= 1 ? nowPt : pt);
+    var live = vectorParts(nowPt);
+    playLine.innerHTML = lineSvg(play, "#93c5fd");
+    playMark.innerHTML = markSvg(play, "#3b82f6");
+    nowLine.innerHTML = lineSvg(live, "#86efac");
+    nowMark.innerHTML = markSvg(live, "#22c55e");
+    paintHigh();
+    paintLive(u);
+    paintHistory(pt, u);
+    var avg = periodAvg();
+    paintAvgRing(avg);
+
+    spdEl.textContent = (Math.round(pt.kt * 10) / 10).toFixed(1);
+    avgEl.textContent = avg == null ? "—" : (Math.round(avg * 10) / 10).toFixed(1);
+    timeEl.textContent = fmtRemain(pt.t);
+    tlFill.style.width = (Math.max(0, Math.min(1, u)) * 100).toFixed(1) + "%";
+    capEl.textContent = "Real-time Vector (" + card(pt.deg) + " " + Math.round(pt.deg) + "°)";
+  }
+
+  function tick(now) {
+    if (!samples.length || !playing || !mode) return;
+    if (!lastTick) lastTick = now;
+    var dt = now - lastTick;
+    lastTick = now;
+    if (holdLeft > 0) {
+      holdLeft -= dt;
+      window._u = playU;
+      draw(pick(playU), playU);
+      if (holdLeft <= 0) {
+        holdLeft = 0;
+        if (holdKind === "end") {
+          holdKind = null;
+          stopIdle();
+          return;
+        }
+        holdKind = null;
+      }
+      requestAnimationFrame(tick);
+      return;
+    }
+    playU += playVel * dt / PLAY_MS;
+    if (playVel > 0 && playU >= 1) {
+      playU = 1;
+      holdKind = "end";
+      holdLeft = HOLD_MS;
+      window._u = 1;
+      draw(pick(1), 1);
+      requestAnimationFrame(tick);
+      return;
+    }
+    if (playVel < 0 && playU <= 0) {
+      playU = 0;
+      holdKind = "end";
+      holdLeft = HOLD_MS;
+      window._u = 0;
+      draw(pick(0), 0);
+      requestAnimationFrame(tick);
+      return;
+    }
+    window._u = playU;
+    draw(pick(playU), playU);
+    requestAnimationFrame(tick);
+  }
+
+  btnUp.addEventListener("click", function () { setMode("up"); });
+  btnDown.addEventListener("click", function () { setMode("down"); });
+
+  function asSample(r) {
+    var kt = r.wind_kt != null ? Number(r.wind_kt) : (r.wind_avg_kt != null ? Number(r.wind_avg_kt) : NaN);
+    var deg = r.wind_dir_deg != null ? Number(r.wind_dir_deg) : (r.wind_dir_avg_deg != null ? Number(r.wind_dir_avg_deg) : NaN);
+    var t = parseMs(r.observed_at);
+    var gust = r.wind_gust_kt != null ? Number(r.wind_gust_kt) : NaN;
+    var avg = r.wind_avg_kt != null ? Number(r.wind_avg_kt) : NaN;
+    var dirMax = r.wind_dir_max_deg != null ? Number(r.wind_dir_max_deg) : deg;
+    if (isNaN(kt) || isNaN(deg) || isNaN(t)) return null;
+    if (isNaN(dirMax)) dirMax = deg;
+    return {
+      t: t,
+      kt: kt,
+      deg: ((deg % 360) + 360) % 360,
+      avg: isNaN(avg) ? null : avg,
+      gust: isNaN(gust) ? null : gust,
+      dirMax: ((dirMax % 360) + 360) % 360,
+      name: r.station_name || slug
+    };
+  }
+
+  function loadHour(list) {
+    var pts = (list || []).map(asSample).filter(Boolean).sort(function (a, b) { return a.t - b.t; });
+    if (!pts.length) return [];
+    tidyDirs(pts);
+    var end = pts[pts.length - 1].t;
+    return pts.filter(function (p) { return end - p.t <= 3600000; });
+  }
+
+  async function boot() {
+    var urls = [
+      "/api/weather/stations/" + encodeURIComponent(slug) + "/history?hours=2&_=" + Date.now()
+    ];
+    var i;
+    for (i = 0; i < urls.length; i += 1) {
+      try {
+        var res = await fetch(urls[i], { cache: "no-store", credentials: "same-origin" });
+        if (!res.ok) continue;
+        var body = await res.json();
+        var rows = body.readings || body.history || [];
+        samples = loadHour(rows);
+        if (samples.length) {
+          var peak = 0;
+          var s;
+          for (s = 0; s < samples.length; s += 1) {
+            if (samples[s].kt > peak) peak = samples[s].kt;
+          }
+          KT_MAX = bandCeiling(peak);
+          drawRings();
+          highRows = samples.slice();
+          syncModeBtns();
+          t0 = 0;
+          window._u = mode === "down" ? 1 : (mode === "up" ? 0 : 1);
+          setInterval(paintHigh, 10000);
+          setInterval(function () {
+            if (!mode) drawIdle();
+            else paintLive(window._u || 0);
+          }, 10000);
+          setInterval(pullHigh, 30000);
+          metaEl.textContent = samples[0].name || "Zeekoevlei";
+          try {
+            if (mode && freeze) {
+              playU = at0;
+              window._u = at0;
+              draw(pick(at0), at0);
+            } else if (mode && playing) {
+              requestAnimationFrame(tick);
+            } else {
+              drawIdle();
+            }
+          } catch (err) {
+            drawIdle();
+          }
+          return;
+        }
+      } catch (e) {}
+    }
+    capEl.textContent = "No last-hour wind yet";
+  }
+  boot();
+})();
+  </script>
+</body>
+</html>

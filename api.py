@@ -792,6 +792,38 @@ async def stats_page():
     return HTMLResponse(_stats_page_html(data))
 
 
+def _wind_html_path():
+    here = os.path.dirname(os.path.abspath(__file__))
+    for p in (
+        os.path.join(here, "sailingsa", "frontend", "wind.html"),
+        os.path.join(here, "wind.html"),
+        "/var/www/sailingsa/sailingsa/frontend/wind.html",
+        "/var/www/sailingsa/frontend/wind.html",
+        "/var/www/sailingsa/wind.html",
+    ):
+        if p and os.path.isfile(p):
+            return p
+    return None
+
+
+@app.get("/wind", response_class=HTMLResponse)
+@app.get("/wind/", response_class=HTMLResponse)
+def wind_gauge_page():
+    """Last-hour wind compass at /wind. Gauge only; sped-up playback."""
+    path = _wind_html_path()
+    if not path:
+        raise HTTPException(status_code=404, detail="Not Found")
+    with open(path, encoding="utf-8") as f:
+        return HTMLResponse(f.read(), headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"})
+
+
+@app.head("/wind")
+def wind_gauge_head():
+    if not _wind_html_path():
+        raise HTTPException(status_code=404, detail="Not Found")
+    return Response(status_code=200, headers={"Cache-Control": "no-store"})
+
+
 @app.get("/events", response_class=HTMLResponse)
 def events_page(request: Request):
     """Upcoming events only. Sortable table: DATE, EVENT, HOST CLUB, CLASSES, LOCATION."""
