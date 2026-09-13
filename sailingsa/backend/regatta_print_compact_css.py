@@ -118,6 +118,24 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
   letter-spacing: 0.02em !important;
   opacity: 1 !important;
 }
+/* Title-row fleet logos: same height as the word Fleet. No max-width (that
+   squashed Extra / ILCA / Open). 420 and Optimist already filled the height. */
+.fleet-title-with-logo {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  flex-wrap: nowrap !important;
+}
+.fleet-title-with-logo .rs-fleet-title-logo {
+  height: 1.1em !important;
+  width: auto !important;
+  max-height: 1.1em !important;
+  max-width: none !important;
+  object-fit: contain !important;
+  flex: 0 0 auto !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
+}
 @media print {
   html, body { background: #fff !important; color: #1a2750 !important; margin: 0 !important; padding: 0 !important; }
   html, body, .regatta-page, .class-header, .sailed-line, table, th, td {
@@ -308,10 +326,10 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
   .fleet-section:has(.rs-compact-row-logos) .rs-fleet-title-logo,
   .fleet-section:has(.rs-compact-row-logos) .fleet-title-with-logo .rs-fleet-title-logo {
     display: inline-block !important;
-    max-height: 24px !important;
-    max-width: 52px !important;
+    height: 1.1em !important;
     width: auto !important;
-    height: auto !important;
+    max-height: 1.1em !important;
+    max-width: none !important;
     object-fit: contain !important;
     vertical-align: middle !important;
   }

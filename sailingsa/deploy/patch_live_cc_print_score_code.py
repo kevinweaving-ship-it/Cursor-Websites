@@ -102,10 +102,9 @@ OLD_CSS = '''    ".fleet-title-with-logo{display:inline-flex;align-items:center;
     ".fleet-title-with-logo .rs-fleet-title-logo{height:auto;width:auto;max-height:22px;max-width:40px;object-fit:contain;flex:0 0 auto}"
 '''
 
-# Do not inject wc-code font-size here. Compact CSS owns 33% bottom-right.
-# A leftover 50% superscript rule on live was fighting the correction.
+# Compact CSS owns 1.1em Fleet-height. Do not re-inject the 22x40 cap.
 NEW_CSS = '''    ".fleet-title-with-logo{display:inline-flex;align-items:center;gap:6px;flex-wrap:nowrap;max-width:100%}"
-    ".fleet-title-with-logo .rs-fleet-title-logo{height:auto;width:auto;max-height:22px;max-width:40px;object-fit:contain;flex:0 0 auto}"
+    ".fleet-title-with-logo .rs-fleet-title-logo{height:1.1em!important;width:auto!important;max-height:1.1em!important;max-width:none!important;object-fit:contain;flex:0 0 auto}"
 '''
 
 

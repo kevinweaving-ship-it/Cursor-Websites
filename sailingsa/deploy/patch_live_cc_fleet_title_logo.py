@@ -26,9 +26,9 @@ NEW_ART = """    elif css in ("rs-club-row-logo-sm", "rs-class-row-logo"):
             'object-fit:contain;display:inline-block;vertical-align:middle;flex:0 0 auto" '
         )
     elif css == "rs-fleet-title-logo":
+        # Size comes from CSS (1.1em = Fleet word). Do not cap width here.
         _img_style = (
-            'style="height:auto;width:auto;max-height:22px;max-width:40px;'
-            'object-fit:contain;display:inline-block;vertical-align:middle;flex:0 0 auto" '
+            'style="object-fit:contain;display:inline-block;vertical-align:middle;flex:0 0 auto" '
         )
 """
 
@@ -66,7 +66,7 @@ OLD_CSS = """    ".fleet-results-table td.class-col{white-space:nowrap;overflow:
 
 NEW_CSS = """    ".fleet-results-table td.class-col{white-space:nowrap;overflow:visible}"
     ".fleet-title-with-logo{display:inline-flex;align-items:center;gap:6px;flex-wrap:nowrap;max-width:100%}"
-    ".fleet-title-with-logo .rs-fleet-title-logo{height:auto;width:auto;max-height:22px;max-width:40px;object-fit:contain;flex:0 0 auto}"
+    ".fleet-title-with-logo .rs-fleet-title-logo{height:1.1em!important;width:auto!important;max-height:1.1em!important;max-width:none!important;object-fit:contain;flex:0 0 auto}"
 """
 
 
