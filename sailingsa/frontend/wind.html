@@ -41,7 +41,7 @@
         <g id="nowMark"></g>
       </svg>
       <p class="spd"><span id="spd">—</span><span class="kn">KN</span></p>
-      <p class="time" id="time">—:—</p>
+      <p class="time" id="time">60 min</p>
       <div class="tl" aria-hidden="true"><div class="tl-track"><div class="tl-fill" id="tlFill"></div></div></div>
       <p class="cap" id="cap">Last hour · sped up</p>
       <p class="meta" id="meta">Zeekoevlei</p>
@@ -51,6 +51,7 @@
 (function () {
   var PTS = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
   var PLAY_MS = 18000;
+  var HOLD_MS = 2000;
   var TAIL = 22;
   var R_MAX = 118;
   var R_MIN = 10;
@@ -110,13 +111,13 @@
     var rad = deg * Math.PI / 180;
     return [160 + r * Math.sin(rad), 160 - r * Math.cos(rad)];
   }
-  function fmtTime(ms) {
-    return new Date(ms).toLocaleTimeString("en-GB", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-      timeZone: "Africa/Johannesburg"
-    });
+  function fmtRemain(ms) {
+    if (!samples.length) return "now";
+    var end = samples[samples.length - 1].t;
+    var left = end - ms;
+    if (left <= 1500) return "now";
+    var mins = Math.max(1, Math.round(left / 60000));
+    return mins + " min";
   }
 
   function pick(u) {
@@ -261,7 +262,7 @@
     paintHistory(pt.t);
 
     spdEl.textContent = (Math.round(pt.kt * 10) / 10).toFixed(1);
-    timeEl.textContent = fmtTime(pt.t);
+    timeEl.textContent = fmtRemain(pt.t);
     tlFill.style.width = (Math.max(0, Math.min(1, u)) * 100).toFixed(1) + "%";
     capEl.textContent = "Real-time Vector (" + card(pt.deg) + " " + Math.round(pt.deg) + "°)";
   }
@@ -269,12 +270,21 @@
   function tick(now) {
     if (!samples.length || !playing) return;
     if (!t0) t0 = now - at0 * PLAY_MS;
-    var u = ((now - t0) % PLAY_MS) / PLAY_MS;
+    var cycle = PLAY_MS + HOLD_MS;
+    var pos = (now - t0) % cycle;
+    if (pos < 0) pos = 0;
+    var u;
+    if (pos <= PLAY_MS) {
+      u = pos / PLAY_MS;
+    } else {
+      u = 1;
+    }
     if (u < lastU - 0.2) {
       trail = [];
       histG.innerHTML = "";
     }
     lastU = u;
+    window._pos = pos;
     window._u = u;
     draw(pick(u), u);
     requestAnimationFrame(tick);
@@ -285,7 +295,7 @@
     btn.textContent = playing ? "❚❚" : "▶";
     btn.setAttribute("aria-label", playing ? "Pause playback" : "Play last hour");
     if (playing) {
-      t0 = performance.now() - (window._u || 0) * PLAY_MS;
+      t0 = performance.now() - (window._pos || (window._u || 0) * PLAY_MS);
       requestAnimationFrame(tick);
     }
   });
