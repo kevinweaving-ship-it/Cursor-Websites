@@ -76,7 +76,7 @@ _PRINT_SANS = (
 PRINT_COMPACT_CSS = (
     IBM_PLEX_PRINT_FONT_CSS
     + """
-@page { size: A4 portrait; margin: 8mm 8mm 14mm; }
+@page { size: A4 portrait; margin: 8mm 9mm 14mm 8mm; }
 .ssa-print-page-footer { display: none !important; }
 html.ssa-printing .site-header, html.ssa-printing footer, html.ssa-printing .site-footer,
 html.ssa-printing .app-footer, html.ssa-printing .action-buttons, html.ssa-printing .back-to-home,
@@ -301,22 +301,29 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
 
   /* Rank table: smaller type, full cell text (no clip). Class is already on
      the fleet card so that column is dropped to free width for helm + races. */
+  html, body, body.ssa-print-doc, .regatta-page {
+    overflow: visible !important;
+    box-sizing: border-box !important;
+  }
   .table-wrapper {
     overflow: visible !important;
     margin-top: 3px !important;
     width: 100% !important;
     max-width: 100% !important;
+    box-sizing: border-box !important;
+    padding-right: 1.4pt !important;
     page-break-before: avoid !important;
     break-before: avoid-page !important;
     page-break-inside: avoid !important;
     break-inside: avoid-page !important;
   }
   .table-wrapper table, table.fleet-results-table, .fleet-section .table-wrapper table.fleet-results-table {
-    width: 100% !important;
+    width: calc(100% - 1.6pt) !important;
     min-width: 0 !important;
-    max-width: 100% !important;
+    max-width: calc(100% - 1.6pt) !important;
     table-layout: fixed !important;
     border-collapse: collapse !important;
+    box-sizing: border-box !important;
     border: 0.7pt solid #1a2750 !important;
     page-break-inside: avoid !important;
     break-inside: avoid-page !important;
@@ -329,6 +336,7 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
     white-space: nowrap !important;
     overflow: visible !important;
     letter-spacing: 0.01em !important;
+    box-sizing: border-box !important;
     border: 0.5pt solid #1a2750 !important;
     background: #fff !important;
   }
@@ -481,13 +489,50 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
     overflow: hidden !important;
   }
 }
-#ssaPrintChooser { display: none; position: fixed; inset: 0; z-index: 2147483000; align-items: center; justify-content: center; background: rgba(0,31,63,.45); }
+#ssaPrintChooser { display: none; position: fixed; inset: 0; z-index: 2147483000; align-items: flex-end; justify-content: center; background: rgba(0,31,63,.45); }
 #ssaPrintChooser.is-open { display: flex; }
-#ssaPrintChooser .card { max-width: 56rem; width: 96%; padding: 16px; }
-#ssaPrintChooser .ssa-print-chooser-note { font-size: 13px; color: #1a2750; margin: 0 0 8px; line-height: 1.35; }
-#ssaPrintChooser .ssa-print-chooser-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-start; margin-top: 12px; }
-#ssaPrintChooser .ssa-pdf-frame { width: 100%; height: 62vh; border: 1px solid #1a2750; background: #fff; margin: 0; }
-#ssaPrintChooser a.action-button { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+#ssaPrintChooser .card {
+  max-width: 26rem; width: min(96%, 26rem); padding: 14px 14px 18px; margin: 0 0 18px;
+  border-radius: 18px; box-shadow: 0 8px 28px rgba(0,31,63,.18);
+}
+#ssaPrintChooser .ssa-print-chooser-note { font-size: 12px; color: #1a2750; margin: 0 0 8px; line-height: 1.35; text-align: center; }
+#ssaPrintChooser .ssa-pdf-frame { width: 100%; height: 42vh; border: 1px solid #1a2750; background: #e8e8ed; margin: 0; border-radius: 10px; overflow: auto; }
+#ssaPdfView { min-height: 100%; padding: 8px; box-sizing: border-box; }
+#ssaPdfView canvas, #ssaPdfView img.ssa-pdf-page {
+  display: block; width: 100%; height: auto; margin: 0 0 8px; background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,.15);
+}
+#ssaPdfView .ssa-pdf-status { margin: 24px 12px; text-align: center; color: #1a2750; font-size: 13px; }
+#ssaPrintChooser .ssa-print-chooser-actions {
+  display: flex; gap: 6px; flex-wrap: nowrap; justify-content: space-between;
+  align-items: flex-start; margin-top: 14px; padding: 0 2px;
+}
+#ssaPrintChooser .ssa-ios-share-item {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  gap: 6px; min-width: 52px; min-height: 44px; padding: 0; margin: 0;
+  border: 0; background: transparent; box-shadow: none; cursor: pointer;
+  text-decoration: none; color: #1a2750; font: inherit; -webkit-tap-highlight-color: transparent;
+}
+#ssaPrintChooser .ssa-ios-share-icon {
+  width: 56px; height: 56px; border-radius: 50%; display: inline-flex;
+  align-items: center; justify-content: center; flex: 0 0 auto;
+}
+#ssaPrintChooser .ssa-ios-share-icon svg { width: 28px; height: 28px; display: block; }
+#ssaPrintChooser .ssa-ios-share-icon--wa { background: #25D366; }
+#ssaPrintChooser .ssa-ios-share-icon--mail { background: #007AFF; }
+#ssaPrintChooser .ssa-ios-share-icon--down { background: #34C759; }
+#ssaPrintChooser .ssa-ios-share-icon--print { background: #8E8E93; }
+#ssaPrintChooser .ssa-ios-share-icon--close { background: #636366; }
+#ssaPrintChooser .ssa-ios-share-label {
+  font-size: 11px; font-weight: 500; line-height: 1.15; text-align: center;
+  color: #1a2750; max-width: 64px;
+}
+#ssaPrintChooser a.ssa-ios-share-item { color: #1a2750; }
+@media (min-width: 700px) {
+  #ssaPrintChooser { align-items: center; }
+  #ssaPrintChooser .card { max-width: 32rem; width: min(96%, 32rem); margin: 0; }
+  #ssaPrintChooser .ssa-pdf-frame { height: 56vh; }
+}
 """
 ).strip()
 
@@ -500,7 +545,7 @@ def _document_css() -> str:
         inner = inner[: inner.rfind("}")].rstrip()
     return (
         IBM_PLEX_PRINT_FONT_CSS
-        + "\n@page { size: A4 portrait; margin: 8mm 8mm 14mm; }\n"
+        + "\n@page { size: A4 portrait; margin: 8mm 9mm 14mm 8mm; }\n"
         + inner
     )
 
@@ -524,7 +569,7 @@ PRINT_COL_MIN_MM = {
     "meta": 9,
 }
 PRINT_COL_OTHER_MM = 10
-PRINT_A4_PORTRAIT_CONTENT_MM = 194  # 210mm minus 8mm side margins
+PRINT_A4_PORTRAIT_CONTENT_MM = 193  # 210mm minus 8mm left + 9mm right
 
 
 def print_col_need_mm(kind: str) -> int:
@@ -672,6 +717,7 @@ document.addEventListener('click',function(ev){
 
 
 _PDF_SHARE_JS = r"""
+var _pdfFile=null,_pdfWarm=null,_pdfJsWarm=null;
 function sheetUrl(){
   var c=document.querySelector('link[rel="canonical"]');
   if(c&&c.href&&c.href.indexOf('http')===0)return c.href.split('#')[0].split('?')[0];
@@ -702,34 +748,152 @@ function pdfFileName(){
   var tail=(p.split('/').filter(Boolean).pop()||'results').replace(/\.pdf$/i,'');
   return tail+'.pdf';
 }
+function setPdfStatus(msg){
+  var host=document.getElementById('ssaPdfView');if(!host)return;
+  host.innerHTML='<p class="ssa-pdf-status"></p>';
+  host.firstChild.textContent=msg||'Loading PDF\u2026';
+}
 function loadPdfFile(){
   var u=pdfAbs();
   if(!u)return Promise.reject(new Error('no-pdf'));
-  return fetch(u,{credentials:'same-origin'}).then(function(r){
+  return fetch(u,{credentials:'same-origin',cache:'no-store'}).then(function(r){
     if(!r.ok)throw new Error('pdf');
     return r.blob();
   }).then(function(blob){
-    return new File([blob],pdfFileName(),{type:'application/pdf'});
+    var file=new File([blob],pdfFileName(),{type:'application/pdf'});
+    _pdfFile=file;
+    return file;
+  });
+}
+function warmPdf(){
+  if(!_pdfWarm)_pdfWarm=loadPdfFile().catch(function(err){_pdfWarm=null;throw err;});
+  return _pdfWarm;
+}
+function withPdfFile(fn){
+  if(_pdfFile)return Promise.resolve(fn(_pdfFile));
+  return warmPdf().then(fn);
+}
+function loadPdfJs(){
+  if(window.pdfjsLib)return Promise.resolve(window.pdfjsLib);
+  if(_pdfJsWarm)return _pdfJsWarm;
+  _pdfJsWarm=new Promise(function(res,rej){
+    var s=document.createElement('script');
+    s.src=(location.origin||'')+'/js/vendor/pdfjs/pdf.min.js';
+    s.onload=function(){
+      try{
+        if(window.pdfjsLib&&pdfjsLib.GlobalWorkerOptions){
+          pdfjsLib.GlobalWorkerOptions.workerSrc=(location.origin||'')+'/js/vendor/pdfjs/pdf.min.js';
+        }
+      }catch(e){}
+      res(window.pdfjsLib);
+    };
+    s.onerror=function(){ _pdfJsWarm=null; rej(new Error('pdfjs')); };
+    document.head.appendChild(s);
+  });
+  return _pdfJsWarm;
+}
+function renderPdfPreview(file){
+  var host=document.getElementById('ssaPdfView');if(!host||!file)return Promise.reject(new Error('view'));
+  setPdfStatus('Opening PDF\u2026');
+  return file.arrayBuffer().then(function(buf){
+    return loadPdfJs().then(function(pdfjs){
+      if(!pdfjs||!pdfjs.getDocument)throw new Error('pdfjs');
+      return pdfjs.getDocument({data:buf,disableWorker:true}).promise;
+    }).then(function(pdf){
+      host.innerHTML='';
+      var scale=Math.max(1.15, (host.clientWidth||480)/612);
+      var chain=Promise.resolve();
+      for(var n=1;n<=pdf.numPages;n++){
+        (function(pageNo){
+          chain=chain.then(function(){return pdf.getPage(pageNo);}).then(function(page){
+            var vp=page.getViewport({scale:scale});
+            var canvas=document.createElement('canvas');
+            canvas.width=vp.width;canvas.height=vp.height;
+            canvas.setAttribute('aria-label','PDF page '+pageNo);
+            host.appendChild(canvas);
+            return page.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise;
+          });
+        })(n);
+      }
+      return chain;
+    });
   });
 }
 function sharePdfFile(file){
-  if(!file||!navigator.share||!navigator.canShare)return Promise.reject(new Error('no-share'));
-  var payload={title:pdfTitle(),text:pdfTitle(),files:[file]};
-  if(!navigator.canShare(payload))return Promise.reject(new Error('no-files'));
+  if(!file||!navigator.share)return Promise.reject(new Error('no-share'));
+  var payload={files:[file],title:pdfTitle()};
+  if(navigator.canShare&&!navigator.canShare(payload))return Promise.reject(new Error('no-files'));
   return navigator.share(payload);
 }
-function waPdfFallback(){
-  var text=pdfTitle()+'\n'+pdfAbs();
-  window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank','noopener');
+function downloadPdfFile(file){
+  if(!file)return;
+  var url=URL.createObjectURL(file);
+  var a=document.createElement('a');
+  a.href=url;a.download=pdfFileName();a.rel='noopener';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(function(){URL.revokeObjectURL(url);},2500);
 }
-function mailPdfFallback(){
-  location.href='mailto:?subject='+encodeURIComponent(pdfTitle())+'&body='+encodeURIComponent(pdfTitle()+'\n'+pdfAbs());
+function sharePdfAttach(){
+  withPdfFile(function(file){
+    return sharePdfFile(file).catch(function(){downloadPdfFile(file);});
+  }).catch(function(){downloadPdfAttach();});
 }
-function sharePdfWhatsApp(){
-  loadPdfFile().then(function(file){return sharePdfFile(file);}).catch(function(){waPdfFallback();});
+function downloadPdfAttach(){
+  withPdfFile(function(file){downloadPdfFile(file);}).catch(function(){
+    var u=pdfAbs();if(!u)return;
+    var a=document.createElement('a');
+    a.href=u+(u.indexOf('?')>=0?'&':'?')+'download=1';
+    a.download=pdfFileName();a.rel='noopener';
+    document.body.appendChild(a);a.click();a.remove();
+  });
 }
-function sharePdfEmail(){
-  loadPdfFile().then(function(file){return sharePdfFile(file);}).catch(function(){mailPdfFallback();});
+function printPdfFromCanvases(){
+  var host=document.getElementById('ssaPdfView');
+  var canv=host?host.querySelectorAll('canvas'):[];
+  if(!canv.length)return false;
+  var w=window.open('', 'ssaPdfPrint');
+  if(!w)return false;
+  w.document.open();
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+
+    String(pdfTitle()).replace(/[<>&]/g,'')+
+    '</title><style>@page{size:A4;margin:0}html,body{margin:0;background:#fff}img{display:block;width:100%;page-break-after:always}</style></head><body></body></html>');
+  w.document.close();
+  Array.prototype.forEach.call(canv,function(c){
+    var img=w.document.createElement('img');
+    img.src=c.toDataURL('image/png');
+    w.document.body.appendChild(img);
+  });
+  setTimeout(function(){try{w.focus();w.print();}catch(e){}},400);
+  return true;
+}
+function printPdf(){
+  withPdfFile(function(file){
+    var url=URL.createObjectURL(file);
+    var fr=document.getElementById('ssaPdfPrintFrame');
+    if(!fr){
+      fr=document.createElement('iframe');
+      fr.id='ssaPdfPrintFrame';
+      fr.setAttribute('title','Print PDF');
+      fr.style.cssText='position:fixed;right:0;bottom:0;width:1px;height:1px;opacity:0;border:0';
+      document.body.appendChild(fr);
+    }
+    var printed=false;
+    var fallback=setTimeout(function(){
+      if(printed)return;
+      if(!printPdfFromCanvases())window.open(url,'_blank','noopener');
+    },1400);
+    fr.onload=function(){
+      printed=true;clearTimeout(fallback);
+      try{fr.contentWindow.focus();fr.contentWindow.print();}catch(e){
+        if(!printPdfFromCanvases())window.open(url,'_blank','noopener');
+      }
+    };
+    fr.src=url;
+  }).catch(function(){
+    if(!printPdfFromCanvases()){
+      var u=pdfAbs();if(u)window.open(u,'_blank','noopener');
+    }
+  });
 }
 function shareEventUrl(){
   var t=pdfTitle(),u=sheetUrl()||location.href,b=document.getElementById('regattaShareBtn');
@@ -743,49 +907,83 @@ function shareEventUrl(){
 }
 function openChooser(){
   var el=document.getElementById('ssaPrintChooser');if(!el)return;
-  var u=pdfPath();if(!u)return;
-  var fr=document.getElementById('ssaPdfFrame');
+  if(!pdfPath())return;
   var dl=document.getElementById('ssaPdfDownload');
-  if(fr)fr.src=u+'?t='+Date.now();
-  if(dl){dl.setAttribute('href',u+'?download=1');dl.setAttribute('download',pdfFileName());}
+  if(dl){dl.setAttribute('href',pdfPath()+'?download=1');dl.setAttribute('download',pdfFileName());}
+  setPdfStatus('Loading PDF\u2026');
   el.classList.add('is-open');
+  withPdfFile(function(file){
+    return renderPdfPreview(file).catch(function(){
+      setPdfStatus('PDF is ready. Use Download or Print if the preview cannot open in this browser.');
+    });
+  }).catch(function(){setPdfStatus('Could not load the PDF file.');});
 }
 function closeChooser(){var el=document.getElementById('ssaPrintChooser');if(el)el.classList.remove('is-open');}
-function printPdf(){
-  var fr=document.getElementById('ssaPdfFrame');
-  try{if(fr&&fr.contentWindow){fr.contentWindow.focus();fr.contentWindow.print();return;}}catch(e){}
-  var u=pdfAbs();if(u)window.open(u,'_blank');
-}
 window.ssaRegattaPrint=openChooser;
 document.addEventListener('click',function(ev){
-  var t=ev.target;if(!t||!t.getAttribute)return;
-  var act=t.getAttribute('data-ssa-print');
-  if(act==='whatsapp'){ev.preventDefault();sharePdfWhatsApp();return;}
-  if(act==='email'){ev.preventDefault();sharePdfEmail();return;}
+  var t=ev.target;
+  if(t&&t.id==='ssaPrintChooser'){closeChooser();return;}
+  var hit=t&&t.closest?t.closest('[data-ssa-print]'):null;
+  if(!hit)return;
+  var act=hit.getAttribute('data-ssa-print');
+  if(act==='whatsapp'||act==='email'){ev.preventDefault();sharePdfAttach();return;}
+  if(act==='download'){ev.preventDefault();downloadPdfAttach();return;}
   if(act==='printer'){ev.preventDefault();printPdf();return;}
-  if(act==='cancel'||(t.id==='ssaPrintChooser'&&t.classList.contains('is-open')))closeChooser();
+  if(act==='cancel'){ev.preventDefault();closeChooser();}
 });
 var b=document.getElementById('regattaShareBtn');
 if(b)b.addEventListener('click',function(){shareEventUrl();});
+warmPdf();
 """.replace("\n", "")
 
 
+def _ios_share_svg(name: str) -> str:
+    icons = {
+        "wa": '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M12.04 2c-5.46 0-9.91 4.4-9.91 9.83 0 1.73.46 3.43 1.33 4.93L2 22l5.39-1.41A10 10 0 0 0 12.04 22c5.46 0 9.91-4.4 9.91-9.83C21.95 6.4 17.5 2 12.04 2zm5.76 14.12c-.24.68-1.39 1.25-1.91 1.33-.49.08-1.1.11-1.77-.11-.41-.13-.93-.31-1.61-.61-2.83-1.23-4.67-4.09-4.81-4.28-.14-.19-1.15-1.53-1.15-2.92 0-1.39.71-2.07.96-2.35.24-.28.53-.35.7-.35h.5c.16 0 .37-.02.57.44.22.5.74 1.73.8 1.86.07.13.11.28.02.45-.09.18-.14.28-.27.44l-.4.48c-.13.16-.27.33-.12.64.15.31.67 1.1 1.44 1.78.99.87 1.8 1.14 2.07 1.27.27.13.43.11.59-.07.16-.18.67-.78.85-1.05.18-.27.36-.22.6-.13.24.09 1.54.73 1.8.86.27.13.44.2.51.31.07.11.07.64-.17 1.32z"/></svg>',
+        "mail": '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5v-11zm1.7.5 6.05 4.32L17.3 7H5.7zM18 8.54l-6.06 4.33a.9.9 0 0 1-1.08 0L4.8 8.54V17.5c0 .28.22.5.5.5h11.4c.28 0 .5-.22.5-.5V8.54z"/></svg>',
+        "down": '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M11 3h2v10.2l3.4-3.4 1.4 1.4L12 17 6.2 11.2l1.4-1.4L11 13.2V3zm-6 16h14v2H5v-2z"/></svg>',
+        "print": '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M8 3h8v4H8V3zm-3 6h14a2 2 0 0 1 2 2v6h-4v4H8v-4H4v-6a2 2 0 0 1 2-2zm3 10h8v-4H8v4zm9-8.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/></svg>',
+        "close": '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M6.7 6.7 12 12l5.3-5.3 1.4 1.4L13.4 13.4l5.3 5.3-1.4 1.4L12 14.8l-5.3 5.3-1.4-1.4 5.3-5.3-5.3-5.3z"/></svg>',
+    }
+    return icons[name]
+
+
+def _ios_item(action: str, label: str, icon: str, *, href: bool = False) -> str:
+    glyph = _ios_share_svg(icon)
+    inner = (
+        f'<span class="ssa-ios-share-icon ssa-ios-share-icon--{icon}">{glyph}</span>'
+        f'<span class="ssa-ios-share-label">{label}</span>'
+    )
+    if href:
+        return (
+            f'<a class="ssa-ios-share-item" id="ssaPdfDownload" href="#" download '
+            f'data-ssa-print="{action}" aria-label="{label}">{inner}</a>'
+        )
+    return (
+        f'<button type="button" class="ssa-ios-share-item" data-ssa-print="{action}" '
+        f'aria-label="{label}">{inner}</button>'
+    )
+
+
 def print_share_bar_html() -> str:
-    """Print opens the PDF. Chooser Share is the PDF file (WhatsApp, then Email). Page Share is the event URL."""
+    """Print opens the PDF file. Chooser preview paints PDF pages (no plugin needed)."""
+    actions = (
+        _ios_item("whatsapp", "WhatsApp", "wa")
+        + _ios_item("email", "Email", "mail")
+        + _ios_item("download", "Download", "down", href=True)
+        + _ios_item("printer", "Print", "print")
+        + _ios_item("cancel", "Close", "close")
+    )
     return (
         '<style id="ssa-print-compact">' + PRINT_COMPACT_CSS + "</style>"
         '<div id="ssaPrintChooser" role="dialog" aria-label="Results PDF">'
         '<div class="card">'
         '<div class="section-title">Results PDF</div>'
-        '<p class="ssa-print-chooser-note">Share this PDF — WhatsApp and Email first. This is the file, not the page URL. Landscape if the table is too wide for portrait. Each fleet stays on one page.</p>'
-        '<iframe id="ssaPdfFrame" class="ssa-pdf-frame" title="Results PDF"></iframe>'
+        '<p class="ssa-print-chooser-note">This is the PDF file — WhatsApp, Email, Download and Print all use the file, not a page link.</p>'
+        '<div id="ssaPdfView" class="ssa-pdf-frame" role="document" aria-label="PDF preview"></div>'
         '<div class="ssa-print-chooser-actions">'
-        '<button type="button" class="action-button" data-ssa-print="whatsapp">WhatsApp</button>'
-        '<button type="button" class="action-button" data-ssa-print="email">Email</button>'
-        '<a class="action-button" id="ssaPdfDownload" href="#" download>Download</a>'
-        '<button type="button" class="action-button" data-ssa-print="printer">Print</button>'
-        '<button type="button" class="action-button" data-ssa-print="cancel">Close</button>'
-        "</div></div></div>"
+        + actions
+        + "</div></div></div>"
         '<div class="action-buttons">'
         '<button type="button" class="action-button" onclick="window.ssaRegattaPrint&&window.ssaRegattaPrint()">Print</button>'
         '<button type="button" class="action-button" id="regattaShareBtn">Share URL</button>'
