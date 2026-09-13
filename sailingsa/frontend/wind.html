@@ -510,20 +510,21 @@
     }
     liveG.innerHTML = h;
   }
+
+  function paintHigh() {
     var now = Date.now();
     var rows = highRows.length ? highRows : samples;
     var i;
     var best = null;
     for (i = 0; i < rows.length; i += 1) {
       if (now - rows[i].t > HIGH_MS) continue;
-      if (rows[i].gust == null) continue;
-      if (best == null || rows[i].gust > best.gust) best = rows[i];
+      if (best == null || rows[i].kt > best.kt) best = rows[i];
     }
     if (!best) {
       highG.innerHTML = "";
       return;
     }
-    var p = xy(best.dirMax, Math.max(R_MIN + 2, radiusForKt(best.gust)));
+    var p = xy(best.deg, Math.max(R_MIN + 2, radiusForKt(best.kt)));
     highG.innerHTML = '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="3" fill="#DC143C"/>';
   }
 
@@ -645,7 +646,6 @@
           var s;
           for (s = 0; s < samples.length; s += 1) {
             if (samples[s].kt > peak) peak = samples[s].kt;
-            if (samples[s].gust != null && samples[s].gust > peak) peak = samples[s].gust;
           }
           KT_MAX = bandCeiling(peak);
           drawRings();
