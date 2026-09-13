@@ -12,6 +12,10 @@ This project uses **split tasks** to avoid agent resource limits and crashes.
 
 **`docs/AVOID_FRONTEND_DRIFT_AND_WRONG_LAYER.md`** — Do **not** add local-only frontend changes that diverge from live. Do **not** fix the frontend when the failure is backend or DB (e.g. "Failed to load regatta data" → diagnose API/DB first; fix SQL or data). Match live first; fix the layer that is actually broken.
 
+## Never leave old code that can override a fix
+
+When CSS/JS/HTML is updated, **delete** the previous rule, poll, inject, or cache-busted file that produced the old behaviour. Do not keep both. One live path only. A leftover poll or CSS rule that still runs will overwrite the new work (Cape Classic DNC: 33% CSS + old `textContent` wipe / 50% CSS = small code flashed, then went big again).
+
 ## Crash README (Crash RM)
 
 **`docs/CRASH_README.md`** — When the user says "refer to crash RM" or "crash readme": (1) run the resource test (`python3 scripts/resource_test_standings_and_profile.py`), (2) do an issue check for crash cause and fix using that doc.
