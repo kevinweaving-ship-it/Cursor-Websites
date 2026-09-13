@@ -458,6 +458,16 @@
     return href;
   }
 
+  function isPhone() {
+    return window.matchMedia('(max-width: 599px)').matches;
+  }
+
+  function livePluginQuery() {
+    var q = '&show_text=false&autoplay=1&playsinline=1';
+    if (isPhone() || isMobilePortrait()) q += '&mute=1';
+    return q;
+  }
+
   function embedUrl(v) {
     var href = facebookVideoHref(v);
     var u = '';
@@ -465,7 +475,7 @@
       u =
         'https://www.facebook.com/plugins/video.php?href=' +
         encodeURIComponent(href) +
-        '&show_text=false&autoplay=1&mute=0';
+        livePluginQuery();
       return u;
     }
     u = String((v && v.embed_url) || '').trim();
@@ -477,7 +487,10 @@
     }
     if (!u) return '';
     if (u.indexOf('autoplay=') < 0) u += (u.indexOf('?') >= 0 ? '&' : '?') + 'autoplay=1';
-    if (mmFbLive(v) && u.indexOf('mute=') < 0) u += '&mute=0';
+    if (mmFbLive(v) && (isPhone() || isMobilePortrait()) && u.indexOf('mute=') < 0) {
+      u += '&mute=1';
+    }
+    if (u.indexOf('playsinline=') < 0) u += '&playsinline=1';
     return u;
   }
 
@@ -497,9 +510,11 @@
     iframe.setAttribute('allowfullscreen', '');
     iframe.setAttribute('scrolling', 'no');
     iframe.setAttribute('frameborder', '0');
+    iframe.setAttribute('playsinline', '');
+    iframe.setAttribute('webkit-playsinline', '');
     iframe.setAttribute('title', 'LIVE');
     iframe.style.cssText =
-      'position:absolute;inset:0;width:100%;height:100%;border:0;background:#000;z-index:1';
+      'position:absolute;inset:0;width:100%;height:100%;border:0;background:#000;z-index:2;pointer-events:auto';
     stage.appendChild(iframe);
     stage.classList.add('mm-lipton-reels-stage--playing');
   }
@@ -821,7 +836,7 @@
     return (
       '<iframe data-mm-compact-live src="' +
       esc(src) +
-      '" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen scrolling="no" frameborder="0" title="LIVE"></iframe>'
+      '" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen playsinline webkit-playsinline scrolling="no" frameborder="0" title="LIVE"></iframe>'
     );
   }
 
@@ -1930,7 +1945,13 @@
       '.mm-lipton-reels-live-slot .mm-lipton-reels-tile{display:block;width:100%;height:100%;margin:0}' +
       '.mm-lipton-reels-thumb--live{position:relative;overflow:hidden;background:#111;border:2px solid #ef4444}' +
       '.mm-lipton-reels-thumb--live iframe{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none;background:#000;z-index:1}' +
+      '@media (max-width:599px){.mm-lipton-reels-thumb--live iframe{pointer-events:auto}' +
+      '.mm-lipton-reels-thumb--live .mm-lipton-reels-thumb-hit{display:none!important}' +
+      '.mm-lipton-reels-player-wrap{width:100%;max-width:100%}}' +
       '.mm-lipton-reels-stage{position:relative}' +
+      '.mm-lipton-reels--expanded .mm-lipton-reels-hud{pointer-events:none}' +
+      '.mm-lipton-reels--expanded .mm-lipton-reels-hide{pointer-events:auto}' +
+      '.mm-lipton-reels--expanded .mm-lipton-reels-stage iframe{pointer-events:auto;z-index:2}' +
       '.mm-lipton-reels-live-ph{display:flex;align-items:center;justify-content:center;width:100%;height:100%;' +
       'background:#111;color:#ef4444;font:800 14px/1 Arial,Helvetica,sans-serif}';
   }

@@ -20,6 +20,8 @@ def test_own_live_card():
     assert "liveBadgeHtml" not in chunk
     assert "mm-lipton-reels-live-badge" not in js
     assert "autoplay=1" in js
+    assert "playsinline=1" in js
+    assert "mute=1" in js
 
 
 def test_bare_video_id_before_old_page_urls():
