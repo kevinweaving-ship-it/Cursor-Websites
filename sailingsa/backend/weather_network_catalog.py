@@ -82,6 +82,12 @@ STATIONS = [
     {"slug": "pws-isalda21", "display_name": "Saldanha Sardine ISALDA21", "provider": "weather_underground", "provider_station_id": "ISALDA21", "kind": "observation", "lat": -33.01, "lon": 17.95, "native_interval_sec": 300, "meta": {**PWS_META, "pws_id": "ISALDA21", "coords_source": "wu_public_dashboard", "discovered": True}},
     {"slug": "pws-isalda8", "display_name": "Saldanha Bay NU ISALDA8", "provider": "weather_underground", "provider_station_id": "ISALDA8", "kind": "observation", "lat": -32.94, "lon": 18.09, "native_interval_sec": 300, "meta": {**PWS_META, "pws_id": "ISALDA8", "coords_source": "wu_public_dashboard", "discovered": True}},
     {"slug": "pws-ilange504", "display_name": "Langebaan Roode Vos ILANGE504", "provider": "weather_underground", "provider_station_id": "ILANGE504", "kind": "observation", "lat": -33.09, "lon": 18.04, "native_interval_sec": 300, "meta": {**PWS_META, "pws_id": "ILANGE504", "coords_source": "wu_public_dashboard", "discovered": True}},
+    {"slug": "pws-ilange219", "display_name": "Langebaan AMB5000 ILANGE219", "provider": "weather_underground", "provider_station_id": "ILANGE219", "kind": "observation", "lat": -33.07, "lon": 18.05, "native_interval_sec": 300, "meta": {**PWS_META, "pws_id": "ILANGE219", "coords_source": "wu_public_dashboard", "discovered": True}},
+    {"slug": "pws-icapet66", "display_name": "Vredehoek ICAPET66", "provider": "weather_underground", "provider_station_id": "ICAPET66", "kind": "observation", "lat": -33.940, "lon": 18.422, "native_interval_sec": 300, "meta": {**PWS_META, "pws_id": "ICAPET66", "coords_source": "wu_public_dashboard", "discovered": True}},
+    {"slug": "pws-icapemet5", "display_name": "Blouberg ICAPEMET5", "provider": "weather_underground", "provider_station_id": "ICAPEMET5", "kind": "observation", "lat": -33.79, "lon": 18.48, "native_interval_sec": 300, "meta": {**PWS_META, "pws_id": "ICAPEMET5", "coords_source": "wu_public_dashboard", "discovered": True}},
+    {"slug": "pws-icapet47", "display_name": "Tokai ICAPET47", "provider": "weather_underground", "provider_station_id": "ICAPET47", "kind": "observation", "lat": -34.07, "lon": 18.44, "native_interval_sec": 300, "meta": {**PWS_META, "pws_id": "ICAPET47", "coords_source": "wu_public_dashboard", "discovered": True}},
+    {"slug": "pws-igpvaalm2", "display_name": "Vaal Dam / Vaal Marina IGPVAALM2", "provider": "weather_underground", "provider_station_id": "IGPVAALM2", "kind": "observation", "lat": -26.87, "lon": 28.20, "native_interval_sec": 300, "meta": {**PWS_META, "pws_id": "IGPVAALM2", "coords_source": "wu_public_dashboard", "discovered": True}},
+    {"slug": "pws-iveree6", "display_name": "Vereeniging Unitaspark IVEREE6", "provider": "weather_underground", "provider_station_id": "IVEREE6", "kind": "observation", "lat": -26.634, "lon": 27.916, "native_interval_sec": 300, "meta": {**PWS_META, "pws_id": "IVEREE6", "coords_source": "wu_public_dashboard", "discovered": True}},
 ]
 
 # Explicit many-to-many. Same physical station may appear under several clubs.
@@ -134,4 +140,11 @@ LINKS = [
     ("SBYC", "pws-isalda19", "nearby"),
     ("SBYC", "pws-isalda8", "nearby"),
     ("SBYC", "pws-ilange504", "nearby"),
+    ("SBYC", "pws-ilange219", "nearby"),
+    ("ZVYC", "pws-icapet47", "nearby"),
+    ("FBYC", "pws-icapet47", "nearby"),
+    ("RCYC", "pws-icapet66", "nearby"),
+    ("RCYC", "pws-icapemet5", "regional"),
+    ("LDYC", "pws-igpvaalm2", "nearby"),
+    ("LDYC", "pws-iveree6", "regional"),
 ]

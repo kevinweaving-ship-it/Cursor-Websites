@@ -606,9 +606,39 @@ def regional_snapshot(
                 "independent": True,
             }
         )
+        item.update(
+            station_freshness(
+                age_sec=age,
+                native_interval_sec=row.get("native_interval_sec"),
+                has_reading=obs is not None,
+            )
+        )
         out.append(item)
     out.sort(key=lambda x: (x.get("distance_km") is None, x.get("distance_km") or 0, x.get("station_slug") or ""))
     return out
+
+
+def station_freshness(
+    *,
+    age_sec: Optional[int],
+    native_interval_sec: Optional[int],
+    has_reading: bool,
+    last_failure_reason: Optional[str] = None,
+    last_ingest_at=None,
+) -> dict:
+    """Offline stations stay registered. They are not usable for current until a fresh reading arrives."""
+    if not has_reading:
+        if last_failure_reason == "offline_or_expired" or last_ingest_at is not None:
+            status = "offline"
+        else:
+            status = "unknown"
+        return {"status": status, "fresh": False, "usable_for_current": False}
+    limit = max(3600, 4 * int(native_interval_sec or 300))
+    if age_sec is not None and age_sec <= limit:
+        return {"status": "fresh", "fresh": True, "usable_for_current": True}
+    if age_sec is not None and age_sec <= 6 * 3600:
+        return {"status": "stale", "fresh": False, "usable_for_current": False}
+    return {"status": "offline", "fresh": False, "usable_for_current": False}
 
 
 def list_stations(
@@ -762,6 +792,15 @@ def club_station_snapshot(
                 "last_failure_reason": row.get("last_failure_reason"),
             }
         )
+        item.update(
+            station_freshness(
+                age_sec=age,
+                native_interval_sec=row.get("native_interval_sec"),
+                has_reading=obs is not None,
+                last_failure_reason=row.get("last_failure_reason"),
+                last_ingest_at=row.get("last_ingest_at"),
+            )
+        )
         out.append(item)
     return out
 
@@ -784,4 +823,10 @@ if __name__ == "__main__":
     assert _nonzero(12.5) == 12.5
     assert abs((_kmh_to_kt(3.6) or 0) - 1.94) < 0.02
     assert abs(haversine_km(-34.42, 19.24, -34.44, 19.46) - 20.3) < 1.5
+    f = station_freshness(age_sec=None, native_interval_sec=300, has_reading=False)
+    assert f["usable_for_current"] is False and f["status"] == "unknown"
+    f = station_freshness(age_sec=120, native_interval_sec=180, has_reading=True)
+    assert f["fresh"] is True and f["usable_for_current"] is True
+    f = station_freshness(age_sec=20000, native_interval_sec=300, has_reading=True)
+    assert f["usable_for_current"] is False
     print("ok")
