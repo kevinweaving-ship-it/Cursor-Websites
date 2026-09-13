@@ -31,15 +31,26 @@ def is_cape_classic_2026_zvy_event(regatta_id: Optional[str]) -> bool:
     return s == CAPE_CLASSIC_2026_ZVY_ID or s.startswith(CAPE_CLASSIC_2026_ZVY_ID + "-")
 
 
-CAPE_CLASSIC_HEADER_TITLE = "Cape Classic"
+CAPE_CLASSIC_HEADER_TITLE = "2026 Zeekoe Vlei Cape Classic"
+
+_MONTH_ABBREV = (
+    ("January", "Jan"),
+    ("February", "Feb"),
+    ("March", "Mar"),
+    ("April", "Apr"),
+    ("May", "May"),
+    ("June", "Jun"),
+    ("July", "Jul"),
+    ("August", "Aug"),
+    ("September", "Sep"),
+    ("October", "Oct"),
+    ("November", "Nov"),
+    ("December", "Dec"),
+)
 
 
 def cape_classic_event_header_title(raw: str, regatta_id: Optional[str] = None) -> str:
-    """Event-card title: named event, not the date-slug ingest name.
-
-    Spec: event_name must not start with a year/date. The Event URL was showing
-    '2026-09-13 ZVYC Cape Classic'. Logo already marks the series; Host is ZVYC.
-    """
+    """Event-card title: year + Zeekoe Vlei Cape Classic (not the date-slug)."""
     if not is_cape_classic_2026_zvy_event(regatta_id):
         return str(raw or "").strip()
     return CAPE_CLASSIC_HEADER_TITLE
@@ -48,6 +59,29 @@ def cape_classic_event_header_title(raw: str, regatta_id: Optional[str] = None) 
 def cape_classic_hide_duplicate_venue(regatta_id: Optional[str] = None) -> bool:
     """Venue repeats the host club on this Event URL — drop it."""
     return is_cape_classic_2026_zvy_event(regatta_id)
+
+
+def cape_classic_event_header_status_html(
+    status_line_text: str, regatta_id: Optional[str] = None
+) -> str:
+    """Header only: 'Results are Provisional' then 'as at 12 Sep 2026 at 17:46'."""
+    raw = str(status_line_text or "").strip()
+    wrapped = f'<div class="status-line">{raw}</div>'
+    if not is_cape_classic_2026_zvy_event(regatta_id):
+        return wrapped
+    plain = re.sub(r"<[^>]+>", " ", raw)
+    plain = re.sub(r"\s+", " ", plain).strip()
+    parts = re.split(r"\s+as at\s+", plain, maxsplit=1, flags=re.I)
+    if len(parts) != 2:
+        return wrapped
+    head, rest = parts[0].strip(), parts[1].strip()
+    as_at = "as at " + rest
+    for full, short in _MONTH_ABBREV:
+        as_at = re.sub(rf"\b{full}\b", short, as_at)
+    return (
+        f'<div class="status-line">{head}</div>'
+        f'<div class="status-line">{as_at}</div>'
+    )
 
 
 def unique_row_class_names(rows: Iterable[dict] | None) -> set[str]:
@@ -223,7 +257,15 @@ if __name__ == "__main__":
         cape_classic_event_header_title(
             "2026-09-13 ZVYC Cape Classic", "2026-09-13-zvyc-cape-classic"
         )
-        == "Cape Classic"
+        == "2026 Zeekoe Vlei Cape Classic"
+    )
+    assert (
+        cape_classic_event_header_status_html(
+            "Results are Provisional as at 12 September 2026 at 17:46",
+            "2026-09-13-zvyc-cape-classic",
+        )
+        == '<div class="status-line">Results are Provisional</div>'
+        '<div class="status-line">as at 12 Sep 2026 at 17:46</div>'
     )
     assert (
         cape_classic_event_header_title("HYC Cape Classic", "2026-02-16-hyc-cape-classic")
