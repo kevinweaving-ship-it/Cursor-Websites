@@ -49,11 +49,11 @@ def _sid(slug: str) -> Optional[int]:
         conn.close()
 
 
-def ingest_fact_metar_row(row: dict) -> int:
-    """Store only values FACT actually supplied. Do not copy wind onto gust."""
+def ingest_metar_row(slug: str, icao: str, row: dict) -> int:
+    """Store only values the METAR actually supplied. Do not copy wind onto gust."""
     if not isinstance(row, dict):
         return 0
-    sid = _sid(FACT_SLUG)
+    sid = _sid(slug)
     if not sid:
         return 0
     observed = None
@@ -63,7 +63,7 @@ def ingest_fact_metar_row(row: dict) -> int:
         except Exception:
             observed = None
     if observed is None:
-        mark_station_ingest(FACT_SLUG, failure_reason="missing_obsTime")
+        mark_station_ingest(slug, failure_reason="missing_obsTime")
         return 0
     gust = _num(row.get("wgst")) if "wgst" in row and row.get("wgst") is not None else None
     wdir = None
@@ -81,14 +81,42 @@ def ingest_fact_metar_row(row: dict) -> int:
     }
     extras = {
         "provider": "aviationweather_metar",
-        "station_id": "FACT",
+        "station_id": icao,
         "raw_metar": row.get("rawOb") or row.get("raw"),
         "feed": "https://aviationweather.gov/api/data/metar",
         "independent": True,
     }
     n = insert_observation(sid, observed, fields, extras, row, period_sec=1800)
-    mark_station_ingest(FACT_SLUG, observed_at=observed)
+    mark_station_ingest(slug, observed_at=observed)
     return n
+
+
+def ingest_fact_metar_row(row: dict) -> int:
+    return ingest_metar_row(FACT_SLUG, "FACT", row)
+
+
+def fetch_and_ingest_metar(icao: str, slug: str) -> int:
+    """Public aviationweather.gov JSON. No API key. Does not scrape HTML."""
+    import json
+    from urllib.parse import urlencode
+    from urllib.request import Request, urlopen
+
+    params = urlencode({"ids": icao, "format": "json"})
+    req = Request(
+        f"https://aviationweather.gov/api/data/metar?{params}",
+        headers={"Accept": "application/json", "User-Agent": "SailingSA-weather/1"},
+    )
+    try:
+        with urlopen(req, timeout=15) as resp:
+            rows = json.loads(resp.read().decode("utf-8", errors="replace") or "[]")
+    except Exception as e:
+        mark_station_ingest(slug, failure_reason=str(e)[:200])
+        return 0
+    row = rows[0] if isinstance(rows, list) and rows else None
+    if not isinstance(row, dict):
+        mark_station_ingest(slug, failure_reason="empty_metar")
+        return 0
+    return ingest_metar_row(slug, icao, row)
 
 
 def ingest_open_meteo_atmosphere(current: dict, lat: float, lon: float) -> int:
