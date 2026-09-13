@@ -31,6 +31,25 @@ def is_cape_classic_2026_zvy_event(regatta_id: Optional[str]) -> bool:
     return s == CAPE_CLASSIC_2026_ZVY_ID or s.startswith(CAPE_CLASSIC_2026_ZVY_ID + "-")
 
 
+CAPE_CLASSIC_HEADER_TITLE = "Cape Classic"
+
+
+def cape_classic_event_header_title(raw: str, regatta_id: Optional[str] = None) -> str:
+    """Event-card title: named event, not the date-slug ingest name.
+
+    Spec: event_name must not start with a year/date. The Event URL was showing
+    '2026-09-13 ZVYC Cape Classic'. Logo already marks the series; Host is ZVYC.
+    """
+    if not is_cape_classic_2026_zvy_event(regatta_id):
+        return str(raw or "").strip()
+    return CAPE_CLASSIC_HEADER_TITLE
+
+
+def cape_classic_hide_duplicate_venue(regatta_id: Optional[str] = None) -> bool:
+    """Venue repeats the host club on this Event URL — drop it."""
+    return is_cape_classic_2026_zvy_event(regatta_id)
+
+
 def unique_row_class_names(rows: Iterable[dict] | None) -> set[str]:
     out: set[str] = set()
     for r in rows or []:
@@ -200,6 +219,18 @@ def class_link_html_logo_only(class_link_html: str, img_html: str, class_name: s
 if __name__ == "__main__":
     assert is_cape_classic_2026_zvy_event("2026-09-13-zvyc-cape-classic-420-fleet")
     assert not is_cape_classic_2026_zvy_event("2026-02-16-hyc-cape-classic")
+    assert (
+        cape_classic_event_header_title(
+            "2026-09-13 ZVYC Cape Classic", "2026-09-13-zvyc-cape-classic"
+        )
+        == "Cape Classic"
+    )
+    assert (
+        cape_classic_event_header_title("HYC Cape Classic", "2026-02-16-hyc-cape-classic")
+        == "HYC Cape Classic"
+    )
+    assert cape_classic_hide_duplicate_venue("2026-09-13-zvyc-cape-classic")
+    assert not cape_classic_hide_duplicate_venue("2026-08-29-lipton-challenge-cup")
     assert (
         fleet_header_title_without_class_dup(
             "420 Fleet", unique_classes={"420"}, has_class_logo=True
