@@ -96,8 +96,7 @@
       s.onload = function () {
         try {
           if (window.pdfjsLib && pdfjsLib.GlobalWorkerOptions) {
-            pdfjsLib.GlobalWorkerOptions.workerSrc =
-              (location.origin || "") + "/js/vendor/pdfjs/pdf.min.js";
+            pdfjsLib.GlobalWorkerOptions.workerSrc = "";
           }
         } catch (e) {}
         res(window.pdfjsLib);
@@ -111,42 +110,75 @@
     return _pdfJsWarm;
   }
 
-  function renderPdfPreview(file) {
+  function embedPdfFrame(host, u) {
+    host.innerHTML = "";
+    var fr = document.createElement("iframe");
+    fr.setAttribute("title", pdfTitle());
+    fr.src = u;
+    host.appendChild(fr);
+  }
+
+  function showPdfPreview() {
     var host = document.getElementById("ssaPdfView");
-    if (!host || !file) return Promise.reject(new Error("view"));
+    if (!host) return;
+    var u = pdfAbs();
+    if (!u) {
+      setPdfStatus("Could not load the PDF file.");
+      return;
+    }
     setPdfStatus("Opening PDF\u2026");
-    return file.arrayBuffer().then(function (buf) {
-      return loadPdfJs()
-        .then(function (pdfjs) {
+    var done = false;
+    var fallback = setTimeout(function () {
+      if (done) return;
+      done = true;
+      embedPdfFrame(host, u);
+    }, 4500);
+    withPdfFile(function (file) {
+      return file.arrayBuffer().then(function (buf) {
+        return loadPdfJs().then(function (pdfjs) {
           if (!pdfjs || !pdfjs.getDocument) throw new Error("pdfjs");
-          return pdfjs.getDocument({ data: buf, disableWorker: true }).promise;
-        })
-        .then(function (pdf) {
+          try {
+            if (pdfjs.GlobalWorkerOptions) pdfjs.GlobalWorkerOptions.workerSrc = "";
+          } catch (e) {}
+          return pdfjs.getDocument({
+            data: new Uint8Array(buf),
+            disableWorker: true,
+            verbosity: 0,
+          }).promise;
+        }).then(function (pdf) {
+          if (done) return;
+          done = true;
+          clearTimeout(fallback);
           host.innerHTML = "";
-          var scale = Math.max(1.15, (host.clientWidth || 480) / 612);
+          var max = Math.min(pdf.numPages, 2);
+          var scale = Math.max(1.05, (host.clientWidth || 320) / 595);
           var chain = Promise.resolve();
-          for (var n = 1; n <= pdf.numPages; n++) {
+          for (var n = 1; n <= max; n++) {
             (function (pageNo) {
-              chain = chain
-                .then(function () {
-                  return pdf.getPage(pageNo);
-                })
-                .then(function (page) {
-                  var vp = page.getViewport({ scale: scale });
-                  var canvas = document.createElement("canvas");
-                  canvas.width = vp.width;
-                  canvas.height = vp.height;
-                  canvas.setAttribute("aria-label", "PDF page " + pageNo);
-                  host.appendChild(canvas);
-                  return page.render({
-                    canvasContext: canvas.getContext("2d"),
-                    viewport: vp,
-                  }).promise;
-                });
+              chain = chain.then(function () {
+                return pdf.getPage(pageNo);
+              }).then(function (page) {
+                var vp = page.getViewport({ scale: scale });
+                var canvas = document.createElement("canvas");
+                canvas.width = vp.width;
+                canvas.height = vp.height;
+                canvas.setAttribute("aria-label", "PDF page " + pageNo);
+                host.appendChild(canvas);
+                return page.render({
+                  canvasContext: canvas.getContext("2d"),
+                  viewport: vp,
+                }).promise;
+              });
             })(n);
           }
           return chain;
         });
+      });
+    }).catch(function () {
+      if (done) return;
+      done = true;
+      clearTimeout(fallback);
+      embedPdfFrame(host, u);
     });
   }
 
@@ -264,17 +296,9 @@
       dl.setAttribute("href", pdfPath() + "?download=1");
       dl.setAttribute("download", pdfFileName());
     }
-    setPdfStatus("Loading PDF\u2026");
     el.classList.add("is-open");
-    withPdfFile(function (file) {
-      return renderPdfPreview(file).catch(function () {
-        setPdfStatus(
-          "PDF is ready. Use Download or Print if the preview cannot open in this browser."
-        );
-      });
-    }).catch(function () {
-      setPdfStatus("Could not load the PDF file.");
-    });
+    showPdfPreview();
+    warmPdf();
   }
 
   function closeChooser() {

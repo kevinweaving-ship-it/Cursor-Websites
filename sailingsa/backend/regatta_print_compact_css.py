@@ -492,17 +492,20 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
 #ssaPrintChooser { display: none; position: fixed; inset: 0; z-index: 2147483000; align-items: flex-end; justify-content: center; background: rgba(0,31,63,.45); }
 #ssaPrintChooser.is-open { display: flex; }
 #ssaPrintChooser .card {
-  max-width: 26rem; width: min(96%, 26rem); padding: 14px 14px 18px; margin: 0 0 18px;
-  border-radius: 18px; box-shadow: 0 8px 28px rgba(0,31,63,.18);
+  max-width: 40rem; width: min(96%, 40rem); padding: 14px 14px 16px; margin: 0 0 18px;
+  background: #fff !important; border: 2px solid #001f3f; overflow: hidden;
+  border-radius: 8px; box-shadow: 0 8px 28px rgba(0,31,63,.18);
 }
-#ssaPrintChooser .ssa-print-chooser-note { font-size: 12px; color: #1a2750; margin: 0 0 8px; line-height: 1.35; text-align: center; }
-#ssaPrintChooser .ssa-pdf-frame { width: 100%; height: 42vh; border: 1px solid #1a2750; background: #e8e8ed; margin: 0; border-radius: 10px; overflow: auto; }
-#ssaPdfView { min-height: 100%; padding: 8px; box-sizing: border-box; }
+#ssaPrintChooser .ssa-print-chooser-note { font-size: 12px; color: #001f3f; margin: 0 0 8px; line-height: 1.35; text-align: center; }
+#ssaPrintChooser .ssa-pdf-frame { width: 100%; height: 52vh; border: 2px solid #001f3f; background: #fff; margin: 0; border-radius: 8px; overflow: auto; padding: 0; }
+#ssaPdfView { min-height: 100%; padding: 0; box-sizing: border-box; background: #fff; }
+#ssaPdfView iframe, #ssaPdfView embed, #ssaPdfView object {
+  display: block; width: 100%; height: 52vh; border: 0; background: #fff;
+}
 #ssaPdfView canvas, #ssaPdfView img.ssa-pdf-page {
-  display: block; width: 100%; height: auto; margin: 0 0 8px; background: #fff;
-  box-shadow: 0 1px 4px rgba(0,0,0,.15);
+  display: block; width: 100%; height: auto; margin: 0; background: #fff;
 }
-#ssaPdfView .ssa-pdf-status { margin: 24px 12px; text-align: center; color: #1a2750; font-size: 13px; }
+#ssaPdfView .ssa-pdf-status { margin: 24px 12px; text-align: center; color: #001f3f; font-size: 13px; }
 #ssaPrintChooser .ssa-print-chooser-actions {
   display: flex; gap: 6px; flex-wrap: nowrap; justify-content: space-between;
   align-items: flex-start; margin-top: 14px; padding: 0 2px;
@@ -516,22 +519,23 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
 #ssaPrintChooser .ssa-ios-share-icon {
   width: 56px; height: 56px; border-radius: 50%; display: inline-flex;
   align-items: center; justify-content: center; flex: 0 0 auto;
+  isolation: isolate; box-shadow: 0 1px 3px rgba(0,31,63,.2);
 }
-#ssaPrintChooser .ssa-ios-share-icon svg { width: 28px; height: 28px; display: block; }
+#ssaPrintChooser .ssa-ios-share-icon svg { width: 26px; height: 26px; display: block; }
 #ssaPrintChooser .ssa-ios-share-icon--wa { background: #25D366; }
 #ssaPrintChooser .ssa-ios-share-icon--mail { background: #007AFF; }
 #ssaPrintChooser .ssa-ios-share-icon--down { background: #34C759; }
-#ssaPrintChooser .ssa-ios-share-icon--print { background: #8E8E93; }
-#ssaPrintChooser .ssa-ios-share-icon--close { background: #636366; }
+#ssaPrintChooser .ssa-ios-share-icon--print { background: #001f3f; }
+#ssaPrintChooser .ssa-ios-share-icon--close { background: #DC143C; }
 #ssaPrintChooser .ssa-ios-share-label {
-  font-size: 11px; font-weight: 500; line-height: 1.15; text-align: center;
-  color: #1a2750; max-width: 64px;
+  font-size: 11px; font-weight: 600; line-height: 1.15; text-align: center;
+  color: #001f3f; max-width: 64px;
 }
-#ssaPrintChooser a.ssa-ios-share-item { color: #1a2750; }
+#ssaPrintChooser a.ssa-ios-share-item { color: #001f3f; }
 @media (min-width: 700px) {
   #ssaPrintChooser { align-items: center; }
-  #ssaPrintChooser .card { max-width: 32rem; width: min(96%, 32rem); margin: 0; }
-  #ssaPrintChooser .ssa-pdf-frame { height: 56vh; }
+  #ssaPrintChooser .card { max-width: 44rem; width: min(96%, 44rem); margin: 0; }
+  #ssaPrintChooser .ssa-pdf-frame, #ssaPdfView iframe { height: 62vh; }
 }
 """
 ).strip()
@@ -716,7 +720,7 @@ document.addEventListener('click',function(ev){
 )
 
 
-PDF_SHARE_JS_SRC = "/js/regatta-pdf-share.js?v=20260913print2"
+PDF_SHARE_JS_SRC = "/js/regatta-pdf-share.js?v=20260913print3"
 
 
 def _ios_share_svg(name: str) -> str:
@@ -761,7 +765,7 @@ def print_share_bar_html() -> str:
         '<div id="ssaPrintChooser" role="dialog" aria-label="Results PDF">'
         '<div class="card">'
         '<div class="section-title">Results PDF</div>'
-        '<p class="ssa-print-chooser-note">This is the PDF file — WhatsApp, Email, Download and Print all use the file, not a page link.</p>'
+        '<p class="ssa-print-chooser-note">WhatsApp, Email, Download and Print send this PDF file.</p>'
         '<div id="ssaPdfView" class="ssa-pdf-frame" role="document" aria-label="PDF preview"></div>'
         '<div class="ssa-print-chooser-actions">'
         + actions
