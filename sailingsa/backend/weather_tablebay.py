@@ -22,6 +22,24 @@ OM_ATM_SLUG = "open-meteo-table-bay-atm"
 OM_MARINE_SLUG = "open-meteo-table-bay-marine"
 
 
+def _parse_open_meteo_time(raw) -> Optional[datetime]:
+    """Open-Meteo current.time is Africa/Johannesburg wall time unless offset is present."""
+    if not raw:
+        return None
+    txt = str(raw).strip()
+    try:
+        if txt.endswith("Z") or "+" in txt[10:]:
+            from sailingsa.backend.weather_store import parse_iso_query
+            return parse_iso_query(txt)
+        from zoneinfo import ZoneInfo
+        dt = datetime.fromisoformat(txt)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=ZoneInfo("Africa/Johannesburg"))
+        return dt.astimezone(timezone.utc)
+    except Exception:
+        return None
+
+
 def _sid(slug: str) -> Optional[int]:
     conn = _connect()
     try:
@@ -82,8 +100,7 @@ def ingest_open_meteo_atmosphere(current: dict, lat: float, lon: float) -> int:
     observed = None
     txt = current.get("time")
     if txt:
-        from sailingsa.backend.weather_store import parse_iso_query
-        observed = parse_iso_query(str(txt))
+        observed = _parse_open_meteo_time(txt)
     if observed is None:
         mark_station_ingest(OM_ATM_SLUG, failure_reason="missing_time")
         return 0
@@ -116,8 +133,7 @@ def ingest_open_meteo_marine(current: dict, lat: float, lon: float) -> int:
     observed = None
     txt = current.get("time")
     if txt:
-        from sailingsa.backend.weather_store import parse_iso_query
-        observed = parse_iso_query(str(txt))
+        observed = _parse_open_meteo_time(txt)
     if observed is None:
         mark_station_ingest(OM_MARINE_SLUG, failure_reason="missing_time")
         return 0

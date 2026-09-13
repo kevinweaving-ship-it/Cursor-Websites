@@ -121,8 +121,12 @@ def main() -> None:
     conn = _connect()
     try:
         for path in SQL_FILES:
-            _run_sql(conn, path)
-            print("sql", path.name)
+            try:
+                _run_sql(conn, path)
+                print("sql", path.name)
+            except Exception as e:
+                conn.rollback()
+                print("sql_skip", path.name, type(e).__name__, str(e)[:120])
         _upsert_catalog(conn)
         conn.commit()
         with conn.cursor() as cur:
