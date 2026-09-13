@@ -450,13 +450,13 @@
   function vectorParts(pt) {
     var r = Math.max(R_MIN + 8, radiusForKt(pt.kt));
     var rail = railRadius();
-    var base = Math.max(R_MIN, r - 14);
+    var base = Math.max(R_MIN, r - 7);
     return {
       r: r,
       deg: pt.deg,
       tip: xy(pt.deg, r),
-      left: xy(pt.deg - 10, base),
-      right: xy(pt.deg + 10, base),
+      left: xy(pt.deg - 5, base),
+      right: xy(pt.deg + 5, base),
       dot: xy(pt.deg + 180, rail)
     };
   }
@@ -527,7 +527,7 @@
       n += 1;
     }
     if (n > 1) {
-      h += '<path d="' + d + '" fill="none" stroke="#111" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>';
+      h += '<path d="' + d + '" fill="none" stroke="#111" stroke-width="0.5" stroke-linecap="round" stroke-linejoin="round"/>';
     }
     liveG.innerHTML = h;
   }
@@ -572,6 +572,7 @@
     playMark.innerHTML = markSvg(play, "#3b82f6");
     nowLine.innerHTML = lineSvg(live, "#86efac");
     nowMark.innerHTML = markSvg(live, "#22c55e");
+    paintHigh();
     paintLive();
     paintHistory(pt, u);
     var nSeen = reachedCount(pt, u);
