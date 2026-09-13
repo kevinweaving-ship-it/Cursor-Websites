@@ -226,7 +226,12 @@
   function radialTick(deg, r0, r1, color) {
     var a = xy(deg, r0);
     var b = xy(deg, r1);
-    return '<line x1="' + a[0].toFixed(1) + '" y1="' + a[1].toFixed(1) + '" x2="' + b[0].toFixed(1) + '" y2="' + b[1].toFixed(1) + '" stroke="' + color + '" stroke-width="1.5" stroke-linecap="butt"/>';
+    return '<line x1="' + a[0].toFixed(1) + '" y1="' + a[1].toFixed(1) + '" x2="' + b[0].toFixed(1) + '" y2="' + b[1].toFixed(1) + '" stroke="' + color + '" stroke-width="2.1" stroke-linecap="butt"/>';
+  }
+
+  function historyTick(pt) {
+    var r = Math.max(R_MIN + 8, radiusForKt(pt.kt));
+    return radialTick(pt.deg, Math.max(R_MIN, r - 12), r + 1, bandColor(pt.kt));
   }
 
   function sliceSvg(deg0, deg1, kt) {
@@ -238,13 +243,11 @@
     return '<path d="' + sectorPath(deg0, deg1, sl.r0, sl.r1) + '" fill="' + sl.color + '" fill-opacity="0.9" stroke="' + sl.color + '" stroke-width="0.6"/>';
   }
 
-  function paintHistory(tEnd) {
+  function paintHistory() {
     var h = "";
     var i;
     for (i = 0; i < samples.length; i += 1) {
-      if (samples[i].t > tEnd) break;
-      var sl = bandSlice(samples[i].kt);
-      h += radialTick(samples[i].deg, sl.r0, sl.r1, sl.color);
+      h += historyTick(samples[i]);
     }
     histG.innerHTML = h;
   }
@@ -290,7 +293,7 @@
     playMark.innerHTML = markSvg(play, "#3b82f6");
     nowLine.innerHTML = lineSvg(live, "#86efac");
     nowMark.innerHTML = markSvg(live, "#22c55e");
-    paintHistory(pt.t);
+    paintHistory();
 
     spdEl.textContent = (Math.round(pt.kt * 10) / 10).toFixed(1);
     timeEl.textContent = fmtRemain(pt.t);
