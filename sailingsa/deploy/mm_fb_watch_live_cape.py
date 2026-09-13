@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Fast Cape Classic LIVE poll.
 
-Graph first. If no LIVE, Chrome-dump /live. A new /videos/{id}/ that is not
-already a stored reel is either LIVE (own card) or the broadcast that just
-ended (newest reel). Never promote an old reel id.
+Graph first. Paused / LIVE_STOPPED still count as LIVE. Chrome-dump /live
+if Graph is empty. A new /videos/{id}/ that is not VOD is LIVE (including
+pause). Only WAS_LIVE / VOD_READY becomes the newest reel.
 """
 from __future__ import annotations
 
@@ -75,12 +75,14 @@ def main() -> int:
         )
         return 0
     row = commit_videos(fetched)
+    live_rows = [v for v in (row.get("videos") or []) if v.get("is_live")]
     print(
         json.dumps(
             {
                 "ok": True,
                 "source": source,
-                "live": [v.get("id") for v in (row.get("videos") or []) if v.get("is_live")],
+                "live": [v.get("id") for v in live_rows],
+                "live_state": [v.get("live_state") or ("paused" if v.get("is_live") else "vod") for v in live_rows],
                 "new_reels": [
                     v.get("id")
                     for v in (row.get("videos") or [])

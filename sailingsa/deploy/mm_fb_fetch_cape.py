@@ -54,6 +54,23 @@ BARE_VID_RE = re.compile(r"/videos/(\d{8,})")
 CREATION_RE = re.compile(r"(?:creation_time|publish_time)[\"\s:]+(\d{10})")
 OG_TITLE_RE = re.compile(r'og:title" content="([^"]+)"', re.I)
 TEXT_RE = re.compile(r'"text":"([^"]{5,180})"')
+LISTING_LIVE_RE = re.compile(
+    r'"is_live_streaming":(true|false),'
+    r'"is_premiere":(?:true|false),'
+    r'"is_huddle":(?:true|false),'
+    r'"is_video_broadcast":(true|false),'
+    r'"id":"(\d{8,})"'
+)
+PAUSE_RE = re.compile(
+    r"live video is paused|the live video is paused|paused the live|"
+    r"broadcaster is (currently )?away|isLiveStreamingWithDelayedLiveMessage",
+    re.I,
+)
+LIVE_RING_RE = re.compile(r'"is_live_for_comet_live_ring"\s*:\s*true')
+LIVE_BROADCAST = {"LIVE", "PAUSED", "LIVE_STOPPED"}
+VOD_BROADCAST = {"VOD", "VOD_READY"}
+LIVE_STATUS = {"LIVE", "PAUSED"}
+VOD_STATUS = {"WAS_LIVE"}
 LIVE_PROBE_URLS = (
     "https://www.facebook.com/marin.megastoresa/live",
     "https://www.facebook.com/marin.megastoresa",
@@ -138,22 +155,127 @@ def parse_videos(html: str) -> list[dict]:
     return found
 
 
-def video_is_live(html: str) -> bool:
-    """True only for a broadcast happening now. Ended lives and reels are False.
+def listing_live_flags(html: str) -> dict[str, dict]:
+    """Per-video flags from the Page /live listing. One object per id."""
+    out: dict[str, dict] = {}
+    for streaming, broadcast, vid in LISTING_LIVE_RE.findall(html or ""):
+        out[vid] = {
+            "is_live_streaming": streaming == "true",
+            "is_video_broadcast": broadcast == "true",
+        }
+    return out
 
-    Do not match Facebook's JS bundle (`is_live` appears in crawler HTML even
-    when the Page is not live). That false positive skipped Chrome and never
-    found a video id.
+
+def _chunks_near_id(html: str, vid: str, radius: int = 900) -> list[str]:
+    token = f'"id":"{vid}"'
+    chunks: list[str] = []
+    start = 0
+    raw = html or ""
+    while len(chunks) < 6:
+        i = raw.find(token, start)
+        if i < 0:
+            break
+        chunks.append(raw[max(0, i - radius) : i + radius])
+        start = i + len(token)
+    return chunks
+
+
+def broadcast_state(html: str, vid: str = "") -> str:
+    """live | paused | vod | unknown.
+
+    Facebook still shows LIVE when the boat pauses the stream. That is not
+    an ended VOD. Only WAS_LIVE / VOD_READY means finished → newest reel.
+    Do not treat the JS bundle string is_live_streaming as page-level live.
     """
     raw = html or ""
-    if re.search(r"is live now", raw, re.I):
-        return True
-    if re.search(r'"broadcast_status"\s*:\s*"LIVE"', raw):
-        return True
-    if re.search(r'"live_status"\s*:\s*"LIVE"', raw):
-        return True
-    # Do not match is_live_streaming — Facebook JS bundles that string on VODs.
-    return False
+    vid = str(vid or "")
+    paused_copy = bool(PAUSE_RE.search(raw))
+    if vid:
+        flags = listing_live_flags(raw).get(vid) or {}
+        statuses: list[str] = []
+        lives: list[str] = []
+        streaming_near = flags.get("is_live_streaming")
+        chunks = _chunks_near_id(raw, vid)
+        if chunks:
+            # First hit is this video's own object. Later hits are related VODs.
+            statuses = [s.upper() for s in re.findall(r'"broadcast_status"\s*:\s*"([^"]+)"', chunks[0])]
+            lives = [s.upper() for s in re.findall(r'"live_status"\s*:\s*"([^"]+)"', chunks[0])]
+        for chunk in chunks:
+            if re.search(r'"is_live_streaming"\s*:\s*true', chunk):
+                streaming_near = True
+                break
+        if any(s in LIVE_STATUS for s in lives) or any(s in LIVE_BROADCAST for s in statuses):
+            if paused_copy or "PAUSED" in lives:
+                return "paused"
+            return "live"
+        if flags.get("is_live_streaming") or streaming_near:
+            return "paused" if paused_copy else "live"
+        if any(s in VOD_STATUS for s in lives) or any(s in VOD_BROADCAST for s in statuses):
+            return "vod"
+        if paused_copy:
+            return "paused"
+        return "unknown"
+    if LIVE_RING_RE.search(raw) or re.search(r"is live now", raw, re.I):
+        return "paused" if paused_copy else "live"
+    if paused_copy:
+        return "paused"
+    if re.search(r'"broadcast_status"\s*:\s*"(LIVE|PAUSED|LIVE_STOPPED)"', raw):
+        return "paused" if paused_copy else "live"
+    if re.search(r'"live_status"\s*:\s*"(LIVE|PAUSED)"', raw):
+        return "paused" if paused_copy else "live"
+    if any(v.get("is_live_streaming") for v in listing_live_flags(raw).values()):
+        return "live"
+    return "unknown"
+
+
+def video_is_live(html: str, vid: str = "") -> bool:
+    """True for on-air OR paused LIVE. Ended VOD/reels are False."""
+    return broadcast_state(html, vid) in {"live", "paused"}
+
+
+def as_live_item(item: dict, paused: bool = False) -> dict:
+    vid = str((item or {}).get("id") or "")
+    row = dict(item or {})
+    row["id"] = vid
+    row["url"] = video_watch_url(vid)
+    row["permalink"] = row["url"]
+    row["is_live"] = True
+    row["live_state"] = "paused" if paused else "live"
+    row["play_url"] = ""
+    row["thumb"] = ""
+    row["title"] = "LIVE"
+    row["fb_title"] = "LIVE"
+    row["fb_sub"] = "LIVE"
+    return row
+
+
+def as_ended_reel(item: dict) -> dict:
+    vid = str((item or {}).get("id") or "")
+    row = dict(item or {})
+    row["id"] = vid
+    row["is_live"] = False
+    row["live_state"] = "vod"
+    row["url"] = video_watch_url(vid)
+    row["permalink"] = row["url"]
+    row["title"] = row.get("title") or "Marine Megastore was live"
+    row["fb_title"] = row["title"]
+    row["fb_sub"] = "Marine Megastore was live"
+    row["play_url"] = None
+    if not row.get("started_at"):
+        row["started_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+    return hose_media(row)
+
+
+def stored_live_ids() -> set[str]:
+    ids: set[str] = set()
+    try:
+        for v in (load_feed().get(RID) or {}).get("videos") or []:
+            vid = str((v or {}).get("id") or "")
+            if vid.isdigit() and (v or {}).get("is_live"):
+                ids.add(vid)
+    except Exception:
+        return ids
+    return ids
 
 
 def http_get(url: str, timeout: int = 10) -> str:
@@ -231,10 +353,9 @@ def prefer_new(found: list, existing: set[str]) -> list[dict]:
 def probe_live() -> list | None:
     """Public Page scrape only — no Page token.
 
-    Facebook Login / Business picker cannot see Marine Megastore. GitHub +
-    Reddit agree Graph live_videos webhooks need the Page to install the app.
-    Access we actually have: public marin.megastoresa. Chrome-dump /live,
-    take the current /videos/{id}/, embed with autoplay.
+    Paused LIVE stays on the LIVE card. Only WAS_LIVE / VOD_READY becomes
+    the newest reel. A new /videos/{id}/ with no VOD flag is treated as LIVE
+    (paused streams often omit "is live now").
     """
     html = ""
     try:
@@ -243,54 +364,56 @@ def probe_live() -> list | None:
         html = ""
     if not html:
         return None
-    found = prefer_new(parse_video_ids(html), stored_reel_ids())
+    existing = stored_reel_ids()
+    prev_live = stored_live_ids()
+    found = prefer_new(parse_video_ids(html), existing)
     if not found:
         return []
-    existing = stored_reel_ids()
-    page_live = video_is_live(html)
-    for item in found[:6]:
-        vid0 = str(item.get("id") or "")
-        if not vid0 or vid0 in LIPTON_IDS:
+    page_state = broadcast_state(html)
+    for item in found:
+        vid = str(item.get("id") or "")
+        if not vid or vid in LIPTON_IDS:
             continue
+        state = broadcast_state(html, vid)
+        if state in {"live", "paused"} or (page_state in {"live", "paused"} and vid not in existing):
+            return [as_live_item(item, paused=(state == "paused" or page_state == "paused"))]
+    inspect_ids: list[dict] = []
+    seen: set[str] = set()
+    for item in found:
+        vid = str(item.get("id") or "")
+        if not vid or vid in seen or vid in LIPTON_IDS:
+            continue
+        if vid not in existing or vid in prev_live:
+            inspect_ids.append(item)
+            seen.add(vid)
+        if len(inspect_ids) >= 2:
+            break
+    if not inspect_ids and found:
+        inspect_ids = [found[0]]
+    for item in inspect_ids:
+        vid0 = str(item.get("id") or "")
         current = inspect_video(dict(item))
         vid = str(current.get("id") or "") or vid0
         current["url"] = video_watch_url(vid)
         current["permalink"] = current["url"]
-        day = str(current.get("started_at") or "")[:10]
-        on_air = bool(current.get("is_live")) or (
-            page_live and (not day or day in EVENT_DATES)
-        )
-        if on_air:
-            current["is_live"] = True
-            current["play_url"] = ""
-            current["thumb"] = ""
-            current["title"] = "LIVE"
-            current["fb_title"] = "LIVE"
-            current["fb_sub"] = "LIVE"
-            return [current]
-        if vid in existing:
-            continue
-        current["is_live"] = False
-        current["title"] = current.get("title") or "Marine Megastore was live"
-        current["fb_title"] = current["title"]
-        current["fb_sub"] = "Marine Megastore was live"
-        current["play_url"] = None
-        if not current.get("started_at"):
-            current["started_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")
-        return [hose_media(current)]
+        state = str(current.get("live_state") or "unknown")
+        if state in {"live", "paused"}:
+            return [as_live_item(current, paused=(state == "paused"))]
+        if state == "unknown" and vid not in existing:
+            # Paused LIVE often has no "is live now". Do not hose it.
+            return [as_live_item(current, paused=True)]
+        if state == "vod" and (vid not in existing or vid in prev_live):
+            return [as_ended_reel(current)]
     return []
 
 
 def ingest_ended_live(found: list, existing: set | None = None) -> list:
-    """A new /videos/{id}/ on the Page /live tab that is not on-air is the
-    broadcast that just ended. Add it as the newest reel. Never reuse an
-    already-stored reel id.
-    """
+    """Finished broadcast only (VOD). Pause is still LIVE, not a reel."""
     existing = existing or set()
     try:
         for v in (load_feed().get(RID) or {}).get("videos") or []:
             vid = str((v or {}).get("id") or "")
-            if vid.isdigit():
+            if vid.isdigit() and not (v or {}).get("is_live"):
                 existing.add(vid)
     except Exception:
         pass
@@ -299,17 +422,12 @@ def ingest_ended_live(found: list, existing: set | None = None) -> list:
         if not vid or vid in existing or vid in LIPTON_IDS:
             continue
         current = inspect_video(dict(item))
-        if current.get("is_live"):
+        state = str(current.get("live_state") or "")
+        if state in {"live", "paused", "unknown"} or current.get("is_live"):
             continue
-        current["is_live"] = False
-        current["url"] = video_watch_url(vid)
-        current["permalink"] = current["url"]
-        current["title"] = current.get("title") or "Marine Megastore was live"
-        current["fb_title"] = current["title"]
-        current["fb_sub"] = "Marine Megastore was live"
-        current["play_url"] = None
-        current = hose_media(current)
-        return [current]
+        if state != "vod":
+            continue
+        return [as_ended_reel(current)]
     return []
 
 
@@ -405,7 +523,7 @@ def graph_fetch(token: str) -> list:
                     f"{page}/live_videos",
                     token,
                     "id,title,status,permalink_url,from",
-                    extra="broadcast_status[]=LIVE",
+                    extra="broadcast_status[]=LIVE&broadcast_status[]=LIVE_STOPPED",
                 )
             except Exception:
                 live_js = graph_get(
@@ -424,7 +542,7 @@ def graph_fetch(token: str) -> list:
         vid = str((node or {}).get("id") or "")
         if not vid or vid in LIPTON_IDS or vid in seen:
             continue
-        if str((node or {}).get("status") or "").upper() != "LIVE":
+        if str((node or {}).get("status") or "").upper() not in LIVE_BROADCAST:
             continue
         seen.add(vid)
         out.append(graph_item(node, True))
@@ -449,7 +567,7 @@ def graph_fetch(token: str) -> list:
             if not vid or vid in LIPTON_IDS or vid in seen:
                 continue
             status = str((node or {}).get("live_status") or "").upper()
-            live = status == "LIVE"
+            live = status in LIVE_STATUS or status in LIVE_BROADCAST
             item = graph_item(node, live)
             if live:
                 item["play_url"] = ""
@@ -486,7 +604,9 @@ def inspect_video(item: dict) -> dict:
         page = dump(url, budget_ms=7000)
     except Exception:
         return item
-    item["is_live"] = video_is_live(page)
+    vid = str(item.get("id") or "")
+    item["live_state"] = broadcast_state(page, vid)
+    item["is_live"] = item["live_state"] in {"live", "paused"}
     if item["is_live"]:
         item["play_url"] = ""
         item["title"] = title_from_html(page, item.get("title") or "Marine Megastore LIVE")
