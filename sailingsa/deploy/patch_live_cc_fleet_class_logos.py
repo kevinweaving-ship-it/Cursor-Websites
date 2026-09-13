@@ -207,33 +207,130 @@ NEW_CSS2 = '''    ".fleet-results-table .rs-club-row-logo{height:32px!important;
 '''
 
 
+MARKER2 = "CC_FLEET_CLASS_LOGOS_v2"
+
+OLD_IMG_ALT = '''    return (
+        f'<img class="{html_module.escape(css)}" src="{html_module.escape(src_raw)}" '
+        f'alt="{html_module.escape(alt)}" title="{html_module.escape(alt)}" '
+        f"{_img_style}"
+        f'loading="lazy" decoding="async">'
+    )
+'''
+
+NEW_IMG_ALT = '''    _alt_out = "" if css in ("rs-club-row-logo-sm", "rs-class-row-logo") else alt
+    return (
+        f'<img class="{html_module.escape(css)}" src="{html_module.escape(src_raw)}" '
+        f'alt="{html_module.escape(_alt_out)}" title="{html_module.escape(alt)}" '
+        f"{_img_style}"
+        f'loading="lazy" decoding="async">'
+    )
+    # ''' + "CC_FLEET_CLASS_LOGOS_v2" + '''
+'''
+
+
 def main() -> int:
     text = API.read_text(encoding="utf-8")
-    if MARKER in text:
-        print("already patched")
-        return 0
-    replacements = [
-        ("art", OLD_ART, NEW_ART),
-        ("clubfn", OLD_CLUBFN, NEW_CLUBFN),
-        ("title", OLD_TITLE, NEW_TITLE),
-        ("showc", OLD_SHOWC, NEW_SHOWC),
-        ("class_str", OLD_CLASS_STR, NEW_CLASS_STR),
-        ("clubcall", OLD_CLUBCALL, NEW_CLUBCALL),
-        ("table", OLD_TABLE, NEW_TABLE),
-        ("css1", OLD_CSS1, NEW_CSS1),
-        ("css2", OLD_CSS2, NEW_CSS2),
-    ]
-    missing = [name for name, old, _ in replacements if old not in text]
-    if missing:
-        raise SystemExit("missing blocks: " + ",".join(missing))
-    for name, old, new in replacements:
-        n = text.count(old)
-        if n != 1:
-            raise SystemExit(f"{name} count={n}")
-        text = text.replace(old, new, 1)
-        print("replaced", name)
     if MARKER not in text:
-        raise SystemExit("marker failed")
+        replacements = [
+            ("art", OLD_ART, NEW_ART),
+            ("clubfn", OLD_CLUBFN, NEW_CLUBFN),
+            ("title", OLD_TITLE, NEW_TITLE),
+            ("showc", OLD_SHOWC, NEW_SHOWC),
+            ("class_str", OLD_CLASS_STR, NEW_CLASS_STR),
+            ("clubcall", OLD_CLUBCALL, NEW_CLUBCALL),
+            ("table", OLD_TABLE, NEW_TABLE),
+            ("css1", OLD_CSS1, NEW_CSS1),
+            ("css2", OLD_CSS2, NEW_CSS2),
+        ]
+        missing = [name for name, old, _ in replacements if old not in text]
+        if missing:
+            raise SystemExit("missing blocks: " + ",".join(missing))
+        for name, old, new in replacements:
+            n = text.count(old)
+            if n != 1:
+                raise SystemExit(f"{name} count={n}")
+            text = text.replace(old, new, 1)
+            print("replaced", name)
+        if MARKER not in text:
+            raise SystemExit("marker failed")
+    else:
+        print("already patched v1")
+
+    if MARKER2 not in text:
+        n = text.count(OLD_IMG_ALT)
+        if n != 1:
+            raise SystemExit(f"img alt count={n}")
+        text = text.replace(OLD_IMG_ALT, NEW_IMG_ALT, 1)
+        print("replaced img alt")
+        if MARKER2 not in text:
+            raise SystemExit("v2 marker failed")
+    else:
+        print("already patched v2")
+
+    MARKER3 = "CC_FLEET_CLASS_LOGOS_v3"
+    if MARKER3 not in text:
+        old_cls = '''def _fleet_sheet_class_cell_with_logo_html(class_link_html: str, class_raw: str) -> str:
+    """Class logo left, class name right. Small cap — never grow row height."""
+    if not class_link_html:
+        return ""
+    cn = str(class_raw or "").strip()
+    logo_u = ""
+    if cn:
+        try:
+            logo_u = (_catalogue_logo_path_for_class_name(cn) or "").strip()
+        except Exception:
+            logo_u = ""
+    if not logo_u:
+        return class_link_html
+    img = _fleet_sheet_artwork_img(logo_u, cn, "rs-class-row-logo")
+    if not img:
+        return class_link_html
+    return f'<span class="rs-class-with-logo">{img}{class_link_html}</span>'
+'''
+        new_cls = '''def _fleet_sheet_class_cell_with_logo_html(class_link_html: str, class_raw: str) -> str:
+    """Class logo stands in for the class name when present (same as fleet header)."""
+    # ''' + "CC_FLEET_CLASS_LOGOS_v3" + '''
+    if not class_link_html:
+        return ""
+    cn = str(class_raw or "").strip()
+    logo_u = ""
+    if cn:
+        try:
+            logo_u = (_catalogue_logo_path_for_class_name(cn) or "").strip()
+        except Exception:
+            logo_u = ""
+    if not logo_u:
+        return class_link_html
+    img = _fleet_sheet_artwork_img(logo_u, cn, "rs-class-row-logo")
+    if not img:
+        return class_link_html
+    try:
+        from sailingsa.backend.cape_classic_fleet_sheet import class_link_html_logo_only
+        return class_link_html_logo_only(class_link_html, img, cn)
+    except Exception:
+        m = re.match(r"(?is)(<a\\s[^>]*>).*?(</a>)\\s*$", class_link_html.strip())
+        if m:
+            return f'<span class="rs-class-with-logo">{m.group(1)}{img}{m.group(2)}</span>'
+        return f'<span class="rs-class-with-logo">{img}</span>'
+'''
+        if old_cls not in text:
+            raise SystemExit("class cell fn missing")
+        if text.count(old_cls) != 1:
+            raise SystemExit("class cell fn count")
+        text = text.replace(old_cls, new_cls, 1)
+        old_alt = '''    _alt_out = "" if css in ("rs-club-row-logo-sm", "rs-class-row-logo") else alt
+'''
+        new_alt = '''    _alt_out = "" if css == "rs-club-row-logo-sm" else alt
+'''
+        if old_alt not in text:
+            raise SystemExit("class alt branch missing")
+        text = text.replace(old_alt, new_alt, 1)
+        print("replaced class cell logo-only")
+        if MARKER3 not in text:
+            raise SystemExit("v3 marker failed")
+    else:
+        print("already patched v3")
+
     API.write_text(text, encoding="utf-8")
     print("PATCHED", API, "bytes", API.stat().st_size)
     return 0

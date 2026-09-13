@@ -51,6 +51,27 @@ def fleet_header_title_without_class_dup(
     return raw
 
 
+def class_link_html_logo_only(class_link_html: str, img_html: str, class_name: str = "") -> str:
+    """Put the class logo inside the existing class <a>; drop the duplicated word."""
+    link = str(class_link_html or "").strip()
+    img = str(img_html or "").strip()
+    if not img:
+        return class_link_html or ""
+    m = re.match(r"(?is)(<a\s[^>]*>).*?(</a>)\s*$", link)
+    if m:
+        open_a, close_a = m.group(1), m.group(2)
+        cn = str(class_name or "").strip()
+        if cn and " title=" not in open_a.lower():
+            cn_esc = (
+                cn.replace("&", "&amp;")
+                .replace('"', "&quot;")
+                .replace("<", "&lt;")
+            )
+            open_a = re.sub(r"<a\s", f'<a title="{cn_esc}" ', open_a, count=1, flags=re.I)
+        return f'<span class="rs-class-with-logo">{open_a}{img}{close_a}</span>'
+    return f'<span class="rs-class-with-logo">{img}</span>'
+
+
 if __name__ == "__main__":
     assert is_cape_classic_2026_zvy_event("2026-09-13-zvyc-cape-classic-420-fleet")
     assert not is_cape_classic_2026_zvy_event("2026-02-16-hyc-cape-classic")
@@ -68,4 +89,12 @@ if __name__ == "__main__":
         )
         == "Open Fleet"
     )
+    wrapped = class_link_html_logo_only(
+        '<a href="/class/420">420</a>',
+        '<img class="rs-class-row-logo" alt="420">',
+        "420",
+    )
+    assert "420</a>" not in wrapped
+    assert 'href="/class/420"' in wrapped
+    assert "rs-class-row-logo" in wrapped
     print("ok")
