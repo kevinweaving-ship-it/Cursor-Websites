@@ -80,7 +80,6 @@
   var LIVE_N = 3;
   var MAJOR_DEG = 60;
   var t0 = 0;
-  var lastU = 0;
   var ringRadii = [];
   var btn = document.getElementById("btn");
   var ringsG = document.getElementById("rings");
@@ -592,7 +591,6 @@
     } else {
       u = 1;
     }
-    lastU = u;
     window._pos = pos;
     window._u = u;
     draw(pick(u), u);
