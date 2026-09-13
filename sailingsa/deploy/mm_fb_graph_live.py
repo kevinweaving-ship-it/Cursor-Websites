@@ -100,7 +100,7 @@ def app_token() -> str:
 
 def _protect(path: Path) -> None:
     try:
-        os.chmod(path, 0o640)
+        os.chmod(path, 0o660)
     except Exception:
         pass
     try:

@@ -154,6 +154,8 @@ class TokenKeepTests(unittest.TestCase):
         self.assertNotIn("SECRETTOKENVALUE", blob)
         data = json.loads(blob)
         self.assertIn("needs_login", data)
+        mode = Path(self.tmp.name, "mm_fb_token_status.json").stat().st_mode & 0o777
+        self.assertEqual(mode, 0o660)
 
 
 if __name__ == "__main__":
