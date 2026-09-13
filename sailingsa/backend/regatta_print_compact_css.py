@@ -147,7 +147,7 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
     font-feature-settings: "tnum" 1, "lnum" 1 !important;
   }
   .site-header, footer, .site-footer, .app-footer, .action-buttons, .back-to-home,
-  .regatta-back-row, .regatta-source-banner,
+  .regatta-back-row, .regatta-source-banner, #ssaPrintChooser,
   .regatta-sa-mode-wrap, .regatta-wc-icons-row, .regatta-sa-columns-panel, .regatta-sa-hub-news-wrap,
   .mm-lipton-reels, #mmLiptonReels, .regatta-live-wx, .regatta-live-track, .regatta-live-clip,
   .cape-crew, .cape-crew-sa, .seo-discovery-block, .regatta-name-editor, .host-club-sa-edit-hit,
@@ -162,7 +162,7 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
   /* Event header: left event logo | centre details | right host — same as the URL, not the stacked MP layout */
   .header, .header.header--lipton {
     display: grid !important;
-    grid-template-columns: 72px minmax(0,1fr) 72px !important;
+    grid-template-columns: 88px minmax(0,1fr) 88px !important;
     grid-template-rows: auto !important;
     align-items: center !important;
     justify-items: stretch !important;
@@ -186,8 +186,8 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
     justify-content: flex-start !important;
     align-items: center !important;
     padding: 0 !important;
-    width: 72px !important;
-    min-width: 72px !important;
+    width: 88px !important;
+    min-width: 88px !important;
   }
   .regatta-header-main-col {
     display: flex !important;
@@ -208,26 +208,26 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
     justify-content: flex-end !important;
     align-items: center !important;
     padding: 0 !important;
-    width: 72px !important;
-    min-width: 72px !important;
+    width: 88px !important;
+    min-width: 88px !important;
   }
-  .regatta-header-logo-img, .regatta-header-left-logo-img { max-height: 40px !important; max-width: 72px !important; height: auto !important; width: auto !important; }
-  .regatta-header-club-logo-img { max-height: 40px !important; max-width: 72px !important; height: auto !important; width: auto !important; }
-  .regatta-name { font-size: 11pt !important; line-height: 1.15 !important; margin: 0 0 1px 0 !important; text-align: center !important; width: 100% !important; }
+  .regatta-header-logo-img, .regatta-header-left-logo-img { max-height: 56px !important; max-width: none !important; height: auto !important; width: auto !important; }
+  .regatta-header-club-logo-img { max-height: 56px !important; max-width: none !important; height: auto !important; width: auto !important; }
+  .regatta-name { font-size: 13pt !important; line-height: 1.15 !important; margin: 0 0 1px 0 !important; text-align: center !important; width: 100% !important; }
   .host-club, .regatta-venue, .regatta-lipton-venue-line, .regatta-lipton-host-line { font-size: 8pt !important; line-height: 1.2 !important; margin: 0 0 1px 0 !important; text-align: center !important; width: 100% !important; }
   .status-line { font-size: 7.5pt !important; line-height: 1.2 !important; margin: 2px 0 0 0 !important; text-align: center !important; width: 100% !important; }
   .regatta-live-board-row { display: none !important; }
 
-  /* Tight gap: main header → first fleet. Keep each fleet together so a
-     leftover sliver never gets a header with the table on the next page.
-     If the next fleet does not fit, the whole fleet moves to the next page. */
+  /* Tight gap: main header → first fleet. Glue fleet header to the first
+     table rows. Do not page-break-inside:avoid the whole Extra table — that
+     overflows A4 and looks like a broken print. Stored PDF still moves a
+     whole fleet with .ssa-print-new-page when leftover space is too small. */
   .fleet-section {
     display: block !important;
     width: 100% !important;
     margin-top: 6px !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid-page !important;
-    -webkit-column-break-inside: avoid !important;
+    page-break-inside: auto;
+    break-inside: auto;
     page-break-before: auto;
     break-before: auto;
   }
@@ -242,8 +242,8 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
   .fleet-section table {
     page-break-before: avoid !important;
     break-before: avoid-page !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid-page !important;
+    page-break-inside: auto;
+    break-inside: auto;
   }
   .regatta-page > .fleet-section:first-of-type {
     margin-top: 6px !important;
@@ -253,10 +253,6 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
   .fleet-section.ssa-print-new-page {
     page-break-before: always !important;
     break-before: page !important;
-  }
-  .fleet-section tbody {
-    page-break-inside: avoid !important;
-    break-inside: avoid-page !important;
   }
 
   /* Fleet card: one centred line — small class chip (event-list size) + title + sailed */
@@ -317,7 +313,6 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
     text-align: center !important;
     gap: 2px 6px !important;
     column-gap: 6px !important;
-    flex-direction: unset !important;
   }
   .fleet-section:has(.rs-compact-row-logos) .class-header-logo-col {
     display: flex !important;
@@ -404,8 +399,6 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
     padding-right: 1.4pt !important;
     page-break-before: avoid !important;
     break-before: avoid-page !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid-page !important;
   }
   .table-wrapper table, table.fleet-results-table, .fleet-section .table-wrapper table.fleet-results-table {
     width: calc(100% - 1.6pt) !important;
@@ -415,14 +408,12 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
     border-collapse: collapse !important;
     box-sizing: border-box !important;
     border: 0.7pt solid #1a2750 !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid-page !important;
   }
   th, td {
-    padding: 1.5px 2px !important;
-    font-size: 6pt !important;
+    padding: 2.5px 3px !important;
+    font-size: 8.5pt !important;
     font-weight: 500 !important;
-    line-height: 1.28 !important;
+    line-height: 1.25 !important;
     white-space: nowrap !important;
     overflow: visible !important;
     letter-spacing: 0.01em !important;
@@ -440,8 +431,8 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
   tr.medal-gold td { background: #D4AF37 !important; }
   tr.medal-silver td { background: #D7D7D7 !important; }
   tr.medal-bronze td { background: #CE8946 !important; }
-  html.ssa-print-landscape th, html.ssa-print-landscape td { font-size: 7pt !important; }
-  html.ssa-print-landscape .race-col { font-size: 6.5pt !important; width: 4.15% !important; }
+  html.ssa-print-landscape th, html.ssa-print-landscape td { font-size: 9pt !important; }
+  html.ssa-print-landscape .race-col { font-size: 8.5pt !important; width: 4.15% !important; }
   html.ssa-print-landscape .helm-col { width: 17% !important; }
   html.ssa-print-landscape .fleet-section:has(th.crew-col) .helm-col { width: 13% !important; }
   html.ssa-print-landscape .fleet-section:has(th.crew-col) .race-col { width: 3.65% !important; }
@@ -558,17 +549,19 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
     vertical-align: middle !important;
     flex: 0 0 auto !important;
   }
-  /* URL keeps a small title-row logo; print already has the large left logo. */
+  /* Same as the URL: small title-row logo beside the Fleet word. */
   .rs-fleet-title-logo, .fleet-title-with-logo .rs-fleet-title-logo {
-    display: none !important;
+    display: inline-block !important;
+    height: 1.25em !important;
+    max-height: 1.25em !important;
+    width: auto !important;
+    max-width: none !important;
+    object-fit: contain !important;
   }
   .rs-club-with-logo, .rs-boat-name-sponsors { white-space: nowrap !important; }
   thead { display: table-header-group; }
-  tbody { page-break-inside: avoid !important; break-inside: avoid-page !important; }
+  tbody { page-break-inside: auto; break-inside: auto; }
   tr { page-break-inside: avoid; break-inside: avoid; }
-  .fleet-section.ssa-print-fit-1 th, .fleet-section.ssa-print-fit-1 td { font-size: 5.8pt !important; padding: 0 1px !important; line-height: 1.08 !important; }
-  .fleet-section.ssa-print-fit-2 th, .fleet-section.ssa-print-fit-2 td { font-size: 5.2pt !important; padding: 0 !important; line-height: 1.05 !important; }
-  .fleet-section.ssa-print-fit-3 th, .fleet-section.ssa-print-fit-3 td { font-size: 4.6pt !important; padding: 0 !important; line-height: 1.02 !important; }
 
   a, a:visited { color: #0000ee !important; text-decoration: underline !important; }
   html, body, .regatta-page {
@@ -607,7 +600,7 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
   }
 }
 #ssaPrintChooser { display: none; position: fixed; inset: 0; z-index: 2147483000; align-items: flex-end; justify-content: center; background: rgba(0,31,63,.45); }
-#ssaPrintChooser.is-open { display: flex; }
+#ssaPrintChooser.is-open { display: flex !important; }
 #ssaPrintChooser .card {
   max-width: 40rem; width: min(96%, 40rem); padding: 14px 14px 16px; margin: 0 0 18px;
   background: #fff !important; border: 2px solid #001f3f; overflow: hidden;
@@ -653,6 +646,9 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
   #ssaPrintChooser { align-items: center; }
   #ssaPrintChooser .card { max-width: 44rem; width: min(96%, 44rem); margin: 0; }
   #ssaPrintChooser .ssa-pdf-frame, #ssaPdfView iframe { height: 62vh; }
+}
+@media print {
+  #ssaPrintChooser, #ssaPrintChooser.is-open { display: none !important; }
 }
 """
 ).strip()
@@ -706,140 +702,7 @@ def print_orientation_for_tables(tables: list) -> str:
     return "landscape" if worst > PRINT_A4_PORTRAIT_CONTENT_MM else "portrait"
 
 
-def _print_orientation_js() -> str:
-    need_js = "".join(f"if(kind==='{k}')return {mm};" for k, mm in PRINT_COL_MIN_MM.items())
-    return (
-        "function printHeaderKind(el){"
-        "var c=el.className||'';"
-        "if(/\\bclass-col\\b/.test(c))return 'class';"
-        "if(/\\brace-col\\b/.test(c))return 'race';"
-        "if(/\\bhelm-col\\b/.test(c))return 'helm';"
-        "if(/\\bcrew-col\\b/.test(c))return 'crew';"
-        "if(/\\bsail-col\\b/.test(c))return 'sail';"
-        "if(/\\bclub-col\\b/.test(c))return 'club';"
-        "if(/\\brank-col\\b/.test(c))return 'rank';"
-        "if(/\\btotal-col\\b/.test(c))return 'total';"
-        "if(/\\bnett-col\\b/.test(c))return 'nett';"
-        "if(/\\bdisc-col\\b/.test(c))return 'disc';"
-        "if(/\\bboat-name-col\\b/.test(c))return 'boat';"
-        "if(/\\bwc-meta-col\\b/.test(c))return 'meta';"
-        "var t=(el.textContent||'').replace(/\\s+/g,' ').trim().toLowerCase();"
-        "if(t==='class')return 'class';"
-        "if(/^r\\d+$/.test(t))return 'race';"
-        "if(t==='helm')return 'helm';"
-        "if(t==='crew')return 'crew';"
-        "if(t==='sail no'||t==='sail'||t==='sailno')return 'sail';"
-        "if(t==='club')return 'club';"
-        "if(t==='rank')return 'rank';"
-        "if(t==='total')return 'total';"
-        "if(t==='nett')return 'nett';"
-        "if(t==='disc'||t==='discard')return 'disc';"
-        "if(t==='boat name'||t==='boat')return 'boat';"
-        "if(t==='age'||t==='bow'||t==='bow no'||t==='jib'||t==='jib no'||t==='hull'||t==='hull no')return 'meta';"
-        "return 'other';"
-        "}"
-        "function printColNeedMm(kind){"
-        + need_js
-        + f"return {PRINT_COL_OTHER_MM};"
-        "}"
-        "function printTableNeedMm(t){"
-        "var need=0,cells=t.querySelectorAll('thead th');"
-        "if(!cells.length)cells=t.querySelectorAll('tbody tr:first-child td');"
-        "cells.forEach(function(el){need+=printColNeedMm(printHeaderKind(el));});"
-        "return need;"
-        "}"
-        "function printOrientation(){"
-        "if(/2026-09-13-zvyc-cape-classic/.test(String((location&&location.pathname)||'')))return 'portrait';"
-        "if(document.querySelector('.fleet-results-table.rs-compact-row-logos'))return 'portrait';"
-        "var worst=0;"
-        "document.querySelectorAll('.fleet-section table').forEach(function(t){"
-        "var n=printTableNeedMm(t);if(n>worst)worst=n;"
-        "});"
-        f"return worst>{PRINT_A4_PORTRAIT_CONTENT_MM}?'landscape':'portrait';"
-        "}"
-    )
-
-
-PRINT_PAGINATE_JS = (
-    _print_orientation_js()
-    + r"""
-function pagePx(orient){var h=(orient==='landscape')?(210-8-14):(297-8-14);return h*96/25.4;}
-function fleetH(el){
-  var rows=el.querySelectorAll('table.fleet-results-table tbody tr').length;
-  return 42+16+rows*13;
-}
-function clearPrintPages(){
-  document.querySelectorAll('.fleet-section').forEach(function(el){
-    el.classList.remove('ssa-print-new-page','ssa-print-fit-1','ssa-print-fit-2','ssa-print-fit-3');
-  });
-}
-function keepFleetsOnOnePage(){
-  clearPrintPages();
-  var page=pagePx(printOrientation())-8;
-  var used=document.querySelector('.regatta-header-wrap,.header')?58:0;
-  document.querySelectorAll('.fleet-section').forEach(function(el,i){
-    var h=fleetH(el);
-    if(h>page){
-      el.classList.add(h>page*1.35?'ssa-print-fit-3':h>page*1.15?'ssa-print-fit-2':'ssa-print-fit-1');
-      h=page;
-    }
-    if(i===0){used+=h;return;}
-    if(used+h>page){el.classList.add('ssa-print-new-page');used=h;}
-    else used+=h;
-  });
-}
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-function eventName(){var n=document.querySelector('.regatta-name');return (n&&n.textContent||document.title||'').replace(/\\s*\\|\\s*SailingSA\\s*$/i,'').replace(/\\s+/g,' ').trim();}
-function buildPrintDoc(){
-  var name=eventName(),url=sheetUrl()||location.href,cssEl=document.getElementById('ssaPrintDocumentCss');
-  var orient=printOrientation();
-  var css=cssEl?cssEl.textContent:'';
-  css=css.replace('A4 portrait','A4 '+orient);
-  var chunks=[],hdr=document.querySelector('.regatta-header-wrap');
-  if(hdr){var h=hdr.cloneNode(true);h.querySelectorAll('.regatta-back-row,.back-to-home,.regatta-sa-mode-wrap,.regatta-live-board-row,.regatta-name-editor,.regatta-sa-hub-news-wrap').forEach(function(n){n.remove();});chunks.push(h.outerHTML);}
-  document.querySelectorAll('.regatta-page > .fleet-section').forEach(function(sec){
-    if(sec.classList.contains('cape-crew'))return;
-    var c=sec.cloneNode(true);
-    c.querySelectorAll('script,.fleet-sa-edit-hit,.wc-sa-ac-wrap,.wc-rank-action-pop,.regatta-sa-columns-panel,.wc-late-entry-strip').forEach(function(n){n.remove();});
-    chunks.push(c.outerHTML);
-  });
-  chunks.push('<div class=\"ssa-print-page-footer\"><span class=\"ssa-print-footer-name\">'+esc(name)+'</span><a class=\"ssa-print-footer-url\" href=\"'+esc(url)+'\">'+esc(url)+'</a></div>');
-  return '<!DOCTYPE html><html class=\"ssa-print-'+orient+'\" data-ssa-print-orient=\"'+orient+'\"><head><meta charset=\"UTF-8\"><base href=\"'+esc(location.origin)+'/\"><title>'+esc(name)+'</title><style>'+css+'<'+'/style><'+'/head><body class=\"ssa-print-doc\">'+chunks.join('')+'<'+'/body><'+'/html>';
-}
-function paginatePrintDoc(doc){
-  var orient=(doc.documentElement.getAttribute('data-ssa-print-orient')||'portrait');
-  var page=pagePx(orient)-8,used=58;
-  doc.querySelectorAll('.fleet-section').forEach(function(el,i){
-    var h=fleetH(el);
-    if(h>page){el.classList.add('ssa-print-fit-1');h=page;}
-    if(i===0){used+=h;return;}
-    if(used+h>page){el.classList.add('ssa-print-new-page');used=h;}else used+=h;
-  });
-}
-function openPrintSheet(){
-  var w=window.open('', 'ssaRegattaPrint');
-  if(!w){window.print();return;}
-  w.document.open();w.document.write(buildPrintDoc());w.document.close();
-  function go(){try{paginatePrintDoc(w.document);}catch(e){}w.focus();w.print();}
-  var imgs=[].slice.call(w.document.images||[]),left=0;
-  imgs.forEach(function(im){if(!im.complete){left+=1;im.onload=im.onerror=function(){left-=1;if(left<=0)go();};}});
-  if(!left)setTimeout(go,200);else setTimeout(go,1500);
-}
-function openChooser(){var el=document.getElementById('ssaPrintChooser');if(el)el.classList.add('is-open');}
-function closeChooser(){var el=document.getElementById('ssaPrintChooser');if(el)el.classList.remove('is-open');}
-window.ssaRegattaPrint=openChooser;
-window.ssaRegattaPrintSheet=openPrintSheet;
-document.addEventListener('click',function(ev){
-  var t=ev.target;if(!t||!t.getAttribute)return;
-  var act=t.getAttribute('data-ssa-print');
-  if(act==='printer'||act==='pdf'){ev.preventDefault();closeChooser();openPrintSheet();return;}
-  if(act==='cancel'||(t.id==='ssaPrintChooser'&&t.classList.contains('is-open')))closeChooser();
-});
-""".replace("\n", "")
-)
-
-
-PDF_SHARE_JS_SRC = "/js/regatta-pdf-share.js?v=20260913print7"
+PDF_SHARE_JS_SRC = "/js/regatta-pdf-share.js?v=20260913print8"
 
 
 def _ios_share_svg(name: str) -> str:
@@ -853,16 +716,30 @@ def _ios_share_svg(name: str) -> str:
     return icons[name]
 
 
-def _ios_item(action: str, label: str, icon: str, *, href: bool = False) -> str:
+def _ios_item(
+    action: str,
+    label: str,
+    icon: str,
+    *,
+    href: bool = False,
+    link_id: str = "",
+    download: bool = False,
+    target: str = "",
+) -> str:
     glyph = _ios_share_svg(icon)
     inner = (
         f'<span class="ssa-ios-share-icon ssa-ios-share-icon--{icon}">{glyph}</span>'
         f'<span class="ssa-ios-share-label">{label}</span>'
     )
     if href:
+        extra = f' id="{link_id}"' if link_id else ""
+        if download:
+            extra += " download"
+        if target:
+            extra += f' target="{target}" rel="noopener"'
         return (
-            f'<a class="ssa-ios-share-item" id="ssaPdfDownload" href="#" download '
-            f'data-ssa-print="{action}" aria-label="{label}">{inner}</a>'
+            f'<a class="ssa-ios-share-item"{extra} href="#"'
+            f' data-ssa-print="{action}" aria-label="{label}">{inner}</a>'
         )
     return (
         f'<button type="button" class="ssa-ios-share-item" data-ssa-print="{action}" '
@@ -871,13 +748,17 @@ def _ios_item(action: str, label: str, icon: str, *, href: bool = False) -> str:
 
 
 def print_share_bar_html() -> str:
-    """Print opens the PDF file. Chooser preview paints PDF pages (no plugin needed)."""
+    """Print / share use the stored PDF file. Preview is an iframe of that file."""
     actions = (
         _ios_item("whatsapp", "WhatsApp", "wa")
         + _ios_item("email", "Email", "mail")
-        + _ios_item("download", "Download", "down", href=True)
-        + _ios_item("printer", "Print", "print")
+        + _ios_item("download", "Download", "down", href=True, link_id="ssaPdfDownload", download=True)
+        + _ios_item("printer", "Print", "print", href=True, link_id="ssaPdfPrint", target="_blank")
         + _ios_item("cancel", "Close", "close")
+    )
+    fallback = (
+        "(window.ssaRegattaPrint||function(){var p=(location.pathname||'').replace(/\\/+$/,'');"
+        "if(p.indexOf('/regatta/')===0)window.open(p+'/results.pdf','_blank');})()"
     )
     return (
         '<style id="ssa-print-compact">' + PRINT_COMPACT_CSS + "</style>"
@@ -890,7 +771,7 @@ def print_share_bar_html() -> str:
         + actions
         + "</div></div></div>"
         '<div class="action-buttons">'
-        '<button type="button" class="action-button" onclick="window.ssaRegattaPrint&&window.ssaRegattaPrint()">Print</button>'
+        f'<button type="button" class="action-button" id="regattaPrintBtn" onclick="{fallback}">Print</button>'
         '<button type="button" class="action-button" id="regattaShareBtn">Share URL</button>'
         "</div>"
         '<script src="' + PDF_SHARE_JS_SRC + '" defer></script>'
