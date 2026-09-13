@@ -62,7 +62,7 @@
 (function () {
   var PTS = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
   var PLAY_MS = 36000;
-  var HOLD_MS = 2000;
+  var HOLD_MS = 5000;
   var R_MAX = 118;
   var R_MIN = 10;
   var KT_MAX = 17;
@@ -82,6 +82,10 @@
   var mode = (dirQ === "up" || dirQ === "down") ? dirQ : null;
   var freeze = q.get("pause") === "1";
   var playing = !freeze && !!mode;
+  var playU = mode === "up" ? 0 : 1;
+  var playVel = mode === "up" ? 1 : -1;
+  var holdLeft = 0;
+  var lastTick = 0;
   var samples = [];
   var highRows = [];
   var HIGH_MS = 3600000;
@@ -570,24 +574,54 @@
     btnDown.className = "mode" + (mode === "down" ? " on" : "");
   }
 
+  function stopIdle() {
+    mode = null;
+    playing = false;
+    holdLeft = 0;
+    lastTick = 0;
+    t0 = 0;
+    window._u = 1;
+    syncModeBtns();
+    drawIdle();
+  }
+
   function setMode(next) {
     if (mode === next) {
-      mode = null;
-      playing = false;
-      t0 = 0;
-      window._u = 1;
+      stopIdle();
+      return;
+    }
+    if (mode && mode !== next) {
+      mode = next;
+      playVel = next === "up" ? 1 : -1;
+      holdLeft = 0;
       syncModeBtns();
-      drawIdle();
+      if (playU >= 1 && playVel > 0) {
+        stopIdle();
+        return;
+      }
+      if (playU <= 0 && playVel < 0) {
+        stopIdle();
+        return;
+      }
+      if (!playing) {
+        playing = !freeze;
+        lastTick = 0;
+        if (playing) requestAnimationFrame(tick);
+        else draw(pick(playU), playU);
+      }
       return;
     }
     mode = next;
+    playVel = next === "up" ? 1 : -1;
+    playU = next === "down" ? 1 : 0;
+    holdLeft = next === "down" ? HOLD_MS : 0;
     playing = !freeze;
+    lastTick = 0;
     t0 = 0;
-    window._pos = 0;
-    window._u = next === "down" ? 1 : 0;
+    window._u = playU;
     syncModeBtns();
     if (playing) requestAnimationFrame(tick);
-    else draw(pick(window._u), window._u);
+    else draw(pick(playU), playU);
   }
 
   function drawIdle() {
@@ -635,28 +669,48 @@
     capEl.textContent = "Real-time Vector (" + card(pt.deg) + " " + Math.round(pt.deg) + "°)";
   }
 
-  function playPosU(pos) {
-    var cycle = PLAY_MS + HOLD_MS;
-    pos = pos % cycle;
-    if (pos < 0) pos = 0;
-    if (mode === "down") {
-      if (pos <= PLAY_MS) return 1 - pos / PLAY_MS;
-      return 0;
-    }
-    if (pos <= PLAY_MS) return pos / PLAY_MS;
-    return 1;
-  }
-
   function tick(now) {
     if (!samples.length || !playing || !mode) return;
-    var cycle = PLAY_MS + HOLD_MS;
-    if (!t0) t0 = now;
-    var pos = (now - t0) % cycle;
-    if (pos < 0) pos = 0;
-    var u = playPosU(pos);
-    window._pos = pos;
-    window._u = u;
-    draw(pick(u), u);
+    if (!lastTick) lastTick = now;
+    var dt = now - lastTick;
+    lastTick = now;
+    if (holdLeft > 0) {
+      holdLeft -= dt;
+      playU = 1;
+      window._u = 1;
+      draw(pick(1), 1);
+      if (holdLeft <= 0) {
+        holdLeft = 0;
+        if (playVel > 0) {
+          stopIdle();
+          return;
+        }
+      }
+      requestAnimationFrame(tick);
+      return;
+    }
+    playU += playVel * dt / PLAY_MS;
+    if (playU >= 1) {
+      playU = 1;
+      holdLeft = HOLD_MS;
+      window._u = 1;
+      draw(pick(1), 1);
+      requestAnimationFrame(tick);
+      return;
+    }
+    if (playU <= 0) {
+      playU = 0;
+      window._u = 0;
+      draw(pick(0), 0);
+      if (playVel < 0) {
+        stopIdle();
+        return;
+      }
+      requestAnimationFrame(tick);
+      return;
+    }
+    window._u = playU;
+    draw(pick(playU), playU);
     requestAnimationFrame(tick);
   }
 
