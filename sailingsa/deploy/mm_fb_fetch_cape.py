@@ -247,21 +247,29 @@ def probe_live() -> list | None:
     if not found:
         return []
     existing = stored_reel_ids()
+    page_live = video_is_live(html)
     for item in found[:6]:
         vid0 = str(item.get("id") or "")
-        if vid0 in existing or vid0 in LIPTON_IDS:
+        if not vid0 or vid0 in LIPTON_IDS:
             continue
         current = inspect_video(dict(item))
         vid = str(current.get("id") or "") or vid0
         current["url"] = video_watch_url(vid)
         current["permalink"] = current["url"]
-        if current.get("is_live"):
+        day = str(current.get("started_at") or "")[:10]
+        on_air = bool(current.get("is_live")) or (
+            page_live and (not day or day in EVENT_DATES)
+        )
+        if on_air:
             current["is_live"] = True
             current["play_url"] = ""
-            current["title"] = current.get("title") or "Marine Megastore LIVE"
+            current["thumb"] = ""
+            current["title"] = "LIVE"
             current["fb_title"] = "LIVE"
             current["fb_sub"] = "LIVE"
             return [current]
+        if vid in existing:
+            continue
         current["is_live"] = False
         current["title"] = current.get("title") or "Marine Megastore was live"
         current["fb_title"] = current["title"]
@@ -532,12 +540,16 @@ def commit_videos(fetched: list) -> dict:
     for item in merged:
         row_item = dict(item)
         vid = str(row_item.get("id") or "")
-        if advert_play_url(row_item.get("play_url")):
+        if vid in live_ids:
+            row_item["is_live"] = True
+            row_item["play_url"] = ""
+            row_item["thumb"] = ""
+        elif advert_play_url(row_item.get("play_url")):
             row_item["is_live"] = False
         if row_item.get("is_live") and live_ids and vid not in live_ids:
             row_item["is_live"] = False
             row_item["fb_sub"] = "Marine Megastore was live"
-        if not live_ids and row_item.get("is_live"):
+        if fetched and not live_ids and row_item.get("is_live"):
             row_item["is_live"] = False
             row_item["fb_sub"] = "Marine Megastore was live"
         if row_item.get("is_live"):

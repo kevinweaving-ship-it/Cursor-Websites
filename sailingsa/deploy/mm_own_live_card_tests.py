@@ -17,7 +17,9 @@ def test_own_live_card():
     chunk = js[js.index("function liveCardHtml") : js.index("function liveCardHtml") + 900]
     assert "advertPoster" not in chunk
     assert "liveEmbedIframeHtml" in chunk
-    assert "if (!mmFbLive(videos[i])) out.push(videos[i])" in js.replace("\n", " ") or "if (!mmFbLive(videos[i]))" in js
+    assert "liveBadgeHtml" not in chunk
+    assert "mm-lipton-reels-live-badge" not in js
+    assert "autoplay=1" in js
 
 
 def test_bare_video_id_before_old_page_urls():

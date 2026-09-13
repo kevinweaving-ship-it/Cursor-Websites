@@ -55,6 +55,25 @@ def main() -> int:
         if probed:
             fetched = probed + [v for v in fetched if str(v.get("id") or "") not in {str(x.get("id") or "") for x in probed}]
             source = "chrome" if token else "scrape"
+    if not fetched:
+        data = {}
+        try:
+            from mm_fb_fetch_cape import load_feed, RID
+
+            row = (load_feed().get(RID) or {})
+        except Exception:
+            row = {}
+        print(
+            json.dumps(
+                {
+                    "ok": True,
+                    "source": source,
+                    "kept": True,
+                    "live": [v.get("id") for v in (row.get("videos") or []) if v.get("is_live")],
+                }
+            )
+        )
+        return 0
     row = commit_videos(fetched)
     print(
         json.dumps(

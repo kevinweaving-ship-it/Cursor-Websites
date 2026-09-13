@@ -465,7 +465,7 @@
       u =
         'https://www.facebook.com/plugins/video.php?href=' +
         encodeURIComponent(href) +
-        '&show_text=false&autoplay=1';
+        '&show_text=false&autoplay=1&mute=0';
       return u;
     }
     u = String((v && v.embed_url) || '').trim();
@@ -477,6 +477,7 @@
     }
     if (!u) return '';
     if (u.indexOf('autoplay=') < 0) u += (u.indexOf('?') >= 0 ? '&' : '?') + 'autoplay=1';
+    if (mmFbLive(v) && u.indexOf('mute=') < 0) u += '&mute=0';
     return u;
   }
 
@@ -496,15 +497,16 @@
     iframe.setAttribute('allowfullscreen', '');
     iframe.setAttribute('scrolling', 'no');
     iframe.setAttribute('frameborder', '0');
-    iframe.setAttribute('title', String((clip && (clip.fb_title || clip.title)) || 'Reel'));
-    iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;background:#000';
+    iframe.setAttribute('title', 'LIVE');
+    iframe.style.cssText =
+      'position:absolute;inset:0;width:100%;height:100%;border:0;background:#000;z-index:1';
     stage.appendChild(iframe);
     stage.classList.add('mm-lipton-reels-stage--playing');
   }
 
   function posterHtml(v) {
     if (mmFbLive(v)) {
-      return '<span class="mm-lipton-reels-live-ph" aria-hidden="true">LIVE</span>';
+      return '';
     }
     if (isWebcam(v)) {
       return (
@@ -827,8 +829,6 @@
     return (
       '<div class="mm-lipton-reels-tile mm-lipton-reels-tile--live">' +
       '<div class="mm-lipton-reels-thumb mm-lipton-reels-thumb--live" style="aspect-ratio:16 / 9">' +
-      '<div class="mm-lipton-reels-live-badge" aria-hidden="true">' +
-      '<span class="mm-lipton-reels-cam-stamp-dot"></span>LIVE</div>' +
       liveEmbedIframeHtml(v) +
       '<button type="button" class="mm-lipton-reels-thumb-hit" data-mm-vid="' +
       esc((v && v.id) || '') +
@@ -1533,7 +1533,7 @@
     }
     var pollMs = 60000;
     try {
-      if (isCapeClassic()) pollMs = firstMmFbLive(payload.videos || []) ? 3000 : 4000;
+      if (isCapeClassic()) pollMs = 2000;
       else if ((payload.videos || []).length) pollMs = 300000;
     } catch (e1) {}
     window.setInterval(tick, pollMs);
@@ -1929,9 +1929,8 @@
       '.mm-lipton-reels-live-slot[hidden]{display:none!important;width:0!important;min-width:0!important;margin:0!important;padding:0!important;border:0!important;overflow:hidden}' +
       '.mm-lipton-reels-live-slot .mm-lipton-reels-tile{display:block;width:100%;height:100%;margin:0}' +
       '.mm-lipton-reels-thumb--live{position:relative;overflow:hidden;background:#111;border:2px solid #ef4444}' +
-      '.mm-lipton-reels-thumb--live iframe{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none;background:#000}' +
-      '.mm-lipton-reels-live-badge{position:absolute;top:6px;left:6px;z-index:4;display:flex;align-items:center;gap:5px;' +
-      'padding:3px 7px;border-radius:4px;background:#ef4444;color:#fff;font:800 11px/1 Arial,Helvetica,sans-serif}' +
+      '.mm-lipton-reels-thumb--live iframe{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none;background:#000;z-index:1}' +
+      '.mm-lipton-reels-stage{position:relative}' +
       '.mm-lipton-reels-live-ph{display:flex;align-items:center;justify-content:center;width:100%;height:100%;' +
       'background:#111;color:#ef4444;font:800 14px/1 Arial,Helvetica,sans-serif}';
   }
