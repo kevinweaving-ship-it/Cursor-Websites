@@ -288,21 +288,40 @@
     return pts;
   }
 
-  function stamp(maxR, pts) {
+  function binDeg(deg) {
+    var a = Math.round(((Number(deg) % 360) + 360) % 360);
+    return a === 360 ? 0 : a;
+  }
+
+  function stampJoin(maxR, deg0, deg1, kt0, kt1) {
+    var turn = ((deg1 - deg0 + 540) % 360) - 180;
+    var span = Math.abs(turn);
+    var k0 = Math.max(0, Number(kt0) || 0);
+    var k1 = Math.max(0, Number(kt1) || 0);
+    var n = Math.max(1, Math.ceil(span));
     var i;
+    var u;
+    var kt;
+    var r;
     var a;
-    for (i = 0; i < pts.length; i += 1) {
-      a = Math.round(pts[i].deg);
-      a = ((a % 360) + 360) % 360;
-      if (pts[i].r > maxR[a]) maxR[a] = pts[i].r;
+    for (i = 0; i <= n; i += 1) {
+      u = i / n;
+      kt = lerp(k0, k1, u);
+      r = Math.max(R_MIN, radiusForKt(kt));
+      a = binDeg(lerpDeg(deg0, deg1, u));
+      if (r > maxR[a]) maxR[a] = r;
     }
   }
 
   function stampReading(maxR, pt) {
-    var a = Math.round(pt.deg);
-    a = ((a % 360) + 360) % 360;
     var r = Math.max(R_MIN, radiusForKt(pt.kt));
-    if (r > maxR[a]) maxR[a] = r;
+    var a0 = binDeg(pt.deg);
+    var k;
+    var a;
+    for (k = -1; k <= 1; k += 1) {
+      a = (a0 + k + 360) % 360;
+      if (r > maxR[a]) maxR[a] = r;
+    }
   }
 
   function joinArcs(pts) {
@@ -391,16 +410,13 @@
     for (i = 0; i < n; i += 1) {
       stampReading(maxR, samples[i]);
       if (i < n - 1) {
-        pts = joinPts(samples[i].deg, samples[i + 1].deg, samples[i].kt, samples[i + 1].kt);
-        if (pts) stamp(maxR, pts);
+        stampJoin(maxR, samples[i].deg, samples[i + 1].deg, samples[i].kt, samples[i + 1].kt);
       }
     }
     if (n < samples.length) {
+      stampJoin(maxR, samples[n - 1].deg, pt.deg, samples[n - 1].kt, pt.kt);
       pts = joinPts(samples[n - 1].deg, pt.deg, samples[n - 1].kt, pt.kt);
-      if (pts) {
-        stamp(maxR, pts);
-        arcs = joinArcs(pts);
-      }
+      if (pts) arcs = joinArcs(pts);
     }
     if (n === 1) ticks += historyTick(samples[0]);
     if (n < 2) ticks += historyTick(pt);
