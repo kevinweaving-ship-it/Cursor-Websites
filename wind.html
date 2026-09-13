@@ -27,11 +27,10 @@
     <div class="card">
       <button class="pause" id="btn" type="button" aria-label="Pause playback">❚❚</button>
       <svg class="dial" viewBox="0 0 320 320" aria-label="Wind gauge">
-        <circle cx="160" cy="160" r="118" fill="none" stroke="#e5e7eb" stroke-width="1.15"/>
-        <circle cx="160" cy="160" r="86" fill="none" stroke="#e5e7eb" stroke-width="1.15"/>
-        <circle cx="160" cy="160" r="54" fill="none" stroke="#e5e7eb" stroke-width="1.15"/>
+        <g id="rings"></g>
         <line x1="160" y1="42" x2="160" y2="278" stroke="#e5e7eb" stroke-width="1"/>
         <line x1="42" y1="160" x2="278" y2="160" stroke="#e5e7eb" stroke-width="1"/>
+        <g id="history"></g>
         <text x="160" y="28" text-anchor="middle" font-family="Arial" font-weight="700" font-size="16" fill="#9ca3af">N</text>
         <text x="306" y="166" text-anchor="middle" font-family="Arial" font-weight="700" font-size="16" fill="#9ca3af">E</text>
         <text x="160" y="312" text-anchor="middle" font-family="Arial" font-weight="700" font-size="16" fill="#9ca3af">S</text>
@@ -54,8 +53,22 @@
   var PLAY_MS = 18000;
   var TAIL = 22;
   var R_MAX = 118;
-  var R_MIN = 14;
-  var KT_MAX = 15;
+  var R_MIN = 10;
+  var KT_MAX = 12;
+  var BANDS = [
+    { max: 2, color: "#b3e5fc" },
+    { max: 4, color: "#4fc3f7" },
+    { max: 6, color: "#26c6da" },
+    { max: 8, color: "#66bb6a" },
+    { max: 10, color: "#9ccc65" },
+    { max: 12, color: "#d4e157" },
+    { max: 15, color: "#ffee58" },
+    { max: 18, color: "#ffca28" },
+    { max: 22, color: "#ff9800" },
+    { max: 26, color: "#ef5350" },
+    { max: 30, color: "#ab47bc" },
+    { max: 40, color: "#6a1b9a" }
+  ];
   var q = new URLSearchParams(location.search);
   var slug = (q.get("station") || "w2s-zeekoevlei").trim();
   var at0 = parseFloat(q.get("at"));
@@ -66,7 +79,10 @@
   var samples = [];
   var t0 = 0;
   var trail = [];
+  var lastU = 0;
   var btn = document.getElementById("btn");
+  var ringsG = document.getElementById("rings");
+  var histG = document.getElementById("history");
   var playLine = document.getElementById("playLine");
   var playMark = document.getElementById("playMark");
   var nowLine = document.getElementById("nowLine");
@@ -128,6 +144,79 @@
     return R_MIN + uu * (R_MAX - R_MIN);
   }
 
+  function bandColor(kt) {
+    var k = Math.max(0, Number(kt) || 0);
+    var i;
+    for (i = 0; i < BANDS.length; i += 1) {
+      if (k < BANDS[i].max) return BANDS[i].color;
+    }
+    return BANDS[BANDS.length - 1].color;
+  }
+
+  function bandCeiling(kt) {
+    var k = Math.max(0, Number(kt) || 0);
+    var i;
+    for (i = 0; i < BANDS.length; i += 1) {
+      if (k <= BANDS[i].max) return BANDS[i].max;
+    }
+    return BANDS[BANDS.length - 1].max;
+  }
+
+  function annulusPath(r0, r1) {
+    r0 = Math.max(0.8, r0);
+    r1 = Math.max(r0 + 0.8, r1);
+    return "M " + (160 - r1).toFixed(1) + ",160 a " + r1.toFixed(1) + "," + r1.toFixed(1) + " 0 1,0 " + (2 * r1).toFixed(1) + ",0 a " + r1.toFixed(1) + "," + r1.toFixed(1) + " 0 1,0 " + (-2 * r1).toFixed(1) + ",0 " +
+      "M " + (160 - r0).toFixed(1) + ",160 a " + r0.toFixed(1) + "," + r0.toFixed(1) + " 0 1,1 " + (2 * r0).toFixed(1) + ",0 a " + r0.toFixed(1) + "," + r0.toFixed(1) + " 0 1,1 " + (-2 * r0).toFixed(1) + ",0";
+  }
+
+  function drawRings() {
+    var h = "";
+    var prev = 0;
+    var i;
+    for (i = 0; i < BANDS.length; i += 1) {
+      var top = BANDS[i].max;
+      if (top > KT_MAX) top = KT_MAX;
+      if (top <= prev) continue;
+      var r0 = radiusForKt(prev);
+      var r1 = radiusForKt(top);
+      h += '<path d="' + annulusPath(r0, r1) + '" fill="' + BANDS[i].color + '" fill-opacity="0.16" fill-rule="evenodd"/>';
+      h += '<circle cx="160" cy="160" r="' + r1.toFixed(1) + '" fill="none" stroke="#cbd5e1" stroke-width="1.1"/>';
+      if (top >= KT_MAX) break;
+      prev = top;
+    }
+    ringsG.innerHTML = h;
+  }
+
+  function petalSvg(deg, r, color) {
+    var half = 8;
+    var pts = ["160,160"];
+    var a;
+    for (a = deg - half; a <= deg + half + 0.01; a += 2) {
+      var p = xy(a, r);
+      pts.push(p[0].toFixed(1) + "," + p[1].toFixed(1));
+    }
+    return '<polygon points="' + pts.join(" ") + '" fill="' + color + '" fill-opacity="0.55" stroke="' + color + '" stroke-width="0.4" stroke-opacity="0.8"/>';
+  }
+
+  function paintHistory(tEnd) {
+    var h = "";
+    var i;
+    var prev = null;
+    for (i = 0; i < samples.length; i += 1) {
+      if (samples[i].t > tEnd) break;
+      var r = radiusForKt(samples[i].kt);
+      var col = bandColor(samples[i].kt);
+      if (prev) {
+        var a = xy(prev.deg, radiusForKt(prev.kt));
+        var b = xy(samples[i].deg, r);
+        h += '<polygon points="160,160 ' + a[0].toFixed(1) + "," + a[1].toFixed(1) + " " + b[0].toFixed(1) + "," + b[1].toFixed(1) + '" fill="' + col + '" fill-opacity="0.35"/>';
+      }
+      h += petalSvg(samples[i].deg, r, col);
+      prev = samples[i];
+    }
+    histG.innerHTML = h;
+  }
+
   function vectorParts(pt) {
     var r = radiusForKt(pt.kt);
     return {
@@ -169,6 +258,7 @@
     playMark.innerHTML = markSvg(play, "#3b82f6");
     nowLine.innerHTML = lineSvg(live, "#86efac");
     nowMark.innerHTML = markSvg(live, "#22c55e");
+    paintHistory(pt.t);
 
     spdEl.textContent = (Math.round(pt.kt * 10) / 10).toFixed(1);
     timeEl.textContent = fmtTime(pt.t);
@@ -180,6 +270,11 @@
     if (!samples.length || !playing) return;
     if (!t0) t0 = now - at0 * PLAY_MS;
     var u = ((now - t0) % PLAY_MS) / PLAY_MS;
+    if (u < lastU - 0.2) {
+      trail = [];
+      histG.innerHTML = "";
+    }
+    lastU = u;
     window._u = u;
     draw(pick(u), u);
     requestAnimationFrame(tick);
@@ -228,7 +323,8 @@
           for (s = 0; s < samples.length; s += 1) {
             if (samples[s].kt > peak) peak = samples[s].kt;
           }
-          KT_MAX = Math.max(peak, 1);
+          KT_MAX = bandCeiling(peak);
+          drawRings();
           metaEl.textContent = (samples[0].name || "Zeekoevlei") + " · last hour sped up";
           t0 = 0;
           window._u = at0;
