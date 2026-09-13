@@ -255,12 +255,12 @@ def page_token() -> str:
     return ""
 
 
-def graph_get(path: str, token: str, fields: str, extra: str = "") -> dict:
+def graph_get(path: str, token: str, fields: str, extra: str = "", limit: str = "12") -> dict:
     import json as _json
     import urllib.parse
     import urllib.request
 
-    q = {"access_token": token, "fields": fields, "limit": "12"}
+    q = {"access_token": token, "fields": fields, "limit": str(limit or "12")}
     url = f"https://graph.facebook.com/v21.0/{path}?" + urllib.parse.urlencode(q)
     if extra:
         url += "&" + extra

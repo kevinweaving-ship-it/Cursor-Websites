@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh Lipton MM reels from Graph every 3 minutes
+
+[Timer]
+OnBootSec=20
+OnUnitActiveSec=180
+AccuracySec=10
+Unit=mm-fb-fetch-lipton.service
+
+[Install]
+WantedBy=timers.target

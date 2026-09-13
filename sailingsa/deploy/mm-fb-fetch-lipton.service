@@ -1,0 +1,9 @@
+[Unit]
+Description=Refresh Lipton MM reels from Graph (Page token)
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/var/www/sailingsa/deploy
+ExecStart=/usr/bin/python3 /var/www/sailingsa/deploy/mm_fb_fetch_lipton.py
+Nice=10
