@@ -1438,7 +1438,7 @@
     }
     var pollMs = 60000;
     try {
-      if (isCapeClassic()) pollMs = firstMmFbLive(payload.videos || []) ? 8000 : 15000;
+      if (isCapeClassic()) pollMs = 5000;
       else if ((payload.videos || []).length) pollMs = 300000;
     } catch (e1) {}
     window.setInterval(tick, pollMs);

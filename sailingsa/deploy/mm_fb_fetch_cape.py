@@ -137,13 +137,20 @@ def parse_videos(html: str) -> list[dict]:
 
 
 def video_is_live(html: str) -> bool:
-    """True only for a broadcast happening now. Ended lives and reels are False."""
-    low = (html or "").lower()
-    if "was live" in low or "was_live" in low:
-        return False
-    if re.search(r"is_live(?:_streaming)?\"?\s*:\s*true", html or "", re.I):
+    """True only for a broadcast happening now. Ended lives and reels are False.
+
+    Do not match Facebook's JS bundle (`is_live` appears in crawler HTML even
+    when the Page is not live). That false positive skipped Chrome and never
+    found a video id.
+    """
+    raw = html or ""
+    if re.search(r"is live now", raw, re.I):
         return True
-    if "live_now" in low or "is live now" in low or '"live_status":"live"' in low:
+    if re.search(r'"broadcast_status"\s*:\s*"LIVE"', raw):
+        return True
+    if re.search(r'"live_status"\s*:\s*"LIVE"', raw):
+        return True
+    if re.search(r'"is_live_streaming"\s*:\s*true', raw):
         return True
     return False
 
@@ -182,41 +189,36 @@ def parse_video_ids(html: str) -> list[dict]:
 
 
 def probe_live() -> list | None:
-    """Cheap LIVE check. Do not download media. Live clips stay even without Cape Classic in the title."""
-    htmls = []
-    for url in LIVE_PROBE_URLS:
-        try:
-            htmls.append(http_get(url))
-        except Exception:
-            pass
-    if not htmls:
+    """Public Page scrape only — no Page token.
+
+    Facebook Login / Business picker cannot see Marine Megastore. GitHub +
+    Reddit agree Graph live_videos webhooks need the Page to install the app.
+    Access we actually have: public marin.megastoresa. Chrome-dump /live,
+    take the current /videos/{id}/, embed with autoplay.
+    """
+    html = ""
+    try:
+        html = dump("https://www.facebook.com/marin.megastoresa/live", budget_ms=5000)
+    except Exception:
+        html = ""
+    if not html:
         return None
-    blob = "\n".join(htmls)
-    if not video_is_live(blob):
-        try:
-            htmls.append(dump("https://www.facebook.com/marin.megastoresa/live", budget_ms=3500))
-        except Exception:
-            pass
-        blob = "\n".join(htmls)
-    if not htmls:
-        return None
-    if not video_is_live(blob):
+    found = parse_video_ids(html)
+    if not found:
         return []
-    found = []
-    seen = set()
-    for html in htmls:
-        for item in parse_video_ids(html):
-            vid = str(item.get("id") or "")
-            if not vid or vid in seen:
-                continue
-            seen.add(vid)
-            item["is_live"] = True
-            item["play_url"] = ""
-            item["url"] = video_watch_url(vid)
-            item["permalink"] = item["url"]
-            item["title"] = item.get("title") or "Marine Megastore LIVE"
-            found.append(item)
-    return found[:4]
+    for item in found[:4]:
+        current = inspect_video(dict(item))
+        if not current.get("is_live"):
+            continue
+        vid = str(current.get("id") or "")
+        current["is_live"] = True
+        current["play_url"] = ""
+        current["url"] = video_watch_url(vid)
+        current["permalink"] = current["url"]
+        current["title"] = current.get("title") or "Marine Megastore LIVE"
+        current["fb_sub"] = "LIVE"
+        return [current]
+    return []
 
 
 def keep_clip(item: dict, is_live: bool | None = None) -> bool:
