@@ -9,8 +9,10 @@
     html, body { margin: 0; min-height: 100%; background: #f3f4f6; font-family: Arial, Helvetica, sans-serif; }
     .wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 16px; box-sizing: border-box; }
     .card { position: relative; width: min(420px, 100%); background: #fff; border-radius: 28px; box-shadow: 0 8px 28px rgba(15, 23, 42, .08); padding: 36px 28px 28px; box-sizing: border-box; }
-    .pause { position: absolute; top: 14px; right: 14px; width: 44px; height: 44px; border: 0; border-radius: 50%; background: #f3f4f6; color: #111; cursor: pointer; font-size: 15px; line-height: 44px; }
-    .pause:focus { outline: 2px solid #3b82f6; }
+    .modes { position: absolute; top: 14px; right: 14px; display: flex; gap: 8px; }
+    .mode { width: 44px; height: 44px; border: 0; border-radius: 50%; background: #f3f4f6; color: #111; cursor: pointer; font-size: 18px; line-height: 44px; }
+    .mode.on { background: #111; color: #fff; }
+    .mode:focus { outline: 2px solid #3b82f6; }
     svg.dial { display: block; width: 78%; max-width: 280px; height: auto; margin: 0 auto; }
     .spd { margin: 14px 0 0; text-align: center; font: 700 34px/1 Arial, Helvetica, sans-serif; color: #111; }
     .spd .kn { display: block; margin-top: 4px; font: 700 12px/1 Arial, Helvetica, sans-serif; letter-spacing: 1.2px; color: #9ca3af; }
@@ -27,7 +29,10 @@
 <body>
   <div class="wrap">
     <div class="card">
-      <button class="pause" id="btn" type="button" aria-label="Pause playback">❚❚</button>
+      <div class="modes">
+        <button class="mode" id="btnUp" type="button" aria-label="Paint 60 minutes ago to now">▲</button>
+        <button class="mode" id="btnDown" type="button" aria-label="Paint now back to 60 minutes ago">▼</button>
+      </div>
       <svg class="dial" viewBox="0 0 320 320" aria-label="Wind gauge">
         <g id="rings"></g>
         <line x1="160" y1="42" x2="160" y2="278" stroke="#e5e7eb" stroke-width="1"/>
@@ -73,8 +78,10 @@
   var at0 = parseFloat(q.get("at"));
   if (isNaN(at0)) at0 = 0;
   at0 = Math.max(0, Math.min(1, at0));
+  var dirQ = (q.get("dir") || "").toLowerCase();
+  var mode = (dirQ === "up" || dirQ === "down") ? dirQ : null;
   var freeze = q.get("pause") === "1";
-  var playing = !freeze;
+  var playing = !freeze && !!mode;
   var samples = [];
   var highRows = [];
   var HIGH_MS = 3600000;
@@ -82,7 +89,8 @@
   var MAJOR_DEG = 60;
   var t0 = 0;
   var ringRadii = [];
-  var btn = document.getElementById("btn");
+  var btnUp = document.getElementById("btnUp");
+  var btnDown = document.getElementById("btnDown");
   var ringsG = document.getElementById("rings");
   var histG = document.getElementById("history");
   var avgRing = document.getElementById("avgRing");
@@ -465,6 +473,10 @@
   }
 
   function paintLive(u) {
+    if (!mode) {
+      liveG.innerHTML = "";
+      return;
+    }
     var nowPt = liveNow();
     var h = "";
     var d = "";
@@ -545,12 +557,63 @@
       var rows = (body.readings || body.history || []).map(asSample).filter(Boolean).sort(function (a, b) { return a.t - b.t; });
       highRows = tidyDirs(rows);
       paintHigh();
-      paintLive();
-      paintAvgRing(periodAvg());
+      if (!mode) drawIdle();
+      else {
+        paintLive();
+        paintAvgRing(periodAvg());
+      }
     } catch (e) {}
   }
 
+  function syncModeBtns() {
+    btnUp.className = "mode" + (mode === "up" ? " on" : "");
+    btnDown.className = "mode" + (mode === "down" ? " on" : "");
+  }
+
+  function setMode(next) {
+    if (mode === next) {
+      mode = null;
+      playing = false;
+      t0 = 0;
+      window._u = 1;
+      syncModeBtns();
+      drawIdle();
+      return;
+    }
+    mode = next;
+    playing = !freeze;
+    t0 = 0;
+    window._pos = 0;
+    window._u = next === "down" ? 1 : 0;
+    syncModeBtns();
+    if (playing) requestAnimationFrame(tick);
+    else draw(pick(window._u), window._u);
+  }
+
+  function drawIdle() {
+    var nowPt = liveNow() || (samples.length ? samples[samples.length - 1] : null);
+    if (!nowPt) return;
+    playLine.innerHTML = "";
+    playMark.innerHTML = "";
+    liveG.innerHTML = "";
+    histG.innerHTML = "";
+    nowLine.innerHTML = lineSvg(vectorParts(nowPt), "#86efac");
+    nowMark.innerHTML = markSvg(vectorParts(nowPt), "#22c55e");
+    paintHigh();
+    var avg = periodAvg();
+    paintAvgRing(avg);
+    spdEl.textContent = (Math.round(nowPt.kt * 10) / 10).toFixed(1);
+    avgEl.textContent = avg == null ? "—" : (Math.round(avg * 10) / 10).toFixed(1);
+    timeEl.textContent = "now";
+    tlFill.style.width = "0";
+    capEl.textContent = "Now (" + card(nowPt.deg) + " " + Math.round(nowPt.deg) + "°)";
+  }
+
   function draw(pt, u) {
+    if (!mode) {
+      drawIdle();
+      return;
+    }
     if (!pt || !samples.length) return;
     var nowPt = liveNow() || samples[samples.length - 1];
     var play = vectorParts(u >= 1 ? nowPt : pt);
@@ -573,18 +636,21 @@
   }
 
   function playPosU(pos) {
-    if (pos <= PLAY_MS) return 1 - pos / PLAY_MS;
-    pos -= PLAY_MS;
-    if (pos <= HOLD_MS) return 0;
-    pos -= HOLD_MS;
+    var cycle = PLAY_MS + HOLD_MS;
+    pos = pos % cycle;
+    if (pos < 0) pos = 0;
+    if (mode === "down") {
+      if (pos <= PLAY_MS) return 1 - pos / PLAY_MS;
+      return 0;
+    }
     if (pos <= PLAY_MS) return pos / PLAY_MS;
     return 1;
   }
 
   function tick(now) {
-    if (!samples.length || !playing) return;
-    var cycle = PLAY_MS + HOLD_MS + PLAY_MS + HOLD_MS;
-    if (!t0) t0 = now - at0 * PLAY_MS;
+    if (!samples.length || !playing || !mode) return;
+    var cycle = PLAY_MS + HOLD_MS;
+    if (!t0) t0 = now;
     var pos = (now - t0) % cycle;
     if (pos < 0) pos = 0;
     var u = playPosU(pos);
@@ -594,15 +660,8 @@
     requestAnimationFrame(tick);
   }
 
-  btn.addEventListener("click", function () {
-    playing = !playing;
-    btn.textContent = playing ? "❚❚" : "▶";
-    btn.setAttribute("aria-label", playing ? "Pause playback" : "Play last hour");
-    if (playing) {
-      t0 = performance.now() - (window._pos || 0);
-      requestAnimationFrame(tick);
-    }
-  });
+  btnUp.addEventListener("click", function () { setMode("up"); });
+  btnDown.addEventListener("click", function () { setMode("down"); });
 
   function asSample(r) {
     var kt = r.wind_kt != null ? Number(r.wind_kt) : (r.wind_avg_kt != null ? Number(r.wind_avg_kt) : NaN);
@@ -653,20 +712,22 @@
           KT_MAX = bandCeiling(peak);
           drawRings();
           highRows = samples.slice();
-          paintHigh();
-          paintLive(at0);
-          setInterval(paintHigh, 10000);
-          setInterval(function () { paintLive(window._u || 0); }, 10000);
-          setInterval(pullHigh, 30000);
-          metaEl.textContent = (samples[0].name || "Zeekoevlei") + " · last hour sped up";
+          syncModeBtns();
           t0 = 0;
-          window._u = at0;
-          if (freeze) {
-            btn.textContent = "▶";
-            btn.setAttribute("aria-label", "Play last hour");
+          window._u = mode === "down" ? 1 : (mode === "up" ? 0 : 1);
+          setInterval(paintHigh, 10000);
+          setInterval(function () {
+            if (!mode) drawIdle();
+            else paintLive(window._u || 0);
+          }, 10000);
+          setInterval(pullHigh, 30000);
+          metaEl.textContent = samples[0].name || "Zeekoevlei";
+          if (mode && freeze) {
             draw(pick(at0), at0);
-          } else {
+          } else if (mode && playing) {
             requestAnimationFrame(tick);
+          } else {
+            drawIdle();
           }
           return;
         }
