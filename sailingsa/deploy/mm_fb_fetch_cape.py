@@ -304,7 +304,7 @@ def graph_fetch(token: str) -> list:
             f"{PAGE}/live_videos",
             token,
             "id,title,status,permalink_url,from",
-            extra="broadcast_status=LIVE",
+            extra="broadcast_status[]=LIVE",
         )
         for node in live_js.get("data") or []:
             vid = str((node or {}).get("id") or "")
