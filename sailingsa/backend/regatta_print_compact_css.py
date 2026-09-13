@@ -25,7 +25,57 @@ Pagination (A4):
   A4 portrait (194mm), the sheet is landscape; otherwise portrait.
 """
 
-PRINT_COMPACT_CSS = """
+from pathlib import Path
+import base64
+
+_FONT_DIR = Path(__file__).resolve().parent / "fonts"
+
+
+def _woff2_data_uri(name: str) -> str:
+    raw = (_FONT_DIR / name).read_bytes()
+    return "data:font/woff2;base64," + base64.b64encode(raw).decode("ascii")
+
+
+def ibm_plex_print_font_css() -> str:
+    """IBM Plex Sans (SIL OFL) — high x-height, tabular figures, Medium/Semibold at 6–8pt.
+
+    Regular (400) looks thin at table size. Medium (500) is the body; Semibold (600)
+    is headers. Bold (700) blobs at 5–6pt. Half-size superscript for DNC etc.
+    """
+    try:
+        latin = _woff2_data_uri("IBMPlexSans-Var-Latin.woff2")
+        latin_ext = _woff2_data_uri("IBMPlexSans-Var-LatinExt.woff2")
+    except OSError:
+        return ""
+    return f"""
+@font-face {{
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-weight: 100 700;
+  font-display: block;
+  src: url({latin}) format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}}
+@font-face {{
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-weight: 100 700;
+  font-display: block;
+  src: url({latin_ext}) format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}}
+""".strip()
+
+
+IBM_PLEX_PRINT_FONT_CSS = ibm_plex_print_font_css()
+_PRINT_SANS = (
+    '"IBM Plex Sans", "Liberation Sans", "Noto Sans", "Segoe UI", '
+    "Calibri, Arial, Helvetica, sans-serif"
+)
+
+PRINT_COMPACT_CSS = (
+    IBM_PLEX_PRINT_FONT_CSS
+    + """
 @page { size: A4 portrait; margin: 8mm 8mm 14mm; }
 .ssa-print-page-footer { display: none !important; }
 html.ssa-printing .site-header, html.ssa-printing footer, html.ssa-printing .site-footer,
@@ -46,6 +96,11 @@ html.ssa-printing .fleet-results-table.rs-compact-row-logos td.class-col { displ
 html.ssa-printing .ssa-print-page-footer { display: flex !important; position: static !important; margin-top: 8px !important; }
 @media print {
   html, body { background: #fff !important; color: #1a2750 !important; margin: 0 !important; padding: 0 !important; }
+  html, body, .regatta-page, .class-header, .sailed-line, table, th, td {
+    font-family: """ + _PRINT_SANS + """ !important;
+    font-variant-numeric: tabular-nums lining-nums !important;
+    font-feature-settings: "tnum" 1, "lnum" 1 !important;
+  }
   .site-header, footer, .site-footer, .app-footer, .action-buttons, .back-to-home,
   .regatta-back-row, .regatta-source-banner,
   .regatta-sa-mode-wrap, .regatta-wc-icons-row, .regatta-sa-columns-panel, .regatta-sa-hub-news-wrap,
@@ -188,8 +243,61 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
     min-width: 0 !important;
     padding: 0 !important;
   }
-  .fleet-title-row { font-size: 9pt !important; font-weight: 700 !important; margin: 0 !important; line-height: 1.15 !important; white-space: nowrap !important; }
-  .sailed-line { font-size: 7pt !important; margin: 0 !important; line-height: 1.15 !important; white-space: nowrap !important; }
+  .fleet-title-row { font-size: 9pt !important; font-weight: 600 !important; margin: 0 !important; line-height: 1.15 !important; white-space: nowrap !important; }
+  .sailed-line { font-size: 7pt !important; font-weight: 500 !important; margin: 0 !important; line-height: 1.2 !important; white-space: nowrap !important; }
+
+  /* Cape Classic: one centred line [FleetLogo] Fleet; sailed stats centred under it. */
+  .fleet-section:has(.rs-compact-row-logos) .class-header,
+  .fleet-section:has(.rs-compact-row-logos) .class-header--with-logos {
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    gap: 2px !important;
+    column-gap: 0 !important;
+  }
+  .fleet-section:has(.rs-compact-row-logos) .class-header-logo-col,
+  .fleet-section:has(.rs-compact-row-logos) .class-header-club-logo-col {
+    display: none !important;
+  }
+  .fleet-section:has(.rs-compact-row-logos) .class-header-main-col,
+  .fleet-section:has(.rs-compact-row-logos) .class-header-text-col {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    text-align: center !important;
+    gap: 2px !important;
+  }
+  .fleet-section:has(.rs-compact-row-logos) .fleet-title-row,
+  .fleet-section:has(.rs-compact-row-logos) .fleet-title-with-logo {
+    display: inline-flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 5px !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+  }
+  .fleet-section:has(.rs-compact-row-logos) .rs-fleet-title-logo,
+  .fleet-section:has(.rs-compact-row-logos) .fleet-title-with-logo .rs-fleet-title-logo {
+    display: inline-block !important;
+    max-height: 24px !important;
+    max-width: 52px !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain !important;
+    vertical-align: middle !important;
+  }
+  .fleet-section:has(.rs-compact-row-logos) .sailed-line {
+    display: block !important;
+    width: 100% !important;
+    text-align: center !important;
+    margin: 1px 0 0 0 !important;
+    font-weight: 500 !important;
+  }
 
   /* Rank table: smaller type, full cell text (no clip). Class is already on
      the fleet card so that column is dropped to free width for helm + races. */
@@ -215,18 +323,18 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
   }
   th, td {
     padding: 1.5px 2px !important;
-    font-size: 5.5pt !important;
-    line-height: 1.25 !important;
+    font-size: 6pt !important;
+    font-weight: 500 !important;
+    line-height: 1.28 !important;
     white-space: nowrap !important;
     overflow: visible !important;
-    font-stretch: condensed;
-    letter-spacing: -0.01em !important;
+    letter-spacing: 0.01em !important;
     border: 0.5pt solid #1a2750 !important;
     background: #fff !important;
   }
   th {
     background: #e9eefb !important;
-    font-weight: 700 !important;
+    font-weight: 600 !important;
     text-align: center !important;
   }
   td { text-align: center !important; }
@@ -286,26 +394,36 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
     width: 3.85% !important;
     padding-left: 0.5px !important;
     padding-right: 0.5px !important;
-    font-size: 5.1pt !important;
-    letter-spacing: -0.03em !important;
+    font-size: 6pt !important;
+    letter-spacing: 0.01em !important;
   }
-  .fleet-results-table .wc-score { font-size: inherit !important; font-weight: 600 !important; }
-  .fleet-results-table .wc-code { font-size: 5pt !important; margin-left: 1px !important; opacity: 1 !important; }
+  .fleet-results-table .wc-score {
+    font-size: 1em !important;
+    font-weight: 500 !important;
+  }
+  .fleet-results-table .wc-code {
+    font-size: 50% !important;
+    font-weight: 600 !important;
+    vertical-align: super !important;
+    margin-left: 0.08em !important;
+    line-height: 0 !important;
+    letter-spacing: 0.02em !important;
+    opacity: 1 !important;
+  }
   .fleet-results-table tbody tr, .fleet-results-table tbody td,
   html.ssa-printing .fleet-results-table tbody tr, html.ssa-printing .fleet-results-table tbody td {
     height: auto !important;
     max-height: none !important;
     min-height: 0 !important;
     overflow: visible !important;
-    font-size: 5.5pt !important;
-    line-height: 1.25 !important;
+    font-size: 6pt !important;
+    line-height: 1.28 !important;
   }
   .rs-club-row-logo, .rs-boat-sponsor-logo, .fleet-results-table .rs-club-row-logo,
   .fleet-results-table .rs-boat-sponsor-logo { display: none !important; }
-  .rs-class-row-logo, .rs-club-row-logo-sm, .rs-fleet-title-logo,
+  .rs-class-row-logo, .rs-club-row-logo-sm,
   .fleet-results-table .rs-class-row-logo,
-  .fleet-results-table .rs-club-row-logo-sm,
-  .fleet-title-with-logo .rs-fleet-title-logo {
+  .fleet-results-table .rs-club-row-logo-sm {
     display: inline-block !important;
     height: auto !important;
     width: auto !important;
@@ -315,7 +433,10 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
     vertical-align: middle !important;
     flex: 0 0 auto !important;
   }
-  .fleet-title-with-logo { display: inline-flex !important; align-items: center !important; gap: 4px !important; }
+  /* URL keeps a small title-row logo; print already has the large left logo. */
+  .rs-fleet-title-logo, .fleet-title-with-logo .rs-fleet-title-logo {
+    display: none !important;
+  }
   .rs-club-with-logo, .rs-boat-name-sponsors { white-space: nowrap !important; }
   thead { display: table-header-group; }
   tbody { page-break-inside: avoid !important; break-inside: avoid-page !important; }
@@ -367,7 +488,8 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
 #ssaPrintChooser .ssa-print-chooser-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-start; margin-top: 12px; }
 #ssaPrintChooser .ssa-pdf-frame { width: 100%; height: 62vh; border: 1px solid #1a2750; background: #fff; margin: 0; }
 #ssaPrintChooser a.action-button { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
-""".strip()
+"""
+).strip()
 
 def _document_css() -> str:
     text = PRINT_COMPACT_CSS
@@ -376,7 +498,11 @@ def _document_css() -> str:
     inner = text[start + len("@media print {") : end if end > 0 else None].rstrip()
     if inner.endswith("}"):
         inner = inner[: inner.rfind("}")].rstrip()
-    return "@page { size: A4 portrait; margin: 8mm 8mm 14mm; }\n" + inner
+    return (
+        IBM_PLEX_PRINT_FONT_CSS
+        + "\n@page { size: A4 portrait; margin: 8mm 8mm 14mm; }\n"
+        + inner
+    )
 
 
 PRINT_DOCUMENT_CSS = _document_css()
