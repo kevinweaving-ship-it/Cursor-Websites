@@ -1,0 +1,11 @@
+[Unit]
+Description=Poll live-event product PDF fingerprints every 20s
+
+[Timer]
+OnBootSec=15
+OnUnitActiveSec=20
+AccuracySec=2
+Unit=ssa-live-event-pdf.service
+
+[Install]
+WantedBy=timers.target

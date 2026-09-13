@@ -7,4 +7,6 @@
 - **Modify only components or page sections, not global layout.** Do not add extra wrappers, change order of Back/Title/Stats/Data cards, or remove `.table-container` from the master template.
 - **Allowed classes:** container, card, table, tabs, section. **Forbidden:** raw ol/ul for results, inline CSS, custom page-level fonts or colours.
 
+- **Product PDF is the output.** Print / save / download / share must use **our** standard results PDF (`docs/RESULTS_PRINT_PDF_RULE.md`), not SAS source (PDF/PNG/XLS/photo) and not an HTML screenshot. Same format every event.
+
 See: `docs/UI_COMPONENTS_README.md`, `docs/design_system.md`, `.cursor/rules/theme-layout-mandatory.mdc`.

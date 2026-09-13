@@ -62,6 +62,10 @@ When asked to "fix the app" or "update the site", ask which area or file to focu
 
 **`docs/RESULTS_LINE_CLEANUP_COMPLETE.md`** — Results-line / `result_status` work for regattas with rows in `public.results` only. **Do not** map `Unknown` or auto-fix unapproved values; remaining invalid rows are **intentional** until per-regatta review. Scripts: `list_distinct_result_statuses_results_only.py`, `apply_result_status_map.py`, `qa_results_line_metrics.py`. **Next (controlled):** HOST / `host_club_id` linking on the same results-only set.
 
+## Product PDF (why SailingSA exists)
+
+**`docs/RESULTS_PRINT_PDF_RULE.md`**. The file a user prints / saves / downloads / shares is **our** curated standard results PDF — not the SAS source (PDF, PNG, XLS, photo, or other random upload). Same format every event. Source files are ingest only.
+
 ## Results HTML "Results are" status line
 
 **`docs/RESULTS_HTML_STATUS_LINE_RULE.md`** — For all results reports/sheets: the status line must be exactly **`Results are [Provisional|Final] as at DD Month YYYY at HH:MM`** (e.g. `Results are Provisional as at 15 February 2026 at 14:20`). Source: `regattas.result_status` and `regattas.as_at_time`. Use "as at" not "as of". No current date or event date placeholder. See also `docs/RESULTS_PASSING_WORKFLOW.md` and README "Results Data Pass".
