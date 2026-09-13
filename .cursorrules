@@ -6,5 +6,6 @@
 - **Do not invent new CSS frameworks or styles.** Follow **`docs/design_system.md`** and **`sailingsa/frontend/css/main.css`** strictly.
 - **Modify only components or page sections, not global layout.** Do not add extra wrappers, change order of Back/Title/Stats/Data cards, or remove `.table-container` from the master template.
 - **Allowed classes:** container, card, table, tabs, section. **Forbidden:** raw ol/ul for results, inline CSS, custom page-level fonts or colours.
+- **Never leave old code that can override a fix.** When CSS/JS/HTML is updated, delete the previous rule, poll, inject, or cache-busted file that produced the old behaviour. Do not keep both (new path + leftover path). One live path only. Example: DNC 33% + leftover `textContent` wipe / 50% CSS = the old path wins after refresh.
 
 See: `docs/UI_COMPONENTS_README.md`, `docs/design_system.md`, `.cursor/rules/theme-layout-mandatory.mdc`.
