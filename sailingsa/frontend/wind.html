@@ -173,16 +173,21 @@
       prev = top;
     }
     for (i = 0; i < ringRadii.length; i += 1) {
-      var rail = (i === ringRadii.length - 2);
+      var rail = (i === railRingIndex());
       h += '<circle cx="160" cy="160" r="' + ringRadii[i].toFixed(1) + '" fill="none" stroke="' + (rail ? "#94a3b8" : "#cbd5e1") + '" stroke-width="' + (rail ? "1.7" : "1.15") + '"/>';
     }
     ringsG.innerHTML = h;
   }
 
+  function railRingIndex() {
+    if (ringRadii.length >= 3) return ringRadii.length - 3;
+    if (ringRadii.length >= 2) return ringRadii.length - 2;
+    return 0;
+  }
+
   function railRadius() {
-    if (ringRadii.length >= 2) return ringRadii[ringRadii.length - 2];
-    if (ringRadii.length === 1) return ringRadii[0] * 0.72;
-    return R_MAX * 0.72;
+    if (!ringRadii.length) return R_MAX * 0.72;
+    return ringRadii[railRingIndex()];
   }
 
   function bandSlice(kt) {
