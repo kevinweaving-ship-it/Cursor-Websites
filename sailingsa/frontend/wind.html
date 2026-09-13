@@ -353,17 +353,6 @@
     return pts;
   }
 
-  function reachedStats(a, b) {
-    var i;
-    var sum = 0;
-    var c = 0;
-    for (i = a; i < b; i += 1) {
-      sum += samples[i].kt;
-      c += 1;
-    }
-    return { avg: c ? sum / c : null };
-  }
-
   function reachedRange(pt, u) {
     return [0, reachedN(u)];
   }
@@ -528,13 +517,14 @@
     var rows = liveRows();
     var i;
     var sum = 0;
-    var c = 0;
+    var n = 0;
     if (!rows.length) rows = samples;
     for (i = 0; i < rows.length; i += 1) {
       sum += rows[i].kt;
-      c += 1;
+      n += 1;
     }
-    return c ? sum / c : null;
+    if (!n) return null;
+    return sum / n;
   }
 
   function paintHigh() {
@@ -572,12 +562,11 @@
     paintHigh();
     paintLive(u);
     paintHistory(pt, u);
-    paintAvgRing(periodAvg());
-    var seen = reachedRange(pt, u);
+    var avg = periodAvg();
+    paintAvgRing(avg);
 
     spdEl.textContent = (Math.round(pt.kt * 10) / 10).toFixed(1);
-    var st = reachedStats(seen[0], seen[1]);
-    avgEl.textContent = st.avg == null ? "—" : (Math.round(st.avg * 10) / 10).toFixed(1);
+    avgEl.textContent = avg == null ? "—" : (Math.round(avg * 10) / 10).toFixed(1);
     timeEl.textContent = fmtRemain(pt.t);
     tlFill.style.width = (Math.max(0, Math.min(1, u)) * 100).toFixed(1) + "%";
     capEl.textContent = "Real-time Vector (" + card(pt.deg) + " " + Math.round(pt.deg) + "°)";
