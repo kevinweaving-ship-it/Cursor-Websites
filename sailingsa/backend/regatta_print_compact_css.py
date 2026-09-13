@@ -315,7 +315,7 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
 #ssaPrintChooser.is-open { display: flex; }
 #ssaPrintChooser .card { max-width: 56rem; width: 96%; padding: 16px; }
 #ssaPrintChooser .ssa-print-chooser-note { font-size: 13px; color: #1a2750; margin: 0 0 8px; line-height: 1.35; }
-#ssaPrintChooser .ssa-print-chooser-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; margin-top: 12px; }
+#ssaPrintChooser .ssa-print-chooser-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-start; margin-top: 12px; }
 #ssaPrintChooser .ssa-pdf-frame { width: 100%; height: 62vh; border: 1px solid #1a2750; background: #fff; margin: 0; }
 #ssaPrintChooser a.action-button { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
 """.strip()
@@ -495,80 +495,124 @@ document.addEventListener('click',function(ev){
 )
 
 
+_PDF_SHARE_JS = r"""
+function sheetUrl(){
+  var c=document.querySelector('link[rel="canonical"]');
+  if(c&&c.href&&c.href.indexOf('http')===0)return c.href.split('#')[0].split('?')[0];
+  var u=(location.href||'').split('#')[0].split('?')[0];
+  if(u.indexOf('http')===0)return u;
+  var p=location.pathname||'';
+  if(p.indexOf('/regatta/')===0)return 'https://sailingsa.co.za'+p.replace(/\/+$/,'');
+  return '';
+}
+function pdfPath(){
+  var p=(location.pathname||'').replace(/\/+$/,'');
+  if(p.indexOf('/regatta/')!==0)return '';
+  if(/\/results\.pdf$/i.test(p))return p;
+  return p+'/results.pdf';
+}
+function pdfAbs(){
+  var p=pdfPath();if(!p)return '';
+  if(p.indexOf('http')===0)return p;
+  return (location.origin||'https://sailingsa.co.za')+p;
+}
+function pdfTitle(){
+  var n=document.querySelector('.regatta-name');
+  var t=(n&&n.textContent||document.title||'SailingSA results').replace(/\s*\|\s*SailingSA\s*$/i,'').replace(/\s+/g,' ').trim();
+  return t||'SailingSA results PDF';
+}
+function pdfFileName(){
+  var p=pdfPath().replace(/\/+$/,'').replace(/\/results\.pdf$/i,'');
+  var tail=(p.split('/').filter(Boolean).pop()||'results').replace(/\.pdf$/i,'');
+  return tail+'.pdf';
+}
+function loadPdfFile(){
+  var u=pdfAbs();
+  if(!u)return Promise.reject(new Error('no-pdf'));
+  return fetch(u,{credentials:'same-origin'}).then(function(r){
+    if(!r.ok)throw new Error('pdf');
+    return r.blob();
+  }).then(function(blob){
+    return new File([blob],pdfFileName(),{type:'application/pdf'});
+  });
+}
+function sharePdfFile(file){
+  if(!file||!navigator.share||!navigator.canShare)return Promise.reject(new Error('no-share'));
+  var payload={title:pdfTitle(),text:pdfTitle(),files:[file]};
+  if(!navigator.canShare(payload))return Promise.reject(new Error('no-files'));
+  return navigator.share(payload);
+}
+function waPdfFallback(){
+  var text=pdfTitle()+'\n'+pdfAbs();
+  window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank','noopener');
+}
+function mailPdfFallback(){
+  location.href='mailto:?subject='+encodeURIComponent(pdfTitle())+'&body='+encodeURIComponent(pdfTitle()+'\n'+pdfAbs());
+}
+function sharePdfWhatsApp(){
+  loadPdfFile().then(function(file){return sharePdfFile(file);}).catch(function(){waPdfFallback();});
+}
+function sharePdfEmail(){
+  loadPdfFile().then(function(file){return sharePdfFile(file);}).catch(function(){mailPdfFallback();});
+}
+function shareEventUrl(){
+  var t=pdfTitle(),u=sheetUrl()||location.href,b=document.getElementById('regattaShareBtn');
+  function copied(){if(b){var old=b.textContent;b.textContent='URL copied';setTimeout(function(){b.textContent=old||'Share URL';},1600);}}
+  if(navigator.share){navigator.share({title:t,url:u}).catch(function(){});return;}
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(u).then(copied).catch(function(){prompt('Copy this URL:',u);});
+    return;
+  }
+  prompt('Copy this URL:',u);
+}
+function openChooser(){
+  var el=document.getElementById('ssaPrintChooser');if(!el)return;
+  var u=pdfPath();if(!u)return;
+  var fr=document.getElementById('ssaPdfFrame');
+  var dl=document.getElementById('ssaPdfDownload');
+  if(fr)fr.src=u+'?t='+Date.now();
+  if(dl){dl.setAttribute('href',u+'?download=1');dl.setAttribute('download',pdfFileName());}
+  el.classList.add('is-open');
+}
+function closeChooser(){var el=document.getElementById('ssaPrintChooser');if(el)el.classList.remove('is-open');}
+function printPdf(){
+  var fr=document.getElementById('ssaPdfFrame');
+  try{if(fr&&fr.contentWindow){fr.contentWindow.focus();fr.contentWindow.print();return;}}catch(e){}
+  var u=pdfAbs();if(u)window.open(u,'_blank');
+}
+window.ssaRegattaPrint=openChooser;
+document.addEventListener('click',function(ev){
+  var t=ev.target;if(!t||!t.getAttribute)return;
+  var act=t.getAttribute('data-ssa-print');
+  if(act==='whatsapp'){ev.preventDefault();sharePdfWhatsApp();return;}
+  if(act==='email'){ev.preventDefault();sharePdfEmail();return;}
+  if(act==='printer'){ev.preventDefault();printPdf();return;}
+  if(act==='cancel'||(t.id==='ssaPrintChooser'&&t.classList.contains('is-open')))closeChooser();
+});
+var b=document.getElementById('regattaShareBtn');
+if(b)b.addEventListener('click',function(){shareEventUrl();});
+""".replace("\n", "")
+
+
 def print_share_bar_html() -> str:
-    """Print + Share: open the server-made results.pdf for this parent or child URL."""
+    """Print opens the PDF. Chooser Share is the PDF file (WhatsApp, then Email). Page Share is the event URL."""
     return (
         '<style id="ssa-print-compact">' + PRINT_COMPACT_CSS + "</style>"
         '<div id="ssaPrintChooser" role="dialog" aria-label="Results PDF">'
         '<div class="card">'
         '<div class="section-title">Results PDF</div>'
-        '<p class="ssa-print-chooser-note">Server-made A4 sheet for this URL. Landscape if the table is too wide for portrait. Each fleet stays on one page.</p>'
+        '<p class="ssa-print-chooser-note">Share this PDF — WhatsApp and Email first. This is the file, not the page URL. Landscape if the table is too wide for portrait. Each fleet stays on one page.</p>'
         '<iframe id="ssaPdfFrame" class="ssa-pdf-frame" title="Results PDF"></iframe>'
         '<div class="ssa-print-chooser-actions">'
-        '<button type="button" class="action-button" data-ssa-print="cancel">Close</button>'
-        '<button type="button" class="action-button" data-ssa-print="share">Share</button>'
+        '<button type="button" class="action-button" data-ssa-print="whatsapp">WhatsApp</button>'
+        '<button type="button" class="action-button" data-ssa-print="email">Email</button>'
         '<a class="action-button" id="ssaPdfDownload" href="#" download>Download</a>'
         '<button type="button" class="action-button" data-ssa-print="printer">Print</button>'
+        '<button type="button" class="action-button" data-ssa-print="cancel">Close</button>'
         "</div></div></div>"
         '<div class="action-buttons">'
         '<button type="button" class="action-button" onclick="window.ssaRegattaPrint&&window.ssaRegattaPrint()">Print</button>'
-        '<button type="button" class="action-button" id="regattaShareBtn">Share</button>'
+        '<button type="button" class="action-button" id="regattaShareBtn">Share URL</button>'
         "</div>"
-        "<script>(function(){"
-        "function sheetUrl(){"
-        "var c=document.querySelector('link[rel=\"canonical\"]');"
-        "if(c&&c.href&&c.href.indexOf('http')===0)return c.href.split('#')[0].split('?')[0];"
-        "var u=(location.href||'').split('#')[0].split('?')[0];"
-        "if(u.indexOf('http')===0)return u;"
-        "var p=location.pathname||'';"
-        "if(p.indexOf('/regatta/')===0)return 'https://sailingsa.co.za'+p.replace(/\\/+$/,'');"
-        "return '';"
-        "}"
-        "function pdfPath(){"
-        "var p=(location.pathname||'').replace(/\\/+$/,'');"
-        "if(p.indexOf('/regatta/')!==0)return '';"
-        "if(/\\/results\\.pdf$/i.test(p))return p;"
-        "return p+'/results.pdf';"
-        "}"
-        "function pdfAbs(){"
-        "var p=pdfPath();if(!p)return '';"
-        "if(p.indexOf('http')===0)return p;"
-        "return (location.origin||'https://sailingsa.co.za')+p;"
-        "}"
-        "function sharePdf(){"
-        "var t=document.title||'SailingSA',u=pdfAbs()||sheetUrl()||location.href;"
-        "if(navigator.share){navigator.share({title:t,url:u}).catch(function(){});return;}"
-        "var b=document.getElementById('regattaShareBtn');"
-        "function copied(){if(b){b.textContent='PDF link copied';setTimeout(function(){b.textContent='Share';},1600);}}"
-        "if(navigator.clipboard&&navigator.clipboard.writeText){"
-        "navigator.clipboard.writeText(u).then(copied).catch(function(){prompt('Copy this PDF link:',u);});"
-        "return;}"
-        "prompt('Copy this PDF link:',u);"
-        "}"
-        "function openChooser(){"
-        "var el=document.getElementById('ssaPrintChooser');if(!el)return;"
-        "var u=pdfPath();if(!u)return;"
-        "var fr=document.getElementById('ssaPdfFrame');"
-        "var dl=document.getElementById('ssaPdfDownload');"
-        "if(fr)fr.src=u+'?t='+Date.now();"
-        "if(dl){dl.setAttribute('href',u+'?download=1');dl.setAttribute('download','');}"
-        "el.classList.add('is-open');"
-        "}"
-        "function closeChooser(){var el=document.getElementById('ssaPrintChooser');if(el)el.classList.remove('is-open');}"
-        "function printPdf(){"
-        "var fr=document.getElementById('ssaPdfFrame');"
-        "try{if(fr&&fr.contentWindow){fr.contentWindow.focus();fr.contentWindow.print();return;}}catch(e){}"
-        "var u=pdfAbs();if(u)window.open(u,'_blank');"
-        "}"
-        "window.ssaRegattaPrint=openChooser;"
-        "document.addEventListener('click',function(ev){"
-        "var t=ev.target;if(!t||!t.getAttribute)return;"
-        "var act=t.getAttribute('data-ssa-print');"
-        "if(act==='printer'){ev.preventDefault();printPdf();return;}"
-        "if(act==='share'){ev.preventDefault();sharePdf();return;}"
-        "if(act==='cancel'||(t.id==='ssaPrintChooser'&&t.classList.contains('is-open')))closeChooser();"
-        "});"
-        "var b=document.getElementById('regattaShareBtn');"
-        "if(b)b.addEventListener('click',function(){sharePdf();});"
-        "})();</script>"
+        "<script>(function(){" + _PDF_SHARE_JS + "})();</script>"
     )

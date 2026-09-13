@@ -49,8 +49,8 @@ Cape Classic is the live event today; the rule is the same for **every** live ev
 
 ## UI wiring
 
-- Standalone `/regatta/{id}` Print/Share uses the server PDF chooser (`ssaRegattaPrint`).
-- Landing / sailor **iframe bar** Save / Share / Print must use the same `/results.pdf` URLs — not `html2canvas` PNG and not `iframe.print()` of the HTML sheet.
+- Standalone `/regatta/{id}` **Print** opens the server PDF chooser (`ssaRegattaPrint`). Share inside Print is the **PDF file**, not the event URL. WhatsApp then Email are the first two actions on every parent and child URL. **Share URL** on the page shares the event URL.
+- Landing / sailor **iframe bar** Save / Print use the same `/results.pdf` URLs — not `html2canvas` PNG and not `iframe.print()` of the HTML sheet. Print’s share list is the PDF (WhatsApp, Email). The bar Share button shares the event URL.
 - Podium has no results.pdf; it may keep the old capture.
 
 ## Batch closed events

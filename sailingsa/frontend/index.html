@@ -12982,18 +12982,7 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                 if (!pdf) return false;
                 var abs = pdf.indexOf('http') === 0 ? pdf : (location.origin + pdf);
                 if (intent === 'print') {
-                    var fr = document.getElementById('ssaBarPdfFrame');
-                    if (!fr) {
-                        fr = document.createElement('iframe');
-                        fr.id = 'ssaBarPdfFrame';
-                        fr.setAttribute('title', 'Results PDF');
-                        fr.style.cssText = 'position:fixed;right:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;';
-                        document.body.appendChild(fr);
-                    }
-                    fr.onload = function() {
-                        try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch (e) { window.open(abs, '_blank'); }
-                    };
-                    fr.src = abs + (abs.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
+                    openStoredPdfChooser(abs);
                     return true;
                 }
                 if (intent === 'save' || intent === 'download') {
@@ -13006,36 +12995,89 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                     return true;
                 }
                 if (intent === 'share') {
-                    var title = 'SailingSA results PDF';
-                    function shareUrl() {
-                        if (navigator.share) {
-                            navigator.share({ title: title, url: abs }).catch(function() {
-                                if (navigator.clipboard) navigator.clipboard.writeText(abs);
-                            });
-                        } else if (navigator.clipboard) {
-                            navigator.clipboard.writeText(abs).then(function() { alert('PDF link copied.'); }).catch(function() { prompt('Copy this PDF link:', abs); });
-                        } else {
-                            prompt('Copy this PDF link:', abs);
-                        }
-                    }
-                    if (navigator.share && navigator.canShare) {
-                        fetch(abs, { credentials: 'same-origin' }).then(function(r) {
-                            if (!r.ok) throw new Error('pdf');
-                            return r.blob();
-                        }).then(function(blob) {
-                            var name = (pdf.split('/').pop() || 'results') + (/\.pdf$/i.test(pdf) ? '' : '.pdf');
-                            var file = new File([blob], name.replace(/results\.pdf$/i, 'results.pdf'), { type: 'application/pdf' });
-                            if (navigator.canShare({ files: [file] })) {
-                                return navigator.share({ title: title, files: [file], url: abs });
-                            }
-                            throw new Error('no-files');
-                        }).catch(shareUrl);
+                    var eventUrl = abs.replace(/\/results\.pdf$/i, '');
+                    var title = 'SailingSA';
+                    if (navigator.share) {
+                        navigator.share({ title: title, url: eventUrl }).catch(function() {});
+                    } else if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText(eventUrl).then(function() { alert('URL copied.'); }).catch(function() { prompt('Copy this URL:', eventUrl); });
                     } else {
-                        shareUrl();
+                        prompt('Copy this URL:', eventUrl);
                     }
                     return true;
                 }
                 return false;
+            }
+            function openStoredPdfChooser(abs) {
+                var el = document.getElementById('ssaPrintChooser');
+                if (!el) {
+                    if (!document.getElementById('ssaPrintChooserCss')) {
+                        var st = document.createElement('style');
+                        st.id = 'ssaPrintChooserCss';
+                        st.textContent = '#ssaPrintChooser{display:none;position:fixed;inset:0;z-index:2147483000;align-items:center;justify-content:center;background:rgba(0,31,63,.45)}#ssaPrintChooser.is-open{display:flex}#ssaPrintChooser .card{max-width:56rem;width:96%;padding:16px}#ssaPrintChooser .ssa-print-chooser-note{font-size:13px;color:#1a2750;margin:0 0 8px;line-height:1.35}#ssaPrintChooser .ssa-print-chooser-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-start;margin-top:12px}#ssaPrintChooser .ssa-pdf-frame{width:100%;height:62vh;border:1px solid #1a2750;background:#fff;margin:0}#ssaPrintChooser a.action-button{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}';
+                        document.head.appendChild(st);
+                    }
+                    el = document.createElement('div');
+                    el.id = 'ssaPrintChooser';
+                    el.setAttribute('role', 'dialog');
+                    el.setAttribute('aria-label', 'Results PDF');
+                    el.innerHTML = '<div class="card"><div class="section-title">Results PDF</div><p class="ssa-print-chooser-note">Share this PDF — WhatsApp and Email first. This is the file, not the page URL.</p><iframe id="ssaPdfFrame" class="ssa-pdf-frame" title="Results PDF"></iframe><div class="ssa-print-chooser-actions"><button type="button" class="action-button" data-ssa-print="whatsapp">WhatsApp</button><button type="button" class="action-button" data-ssa-print="email">Email</button><a class="action-button" id="ssaPdfDownload" href="#" download>Download</a><button type="button" class="action-button" data-ssa-print="printer">Print</button><button type="button" class="action-button" data-ssa-print="cancel">Close</button></div></div>';
+                    document.body.appendChild(el);
+                    el.addEventListener('click', function(ev) {
+                        var t = ev.target;
+                        if (!t || !t.getAttribute) return;
+                        var act = t.getAttribute('data-ssa-print');
+                        var pdf = el.getAttribute('data-pdf-abs') || '';
+                        var title = 'SailingSA results PDF';
+                        function loadFile() {
+                            return fetch(pdf, { credentials: 'same-origin' }).then(function(r) {
+                                if (!r.ok) throw new Error('pdf');
+                                return r.blob();
+                            }).then(function(blob) {
+                                var name = (pdf.split('/').pop() || 'results.pdf').split('?')[0];
+                                if (!/\.pdf$/i.test(name)) name += '.pdf';
+                                return new File([blob], name, { type: 'application/pdf' });
+                            });
+                        }
+                        function shareFile(file) {
+                            if (!file || !navigator.share || !navigator.canShare) return Promise.reject(new Error('no-share'));
+                            var payload = { title: title, text: title, files: [file] };
+                            if (!navigator.canShare(payload)) return Promise.reject(new Error('no-files'));
+                            return navigator.share(payload);
+                        }
+                        if (act === 'whatsapp') {
+                            ev.preventDefault();
+                            loadFile().then(shareFile).catch(function() {
+                                window.open('https://wa.me/?text=' + encodeURIComponent(title + '\n' + pdf), '_blank', 'noopener');
+                            });
+                            return;
+                        }
+                        if (act === 'email') {
+                            ev.preventDefault();
+                            loadFile().then(shareFile).catch(function() {
+                                location.href = 'mailto:?subject=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(title + '\n' + pdf);
+                            });
+                            return;
+                        }
+                        if (act === 'printer') {
+                            ev.preventDefault();
+                            var fr = document.getElementById('ssaPdfFrame');
+                            try { if (fr && fr.contentWindow) { fr.contentWindow.focus(); fr.contentWindow.print(); return; } } catch (e2) {}
+                            if (pdf) window.open(pdf, '_blank');
+                            return;
+                        }
+                        if (act === 'cancel' || t.id === 'ssaPrintChooser') el.classList.remove('is-open');
+                    });
+                }
+                el.setAttribute('data-pdf-abs', abs);
+                var fr = document.getElementById('ssaPdfFrame');
+                var dl = document.getElementById('ssaPdfDownload');
+                if (fr) fr.src = abs + (abs.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
+                if (dl) {
+                    dl.setAttribute('href', abs + (abs.indexOf('?') >= 0 ? '&' : '?') + 'download=1');
+                    dl.setAttribute('download', (abs.split('/').pop() || 'results.pdf').split('?')[0]);
+                }
+                el.classList.add('is-open');
             }
             bindBarButton('btn-save-sheet-modal', function() {
                 if (useStoredResultsPdf('save')) return;
