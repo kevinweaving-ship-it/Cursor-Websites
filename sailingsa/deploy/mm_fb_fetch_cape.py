@@ -247,6 +247,33 @@ def video_is_live(html: str, vid: str = "") -> bool:
     return broadcast_state(html, vid) in {"live", "paused"}
 
 
+def live_stream_url(vid: str) -> str:
+    """Muxed Facebook LIVE mp4 (hd/sd). Native <video> plays this on iPhone.
+
+    Facebook's plugins/video.php iframe sets Permissions-Policy autoplay=()
+    so the embed cannot autoplay on iOS.
+    """
+    vid = str(vid or "")
+    if not vid.isdigit() or not YTDLP.is_file():
+        return ""
+    url = video_watch_url(vid)
+    for fmt in ("hd", "sd"):
+        try:
+            proc = subprocess.run(
+                [str(YTDLP), "--no-warnings", "-f", fmt, "-g", url],
+                capture_output=True,
+                text=True,
+                timeout=40,
+            )
+            for line in (proc.stdout or "").splitlines():
+                href = line.strip()
+                if href.startswith("http"):
+                    return href
+        except Exception:
+            continue
+    return ""
+
+
 def as_live_item(item: dict, paused: bool = False) -> dict:
     vid = str((item or {}).get("id") or "")
     row = dict(item or {})
@@ -259,7 +286,8 @@ def as_live_item(item: dict, paused: bool = False) -> dict:
     row["thumb"] = ""
     row["title"] = "LIVE"
     row["fb_title"] = "LIVE"
-    row["fb_sub"] = "LIVE"
+    row["fb_sub"] = "Live / But Paused" if paused else "LIVE"
+    row["stream_url"] = "" if paused else (row.get("stream_url") or live_stream_url(vid))
     return row
 
 
@@ -882,6 +910,10 @@ def commit_videos(fetched: list) -> dict:
             paused = str(row_item.get("live_state") or "") == "paused"
             row_item["fb_sub"] = "Live / But Paused" if paused else "LIVE"
             row_item["live_state"] = "paused" if paused else (row_item.get("live_state") or "live")
+            if paused:
+                row_item["stream_url"] = ""
+            elif not row_item.get("stream_url"):
+                row_item["stream_url"] = item.get("stream_url") or ""
         else:
             row_item["live_state"] = row_item.get("live_state") or "vod"
             if not row_item.get("fb_sub"):
@@ -1005,6 +1037,8 @@ def merge_videos(existing: list, fetched: list) -> list:
                 "fb_sub": "LIVE" if live else "Marine Megastore was live",
             }
         )
+        if item.get("stream_url"):
+            row["stream_url"] = item["stream_url"]
         if item.get("live_state"):
             row["live_state"] = item["live_state"]
         if item.get("duration_ms"):
@@ -1017,6 +1051,8 @@ def merge_videos(existing: list, fetched: list) -> list:
             row["started_at"] = now
         if live:
             row["play_url"] = ""
+            if not row.get("stream_url"):
+                row["stream_url"] = item.get("stream_url") or prev.get("stream_url") or ""
             by_id[vid] = row
         else:
             by_id[vid] = hose_media(row)

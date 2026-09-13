@@ -463,9 +463,86 @@
   }
 
   function livePluginQuery() {
-    var q = '&show_text=false&autoplay=1&playsinline=1';
-    if (isPhone() || isMobilePortrait()) q += '&mute=1';
-    return q;
+    return '&show_text=false&autoplay=1&mute=0&playsinline=1&width=476&height=280';
+  }
+
+  function liveStreamUrl(v) {
+    var u = String((v && v.stream_url) || '').trim();
+    if (!u || /\/assets\/adverts\//i.test(u)) return '';
+    return u;
+  }
+
+  function armUnmute(video) {
+    if (!video || video._mmArmUnmute) return;
+    video._mmArmUnmute = true;
+    function go() {
+      video.muted = false;
+      video.defaultMuted = false;
+      video.volume = 1;
+      video.removeAttribute('muted');
+      var p = video.play();
+      if (p && p.catch) p.catch(function () {});
+    }
+    document.addEventListener('touchend', go, { capture: true, passive: true });
+    document.addEventListener('click', go, { capture: true });
+  }
+
+  function playNativeLive(root, clip, src) {
+    var stage = root.querySelector('[data-mm-stage]');
+    var video = ensureHeroVideo(root);
+    if (!video || !src) return;
+    pauseHero(root);
+    var iframes = stage ? stage.querySelectorAll('iframe') : [];
+    var i;
+    for (i = 0; i < iframes.length; i++) {
+      if (iframes[i].parentNode) iframes[i].parentNode.removeChild(iframes[i]);
+    }
+    video.muted = false;
+    video.defaultMuted = false;
+    video.volume = 1;
+    video.playsInline = true;
+    video.setAttribute('playsinline', '');
+    video.setAttribute('webkit-playsinline', '');
+    video.removeAttribute('muted');
+    video.removeAttribute('controls');
+    video.controls = false;
+    if (video.getAttribute('src') !== src) video.src = src;
+    if (stage) {
+      stage.classList.add('mm-lipton-reels-stage--playing');
+      if (video.parentNode !== stage) stage.appendChild(video);
+    }
+    var playPromise = video.play();
+    if (playPromise && playPromise.catch) {
+      playPromise.catch(function () {
+        video.muted = true;
+        video.setAttribute('muted', '');
+        var retry = video.play();
+        if (retry && retry.catch) retry.catch(function () {});
+        armUnmute(video);
+      });
+    }
+  }
+
+  function kickCompactLive(root) {
+    var nodes = root.querySelectorAll('video[data-mm-compact-live]');
+    var i;
+    for (i = 0; i < nodes.length; i++) {
+      var el = nodes[i];
+      el.playsInline = true;
+      el.setAttribute('playsinline', '');
+      el.setAttribute('webkit-playsinline', '');
+      el.muted = false;
+      el.volume = 1;
+      var p = el.play();
+      if (p && p.catch) {
+        p.catch(function () {
+          el.muted = true;
+          var r = el.play();
+          if (r && r.catch) r.catch(function () {});
+          armUnmute(el);
+        });
+      }
+    }
   }
 
   function embedUrl(v) {
@@ -487,10 +564,9 @@
     }
     if (!u) return '';
     if (u.indexOf('autoplay=') < 0) u += (u.indexOf('?') >= 0 ? '&' : '?') + 'autoplay=1';
-    if (mmFbLive(v) && (isPhone() || isMobilePortrait()) && u.indexOf('mute=') < 0) {
-      u += '&mute=1';
-    }
+    if (u.indexOf('mute=') < 0) u += '&mute=0';
     if (u.indexOf('playsinline=') < 0) u += '&playsinline=1';
+    if (u.indexOf('width=') < 0) u += '&width=476&height=280';
     return u;
   }
 
@@ -840,11 +916,23 @@
     );
   }
 
+  function liveCompactPlayerHtml(v) {
+    var stream = liveStreamUrl(v);
+    if (stream) {
+      return (
+        '<video data-mm-compact-live autoplay playsinline webkit-playsinline preload="auto" src="' +
+        esc(stream) +
+        '" title="LIVE"></video>'
+      );
+    }
+    return liveEmbedIframeHtml(v);
+  }
+
   function liveCardHtml(v) {
     return (
       '<div class="mm-lipton-reels-tile mm-lipton-reels-tile--live">' +
       '<div class="mm-lipton-reels-thumb mm-lipton-reels-thumb--live" style="aspect-ratio:16 / 9">' +
-      liveEmbedIframeHtml(v) +
+      liveCompactPlayerHtml(v) +
       '<button type="button" class="mm-lipton-reels-thumb-hit" data-mm-vid="' +
       esc((v && v.id) || '') +
       '" aria-label="Play LIVE"></button>' +
@@ -990,11 +1078,12 @@
     }
     slot.removeAttribute('hidden');
     slot.style.display = 'block';
-    var key = String(live.id || '');
+    var key = String(live.id || '') + ':' + (liveStreamUrl(live) ? 's' : 'e');
     if (slot.getAttribute('data-mm-live-id') !== key) {
       slot.innerHTML = liveCardHtml(live);
       slot.setAttribute('data-mm-live-id', key);
     }
+    kickCompactLive(root);
     return live;
   }
 
@@ -1259,7 +1348,7 @@
     });
   }
 
-  function startHeroPlayback(root, clip) {
+  function startHeroPlayback(root, clip, state) {
     var stage = root.querySelector('[data-mm-stage]');
     if (isWebcam(clip) && stage) {
       stopTrackOverlay();
@@ -1280,6 +1369,15 @@
       return;
     }
     if (mmFbLive(clip)) {
+      var stream = liveStreamUrl(clip);
+      if (stream) {
+        playNativeLive(root, clip, stream);
+        if (state) {
+          var liveVideo = root.querySelector('[data-mm-hero-video]');
+          if (liveVideo) showPlayerUi(root, state, liveVideo);
+        }
+        return;
+      }
       startEmbedPlayback(root, clip);
       return;
     }
@@ -1495,6 +1593,7 @@
           String((v && v.thumb) || ''),
           String((v && v.play_url) || ''),
           String((v && v.fb_sub) || ''),
+          String((v && v.stream_url) || ''),
         ].join('~');
       })
       .join('|');
@@ -1731,7 +1830,7 @@
     state.currentId = clip.id;
     state.expanded = true;
     state.sliding = true;
-    startHeroPlayback(root, clip);
+    startHeroPlayback(root, clip, state);
     setOverlayChrome(root, clip, picked.videos, state.chromeSnap);
     updateExpandedGrid(root, picked.videos, clip.id);
     syncSkipButtons(root, payload, state);
@@ -1825,16 +1924,17 @@
     var picked = currentVideo(payload, state);
     if (!picked.current) return;
     if (wasExpanded && picked.current.id === prevId) {
-      if (isWebcam(picked.current)) startHeroPlayback(root, picked.current);
+      if (isWebcam(picked.current)) startHeroPlayback(root, picked.current, state);
       revealPlayingClip(root);
       return;
     }
     if (!wasExpanded) {
       paint(root, payload, state);
       revealPlayingClip(root);
-      startHeroPlayback(root, picked.current);
+      startHeroPlayback(root, picked.current, state);
       preloadNeighbors(root, payload, state);
       revealPlayingClip(root);
+      showPlayerUi(root, state, root.querySelector('[data-mm-hero-video]'));
       return;
     }
     var before = clipIndex(picked.videos, prevId);
@@ -1842,7 +1942,7 @@
     var dir = after >= before ? 1 : -1;
     state.sliding = true;
     revealPlayingClip(root);
-    startHeroPlayback(root, picked.current);
+    startHeroPlayback(root, picked.current, state);
     setOverlayChrome(root, picked.current, picked.videos, state.chromeSnap);
     updateExpandedGrid(root, picked.videos, picked.current.id);
     syncSkipButtons(root, payload, state);
@@ -1883,12 +1983,23 @@
     layoutCompactStrip(root, sortVideos(payload.videos || []));
   }
 
+  function stopCompactLive(root) {
+    var nodes = root.querySelectorAll('video[data-mm-compact-live]');
+    var i;
+    for (i = 0; i < nodes.length; i++) {
+      try {
+        nodes[i].pause();
+      } catch (e) {}
+    }
+  }
+
   function paint(root, payload, state) {
     var picked = currentVideo(payload, state);
     parkHeroVideo(root);
     root.classList.toggle('mm-lipton-reels--expanded', !!state.expanded);
     root.classList.toggle('mm-lipton-reels--compact', !state.expanded);
     if (state.expanded) {
+      stopCompactLive(root);
       var expanded = ensureExpanded(root);
       expanded.innerHTML = expandedHtml(picked.current, picked.videos);
       var stage = expanded.querySelector('[data-mm-stage]');
@@ -1944,14 +2055,16 @@
       '.mm-lipton-reels-live-slot[hidden]{display:none!important;width:0!important;min-width:0!important;margin:0!important;padding:0!important;border:0!important;overflow:hidden}' +
       '.mm-lipton-reels-live-slot .mm-lipton-reels-tile{display:block;width:100%;height:100%;margin:0}' +
       '.mm-lipton-reels-thumb--live{position:relative;overflow:hidden;background:#111;border:2px solid #ef4444}' +
-      '.mm-lipton-reels-thumb--live iframe{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none;background:#000;z-index:1}' +
-      '@media (max-width:599px){.mm-lipton-reels-thumb--live iframe{pointer-events:auto}' +
-      '.mm-lipton-reels-thumb--live .mm-lipton-reels-thumb-hit{display:none!important}' +
+      '.mm-lipton-reels-thumb--live iframe,.mm-lipton-reels-thumb--live video{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000;z-index:1;object-fit:cover}' +
+      '.mm-lipton-reels-thumb--live iframe{pointer-events:none}' +
+      '@media (max-width:599px){.mm-lipton-reels-thumb--live iframe,.mm-lipton-reels-thumb--live video{pointer-events:auto}' +
       '.mm-lipton-reels-player-wrap{width:100%;max-width:100%}}' +
       '.mm-lipton-reels-stage{position:relative}' +
       '.mm-lipton-reels--expanded .mm-lipton-reels-hud{pointer-events:none}' +
       '.mm-lipton-reels--expanded .mm-lipton-reels-hide{pointer-events:auto}' +
-      '.mm-lipton-reels--expanded .mm-lipton-reels-stage iframe{pointer-events:auto;z-index:2}' +
+      '.mm-lipton-reels--expanded .mm-lipton-reels-player-ui{pointer-events:auto!important;z-index:6}' +
+      '.mm-lipton-reels--expanded .mm-lipton-reels-player-ui--on .mm-lipton-reels-player-hud{pointer-events:auto!important}' +
+      '.mm-lipton-reels--expanded .mm-lipton-reels-stage video,.mm-lipton-reels--expanded .mm-lipton-reels-stage iframe{pointer-events:auto;z-index:2}' +
       '.mm-lipton-reels-live-ph{display:flex;align-items:center;justify-content:center;width:100%;height:100%;' +
       'background:#111;color:#ef4444;font:800 14px/1 Arial,Helvetica,sans-serif}';
   }
@@ -1971,6 +2084,7 @@
     }
     paint(root, payload, state);
     syncBrand(root, payload.videos || []);
+    kickCompactLive(root);
     if (isCapeClassic()) startCamStampClock(root);
     startFeedPoll(root, payload, state);
     state.chromeSnap = snapshotChromeSize(root);

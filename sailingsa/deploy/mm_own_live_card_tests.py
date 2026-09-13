@@ -22,14 +22,18 @@ def test_own_live_card():
     assert "data-mm-live-slot" in js
     assert "function liveCardHtml" in js
     assert "function reelVideos" in js
-    chunk = js[js.index("function liveCardHtml") : js.index("function liveCardHtml") + 900]
+    chunk = js[js.index("function liveCardHtml") : js.index("function liveCardHtml") + 1200]
     assert "advertPoster" not in chunk
-    assert "liveEmbedIframeHtml" in chunk
+    assert "liveCompactPlayerHtml" in js
+    assert "liveEmbedIframeHtml" in js
     assert "liveBadgeHtml" not in chunk
     assert "mm-lipton-reels-live-badge" not in js
     assert "autoplay=1" in js
     assert "playsinline=1" in js
-    assert "mute=1" in js
+    assert "function liveStreamUrl" in js
+    assert "function playNativeLive" in js
+    assert "mm-lipton-reels-player-ui{pointer-events:auto" in js
+    assert "mute=1" not in js[js.index("function livePluginQuery") : js.index("function livePluginQuery") + 220]
 
 
 def test_bare_video_id_before_old_page_urls():
