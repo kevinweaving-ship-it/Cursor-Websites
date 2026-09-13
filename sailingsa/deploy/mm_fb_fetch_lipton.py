@@ -133,7 +133,9 @@ def merge_lipton(existing: list, fetched: list) -> list:
     extra = [
         dict(v)
         for v in (existing or [])
-        if isinstance(v, dict) and str(v.get("id") or "") not in set(order)
+        if isinstance(v, dict)
+        and str(v.get("id") or "") not in set(order)
+        and keep_lipton(v, False)
     ]
     out = [by_id[i] for i in order] + extra
     live = [v for v in out if v.get("is_live")]
