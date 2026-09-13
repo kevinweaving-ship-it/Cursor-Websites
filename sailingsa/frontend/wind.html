@@ -579,18 +579,22 @@
     capEl.textContent = "Real-time Vector (" + card(pt.deg) + " " + Math.round(pt.deg) + "°)";
   }
 
+  function playPosU(pos) {
+    if (pos <= PLAY_MS) return pos / PLAY_MS;
+    pos -= PLAY_MS;
+    if (pos <= HOLD_MS) return 1;
+    pos -= HOLD_MS;
+    if (pos <= PLAY_MS) return 1 - pos / PLAY_MS;
+    return 0;
+  }
+
   function tick(now) {
     if (!samples.length || !playing) return;
+    var cycle = PLAY_MS + HOLD_MS + PLAY_MS + HOLD_MS;
     if (!t0) t0 = now - at0 * PLAY_MS;
-    var cycle = PLAY_MS + HOLD_MS;
     var pos = (now - t0) % cycle;
     if (pos < 0) pos = 0;
-    var u;
-    if (pos <= PLAY_MS) {
-      u = pos / PLAY_MS;
-    } else {
-      u = 1;
-    }
+    var u = playPosU(pos);
     window._pos = pos;
     window._u = u;
     draw(pick(u), u);
@@ -602,7 +606,7 @@
     btn.textContent = playing ? "❚❚" : "▶";
     btn.setAttribute("aria-label", playing ? "Pause playback" : "Play last hour");
     if (playing) {
-      t0 = performance.now() - (window._pos || (window._u || 0) * PLAY_MS);
+      t0 = performance.now() - (window._pos || 0);
       requestAnimationFrame(tick);
     }
   });
