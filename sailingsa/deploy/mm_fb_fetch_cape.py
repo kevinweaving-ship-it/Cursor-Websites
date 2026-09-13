@@ -21,6 +21,7 @@ ASSET = Path("/var/www/sailingsa/assets/adverts/mm-cape-classic")
 YTDLP = Path("/usr/local/bin/yt-dlp")
 RID = "2026-09-13-zvyc-cape-classic"
 PAGE = "marin.megastoresa"
+PAGE_ID = "159493827253568"
 CHROME = "/usr/bin/google-chrome"
 UA = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -150,8 +151,7 @@ def video_is_live(html: str) -> bool:
         return True
     if re.search(r'"live_status"\s*:\s*"LIVE"', raw):
         return True
-    if re.search(r'"is_live_streaming"\s*:\s*true', raw):
-        return True
+    # Do not match is_live_streaming — Facebook JS bundles that string on VODs.
     return False
 
 
@@ -206,17 +206,68 @@ def probe_live() -> list | None:
     found = parse_video_ids(html)
     if not found:
         return []
-    for item in found[:4]:
-        current = inspect_video(dict(item))
-        if not current.get("is_live"):
+    existing = set()
+    try:
+        for v in (load_feed().get(RID) or {}).get("videos") or []:
+            vid = str((v or {}).get("id") or "")
+            if vid.isdigit() and not (v or {}).get("is_live"):
+                existing.add(vid)
+    except Exception:
+        existing = set()
+    for item in found[:8]:
+        vid0 = str(item.get("id") or "")
+        if vid0 in existing or vid0 in LIPTON_IDS:
             continue
-        vid = str(current.get("id") or "")
-        current["is_live"] = True
-        current["play_url"] = ""
+        current = inspect_video(dict(item))
+        vid = str(current.get("id") or "") or vid0
         current["url"] = video_watch_url(vid)
         current["permalink"] = current["url"]
-        current["title"] = current.get("title") or "Marine Megastore LIVE"
-        current["fb_sub"] = "LIVE"
+        if current.get("is_live"):
+            current["is_live"] = True
+            current["play_url"] = ""
+            current["title"] = current.get("title") or "Marine Megastore LIVE"
+            current["fb_title"] = "LIVE"
+            current["fb_sub"] = "LIVE"
+            return [current]
+        current["is_live"] = False
+        current["title"] = current.get("title") or "Marine Megastore was live"
+        current["fb_title"] = current["title"]
+        current["fb_sub"] = "Marine Megastore was live"
+        current["play_url"] = None
+        if not current.get("started_at"):
+            current["started_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+        return [hose_media(current)]
+    return []
+
+
+def ingest_ended_live(found: list, existing: set | None = None) -> list:
+    """A new /videos/{id}/ on the Page /live tab that is not on-air is the
+    broadcast that just ended. Add it as the newest reel. Never reuse an
+    already-stored reel id.
+    """
+    existing = existing or set()
+    try:
+        for v in (load_feed().get(RID) or {}).get("videos") or []:
+            vid = str((v or {}).get("id") or "")
+            if vid.isdigit():
+                existing.add(vid)
+    except Exception:
+        pass
+    for item in found[:8]:
+        vid = str(item.get("id") or "")
+        if not vid or vid in existing or vid in LIPTON_IDS:
+            continue
+        current = inspect_video(dict(item))
+        if current.get("is_live"):
+            continue
+        current["is_live"] = False
+        current["url"] = video_watch_url(vid)
+        current["permalink"] = current["url"]
+        current["title"] = current.get("title") or "Marine Megastore was live"
+        current["fb_title"] = current["title"]
+        current["fb_sub"] = "Marine Megastore was live"
+        current["play_url"] = None
+        current = hose_media(current)
         return [current]
     return []
 
@@ -257,6 +308,7 @@ def page_token() -> str:
 
 def graph_get(path: str, token: str, fields: str, extra: str = "") -> dict:
     import json as _json
+    import urllib.error
     import urllib.parse
     import urllib.request
 
@@ -265,8 +317,12 @@ def graph_get(path: str, token: str, fields: str, extra: str = "") -> dict:
     if extra:
         url += "&" + extra
     req = urllib.request.Request(url, headers={"User-Agent": "SailingSA-MM/1.0"})
-    with urllib.request.urlopen(req, timeout=12) as r:
-        return _json.loads(r.read().decode("utf-8", "replace") or "{}")
+    try:
+        with urllib.request.urlopen(req, timeout=12) as r:
+            return _json.loads(r.read().decode("utf-8", "replace") or "{}")
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", "replace")[:400]
+        raise RuntimeError(f"Graph {e.code} {path}: {body}") from e
 
 
 def graph_item(node: dict, live: bool) -> dict:
@@ -299,27 +355,54 @@ def graph_fetch(token: str) -> list:
         return []
     out = []
     seen = set()
+    last_err = None
+    live_js = {"data": []}
+    for page in (PAGE, PAGE_ID):
+        try:
+            try:
+                live_js = graph_get(
+                    f"{page}/live_videos",
+                    token,
+                    "id,title,status,permalink_url,from",
+                    extra="broadcast_status[]=LIVE",
+                )
+            except Exception:
+                live_js = graph_get(
+                    f"{page}/live_videos",
+                    token,
+                    "id,title,status,permalink_url,from",
+                )
+            last_err = None
+            break
+        except Exception as e:
+            last_err = e
+            continue
+    if last_err:
+        print(f"[mm_fb] graph live_videos failed: {last_err}", flush=True)
+    for node in live_js.get("data") or []:
+        vid = str((node or {}).get("id") or "")
+        if not vid or vid in LIPTON_IDS or vid in seen:
+            continue
+        if str((node or {}).get("status") or "").upper() != "LIVE":
+            continue
+        seen.add(vid)
+        out.append(graph_item(node, True))
     try:
-        live_js = graph_get(
-            f"{PAGE}/live_videos",
-            token,
-            "id,title,status,permalink_url,from",
-            extra="broadcast_status[]=LIVE",
-        )
-        for node in live_js.get("data") or []:
-            vid = str((node or {}).get("id") or "")
-            if not vid or vid in LIPTON_IDS or vid in seen:
-                continue
-            seen.add(vid)
-            out.append(graph_item(node, True))
-    except Exception as e:
-        print(f"[mm_fb] graph live_videos failed: {e}", flush=True)
-    try:
-        vids = graph_get(
-            f"{PAGE}/videos",
-            token,
-            "id,title,description,live_status,permalink_url,created_time",
-        )
+        vids = {"data": []}
+        vid_err = None
+        for page in (PAGE, PAGE_ID):
+            try:
+                vids = graph_get(
+                    page + "/videos",
+                    token,
+                    "id,title,description,live_status,permalink_url,created_time",
+                )
+                vid_err = None
+                break
+            except Exception as e:
+                vid_err = e
+        if vid_err:
+            raise vid_err
         for node in vids.get("data") or []:
             vid = str((node or {}).get("id") or "")
             if not vid or vid in LIPTON_IDS or vid in seen:

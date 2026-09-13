@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Fast Cape Classic LIVE poll.
 
-Graph first when a Page token exists. If Graph returns no LIVE, Chrome-dump
-facebook.com/marin.megastoresa/live in the same tick. Never promote an old
-reel: live rows must come from Graph/Chrome as is_live, with empty play_url.
+Graph first. If no LIVE, Chrome-dump /live. A new /videos/{id}/ that is not
+already a stored reel is either LIVE (own card) or the broadcast that just
+ended (newest reel). Never promote an old reel id.
 """
 from __future__ import annotations
 
@@ -31,11 +31,9 @@ def main() -> int:
             print(f"[mm_fb] graph failed: {e}", flush=True)
             fetched = []
     if not live_ids(fetched):
-        probed = probe_live()
+        probed = probe_live() or []
         if probed:
-            live = [v for v in probed if v.get("is_live")]
-            rest = [v for v in fetched if not v.get("is_live")]
-            fetched = live + rest
+            fetched = probed + [v for v in fetched if str(v.get("id") or "") not in {str(x.get("id") or "") for x in probed}]
             source = "chrome" if token else "scrape"
     row = commit_videos(fetched)
     print(
@@ -44,6 +42,11 @@ def main() -> int:
                 "ok": True,
                 "source": source,
                 "live": [v.get("id") for v in (row.get("videos") or []) if v.get("is_live")],
+                "new_reels": [
+                    v.get("id")
+                    for v in (row.get("videos") or [])
+                    if not v.get("is_live") and str(v.get("id") or "").isdigit()
+                ][:3],
             }
         )
     )
