@@ -46,8 +46,8 @@
   var PLAY_MS = 18000;
   var TAIL = 22;
   var R_MAX = 118;
-  var R_MIN = 16;
-  var KT_MAX = 20;
+  var R_MIN = 14;
+  var KT_MAX = 15;
   var q = new URLSearchParams(location.search);
   var slug = (q.get("station") || "w2s-zeekoevlei").trim();
   var at0 = parseFloat(q.get("at"));
@@ -111,13 +111,11 @@
   function draw(pt) {
     if (!pt) return;
     var r = radiusForKt(pt.kt);
-    var tipR = r;
-    var baseR = Math.max(R_MIN, r - 16);
-    var dotR = Math.max(10, r - 22);
-    var from = xy(pt.deg, baseR);
-    var tip = xy(pt.deg, tipR);
-    var hub = xy(pt.deg, 8);
-    trail.push(tip);
+    var outer = xy(pt.deg, R_MAX);
+    var hub = xy(pt.deg, 6);
+    var dot = xy(pt.deg, r);
+    var tip = xy(pt.deg, Math.max(R_MIN, r - 16));
+    trail.push(dot);
     if (trail.length > TAIL) trail.shift();
 
     var h = "";
@@ -126,14 +124,13 @@
       var o = (i + 1) / trail.length;
       h += '<circle cx="' + trail[i][0].toFixed(1) + '" cy="' + trail[i][1].toFixed(1) + '" r="' + (1.2 + o * 2).toFixed(1) + '" fill="#3b82f6" fill-opacity="' + (0.05 + o * 0.22).toFixed(2) + '"/>';
     }
-    h += '<line x1="' + hub[0].toFixed(1) + '" y1="' + hub[1].toFixed(1) + '" x2="' + from[0].toFixed(1) + '" y2="' + from[1].toFixed(1) + '" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="2.4 3.4" stroke-linecap="round"/>';
+    h += '<line x1="' + hub[0].toFixed(1) + '" y1="' + hub[1].toFixed(1) + '" x2="' + outer[0].toFixed(1) + '" y2="' + outer[1].toFixed(1) + '" stroke="#cbd5e1" stroke-width="1.6" stroke-dasharray="2.6 3.6" stroke-linecap="round"/>';
     tailG.innerHTML = h;
 
-    var left = xy(pt.deg - 11, Math.max(R_MIN, r - 14));
-    var right = xy(pt.deg + 11, Math.max(R_MIN, r - 14));
-    var back = xy(pt.deg, dotR);
+    var left = xy(pt.deg - 10, Math.max(R_MIN - 2, r - 30));
+    var right = xy(pt.deg + 10, Math.max(R_MIN - 2, r - 30));
     markG.innerHTML =
-      '<circle cx="' + back[0].toFixed(1) + '" cy="' + back[1].toFixed(1) + '" r="4.5" fill="#111"/>' +
+      '<circle cx="' + dot[0].toFixed(1) + '" cy="' + dot[1].toFixed(1) + '" r="4.4" fill="#111"/>' +
       '<polygon points="' + tip[0].toFixed(1) + ',' + tip[1].toFixed(1) + ' ' + left[0].toFixed(1) + ',' + left[1].toFixed(1) + ' ' + right[0].toFixed(1) + ',' + right[1].toFixed(1) + '" fill="#3b82f6"/>';
     spdEl.textContent = (Math.round(pt.kt * 10) / 10).toFixed(1);
     capEl.textContent = "Real-time Vector (" + card(pt.deg) + " " + Math.round(pt.deg) + "°)";
@@ -186,6 +183,12 @@
         var rows = body.readings || body.history || [];
         samples = loadHour(rows);
         if (samples.length) {
+          var peak = 0;
+          var s;
+          for (s = 0; s < samples.length; s += 1) {
+            if (samples[s].kt > peak) peak = samples[s].kt;
+          }
+          KT_MAX = Math.max(peak, 1);
           metaEl.textContent = (samples[0].name || "Zeekoevlei") + " · last hour sped up";
           t0 = 0;
           window._u = at0;
