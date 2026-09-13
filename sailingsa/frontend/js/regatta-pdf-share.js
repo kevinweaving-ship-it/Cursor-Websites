@@ -228,18 +228,13 @@
       return (
         "X-Unsent: 1\r\n" +
         "MIME-Version: 1.0\r\n" +
+        "To: \r\n" +
         "Subject: " +
         emlSubject(pdfTitle()) +
         "\r\n" +
         'Content-Type: multipart/mixed; boundary="' +
         bnd +
         '"\r\n' +
-        "\r\n" +
-        "--" +
-        bnd +
-        "\r\n" +
-        "Content-Type: text/plain; charset=UTF-8\r\n" +
-        "\r\n" +
         "\r\n" +
         "--" +
         bnd +
@@ -278,29 +273,34 @@
     });
   }
 
-  function openWhatsApp(text) {
-    var href =
-      "https://api.whatsapp.com/send?text=" + encodeURIComponent(text || "");
-    var w = window.open(href, "_blank", "noopener");
-    if (!w) window.location.href = href;
+  function sharePdfFileOnly(file) {
+    if (!file || !navigator.share) return Promise.reject(new Error("no-share"));
+    var payload = { files: [file] };
+    if (navigator.canShare && !navigator.canShare(payload)) {
+      return Promise.reject(new Error("no-files"));
+    }
+    return navigator.share(payload);
   }
 
   function emailPdf() {
     withPdfFile(function (file) {
-      return openEmailWithPdf(file);
+      return sharePdfFileOnly(file).catch(function (err) {
+        if (err && err.name === "AbortError") return;
+        return openEmailWithPdf(file);
+      });
     }).catch(function () {
       downloadPdfAttach();
     });
   }
 
   function whatsappPdf() {
-    var text = pdfTitle() + "\n" + pdfFileName();
     withPdfFile(function (file) {
-      downloadPdfFile(file);
-      openWhatsApp(text);
+      return sharePdfFileOnly(file).catch(function (err) {
+        if (err && err.name === "AbortError") return;
+        downloadPdfFile(file);
+      });
     }).catch(function () {
       downloadPdfAttach();
-      openWhatsApp(text);
     });
   }
 

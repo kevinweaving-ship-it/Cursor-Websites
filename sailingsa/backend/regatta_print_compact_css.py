@@ -720,7 +720,7 @@ document.addEventListener('click',function(ev){
 )
 
 
-PDF_SHARE_JS_SRC = "/js/regatta-pdf-share.js?v=20260913print5"
+PDF_SHARE_JS_SRC = "/js/regatta-pdf-share.js?v=20260913print7"
 
 
 def _ios_share_svg(name: str) -> str:
