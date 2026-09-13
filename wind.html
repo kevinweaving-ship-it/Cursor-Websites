@@ -50,7 +50,7 @@
   <script>
 (function () {
   var PTS = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
-  var PLAY_MS = 18000;
+  var PLAY_MS = 36000;
   var HOLD_MS = 2000;
   var TAIL = 22;
   var R_MAX = 118;
@@ -234,22 +234,31 @@
     return radialTick(pt.deg, Math.max(R_MIN, r - 12), r + 1, bandColor(pt.kt));
   }
 
-  function sliceSvg(deg0, deg1, kt) {
+  function sweepSvg(deg0, deg1, kt) {
     var sl = bandSlice(kt);
     var turn = ((deg1 - deg0 + 540) % 360) - 180;
-    if (Math.abs(turn) < 0.35) {
-      return radialTick(deg1, sl.r0, sl.r1, sl.color);
-    }
-    return '<path d="' + sectorPath(deg0, deg1, sl.r0, sl.r1) + '" fill="' + sl.color + '" fill-opacity="0.9" stroke="' + sl.color + '" stroke-width="0.6"/>';
+    if (Math.abs(turn) < 0.45) return "";
+    var d = sectorPath(deg0, deg1, sl.r0, sl.r1);
+    if (!d) return "";
+    return '<path d="' + d + '" fill="' + sl.color + '" fill-opacity="0.32" stroke="none"/>';
   }
 
-  function paintHistory() {
-    var h = "";
+  function paintHistory(pt) {
+    var sweeps = "";
+    var ticks = "";
     var i;
     for (i = 0; i < samples.length; i += 1) {
-      h += historyTick(samples[i]);
+      if (samples[i].t > pt.t) break;
+      ticks += historyTick(samples[i]);
+      var nxt = samples[i + 1];
+      if (!nxt) continue;
+      if (nxt.t <= pt.t) {
+        sweeps += sweepSvg(samples[i].deg, nxt.deg, (samples[i].kt + nxt.kt) / 2);
+      } else {
+        sweeps += sweepSvg(samples[i].deg, pt.deg, pt.kt);
+      }
     }
-    histG.innerHTML = h;
+    histG.innerHTML = sweeps + ticks;
   }
 
   function vectorParts(pt) {
@@ -293,7 +302,7 @@
     playMark.innerHTML = markSvg(play, "#3b82f6");
     nowLine.innerHTML = lineSvg(live, "#86efac");
     nowMark.innerHTML = markSvg(live, "#22c55e");
-    paintHistory();
+    paintHistory(pt);
 
     spdEl.textContent = (Math.round(pt.kt * 10) / 10).toFixed(1);
     timeEl.textContent = fmtRemain(pt.t);
