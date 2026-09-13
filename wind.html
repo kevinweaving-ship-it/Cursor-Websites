@@ -12,7 +12,9 @@
     .pause { position: absolute; top: 14px; right: 14px; width: 44px; height: 44px; border: 0; border-radius: 50%; background: #f3f4f6; color: #111; cursor: pointer; font-size: 15px; line-height: 44px; }
     .pause:focus { outline: 2px solid #3b82f6; }
     svg.dial { display: block; width: 78%; max-width: 280px; height: auto; margin: 0 auto; }
-    .cap { margin: 8px 0 0; text-align: center; font: 600 14px/1.3 Arial, Helvetica, sans-serif; color: #6b7280; }
+    .spd { margin: 14px 0 0; text-align: center; font: 700 34px/1 Arial, Helvetica, sans-serif; color: #111; }
+    .spd .kn { display: block; margin-top: 4px; font: 700 12px/1 Arial, Helvetica, sans-serif; letter-spacing: 1.2px; color: #9ca3af; }
+    .cap { margin: 10px 0 0; text-align: center; font: 600 14px/1.3 Arial, Helvetica, sans-serif; color: #6b7280; }
     .meta { margin: 6px 0 0; text-align: center; font: 700 12px/1.3 Arial, Helvetica, sans-serif; color: #94a3b8; }
   </style>
 </head>
@@ -32,9 +34,8 @@
         <text x="14" y="166" text-anchor="middle" font-family="Arial" font-weight="700" font-size="16" fill="#9ca3af">W</text>
         <g id="tail"></g>
         <g id="marker"></g>
-        <text id="spd" x="160" y="154" text-anchor="middle" font-family="Arial" font-weight="700" font-size="34" fill="#111">—</text>
-        <text x="160" y="176" text-anchor="middle" font-family="Arial" font-weight="700" font-size="12" fill="#9ca3af" letter-spacing="1.2">KN</text>
       </svg>
+      <p class="spd"><span id="spd">—</span><span class="kn">KN</span></p>
       <p class="cap" id="cap">Last hour · sped up</p>
       <p class="meta" id="meta">Zeekoevlei</p>
     </div>
@@ -44,7 +45,9 @@
   var PTS = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
   var PLAY_MS = 18000;
   var TAIL = 22;
-  var RING = 86;
+  var R_MAX = 118;
+  var R_MIN = 16;
+  var KT_MAX = 20;
   var q = new URLSearchParams(location.search);
   var slug = (q.get("station") || "w2s-zeekoevlei").trim();
   var at0 = parseFloat(q.get("at"));
@@ -99,26 +102,36 @@
     };
   }
 
+  function radiusForKt(kt) {
+    var k = Math.max(0, Number(kt) || 0);
+    var u = Math.min(1, k / KT_MAX);
+    return R_MIN + u * (R_MAX - R_MIN);
+  }
+
   function draw(pt) {
     if (!pt) return;
-    var from = xy(pt.deg, RING);
-    var back = xy(pt.deg + 180, RING);
-    trail.push(from);
+    var r = radiusForKt(pt.kt);
+    var tipR = r;
+    var baseR = Math.max(R_MIN, r - 16);
+    var dotR = Math.max(10, r - 22);
+    var from = xy(pt.deg, baseR);
+    var tip = xy(pt.deg, tipR);
+    var hub = xy(pt.deg, 8);
+    trail.push(tip);
     if (trail.length > TAIL) trail.shift();
 
     var h = "";
     var i;
     for (i = 0; i < trail.length - 1; i += 1) {
       var o = (i + 1) / trail.length;
-      h += '<circle cx="' + trail[i][0].toFixed(1) + '" cy="' + trail[i][1].toFixed(1) + '" r="' + (1.4 + o * 2.2).toFixed(1) + '" fill="#3b82f6" fill-opacity="' + (0.06 + o * 0.28).toFixed(2) + '"/>';
+      h += '<circle cx="' + trail[i][0].toFixed(1) + '" cy="' + trail[i][1].toFixed(1) + '" r="' + (1.2 + o * 2).toFixed(1) + '" fill="#3b82f6" fill-opacity="' + (0.05 + o * 0.22).toFixed(2) + '"/>';
     }
-    var hub = xy(pt.deg, 48);
-    h += '<line x1="' + hub[0].toFixed(1) + '" y1="' + hub[1].toFixed(1) + '" x2="' + from[0].toFixed(1) + '" y2="' + from[1].toFixed(1) + '" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="2.4 3.4" stroke-linecap="round"/>';
+    h += '<line x1="' + hub[0].toFixed(1) + '" y1="' + hub[1].toFixed(1) + '" x2="' + from[0].toFixed(1) + '" y2="' + from[1].toFixed(1) + '" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="2.4 3.4" stroke-linecap="round"/>';
     tailG.innerHTML = h;
 
-    var tip = xy(pt.deg, RING + 15);
-    var left = xy(pt.deg - 10, RING - 1);
-    var right = xy(pt.deg + 10, RING - 1);
+    var left = xy(pt.deg - 11, Math.max(R_MIN, r - 14));
+    var right = xy(pt.deg + 11, Math.max(R_MIN, r - 14));
+    var back = xy(pt.deg, dotR);
     markG.innerHTML =
       '<circle cx="' + back[0].toFixed(1) + '" cy="' + back[1].toFixed(1) + '" r="4.5" fill="#111"/>' +
       '<polygon points="' + tip[0].toFixed(1) + ',' + tip[1].toFixed(1) + ' ' + left[0].toFixed(1) + ',' + left[1].toFixed(1) + ' ' + right[0].toFixed(1) + ',' + right[1].toFixed(1) + '" fill="#3b82f6"/>';
