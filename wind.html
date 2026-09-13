@@ -198,7 +198,18 @@
 
   function historyTick(pt) {
     var r = Math.max(R_MIN + 2, radiusForKt(pt.kt));
-    return radialTick(pt.deg, R_MIN, r, bandColor(pt.kt));
+    var edges = bandEdges();
+    var h = "";
+    var i;
+    var a;
+    var b;
+    for (i = 0; i < edges.length; i += 1) {
+      if (r <= edges[i].r0 + 0.2) break;
+      a = edges[i].r0 < R_MIN ? R_MIN : edges[i].r0;
+      b = r < edges[i].r1 ? r : edges[i].r1;
+      if (b > a + 0.4) h += radialTick(pt.deg, a, b, edges[i].color);
+    }
+    return h;
   }
 
   function bandEdges() {
@@ -254,35 +265,12 @@
     return '<path d="' + d + '" fill="' + band.color + '" fill-opacity="' + op + '" stroke="none"/>';
   }
 
-  function fillBelowJoin(pts, op) {
-    var edges = bandEdges();
-    var html = "";
-    var b;
-    var i;
-    var s;
-    var e;
-    var band;
-    for (b = 0; b < edges.length; b += 1) {
-      band = edges[b];
-      i = 0;
-      while (i < pts.length) {
-        while (i < pts.length && pts[i].r <= band.r0 + 0.25) i += 1;
-        if (i >= pts.length) break;
-        s = i;
-        while (i < pts.length && pts[i].r > band.r0 + 0.25) i += 1;
-        e = i - 1;
-        html += bandRun(pts, s, e, band, op);
-      }
-    }
-    return html;
-  }
-
-  function joinSegment(deg0, deg1, kt0, kt1, fillOp) {
+  function joinPts(deg0, deg1, kt0, kt1) {
     var turn = ((deg1 - deg0 + 540) % 360) - 180;
     var span = Math.abs(turn);
     var k0 = Math.max(0, Number(kt0) || 0);
     var k1 = Math.max(0, Number(kt1) || 0);
-    if (span < 0.35 && Math.abs(k1 - k0) < 0.2) return "";
+    if (span < 0.35 && Math.abs(k1 - k0) < 0.2) return null;
     var n = Math.max(8, Math.min(42, Math.round(span / 2) + Math.round(Math.abs(k1 - k0) * 2)));
     var pts = [];
     var i;
@@ -297,7 +285,28 @@
         color: bandColor(kt)
       });
     }
-    var html = fillBelowJoin(pts, fillOp);
+    return pts;
+  }
+
+  function stamp(maxR, pts) {
+    var i;
+    var a;
+    for (i = 0; i < pts.length; i += 1) {
+      a = Math.round(pts[i].deg);
+      a = ((a % 360) + 360) % 360;
+      if (pts[i].r > maxR[a]) maxR[a] = pts[i].r;
+    }
+  }
+
+  function stampReading(maxR, pt) {
+    var a = Math.round(pt.deg);
+    a = ((a % 360) + 360) % 360;
+    var r = Math.max(R_MIN, radiusForKt(pt.kt));
+    if (r > maxR[a]) maxR[a] = r;
+  }
+
+  function joinArcs(pts) {
+    var html = "";
     var s = 0;
     var e;
     var col;
@@ -309,6 +318,50 @@
       s = e + 1;
     }
     return html;
+  }
+
+  function fillEnvelope(maxR, op) {
+    var edges = bandEdges();
+    var html = "";
+    var b;
+    var d;
+    var s;
+    var band;
+    var pts;
+    var wrap;
+    for (b = 0; b < edges.length; b += 1) {
+      band = edges[b];
+      s = -1;
+      wrap = [];
+      for (d = 0; d < 360; d += 1) {
+        if (maxR[d] > band.r0 + 0.25) {
+          if (s < 0) s = d;
+        } else if (s >= 0) {
+          wrap.push([s, d - 1]);
+          s = -1;
+        }
+      }
+      if (s >= 0) wrap.push([s, 359]);
+      if (wrap.length >= 2 && wrap[0][0] === 0 && wrap[wrap.length - 1][1] === 359) {
+        wrap[0][0] = wrap.pop()[0];
+      }
+      for (d = 0; d < wrap.length; d += 1) {
+        pts = degSpan(maxR, wrap[d][0], wrap[d][1]);
+        html += bandRun(pts, 0, pts.length - 1, band, op);
+      }
+    }
+    return html;
+  }
+
+  function degSpan(maxR, s, e) {
+    var pts = [];
+    var d = s;
+    while (true) {
+      pts.push({ deg: d, r: maxR[d] });
+      if (d === e) break;
+      d = (d + 1) % 360;
+    }
+    return pts;
   }
 
   function reachedCount(pt, u) {
@@ -329,19 +382,31 @@
       histG.innerHTML = "";
       return;
     }
-    var sweeps = "";
-    var ticks = "";
+    var maxR = [];
     var i;
+    for (i = 0; i < 360; i += 1) maxR[i] = 0;
+    var ticks = "";
+    var arcs = "";
+    var pts;
     for (i = 0; i < n; i += 1) {
       ticks += historyTick(samples[i]);
+      stampReading(maxR, samples[i]);
       if (i < n - 1) {
-        sweeps += joinSegment(samples[i].deg, samples[i + 1].deg, samples[i].kt, samples[i + 1].kt, "0.18");
+        pts = joinPts(samples[i].deg, samples[i + 1].deg, samples[i].kt, samples[i + 1].kt);
+        if (pts) {
+          stamp(maxR, pts);
+          arcs += joinArcs(pts);
+        }
       }
     }
     if (n < samples.length) {
-      sweeps += joinSegment(samples[n - 1].deg, pt.deg, samples[n - 1].kt, pt.kt, "0.36");
+      pts = joinPts(samples[n - 1].deg, pt.deg, samples[n - 1].kt, pt.kt);
+      if (pts) {
+        stamp(maxR, pts);
+        arcs += joinArcs(pts);
+      }
     }
-    histG.innerHTML = sweeps + ticks;
+    histG.innerHTML = fillEnvelope(maxR, "0.32") + arcs + ticks;
   }
 
   function vectorParts(pt) {
