@@ -8,21 +8,13 @@ Print and Save-as-PDF both use this CSS on the live HTML tables so sailor / club
 class / sail links stay real hyperlinks in the PDF (not a screenshot).
 
 Pagination (A4):
+- Cape Classic (URL is truth): A4 **portrait** — the grid fits P. Do not flip to landscape.
 - Page 1 always starts with the event header + first fleet.
-- The next fleet stays on that page only if the whole fleet fits; otherwise it
-  moves to the next page. Same rule for every following fleet.
+- The next fleet stays on that page only if the whole fleet (header + full table) fits;
+  otherwise the entire fleet moves to the next page.
 - A fleet header must never sit on one page with its results table on the next.
-- A fleet is never split across two pages. If it does not fit the leftover space,
-  the whole fleet (header + table) moves to the next page. If it is taller than
-  one A4 page, it is tightened so it still stays on a single page.
-- Every page footer (one small line): event name + the results URL. The URL is a
-  real link in Print-to-PDF; on paper it can be typed to open the same sheet.
-- Print button offers Printer or PDF. Both publish the same standalone A4
-  document (header + fleets + footer only). Layout does not follow the screen
-  URL (mobile stack, live cards, site chrome).
-- Page is A4 portrait or landscape automatically from table fit: each fleet's
-  columns are given a minimum readable width (mm). If any fleet is wider than
-  A4 portrait (194mm), the sheet is landscape; otherwise portrait.
+- A fleet is never split across two pages.
+- Every page footer (one small line): event name + the results URL.
 """
 
 from pathlib import Path
@@ -230,13 +222,28 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
      leftover sliver never gets a header with the table on the next page.
      If the next fleet does not fit, the whole fleet moves to the next page. */
   .fleet-section {
-    display: inline-block !important;
+    display: block !important;
     width: 100% !important;
     margin-top: 6px !important;
     page-break-inside: avoid !important;
     break-inside: avoid-page !important;
+    -webkit-column-break-inside: avoid !important;
     page-break-before: auto;
     break-before: auto;
+  }
+  .fleet-section .class-header,
+  .fleet-section .class-header--with-logos {
+    page-break-after: avoid !important;
+    break-after: avoid-page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid-page !important;
+  }
+  .fleet-section .table-wrapper,
+  .fleet-section table {
+    page-break-before: avoid !important;
+    break-before: avoid-page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid-page !important;
   }
   .regatta-page > .fleet-section:first-of-type {
     margin-top: 6px !important;
@@ -299,19 +306,47 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
   .fleet-title-row { font-size: 9pt !important; font-weight: 600 !important; margin: 0 !important; line-height: 1.15 !important; white-space: nowrap !important; }
   .sailed-line { font-size: 7pt !important; font-weight: 500 !important; margin: 0 !important; line-height: 1.2 !important; white-space: nowrap !important; }
 
-  /* Cape Classic: one centred line [FleetLogo] Fleet; sailed stats centred under it. */
+  /* Cape Classic: same card as the URL — left fleet logo | [logo] Fleet + sailed | right club. */
   .fleet-section:has(.rs-compact-row-logos) .class-header,
   .fleet-section:has(.rs-compact-row-logos) .class-header--with-logos {
-    flex-direction: column !important;
+    display: grid !important;
+    grid-template-columns: minmax(52px, 22%) minmax(0, 1fr) minmax(52px, 22%) !important;
+    grid-template-rows: auto !important;
     align-items: center !important;
-    justify-content: center !important;
+    justify-items: stretch !important;
     text-align: center !important;
-    gap: 2px !important;
-    column-gap: 0 !important;
+    gap: 2px 6px !important;
+    column-gap: 6px !important;
+    flex-direction: unset !important;
   }
-  .fleet-section:has(.rs-compact-row-logos) .class-header-logo-col,
+  .fleet-section:has(.rs-compact-row-logos) .class-header-logo-col {
+    display: flex !important;
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+  }
   .fleet-section:has(.rs-compact-row-logos) .class-header-club-logo-col {
-    display: none !important;
+    display: flex !important;
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    justify-content: flex-end !important;
+    align-items: center !important;
+  }
+  .fleet-section:has(.rs-compact-row-logos) .class-header-logo-img,
+  .fleet-section:has(.rs-compact-row-logos) .class-header-class-icon-img {
+    max-height: 44px !important;
+    max-width: 96px !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain !important;
+  }
+  .fleet-section:has(.rs-compact-row-logos) .class-header-club-logo-col img {
+    max-height: 44px !important;
+    max-width: 96px !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain !important;
   }
   .fleet-section:has(.rs-compact-row-logos) .class-header-main-col,
   .fleet-section:has(.rs-compact-row-logos) .class-header-text-col {
@@ -319,6 +354,8 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
     flex-direction: column !important;
     align-items: center !important;
     justify-content: center !important;
+    grid-column: 2 !important;
+    grid-row: 1 !important;
     width: 100% !important;
     text-align: center !important;
     gap: 2px !important;
@@ -712,6 +749,8 @@ def _print_orientation_js() -> str:
         "return need;"
         "}"
         "function printOrientation(){"
+        "if(/2026-09-13-zvyc-cape-classic/.test(String((location&&location.pathname)||'')))return 'portrait';"
+        "if(document.querySelector('.fleet-results-table.rs-compact-row-logos'))return 'portrait';"
         "var worst=0;"
         "document.querySelectorAll('.fleet-section table').forEach(function(t){"
         "var n=printTableNeedMm(t);if(n>worst)worst=n;"
