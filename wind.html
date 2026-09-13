@@ -14,6 +14,9 @@
     svg.dial { display: block; width: 78%; max-width: 280px; height: auto; margin: 0 auto; }
     .spd { margin: 14px 0 0; text-align: center; font: 700 34px/1 Arial, Helvetica, sans-serif; color: #111; }
     .spd .kn { display: block; margin-top: 4px; font: 700 12px/1 Arial, Helvetica, sans-serif; letter-spacing: 1.2px; color: #9ca3af; }
+    .stats { margin: 10px auto 0; width: 78%; max-width: 280px; display: flex; justify-content: space-between; font: 700 12px/1.2 Arial, Helvetica, sans-serif; color: #6b7280; letter-spacing: 0.04em; }
+    .stats span:last-child { text-align: right; }
+    .stats b { display: block; margin-top: 4px; font: 700 16px/1 Arial, Helvetica, sans-serif; color: #111; }
     .time { margin: 10px 0 0; text-align: center; font: 700 22px/1 Arial, Helvetica, sans-serif; color: #111; letter-spacing: 0.06em; }
     .tl { margin: 10px auto 0; width: 78%; max-width: 280px; }
     .tl-track { height: 4px; background: #e5e7eb; border-radius: 99px; overflow: hidden; }
@@ -41,6 +44,10 @@
         <g id="nowMark"></g>
       </svg>
       <p class="spd"><span id="spd">—</span><span class="kn">KN</span></p>
+      <div class="stats">
+        <span>AVG<b id="avg">—</b></span>
+        <span>HIGH<b id="high">—</b></span>
+      </div>
       <p class="time" id="time">60 min</p>
       <div class="tl" aria-hidden="true"><div class="tl-track"><div class="tl-fill" id="tlFill"></div></div></div>
       <p class="cap" id="cap">Last hour · sped up</p>
@@ -83,6 +90,8 @@
   var nowLine = document.getElementById("nowLine");
   var nowMark = document.getElementById("nowMark");
   var spdEl = document.getElementById("spd");
+  var avgEl = document.getElementById("avg");
+  var highEl = document.getElementById("high");
   var timeEl = document.getElementById("time");
   var tlFill = document.getElementById("tlFill");
   var capEl = document.getElementById("cap");
@@ -383,6 +392,19 @@
     return pts;
   }
 
+  function reachedStats(n) {
+    var i;
+    var sum = 0;
+    var c = 0;
+    var hi = null;
+    for (i = 0; i < n; i += 1) {
+      sum += samples[i].kt;
+      c += 1;
+      if (samples[i].gust != null && (hi == null || samples[i].gust > hi)) hi = samples[i].gust;
+    }
+    return { avg: c ? sum / c : null, high: hi };
+  }
+
   function reachedCount(pt, u) {
     if (!samples.length || u <= 0) return 0;
     if (u >= 1) return samples.length;
@@ -467,6 +489,10 @@
     paintHistory(pt, u);
 
     spdEl.textContent = (Math.round(pt.kt * 10) / 10).toFixed(1);
+    var nSeen = reachedCount(pt, u);
+    var st = reachedStats(nSeen);
+    avgEl.textContent = st.avg == null ? "—" : (Math.round(st.avg * 10) / 10).toFixed(1);
+    highEl.textContent = st.high == null ? "—" : (Math.round(st.high * 10) / 10).toFixed(1);
     timeEl.textContent = fmtRemain(pt.t);
     tlFill.style.width = (Math.max(0, Math.min(1, u)) * 100).toFixed(1) + "%";
     capEl.textContent = "Real-time Vector (" + card(pt.deg) + " " + Math.round(pt.deg) + "°)";
@@ -508,8 +534,17 @@
     var kt = r.wind_kt != null ? Number(r.wind_kt) : (r.wind_avg_kt != null ? Number(r.wind_avg_kt) : NaN);
     var deg = r.wind_dir_deg != null ? Number(r.wind_dir_deg) : (r.wind_dir_avg_deg != null ? Number(r.wind_dir_avg_deg) : NaN);
     var t = parseMs(r.observed_at);
+    var gust = r.wind_gust_kt != null ? Number(r.wind_gust_kt) : NaN;
+    var avg = r.wind_avg_kt != null ? Number(r.wind_avg_kt) : NaN;
     if (isNaN(kt) || isNaN(deg) || isNaN(t)) return null;
-    return { t: t, kt: kt, deg: ((deg % 360) + 360) % 360, name: r.station_name || slug };
+    return {
+      t: t,
+      kt: kt,
+      deg: ((deg % 360) + 360) % 360,
+      avg: isNaN(avg) ? null : avg,
+      gust: isNaN(gust) ? null : gust,
+      name: r.station_name || slug
+    };
   }
 
   function loadHour(list) {
