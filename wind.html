@@ -39,6 +39,7 @@
         <text x="14" y="166" text-anchor="middle" font-family="Arial" font-weight="700" font-size="16" fill="#9ca3af">W</text>
         <g id="playLine"></g>
         <g id="playMark"></g>
+        <g id="liveTrail"></g>
         <g id="nowLine"></g>
         <g id="nowMark"></g>
         <g id="highDot"></g>
@@ -77,6 +78,7 @@
   var samples = [];
   var highRows = [];
   var HIGH_MS = 3600000;
+  var LIVE_N = 5;
   var t0 = 0;
   var trail = [];
   var lastU = 0;
@@ -88,6 +90,7 @@
   var playMark = document.getElementById("playMark");
   var nowLine = document.getElementById("nowLine");
   var nowMark = document.getElementById("nowMark");
+  var liveG = document.getElementById("liveTrail");
   var spdEl = document.getElementById("spd");
   var avgEl = document.getElementById("avg");
   var highG = document.getElementById("highDot");
@@ -467,7 +470,46 @@
       '<polygon points="' + v.tip[0].toFixed(1) + ',' + v.tip[1].toFixed(1) + ' ' + v.left[0].toFixed(1) + ',' + v.left[1].toFixed(1) + ' ' + v.right[0].toFixed(1) + ',' + v.right[1].toFixed(1) + '" fill="' + color + '"/>';
   }
 
-  function paintHigh() {
+  function liveRows() {
+    var rows = highRows.length ? highRows : samples;
+    var now = Date.now();
+    var out = [];
+    var i;
+    for (i = 0; i < rows.length; i += 1) {
+      if (now - rows[i].t > HIGH_MS) continue;
+      out.push(rows[i]);
+    }
+    return out;
+  }
+
+  function liveRecent() {
+    var out = liveRows();
+    return out.slice(Math.max(0, out.length - LIVE_N));
+  }
+
+  function liveNow() {
+    var out = liveRows();
+    return out.length ? out[out.length - 1] : null;
+  }
+
+  function paintLive() {
+    var pts = liveRecent();
+    var h = "";
+    var d = "";
+    var i;
+    var p;
+    var r;
+    for (i = 0; i < pts.length; i += 1) {
+      h += historyTick(pts[i]);
+      r = Math.max(R_MIN + 2, radiusForKt(pts[i].kt));
+      p = xy(pts[i].deg, r);
+      d += (i === 0 ? "M " : " L ") + p[0].toFixed(1) + "," + p[1].toFixed(1);
+    }
+    if (pts.length > 1) {
+      h += '<path d="' + d + '" fill="none" stroke="#111" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>';
+    }
+    liveG.innerHTML = h;
+  }
     var now = Date.now();
     var rows = highRows.length ? highRows : samples;
     var i;
@@ -493,12 +535,13 @@
       var rows = (body.readings || body.history || []).map(asSample).filter(Boolean).sort(function (a, b) { return a.t - b.t; });
       highRows = rows;
       paintHigh();
+      paintLive();
     } catch (e) {}
   }
 
   function draw(pt, u) {
     if (!pt || !samples.length) return;
-    var nowPt = samples[samples.length - 1];
+    var nowPt = liveNow() || samples[samples.length - 1];
     var play = vectorParts(pt);
     var live = vectorParts(nowPt);
     trail.push(play.dot);
@@ -514,6 +557,7 @@
     playMark.innerHTML = markSvg(play, "#3b82f6");
     nowLine.innerHTML = lineSvg(live, "#86efac");
     nowMark.innerHTML = markSvg(live, "#22c55e");
+    paintLive();
     paintHistory(pt, u);
     var nSeen = reachedCount(pt, u);
 
@@ -605,9 +649,12 @@
           }
           KT_MAX = bandCeiling(peak);
           drawRings();
+          highRows = samples.slice();
           paintHigh();
+          paintLive();
           setInterval(paintHigh, 10000);
-          setInterval(pullHigh, 60000);
+          setInterval(paintLive, 10000);
+          setInterval(pullHigh, 30000);
           metaEl.textContent = (samples[0].name || "Zeekoevlei") + " · last hour sped up";
           t0 = 0;
           window._u = at0;
