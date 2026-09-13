@@ -192,7 +192,8 @@ OLD_CSS1 = '''    ".fleet-results-table td.club-col{white-space:nowrap;overflow:
 
 NEW_CSS1 = '''    ".fleet-results-table td.club-col{white-space:nowrap;overflow:visible}"
     ".fleet-results-table .rs-class-with-logo{display:inline-flex!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:center!important;gap:4px;max-width:100%;white-space:nowrap!important;line-height:1.2;overflow:visible}"
-    ".fleet-results-table .rs-class-row-logo,.fleet-results-table .rs-club-row-logo-sm{display:inline-block!important;height:auto!important;width:auto!important;max-height:16px!important;max-width:28px!important;object-fit:contain!important;object-position:center!important;vertical-align:middle;flex:0 0 auto!important}"
+    ".fleet-results-table .rs-class-row-logo{display:inline-block!important;height:16px!important;width:auto!important;max-height:16px!important;max-width:none!important;object-fit:contain!important;object-position:center!important;vertical-align:middle;flex:0 0 auto!important}"
+    ".fleet-results-table .rs-club-row-logo-sm{display:inline-block!important;height:auto!important;width:auto!important;max-height:16px!important;max-width:28px!important;object-fit:contain!important;object-position:center!important;vertical-align:middle;flex:0 0 auto!important}"
     ".fleet-results-table td.class-col{white-space:nowrap;overflow:visible}"
 '''
 
@@ -201,7 +202,8 @@ OLD_CSS2 = '''    ".fleet-results-table .rs-club-row-logo{height:32px!important;
 '''
 
 NEW_CSS2 = '''    ".fleet-results-table .rs-club-row-logo{height:32px!important;width:48px!important;max-height:32px!important;max-width:48px!important;object-fit:contain!important;object-position:center!important;display:block!important;flex:0 0 48px!important}"
-    ".fleet-results-table .rs-class-row-logo,.fleet-results-table .rs-club-row-logo-sm{height:auto!important;width:auto!important;max-height:16px!important;max-width:28px!important;object-fit:contain!important;display:inline-block!important;flex:0 0 auto!important}"
+    ".fleet-results-table .rs-class-row-logo{height:16px!important;width:auto!important;max-height:16px!important;max-width:none!important;object-fit:contain!important;display:inline-block!important;flex:0 0 auto!important}"
+    ".fleet-results-table .rs-club-row-logo-sm{height:auto!important;width:auto!important;max-height:16px!important;max-width:28px!important;object-fit:contain!important;display:inline-block!important;flex:0 0 auto!important}"
     ".fleet-results-table .rs-class-with-logo{display:inline-flex!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:center!important;gap:4px;white-space:nowrap!important}"
     ".fleet-results-table .rs-club-with-logo>a,.fleet-results-table .rs-club-with-logo>span{display:inline-block!important;min-width:0;text-align:left}"
 '''

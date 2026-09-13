@@ -19,8 +19,12 @@ OLD_ART = """    elif css in ("rs-club-row-logo-sm", "rs-class-row-logo"):
         )
 """
 
-NEW_ART = """    elif css in ("rs-club-row-logo-sm", "rs-class-row-logo"):
-        # Compact cap — never a fixed height that expands the rank row.
+NEW_ART = """    elif css == "rs-class-row-logo":
+        # Size from CSS: 16px = Sonnet (tallest). Do not cap width.
+        _img_style = (
+            'style="object-fit:contain;display:inline-block;vertical-align:middle;flex:0 0 auto" '
+        )
+    elif css == "rs-club-row-logo-sm":
         _img_style = (
             'style="height:auto;width:auto;max-height:16px;max-width:28px;'
             'object-fit:contain;display:inline-block;vertical-align:middle;flex:0 0 auto" '

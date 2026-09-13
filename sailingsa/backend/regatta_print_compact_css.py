@@ -136,6 +136,17 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
   display: inline-block !important;
   vertical-align: middle !important;
 }
+/* Class column logos: Sonnet is the tallest (16px). All class marks match that. */
+.fleet-results-table.rs-compact-row-logos .rs-class-row-logo {
+  height: 16px !important;
+  width: auto !important;
+  max-height: 16px !important;
+  max-width: none !important;
+  object-fit: contain !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
+  flex: 0 0 auto !important;
+}
 @media print {
   html, body { background: #fff !important; color: #1a2750 !important; margin: 0 !important; padding: 0 !important; }
   html, body, .regatta-page, .class-header, .sailed-line, table, th, td {
@@ -414,8 +425,19 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
     overflow: visible !important;
     text-align: left !important;
   }
-  .rs-class-row-logo, .rs-club-row-logo-sm,
+  .rs-class-row-logo,
   .fleet-results-table .rs-class-row-logo,
+  .fleet-results-table.rs-compact-row-logos .rs-class-row-logo {
+    display: inline-block !important;
+    height: 16px !important;
+    width: auto !important;
+    max-height: 16px !important;
+    max-width: none !important;
+    object-fit: contain !important;
+    vertical-align: middle !important;
+    flex: 0 0 auto !important;
+  }
+  .rs-club-row-logo-sm,
   .fleet-results-table .rs-club-row-logo-sm {
     display: inline-block !important;
     height: auto !important;
@@ -477,8 +499,18 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
   }
   .rs-club-row-logo, .rs-boat-sponsor-logo, .fleet-results-table .rs-club-row-logo,
   .fleet-results-table .rs-boat-sponsor-logo { display: none !important; }
-  .rs-class-row-logo, .rs-club-row-logo-sm,
-  .fleet-results-table .rs-class-row-logo,
+  .rs-class-row-logo,
+  .fleet-results-table .rs-class-row-logo {
+    display: inline-block !important;
+    height: 16px !important;
+    width: auto !important;
+    max-height: 16px !important;
+    max-width: none !important;
+    object-fit: contain !important;
+    vertical-align: middle !important;
+    flex: 0 0 auto !important;
+  }
+  .rs-club-row-logo-sm,
   .fleet-results-table .rs-club-row-logo-sm {
     display: inline-block !important;
     height: auto !important;
