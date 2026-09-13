@@ -10,22 +10,18 @@ JS = Path(__file__).resolve().parents[1] / "frontend" / "js" / "mm-lipton-reels-
 
 LIVE_PLAYLIST = """#EXTM3U
 #EXT-X-VERSION:3
-#EXT-X-MEDIA-SEQUENCE:12
+#EXT-X-MEDIA-SEQUENCE:35531
 #EXT-X-TARGETDURATION:6
 #EXTINF:3.000,
-https://hddn51.skylinewebcams.com/zeekoevlei-1789296871370.ts
+https://hddn54.skylinewebcams.com/4040livic-1789299007564.ts
 #EXTINF:3.000,
-https://hddn51.skylinewebcams.com/zeekoevlei-1789296874439.ts
+https://hddn54.skylinewebcams.com/4040livic-1789299010460.ts
 """
 
 OFF_PLAYLIST = """#EXTM3U
-#EXT-X-VERSION:3
-#EXT-X-MEDIA-SEQUENCE:34936
-#EXT-X-TARGETDURATION:6
 #EXTINF:3.000,
-https://hddn51.skylinewebcams.com/4040livic-1789296871370.ts
-#EXTINF:3.000,
-https://hddn51.skylinewebcams.com/4040livic-1789296874439.ts
+https://www.skylinewebcams.com/temp/4040.jpg
+#EXT-X-ENDLIST
 """
 
 ENDED = """#EXTM3U
@@ -39,7 +35,7 @@ def test_playlist_rules():
     assert playlist_is_actual_live(LIVE_PLAYLIST) is True
     assert playlist_offline_reason(LIVE_PLAYLIST, 200) == "hls"
     assert playlist_is_actual_live(OFF_PLAYLIST) is False
-    assert playlist_offline_reason(OFF_PLAYLIST, 200) == "placeholder_4040"
+    assert playlist_offline_reason(OFF_PLAYLIST, 200) in ("placeholder_4040", "ended")
     assert playlist_is_actual_live(ENDED) is False
     assert playlist_offline_reason(ENDED, 200) == "ended"
     assert playlist_is_actual_live("") is False
@@ -48,13 +44,17 @@ def test_playlist_rules():
 
 def test_js_stamp_copy():
     js = JS.read_text(encoding="utf-8")
-    assert "No live feed" in js
-    assert "Last live " in js
+    assert "Offline" in js
+    assert "label.textContent = live ? 'LIVE' : 'Offline'" in js
+    assert "No live feed" not in js
+    assert "No Live available" not in js
     assert "Last image " not in js
     assert "data.last_live_at" in js
-    assert "X-Zvyc-Cam-Last-Live" in js
-    assert "root._mmCamUpstream" in js
-    assert "root._mmCamReady || root._mmCamUpstream" not in js
+    assert "left:118px" in js
+    assert "function fmtClock" in js
+    chunk = js[js.index("function paintCamStamps") : js.index("function paintCamStamps") + 500]
+    assert "var live = !!root._mmCamUpstream;" in chunk
+    assert "root._mmCamUpstream || root._mmCamReady" not in chunk
 
 
 if __name__ == "__main__":

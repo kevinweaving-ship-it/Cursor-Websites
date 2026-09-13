@@ -209,24 +209,57 @@
     }
   }
 
+  function fmtClock(ms) {
+    if (!ms) return '';
+    var opts = {
+      timeZone: 'Africa/Johannesburg',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    };
+    try {
+      return new Intl.DateTimeFormat('en-GB', opts).format(new Date(ms));
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function fmtLastLive(ms) {
+    if (!ms) return '';
+    var opts = {
+      timeZone: 'Africa/Johannesburg',
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    };
+    try {
+      return new Intl.DateTimeFormat('en-GB', opts).format(new Date(ms)).replace(/,/g, '');
+    } catch (e) {
+      return fmtCamStamp(ms, false);
+    }
+  }
+
   function camStampHtml() {
     return (
       '<div class="mm-lipton-reels-cam-stamp" data-mm-cam-stamp hidden>' +
-      '<div class="mm-lipton-reels-cam-stamp-live" data-mm-cam-stamp-live>' +
       '<span class="mm-lipton-reels-cam-stamp-dot" aria-hidden="true"></span>' +
-      '<span data-mm-cam-stamp-live-label>LIVE</span>' +
-      '<span data-mm-cam-stamp-live-time></span></div>' +
-      '<div class="mm-lipton-reels-cam-stamp-off" data-mm-cam-stamp-off hidden>' +
-      '<div class="mm-lipton-reels-cam-stamp-title">No live feed</div>' +
-      '<div class="mm-lipton-reels-cam-stamp-last" data-mm-cam-stamp-last></div>' +
-      '<div class="mm-lipton-reels-cam-stamp-note">It\u2019s not us, it\u2019s the upstream!</div>' +
-      '</div></div>'
+      '<span data-mm-cam-stamp-label></span>' +
+      '<span data-mm-cam-stamp-time></span>' +
+      '</div>'
     );
   }
 
   function ensureCamStampOn(box) {
     if (!box) return null;
     var el = box.querySelector('[data-mm-cam-stamp]');
+    if (el && !el.querySelector('[data-mm-cam-stamp-label]')) {
+      el.parentNode.removeChild(el);
+      el = null;
+    }
     if (el) return el;
     box.insertAdjacentHTML('beforeend', camStampHtml());
     return box.querySelector('[data-mm-cam-stamp]');
@@ -244,8 +277,8 @@
     if (!root) return;
     var live = !!root._mmCamUpstream;
     var lastMs = root._mmCamLastLiveAt || 0;
-    var nowTxt = fmtCamStamp(Date.now(), true);
-    var lastTxt = lastMs ? 'Last live ' + fmtCamStamp(lastMs, false) : 'Last live unknown';
+    var nowTxt = fmtClock(Date.now());
+    var lastTxt = lastMs ? fmtLastLive(lastMs) : '';
     var hosts = [];
     var thumbs = root.querySelectorAll('.mm-lipton-reels-thumb');
     var i;
@@ -253,25 +286,24 @@
       if (thumbs[i].querySelector('[data-mm-webcam-live]')) hosts.push(thumbs[i]);
     }
     var stage = root.querySelector('[data-mm-stage]');
+    var hud = root.querySelector('[data-mm-hud]');
     var stageCam =
       stage &&
       (stage.querySelector('[data-mm-webcam-live]') ||
-        (root._mmCamReady && root.querySelector('[data-mm-hero-video]')));
-    if (stage && stageCam) hosts.push(stage);
+        (root._mmCamReady && root.querySelector('[data-mm-hero-video]')) ||
+        (hud && isCapeClassic()));
+    if (hud && stageCam) hosts.push(hud);
+    else if (stage && stageCam) hosts.push(stage);
     for (i = 0; i < hosts.length; i++) {
       var stamp = ensureCamStampOn(hosts[i]);
       if (!stamp) continue;
       stamp.hidden = false;
       stamp.classList.toggle('mm-lipton-reels-cam-stamp--live', live);
       stamp.classList.toggle('mm-lipton-reels-cam-stamp--off', !live);
-      var liveBox = stamp.querySelector('[data-mm-cam-stamp-live]');
-      var offBox = stamp.querySelector('[data-mm-cam-stamp-off]');
-      var liveTime = stamp.querySelector('[data-mm-cam-stamp-live-time]');
-      var lastEl = stamp.querySelector('[data-mm-cam-stamp-last]');
-      if (liveBox) liveBox.hidden = !live;
-      if (offBox) offBox.hidden = live;
-      if (live && liveTime) liveTime.textContent = nowTxt;
-      if (!live && lastEl) lastEl.textContent = lastTxt;
+      var label = stamp.querySelector('[data-mm-cam-stamp-label]');
+      var timeEl = stamp.querySelector('[data-mm-cam-stamp-time]');
+      if (label) label.textContent = live ? 'LIVE' : 'Offline';
+      if (timeEl) timeEl.textContent = live ? nowTxt : lastTxt;
     }
   }
 
@@ -288,16 +320,22 @@
 
   function pollCamStatus(root) {
     if (!root || !isCapeClassic()) return Promise.resolve();
-    return fetch(CAM_STATUS_API + '?t=' + Date.now(), { credentials: 'same-origin', cache: 'no-store' })
+    return scrapeZvycCamToken().then(function (tok) {
+      var url = CAM_STATUS_API + '?t=' + Date.now();
+      if (tok) url += '&a=' + encodeURIComponent(tok);
+      return fetch(url, { credentials: 'same-origin', cache: 'no-store' });
+    })
       .then(function (r) {
-        if (!r.ok) return null;
+        if (!r || !r.ok) return null;
         return r.json();
       })
       .then(function (data) {
         if (!data) return;
         var stillMs = parseStillAt(data.still_at);
         var lastLiveMs = parseStillAt(data.last_live_at);
-        setCamUpstream(root, !!data.live, stillMs, lastLiveMs);
+        var live = !!data.live;
+        if (live) lastLiveMs = lastLiveMs || Date.now();
+        setCamUpstream(root, live, stillMs, lastLiveMs);
       })
       .catch(function () {});
   }
@@ -307,7 +345,7 @@
     paintCamStamps(root);
     pollCamStatus(root);
     root._mmCamStampTimer = window.setInterval(function () {
-      if (root._mmCamUpstream) paintCamStamps(root);
+      paintCamStamps(root);
     }, 1000);
     root._mmCamStatusTimer = window.setInterval(function () {
       pollCamStatus(root);
@@ -737,8 +775,8 @@
     if (isWebcam(clip) || (!clip && isWebcam(first))) {
       return {
         fb_owner_logo: '/artwork/Club Logo/ZVYC.png',
-        fb_title: (clip && (clip.fb_title || clip.title)) || first.fb_title || 'ZVYC Live Cam',
-        fb_sub: (clip && clip.fb_sub) || first.fb_sub || 'Zeekoevlei · live',
+        fb_title: 'ZVYC Cam',
+        fb_sub: 'Zeekoevlei',
       };
     }
     if (mmFbLive(clip)) {
@@ -1310,9 +1348,11 @@
         stopWebcamLive(root);
         video.style.opacity = '';
         var stage = root.querySelector('[data-mm-stage]');
+        var hud = root.querySelector('[data-mm-hud]');
         var snap = stage && stage.querySelector('[data-mm-webcam-live]');
         if (snap && snap.parentNode) snap.parentNode.removeChild(snap);
-        if (stage) ensureCamStampOn(stage);
+        if (hud) ensureCamStampOn(hud);
+        else if (stage) ensureCamStampOn(stage);
         pollCamStatus(root);
       }
       if (wait > 0) window.setTimeout(go, wait);
@@ -2035,19 +2075,22 @@
     }
     s.textContent =
       '.mm-lipton-reels-hide{color:#dc2626!important;font-size:0.95rem!important;font-weight:800!important;letter-spacing:.02em;}' +
-      '.mm-lipton-reels-cam-stamp{position:absolute;left:6px;right:6px;bottom:6px;z-index:5;pointer-events:none;' +
-      'display:flex;flex-direction:column;align-items:flex-start;gap:2px;max-width:calc(100% - 12px);' +
-      'padding:5px 8px;border-radius:6px;background:rgba(0,16,24,.62);color:#fff;' +
-      'text-shadow:0 1px 2px rgba(0,0,0,.85);font:700 11px/1.25 Arial,Helvetica,sans-serif}' +
-      '.mm-lipton-reels-thumb .mm-lipton-reels-cam-stamp{left:4px;right:4px;bottom:4px;padding:3px 6px;font-size:9px;z-index:3}' +
+      '.mm-lipton-reels-cam-stamp{position:absolute;left:118px;right:76px;top:8px;z-index:7;pointer-events:none;' +
+      'display:flex;flex-direction:row;align-items:center;justify-content:center;gap:5px;flex-wrap:nowrap;' +
+      'padding:2px 8px;border-radius:4px;background:rgba(0,16,24,.72);color:#fff;white-space:nowrap;' +
+      'overflow:hidden;text-overflow:ellipsis;max-width:calc(100% - 194px);' +
+      'text-shadow:0 1px 2px rgba(0,0,0,.85);font:700 11px/1.2 Arial,Helvetica,sans-serif}' +
+      '.mm-lipton-reels-thumb .mm-lipton-reels-cam-stamp{left:4px;right:4px;top:4px;padding:2px 6px;font-size:9px;' +
+      'max-width:none;z-index:3;justify-content:flex-start}' +
+      '.mm-lipton-reels-hud .mm-lipton-reels-cam-stamp{left:118px;right:76px;top:8px;max-width:none}' +
       '.mm-lipton-reels-cam-stamp[hidden]{display:none!important}' +
-      '.mm-lipton-reels-cam-stamp-live{display:flex;align-items:center;gap:6px;flex-wrap:wrap}' +
-      '.mm-lipton-reels-cam-stamp-dot{width:8px;height:8px;border-radius:50%;background:#ef4444;' +
-      'box-shadow:0 0 6px #ef4444;animation:mm-cam-live-pulse 1s ease-in-out infinite}' +
+      '.mm-lipton-reels-cam-stamp-dot{flex:0 0 auto;width:8px;height:8px;border-radius:50%;background:#94a3b8}' +
+      '.mm-lipton-reels-cam-stamp--live .mm-lipton-reels-cam-stamp-dot{background:#ef4444;box-shadow:0 0 6px #ef4444;' +
+      'animation:mm-cam-live-pulse 1s ease-in-out infinite}' +
+      '.mm-lipton-reels-cam-stamp--off .mm-lipton-reels-cam-stamp-dot{background:#94a3b8;box-shadow:none;animation:none}' +
       '@keyframes mm-cam-live-pulse{0%,100%{opacity:1}50%{opacity:.35}}' +
-      '.mm-lipton-reels-cam-stamp-title{font-weight:800;letter-spacing:.02em}' +
-      '.mm-lipton-reels-cam-stamp-last,.mm-lipton-reels-cam-stamp-note{font-weight:600;opacity:.95}' +
-      '.mm-lipton-reels-cam-stamp-note{font-style:italic}' +
+      '.mm-lipton-reels-cam-stamp [data-mm-cam-stamp-label]{font-weight:800;letter-spacing:.03em}' +
+      '.mm-lipton-reels-cam-stamp [data-mm-cam-stamp-time]{font-weight:700;opacity:.95}' +
       '.mm-lipton-reels-compact{display:flex;flex-wrap:nowrap;align-items:stretch}' +
       '.mm-lipton-reels-brand{order:0}' +
       '.mm-lipton-reels-live-slot{flex:0 0 auto;min-width:0;align-self:stretch;order:1}' +

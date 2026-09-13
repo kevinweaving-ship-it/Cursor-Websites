@@ -3,11 +3,13 @@ from __future__ import annotations
 
 import re
 
-_OFFLINE_RE = re.compile(r"4040livic|4040\.jpg|/4040(?:livic)?", re.I)
+# Webcam 4040's live segments are named 4040livic-*.ts. That is live, not the
+# offline card. Offline is 4040.jpg / copyright_violation.
+_OFFLINE_RE = re.compile(r"4040\.jpg|copyright_violation|/temp/4040", re.I)
 
 
 def playlist_is_actual_live(body: str) -> bool:
-    """True only when the HLS playlist is a current, non-placeholder broadcast."""
+    """True when HLS is a current broadcast. 4040livic is the ZVYC live cam."""
     text = str(body or "")
     if "#EXTM3U" not in text:
         return False
