@@ -201,6 +201,25 @@
     return radialTick(pt.deg, R_MIN, r, bandColor(pt.kt));
   }
 
+  function bandEdges() {
+    var edges = [];
+    var prev = 0;
+    var i;
+    var top;
+    for (i = 0; i < BANDS.length; i += 1) {
+      top = BANDS[i].max > KT_MAX ? KT_MAX : BANDS[i].max;
+      if (top <= prev) continue;
+      edges.push({
+        r0: radiusForKt(prev),
+        r1: radiusForKt(top),
+        color: BANDS[i].color
+      });
+      if (top >= KT_MAX) break;
+      prev = top;
+    }
+    return edges;
+  }
+
   function runArc(pts, s, e, col) {
     if (e <= s) return "";
     var d = "";
@@ -213,26 +232,49 @@
     return '<path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>';
   }
 
-  function runFill(pts, s, e, col, op, rLo) {
+  function bandRun(pts, s, e, band, op) {
     if (e <= s) return "";
+    var inner = band.r0 < R_MIN ? R_MIN : band.r0;
     var d = "";
     var i;
     var p;
     var outer;
-    var inner;
     for (i = s; i <= e; i += 1) {
       outer = pts[i].r;
+      if (outer > band.r1) outer = band.r1;
+      if (outer < inner) outer = inner;
       p = xy(pts[i].deg, outer);
       d += (i === s ? "M " : " L ") + p[0].toFixed(1) + "," + p[1].toFixed(1);
     }
     for (i = e; i >= s; i -= 1) {
-      inner = rLo;
-      if (pts[i].r - rLo < 4) inner = Math.max(R_MIN, pts[i].r - 4);
       p = xy(pts[i].deg, inner);
       d += " L " + p[0].toFixed(1) + "," + p[1].toFixed(1);
     }
     d += " Z";
-    return '<path d="' + d + '" fill="' + col + '" fill-opacity="' + op + '" stroke="none"/>';
+    return '<path d="' + d + '" fill="' + band.color + '" fill-opacity="' + op + '" stroke="none"/>';
+  }
+
+  function fillBelowJoin(pts, op) {
+    var edges = bandEdges();
+    var html = "";
+    var b;
+    var i;
+    var s;
+    var e;
+    var band;
+    for (b = 0; b < edges.length; b += 1) {
+      band = edges[b];
+      i = 0;
+      while (i < pts.length) {
+        while (i < pts.length && pts[i].r <= band.r0 + 0.25) i += 1;
+        if (i >= pts.length) break;
+        s = i;
+        while (i < pts.length && pts[i].r > band.r0 + 0.25) i += 1;
+        e = i - 1;
+        html += bandRun(pts, s, e, band, op);
+      }
+    }
+    return html;
   }
 
   function joinSegment(deg0, deg1, kt0, kt1, fillOp) {
@@ -241,27 +283,21 @@
     var k0 = Math.max(0, Number(kt0) || 0);
     var k1 = Math.max(0, Number(kt1) || 0);
     if (span < 0.35 && Math.abs(k1 - k0) < 0.2) return "";
-    var rLo = radiusForKt(Math.min(k0, k1));
-    var rHi = radiusForKt(Math.max(k0, k1));
     var n = Math.max(8, Math.min(42, Math.round(span / 2) + Math.round(Math.abs(k1 - k0) * 2)));
     var pts = [];
     var i;
     var u;
     var kt;
-    var r;
     for (i = 0; i <= n; i += 1) {
       u = i / n;
       kt = lerp(k0, k1, u);
-      r = radiusForKt(kt);
-      if (r < rLo) r = rLo;
-      if (r > rHi) r = rHi;
       pts.push({
         deg: lerpDeg(deg0, deg1, u),
-        r: Math.max(R_MIN, r),
+        r: Math.max(R_MIN, radiusForKt(kt)),
         color: bandColor(kt)
       });
     }
-    var html = "";
+    var html = fillBelowJoin(pts, fillOp);
     var s = 0;
     var e;
     var col;
@@ -269,12 +305,6 @@
       col = pts[s].color;
       e = s;
       while (e + 1 < pts.length && pts[e + 1].color === col) e += 1;
-      var runLo = pts[s].r;
-      var j;
-      for (j = s; j <= e; j += 1) {
-        if (pts[j].r < runLo) runLo = pts[j].r;
-      }
-      html += runFill(pts, s, e, col, fillOp, runLo);
       html += runArc(pts, s, e, col);
       s = e + 1;
     }
