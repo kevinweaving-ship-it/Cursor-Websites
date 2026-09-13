@@ -197,13 +197,85 @@
     }, 2500);
   }
 
-  function openMailto(subject, body) {
-    var href =
-      "mailto:?subject=" +
-      encodeURIComponent(subject || "") +
-      "&body=" +
-      encodeURIComponent(body || "");
-    window.location.href = href;
+  function u8ToB64(u8) {
+    var chunk = 0x8000;
+    var s = "";
+    for (var i = 0; i < u8.length; i += chunk) {
+      s += String.fromCharCode.apply(null, u8.subarray(i, i + chunk));
+    }
+    return btoa(s);
+  }
+
+  function wrap76(b64) {
+    return String(b64 || "").replace(/.{1,76}/g, "$&\r\n");
+  }
+
+  function emlSubject(s) {
+    s = String(s || "SailingSA results");
+    if (/^[\x20-\x7e]*$/.test(s)) return s;
+    try {
+      return "=?UTF-8?B?" + btoa(unescape(encodeURIComponent(s))) + "?=";
+    } catch (e) {
+      return "SailingSA results";
+    }
+  }
+
+  function pdfAsEml(file) {
+    var name = pdfFileName();
+    return file.arrayBuffer().then(function (buf) {
+      var b64 = wrap76(u8ToB64(new Uint8Array(buf)));
+      var bnd = "ssa_pdf_" + Date.now();
+      return (
+        "X-Unsent: 1\r\n" +
+        "MIME-Version: 1.0\r\n" +
+        "Subject: " +
+        emlSubject(pdfTitle()) +
+        "\r\n" +
+        'Content-Type: multipart/mixed; boundary="' +
+        bnd +
+        '"\r\n' +
+        "\r\n" +
+        "--" +
+        bnd +
+        "\r\n" +
+        "Content-Type: text/plain; charset=UTF-8\r\n" +
+        "\r\n" +
+        "\r\n" +
+        "--" +
+        bnd +
+        "\r\n" +
+        'Content-Type: application/pdf; name="' +
+        name +
+        '"\r\n' +
+        "Content-Transfer-Encoding: base64\r\n" +
+        'Content-Disposition: attachment; filename="' +
+        name +
+        '"\r\n' +
+        "\r\n" +
+        b64 +
+        "\r\n" +
+        "--" +
+        bnd +
+        "--\r\n"
+      );
+    });
+  }
+
+  function openEmailWithPdf(file) {
+    return pdfAsEml(file).then(function (eml) {
+      var blob = new Blob([eml], { type: "message/rfc822" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = pdfFileName().replace(/\.pdf$/i, "") + ".eml";
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () {
+        URL.revokeObjectURL(url);
+      }, 8000);
+    });
   }
 
   function openWhatsApp(text) {
@@ -214,14 +286,10 @@
   }
 
   function emailPdf() {
-    var subj = pdfTitle();
-    var body = pdfFileName();
     withPdfFile(function (file) {
-      downloadPdfFile(file);
-      openMailto(subj, body);
+      return openEmailWithPdf(file);
     }).catch(function () {
       downloadPdfAttach();
-      openMailto(subj, body);
     });
   }
 
