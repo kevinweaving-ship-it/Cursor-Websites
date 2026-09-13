@@ -443,8 +443,10 @@ def probe_live() -> list | None:
         if state in {"live", "paused"}:
             return [as_live_item(current, paused=(state == "paused"))]
         if state == "unknown" and vid not in existing:
-            # Paused LIVE often has no "is live now". Do not hose it.
-            return [as_live_item(current, paused=True)]
+            flags = listing_live_flags(html).get(vid) or {}
+            if flags.get("is_live_streaming") or page_state in {"live", "paused"}:
+                return [as_live_item(current, paused=True)]
+            continue
         if state == "vod" and (vid not in existing or vid in prev_live):
             return [as_ended_reel(current)]
     return []
