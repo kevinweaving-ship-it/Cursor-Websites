@@ -1,0 +1,11 @@
+[Unit]
+Description=Rebuild live-event product PDFs when Event URL data diffs
+After=sailingsa-api.service postgresql.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/var/www/sailingsa/api
+Environment=PYTHONPATH=/var/www/sailingsa:/var/www/sailingsa/api
+Environment=SSA_ROOT=/var/www/sailingsa
+ExecStart=/var/www/sailingsa/api/venv/bin/python3 /var/www/sailingsa/deploy/watch_live_event_product_pdfs.py
+Nice=10

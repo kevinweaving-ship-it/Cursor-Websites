@@ -8,7 +8,7 @@ Each event keeps a parent PDF with **every fleet**; each child URL keeps a PDF o
 Orientation is portrait unless any table is wider than A4 portrait (194mm).
 A fleet is never split across pages.
 
-Closed events: store and fetch. Live: generate now from the event URL.
+Closed events: store and fetch. Live events store too, and rebuild only when the Event URL fingerprint diffs.
 """
 
 from __future__ import annotations

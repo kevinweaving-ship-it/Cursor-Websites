@@ -30,9 +30,16 @@ Do not rebuild from a source SAS PDF. If we later amend that event, regenerate a
 
 ---
 
-## 3. Live events — no trusted stored product PDF
+## 3. Live events — stored PDF, rebuild on diff
 
-Print / save / download / share **generates now** from the event URL (header + fleets only). Weather, MM/reels, staff/crew lists stay off the PDF.
+Cape Classic is the live event today; the rule is the same for **every** live event (`end_date` / `start_date` on or after today in Africa/Johannesburg).
+
+- Store the same product PDF as closed events (parent = all fleets, child URL = that fleet).
+- Fingerprint the Event URL (fleets, boats, scores, Results-are line) next to the file as `.event-truth.sha`.
+- **No diff** since last generation → keep that PDF. Do not rebuild.
+- **Diff** (results ingest, rank/score edit, status line) → generate a new PDF and replace the stamp.
+- Print / save / download / share still fetches `/results.pdf`. Weather, MM/reels, staff/crew lists stay off the PDF.
+- Helper: `python3 sailingsa/deploy/watch_live_event_product_pdfs.py` (systemd `ssa-live-event-pdf.timer`, every 20s).
 
 ---
 

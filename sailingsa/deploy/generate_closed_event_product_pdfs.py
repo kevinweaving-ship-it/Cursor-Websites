@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Write stored product PDFs for closed events (parent + children).
 
-Live / fluid events are skipped (generate-now on request).
+Live / fluid events are skipped here — `watch_live_event_product_pdfs.py` owns those.
 Child PDF files are written at the public child event URL
 (`{parent}-{fleet-tail}/results.pdf` via `_fleet_shell_public_url_slug`).
 If live api.py still uses raw block_id tails, run
