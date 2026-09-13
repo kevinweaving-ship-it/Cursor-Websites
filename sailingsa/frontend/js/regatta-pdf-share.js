@@ -182,15 +182,6 @@
     });
   }
 
-  function sharePdfFile(file) {
-    if (!file || !navigator.share) return Promise.reject(new Error("no-share"));
-    var payload = { files: [file], title: pdfTitle() };
-    if (navigator.canShare && !navigator.canShare(payload)) {
-      return Promise.reject(new Error("no-files"));
-    }
-    return navigator.share(payload);
-  }
-
   function downloadPdfFile(file) {
     if (!file) return;
     var url = URL.createObjectURL(file);
@@ -206,13 +197,42 @@
     }, 2500);
   }
 
-  function sharePdfAttach() {
+  function openMailto(subject, body) {
+    var href =
+      "mailto:?subject=" +
+      encodeURIComponent(subject || "") +
+      "&body=" +
+      encodeURIComponent(body || "");
+    window.location.href = href;
+  }
+
+  function openWhatsApp(text) {
+    var href =
+      "https://api.whatsapp.com/send?text=" + encodeURIComponent(text || "");
+    var w = window.open(href, "_blank", "noopener");
+    if (!w) window.location.href = href;
+  }
+
+  function emailPdf() {
+    var subj = pdfTitle();
+    var body = pdfFileName();
     withPdfFile(function (file) {
-      return sharePdfFile(file).catch(function () {
-        downloadPdfFile(file);
-      });
+      downloadPdfFile(file);
+      openMailto(subj, body);
     }).catch(function () {
       downloadPdfAttach();
+      openMailto(subj, body);
+    });
+  }
+
+  function whatsappPdf() {
+    var text = pdfTitle() + "\n" + pdfFileName();
+    withPdfFile(function (file) {
+      downloadPdfFile(file);
+      openWhatsApp(text);
+    }).catch(function () {
+      downloadPdfAttach();
+      openWhatsApp(text);
     });
   }
 
@@ -316,9 +336,14 @@
     var hit = t && t.closest ? t.closest("[data-ssa-print]") : null;
     if (!hit) return;
     var act = hit.getAttribute("data-ssa-print");
-    if (act === "whatsapp" || act === "email") {
+    if (act === "whatsapp") {
       ev.preventDefault();
-      sharePdfAttach();
+      whatsappPdf();
+      return;
+    }
+    if (act === "email") {
+      ev.preventDefault();
+      emailPdf();
       return;
     }
     if (act === "download") {
