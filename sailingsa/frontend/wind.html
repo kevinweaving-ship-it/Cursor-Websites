@@ -158,24 +158,18 @@
   function pick(u) {
     if (!samples.length) return null;
     var nowPt = liveNow() || samples[samples.length - 1];
-    if (u >= 1) {
+    var n = reachedN(u);
+    if (n >= samples.length) {
       return { kt: nowPt.kt, deg: nowPt.deg, t: nowPt.t };
     }
-    var a = samples[0].t;
-    var b = nowPt.t;
-    var span = Math.max(1, b - a);
-    var t = a + Math.max(0, u) * span;
-    var i = 1;
-    while (i < samples.length && samples[i].t < t) i += 1;
-    var p = samples[i - 1];
-    var n = samples[Math.min(i, samples.length - 1)];
-    var du = (n.t === p.t) ? 1 : (t - p.t) / (n.t - p.t);
-    du = Math.max(0, Math.min(1, du));
-    return {
-      kt: lerp(p.kt, n.kt, du),
-      deg: lerpDeg(p.deg, n.deg, du),
-      t: t
-    };
+    if (n <= 0) return samples[0];
+    return samples[n - 1];
+  }
+
+  function reachedN(u) {
+    if (!samples.length || u <= 0) return 0;
+    if (u >= 1) return samples.length;
+    return Math.max(0, Math.ceil(u * samples.length));
   }
 
   function radiusForKt(kt) {
@@ -369,20 +363,11 @@
   }
 
   function reachedRange(pt, u) {
-    var i;
-    var n = 0;
-    if (!samples.length || u <= 0) return [0, 0];
-    if (u >= 1) return [0, samples.length];
-    for (i = 0; i < samples.length; i += 1) {
-      if (samples[i].t <= pt.t) n = i + 1;
-      else break;
-    }
-    return [0, n];
+    return [0, reachedN(u)];
   }
 
   function paintHistory(pt, u) {
-    var range = reachedRange(pt, u);
-    var b = range[1];
+    var b = reachedN(u);
     var maxR = [];
     var i;
     if (!b) {
@@ -395,9 +380,6 @@
       if (i < b - 1) {
         stampJoin(maxR, samples[i].deg, samples[i + 1].deg, samples[i].kt, samples[i + 1].kt);
       }
-    }
-    if (b < samples.length) {
-      stampJoin(maxR, samples[b - 1].deg, pt.deg, samples[b - 1].kt, pt.kt);
     }
     histG.innerHTML = fillEnvelope(maxR, "0.38");
   }
