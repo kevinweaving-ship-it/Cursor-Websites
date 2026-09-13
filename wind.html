@@ -389,24 +389,22 @@
     var arcs = "";
     var pts;
     for (i = 0; i < n; i += 1) {
-      ticks += historyTick(samples[i]);
       stampReading(maxR, samples[i]);
       if (i < n - 1) {
         pts = joinPts(samples[i].deg, samples[i + 1].deg, samples[i].kt, samples[i + 1].kt);
-        if (pts) {
-          stamp(maxR, pts);
-          arcs += joinArcs(pts);
-        }
+        if (pts) stamp(maxR, pts);
       }
     }
     if (n < samples.length) {
       pts = joinPts(samples[n - 1].deg, pt.deg, samples[n - 1].kt, pt.kt);
       if (pts) {
         stamp(maxR, pts);
-        arcs += joinArcs(pts);
+        arcs = joinArcs(pts);
       }
     }
-    histG.innerHTML = fillEnvelope(maxR, "0.32") + arcs + ticks;
+    if (n === 1) ticks += historyTick(samples[0]);
+    if (n < 2) ticks += historyTick(pt);
+    histG.innerHTML = fillEnvelope(maxR, "0.38") + arcs + ticks;
   }
 
   function vectorParts(pt) {
