@@ -47,7 +47,11 @@
   var RING = 86;
   var q = new URLSearchParams(location.search);
   var slug = (q.get("station") || "w2s-zeekoevlei").trim();
-  var playing = true;
+  var at0 = parseFloat(q.get("at"));
+  if (isNaN(at0)) at0 = 0;
+  at0 = Math.max(0, Math.min(1, at0));
+  var freeze = q.get("pause") === "1";
+  var playing = !freeze;
   var samples = [];
   var t0 = 0;
   var trail = [];
@@ -124,7 +128,7 @@
 
   function tick(now) {
     if (!samples.length || !playing) return;
-    if (!t0) t0 = now;
+    if (!t0) t0 = now - at0 * PLAY_MS;
     var u = ((now - t0) % PLAY_MS) / PLAY_MS;
     window._u = u;
     draw(pick(u));
@@ -171,7 +175,14 @@
         if (samples.length) {
           metaEl.textContent = (samples[0].name || "Zeekoevlei") + " · last hour sped up";
           t0 = 0;
-          requestAnimationFrame(tick);
+          window._u = at0;
+          if (freeze) {
+            btn.textContent = "▶";
+            btn.setAttribute("aria-label", "Play last hour");
+            draw(pick(at0));
+          } else {
+            requestAnimationFrame(tick);
+          }
           return;
         }
       } catch (e) {}
