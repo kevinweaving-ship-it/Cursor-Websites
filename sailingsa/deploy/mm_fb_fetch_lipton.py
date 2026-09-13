@@ -26,7 +26,7 @@ from mm_fb_fetch_cape import (  # noqa: E402
 )
 
 RID = "2026-08-29-lipton-challenge-cup"
-KEEP_RE = re.compile(r"lipton", re.I)
+KEEP_RE = re.compile(r"\blipton\b", re.I)
 SKIP_RE = re.compile(r"zvyc|zeekoe|cape.?classic|classic.?test", re.I)
 CAPE_IDS = {
     "1599076671855710",
