@@ -190,44 +190,6 @@
     return ringRadii[railRingIndex()];
   }
 
-  function bandSlice(kt) {
-    var prev = 0;
-    var i;
-    for (i = 0; i < BANDS.length; i += 1) {
-      var top = BANDS[i].max > KT_MAX ? KT_MAX : BANDS[i].max;
-      if (kt < BANDS[i].max || i === BANDS.length - 1) {
-        return {
-          r0: radiusForKt(prev),
-          r1: radiusForKt(Math.max(prev + 0.4, top)),
-          color: BANDS[i].color
-        };
-      }
-      prev = BANDS[i].max;
-      if (BANDS[i].max >= KT_MAX) break;
-    }
-    return { r0: R_MIN, r1: R_MAX, color: BANDS[BANDS.length - 1].color };
-  }
-
-  function sectorPath(deg0, deg1, r0, r1) {
-    var turn = ((deg1 - deg0 + 540) % 360) - 180;
-    var span = Math.abs(turn);
-    var sweep = turn >= 0 ? 1 : 0;
-    var back = turn >= 0 ? 0 : 1;
-    if (span < 0.2) return "";
-    r0 = Math.max(1, r0);
-    r1 = Math.max(r0 + 1, r1);
-    var a0 = xy(deg0, r1);
-    var a1 = xy(deg1, r1);
-    var b1 = xy(deg1, r0);
-    var b0 = xy(deg0, r0);
-    var large = span > 180 ? 1 : 0;
-    return "M " + a0[0].toFixed(1) + "," + a0[1].toFixed(1) +
-      " A " + r1.toFixed(1) + "," + r1.toFixed(1) + " 0 " + large + " " + sweep + " " + a1[0].toFixed(1) + "," + a1[1].toFixed(1) +
-      " L " + b1[0].toFixed(1) + "," + b1[1].toFixed(1) +
-      " A " + r0.toFixed(1) + "," + r0.toFixed(1) + " 0 " + large + " " + back + " " + b0[0].toFixed(1) + "," + b0[1].toFixed(1) +
-      " Z";
-  }
-
   function radialTick(deg, r0, r1, color) {
     var a = xy(deg, r0);
     var b = xy(deg, r1);
@@ -239,13 +201,72 @@
     return radialTick(pt.deg, R_MIN, r, bandColor(pt.kt));
   }
 
-  function sweepSvg(deg0, deg1, kt, opacity) {
-    var sl = bandSlice(kt);
+  function runArc(pts, s, e, col) {
+    if (e <= s) return "";
+    var d = "";
+    var i;
+    var p;
+    for (i = s; i <= e; i += 1) {
+      p = xy(pts[i].deg, pts[i].r);
+      d += (i === s ? "M " : " L ") + p[0].toFixed(1) + "," + p[1].toFixed(1);
+    }
+    return '<path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+  }
+
+  function runFill(pts, s, e, col, op) {
+    if (e <= s) return "";
+    var inner = pts[s].r;
+    var i;
+    var p;
+    for (i = s; i <= e; i += 1) {
+      if (pts[i].r < inner) inner = pts[i].r;
+    }
+    var d = "";
+    for (i = s; i <= e; i += 1) {
+      p = xy(pts[i].deg, pts[i].r);
+      d += (i === s ? "M " : " L ") + p[0].toFixed(1) + "," + p[1].toFixed(1);
+    }
+    for (i = e; i >= s; i -= 1) {
+      p = xy(pts[i].deg, inner);
+      d += " L " + p[0].toFixed(1) + "," + p[1].toFixed(1);
+    }
+    d += " Z";
+    return '<path d="' + d + '" fill="' + col + '" fill-opacity="' + op + '" stroke="none"/>';
+  }
+
+  function joinSegment(deg0, deg1, kt0, kt1, fillOp) {
     var turn = ((deg1 - deg0 + 540) % 360) - 180;
-    if (Math.abs(turn) < 0.45) return "";
-    var d = sectorPath(deg0, deg1, sl.r0, sl.r1);
-    if (!d) return "";
-    return '<path d="' + d + '" fill="' + sl.color + '" fill-opacity="' + opacity + '" stroke="none"/>';
+    var span = Math.abs(turn);
+    var k0 = Math.max(0, Number(kt0) || 0);
+    var k1 = Math.max(0, Number(kt1) || 0);
+    if (span < 0.35 && Math.abs(k1 - k0) < 0.2) return "";
+    var n = Math.max(8, Math.min(42, Math.round(span / 2) + Math.round(Math.abs(k1 - k0) * 2)));
+    var pts = [];
+    var i;
+    var u;
+    var kt;
+    for (i = 0; i <= n; i += 1) {
+      u = i / n;
+      kt = lerp(k0, k1, u);
+      pts.push({
+        deg: lerpDeg(deg0, deg1, u),
+        r: Math.max(R_MIN, radiusForKt(kt)),
+        color: bandColor(kt)
+      });
+    }
+    var html = "";
+    var s = 0;
+    var e;
+    var col;
+    while (s < pts.length) {
+      col = pts[s].color;
+      e = s;
+      while (e + 1 < pts.length && pts[e + 1].color === col) e += 1;
+      html += runFill(pts, s, e, col, fillOp);
+      html += runArc(pts, s, e, col);
+      s = e + 1;
+    }
+    return html;
   }
 
   function reachedCount(pt, u) {
@@ -272,11 +293,11 @@
     for (i = 0; i < n; i += 1) {
       ticks += historyTick(samples[i]);
       if (i < n - 1) {
-        sweeps += sweepSvg(samples[i].deg, samples[i + 1].deg, (samples[i].kt + samples[i + 1].kt) / 2, "0.16");
+        sweeps += joinSegment(samples[i].deg, samples[i + 1].deg, samples[i].kt, samples[i + 1].kt, "0.18");
       }
     }
     if (n < samples.length) {
-      sweeps += sweepSvg(samples[n - 1].deg, pt.deg, pt.kt, "0.34");
+      sweeps += joinSegment(samples[n - 1].deg, pt.deg, samples[n - 1].kt, pt.kt, "0.36");
     }
     histG.innerHTML = sweeps + ticks;
   }
