@@ -46,7 +46,7 @@
       </svg>
       <p class="spd"><span id="spd">—</span><span class="kn">KN</span></p>
       <div class="stats"><span>AVG<b id="avg">—</b></span></div>
-      <p class="time" id="time">60 min</p>
+      <p class="time" id="time">now</p>
       <div class="tl" aria-hidden="true"><div class="tl-track"><div class="tl-fill" id="tlFill"></div></div></div>
       <p class="cap" id="cap">Last hour · sped up</p>
       <p class="meta" id="meta">Zeekoevlei</p>
@@ -57,7 +57,6 @@
   var PTS = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
   var PLAY_MS = 36000;
   var HOLD_MS = 2000;
-  var TAIL = 22;
   var R_MAX = 118;
   var R_MIN = 10;
   var KT_MAX = 17;
@@ -81,7 +80,6 @@
   var LIVE_N = 3;
   var MAJOR_DEG = 60;
   var t0 = 0;
-  var trail = [];
   var lastU = 0;
   var ringRadii = [];
   var btn = document.getElementById("btn");
@@ -160,10 +158,14 @@
 
   function pick(u) {
     if (!samples.length) return null;
+    var nowPt = liveNow() || samples[samples.length - 1];
+    if (u <= 0) {
+      return { kt: nowPt.kt, deg: nowPt.deg, t: nowPt.t };
+    }
     var a = samples[0].t;
-    var b = samples[samples.length - 1].t;
+    var b = nowPt.t;
     var span = Math.max(1, b - a);
-    var t = a + u * span;
+    var t = b - u * span;
     var i = 1;
     while (i < samples.length && samples[i].t < t) i += 1;
     var p = samples[i - 1];
@@ -234,28 +236,6 @@
     return ringRadii[railRingIndex()];
   }
 
-  function radialTick(deg, r0, r1, color) {
-    var a = xy(deg, r0);
-    var b = xy(deg, r1);
-    return '<line x1="' + a[0].toFixed(1) + '" y1="' + a[1].toFixed(1) + '" x2="' + b[0].toFixed(1) + '" y2="' + b[1].toFixed(1) + '" stroke="' + color + '" stroke-width="2.1" stroke-linecap="butt"/>';
-  }
-
-  function historyTick(pt) {
-    var r = Math.max(R_MIN + 2, radiusForKt(pt.kt));
-    var edges = bandEdges();
-    var h = "";
-    var i;
-    var a;
-    var b;
-    for (i = 0; i < edges.length; i += 1) {
-      if (r <= edges[i].r0 + 0.2) break;
-      a = edges[i].r0 < R_MIN ? R_MIN : edges[i].r0;
-      b = r < edges[i].r1 ? r : edges[i].r1;
-      if (b > a + 0.4) h += radialTick(pt.deg, a, b, edges[i].color);
-    }
-    return h;
-  }
-
   function bandEdges() {
     var edges = [];
     var prev = 0;
@@ -273,18 +253,6 @@
       prev = top;
     }
     return edges;
-  }
-
-  function runArc(pts, s, e, col) {
-    if (e <= s) return "";
-    var d = "";
-    var i;
-    var p;
-    for (i = s; i <= e; i += 1) {
-      p = xy(pts[i].deg, pts[i].r);
-      d += (i === s ? "M " : " L ") + p[0].toFixed(1) + "," + p[1].toFixed(1);
-    }
-    return '<path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>';
   }
 
   function bandRun(pts, s, e, band, op) {
@@ -307,30 +275,6 @@
     }
     d += " Z";
     return '<path d="' + d + '" fill="' + band.color + '" fill-opacity="' + op + '" stroke="none"/>';
-  }
-
-  function joinPts(deg0, deg1, kt0, kt1) {
-    var turn = ((deg1 - deg0 + 540) % 360) - 180;
-    var span = Math.abs(turn);
-    var k0 = Math.max(0, Number(kt0) || 0);
-    var k1 = Math.max(0, Number(kt1) || 0);
-    if (span >= 90) return null;
-    if (span < 0.35 && Math.abs(k1 - k0) < 0.2) return null;
-    var n = Math.max(8, Math.min(42, Math.round(span / 2) + Math.round(Math.abs(k1 - k0) * 2)));
-    var pts = [];
-    var i;
-    var u;
-    var kt;
-    for (i = 0; i <= n; i += 1) {
-      u = i / n;
-      kt = lerp(k0, k1, u);
-      pts.push({
-        deg: lerpDeg(deg0, deg1, u),
-        r: Math.max(R_MIN, radiusForKt(kt)),
-        color: bandColor(kt)
-      });
-    }
-    return pts;
   }
 
   function binDeg(deg) {
@@ -368,21 +312,6 @@
       a = (a0 + k + 360) % 360;
       if (r > maxR[a]) maxR[a] = r;
     }
-  }
-
-  function joinArcs(pts) {
-    var html = "";
-    var s = 0;
-    var e;
-    var col;
-    while (s < pts.length) {
-      col = pts[s].color;
-      e = s;
-      while (e + 1 < pts.length && pts[e + 1].color === col) e += 1;
-      html += runArc(pts, s, e, col);
-      s = e + 1;
-    }
-    return html;
   }
 
   function fillEnvelope(maxR, op) {
@@ -429,57 +358,53 @@
     return pts;
   }
 
-  function reachedStats(n) {
+  function reachedStats(a, b) {
     var i;
     var sum = 0;
     var c = 0;
-    var hi = null;
-    for (i = 0; i < n; i += 1) {
+    for (i = a; i < b; i += 1) {
       sum += samples[i].kt;
       c += 1;
-      if (samples[i].gust != null && (hi == null || samples[i].gust > hi)) hi = samples[i].gust;
     }
-    return { avg: c ? sum / c : null, high: hi };
+    return { avg: c ? sum / c : null };
   }
 
-  function reachedCount(pt, u) {
-    if (!samples.length || u <= 0) return 0;
-    if (u >= 1) return samples.length;
-    var n = 0;
+  function reachedRange(pt, u) {
     var i;
+    var start;
+    if (!samples.length || u <= 0) return [0, 0];
+    if (u >= 1) return [0, samples.length];
+    start = samples.length;
     for (i = 0; i < samples.length; i += 1) {
-      if (samples[i].t < pt.t) n = i + 1;
-      else break;
+      if (samples[i].t >= pt.t) {
+        start = i;
+        break;
+      }
     }
-    return n;
+    return [start, samples.length];
   }
 
   function paintHistory(pt, u) {
-    var n = reachedCount(pt, u);
-    if (!n) {
+    var range = reachedRange(pt, u);
+    var a = range[0];
+    var b = range[1];
+    var maxR = [];
+    var i;
+    if (a >= b) {
       histG.innerHTML = "";
       return;
     }
-    var maxR = [];
-    var i;
     for (i = 0; i < 360; i += 1) maxR[i] = 0;
-    var ticks = "";
-    var arcs = "";
-    var pts;
-    for (i = 0; i < n; i += 1) {
+    for (i = a; i < b; i += 1) {
       stampReading(maxR, samples[i]);
-      if (i < n - 1) {
+      if (i < b - 1) {
         stampJoin(maxR, samples[i].deg, samples[i + 1].deg, samples[i].kt, samples[i + 1].kt);
       }
     }
-    if (n < samples.length) {
-      stampJoin(maxR, samples[n - 1].deg, pt.deg, samples[n - 1].kt, pt.kt);
-      pts = joinPts(samples[n - 1].deg, pt.deg, samples[n - 1].kt, pt.kt);
-      if (pts) arcs = joinArcs(pts);
+    if (a > 0) {
+      stampJoin(maxR, pt.deg, samples[a].deg, pt.kt, samples[a].kt);
     }
-    if (n === 1) ticks += historyTick(samples[0]);
-    if (n < 2) ticks += historyTick(pt);
-    histG.innerHTML = fillEnvelope(maxR, "0.38") + arcs + ticks;
+    histG.innerHTML = fillEnvelope(maxR, "0.38");
   }
 
   function vectorParts(pt) {
@@ -502,7 +427,7 @@
 
   function markSvg(v, color) {
     return '<circle cx="' + v.dot[0].toFixed(1) + '" cy="' + v.dot[1].toFixed(1) + '" r="4.4" fill="#111"/>' +
-      '<polygon points="' + v.tip[0].toFixed(1) + ',' + v.tip[1].toFixed(1) + ' ' + v.left[0].toFixed(1) + ',' + v.left[1].toFixed(1) + ' ' + v.right[0].toFixed(1) + ',' + v.right[1].toFixed(1) + '" fill="' + color + '"/>';
+      '<polygon points="' + v.tip[0].toFixed(1) + ',' + v.tip[1].toFixed(1) + ' ' + v.left[0].toFixed(1) + ',' + v.left[1].toFixed(1) + ' ' + v.right[0].toFixed(1) + ',' + v.right[1].toFixed(1) + '" fill="' + color + '" stroke="none"/>';
   }
 
   function liveRows() {
@@ -555,14 +480,14 @@
   }
 
   function historyCoversLive(u) {
-    var n;
     var pt;
+    var range;
     if (!livePts.length || !samples.length) return false;
     u = playU(u);
     pt = pick(u);
-    n = reachedCount(pt, u);
-    if (!n) return false;
-    return samples[n - 1].t >= livePts[0].t;
+    range = reachedRange(pt, u);
+    if (range[0] >= range[1]) return false;
+    return samples[range[0]].t <= livePts[0].t;
   }
 
   function armLiveFromNow() {
@@ -636,28 +561,19 @@
   function draw(pt, u) {
     if (!pt || !samples.length) return;
     var nowPt = liveNow() || samples[samples.length - 1];
-    var play = vectorParts(pt);
+    var play = vectorParts(u <= 0 ? nowPt : pt);
     var live = vectorParts(nowPt);
-    trail.push(play.dot);
-    if (trail.length > TAIL) trail.shift();
-
-    var h = "";
-    var i;
-    for (i = 0; i < trail.length - 1; i += 1) {
-      var o = (i + 1) / trail.length;
-      h += '<circle cx="' + trail[i][0].toFixed(1) + '" cy="' + trail[i][1].toFixed(1) + '" r="' + (1.2 + o * 2).toFixed(1) + '" fill="#3b82f6" fill-opacity="' + (0.05 + o * 0.22).toFixed(2) + '"/>';
-    }
-    playLine.innerHTML = h + lineSvg(play, "#93c5fd");
+    playLine.innerHTML = lineSvg(play, "#93c5fd");
     playMark.innerHTML = markSvg(play, "#3b82f6");
     nowLine.innerHTML = lineSvg(live, "#86efac");
     nowMark.innerHTML = markSvg(live, "#22c55e");
     paintHigh();
     paintLive(u);
     paintHistory(pt, u);
-    var nSeen = reachedCount(pt, u);
+    var seen = reachedRange(pt, u);
 
     spdEl.textContent = (Math.round(pt.kt * 10) / 10).toFixed(1);
-    var st = reachedStats(nSeen);
+    var st = reachedStats(seen[0], seen[1]);
     avgEl.textContent = st.avg == null ? "—" : (Math.round(st.avg * 10) / 10).toFixed(1);
     timeEl.textContent = fmtRemain(pt.t);
     tlFill.style.width = (Math.max(0, Math.min(1, u)) * 100).toFixed(1) + "%";
@@ -675,9 +591,6 @@
       u = pos / PLAY_MS;
     } else {
       u = 1;
-    }
-    if (u < lastU - 0.2) {
-      trail = [];
     }
     lastU = u;
     window._pos = pos;
