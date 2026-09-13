@@ -30,6 +30,17 @@ def main() -> int:
         except Exception as e:
             print(f"[mm_fb] graph failed: {e}", flush=True)
             fetched = []
+    if token and not live_ids(fetched):
+        try:
+            from mm_fb_graph_live import keep_tokens, page_token as live_page_token
+
+            st = keep_tokens(force=False)
+            if st.get("action") == "minted":
+                token = live_page_token() or token
+                fetched = graph_fetch(token) or []
+                source = "graph"
+        except Exception as e:
+            print(f"[mm_fb] keep_tokens: {e}", flush=True)
     if not live_ids(fetched):
         probed = probe_live() or []
         if probed:
