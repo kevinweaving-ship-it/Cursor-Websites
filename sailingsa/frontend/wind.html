@@ -84,7 +84,8 @@
   var playing = !freeze && !!mode;
   var playU = mode === "up" ? 0 : 1;
   var playVel = mode === "up" ? 1 : -1;
-  var holdLeft = 0;
+  var holdKind = (!freeze && mode === "down") ? "rest" : null;
+  var holdLeft = holdKind === "rest" ? HOLD_MS : 0;
   var lastTick = 0;
   var samples = [];
   var highRows = [];
@@ -453,7 +454,7 @@
     return highPoint && pt && pt.t === highPoint.t;
   }
 
-  function playU(u) {
+  function clampPlayU(u) {
     u = Number(u);
     if (isNaN(u) || u < 0 || u > 1) u = window._u || 0;
     return u;
@@ -463,7 +464,7 @@
     var pt;
     var range;
     if (!livePts.length || !samples.length) return false;
-    u = playU(u);
+    u = clampPlayU(u);
     pt = pick(u);
     range = reachedRange(pt, u);
     if (range[0] >= range[1]) return false;
@@ -577,6 +578,7 @@
   function stopIdle() {
     mode = null;
     playing = false;
+    holdKind = null;
     holdLeft = 0;
     lastTick = 0;
     t0 = 0;
@@ -593,13 +595,10 @@
     if (mode && mode !== next) {
       mode = next;
       playVel = next === "up" ? 1 : -1;
+      holdKind = null;
       holdLeft = 0;
       syncModeBtns();
-      if (playU >= 1 && playVel > 0) {
-        stopIdle();
-        return;
-      }
-      if (playU <= 0 && playVel < 0) {
+      if ((playVel > 0 && playU >= 1) || (playVel < 0 && playU <= 0)) {
         stopIdle();
         return;
       }
@@ -614,7 +613,8 @@
     mode = next;
     playVel = next === "up" ? 1 : -1;
     playU = next === "down" ? 1 : 0;
-    holdLeft = next === "down" ? HOLD_MS : 0;
+    holdKind = next === "down" ? "rest" : null;
+    holdLeft = holdKind === "rest" ? HOLD_MS : 0;
     playing = !freeze;
     lastTick = 0;
     t0 = 0;
@@ -676,36 +676,36 @@
     lastTick = now;
     if (holdLeft > 0) {
       holdLeft -= dt;
-      playU = 1;
-      window._u = 1;
-      draw(pick(1), 1);
+      window._u = playU;
+      draw(pick(playU), playU);
       if (holdLeft <= 0) {
         holdLeft = 0;
-        if (playVel > 0) {
+        if (holdKind === "end") {
+          holdKind = null;
           stopIdle();
           return;
         }
+        holdKind = null;
       }
       requestAnimationFrame(tick);
       return;
     }
     playU += playVel * dt / PLAY_MS;
-    if (playU >= 1) {
+    if (playVel > 0 && playU >= 1) {
       playU = 1;
+      holdKind = "end";
       holdLeft = HOLD_MS;
       window._u = 1;
       draw(pick(1), 1);
       requestAnimationFrame(tick);
       return;
     }
-    if (playU <= 0) {
+    if (playVel < 0 && playU <= 0) {
       playU = 0;
+      holdKind = "end";
+      holdLeft = HOLD_MS;
       window._u = 0;
       draw(pick(0), 0);
-      if (playVel < 0) {
-        stopIdle();
-        return;
-      }
       requestAnimationFrame(tick);
       return;
     }
@@ -776,11 +776,17 @@
           }, 10000);
           setInterval(pullHigh, 30000);
           metaEl.textContent = samples[0].name || "Zeekoevlei";
-          if (mode && freeze) {
-            draw(pick(at0), at0);
-          } else if (mode && playing) {
-            requestAnimationFrame(tick);
-          } else {
+          try {
+            if (mode && freeze) {
+              playU = at0;
+              window._u = at0;
+              draw(pick(at0), at0);
+            } else if (mode && playing) {
+              requestAnimationFrame(tick);
+            } else {
+              drawIdle();
+            }
+          } catch (err) {
             drawIdle();
           }
           return;
