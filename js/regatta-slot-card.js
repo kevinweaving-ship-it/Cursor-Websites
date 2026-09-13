@@ -1,13 +1,18 @@
-/* Cape Classic slot: Voelklip wind dial + Wind2Speed Zeekoevlei (station 35).
-   Dial: live FROM arrow + last-hour sector petals (wds).
-   Numbers: Now / Avg / High / Gust from that station only (never copy wind onto gust).
-   Graph: last hour in view; swipe right (older is left) like Voelklip home weather card.
-   History: /api/weather/stations/w2s-zeekoevlei/history — do not average stations. */
+/* Cape Classic slot: simplified Wind2Speed Zeekoevlei (station 35) for racing.
+   W2S widget is a full instrument (speed scale 0–45, lull/gust ticks, dir range,
+   16 sector bars, min–avg–max toggle, Chart.js, sensors, water quality).
+   We keep only what sailors need:
+     Now  = stats.wslr     last 3-min reading
+     Avg  = stats.wsa      W2S period average (20 min = RecCountForAvgs 6 × 3 min)
+     High = stats.wsh      W2S period max (what you are contending with)
+   Live FROM arrow = stats.wdlr. Petals = stats.wds (period direction mix).
+   Graph: tableData ~72 min (all W2S sends live). Swipe older from our store.
+   Do not copy wind onto gust. Do not average stations. */
 (function () {
   var CSS_ID = "ssa-regatta-slot-card-css";
   var ROOT_ID = "ssa-regatta-slot-card";
   var CAPE_CLASSIC_ID = "2026-09-13-zvyc-cape-classic";
-  var JS_VER = "20260913wxg1";
+  var JS_VER = "20260913wxg2";
   var HIST_SLUG = "w2s-zeekoevlei";
   var HOUR_MS = 3600000;
   var WA_FEED = "/js/event-whatsapp-live.json";
@@ -38,7 +43,7 @@
       ".ssa-regatta-slot-card .wx-plot{height:100%;display:block;min-width:100%;}",
       ".ssa-regatta-slot-card .wx-spark-x{flex:0 0 auto;display:flex;justify-content:space-between;padding:2px 0 0 19px;}",
       ".ssa-regatta-slot-card .wx-spark-x span{font:700 9px/1 Arial,Helvetica,sans-serif;color:#64748b;}",
-      ".ssa-regatta-slot-card .wx-info{flex:0 0 auto;min-width:118px;height:100%;display:flex;flex-direction:column;justify-content:stretch;gap:3px;padding:6px 8px 6px 4px;box-sizing:border-box;}",
+      ".ssa-regatta-slot-card .wx-info{flex:0 0 auto;min-width:118px;height:100%;display:flex;flex-direction:column;justify-content:stretch;gap:6px;padding:10px 8px 10px 4px;box-sizing:border-box;}",
       ".ssa-regatta-slot-card .wx-dial .dt{stroke:#9ca3af;stroke-width:1;}",
       ".ssa-regatta-slot-card .wx-dial .dt.card{stroke:#111;stroke-width:1.4;}",
       ".ssa-regatta-slot-card .wx-dial .darc{fill:none;stroke:#93c5fd;stroke-width:7;stroke-linecap:butt;}",
@@ -47,7 +52,7 @@
       ".ssa-regatta-slot-card .wx-dial .dpt{font:700 24px Arial,Helvetica,sans-serif;fill:#15803d;}",
       ".ssa-regatta-slot-card .wx-dial .ddeg{font:700 18px Arial,Helvetica,sans-serif;fill:#166534;}",
       ".ssa-regatta-slot-card .wx-ir{flex:1 1 0;display:flex;flex-direction:row;justify-content:flex-end;align-items:baseline;gap:6px;min-width:0;min-height:0;}",
-      ".ssa-regatta-slot-card .wx-il,.ssa-regatta-slot-card .wx-iv,.ssa-regatta-slot-card .wx-iv small{font:800 15px/1 Arial,Helvetica,sans-serif;white-space:nowrap;}",
+      ".ssa-regatta-slot-card .wx-il,.ssa-regatta-slot-card .wx-iv,.ssa-regatta-slot-card .wx-iv small{font:800 18px/1 Arial,Helvetica,sans-serif;white-space:nowrap;}",
       ".ssa-regatta-slot-card .wx-il{color:#334155;letter-spacing:0;text-transform:none;}",
       ".ssa-regatta-slot-card .wx-iv{color:#1a2750;text-align:right;}",
       ".ssa-regatta-slot-card .wx-iv small{margin-left:4px;color:inherit;}",
@@ -86,7 +91,7 @@
       ".ssa-wa-gate-actions button[data-wa-gate-close]{display:flex;align-items:center;justify-content:center;min-height:44px;width:100%;padding:10px 12px;border-radius:6px;font:700 14px/1.2 Arial,Helvetica,sans-serif;background:#fff;color:#1a2750;border:1px solid #1a2750;cursor:pointer;box-sizing:border-box;}",
       "@media screen and (orientation:portrait) and (max-width:767px){",
       ".ssa-regatta-slot-card{margin-top:10px;}",
-      ".ssa-regatta-slot-card .wx-il,.ssa-regatta-slot-card .wx-iv,.ssa-regatta-slot-card .wx-iv small{font-size:14px;}",
+      ".ssa-regatta-slot-card .wx-il,.ssa-regatta-slot-card .wx-iv,.ssa-regatta-slot-card .wx-iv small{font-size:17px;}",
       "}"
     ].join("");
   }
@@ -507,11 +512,9 @@
     var wnow = data.wind_kt;
     var wavg = data.avg_kt;
     var whigh = data.high_kt;
-    var wgust = data.gust_kt;
     var colN = bandCol(wnow);
     var colA = bandCol(wavg);
     var colH = bandCol(whigh);
-    var colG = bandCol(wgust);
     slot.innerHTML =
       '<div class="wx-wp-top">' +
         '<div class="wx-wp-comp">' + drawDial(data) + "</div>" +
@@ -520,7 +523,6 @@
           '<div class="wx-ir"><span class="wx-il">Now</span><span class="wx-iv" style="color:' + colN + '">' + n1(wnow) + " <small>kn</small></span></div>" +
           '<div class="wx-ir"><span class="wx-il">Avg</span><span class="wx-iv" style="color:' + colA + '">' + n1(wavg) + " <small>kn</small></span></div>" +
           '<div class="wx-ir"><span class="wx-il">High</span><span class="wx-iv" style="color:' + colH + '">' + n1(whigh) + " <small>kn</small></span></div>" +
-          '<div class="wx-ir"><span class="wx-il">Gust</span><span class="wx-iv" style="color:' + colG + '">' + n1(wgust) + " <small>kn</small></span></div>" +
         "</div>" +
       "</div>" +
       '<button type="button" class="wx-wa-btn" aria-label="Cape Classic WhatsApp" aria-pressed="false">' + WA_ICON + "</button>" +
