@@ -94,6 +94,30 @@ html.ssa-printing th.class-col, html.ssa-printing td.class-col { display: none !
 html.ssa-printing .fleet-results-table.rs-compact-row-logos th.class-col,
 html.ssa-printing .fleet-results-table.rs-compact-row-logos td.class-col { display: table-cell !important; }
 html.ssa-printing .ssa-print-page-footer { display: flex !important; position: static !important; margin-top: 8px !important; }
+/* Race codes (DNC etc): 1/3 size, bottom-right of the cell — URL and print. */
+.fleet-results-table.rs-compact-row-logos td.race-col {
+  position: relative !important;
+}
+.fleet-results-table.rs-compact-row-logos .wc-score {
+  font-size: 1em !important;
+  font-weight: 600 !important;
+}
+.fleet-results-table.rs-compact-row-logos .wc-code,
+.fleet-results-table.rs-compact-row-logos span.code .wc-code,
+.fleet-results-table.rs-compact-row-logos span.disc .wc-code {
+  font-size: 33% !important;
+  font-weight: 700 !important;
+  position: absolute !important;
+  right: 2px !important;
+  bottom: 1px !important;
+  left: auto !important;
+  top: auto !important;
+  margin: 0 !important;
+  line-height: 1 !important;
+  vertical-align: baseline !important;
+  letter-spacing: 0.02em !important;
+  opacity: 1 !important;
+}
 @media print {
   html, body { background: #fff !important; color: #1a2750 !important; margin: 0 !important; padding: 0 !important; }
   html, body, .regatta-page, .class-header, .sailed-line, table, th, td {
@@ -404,17 +428,23 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
     padding-right: 0.5px !important;
     font-size: 6pt !important;
     letter-spacing: 0.01em !important;
+    position: relative !important;
   }
-  .fleet-results-table .wc-score {
+  .fleet-results-table .wc-score,
+  .fleet-results-table.rs-compact-row-logos .wc-score {
     font-size: 1em !important;
-    font-weight: 500 !important;
-  }
-  .fleet-results-table .wc-code {
-    font-size: 50% !important;
     font-weight: 600 !important;
-    vertical-align: super !important;
-    margin-left: 0.08em !important;
-    line-height: 0 !important;
+  }
+  .fleet-results-table .wc-code,
+  .fleet-results-table.rs-compact-row-logos .wc-code {
+    font-size: 33% !important;
+    font-weight: 700 !important;
+    position: absolute !important;
+    right: 1px !important;
+    bottom: 0 !important;
+    margin: 0 !important;
+    line-height: 1 !important;
+    vertical-align: baseline !important;
     letter-spacing: 0.02em !important;
     opacity: 1 !important;
   }
