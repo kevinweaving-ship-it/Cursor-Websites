@@ -75,6 +75,8 @@
   var freeze = q.get("pause") === "1";
   var playing = !freeze;
   var samples = [];
+  var highRows = [];
+  var HIGH_MS = 3600000;
   var t0 = 0;
   var trail = [];
   var lastU = 0;
@@ -466,18 +468,32 @@
   }
 
   function paintHigh() {
+    var now = Date.now();
+    var rows = highRows.length ? highRows : samples;
     var i;
     var best = null;
-    for (i = 0; i < samples.length; i += 1) {
-      if (samples[i].gust == null) continue;
-      if (best == null || samples[i].gust > best.gust) best = samples[i];
+    for (i = 0; i < rows.length; i += 1) {
+      if (now - rows[i].t > HIGH_MS) continue;
+      if (rows[i].gust == null) continue;
+      if (best == null || rows[i].gust > best.gust) best = rows[i];
     }
     if (!best) {
       highG.innerHTML = "";
       return;
     }
     var p = xy(best.dirMax, Math.max(R_MIN + 2, radiusForKt(best.gust)));
-    highG.innerHTML = '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="5.2" fill="#DC143C"/>';
+    highG.innerHTML = '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="3" fill="#DC143C"/>';
+  }
+
+  async function pullHigh() {
+    try {
+      var res = await fetch("/api/weather/stations/" + encodeURIComponent(slug) + "/history?hours=2&_=" + Date.now(), { cache: "no-store", credentials: "same-origin" });
+      if (!res.ok) return;
+      var body = await res.json();
+      var rows = (body.readings || body.history || []).map(asSample).filter(Boolean).sort(function (a, b) { return a.t - b.t; });
+      highRows = rows;
+      paintHigh();
+    } catch (e) {}
   }
 
   function draw(pt, u) {
@@ -590,6 +606,8 @@
           KT_MAX = bandCeiling(peak);
           drawRings();
           paintHigh();
+          setInterval(paintHigh, 10000);
+          setInterval(pullHigh, 60000);
           metaEl.textContent = (samples[0].name || "Zeekoevlei") + " · last hour sped up";
           t0 = 0;
           window._u = at0;
