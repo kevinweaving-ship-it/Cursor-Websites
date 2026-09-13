@@ -273,8 +273,25 @@
     paintCamStamps(root);
   }
 
+  function hideAllCamStamps(root) {
+    if (!root) return;
+    var stamps = root.querySelectorAll('[data-mm-cam-stamp]');
+    var i;
+    for (i = 0; i < stamps.length; i++) stamps[i].hidden = true;
+  }
+
+  function showingZvycCam(root) {
+    if (!root) return false;
+    if (root.classList.contains('mm-lipton-reels--expanded')) {
+      return !!root.querySelector('[data-mm-hud] .mm-lipton-reels-clip-chrome--zvyc');
+    }
+    return !!root.querySelector('.mm-lipton-reels-thumb [data-mm-webcam-live]');
+  }
+
   function paintCamStamps(root) {
     if (!root) return;
+    hideAllCamStamps(root);
+    if (!showingZvycCam(root)) return;
     var live = !!root._mmCamUpstream;
     var lastMs = root._mmCamLastLiveAt || 0;
     var nowTxt = fmtClock(Date.now());
@@ -285,15 +302,10 @@
     for (i = 0; i < thumbs.length; i++) {
       if (thumbs[i].querySelector('[data-mm-webcam-live]')) hosts.push(thumbs[i]);
     }
-    var stage = root.querySelector('[data-mm-stage]');
     var hud = root.querySelector('[data-mm-hud]');
-    var stageCam =
-      stage &&
-      (stage.querySelector('[data-mm-webcam-live]') ||
-        (root._mmCamReady && root.querySelector('[data-mm-hero-video]')) ||
-        (hud && isCapeClassic()));
-    if (hud && stageCam) hosts.push(hud);
-    else if (stage && stageCam) hosts.push(stage);
+    if (root.classList.contains('mm-lipton-reels--expanded') && hud) {
+      hosts = [hud];
+    }
     for (i = 0; i < hosts.length; i++) {
       var stamp = ensureCamStampOn(hosts[i]);
       if (!stamp) continue;
@@ -1392,6 +1404,7 @@
   }
 
   function startHeroPlayback(root, clip, state) {
+    if (!isWebcam(clip)) hideAllCamStamps(root);
     var stage = root.querySelector('[data-mm-stage]');
     if (isWebcam(clip) && stage) {
       stopTrackOverlay();
@@ -1821,6 +1834,7 @@
     if (old && old.parentNode) old.parentNode.replaceChild(neu, old);
     else hud.insertBefore(neu, hud.firstChild);
     applyFrozenChrome(root, snap);
+    paintCamStamps(root);
   }
 
   function updateExpandedGrid(root, videos, currentId) {

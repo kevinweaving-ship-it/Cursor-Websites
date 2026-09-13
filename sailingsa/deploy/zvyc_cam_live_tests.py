@@ -52,9 +52,12 @@ def test_js_stamp_copy():
     assert "data.last_live_at" in js
     assert "left:118px" in js
     assert "function fmtClock" in js
-    chunk = js[js.index("function paintCamStamps") : js.index("function paintCamStamps") + 500]
+    chunk = js[js.index("function paintCamStamps") : js.index("function paintCamStamps") + 900]
+    assert "function showingZvycCam" in js
+    assert "hideAllCamStamps" in js
+    assert "clip-chrome--zvyc" in js
     assert "var live = !!root._mmCamUpstream;" in chunk
-    assert "root._mmCamUpstream || root._mmCamReady" not in chunk
+    assert "hud && isCapeClassic()" not in chunk
 
 
 if __name__ == "__main__":
