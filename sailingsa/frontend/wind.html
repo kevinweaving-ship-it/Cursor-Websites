@@ -248,20 +248,35 @@
     return '<path d="' + d + '" fill="' + sl.color + '" fill-opacity="' + opacity + '" stroke="none"/>';
   }
 
-  function paintHistory(pt) {
+  function reachedCount(pt, u) {
+    if (!samples.length || u <= 0) return 0;
+    if (u >= 1) return samples.length;
+    var n = 0;
+    var i;
+    for (i = 0; i < samples.length; i += 1) {
+      if (samples[i].t < pt.t) n = i + 1;
+      else break;
+    }
+    return n;
+  }
+
+  function paintHistory(pt, u) {
+    var n = reachedCount(pt, u);
+    if (!n) {
+      histG.innerHTML = "";
+      return;
+    }
     var sweeps = "";
     var ticks = "";
     var i;
-    for (i = 0; i < samples.length; i += 1) {
-      if (samples[i].t > pt.t) break;
+    for (i = 0; i < n; i += 1) {
       ticks += historyTick(samples[i]);
-      var nxt = samples[i + 1];
-      if (!nxt) continue;
-      if (nxt.t <= pt.t) {
-        sweeps += sweepSvg(samples[i].deg, nxt.deg, (samples[i].kt + nxt.kt) / 2, "0.16");
-      } else {
-        sweeps += sweepSvg(samples[i].deg, pt.deg, pt.kt, "0.34");
+      if (i < n - 1) {
+        sweeps += sweepSvg(samples[i].deg, samples[i + 1].deg, (samples[i].kt + samples[i + 1].kt) / 2, "0.16");
       }
+    }
+    if (n < samples.length) {
+      sweeps += sweepSvg(samples[n - 1].deg, pt.deg, pt.kt, "0.34");
     }
     histG.innerHTML = sweeps + ticks;
   }
@@ -307,7 +322,7 @@
     playMark.innerHTML = markSvg(play, "#3b82f6");
     nowLine.innerHTML = lineSvg(live, "#86efac");
     nowMark.innerHTML = markSvg(live, "#22c55e");
-    paintHistory(pt);
+    paintHistory(pt, u);
 
     spdEl.textContent = (Math.round(pt.kt * 10) / 10).toFixed(1);
     timeEl.textContent = fmtRemain(pt.t);
