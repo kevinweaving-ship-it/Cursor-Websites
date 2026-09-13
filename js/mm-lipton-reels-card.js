@@ -837,26 +837,32 @@
     );
   }
 
-  function latestThumbHtml(v, videos) {
+  function latestThumbHtml(v, videos, skipHit) {
     var cam = isWebcam(v);
     return (
       '<div class="mm-lipton-reels-thumb mm-lipton-reels-thumb--latest" style="aspect-ratio:16 / 9">' +
       posterHtml(v) +
       latestChromeHtml(chromeSource(v, videos), cam ? 'mm-lipton-reels-clip-chrome--zvyc' : '') +
       '<span class="mm-lipton-reels-play" aria-hidden="true"></span>' +
-      thumbHit(v) +
+      (skipHit ? '' : thumbHit(v)) +
       '</div>'
     );
   }
 
   function compactTileHtml(v, videos, isLatest) {
-    if (mmFbLive(v)) return liveCardHtml(v);
+    if (mmFbLive(v)) return '';
+    var id = (v && v.id) || '';
+    var label = isWebcam(v) ? 'Play live cam' : 'Play reel';
     return (
-      '<div class="mm-lipton-reels-tile' +
+      '<button type="button" class="mm-lipton-reels-tile mm-lipton-reels-tile--reel' +
       (isLatest ? ' mm-lipton-reels-tile--latest' : '') +
+      '" data-mm-vid="' +
+      esc(id) +
+      '" aria-label="' +
+      esc(label) +
       '">' +
-      latestThumbHtml(v, videos) +
-      '</div>'
+      latestThumbHtml(v, videos, true) +
+      '</button>'
     );
   }
 
@@ -1448,13 +1454,17 @@
   function syncBrand(root, videos) {
     var img = root.querySelector('.mm-lipton-reels-brand img');
     var soon = root.getAttribute('data-mm-brand-soon') || '';
-    var live = root.getAttribute('data-mm-brand-live') || '';
+    var liveLogo = root.getAttribute('data-mm-brand-live') || '';
     if (!img || !soon) return;
-    var has = hasRealReels(videos);
-    var next = has ? live || '/assets/adverts/mm-powered-by-event-reels.png?v=mmr2' : soon;
+    var liveOn = !!firstMmFbLive(videos);
+    var has = hasRealReels(reelVideos(videos));
+    var next;
+    if (liveOn) next = liveLogo || '/assets/adverts/mm-powered-by-live.png?v=mmcc2';
+    else if (has) next = '/assets/adverts/mm-powered-by-event-reels.png?v=mmr2';
+    else next = soon;
     if (img.getAttribute('src') !== next) img.setAttribute('src', next);
     var alt = 'Powered by Marine Megastore Coming Soon';
-    if (String(next).indexOf('powered-by-live') !== -1) alt = 'Powered by Marine Megastore Live Streaming';
+    if (liveOn) alt = 'Powered by Marine Megastore Live Streaming';
     else if (has) alt = 'Powered by Marine Megastore Event Reels';
     img.setAttribute('alt', alt);
     var link = img.closest && img.closest('.mm-lipton-reels-brand');
@@ -1505,7 +1515,7 @@
         openClip(root, payload, state, live.id);
         return;
       }
-      if (prevLive && !live && state.expanded) {
+      if (prevLive && !live) {
         collapse(root, payload, state);
         return;
       }
@@ -1912,6 +1922,9 @@
       '.mm-lipton-reels-compact{display:flex;flex-wrap:nowrap;align-items:stretch}' +
       '.mm-lipton-reels-brand{order:0}' +
       '.mm-lipton-reels-live-slot{flex:0 0 auto;min-width:0;align-self:stretch;order:1}' +
+      '.mm-lipton-reels-tile--reel{display:block;margin:0;padding:0;border:0;background:transparent;cursor:pointer;min-width:44px;min-height:44px;flex:0 0 auto}' +
+      '.mm-lipton-reels-clip-chrome{pointer-events:none}' +
+      '.mm-lipton-reels-thumb-hit{z-index:8!important;pointer-events:auto}' +
       '.mm-lipton-reels-rail-wrap{order:2}' +
       '.mm-lipton-reels-live-slot[hidden]{display:none!important;width:0!important;min-width:0!important;margin:0!important;padding:0!important;border:0!important;overflow:hidden}' +
       '.mm-lipton-reels-live-slot .mm-lipton-reels-tile{display:block;width:100%;height:100%;margin:0}' +
