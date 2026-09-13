@@ -4,7 +4,15 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from mm_fb_fetch_cape import broadcast_state, parse_video_ids, prefer_new, video_is_live  # noqa: E402
+from mm_fb_fetch_cape import (  # noqa: E402
+    broadcast_state,
+    dedupe_reels,
+    listing_meta,
+    parse_video_ids,
+    prefer_new,
+    same_reel,
+    video_is_live,
+)
 
 JS = Path(__file__).resolve().parents[1] / "frontend" / "js" / "mm-lipton-reels-card.js"
 
@@ -79,6 +87,35 @@ def test_js_bundle_paused_stream_is_not_live():
     assert video_is_live(html) is False
 
 
+def test_listing_meta_uses_facebook_reel_thumb():
+    html = (
+        '"id":"2830349890679040","playable_duration_in_ms":927894,'
+        '"image":{"uri":"https:\\/\\/scontent.example\\/t15.5256-10\\/thumb.jpg"}'
+    )
+    meta = listing_meta(html)
+    assert meta["2830349890679040"]["duration_ms"] == 927894
+    assert meta["2830349890679040"]["fb_thumb"] == "https://scontent.example/t15.5256-10/thumb.jpg"
+
+
+def test_dedupe_same_title_keeps_one():
+    videos = [
+        {"id": "2830349890679040", "title": "ZVYC Day 2 ILCA and open start", "is_live": False},
+        {"id": "1087203537604361", "title": "ZVYC Day 2 ILCA and open start", "is_live": False},
+    ]
+    out = dedupe_reels(videos)
+    assert [v["id"] for v in out] == ["2830349890679040"]
+
+
+def test_dedupe_keeps_different_clips_titled_live():
+    videos = [
+        {"id": "1599076671855710", "title": "LIVE", "is_live": False, "duration_ms": 1104000},
+        {"id": "1723275305570869", "title": "LIVE", "is_live": False, "duration_ms": 160000},
+    ]
+    assert same_reel(videos[0], videos[1]) is False
+    out = dedupe_reels(videos)
+    assert [v["id"] for v in out] == ["1599076671855710", "1723275305570869"]
+
+
 if __name__ == "__main__":
     test_own_live_card()
     test_bare_video_id_before_old_page_urls()
@@ -87,4 +124,7 @@ if __name__ == "__main__":
     test_live_stopped_stays_on_live_card()
     test_vod_ready_is_finished_reel_not_live()
     test_js_bundle_paused_stream_is_not_live()
+    test_listing_meta_uses_facebook_reel_thumb()
+    test_dedupe_same_title_keeps_one()
+    test_dedupe_keeps_different_clips_titled_live()
     print("ok")

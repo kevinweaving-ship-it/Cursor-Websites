@@ -56,11 +56,10 @@ def main() -> int:
             fetched = probed + [v for v in fetched if str(v.get("id") or "") not in {str(x.get("id") or "") for x in probed}]
             source = "chrome" if token else "scrape"
     if not fetched:
-        data = {}
         try:
-            from mm_fb_fetch_cape import load_feed, RID
+            from mm_fb_fetch_cape import tidy_stored_reels
 
-            row = (load_feed().get(RID) or {})
+            row = tidy_stored_reels()
         except Exception:
             row = {}
         print(
@@ -70,6 +69,11 @@ def main() -> int:
                     "source": source,
                     "kept": True,
                     "live": [v.get("id") for v in (row.get("videos") or []) if v.get("is_live")],
+                    "reels": [
+                        v.get("id")
+                        for v in (row.get("videos") or [])
+                        if not v.get("is_live") and str(v.get("id") or "").isdigit()
+                    ][:6],
                 }
             )
         )

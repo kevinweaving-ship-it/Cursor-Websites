@@ -53,7 +53,21 @@ VIDEO_ID_RE = re.compile(r'"video_id"\s*:\s*"(\d{8,})"')
 BARE_VID_RE = re.compile(r"/videos/(\d{8,})")
 CREATION_RE = re.compile(r"(?:creation_time|publish_time)[\"\s:]+(\d{10})")
 OG_TITLE_RE = re.compile(r'og:title" content="([^"]+)"', re.I)
+OG_IMAGE_RE = re.compile(
+    r'(?:property|name)="og:image(?::url)?"\s+content="([^"]+)"',
+    re.I,
+)
 TEXT_RE = re.compile(r'"text":"([^"]{5,180})"')
+LISTING_THUMB_RE = re.compile(
+    r'"id":"(\d{8,})","playable_duration_in_ms":(\d+),"image":\{"uri":"([^"]+)"'
+)
+GENERIC_TITLES = {
+    "live",
+    "marine megastore reel",
+    "marine megastore was live",
+    "marine megastore",
+    "marine megastore live",
+}
 LISTING_LIVE_RE = re.compile(
     r'"is_live_streaming":(true|false),'
     r'"is_premiere":(?:true|false),'
@@ -367,6 +381,7 @@ def probe_live() -> list | None:
     existing = stored_reel_ids()
     prev_live = stored_live_ids()
     found = prefer_new(parse_video_ids(html), existing)
+    apply_listing_meta(found, html)
     if not found:
         return []
     page_state = broadcast_state(html)
@@ -607,6 +622,12 @@ def inspect_video(item: dict) -> dict:
     vid = str(item.get("id") or "")
     item["live_state"] = broadcast_state(page, vid)
     item["is_live"] = item["live_state"] in {"live", "paused"}
+    thumb = facebook_thumb_from_html(page, vid)
+    if thumb:
+        item["fb_thumb"] = thumb
+    info = listing_meta(page).get(vid) or {}
+    if info.get("duration_ms"):
+        item["duration_ms"] = info["duration_ms"]
     if item["is_live"]:
         item["play_url"] = ""
         item["title"] = title_from_html(page, item.get("title") or "Marine Megastore LIVE")
@@ -644,6 +665,187 @@ def advert_play_url(url: str) -> bool:
     return str(url or "").startswith("/assets/adverts/")
 
 
+def listing_meta(html: str) -> dict[str, dict]:
+    """Facebook's own reel thumb + duration from the Page listing."""
+    out: dict[str, dict] = {}
+    for vid, dur, uri in LISTING_THUMB_RE.findall(html or ""):
+        thumb = html_lib.unescape((uri or "").replace("\\/", "/")).strip()
+        out[vid] = {"duration_ms": int(dur), "fb_thumb": thumb}
+    return out
+
+
+def apply_listing_meta(items: list, html: str) -> list:
+    meta = listing_meta(html)
+    for item in items or []:
+        vid = str((item or {}).get("id") or "")
+        info = meta.get(vid) or {}
+        if info.get("duration_ms"):
+            item["duration_ms"] = info["duration_ms"]
+        if info.get("fb_thumb"):
+            item["fb_thumb"] = info["fb_thumb"]
+    return items
+
+
+def facebook_thumb_from_html(html: str, vid: str = "") -> str:
+    vid = str(vid or "")
+    if vid:
+        info = listing_meta(html).get(vid) or {}
+        if info.get("fb_thumb"):
+            return str(info["fb_thumb"])
+    m = OG_IMAGE_RE.search(html or "")
+    if m:
+        return html_lib.unescape(m.group(1)).strip()
+    return ""
+
+
+def save_fb_thumb(vid: str, thumb_url: str) -> bool:
+    """Overwrite the local jpg with Facebook's reel thumbnail."""
+    vid = str(vid or "")
+    thumb_url = html_lib.unescape((thumb_url or "").replace("\\/", "/")).strip()
+    if not vid.isdigit() or not thumb_url.startswith("http"):
+        return False
+    ASSET.mkdir(parents=True, exist_ok=True)
+    jpg = ASSET / f"{vid}.jpg"
+    tmp = ASSET / f".{vid}.jpg.tmp"
+    proc = subprocess.run(
+        [
+            "curl",
+            "-fsSL",
+            "-A",
+            "facebookexternalhit/1.1",
+            "-o",
+            str(tmp),
+            thumb_url,
+        ],
+        capture_output=True,
+        timeout=30,
+    )
+    if proc.returncode != 0 or not tmp.is_file() or tmp.stat().st_size < 1000:
+        try:
+            tmp.unlink()
+        except Exception:
+            pass
+        return False
+    tmp.replace(jpg)
+    try:
+        os.chown(jpg, 33, 33)
+    except Exception:
+        pass
+    return True
+
+
+def _norm_title(value: str) -> str:
+    return re.sub(r"\s+", " ", str(value or "").strip().lower())
+
+
+def _title_of(item: dict) -> str:
+    return _norm_title(item.get("title") or item.get("fb_title") or "")
+
+
+def _duration_ms(item: dict) -> int:
+    raw = item.get("duration_ms") or 0
+    try:
+        n = int(raw)
+        if n > 0:
+            return n
+    except Exception:
+        pass
+    vid = str((item or {}).get("id") or "")
+    mp4 = ASSET / f"{vid}.mp4"
+    if not vid.isdigit() or not mp4.is_file() or mp4.stat().st_size < 50_000:
+        return 0
+    try:
+        proc = subprocess.run(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=nw=1:nk=1",
+                str(mp4),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        sec = float((proc.stdout or "").strip() or 0)
+    except Exception:
+        return 0
+    return int(sec * 1000) if sec > 0 else 0
+
+
+def _jpg_fingerprint(item: dict) -> str:
+    import hashlib
+
+    vid = str((item or {}).get("id") or "")
+    jpg = ASSET / f"{vid}.jpg"
+    if not jpg.is_file() or jpg.stat().st_size < 1000:
+        return ""
+    try:
+        return hashlib.md5(jpg.read_bytes()).hexdigest()
+    except Exception:
+        return ""
+
+
+def same_reel(a: dict, b: dict) -> bool:
+    """True when Facebook posted the same clip twice (video id + reel id)."""
+    if not a or not b:
+        return False
+    if str(a.get("id") or "") == str(b.get("id") or ""):
+        return False
+    if a.get("is_live") or b.get("is_live"):
+        return False
+    if not str(a.get("id") or "").isdigit() or not str(b.get("id") or "").isdigit():
+        return False
+    ta, tb = _title_of(a), _title_of(b)
+    generic = (not ta or ta in GENERIC_TITLES) or (not tb or tb in GENERIC_TITLES)
+    if ta and ta == tb and ta not in GENERIC_TITLES:
+        return True
+    fa, fb_hash = _jpg_fingerprint(a), _jpg_fingerprint(b)
+    if fa and fa == fb_hash:
+        return True
+    da, db = _duration_ms(a), _duration_ms(b)
+    if da and db and abs(da - db) <= 800 and not generic and ta == tb:
+        return True
+    return False
+
+
+def dedupe_reels(videos: list) -> list:
+    """Keep one copy of each MM reel. Same label+thumb or same clip duration+title."""
+    kept: list = []
+    for item in videos or []:
+        if not isinstance(item, dict):
+            continue
+        if item.get("is_live") or not str(item.get("id") or "").isdigit():
+            kept.append(item)
+            continue
+        if any(same_reel(prev, item) for prev in kept):
+            continue
+        kept.append(item)
+    return kept
+
+
+def tidy_stored_reels(html: str = "") -> dict:
+    data = load_feed()
+    row = dict(data.get(RID) or {})
+    videos = [dict(v) for v in (row.get("videos") or []) if isinstance(v, dict)]
+    if html:
+        apply_listing_meta(videos, html)
+        for item in videos:
+            if item.get("is_live") or not str(item.get("id") or "").isdigit():
+                continue
+            hose_media(item)
+    live = [v for v in videos if v.get("is_live")]
+    rest = [v for v in videos if not v.get("is_live")]
+    rest.sort(key=lambda v: str(v.get("started_at") or ""), reverse=True)
+    row["videos"] = live + dedupe_reels(rest)
+    data[RID] = row
+    save_feed(data)
+    return row
+
+
 def commit_videos(fetched: list) -> dict:
     data = load_feed()
     row = dict(data.get(RID) or {})
@@ -677,21 +879,25 @@ def commit_videos(fetched: list) -> dict:
             row_item["thumb"] = ""
             row_item["fb_title"] = "LIVE"
             row_item["title"] = "LIVE"
-            row_item["fb_sub"] = "LIVE"
-        elif not row_item.get("fb_sub"):
-            row_item["fb_sub"] = "Marine Megastore was live"
+            paused = str(row_item.get("live_state") or "") == "paused"
+            row_item["fb_sub"] = "Live / But Paused" if paused else "LIVE"
+            row_item["live_state"] = "paused" if paused else (row_item.get("live_state") or "live")
+        else:
+            row_item["live_state"] = row_item.get("live_state") or "vod"
+            if not row_item.get("fb_sub"):
+                row_item["fb_sub"] = "Marine Megastore was live"
         cleaned.append(row_item)
     live = [v for v in cleaned if v.get("is_live")]
     rest = [v for v in cleaned if not v.get("is_live")]
     rest.sort(key=lambda v: str(v.get("started_at") or ""), reverse=True)
-    row["videos"] = live + rest
+    row["videos"] = live + dedupe_reels(rest)
     data[RID] = row
     save_feed(data)
     return row
 
 
 def hose_media(item: dict) -> dict:
-    """Save local jpg + mp4 like Lipton thumbs so the card can play on tap."""
+    """Save local jpg + mp4. JPG is Facebook's reel thumbnail when we have it."""
     vid = str((item or {}).get("id") or "")
     if not vid.isdigit():
         return item
@@ -711,52 +917,50 @@ def hose_media(item: dict) -> dict:
             text=True,
             timeout=180,
         )
-    if url and YTDLP.is_file() and (not jpg.is_file() or jpg.stat().st_size < 1000):
+    thumb = str(item.get("fb_thumb") or "").strip()
+    need_jpg = not jpg.is_file() or jpg.stat().st_size < 1000
+    if url and not thumb and need_jpg:
+        try:
+            page = http_get(url, timeout=12)
+        except Exception:
+            page = ""
+        thumb = facebook_thumb_from_html(page, vid)
+        if thumb:
+            item["fb_thumb"] = thumb
+    if not thumb and need_jpg and url and YTDLP.is_file():
         proc = subprocess.run(
             [str(YTDLP), "--no-warnings", "-j", url],
             capture_output=True,
             text=True,
             timeout=60,
         )
-        thumb = ""
         try:
             thumb = str((json.loads(proc.stdout or "{}") or {}).get("thumbnail") or "")
         except Exception:
             thumb = ""
         if thumb:
-            subprocess.run(
-                [
-                    "curl",
-                    "-fsSL",
-                    "-A",
-                    "facebookexternalhit/1.1",
-                    "-o",
-                    str(jpg),
-                    thumb,
-                ],
-                capture_output=True,
-                timeout=30,
-            )
-        if (not jpg.is_file() or jpg.stat().st_size < 1000) and mp4.is_file() and mp4.stat().st_size > 50_000:
-            subprocess.run(
-                [
-                    "ffmpeg",
-                    "-y",
-                    "-ss",
-                    "1",
-                    "-i",
-                    str(mp4),
-                    "-vframes",
-                    "1",
-                    "-q:v",
-                    "3",
-                    str(jpg),
-                ],
-                capture_output=True,
-                timeout=30,
-            )
+            item["fb_thumb"] = thumb
+    saved = save_fb_thumb(vid, thumb) if thumb else False
+    if (not saved) and (not jpg.is_file() or jpg.stat().st_size < 1000) and mp4.is_file() and mp4.stat().st_size > 50_000:
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-ss",
+                "1",
+                "-i",
+                str(mp4),
+                "-vframes",
+                "1",
+                "-q:v",
+                "3",
+                str(jpg),
+            ],
+            capture_output=True,
+            timeout=30,
+        )
     if jpg.is_file() and jpg.stat().st_size > 1000:
-        item["thumb"] = f"/assets/adverts/mm-cape-classic/{vid}.jpg"
+        item["thumb"] = f"/assets/adverts/mm-cape-classic/{vid}.jpg?v={int(jpg.stat().st_mtime)}"
     if mp4.is_file() and mp4.stat().st_size > 50_000:
         item["play_url"] = f"/assets/adverts/mm-cape-classic/{vid}.mp4"
     for path in (mp4, jpg):
@@ -801,6 +1005,12 @@ def merge_videos(existing: list, fetched: list) -> list:
                 "fb_sub": "LIVE" if live else "Marine Megastore was live",
             }
         )
+        if item.get("live_state"):
+            row["live_state"] = item["live_state"]
+        if item.get("duration_ms"):
+            row["duration_ms"] = item["duration_ms"]
+        if item.get("fb_thumb"):
+            row["fb_thumb"] = item["fb_thumb"]
         if item.get("started_at"):
             row["started_at"] = item["started_at"]
         elif not row.get("started_at"):
