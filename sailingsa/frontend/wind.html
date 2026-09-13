@@ -235,8 +235,8 @@
   }
 
   function historyTick(pt) {
-    var r = Math.max(R_MIN + 8, radiusForKt(pt.kt));
-    return radialTick(pt.deg, Math.max(R_MIN, r - 12), r + 1, bandColor(pt.kt));
+    var r = Math.max(R_MIN + 2, radiusForKt(pt.kt));
+    return radialTick(pt.deg, R_MIN, r, bandColor(pt.kt));
   }
 
   function sweepSvg(deg0, deg1, kt, opacity) {
