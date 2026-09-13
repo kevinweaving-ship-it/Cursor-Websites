@@ -217,7 +217,7 @@
       '<span data-mm-cam-stamp-live-label>LIVE</span>' +
       '<span data-mm-cam-stamp-live-time></span></div>' +
       '<div class="mm-lipton-reels-cam-stamp-off" data-mm-cam-stamp-off hidden>' +
-      '<div class="mm-lipton-reels-cam-stamp-title">No Live available</div>' +
+      '<div class="mm-lipton-reels-cam-stamp-title">No live feed</div>' +
       '<div class="mm-lipton-reels-cam-stamp-last" data-mm-cam-stamp-last></div>' +
       '<div class="mm-lipton-reels-cam-stamp-note">It\u2019s not us, it\u2019s the upstream!</div>' +
       '</div></div>'
@@ -232,19 +232,20 @@
     return box.querySelector('[data-mm-cam-stamp]');
   }
 
-  function setCamUpstream(root, live, stillMs) {
+  function setCamUpstream(root, live, stillMs, lastLiveMs) {
     if (!root) return;
     if (stillMs) root._mmCamStillAt = stillMs;
+    if (lastLiveMs) root._mmCamLastLiveAt = lastLiveMs;
     root._mmCamUpstream = !!live;
     paintCamStamps(root);
   }
 
   function paintCamStamps(root) {
     if (!root) return;
-    var live = !!(root._mmCamReady || root._mmCamUpstream);
-    var stillMs = root._mmCamStillAt || 0;
+    var live = !!root._mmCamUpstream;
+    var lastMs = root._mmCamLastLiveAt || 0;
     var nowTxt = fmtCamStamp(Date.now(), true);
-    var lastTxt = stillMs ? 'Last image ' + fmtCamStamp(stillMs, false) : 'Last image unknown';
+    var lastTxt = lastMs ? 'Last live ' + fmtCamStamp(lastMs, false) : 'Last live unknown';
     var hosts = [];
     var thumbs = root.querySelectorAll('.mm-lipton-reels-thumb');
     var i;
@@ -278,10 +279,11 @@
     if (!root || !r) return;
     var stillMs =
       parseStillAt(r.headers.get('X-Zvyc-Cam-Still-At')) || parseStillAt(r.headers.get('Last-Modified'));
+    var lastLiveMs = parseStillAt(r.headers.get('X-Zvyc-Cam-Last-Live'));
     var liveHdr = String(r.headers.get('X-Zvyc-Cam-Live') || '').trim();
-    var live = liveHdr === '1' ? true : liveHdr === '0' ? false : r.ok;
+    var live = liveHdr === '1' ? true : liveHdr === '0' ? false : false;
     if (!r.ok) live = false;
-    setCamUpstream(root, live, stillMs);
+    setCamUpstream(root, live, stillMs, lastLiveMs);
   }
 
   function pollCamStatus(root) {
@@ -294,7 +296,8 @@
       .then(function (data) {
         if (!data) return;
         var stillMs = parseStillAt(data.still_at);
-        setCamUpstream(root, !!data.live, stillMs);
+        var lastLiveMs = parseStillAt(data.last_live_at);
+        setCamUpstream(root, !!data.live, stillMs, lastLiveMs);
       })
       .catch(function () {});
   }
@@ -304,10 +307,10 @@
     paintCamStamps(root);
     pollCamStatus(root);
     root._mmCamStampTimer = window.setInterval(function () {
-      if (root._mmCamUpstream || root._mmCamReady) paintCamStamps(root);
+      if (root._mmCamUpstream) paintCamStamps(root);
     }, 1000);
     root._mmCamStatusTimer = window.setInterval(function () {
-      if (!root._mmCamReady) pollCamStatus(root);
+      pollCamStatus(root);
     }, 20000);
   }
 
@@ -1310,7 +1313,7 @@
         var snap = stage && stage.querySelector('[data-mm-webcam-live]');
         if (snap && snap.parentNode) snap.parentNode.removeChild(snap);
         if (stage) ensureCamStampOn(stage);
-        setCamUpstream(root, true, Date.now());
+        pollCamStatus(root);
       }
       if (wait > 0) window.setTimeout(go, wait);
       else go();
