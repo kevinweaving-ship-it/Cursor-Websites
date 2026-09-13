@@ -302,6 +302,20 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
   }
   .rs-club-row-logo, .rs-boat-sponsor-logo, .fleet-results-table .rs-club-row-logo,
   .fleet-results-table .rs-boat-sponsor-logo { display: none !important; }
+  .rs-class-row-logo, .rs-club-row-logo-sm, .rs-fleet-title-logo,
+  .fleet-results-table .rs-class-row-logo,
+  .fleet-results-table .rs-club-row-logo-sm,
+  .fleet-title-with-logo .rs-fleet-title-logo {
+    display: inline-block !important;
+    height: auto !important;
+    width: auto !important;
+    max-height: 14px !important;
+    max-width: 28px !important;
+    object-fit: contain !important;
+    vertical-align: middle !important;
+    flex: 0 0 auto !important;
+  }
+  .fleet-title-with-logo { display: inline-flex !important; align-items: center !important; gap: 4px !important; }
   .rs-club-with-logo, .rs-boat-name-sponsors { white-space: nowrap !important; }
   thead { display: table-header-group; }
   tbody { page-break-inside: avoid !important; break-inside: avoid-page !important; }
