@@ -23,14 +23,23 @@ def main() -> int:
     token = page_token()
     source = "none"
     fetched: list = []
-    if token:
+    graph_ok = bool(token)
+    try:
+        from mm_fb_graph_live import read_status
+
+        st = read_status() or {}
+        if st.get("needs_login") or (st.get("page") or {}).get("error_code") == 190:
+            graph_ok = False
+    except Exception:
+        pass
+    if graph_ok:
         try:
             fetched = graph_fetch(token) or []
             source = "graph"
         except Exception as e:
             print(f"[mm_fb] graph failed: {e}", flush=True)
             fetched = []
-    if token and not live_ids(fetched):
+    if graph_ok and not live_ids(fetched):
         try:
             from mm_fb_graph_live import keep_tokens, page_token as live_page_token
 

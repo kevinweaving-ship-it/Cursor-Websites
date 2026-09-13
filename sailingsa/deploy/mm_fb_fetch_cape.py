@@ -50,6 +50,7 @@ VID_RE = re.compile(
 )
 REEL_RE = re.compile(r"https://www\.facebook\.com/reel/(\d{8,})", re.I)
 VIDEO_ID_RE = re.compile(r'"video_id"\s*:\s*"(\d{8,})"')
+BARE_VID_RE = re.compile(r"/videos/(\d{8,})")
 CREATION_RE = re.compile(r"(?:creation_time|publish_time)[\"\s:]+(\d{10})")
 OG_TITLE_RE = re.compile(r'og:title" content="([^"]+)"', re.I)
 TEXT_RE = re.compile(r'"text":"([^"]{5,180})"')
@@ -169,23 +170,62 @@ def http_get(url: str, timeout: int = 10) -> str:
         return r.read().decode("utf-8", "replace")
 
 
+def _video_row(vid: str, title: str = "Marine Megastore reel") -> dict:
+    url = video_watch_url(vid)
+    return {
+        "id": vid,
+        "slug": "",
+        "url": url,
+        "permalink": url,
+        "title": title,
+    }
+
+
 def parse_video_ids(html: str) -> list[dict]:
-    found = parse_videos(html)
-    seen = {str(item.get("id") or "") for item in found}
-    for vid in VIDEO_ID_RE.findall(html or ""):
-        if vid in seen or vid in LIPTON_IDS:
-            continue
+    """Page /live HTML lists the current broadcast as /videos/{id} first.
+
+    That path often has no marin.megastoresa prefix. Old saved reels still
+    appear as full Page URLs later in the same dump — those must not hide
+    the new id.
+    """
+    found: list[dict] = []
+    seen: set[str] = set()
+
+    def add(vid: str, title: str) -> None:
+        vid = str(vid or "")
+        if not vid.isdigit() or vid in seen or vid in LIPTON_IDS:
+            return
         seen.add(vid)
-        found.append(
-            {
-                "id": vid,
-                "slug": "",
-                "url": f"https://www.facebook.com/marin.megastoresa/videos/{vid}/",
-                "permalink": f"https://www.facebook.com/marin.megastoresa/videos/{vid}/",
-                "title": "Marine Megastore LIVE",
-            }
-        )
+        found.append(_video_row(vid, title))
+
+    for vid in BARE_VID_RE.findall(html or ""):
+        add(vid, "Marine Megastore LIVE")
+    for item in parse_videos(html):
+        vid = str(item.get("id") or "")
+        if vid and vid not in seen and vid not in LIPTON_IDS:
+            seen.add(vid)
+            found.append(item)
+    for vid in VIDEO_ID_RE.findall(html or ""):
+        add(vid, "Marine Megastore LIVE")
     return found
+
+
+def stored_reel_ids() -> set[str]:
+    ids: set[str] = set()
+    try:
+        for v in (load_feed().get(RID) or {}).get("videos") or []:
+            vid = str((v or {}).get("id") or "")
+            if vid.isdigit() and not (v or {}).get("is_live"):
+                ids.add(vid)
+    except Exception:
+        return ids
+    return ids
+
+
+def prefer_new(found: list, existing: set[str]) -> list[dict]:
+    new = [item for item in found if str(item.get("id") or "") not in existing]
+    old = [item for item in found if str(item.get("id") or "") in existing]
+    return new + old
 
 
 def probe_live() -> list | None:
@@ -203,18 +243,11 @@ def probe_live() -> list | None:
         html = ""
     if not html:
         return None
-    found = parse_video_ids(html)
+    found = prefer_new(parse_video_ids(html), stored_reel_ids())
     if not found:
         return []
-    existing = set()
-    try:
-        for v in (load_feed().get(RID) or {}).get("videos") or []:
-            vid = str((v or {}).get("id") or "")
-            if vid.isdigit() and not (v or {}).get("is_live"):
-                existing.add(vid)
-    except Exception:
-        existing = set()
-    for item in found[:8]:
+    existing = stored_reel_ids()
+    for item in found[:6]:
         vid0 = str(item.get("id") or "")
         if vid0 in existing or vid0 in LIPTON_IDS:
             continue
