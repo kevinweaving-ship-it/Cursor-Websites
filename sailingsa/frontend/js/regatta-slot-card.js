@@ -1,19 +1,17 @@
-/* Cape Classic slot: simplified Wind2Speed Zeekoevlei (station 35) for racing.
-   W2S widget is a full instrument (speed scale 0–45, lull/gust ticks, dir range,
-   16 sector bars, min–avg–max toggle, Chart.js, sensors, water quality).
-   We keep only what sailors need:
-     Now  = stats.wslr     last 3-min reading
-     Avg  = stats.wsa      W2S period average (20 min = RecCountForAvgs 6 × 3 min)
-     High = stats.wsh      W2S period max (what you are contending with)
-   Live FROM arrow = stats.wdlr. Petals = stats.wds (period direction mix).
-   Graph: tableData ~72 min (all W2S sends live). Swipe older from our store.
-   Do not copy wind onto gust. Do not average stations. */
+/* Generic weather station card for every catalog station, now and later.
+   Bind with data-weather-station="{slug}" or data-weather-club="{CODE}"
+   (optional data-weather-role="venue|nearby|regional"). Never average stations.
+   Now  = latest reading wind_kt
+   Avg  = mean of last hour (wind_avg_kt else wind_kt)
+   High = max last-hour gust if any gusts exist, else max of that hour's avgs
+   Arrow = latest wind_dir_deg. Petals = last-hour direction mix.
+   Graph = stored history, last hour in view, swipe older.
+   Adding a station is a catalog row + ingest, not a new card. */
 (function () {
   var CSS_ID = "ssa-regatta-slot-card-css";
   var ROOT_ID = "ssa-regatta-slot-card";
   var CAPE_CLASSIC_ID = "2026-09-13-zvyc-cape-classic";
-  var JS_VER = "20260913wxg2";
-  var HIST_SLUG = "w2s-zeekoevlei";
+  var JS_VER = "20260913wxg3";
   var HOUR_MS = 3600000;
   var WA_FEED = "/js/event-whatsapp-live.json";
   var WA_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#25D366" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.435 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>';
@@ -138,6 +136,101 @@
   function dirIdx(deg) {
     if (deg == null || isNaN(deg)) return null;
     return Math.round((((Number(deg) % 360) + 360) % 360) / 22.5) % 16;
+  }
+  function mean(arr) {
+    if (!arr || !arr.length) return null;
+    var s = 0;
+    var i;
+    for (i = 0; i < arr.length; i += 1) s += arr[i];
+    return s / arr.length;
+  }
+  function pickClubStation(payload, role) {
+    var list = (payload && payload.stations) || [];
+    var want = String(role || "venue").toLowerCase();
+    var venue = [];
+    var i;
+    var row;
+    for (i = 0; i < list.length; i += 1) {
+      row = list[i];
+      if (!row || !row.station_slug) continue;
+      if (String(row.role || "").toLowerCase() === want) venue.push(row);
+    }
+    for (i = 0; i < venue.length; i += 1) {
+      if (venue[i].usable_for_current) return venue[i].station_slug;
+    }
+    if (venue[0]) return venue[0].station_slug;
+    for (i = 0; i < list.length; i += 1) {
+      if (list[i] && list[i].usable_for_current && list[i].station_slug) return list[i].station_slug;
+    }
+    return list[0] && list[0].station_slug ? list[0].station_slug : "";
+  }
+  async function resolveSlug(slot) {
+    var slug = String((slot && slot.getAttribute("data-weather-station")) || "").trim();
+    if (slug) return slug;
+    var club = String((slot && slot.getAttribute("data-weather-club")) || "").trim().toUpperCase();
+    if (!club) return "";
+    var role = String((slot && slot.getAttribute("data-weather-role")) || "venue").trim();
+    var res = await fetch("/api/weather/clubs/" + encodeURIComponent(club) + "/stations?_=" + Date.now(), {
+      cache: "no-store",
+      credentials: "same-origin"
+    });
+    if (!res.ok) throw new Error("club wx " + res.status);
+    var body = await res.json();
+    if (!body || body.ok === false) throw new Error((body && body.err) || "club wx fail");
+    return pickClubStation(body, role);
+  }
+  function viewFromReadings(readings) {
+    var pts = (readings || []).slice().sort(function (a, b) {
+      return parseMs(a.observed_at) - parseMs(b.observed_at);
+    });
+    var last = pts.length ? pts[pts.length - 1] : {};
+    var nowMs = parseMs(last.observed_at);
+    if (isNaN(nowMs)) nowMs = Date.now();
+    var hour = [];
+    var avgs = [];
+    var highs = [];
+    var wds = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    var nDir = 0;
+    var i;
+    var r;
+    var ms;
+    var avg;
+    var gust;
+    var di;
+    for (i = 0; i < pts.length; i += 1) {
+      r = pts[i];
+      ms = parseMs(r.observed_at);
+      avg = r.wind_avg_kt != null ? r.wind_avg_kt : r.wind_kt;
+      gust = r.wind_gust_kt;
+      hour.push({ t: r.observed_at, avg_kt: avg, high_kt: gust != null && !isNaN(gust) ? Number(gust) : null });
+      if (!isNaN(ms) && nowMs - ms <= HOUR_MS) {
+        if (avg != null && !isNaN(avg)) avgs.push(Number(avg));
+        if (gust != null && !isNaN(gust)) highs.push(Number(gust));
+        di = dirIdx(r.wind_dir_deg != null ? r.wind_dir_deg : r.wind_dir_avg_deg);
+        if (di != null) {
+          wds[di] += 1;
+          nDir += 1;
+        }
+      }
+    }
+    var wdsPct = nDir ? wds.map(function (c) { return Math.round((100 * c) / nDir); }) : wds;
+    var high = highs.length ? Math.max.apply(null, highs) : (avgs.length ? Math.max.apply(null, avgs) : null);
+    var nowVal = last.wind_kt != null ? last.wind_kt : last.wind_avg_kt;
+    var deg = last.wind_dir_deg != null ? last.wind_dir_deg : last.wind_dir_avg_deg;
+    var diLast = dirIdx(deg);
+    return {
+      ok: true,
+      slug: last.station_slug || "",
+      wind_kt: nowVal,
+      avg_kt: mean(avgs),
+      high_kt: high,
+      wind_dir: deg,
+      wind_dir_name: diLast != null ? PTS[diLast] : "",
+      wds: wdsPct,
+      history: pts,
+      hour: hour,
+      interval: 40000
+    };
   }
   function recentIdx(data) {
     var last = dirIdx(data.wind_dir);
@@ -515,6 +608,7 @@
     var colN = bandCol(wnow);
     var colA = bandCol(wavg);
     var colH = bandCol(whigh);
+    var withWa = slot.getAttribute("data-weather-wa") === "1";
     slot.innerHTML =
       '<div class="wx-wp-top">' +
         '<div class="wx-wp-comp">' + drawDial(data) + "</div>" +
@@ -525,12 +619,16 @@
           '<div class="wx-ir"><span class="wx-il">High</span><span class="wx-iv" style="color:' + colH + '">' + n1(whigh) + " <small>kn</small></span></div>" +
         "</div>" +
       "</div>" +
-      '<button type="button" class="wx-wa-btn" aria-label="Cape Classic WhatsApp" aria-pressed="false">' + WA_ICON + "</button>" +
-      '<div class="wx-wa-layer" aria-label="Cape Classic WhatsApp"></div>';
+      (withWa
+        ? '<button type="button" class="wx-wa-btn" aria-label="Cape Classic WhatsApp" aria-pressed="false">' + WA_ICON + "</button>" +
+          '<div class="wx-wa-layer" aria-label="Cape Classic WhatsApp"></div>'
+        : "");
     bindSpark(slot);
-    bindWa(slot);
-    applyWaShow(slot);
-    refreshWaShow(slot);
+    if (withWa) {
+      bindWa(slot);
+      applyWaShow(slot);
+      refreshWaShow(slot);
+    }
   }
 
   function fitGauge(slot) {
@@ -555,8 +653,6 @@
     fitGauge(slot);
   }
 
-  var loading = false;
-  var pollTimer = null;
   var POLL_MS = 40000;
   var waShow = true;
 
@@ -582,70 +678,92 @@
   }
 
   async function load(slot) {
-    if (loading) return;
-    loading = true;
+    if (!slot || slot._wxLoading) return;
+    slot._wxLoading = true;
     try {
-      var res = await fetch("/api/wind2speed/zeekoevlei?_=" + Date.now(), {
-        cache: "no-store",
-        credentials: "same-origin"
-      });
-      if (!res.ok) throw new Error("w2s " + res.status);
-      var data = await res.json();
-      if (!data || data.ok === false) throw new Error((data && data.err) || "w2s fail");
-      try {
-        var href = "/api/weather/stations/" + encodeURIComponent(HIST_SLUG) + "/history?hours=12&_=" + Date.now();
-        var hres = await fetch(href, { cache: "no-store", credentials: "same-origin" });
-        if (hres.ok) {
-          var hist = await hres.json();
-          if (hist && hist.ok && Array.isArray(hist.readings) && hist.readings.length) {
-            data.history = hist.readings;
-          }
-        }
-      } catch (histErr) {}
+      var slug = slot._wxSlug || (await resolveSlug(slot));
+      if (!slug) throw new Error("no weather station");
+      slot._wxSlug = slug;
+      slot.setAttribute("data-weather-station", slug);
+      var href = "/api/weather/stations/" + encodeURIComponent(slug) + "/history?hours=12&_=" + Date.now();
+      var hres = await fetch(href, { cache: "no-store", credentials: "same-origin" });
+      if (!hres.ok) throw new Error("wx history " + hres.status);
+      var hist = await hres.json();
+      if (!hist || hist.ok === false) throw new Error((hist && hist.err) || "wx history fail");
+      var data = viewFromReadings(hist.readings || []);
+      data.slug = slug;
       if (slot.classList.contains("ssa-wa-open")) {
         loadWa(slot);
       } else {
         render(slot, data);
         fitGauge(slot);
       }
-      var next = Number(data.interval);
-      if (next >= 10000 && next <= 120000 && next !== POLL_MS) {
-        POLL_MS = next;
-        if (pollTimer) {
-          clearInterval(pollTimer);
-          pollTimer = setInterval(function () { if (!document.hidden) load(slot); }, POLL_MS);
-        }
-      }
     } catch (err) {
       try { console.warn(err); } catch (e) {}
     } finally {
-      loading = false;
+      slot._wxLoading = false;
     }
   }
 
-  function mount() {
+  function startCard(el) {
+    if (!el || el.getAttribute("data-wx-bound") === "1") return el;
+    el.setAttribute("data-wx-bound", "1");
+    injectCss();
+    function tick() { if (!document.hidden) load(el); }
+    load(el);
+    setInterval(tick, POLL_MS);
+    document.addEventListener("visibilitychange", tick);
+    window.addEventListener("resize", function () { fitGauge(el); });
+    return el;
+  }
+
+  function mountCapeClassic() {
     if (document.getElementById(ROOT_ID)) return;
     var marine = document.getElementById("mmLiptonReels");
     if (!marine) return;
     if ((marine.getAttribute("data-regatta-id") || "").trim() !== CAPE_CLASSIC_ID) return;
-    injectCss();
     var el = document.createElement("section");
     el.id = ROOT_ID;
-    el.className = "card ssa-regatta-slot-card";
-    el.setAttribute("aria-label", "Zeekoevlei wind");
+    el.className = "card ssa-wx-card ssa-regatta-slot-card";
+    el.setAttribute("data-weather-club", "ZVYC");
+    el.setAttribute("data-weather-role", "venue");
+    el.setAttribute("data-weather-wa", "1");
+    el.setAttribute("aria-label", "Venue wind");
     marine.parentNode.insertBefore(el, marine);
     syncToMarine(el, marine);
-    window.addEventListener("resize", function () { fitGauge(el); });
     if (typeof MutationObserver === "function") {
       new MutationObserver(function () { fitGauge(el); }).observe(marine, {
         attributes: true,
         attributeFilter: ["class"]
       });
     }
-    load(el);
-    pollTimer = setInterval(function () { if (!document.hidden) load(el); }, POLL_MS);
-    document.addEventListener("visibilitychange", function () { if (!document.hidden) load(el); });
+    startCard(el);
   }
+
+  function mountMarked() {
+    var nodes = document.querySelectorAll("[data-weather-station], [data-weather-club]");
+    var i;
+    for (i = 0; i < nodes.length; i += 1) {
+      nodes[i].classList.add("card", "ssa-wx-card", "ssa-regatta-slot-card");
+      startCard(nodes[i]);
+    }
+  }
+
+  function mount() {
+    injectCss();
+    mountCapeClassic();
+    mountMarked();
+  }
+
+  window.ssaMountWeatherCard = function (el, opts) {
+    opts = opts || {};
+    if (!el) return null;
+    if (opts.slug) el.setAttribute("data-weather-station", String(opts.slug));
+    if (opts.club) el.setAttribute("data-weather-club", String(opts.club).toUpperCase());
+    if (opts.role) el.setAttribute("data-weather-role", String(opts.role));
+    el.classList.add("card", "ssa-wx-card", "ssa-regatta-slot-card");
+    return startCard(el);
+  };
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", mount);
@@ -653,4 +771,5 @@
     mount();
   }
   window.__ssaRegattaSlotCard = JS_VER;
+  window.__ssaWeatherCard = JS_VER;
 })();
