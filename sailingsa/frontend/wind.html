@@ -234,13 +234,13 @@
     return radialTick(pt.deg, Math.max(R_MIN, r - 12), r + 1, bandColor(pt.kt));
   }
 
-  function sweepSvg(deg0, deg1, kt) {
+  function sweepSvg(deg0, deg1, kt, opacity) {
     var sl = bandSlice(kt);
     var turn = ((deg1 - deg0 + 540) % 360) - 180;
     if (Math.abs(turn) < 0.45) return "";
     var d = sectorPath(deg0, deg1, sl.r0, sl.r1);
     if (!d) return "";
-    return '<path d="' + d + '" fill="' + sl.color + '" fill-opacity="0.32" stroke="none"/>';
+    return '<path d="' + d + '" fill="' + sl.color + '" fill-opacity="' + opacity + '" stroke="none"/>';
   }
 
   function paintHistory(pt) {
@@ -253,9 +253,9 @@
       var nxt = samples[i + 1];
       if (!nxt) continue;
       if (nxt.t <= pt.t) {
-        sweeps += sweepSvg(samples[i].deg, nxt.deg, (samples[i].kt + nxt.kt) / 2);
+        sweeps += sweepSvg(samples[i].deg, nxt.deg, (samples[i].kt + nxt.kt) / 2, "0.16");
       } else {
-        sweeps += sweepSvg(samples[i].deg, pt.deg, pt.kt);
+        sweeps += sweepSvg(samples[i].deg, pt.deg, pt.kt, "0.34");
       }
     }
     histG.innerHTML = sweeps + ticks;
