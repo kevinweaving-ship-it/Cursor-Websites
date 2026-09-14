@@ -25,9 +25,10 @@ Email `ebyteiot@cdebyte.com`:
 
 ## If Ebyte cannot supply soon
 
-Same class (~$5–7 SMD nRF54L15, fits housing):
+Same class (~$5–7 SMD nRF54L15, fits housing) — full lock: **`NRF54_ALT_SUPPLIERS.md`**
 
-- Raytac **AN54LQ-15** — https://www.tindie.com/products/bluetooth-wifi-module-store/nrf54l15-bt60-chip-antenna-module-raytac-an54lq/ (~$6) · TME also stocks  
-- Fanstel **BC15E** — https://www.fanstel.com/ (~$5)
+- **PRIMARY:** Raytac **AN54LQ-15** via TME (~$6.62 @3, ~170 stock) — https://www.tme.eu/en/details/an54l15q/iot-wifi-bluetooth-modules/raytac/an54lq-15/
+- MinewSemi **ME54BS62** $5 — https://store.minewsemi.com/product/bluetooth-modules-nrf54l15-me54bs62/
+- Fanstel **BC15C** from $5.64 — https://www.fanstel.com/buy1/
 
 **Never** nRF54L15-DK ($58) for the boat.
