@@ -1,40 +1,64 @@
-# Fit confirm — WT-43 in H9–13 GoPro clone housing
+# Fit confirm — WT-43 vs GoPro **HERO13** body (housing cavity)
 
-**Verdict: YES — WT-43-RK-LORA fits the boat-puck H9–13 housing.**  
-(Committee **BK** stays in a dry box — not this shell.)
+**Rule:** inside space of an H9–13 waterproof housing ≈ **GoPro HERO13 Black camera body**.  
+Use **HERO13 dimensions only** for the fit check (not a vague H9–12 average).
 
-## Numbers
+**Verdict: YES — WT-43-RK-LORA fits.**  
+(Committee **BK** = dry box, not this shell.)
 
-| Item | Size (mm) | Source |
-|------|-----------|--------|
-| **H9–13 housing cavity** (camera body envelope) | **~71 × 51–55 × 33.6** | GoPro HERO9–13 body; our housing notes |
-| **WT-43-RK-LORA** | **43 × 43 × 14** (±0.5) | OTW product page |
-| Footprint margin | ~**14 mm** W · ~**4–8 mm** H | 71−43 / 51−43 |
-| Depth left after WT-43 | ~**19–20 mm** | 33.6 − 14 |
+## HERO13 cavity (official)
 
-## Stack that must also fit (boat puck only)
+| Source | W × H × D (mm) |
+|--------|----------------|
+| [GoPro community — HERO13 size & weight](https://community.gopro.com/s/article/HERO13-Black-Camera-Size-And-Weight) | **71.0 × 55.0 × 33.6** |
+| [GoPro compare / product specs](https://gopro.com/en/us/compare) | **71.8 × 50.8 × 33.6** |
+
+**Fit envelope we use (conservative):** take the **smaller** of each axis → **71.0 × 50.8 × 33.6 mm**.
+
+## WT-43 vs that envelope
+
+| Item | Size (mm) |
+|------|-----------|
+| **Cavity (HERO13, conservative)** | **71.0 × 50.8 × 33.6** |
+| **WT-43-RK-LORA** | **43 × 43 × 14** (±0.5, OTW) |
+| Footprint margin | **+28.0** W · **+7.8** H |
+| Depth left after WT-43 alone | **19.6** |
+
+Footprint clears easily. Depth is the only stack budget that matters.
+
+## Stack inside the same 33.6 mm (boat puck)
 
 | Layer | Typical mm | Notes |
 |-------|------------|-------|
-| WT-43 brick | **14** | GNSS + LoRa — face **sky / dome** |
-| E73-2G4M08S1F (nRF54) | ~**2–3** thick · small footprint | Beside or under sled |
-| Flat LiPo (~1000 mAh) | ~**4–8** thick | Must be **flat** pack, not 18650 |
-| 3D sled + wires | ~**2–4** | Holds stack; no rattling |
+| WT-43 brick | **14.0** | Face **sky / front dome** |
+| E73-2G4M08S1F (nRF54) | ~**2–3** thick | Beside or under sled |
+| Flat LiPo (~1000 mAh) | ~**4–8** thick | **Flat** pack only |
+| 3D sled + wires | ~**2–4** | No rattle |
 
-**Depth budget:** ~23–29 mm of 33.6 mm → **fits** if LiPo is flat and sled is thin.
+**Sum ~22–29 mm** of **33.6 mm** → **fits** with flat LiPo + thin sled.
 
-## What “fits” means
+```
+HERO13 cavity  71.0 × 50.8 × 33.6
+┌──────────────────────────────────┐  W 71
+│  WT-43 43×43×14                  │  H 50.8
+│  + E73 + flat LiPo + sled        │  D 33.6
+└──────────────────────────────────┘
+```
 
-- **YES:** module footprint + thickness clear the cavity with sled.
-- **Still design risks (not a no):** plastic dome GNSS sky view · LoRa antenna placement · heat/condensation · waterproof door seal with no cable glands (charge via open/USB before seal, or internal charge pad later).
+## Still design risks (not a size no)
+
+- GNSS through plastic dome (sky orientation)
+- LoRa antenna placement inside plastic
+- Heat / condensation
+- Seal with no cable gland (charge before close, or later wireless/internal pad)
 
 ## Not in this housing
 
 | Device | Shell |
 |--------|-------|
-| WT-43-**BK**-LORA (committee) | **IP67 dry box** + line-end antenna |
-| Mark / pin WT-43-RK | Float/clip box — **not** GoPro |
+| WT-43-**BK**-LORA | IP67 dry box + line-end antenna |
+| Mark WT-43-RK | Float/clip box — not GoPro |
 
 ## Buy rule
 
-Order **full door waterproof case** (H9–13), not skeleton cage. Qty **2** for first puck + spare. Direct OEM **&lt; R80** preferred.
+Full-door H9–13 waterproof case (fits HERO13 body). Not skeleton cage. Qty **2**. Direct OEM **&lt; R80**.

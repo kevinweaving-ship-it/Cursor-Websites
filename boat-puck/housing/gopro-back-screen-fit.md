@@ -16,12 +16,17 @@ A display does **not** go *inside the door* — it sits on the **rear face of th
 
 ---
 
-## Full inside (whole puck)
+## Full inside (whole puck) — lock to **HERO13** body
 
-| | mm |
-|--|-----|
-| **W × H × D** | **71.8 × 50.8 × 33.6** |
-| Equals | HERO9–13 camera body (housing cavity) |
+Housing cavity = space a **GoPro HERO13 Black** occupies.
+
+| Source | W × H × D (mm) |
+|--------|----------------|
+| [GoPro HERO13 size & weight](https://community.gopro.com/s/article/HERO13-Black-Camera-Size-And-Weight) | **71.0 × 55.0 × 33.6** |
+| GoPro compare / product specs | **71.8 × 50.8 × 33.6** |
+| **Conservative cavity for fit** | **71.0 × 50.8 × 33.6** |
+
+Electronics fit check: [`../WT43_H9-13_FIT_CONFIRM.md`](../WT43_H9-13_FIT_CONFIRM.md) (WT-43 **43×43×14** clears this).
 
 ---
 
