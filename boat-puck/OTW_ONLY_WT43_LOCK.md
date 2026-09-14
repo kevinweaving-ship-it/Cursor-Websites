@@ -11,7 +11,16 @@
 
 **Contact:** `Lucaszhang@ontheway-tech.com` · (+86)13530532178 · (+86)17688713459
 
-**Confirm before pay:** SA **433 MHz** LoRa · 1-pc USD · BK+RK pair on one PO · pay by **Tue 16 Sep 2026**
+**Confirm before pay:** Prefer **868 MHz** if OTW has that variant · else published brick is **410–525 MHz only (≈433)** · 1-pc USD · BK+RK one PO · pay by **Tue 16 Sep 2026**
+
+### Band check (important)
+
+| Want | WT-43-*-LORA on site |
+|------|----------------------|
+| **868 MHz** | **Not in published spec** (working freq **410–525 MHz**) |
+| **433 MHz** | **In range** — ask them to centre / ship this band |
+
+**Do not pay** until Lucas confirms either an **868 MHz SKU** exists, or you accept **433 MHz** on the listed modules.
 
 ## Site check (same family — do **not** order)
 
@@ -33,13 +42,14 @@ OTW also lists siblings. **Out of scope for this supplier:**
 
 ## Chat paste (for Lucas / live chat)
 
-> Prototype samples for testing — South Africa.  
+> Prototype samples for testing.  
 > Please quote **1-pc USD** for:  
 > • **WT-43-RK-LORA** × **2**  
 > • **WT-43-BK-LORA** × **1**  
-> Same PO. Need LoRa centred for **SA 433 MHz**.  
-> Confirm base+rover pairing (BK base → RK rovers), max Hz with RTCM over LoRa, and lead time.  
-> **Only these two models** — nothing else from your catalog this order.
+> Same PO. **Only these two models.**  
+> We need LoRa at **868 MHz**. Your pages list **410–525 MHz** — do you have an **868 MHz** version of RK + BK?  
+> If not, confirm you can ship **433 MHz** centre on these SKUs.  
+> Also confirm BK base → RK rover pairing, max Hz with RTCM over LoRa, lead time.
 
 ## Rule
 
