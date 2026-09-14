@@ -3,7 +3,8 @@
   "purpose": "GoPro H9-13 waterproof housing as Boat Puck enclosure",
   "doctrine": "Housing cavity = camera positive (mold clearance microns only)",
   "confidence": "high_camera_published",
-  "updated": "2026-09-04",
+  "updated": "2026-09-14",
+  "fit_lock": "HERO13 camera positive = housing cavity; see ../WT43_H9-13_FIT_CONFIRM.md",
   "units": "mm",
   "primary_housing": {
     "name": "GoPro Protective Housing HERO9-13",
