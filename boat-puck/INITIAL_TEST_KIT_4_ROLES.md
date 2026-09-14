@@ -33,18 +33,19 @@ Do **not** under-count to “boat only ×1”. If it goes in a puck, count **all
 
 | Part | Qty | Rule |
 |------|----:|------|
-| **E73-2G4M08S1F** (nRF54) | **3** | Pucks only — **not** committee → **3 not 4** |
+| **AN54LQ-15** (nRF54; was E73) | **3** | Pucks only — **not** committee → **3 not 4**. E73 OOS → Raytac/TME primary |
 | Flat LiPo + TP4056 | **4** | 3 pucks + committee → **4** |
 | H9–13 GoPro housing | **3** | One shell per puck (or 3+1 spare later) |
 | Survey antenna + pole | **1** | Committee only |
 | IP67 dry box | **1** | Committee only |
 | USB bank / UART bridge | **1** | Committee only |
 
-## E73 stock
+## BLE MCU stock (E73 OOS)
 
-ebyteiot **sold out**. Still need **×3** when available.
+ebyteiot **E73-2G4M08S1F sold out**. **Pay Tuesday primary:** Raytac **AN54LQ-15 ×3** on TME.
 
-- Email: `ebyteiot@cdebyte.com` — “E73-2G4M08S1F **×3**, lead time / backorder”
-- 
-Direct (OOS) URL for when restocked:  
-https://ebyteiot.com/products/ebyte-e71-e73-series-soc-wireless-communication-module-low-power-2-4ghz-tl7215d-nrf54l15-chip-multi-protocol-8-10dbm-test-board?variant=48515417702605
+Full alt list: **`NRF54_ALT_SUPPLIERS.md`**
+
+- **BUY:** https://www.tme.eu/en/details/an54l15q/iot-wifi-bluetooth-modules/raytac/an54lq-15/
+- Backup: MinewSemi ME54BS62 · Fanstel BC15C
+- Parallel only: Email `ebyteiot@cdebyte.com` — “E73-2G4M08S1F **×3**, lead time / backorder”
