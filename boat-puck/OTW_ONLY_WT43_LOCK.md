@@ -4,11 +4,13 @@
 
 ## Buy from OTW (this PO only)
 
-| SKU | Role | Qty | **Sample USD** | Line USD | ~R (×16) | Page |
-|-----|------|----:|---------------:|---------:|---------:|------|
-| **WT-43-RK-LORA** | Rover — boat puck + mark | **2** | **40** | **80** | **1 280** | [rk](https://www.ontheway-tech.com/product/wt-43-rk-lora/) |
-| **WT-43-BK-LORA** | Committee RTK **base** | **1** | **55** | **55** | **880** | [bk](https://www.ontheway-tech.com/product/wt-43-bk-lora-module/) |
-| **OTW total** | | | | **135** | **2 160** | |
+| SKU | Role | Qty | **Sample USD** | Line USD | **Live R** | Page |
+|-----|------|----:|---------------:|---------:|-----------:|------|
+| **WT-43-RK-LORA** | Rover — boat puck + mark | **2** | **40** | **80** | **1 305.70** | [rk](https://www.ontheway-tech.com/product/wt-43-rk-lora/) |
+| **WT-43-BK-LORA** | Committee RTK **base** | **1** | **55** | **55** | **897.66** | [bk](https://www.ontheway-tech.com/product/wt-43-bk-lora-module/) |
+| **OTW total** | | | | **135** | **2 203.36** | |
+
+**FX (your converter 14 Sep):** **$40 → R652.85** · **$55 → R897.66** ≈ **R16.32 / $1** (was planning R16).
 
 **Contact:** `Lucaszhang@ontheway-tech.com` · (+86)13530532178 · (+86)17688713459
 
