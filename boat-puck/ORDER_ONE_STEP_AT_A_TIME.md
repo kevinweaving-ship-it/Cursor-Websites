@@ -34,31 +34,12 @@ PI / pay / ship to Eric = **after** you confirm that chat was good.
 
 ---
 
-## THIS COMPONENT ONLY — open this URL
+## THIS COMPONENT — enquiry sent (waiting)
 
-**BLE MCU for each puck**
+**BLE MCU** · **ME54BS62** · **×3** · committee **no**
 
-| | |
-|---|---|
-| **Part on page** | **ME54BS62** |
-| **Must be** | Nordic **nRF54L15** · PCB antenna · ~6×9 mm |
-| **Qty** | **3** |
-| **Committee?** | **No** → not ×4 |
-| **~$** | $5 / pc on store |
+**Factory URL:** https://store.minewsemi.com/product/bluetooth-modules-nrf54l15-me54bs62/
 
-**Factory URL (exact):**  
-https://store.minewsemi.com/product/bluetooth-modules-nrf54l15-me54bs62/
+**Status:** Enquiry sent to MinewSemi — **awaiting reply** (price / stock).
 
-**Contact on that site:** minewsemi@minew.com · +86 755 2801 0353
-
-### You check / ask them
-
-- Exact model **ME54BS62**?
-- Chip **nRF54L15** (not Telink / not USB kit)?
-- In stock for **3 pcs**?
-- Sample unit price + ship to Eric Shenzhen?
-
-### When done
-
-Paste their reply here (price / stock / anything odd).  
-If good → we lock → **next item**.
+Do **not** start next component until their reply is pasted here and locked good.

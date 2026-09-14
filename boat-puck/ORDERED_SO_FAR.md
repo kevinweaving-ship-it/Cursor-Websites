@@ -6,9 +6,12 @@
 | WT-43-RK-LORA | 3 | Lucas / OTW | ORDER SENT · 868 · Eric |
 | WT-43-BK-LORA | 1 | Lucas / OTW | ORDER SENT · same PO |
 
-## Waiting on you
+## In progress — awaiting factory reply
 
-**ME54BS62** ×3 — open:  
-https://store.minewsemi.com/product/bluetooth-modules-nrf54l15-me54bs62/
+| Item | Qty | Who | Status |
+|------|----:|-----|--------|
+| **ME54BS62** (nRF54L15) | **3** | MinewSemi | **ENQUIRY SENT** — awaiting reply (price/stock) |
 
-Paste back price/stock/chat → then next.
+URL: https://store.minewsemi.com/product/bluetooth-modules-nrf54l15-me54bs62/
+
+When they reply → paste here → lock if good → then next item.
