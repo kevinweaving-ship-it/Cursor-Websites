@@ -50,3 +50,5 @@ H9–13  71.8 × 50.8 × 33.6
 | **SoftSIM A7672 carrier ×3** | **FIT LOCKED** — not this sample PO; buy after LoRa water test + custom carrier design (or Lucas LoRa+SoftSIM combo) |
 
 Ask Lucas in parallel: SoftSIM onboard WT-43 vs our A7672 add-on (see `LORA_BOARD_FLAVOURS.md`).
+
+**Optional UI (later):** flat rear screen + speaker (race timer beeps) + buttons ×2 + LEDs ×3–4 → `OPTIONAL_PUCK_UI_SCREEN_BEEPS.md`.
