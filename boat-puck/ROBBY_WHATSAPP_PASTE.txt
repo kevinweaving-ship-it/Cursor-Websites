@@ -1,0 +1,118 @@
+ROBBY — BOAT PUCK SYSTEM (copy/paste)
+
+WHAT IT IS
+• One puck design for boat / start pin / mark / finish
+• One committee box for Race Control
+• Race radio = LoRa
+• Training / long range = SoftSIM LTE (no SIM tray)
+• Sailor phone/watch = BLE
+
+FIRST WATER KIT
+• Puck 1 = start pin
+• Puck 2 = racing boat
+• Puck 3 = mark / finish
+• Committee = WT-43-BK base + dry box + tablet UI
+
+——————
+INSIDE EACH PUCK (x3)
+——————
+
+1) H9-13 waterproof housing
+Does: sealed shell, lens = GPS sky window, stock buttons on case
+URL: Temu/Ali “Hero 9-13 waterproof housing”
+
+2) WT-43-RK-LORA
+Does: dual-freq RTK GPS + LoRa, position on board, rover on pin/boat/mark
+Can: receive corrections from committee over LoRa
+Connects: UART → nRF54 · LoRa ↔ fleet
+URL: https://www.ontheway-tech.com/product/wt-43-rk-lora/
+
+3) nRF54 ME54BS62
+Does: race brain (start/OCS), BLE to phone/watch, hub for everything
+Can: buttons, LEDs, beeps, optional screen
+Connects: UART←WT-43 · UART←SoftSIM · BLE→phone · GPIO buttons/LEDs · SPI screen · PWM speaker
+URL: https://store.minewsemi.com/product/bluetooth-modules-nrf54l15-me54bs62/
+
+4) Flat LiPo ~1000 mAh
+Does: power
+Connects: charged by TP4056
+
+5) TP4056
+Does: charge LiPo
+Connects: Qi RX → TP4056 → LiPo
+
+6) Qi RX coil
+Does: wireless charge through shell (no open port on water)
+Connects: inner wall → TP4056
+URL: Micro Robotics / Adafruit 1901-class — https://www.robotics.org.za/
+
+7) SoftSIM LTE A7672-class
+Does: cellular with no SIM tray
+Can: solo training + LoRa-out-of-range backhaul for boat AND mark/pin
+Connects: UART → nRF54 · FPC antenna on wall
+URL: https://www.simcom.com/product/A7672X.html
+SoftSIM profile: https://onomondo.com/product/softsim-for-simcom/
+China buy ~$17: https://misuxinelectronics.com/showpro_2816381_569.html
+
+8) BUTTONS x2
+Does: use existing housing buttons (shutter + mode)
+How: outside press → inside switch → nRF54
+Uses: connect / confirm / mute / ack
+No new holes — factory seals stay
+
+OPTIONAL LATER (only if reflective RLCD fits lid)
+9) RLCD back-lid screen — sunlight timer/OCS (reflective, thin)
+Prefer 2.13" ST7305 RLCD — Toppop https://toppoplcd.com/
+Alt Sharp 2.7" LS027 — DigiKey/LCSC search LS027B7DH01A
+10) Speaker — race timer beeps
+11) LEDs x3-4 — FIX / LoRa / SoftSIM / battery
+
+——————
+COMMITTEE (x1)
+——————
+
+13) WT-43-BK-LORA
+Does: RTK BASE + LoRa broadcast (corrections + race messages)
+URL: https://www.ontheway-tech.com/product/wt-43-bk-lora-module/
+
+14) IP67 dry box
+Does: holds BK + battery
+URL: https://www.robotics.org.za/G3109
+
+15) LiPo + TP4056 — committee power / USB charge
+
+16) Tablet / laptop
+Does: Race Control UI only (NOT the GPS base)
+
+——————
+HOW IT CONNECTS
+——————
+
+Committee tablet (UI)
+→ WT-43-BK
+→ LoRa 868
+→ each puck WT-43-RK
+→ UART → nRF54
+→ BLE → phone/watch
+→ SoftSIM LTE → cloud when training / LoRa weak
+→ buttons / LEDs / optional screen / speaker
+→ LiPo ← Qi charge
+
+RADIOS
+• LoRa = race-critical
+• SoftSIM LTE = training alone + long range
+• BLE = sailor display
+
+——————
+STATUS
+——————
+• Housing x3 = ORDERED
+• WT-43 RK x3 + BK x1 = ORDER SENT → Eric Shenzhen
+• nRF54 x3 = ENQUIRY SENT
+• LiPo / Qi / TP4056 = BUY LOCAL
+• SoftSIM = FIT LOCKED (factory contact tomorrow)
+• RLCD UI = optional after water test
+• Dry box = current buy step
+
+ONE LINE
+Puck = GoPro shell + WT-43 (GPS/LoRa) + nRF54 (race brain/BLE) + battery/Qi + SoftSIM for training/long-range; optional sunlight RLCD + beeps; two case buttons drive internal switches; committee = BK base in dry box + tablet Race Control.
