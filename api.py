@@ -26049,7 +26049,7 @@ def _serve_club_page_impl(slug: str, club: tuple):
     )
     club_live_scripts = (
         '<link rel="stylesheet" href="/css/mm-lipton-reels.css?v=clubmm1">'
-        '<script src="/js/club-live-media.js?v=clubmm1" defer></script>'
+        '<script src="/js/club-live-media.js?v=clubmm2" defer></script>'
         if is_zvyc
         else ""
     )

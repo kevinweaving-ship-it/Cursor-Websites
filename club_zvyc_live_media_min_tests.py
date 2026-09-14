@@ -29,8 +29,8 @@ def test_injector_is_zvyc_only_and_sits_after_header():
     assert "mm-powered-by-live.png" in js
     # WhatsApp overlay stays Cape Classic-only
     assert "data-weather-wa" not in js
-    assert "host.className = 'club-live-media';" in js
-    assert "club-live-media club-story-panel" not in js
+    assert "order:0!important" in js
+    assert "orderWeatherAboveMm" in js
 
 
 def test_mm_sort_cam_first_on_club_page_only():
@@ -54,7 +54,7 @@ def test_api_club_page_inserts_host_below_header():
     idx_about_or_cal = impl.find("{sas_calendar_html}")
     assert idx_header > 0 and idx_host > idx_header
     assert idx_about_or_cal > idx_host
-    assert "club-live-media.js?v=clubmm1" in impl
+    assert "club-live-media.js?v=clubmm2" in impl
     assert 'class="club-live-media club-story-panel"' not in impl
 
 

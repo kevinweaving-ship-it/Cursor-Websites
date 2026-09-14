@@ -15,7 +15,7 @@
   var MM_ID = 'mmLiptonReels';
   var CSS_ID = 'club-live-media-css';
   var BRAND = '/assets/adverts/mm-powered-by-live.png?v=mmcc2';
-  var JS_VER = 'clubmm1';
+  var JS_VER = 'clubmm2';
 
   function clubSlug() {
     var path = String((window.location && window.location.pathname) || '')
@@ -31,8 +31,8 @@
     s.id = CSS_ID;
     s.textContent =
       '.club-page .club-live-media{width:100%;box-sizing:border-box;display:flex;flex-direction:column;gap:0;padding:0;border:0;background:transparent;box-shadow:none;}' +
-      '.club-page .club-live-media .ssa-regatta-slot-card{margin-top:0;width:100%;max-width:100%;}' +
-      '.club-page .club-live-media .mm-lipton-reels{margin-top:10px;}' +
+      '.club-page .club-live-media .ssa-regatta-slot-card{order:0!important;margin-top:0;width:100%;max-width:100%;}' +
+      '.club-page .club-live-media .mm-lipton-reels{order:1!important;margin-top:10px;}' +
       '.club-page .club-story-inner > .club-live-media{max-width:100%;}';
     document.head.appendChild(s);
   }
@@ -63,18 +63,21 @@
   }
 
   function fillHost(host) {
-    if (host.getAttribute('data-club-live-ready') === '1') return host;
-    if (!document.getElementById(WX_ID)) {
-      var wx = document.createElement('section');
+    if (host.getAttribute('data-club-live-ready') === '1') {
+      return orderWeatherAboveMm(host);
+    }
+    var wx = document.getElementById(WX_ID);
+    if (!wx) {
+      wx = document.createElement('section');
       wx.id = WX_ID;
       wx.className = 'card ssa-wx-card ssa-regatta-slot-card';
       wx.setAttribute('data-weather-club', 'ZVYC');
       wx.setAttribute('data-weather-role', 'venue');
       wx.setAttribute('aria-label', 'Venue wind');
-      host.appendChild(wx);
     }
-    if (!document.getElementById(MM_ID)) {
-      var mm = document.createElement('section');
+    var mm = document.getElementById(MM_ID);
+    if (!mm) {
+      mm = document.createElement('section');
       mm.id = MM_ID;
       mm.className = 'card mm-lipton-reels mm-lipton-reels--compact';
       mm.setAttribute('data-regatta-id', REGATTA_ID);
@@ -92,9 +95,19 @@
         })
       );
       mm.innerHTML = mmInnerHtml();
-      host.appendChild(mm);
     }
+    host.appendChild(wx);
+    host.appendChild(mm);
     host.setAttribute('data-club-live-ready', '1');
+    return orderWeatherAboveMm(host);
+  }
+
+  function orderWeatherAboveMm(host) {
+    var wx = document.getElementById(WX_ID);
+    var mm = document.getElementById(MM_ID);
+    if (host && wx && mm && wx.parentNode === host && mm.parentNode === host && wx.nextSibling !== mm) {
+      host.insertBefore(wx, mm);
+    }
     return host;
   }
 
