@@ -22,7 +22,7 @@ It comes in a few **radio flavours**. Same form-factor idea; different backhaul.
 
 ## SoftSIM / eSIM fallback (what we discussed)
 
-**Goal:** when LoRa is weak / for shore NTRIP / telemetry, fall back to cellular — **software-driven SoftSIM (eSIM)**, **no SIM tray**.
+**Goal:** SoftSIM on the puck for **cheap solo training** — most days there is **no full LoRa race setup** (no committee base / marks). Also: LoRa-weak fallback, shore NTRIP, telemetry. SoftSIM = **software-driven**, **no SIM tray**.
 
 Two build options (pick later with Lucas / modem vendor):
 
@@ -33,7 +33,8 @@ Two build options (pick later with Lucas / modem vendor):
 
 **Rules we already locked:**
 
-- Race-critical path = **LoRa**, not cell.
+- **Training (most days):** SoftSIM on the **puck** so it works alone — no LoRa race kit required.
+- **Race day:** critical path = **LoRa**; SoftSIM still ok as fallback.
 - SoftSIM = **software profile**, not a plastic SIM.
 - Antennas = **built-in** (no external SMA chase for V1 cell).
 - Do **not** order flavour C/D until water test proves LoRa range and we ask Lucas for SoftSIM explicitly.

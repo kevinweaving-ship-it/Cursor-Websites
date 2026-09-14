@@ -5,7 +5,8 @@
 **Leftover strip (plan view):** ~**28.8 × 50.8** beside the WT-43 (along long axis). Side gap beside square is only ~7.8 mm — **too narrow** for cell modules.  
 **Stack height left:** ~**19 mm** above/beside WT-43 for battery + BLE + SoftSIM carrier.
 
-**Rule:** SoftSIM = **software UICC on the modem** (no SIM tray). Race path stays **LoRa**. Cell = fallback / NTRIP / shore only.  
+**Rule:** SoftSIM = **software UICC on the modem** (no SIM tray).  
+**Why SoftSIM on the puck (cost / use):** most of the time the sailor is **training alone** — **no committee, no LoRa race net**. Full LoRa kit (base + marks + Race Control) is race-day. SoftSIM lets the puck work **standalone** (corrections / telemetry / phone backhaul) without that kit. Race day still prefers **LoRa**; cell is also race fallback when LoRa is weak.  
 **True 5G NR modules** are generally too big / hot for this cavity — treat **“4/5G” as LTE Cat 1 SoftSIM** for puck fit.
 
 ---
