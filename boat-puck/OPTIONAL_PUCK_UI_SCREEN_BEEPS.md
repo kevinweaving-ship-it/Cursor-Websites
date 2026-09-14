@@ -33,8 +33,28 @@ Detail fit geometry: `housing/gopro-back-screen-fit.md`
 |-------|------|-----|
 | **Flat screen** | As wide/long as **back lid window**; **thin** (~2–4 mm) | Countdown / OCS / status on lid side |
 | **Speaker** | Small magnetic / piezo + amp | **Race timer beeps** |
-| **Buttons ×2** | On/near back lid or side | Connect / confirm |
-| **LEDs ×3 or ×4** | Near screen bezel or side | FIX / LoRa / SoftSIM / batt (or race state) |
+| **Buttons ×2** | **Under existing H9–13 casing buttons** | Outside press → inside switch (no new holes) |
+| **LEDs ×3 or ×4** | Near screen bezel or side (visible through door/window) | FIX / LoRa / SoftSIM / batt (or race state) |
+
+### Buttons lock (reuse housing)
+
+H9–13 already has **external casing buttons** (typically **top shutter** + **side mode** — see `housing/dimensions.json` `button_faces`).
+
+```
+Outside casing button (factory plastic)
+        ↓ press
+Inside tactile / dome switch on insert PCB
+        ↓
+nRF54 GPIO
+```
+
+| Rule | Detail |
+|------|--------|
+| **Count** | **×2** — align under the **two usable** stock housing plungers |
+| **No new holes** | Don’t drill the waterproof shell |
+| **Mount** | Switch + plunger pad on insert, height-matched so lid/body buttons click the switch |
+| **Seal** | Keep factory button boots / O-rings intact |
+| **Roles (example)** | Connect / confirm · or mute beeps / start-ack |
 
 ---
 
