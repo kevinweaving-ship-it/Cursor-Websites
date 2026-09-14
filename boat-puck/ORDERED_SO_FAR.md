@@ -6,6 +6,7 @@
 | WT-43-RK-LORA | 3 | Lucas / OTW | ORDER SENT · 868 · Eric |
 | WT-43-BK-LORA | 1 | Lucas / OTW | ORDER SENT · same PO |
 | ME54BS62 (BLE 6) | 3 | MinewSemi | ENQUIRY SENT — await reply |
+| **ME54BE62 dev kit** | **1** | MinewSemi | **MUST ADD** — lab only · same PO as modules · ~$7 |
 | Flat LiPo ~1000 mAh | 4 | LOCAL | BUY LOCAL |
 | Qi RX ×3 + TP4056 ×4 | — | Micro Robotics | BUY LOCAL |
 | SoftSIM LTE (A7672-class) | 3 | Later | **FIT LOCKED in puck** — not this PO · see `PUCK_STACK_WITH_SOFTSIM.md` |

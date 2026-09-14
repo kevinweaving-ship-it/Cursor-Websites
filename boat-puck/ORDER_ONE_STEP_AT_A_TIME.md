@@ -6,6 +6,7 @@
 | WT-43-RK-LORA | 3 | Lucas / OTW | ORDER SENT · 868 · Eric |
 | WT-43-BK-LORA | 1 | Lucas / OTW | ORDER SENT · same PO |
 | ME54BS62 (BLE 6) | 3 | MinewSemi | ENQUIRY SENT — await reply |
+| **ME54BE62 dev kit** | **1** | MinewSemi | **MUST ADD** to Minew PO — lab SWD · not in puck |
 | Flat LiPo ~1000 mAh | 4 | LOCAL | BUY LOCAL |
 | Qi RX + TP4056 | 3+4 | Micro Robotics | BUY LOCAL (locked) |
 

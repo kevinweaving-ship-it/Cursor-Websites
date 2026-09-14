@@ -195,7 +195,7 @@ Fit proof: **`HOUSING_FIT_ALL.md`**
 |------|--------|
 | Housing ×3 | ORDERED |
 | WT-43 RK×3 + BK×1 | ORDER SENT → Eric |
-| nRF54 ×3 | ENQUIRY SENT |
+| nRF54 ×3 modules + **ME54BE62 kit ×1** | ENQUIRY — **must add kit** to Minew PO |
 | LiPo / Qi / TP4056 | BUY LOCAL |
 | SoftSIM | FIT LOCKED — factory tomorrow |
 | RLCD UI | OPTIONAL — after water test + lid caliper |
