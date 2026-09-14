@@ -33,19 +33,16 @@ Do **not** under-count to “boat only ×1”. If it goes in a puck, count **all
 
 | Part | Qty | Rule |
 |------|----:|------|
-| **AN54LQ-15** (nRF54; was E73) | **3** | Pucks only — **not** committee → **3 not 4**. E73 OOS → Raytac/TME primary |
-| Flat LiPo + TP4056 | **4** | 3 pucks + committee → **4** |
-| H9–13 GoPro housing | **3** | One shell per puck (or 3+1 spare later) |
-| Survey antenna + pole | **1** | Committee only |
-| IP67 dry box | **1** | Committee only |
-| USB bank / UART bridge | **1** | Committee only |
+| **ME54BS62** (nRF54; CURRENT) | **3** | Pucks only. Contact MinewSemi → PI to Eric Shenzhen. See `ORDER_ONE_STEP_AT_A_TIME.md` |
+| Flat LiPo + TP4056 | **4** | 3 pucks + committee → **4** — **not this step** |
+| H9–13 GoPro housing | **3** | One shell per puck — **not this step** |
+| Survey antenna + pole | **1** | Committee only — **not this step** |
+| IP67 dry box | **1** | Committee only — **not this step** |
+| USB bank / UART bridge | **1** | Committee only — **not this step** |
 
-## BLE MCU stock (E73 OOS)
+## BLE MCU — current step only
 
-ebyteiot **E73-2G4M08S1F sold out**. **Pay Tuesday primary:** Raytac **AN54LQ-15 ×3** on TME.
+**One factory:** MinewSemi · **ME54BS62 ×3** · email `minewsemi@minew.com` · PI ship **Eric Shenzhen**.
 
-Full alt list: **`NRF54_ALT_SUPPLIERS.md`**
-
-- **BUY:** https://www.tme.eu/en/details/an54l15q/iot-wifi-bluetooth-modules/raytac/an54lq-15/
-- Backup: MinewSemi ME54BS62 · Fanstel BC15C
-- Parallel only: Email `ebyteiot@cdebyte.com` — “E73-2G4M08S1F **×3**, lead time / backorder”
+Copy email + checklist: **`ORDER_ONE_STEP_AT_A_TIME.md`**  
+Fallback queue only if Minew fails: **`NRF54_ALT_SUPPLIERS.md`**
