@@ -1,6 +1,6 @@
 Pay by Tue?	Block	#	Device	Qty	Factory	Product URL	How to pay	USD ea	USD line	~R line	Note
-YES - MUST	RACE CORE	1	WT-43-BK-LORA	1	Anzewei / OTW	https://www.ontheway-tech.com/product/wt-43-bk-lora-module/	Email Lucaszhang@ontheway-tech.com then pay factory	55	55	880	LIVE sample quote 14 Sep: $55/pc. OTW ONLY this + RK. LoRa settable 433 or 868 — state band on PO.
-YES - MUST	RACE CORE	2	WT-43-RK-LORA	2	Anzewei / OTW	https://www.ontheway-tech.com/product/wt-43-rk-lora/	Same OTW PO as #1	40	80	1280	LIVE sample quote 14 Sep: $40/pc. 1 boat + 1 mark. OTW ONLY this + BK — see OTW_ONLY_WT43_LOCK.md
+YES - MUST	RACE CORE	1	WT-43-BK-LORA	1	Anzewei / OTW	https://www.ontheway-tech.com/product/wt-43-bk-lora-module/	Email Lucaszhang@ontheway-tech.com then pay factory	55	55	897.66	LIVE sample $55 = R897.66 (FX ~16.32). OTW ONLY this + RK. LoRa settable 433 or 868 — state band on PO.
+YES - MUST	RACE CORE	2	WT-43-RK-LORA	2	Anzewei / OTW	https://www.ontheway-tech.com/product/wt-43-rk-lora/	Same OTW PO as #1	40	80	1305.70	LIVE sample $40 = R652.85 ea ×2 (FX ~16.32). 1 boat + 1 mark. OTW ONLY this + BK — see OTW_ONLY_WT43_LOCK.md
 YES - MUST	RACE CORE	3	E73-2G4M08S1F nRF54L15 module	2	Ebyte	https://www.cdebyte.com/products/E73-2G4M08S1F	ebyteiot@cdebyte.com or ebyteiot.com cart	5.6-6.4	11-13	180-205	Puck BLE MCU. Alt https://jlcpcb.com/partdetail/57638535-E732G4M08S1F/C54337734
 YES - MUST	RACE CORE	4	H9-13 GoPro clone waterproof housing	1	AliExpress OEM	https://www.aliexpress.com/w/wholesale-gopro-hero9-hero10-hero11-hero12-hero13-waterproof-housing.html	AliExpress checkout	5-6.5	5-6.5	80-104	NOT official GoPro ADDIV-001.
 YES - MUST	RACE CORE	5	LiPo 1000mAh + TP4056 charge board	3	AliExpress	https://www.aliexpress.com/w/wholesale-3.7v-lipo-battery-1000mah.html	AliExpress checkout	3.7-6.1	11-18	177-293	Also https://www.aliexpress.com/w/wholesale-tp4056.html — 1 committee + 1 boat + 1 mark. Flat pack.
@@ -27,5 +27,5 @@ DO NOT BUY	SKIP	25	Any other OTW SKU (4G / WT-4545 / WT-43-62 / WTB / WT-27)	0	O
 TOTAL	RACE CORE + LAB					—	—	—	215-286	3440-4576	OTW BK+RK x2 +Ebyte+Ali+DK. Ali lines EST until cart.
 TOTAL	ADDONS DRAGINO+MOKO					—	—	—	see shops	see shops	Pay shop carts Tuesday. Band AS923.
 NOTE	DEADLINE					—	—	—	—	—	Pay Tuesday 16 Sep 2026. Next China order ~6 months.
-NOTE	CONTACTS					—	OTW Lucaszhang@ontheway-tech.com · Ebyte ebyteiot@cdebyte.com · Dragino sales@dragino.com · Moko sales@mokosmart.com	—	—	—	OTW: BK $55 x1 + RK $40 x2 = $135; LoRa 433 or 868 (set on PO). Dragino/Moko: AS923.
+NOTE	CONTACTS					—	OTW Lucaszhang@ontheway-tech.com · Ebyte ebyteiot@cdebyte.com · Dragino sales@dragino.com · Moko sales@mokosmart.com	—	—	—	OTW: BK $55 + RK $40×2 = $135 ≈ R2203 (FX ~16.32). LoRa 433 or 868 on PO. Dragino/Moko: AS923.
 NOTE	FRAMING					—	—	—	—	—	RACE CORE = puck/committee/marks. ADDON = future venue IoT only.

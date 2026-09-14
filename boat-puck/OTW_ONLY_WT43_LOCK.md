@@ -1,56 +1,38 @@
 # OTW / Anzewei — ONLY these two SKUs
 
-**Locked 2026-09-14** · Supplier site: https://www.ontheway-tech.com/
+**Locked 2026-09-14** · https://www.ontheway-tech.com/
 
 ## Buy from OTW (this PO only)
 
-| SKU | Role | Qty (1-boat + 1-mark beta) | Factory page |
-|-----|------|---------------------------:|--------------|
-| **WT-43-RK-LORA** | Rover — boat puck + mark | **2** | https://www.ontheway-tech.com/product/wt-43-rk-lora/ |
-| **WT-43-BK-LORA** | Committee RTK **base** (antenna on line end) | **1** | https://www.ontheway-tech.com/product/wt-43-bk-lora-module/ |
+| SKU | Role | Qty | **Sample USD** | Line USD | ~R (×16) | Page |
+|-----|------|----:|---------------:|---------:|---------:|------|
+| **WT-43-RK-LORA** | Rover — boat puck + mark | **2** | **40** | **80** | **1 280** | [rk](https://www.ontheway-tech.com/product/wt-43-rk-lora/) |
+| **WT-43-BK-LORA** | Committee RTK **base** | **1** | **55** | **55** | **880** | [bk](https://www.ontheway-tech.com/product/wt-43-bk-lora-module/) |
+| **OTW total** | | | | **135** | **2 160** | |
 
 **Contact:** `Lucaszhang@ontheway-tech.com` · (+86)13530532178 · (+86)17688713459
 
-**Confirm before pay:** Prefer **868 MHz** if OTW has that variant · else published brick is **410–525 MHz only (≈433)** · 1-pc USD · BK+RK one PO · pay by **Tue 16 Sep 2026**
+**Prices:** Lucas sample quote **2026-09-14** — RK **$40**/pc · BK **$55**/pc (above earlier $32–36 LIST estimate).
 
-### Band check (important)
+## LoRa band (confirmed by supplier)
 
-| Want | WT-43-*-LORA on site |
-|------|----------------------|
-| **868 MHz** | **Not in published spec** (working freq **410–525 MHz**) |
-| **433 MHz** | **In range** — ask them to centre / ship this band |
+Same modules: LoRa frequency **can be set to 433 MHz or 868 MHz**.  
+State desired band on PO (pick one for the whole BK+RK set). Site still lists 410–525 MHz — treat supplier config claim as binding for samples; verify on bench.
 
-**Do not pay** until Lucas confirms either an **868 MHz SKU** exists, or you accept **433 MHz** on the listed modules.
+## Do **not** order from OTW
 
-## Site check (same family — do **not** order)
+WT-43-RK-4G · WT-4545-RK · WT-43-62-RK · WTB-2526-62-RD · WT-27-HP · anything else.
 
-OTW also lists siblings. **Out of scope for this supplier:**
+## Spec snapshot
 
-- WT-43-RK-4G (cellular — we stay LoRa / no cell on race radio)
-- WT-4545-RK
-- WT-43-62-RK
-- WTB-2526-62-RD
-- WT-27-HP
-- Any other Anzewei catalog item
+- **43 × 43 × 14 mm** · fits HERO13 cavity **71.8 × 50.8 × 33.6** ([fit](WT43_H9-13_FIT_CONFIRM.md))
+- RTK 1–20 Hz · ~80 mA @ 5 V · LoRa claim 1–2 km urban / ~5 km open
 
-## Spec snapshot (both pages — same brick form)
+## Chat / pay note
 
-- **43 × 43 × 14 mm** · 18-pin LCC · 3.6–6 V (~5 V) · ~80 mA @ 5 V
-- Quad-system dual-freq RTK · **1–20 Hz** (default 1 Hz)
-- LoRa **410–525 MHz** · up to 22 dBm · claim 1–2 km urban / ~5 km open
-- Accuracy claim: 1 cm + 1 ppm H / 2 cm + 1 ppm V (CEP50)
-
-## Chat paste (for Lucas / live chat)
-
-> Prototype samples for testing.  
-> Please quote **1-pc USD** for:  
-> • **WT-43-RK-LORA** × **2**  
-> • **WT-43-BK-LORA** × **1**  
-> Same PO. **Only these two models.**  
-> We need LoRa at **868 MHz**. Your pages list **410–525 MHz** — do you have an **868 MHz** version of RK + BK?  
-> If not, confirm you can ship **433 MHz** centre on these SKUs.  
-> Also confirm BK base → RK rover pairing, max Hz with RTCM over LoRa, lead time.
+> Confirm PO: **WT-43-RK-LORA ×2 @ $40** + **WT-43-BK-LORA ×1 @ $55** = **$135**.  
+> Set LoRa to **[433 / 868]** MHz on all three. Nothing else from catalog. Pay by Tue 16 Sep.
 
 ## Rule
 
-**Nothing else from OTW / Anzewei** on this buy. Housing, nRF54, batteries, Dragino, Moko = other suppliers.
+**Nothing else from OTW / Anzewei.** Housing, nRF54, batteries, Dragino, Moko = other suppliers.
