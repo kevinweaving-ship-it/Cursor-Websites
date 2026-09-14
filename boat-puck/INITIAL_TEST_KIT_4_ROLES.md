@@ -35,6 +35,7 @@ Do **not** under-count to “boat only ×1”. If it goes in a puck, count **all
 |------|----:|------|
 | **ME54BS62** (nRF54; CURRENT) | **3** | Pucks only. Contact MinewSemi → PI to Eric Shenzhen. See `ORDER_ONE_STEP_AT_A_TIME.md` |
 | Flat LiPo + TP4056 | **4** | 3 pucks + committee → **4** — **not this step** |
+| SoftSIM LTE (A7672-class) | **3** | **Pucks only** — fit locked in leftover strip · buy later · `PUCK_STACK_WITH_SOFTSIM.md` |
 | H9–13 GoPro housing | **3** | One shell per puck — **not this step** |
 | Survey antenna + pole | **1** | Committee only — **not this step** |
 | IP67 dry box | **1** | Committee only — **not this step** |
