@@ -18,9 +18,12 @@ Sits on the **rear face** looking out the **H9–13 backdoor** (lid side).
 | Comfortable AA | ≤ **~55 × 37** (~2.5") | Leaves bezel |
 | Stock GoPro-class | **48 × 32** (~2.27") | Proven in this door |
 
-**Not:** 4.2" RLCD (too long). **Not** ESP32-on-glass. SPI panel only; **nRF54** drives it.
+**Must be ≥1000 nit** (sunlight). Pick + factory URLs: **`BACK_LID_SCREEN_1000NIT.md`**  
+→ **#1 Chenghao CH200QV18B** 2.0" · 1000 nit · 34.6×47.8×2.0 · SPI  
 
-Detail: `housing/gopro-back-screen-fit.md`
+**Not:** 4.2" RLCD · hobby Waveshare (&lt;1000 nit) · ESP32-on-glass. **nRF54** drives SPI.
+
+Detail fit geometry: `housing/gopro-back-screen-fit.md`
 
 ---
 
