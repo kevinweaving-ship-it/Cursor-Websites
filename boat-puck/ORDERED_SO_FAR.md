@@ -24,4 +24,4 @@ Housing + WT-43-RK-LORA + nRF54 + LiPo + TP4056 + Qi RX + **SoftSIM add-on (A767
 | Item | When | Doc |
 |------|------|-----|
 | **SoftSIM factory contact** | **Tomorrow** | `TOMORROW_SOFTSIM_FACTORY.md` |
-| **Optional UI** — flat screen + speaker (timer beeps) + **buttons ×2** + **LEDs ×3–4** | After no-screen water test | `OPTIONAL_PUCK_UI_SCREEN_BEEPS.md` |
+| **Optional UI** — RLCD back-lid screen (gate) + speaker + buttons under casing + LEDs | After no-screen water test + lid caliper | `DEEP_DIVE_RLCD_BACK_LID.md` · `OPTIONAL_PUCK_UI_SCREEN_BEEPS.md` |
