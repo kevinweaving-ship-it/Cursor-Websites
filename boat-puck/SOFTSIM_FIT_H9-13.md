@@ -65,6 +65,6 @@ Until Lucas confirms SoftSIM (not nano-SIM tray), do **not** order WT-43-RK-4G f
 | **3** | Lucas **LoRa+SoftSIM** combo if quoted | Cleanest BOM if real |
 | **Skip** | EG21/EG25 bricks, nRF91-only for SA race, any EVB, ESP32+4G | Size and/or coverage |
 
-**Where to put SoftSIM first:** **committee / shore** (dry box has room) before every puck. Puck SoftSIM only after LoRa water test + packing prototype.
+**Where SoftSIM goes:** on the **puck** (training alone = the whole point). Committee dry box can also take cell later; don’t treat SoftSIM as committee-only. Still: prototype packing after LoRa water test — not this sample PO.
 
 **Do not buy SoftSIM hardware in this sample PO** — research lock only. Next order step stays Minew reply / dry box / local charge parts.

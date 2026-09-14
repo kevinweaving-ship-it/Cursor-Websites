@@ -29,7 +29,7 @@ Two build options (pick later with Lucas / modem vendor):
 | Option | What it is | Pros | Cons |
 |--------|------------|------|------|
 | **1 — Onboard (optional use)** | Cell modem + SoftSIM **on the same WT-43-class brick** (or factory option). Software enables/disables. Built-in cell ant. | One brick; fewer wires | Power, heat, RF isolation vs GNSS; may force 4G SKU not LoRa+cell combo |
-| **2 — Tiny add-on board** | Separate mini SoftSIM modem board, **no SIM slot**, software UART/SPI to nRF54 (or WT-43 host). Own small ant. | Keep **LoRa WT-43** pure; add cell only where needed (e.g. committee / shore puck) | Extra board + fit in housing |
+| **2 — Tiny add-on board** | Separate mini SoftSIM modem board, **no SIM slot**, software UART/SPI to nRF54 (or WT-43 host). Own small ant. | Keep **LoRa WT-43** pure; SoftSIM on puck for training days | Extra board + fit in housing |
 
 **Rules we already locked:**
 
