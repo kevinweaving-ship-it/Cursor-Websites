@@ -20,15 +20,17 @@
 | **What** | **TP4056** micro-USB or Type-C · with battery protection (DW01) if possible |
 | **Qty** | **4** |
 | **Committee?** | **Yes** (3 pucks + 1 committee) |
-| **Where** | **Local** — same as LiPo (cheap/common). Not Eric. |
+| **Where** | **LOCAL SA** — in stock. Not Eric. |
 
-**Spec check URL (if useful):**  
-https://www.aliexpress.com/w/wholesale-tp4056.html
+### Local buy (checked)
 
-### You check
+| Shop | Part | Price | Stock | URL |
+|------|------|------:|-------|-----|
+| **Micro Robotics** (best) | **PK4056** USB-C + protect | **R18.40** | Centurion + Stellenbosch **in stock** | https://www.robotics.org.za/PK4056 |
+| DIY Electronics | TP4056 Type-C | R11 | ships ~1 day | https://www.diyelectronics.co.za/store/battery-charger/126-1a-li-battery-tp4056-charging-module-type-c.html |
+| GeeWiz | TP4056 USB-C | R13 | external supplier | https://www.geewiz.co.za/battery-chargers/690624-usb-c-lithium-18650-battery-charger-1a-tp4056-usb-c.html |
+| Communica | HKD LITH CHARGER USB-C | R5.95 | **Sold out** | skip for now |
 
-- Says **TP4056**
-- Prefer **Type-C** + protection circuit
-- **×4**
+**Order:** **PK4056 ×4** → **~R74**  
 
-Paste when bought / confirmed → then next.
+Confirm when bought → then next.
