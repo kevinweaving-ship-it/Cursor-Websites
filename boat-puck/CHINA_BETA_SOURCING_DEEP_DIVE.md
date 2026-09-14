@@ -145,7 +145,7 @@ Almost always **UM980 (or Trimble) inside** + UHF + IMU + Android. **$2k–7k**.
 |---------|------|-------:|-----|
 | **Ebyte E22-400M22S** | https://ebyteiot.com / LCSC | **~$4–7 (R64–112)** | **SA 433 LoRa** for DIY UM980/LC29H/LG290P |
 | **Ebyte E22-900M22S** | already on buy list | **~$6 (R96)** | EU 868 — secondary for SA |
-| **Ebyte E73-2G4M08S1F** (nRF54L15) | https://www.cdebyte.com/products/E73-2G4M08S1F | few–tens $ | China **nRF54L15** module for puck MCU |
+| **Ebyte E73-2G4M08S1F** (nRF54L15) | https://ebyteiot.com/products/ebyte-e71-e73-series-soc-wireless-communication-module-low-power-2-4ghz-tl7215d-nrf54l15-chip-multi-protocol-8-10dbm-test-board | few–tens $ | China **nRF54L15** module for puck MCU |
 | **Ebyte E73-2G4M08S1F / E73 nRF54L15 family** | cdebyte / ebyteiot | ~**$5–15** | Volume proto cheaper than Nordic DK×N |
 | **Ebyte E73-2G4M08S1C** (nRF52840) | already listed | **$7.60 (R122)** | Fine if CS not needed yet |
 | Nordic **nRF54L15 DK + Tag** | DigiKey/Mouser | Tag ~**$30–35 (R480–560)** | Still best for **bow Channel Sounding** |

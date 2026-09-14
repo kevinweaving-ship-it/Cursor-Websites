@@ -4,17 +4,21 @@
 
 ## Buy from OTW (this PO only)
 
-| SKU | Role | Qty | **Sample USD** | Line USD | **Live R** | Page |
-|-----|------|----:|---------------:|---------:|-----------:|------|
-| **WT-43-RK-LORA** | Rover — boat puck + mark | **2** | **40** | **80** | **1 305.70** | [rk](https://www.ontheway-tech.com/product/wt-43-rk-lora/) |
-| **WT-43-BK-LORA** | Committee RTK **base** | **1** | **55** | **55** | **897.66** | [bk](https://www.ontheway-tech.com/product/wt-43-bk-lora-module/) |
-| **OTW total** | | | | **135** | **2 203.36** | |
+**Normal line format:**
 
-**FX (your converter 14 Sep):** **$40 → R652.85** · **$55 → R897.66** ≈ **R16.32 / $1** (was planning R16).
+| Line | | USD | Live R |
+|------|--|----:|-------:|
+| **2pcs RK @ $40** | WT-43-RK-LORA (boat + mark) | **80** | **1 305.70** |
+| **1pcs BK @ $55** | WT-43-BK-LORA (committee base) | **55** | **897.66** |
+| **OTW PO** | | **135** | **2 203.36** |
+
+Pages: [RK](https://www.ontheway-tech.com/product/wt-43-rk-lora/) · [BK](https://www.ontheway-tech.com/product/wt-43-bk-lora-module/)
+
+**FX (your converter 14 Sep):** $40 = R652.85 · $55 = R897.66 ≈ **R16.32 / $1**
 
 **Contact:** `Lucaszhang@ontheway-tech.com` · (+86)13530532178 · (+86)17688713459
 
-**Prices:** Lucas sample quote **2026-09-14** — RK **$40**/pc · BK **$55**/pc (above earlier $32–36 LIST estimate).
+**Not** 2× BK / 1× RK — that was listing confusion. Correct = **2pcs RK + 1pcs BK**.
 
 ## LoRa band (confirmed by supplier)
 

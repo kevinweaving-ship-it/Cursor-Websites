@@ -1,30 +1,34 @@
-# Fit confirm — WT-43 vs GoPro **HERO13** body (housing cavity)
+# Fit confirm — WT-43 vs GoPro **HERO13** body (= housing inside)
 
-**Rule:** inside space of an H9–13 waterproof housing ≈ **GoPro HERO13 Black camera body**.  
-Use **HERO13 dimensions only** for the fit check (not a vague H9–12 average).
+**Rule:** waterproof H9–13 housing cavity = **GoPro HERO13 Black camera positive**.  
+Pack to that body. Do not invent a smaller “safety” box.
 
 **Verdict: YES — WT-43-RK-LORA fits.**  
 (Committee **BK** = dry box, not this shell.)
 
-## HERO13 cavity (official)
+## HERO13 = cavity (locked)
 
-| Source | W × H × D (mm) |
-|--------|----------------|
-| [GoPro community — HERO13 size & weight](https://community.gopro.com/s/article/HERO13-Black-Camera-Size-And-Weight) | **71.0 × 55.0 × 33.6** |
-| [GoPro compare / product specs](https://gopro.com/en/us/compare) | **71.8 × 50.8 × 33.6** |
+| Axis | mm | Notes |
+|------|-----|--------|
+| **W** | **71.8** | left–right |
+| **H** | **50.8** | top–bottom |
+| **D** | **33.6** | lens/front → rear door |
+| Volume | **~122.7 cm³** | bounding box |
 
-**Fit envelope we use (conservative):** take the **smaller** of each axis → **71.0 × 50.8 × 33.6 mm**.
+**Source:** GoPro HERO13 / H9–13 product Design+Dimensions (same chassis). Same numbers as [`housing/dimensions.json`](housing/dimensions.json) and [`housing/gopro-h9-13-envelope.md`](housing/gopro-h9-13-envelope.md).
 
-## WT-43 vs that envelope
+Community “size & weight” article lists **71.0 × 55.0 × 33.6** — **do not use for packing** (project doctrine: superseded by **71.8 × 50.8 × 33.6**).
+
+## WT-43 vs HERO13 cavity
 
 | Item | Size (mm) |
 |------|-----------|
-| **Cavity (HERO13, conservative)** | **71.0 × 50.8 × 33.6** |
+| **HERO13 cavity** | **71.8 × 50.8 × 33.6** |
 | **WT-43-RK-LORA** | **43 × 43 × 14** (±0.5, OTW) |
-| Footprint margin | **+28.0** W · **+7.8** H |
+| Footprint margin | **+28.8** W · **+7.8** H |
 | Depth left after WT-43 alone | **19.6** |
 
-Footprint clears easily. Depth is the only stack budget that matters.
+Footprint clears easily. Depth is the stack budget.
 
 ## Stack inside the same 33.6 mm (boat puck)
 
@@ -38,11 +42,11 @@ Footprint clears easily. Depth is the only stack budget that matters.
 **Sum ~22–29 mm** of **33.6 mm** → **fits** with flat LiPo + thin sled.
 
 ```
-HERO13 cavity  71.0 × 50.8 × 33.6
-┌──────────────────────────────────┐  W 71
-│  WT-43 43×43×14                  │  H 50.8
-│  + E73 + flat LiPo + sled        │  D 33.6
-└──────────────────────────────────┘
+HERO13 / housing cavity   71.8 × 50.8 × 33.6
+┌────────────────────────────────────┐
+│  WT-43 43×43×14                    │
+│  + E73 + flat LiPo + sled          │
+└────────────────────────────────────┘
 ```
 
 ## Still design risks (not a size no)
@@ -50,7 +54,7 @@ HERO13 cavity  71.0 × 50.8 × 33.6
 - GNSS through plastic dome (sky orientation)
 - LoRa antenna placement inside plastic
 - Heat / condensation
-- Seal with no cable gland (charge before close, or later wireless/internal pad)
+- Seal with no cable gland
 
 ## Not in this housing
 
@@ -61,4 +65,4 @@ HERO13 cavity  71.0 × 50.8 × 33.6
 
 ## Buy rule
 
-Full-door H9–13 waterproof case (fits HERO13 body). Not skeleton cage. Qty **2**. Direct OEM **&lt; R80**.
+Full-door H9–13 waterproof case (takes HERO13 body). Not skeleton cage. Qty **2**. Direct OEM **&lt; R80**.
