@@ -1,33 +1,50 @@
-# Initial water test kit — 4 roles
+# Initial hardware kit — counting rule (locked)
 
-**Enough for first OCS / start / mark test.** Locked 2026-09-14.
+**Units:** **3× Pucks** + **1× Committee**
 
-| # | Role | Device | SKU | Shell |
-|---|------|--------|-----|-------|
-| 1 | **Committee boat** | RTK base | **WT-43-BK-LORA ×1** | Dry box + line-end antenna |
-| 2 | **Start pin** (OCS check) | Rover **Puck 1** | **WT-43-RK-LORA ×1** | Float/clip — **not** GoPro |
-| 3 | **Boat puck** (start / OCS) | Rover **Puck 2** | **WT-43-RK-LORA ×1** + **E73 nRF54** + LiPo | **H9–13 GoPro** housing |
-| 4 | **1st mark / finish** (dual use) | Rover **Puck 3** | **WT-43-RK-LORA ×1** | Float/clip — **not** GoPro |
+## Qty rule (no exceptions)
 
-## OTW PO (updated qty)
+| Who needs the part? | Order qty |
+|---------------------|----------:|
+| Pucks only | **3** |
+| Pucks **and** committee | **4** |
+| Committee only | **1** |
 
-| Line | USD | Live R (~16.32) |
-|------|----:|----------------:|
-| **3pcs RK @ $40** | **120** | **1 958.55** |
-| **1pcs BK @ $55** | **55** | **897.66** |
-| **OTW total** | **175** | **≈2 856** |
+Do **not** under-count to “boat only ×1”. If it goes in a puck, count **all 3 pucks**.
 
-Pages: [RK](https://www.ontheway-tech.com/product/wt-43-rk-lora/) · [BK](https://www.ontheway-tech.com/product/wt-43-bk-lora-module/)
+## Roles
 
-## What else for this test (not OTW)
+| # | Role | Radio | Notes |
+|---|------|-------|-------|
+| C | Committee | **WT-43-BK ×1** | Dry box + line antenna + Race Control UI |
+| P1 | Start pin (OCS) | **WT-43-RK** | Puck 1 |
+| P2 | Boat (start / OCS) | **WT-43-RK** | Puck 2 |
+| P3 | Mark / finish (dual) | **WT-43-RK** | Puck 3 |
 
-| Part | Qty | Who gets it | URL |
-|------|----:|-------------|-----|
-| **E73-2G4M08S1F** (nRF54) | **1–2** | **Boat puck only** (Puck 2) | https://ebyteiot.com/products/ebyte-e71-e73-series-soc-wireless-communication-module-low-power-2-4ghz-tl7215d-nrf54l15-chip-multi-protocol-8-10dbm-test-board?variant=48515417702605 |
-| **H9–13 housing** | **1–2** | Boat puck (+ spare) | https://www.aliexpress.com/w/wholesale-gopro-hero9-hero10-hero11-hero12-hero13-waterproof-housing.html |
-| Flat LiPo + TP4056 | **4** | Committee + 3 rovers | Ali commodity |
-| Survey antenna + pole | **1** | Committee line end | Ali |
-| Dry box | **1** | Committee | Ali |
-| 2× float/clip boxes | **2** | Start pin + mark/finish | Ali / print |
+## OTW
 
-Pins do **not** need E73 or GoPro. Only the **boat puck** is the full BLE + GoPro stack.
+| Line | Qty | Why |
+|------|----:|-----|
+| WT-43-RK-LORA | **3** | One per puck |
+| WT-43-BK-LORA | **1** | Committee only |
+| **OTW $** | **3×40 + 55 = 175** | Live FX ≈ **R2 856** |
+
+## Shared / puck electronics
+
+| Part | Qty | Rule |
+|------|----:|------|
+| **E73-2G4M08S1F** (nRF54) | **3** | Pucks only — **not** committee → **3 not 4** |
+| Flat LiPo + TP4056 | **4** | 3 pucks + committee → **4** |
+| H9–13 GoPro housing | **3** | One shell per puck (or 3+1 spare later) |
+| Survey antenna + pole | **1** | Committee only |
+| IP67 dry box | **1** | Committee only |
+| USB bank / UART bridge | **1** | Committee only |
+
+## E73 stock
+
+ebyteiot **sold out**. Still need **×3** when available.
+
+- Email: `ebyteiot@cdebyte.com` — “E73-2G4M08S1F **×3**, lead time / backorder”
+- 
+Direct (OOS) URL for when restocked:  
+https://ebyteiot.com/products/ebyte-e71-e73-series-soc-wireless-communication-module-low-power-2-4ghz-tl7215d-nrf54l15-chip-multi-protocol-8-10dbm-test-board?variant=48515417702605
