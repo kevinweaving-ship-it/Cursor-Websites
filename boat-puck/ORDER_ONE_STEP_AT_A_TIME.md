@@ -1,14 +1,12 @@
 # Order workflow — ONE STEP at a time
 
-## How we order (your method — locked)
+## How we build (virtual puck) — locked
 
-1. One factory / one SKU set.
-2. Confirm correct part + frequency/options + sample price.
-3. Send qty + **Eric Shenzhen ship-to** (same block every time).
-4. Get PI → pay → Eric receives + combines into one box → ships to us.
-5. **Next item only after that.**
-
-**Example (done):** Lucas / OTW WhatsApp — prices → 3× RK + 1× BK @ 868 → address.
+1. Pick **next puck component** only.
+2. If committee uses the **same** part → order **extra** (usually ×4 not ×3).
+3. Find / confirm correct SKU + factory.
+4. Later: request PI → pay → ship to **Eric Shenzhen** → he combines.
+5. **Next component only after that.**
 
 ---
 
@@ -20,56 +18,60 @@
 18680660780
 ```
 
-(Eric / 吴建军 — Huaqiangbei consolidate office)
+Full card: `ERIC_SHENZHEN_SHIP_TO.md`
 
 ---
 
-## ORDERED SO FAR
+## Built so far (virtual)
 
-| Item | Qty | Who | Status |
-|------|----:|-----|--------|
-| **H9–13 housing** | **3** | **Temu** | **ORDERED** — not cheapest; **quickest**. Qty later = factory. |
-| **WT-43-RK-LORA** | **3** | **Lucas / OTW** | **ORDER SENT** — 1st internals · **868 MHz** · @ $40 · Eric |
-| **WT-43-BK-LORA** | **1** | **Lucas / OTW** | **ORDER SENT** — same PO · @ $55 · Eric |
-
-Full board: `ORDERED_SO_FAR.md` · Eric block: `ERIC_SHENZHEN_SHIP_TO.md`
+| Layer | Item | Qty | Who | Status |
+|-------|------|----:|-----|--------|
+| Shell | H9–13 housing | 3 | Temu | ORDERED |
+| GNSS/LoRa | WT-43-RK-LORA | 3 | Lucas / OTW | ORDER SENT · 868 · Eric |
+| GNSS/LoRa | WT-43-BK-LORA | 1 | Lucas / OTW | ORDER SENT · committee |
 
 ---
 
-## CURRENT STEP (do this only when you say go) — BLE MCU
+## NEXT PUCK COMPONENT — BLE MCU
 
 | | |
 |---|---|
-| **Part** | **ME54BS62** (Nordic nRF54L15, PCB antenna) |
-| **Qty** | **3 pcs** |
-| **Who** | MinewSemi · **minewsemi@minew.com** |
+| **What** | Bluetooth MCU module inside each puck (talks to phone/watch) |
+| **Part** | **ME54BS62** |
+| **Chip** | Nordic **nRF54L15** · PCB antenna · **6×9×1.8 mm** |
+| **Fits housing?** | Yes (tiny; sits with WT-43 + flat LiPo) |
+| **Qty** | **3** |
+| **Committee?** | **No** — committee uses tablet/Race Control, not this module → **do not order 4** |
+| **Factory** | MinewSemi (Shenzhen) |
+| **Price** | **$5.00**/pc → **$15** for ×3 |
 | **Page** | https://store.minewsemi.com/product/bluetooth-modules-nrf54l15-me54bs62/ |
+| **Email** | **minewsemi@minew.com** |
+| **Phone** | +86 755 2801 0353 |
 
-### Message — same style as Lucas (copy/paste)
+### Confirm message (copy/paste) — request quote/stock first; PI when ready
 
 **To:** minewsemi@minew.com  
 
 ```
-Hi, need sample quote + PI please.
+Hi, need sample quote please.
 
 Part: ME54BS62 (nRF54L15, PCB antenna)
 Qty: 3pcs
-Please confirm: exact model ME54BS62, Nordic nRF54L15, in stock?
+Please confirm: exact model ME54BS62, Nordic nRF54L15, in stock now?
 
-Ship to:
+Ship to (when we PI):
 深圳市福田区华强北友谊路上步工业区404栋2楼212号
 吴建军
 18680660780
 
 Mark: Boat Puck / ME54BS62 / Kevin
-Please send unit price + shipping to this Shenzhen address + lead time + payment.
+Please send unit price + shipping to this Shenzhen address + lead time + payment method.
 ```
 
 ### Done when
 
-- [ ] Confirm SKU + stock
-- [ ] PI received
-- [ ] Paid
-- [ ] Then: **next item only**
+- [ ] They confirm **ME54BS62** + **nRF54L15** + stock
+- [ ] PI → pay → Eric
+- [ ] Then: **next puck component only**
 
-If Minew cannot supply → ask for **fallback 1 only** (Ebyte E73). Do not contact everyone.
+If Minew says no → fallback 1 only: Ebyte **E73-2G4M08S1F** (`ebyteiot@cdebyte.com`). Do not spray other factories.

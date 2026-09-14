@@ -12,16 +12,21 @@ Update only when you lock an item. One step at a time.
 
 ---
 
-## Not ordered yet
+## NEXT (not ordered)
 
-Next step only when you say go: BLE MCU (MinewSemi **ME54BS62** ×3) — see `ORDER_ONE_STEP_AT_A_TIME.md`.
+| Item | Qty | Committee? | Who |
+|------|----:|:----------:|-----|
+| **ME54BS62** (nRF54L15 BLE MCU) | **3** | **No** | MinewSemi · `minewsemi@minew.com` |
 
-Also later (not now): LiPo/TP4056 · committee dry box · survey antenna · etc.
+See `ORDER_ONE_STEP_AT_A_TIME.md` for confirm message.
+
+Later (not now): flat LiPo + TP4056 (**×4** — pucks + committee) · dry box · survey antenna · etc.
 
 ---
 
 ## Rules
 
-- Temu housing = **sample speed** only. Volume = factory RFQ later.
-- Lucas = **1st internals** (GNSS/LoRa modules) before other electronics.
+- Build puck virtually **one component at a time**.
+- If committee uses same part → order the extra.
+- Temu housing = sample speed; volume = factory later.
 - All China factory parcels → Eric Shenzhen → one combine box.
