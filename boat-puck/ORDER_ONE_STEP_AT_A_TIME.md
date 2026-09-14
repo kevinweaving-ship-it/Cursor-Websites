@@ -1,75 +1,75 @@
 # Order workflow — ONE STEP at a time
 
-## How we order (locked)
+## How we order (your method — locked)
 
-1. **One item only** — know exact part + qty + who.
-2. **Contact that factory** — confirm **correct SKU** + **in stock**.
-3. **Get PI** with **ship to Shenzhen office (Eric)** — not SA, not multi-supplier cart chaos.
-4. Eric **receives + combines** into one box → ships to us.
-5. Only when that item is locked (PI / paid / confirmed) → **next item**.
+1. One factory / one SKU set.
+2. Confirm correct part + frequency/options + sample price.
+3. Send qty + **Eric Shenzhen ship-to** (same block every time).
+4. Get PI → pay → Eric receives + combines into one box → ships to us.
+5. **Next item only after that.**
 
-Do **not** open parallel “buy options” as competing actions. Alts are a **fallback queue** only if this factory cannot supply.
+**Example (done):** Lucas / OTW WhatsApp — prices → 3× RK + 1× BK @ 868 → address.
 
 ---
 
-## CURRENT STEP (do this only)
+## Eric Shenzhen ship-to (always paste this)
+
+```
+深圳市福田区华强北友谊路上步工业区404栋2楼212号
+吴建军
+18680660780
+```
+
+(Eric / 吴建军 — Huaqiangbei consolidate office)
+
+---
+
+## DONE THIS ROUND — OTW / Lucas
 
 | | |
 |---|---|
-| **Item #** | BLE MCU for pucks |
-| **Part** | **ME54BS62** (Nordic **nRF54L15**, PCB antenna, 6×9×1.8 mm) |
-| **Qty** | **3** (pucks only — committee does **not** need this) |
-| **Why this factory** | **MinewSemi = Shenzhen** → short hop to Eric. Ebyte E73 shop is **OOS**. |
-| **Factory** | Shenzhen MinewSemi |
-| **Product page** | https://store.minewsemi.com/product/bluetooth-modules-nrf54l15-me54bs62/ |
-| **Email** | **minewsemi@minew.com** |
-| **Phone** | +86 755 2801 0353 |
+| **Who** | Lucas Zhang · Lucaszhang@ontheway-tech.com / WhatsApp |
+| **Band** | **868 MHz** (he can set 433 or 868) |
+| **Order sent** | **3pcs WT-43-RK-LORA @ $40** + **1pcs WT-43-BK-LORA @ $55** = **$175** |
+| **Ship** | Eric address above |
+| **Status** | Message sent — wait PI / pay confirm from Lucas |
 
-### Email — copy/paste
+---
+
+## CURRENT STEP (do this only) — BLE MCU
+
+| | |
+|---|---|
+| **Part** | **ME54BS62** (Nordic nRF54L15, PCB antenna) |
+| **Qty** | **3 pcs** |
+| **Who** | MinewSemi · **minewsemi@minew.com** |
+| **Page** | https://store.minewsemi.com/product/bluetooth-modules-nrf54l15-me54bs62/ |
+
+### Message — same style as Lucas (copy/paste)
 
 **To:** minewsemi@minew.com  
-**Subject:** Sample PI — ME54BS62 ×3 — ship to Shenzhen (Eric)
 
 ```
-Hello MinewSemi,
-
-Please quote and issue PI for sample order:
+Hi, need sample quote + PI please.
 
 Part: ME54BS62 (nRF54L15, PCB antenna)
-Qty: 3 pcs
-Confirm: exact model ME54BS62, Nordic nRF54L15, in stock now?
+Qty: 3pcs
+Please confirm: exact model ME54BS62, Nordic nRF54L15, in stock?
 
-Ship to: our Shenzhen consolidation office (Eric)
-[PASTE ERIC FULL NAME + ADDRESS + PHONE HERE]
+Ship to:
+深圳市福田区华强北友谊路上步工业区404栋2楼212号
+吴建军
+18680660780
 
-Mark packages: Boat Puck / ME54BS62 / Kevin
-Please include: unit price, shipping to this Shenzhen address, lead time, payment method.
-
-Thank you
+Mark: Boat Puck / ME54BS62 / Kevin
+Please send unit price + shipping to this Shenzhen address + lead time + payment.
 ```
 
 ### Done when
 
-- [ ] They confirm **ME54BS62** + **nRF54L15** + **stock**
-- [ ] PI received (price + ship to Eric Shenzhen)
-- [ ] Paid / PO number noted
-- [ ] Then ask agent for **NEXT item only**
+- [ ] Confirm SKU + stock
+- [ ] PI received
+- [ ] Paid
+- [ ] Then: **next item only**
 
-### If they say no stock / wrong part
-
-**Fallback queue (one at a time — do not contact all):**
-1. Ebyte `ebyteiot@cdebyte.com` → **E73-2G4M08S1F ×3** (original lock; shop OOS — ask lead time + ship Eric Shenzhen)
-2. Raytac `sales@raytac.com` → **AN54LQ-15 ×3** (chip ant; ask ship Eric Shenzhen)
-3. Fanstel `info@fanstel.com` → **BC15C ×3** (last)
-
-See `NRF54_ALT_SUPPLIERS.md` for specs only — **not** a multi-buy list.
-
----
-
-## Already locked / previous
-
-- OTW: WT-43-RK ×3 + WT-43-BK ×1 (separate PO — Lucaszhang@ontheway-tech.com)
-
-## Not this step
-
-Housing · LiPo · dry box · antenna · lab DK — **later, one each.**
+If Minew cannot supply → ask for **fallback 1 only** (Ebyte E73). Do not contact everyone.
