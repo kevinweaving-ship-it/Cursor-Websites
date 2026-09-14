@@ -62,3 +62,19 @@ Do you have / can you quote:
 
 **Samples now = Flavour A+B (LoRa).**  
 **SoftSIM 4G/5G = Flavour D later** (onboard optional **or** tiny add-on) — **not** mixed into this Eric box.
+
+---
+
+## ESP32-class “more built-in?” (side note — not the sample path)
+
+**Idea:** one board with MCU + radios already glued (ESP32 line = WiFi + BLE + app CPU).
+
+| Path | Built-in | Fit H9–13 | Verdict |
+|------|----------|-----------|---------|
+| **Our stack** | WT-43 (RTK+LoRa) + **nRF54** (race BLE MCU) | Yes (locked) | **Keep for water test** |
+| **ESP32 DevKit / fat S3 boards** | MCU+WiFi+BLE | **Too big** + hungry | **No** |
+| **Tiny ESP32-C3/S3 module only** (as MCU instead of nRF54) | WiFi+BLE+MCU | Maybe size OK | Weak: power, no BLE 6 / CS path we locked, WiFi unused on water |
+| **TinkerNav-class** (ESP32 + RTK + optional LoRa/cell add-ons) | More integrated kit | Long board + SMA ant — **worse** than WT-43 | Lab curiosity only |
+| **More built-in we actually want** | LoRa primary + **SoftSIM 4G** onboard **or** tiny SoftSIM add-on | Same WT-43 footprint / small daughter | **Flavour D** — ask Lucas |
+
+**Rule:** chase **more built-in SoftSIM/cell**, not swap race brain to ESP32.
