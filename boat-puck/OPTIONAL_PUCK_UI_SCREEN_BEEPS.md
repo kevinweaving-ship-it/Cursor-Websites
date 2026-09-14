@@ -67,9 +67,11 @@ H9–13  (front = lens / GNSS)
 │                                      │
 │════════ back lid opening ════════════│
 │  thin flat screen ≈ up to 63×42      │  ← as wide/long as lid window
-│  (~2–4 mm thick only)                │
-│  buttons ×2 + LEDs ×3–4 in bezel     │
+│  (~2–4 mm thick only) · ≥1000 nit    │
+│  LEDs ×3–4 in bezel / visible edge   │
 │  speaker at edge of rear cavity      │
+│  buttons ×2 = under stock casing     │  ← outside housing btn → inside switch
+│       (top shutter + side mode)      │
 └──────────────────────────────────────┘
 ```
 
@@ -80,7 +82,7 @@ H9–13  (front = lens / GNSS)
 | UI part | To |
 |---------|-----|
 | Screen SPI | nRF54 |
-| Buttons ×2 | nRF54 GPIO |
+| **Buttons ×2** (under stock plungers) | nRF54 GPIO |
 | LEDs ×3–4 | nRF54 GPIO |
 | Speaker + amp | nRF54 PWM (beeps V1) |
 
