@@ -24,19 +24,19 @@
 
 ---
 
-## DONE THIS ROUND — OTW / Lucas
+## ORDERED SO FAR
 
-| | |
-|---|---|
-| **Who** | Lucas Zhang · Lucaszhang@ontheway-tech.com / WhatsApp |
-| **Band** | **868 MHz** (he can set 433 or 868) |
-| **Order sent** | **3pcs WT-43-RK-LORA @ $40** + **1pcs WT-43-BK-LORA @ $55** = **$175** |
-| **Ship** | Eric address above |
-| **Status** | Message sent — wait PI / pay confirm from Lucas |
+| Item | Qty | Who | Status |
+|------|----:|-----|--------|
+| **H9–13 housing** | **3** | **Temu** | **ORDERED** — not cheapest; **quickest**. Qty later = factory. |
+| **WT-43-RK-LORA** | **3** | **Lucas / OTW** | **ORDER SENT** — 1st internals · **868 MHz** · @ $40 · Eric |
+| **WT-43-BK-LORA** | **1** | **Lucas / OTW** | **ORDER SENT** — same PO · @ $55 · Eric |
+
+Full board: `ORDERED_SO_FAR.md` · Eric block: `ERIC_SHENZHEN_SHIP_TO.md`
 
 ---
 
-## CURRENT STEP (do this only) — BLE MCU
+## CURRENT STEP (do this only when you say go) — BLE MCU
 
 | | |
 |---|---|
