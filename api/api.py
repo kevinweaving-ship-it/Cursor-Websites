@@ -24153,6 +24153,9 @@ _SECTION_HEADING_ROW_UNIFIED_CSS = """
 
 _CLUB_PAGE_CSS = """
 .club-page .card.stats-section { background: #fff; border: 2px solid #001f3f; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
+.club-page .club-live-media { width: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 0; }
+.club-page .club-live-media .ssa-regatta-slot-card { margin-top: 0; width: 100%; }
+.club-page .club-live-media .mm-lipton-reels { margin-top: 10px; }
 .club-page .section-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; border-bottom: 2px solid #001f3f; padding-bottom: 0.35rem; margin-bottom: 0.75rem; color: #001f3f; }
 """ + _SECTION_HEADING_ROW_UNIFIED_CSS + """
 .club-sailors-filter-input { padding: 0.5rem 1rem; border: 2px solid #001f3f; border-radius: 999px; font-size: 1rem; box-sizing: border-box; min-height: 44px; }
@@ -25360,9 +25363,24 @@ def _serve_club_page_impl(slug: str, club: tuple):
         except Exception as ex:
             print(f"[club page] events dashboard: {ex}")
 
+    is_zvyc = (club_code or slug or "").strip().lower() == "zvyc"
+    club_live_host = (
+        '<div id="club-zvyc-live-media" class="club-live-media club-story-panel" '
+        'aria-label="Live weather and club camera"></div>'
+        if is_zvyc
+        else ""
+    )
+    club_live_scripts = (
+        '<link rel="stylesheet" href="/css/mm-lipton-reels.css?v=clubmm1">'
+        '<script src="/js/club-live-media.js?v=clubmm1" defer></script>'
+        if is_zvyc
+        else ""
+    )
+
     body = (
         '<a href="/" class="back-to-home">← Back to Search</a>'
         f'<div class="header"><h1>{club_heading_html}</h1></div>'
+        f"{club_live_host}"
         f"{sas_calendar_html}"
         '<div class="club-content" style="margin:1.5rem 0;">'
         f"{sailors_section_html}"
@@ -25380,6 +25398,7 @@ def _serve_club_page_impl(slug: str, club: tuple):
         "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
         f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
         "<link rel=\"stylesheet\" href=\"/css/main.css?v=13\">"
+        f"{club_live_scripts}"
         f"<style>body{{font-family:system-ui,sans-serif;margin:2rem;color:#1a2750;}}a{{color:#1a2750;}}{_CLUB_PAGE_CSS}</style></head><body>"
         f"<div class=\"club-page\">{body}</div>{_seo_discovery_block_html()}</body></html>"
     )
