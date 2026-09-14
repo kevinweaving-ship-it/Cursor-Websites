@@ -14,7 +14,7 @@ Update only when you lock an item. One step at a time.
 
 ## Not ordered yet
 
-Next step only when you say go: BLE MCU (MinewSemi ME54BS62 ×3) — see `ORDER_ONE_STEP_AT_A_TIME.md`.
+Next step only when you say go: BLE MCU (MinewSemi **ME54BS62** ×3) — see `ORDER_ONE_STEP_AT_A_TIME.md`.
 
 Also later (not now): LiPo/TP4056 · committee dry box · survey antenna · etc.
 
