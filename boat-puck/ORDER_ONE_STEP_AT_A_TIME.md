@@ -1,45 +1,33 @@
-# Order workflow — ONE COMPONENT at a time
+# Ordered / in progress — status
 
-## How we work (your method — locked)
-
-1. Agent gives **exact factory product URL** for **one** component (+ qty, committee yes/no).
-2. **You** open it → check it’s right.
-3. **You** contact factory → pricing + stock.
-4. **You** chat / confirm with them.
-5. **You** paste back here what they said → we lock “good” or fix.
-6. **Only then** → next component.
-
-Agent does **not** draft long emails unless you ask.  
-PI / pay / ship to Eric = **after** you confirm that chat was good.
-
----
-
-## Eric Shenzhen (when you later PI)
-
-```
-深圳市福田区华强北友谊路上步工业区404栋2楼212号
-吴建军
-18680660780
-```
-
----
-
-## Done so far
-
-| Item | Qty | Factory | Status |
-|------|----:|---------|--------|
-| H9–13 housing | 3 | Temu | ORDERED (speed samples) |
+| Item | Qty | Who | Status |
+|------|----:|-----|--------|
+| H9–13 housing | 3 | Temu | ORDERED |
 | WT-43-RK-LORA | 3 | Lucas / OTW | ORDER SENT · 868 · Eric |
 | WT-43-BK-LORA | 1 | Lucas / OTW | ORDER SENT · same PO |
+| ME54BS62 (nRF54L15 / BLE 6) | 3 | MinewSemi | ENQUIRY SENT — await reply |
 
----
+## THIS COMPONENT — open this URL
 
-## THIS COMPONENT — enquiry sent (waiting)
+**Flat LiPo cell (puck power)**
 
-**BLE MCU** · **ME54BS62** · **×3** · committee **no**
+| | |
+|---|---|
+| **What** | 3.7V flat LiPo polymer · ~**1000 mAh** · thin pack (not 18650 tube) |
+| **Why flat** | Must stack in H9–13 with WT-43 + ME54 (~4–8 mm thick) |
+| **Qty** | **4** |
+| **Committee?** | **Yes** → pucks 3 + committee 1 = **4** |
 
-**Factory URL:** https://store.minewsemi.com/product/bluetooth-modules-nrf54l15-me54bs62/
+**Buy / check URL:**  
+https://www.aliexpress.com/w/wholesale-3.7v-lipo-battery-1000mah.html
 
-**Status:** Enquiry sent to MinewSemi — **awaiting reply** (price / stock).
+### You check on listing
 
-Do **not** start next component until their reply is pasted here and locked good.
+- **3.7V** LiPo / Li-polymer
+- **Flat** pouch (~1000 mAh) — **not** round 18650
+- Thickness ideally **≤ 8 mm**
+- Qty **4**
+
+Contact seller → price + stock. Paste reply here when done.
+
+*(Charge board TP4056 = separate next step after this.)*

@@ -2,16 +2,15 @@
 
 | Item | Qty | Who | Status |
 |------|----:|-----|--------|
-| H9–13 housing | 3 | Temu | ORDERED (fast samples; factory later for qty) |
+| H9–13 housing | 3 | Temu | ORDERED |
 | WT-43-RK-LORA | 3 | Lucas / OTW | ORDER SENT · 868 · Eric |
 | WT-43-BK-LORA | 1 | Lucas / OTW | ORDER SENT · same PO |
+| ME54BS62 (BLE 6) | 3 | MinewSemi | ENQUIRY SENT — await reply |
 
-## In progress — awaiting factory reply
+## Current — you check
 
-| Item | Qty | Who | Status |
-|------|----:|-----|--------|
-| **ME54BS62** (nRF54L15) | **3** | MinewSemi | **ENQUIRY SENT** — awaiting reply (price/stock) |
+**Flat LiPo 3.7V ~1000mAh** · **×4** (committee **yes**)
 
-URL: https://store.minewsemi.com/product/bluetooth-modules-nrf54l15-me54bs62/
+https://www.aliexpress.com/w/wholesale-3.7v-lipo-battery-1000mah.html
 
-When they reply → paste here → lock if good → then next item.
+Paste price/stock back → then next.
