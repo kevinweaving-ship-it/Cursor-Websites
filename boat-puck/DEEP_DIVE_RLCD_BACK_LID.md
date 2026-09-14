@@ -113,14 +113,43 @@ Same reflective family as TT420FSN21A. Ship Eric Shenzhen.
 
 ---
 
-## Recommendation lock
+## Pricing (sample / volume) — reflective options only
 
-| Priority | Choice | Why |
-|---------:|--------|-----|
-| **1** | **ST7305 2.13" RLCD** | Gate pass (type+thin+size) · same tech as Atlas · safe margins |
-| **2** | **Sharp LS027 2.7"** | Best lid fill · caliper Temu door first |
-| **3** | Kyocera TN0216 / 1.54" ST7305 | Alts |
-| **Skip screen** | — | If neither A nor B samples fit real door → LEDs+beeps only |
+FX rough **R18 / $1** (re-check before pay). Prices = listed public; factory RFQ can beat China channel.
+
+| Priority | Option | Gate | Sample (1–3) | Small qty | Volume | Source |
+|---------:|--------|------|-------------:|----------:|-------:|--------|
+| **1** | **ST7305 2.13" RLCD** | Pass | **~$12–15** / **R216–270** (Midas MDTR0213A) · China factory sample **~$2–5** | **~$10–12** | **~$2.00–2.10** @1k | Unikeyic ~$12 · Orelectronics $15.04 · Alibaba Shineworld ~$1.97–2.10 @1k · sample ~£1.90 |
+| **2** | **Sharp LS027B7DH01A 2.7"** | Pass (caliper door) | **~$28** / **R500** | **~$22** @10 | **~$17–18** @400–1k | DigiKey **$27.59** (1) · **$22.18** (10+) · **$17.85** (1k+) · LCSC ~**$16.41** |
+| **3** | **ST7305 1.54" RLCD** | Pass (small) | **~$10–14** / **R180–250** | **~$9–12** | lower via CN | Orelectronics $13.74 · RS ~£7.65 (~$10) |
+| **4** | **Kyocera TN0216 2.2"** | Pass | **~$27–42** demo / panel · disti **~$60–79** | — | RFQ | Youritech demo **$27.42** · ALCD **$42** · Blikai **$59.92** |
+| Border | **ST7305 2.9" GDTL029T51** | Measure door | RFQ (expect **~$6–12** class) | — | RFQ | Good Display https://www.good-display.com/product/454.html |
+| Atlas only | **4.2" ST7305 RLCD** | **Fail puck** | Kit **$25** · glass **~$8** | glass **~$6–8** | **~$6** | Waveshare kit $24.99 · Toppop glass ~$6–8 — **not for H9–13** |
+
+### Kit cost ×3 pucks (screen glass only)
+
+| Pick | ×3 samples | Notes |
+|------|----------:|-------|
+| **#1 2.13" ST7305** (CN RFQ) | **~$6–15** | Cheapest path if Toppop/OSPTEK samples |
+| **#1 2.13"** (Midas/EU disti) | **~$36–45** | Fast Western stock |
+| **#2 Sharp 2.7"** | **~$50–85** | Best lid fill; dry-fit 1 first (~$28) |
+| Kyocera 2.2" | **~$80–180** | Expensive for size — skip unless needed |
+
+**Not included:** FPC carrier, LEDs, speaker, SoftSIM, housing.  
+**SoftSIM (separate):** A7672 SoftSIM ~**$17**/ea ×3 ≈ **$51** + profiles — see `SOFTSIM_CHINA_SUPPLIERS.md`.
+
+### Buy links (price anchors)
+
+| Part | URL |
+|------|-----|
+| Sharp LS027B7DH01A | DigiKey / LCSC C17247735 — search `LS027B7DH01A` |
+| Midas 2.13 MDTR0213A-SPI | https://www.unikeyic.com/products/lcd-display/mdtr0213a-spi/871293466.html |
+| Midas 1.54 MDTR0154A-SPI | RS / Orelectronics — search `MDTR0154A-SPI` |
+| Alibaba 2.13 ST7305 reflective | https://www.alibaba.com/product-detail/Factory-price-2-13-inch-122x250_1601215517333.html |
+| Toppop 4.2 (Atlas ref only) | https://toppoplcd.com/productdetails_5835009.html |
+| Youritech TN0216 | https://youritech-online.com/products/tn0216anvnann-gn00-with-front-light-and-demo-2-2-inch-reflective-display-320x176-sunlight-readable-3-wire-spi-mip-display |
+
+**Money advice:** RFQ **Toppop/OSPTEK 2.13" ×3** first (likely lowest). Optionally buy **1× Sharp LS027** (~$28) only to caliper the Temu door before committing ×3.
 
 **Drive:** SPI → **nRF54**.  
 **Buttons:** still under stock casing plungers.  
