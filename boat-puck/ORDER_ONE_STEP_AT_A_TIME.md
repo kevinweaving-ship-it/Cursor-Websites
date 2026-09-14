@@ -7,15 +7,25 @@
 | WT-43-BK-LORA | 1 | Lucas / OTW | ORDER SENT · same PO |
 | ME54BS62 (BLE 6) | 3 | MinewSemi | ENQUIRY SENT — await reply |
 | Flat LiPo ~1000 mAh | 4 | LOCAL | BUY LOCAL |
-| **Charging** | | **LOCAL stores** | **LOCKED — see below** |
+| Qi RX + TP4056 | 3+4 | Micro Robotics | BUY LOCAL (locked) |
 
-## Charging (this step) — physical stores
+## THIS COMPONENT — open this URL
 
-| Part | Qty | Store | URL |
-|------|----:|-------|-----|
-| **Qi RX** (≤48×32×1.5 mm, side/back wall) | **3** | **Micro Robotics** Centurion / Stellenbosch | https://www.robotics.org.za/AF1901 |
-| **TP4056** USB-C | **4** | **Micro Robotics** | https://www.robotics.org.za/PK4056 |
-| Qi pad TX | 1+ | any | local |
+**Committee dry box (not GoPro)**
 
-**Fit:** coil flat on **inner side or rear** of H9–13 (cavity 71.8×50.8×33.6). No 43 mm round on side wall.  
-Full lock: `CHARGING_LOCK_USB_AND_QI.md`
+| | |
+|---|---|
+| **What** | **IP67** ABS enclosure |
+| **Why** | Holds WT-43-**BK** + LiPo + TP4056 (committee only) |
+| **Qty** | **1** |
+| **Committee?** | **Yes only** — pucks use Temu H9–13 |
+| **Where** | **Micro Robotics** (Centurion / Stellenbosch) |
+
+**Factory / shop URL:**  
+https://www.robotics.org.za/G3109  
+
+**GAINTA G3109** · 80 × 120 × 85 mm · IP67 · **~R216** · Centurion **in stock**
+
+Fits BK 43×43×14 with room for battery + cable gland for survey antenna later.
+
+Confirm when checked/bought → then next.
