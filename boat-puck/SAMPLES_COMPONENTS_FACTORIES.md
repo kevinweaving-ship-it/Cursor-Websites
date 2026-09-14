@@ -10,7 +10,7 @@
 
 | # | Factory / seller | Role | Contact / store | Notes |
 |---|------------------|------|-----------------|-------|
-| 1 | **Anzewei / OTW** (安泽微 / On The Way) | **Core** — **only** WT-43-RK-LORA + WT-43-BK-LORA | https://www.ontheway-tech.com/ · `Lucaszhang@ontheway-tech.com` | **Lock:** nothing else from this supplier. Factory-direct ($32–36), not Ali (~$54). See [`OTW_ONLY_WT43_LOCK.md`](OTW_ONLY_WT43_LOCK.md) |
+| 1 | **Anzewei / OTW** (安泽微 / On The Way) | **Core** — **only** WT-43-RK-LORA + WT-43-BK-LORA | https://www.ontheway-tech.com/ · `Lucaszhang@ontheway-tech.com` | **Lock:** nothing else. LIVE samples RK **$40** / BK **$55**. LoRa **433 or 868**. See [`OTW_ONLY_WT43_LOCK.md`](OTW_ONLY_WT43_LOCK.md) |
 | 2 | **Ebyte** (Chengdu 亿佰特) | **Core** — nRF54 MCU+BLE · optional DIY LoRa | https://www.cdebyte.com/ · https://ebyteiot.com/ · `ebyteiot@cdebyte.com` | E73 nRF54L15 + E22-400 (SA 433) |
 | 3 | **Ali / Made-in-China** (any reliable seller) | Housing, battery, dry box, antenna bits | AliExpress / Made-in-China | Not a critical OEM relationship |
 | 4 | **Nordic** via DigiKey/Mouser | Lab DK + optional bow Tag | DigiKey nRF54L15 DK / Tag | Lab / Channel Sounding only — **not** in puck BOM |
@@ -27,8 +27,8 @@
 
 | # | Component | Qty | Factory | ~USD | ~Rand | Goes on |
 |---|-----------|----:|---------|-----:|------:|---------|
-| 1 | **WT-43-BK-LORA** | **1** | Anzewei/OTW factory | 32–36 | 515–571 | Committee (RTK **base**) — only OTW SKU #1 |
-| 2 | **WT-43-RK-LORA** | **2** | Anzewei/OTW factory | 32–36 | 515–571 | 1× boat puck + 1× mark — only OTW SKU #2 |
+| 1 | **WT-43-BK-LORA** | **1** | Anzewei/OTW factory | **55** | **880** | LIVE sample 14 Sep. Committee base — only OTW SKU #1 |
+| 2 | **WT-43-RK-LORA** | **2** | Anzewei/OTW factory | **40** | **640** | LIVE sample 14 Sep ($40×2=$80). Boat + mark — only OTW SKU #2 |
 | 3 | **E73-2G4M08S1F** (nRF54L15) | **2** | Ebyte | 5.6–6.4 | 90–102 | Inside **boat puck** only (BLE brain) |
 | 4 | **H9–13 GoPro clone housing** | **1** / puck | Ali / Made-in-China | 5–6.5 | 80–104 | Boat puck shell |
 | 5 | **LiPo + charge board** | **1** / unit | Ali | 3.7–6.1 | 59–98 | Puck + pin + committee box |
@@ -93,7 +93,7 @@ Pick **≤2** of L1–L7 until water data on WT-43 exists. **No extra OTW SKUs.*
 **1 — Anzewei / OTW**
 
 > Quote 1-pc USD for: **WT-43-BK-LORA ×1**, **WT-43-RK-LORA ×2** only (nothing else from catalog).  
-> Confirm: LoRa for **South Africa 433 MHz**, max Hz while RTK FIX + LoRa RTCM active, NMEA sample, chipset, antenna type, base+rover pairing.
+> LIVE prices: BK **$55**/pc · RK **$40**/pc. Confirm LoRa set to **433 or 868** (state on PO), max Hz while RTK FIX + LoRa RTCM active, NMEA sample, chipset, antenna type, base+rover pairing.
 
 **2 — Ebyte**
 
