@@ -5,34 +5,50 @@
 
 ---
 
-## Option lock
+## Screen lock — **back lid / opening side**
 
-| Piece | Spec | Why |
-|-------|------|-----|
-| **Flat screen** | Small **SPI TFT/OLED** on **rear face** looking out H9–13 backdoor window | Countdown / OCS / status — see `housing/gopro-back-screen-fit.md` |
-| **Speaker** | Small **magnetic / piezo + amp** | **Race timer beeps** (gun, countdown, OCS) |
-| **Buttons ×2** | Waterproof / membrane through back or side | Connect / confirm / mute or start-ack |
-| **LEDs ×3 or ×4** | Status RGB or discrete | e.g. FIX / LoRa / SoftSIM / battery (or race state) |
+Sits on the **rear face** looking out the **H9–13 backdoor** (lid side).  
+**Wide / long as the back lid allows — thin only** (depth into cavity).
 
-**MCU:** driven by **nRF54** already in puck (no ESP32 in housing).
+| Budget | mm | Rule |
+|--------|-----|------|
+| Full rear insert face | **71.8 × 50.8** | Absolute max outline |
+| **Visible backdoor window** | **~62.7 × 41.7** | **Practical max AA / panel** through lid glass |
+| **Thickness** | **~2–4 mm** stack (panel + FPC) | **Thin** — don’t eat WT-43 / LiPo depth toward front |
+| Comfortable AA | ≤ **~55 × 37** (~2.5") | Leaves bezel |
+| Stock GoPro-class | **48 × 32** (~2.27") | Proven in this door |
+
+**Not:** 4.2" RLCD (too long). **Not** ESP32-on-glass. SPI panel only; **nRF54** drives it.
+
+Detail: `housing/gopro-back-screen-fit.md`
 
 ---
 
-## Pack idea (optional layer)
+## Option lock (rest)
+
+| Piece | Spec | Why |
+|-------|------|-----|
+| **Flat screen** | As wide/long as **back lid window**; **thin** (~2–4 mm) | Countdown / OCS / status on lid side |
+| **Speaker** | Small magnetic / piezo + amp | **Race timer beeps** |
+| **Buttons ×2** | On/near back lid or side | Connect / confirm |
+| **LEDs ×3 or ×4** | Near screen bezel or side | FIX / LoRa / SoftSIM / batt (or race state) |
+
+---
+
+## Pack
 
 ```
-H9–13
-┌ front lens = GNSS sky window ──────────┐
-│ WT-43 + SoftSIM strip + LiPo + nRF54   │
-│                                        │
-│ rear face → flat screen (through door) │
-│         + 2 buttons nearby             │
-│         + 3–4 LEDs                     │
-│ speaker toward back/side cavity        │
-└────────────────────────────────────────┘
+H9–13  (front = lens / GNSS)
+┌──────────────────────────────────────┐
+│ WT-43 + SoftSIM + LiPo + nRF54       │
+│                                      │
+│════════ back lid opening ════════════│
+│  thin flat screen ≈ up to 63×42      │  ← as wide/long as lid window
+│  (~2–4 mm thick only)                │
+│  buttons ×2 + LEDs ×3–4 in bezel     │
+│  speaker at edge of rear cavity      │
+└──────────────────────────────────────┘
 ```
-
-Screen size: keep to **backdoor window** targets in `housing/gopro-back-screen-fit.md` (small SPI panel — not 4.2" RLCD).
 
 ---
 
@@ -42,14 +58,12 @@ Screen size: keep to **backdoor window** targets in `housing/gopro-back-screen-f
 |---------|-----|
 | Screen SPI | nRF54 |
 | Buttons ×2 | nRF54 GPIO |
-| LEDs ×3–4 | nRF54 GPIO (or I²C expander if pins tight) |
-| Speaker + amp | nRF54 PWM / I²S (beeps only is enough for V1) |
-
-Same SoftSIM / LoRa / WT-43 stack underneath — UI is an **add-on face**, not a different radio brick.
+| LEDs ×3–4 | nRF54 GPIO |
+| Speaker + amp | nRF54 PWM (beeps V1) |
 
 ---
 
-## Buy later (not tomorrow SoftSIM ask)
+## Buy later
 
-- SoftSIM factory contact tomorrow → `TOMORROW_SOFTSIM_FACTORY.md`
-- Screen/speaker/buttons/LEDs → separate step after water-test no-screen pucks
+- SoftSIM factory → tomorrow (`TOMORROW_SOFTSIM_FACTORY.md`)
+- This UI → after no-screen water test
