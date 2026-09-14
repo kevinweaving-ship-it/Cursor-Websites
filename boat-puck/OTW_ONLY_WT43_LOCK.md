@@ -8,9 +8,9 @@
 
 | Line | | USD | Live R |
 |------|--|----:|-------:|
-| **2pcs RK @ $40** | WT-43-RK-LORA (boat + mark) | **80** | **1 305.70** |
+| **3pcs RK @ $40** | WT-43-RK-LORA (start pin + boat + mark/finish) | **120** | **1 958.55** |
 | **1pcs BK @ $55** | WT-43-BK-LORA (committee base) | **55** | **897.66** |
-| **OTW PO** | | **135** | **2 203.36** |
+| **OTW PO** | | **175** | **≈2 856** |
 
 Pages: [RK](https://www.ontheway-tech.com/product/wt-43-rk-lora/) · [BK](https://www.ontheway-tech.com/product/wt-43-bk-lora-module/)
 
@@ -18,7 +18,7 @@ Pages: [RK](https://www.ontheway-tech.com/product/wt-43-rk-lora/) · [BK](https:
 
 **Contact:** `Lucaszhang@ontheway-tech.com` · (+86)13530532178 · (+86)17688713459
 
-**Not** 2× BK / 1× RK — that was listing confusion. Correct = **2pcs RK + 1pcs BK**.
+**Not** 2× BK / 1× RK — that was listing confusion. Correct = **3pcs RK + 1pcs BK** (see INITIAL_TEST_KIT_4_ROLES.md).
 
 ## LoRa band (confirmed by supplier)
 
@@ -36,8 +36,8 @@ WT-43-RK-4G · WT-4545-RK · WT-43-62-RK · WTB-2526-62-RD · WT-27-HP · anythi
 
 ## Chat / pay note
 
-> Confirm PO: **WT-43-RK-LORA ×2 @ $40** + **WT-43-BK-LORA ×1 @ $55** = **$135**.  
-> Set LoRa to **[433 / 868]** MHz on all three. Nothing else from catalog. Pay by Tue 16 Sep.
+> Confirm PO: **WT-43-RK-LORA ×3 @ $40** + **WT-43-BK-LORA ×1 @ $55** = **$175**.  
+> Set LoRa to **[433 / 868]** MHz on all four. Nothing else from catalog. Pay by Tue 16 Sep.
 
 ## Rule
 
