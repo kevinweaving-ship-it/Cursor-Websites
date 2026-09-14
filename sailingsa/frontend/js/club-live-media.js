@@ -30,7 +30,7 @@
     var s = document.createElement('style');
     s.id = CSS_ID;
     s.textContent =
-      '.club-page .club-live-media{width:100%;box-sizing:border-box;display:flex;flex-direction:column;gap:0;padding:0.55rem 0.65rem 0.7rem;}' +
+      '.club-page .club-live-media{width:100%;box-sizing:border-box;display:flex;flex-direction:column;gap:0;padding:0;border:0;background:transparent;box-shadow:none;}' +
       '.club-page .club-live-media .ssa-regatta-slot-card{margin-top:0;width:100%;max-width:100%;}' +
       '.club-page .club-live-media .mm-lipton-reels{margin-top:10px;}' +
       '.club-page .club-story-inner > .club-live-media{max-width:100%;}';
@@ -104,7 +104,7 @@
 
     var host = document.createElement('div');
     host.id = HOST_ID;
-    host.className = 'club-live-media club-story-panel';
+    host.className = 'club-live-media';
     host.setAttribute('aria-label', 'Live weather and club camera');
 
     var ident = document.querySelector('.club-story-identity');
