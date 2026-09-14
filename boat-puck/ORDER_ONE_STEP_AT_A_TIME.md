@@ -6,16 +6,16 @@
 | WT-43-RK-LORA | 3 | Lucas / OTW | ORDER SENT · 868 · Eric |
 | WT-43-BK-LORA | 1 | Lucas / OTW | ORDER SENT · same PO |
 | ME54BS62 (BLE 6) | 3 | MinewSemi | ENQUIRY SENT — await reply |
-| Flat LiPo 3.7V ~1000 mAh | 4 | LOCAL | BUY LOCAL |
-| **Charging** | see below | **LOCAL** | **LOCKED split** |
+| Flat LiPo ~1000 mAh | 4 | LOCAL | BUY LOCAL |
+| **Charging** | | **LOCAL stores** | **LOCKED — see below** |
 
-## Charging lock (this step)
+## Charging (this step) — physical stores
 
-| | Qty | Who | Local URL |
-|--|----:|-----|-----------|
-| **Qi receiver** (pucks) | **3** | LOCAL | https://www.bobshop.co.za/universal-qi-wireless-receiver-module/p/614718818 |
-| **TP4056 USB-C** (all 4 LiPos) | **4** | LOCAL | https://www.robotics.org.za/PK4056 |
-| Qi pad / TX (bench) | 1+ | any phone pad | local / Takealot |
+| Part | Qty | Store | URL |
+|------|----:|-------|-----|
+| **Qi RX** (≤48×32×1.5 mm, side/back wall) | **3** | **Micro Robotics** Centurion / Stellenbosch | https://www.robotics.org.za/AF1901 |
+| **TP4056** USB-C | **4** | **Micro Robotics** | https://www.robotics.org.za/PK4056 |
+| Qi pad TX | 1+ | any | local |
 
-**Rule:** 3 wireless pucks + 1 USB committee.  
-Detail: `CHARGING_LOCK_USB_AND_QI.md`
+**Fit:** coil flat on **inner side or rear** of H9–13 (cavity 71.8×50.8×33.6). No 43 mm round on side wall.  
+Full lock: `CHARGING_LOCK_USB_AND_QI.md`
