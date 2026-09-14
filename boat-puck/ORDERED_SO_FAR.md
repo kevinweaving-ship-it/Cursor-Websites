@@ -1,32 +1,14 @@
-# Ordered so far (samples) — status board
+# Ordered so far — status
 
-Update only when you lock an item. One step at a time.
+| Item | Qty | Who | Status |
+|------|----:|-----|--------|
+| H9–13 housing | 3 | Temu | ORDERED (fast samples; factory later for qty) |
+| WT-43-RK-LORA | 3 | Lucas / OTW | ORDER SENT · 868 · Eric |
+| WT-43-BK-LORA | 1 | Lucas / OTW | ORDER SENT · same PO |
 
-| # | Item | Qty | Who | Status | Note |
-|---|------|----:|-----|--------|------|
-| H | **H9–13 GoPro-class housing** | **3** | **Temu** | **ORDERED** | Not cheapest — **quickest** for samples. Later qty → direct factory. |
-| 1 | **WT-43-RK-LORA** | **3** | **Lucas / OTW** | **ORDER SENT** | First internals. **868 MHz**. @ $40. Ship Eric. Await PI/pay. |
-| 2 | **WT-43-BK-LORA** | **1** | **Lucas / OTW** | **ORDER SENT** | Same PO as RK. @ $55. Committee. |
+## Waiting on you
 
-**OTW line total:** $175 + ship to Eric.
+**ME54BS62** ×3 — open:  
+https://store.minewsemi.com/product/bluetooth-modules-nrf54l15-me54bs62/
 
----
-
-## NEXT (not ordered)
-
-| Item | Qty | Committee? | Who |
-|------|----:|:----------:|-----|
-| **ME54BS62** (nRF54L15 BLE MCU) | **3** | **No** | MinewSemi · `minewsemi@minew.com` |
-
-See `ORDER_ONE_STEP_AT_A_TIME.md` for confirm message.
-
-Later (not now): flat LiPo + TP4056 (**×4** — pucks + committee) · dry box · survey antenna · etc.
-
----
-
-## Rules
-
-- Build puck virtually **one component at a time**.
-- If committee uses same part → order the extra.
-- Temu housing = sample speed; volume = factory later.
-- All China factory parcels → Eric Shenzhen → one combine box.
+Paste back price/stock/chat → then next.
