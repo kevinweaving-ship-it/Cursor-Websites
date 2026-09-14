@@ -51,4 +51,6 @@ H9–13  71.8 × 50.8 × 33.6
 
 Ask Lucas in parallel: SoftSIM onboard WT-43 vs our A7672 add-on (see `LORA_BOARD_FLAVOURS.md`).
 
-**Optional UI (later):** flat rear screen + speaker (race timer beeps) + buttons ×2 + LEDs ×3–4 → `OPTIONAL_PUCK_UI_SCREEN_BEEPS.md`.
+**Optional UI (later):** RLCD back-lid screen (gate) + speaker + buttons under casing + LEDs → `OPTIONAL_PUCK_UI_SCREEN_BEEPS.md` · `DEEP_DIVE_RLCD_BACK_LID.md`
+
+**Full housing fit (all parts):** → **`HOUSING_FIT_ALL.md`** — core + SoftSIM + RLCD options vs 71.8×50.8×33.6.
