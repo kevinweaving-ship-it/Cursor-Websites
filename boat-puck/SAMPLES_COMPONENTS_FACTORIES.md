@@ -10,7 +10,7 @@
 
 | # | Factory / seller | Role | Contact / store | Notes |
 |---|------------------|------|-----------------|-------|
-| 1 | **Anzewei / OTW** (安泽微 / On The Way) | **Core** — WT-43-RK + WT-43-BK | https://www.ontheway-tech.com/ · https://www.gpsgnssmodule.com/ · `Lucaszhang@ontheway-tech.com` | Buy **factory-direct** ($32–36), not Ali (~$54) |
+| 1 | **Anzewei / OTW** (安泽微 / On The Way) | **Core** — **only** WT-43-RK-LORA + WT-43-BK-LORA | https://www.ontheway-tech.com/ · `Lucaszhang@ontheway-tech.com` | **Lock:** nothing else from this supplier. Factory-direct ($32–36), not Ali (~$54). See [`OTW_ONLY_WT43_LOCK.md`](OTW_ONLY_WT43_LOCK.md) |
 | 2 | **Ebyte** (Chengdu 亿佰特) | **Core** — nRF54 MCU+BLE · optional DIY LoRa | https://www.cdebyte.com/ · https://ebyteiot.com/ · `ebyteiot@cdebyte.com` | E73 nRF54L15 + E22-400 (SA 433) |
 | 3 | **Ali / Made-in-China** (any reliable seller) | Housing, battery, dry box, antenna bits | AliExpress / Made-in-China | Not a critical OEM relationship |
 | 4 | **Nordic** via DigiKey/Mouser | Lab DK + optional bow Tag | DigiKey nRF54L15 DK / Tag | Lab / Channel Sounding only — **not** in puck BOM |
@@ -27,8 +27,8 @@
 
 | # | Component | Qty | Factory | ~USD | ~Rand | Goes on |
 |---|-----------|----:|---------|-----:|------:|---------|
-| 1 | **WT-43-BK-LoRa** | **1** | Anzewei/OTW factory | 32–36 | 515–571 | Committee boat (RTK **base**) |
-| 2 | **WT-43-RK-LoRa** | **2–3** | Anzewei/OTW factory | 32–36 | 515–571 | 1× pin + 1× boat puck (+1 mark/spare) |
+| 1 | **WT-43-BK-LORA** | **1** | Anzewei/OTW factory | 32–36 | 515–571 | Committee (RTK **base**) — only OTW SKU #1 |
+| 2 | **WT-43-RK-LORA** | **2** | Anzewei/OTW factory | 32–36 | 515–571 | 1× boat puck + 1× mark — only OTW SKU #2 |
 | 3 | **E73-2G4M08S1F** (nRF54L15) | **2** | Ebyte | 5.6–6.4 | 90–102 | Inside **boat puck** only (BLE brain) |
 | 4 | **H9–13 GoPro clone housing** | **1** / puck | Ali / Made-in-China | 5–6.5 | 80–104 | Boat puck shell |
 | 5 | **LiPo + charge board** | **1** / unit | Ali | 3.7–6.1 | 59–98 | Puck + pin + committee box |
@@ -51,11 +51,12 @@
 | Official GoPro ADDIV-001 | R800–880 shell alone |
 | Ali WT-43 if factory quotes | ~$54 vs factory $32–36 |
 | Second committee WT-43 | One base, antenna on line |
+| **Any other OTW SKU** (4G, WT-4545, WT-43-62, WTB-2526, WT-27, …) | **Locked out** — only RK-LORA + BK-LORA |
 | UWB bricks | Off every-boat BOM |
 | XM30R as helm glass | Survey handset, not sailor UI |
 | Locked Ali “smartwatches” (Kospet etc.) | Cannot install our app |
 
-**Core sample spend (no DigiKey):** roughly **R2.6k–4k** for 1 base + 2–3 RK + 2× nRF54 + 1 housing + batteries + committee bits.
+**Core sample spend (no DigiKey):** roughly **R2.4k–3.6k** for 1 BK + 2 RK + 2× nRF54 + housing + batteries + committee bits.
 
 ---
 
@@ -78,13 +79,12 @@
 | L1 | **Quectel LG290P** board ×1–2 + **E22-400M22S** ×2 | Quectel disti + **Ebyte** | 50–120 + ~6 | Best DIY GNSS+SA LoRa if WT-43 rate/FIX disappoints |
 | L2 | **Unicore UM980** board ×1 | Unicore / Ali / gnss.store | 60–170 | ≥25 Hz (50 Hz stretch) discrete path |
 | L3 | **E22-400** (433 MHz) ×2 | Ebyte | ~6 | SA band DIY LoRa (prefer over E22-900 for SA) |
-| L4 | OTW **WT-4545-RK** ×1 | Anzewei/OTW | RFQ | GNSS-only sibling + own LoRa |
-| L5 | **UM981+ESP32+LoRa** mower PCB ×1 | Ali | 80–200 | Teardown “all-in-one” claim |
-| L6 | **UM982** / Holybro heading ×1 | Unicore / Holybro | RFQ | Dual-antenna heading learn |
-| L7 | SkyTraq **PX1125R** ×2 | Disti / Ali | cheap | Cheapest dual-band pair |
-| L8 | Dalang **LD-29** / Beitian **BT-M002C** ×1 | Ali | 19–57 | Cheap GNSS bench only (no LoRa) |
+| L4 | **UM981+ESP32+LoRa** mower PCB ×1 | Ali | 80–200 | Teardown “all-in-one” claim |
+| L5 | **UM982** / Holybro heading ×1 | Unicore / Holybro | RFQ | Dual-antenna heading learn |
+| L6 | SkyTraq **PX1125R** ×2 | Disti / Ali | cheap | Cheapest dual-band pair |
+| L7 | Dalang **LD-29** / Beitian **BT-M002C** ×1 | Ali | 19–57 | Cheap GNSS bench only (no LoRa) |
 
-Pick **≤2** of L1–L8 until water data on WT-43 exists.
+Pick **≤2** of L1–L7 until water data on WT-43 exists. **No extra OTW SKUs.**
 
 ---
 
@@ -92,8 +92,8 @@ Pick **≤2** of L1–L8 until water data on WT-43 exists.
 
 **1 — Anzewei / OTW**
 
-> Quote 1-pc and 10-pc USD for: **WT-43-BK-LoRa**, **WT-43-RK-LoRa** (also list WT-4545-RK if available).  
-> Confirm: LoRa centre options for **South Africa 433 MHz**, max Hz while RTK FIX + LoRa RTCM active, NMEA sample, chipset, antenna type, base+rover pairing.
+> Quote 1-pc USD for: **WT-43-BK-LORA ×1**, **WT-43-RK-LORA ×2** only (nothing else from catalog).  
+> Confirm: LoRa for **South Africa 433 MHz**, max Hz while RTK FIX + LoRa RTCM active, NMEA sample, chipset, antenna type, base+rover pairing.
 
 **2 — Ebyte**
 
@@ -108,7 +108,7 @@ Pick **≤2** of L1–L8 until water data on WT-43 exists.
 ## E) Factory map (one glance)
 
 ```
-Anzewei/OTW ──► WT-43-BK (×1 committee) + WT-43-RK (puck/pin/marks)
+Anzewei/OTW ──► WT-43-BK-LORA (×1) + WT-43-RK-LORA (×2) ONLY
 Ebyte ────────► E73 nRF54L15 (puck BLE) · E22-400 (optional DIY LoRa)
 Ali ──────────► H9–13 shell · LiPo · dry box · antenna/pole
 Nordic/DigiKey ► DK + Tag (lab only)

@@ -1,0 +1,31 @@
+Pay by Tue?	Block	#	Device	Qty	Factory	Product URL	How to pay	USD ea	USD line	~R line	Note
+YES - MUST	RACE CORE	1	WT-43-BK-LORA	1	Anzewei / OTW	https://www.ontheway-tech.com/product/wt-43-bk-lora-module/	Email Lucaszhang@ontheway-tech.com then pay factory	32-36	32-36	515-571	Committee RTK BASE only one. OTW ONLY this + RK. Confirm SA 433 MHz + 1pc USD BEFORE pay.
+YES - MUST	RACE CORE	2	WT-43-RK-LORA	2	Anzewei / OTW	https://www.ontheway-tech.com/product/wt-43-rk-lora/	Same OTW PO as #1	32-36	64-72	1024-1142	1 boat puck + 1 mark. OTW ONLY this + BK — see OTW_ONLY_WT43_LOCK.md
+YES - MUST	RACE CORE	3	E73-2G4M08S1F nRF54L15 module	2	Ebyte	https://www.cdebyte.com/products/E73-2G4M08S1F	ebyteiot@cdebyte.com or ebyteiot.com cart	5.6-6.4	11-13	180-205	Puck BLE MCU. Alt https://jlcpcb.com/partdetail/57638535-E732G4M08S1F/C54337734
+YES - MUST	RACE CORE	4	H9-13 GoPro clone waterproof housing	1	AliExpress OEM	https://www.aliexpress.com/w/wholesale-gopro-hero9-hero10-hero11-hero12-hero13-waterproof-housing.html	AliExpress checkout	5-6.5	5-6.5	80-104	NOT official GoPro ADDIV-001.
+YES - MUST	RACE CORE	5	LiPo 1000mAh + TP4056 charge board	3	AliExpress	https://www.aliexpress.com/w/wholesale-3.7v-lipo-battery-1000mah.html	AliExpress checkout	3.7-6.1	11-18	177-293	Also https://www.aliexpress.com/w/wholesale-tp4056.html — 1 committee + 1 boat + 1 mark. Flat pack.
+YES - MUST	RACE CORE	6	Multi-band survey GNSS antenna + pole	1	AliExpress	https://www.aliexpress.com/w/wholesale-rtk-gnss-survey-antenna.html	AliExpress checkout	15-40	15-40	240-640	Antenna ON start-line committee end.
+YES - MUST	RACE CORE	7	IP67 dry box	1	AliExpress	https://www.aliexpress.com/w/wholesale-ip67-plastic-waterproof-box.html	AliExpress checkout	5-15	5-15	80-240	Committee enclosure — not a GoPro.
+YES - MUST	RACE CORE	8	USB power bank	1	AliExpress	https://www.aliexpress.com/w/wholesale-20000mah-power-bank.html	AliExpress checkout	10-25	10-25	160-400	Or boat 12V USB.
+YES - MUST	RACE CORE	9	USB-UART CP2102 (or Pi Zero 2 W)	1	AliExpress / Pi	https://www.aliexpress.com/w/wholesale-cp2102-usb-ttl.html	AliExpress checkout	5-15	5-15	80-240	Committee UART to laptop. Pi alt https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/
+YES - LAB	LAB	10	nRF54L15 DK	1	Nordic / Mouser	https://www.mouser.com/ProductDetail/Nordic-Semiconductor/nRF54L15-DK	Mouser card pay	~58	~58	~928	Firmware lab only — not inside puck.
+SKIP THIS WEEK	LAB	11	nRF54L15 Tag	0	Nordic / Mouser	https://www.mouser.com/ProductDetail/Nordic-Semiconductor/nRF54L15-Tag	skip	~31	0	0	Bow CS experiment — skip if tight.
+SKIP THIS WEEK	RACE CORE	12	E22-400M22S 433 MHz LoRa	0	Ebyte	https://www.cdebyte.com/products/E22-400M22S	skip	~6	0	0	Not needed while WT-43 has LoRa.
+YES - ADDON	DRAGINO	13	LPS8v2 Indoor LoRaWAN Gateway AS923	1	Dragino	https://www.dragino.com/products/lora-lorawan-gateway/item/228-lps8v2.html	https://shop.dragino.com/index.php?product_id=266&rt=product/product	shop cart	shop cart	shop cart	Venue LoRaWAN sandbox. MUST pick AS923. Title verified LPS8v2.
+YES - ADDON	DRAGINO	14	TrackerD LoRaWAN GPS+BLE+WiFi tracker	2	Dragino	https://www.dragino.com/products/tracker/item/234-trackerd.html	https://shop.dragino.com/index.php?product_id=164&rt=product/product	shop cart	shop cart	shop cart	Asset/RIB tag — not RTK. Title verified TrackerD.
+YES - ADDON	DRAGINO	15	LA66 LoRaWAN Module AS923	2	Dragino	https://www.dragino.com/products/lora/item/230-la66-lorawan-module.html	https://shop.dragino.com/index.php?product_id=159&rt=product/product	shop cart	shop cart	shop cart	Bench LoRaWAN vs our LoRa. Title verified LA66.
+YES - ADDON	DRAGINO	16	BCN02 BLE iBeacon	5	Dragino	https://www.dragino.com/products/tracker/item/243-bcn02.html	https://shop.dragino.com/index.php?product_id=157&rt=product/product	~15	~75	~1200	Shop listed $15. Title verified BCN02.
+SKIP IF MOKO LW003	DRAGINO	17	BH01-LB BLE to LoRaWAN Hub	0	Dragino	https://www.dragino.com/products/lora-lorawan-end-node/item/359-bh01-lb-ls-bluetooth-to-lorawan-hub.html	sales@dragino.com	RFQ	0	0	Skip if buying Moko LW003-B.
+YES - ADDON	MOKO	18	LW001-BG PRO LoRaWAN GPS Tracker	1	Moko Smart	https://www.mokosmart.com/lorawan-tracker-lw001-bg-pro/	https://store.mokosmart.com/product/lw001-bg-pro-lorawan-gps-tracker/	~52	~52	~832	A/B vs TrackerD. Store listed $52. Ask AS923.
+YES - ADDON	MOKO	19	LW003-B Bluetooth to LoRaWAN Gateway	1	Moko Smart	https://www.mokosmart.com/lorawan-probe-lw003-b/	https://store.mokosmart.com/product/lw003b-bluetooth-to-lorawan-gateway/	store cart	store cart	store cart	BLE scan uplink. Skip Dragino BH01 if this is bought.
+YES - ADDON	MOKO	20	H2 Indoor Navigation Beacon	5	Moko Smart	https://www.mokosmart.com/navigation-beacon-h2/	https://store.mokosmart.com/product/h2-navigation-beacon/	store cart	store cart	store cart	Dinghy-park BLE stickers. Skip extra if BCN02×5 enough.
+SKIP	MOKO	21	MKGW2-LW gateway	0	Moko Smart	https://www.mokosmart.com/lorawan-gateway-mkgw2-lw/	https://store.mokosmart.com/product/mkgw2-lw-indoor-lorawan-gateway/	0	0	0	Do not buy — already getting Dragino LPS8v2.
+DO NOT BUY	SKIP	22	Official GoPro ADDIV-001	0	GoPro	https://gopro.com/en/us/shop/mounts-accessories/protective-housing/ADDIV-001.html	n/a	~50	0	0	Shell too expensive.
+DO NOT BUY	SKIP	23	Second WT-43-BK	0	OTW	https://www.ontheway-tech.com/product/wt-43-bk-lora-module/	n/a	0	0	0	One base; antenna on line.
+DO NOT BUY	SKIP	24	Ali WT-43 if factory quotes	0	Ali	n/a	n/a	~54	0	0	Use OTW factory.
+DO NOT BUY	SKIP	25	Any other OTW SKU (4G / WT-4545 / WT-43-62 / WTB / WT-27)	0	OTW	https://www.ontheway-tech.com/	n/a	0	0	0	Locked — only WT-43-RK-LORA + WT-43-BK-LORA from this supplier.
+TOTAL	RACE CORE + LAB					—	—	—	215-286	3440-4576	OTW BK+RK x2 +Ebyte+Ali+DK. Ali lines EST until cart.
+TOTAL	ADDONS DRAGINO+MOKO					—	—	—	see shops	see shops	Pay shop carts Tuesday. Band AS923.
+NOTE	DEADLINE					—	—	—	—	—	Pay Tuesday 16 Sep 2026. Next China order ~6 months.
+NOTE	CONTACTS					—	OTW Lucaszhang@ontheway-tech.com · Ebyte ebyteiot@cdebyte.com · Dragino sales@dragino.com · Moko sales@mokosmart.com	—	—	—	OTW: only BK-LORA x1 + RK-LORA x2; SA 433 MHz. Dragino/Moko: AS923.
+NOTE	FRAMING					—	—	—	—	—	RACE CORE = puck/committee/marks. ADDON = future venue IoT only.
