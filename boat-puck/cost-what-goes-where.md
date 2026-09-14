@@ -17,7 +17,7 @@
 |---|------|------|----:|-----:|----------|
 | 1 | **WT-43-RK-LoRa** | GNSS + LoRa rover brick | **32.19–35.67** | **515–571** | **LIST** Anzewei/OTW factory: [gpsgnssmodule](https://www.gpsgnssmodule.com/sale-53628296-wt-43-rk-lora-rtk-gnss-module-with-lora-data-transmission.html) |
 | 1b | same, Ali path | same | **54.17** | **867** | **LIVE** prior Ali 1–499 (do not use if factory quotes) |
-| 2a | **Ebyte E73-2G4M08S1F** | nRF54L15 MCU+BLE module | **5.61–6.40** | **90–102** | **LIVE** [JLCPCB $5.61](https://jlcpcb.com/partdetail/57638535-E732G4M08S1F/C54337734) · [ebyteiot ~$6.40](https://ebyteiot.com/products/ebyte-e71-e73-series-soc-wireless-communication-module-low-power-2-4ghz-tl7215d-nrf54l15-chip-multi-protocol-8-10dbm-test-board) |
+| 2a | **Ebyte E73-2G4M08S1F** | nRF54L15 MCU+BLE module | **5.61–6.40** | **90–102** | **LIVE** [JLCPCB $5.61](https://jlcpcb.com/partdetail/57638535-E732G4M08S1F/C54337734) · [ebyteiot ~$6.40](https://ebyteiot.com/products/ebyte-e71-e73-series-soc-wireless-communication-module-low-power-2-4ghz-tl7215d-nrf54l15-chip-multi-protocol-8-10dbm-test-board?variant=48515417702605) |
 | 2b | **Ebyte E73-2G4M08S1C** | nRF52840 interim MCU (no CS) | **7.60** | **122** | **LIVE** [ebyteiot](https://ebyteiot.com/products/2-4ghz-ble-mesh-small-smd-e73-2g4m08s1c-nordic-nrf52840-module-small-size-ble-5-0) |
 | 2c | **nRF54L15 DK** | Lab MCU only (won’t fit production sled) | **57.97** | **928** | **LIVE** [DigiKey](https://www.digikey.com/en/products/detail/nordic-semiconductor-asa/NRF54L15-DK/25601516) |
 | 3 | LiPo cell + charge board | Power | **~3.70–6.10** | **59–98** | **LIVE-ish** Ali 1000 mAh ~$3.69 · 3000 mAh ~$5.09 + TP4056-class ~$1 |

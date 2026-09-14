@@ -23,7 +23,7 @@ Pages: [RK](https://www.ontheway-tech.com/product/wt-43-rk-lora/) · [BK](https:
 
 | Part | Qty | Who gets it | URL |
 |------|----:|-------------|-----|
-| **E73-2G4M08S1F** (nRF54) | **1–2** | **Boat puck only** (Puck 2) | https://ebyteiot.com/products/ebyte-e71-e73-series-soc-wireless-communication-module-low-power-2-4ghz-tl7215d-nrf54l15-chip-multi-protocol-8-10dbm-test-board |
+| **E73-2G4M08S1F** (nRF54) | **1–2** | **Boat puck only** (Puck 2) | https://ebyteiot.com/products/ebyte-e71-e73-series-soc-wireless-communication-module-low-power-2-4ghz-tl7215d-nrf54l15-chip-multi-protocol-8-10dbm-test-board?variant=48515417702605 |
 | **H9–13 housing** | **1–2** | Boat puck (+ spare) | https://www.aliexpress.com/w/wholesale-gopro-hero9-hero10-hero11-hero12-hero13-waterproof-housing.html |
 | Flat LiPo + TP4056 | **4** | Committee + 3 rovers | Ali commodity |
 | Survey antenna + pole | **1** | Committee line end | Ali |
