@@ -140,8 +140,16 @@ def main():
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     mod.main()
+    # Landing Regatta pill uses a 7-day with-counts cache. Bust it so this event appears.
+    for _cache in (
+        Path("/var/tmp/sailingsa_regatta_with_counts.json"),
+        Path("/var/tmp/sailingsa_regatta_with_counts.json.tmp"),
+    ):
+        try:
+            _cache.unlink()
+        except FileNotFoundError:
+            pass
     print("OK: ToT - Custom results loaded")
-
 
 if __name__ == "__main__":
     main()
