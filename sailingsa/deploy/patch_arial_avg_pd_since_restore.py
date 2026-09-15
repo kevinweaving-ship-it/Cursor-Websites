@@ -39,7 +39,11 @@ OLD_FN = '''def _month_avg_pd_from_bins(device: str) -> dict[str, Any] | None:
 '''
 
 NEW_FN = '''def _avg_pd_since_restore(lifetime: float, refs: dict[str, Any]) -> dict[str, Any] | None:
-    """(register now − restore reading) ÷ elapsed days between those two readings."""
+    """(register now − restore) ÷ calendar days from the first full day after restore to today.
+
+    Restore was 01 Sep 18:57, so the first full day is 02 Sep. 02 Sep → 15 Sep = 13 days
+    (15 − 2). Not day-of-month (15 → 22.7) and not elapsed hours from 18:57.
+    """
     restore_ts = refs.get("restoreAt")
     if not isinstance(restore_ts, (int, float)) or float(restore_ts) <= 0:
         return None
@@ -47,14 +51,19 @@ NEW_FN = '''def _avg_pd_since_restore(lifetime: float, refs: dict[str, Any]) -> 
     if not isinstance(anchor, (int, float)):
         anchor = 0.0
     since = max(0.0, float(lifetime) - float(anchor))
-    days = (time.time() - float(restore_ts)) / 86_400.0
-    if days < 1.0 / 24.0:
-        days = 1.0 / 24.0
+    restore_local = datetime.fromtimestamp(float(restore_ts), tz=timezone.utc).astimezone(_SAST)
+    start = restore_local.date()
+    if restore_local.hour >= 6:
+        start = start + timedelta(days=1)
+    today = datetime.now(_SAST).date()
+    days = (today - start).days  # 2 Sep → 15 Sep = 13
+    if days < 1:
+        days = 1
     return {
         "month_kwh": round(since, 3),
-        "month_days": round(days, 3),
+        "month_days": days,
         "month_avg_pd_kwh": round(since / days, 3),
-        "month_label": f"Since restore: {since:.0f} kWh / {days:.1f} days",
+        "month_label": f"Since restore: {since:.0f} kWh / {days} days ({start.day}–{today.day} {_MONTHS[today.month - 1]})",
     }
 
 
