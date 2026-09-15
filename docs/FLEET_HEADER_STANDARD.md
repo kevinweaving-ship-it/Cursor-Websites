@@ -46,17 +46,29 @@ CSS: wrap those three rows in `.regatta-header-status-stack`. Status lines `gap:
 
 Later, if a club page already has a weather station **and** an MM card (example: [ZVYC](https://sailingsa.co.za/club/zvyc)), and that club has another **live** event, admin can request Weather + MM / Live for that event only. Do not add them by default.
 
-## Fleet header
+## Fleet header (GOLD / hard rule)
 
-Standard fleet card, Cape Classic 420 card:
+**Source:** Extra card on [Cape Classic](https://sailingsa.co.za/regatta/2026-09-13-zvyc-cape-classic). This is the standard Fleet card for 99% of old fleets and every new fleet.
 
-| Slot | Content |
-| --- | --- |
-| **Left** | Class / fleet logo (class catalogue artwork) |
-| **Centre** | Class logo + the word `Fleet` only (not `{Class} Fleet` as text). Scoring never belongs here. |
-| **Right** | Host club logo |
+| # | Slot | Required |
+| --- | --- | --- |
+| 1 | **Left** | **Fleet / class logo** (large) |
+| 2 | **Centre** | **Small** fleet / class logo immediately left of the word `Fleet` only (not `Extra Fleet`, not `420 Fleet`) |
+| 3 | **Right** | **Host club logo** |
 
-Sailed line under the title stays: `Sailed: N, Discards: N, To count: N, … Scoring system: …`
+Then the sailed line under that header, exactly this shape:
+
+`Sailed: 5, Discards: 1, To count: 4, Entries: 19, Scoring system: Appendix A`
+
+Scoring never goes in the title. It lives on this line only.
+
+### Fleet logos — if missing or wrong
+
+Any of the three logos (left fleet, small title fleet, host right):
+
+1. Try find / match / auto (class catalogue artwork, host club artwork).
+2. If you **cannot find, match, or auto**: **stop and ask admin** to guide or provide the file.
+3. Do **not** invent a logo. Do **not** put a host logo on the left or a class logo on the host-right slot.
 
 Race codes (`DNC`, `OCS`, `RET`, …) stay **overlaid** (no extra row height). Centre under the score, lift slightly off the bottom, size about as wide as `(20)` (`font-size: 50%`).
 

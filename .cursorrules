@@ -10,3 +10,4 @@
 See: `docs/UI_COMPONENTS_README.md`, `docs/design_system.md`, `.cursor/rules/theme-layout-mandatory.mdc`.
 
 - **Event results header (GOLD / hard rule):** Event logo left · Event name / Host / Results / as-at / Entries centre · Host logo right. Applies to 99% of old Event results and all new Events. Source: Cape Classic. If the Event logo cannot be found or matched, **ask admin** — do not invent one. See **`docs/FLEET_HEADER_STANDARD.md`**.
+- **Fleet card header (GOLD / hard rule):** Fleet/class logo left · small fleet logo + word `Fleet` centre · Host logo right · then `Sailed: …, Discards: …, To count: …, Entries: …, Scoring system: …`. Source: Cape Classic Extra. If any of those logos cannot be found or matched, **ask admin**.
