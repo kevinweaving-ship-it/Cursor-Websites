@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Throwaway home for every headless Chrome run, then delete it.
 
-Chrome always writes a profile plus /tmp/.com.google.Chrome.* scratch
-dirs. Callers must set HOME/TMPDIR inside a temp folder and rmtree it
-when the peek/PDF finishes. A sweeper bins orphans left by crashes.
+HARD RULE (docs/NO_DISK_FILL_HEADLESS.md): new Chrome/scrape jobs must
+call these helpers and rmtree in finally. Never leave profiles in /tmp.
+Missing TMPDIR leaks /tmp/.com.google.Chrome.* and can fill the VPS
+until Postgres dies. The reaper is a backstop, not permission to leak.
 """
 from __future__ import annotations
 
