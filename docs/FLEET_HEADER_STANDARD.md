@@ -75,7 +75,7 @@ Any of the three logos (left fleet, small title fleet, host right):
 Column order: **Rank** → **Class** → **Sail No** → **Club** → Helm → races → Total → Nett.
 
 - **Class:** class logo when a valid class logo exists. If there is no class logo, show the class name. If the logo cannot be found or matched: **ask admin**.
-- **Club:** club logo **left** (all logos in one left column). Club **code right**, with a space between. Codes must line up one above the other (`justify-content: space-between` on `.rs-club-with-logo`).
+- **Club:** logo left, light vertical divider, then club code. Codes all **start in the same column**. Do **not** push the code to the far right. Club column is only as wide as logo + divider + code; leftover width goes to Helm / Crew.
 
 Race codes (`DNC`, `OCS`, `RET`, …) stay **overlaid** (no extra row height). Centre under the score, lift slightly off the bottom, size about as wide as `(20)` (`font-size: 50%`).
 
