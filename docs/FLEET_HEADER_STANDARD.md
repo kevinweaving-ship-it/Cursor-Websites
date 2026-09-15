@@ -76,7 +76,7 @@ Later, if a club page already has a weather station **and** an MM card (example:
 
 | # | Slot | Required |
 | --- | --- | --- |
-| 1 | **Left** | **Fleet / class logo** (large) |
+| 1 | **Left** | **Fleet / class logo** (large). If there is no class logo (mixed fleet e.g. Keelboat): **host club logo**. |
 | 2 | **Centre** | **Class logo** immediately left of the word `Fleet` only. Not `Hunter 19 Fleet`, not `Hobie Fleet`, not `ILCA 7 Fleet` as text. The logo is the name. |
 | 3 | **Right** | **Host club logo** |
 
@@ -92,7 +92,8 @@ Any of the three logos (left fleet, small title fleet, host right):
 
 1. Try find / match / auto (class catalogue artwork, host club artwork).
 2. If you **cannot find, match, or auto**: **stop and ask admin** to guide or provide the file.
-3. Do **not** invent a logo. Do **not** put a host logo on the left or a class logo on the host-right slot.
+3. Do **not** invent a logo. Do **not** put a class logo on the host-right slot.
+4. **No class / mixed fleet** (Keelboat): left slot is the **host club logo**. Keep the stored fleet name as text (`Keelboat Fleet`). Ask admin if a dedicated fleet mark exists.
 
 ## Results table (GOLD / Extra)
 
