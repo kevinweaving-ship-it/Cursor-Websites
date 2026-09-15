@@ -26,11 +26,15 @@ def spread_register_delta(
     delta_kwh: float,
     start_ts: float,
     end_ts: float,
+    *,
+    require_plausible: bool = True,
 ) -> dict[str, float]:
     """Split a register delta across hour keys by overlap seconds in [start, end)."""
     start_ts = float(start_ts)
     end_ts = float(end_ts)
-    if end_ts <= start_ts or not plausible_delta(delta_kwh, end_ts - start_ts):
+    if end_ts <= start_ts or delta_kwh <= 0:
+        return {}
+    if require_plausible and not plausible_delta(delta_kwh, end_ts - start_ts):
         return {}
     span = end_ts - start_ts
     out: dict[str, float] = {}
@@ -44,6 +48,28 @@ def spread_register_delta(
         out[key] = round(out.get(key, 0.0) + share, 6)
         cur = seg_end
     return out
+
+
+def hours_from_register_points(
+    points: list[tuple[float, float]],
+    *,
+    require_plausible: bool = False,
+) -> dict[str, float]:
+    """Partition consecutive (ts, kWh) samples into hour bins.
+
+    Sum of returned hours equals last kWh minus first kWh when the series is
+    non-decreasing (the meter register from restore to now).
+    """
+    pts = sorted((float(t), float(k)) for t, k in points)
+    out: dict[str, float] = {}
+    for (t0, k0), (t1, k1) in zip(pts, pts[1:]):
+        if t1 <= t0 or k1 < k0:
+            continue
+        for key, val in spread_register_delta(
+            k1 - k0, t0, t1, require_plausible=require_plausible
+        ).items():
+            out[key] = out.get(key, 0.0) + val
+    return {k: round(v, 6) for k, v in out.items()}
 
 
 def neighbor_avg(measured: dict[str, float | None], before_key: str) -> float | None:
