@@ -62,6 +62,21 @@ def test_chrome_folder_deleted_after_check():
     assert not profile.exists()
 
 
+def test_sweep_bins_orphan_chrome_dirs():
+    from ssa_headless_chrome import sweep_orphaned_chrome
+
+    orphan = Path("/tmp/scoped_dir_ssa_test_bin")
+    orphan.mkdir(exist_ok=True)
+    (orphan / "junk").write_text("x")
+    try:
+        out = sweep_orphaned_chrome(min_age_sec=0)
+        assert out["ok"] is True
+        assert not orphan.exists()
+    finally:
+        if orphan.exists():
+            delete_chrome_run_dir(orphan)
+
+
 if __name__ == "__main__":
     test_active_on_event_days()
     test_upcoming_before_start()
@@ -69,4 +84,5 @@ if __name__ == "__main__":
     test_sast_date_not_utc()
     test_skip_payload_names_regatta()
     test_chrome_folder_deleted_after_check()
+    test_sweep_bins_orphan_chrome_dirs()
     print("mm_fb_event_window_tests: ok")

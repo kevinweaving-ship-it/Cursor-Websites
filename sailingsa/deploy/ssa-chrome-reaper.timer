@@ -1,0 +1,12 @@
+[Unit]
+Description=Every 15 minutes, bin leftover headless Chrome folders
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=15min
+AccuracySec=1min
+Persistent=true
+Unit=ssa-chrome-reaper.service
+
+[Install]
+WantedBy=timers.target
