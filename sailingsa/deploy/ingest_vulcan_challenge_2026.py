@@ -19,8 +19,8 @@ KEEL = "2026-09-13-vulcan-challenge:03-keelboats"
 
 # rank, boat, sail, class, helm, crew, division, tot, start, finish, elapsed, corrected, delta, pts, code
 HOBIE_ROWS = [
-    (1, "Hobie 1", "90687", "Hobie 16", "Graham", None, "H16", "0.8210", "11:46:00", "13:39:00", "01:53:00", "01:32:46", "00:00:00", 1.0, None),
-    (2, "Orbree", "112487", "Hobie 16", "Rob Orbree", None, "H16", "0.8210", "11:46:00", "13:47:02", "02:01:02", "01:39:22", "00:06:36", 2.0, None),
+    (1, "Hobie 1", "90687", "Hobie 16", "Graham Offord", None, "H16", "0.8210", "11:46:00", "13:39:00", "01:53:00", "01:32:46", "00:00:00", 1.0, None),
+    (2, "Orbree", "112487", "Hobie 16", "Robert Obree", None, "H16", "0.8210", "11:46:00", "13:47:02", "02:01:02", "01:39:22", "00:06:36", 2.0, None),
     (3, "Hobie 2", "91000", "Hobie 16", "Andrew Walker", None, "H16", "0.8210", "11:46:00", "14:02:29", "02:16:29", "01:52:03", "00:19:17", 3.0, None),
     (4, "Splitwise", "90107", "Hobie 16", "Paco Mendes", None, "H16", "0.8210", "11:46:00", "14:42:48", "02:56:48", "02:25:09", "00:52:23", 4.0, None),
 ]
@@ -32,7 +32,7 @@ HUNTER_ROWS = [
     (4, "Charlie", "773", "Hunter 19", "Robert Fine", "Paul Pearce", "Spin", "1.0000", "11:56:00", "14:45:10", "02:49:10", "02:49:10", "00:04:24", 4.0, None),
     (5, "Sea Nile", "405", "Hunter 19", "Paul Moxley", "Mark Preen", "Spin", "1.0000", "11:56:00", "14:45:46", "02:49:46", "02:49:46", "00:05:00", 5.0, None),
     (6, "Artemis", "007", "Hunter 19", "Howard Donnelly", "Jendo Ocenasek", "Spin", "1.0000", "11:56:00", "14:48:01", "02:52:01", "02:52:01", "00:07:15", 6.0, None),
-    (7, "Solenta", "403", "Hunter 19", "Hayden Miller", "Tim", "Spin", "1.0000", "11:56:00", "14:50:36", "02:54:36", "02:54:36", "00:09:50", 7.0, None),
+    (7, "Solenta", "403", "Hunter 19", "Hayden Miller", "Timothy Weaving", "Spin", "1.0000", "11:56:00", "14:50:36", "02:54:36", "02:54:36", "00:09:50", 7.0, None),
     (8, "Luca", "727", "Hunter 19", "Kris Jarzebowski", "Jamie Jarzebowski", "Non Spin", "0.9750", "11:56:00", "14:57:47", "03:01:47", "02:57:14", "00:12:28", 8.0, None),
     (9, "Buboo", "401", "Hunter 19", "Dion de Gruchy", "David Eccles", "Spin", "1.0000", "11:56:00", "14:57:52", "03:01:52", "03:01:52", "00:17:06", 9.0, None),
     (10, "Nemo", "145", "Hunter 19", "Andy Le May", "Lucy Jamieson", "Non Spin", "0.9750", "11:56:00", None, None, None, None, 11.0, "RET"),
@@ -129,22 +129,17 @@ def main():
     insert_rows(KEEL, "Keelboat Fleet", KEEL_ROWS)
 
     conn.commit()
-    cur.execute(
-        """
-        SELECT rb.fleet_label, rb.scoring_system, rb.rating_system, rb.class_id, COUNT(res.result_id)
-        FROM public.regatta_blocks rb
-        LEFT JOIN public.results res ON res.block_id = rb.block_id
-        WHERE rb.regatta_id = %s
-        GROUP BY rb.fleet_label, rb.scoring_system, rb.rating_system, rb.class_id
-        ORDER BY rb.fleet_label
-        """,
-        (RID,),
-    )
-    print("FLEETS:")
-    for row in cur.fetchall():
-        print(" ", row)
     cur.close()
     conn.close()
+    # SAS IDs: never leave PDF names unmatched. Same-dir matcher.
+    import importlib.util
+    from pathlib import Path
+
+    match_path = Path(__file__).with_name("match_vulcan_sailors_sas.py")
+    spec = importlib.util.spec_from_file_location("match_vulcan_sailors_sas", match_path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    mod.main()
     print("OK: ToT - Custom results loaded")
 
 
