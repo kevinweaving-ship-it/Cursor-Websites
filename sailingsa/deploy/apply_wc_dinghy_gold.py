@@ -63,9 +63,11 @@ def _patch_api() -> None:
     print("PENALTY_SPLIT_ALL")
 
     old = """    if _is_cape_classic_2026_zvy_event(_rid_ft):
-        _tbl_cls += " rs-compact-row-logos" """
+        _tbl_cls += " rs-compact-row-logos"
+"""
     new = """    if not _regatta_is_lipton_challenge(_rid_ft):
-        _tbl_cls += " rs-compact-row-logos" """
+        _tbl_cls += " rs-compact-row-logos"
+"""
     if old not in api:
         raise SystemExit("COMPACT_TABLE_GATE_MISSING")
     api = api.replace(old, new, 1)
