@@ -1,16 +1,33 @@
 # Event / fleet header standard (results URLs)
 
-**Source of truth:** [ZVYC Cape Classic](https://sailingsa.co.za/regatta/2026-09-13-zvyc-cape-classic).
+**GOLD — hard rule** for **99% of old Event results** and **every new Event**.
 
-Copy this for every new Event results URL. Do **not** copy Weather or the Marine Megastore card.
+**Source of truth:** [2026 Zeekoe Vlei Cape Classic](https://sailingsa.co.za/regatta/2026-09-13-zvyc-cape-classic).
 
-## New Event results URL — required
+## Event header (hard rule)
 
-| Slot | Required |
-| --- | --- |
-| Left | Event logo |
-| Centre | Event name → `Host: CODE - Full Club Name` → Venue **only if different from host** → status + entries (below) |
-| Right | Host club logo |
+| # | Slot | Required |
+| --- | --- | --- |
+| 1 | **Left** | **Event logo** |
+| 2 | **Centre** | Event name → Host → Results status → as-at date & time → Entries |
+| 3 | **Right** | **Host club logo** |
+
+Centre stack, in order:
+
+1. Event name (e.g. `2026 Zeekoe Vlei Cape Classic`)
+2. `Host: CODE - Full Club Name` (e.g. `Host: ZVYC - Zeekoe Vlei Yacht Club`)
+3. Venue **only if different from host**
+4. `Results are Final` (or Provisional) — tight to the as-at line
+5. `DD Mon YYYY HH:MM`
+6. **gap** then people icon + `N Entries`
+
+Do **not** copy Weather or the Marine Megastore card onto a standard Event URL.
+
+### Event logo left — if missing or wrong
+
+1. Try find / match / auto (event artwork, known Event Logo map).
+2. If you **cannot find, match, or auto** a correct Event logo: **stop and ask admin** to guide or provide the file.
+3. Do **not** invent a logo. Do **not** put a class logo or host logo on the left of the Event header.
 
 ### Status + entries (centre)
 
