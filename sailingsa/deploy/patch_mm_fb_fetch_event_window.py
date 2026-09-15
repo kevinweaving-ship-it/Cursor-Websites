@@ -1,58 +1,46 @@
 #!/usr/bin/env python3
-"""Idempotent live patch: skip Cape MM fetch when the event is past; reuse one Chrome profile."""
+"""Idempotent live patch: event-window skip + delete Chrome profile after each peek."""
 from pathlib import Path
 
 p = Path("/var/www/sailingsa/deploy/mm_fb_fetch_cape.py")
 s = p.read_text(encoding="utf-8")
 orig = s
 
-marker = 'CHROME = "/usr/bin/google-chrome"'
-insert = '''CHROME = "/usr/bin/google-chrome"
-CHROME_PROFILE = Path("/var/tmp/ssa-mm-chrome")'''
-if "CHROME_PROFILE" not in s:
-    if marker not in s:
-        raise SystemExit("CHROME marker missing")
-    s = s.replace(marker, insert, 1)
-
-old_dump = '''def dump(url: str, budget_ms: int = 9000) -> str:
-    cmd = [
-        CHROME,
-        "--headless=new",
-        "--disable-gpu",
-        "--no-sandbox",
-        "--disable-dev-shm-usage",
-        f"--virtual-time-budget={budget_ms}",
-        "--timeout=16000",
-        f"--user-agent={UA}",
-        "--dump-dom",
-        url,
-    ]
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=50)
-    return proc.stdout or ""
-'''
 new_dump = '''def dump(url: str, budget_ms: int = 9000) -> str:
-    CHROME_PROFILE.mkdir(parents=True, exist_ok=True)
-    cmd = [
-        CHROME,
-        "--headless=new",
-        "--disable-gpu",
-        "--no-sandbox",
-        "--disable-dev-shm-usage",
-        f"--user-data-dir={CHROME_PROFILE}",
-        "--disk-cache-size=67108864",
-        f"--virtual-time-budget={budget_ms}",
-        "--timeout=16000",
-        f"--user-agent={UA}",
-        "--dump-dom",
-        url,
-    ]
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=50)
-    return proc.stdout or ""
+    """Peek at a Facebook page, then delete this check's Chrome folder."""
+    from mm_fb_event_window import chrome_env, delete_chrome_run_dir, make_chrome_run_dir
+
+    profile = make_chrome_run_dir()
+    try:
+        cmd = [
+            CHROME,
+            "--headless=new",
+            "--disable-gpu",
+            "--no-sandbox",
+            "--disable-dev-shm-usage",
+            f"--user-data-dir={profile}",
+            "--disk-cache-size=1",
+            f"--virtual-time-budget={budget_ms}",
+            "--timeout=16000",
+            f"--user-agent={UA}",
+            "--dump-dom",
+            url,
+        ]
+        proc = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=50, env=chrome_env(profile)
+        )
+        return proc.stdout or ""
+    finally:
+        delete_chrome_run_dir(profile)
 '''
-if "--user-data-dir=" not in s:
-    if old_dump not in s:
-        raise SystemExit("dump() block not found")
-    s = s.replace(old_dump, new_dump, 1)
+
+start = s.find("def dump(url:")
+if start < 0:
+    raise SystemExit("dump() not found")
+end = s.find("\n\ndef ", start)
+if end < 0:
+    raise SystemExit("dump() end not found")
+s = s[:start] + new_dump.rstrip() + s[end:]
 
 old_main = '''def main() -> int:
     fetched = fetch()
@@ -77,7 +65,7 @@ if "event_is_active()" not in s:
 if s == orig:
     print("fetch already patched")
 else:
-    bak = p.with_suffix(p.suffix + ".bak-event-window")
+    bak = p.with_suffix(p.suffix + ".bak-chrome-delete")
     if not bak.exists():
         bak.write_text(orig, encoding="utf-8")
     p.write_text(s, encoding="utf-8")

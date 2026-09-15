@@ -13,9 +13,12 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 from datetime import date, datetime
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 SAST = ZoneInfo("Africa/Johannesburg")
@@ -25,6 +28,7 @@ WATCH_TIMER = "mm-fb-watch-live-cape.timer"
 FETCH_TIMER = "mm-fb-fetch-cape.timer"
 WATCH_SERVICE = "mm-fb-watch-live-cape.service"
 FETCH_SERVICE = "mm-fb-fetch-cape.service"
+CHROME_TMP = Path(os.environ.get("MM_FB_CHROME_TMP") or "/var/tmp")
 
 
 def event_rid() -> str:
@@ -62,6 +66,30 @@ def event_status(today: datetime | date | None = None) -> str:
 
 def event_is_active(today: datetime | date | None = None) -> bool:
     return event_status(today) == "active"
+
+
+def make_chrome_run_dir() -> Path:
+    """One throwaway Chrome home for a single Facebook peek."""
+    CHROME_TMP.mkdir(parents=True, exist_ok=True)
+    path = Path(tempfile.mkdtemp(prefix="ssa-mm-chrome-", dir=str(CHROME_TMP)))
+    (path / "tmp").mkdir(exist_ok=True)
+    return path
+
+
+def chrome_env(profile: Path) -> dict:
+    env = os.environ.copy()
+    env["HOME"] = str(profile)
+    env["XDG_CACHE_HOME"] = str(profile / "cache")
+    env["XDG_CONFIG_HOME"] = str(profile / "config")
+    env["TMPDIR"] = str(profile / "tmp")
+    return env
+
+
+def delete_chrome_run_dir(profile: Path | str | None) -> None:
+    """Delete this check's Chrome folder. Ignore errors if Chrome already dropped it."""
+    if not profile:
+        return
+    shutil.rmtree(profile, ignore_errors=True)
 
 
 def skip_payload(today: datetime | date | None = None) -> dict:

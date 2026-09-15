@@ -7,8 +7,10 @@ from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "sailingsa" / "deploy"))
 from mm_fb_event_window import (  # noqa: E402
+    delete_chrome_run_dir,
     event_is_active,
     event_status,
+    make_chrome_run_dir,
     skip_payload,
     today_sast,
 )
@@ -50,10 +52,21 @@ def test_skip_payload_names_regatta():
     assert payload["end"] == "2026-09-13"
 
 
+def test_chrome_folder_deleted_after_check():
+    profile = make_chrome_run_dir()
+    junk = profile / "Default" / "Cache" / "data"
+    junk.parent.mkdir(parents=True)
+    junk.write_bytes(b"not-live-leftover")
+    assert profile.is_dir()
+    delete_chrome_run_dir(profile)
+    assert not profile.exists()
+
+
 if __name__ == "__main__":
     test_active_on_event_days()
     test_upcoming_before_start()
     test_past_after_end()
     test_sast_date_not_utc()
     test_skip_payload_names_regatta()
+    test_chrome_folder_deleted_after_check()
     print("mm_fb_event_window_tests: ok")
