@@ -1,4 +1,13 @@
 date,source_chat,supplier,contact,sku,qty,unit_usd,line_usd,band,ship_to,status,sheet_action,notes
-2026-09-14,Lucas Zhang WhatsApp,OTW / Anzewei,Lucas Zhang,WT-43-RK-LORA,3,40,120,868 MHz,Shenzhen Eric (吴建军),WAIT — final BOM + Lucas range answers,ADD/REPLACE,Kevin revised 2 to 3 pcs; rover; range+Sailfish sent 15 Sep
-2026-09-14,Lucas Zhang WhatsApp,OTW / Anzewei,Lucas Zhang,WT-43-BK-LORA,1,55,55,868 MHz,Shenzhen Eric (吴建军),WAIT — final BOM + Lucas range answers,ADD/REPLACE,Base; 868 factory retune; range+Sailfish sent 15 Sep
-2026-09-15,Kevin to Lucas,Minew,(not Lucas),nRF54L15 ME54BE62 DK,1,,,BLE,Shenzhen Eric (吴建军),ON TEAM LIST — not ordered,ADD (hold),https://store.minewsemi.com/product/nrf54l15-me54bs62-bluetooth-module-me54be62-development-kit/
+2026-09-10,Richard Frost WA,Moko,sales@mokosmart.com,LW014,20,,,EU868,Shenzhen Eric (吴建军),SEND PI,ADD,Wrist/wearable; Richard let's say 20; https://store.mokosmart.com/product/lw014-lorawan-wearable-button/
+2026-09-15,Dev WhatsApp,Moko,sales@mokosmart.com,LW013,1,,,EU868,Shenzhen Eric (吴建军),SEND PI,ADD,Smart button; qty not given so 1 sample
+2026-09-15,Dev WhatsApp,Moko,sales@mokosmart.com,LW006,4,,,EU868,Shenzhen Eric (吴建军),SEND PI,ADD,Smart badge; https://store.mokosmart.com/product/lw006-sb-lorawan-smart-badge/
+2026-09-15,Dev WhatsApp,Dragino,sales@dragino.com,WSC2-L kit,1,,,EU868,Shenzhen Eric (吴建军),SEND PI,ADD,Farming weather station kit
+2026-09-11,Richard + Dev,Dragino,sales@dragino.com,SE01-LB,1,,,EU868,Shenzhen Eric (吴建军),SEND PI,ADD,Soil moisture and EC; SE0X if current SKU
+2026-09-15,Dev WhatsApp,Dragino,sales@dragino.com,SPH01-LB,1,,,EU868,Shenzhen Eric (吴建军),SEND PI,ADD,Soil pH
+2026-09-11,Richard + Dev,Dragino,sales@dragino.com,S31B-LB,1,,,EU868,Shenzhen Eric (吴建军),SEND PI,ADD,Vineyard humidity LoRaWAN; NOT S31-CB NB-IoT
+2026-09-11,Richard + Dev,Dragino,sales@dragino.com,LT-22222-L,1,,,EU868,Shenzhen Eric (吴建军),SEND PI,ADD,Valve control plus open/closed feedback
+2026-09-15,Dev WhatsApp,Dragino,sales@dragino.com,LA66,1,,,EU868,Shenzhen Eric (吴建军),SEND PI,ADD,Develop module
+2026-09-14,Lucas Zhang WhatsApp,OTW / Anzewei,Lucas Zhang,WT-43-RK-LORA,3,40,120,868 MHz,Shenzhen Eric (吴建军),FOLLOW — no PI yet,KEEP,Rover; wait for range answers
+2026-09-14,Lucas Zhang WhatsApp,OTW / Anzewei,Lucas Zhang,WT-43-BK-LORA,1,55,55,868 MHz,Shenzhen Eric (吴建军),FOLLOW — no PI yet,KEEP,Base
+2026-09-15,Kevin to Lucas,Minew,(not Lucas),nRF54L15 ME54BE62 DK,1,,,BLE,Shenzhen Eric (吴建军),HOLD,KEEP,Not on Moko/Dragino/Lucas PI

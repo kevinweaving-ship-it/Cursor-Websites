@@ -1,49 +1,61 @@
 # China order register
 
-Updated **2026-09-15** — Lucas range + 旗鱼 reply **sent**. Waiting on his 7 spec answers. Dev WhatsApp: still waiting for paste.
-
-**Do not place Lucas PI.** Team still compiling final list (incl. BLE/dev board). Combine with Eric’s other Shenzhen parcels.
+Updated **2026-09-15**. **Pay Moko + Dragino first** (they issue PI from this list). **Lucas follows.**
 
 ## Ship-to (all samples)
 
 深圳市福田区华强北友谊路上步工业区404栋2楼212号  
 吴建军 18680660780 kevin
 
-## Open lines
+## 1. SEND PI NOW — Moko
 
-| Status | Supplier | Contact | SKU | Qty | Unit | Line | Band | Notes |
-|--------|----------|---------|-----|----:|-----:|-----:|------|-------|
-| **WAIT — final BOM + range answers** | OTW / Anzewei | Lucas Zhang | WT-43-RK-LORA | 3 | $40 | **$120 (R1 920)** | 868 MHz | Rover. Kevin 14 Sep: 2 → **3** |
-| **WAIT — final BOM + range answers** | OTW / Anzewei | Lucas Zhang | WT-43-BK-LORA | 1 | $55 | **$55 (R880)** | 868 MHz | Base |
-| **ON TEAM LIST** | Minew | *(not Lucas)* | nRF54L15 ME54BE62 DK | 1? | TBD | TBD | BLE | [store link](https://store.minewsemi.com/product/nrf54l15-me54bs62-bluetooth-module-me54be62-development-kit/) — Dev asked; not on Lucas PI |
+Qty: Dev list + Richard **20× LW014**. Band **EU868**. Draft: [`drafts/to-moko-pi.md`](drafts/to-moko-pi.md)
 
-**Lucas subtotal if list stays as-is:** **$175 (R2 800)** + freight (not quoted).
+| Status | SKU | Qty | Notes |
+|--------|-------|----:|-------|
+| **SEND PI** | LW014 wearable / wrist | **20** | Richard 10 Sep. Store ~$52/pc list |
+| **SEND PI** | LW013 smart button | **1** | Dev; no qty → 1 sample |
+| **SEND PI** | LW006 smart badge | **4** | Dev |
 
-Factory: https://www.ontheway-tech.com/product/wt-43-rk-lora/  
-Lucas: WhatsApp; email pattern `Lucaszhang@ontheway-tech.com` (confirm).
+**Not on PI:** LW010-CT (Kevin mentioned only).
+
+## 2. SEND PI NOW — Dragino
+
+Farming + one dev module. Band **EU868**, **-LB** LoRaWAN. Draft: [`drafts/to-dragino-pi.md`](drafts/to-dragino-pi.md)
+
+| Status | SKU | Qty | Notes |
+|--------|-------|----:|-------|
+| **SEND PI** | WSC2-L weather station kit | 1 | Ask for full kit (not bare MPU only) |
+| **SEND PI** | SE01-LB soil moisture & EC | 1 | Richard SE01 / SE OX |
+| **SEND PI** | SPH01-LB soil pH | 1 | |
+| **SEND PI** | S31B-LB outdoor T/H | 1 | Vineyard humidity. **Not** S31-CB (cellular) |
+| **SEND PI** | LT-22222-L I/O | 1 | Valve + open/closed feedback |
+| **SEND PI** | LA66 module | 1 | Develop |
+
+## 3. FOLLOW — Lucas / OTW (do not PI yet)
+
+| Status | SKU | Qty | Unit | Line | Notes |
+|--------|-------|----:|-----:|-----:|-------|
+| **FOLLOW** | WT-43-RK-LORA | 3 | $40 | **$120 (R1 920)** | 868 MHz rover |
+| **FOLLOW** | WT-43-BK-LORA | 1 | $55 | **$55 (R880)** | Base |
+| **HOLD** | Minew nRF54L15 DK | 1? | | | Team list; not Lucas |
+
+Lucas range + 旗鱼 reply **sent**. Still waiting on his 7 answers.
 
 ## Google Sheet — rows this session
 
-Copy into the sheet (or replace matching SKUs). Full file: [`sheet.csv`](sheet.csv).
+Copy from [`sheet.csv`](sheet.csv).
 
-| Action | Date | Source | Supplier | SKU | Qty | Unit USD | Line USD | Band | Ship-to | Status |
-|--------|------|--------|----------|-----|----:|---------:|---------:|------|---------|--------|
-| **ADD/REPLACE** | 2026-09-14 | Lucas WA | OTW/Anzewei | WT-43-RK-LORA | 3 | 40 | 120 | 868 | Shenzhen Eric | WAIT — final BOM + range answers |
-| **ADD/REPLACE** | 2026-09-14 | Lucas WA | OTW/Anzewei | WT-43-BK-LORA | 1 | 55 | 55 | 868 | Shenzhen Eric | WAIT — final BOM + range answers |
-| **ADD (hold)** | 2026-09-15 | Kevin→Lucas | Minew | nRF54L15 ME54BE62 DK | 1 | | | BLE | Shenzhen Eric | ON TEAM LIST — not ordered |
-
-## Lucas — waiting (15 Sep)
-
-Range + Sailfish reply **sent** ([`drafts/to-lucas-range-and-sailfish.md`](drafts/to-lucas-range-and-sailfish.md)).
-
-Need from him (WT-43-BK-LORA → WT-43-RK-LORA):
-
-1. Tested LoRa range over open water  
-2. 868 MHz band / frequency  
-3. Transmit power  
-4. Antenna  
-5. Data rate  
-6. How many rover units one base can serve at once  
-7. Does the base broadcast RTCM continuously to all rovers?
-
-Do **not** PI until Dev final list + these answers (range may change qty/gateways, not SKU prices).
+| Action | Supplier | SKU | Qty | Status |
+|--------|----------|-----|----:|--------|
+| **ADD** | Moko | LW014 EU868 | 20 | SEND PI |
+| **ADD** | Moko | LW013 EU868 | 1 | SEND PI |
+| **ADD** | Moko | LW006 EU868 | 4 | SEND PI |
+| **ADD** | Dragino | WSC2-L kit EU868 | 1 | SEND PI |
+| **ADD** | Dragino | SE01-LB EU868 | 1 | SEND PI |
+| **ADD** | Dragino | SPH01-LB EU868 | 1 | SEND PI |
+| **ADD** | Dragino | S31B-LB EU868 | 1 | SEND PI (not CB) |
+| **ADD** | Dragino | LT-22222-L EU868 | 1 | SEND PI |
+| **ADD** | Dragino | LA66 EU868 | 1 | SEND PI |
+| **KEEP** | OTW | WT-43-RK-LORA | 3 | FOLLOW — no PI |
+| **KEEP** | OTW | WT-43-BK-LORA | 1 | FOLLOW — no PI |
