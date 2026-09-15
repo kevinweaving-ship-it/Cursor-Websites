@@ -1,168 +1,320 @@
-# Event URL standard — Header + Fleet + Results table
+# Event URL gold — Cape Classic (Appendix A / Low Point)
 
 **GOLD — hard rule.** Every Event URL must comply (old and new).
 
 **Source of truth:** [2026 Zeekoe Vlei Cape Classic](https://sailingsa.co.za/regatta/2026-09-13-zvyc-cape-classic).
 
-## Top-down (what you validate, in this order)
+**Scoring standard (~90% of events):** Appendix A Low Point. That is the gold. Do **not** write or validate Event URLs as if they were Time-on-Time. ToT / handicap / endurance are exceptions (see the end). They follow the same header, fleet card, names, and class rules. Only the score cells change.
 
-Work **down the page**. Do not skip a layer. Do not invent data.
+Do not invent a logo, class, fleet name, club, SAS ID, or sailor. Find / match / auto is allowed. If it cannot be matched: **leave it**, **note it**, **admin deals with it**.
 
-| Layer | What gold looks like | Validate from | If it cannot be matched |
-| --- | --- | --- | --- |
-| **0. Landing / Regatta list** | Event appears on the landing Regatta pill when it has results, **or** its start date is current (today through +5 days SA and not ended) | `regattas.start_date` / `end_date`, `results` count. List cache is **2 minutes** — race-day and amendments must show | Leave off the list only if there is no Event URL / no regatta row. Do not hide a current start-date event because a cache is old |
-| **1. Event header** | Event logo left · name / Host / status / as-at / Entries · Host logo right | Event artwork map; `host_club_*`; `result_status`; `as_at_time`; entry count from results | Empty slot + **note admin**. Never put a class or host logo in the event-logo slot |
-| **2. Fleet card** | Class logo left · **class logo + word `Fleet` only** · Host logo right · sailed line | Class catalogue / `class_id`; stored `fleet_label`; host club artwork | Mixed / no class: left = host club, title stays text (`Keelboat Fleet`). **Note admin**. Do not invent a class mark |
-| **3. Results table** | Rank · Class · Sail No · Club · Helm · races · Total · Nett | Official sheet / DB only. Times and ranks from the source file. Names only if the source changes them | Wrong time/rank: correct from the sheet. Names already validated: **do not rewrite**. Unmatched club / SAS: leave empty, **note admin** |
+---
 
-**Validate** means: the on-page value must come from a real field or the official results file. Find / match / auto is allowed. Guessing is not.
+## Work top-down. Do not skip a layer.
 
-### Data validation — do / do not
+Display is last. Names, class, club, and scores must be validated **before** the page is treated as gold.
 
-**Do**
+| Step | What | Authority |
+| --- | --- | --- |
+| **0** | Landing / Regatta list | Event shows when it has results **or** start date is current (today through +5 SA and not ended) |
+| **1** | Intake | Official sheet + `regattas` row. URL/dates from `start_date` / `end_date`, never ingest time |
+| **2** | Event header fields | Name, host, status, as-at, entries |
+| **3** | Fleet / block + sailed line | `fleet_label`, `races_sailed`, `discard_count`, `to_count`, `entries`, `scoring_system` |
+| **4** | Class (every row) | `class_original` from sheet → `class_canonical` exact `classes.class_name` |
+| **5** | Helm (every row) | SAS match → canonical name. No match → leave + admin. Never invent an SA ID |
+| **6** | Crew (every row the class requires) | Same as helm. Crew column follows `crew_policy` |
+| **7** | Sail number + club | Sheet sail no (no country prefix). Club from sheet then SAS / `clubs` |
+| **8** | Race scores | Low Point values, discards in `( )`, penalties as `{entries+1}.0 CODE` |
+| **9** | Total / Nett / Rank | Total = all races. Nett = Total − discards. Rank by Nett |
+| **10** | Display | Header → fleet card → results table |
 
-- Status + as-at from `regattas.result_status` and `regattas.as_at_time` (not “now”, not the event start date).
-- Event URL as-at **display**: two tight lines — `Results are Final` (or Provisional), then `D Mon YYYY HH:MM` on **one** line (`13 Sep 2026 18:03`).
-- Venue only if it is **different** from the host club name.
-- Fleet title: class logo is the name; the word is `Fleet` only. Same logo as the left column when that logo exists.
-- Scoring / ToT / Appendix A on the **sailed line only**, never in the fleet title.
-- Times, ranks, ToT, corrected, delta: from the official sheet (rev1 = that file only).
-- Names, sail numbers, boats: leave once validated. Correct time/rank only unless the user says names are wrong.
-- Club column: logo · divider · code, codes starting in one column.
-- Class column: class logo if valid; else class name.
+---
 
-**Do not**
+## 1. Intake
 
-- Invent a logo, class, fleet name, club, or sailor.
-- Rename a mixed fleet to a single class.
-- Put scoring in `fleet_label` / `block_label_raw`.
-- Copy Weather or MM Card onto a standard Event URL (Cape Classic / Lipton special-add only).
-- Treat a 7-day list cache as truth. If the event is running or results changed, the landing list must refresh.
+From `docs/RESULTS_PASSING_WORKFLOW.md` and `docs/README_RESULTS_INGESTION.md`:
 
-That page is the standard for all three:
+1. Confirm the regatta against admin / `regattas`.
+2. Verify the official results sheet (local and URL). If OCR/extraction fails: stop and request the sheet.
+3. **URL and dates** come from `regattas.start_date` / `end_date`. Never ingest timestamp, never “today”. Re-import must keep the same Event URL.
+4. Store header fields on `regattas`; store fleet scoring fields on `regatta_blocks`.
 
-1. **Event header**
-2. **Fleet card**
-3. **Results table**
+---
 
-Do not invent a different layout per event. Apply this layout. Where a logo, fleet name, or class cannot be found / matched / auto: **leave it**, **note it**, and **admin deals with it**. Do not guess.
+## 2. Event header (fields, then layout)
 
-## Admin help — leftovers (logo / fleet name / class)
+### Fields (validate first)
 
-When auto-match fails:
+| Field | Source | Rule |
+| --- | --- | --- |
+| Event name | `regattas` | Year + name as stored. Do not invent a title |
+| Host | `host_club_code` + club full name | `Host: CODE - Full Club Name`. If `host_club_id` is set and code is empty, fill code from `clubs.club_abbrev` |
+| Venue | `regattas.venue` | Show **only if different** from the host club name |
+| Status | `regattas.result_status` | `Provisional` or `Final`. Never “now” |
+| As-at | `regattas.as_at_time` | Sheet as-at. Never current clock, never event start/end as a placeholder |
+| Entries | Count of result rows | People icon + `N Entries` |
 
-1. **Leave** the Event URL as-is on that slot (empty logo, existing text name, etc.).
-2. **Note** the event URL, fleet, and what is missing or wrong.
-3. **Ask admin.** Do not invent a logo. Do not rename a mixed fleet. Do not put a host logo in the event-logo slot or a class logo in the host-right slot.
+Event URL **display** of status (Cape Classic gold):
 
-Admin then:
+1. `Results are Final` (or Provisional)
+2. `DD Mon YYYY HH:MM` on the **same** line (`13 Sep 2026 18:03`)
+3. Gap, then Entries
 
-- Provide the artwork, or
-- Confirm the fleet / class name, or
-- Approve leaving that slot empty.
+Reports / iframe sheets still use the long sentence: `Results are [Provisional|Final] as at DD Month YYYY at HH:MM`. See `docs/RESULTS_HTML_STATUS_LINE_RULE.md`.
 
-Agents do not close those items themselves.
-
-## Event header (hard rule)
+### Layout
 
 | # | Slot | Required |
 | --- | --- | --- |
 | 1 | **Left** | **Event logo** |
-| 2 | **Centre** | Event name → Host → Results status → as-at date & time → Entries |
+| 2 | **Centre** | Event name → Host → (venue if different) → Results status → as-at → Entries |
 | 3 | **Right** | **Host club logo** |
 
-Centre stack, in order:
+Event logo: find / match / auto. If none: empty slot + **note admin**. Do not put a class or host logo in the event-logo slot.
 
-1. Event name (e.g. `2026 Zeekoe Vlei Cape Classic`)
-2. `Host: CODE - Full Club Name` (e.g. `Host: ZVYC - Zeekoe Vlei Yacht Club`)
-3. Venue **only if different from host**
-4. `Results are Final` (or Provisional) — tight to the as-at line
-5. `DD Mon YYYY HH:MM` (date and time on the **same** line, e.g. `13 Sep 2026 18:03`)
-6. **gap** then people icon + `N Entries`
+Do **not** copy Weather or the Marine Megastore card onto a standard Event URL. Those are Cape Classic / Lipton special-add only.
 
-Do **not** copy Weather or the Marine Megastore card onto a standard Event URL.
+CSS: wrap the two status lines + Entries in `.regatta-header-status-stack`. Status lines tight (`gap: 1px`). Entries gap: `.regatta-header-status-stack .entry-total-line { margin-top: 14px }`.
 
-### Event logo left — if missing or wrong
+---
 
-1. Try find / match / auto (event artwork, known Event Logo map).
-2. If you **cannot find, match, or auto** a correct Event logo: **stop and ask admin** to guide or provide the file.
-3. Do **not** invent a logo. Do **not** put a class logo or host logo on the left of the Event header.
+## 3. Fleet / block + sailed line
 
-### Status + entries (centre)
+Create one block per fleet. `block_id` = `{regatta_id}:{fleet-slug}` (colon, single year, no quotes). `fleet_label` is the real fleet name — never `Overall`.
 
-Two status lines stay **tight** to each other. Then a **clear gap** before Entries.
-
-1. `Results are Final` (or Provisional)
-2. `DD Mon YYYY HH:MM` (as-at)
-3. **gap** (`.regatta-header-status-stack .entry-total-line { margin-top: 14px }`)
-4. people icon + `N Entries`
-
-CSS: wrap those three rows in `.regatta-header-status-stack`. Status lines `gap: 1px` / `margin: 0`. Do not use the old `.status-line { margin-top: 8px }` between the two status lines.
-
-## Not part of the Event standard
-
-**Weather** and **MM Card / Event Reels** are a special add on Cape Classic 2026 (and Lipton). They are **not** on a standard Event results URL.
-
-Later, if a club page already has a weather station **and** an MM card (example: [ZVYC](https://sailingsa.co.za/club/zvyc)), and that club has another **live** event, admin can request Weather + MM / Live for that event only. Do not add them by default.
-
-## Fleet header (GOLD / hard rule)
-
-**Source:** Extra card on [Cape Classic](https://sailingsa.co.za/regatta/2026-09-13-zvyc-cape-classic). This is the standard Fleet card for 99% of old fleets and every new fleet.
-
-| # | Slot | Required |
-| --- | --- | --- |
-| 1 | **Left** | **Fleet / class logo** (large). If there is no class logo (mixed fleet e.g. Keelboat): **host club logo**. |
-| 2 | **Centre** | **Class logo** immediately left of the word `Fleet` only. Not `Hunter 19 Fleet`, not `Hobie Fleet`, not `ILCA 7 Fleet` as text. The logo is the name. |
-| 3 | **Right** | **Host club logo** |
-
-Then the sailed line under that header, exactly this shape:
+On the **sailed line only** (never in the fleet title):
 
 `Sailed: 5, Discards: 1, To count: 4, Entries: 19, Scoring system: Appendix A`
 
-Scoring never goes in the title. It lives on this line only.
+| Token | Field | Meaning |
+| --- | --- | --- |
+| **Sailed** | `regatta_blocks.races_sailed` | Races completed in this fleet (R1…Rn) |
+| **Discards** | `regatta_blocks.discard_count` | How many worst races each boat may drop |
+| **To count** | `regatta_blocks.to_count` | Must equal `races_sailed − discard_count` |
+| **Entries** | count of rows in the block | Boats in this fleet |
+| **Scoring system** | `regatta_blocks.scoring_system` | Default **`Appendix A`**. Must be populated |
 
-### Fleet logos — if missing or wrong
+Checksum: `to_count = races_sailed − discard_count`. If the sheet says Discards: 1 and Sailed: 5, To count must be 4.
 
-Any of the three logos (left fleet, small title fleet, host right):
+Forbidden in `fleet_label` / `block_label_raw` / on-page title: `Appendix A`, `ToT - Custom`, rating names. Live stripper: `_strip_scoring_system_from_fleet_title`.
 
-1. Try find / match / auto (class catalogue artwork, host club artwork).
-2. If you **cannot find, match, or auto**: **stop and ask admin** to guide or provide the file.
-3. Do **not** invent a logo. Do **not** put a class logo on the host-right slot.
-4. **No class / mixed fleet** (Keelboat): left slot is the **host club logo**. Keep the stored fleet name as text (`Keelboat Fleet`). Ask admin if a dedicated fleet mark exists.
+---
 
-## Results table (GOLD / Extra)
+## 4. Class validation (every row)
 
-Column order: **Rank** → **Class** → **Sail No** → **Club** → Helm → races → Total → Nett.
+Authority: `docs/CLASS_CANONICAL_VALIDATION_RULES.md`, `docs/README_RESULTS_INGESTION.md`.
 
-- **Class:** class logo when a valid class logo exists. If there is no class logo, show the class name. If the logo cannot be found or matched: **ask admin**.
-- **Club:** logo left, light vertical divider, then club code. Codes all **start in the same column**. Do **not** push the code to the far right. Club column is only as wide as logo + divider + code; leftover width goes to Helm / Crew.
+HTML and Event URL use **`class_canonical` only**. Never display `class_original`.
 
-Race codes (`DNC`, `OCS`, `RET`, …) stay **overlaid** (no extra row height). Centre under the score, lift slightly off the bottom, size about as wide as `(20)` (`font-size: 50%`).
+1. Copy the sheet class into `class_original` exactly (`Lazer 7`, `MIRROR (D/H)`, `29-er`). Do not tidy this field.
+2. Normalise for lookup only: TRIM, collapse spaces.
+3. Resolve in this order only:
+   - exact match to `classes.class_name` (case-insensitive compare, store the **exact** `class_name` spelling)
+   - else `class_aliases.alias` → that `class_id`
+4. Only classes with `is_race_class = TRUE` go into `results`. Family rows (Optimist, ILCA) are not race classes — use Optimist A / B / C, Ilca 4.7 / 6 / 7.
+5. Store `class_canonical` = exact `classes.class_name`. Examples that must not be guessed:
+   - `Ilca 4` is **not** `Ilca 4.7`
+   - `29er` is **not** `29Er` unless that is the catalogue spelling
+   - `Lazer 7` → only becomes `Ilca 7` if the catalogue / alias says so
+6. No fuzzy match. No auto-create class. Unknown label → **do not insert** (or leave unmatched) + `ingestion_issues` / **note admin**.
+7. After entry, invalid `class_canonical` (LEFT JOIN `classes` is NULL) is a hard fail. It breaks class filter/search.
 
-## Class == fleet
+Crew column on the table follows `classes.crew_policy` (only `'single'`, `'double'`, `'Crewed'`, or NULL):
 
-When the block is a single class (class name and fleet name are the same after stripping a trailing `Fleet`), use the standard above. Keep the stored `fleet_label` casing (`ILCA 6 Fleet`, not a catalogue rewrite).
+- `single` — Helm only. No Crew column.
+- `double` — Helm + one crew. Crew column required when the sheet has a crew.
+- `Crewed` — Helm + 2+ (`crew`, `crew2`, `crew3` as on the sheet).
 
-Examples: `420 Fleet`, `Hunter 19 Fleet`, `ILCA 6 Fleet`.
+If class cannot be matched: leave the class cell as the stored name (or empty), **note admin**. Do not invent a class logo.
 
-## Class != fleet — leave as is
+---
 
-Do **not** rename or invent a class logo when the fleet is mixed or the fleet name is not the class name.
+## 5. Helm name validation (every row)
 
-Examples: `Open A Fleet`, `Hobie Fleet` (class is Hobie 16), `Keelboat Fleet` (L26 / Beneteau / Sadler). Keep the stored `fleet_label`. Still strip scoring text from the title.
+Authority: `docs/RESULTS_PASSING_WORKFLOW.md`, `docs/SAS_ID_RESULTS_NAME_MATCH.md`, `docs/README_RESULTS_INGESTION.md`, `docs/RESULTS_TABLE_DATA_ENTRY_STANDARDS.md`.
 
-## Never put scoring in a fleet title
+List every helm **before** processing ranks.
 
-`block_label_raw`, `fleet_label`, and the on-page title must **not** include scoring or rating:
+### Match (do not invent)
 
-- Forbidden: `Hobie Fleet — ToT - Custom`, `Hunter 19 Fleet — ToT - Custom Fleet`, `… Appendix A Fleet`
-- Scoring system (`ToT - Custom`, `Appendix A`, …) lives on the **sailed line only**
-- `block_label_raw` should match the fleet name (`Hobie Fleet`), not `{fleet} — {scoring}`
+1. Search `sas_id_personal` / `sailor_helm_aliases` via `resolve_helm_to_sa_id` (name + sail number). Unambiguous only.
+2. If no SA ID: existing `helm_temp_id` (`TMP:N` format only).
+3. If still unmatched: prior results, then sail number in the same class.
+4. Batch assists (not guesses): same-surname helm/crew, club + similar surname, sail-number history, first-name-only + club, family SAS range ±10. See `docs/README_SAS_ID_MATCHING_LOGIC.md`.
+5. Still unknown: `helm_sa_sailing_id = NULL`, keep sheet name, **note admin**. Never invent an SA ID. Never auto-create `TMP:` without approval.
 
-Live title builder: `_strip_scoring_system_from_fleet_title` in `/var/www/sailingsa/api/api.py`.
+### Canonical name (mandatory once an SA ID exists)
 
-## Exceptions (do not “fix”)
+- Overwrite `helm_name` with `sas_id_personal.full_name` (or `first_name || last_name`).
+- Nicknames (`Jacqui`, `Mike`, `Charlie`) are for matching only. Store `Jacqueline`, `Michael`, `Charles`.
+- PDF misspellings are corrected **from SAS**, not “improved” by the agent.
+- `helm_sa_sailing_id` is an integer with no leading zeros. It must exist in `sas_id_personal`.
 
-- **Lipton**: Event logo left, class logo right (not host on the right of the fleet card).
-- **Cape Classic 2026 ZVY**: same logo + word `Fleet` title as every other Event URL (this is the gold source, not a special case).
-- **MAC / TSC endurance**: keep specialised block titles (Line Honours, Handicap, etc.).
+### After names are validated
+
+Do not rewrite helm names when fixing times, ranks, or scores. Names are a separate pass.
+
+Checksum: same SA ID must not appear in two `class_canonical` values in the same regatta.
+
+---
+
+## 6. Crew name validation (every required crew)
+
+Same pipeline as helm: `crew_name` / `crew_sa_sailing_id` / `crew_temp_id` (and crew2 / crew3 when the class is Crewed).
+
+- Resolve crew **before** ranks, same as helm.
+- If helm has an SA ID and crew shares the surname: try family / same-surname match first.
+- If SA ID found: store canonical `full_name`, not the sheet nickname.
+- If the sheet has no crew and `crew_policy` is `single`: leave crew empty.
+- If `crew_policy` is `double`/`Crewed` and the sheet has a crew that will not match: keep the sheet name, SA ID NULL, **note admin**.
+- Crew inherits helm club when crew has no club.
+
+Output two lists for admin: matched sailors, and unmatched (Temp / None).
+
+---
+
+## 7. Sail number + club
+
+**Sail number**
+
+- Store as shown, minus country prefix (`RSA-3452` → `3452`). Keep suffixes (`5733R`).
+- Used in helm/crew SAS matching. Do not invent a sail number.
+
+**Club**
+
+1. `club_raw` = exact text from the sheet (`VLC/LDYC`, `SBYC`).
+2. `club_id` = first club only if the sheet lists two, resolved via `clubs` / `club_aliases`.
+3. After SAS match: prefer helm `primary_club` then `club_1`; if missing, crew club.
+4. Unmatched: leave `club_id` NULL, keep `club_raw` if present, **note admin**. Do not invent a club code or logo.
+
+Display: logo · divider · code. Codes start in one column. If there is no club: empty cell.
+
+---
+
+## 8. Scoring — Appendix A Low Point (the 90%)
+
+This is Cape Classic Extra and almost every dinghy / youth / class fleet.
+
+### What Low Point means
+
+- Finish place **is** the score: 1st = `1.0`, 2nd = `2.0`, 10th = `10.0`.
+- Lowest **Nett** wins. Rank is by Nett, then the sheet’s tie-break (do not invent a tie-break).
+- Penalties (DNC, DNS, DNF, RET, OCS, DSQ, BFD, UFD, DPI): points = **`entries + 1`**. 19 entries → DNC = `20.0 DNC`.
+- Store the code the sheet used. Never change DNC to DNS.
+
+### Race-score format (hard stop if wrong)
+
+Authority: `docs/RACE_SCORES_RULES.md`, `docs/RACE_SCORES_DATA_ENTRY_VALIDATION.md`.
+
+| Sheet shows | Store as | Why |
+| --- | --- | --- |
+| `5` | `5.0` | Always one decimal |
+| `(11)` or `-11` or struck-through 11 | `(11.0)` | Parentheses = discard. Never a minus sign in the DB |
+| `DNC` | `20.0 DNC` | Score + space + uppercase code |
+| discarded DNC | `(20.0 DNC)` | Discard + penalty together |
+
+Keys are sequential `R1`, `R2`, … (no `R01`, no gaps). Reject: `"DNC"`, `"5"`, `"-11.0"`, `"10.0DNS"`, `"dnc"`.
+
+Run `admin/tools/validate_race_scores_pre_entry.sql` **before** insert.
+
+### Discards
+
+- The block rule (`Discards: 1`) applies to **every** boat in that fleet.
+- Discarded cells are the **worst** scores, wrapped in `( )`.
+- After insert: number of bracketed cells **per row** must equal `discard_count`.
+- Worst-score check: do not bracket a `4.0` while a `11.0` is live.
+- Script: `admin/tools/validate_discard_brackets_compliance.sql`.
+
+HTML: parentheses get CSS class `disc`. Penalty tokens get `code`. Codes sit overlaid under the number (no extra row height).
+
+---
+
+## 9. Total, Nett, Rank
+
+| Field | Formula | Example (Sailed 5, Discard 1) |
+| --- | --- | --- |
+| **Total** | Sum of **all** race numbers, **including** discarded and penalty points | `1.0 + 2.0 + 3.0 + 8.0 + (12.0)` = `26.0` |
+| **Nett** | Total − sum of discarded numbers | `26.0 − 12.0` = `14.0` |
+| **Rank** | Order by Nett (lowest first). Ties allowed when Nett is equal | Rank 1 = lowest Nett |
+
+Checksum (mandatory):
+
+```
+nett_points_raw = total_points_raw − sum(discarded race values)
+```
+
+If `discard_count = 0`, Nett = Total. Nett must never exceed Total.
+
+Store both as `.0` numerics (`15.0`, not `15`). Script: `admin/tools/checksum_total_nett_points.sql`.
+
+Also checksum: entry count per block; `fleet_label` identical on every row in the block; `class_canonical` in `classes`; every non-null helm/crew SA ID in `sas_id_personal`.
+
+Then extract ranks 1…n using the **already validated** helm/crew/class. Do not re-type names while passing ranks.
+
+---
+
+## 10. Display (only after 1–9)
+
+### Landing / Regatta list
+
+Show the event when it has results **or** `start_date` is in today…+5 SA and the event has not ended. List cache is **2 minutes** so race-day and amendments appear. Typed search bypasses cache. Do not hide a current start-date event because a cache is old.
+
+### Fleet card
+
+| # | Slot | Required |
+| --- | --- | --- |
+| 1 | **Left** | Class logo. Mixed / no class logo (Keelboat): **host club logo** |
+| 2 | **Centre** | Class logo + the word **`Fleet` only**. The logo is the name. Not `ILCA 7 Fleet` as text |
+| 3 | **Right** | Host club logo |
+
+Then the sailed line from step 3.
+
+Single-class fleet (class name == fleet name after stripping `Fleet`): use this card. Keep stored `fleet_label` casing in the DB (`ILCA 6 Fleet`); the title still renders as logo + `Fleet`.
+
+Mixed fleet (`Open`, `Keelboat`): do **not** rename to one class. Title stays text (`Keelboat Fleet`). Left = host logo if there is no class mark. **Note admin**.
+
+### Results table
+
+Column order (Cape Classic Extra): **Rank → Class → Sail No → Club → Helm → [Crew] → R1…Rn → Total → Nett**.
+
+- **Class:** class logo if a valid class logo exists; else `class_canonical` text.
+- **Club:** logo · divider · code.
+- **Helm / Crew:** validated canonical names; click through to sailor profile when an SA ID exists.
+- **Races:** Low Point cells. Discards in parentheses. Codes overlaid.
+- **Total / Nett:** from step 9. Rank matches Nett order.
+
+Optional columns (Boat Name, Bow, Jib) only if the sheet has them.
+
+---
+
+## Admin leftovers
+
+When auto-match fails (logo, class, helm, crew, club):
+
+1. Leave the Event URL as-is on that slot.
+2. Note event URL, fleet, row, and what is missing.
+3. Ask admin. Do not invent.
+
+---
+
+## Exceptions (not the standard)
+
+- **ToT / handicap / time** (small minority, e.g. some keelboat challenges): same header, fleet card, class/helm/crew validation, sailed line. Score cells are elapsed / corrected time, not Low Point. Total/Nett may equal rank. Do not treat this as gold for other events.
+- **Lipton:** Event logo left, class logo right on the fleet card.
+- **MAC / TSC endurance:** specialised block titles (Line Honours, Handicap).
+- **Weather / MM Card:** Cape Classic / Lipton special-add only.
+
+---
+
+## Related (read these; do not skip)
+
+- `docs/RESULTS_PASSING_WORKFLOW.md` — intake, header, sailor list, then ranks
+- `docs/CLASS_CANONICAL_VALIDATION_RULES.md` — class original vs canonical
+- `docs/README_RESULTS_INGESTION.md` — no fuzzy class, no fake SAS ID
+- `docs/SAS_ID_RESULTS_NAME_MATCH.md` — helm/crew name = `sas_id_personal`
+- `docs/README_SAS_ID_MATCHING_LOGIC.md` — match order when SA ID is NULL
+- `docs/RACE_SCORES_RULES.md` — `.0`, `(discard)`, `N.0 CODE`
+- `docs/RACE_SCORES_DATA_ENTRY_VALIDATION.md` — hard stops before insert
+- `docs/RESULTS_TABLE_DATA_ENTRY_STANDARDS.md` — every results column
+- `docs/RESULTS_CHECKSUM_RULES.md` — one class per sailor per regatta
+- `docs/RESULTS_HTML_STATUS_LINE_RULE.md` — long “as at” sentence on sheets
