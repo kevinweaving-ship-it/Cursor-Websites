@@ -58,6 +58,8 @@ Standard fleet card, Cape Classic 420 card:
 
 Sailed line under the title stays: `Sailed: N, Discards: N, To count: N, … Scoring system: …`
 
+Race codes (`DNC`, `OCS`, `RET`, …) sit **centred under** the score number, not to the right, with a little space off the cell bottom (`.wc-code` stacked under `.wc-score`).
+
 ## Class == fleet
 
 When the block is a single class (class name and fleet name are the same after stripping a trailing `Fleet`), use the standard above. Keep the stored `fleet_label` casing (`ILCA 6 Fleet`, not a catalogue rewrite).
