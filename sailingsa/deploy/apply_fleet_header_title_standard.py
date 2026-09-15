@@ -217,13 +217,6 @@ def main() -> None:
         "        fleet_header_title = _title_stripped\n"
         "    elif fleet_label or class_canonical:\n"
         "        fleet_header_title = _ensure_single_trailing_fleet(fleet_label or class_canonical)\n"
-        "    # Class == fleet (420 / 420 Fleet): centre title is \"{Class} Fleet\". Mixed names stay as stored.\n"
-        "    if not standalone_class_page:\n"
-        "        _match_class = class_canonical or (fleet.get(\"class_original\") or \"\")\n"
-        "        if _class_and_fleet_names_match(_match_class, fleet_label or fleet_header_title):\n"
-        "            _core = _class_name_core_without_fleet_suffix(_match_class)\n"
-        "            if _core:\n"
-        "                fleet_header_title = _ensure_single_trailing_fleet(_core)\n"
         "    if _regatta_slug_is_sa_pilot_standalone(_rid_ft):"
     )
     if old_tail not in text:
