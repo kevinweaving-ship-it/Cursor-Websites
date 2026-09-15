@@ -40,7 +40,21 @@ Farming + one dev module. Band **EU868**, **-LB** LoRaWAN. Draft: [`drafts/to-dr
 | **FOLLOW** | WT-43-BK-LORA | 1 | $55 | **$55 (R880)** | Base |
 | **HOLD** | Minew nRF54L15 DK | 1? | | | Team list; not Lucas |
 
-Lucas range + 旗鱼 reply **sent**. Still waiting on his 7 answers.
+Lucas range + 旗鱼 reply **sent**. He will answer the seven questions later.
+
+| # | Ask | Status |
+|---|-----|--------|
+| 1 | Tested LoRa range over open water | waiting |
+| 2 | 868 MHz band | waiting |
+| 3 | Transmit power | **22 dB** (read as **22 dBm TX**, 15 Sep 13:04) |
+| 4 | Antenna | waiting |
+| 5 | Data rate | waiting |
+| 6 | Max rovers per base | waiting |
+| 7 | RTCM broadcast to all rovers | waiting |
+
+Battery sizing still open: **22 dBm is RF output, not current draw.** Need TX mA and idle mA (and input voltage) to size the puck battery.
+
+Optional follow-up: [`drafts/to-lucas-battery-ma.md`](drafts/to-lucas-battery-ma.md)
 
 ## Google Sheet — rows this session
 

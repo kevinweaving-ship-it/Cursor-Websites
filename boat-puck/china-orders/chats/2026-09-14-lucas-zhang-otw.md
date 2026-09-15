@@ -2,7 +2,7 @@
 
 **Supplier:** Shenzhen Anzewei / On The Way (`ontheway-tech.com`)  
 **Thread:** 2026-09-14 → 2026-09-15  
-**Status:** Quoted. **Do not PI until Dev final list.** Range + Sailfish reply **sent 15 Sep** — waiting on Lucas specs.
+**Status:** Quoted. **Do not PI yet** (Moko/Dragino first). Range + Sailfish **sent**. TX power **22 dBm**; other six Qs waiting. Battery **mA** still open.
 
 Sent text: [`../drafts/to-lucas-range-and-sailfish.md`](../drafts/to-lucas-range-and-sailfish.md)
 
@@ -24,6 +24,8 @@ Sent text: [`../drafts/to-lucas-range-and-sailfish.md`](../drafts/to-lucas-range
 | 15 Sep 11:36 | Lucas last Q: **RTK communication range?** |
 | 15 Sep 11:46 | Kevin: committee↔pin 100–150 m; 1 cm at start only; pucks on marks/finish |
 | 15 Sep (sent) | Kevin: range + 旗鱼/saill.cn — not cloning Sailfish; RTK for start line; LoRa = corrections only; 7 spec Qs; **do not order yet** |
+| 15 Sep 12:20 | Lucas: will reply to the seven questions later |
+| 15 Sep 12:27–13:04 | LoRa power: Kevin asked consumption for battery sizing; Lucas said **22 dB** (treat as **22 dBm TX power**, not mA draw) |
 
 ---
 
@@ -140,3 +142,14 @@ Data rate
 How many rover units one base can serve at once
 Does the base broadcast RTCM continuously to all rovers (same corrections, no one-to-one connection)?
 Still waiting for our team’s final sample list. Please do not place the order yet.
+
+[2026/09/15, 12:06:34] Kevin Weaving: ‎Read more
+[2026/09/15, 12:20:56] ~Lucas Zhang: OK. I will reply to you regarding the seven questions you raised later.
+[2026/09/15, 12:27:56] ~Lucas Zhang: Regarding the power requirements for LORA
+[2026/09/15, 12:29:54] Kevin Weaving: Yes …?
+[2026/09/15, 12:33:16] ~Lucas Zhang: How much power does the LoRa module need?
+[2026/09/15, 12:34:27] Kevin Weaving: That means what would its power consumption be > when transmitting so can size battery for system
+[2026/09/15, 12:35:26] ~Lucas Zhang: yes
+[2026/09/15, 12:37:07] Kevin Weaving: I.E> What power does you device require
+[2026/09/15, 13:04:34] ~Lucas Zhang: 22db
+[2026/09/15, 13:04:40] Kevin Weaving: Ok
