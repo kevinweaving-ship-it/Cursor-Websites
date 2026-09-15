@@ -13,12 +13,16 @@ def main() -> None:
     v3 = SNIP.read_text()
     if not v3.startswith('    "/* MP_STICKY_SCORE_SHEET_v3 */"'):
         raise SystemExit("V3_SNIP_BAD")
-    if "MP_STICKY_SCORE_SHEET_v3" in live and "mp-race-under" in live:
+    if "MP_STICKY_SCORE_SHEET_v3" in live and "mid=(b.left+b.right)/2" in live:
         print("ALREADY_V3")
         return
-    start = live.find('    "/* MP_STICKY_SCORE_SHEET_v2 */"')
+    start = live.find('    "/* MP_STICKY_SCORE_SHEET_v3 */"')
+    if start < 0:
+        start = live.find('    "/* MP_STICKY_SCORE_SHEET_v2 */"')
     if start < 0:
         start = live.find('    "/* MP_STICKY_SCORE_SHEET_v1 */"')
+    if start < 0:
+        start = live.find("/* MP_STICKY_SCORE_SHEET_v3 */")
     if start < 0:
         start = live.find("/* MP_STICKY_SCORE_SHEET_v2 */")
     if start < 0:
