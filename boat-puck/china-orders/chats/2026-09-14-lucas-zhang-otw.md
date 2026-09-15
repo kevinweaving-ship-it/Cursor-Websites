@@ -2,7 +2,7 @@
 
 **Supplier:** Shenzhen Anzewei / On The Way (`ontheway-tech.com`)  
 **Thread:** 2026-09-14 → 2026-09-15  
-**Status:** Quoted. **Do not PI yet** (Moko/Dragino first). Range + Sailfish **sent**. TX power **22 dBm**; other six Qs waiting. Battery **mA** still open.
+**Status:** Quoted. **Do not PI yet** (Moko/Dragino first). Seven spec answers **in**. Battery **mA** still open.
 
 Sent text: [`../drafts/to-lucas-range-and-sailfish.md`](../drafts/to-lucas-range-and-sailfish.md)
 
@@ -25,7 +25,9 @@ Sent text: [`../drafts/to-lucas-range-and-sailfish.md`](../drafts/to-lucas-range
 | 15 Sep 11:46 | Kevin: committee↔pin 100–150 m; 1 cm at start only; pucks on marks/finish |
 | 15 Sep (sent) | Kevin: range + 旗鱼/saill.cn — not cloning Sailfish; RTK for start line; LoRa = corrections only; 7 spec Qs; **do not order yet** |
 | 15 Sep 12:20 | Lucas: will reply to the seven questions later |
-| 15 Sep 12:27–13:04 | LoRa power: Kevin asked consumption for battery sizing; Lucas said **22 dB** (treat as **22 dBm TX power**, not mA draw) |
+| 15 Sep (later) | Lucas seven answers: range 1–3 km (site test); 868 OK; 22 dB; FPC antenna; 2.4–62.5k; rover count “not limited by range”; RTCM broadcast yes |
+| 15 Sep | Supply **3.3–6.5 V, typically 5 V** |
+| 15 Sep (later) | Lucas seven answers: range 1–3 km (site test); 868 OK; 22 dB; FPC antenna; 2.4–62.5k; rover count “not limited by range”; RTCM broadcast yes |
 
 ---
 
@@ -153,3 +155,22 @@ Still waiting for our team’s final sample list. Please do not place the order 
 [2026/09/15, 12:37:07] Kevin Weaving: I.E> What power does you device require
 [2026/09/15, 13:04:34] ~Lucas Zhang: 22db
 [2026/09/15, 13:04:40] Kevin Weaving: Ok
+
+[2026/09/15] ~Lucas Zhang: *(seven answers)*
+
+1: Test the communication range of LoRa in open waters
+(Without interference, the range is 1-3km. It needs on-site testing for confirmation)
+2: 868 MHz frequency band/frequency
+(No problem)
+3: Transmission power
+(22Db)
+4: Antenna type
+(FPC surface mount antenna)
+5: Data rate
+(2.4 - 62.5k)
+6: How many mobile devices can a base station provide services to simultaneously
+(The communication range of the base station does not limit the number of Rover stations)
+7: Does the base station continuously broadcast RTCM to all mobile devices (The same correction information, no need for one-to-one connection)
+(Yes, the distance between the Rover station and the base station determines the accuracy of the RTCM data)
+
+[2026/09/15] ~Lucas Zhang: Voltage: 3.3 - 6.5V (typically 5V)

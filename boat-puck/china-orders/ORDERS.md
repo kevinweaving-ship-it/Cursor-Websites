@@ -40,21 +40,21 @@ Farming + one dev module. Band **EU868**, **-LB** LoRaWAN. Draft: [`drafts/to-dr
 | **FOLLOW** | WT-43-BK-LORA | 1 | $55 | **$55 (R880)** | Base |
 | **HOLD** | Minew nRF54L15 DK | 1? | | | Team list; not Lucas |
 
-Lucas range + 旗鱼 reply **sent**. He will answer the seven questions later.
+Lucas range + 旗鱼 reply **sent**. **Seven answers in.** Battery **mA** still open.
 
-| # | Ask | Status |
-|---|-----|--------|
-| 1 | Tested LoRa range over open water | waiting |
-| 2 | 868 MHz band | waiting |
-| 3 | Transmit power | **22 dB** (read as **22 dBm TX**, 15 Sep 13:04) |
-| 4 | Antenna | waiting |
-| 5 | Data rate | waiting |
-| 6 | Max rovers per base | waiting |
-| 7 | RTCM broadcast to all rovers | waiting |
+| # | Ask | Lucas | Our read |
+|---|-----|--------|----------|
+| 1 | Open-water LoRa range | 1–3 km no interference; **on-site test** | Start line 100–150 m is fine. Fleet 2–5 km is at/above his claim — extra gateways still the plan |
+| 2 | 868 MHz | No problem | OK |
+| 3 | TX power | **22 dB** | **22 dBm** = 158 mW RF |
+| 4 | Antenna | **FPC surface-mount** | Chip/FPC is weak for the **base** — pole/patch still worth adding |
+| 5 | Data rate | **2.4 – 62.5k** | Assume kbps. RTCM can fit; higher rate = shorter range. Confirm units |
+| 6 | Max rovers | “Range does not limit rover count” | Avoided airtime. **100+ still unproven** — duty cycle / collisions limit, not range |
+| 7 | RTCM broadcast | **Yes**, no 1-to-1. Accuracy vs base–rover **distance** | Broadcast = what we need. Distance = **RTK baseline** (cm + ppm), not LoRa |
 
-Battery sizing still open: **22 dBm is RF output, not current draw.** Need TX mA and idle mA (and input voltage) to size the puck battery.
+**Supply:** **3.3–6.5 V, typically 5 V**.
 
-22 dBm ≈ **158 mW RF**. Radio-only ballpark ~100–130 mA @ 3.3 V while TX. WT-43 GNSS is extra. **Cannot size the pack from 22 dB alone.**
+**Battery (still no mA from him):** 22 dBm = 158 mW RF. LoRa PA ~100–130 mA **on 3.3 V chip rail**. At **5 V** in (regulator to 3.3 V) radio TX is roughly **~80–100 mA** at the 5 V input if PA is ~0.4–0.5 W DC. GNSS/RTK on WT-43 is extra and likely larger. **Ask him to confirm or send actual TX/idle mA at 5 V.**
 
 Follow-up: [`drafts/to-lucas-battery-ma.md`](drafts/to-lucas-battery-ma.md)
 
