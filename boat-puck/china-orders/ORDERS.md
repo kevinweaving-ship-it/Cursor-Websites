@@ -14,7 +14,7 @@ Qty: Dev list + Richard **20× LW014**. Band **EU868**. Draft: [`drafts/to-moko-
 | Status | SKU | Qty | Notes |
 |--------|-------|----:|-------|
 | **SEND PI** | LW014 wearable / wrist | **20** | Richard 10 Sep. Store ~$52/pc list |
-| **SEND PI** | LW013 smart button | **1** | Dev; no qty → 1 sample |
+| **SEND PI** | LW013 smart button | **10** | Minimum 10 (was 1 sample) |
 | **SEND PI** | LW006 smart badge | **4** | Dev |
 
 **Not on PI:** LW010-CT (Kevin mentioned only).
@@ -49,7 +49,7 @@ Copy from [`sheet.csv`](sheet.csv).
 | Action | Supplier | SKU | Qty | Status |
 |--------|----------|-----|----:|--------|
 | **ADD** | Moko | LW014 EU868 | 20 | SEND PI |
-| **ADD** | Moko | LW013 EU868 | 1 | SEND PI |
+| **ADD** | Moko | LW013 EU868 | 10 | SEND PI |
 | **ADD** | Moko | LW006 EU868 | 4 | SEND PI |
 | **ADD** | Dragino | WSC2-L kit EU868 | 1 | SEND PI |
 | **ADD** | Dragino | SE01-LB EU868 | 1 | SEND PI |

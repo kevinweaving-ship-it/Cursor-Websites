@@ -1,6 +1,6 @@
 date,source_chat,supplier,contact,sku,qty,unit_usd,line_usd,band,ship_to,status,sheet_action,notes
 2026-09-10,Richard Frost WA,Moko,sales@mokosmart.com,LW014,20,,,EU868,Shenzhen Eric (吴建军),SEND PI,ADD,Wrist/wearable; Richard let's say 20; https://store.mokosmart.com/product/lw014-lorawan-wearable-button/
-2026-09-15,Dev WhatsApp,Moko,sales@mokosmart.com,LW013,1,,,EU868,Shenzhen Eric (吴建军),SEND PI,ADD,Smart button; qty not given so 1 sample
+2026-09-15,Dev WhatsApp,Moko,sales@mokosmart.com,LW013,10,,,EU868,Shenzhen Eric (吴建军),SEND PI,ADD,Smart button; minimum 10
 2026-09-15,Dev WhatsApp,Moko,sales@mokosmart.com,LW006,4,,,EU868,Shenzhen Eric (吴建军),SEND PI,ADD,Smart badge; https://store.mokosmart.com/product/lw006-sb-lorawan-smart-badge/
 2026-09-15,Dev WhatsApp,Dragino,sales@dragino.com,WSC2-L kit,1,,,EU868,Shenzhen Eric (吴建军),SEND PI,ADD,Farming weather station kit
 2026-09-11,Richard + Dev,Dragino,sales@dragino.com,SE01-LB,1,,,EU868,Shenzhen Eric (吴建军),SEND PI,ADD,Soil moisture and EC; SE0X if current SKU

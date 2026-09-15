@@ -35,7 +35,7 @@ And then 4 x LW006 - Smart badges
 | Supplier | SKU | Qty | Why |
 |----------|-----|----:|-----|
 | Moko | LW014 EU868 (wrist / wearable) | **20** | Richard 10 Sep: “Let’s say 20?” + LW014 URL |
-| Moko | LW013 EU868 smart button | **1** | Dev list; no qty → sample |
+| Moko | LW013 EU868 smart button | **10** | Dev listed; Kevin: minimum 10 |
 | Moko | LW006 EU868 smart badge | **4** | Dev: “4 x LW006” |
 | Dragino | WSC2-L weather station kit EU868 | **1** | Farming |
 | Dragino | SE01-LB EU868 (soil moisture & EC; SE0X if current) | **1** | Richard: SE01 / SE OX |
