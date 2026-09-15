@@ -159,9 +159,15 @@ def main() -> None:
 
     # After merge_disk inside _energy_save, re-apply forced current-hour values so max() cannot undo the checksum.
     text = API.read_text(encoding="utf-8")
-    needle = '''            _energy_merge_disk(json.loads(path.read_text(encoding="utf-8")))
+    needle = '''            try:
+                _energy_merge_disk(json.loads(path.read_text(encoding="utf-8")))
+            except (OSError, json.JSONDecodeError):
+                pass
 '''
-    inject = '''            _energy_merge_disk(json.loads(path.read_text(encoding="utf-8")))
+    inject = '''            try:
+                _energy_merge_disk(json.loads(path.read_text(encoding="utf-8")))
+            except (OSError, json.JSONDecodeError):
+                pass
             for dev, forced in _checksum_force.items():
                 mine = _energy_bins.setdefault(str(dev), {})
                 mine.update(forced)
