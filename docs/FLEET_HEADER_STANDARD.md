@@ -58,7 +58,7 @@ Standard fleet card, Cape Classic 420 card:
 
 Sailed line under the title stays: `Sailed: N, Discards: N, To count: N, … Scoring system: …`
 
-Race codes (`DNC`, `OCS`, `RET`, …) sit **centred under** the score number, not to the right, with a little space off the cell bottom (`.wc-code` stacked under `.wc-score`).
+Race codes (`DNC`, `OCS`, `RET`, …) stay **overlaid** (no extra row height). Centre under the score, lift slightly off the bottom, size about as wide as `(20)` (`font-size: 50%`).
 
 ## Class == fleet
 
