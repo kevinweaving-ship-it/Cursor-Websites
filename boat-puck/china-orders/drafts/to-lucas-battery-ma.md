@@ -1,19 +1,10 @@
-# To Lucas — battery current (optional)
+# To Lucas — that 22 dB vs battery
 
-He answered LoRa “power” as **22 dB**. That is transmit power (dBm), not battery consumption.
-
-Send only if you want mA for sizing:
+**22 dB = 22 dBm RF out, not battery.**  
+22 dBm = **158 mW** leaving the antenna. Typical LoRa PA at 22 dBm is ~100–130 mA @ 3.3 V **for the radio only** (SX1262 class). That does **not** include GNSS/RTK on the WT-43. Cannot size the puck pack from 22 dBm.
 
 ---
 
-Thanks — 22 dBm is the transmit power, understood.
+That transmit power (22 dB) we understand.
 
-For battery sizing we still need current draw:
-
-- Supply voltage
-- Current while **transmitting** (mA)
-- Current **idle / receive** (mA)
-
-WT-43-BK-LORA base and WT-43-RK-LORA rover, if they differ.
-
-Also still waiting on the other six points when you can (range, 868 MHz, antenna, data rate, max rovers, RTCM broadcast).
+What battery power it consume is the question — mA while transmitting and idle, and the supply voltage. Need that to size the battery.

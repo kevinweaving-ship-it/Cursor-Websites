@@ -54,7 +54,9 @@ Lucas range + 旗鱼 reply **sent**. He will answer the seven questions later.
 
 Battery sizing still open: **22 dBm is RF output, not current draw.** Need TX mA and idle mA (and input voltage) to size the puck battery.
 
-Optional follow-up: [`drafts/to-lucas-battery-ma.md`](drafts/to-lucas-battery-ma.md)
+22 dBm ≈ **158 mW RF**. Radio-only ballpark ~100–130 mA @ 3.3 V while TX. WT-43 GNSS is extra. **Cannot size the pack from 22 dB alone.**
+
+Follow-up: [`drafts/to-lucas-battery-ma.md`](drafts/to-lucas-battery-ma.md)
 
 ## Google Sheet — rows this session
 
