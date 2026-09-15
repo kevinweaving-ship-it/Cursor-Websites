@@ -1,8 +1,32 @@
-# Event / fleet header standard (results URLs)
+# Event URL standard — Header + Fleet + Results table
 
-**GOLD — hard rule** for **99% of old Event results** and **every new Event**.
+**GOLD — hard rule.** Every Event URL must comply (old and new).
 
 **Source of truth:** [2026 Zeekoe Vlei Cape Classic](https://sailingsa.co.za/regatta/2026-09-13-zvyc-cape-classic).
+
+That page is the standard for all three:
+
+1. **Event header**
+2. **Fleet card**
+3. **Results table**
+
+Do not invent a different layout per event. Apply this layout. Where a logo, fleet name, or class cannot be found / matched / auto: **leave it**, **note it**, and **admin deals with it**. Do not guess.
+
+## Admin help — leftovers (logo / fleet name / class)
+
+When auto-match fails:
+
+1. **Leave** the Event URL as-is on that slot (empty logo, existing text name, etc.).
+2. **Note** the event URL, fleet, and what is missing or wrong.
+3. **Ask admin.** Do not invent a logo. Do not rename a mixed fleet. Do not put a host logo in the event-logo slot or a class logo in the host-right slot.
+
+Admin then:
+
+- Provide the artwork, or
+- Confirm the fleet / class name, or
+- Approve leaving that slot empty.
+
+Agents do not close those items themselves.
 
 ## Event header (hard rule)
 
