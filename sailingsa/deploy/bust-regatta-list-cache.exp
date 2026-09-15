@@ -1,0 +1,12 @@
+#!/usr/bin/expect -f
+set timeout 40
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} {rm -f /var/tmp/sailingsa_regatta_with_counts.json /var/tmp/sailingsa_regatta_with_counts.json.tmp; systemctl restart sailingsa-api; sleep 3; systemctl is-active sailingsa-api}
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait

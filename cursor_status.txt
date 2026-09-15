@@ -1,0 +1,37 @@
+================================================================================
+  CURSOR AGENT STATUS — UPDATED 2026-08-29 ~17:30 SAST
+================================================================================
+
+LIPTON 2026 — EVENT COMPLETE
+
+DONE:
+  * Sailed line fix (Sailed: 10, Discards: 0, To count: 10) — Aug 26
+  * Polling fix — stops when day_done + track_idle — Aug 29
+      Added shouldPoll() check to setInterval callbacks
+      No more page flashing when event complete
+  * Public URL vs playback watchdog — fixed Aug 28
+  * Cron lipton-keep-playback.sh — DISABLED
+
+EVENT STATUS:
+  - phase: finished
+  - day_done: true
+  - track_idle: true
+  - races_sailed: 10
+  - result_status: Provisional
+
+PR: https://github.com/kevinweaving-ship-it/Cursor-Websites/pull/21
+
+================================================================================
+  NEXT (if any)
+================================================================================
+
+  - Finalize results if needed (change Provisional to Final)
+  - Merge PR #21 when ready
+
+================================================================================
+  HARD RULES (still apply)
+================================================================================
+
+  - Do NOT write Nett from tracker places
+  - Do NOT re-enable lipton-keep-playback.sh cron
+  - Do NOT create lw-g* watchdog scripts
