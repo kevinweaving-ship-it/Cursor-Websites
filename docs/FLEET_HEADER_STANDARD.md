@@ -42,7 +42,7 @@ Centre stack, in order:
 2. `Host: CODE - Full Club Name` (e.g. `Host: ZVYC - Zeekoe Vlei Yacht Club`)
 3. Venue **only if different from host**
 4. `Results are Final` (or Provisional) — tight to the as-at line
-5. `DD Mon YYYY HH:MM`
+5. `DD Mon YYYY HH:MM` (date and time on the **same** line, e.g. `13 Sep 2026 18:03`)
 6. **gap** then people icon + `N Entries`
 
 Do **not** copy Weather or the Marine Megastore card onto a standard Event URL.
