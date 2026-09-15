@@ -70,6 +70,13 @@ Any of the three logos (left fleet, small title fleet, host right):
 2. If you **cannot find, match, or auto**: **stop and ask admin** to guide or provide the file.
 3. Do **not** invent a logo. Do **not** put a host logo on the left or a class logo on the host-right slot.
 
+## Results table (GOLD / Extra)
+
+Column order: **Rank** → **Class** → **Sail No** → **Club** → Helm → races → Total → Nett.
+
+- **Class:** class logo when a valid class logo exists. If there is no class logo, show the class name. If the logo cannot be found or matched: **ask admin**.
+- **Club:** club logo **left** (all logos in one left column). Club **code right**, with a space between. Codes must line up one above the other (`justify-content: space-between` on `.rs-club-with-logo`).
+
 Race codes (`DNC`, `OCS`, `RET`, …) stay **overlaid** (no extra row height). Centre under the score, lift slightly off the bottom, size about as wide as `(20)` (`font-size: 50%`).
 
 ## Class == fleet
