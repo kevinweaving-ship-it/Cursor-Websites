@@ -1,6 +1,20 @@
-# Fleet header standard (results URLs)
+# Event / fleet header standard (results URLs)
 
-Standard fleet card on every Event / results URL, matching Western Cape Dinghy Championships **420 Fleet**:
+**Source of truth:** [ZVYC Cape Classic](https://sailingsa.co.za/regatta/2026-09-13-zvyc-cape-classic).
+
+## Event header (centre stack)
+
+Name → `Host: CODE - Full Club Name` → Venue only if different from host → then a **tight** block (almost no gap):
+
+1. `Results are Final` (or Provisional)
+2. `DD Mon YYYY HH:MM`
+3. people icon + `N Entries`
+
+CSS: `.regatta-header-status-stack` — `gap: 1px`; status/entries children `margin: 0`. Do not use the old `.status-line { margin-top: 8px }` between these lines.
+
+## Fleet header
+
+Standard fleet card, Cape Classic 420 card:
 
 | Slot | Content |
 | --- | --- |
