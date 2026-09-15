@@ -285,6 +285,8 @@ Column order (Cape Classic Extra): **Rank → Class → Sail No → Club → Hel
 
 Optional columns (Boat Name, Bow, Jib) only if the sheet has them.
 
+**MP only** (max-width 768px and portrait). Horizontal scroll keeps Rank + Sail No + club code + Helm on the left and Total + Nett on the right. Class, club logo, crew, and race cells slide under. Not for ML.
+
 ---
 
 ## Admin leftovers
