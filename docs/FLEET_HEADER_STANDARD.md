@@ -4,6 +4,41 @@
 
 **Source of truth:** [2026 Zeekoe Vlei Cape Classic](https://sailingsa.co.za/regatta/2026-09-13-zvyc-cape-classic).
 
+## Top-down (what you validate, in this order)
+
+Work **down the page**. Do not skip a layer. Do not invent data.
+
+| Layer | What gold looks like | Validate from | If it cannot be matched |
+| --- | --- | --- | --- |
+| **0. Landing / Regatta list** | Event appears on the landing Regatta pill when it has results, **or** its start date is current (today through +5 days SA and not ended) | `regattas.start_date` / `end_date`, `results` count. List cache is **2 minutes** — race-day and amendments must show | Leave off the list only if there is no Event URL / no regatta row. Do not hide a current start-date event because a cache is old |
+| **1. Event header** | Event logo left · name / Host / status / as-at / Entries · Host logo right | Event artwork map; `host_club_*`; `result_status`; `as_at_time`; entry count from results | Empty slot + **note admin**. Never put a class or host logo in the event-logo slot |
+| **2. Fleet card** | Class logo left · **class logo + word `Fleet` only** · Host logo right · sailed line | Class catalogue / `class_id`; stored `fleet_label`; host club artwork | Mixed / no class: left = host club, title stays text (`Keelboat Fleet`). **Note admin**. Do not invent a class mark |
+| **3. Results table** | Rank · Class · Sail No · Club · Helm · races · Total · Nett | Official sheet / DB only. Times and ranks from the source file. Names only if the source changes them | Wrong time/rank: correct from the sheet. Names already validated: **do not rewrite**. Unmatched club / SAS: leave empty, **note admin** |
+
+**Validate** means: the on-page value must come from a real field or the official results file. Find / match / auto is allowed. Guessing is not.
+
+### Data validation — do / do not
+
+**Do**
+
+- Status + as-at from `regattas.result_status` and `regattas.as_at_time` (not “now”, not the event start date).
+- Event URL as-at **display**: two tight lines — `Results are Final` (or Provisional), then `D Mon YYYY HH:MM` on **one** line (`13 Sep 2026 18:03`).
+- Venue only if it is **different** from the host club name.
+- Fleet title: class logo is the name; the word is `Fleet` only. Same logo as the left column when that logo exists.
+- Scoring / ToT / Appendix A on the **sailed line only**, never in the fleet title.
+- Times, ranks, ToT, corrected, delta: from the official sheet (rev1 = that file only).
+- Names, sail numbers, boats: leave once validated. Correct time/rank only unless the user says names are wrong.
+- Club column: logo · divider · code, codes starting in one column.
+- Class column: class logo if valid; else class name.
+
+**Do not**
+
+- Invent a logo, class, fleet name, club, or sailor.
+- Rename a mixed fleet to a single class.
+- Put scoring in `fleet_label` / `block_label_raw`.
+- Copy Weather or MM Card onto a standard Event URL (Cape Classic / Lipton special-add only).
+- Treat a 7-day list cache as truth. If the event is running or results changed, the landing list must refresh.
+
 That page is the standard for all three:
 
 1. **Event header**
