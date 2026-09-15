@@ -19,4 +19,6 @@ Ship-to: 深圳市福田区华强北友谊路上步工业区404栋2楼212号 吴
 
 FX: **R16 / $1** ([`../PRICE_RULE.md`](../PRICE_RULE.md)).
 
-Google Sheet URL: *paste when ready.*
+Google Sheet: https://docs.google.com/spreadsheets/d/1vUaJjcAtC8SZOwNTbnv1Sj9A6j5VCQZ9z1zRMHDw7Tk/edit?gid=2065625820#gid=2065625820
+
+Tabs: **Moko** · **Dragino** · **Moko / Dragino Orders** (gid 2065625820). Lucas stays off these tabs.
