@@ -1,0 +1,23 @@
+#!/usr/bin/expect -f
+set timeout 120
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+
+spawn scp -o StrictHostKeyChecking=no \
+  /workspace/sailingsa/deploy/apply_fleet_header_title_standard.py \
+  /workspace/sailingsa/deploy/fix_vulcan_fleet_labels.sql \
+  /workspace/sailingsa/deploy/remote_apply_fleet_header.sh \
+  ${user}@${server}:/tmp/
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
+
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} {chmod +x /tmp/remote_apply_fleet_header.sh /tmp/apply_fleet_header_title_standard.py && bash /tmp/remote_apply_fleet_header.sh}
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
