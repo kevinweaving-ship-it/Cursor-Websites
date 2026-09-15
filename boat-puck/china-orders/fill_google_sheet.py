@@ -8,8 +8,8 @@ SHEET = (
     "1vUaJjcAtC8SZOwNTbnv1Sj9A6j5VCQZ9z1zRMHDw7Tk/edit?gid=2065625820#gid=2065625820"
 )
 RAW = (
-    "https://raw.githubusercontent.com/kevinweaving-ship-it/Cursor-Websites/"
-    "cursor/china-orders-dev-whatsapp-098e/boat-puck/china-orders/images"
+    "https://cdn.jsdelivr.net/gh/kevinweaving-ship-it/Cursor-Websites@"
+    "d05dc31/boat-puck/china-orders/images"
 )
 SHOP = {
     "wsc2": "https://cdn.shopify.com/s/files/1/0724/0489/4032/files/dragino-wsc2-l-lorawan-main-process-unit-eu868-386231_2048x2048_d137778b-44ae-44ec-8583-c0406a53fa54.webp?v=1749033453",
