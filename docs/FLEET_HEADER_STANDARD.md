@@ -47,7 +47,7 @@ From `docs/RESULTS_PASSING_WORKFLOW.md` and `docs/README_RESULTS_INGESTION.md`:
 
 | Field | Source | Rule |
 | --- | --- | --- |
-| Event name | `regattas` | Year + name as stored. Do not invent a title |
+| Event name | `regattas` | Display is **year + event name only** (`2026 Zeekoe Vlei Cape Classic`). Not the start date (`2026-04-06 …`). Date stays on the as-at line. Do not invent a different title |
 | Host | `host_club_code` + club full name | `Host: CODE - Full Club Name`. If `host_club_id` is set and code is empty, fill code from `clubs.club_abbrev` |
 | Venue | `regattas.venue` | Show **only if different** from the host club name |
 | Status | `regattas.result_status` | `Provisional` or `Final`. Never “now” |
@@ -288,6 +288,8 @@ Optional columns (Boat Name, Bow, Jib) only if the sheet has them.
 ---
 
 ## Admin leftovers
+
+**Event URL title (year only):** [Western Cape Dinghy Champs](https://sailingsa.co.za/regatta/2026-04-06-western-cape-dinghy-championships) — live `.regatta-name` is `2026-04-06 Western Cape Dinghy Champs`. Correct to `2026 Western Cape Dinghy Champs`. URL slug stays.
 
 When auto-match fails (logo, class, helm, crew, club):
 
