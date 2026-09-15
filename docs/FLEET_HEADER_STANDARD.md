@@ -2,15 +2,32 @@
 
 **Source of truth:** [ZVYC Cape Classic](https://sailingsa.co.za/regatta/2026-09-13-zvyc-cape-classic).
 
-## Event header (centre stack)
+Copy this for every new Event results URL. Do **not** copy Weather or the Marine Megastore card.
 
-Name → `Host: CODE - Full Club Name` → Venue only if different from host → then a **tight** block (almost no gap):
+## New Event results URL — required
+
+| Slot | Required |
+| --- | --- |
+| Left | Event logo |
+| Centre | Event name → `Host: CODE - Full Club Name` → Venue **only if different from host** → status + entries (below) |
+| Right | Host club logo |
+
+### Status + entries (centre)
+
+Two status lines stay **tight** to each other. Then a **clear gap** before Entries.
 
 1. `Results are Final` (or Provisional)
-2. `DD Mon YYYY HH:MM`
-3. people icon + `N Entries`
+2. `DD Mon YYYY HH:MM` (as-at)
+3. **gap** (`.regatta-header-status-stack .entry-total-line { margin-top: 14px }`)
+4. people icon + `N Entries`
 
-CSS: `.regatta-header-status-stack` — `gap: 1px`; status/entries children `margin: 0`. Do not use the old `.status-line { margin-top: 8px }` between these lines.
+CSS: wrap those three rows in `.regatta-header-status-stack`. Status lines `gap: 1px` / `margin: 0`. Do not use the old `.status-line { margin-top: 8px }` between the two status lines.
+
+## Not part of the Event standard
+
+**Weather** and **MM Card / Event Reels** are a special add on Cape Classic 2026 (and Lipton). They are **not** on a standard Event results URL.
+
+Later, if a club page already has a weather station **and** an MM card (example: [ZVYC](https://sailingsa.co.za/club/zvyc)), and that club has another **live** event, admin can request Weather + MM / Live for that event only. Do not add them by default.
 
 ## Fleet header
 
@@ -19,7 +36,7 @@ Standard fleet card, Cape Classic 420 card:
 | Slot | Content |
 | --- | --- |
 | **Left** | Class / fleet logo (class catalogue artwork) |
-| **Centre** | `{Class} Fleet` (text). Scoring never belongs here. |
+| **Centre** | Class logo + the word `Fleet` only (not `{Class} Fleet` as text). Scoring never belongs here. |
 | **Right** | Host club logo |
 
 Sailed line under the title stays: `Sailed: N, Discards: N, To count: N, … Scoring system: …`

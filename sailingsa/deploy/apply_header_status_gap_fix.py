@@ -13,7 +13,8 @@ CSS_NEW = (
     '    ".header .entry-total-line{margin-top:1px;margin-bottom:0}"\n'
     '    ".regatta-header-status-stack{display:flex;flex-direction:column;align-items:center;gap:1px;margin-top:4px}"\n'
     '    ".regatta-header-status-stack .status-line,'
-    '.regatta-header-status-stack .entry-total-line{margin:0;line-height:1.2}"'
+    '.regatta-header-status-stack .entry-total-line{margin:0;line-height:1.2}"\n'
+    '    ".regatta-header-status-stack .entry-total-line{margin-top:14px}"'
 )
 
 WRAP_OLD = """                + cape_classic_event_header_status_html(  # CC_EVENT_HEADER_TIDY_v2
