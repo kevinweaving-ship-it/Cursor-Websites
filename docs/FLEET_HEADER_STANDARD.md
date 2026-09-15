@@ -77,7 +77,7 @@ Later, if a club page already has a weather station **and** an MM card (example:
 | # | Slot | Required |
 | --- | --- | --- |
 | 1 | **Left** | **Fleet / class logo** (large) |
-| 2 | **Centre** | **Small** fleet / class logo immediately left of the word `Fleet` only (not `Extra Fleet`, not `420 Fleet`) |
+| 2 | **Centre** | **Class logo** immediately left of the word `Fleet` only. Not `Hunter 19 Fleet`, not `Hobie Fleet`, not `ILCA 7 Fleet` as text. The logo is the name. |
 | 3 | **Right** | **Host club logo** |
 
 Then the sailed line under that header, exactly this shape:
@@ -128,5 +128,5 @@ Live title builder: `_strip_scoring_system_from_fleet_title` in `/var/www/sailin
 ## Exceptions (do not “fix”)
 
 - **Lipton**: Event logo left, class logo right (not host on the right of the fleet card).
-- **Cape Classic 2026 ZVY**: existing logo + word `Fleet` title rule stays.
+- **Cape Classic 2026 ZVY**: same logo + word `Fleet` title as every other Event URL (this is the gold source, not a special case).
 - **MAC / TSC endurance**: keep specialised block titles (Line Honours, Handicap, etc.).
