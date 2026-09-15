@@ -289,7 +289,7 @@ Optional columns (Boat Name, Bow, Jib) only if the sheet has them.
 
 ## Admin leftovers
 
-**Event URL title (year only):** [Western Cape Dinghy Champs](https://sailingsa.co.za/regatta/2026-04-06-western-cape-dinghy-championships) — display is `2026 Western Cape Dinghy Champs`. URL slug stays.
+**Event URL title (year only):** [Western Cape Dinghy Champs](https://sailingsa.co.za/regatta/2026-04-06-western-cape-dinghy-championships) — display is `2026 Western Cape Dinghy Champs`. URL slug stays. This event is **not** an SA pilot. It is Final: gold race cells, no broom, no score edit.
 
 When auto-match fails (logo, class, helm, crew, club):
 
