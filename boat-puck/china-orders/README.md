@@ -9,8 +9,8 @@ Working folder for **China sample / factory orders**. Paste chats here (or in th
 | [`ORDERS.md`](ORDERS.md) | Live register + sheet row actions |
 | [`sheet.csv`](sheet.csv) | Paste/import into Google Sheet |
 | [`chats/dev-whatsapp.md`](chats/dev-whatsapp.md) | **Dev WhatsApp Chat** log |
-| [`chats/2026-09-14-lucas-zhang-otw.md`](chats/2026-09-14-lucas-zhang-otw.md) | Lucas Zhang (OTW / WT-43) |
-| [`drafts/to-lucas-range-and-sailfish.md`](drafts/to-lucas-range-and-sailfish.md) | Reply ready for Lucas (not sent from here) |
+| [`chats/2026-09-14-lucas-zhang-otw.md`](chats/2026-09-14-lucas-zhang-otw.md) | Lucas Zhang (OTW / WT-43) — range+Sailfish **sent 15 Sep** |
+| [`drafts/to-lucas-range-and-sailfish.md`](drafts/to-lucas-range-and-sailfish.md) | Same text (canonical sent copy) |
 
 FX in puck docs: **R16 / $1** ([`../PRICE_RULE.md`](../PRICE_RULE.md)). Re-check USDZAR before paying.
 

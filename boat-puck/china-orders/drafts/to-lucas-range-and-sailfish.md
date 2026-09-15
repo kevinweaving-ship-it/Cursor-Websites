@@ -1,8 +1,8 @@
-# To Lucas — range + Sailfish (not sent)
+# To Lucas — range + Sailfish (**sent 2026-09-15**)
 
 Reply to: *Regarding our LORA RTK module, have you ever considered the issue of RTK communication range?*
 
-Do **not** add puck/gateway/BLE/Starlink roadmap.
+Canonical text below (as sent). Do **not** add puck/gateway/BLE/Starlink roadmap. **Waiting on his 7 answers.**
 
 ---
 

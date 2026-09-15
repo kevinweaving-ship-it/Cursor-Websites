@@ -1,4 +1,4 @@
 date,source_chat,supplier,contact,sku,qty,unit_usd,line_usd,band,ship_to,status,sheet_action,notes
-2026-09-14,Lucas Zhang WhatsApp,OTW / Anzewei,Lucas Zhang,WT-43-RK-LORA,3,40,120,868 MHz,Shenzhen Eric (吴建军),WAIT — final BOM,ADD/REPLACE,Kevin revised 2 to 3 pcs; rover
-2026-09-14,Lucas Zhang WhatsApp,OTW / Anzewei,Lucas Zhang,WT-43-BK-LORA,1,55,55,868 MHz,Shenzhen Eric (吴建军),WAIT — final BOM,ADD/REPLACE,Base; 868 factory retune
+2026-09-14,Lucas Zhang WhatsApp,OTW / Anzewei,Lucas Zhang,WT-43-RK-LORA,3,40,120,868 MHz,Shenzhen Eric (吴建军),WAIT — final BOM + Lucas range answers,ADD/REPLACE,Kevin revised 2 to 3 pcs; rover; range+Sailfish sent 15 Sep
+2026-09-14,Lucas Zhang WhatsApp,OTW / Anzewei,Lucas Zhang,WT-43-BK-LORA,1,55,55,868 MHz,Shenzhen Eric (吴建军),WAIT — final BOM + Lucas range answers,ADD/REPLACE,Base; 868 factory retune; range+Sailfish sent 15 Sep
 2026-09-15,Kevin to Lucas,Minew,(not Lucas),nRF54L15 ME54BE62 DK,1,,,BLE,Shenzhen Eric (吴建军),ON TEAM LIST — not ordered,ADD (hold),https://store.minewsemi.com/product/nrf54l15-me54bs62-bluetooth-module-me54be62-development-kit/

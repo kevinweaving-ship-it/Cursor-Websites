@@ -1,8 +1,8 @@
 # China order register
 
-Updated **2026-09-15** from Lucas WhatsApp. Dev WhatsApp: waiting for paste in [`chats/dev-whatsapp.md`](chats/dev-whatsapp.md).
+Updated **2026-09-15** — Lucas range + 旗鱼 reply **sent**. Waiting on his 7 spec answers. Dev WhatsApp: still waiting for paste.
 
-**Do not place Lucas PI today.** Team still compiling final list (incl. BLE/dev board). Combine with Eric’s other Shenzhen parcels.
+**Do not place Lucas PI.** Team still compiling final list (incl. BLE/dev board). Combine with Eric’s other Shenzhen parcels.
 
 ## Ship-to (all samples)
 
@@ -13,8 +13,8 @@ Updated **2026-09-15** from Lucas WhatsApp. Dev WhatsApp: waiting for paste in [
 
 | Status | Supplier | Contact | SKU | Qty | Unit | Line | Band | Notes |
 |--------|----------|---------|-----|----:|-----:|-----:|------|-------|
-| **WAIT — final BOM** | OTW / Anzewei | Lucas Zhang | WT-43-RK-LORA | 3 | $40 | **$120 (R1 920)** | 868 MHz | Rover. Kevin 14 Sep: 2 → **3** |
-| **WAIT — final BOM** | OTW / Anzewei | Lucas Zhang | WT-43-BK-LORA | 1 | $55 | **$55 (R880)** | 868 MHz | Base |
+| **WAIT — final BOM + range answers** | OTW / Anzewei | Lucas Zhang | WT-43-RK-LORA | 3 | $40 | **$120 (R1 920)** | 868 MHz | Rover. Kevin 14 Sep: 2 → **3** |
+| **WAIT — final BOM + range answers** | OTW / Anzewei | Lucas Zhang | WT-43-BK-LORA | 1 | $55 | **$55 (R880)** | 868 MHz | Base |
 | **ON TEAM LIST** | Minew | *(not Lucas)* | nRF54L15 ME54BE62 DK | 1? | TBD | TBD | BLE | [store link](https://store.minewsemi.com/product/nrf54l15-me54bs62-bluetooth-module-me54be62-development-kit/) — Dev asked; not on Lucas PI |
 
 **Lucas subtotal if list stays as-is:** **$175 (R2 800)** + freight (not quoted).
@@ -28,11 +28,22 @@ Copy into the sheet (or replace matching SKUs). Full file: [`sheet.csv`](sheet.c
 
 | Action | Date | Source | Supplier | SKU | Qty | Unit USD | Line USD | Band | Ship-to | Status |
 |--------|------|--------|----------|-----|----:|---------:|---------:|------|---------|--------|
-| **ADD/REPLACE** | 2026-09-14 | Lucas WA | OTW/Anzewei | WT-43-RK-LORA | 3 | 40 | 120 | 868 | Shenzhen Eric | WAIT — final BOM |
-| **ADD/REPLACE** | 2026-09-14 | Lucas WA | OTW/Anzewei | WT-43-BK-LORA | 1 | 55 | 55 | 868 | Shenzhen Eric | WAIT — final BOM |
+| **ADD/REPLACE** | 2026-09-14 | Lucas WA | OTW/Anzewei | WT-43-RK-LORA | 3 | 40 | 120 | 868 | Shenzhen Eric | WAIT — final BOM + range answers |
+| **ADD/REPLACE** | 2026-09-14 | Lucas WA | OTW/Anzewei | WT-43-BK-LORA | 1 | 55 | 55 | 868 | Shenzhen Eric | WAIT — final BOM + range answers |
 | **ADD (hold)** | 2026-09-15 | Kevin→Lucas | Minew | nRF54L15 ME54BE62 DK | 1 | | | BLE | Shenzhen Eric | ON TEAM LIST — not ordered |
 
-## Lucas — still open (15 Sep)
+## Lucas — waiting (15 Sep)
 
-He asked RTK **communication range**. Draft reply: [`drafts/to-lucas-range-and-sailfish.md`](drafts/to-lucas-range-and-sailfish.md).  
-Do **not** send puck/gateway/BLE roadmap. Point at 旗鱼 / saill.cn; we are not cloning that GPS+media system; RTK is for centimetre start line only.
+Range + Sailfish reply **sent** ([`drafts/to-lucas-range-and-sailfish.md`](drafts/to-lucas-range-and-sailfish.md)).
+
+Need from him (WT-43-BK-LORA → WT-43-RK-LORA):
+
+1. Tested LoRa range over open water  
+2. 868 MHz band / frequency  
+3. Transmit power  
+4. Antenna  
+5. Data rate  
+6. How many rover units one base can serve at once  
+7. Does the base broadcast RTCM continuously to all rovers?
+
+Do **not** PI until Dev final list + these answers (range may change qty/gateways, not SKU prices).
