@@ -140,7 +140,7 @@ def main():
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     mod.main()
-    # Landing Regatta pill uses a 7-day with-counts cache. Bust it so this event appears.
+    # Landing Regatta pill cache: bust so race-day / amended results show immediately.
     for _cache in (
         Path("/var/tmp/sailingsa_regatta_with_counts.json"),
         Path("/var/tmp/sailingsa_regatta_with_counts.json.tmp"),
