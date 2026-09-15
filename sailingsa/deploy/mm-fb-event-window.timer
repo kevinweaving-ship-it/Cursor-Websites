@@ -1,0 +1,12 @@
+[Unit]
+Description=Check Cape Classic dates twice daily; stop MM Facebook watch when the event is past
+
+[Timer]
+OnBootSec=2min
+OnCalendar=*-*-* 05:05:00
+OnCalendar=*-*-* 12:05:00
+Persistent=true
+Unit=mm-fb-event-window.service
+
+[Install]
+WantedBy=timers.target

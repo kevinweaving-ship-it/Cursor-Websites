@@ -24771,8 +24771,68 @@ _SECTION_HEADING_ROW_UNIFIED_CSS = """
 }
 """
 
+_CLUB_SITE_HEADER_HTML = """
+<div class="admin-v10-second-header" aria-label="Site header">
+  <div class="admin-v10-second-header__inner">
+    <div class="admin-v10-second-header__top-row">
+      <div class="admin-v10-second-header__brand-block">
+        <a href="/" class="admin-v10-second-header__brand-link js-go-home" id="headerLogoLink" title="Home – SailingSA" aria-label="Home – SailingSA">
+          <span class="admin-v10-second-header__brand-slice admin-v10-second-header__brand-slice--word" aria-hidden="true"></span>
+          <span class="admin-v10-second-header__brand-slice admin-v10-second-header__brand-slice--flags" aria-hidden="true"></span>
+        </a>
+      </div>
+      <div class="admin-v10-second-header__right">
+        <div class="header-auth admin-v10-second-header__auth" id="headerAuth">
+          <div id="loginBox" style="display: none;"></div>
+          <div class="admin-v10-header-auth-sr-only" aria-hidden="true">
+            <div id="loggedInStatus" style="display: none;">
+              <img id="userAvatarImg" alt="Avatar" style="width:28px;height:28px;border-radius:50%;object-fit:cover;display:none;">
+              <div class="user-info">
+                <span class="user-name" id="userNameDisplay"></span>
+                <span class="user-sas-id" id="userSasIdDisplay"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="admin-v10-second-header__user" id="adminV10SecondHeaderUser" hidden>
+          <div class="admin-v10-second-header__user-text">
+            <span class="admin-v10-second-header__name" id="adminV10SecondHeaderName"></span>
+            <span class="admin-v10-second-header__sas" id="adminV10SecondHeaderSas"></span>
+          </div>
+          <img class="admin-v10-second-header__avatar" id="adminV10SecondHeaderAvatar" alt="" width="72" height="72" decoding="async">
+          <button type="button" class="btn-logout admin-v10-second-header__logout" id="adminV10SecondHeaderLogoutBtn">Logout</button>
+        </div>
+        <button type="button" class="menu-btn" id="menuBtn" aria-label="Open menu">
+          <span class="menu-icon"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+  <nav id="navMenuOverlay" class="nav-menu-overlay" aria-hidden="true" style="display:none;">
+    <a href="/">Sailor</a>
+    <a href="/" data-mode="regatta">Regatta</a>
+    <a href="/about">About</a>
+  </nav>
+</div>
+"""
+
 _CLUB_PAGE_CSS = """
+.club-page { width: 100%; max-width: none !important; margin: 0 !important; padding: 0 0 1.5rem; box-sizing: border-box; border: none !important; background: transparent !important; box-shadow: none !important; }
+.club-page a.back-to-home, .club-page .back-to-home { display: none !important; }
+.club-page .header.club-page-header, .club-page .club-page-header, .club-page .header.club-story-header {
+  border: none !important; box-shadow: none !important; background: transparent !important;
+  padding: 0 !important; margin: 0 !important; border-radius: 0 !important; max-width: none !important;
+}
 .club-page .card.stats-section { background: #fff; border: 2px solid #001f3f; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
+.club-page .club-live-media { width: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 0; padding: 0; border: 0; background: transparent; box-shadow: none; }
+.club-page .club-live-media .ssa-regatta-slot-card { margin-top: 0; width: 100%; max-width: 100%; }
+.club-page .club-live-media .mm-lipton-reels { margin-top: 10px; width: 100%; }
+.club-page .club-story-inner { width: 100%; box-sizing: border-box; }
+@media (max-width: 767px) {
+  .club-page { padding: 0 0 1rem; }
+  .club-page .club-story-inner { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
+  .club-page .club-story-panel { width: 100%; box-sizing: border-box; }
+}
 .club-page .section-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; border-bottom: 2px solid #001f3f; padding-bottom: 0.35rem; margin-bottom: 0.75rem; color: #001f3f; }
 """ + _SECTION_HEADING_ROW_UNIFIED_CSS + """
 .club-sailors-filter-input { padding: 0.5rem 1rem; border: 2px solid #001f3f; border-radius: 999px; font-size: 1rem; box-sizing: border-box; min-height: 44px; }
@@ -25980,11 +26040,31 @@ def _serve_club_page_impl(slug: str, club: tuple):
         except Exception as ex:
             print(f"[club page] events dashboard: {ex}")
 
+    is_zvyc = (club_code or slug or "").strip().lower() == "zvyc"
+    club_live_host = (
+        '<div id="club-zvyc-live-media" class="club-live-media" '
+        'aria-label="Live weather and club camera"></div>'
+        if is_zvyc
+        else ""
+    )
+    club_live_scripts = (
+        '<link rel="stylesheet" href="/css/mm-lipton-reels.css?v=clubmm1">'
+        '<script src="/js/club-live-media.js?v=clubmm2" defer></script>'
+        if is_zvyc
+        else ""
+    )
+    club_std_scripts = (
+        '<script src="/js/api.js"></script>'
+        '<script src="/js/session.js"></script>'
+        '<script src="/js/blank-landing-header.js"></script>'
+        '<script src="/js/club-page-std.js?v=clubstd2" defer></script>'
+    )
+
     body = (
-        '<a href="/" class="back-to-home">← Back to Search</a>'
         f'<div class="header"><h1>{club_heading_html}</h1></div>'
+        f"{club_live_host}"
         f"{sas_calendar_html}"
-        '<div class="club-content" style="margin:1.5rem 0;">'
+        '<div class="club-content">'
         f"{sailors_section_html}"
         f"{regattas_section_html}"
         f"{unmatched_past_html}"
@@ -26000,8 +26080,10 @@ def _serve_club_page_impl(slug: str, club: tuple):
         "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
         f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
         "<link rel=\"stylesheet\" href=\"/css/main.css?v=13\">"
-        f"<style>body{{font-family:system-ui,sans-serif;margin:2rem;color:#1a2750;}}a{{color:#1a2750;}}{_CLUB_PAGE_CSS}</style></head><body>"
-        f"<div class=\"club-page\">{body}</div>{_seo_discovery_block_html()}</body></html>"
+        f"{club_live_scripts}"
+        f"<style>body{{font-family:system-ui,sans-serif;margin:0;color:#1a2750;background:#f0f4f8;}}a{{color:#1a2750;}}{_CLUB_PAGE_CSS}</style></head>"
+        f"<body class=\"admin-dashboard-v10\">{_CLUB_SITE_HEADER_HTML}"
+        f"<div class=\"club-page\">{body}</div>{_seo_discovery_block_html()}{club_std_scripts}</body></html>"
     )
     return HTMLResponse(doc)
 

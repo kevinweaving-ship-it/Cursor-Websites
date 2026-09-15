@@ -8,3 +8,5 @@
 - **Allowed classes:** container, card, table, tabs, section. **Forbidden:** raw ol/ul for results, inline CSS, custom page-level fonts or colours.
 
 See: `docs/UI_COMPONENTS_README.md`, `docs/design_system.md`, `.cursor/rules/theme-layout-mandatory.mdc`.
+
+**Live disk:** never add headless Chrome/scrape/timers that can fill `/tmp` and crash Postgres. See **`docs/NO_DISK_FILL_HEADLESS.md`**.

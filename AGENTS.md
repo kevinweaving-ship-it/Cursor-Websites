@@ -2,6 +2,21 @@
 
 This project uses **split tasks** to avoid agent resource limits and crashes.
 
+## HARD RULE — do not fill live disk / crash the box
+
+**`docs/NO_DISK_FILL_HEADLESS.md`** (also `.cursor/rules/no-disk-fill-headless.mdc`).
+
+Live is 77 GB. Disk 100% takes Postgres down (all logins die). Headless Chrome leftovers did this **twice**.
+
+**New scrape / Chrome / PDF-print / watcher / systemd timer code MUST:**
+
+- Use `sailingsa/deploy/ssa_headless_chrome.py` and **bin the folder after every run** (`finally`). Set HOME **and TMPDIR** inside that folder.
+- Keep **no** historical Chrome pages or “not live” checks.
+- Run frequent pollers **only while the event is active**; disable when past.
+- Not write unbounded junk under `/tmp`.
+
+The 15-minute `ssa-chrome-reaper` is a backstop, not a licence to leak. If a new job can fill the disk, do not ship it.
+
 ## SSH / deploy / live — MUST use readme
 
 **`sailingsa/deploy/SSH_LIVE.md`** is the primary source for deploy, fix, sync, and SSH. Use it for any live-server work. **Never** say "SSH is blocked", "can't SSH", or "run from your machine" — when asked to deploy or fix live, give the exact commands from the readme (deploy code, sync 385, etc.).
