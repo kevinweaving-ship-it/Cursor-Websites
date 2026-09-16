@@ -1,0 +1,5371 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <base href="/">
+    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>South African Sailing Results &amp; Regatta Database | SailingSA</title>
+    
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Search South African sailing results, regatta results, sailor profiles, Optimist results, ILCA results, club results and youth sailing standings across South Africa.">
+    <meta name="keywords" content="sailing, South Africa, regatta results, sailing results, sailor profiles, yacht racing, dinghy racing, sailing statistics">
+    <meta name="robots" content="index, follow">
+    <meta name="author" content="SailingSA">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="SailingSA - South African Sailing Results">
+    <meta property="og:description" content="Search and view South African sailing results, regatta results, sailor profiles, and sailing statistics.">
+    <meta property="og:url" content="https://sailingsa.co.za">
+    <meta property="og:site_name" content="SailingSA">
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="SailingSA - South African Sailing Results">
+    <meta name="twitter:description" content="Search and view South African sailing results, regatta results, sailor profiles, and sailing statistics.">
+    
+    <!-- Favicon -->
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://sailingsa.co.za">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <style>
+        .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+        /* Site stats gauges temporarily removed — keep CSS inert; redo later */
+        .site-stats-embed {
+            display: none !important;
+            margin: 0 !important;
+            height: 0 !important;
+            overflow: hidden !important;
+            width: 100%;
+        }
+        .site-stats-iframe {
+            display: none !important;
+            width: 100%;
+            height: 0 !important;
+            border: none;
+            overflow: hidden;
+        }
+        @media (max-width: 768px) {
+            .site-stats-iframe { height: 0 !important; }
+        }
+        @media (max-width: 640px) {
+            .site-stats-iframe { height: 0 !important; }
+            .site-stats-embed { margin: 0 !important; }
+        }
+        /* Class page (/class/{id}-slug): datetime strip + intro + master layout */
+        .homepage-datetime-wrap { padding-top: 8px; }
+        .homepage-datetime { font-size: 1.04rem; font-weight: bold; color: #001f3f; margin: 0 0 1rem 0; text-align: center; }
+        @media (max-width: 640px) { .homepage-datetime { font-size: 0.81rem; margin: 0 0 0.5rem 0; } }
+        .home-intro-box { width: 100%; max-width: 100%; margin-top: 0.5rem; margin-bottom: 0.5rem; padding: 1rem 1rem 1.25rem; background: #fff; border: 2px solid #001f3f; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,31,63,0.08); box-sizing: border-box; }
+        .home-intro-box p { font-size: 0.9rem; color: #334155; line-height: 1.5; margin: 0 0 0.5rem 0; }
+        .home-intro-box p:last-child { margin-bottom: 0; }
+        .home-intro-box.class-page-intro { cursor: default; }
+        .home-intro-box.class-page-intro .class-page-intro-label { font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem; display: block; }
+        .class-hero { display: grid; grid-template-columns: 60px 1fr 200px; gap: 16px; align-items: center; }
+        .class-hero h1 { font-size: 1rem; font-weight: 700; color: #001f3f; letter-spacing: 0.02em; margin: 0 0 0.25rem 0; }
+        .class-icon { width: 56px; height: 56px; object-fit: contain; }
+        .class-bio { margin: 6px 0 4px 0; font-size: 0.85rem; color: #666; font-weight: 400; line-height: 1.35; }
+        .class-assoc { font-size: 0.85rem; color: #666; font-weight: 400; margin-top: 0.25rem; }
+        @media (max-width: 768px) { .class-hero { grid-template-columns: 1fr; } }
+
+        /* Class page gold-std (aligned with /club/{abbrev} story header + tables) */
+        .class-gold-page { max-width: 1100px; margin: 0 auto; padding: 1.25rem 1rem 2rem; }
+        .class-gold-page .club-story-header { display: flex; flex-direction: column; align-items: center; gap: 0; margin: 0 0 1.5rem 0; padding: 0 0 1.35rem 0; border-bottom: 2px solid #e2e8f0; text-align: center; }
+        .class-gold-page .club-story-inner { width: 100%; max-width: 42rem; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 0.85rem; }
+        .class-gold-page .club-story-title-row { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; width: 100%; }
+        .class-gold-page .club-story-header h1 { text-align: center; width: 100%; font-size: 1.75rem; font-weight: 700; margin: 0; color: #001f3f; line-height: 1.25; }
+        .class-gold-page .club-page-logo-wrap { display: flex; justify-content: center; }
+        .class-gold-page .club-page-logo-img { display: block; width: auto; max-width: min(220px, 100%); height: auto; max-height: 120px; object-fit: contain; }
+        .class-gold-page .club-story-meta { margin: 0; color: #475569; font-size: 0.95rem; font-weight: 600; text-align: center; }
+        .class-gold-page .club-story-logo-row { width: 100%; }
+        .class-gold-page .club-story-logo-row-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; margin: 0 0 0.45rem 0; text-align: center; }
+        .class-gold-page .club-story-logo-chips { display: flex; flex-wrap: wrap; gap: 0.55rem 0.75rem; align-items: flex-end; justify-content: center; }
+        .class-gold-page .club-story-chip { display: inline-flex; flex-direction: column; align-items: center; gap: 0.2rem; max-width: 5.5rem; text-decoration: none; color: #001f3f; }
+        .class-gold-page .club-story-chip img { display: block; width: auto; height: 48px; max-width: 76px; object-fit: contain; }
+        .class-gold-page .club-story-chip-label { font-size: 0.65rem; line-height: 1.15; text-align: center; color: #475569; }
+        .class-gold-page a.club-story-chip:hover img { opacity: 0.85; }
+        .class-gold-page a.club-story-chip:hover .club-story-chip-label { text-decoration: underline; color: #001f3f; }
+        .class-gold-page .section-heading-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; margin: 1.25rem 0 0.65rem; }
+        .class-gold-page .section-title { margin: 0; font-size: 1.15rem; color: #001f3f; }
+        .class-gold-page .club-table-filter { min-width: 12rem; padding: 0.4rem 0.65rem; border: 1px solid #cbd5e1; border-radius: 6px; }
+        .class-gold-page .table-container { overflow-x: auto; }
+        .class-gold-page table.table { width: 100%; border-collapse: collapse; }
+        .class-gold-page table.table th, .class-gold-page table.table td { padding: 0.55rem 0.65rem; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
+        .class-gold-page table.table th { text-align: left; font-size: 0.8rem; text-transform: uppercase; letter-spacing: .03em; color: #64748b; }
+        .class-gold-page .cell-left { text-align: left; }
+        .class-gold-page .row-logo { display: inline-block; width: auto; height: 28px; max-width: 40px; object-fit: contain; vertical-align: middle; margin-right: 0.45rem; }
+
+        /* Search Header Containers - Dark Blue Background - Compact - Separate Headers */
+        .search-header-container {
+            background: #001f3f;
+            border-radius: 8px;
+            margin-top: 8px;
+            padding: 4px 8px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .search-header-container:first-of-type {
+            margin-top: 8px;
+        }
+        .search-header-container:not(:first-of-type) {
+            margin-top: 6px;
+        }
+        @media (min-width: 768px) {
+            .search-header-container {
+                border-radius: 10px;
+                padding: 5px 10px;
+            }
+            .search-header-container:first-of-type {
+                margin-top: 10px;
+            }
+            .search-header-container:not(:first-of-type) {
+                margin-top: 8px;
+            }
+        }
+        .search-row-container { margin-bottom: 1.25rem; }
+        .search-row { display: flex; flex-direction: row; align-items: center; flex-wrap: nowrap; gap: 0.5rem; width: 100%; }
+        .sailor-search-section { margin: 0; flex: 1; width: 100%; display: flex; flex-direction: row; align-items: center; gap: 0.5rem; flex-wrap: nowrap; }
+        .search-header-container.sailor-search-pills { background: transparent; padding: 0; border-radius: 0; }
+        .search-header-container.sailor-search-pills #sailor-search-section { display: flex; flex-direction: column; gap: 10px; align-items: stretch; }
+        .sa-home-search-row { display: flex; align-items: center; gap: 10px; width: 100%; }
+        .search-mode-btn { display: inline-flex; align-items: center; justify-content: center; height: 40px; min-width: 104px; padding: 0 16px; background: #0b2e57; color: #fff; border-radius: 12px; font-weight: 900; text-decoration: none; white-space: nowrap; box-shadow: 0 1px 0 rgba(15,23,42,.08); box-sizing: border-box; line-height: 1; }
+        .search-mode-btn:hover { background: #0a3a6c; }
+        .search-mode-btn.active { background: #0b2e57; box-shadow: 0 0 0 2px rgba(147,197,253,.7), 0 1px 0 rgba(15,23,42,.08); }
+        .search-header-container.sailor-search-pills .sailor-search-label,
+        .search-header-container.sailor-search-pills .regatta-search-label { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+        #sailor-search-form.sailor-search-form,
+        #temp-landing-regatta-form.temp-landing-regatta-form { display: flex; flex-direction: row; gap: 0; align-items: center; flex-wrap: nowrap; width: 100%; min-width: 0; }
+        .sailor-search-input-wrap { display: flex; align-items: center; flex: 1; min-width: 0; position: relative; }
+        .sailor-search-input-wrap .search-icon { flex-shrink: 0; width: 18px; height: 18px; margin-right: 0; pointer-events: none; position: absolute; left: 12px; top: 50%; transform: translateY(-50%); stroke: #64748b; fill: none; stroke-width: 2; z-index: 1; }
+        .sailor-search-input,
+        .temp-landing-regatta-input { flex: 1; min-width: 0; max-width: 100%; padding: 0 12px 0 2.35rem !important; font-size: 14px; border: 2px solid #cbd5e1 !important; border-radius: 12px !important; height: 40px; box-sizing: border-box; background: #fff; color: #0f172a; caret-color: #0f172a; text-align: left; }
+        .sailor-search-input::placeholder,
+        .temp-landing-regatta-input::placeholder { color: #94a3b8; font-weight: 800; opacity: 1; }
+        .sailor-search-input:focus,
+        .temp-landing-regatta-input:focus { outline: none; border-color: #93c5fd !important; box-shadow: 0 0 0 2px rgba(59,130,246,0.18); }
+        .regatta-search-section { margin: 0; flex: 1; width: 100%; }
+        #regatta-search-form.regatta-search-form { display: flex; flex-direction: row; gap: 0.5rem; align-items: center; flex-wrap: nowrap; width: 100%; }
+        .regatta-search-label { flex-shrink: 0; font-size: 0.85rem; font-weight: 600; color: #001f3f; white-space: nowrap; margin: 0; min-width: 90px; }
+        .regatta-search-input { flex: 1; min-width: 0; max-width: 100%; padding: 0.25rem 0.4rem; font-size: 0.9rem; border: 1px solid var(--border-color, #ddd); border-radius: 6px; height: 32px; box-sizing: border-box; }
+        /* White labels inside dark blue search header */
+        .search-header-container .sailor-search-label,
+        .search-header-container .regatta-search-label {
+            color: #ffffff;
+        }
+        /* Regatta Search table: same style as sailor Regatta Results (dark blue header, alternating golden yellow rows) */
+        .regatta-search-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            table-layout: auto;
+            margin-top: 6px;
+        }
+        .regatta-search-table th {
+            background: #2C3B8D;
+            color: #fff;
+            padding: 6px 8px;
+            text-align: left;
+            border: 1px solid #b0b8d4;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .regatta-search-table td {
+            padding: 6px 8px;
+            border: 1px solid #e0e0e0;
+            font-size: 11px;
+            color: #111;
+        }
+        .regatta-search-table td:first-child { text-align: left; }
+        .regatta-search-table td:nth-child(2) { text-align: left; }
+        .regatta-search-table td:nth-child(3),
+        .regatta-search-table td:nth-child(4) { text-align: center; white-space: nowrap; }
+        .regatta-search-table tbody tr:nth-child(odd) { background: #F4D68B; }
+        .regatta-search-table tbody tr:nth-child(even) { background: #fff; }
+        .regatta-search-table tbody tr.regatta-search-row { cursor: pointer; }
+        .regatta-search-table tbody tr.regatta-search-row:hover { filter: brightness(0.97); }
+        .regatta-search-table tbody tr.regatta-search-child td:first-child {
+            padding-left: 2.25rem !important;
+            font-weight: 500;
+            color: #1a2750;
+        }
+        .regatta-search-table tbody tr.regatta-search-child td:first-child::before {
+            content: '↳';
+            display: inline-block;
+            margin-right: 0.4rem;
+            color: #6b7c93;
+            font-weight: 600;
+        }
+        @media (max-width: 768px) {
+            .search-header-container {
+                padding: 4px 6px;
+            }
+            .search-header-container:not(:first-of-type) {
+                margin-top: 5px;
+            }
+            .sailor-search-label, .regatta-search-label { font-size: 0.75rem; min-width: 80px; }
+            .sailor-search-input, .regatta-search-input { padding: 0.2rem 0.35rem; font-size: 0.75rem; height: 28px; }
+            .sailor-search-input { border-radius: 999px !important; padding: 0 12px 0 2.5rem !important; }
+            .regatta-search-input { border-radius: 4px; }
+            #sailor-search-form.sailor-search-form, #regatta-search-form.regatta-search-form { gap: 0.4rem; }
+            .regatta-search-table { font-size: 10px; }
+            .regatta-search-table th,
+            .regatta-search-table td { padding: 4px 6px; font-size: 10px; }
+        }
+        @media (max-width: 480px) {
+            .search-header-container {
+                padding: 3px 5px;
+            }
+            .search-header-container:not(:first-of-type) {
+                margin-top: 4px;
+            }
+            .sailor-search-label, .regatta-search-label { font-size: 0.7rem; min-width: 75px; }
+            .sailor-search-input, .regatta-search-input { padding: 0.18rem 0.3rem; font-size: 0.7rem; height: 26px; }
+            .sailor-search-input { border-radius: 999px !important; padding: 0 12px 0 2.5rem !important; }
+            .regatta-search-input { border-radius: 4px; }
+            #sailor-search-form.sailor-search-form, #regatta-search-form.regatta-search-form { gap: 0.35rem; }
+        }
+        .search-to-profile-separator { margin: 0.75rem 0 0.5rem 0; border: 0; border-top: 2px solid #e0e0e0; }
+        .sailor-search-results { margin-top: 0.5rem; display: flex; flex-direction: column; padding-bottom: 2.5rem; }
+        .sailor-search-results[role="list"] { list-style: none; }
+        .sailor-search-results .profile-card { margin-bottom: 0.875rem; }
+        .sailor-profile-placeholder { background: #f8f9fa; border: 1px dashed #dee2e6; border-radius: 8px; }
+        .sailor-search-results .profile-card:last-child { margin-bottom: 0; }
+        .sailor-search-results #chosen-sailor-before-profile { padding-bottom: 2rem; }
+        .sailor-search-result-item { border: none; }
+                        .profile-card { background: #fff; border-radius: 8px; border: 2px solid #001f3f; padding: 0.5rem 0.85rem; cursor: pointer; transition: box-shadow 0.2s; line-height: 1.35; }
+        .profile-card:hover { box-shadow: 0 4px 12px rgba(0,31,63,0.12); }
+        .profile-card.single-result { border-color: #FF6600; border-width: 2px; }
+        .profile-card.single-result:hover { box-shadow: 0 4px 12px rgba(255,102,0,0.2); }
+        .profile-card-name-wrap { margin-bottom: 0.35rem; }
+        .profile-card-name-label { font-size: 0.7rem; color: #666; font-weight: 400; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.15rem; }
+        .profile-card-name-value { font-size: 1rem; font-weight: 700; color: #001f3f; letter-spacing: 0.02em; }
+        .profile-card-header { font-size: 0.85rem; font-weight: 700; color: #001f3f; text-transform: uppercase; letter-spacing: 0.02em; border-bottom: 2px solid #001f3f; padding-bottom: 0.35rem; margin-bottom: 0.4rem; }
+        .profile-card-body { display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 0.25rem 1.25rem; align-items: baseline; font-size: 0.85rem; }
+        .profile-card-label { color: #666; font-weight: 400; }
+        .profile-card-value { color: #001f3f; font-weight: 700; }
+        .profile-card-value .muted { font-size: 0.8em; font-weight: 400; text-transform: none; color: #666; }
+        .profile-card-club-value { display: inline-flex; align-items: center; gap: 0.35rem; }
+        .profile-card-club-logo { max-width: 28px; max-height: 28px; width: auto; height: auto; object-fit: contain; flex-shrink: 0; vertical-align: middle; }
+        @media (max-width: 600px) {
+            .profile-card { padding: 0.5rem 0.75rem; min-height: 44px; }
+            .profile-card-body { grid-template-columns: auto 1fr; gap: 0.35rem 0.6rem; }
+            .profile-card-name-value { font-size: 1.1rem; }
+        }
+        .sailor-career-regatta-history { margin-top: 1.25rem; }
+        .sailor-career-regatta-history h2 { font-size: 1.125rem; font-weight: 700; color: #001f3f; margin: 0 0 0.25rem 0; }
+        .sailor-career-regatta-history .sailor-career-subtitle { font-size: 0.8rem; color: #666; margin-bottom: 0.5rem; }
+        .sailor-career-regatta-history table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        .sailor-career-regatta-history th { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 2px solid #001f3f; color: #001f3f; font-weight: 600; }
+        .sailor-career-regatta-history td { padding: 0.4rem 0.6rem; border-bottom: 1px solid #e0e0e0; }
+        .sailor-career-regatta-history tbody tr:hover { background: #f5f5f5; }
+        .sailor-career-regatta-history a { color: #001f3f; font-weight: 600; text-decoration: none; }
+        .sailor-career-regatta-history a:hover { text-decoration: underline; }
+        /* Google-style media cards */
+        .sailor-public-mentions { margin-top: 1.25rem; }
+        .sailor-media-page-header { font-size: 1.25rem; font-weight: 700; color: #001f3f; margin: 0 0 0.5rem 0; }
+        .sailor-media-section-title { font-size: 1.05rem; font-weight: 600; color: #001f3f; margin: 0 0 0.25rem 0; }
+        .sailor-public-mentions .sailor-mentions-subtitle { font-size: 0.8rem; color: #666; margin-bottom: 0.75rem; }
+        .sailor-activity-timeline { margin-top: 1.25rem; }
+        .sailor-activity-timeline h2 { font-size: 1.125rem; font-weight: 700; color: #001f3f; margin: 0 0 0.25rem 0; }
+        .sailor-activity-timeline .sailor-activity-subtitle { font-size: 0.8rem; color: #666; margin-bottom: 0.75rem; }
+        .sailor-activity-timeline .feed-year-header { font-size: 1rem; font-weight: 700; color: #001f3f; margin: 1.25rem 0 0.5rem 0; padding-bottom: 0.25rem; border-bottom: 1px solid #e0e0e0; }
+        .sailor-activity-timeline .feed-year-header:first-of-type { margin-top: 0.5rem; }
+        .media-list { list-style: none; margin: 0; padding: 0; }
+        .media-card { display: flex; gap: 12px; padding: 12px; border-bottom: 1px solid #e5e7eb; text-decoration: none; color: inherit; cursor: pointer; transition: background 0.12s; }
+        .media-card:last-child { border-bottom: none; }
+        .media-card:hover { background: #f5f6f7; }
+        .media-thumb-wrap { width: 120px; flex-shrink: 0; display: flex; flex-direction: column; align-items: stretch; }
+        .media-thumb { width: 100%; height: 68px; aspect-ratio: 16/9; background: #e8e8e8; border-radius: 6px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        .media-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .media-edit-btn { margin-top: 4px; padding: 3px 8px; font-size: 0.7rem; background: #001f3f; color: #fff; border: none; border-radius: 4px; cursor: pointer; width: auto; align-self: center; }
+        .media-edit-btn:hover { opacity: 0.9; }
+        .media-card-wrap { display: flex; gap: 12px; padding: 12px; border-bottom: 1px solid #e5e7eb; color: inherit; transition: background 0.12s; }
+        .media-card-wrap:last-child { border-bottom: none; }
+        .media-card-link { flex: 1; min-width: 0; text-decoration: none; color: inherit; cursor: pointer; display: block; }
+        .media-card-link:hover { background: #f5f6f7; margin: -12px -12px -12px 0; padding: 12px; }
+        .media-icon { font-size: 1.5rem; line-height: 1; }
+        .media-body { flex: 1; min-width: 0; }
+        .media-title { font-weight: 600; color: #1a0dab; text-decoration: none; font-size: 1rem; line-height: 1.35; margin: 0 0 4px 0; display: block; }
+        .media-title:hover { text-decoration: underline; }
+        .media-snippet { color: #4b5563; font-size: 0.9rem; line-height: 1.4; margin: 4px 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .media-meta { font-size: 0.75rem; color: #6b7280; margin-top: 4px; }
+        .media-url-audit { font-size: 0.7rem; color: #9ca3af; margin-top: 2px; word-break: break-all; }
+        .media-google { background: #f8fafc; border-radius: 8px; margin-bottom: 12px; border: 1px solid #e5e7eb; }
+        .media-google:hover { background: #f1f5f9; }
+        /* Primary news feed (Local first, International second; fixed 16:9 thumb) */
+        .news-feed-list { display: flex; flex-direction: column; gap: 0; }
+        .news-feed-section-header { font-size: 1rem; font-weight: 700; color: #001f3f; margin-bottom: 0.5rem; margin-top: 1rem; }
+        .news-feed-section-header:first-of-type { margin-top: 0; }
+        .news-feed-lead { background: #fff; border: 1px solid #e5e7eb; margin-bottom: 0.75rem; }
+        .news-feed-lead a { text-decoration: none; color: inherit; display: block; }
+        .news-feed-lead__thumb { width: 100%; aspect-ratio: 16/9; overflow: hidden; background: #e8e8e8; }
+        .news-feed-lead__thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .news-feed-lead__body { padding: 0.75rem 1rem; }
+        .news-feed-lead__headline { font-size: 1.1rem; font-weight: 700; color: #001f3f; line-height: 1.25; margin-bottom: 0.35rem; display: block; }
+        .news-feed-lead__headline:hover { color: #e65100; text-decoration: underline; }
+        .news-feed-lead__excerpt { font-size: 0.9rem; color: #64748b; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 0.35rem; }
+        .news-feed-lead__meta { font-size: 0.75rem; color: #94a3b8; }
+        .news-feed-compact-list { display: flex; flex-direction: column; gap: 0; }
+        .news-feed-compact-item { display: flex; gap: 0.75rem; padding: 0.75rem 0; border-bottom: 1px solid #e5e7eb; text-decoration: none; color: inherit; align-items: flex-start; }
+        .news-feed-compact-item:last-child { border-bottom: none; }
+        .news-feed-compact-item:hover .news-feed-compact__headline { color: #e65100; text-decoration: underline; }
+        .news-feed-compact__thumb-wrap { flex-shrink: 0; width: 120px; height: 68px; overflow: hidden; background: #e8e8e8; }
+        .news-feed-compact__thumb-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .news-feed-compact__body { flex: 1; min-width: 0; }
+        .news-feed-compact__headline { font-size: 0.9375rem; font-weight: 600; color: #001f3f; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .news-feed-compact__excerpt { font-size: 0.875rem; color: #475569; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 0.2rem; }
+        .news-feed-compact__meta { font-size: 0.75rem; color: #94a3b8; margin-top: 0.2rem; }
+        .news-feed-empty { color: #64748b; font-size: 0.9375rem; padding: 1rem 0; }
+        @media (max-width: 480px) {
+            .media-card { padding: 10px; gap: 10px; }
+            .media-thumb-wrap { width: 80px; }
+            .media-thumb { width: 80px; height: 56px; }
+            .media-title { font-size: 0.95rem; }
+            .media-snippet { font-size: 0.85rem; }
+        }
+        /* =========================
+           Sailor Profile Header
+           Step 7 – News24 style
+           ========================= */
+        .sailor-profile-header {
+            padding: 14px 16px 10px 16px;
+            border-bottom: 1px solid #e5e7eb;
+            background: #ffffff;
+        }
+        .sailor-identity {
+            margin-bottom: 0;
+            padding-bottom: 12px;
+        }
+        .sailor-identity.has-avatar {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .sailor-avatar {
+            position: relative;
+            width: 48px;
+            height: 48px;
+            min-height: 48px;
+            max-height: 48px;
+            flex-shrink: 0;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        .sailor-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center top;
+            border-radius: 6px;
+            display: block;
+        }
+        .avatar-fallback {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #e5e7eb;
+            color: #334155;
+            font-weight: 700;
+            font-size: 0.75rem;
+            border-radius: 6px;
+        }
+        .sailor-avatar img:not([src]),
+        .sailor-avatar img:where([src=""]) {
+            display: none;
+        }
+        /* Name takes only its width so club/province boxes sit right after it */
+        .sailor-identity-text {
+            flex: 0 1 auto;
+            min-width: 0;
+            margin-right: 4px;
+        }
+        /* Profile header badges: WC / club / Sailing For share one size (PC + mobile) */
+        .sailor-identity.has-avatar {
+            --sailor-badge-size: 48px;
+        }
+        /* Club logo: height matches WC badge; width auto for wide logos */
+        .sailor-club-flag-box {
+            height: var(--sailor-badge-size, 48px);
+            min-height: var(--sailor-badge-size, 48px);
+            max-height: var(--sailor-badge-size, 48px);
+            flex-shrink: 0;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+            position: relative;
+            z-index: 1;
+        }
+        .sailor-club-flag-box img {
+            height: var(--sailor-badge-size, 48px);
+            max-height: var(--sailor-badge-size, 48px);
+            width: auto;
+            max-width: none;
+            object-fit: contain;
+            object-position: center;
+            display: block;
+        }
+        .sailor-club-flag-box .club-code-fallback {
+            font-size: 0.5rem;
+            font-weight: 700;
+            color: #334155;
+        }
+        .sailor-club-flag-box a { display: flex; align-items: center; text-decoration: none; cursor: pointer; }
+        /* Sailing For badge — same box as WC province badge */
+        .sailor-sailing-for {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+            margin-left: 4px;
+            min-height: var(--sailor-badge-size, 48px);
+        }
+        .sailor-sailing-for-icon {
+            height: var(--sailor-badge-size, 48px);
+            width: var(--sailor-badge-size, 48px);
+            min-height: var(--sailor-badge-size, 48px);
+            min-width: var(--sailor-badge-size, 48px);
+            max-height: var(--sailor-badge-size, 48px);
+            max-width: var(--sailor-badge-size, 48px);
+            object-fit: cover;
+            object-position: center;
+            display: block;
+            border-radius: 6px;
+            flex-shrink: 0;
+            box-sizing: border-box;
+            background: #001f3f;
+        }
+        .sailor-sailing-for-duration {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #001f3f;
+            white-space: nowrap;
+            line-height: 1.1;
+        }
+        /* SSL / WorldOfSailors — logo + RANK / SSL POINTS (WoS style, compact) */
+        .sailor-ssl-block {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: 8px;
+            flex-shrink: 0;
+            min-width: 0;
+        }
+        .sailor-ssl-logo-link {
+            display: inline-flex;
+            align-items: center;
+            line-height: 0;
+            flex-shrink: 0;
+        }
+        .sailor-ssl-logo {
+            height: 28px;
+            width: auto;
+            max-height: 28px;
+            object-fit: contain;
+            display: block;
+        }
+        .sailor-ssl-stats {
+            display: inline-flex;
+            align-items: flex-end;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+        .sailor-ssl-stat {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: flex-start;
+            gap: 2px;
+            width: max-content;
+            max-width: max-content;
+            flex: 0 0 auto;
+        }
+        .sailor-ssl-stat-label {
+            font-size: 0.55rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #333E48;
+            line-height: 1;
+            white-space: nowrap;
+        }
+        .sailor-ssl-rank-value {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: #C5A059;
+            line-height: 1;
+            letter-spacing: -0.02em;
+            white-space: nowrap;
+        }
+        /* Exact WoS digit boxes: equal squares, 1 digit each, shared outer border */
+        .sailor-ssl-points-boxes {
+            display: inline-flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            align-items: stretch;
+            justify-content: flex-start;
+            width: max-content;
+            max-width: max-content;
+            border: 1px solid #9ca3af;
+            background: #ffffff;
+            box-sizing: border-box;
+        }
+        .sailor-ssl-points-digit {
+            box-sizing: border-box;
+            flex: 0 0 22px;
+            width: 22px;
+            min-width: 22px;
+            max-width: 22px;
+            height: 22px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 700;
+            color: #C5A059;
+            line-height: 1;
+            border-left: 1px solid #9ca3af;
+            padding: 0;
+            margin: 0;
+        }
+        .sailor-ssl-points-digit:first-child { border-left: none; }
+        .sailor-province-icon-link { display: flex; align-items: center; text-decoration: none; cursor: pointer; }
+        /* Province / WC: same size as Sailing For + club height */
+        .sailor-province-icon-box {
+            width: var(--sailor-badge-size, 48px);
+            height: var(--sailor-badge-size, 48px);
+            min-width: var(--sailor-badge-size, 48px);
+            min-height: var(--sailor-badge-size, 48px);
+            max-width: var(--sailor-badge-size, 48px);
+            max-height: var(--sailor-badge-size, 48px);
+            flex-shrink: 0;
+            margin-right: 0;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            color: #ffffff;
+            background: #001f3f;
+            border-radius: 6px;
+            box-sizing: border-box;
+            position: relative;
+            z-index: 2;
+        }
+        @media (max-width: 480px) {
+            /* Portrait: row1 = avatar + name + WC + club; row2 = Sailing For (no overlap) */
+            .sailor-identity.has-avatar {
+                --sailor-badge-size: 40px;
+                gap: 8px;
+                flex-wrap: wrap;
+                align-items: center;
+            }
+            .sailor-avatar {
+                width: 40px;
+                height: 40px;
+                min-height: 40px;
+                max-height: 40px;
+            }
+            .sailor-identity-text {
+                flex: 1 1 auto;
+                min-width: 0;
+                margin-right: 0;
+            }
+            .sailor-name {
+                font-size: 1.15rem;
+            }
+            .sailor-province-icon-link,
+            .sailor-province-icon-box,
+            .sailor-club-flag-box {
+                flex-shrink: 0;
+                position: relative;
+                z-index: 1;
+            }
+            .sailor-club-flag-box img {
+                max-width: min(120px, 42vw);
+            }
+            /* Sailing For + SSL on 2nd line — duration + logo + rank/points one row */
+            .sailor-sailing-for {
+                flex: 1 1 100%;
+                width: 100%;
+                margin-left: 0;
+                margin-top: 4px;
+                padding-left: 0;
+                min-height: var(--sailor-badge-size, 40px);
+                box-sizing: border-box;
+                justify-content: flex-start;
+                flex-wrap: nowrap;
+                gap: 4px;
+                overflow-x: auto;
+                overflow-y: hidden;
+                -webkit-overflow-scrolling: touch;
+            }
+            .sailor-sailing-for-duration { font-size: 0.68rem; }
+            .sailor-ssl-block { margin-left: 4px; gap: 6px; }
+            .sailor-ssl-logo { height: 22px; max-height: 22px; }
+            .sailor-ssl-stats { gap: 8px; }
+            .sailor-ssl-stat-label { font-size: 0.45rem; }
+            .sailor-ssl-rank-value { font-size: 0.95rem; }
+            .sailor-ssl-points-digit {
+                flex: 0 0 18px;
+                width: 18px;
+                min-width: 18px;
+                max-width: 18px;
+                height: 18px;
+                font-size: 12px;
+            }
+            .sailor-province-icon-box { font-size: 0.58rem; }
+        }
+        /* Sailor bio / Note about sailor — between header and tabs (SSR + SPA) */
+        .sailor-bio {
+            padding: 10px 16px 12px 16px;
+            border-bottom: 1px solid #e5e7eb;
+            background: #ffffff;
+        }
+        .sailor-bio p {
+            margin: 0;
+            font-size: 0.875rem;
+            line-height: 1.55;
+            color: #334155;
+        }
+        @media (max-width: 480px) {
+            .sailor-bio {
+                padding: 8px 12px 10px 12px;
+            }
+            .sailor-bio p { font-size: 0.82rem; }
+        }
+        .sailor-province-icon-box.province-empty {
+            background: #e5e7eb;
+            color: #64748b;
+        }
+        .sailor-name {
+            margin: 0;
+            font-size: 1.35rem;
+            font-weight: 700;
+            line-height: 1;
+            color: #0f172a;
+            text-align: left;
+        }
+        .sailor-name-first,
+        .sailor-name-last {
+            display: block;
+            line-height: 1.2;
+            margin: 0;
+            padding: 0;
+        }
+        .sailor-name-last {
+            margin-top: -0.15em;
+        }
+        .sailor-claimed-tick {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 8px;
+            width: 18px;
+            height: 18px;
+            border-radius: 999px;
+            background: #16a34a;
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 900;
+            line-height: 1;
+            vertical-align: middle;
+            flex: 0 0 auto;
+        }
+        .sailor-claim-cta {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 8px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: #0a6cff;
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 900;
+            text-decoration: none;
+            border: 1px solid rgba(2, 132, 199, 0.35);
+            box-shadow: 0 10px 22px rgba(10, 108, 255, 0.18);
+            min-width: 0;
+            overflow-wrap: normal;
+            word-break: normal;
+            white-space: normal;
+        }
+        .sailor-claim-cta:hover {
+            filter: brightness(1.03);
+            text-decoration: none;
+        }
+        .sailor-claim-cta:active {
+            filter: brightness(0.97);
+        }
+        .sailor-subtitle {
+            margin-top: 2px;
+            font-size: 0.85rem;
+            color: #475569;
+            font-weight: 500;
+        }
+        .sailor-meta {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            column-gap: 12px;
+            row-gap: 6px;
+            margin-top: 12px;
+        }
+        .meta-row {
+            display: contents;
+        }
+        .meta-row-combined {
+            display: contents;
+        }
+        .meta-club-separator {
+            margin: 0 16px;
+        }
+        .meta-club-label {
+            font-size: 0.75rem;
+            color: #64748b;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            margin-left: 16px;
+        }
+        .meta-club-value {
+            font-size: 0.85rem;
+            color: #0f172a;
+            font-weight: 600;
+            margin-left: 6px;
+        }
+        .meta-label {
+            font-size: 0.75rem;
+            color: #64748b;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .meta-value {
+            font-size: 0.85rem;
+            color: #0f172a;
+            font-weight: 600;
+        }
+        .meta-row.secondary .meta-label,
+        .meta-row.secondary .meta-value {
+            color: #6b7280;
+            font-weight: 500;
+            align-self: baseline;
+        }
+        /* Desktop enhancement (non-breaking) */
+        @media (min-width: 768px) {
+            .sailor-profile-header {
+                padding: 16px 20px 12px 20px;
+            }
+            .sailor-name {
+                font-size: 1.6rem;
+            }
+            .sailor-meta {
+                max-width: 520px;
+            }
+        }
+        /* =========================
+           Sailor Summary Card
+           Step 8 – "What it says about you"
+           ========================= */
+        .sailor-summary-card {
+            padding: 12px 16px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .summary-header {
+            margin: 0 0 6px 0;
+        }
+        .summary-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin: 0 0 6px 0;
+            color: #0f172a;
+        }
+        .summary-body {
+            margin: 0;
+        }
+        .summary-text {
+            font-size: 0.85rem;
+            color: #334155;
+            margin: 0;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .summary-footer {
+            margin-top: 6px;
+        }
+        .summary-link {
+            font-size: 0.75rem;
+            color: #2563eb;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .summary-link:hover {
+            text-decoration: underline;
+        }
+        /* AI Overview Summary styles */
+        .sailor-ai-overview {
+            padding: 16px;
+            background: #f8fafc;
+            border-radius: 8px;
+            margin: 16px 0;
+        }
+        .ai-overview-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 8px;
+        }
+        .ai-overview-text {
+            font-size: 0.875rem;
+            line-height: 1.6;
+            color: #374151;
+            white-space: pre-line;
+        }
+        .ai-overview-text strong {
+            color: #111827;
+            font-weight: 600;
+        }
+        
+        /* Highlights styles (Step 11) */
+        .sailor-highlights {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e5e7eb;
+            background: #ffffff;
+        }
+        .highlights-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin: 0 0 6px 0;
+            color: #0f172a;
+        }
+        .highlights-list {
+            margin: 0;
+            padding-left: 16px;
+            font-size: 0.85rem;
+            color: #334155;
+        }
+        .highlights-list li {
+            margin-bottom: 4px;
+        }
+        .highlights-list a.highlight-regatta-link {
+            text-decoration: underline;
+            color: #1a2750;
+            cursor: pointer;
+        }
+        .highlights-list a.highlight-regatta-link:hover { color: #0d47a1; }
+        .highlights-list a.highlight-regatta-link:visited { color: #1a2750; }
+        /* Compact stats (Step 13) */
+        .sailor-compact-stats {
+            padding: 10px 16px;
+            border-bottom: 1px solid #e5e7eb;
+            background: #ffffff;
+            font-size: 0.85rem;
+            color: #334155;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .sailor-compact-stats span {
+            white-space: nowrap;
+        }
+        .sailor-compact-stats span:not(:last-child) {
+            color: #64748b;
+        }
+        /* Medal summary (Step 14) */
+        .sailor-medal-summary {
+            padding: 10px 16px;
+            border-bottom: 1px solid #e5e7eb;
+            background: #ffffff;
+            font-size: 0.85rem;
+            color: #334155;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .sailor-medal-summary span {
+            white-space: nowrap;
+        }
+        .sailor-medal-summary .medal-scope {
+            color: #64748b;
+            margin-left: auto;
+        }
+        .sa-approved-sailor-card {
+            margin-top: 1rem;
+            background: #ffffff;
+            border: 2px solid #7f97bc;
+            border-radius: 18px;
+            box-shadow: 0 3px 10px rgba(15, 23, 42, 0.1);
+            overflow: hidden;
+        }
+        .sa-approved-sailor-header {
+            display: grid;
+            grid-template-columns: 96px minmax(0, 1fr) 76px 76px;
+            align-items: start;
+            gap: 12px;
+            padding: 12px 10px;
+            background: #ffffff;
+        }
+        .sa-approved-sailor-avatar {
+            width: 96px;
+            height: 96px;
+            border-radius: 999px;
+            overflow: hidden;
+            background: #eef4fb;
+            border: 1px solid #dbe4ee;
+            flex: 0 0 auto;
+        }
+        .sa-approved-sailor-avatar img,
+        .sa-approved-sailor-avatar .avatar-fallback {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            object-fit: cover;
+        }
+        .sa-approved-sailor-main {
+            min-width: 0;
+            padding-right: 0;
+            border-right: none;
+        }
+        .sa-approved-sailor-name {
+            margin: 0;
+            color: #142b5f;
+            line-height: 1.02;
+        }
+        .sa-approved-sailor-name-first {
+            display: block;
+            font-size: 1.12rem;
+            font-weight: 800;
+        }
+        .sa-approved-sailor-name-last {
+            display: block;
+            font-size: 0.98rem;
+            font-weight: 500;
+            margin-top: 0.16rem;
+            color: #111827;
+        }
+        .sa-approved-sailor-club {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            margin-top: 0.55rem;
+            min-width: 0;
+        }
+        .sa-approved-sailor-club-link,
+        .sa-approved-sailor-meta-link {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            min-width: 0;
+            color: inherit;
+            text-decoration: none;
+            background: transparent;
+            border: none;
+            padding: 0;
+            appearance: none;
+            -webkit-appearance: none;
+            box-shadow: none;
+        }
+        .sa-approved-sailor-club-icon {
+            width: 56px;
+            height: 34px;
+            flex: 0 0 34px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .sa-approved-sailor-club-icon img {
+            width: auto;
+            max-width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+        .sa-approved-sailor-club-code {
+            font-size: 0.98rem;
+            font-weight: 900;
+            color: #142b5f;
+            white-space: nowrap;
+            flex: 0 0 auto;
+            letter-spacing: 0.02em;
+            line-height: 1;
+            text-align: center;
+        }
+        .sa-approved-sailor-meta-block {
+            min-width: 76px;
+            width: 76px;
+            text-align: center;
+            align-self: start;
+            justify-self: start;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 2px 2px 0;
+            border: none;
+            border-radius: 0;
+            background: transparent;
+            box-shadow: none;
+        }
+        .sa-approved-sailor-meta-block.province { min-width: 76px; }
+        .sa-approved-sailor-meta-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 0;
+            background: transparent;
+            color: #132c63;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.74rem;
+            font-weight: 800;
+            margin-bottom: 0.45rem;
+            box-shadow: none;
+        }
+        .sa-approved-sailor-meta-icon svg {
+            width: 18px;
+            height: 18px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 1.9;
+        }
+        .sa-approved-sailor-meta-icon img {
+            width: 18px;
+            height: 18px;
+            object-fit: contain;
+            display: block;
+        }
+        .sa-approved-sailor-province-box {
+            width: 68px;
+            height: 68px;
+            min-width: 68px;
+            min-height: 68px;
+            max-width: 68px;
+            max-height: 68px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.42rem;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            color: #ffffff;
+            background: #001f3f;
+            border-radius: 6px;
+            box-sizing: border-box;
+            line-height: 1;
+        }
+        .sa-approved-sailor-sailing-for-icon {
+            width: 68px;
+            height: 68px;
+            min-width: 68px;
+            min-height: 68px;
+            max-width: 68px;
+            max-height: 68px;
+            object-fit: cover;
+            object-position: center;
+            display: block;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+        .sa-approved-sailor-meta-text {
+            display: grid;
+            grid-template-rows: repeat(2, minmax(0, auto));
+            justify-items: center;
+            align-items: start;
+            width: 100%;
+            min-height: calc(2 * 1.06em);
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #142b5f;
+            line-height: 1.06;
+            white-space: normal;
+            text-align: center;
+            margin-top: 5px;
+        }
+        .sa-approved-sailor-meta-text-line {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            width: 100%;
+            min-height: 1.06em;
+            line-height: 1.06;
+            white-space: nowrap;
+        }
+        .sa-approved-sailor-meta-link {
+            flex-direction: column;
+            justify-content: center;
+            gap: 4px;
+            height: 100%;
+            width: 100%;
+        }
+        .sa-approved-sailor-meta-link .sa-approved-sailor-meta-icon {
+            margin-bottom: 0;
+        }
+        .sa-approved-sailor-meta-label {
+            display: none;
+        }
+        .sa-approved-sailor-meta-value {
+            display: none;
+        }
+        .sa-approved-sailor-toggle,
+        .sa-approved-sailor-mode-toggle,
+        .sa-approved-sailor-view-more {
+            border: 1px solid #e3e8ef;
+            background: #ffffff;
+            color: #233253;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+        .sa-approved-sailor-toggle {
+            width: 38px;
+            height: 38px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 1px 1px rgba(15,23,42,0.04);
+        }
+        .sa-approved-sailor-toggle.is-static {
+            cursor: default;
+            pointer-events: none;
+            color: #94a3b8;
+        }
+        .sa-approved-sailor-toggle svg,
+        .sa-approved-sailor-mode-toggle svg,
+        .sa-approved-sailor-view-more svg,
+        .sa-approved-sailor-result-arrow svg {
+            width: 18px;
+            height: 18px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2;
+        }
+        .sa-approved-sailor-expanded {
+            border-top: 2px solid #bcc8d8;
+            padding: 8px 12px 10px;
+        }
+        .sa-approved-sailor-rank-row {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding-right: 24px;
+            padding-bottom: 6px;
+            border-bottom: 2px solid #bcc8d8;
+        }
+        .sa-approved-sailor-rank-core {
+            display: grid;
+            grid-template-columns: 112px max-content 112px;
+            align-items: center;
+            justify-content: center;
+            column-gap: 8px;
+        }
+        .sa-approved-sailor-rank-card {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            min-width: 0;
+        }
+        .sa-approved-sailor-rank-card-sa .sa-approved-sailor-rank-icon {
+            width: 38px;
+            height: 38px;
+            flex-basis: 38px;
+        }
+        .sa-approved-sailor-rank-card-sas .sa-approved-sailor-rank-icon {
+            width: 34px;
+            height: 34px;
+            flex-basis: 34px;
+        }
+        .sa-approved-sailor-rank-card-sa {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: flex-start;
+            gap: 0;
+            width: 112px;
+            min-width: 112px;
+        }
+        .sa-approved-sailor-rank-card-ssl {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 0;
+            width: 112px;
+            min-width: 112px;
+        }
+        .sa-approved-ssa-frame {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: flex-start;
+            overflow: hidden;
+            border: 0;
+            background: transparent;
+            box-shadow: none;
+            width: 84px;
+        }
+        .sa-approved-ssl-frame {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            overflow: hidden;
+            border: 0;
+            background: transparent;
+            box-shadow: none;
+            width: 104px;
+        }
+        .sa-approved-ssa-grid {
+            display: inline-grid;
+            grid-template-columns: 1fr;
+            align-items: start;
+            justify-items: flex-start;
+            gap: 0;
+            width: max-content;
+            max-width: 100%;
+        }
+        .sa-approved-ssa-topblock {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: flex-start;
+            gap: 3px;
+            width: max-content;
+            max-width: 100%;
+        }
+        .sa-approved-ssa-logo {
+            width: 42px;
+            height: 42px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .sa-approved-ssa-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+        .sa-approved-ssa-title {
+            font-weight: 900;
+            letter-spacing: 0.06em;
+            color: #0f7fa2;
+            font-size: 0.56rem;
+            line-height: 1;
+        }
+        .sa-approved-ssa-rail {
+            display: inline-grid;
+            grid-template-columns: max-content 1px max-content;
+            grid-auto-rows: min-content;
+            row-gap: 2px;
+            column-gap: 2px;
+            align-items: start;
+            justify-items: flex-start;
+            width: max-content;
+            max-width: 100%;
+            margin: 0;
+        }
+        .sa-approved-ssa-label-rank {
+            grid-column: 1;
+            grid-row: 1;
+            justify-self: start;
+        }
+        .sa-approved-ssa-label-points {
+            grid-column: 3;
+            grid-row: 1;
+            justify-self: start;
+        }
+        .sa-approved-ssa-hline {
+            display: none !important;
+        }
+        .sa-approved-ssa-value-rank {
+            grid-column: 1;
+            grid-row: 3;
+            min-height: 28px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+            padding-top: 3px;
+        }
+        .sa-approved-ssa-divider {
+            grid-column: 2;
+            grid-row: 3;
+            width: 1px;
+            background: #0f9d92;
+            opacity: 0.85;
+            align-self: stretch;
+            justify-self: start;
+            min-height: 28px;
+        }
+        .sa-approved-ssa-value-points {
+            grid-column: 3;
+            grid-row: 3;
+            min-height: 28px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+            padding-top: 6px;
+        }
+        .sa-approved-ssa-headings,
+        .sa-approved-ssa-values,
+        .sa-approved-ssa-divider-spacer,
+        .sa-approved-ssa-col {
+            display: none !important;
+        }
+        .sa-approved-ssa-col-label {
+            font-weight: 900;
+            letter-spacing: 0.04em;
+            color: #0f7fa2;
+            font-size: 0.42rem;
+            line-height: 1;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        .sa-approved-ssa-rank-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 1.72rem;
+            line-height: 1;
+            color: #0f9d92;
+            letter-spacing: -0.02em;
+        }
+        .sa-approved-ssa-rank-number.is-none {
+            font-size: 0.84rem;
+            letter-spacing: 0.02em;
+        }
+        .sa-approved-ssa-points-digits {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+        }
+        .sa-approved-ssa-points-digit {
+            width: 15px;
+            height: 21px;
+            border: 1px solid #c9d8e1;
+            color: #001f3f;
+            background: #ffffff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.82rem;
+            font-weight: 900;
+            line-height: 1;
+            box-sizing: border-box;
+            padding: 1px 0 0;
+        }
+        .sa-approved-ssa-points-digit + .sa-approved-ssa-points-digit {
+            margin-left: 2px;
+        }
+        .sa-approved-sailor-rank-card-sas {
+            min-width: max-content;
+            justify-content: center;
+            gap: 3px;
+            justify-self: center;
+        }
+        .sa-approved-sailor-rank-card-sas .sa-approved-sailor-rank-copy .label {
+            margin-bottom: 0.08rem;
+            text-align: center;
+        }
+        .sa-approved-sailor-rank-card-sas .sa-approved-sailor-rank-copy .value {
+            text-align: center;
+        }
+        .sa-approved-sailor-rank-row .sa-approved-sailor-mode-toggle {
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(calc(-50% - 3px));
+        }
+        .sa-approved-ssl-grid {
+            display: inline-grid;
+            grid-template-columns: 1fr;
+            align-items: start;
+            justify-items: center;
+            gap: 0;
+            width: max-content;
+            max-width: 100%;
+        }
+        .sa-approved-ssl-topblock {
+            width: max-content;
+            max-width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            min-height: 42px;
+        }
+        .sa-approved-ssl-logo {
+            width: 30px;
+            height: 30px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 30px;
+        }
+        .sa-approved-ssl-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+        .sa-approved-ssl-title {
+            font-weight: 900;
+            letter-spacing: 0.02em;
+            color: #111111;
+            font-size: 0.92rem;
+            line-height: 1;
+        }
+        .sa-approved-ssl-rail {
+            display: inline-grid;
+            grid-template-columns: max-content 1px max-content;
+            grid-auto-rows: min-content;
+            row-gap: 2px;
+            column-gap: 2px;
+            align-items: start;
+            justify-items: center;
+            width: max-content;
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        .sa-approved-ssl-label-rank {
+            grid-column: 1;
+            grid-row: 1;
+        }
+        .sa-approved-ssl-label-points {
+            grid-column: 3;
+            grid-row: 1;
+        }
+        .sa-approved-ssl-hline {
+            display: none !important;
+        }
+        .sa-approved-ssl-value-rank {
+            grid-column: 1;
+            grid-row: 3;
+            min-height: 28px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding-top: 3px;
+        }
+        .sa-approved-ssl-divider {
+            grid-column: 2;
+            grid-row: 3;
+            width: 1px;
+            background: #bcc5d2;
+            align-self: stretch;
+            justify-self: center;
+            min-height: 28px;
+        }
+        .sa-approved-ssl-value-points {
+            grid-column: 3;
+            grid-row: 3;
+            min-height: 28px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding-top: 6px;
+        }
+        .sa-approved-ssl-headings,
+        .sa-approved-ssl-values,
+        .sa-approved-ssl-divider-spacer,
+        .sa-approved-ssl-col {
+            display: none !important;
+        }
+        .sa-approved-ssl-col-label {
+            font-weight: 900;
+            letter-spacing: 0.02em;
+            color: #111111;
+            font-size: 0.42rem;
+            line-height: 1;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        .sa-approved-ssl-rank-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 1.72rem;
+            line-height: 1;
+            color: #d79a12;
+            letter-spacing: -0.03em;
+        }
+        .sa-approved-ssl-rank-number.is-none {
+            font-size: 0.84rem;
+            letter-spacing: 0.02em;
+        }
+        .sa-approved-ssl-points-digits {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+        }
+        .sa-approved-ssl-points-digit {
+            width: 17px;
+            height: 23px;
+            border: 1px solid #cfd5dd;
+            color: #d79a12;
+            background: #ffffff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            font-weight: 900;
+            line-height: 1;
+            box-sizing: border-box;
+            padding: 1px 0 0;
+        }
+        .sa-approved-ssl-points-digit + .sa-approved-ssl-points-digit {
+            margin-left: 2px;
+        }
+        .sa-approved-sailor-rank-card-link {
+            text-decoration: none;
+            color: inherit;
+        }
+        .sa-approved-sailor-rank-card + .sa-approved-sailor-rank-card {
+            border-left: none;
+            padding-left: 0;
+        }
+        .sa-approved-sailor-rank-icon {
+            width: 34px;
+            height: 34px;
+            flex: 0 0 34px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .sa-approved-sailor-rank-icon.sa {
+            border-color: transparent;
+        }
+        .sa-approved-sailor-rank-icon.ssl {
+            border-color: transparent;
+        }
+        .sa-approved-sailor-rank-icon.sas {
+            border-color: transparent;
+        }
+        .sa-approved-sailor-rank-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+        .sa-approved-sailor-rank-icon.sa img {
+            object-fit: contain;
+            object-position: center center;
+        }
+        .sa-approved-sailor-rank-copy {
+            min-width: 0;
+            display: block;
+        }
+        .sa-approved-sailor-rank-copy.single {
+            grid-template-columns: minmax(0, 1fr);
+        }
+        .sa-approved-sailor-rank-main {
+            min-width: 0;
+        }
+        .sa-approved-sailor-rank-copy .label {
+            display: block;
+            font-size: 0.62rem;
+            font-weight: 900;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #5b6473;
+            margin-bottom: 0.12rem;
+            line-height: 1.05;
+        }
+        .sa-approved-sailor-rank-copy .value {
+            display: block;
+            font-size: 1.08rem;
+            line-height: 1;
+            font-weight: 900;
+            letter-spacing: -0.01em;
+            white-space: nowrap;
+        }
+        .sa-approved-sailor-rank-copy .value.sa {
+            color: #0f9d92;
+        }
+        .sa-approved-sailor-rank-copy .value.ssl {
+            color: #e59b1f;
+        }
+        .sa-approved-sailor-rank-copy .value.sas {
+            color: #0f9d92;
+        }
+        .sa-approved-sailor-points {
+            display: none;
+        }
+        .sa-approved-sailor-points-label {
+            font-size: 0.66rem;
+            color: #6b7280;
+            margin-right: 0;
+        }
+        .sa-approved-sailor-points-digits {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .sa-approved-sailor-points-digit {
+            min-width: 24px;
+            height: 22px;
+            padding: 0 4px;
+            border: 1px solid #dfe4ea;
+            border-radius: 5px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #ffffff;
+            font-size: 0.74rem;
+            font-weight: 700;
+            color: #111827;
+        }
+        .sa-approved-sailor-points.sa .sa-approved-sailor-points-label {
+            font-weight: 900;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #142b5f;
+        }
+        .sa-approved-sailor-points.sa .sa-approved-sailor-points-digit {
+            min-width: 28px;
+            height: 26px;
+            border-radius: 6px;
+            border: 2px solid #142b5f;
+            font-weight: 900;
+            color: #0f9d92;
+        }
+        .sa-approved-sailor-selector {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 0 12px;
+            border-radius: 12px;
+            background: #ffffff;
+            border: 1px solid #dfe6ef;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+            color: #138f84;
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+        .sa-approved-sailor-selector-link {
+            text-decoration: none;
+            color: inherit;
+        }
+        .sa-approved-sailor-selector-main {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+            padding: 0;
+            height: 42px;
+        }
+        .sa-approved-sailor-selector-label {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .sa-approved-sailor-selector-icon {
+            width: 18px;
+            height: 18px;
+            flex: 0 0 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .sa-approved-sailor-selector-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+        .sa-approved-sailor-selector-icon svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .sa-approved-sailor-mode-toggle {
+            width: 28px;
+            height: 42px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: none;
+            color: #4b5563;
+        }
+        .sa-approved-sailor-class-cards {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding-top: 6px;
+        }
+        .sa-approved-sailor-class-card {
+            min-height: 0;
+            border: 1px solid #dfe6ef;
+            border-radius: 12px;
+            background: #ffffff;
+            padding: 7px 10px;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 8px;
+            color: #1f2937;
+            cursor: pointer;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+        }
+        .sa-approved-sailor-class-card.active {
+            border-color: #3eb6ad;
+            box-shadow: inset 0 0 0 1px #3eb6ad, 0 1px 3px rgba(15, 23, 42, 0.05);
+        }
+        .sa-approved-sailor-class-logo {
+            width: 28px;
+            height: 18px;
+            flex: 0 0 28px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .sa-approved-sailor-class-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+        .sa-approved-sailor-class-logo svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .sa-approved-sailor-class-name {
+            font-size: 0.72rem;
+            line-height: 1.05;
+            font-weight: 700;
+            color: #384152;
+            text-align: left;
+        }
+        .sa-approved-sailor-class-count {
+            color: #64748b;
+            font-weight: 700;
+        }
+        .sa-approved-sailor-full {
+            padding-top: 14px;
+        }
+        .sa-approved-sailor-result-tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            border-top: 1px solid #edf1f6;
+            border-bottom: 1px solid #edf1f6;
+        }
+        .sa-approved-sailor-result-tab {
+            position: relative;
+            padding: 11px 8px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #6b7280;
+            background: #ffffff;
+            border: none;
+            cursor: pointer;
+        }
+        .sa-approved-sailor-result-tab.active {
+            color: #12a7a0;
+        }
+        .sa-approved-sailor-result-tab.active::after {
+            content: "";
+            position: absolute;
+            left: 12px;
+            right: 12px;
+            bottom: 0;
+            height: 2px;
+            border-radius: 999px;
+            background: #14b8a6;
+        }
+        .sa-approved-sailor-results {
+            background: #ffffff;
+        }
+        .sa-approved-sailor-result-row {
+            display: grid;
+            grid-template-columns: 26px minmax(0, 1fr) auto 18px;
+            gap: 10px;
+            align-items: center;
+            padding: 12px 12px;
+            border-bottom: 1px solid #edf1f6;
+            cursor: pointer;
+        }
+        .sa-approved-sailor-result-medal {
+            width: 22px;
+            height: 22px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #1f2937;
+            font-size: 1rem;
+            font-weight: 800;
+            background: transparent;
+        }
+        .sa-approved-sailor-result-medal.rank-1,
+        .sa-approved-sailor-result-medal.rank-2,
+        .sa-approved-sailor-result-medal.rank-3 {
+            font-size: 1.05rem;
+        }
+        .sa-approved-sailor-result-medal.other {
+            color: #475569;
+            font-size: 0.74rem;
+        }
+        .sa-approved-sailor-result-main {
+            min-width: 0;
+        }
+        .sa-approved-sailor-result-title {
+            font-size: 0.83rem;
+            font-weight: 700;
+            color: #1f2937;
+            line-height: 1.3;
+            margin: 0 0 0.2rem 0;
+        }
+        .sa-approved-sailor-result-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+            color: #6b7280;
+            font-size: 0.69rem;
+            line-height: 1.25;
+        }
+        .sa-approved-sailor-chip {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 18px;
+            padding: 0 6px;
+            border: 1px solid #e4e8ee;
+            border-radius: 999px;
+            background: #f8fafc;
+            color: #68758b;
+            font-size: 0.64rem;
+            font-weight: 700;
+        }
+        .sa-approved-sailor-chip-with-logo {
+            justify-content: flex-start;
+            gap: 6px;
+            padding-left: 6px;
+            padding-right: 8px;
+        }
+        .sa-approved-sailor-chip-logo {
+            width: 16px;
+            height: 12px;
+            flex: 0 0 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .sa-approved-sailor-chip-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+        .sa-approved-sailor-chip-logo svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .sa-approved-sailor-chip-text {
+            line-height: 1;
+        }
+        .sa-approved-sailor-result-rank {
+            min-width: 68px;
+            text-align: right;
+            color: #1f2937;
+        }
+        .sa-approved-sailor-result-rank .place {
+            display: block;
+            font-size: 0.81rem;
+            font-weight: 800;
+            line-height: 1.15;
+        }
+        .sa-approved-sailor-result-rank .fleet {
+            display: block;
+            margin-top: 0.18rem;
+            font-size: 0.72rem;
+            color: #4b5563;
+            line-height: 1.1;
+        }
+        .sa-approved-sailor-result-arrow {
+            color: #334155;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .sa-approved-sailor-results-empty {
+            padding: 18px 12px;
+            text-align: center;
+            color: #64748b;
+            font-size: 0.8rem;
+        }
+        .sa-approved-sailor-view-more-wrap {
+            padding: 10px 12px 4px;
+            background: #ffffff;
+        }
+        .sa-approved-sailor-view-more {
+            width: 100%;
+            height: 30px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            color: #334155;
+            font-size: 0.78rem;
+            font-weight: 700;
+            background: #f8fafc;
+        }
+        .sa-approved-sailor-footer {
+            margin: 8px 12px 12px;
+            border: 1px solid #edf1f6;
+            border-radius: 8px;
+            background: #ffffff;
+            overflow: hidden;
+        }
+        .sa-approved-sailor-footer-top,
+        .sa-approved-sailor-footer-bottom {
+            padding: 9px 10px;
+            font-size: 0.74rem;
+            color: #4b5563;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+        .sa-approved-sailor-footer-bottom {
+            border-top: 1px solid #edf1f6;
+        }
+        .sa-approved-sailor-footer-medal {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-weight: 700;
+            color: #374151;
+        }
+        .rk-audit-popup {
+            position: fixed;
+            z-index: 3000;
+            width: min(460px, calc(100vw - 24px));
+            max-height: min(80vh, 680px);
+            overflow: auto;
+            border: 1px solid #d8dfef;
+            border-radius: 12px;
+            background: #ffffff;
+            box-shadow: 0 12px 28px rgba(0, 31, 63, 0.22);
+        }
+        .rk-audit-popup[hidden] { display: none !important; }
+        .rk-audit-popup-inner { padding: 10px; }
+        .rk-audit-popup-head {
+            display: flex;
+            align-items: start;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .rk-audit-popup-title {
+            margin: 0;
+            color: #001f3f;
+            font-size: 1rem;
+        }
+        .rk-audit-popup-sub {
+            margin: 1px 0 0;
+            color: #64748b;
+            font-size: 0.8rem;
+        }
+        .rk-audit-close {
+            border: 1px solid #d8dfef;
+            border-radius: 7px;
+            background: #ffffff;
+            min-height: 34px;
+            padding: 0 9px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #001f3f;
+        }
+        .rk-audit-pillbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 8px;
+        }
+        .rk-audit-pillbar span {
+            display: inline-flex;
+            align-items: center;
+            min-height: 24px;
+            border-radius: 999px;
+            background: #eef2ff;
+            color: #233253;
+            padding: 0 8px;
+            font-size: 0.72rem;
+        }
+        .rk-audit-section {
+            margin-top: 8px;
+            border: 1px solid #d8dfef;
+            border-radius: 8px;
+            padding: 8px;
+        }
+        .rk-audit-section h4 {
+            margin: 0 0 6px;
+            color: #001f3f;
+            font-size: 0.88rem;
+        }
+        .rk-audit-row-item {
+            border-top: 1px solid #edf1fa;
+            padding: 7px 0;
+        }
+        .rk-audit-row-item:first-child {
+            border-top: 0;
+            padding-top: 0;
+        }
+        .rk-audit-row-title {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #233253;
+        }
+        .rk-audit-row-meta {
+            color: #64748b;
+            font-size: 0.72rem;
+            margin-top: 2px;
+        }
+        .rk-audit-row-grid {
+            margin-top: 4px;
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 2px 8px;
+            font-size: 0.74rem;
+        }
+        .rk-audit-row-grid span { color: #64748b; }
+        .rk-audit-row-grid strong { color: #233253; font-weight: 700; }
+        .rk-audit-row-reason {
+            margin-top: 4px;
+            font-size: 0.74rem;
+            color: #7a3b00;
+        }
+        .rk-audit-totals {
+            margin-top: 8px;
+            border-top: 1px dashed #cad3e8;
+            padding-top: 6px;
+            font-size: 0.79rem;
+            display: grid;
+            gap: 2px;
+        }
+        .rk-audit-mismatch {
+            margin-top: 6px;
+            border: 1px solid #b42318;
+            border-radius: 7px;
+            padding: 6px;
+            font-size: 0.74rem;
+            color: #b42318;
+            font-weight: 800;
+        }
+        .rk-audit-muted,
+        .rk-audit-popup-loading,
+        .rk-audit-popup-error {
+            color: #64748b;
+            font-size: 0.8rem;
+        }
+        .rk-audit-change,
+        .rk-audit-tech {
+            display: grid;
+            gap: 4px;
+            font-size: 0.76rem;
+            color: #233253;
+        }
+        .rk-audit-updated {
+            margin-top: 8px;
+            border: 1px solid #16a34a;
+            border-radius: 7px;
+            padding: 6px;
+            font-size: 0.75rem;
+            color: #166534;
+            background: #f0fdf4;
+        }
+        .rk-audit-popup.is-mobile {
+            width: 100%;
+            max-width: 100%;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            top: auto !important;
+            max-height: min(72vh, 560px);
+            border-radius: 12px 12px 0 0;
+            border-left: 0;
+            border-right: 0;
+            border-bottom: 0;
+        }
+        @media (max-width: 640px) {
+            .sa-approved-sailor-header {
+                grid-template-columns: 76px minmax(0, 1fr) 62px 62px;
+                gap: 8px;
+                padding: 10px 8px;
+                align-items: start;
+            }
+            .sa-approved-sailor-avatar {
+                width: 76px;
+                height: 76px;
+            }
+            .sa-approved-sailor-main {
+                padding-right: 0;
+                border-right: none;
+                min-width: 76px;
+            }
+            .sa-approved-sailor-name-first { font-size: 1.02rem; }
+            .sa-approved-sailor-name-last { font-size: 0.9rem; margin-top: 0.06rem; }
+            .sa-approved-sailor-club { margin-top: 0.28rem; gap: 2px; align-items: center; }
+            .sa-approved-sailor-club-link { gap: 3px; align-items: center; }
+            .sa-approved-sailor-club-icon { width: 52px; height: 32px; flex-basis: 32px; }
+            .sa-approved-sailor-club-code { font-size: 1rem; }
+            .sa-approved-sailor-meta-block { min-width: 62px; width: 62px; padding-top: 2px; }
+            .sa-approved-sailor-meta-icon {
+                width: 28px;
+                height: 28px;
+                margin-bottom: 0;
+                font-size: 0.62rem;
+            }
+            .sa-approved-sailor-meta-icon svg { width: 15px; height: 15px; }
+            .sa-approved-sailor-meta-link .sa-approved-sailor-meta-icon { margin-bottom: 0; }
+            .sa-approved-sailor-province-box,
+            .sa-approved-sailor-sailing-for-icon {
+                width: 54px;
+                height: 54px;
+                min-width: 54px;
+                min-height: 54px;
+                max-width: 54px;
+                max-height: 54px;
+            }
+            .sa-approved-sailor-meta-block.province { min-width: 62px; }
+            .sa-approved-sailor-province-box { font-size: 1.12rem; }
+            .sa-approved-sailor-meta-text { min-height: calc(2 * 1.05em); font-size: 0.7rem; line-height: 1.05; margin-top: 4px; }
+            .sa-approved-sailor-meta-text-line { min-height: 1.05em; line-height: 1.05; }
+            .sa-approved-sailor-toggle {
+                width: 34px;
+                height: 34px;
+                margin-top: 4px;
+            }
+            .sa-approved-sailor-rank-row {
+                padding-right: 20px;
+            }
+            .sa-approved-sailor-rank-core {
+                grid-template-columns: 92px max-content 92px;
+                column-gap: 6px;
+            }
+            .sa-approved-sailor-rank-card { gap: 3px; }
+            .sa-approved-sailor-rank-icon {
+                width: 26px;
+                height: 26px;
+                flex-basis: 26px;
+            }
+            .sa-approved-sailor-rank-card-sa .sa-approved-sailor-rank-icon {
+                width: 32px;
+                height: 32px;
+                flex-basis: 32px;
+            }
+            .sa-approved-sailor-rank-card-sa,
+            .sa-approved-sailor-rank-card-ssl {
+                width: 92px;
+                min-width: 92px;
+            }
+            .sa-approved-sailor-rank-card-sa {
+                align-items: flex-start;
+            }
+            .sa-approved-ssa-frame {
+                align-items: flex-start;
+                width: 58px;
+                max-width: 58px;
+            }
+            .sa-approved-ssl-frame { width: 86px; max-width: 86px; }
+            .sa-approved-ssa-topblock { gap: 2px; align-items: flex-start; }
+            .sa-approved-ssa-logo { width: 31px; height: 31px; }
+            .sa-approved-ssa-title { font-size: 0.46rem; }
+            .sa-approved-ssa-rail {
+                row-gap: 1px;
+                column-gap: 1px;
+                justify-items: flex-start;
+                margin: 0;
+            }
+            .sa-approved-ssa-hline {
+                display: none !important;
+            }
+            .sa-approved-ssa-label-rank { justify-self: start; }
+            .sa-approved-ssa-label-points { justify-self: start; }
+            .sa-approved-ssa-value-rank {
+                min-height: 22px;
+                padding-top: 2px;
+                justify-content: flex-start;
+            }
+            .sa-approved-ssa-divider {
+                min-height: 22px;
+                justify-self: start;
+            }
+            .sa-approved-ssa-value-points {
+                min-height: 22px;
+                padding-top: 4px;
+                justify-content: flex-start;
+            }
+            .sa-approved-ssa-col-label { font-size: 0.32rem; letter-spacing: 0.03em; }
+            .sa-approved-ssa-rank-number { font-size: 1.28rem; }
+            .sa-approved-ssa-rank-number.is-none { font-size: 0.72rem; }
+            .sa-approved-ssa-points-digit {
+                width: 12px;
+                height: 17px;
+                font-size: 0.62rem;
+                border-color: #d0dde5;
+            }
+            .sa-approved-ssa-points-digit + .sa-approved-ssa-points-digit {
+                margin-left: 1px;
+            }
+            .sa-approved-ssl-topblock { gap: 3px; min-height: 31px; }
+            .sa-approved-ssl-logo {
+                width: 22px;
+                height: 22px;
+                flex-basis: 22px;
+            }
+            .sa-approved-ssl-title { font-size: 0.72rem; }
+            .sa-approved-ssl-rail {
+                row-gap: 1px;
+                column-gap: 1px;
+            }
+            .sa-approved-ssl-hline {
+                display: none !important;
+            }
+            .sa-approved-ssl-label-rank,
+            .sa-approved-ssl-label-points { justify-self: center; }
+            .sa-approved-ssl-col-label { font-size: 0.29rem; }
+            .sa-approved-ssl-value-rank {
+                min-height: 22px;
+                padding-top: 2px;
+            }
+            .sa-approved-ssl-divider {
+                min-height: 22px;
+            }
+            .sa-approved-ssl-value-points {
+                min-height: 22px;
+                padding-top: 4px;
+            }
+            .sa-approved-ssl-rank-number { font-size: 1.22rem; }
+            .sa-approved-ssl-rank-number.is-none { font-size: 0.72rem; }
+            .sa-approved-ssl-points-digit {
+                width: 13px;
+                height: 18px;
+                font-size: 0.76rem;
+                border-color: #d4dae1;
+            }
+            .sa-approved-ssl-points-digit + .sa-approved-ssl-points-digit {
+                margin-left: 1px;
+            }
+            .sa-approved-sailor-rank-card-sas .sa-approved-sailor-rank-icon {
+                width: 24px;
+                height: 24px;
+                flex-basis: 24px;
+            }
+            .sa-approved-sailor-rank-copy .label { font-size: 0.54rem; }
+            .sa-approved-sailor-rank-copy .value { font-size: 0.88rem; }
+            .sa-approved-sailor-selector { padding: 0 9px; font-size: 0.72rem; }
+            .sa-approved-sailor-selector-main { height: 38px; gap: 6px; }
+            .sa-approved-sailor-mode-toggle { height: 38px; }
+            .sa-approved-sailor-class-cards {
+                gap: 8px;
+                padding-top: 4px;
+            }
+            .sa-approved-sailor-class-card { padding: 6px 8px; gap: 7px; }
+            .sa-approved-sailor-class-logo { width: 24px; height: 16px; flex-basis: 24px; }
+            .sa-approved-sailor-class-name { font-size: 0.68rem; }
+            .sa-approved-sailor-result-row {
+                grid-template-columns: 24px minmax(0, 1fr) auto 16px;
+                gap: 8px;
+                padding: 11px 10px;
+            }
+            .sa-approved-sailor-result-title { font-size: 0.78rem; }
+            .sa-approved-sailor-result-meta { font-size: 0.66rem; }
+            .sa-approved-sailor-result-rank .place { font-size: 0.76rem; }
+            .sa-approved-sailor-result-rank .fleet { font-size: 0.68rem; }
+        }
+        /* Media empty state for juniors */
+        .media-empty-state {
+            padding: 16px;
+            background: #f8fafc;
+            border-radius: 6px;
+            margin: 12px 0;
+        }
+        .media-empty-state p {
+            margin: 0;
+            font-size: 0.85rem;
+            color: #475569;
+            line-height: 1.5;
+        }
+        .sailor-profile-tabs { display: flex; flex-wrap: nowrap; gap: 0.4rem; align-items: center; margin-top: 0.75rem; margin-bottom: 0; overflow-x: auto; position: sticky; top: 0; z-index: 10; background: #fff; padding: 0.5rem 0 0.75rem 0; border-bottom: 1px solid #e5e7eb; }
+        .sailor-profile-tab { padding: 0.5rem 0.9rem; font-size: 0.9rem; font-weight: 600; color: #001f3f; background: #e8ecf7; border: 2px solid #001f3f; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+        .sailor-profile-tab:hover { background: #d8dce8; }
+        .sailor-profile-tab.active { color: #fff; background: #001f3f; border-color: #001f3f; }
+        .sailor-profile-tab.active.btn-flash-active { --flash-bg: #001f3f; --flash-text: #fff; -webkit-animation: btn-flash-invert 3s ease-in-out infinite; animation: btn-flash-invert 3s ease-in-out infinite; }
+        @media (max-width: 600px) {
+            .sailor-profile-tabs { gap: 0.25rem; margin-top: 0.5rem; padding: 0.4rem 0 0.6rem 0; -webkit-overflow-scrolling: touch; }
+            .sailor-profile-tab { padding: 0.35rem 0.5rem; font-size: 0.75rem; border-width: 1px; }
+        }
+        @media (max-width: 400px) {
+            .sailor-profile-tabs { gap: 0.2rem; }
+            .sailor-profile-tab { padding: 0.3rem 0.4rem; font-size: 0.7rem; }
+        }
+        .sailor-profile-panel { display: none; margin-top: 0.5rem; }
+        .sailor-profile-panel.active { display: block; }
+        .sailor-stats-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            overflow-y: auto;
+        }
+        .sailor-stats-modal-content {
+            background-color: white;
+            margin: 2% auto;
+            padding: 15px;
+            border-radius: 10px;
+            width: 95%;
+            max-width: 800px;
+            max-height: 95vh;
+            overflow-y: auto;
+            color: #333;
+            position: relative;
+            border: 2px solid #1a2750;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+        }
+        @media (max-width: 768px) {
+            .sailor-stats-modal-content {
+                margin: 0;
+                padding: 10px;
+                width: 100%;
+                max-width: 100%;
+                max-height: 100vh;
+                border-radius: 0;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+        }
+        .sailor-stats-close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 20px;
+            padding: 5px 10px;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            min-width: 44px;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .sailor-stats-close:hover {
+            color: black;
+        }
+        .sailor-stats-close:active {
+            color: #333;
+        }
+        @media (max-width: 768px) {
+            .sailor-stats-close {
+                font-size: 36px;
+                padding: 10px;
+                min-width: 50px;
+                min-height: 50px;
+            }
+        }
+        .sailor-stats-section {
+            margin: 8px 0;
+        }
+        @media (max-width: 768px) {
+            .sailor-stats-section {
+                margin: 6px 0;
+            }
+        }
+        .sailor-stats-row {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            padding: 3px 0;
+            border-bottom: 1px solid #e0e0e0;
+            flex-wrap: nowrap;
+            gap: 6px;
+            white-space: nowrap;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            min-height: 1.35em;
+            line-height: 1.35;
+        }
+        @media (max-width: 768px) {
+            .sailor-stats-row {
+                padding: 2px 0;
+                font-size: 11px;
+                gap: 4px;
+            }
+        }
+        .sailor-stats-label {
+            font-weight: 600;
+            color: #001f3f;
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+        @media (max-width: 768px) {
+            .sailor-stats-label {
+                font-size: 11px;
+            }
+        }
+        .sailor-stats-value {
+            color: #333;
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+        @media (max-width: 768px) {
+            .sailor-stats-value {
+                font-size: 11px;
+            }
+        }
+        .sailor-stats-class-line {
+            display: flex;
+            align-items: center;
+            flex-wrap: nowrap;
+            gap: 6px;
+            padding: 2px 0;
+            border-bottom: 1px solid #e0e0e0;
+            white-space: nowrap;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            font-size: 11px;
+            line-height: 1.35;
+        }
+        @media (max-width: 768px) {
+            .sailor-stats-class-line {
+                font-size: 9px;
+                gap: 3px;
+                padding: 2px 0;
+                line-height: 1.2;
+            }
+        }
+        .sailor-stats-class-line .sailor-stats-label,
+        .sailor-stats-class-line .sailor-stats-value,
+        .sailor-stats-class-line span {
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+        @media (max-width: 768px) {
+            .sailor-stats-class-line {
+                font-size: 8px;
+                gap: 2px;
+            }
+            .sailor-stats-class-line .sailor-stats-label,
+            .sailor-stats-class-line .sailor-stats-value,
+            .sailor-stats-class-line span {
+                font-size: 8px;
+            }
+            .sailor-stats-class-line .separator-dot {
+                font-size: 7px;
+                margin: 0 1px;
+            }
+            .sailor-stats-class-line .standing-box,
+            .sailor-stats-class-line .medal-box {
+                padding: 1px 2px !important;
+                font-size: 7px !important;
+                border-radius: 2px !important;
+            }
+        }
+        @media (max-width: 768px) {
+            .sailor-stats-section h3 {
+                font-size: 16px;
+                margin: 10px 0 8px 0;
+            }
+            .sailor-stats-modal-content h2 {
+                font-size: 18px;
+                line-height: 1.2;
+                word-wrap: break-word;
+            }
+        }
+        /* Expanded View Modal */
+        .expanded-view-modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            overflow-y: auto;
+        }
+        .expanded-view-modal-content {
+            background-color: white;
+            margin: 1% auto;
+            padding: 15px;
+            border-radius: 10px;
+            width: 98%;
+            max-width: 95vw;
+            max-height: 98vh;
+            overflow-y: auto;
+            color: #333;
+            position: relative;
+            border: 2px solid #1a2750;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+        }
+        @media (max-width: 768px) {
+            .expanded-view-modal-content {
+                margin: 0;
+                padding: 10px;
+                width: 100%;
+                max-width: 100%;
+                max-height: 100vh;
+                border-radius: 0;
+            }
+        }
+        .expanded-view-close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 20px;
+            padding: 5px 10px;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            min-width: 44px;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .expanded-view-close:hover {
+            color: black;
+        }
+        /* Regatta Result Sheet Modal (fallback when window.open is blocked, e.g. mobile) */
+        .regatta-result-sheet-modal {
+            display: none;
+            position: fixed;
+            z-index: 3000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            overflow: auto;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        /* Sign-in-required (and other auth) popup must appear on top of regatta results modal */
+        #popupOverlay {
+            z-index: 3500;
+        }
+        .regatta-result-sheet-modal-content {
+            position: relative;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            max-width: 900px;
+            max-height: 90vh;
+            margin: auto;
+            border-radius: 10px;
+            border: 2px solid #1a2750;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+            overflow: hidden;
+            min-width: 400px;
+            min-height: 300px;
+        }
+        /* Fixed size result sheet modal - desktop */
+        @media (min-width: 769px) {
+            .regatta-result-sheet-modal-content {
+                width: 900px;
+                height: 80vh;
+                overflow: hidden;
+            }
+        }
+        .regatta-result-sheet-close {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            z-index: 10;
+            color: #555;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 6px 10px;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            min-width: 36px;
+            min-height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.95);
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+        .regatta-result-sheet-close:hover {
+            color: black;
+            background: white;
+        }
+        .regatta-result-sheet-back-bar {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 8px;
+            flex-shrink: 0;
+            border-top: 1px solid #eee;
+            background: #f9f9f9;
+        }
+        .regatta-result-sheet-bar-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: nowrap;
+            gap: 5px;
+        }
+        .regatta-result-sheet-back-bar button {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 5px 8px;
+            font-size: 10px;
+            font-weight: 600;
+            border: 1px solid #1a2750;
+            border-radius: 5px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .regatta-result-sheet-back-bar button .bar-icon {
+            width: 14px;
+            height: 14px;
+            flex-shrink: 0;
+        }
+        .regatta-result-sheet-back-bar .regatta-result-sheet-back-btn {
+            padding: 5px 10px;
+            font-size: 10px;
+            font-weight: 700;
+            color: #fff;
+            background: #c00;
+            border-color: #fff;
+        }
+        .regatta-result-sheet-back-bar .btn-full-regatta-sheet,
+        .regatta-result-sheet-back-bar .btn-full-sheet { background: #00838f; color: #fff; }
+        .regatta-result-sheet-back-bar .btn-full-regatta-sheet:hover,
+        .regatta-result-sheet-back-bar .btn-full-sheet:hover { background: #006064; color: #fff; }
+        .regatta-result-sheet-back-bar .btn-podium-sheet { background: #ef6c00; color: #fff; }
+        .regatta-result-sheet-back-bar .btn-podium-sheet:hover { background: #e65100; color: #fff; }
+        .regatta-result-sheet-back-bar .btn-class-sheet { background: #5c6bc0; color: #fff; }
+        .regatta-result-sheet-back-bar .btn-class-sheet:hover { background: #3949ab; color: #fff; }
+        .regatta-result-sheet-back-bar .btn-save-sheet { background: #2e7d32; color: #fff; }
+        .regatta-result-sheet-back-bar .btn-save-sheet:hover { background: #1b5e20; color: #fff; }
+        .regatta-result-sheet-back-bar .btn-share-sheet { background: #1565c0; color: #fff; }
+        .regatta-result-sheet-back-bar .btn-share-sheet:hover { background: #0d47a1; color: #fff; }
+        .regatta-result-sheet-back-bar .btn-print-sheet { background: #6a1b9a; color: #fff; }
+        .regatta-result-sheet-back-bar .btn-print-sheet:hover { background: #4a148c; color: #fff; }
+        .regatta-result-sheet-back-bar .btn-open-sheet { background: #ff8c00; color: #fff; }
+        .regatta-result-sheet-back-bar .btn-open-sheet:hover { background: #e67e00; color: #fff; }
+        .regatta-result-sheet-back-bar .btn-view-lite,
+        .regatta-result-sheet-back-bar .btn-view-expanded { background: #fff; color: #1a2750; }
+        .regatta-result-sheet-back-bar .btn-view-lite:hover,
+        .regatta-result-sheet-back-bar .btn-view-expanded:hover { background: #f0f4ff; color: #1a2750; }
+        .regatta-result-sheet-back-bar .btn-view-lite.bar-view-active,
+        .regatta-result-sheet-back-bar .btn-view-expanded.bar-view-active { background: #1a2750; color: #fff; }
+        .regatta-result-sheet-back-bar .btn-view-lite.bar-view-active:hover,
+        .regatta-result-sheet-back-bar .btn-view-expanded.bar-view-active:hover { background: #1a2750; color: #fff; }
+        .regatta-result-sheet-back-bar .bar-view-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 2px 3px;
+            border: 1px solid #1a2750;
+            border-radius: 5px;
+            background: #f0f4ff;
+        }
+        /* Flash = invert background and text. Single keyframes = all buttons sync. */
+        @keyframes btn-flash-invert {
+            0%, 100% { background: var(--flash-bg); color: var(--flash-text); }
+            50% { background: var(--flash-text); color: var(--flash-bg); }
+        }
+        @-webkit-keyframes btn-flash-invert {
+            0%, 100% { background: var(--flash-bg); color: var(--flash-text); }
+            50% { background: var(--flash-text); color: var(--flash-bg); }
+        }
+        .regatta-result-sheet-back-bar .btn-view-lite.btn-flash-active,
+        .regatta-result-sheet-back-bar .btn-view-expanded.btn-flash-active {
+            --flash-bg: #1a2750;
+            --flash-text: #fff;
+            -webkit-animation: btn-flash-invert 3s ease-in-out infinite;
+            animation: btn-flash-invert 3s ease-in-out infinite;
+        }
+        .regatta-result-sheet-back-bar .btn-class-fleet-fixed.btn-flash-active {
+            --flash-bg: #5c6bc0;
+            --flash-text: #fff;
+            -webkit-animation: btn-flash-invert 3s ease-in-out infinite;
+            animation: btn-flash-invert 3s ease-in-out infinite;
+        }
+        .regatta-result-sheet-back-bar .btn-full-sheet.btn-flash-active {
+            --flash-bg: #00838f;
+            --flash-text: #fff;
+            -webkit-animation: btn-flash-invert 3s ease-in-out infinite;
+            animation: btn-flash-invert 3s ease-in-out infinite;
+        }
+        .regatta-result-sheet-back-bar .btn-podium-sheet.btn-flash-active {
+            --flash-bg: #ef6c00;
+            --flash-text: #fff;
+            -webkit-animation: btn-flash-invert 3s ease-in-out infinite;
+            animation: btn-flash-invert 3s ease-in-out infinite;
+        }
+        @media (max-width: 600px) {
+            .regatta-result-sheet-back-bar { width: 100%; box-sizing: border-box; gap: 4px; padding: 4px 6px; align-items: center; }
+            .regatta-result-sheet-bar-row { width: 100%; flex-wrap: wrap; gap: 4px; justify-content: center; }
+            .regatta-result-sheet-back-bar button { flex: 0 0 auto; min-width: 0; min-height: 26px; padding: 3px 5px; font-size: 8px; align-items: center; justify-content: center; overflow: visible; white-space: nowrap; box-sizing: border-box; }
+            .regatta-result-sheet-back-bar button .bar-icon { width: 11px; height: 11px; flex-shrink: 0; }
+            .regatta-result-sheet-back-bar button .bar-text { display: inline !important; }
+            .regatta-result-sheet-back-bar .btn-class-fleet-fixed .bar-text-short,
+            .regatta-result-sheet-back-bar .btn-content-fixed .bar-text-short { display: none !important; }
+            .regatta-result-sheet-back-bar .btn-class-fleet-fixed .bar-text-long,
+            .regatta-result-sheet-back-bar .btn-content-fixed .bar-text-long { display: inline !important; }
+            .regatta-result-sheet-back-bar .btn-view-lite .bar-text,
+            .regatta-result-sheet-back-bar .btn-view-expanded .bar-text { font-size: 8px; }
+            .regatta-result-sheet-back-bar .bar-view-group { padding: 3px 5px; gap: 3px; flex: 0 0 auto; }
+            .regatta-result-sheet-back-bar .regatta-result-sheet-back-btn { flex: 0 0 auto; padding: 3px 5px; font-size: 8px; }
+        }
+        @media (max-width: 400px) {
+            .regatta-result-sheet-back-bar button { padding: 2px 4px; font-size: 7px; min-height: 22px; }
+            .regatta-result-sheet-back-bar button .bar-icon { width: 10px; height: 10px; }
+            .regatta-result-sheet-back-bar .regatta-result-sheet-back-btn { padding: 2px 4px; font-size: 7px; }
+        }
+        .regatta-result-sheet-back-bar .btn-class-fleet-fixed .bar-text-short,
+        .regatta-result-sheet-back-bar .btn-content-fixed .bar-text-short { display: none; }
+        .regatta-result-sheet-back-bar button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+        .regatta-result-sheet-iframe-wrap {
+            flex: 1;
+            width: 100%;
+            min-height: 0;
+            overflow: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 0 14px;
+            box-sizing: border-box;
+        }
+        .regatta-result-sheet-iframe-wrap iframe {
+            width: 100%;
+            height: 100%;
+            min-height: 400px;
+            border: none;
+            display: block;
+        }
+        @media (max-width: 768px) {
+            .regatta-result-sheet-modal {
+                padding: 6px;
+                align-items: stretch;
+                justify-content: flex-start;
+                overflow-y: auto;
+                box-sizing: border-box;
+            }
+            .regatta-result-sheet-modal-content {
+                width: 100%;
+                max-width: 100%;
+                min-width: 0;
+                max-height: 95vh;
+                border-radius: 8px;
+                margin: 0 auto;
+                box-sizing: border-box;
+            }
+            .regatta-result-sheet-iframe-wrap {
+                padding: 0 6px;
+                width: 100%;
+                max-width: 100%;
+                box-sizing: border-box;
+                overflow-x: auto;
+            }
+            .regatta-result-sheet-iframe-wrap iframe {
+                min-height: 300px;
+                width: 100%;
+                max-width: 100%;
+                box-sizing: border-box;
+            }
+            .regatta-result-sheet-close {
+                top: 6px;
+                right: 6px;
+                font-size: 20px;
+                padding: 4px 8px;
+                min-width: 32px;
+                min-height: 32px;
+                position: absolute;
+                z-index: 100;
+            }
+        }
+        /* Mobile landscape - modal fits viewport width */
+        @media (max-width: 768px) and (orientation: landscape) {
+            .regatta-result-sheet-modal {
+                padding: 6px;
+                align-items: stretch;
+                box-sizing: border-box;
+            }
+            .regatta-result-sheet-modal-content {
+                width: 100%;
+                max-width: 100%;
+                min-width: 0;
+                max-height: calc(100vh - 12px);
+                margin: 0 auto;
+                position: relative;
+                border-radius: 8px;
+                box-sizing: border-box;
+            }
+            .regatta-result-sheet-iframe-wrap {
+                width: 100%;
+                max-width: 100%;
+                padding: 0 6px;
+                box-sizing: border-box;
+            }
+            .regatta-result-sheet-close {
+                top: 8px;
+                right: 8px;
+                position: absolute;
+                z-index: 100;
+                background: rgba(255,255,255,0.98);
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            }
+        }
+        /* Regatta choice pre-popup (Your Sailed Class vs Full Regatta) */
+        .regatta-choice-modal {
+            display: none;
+            position: fixed;
+            z-index: 2500;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+        }
+        .regatta-choice-modal.show {
+            display: flex;
+        }
+        .regatta-choice-content {
+            background: white;
+            border-radius: 10px;
+            padding: 24px;
+            max-width: 360px;
+            width: 90%;
+            border: 2px solid #1a2750;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+        }
+        .regatta-choice-content h3 {
+            margin: 0 0 16px 0;
+            font-size: 18px;
+            color: #1e3a8a;
+        }
+        .regatta-choice-content p {
+            margin: 0 0 20px 0;
+            font-size: 14px;
+            color: #333;
+        }
+        .regatta-choice-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .regatta-choice-btn {
+            display: block;
+            width: 100%;
+            padding: 14px 18px;
+            border: 2px solid #1e3a8a;
+            border-radius: 8px;
+            background: white;
+            color: #1e3a8a;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            transition: background 0.2s, color 0.2s;
+        }
+        .regatta-choice-btn:hover {
+            background: #1e3a8a;
+            color: white;
+        }
+        .regatta-choice-btn.secondary {
+            border-color: #666;
+            color: #333;
+        }
+        .regatta-choice-btn.secondary:hover {
+            background: #333;
+            color: white;
+        }
+        /* Colour markers for bottom boxes / buttons (always) - all have blue border for consistency */
+        .regatta-choice-btn.btn-full { background: #ff8c00 !important; color: #fff !important; border: 2px solid #1a2750 !important; }
+        .regatta-choice-btn.btn-full:hover { background: #e67e00 !important; color: #fff !important; border-color: #1a2750 !important; }
+        .regatta-choice-btn.btn-class { background: #2e7d32 !important; color: #fff !important; border: 2px solid #1a2750 !important; }
+        .regatta-choice-btn.btn-class:hover { background: #1b5e20 !important; color: #fff !important; border-color: #1a2750 !important; }
+        .regatta-choice-btn.btn-podium { background: #ffd700 !important; color: #1a2750 !important; border: 2px solid #1a2750 !important; }
+        .regatta-choice-btn.btn-podium:hover { background: #e6c200 !important; color: #1a2750 !important; border-color: #1a2750 !important; }
+        .regatta-choice-btn.btn-back,
+        .regatta-choice-back { margin-top: 16px; padding: 10px 16px !important; font-size: 15px !important; font-weight: 700 !important; background: #c00 !important; color: #fff !important; border: 2px solid #1a2750 !important; }
+        .regatta-choice-btn.btn-back:hover,
+        .regatta-choice-back:hover { background: #a00 !important; color: #fff !important; border-color: #1a2750 !important; }
+        .regatta-choice-step { display: none; }
+        .regatta-choice-step.active { display: block; }
+        .regatta-choice-class-list { max-height: 220px; overflow-y: auto; margin: 12px 0; border: 1px solid #ddd; border-radius: 8px; }
+        .regatta-choice-class-item { display: block; width: 100%; padding: 10px 14px; text-align: left; border: none; border-bottom: 1px solid #eee; background: #fff; cursor: pointer; font-size: 14px; color: #1e3a8a; }
+        .regatta-choice-class-item:last-child { border-bottom: none; }
+        .regatta-choice-class-item:hover { background: #f0f4ff; }
+        .regatta-choice-class-item .entries { font-size: 12px; color: #666; margin-left: 6px; }
+        /* Snapshot Table Styles */
+        .class-results-section {
+            margin: 6px 0;
+            padding: 6px;
+            background: #f9f9f9;
+            border-radius: 6px;
+        }
+        .snapshot-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            margin-top: 10px;
+            table-layout: auto;
+        }
+        .snapshot-table th {
+            background: #1e3a8a;
+            color: white;
+            padding: 6px 4px;
+            text-align: center;
+            border: 1px solid #ddd;
+            font-size: 10px;
+            font-weight: 600;
+        }
+        .snapshot-table td {
+            padding: 4px;
+            text-align: center;
+            border: 1px solid #ddd;
+            font-size: 10px;
+        }
+        .snapshot-table td:first-child {
+            text-align: center;
+            white-space: nowrap;
+        }
+        .snapshot-table td:nth-child(2) {
+            text-align: left;
+            max-width: 200px;
+            word-break: break-word;
+        }
+        .snapshot-table td:nth-child(n+3) {
+            white-space: nowrap;
+        }
+        .snapshot-table tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        .snapshot-table tr:nth-child(odd) {
+            background: white;
+        }
+        .snapshot-table .rank-1 { background-color: #D4AF37 !important; }
+        .snapshot-table .rank-2 { background-color: #D7D7D7 !important; }
+        .snapshot-table .rank-3 { background-color: #CE8946 !important; }
+        @media (max-width: 768px) {
+            .snapshot-table {
+                font-size: 8px;
+                width: 100%;
+                min-width: 100%;
+            }
+            .snapshot-table th,
+            .snapshot-table td {
+                padding: 2px 1px;
+                font-size: 8px;
+            }
+            .snapshot-table th:first-child,
+            .snapshot-table td:first-child {
+                white-space: nowrap;
+                width: auto;
+                min-width: 30px;
+            }
+            .snapshot-table th:nth-child(2),
+            .snapshot-table td:nth-child(2) {
+                text-align: left;
+                white-space: normal;
+                word-break: break-word;
+                max-width: 40%;
+                min-width: 100px;
+            }
+            .snapshot-table th:nth-child(n+3),
+            .snapshot-table td:nth-child(n+3) {
+                white-space: nowrap;
+                width: auto;
+            }
+        }
+        /* Full Expanded Table Styles */
+        .expanded-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10px;
+            margin-top: 10px;
+        }
+        .expanded-table th {
+            background: #1e3a8a;
+            color: white;
+            padding: 6px 4px;
+            text-align: center;
+            border: 1px solid #ddd;
+            font-size: 9px;
+            font-weight: 600;
+        }
+        .expanded-table td {
+            padding: 4px;
+            text-align: center;
+            border: 1px solid #ddd;
+            font-size: 9px;
+        }
+        .expanded-table tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        .expanded-table tr:nth-child(odd) {
+            background: white;
+        }
+        .expanded-table .rank-1 { background-color: #D4AF37 !important; }
+        .expanded-table .rank-2 { background-color: #D7D7D7 !important; }
+        .expanded-table .rank-3 { background-color: #CE8946 !important; }
+        .expanded-view-toggle {
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+        }
+        .expanded-view-toggle input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        @media (max-width: 768px) {
+            .expanded-table {
+                font-size: 8px;
+            }
+            .expanded-table th,
+            .expanded-table td {
+                padding: 2px 1px;
+                font-size: 8px;
+            }
+        }
+
+/* =================== HEADER GOLD MIRROR — MISSING RULES ADDED =================== */
+
+.site-header {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    z-index: 2147483647 !important;
+    height: 80px !important;
+    min-height: 80px !important;
+    max-height: 80px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.site-header > .container,
+header.site-header .container {
+    display: grid !important;
+    grid-template-columns: auto 1fr auto !important;
+    grid-template-rows: 80px !important;
+    align-items: center !important;
+    justify-items: stretch !important;
+    width: 100% !important;
+    max-width: 1200px !important;
+    margin: 0 auto !important;
+    height: 80px !important;
+    min-height: 80px !important;
+    max-height: 80px !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    box-sizing: border-box !important;
+}
+
+.site-header .logo {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    justify-self: start !important;
+    align-self: center !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    height: 80px !important;
+    min-height: 80px !important;
+    max-height: 80px !important;
+    text-decoration: none !important;
+    margin: 0 !important;
+    padding: 0 16px 0 0 !important;
+    box-sizing: border-box !important;
+    flex: none !important;
+}
+
+.site-header .logo img {
+    display: block !important;
+    max-width: 220px !important;
+    width: auto !important;
+    height: 76px !important;
+    min-height: 76px !important;
+    max-height: 76px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    object-fit: contain !important;
+    object-position: center center !important;
+}
+
+.header-auth {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    justify-self: end !important;
+    align-self: center !important;
+    min-width: 0;
+    width: auto !important;
+    max-width: 480px !important;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    text-align: right;
+    margin: 0 !important;
+    margin-left: 0 !important;
+    padding: 0 0 0 16px !important;
+    height: 80px !important;
+    min-height: 80px !important;
+    max-height: 80px !important;
+    box-sizing: border-box !important;
+    flex: none !important;
+}
+
+.header-user-center {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    justify-self: stretch !important;
+    align-self: center !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: 80px !important;
+    min-height: 80px !important;
+    max-height: 80px !important;
+    margin: 0 !important;
+    padding: 0 16px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    transform: none !important;
+    translate: none !important;
+}
+
+.header-user-center .user-center-row-name {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 22px !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    color: #ffffff !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    box-sizing: border-box !important;
+}
+
+.header-user-center .user-center-row-sas {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 2px 0 0 0 !important;
+    padding: 0 !important;
+    line-height: 18px !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    color: rgba(255,255,255,0.88) !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    box-sizing: border-box !important;
+}
+
+.header-user-center .user-center-row-sas .sas-id-value {
+    font-weight: 600 !important;
+    color: rgba(255,255,255,0.92) !important;
+}
+
+#loggedInStatus {
+    display: none;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 16px !important;
+    height: 80px !important;
+    min-height: 80px !important;
+    max-height: 80px !important;
+    width: auto !important;
+    max-width: 560px !important;
+    min-width: 0;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+    flex: 0 0 auto;
+}
+
+#loginBox {
+    display: none;
+    align-items: flex-end;
+    justify-content: flex-end;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    max-width: 420px;
+    min-width: 0;
+}
+
+.user-info {
+    width: auto !important;
+    min-width: 0;
+    max-width: 420px !important;
+    display: inline-flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: baseline !important;
+    justify-content: flex-end !important;
+    gap: 10px !important;
+    text-align: right;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    flex: 0 1 auto;
+}
+
+#loggedInStatus #authBtn {
+    align-self: center !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    flex-shrink: 0 !important;
+    flex-grow: 0 !important;
+    max-width: 100%;
+}
+
+#loginBox #authBtn,
+#authBtn {
+    margin-left: auto !important;
+    margin-right: 0 !important;
+    margin-top: 0 !important;
+    max-width: 100%;
+}
+
+.temp-landing-search-row .search-mode-btn {
+    width: 100%;
+    min-width: 0;
+    justify-content: center !important;
+    padding: 0.45rem 0.75rem !important;
+    font-size: 0.85rem !important;
+    font-weight: 800 !important;
+    border-radius: 10px !important;
+    border: 1px solid #1a365d !important;
+    background: #1a365d !important;
+    color: #fff !important;
+}
+
+.temp-landing-search-row > .search-mode-btn {
+    grid-column: 1;
+}
+
+.temp-landing-search-row.is-active .search-mode-btn,
+.temp-landing-search-row .search-mode-btn.active,
+.temp-landing-search-row .search-mode-btn[aria-pressed="true"] {
+    background: #1a365d !important;
+    color: #fff !important;
+    border-color: #1a365d !important;
+    box-shadow: none !important;
+}
+
+.temp-landing-search-row.is-active .search-mode-btn:hover,
+.temp-landing-search-row .search-mode-btn.active:hover,
+.temp-landing-search-row .search-mode-btn[aria-pressed="true"]:hover {
+    background: #24466b !important;
+    color: #fff !important;
+    border-color: #24466b !important;
+}
+
+.temp-landing-search-row:not(.is-active) .search-mode-btn:hover,
+.temp-landing-link-pill:hover {
+    color: #fff !important;
+}
+
+@media (max-width: 767px) {
+    body, html { overflow-x: hidden !important; max-width: 100vw; }
+    .site-header > .container,
+    header.site-header .container {
+        padding: 0 12px !important;
+        gap: 8px !important;
+        box-sizing: border-box !important;
+    }
+    .site-header .logo img {
+        max-width: 130px !important;
+    }
+    .header-auth {
+        flex: 1 1 auto !important;
+        max-width: 58% !important;
+        min-width: 0 !important;
+    }
+    #loggedInStatus,
+    #loginBox {
+        max-width: 100% !important;
+        width: 100% !important;
+        gap: 4px !important;
+    }
+    .user-info {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+    }
+    .user-name,
+    .user-sas-id {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        word-break: break-word !important;
+        overflow-wrap: break-word !important;
+        hyphens: auto !important;
+        font-size: 12px !important;
+        line-height: 1.25 !important;
+        text-align: right !important;
+    }
+    .user-name { font-size: 13px !important; font-weight: 700 !important; }
+    #loggedInStatus #authBtn,
+    #loginBox #authBtn,
+    #authBtn {
+        max-width: 100% !important;
+        width: auto !important;
+        padding: 7px 11px !important;
+        font-size: 12px !important;
+    }
+    .temp-landing-search-stack {
+        --temp-landing-pill-col: 96px;
+    }
+    .temp-landing-link-pills {
+        gap: 0.4rem;
+        margin-bottom: 0.5rem;
+    }
+    .temp-landing-link-pill {
+        padding: 0.42rem 0.72rem;
+        font-size: 0.8rem;
+    }
+    .temp-landing-search-row {
+        gap: 0.4rem;
+    }
+    .temp-landing-regatta-input {
+        height: 34px !important;
+        font-size: 13px;
+    }
+}
+
+:root { --sa-header-h: 80px; --sa-header-gap: 12px; --sa-header-push: calc(var(--sa-header-h) + var(--sa-header-gap)); }
+
+.site-header,
+header.site-header,
+header[class*="site-header"] {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  height: var(--sa-header-h) !important;
+  min-height: var(--sa-header-h) !important;
+  max-height: var(--sa-header-h) !important;
+  z-index: 2147483647 !important;
+  /* 12px gap RULE: margin-bottom ONLY applies IF/WHEN header returns to static/relative flow (future proof).
+      RIGHT NOW header is position:fixed (OUT of document flow) so margin-bottom has no effect on flow.
+      We DO NOT want 12px gap INSIDE the navy band.  Gap must ONLY be below navy band on white bg,
+      so we KILL any inside padding/margin that would inflate the navy rectangle > 80px. */
+  margin: 0 !important;
+  padding: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  border: 0 !important;
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+  transform: translate3d(0,0,0) !important;
+  will-change: top, transform !important;
+  backface-visibility: hidden !important;
+  contain: layout paint style !important;
+  box-sizing: border-box !important;
+  overflow: visible !important;
+}
+
+.site-header > .container,
+header.site-header > .container,
+.site-header .container,
+header.site-header .container {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  height: var(--sa-header-h) !important;
+  min-height: var(--sa-header-h) !important;
+  max-height: var(--sa-header-h) !important;
+  max-width: 1200px !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  border: 0 !important;
+  gap: 16px !important;
+  box-sizing: border-box !important;
+}
+
+.site-header .logo,
+header.site-header .logo {
+  flex: 0 0 auto;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 100% !important;
+  min-height: var(--sa-header-h) !important;
+  max-height: var(--sa-header-h) !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  text-decoration: none !important;
+  box-sizing: border-box !important;
+}
+
+.site-header .logo img,
+header.site-header .logo img {
+  display: block !important;
+  max-width: 220px !important;
+  width: auto !important;
+  height: 76px !important;
+  min-height: 76px !important;
+  max-height: 76px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  box-sizing: border-box !important;
+}
+
+body > header.site-header + *,
+body > header.site-header + * + * /* covers cases where inline script/style nodes are first children */ {
+  margin-top: 0 !important; /* its own margin-top would ADD to the 12px → double gap; kill it */
+  padding-top: 0 !important;
+}
+
+body > main,
+body > div,
+body > section,
+body > article,
+body > header ~ * {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+header.site-header,
+.site-header {
+  position: fixed !important;
+  top: 0 !important; left: 0 !important; right: 0 !important;
+  width: 100% !important;
+  height: var(--sa-header-h) !important;
+  min-height: var(--sa-header-h) !important;
+  max-height: var(--sa-header-h) !important;
+  z-index: 2147483647 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  border: 0 !important;
+  transform: translate3d(0,0,0) !important;
+  will-change: top, transform !important;
+  backface-visibility: hidden !important;
+  contain: layout paint style !important;
+  box-sizing: border-box !important;
+  overflow: visible !important;
+}
+
+body > header.site-header + *,
+body > header.site-header + * + *,
+body > main, body > div, body > section, body > article, body > header ~ * {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+</style>
+
+<style id="temp-landing-overrides">
+.layout-three-col {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: flex-start !important;
+}
+.ad-column-left,
+.ad-column-right {
+    display: none !important;
+}
+.main-column {
+    width: 100% !important;
+    max-width: 1200px !important;
+    flex: 0 1 1200px !important;
+    margin: 0 auto !important;
+}
+.main-column > .container {
+    width: 100% !important;
+    max-width: 1200px !important;
+    margin: 0 auto !important;
+}
+#sailor-search-results .sailor-profile-tab[data-tab="media"],
+#sailor-search-results .sailor-profile-tab[data-tab="activity"],
+#sailor-search-results #sailor-tab-panel-media,
+#sailor-search-results #sailor-tab-panel-activity {
+    display: none !important;
+}
+.temp-landing-hero-image {
+    width: 100%;
+    max-width: 100%;
+    margin: 0.75rem 0 1rem;
+}
+.temp-landing-hero-image img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+.temp-landing-secondary-image {
+    width: 100%;
+    max-width: 100%;
+    margin: 0 0 1rem;
+}
+.temp-landing-secondary-image img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+.temp-landing-secondary-image[role="link"] {
+    cursor: pointer;
+}
+.temp-landing-hero-image ~ .temp-landing-hero-image,
+.temp-landing-secondary-image ~ .temp-landing-secondary-image {
+    display: none !important;
+}
+.site-header {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    z-index: 2147483647 !important;
+    height: 80px !important;
+    min-height: 80px !important;
+    max-height: 80px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+.site-header > .container,
+header.site-header .container {
+    display: grid !important;
+    grid-template-columns: auto 1fr auto !important;
+    grid-template-rows: 80px !important;
+    align-items: center !important;
+    justify-items: stretch !important;
+    width: 100% !important;
+    max-width: 1200px !important;
+    margin: 0 auto !important;
+    height: 80px !important;
+    min-height: 80px !important;
+    max-height: 80px !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    box-sizing: border-box !important;
+}
+.site-header .logo {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    justify-self: start !important;
+    align-self: center !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    height: 80px !important;
+    min-height: 80px !important;
+    max-height: 80px !important;
+    text-decoration: none !important;
+    margin: 0 !important;
+    padding: 0 16px 0 0 !important;
+    box-sizing: border-box !important;
+    flex: none !important;
+}
+.site-header .logo img {
+    display: block !important;
+    max-width: 220px !important;
+    width: auto !important;
+    height: 76px !important;
+    min-height: 76px !important;
+    max-height: 76px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    object-fit: contain !important;
+    object-position: center center !important;
+}
+.header-auth {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    justify-self: end !important;
+    align-self: center !important;
+    min-width: 0;
+    width: auto !important;
+    max-width: 480px !important;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    text-align: right;
+    margin: 0 !important;
+    margin-left: 0 !important;
+    padding: 0 0 0 16px !important;
+    height: 80px !important;
+    min-height: 80px !important;
+    max-height: 80px !important;
+    box-sizing: border-box !important;
+    flex: none !important;
+}
+/* ================================================================
+   CENTERED USER INFO COLUMN (between logo left + Logout right).
+   PURE CSS GRID LAYOUT — NO JavaScript transform/timer hacks.
+   Name line 1 HORIZONTALLY CENTERED exactly between logo.right edge
+   and header-auth.left edge.  SAS ID line 2 HORIZONTALLY CENTERED
+   directly under the name.
+   Logout stays entirely inside .header-auth on the right (UNMOVED).
+================================================================ */
+.header-user-center {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    justify-self: stretch !important;
+    align-self: center !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: 80px !important;
+    min-height: 80px !important;
+    max-height: 80px !important;
+    margin: 0 !important;
+    padding: 0 16px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    transform: none !important;
+    translate: none !important;
+}
+.header-user-center .user-center-row-name {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 22px !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    color: #ffffff !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    box-sizing: border-box !important;
+}
+.header-user-center .user-center-row-sas {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 2px 0 0 0 !important;
+    padding: 0 !important;
+    line-height: 18px !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    color: rgba(255,255,255,0.88) !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    box-sizing: border-box !important;
+}
+.header-user-center .user-center-row-sas .sas-id-value {
+    font-weight: 600 !important;
+    color: rgba(255,255,255,0.92) !important;
+}
+/* ================================================================
+   LOGGED-IN STATUS: ROW layout (horizontal, single row inside 80px)
+   ROOT CAUSE FIX — old CSS was flex-direction:COLUMN vertical stack:
+     row1 name, row2 sasId, row3 Logout btn → ~82px → SPILLS below
+     80px navy band → Logout btn cut off at bottom (user screenshot).
+   NEW: flex-direction:ROW horizontal = [user-info compact] + [Logout btn 32px]
+        side-by-side, aligned center vertically.
+        Total max height = 32px → fits perfectly inside 80px, no spill.
+================================================================ */
+#loggedInStatus {
+    display: none;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 16px !important;
+    height: 80px !important;
+    min-height: 80px !important;
+    max-height: 80px !important;
+    width: auto !important;
+    max-width: 560px !important;
+    min-width: 0;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+    flex: 0 0 auto;
+}
+/* #loginBox (logged out Sign Up/Login pair): keep its own layout unchanged (its
+   inner .auth-split-buttons already renders both buttons on one row). */
+#loginBox {
+    display: none;
+    align-items: flex-end;
+    justify-content: flex-end;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    max-width: 420px;
+    min-width: 0;
+}
+/* user-info: compact single-line horizontal row inside #loggedInStatus.
+   Previously width:100% flex-direction column → two rows pushing everything down.
+   NEW: one line, auto width, no min/max constraints. */
+.user-info {
+    width: auto !important;
+    min-width: 0;
+    max-width: 420px !important;
+    display: inline-flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: baseline !important;
+    justify-content: flex-end !important;
+    gap: 10px !important;
+    text-align: right;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    flex: 0 1 auto;
+}
+.user-name,
+.user-sas-id {
+    display: inline !important;
+    width: auto !important;
+    text-align: right;
+    max-width: none !important;
+    word-break: normal !important;
+    white-space: nowrap !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+/* Logout button inside logged-in row: vertically center (old CSS pushed it to flex-end column bottom which caused clipping) */
+#loggedInStatus #authBtn {
+    align-self: center !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    flex-shrink: 0 !important;
+    flex-grow: 0 !important;
+    max-width: 100%;
+}
+#loginBox #authBtn,
+#authBtn {
+    margin-left: auto !important;
+    margin-right: 0 !important;
+    margin-top: 0 !important;
+    max-width: 100%;
+}
+html.temp-landing-layout-pending .search-header-container.sailor-search-pills {
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+#menuBtn {
+    display: none !important;
+}
+.temp-landing-search-stack {
+    display: block !important;
+    --temp-landing-pill-col: 96px;
+}
+.temp-landing-search-stack #sailor-search-section {
+    display: block !important;
+}
+.temp-landing-search-stack .search-icon {
+    color: #1a365d;
+    stroke: #1a365d;
+}
+.temp-landing-search-stack .sailor-search-input,
+.temp-landing-search-stack .temp-landing-regatta-input {
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    background: #fff !important;
+    color: #0f172a !important;
+    caret-color: #0f172a !important;
+    height: 38px !important;
+    box-shadow: none !important;
+}
+.temp-landing-search-stack .sailor-search-input::placeholder,
+.temp-landing-search-stack .temp-landing-regatta-input::placeholder {
+    color: #94a3b8 !important;
+    font-weight: 600 !important;
+    opacity: 1 !important;
+}
+.temp-landing-search-stack .sailor-search-input:focus,
+.temp-landing-search-stack .temp-landing-regatta-input:focus {
+    outline: none !important;
+    border-color: #1a365d !important;
+    box-shadow: 0 0 0 3px rgba(26, 54, 93, 0.12) !important;
+}
+.temp-landing-link-pills {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin: 0 0 0.6rem;
+    padding-bottom: 0.1rem;
+}
+.temp-landing-link-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.45rem 0.85rem;
+    border-radius: 10px;
+    border: 1px solid #1a365d;
+    background: #1a365d;
+    color: #fff !important;
+    font-size: 0.85rem;
+    font-weight: 800;
+    text-decoration: none !important;
+    white-space: nowrap;
+    flex: 0 0 auto;
+    box-shadow: none;
+}
+.temp-landing-link-pill:hover {
+    background: #24466b;
+    border-color: #24466b;
+}
+.temp-landing-search-row {
+    display: grid;
+    grid-template-columns: var(--temp-landing-pill-col) minmax(0, 1fr);
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+}
+.temp-landing-search-row + .temp-landing-search-row {
+    margin-top: 0.5rem;
+}
+.temp-landing-search-row .search-mode-btn {
+    width: 100%;
+    min-width: 0;
+    justify-content: center !important;
+    padding: 0.45rem 0.75rem !important;
+    font-size: 0.85rem !important;
+    font-weight: 800 !important;
+    border-radius: 10px !important;
+    border: 1px solid #1a365d !important;
+    background: #1a365d !important;
+    color: #fff !important;
+}
+.temp-landing-search-row > .search-mode-btn {
+    grid-column: 1;
+}
+.temp-landing-search-row .sailor-search-form,
+.temp-landing-search-row .temp-landing-regatta-form {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+}
+.temp-landing-search-row > .sailor-search-form,
+.temp-landing-search-row > .temp-landing-regatta-form {
+    grid-column: 2;
+}
+.temp-landing-search-row .sailor-search-input-wrap,
+.temp-landing-search-row .temp-landing-regatta-input-wrap {
+    display: flex;
+    align-items: center;
+    flex: 1 1 auto;
+    min-width: 0;
+    position: relative;
+    width: 100%;
+    max-width: none;
+}
+.temp-landing-search-row .sailor-search-input,
+.temp-landing-search-row .temp-landing-regatta-input {
+    width: 100% !important;
+    max-width: none !important;
+}
+.temp-landing-regatta-input {
+    flex: 1;
+    min-width: 0;
+    max-width: 100%;
+    padding: 0 12px 0 2.5rem !important;
+    font-size: 14px;
+    box-sizing: border-box;
+    text-align: left;
+}
+.temp-landing-search-row.is-active .search-mode-btn,
+.temp-landing-search-row .search-mode-btn.active,
+.temp-landing-search-row .search-mode-btn[aria-pressed="true"] {
+    background: #1a365d !important;
+    color: #fff !important;
+    border-color: #1a365d !important;
+    box-shadow: none !important;
+}
+.temp-landing-search-row.is-active .search-mode-btn:hover,
+.temp-landing-search-row .search-mode-btn.active:hover,
+.temp-landing-search-row .search-mode-btn[aria-pressed="true"]:hover {
+    background: #24466b !important;
+    color: #fff !important;
+    border-color: #24466b !important;
+}
+.temp-landing-search-row:not(.is-active) .search-mode-btn:hover,
+.temp-landing-link-pill:hover {
+    color: #fff !important;
+}
+@media (max-width: 767px) {
+    body, html { overflow-x: hidden !important; max-width: 100vw; }
+    .site-header > .container,
+    header.site-header .container {
+        padding: 0 12px !important;
+        gap: 8px !important;
+        box-sizing: border-box !important;
+    }
+    .site-header .logo img {
+        max-width: 130px !important;
+    }
+    .header-auth {
+        flex: 1 1 auto !important;
+        max-width: 58% !important;
+        min-width: 0 !important;
+    }
+    #loggedInStatus,
+    #loginBox {
+        max-width: 100% !important;
+        width: 100% !important;
+        gap: 4px !important;
+    }
+    .user-info {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+    }
+    .user-name,
+    .user-sas-id {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        word-break: break-word !important;
+        overflow-wrap: break-word !important;
+        hyphens: auto !important;
+        font-size: 12px !important;
+        line-height: 1.25 !important;
+        text-align: right !important;
+    }
+    .user-name { font-size: 13px !important; font-weight: 700 !important; }
+    #loggedInStatus #authBtn,
+    #loginBox #authBtn,
+    #authBtn {
+        max-width: 100% !important;
+        width: auto !important;
+        padding: 7px 11px !important;
+        font-size: 12px !important;
+    }
+    .temp-landing-search-stack {
+        --temp-landing-pill-col: 96px;
+    }
+    .temp-landing-link-pills {
+        gap: 0.4rem;
+        margin-bottom: 0.5rem;
+    }
+    .temp-landing-link-pill {
+        padding: 0.42rem 0.72rem;
+        font-size: 0.8rem;
+    }
+    .temp-landing-search-row {
+        gap: 0.4rem;
+    }
+    .temp-landing-regatta-input {
+        height: 34px !important;
+        font-size: 13px;
+    }
+}
+
+/* =================== HEADER GOLD MIRROR — MISSING RULES ADDED =================== */
+
+.search-mode-btn { display: inline-flex; align-items: center; justify-content: center; height: 40px; min-width: 104px; padding: 0 16px; background: #0b2e57; color: #fff; border-radius: 12px; font-weight: 900; text-decoration: none; white-space: nowrap; box-shadow: 0 1px 0 rgba(15,23,42,.08); box-sizing: border-box; line-height: 1; }
+
+.search-mode-btn:hover { background: #0a3a6c; }
+
+.search-mode-btn.active { background: #0b2e57; box-shadow: 0 0 0 2px rgba(147,197,253,.7), 0 1px 0 rgba(15,23,42,.08); }
+
+.profile-card-body { display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 0.25rem 1.25rem; align-items: baseline; font-size: 0.85rem; }
+
+:root { --sa-header-h: 80px; --sa-header-gap: 12px; --sa-header-push: calc(var(--sa-header-h) + var(--sa-header-gap)); }
+
+.site-header,
+header.site-header,
+header[class*="site-header"] {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  height: var(--sa-header-h) !important;
+  min-height: var(--sa-header-h) !important;
+  max-height: var(--sa-header-h) !important;
+  z-index: 2147483647 !important;
+  /* 12px gap RULE: margin-bottom ONLY applies IF/WHEN header returns to static/relative flow (future proof).
+      RIGHT NOW header is position:fixed (OUT of document flow) so margin-bottom has no effect on flow.
+      We DO NOT want 12px gap INSIDE the navy band.  Gap must ONLY be below navy band on white bg,
+      so we KILL any inside padding/margin that would inflate the navy rectangle > 80px. */
+  margin: 0 !important;
+  padding: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  border: 0 !important;
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+  transform: translate3d(0,0,0) !important;
+  will-change: top, transform !important;
+  backface-visibility: hidden !important;
+  contain: layout paint style !important;
+  box-sizing: border-box !important;
+  overflow: visible !important;
+}
+
+.site-header > .container,
+header.site-header > .container,
+.site-header .container,
+header.site-header .container {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  height: var(--sa-header-h) !important;
+  min-height: var(--sa-header-h) !important;
+  max-height: var(--sa-header-h) !important;
+  max-width: 1200px !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  border: 0 !important;
+  gap: 16px !important;
+  box-sizing: border-box !important;
+}
+
+.site-header .logo,
+header.site-header .logo {
+  flex: 0 0 auto;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 100% !important;
+  min-height: var(--sa-header-h) !important;
+  max-height: var(--sa-header-h) !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  text-decoration: none !important;
+  box-sizing: border-box !important;
+}
+
+.site-header .logo img,
+header.site-header .logo img {
+  display: block !important;
+  max-width: 220px !important;
+  width: auto !important;
+  height: 76px !important;
+  min-height: 76px !important;
+  max-height: 76px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  box-sizing: border-box !important;
+}
+
+body > header.site-header + *,
+body > header.site-header + * + * /* covers cases where inline script/style nodes are first children */ {
+  margin-top: 0 !important; /* its own margin-top would ADD to the 12px → double gap; kill it */
+  padding-top: 0 !important;
+}
+
+body > main,
+body > div,
+body > section,
+body > article,
+body > header ~ * {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+header.site-header,
+.site-header {
+  position: fixed !important;
+  top: 0 !important; left: 0 !important; right: 0 !important;
+  width: 100% !important;
+  height: var(--sa-header-h) !important;
+  min-height: var(--sa-header-h) !important;
+  max-height: var(--sa-header-h) !important;
+  z-index: 2147483647 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  border: 0 !important;
+  transform: translate3d(0,0,0) !important;
+  will-change: top, transform !important;
+  backface-visibility: hidden !important;
+  contain: layout paint style !important;
+  box-sizing: border-box !important;
+  overflow: visible !important;
+}
+
+body > header.site-header + *,
+body > header.site-header + * + *,
+body > main, body > div, body > section, body > article, body > header ~ * {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+</style>
+
+<style>
+/* -- surgical header lock absolute top (USER REQ: never move, never covered) -- */
+/* -- USER REQ (12px gap): NEVER let anything touch bottom of navy header band.
+      Root / uses 12px gap (hero margin-top:12px → 92 hero.top − 80 header.bottom = 12px).
+      We GUARANTEE identical 12px gap here, attached to the header itself (not dependant
+      on child hero margin-top) so it works on EVERY page that embeds <header class=site-header>.
+      Mechanism: site-header (position:fixed) has a VISUAL LOWER LIMIT at y = header_height.
+      We enforce push-down via body padding-top = EXACTLY (height of header + 12px gap),
+      AND via body::before spacer element (redundant guard so even if padding-top gets
+      clobbered by 3rd party CSS, the spacer row still forces 12px gap below header).
+      + header itself declares margin-bottom:12px !important so if we ever switch
+        site-header back to position:static/relative (flow), the 12px gap stays.
+*/
+body { margin: 0 !important; padding-top: 0 !important; }
+:root { --sa-header-h: 80px; --sa-header-gap: 12px; --sa-header-push: calc(var(--sa-header-h) + var(--sa-header-gap)); }
+.site-header,
+header.site-header,
+header[class*="site-header"] {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  height: var(--sa-header-h) !important;
+  min-height: var(--sa-header-h) !important;
+  max-height: var(--sa-header-h) !important;
+  z-index: 2147483647 !important;
+  /* 12px gap RULE: margin-bottom ONLY applies IF/WHEN header returns to static/relative flow (future proof).
+      RIGHT NOW header is position:fixed (OUT of document flow) so margin-bottom has no effect on flow.
+      We DO NOT want 12px gap INSIDE the navy band.  Gap must ONLY be below navy band on white bg,
+      so we KILL any inside padding/margin that would inflate the navy rectangle > 80px. */
+  margin: 0 !important;
+  padding: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  border: 0 !important;
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+  transform: translate3d(0,0,0) !important;
+  will-change: top, transform !important;
+  backface-visibility: hidden !important;
+  contain: layout paint style !important;
+  box-sizing: border-box !important;
+  overflow: visible !important;
+}
+/* Inner container LOCKED EXACTLY to 80px, no padding.  Logo + auth row centered vertically.
+    This GUARANTEES no "extra navy space inside the header band" above/below logo/buttons —
+    the entire navy rectangle is EXACTLY 80px tall, visual end y=80. */
+.site-header > .container,
+header.site-header > .container,
+.site-header .container,
+header.site-header .container {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  height: var(--sa-header-h) !important;
+  min-height: var(--sa-header-h) !important;
+  max-height: var(--sa-header-h) !important;
+  max-width: 1200px !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  border: 0 !important;
+  gap: 16px !important;
+  box-sizing: border-box !important;
+}
+.site-header .logo,
+header.site-header .logo {
+  flex: 0 0 auto;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 100% !important;
+  min-height: var(--sa-header-h) !important;
+  max-height: var(--sa-header-h) !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  text-decoration: none !important;
+  box-sizing: border-box !important;
+}
+.site-header .logo img,
+header.site-header .logo img {
+  display: block !important;
+  max-width: 220px !important;
+  width: auto !important;
+  height: 76px !important;
+  min-height: 76px !important;
+  max-height: 76px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  box-sizing: border-box !important;
+}
+/* PRIMARY push-down: body::before spacer EXACTLY 92px (80 header + 12 gap).
+      NO body padding-top (padding-top + ::before height double-stack = 184px wrong gap).
+      This ::before sits in body flow as FIRST child, pushes EVERYTHING below it 92px,
+      resulting in: next content top = 92, visual header bottom = 80 → gap = 12px.
+      Un-killable (CSS generated content, !important everywhere).
+*/
+body::before {
+  content: '' !important;
+  display: block !important;
+  width: 100% !important;
+  height: var(--sa-header-push) !important;
+  min-height: var(--sa-header-push) !important;
+  max-height: var(--sa-header-push) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  pointer-events: none !important;
+  flex: 0 0 var(--sa-header-push) !important;
+  box-sizing: border-box !important;
+  visibility: visible !important;
+  overflow: hidden !important;
+}
+/* REDUNDANT guard #2: the first sibling after <header.site-header> in DOM flow (e.g. main/hero)
+      MUST sit 12px below the header's bottom edge. (Matches root / hero.margin-top:12px exactly.) */
+body > header.site-header + *,
+body > header.site-header + * + * /* covers cases where inline script/style nodes are first children */ {
+  margin-top: 0 !important; /* its own margin-top would ADD to the 12px → double gap; kill it */
+  padding-top: 0 !important;
+}
+/* REDUNDANT guard #3: direct body children — cancel their own top margin/padding (body pushes down enough) */
+body > main,
+body > div,
+body > section,
+body > article,
+body > header ~ * {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+/* Also block modal overlays from covering header: any overlay/popup/backdrop must sit below header z-index max */
+[class*="modal" i],
+[class*="overlay" i],
+[class*="popup" i],
+[role="dialog" i],
+#popup, .popup, .modal, .overlay,
+body > div[style*="position: fixed"] {
+  z-index: 2147483646 !important;
+}
+/* Ensure popup Auto Login Yes/No and similar show BELOW header only; not over it */
+[class*="modal" i] > *, .overlay > *, [role="dialog"] { z-index: auto; }
+html, body { overflow-x: hidden !important; }
+main { display: block; }
+
+/* =================== HEADER GOLD MIRROR — MISSING RULES ADDED =================== */
+
+.search-mode-btn { display: inline-flex; align-items: center; justify-content: center; height: 40px; min-width: 104px; padding: 0 16px; background: #0b2e57; color: #fff; border-radius: 12px; font-weight: 900; text-decoration: none; white-space: nowrap; box-shadow: 0 1px 0 rgba(15,23,42,.08); box-sizing: border-box; line-height: 1; }
+
+.search-mode-btn:hover { background: #0a3a6c; }
+
+.search-mode-btn.active { background: #0b2e57; box-shadow: 0 0 0 2px rgba(147,197,253,.7), 0 1px 0 rgba(15,23,42,.08); }
+
+.profile-card-body { display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 0.25rem 1.25rem; align-items: baseline; font-size: 0.85rem; }
+
+.site-header {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    z-index: 2147483647 !important;
+    height: 80px !important;
+    min-height: 80px !important;
+    max-height: 80px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.site-header > .container,
+header.site-header .container {
+    display: grid !important;
+    grid-template-columns: auto 1fr auto !important;
+    grid-template-rows: 80px !important;
+    align-items: center !important;
+    justify-items: stretch !important;
+    width: 100% !important;
+    max-width: 1200px !important;
+    margin: 0 auto !important;
+    height: 80px !important;
+    min-height: 80px !important;
+    max-height: 80px !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    box-sizing: border-box !important;
+}
+
+.site-header .logo {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    justify-self: start !important;
+    align-self: center !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    height: 80px !important;
+    min-height: 80px !important;
+    max-height: 80px !important;
+    text-decoration: none !important;
+    margin: 0 !important;
+    padding: 0 16px 0 0 !important;
+    box-sizing: border-box !important;
+    flex: none !important;
+}
+
+.site-header .logo img {
+    display: block !important;
+    max-width: 220px !important;
+    width: auto !important;
+    height: 76px !important;
+    min-height: 76px !important;
+    max-height: 76px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    object-fit: contain !important;
+    object-position: center center !important;
+}
+
+.header-auth {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    justify-self: end !important;
+    align-self: center !important;
+    min-width: 0;
+    width: auto !important;
+    max-width: 480px !important;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    text-align: right;
+    margin: 0 !important;
+    margin-left: 0 !important;
+    padding: 0 0 0 16px !important;
+    height: 80px !important;
+    min-height: 80px !important;
+    max-height: 80px !important;
+    box-sizing: border-box !important;
+    flex: none !important;
+}
+
+.header-user-center {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    justify-self: stretch !important;
+    align-self: center !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: 80px !important;
+    min-height: 80px !important;
+    max-height: 80px !important;
+    margin: 0 !important;
+    padding: 0 16px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    transform: none !important;
+    translate: none !important;
+}
+
+.header-user-center .user-center-row-name {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 22px !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    color: #ffffff !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    box-sizing: border-box !important;
+}
+
+.header-user-center .user-center-row-sas {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 2px 0 0 0 !important;
+    padding: 0 !important;
+    line-height: 18px !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    color: rgba(255,255,255,0.88) !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    box-sizing: border-box !important;
+}
+
+.header-user-center .user-center-row-sas .sas-id-value {
+    font-weight: 600 !important;
+    color: rgba(255,255,255,0.92) !important;
+}
+
+#loggedInStatus {
+    display: none;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 16px !important;
+    height: 80px !important;
+    min-height: 80px !important;
+    max-height: 80px !important;
+    width: auto !important;
+    max-width: 560px !important;
+    min-width: 0;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+    flex: 0 0 auto;
+}
+
+#loginBox {
+    display: none;
+    align-items: flex-end;
+    justify-content: flex-end;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    max-width: 420px;
+    min-width: 0;
+}
+
+.user-info {
+    width: auto !important;
+    min-width: 0;
+    max-width: 420px !important;
+    display: inline-flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: baseline !important;
+    justify-content: flex-end !important;
+    gap: 10px !important;
+    text-align: right;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    flex: 0 1 auto;
+}
+
+#loggedInStatus #authBtn {
+    align-self: center !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    flex-shrink: 0 !important;
+    flex-grow: 0 !important;
+    max-width: 100%;
+}
+
+#loginBox #authBtn,
+#authBtn {
+    margin-left: auto !important;
+    margin-right: 0 !important;
+    margin-top: 0 !important;
+    max-width: 100%;
+}
+
+.temp-landing-search-row .search-mode-btn {
+    width: 100%;
+    min-width: 0;
+    justify-content: center !important;
+    padding: 0.45rem 0.75rem !important;
+    font-size: 0.85rem !important;
+    font-weight: 800 !important;
+    border-radius: 10px !important;
+    border: 1px solid #1a365d !important;
+    background: #1a365d !important;
+    color: #fff !important;
+}
+
+.temp-landing-search-row > .search-mode-btn {
+    grid-column: 1;
+}
+
+.temp-landing-search-row.is-active .search-mode-btn,
+.temp-landing-search-row .search-mode-btn.active,
+.temp-landing-search-row .search-mode-btn[aria-pressed="true"] {
+    background: #1a365d !important;
+    color: #fff !important;
+    border-color: #1a365d !important;
+    box-shadow: none !important;
+}
+
+.temp-landing-search-row.is-active .search-mode-btn:hover,
+.temp-landing-search-row .search-mode-btn.active:hover,
+.temp-landing-search-row .search-mode-btn[aria-pressed="true"]:hover {
+    background: #24466b !important;
+    color: #fff !important;
+    border-color: #24466b !important;
+}
+
+.temp-landing-search-row:not(.is-active) .search-mode-btn:hover,
+.temp-landing-link-pill:hover {
+    color: #fff !important;
+}
+
+@media (max-width: 767px) {
+    body, html { overflow-x: hidden !important; max-width: 100vw; }
+    .site-header > .container,
+    header.site-header .container {
+        padding: 0 12px !important;
+        gap: 8px !important;
+        box-sizing: border-box !important;
+    }
+    .site-header .logo img {
+        max-width: 130px !important;
+    }
+    .header-auth {
+        flex: 1 1 auto !important;
+        max-width: 58% !important;
+        min-width: 0 !important;
+    }
+    #loggedInStatus,
+    #loginBox {
+        max-width: 100% !important;
+        width: 100% !important;
+        gap: 4px !important;
+    }
+    .user-info {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+    }
+    .user-name,
+    .user-sas-id {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        word-break: break-word !important;
+        overflow-wrap: break-word !important;
+        hyphens: auto !important;
+        font-size: 12px !important;
+        line-height: 1.25 !important;
+        text-align: right !important;
+    }
+    .user-name { font-size: 13px !important; font-weight: 700 !important; }
+    #loggedInStatus #authBtn,
+    #loginBox #authBtn,
+    #authBtn {
+        max-width: 100% !important;
+        width: auto !important;
+        padding: 7px 11px !important;
+        font-size: 12px !important;
+    }
+    .temp-landing-search-stack {
+        --temp-landing-pill-col: 96px;
+    }
+    .temp-landing-link-pills {
+        gap: 0.4rem;
+        margin-bottom: 0.5rem;
+    }
+    .temp-landing-link-pill {
+        padding: 0.42rem 0.72rem;
+        font-size: 0.8rem;
+    }
+    .temp-landing-search-row {
+        gap: 0.4rem;
+    }
+    .temp-landing-regatta-input {
+        height: 34px !important;
+        font-size: 13px;
+    }
+}
+
+header.site-header,
+.site-header {
+  position: fixed !important;
+  top: 0 !important; left: 0 !important; right: 0 !important;
+  width: 100% !important;
+  height: var(--sa-header-h) !important;
+  min-height: var(--sa-header-h) !important;
+  max-height: var(--sa-header-h) !important;
+  z-index: 2147483647 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  border: 0 !important;
+  transform: translate3d(0,0,0) !important;
+  will-change: top, transform !important;
+  backface-visibility: hidden !important;
+  contain: layout paint style !important;
+  box-sizing: border-box !important;
+  overflow: visible !important;
+}
+
+body > header.site-header + *,
+body > header.site-header + * + *,
+body > main, body > div, body > section, body > article, body > header ~ * {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+</style>
+
+<style>
+/* SECOND surgical block — keep identical 12px gap guarantees as block above (mirror): */
+/* USER REQ: 12px fixed gap below header, part of the header, never let anything touch it. */
+:root { --sa-header-h: 80px; --sa-header-gap: 12px; --sa-header-push: calc(var(--sa-header-h) + var(--sa-header-gap)); }
+body { margin: 0 !important; padding-top: 0 !important; }
+/* NO body padding-top here either (mirror of above) → no double stack). */
+body::before {
+  content: '' !important;
+  display: block !important;
+  width: 100% !important;
+  height: var(--sa-header-push) !important;
+  min-height: var(--sa-header-push) !important;
+  max-height: var(--sa-header-push) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  pointer-events: none !important;
+  flex: 0 0 var(--sa-header-push) !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+header.site-header,
+.site-header {
+  position: fixed !important;
+  top: 0 !important; left: 0 !important; right: 0 !important;
+  width: 100% !important;
+  height: var(--sa-header-h) !important;
+  min-height: var(--sa-header-h) !important;
+  max-height: var(--sa-header-h) !important;
+  z-index: 2147483647 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  border: 0 !important;
+  transform: translate3d(0,0,0) !important;
+  will-change: top, transform !important;
+  backface-visibility: hidden !important;
+  contain: layout paint style !important;
+  box-sizing: border-box !important;
+  overflow: visible !important;
+}
+.site-header > .container,
+header.site-header > .container,
+.site-header .container,
+header.site-header .container {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  height: var(--sa-header-h) !important;
+  min-height: var(--sa-header-h) !important;
+  max-height: var(--sa-header-h) !important;
+  max-width: 1200px !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  border: 0 !important;
+  gap: 16px !important;
+  box-sizing: border-box !important;
+}
+.site-header .logo,
+header.site-header .logo {
+  flex: 0 0 auto;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 100% !important;
+  min-height: var(--sa-header-h) !important;
+  max-height: var(--sa-header-h) !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  text-decoration: none !important;
+  box-sizing: border-box !important;
+}
+.site-header .logo img,
+header.site-header .logo img {
+  display: block !important;
+  max-width: 220px !important;
+  width: auto !important;
+  height: 76px !important;
+  min-height: 76px !important;
+  max-height: 76px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  box-sizing: border-box !important;
+}
+body > header.site-header + *,
+body > header.site-header + * + *,
+body > main, body > div, body > section, body > article, body > header ~ * {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+[class*="modal" i],
+[class*="overlay" i],
+[class*="popup" i],
+[role="dialog" i],
+#popup, .popup, .modal, .overlay,
+body > div[style*="position:fixed" i],
+body > div[style*="position: fixed" i] {
+  z-index: 2147483646 !important;
+}
+html, body { overflow-x: hidden !important; }
+main { display: block; }
+
+/* =================== HEADER GOLD MIRROR — MISSING RULES ADDED =================== */
+
+.search-mode-btn { display: inline-flex; align-items: center; justify-content: center; height: 40px; min-width: 104px; padding: 0 16px; background: #0b2e57; color: #fff; border-radius: 12px; font-weight: 900; text-decoration: none; white-space: nowrap; box-shadow: 0 1px 0 rgba(15,23,42,.08); box-sizing: border-box; line-height: 1; }
+
+.search-mode-btn:hover { background: #0a3a6c; }
+
+.search-mode-btn.active { background: #0b2e57; box-shadow: 0 0 0 2px rgba(147,197,253,.7), 0 1px 0 rgba(15,23,42,.08); }
+
+.profile-card-body { display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 0.25rem 1.25rem; align-items: baseline; font-size: 0.85rem; }
+
+.site-header {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    z-index: 2147483647 !important;
+    height: 80px !important;
+    min-height: 80px !important;
+    max-height: 80px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.site-header > .container,
+header.site-header .container {
+    display: grid !important;
+    grid-template-columns: auto 1fr auto !important;
+    grid-template-rows: 80px !important;
+    align-items: center !important;
+    justify-items: stretch !important;
+    width: 100% !important;
+    max-width: 1200px !important;
+    margin: 0 auto !important;
+    height: 80px !important;
+    min-height: 80px !important;
+    max-height: 80px !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    box-sizing: border-box !important;
+}
+
+.site-header .logo {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    justify-self: start !important;
+    align-self: center !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    height: 80px !important;
+    min-height: 80px !important;
+    max-height: 80px !important;
+    text-decoration: none !important;
+    margin: 0 !important;
+    padding: 0 16px 0 0 !important;
+    box-sizing: border-box !important;
+    flex: none !important;
+}
+
+.site-header .logo img {
+    display: block !important;
+    max-width: 220px !important;
+    width: auto !important;
+    height: 76px !important;
+    min-height: 76px !important;
+    max-height: 76px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    object-fit: contain !important;
+    object-position: center center !important;
+}
+
+.header-auth {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    justify-self: end !important;
+    align-self: center !important;
+    min-width: 0;
+    width: auto !important;
+    max-width: 480px !important;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    text-align: right;
+    margin: 0 !important;
+    margin-left: 0 !important;
+    padding: 0 0 0 16px !important;
+    height: 80px !important;
+    min-height: 80px !important;
+    max-height: 80px !important;
+    box-sizing: border-box !important;
+    flex: none !important;
+}
+
+.header-user-center {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    justify-self: stretch !important;
+    align-self: center !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: 80px !important;
+    min-height: 80px !important;
+    max-height: 80px !important;
+    margin: 0 !important;
+    padding: 0 16px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    transform: none !important;
+    translate: none !important;
+}
+
+.header-user-center .user-center-row-name {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 22px !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    color: #ffffff !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    box-sizing: border-box !important;
+}
+
+.header-user-center .user-center-row-sas {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 2px 0 0 0 !important;
+    padding: 0 !important;
+    line-height: 18px !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    color: rgba(255,255,255,0.88) !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    box-sizing: border-box !important;
+}
+
+.header-user-center .user-center-row-sas .sas-id-value {
+    font-weight: 600 !important;
+    color: rgba(255,255,255,0.92) !important;
+}
+
+#loggedInStatus {
+    display: none;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 16px !important;
+    height: 80px !important;
+    min-height: 80px !important;
+    max-height: 80px !important;
+    width: auto !important;
+    max-width: 560px !important;
+    min-width: 0;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+    flex: 0 0 auto;
+}
+
+#loginBox {
+    display: none;
+    align-items: flex-end;
+    justify-content: flex-end;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    max-width: 420px;
+    min-width: 0;
+}
+
+.user-info {
+    width: auto !important;
+    min-width: 0;
+    max-width: 420px !important;
+    display: inline-flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: baseline !important;
+    justify-content: flex-end !important;
+    gap: 10px !important;
+    text-align: right;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    flex: 0 1 auto;
+}
+
+#loggedInStatus #authBtn {
+    align-self: center !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    flex-shrink: 0 !important;
+    flex-grow: 0 !important;
+    max-width: 100%;
+}
+
+#loginBox #authBtn,
+#authBtn {
+    margin-left: auto !important;
+    margin-right: 0 !important;
+    margin-top: 0 !important;
+    max-width: 100%;
+}
+
+.temp-landing-search-row .search-mode-btn {
+    width: 100%;
+    min-width: 0;
+    justify-content: center !important;
+    padding: 0.45rem 0.75rem !important;
+    font-size: 0.85rem !important;
+    font-weight: 800 !important;
+    border-radius: 10px !important;
+    border: 1px solid #1a365d !important;
+    background: #1a365d !important;
+    color: #fff !important;
+}
+
+.temp-landing-search-row > .search-mode-btn {
+    grid-column: 1;
+}
+
+.temp-landing-search-row.is-active .search-mode-btn,
+.temp-landing-search-row .search-mode-btn.active,
+.temp-landing-search-row .search-mode-btn[aria-pressed="true"] {
+    background: #1a365d !important;
+    color: #fff !important;
+    border-color: #1a365d !important;
+    box-shadow: none !important;
+}
+
+.temp-landing-search-row.is-active .search-mode-btn:hover,
+.temp-landing-search-row .search-mode-btn.active:hover,
+.temp-landing-search-row .search-mode-btn[aria-pressed="true"]:hover {
+    background: #24466b !important;
+    color: #fff !important;
+    border-color: #24466b !important;
+}
+
+.temp-landing-search-row:not(.is-active) .search-mode-btn:hover,
+.temp-landing-link-pill:hover {
+    color: #fff !important;
+}
+
+@media (max-width: 767px) {
+    body, html { overflow-x: hidden !important; max-width: 100vw; }
+    .site-header > .container,
+    header.site-header .container {
+        padding: 0 12px !important;
+        gap: 8px !important;
+        box-sizing: border-box !important;
+    }
+    .site-header .logo img {
+        max-width: 130px !important;
+    }
+    .header-auth {
+        flex: 1 1 auto !important;
+        max-width: 58% !important;
+        min-width: 0 !important;
+    }
+    #loggedInStatus,
+    #loginBox {
+        max-width: 100% !important;
+        width: 100% !important;
+        gap: 4px !important;
+    }
+    .user-info {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+    }
+    .user-name,
+    .user-sas-id {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        word-break: break-word !important;
+        overflow-wrap: break-word !important;
+        hyphens: auto !important;
+        font-size: 12px !important;
+        line-height: 1.25 !important;
+        text-align: right !important;
+    }
+    .user-name { font-size: 13px !important; font-weight: 700 !important; }
+    #loggedInStatus #authBtn,
+    #loginBox #authBtn,
+    #authBtn {
+        max-width: 100% !important;
+        width: auto !important;
+        padding: 7px 11px !important;
+        font-size: 12px !important;
+    }
+    .temp-landing-search-stack {
+        --temp-landing-pill-col: 96px;
+    }
+    .temp-landing-link-pills {
+        gap: 0.4rem;
+        margin-bottom: 0.5rem;
+    }
+    .temp-landing-link-pill {
+        padding: 0.42rem 0.72rem;
+        font-size: 0.8rem;
+    }
+    .temp-landing-search-row {
+        gap: 0.4rem;
+    }
+    .temp-landing-regatta-input {
+        height: 34px !important;
+        font-size: 13px;
+    }
+}
+
+.site-header,
+header.site-header,
+header[class*="site-header"] {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  height: var(--sa-header-h) !important;
+  min-height: var(--sa-header-h) !important;
+  max-height: var(--sa-header-h) !important;
+  z-index: 2147483647 !important;
+  /* 12px gap RULE: margin-bottom ONLY applies IF/WHEN header returns to static/relative flow (future proof).
+      RIGHT NOW header is position:fixed (OUT of document flow) so margin-bottom has no effect on flow.
+      We DO NOT want 12px gap INSIDE the navy band.  Gap must ONLY be below navy band on white bg,
+      so we KILL any inside padding/margin that would inflate the navy rectangle > 80px. */
+  margin: 0 !important;
+  padding: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  border: 0 !important;
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+  transform: translate3d(0,0,0) !important;
+  will-change: top, transform !important;
+  backface-visibility: hidden !important;
+  contain: layout paint style !important;
+  box-sizing: border-box !important;
+  overflow: visible !important;
+}
+
+body > header.site-header + *,
+body > header.site-header + * + * /* covers cases where inline script/style nodes are first children */ {
+  margin-top: 0 !important; /* its own margin-top would ADD to the 12px → double gap; kill it */
+  padding-top: 0 !important;
+}
+
+body > main,
+body > div,
+body > section,
+body > article,
+body > header ~ * {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+</style>
+
+</head>
+<body>
+<header class="site-header">
+        <div class="container">
+            <a href="/" class="logo js-go-home" id="headerLogoLink" title="Home – clear search and return to sailingsa.co.za">
+                <img src="assets/logos/sailingsa-logo.png" alt="SailingSA Logo">
+            </a>
+            <!-- CENTERED USER INFO ZONE (name centered line 1, SAS centered line 2) -->
+            <div class="header-user-center" id="headerUserCenter"></div>
+            <!-- Login Status / Login Box (far right, next to menu) -->
+            <!-- "Your Sailing Results" button removed - not needed -->
+            <div class="header-auth" id="headerAuth">
+                <!-- Shown when logged in -->
+                <div id="loggedInStatus" style="display: none;">
+                    <!-- authBtn (Logout) will be dynamically created here by JavaScript -->
+                </div>
+                <!-- Shown when not logged in -->
+                <div id="loginBox" style="display: none;">
+                    <!-- authBtn will be dynamically created here by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </header>
+<main></main>
+<script src="/js/config.js"></script>
+<script src="/js/api.js?v=20260717regatta"></script>
+<script src="/js/results.js?v=20260819-ssa-v2"></script>
+<script src="/js/session.js?v=20260806_PURE_CSS_GRID_ZERO_NUDGE"></script>
+<script src="/js/landing-claim-popup.js?v=20260916std2"></script>
+<script>
+(function(){function boot(){try{if(typeof updateHeaderAuthStatus==="function")updateHeaderAuthStatus();}catch(e){}}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot,{once:true});else setTimeout(boot,0);})();
+</script>
+<script>
+/* ================================================================
+   USER REQ: Header + its 12px gap STICKY, UNCOVERABLE, NEVER
+   overlayed / covered / scrolled over.  Everything scrolls UNDER.
+
+   PROBLEM FOUND IN REAL BROWSER PROOF TEST V39:
+     CSS rule [class*=overlay i] + body>div[style*="position: fixed"]
+     { z-index:2147483646 !important } LOSES against an inline-style
+     <div style="position:fixed !important; z-index:2147483647 !important">
+     injected by any 3rd-party script.  Specificity: inline !important
+     > selector-based !important in a stylesheet.  Result: malicious/
+     accidental inline overlay COULD cover header.  BAD.
+
+   FIX: SCRIPT-LEVEL ENFORCER (impossible to win specificity against):
+     - On DOMContentLoaded, find every element matching any
+       modal/overlay/popup/dialog selector + every element whose
+       inline style declares position:fixed / position:sticky / z-index
+       >= 2147483646 and OVERLAPS the top 0-92px (header + 12px gap
+       region).  FORCE inline `z-index:2147483646 !important;` via
+       el.style.setProperty(...,'important') on those elements, and
+       FORCE any inline header rule that would LOWER header's z-index
+       back UP to header's MAX z-index:2147483647 !important.  Write
+       inline → specificity HIGHEST (can't be beaten by stylesheets).
+     - Add MutationObserver watching for ANY new nodes / attribute
+       changes / inline style changes.  If any node arrives with
+       fixed/sticky/relative+z >= 2147483646 and overlaps header
+       zone 0..92 → instantly demote its inline z to 2147483646.
+       If anyone tries to LOWER the header's z / position / top →
+       instantly restore them inline.  Runs before next paint (microtask).
+       This closes the "3rd party script injected overlay inline
+       !important" escape hatch the CSS rule couldn't stop.
+================================================================ */
+(function(){
+    var HDR_MAX_Z = 2147483647;
+    var OVERLAY_MAX_Z = HDR_MAX_Z - 1;
+    var HDR_HEIGHT_PX = 80;
+    var GAP_PX = 12;
+    var PROTECTED_TOP_PX = HDR_HEIGHT_PX + GAP_PX; // 92 → header + gap zone
+    var hdrSel = 'header.site-header, .site-header, header[class*="site-header"]';
+
+    function forEachMatch(fn) {
+        // NEVER querySelectorAll('*') — freezes large pages (events-logos).
+        try {
+            var sel = 'header.site-header, .site-header, [style*="position"], [class*="modal" i], [class*="overlay" i], [class*="popup" i], [role="dialog" i], #popup, .popup, .modal, .overlay';
+            var nodes = document.querySelectorAll(sel);
+            for (var i=0; i<nodes.length; i++) fn(nodes[i]);
+        } catch(_) {}
+    }
+    function isFixedOrStacking(el) {
+        if (!el || el.nodeType !== 1) return false;
+        var cs = null;
+        try { cs = getComputedStyle(el); } catch(_) { return false; }
+        if (!cs) return false;
+        var pos = cs.position || 'static';
+        var zRaw = cs.zIndex || 'auto';
+        var z = (zRaw === 'auto') ? NaN : parseInt(zRaw,10);
+        var hasInlineFixedSticky = false;
+        try {
+            var s = el.getAttribute && el.getAttribute('style');
+            if (s && /position\s*:\s*(fixed|sticky)/i.test(''+s)) hasInlineFixedSticky = true;
+        } catch(_) {}
+        if (pos === 'fixed' || pos === 'sticky' || hasInlineFixedSticky) return true;
+        if (pos === 'absolute' || pos === 'relative') {
+            if (!isNaN(z) && z >= OVERLAY_MAX_Z) return true;
+        }
+        return false;
+    }
+    function overlapsProtectedTop(el) {
+        if (!el) return false;
+        try {
+            var r = el.getBoundingClientRect();
+            if (!r || (r.width === 0 && r.height === 0)) return false;
+            return r.top < PROTECTED_TOP_PX && r.bottom > 0;
+        } catch(_) { return false; }
+    }
+    function enforceHeader(el) {
+        try {
+            if (!el || el.nodeType !== 1) return;
+            var nm = (el.nodeName||'').toLowerCase();
+            var cl = (el.className && typeof el.className === 'string') ? el.className : '';
+            if (nm !== 'header' && !/\bsite-header\b/i.test(cl)) return;
+            el.style.setProperty('position','fixed','important');
+            el.style.setProperty('top','0px','important');
+            el.style.setProperty('left','0px','important');
+            el.style.setProperty('right','0px','important');
+            el.style.setProperty('width','100%','important');
+            el.style.setProperty('z-index', ''+HDR_MAX_Z, 'important');
+            el.style.setProperty('height', HDR_HEIGHT_PX+'px', 'important');
+            el.style.setProperty('min-height', HDR_HEIGHT_PX+'px', 'important');
+            el.style.setProperty('max-height', HDR_HEIGHT_PX+'px', 'important');
+        } catch(_) {}
+    }
+    function demoteIfOverlap(el) {
+        try {
+            if (!el || el.nodeType !== 1) return;
+            // Never demote the header or anything inside it.
+            if (el.closest && el.closest(hdrSel)) return;
+            var nm = (el.nodeName||'').toLowerCase();
+            var cl = (el.className && typeof el.className === 'string') ? el.className : '';
+            if (nm === 'header' || /\bsite-header\b/i.test(cl)) return;
+            if (!isFixedOrStacking(el)) return;
+            if (!overlapsProtectedTop(el)) return;
+            // FORCE inline z-index OVERLAY_MAX_Z !important.  Inline
+            // setProperty(...,'important') cannot be beaten by any
+            // stylesheet rule (specificity order: inline !important wins).
+            el.style.setProperty('z-index', ''+OVERLAY_MAX_Z, 'important');
+        } catch(_) {}
+    }
+    function enforceAll() {
+        // 1. Protect header inline
+        var headers = document.querySelectorAll(hdrSel);
+        for (var i=0; i<headers.length; i++) enforceHeader(headers[i]);
+        // 2. Demote any overlay/popup/modal/dialog/fixed that overlaps top 0..92
+        forEachMatch(demoteIfOverlap);
+        // 3. Extra targeted selectors (class=modal/overlay/popup/role=dialog)
+        try {
+            var targets = document.querySelectorAll('[class*="modal" i], [class*="overlay" i], [class*="popup" i], [role="dialog" i], #popup, .popup, .modal, .overlay');
+            for (var j=0; j<targets.length; j++) demoteIfOverlap(targets[j]);
+        } catch(_) {}
+    }
+    var queued = false;
+    function schedule() {
+        if (queued) return;
+        queued = true;
+        Promise.resolve().then(function(){ queued=false; enforceAll(); })
+            .catch(function(){ queued=false; try{enforceAll();}catch(_){} });
+    }
+    // boot
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', schedule, { once:true });
+    } else {
+        schedule();
+    }
+    window.addEventListener('load', schedule, { once:true, passive:true });
+    window.addEventListener('scroll', schedule, { passive:true });
+    window.addEventListener('resize', schedule, { passive:true });
+    // Watch DOM mutations (new nodes / style / class / id changes) → re-enforce instantly
+    try {
+        if (typeof MutationObserver === 'function') {
+            var mo = new MutationObserver(function(muts){
+                schedule();
+            });
+            mo.observe(document.documentElement, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['style','class','id','role']
+            });
+        }
+    } catch(_) {}
+    // MutationObserver + load/scroll/resize only — no 250ms poll.
+})();
+</script>
+</body>
+</html>
