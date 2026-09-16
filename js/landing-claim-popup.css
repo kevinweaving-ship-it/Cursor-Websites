@@ -1656,6 +1656,14 @@ body.ssa-std-claim-open .ssa-dev1-inject .sa-looked-claim{
 #loginRequiredSailorPreview .ssa-login-required-meta{margin-top:10px;text-align:center;color:#0a2351;}
 #loginRequiredSailorPreview .ssa-login-required-prov{font-weight:800;font-size:14px;line-height:1.2;}
 #loginRequiredSailorPreview .ssa-login-required-dur{font-weight:600;font-size:13px;margin-top:2px;}
+html.ssa-sailor-profile-page #dev1-claim-slot,
+html.ssa-sailor-profile-page .ssa-popup-claim-slot,
+html.ssa-sailor-profile-page a.sa-claim-banner,
+html.ssa-sailor-profile-page .sa-claim-stack,
+html.ssa-sailor-profile-page #chosen-sailor-before-profile .sa-looked-cta{
+  display:none !important;
+  visibility:hidden !important;
+}
 
 
   

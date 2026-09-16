@@ -6,7 +6,7 @@
 
   var CSS_ID = "ssa-landing-claim-popup-css";
   var CSS_LINK_ID = "ssa-landing-claim-popup-css-link";
-  var JS_VER = "20260916std1";
+  var JS_VER = "20260916std2";
   var prevOverflow = "";
 
   var CLAIM_INNER =
@@ -106,6 +106,13 @@
       "#loginRequiredSailorPreview .ssa-login-required-meta{margin-top:10px;text-align:center;color:#0a2351;}",
       "#loginRequiredSailorPreview .ssa-login-required-prov{font-weight:800;font-size:14px;line-height:1.2;}",
       "#loginRequiredSailorPreview .ssa-login-required-dur{font-weight:600;font-size:13px;margin-top:2px;}",
+      "html.ssa-sailor-profile-page #dev1-claim-slot,",
+      "html.ssa-sailor-profile-page .ssa-popup-claim-slot,",
+      "html.ssa-sailor-profile-page a.sa-claim-banner,",
+      "html.ssa-sailor-profile-page .sa-claim-stack,",
+      "html.ssa-sailor-profile-page #chosen-sailor-before-profile .sa-looked-cta{",
+      "display:none!important;visibility:hidden!important;",
+      "}",
     ].join("");
     document.head.appendChild(s);
   }
@@ -1130,8 +1137,34 @@
     });
   }
 
+  function markSailorProfilePage() {
+    if (!isPublicSailorProfilePage()) return;
+    try { document.documentElement.classList.add("ssa-sailor-profile-page"); } catch (_) {}
+    try { if (document.body) document.body.classList.add("ssa-sailor-profile-page"); } catch (_) {}
+  }
+
+  function stripProfileClaimWidgets() {
+    if (!isPublicSailorProfilePage()) return;
+    markSailorProfilePage();
+    var root = document.getElementById("chosen-sailor-before-profile") || document.getElementById("sailor-search-results");
+    if (!root) return;
+    root.querySelectorAll('[id="dev1-claim-slot"], .ssa-popup-claim-slot, a.sa-claim-banner, .sa-claim-stack, .sa-looked-cta').forEach(function (el) {
+      if (el.closest && el.closest("#popupOverlay")) return;
+      el.innerHTML = "";
+      el.style.display = "none";
+      el.setAttribute("hidden", "");
+    });
+  }
+
   injectCss();
   killLegacyOverlay();
+  markSailorProfilePage();
+  stripProfileClaimWidgets();
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", stripProfileClaimWidgets);
+  }
+  setTimeout(stripProfileClaimWidgets, 400);
+  setTimeout(stripProfileClaimWidgets, 1200);
 
   window.replaceLandingClaimBanner = replaceLandingClaimBanner;
   window.mountLandingClaimPopup = mountLandingClaimPopup;
