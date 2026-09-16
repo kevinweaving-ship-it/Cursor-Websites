@@ -1,0 +1,26 @@
+#!/usr/bin/expect -f
+set timeout 50
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+
+spawn scp -o StrictHostKeyChecking=no /workspace/sailingsa/deploy/query_midmar_setup.py ${user}@${server}:/tmp/query_midmar_setup.py
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
+
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} {python3 /tmp/query_midmar_setup.py > /tmp/midmar_setup.txt 2>&1; wc -l /tmp/midmar_setup.txt}
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
+
+spawn scp -o StrictHostKeyChecking=no ${user}@${server}:/tmp/midmar_setup.txt /tmp/midmar_setup.txt
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
