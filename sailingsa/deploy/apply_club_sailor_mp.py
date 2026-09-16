@@ -122,17 +122,14 @@ def main() -> None:
     ts = time.strftime("%Y%m%d_%H%M%S")
     bak = API.with_name("api.py.bak.club_sailor_mp." + ts)
     shutil.copy2(API, bak)
-    api = api.replace(CSS_OLD, CSS_NEW.replace("CLUB_SAILOR_MP", MARK), 1)
-    # stamp mark into css comment via a unique token in CSS_NEW
-    if MARK not in CSS_NEW:
-        api = api.replace(
-            '".club-home-sailor-slot .sa-approved-sailor-card{margin:0;overflow:hidden;}"',
-            '".club-home-sailor-slot .sa-approved-sailor-card{margin:0;overflow:hidden;}"/* ' + MARK + " */",
-            1,
-        )
+    api = api.replace(CSS_OLD, CSS_NEW, 1)
     api = api.replace(MOUNT_OLD, MOUNT_NEW, 1)
     if MARK not in api:
-        api = api.replace("function layoutMp(slot){", "function layoutMp(slot){/* " + MARK + " */", 1)
+        api = api.replace(
+            '        "function layoutMp(slot){"\n',
+            '        "function layoutMp(slot){/* ' + MARK + ' */"\n',
+            1,
+        )
     API.write_text(api)
     print("API_OK", MARK, "BAK", str(bak))
 
