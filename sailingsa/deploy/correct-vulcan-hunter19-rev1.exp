@@ -1,0 +1,19 @@
+#!/usr/bin/expect -f
+set timeout 40
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+
+spawn scp -o StrictHostKeyChecking=no /workspace/sailingsa/deploy/correct_vulcan_hunter19_rev1.py ${user}@${server}:/tmp/
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
+
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} {python3 /tmp/correct_vulcan_hunter19_rev1.py}
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
