@@ -1,0 +1,18 @@
+#!/usr/bin/expect -f
+set timeout 120
+set password "TimAdd#072082"
+set server "102.218.215.253"
+
+spawn scp -o StrictHostKeyChecking=no /workspace/sailingsa/deploy/apply_club_sailor_dev1.py root@${server}:/tmp/apply_club_sailor_dev1.py
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
+
+spawn ssh -o StrictHostKeyChecking=no root@${server} {TS=$(date +%Y%m%d_%H%M%S); tar -czf /root/backup_club_sailor_dev1_${TS}.tar.gz /var/www/sailingsa/api/api.py; chattr -i /var/www/sailingsa/api/api.py; python3 /tmp/apply_club_sailor_dev1.py; python3 -m py_compile /var/www/sailingsa/api/api.py; echo COMPILE:$?; if python3 -m py_compile /var/www/sailingsa/api/api.py; then chattr +i /var/www/sailingsa/api/api.py; systemctl restart sailingsa-api; sleep 6; systemctl is-active sailingsa-api; curl -sS -o /tmp/club8000.html -w 'L8000:%{http_code} %{size_download}\n' http://127.0.0.1:8000/club/hmyc; python3 -c "h=open('/tmp/club8000.html').read(); print('DEV1SLOT', h.count('club-home-sailor-slot'), 'INJECT', h.count('ssa-dev1-inject'), 'DEV1JS', '/dev-1?embed=1' in h, 'PAD', h.count('padding-left:10px'), 'TABLE', h.count('club-sailors-table'))"; else echo COMPILE_FAIL; fi}
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
