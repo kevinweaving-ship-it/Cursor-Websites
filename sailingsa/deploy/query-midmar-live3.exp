@@ -1,0 +1,48 @@
+#!/usr/bin/expect -f
+set timeout 60
+set password "TimAdd#072082"
+set server "102.218.215.253"
+
+spawn scp -o StrictHostKeyChecking=no /workspace/sailingsa/deploy/query_midmar_live3.py root@${server}:/tmp/query_midmar_live3.py
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
+
+spawn ssh -o StrictHostKeyChecking=no root@${server} {python3 /tmp/query_midmar_live3.py > /tmp/midmar_live3.txt 2>&1; python3 -c "
+import urllib.request,re
+urls=[
+ 'https://sailingsa.co.za/regatta/2026-07-19-hbyc-hunter-19-winter-26-saturdays',
+ 'https://sailingsa.co.za/club/hmyc',
+]
+for u in urls:
+    r=urllib.request.Request(u, headers={'User-Agent':'ssa'})
+    html=urllib.request.urlopen(r,timeout=30).read().decode('utf-8','replace')
+    print('===== URL',u,'LEN',len(html),'=====')
+    print('MIDMAR', 'Midmar' in html)
+    print('HUNTER19_LOGO', 'Hunter-19' in html)
+    # header slice
+    for pat in ['class=\"header','class-header','sailed-line','event-header-title','Results are']:
+        i=html.find(pat)
+        print(pat, i)
+    # title
+    m=re.search(r'<title>(.*?)</title>', html, re.I|re.S)
+    print('TITLE', m.group(1)[:120] if m else None)
+    # upcoming table snippet
+    iu=html.find('Upcoming')
+    if iu>=0:
+        print('UPCOMING_SNIP', html[iu:iu+400].replace(chr(10),' ')[:400])
+"}
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
+
+spawn scp -o StrictHostKeyChecking=no root@${server}:/tmp/midmar_live3.txt /tmp/midmar_live3.txt
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
