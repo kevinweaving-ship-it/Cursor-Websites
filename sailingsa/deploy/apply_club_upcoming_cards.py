@@ -3,13 +3,14 @@
 
 HMYC test first (CLUB_HOME_CARDS_ALL=False). Full Results → website until
 results exist; Name → Event URL when a regatta_id exists.
+Mobile portrait: stacked card, 44px targets, wrapping title, box borders kept.
 """
 from pathlib import Path
 import shutil
 import time
 
 API = Path("/var/www/sailingsa/api/api.py")
-MARK = "CLUB_HOME_REGATTA_CARDS_v1"
+MARK = "CLUB_HOME_REGATTA_CARDS_v2"
 
 # False = HMYC only (test). True = every club.
 CLUB_HOME_CARDS_ALL = False
@@ -54,7 +55,7 @@ TABLES_OLD = '''def _club_events_tables_html(
 
 HELPERS = r'''
 def _club_home_cards_enabled(club_abbrev: str = "") -> bool:
-    # CLUB_HOME_REGATTA_CARDS_v1
+    # CLUB_HOME_REGATTA_CARDS_v2
     if ''' + ("True" if CLUB_HOME_CARDS_ALL else "False") + r''':
         return True
     return (club_abbrev or "").strip().upper() == "HMYC"
@@ -216,8 +217,22 @@ TABLES_NEW = '''def _club_events_tables_html(
         css = '<style id="sa-home-regatta-list-style">' + _EVENTS_PAGE_REGATTA_LIST_CSS
         css += (
             ".sa-home-regatta-list{display:flex;flex-direction:column;gap:10px;}"
-            ".sa-home-regatta-single-class{display:inline-flex;align-items:center;line-height:0;}"
+            ".sa-home-regatta-single-class{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;line-height:0;}"
             ".sa-home-regatta-chip-logo{display:block;width:52px;height:28px;object-fit:contain;}"
+            ".club-home-card-filter{min-height:44px;width:100%;max-width:100%;box-sizing:border-box;font-size:16px;padding:8px 12px;margin:0 0 0.75rem 0;}"
+            ".sa-home-regatta-title{white-space:normal;overflow-wrap:anywhere;}"
+            ".sa-home-regatta-card{box-sizing:border-box;}"
+            "@media (max-width:768px){"
+            ".sa-home-regatta-card{padding:10px;}"
+            ".sa-home-regatta-top{grid-template-columns:72px minmax(0,1fr);grid-template-areas:\"logo main\" \"host host\" \"actions actions\";gap:8px 10px;align-items:start;}"
+            ".sa-home-regatta-event-logo{width:68px;height:52px;max-width:68px;}"
+            ".sa-home-regatta-title{font-size:14px;line-height:1.25;}"
+            ".sa-home-regatta-meta{flex-wrap:wrap;gap:6px;}"
+            ".sa-home-regatta-host{min-height:44px;}"
+            ".sa-home-regatta-host-name{white-space:normal;max-width:none;}"
+            ".sa-home-regatta-actions{width:100%;justify-content:stretch;gap:8px;}"
+            ".sa-home-regatta-btn{flex:1;min-height:44px;min-width:44px;padding:10px 12px;}"
+            "}"
             "</style>"
         )
         js = (
