@@ -1,0 +1,12 @@
+#!/usr/bin/expect -f
+set timeout 30
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "grep -n 'function tickStartCountdown\\|function tickRaceElapsed\\|function syncAllBoardStarts\\|function refreshFromServer' /var/www/sailingsa/api/api.py | head -10"
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
