@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Club Upcoming/Past: landing All Regattas cards, next-up first.
 
-HMYC test first (CLUB_HOME_CARDS_ALL=False). Full Results → website until
-results exist; Name → Event URL when a regatta_id exists.
-Mobile portrait: stacked card, 44px targets, wrapping title, box borders kept.
+HMYC test first (CLUB_HOME_CARDS_ALL=False). Button lifecycle:
+Event Info (external) → Upcoming Event (entries loaded) → Results (in date
+range) → Final Results (past). Name → Event URL when a regatta_id exists.
+Mobile portrait first: stacked card, 52rem stack, 44px targets.
 """
 from pathlib import Path
 import shutil
@@ -103,14 +104,13 @@ def _club_enrich_home_card(c: dict, club_abbrev: str) -> dict:
 
 
 def _club_home_regatta_card_html(c: dict, panel: str, club_abbrev: str) -> str:
-    """Landing All Regattas card. Name → Event URL. Full Results → website until results exist."""
+    """Landing All Regattas card. Name → Event URL. Button follows Event Info / Upcoming Event / Results / Final Results."""
     e = _club_enrich_home_card(c, club_abbrev)
     esc = html_module.escape
     title = e.get("display_title") or e.get("event_name") or "—"
     rid = str(e.get("regatta_id") or "").strip()
     event_href = ("/regatta/" + rid) if rid else ""
     website = str(e.get("source_url") or "").strip()
-    has_results = bool(e.get("result_yes") or str(e.get("result_url") or "").startswith("/regatta/"))
     title_html = (
         '<a href="%s" class="sa-home-regatta-title">%s</a>' % (esc(event_href, quote=True), esc(title))
         if event_href
@@ -162,13 +162,18 @@ def _club_home_regatta_card_html(c: dict, panel: str, club_abbrev: str) -> str:
             '<img class="sa-home-regatta-chip-logo" src="%s" alt="" loading="lazy" decoding="async" onerror="this.style.display=\'none\'">'
             "</a>"
         ) % (esc(event_href, quote=True), esc(logo_src, quote=True))
-    if has_results and event_href:
-        actions += '<a class="sa-home-regatta-btn" href="%s">Full Results</a>' % esc(event_href, quote=True)
-    elif website.startswith("http"):
-        actions += (
-            '<a class="sa-home-regatta-btn" href="%s" target="_blank" rel="noopener">Full Results</a>'
-            % esc(website, quote=True)
-        )
+    btn_href, btn_label, btn_ext = _club_card_action(e, panel, event_href, website, ent)
+    if btn_href and btn_label:
+        if btn_ext:
+            actions += (
+                '<a class="sa-home-regatta-btn" href="%s" target="_blank" rel="noopener">%s</a>'
+                % (esc(btn_href, quote=True), esc(btn_label))
+            )
+        else:
+            actions += '<a class="sa-home-regatta-btn" href="%s">%s</a>' % (
+                esc(btn_href, quote=True),
+                esc(btn_label),
+            )
     actions += "</div>"
     bg = " ec-upcoming" if panel == "upcoming" else (" ec-live" if panel == "live" else " ec-past-results")
     hay = esc((title + " " + date_l + " " + host_code).lower(), quote=True)
