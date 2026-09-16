@@ -4351,6 +4351,7 @@ header.site-header #headerAuth button {
 
             <!-- Login Required State (sailor profile / detailed results) -->
             <div id="state-login-required" class="popup-state" style="display: none;">
+                <div id="loginRequiredSailorPreview" class="ssa-login-required-preview" style="display:none;margin:0 0 1rem 0;"></div>
                 <h2>Claim your profile</h2>
                 <p style="margin-bottom: 1rem;">Claim your profile or register to use this feature and see more detailed information (SSA ranks, results, and full sailor data).</p>
                 <div class="auth-buttons" style="display: flex; flex-direction: column; gap: 12px;">
@@ -4652,6 +4653,7 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
     <script src="/js/api.js?v=20260901landingfix"></script>
     <script src="/js/results.js?v=FORCE_CLEAN_1"></script>
     <script src="/js/session.js?v=20260813_SILENT_LOGIN"></script>
+    <script src="/js/landing-claim-popup.js?v=20260916std1"></script>
     
     <script>
         // Function to close popup and return to landing page
@@ -4659,12 +4661,18 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
             const popup = document.getElementById('popupOverlay');
             if (popup) {
                 popup.style.display = 'none';
-                // Hide all popup states
+                popup.classList.remove('ssa-std-claim-popup');
                 const states = document.querySelectorAll('.popup-state');
                 states.forEach(state => {
                     state.style.display = 'none';
                     state.classList.add('hidden');
                 });
+            }
+            try { document.body.classList.remove('ssa-std-claim-open'); } catch (_) {}
+            var preview = document.getElementById('loginRequiredSailorPreview');
+            if (preview) {
+                preview.innerHTML = '';
+                preview.style.display = 'none';
             }
         }
         window.closePopupAndReturnToPage = closePopupAndReturnToPage;
@@ -6403,12 +6411,6 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                                 } catch (_eClaim) {}
                                 var claimTickHtml = claimIsClaimed ? '<span class="sailor-claimed-tick" aria-label="Claimed">✓</span>' : '';
                                 var claimCtaHtml = '';
-                                if (!claimIsClaimed && sid != null && String(sid).trim()) {
-                                    var claimReturnTo = (window.location && window.location.pathname) ? String(window.location.pathname) : '/';
-                                    var claimHref = '/signup.html?sas_id=' + encodeURIComponent(String(sid)) + '&returnTo=' + encodeURIComponent(claimReturnTo);
-                                    if (window.__trackFunnelEvent) window.__trackFunnelEvent('claim_cta_impression', String(sid), true, '', { returnTo: claimReturnTo });
-                                    claimCtaHtml = '<a class="sailor-claim-cta" id="sailorClaimCta" data-sas-id="' + escapeHtml(String(sid)) + '" href="' + escapeHtml(claimHref) + '" onclick="try{window.__trackFunnelEvent&&window.__trackFunnelEvent(\'claim_cta_click\',this.getAttribute(\'data-sas-id\')||\'\',true,\'\',{returnTo:(window.location&&window.location.pathname)?String(window.location.pathname):\'/\'});}catch(e){}">Is this you? Claim this profile</a>';
-                                }
                                 header = '<section class="sailor-profile-header">' +
                                     '<header class="sailor-identity has-avatar">' +
                                     '<div class="sailor-avatar">' +
@@ -8168,6 +8170,10 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                         }
                         function wireClaimBanners(slot) {
                             var info = sailorFromSlot(slot);
+                            if (typeof window.mountLandingClaimPopup === "function") {
+                                window.mountLandingClaimPopup(slot, info);
+                                return;
+                            }
                             var href = claimSignupHref(info.sid, info.name);
                             slot.querySelectorAll("a.sa-claim-banner").forEach(function(a) {
                                 a.setAttribute("href", href);
@@ -8192,26 +8198,32 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                                 if (!sc.src) codes.push(sc.textContent || "");
                                 if (sc.parentNode) sc.parentNode.removeChild(sc);
                             });
+                            if (typeof window.replaceLandingClaimBanner === "function") {
+                                window.replaceLandingClaimBanner(box);
+                            }
                             slot.innerHTML = "";
                             while (box.firstChild) slot.appendChild(box.firstChild);
                             runDev1Scripts(slot, codes);
                             wireClaimBanners(slot);
                             if (guestLocked) {
-                                slot.addEventListener("click", function(ev) {
-                                    var btn = ev.target && ev.target.closest ? ev.target.closest(".sa-avatar-expand-btn") : null;
-                                    if (!btn || !slot.contains(btn)) return;
-                                    ev.preventDefault();
-                                    ev.stopPropagation();
-                                    if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
-                                    var panel = slot.querySelector(".dev1-rank-expand-panel");
-                                    if (panel) panel.style.display = "none";
-                                    btn.setAttribute("aria-expanded", "false");
-                                    var svg = btn.querySelector("svg");
+                                slot.querySelectorAll(".sa-avatar-expand-btn").forEach(function(btn) {
+                                    var fresh = btn.cloneNode(true);
+                                    if (btn.parentNode) btn.parentNode.replaceChild(fresh, btn);
+                                    fresh.setAttribute("aria-expanded", "false");
+                                    var svg = fresh.querySelector("svg");
                                     if (svg) svg.style.transform = "rotate(0deg)";
-                                    var info = sailorFromSlot(slot);
-                                    rememberClaimSailor(info.sid, info.name);
-                                    if (typeof window.showLoginRequiredPopup === "function") window.showLoginRequiredPopup();
-                                }, true);
+                                    fresh.addEventListener("click", function(ev) {
+                                        ev.preventDefault();
+                                        ev.stopPropagation();
+                                        if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+                                        var panel = slot.querySelector(".dev1-rank-expand-panel");
+                                        if (panel) panel.style.display = "none";
+                                        var info = sailorFromSlot(slot);
+                                        rememberClaimSailor(info.sid, info.name);
+                                        if (typeof window.openStdClaimForSlot === "function") window.openStdClaimForSlot(slot, info);
+                                        else if (typeof window.showLoginRequiredPopup === "function") window.showLoginRequiredPopup();
+                                    });
+                                });
                             }
                         }
                         var gen = window.__sailorSearchGen || 0;
@@ -9588,6 +9600,15 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                 alert('Login coming soon (Beta). Public content remains available.');
                 return;
             }
+            try { if (typeof window.closeLandingClaimPopup === 'function') window.closeLandingClaimPopup(); } catch (_) {}
+            var fancy = document.getElementById('ssa-claim-modal');
+            if (fancy) {
+                fancy.hidden = true;
+                fancy.classList.remove('is-open');
+                fancy.setAttribute('aria-hidden', 'true');
+            }
+            try { document.body.classList.remove('ssa-claim-modal-open'); } catch (_) {}
+            try { document.body.classList.add('ssa-std-claim-open'); } catch (_) {}
             var popup = document.getElementById('popupOverlay');
             var loginRequiredState = document.getElementById('state-login-required');
             if (!loginRequiredState) return;
@@ -9600,6 +9621,8 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                 popup.appendChild(wrap);
                 wrap.appendChild(loginRequiredState);
             }
+            popup.classList.add('ssa-std-claim-popup');
+            popup.style.zIndex = '2147483646';
             popup.style.display = 'flex';
             var states = popup.querySelectorAll('.popup-state');
             if (!states.length) states = document.querySelectorAll('.popup-state');
@@ -9609,15 +9632,57 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
             });
             loginRequiredState.style.display = 'block';
             loginRequiredState.classList.remove('hidden');
+
+            var preview = document.getElementById('loginRequiredSailorPreview');
+            if (preview) {
+                preview.innerHTML = '';
+                preview.style.display = 'none';
+                var slot = window.__ssaClaimSlot || null;
+                if (slot && slot.querySelector) {
+                    function escPrev(s) {
+                        return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    }
+                    var chip = slot.querySelector('.sa-looked-cta');
+                    var html = chip ? chip.outerHTML : '';
+                    var top = slot.querySelector('.sa-province-pin-name-top');
+                    var sub = slot.querySelector('.sa-province-pin-name-sub');
+                    var tenure = slot.querySelector('.sa-sailing-tenure-text');
+                    var prov = ((top && top.textContent) || '') + ' ' + ((sub && sub.textContent) || '');
+                    prov = prov.replace(/\s+/g, ' ').trim();
+                    var dur = tenure ? String(tenure.textContent || '').replace(/\s+/g, ' ').trim() : '';
+                    if (prov || dur) {
+                        html += '<div class="ssa-login-required-meta">';
+                        if (prov) html += '<div class="ssa-login-required-prov">' + escPrev(prov) + '</div>';
+                        if (dur) html += '<div class="ssa-login-required-dur">' + escPrev(dur) + '</div>';
+                        html += '</div>';
+                    }
+                    if (html) {
+                        preview.innerHTML = html;
+                        preview.style.display = 'block';
+                        preview.querySelectorAll('button, a').forEach(function(el) {
+                            el.setAttribute('tabindex', '-1');
+                            el.style.pointerEvents = 'none';
+                        });
+                    }
+                }
+            }
             
             function closeLoginRequiredPopup() {
                 if (popup) {
                     popup.style.display = 'none';
+                    popup.classList.remove('ssa-std-claim-popup');
                     states.forEach(state => {
                         state.style.display = 'none';
                         state.classList.add('hidden');
                     });
                 }
+                try { document.body.classList.remove('ssa-std-claim-open'); } catch (_) {}
+                var host = document.getElementById('loginRequiredSailorPreview');
+                if (host) {
+                    host.innerHTML = '';
+                    host.style.display = 'none';
+                }
+                window.__ssaClaimSlot = null;
             }
             
             const signInBtn = document.getElementById('btnLoginRequiredSignIn');
