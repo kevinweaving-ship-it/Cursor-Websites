@@ -13,7 +13,7 @@ API = Path("/var/www/sailingsa/api/api.py")
 MARK = "CLUB_HOME_REGATTA_CARDS_v2"
 
 # False = HMYC only (test). True = every club.
-CLUB_HOME_CARDS_ALL = False
+CLUB_HOME_CARDS_ALL = True
 
 SOURCE_OLD = """        "regatta_id": (r.get("regatta_id") or "").strip() if has_regatta_id else "",
         "entries": 0,
@@ -224,7 +224,7 @@ TABLES_NEW = '''def _club_events_tables_html(
             ".sa-home-regatta-card{box-sizing:border-box;}"
             "@media (max-width:768px){"
             ".sa-home-regatta-card{padding:10px;}"
-            ".sa-home-regatta-top{grid-template-columns:72px minmax(0,1fr);grid-template-areas:\"logo main\" \"host host\" \"actions actions\";gap:8px 10px;align-items:start;}"
+            '.sa-home-regatta-top{grid-template-columns:72px minmax(0,1fr);grid-template-areas:"logo main" "host host" "actions actions";gap:8px 10px;align-items:start;}'
             ".sa-home-regatta-event-logo{width:68px;height:52px;max-width:68px;}"
             ".sa-home-regatta-title{font-size:14px;line-height:1.25;}"
             ".sa-home-regatta-meta{flex-wrap:wrap;gap:6px;}"
@@ -233,6 +233,10 @@ TABLES_NEW = '''def _club_events_tables_html(
             ".sa-home-regatta-actions{width:100%;justify-content:stretch;gap:8px;}"
             ".sa-home-regatta-btn{flex:1;min-height:44px;min-width:44px;padding:10px 12px;}"
             "}"
+            ".club-home-cards-stack{width:100%;max-width:52rem;margin:0 auto 1.5rem;box-sizing:border-box;}"
+            ".club-home-cards-stack .card.stats-section{width:100%;max-width:100%;box-sizing:border-box;}"
+            ".club-home-cards-stack .sa-home-regatta-card{width:100%;max-width:100%;box-sizing:border-box;}"
+            "@media (max-width:768px){.club-home-cards-stack{max-width:100%;padding:0;}}"
             "</style>"
         )
         js = (
@@ -243,12 +247,14 @@ TABLES_NEW = '''def _club_events_tables_html(
             "c.style.display=((c.getAttribute('data-search')||'').indexOf(q)>=0)?'':'none';});});});})();</script>"
         )
         return (
-            css
+            '<div class="club-home-cards-stack">'
+            + css
             + _club_home_cards_section_html("Upcoming events", upcoming, club_abbrev, "upcoming", "club-upcoming-cards")
             + _club_home_cards_section_html(
                 "Past Events / Regattas Hosted", past, club_abbrev, "past", "club-past-cards"
             )
             + js
+            + "</div>"
         )
     upcoming = list(lv or []) + list(up or [])
     out = []
