@@ -1,0 +1,36 @@
+#!/usr/bin/expect -f
+set timeout 50
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+
+spawn scp -o StrictHostKeyChecking=no /workspace/sailingsa/deploy/query_midmar_template.py ${user}@${server}:/tmp/query_midmar_template.py
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
+
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} {python3 /tmp/query_midmar_template.py > /tmp/midmar_template.txt 2>&1; python3 -c "import urllib.request; r=urllib.request.Request('http://127.0.0.1:8000/club/hmyc', headers={'Host':'sailingsa.co.za'}); html=urllib.request.urlopen(r,timeout=25).read().decode('utf-8','replace');
+import re
+print('CLUB_LEN', len(html))
+print('MIDMAR_IN_PAGE', 'Midmar Cup' in html)
+print('UPCOMING_HEAD', 'Upcoming' in html)
+for m in re.finditer(r'Midmar|Dart 18 Nationals|USSA', html):
+    pass
+# extract upcoming cards
+idx=html.find('Upcoming')
+print(html[idx:idx+800] if idx>=0 else 'no Upcoming')
+"}
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
+
+spawn scp -o StrictHostKeyChecking=no ${user}@${server}:/tmp/midmar_template.txt /tmp/midmar_template.txt
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
