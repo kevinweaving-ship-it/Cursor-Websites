@@ -226,8 +226,8 @@ def get_db_connection(request_id: str = None):
         return _ConnectionWrapper(conn)
     except Exception as e:
         print(f"[DB] Error getting connection from pool: {e}")
-        # Fallback to direct connection
-        return psycopg2.connect(DB_URL, cursor_factory=psycopg2.extras.RealDictCursor)
+        # Pool exhausted/failed: fail fast. Never open unpooled connections.
+        raise
 
 def return_db_connection(conn):
     """Return a connection to the pool"""
