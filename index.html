@@ -143,8 +143,16 @@
         .class-gold-page .club-page-logo-wrap { display: flex; justify-content: center; }
         .class-gold-page .club-page-logo-img { display: block; width: auto; max-width: min(220px, 100%); height: auto; max-height: 120px; object-fit: contain; }
         .class-gold-page .club-story-meta { margin: 0; color: #475569; font-size: 0.95rem; font-weight: 600; text-align: center; }
-        /* Events featuring / Clubs sailing — same boxed cards as /classes + /clubs (MP default) */
-        .class-gold-page .club-story-logo-row { width: 100%; margin: 0.35rem 0 0.15rem; }
+        /* Events featuring / Clubs sailing — outer card border matches Events / Sailors / Clubs */
+        .class-gold-page .club-story-logo-row {
+            width: 100%;
+            margin: 0 0 1.25rem 0;
+            box-sizing: border-box;
+            background: #fff;
+            border: 2px solid #001f3f;
+            border-radius: 8px;
+            padding: 1rem 1.25rem;
+        }
         .class-gold-page .club-story-logo-row-label { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #001f3f; margin: 0 0 0.45rem 0; text-align: center; }
         .class-gold-page .club-story-logo-chips {
             display: grid;
@@ -5138,10 +5146,10 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
 
             var strips = '';
             if (eventChips.length) {
-                strips += '<div class="club-story-logo-row"><div class="club-story-logo-row-label">Events featuring ' + esc(className) + '</div><div class="club-story-logo-chips">' + eventChips.join('') + '</div></div>';
+                strips += '<div class="card stats-section club-story-logo-row"><div class="club-story-logo-row-label">Events featuring ' + esc(className) + '</div><div class="club-story-logo-chips">' + eventChips.join('') + '</div></div>';
             }
             if (clubChips.length) {
-                strips += '<div class="club-story-logo-row"><div class="club-story-logo-row-label">Clubs sailing ' + esc(className) + '</div><div class="club-story-logo-chips">' + clubChips.join('') + '</div></div>';
+                strips += '<div class="card stats-section club-story-logo-row"><div class="club-story-logo-row-label">Clubs sailing ' + esc(className) + '</div><div class="club-story-logo-chips">' + clubChips.join('') + '</div></div>';
             }
 
             function ordinal(n) {
