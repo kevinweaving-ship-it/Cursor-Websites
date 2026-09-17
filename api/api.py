@@ -36,6 +36,19 @@ try:
 except ImportError:
     build_sailor_bio_from_db = None  # module not deployed (e.g. missing sailingsa/api/modules/)
 
+try:
+    from sailingsa.backend.weather_agromet import history_payload as _agromet_history_payload
+except ImportError:
+    _agromet_root = os.path.dirname(os.path.abspath(__file__))
+    if os.path.basename(_agromet_root) == "api":
+        _agromet_root = os.path.dirname(_agromet_root)
+    if _agromet_root not in sys.path:
+        sys.path.insert(0, _agromet_root)
+    try:
+        from sailingsa.backend.weather_agromet import history_payload as _agromet_history_payload
+    except ImportError:
+        _agromet_history_payload = None
+
 NAME_SIM_THRESHOLD = 0.75
 
 # Align default with config.postgres.env (sailors_user)
@@ -24154,6 +24167,9 @@ _SECTION_HEADING_ROW_UNIFIED_CSS = """
 _CLUB_PAGE_CSS = """
 .club-page .card.stats-section { background: #fff; border: 2px solid #001f3f; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
 .club-page .section-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; border-bottom: 2px solid #001f3f; padding-bottom: 0.35rem; margin-bottom: 0.75rem; color: #001f3f; }
+.club-page .club-live-media { width: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 0; padding: 0; border: 0; background: transparent; box-shadow: none; }
+.club-page .club-live-media .ssa-regatta-slot-card { margin-top: 0; width: 100%; max-width: 100%; }
+.club-page .club-live-media .mm-lipton-reels { margin-top: 10px; width: 100%; }
 """ + _SECTION_HEADING_ROW_UNIFIED_CSS + """
 .club-sailors-filter-input { padding: 0.5rem 1rem; border: 2px solid #001f3f; border-radius: 999px; font-size: 1rem; box-sizing: border-box; min-height: 44px; }
 .club-sailors-carousel-controls { margin-bottom: 0.5rem; }
@@ -25380,8 +25396,11 @@ def _serve_club_page_impl(slug: str, club: tuple):
         "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
         f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
         "<link rel=\"stylesheet\" href=\"/css/main.css?v=13\">"
+        "<link rel=\"stylesheet\" href=\"/css/mm-lipton-reels.css?v=clubwx3\">"
         f"<style>body{{font-family:system-ui,sans-serif;margin:2rem;color:#1a2750;}}a{{color:#1a2750;}}{_CLUB_PAGE_CSS}</style></head><body>"
-        f"<div class=\"club-page\">{body}</div>{_seo_discovery_block_html()}</body></html>"
+        f"<div class=\"club-page\">{body}</div>"
+        '<script src="/js/club-live-media.js?v=clubwx3" defer></script>'
+        f"{_seo_discovery_block_html()}</body></html>"
     )
     return HTMLResponse(doc)
 
@@ -25445,6 +25464,14 @@ def _resolve_class_slug_to_class_id(class_slug: str):
             return (None, None)
     class_id, class_name = _get_class_by_name_slug(s)
     return (class_id, class_name)
+
+
+@app.get("/api/weather/agromet-midmar/history")
+def api_weather_agromet_midmar_history(hours: int = Query(12, ge=1, le=48)):
+    """HMYC venue wind from UKZN Agromet Midmar (same card as ZVYC/HYC)."""
+    if _agromet_history_payload is None:
+        return JSONResponse({"ok": False, "slug": "agromet-midmar", "count": 0, "readings": [], "err": "agromet module missing"})
+    return JSONResponse(_agromet_history_payload(hours))
 
 
 @app.get("/api/class/resolve-slug/{slug}")
