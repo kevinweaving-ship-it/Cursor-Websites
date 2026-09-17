@@ -1,0 +1,15 @@
+#!/usr/bin/expect -f
+set timeout 90
+set password "TimAdd#072082"
+spawn scp -o StrictHostKeyChecking=no /workspace/sailingsa/deploy/apply_sailor_spa_class_sailors.py root@102.218.215.253:/tmp/apply_sailor_spa_class_sailors.py
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
+spawn ssh -o StrictHostKeyChecking=no root@102.218.215.253 {python3 /tmp/apply_sailor_spa_class_sailors.py}
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
