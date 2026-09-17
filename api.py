@@ -26016,10 +26016,10 @@ def _serve_club_page_impl(slug: str, club: tuple):
         "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
         f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
         "<link rel=\"stylesheet\" href=\"/css/main.css?v=13\">"
-        "<link rel=\"stylesheet\" href=\"/css/mm-lipton-reels.css?v=clubwx7\">"
+        '<link rel="stylesheet" href="/css/mm-lipton-reels.css?v=clubwx8">'
         f"<style>body{{font-family:system-ui,sans-serif;margin:2rem;color:#1a2750;}}a{{color:#1a2750;}}{_CLUB_PAGE_CSS}</style></head><body>"
         f"<div class=\"club-page\">{body}</div>"
-        '<script src="/js/club-live-media.js?v=clubwx7" defer></script>'
+        '<script src="/js/club-live-media.js?v=clubwx8" defer></script>'
         f"{_seo_discovery_block_html()}</body></html>"
     )
     return HTMLResponse(doc)
@@ -26104,6 +26104,65 @@ def api_club_cam_hmyc():
     if _hmyc_cam_status is None:
         return JSONResponse({"ok": False, "kind": "snapshot", "label": "Club cam", "interval_sec": 60, "err": "agromet module missing"})
     return JSONResponse(_hmyc_cam_status())
+
+
+@app.get("/api/weather/hyc/history")
+def api_weather_hyc_history(hours: int = Query(12, ge=1, le=48)):
+    """HYC venue wind from WU PWS IOVERS2 (mph → knots). Catalog: /api/weather/clubs/HYC/stations."""
+    try:
+        from sailingsa.backend.weather_hyc import history_payload as _hyc_wx
+    except ImportError:
+        _hyc_wx = None
+    if _hyc_wx is None:
+        return JSONResponse({"ok": False, "slug": "pws-iovers2", "count": 0, "readings": [], "err": "hyc weather module missing"})
+    return JSONResponse(_hyc_wx(hours))
+
+
+@app.get("/api/club-cam/hyc")
+def api_club_cam_hyc(request: Request):
+    """HYC Hikvision Cam 5 live still (same card size as HMYC). Super-admin can hide it."""
+    try:
+        from sailingsa.backend import club_cam_hyc as _hyc_cam
+    except ImportError:
+        _hyc_cam = None
+    if _hyc_cam is None:
+        return JSONResponse({"ok": False, "kind": "live", "live": False, "visible": False, "err": "hyc cam module missing"})
+    can = _session_role_is_super_admin(request)
+    allowed = _hyc_cam.is_visible() or can
+    return JSONResponse(_hyc_cam.status_payload(allowed=allowed, can_toggle=can))
+
+
+@app.get("/api/club-cam/hyc/snapshot")
+def api_club_cam_hyc_snapshot(request: Request):
+    try:
+        from sailingsa.backend import club_cam_hyc as _hyc_cam
+    except ImportError:
+        _hyc_cam = None
+    if _hyc_cam is None:
+        raise HTTPException(status_code=503, detail="hyc cam module missing")
+    if not (_hyc_cam.is_visible() or _session_role_is_super_admin(request)):
+        raise HTTPException(status_code=404, detail="live cam hidden")
+    body, err = _hyc_cam.fetch_snapshot()
+    if not body:
+        raise HTTPException(status_code=502, detail=err or "nvr snapshot failed")
+    return Response(content=body, media_type="image/jpeg", headers={"Cache-Control": "no-store, max-age=0"})
+
+
+@app.patch("/api/super-admin/club-cam/hyc")
+async def api_super_admin_club_cam_hyc(request: Request, body: dict = Body(...)):
+    _require_super_admin(request)
+    try:
+        from sailingsa.backend import club_cam_hyc as _hyc_cam
+    except ImportError:
+        _hyc_cam = None
+    if _hyc_cam is None:
+        raise HTTPException(status_code=503, detail="hyc cam module missing")
+    visible = bool((body or {}).get("visible"))
+    _hyc_cam.set_visible(visible)
+    payload = _hyc_cam.status_payload(allowed=True, can_toggle=True)
+    payload["ok"] = True
+    payload["visible"] = visible
+    return JSONResponse(payload)
 
 
 @app.get("/api/class/resolve-slug/{slug}")

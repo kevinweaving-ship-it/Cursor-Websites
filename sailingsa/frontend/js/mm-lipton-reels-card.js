@@ -90,6 +90,14 @@
     return !!(root && root.getAttribute('data-mm-snapshot') === '1');
   }
 
+  function liveStillCamRoot(root) {
+    return !!(root && root.getAttribute('data-mm-live-still') === '1');
+  }
+
+  function singleCamRoot(root) {
+    return snapshotCamRoot(root) || liveStillCamRoot(root);
+  }
+
   function isAdvertFile(v) {
     return String((v && v.play_url) || '').indexOf('/assets/adverts/') === 0;
   }
@@ -356,12 +364,18 @@
     var stamp = ensureCamStampOn(host);
     if (!stamp) return;
     var root = host && host.closest ? host.closest('.mm-lipton-reels') : null;
-    var snapshot = snapshotCamRoot(root) || !!(root && root._mmCamSnapshot);
+    var liveStill = liveStillCamRoot(root);
+    var snapshot = !liveStill && (snapshotCamRoot(root) || !!(root && root._mmCamSnapshot));
     stamp.hidden = false;
-    stamp.classList.toggle('mm-lipton-reels-cam-stamp--live', !snapshot && live);
-    stamp.classList.toggle('mm-lipton-reels-cam-stamp--off', snapshot || !live);
+    stamp.classList.toggle('mm-lipton-reels-cam-stamp--live', liveStill || (!snapshot && live));
+    stamp.classList.toggle('mm-lipton-reels-cam-stamp--off', !liveStill && (snapshot || !live));
     var label = stamp.querySelector('[data-mm-cam-stamp-label]');
     var timeEl = stamp.querySelector('[data-mm-cam-stamp-time]');
+    if (liveStill) {
+      if (label) label.textContent = live ? 'LIVE' : 'Offline';
+      if (timeEl) timeEl.textContent = live ? nowTxt : lastTxt || nowTxt;
+      return;
+    }
     if (snapshot) {
       if (label) label.textContent = 'SNAPSHOT';
       if (timeEl) timeEl.textContent = root && root._mmCamAsAt ? 'as at ' + root._mmCamAsAt : lastTxt || nowTxt;
@@ -408,20 +422,22 @@
       })
       .then(function (data) {
         if (!data) return;
-        root._mmCamSnapshot = true;
-        root._mmCamUpstream = false;
+        var liveStill = liveStillCamRoot(root) || data.kind === 'live';
+        root._mmCamSnapshot = !liveStill;
+        if (liveStill) root._mmCamUpstream = !!data.live;
+        else root._mmCamUpstream = false;
         if (data.as_at) root._mmCamAsAt = String(data.as_at);
         if (data.last_modified) root._mmCamStillAt = parseStillAt(data.last_modified);
         var clip = firstSnapshotClip(root);
         var base = String((data.src || (clip && (clip.live_snap || clip.thumb)) || '')).split('?')[0];
         if (!base) return;
         var token = String(data.last_modified || Date.now());
-        if (root._mmCamToken === token) {
+        if (!liveStill && root._mmCamToken === token) {
           paintCamStamps(root);
           return;
         }
         root._mmCamToken = token;
-        var src = base + (base.indexOf('?') >= 0 ? '&' : '?') + 't=' + encodeURIComponent(token);
+        var src = base + (base.indexOf('?') >= 0 ? '&' : '?') + 't=' + encodeURIComponent(liveStill ? Date.now() : token);
         var imgs = root.querySelectorAll('[data-mm-webcam-live]');
         var i;
         for (i = 0; i < imgs.length; i++) imgs[i].src = src;
@@ -463,7 +479,7 @@
     }, 1000);
     root._mmCamStatusTimer = window.setInterval(function () {
       pollCamStatus(root);
-    }, snapshotCamRoot(root) ? 60000 : 20000);
+    }, liveStillCamRoot(root) ? 2000 : snapshotCamRoot(root) ? 60000 : 20000);
   }
 
   function refreshSavedCamStill(root) {
@@ -1867,7 +1883,7 @@
       compact.setAttribute('data-mm-count', countKey);
       wireWebcamThumbLoad(root, (videos || []).filter(isWebcam)[0]);
     }
-    var art = snapshotCamRoot(root) ? 0 : ART_W / ART_H;
+    var art = singleCamRoot(root) ? 0 : ART_W / ART_H;
     var vid = VID_W / VID_H;
     var border = 4;
     var cols = nFit + liveN;
@@ -1875,9 +1891,9 @@
     var innerH = (avail - GAP * Math.max(cols - (art ? 0 : 1), 0) - border * (art ? 1 + cols : cols)) / ((art || 0) + cols * vid);
     if (innerH < 40) innerH = 40;
     var outerH = innerH + border;
-    var thumbW = snapshotCamRoot(root) ? Math.max(0, avail - border) : innerH * vid + border;
+    var thumbW = singleCamRoot(root) ? Math.max(0, avail - border) : innerH * vid + border;
     if (brand) {
-      if (snapshotCamRoot(root)) {
+      if (singleCamRoot(root)) {
         brand.style.display = 'none';
         brand.style.width = '0';
         brand.style.height = '0';
@@ -2255,6 +2271,11 @@
       '.mm-lipton-reels[data-mm-snapshot] .mm-lipton-reels-player-wrap{width:100%}' +
       '.mm-lipton-reels[data-mm-snapshot] .mm-lipton-reels-brand{display:none!important;width:0!important;height:0!important;overflow:hidden}' +
       '.mm-lipton-reels[data-mm-snapshot] .mm-lipton-reels-clip-chrome{display:none!important}' +
+      '.mm-lipton-reels[data-mm-live-still] .mm-lipton-reels-player-ui{display:none!important}' +
+      '.mm-lipton-reels[data-mm-live-still] .mm-lipton-reels-play{display:none!important}' +
+      '.mm-lipton-reels[data-mm-live-still] .mm-lipton-reels-player-wrap{width:100%}' +
+      '.mm-lipton-reels[data-mm-live-still] .mm-lipton-reels-brand{display:none!important;width:0!important;height:0!important;overflow:hidden}' +
+      '.mm-lipton-reels[data-mm-live-still] .mm-lipton-reels-clip-chrome{display:none!important}' +
       '.mm-lipton-reels-cam-stamp[hidden]{display:none!important}' +
       '.mm-lipton-reels-cam-stamp-dot{flex:0 0 auto;width:8px;height:8px;border-radius:50%;background:#94a3b8}' +
       '.mm-lipton-reels-cam-stamp--live .mm-lipton-reels-cam-stamp-dot{background:#ef4444;box-shadow:0 0 6px #ef4444;' +
