@@ -219,8 +219,26 @@
             vertical-align: middle;
         }
         .class-gold-page .club-story-logo-row { width: 100%; max-width: 52rem; margin: 0 auto 1.25rem; }
+        .class-gold-page .club-home-cards-stack {
+            width: 100%;
+            max-width: 52rem;
+            margin: 0 auto 1.5rem;
+            box-sizing: border-box;
+        }
+        .class-gold-page .club-home-cards-stack .card.stats-section { max-width: 100%; }
+        .class-gold-page .club-home-card-filter {
+            min-height: 44px;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            font-size: 16px;
+            padding: 8px 12px;
+            margin: 0 0 0.75rem 0;
+        }
+        .class-gold-page .sa-home-regatta-meta-pill { white-space: nowrap; }
         @media (max-width: 768px) {
             .class-gold-page .club-story-logo-row { max-width: 100%; }
+            .class-gold-page .club-home-cards-stack { max-width: 100%; }
         }
         .class-gold-page .club-story-logo-row-label {
             display: flex;
@@ -5168,26 +5186,130 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                 return '<img src="' + esc(u) + '" alt="" class="row-av" width="28" height="28" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=\'/assets/avatars/default-youth.png\'">';
             }
 
-            var regattaRows = regattas.map(function(r, i) {
+            function isoDay(raw) {
+                var s = String(raw || '').trim().slice(0, 10);
+                return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : '';
+            }
+            function shortDate(raw) {
+                var s = isoDay(raw);
+                if (!s) return '';
+                var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                var d = parseInt(s.slice(8, 10), 10);
+                var m = parseInt(s.slice(5, 7), 10) - 1;
+                var y = parseInt(s.slice(0, 4), 10);
+                if (m < 0 || m > 11 || !d) return s;
+                return d + ' ' + months[m] + ' ' + y;
+            }
+            function eventDateLabel(r) {
+                var a = shortDate(r.start_date || r.event_date);
+                var b = shortDate(r.end_date || r.event_date);
+                if (a && b && a !== b) return a + ' → ' + b;
+                return a || b || '';
+            }
+            function eventEndDay(r) {
+                return isoDay(r.end_date || r.event_date || r.start_date);
+            }
+            function todayIso() {
+                var n = new Date();
+                var m = String(n.getMonth() + 1);
+                var d = String(n.getDate());
+                if (m.length < 2) m = '0' + m;
+                if (d.length < 2) d = '0' + d;
+                return n.getFullYear() + '-' + m + '-' + d;
+            }
+            function countLabel(n, one, many) {
+                if (n == null || n === '') return '';
+                var num = Number(n);
+                if (!isFinite(num)) return '';
+                return num + ' ' + (num === 1 ? one : many);
+            }
+            function metaPill(text) {
+                if (!text) return '';
+                return '<span class="sa-home-regatta-meta-pill"><span>' + esc(text) + '</span></span>';
+            }
+            function classEventCard(r, panel) {
                 var slug = (r.regatta_slug || (r.regatta_id != null ? String(r.regatta_id) : '')) || '';
-                var url = slug ? '/regatta/' + encodeURIComponent(slug) : '#';
-                var eventName = esc(r.regatta_name || r.event_name || '');
-                var eventDate = esc(r.event_date || r.end_date || r.start_date || '—');
+                var url = slug ? '/regatta/' + encodeURIComponent(slug) : '';
+                var title = r.regatta_name || r.event_name || '—';
+                var dateL = eventDateLabel(r);
                 var hostCode = (r.club_code || '').trim().toUpperCase();
                 var hostSlug = (r.club_slug || hostCode.toLowerCase() || '').trim();
-                var hostLogo = (r.club_logo_url || (hostCode ? '/api/club-logo/' + hostCode : '')).trim();
-                var hostCell = hostCode
-                    ? (rowLogo(hostLogo) + (hostSlug ? '<a href="/club/' + encodeURIComponent(hostSlug) + '">' + esc(hostCode) + '</a>' : esc(hostCode)))
-                    : '—';
                 var evLogo = (r.event_logo_url || classLogo || '').trim();
-                var eventEntries = (r.event_entries != null && r.event_entries !== '') ? r.event_entries
-                    : ((r.fleet_size != null && r.fleet_size !== '') ? r.fleet_size : '—');
-                var classEntries = (r.class_entries != null && r.class_entries !== '') ? r.class_entries
-                    : ((r.fleet_size != null && r.fleet_size !== '') ? r.fleet_size : '—');
-                var races = (r.races != null && r.races !== '') ? r.races : '—';
-                var search = esc(((r.regatta_name || '') + ' ' + hostCode + ' ' + eventDate).toLowerCase());
-                return '<tr data-search="' + search + '"><td>' + (i + 1) + '</td><td class="cell-left">' + rowLogo(evLogo) + '<a href="' + url + '">' + eventName + '</a></td><td class="cell-nowrap">' + eventDate + '</td><td class="cell-left hide-mobile">' + hostCell + '</td><td>' + eventEntries + '</td><td>' + classEntries + '</td><td class="hide-mobile">' + races + '</td></tr>';
-            }).join('');
+                var classEnt = countLabel(r.class_entries, (className || 'entry'), (className ? (className + 's') : 'entries'));
+                var racesL = countLabel(r.races, 'race', 'races');
+                var logo = evLogo
+                    ? (url
+                        ? '<a class="sa-home-regatta-event-logo-link" href="' + esc(url) + '"><img class="sa-home-regatta-event-logo" src="' + esc(evLogo) + '" alt="" loading="lazy" decoding="async" onerror="this.style.display=\'none\'"></a>'
+                        : '<img class="sa-home-regatta-event-logo" src="' + esc(evLogo) + '" alt="" loading="lazy" decoding="async" onerror="this.style.display=\'none\'">')
+                    : '';
+                var titleHtml = url
+                    ? '<a href="' + esc(url) + '" class="sa-home-regatta-title">' + esc(title) + '</a>'
+                    : '<div class="sa-home-regatta-title">' + esc(title) + '</div>';
+                var meta = '<div class="sa-home-regatta-meta">' + metaPill(dateL) + metaPill(classEnt) + metaPill(racesL) + '</div>';
+                var hostInner = '<div class="sa-home-regatta-host-text">' +
+                    (hostCode ? '<div class="sa-home-regatta-host-code">' + esc(hostCode) + '</div>' : '') +
+                    '</div>';
+                var hostHtml = hostSlug
+                    ? '<a class="sa-home-regatta-host" href="/club/' + encodeURIComponent(hostSlug) + '">' + hostInner + '</a>'
+                    : '<div class="sa-home-regatta-host">' + hostInner + '</div>';
+                var btnLabel = panel === 'upcoming' ? 'Upcoming Event' : 'Results';
+                var actions = '<div class="sa-home-regatta-actions">' +
+                    (url ? '<a class="sa-home-regatta-btn" href="' + esc(url) + '">' + btnLabel + '</a>' : '') +
+                    '</div>';
+                var bg = panel === 'upcoming' ? ' ec-upcoming' : ' ec-past-results';
+                var hay = esc((title + ' ' + dateL + ' ' + hostCode).toLowerCase());
+                return '<article class="sa-home-regatta-card' + bg + '" data-search="' + hay + '">' +
+                    '<div class="sa-home-regatta-top">' + logo +
+                    '<div class="sa-home-regatta-top-main">' + titleHtml + meta + '</div>' +
+                    hostHtml + actions + '</div></article>';
+            }
+            var today = todayIso();
+            var upcoming = [];
+            var past = [];
+            regattas.forEach(function(r) {
+                var end = eventEndDay(r);
+                if (end && end >= today) upcoming.push(r);
+                else past.push(r);
+            });
+            upcoming.sort(function(a, b) { return eventEndDay(a).localeCompare(eventEndDay(b)); });
+            past.sort(function(a, b) { return eventEndDay(b).localeCompare(eventEndDay(a)); });
+            function eventSection(title, list, panel, listId) {
+                if (!list.length) return '';
+                var cards = list.map(function(r) { return classEventCard(r, panel); }).join('');
+                return '<div class="card stats-section club-' + panel + '-events-section">' +
+                    '<h2 class="section-title">' + esc(title) + ' (' + list.length + ')</h2>' +
+                    '<input type="search" class="club-home-card-filter" data-list="' + listId + '" placeholder="Search ' + esc(title.toLowerCase()) + '…" autocomplete="off">' +
+                    '<div class="sa-home-regatta-wrap"><div class="sa-home-regatta-list" id="' + listId + '">' + cards + '</div></div></div>';
+            }
+            if (typeof ensureRegattaListCss === 'function') ensureRegattaListCss();
+            var eventCardsHtml =
+                '<div class="club-home-cards-stack class-gold-event-cards">' +
+                '<style id="class-gold-event-cards-style">' +
+                '.class-gold-page .sa-home-regatta-list{display:flex;flex-direction:column;gap:10px;}' +
+                '.class-gold-page .sa-home-regatta-card{background:#fff;border:2px solid #8aa2c6;border-radius:6px;box-shadow:0 2px 3px rgba(15,23,42,.06);padding:10px 12px;display:flex;flex-direction:column;gap:8px;overflow:hidden;box-sizing:border-box;width:100%;}' +
+                '.class-gold-page .sa-home-regatta-top{display:grid;grid-template-columns:104px minmax(0,1fr) minmax(72px,120px) auto;grid-template-areas:"logo main host actions";gap:14px;align-items:center;}' +
+                '.class-gold-page .sa-home-regatta-event-logo-link{grid-area:logo;display:flex;align-items:center;line-height:0;}' +
+                '.class-gold-page .sa-home-regatta-event-logo{display:block;width:96px;height:68px;max-width:96px;object-fit:contain;}' +
+                '.class-gold-page .sa-home-regatta-top-main{grid-area:main;min-width:0;}' +
+                '.class-gold-page .sa-home-regatta-title{font-size:15px;font-weight:900;color:#142c78;line-height:1.15;margin:0;text-decoration:none;}' +
+                '.class-gold-page .sa-home-regatta-meta{display:flex;flex-wrap:wrap;gap:8px;color:#5b6780;font-size:11.5px;margin-top:6px;}' +
+                '.class-gold-page .sa-home-regatta-meta-pill{display:inline-flex;align-items:center;font-weight:700;white-space:nowrap;position:relative;}' +
+                '.class-gold-page .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill{padding-left:10px;}' +
+                '.class-gold-page .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill:before{content:"";position:absolute;left:0;top:2px;bottom:2px;width:1px;background:#cbd5e1;}' +
+                '.class-gold-page .sa-home-regatta-host{grid-area:host;display:flex;align-items:center;text-decoration:none;color:inherit;min-height:44px;}' +
+                '.class-gold-page .sa-home-regatta-host-code{font-weight:900;color:#21356b;font-size:14px;}' +
+                '.class-gold-page .sa-home-regatta-actions{grid-area:actions;display:flex;align-items:center;justify-content:flex-end;}' +
+                '.class-gold-page .sa-home-regatta-btn{display:inline-flex;align-items:center;justify-content:center;padding:9px 14px;border-radius:6px;border:1px solid #a5d7de;background:#f9ffff;color:#0f6d7a;font-weight:900;font-size:12px;text-decoration:none;white-space:nowrap;min-width:126px;min-height:44px;}' +
+                '@media (max-width:768px){' +
+                '.class-gold-page .sa-home-regatta-top{grid-template-columns:72px minmax(0,1fr);grid-template-areas:"logo main" "host host" "actions actions";gap:8px 10px;align-items:start;}' +
+                '.class-gold-page .sa-home-regatta-event-logo{width:68px;height:52px;}' +
+                '.class-gold-page .sa-home-regatta-actions{width:100%;}' +
+                '.class-gold-page .sa-home-regatta-btn{flex:1;}' +
+                '}' +
+                '</style>' +
+                eventSection('Upcoming events', upcoming, 'upcoming', 'class-upcoming-cards') +
+                eventSection('Past events', past, 'past', 'class-past-cards') +
+                '</div>';
 
             var clubRows = clubs.map(function(c, i) {
                 var code = (c.club_code || '').trim().toUpperCase();
@@ -5240,8 +5362,6 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                     '</div><div class="table-container club-table-scroll">' + tableHtml + '</div>';
             }
 
-            var regattaTable = '<table class="table" id="class-regattas-table"><thead><tr><th>#</th><th>Event</th><th>Date</th><th class="hide-mobile">Host</th><th>Entries</th><th>' + esc(className || 'Class') + '</th><th class="hide-mobile">Races</th></tr></thead><tbody>' +
-                (regattaRows || '<tr><td colspan="7">No regattas</td></tr>') + '</tbody></table>';
             var clubsTable = '<table class="table" id="class-clubs-table"><thead><tr><th>#</th><th>Club</th><th>Sailors</th><th>Races</th><th>Last regatta</th><th>Date</th></tr></thead><tbody>' +
                 (clubRows || '<tr><td colspan="6">No clubs</td></tr>') + '</tbody></table>';
             var sailorsTable = '<table class="table" id="class-sailors-table"><thead><tr><th>#</th><th>Sailor</th><th class="hide-mobile">Club</th><th>Races</th><th>Regattas</th><th>Last result</th><th>Last regatta</th></tr></thead><tbody>' +
@@ -5260,7 +5380,7 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                 (meta.length ? '<p class="club-story-meta">' + meta.join('') + '</p>' : '') +
                 '</div></div></div>' +
                 strips +
-                section('regattas', 'Regattas (' + regattas.length + ')', 'class-regattas-table', regattaTable) +
+                eventCardsHtml +
                 (clubs.length ? section('clubs', 'Clubs sailing ' + className + ' (' + clubs.length + ')', 'class-clubs-table', clubsTable) : '') +
                 section('sailors', 'Sailors (' + sailors.length + ')', 'class-sailors-table', sailorsTable) +
                 '</div></div>';
@@ -5276,6 +5396,17 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                     table.querySelectorAll('tbody tr').forEach(function(tr) {
                         var hay = tr.getAttribute('data-search') || tr.textContent.toLowerCase();
                         tr.style.display = (!q || hay.indexOf(q) !== -1) ? '' : 'none';
+                    });
+                });
+            });
+            cv.querySelectorAll('.club-home-card-filter').forEach(function(inp) {
+                inp.addEventListener('input', function() {
+                    var list = document.getElementById(inp.getAttribute('data-list'));
+                    if (!list) return;
+                    var q = (inp.value || '').toLowerCase().trim();
+                    list.querySelectorAll('.sa-home-regatta-card').forEach(function(c) {
+                        var hay = c.getAttribute('data-search') || '';
+                        c.style.display = (!q || hay.indexOf(q) !== -1) ? '' : 'none';
                     });
                 });
             });
