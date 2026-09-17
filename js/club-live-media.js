@@ -1,6 +1,6 @@
 /**
- * Club-page venue weather + camera cards (MM compact layout).
- * Snapshot cams are labelled Club cam / SNAPSHOT, not live.
+ * Club-page venue weather + camera cards — same ZVYC MM compact layout.
+ * Snapshot cams use that card (tap expands to full MP width). Not live.
  * Club logo on the cam card — not Marine Megastore.
  */
 (function () {
@@ -10,15 +10,9 @@
 
   var HOST_ID = 'club-live-media';
   var WX_ID = 'ssa-regatta-slot-card';
-  var CAM_ID = 'clubLiveCam';
   var MM_ID = 'mmLiptonReels';
   var CSS_ID = 'club-live-media-css';
-  var JS_VER = 'clubwx4';
-  var ART_W = 320;
-  var ART_H = 213;
-  var VID_W = 16;
-  var VID_H = 9;
-  var GAP = 6;
+  var JS_VER = 'clubwx5';
 
   var AGRO_CAM = 'https://hmyccam1.nwsza.net/latest.jpg';
   var AGRO_PAGE = 'https://agromet.ukzn.ac.za/midmar/index.html#canvas_container';
@@ -55,6 +49,7 @@
       stillIntervalMs: 60000,
       camHref: AGRO_PAGE,
       camLabel: 'HMYC club cam',
+      camStatusApi: '/api/club-cam/hmyc',
       logo: '/artwork/Club Logo/HMYC.png',
       logoHref: AGRO_PAGE,
       logoAlt: 'HMYC',
@@ -80,21 +75,11 @@
     s.id = CSS_ID;
     s.textContent =
       '.club-page .club-live-media{width:100%;box-sizing:border-box;display:flex;flex-direction:column;gap:0;padding:0;border:0;background:transparent;box-shadow:none;}' +
-      '.club-page .club-live-media .ssa-regatta-slot-card{order:0!important;margin-top:0;width:100%;max-width:100%;}' +
-      '.club-page .club-live-media .mm-lipton-reels,.club-page .club-live-media .club-live-cam{order:1!important;margin-top:10px;width:100%;}' +
+      '.club-page .club-live-media .ssa-regatta-slot-card{order:0!important;margin-top:0;width:100%;max-width:100%;padding:0!important;}' +
+      '.club-page .club-live-media .mm-lipton-reels{order:1!important;margin-top:10px;width:100%;}' +
       '.club-page .club-story-inner > .club-live-media{max-width:100%;}' +
       '.club-page .mm-lipton-reels-brand{background:#fff;}' +
-      '.club-page .mm-lipton-reels-brand img{object-fit:contain;background:#fff;}' +
-      '.club-live-cam.mm-lipton-reels{display:block;width:100%;margin:10px 0 0;padding:6px;background:#dce6ef;border:2px solid #001f3f;border-radius:8px;box-shadow:0 1px 3px rgba(0,31,63,.08);box-sizing:border-box;}' +
-      '.club-live-cam .mm-lipton-reels-brand{background:#fff;}' +
-      '.club-live-cam .mm-lipton-reels-brand img{object-fit:contain;background:#fff;}' +
-      '.club-live-cam .club-cam-soon{display:flex;align-items:center;justify-content:center;width:100%;height:100%;padding:8px;box-sizing:border-box;background:#0b1c33;color:#e2e8f0;font:700 13px/1.25 Arial,Helvetica,sans-serif;text-align:center;}' +
-      '.club-live-cam .mm-lipton-reels-thumb{position:relative;}' +
-      '.club-live-cam .mm-lipton-reels-thumb img{object-fit:cover;}' +
-      '.club-cam-stamp{position:absolute;left:4px;right:4px;top:4px;z-index:3;display:flex;flex-direction:row;align-items:center;gap:5px;padding:2px 6px;border-radius:4px;background:rgba(0,16,24,.72);color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;text-shadow:0 1px 2px rgba(0,0,0,.85);font:700 9px/1.2 Arial,Helvetica,sans-serif;}' +
-      '.club-cam-stamp-dot{flex:0 0 auto;width:8px;height:8px;border-radius:50%;background:#94a3b8;}' +
-      '.club-cam-stamp-kind{font-weight:800;letter-spacing:.03em;}' +
-      '.club-cam-stamp-time{font-weight:700;opacity:.95;}';
+      '.club-page .mm-lipton-reels-brand img{object-fit:contain;background:#fff;}';
     document.head.appendChild(s);
   }
 
@@ -127,103 +112,26 @@
     );
   }
 
-  function camTileHtml(club) {
-    if (club.cam === 'still') {
-      return (
-        '<a class="mm-lipton-reels-tile" href="' +
-        club.camHref +
-        '" target="_blank" rel="noopener noreferrer">' +
-        '<div class="mm-lipton-reels-thumb">' +
-        '<img data-club-cam-still src="' +
-        club.still +
-        '" alt="' +
-        (club.camLabel || 'Club cam') +
-        '" loading="lazy" decoding="async">' +
-        '<div class="club-cam-stamp">' +
-        '<span class="club-cam-stamp-dot" aria-hidden="true"></span>' +
-        '<span class="club-cam-stamp-kind">SNAPSHOT</span>' +
-        '<span class="club-cam-stamp-time" data-club-cam-time></span>' +
-        '</div></div></a>'
-      );
-    }
-    return (
-      '<div class="mm-lipton-reels-tile">' +
-      '<div class="mm-lipton-reels-thumb" aria-label="Club cam coming soon">' +
-      '<div class="club-cam-soon">Club cam coming soon</div>' +
-      '</div></div>'
-    );
-  }
-
-  function camInnerHtml(club) {
-    return (
-      '<div class="mm-lipton-reels-compact">' +
-      '<a class="mm-lipton-reels-brand" href="' +
-      club.logoHref +
-      '" target="_blank" rel="noopener noreferrer">' +
-      '<img src="' +
-      club.logo +
-      '" alt="' +
-      club.logoAlt +
-      '" width="320" height="213" loading="lazy" decoding="async">' +
-      '</a>' +
-      '<div class="mm-lipton-reels-rail-wrap">' +
-      '<div class="mm-lipton-reels-rail" data-club-cam-rail>' +
-      camTileHtml(club) +
-      '</div></div></div>'
-    );
-  }
-
-  function layoutCam(host) {
-    var cam = document.getElementById(CAM_ID);
-    if (!cam) return;
-    var row = cam.querySelector('.mm-lipton-reels-compact');
-    var brand = cam.querySelector('.mm-lipton-reels-brand');
-    var wrap = cam.querySelector('.mm-lipton-reels-rail-wrap');
-    var thumbs = cam.querySelectorAll('.mm-lipton-reels-thumb, .mm-lipton-reels-tile');
-    if (!row || !brand) return;
-    var avail = row.clientWidth;
-    if (avail <= 0) return;
-    var art = ART_W / ART_H;
-    var vid = VID_W / VID_H;
-    var border = 4;
-    var cols = 1;
-    var innerH = (avail - GAP * cols - border * (1 + cols)) / (art + cols * vid);
-    if (innerH < 40) innerH = 40;
-    var outerH = innerH + border;
-    var thumbW = innerH * vid + border;
-    brand.style.width = innerH * art + border + 'px';
-    brand.style.height = outerH + 'px';
-    if (wrap) wrap.style.height = outerH + 'px';
-    var i;
-    for (i = 0; i < thumbs.length; i++) {
-      thumbs[i].style.width = thumbW + 'px';
-      thumbs[i].style.height = outerH + 'px';
-    }
-  }
-
-  function tickStill(club) {
-    var img = document.querySelector('#clubLiveCam [data-club-cam-still]');
-    if (!img || !club.still) return;
-    fetch('/api/club-cam/hmyc?_=' + Date.now(), { cache: 'no-store', credentials: 'same-origin' })
-      .then(function (res) {
-        return res.ok ? res.json() : null;
-      })
-      .then(function (meta) {
-        var token = '';
-        var asAt = '';
-        if (meta && meta.last_modified) token = String(meta.last_modified);
-        else token = String(Date.now());
-        if (meta && meta.as_at) asAt = 'as at ' + meta.as_at;
-        if (img.getAttribute('data-cam-token') !== token) {
-          img.setAttribute('data-cam-token', token);
-          img.src = club.still + (club.still.indexOf('?') >= 0 ? '&' : '?') + 't=' + encodeURIComponent(token);
-        }
-        var timeEl = document.querySelector('#clubLiveCam [data-club-cam-time]');
-        if (timeEl) timeEl.textContent = asAt;
-      })
-      .catch(function () {
-        img.src = club.still + (club.still.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
-      });
+  function snapshotVideo(club) {
+    if (!club.still) return [];
+    return [
+      {
+        id: String(club.code || 'club').toLowerCase() + '-club-cam',
+        kind: 'webcam',
+        snapshot: true,
+        title: club.camLabel || 'Club cam',
+        fb_title: club.camLabel || 'Club cam',
+        fb_sub: 'SNAPSHOT',
+        fb_owner_logo: club.logo,
+        thumb: club.still,
+        live_snap: club.still,
+        url: club.camHref || '',
+        status_api: club.camStatusApi || '',
+        aspect: '16 / 9',
+        width: 16,
+        height: 9,
+      },
+    ];
   }
 
   function makeWx(club) {
@@ -247,54 +155,48 @@
       mm.id = MM_ID;
       mm.className = 'card mm-lipton-reels mm-lipton-reels--compact';
     }
-    mm.setAttribute('data-regatta-id', club.regattaId);
-    mm.setAttribute('data-mm-poll', '1');
+    if (club.regattaId) mm.setAttribute('data-regatta-id', club.regattaId);
+    else mm.removeAttribute('data-regatta-id');
+    if (club.regattaId) mm.setAttribute('data-mm-poll', '1');
+    else mm.removeAttribute('data-mm-poll');
     mm.setAttribute('data-mm-club-page', '1');
     mm.setAttribute('data-mm-club-logo', club.logo);
     mm.setAttribute('data-mm-club-href', club.logoHref);
     mm.setAttribute('data-mm-club-alt', club.logoAlt);
     mm.setAttribute('data-mm-brand-soon', club.logo);
     mm.setAttribute('data-mm-brand-live', club.logo);
+    if (club.still) {
+      mm.setAttribute('data-mm-snapshot', '1');
+      mm.setAttribute('data-mm-cam-status', club.camStatusApi || '/api/club-cam/hmyc');
+    } else {
+      mm.removeAttribute('data-mm-snapshot');
+      mm.removeAttribute('data-mm-cam-status');
+    }
     mm.setAttribute(
       'data-mm-initial',
       JSON.stringify({
         enabled: true,
         feed_source: 'club',
-        videos: [],
+        videos: snapshotVideo(club),
       })
     );
     mm.innerHTML = mmInnerHtml(club);
     return mm;
   }
 
-  function makeClubCam(club) {
-    var cam = document.getElementById(CAM_ID);
-    if (!cam) {
-      cam = document.createElement('section');
-      cam.id = CAM_ID;
-      cam.className = 'card mm-lipton-reels mm-lipton-reels--compact club-live-cam';
-    }
-    cam.setAttribute('data-club-cam', club.cam);
-    cam.setAttribute('aria-label', club.code + ' club camera');
-    cam.innerHTML = camInnerHtml(club);
-    return cam;
-  }
-
   function fillHost(host, club) {
     if (host.getAttribute('data-club-live-ready') === '1') {
       return orderCards(host);
     }
-    var wx = makeWx(club);
-    host.appendChild(wx);
-    if (club.cam === 'mm') host.appendChild(makeMmCam(club));
-    else host.appendChild(makeClubCam(club));
+    host.appendChild(makeWx(club));
+    host.appendChild(makeMmCam(club));
     host.setAttribute('data-club-live-ready', '1');
     return orderCards(host);
   }
 
   function orderCards(host) {
     var wx = document.getElementById(WX_ID);
-    var cam = document.getElementById(CAM_ID) || document.getElementById(MM_ID);
+    var cam = document.getElementById(MM_ID);
     if (host && wx && cam && wx.parentNode === host && cam.parentNode === host && wx.nextSibling !== cam) {
       host.insertBefore(wx, cam);
     }
@@ -388,24 +290,11 @@
     injectCss();
     ensureCssLink();
     if (!placeHost(club)) return;
-    layoutCam();
-    window.addEventListener('resize', layoutCam);
-    if (club.cam === 'still') {
-      tickStill(club);
-      window.setInterval(function () {
-        tickStill(club);
-      }, club.stillIntervalMs || 60000);
-    }
-    var wxSrc = '/js/regatta-slot-card.js?v=' + JS_VER;
-    if (club.cam === 'mm') {
-      loadScript('/js/mm-lipton-reels-card.js?v=' + JS_VER)
-        .then(function () {
-          return loadScript(wxSrc);
-        })
-        .catch(function () {});
-    } else {
-      loadScript(wxSrc).catch(function () {});
-    }
+    loadScript('/js/mm-lipton-reels-card.js?v=' + JS_VER)
+      .then(function () {
+        return loadScript('/js/regatta-slot-card.js?v=' + JS_VER);
+      })
+      .catch(function () {});
   }
 
   if (document.readyState === 'loading') {

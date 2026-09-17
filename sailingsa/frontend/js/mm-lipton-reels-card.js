@@ -79,7 +79,15 @@
   }
 
   function isWebcam(v) {
-    return !!(v && (v.kind === 'webcam' || v.placeholder || v.id === 'zvyc-live-cam'));
+    return !!(v && (v.kind === 'webcam' || v.kind === 'snapshot' || v.placeholder || v.id === 'zvyc-live-cam'));
+  }
+
+  function isSnapshotCam(v) {
+    return !!(v && (v.snapshot === true || v.kind === 'snapshot' || v.still_only));
+  }
+
+  function snapshotCamRoot(root) {
+    return !!(root && root.getAttribute('data-mm-snapshot') === '1');
   }
 
   function isAdvertFile(v) {
@@ -176,6 +184,7 @@
 
   function camStillSrc(v) {
     var snap = String((v && (v.live_snap || v.snap || v.thumb)) || '').split('?')[0];
+    if (isSnapshotCam(v)) return snap;
     if (!snap || /4040\.jpg|skylinewebcams\.com\/temp\//i.test(snap) || snap.indexOf('/zvyc-live-cam-thumb') >= 0) {
       return LAST_CAM_STILL;
     }
@@ -184,6 +193,7 @@
 
   function liveThumbSrc(v, fresh) {
     var root = cardEl();
+    if (isSnapshotCam(v)) return camStillSrc(v);
     if (isWebcam(v) && root && root._mmLiveGrab && !fresh) return root._mmLiveGrab;
     // Compact thumb is a still + stamp, not a live stream. Do not cache-bust
     // on every layout — that re-downloads the jpg and slows the page.
@@ -345,11 +355,18 @@
   function paintOneCamStamp(host, live, nowTxt, lastTxt) {
     var stamp = ensureCamStampOn(host);
     if (!stamp) return;
+    var root = host && host.closest ? host.closest('.mm-lipton-reels') : null;
+    var snapshot = snapshotCamRoot(root) || !!(root && root._mmCamSnapshot);
     stamp.hidden = false;
-    stamp.classList.toggle('mm-lipton-reels-cam-stamp--live', live);
-    stamp.classList.toggle('mm-lipton-reels-cam-stamp--off', !live);
+    stamp.classList.toggle('mm-lipton-reels-cam-stamp--live', !snapshot && live);
+    stamp.classList.toggle('mm-lipton-reels-cam-stamp--off', snapshot || !live);
     var label = stamp.querySelector('[data-mm-cam-stamp-label]');
     var timeEl = stamp.querySelector('[data-mm-cam-stamp-time]');
+    if (snapshot) {
+      if (label) label.textContent = 'SNAPSHOT';
+      if (timeEl) timeEl.textContent = root && root._mmCamAsAt ? 'as at ' + root._mmCamAsAt : lastTxt || nowTxt;
+      return;
+    }
     if (label) label.textContent = live ? 'LIVE' : 'Offline';
     if (timeEl) timeEl.textContent = live ? nowTxt : lastTxt;
   }
@@ -365,8 +382,58 @@
     setCamUpstream(root, live, stillMs, lastLiveMs);
   }
 
+  function snapshotStatusUrl(root) {
+    return (root && root.getAttribute('data-mm-cam-status')) || '';
+  }
+
+  function firstSnapshotClip(root) {
+    var payload = readPayload(root);
+    var list = (payload && payload.videos) || [];
+    var i;
+    for (i = 0; i < list.length; i++) {
+      if (isSnapshotCam(list[i]) || isWebcam(list[i])) return list[i];
+    }
+    return null;
+  }
+
+  function pollSnapshotCam(root) {
+    var url = snapshotStatusUrl(root);
+    if (!root || !url) return Promise.resolve();
+    return fetch(url + (url.indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now(), {
+      credentials: 'same-origin',
+      cache: 'no-store',
+    })
+      .then(function (r) {
+        return r && r.ok ? r.json() : null;
+      })
+      .then(function (data) {
+        if (!data) return;
+        root._mmCamSnapshot = true;
+        root._mmCamUpstream = false;
+        if (data.as_at) root._mmCamAsAt = String(data.as_at);
+        if (data.last_modified) root._mmCamStillAt = parseStillAt(data.last_modified);
+        var clip = firstSnapshotClip(root);
+        var base = String((data.src || (clip && (clip.live_snap || clip.thumb)) || '')).split('?')[0];
+        if (!base) return;
+        var token = String(data.last_modified || Date.now());
+        if (root._mmCamToken === token) {
+          paintCamStamps(root);
+          return;
+        }
+        root._mmCamToken = token;
+        var src = base + (base.indexOf('?') >= 0 ? '&' : '?') + 't=' + encodeURIComponent(token);
+        var imgs = root.querySelectorAll('[data-mm-webcam-live]');
+        var i;
+        for (i = 0; i < imgs.length; i++) imgs[i].src = src;
+        paintCamStamps(root);
+      })
+      .catch(function () {});
+  }
+
   function pollCamStatus(root) {
-    if (!root || !isCapeClassic()) return Promise.resolve();
+    if (!root) return Promise.resolve();
+    if (snapshotStatusUrl(root) || snapshotCamRoot(root)) return pollSnapshotCam(root);
+    if (!isCapeClassic()) return Promise.resolve();
     return scrapeZvycCamToken().then(function (tok) {
       var url = CAM_STATUS_API + '?t=' + Date.now();
       if (tok) url += '&a=' + encodeURIComponent(tok);
@@ -396,7 +463,7 @@
     }, 1000);
     root._mmCamStatusTimer = window.setInterval(function () {
       pollCamStatus(root);
-    }, 20000);
+    }, snapshotCamRoot(root) ? 60000 : 20000);
   }
 
   function refreshSavedCamStill(root) {
@@ -514,6 +581,7 @@
   function playUrl(v) {
     var u = String((v && v.play_url) || '').trim();
     if (isWebcam(v)) {
+      if (isSnapshotCam(v)) return '';
       var root = cardEl();
       var tok = camTokenOf(root);
       if (tok) return 'https://hd-auth.skylinewebcams.com/live.m3u8?a=' + encodeURIComponent(tok);
@@ -690,8 +758,10 @@
     if (isWebcam(v)) {
       return (
         '<img src="' +
-        esc(LAST_CAM_STILL) +
-        '" alt="ZVYC live cam" data-mm-webcam-live loading="lazy" decoding="async">' +
+        esc(camStillSrc(v) || LAST_CAM_STILL) +
+        '" alt="' +
+        esc((v && (v.title || v.fb_title)) || 'Club cam') +
+        '" data-mm-webcam-live loading="lazy" decoding="async">' +
         camStampHtml()
       );
     }
@@ -820,6 +890,14 @@
     var root = cardEl();
     var isCape = root && root.getAttribute('data-regatta-id') === '2026-09-13-zvyc-cape-classic';
     if (isWebcam(clip) || (!clip && isWebcam(first))) {
+      var cam = isWebcam(clip) ? clip : first;
+      if (isSnapshotCam(cam)) {
+        return {
+          fb_owner_logo: cam.fb_owner_logo || (root && root.getAttribute('data-mm-club-logo')) || '',
+          fb_title: cam.fb_title || cam.title || 'Club cam',
+          fb_sub: cam.fb_sub || 'SNAPSHOT',
+        };
+      }
       return {
         fb_owner_logo: '/artwork/Club Logo/ZVYC.png',
         fb_title: 'ZVYC Cam',
@@ -1034,7 +1112,7 @@
       '<div class="mm-lipton-reels-thumb mm-lipton-reels-thumb--latest" style="aspect-ratio:16 / 9">' +
       posterHtml(v) +
       latestChromeHtml(chromeSource(v, videos), cam ? 'mm-lipton-reels-clip-chrome--zvyc' : '') +
-      '<span class="mm-lipton-reels-play" aria-hidden="true"></span>' +
+      (isSnapshotCam(v) ? '' : '<span class="mm-lipton-reels-play" aria-hidden="true"></span>') +
       (skipHit ? '' : thumbHit(v)) +
       '</div>'
     );
@@ -1043,7 +1121,7 @@
   function compactTileHtml(v, videos, isLatest) {
     if (mmFbLive(v)) return '';
     var id = (v && v.id) || '';
-    var label = isWebcam(v) ? 'Play live cam' : 'Play reel';
+    var label = isSnapshotCam(v) ? 'Open club cam' : isWebcam(v) ? 'Play live cam' : 'Play reel';
     return (
       '<button type="button" class="mm-lipton-reels-tile mm-lipton-reels-tile--reel' +
       (isLatest ? ' mm-lipton-reels-tile--latest' : '') +
@@ -1307,8 +1385,12 @@
     if (!img) {
       img = document.createElement('img');
       img.setAttribute('data-mm-webcam-live', '');
-      img.alt = 'ZVYC live cam';
+      img.alt = (clip && (clip.title || clip.fb_title)) || 'Club cam';
       stage.appendChild(img);
+    }
+    var still = camStillSrc(clip);
+    if (still && img.getAttribute('src') !== still && !img.getAttribute('data-cam-token')) {
+      img.src = still;
     }
     stage.classList.add('mm-lipton-reels-stage--playing');
     ensureCamStampOn(stage);
@@ -1450,6 +1532,12 @@
       root._mmLiveGrab = '';
       stage.classList.add('mm-lipton-reels-stage--playing');
       paintWebcamPoster(root, clip);
+      if (isSnapshotCam(clip) || snapshotCamRoot(root)) {
+        showWebcamSnap(root, clip);
+        hidePlayerUi(root, state);
+        pollCamStatus(root);
+        return;
+      }
       showCamLoad(root);
       scrapeZvycCamToken(true).then(function () {
         var src = playUrl(clip);
@@ -2155,7 +2243,10 @@
       '.mm-lipton-reels-thumb .mm-lipton-reels-cam-stamp{left:4px;right:4px;top:4px;padding:2px 6px;font-size:9px;' +
       'max-width:none;z-index:3;justify-content:flex-start}' +
       '.mm-lipton-reels-hud .mm-lipton-reels-cam-stamp{left:118px;right:76px;top:8px;max-width:none}' +
-      '.mm-lipton-reels--expanded:not([data-mm-zvyc-on]) [data-mm-cam-stamp]{display:none!important}' +
+      '.mm-lipton-reels--expanded:not([data-mm-zvyc-on]):not([data-mm-snapshot]) [data-mm-cam-stamp]{display:none!important}' +
+      '.mm-lipton-reels[data-mm-snapshot] .mm-lipton-reels-player-ui{display:none!important}' +
+      '.mm-lipton-reels[data-mm-snapshot] .mm-lipton-reels-play{display:none!important}' +
+      '.mm-lipton-reels[data-mm-snapshot] .mm-lipton-reels-player-wrap{width:100%}' +
       '.mm-lipton-reels-cam-stamp[hidden]{display:none!important}' +
       '.mm-lipton-reels-cam-stamp-dot{flex:0 0 auto;width:8px;height:8px;border-radius:50%;background:#94a3b8}' +
       '.mm-lipton-reels-cam-stamp--live .mm-lipton-reels-cam-stamp-dot{background:#ef4444;box-shadow:0 0 6px #ef4444;' +
@@ -2204,7 +2295,7 @@
     paint(root, payload, state);
     syncBrand(root, payload.videos || []);
     kickCompactLive(root);
-    if (isCapeClassic()) startCamStampClock(root);
+    if (isCapeClassic() || snapshotCamRoot(root) || snapshotStatusUrl(root)) startCamStampClock(root);
     startFeedPoll(root, payload, state);
     state.chromeSnap = snapshotChromeSize(root);
     var bootLive = firstMmFbLive(payload.videos || []);

@@ -36,9 +36,10 @@
       ".ssa-regatta-slot-card .wx-spark-row{flex:1 1 auto;min-height:0;display:flex;align-items:stretch;gap:3px;}",
       ".ssa-regatta-slot-card .wx-scale{flex:0 0 16px;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end;padding:1px 0;box-sizing:border-box;}",
       ".ssa-regatta-slot-card .wx-scale span{font:700 9px/1 Arial,Helvetica,sans-serif;color:#64748b;}",
-      ".ssa-regatta-slot-card .wx-plot-clip{flex:1 1 auto;min-width:0;height:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-x;scrollbar-width:none;}",
+      ".ssa-regatta-slot-card.card,.ssa-wx-card.card{padding:0!important;}",
+      ".ssa-regatta-slot-card .wx-plot-clip{flex:1 1 auto;min-width:0!important;height:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-x;scrollbar-width:none;}",
       ".ssa-regatta-slot-card .wx-plot-clip::-webkit-scrollbar{display:none;}",
-      ".ssa-regatta-slot-card .wx-plot{height:100%;display:block;min-width:100%;}",
+      ".ssa-regatta-slot-card .wx-plot{height:100%!important;display:block;min-width:100%;max-width:none!important;flex:0 0 auto;}",
       ".ssa-regatta-slot-card .wx-spark-x{flex:0 0 auto;display:flex;justify-content:space-between;padding:2px 0 0 19px;}",
       ".ssa-regatta-slot-card .wx-spark-x span{font:700 9px/1 Arial,Helvetica,sans-serif;color:#64748b;}",
       ".ssa-regatta-slot-card .wx-info{flex:0 0 auto;min-width:118px;height:100%;display:flex;flex-direction:column;justify-content:stretch;gap:6px;padding:10px 8px 10px 4px;box-sizing:border-box;}",
@@ -345,7 +346,7 @@
     for (i = maxKn; i >= 0; i -= step) ticks.push(i);
     function x(ms) { return 100 * (ms - t0) / HOUR_MS; }
     function y(kn) { return H * (1 - Math.max(0, Math.min(maxKn, Number(kn))) / maxKn); }
-    var svg = '<svg class="wx-plot" viewBox="0 0 ' + W + " " + H + '" width="' + (hours * 100).toFixed(1) + '%" height="100%" preserveAspectRatio="none" aria-hidden="true">';
+    var svg = '<svg class="wx-plot" data-hours="' + hours.toFixed(4) + '" viewBox="0 0 ' + W + " " + H + '" height="100%" preserveAspectRatio="none" aria-hidden="true">';
     BANDS.forEach(function (b) {
       var y0 = y(Math.min(maxKn, b[1]));
       var y1 = y(Math.min(maxKn, b[0]));
@@ -586,9 +587,23 @@
     sparkState.stickNow = (clip.scrollWidth - clip.clientWidth - clip.scrollLeft) < 12;
   }
 
+  function sizeSparkPlot(slot) {
+    var clip = slot && slot.querySelector(".wx-plot-clip");
+    var plot = slot && slot.querySelector(".wx-plot");
+    if (!clip || !plot) return;
+    var hours = Number(plot.getAttribute("data-hours") || "1");
+    if (!isFinite(hours) || hours < 1) hours = 1;
+    var w = clip.clientWidth || 0;
+    if (w <= 0) return;
+    plot.style.maxWidth = "none";
+    plot.style.width = Math.round(w * hours) + "px";
+    plot.removeAttribute("width");
+  }
+
   function bindSpark(slot) {
     var clip = slot && slot.querySelector(".wx-plot-clip");
     if (!clip) return;
+    sizeSparkPlot(slot);
     if (sparkState.stickNow) {
       clip.scrollLeft = clip.scrollWidth;
     } else {
@@ -598,6 +613,10 @@
       sparkState.scrollLeft = clip.scrollLeft;
       sparkState.stickNow = (clip.scrollWidth - clip.clientWidth - clip.scrollLeft) < 12;
     }, { passive: true });
+    window.requestAnimationFrame(function () {
+      sizeSparkPlot(slot);
+      if (sparkState.stickNow) clip.scrollLeft = clip.scrollWidth;
+    });
   }
 
   function render(slot, data) {
@@ -700,6 +719,7 @@
       } else {
         render(slot, data);
         fitGauge(slot);
+        sizeSparkPlot(slot);
       }
     } catch (err) {
       try { console.warn(err); } catch (e) {}
@@ -716,7 +736,10 @@
     load(el);
     setInterval(tick, POLL_MS);
     document.addEventListener("visibilitychange", tick);
-    window.addEventListener("resize", function () { fitGauge(el); });
+    window.addEventListener("resize", function () {
+      fitGauge(el);
+      sizeSparkPlot(el);
+    });
     return el;
   }
 
