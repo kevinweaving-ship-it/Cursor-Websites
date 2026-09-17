@@ -135,15 +135,17 @@
         @media (max-width: 768px) { .class-hero { grid-template-columns: 1fr; } }
 
         /* Class page gold-std (aligned with /club/{abbrev} story header + tables) */
-        .class-gold-page { max-width: 1100px; margin: 0 auto; padding: 1.25rem 1rem 2rem; }
+        .class-gold-page { max-width: 1100px; width: 100%; margin: 0 auto; padding: 1.25rem 0 2rem; box-sizing: border-box; }
         .class-gold-page .card.stats-section {
             background: #fff;
             border: 2px solid #001f3f;
             border-radius: 8px;
             box-shadow: 0 1px 3px rgba(0, 31, 63, 0.08);
-            padding: 0.5rem 0.85rem;
-            margin: 0 0 16px 0;
+            padding: 1rem 1.25rem;
+            margin: 0 auto 1.25rem;
             width: 100%;
+            max-width: 100%;
+            display: block;
             box-sizing: border-box;
         }
         .class-gold-page .class-gold-identity-card .club-story-header {
@@ -157,12 +159,41 @@
             text-align: center;
         }
         .class-gold-page .club-story-header { display: flex; flex-direction: column; align-items: center; gap: 0; margin: 0 0 1.5rem 0; padding: 0 0 1.35rem 0; border-bottom: 2px solid #e2e8f0; text-align: center; }
-        .class-gold-page .club-story-inner { width: 100%; max-width: 42rem; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 0.85rem; }
+        .class-gold-page .club-story-inner { width: 100%; max-width: 100%; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 0.85rem; }
         .class-gold-page .club-story-title-row { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; width: 100%; }
         .class-gold-page .club-story-header h1 { text-align: center; width: 100%; font-size: 1.75rem; font-weight: 700; margin: 0; color: #001f3f; line-height: 1.25; }
         .class-gold-page .club-page-logo-wrap { display: flex; justify-content: center; }
         .class-gold-page .club-page-logo-img { display: block; width: auto; max-width: min(220px, 100%); height: auto; max-height: 120px; object-fit: contain; }
-        .class-gold-page .club-story-meta { margin: 0; color: #475569; font-size: 0.95rem; font-weight: 600; text-align: center; }
+        .class-gold-page .club-story-meta {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 0.45rem 1.1rem;
+            width: 100%;
+            margin: 0;
+            color: #475569;
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-align: center;
+        }
+        .class-gold-page .club-story-meta-item {
+            display: inline-flex;
+            flex-direction: row;
+            align-items: baseline;
+            gap: 0.28rem;
+            white-space: nowrap;
+        }
+        .class-gold-page .club-story-meta-n,
+        .class-gold-page .club-story-meta-w { display: inline-block; }
+        @media (max-width: 640px) and (orientation: portrait) {
+            .class-gold-page .club-story-meta-item {
+                flex-direction: column;
+                align-items: center;
+                white-space: normal;
+                line-height: 1.15;
+            }
+        }
         /* Events featuring / Clubs sailing — gold .card like club sections */
         .class-gold-page .card.stats-section.class-gold-logo-card {
             text-align: left;
@@ -175,6 +206,7 @@
             flex-wrap: wrap;
             margin: 0 0 0.65rem 0;
         }
+        .class-gold-page .class-gold-title-phrase { white-space: nowrap; }
         .class-gold-page .class-gold-title-logo {
             display: inline-block;
             height: 40px;
@@ -183,8 +215,21 @@
             object-fit: contain;
             vertical-align: middle;
         }
-        .class-gold-page .club-story-logo-row { width: 100%; margin: 0.35rem 0 0.15rem; }
-        .class-gold-page .club-story-logo-row-label { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #001f3f; margin: 0 0 0.45rem 0; text-align: center; }
+        .class-gold-page .club-story-logo-row { width: 100%; max-width: 100%; margin: 0 auto 1.25rem; }
+        .class-gold-page .club-story-logo-row-label {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0.45rem;
+            font-size: 0.72rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #001f3f;
+            margin: 0 0 0.45rem 0;
+            text-align: center;
+        }
         .class-gold-page .club-story-logo-chips {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
@@ -226,13 +271,23 @@
             margin: 0;
         }
         .class-gold-page .club-story-chip-count {
-            display: block;
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: baseline;
+            gap: 0.15rem 0.28rem;
             font-size: 0.68rem;
             font-weight: 800;
             line-height: 1.15;
             color: #0f6d7a;
             margin: 0 0 2px;
             text-align: center;
+        }
+        .class-gold-page .club-story-chip-count-n,
+        .class-gold-page .club-story-chip-count-w { display: inline-block; white-space: nowrap; }
+        @media (max-width: 640px) and (orientation: portrait) {
+            .class-gold-page .club-story-chip-count { flex-direction: column; align-items: center; }
         }
         .class-gold-page .club-story-chip-label {
             display: block;
@@ -241,7 +296,9 @@
             line-height: 1.2;
             text-align: center;
             color: #001f3f;
-            word-break: break-word;
+            word-break: normal;
+            overflow-wrap: break-word;
+            hyphens: none;
             max-width: 100%;
         }
         .class-gold-page a.club-story-chip:hover {
@@ -5047,10 +5104,11 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                 var lab = classNameFromLogoFilename(p) || 'Event';
                 lab = String(lab).replace(/\b\w/g, function(c) { return c.toUpperCase(); });
                 var href = catSlug ? ('/events-logos/' + encodeURIComponent(catSlug)) : '/events-logos';
-                var countLab = row.n + ' event' + (row.n === 1 ? '' : 's');
+                var countWord = 'event' + (row.n === 1 ? '' : 's');
+                var countLab = row.n + ' ' + countWord;
                 var logo = '<span class="club-story-chip-logo"><img src="' + esc(p) + '" alt="' + esc(lab) + '" loading="lazy" decoding="async" onerror="this.style.display=\'none\'"></span>';
                 var inner = logo +
-                    '<span class="club-story-chip-count">' + esc(countLab) + '</span>' +
+                    '<span class="club-story-chip-count"><span class="club-story-chip-count-n">' + esc(String(row.n)) + '</span><span class="club-story-chip-count-w">' + esc(countWord) + '</span></span>' +
                     '<span class="club-story-chip-label">' + esc(lab) + '</span>';
                 return { n: row.n, lab: lab, html: '<a class="club-story-chip" href="' + esc(href) + '" title="' + esc(lab + ' — ' + countLab) + '">' + inner + '</a>' };
             }).filter(Boolean);
@@ -5072,10 +5130,13 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
             var sailorsN = sailors.length || (data.active_sailors != null ? Number(data.active_sailors) : 0);
             var regN = data.total_regattas != null ? Number(data.total_regattas) : regattas.length;
             var raceN = data.total_races != null ? Number(data.total_races) : 0;
-            if (sailorsN) meta.push(sailorsN + ' sailor' + (sailorsN === 1 ? '' : 's'));
-            if (regN) meta.push(regN + ' regatta' + (regN === 1 ? '' : 's'));
-            if (raceN) meta.push(raceN.toLocaleString() + ' race' + (raceN === 1 ? '' : 's'));
-            if (clubs.length) meta.push(clubs.length + ' club' + (clubs.length === 1 ? '' : 's'));
+            function metaPair(n, word) {
+                return '<span class="club-story-meta-item"><span class="club-story-meta-n">' + esc(String(n)) + '</span><span class="club-story-meta-w">' + esc(word) + '</span></span>';
+            }
+            if (sailorsN) meta.push(metaPair(sailorsN, 'sailor' + (sailorsN === 1 ? '' : 's')));
+            if (regN) meta.push(metaPair(regN, 'regatta' + (regN === 1 ? '' : 's')));
+            if (raceN) meta.push(metaPair(raceN.toLocaleString(), 'race' + (raceN === 1 ? '' : 's')));
+            if (clubs.length) meta.push(metaPair(clubs.length, 'club' + (clubs.length === 1 ? '' : 's')));
 
             var logoHtml = classLogo
                 ? '<div class="club-page-logo-wrap"><img src="' + esc(classLogo) + '" alt="' + esc(className) + '" class="club-page-logo-img" loading="lazy" onerror="this.parentNode.style.display=\'none\'"></div>'
@@ -5086,10 +5147,10 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                 : esc(className);
             var strips = '';
             if (eventChips.length) {
-                strips += '<div class="card stats-section class-gold-logo-card"><h2 class="section-title">Events featuring ' + classTitleLogo + '</h2><div class="club-story-logo-chips">' + eventChips.join('') + '</div></div>';
+                strips += '<div class="card stats-section class-gold-logo-card"><h2 class="section-title"><span class="class-gold-title-phrase">Events featuring</span> ' + classTitleLogo + '</h2><div class="club-story-logo-chips">' + eventChips.join('') + '</div></div>';
             }
             if (clubChips.length) {
-                strips += '<div class="card stats-section class-gold-logo-card"><h2 class="section-title">Clubs sailing ' + classTitleLogo + '</h2><div class="club-story-logo-chips">' + clubChips.join('') + '</div></div>';
+                strips += '<div class="card stats-section class-gold-logo-card"><h2 class="section-title"><span class="class-gold-title-phrase">Clubs sailing</span> ' + classTitleLogo + '</h2><div class="club-story-logo-chips">' + clubChips.join('') + '</div></div>';
             }
 
             function rowLogo(src) {
@@ -5190,7 +5251,7 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                 '<div class="header club-page-header club-story-header">' +
                 '<div class="club-story-inner">' +
                 identityTitle +
-                (meta.length ? '<p class="club-story-meta">' + esc(meta.join(' · ')) + '</p>' : '') +
+                (meta.length ? '<p class="club-story-meta">' + meta.join('') + '</p>' : '') +
                 '</div></div></div>' +
                 strips +
                 section('regattas', 'Regattas (' + regattas.length + ')', 'class-regattas-table', regattaTable) +
