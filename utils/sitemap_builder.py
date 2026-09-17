@@ -64,34 +64,61 @@ def _utc_today_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 
+def _sas_personal_display_name(first_name: str = "", last_name: str = "", full_name: str = "") -> str:
+    """Same rule as live api.py: First then Surname; flip legacy 'Last, First'."""
+    f = (first_name or "").strip()
+    l = (last_name or "").strip()
+    if f and l:
+        return f"{f} {l}"
+    raw = (full_name or "").strip()
+    if "," in raw:
+        parts = [p.strip() for p in raw.split(",", 1)]
+        if len(parts) == 2 and parts[0] and parts[1]:
+            return f"{parts[1]} {parts[0]}"
+    if f or l:
+        return " ".join(x for x in (f, l) if x)
+    return raw
+
+
 def _slug_from_name(full_name: str) -> str:
-    """Same rule as api.py _slug_from_name."""
+    """Same rule as live api.py _slug_from_name (including Last, First flip)."""
     if not full_name or not isinstance(full_name, str):
         return ""
-    s = full_name.strip().lower().replace("&", " and ")
+    s = full_name.strip()
+    if "," in s:
+        parts = [p.strip() for p in s.split(",", 1)]
+        if len(parts) == 2 and parts[0] and parts[1]:
+            s = f"{parts[1]} {parts[0]}"
+    s = s.lower().replace("&", " and ")
     s = re.sub(r"[^\w\s\-]", "", s)
     s = re.sub(r"\s+", "-", s)
     s = re.sub(r"-+", "-", s).strip("-")
     return s
 
 
-def _sailor_canonical_slug(full_name: str, sas_id: str, has_duplicate: bool) -> str:
-    """Same rule as api.py _sailor_canonical_slug: name-only unless duplicate, then name-sas_id."""
+def _sailor_canonical_slug(full_name: str, sas_id: str = "", has_duplicate: bool = False) -> str:
+    """Same rule as live api.py: public sailor slug is name-only. Never append SAS id."""
     base = _slug_from_name(full_name)
-    if not base:
-        return f"sailor-{sas_id}" if sas_id else "sailor"
-    if has_duplicate and sas_id:
-        return f"{base}-{sas_id}"
-    return base
+    return base or "sailor"
 
 
 def _class_canonical_slug(class_name: str) -> str:
-    """Same rule as api.py _class_canonical_slug."""
+    """Same rule as live api.py: keep dots (ILCA 4.7 → ilca-4.7)."""
     if not class_name or not isinstance(class_name, str):
         return ""
     s = class_name.strip().lower().replace(" ", "-")
-    s = re.sub(r"[^a-z0-9-]", "", s)
+    s = re.sub(r"[^a-z0-9.-]", "", s)
     return s.strip("-") or ""
+
+
+def _class_public_path(class_name: str) -> str:
+    """Same rule as live api.py _class_public_path: /class/{slug} only, never /class/{id}-{slug}."""
+    s = _class_canonical_slug(class_name)
+    if s and re.match(r"^\d+-", s):
+        s = s.split("-", 1)[1]
+    if not s:
+        return ""
+    return f"/class/{s}"
 
 
 def _club_slug_from_name(name: str) -> str:
@@ -178,8 +205,8 @@ def _fetch_regattas(cur, today: str) -> list[tuple[str, str]]:
 
 def _fetch_sailors(cur, today: str) -> list[tuple[str, str]]:
     """
-    One canonical /sailor/{slug} per sas_id_personal sailor who has raced results.
-    Slug matches api.py: name-only if the official name is unique, else name-{sas_id}.
+    One canonical /sailor/{name-slug} per unique live public slug.
+    Live api.py never appends SAS id; name-{sasid} URLs 301 to the name slug.
     """
     cur.execute(
         """
@@ -211,10 +238,9 @@ def _fetch_sailors(cur, today: str) -> list[tuple[str, str]]:
         )
         SELECT
             s.sa_sailing_id::text AS sas_id,
-            COALESCE(
-                NULLIF(TRIM(s.full_name), ''),
-                TRIM(s.first_name || ' ' || COALESCE(s.last_name, ''))
-            ) AS full_name,
+            COALESCE(NULLIF(TRIM(s.first_name), ''), '') AS first_name,
+            COALESCE(NULLIF(TRIM(s.last_name), ''), '') AS last_name,
+            COALESCE(NULLIF(TRIM(s.full_name), ''), '') AS full_name_raw,
             raced.lastmod
         FROM sas_id_personal s
         JOIN raced ON raced.sas_id = s.sa_sailing_id::text
@@ -222,27 +248,28 @@ def _fetch_sailors(cur, today: str) -> list[tuple[str, str]]:
         """
     )
     rows = list(cur.fetchall() or [])
-    by_name: dict[str, list[tuple[str, str, str]]] = {}
+    by_slug: dict[str, str] = {}
     for r in rows:
         sas_id = (r.get("sas_id") or "").strip()
-        full_name = (r.get("full_name") or "").strip()
         if not sas_id:
             continue
+        display = _sas_personal_display_name(
+            r.get("first_name") or "",
+            r.get("last_name") or "",
+            r.get("full_name_raw") or "",
+        )
+        slug = _sailor_canonical_slug(display, sas_id, False)
+        if not slug:
+            continue
         lastmod_iso = _date_iso(r.get("lastmod"), today=today)
-        key = full_name.lower()
-        by_name.setdefault(key, []).append((sas_id, full_name, lastmod_iso))
-    out = []
-    for _key, group in by_name.items():
-        has_dup = len(group) > 1
-        for sas_id, full_name, lastmod in group:
-            slug = _sailor_canonical_slug(full_name, sas_id, has_dup)
-            if slug:
-                out.append((slug, lastmod))
-    return out
+        prev = by_slug.get(slug)
+        if prev is None or lastmod_iso > prev:
+            by_slug[slug] = lastmod_iso
+    return list(by_slug.items())
 
 
 def _fetch_classes(cur, today: str) -> list[tuple[int, str, str]]:
-    """Current class_id + current class_name so /class/{id}-{canonical-slug} cannot be an outdated slug."""
+    """Current class_name so /class/{canonical-slug} matches live _class_public_path (never id-prefixed)."""
     cur.execute(
         """
         SELECT
@@ -490,9 +517,8 @@ def build_sitemap(
 
     class_entries: list[tuple[str, str]] = []
     for cid, class_name, lastmod in sorted(classes, key=lambda x: x[2], reverse=True):
-        slug = _class_canonical_slug(class_name)
-        path = f"/class/{cid}-{slug}" if slug else f"/class/{cid}"
-        if path in seen_paths:
+        path = _class_public_path(class_name)
+        if not path or path in seen_paths:
             continue
         seen_paths.add(path)
         class_entries.append((path, lastmod))
