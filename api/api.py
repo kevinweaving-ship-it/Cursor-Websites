@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, Body, Query, Request, File, UploadFile
-from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response, FileResponse, JSONResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response, FileResponse, JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -25396,10 +25396,10 @@ def _serve_club_page_impl(slug: str, club: tuple):
         "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
         f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
         "<link rel=\"stylesheet\" href=\"/css/main.css?v=13\">"
-        '<link rel="stylesheet" href="/css/mm-lipton-reels.css?v=clubwx8">'
+        '<link rel="stylesheet" href="/css/mm-lipton-reels.css?v=clubwx9">'
         f"<style>body{{font-family:system-ui,sans-serif;margin:2rem;color:#1a2750;}}a{{color:#1a2750;}}{_CLUB_PAGE_CSS}</style></head><body>"
         f"<div class=\"club-page\">{body}</div>"
-        '<script src="/js/club-live-media.js?v=clubwx8" defer></script>'
+        '<script src="/js/club-live-media.js?v=clubwx9" defer></script>'
         f"{_seo_discovery_block_html()}</body></html>"
     )
     return HTMLResponse(doc)
@@ -25500,7 +25500,7 @@ def api_weather_hyc_history(hours: int = Query(12, ge=1, le=48)):
 
 @app.get("/api/club-cam/hyc")
 def api_club_cam_hyc(request: Request):
-    """HYC Hikvision Cam 5 live still (same card size as HMYC). Super-admin can hide it."""
+    """HYC Cam 5 live pass-through from the club NVR. Super-admin can hide it."""
     try:
         from sailingsa.backend import club_cam_hyc as _hyc_cam
     except ImportError:
@@ -25512,8 +25512,9 @@ def api_club_cam_hyc(request: Request):
     return JSONResponse(_hyc_cam.status_payload(allowed=allowed, can_toggle=can))
 
 
-@app.get("/api/club-cam/hyc/snapshot")
-def api_club_cam_hyc_snapshot(request: Request):
+@app.get("/api/club-cam/hyc/live")
+def api_club_cam_hyc_live(request: Request, u: str = Query("")):
+    """Pass-through of the NVR Cam 5 live feed (HLS / MJPEG / MP4)."""
     try:
         from sailingsa.backend import club_cam_hyc as _hyc_cam
     except ImportError:
@@ -25522,10 +25523,55 @@ def api_club_cam_hyc_snapshot(request: Request):
         raise HTTPException(status_code=503, detail="hyc cam module missing")
     if not (_hyc_cam.is_visible() or _session_role_is_super_admin(request)):
         raise HTTPException(status_code=404, detail="live cam hidden")
-    body, err = _hyc_cam.fetch_snapshot()
-    if not body:
-        raise HTTPException(status_code=502, detail=err or "nvr snapshot failed")
-    return Response(content=body, media_type="image/jpeg", headers={"Cache-Control": "no-store, max-age=0"})
+    target = (u or "").strip()
+    if target:
+        if not _hyc_cam.allowed_upstream(target):
+            raise HTTPException(status_code=400, detail="bad upstream")
+    else:
+        target = _hyc_cam.live_url()
+    fp, ctype, err = _hyc_cam.open_live(target, timeout=None)
+    if fp is None:
+        raise HTTPException(status_code=502, detail=err or "nvr live failed")
+    kind = _hyc_cam.stream_kind(target)
+    if kind == "hls" or "mpegurl" in (ctype or "").lower():
+        try:
+            body = fp.read()
+        finally:
+            try:
+                fp.close()
+            except OSError:
+                pass
+        text = body.decode("utf-8", "replace")
+        if text.lstrip().startswith("#EXTM3U"):
+            text = _hyc_cam.rewrite_hls_playlist(text, target)
+            return Response(
+                content=text,
+                media_type="application/vnd.apple.mpegurl",
+                headers={"Cache-Control": "no-store, max-age=0"},
+            )
+        return Response(content=body, media_type=ctype or "application/octet-stream", headers={"Cache-Control": "no-store"})
+
+    def _gen():
+        try:
+            while True:
+                chunk = fp.read(16384)
+                if not chunk:
+                    break
+                yield chunk
+        finally:
+            try:
+                fp.close()
+            except OSError:
+                pass
+
+    media = ctype or ("multipart/x-mixed-replace" if kind == "mjpeg" else "application/octet-stream")
+    return StreamingResponse(_gen(), media_type=media, headers={"Cache-Control": "no-store, max-age=0"})
+
+
+@app.get("/api/club-cam/hyc/snapshot")
+def api_club_cam_hyc_snapshot(request: Request):
+    """Old snapshot path — same live pass-through."""
+    return api_club_cam_hyc_live(request, u="")
 
 
 @app.patch("/api/super-admin/club-cam/hyc")

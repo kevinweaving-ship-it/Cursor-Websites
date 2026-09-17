@@ -12,7 +12,7 @@
   var WX_ID = 'ssa-regatta-slot-card';
   var MM_ID = 'mmLiptonReels';
   var CSS_ID = 'club-live-media-css';
-  var JS_VER = 'clubwx8';
+  var JS_VER = 'clubwx9';
 
   var AGRO_CAM = 'https://hmyccam1.nwsza.net/latest.jpg';
   var AGRO_PAGE = 'https://agromet.ukzn.ac.za/midmar/index.html#canvas_container';
@@ -34,9 +34,8 @@
       weatherStation: 'pws-iovers2',
       weatherRole: 'venue',
       cam: 'live',
-      still: '/api/club-cam/hyc/snapshot',
-      stillIntervalMs: 2000,
-      liveStill: true,
+      livePass: true,
+      stream: '/api/club-cam/hyc/live',
       camHref: 'https://www.hyc.co.za/',
       camLabel: 'HYC club cam',
       camStatusApi: '/api/club-cam/hyc',
@@ -86,6 +85,9 @@
       '.club-page .club-story-inner > .club-live-media{max-width:100%;}' +
       '.mm-lipton-reels[data-mm-snapshot] .mm-lipton-reels-brand{display:none!important}' +
       '.mm-lipton-reels[data-mm-snapshot] .mm-lipton-reels-clip-chrome{display:none!important}' +
+      '.mm-lipton-reels[data-mm-live-pass] .mm-lipton-reels-brand{display:none!important}' +
+      '.mm-lipton-reels[data-mm-live-pass] .mm-lipton-reels-clip-chrome{display:none!important}' +
+      '.mm-lipton-reels[data-mm-live-pass] .mm-lipton-reels-play{display:none!important}' +
       '.club-live-media .club-cam-sa-toggle{display:none;margin:8px 0 0;min-height:44px;min-width:44px;padding:10px 14px;border:1.5px solid #1a2750;border-radius:8px;background:#fff;color:#1a2750;font:700 14px/1.2 Arial,Helvetica,sans-serif;cursor:pointer;}' +
       '.club-live-media.club-live-media--sa .club-cam-sa-toggle{display:inline-flex;align-items:center;justify-content:center;}';
     document.head.appendChild(s);
@@ -101,7 +103,7 @@
   }
 
   function mmInnerHtml(club) {
-    var brand = club.still
+    var brand = club.still || club.livePass
       ? ''
       : '<a class="mm-lipton-reels-brand" href="' +
         club.logoHref +
@@ -123,7 +125,26 @@
     );
   }
 
+  function livePassVideo(club) {
+    if (!club.livePass) return [];
+    return [
+      {
+        id: String(club.code || 'club').toLowerCase() + '-club-cam',
+        kind: 'webcam',
+        live_pass: true,
+        title: club.camLabel || 'Club cam',
+        stream_url: club.stream || '/api/club-cam/hyc/live',
+        url: club.camHref || '',
+        status_api: club.camStatusApi || '',
+        aspect: '16 / 9',
+        width: 16,
+        height: 9,
+      },
+    ];
+  }
+
   function snapshotVideo(club) {
+    if (club.livePass) return livePassVideo(club);
     if (!club.still) return [];
     return [
       {
@@ -169,15 +190,25 @@
     if (club.regattaId) mm.setAttribute('data-mm-poll', '1');
     else mm.removeAttribute('data-mm-poll');
     mm.setAttribute('data-mm-club-page', '1');
-    if (club.still) {
+    if (club.livePass) {
+      mm.removeAttribute('data-mm-club-logo');
+      mm.removeAttribute('data-mm-club-href');
+      mm.removeAttribute('data-mm-club-alt');
+      mm.removeAttribute('data-mm-brand-soon');
+      mm.removeAttribute('data-mm-brand-live');
+      mm.removeAttribute('data-mm-snapshot');
+      mm.removeAttribute('data-mm-live-still');
+      mm.setAttribute('data-mm-live-pass', '1');
+      mm.setAttribute('data-mm-cam-status', club.camStatusApi || '/api/club-cam/hyc');
+    } else if (club.still) {
       mm.removeAttribute('data-mm-club-logo');
       mm.removeAttribute('data-mm-club-href');
       mm.removeAttribute('data-mm-club-alt');
       mm.removeAttribute('data-mm-brand-soon');
       mm.removeAttribute('data-mm-brand-live');
       mm.setAttribute('data-mm-snapshot', '1');
-      if (club.liveStill) mm.setAttribute('data-mm-live-still', '1');
-      else mm.removeAttribute('data-mm-live-still');
+      mm.removeAttribute('data-mm-live-still');
+      mm.removeAttribute('data-mm-live-pass');
       mm.setAttribute('data-mm-cam-status', club.camStatusApi || '/api/club-cam/hmyc');
     } else {
       mm.setAttribute('data-mm-club-logo', club.logo);
@@ -186,6 +217,7 @@
       mm.setAttribute('data-mm-brand-soon', club.logo);
       mm.setAttribute('data-mm-brand-live', club.logo);
       mm.removeAttribute('data-mm-snapshot');
+      mm.removeAttribute('data-mm-live-pass');
       mm.removeAttribute('data-mm-cam-status');
     }
     mm.setAttribute(
@@ -285,7 +317,7 @@
   }
 
   function mountSaCamToggle(host, club) {
-    if (!host || !club || !club.liveStill) return;
+    if (!host || !club || !club.livePass) return;
     var btn = host.querySelector('[data-club-cam-sa]');
     if (!btn) {
       host.insertAdjacentHTML('beforeend', saToggleHtml());

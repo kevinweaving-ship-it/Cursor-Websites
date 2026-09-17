@@ -94,8 +94,12 @@
     return !!(root && root.getAttribute('data-mm-live-still') === '1');
   }
 
+  function livePassCamRoot(root) {
+    return !!(root && root.getAttribute('data-mm-live-pass') === '1');
+  }
+
   function singleCamRoot(root) {
-    return snapshotCamRoot(root) || liveStillCamRoot(root);
+    return snapshotCamRoot(root) || liveStillCamRoot(root) || livePassCamRoot(root);
   }
 
   function isAdvertFile(v) {
@@ -364,7 +368,7 @@
     var stamp = ensureCamStampOn(host);
     if (!stamp) return;
     var root = host && host.closest ? host.closest('.mm-lipton-reels') : null;
-    var liveStill = liveStillCamRoot(root);
+    var liveStill = liveStillCamRoot(root) || livePassCamRoot(root);
     var snapshot = !liveStill && (snapshotCamRoot(root) || !!(root && root._mmCamSnapshot));
     stamp.hidden = false;
     stamp.classList.toggle('mm-lipton-reels-cam-stamp--live', liveStill || (!snapshot && live));
@@ -422,6 +426,14 @@
       })
       .then(function (data) {
         if (!data) return;
+        if (livePassCamRoot(root) || data.reason === 'pass-through') {
+          root._mmCamSnapshot = false;
+          root._mmCamUpstream = !!data.live;
+          if (data.stream_kind) root._mmStreamKind = String(data.stream_kind);
+          if (data.as_at) root._mmCamAsAt = String(data.as_at);
+          paintCamStamps(root);
+          return;
+        }
         var liveStill = liveStillCamRoot(root) || data.kind === 'live';
         root._mmCamSnapshot = !liveStill;
         if (liveStill) root._mmCamUpstream = !!data.live;
@@ -479,7 +491,7 @@
     }, 1000);
     root._mmCamStatusTimer = window.setInterval(function () {
       pollCamStatus(root);
-    }, liveStillCamRoot(root) ? 2000 : snapshotCamRoot(root) ? 60000 : 20000);
+    }, livePassCamRoot(root) ? 20000 : liveStillCamRoot(root) ? 2000 : snapshotCamRoot(root) ? 60000 : 20000);
   }
 
   function refreshSavedCamStill(root) {
@@ -1265,7 +1277,80 @@
     return live;
   }
 
+  function livePassTileHtml(v) {
+    var src = String((v && (v.stream_url || liveStreamUrl(v))) || '/api/club-cam/hyc/live').trim();
+    var kind = String((v && v.stream_kind) || (cardEl() && cardEl()._mmStreamKind) || 'hls');
+    var inner;
+    if (kind === 'mjpeg') {
+      inner =
+        '<img src="' +
+        esc(src) +
+        '" alt="' +
+        esc((v && v.title) || 'HYC club cam') +
+        '" data-mm-webcam-live data-mm-live-pass decoding="async">';
+    } else {
+      inner =
+        '<video data-mm-compact-live autoplay muted playsinline webkit-playsinline preload="auto" src="' +
+        esc(src) +
+        '" title="LIVE"></video>';
+    }
+    return (
+      '<div class="mm-lipton-reels-tile mm-lipton-reels-tile--live">' +
+      '<div class="mm-lipton-reels-thumb mm-lipton-reels-thumb--live" style="aspect-ratio:16 / 9">' +
+      inner +
+      camStampHtml() +
+      '</div></div>'
+    );
+  }
+
+  function startLivePass(root) {
+    if (!livePassCamRoot(root)) return;
+    var video = root.querySelector('video[data-mm-compact-live]');
+    var src = '/api/club-cam/hyc/live';
+    if (!video) {
+      kickCompactLive(root);
+      return;
+    }
+    root._mmCamUpstream = true;
+    paintCamStamps(root);
+    if (video.canPlayType && video.canPlayType('application/vnd.apple.mpegurl')) {
+      if (video.getAttribute('src') !== src) video.src = src;
+      var p = video.play();
+      if (p && p.catch) p.catch(function () {});
+      return;
+    }
+    withHls(function (Hls) {
+      if (!Hls || !Hls.isSupported) {
+        kickCompactLive(root);
+        return;
+      }
+      if (root._mmHls) return;
+      var hls = new Hls({ enableWorker: true, lowLatencyMode: true });
+      root._mmHls = hls;
+      hls.loadSource(src);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, function () {
+        var play = video.play();
+        if (play && play.catch) play.catch(function () {});
+      });
+      hls.on(Hls.Events.ERROR, function (_ev, data) {
+        if (data && data.fatal) setCamUpstream(root, false);
+      });
+    });
+  }
+
   function compactTilesHtml(videos) {
+    if (livePassCamRoot(cardEl())) {
+      var cam = null;
+      var i;
+      for (i = 0; i < (videos || []).length; i++) {
+        if (videos[i] && (videos[i].live_pass || videos[i].kind === 'webcam')) {
+          cam = videos[i];
+          break;
+        }
+      }
+      return livePassTileHtml(cam || (videos && videos[0]) || {});
+    }
     var parts = [];
     var i;
     var reels = reelVideos(videos);
@@ -1928,6 +2013,7 @@
     }
     compact.style.height = outerH + 'px';
     syncRailButtons(root);
+    startLivePass(root);
   }
 
   function currentVideo(payload, state) {
@@ -2271,6 +2357,11 @@
       '.mm-lipton-reels[data-mm-snapshot] .mm-lipton-reels-player-wrap{width:100%}' +
       '.mm-lipton-reels[data-mm-snapshot] .mm-lipton-reels-brand{display:none!important;width:0!important;height:0!important;overflow:hidden}' +
       '.mm-lipton-reels[data-mm-snapshot] .mm-lipton-reels-clip-chrome{display:none!important}' +
+      '.mm-lipton-reels[data-mm-live-pass] .mm-lipton-reels-player-ui{display:none!important}' +
+      '.mm-lipton-reels[data-mm-live-pass] .mm-lipton-reels-play{display:none!important}' +
+      '.mm-lipton-reels[data-mm-live-pass] .mm-lipton-reels-player-wrap{width:100%}' +
+      '.mm-lipton-reels[data-mm-live-pass] .mm-lipton-reels-brand{display:none!important;width:0!important;height:0!important;overflow:hidden}' +
+      '.mm-lipton-reels[data-mm-live-pass] .mm-lipton-reels-clip-chrome{display:none!important}' +
       '.mm-lipton-reels[data-mm-live-still] .mm-lipton-reels-player-ui{display:none!important}' +
       '.mm-lipton-reels[data-mm-live-still] .mm-lipton-reels-play{display:none!important}' +
       '.mm-lipton-reels[data-mm-live-still] .mm-lipton-reels-player-wrap{width:100%}' +

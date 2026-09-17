@@ -1,9 +1,13 @@
-"""HYC Hikvision live cam — Cam 5 on the HYC DS NVR.
+"""HYC live cam — pass-through of Cam 5 on the club NVR.
 
-ISAPI channel = camera_no * 100 + 1 (Cam 5 → 501 picture).
-Credentials from env (never expose to the browser):
-  HYC_NVR_HOST, HYC_NVR_USER, HYC_NVR_PASSWORD, optional HYC_NVR_PORT (80).
-Super-admin show/hide is stored in a small JSON file.
+Do not snapshot-poll. Stream the NVR live feed (same idea as ZVYC HLS):
+  GET /api/club-cam/hyc/live  → bytes from the NVR, unmodified.
+
+Upstream (first match):
+  HYC_NVR_LIVE_URL     full URL after Cam 5 is added on the NVR
+  HYC_NVR_HOST + Cam 5 HTTP live preview (ISAPI channel 502 = Cam 5 substream)
+
+Credentials stay on the server: HYC_NVR_USER / HYC_NVR_PASSWORD.
 """
 from __future__ import annotations
 
@@ -14,6 +18,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.error import HTTPError, URLError
+from urllib.parse import quote, urljoin, urlparse
 from urllib.request import (
     HTTPDigestAuthHandler,
     HTTPPasswordMgrWithDefaultRealm,
@@ -24,19 +29,17 @@ from urllib.request import (
 from zoneinfo import ZoneInfo
 
 CAM_NO = 5
-ISAPI_CHANNEL = CAM_NO * 100 + 1
+# Cam 5 main = 501, substream live preview = 502 (HTTP pass-through).
+ISAPI_LIVE_CHANNEL = CAM_NO * 100 + 2
+ISAPI_MAIN_CHANNEL = CAM_NO * 100 + 1
 LABEL = "HYC club cam"
 KIND = "live"
-INTERVAL_SEC = 2
 SAST = ZoneInfo("Africa/Johannesburg")
-SRC = "/api/club-cam/hyc/snapshot"
-STATUS_SRC = "/api/club-cam/hyc"
+LIVE_SRC = "/api/club-cam/hyc/live"
 UA = "SailingSA-club-cam/1.0"
 
 _vis_cache = {"at": 0.0, "visible": True}
 _VIS_TTL = 1.0
-_snap_cache = {"at": 0.0, "body": b"", "ok": False, "err": ""}
-_SNAP_TTL = 1.5
 
 
 def vis_path() -> Path:
@@ -109,72 +112,137 @@ def nvr_port() -> int:
     return n if n > 0 else 80
 
 
-def picture_url() -> str:
+def nvr_base() -> str:
     host = nvr_host()
     if not host:
         return ""
     if "://" in host:
-        base = host
-    else:
-        port = nvr_port()
-        base = f"http://{host}" + ("" if port in (80, 0) else f":{port}")
-    return f"{base}/ISAPI/Streaming/channels/{ISAPI_CHANNEL}/picture"
+        return host.rstrip("/")
+    port = nvr_port()
+    return f"http://{host}" + ("" if port in (80, 0) else f":{port}")
+
+
+def live_channel() -> int:
+    raw = (os.environ.get("HYC_NVR_LIVE_CHANNEL") or str(ISAPI_LIVE_CHANNEL)).strip()
+    try:
+        n = int(raw)
+    except (TypeError, ValueError):
+        n = ISAPI_LIVE_CHANNEL
+    return n if n > 0 else ISAPI_LIVE_CHANNEL
+
+
+def live_url() -> str:
+    """NVR live pass-through URL for Cam 5."""
+    explicit = (os.environ.get("HYC_NVR_LIVE_URL") or os.environ.get("HYC_CAM5_LIVE_URL") or "").strip()
+    if explicit:
+        return explicit
+    base = nvr_base()
+    if not base:
+        return ""
+    return f"{base}/ISAPI/Streaming/channels/{live_channel()}/httpPreview"
+
+
+def allowed_upstream(url: str) -> bool:
+    live = live_url()
+    if not live or not url:
+        return False
+    a = urlparse(url)
+    b = urlparse(live)
+    host_ok = bool(a.hostname) and a.hostname == b.hostname
+    return a.scheme in ("http", "https") and host_ok
+
+
+def stream_kind(url: str | None = None) -> str:
+    u = (url or live_url()).lower()
+    if not u:
+        return "hls"
+    if ".m3u8" in u or "mpegurl" in u or "/hls" in u:
+        return "hls"
+    if u.endswith(".mp4") or "stream.mp4" in u or "/mse" in u:
+        return "mp4"
+    if "httpreview" in u or "mjpeg" in u or "multipart" in u:
+        return "mjpeg"
+    return "hls"
+
+
+def _opener(url: str):
+    user = nvr_user()
+    password = nvr_password()
+    if not url or not user:
+        return None
+    origin = nvr_base() or "{0.scheme}://{0.netloc}".format(urlparse(url))
+    mgr = HTTPPasswordMgrWithDefaultRealm()
+    mgr.add_password(None, origin, user, password)
+    mgr.add_password(None, url, user, password)
+    return build_opener(HTTPDigestAuthHandler(mgr))
 
 
 def _format_as_at(dt: datetime) -> str:
     return dt.astimezone(SAST).strftime("%H:%M")
 
 
-def _opener():
-    user = nvr_user()
-    password = nvr_password()
-    url = picture_url()
-    if not url or not user:
-        return None
-    mgr = HTTPPasswordMgrWithDefaultRealm()
-    mgr.add_password(None, url, user, password)
-    return build_opener(HTTPDigestAuthHandler(mgr))
-
-
-def fetch_snapshot() -> tuple[bytes, str]:
-    """Return (jpeg_bytes, err). Empty bytes on failure."""
-    now = time.time()
-    if _snap_cache.get("body") and (now - float(_snap_cache.get("at") or 0)) < _SNAP_TTL:
-        return bytes(_snap_cache.get("body") or b""), str(_snap_cache.get("err") or "")
-    url = picture_url()
-    if not url:
-        _snap_cache.update({"at": now, "body": b"", "ok": False, "err": "HYC_NVR_HOST not set"})
-        return b"", "HYC_NVR_HOST not set"
-    req = Request(url, headers={"User-Agent": UA})
-    body = b""
-    err = ""
-    opener = _opener()
+def open_live(url: str | None = None, timeout: float | None = None):
+    """Open the NVR live feed. Returns (fp, content_type, err). Caller closes fp."""
+    target = (url or live_url()).strip()
+    if not target:
+        return None, "", "HYC_NVR_LIVE_URL / HYC_NVR_HOST not set"
+    req = Request(target, headers={"User-Agent": UA})
+    opener = _opener(target)
     try:
         if opener is not None:
-            with opener.open(req, timeout=8) as resp:
-                body = resp.read() or b""
+            resp = opener.open(req, timeout=timeout)
         else:
-            with urlopen(req, timeout=8, context=ssl._create_unverified_context()) as resp:
-                body = resp.read() or b""
-        if not body or len(body) < 32:
-            err = "empty nvr picture"
-            body = b""
+            resp = urlopen(req, timeout=timeout, context=ssl._create_unverified_context())
+        ctype = (resp.headers.get("Content-Type") or "").split(";")[0].strip()
+        return resp, ctype, ""
     except (HTTPError, URLError, TimeoutError, OSError) as exc:
-        err = str(exc)[:200]
-        body = b""
-    _snap_cache.update({"at": now, "body": body, "ok": bool(body), "err": err})
-    return body, err
+        return None, "", str(exc)[:200]
+
+
+def probe_live() -> tuple[bool, str]:
+    fp, _ctype, err = open_live(timeout=8)
+    if fp is None:
+        return False, err or "nvr live unreachable"
+    try:
+        peek = fp.read(32)
+    except (OSError, TimeoutError) as exc:
+        try:
+            fp.close()
+        except OSError:
+            pass
+        return False, str(exc)[:200]
+    try:
+        fp.close()
+    except OSError:
+        pass
+    if not peek:
+        return False, "empty nvr live feed"
+    return True, ""
+
+
+def rewrite_hls_playlist(text: str, playlist_url: str) -> str:
+    """Point relative HLS URIs back through our pass-through."""
+    lines = []
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            lines.append(raw)
+            continue
+        abs_u = urljoin(playlist_url, line)
+        lines.append(LIVE_SRC + "?u=" + quote(abs_u, safe=""))
+    return "\n".join(lines) + "\n"
 
 
 def status_payload(*, allowed: bool, can_toggle: bool) -> dict:
     visible = is_visible()
+    url = live_url()
+    kind = stream_kind(url)
     live = False
     err = ""
     as_at = None
     last_iso = None
     if allowed:
-        body, err = fetch_snapshot()
-        live = bool(body)
+        live, err = probe_live()
         if live:
             dt = datetime.now(timezone.utc)
             last_iso = dt.isoformat().replace("+00:00", "Z")
@@ -184,15 +252,18 @@ def status_payload(*, allowed: bool, can_toggle: bool) -> dict:
     return {
         "ok": bool(allowed and live),
         "kind": KIND,
+        "reason": "pass-through",
         "live": bool(allowed and live),
         "visible": visible,
         "allowed": allowed,
         "can_toggle": can_toggle,
         "label": LABEL,
         "channel": CAM_NO,
-        "isapi_channel": ISAPI_CHANNEL,
-        "interval_sec": INTERVAL_SEC,
-        "src": SRC,
+        "isapi_channel": live_channel(),
+        "stream_kind": kind,
+        "src": LIVE_SRC,
+        "stream_url": LIVE_SRC if allowed else "",
+        "interval_sec": 0,
         "last_modified": last_iso,
         "as_at": as_at,
         "err": err or None,
