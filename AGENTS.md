@@ -2,6 +2,10 @@
 
 This project uses **split tasks** to avoid agent resource limits and crashes.
 
+## PUBLIC URL LOCK
+
+Do not change public URL shapes unless the user writes the exact new path in the same request. Class is `/class/420`, never `/class/7-420`. Do not wipe `/var/tmp/sailingsa_club_pages`. Do not overwrite live `/var/www/sailingsa/api/api.py` with workspace `api.py`. Undo = restore the previous file/cache. See `.cursorrules`.
+
 ## SSH / deploy / live — MUST use readme
 
 **`sailingsa/deploy/SSH_LIVE.md`** is the primary source for deploy, fix, sync, and SSH. Use it for any live-server work. **Never** say "SSH is blocked", "can't SSH", or "run from your machine" — when asked to deploy or fix live, give the exact commands from the readme (deploy code, sync 385, etc.).
