@@ -1,0 +1,15 @@
+#!/usr/bin/expect -f
+set timeout 150
+set password "TimAdd#072082"
+spawn scp -o StrictHostKeyChecking=no /workspace/sailingsa/deploy/restore_live_api_urls.py /workspace/sailingsa/deploy/apply_class_url_no_id_restore.py /workspace/sailingsa/deploy/restore_live_api_urls_check.py root@102.218.215.253:/tmp/
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
+spawn ssh -o StrictHostKeyChecking=no root@102.218.215.253 {set -e; chattr -i /var/www/sailingsa/api/api.py; python3 /tmp/restore_live_api_urls.py; python3 /tmp/apply_class_url_no_id_restore.py; python3 -m py_compile /var/www/sailingsa/api/api.py; echo COMPILE:$?; chattr +i /var/www/sailingsa/api/api.py; systemctl restart sailingsa-api; sleep 10; systemctl is-active sailingsa-api; python3 /tmp/restore_live_api_urls_check.py}
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
