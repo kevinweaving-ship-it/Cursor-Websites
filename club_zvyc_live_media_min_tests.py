@@ -20,6 +20,7 @@ def test_injector_covers_zvyc_hyc_hmyc_with_club_logo():
     assert "agromet.ukzn.ac.za/midmar" in js
     assert "hmyccam1.nwsza.net/latest.jpg" in js
     assert "snapshot: true" in js
+    assert "fb_owner_logo" not in js
     assert "mmLiptonReels" in js
     assert "makeClubCam" not in js
     assert "clubLiveCam" not in js
@@ -64,13 +65,13 @@ def test_weather_card_uses_agromet_history_path():
 
 def test_api_club_page_loads_live_media_script():
     src = read("api.py")
-    assert "club-live-media.js?v=clubwx5" in src
-    assert "mm-lipton-reels.css?v=clubwx5" in src
+    assert "club-live-media.js?v=clubwx6" in src
+    assert "mm-lipton-reels.css?v=clubwx6" in src
     assert "/api/weather/agromet-midmar/history" in src
     impl_start = src.find("def _serve_club_page_impl")
     impl_end = src.find("def _format_regatta_host_display")
     impl = src[impl_start:impl_end]
-    assert "club-live-media.js?v=clubwx5" in impl
+    assert "club-live-media.js?v=clubwx6" in impl
 
 
 def test_live_club_html_can_host_inject_between_identity_and_about():

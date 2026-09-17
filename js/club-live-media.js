@@ -12,7 +12,7 @@
   var WX_ID = 'ssa-regatta-slot-card';
   var MM_ID = 'mmLiptonReels';
   var CSS_ID = 'club-live-media-css';
-  var JS_VER = 'clubwx5';
+  var JS_VER = 'clubwx6';
 
   var AGRO_CAM = 'https://hmyccam1.nwsza.net/latest.jpg';
   var AGRO_PAGE = 'https://agromet.ukzn.ac.za/midmar/index.html#canvas_container';
@@ -78,8 +78,8 @@
       '.club-page .club-live-media .ssa-regatta-slot-card{order:0!important;margin-top:0;width:100%;max-width:100%;padding:0!important;}' +
       '.club-page .club-live-media .mm-lipton-reels{order:1!important;margin-top:10px;width:100%;}' +
       '.club-page .club-story-inner > .club-live-media{max-width:100%;}' +
-      '.club-page .mm-lipton-reels-brand{background:#fff;}' +
-      '.club-page .mm-lipton-reels-brand img{object-fit:contain;background:#fff;}';
+      '.mm-lipton-reels[data-mm-snapshot] .mm-lipton-reels-brand{display:none!important}' +
+      '.mm-lipton-reels[data-mm-snapshot] .mm-lipton-reels-clip-chrome{display:none!important}';
     document.head.appendChild(s);
   }
 
@@ -93,17 +93,20 @@
   }
 
   function mmInnerHtml(club) {
+    var brand = club.still
+      ? ''
+      : '<a class="mm-lipton-reels-brand" href="' +
+        club.logoHref +
+        '" target="_blank" rel="noopener noreferrer">' +
+        '<img src="' +
+        club.logo +
+        '" alt="' +
+        club.logoAlt +
+        '" width="320" height="213" loading="lazy" decoding="async">' +
+        '</a>';
     return (
       '<div class="mm-lipton-reels-compact">' +
-      '<a class="mm-lipton-reels-brand" href="' +
-      club.logoHref +
-      '" target="_blank" rel="noopener noreferrer">' +
-      '<img src="' +
-      club.logo +
-      '" alt="' +
-      club.logoAlt +
-      '" width="320" height="213" loading="lazy" decoding="async">' +
-      '</a>' +
+      brand +
       '<div class="mm-lipton-reels-rail-wrap">' +
       '<button type="button" class="mm-lipton-reels-rail-btn mm-lipton-reels-rail-btn--prev" data-mm-rail-prev aria-label="Previous clips" hidden>‹</button>' +
       '<div class="mm-lipton-reels-rail" data-mm-compact></div>' +
@@ -120,9 +123,6 @@
         kind: 'webcam',
         snapshot: true,
         title: club.camLabel || 'Club cam',
-        fb_title: club.camLabel || 'Club cam',
-        fb_sub: 'SNAPSHOT',
-        fb_owner_logo: club.logo,
         thumb: club.still,
         live_snap: club.still,
         url: club.camHref || '',
@@ -160,15 +160,20 @@
     if (club.regattaId) mm.setAttribute('data-mm-poll', '1');
     else mm.removeAttribute('data-mm-poll');
     mm.setAttribute('data-mm-club-page', '1');
-    mm.setAttribute('data-mm-club-logo', club.logo);
-    mm.setAttribute('data-mm-club-href', club.logoHref);
-    mm.setAttribute('data-mm-club-alt', club.logoAlt);
-    mm.setAttribute('data-mm-brand-soon', club.logo);
-    mm.setAttribute('data-mm-brand-live', club.logo);
     if (club.still) {
+      mm.removeAttribute('data-mm-club-logo');
+      mm.removeAttribute('data-mm-club-href');
+      mm.removeAttribute('data-mm-club-alt');
+      mm.removeAttribute('data-mm-brand-soon');
+      mm.removeAttribute('data-mm-brand-live');
       mm.setAttribute('data-mm-snapshot', '1');
       mm.setAttribute('data-mm-cam-status', club.camStatusApi || '/api/club-cam/hmyc');
     } else {
+      mm.setAttribute('data-mm-club-logo', club.logo);
+      mm.setAttribute('data-mm-club-href', club.logoHref);
+      mm.setAttribute('data-mm-club-alt', club.logoAlt);
+      mm.setAttribute('data-mm-brand-soon', club.logo);
+      mm.setAttribute('data-mm-brand-live', club.logo);
       mm.removeAttribute('data-mm-snapshot');
       mm.removeAttribute('data-mm-cam-status');
     }
@@ -290,11 +295,8 @@
     injectCss();
     ensureCssLink();
     if (!placeHost(club)) return;
-    loadScript('/js/mm-lipton-reels-card.js?v=' + JS_VER)
-      .then(function () {
-        return loadScript('/js/regatta-slot-card.js?v=' + JS_VER);
-      })
-      .catch(function () {});
+    loadScript('/js/regatta-slot-card.js?v=' + JS_VER).catch(function () {});
+    loadScript('/js/mm-lipton-reels-card.js?v=' + JS_VER).catch(function () {});
   }
 
   if (document.readyState === 'loading') {
