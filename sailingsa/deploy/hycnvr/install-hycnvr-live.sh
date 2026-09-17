@@ -63,8 +63,9 @@ line = (
     '/opt/hikpoc/venv/bin/python bridge_hyc.py D23413606 5 hevc main 2>>/opt/hycnvr/out/bridge_hyc.log | '
     '/opt/hikpoc/venv/bin/python wait_hevc_vps.py | /opt/hikpoc/bin/ffmpeg -hide_banner -loglevel error '
     '-fflags nobuffer+genpts -flags low_delay -err_detect ignore_err -ec favor_inter -probesize 500000 '
-    '-analyzeduration 500000 -f hevc -i pipe:0 -r 12 -vsync cfr -c:v libx264 -preset ultrafast '
-    '-tune zerolatency -profile:v baseline -pix_fmt yuv420p -g 12 -muxdelay 0 -muxpreload 0 '
+    '-analyzeduration 500000 -f hevc -i pipe:0 -vf scale=1280:-2 -r 20 -vsync cfr -c:v libx264 -preset veryfast '
+    '-tune zerolatency -profile:v main -pix_fmt yuv420p -crf 20 -maxrate 2500k -bufsize 4000k -g 40 '
+    '-muxdelay 0 -muxpreload 0 '
     '-rtsp_transport tcp -f rtsp {output}"'
 )
 out = []

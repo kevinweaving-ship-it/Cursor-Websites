@@ -23,7 +23,10 @@ def test_hycnvr_producer_is_isolated():
     assert "wait_hevc_vps" in wait or "VPS" in wait
     assert "D49460413" in install
     assert "bak.psclear" in install
-    assert "hycnvr" in install
+    assert "scale=1280:-2" in install
+    assert "preset veryfast" in install
+    assert "-profile:v main" in install
+    assert "-preset ultrafast" not in install
     assert "HYC_NVR_SERIAL=D23413606" in example
     assert "HYC_NVR_CHANNEL=5" in example
 

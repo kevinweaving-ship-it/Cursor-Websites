@@ -24165,6 +24165,7 @@ _SECTION_HEADING_ROW_UNIFIED_CSS = """
 """
 
 _CLUB_PAGE_CSS = """
+.club-page { max-width: 1100px; margin: 0 auto; padding: 1.25rem 1rem 2rem; box-sizing: border-box; }
 .club-page .card.stats-section { background: #fff; border: 2px solid #001f3f; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
 .club-page .section-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; border-bottom: 2px solid #001f3f; padding-bottom: 0.35rem; margin-bottom: 0.75rem; color: #001f3f; }
 .club-page .club-live-media { width: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 0; padding: 0; border: 0; background: transparent; box-shadow: none; }
@@ -25398,11 +25399,11 @@ def _serve_club_page_impl(slug: str, club: tuple):
         "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
         f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
         "<link rel=\"stylesheet\" href=\"/css/main.css?v=13\">"
-        '<link rel="stylesheet" href="/css/mm-lipton-reels.css?v=clubwx15">'
+        '<link rel="stylesheet" href="/css/mm-lipton-reels.css?v=clubwx16">'
         f"<style>body{{font-family:system-ui,sans-serif;margin:2rem;color:#1a2750;}}a{{color:#1a2750;}}{_CLUB_PAGE_CSS}</style></head><body>"
         f"<div class=\"club-page\">{body}</div>"
-        '<script src="/js/live-cam-sources.js?v=clubwx15" defer></script>'
-        '<script src="/js/club-live-media.js?v=clubwx15" defer></script>'
+        '<script src="/js/live-cam-sources.js?v=clubwx16" defer></script>'
+        '<script src="/js/club-live-media.js?v=clubwx16" defer></script>'
         f"{_seo_discovery_block_html()}</body></html>"
     )
     return HTMLResponse(doc)

@@ -15,7 +15,7 @@
   var WX_ID = 'ssa-regatta-slot-card';
   var MM_ID = 'mmLiptonReels';
   var CSS_ID = 'club-live-media-css';
-  var JS_VER = 'clubwx15';
+  var JS_VER = 'clubwx16';
   var HYC_CAM_ID = 'hyc-club-cam';
   var HYC_LIVE_CAM = 'hyc-club';
 
@@ -85,6 +85,7 @@
     var s = document.createElement('style');
     s.id = CSS_ID;
     s.textContent =
+      '.club-page{max-width:1100px;margin:0 auto;padding:1.25rem 1rem 2rem;box-sizing:border-box;}' +
       '.club-page .club-live-media{width:100%;box-sizing:border-box;display:flex;flex-direction:column;gap:0;padding:0;border:0;background:transparent;box-shadow:none;}' +
       '.club-page .club-live-media .ssa-regatta-slot-card{order:0!important;margin-top:0;width:100%;max-width:100%;padding:0!important;}' +
       '.club-page .club-live-media .mm-lipton-reels,' +

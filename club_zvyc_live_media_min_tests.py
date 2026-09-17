@@ -24,6 +24,8 @@ def test_injector_covers_zvyc_hyc_hmyc_with_club_logo():
     assert "liveCam: HYC_LIVE_CAM" in js or "liveCam: 'hyc-club'" in js or 'liveCam: HYC_LIVE_CAM' in js
     assert "/api/club-cam/hyc" in js
     assert "https://sailingsa.co.za:8443/api/ws?src=hyc" in js
+    assert "padding:1.25rem 1rem 2rem" in js
+    assert "max-width:1100px" in js
     assert "club-hyc-cam" in js
     assert "hyc-club-cam" in js
     assert "startHycGo2rtc" in js
@@ -120,9 +122,9 @@ def test_weather_card_uses_agromet_history_path():
 
 def test_api_club_page_loads_live_media_script():
     src = read("api.py")
-    assert "club-live-media.js?v=clubwx15" in src
-    assert "live-cam-sources.js?v=clubwx15" in src
-    assert "mm-lipton-reels.css?v=clubwx15" in src
+    assert "club-live-media.js?v=clubwx16" in src
+    assert "live-cam-sources.js?v=clubwx16" in src
+    assert "mm-lipton-reels.css?v=clubwx16" in src
     assert "/api/weather/agromet-midmar/history" in src
     assert "/api/weather/hyc/history" in src
     assert "/api/club-cam/hyc/live" in src
@@ -130,7 +132,7 @@ def test_api_club_page_loads_live_media_script():
     impl_start = src.find("def _serve_club_page_impl")
     impl_end = src.find("def _format_regatta_host_display")
     impl = src[impl_start:impl_end]
-    assert "club-live-media.js?v=clubwx15" in impl
+    assert "club-live-media.js?v=clubwx16" in impl
 
 
 def test_live_club_html_can_host_inject_between_identity_and_about():
