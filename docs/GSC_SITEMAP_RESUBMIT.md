@@ -1,6 +1,6 @@
 # Resubmit sitemap in Google Search Console (GSC)
 
-After adding or changing URLs in the sitemap (e.g. class URLs `/class/{id}-{slug}`), resubmit so Google recrawls.
+After adding or changing URLs in the sitemap (e.g. class URLs `/class/{slug}` such as `/class/420`), resubmit so Google recrawls.
 
 ## Steps
 
@@ -15,4 +15,4 @@ If the sitemap is already listed, you can request a re-crawl by opening the site
 ## Sitemap URL
 
 - **Live:** https://sailingsa.co.za/sitemap.xml  
-- Served dynamically by the API; includes home, about, sailors, **classes** (`/class/{id}-{slug}`), and regattas.
+- Served dynamically by the API; includes home, about, sailors, **classes** (`/class/{slug}`), and regattas.

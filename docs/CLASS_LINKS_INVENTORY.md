@@ -1,6 +1,6 @@
 # Class links inventory – where class names are shown
 
-Every place a **class name** is displayed must be a clickable link to `/class/{class_id}-{slug}` when `class_id` is available.
+Every place a **class name** is displayed must be a clickable link to `/class/{slug}` (example `/class/420`). Never `/class/{class_id}-{slug}`.
 
 ## Already using classLink / result_class_id (links)
 

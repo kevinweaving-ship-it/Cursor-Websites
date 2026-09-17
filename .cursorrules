@@ -24,5 +24,6 @@ Hard stops:
 - Do **not** wipe `/var/tmp/sailingsa_club_pages` (those HTML files **are** the public URLs).
 - Do **not** rebuild club/landing HTML from current generators unless asked to change links.
 - Do **not** deploy workspace `api.py` over live `/var/www/sailingsa/api/api.py` (live is the large file; workspace is a stub).
-- Stale docs (`docs/URL_STANDARD_ALL_PAGES.md` still says `/class/{id}-{slug}`) are **wrong**. Live + the user win.
+- `docs/URL_STANDARD_ALL_PAGES.md` is the source of truth: `/class/420`, never `/class/7-420`.
+- Run `python3 sailingsa/scripts/forbid_id_slug_public_urls.py` after any URL-builder edit.
 - Undo means restore the previous cache/file. Do not invent a second rewrite.

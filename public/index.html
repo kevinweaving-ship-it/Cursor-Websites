@@ -1612,7 +1612,7 @@
                 <!-- Congratulations section - removed for later re-add; id kept for JS -->
                 <div id="congratulations-section" style="margin-top: 2rem; display: none;"></div>
             </div>
-            <!-- Class page (e.g. /class/7-420): shown when path starts with /class/{id}- -->
+            <!-- Class page (e.g. /class/420): shown when path starts with /class/{slug} -->
             <div id="class-view" style="display: none;"></div>
         </div>
             </div>
@@ -1808,7 +1808,7 @@
             _dbg('[DEBUG] index.html: Session stored, URL cleaned');
         }
         /** SEO: set title, meta description, canonical and JSON-LD for a sailor page (client-side; SSR would be better). */
-        /** SEO: set canonical and title for a class page (e.g. /class/7-420). */
+        /** SEO: set canonical and title for a class page (e.g. /class/420). */
         function setClassPageSEO(pathname, classData) {
             var base = (window.location.origin || '').replace(/\/$/, '');
             if (!base || !pathname) return;
@@ -1990,13 +1990,12 @@
             }).join('');
             container.innerHTML = '<div class="master-page-layout container">' + back + titleCard + statsCard + dataCards + '</div>';
         }
-        function classLink(classId, displayName) {
+        function classLink(_ignored, displayName) {
             var name = (displayName || '').toString().trim();
             var esc = escapeClassHtml(name) || '—';
             var slug = classSlugFromName(name);
-            if (classId != null && classId !== '' && name && slug)
-                return '<a href="/class/' + String(classId) + '-' + encodeURIComponent(slug) + '" target="_top">' + esc + '</a>';
-            if (slug) return '<a href="/class/' + encodeURIComponent(slug) + '" target="_top">' + esc + '</a>';
+            if (name && slug)
+                return '<a href="/class/' + encodeURIComponent(slug) + '" target="_top">' + esc + '</a>';
             return esc;
         }
         window.renderClassPage = function(data) {

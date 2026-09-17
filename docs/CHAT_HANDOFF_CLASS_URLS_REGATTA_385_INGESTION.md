@@ -6,12 +6,11 @@ Use this doc when starting a **new chat** to continue work. One agent was crashi
 
 ## 1. Class URLs and routing (done)
 
-- **Backend:** `/class/{slug}` route: slug-only (e.g. 420) → resolve class_id, 301 to `/class/{class_id}-{slug}`; canonical `{id}-{slug}` (e.g. 7-420) serves SPA. Route order: `/class/{slug}` registered early (after `/sailor/{slug}`) so it runs before any SPA fallback.
-- **API:** GET `/api/class/{class_id}` and HEAD `/api/class/{class_id}` return class data; HEAD added so `curl -sI` returns 200.
-- **Nginx:** `location ~ ^/class/` proxies to FastAPI so `/class/420` and `/class/7-420` hit the API.
-- **Frontend:** In `index.html` (and `public/index.html`), when path matches `/class/(\d+)-`, we call `/api/class/{id}`, render class page (name, stats, regattas, sailors tables), show `#class-view`, hide landing; no fallback to landing.
-- **Deploy:** Frontend and api.py deployed; nginx updated and reloaded.
-- **Verify:** `/class/420` → 301, `/class/7-420` → 200 and class data renders.
+- **Backend:** Public class URL is `/class/{slug}` only (e.g. `/class/420`). Old `/class/7-420` bookmarks 301 to `/class/420`. Never emit `{class_id}-{slug}`.
+- **API:** GET `/api/class/{ref}` accepts slug, numeric id, or old id-slug and returns class data. Public hrefs use the slug.
+- **Nginx:** `location ~ ^/class/` proxies to FastAPI so `/class/420` (and leftover `/class/7-420`) hit the API.
+- **Frontend:** Path `/class/{slug}` loads `/api/class/{slug}`, renders the class page. Do not parse `/^\/class\/(\d+)-/` to pull a database id out of the path.
+- **Verify:** `/class/420` → 200. `/class/7-420` → 301 Location `/class/420`.
 
 ---
 

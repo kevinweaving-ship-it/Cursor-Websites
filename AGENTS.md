@@ -4,7 +4,7 @@ This project uses **split tasks** to avoid agent resource limits and crashes.
 
 ## PUBLIC URL LOCK
 
-Do not change public URL shapes unless the user writes the exact new path in the same request. Class is `/class/420`, never `/class/7-420`. Do not wipe `/var/tmp/sailingsa_club_pages`. Do not overwrite live `/var/www/sailingsa/api/api.py` with workspace `api.py`. Undo = restore the previous file/cache. See `.cursorrules`.
+Do not change public URL shapes unless the user writes the exact new path in the same request. Class is `/class/420`, never `/class/7-420`. Database IDs do not belong in public paths. Run `python3 sailingsa/scripts/forbid_id_slug_public_urls.py` after URL-builder edits. Do not wipe `/var/tmp/sailingsa_club_pages`. Do not overwrite live `/var/www/sailingsa/api/api.py` with workspace `api.py`. Undo = restore the previous file/cache. See `.cursorrules`.
 
 ## SSH / deploy / live — MUST use readme
 

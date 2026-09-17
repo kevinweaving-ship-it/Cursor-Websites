@@ -1711,7 +1711,7 @@ def _directory_clubs():
 
 
 def _directory_classes():
-    """Return [(class_name, path), ...] for classes. path = /class/{id}-{slug}. Sorted by class_name."""
+    """Return [(class_name, path), ...] for classes. path = /class/{slug}. Sorted by class_name."""
     out = []
     try:
         if not table_exists("classes"):
@@ -1726,7 +1726,7 @@ def _directory_classes():
                 if cid is None or not name:
                     continue
                 slug = _class_canonical_slug(name) if name else ""
-                path = f"/class/{cid}-{slug}" if slug else f"/class/{cid}"
+                path = _class_public_path(name, slug)
                 out.append((name, path))
         finally:
             cur.close()
@@ -1815,7 +1815,7 @@ def _directory_clubs_page():
 
 @app.get("/classes", response_class=HTMLResponse)
 def _directory_classes_page(request: Request):
-    """Directory: all classes rendered by API route. Links to /class/{id}-{slug}."""
+    """Directory: all classes rendered by API route. Links to /class/{slug}."""
     items = _directory_classes()
     return HTMLResponse(_directory_page_html("/classes", items, "class", "Classes"))
 
@@ -2950,7 +2950,7 @@ def _get_public_stats():
             for r in cur.fetchall() or []:
                 cid = r.get("class_id")
                 name = (r.get("class_name") or "").strip()
-                slug = f"{cid}-{_class_canonical_slug(name)}" if name else str(cid)
+                slug = _class_canonical_slug(name) if name else ""
                 out["top_classes"].append({
                     "class_name": name or "—",
                     "slug": slug,
@@ -3189,8 +3189,7 @@ def _stats_page_html(data: dict) -> str:
     # Most Active Classes (sortable; default total_races DESC)
     body += '<div class="card stats-section"><h2 class="section-title">Most Active Classes</h2><div class="table-container"><table class="table stats-table" id="stats-classes" data-default-sort="total_races" data-default-dir="desc"><thead><tr><th data-sort="class_name">Class</th><th data-sort="total_races">Total Races</th><th data-sort="total_sailors">Total Sailors</th></tr></thead><tbody>'
     for row in data.get("top_classes") or []:
-        slug = str(row.get("slug") or "")
-        href = "/class/" + quote(slug, safe="")
+        href = _class_public_path(str(row.get("class_name") or ""), str(row.get("slug") or ""))
         body += f'<tr data-class_name="{html_module.escape(str(row.get("class_name") or ""))}" data-total_races="{row.get("total_races", 0)}" data-total_sailors="{row.get("total_sailors", 0)}"><td><a href="{href}">{html_module.escape(row.get("class_name") or "—")}</a></td><td>{row.get("total_races", 0)}</td><td>{row.get("total_sailors", 0)}</td></tr>'
     body += "</tbody></table></div></div>"
     # Most Active Clubs (sortable; default regattas_hosted DESC)
@@ -5613,7 +5612,7 @@ body{{background:#0f172a;color:#e5e7eb;font-family:system-ui,-apple-system,Blink
                                 }} else if (k === 'class_name' && row.class_id != null && row.class_id !== '') {{
                                     var slug = (row.class_name || '').toString().toLowerCase().trim().replace(/\\s+/g, '-').replace(/[^a-z0-9-]/g, '');
                                     var esc = (row.class_name != null ? String(row.class_name) : '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-                                    h += '<td><a href="/class/' + row.class_id + '-' + slug + '">' + esc + '</a></td>';
+                                    h += '<td><a href="/class/' + slug + '">' + esc + '</a></td>';
                                 }} else {{
                                     h += '<td>' + (row[k] != null ? String(row[k]) : '') + '</td>';
                                 }}
@@ -5691,7 +5690,7 @@ body{{background:#0f172a;color:#e5e7eb;font-family:system-ui,-apple-system,Blink
                         var regattaCell = regattaSlug ? '<a href=\"/regatta/' + regattaSlug + '\">' + regattaEsc + '</a>' : regattaEsc;
                         var classEsc = (row.last_class_sailed != null ? String(row.last_class_sailed).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;') : '');
                         var classSlug = (row.last_class_sailed || '').toString().toLowerCase().trim().replace(/\\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-                        var classCell = (row.last_class_id != null && row.last_class_id !== '') ? '<a href="/class/' + String(row.last_class_id).replace(/</g, '&lt;') + '-' + classSlug + '">' + classEsc + '</a>' : classEsc;
+                        var classCell = classSlug ? '<a href="/class/' + classSlug + '">' + classEsc + '</a>' : classEsc;
                         var resultEsc = (lastResultDisplay ? lastResultDisplay.replace(/</g, '&lt;').replace(/\"/g, '&quot;') : '');
                         tr.innerHTML = '<td>' + (row.rank != null ? row.rank : '') + '</td><td>' + nameCell + '</td><td>' + (row.sas_id != null ? String(row.sas_id).replace(/</g, '&lt;') : '') + '</td><td>' + (row.races_count != null ? row.races_count : '') + '</td><td>' + (row.regattas_count != null ? row.regattas_count : '') + '</td><td>' + (row.last_active_date != null ? String(row.last_active_date).replace(/</g, '&lt;') : '') + '</td><td>' + regattaCell + '</td><td>' + classCell + '</td><td>' + resultEsc + '</td>';
                         if (searchQ && (tr.getAttribute('data-search') || '').indexOf(searchQ) === -1) tr.style.display = 'none';
@@ -5777,7 +5776,7 @@ body{{background:#0f172a;color:#e5e7eb;font-family:system-ui,-apple-system,Blink
                         tr.setAttribute('data-search', searchParts.join(' ').toLowerCase());
                         var slug = (row.class_name || '').toString().toLowerCase().trim().replace(/\\s+/g, '-').replace(/[^a-z0-9-]/g, '');
                         var classEsc = (row.class_name != null ? String(row.class_name).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') : '');
-                        var classLink = (row.class_id != null && row.class_id !== '') ? '<a href="/class/' + String(row.class_id).replace(/</g, '&lt;') + '-' + slug + '">' + classEsc + '</a>' : classEsc;
+                        var classLink = slug ? '<a href="/class/' + slug + '">' + classEsc + '</a>' : classEsc;
                         tr.innerHTML = '<td>' + (row.no != null ? row.no : '') + '</td><td>' + classLink + '</td><td>' + (row.sailor_count != null ? row.sailor_count : '') + '</td>';
                         if (searchQ && (tr.getAttribute('data-search') || '').indexOf(searchQ) === -1) tr.style.display = 'none';
                         tbody.appendChild(tr);
@@ -6533,7 +6532,7 @@ body.dashboard-v3 #v3-status-box { display: block !important; }
    var regattaCell = regattaSlug ? '<a href="/regatta/'+regattaSlug+'" style="color:#001f3f">'+regattaEsc+'</a>' : regattaEsc;
    var classEsc = (row.last_class_sailed != null ? String(row.last_class_sailed).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : '');
    var classSlug = (row.last_class_sailed||'').toString().toLowerCase().trim().replace(/\\s+/g,'-').replace(/[^a-z0-9-]/g,'');
-   var classCell = (row.last_class_id != null && row.last_class_id !== '') ? '<a href="/class/'+String(row.last_class_id).replace(/</g,'&lt;')+'-'+classSlug+'" style="color:#001f3f">'+classEsc+'</a>' : classEsc;
+   var classCell = classSlug ? '<a href="/class/'+classSlug+'" style="color:#001f3f">'+classEsc+'</a>' : classEsc;
    var resultEsc = (lastRes ? lastRes.replace(/</g,'&lt;').replace(/"/g,'&quot;') : '');
    tr.innerHTML = '<td style="border-top:1px solid #e2e8f0">'+(row.rank!=null?row.rank:'')+'</td><td style="border-top:1px solid #e2e8f0">'+nameCell+'</td><td style="border-top:1px solid #e2e8f0">'+(row.sas_id!=null?String(row.sas_id).replace(/</g,'&lt;'):'')+'</td><td style="border-top:1px solid #e2e8f0">'+(row.races_count!=null?row.races_count:'')+'</td><td style="border-top:1px solid #e2e8f0">'+(row.regattas_count!=null?row.regattas_count:'')+'</td><td style="border-top:1px solid #e2e8f0">'+(row.last_active_date!=null?String(row.last_active_date).replace(/</g,'&lt;'):'')+'</td><td style="border-top:1px solid #e2e8f0">'+regattaCell+'</td><td style="border-top:1px solid #e2e8f0">'+classCell+'</td><td style="border-top:1px solid #e2e8f0">'+resultEsc+'</td>';
    if (q && searchText.indexOf(q)===-1) tr.style.display='none';
@@ -6560,7 +6559,7 @@ body.dashboard-v3 #v3-status-box { display: block !important; }
    tr.setAttribute('data-search', searchParts.join(' ').toLowerCase());
    var slug = (row.class_name||'').toString().toLowerCase().trim().replace(/\\s+/g,'-').replace(/[^a-z0-9-]/g,'');
    var classEsc = (row.class_name!=null ? String(row.class_name).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : '');
-   var classLink = (row.class_id!=null&&row.class_id!=='') ? '<a href="/class/'+String(row.class_id).replace(/</g,'&lt;')+'-'+slug+'" style="color:#001f3f">'+classEsc+'</a>' : classEsc;
+   var classLink = slug ? '<a href="/class/'+slug+'" style="color:#001f3f">'+classEsc+'</a>' : classEsc;
    var lastRegattaEsc = (row.last_regatta_name!=null ? String(row.last_regatta_name).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : '');
    var lastRegattaSlug = (row.last_regatta_slug!=null&&row.last_regatta_slug!=='') ? String(row.last_regatta_slug).replace(/</g,'&lt;').replace(/"/g,'&quot;') : '';
    var lastRegattaCell = lastRegattaSlug ? '<a href="/regatta/'+lastRegattaSlug+'" style="color:#001f3f">'+lastRegattaEsc+'</a>' : lastRegattaEsc;
@@ -11729,7 +11728,7 @@ def api_classes():
 
 @app.get("/api/classes/list")
 def api_classes_list():
-    """Return class_id and class_name for homepage class search (links to /class/{id}-{slug})."""
+    """Return class_id and class_name for homepage class search (links to /class/{slug})."""
     if not column_exists("classes", "class_id"):
         return {"classes": []}
     name_col = "class_name" if column_exists("classes", "class_name") else ("class_canonical" if column_exists("classes", "class_canonical") else "name")
@@ -13733,7 +13732,7 @@ def patch_result(request: Request, result_id: int, p: ResultPatch):
         if cn and cid is not None:
             canon = _class_canonical_slug(cn)
             cid_int = int(cid)
-            out_row["class_path"] = f"/class/{cid_int}-{canon}" if canon else f"/class/{cid_int}"
+            out_row["class_path"] = _class_public_path(cn, canon)
     return {"ok": True, "result": out_row}
 
 
@@ -14505,7 +14504,7 @@ def test_class_aggregate_page(class_id: int):
 
     class_name = (data.get("class_name") or "").strip()
     cslug = _class_canonical_slug(class_name)
-    class_path = f"/class/{class_id}-{cslug}" if cslug else f"/class/{class_id}"
+    class_path = _class_public_path(class_name, cslug)
     base = _canonical_base_url()
 
     def a(rel: str, label: str) -> str:
@@ -19641,7 +19640,7 @@ async def api_super_admin_classes_search(
         cname = (r.get("class_name") or "").strip()
         canon = _class_canonical_slug(cname)
         cid_int = int(cid)
-        class_path = f"/class/{cid_int}-{canon}" if canon else f"/class/{cid_int}"
+        class_path = _class_public_path(cname, canon)
         out.append({"class_id": cid_int, "class_name": cname, "class_path": class_path})
     if qn and len(out) > 1:
         ql = qn.lower()
@@ -21552,6 +21551,12 @@ def _class_canonical_slug(class_name: str) -> str:
     return s.strip("-") or ""
 
 
+def _class_public_path(class_name: str = "", slug: str = "") -> str:
+    """Public class URL is /class/{slug} only. NEVER /class/{id} or /class/{id}-{slug}."""
+    s = (slug or "").strip() or _class_canonical_slug(class_name or "")
+    return f"/class/{s}" if s else "/classes"
+
+
 def _get_class_by_name_slug(slug: str):
     """Lookup class by name-only slug (no leading id). Returns (class_id, class_name) or (None, None)."""
     norm = _normalise_class_slug_for_lookup(slug)
@@ -21857,7 +21862,7 @@ def _seo_discovery_pairs_fetch():
                     if cid is None or not name:
                         continue
                     cslug = _class_canonical_slug(name)
-                    path = f"/class/{cid}-{cslug}" if cslug else f"/class/{cid}"
+                    path = _class_public_path(name, cslug)
                     pairs.append((path, name[:100]))
         finally:
             cur.close()
@@ -22184,7 +22189,7 @@ def serve_class_spa(class_slug: str):
     if not class_id or not class_name:
         raise HTTPException(status_code=404, detail="Class not found")
     canonical_slug = _class_canonical_slug(class_name or "")
-    canonical_path = f"/class/{class_id}-{canonical_slug}" if canonical_slug else f"/class/{class_id}"
+    canonical_path = _class_public_path(class_name, canonical_slug)
     req_slug = (class_slug or "").strip().lower()
     canon_slug = canonical_path.split("/class/", 1)[-1].lower()
     if req_slug != canon_slug:
@@ -23961,7 +23966,7 @@ def _render_result_sheet_fleet(
         if rcid is not None and (class_name_raw or "").strip():
             cn = (class_name_raw or "").strip()
             canon = _class_canonical_slug(cn)
-            cpath = f"/class/{int(rcid)}-{canon}" if canon else f"/class/{int(rcid)}"
+            cpath = _class_public_path(cn, canon)
             class_xin = (
                 f' data-resolved-class-id="{html_module.escape(str(int(rcid)), quote=True)}"'
                 f' data-original-resolved-class-id="{html_module.escape(str(int(rcid)), quote=True)}"'
@@ -25456,7 +25461,7 @@ def api_class_resolve_slug(slug: str):
     if not class_id:
         raise HTTPException(status_code=404, detail="Class not found")
     canon = _class_canonical_slug(class_name or "")
-    canonical_path = f"/class/{class_id}-{canon}" if canon else f"/class/{class_id}"
+    canonical_path = _class_public_path(class_name, canon)
     return {"class_id": int(class_id), "canonical_path": canonical_path}
 
 
