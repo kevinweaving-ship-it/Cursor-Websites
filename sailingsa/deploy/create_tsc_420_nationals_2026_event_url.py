@@ -136,8 +136,13 @@ def resolve_class_420(cur) -> dict:
 
 
 def next_regatta_number(cur) -> int:
-    cur.execute("SELECT COALESCE(MAX(regatta_number), 0) + 1 FROM regattas WHERE regatta_number IS NOT NULL")
-    return int(cur.fetchone()[0])
+    cur.execute(
+        "SELECT COALESCE(MAX(regatta_number), 0) + 1 AS next_num FROM regattas WHERE regatta_number IS NOT NULL"
+    )
+    row = cur.fetchone()
+    if isinstance(row, dict):
+        return int(row["next_num"])
+    return int(row[0])
 
 
 def ensure_regatta(cur, tsc: dict, class_420: dict, dry_run: bool) -> str:
