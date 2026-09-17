@@ -11,11 +11,12 @@
   var CSS_ID = "ssa-regatta-slot-card-css";
   var ROOT_ID = "ssa-regatta-slot-card";
   var CAPE_CLASSIC_ID = "2026-09-13-zvyc-cape-classic";
-  var JS_VER = "20260917hyc1";
+  var JS_VER = "clubwx17";
   var HOUR_MS = 3600000;
   var WA_FEED = "/js/event-whatsapp-live.json";
   var WA_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#25D366" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.435 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>';
   var PTS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+  var WX_NOTICE = "Notice: Weather data reflects instrument location only and is not a reliable indicator of actual wind speeds or directions on the water. Sail at your own risk.";
   var BANDS = [[0, 5, "#12b028"], [5, 11, "#2563eb"], [11, 17, "#e67e00"], [17, 23, "#7c3aed"], [23, 60, "#DC143C"]];
 
   function injectCss() {
@@ -27,9 +28,9 @@
     }
     s.textContent = [
       ".regatta-page:has(#ssa-regatta-slot-card)>.regatta-header-wrap .header{margin-bottom:0!important;}",
-      ".ssa-regatta-slot-card{position:relative;display:flex;width:100%;order:2;align-self:start;margin:10px 0 0;padding:0;box-sizing:border-box;height:122px!important;min-height:122px!important;max-height:122px!important;flex:0 0 122px!important;background:#fff;border:1.5px solid #1a2750;border-radius:8px;box-shadow:0 1px 3px rgba(0,31,63,.08);overflow:hidden;}",
-      ".regatta-page:has(.mm-lipton-reels--expanded) .ssa-regatta-slot-card{height:122px!important;min-height:122px!important;max-height:122px!important;flex:0 0 122px!important;align-self:start!important;}",
-      ".ssa-regatta-slot-card .wx-wp-top{display:flex;align-items:stretch;flex:1;height:100%;width:100%;padding:0 6px 0 0;gap:4px;box-sizing:border-box;}",
+      ".ssa-regatta-slot-card{position:relative;display:flex;flex-direction:column;width:100%;order:2;align-self:start;margin:10px 0 0;padding:0;box-sizing:border-box;height:auto!important;min-height:0!important;max-height:none!important;flex:0 0 auto!important;background:#fff;border:1.5px solid #1a2750;border-radius:8px;box-shadow:0 1px 3px rgba(0,31,63,.08);overflow:hidden;}",
+      ".regatta-page:has(.mm-lipton-reels--expanded) .ssa-regatta-slot-card{height:auto!important;min-height:0!important;max-height:none!important;flex:0 0 auto!important;align-self:start!important;}",
+      ".ssa-regatta-slot-card .wx-wp-top{display:flex;align-items:stretch;flex:0 0 122px;height:122px;max-height:122px;width:100%;padding:0 6px 0 0;gap:4px;box-sizing:border-box;}",
       ".ssa-regatta-slot-card .wx-wp-comp{flex:0 0 122px;width:122px!important;height:122px!important;max-width:122px;max-height:122px;aspect-ratio:1/1;overflow:hidden;}",
       ".ssa-regatta-slot-card .wx-dial{display:block;width:100%;height:100%;overflow:visible;}",
       ".ssa-regatta-slot-card .wx-spark{flex:1 1 0;min-width:48px;height:100%;display:flex;flex-direction:column;padding:6px 2px 4px;box-sizing:border-box;min-height:0;}",
@@ -91,9 +92,14 @@
       ".ssa-wa-gate-actions a span{display:inline-block;line-height:32px;font-weight:700;font-size:13px;}",
       ".ssa-wa-gate-auth .ssa-wa-gate-header-btn{width:auto;min-width:0;flex:0 0 auto;}",
       ".ssa-wa-gate-actions button[data-wa-gate-close]{display:flex;align-items:center;justify-content:center;min-height:44px;width:100%;padding:10px 12px;border-radius:6px;font:700 14px/1.2 Arial,Helvetica,sans-serif;background:#fff;color:#1a2750;border:1px solid #1a2750;cursor:pointer;box-sizing:border-box;}",
+      ".ssa-regatta-slot-card .wx-notice{flex:0 0 auto;margin:0;padding:5px 8px 6px;border-top:1px solid #e2e8f0;box-sizing:border-box;width:100%;font:500 9px/1.3 Arial,Helvetica,sans-serif;color:#64748b;text-align:left;}",
+      "@media screen and (orientation:landscape){",
+      ".ssa-regatta-slot-card .wx-notice{white-space:nowrap;overflow:hidden;font-size:8px;line-height:1.2;padding:4px 8px 5px;}",
+      "}",
       "@media screen and (orientation:portrait) and (max-width:767px){",
       ".ssa-regatta-slot-card{margin-top:10px;}",
       ".ssa-regatta-slot-card .wx-il,.ssa-regatta-slot-card .wx-iv,.ssa-regatta-slot-card .wx-iv small{font-size:17px;}",
+      ".ssa-regatta-slot-card .wx-notice{white-space:normal;font-size:9px;line-height:1.3;}",
       "}"
     ].join("");
   }
@@ -669,6 +675,7 @@
           '<div class="wx-ir"><span class="wx-il">High</span><span class="wx-iv" style="color:' + colH + '">' + n1(whigh) + " <small>kn</small></span></div>" +
         "</div>" +
       "</div>" +
+      '<p class="wx-notice">' + WX_NOTICE + "</p>" +
       (withWa
         ? '<button type="button" class="wx-wa-btn" aria-label="Cape Classic WhatsApp" aria-pressed="false">' + WA_ICON + "</button>" +
           '<div class="wx-wa-layer" aria-label="Cape Classic WhatsApp"></div>'
@@ -683,10 +690,16 @@
 
   function fitGauge(slot) {
     var comp = slot && slot.querySelector(".wx-wp-comp");
+    var top = slot && slot.querySelector(".wx-wp-top");
     if (!slot || !comp) return;
-    slot.style.height = "122px";
-    slot.style.minHeight = "122px";
-    slot.style.maxHeight = "122px";
+    slot.style.height = "";
+    slot.style.minHeight = "";
+    slot.style.maxHeight = "";
+    if (top) {
+      top.style.height = "122px";
+      top.style.minHeight = "122px";
+      top.style.maxHeight = "122px";
+    }
     comp.style.height = "122px";
     comp.style.width = "122px";
     comp.style.maxHeight = "122px";
@@ -695,9 +708,9 @@
 
   function syncToMarine(slot, marine) {
     if (!slot || !marine) return;
-    slot.style.height = "122px";
-    slot.style.minHeight = "122px";
-    slot.style.maxHeight = "122px";
+    slot.style.height = "";
+    slot.style.minHeight = "";
+    slot.style.maxHeight = "";
     var mt = getComputedStyle(marine).marginTop;
     if (mt) slot.style.marginTop = mt;
     fitGauge(slot);
