@@ -3,6 +3,6 @@
 Logs JSONL to /tmp/ssa_checkout_hold.jsonl:
   worker PID | request path | request checked-out | worker checked-out | site | duration
 
-Do NOT leave this on after verification.
+Disabled on live after the REUSE verify matrix (`_CHECKOUT_DIAG = False`).
 Does not change pool/lifecycle behaviour.
 """
