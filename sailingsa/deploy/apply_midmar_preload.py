@@ -2,8 +2,11 @@
 """Preload Midmar Cup Hunter 19 entries with checksummed SAS IDs.
 
 Live-only. Does not invent SAS IDs or sail/bow/boat numbers.
-Fleet is loose: class sailed = fleet = Hunter 19.
-Columns allowed on each row: class, sail_number, bow_no, boat_number (hull_no).
+
+Hunter 19 gold columns (from existing results, read-only):
+  class, sail_number, boat_name, helm, crew.
+bow_no / hull_no / jib_no are unused on H19. Do not add a Fleet column;
+class sailed is Hunter 19.
 """
 from __future__ import annotations
 
@@ -183,7 +186,6 @@ def apply() -> int:
     result_cols = table_cols(cur, "results")
     entry_cols = table_cols(cur, "entries")
     sas_cols = table_cols(cur, "sas_id_personal")
-    block_cols = table_cols(cur, "regatta_blocks")
     print("results", sorted(result_cols))
     print("entries", sorted(entry_cols))
     print("has bow_no", "bow_no" in result_cols)
@@ -284,45 +286,30 @@ def apply() -> int:
         conn.close()
         return 1
 
-    # Loose fleet = class sailed = Hunter 19 on the block.
-    if "fleet_label" in block_cols:
-        cur.execute(
-            """
-            UPDATE regatta_blocks
-            SET class_original = %s,
-                class_canonical = %s,
-                class_id = %s,
-                fleet_label = %s,
-                entries_raced = %s
-            WHERE block_id = %s
-            """,
-            (CLASS_NAME, CLASS_NAME, CLASS_ID, CLASS_NAME, len(boats), BLOCK),
-        )
-    else:
-        cur.execute(
-            """
-            UPDATE regatta_blocks
-            SET class_original = %s,
-                class_canonical = %s,
-                class_id = %s,
-                entries_raced = %s
-            WHERE block_id = %s
-            """,
-            (CLASS_NAME, CLASS_NAME, CLASS_ID, len(boats), BLOCK),
-        )
+    # Match other H19 blocks: class = Hunter 19, fleet_label left unset (no Fleet column).
+    cur.execute(
+        """
+        UPDATE regatta_blocks
+        SET class_original = %s,
+            class_canonical = %s,
+            class_id = %s,
+            fleet_label = NULL,
+            entries_raced = %s
+        WHERE block_id = %s
+        """,
+        (CLASS_NAME, CLASS_NAME, CLASS_ID, len(boats), BLOCK),
+    )
     print("BLOCK_UPDATE", cur.rowcount)
 
     cur.execute("SELECT result_id, helm_name, helm_sa_sailing_id FROM results WHERE regatta_id=%s", (RID,))
     existing = cur.fetchall()
     print("EXISTING_RESULTS", existing)
 
-    boat_number_col = "boat_number" if "boat_number" in result_cols else ("hull_no" if "hull_no" in result_cols else None)
-    has_bow = "bow_no" in result_cols
+    has_boat_name = "boat_name" in result_cols
     has_crew2 = "crew2_name" in result_cols and "crew2_sa_sailing_id" in result_cols
     has_class_id = "class_id" in result_cols
     has_raced = "raced" in result_cols
     has_result_status = "result_status" in result_cols
-    has_fleet = "fleet_label" in result_cols
 
     inserted = 0
     updated = 0
@@ -352,14 +339,13 @@ def apply() -> int:
             "discard_count": 0,
             "race_scores": psycopg2.extras.Json({}),
         }
-        if has_fleet:
+        # Internal class sailed only — do not add a Fleet column.
+        if "fleet_label" in result_cols:
             sets["fleet_label"] = CLASS_NAME
         if has_class_id:
             sets["class_id"] = CLASS_ID
-        if has_bow:
-            sets["bow_no"] = None
-        if boat_number_col:
-            sets[boat_number_col] = None
+        if has_boat_name:
+            sets["boat_name"] = None
         if has_crew2:
             sets["crew2_name"] = boat["crew2_name"]
             sets["crew2_sa_sailing_id"] = boat["crew2_sid"]
@@ -370,9 +356,9 @@ def apply() -> int:
 
         if row:
             result_id = row[0]
-            # Do not blank sail / bow / boat number if a later pass already filled them.
-            for col in ("sail_number", "bow_no", boat_number_col):
-                if col and col in sets and sets[col] is None:
+            # Do not blank sail / boat name if a later pass already filled them.
+            for col in ("sail_number", "boat_name"):
+                if col in sets and sets[col] is None:
                     sets.pop(col)
             assignments = []
             vals = []
@@ -413,6 +399,9 @@ def apply() -> int:
                     evals.append(boat["club_raw"])
                 if "sail_number" in entry_cols:
                     ecols.append("sail_number")
+                    evals.append(None)
+                if "boat_name" in entry_cols:
+                    ecols.append("boat_name")
                     evals.append(None)
                 if "verified" in entry_cols:
                     ecols.append("verified")
