@@ -6,10 +6,8 @@ import os, glob
 API = Path("/var/www/sailingsa/api/api.py")
 MARK = "LANDING_420_WINDOW_v1"
 OLD = "AND r.start_date <= (timezone('Africa/Johannesburg', now()))::date + 5"
-NEW = (
-    "AND r.start_date <= (timezone('Africa/Johannesburg', now()))::date + 10"
-    "  # " + MARK
-)
+NEW = "AND r.start_date <= (timezone('Africa/Johannesburg', now()))::date + 10"
+NOTE = "# ALL events: have results, OR start date is current / in the live window"
 text = API.read_text()
 if MARK in text:
     print("ALREADY")
@@ -19,7 +17,10 @@ else:
     n = text.count(OLD)
     if n != 1:
         raise SystemExit("ERROR: expected 1 window, found %s" % n)
-    API.write_text(text.replace(OLD, NEW, 1))
+    text = text.replace(OLD, NEW, 1)
+    if NOTE in text and MARK not in text:
+        text = text.replace(NOTE, NOTE + "  # " + MARK, 1)
+    API.write_text(text)
     print("PATCHED", MARK)
 
 # drop with-counts disk cache if present
