@@ -144,9 +144,12 @@
             padding: 1rem 1.25rem;
             margin: 0 auto 1.25rem;
             width: 100%;
-            max-width: 100%;
+            max-width: 52rem;
             display: block;
             box-sizing: border-box;
+        }
+        @media (max-width: 768px) {
+            .class-gold-page .card.stats-section { max-width: 100%; }
         }
         .class-gold-page .class-gold-identity-card .club-story-header {
             display: flex;
@@ -215,7 +218,10 @@
             object-fit: contain;
             vertical-align: middle;
         }
-        .class-gold-page .club-story-logo-row { width: 100%; max-width: 100%; margin: 0 auto 1.25rem; }
+        .class-gold-page .club-story-logo-row { width: 100%; max-width: 52rem; margin: 0 auto 1.25rem; }
+        @media (max-width: 768px) {
+            .class-gold-page .club-story-logo-row { max-width: 100%; }
+        }
         .class-gold-page .club-story-logo-row-label {
             display: flex;
             flex-wrap: wrap;

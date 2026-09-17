@@ -12,7 +12,7 @@ CSS_BLOCK = """
         .class-gold-page .club-story-logo-row,
         .class-gold-page .class-gold-identity-card {
             width: 100%;
-            max-width: 100%;
+            max-width: 52rem;
             margin-left: auto;
             margin-right: auto;
             display: block;
