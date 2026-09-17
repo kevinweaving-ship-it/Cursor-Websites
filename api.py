@@ -2661,6 +2661,250 @@ def _events_cards_unassigned_only():
     }
 
 
+_CLASS_EVENT_STOPWORDS = {
+    "international",
+    "class",
+    "the",
+    "of",
+    "and",
+    "sailing",
+    "sa",
+    "south",
+    "african",
+    "africa",
+}
+
+
+def _class_event_match_tokens(class_name: str) -> list:
+    """Distinctive tokens from a class name for calendar matching (420, ilca+6, dabchick)."""
+    slug = _class_canonical_slug(class_name or "")
+    tokens = [t for t in slug.split("-") if t and t not in _CLASS_EVENT_STOPWORDS]
+    if not tokens:
+        tokens = [t for t in slug.split("-") if t]
+    return tokens
+
+
+def _event_name_matches_class_tokens(event_name: str, tokens: list) -> bool:
+    """True when every class token appears as its own word in the event title."""
+    en = (event_name or "").lower()
+    if not en or not tokens:
+        return False
+    for t in tokens:
+        if not re.search(r"(?<![a-z0-9])" + re.escape(t) + r"(?![a-z0-9])", en):
+            return False
+    return True
+
+
+def _attach_class_fleet_urls(card: dict, class_slug: str) -> dict:
+    """Point Details at the Event URL and Result at the fleet URL when a regatta exists."""
+    rid = (card.get("regatta_id") or "").strip()
+    if not rid:
+        return card
+    ev_url = f"/regatta/{rid}"
+    fleet_url = f"/regatta/{rid}/class-{class_slug}" if class_slug else ev_url
+    card["details_url"] = ev_url
+    card["has_regatta_link"] = True
+    if card.get("result_yes"):
+        card["result_url"] = fleet_url
+    return card
+
+
+def _get_class_events(class_id: int, class_name: str) -> dict:
+    """SAS calendar events for one fleet/class — same card shape as club Events."""
+    out = {"upcoming": [], "live": [], "past": []}
+    if class_id is None or not table_exists("events"):
+        return out
+    tokens = _class_event_match_tokens(class_name or "")
+    sql_tokens = [t for t in tokens if not t.isdigit() or len(t) >= 3]
+    if not sql_tokens:
+        sql_tokens = list(tokens)
+    conn = None
+    cur = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        class_regatta_ids = []
+        if table_exists("results"):
+            cur.execute(
+                "SELECT DISTINCT regatta_id::text AS rid FROM results WHERE class_id = %s AND regatta_id IS NOT NULL",
+                (class_id,),
+            )
+            class_regatta_ids.extend(
+                (r.get("rid") or "").strip() for r in (cur.fetchall() or []) if (r.get("rid") or "").strip()
+            )
+        if table_exists("regatta_blocks") and column_exists("regatta_blocks", "class_id"):
+            cur.execute(
+                "SELECT DISTINCT regatta_id::text AS rid FROM regatta_blocks WHERE class_id = %s AND regatta_id IS NOT NULL",
+                (class_id,),
+            )
+            class_regatta_ids.extend(
+                (r.get("rid") or "").strip() for r in (cur.fetchall() or []) if (r.get("rid") or "").strip()
+            )
+        class_regatta_ids = list(dict.fromkeys(class_regatta_ids))
+
+        has_regatta_id = column_exists("events", "regatta_id")
+        has_host_club_id = column_exists("events", "host_club_id")
+        has_map_url = column_exists("events", "map_url")
+        has_image_url = column_exists("events", "image_url")
+        has_address = column_exists("events", "address")
+        has_start_time = column_exists("events", "start_time")
+        has_end_time = column_exists("events", "end_time")
+        has_source = column_exists("events", "source")
+        source_sel = "e.source" if has_source else "NULL::text AS source"
+        reg_col = "e.regatta_id" if has_regatta_id else "NULL::text AS regatta_id"
+        map_col = "e.map_url" if has_map_url else "NULL::text AS map_url"
+        img_col = "e.image_url" if has_image_url else "NULL::text AS image_url"
+        addr_col = "e.address" if has_address else "NULL::text AS address"
+        time_cols = (
+            "e.start_time, e.end_time"
+            if (has_start_time and has_end_time)
+            else "NULL::time AS start_time, NULL::time AS end_time"
+        )
+        club_join = "LEFT JOIN clubs c ON c.club_id = e.host_club_id" if has_host_club_id else ""
+        club_slug_sql = (
+            "trim(both '-' from regexp_replace(regexp_replace(lower(trim(COALESCE(c.club_abbrev, c.club_fullname, ''))), '[^a-zA-Z0-9_\\s\\-]', '', 'g'), '\\s+', '-', 'g')) AS club_slug"
+            if has_host_club_id
+            else "NULL::text AS club_slug"
+        )
+        club_cols = (
+            "e.host_club_id, c.club_abbrev AS club_abbrev, c.club_fullname AS club_fullname, " + club_slug_sql + ","
+            if has_host_club_id
+            else "NULL::int AS host_club_id, NULL::text AS club_abbrev, NULL::text AS club_fullname, NULL::text AS club_slug,"
+        )
+        where_parts = []
+        qparams: list = []
+        if sql_tokens:
+            like_clause = " OR ".join(["e.event_name ILIKE %s"] * len(sql_tokens))
+            where_parts.append(f"({like_clause})")
+            qparams.extend([f"%{t}%" for t in sql_tokens])
+        if has_regatta_id and class_regatta_ids:
+            where_parts.append("e.regatta_id = ANY(%s)")
+            qparams.append(class_regatta_ids)
+        if not where_parts:
+            return out
+        where_sql = " OR ".join(where_parts)
+        sql = f"""
+            SELECT e.event_id, e.event_name, e.start_date, e.end_date, {time_cols}, e.source_url, {source_sel},
+                   e.venue_raw, e.host_club_name_raw, e.location_raw, e.category, {reg_col},
+                   {club_cols} {map_col}, {img_col}, {addr_col}
+            FROM events e {club_join}
+            WHERE {where_sql}
+            ORDER BY e.start_date DESC NULLS LAST, e.event_id DESC
+        """
+        cur.execute(sql, tuple(qparams))
+        rows = list(cur.fetchall() or [])
+        class_rid_set = set(class_regatta_ids)
+        filtered = []
+        for r in rows:
+            rid = (r.get("regatta_id") or "").strip() if has_regatta_id else ""
+            if rid and rid in class_rid_set:
+                filtered.append(r)
+                continue
+            if _event_name_matches_class_tokens(r.get("event_name") or "", tokens):
+                filtered.append(r)
+        if table_exists("clubs"):
+            host_displays_to_resolve = set()
+            for r in filtered:
+                if r.get("host_club_id"):
+                    continue
+                candidate = _host_display_from_row(r)
+                if candidate:
+                    host_displays_to_resolve.add(candidate)
+            club_by_name = {}
+            if host_displays_to_resolve:
+                params = [h.lower().strip() for h in host_displays_to_resolve]
+                cur.execute(
+                    "SELECT club_id, club_abbrev, club_fullname FROM clubs WHERE lower(trim(COALESCE(club_fullname,''))) = ANY(%s) OR lower(trim(COALESCE(club_abbrev,''))) = ANY(%s)",
+                    (params, params),
+                )
+                for row in cur.fetchall() or []:
+                    cid, abbr, full = row.get("club_id"), (row.get("club_abbrev") or "").strip(), (row.get("club_fullname") or "").strip()
+                    if full:
+                        club_by_name[full.lower().strip()] = (cid, abbr, full)
+                    if abbr:
+                        club_by_name[abbr.lower().strip()] = (cid, abbr, full)
+                for r in filtered:
+                    if r.get("host_club_id"):
+                        continue
+                    candidate = _host_display_from_row(r)
+                    if not candidate:
+                        continue
+                    hit = club_by_name.get(candidate.lower().strip())
+                    if not hit:
+                        continue
+                    cid, abbr, full = hit
+                    r["host_club_id"] = cid
+                    r["club_abbrev"] = abbr
+                    r["club_fullname"] = full
+                    r["club_slug"] = _club_slug_from_name(full or abbr)
+        _apply_event_title_club_match(cur, filtered, [])
+        _apply_unassigned_host_fallback(filtered, [])
+        today = date.today()
+        upcoming_rows = []
+        past_rows = []
+        for r in filtered:
+            end_d = r.get("end_date") or r.get("start_date")
+            if hasattr(end_d, "date"):
+                end_d = end_d.date()
+            elif isinstance(end_d, str) and len(end_d) >= 10:
+                try:
+                    end_d = date.fromisoformat(end_d[:10])
+                except Exception:
+                    end_d = None
+            is_upcoming = bool(end_d and end_d >= today)
+            if is_upcoming:
+                upcoming_rows.append(r)
+            else:
+                past_rows.append(r)
+        regattas_with_results = set()
+        if past_rows and table_exists("results") and has_regatta_id:
+            rids = [str(r.get("regatta_id")).strip() for r in past_rows if r.get("regatta_id")]
+            regattas_with_results = _results_regatta_ids_in_batches(cur, rids)
+        cslug = _class_canonical_slug(class_name or "")
+        up_cards = [
+            _attach_class_fleet_urls(
+                _event_row_to_card(r, has_regatta_id, has_host_club_id, is_upcoming=True),
+                cslug,
+            )
+            for r in upcoming_rows
+        ]
+        live_cards = [c for c in up_cards if (c.get("event_state") or "") == "ACTIVE"]
+        upcoming_only = [c for c in up_cards if (c.get("event_state") or "") != "ACTIVE"]
+        past_cards = [
+            _attach_class_fleet_urls(
+                _event_row_to_card(
+                    r,
+                    has_regatta_id,
+                    has_host_club_id,
+                    is_upcoming=False,
+                    regattas_with_results=regattas_with_results,
+                ),
+                cslug,
+            )
+            for r in past_rows
+        ]
+        out["live"] = live_cards
+        out["upcoming"] = upcoming_only
+        out["past"] = _sort_past_event_cards(past_cards) if past_cards else past_cards
+    except Exception as e:
+        print(f"[events] _get_class_events failed: {e}")
+        traceback.print_exc()
+        if conn:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+    finally:
+        if cur is not None:
+            try:
+                cur.close()
+            except Exception:
+                pass
+        if conn is not None:
+            return_db_connection(conn)
+    return out
+
+
 def _get_events_by_type_slug(slug: str):
     """Events filtered by category slug. Returns {"upcoming": [...], "live": [...], "past": [...], "display_name": str|None}. Same card structure as _get_upcoming_events."""
     out = {"upcoming": [], "live": [], "past": [], "display_name": None}
@@ -14555,6 +14799,8 @@ def api_class_by_id(class_ref: str):
                 r.end_date,
                 COALESCE(r.end_date, r.start_date) AS event_date,
                 COALESCE(c.club_abbrev, c.club_fullname) AS club_name,
+                COALESCE(TRIM(c.club_abbrev), '') AS club_code,
+                COALESCE(TRIM(c.club_fullname), '') AS club_fullname,
                 COALESCE(
                     MAX(rb.entries_raced),
                     COUNT(DISTINCT res.result_id)
@@ -14586,6 +14832,10 @@ def api_class_by_id(class_ref: str):
 
         regattas = []
         for r in regatta_rows:
+            club_code = (r.get("club_code") or "").strip()
+            club_fullname = (r.get("club_fullname") or "").strip()
+            club_name = (r.get("club_name") or club_code or club_fullname or "").strip()
+            club_slug = _club_slug_from_name(club_code or club_fullname or club_name) if (club_code or club_fullname or club_name) else ""
             regattas.append({
                 "regatta_id": r.get("regatta_id"),
                 "regatta_name": r.get("regatta_name") or "",
@@ -14593,7 +14843,9 @@ def api_class_by_id(class_ref: str):
                 "start_date": _date_iso(r.get("start_date")),
                 "end_date": _date_iso(r.get("end_date")),
                 "event_date": _date_iso(r.get("event_date")),
-                "club_name": r.get("club_name"),
+                "club_name": club_name,
+                "club_code": club_code,
+                "club_slug": club_slug,
                 "fleet_size": int(r["fleet_size"]) if r.get("fleet_size") is not None else None,
                 "races": int(r["races"]) if r.get("races") is not None else None,
             })
@@ -14801,7 +15053,7 @@ def api_class_by_id(class_ref: str):
                 "last_fleet_size": int(s["last_fleet_size"]) if s.get("last_fleet_size") is not None else None,
             })
 
-        return {
+        payload = {
             "class_id": class_id,
             "class_name": class_name,
             "active_sailors": active_sailors,
@@ -14810,10 +15062,16 @@ def api_class_by_id(class_ref: str):
             "regattas": regattas,
             "clubs_sailing_class": clubs_sailing_class,
             "sailors": sailors,
+            "events": {"upcoming": [], "live": [], "past": []},
         }
     finally:
         cur.close()
         return_db_connection(conn)
+    try:
+        payload["events"] = _get_class_events(class_id, class_name)
+    except Exception as ev_ex:
+        print(f"[api/class] events: {ev_ex}")
+    return payload
 
 
 @app.get("/test/class/{class_id}", response_class=HTMLResponse)
