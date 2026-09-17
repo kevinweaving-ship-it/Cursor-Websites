@@ -1312,7 +1312,7 @@
       return;
     }
     var s = document.createElement('script');
-    s.src = '/js/live-cam-sources.js?v=clubwx17';
+    s.src = '/js/live-cam-sources.js?v=clubwx18';
     s.onload = cb;
     s.onerror = cb;
     document.head.appendChild(s);
