@@ -43,7 +43,7 @@ out = [
     "HYC_NVR_PASSWORD=" + (keys.get("HYC_NVR_PASSWORD") or keys.get("HIK_MEDIA_KEY") or ""),
     "HYC_NVR_SERIAL=D23413606",
     "HYC_NVR_CHANNEL=5",
-    "HIK_PS_CLEAR=1",
+    "HIK_PS_CLEAR=0",
 ]
 dst.write_text("\n".join(out) + "\n")
 dst.chmod(0o600)

@@ -57,8 +57,8 @@ def media_key_bytes(env):
 
 
 def ps_clear(env):
-    raw = (env.get("HIK_PS_CLEAR") or "1").strip().lower()
-    return raw not in ("0", "false", "no", "off")
+    raw = (env.get("HIK_PS_CLEAR") or "0").strip().lower()
+    return raw in ("1", "true", "yes", "on")
 
 
 _env = None
