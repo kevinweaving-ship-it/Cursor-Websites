@@ -129,14 +129,14 @@ There is no named router. Routing is done by:
 - **pathname** (e.g. `window.location.pathname`).
 - An **async IIFE** on load (index.html ~3912–3970) that:
   - If path matches `/sailor/([^/]+)`: fetch sailor resolve, then `showSailorProfileFromResult`, return.
-  - If path matches `/class/(\d+)-`: fetch class, then `renderClassPage`, return.
+  - If path matches `/class/{slug}`: fetch class, then `renderClassPage`, return.
   - Else: `checkSession()`, then show logged-in sailor or placeholder, etc.
 
 So the SPA explicitly handles:
 
 - `/` (home)
 - `/sailor/{slug}`
-- `/class/{id}-...`
+- `/class/{slug}`
 
 It does **not** handle `/events`, `/stats`, `/sailors`, `/regattas`, `/classes`, `/clubs`, `/about`. For those, a normal click would trigger a full document navigation. So **/events is not included in the SPA’s in-app routing**; it is expected to be a full page load.
 

@@ -15,7 +15,7 @@
 - "Open the app in the browser and check for console errors"
 - "Navigate to the login page and test the form submission"
 - "Take a screenshot of the current page"
-- "Open https://sailingsa.co.za/class/62-optimist-a in the browser and confirm the boxes and layout"
+- "Open https://sailingsa.co.za/class/optimist-a in the browser and confirm the boxes and layout"
 
 **Details:** See Cursor’s **Browser** documentation (capabilities, security, advanced features).
 

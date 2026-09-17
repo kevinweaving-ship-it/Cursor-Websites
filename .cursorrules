@@ -8,3 +8,22 @@
 - **Allowed classes:** container, card, table, tabs, section. **Forbidden:** raw ol/ul for results, inline CSS, custom page-level fonts or colours.
 
 See: `docs/UI_COMPONENTS_README.md`, `docs/design_system.md`, `.cursor/rules/theme-layout-mandatory.mdc`.
+
+## PUBLIC URL LOCK — never change unless the user writes the exact new path in the same request
+
+Live public paths are locked. Layout / gold / club-card work is **not** permission to touch them.
+
+- Class: `/class/420` — **never** `/class/7-420` or `/class/{id}-{slug}`
+- Sailor: `/sailor/{slug}` — no new ID prefix
+- Club: `/club/{slug}`
+- Regatta: `/regatta/{slug}`
+- Event catalogue: `/events-logos/{slug}`
+
+Hard stops:
+- Do **not** rewrite `class_path`, `serve_class_spa`, href builders, or sitemap paths.
+- Do **not** wipe `/var/tmp/sailingsa_club_pages` (those HTML files **are** the public URLs).
+- Do **not** rebuild club/landing HTML from current generators unless asked to change links.
+- Do **not** deploy workspace `api.py` over live `/var/www/sailingsa/api/api.py` (live is the large file; workspace is a stub).
+- `docs/URL_STANDARD_ALL_PAGES.md` is the source of truth: `/class/420`, never `/class/7-420`.
+- Run `python3 sailingsa/scripts/forbid_id_slug_public_urls.py` after any URL-builder edit.
+- Undo means restore the previous cache/file. Do not invent a second rewrite.

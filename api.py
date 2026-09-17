@@ -1805,7 +1805,7 @@ def _directory_clubs():
 
 
 def _directory_classes():
-    """Return [(class_name, path), ...] for classes. path = /class/{id}-{slug}. Sorted by class_name."""
+    """Return [(class_name, path), ...] for classes. path = /class/{slug}. Sorted by class_name."""
     out = []
     try:
         if not table_exists("classes"):
@@ -1820,7 +1820,7 @@ def _directory_classes():
                 if cid is None or not name:
                     continue
                 slug = _class_canonical_slug(name) if name else ""
-                path = f"/class/{cid}-{slug}" if slug else f"/class/{cid}"
+                path = _class_public_path(name, slug)
                 out.append((name, path))
         finally:
             cur.close()
@@ -1909,7 +1909,7 @@ def _directory_clubs_page():
 
 @app.get("/classes", response_class=HTMLResponse)
 def _directory_classes_page(request: Request):
-    """Directory: all classes rendered by API route. Links to /class/{id}-{slug}."""
+    """Directory: all classes rendered by API route. Links to /class/{slug}."""
     items = _directory_classes()
     return HTMLResponse(_directory_page_html("/classes", items, "class", "Classes"))
 
@@ -3044,7 +3044,7 @@ def _get_public_stats():
             for r in cur.fetchall() or []:
                 cid = r.get("class_id")
                 name = (r.get("class_name") or "").strip()
-                slug = f"{cid}-{_class_canonical_slug(name)}" if name else str(cid)
+                slug = _class_canonical_slug(name) if name else ""
                 out["top_classes"].append({
                     "class_name": name or "—",
                     "slug": slug,
@@ -3283,8 +3283,7 @@ def _stats_page_html(data: dict) -> str:
     # Most Active Classes (sortable; default total_races DESC)
     body += '<div class="card stats-section"><h2 class="section-title">Most Active Classes</h2><div class="table-container"><table class="table stats-table" id="stats-classes" data-default-sort="total_races" data-default-dir="desc"><thead><tr><th data-sort="class_name">Class</th><th data-sort="total_races">Total Races</th><th data-sort="total_sailors">Total Sailors</th></tr></thead><tbody>'
     for row in data.get("top_classes") or []:
-        slug = str(row.get("slug") or "")
-        href = "/class/" + quote(slug, safe="")
+        href = _class_public_path(str(row.get("class_name") or ""), str(row.get("slug") or ""))
         body += f'<tr data-class_name="{html_module.escape(str(row.get("class_name") or ""))}" data-total_races="{row.get("total_races", 0)}" data-total_sailors="{row.get("total_sailors", 0)}"><td><a href="{href}">{html_module.escape(row.get("class_name") or "—")}</a></td><td>{row.get("total_races", 0)}</td><td>{row.get("total_sailors", 0)}</td></tr>'
     body += "</tbody></table></div></div>"
     # Most Active Clubs (sortable; default regattas_hosted DESC)
@@ -5707,7 +5706,7 @@ body{{background:#0f172a;color:#e5e7eb;font-family:system-ui,-apple-system,Blink
                                 }} else if (k === 'class_name' && row.class_id != null && row.class_id !== '') {{
                                     var slug = (row.class_name || '').toString().toLowerCase().trim().replace(/\\s+/g, '-').replace(/[^a-z0-9-]/g, '');
                                     var esc = (row.class_name != null ? String(row.class_name) : '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-                                    h += '<td><a href="/class/' + row.class_id + '-' + slug + '">' + esc + '</a></td>';
+                                    h += '<td><a href="/class/' + slug + '">' + esc + '</a></td>';
                                 }} else {{
                                     h += '<td>' + (row[k] != null ? String(row[k]) : '') + '</td>';
                                 }}
@@ -5785,7 +5784,7 @@ body{{background:#0f172a;color:#e5e7eb;font-family:system-ui,-apple-system,Blink
                         var regattaCell = regattaSlug ? '<a href=\"/regatta/' + regattaSlug + '\">' + regattaEsc + '</a>' : regattaEsc;
                         var classEsc = (row.last_class_sailed != null ? String(row.last_class_sailed).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;') : '');
                         var classSlug = (row.last_class_sailed || '').toString().toLowerCase().trim().replace(/\\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-                        var classCell = (row.last_class_id != null && row.last_class_id !== '') ? '<a href="/class/' + String(row.last_class_id).replace(/</g, '&lt;') + '-' + classSlug + '">' + classEsc + '</a>' : classEsc;
+                        var classCell = (row.last_class_id != null && row.last_class_id !== '') ? '<a href="/class/' + classSlug + '">' + classEsc + '</a>' : classEsc;
                         var resultEsc = (lastResultDisplay ? lastResultDisplay.replace(/</g, '&lt;').replace(/\"/g, '&quot;') : '');
                         tr.innerHTML = '<td>' + (row.rank != null ? row.rank : '') + '</td><td>' + nameCell + '</td><td>' + (row.sas_id != null ? String(row.sas_id).replace(/</g, '&lt;') : '') + '</td><td>' + (row.races_count != null ? row.races_count : '') + '</td><td>' + (row.regattas_count != null ? row.regattas_count : '') + '</td><td>' + (row.last_active_date != null ? String(row.last_active_date).replace(/</g, '&lt;') : '') + '</td><td>' + regattaCell + '</td><td>' + classCell + '</td><td>' + resultEsc + '</td>';
                         if (searchQ && (tr.getAttribute('data-search') || '').indexOf(searchQ) === -1) tr.style.display = 'none';
@@ -5871,7 +5870,7 @@ body{{background:#0f172a;color:#e5e7eb;font-family:system-ui,-apple-system,Blink
                         tr.setAttribute('data-search', searchParts.join(' ').toLowerCase());
                         var slug = (row.class_name || '').toString().toLowerCase().trim().replace(/\\s+/g, '-').replace(/[^a-z0-9-]/g, '');
                         var classEsc = (row.class_name != null ? String(row.class_name).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') : '');
-                        var classLink = (row.class_id != null && row.class_id !== '') ? '<a href="/class/' + String(row.class_id).replace(/</g, '&lt;') + '-' + slug + '">' + classEsc + '</a>' : classEsc;
+                        var classLink = (row.class_id != null && row.class_id !== '') ? '<a href="/class/' + slug + '">' + classEsc + '</a>' : classEsc;
                         tr.innerHTML = '<td>' + (row.no != null ? row.no : '') + '</td><td>' + classLink + '</td><td>' + (row.sailor_count != null ? row.sailor_count : '') + '</td>';
                         if (searchQ && (tr.getAttribute('data-search') || '').indexOf(searchQ) === -1) tr.style.display = 'none';
                         tbody.appendChild(tr);
@@ -6627,7 +6626,7 @@ body.dashboard-v3 #v3-status-box { display: block !important; }
    var regattaCell = regattaSlug ? '<a href="/regatta/'+regattaSlug+'" style="color:#001f3f">'+regattaEsc+'</a>' : regattaEsc;
    var classEsc = (row.last_class_sailed != null ? String(row.last_class_sailed).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : '');
    var classSlug = (row.last_class_sailed||'').toString().toLowerCase().trim().replace(/\\s+/g,'-').replace(/[^a-z0-9-]/g,'');
-   var classCell = (row.last_class_id != null && row.last_class_id !== '') ? '<a href="/class/'+String(row.last_class_id).replace(/</g,'&lt;')+'-'+classSlug+'" style="color:#001f3f">'+classEsc+'</a>' : classEsc;
+   var classCell = (row.last_class_id != null && row.last_class_id !== '') ? '<a href="/class/'+classSlug+'" style="color:#001f3f">'+classEsc+'</a>' : classEsc;
    var resultEsc = (lastRes ? lastRes.replace(/</g,'&lt;').replace(/"/g,'&quot;') : '');
    tr.innerHTML = '<td style="border-top:1px solid #e2e8f0">'+(row.rank!=null?row.rank:'')+'</td><td style="border-top:1px solid #e2e8f0">'+nameCell+'</td><td style="border-top:1px solid #e2e8f0">'+(row.sas_id!=null?String(row.sas_id).replace(/</g,'&lt;'):'')+'</td><td style="border-top:1px solid #e2e8f0">'+(row.races_count!=null?row.races_count:'')+'</td><td style="border-top:1px solid #e2e8f0">'+(row.regattas_count!=null?row.regattas_count:'')+'</td><td style="border-top:1px solid #e2e8f0">'+(row.last_active_date!=null?String(row.last_active_date).replace(/</g,'&lt;'):'')+'</td><td style="border-top:1px solid #e2e8f0">'+regattaCell+'</td><td style="border-top:1px solid #e2e8f0">'+classCell+'</td><td style="border-top:1px solid #e2e8f0">'+resultEsc+'</td>';
    if (q && searchText.indexOf(q)===-1) tr.style.display='none';
@@ -6654,7 +6653,7 @@ body.dashboard-v3 #v3-status-box { display: block !important; }
    tr.setAttribute('data-search', searchParts.join(' ').toLowerCase());
    var slug = (row.class_name||'').toString().toLowerCase().trim().replace(/\\s+/g,'-').replace(/[^a-z0-9-]/g,'');
    var classEsc = (row.class_name!=null ? String(row.class_name).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : '');
-   var classLink = (row.class_id!=null&&row.class_id!=='') ? '<a href="/class/'+String(row.class_id).replace(/</g,'&lt;')+'-'+slug+'" style="color:#001f3f">'+classEsc+'</a>' : classEsc;
+   var classLink = (row.class_id!=null&&row.class_id!=='') ? '<a href="/class/'+slug+'" style="color:#001f3f">'+classEsc+'</a>' : classEsc;
    var lastRegattaEsc = (row.last_regatta_name!=null ? String(row.last_regatta_name).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : '');
    var lastRegattaSlug = (row.last_regatta_slug!=null&&row.last_regatta_slug!=='') ? String(row.last_regatta_slug).replace(/</g,'&lt;').replace(/"/g,'&quot;') : '';
    var lastRegattaCell = lastRegattaSlug ? '<a href="/regatta/'+lastRegattaSlug+'" style="color:#001f3f">'+lastRegattaEsc+'</a>' : lastRegattaEsc;
@@ -12060,7 +12059,7 @@ def api_classes():
 
 @app.get("/api/classes/list")
 def api_classes_list():
-    """Return class_id and class_name for homepage class search (links to /class/{id}-{slug})."""
+    """Return class_id and class_name for homepage class search (links to /class/{slug})."""
     if not column_exists("classes", "class_id"):
         return {"classes": []}
     name_col = "class_name" if column_exists("classes", "class_name") else ("class_canonical" if column_exists("classes", "class_canonical") else "name")
@@ -14062,9 +14061,7 @@ def patch_result(request: Request, result_id: int, p: ResultPatch):
         cn = (out_row.get("class_name") or "").strip()
         cid = out_row.get("result_class_id")
         if cn and cid is not None:
-            canon = _class_canonical_slug(cn)
-            cid_int = int(cid)
-            out_row["class_path"] = f"/class/{cid_int}-{canon}" if canon else f"/class/{cid_int}"
+            out_row["class_path"] = _class_public_path(cn)
     return {"ok": True, "result": out_row}
 
 
@@ -14835,8 +14832,7 @@ def test_class_aggregate_page(class_id: int):
         )
 
     class_name = (data.get("class_name") or "").strip()
-    cslug = _class_canonical_slug(class_name)
-    class_path = f"/class/{class_id}-{cslug}" if cslug else f"/class/{class_id}"
+    class_path = _class_public_path(class_name)
     base = _canonical_base_url()
 
     def a(rel: str, label: str) -> str:
@@ -16442,8 +16438,12 @@ def api_regattas_with_counts(
             if name:
                 s = re.sub(r"[^\w\s\-]", "", name).strip().lower()
                 d["slug"] = re.sub(r"\s+", "-", s).strip("-")
-            else:
-                d["slug"] = ""
+
+        # EVENT_LOGO_RULES_RESTORE_v1: landing left logos from named Event Logo map
+        for d in out:
+            lu = _regatta_named_event_logo_url(str(d.get("regatta_id") or ""), d.get("event_name") or "")
+            if lu:
+                d["logo_url"] = lu
 
         return out
     except Exception as e:
@@ -20197,9 +20197,8 @@ async def api_super_admin_classes_search(
         if cid is None:
             continue
         cname = (r.get("class_name") or "").strip()
-        canon = _class_canonical_slug(cname)
         cid_int = int(cid)
-        class_path = f"/class/{cid_int}-{canon}" if canon else f"/class/{cid_int}"
+        class_path = _class_public_path(cname)
         out.append({"class_id": cid_int, "class_name": cname, "class_path": class_path})
     if qn and len(out) > 1:
         ql = qn.lower()
@@ -21998,13 +21997,204 @@ def _class_logo_url_from_fleet_name(name: str) -> Optional[str]:
     return file_map.get(key)
 
 
+_CLUB_EVENT_LOGO_RULES = (
+    # --- Named championship / series Event Logos (host must match DB) ---
+    ("cape classic", "/artwork/Event Logo/Cape-Classic-Series.png", "Cape Classic"),
+    ("youth national championship", "/artwork/Event Logo/Youth-Nationals-Logo.png", "Youth Nationals"),
+    ("youth nationals", "/artwork/Event Logo/Youth-Nationals-Logo.png", "Youth Nationals"),
+    ("youth national", "/artwork/Event Logo/Youth-Nationals-Logo.png", "Youth Nationals"),
+    ("sa sailing youth", "/artwork/Event Logo/Youth-Nationals-Logo.png", "Youth Nationals"),
+    ("sonnet national", "/artwork/Event Logo/Sonnet-Nationals-2025.jpg", "Sonnet Nationals"),
+    ("overberg", "/artwork/Event Logo/Overberg-Regional-Champs.png", "Overberg Champs"),
+    ("windsurfer", "/artwork/Class Logo/Windsurfer-LT-Class-Logo.png", "Windsurfer LT"),
+    # Western Cape Dinghy / W. Cape Championships
+    ("wc dinghy", "/artwork/Event Logo/Western-Cape-Dinghy-Champs.png", "WC Dinghy Champs"),
+    ("western cape dinghy", "/artwork/Event Logo/Western-Cape-Dinghy-Champs.png", "WC Dinghy Champs"),
+    ("dinghy western cape", "/artwork/Event Logo/Western-Cape-Dinghy-Champs.png", "WC Dinghy Champs"),
+    ("w. cape championships", "/artwork/Event Logo/Western-Cape-Dinghy-Champs.png", "WC Dinghy Champs"),
+    ("w cape championships", "/artwork/Event Logo/Western-Cape-Dinghy-Champs.png", "WC Dinghy Champs"),
+    ("wcapedinghychamps", "/artwork/Event Logo/Western-Cape-Dinghy-Champs.png", "WC Dinghy Champs"),
+    ("dinghy champs", "/artwork/Event Logo/Western-Cape-Dinghy-Champs.png", "WC Dinghy Champs"),
+    ("dinghy classes", "/artwork/Event Logo/Western-Cape-Dinghy-Champs.png", "WC Dinghy Champs"),
+    ("wc extra", "/artwork/Event Logo/Western-Cape-Dinghy-Champs.png", "WC Extra Regionals"),
+    ("extra regionals", "/artwork/Event Logo/Western-Cape-Dinghy-Champs.png", "WC Extra Regionals"),
+    ("extra western cape", "/artwork/Event Logo/Western-Cape-Dinghy-Champs.png", "Extra WC Champs"),
+    ("wc champs extra", "/artwork/Event Logo/Western-Cape-Dinghy-Champs.png", "WC Champs Extra"),
+    ("champs extra", "/artwork/Event Logo/Western-Cape-Dinghy-Champs.png", "WC Champs Extra"),
+    # WC Youth
+    ("sa sailing wc youth", "/artwork/Event Logo/SA-Sailing-WC-Youth-Regatta.png", "WC Youth"),
+    ("western cape youth", "/artwork/Event Logo/SA-Sailing-WC-Youth-Regatta.png", "WC Youth"),
+    ("wc youth", "/artwork/Event Logo/SA-Sailing-WC-Youth-Regatta.png", "WC Youth"),
+    ("sas western cape youth", "/artwork/Event Logo/SA-Sailing-WC-Youth-Regatta.png", "WC Youth"),
+    # RCYC signature offshore / big events
+    ("lipton", "/artwork/Event Logo/Lipton-Challenge-Cup-2025.png", "Lipton Challenge Cup"),
+    ("double cape", "/artwork/Event Logo/Double-Cape-Race-2025.png", "Double Cape Race"),
+    ("gimco", "/artwork/Event Logo/Gimco-Regatta.png", "Gimco"),
+    ("west coast offshore", "/artwork/Event Logo/West-Coast-Offshore.png", "West Coast Offshore"),
+    ("west coast race", "/artwork/Event Logo/West-Coast-Offshore.png", "West Coast Offshore"),
+    ("seajet", "/artwork/Event Logo/Seajet-West-Coast-Offshore.png", "Seajet West Coast Offshore"),
+    ("canyon cup", "/artwork/Event Logo/Canyon-Cup-Offshore.png", "Canyon Cup"),
+    ("ullman", "/artwork/Event Logo/Ullman-Sails-Woman-Series.png", "Ullman Women's Series"),
+    ("j22 nationals", "/artwork/Event Logo/J22-Nationals.png", "J22 Nationals"),
+    ("north sails j22", "/artwork/Event Logo/J22-Nationals.png", "J22 Nationals"),
+    ("j22 champs", "/artwork/Event Logo/J22-Nationals.png", "J22 Nationals"),
+    ("j22 championships", "/artwork/Event Logo/J22-Nationals.png", "J22 Nationals"),
+    ("north sails", "/artwork/Sponsor Logo/North-Sails.png", "North Sails"),
+    ("north-sails", "/artwork/Sponsor Logo/North-Sails.png", "North Sails"),
+    ("robben island", "/artwork/Event Logo/Round-Robben-Island-Race.png", "Round Robben Island"),
+    ("zhik", "/artwork/Event Logo/Zhik-Double-Handed-Series.png", "Zhik Double Handed"),
+    ("tuzi", "/artwork/Event Logo/Tuzi-Tekwini-Ocean-Race.png", "Tuzi Tekweni Ocean Race"),
+    ("tuzitekwini", "/artwork/Event Logo/Tuzi-Tekwini-Ocean-Race.png", "Tuzi Tekweni Ocean Race"),
+    # Other named Event Logos
+    ("admirals", "/artwork/Event Logo/Admirals-Regatta.png", "Admirals Regatta"),
+    ("mykonos", "/artwork/Event Logo/Mykonos-Offshore.png", "Mykonos Offshore"),
+    ("cape point challenge", "/artwork/Event Logo/Cape-Point-Challenge.png", "Cape Point Challenge"),
+    ("tour de vlei", "/artwork/Event Logo/Tour-de-Vlei.jpg", "Tour de Vlei"),
+    ("vasco", "/artwork/Event Logo/Vasco-da-Gama-Ocean-Race.png", "Vasco da Gama"),
+    ("diamond coast", "/artwork/Event Logo/Diamond-Coast-Race.png", "Diamond Coast Race"),
+    ("port owen", "/artwork/Event Logo/Port-Owen-River-Race.png", "Port Owen River Race"),
+    ("azalea", "/artwork/Event Logo/Azalea-Trophy.png", "Azalea Trophy"),
+    ("brass monkey", "/artwork/Event Logo/Brass-Monkey-Sailing.png", "Brass Monkey"),
+    ("vulcan", "/artwork/Event Logo/Vulcan-Challenge-2026.png", "Vulcan Challenge"),
+    ("king of the vaal", "/artwork/Event Logo/King-of-the-Vaal.png", "King of the Vaal"),
+    ("frank lenz", "/artwork/Event Logo/Sailing-Legend-Frank-Lenz-Race.png", "Frank Lenz Race"),
+    ("shanes gaul", "/artwork/Event Logo/Shanes-Gaul-Regatta-2026.png", "Shanes Gaul Regatta"),
+    ("von klemperer", "/artwork/Event Logo/Von-Klemperer-Regatta.png", "Von Klemperer Regatta"),
+    ("intasure", "/artwork/Event Logo/Intasure-Logo.png", "Intasure Spring Regatta"),
+    ("spring regatta", "/artwork/Event Logo/Intasure-Logo.png", "Spring Regatta"),
+    ("congella", "/artwork/Event Logo/Congella-Cup.png", "Congella Cup"),
+    ("commodore", "/artwork/Event Logo/MSC.png", "MSC Commodore's Cup"),
+    ("commodores cup", "/artwork/Event Logo/MSC.png", "MSC Commodore's Cup"),
+    ("nks grand prix", "/artwork/Event Logo/NKS-Grand-Prix.png", "NKS Grand Prix"),
+    ("grand prix", "/artwork/Event Logo/NKS-Grand-Prix.png", "NKS Grand Prix"),
+    ("mod winter", "/artwork/Event Logo/MOD-Winter-Series.png", "MOD Winter Series"),
+    ("winter series", "/artwork/Event Logo/MOD-Winter-Series.png", "Winter Series"),
+    ("frank-lenz", "/artwork/Event Logo/Sailing-Legend-Frank-Lenz-Race.png", "Frank Lenz Race"),
+    ("frank lenz", "/artwork/Event Logo/Sailing-Legend-Frank-Lenz-Race.png", "Frank Lenz Race"),
+    ("6&9 hour", "/artwork/Event Logo/HMYC-6hr-9hr-Race.png", "HMYC 6&9 Hour"),
+    ("6&9", "/artwork/Event Logo/HMYC-6hr-9hr-Race.png", "HMYC 6&9 Hour"),
+    ("ilca masters", "/artwork/Class Logo/ILCA-Class-Logo.png", "ILCA Masters"),
+    ("gauteng ilca", "/artwork/Class Logo/ILCA-Class-Logo.png", "ILCA Masters"),
+    ("msc week", "/artwork/Event Logo/MSC-Week-2024.png", "MSC Week"),
+    ("msc l26", "/artwork/Event Logo/MSC-Week-2024.png", "MSC Week"),
+    ("kzn grand slam", "/artwork/Event Logo/KZN-Grand-Slam.png", "KZN Grand Slam"),
+    ("sasnr grand slam", "/artwork/Event Logo/KZN-Grand-Slam.png", "SASNR Grand Slam"),
+    ("grand slam", "/artwork/Event Logo/KZN-Grand-Slam.png", "Grand Slam"),
+    ("hmyc grand slam", "/artwork/Event Logo/HMYC-Grand-Slam.png", "HMYC Grand Slam"),
+    ("hmyc autumn", "/artwork/Event Logo/HMYC-Autumn-Series.png", "HMYC Autumn Series"),
+    ("hmyc memorial", "/artwork/Event Logo/HMYC-Memorial-Series.png", "HMYC Memorial Series"),
+    ("hmyc 9hr", "/artwork/Event Logo/HMYC-9hr.png", "HMYC 9hr"),
+    ("hmyc 6hr", "/artwork/Event Logo/HMYC-6hr-9hr-Race.png", "HMYC 6hr/9hr"),
+    ("twilight series", "/artwork/Event Logo/Twilight-Series.png", "Twilight Series"),
+    ("triple crown", "/artwork/Event Logo/Triple-Crown.png", "Triple Crown"),
+    ("tsc 9hr", "/artwork/Event Logo/TSC-9hr.png", "TSC 9hr"),
+    ("mac 24", "/artwork/Event Logo/MAC-24-Hour-Challenge.png", "MAC 24 Hour Challenge"),
+    ("mac 12", "/artwork/Event Logo/MAC-12-Hour-Challenge.png", "MAC 12 Hour Challenge"),
+    ("24-hour challenge", "/artwork/Event Logo/MAC-24-Hour-Challenge.png", "MAC 24 Hour Challenge"),
+    ("12-hour challenge", "/artwork/Event Logo/MAC-12-Hour-Challenge.png", "MAC 12 Hour Challenge"),
+    ("macs shipping", "/artwork/Event Logo/MACS-Shipping.png", "MACS Shipping"),
+    ("formula 1 national", "/artwork/Event Logo/Formula-1-Nationals.png", "Formula 1 Nationals"),
+    ("formula one national", "/artwork/Event Logo/Formula-1-Nationals.png", "Formula 1 Nationals"),
+    ("formula-one-nationals", "/artwork/Event Logo/Formula-1-Nationals.png", "Formula 1 Nationals"),
+    ("dolphin", "/artwork/Event Logo/Dolphin-Finn-Tiger-Cup.png", "Dolphin Finn Tiger Cup"),
+    ("finn tiger", "/artwork/Event Logo/Dolphin-Finn-Tiger-Cup.png", "Dolphin Finn Tiger Cup"),
+    ("soling", "/artwork/Event Logo/Soling-Flying-15-National-Championships.png", "Soling / Flying 15 Nationals"),
+    ("flying 15 national", "/artwork/Event Logo/Soling-Flying-15-National-Championships.png", "Soling / Flying 15 Nationals"),
+    ("gauteng dinghy", "/artwork/Event Logo/Gauteng-Province-Regionals-2025.png", "Gauteng Regionals"),
+    ("gauteng province regional", "/artwork/Event Logo/Gauteng-Province-Regionals-2025.png", "Gauteng Regionals"),
+    ("gauteng regional", "/artwork/Event Logo/Gauteng-Province-Regionals-2025.png", "Gauteng Regionals"),
+    ("mpumalanga", "/artwork/Event Logo/Mpumalanga-Regional-Champs-2025.jpg", "Mpumalanga Regionals"),
+    ("free state youth", "/artwork/Event Logo/Free-State-Youth-Provincial-Champs-2025.png", "FS Youth Provincials"),
+    ("freestate dinghy", "/artwork/Event Logo/Dinghy-Provincials-Championship.png", "Dinghy Provincials"),
+    ("dinghy provincial", "/artwork/Event Logo/Dinghy-Provincials-Championship.png", "Dinghy Provincials"),
+    ("kzn regionals", "/artwork/Event Logo/KZN-Regionals-2025.png", "KZN Regionals"),
+    ("kzn mirror", "/artwork/Event Logo/KZN-Mirror-ILCA-Regionals-Champs.png", "ILCA Regionals"),
+    ("ilca regional", "/artwork/Event Logo/KZN-Mirror-ILCA-Regionals-Champs.png", "ILCA Regionals"),
+    ("kzn ilca", "/artwork/Event Logo/KZN-Mirror-ILCA-Regionals-Champs.png", "ILCA Regionals"),
+    ("zvyc interschool", "/artwork/Event Logo/Schools-Dinghy-Sailing.png", "ZVYC Interschools"),
+    ("schools dinghy", "/artwork/Event Logo/Schools-Dinghy-Sailing.png", "Schools Dinghy"),
+    ("northern region interschool", "/artwork/Event Logo/Northern-Region-Interschools.png", "NR Interschools"),
+    ("northern region keelboat", "/artwork/Event Logo/Northern-Region-Keelboat.png", "NR Keelboat"),
+    ("interschool gauteng", "/artwork/Event Logo/Interschool-Gauteng-Regional-Championships.png", "Interschool Gauteng"),
+    ("ec regional", "/artwork/Event Logo/SAS-EC-Champs-Eastern-Cape.png", "EC Champs"),
+    ("eastern cape", "/artwork/Event Logo/SAS-EC-Champs-Eastern-Cape.png", "EC Champs"),
+    ("sas-ec", "/artwork/Event Logo/SAS-EC-Champs-Eastern-Cape.png", "EC Champs"),
+    ("sas ec", "/artwork/Event Logo/SAS-EC-Champs-Eastern-Cape.png", "EC Champs"),
+    ("ec champs", "/artwork/Event Logo/SAS-EC-Champs-Eastern-Cape.png", "EC Champs"),
+    ("gauteng provincial", "/artwork/Event Logo/Gauteng-Province-Regionals-2025.png", "Gauteng Provincials"),
+    ("gauteng provincials", "/artwork/Event Logo/Gauteng-Province-Regionals-2025.png", "Gauteng Provincials"),
+    ("club class champ", "/artwork/Event Logo/Club-Championships.png", "Club Championships"),
+    ("hobie wc", "/artwork/Event Logo/Hobie-WC-Regionals.png", "Hobie WC Regionals"),
+    ("df95", "/artwork/Class Logo/DF95-Class-Logo.png", "DF95"),
+    ("iom national", "/artwork/Event Logo/IOM-Sailboat.png", "IOM Nationals"),
+    ("iom nr", "/artwork/Event Logo/DF95-IOM-Regionals-Radio-Sailing.png", "DF95 / IOM Regionals"),
+    ("df95 & iom", "/artwork/Event Logo/DF95-IOM-Regionals-Radio-Sailing.png", "DF95 / IOM Regionals"),
+    ("fbyc easter", "/artwork/Event Logo/FBYC-Easter-2026.png", "FBYC Easter"),
+    ("psc charity", "/artwork/Event Logo/PSC-Charity-Regatta.png", "PSC Charity Regatta"),
+    ("stilbaai club challenge", "/artwork/Event Logo/Stilbaai-Club-Challenge.png", "Stilbaai Club Challenge"),
+    ("zyc club fun", "/artwork/Event Logo/ZYC-Club-Fun-Race.png", "ZYC Club Fun Race"),
+    ("round the island", "/artwork/Event Logo/Round-the-Island-Regatta.png", "Round the Island"),
+    ("marriott", "/artwork/Event Logo/Marriott-IMCA-Worlds-2025.png", "Marriott IMCA Worlds"),
+    ("imca world", "/artwork/Event Logo/Marriott-IMCA-Worlds-2025.png", "Marriott IMCA Worlds"),
+    ("75th sa sailing", "/artwork/Event Logo/75th-SA-Sailing-Dart-Dragonfly-Halcat-Hobie14-Nationals.png", "75th SA Sailing Nationals"),
+    ("kyc interclub", "/artwork/Event Logo/KYC-Interclub.png", "KYC Interclub"),
+    ("knysna yacht club interclub", "/artwork/Event Logo/Knysna-Yacht-Club-Interclub.png", "KYC Interclub"),
+    ("mbsc interclub", "/artwork/Event Logo/Interclub.png", "Interclub"),
+    ("interclub", "/artwork/Event Logo/Interclub.png", "Interclub"),
+    ("club champs", "/artwork/Event Logo/Club-Championships.png", "Club Championships"),
+    ("club championship", "/artwork/Event Logo/Club-Championships.png", "Club Championships"),
+    # Class nationals umbrella (last — specific class nationals already covered above)
+    ("rsa national", "/artwork/Event Logo/SA-Nationals.png", "Nationals"),
+    ("national championship", "/artwork/Event Logo/SA-Nationals.png", "Nationals"),
+    ("sa sailing national", "/artwork/Event Logo/SA-Nationals.png", "Nationals"),
+    ("29er", "/artwork/Event Logo/29er-Class-Logo.png", "29er"),
+)
+
 def _regatta_named_event_logo_url(regatta_id: str, event_name: str) -> Optional[str]:
-    """Named recurring events: left header event logo (not generic Sailing SA)."""
-    rid = str(regatta_id or "").strip().lower()
-    en = str(event_name or "").lower()
-    if "lipton" in rid or "lipton" in en:
-        return "/js/lipton-dev-event-logo.png"
-    return None
+    """Named recurring events: left header / landing logo from recovered Event Logo map."""
+    rid = str(regatta_id or "").strip()
+    en = str(event_name or "")
+    hay = f"{en.lower()} {rid.lower()}"
+    hay_flex = hay.replace("-", " ")
+    if "lipton" in hay_flex:
+        fallback = "/artwork/Event Logo/Lipton-Challenge-Cup-2025.png"
+        m = re.match(r"^(\d{4})-", rid)
+        if m:
+            rel = f"Event Logo/Lipton-Challenge-Cup-{m.group(1)}.png"
+            for root in (
+                "/var/www/sailingsa/api/artwork",
+                "/var/www/sailingsa/artwork",
+                os.path.join(os.path.dirname(os.path.abspath(__file__)), "artwork"),
+            ):
+                try:
+                    if os.path.isfile(os.path.join(root, rel)):
+                        return f"/artwork/{rel}"
+                except Exception:
+                    pass
+        return fallback
+    if "youth" in hay_flex and "national" in hay_flex:
+        return "/artwork/Event Logo/Youth-Nationals-Logo.png"
+    best_src = ""
+    best_len = -1
+    for needle, src, _label in _CLUB_EVENT_LOGO_RULES:
+        if not needle:
+            continue
+        if needle not in hay and needle not in hay_flex:
+            continue
+        s = (src or "").strip()
+        sl = s.lower()
+        if not (
+            "/artwork/event logo/" in sl
+            or "/artwork/class logo/" in sl
+            or "/artwork/sponsor logo/" in sl
+        ):
+            continue
+        if len(needle) > best_len:
+            best_src = s
+            best_len = len(needle)
+    if not best_src:
+        return None
+    return best_src if best_src.startswith("/") else "/" + best_src.lstrip("/")
 
 
 def _club_logo_file_exists_on_disk(code: str) -> bool:
@@ -22145,6 +22335,12 @@ def _class_canonical_slug(class_name: str) -> str:
     s = class_name.strip().lower().replace(" ", "-")
     s = re.sub(r"[^a-z0-9-]", "", s)
     return s.strip("-") or ""
+
+
+def _class_public_path(class_name: str = "", slug: str = "") -> str:
+    """Public class URL is /class/{slug} only. NEVER /class/{id} or /class/{id}-{slug}."""
+    s = (slug or "").strip() or _class_canonical_slug(class_name or "")
+    return f"/class/{s}" if s else "/classes"
 
 
 def _get_class_by_name_slug(slug: str):
@@ -22451,8 +22647,7 @@ def _seo_discovery_pairs_fetch():
                     name = (r.get("class_name") or "").strip()
                     if cid is None or not name:
                         continue
-                    cslug = _class_canonical_slug(name)
-                    path = f"/class/{cid}-{cslug}" if cslug else f"/class/{cid}"
+                    path = _class_public_path(name)
                     pairs.append((path, name[:100]))
         finally:
             cur.close()
@@ -22778,8 +22973,7 @@ def serve_class_spa(class_slug: str):
     class_id, class_name = _resolve_class_slug_to_class_id(class_slug)
     if not class_id or not class_name:
         raise HTTPException(status_code=404, detail="Class not found")
-    canonical_slug = _class_canonical_slug(class_name or "")
-    canonical_path = f"/class/{class_id}-{canonical_slug}" if canonical_slug else f"/class/{class_id}"
+    canonical_path = _class_public_path(class_name)
     req_slug = (class_slug or "").strip().lower()
     canon_slug = canonical_path.split("/class/", 1)[-1].lower()
     if req_slug != canon_slug:
@@ -24569,8 +24763,7 @@ def _render_result_sheet_fleet(
         class_xin = ""
         if rcid is not None and (class_name_raw or "").strip():
             cn = (class_name_raw or "").strip()
-            canon = _class_canonical_slug(cn)
-            cpath = f"/class/{int(rcid)}-{canon}" if canon else f"/class/{int(rcid)}"
+            cpath = _class_public_path(cn)
             class_xin = (
                 f' data-resolved-class-id="{html_module.escape(str(int(rcid)), quote=True)}"'
                 f' data-original-resolved-class-id="{html_module.escape(str(int(rcid)), quote=True)}"'
@@ -26075,8 +26268,7 @@ def api_class_resolve_slug(slug: str):
     class_id, class_name = _resolve_class_slug_to_class_id(slug.strip())
     if not class_id:
         raise HTTPException(status_code=404, detail="Class not found")
-    canon = _class_canonical_slug(class_name or "")
-    canonical_path = f"/class/{class_id}-{canon}" if canon else f"/class/{class_id}"
+    canonical_path = _class_public_path(class_name)
     return {"class_id": int(class_id), "canonical_path": canonical_path}
 
 

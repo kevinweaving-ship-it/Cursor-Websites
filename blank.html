@@ -3279,18 +3279,15 @@
     }
 
     function classHrefFromRow(row) {
-      var cid = row.class_id;
       var name = row.class_name || '';
       var slug = generateSlug(name);
-      if (cid != null && cid !== '') {
-        return slug ? ('/class/' + encodeURIComponent(String(cid) + '-' + slug)) : ('/class/' + encodeURIComponent(String(cid)));
-      }
+      if (slug) return '/class/' + encodeURIComponent(slug);
       var low = String(name).toLowerCase();
       for (var ci = 0; ci < classesCache.length; ci++) {
         var c = classesCache[ci];
-        if (String(c.class_name || '').toLowerCase() === low && c.class_id != null) {
+        if (String(c.class_name || '').toLowerCase() === low) {
           var sg = generateSlug(c.class_name);
-          return '/class/' + encodeURIComponent(String(c.class_id) + '-' + sg);
+          if (sg) return '/class/' + encodeURIComponent(sg);
         }
       }
       return '';
@@ -3486,10 +3483,9 @@
 
     classes.forEach(function (row) {
       var title = row.class_name || 'Class';
-      var cid = row.class_id;
       var slug = generateSlug(row.class_name);
-      var path = slug ? ('/class/' + encodeURIComponent(String(cid) + '-' + slug)) : ('/class/' + encodeURIComponent(String(cid)));
-      html += card('class', 'classes.png', title, 'Class · ID ' + String(cid), 'data-class-href="' + escapeHtml(path) + '"');
+      var path = slug ? ('/class/' + encodeURIComponent(slug)) : '/classes';
+      html += card('class', 'classes.png', title, 'Class', 'data-class-href="' + escapeHtml(path) + '"');
     });
 
     html += '</div>';
