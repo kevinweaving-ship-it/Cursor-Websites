@@ -94,8 +94,19 @@
     return !!(root && root.getAttribute('data-mm-live-still') === '1');
   }
 
+  function liveCamIdOf(root, v) {
+    if (v && (v.live_cam || v.live_cam_id)) return String(v.live_cam || v.live_cam_id).trim();
+    if (root && root.getAttribute('data-live-cam')) return String(root.getAttribute('data-live-cam')).trim();
+    return '';
+  }
+
   function livePassCamRoot(root) {
-    return !!(root && root.getAttribute('data-mm-live-pass') === '1');
+    if (!root) return false;
+    if (root.getAttribute('data-mm-live-pass') === '1') return true;
+    var id = liveCamIdOf(root);
+    if (!id || !window.SSALiveCam) return false;
+    var src = window.SSALiveCam.get(id);
+    return !!(src && src.how === 'go2rtc' && src.mmSurface);
   }
 
   function singleCamRoot(root) {
@@ -1150,6 +1161,9 @@
 
   function compactTileHtml(v, videos, isLatest) {
     if (mmFbLive(v)) return '';
+    if (v && (v.live_cam || v.live_cam_id || v.live_pass) && !isSnapshotCam(v)) {
+      return livePassTileHtml(v);
+    }
     var id = (v && v.id) || '';
     var label = isSnapshotCam(v) ? 'Open club cam' : isWebcam(v) ? 'Play live cam' : 'Play reel';
     return (
@@ -1286,19 +1300,47 @@
   var GO2RTC = 'https://sailingsa.co.za:8443/';
   var GO2RTC_HYC = 'hyc';
 
+  function ensureLiveCamCatalog(cb) {
+    if (window.SSALiveCam) {
+      cb();
+      return;
+    }
+    if (document.querySelector('script[src*="live-cam-sources.js"]')) {
+      window.setTimeout(function () {
+        cb();
+      }, 50);
+      return;
+    }
+    var s = document.createElement('script');
+    s.src = '/js/live-cam-sources.js?v=clubwx13';
+    s.onload = cb;
+    s.onerror = cb;
+    document.head.appendChild(s);
+  }
+
   function livePassTileHtml(v) {
+    var id = liveCamIdOf(cardEl(), v) || 'hyc-club';
+    var srcName = GO2RTC_HYC;
+    if (window.SSALiveCam) {
+      var src = window.SSALiveCam.get(id);
+      if (src && src.src) srcName = src.src;
+    }
     return (
       '<div class="mm-lipton-reels-tile mm-lipton-reels-tile--live">' +
-      '<div class="mm-lipton-reels-thumb mm-lipton-reels-thumb--live" style="aspect-ratio:16 / 9" data-hyc-go2rtc>' +
+      '<div class="mm-lipton-reels-thumb mm-lipton-reels-thumb--live" style="aspect-ratio:16 / 9" data-hyc-go2rtc data-live-cam="' +
+      esc(id) +
+      '" data-cam="' +
+      esc(srcName) +
+      '">' +
       camStampHtml() +
       '</div></div>'
     );
   }
 
   function startLivePass(root) {
-    if (!livePassCamRoot(root)) return;
-    var cell = root.querySelector('[data-hyc-go2rtc]');
-    if (!cell) {
+    var cells = root ? root.querySelectorAll('[data-live-cam], [data-hyc-go2rtc]') : [];
+    if (!livePassCamRoot(root) && !cells.length) return;
+    if (!cells.length) {
       if (!root._mmLivePassTries) root._mmLivePassTries = 0;
       if (root._mmLivePassTries < 8) {
         root._mmLivePassTries += 1;
@@ -1308,43 +1350,44 @@
       }
       return;
     }
-    if (cell.querySelector('video-stream')) {
-      root._mmCamUpstream = true;
-      paintCamStamps(root);
-      return;
-    }
-    if (root._mmGo2rtcLoading) return;
-    root._mmGo2rtcLoading = true;
-    import(GO2RTC + 'video-stream.js')
-      .then(function () {
-        root._mmGo2rtcLoading = false;
-        if (!livePassCamRoot(root) || !cell.isConnected || cell.querySelector('video-stream')) return;
-        var el = document.createElement('video-stream');
-        el.mode = 'webrtc,mse';
-        el.background = false;
-        el.src = new URL('api/ws?src=' + GO2RTC_HYC, GO2RTC);
-        cell.insertBefore(el, cell.firstChild);
+    ensureLiveCamCatalog(function () {
+      var i;
+      var attached = false;
+      for (i = 0; i < cells.length; i++) {
+        var cell = cells[i];
+        if (!cell || !cell.isConnected) continue;
+        if (cell.querySelector('video-stream')) {
+          attached = true;
+          continue;
+        }
+        var id = cell.getAttribute('data-live-cam') || liveCamIdOf(root) || 'hyc-club';
+        if (window.SSALiveCam && typeof window.SSALiveCam.attach === 'function') {
+          window.SSALiveCam.attach(cell, id);
+          attached = true;
+          continue;
+        }
+        if (root._mmGo2rtcLoading) continue;
+        root._mmGo2rtcLoading = true;
+        import(GO2RTC + 'video-stream.js')
+          .then(function () {
+            root._mmGo2rtcLoading = false;
+            if (!cell.isConnected || cell.querySelector('video-stream')) return;
+            var el = document.createElement('video-stream');
+            el.mode = 'webrtc,mse';
+            el.background = false;
+            el.src = new URL('api/ws?src=' + GO2RTC_HYC, GO2RTC);
+            cell.insertBefore(el, cell.firstChild);
+          })
+          .catch(function () {
+            root._mmGo2rtcLoading = false;
+            setCamUpstream(root, false);
+          });
+      }
+      if (attached) {
         root._mmCamUpstream = true;
         paintCamStamps(root);
-        var tries = 0;
-        var iv = window.setInterval(function () {
-          var v = el.video || el.querySelector('video');
-          if (v) {
-            v.controls = false;
-            v.removeAttribute('controls');
-            v.muted = true;
-            v.playsInline = true;
-          }
-          if ((v && v.videoWidth > 0 && v.currentTime > 0.2) || ++tries > 600 || !el.isConnected) {
-            window.clearInterval(iv);
-            if (v && v.videoWidth > 0) setCamUpstream(root, true);
-          }
-        }, 50);
-      })
-      .catch(function () {
-        root._mmGo2rtcLoading = false;
-        setCamUpstream(root, false);
-      });
+      }
+    });
   }
 
   function compactTilesHtml(videos) {
@@ -1972,9 +2015,13 @@
     var countKey =
       videoKey(videos) + ':' + extra + ':' + liveN + ':' + (isMobilePortrait() ? 'mp' : 'w');
     if (compact.getAttribute('data-mm-count') !== countKey) {
-      compact.innerHTML = compactTilesHtml(videos);
-      compact.setAttribute('data-mm-count', countKey);
-      wireWebcamThumbLoad(root, (videos || []).filter(isWebcam)[0]);
+      if (compact.querySelector('video-stream')) {
+        compact.setAttribute('data-mm-count', countKey);
+      } else {
+        compact.innerHTML = compactTilesHtml(videos);
+        compact.setAttribute('data-mm-count', countKey);
+        wireWebcamThumbLoad(root, (videos || []).filter(isWebcam)[0]);
+      }
     }
     var art = singleCamRoot(root) ? 0 : ART_W / ART_H;
     var vid = VID_W / VID_H;
@@ -2393,7 +2440,9 @@
       '.mm-lipton-reels-live-slot[hidden]{display:none!important;width:0!important;min-width:0!important;margin:0!important;padding:0!important;border:0!important;overflow:hidden}' +
       '.mm-lipton-reels-live-slot .mm-lipton-reels-tile{display:block;width:100%;height:100%;margin:0}' +
       '.mm-lipton-reels-thumb--live{position:relative;overflow:hidden;background:#111;border:2px solid #ef4444}' +
-      '.mm-lipton-reels-thumb--live iframe,.mm-lipton-reels-thumb--live video{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000;z-index:1;object-fit:cover}' +
+      '.mm-lipton-reels-thumb--live iframe,.mm-lipton-reels-thumb--live video,.mm-lipton-reels-thumb--live video-stream{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000;z-index:1;object-fit:cover}' +
+      '.mm-lipton-reels-thumb--live video-stream{display:block}' +
+      '.mm-lipton-reels-thumb--live video-stream .mode{display:none!important}' +
       '.mm-lipton-reels-thumb--live iframe{pointer-events:none}' +
       '@media (max-width:599px){.mm-lipton-reels-thumb--live iframe,.mm-lipton-reels-thumb--live video{pointer-events:auto}' +
       '.mm-lipton-reels-player-wrap{width:100%;max-width:100%}}' +

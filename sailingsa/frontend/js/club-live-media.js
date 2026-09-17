@@ -1,7 +1,10 @@
 /**
- * Club-page venue weather + camera cards — same ZVYC MM compact layout.
- * Snapshot cams use that card (tap expands to full MP width). Not live.
- * Club logo on the cam card — not Marine Megastore.
+ * Club-page venue weather + camera.
+ * Live feeds come from js/live-cam-sources.js (how / where / why).
+ * HYC uses source hyc-club as a permanent club-page card, not the MM reel.
+ * The same source id can be an MM event-card video via SSALiveCam.mmVideo.
+ * Super Admin show/hide decides if the public sees a live pass-through.
+ * HMYC still uses the snapshot MM card. ZVYC keeps the MM live/reels card.
  */
 (function () {
   'use strict';
@@ -12,7 +15,9 @@
   var WX_ID = 'ssa-regatta-slot-card';
   var MM_ID = 'mmLiptonReels';
   var CSS_ID = 'club-live-media-css';
-  var JS_VER = 'clubwx11';
+  var JS_VER = 'clubwx13';
+  var HYC_CAM_ID = 'hyc-club-cam';
+  var HYC_LIVE_CAM = 'hyc-club';
 
   var AGRO_CAM = 'https://hmyccam1.nwsza.net/latest.jpg';
   var AGRO_PAGE = 'https://agromet.ukzn.ac.za/midmar/index.html#canvas_container';
@@ -35,6 +40,7 @@
       weatherRole: 'venue',
       cam: 'live',
       livePass: true,
+      liveCam: HYC_LIVE_CAM,
       stream: 'https://sailingsa.co.za:8443/api/ws?src=hyc',
       camHref: 'https://www.hyc.co.za/',
       camLabel: 'HYC club cam',
@@ -81,7 +87,9 @@
     s.textContent =
       '.club-page .club-live-media{width:100%;box-sizing:border-box;display:flex;flex-direction:column;gap:0;padding:0;border:0;background:transparent;box-shadow:none;}' +
       '.club-page .club-live-media .ssa-regatta-slot-card{order:0!important;margin-top:0;width:100%;max-width:100%;padding:0!important;}' +
-      '.club-page .club-live-media .mm-lipton-reels{order:1!important;margin-top:10px;width:100%;}' +
+      '.club-page .club-live-media .mm-lipton-reels,' +
+      '.club-page .club-live-media .club-hyc-cam,' +
+      '.club-page .club-live-media .club-live-cam{order:1!important;margin-top:10px;width:100%;}' +
       '.club-page .club-story-inner > .club-live-media{max-width:100%;}' +
       '.mm-lipton-reels[data-mm-snapshot] .mm-lipton-reels-brand{display:none!important}' +
       '.mm-lipton-reels[data-mm-snapshot] .mm-lipton-reels-clip-chrome{display:none!important}' +
@@ -90,10 +98,15 @@
       '.mm-lipton-reels[data-mm-live-pass] .mm-lipton-reels-play{display:none!important}' +
       '.club-live-media .club-cam-sa-toggle{display:none;margin:8px 0 0;min-height:44px;min-width:44px;padding:10px 14px;border:1.5px solid #1a2750;border-radius:8px;background:#fff;color:#1a2750;font:700 14px/1.2 Arial,Helvetica,sans-serif;cursor:pointer;}' +
       '.club-live-media.club-live-media--sa .club-cam-sa-toggle{display:inline-flex;align-items:center;justify-content:center;}' +
-      '.club-live-media.club-live-media--cam-off:not(.club-live-media--sa) .mm-lipton-reels{display:none!important}' +
-      '.mm-lipton-reels[data-mm-live-pass] video-stream{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:1}' +
-      '.mm-lipton-reels[data-mm-live-pass] video-stream .mode{display:none!important}' +
-      '.mm-lipton-reels[data-mm-live-pass] video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}';
+      '.club-live-media.club-live-media--cam-off:not(.club-live-media--sa) .mm-lipton-reels,' +
+      '.club-live-media.club-live-media--cam-off:not(.club-live-media--sa) .club-hyc-cam,' +
+      '.club-live-media.club-live-media--cam-off:not(.club-live-media--sa) .club-live-cam{display:none!important}' +
+      '.club-hyc-cam,.club-live-cam{width:100%;max-width:100%;margin-top:10px;padding:0;overflow:hidden}' +
+      '.club-hyc-cam-cell,.club-live-cam-cell{position:relative;aspect-ratio:16/9;width:100%;background:#111;overflow:hidden}' +
+      '.club-hyc-cam-cell video-stream,.club-live-cam-cell video-stream{position:absolute;inset:0;width:100%;height:100%;display:block}' +
+      '.club-hyc-cam-cell video-stream .mode,.club-live-cam-cell video-stream .mode{display:none!important}' +
+      '.club-hyc-cam-cell video,.club-live-cam-cell video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}' +
+      '.club-hyc-cam .club-cam-sa-toggle,.club-live-cam .club-cam-sa-toggle{width:100%;box-sizing:border-box;margin:8px 0 0}';
     document.head.appendChild(s);
   }
 
@@ -129,13 +142,28 @@
     );
   }
 
+  function liveCamSource(club) {
+    var id = (club && club.liveCam) || '';
+    if (window.SSALiveCam) {
+      if (id && window.SSALiveCam.get(id)) return window.SSALiveCam.get(id);
+      if (club && club.code) return window.SSALiveCam.forClub(String(club.code).toLowerCase());
+    }
+    return null;
+  }
+
   function livePassVideo(club) {
     if (!club.livePass) return [];
+    var src = liveCamSource(club);
+    if (src && window.SSALiveCam && typeof window.SSALiveCam.mmVideo === 'function') {
+      var video = window.SSALiveCam.mmVideo(src.id);
+      if (video) return [video];
+    }
     return [
       {
         id: String(club.code || 'club').toLowerCase() + '-club-cam',
         kind: 'webcam',
         live_pass: true,
+        live_cam: club.liveCam || HYC_LIVE_CAM,
         title: club.camLabel || 'Club cam',
         stream_url: club.stream || 'https://sailingsa.co.za:8443/api/ws?src=hyc',
         stream_kind: 'webrtc',
@@ -181,6 +209,66 @@
     if (club.weatherStation) wx.setAttribute('data-weather-station', club.weatherStation);
     wx.setAttribute('aria-label', club.code + ' venue wind');
     return wx;
+  }
+
+  function camEl() {
+    return document.getElementById(HYC_CAM_ID) || document.getElementById(MM_ID);
+  }
+
+  function makeHycCam(club) {
+    var src = liveCamSource(club);
+    var camId = (src && src.clubCardId) || HYC_CAM_ID;
+    var streamName = (src && src.src) || 'hyc';
+    var liveId = (src && src.id) || club.liveCam || HYC_LIVE_CAM;
+    var el = document.getElementById(camId) || document.getElementById(HYC_CAM_ID);
+    if (!el) {
+      el = document.createElement('section');
+      el.id = camId;
+      el.className = 'card club-live-cam club-hyc-cam';
+    }
+    el.id = camId;
+    el.classList.add('card', 'club-live-cam', 'club-hyc-cam');
+    el.setAttribute('aria-label', (src && src.label) || club.camLabel || 'HYC club cam');
+    el.setAttribute('data-live-cam', liveId);
+    el.setAttribute('data-mm-cam-status', (src && src.statusApi) || club.camStatusApi || '/api/club-cam/hyc');
+    if (!el.querySelector('[data-cam]')) {
+      el.innerHTML =
+        '<div class="club-live-cam-cell club-hyc-cam-cell" data-cam="' +
+        streamName +
+        '" data-live-cam="' +
+        liveId +
+        '"><span class="club-hyc-cam-cap">HYC</span></div>' +
+        '<button type="button" class="club-cam-sa-toggle" data-club-cam-sa hidden>' +
+        'Hide live cam from public</button>';
+    }
+    return el;
+  }
+
+  function startHycGo2rtc() {
+    var cell = document.querySelector('#' + HYC_CAM_ID + ' [data-cam], [data-live-cam="' + HYC_LIVE_CAM + '"] [data-cam]');
+    if (!cell) return;
+    if (window.SSALiveCam && typeof window.SSALiveCam.attach === 'function') {
+      window.SSALiveCam.attach(cell, cell.getAttribute('data-live-cam') || HYC_LIVE_CAM);
+      return;
+    }
+    if (cell.querySelector('video-stream')) return;
+    if (cell.getAttribute('data-hyc-loading') === '1') return;
+    cell.setAttribute('data-hyc-loading', '1');
+    import('https://sailingsa.co.za:8443/video-stream.js')
+      .then(function () {
+        cell = document.querySelector('#' + HYC_CAM_ID + ' [data-cam]');
+        if (!cell) return;
+        if (cell.querySelector('video-stream')) return;
+        var el = document.createElement('video-stream');
+        el.mode = 'webrtc,mse';
+        el.background = false;
+        el.src = new URL('api/ws?src=hyc', 'https://sailingsa.co.za:8443/');
+        cell.appendChild(el);
+      })
+      .catch(function () {
+        cell = document.querySelector('#' + HYC_CAM_ID + ' [data-cam]');
+        if (cell) cell.removeAttribute('data-hyc-loading');
+      });
   }
 
   function makeMmCam(club) {
@@ -242,15 +330,16 @@
       return orderCards(host);
     }
     host.appendChild(makeWx(club));
-    host.appendChild(makeMmCam(club));
+    host.appendChild(club.livePass ? makeHycCam(club) : makeMmCam(club));
     host.setAttribute('data-club-live-ready', '1');
     mountSaCamToggle(host, club);
+    if (club.livePass) startHycGo2rtc();
     return orderCards(host);
   }
 
   function orderCards(host) {
     var wx = document.getElementById(WX_ID);
-    var cam = document.getElementById(MM_ID);
+    var cam = camEl();
     if (host && wx && cam && wx.parentNode === host && cam.parentNode === host && wx.nextSibling !== cam) {
       host.insertBefore(wx, cam);
     }
@@ -342,15 +431,18 @@
     var can = !!(sa || (data && data.can_toggle));
     host.classList.toggle('club-live-media--sa', can);
     host.classList.toggle('club-live-media--cam-off', !visible);
-    var mm = document.getElementById(MM_ID);
-    if (mm) {
+    var cam = camEl();
+    if (cam) {
       if (!visible && !can) {
-        mm.setAttribute('hidden', '');
-        mm.querySelectorAll('video-stream').forEach(function (el) {
+        cam.setAttribute('hidden', '');
+        cam.querySelectorAll('video-stream').forEach(function (el) {
           el.remove();
         });
+        var cell = cam.querySelector('[data-cam]');
+        if (cell) cell.removeAttribute('data-hyc-loading');
       } else {
-        mm.removeAttribute('hidden');
+        cam.removeAttribute('hidden');
+        if (document.getElementById(HYC_CAM_ID)) startHycGo2rtc();
       }
     }
     var btn = host.querySelector('[data-club-cam-sa]');
@@ -359,8 +451,13 @@
     if (typeof window.dispatchEvent === 'function') window.dispatchEvent(new Event('resize'));
   }
 
-  function fetchCamStatus() {
-    return fetch('/api/club-cam/hyc?_=' + Date.now(), { credentials: 'include', cache: 'no-store' }).then(function (r) {
+  function fetchCamStatus(club) {
+    var src = liveCamSource(club);
+    var api = (src && src.statusApi) || (club && club.camStatusApi) || '/api/club-cam/hyc';
+    return fetch(api + (api.indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now(), {
+      credentials: 'include',
+      cache: 'no-store',
+    }).then(function (r) {
       return r && r.ok ? r.json() : null;
     });
   }
@@ -377,7 +474,7 @@
 
     function refresh() {
       return Promise.all([
-        fetchCamStatus(),
+        fetchCamStatus(club),
         fetch('/auth/session?path=' + encodeURIComponent((window.location && window.location.pathname) || '/'), {
           credentials: 'include',
           cache: 'no-store',
@@ -398,8 +495,10 @@
 
     btn.addEventListener('click', function () {
       var next = btn.getAttribute('aria-pressed') !== 'true';
+      var src = liveCamSource(club);
+      var patch = (src && src.saPatch) || '/api/super-admin/club-cam/hyc';
       btn.disabled = true;
-      fetch('/api/super-admin/club-cam/hyc', {
+      fetch(patch, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -456,14 +555,18 @@
     var club = cfg();
     if (!club) return;
     injectCss();
-    ensureCssLink();
-    if (!placeHost(club)) return;
-    loadScript('/js/regatta-slot-card.js?v=' + JS_VER)
+    if (!club.livePass) ensureCssLink();
+    loadScript('/js/live-cam-sources.js?v=' + JS_VER)
       .then(function () {
-        return loadScript('/js/mm-lipton-reels-card.js?v=' + JS_VER);
+        if (!placeHost(club)) return;
+        return loadScript('/js/regatta-slot-card.js?v=' + JS_VER);
       })
       .then(function () {
-        if (typeof window.dispatchEvent === 'function') window.dispatchEvent(new Event('resize'));
+        if (club.livePass) {
+          startHycGo2rtc();
+          return;
+        }
+        return loadScript('/js/mm-lipton-reels-card.js?v=' + JS_VER);
       })
       .catch(function () {});
   }

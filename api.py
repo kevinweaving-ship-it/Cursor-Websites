@@ -24789,7 +24789,9 @@ _CLUB_PAGE_CSS = """
 .club-page .section-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; border-bottom: 2px solid #001f3f; padding-bottom: 0.35rem; margin-bottom: 0.75rem; color: #001f3f; }
 .club-page .club-live-media { width: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 0; padding: 0; border: 0; background: transparent; box-shadow: none; }
 .club-page .club-live-media .ssa-regatta-slot-card { margin-top: 0; width: 100%; max-width: 100%; }
-.club-page .club-live-media .mm-lipton-reels { margin-top: 10px; width: 100%; }
+.club-page .club-live-media .mm-lipton-reels,
+.club-page .club-live-media .club-hyc-cam,
+.club-page .club-live-media .club-live-cam { margin-top: 10px; width: 100%; }
 """ + _SECTION_HEADING_ROW_UNIFIED_CSS + """
 .club-sailors-filter-input { padding: 0.5rem 1rem; border: 2px solid #001f3f; border-radius: 999px; font-size: 1rem; box-sizing: border-box; min-height: 44px; }
 .club-sailors-carousel-controls { margin-bottom: 0.5rem; }
@@ -26016,10 +26018,11 @@ def _serve_club_page_impl(slug: str, club: tuple):
         "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
         f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
         "<link rel=\"stylesheet\" href=\"/css/main.css?v=13\">"
-        '<link rel="stylesheet" href="/css/mm-lipton-reels.css?v=clubwx11">'
+        '<link rel="stylesheet" href="/css/mm-lipton-reels.css?v=clubwx13">'
         f"<style>body{{font-family:system-ui,sans-serif;margin:2rem;color:#1a2750;}}a{{color:#1a2750;}}{_CLUB_PAGE_CSS}</style></head><body>"
         f"<div class=\"club-page\">{body}</div>"
-        '<script src="/js/club-live-media.js?v=clubwx11" defer></script>'
+        '<script src="/js/live-cam-sources.js?v=clubwx13" defer></script>'
+        '<script src="/js/club-live-media.js?v=clubwx13" defer></script>'
         f"{_seo_discovery_block_html()}</body></html>"
     )
     return HTMLResponse(doc)
