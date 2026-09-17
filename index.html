@@ -224,16 +224,110 @@
             .class-gold-page .club-story-chip img { width: 64px; height: 64px; margin-bottom: 8px; }
             .class-gold-page .club-story-chip-label { font-size: 0.82rem; }
         }
-        .class-gold-page .section-heading-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; margin: 1.25rem 0 0.65rem; }
-        .class-gold-page .section-title { margin: 0; font-size: 1.15rem; color: #001f3f; }
-        .class-gold-page .club-table-filter { min-width: 12rem; padding: 0.4rem 0.65rem; border: 1px solid #cbd5e1; border-radius: 6px; }
-        .class-gold-page .table-container { overflow-x: auto; }
-        .class-gold-page table.table { width: 100%; border-collapse: collapse; }
-        .class-gold-page table.table th, .class-gold-page table.table td { padding: 0.55rem 0.65rem; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
-        .class-gold-page table.table th { text-align: left; font-size: 0.8rem; text-transform: uppercase; letter-spacing: .03em; color: #64748b; }
-        .class-gold-page .cell-left { text-align: left; }
-        .class-gold-page .row-logo { display: inline-block; width: auto; height: 28px; max-width: 40px; object-fit: contain; vertical-align: middle; margin-right: 0.45rem; }
-        .class-gold-page .row-av { display: inline-block; width: 28px; height: 28px; max-width: 28px; border-radius: 50%; object-fit: cover; vertical-align: middle; margin-right: 0.45rem; }
+        .class-gold-page .card.stats-section { background: #fff; border: 2px solid #001f3f; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
+        .class-gold-page .events-section-heading-row,
+        .class-gold-page .club-section-heading-row {
+            display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center;
+            justify-content: flex-start; gap: 0.5rem 0.75rem; width: 100%; min-width: 0;
+            margin: 0 0 0.5rem 0; box-sizing: border-box;
+        }
+        .class-gold-page .events-section-heading-row .section-title,
+        .class-gold-page .club-section-heading-row .section-title {
+            margin: 0; padding: 0; border-bottom: none; font-size: 1rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.02em; line-height: 1.25; color: #001f3f;
+            flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .class-gold-page .events-dashboard-search,
+        .class-gold-page .club-sailors-filter-input {
+            flex: 1 1 0; min-width: 5rem; max-width: 14rem; margin: 0; height: 2.25rem;
+            padding: 0 0.65rem; font-size: 0.875rem; border: 2px solid #001f3f; border-radius: 9999px;
+            background: #fff; color: #001f3f; box-sizing: border-box; -webkit-appearance: none; appearance: none;
+        }
+        .class-gold-page .events-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin-bottom: 0.75rem; }
+        .class-gold-page .events-tabs button { flex: 0 0 auto; padding: 0.55rem 0.75rem; font-size: 1rem; font-weight: 600; border: 2px solid transparent; border-radius: 8px; cursor: pointer; }
+        .class-gold-page .events-tab { display: inline-flex; align-items: center; gap: 0.4rem; }
+        .class-gold-page .events-tab .events-tab-count { font-weight: 700; font-variant-numeric: tabular-nums; }
+        .class-gold-page .events-tabs button[data-tab='upcoming'] { background: #9ce3b4; color: #fff; }
+        .class-gold-page .events-tabs button[data-tab='upcoming'].active { background: #39C768; color: #fff; border-color: #2ea854; }
+        .class-gold-page .events-tabs button[data-tab='live'] { background: #f5ac86; color: #fff; }
+        .class-gold-page .events-tabs button[data-tab='live'].active { background: #ea580c; color: #fff; border-color: #c2410c; }
+        .class-gold-page .events-tabs button[data-tab='past'] { background: #bf8e8e; color: #fff; }
+        .class-gold-page .events-tabs button[data-tab='past'].active { background: #7f1d1d; color: #fff; border-color: #991b1b; }
+        .class-gold-page .events-panel { display: none; }
+        .class-gold-page .events-panel.active { display: block; }
+        .class-gold-page .events-carousel-controls,
+        .class-gold-page .club-sailors-carousel-controls,
+        .class-gold-page .club-regattas-carousel-controls { margin-bottom: 0.5rem; }
+        .class-gold-page .events-swipe-hint,
+        .class-gold-page .club-sailors-swipe-hint { font-size: 0.9rem; color: #475569; margin: 0 0 0.65rem 0; line-height: 1.4; text-align: center; }
+        .class-gold-page .events-pagination,
+        .class-gold-page .club-sailors-pagination { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 0.75rem; }
+        .class-gold-page .events-arrow-btn,
+        .class-gold-page .club-sailors-arrow-btn { flex-shrink: 0; min-width: 44px; min-height: 44px; padding: 0 0.5rem; border: 1px solid #cbd5e1; background: #f8fafc; color: #001f3f; font-size: 1.1rem; font-weight: 600; border-radius: 6px; cursor: pointer; line-height: 1; }
+        .class-gold-page .events-arrow-btn:hover:not(:disabled),
+        .class-gold-page .club-sailors-arrow-btn:hover:not(:disabled) { background: #e2e8f0; border-color: #94a3b8; }
+        .class-gold-page .events-arrow-btn:disabled,
+        .class-gold-page .club-sailors-arrow-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+        .class-gold-page .events-dots,
+        .class-gold-page .club-sailors-dots { display: flex; flex-wrap: nowrap; align-items: center; gap: 0.5rem; flex: 1 1 auto; min-width: 0; max-width: min(100%, 20rem); overflow-x: auto; scrollbar-width: none; line-height: 0; }
+        .class-gold-page .events-dots::-webkit-scrollbar,
+        .class-gold-page .club-sailors-dots::-webkit-scrollbar { display: none; }
+        .class-gold-page .events-dot,
+        .class-gold-page .club-sailors-dot { display: block; flex: 0 0 8px; width: 8px; height: 8px; min-width: 8px; min-height: 8px; padding: 0; border: none; border-radius: 9999px; background: rgba(0, 31, 63, 0.22); cursor: pointer; appearance: none; }
+        .class-gold-page .events-dot.is-active,
+        .class-gold-page .club-sailors-dot.is-active { background: #001f3f; box-shadow: 0 0 0 2px rgba(0, 31, 63, 0.15); }
+        .class-gold-page .events-carousel-wrap,
+        .class-gold-page .club-sailors-carousel-wrap { overflow: hidden; width: 100%; box-sizing: border-box; }
+        .class-gold-page .events-carousel,
+        .class-gold-page .club-sailors-carousel { display: flex; flex-direction: row; flex-wrap: nowrap; gap: 0; width: 100%; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+        .class-gold-page .events-page,
+        .class-gold-page .club-sailors-page { flex: 0 0 100%; min-width: 100%; max-width: 100%; scroll-snap-align: start; scroll-snap-stop: always; box-sizing: border-box; padding: 0 0.2rem; display: flex; flex-direction: column; align-items: stretch; }
+        .class-gold-page .event-card { display: flex; flex-direction: column; gap: 0.35rem; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.08); border-width: 2px; border-style: solid; box-sizing: border-box; }
+        .class-gold-page .event-card.ec-upcoming-sas,
+        .class-gold-page .event-card.ec-upcoming-club { background: #39C768; border-color: #2ea854; color: #fff; }
+        .class-gold-page .event-card.ec-upcoming-other { background: #f97316; border-color: #ea580c; color: #fff; }
+        .class-gold-page .event-card.ec-active-sas { background: #ea580c; border-color: #c2410c; color: #fff; }
+        .class-gold-page .event-card.ec-past-sas { background: #7f1d1d; border-color: #991b1b; color: #fef2f2; }
+        .class-gold-page .event-card.ec-past-club { background: #f87171; border-color: #ef4444; color: #450a0a; }
+        .class-gold-page .event-card.ec-past-other { background: #dc2626; border-color: #b91c1c; color: #fff; }
+        .class-gold-page .event-card h3 { font-size: 0.95rem; font-weight: 700; margin: 0 0 0.2rem 0; line-height: 1.25; }
+        .class-gold-page .event-card .event-date { font-size: 0.8rem; margin: 0; display: block; }
+        .class-gold-page .event-card .event-title-link { color: inherit; font-weight: 700; text-decoration: underline; }
+        .class-gold-page .event-card .event-club { font-size: 0.8rem; margin: 0; }
+        .class-gold-page .event-card .event-club a { color: #2563eb; font-weight: 600; text-decoration: underline; }
+        .class-gold-page .event-card .event-type { display: inline-block; font-size: 0.85rem; font-weight: 700; padding: 0.25rem 0.5rem; background: #001f3f; color: #fff; border-radius: 4px; margin: 0.2rem 0 0 0; }
+        .class-gold-page .event-card .event-location { font-size: 0.75rem; margin: 0; }
+        .class-gold-page .event-card-result-row { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 0.5rem; width: 100%; margin-top: 0.35rem; }
+        .class-gold-page .event-result-chip { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.22rem 0.45rem; min-height: 1.5rem; background: #fff; border: 1px solid rgba(0,0,0,0.2); border-radius: 6px; font-size: 0.7rem; font-weight: 600; text-decoration: none; color: #1e293b; }
+        .class-gold-page .event-result-chip.event-result-yes { border-color: #22c55e; background: #f0fdf4; }
+        .class-gold-page .event-result-chip.event-result-yes .event-result-glyph { color: #16a34a; }
+        .class-gold-page .event-result-chip.event-result-no .event-result-glyph { color: #dc2626; }
+        .class-gold-page .event-result-chip.event-result-yes .event-result-label { color: #2563eb; text-decoration: underline; }
+        .class-gold-page .event-card-index,
+        .class-gold-page .event-details-btn { display: inline-flex; align-items: center; justify-content: center; height: 1.5rem; padding: 0 0.4rem; font-size: 0.7rem; font-weight: 600; border-radius: 6px; text-decoration: none; border: none; }
+        .class-gold-page .event-details-btn { background: #001f3f; color: #fff; cursor: pointer; }
+        .class-gold-page .event-card-actions { display: inline-flex; align-items: center; gap: 0.35rem; }
+        .class-gold-page .club-sailor-card,
+        .class-gold-page .club-regatta-row { display: flex; flex-direction: row; align-items: center; gap: 0.35rem; padding: 0.35rem 0; min-height: 44px; box-sizing: border-box; width: 100%; text-decoration: none; color: #001f3f; border-bottom: 1px solid #e2e8f0; }
+        .class-gold-page .club-sailors-page .club-sailor-card:last-child,
+        .class-gold-page .club-sailors-page .club-regatta-row:last-child { border-bottom: none; }
+        .class-gold-page .club-sailor-card:hover .club-sailor-card-name,
+        .class-gold-page .club-regatta-row:hover .club-regatta-row-name { text-decoration: underline; }
+        .class-gold-page .club-sailor-card-num,
+        .class-gold-page .club-regatta-row-num { font-size: 0.75rem; color: #64748b; flex-shrink: 0; width: 1.85rem; text-align: right; }
+        .class-gold-page .club-sailor-card-name,
+        .class-gold-page .club-regatta-row-name { font-size: 0.875rem; font-weight: 600; line-height: 1.25; min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .class-gold-page .club-sailor-card-meta,
+        .class-gold-page .club-regatta-row-date { font-size: 0.72rem; color: #64748b; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .class-gold-page .class-section-empty { padding: 0.75rem; color: #64748b; margin: 0; }
+        @media (min-width: 640px) {
+            .class-gold-page .events-section-heading-row,
+            .class-gold-page .club-section-heading-row { flex-wrap: wrap; }
+            .class-gold-page .events-dashboard-search,
+            .class-gold-page .club-sailors-filter-input { min-height: 44px; height: auto; max-width: 18rem; padding: 0.45rem 0.85rem; }
+            .class-gold-page .club-sailor-card-name,
+            .class-gold-page .club-regatta-row-name { font-size: 0.95rem; }
+        }
 
         /* Search Header Containers - Dark Blue Background - Compact - Separate Headers */
         .search-header-container {
@@ -5050,50 +5144,6 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                 strips += '<div class="club-story-logo-row"><div class="club-story-logo-row-label">Clubs sailing ' + esc(className) + '</div><div class="club-story-logo-chips">' + clubChips.join('') + '</div></div>';
             }
 
-            function rowLogo(src) {
-                if (!src) return '';
-                return '<img src="' + esc(src) + '" alt="" class="row-logo" loading="lazy" onerror="this.style.display=\'none\'">';
-            }
-            function rowAv(src) {
-                var u = src || '/assets/avatars/default-youth.png';
-                return '<img src="' + esc(u) + '" alt="" class="row-av" width="28" height="28" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=\'/assets/avatars/default-youth.png\'">';
-            }
-
-            var regattaRows = regattas.map(function(r, i) {
-                var slug = (r.regatta_slug || (r.regatta_id != null ? String(r.regatta_id) : '')) || '';
-                var url = slug ? '/regatta/' + encodeURIComponent(slug) : '#';
-                var eventName = esc(r.regatta_name || r.event_name || '');
-                var eventDate = esc(r.event_date || r.end_date || r.start_date || '—');
-                var hostCode = (r.club_code || '').trim().toUpperCase();
-                var hostSlug = (r.club_slug || hostCode.toLowerCase() || '').trim();
-                var hostLogo = (r.club_logo_url || (hostCode ? '/api/club-logo/' + hostCode : '')).trim();
-                var hostCell = hostCode
-                    ? (rowLogo(hostLogo) + (hostSlug ? '<a href="/club/' + encodeURIComponent(hostSlug) + '">' + esc(hostCode) + '</a>' : esc(hostCode)))
-                    : '—';
-                var evLogo = (r.event_logo_url || classLogo || '').trim();
-                var eventEntries = (r.event_entries != null && r.event_entries !== '') ? r.event_entries
-                    : ((r.fleet_size != null && r.fleet_size !== '') ? r.fleet_size : '—');
-                var classEntries = (r.class_entries != null && r.class_entries !== '') ? r.class_entries
-                    : ((r.fleet_size != null && r.fleet_size !== '') ? r.fleet_size : '—');
-                var races = (r.races != null && r.races !== '') ? r.races : '—';
-                var search = esc(((r.regatta_name || '') + ' ' + hostCode + ' ' + eventDate).toLowerCase());
-                return '<tr data-search="' + search + '"><td>' + (i + 1) + '</td><td class="cell-left">' + rowLogo(evLogo) + '<a href="' + url + '">' + eventName + '</a></td><td class="cell-nowrap">' + eventDate + '</td><td class="cell-left hide-mobile">' + hostCell + '</td><td>' + eventEntries + '</td><td>' + classEntries + '</td><td class="hide-mobile">' + races + '</td></tr>';
-            }).join('');
-
-            var clubRows = clubs.map(function(c, i) {
-                var code = (c.club_code || '').trim().toUpperCase();
-                var slug = (c.club_slug || code.toLowerCase() || '').trim();
-                var img = (c.club_logo_url || (code ? '/api/club-logo/' + code : '')).trim();
-                var label = (code && c.club_name) ? (esc(code) + ' — ' + esc(c.club_name)) : esc(code || c.club_name || '');
-                var clubCell = rowLogo(img) + (slug ? '<a href="/club/' + encodeURIComponent(slug) + '">' + label + '</a>' : label);
-                var lastUrl = c.last_regatta_slug ? '/regatta/' + encodeURIComponent(c.last_regatta_slug) : '';
-                var lastCell = (c.last_regatta_name || '').trim()
-                    ? (lastUrl ? '<a href="' + lastUrl + '">' + esc(c.last_regatta_name) + '</a>' : esc(c.last_regatta_name))
-                    : '—';
-                var search = esc(((code || '') + ' ' + (c.club_name || '') + ' ' + (c.last_regatta_name || '')).toLowerCase());
-                return '<tr data-search="' + search + '"><td>' + (i + 1) + '</td><td class="cell-left">' + clubCell + '</td><td>' + (c.sailors != null ? c.sailors : '—') + '</td><td>' + (c.races != null ? c.races : '—') + '</td><td>' + lastCell + '</td><td class="cell-nowrap">' + esc(c.last_regatta_date || '—') + '</td></tr>';
-            }).join('');
-
             function ordinal(n) {
                 var num = parseInt(n, 10);
                 if (!num || isNaN(num)) return '';
@@ -5102,41 +5152,260 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                 var d = num % 10;
                 return num + ({ 1: 'st', 2: 'nd', 3: 'rd' }[d] || 'th');
             }
-            var sailorRows = sailors.map(function(s, i) {
-                var slug = s.sailor_slug || '';
-                var url = slug ? '/sailor/' + encodeURIComponent(slug) : '#';
-                var clubCode = (s.club_code || '').trim().toUpperCase();
-                var clubImg = (s.club_logo_url || (clubCode ? '/api/club-logo/' + clubCode : '')).trim();
-                var clubCell = clubCode ? (rowLogo(clubImg) + '<a href="/club/' + encodeURIComponent(clubCode) + '">' + esc(clubCode) + '</a>') : '—';
-                var rank = '';
-                if (s.last_result_rank != null && s.last_fleet_size != null) {
-                    rank = ordinal(s.last_result_rank) + '/' + s.last_fleet_size;
-                } else if (s.last_result_rank != null) {
-                    rank = ordinal(s.last_result_rank);
-                } else {
-                    rank = '—';
-                }
-                var lastUrl = s.last_regatta_slug ? '/regatta/' + encodeURIComponent(s.last_regatta_slug) : '';
-                var lastCell = (s.last_regatta_name || '').trim()
-                    ? (lastUrl ? '<a href="' + lastUrl + '">' + esc(s.last_regatta_name) + '</a>' : esc(s.last_regatta_name))
-                    : '—';
-                var search = esc(((s.sailor_name || '') + ' ' + clubCode + ' ' + (s.last_regatta_name || '')).toLowerCase());
-                return '<tr data-search="' + search + '"><td>' + (i + 1) + '</td><td class="cell-left">' + rowAv(s.avatar_url) + '<a href="' + url + '">' + esc(s.sailor_name || s.sas_id || '') + '</a></td><td class="cell-left hide-mobile">' + clubCell + '</td><td>' + (s.races_in_class != null ? s.races_in_class : '—') + '</td><td>' + (s.regattas_in_class != null ? s.regattas_in_class : '—') + '</td><td class="cell-nowrap">' + esc(rank) + '</td><td>' + lastCell + '</td></tr>';
-            }).join('');
-
-            function section(id, title, filterId, tableHtml) {
-                return '<div class="section-heading-row" id="' + id + '">' +
+            function headingRow(title, inputId, placeholder) {
+                return '<div class="events-section-heading-row">' +
                     '<h2 class="section-title">' + esc(title) + '</h2>' +
-                    '<input type="search" class="club-table-filter" data-table="' + filterId + '" placeholder="Search…" autocomplete="off">' +
-                    '</div><div class="table-container club-table-scroll">' + tableHtml + '</div>';
+                    '<input type="search" class="events-dashboard-search" id="' + inputId + '" placeholder="' + esc(placeholder) + '" aria-label="' + esc(placeholder) + '" autocomplete="off" autocapitalize="off" spellcheck="false" />' +
+                    '</div>';
             }
+            function carouselShell(panelId, hint) {
+                return '<div id="events-controls-' + panelId + '" class="events-carousel-controls" style="display:none">' +
+                    '<p class="events-swipe-hint">' + esc(hint) + '</p>' +
+                    '<div class="events-pagination" role="navigation">' +
+                    '<button type="button" class="events-arrow-btn" id="events-prev-' + panelId + '" aria-label="Previous" disabled>←</button>' +
+                    '<div class="events-dots" id="events-dots-' + panelId + '" role="tablist" aria-label="Page"></div>' +
+                    '<button type="button" class="events-arrow-btn" id="events-next-' + panelId + '" aria-label="Next">→</button>' +
+                    '</div></div>' +
+                    '<div id="events-wrap-' + panelId + '" class="events-carousel-wrap">' +
+                    '<div id="cards-' + panelId + '" class="events-carousel"></div></div>';
+            }
+            function wireCarousel(panelId) {
+                var carousel = document.getElementById('cards-' + panelId);
+                var controls = document.getElementById('events-controls-' + panelId);
+                var prevBtn = document.getElementById('events-prev-' + panelId);
+                var nextBtn = document.getElementById('events-next-' + panelId);
+                var dotsWrap = document.getElementById('events-dots-' + panelId);
+                if (!carousel || !prevBtn || !nextBtn || !dotsWrap) return;
+                function pageCount() { return carousel.querySelectorAll('.events-page').length; }
+                function currentPage() {
+                    var w = carousel.clientWidth || 1;
+                    var n = pageCount();
+                    if (n <= 1) return 0;
+                    var idx = Math.floor((carousel.scrollLeft + w * 0.25) / w);
+                    if (idx < 0) idx = 0;
+                    if (idx > n - 1) idx = n - 1;
+                    return idx;
+                }
+                function syncNav() {
+                    var n = pageCount();
+                    if (n <= 1) { if (controls) controls.style.display = 'none'; return; }
+                    if (controls) controls.style.display = '';
+                    var cur = currentPage();
+                    prevBtn.disabled = (cur <= 0);
+                    nextBtn.disabled = (cur >= n - 1);
+                    dotsWrap.querySelectorAll('.events-dot').forEach(function(d, i) {
+                        d.classList.toggle('is-active', i === cur);
+                    });
+                }
+                function scrollToPage(idx) {
+                    var n = pageCount();
+                    idx = Math.max(0, Math.min(idx, n - 1));
+                    carousel.scrollTo({ left: idx * carousel.clientWidth, behavior: 'smooth' });
+                }
+                prevBtn.onclick = function() { scrollToPage(currentPage() - 1); };
+                nextBtn.onclick = function() { scrollToPage(currentPage() + 1); };
+                carousel.addEventListener('scroll', function() { syncNav(); }, { passive: true });
+                window.addEventListener('resize', function() { syncNav(); });
+                dotsWrap.onclick = function(ev) {
+                    var t = ev.target;
+                    if (t && t.getAttribute && t.getAttribute('data-page') !== null)
+                        scrollToPage(parseInt(t.getAttribute('data-page'), 10));
+                };
+                syncNav();
+            }
+            function fillPages(panelId, pageHtmls) {
+                var carousel = document.getElementById('cards-' + panelId);
+                var controls = document.getElementById('events-controls-' + panelId);
+                var dotsWrap = document.getElementById('events-dots-' + panelId);
+                if (!carousel) return;
+                if (!pageHtmls || !pageHtmls.length) {
+                    carousel.innerHTML = '<div class="events-page"><p class="class-section-empty">No matches</p></div>';
+                    if (controls) controls.style.display = 'none';
+                    return;
+                }
+                carousel.innerHTML = pageHtmls.map(function(h) {
+                    return '<div class="events-page" role="group">' + h + '</div>';
+                }).join('');
+                if (dotsWrap) {
+                    dotsWrap.innerHTML = pageHtmls.map(function(_, k) {
+                        return '<button type="button" class="events-dot' + (k === 0 ? ' is-active' : '') + '" data-page="' + k + '" aria-label="Page ' + (k + 1) + ' of ' + pageHtmls.length + '"></button>';
+                    }).join('');
+                }
+                if (controls) controls.style.display = pageHtmls.length > 1 ? '' : 'none';
+                wireCarousel(panelId);
+            }
+            function eventMatrixClass(e, panelId) {
+                var sl = String(e.sanction_level || 'CLUB').toLowerCase();
+                if (sl !== 'sas' && sl !== 'club') sl = 'other';
+                var es = String(e.event_state || '').toUpperCase();
+                var st;
+                if (es === 'PAST' || (!es && panelId === 'past')) st = 'past';
+                else if (es === 'ACTIVE' || (!es && panelId === 'live')) st = 'active';
+                else st = 'upcoming';
+                return 'ec-' + st + '-' + sl;
+            }
+            function renderEventCard(e, panelId, index1, totalN) {
+                var titleText = (e.display_title != null && e.display_title !== '') ? e.display_title : (e.event_name || e.regatta_name || 'Event');
+                var href = e.details_url || e.result_url || '';
+                var titleHtml = href
+                    ? '<a href="' + esc(href) + '" class="event-title-link">' + esc(titleText) + '</a>'
+                    : esc(titleText);
+                var hostCode = e.host_code || e.host_club || e.club_code || e.club_name || '';
+                var hostLink = e.club_slug
+                    ? '<a href="/club/' + esc(e.club_slug) + '">' + esc(hostCode) + '</a>'
+                    : esc(hostCode);
+                var typeLabel = (e.event_type || 'Regatta');
+                var locHtml = e.location ? '<span class="event-location">' + esc(e.location) + '</span>' : '';
+                var extra = '';
+                if (e.fleet_size != null || e.races != null) {
+                    extra = '<p class="event-location">Entries: ' + esc(e.fleet_size != null ? e.fleet_size : '—') +
+                        ' · Races: ' + esc(e.races != null ? e.races : '—') + '</p>';
+                }
+                var resultHtml = '';
+                if (e.show_result_line !== false) {
+                    if (e.result_yes && e.result_url) {
+                        resultHtml = '<a href="' + esc(e.result_url) + '" class="event-result-chip event-result-yes"><span class="event-result-label">Result:</span><span class="event-result-glyph" aria-hidden="true">&#10003;</span></a>';
+                    } else {
+                        resultHtml = '<span class="event-result-chip event-result-no"><span class="event-result-label">Result:</span><span class="event-result-glyph" aria-hidden="true">&#10007;</span></span>';
+                    }
+                }
+                var hasDetails = href && href !== '#';
+                var btn = hasDetails
+                    ? '<a href="' + esc(href) + '" class="event-details-btn">Details</a>'
+                    : '';
+                var indexBadge = '<span class="event-card-index" aria-label="Event ' + index1 + ' of ' + totalN + '">' + index1 + '</span>';
+                return '<div class="event-card ' + eventMatrixClass(e, panelId) + '">' +
+                    '<div class="event-card-header"><h3>' + titleHtml + '</h3><span class="event-date">' + esc(e.date_display || e.event_date || e.start_date || '—') + '</span></div>' +
+                    '<div class="event-card-body"><div class="event-type-line"><span class="event-type">' + esc(typeLabel) + '</span></div>' +
+                    (hostCode ? '<span class="event-club">Host: ' + hostLink + '</span>' : '') +
+                    locHtml + extra +
+                    '<div class="event-card-result-row"><div class="event-result-slot">' + resultHtml + '</div>' +
+                    '<div class="event-card-actions">' + btn + indexBadge + '</div></div></div></div>';
+            }
+            function eventHaystack(e) {
+                return [e.event_name, e.display_title, e.regatta_name, e.date_display, e.event_date, e.host_code, e.host_club, e.club_name, e.location, e.event_type]
+                    .filter(Boolean).join(' ').toLowerCase();
+            }
+            function filterList(list, q, hayFn) {
+                q = (q || '').trim().toLowerCase();
+                if (!q) return list.slice();
+                var words = q.split(/\s+/).filter(Boolean);
+                return list.filter(function(item) {
+                    var hay = hayFn(item);
+                    return words.every(function(w) { return hay.indexOf(w) !== -1; });
+                });
+            }
+            function fleetHref(slug) {
+                if (!slug) return '';
+                return classSlug ? ('/regatta/' + encodeURIComponent(slug) + '/class-' + encodeURIComponent(classSlug))
+                    : ('/regatta/' + encodeURIComponent(slug));
+            }
+            var evData = data.events || {};
+            var evUpcoming = (evData.upcoming || []).slice();
+            var evLive = (evData.live || []).slice();
+            var evPast = (evData.past || []).slice();
+            var seenRids = {};
+            evUpcoming.concat(evLive, evPast).forEach(function(e) {
+                if (e && e.regatta_id) seenRids[String(e.regatta_id)] = true;
+            });
+            regattas.forEach(function(r) {
+                var rid = String(r.regatta_slug || r.regatta_id || '');
+                if (!rid || seenRids[rid]) return;
+                seenRids[rid] = true;
+                evPast.push({
+                    event_name: r.regatta_name || r.event_name || rid,
+                    display_title: (r.regatta_name || r.event_name || rid) + ' Results',
+                    date_display: r.event_date || r.end_date || r.start_date || '—',
+                    host_code: (r.club_code || '').trim().toUpperCase(),
+                    host_club: r.club_name || '',
+                    club_slug: r.club_slug || '',
+                    event_type: 'Regatta',
+                    details_url: '/regatta/' + encodeURIComponent(rid),
+                    result_url: fleetHref(rid),
+                    show_result_line: true,
+                    result_yes: true,
+                    event_state: 'PAST',
+                    sanction_level: 'CLUB',
+                    fleet_size: r.fleet_size,
+                    races: r.races,
+                    regatta_id: rid
+                });
+            });
+            var evTotal = evUpcoming.length + evLive.length + evPast.length;
+            function tabBtn(id, label, n) {
+                return '<button type="button" class="events-tab" role="tab" data-tab="' + id + '">' +
+                    '<span class="events-tab-label">' + label + '</span>' +
+                    '<span class="events-tab-count">' + n + '</span></button>';
+            }
+            function eventsPanel(id) {
+                return '<div id="panel-' + id + '" class="events-panel" role="tabpanel">' + carouselShell(id, 'Swipe Right or Left for more events') + '</div>';
+            }
+            var showLive = evLive.length > 0;
+            var eventsHtml = '<div class="card stats-section club-events-dashboard" id="class-events">' +
+                headingRow('Events (' + evTotal + ')', 'class-search-events', 'Search events…') +
+                '<div class="events-toolbar"><div class="events-tabs" role="tablist">' +
+                (showLive ? tabBtn('live', 'Live', evLive.length) : '') +
+                tabBtn('upcoming', 'Upcoming', evUpcoming.length) +
+                tabBtn('past', 'Past', evPast.length) +
+                '</div></div>' +
+                (showLive ? eventsPanel('live') : '') +
+                eventsPanel('upcoming') +
+                eventsPanel('past') +
+                '</div>';
 
-            var regattaTable = '<table class="table" id="class-regattas-table"><thead><tr><th>#</th><th>Event</th><th>Date</th><th class="hide-mobile">Host</th><th>Entries</th><th>' + esc(className || 'Class') + '</th><th class="hide-mobile">Races</th></tr></thead><tbody>' +
-                (regattaRows || '<tr><td colspan="7">No regattas</td></tr>') + '</tbody></table>';
-            var clubsTable = '<table class="table" id="class-clubs-table"><thead><tr><th>#</th><th>Club</th><th>Sailors</th><th>Races</th><th>Last regatta</th><th>Date</th></tr></thead><tbody>' +
-                (clubRows || '<tr><td colspan="6">No clubs</td></tr>') + '</tbody></table>';
-            var sailorsTable = '<table class="table" id="class-sailors-table"><thead><tr><th>#</th><th>Sailor</th><th class="hide-mobile">Club</th><th>Races</th><th>Regattas</th><th>Last result</th><th>Last regatta</th></tr></thead><tbody>' +
-                (sailorRows || '<tr><td colspan="7">No sailors</td></tr>') + '</tbody></table>';
+            function sailorCard(s, i) {
+                var name = s.sailor_name || s.sas_id || 'Sailor';
+                var href = s.sailor_slug ? '/sailor/' + encodeURIComponent(s.sailor_slug) : '';
+                var rank = '';
+                if (s.last_result_rank != null && s.last_fleet_size != null) rank = ordinal(s.last_result_rank) + '/' + s.last_fleet_size;
+                else if (s.last_result_rank != null) rank = ordinal(s.last_result_rank);
+                var last = (s.last_regatta_name || '').trim();
+                var lastHref = s.last_regatta_slug ? fleetHref(s.last_regatta_slug) : '';
+                var meta = [];
+                if (s.races_in_class != null) meta.push(s.races_in_class + ' races');
+                if (rank) meta.push(rank);
+                if (last) meta.push(last);
+                var inner = '<span class="club-sailor-card-num">' + (i + 1) + '.</span>' +
+                    '<span class="club-sailor-card-name">' + esc(name) + '</span>' +
+                    (meta.length ? '<span class="club-sailor-card-meta">' + (lastHref && last
+                        ? esc(meta.slice(0, -1).join(' · ') + (meta.length > 1 ? ' · ' : '')) + '<a href="' + esc(lastHref) + '">' + esc(last) + '</a>'
+                        : esc(meta.join(' · '))) + '</span>' : '');
+                return href
+                    ? '<a href="' + esc(href) + '" class="club-sailor-card">' + inner + '</a>'
+                    : '<span class="club-sailor-card">' + inner + '</span>';
+            }
+            function sailorHay(s) {
+                return [s.sailor_name, s.sas_id, s.club_code, s.last_regatta_name].filter(Boolean).join(' ').toLowerCase();
+            }
+            function clubCard(c, i) {
+                var code = (c.club_code || '').trim().toUpperCase();
+                var label = (code && c.club_name) ? (code + ' — ' + c.club_name) : (code || c.club_name || 'Club');
+                var href = c.club_slug ? '/club/' + encodeURIComponent(c.club_slug) : '';
+                var last = (c.last_regatta_name || '').trim();
+                var lastHref = c.last_regatta_slug ? fleetHref(c.last_regatta_slug) : '';
+                var meta = [];
+                if (c.sailors != null) meta.push(c.sailors + ' sailors');
+                if (c.races != null) meta.push(c.races + ' races');
+                if (last) meta.push(last);
+                var inner = '<span class="club-regatta-row-num">' + (i + 1) + '.</span>' +
+                    '<span class="club-regatta-row-name">' + esc(label) + '</span>' +
+                    (meta.length ? '<span class="club-regatta-row-date">' + (lastHref && last
+                        ? esc(meta.slice(0, -1).join(' · ') + (meta.length > 1 ? ' · ' : '')) + '<a href="' + esc(lastHref) + '">' + esc(last) + '</a>'
+                        : esc(meta.join(' · '))) + '</span>' : '');
+                return href
+                    ? '<a href="' + esc(href) + '" class="club-regatta-row">' + inner + '</a>'
+                    : '<span class="club-regatta-row">' + inner + '</span>';
+            }
+            function clubHay(c) {
+                return [c.club_code, c.club_name, c.last_regatta_name].filter(Boolean).join(' ').toLowerCase();
+            }
+            var LIST_PAGE = 5;
+            function listSection(id, title, count, placeholder) {
+                return '<div class="card stats-section club-events-dashboard" id="class-' + id + '">' +
+                    headingRow(title + ' (' + count + ')', 'class-search-' + id, placeholder) +
+                    carouselShell('class-' + id, 'Swipe Right or Left for more') +
+                    '</div>';
+            }
 
             var html = '' +
                 '<div class="container club-page class-gold-page">' +
@@ -5147,26 +5416,85 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                 (meta.length ? '<p class="club-story-meta">' + esc(meta.join(' · ')) + '</p>' : '') +
                 strips +
                 '</div></div>' +
-                section('regattas', 'Regattas (' + regattas.length + ')', 'class-regattas-table', regattaTable) +
-                (clubs.length ? section('clubs', 'Clubs sailing ' + className + ' (' + clubs.length + ')', 'class-clubs-table', clubsTable) : '') +
-                section('sailors', 'Sailors (' + sailors.length + ')', 'class-sailors-table', sailorsTable) +
+                eventsHtml +
+                (clubs.length ? listSection('clubs', 'Clubs sailing ' + className, clubs.length, 'Search clubs…') : '') +
+                listSection('sailors', 'Sailors', sailors.length, 'Search sailors name…') +
                 '</div></div>';
 
             cv.innerHTML = html;
-            // Table filters
-            cv.querySelectorAll('.club-table-filter').forEach(function(inp) {
-                inp.addEventListener('input', function() {
-                    var id = inp.getAttribute('data-table');
-                    var table = document.getElementById(id);
-                    if (!table) return;
-                    var q = (inp.value || '').toLowerCase().trim();
-                    table.querySelectorAll('tbody tr').forEach(function(tr) {
-                        var hay = tr.getAttribute('data-search') || tr.textContent.toLowerCase();
-                        tr.style.display = (!q || hay.indexOf(q) !== -1) ? '' : 'none';
-                    });
+
+            function paintEvents(panelId, list) {
+                fillPages(panelId, list.map(function(e, i) {
+                    return renderEventCard(e, panelId, i + 1, list.length);
+                }));
+            }
+            function activateTab(tab) {
+                cv.querySelectorAll('.events-tab').forEach(function(x) {
+                    var on = x.getAttribute('data-tab') === tab;
+                    x.classList.toggle('active', on);
+                    x.setAttribute('aria-selected', on ? 'true' : 'false');
                 });
+                cv.querySelectorAll('.events-panel').forEach(function(p) {
+                    p.classList.toggle('active', p.id === 'panel-' + tab);
+                });
+            }
+            function currentEventLists() {
+                var q = (document.getElementById('class-search-events') || {}).value || '';
+                return {
+                    live: filterList(evLive, q, eventHaystack),
+                    upcoming: filterList(evUpcoming, q, eventHaystack),
+                    past: filterList(evPast, q, eventHaystack)
+                };
+            }
+            function refreshEvents() {
+                var lists = currentEventLists();
+                if (showLive) paintEvents('live', lists.live);
+                paintEvents('upcoming', lists.upcoming);
+                paintEvents('past', lists.past);
+                var map = { live: lists.live.length, upcoming: lists.upcoming.length, past: lists.past.length };
+                cv.querySelectorAll('.events-tab').forEach(function(btn) {
+                    var k = btn.getAttribute('data-tab');
+                    var span = btn.querySelector('.events-tab-count');
+                    if (span && map[k] !== undefined) span.textContent = String(map[k]);
+                });
+            }
+            function firstTab() {
+                if (showLive && evLive.length) return 'live';
+                if (evUpcoming.length) return 'upcoming';
+                return 'past';
+            }
+            refreshEvents();
+            activateTab(firstTab());
+            cv.querySelectorAll('.events-tab').forEach(function(btn) {
+                btn.addEventListener('click', function() { activateTab(btn.getAttribute('data-tab')); });
             });
-            if (typeof attachSortableTables === 'function') attachSortableTables(cv);
+            var evSearch = document.getElementById('class-search-events');
+            if (evSearch) evSearch.addEventListener('input', refreshEvents);
+
+            function paintList(panelId, list, renderOne) {
+                var pages = [];
+                for (var p = 0; p < list.length; p += LIST_PAGE) {
+                    var chunk = list.slice(p, p + LIST_PAGE);
+                    pages.push(chunk.map(function(item, j) {
+                        return renderOne(item, p + j);
+                    }).join(''));
+                }
+                fillPages(panelId, pages);
+            }
+            function refreshSailors() {
+                var q = (document.getElementById('class-search-sailors') || {}).value || '';
+                paintList('class-sailors', filterList(sailors, q, sailorHay), sailorCard);
+            }
+            function refreshClubs() {
+                var q = (document.getElementById('class-search-clubs') || {}).value || '';
+                paintList('class-clubs', filterList(clubs, q, clubHay), clubCard);
+            }
+            refreshSailors();
+            if (clubs.length) refreshClubs();
+            var sSearch = document.getElementById('class-search-sailors');
+            if (sSearch) sSearch.addEventListener('input', refreshSailors);
+            var cSearch = document.getElementById('class-search-clubs');
+            if (cSearch) cSearch.addEventListener('input', refreshClubs);
         };
 
         // Initialize popup handlers
