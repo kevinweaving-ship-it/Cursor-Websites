@@ -15,7 +15,7 @@
   var WX_ID = 'ssa-regatta-slot-card';
   var MM_ID = 'mmLiptonReels';
   var CSS_ID = 'club-live-media-css';
-  var JS_VER = 'clubwx13';
+  var JS_VER = 'clubwx14';
   var HYC_CAM_ID = 'hyc-club-cam';
   var HYC_LIVE_CAM = 'hyc-club';
 
@@ -102,11 +102,12 @@
       '.club-live-media.club-live-media--cam-off:not(.club-live-media--sa) .club-hyc-cam,' +
       '.club-live-media.club-live-media--cam-off:not(.club-live-media--sa) .club-live-cam{display:none!important}' +
       '.club-hyc-cam,.club-live-cam{width:100%;max-width:100%;margin-top:10px;padding:0;overflow:hidden}' +
-      '.club-hyc-cam-cell,.club-live-cam-cell{position:relative;aspect-ratio:16/9;width:100%;background:#111;overflow:hidden}' +
-      '.club-hyc-cam-cell video-stream,.club-live-cam-cell video-stream{position:absolute;inset:0;width:100%;height:100%;display:block}' +
-      '.club-hyc-cam-cell video-stream .mode,.club-live-cam-cell video-stream .mode{display:none!important}' +
-      '.club-hyc-cam-cell video,.club-live-cam-cell video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}' +
-      '.club-hyc-cam .club-cam-sa-toggle,.club-live-cam .club-cam-sa-toggle{width:100%;box-sizing:border-box;margin:8px 0 0}';
+      '.club-hyc-cam .cam-cell,.club-live-cam .cam-cell,.club-hyc-cam-cell,.club-live-cam-cell{position:relative;aspect-ratio:16/9;width:100%;background:#000;overflow:hidden}' +
+      '.club-hyc-cam .cam-cell video-stream,.club-live-cam .cam-cell video-stream,.club-hyc-cam-cell video-stream,.club-live-cam-cell video-stream{width:100%;height:100%;display:block}' +
+      '.club-hyc-cam video-stream .mode,.club-live-cam video-stream .mode,.club-hyc-cam-cell video-stream .mode,.club-live-cam-cell video-stream .mode{display:none!important}' +
+      '.club-hyc-cam .cam-cell video,.club-live-cam .cam-cell video,.club-hyc-cam-cell video,.club-live-cam-cell video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}' +
+      '.club-hyc-cam .club-cam-sa-toggle,.club-live-cam .club-cam-sa-toggle{width:100%;box-sizing:border-box;margin:8px 0 0}' +
+      '.club-hyc-cam .cam-cap,.club-live-cam .cam-cap{position:absolute;left:8px;top:8px;z-index:2;color:#fff;font:700 12px Arial,Helvetica,sans-serif;text-shadow:0 1px 2px #000}';
     document.head.appendChild(s);
   }
 
@@ -231,13 +232,9 @@
     el.setAttribute('aria-label', (src && src.label) || club.camLabel || 'HYC club cam');
     el.setAttribute('data-live-cam', liveId);
     el.setAttribute('data-mm-cam-status', (src && src.statusApi) || club.camStatusApi || '/api/club-cam/hyc');
-    if (!el.querySelector('[data-cam]')) {
+    if (!el.querySelector('.cam-cell, [data-cam]')) {
       el.innerHTML =
-        '<div class="club-live-cam-cell club-hyc-cam-cell" data-cam="' +
-        streamName +
-        '" data-live-cam="' +
-        liveId +
-        '"><span class="club-hyc-cam-cap">HYC</span></div>' +
+        '<div class="cam-cell" data-cam="hyc"><span class="cam-cap">HYC</span></div>' +
         '<button type="button" class="club-cam-sa-toggle" data-club-cam-sa hidden>' +
         'Hide live cam from public</button>';
     }
@@ -245,30 +242,31 @@
   }
 
   function startHycGo2rtc() {
-    var cell = document.querySelector('#' + HYC_CAM_ID + ' [data-cam], [data-live-cam="' + HYC_LIVE_CAM + '"] [data-cam]');
-    if (!cell) return;
-    if (window.SSALiveCam && typeof window.SSALiveCam.attach === 'function') {
-      window.SSALiveCam.attach(cell, cell.getAttribute('data-live-cam') || HYC_LIVE_CAM);
+    var box = document.getElementById(HYC_CAM_ID);
+    if (!box) return;
+    if (window.SSALiveCam && typeof window.SSALiveCam.start === 'function') {
+      window.SSALiveCam.start(box);
       return;
     }
-    if (cell.querySelector('video-stream')) return;
-    if (cell.getAttribute('data-hyc-loading') === '1') return;
-    cell.setAttribute('data-hyc-loading', '1');
-    import('https://sailingsa.co.za:8443/video-stream.js')
+    var CAM = 'https://sailingsa.co.za:8443/';
+    import(CAM + 'video-stream.js')
       .then(function () {
-        cell = document.querySelector('#' + HYC_CAM_ID + ' [data-cam]');
-        if (!cell) return;
-        if (cell.querySelector('video-stream')) return;
-        var el = document.createElement('video-stream');
-        el.mode = 'webrtc,mse';
-        el.background = false;
-        el.src = new URL('api/ws?src=hyc', 'https://sailingsa.co.za:8443/');
-        cell.appendChild(el);
+        box.querySelectorAll('.cam-cell, [data-cam]').forEach(function (cell) {
+          if (cell.querySelector('video-stream')) return;
+          var name = cell.getAttribute('data-cam') || 'hyc';
+          var el = document.createElement('video-stream');
+          el.mode = 'webrtc,mse';
+          el.background = false;
+          el.src = new URL('api/ws?src=' + name, CAM);
+          cell.appendChild(el);
+          var v0 = el.video || el.querySelector('video');
+          if (v0) {
+            v0.controls = false;
+            v0.removeAttribute('controls');
+          }
+        });
       })
-      .catch(function () {
-        cell = document.querySelector('#' + HYC_CAM_ID + ' [data-cam]');
-        if (cell) cell.removeAttribute('data-hyc-loading');
-      });
+      .catch(function () {});
   }
 
   function makeMmCam(club) {

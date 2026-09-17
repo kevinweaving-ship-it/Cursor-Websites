@@ -25398,11 +25398,11 @@ def _serve_club_page_impl(slug: str, club: tuple):
         "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
         f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
         "<link rel=\"stylesheet\" href=\"/css/main.css?v=13\">"
-        '<link rel="stylesheet" href="/css/mm-lipton-reels.css?v=clubwx13">'
+        '<link rel="stylesheet" href="/css/mm-lipton-reels.css?v=clubwx14">'
         f"<style>body{{font-family:system-ui,sans-serif;margin:2rem;color:#1a2750;}}a{{color:#1a2750;}}{_CLUB_PAGE_CSS}</style></head><body>"
         f"<div class=\"club-page\">{body}</div>"
-        '<script src="/js/live-cam-sources.js?v=clubwx13" defer></script>'
-        '<script src="/js/club-live-media.js?v=clubwx13" defer></script>'
+        '<script src="/js/live-cam-sources.js?v=clubwx14" defer></script>'
+        '<script src="/js/club-live-media.js?v=clubwx14" defer></script>'
         f"{_seo_discovery_block_html()}</body></html>"
     )
     return HTMLResponse(doc)

@@ -1312,7 +1312,7 @@
       return;
     }
     var s = document.createElement('script');
-    s.src = '/js/live-cam-sources.js?v=clubwx13';
+    s.src = '/js/live-cam-sources.js?v=clubwx14';
     s.onload = cb;
     s.onerror = cb;
     document.head.appendChild(s);
@@ -1327,7 +1327,7 @@
     }
     return (
       '<div class="mm-lipton-reels-tile mm-lipton-reels-tile--live">' +
-      '<div class="mm-lipton-reels-thumb mm-lipton-reels-thumb--live" style="aspect-ratio:16 / 9" data-hyc-go2rtc data-live-cam="' +
+      '<div class="mm-lipton-reels-thumb mm-lipton-reels-thumb--live cam-cell" style="aspect-ratio:16 / 9" data-hyc-go2rtc data-live-cam="' +
       esc(id) +
       '" data-cam="' +
       esc(srcName) +
@@ -1338,9 +1338,10 @@
   }
 
   function startLivePass(root) {
-    var cells = root ? root.querySelectorAll('[data-live-cam], [data-hyc-go2rtc]') : [];
-    if (!livePassCamRoot(root) && !cells.length) return;
-    if (!cells.length) {
+    if (!root) return;
+    var has = root.querySelector('.cam-cell, [data-live-cam], [data-hyc-go2rtc], [data-cam]');
+    if (!livePassCamRoot(root) && !has) return;
+    if (!has) {
       if (!root._mmLivePassTries) root._mmLivePassTries = 0;
       if (root._mmLivePassTries < 8) {
         root._mmLivePassTries += 1;
@@ -1351,42 +1352,32 @@
       return;
     }
     ensureLiveCamCatalog(function () {
-      var i;
-      var attached = false;
-      for (i = 0; i < cells.length; i++) {
-        var cell = cells[i];
-        if (!cell || !cell.isConnected) continue;
-        if (cell.querySelector('video-stream')) {
-          attached = true;
-          continue;
-        }
-        var id = cell.getAttribute('data-live-cam') || liveCamIdOf(root) || 'hyc-club';
-        if (window.SSALiveCam && typeof window.SSALiveCam.attach === 'function') {
-          window.SSALiveCam.attach(cell, id);
-          attached = true;
-          continue;
-        }
-        if (root._mmGo2rtcLoading) continue;
-        root._mmGo2rtcLoading = true;
-        import(GO2RTC + 'video-stream.js')
-          .then(function () {
-            root._mmGo2rtcLoading = false;
-            if (!cell.isConnected || cell.querySelector('video-stream')) return;
+      if (window.SSALiveCam && typeof window.SSALiveCam.start === 'function') {
+        window.SSALiveCam.start(root).then(function () {
+          if (root.querySelector('video-stream')) {
+            root._mmCamUpstream = true;
+            paintCamStamps(root);
+          }
+        });
+        return;
+      }
+      import(GO2RTC + 'video-stream.js')
+        .then(function () {
+          root.querySelectorAll('.cam-cell, [data-cam]').forEach(function (cell) {
+            if (cell.querySelector('video-stream')) return;
+            var name = cell.getAttribute('data-cam') || GO2RTC_HYC;
             var el = document.createElement('video-stream');
             el.mode = 'webrtc,mse';
             el.background = false;
-            el.src = new URL('api/ws?src=' + GO2RTC_HYC, GO2RTC);
-            cell.insertBefore(el, cell.firstChild);
-          })
-          .catch(function () {
-            root._mmGo2rtcLoading = false;
-            setCamUpstream(root, false);
+            el.src = new URL('api/ws?src=' + name, GO2RTC);
+            cell.appendChild(el);
           });
-      }
-      if (attached) {
-        root._mmCamUpstream = true;
-        paintCamStamps(root);
-      }
+          root._mmCamUpstream = true;
+          paintCamStamps(root);
+        })
+        .catch(function () {
+          setCamUpstream(root, false);
+        });
     });
   }
 

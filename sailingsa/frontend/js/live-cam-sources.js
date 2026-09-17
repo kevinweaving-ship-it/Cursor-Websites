@@ -1,33 +1,28 @@
 /**
- * Live cam sources — one catalog for club pages and MM event cards.
+ * Live cams — same grab as Voelklip.
  *
- * Each source answers:
- *   how  — player recipe (go2rtc video-stream | jpeg poll)
- *   where — origin + stream name, still URL, status API
- *   why  — club venue permanent view and/or MM event card video
+ * HOW:  import video-stream.js from go2rtc, append <video-stream> into a static .cam-cell.
+ * WHERE: cell[data-cam] is the go2rtc stream name (garage, workshop, pool, driveway, hyc).
+ * WHY:  one feed, used on a club URL and/or an MM event card. Never rewrite a cell
+ *       that already has <video-stream> (that flash is what Voelklip does not do).
  *
- * Surfaces:
- *   clubSurface 'permanent' → /club/{slug} card (not the MM reel)
- *   clubSurface 'mm-snapshot' → existing snapshot MM card (HMYC, leave as deployed)
- *   mmSurface true → same source id is a video on an MM-type event card
- *
- * Voelklip rule: never rewrite a cell that already has <video-stream>.
- * Super Admin show/hide uses statusApi + saPatch when present.
+ * Club page:  <div class="cam-cell" data-cam="hyc">
+ * MM event:   same cell / same data-cam inside the MM card (data-live-cam="hyc").
  */
 (function (global) {
   'use strict';
   if (global.SSALiveCam) return;
 
-  var GO2RTC = 'https://sailingsa.co.za:8443/';
+  var CAM = 'https://sailingsa.co.za:8443/';
 
   var SOURCES = {
-    'hyc-club': {
-      id: 'hyc-club',
-      label: 'HYC club cam',
-      why: 'Hermanus Yacht Club venue view. Same feed on /club/hyc (permanent card) or an MM event card (video source). Super Admin can hide it from the public. Stream name hyc is reserved; Cam 5 is not on the NVR yet.',
-      how: 'go2rtc',
-      origin: GO2RTC,
+    hyc: {
+      id: 'hyc',
       src: 'hyc',
+      label: 'HYC',
+      why: 'HYC club live cam. Club page /club/hyc is a permanent card. Same data-cam=hyc is the video on an MM event card.',
+      how: 'go2rtc',
+      origin: CAM,
       player: 'video-stream',
       mode: 'webrtc,mse',
       clubSlug: 'hyc',
@@ -38,10 +33,61 @@
       saPatch: '/api/super-admin/club-cam/hyc',
       href: 'https://www.hyc.co.za/',
     },
+    'hyc-club': null,
+    garage: {
+      id: 'garage',
+      src: 'garage',
+      label: 'Garage',
+      why: 'Voelklip reference cam.',
+      how: 'go2rtc',
+      origin: CAM,
+      player: 'video-stream',
+      mode: 'webrtc,mse',
+      clubSurface: 'none',
+      mmSurface: false,
+      href: 'https://sailingsa.co.za/voelklip/',
+    },
+    workshop: {
+      id: 'workshop',
+      src: 'workshop',
+      label: 'Workshop',
+      why: 'Voelklip reference cam.',
+      how: 'go2rtc',
+      origin: CAM,
+      player: 'video-stream',
+      mode: 'webrtc,mse',
+      clubSurface: 'none',
+      mmSurface: false,
+    },
+    pool: {
+      id: 'pool',
+      src: 'pool',
+      label: 'Pool',
+      why: 'Voelklip reference cam.',
+      how: 'go2rtc',
+      origin: CAM,
+      player: 'video-stream',
+      mode: 'webrtc,mse',
+      clubSurface: 'none',
+      mmSurface: false,
+    },
+    driveway: {
+      id: 'driveway',
+      src: 'driveway',
+      label: 'Driveway',
+      why: 'Voelklip reference cam.',
+      how: 'go2rtc',
+      origin: CAM,
+      player: 'video-stream',
+      mode: 'webrtc,mse',
+      clubSurface: 'none',
+      mmSurface: false,
+    },
     'hmyc-club': {
       id: 'hmyc-club',
+      src: '',
       label: 'HMYC club cam',
-      why: 'Midmar still from Agromet. JPEG poll, not a live pass-through. Club page keeps the snapshot MM card as deployed.',
+      why: 'JPEG snapshot poll, not go2rtc. Club page keeps the snapshot MM card as deployed.',
       how: 'snapshot',
       still: 'https://hmyccam1.nwsza.net/latest.jpg',
       pollMs: 60000,
@@ -51,23 +97,12 @@
       statusApi: '/api/club-cam/hmyc',
       href: 'https://agromet.ukzn.ac.za/midmar/index.html#canvas_container',
     },
-    'voelklip-garage': {
-      id: 'voelklip-garage',
-      label: 'Voelklip garage',
-      why: 'Reference live recipe: static .cam-cell, import video-stream.js, mode webrtc,mse. Not a club-page cam.',
-      how: 'go2rtc',
-      origin: GO2RTC,
-      src: 'garage',
-      player: 'video-stream',
-      mode: 'webrtc,mse',
-      clubSurface: 'none',
-      mmSurface: false,
-      href: 'https://sailingsa.co.za/voelklip/',
-    },
   };
+  SOURCES['hyc-club'] = SOURCES.hyc;
 
   function get(id) {
     var key = String(id || '').trim();
+    if (key === 'hyc-club') key = 'hyc';
     return key && SOURCES[key] ? SOURCES[key] : null;
   }
 
@@ -82,11 +117,7 @@
 
   function wsUrl(src) {
     if (!src || src.how !== 'go2rtc' || !src.src) return '';
-    try {
-      return new URL('api/ws?src=' + encodeURIComponent(src.src), src.origin || GO2RTC).href;
-    } catch (e) {
-      return String(src.origin || GO2RTC).replace(/\/?$/, '/') + 'api/ws?src=' + encodeURIComponent(src.src);
-    }
+    return new URL('api/ws?src=' + src.src, src.origin || CAM).href;
   }
 
   function mmVideo(id) {
@@ -127,46 +158,58 @@
     return null;
   }
 
-  function muteVideo(node) {
-    var v = node && (node.video || (node.querySelector && node.querySelector('video')));
-    if (!v) return;
-    v.controls = false;
-    v.removeAttribute('controls');
-    v.muted = true;
-    v.playsInline = true;
-    v.setAttribute('playsinline', '');
+  function cellsIn(box) {
+    if (!box) return [];
+    if (box.classList && box.classList.contains('cam-cell')) return [box];
+    var nested = box.querySelectorAll('.cam-cell, [data-cam]');
+    if (nested.length) return Array.prototype.slice.call(nested);
+    if (box.getAttribute && box.getAttribute('data-cam')) return [box];
+    return [];
   }
 
-  function attach(cell, sourceId) {
-    var src = get(sourceId);
-    if (!cell || !src) return Promise.resolve(null);
-    cell.setAttribute('data-live-cam', src.id);
-    if (src.src) cell.setAttribute('data-cam', src.src);
-    if (src.how !== 'go2rtc') return Promise.resolve(src);
-    if (cell.querySelector('video-stream')) return Promise.resolve(src);
-    if (cell.getAttribute('data-live-cam-loading') === '1') return Promise.resolve(src);
-    cell.setAttribute('data-live-cam-loading', '1');
-    var origin = src.origin || GO2RTC;
-    return import(origin + 'video-stream.js')
+  /**
+   * Voelklip loadStreams, copied. box is the card (or a single .cam-cell).
+   * never rewrite: if the cell already has video-stream, skip it.
+   */
+  function start(box) {
+    if (!box) return Promise.resolve(null);
+    return import(CAM + 'video-stream.js')
       .then(function () {
-        if (!cell.isConnected) return src;
-        if (cell.querySelector('video-stream')) return src;
-        var el = document.createElement('video-stream');
-        el.mode = src.mode || 'webrtc,mse';
-        el.background = false;
-        el.src = new URL('api/ws?src=' + encodeURIComponent(src.src), origin);
-        cell.appendChild(el);
-        muteVideo(el);
-        return src;
+        cellsIn(box).forEach(function (cell) {
+          if (cell.querySelector('video-stream')) return;
+          var name = cell.getAttribute('data-cam');
+          if (!name) return;
+          var el = document.createElement('video-stream');
+          el.mode = 'webrtc,mse';
+          el.background = false;
+          el.src = new URL('api/ws?src=' + name, CAM);
+          cell.appendChild(el);
+          var v0 = el.video || el.querySelector('video');
+          if (v0) {
+            v0.controls = false;
+            v0.removeAttribute('controls');
+          }
+        });
+        return box;
       })
       .catch(function () {
-        cell.removeAttribute('data-live-cam-loading');
         return null;
       });
   }
 
+  function attach(cell, sourceId) {
+    var src = get(sourceId);
+    if (cell && src && src.src) cell.setAttribute('data-cam', src.src);
+    if (cell && src) cell.setAttribute('data-live-cam', src.id);
+    if (cell && src && src.how !== 'go2rtc') return Promise.resolve(src);
+    return start(cell).then(function () {
+      return src || null;
+    });
+  }
+
   global.SSALiveCam = {
-    GO2RTC: GO2RTC,
+    CAM: CAM,
+    GO2RTC: CAM,
     SOURCES: SOURCES,
     get: get,
     forClub: forClub,
@@ -174,5 +217,6 @@
     mmVideo: mmVideo,
     eventVideo: mmVideo,
     attach: attach,
+    start: start,
   };
 })(window);
