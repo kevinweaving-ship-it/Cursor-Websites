@@ -25396,10 +25396,10 @@ def _serve_club_page_impl(slug: str, club: tuple):
         "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
         f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
         "<link rel=\"stylesheet\" href=\"/css/main.css?v=13\">"
-        "<link rel=\"stylesheet\" href=\"/css/mm-lipton-reels.css?v=clubwx3\">"
+        "<link rel=\"stylesheet\" href=\"/css/mm-lipton-reels.css?v=clubwx4\">"
         f"<style>body{{font-family:system-ui,sans-serif;margin:2rem;color:#1a2750;}}a{{color:#1a2750;}}{_CLUB_PAGE_CSS}</style></head><body>"
         f"<div class=\"club-page\">{body}</div>"
-        '<script src="/js/club-live-media.js?v=clubwx3" defer></script>'
+        '<script src="/js/club-live-media.js?v=clubwx4" defer></script>'
         f"{_seo_discovery_block_html()}</body></html>"
     )
     return HTMLResponse(doc)
@@ -25469,9 +25469,21 @@ def _resolve_class_slug_to_class_id(class_slug: str):
 @app.get("/api/weather/agromet-midmar/history")
 def api_weather_agromet_midmar_history(hours: int = Query(12, ge=1, le=48)):
     """HMYC venue wind from UKZN Agromet Midmar (same card as ZVYC/HYC)."""
-    if _agromet_history_payload is None:
+    if (_agromet_history_payload is None:
         return JSONResponse({"ok": False, "slug": "agromet-midmar", "count": 0, "readings": [], "err": "agromet module missing"})
     return JSONResponse(_agromet_history_payload(hours))
+
+
+@app.get("/api/club-cam/hmyc")
+def api_club_cam_hmyc():
+    """HMYC club cam is a still (about 1 min), not a live stream."""
+    try:
+        from sailingsa.backend.weather_agromet import snapshot_status as _hmyc_cam_status
+    except ImportError:
+        _hmyc_cam_status = None
+    if _hmyc_cam_status is None:
+        return JSONResponse({"ok": False, "kind": "snapshot", "label": "Club cam", "interval_sec": 60, "err": "agromet module missing"})
+    return JSONResponse(_hmyc_cam_status())
 
 
 @app.get("/api/class/resolve-slug/{slug}")

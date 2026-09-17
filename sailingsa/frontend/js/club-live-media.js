@@ -1,7 +1,7 @@
 /**
- * Club-page live media: venue weather card + live-cam card (MM compact layout).
- * ZVYC / HYC / HMYC. Club logo on the cam card — not Marine Megastore, the
- * feed belongs to the club. No-op on other club slugs.
+ * Club-page venue weather + camera cards (MM compact layout).
+ * Snapshot cams are labelled Club cam / SNAPSHOT, not live.
+ * Club logo on the cam card — not Marine Megastore.
  */
 (function () {
   'use strict';
@@ -13,7 +13,7 @@
   var CAM_ID = 'clubLiveCam';
   var MM_ID = 'mmLiptonReels';
   var CSS_ID = 'club-live-media-css';
-  var JS_VER = 'clubwx3';
+  var JS_VER = 'clubwx4';
   var ART_W = 320;
   var ART_H = 213;
   var VID_W = 16;
@@ -31,7 +31,7 @@
       cam: 'mm',
       logo: '/artwork/Club Logo/ZVYC.png',
       logoHref: 'https://zvyc.co.za/',
-      logoAlt: 'ZVYC live cam',
+      logoAlt: 'ZVYC',
       regattaId: '2026-09-13-zvyc-cape-classic',
     },
     hyc: {
@@ -52,8 +52,9 @@
       weatherRole: 'venue',
       cam: 'still',
       still: AGRO_CAM,
+      stillIntervalMs: 60000,
       camHref: AGRO_PAGE,
-      camLabel: 'HMYC live cam',
+      camLabel: 'HMYC club cam',
       logo: '/artwork/Club Logo/HMYC.png',
       logoHref: AGRO_PAGE,
       logoAlt: 'HMYC',
@@ -88,7 +89,12 @@
       '.club-live-cam .mm-lipton-reels-brand{background:#fff;}' +
       '.club-live-cam .mm-lipton-reels-brand img{object-fit:contain;background:#fff;}' +
       '.club-live-cam .club-cam-soon{display:flex;align-items:center;justify-content:center;width:100%;height:100%;padding:8px;box-sizing:border-box;background:#0b1c33;color:#e2e8f0;font:700 13px/1.25 Arial,Helvetica,sans-serif;text-align:center;}' +
-      '.club-live-cam .mm-lipton-reels-thumb img{object-fit:cover;}';
+      '.club-live-cam .mm-lipton-reels-thumb{position:relative;}' +
+      '.club-live-cam .mm-lipton-reels-thumb img{object-fit:cover;}' +
+      '.club-cam-stamp{position:absolute;left:4px;right:4px;top:4px;z-index:3;display:flex;flex-direction:row;align-items:center;gap:5px;padding:2px 6px;border-radius:4px;background:rgba(0,16,24,.72);color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;text-shadow:0 1px 2px rgba(0,0,0,.85);font:700 9px/1.2 Arial,Helvetica,sans-serif;}' +
+      '.club-cam-stamp-dot{flex:0 0 auto;width:8px;height:8px;border-radius:50%;background:#94a3b8;}' +
+      '.club-cam-stamp-kind{font-weight:800;letter-spacing:.03em;}' +
+      '.club-cam-stamp-time{font-weight:700;opacity:.95;}';
     document.head.appendChild(s);
   }
 
@@ -131,15 +137,19 @@
         '<img data-club-cam-still src="' +
         club.still +
         '" alt="' +
-        (club.camLabel || club.logoAlt) +
+        (club.camLabel || 'Club cam') +
         '" loading="lazy" decoding="async">' +
-        '</div></a>'
+        '<div class="club-cam-stamp">' +
+        '<span class="club-cam-stamp-dot" aria-hidden="true"></span>' +
+        '<span class="club-cam-stamp-kind">SNAPSHOT</span>' +
+        '<span class="club-cam-stamp-time" data-club-cam-time></span>' +
+        '</div></div></a>'
       );
     }
     return (
       '<div class="mm-lipton-reels-tile">' +
-      '<div class="mm-lipton-reels-thumb" aria-label="Live cam coming soon">' +
-      '<div class="club-cam-soon">Live cam coming soon</div>' +
+      '<div class="mm-lipton-reels-thumb" aria-label="Club cam coming soon">' +
+      '<div class="club-cam-soon">Club cam coming soon</div>' +
       '</div></div>'
     );
   }
@@ -194,7 +204,26 @@
   function tickStill(club) {
     var img = document.querySelector('#clubLiveCam [data-club-cam-still]');
     if (!img || !club.still) return;
-    img.src = club.still + (club.still.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
+    fetch('/api/club-cam/hmyc?_=' + Date.now(), { cache: 'no-store', credentials: 'same-origin' })
+      .then(function (res) {
+        return res.ok ? res.json() : null;
+      })
+      .then(function (meta) {
+        var token = '';
+        var asAt = '';
+        if (meta && meta.last_modified) token = String(meta.last_modified);
+        else token = String(Date.now());
+        if (meta && meta.as_at) asAt = 'as at ' + meta.as_at;
+        if (img.getAttribute('data-cam-token') !== token) {
+          img.setAttribute('data-cam-token', token);
+          img.src = club.still + (club.still.indexOf('?') >= 0 ? '&' : '?') + 't=' + encodeURIComponent(token);
+        }
+        var timeEl = document.querySelector('#clubLiveCam [data-club-cam-time]');
+        if (timeEl) timeEl.textContent = asAt;
+      })
+      .catch(function () {
+        img.src = club.still + (club.still.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
+      });
   }
 
   function makeWx(club) {
@@ -246,7 +275,7 @@
       cam.className = 'card mm-lipton-reels mm-lipton-reels--compact club-live-cam';
     }
     cam.setAttribute('data-club-cam', club.cam);
-    cam.setAttribute('aria-label', club.code + ' live camera');
+    cam.setAttribute('aria-label', club.code + ' club camera');
     cam.innerHTML = camInnerHtml(club);
     return cam;
   }
@@ -282,7 +311,7 @@
     var host = document.createElement('div');
     host.id = HOST_ID;
     host.className = 'club-live-media';
-    host.setAttribute('aria-label', 'Live weather and club camera');
+    host.setAttribute('aria-label', 'Venue weather and club camera');
 
     var ident = document.querySelector('.club-story-identity');
     if (ident && ident.parentNode) {
@@ -362,9 +391,10 @@
     layoutCam();
     window.addEventListener('resize', layoutCam);
     if (club.cam === 'still') {
+      tickStill(club);
       window.setInterval(function () {
         tickStill(club);
-      }, 10000);
+      }, club.stillIntervalMs || 60000);
     }
     var wxSrc = '/js/regatta-slot-card.js?v=' + JS_VER;
     if (club.cam === 'mm') {

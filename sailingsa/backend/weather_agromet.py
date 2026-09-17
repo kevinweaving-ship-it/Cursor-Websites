@@ -21,6 +21,10 @@ AGROMET_QUERY = "https://agromet.ukzn.ac.za/midmar/?command=DataQuery"
 URI = "Server:Midmar.Five"
 SAST = ZoneInfo("Africa/Johannesburg")
 MS_TO_KT = 1.9438444924406
+# HMYC cam is a still (latest.jpg), not a stream. Last-Modified advances ~once a minute.
+CAM_STILL = "https://hmyccam1.nwsza.net/latest.jpg"
+CAM_INTERVAL_SEC = 60
+CAM_LABEL = "Club cam"
 FIELDS = [
     "AirTC_Avg",
     "RH",
@@ -139,3 +143,48 @@ def history_payload(hours: int = 12) -> dict:
         return fetch_agromet_five(hours)
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as exc:
         return {"ok": False, "slug": SLUG, "count": 0, "readings": [], "err": str(exc)[:200]}
+
+
+def _format_as_at(dt: datetime) -> str:
+    local = dt.astimezone(SAST)
+    return local.strftime("%H:%M")
+
+
+def snapshot_status() -> dict:
+    """HEAD latest.jpg. This is a snapshot file, not a live stream."""
+    try:
+        req = urllib.request.Request(
+            CAM_STILL,
+            method="HEAD",
+            headers={"User-Agent": "SailingSA-weather/1.0"},
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            raw_lm = resp.headers.get("Last-Modified") or ""
+        as_at = None
+        last_iso = None
+        if raw_lm:
+            from email.utils import parsedate_to_datetime
+
+            dt = parsedate_to_datetime(raw_lm)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            last_iso = dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+            as_at = _format_as_at(dt)
+        return {
+            "ok": True,
+            "kind": "snapshot",
+            "label": CAM_LABEL,
+            "interval_sec": CAM_INTERVAL_SEC,
+            "src": CAM_STILL,
+            "last_modified": last_iso,
+            "as_at": as_at,
+        }
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
+        return {
+            "ok": False,
+            "kind": "snapshot",
+            "label": CAM_LABEL,
+            "interval_sec": CAM_INTERVAL_SEC,
+            "src": CAM_STILL,
+            "err": str(exc)[:200],
+        }
