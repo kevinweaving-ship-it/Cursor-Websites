@@ -183,10 +183,34 @@
         .class-gold-page .club-story-meta-item {
             display: inline-flex;
             flex-direction: row;
-            align-items: baseline;
+            align-items: center;
             gap: 0.28rem;
             white-space: nowrap;
         }
+        .class-gold-page .club-story-meta-item .sa-home-regatta-meta-ico {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 14px;
+            height: 14px;
+            color: #60708b;
+            flex: 0 0 auto;
+        }
+        /* ZVYC gold: weather then cam, under identity, full story width */
+        .class-gold-page .club-live-media {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 52rem;
+            margin: 0 auto 1.25rem;
+            box-sizing: border-box;
+            padding: 0;
+            border: 0;
+            background: transparent;
+            box-shadow: none;
+        }
+        .class-gold-page .club-live-media .ssa-regatta-slot-card { order: 0; width: 100%; }
+        .class-gold-page .club-live-media .mm-lipton-reels { order: 1; width: 100%; margin-top: 10px; }
         .class-gold-page .club-story-meta-n,
         .class-gold-page .club-story-meta-w { display: inline-block; }
         @media (max-width: 640px) and (orientation: portrait) {
@@ -235,7 +259,16 @@
             padding: 8px 12px;
             margin: 0 0 0.75rem 0;
         }
-        .class-gold-page .sa-home-regatta-meta-pill { white-space: nowrap; }
+        .class-gold-page .sa-home-regatta-meta-pill { white-space: nowrap; gap: 5px; }
+        .class-gold-page .sa-home-regatta-meta-ico {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 13px;
+            height: 13px;
+            color: #60708b;
+            flex: 0 0 auto;
+        }
         @media (max-width: 768px) {
             .class-gold-page .club-story-logo-row { max-width: 100%; }
             .class-gold-page .club-home-cards-stack { max-width: 100%; }
@@ -5154,12 +5187,23 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
             var sailorsN = sailors.length || (data.active_sailors != null ? Number(data.active_sailors) : 0);
             var regN = data.total_regattas != null ? Number(data.total_regattas) : regattas.length;
             var raceN = data.total_races != null ? Number(data.total_races) : 0;
-            function metaPair(n, word) {
-                return '<span class="club-story-meta-item"><span class="club-story-meta-n">' + esc(String(n)) + '</span><span class="club-story-meta-w">' + esc(word) + '</span></span>';
+            function metaIco(kind) {
+                var svg = '';
+                if (kind === 'calendar') {
+                    svg = '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.25" y="3.5" width="11.5" height="9.5" rx="1.4"></rect><line x1="2.25" y1="6" x2="13.75" y2="6"></line><line x1="5" y1="2.25" x2="5" y2="4.75"></line><line x1="11" y1="2.25" x2="11" y2="4.75"></line></svg>';
+                } else if (kind === 'users') {
+                    svg = '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="5.5" r="2.1"></circle><circle cx="10.5" cy="6.2" r="1.8"></circle><path d="M2.7 12.4c.45-1.9 2.05-3 4.2-3 2.15 0 3.75 1.1 4.2 3"></path><path d="M9.4 11.8c.35-1.2 1.35-1.95 2.7-1.95 1.05 0 1.95.45 2.5 1.25"></path></svg>';
+                } else if (kind === 'flag') {
+                    svg = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><rect x="2.3" y="1.7" width="1.4" height="12.6" fill="currentColor"></rect><rect x="3.7" y="2" width="10.1" height="7.4" fill="#fff" stroke="currentColor" stroke-width="0.85"></rect><path fill="currentColor" d="M3.7 2h2.525v1.85H3.7zm5.05 0H11.275v1.85H8.75zm2.525 1.85H13.8v1.85h-2.525zM6.225 3.85H8.75v1.85H6.225zM3.7 5.7h2.525v1.85H3.7zm5.05 0H11.275v1.85H8.75zm2.525 1.85H13.8V9.4h-2.525zM6.225 7.55H8.75V9.4H6.225z"></path></svg>';
+                }
+                return svg ? '<span class="sa-home-regatta-meta-ico" aria-hidden="true">' + svg + '</span>' : '';
+            }
+            function metaPair(n, word, kind) {
+                return '<span class="club-story-meta-item">' + metaIco(kind) + '<span class="club-story-meta-n">' + esc(String(n)) + '</span><span class="club-story-meta-w">' + esc(word) + '</span></span>';
             }
             if (sailorsN) meta.push(metaPair(sailorsN, 'sailor' + (sailorsN === 1 ? '' : 's')));
             if (regN) meta.push(metaPair(regN, 'regatta' + (regN === 1 ? '' : 's')));
-            if (raceN) meta.push(metaPair(raceN.toLocaleString(), 'race' + (raceN === 1 ? '' : 's')));
+            if (raceN) meta.push(metaPair(raceN.toLocaleString(), 'race' + (raceN === 1 ? '' : 's'), 'flag'));
             if (clubs.length) meta.push(metaPair(clubs.length, 'club' + (clubs.length === 1 ? '' : 's')));
 
             var logoHtml = classLogo
@@ -5223,9 +5267,9 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                 if (!isFinite(num)) return '';
                 return num + ' ' + (num === 1 ? one : many);
             }
-            function metaPill(text) {
+            function metaPill(text, kind) {
                 if (!text) return '';
-                return '<span class="sa-home-regatta-meta-pill"><span>' + esc(text) + '</span></span>';
+                return '<span class="sa-home-regatta-meta-pill">' + metaIco(kind) + '<span>' + esc(text) + '</span></span>';
             }
             function classEventCard(r, panel) {
                 var slug = (r.regatta_slug || (r.regatta_id != null ? String(r.regatta_id) : '')) || '';
@@ -5245,9 +5289,15 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                 var titleHtml = url
                     ? '<a href="' + esc(url) + '" class="sa-home-regatta-title">' + esc(title) + '</a>'
                     : '<div class="sa-home-regatta-title">' + esc(title) + '</div>';
-                var meta = '<div class="sa-home-regatta-meta">' + metaPill(dateL) + metaPill(classEnt) + metaPill(racesL) + '</div>';
-                var hostInner = '<div class="sa-home-regatta-host-text">' +
+                var meta = '<div class="sa-home-regatta-meta">' + metaPill(dateL, 'calendar') + metaPill(classEnt, 'users') + metaPill(racesL, 'flag') + '</div>';
+                var hostLogoSrc = (r.club_logo_url || (hostCode ? '/api/club-logo/' + encodeURIComponent(hostCode) : '')).trim();
+                var hostName = (r.club_name || r.club_fullname || '').trim();
+                var hostLogo = hostLogoSrc
+                    ? '<img class="sa-home-regatta-host-logo" src="' + esc(hostLogoSrc) + '" alt="" loading="lazy" decoding="async" onerror="this.style.display=\'none\'">'
+                    : '';
+                var hostInner = hostLogo + '<div class="sa-home-regatta-host-text">' +
                     (hostCode ? '<div class="sa-home-regatta-host-code">' + esc(hostCode) + '</div>' : '') +
+                    (hostName ? '<div class="sa-home-regatta-host-name">' + esc(hostName) + '</div>' : '') +
                     '</div>';
                 var hostHtml = hostSlug
                     ? '<a class="sa-home-regatta-host" href="/club/' + encodeURIComponent(hostSlug) + '">' + hostInner + '</a>'
@@ -5293,7 +5343,8 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                 '.class-gold-page .sa-home-regatta-top-main{grid-area:main;min-width:0;}' +
                 '.class-gold-page .sa-home-regatta-title{font-size:15px;font-weight:900;color:#142c78;line-height:1.15;margin:0;text-decoration:none;}' +
                 '.class-gold-page .sa-home-regatta-meta{display:flex;flex-wrap:wrap;gap:8px;color:#5b6780;font-size:11.5px;margin-top:6px;}' +
-                '.class-gold-page .sa-home-regatta-meta-pill{display:inline-flex;align-items:center;font-weight:700;white-space:nowrap;position:relative;}' +
+                '.class-gold-page .sa-home-regatta-meta-pill{display:inline-flex;align-items:center;gap:5px;font-weight:700;white-space:nowrap;position:relative;}' +
+                '.class-gold-page .sa-home-regatta-meta-ico{display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;color:#60708b;}' +
                 '.class-gold-page .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill{padding-left:10px;}' +
                 '.class-gold-page .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill:before{content:"";position:absolute;left:0;top:2px;bottom:2px;width:1px;background:#cbd5e1;}' +
                 '.class-gold-page .sa-home-regatta-host{grid-area:host;display:flex;align-items:center;text-decoration:none;color:inherit;min-height:44px;}' +
@@ -11897,6 +11948,17 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                     var cr = document.createElementNS(ns, 'path');
                     cr.setAttribute('d', 'M6 3.5 10 8l-4 4.5');
                     svg.appendChild(cr);
+                } else if (name === 'flag') {
+                    svg.setAttribute('fill', 'currentColor');
+                    svg.setAttribute('stroke', 'none');
+                    var pole = document.createElementNS(ns, 'rect');
+                    pole.setAttribute('x', '2.3'); pole.setAttribute('y', '1.7'); pole.setAttribute('width', '1.4'); pole.setAttribute('height', '12.6');
+                    var board = document.createElementNS(ns, 'rect');
+                    board.setAttribute('x', '3.7'); board.setAttribute('y', '2'); board.setAttribute('width', '10.1'); board.setAttribute('height', '7.4');
+                    board.setAttribute('fill', '#fff'); board.setAttribute('stroke', 'currentColor'); board.setAttribute('stroke-width', '0.85');
+                    var checks = document.createElementNS(ns, 'path');
+                    checks.setAttribute('d', 'M3.7 2h2.525v1.85H3.7zm5.05 0H11.275v1.85H8.75zm2.525 1.85H13.8v1.85h-2.525zM6.225 3.85H8.75v1.85H6.225zM3.7 5.7h2.525v1.85H3.7zm5.05 0H11.275v1.85H8.75zm2.525 1.85H13.8V9.4h-2.525zM6.225 7.55H8.75V9.4H6.225z');
+                    svg.appendChild(pole); svg.appendChild(board); svg.appendChild(checks);
                 }
                 return svg;
             }
@@ -11995,6 +12057,17 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                 entriesItem.appendChild(document.createTextNode((displayEntries != null && displayEntries !== '—') ? (Number(displayEntries).toLocaleString() + ' Entries') : '— Entries'));
                 meta.appendChild(dateItem);
                 meta.appendChild(entriesItem);
+                var racesN = r.races != null ? r.races : (r.races_sailed != null ? r.races_sailed : (r.total_races != null ? r.total_races : null));
+                if (racesN != null && Number(racesN) > 0) {
+                    var racesItem = document.createElement('div');
+                    racesItem.className = 'sa-home-regatta-meta-pill';
+                    var racesIco = document.createElement('span');
+                    racesIco.className = 'sa-home-regatta-meta-ico';
+                    racesIco.appendChild(svgIcon('flag'));
+                    racesItem.appendChild(racesIco);
+                    racesItem.appendChild(document.createTextNode(Number(racesN).toLocaleString() + (Number(racesN) === 1 ? ' Race' : ' Races')));
+                    meta.appendChild(racesItem);
+                }
                 main.appendChild(meta);
 
                 var childrenWrap = document.createElement('div');
