@@ -710,20 +710,26 @@
   function kickCompactLive(root) {
     var nodes = root.querySelectorAll('video[data-mm-compact-live]');
     var i;
+    var pass = livePassCamRoot(root);
     for (i = 0; i < nodes.length; i++) {
       var el = nodes[i];
       el.playsInline = true;
       el.setAttribute('playsinline', '');
       el.setAttribute('webkit-playsinline', '');
-      el.muted = false;
-      el.volume = 1;
+      if (pass) {
+        el.muted = true;
+        el.setAttribute('muted', '');
+      } else {
+        el.muted = false;
+        el.volume = 1;
+      }
       var p = el.play();
       if (p && p.catch) {
         p.catch(function () {
           el.muted = true;
           var r = el.play();
           if (r && r.catch) r.catch(function () {});
-          armUnmute(el);
+          if (!pass) armUnmute(el);
         });
       }
     }
@@ -1309,6 +1315,13 @@
     var src = '/api/club-cam/hyc/live';
     if (!video) {
       kickCompactLive(root);
+      if (!root._mmLivePassTries) root._mmLivePassTries = 0;
+      if (root._mmLivePassTries < 8) {
+        root._mmLivePassTries += 1;
+        window.setTimeout(function () {
+          startLivePass(root);
+        }, 400);
+      }
       return;
     }
     root._mmCamUpstream = true;

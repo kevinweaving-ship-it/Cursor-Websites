@@ -1,13 +1,17 @@
-"""HYC live cam — pass-through of Cam 5 on the club NVR.
+"""HYC live cam — pass-through of Cam 5 on the club DS NVR.
 
-Do not snapshot-poll. Stream the NVR live feed (same idea as ZVYC HLS):
-  GET /api/club-cam/hyc/live  → bytes from the NVR, unmodified.
+Do not snapshot-poll. Stream the live feed through the same Arial hikpoc/go2rtc
+path used for other Hikvision NVRs:
+
+  GET /api/club-cam/hyc/live  → HLS from local go2rtc (src=hyc).
 
 Upstream (first match):
-  HYC_NVR_LIVE_URL     full URL after Cam 5 is added on the NVR
+  HYC_NVR_LIVE_URL     explicit URL override
+  go2rtc HLS           HYC_GO2RTC_URL + src=HYC_GO2RTC_SRC (default hyc)
   HYC_NVR_HOST + Cam 5 HTTP live preview (ISAPI channel 502 = Cam 5 substream)
 
-Credentials stay on the server: HYC_NVR_USER / HYC_NVR_PASSWORD.
+go2rtc producer: Hik-Connect serial D23413606 (HYC DS-7608NI-K2/8P) channel 5.
+Credentials stay on the server / hikpoc bridge.
 """
 from __future__ import annotations
 
@@ -37,6 +41,10 @@ KIND = "live"
 SAST = ZoneInfo("Africa/Johannesburg")
 LIVE_SRC = "/api/club-cam/hyc/live"
 UA = "SailingSA-club-cam/1.0"
+GO2RTC_DEFAULT = "http://127.0.0.1:1984"
+GO2RTC_SRC_DEFAULT = "hyc"
+HIK_SERIAL = "D23413606"
+HIK_CHANNEL = CAM_NO
 
 _vis_cache = {"at": 0.0, "visible": True}
 _VIS_TTL = 1.0
@@ -131,11 +139,29 @@ def live_channel() -> int:
     return n if n > 0 else ISAPI_LIVE_CHANNEL
 
 
+def go2rtc_src() -> str:
+    raw = (os.environ.get("HYC_GO2RTC_SRC") or GO2RTC_SRC_DEFAULT).strip()
+    if raw.lower() in {"0", "off", "false", "no", "-"}:
+        return ""
+    return raw
+
+
+def go2rtc_hls_url() -> str:
+    src = go2rtc_src()
+    if not src:
+        return ""
+    base = (os.environ.get("HYC_GO2RTC_URL") or GO2RTC_DEFAULT).strip().rstrip("/")
+    return f"{base}/api/stream.m3u8?src={src}"
+
+
 def live_url() -> str:
     """NVR live pass-through URL for Cam 5."""
     explicit = (os.environ.get("HYC_NVR_LIVE_URL") or os.environ.get("HYC_CAM5_LIVE_URL") or "").strip()
     if explicit:
         return explicit
+    hls = go2rtc_hls_url()
+    if hls:
+        return hls
     base = nvr_base()
     if not base:
         return ""
@@ -185,7 +211,7 @@ def open_live(url: str | None = None, timeout: float | None = None):
     """Open the NVR live feed. Returns (fp, content_type, err). Caller closes fp."""
     target = (url or live_url()).strip()
     if not target:
-        return None, "", "HYC_NVR_LIVE_URL / HYC_NVR_HOST not set"
+        return None, "", "HYC live URL not set (go2rtc / HYC_NVR_LIVE_URL / HYC_NVR_HOST)"
     req = Request(target, headers={"User-Agent": UA})
     opener = _opener(target)
     try:

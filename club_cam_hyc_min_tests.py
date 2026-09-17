@@ -30,6 +30,7 @@ def test_cam5_live_pass_through():
 def test_live_url_is_http_preview_not_snapshot():
     os.environ["HYC_NVR_HOST"] = "hyc-nvr.example"
     os.environ["HYC_NVR_PORT"] = "80"
+    os.environ["HYC_GO2RTC_SRC"] = "off"
     os.environ.pop("HYC_NVR_LIVE_URL", None)
     url = live_url()
     assert "/ISAPI/Streaming/channels/502/httpPreview" in url
@@ -39,6 +40,9 @@ def test_live_url_is_http_preview_not_snapshot():
     assert stream_kind() == "hls"
     os.environ.pop("HYC_NVR_LIVE_URL", None)
     os.environ.pop("HYC_NVR_HOST", None)
+    os.environ.pop("HYC_GO2RTC_SRC", None)
+    assert "stream.m3u8?src=hyc" in live_url()
+    assert stream_kind() == "hls"
 
 
 def test_hls_playlist_rewrites_through_pass_through():

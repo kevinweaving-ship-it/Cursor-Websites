@@ -12,7 +12,7 @@
   var WX_ID = 'ssa-regatta-slot-card';
   var MM_ID = 'mmLiptonReels';
   var CSS_ID = 'club-live-media-css';
-  var JS_VER = 'clubwx9';
+  var JS_VER = 'clubwx10';
 
   var AGRO_CAM = 'https://hmyccam1.nwsza.net/latest.jpg';
   var AGRO_PAGE = 'https://agromet.ukzn.ac.za/midmar/index.html#canvas_container';
@@ -89,7 +89,10 @@
       '.mm-lipton-reels[data-mm-live-pass] .mm-lipton-reels-clip-chrome{display:none!important}' +
       '.mm-lipton-reels[data-mm-live-pass] .mm-lipton-reels-play{display:none!important}' +
       '.club-live-media .club-cam-sa-toggle{display:none;margin:8px 0 0;min-height:44px;min-width:44px;padding:10px 14px;border:1.5px solid #1a2750;border-radius:8px;background:#fff;color:#1a2750;font:700 14px/1.2 Arial,Helvetica,sans-serif;cursor:pointer;}' +
-      '.club-live-media.club-live-media--sa .club-cam-sa-toggle{display:inline-flex;align-items:center;justify-content:center;}';
+      '.club-live-media.club-live-media--sa .club-cam-sa-toggle{display:inline-flex;align-items:center;justify-content:center;}' +
+      '.club-live-media.club-live-media--cam-off:not(.club-live-media--sa) .mm-lipton-reels{display:none!important}' +
+      '.mm-lipton-reels[data-mm-live-pass]{min-height:120px}' +
+      '.mm-lipton-reels[data-mm-live-pass] .mm-lipton-reels-thumb{width:100%;aspect-ratio:16/9;background:#111}';
     document.head.appendChild(s);
   }
 
@@ -134,6 +137,7 @@
         live_pass: true,
         title: club.camLabel || 'Club cam',
         stream_url: club.stream || '/api/club-cam/hyc/live',
+        stream_kind: 'hls',
         url: club.camHref || '',
         status_api: club.camStatusApi || '',
         aspect: '16 / 9',
@@ -305,15 +309,53 @@
   function saToggleHtml() {
     return (
       '<button type="button" class="club-cam-sa-toggle" data-club-cam-sa hidden>' +
-      'Hide live cam</button>'
+      'Hide live cam from public</button>'
     );
   }
 
   function paintSaToggle(btn, visible) {
     if (!btn) return;
     btn.hidden = false;
-    btn.textContent = visible ? 'Hide live cam' : 'Show live cam';
+    btn.textContent = visible ? 'Hide live cam from public' : 'Show live cam to public';
     btn.setAttribute('aria-pressed', visible ? 'true' : 'false');
+  }
+
+  function isSaSession(session) {
+    if (typeof window.sailingSessionIsSuperAdmin === 'function') {
+      return !!window.sailingSessionIsSuperAdmin(session);
+    }
+    if (!session || session.valid !== true) return false;
+    if (session.is_super_admin === true) return true;
+    var r = session.role;
+    if ((r == null || r === '') && session.user) r = session.user.role;
+    var n = String(r || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[\s\-]+/g, '_');
+    return n === 'super_admin' || n === 'superadmin';
+  }
+
+  function applyCamPublic(host, data, sa) {
+    if (!host) return;
+    var visible = !(data && data.visible === false);
+    var can = !!(sa || (data && data.can_toggle));
+    host.classList.toggle('club-live-media--sa', can);
+    host.classList.toggle('club-live-media--cam-off', !visible);
+    var mm = document.getElementById(MM_ID);
+    if (mm) {
+      if (!visible && !can) mm.setAttribute('hidden', '');
+      else mm.removeAttribute('hidden');
+    }
+    var btn = host.querySelector('[data-club-cam-sa]');
+    if (can) paintSaToggle(btn, visible);
+    else if (btn) btn.hidden = true;
+    if (typeof window.dispatchEvent === 'function') window.dispatchEvent(new Event('resize'));
+  }
+
+  function fetchCamStatus() {
+    return fetch('/api/club-cam/hyc?_=' + Date.now(), { credentials: 'include', cache: 'no-store' }).then(function (r) {
+      return r && r.ok ? r.json() : null;
+    });
   }
 
   function mountSaCamToggle(host, club) {
@@ -325,50 +367,51 @@
     }
     if (!btn || btn.getAttribute('data-wired') === '1') return;
     btn.setAttribute('data-wired', '1');
-    fetch('/auth/session?path=' + encodeURIComponent((window.location && window.location.pathname) || '/'), {
-      credentials: 'include',
-      cache: 'no-store',
-    })
-      .then(function (r) {
-        return r && r.ok ? r.json() : null;
-      })
-      .then(function (session) {
-        var sa =
-          !!(session && session.valid === true && (session.is_super_admin === true || session.role === 'super_admin'));
-        if (!sa) return;
-        host.classList.add('club-live-media--sa');
-        return fetch('/api/club-cam/hyc?_=' + Date.now(), { credentials: 'include', cache: 'no-store' })
+
+    function refresh() {
+      return Promise.all([
+        fetchCamStatus(),
+        fetch('/auth/session?path=' + encodeURIComponent((window.location && window.location.pathname) || '/'), {
+          credentials: 'include',
+          cache: 'no-store',
+        })
           .then(function (r) {
             return r && r.ok ? r.json() : null;
           })
-          .then(function (data) {
-            paintSaToggle(btn, !(data && data.visible === false));
-            btn.addEventListener('click', function () {
-              var next = btn.getAttribute('aria-pressed') !== 'true';
-              btn.disabled = true;
-              fetch('/api/super-admin/club-cam/hyc', {
-                method: 'PATCH',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ visible: next }),
-              })
-                .then(function (r) {
-                  return r && r.ok ? r.json() : null;
-                })
-                .then(function (out) {
-                  paintSaToggle(btn, !!(out && out.visible));
-                  var mm = document.getElementById(MM_ID);
-                  if (mm && typeof window.dispatchEvent === 'function') {
-                    window.dispatchEvent(new Event('resize'));
-                  }
-                })
-                .finally(function () {
-                  btn.disabled = false;
-                });
-            });
-          });
+          .catch(function () {
+            return null;
+          }),
+      ]).then(function (pair) {
+        var data = pair[0];
+        var sa = !!(data && data.can_toggle) || isSaSession(pair[1]);
+        applyCamPublic(host, data, sa);
+        return data;
+      });
+    }
+
+    btn.addEventListener('click', function () {
+      var next = btn.getAttribute('aria-pressed') !== 'true';
+      btn.disabled = true;
+      fetch('/api/super-admin/club-cam/hyc', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visible: next }),
       })
-      .catch(function () {});
+        .then(function (r) {
+          return r && r.ok ? r.json() : null;
+        })
+        .then(function (out) {
+          applyCamPublic(host, out, true);
+        })
+        .finally(function () {
+          btn.disabled = false;
+        });
+    });
+    refresh().catch(function () {});
+    window.setInterval(function () {
+      refresh().catch(function () {});
+    }, 20000);
   }
 
   function loadScript(src) {
@@ -408,8 +451,14 @@
     injectCss();
     ensureCssLink();
     if (!placeHost(club)) return;
-    loadScript('/js/regatta-slot-card.js?v=' + JS_VER).catch(function () {});
-    loadScript('/js/mm-lipton-reels-card.js?v=' + JS_VER).catch(function () {});
+    loadScript('/js/regatta-slot-card.js?v=' + JS_VER)
+      .then(function () {
+        return loadScript('/js/mm-lipton-reels-card.js?v=' + JS_VER);
+      })
+      .then(function () {
+        if (typeof window.dispatchEvent === 'function') window.dispatchEvent(new Event('resize'));
+      })
+      .catch(function () {});
   }
 
   if (document.readyState === 'loading') {
