@@ -75,6 +75,7 @@ def _events_logos_schedule_detail_rebuild(slug: str) -> None:
     ).start()
 
 
+@app.get("/events-logos/{slug}", response_class=HTMLResponse)
 def events_logo_detail_page(slug: str):
     """Gold-std event-logo page — cached for visitor click speed."""
     raw = (slug or "").strip().lower().strip("/")
