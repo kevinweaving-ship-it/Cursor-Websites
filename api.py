@@ -16442,8 +16442,12 @@ def api_regattas_with_counts(
             if name:
                 s = re.sub(r"[^\w\s\-]", "", name).strip().lower()
                 d["slug"] = re.sub(r"\s+", "-", s).strip("-")
-            else:
-                d["slug"] = ""
+
+        # EVENT_LOGO_RULES_RESTORE_v1: landing left logos from named Event Logo map
+        for d in out:
+            lu = _regatta_named_event_logo_url(str(d.get("regatta_id") or ""), d.get("event_name") or "")
+            if lu:
+                d["logo_url"] = lu
 
         return out
     except Exception as e:
@@ -21998,13 +22002,204 @@ def _class_logo_url_from_fleet_name(name: str) -> Optional[str]:
     return file_map.get(key)
 
 
+_CLUB_EVENT_LOGO_RULES = (
+    # --- Named championship / series Event Logos (host must match DB) ---
+    ("cape classic", "/artwork/Event Logo/Cape-Classic-Series.png", "Cape Classic"),
+    ("youth national championship", "/artwork/Event Logo/Youth-Nationals-Logo.png", "Youth Nationals"),
+    ("youth nationals", "/artwork/Event Logo/Youth-Nationals-Logo.png", "Youth Nationals"),
+    ("youth national", "/artwork/Event Logo/Youth-Nationals-Logo.png", "Youth Nationals"),
+    ("sa sailing youth", "/artwork/Event Logo/Youth-Nationals-Logo.png", "Youth Nationals"),
+    ("sonnet national", "/artwork/Event Logo/Sonnet-Nationals-2025.jpg", "Sonnet Nationals"),
+    ("overberg", "/artwork/Event Logo/Overberg-Regional-Champs.png", "Overberg Champs"),
+    ("windsurfer", "/artwork/Class Logo/Windsurfer-LT-Class-Logo.png", "Windsurfer LT"),
+    # Western Cape Dinghy / W. Cape Championships
+    ("wc dinghy", "/artwork/Event Logo/Western-Cape-Dinghy-Champs.png", "WC Dinghy Champs"),
+    ("western cape dinghy", "/artwork/Event Logo/Western-Cape-Dinghy-Champs.png", "WC Dinghy Champs"),
+    ("dinghy western cape", "/artwork/Event Logo/Western-Cape-Dinghy-Champs.png", "WC Dinghy Champs"),
+    ("w. cape championships", "/artwork/Event Logo/Western-Cape-Dinghy-Champs.png", "WC Dinghy Champs"),
+    ("w cape championships", "/artwork/Event Logo/Western-Cape-Dinghy-Champs.png", "WC Dinghy Champs"),
+    ("wcapedinghychamps", "/artwork/Event Logo/Western-Cape-Dinghy-Champs.png", "WC Dinghy Champs"),
+    ("dinghy champs", "/artwork/Event Logo/Western-Cape-Dinghy-Champs.png", "WC Dinghy Champs"),
+    ("dinghy classes", "/artwork/Event Logo/Western-Cape-Dinghy-Champs.png", "WC Dinghy Champs"),
+    ("wc extra", "/artwork/Event Logo/Western-Cape-Dinghy-Champs.png", "WC Extra Regionals"),
+    ("extra regionals", "/artwork/Event Logo/Western-Cape-Dinghy-Champs.png", "WC Extra Regionals"),
+    ("extra western cape", "/artwork/Event Logo/Western-Cape-Dinghy-Champs.png", "Extra WC Champs"),
+    ("wc champs extra", "/artwork/Event Logo/Western-Cape-Dinghy-Champs.png", "WC Champs Extra"),
+    ("champs extra", "/artwork/Event Logo/Western-Cape-Dinghy-Champs.png", "WC Champs Extra"),
+    # WC Youth
+    ("sa sailing wc youth", "/artwork/Event Logo/SA-Sailing-WC-Youth-Regatta.png", "WC Youth"),
+    ("western cape youth", "/artwork/Event Logo/SA-Sailing-WC-Youth-Regatta.png", "WC Youth"),
+    ("wc youth", "/artwork/Event Logo/SA-Sailing-WC-Youth-Regatta.png", "WC Youth"),
+    ("sas western cape youth", "/artwork/Event Logo/SA-Sailing-WC-Youth-Regatta.png", "WC Youth"),
+    # RCYC signature offshore / big events
+    ("lipton", "/artwork/Event Logo/Lipton-Challenge-Cup-2025.png", "Lipton Challenge Cup"),
+    ("double cape", "/artwork/Event Logo/Double-Cape-Race-2025.png", "Double Cape Race"),
+    ("gimco", "/artwork/Event Logo/Gimco-Regatta.png", "Gimco"),
+    ("west coast offshore", "/artwork/Event Logo/West-Coast-Offshore.png", "West Coast Offshore"),
+    ("west coast race", "/artwork/Event Logo/West-Coast-Offshore.png", "West Coast Offshore"),
+    ("seajet", "/artwork/Event Logo/Seajet-West-Coast-Offshore.png", "Seajet West Coast Offshore"),
+    ("canyon cup", "/artwork/Event Logo/Canyon-Cup-Offshore.png", "Canyon Cup"),
+    ("ullman", "/artwork/Event Logo/Ullman-Sails-Woman-Series.png", "Ullman Women's Series"),
+    ("j22 nationals", "/artwork/Event Logo/J22-Nationals.png", "J22 Nationals"),
+    ("north sails j22", "/artwork/Event Logo/J22-Nationals.png", "J22 Nationals"),
+    ("j22 champs", "/artwork/Event Logo/J22-Nationals.png", "J22 Nationals"),
+    ("j22 championships", "/artwork/Event Logo/J22-Nationals.png", "J22 Nationals"),
+    ("north sails", "/artwork/Sponsor Logo/North-Sails.png", "North Sails"),
+    ("north-sails", "/artwork/Sponsor Logo/North-Sails.png", "North Sails"),
+    ("robben island", "/artwork/Event Logo/Round-Robben-Island-Race.png", "Round Robben Island"),
+    ("zhik", "/artwork/Event Logo/Zhik-Double-Handed-Series.png", "Zhik Double Handed"),
+    ("tuzi", "/artwork/Event Logo/Tuzi-Tekwini-Ocean-Race.png", "Tuzi Tekweni Ocean Race"),
+    ("tuzitekwini", "/artwork/Event Logo/Tuzi-Tekwini-Ocean-Race.png", "Tuzi Tekweni Ocean Race"),
+    # Other named Event Logos
+    ("admirals", "/artwork/Event Logo/Admirals-Regatta.png", "Admirals Regatta"),
+    ("mykonos", "/artwork/Event Logo/Mykonos-Offshore.png", "Mykonos Offshore"),
+    ("cape point challenge", "/artwork/Event Logo/Cape-Point-Challenge.png", "Cape Point Challenge"),
+    ("tour de vlei", "/artwork/Event Logo/Tour-de-Vlei.jpg", "Tour de Vlei"),
+    ("vasco", "/artwork/Event Logo/Vasco-da-Gama-Ocean-Race.png", "Vasco da Gama"),
+    ("diamond coast", "/artwork/Event Logo/Diamond-Coast-Race.png", "Diamond Coast Race"),
+    ("port owen", "/artwork/Event Logo/Port-Owen-River-Race.png", "Port Owen River Race"),
+    ("azalea", "/artwork/Event Logo/Azalea-Trophy.png", "Azalea Trophy"),
+    ("brass monkey", "/artwork/Event Logo/Brass-Monkey-Sailing.png", "Brass Monkey"),
+    ("vulcan", "/artwork/Event Logo/Vulcan-Challenge-2026.png", "Vulcan Challenge"),
+    ("king of the vaal", "/artwork/Event Logo/King-of-the-Vaal.png", "King of the Vaal"),
+    ("frank lenz", "/artwork/Event Logo/Sailing-Legend-Frank-Lenz-Race.png", "Frank Lenz Race"),
+    ("shanes gaul", "/artwork/Event Logo/Shanes-Gaul-Regatta-2026.png", "Shanes Gaul Regatta"),
+    ("von klemperer", "/artwork/Event Logo/Von-Klemperer-Regatta.png", "Von Klemperer Regatta"),
+    ("intasure", "/artwork/Event Logo/Intasure-Logo.png", "Intasure Spring Regatta"),
+    ("spring regatta", "/artwork/Event Logo/Intasure-Logo.png", "Spring Regatta"),
+    ("congella", "/artwork/Event Logo/Congella-Cup.png", "Congella Cup"),
+    ("commodore", "/artwork/Event Logo/MSC.png", "MSC Commodore's Cup"),
+    ("commodores cup", "/artwork/Event Logo/MSC.png", "MSC Commodore's Cup"),
+    ("nks grand prix", "/artwork/Event Logo/NKS-Grand-Prix.png", "NKS Grand Prix"),
+    ("grand prix", "/artwork/Event Logo/NKS-Grand-Prix.png", "NKS Grand Prix"),
+    ("mod winter", "/artwork/Event Logo/MOD-Winter-Series.png", "MOD Winter Series"),
+    ("winter series", "/artwork/Event Logo/MOD-Winter-Series.png", "Winter Series"),
+    ("frank-lenz", "/artwork/Event Logo/Sailing-Legend-Frank-Lenz-Race.png", "Frank Lenz Race"),
+    ("frank lenz", "/artwork/Event Logo/Sailing-Legend-Frank-Lenz-Race.png", "Frank Lenz Race"),
+    ("6&9 hour", "/artwork/Event Logo/HMYC-6hr-9hr-Race.png", "HMYC 6&9 Hour"),
+    ("6&9", "/artwork/Event Logo/HMYC-6hr-9hr-Race.png", "HMYC 6&9 Hour"),
+    ("ilca masters", "/artwork/Class Logo/ILCA-Class-Logo.png", "ILCA Masters"),
+    ("gauteng ilca", "/artwork/Class Logo/ILCA-Class-Logo.png", "ILCA Masters"),
+    ("msc week", "/artwork/Event Logo/MSC-Week-2024.png", "MSC Week"),
+    ("msc l26", "/artwork/Event Logo/MSC-Week-2024.png", "MSC Week"),
+    ("kzn grand slam", "/artwork/Event Logo/KZN-Grand-Slam.png", "KZN Grand Slam"),
+    ("sasnr grand slam", "/artwork/Event Logo/KZN-Grand-Slam.png", "SASNR Grand Slam"),
+    ("grand slam", "/artwork/Event Logo/KZN-Grand-Slam.png", "Grand Slam"),
+    ("hmyc grand slam", "/artwork/Event Logo/HMYC-Grand-Slam.png", "HMYC Grand Slam"),
+    ("hmyc autumn", "/artwork/Event Logo/HMYC-Autumn-Series.png", "HMYC Autumn Series"),
+    ("hmyc memorial", "/artwork/Event Logo/HMYC-Memorial-Series.png", "HMYC Memorial Series"),
+    ("hmyc 9hr", "/artwork/Event Logo/HMYC-9hr.png", "HMYC 9hr"),
+    ("hmyc 6hr", "/artwork/Event Logo/HMYC-6hr-9hr-Race.png", "HMYC 6hr/9hr"),
+    ("twilight series", "/artwork/Event Logo/Twilight-Series.png", "Twilight Series"),
+    ("triple crown", "/artwork/Event Logo/Triple-Crown.png", "Triple Crown"),
+    ("tsc 9hr", "/artwork/Event Logo/TSC-9hr.png", "TSC 9hr"),
+    ("mac 24", "/artwork/Event Logo/MAC-24-Hour-Challenge.png", "MAC 24 Hour Challenge"),
+    ("mac 12", "/artwork/Event Logo/MAC-12-Hour-Challenge.png", "MAC 12 Hour Challenge"),
+    ("24-hour challenge", "/artwork/Event Logo/MAC-24-Hour-Challenge.png", "MAC 24 Hour Challenge"),
+    ("12-hour challenge", "/artwork/Event Logo/MAC-12-Hour-Challenge.png", "MAC 12 Hour Challenge"),
+    ("macs shipping", "/artwork/Event Logo/MACS-Shipping.png", "MACS Shipping"),
+    ("formula 1 national", "/artwork/Event Logo/Formula-1-Nationals.png", "Formula 1 Nationals"),
+    ("formula one national", "/artwork/Event Logo/Formula-1-Nationals.png", "Formula 1 Nationals"),
+    ("formula-one-nationals", "/artwork/Event Logo/Formula-1-Nationals.png", "Formula 1 Nationals"),
+    ("dolphin", "/artwork/Event Logo/Dolphin-Finn-Tiger-Cup.png", "Dolphin Finn Tiger Cup"),
+    ("finn tiger", "/artwork/Event Logo/Dolphin-Finn-Tiger-Cup.png", "Dolphin Finn Tiger Cup"),
+    ("soling", "/artwork/Event Logo/Soling-Flying-15-National-Championships.png", "Soling / Flying 15 Nationals"),
+    ("flying 15 national", "/artwork/Event Logo/Soling-Flying-15-National-Championships.png", "Soling / Flying 15 Nationals"),
+    ("gauteng dinghy", "/artwork/Event Logo/Gauteng-Province-Regionals-2025.png", "Gauteng Regionals"),
+    ("gauteng province regional", "/artwork/Event Logo/Gauteng-Province-Regionals-2025.png", "Gauteng Regionals"),
+    ("gauteng regional", "/artwork/Event Logo/Gauteng-Province-Regionals-2025.png", "Gauteng Regionals"),
+    ("mpumalanga", "/artwork/Event Logo/Mpumalanga-Regional-Champs-2025.jpg", "Mpumalanga Regionals"),
+    ("free state youth", "/artwork/Event Logo/Free-State-Youth-Provincial-Champs-2025.png", "FS Youth Provincials"),
+    ("freestate dinghy", "/artwork/Event Logo/Dinghy-Provincials-Championship.png", "Dinghy Provincials"),
+    ("dinghy provincial", "/artwork/Event Logo/Dinghy-Provincials-Championship.png", "Dinghy Provincials"),
+    ("kzn regionals", "/artwork/Event Logo/KZN-Regionals-2025.png", "KZN Regionals"),
+    ("kzn mirror", "/artwork/Event Logo/KZN-Mirror-ILCA-Regionals-Champs.png", "ILCA Regionals"),
+    ("ilca regional", "/artwork/Event Logo/KZN-Mirror-ILCA-Regionals-Champs.png", "ILCA Regionals"),
+    ("kzn ilca", "/artwork/Event Logo/KZN-Mirror-ILCA-Regionals-Champs.png", "ILCA Regionals"),
+    ("zvyc interschool", "/artwork/Event Logo/Schools-Dinghy-Sailing.png", "ZVYC Interschools"),
+    ("schools dinghy", "/artwork/Event Logo/Schools-Dinghy-Sailing.png", "Schools Dinghy"),
+    ("northern region interschool", "/artwork/Event Logo/Northern-Region-Interschools.png", "NR Interschools"),
+    ("northern region keelboat", "/artwork/Event Logo/Northern-Region-Keelboat.png", "NR Keelboat"),
+    ("interschool gauteng", "/artwork/Event Logo/Interschool-Gauteng-Regional-Championships.png", "Interschool Gauteng"),
+    ("ec regional", "/artwork/Event Logo/SAS-EC-Champs-Eastern-Cape.png", "EC Champs"),
+    ("eastern cape", "/artwork/Event Logo/SAS-EC-Champs-Eastern-Cape.png", "EC Champs"),
+    ("sas-ec", "/artwork/Event Logo/SAS-EC-Champs-Eastern-Cape.png", "EC Champs"),
+    ("sas ec", "/artwork/Event Logo/SAS-EC-Champs-Eastern-Cape.png", "EC Champs"),
+    ("ec champs", "/artwork/Event Logo/SAS-EC-Champs-Eastern-Cape.png", "EC Champs"),
+    ("gauteng provincial", "/artwork/Event Logo/Gauteng-Province-Regionals-2025.png", "Gauteng Provincials"),
+    ("gauteng provincials", "/artwork/Event Logo/Gauteng-Province-Regionals-2025.png", "Gauteng Provincials"),
+    ("club class champ", "/artwork/Event Logo/Club-Championships.png", "Club Championships"),
+    ("hobie wc", "/artwork/Event Logo/Hobie-WC-Regionals.png", "Hobie WC Regionals"),
+    ("df95", "/artwork/Class Logo/DF95-Class-Logo.png", "DF95"),
+    ("iom national", "/artwork/Event Logo/IOM-Sailboat.png", "IOM Nationals"),
+    ("iom nr", "/artwork/Event Logo/DF95-IOM-Regionals-Radio-Sailing.png", "DF95 / IOM Regionals"),
+    ("df95 & iom", "/artwork/Event Logo/DF95-IOM-Regionals-Radio-Sailing.png", "DF95 / IOM Regionals"),
+    ("fbyc easter", "/artwork/Event Logo/FBYC-Easter-2026.png", "FBYC Easter"),
+    ("psc charity", "/artwork/Event Logo/PSC-Charity-Regatta.png", "PSC Charity Regatta"),
+    ("stilbaai club challenge", "/artwork/Event Logo/Stilbaai-Club-Challenge.png", "Stilbaai Club Challenge"),
+    ("zyc club fun", "/artwork/Event Logo/ZYC-Club-Fun-Race.png", "ZYC Club Fun Race"),
+    ("round the island", "/artwork/Event Logo/Round-the-Island-Regatta.png", "Round the Island"),
+    ("marriott", "/artwork/Event Logo/Marriott-IMCA-Worlds-2025.png", "Marriott IMCA Worlds"),
+    ("imca world", "/artwork/Event Logo/Marriott-IMCA-Worlds-2025.png", "Marriott IMCA Worlds"),
+    ("75th sa sailing", "/artwork/Event Logo/75th-SA-Sailing-Dart-Dragonfly-Halcat-Hobie14-Nationals.png", "75th SA Sailing Nationals"),
+    ("kyc interclub", "/artwork/Event Logo/KYC-Interclub.png", "KYC Interclub"),
+    ("knysna yacht club interclub", "/artwork/Event Logo/Knysna-Yacht-Club-Interclub.png", "KYC Interclub"),
+    ("mbsc interclub", "/artwork/Event Logo/Interclub.png", "Interclub"),
+    ("interclub", "/artwork/Event Logo/Interclub.png", "Interclub"),
+    ("club champs", "/artwork/Event Logo/Club-Championships.png", "Club Championships"),
+    ("club championship", "/artwork/Event Logo/Club-Championships.png", "Club Championships"),
+    # Class nationals umbrella (last — specific class nationals already covered above)
+    ("rsa national", "/artwork/Event Logo/SA-Nationals.png", "Nationals"),
+    ("national championship", "/artwork/Event Logo/SA-Nationals.png", "Nationals"),
+    ("sa sailing national", "/artwork/Event Logo/SA-Nationals.png", "Nationals"),
+    ("29er", "/artwork/Event Logo/29er-Class-Logo.png", "29er"),
+)
+
 def _regatta_named_event_logo_url(regatta_id: str, event_name: str) -> Optional[str]:
-    """Named recurring events: left header event logo (not generic Sailing SA)."""
-    rid = str(regatta_id or "").strip().lower()
-    en = str(event_name or "").lower()
-    if "lipton" in rid or "lipton" in en:
-        return "/js/lipton-dev-event-logo.png"
-    return None
+    """Named recurring events: left header / landing logo from recovered Event Logo map."""
+    rid = str(regatta_id or "").strip()
+    en = str(event_name or "")
+    hay = f"{en.lower()} {rid.lower()}"
+    hay_flex = hay.replace("-", " ")
+    if "lipton" in hay_flex:
+        fallback = "/artwork/Event Logo/Lipton-Challenge-Cup-2025.png"
+        m = re.match(r"^(\d{4})-", rid)
+        if m:
+            rel = f"Event Logo/Lipton-Challenge-Cup-{m.group(1)}.png"
+            for root in (
+                "/var/www/sailingsa/api/artwork",
+                "/var/www/sailingsa/artwork",
+                os.path.join(os.path.dirname(os.path.abspath(__file__)), "artwork"),
+            ):
+                try:
+                    if os.path.isfile(os.path.join(root, rel)):
+                        return f"/artwork/{rel}"
+                except Exception:
+                    pass
+        return fallback
+    if "youth" in hay_flex and "national" in hay_flex:
+        return "/artwork/Event Logo/Youth-Nationals-Logo.png"
+    best_src = ""
+    best_len = -1
+    for needle, src, _label in _CLUB_EVENT_LOGO_RULES:
+        if not needle:
+            continue
+        if needle not in hay and needle not in hay_flex:
+            continue
+        s = (src or "").strip()
+        sl = s.lower()
+        if not (
+            "/artwork/event logo/" in sl
+            or "/artwork/class logo/" in sl
+            or "/artwork/sponsor logo/" in sl
+        ):
+            continue
+        if len(needle) > best_len:
+            best_src = s
+            best_len = len(needle)
+    if not best_src:
+        return None
+    return best_src if best_src.startswith("/") else "/" + best_src.lstrip("/")
 
 
 def _club_logo_file_exists_on_disk(code: str) -> bool:
