@@ -136,6 +136,26 @@
 
         /* Class page gold-std (aligned with /club/{abbrev} story header + tables) */
         .class-gold-page { max-width: 1100px; margin: 0 auto; padding: 1.25rem 1rem 2rem; }
+        .class-gold-page .card.stats-section {
+            background: #fff;
+            border: 2px solid #001f3f;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 31, 63, 0.08);
+            padding: 0.5rem 0.85rem;
+            margin: 0 0 16px 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .class-gold-page .class-gold-identity-card .club-story-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+            margin: 0;
+            padding: 0.5rem 0;
+            border-bottom: none;
+            text-align: center;
+        }
         .class-gold-page .club-story-header { display: flex; flex-direction: column; align-items: center; gap: 0; margin: 0 0 1.5rem 0; padding: 0 0 1.35rem 0; border-bottom: 2px solid #e2e8f0; text-align: center; }
         .class-gold-page .club-story-inner { width: 100%; max-width: 42rem; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 0.85rem; }
         .class-gold-page .club-story-title-row { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; width: 100%; }
@@ -143,7 +163,26 @@
         .class-gold-page .club-page-logo-wrap { display: flex; justify-content: center; }
         .class-gold-page .club-page-logo-img { display: block; width: auto; max-width: min(220px, 100%); height: auto; max-height: 120px; object-fit: contain; }
         .class-gold-page .club-story-meta { margin: 0; color: #475569; font-size: 0.95rem; font-weight: 600; text-align: center; }
-        /* Events featuring / Clubs sailing — same boxed cards as /classes + /clubs (MP default) */
+        /* Events featuring / Clubs sailing — gold .card like club sections */
+        .class-gold-page .card.stats-section.class-gold-logo-card {
+            text-align: left;
+        }
+        .class-gold-page .class-gold-logo-card .section-title {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 0.45rem;
+            flex-wrap: wrap;
+            margin: 0 0 0.65rem 0;
+        }
+        .class-gold-page .class-gold-title-logo {
+            display: inline-block;
+            height: 40px;
+            width: auto;
+            max-width: 96px;
+            object-fit: contain;
+            vertical-align: middle;
+        }
         .class-gold-page .club-story-logo-row { width: 100%; margin: 0.35rem 0 0.15rem; }
         .class-gold-page .club-story-logo-row-label { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #001f3f; margin: 0 0 0.45rem 0; text-align: center; }
         .class-gold-page .club-story-logo-chips {
@@ -5042,12 +5081,15 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                 ? '<div class="club-page-logo-wrap"><img src="' + esc(classLogo) + '" alt="' + esc(className) + '" class="club-page-logo-img" loading="lazy" onerror="this.parentNode.style.display=\'none\'"></div>'
                 : '';
 
+            var classTitleLogo = classLogo
+                ? '<img src="' + esc(classLogo) + '" alt="" class="class-gold-title-logo">'
+                : esc(className);
             var strips = '';
             if (eventChips.length) {
-                strips += '<div class="club-story-logo-row"><div class="club-story-logo-row-label">Events featuring ' + esc(className) + '</div><div class="club-story-logo-chips">' + eventChips.join('') + '</div></div>';
+                strips += '<div class="card stats-section class-gold-logo-card"><h2 class="section-title">Events featuring ' + classTitleLogo + '</h2><div class="club-story-logo-chips">' + eventChips.join('') + '</div></div>';
             }
             if (clubChips.length) {
-                strips += '<div class="club-story-logo-row"><div class="club-story-logo-row-label">Clubs sailing ' + esc(className) + '</div><div class="club-story-logo-chips">' + clubChips.join('') + '</div></div>';
+                strips += '<div class="card stats-section class-gold-logo-card"><h2 class="section-title">Clubs sailing ' + classTitleLogo + '</h2><div class="club-story-logo-chips">' + clubChips.join('') + '</div></div>';
             }
 
             function rowLogo(src) {
@@ -5138,15 +5180,19 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
             var sailorsTable = '<table class="table" id="class-sailors-table"><thead><tr><th>#</th><th>Sailor</th><th class="hide-mobile">Club</th><th>Races</th><th>Regattas</th><th>Last result</th><th>Last regatta</th></tr></thead><tbody>' +
                 (sailorRows || '<tr><td colspan="7">No sailors</td></tr>') + '</tbody></table>';
 
+            var identityTitle = classLogo
+                ? '<div class="club-story-title-row">' + logoHtml + '</div>'
+                : '<div class="club-story-title-row"><h1>' + esc(className) + '</h1></div>';
             var html = '' +
                 '<div class="container club-page class-gold-page">' +
                 '<div class="card elg-detail-page" style="border:none;box-shadow:none;padding:0;">' +
+                '<div class="card stats-section class-gold-identity-card">' +
                 '<div class="header club-page-header club-story-header">' +
                 '<div class="club-story-inner">' +
-                '<div class="club-story-title-row"><h1>' + esc(className) + '</h1>' + logoHtml + '</div>' +
+                identityTitle +
                 (meta.length ? '<p class="club-story-meta">' + esc(meta.join(' · ')) + '</p>' : '') +
+                '</div></div></div>' +
                 strips +
-                '</div></div>' +
                 section('regattas', 'Regattas (' + regattas.length + ')', 'class-regattas-table', regattaTable) +
                 (clubs.length ? section('clubs', 'Clubs sailing ' + className + ' (' + clubs.length + ')', 'class-clubs-table', clubsTable) : '') +
                 section('sailors', 'Sailors (' + sailors.length + ')', 'class-sailors-table', sailorsTable) +
