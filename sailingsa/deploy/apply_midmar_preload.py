@@ -87,6 +87,8 @@ PEOPLE = {
 
 HELM_KEYS = ["paul", "craig", "tony", "megan", "bryan", "nick", "luke", "gust"]
 CREW_BOAT = {"helm": "hayden", "crew": "tim", "crew2": "howard"}
+# Only numbers the user supplied. Do not invent the rest.
+KNOWN_SAILS = {"hayden": "403"}
 
 
 def table_cols(cur, table: str) -> set[str]:
@@ -252,6 +254,7 @@ def apply() -> int:
                 "crew2_sid": None,
                 "club_raw": club_raw,
                 "club_id": club_id,
+                "sail_number": KNOWN_SAILS.get(key),
             }
         )
 
@@ -270,6 +273,7 @@ def apply() -> int:
                 "crew2_sid": crew2["sid"],
                 "club_raw": club_raw,
                 "club_id": club_id,
+                "sail_number": KNOWN_SAILS.get("hayden"),
             }
         )
     else:
@@ -332,7 +336,7 @@ def apply() -> int:
             "helm_sa_sailing_id": boat["helm_sid"],
             "crew_name": boat["crew_name"],
             "crew_sa_sailing_id": boat["crew_sid"],
-            "sail_number": None,
+            "sail_number": boat.get("sail_number"),
             "club_raw": boat["club_raw"],
             "club_id": boat["club_id"],
             "races_sailed": 0,
@@ -388,7 +392,13 @@ def apply() -> int:
                 "SELECT entry_id FROM entries WHERE regatta_id=%s AND helm_sas_id=%s LIMIT 1",
                 (RID, str(boat["helm_sid"])),
             )
-            if not cur.fetchone():
+            existing_entry = cur.fetchone()
+            if existing_entry and boat.get("sail_number") and "sail_number" in entry_cols:
+                cur.execute(
+                    "UPDATE entries SET sail_number=%s WHERE entry_id=%s",
+                    (boat["sail_number"], existing_entry[0]),
+                )
+            elif not existing_entry:
                 ecols = ["regatta_id", "block_id", "helm_sas_id"]
                 evals = [RID, BLOCK, str(boat["helm_sid"])]
                 if "crew_sas_id" in entry_cols and boat["crew_sid"]:
@@ -399,7 +409,7 @@ def apply() -> int:
                     evals.append(boat["club_raw"])
                 if "sail_number" in entry_cols:
                     ecols.append("sail_number")
-                    evals.append(None)
+                    evals.append(boat.get("sail_number"))
                 if "boat_name" in entry_cols:
                     ecols.append("boat_name")
                     evals.append(None)
