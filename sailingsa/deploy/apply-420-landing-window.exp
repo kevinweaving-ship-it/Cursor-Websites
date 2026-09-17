@@ -1,0 +1,15 @@
+#!/usr/bin/expect -f
+set timeout 90
+set password "TimAdd#072082"
+spawn scp -o StrictHostKeyChecking=no /workspace/sailingsa/deploy/apply_420_landing_window.py /workspace/sailingsa/deploy/apply_420_landing_check.py root@102.218.215.253:/tmp/
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
+spawn ssh -o StrictHostKeyChecking=no root@102.218.215.253 {chattr -i /var/www/sailingsa/api/api.py; python3 /tmp/apply_420_landing_window.py; python3 -m py_compile /var/www/sailingsa/api/api.py; echo COMPILE:$?; chattr +i /var/www/sailingsa/api/api.py; rm -f /var/tmp/sailingsa_regatta_with_counts.json; systemctl restart sailingsa-api; sleep 9; systemctl is-active sailingsa-api; python3 /tmp/apply_420_landing_check.py}
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait

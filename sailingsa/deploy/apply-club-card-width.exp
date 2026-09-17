@@ -1,0 +1,15 @@
+#!/usr/bin/expect -f
+set timeout 90
+set password "TimAdd#072082"
+spawn scp -o StrictHostKeyChecking=no /workspace/sailingsa/deploy/apply_club_card_width.py root@102.218.215.253:/tmp/apply_club_card_width.py
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
+spawn ssh -o StrictHostKeyChecking=no root@102.218.215.253 {chattr -i /var/www/sailingsa/api/api.py; python3 /tmp/apply_club_card_width.py; python3 -m py_compile /var/www/sailingsa/api/api.py; echo COMPILE:$?; chattr +i /var/www/sailingsa/api/api.py; systemctl restart sailingsa-api; sleep 7; systemctl is-active sailingsa-api}
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
