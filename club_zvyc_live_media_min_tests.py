@@ -120,9 +120,9 @@ def test_weather_card_uses_agromet_history_path():
 
 def test_api_club_page_loads_live_media_script():
     src = read("api.py")
-    assert "club-live-media.js?v=clubwx14" in src
-    assert "live-cam-sources.js?v=clubwx14" in src
-    assert "mm-lipton-reels.css?v=clubwx14" in src
+    assert "club-live-media.js?v=clubwx15" in src
+    assert "live-cam-sources.js?v=clubwx15" in src
+    assert "mm-lipton-reels.css?v=clubwx15" in src
     assert "/api/weather/agromet-midmar/history" in src
     assert "/api/weather/hyc/history" in src
     assert "/api/club-cam/hyc/live" in src
@@ -130,7 +130,7 @@ def test_api_club_page_loads_live_media_script():
     impl_start = src.find("def _serve_club_page_impl")
     impl_end = src.find("def _format_regatta_host_display")
     impl = src[impl_start:impl_end]
-    assert "club-live-media.js?v=clubwx14" in impl
+    assert "club-live-media.js?v=clubwx15" in impl
 
 
 def test_live_club_html_can_host_inject_between_identity_and_about():

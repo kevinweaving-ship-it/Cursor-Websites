@@ -15,7 +15,7 @@
   var WX_ID = 'ssa-regatta-slot-card';
   var MM_ID = 'mmLiptonReels';
   var CSS_ID = 'club-live-media-css';
-  var JS_VER = 'clubwx14';
+  var JS_VER = 'clubwx15';
   var HYC_CAM_ID = 'hyc-club-cam';
   var HYC_LIVE_CAM = 'hyc-club';
 
@@ -521,9 +521,18 @@
   function loadScript(src) {
     return new Promise(function (resolve) {
       var base = src.split('?')[0];
+      if (base.indexOf('live-cam-sources.js') >= 0 && window.SSALiveCam) {
+        resolve();
+        return;
+      }
       var found = document.querySelector('script[src*="' + base + '"]');
       if (found) {
-        if (found.getAttribute('data-loaded') === '1' || found.readyState === 'complete') {
+        if (
+          found.getAttribute('data-loaded') === '1' ||
+          found.readyState === 'complete' ||
+          found.readyState === 'loaded' ||
+          document.readyState !== 'loading'
+        ) {
           resolve();
           return;
         }
@@ -554,14 +563,16 @@
     if (!club) return;
     injectCss();
     if (!club.livePass) ensureCssLink();
-    loadScript('/js/live-cam-sources.js?v=' + JS_VER)
-      .then(function () {
-        if (!placeHost(club)) return;
-        return loadScript('/js/regatta-slot-card.js?v=' + JS_VER);
-      })
+    if (!placeHost(club)) return;
+    loadScript('/js/regatta-slot-card.js?v=' + JS_VER)
       .then(function () {
         if (club.livePass) {
-          startHycGo2rtc();
+          if (window.SSALiveCam) startHycGo2rtc();
+          else {
+            return loadScript('/js/live-cam-sources.js?v=' + JS_VER).then(function () {
+              startHycGo2rtc();
+            });
+          }
           return;
         }
         return loadScript('/js/mm-lipton-reels-card.js?v=' + JS_VER);
