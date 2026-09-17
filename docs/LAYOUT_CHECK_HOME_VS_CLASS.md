@@ -1,6 +1,6 @@
-# Layout check: Home (/) vs Class (/class/62-optimist-a)
+# Layout check: Home (/) vs Class (/class/optimist-a)
 
-**Live:** [Home](https://sailingsa.co.za/) | [Class](https://sailingsa.co.za/class/62-optimist-a)
+**Live:** [Home](https://sailingsa.co.za/) | [Class](https://sailingsa.co.za/class/optimist-a)
 
 ---
 
@@ -11,7 +11,7 @@
 - **Visible:** datetime → intro box (2 paras) → search (Sailor/Regatta/Club/Class) → profile placeholder → site-stats iframe → Latest News
 - **Styles:** `/css/main.css` (root-relative so it loads); intro uses `.home-intro-box` (border, radius, shadow)
 
-### Class (/class/62-optimist-a)
+### Class (/class/optimist-a)
 - **Same wrapper:** same `layout-three-col` → `main-column` → `.container`
 - **Visible:** only `#class-view`; all other `.container` children are `display:none`
 - **Inside #class-view:** datetime → intro ("About" + "Class results, regattas…") → Back to results → **Title card (Optimist A)** → **Stats card (Regattas 26, Clubs 22, …)** → **REGATTAS card (table)** → Clubs card (if any) → Sailors card
@@ -27,7 +27,7 @@
 
 2. **Class page: looks like home (search + profile visible)**  
    - Cause: JS not hiding other `.container` children or not showing `#class-view`.  
-   - Check: route match `/^\/class\/(\d+)-/`, API `/api/class/{id}` returns 200, `renderClassPage` runs, then hide loop runs.
+   - Check: route match `/class/{slug}`, API `/api/class/{slug}` returns 200, `renderClassPage` runs, then hide loop runs.
 
 3. **Class page: double padding or narrow content**  
    - Cause: `.container` twice (outer + `.master-page-layout.container`).  

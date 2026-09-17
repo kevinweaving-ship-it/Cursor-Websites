@@ -135,17 +135,125 @@
         @media (max-width: 768px) { .class-hero { grid-template-columns: 1fr; } }
 
         /* Class page gold-std (aligned with /club/{abbrev} story header + tables) */
-        .class-gold-page { max-width: 1100px; margin: 0 auto; padding: 1.25rem 1rem 2rem; }
+        .class-gold-page { max-width: 1100px; width: 100%; margin: 0 auto; padding: 1.25rem 0 2rem; box-sizing: border-box; }
+        .class-gold-page .card.stats-section {
+            background: #fff;
+            border: 2px solid #001f3f;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 31, 63, 0.08);
+            padding: 1rem 1.25rem;
+            margin: 0 auto 1.25rem;
+            width: 100%;
+            max-width: 52rem;
+            display: block;
+            box-sizing: border-box;
+        }
+        @media (max-width: 768px) {
+            .class-gold-page .card.stats-section { max-width: 100%; }
+        }
+        .class-gold-page .class-gold-identity-card .club-story-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+            margin: 0;
+            padding: 0.5rem 0;
+            border-bottom: none;
+            text-align: center;
+        }
         .class-gold-page .club-story-header { display: flex; flex-direction: column; align-items: center; gap: 0; margin: 0 0 1.5rem 0; padding: 0 0 1.35rem 0; border-bottom: 2px solid #e2e8f0; text-align: center; }
-        .class-gold-page .club-story-inner { width: 100%; max-width: 42rem; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 0.85rem; }
+        .class-gold-page .club-story-inner { width: 100%; max-width: 100%; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 0.85rem; }
         .class-gold-page .club-story-title-row { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; width: 100%; }
         .class-gold-page .club-story-header h1 { text-align: center; width: 100%; font-size: 1.75rem; font-weight: 700; margin: 0; color: #001f3f; line-height: 1.25; }
         .class-gold-page .club-page-logo-wrap { display: flex; justify-content: center; }
         .class-gold-page .club-page-logo-img { display: block; width: auto; max-width: min(220px, 100%); height: auto; max-height: 120px; object-fit: contain; }
-        .class-gold-page .club-story-meta { margin: 0; color: #475569; font-size: 0.95rem; font-weight: 600; text-align: center; }
-        /* Events featuring / Clubs sailing — same boxed cards as /classes + /clubs (MP default) */
-        .class-gold-page .club-story-logo-row { width: 100%; margin: 0.35rem 0 0.15rem; }
-        .class-gold-page .club-story-logo-row-label { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #001f3f; margin: 0 0 0.45rem 0; text-align: center; }
+        .class-gold-page .club-story-meta {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 0.45rem 1.1rem;
+            width: 100%;
+            margin: 0;
+            color: #475569;
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-align: center;
+        }
+        .class-gold-page .club-story-meta-item {
+            display: inline-flex;
+            flex-direction: row;
+            align-items: baseline;
+            gap: 0.28rem;
+            white-space: nowrap;
+        }
+        .class-gold-page .club-story-meta-n,
+        .class-gold-page .club-story-meta-w { display: inline-block; }
+        @media (max-width: 640px) and (orientation: portrait) {
+            .class-gold-page .club-story-meta-item {
+                flex-direction: column;
+                align-items: center;
+                white-space: normal;
+                line-height: 1.15;
+            }
+        }
+        /* Events featuring / Clubs sailing — gold .card like club sections */
+        .class-gold-page .card.stats-section.class-gold-logo-card {
+            text-align: left;
+        }
+        .class-gold-page .class-gold-logo-card .section-title {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 0.45rem;
+            flex-wrap: wrap;
+            margin: 0 0 0.65rem 0;
+        }
+        .class-gold-page .class-gold-title-phrase { white-space: nowrap; }
+        .class-gold-page .class-gold-title-logo {
+            display: inline-block;
+            height: 40px;
+            width: auto;
+            max-width: 96px;
+            object-fit: contain;
+            vertical-align: middle;
+        }
+        .class-gold-page .club-story-logo-row { width: 100%; max-width: 52rem; margin: 0 auto 1.25rem; }
+        .class-gold-page .club-home-cards-stack {
+            width: 100%;
+            max-width: 52rem;
+            margin: 0 auto 1.5rem;
+            box-sizing: border-box;
+        }
+        .class-gold-page .club-home-cards-stack .card.stats-section { max-width: 100%; }
+        .class-gold-page .club-home-card-filter {
+            min-height: 44px;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            font-size: 16px;
+            padding: 8px 12px;
+            margin: 0 0 0.75rem 0;
+        }
+        .class-gold-page .sa-home-regatta-meta-pill { white-space: nowrap; }
+        @media (max-width: 768px) {
+            .class-gold-page .club-story-logo-row { max-width: 100%; }
+            .class-gold-page .club-home-cards-stack { max-width: 100%; }
+        }
+        .class-gold-page .club-story-logo-row-label {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0.45rem;
+            font-size: 0.72rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #001f3f;
+            margin: 0 0 0.45rem 0;
+            text-align: center;
+        }
         .class-gold-page .club-story-logo-chips {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
@@ -187,13 +295,23 @@
             margin: 0;
         }
         .class-gold-page .club-story-chip-count {
-            display: block;
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: baseline;
+            gap: 0.15rem 0.28rem;
             font-size: 0.68rem;
             font-weight: 800;
             line-height: 1.15;
             color: #0f6d7a;
             margin: 0 0 2px;
             text-align: center;
+        }
+        .class-gold-page .club-story-chip-count-n,
+        .class-gold-page .club-story-chip-count-w { display: inline-block; white-space: nowrap; }
+        @media (max-width: 640px) and (orientation: portrait) {
+            .class-gold-page .club-story-chip-count { flex-direction: column; align-items: center; }
         }
         .class-gold-page .club-story-chip-label {
             display: block;
@@ -202,7 +320,9 @@
             line-height: 1.2;
             text-align: center;
             color: #001f3f;
-            word-break: break-word;
+            word-break: normal;
+            overflow-wrap: break-word;
+            hyphens: none;
             max-width: 100%;
         }
         .class-gold-page a.club-story-chip:hover {
@@ -4249,7 +4369,7 @@ header.site-header #headerAuth button {
                 <!-- Congratulations section - removed for later re-add; id kept for JS -->
                 <div id="congratulations-section" style="margin-top: 2rem; display: none;"></div>
             </div>
-            <!-- Class page (SPA): /class/… — same id as public bundle; renderClassPage targets this only -->
+            <!-- Class page (SPA): /class/{slug} only — never /class/{id}-{slug}; renderClassPage targets this only -->
             <div id="class-view" style="display: none;"></div>
         </div>
             </div>
@@ -5008,10 +5128,11 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                 var lab = classNameFromLogoFilename(p) || 'Event';
                 lab = String(lab).replace(/\b\w/g, function(c) { return c.toUpperCase(); });
                 var href = catSlug ? ('/events-logos/' + encodeURIComponent(catSlug)) : '/events-logos';
-                var countLab = row.n + ' event' + (row.n === 1 ? '' : 's');
+                var countWord = 'event' + (row.n === 1 ? '' : 's');
+                var countLab = row.n + ' ' + countWord;
                 var logo = '<span class="club-story-chip-logo"><img src="' + esc(p) + '" alt="' + esc(lab) + '" loading="lazy" decoding="async" onerror="this.style.display=\'none\'"></span>';
                 var inner = logo +
-                    '<span class="club-story-chip-count">' + esc(countLab) + '</span>' +
+                    '<span class="club-story-chip-count"><span class="club-story-chip-count-n">' + esc(String(row.n)) + '</span><span class="club-story-chip-count-w">' + esc(countWord) + '</span></span>' +
                     '<span class="club-story-chip-label">' + esc(lab) + '</span>';
                 return { n: row.n, lab: lab, html: '<a class="club-story-chip" href="' + esc(href) + '" title="' + esc(lab + ' — ' + countLab) + '">' + inner + '</a>' };
             }).filter(Boolean);
@@ -5033,21 +5154,27 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
             var sailorsN = sailors.length || (data.active_sailors != null ? Number(data.active_sailors) : 0);
             var regN = data.total_regattas != null ? Number(data.total_regattas) : regattas.length;
             var raceN = data.total_races != null ? Number(data.total_races) : 0;
-            if (sailorsN) meta.push(sailorsN + ' sailor' + (sailorsN === 1 ? '' : 's'));
-            if (regN) meta.push(regN + ' regatta' + (regN === 1 ? '' : 's'));
-            if (raceN) meta.push(raceN.toLocaleString() + ' race' + (raceN === 1 ? '' : 's'));
-            if (clubs.length) meta.push(clubs.length + ' club' + (clubs.length === 1 ? '' : 's'));
+            function metaPair(n, word) {
+                return '<span class="club-story-meta-item"><span class="club-story-meta-n">' + esc(String(n)) + '</span><span class="club-story-meta-w">' + esc(word) + '</span></span>';
+            }
+            if (sailorsN) meta.push(metaPair(sailorsN, 'sailor' + (sailorsN === 1 ? '' : 's')));
+            if (regN) meta.push(metaPair(regN, 'regatta' + (regN === 1 ? '' : 's')));
+            if (raceN) meta.push(metaPair(raceN.toLocaleString(), 'race' + (raceN === 1 ? '' : 's')));
+            if (clubs.length) meta.push(metaPair(clubs.length, 'club' + (clubs.length === 1 ? '' : 's')));
 
             var logoHtml = classLogo
                 ? '<div class="club-page-logo-wrap"><img src="' + esc(classLogo) + '" alt="' + esc(className) + '" class="club-page-logo-img" loading="lazy" onerror="this.parentNode.style.display=\'none\'"></div>'
                 : '';
 
+            var classTitleLogo = classLogo
+                ? '<img src="' + esc(classLogo) + '" alt="" class="class-gold-title-logo">'
+                : esc(className);
             var strips = '';
             if (eventChips.length) {
-                strips += '<div class="club-story-logo-row"><div class="club-story-logo-row-label">Events featuring ' + esc(className) + '</div><div class="club-story-logo-chips">' + eventChips.join('') + '</div></div>';
+                strips += '<div class="card stats-section class-gold-logo-card"><h2 class="section-title"><span class="class-gold-title-phrase">Events featuring</span> ' + classTitleLogo + '</h2><div class="club-story-logo-chips">' + eventChips.join('') + '</div></div>';
             }
             if (clubChips.length) {
-                strips += '<div class="club-story-logo-row"><div class="club-story-logo-row-label">Clubs sailing ' + esc(className) + '</div><div class="club-story-logo-chips">' + clubChips.join('') + '</div></div>';
+                strips += '<div class="card stats-section class-gold-logo-card"><h2 class="section-title"><span class="class-gold-title-phrase">Clubs sailing</span> ' + classTitleLogo + '</h2><div class="club-story-logo-chips">' + clubChips.join('') + '</div></div>';
             }
 
             function rowLogo(src) {
@@ -5059,26 +5186,130 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                 return '<img src="' + esc(u) + '" alt="" class="row-av" width="28" height="28" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=\'/assets/avatars/default-youth.png\'">';
             }
 
-            var regattaRows = regattas.map(function(r, i) {
+            function isoDay(raw) {
+                var s = String(raw || '').trim().slice(0, 10);
+                return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : '';
+            }
+            function shortDate(raw) {
+                var s = isoDay(raw);
+                if (!s) return '';
+                var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                var d = parseInt(s.slice(8, 10), 10);
+                var m = parseInt(s.slice(5, 7), 10) - 1;
+                var y = parseInt(s.slice(0, 4), 10);
+                if (m < 0 || m > 11 || !d) return s;
+                return d + ' ' + months[m] + ' ' + y;
+            }
+            function eventDateLabel(r) {
+                var a = shortDate(r.start_date || r.event_date);
+                var b = shortDate(r.end_date || r.event_date);
+                if (a && b && a !== b) return a + ' → ' + b;
+                return a || b || '';
+            }
+            function eventEndDay(r) {
+                return isoDay(r.end_date || r.event_date || r.start_date);
+            }
+            function todayIso() {
+                var n = new Date();
+                var m = String(n.getMonth() + 1);
+                var d = String(n.getDate());
+                if (m.length < 2) m = '0' + m;
+                if (d.length < 2) d = '0' + d;
+                return n.getFullYear() + '-' + m + '-' + d;
+            }
+            function countLabel(n, one, many) {
+                if (n == null || n === '') return '';
+                var num = Number(n);
+                if (!isFinite(num)) return '';
+                return num + ' ' + (num === 1 ? one : many);
+            }
+            function metaPill(text) {
+                if (!text) return '';
+                return '<span class="sa-home-regatta-meta-pill"><span>' + esc(text) + '</span></span>';
+            }
+            function classEventCard(r, panel) {
                 var slug = (r.regatta_slug || (r.regatta_id != null ? String(r.regatta_id) : '')) || '';
-                var url = slug ? '/regatta/' + encodeURIComponent(slug) : '#';
-                var eventName = esc(r.regatta_name || r.event_name || '');
-                var eventDate = esc(r.event_date || r.end_date || r.start_date || '—');
+                var url = slug ? '/regatta/' + encodeURIComponent(slug) : '';
+                var title = r.regatta_name || r.event_name || '—';
+                var dateL = eventDateLabel(r);
                 var hostCode = (r.club_code || '').trim().toUpperCase();
                 var hostSlug = (r.club_slug || hostCode.toLowerCase() || '').trim();
-                var hostLogo = (r.club_logo_url || (hostCode ? '/api/club-logo/' + hostCode : '')).trim();
-                var hostCell = hostCode
-                    ? (rowLogo(hostLogo) + (hostSlug ? '<a href="/club/' + encodeURIComponent(hostSlug) + '">' + esc(hostCode) + '</a>' : esc(hostCode)))
-                    : '—';
                 var evLogo = (r.event_logo_url || classLogo || '').trim();
-                var eventEntries = (r.event_entries != null && r.event_entries !== '') ? r.event_entries
-                    : ((r.fleet_size != null && r.fleet_size !== '') ? r.fleet_size : '—');
-                var classEntries = (r.class_entries != null && r.class_entries !== '') ? r.class_entries
-                    : ((r.fleet_size != null && r.fleet_size !== '') ? r.fleet_size : '—');
-                var races = (r.races != null && r.races !== '') ? r.races : '—';
-                var search = esc(((r.regatta_name || '') + ' ' + hostCode + ' ' + eventDate).toLowerCase());
-                return '<tr data-search="' + search + '"><td>' + (i + 1) + '</td><td class="cell-left">' + rowLogo(evLogo) + '<a href="' + url + '">' + eventName + '</a></td><td class="cell-nowrap">' + eventDate + '</td><td class="cell-left hide-mobile">' + hostCell + '</td><td>' + eventEntries + '</td><td>' + classEntries + '</td><td class="hide-mobile">' + races + '</td></tr>';
-            }).join('');
+                var classEnt = countLabel(r.class_entries, (className || 'entry'), (className ? (className + 's') : 'entries'));
+                var racesL = countLabel(r.races, 'race', 'races');
+                var logo = evLogo
+                    ? (url
+                        ? '<a class="sa-home-regatta-event-logo-link" href="' + esc(url) + '"><img class="sa-home-regatta-event-logo" src="' + esc(evLogo) + '" alt="" loading="lazy" decoding="async" onerror="this.style.display=\'none\'"></a>'
+                        : '<img class="sa-home-regatta-event-logo" src="' + esc(evLogo) + '" alt="" loading="lazy" decoding="async" onerror="this.style.display=\'none\'">')
+                    : '';
+                var titleHtml = url
+                    ? '<a href="' + esc(url) + '" class="sa-home-regatta-title">' + esc(title) + '</a>'
+                    : '<div class="sa-home-regatta-title">' + esc(title) + '</div>';
+                var meta = '<div class="sa-home-regatta-meta">' + metaPill(dateL) + metaPill(classEnt) + metaPill(racesL) + '</div>';
+                var hostInner = '<div class="sa-home-regatta-host-text">' +
+                    (hostCode ? '<div class="sa-home-regatta-host-code">' + esc(hostCode) + '</div>' : '') +
+                    '</div>';
+                var hostHtml = hostSlug
+                    ? '<a class="sa-home-regatta-host" href="/club/' + encodeURIComponent(hostSlug) + '">' + hostInner + '</a>'
+                    : '<div class="sa-home-regatta-host">' + hostInner + '</div>';
+                var btnLabel = panel === 'upcoming' ? 'Upcoming Event' : 'Results';
+                var actions = '<div class="sa-home-regatta-actions">' +
+                    (url ? '<a class="sa-home-regatta-btn" href="' + esc(url) + '">' + btnLabel + '</a>' : '') +
+                    '</div>';
+                var bg = panel === 'upcoming' ? ' ec-upcoming' : ' ec-past-results';
+                var hay = esc((title + ' ' + dateL + ' ' + hostCode).toLowerCase());
+                return '<article class="sa-home-regatta-card' + bg + '" data-search="' + hay + '">' +
+                    '<div class="sa-home-regatta-top">' + logo +
+                    '<div class="sa-home-regatta-top-main">' + titleHtml + meta + '</div>' +
+                    hostHtml + actions + '</div></article>';
+            }
+            var today = todayIso();
+            var upcoming = [];
+            var past = [];
+            regattas.forEach(function(r) {
+                var end = eventEndDay(r);
+                if (end && end >= today) upcoming.push(r);
+                else past.push(r);
+            });
+            upcoming.sort(function(a, b) { return eventEndDay(a).localeCompare(eventEndDay(b)); });
+            past.sort(function(a, b) { return eventEndDay(b).localeCompare(eventEndDay(a)); });
+            function eventSection(title, list, panel, listId) {
+                if (!list.length) return '';
+                var cards = list.map(function(r) { return classEventCard(r, panel); }).join('');
+                return '<div class="card stats-section club-' + panel + '-events-section">' +
+                    '<h2 class="section-title">' + esc(title) + ' (' + list.length + ')</h2>' +
+                    '<input type="search" class="club-home-card-filter" data-list="' + listId + '" placeholder="Search ' + esc(title.toLowerCase()) + '…" autocomplete="off">' +
+                    '<div class="sa-home-regatta-wrap"><div class="sa-home-regatta-list" id="' + listId + '">' + cards + '</div></div></div>';
+            }
+            if (typeof ensureRegattaListCss === 'function') ensureRegattaListCss();
+            var eventCardsHtml =
+                '<div class="club-home-cards-stack class-gold-event-cards">' +
+                '<style id="class-gold-event-cards-style">' +
+                '.class-gold-page .sa-home-regatta-list{display:flex;flex-direction:column;gap:10px;}' +
+                '.class-gold-page .sa-home-regatta-card{background:#fff;border:2px solid #8aa2c6;border-radius:6px;box-shadow:0 2px 3px rgba(15,23,42,.06);padding:10px 12px;display:flex;flex-direction:column;gap:8px;overflow:hidden;box-sizing:border-box;width:100%;}' +
+                '.class-gold-page .sa-home-regatta-top{display:grid;grid-template-columns:104px minmax(0,1fr) minmax(72px,120px) auto;grid-template-areas:"logo main host actions";gap:14px;align-items:center;}' +
+                '.class-gold-page .sa-home-regatta-event-logo-link{grid-area:logo;display:flex;align-items:center;line-height:0;}' +
+                '.class-gold-page .sa-home-regatta-event-logo{display:block;width:96px;height:68px;max-width:96px;object-fit:contain;}' +
+                '.class-gold-page .sa-home-regatta-top-main{grid-area:main;min-width:0;}' +
+                '.class-gold-page .sa-home-regatta-title{font-size:15px;font-weight:900;color:#142c78;line-height:1.15;margin:0;text-decoration:none;}' +
+                '.class-gold-page .sa-home-regatta-meta{display:flex;flex-wrap:wrap;gap:8px;color:#5b6780;font-size:11.5px;margin-top:6px;}' +
+                '.class-gold-page .sa-home-regatta-meta-pill{display:inline-flex;align-items:center;font-weight:700;white-space:nowrap;position:relative;}' +
+                '.class-gold-page .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill{padding-left:10px;}' +
+                '.class-gold-page .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill:before{content:"";position:absolute;left:0;top:2px;bottom:2px;width:1px;background:#cbd5e1;}' +
+                '.class-gold-page .sa-home-regatta-host{grid-area:host;display:flex;align-items:center;text-decoration:none;color:inherit;min-height:44px;}' +
+                '.class-gold-page .sa-home-regatta-host-code{font-weight:900;color:#21356b;font-size:14px;}' +
+                '.class-gold-page .sa-home-regatta-actions{grid-area:actions;display:flex;align-items:center;justify-content:flex-end;}' +
+                '.class-gold-page .sa-home-regatta-btn{display:inline-flex;align-items:center;justify-content:center;padding:9px 14px;border-radius:6px;border:1px solid #a5d7de;background:#f9ffff;color:#0f6d7a;font-weight:900;font-size:12px;text-decoration:none;white-space:nowrap;min-width:126px;min-height:44px;}' +
+                '@media (max-width:768px){' +
+                '.class-gold-page .sa-home-regatta-top{grid-template-columns:72px minmax(0,1fr);grid-template-areas:"logo main" "host host" "actions actions";gap:8px 10px;align-items:start;}' +
+                '.class-gold-page .sa-home-regatta-event-logo{width:68px;height:52px;}' +
+                '.class-gold-page .sa-home-regatta-actions{width:100%;}' +
+                '.class-gold-page .sa-home-regatta-btn{flex:1;}' +
+                '}' +
+                '</style>' +
+                eventSection('Upcoming events', upcoming, 'upcoming', 'class-upcoming-cards') +
+                eventSection('Past events', past, 'past', 'class-past-cards') +
+                '</div>';
 
             var clubRows = clubs.map(function(c, i) {
                 var code = (c.club_code || '').trim().toUpperCase();
@@ -5131,23 +5362,25 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                     '</div><div class="table-container club-table-scroll">' + tableHtml + '</div>';
             }
 
-            var regattaTable = '<table class="table" id="class-regattas-table"><thead><tr><th>#</th><th>Event</th><th>Date</th><th class="hide-mobile">Host</th><th>Entries</th><th>' + esc(className || 'Class') + '</th><th class="hide-mobile">Races</th></tr></thead><tbody>' +
-                (regattaRows || '<tr><td colspan="7">No regattas</td></tr>') + '</tbody></table>';
             var clubsTable = '<table class="table" id="class-clubs-table"><thead><tr><th>#</th><th>Club</th><th>Sailors</th><th>Races</th><th>Last regatta</th><th>Date</th></tr></thead><tbody>' +
                 (clubRows || '<tr><td colspan="6">No clubs</td></tr>') + '</tbody></table>';
             var sailorsTable = '<table class="table" id="class-sailors-table"><thead><tr><th>#</th><th>Sailor</th><th class="hide-mobile">Club</th><th>Races</th><th>Regattas</th><th>Last result</th><th>Last regatta</th></tr></thead><tbody>' +
                 (sailorRows || '<tr><td colspan="7">No sailors</td></tr>') + '</tbody></table>';
 
+            var identityTitle = classLogo
+                ? '<div class="club-story-title-row">' + logoHtml + '</div>'
+                : '<div class="club-story-title-row"><h1>' + esc(className) + '</h1></div>';
             var html = '' +
                 '<div class="container club-page class-gold-page">' +
                 '<div class="card elg-detail-page" style="border:none;box-shadow:none;padding:0;">' +
+                '<div class="card stats-section class-gold-identity-card">' +
                 '<div class="header club-page-header club-story-header">' +
                 '<div class="club-story-inner">' +
-                '<div class="club-story-title-row"><h1>' + esc(className) + '</h1>' + logoHtml + '</div>' +
-                (meta.length ? '<p class="club-story-meta">' + esc(meta.join(' · ')) + '</p>' : '') +
+                identityTitle +
+                (meta.length ? '<p class="club-story-meta">' + meta.join('') + '</p>' : '') +
+                '</div></div></div>' +
                 strips +
-                '</div></div>' +
-                section('regattas', 'Regattas (' + regattas.length + ')', 'class-regattas-table', regattaTable) +
+                eventCardsHtml +
                 (clubs.length ? section('clubs', 'Clubs sailing ' + className + ' (' + clubs.length + ')', 'class-clubs-table', clubsTable) : '') +
                 section('sailors', 'Sailors (' + sailors.length + ')', 'class-sailors-table', sailorsTable) +
                 '</div></div>';
@@ -5163,6 +5396,17 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                     table.querySelectorAll('tbody tr').forEach(function(tr) {
                         var hay = tr.getAttribute('data-search') || tr.textContent.toLowerCase();
                         tr.style.display = (!q || hay.indexOf(q) !== -1) ? '' : 'none';
+                    });
+                });
+            });
+            cv.querySelectorAll('.club-home-card-filter').forEach(function(inp) {
+                inp.addEventListener('input', function() {
+                    var list = document.getElementById(inp.getAttribute('data-list'));
+                    if (!list) return;
+                    var q = (inp.value || '').toLowerCase().trim();
+                    list.querySelectorAll('.sa-home-regatta-card').forEach(function(c) {
+                        var hay = c.getAttribute('data-search') || '';
+                        c.style.display = (!q || hay.indexOf(q) !== -1) ? '' : 'none';
                     });
                 });
             });

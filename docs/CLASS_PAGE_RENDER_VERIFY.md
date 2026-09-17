@@ -7,17 +7,17 @@
 
 No direct `cv.innerHTML` or `heroCard` in renderClassPage. Only `buildMasterPageLayout(cv, ...)` writes the DOM.
 
-## 2. Which index.html is loaded for /class/62-optimist-a?
+## 2. Which index.html is loaded for /class/optimist-a?
 
 Deploy extracts the frontend zip into `/var/www/sailingsa`. The zip is built from `sailingsa/frontend/`, so:
 - **Root:** `sailingsa/frontend/index.html` → deployed as `/var/www/sailingsa/index.html`
 - **Public:** `sailingsa/frontend/public/index.html` → deployed as `/var/www/sailingsa/public/index.html`
 
-For `https://sailingsa.co.za/class/62-optimist-a` the server typically serves the **root** index.html (SPA fallback). So the file that runs is the **root** index.html (our updated one). If your site serves the app from a path that uses `public/`, then `public/index.html` would be used instead. Both files have been updated identically.
+For `https://sailingsa.co.za/class/optimist-a` the server typically serves the **root** index.html (SPA fallback). So the file that runs is the **root** index.html (our updated one). If your site serves the app from a path that uses `public/`, then `public/index.html` would be used instead. Both files have been updated identically.
 
 ## 3. Browser console check
 
-Open https://sailingsa.co.za/class/62-optimist-a → F12 → Console. Run:
+Open https://sailingsa.co.za/class/optimist-a → F12 → Console. Run:
 ```js
 typeof window.renderClassPage
 ```
@@ -44,7 +44,7 @@ Grep confirms: no `class-page-component`, no `cv.innerHTML` in renderClassPage, 
 ### A. Confirm what file the browser actually loaded
 
 1. Open **DevTools** → **Network** tab.
-2. Reload the page (e.g. https://sailingsa.co.za/class/62-optimist-a).
+2. Reload the page (e.g. https://sailingsa.co.za/class/optimist-a).
 3. Click the **index.html** (or main document) entry.
 4. Check **Headers** or **Response** – verify timestamp/size matches the deployed file (e.g. compare with local `sailingsa/frontend/index.html` size / last-modified after deploy).
 
@@ -64,4 +64,4 @@ The browser is using an older frontend than the one edited in Cursor. The server
 
 ### D. Quick isolation test
 
-Open the site in a **new private/incognito** window and load the same URL (e.g. https://sailingsa.co.za/class/62-optimist-a). That forces a fresh load from the server with no local cache. If stats are `<a>` links in incognito but plain text in the normal window, the issue is cache; if still text in incognito, redeploy so the server has the latest `index.html` (and `public/index.html` if that path is used).
+Open the site in a **new private/incognito** window and load the same URL (e.g. https://sailingsa.co.za/class/optimist-a). That forces a fresh load from the server with no local cache. If stats are `<a>` links in incognito but plain text in the normal window, the issue is cache; if still text in incognito, redeploy so the server has the latest `index.html` (and `public/index.html` if that path is used).

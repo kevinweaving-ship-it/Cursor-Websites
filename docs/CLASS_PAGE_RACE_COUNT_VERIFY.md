@@ -26,7 +26,7 @@ WHERE class_id = 62
 
 ## API check
 
-After deploy, open `/class/62-optimist-a` and confirm e.g.:
+After deploy, open `/class/optimist-a` and confirm e.g.:
 
 - **Timothy Weaving:** Races: 78, Regattas: 13
 

@@ -357,7 +357,9 @@ def build_sitemap(
     seen_c: set[str] = set()
     for cid, class_name, lastmod in sorted(classes, key=lambda x: x[2], reverse=True):
         slug = _class_canonical_slug(class_name)
-        path = f"/class/{cid}-{slug}" if slug else f"/class/{cid}"
+        if not slug:
+            continue
+        path = f"/class/{slug}"
         if path in seen_c:
             continue
         seen_c.add(path)
@@ -367,7 +369,9 @@ def build_sitemap(
     seen_cl: set[str] = set()
     for cid, name, lastmod in sorted(clubs, key=lambda x: x[2], reverse=True):
         slug = _club_canonical_slug(name)
-        path = f"/club/{slug}" if slug else f"/club/club-{cid}"
+        if not slug:
+            continue
+        path = f"/club/{slug}"
         if path in seen_cl:
             continue
         seen_cl.add(path)
