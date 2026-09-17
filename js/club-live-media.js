@@ -12,7 +12,7 @@
   var WX_ID = 'ssa-regatta-slot-card';
   var MM_ID = 'mmLiptonReels';
   var CSS_ID = 'club-live-media-css';
-  var JS_VER = 'clubwx10';
+  var JS_VER = 'clubwx11';
 
   var AGRO_CAM = 'https://hmyccam1.nwsza.net/latest.jpg';
   var AGRO_PAGE = 'https://agromet.ukzn.ac.za/midmar/index.html#canvas_container';
@@ -35,7 +35,7 @@
       weatherRole: 'venue',
       cam: 'live',
       livePass: true,
-      stream: '/api/club-cam/hyc/live',
+      stream: 'https://sailingsa.co.za:8443/api/ws?src=hyc',
       camHref: 'https://www.hyc.co.za/',
       camLabel: 'HYC club cam',
       camStatusApi: '/api/club-cam/hyc',
@@ -91,8 +91,9 @@
       '.club-live-media .club-cam-sa-toggle{display:none;margin:8px 0 0;min-height:44px;min-width:44px;padding:10px 14px;border:1.5px solid #1a2750;border-radius:8px;background:#fff;color:#1a2750;font:700 14px/1.2 Arial,Helvetica,sans-serif;cursor:pointer;}' +
       '.club-live-media.club-live-media--sa .club-cam-sa-toggle{display:inline-flex;align-items:center;justify-content:center;}' +
       '.club-live-media.club-live-media--cam-off:not(.club-live-media--sa) .mm-lipton-reels{display:none!important}' +
-      '.mm-lipton-reels[data-mm-live-pass]{min-height:120px}' +
-      '.mm-lipton-reels[data-mm-live-pass] .mm-lipton-reels-thumb{width:100%;aspect-ratio:16/9;background:#111}';
+      '.mm-lipton-reels[data-mm-live-pass] video-stream{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:1}' +
+      '.mm-lipton-reels[data-mm-live-pass] video-stream .mode{display:none!important}' +
+      '.mm-lipton-reels[data-mm-live-pass] video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}';
     document.head.appendChild(s);
   }
 
@@ -136,8 +137,8 @@
         kind: 'webcam',
         live_pass: true,
         title: club.camLabel || 'Club cam',
-        stream_url: club.stream || '/api/club-cam/hyc/live',
-        stream_kind: 'hls',
+        stream_url: club.stream || 'https://sailingsa.co.za:8443/api/ws?src=hyc',
+        stream_kind: 'webrtc',
         url: club.camHref || '',
         status_api: club.camStatusApi || '',
         aspect: '16 / 9',
@@ -343,8 +344,14 @@
     host.classList.toggle('club-live-media--cam-off', !visible);
     var mm = document.getElementById(MM_ID);
     if (mm) {
-      if (!visible && !can) mm.setAttribute('hidden', '');
-      else mm.removeAttribute('hidden');
+      if (!visible && !can) {
+        mm.setAttribute('hidden', '');
+        mm.querySelectorAll('video-stream').forEach(function (el) {
+          el.remove();
+        });
+      } else {
+        mm.removeAttribute('hidden');
+      }
     }
     var btn = host.querySelector('[data-club-cam-sa]');
     if (can) paintSaToggle(btn, visible);

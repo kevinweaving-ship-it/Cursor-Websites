@@ -45,6 +45,17 @@ def mph_to_kt(val: Any) -> Optional[float]:
     return round(n * MPH_TO_KT, 2)
 
 
+def _first_num(src: dict, *keys: str) -> Optional[float]:
+    for k in keys:
+        if src.get(k) is None:
+            continue
+        try:
+            return float(src[k])
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
 def kmh_to_kt(val: Any) -> Optional[float]:
     if val is None:
         return None
@@ -87,29 +98,18 @@ def reading_from_wu_obs(obs: dict, period_sec: int = DEFAULT_PERIOD_SEC) -> Opti
     imperial = obs.get("imperial") if isinstance(obs.get("imperial"), dict) else None
     metric = obs.get("metric") if isinstance(obs.get("metric"), dict) else None
     if imperial:
-        avg_kt = mph_to_kt(imperial.get("windSpeed"))
-        gust_kt = mph_to_kt(imperial.get("windGust"))
-        try:
-            temp_c = round((float(imperial["temp"]) - 32.0) * 5.0 / 9.0, 2) if imperial.get("temp") is not None else None
-        except (TypeError, ValueError):
-            temp_c = None
+        avg_kt = mph_to_kt(_first_num(imperial, "windSpeed", "windspeedAvg", "windSpeedAvg"))
+        gust_kt = mph_to_kt(_first_num(imperial, "windGust", "windgustHigh", "windGustHigh", "windspeedHigh"))
+        temp_f = _first_num(imperial, "temp", "tempAvg")
+        temp_c = round((temp_f - 32.0) * 5.0 / 9.0, 2) if temp_f is not None else None
     elif metric:
-        avg_kt = kmh_to_kt(metric.get("windSpeed"))
-        gust_kt = kmh_to_kt(metric.get("windGust"))
-        try:
-            temp_c = float(metric["temp"]) if metric.get("temp") is not None else None
-        except (TypeError, ValueError):
-            temp_c = None
+        avg_kt = kmh_to_kt(_first_num(metric, "windSpeed", "windspeedAvg", "windSpeedAvg"))
+        gust_kt = kmh_to_kt(_first_num(metric, "windGust", "windgustHigh", "windGustHigh", "windspeedHigh"))
+        temp_c = _first_num(metric, "temp", "tempAvg")
     else:
         return None
-    try:
-        wind_dir = float(obs["winddir"]) if obs.get("winddir") is not None else None
-    except (TypeError, ValueError):
-        wind_dir = None
-    try:
-        humidity = float(obs["humidity"]) if obs.get("humidity") is not None else None
-    except (TypeError, ValueError):
-        humidity = None
+    wind_dir = _first_num(obs, "winddir", "winddirAvg")
+    humidity = _first_num(obs, "humidity", "humidityAvg")
     rt = obs.get("realtimeFrequency")
     try:
         rt_sec = int(rt) if rt not in (None, "") else 0

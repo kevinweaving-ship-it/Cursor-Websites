@@ -22,7 +22,7 @@ def test_injector_covers_zvyc_hyc_hmyc_with_club_logo():
     assert "snapshot: true" in js
     assert "livePass: true" in js
     assert "/api/club-cam/hyc" in js
-    assert "/api/club-cam/hyc/live" in js
+    assert "https://sailingsa.co.za:8443/api/ws?src=hyc" in js
     assert "data-mm-live-pass" in js
     assert "club-cam-sa-toggle" in js
     assert "can_toggle" in js
@@ -55,7 +55,10 @@ def test_club_page_mm_brand_stays_club_logo():
     assert "SNAPSHOT" in js
     assert "pollSnapshotCam" in js
     assert "liveStillCamRoot" in js
-    assert "livePassCamRoot" in js
+    assert "https://sailingsa.co.za:8443/" in js
+    assert "video-stream.js" in js
+    assert "api/ws?src=" in js
+    assert "webrtc,mse" in js
     assert "singleCamRoot" in js
     assert "data-mm-live-still" in js
     assert "data-mm-live-pass" in js
@@ -81,8 +84,8 @@ def test_weather_card_uses_agromet_history_path():
 
 def test_api_club_page_loads_live_media_script():
     src = read("api.py")
-    assert "club-live-media.js?v=clubwx10" in src
-    assert "mm-lipton-reels.css?v=clubwx10" in src
+    assert "club-live-media.js?v=clubwx11" in src
+    assert "mm-lipton-reels.css?v=clubwx11" in src
     assert "/api/weather/agromet-midmar/history" in src
     assert "/api/weather/hyc/history" in src
     assert "/api/club-cam/hyc/live" in src
@@ -90,7 +93,7 @@ def test_api_club_page_loads_live_media_script():
     impl_start = src.find("def _serve_club_page_impl")
     impl_end = src.find("def _format_regatta_host_display")
     impl = src[impl_start:impl_end]
-    assert "club-live-media.js?v=clubwx10" in impl
+    assert "club-live-media.js?v=clubwx11" in impl
 
 
 def test_live_club_html_can_host_inject_between_identity_and_about():

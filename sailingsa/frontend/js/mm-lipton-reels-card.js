@@ -1283,27 +1283,13 @@
     return live;
   }
 
+  var GO2RTC = 'https://sailingsa.co.za:8443/';
+  var GO2RTC_HYC = 'hyc';
+
   function livePassTileHtml(v) {
-    var src = String((v && (v.stream_url || liveStreamUrl(v))) || '/api/club-cam/hyc/live').trim();
-    var kind = String((v && v.stream_kind) || (cardEl() && cardEl()._mmStreamKind) || 'hls');
-    var inner;
-    if (kind === 'mjpeg') {
-      inner =
-        '<img src="' +
-        esc(src) +
-        '" alt="' +
-        esc((v && v.title) || 'HYC club cam') +
-        '" data-mm-webcam-live data-mm-live-pass decoding="async">';
-    } else {
-      inner =
-        '<video data-mm-compact-live autoplay muted playsinline webkit-playsinline preload="auto" src="' +
-        esc(src) +
-        '" title="LIVE"></video>';
-    }
     return (
       '<div class="mm-lipton-reels-tile mm-lipton-reels-tile--live">' +
-      '<div class="mm-lipton-reels-thumb mm-lipton-reels-thumb--live" style="aspect-ratio:16 / 9">' +
-      inner +
+      '<div class="mm-lipton-reels-thumb mm-lipton-reels-thumb--live" style="aspect-ratio:16 / 9" data-hyc-go2rtc>' +
       camStampHtml() +
       '</div></div>'
     );
@@ -1311,10 +1297,8 @@
 
   function startLivePass(root) {
     if (!livePassCamRoot(root)) return;
-    var video = root.querySelector('video[data-mm-compact-live]');
-    var src = '/api/club-cam/hyc/live';
-    if (!video) {
-      kickCompactLive(root);
+    var cell = root.querySelector('[data-hyc-go2rtc]');
+    if (!cell) {
       if (!root._mmLivePassTries) root._mmLivePassTries = 0;
       if (root._mmLivePassTries < 8) {
         root._mmLivePassTries += 1;
@@ -1324,32 +1308,43 @@
       }
       return;
     }
-    root._mmCamUpstream = true;
-    paintCamStamps(root);
-    if (video.canPlayType && video.canPlayType('application/vnd.apple.mpegurl')) {
-      if (video.getAttribute('src') !== src) video.src = src;
-      var p = video.play();
-      if (p && p.catch) p.catch(function () {});
+    if (cell.querySelector('video-stream')) {
+      root._mmCamUpstream = true;
+      paintCamStamps(root);
       return;
     }
-    withHls(function (Hls) {
-      if (!Hls || !Hls.isSupported) {
-        kickCompactLive(root);
-        return;
-      }
-      if (root._mmHls) return;
-      var hls = new Hls({ enableWorker: true, lowLatencyMode: true });
-      root._mmHls = hls;
-      hls.loadSource(src);
-      hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, function () {
-        var play = video.play();
-        if (play && play.catch) play.catch(function () {});
+    if (root._mmGo2rtcLoading) return;
+    root._mmGo2rtcLoading = true;
+    import(GO2RTC + 'video-stream.js')
+      .then(function () {
+        root._mmGo2rtcLoading = false;
+        if (!livePassCamRoot(root) || !cell.isConnected || cell.querySelector('video-stream')) return;
+        var el = document.createElement('video-stream');
+        el.mode = 'webrtc,mse';
+        el.background = false;
+        el.src = new URL('api/ws?src=' + GO2RTC_HYC, GO2RTC);
+        cell.insertBefore(el, cell.firstChild);
+        root._mmCamUpstream = true;
+        paintCamStamps(root);
+        var tries = 0;
+        var iv = window.setInterval(function () {
+          var v = el.video || el.querySelector('video');
+          if (v) {
+            v.controls = false;
+            v.removeAttribute('controls');
+            v.muted = true;
+            v.playsInline = true;
+          }
+          if ((v && v.videoWidth > 0 && v.currentTime > 0.2) || ++tries > 600 || !el.isConnected) {
+            window.clearInterval(iv);
+            if (v && v.videoWidth > 0) setCamUpstream(root, true);
+          }
+        }, 50);
+      })
+      .catch(function () {
+        root._mmGo2rtcLoading = false;
+        setCamUpstream(root, false);
       });
-      hls.on(Hls.Events.ERROR, function (_ev, data) {
-        if (data && data.fatal) setCamUpstream(root, false);
-      });
-    });
   }
 
   function compactTilesHtml(videos) {

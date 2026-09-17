@@ -226,6 +226,21 @@ def open_live(url: str | None = None, timeout: float | None = None):
 
 
 def probe_live() -> tuple[bool, str]:
+    url = live_url()
+    src = go2rtc_src()
+    if src and "stream.m3u8" in url:
+        api = (os.environ.get("HYC_GO2RTC_URL") or GO2RTC_DEFAULT).strip().rstrip("/") + "/api/streams"
+        req = Request(api, headers={"User-Agent": UA})
+        try:
+            with urlopen(req, timeout=3) as resp:
+                data = json.loads(resp.read().decode("utf-8", "replace") or "{}")
+        except (HTTPError, URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
+            return False, str(exc)[:200]
+        if not isinstance(data, dict):
+            return False, "go2rtc streams invalid"
+        if src not in data:
+            return False, "go2rtc src %s missing" % src
+        return True, ""
     fp, _ctype, err = open_live(timeout=8)
     if fp is None:
         return False, err or "nvr live unreachable"

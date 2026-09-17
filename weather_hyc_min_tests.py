@@ -51,6 +51,24 @@ def test_metric_obs_converts_kmh_to_knots():
     assert abs(row["wind_kt"] - 12.85) < 0.02
 
 
+def test_wu_1day_obs_uses_windspeed_avg():
+    obs = {
+        "obsTimeUtc": "2026-09-17T00:39:56Z",
+        "winddirAvg": 140,
+        "humidityAvg": 80,
+        "imperial": {
+            "tempAvg": 56.3,
+            "windspeedAvg": 4.3,
+            "windgustHigh": 14.8,
+        },
+    }
+    row = reading_from_wu_obs(obs)
+    assert row["wind_kt"] == mph_to_kt(4.3)
+    assert row["wind_gust_kt"] == mph_to_kt(14.8)
+    assert row["wind_dir_deg"] == 140
+    assert row["temp_c"] == round((56.3 - 32.0) * 5.0 / 9.0, 2)
+
+
 def test_catalog_url_is_hyc_stations():
     assert STATIONS_URL.endswith("/api/weather/clubs/HYC/stations")
     assert PROVIDER_ID == "IOVERS2"
@@ -60,5 +78,6 @@ if __name__ == "__main__":
     test_mph_to_knots()
     test_wu_obs_to_reading_knots()
     test_metric_obs_converts_kmh_to_knots()
+    test_wu_1day_obs_uses_windspeed_avg()
     test_catalog_url_is_hyc_stations()
     print("weather_hyc_min_tests: ok")
