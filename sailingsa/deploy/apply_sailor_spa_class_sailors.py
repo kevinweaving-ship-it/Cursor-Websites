@@ -100,7 +100,10 @@ NEW_SECTION = """                (clubs.length ? section('clubs', 'Clubs sailing
 OLD_FILTER = """                    list.querySelectorAll('.sa-home-regatta-card').forEach(function(c) {
                         var hay = c.getAttribute('data-search') || '';
                         c.style.display = (!q || hay.indexOf(q) !== -1) ? '' : 'none';
-                    });"""
+                    });
+                });
+            });
+            if (typeof attachSortableTables === 'function') attachSortableTables(cv);"""
 
 NEW_FILTER = """                    var shown = 0;
                     list.querySelectorAll('.sa-home-regatta-card, .club-home-sailor-slot').forEach(function(c) {
@@ -110,15 +113,8 @@ NEW_FILTER = """                    var shown = 0;
                         if (ok) shown += 1;
                     });
                     var empty = document.getElementById('class-home-sailors-empty');
-                    if (empty && list.id === 'class-home-sailors-list') empty.style.display = shown ? 'none' : 'block';"""
-
-OLD_BIND_END = """                if (inp) inp.addEventListener('input', sync);
-                sync();
-            });
-            if (typeof attachSortableTables === 'function') attachSortableTables(cv);"""
-
-NEW_BIND_END = """                if (inp) inp.addEventListener('input', sync);
-                sync();
+                    if (empty && list.id === 'class-home-sailors-list') empty.style.display = shown ? 'none' : 'block';
+                });
             });
             (function loadClassSailorCards() {
                 var list = document.getElementById('class-home-sailors-list');
@@ -189,7 +185,6 @@ def main() -> None:
         ("TABLE", OLD_TABLE),
         ("SECTION", OLD_SECTION),
         ("FILTER", OLD_FILTER),
-        ("BIND", OLD_BIND_END),
     ):
         if old not in text:
             miss.append(name)
@@ -202,7 +197,6 @@ def main() -> None:
     text = text.replace(OLD_TABLE, NEW_TABLE, 1)
     text = text.replace(OLD_SECTION, NEW_SECTION, 1)
     text = text.replace(OLD_FILTER, NEW_FILTER, 1)
-    text = text.replace(OLD_BIND_END, NEW_BIND_END, 1)
     text = text.replace("</head>", "<!-- " + MARK + " --></head>", 1)
     INDEX.write_text(text)
     print("OK", MARK, "BAK", str(bak))
