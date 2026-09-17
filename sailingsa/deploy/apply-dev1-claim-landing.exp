@@ -1,0 +1,56 @@
+#!/usr/bin/expect -f
+set timeout 180
+set password "TimAdd#072082"
+set server "102.218.215.253"
+
+spawn scp -o StrictHostKeyChecking=no /workspace/sailingsa/deploy/apply_dev1_claim_landing.py root@${server}:/tmp/apply_dev1_claim_landing.py
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
+
+spawn ssh -o StrictHostKeyChecking=no root@${server} {TS=$(date +%Y%m%d_%H%M%S); tar -czf /root/backup_dev1_claim_landing_${TS}.tar.gz /var/www/sailingsa/api/api.py; chattr -i /var/www/sailingsa/api/api.py; python3 /tmp/apply_dev1_claim_landing.py; echo APPLY:$?; python3 -m py_compile /var/www/sailingsa/api/api.py; echo COMPILE:$?; if python3 -m py_compile /var/www/sailingsa/api/api.py; then chattr +i /var/www/sailingsa/api/api.py; systemctl restart sailingsa-api; sleep 7; systemctl is-active sailingsa-api; python3 - <<'PY'
+from pathlib import Path
+api=Path('/var/www/sailingsa/api/api.py').read_text()
+print('MARK', 'DEV1_CLAIM_LANDING_v1' in api)
+print('OLD_CLAIM', api.count('CLAIM YOUR PROFILE NOW'), 'OLD_WARN', api.count('PUBLIC ACCESS ENDS IN'))
+print('NEW_Q', api.count('Is this your sailing profile?'), 'NEW_CTA', api.count('CLAIM MY PROFILE'))
+PY
+curl -sS -o /tmp/clubclaim.html -H 'Host: sailingsa.co.za' -H 'X-Forwarded-Proto: https' 'http://127.0.0.1:8000/club/hmyc?cb=claim1'; python3 - <<'PY'
+import re, urllib.request
+h=open('/tmp/clubclaim.html').read()
+sids=re.findall(r'data-sas-id="(\d+)"', h)
+print('CLUB_SIDS', len(sids), sids[:8])
+open('/tmp/claim_sids.txt','w').write('\n'.join(sids[:12]))
+PY
+python3 - <<'PY'
+import urllib.request
+sids=open('/tmp/claim_sids.txt').read().split()
+found=''
+for sid in sids:
+    req=urllib.request.Request('http://127.0.0.1:8000/dev-1?embed=1&sas_id='+sid, headers={'Host':'sailingsa.co.za','X-Forwarded-Proto':'https'})
+    try:
+        h=urllib.request.urlopen(req, timeout=20).read().decode('utf-8','replace')
+    except Exception as e:
+        print('DEV1_ERR', sid, e)
+        continue
+    print('TRY', sid, 'NEW', h.count('Is this your sailing profile?'), 'OLD', h.count('CLAIM YOUR PROFILE NOW'), 'LAND', h.count('sa-claim-banner--landing'))
+    if 'Is this your sailing profile?' in h or 'CLAIM YOUR PROFILE NOW' in h:
+        open('/tmp/dev1claim.html','w').write(h)
+        found=sid
+        break
+print('PICK', found or 'NONE')
+PY
+python3 - <<'PY'
+h=open('/tmp/dev1claim.html').read()
+print('HTML_OLD', h.count('CLAIM YOUR PROFILE NOW'), 'HTML_WARN', h.count('PUBLIC ACCESS ENDS IN'), 'HTML_FLIP', h.count('sa-flip'))
+print('HTML_NEWQ', h.count('Is this your sailing profile?'), 'HTML_CTA', h.count('CLAIM MY PROFILE'), 'HTML_LAND', h.count('sa-claim-banner--landing'))
+print('HTML_SIGNUP', '/signup.html?signup=1' in h)
+PY
+else echo COMPILE_FAIL; fi}
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
