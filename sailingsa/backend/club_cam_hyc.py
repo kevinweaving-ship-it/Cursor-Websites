@@ -1,7 +1,8 @@
 """HYC live cam — pass-through of Cam 5 on the club DS NVR.
 
-Do not snapshot-poll. Stream the live feed through the same Arial hikpoc/go2rtc
-path used for other Hikvision NVRs:
+Do not snapshot-poll. Club page / MM still play go2rtc src=hyc. The producer
+is isolated under /opt/hycnvr (camera 5@D23413606). Do not patch the Voelklip
+hikpoc fetch (D49460413 garage/workshop/pool/driveway).
 
   GET /api/club-cam/hyc/live  → HLS from local go2rtc (src=hyc).
 
@@ -10,8 +11,9 @@ Upstream (first match):
   go2rtc HLS           HYC_GO2RTC_URL + src=HYC_GO2RTC_SRC (default hyc)
   HYC_NVR_HOST + Cam 5 HTTP live preview (ISAPI channel 502 = Cam 5 substream)
 
-go2rtc producer: Hik-Connect serial D23413606 (HYC DS-7608NI-K2/8P) channel 5.
-Credentials stay on the server / hikpoc bridge.
+go2rtc producer: /opt/hycnvr/bridge_hyc.py — Hik-Connect serial D23413606
+(HYC DS-7608NI-K2/8P) channel 5. Same cloud login as Voelklip; own session
+cache and NVR media key. Credentials stay on the server.
 """
 from __future__ import annotations
 

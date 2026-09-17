@@ -20,7 +20,7 @@
       id: 'hyc',
       src: 'hyc',
       label: 'HYC',
-      why: 'HYC club live cam. Club page /club/hyc is a permanent card. Same data-cam=hyc is the video on an MM event card.',
+      why: 'HYC club live cam (camera 5@D23413606 via isolated /opt/hycnvr, not the Voelklip hikpoc fetch). Club page /club/hyc is a permanent card. Same data-cam=hyc is the video on an MM event card.',
       how: 'go2rtc',
       origin: CAM,
       player: 'video-stream',
