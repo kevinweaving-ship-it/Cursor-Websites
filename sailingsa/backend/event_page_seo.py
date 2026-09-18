@@ -345,51 +345,8 @@ def event_context_footer_html(
     edition_year: Optional[int] = None,
     previous_editions: Optional[list[dict]] = None,
 ) -> str:
-    """Small visible crawlable context. Only known facts. No hidden text."""
-    name = html_module.escape((display_name or "").strip())
-    dates = html_module.escape(compact_event_date_range(start_date, end_date))
-    status = {
-        "upcoming": "Upcoming Event",
-        "live": "Live Event",
-        "provisional": "Provisional results",
-        "final": "Final results",
-        "historical": "Results",
-    }.get(state, "Event")
-    bits = [f"<p><strong>{name}</strong>"]
-    if dates:
-        bits.append(f" · {dates}")
-    bits.append(f" · {html_module.escape(status)}</p>")
-
-    if host_club:
-        host_esc = html_module.escape(host_club)
-        if host_club_href:
-            bits.append(
-                f'<p>Host: <a href="{html_module.escape(host_club_href)}">{host_esc}</a></p>'
-            )
-        else:
-            bits.append(f"<p>Host: {host_esc}</p>")
-    venue_s = (venue or "").strip()
-    if venue_s and venue_s.lower() not in (host_club or "").lower():
-        bits.append(f"<p>Venue: {html_module.escape(venue_s)}</p>")
-
-    classes = [c.strip() for c in (class_names or []) if str(c).strip()]
-    if classes:
-        links = []
-        for c in classes[:8]:
-            href = _class_href(c)
-            esc = html_module.escape(c)
-            links.append(f'<a href="{href}">{esc}</a>' if href else esc)
-        bits.append("<p>Classes: " + ", ".join(links) + "</p>")
-
-    if entries > 0:
-        if fleet_counts and len(fleet_counts) > 1:
-            parts = [f"{html_module.escape(name)} {n}" for name, n in fleet_counts]
-            bits.append(f"<p>Entries: {int(entries)} ({', '.join(parts)})</p>")
-        else:
-            bits.append(f"<p>Entries: {int(entries)}</p>")
-    if as_at_display:
-        bits.append(f"<p>Results as at {html_module.escape(as_at_display)}</p>")
-
+    """Additive crawlable context only. Never repeat name/date/status/host/venue/class/entries."""
+    bits: list[str] = []
     if series_name and series_href:
         yr = f"{edition_year} edition" if edition_year else "this edition"
         bits.append(
@@ -402,7 +359,7 @@ def event_context_footer_html(
         for row in previous_editions or []:
             url = str(row.get("url") or "").strip()
             year = row.get("year")
-            if not url or not year:
+            if not url.startswith("/regatta/") or not year:
                 continue
             if edition_year and int(year) == int(edition_year):
                 continue

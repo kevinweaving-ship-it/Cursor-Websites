@@ -8,6 +8,7 @@ from event_page_seo import (
     compact_event_date_range,
     count_event_entries_by_fleet,
     derive_event_lifecycle,
+    event_context_footer_html,
     event_document_title,
     event_meta_description,
     event_schema_status,
@@ -142,6 +143,43 @@ class LifecycleTests(unittest.TestCase):
             compact_event_date_range(date(2026, 9, 19), date(2026, 9, 20)),
             "19–20 Sep 2026",
         )
+
+
+class FooterAdditiveTests(unittest.TestCase):
+    def test_midmar_primary_facts_do_not_repeat(self):
+        html = event_context_footer_html(
+            display_name="2026 The Midmar Cup",
+            state="upcoming",
+            start_date=date(2026, 9, 19),
+            end_date=date(2026, 9, 20),
+            host_club="HMYC - Henley Midmar Yacht Club",
+            host_club_href="/club/hmyc",
+            venue="Henley Midmar Yacht Club KZN",
+            class_names=["Hunter 19"],
+            entries=8,
+        )
+        self.assertEqual(html, "")
+        self.assertNotIn("Host:", html)
+        self.assertNotIn("Entries:", html)
+        self.assertNotIn("Upcoming Event", html)
+
+    def test_series_previous_editions_remain(self):
+        html = event_context_footer_html(
+            display_name="420 Nationals",
+            state="upcoming",
+            start_date=date(2026, 9, 25),
+            end_date=date(2026, 9, 27),
+            series_name="420 Nationals",
+            series_href="/events-logos/420-nationals",
+            edition_year=2026,
+            previous_editions=[
+                {"url": "/regatta/2025-10-04-420-national-championship", "year": 2025}
+            ],
+        )
+        self.assertIn("/events-logos/420-nationals", html)
+        self.assertIn("/regatta/2025-10-04-420-national-championship", html)
+        self.assertNotIn("Host:", html)
+        self.assertNotIn("Entries:", html)
 
 
 if __name__ == "__main__":

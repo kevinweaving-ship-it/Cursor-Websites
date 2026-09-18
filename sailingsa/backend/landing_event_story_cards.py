@@ -153,7 +153,7 @@ def series_for_event(event_name: str, regatta_id: str, idx: Optional[dict] = Non
 
 
 def history_sentence(series_name: str, editions: list[dict], *, current_year: Optional[int] = None) -> str:
-    """Bounded archive wording. Missing years = unknown, not 'not held'."""
+    """Neutral archive count. Missing years = unknown, not 'not held' / not owned."""
     years = sorted({int(e["year"]) for e in editions if e.get("year")})
     if current_year:
         years = [y for y in years if y != int(current_year)]
@@ -164,10 +164,34 @@ def history_sentence(series_name: str, editions: list[dict], *, current_year: Op
     if current_year:
         hi = max(hi, int(current_year))
         lo = min(lo, int(current_year))
-    name = series_name or "this event"
+    return f"Results on record: {n} edition{'s' if n != 1 else ''} from {lo}–{hi}"
+
+
+def results_cta_label(state: str, scored_races: int = 0, result_status: str = "") -> str:
+    """Entries are not results. Date alone is not final."""
+    status = (result_status or "").strip().lower()
+    scored = int(scored_races or 0)
+    st = (state or "").strip().lower()
+    if status == "final" or st == "final":
+        return "FULL RESULTS"
+    if st == "live":
+        return "LIVE RESULTS"
+    if scored > 0 and st in {"provisional", "historical"}:
+        return "PARTIAL RESULTS"
+    if st == "upcoming" and scored == 0:
+        return ""
+    if scored > 0:
+        return "PARTIAL RESULTS"
+    return ""
+
+
+def _inline_logo(src: str, alt: str = "") -> str:
+    if not src:
+        return ""
     return (
-        f"According to results currently held by SailingSA, there are "
-        f"{n} edition{'s' if n != 1 else ''} of {name} between {lo} and {hi}."
+        f'<img class="landing-event-inline-logo" src="{html_module.escape(src, quote=True)}" '
+        f'alt="{html_module.escape(alt, quote=True)}" '
+        f'width="18" height="14" loading="lazy" decoding="async">'
     )
 
 
@@ -320,60 +344,62 @@ def build_facts_html(card: dict) -> str:
 
 
 def build_story_html(card: dict) -> str:
-    """One or two preview sentences. Not a stack of SEO fields."""
-    name = card.get("name") or "Event"
-    dates = card.get("dates") or ""
-    host_short = card.get("host_short") or ""
-    host_href = card.get("host_href") or ""
-    classes = card.get("classes") or []
-    entries = int(card.get("entries") or 0)
-    fleet_counts = card.get("fleet_counts") or []
+    """Additive history/podium only. Never repeat name/date/host/entries already on the card."""
     series = card.get("series") or {}
-    history = card.get("history") or ""
-    countdown = card.get("countdown") or ""
-    returning = card.get("returning") or ""
-    bits = []
-    class_name = classes[0] if classes else ""
-    host_a = (
-        f'<a href="{_esc(host_href)}">{_esc_text(host_short)}</a>'
-        if host_short and host_href
-        else _esc_text(host_short)
-    )
-    class_a = _class_anchor(class_name) if class_name else ""
-    if returning:
-        bits.append(returning)
-    elif history:
-        hist = _esc_text(history)
-        if series.get("href"):
-            hist += (
-                f' <a href="{_esc(series["href"])}">'
-                f'{_esc_text(series.get("label") or "Event history")}</a>.'
-            )
-        bits.append(hist)
-    elif entries > 0 and class_a:
-        when = "this weekend's " if countdown in {"TOMORROW", "STARTS TODAY"} else ""
-        if fleet_counts and len(fleet_counts) > 1:
-            parts = [f"{_esc_text(nm)} {ct}" for nm, ct in fleet_counts]
-            bits.append(
-                f"{entries} boats are currently entered for {when}{_esc_text(name)}"
-                f" ({', '.join(parts)})."
-            )
-        else:
-            bits.append(
-                f"{entries} {class_a}s are currently entered for {when}{_esc_text(name)}."
-            )
+    history = (card.get("history") or "").strip()
+    if "held by SailingSA" in history or "SailingSA holds" in history:
+        history = ""
+    if history.startswith("According to results"):
+        history = ""
+    series_label = (series.get("label") or "").strip()
+    series_href = (series.get("href") or "").strip()
+    logo = card.get("class_logo") or card.get("logo") or series.get("logo") or ""
     prevs = [
         p
         for p in (card.get("previous") or [])
         if str(p.get("url") or "").startswith("/regatta/") and p.get("year")
     ]
     prevs.sort(key=lambda p: int(p.get("year") or 0), reverse=True)
-    if prevs and len(bits) < 2:
+    bits = []
+    if history or (series_href and series_label) or prevs:
+        head = []
+        if series_label and series_href:
+            head.append(
+                f'<a href="{_esc(series_href)}">{_inline_logo(logo, series_label)}'
+                f"{_esc_text(series_label)}</a>"
+            )
+        if history:
+            head.append(_esc_text(history))
+        if prevs:
+            p = prevs[0]
+            head.append(
+                f'Previous: <a href="{_esc(p["url"])}">{_esc_text(str(p["year"]))}</a>'
+            )
+        if head:
+            bits.append(" · ".join(head))
+    podium = [x for x in (card.get("podium") or []) if x.get("name") and x.get("place")]
+    if podium and prevs:
         p = prevs[0]
-        bits.append(
-            f' Most recent edition held by SailingSA: <a href="{_esc(p["url"])}">{_esc_text(str(p["year"]))}</a>.'
-        )
-    return " ".join(b.strip() for b in bits if b and b.strip()).replace("..", ".").strip()
+        names = []
+        for row in sorted(podium, key=lambda r: int(r.get("place") or 99))[:3]:
+            place = int(row["place"])
+            label = {1: "1st", 2: "2nd", 3: "3rd"}.get(place, str(place))
+            nm = _esc_text(str(row["name"]))
+            href = str(row.get("href") or "").strip()
+            if href.startswith("/sailor/"):
+                names.append(f'{label} <a href="{_esc(href)}">{nm}</a>')
+            else:
+                names.append(f"{label} {nm}")
+        if names:
+            bits.append(
+                f'{_inline_logo(logo, series_label or "Results")}'
+                f'<a href="{_esc(p["url"])}">{_esc_text(str(p["year"]))} Results</a>'
+                f' · {" · ".join(names)}'
+            )
+    returning = (card.get("returning") or "").strip()
+    if returning:
+        bits.append(returning)
+    return " ".join(b.strip() for b in bits if b and b.strip()).strip()
 
 
 _ICO_CAL = (
@@ -421,10 +447,14 @@ def render_card_html(card: dict, *, slot: int) -> str:
     if state == "live" and count and not count.startswith("LIVE"):
         count = f"LIVE · {count}"
     story = build_story_html(card)
+    scored = int(card.get("scored_races") or 0)
+    if state == "upcoming":
+        scored = 0
+    cta = results_cta_label(state, scored, card.get("result_status") or "")
     modifier = "upcoming"
     if state == "live" or (count or "").startswith("LIVE"):
         modifier = "live"
-    elif state == "final" or count == "FINAL RESULTS":
+    elif state == "final" or count == "FINAL RESULTS" or cta == "FULL RESULTS":
         modifier = "final"
     tint = " sa-home-regatta-card--live" if modifier == "live" else ""
     logo_href = (card.get("series") or {}).get("href") or url
@@ -444,9 +474,7 @@ def render_card_html(card: dict, *, slot: int) -> str:
     count_html = (
         f'<p class="landing-event-card-count">{_esc_text(count)}</p>' if count else ""
     )
-    date_html = (
-        f'<a href="{_esc(url)}">{_esc_text(dates)}</a>' if dates and url else _esc_text(dates)
-    )
+    date_html = _esc_text(dates)
     host_tag = "a" if host_href else "div"
     host_attrs = f' href="{_esc(host_href)}" title="Open club page"' if host_href else ""
     host_img = (
@@ -468,6 +496,12 @@ def render_card_html(card: dict, *, slot: int) -> str:
             f'<a class="sa-home-regatta-single-class" href="{_esc(class_href)}">'
             f'<span class="sa-home-regatta-chip-text">{_esc_text(class_name)}</span></a>'
         )
+    cta_html = (
+        f'<a class="sa-home-regatta-btn" href="{_esc(url)}">'
+        f'<span class="sa-home-regatta-btn-ico">{_ICO_TROPHY}</span>{_esc_text(cta)}</a>'
+        if cta
+        else ""
+    )
     story_html = ""
     if story:
         story_html = (
@@ -497,10 +531,10 @@ def render_card_html(card: dict, *, slot: int) -> str:
         f'<div class="sa-home-regatta-host-name">{_esc_text(host_name)}</div>'
         f"</div></{host_tag}>"
         f'<div class="sa-home-regatta-actions">{class_block}'
-        f'<a class="sa-home-regatta-btn" href="{_esc(url)}">'
-        f'<span class="sa-home-regatta-btn-ico">{_ICO_TROPHY}</span>Full Results</a>'
+        f'{cta_html}'
         f"</div></div>"
         f"{story_html}"
+        f'<a class="landing-event-card-hit" href="{_esc(url)}" tabindex="-1" aria-hidden="true"></a>'
         f"</article>"
     )
 
@@ -533,6 +567,7 @@ LANDING_CARD_CSS = """
     max-width: 100%;
     margin: 0;
     color: #142c78;
+    position: relative;
 }
 .temp-landing-hero-image .sa-home-regatta-card--live,
 .temp-landing-secondary-image .sa-home-regatta-card--live {
@@ -747,6 +782,24 @@ LANDING_CARD_CSS = """
     white-space: normal;
 }
 .landing-event-card-story a { color: #0b3d91; }
+.landing-event-inline-logo {
+    display: inline-block;
+    width: 18px;
+    height: 14px;
+    object-fit: contain;
+    vertical-align: -2px;
+    margin-right: 3px;
+}
+.landing-event-card-hit {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+}
+.temp-landing-hero-image .landing-event-card a:not(.landing-event-card-hit),
+.temp-landing-secondary-image .landing-event-card a:not(.landing-event-card-hit) {
+    position: relative;
+    z-index: 1;
+}
 @media (max-width: 480px) {
     .temp-landing-hero-image .sa-home-regatta-card,
     .temp-landing-secondary-image .sa-home-regatta-card { padding: 10px 10px 10px; border-radius: 6px; }
@@ -836,6 +889,124 @@ def fetch_fleet_entry_counts(cur, regatta_id: str) -> list[tuple[str, int]]:
     return [("Event", n)] if n else []
 
 
+def _results_columns(cur) -> set[str]:
+    try:
+        cur.execute(
+            """
+            SELECT column_name FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'results'
+            """
+        )
+        out = set()
+        for r in cur.fetchall() or []:
+            out.add(str(r.get("column_name") if isinstance(r, dict) else r[0]).lower())
+        return out
+    except Exception:
+        return set()
+
+
+def fetch_overall_podium(cur, regatta_id: str) -> list[dict]:
+    """Top 3 overall only when place + identity columns exist. No name guessing."""
+    if cur is None or not regatta_id:
+        return []
+    cols = _results_columns(cur)
+    place = next((c for c in ("place", "position", "rank", "overall_place") if c in cols), "")
+    name = next((c for c in ("sailor_name", "helm_name", "helm", "name") if c in cols), "")
+    slug = next((c for c in ("sailor_slug", "helm_slug") if c in cols), "")
+    sid = next((c for c in ("sailor_id", "helm_sailor_id") if c in cols), "")
+    if not place or not name:
+        return []
+    extra = f", {sid} AS sailor_id" if sid else ", NULL::text AS sailor_id"
+    extra += f", {slug} AS sailor_slug" if slug else ", NULL::text AS sailor_slug"
+    try:
+        cur.execute(
+            f"""
+            SELECT {place}::int AS place, BTRIM({name}::text) AS name
+                   {extra}
+            FROM results
+            WHERE regatta_id = %s
+              AND {place} IS NOT NULL
+              AND {place}::int BETWEEN 1 AND 3
+              AND BTRIM(COALESCE({name}::text, '')) <> ''
+            ORDER BY {place}::int
+            LIMIT 12
+            """,
+            (regatta_id,),
+        )
+    except Exception:
+        try:
+            cur.connection.rollback()
+        except Exception:
+            pass
+        return []
+    seen = set()
+    out = []
+    for r in cur.fetchall() or []:
+        pl = int(r.get("place") or 0)
+        if pl not in (1, 2, 3) or pl in seen:
+            continue
+        seen.add(pl)
+        sl = str(r.get("sailor_slug") or "").strip()
+        href = f"/sailor/{sl}" if sl and "/" not in sl and " " not in sl else ""
+        out.append(
+            {
+                "place": pl,
+                "name": str(r.get("name") or "").strip(),
+                "href": href,
+                "sailor_id": str(r.get("sailor_id") or "").strip(),
+            }
+        )
+    return out
+
+
+def fetch_current_sailor_ids(cur, regatta_id: str) -> set[str]:
+    if cur is None or not regatta_id:
+        return set()
+    cols = _results_columns(cur)
+    sid = next((c for c in ("sailor_id", "helm_sailor_id") if c in cols), "")
+    if not sid:
+        return set()
+    try:
+        cur.execute(
+            f"SELECT DISTINCT {sid}::text AS sailor_id FROM results WHERE regatta_id = %s AND {sid} IS NOT NULL",
+            (regatta_id,),
+        )
+        return {str(r.get("sailor_id") or "").strip() for r in (cur.fetchall() or []) if str(r.get("sailor_id") or "").strip()}
+    except Exception:
+        try:
+            cur.connection.rollback()
+        except Exception:
+            pass
+        return set()
+
+
+def returning_line(podium: list[dict], current_ids: set[str]) -> str:
+    """Only when the same sailor_id appears in previous podium and current entries."""
+    if not podium or not current_ids:
+        return ""
+    winner = next((p for p in podium if int(p.get("place") or 0) == 1), None)
+    if winner:
+        wid = str(winner.get("sailor_id") or "").strip()
+        if wid and wid in current_ids and winner.get("name"):
+            href = str(winner.get("href") or "").strip()
+            nm = html_module.escape(winner["name"])
+            if href.startswith("/sailor/"):
+                return f'Defending winner <a href="{html_module.escape(href, quote=True)}">{nm}</a> returns'
+            return f"Defending winner {nm} returns"
+    names = []
+    for p in podium:
+        pid = str(p.get("sailor_id") or "").strip()
+        if not pid or pid not in current_ids or not p.get("name"):
+            continue
+        href = str(p.get("href") or "").strip()
+        nm = html_module.escape(p["name"])
+        if href.startswith("/sailor/"):
+            names.append(f'<a href="{html_module.escape(href, quote=True)}">{nm}</a> returns in 2026')
+        else:
+            names.append(f"{nm} returns in 2026")
+    return names[0] if names else ""
+
+
 def card_from_row(row: dict, *, cur=None, today: Optional[date] = None, idx: Optional[dict] = None) -> dict:
     today = today or date.today()
     rid = str(row.get("regatta_id") or "").strip()
@@ -857,6 +1028,23 @@ def card_from_row(row: dict, *, cur=None, today: Optional[date] = None, idx: Opt
     class_logo = class_logo_src(classes[0]) if classes else ""
     logo = series.get("logo") or class_logo or ""
     host_logo = f"/api/club-logo/{host_ab}" if host_ab else ""
+    prev_kept = [p for p in prev if p.get("url") and p.get("url") != f"/regatta/{rid}"]
+    podium = []
+    returning = ""
+    if cur is not None and prev_kept:
+        prev_kept.sort(key=lambda p: int(p.get("year") or 0), reverse=True)
+        prev_rid = str(prev_kept[0].get("url") or "").rstrip("/").split("/")[-1]
+        podium = fetch_overall_podium(cur, prev_rid)
+        returning = returning_line(podium, fetch_current_sailor_ids(cur, rid))
+    state = derive_event_lifecycle(
+        start_date=start,
+        end_date=end,
+        result_status=row.get("result_status"),
+        as_at_time=row.get("as_at_time"),
+        raced_count=sum(n for _n, n in fleet_counts),
+        today=today,
+    )
+    scored = 0 if state == "upcoming" else sum(n for _n, n in fleet_counts)
     return {
         "regatta_id": rid,
         "name": name,
@@ -874,20 +1062,17 @@ def card_from_row(row: dict, *, cur=None, today: Optional[date] = None, idx: Opt
         "entries": sum(n for _n, n in fleet_counts),
         "fleet_counts": fleet_counts,
         "series": series,
-        "previous": [p for p in prev if p.get("url") and p.get("url") != f"/regatta/{rid}"],
+        "previous": prev_kept,
         "history": history,
         "logo": logo,
+        "podium": podium,
+        "returning": returning,
+        "scored_races": scored,
+        "result_status": row.get("result_status") or "",
         "countdown": countdown_label(
             start, end, today=today, as_at_time=row.get("as_at_time"), result_status=row.get("result_status") or ""
         ),
-        "state": derive_event_lifecycle(
-            start_date=start,
-            end_date=end,
-            result_status=row.get("result_status"),
-            as_at_time=row.get("as_at_time"),
-            raced_count=sum(n for _n, n in fleet_counts),
-            today=today,
-        ),
+        "state": state,
     }
 
 
