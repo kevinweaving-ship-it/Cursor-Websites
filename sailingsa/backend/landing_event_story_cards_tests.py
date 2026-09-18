@@ -149,7 +149,8 @@ class StoryLinkTests(unittest.TestCase):
         self.assertIn('href="/events-logos/420-nationals"', story)
         self.assertIn('href="/regatta/2025-10-04-420-national-championship"', story)
         self.assertIn("landing-event-inline-logo", story)
-        self.assertIn("Previous:", story)
+        self.assertEqual(story.count("landing-event-inline-logo"), 1)
+        self.assertIn("2018–2026", story)
         self.assertNotIn("420 Nationals at TSC", story)
         self.assertNotIn("Hunter 19s are currently entered", html)
         self.assertNotIn("FULL RESULTS", html)
@@ -194,6 +195,27 @@ class AdditiveStoryTests(unittest.TestCase):
         self.assertEqual(returning_line(podium, set()), "")
         self.assertIn("Defending winner", returning_line(podium, {"99"}))
         self.assertEqual(returning_line([{"place": 1, "name": "Jane Doe", "sailor_id": ""}], {"99"}), "")
+
+    def test_podium_story_is_one_tiny_logo_line(self):
+        card = {
+            "name": "420 Nationals",
+            "logo": "/artwork/Class Logo/420-Class-Logo.png",
+            "class_logo": "/artwork/Class Logo/420-Class-Logo.png",
+            "series": {"label": "420 Nationals", "href": "/events-logos/420-nationals"},
+            "history": "Results on record: 6 editions from 2018–2026",
+            "previous": [{"url": "/regatta/2025-10-04-420-national-championship", "year": 2025}],
+            "podium": [
+                {"place": 1, "name": "Dominique Provoyeur"},
+                {"place": 2, "name": "Tristan Gress"},
+                {"place": 3, "name": "Abdull Alexander"},
+            ],
+        }
+        story = build_story_html(card)
+        self.assertEqual(story.count("landing-event-inline-logo"), 1)
+        self.assertIn("2025 Results", story)
+        self.assertIn("1st Dominique Provoyeur", story)
+        self.assertNotIn("Results on record", story)
+        self.assertIn("width=\"14\"", story)
 
 
 if __name__ == "__main__":

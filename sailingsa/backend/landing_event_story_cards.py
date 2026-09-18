@@ -191,7 +191,7 @@ def _inline_logo(src: str, alt: str = "") -> str:
     return (
         f'<img class="landing-event-inline-logo" src="{html_module.escape(src, quote=True)}" '
         f'alt="{html_module.escape(alt, quote=True)}" '
-        f'width="18" height="14" loading="lazy" decoding="async">'
+        f'width="14" height="11" loading="lazy" decoding="async">'
     )
 
 
@@ -360,23 +360,6 @@ def build_story_html(card: dict) -> str:
         if str(p.get("url") or "").startswith("/regatta/") and p.get("year")
     ]
     prevs.sort(key=lambda p: int(p.get("year") or 0), reverse=True)
-    bits = []
-    if history or (series_href and series_label) or prevs:
-        head = []
-        if series_label and series_href:
-            head.append(
-                f'<a href="{_esc(series_href)}">{_inline_logo(logo, series_label)}'
-                f"{_esc_text(series_label)}</a>"
-            )
-        if history:
-            head.append(_esc_text(history))
-        if prevs:
-            p = prevs[0]
-            head.append(
-                f'Previous: <a href="{_esc(p["url"])}">{_esc_text(str(p["year"]))}</a>'
-            )
-        if head:
-            bits.append(" · ".join(head))
     podium = [x for x in (card.get("podium") or []) if x.get("name") and x.get("place")]
     if podium and prevs:
         p = prevs[0]
@@ -390,16 +373,30 @@ def build_story_html(card: dict) -> str:
                 names.append(f'{label} <a href="{_esc(href)}">{nm}</a>')
             else:
                 names.append(f"{label} {nm}")
-        if names:
-            bits.append(
-                f'{_inline_logo(logo, series_label or "Results")}'
-                f'<a href="{_esc(p["url"])}">{_esc_text(str(p["year"]))} Results</a>'
-                f' · {" · ".join(names)}'
-            )
+        returning = (card.get("returning") or "").strip()
+        line = (
+            f'{_inline_logo(logo, series_label or "Results")}'
+            f'<a href="{_esc(p["url"])}">{_esc_text(str(p["year"]))} Results</a>'
+            f' · {" · ".join(names)}'
+        )
+        if returning:
+            line += f" · {returning}"
+        return line
+    bits = []
+    if history or prevs:
+        head = [_inline_logo(logo, series_label)]
+        if series_href and series_label:
+            head.append(f'<a href="{_esc(series_href)}">{_esc_text(series_label)}</a>')
+        if history:
+            head.append(_esc_text(history))
+        if prevs:
+            p = prevs[0]
+            head.append(f'<a href="{_esc(p["url"])}">{_esc_text(str(p["year"]))}</a>')
+        bits.append(" · ".join(x for x in head if x))
     returning = (card.get("returning") or "").strip()
     if returning:
         bits.append(returning)
-    return " ".join(b.strip() for b in bits if b and b.strip()).strip()
+    return " · ".join(b.strip() for b in bits if b and b.strip()).strip()
 
 
 _ICO_CAL = (
@@ -542,7 +539,8 @@ def render_card_html(card: dict, *, slot: int) -> str:
 LANDING_CARD_CSS = """
 /* Hero slots reuse All Regattas `.sa-home-regatta-card` tokens exactly. */
 .temp-landing-hero-image,
-.temp-landing-secondary-image {
+.temp-landing-secondary-image,
+#landing-event-hero-2 {
     width: 100%;
     max-width: 100%;
     margin-left: 0;
@@ -552,7 +550,8 @@ LANDING_CARD_CSS = """
     box-sizing: border-box;
 }
 .temp-landing-hero-image .sa-home-regatta-card,
-.temp-landing-secondary-image .sa-home-regatta-card {
+.temp-landing-secondary-image .sa-home-regatta-card,
+#landing-event-hero-2 .sa-home-regatta-card {
     background: #fff;
     border: 2px solid #8aa2c6;
     border-radius: 6px;
@@ -593,12 +592,13 @@ LANDING_CARD_CSS = """
     min-width: 0;
 }
 .temp-landing-hero-image .sa-home-regatta-event-logo,
-.temp-landing-secondary-image .sa-home-regatta-event-logo {
+.temp-landing-secondary-image .sa-home-regatta-event-logo,
+#landing-event-hero-2 .sa-home-regatta-event-logo {
     display: block;
-    width: 96px;
-    height: 68px;
-    max-width: 96px;
-    max-height: 68px;
+    width: 78px;
+    height: 58px;
+    max-width: 78px;
+    max-height: 58px;
     object-fit: contain;
     object-position: center;
     border: none;
@@ -664,10 +664,13 @@ LANDING_CARD_CSS = """
     text-decoration: none;
 }
 .temp-landing-hero-image .sa-home-regatta-host-logo,
-.temp-landing-secondary-image .sa-home-regatta-host-logo {
+.temp-landing-secondary-image .sa-home-regatta-host-logo,
+#landing-event-hero-2 .sa-home-regatta-host-logo {
     display: block;
-    width: 84px;
-    height: 44px;
+    width: 76px;
+    height: 36px;
+    max-width: 76px;
+    max-height: 36px;
     object-fit: contain;
     background: transparent;
     flex: 0 0 auto;
@@ -714,11 +717,13 @@ LANDING_CARD_CSS = """
     text-decoration: none;
 }
 .temp-landing-hero-image .sa-home-regatta-chip-logo,
-.temp-landing-secondary-image .sa-home-regatta-chip-logo {
+.temp-landing-secondary-image .sa-home-regatta-chip-logo,
+#landing-event-hero-2 .sa-home-regatta-chip-logo {
     display: block;
-    width: 52px;
-    height: 28px;
-    max-width: 52px;
+    width: 46px;
+    height: 24px;
+    max-width: 46px;
+    max-height: 24px;
     object-fit: contain;
     background: transparent;
     padding: 0;
@@ -782,13 +787,29 @@ LANDING_CARD_CSS = """
     white-space: normal;
 }
 .landing-event-card-story a { color: #0b3d91; }
+.temp-landing-hero-image .landing-event-inline-logo,
+.temp-landing-secondary-image .landing-event-inline-logo,
+#landing-event-hero-2 .landing-event-inline-logo,
 .landing-event-inline-logo {
-    display: inline-block;
-    width: 18px;
-    height: 14px;
-    object-fit: contain;
+    display: inline-block !important;
+    width: 14px !important;
+    height: 11px !important;
+    max-width: 14px !important;
+    max-height: 11px !important;
+    object-fit: contain !important;
     vertical-align: -2px;
-    margin-right: 3px;
+    margin: 0 3px 0 0 !important;
+}
+.temp-landing-hero-image .landing-event-card-story-wrap,
+.temp-landing-secondary-image .landing-event-card-story-wrap,
+#landing-event-hero-2 .landing-event-card-story-wrap {
+    flex: 0 0 auto;
+}
+.temp-landing-hero-image .landing-event-card-story-wrap .sa-home-regatta-children-head,
+.temp-landing-secondary-image .landing-event-card-story-wrap .sa-home-regatta-children-head,
+#landing-event-hero-2 .landing-event-card-story-wrap .sa-home-regatta-children-head {
+    padding: 4px 8px;
+    line-height: 1.2;
 }
 .landing-event-card-hit {
     position: absolute;

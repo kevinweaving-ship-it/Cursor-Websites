@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Inject Hero 1 / Hero 2 event story cards into live landing HTML.
 
-Slots: #temp-landing-hero-image and #temp-landing-claim-profile-banner.
+Slots: #temp-landing-hero-image and #landing-event-hero-2.
+Never use #temp-landing-claim-profile-banner for Hero 2 — auth JS hides that id.
 Does not touch the gold/master header.
 """
 from __future__ import annotations
@@ -54,7 +55,14 @@ DEV1_INSERT_NEW = """      var claim=document.getElementById('temp-landing-claim
       }"""
 
 SLOT1 = ("temp-landing-hero-image", "temp-landing-hero-image")
-SLOT2 = ("temp-landing-claim-profile-banner", "temp-landing-secondary-image")
+SLOT2 = ("landing-event-hero-2", "temp-landing-secondary-image")
+CLAIM_ID = "temp-landing-claim-profile-banner"
+CLAIM_RESTORE = (
+    '<section id="temp-landing-claim-profile-banner" class="temp-landing-secondary-image" '
+    'aria-label="Claim your SailingSA profile banner">\n'
+    '    <img src="assets/temp-landing-claim-profile-banner.png" alt="Claim your Sailing profile banner">\n'
+    "</section>"
+)
 
 
 def _db():
@@ -78,9 +86,42 @@ def _replace_section(html: str, section_id: str, new_section: str) -> str:
     found = list(pat.finditer(html))
     if not found:
         raise SystemExit(f"section {section_id} missing")
-    # replace first occurrence only; CSS hides duplicates
     m = found[0]
     return html[: m.start()] + new_section + html[m.end() :]
+
+
+def _upsert_after(html: str, section_id: str, new_section: str, after_id: str) -> str:
+    pat = re.compile(
+        rf'<section\b[^>]*\bid="{re.escape(section_id)}"[^>]*>.*?</section>',
+        re.I | re.S,
+    )
+    found = list(pat.finditer(html))
+    if found:
+        m = found[0]
+        return html[: m.start()] + new_section + html[m.end() :]
+    after = re.compile(
+        rf'<section\b[^>]*\bid="{re.escape(after_id)}"[^>]*>.*?</section>',
+        re.I | re.S,
+    )
+    m = after.search(html)
+    if not m:
+        raise SystemExit(f"anchor section {after_id} missing")
+    return html[: m.end()] + "\n" + new_section + html[m.end() :]
+
+
+def _detach_hero2_from_claim(html: str) -> str:
+    """Claim banner must not contain the 420 card — hideClaim() hides that id."""
+    pat = re.compile(
+        rf'<section\b[^>]*\bid="{re.escape(CLAIM_ID)}"[^>]*>.*?</section>',
+        re.I | re.S,
+    )
+    m = pat.search(html)
+    if not m:
+        return html
+    body = m.group(0)
+    if "landing-event-card" in body or "LANDING_EVENT_CARD_BEGIN slot=2" in body:
+        return html[: m.start()] + CLAIM_RESTORE + html[m.end() :]
+    return html
 
 
 def _ensure_css(html: str) -> str:
@@ -108,18 +149,21 @@ def _ensure_signup_guard(html: str) -> str:
         pass
     elif SIGNUP_OLD in html:
         html = html.replace(SIGNUP_OLD, SIGNUP_NEW, 1)
-    html = re.sub(
-        r"function hideClaim\(\)\{\s*var claim=document\.getElementById\('temp-landing-claim-profile-banner'\);\s*if\(claim\) claim\.style\.display='none';\s*\}",
-        "function hideClaim(){\n    var claim=document.getElementById('temp-landing-claim-profile-banner');\n    if(claim && !claim.querySelector('.landing-event-card')) claim.style.display='none';\n  }",
-        html,
-        count=1,
+    insert_new = (
+        "var h2=document.getElementById('landing-event-hero-2');\n"
+        "      var claim=document.getElementById('temp-landing-claim-profile-banner');\n"
+        "      if(h2&&h2.parentNode){\n"
+        "        if(h2.nextSibling) h2.parentNode.insertBefore(slot, h2.nextSibling);\n"
+        "        else h2.parentNode.appendChild(slot);\n"
+        "      } else if(claim&&claim.parentNode) claim.parentNode.insertBefore(slot, claim);"
     )
-    html = re.sub(
-        r"if\(claim&&claim\.parentNode\) claim\.parentNode\.insertBefore\(slot, claim\);",
-        "if(claim&&claim.parentNode){\n        if(claim.querySelector('.landing-event-card')){\n          if(claim.nextSibling) claim.parentNode.insertBefore(slot, claim.nextSibling);\n          else claim.parentNode.appendChild(slot);\n        } else {\n          claim.parentNode.insertBefore(slot, claim);\n        }\n      }",
-        html,
-        count=1,
-    )
+    if "getElementById('landing-event-hero-2')" not in html:
+        html = re.sub(
+            r"var claim=document\.getElementById\('temp-landing-claim-profile-banner'\);\s*if\(claim&&claim\.parentNode\)(?: claim\.parentNode\.insertBefore\(slot, claim\);|\{[\s\S]*?else \{\s*claim\.parentNode\.insertBefore\(slot, claim\);\s*\}\s*\})",
+            insert_new,
+            html,
+            count=1,
+        )
     return html
 
 
@@ -129,6 +173,14 @@ def _place_profile_after_heroes(html: str) -> str:
     marker = "<!-- LANDING_EVENT_CARD_END slot=2 -->\n</section>"
     if marker in html:
         return html.replace(marker, marker + '\n<div id="landing-dev1-home"></div>', 1)
+    if 'id="landing-event-hero-2"' in html:
+        html = re.sub(
+            r'(<section\b[^>]*\bid="landing-event-hero-2"[^>]*>.*?</section>)',
+            r'\1\n<div id="landing-dev1-home"></div>',
+            html,
+            count=1,
+            flags=re.I | re.S,
+        )
     return html
 
 
@@ -160,8 +212,9 @@ def patch_file(path: Path, s1: str, s2: str) -> None:
     html = path.read_text(encoding="utf-8", errors="replace")
     html = _ensure_css(html)
     html = _ensure_signup_guard(html)
+    html = _detach_hero2_from_claim(html)
     html = _replace_section(html, SLOT1[0], s1)
-    html = _replace_section(html, SLOT2[0], s2)
+    html = _upsert_after(html, SLOT2[0], s2, SLOT1[0])
     html = _place_profile_after_heroes(html)
     tmp = path.with_suffix(path.suffix + ".hero.tmp")
     tmp.write_text(html, encoding="utf-8")
