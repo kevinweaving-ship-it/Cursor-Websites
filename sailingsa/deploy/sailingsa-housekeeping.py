@@ -32,11 +32,10 @@ FULL_MIN_BYTES = 1_000_000_000  # 1 GiB-ish: real full backups are ~11G
 
 FULL_BACKUP_RE = re.compile(r"^backup_\d{8}_\d{6}\.tar\.gz$")
 API_TS_RE = re.compile(r"^api\.py\.\d{8}_\d{6}(\.bak)?$")
-# Explicit KEEP token (uppercase) or known-good / BEFORE_BIO.
-# Do not match incidental "keep" substrings (e.g. /tmp/mm-fb-keep).
-KEEP_NAME_RE = re.compile(
-    r"(?:(?:^|[._/-])KEEP(?:[._/-]|$)|(?i)known[-_]good|BEFORE_BIO)"
-)
+# Explicit KEEP token (uppercase) — do not match incidental "keep"
+# substrings (e.g. /tmp/mm-fb-keep).
+KEEP_TOKEN_RE = re.compile(r"(?:^|[._/-])KEEP(?:[._/-]|$)")
+KNOWN_GOOD_RE = re.compile(r"known[-_]good", re.I)
 CRED_NAME_RE = re.compile(
     r"(?i)(\.env$|cookie|secret|password|passwd|credential|\.pem$|"
     r"id_rsa|id_ed25519|\.key$|authorized_keys|super_session)"
@@ -126,7 +125,12 @@ def load_keep_list():
 
 
 def is_keep_named(path: Path) -> bool:
-    return bool(KEEP_NAME_RE.search(str(path)))
+    s = str(path)
+    return bool(
+        KEEP_TOKEN_RE.search(s)
+        or KNOWN_GOOD_RE.search(s)
+        or "BEFORE_BIO" in s
+    )
 
 
 def is_protected_path(path: Path, keep_set) -> str | None:
