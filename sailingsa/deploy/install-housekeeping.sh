@@ -41,11 +41,22 @@ systemctl restart systemd-journald
 journalctl --vacuum-size=500M >> /var/log/sailingsa-housekeeping.log 2>&1 || true
 
 # First-time rotate of oversized syslog via logrotate (rename + rsyslog signal).
+# Always recreate active files if missing — do not leave logging dark.
+ensure_rsyslog_files() {
+  local f
+  for f in syslog auth.log kern.log mail.log user.log cron.log; do
+    if [[ ! -f /var/log/$f ]]; then
+      install -o syslog -g adm -m 0640 /dev/null /var/log/$f
+    fi
+  done
+  systemctl kill -s HUP rsyslog.service 2>/dev/null || systemctl restart rsyslog || true
+}
 if [[ ! -f /var/lib/sailingsa-housekeeping-logrotate-seeded ]]; then
   mkdir -p /var/lib
   logrotate -f /etc/logrotate.d/rsyslog || true
   touch /var/lib/sailingsa-housekeeping-logrotate-seeded
 fi
+ensure_rsyslog_files
 
 chmod 644 /etc/cron.d/sailingsa_housekeeping
 echo "installed sailingsa-housekeeping"

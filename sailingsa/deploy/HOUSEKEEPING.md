@@ -62,7 +62,7 @@ Eligible only under `/tmp` (plus disposable `/root/__pycache__` and `/tmp/**/__p
 
 - journald: `SystemMaxUse=500M`, `SystemKeepFree=1G`, `MaxRetentionSec=14day`  
   (`/etc/systemd/journald.conf.d/sailingsa-retention.conf`)
-- rsyslog: daily + `maxsize 100M`, rotate 14. **Does not `rm` the active syslog.**  
+- rsyslog: daily + `maxsize 100M`, rotate 14, `create 0640 syslog adm`. **Does not `rm` the active syslog.**  
   Original saved as `/etc/logrotate.d/rsyslog.pre-housekeeping`.
 
 ## Disk bands
