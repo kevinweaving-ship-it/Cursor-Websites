@@ -87,8 +87,9 @@ PEOPLE = {
 
 HELM_KEYS = ["paul", "craig", "tony", "megan", "bryan", "nick", "luke", "gust"]
 CREW_BOAT = {"helm": "hayden", "crew": "tim", "crew2": "howard"}
-# Only numbers the user supplied. Do not invent the rest.
+# Only values the user supplied. Do not invent the rest.
 KNOWN_SAILS = {"hayden": "403"}
+KNOWN_BOATS = {"hayden": "Puffin"}
 
 
 def table_cols(cur, table: str) -> set[str]:
@@ -255,6 +256,7 @@ def apply() -> int:
                 "club_raw": club_raw,
                 "club_id": club_id,
                 "sail_number": KNOWN_SAILS.get(key),
+                "boat_name": KNOWN_BOATS.get(key),
             }
         )
 
@@ -274,6 +276,7 @@ def apply() -> int:
                 "club_raw": club_raw,
                 "club_id": club_id,
                 "sail_number": KNOWN_SAILS.get("hayden"),
+                "boat_name": KNOWN_BOATS.get("hayden"),
             }
         )
     else:
@@ -349,7 +352,7 @@ def apply() -> int:
         if has_class_id:
             sets["class_id"] = CLASS_ID
         if has_boat_name:
-            sets["boat_name"] = None
+            sets["boat_name"] = boat.get("boat_name")
         if has_crew2:
             sets["crew2_name"] = boat["crew2_name"]
             sets["crew2_sa_sailing_id"] = boat["crew2_sid"]
@@ -393,11 +396,21 @@ def apply() -> int:
                 (RID, str(boat["helm_sid"])),
             )
             existing_entry = cur.fetchone()
-            if existing_entry and boat.get("sail_number") and "sail_number" in entry_cols:
-                cur.execute(
-                    "UPDATE entries SET sail_number=%s WHERE entry_id=%s",
-                    (boat["sail_number"], existing_entry[0]),
-                )
+            if existing_entry:
+                eupd = []
+                evals = []
+                if boat.get("sail_number") and "sail_number" in entry_cols:
+                    eupd.append("sail_number=%s")
+                    evals.append(boat["sail_number"])
+                if boat.get("boat_name") and "boat_name" in entry_cols:
+                    eupd.append("boat_name=%s")
+                    evals.append(boat["boat_name"])
+                if eupd:
+                    evals.append(existing_entry[0])
+                    cur.execute(
+                        f"UPDATE entries SET {', '.join(eupd)} WHERE entry_id=%s",
+                        evals,
+                    )
             elif not existing_entry:
                 ecols = ["regatta_id", "block_id", "helm_sas_id"]
                 evals = [RID, BLOCK, str(boat["helm_sid"])]
@@ -412,7 +425,7 @@ def apply() -> int:
                     evals.append(boat.get("sail_number"))
                 if "boat_name" in entry_cols:
                     ecols.append("boat_name")
-                    evals.append(None)
+                    evals.append(boat.get("boat_name"))
                 if "verified" in entry_cols:
                     ecols.append("verified")
                     evals.append(True)
@@ -434,6 +447,7 @@ def apply() -> int:
             "class_canonical",
             "fleet_label",
             "sail_number",
+            "boat_name",
             "bow_no",
             "hull_no",
             "boat_number",
