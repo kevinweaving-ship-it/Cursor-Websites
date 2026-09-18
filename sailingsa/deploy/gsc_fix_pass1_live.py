@@ -7,7 +7,8 @@ Applies two exact replacements on live /var/www/sailingsa/api/api.py:
    header.html home canonical so /events emits exactly one
    https://sailingsa.co.za/events canonical.
 2. _sailor_spa: 404 when the slug does not resolve to a real sailor
-   (do not treat the raw slug as existence proof).
+   (do not treat the raw slug as existence proof). If the SEO helper
+   misses, reuse `_get_sas_id_by_slug` so hyphenated surnames still 200.
 
 Does not recreate sitemap-priority.xml, does not touch pool/#128 DB code,
 does not change header.html, and does not generalise 404s to other entities.
@@ -52,9 +53,24 @@ OLD_SAILOR = (
     '        return RedirectResponse(url=f"/sailor/{canonical_slug}", status_code=301)\n'
     "    return serve_dev1_rank_page(request, sailor=want)\n"
 )
+# First-pass 404 (helper only). Too strict: hyphenated surnames resolve via
+# /api/sailor/resolve and _get_sas_id_by_slug but not _get_sailor_name_by_slug.
+SAILOR_HELPER_ONLY = (
+    "def _sailor_spa(slug: str, request: Request):\n"
+    "    name, canonical_slug = _get_sailor_name_by_slug(slug)\n"
+    "    if not name or not canonical_slug:\n"
+    '        raise HTTPException(status_code=404, detail="Sailor not found")\n'
+    "    if slug.strip().lower() != canonical_slug.lower():\n"
+    '        return RedirectResponse(url=f"/sailor/{canonical_slug}", status_code=301)\n'
+    "    return serve_dev1_rank_page(request, sailor=canonical_slug)\n"
+)
 NEW_SAILOR = (
     "def _sailor_spa(slug: str, request: Request):\n"
     "    name, canonical_slug = _get_sailor_name_by_slug(slug)\n"
+    "    if not name or not canonical_slug:\n"
+    "        sid = _get_sas_id_by_slug(slug)\n"
+    "        if sid:\n"
+    "            name, canonical_slug = _get_sailor_by_sas_id_for_redirect(str(sid))\n"
     "    if not name or not canonical_slug:\n"
     '        raise HTTPException(status_code=404, detail="Sailor not found")\n'
     "    if slug.strip().lower() != canonical_slug.lower():\n"
@@ -85,7 +101,10 @@ def _replace_once(text: str, old: str, new: str, label: str) -> str:
 def apply_api(path: Path = API) -> str:
     text = path.read_text(encoding="utf-8")
     text = _replace_once(text, OLD_GOLD, NEW_GOLD, "_html_with_gold_header extra_head")
-    text = _replace_once(text, OLD_SAILOR, NEW_SAILOR, "_sailor_spa unknown-slug 404")
+    if SAILOR_HELPER_ONLY in text:
+        text = _replace_once(text, SAILOR_HELPER_ONLY, NEW_SAILOR, "_sailor_spa resolve fallback")
+    else:
+        text = _replace_once(text, OLD_SAILOR, NEW_SAILOR, "_sailor_spa unknown-slug 404")
     if 'want = (canonical_slug or slug or "").strip()' in text:
         raise SystemExit("FAIL _sailor_spa slug fallback still present")
     if "page-supplied canonical replaces header.html home canonical" not in text:
