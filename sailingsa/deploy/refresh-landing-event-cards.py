@@ -87,7 +87,7 @@ def _ensure_css(html: str) -> str:
     gold = "/* ================================================================\n   GOLD HEADER"
     block = CSS_MARK + "\n" + LANDING_CARD_CSS + "\n"
     if CSS_MARK in html:
-        pat = re.compile(re.escape(CSS_MARK) + r".*?(?=\/\* =+\s*\n\s*GOLD HEADER|\Z)", re.S)
+        pat = re.compile(re.escape(CSS_MARK) + r".*?(?=\/\* =+\s*\n\s*GOLD HEADER)", re.S)
         if pat.search(html):
             return pat.sub(block, html, count=1)
         start = html.find(CSS_MARK)
@@ -108,10 +108,18 @@ def _ensure_signup_guard(html: str) -> str:
         pass
     elif SIGNUP_OLD in html:
         html = html.replace(SIGNUP_OLD, SIGNUP_NEW, 1)
-    if HIDECLAIM_OLD in html:
-        html = html.replace(HIDECLAIM_OLD, HIDECLAIM_NEW, 1)
-    if DEV1_INSERT_OLD in html:
-        html = html.replace(DEV1_INSERT_OLD, DEV1_INSERT_NEW, 1)
+    html = re.sub(
+        r"function hideClaim\(\)\{\s*var claim=document\.getElementById\('temp-landing-claim-profile-banner'\);\s*if\(claim\) claim\.style\.display='none';\s*\}",
+        "function hideClaim(){\n    var claim=document.getElementById('temp-landing-claim-profile-banner');\n    if(claim && !claim.querySelector('.landing-event-card')) claim.style.display='none';\n  }",
+        html,
+        count=1,
+    )
+    html = re.sub(
+        r"if\(claim&&claim\.parentNode\) claim\.parentNode\.insertBefore\(slot, claim\);",
+        "if(claim&&claim.parentNode){\n        if(claim.querySelector('.landing-event-card')){\n          if(claim.nextSibling) claim.parentNode.insertBefore(slot, claim.nextSibling);\n          else claim.parentNode.appendChild(slot);\n        } else {\n          claim.parentNode.insertBefore(slot, claim);\n        }\n      }",
+        html,
+        count=1,
+    )
     return html
 
 

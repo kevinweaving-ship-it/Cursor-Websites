@@ -5,10 +5,12 @@ import unittest
 from datetime import date
 
 from landing_event_story_cards import (
+    LANDING_CARD_CSS,
     build_facts_html,
     build_story_html,
     countdown_label,
     history_sentence,
+    render_card_html,
     select_hero_events,
 )
 
@@ -113,20 +115,43 @@ class StoryLinkTests(unittest.TestCase):
             "dates": "25–27 Sep 2026",
             "host": "TSC - Theewater Sports Club",
             "host_short": "TSC",
+            "host_full": "Theewater Sports Club",
             "host_href": "/club/tsc",
+            "host_logo": "/api/club-logo/TSC",
             "classes": ["420"],
+            "class_logo": "/artwork/Class Logo/420-Class-Logo.png",
+            "logo": "/artwork/Class Logo/420-Class-Logo.png",
             "entries": 0,
             "url": "/regatta/2026-09-25-tsc-420-nationals",
+            "countdown": "7 DAYS TO GO",
+            "history": (
+                "According to results currently held by SailingSA, there are "
+                "8 editions of 420 Nationals between 2018 and 2026."
+            ),
             "series": {"label": "420 Nationals", "href": "/events-logos/420-nationals"},
             "previous": [{"url": "/regatta/2025-10-04-420-national-championship", "year": 2025}],
         }
-        html = build_story_html(card)
+        html = render_card_html(card, slot=2)
+        story = build_story_html(card)
         facts = build_facts_html(card)
-        self.assertIn('href="/club/tsc"', facts)
-        self.assertIn('href="/class/420"', facts)
-        self.assertIn('href="/events-logos/420-nationals"', html)
-        self.assertIn('href="/regatta/2025-10-04-420-national-championship"', html)
+        self.assertIn("sa-home-regatta-card", html)
+        self.assertIn('href="/club/tsc"', html)
+        self.assertIn('href="/class/420"', html)
+        self.assertIn('href="/regatta/2026-09-25-tsc-420-nationals"', html)
+        self.assertIn("/api/club-logo/TSC", html)
+        self.assertIn("/artwork/Class Logo/420-Class-Logo.png", html)
+        self.assertIn("7 DAYS TO GO", html)
+        self.assertIn("0 Entries", html)
+        self.assertIn("25–27 Sep 2026", facts)
+        self.assertIn("currently held by SailingSA", story)
+        self.assertIn('href="/events-logos/420-nationals"', story)
+        self.assertIn('href="/regatta/2025-10-04-420-national-championship"', story)
+        self.assertNotIn("420 Nationals at TSC", story)
         self.assertNotIn("first ever", html.lower())
+        self.assertNotIn("background: #001f3f", LANDING_CARD_CSS)
+        self.assertIn("border: 2px solid #8aa2c6", LANDING_CARD_CSS)
+        self.assertIn("border-radius: 6px", LANDING_CARD_CSS)
+        self.assertIn("background: #fff", LANDING_CARD_CSS)
 
 
 if __name__ == "__main__":

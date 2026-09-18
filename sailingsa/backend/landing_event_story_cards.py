@@ -269,6 +269,34 @@ def _esc_text(s: str) -> str:
     return html_module.escape(s or "")
 
 
+_CLASS_LOGO = {
+    "420": "/artwork/Class Logo/420-Class-Logo.png",
+    "29er": "/artwork/Class Logo/29er-Class-Logo.png",
+    "hunter 19": "/artwork/Class Logo/Hunter-19-Class-Logo.png",
+    "hobie 16": "/artwork/Class Logo/Hobie-16-Class-Logo.png",
+    "hobie 14": "/artwork/Class Logo/Hobie-14-Class-Logo.png",
+    "df95": "/artwork/Class Logo/DF95-Class-Logo.png",
+    "j22": "/artwork/Class Logo/J22-Class-Logo.png",
+    "ilca 6": "/artwork/Class Logo/ILCA-6-Class-Logo.png",
+    "ilca 7": "/artwork/Class Logo/ILCA-7-Class-Logo.png",
+    "ilca 4": "/artwork/Class Logo/ILCA-4.7-Class-Logo.png",
+    "optimist": "/artwork/Class Logo/Optimist-Class-Logo.png",
+}
+
+
+def class_logo_src(name: str) -> str:
+    key = re.sub(r"\s+", " ", (name or "").strip().lower())
+    key = re.sub(r"\s+(fleet|class)$", "", key).strip()
+    return _CLASS_LOGO.get(key, "")
+
+
+def infer_classes(name: str, classes: list[str]) -> list[str]:
+    if classes:
+        return list(classes)
+    m = re.match(r"^(\d{2,4}(?:er)?)\b", (name or "").strip(), re.I)
+    return [m.group(1)] if m else []
+
+
 def _class_anchor(name: str) -> str:
     href = _class_href(name)
     if href:
@@ -277,34 +305,16 @@ def _class_anchor(name: str) -> str:
 
 
 def build_facts_html(card: dict) -> str:
-    """Single inline facts line — not stacked metadata rows."""
+    """Date · entries line used by the existing All Regattas meta pills."""
     url = card.get("url") or ""
     dates = card.get("dates") or ""
-    host_short = card.get("host_short") or ""
-    host_href = card.get("host_href") or ""
-    classes = card.get("classes") or []
     entries = int(card.get("entries") or 0)
-    fleet_counts = card.get("fleet_counts") or []
-    podium = card.get("podium") or []
-    state = card.get("state") or ""
     bits = []
     if dates and url:
         bits.append(f'<a href="{_esc(url)}">{_esc_text(dates)}</a>')
     elif dates:
         bits.append(_esc_text(dates))
-    if host_short and host_href:
-        bits.append(f'<a href="{_esc(host_href)}">{_esc_text(host_short)}</a>')
-    elif host_short:
-        bits.append(_esc_text(host_short))
-    for c in classes[:2]:
-        bits.append(_class_anchor(c))
-    if state == "final" and podium:
-        bits.extend(podium)
-    elif entries > 0:
-        if fleet_counts and len(fleet_counts) > 1:
-            bits.append(f"{entries} entries")
-        else:
-            bits.append(f"{entries} entries")
+    bits.append(f"{entries} Entries")
     return " · ".join(bits)
 
 
@@ -331,6 +341,14 @@ def build_story_html(card: dict) -> str:
     class_a = _class_anchor(class_name) if class_name else ""
     if returning:
         bits.append(returning)
+    elif history:
+        hist = _esc_text(history)
+        if series.get("href"):
+            hist += (
+                f' <a href="{_esc(series["href"])}">'
+                f'{_esc_text(series.get("label") or "Event history")}</a>.'
+            )
+        bits.append(hist)
     elif entries > 0 and class_a:
         when = "this weekend's " if countdown in {"TOMORROW", "STARTS TODAY"} else ""
         if fleet_counts and len(fleet_counts) > 1:
@@ -343,21 +361,6 @@ def build_story_html(card: dict) -> str:
             bits.append(
                 f"{entries} {class_a}s are currently entered for {when}{_esc_text(name)}."
             )
-    elif history:
-        hist = _esc_text(history)
-        if series.get("href"):
-            hist += (
-                f' <a href="{_esc(series["href"])}">'
-                f'{_esc_text(series.get("label") or "Event history")}</a>.'
-            )
-        bits.append(hist)
-    elif series.get("href") and series.get("label"):
-        loc = f" at {host_a}" if host_a else ""
-        bits.append(
-            f'<a href="{_esc(series["href"])}">{_esc_text(series["label"])}</a>{loc}.'
-        )
-    elif host_a:
-        bits.append(f"{_esc_text(name)} at {host_a}.")
     prevs = [
         p
         for p in (card.get("previous") or [])
@@ -372,152 +375,403 @@ def build_story_html(card: dict) -> str:
     return " ".join(b.strip() for b in bits if b and b.strip()).replace("..", ".").strip()
 
 
+_ICO_CAL = (
+    '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" width="14" height="14" '
+    'fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'
+    '<rect x="2.25" y="3.5" width="11.5" height="9.5" rx="1.4"></rect>'
+    '<line x1="2.25" y1="6" x2="13.75" y2="6"></line>'
+    '<line x1="5" y1="2.25" x2="5" y2="4.75"></line>'
+    '<line x1="11" y1="2.25" x2="11" y2="4.75"></line></svg>'
+)
+_ICO_USERS = (
+    '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" width="14" height="14" '
+    'fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'
+    '<circle cx="6" cy="5.5" r="2.1"></circle><circle cx="10.5" cy="6.2" r="1.8"></circle>'
+    '<path d="M2.7 12.4c.45-1.9 2.05-3 4.2-3 2.15 0 3.75 1.1 4.2 3"></path>'
+    '<path d="M9.4 11.8c.35-1.2 1.35-1.95 2.7-1.95 1.05 0 1.95.45 2.5 1.25"></path></svg>'
+)
+_ICO_TROPHY = (
+    '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" width="14" height="14" '
+    'fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'
+    '<path d="M5 2.5h6v1.8c0 2.3-1.4 4-3 4.6v2h2v1.6H6V10.9h2v-2c-1.6-.6-3-2.3-3-4.6V2.5Z"></path>'
+    '<path d="M5 3.4H3.2c0 1.7.7 2.9 2.1 3.4"></path>'
+    '<path d="M11 3.4h1.8c0 1.7-.7 2.9-2.1 3.4"></path></svg>'
+)
+
+
 def render_card_html(card: dict, *, slot: int) -> str:
+    """Same All Regattas `.sa-home-regatta-card` shell, plus countdown + story."""
     url = card.get("url") or ""
     logo = card.get("logo") or ""
     count = card.get("countdown") or ""
     title = card.get("name") or "Event"
     state = card.get("state") or "upcoming"
+    dates = card.get("dates") or ""
+    entries = int(card.get("entries") or 0)
+    host_code = (card.get("host_short") or "").strip().upper()
+    host_name = (card.get("host_full") or card.get("host") or "").strip()
+    if host_code and host_name.upper().startswith(host_code + " -"):
+        host_name = host_name.split(" - ", 1)[-1].strip()
+    host_href = card.get("host_href") or ""
+    host_logo = card.get("host_logo") or (f"/api/club-logo/{host_code}" if host_code else "")
+    class_name = (card.get("classes") or [""])[0] if card.get("classes") else ""
+    class_logo = card.get("class_logo") or class_logo_src(class_name)
+    class_href = _class_href(class_name) if class_name else url
     if state == "live" and count and not count.startswith("LIVE"):
         count = f"LIVE · {count}"
     story = build_story_html(card)
-    facts = build_facts_html(card)
     modifier = "upcoming"
     if state == "live" or (count or "").startswith("LIVE"):
         modifier = "live"
     elif state == "final" or count == "FINAL RESULTS":
         modifier = "final"
-    img = (
-        f'<a class="landing-event-card-art" href="{_esc(url)}">'
-        f'<img src="{_esc(logo)}" alt="{_esc(title)}" width="112" height="112" loading="lazy" decoding="async">'
-        f"</a>"
-        if logo
-        else f'<a class="landing-event-card-art landing-event-card-art--empty" href="{_esc(url)}" aria-label="{_esc(title)}"></a>'
+    tint = " sa-home-regatta-card--live" if modifier == "live" else ""
+    logo_href = (card.get("series") or {}).get("href") or url
+    event_logo = ""
+    if logo:
+        event_logo = (
+            f'<a class="sa-home-regatta-event-logo-link" href="{_esc(logo_href)}" '
+            f'aria-label="{_esc(title)}">'
+            f'<img class="sa-home-regatta-event-logo" src="{_esc(logo)}" alt="{_esc(title)}" '
+            f'width="78" height="58" loading="lazy" decoding="async"></a>'
+        )
+    else:
+        event_logo = (
+            f'<a class="sa-home-regatta-event-logo-link" href="{_esc(url)}" '
+            f'aria-label="{_esc(title)}"></a>'
+        )
+    count_html = (
+        f'<p class="landing-event-card-count">{_esc_text(count)}</p>' if count else ""
     )
+    date_html = (
+        f'<a href="{_esc(url)}">{_esc_text(dates)}</a>' if dates and url else _esc_text(dates)
+    )
+    host_tag = "a" if host_href else "div"
+    host_attrs = f' href="{_esc(host_href)}" title="Open club page"' if host_href else ""
+    host_img = (
+        f'<img class="sa-home-regatta-host-logo" src="{_esc(host_logo)}" alt="" '
+        f'width="76" height="36" loading="lazy" decoding="async">'
+        if host_logo
+        else ""
+    )
+    class_block = ""
+    if class_logo:
+        class_block = (
+            f'<a class="sa-home-regatta-single-class" href="{_esc(class_href)}" '
+            f'title="{_esc(class_name)}" aria-label="{_esc(class_name)}">'
+            f'<img class="sa-home-regatta-chip-logo" src="{_esc(class_logo)}" alt="{_esc(class_name)}" '
+            f'width="46" height="24" loading="lazy" decoding="async"></a>'
+        )
+    elif class_name:
+        class_block = (
+            f'<a class="sa-home-regatta-single-class" href="{_esc(class_href)}">'
+            f'<span class="sa-home-regatta-chip-text">{_esc_text(class_name)}</span></a>'
+        )
+    story_html = ""
+    if story:
+        story_html = (
+            f'<div class="sa-home-regatta-children landing-event-card-story-wrap">'
+            f'<div class="sa-home-regatta-children-head">'
+            f'<p class="landing-event-card-story">{story}</p>'
+            f"</div></div>"
+        )
     return (
-        f'<article class="landing-event-card landing-event-card--{modifier}" '
+        f'<article class="sa-home-regatta-card landing-event-card landing-event-card--{modifier}{tint}" '
         f'data-landing-event-slot="{int(slot)}" data-state="{_esc(modifier)}">'
-        f'<div class="landing-event-card-visual">{img}</div>'
-        f'<div class="landing-event-card-body">'
-        f'<p class="landing-event-card-count">{_esc_text(count)}</p>'
-        f'<p class="landing-event-card-title"><a href="{_esc(url)}">{_esc_text(title)}</a></p>'
-        f'<p class="landing-event-card-facts">{facts}</p>'
-        f'<p class="landing-event-card-story">{story}</p>'
-        f"</div></article>"
+        f'<div class="sa-home-regatta-top">'
+        f"{event_logo}"
+        f'<div class="sa-home-regatta-top-main">'
+        f"{count_html}"
+        f'<div class="sa-home-regatta-title">'
+        f'<a href="{_esc(url)}" style="color:inherit;text-decoration:none">{_esc_text(title)}</a>'
+        f"</div>"
+        f'<div class="sa-home-regatta-meta">'
+        f'<div class="sa-home-regatta-meta-pill"><span class="sa-home-regatta-meta-ico">{_ICO_CAL}</span>{date_html}</div>'
+        f'<div class="sa-home-regatta-meta-pill"><span class="sa-home-regatta-meta-ico">{_ICO_USERS}</span>{entries} Entries</div>'
+        f"</div></div>"
+        f'<{host_tag} class="sa-home-regatta-host"{host_attrs}>'
+        f"{host_img}"
+        f'<div class="sa-home-regatta-host-text">'
+        f'<div class="sa-home-regatta-host-code">{_esc_text(host_code)}</div>'
+        f'<div class="sa-home-regatta-host-name">{_esc_text(host_name)}</div>'
+        f"</div></{host_tag}>"
+        f'<div class="sa-home-regatta-actions">{class_block}'
+        f'<a class="sa-home-regatta-btn" href="{_esc(url)}">'
+        f'<span class="sa-home-regatta-btn-ico">{_ICO_TROPHY}</span>Full Results</a>'
+        f"</div></div>"
+        f"{story_html}"
+        f"</article>"
     )
 
 
 LANDING_CARD_CSS = """
+/* Hero slots reuse All Regattas `.sa-home-regatta-card` tokens exactly. */
 .temp-landing-hero-image,
 .temp-landing-secondary-image {
-    overflow: hidden;
-}
-.temp-landing-hero-image .landing-event-card img,
-.temp-landing-secondary-image .landing-event-card img {
-    width: 112px;
-    height: 112px;
-    max-width: 112px;
-    object-fit: contain;
-}
-.temp-landing-hero-image .landing-event-card,
-.temp-landing-secondary-image .landing-event-card {
-    display: flex;
-    align-items: stretch;
-    gap: 0;
     width: 100%;
     max-width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 0;
+    padding-right: 0;
     box-sizing: border-box;
+}
+.temp-landing-hero-image .sa-home-regatta-card,
+.temp-landing-secondary-image .sa-home-regatta-card {
+    background: #fff;
+    border: 2px solid #8aa2c6;
+    border-radius: 6px;
+    box-shadow: 0 2px 3px rgba(15,23,42,.06);
+    padding: 10px 12px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow: hidden;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
     margin: 0;
-    text-align: left;
-    color: #ffffff;
-    background: #001f3f;
-    border-radius: 8px;
-    min-height: 124px;
+    color: #142c78;
+}
+.temp-landing-hero-image .sa-home-regatta-card--live,
+.temp-landing-secondary-image .sa-home-regatta-card--live {
+    background: #fff1e6;
+    border-color: #f5ac86;
+}
+.temp-landing-hero-image .sa-home-regatta-top,
+.temp-landing-secondary-image .sa-home-regatta-top {
+    display: grid;
+    grid-template-columns: 104px minmax(0,1fr) minmax(200px,252px) auto;
+    grid-template-areas: "logo main host actions";
+    gap: 14px;
+    align-items: center;
+}
+.temp-landing-hero-image .sa-home-regatta-event-logo-link,
+.temp-landing-secondary-image .sa-home-regatta-event-logo-link {
+    grid-area: logo;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    text-decoration: none;
+    line-height: 0;
+    min-width: 0;
+}
+.temp-landing-hero-image .sa-home-regatta-event-logo,
+.temp-landing-secondary-image .sa-home-regatta-event-logo {
+    display: block;
+    width: 96px;
+    height: 68px;
+    max-width: 96px;
+    max-height: 68px;
+    object-fit: contain;
+    object-position: center;
+    border: none;
+    background: transparent;
+    padding: 0;
+}
+.temp-landing-hero-image .sa-home-regatta-top-main,
+.temp-landing-secondary-image .sa-home-regatta-top-main { grid-area: main; min-width: 0; }
+.temp-landing-hero-image .sa-home-regatta-title,
+.temp-landing-secondary-image .sa-home-regatta-title {
+    font-size: 15px;
+    font-weight: 900;
+    color: #142c78;
+    line-height: 1.15;
+    margin: 0;
+    letter-spacing: -.01em;
+}
+.temp-landing-hero-image .sa-home-regatta-meta,
+.temp-landing-secondary-image .sa-home-regatta-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    color: #5b6780;
+    font-size: 11.5px;
+    margin-top: 6px;
+}
+.temp-landing-hero-image .sa-home-regatta-meta-pill,
+.temp-landing-secondary-image .sa-home-regatta-meta-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: 700;
+    white-space: nowrap;
+    position: relative;
+}
+.temp-landing-hero-image .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill,
+.temp-landing-secondary-image .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill { padding-left: 10px; }
+.temp-landing-hero-image .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill:before,
+.temp-landing-secondary-image .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill:before {
+    content: "";
+    position: absolute;
+    left: 0; top: 2px; bottom: 2px;
+    width: 1px;
+    background: #cbd5e1;
+}
+.temp-landing-hero-image .sa-home-regatta-meta-ico,
+.temp-landing-secondary-image .sa-home-regatta-meta-ico {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 13px;
+    height: 13px;
+    color: #60708b;
+}
+.temp-landing-hero-image .sa-home-regatta-host,
+.temp-landing-secondary-image .sa-home-regatta-host {
+    grid-area: host;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    color: inherit;
+    text-decoration: none;
+}
+.temp-landing-hero-image .sa-home-regatta-host-logo,
+.temp-landing-secondary-image .sa-home-regatta-host-logo {
+    display: block;
+    width: 84px;
+    height: 44px;
+    object-fit: contain;
+    background: transparent;
+    flex: 0 0 auto;
+    padding: 0;
+}
+.temp-landing-hero-image .sa-home-regatta-host-text,
+.temp-landing-secondary-image .sa-home-regatta-host-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+.temp-landing-hero-image .sa-home-regatta-host-code,
+.temp-landing-secondary-image .sa-home-regatta-host-code {
+    font-weight: 900;
+    color: #21356b;
+    font-size: 14px;
+    line-height: 1.05;
+}
+.temp-landing-hero-image .sa-home-regatta-host-name,
+.temp-landing-secondary-image .sa-home-regatta-host-name {
+    color: #475569;
+    font-size: 11px;
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 260px;
+}
+.temp-landing-hero-image .sa-home-regatta-actions,
+.temp-landing-secondary-image .sa-home-regatta-actions {
+    grid-area: actions;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: flex-end;
+}
+.temp-landing-hero-image .sa-home-regatta-single-class,
+.temp-landing-secondary-image .sa-home-regatta-single-class {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+    text-decoration: none;
+}
+.temp-landing-hero-image .sa-home-regatta-chip-logo,
+.temp-landing-secondary-image .sa-home-regatta-chip-logo {
+    display: block;
+    width: 52px;
+    height: 28px;
+    max-width: 52px;
+    object-fit: contain;
+    background: transparent;
+    padding: 0;
+}
+.temp-landing-hero-image .sa-home-regatta-btn,
+.temp-landing-secondary-image .sa-home-regatta-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 9px 14px;
+    border-radius: 6px;
+    border: 1px solid #a5d7de;
+    background: #f9ffff;
+    color: #0f6d7a;
+    font-weight: 900;
+    font-size: 12px;
+    text-decoration: none;
+    white-space: nowrap;
+    min-width: 126px;
+}
+.temp-landing-hero-image .sa-home-regatta-children,
+.temp-landing-secondary-image .sa-home-regatta-children {
+    margin: 0;
+    border: 1px solid #dbe3ef;
+    border-radius: 4px;
+    background: #fff;
     overflow: hidden;
 }
-.landing-event-card-visual {
-    flex: 0 0 124px;
-    width: 124px;
-    background: #ffffff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.landing-event-card-art {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-    min-height: 124px;
-}
-.landing-event-card-art img {
+.temp-landing-hero-image .sa-home-regatta-children-head,
+.temp-landing-secondary-image .sa-home-regatta-children-head {
     display: block;
-    width: 112px;
-    height: 112px;
-    object-fit: contain;
+    padding: 8px 12px;
+    background: #eff5ff;
 }
 .landing-event-card-count {
     display: inline-block;
-    margin: 0 0 0.28rem;
-    padding: 3px 8px;
-    font-size: 0.68rem;
+    margin: 0 0 4px;
+    padding: 2px 6px;
+    font-size: 10px;
     font-weight: 800;
-    letter-spacing: 0.05em;
+    letter-spacing: .04em;
     text-transform: uppercase;
-    line-height: 1.15;
-    color: #001f3f;
-    background: #ffe566;
+    line-height: 1.2;
+    color: #142c78;
+    background: #e8eef8;
+    border: 1px solid #8aa2c6;
     border-radius: 4px;
 }
 .landing-event-card--live .landing-event-card-count {
-    background: #ea580c;
+    background: #fff1e6;
+    border-color: #f5ac86;
+    color: #9a3412;
 }
-.landing-event-card--final .landing-event-card-count {
-    background: #0b2c4d;
-}
-.landing-event-card-body {
-    min-width: 0;
-    flex: 1;
-    padding: 0.55rem 0.7rem 0.6rem;
-    box-sizing: border-box;
-}
-.landing-event-card-title {
-    margin: 0 0 0.2rem;
-    font-size: 0.92rem;
-    font-weight: 800;
-    line-height: 1.2;
-}
-.landing-event-card-title a { color: #ffffff; text-decoration: none; }
-.landing-event-card-facts {
-    margin: 0;
-    font-size: 0.78rem;
-    line-height: 1.35;
-    font-weight: 650;
-    color: #dbeafe;
-}
-.landing-event-card-facts a { color: #ffe566; text-decoration: underline; }
 .landing-event-card-story {
-    margin: 0.35rem 0 0;
-    font-size: 0.78rem;
+    margin: 0;
+    font-size: 11px;
+    font-weight: 700;
+    color: #334155;
     line-height: 1.35;
-    color: #e2e8f0;
+    white-space: normal;
 }
-.landing-event-card-story a { color: #ffe566; }
+.landing-event-card-story a { color: #0b3d91; }
 @media (max-width: 480px) {
-    .temp-landing-hero-image .landing-event-card,
-    .temp-landing-secondary-image .landing-event-card {
-        min-height: 118px;
+    .temp-landing-hero-image .sa-home-regatta-card,
+    .temp-landing-secondary-image .sa-home-regatta-card { padding: 10px 10px 10px; border-radius: 6px; }
+    .temp-landing-hero-image .sa-home-regatta-top,
+    .temp-landing-secondary-image .sa-home-regatta-top {
+        grid-template-columns: 82px minmax(0,1fr);
+        grid-template-areas: "logo main" "logo host" "actions actions";
+        gap: 8px 10px;
+        align-items: start;
     }
-    .landing-event-card-visual,
-    .landing-event-card-art { flex-basis: 108px; width: 108px; min-height: 118px; }
-    .temp-landing-hero-image .landing-event-card img,
-    .temp-landing-secondary-image .landing-event-card img,
-    .landing-event-card-art img { width: 96px; height: 96px; max-width: 96px; }
-    .landing-event-card-count { font-size: 0.64rem; padding: 2px 6px; }
-    .landing-event-card-title { font-size: 0.88rem; }
-    .landing-event-card-facts,
-    .landing-event-card-story { font-size: 0.74rem; }
+    .temp-landing-hero-image .sa-home-regatta-event-logo,
+    .temp-landing-secondary-image .sa-home-regatta-event-logo {
+        width: 78px; max-width: 78px; height: 58px; max-height: 58px;
+    }
+    .temp-landing-hero-image .sa-home-regatta-title,
+    .temp-landing-secondary-image .sa-home-regatta-title { font-size: 14px; }
+    .temp-landing-hero-image .sa-home-regatta-host,
+    .temp-landing-secondary-image .sa-home-regatta-host { gap: 8px; }
+    .temp-landing-hero-image .sa-home-regatta-host-logo,
+    .temp-landing-secondary-image .sa-home-regatta-host-logo { width: 76px; height: 36px; }
+    .temp-landing-hero-image .sa-home-regatta-actions,
+    .temp-landing-secondary-image .sa-home-regatta-actions { width: 100%; justify-content: flex-end; }
+    .temp-landing-hero-image .sa-home-regatta-btn,
+    .temp-landing-secondary-image .sa-home-regatta-btn { flex: 1; min-width: 0; padding: 9px 10px; }
+    .temp-landing-hero-image .sa-home-regatta-chip-logo,
+    .temp-landing-secondary-image .sa-home-regatta-chip-logo { width: 46px; height: 24px; max-width: 46px; }
 }
 """
 
@@ -591,15 +845,17 @@ def card_from_row(row: dict, *, cur=None, today: Optional[date] = None, idx: Opt
     host = f"{host_ab} - {host_fn}" if host_ab and host_fn else (host_fn or host_ab)
     host_short = host_ab or host_fn
     fleet_counts = fetch_fleet_entry_counts(cur, rid) if cur is not None else []
-    classes = [n for n, _c in fleet_counts if n.lower() not in {"fleet", "event"}]
+    classes = infer_classes(
+        name, [n for n, _c in fleet_counts if n.lower() not in {"fleet", "event"}]
+    )
     series = series_for_event(name, rid, idx)
     prev = []
     if cur is not None and series.get("slug"):
         prev = _previous_editions_from_catalogue(series.get("slug") or "", rid)
     history = history_sentence(series.get("label") or name, prev, current_year=(_as_date(start) or today).year)
-    logo = series.get("logo") or ""
-    if not logo and host_ab:
-        logo = f"/api/club-logo/{host_ab}"
+    class_logo = class_logo_src(classes[0]) if classes else ""
+    logo = series.get("logo") or class_logo or ""
+    host_logo = f"/api/club-logo/{host_ab}" if host_ab else ""
     return {
         "regatta_id": rid,
         "name": name,
@@ -609,8 +865,11 @@ def card_from_row(row: dict, *, cur=None, today: Optional[date] = None, idx: Opt
         "end_date": end,
         "host": host,
         "host_short": host_short,
+        "host_full": host_fn,
         "host_href": _club_href(host_ab, host_fn),
+        "host_logo": host_logo,
         "classes": classes,
+        "class_logo": class_logo,
         "entries": sum(n for _n, n in fleet_counts),
         "fleet_counts": fleet_counts,
         "series": series,
