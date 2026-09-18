@@ -115,4 +115,4 @@ Mark anything that must survive housekeeping as KEEP (filename or `/etc/sailings
 
 ## WhatsApp server health (add-on)
 
-See **`sailingsa/deploy/SERVER_MONITOR.md`**. Reuses the existing Baileys engine (`arial-whatsapp-poc` `POST /send` on 127.0.0.1:8009). Housekeeping script stays locked. WhatsApp failure never restarts the API.
+See **`sailingsa/deploy/SERVER_MONITOR.md`**. Reuses the existing Baileys engine (`arial-whatsapp-poc` `POST /send` on 127.0.0.1:8009). Housekeeping script stays locked. WhatsApp failure never restarts the API. A normal API restart is allowed 120s before any CRITICAL.

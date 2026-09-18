@@ -64,7 +64,7 @@ ssh -i ~/.ssh/sailingsa_live_key root@102.218.215.253 "echo SSH KEY WORKS"
    ```bash
    ssh -i ~/.ssh/sailingsa_live_key root@102.218.215.253 "systemctl restart sailingsa-api && sleep 2 && systemctl is-active sailingsa-api"
    ```
-   Expected: `active`. See also **`sailingsa/deploy/BIO_BACKUP_RESTORE.md`** for bio backup/restore.
+   Expected: `active`. A normal restart is allowed **120s** — the WhatsApp monitor does not alert unless HTTP stays down longer than that. See **`sailingsa/deploy/SERVER_MONITOR.md`**. See also **`sailingsa/deploy/BIO_BACKUP_RESTORE.md`** for bio backup/restore.
 
 ---
 

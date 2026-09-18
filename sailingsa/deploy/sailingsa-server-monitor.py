@@ -39,6 +39,10 @@ IDLE_XACT_CRIT = 8
 FIVE_XX_SPIKE = 10  # in 5 minutes
 HK_STALE_HOURS = 36
 EXPECTED_API_WORKERS = 4
+# Normal `systemctl restart sailingsa-api` (4 uvicorn workers) is allowed this long.
+# WhatsApp only if HTTP stays down after the grace. Mid-restart cron must not alert.
+API_RESTART_GRACE_S = 120
+API_RESTART_PROBE_S = 15
 LOAD_WARN_MULT = 3
 LOAD_CRIT_MULT = 6
 SWAP_WARN_PCT = 80
@@ -86,6 +90,8 @@ def load_conf() -> dict:
         "RECIPIENT": "27720821111",
         "WAPOC_ENV": str(WAPOC_ENV_DEFAULT),
         "WAPOC_PORT": "8009",
+        "API_RESTART_GRACE_S": str(API_RESTART_GRACE_S),
+        "API_RESTART_PROBE_S": str(API_RESTART_PROBE_S),
     }
     if CONF.is_file():
         for line in CONF.read_text(errors="replace").splitlines():
@@ -222,6 +228,75 @@ def nproc() -> int:
         return os.cpu_count() or 1
     except Exception:
         return 1
+
+
+def _positive_int(raw, default: int) -> int:
+    try:
+        return max(0, int(raw))
+    except (TypeError, ValueError):
+        return default
+
+
+def api_restart_windows(conf: dict | None = None) -> tuple[int, int]:
+    """Grace/probe seconds. Env overrides conf; both optional."""
+    cfg = conf if conf is not None else load_conf()
+    grace = os.environ.get("SAILINGSA_API_RESTART_GRACE_S")
+    probe = os.environ.get("SAILINGSA_API_RESTART_PROBE_S")
+    if grace is None:
+        grace = cfg.get("API_RESTART_GRACE_S", API_RESTART_GRACE_S)
+    if probe is None:
+        probe = cfg.get("API_RESTART_PROBE_S", API_RESTART_PROBE_S)
+    return _positive_int(grace, API_RESTART_GRACE_S), _positive_int(probe, API_RESTART_PROBE_S)
+
+
+def wait_out_api_restart(
+    first: dict,
+    probe_fn,
+    grace_s: int,
+    probe_s: int,
+    sleeper=time.sleep,
+    logger=log,
+    clock=time.monotonic,
+) -> dict:
+    """Hold the API-down finding until a normal restart window has passed.
+
+    First failed HTTP check is treated as a possible `systemctl restart`.
+    Re-probe until up, or until grace expires — only then is it alertable.
+    """
+    if first.get("up"):
+        return first
+    if grace_s <= 0:
+        logger(
+            f"api down http={first.get('http')} active={first.get('active')}; grace=0"
+        )
+        return first
+    logger(
+        f"api down http={first.get('http')} active={first.get('active')}; "
+        f"waiting up to {grace_s}s for normal restart"
+    )
+    deadline = clock() + grace_s
+    last = first
+    while True:
+        remaining = deadline - clock()
+        if remaining <= 0:
+            break
+        wait_s = min(probe_s, remaining) if probe_s > 0 else 0
+        if wait_s > 0:
+            sleeper(wait_s)
+        last = probe_fn()
+        if last.get("up"):
+            logger(
+                f"api recovered within restart grace http={last.get('http')} "
+                f"workers={last.get('workers')}"
+            )
+            return last
+        if probe_s <= 0:
+            break
+    logger(
+        f"api still down after {grace_s}s grace http={last.get('http')} "
+        f"active={last.get('active')}"
+    )
+    return last
 
 
 def metric_api():
@@ -467,7 +542,7 @@ def collect() -> dict:
     disk_pct, free_gb = metric_disk()
     mem = metric_mem()
     load = metric_load()
-    api = metric_api()
+    api = wait_out_api_restart(metric_api(), metric_api, *api_restart_windows())
     pg = metric_pg()
     hk = metric_housekeeping()
     bak = metric_backup()
@@ -539,7 +614,12 @@ def evaluate(m: dict, state: dict) -> list[tuple[str, str, str]]:
         findings.append(("pool", "OK", "no pool/too-many-clients errors"))
 
     w = m["api"]["workers"]
-    if m["api"]["active"] == "active" and w < EXPECTED_API_WORKERS - 1:
+    # Do not double-alert workers while the API is restarting or down.
+    if (
+        m["api"]["up"]
+        and m["api"]["active"] == "active"
+        and w < EXPECTED_API_WORKERS - 1
+    ):
         findings.append(("workers", "CRITICAL", f"API workers {w} (expected {EXPECTED_API_WORKERS})"))
     else:
         findings.append(("workers", "OK", f"workers {w}"))
@@ -683,6 +763,11 @@ def main(argv=None) -> int:
     g.add_argument("--test-send", action="store_true", help="send one TEST OK")
     g.add_argument("--sample-daily", action="store_true", help="print sample daily (no send)")
     g.add_argument("--dedupe-test", action="store_true", help="print dedupe transitions (no send)")
+    g.add_argument(
+        "--restart-grace-test",
+        action="store_true",
+        help="prove API restart grace does not alert on a mid-restart blip",
+    )
     args = parser.parse_args(argv)
 
     conf = load_conf()
@@ -694,13 +779,43 @@ def main(argv=None) -> int:
             print("TEST_SEND", "OK" if ok else "FAIL")
             return 0 if ok else 1
 
-        m = collect()
-        state = load_state()
-        findings = evaluate(m, state)
+        if args.restart_grace_test:
+            down = {
+                "up": False,
+                "http": 0,
+                "workers": 0,
+                "enabled": "enabled",
+                "active": "active",
+            }
+            up = {
+                "up": True,
+                "http": 200,
+                "workers": 4,
+                "enabled": "enabled",
+                "active": "active",
+            }
+            notes = []
 
-        if args.sample_daily:
-            print(fmt_daily(m, findings))
-            return 0
+            def _log(msg):
+                notes.append(msg)
+
+            recovered = wait_out_api_restart(
+                down, lambda: up, 120, 0, sleeper=lambda _s: None, logger=_log
+            )
+            still = wait_out_api_restart(
+                down, lambda: down, 0, 0, sleeper=lambda _s: None, logger=_log
+            )
+            already = wait_out_api_restart(
+                up, lambda: down, 120, 0, sleeper=lambda _s: None, logger=_log
+            )
+            rec_ok = recovered.get("up") is True
+            still_ok = still.get("up") is False
+            already_ok = already.get("up") is True
+            print("restart_grace recovered_mid_restart", rec_ok)
+            print("restart_grace still_down_after_grace", still_ok)
+            print("restart_grace already_up_no_wait", already_ok)
+            print("restart_grace notes", notes)
+            return 0 if rec_ok and still_ok and already_ok else 1
 
         if args.dedupe_test:
             printed = []
@@ -724,6 +839,14 @@ def main(argv=None) -> int:
                 print("---")
             print(f"dedupe_messages={len(printed)} (expect 3: begin, severity, recovered)")
             return 0 if len(printed) == 3 else 1
+
+        m = collect()
+        state = load_state()
+        findings = evaluate(m, state)
+
+        if args.sample_daily:
+            print(fmt_daily(m, findings))
+            return 0
 
         def do_send(text):
             return send_whatsapp(text, conf)

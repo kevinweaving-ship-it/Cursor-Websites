@@ -37,6 +37,8 @@ ssh -i ~/.ssh/sailingsa_live_key root@102.218.215.253 \
 ssh -i ~/.ssh/sailingsa_live_key root@102.218.215.253 \
   '/usr/local/sbin/sailingsa-server-monitor --dedupe-test'
 ssh -i ~/.ssh/sailingsa_live_key root@102.218.215.253 \
+  '/usr/local/sbin/sailingsa-server-monitor --restart-grace-test'
+ssh -i ~/.ssh/sailingsa_live_key root@102.218.215.253 \
   'bash /root/incoming/server-monitor/install-server-monitor.sh --enable'
 ```
 
@@ -57,7 +59,8 @@ Log: `/var/log/sailingsa-server-monitor.log` (no tokens / no phone numbers)
 | Condition | WARNING | CRITICAL |
 |---|---|---|
 | Disk | ≥75% | ≥85% |
-| API / PG down | — | unresponsive |
+| API down | — | HTTP still down **after 120s restart grace** |
+| PG down | — | unresponsive |
 | 5xx spike | — | ≥10 in 5 min (nginx access) |
 | pool / too-many-clients | — | any match in last 5 min journal |
 | idle-in-transaction | ≥3 | ≥8 |
@@ -68,6 +71,28 @@ Log: `/var/log/sailingsa-server-monitor.log` (no tokens / no phone numbers)
 | restore service | 8001 enabled/active | — |
 
 Dedupe: one WhatsApp when a condition **begins**, one if **severity rises**, one **RECOVERED** when healthy. Same level = no resend. 8002 is never alerted.
+
+### API restart grace (all tasks)
+
+A normal `systemctl restart sailingsa-api` takes well under **120 seconds** (4 uvicorn workers). The 5-minute `--check` will often land mid-restart (`http=0` while systemd is still `active`). That is **not** an outage.
+
+- First failed HTTP probe waits up to **120s**, re-probing every **15s**.
+- Recovered inside that window → **no WhatsApp** (and no RECOVERED, because nothing was sent).
+- Still down after 120s → CRITICAL. That is longer than a normal restart.
+- Worker-count CRITICAL is suppressed while the API is down/restarting (avoids a second false alert).
+
+Every deploy / Event URL / live-edit task that restarts the API is covered by this grace. Do not expect a CRITICAL for a clean restart.
+
+Override on the box if needed (`/etc/sailingsa/server-monitor.conf` or env):
+
+```
+API_RESTART_GRACE_S=120
+API_RESTART_PROBE_S=15
+```
+
+`SAILINGSA_API_RESTART_GRACE_S` / `SAILINGSA_API_RESTART_PROBE_S` win over conf.
+
+Prove locally: `/usr/local/sbin/sailingsa-server-monitor --restart-grace-test`
 
 Daily report is always sent at 10:30 even when healthy.
 
