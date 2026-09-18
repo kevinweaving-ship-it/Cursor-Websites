@@ -417,7 +417,15 @@ def build_story_html(card: dict) -> str:
     if entered:
         names = [_person_html(e) for e in entered if _person_html(e)]
         if names:
-            return f'{_inline_logo(logo, "Entered")}{" · ".join(names)}'
+            head = (
+                f'{_inline_logo(logo, "Entered")}'
+                f'<span class="landing-event-last-label">ENTERED</span>'
+                f'<span class="landing-event-last-go" aria-hidden="true"> →</span>'
+            )
+            return (
+                f'<span class="landing-event-last-head">{head}</span>'
+                f'<span class="landing-event-last-podium">{" · ".join(names)}</span>'
+            )
     return ""
 
 
@@ -854,7 +862,7 @@ LANDING_CARD_CSS = """
 .temp-landing-hero-image .landing-event-card-story-wrap .sa-home-regatta-children-head,
 .temp-landing-secondary-image .landing-event-card-story-wrap .sa-home-regatta-children-head,
 #landing-event-hero-2 .landing-event-card-story-wrap .sa-home-regatta-children-head {
-    padding: 4px 8px;
+    padding: 4px 22px 4px 8px;
     line-height: 1.2;
 }
 .landing-event-card-hit {
@@ -866,9 +874,9 @@ LANDING_CARD_CSS = """
     position: absolute;
     right: 8px;
     bottom: 6px;
-    z-index: 1;
+    z-index: 2;
     pointer-events: none;
-    color: #8aa2c6;
+    color: #3d5a8a;
     line-height: 0;
 }
 .landing-event-last-head,

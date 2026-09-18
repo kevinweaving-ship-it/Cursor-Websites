@@ -202,6 +202,7 @@ class AdditiveStoryTests(unittest.TestCase):
         }
         story = build_story_html(card)
         self.assertIn("landing-event-inline-logo", story)
+        self.assertIn("ENTERED", story)
         self.assertIn('href="/sailor/paul-changuion"', story)
         self.assertIn("Hayden Miller", story)
         self.assertIn(" / ", story)
@@ -209,6 +210,7 @@ class AdditiveStoryTests(unittest.TestCase):
         self.assertNotIn("2025 RESULTS", story)
         self.assertNotIn("Hunter Nationals", story)
         self.assertNotIn("Grand Slam", story)
+        self.assertNotIn("Defending winner", story)
 
     def test_midmar_cup_identity_rejects_other_hmyc_events(self):
         self.assertTrue(is_midmar_cup_event("The Midmar Cup", "2026-09-19-hmyc-midmar-cup"))
@@ -255,6 +257,7 @@ class AdditiveStoryTests(unittest.TestCase):
         self.assertIn("width:14px", story)
         self.assertIn('style="width:78px;height:58px', html)
         self.assertIn("landing-event-card-open", html)
+        self.assertIn("color: #3d5a8a", LANDING_CARD_CSS)
         self.assertNotIn("width:100%", html)
         self.assertEqual(resolve_podium_hrefs(None, card["podium"]), card["podium"])
 
