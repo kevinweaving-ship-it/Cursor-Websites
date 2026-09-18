@@ -1,0 +1,19 @@
+#!/usr/bin/expect -f
+set timeout 120
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+
+spawn scp -o StrictHostKeyChecking=no /workspace/sailingsa/frontend/js/midmar-live-media.js /workspace/sailingsa/deploy/apply_midmar_wx_cam.py ${user}@${server}:/tmp/
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
+
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} {TS=$(date +%Y%m%d_%H%M%S); tar -czf /root/backup_midmar_wx_cam_${TS}.tar.gz /var/www/sailingsa/api/api.py /var/www/sailingsa/js/regatta-slot-card.js; echo BACKUP:/root/backup_midmar_wx_cam_${TS}.tar.gz; ls -la /root/backup_midmar_wx_cam_${TS}.tar.gz; chattr -i /var/www/sailingsa/api/api.py; python3 /tmp/apply_midmar_wx_cam.py; python3 -m py_compile /var/www/sailingsa/api/api.py; echo COMPILE:$?; chattr +i /var/www/sailingsa/api/api.py; systemctl restart sailingsa-api; sleep 6; systemctl is-active sailingsa-api}
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait

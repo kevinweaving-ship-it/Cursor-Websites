@@ -24637,10 +24637,11 @@ def _render_result_sheet_fleet(
     show_bow = _optional_col_visible("bow", has_bow_no)
     show_hull = _optional_col_visible("hull", has_hull_no)
     show_crew_col = _optional_col_visible("crew", has_crew)
-    # MIDMAR_STD_COLS_MP_SCROLL_v1: always show Bow No + Boat Name; keep Crew for MP scroll.
+    # MIDMAR_STD_COLS_MP_SCROLL_v1 / MIDMAR_HIDE_BOW_v1:
+    # Boat Name + Crew stay on. Bow No hidden until they use it (set True).
     if str(fleet.get("regatta_id") or "").strip() == "2026-09-19-hmyc-midmar-cup":
         show_boat = True
-        show_bow = True
+        show_bow = False
         show_crew_col = True
     show_races = bool(race_columns)
 
@@ -26936,6 +26937,12 @@ def serve_regatta_standalone(slug: str, request: Request):
             else ""
         )
         sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js" defer></script>' if is_sa else ""
+        # MIDMAR_HMYC_WX_CAM_v1: HMYC weather + full-width club cam between header and fleet.
+        midmar_js = (
+            '<script src="/js/midmar-live-media.js?v=midmarwx2" defer></script>'
+            if str(regatta_id) == "2026-09-19-hmyc-midmar-cup"
+            else ""
+        )
         doc = (
             "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
             f"{escaped_title} | SailingSA</title>"
@@ -26945,7 +26952,7 @@ def serve_regatta_standalone(slug: str, request: Request):
             "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
             f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
             f"<style>{_RESULT_SHEET_CSS}</style></head><body>"
-            f"<div class=\"regatta-page\">{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script}{sa_toolbar_js}"
+            f"<div class=\"regatta-page\">{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script}{sa_toolbar_js}{midmar_js}"
             "</body></html>"
         )
         print("REGATTA: total route time", round(time.time() - start_time, 3))
