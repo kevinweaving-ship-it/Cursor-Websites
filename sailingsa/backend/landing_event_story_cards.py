@@ -139,6 +139,13 @@ def series_for_event(event_name: str, regatta_id: str, idx: Optional[dict] = Non
                 break
     if not isinstance(row, dict):
         return {}
+    if not row.get("regattas"):
+        slug_try = str(row.get("slug") or "").strip()
+        if slug_try:
+            for v in idx.values():
+                if isinstance(v, dict) and str(v.get("slug") or "") == slug_try and v.get("regattas"):
+                    row = v
+                    break
     slug = str(row.get("slug") or "").strip()
     href = str(row.get("url") or "").strip()
     if slug and not href.startswith("/events-logos/"):
@@ -399,6 +406,13 @@ def build_story_html(card: dict) -> str:
         if returning:
             html += f'<span class="landing-event-return">🏆 {returning}</span>'
         return html
+    if prevs:
+        p = prevs[0]
+        return (
+            f'{_inline_logo(logo, "Results")}'
+            f'<a href="{_esc(p["url"])}">{_esc_text(str(p["year"]))} RESULTS</a>'
+            f'<span class="landing-event-last-go" aria-hidden="true"> →</span>'
+        )
     entered = [e for e in (card.get("entered") or []) if e.get("name")]
     if entered:
         names = [_person_html(e) for e in entered if _person_html(e)]
@@ -1002,7 +1016,7 @@ def fetch_overall_podium(cur, regatta_id: str) -> list[dict]:
     if cur is None or not regatta_id:
         return []
     cols = _results_columns(cur)
-    place = next((c for c in ("place", "position", "pos", "rank", "overall_place") if c in cols), "")
+    place = next((c for c in ("place", "position", "overall_place", "rank", "pos") if c in cols), "")
     name = next((c for c in ("sailor_name", "helm_name", "helm", "name") if c in cols), "")
     slug = next((c for c in ("sailor_slug", "helm_slug") if c in cols), "")
     sid = next((c for c in ("sailor_id", "helm_sailor_id", "helm_sa_sailing_id") if c in cols), "")
