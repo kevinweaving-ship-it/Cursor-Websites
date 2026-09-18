@@ -191,7 +191,9 @@ def _inline_logo(src: str, alt: str = "") -> str:
     return (
         f'<img class="landing-event-inline-logo" src="{html_module.escape(src, quote=True)}" '
         f'alt="{html_module.escape(alt, quote=True)}" '
-        f'width="14" height="11" loading="lazy" decoding="async">'
+        f'width="14" height="11" loading="lazy" decoding="async" '
+        f'style="width:14px;height:11px;max-width:14px;max-height:11px;display:inline;'
+        f'vertical-align:-2px;margin:0 3px 0 0">'
     )
 
 
@@ -461,7 +463,8 @@ def render_card_html(card: dict, *, slot: int) -> str:
             f'<a class="sa-home-regatta-event-logo-link" href="{_esc(logo_href)}" '
             f'aria-label="{_esc(title)}">'
             f'<img class="sa-home-regatta-event-logo" src="{_esc(logo)}" alt="{_esc(title)}" '
-            f'width="78" height="58" loading="lazy" decoding="async"></a>'
+            f'width="78" height="58" loading="lazy" decoding="async" '
+            f'style="width:78px;height:58px;max-width:78px;max-height:58px;object-fit:contain"></a>'
         )
     else:
         event_logo = (
@@ -476,7 +479,8 @@ def render_card_html(card: dict, *, slot: int) -> str:
     host_attrs = f' href="{_esc(host_href)}" title="Open club page"' if host_href else ""
     host_img = (
         f'<img class="sa-home-regatta-host-logo" src="{_esc(host_logo)}" alt="" '
-        f'width="76" height="36" loading="lazy" decoding="async">'
+        f'width="76" height="36" loading="lazy" decoding="async" '
+        f'style="width:76px;height:36px;max-width:76px;max-height:36px;object-fit:contain">'
         if host_logo
         else ""
     )
@@ -486,7 +490,8 @@ def render_card_html(card: dict, *, slot: int) -> str:
             f'<a class="sa-home-regatta-single-class" href="{_esc(class_href)}" '
             f'title="{_esc(class_name)}" aria-label="{_esc(class_name)}">'
             f'<img class="sa-home-regatta-chip-logo" src="{_esc(class_logo)}" alt="{_esc(class_name)}" '
-            f'width="46" height="24" loading="lazy" decoding="async"></a>'
+            f'width="46" height="24" loading="lazy" decoding="async" '
+            f'style="width:46px;height:24px;max-width:46px;max-height:24px;object-fit:contain"></a>'
         )
     elif class_name:
         class_block = (
@@ -549,6 +554,18 @@ LANDING_CARD_CSS = """
     padding-right: 0;
     box-sizing: border-box;
 }
+/* Hero 2 must stay visible even if a prior .temp-landing-secondary-image exists. */
+#landing-event-hero-2 {
+    display: block !important;
+}
+/* Banner-era `.temp-landing-*-image img { width:100%; display:block }` must not size the card. */
+.temp-landing-hero-image .landing-event-card img:not(.landing-event-inline-logo),
+.temp-landing-secondary-image .landing-event-card img:not(.landing-event-inline-logo),
+#landing-event-hero-2 .landing-event-card img:not(.landing-event-inline-logo) {
+    width: auto;
+    height: auto;
+    max-width: 78px;
+}
 .temp-landing-hero-image .sa-home-regatta-card,
 .temp-landing-secondary-image .sa-home-regatta-card,
 #landing-event-hero-2 .sa-home-regatta-card {
@@ -574,7 +591,8 @@ LANDING_CARD_CSS = """
     border-color: #f5ac86;
 }
 .temp-landing-hero-image .sa-home-regatta-top,
-.temp-landing-secondary-image .sa-home-regatta-top {
+.temp-landing-secondary-image .sa-home-regatta-top,
+#landing-event-hero-2 .sa-home-regatta-top {
     display: grid;
     grid-template-columns: 104px minmax(0,1fr) minmax(200px,252px) auto;
     grid-template-areas: "logo main host actions";
@@ -594,12 +612,12 @@ LANDING_CARD_CSS = """
 .temp-landing-hero-image .sa-home-regatta-event-logo,
 .temp-landing-secondary-image .sa-home-regatta-event-logo,
 #landing-event-hero-2 .sa-home-regatta-event-logo {
-    display: block;
-    width: 78px;
-    height: 58px;
-    max-width: 78px;
-    max-height: 58px;
-    object-fit: contain;
+    display: block !important;
+    width: 78px !important;
+    height: 58px !important;
+    max-width: 78px !important;
+    max-height: 58px !important;
+    object-fit: contain !important;
     object-position: center;
     border: none;
     background: transparent;
@@ -666,12 +684,12 @@ LANDING_CARD_CSS = """
 .temp-landing-hero-image .sa-home-regatta-host-logo,
 .temp-landing-secondary-image .sa-home-regatta-host-logo,
 #landing-event-hero-2 .sa-home-regatta-host-logo {
-    display: block;
-    width: 76px;
-    height: 36px;
-    max-width: 76px;
-    max-height: 36px;
-    object-fit: contain;
+    display: block !important;
+    width: 76px !important;
+    height: 36px !important;
+    max-width: 76px !important;
+    max-height: 36px !important;
+    object-fit: contain !important;
     background: transparent;
     flex: 0 0 auto;
     padding: 0;
@@ -719,12 +737,12 @@ LANDING_CARD_CSS = """
 .temp-landing-hero-image .sa-home-regatta-chip-logo,
 .temp-landing-secondary-image .sa-home-regatta-chip-logo,
 #landing-event-hero-2 .sa-home-regatta-chip-logo {
-    display: block;
-    width: 46px;
-    height: 24px;
-    max-width: 46px;
-    max-height: 24px;
-    object-fit: contain;
+    display: block !important;
+    width: 46px !important;
+    height: 24px !important;
+    max-width: 46px !important;
+    max-height: 24px !important;
+    object-fit: contain !important;
     background: transparent;
     padding: 0;
 }
@@ -790,8 +808,11 @@ LANDING_CARD_CSS = """
 .temp-landing-hero-image .landing-event-inline-logo,
 .temp-landing-secondary-image .landing-event-inline-logo,
 #landing-event-hero-2 .landing-event-inline-logo,
+.temp-landing-hero-image .landing-event-card-story img,
+.temp-landing-secondary-image .landing-event-card-story img,
+#landing-event-hero-2 .landing-event-card-story img,
 .landing-event-inline-logo {
-    display: inline-block !important;
+    display: inline !important;
     width: 14px !important;
     height: 11px !important;
     max-width: 14px !important;
@@ -799,6 +820,7 @@ LANDING_CARD_CSS = """
     object-fit: contain !important;
     vertical-align: -2px;
     margin: 0 3px 0 0 !important;
+    float: none !important;
 }
 .temp-landing-hero-image .landing-event-card-story-wrap,
 .temp-landing-secondary-image .landing-event-card-story-wrap,
@@ -823,30 +845,44 @@ LANDING_CARD_CSS = """
 }
 @media (max-width: 480px) {
     .temp-landing-hero-image .sa-home-regatta-card,
-    .temp-landing-secondary-image .sa-home-regatta-card { padding: 10px 10px 10px; border-radius: 6px; }
+    .temp-landing-secondary-image .sa-home-regatta-card,
+    #landing-event-hero-2 .sa-home-regatta-card { padding: 10px 10px 10px; border-radius: 6px; }
     .temp-landing-hero-image .sa-home-regatta-top,
-    .temp-landing-secondary-image .sa-home-regatta-top {
+    .temp-landing-secondary-image .sa-home-regatta-top,
+    #landing-event-hero-2 .sa-home-regatta-top {
         grid-template-columns: 82px minmax(0,1fr);
         grid-template-areas: "logo main" "logo host" "actions actions";
         gap: 8px 10px;
         align-items: start;
     }
+    .temp-landing-hero-image .sa-home-regatta-event-logo-link,
+    .temp-landing-secondary-image .sa-home-regatta-event-logo-link,
+    #landing-event-hero-2 .sa-home-regatta-event-logo-link {
+        width: 78px; max-width: 78px;
+    }
     .temp-landing-hero-image .sa-home-regatta-event-logo,
-    .temp-landing-secondary-image .sa-home-regatta-event-logo {
-        width: 78px; max-width: 78px; height: 58px; max-height: 58px;
+    .temp-landing-secondary-image .sa-home-regatta-event-logo,
+    #landing-event-hero-2 .sa-home-regatta-event-logo {
+        width: 78px !important; max-width: 78px !important; height: 58px !important; max-height: 58px !important;
     }
     .temp-landing-hero-image .sa-home-regatta-title,
-    .temp-landing-secondary-image .sa-home-regatta-title { font-size: 14px; }
+    .temp-landing-secondary-image .sa-home-regatta-title,
+    #landing-event-hero-2 .sa-home-regatta-title { font-size: 14px; }
     .temp-landing-hero-image .sa-home-regatta-host,
-    .temp-landing-secondary-image .sa-home-regatta-host { gap: 8px; }
+    .temp-landing-secondary-image .sa-home-regatta-host,
+    #landing-event-hero-2 .sa-home-regatta-host { gap: 8px; }
     .temp-landing-hero-image .sa-home-regatta-host-logo,
-    .temp-landing-secondary-image .sa-home-regatta-host-logo { width: 76px; height: 36px; }
+    .temp-landing-secondary-image .sa-home-regatta-host-logo,
+    #landing-event-hero-2 .sa-home-regatta-host-logo { width: 76px !important; height: 36px !important; }
     .temp-landing-hero-image .sa-home-regatta-actions,
-    .temp-landing-secondary-image .sa-home-regatta-actions { width: 100%; justify-content: flex-end; }
+    .temp-landing-secondary-image .sa-home-regatta-actions,
+    #landing-event-hero-2 .sa-home-regatta-actions { width: 100%; justify-content: flex-end; }
     .temp-landing-hero-image .sa-home-regatta-btn,
-    .temp-landing-secondary-image .sa-home-regatta-btn { flex: 1; min-width: 0; padding: 9px 10px; }
+    .temp-landing-secondary-image .sa-home-regatta-btn,
+    #landing-event-hero-2 .sa-home-regatta-btn { flex: 1; min-width: 0; padding: 9px 10px; }
     .temp-landing-hero-image .sa-home-regatta-chip-logo,
-    .temp-landing-secondary-image .sa-home-regatta-chip-logo { width: 46px; height: 24px; max-width: 46px; }
+    .temp-landing-secondary-image .sa-home-regatta-chip-logo,
+    #landing-event-hero-2 .sa-home-regatta-chip-logo { width: 46px !important; height: 24px !important; max-width: 46px !important; }
 }
 """
 
@@ -977,7 +1013,108 @@ def fetch_overall_podium(cur, regatta_id: str) -> list[dict]:
                 "sailor_id": str(r.get("sailor_id") or "").strip(),
             }
         )
-    return out
+    return resolve_podium_hrefs(cur, out)
+
+
+def _slug_from_name(name: str) -> str:
+    s = re.sub(r"[^a-z0-9\s-]", "", (name or "").strip().lower())
+    s = re.sub(r"\s+", "-", s)
+    return re.sub(r"-+", "-", s).strip("-")
+
+
+def resolve_podium_hrefs(cur, podium: list[dict]) -> list[dict]:
+    """Attach /sailor/{slug} only when sas_id_personal uniquely identifies the helm."""
+    if cur is None or not podium:
+        return podium
+    need = [p for p in podium if not str(p.get("href") or "").startswith("/sailor/")]
+    if not need:
+        return podium
+    ids = [str(p.get("sailor_id") or "").strip() for p in need if str(p.get("sailor_id") or "").strip().isdigit()]
+    names = [str(p.get("name") or "").strip() for p in need if str(p.get("name") or "").strip()]
+    rows: list[dict] = []
+    try:
+        if ids:
+            cur.execute(
+                """
+                SELECT sa_sailing_id::text AS sas_id,
+                    COALESCE(TRIM(full_name), TRIM(first_name || ' ' || COALESCE(last_name, ''))) AS full_name
+                FROM public.sas_id_personal
+                WHERE sa_sailing_id::text = ANY(%s)
+                """,
+                (ids,),
+            )
+            rows.extend(cur.fetchall() or [])
+        if names:
+            cur.execute(
+                """
+                SELECT sa_sailing_id::text AS sas_id,
+                    COALESCE(TRIM(full_name), TRIM(first_name || ' ' || COALESCE(last_name, ''))) AS full_name
+                FROM public.sas_id_personal
+                WHERE LOWER(TRIM(COALESCE(full_name, first_name || ' ' || COALESCE(last_name, '')))) = ANY(%s)
+                """,
+                ([n.lower() for n in names],),
+            )
+            rows.extend(cur.fetchall() or [])
+    except Exception:
+        try:
+            cur.connection.rollback()
+        except Exception:
+            pass
+        return podium
+    by_id: dict[str, tuple[str, str]] = {}
+    by_name: dict[str, list[tuple[str, str]]] = {}
+    seen = set()
+    for r in rows:
+        sid = str(r.get("sas_id") or "").strip()
+        full = str(r.get("full_name") or "").strip()
+        if not full or (sid, full.lower()) in seen:
+            continue
+        seen.add((sid, full.lower()))
+        by_id[sid] = (full, sid)
+        by_name.setdefault(full.lower(), []).append((full, sid))
+    name_count: dict[str, int] = {}
+    try:
+        keys = list(by_name)
+        if keys:
+            cur.execute(
+                """
+                SELECT LOWER(TRIM(COALESCE(full_name, first_name || ' ' || COALESCE(last_name, '')))) AS n,
+                       COUNT(*)::int AS c
+                FROM public.sas_id_personal
+                WHERE LOWER(TRIM(COALESCE(full_name, first_name || ' ' || COALESCE(last_name, '')))) = ANY(%s)
+                GROUP BY 1
+                """,
+                (keys,),
+            )
+            name_count = {str(r.get("n") or ""): int(r.get("c") or 0) for r in (cur.fetchall() or [])}
+    except Exception:
+        try:
+            cur.connection.rollback()
+        except Exception:
+            pass
+    for p in podium:
+        if str(p.get("href") or "").startswith("/sailor/"):
+            continue
+        sid = str(p.get("sailor_id") or "").strip()
+        nm = str(p.get("name") or "").strip()
+        picked = None
+        if sid and sid in by_id:
+            picked = by_id[sid]
+        elif nm and len(by_name.get(nm.lower()) or []) == 1 and (name_count.get(nm.lower()) or 0) == 1:
+            picked = by_name[nm.lower()][0]
+        if not picked:
+            continue
+        full, sas = picked
+        has_dup = (name_count.get(full.lower()) or 0) > 1
+        slug = _slug_from_name(full)
+        if not slug:
+            continue
+        if has_dup and sas:
+            slug = f"{slug}-{sas}"
+        p["href"] = f"/sailor/{slug}"
+        if not p.get("sailor_id") and sas:
+            p["sailor_id"] = sas
+    return podium
 
 
 def fetch_current_sailor_ids(cur, regatta_id: str) -> set[str]:

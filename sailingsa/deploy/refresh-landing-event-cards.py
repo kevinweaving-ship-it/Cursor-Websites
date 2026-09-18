@@ -149,21 +149,20 @@ def _ensure_signup_guard(html: str) -> str:
         pass
     elif SIGNUP_OLD in html:
         html = html.replace(SIGNUP_OLD, SIGNUP_NEW, 1)
-    insert_new = (
-        "var h2=document.getElementById('landing-event-hero-2');\n"
+    live_insert = (
+        "      var claim=document.getElementById('temp-landing-claim-profile-banner');\n"
+        "      if(claim&&claim.parentNode) claim.parentNode.insertBefore(slot, claim);"
+    )
+    hero2_insert = (
+        "      var h2=document.getElementById('landing-event-hero-2');\n"
         "      var claim=document.getElementById('temp-landing-claim-profile-banner');\n"
         "      if(h2&&h2.parentNode){\n"
         "        if(h2.nextSibling) h2.parentNode.insertBefore(slot, h2.nextSibling);\n"
         "        else h2.parentNode.appendChild(slot);\n"
         "      } else if(claim&&claim.parentNode) claim.parentNode.insertBefore(slot, claim);"
     )
-    if "getElementById('landing-event-hero-2')" not in html:
-        html = re.sub(
-            r"var claim=document\.getElementById\('temp-landing-claim-profile-banner'\);\s*if\(claim&&claim\.parentNode\)(?: claim\.parentNode\.insertBefore\(slot, claim\);|\{[\s\S]*?else \{\s*claim\.parentNode\.insertBefore\(slot, claim\);\s*\}\s*\})",
-            insert_new,
-            html,
-            count=1,
-        )
+    if "getElementById('landing-event-hero-2')" not in html and live_insert in html:
+        html = html.replace(live_insert, hero2_insert, 1)
     return html
 
 

@@ -11,6 +11,7 @@ from landing_event_story_cards import (
     countdown_label,
     history_sentence,
     render_card_html,
+    resolve_podium_hrefs,
     results_cta_label,
     returning_line,
     select_hero_events,
@@ -205,17 +206,31 @@ class AdditiveStoryTests(unittest.TestCase):
             "history": "Results on record: 6 editions from 2018–2026",
             "previous": [{"url": "/regatta/2025-10-04-420-national-championship", "year": 2025}],
             "podium": [
-                {"place": 1, "name": "Dominique Provoyeur"},
-                {"place": 2, "name": "Tristan Gress"},
-                {"place": 3, "name": "Abdull Alexander"},
+                {"place": 1, "name": "Dominique Provoyeur", "href": "/sailor/dominique-provoyeur"},
+                {"place": 2, "name": "Tristan Gress", "href": "/sailor/tristan-gress"},
+                {"place": 3, "name": "Abdull Alexander", "href": "/sailor/abdull-alexander"},
             ],
         }
         story = build_story_html(card)
+        html = render_card_html(card, slot=2)
         self.assertEqual(story.count("landing-event-inline-logo"), 1)
         self.assertIn("2025 Results", story)
-        self.assertIn("1st Dominique Provoyeur", story)
+        self.assertIn("1st <a href=\"/sailor/dominique-provoyeur\">Dominique Provoyeur</a>", story)
+        self.assertIn("href=\"/sailor/tristan-gress\"", story)
+        self.assertIn("href=\"/sailor/abdull-alexander\"", story)
         self.assertNotIn("Results on record", story)
         self.assertIn("width=\"14\"", story)
+        self.assertIn("width:14px", story)
+        self.assertIn('style="width:78px;height:58px', html)
+        self.assertNotIn("width:100%", html)
+        self.assertEqual(resolve_podium_hrefs(None, card["podium"]), card["podium"])
+
+    def test_logo_css_cannot_size_the_card(self):
+        self.assertIn("img:not(.landing-event-inline-logo)", LANDING_CARD_CSS)
+        self.assertIn("width: 78px !important", LANDING_CARD_CSS)
+        self.assertIn("width: 14px !important", LANDING_CARD_CSS)
+        self.assertIn("#landing-event-hero-2 {\n    display: block !important;", LANDING_CARD_CSS)
+        self.assertIn("#landing-event-hero-2 .sa-home-regatta-top", LANDING_CARD_CSS)
 
 
 if __name__ == "__main__":
