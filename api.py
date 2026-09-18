@@ -26936,6 +26936,12 @@ def serve_regatta_standalone(slug: str, request: Request):
             else ""
         )
         sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js" defer></script>' if is_sa else ""
+        # MIDMAR_HMYC_WX_CAM_v1: HMYC weather + full-width club cam between header and fleet.
+        midmar_js = (
+            '<script src="/js/midmar-live-media.js?v=midmarwx1" defer></script>'
+            if str(regatta_id) == "2026-09-19-hmyc-midmar-cup"
+            else ""
+        )
         doc = (
             "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
             f"{escaped_title} | SailingSA</title>"
@@ -26945,7 +26951,7 @@ def serve_regatta_standalone(slug: str, request: Request):
             "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
             f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
             f"<style>{_RESULT_SHEET_CSS}</style></head><body>"
-            f"<div class=\"regatta-page\">{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script}{sa_toolbar_js}"
+            f"<div class=\"regatta-page\">{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script}{sa_toolbar_js}{midmar_js}"
             "</body></html>"
         )
         print("REGATTA: total route time", round(time.time() - start_time, 3))
