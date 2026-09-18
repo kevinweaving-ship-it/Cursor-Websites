@@ -148,6 +148,7 @@ def series_for_event(event_name: str, regatta_id: str, idx: Optional[dict] = Non
         "href": href,
         "logo": str(row.get("path") or "").strip(),
         "slug": slug,
+        "regattas": row.get("regattas") if isinstance(row.get("regattas"), list) else [],
     }
 
 
@@ -849,8 +850,8 @@ def card_from_row(row: dict, *, cur=None, today: Optional[date] = None, idx: Opt
         name, [n for n, _c in fleet_counts if n.lower() not in {"fleet", "event"}]
     )
     series = series_for_event(name, rid, idx)
-    prev = []
-    if cur is not None and series.get("slug"):
+    prev = _editions_from_series(series, rid)
+    if not prev and cur is not None and series.get("slug"):
         prev = _previous_editions_from_catalogue(series.get("slug") or "", rid)
     history = history_sentence(series.get("label") or name, prev, current_year=(_as_date(start) or today).year)
     class_logo = class_logo_src(classes[0]) if classes else ""
@@ -888,6 +889,25 @@ def card_from_row(row: dict, *, cur=None, today: Optional[date] = None, idx: Opt
             today=today,
         ),
     }
+
+
+def _editions_from_series(series: dict, current_rid: str) -> list[dict]:
+    """Use on-disk catalogue editions — live HTTPS to the public API often hairpins out."""
+    out = []
+    for r in (series or {}).get("regattas") or []:
+        if not isinstance(r, dict):
+            continue
+        url = str(r.get("url") or "").strip()
+        year = r.get("year")
+        rid = str(r.get("regatta_id") or "").strip()
+        if not year:
+            continue
+        if rid and rid == current_rid:
+            continue
+        if not url.startswith("/regatta/"):
+            continue
+        out.append({"url": url, "year": year})
+    return out
 
 
 def _previous_editions_from_catalogue(slug: str, current_rid: str) -> list[dict]:

@@ -148,6 +148,7 @@ class StoryLinkTests(unittest.TestCase):
         self.assertIn('href="/regatta/2025-10-04-420-national-championship"', story)
         self.assertNotIn("420 Nationals at TSC", story)
         self.assertNotIn("first ever", html.lower())
+        self.assertNotIn("420 Nationals at TSC.", html)
         self.assertNotIn("background: #001f3f", LANDING_CARD_CSS)
         self.assertIn("border: 2px solid #8aa2c6", LANDING_CARD_CSS)
         self.assertIn("border-radius: 6px", LANDING_CARD_CSS)
