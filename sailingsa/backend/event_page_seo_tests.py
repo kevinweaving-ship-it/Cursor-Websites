@@ -162,6 +162,8 @@ class FooterAdditiveTests(unittest.TestCase):
         self.assertNotIn("Host:", html)
         self.assertNotIn("Entries:", html)
         self.assertNotIn("Upcoming Event", html)
+        self.assertNotIn("Venue:", html)
+        self.assertNotIn("Classes:", html)
 
     def test_series_previous_editions_remain(self):
         html = event_context_footer_html(

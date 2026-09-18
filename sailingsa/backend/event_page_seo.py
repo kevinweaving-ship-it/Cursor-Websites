@@ -374,6 +374,8 @@ def event_context_footer_html(
     inner = "".join(bits)
     if not inner:
         return ""
+    if any(tok in inner for tok in ("Host:", "Venue:", "Classes:", "Entries:", "Upcoming Event")):
+        return ""
     return f'<section class="regatta-event-context" aria-label="Event information">{inner}</section>'
 
 

@@ -10,6 +10,7 @@ from landing_event_story_cards import (
     build_story_html,
     countdown_label,
     history_sentence,
+    is_midmar_cup_event,
     render_card_html,
     resolve_podium_hrefs,
     results_cta_label,
@@ -131,6 +132,9 @@ class StoryLinkTests(unittest.TestCase):
             "history": "Results on record: 6 editions from 2018–2026",
             "series": {"label": "420 Nationals", "href": "/events-logos/420-nationals"},
             "previous": [{"url": "/regatta/2025-10-04-420-national-championship", "year": 2025}],
+            "podium": [
+                {"place": 1, "name": "Dominique Provoyeur", "href": "/sailor/dominique-provoyeur"},
+            ],
         }
         html = render_card_html(card, slot=2)
         story = build_story_html(card)
@@ -144,14 +148,13 @@ class StoryLinkTests(unittest.TestCase):
         self.assertIn("7 DAYS TO GO", html)
         self.assertIn("0 Entries", html)
         self.assertIn("25–27 Sep 2026", facts)
-        self.assertIn("Results on record: 6 editions from 2018–2026", story)
+        self.assertNotIn("Results on record", story)
         self.assertNotIn("held by SailingSA", story)
         self.assertNotIn("currently held", story)
-        self.assertIn('href="/events-logos/420-nationals"', story)
         self.assertIn('href="/regatta/2025-10-04-420-national-championship"', story)
         self.assertIn("landing-event-inline-logo", story)
         self.assertEqual(story.count("landing-event-inline-logo"), 1)
-        self.assertIn("2018–2026", story)
+        self.assertIn("2025 RESULTS", story)
         self.assertNotIn("420 Nationals at TSC", story)
         self.assertNotIn("Hunter 19s are currently entered", html)
         self.assertNotIn("FULL RESULTS", html)
@@ -184,6 +187,34 @@ class AdditiveStoryTests(unittest.TestCase):
         self.assertNotIn("Hunter 19s are currently entered", html)
         self.assertNotIn("FULL RESULTS", html)
         self.assertNotIn("this weekend", html)
+        self.assertIn("landing-event-card-open", html)
+
+    def test_midmar_uses_named_entries_not_fake_history(self):
+        card = {
+            "name": "The Midmar Cup",
+            "class_logo": "/artwork/Class Logo/Hunter-19-Class-Logo.png",
+            "url": "/regatta/2026-09-19-hmyc-midmar-cup",
+            "entered": [
+                {"name": "Paul Changuion", "href": "/sailor/paul-changuion"},
+                {"name": "Hayden Miller", "href": "/sailor/hayden-miller",
+                 "crew_name": "Timothy Weaving", "crew_href": "/sailor/timothy-weaving"},
+            ],
+        }
+        story = build_story_html(card)
+        self.assertIn("landing-event-inline-logo", story)
+        self.assertIn('href="/sailor/paul-changuion"', story)
+        self.assertIn("Hayden Miller", story)
+        self.assertIn(" / ", story)
+        self.assertIn('href="/sailor/timothy-weaving"', story)
+        self.assertNotIn("2025 RESULTS", story)
+        self.assertNotIn("Hunter Nationals", story)
+        self.assertNotIn("Grand Slam", story)
+
+    def test_midmar_cup_identity_rejects_other_hmyc_events(self):
+        self.assertTrue(is_midmar_cup_event("The Midmar Cup", "2026-09-19-hmyc-midmar-cup"))
+        self.assertFalse(is_midmar_cup_event("2024 Hunter Nationals", "2024-03-24-hunter-nationals"))
+        self.assertFalse(is_midmar_cup_event("HMYC Grand Slam", "2025-01-27-hmyc-grand-slam"))
+        self.assertFalse(is_midmar_cup_event("Henley Midmar Yacht Club 6&9 Hour", "2024-02-24-hmyc-6hr-race"))
 
     def test_cta_upcoming_omits_full_results(self):
         self.assertEqual(results_cta_label("upcoming", 0, "Provisional"), "")
@@ -214,14 +245,16 @@ class AdditiveStoryTests(unittest.TestCase):
         story = build_story_html(card)
         html = render_card_html(card, slot=2)
         self.assertEqual(story.count("landing-event-inline-logo"), 1)
-        self.assertIn("2025 Results", story)
-        self.assertIn("1st <a href=\"/sailor/dominique-provoyeur\">Dominique Provoyeur</a>", story)
+        self.assertIn("2025 RESULTS", story)
+        self.assertIn("🥇 <a href=\"/sailor/dominique-provoyeur\">Dominique Provoyeur</a>", story)
         self.assertIn("href=\"/sailor/tristan-gress\"", story)
         self.assertIn("href=\"/sailor/abdull-alexander\"", story)
         self.assertNotIn("Results on record", story)
+        self.assertNotIn("Defending winner", story)
         self.assertIn("width=\"14\"", story)
         self.assertIn("width:14px", story)
         self.assertIn('style="width:78px;height:58px', html)
+        self.assertIn("landing-event-card-open", html)
         self.assertNotIn("width:100%", html)
         self.assertEqual(resolve_podium_hrefs(None, card["podium"]), card["podium"])
 
