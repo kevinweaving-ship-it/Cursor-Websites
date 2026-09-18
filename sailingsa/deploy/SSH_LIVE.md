@@ -15,6 +15,8 @@ Confirm path before change.
 
 **Blank hub UI:** Use **`https://sailingsa.co.za/blank.html`** as the canonical URL for hub work and verification. Nginx may also serve the same `blank.html` at **`/`**; see **`sailingsa/deploy/nginx-root-blank-hub.conf`** and the optional split there if root must show a different file.
 
+**GSC FIX PASS #1 (surgical):** `sailingsa/deploy/gsc_fix_pass1_live.py` — `/events` single canonical, unknown-sailor 404, drop stale `sitemap-priority.xml` robots line. Does not overwrite live `api.py` from the repo copy. Scoped `api.py` snapshot only.
+
 ---
 
 ## SSH key setup (one-time; then no password needed)
