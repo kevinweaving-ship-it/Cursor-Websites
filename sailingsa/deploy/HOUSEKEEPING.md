@@ -112,3 +112,7 @@ End-of-task report:
 Do **not** create a repeated full ~11 GB backup for every surgical change. Use a scoped `api.py` snapshot unless a full backup is genuinely required.
 
 Mark anything that must survive housekeeping as KEEP (filename or `/etc/sailingsa/housekeeping-keep.list`).
+
+## WhatsApp server health (add-on)
+
+See **`sailingsa/deploy/SERVER_MONITOR.md`**. Reuses the existing Baileys engine (`arial-whatsapp-poc` `POST /send` on 127.0.0.1:8009). Housekeeping script stays locked. WhatsApp failure never restarts the API.
