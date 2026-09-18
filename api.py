@@ -26939,7 +26939,7 @@ def serve_regatta_standalone(slug: str, request: Request):
         sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js" defer></script>' if is_sa else ""
         # MIDMAR_HMYC_WX_CAM_v1: HMYC weather + full-width club cam between header and fleet.
         midmar_js = (
-            '<script src="/js/midmar-live-media.js?v=midmarwx1" defer></script>'
+            '<script src="/js/midmar-live-media.js?v=midmarwx2" defer></script>'
             if str(regatta_id) == "2026-09-19-hmyc-midmar-cup"
             else ""
         )
