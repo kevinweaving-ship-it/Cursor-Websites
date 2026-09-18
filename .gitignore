@@ -271,6 +271,11 @@ jobs/
 /timadvisor/
 /search/
 
+# GSC daily exports / Chrome session data (never commit)
+gsc-daily-data/
+**/gsc-daily/*.csv
+**/gsc-daily/*.json
+
 # Secrets
 secrets/
 *.key
