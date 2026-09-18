@@ -6,6 +6,7 @@ from datetime import date, datetime
 
 from event_page_seo import (
     compact_event_date_range,
+    count_event_entries_by_fleet,
     derive_event_lifecycle,
     event_document_title,
     event_meta_description,
@@ -120,6 +121,17 @@ class LifecycleTests(unittest.TestCase):
         self.assertNotIn("Provisional", d)
         self.assertNotIn("results", d.lower())
         self.assertIn("Theewater", d)
+
+    def test_vulcan_event_total_sums_all_fleets(self):
+        fleets = [
+            {"class_canonical": "Hobie 16", "rows": [{}] * 4, "entries_raced": 4},
+            {"class_canonical": "Hunter 19", "rows": [{}] * 10, "entries_raced": 10},
+            {"fleet_label": "Keelboat Fleet", "class_original": "Keelboat", "rows": [{}] * 3, "entries_raced": 3},
+        ]
+        raced, total, per = count_event_entries_by_fleet(fleets)
+        self.assertEqual(total, 17)
+        self.assertEqual(sum(n for _name, n in per), 17)
+        self.assertNotEqual(total, 10)
 
     def test_compact_dates(self):
         self.assertEqual(

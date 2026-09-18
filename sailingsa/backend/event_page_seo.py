@@ -84,23 +84,43 @@ def compact_event_date_range(start_date: Any, end_date: Any) -> str:
     )
 
 
-def count_raced_and_entries(fleets: Optional[Iterable[Any]]) -> tuple[int, int]:
+def _fleet_entry_label(f: dict) -> str:
+    for key in ("class_name", "class_canonical", "fleet_label", "name", "fleet_name"):
+        val = str(f.get(key) or "").strip()
+        if val and val.lower() not in {"fleet", "overall"}:
+            return val
+    return "Fleet"
+
+
+def count_event_entries_by_fleet(fleets: Optional[Iterable[Any]]) -> tuple[int, int, list[tuple[str, int]]]:
+    """Event total = SUM of per-fleet entries. Never max(one fleet).
+
+    Fleet n = result rows in that fleet if present, else entries / entries_raced.
+    """
     raced = 0
-    entries = 0
+    total = 0
+    per_fleet: list[tuple[str, int]] = []
     for f in fleets or []:
         if not isinstance(f, dict):
             continue
         rows = f.get("rows") or []
+        n_rows = len(rows) if isinstance(rows, list) else 0
         if isinstance(rows, list):
             raced += sum(1 for r in rows if isinstance(r, dict) and r.get("raced"))
-            if not entries:
-                entries += len(rows)
         try:
-            entries_n = int(f.get("entries") or f.get("entries_raced") or 0)
-            if entries_n:
-                entries = max(entries, entries_n)
+            n_decl = int(f.get("entries") or f.get("entries_raced") or 0)
         except (TypeError, ValueError):
-            pass
+            n_decl = 0
+        n = n_rows if n_rows else n_decl
+        if n <= 0:
+            continue
+        total += n
+        per_fleet.append((_fleet_entry_label(f), n))
+    return raced, total, per_fleet
+
+
+def count_raced_and_entries(fleets: Optional[Iterable[Any]]) -> tuple[int, int]:
+    raced, entries, _fleets = count_event_entries_by_fleet(fleets)
     return raced, entries
 
 
@@ -318,6 +338,7 @@ def event_context_footer_html(
     venue: str = "",
     class_names: Optional[Iterable[str]] = None,
     entries: int = 0,
+    fleet_counts: Optional[list[tuple[str, int]]] = None,
     as_at_display: str = "",
     series_name: str = "",
     series_href: str = "",
@@ -361,7 +382,11 @@ def event_context_footer_html(
         bits.append("<p>Classes: " + ", ".join(links) + "</p>")
 
     if entries > 0:
-        bits.append(f"<p>Entries: {int(entries)}</p>")
+        if fleet_counts and len(fleet_counts) > 1:
+            parts = [f"{html_module.escape(name)} {n}" for name, n in fleet_counts]
+            bits.append(f"<p>Entries: {int(entries)} ({', '.join(parts)})</p>")
+        else:
+            bits.append(f"<p>Entries: {int(entries)}</p>")
     if as_at_display:
         bits.append(f"<p>Results as at {html_module.escape(as_at_display)}</p>")
 
@@ -428,7 +453,7 @@ def build_regatta_pass_b(
     image_url: str = "",
     today: Optional[date] = None,
 ) -> dict:
-    raced, entries = count_raced_and_entries(fleets)
+    raced, entries, fleet_counts = count_event_entries_by_fleet(fleets)
     state = derive_event_lifecycle(
         start_date=start_date,
         end_date=end_date,
@@ -492,6 +517,7 @@ def build_regatta_pass_b(
         venue=venue,
         class_names=class_names,
         entries=entries,
+        fleet_counts=fleet_counts,
         as_at_display=as_at_display if _has_real_as_at(as_at_time) else "",
         series_name=series_name,
         series_href=series_href,
