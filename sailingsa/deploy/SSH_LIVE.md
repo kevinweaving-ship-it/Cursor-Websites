@@ -15,6 +15,8 @@ Confirm path before change.
 
 **Blank hub UI:** Use **`https://sailingsa.co.za/blank.html`** as the canonical URL for hub work and verification. Nginx may also serve the same `blank.html` at **`/`**; see **`sailingsa/deploy/nginx-root-blank-hub.conf`** and the optional split there if root must show a different file.
 
+**Permanent housekeeping:** **`sailingsa/deploy/HOUSEKEEPING.md`**. Live daily `--apply` at 04:15 via `/etc/cron.d/sailingsa_housekeeping`. Manual: `ssh -i ~/.ssh/sailingsa_live_key root@102.218.215.253 '/usr/local/sbin/sailingsa-housekeeping --dry-run'`. Every production task owns and must remove its temps/test services; scoped `api.py` backups unless a full backup is required. Leave **8002** untouched.
+
 ---
 
 ## SSH key setup (one-time; then no password needed)

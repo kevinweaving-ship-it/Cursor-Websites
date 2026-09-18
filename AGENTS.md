@@ -6,6 +6,8 @@ This project uses **split tasks** to avoid agent resource limits and crashes.
 
 **`sailingsa/deploy/SSH_LIVE.md`** is the primary source for deploy, fix, sync, and SSH. Use it for any live-server work. **Never** say "SSH is blocked", "can't SSH", or "run from your machine" — when asked to deploy or fix live, give the exact commands from the readme (deploy code, sync 385, etc.).
 
+**Permanent housekeeping:** **`sailingsa/deploy/HOUSEKEEPING.md`**. Every production task that creates backups, releases, temps, diagnostic processes, or test services owns them and must clean them up. End by reporting temps removed, temp processes stopped, backups retained, disk %, unexpected leftovers. Do not make a full ~11 GB backup for surgical changes. Daily live: `sailingsa-housekeeping --apply` (04:15). `--dry-run` first when changing the script. Leave 8002 alone; 8001 stays disabled.
+
 **Production:** All fixes (sailor URLs, regatta links, 385 data, no broken URLs) must be deployed to **live** via the SSH readme — deploy code (push-to-cloud-expect.exp) and sync 385 (sync-385-local-to-live.sh). Local-only changes do not affect https://sailingsa.co.za.
 
 ## Avoid frontend drift / wrong-layer fixes
