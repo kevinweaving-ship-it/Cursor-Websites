@@ -235,10 +235,31 @@ def metric_api():
     except Exception:
         code = 0
     up = code in (200, 301, 302, 303, 307, 308)
-    _c, out, _e = run(["ps", "-eo", "args", "--no-headers"])
-    procs = [ln for ln in out.splitlines() if "uvicorn" in ln and "api:app" in ln and "8000" in ln]
-    # parent + workers
-    workers = max(0, len(procs) - 1) if len(procs) > 1 else len(procs)
+    _c, out, _e = run(["ps", "-eo", "pid,ppid,args", "--no-headers"])
+    parent = None
+    configured = EXPECTED_API_WORKERS
+    for ln in out.splitlines():
+        parts = ln.split(None, 2)
+        if len(parts) < 3:
+            continue
+        pid, _ppid, args = parts
+        if "uvicorn" in args and "api:app" in args and "--port 8000" in args:
+            parent = pid
+            wm = re.search(r"--workers\s+(\d+)", args)
+            if wm:
+                configured = int(wm.group(1))
+            break
+    workers = 0
+    if parent:
+        for ln in out.splitlines():
+            parts = ln.split(None, 2)
+            if len(parts) < 3:
+                continue
+            _pid, ppid, args = parts
+            if ppid == parent and "spawn_main" in args:
+                workers += 1
+        if workers == 0:
+            workers = configured
     _c, en, _ = run(["systemctl", "is-enabled", "sailingsa-api"])
     _c, act, _ = run(["systemctl", "is-active", "sailingsa-api"])
     return {
