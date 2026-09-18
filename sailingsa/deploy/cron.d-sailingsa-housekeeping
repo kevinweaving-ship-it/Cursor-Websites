@@ -1,0 +1,5 @@
+# Daily SailingSA housekeeping (safe-retention --apply).
+# Lock in the wrapper prevents overlap.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+15 4 * * * root /usr/local/sbin/sailingsa-housekeeping --apply >> /var/log/sailingsa-housekeeping.log 2>&1

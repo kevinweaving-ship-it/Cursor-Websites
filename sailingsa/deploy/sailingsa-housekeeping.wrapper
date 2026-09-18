@@ -1,0 +1,11 @@
+#!/bin/bash
+# Prevent overlapping housekeeping runs.
+set -euo pipefail
+LOCK=/var/lock/sailingsa-housekeeping.lock
+mkdir -p /var/lock
+exec 9>"$LOCK"
+if ! flock -n 9; then
+  echo "$(date -Is) sailingsa-housekeeping: another run holds $LOCK; exiting"
+  exit 0
+fi
+exec /usr/bin/python3 /usr/local/sbin/sailingsa-housekeeping.py "$@"
