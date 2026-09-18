@@ -1,0 +1,29 @@
+SailingSA Phase 2A cleanup. STOP. #128 not touched.
+
+Live api.py md5 3b355643c390bd12367903a236365726 unchanged. chattr +i. maxconn 15. Pool 2-15 x 4.
+
+BEFORE: disk 68G/8.6G/89%  /root 38G  /var/www/sailingsa 15G  /var/log 2.5G
+AFTER:  disk 42G/36G/55%  /root 14G  /var/www/sailingsa 12G  /var/log 1.9G
+RECOVERED: ~26G used (68→42).
+
+8001: nginx zero refs. stop+disable sailingsa-api-restore. PID 3472991 gone. 8001 not listening. Files /var/www/sailingsa/api_restore_8001 left.
+8002: NOT TOUCHED. sailingsa-admin-api still active. uvicorn admin_api:app 127.0.0.1:8002. Unit claims nginx /admin/ but sites-enabled has no 8002 and no /admin proxy. Purpose: separate admin API. Public site uses 8000.
+
+Deleted: backup_20260917_073848.tar.gz 11.0G; backup_20260917_220433.tar.gz 11.1G.
+Kept: backup_20260917_230605.tar.gz 11.2G (newer, tar-valid).
+Deleted 600 intermediate api.py* baks 1.40G.
+Kept api.py + 092046.bak + 085426.bak + 083952.bak.
+Deleted fat releases 650M + 598M. Kept api_cap15_20260918_092046.tar.gz.
+Deleted BEFORE_BIO 142447 + 145629. Kept 150545.
+Deleted PRE_GOLD 940M (superseded by 230605 + live).
+Deleted Mar dumps: live_sailingsa_backup.tar.gz 160M, api_20260302 160M, sailingsa_beta_dump.sql 192M.
+LEFT: lipton-vakaros-archive 473M (unique telemetry also in PG; not a duplicate webroot).
+LEFT: media/og 6.7G, regatta-pdfs 1.8G.
+
+Logs: journal 1.3G→754M vacuum-time=2d (kept today #116-#128). Active syslog 686M not deleted. logrotate ran, no rotate due.
+
+Ports now: 8000 API x4, 8002 admin, 8003-8006 Arial, 80/443 nginx, 5432 PG. No 8001.
+PG total=14 sailors=9 active=1 iit=0.
+API active. Smoke 200: / 2.95s, /sailor/james-rae 3.07s, /regatta/2026-08-29-lipton-challenge-cup 2.99s, /api/search?q=James+Rae 1.05s.
+
+No api.py / pool / SQL / nginx / frontend / sailor_bio change.
