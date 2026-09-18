@@ -26,19 +26,9 @@ def _pass_b_named_event_series(regatta_id: str, event_name: str):
         row = idx.get(key) if key else None
         href = _catalogue_event_href_for_row(row) or ""
         label = str((row or {}).get("label") or "").strip()
-        slug = str((row or {}).get("slug") or "").strip()
-        if slug:
-            try:
-                d = _events_logos_gallery_deps()
-                elg = d.pop("elg")
-                full = elg.row_by_slug(slug, **d) or {}
-                label = str(full.get("label") or label).strip()
-                href = str(full.get("url") or href).strip()
-                for r in full.get("regattas") or []:
-                    if isinstance(r, dict) and r.get("url") and r.get("year"):
-                        prev.append({"url": r["url"], "year": r["year"]})
-            except Exception:
-                pass
+        for r in (row or {}).get("regattas") or []:
+            if isinstance(r, dict) and r.get("url") and r.get("year"):
+                prev.append({"url": r["url"], "year": r["year"]})
     except Exception:
         return "", "", []
     return label, href, prev
