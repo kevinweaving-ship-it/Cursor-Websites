@@ -1802,7 +1802,7 @@ def fetch_same_class_form_html(
         if team and rk:
             extra = f", with {place}" if place else ""
             boats = f"{of} boats" if fleet_n else of
-            verb = "arrive" if "/" in team else "arrives"
+            verb = "arrive" if " / " in team else "arrives"
             bits.append(
                 f"{team} {verb} after finishing {ordinal}{boats} at the "
                 f'<a href="{_esc(url)}">{_esc_text(label)}</a>{extra}'
