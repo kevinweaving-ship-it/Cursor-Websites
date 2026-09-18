@@ -33,6 +33,25 @@ TARGETS = [WEB_ROOT / "index.html", WEB_ROOT / "blank.html"]
 CSS_MARK = "/* LANDING_EVENT_CARD_CSS */"
 SIGNUP_OLD = "            if (signUpBanner) {"
 SIGNUP_NEW = "            if (signUpBanner && !signUpBanner.querySelector('.landing-event-card')) {"
+HIDECLAIM_OLD = """  function hideClaim(){
+    var claim=document.getElementById('temp-landing-claim-profile-banner');
+    if(claim) claim.style.display='none';
+  }"""
+HIDECLAIM_NEW = """  function hideClaim(){
+    var claim=document.getElementById('temp-landing-claim-profile-banner');
+    if(claim && !claim.querySelector('.landing-event-card')) claim.style.display='none';
+  }"""
+DEV1_INSERT_OLD = """      var claim=document.getElementById('temp-landing-claim-profile-banner');
+      if(claim&&claim.parentNode) claim.parentNode.insertBefore(slot, claim);"""
+DEV1_INSERT_NEW = """      var claim=document.getElementById('temp-landing-claim-profile-banner');
+      if(claim&&claim.parentNode){
+        if(claim.querySelector('.landing-event-card')){
+          if(claim.nextSibling) claim.parentNode.insertBefore(slot, claim.nextSibling);
+          else claim.parentNode.appendChild(slot);
+        } else {
+          claim.parentNode.insertBefore(slot, claim);
+        }
+      }"""
 
 SLOT1 = ("temp-landing-hero-image", "temp-landing-hero-image")
 SLOT2 = ("temp-landing-claim-profile-banner", "temp-landing-secondary-image")
@@ -65,32 +84,51 @@ def _replace_section(html: str, section_id: str, new_section: str) -> str:
 
 
 def _ensure_css(html: str) -> str:
+    gold = "/* ================================================================\n   GOLD HEADER"
+    block = CSS_MARK + "\n" + LANDING_CARD_CSS + "\n"
     if CSS_MARK in html:
+        pat = re.compile(re.escape(CSS_MARK) + r".*?(?=\/\* =+\s*\n\s*GOLD HEADER|\Z)", re.S)
+        if pat.search(html):
+            return pat.sub(block, html, count=1)
+        start = html.find(CSS_MARK)
+        end = html.find(gold, start)
+        if end > start:
+            return html[:start] + block + html[end:]
         return html
     needle = ".temp-landing-secondary-image ~ .temp-landing-secondary-image {\n    display: none !important;\n}"
-    block = needle + "\n" + CSS_MARK + "\n" + LANDING_CARD_CSS
     if needle in html:
-        return html.replace(needle, block, 1)
-    # fallback: before gold header comment
-    gold = "/* ================================================================\n   GOLD HEADER"
+        return html.replace(needle, needle + "\n" + block, 1)
     if gold in html:
-        return html.replace(gold, CSS_MARK + "\n" + LANDING_CARD_CSS + "\n" + gold, 1)
+        return html.replace(gold, block + gold, 1)
     raise SystemExit("could not insert landing card CSS")
 
 
 def _ensure_signup_guard(html: str) -> str:
     if SIGNUP_NEW in html:
-        return html
-    if SIGNUP_OLD not in html:
-        return html
-    return html.replace(SIGNUP_OLD, SIGNUP_NEW, 1)
+        pass
+    elif SIGNUP_OLD in html:
+        html = html.replace(SIGNUP_OLD, SIGNUP_NEW, 1)
+    if HIDECLAIM_OLD in html:
+        html = html.replace(HIDECLAIM_OLD, HIDECLAIM_NEW, 1)
+    if DEV1_INSERT_OLD in html:
+        html = html.replace(DEV1_INSERT_OLD, DEV1_INSERT_NEW, 1)
+    return html
+
+
+def _place_profile_after_heroes(html: str) -> str:
+    """Logged-in sailor profile must not sit on / hide Hero 2."""
+    html = re.sub(r'\s*<div id="landing-dev1-home"></div>', "", html)
+    marker = "<!-- LANDING_EVENT_CARD_END slot=2 -->\n</section>"
+    if marker in html:
+        return html.replace(marker, marker + '\n<div id="landing-dev1-home"></div>', 1)
+    return html
 
 
 def build_sections(cur) -> tuple[str, str, dict]:
     today = date.today()
     rows = fetch_hero_candidates(cur, today=today)
     idx = load_catalogue_index()
-    h1, h2 = select_hero_events(rows, today=today)
+    h1, h2 = select_hero_events(rows, today=today, catalogue=idx)
     stats = {"hero1": None, "hero2": None}
     inner1 = inner2 = ""
     aria1 = "Upcoming event"
@@ -116,6 +154,7 @@ def patch_file(path: Path, s1: str, s2: str) -> None:
     html = _ensure_signup_guard(html)
     html = _replace_section(html, SLOT1[0], s1)
     html = _replace_section(html, SLOT2[0], s2)
+    html = _place_profile_after_heroes(html)
     tmp = path.with_suffix(path.suffix + ".hero.tmp")
     tmp.write_text(html, encoding="utf-8")
     tmp.replace(path)

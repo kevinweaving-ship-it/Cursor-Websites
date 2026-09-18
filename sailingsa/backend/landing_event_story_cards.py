@@ -51,7 +51,7 @@ def countdown_label(start_date: Any, end_date: Any, *, today: Optional[date] = N
         return f"{days} DAYS TO GO"
     if st == today and (not en or en >= today):
         if en and en > st:
-            return f"DAY 1 OF {(en - st).days + 1} — LIVE"
+            return f"LIVE · DAY 1 OF {(en - st).days + 1}"
         return "STARTS TODAY"
     if en and st < today <= en:
         day_n = (today - st).days + 1
@@ -60,7 +60,7 @@ def countdown_label(start_date: Any, end_date: Any, *, today: Optional[date] = N
             t = _as_at_hhmm(as_at_time)
             if t:
                 return f"LIVE — Results updated {t}"
-        return f"DAY {day_n} OF {total} — LIVE"
+        return f"LIVE · DAY {day_n} OF {total}"
     if en and today > en:
         if status == "final":
             return "FINAL RESULTS"
@@ -170,9 +170,45 @@ def history_sentence(series_name: str, editions: list[dict], *, current_year: Op
     )
 
 
-def select_hero_events(rows: list[dict], *, today: Optional[date] = None) -> tuple[Optional[dict], Optional[dict]]:
-    """Hero 1 = nearest live/upcoming. Hero 2 = next upcoming. Same URL forever."""
+_FEATURE_NATIONAL = re.compile(r"\b(nationals?|championships?|champs?)\b", re.I)
+_FEATURE_CUP = re.compile(r"\b(cup|open|week)\b", re.I)
+_RADIO_LOCAL = re.compile(r"\b(df95|dragon\s*force|iom)\b", re.I)
+HERO2_WINDOW_DAYS = 14
+HERO2_MIN_SCORE = 30
+
+
+def feature_score(row: dict, *, series: Optional[dict] = None) -> int:
+    """Named / championship events outrank local same-club radio sailing."""
+    name = str(row.get("event_name") or "")
+    score = 0
+    if series and series.get("slug"):
+        score += 100
+    if _FEATURE_NATIONAL.search(name):
+        score += 80
+    elif _FEATURE_CUP.search(name):
+        score += 35
+    start = _as_date(row.get("start_date"))
+    end = _as_date(row.get("end_date")) or start
+    if start and end and end > start:
+        score += 15
+    if _RADIO_LOCAL.search(name) and not _FEATURE_NATIONAL.search(name):
+        score -= 60
+    return score
+
+
+def select_hero_events(
+    rows: list[dict],
+    *,
+    today: Optional[date] = None,
+    catalogue: Optional[dict] = None,
+) -> tuple[Optional[dict], Optional[dict]]:
+    """Hero 1 = nearest Upcoming/Live. Hero 2 = next relevant event in 14 days.
+
+    Relevance is named-series / nationals / cup — not same-club date order.
+    Same /regatta/{id} forever. No hard-coded event IDs.
+    """
     today = today or date.today()
+    idx = catalogue if catalogue is not None else {}
     usable = []
     for r in rows:
         rid = str(r.get("regatta_id") or "").strip()
@@ -190,14 +226,38 @@ def select_hero_events(rows: list[dict], *, today: Optional[date] = None) -> tup
         usable.append(r)
     usable.sort(key=lambda r: (_as_date(r.get("start_date")) or date.max, str(r.get("regatta_id"))))
     hero1 = usable[0] if usable else None
+
+    def _score(r: dict) -> int:
+        ser = series_for_event(str(r.get("event_name") or ""), str(r.get("regatta_id") or ""), idx)
+        return feature_score(r, series=ser)
+
     hero2 = None
     if hero1:
-        h1d = _as_date(hero1.get("start_date"))
-        for r in usable[1:]:
+        h1_id = hero1.get("regatta_id")
+        rest = [r for r in usable if r.get("regatta_id") != h1_id]
+        window = []
+        for r in rest:
             sd = _as_date(r.get("start_date"))
-            if sd and h1d and sd >= h1d and r.get("regatta_id") != hero1.get("regatta_id"):
-                hero2 = r
-                break
+            if not sd:
+                continue
+            if 0 <= (sd - today).days <= HERO2_WINDOW_DAYS:
+                window.append(r)
+        if window:
+            best = max(
+                window,
+                key=lambda r: (_score(r), _as_date(r.get("start_date")) or date.min, str(r.get("regatta_id"))),
+            )
+            if _score(best) >= HERO2_MIN_SCORE:
+                hero2 = best
+        if hero2 is None and rest:
+            ranked = sorted(
+                rest,
+                key=lambda r: (-_score(r), _as_date(r.get("start_date")) or date.max, str(r.get("regatta_id"))),
+            )
+            if _score(ranked[0]) >= HERO2_MIN_SCORE:
+                hero2 = ranked[0]
+            else:
+                hero2 = rest[0]
     return hero1, hero2
 
 
@@ -209,58 +269,107 @@ def _esc_text(s: str) -> str:
     return html_module.escape(s or "")
 
 
+def _class_anchor(name: str) -> str:
+    href = _class_href(name)
+    if href:
+        return f'<a href="{_esc(href)}">{_esc_text(name)}</a>'
+    return _esc_text(name)
+
+
+def build_facts_html(card: dict) -> str:
+    """Single inline facts line — not stacked metadata rows."""
+    url = card.get("url") or ""
+    dates = card.get("dates") or ""
+    host_short = card.get("host_short") or ""
+    host_href = card.get("host_href") or ""
+    classes = card.get("classes") or []
+    entries = int(card.get("entries") or 0)
+    fleet_counts = card.get("fleet_counts") or []
+    podium = card.get("podium") or []
+    state = card.get("state") or ""
+    bits = []
+    if dates and url:
+        bits.append(f'<a href="{_esc(url)}">{_esc_text(dates)}</a>')
+    elif dates:
+        bits.append(_esc_text(dates))
+    if host_short and host_href:
+        bits.append(f'<a href="{_esc(host_href)}">{_esc_text(host_short)}</a>')
+    elif host_short:
+        bits.append(_esc_text(host_short))
+    for c in classes[:2]:
+        bits.append(_class_anchor(c))
+    if state == "final" and podium:
+        bits.extend(podium)
+    elif entries > 0:
+        if fleet_counts and len(fleet_counts) > 1:
+            bits.append(f"{entries} entries")
+        else:
+            bits.append(f"{entries} entries")
+    return " · ".join(bits)
+
+
 def build_story_html(card: dict) -> str:
+    """One or two preview sentences. Not a stack of SEO fields."""
     name = card.get("name") or "Event"
     dates = card.get("dates") or ""
-    host = card.get("host") or ""
+    host_short = card.get("host_short") or ""
     host_href = card.get("host_href") or ""
     classes = card.get("classes") or []
     entries = int(card.get("entries") or 0)
     fleet_counts = card.get("fleet_counts") or []
     series = card.get("series") or {}
     history = card.get("history") or ""
+    countdown = card.get("countdown") or ""
+    returning = card.get("returning") or ""
     bits = []
-    loc = ""
-    if host and host_href:
-        loc = f' at <a href="{_esc(host_href)}">{_esc_text(host)}</a>'
-    elif host:
-        loc = f" at {_esc_text(host)}"
-    class_links = []
-    for c in classes[:4]:
-        href = _class_href(c)
-        if href:
-            class_links.append(f'<a href="{_esc(href)}">{_esc_text(c)}</a>')
-        else:
-            class_links.append(_esc_text(c))
-    class_bit = ""
-    if class_links:
-        class_bit = " " + ", ".join(class_links) + " event"
-    bits.append(
-        f"{_esc_text(name)}{loc}{', ' + _esc_text(dates) if dates else ''}.{class_bit}."
+    class_name = classes[0] if classes else ""
+    host_a = (
+        f'<a href="{_esc(host_href)}">{_esc_text(host_short)}</a>'
+        if host_short and host_href
+        else _esc_text(host_short)
     )
-    if entries > 0:
+    class_a = _class_anchor(class_name) if class_name else ""
+    if returning:
+        bits.append(returning)
+    elif entries > 0 and class_a:
+        when = "this weekend's " if countdown in {"TOMORROW", "STARTS TODAY"} else ""
         if fleet_counts and len(fleet_counts) > 1:
             parts = [f"{_esc_text(nm)} {ct}" for nm, ct in fleet_counts]
-            bits.append(f" {entries} event entries ({', '.join(parts)}).")
+            bits.append(
+                f"{entries} boats are currently entered for {when}{_esc_text(name)}"
+                f" ({', '.join(parts)})."
+            )
         else:
-            bits.append(f" {entries} entries listed.")
-    if series.get("href") and series.get("label"):
+            bits.append(
+                f"{entries} {class_a}s are currently entered for {when}{_esc_text(name)}."
+            )
+    elif history:
+        hist = _esc_text(history)
+        if series.get("href"):
+            hist += (
+                f' <a href="{_esc(series["href"])}">'
+                f'{_esc_text(series.get("label") or "Event history")}</a>.'
+            )
+        bits.append(hist)
+    elif series.get("href") and series.get("label"):
+        loc = f" at {host_a}" if host_a else ""
         bits.append(
-            f' Part of <a href="{_esc(series["href"])}">{_esc_text(series["label"])}</a>.'
+            f'<a href="{_esc(series["href"])}">{_esc_text(series["label"])}</a>{loc}.'
         )
-    if history:
-        bits.append(" " + _esc_text(history))
-    prevs = card.get("previous") or []
-    if prevs:
-        links = []
-        for p in prevs[:3]:
-            url = p.get("url") or ""
-            year = p.get("year")
-            if url.startswith("/regatta/") and year:
-                links.append(f'<a href="{_esc(url)}">{_esc_text(str(year))}</a>')
-        if links:
-            bits.append(" Previous editions held in SailingSA: " + ", ".join(links) + ".")
-    return "".join(bits).replace("..", ".").strip()
+    elif host_a:
+        bits.append(f"{_esc_text(name)} at {host_a}.")
+    prevs = [
+        p
+        for p in (card.get("previous") or [])
+        if str(p.get("url") or "").startswith("/regatta/") and p.get("year")
+    ]
+    prevs.sort(key=lambda p: int(p.get("year") or 0), reverse=True)
+    if prevs and len(bits) < 2:
+        p = prevs[0]
+        bits.append(
+            f' Most recent edition held by SailingSA: <a href="{_esc(p["url"])}">{_esc_text(str(p["year"]))}</a>.'
+        )
+    return " ".join(b.strip() for b in bits if b and b.strip()).replace("..", ".").strip()
 
 
 def render_card_html(card: dict, *, slot: int) -> str:
@@ -268,79 +377,147 @@ def render_card_html(card: dict, *, slot: int) -> str:
     logo = card.get("logo") or ""
     count = card.get("countdown") or ""
     title = card.get("name") or "Event"
-    dates = card.get("dates") or ""
+    state = card.get("state") or "upcoming"
+    if state == "live" and count and not count.startswith("LIVE"):
+        count = f"LIVE · {count}"
     story = build_story_html(card)
-    img = ""
-    if logo:
-        img = (
-            f'<a class="landing-event-card-media" href="{_esc(url)}">'
-            f'<img src="{_esc(logo)}" alt="" width="88" height="88" loading="lazy" decoding="async">'
-            f"</a>"
-        )
-    else:
-        img = f'<a class="landing-event-card-media landing-event-card-media--empty" href="{_esc(url)}" aria-hidden="true"></a>'
+    facts = build_facts_html(card)
+    modifier = "upcoming"
+    if state == "live" or (count or "").startswith("LIVE"):
+        modifier = "live"
+    elif state == "final" or count == "FINAL RESULTS":
+        modifier = "final"
+    img = (
+        f'<a class="landing-event-card-art" href="{_esc(url)}">'
+        f'<img src="{_esc(logo)}" alt="{_esc(title)}" width="112" height="112" loading="lazy" decoding="async">'
+        f"</a>"
+        if logo
+        else f'<a class="landing-event-card-art landing-event-card-art--empty" href="{_esc(url)}" aria-label="{_esc(title)}"></a>'
+    )
     return (
-        f'<article class="landing-event-card" data-landing-event-slot="{int(slot)}">'
-        f"{img}"
+        f'<article class="landing-event-card landing-event-card--{modifier}" '
+        f'data-landing-event-slot="{int(slot)}" data-state="{_esc(modifier)}">'
+        f'<div class="landing-event-card-visual">{img}</div>'
         f'<div class="landing-event-card-body">'
         f'<p class="landing-event-card-count">{_esc_text(count)}</p>'
         f'<p class="landing-event-card-title"><a href="{_esc(url)}">{_esc_text(title)}</a></p>'
-        f'<p class="landing-event-card-meta">{_esc_text(dates)}</p>'
+        f'<p class="landing-event-card-facts">{facts}</p>'
         f'<p class="landing-event-card-story">{story}</p>'
         f"</div></article>"
     )
 
 
 LANDING_CARD_CSS = """
+.temp-landing-hero-image,
+.temp-landing-secondary-image {
+    overflow: hidden;
+}
+.temp-landing-hero-image .landing-event-card img,
+.temp-landing-secondary-image .landing-event-card img {
+    width: 112px;
+    height: 112px;
+    max-width: 112px;
+    object-fit: contain;
+}
 .temp-landing-hero-image .landing-event-card,
 .temp-landing-secondary-image .landing-event-card {
     display: flex;
-    align-items: flex-start;
-    gap: 0.75rem;
+    align-items: stretch;
+    gap: 0;
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
+    margin: 0;
     text-align: left;
-    color: #1a2750;
-}
-.landing-event-card-media {
-    flex: 0 0 88px;
-    width: 88px;
-    height: 88px;
-    display: block;
-    background: #f4f6f8;
+    color: #ffffff;
+    background: #001f3f;
     border-radius: 8px;
+    min-height: 124px;
     overflow: hidden;
 }
-.landing-event-card-media img {
-    width: 88px;
-    height: 88px;
-    object-fit: contain;
+.landing-event-card-visual {
+    flex: 0 0 124px;
+    width: 124px;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.landing-event-card-art {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    min-height: 124px;
+}
+.landing-event-card-art img {
     display: block;
+    width: 112px;
+    height: 112px;
+    object-fit: contain;
 }
-.landing-event-card-body { min-width: 0; flex: 1; }
 .landing-event-card-count {
-    margin: 0 0 0.2rem;
-    font-size: 0.78rem;
+    display: inline-block;
+    margin: 0 0 0.28rem;
+    padding: 3px 8px;
+    font-size: 0.68rem;
     font-weight: 800;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.05em;
     text-transform: uppercase;
+    line-height: 1.15;
+    color: #001f3f;
+    background: #ffe566;
+    border-radius: 4px;
 }
-.landing-event-card-title { margin: 0 0 0.15rem; font-size: 1rem; font-weight: 700; line-height: 1.25; }
-.landing-event-card-title a { color: #1a2750; text-decoration: none; }
-.landing-event-card-meta { margin: 0; font-size: 0.8rem; color: #444; }
-.landing-event-card-story { margin: 0.35rem 0 0; font-size: 0.82rem; line-height: 1.35; color: #444; }
-.landing-event-card-story a { color: #1a2750; }
+.landing-event-card--live .landing-event-card-count {
+    background: #ea580c;
+}
+.landing-event-card--final .landing-event-card-count {
+    background: #0b2c4d;
+}
+.landing-event-card-body {
+    min-width: 0;
+    flex: 1;
+    padding: 0.55rem 0.7rem 0.6rem;
+    box-sizing: border-box;
+}
+.landing-event-card-title {
+    margin: 0 0 0.2rem;
+    font-size: 0.92rem;
+    font-weight: 800;
+    line-height: 1.2;
+}
+.landing-event-card-title a { color: #ffffff; text-decoration: none; }
+.landing-event-card-facts {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.35;
+    font-weight: 650;
+    color: #dbeafe;
+}
+.landing-event-card-facts a { color: #ffe566; text-decoration: underline; }
+.landing-event-card-story {
+    margin: 0.35rem 0 0;
+    font-size: 0.78rem;
+    line-height: 1.35;
+    color: #e2e8f0;
+}
+.landing-event-card-story a { color: #ffe566; }
 @media (max-width: 480px) {
-    .temp-landing-hero-image,
-    .temp-landing-secondary-image {
-        overflow: hidden;
+    .temp-landing-hero-image .landing-event-card,
+    .temp-landing-secondary-image .landing-event-card {
+        min-height: 118px;
     }
-    .landing-event-card { gap: 0.6rem; }
-    .landing-event-card-media,
-    .landing-event-card-media img { width: 72px; height: 72px; flex-basis: 72px; }
-    .landing-event-card-title { font-size: 0.95rem; }
-    .landing-event-card-story { font-size: 0.78rem; }
+    .landing-event-card-visual,
+    .landing-event-card-art { flex-basis: 108px; width: 108px; min-height: 118px; }
+    .temp-landing-hero-image .landing-event-card img,
+    .temp-landing-secondary-image .landing-event-card img,
+    .landing-event-card-art img { width: 96px; height: 96px; max-width: 96px; }
+    .landing-event-card-count { font-size: 0.64rem; padding: 2px 6px; }
+    .landing-event-card-title { font-size: 0.88rem; }
+    .landing-event-card-facts,
+    .landing-event-card-story { font-size: 0.74rem; }
 }
 """
 
@@ -412,6 +589,7 @@ def card_from_row(row: dict, *, cur=None, today: Optional[date] = None, idx: Opt
     host_ab = str(row.get("club_abbrev") or "").strip()
     host_fn = str(row.get("club_fullname") or "").strip()
     host = f"{host_ab} - {host_fn}" if host_ab and host_fn else (host_fn or host_ab)
+    host_short = host_ab or host_fn
     fleet_counts = fetch_fleet_entry_counts(cur, rid) if cur is not None else []
     classes = [n for n, _c in fleet_counts if n.lower() not in {"fleet", "event"}]
     series = series_for_event(name, rid, idx)
@@ -430,6 +608,7 @@ def card_from_row(row: dict, *, cur=None, today: Optional[date] = None, idx: Opt
         "start_date": start,
         "end_date": end,
         "host": host,
+        "host_short": host_short,
         "host_href": _club_href(host_ab, host_fn),
         "classes": classes,
         "entries": sum(n for _n, n in fleet_counts),

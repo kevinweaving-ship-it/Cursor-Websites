@@ -5,6 +5,7 @@ import unittest
 from datetime import date
 
 from landing_event_story_cards import (
+    build_facts_html,
     build_story_html,
     countdown_label,
     history_sentence,
@@ -31,11 +32,11 @@ class CountdownTests(unittest.TestCase):
     def test_starts_today_and_day_of(self):
         self.assertEqual(
             countdown_label(date(2026, 9, 19), date(2026, 9, 20), today=date(2026, 9, 19)),
-            "DAY 1 OF 2 — LIVE",
+            "LIVE · DAY 1 OF 2",
         )
         self.assertEqual(
             countdown_label(date(2026, 9, 19), date(2026, 9, 20), today=date(2026, 9, 20)),
-            "DAY 2 OF 2 — LIVE",
+            "LIVE · DAY 2 OF 2",
         )
 
     def test_final_results(self):
@@ -74,12 +75,21 @@ class SelectHeroTests(unittest.TestCase):
         rows = [
             {
                 "regatta_id": "2026-09-19-hmyc-midmar-cup",
+                "event_name": "The Midmar Cup",
                 "start_date": date(2026, 9, 19),
                 "end_date": date(2026, 9, 20),
                 "result_status": "Provisional",
             },
             {
+                "regatta_id": "2026-09-21-tsc-df95",
+                "event_name": "TSC DF95",
+                "start_date": date(2026, 9, 21),
+                "end_date": date(2026, 9, 21),
+                "result_status": "Provisional",
+            },
+            {
                 "regatta_id": "2026-09-25-tsc-420-nationals",
+                "event_name": "420 Nationals",
                 "start_date": date(2026, 9, 25),
                 "end_date": date(2026, 9, 27),
                 "result_status": "Provisional",
@@ -98,20 +108,22 @@ class SelectHeroTests(unittest.TestCase):
 
 class StoryLinkTests(unittest.TestCase):
     def test_story_has_crawlable_anchors(self):
-        html = build_story_html(
-            {
-                "name": "420 Nationals",
-                "dates": "25–27 Sep 2026",
-                "host": "TSC - Theewater Sports Club",
-                "host_href": "/club/tsc",
-                "classes": ["420"],
-                "entries": 0,
-                "series": {"label": "420 Nationals", "href": "/events-logos/420-nationals"},
-                "previous": [{"url": "/regatta/2025-10-04-420-national-championship", "year": 2025}],
-            }
-        )
-        self.assertIn('href="/club/tsc"', html)
-        self.assertIn('href="/class/420"', html)
+        card = {
+            "name": "420 Nationals",
+            "dates": "25–27 Sep 2026",
+            "host": "TSC - Theewater Sports Club",
+            "host_short": "TSC",
+            "host_href": "/club/tsc",
+            "classes": ["420"],
+            "entries": 0,
+            "url": "/regatta/2026-09-25-tsc-420-nationals",
+            "series": {"label": "420 Nationals", "href": "/events-logos/420-nationals"},
+            "previous": [{"url": "/regatta/2025-10-04-420-national-championship", "year": 2025}],
+        }
+        html = build_story_html(card)
+        facts = build_facts_html(card)
+        self.assertIn('href="/club/tsc"', facts)
+        self.assertIn('href="/class/420"', facts)
         self.assertIn('href="/events-logos/420-nationals"', html)
         self.assertIn('href="/regatta/2025-10-04-420-national-championship"', html)
         self.assertNotIn("first ever", html.lower())
