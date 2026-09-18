@@ -1,0 +1,10 @@
+/var/log/sailingsa-housekeeping.log {
+	rotate 14
+	daily
+	maxsize 10M
+	missingok
+	notifempty
+	compress
+	delaycompress
+	copytruncate
+}

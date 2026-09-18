@@ -217,3 +217,27 @@ Once that rule is written inside the repo, Cursor stops improvising.
   - `Laser Radial` / `ILCA 6`
   - `Laser` / `ILCA 7`
 - Any mapping or canonicalisation (e.g. `class_canonical`) must be **deliberate** (explicit mapping table or rule), not a blind replace/normalise step.
+
+---
+
+## Permanent housekeeping + artifact ownership
+
+See **`sailingsa/deploy/HOUSEKEEPING.md`**. Daily live run: `/usr/local/sbin/sailingsa-housekeeping --apply` at 04:15 (`/etc/cron.d/sailingsa_housekeeping`). Use `--dry-run` to report deletions without performing them.
+
+### Cursor production rule (mandatory)
+
+Every production task that creates backups, releases, temporary files, diagnostic processes, or test services **owns those artifacts** and must clean them up when the task finishes.
+
+End every production task with:
+
+1. Temporary files removed
+2. Temporary processes/services stopped
+3. Backups intentionally retained
+4. Disk utilisation
+5. Unexpected leftovers
+
+Do **not** create a repeated full ~11 GB backup for every surgical change. Snapshot `api.py` only unless a full backup is genuinely required.
+
+KEEP / known-good / `BEFORE_BIO` files are never auto-deleted. Never auto-delete media, PDFs, uploads, Lipton telemetry, Postgres data, production source, or credentials. Unknown files = report only.
+
+Leave **8002** (`sailingsa-admin-api`) untouched until separately decided. **8001** restore stays disabled.
