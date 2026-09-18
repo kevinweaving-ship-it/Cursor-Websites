@@ -1,0 +1,6 @@
+# Rebuild Google-facing sitemaps every 15 minutes so new Upcoming /regatta/{id}
+# URLs and honest lastmod land without manual sitemap work.
+# Script: /var/www/sailingsa/deploy/refresh-sitemap-cron.sh
+SHELL=/bin/bash
+PATH=/usr/bin:/bin
+*/15 * * * * root /var/www/sailingsa/deploy/refresh-sitemap-cron.sh >> /var/log/sailingsa-sitemap-refresh.log 2>&1
