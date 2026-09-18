@@ -374,6 +374,30 @@
             width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important;
         }
         #sailor-search-results .ssa-dev1-inject .sa-approved-sailor-card { margin-top: 0; }
+        /* Claim panel internals only. Outer sailor card locked. */
+        #sailor-search-results .sa-claim-banner.sa-claim-banner--landing {
+            min-height: 0;
+        }
+        #sailor-search-results .sa-claim-landing-copy {
+            padding: 4px 8px;
+            gap: 1px;
+            font-size: 11px;
+            font-weight: 500;
+            line-height: 1.2;
+        }
+        #sailor-search-results .sa-claim-landing-copy strong {
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 1.15;
+        }
+        #sailor-search-results .sa-claim-landing-cta {
+            min-height: 0;
+            height: 26px;
+            padding: 0 8px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
         #sailor-search-results.guest-locked .sa-avatar-expand-btn { opacity: 0.45; animation: none; }
         #sailor-search-results:not(.guest-locked) .sa-avatar-expand-btn {
             animation: ssa-expand-pulse 2.8s ease-in-out infinite;
