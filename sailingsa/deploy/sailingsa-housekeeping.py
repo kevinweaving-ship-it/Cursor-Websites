@@ -32,8 +32,10 @@ FULL_MIN_BYTES = 1_000_000_000  # 1 GiB-ish: real full backups are ~11G
 
 FULL_BACKUP_RE = re.compile(r"^backup_\d{8}_\d{6}\.tar\.gz$")
 API_TS_RE = re.compile(r"^api\.py\.\d{8}_\d{6}(\.bak)?$")
+# Explicit KEEP token (uppercase) or known-good / BEFORE_BIO.
+# Do not match incidental "keep" substrings (e.g. /tmp/mm-fb-keep).
 KEEP_NAME_RE = re.compile(
-    r"(KEEP|known[-_]?good|KNOWN[-_]?GOOD|BEFORE_BIO)", re.I
+    r"(?:(?:^|[._/-])KEEP(?:[._/-]|$)|(?i)known[-_]good|BEFORE_BIO)"
 )
 CRED_NAME_RE = re.compile(
     r"(?i)(\.env$|cookie|secret|password|passwd|credential|\.pem$|"
@@ -174,15 +176,18 @@ def size_of(path: Path) -> int:
         return 0
 
 
-def tar_valid(path: Path) -> bool:
+def tar_valid(path: Path, full: bool = False) -> bool:
+    """Validate a tar.gz. Full member walk only when about to delete a full backup."""
     try:
         if path.stat().st_size < 1024:
             return False
         with tarfile.open(path, "r:*") as tf:
-            # Lightweight integrity: read members; do not extract.
+            n = 0
             for _ in tf:
-                pass
-        return True
+                n += 1
+                if not full and n >= 8:
+                    break
+        return n > 0
     except Exception:
         return False
 
@@ -255,7 +260,7 @@ def plan_full_backups(keep_set, actions, reports):
                 f"SKIP_DELETE {p} reason=no-newer-valid-retained-full-backup"
             )
             continue
-        if not all(tar_valid(k) for k in newer_ok):
+        if not all(tar_valid(k, full=True) for k in newer_ok):
             reports.append(f"SKIP_DELETE {p} reason=newer-retained-not-tar-valid")
             continue
         actions.append(
@@ -271,7 +276,11 @@ def plan_api_baks(keep_set, actions, reports):
             for p in directory.iterdir():
                 if not p.is_file():
                     continue
-                if p.name.startswith("api.py") and not API_TS_RE.match(p.name):
+                if (
+                    p.name.startswith("api.py")
+                    and p.name != "api.py"
+                    and not API_TS_RE.match(p.name)
+                ):
                     named.append(p)
         for p in named:
             reports.append(
@@ -367,13 +376,25 @@ def _consider_tmp(p: Path, keep_set, actions, reports, reason):
 
 
 def plan_pycache(keep_set, actions, reports):
+    # Only disposable caches we own: /root/__pycache__, /tmp/__pycache__,
+    # and __pycache__ under /tmp/ssa_*. Other /tmp worktrees = report only.
     candidates = [Path("/root/__pycache__"), Path("/tmp/__pycache__")]
-    for base in (Path("/tmp"),):
-        if not base.is_dir():
+    for ssa in TMP_DIR.glob("ssa_*"):
+        if not ssa.is_dir() or ssa.is_symlink():
             continue
-        for root, dirs, _files in os.walk(base, followlinks=False):
+        for root, dirs, _files in os.walk(ssa, followlinks=False):
             if "__pycache__" in dirs:
                 candidates.append(Path(root) / "__pycache__")
+    leftover_trees = 0
+    if TMP_DIR.is_dir():
+        for p in TMP_DIR.iterdir():
+            if p.is_dir() and not p.is_symlink() and p.name.startswith("sailingsa_"):
+                leftover_trees += 1
+        if leftover_trees:
+            reports.append(
+                f"LEFTOVER_TMP_WORKTREE_REPORT count={leftover_trees} "
+                "under /tmp/sailingsa_* (not deleted; ambiguous)"
+            )
     seen = set()
     for p in candidates:
         real = os.path.realpath(str(p))
@@ -562,14 +583,19 @@ def main(argv=None) -> int:
     plan_pycache(keep_set, actions, reports)
     leftover_named_root_baks(reports)
 
-    # Safety filter: drop any action that touches protected data
+    # Safety filter: drop any action that touches protected data; dedupe paths
     safe_actions = []
+    seen_paths = set()
     for a in actions:
         blocked = assert_action_safe(a, keep_set)
         if blocked:
             reports.append(f"FILTERED {a.path} reason={blocked}")
-        else:
-            safe_actions.append(a)
+            continue
+        real = os.path.realpath(str(a.path))
+        if real in seen_paths:
+            continue
+        seen_paths.add(real)
+        safe_actions.append(a)
 
     results = []
     for a in safe_actions:
