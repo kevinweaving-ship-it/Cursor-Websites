@@ -54,8 +54,9 @@ Eligible only under `/tmp` (plus disposable `/root/__pycache__` and `/tmp/**/__p
 - stress-test / matrix output
 - diagnostic JSON/JSONL
 - temporary patches matching `ssa_*.patch` / `cursor_diag_*`
+- disposable `__pycache__` under `/root/__pycache__`, `/tmp/__pycache__`, and `/tmp/ssa_*` only
 
-**Never expired:** `*.env`, cookies, secrets, keys, PDFs, media.
+**Never expired:** `*.env`, cookies, secrets, keys, PDFs, media. Ambiguous `/tmp/sailingsa_*` worktrees are reported, not deleted.
 
 ## Logs
 
