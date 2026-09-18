@@ -352,9 +352,6 @@ def build_facts_html(card: dict) -> str:
     return " · ".join(bits)
 
 
-_MEDAL = {1: "🥇", 2: "🥈", 3: "🥉"}
-
-
 def _person_html(row: dict) -> str:
     nm = _esc_text(str(row.get("name") or "").strip())
     if not nm:
@@ -398,26 +395,31 @@ def _n_scores(scores: Any) -> int:
     return 0
 
 
-def _story_wrap(logo: str, title_html: str, body_html: str, alt: str = "History") -> str:
-    head = f"{_inline_logo(logo, alt)}{title_html}"
+def _mark(s: str) -> str:
+    return f'<strong class="landing-event-story-mark">{s}</strong>'
+
+
+def _story_icon(kind: str) -> str:
+    svg = {"trophy": _ICO_TROPHY, "cal": _ICO_CAL, "trend": _ICO_TREND}.get(kind, _ICO_TROPHY)
+    return svg.replace('width="14" height="14"', 'width="12" height="12"')
+
+
+def _story_wrap(kind: str, title_html: str, body_html: str) -> str:
+    head = (
+        f'<span class="landing-event-story-ico">{_story_icon(kind)}</span>'
+        f'<span class="landing-event-last-label">{title_html}</span>'
+    )
     return (
         f'<span class="landing-event-last-head">{head}</span>'
         f'<span class="landing-event-last-podium">{body_html}</span>'
     )
 
 
-def _podium_medal_line(row: dict) -> str:
-    medal = _MEDAL.get(int(row.get("place") or 0), "")
+def _podium_line(row: dict) -> str:
     person = _person_html(row)
     pts = _pts(row.get("nett"))
-    if not person:
-        return ""
-    if medal and pts:
-        return f"{medal} {person} — {pts}"
-    if medal:
-        return f"{medal} {person}"
-    if pts:
-        return f"{person} — {pts}"
+    if person and pts:
+        return f"{person} — {_mark(pts)}"
     return person
 
 
@@ -425,9 +427,64 @@ def _third_verb(row: dict) -> str:
     return "were" if str(row.get("crew_name") or "").strip() else "was"
 
 
+def _age_years(start: Any, ref: Any) -> float:
+    s = _as_date(start)
+    r = _as_date(ref)
+    if not s or not r:
+        return 99.0
+    return max(0.0, (r - s).days / 365.25)
+
+
+def _recency_weight(age_years: float) -> float:
+    """Smooth exponential decay. Half-life 16 months — no anniversary cliff."""
+    age = max(0.0, float(age_years))
+    half_life = 16.0 / 12.0
+    return 100.0 * (0.5 ** (age / half_life))
+
+
+def _quality_bonus(rank: int, is_national: bool, is_regional: bool, wins: int, fleet_n: int) -> float:
+    q = 0.0
+    if is_national and rank == 1:
+        q += 40
+    elif is_national and rank <= 3:
+        q += 30
+    elif is_national and rank <= 8 and (fleet_n >= 8 or not fleet_n):
+        q += 28
+    elif is_regional and rank == 1:
+        q += 22
+    elif rank == 1:
+        q += 20
+    elif rank <= 3:
+        q += 16
+    q += min(max(wins, 0) * 3, 12)
+    return min(q, 40.0)
+
+
+def _previous_story_label(card: dict, prev: dict) -> str:
+    upcoming = _as_date(card.get("start_date"))
+    py = int(prev.get("year") or 0)
+    cls = ""
+    if card.get("classes"):
+        cls = re.sub(r"\s+(fleet|class)$", "", str(card["classes"][0]), flags=re.I).strip()
+    uy = upcoming.year if upcoming else None
+    if uy and py and py == uy - 1:
+        if cls:
+            return f"Last year's {cls} Nationals"
+        return "Last year's champions"
+    if py and cls:
+        return f"{py} {cls} Champions"
+    if py:
+        return f"{py} Champions"
+    return "Champions"
+
+
+def _sentence_count(html: str) -> int:
+    text = re.sub(r"<[^>]+>", "", html or "")
+    return len([p for p in re.split(r"(?<=[.!?])\s+", text.strip()) if p])
+
+
 def build_previous_overall_story_html(card: dict) -> str:
-    """Previous-edition overall championship. Units always pts. No category mix."""
-    logo = card.get("class_logo") or card.get("logo") or ((card.get("series") or {}).get("logo")) or ""
+    """Previous-edition overall championship. Every displayed score uses pts."""
     prevs = [
         p
         for p in (card.get("previous") or [])
@@ -439,7 +496,6 @@ def build_previous_overall_story_html(card: dict) -> str:
     if not podium or not prevs:
         return ""
     prev = prevs[0]
-    year = str(prev.get("year") or "").strip()
     url = str(prev.get("url") or "").strip()
     first = podium[0]
     second = podium[1] if len(podium) > 1 else None
@@ -452,11 +508,8 @@ def build_previous_overall_story_html(card: dict) -> str:
     p1 = _pts(first.get("nett"))
     p2 = _pts((second or {}).get("nett")) if second else ""
     p3 = _pts((third or {}).get("nett")) if third else ""
-    title = (
-        f'🏆 <a href="{_esc(url)}">{_esc_text(year)} Champions</a>'
-        if year and url
-        else "🏆 Champions"
-    )
+    label = _previous_story_label(card, prev)
+    title = f'<a href="{_esc(url)}">{_esc_text(label)}</a>' if url else _esc_text(label)
     gap = None
     if first.get("nett") is not None and second is not None and second.get("nett") is not None:
         try:
@@ -466,35 +519,31 @@ def build_previous_overall_story_html(card: dict) -> str:
     wins, _s, _t = _score_places(first.get("race_scores"))
     races = int(first.get("races_sailed") or 0) or _n_scores(first.get("race_scores"))
     dominant = bool(races and wins >= max(3, (races + 1) // 2))
-    human = False
     body = ""
     if p1 and p2 and gap == 1:
-        human = True
-        body = f"{a} won on {p1}, just 1 point ahead of {b}."
+        body = f"{a} won by a single point over {b} ({_mark(f'{p1} to {p2}')})."
         if c and p3:
-            body += f" {c} {_third_verb(third)} 3rd on {p3}."
+            body += f" {c} finished 3rd on {_mark(p3)}."
     elif p1 and p2 and gap is not None and 0 < gap <= 2:
-        human = True
         pts_word = "point" if gap == 1 else "points"
-        body = f"{a} won on {p1}, {_fmt_nett(gap)} {pts_word} ahead of {b}."
+        body = f"{a} won by {_fmt_nett(gap)} {pts_word} over {b} ({_mark(f'{p1} to {p2}')})."
         if c and p3:
-            body += f" {c} {_third_verb(third)} 3rd on {p3}."
+            body += f" {c} finished 3rd on {_mark(p3)}."
     elif dominant and p1:
-        human = True
-        body = f"{a} won on {p1}, taking {wins} of {races} races."
+        body = f"{a} won on {_mark(p1)}, taking {wins} of {races} races."
         if b and p2:
-            body += f" {b} {_third_verb(second)} 2nd on {p2}."
+            body += f" {b} {_third_verb(second)} 2nd on {_mark(p2)}."
         if c and p3:
-            body += f" {c} {_third_verb(third)} 3rd on {p3}."
-    if not human:
-        medals = [_podium_medal_line(row) for row in podium if _podium_medal_line(row)]
-        if not medals:
+            body += f" {c} {_third_verb(third)} 3rd on {_mark(p3)}."
+    else:
+        lines = [_podium_line(row) for row in podium if _podium_line(row)]
+        if not lines:
             return ""
-        body = " ".join(medals)
+        body = " ".join(lines)
     returning = (card.get("returning") or "").strip()
-    if returning:
+    if returning and _sentence_count(body) < 2:
         body = f"{body} {returning}".strip()
-    return _story_wrap(logo, title, body, "Results")
+    return _story_wrap("trophy", title, body)
 
 
 def build_story_html(card: dict) -> str:
@@ -529,6 +578,12 @@ _ICO_TROPHY = (
     '<path d="M5 2.5h6v1.8c0 2.3-1.4 4-3 4.6v2h2v1.6H6V10.9h2v-2c-1.6-.6-3-2.3-3-4.6V2.5Z"></path>'
     '<path d="M5 3.4H3.2c0 1.7.7 2.9 2.1 3.4"></path>'
     '<path d="M11 3.4h1.8c0 1.7-.7 2.9-2.1 3.4"></path></svg>'
+)
+_ICO_TREND = (
+    '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" width="14" height="14" '
+    'fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'
+    '<polyline points="2.5,12 6,8.2 8.6,10 13.5,4"></polyline>'
+    '<polyline points="9.8,4 13.5,4 13.5,7.6"></polyline></svg>'
 )
 
 
@@ -910,12 +965,39 @@ LANDING_CARD_CSS = """
 .landing-event-card-story {
     margin: 0;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 600;
     color: #334155;
-    line-height: 1.35;
+    line-height: 1.4;
     white-space: normal;
 }
-.landing-event-card-story a { color: #0b3d91; }
+.landing-event-card-story a {
+    color: #1e3a6e;
+    font-weight: 800;
+    text-decoration: underline;
+    text-decoration-color: #94a3b8;
+    text-underline-offset: 2px;
+}
+.landing-event-story-ico {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 12px;
+    height: 12px;
+    color: #64748b;
+    flex: 0 0 12px;
+}
+.landing-event-story-ico svg {
+    display: block;
+    width: 12px;
+    height: 12px;
+}
+.landing-event-last-label {
+    color: #64748b;
+}
+.landing-event-story-mark {
+    font-weight: 800;
+    color: #142c78;
+}
 .temp-landing-hero-image .landing-event-inline-logo,
 .temp-landing-secondary-image .landing-event-inline-logo,
 #landing-event-hero-2 .landing-event-inline-logo,
@@ -965,9 +1047,14 @@ LANDING_CARD_CSS = """
     margin: 0;
 }
 .landing-event-last-head {
-    font-size: 10px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 9px;
     font-weight: 800;
-    letter-spacing: .03em;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: #64748b;
 }
 .landing-event-last-podium,
 .landing-event-return {
@@ -1581,8 +1668,56 @@ def _place_phrase(wins: int, seconds: int, thirds: int) -> str:
     if len(bits) == 1:
         return bits[0]
     if len(bits) == 2:
-        return f"{bits[0]} and {bits[1]}"
-    return f"{bits[0]}, {bits[1]} and {bits[2]}"
+        return f"{bits[0]} plus {bits[1]}"
+    return f"{bits[0]} plus {bits[1]} and {bits[2]}"
+
+
+def _ordinal(rk: int) -> str:
+    if rk % 10 == 1 and rk % 100 != 11:
+        return f"{rk}st"
+    if rk % 10 == 2 and rk % 100 != 12:
+        return f"{rk}nd"
+    if rk % 10 == 3 and rk % 100 != 13:
+        return f"{rk}rd"
+    return f"{rk}th"
+
+
+def _title_kind(label: str) -> str:
+    low = (label or "").lower()
+    if "regional" in low:
+        return "KZN Regional" if "kzn" in low else "Regional"
+    if "national" in low:
+        return "National"
+    return ""
+
+
+def _summarize_title_kinds(labels: list[str]) -> str:
+    kinds: list[str] = []
+    for lab in labels:
+        k = _title_kind(lab)
+        if k and k not in kinds:
+            kinds.append(k)
+    if not kinds:
+        return ""
+    if len(kinds) == 1:
+        n = sum(1 for lab in labels if _title_kind(lab) == kinds[0])
+        if n >= 2:
+            return f"multiple {kinds[0]} titles"
+        return f"a {kinds[0]} title"
+    if len(kinds) == 2:
+        return f"{kinds[0]} and {kinds[1]} titles"
+    return f"{', '.join(kinds[:-1])} and {kinds[-1]} titles"
+
+
+def _is_national_event(event_name: str) -> bool:
+    en = event_name or ""
+    if re.search(r"regional|6hr|9hr|endurance|challenge", en, re.I):
+        return False
+    return bool(re.search(r"national", en, re.I))
+
+
+def _is_regional_event(event_name: str) -> bool:
+    return bool(re.search(r"regional", event_name or "", re.I))
 
 
 def fetch_same_class_form_html(
@@ -1591,15 +1726,18 @@ def fetch_same_class_form_html(
     classes: list[str],
     entered: list[dict],
     current_rid: str,
+    upcoming_start: Any = None,
     logo: str = "",
 ) -> tuple[str, list[int]]:
-    """Same-class history of current entrants. Empty if nothing worthwhile. Never dumps entries."""
+    """Same-class history of current entrants. Recency-weighted. Never dumps entries."""
+    del logo
     if cur is None or not entered:
         return "", []
     keys = _class_keys(classes)
     if not keys:
         return "", []
     class_name = classes[0]
+    ref = _as_date(upcoming_start) or date.today()
     people: list[dict] = []
     ids: list[int] = []
     for e in entered:
@@ -1658,37 +1796,90 @@ def fetch_same_class_form_html(
     ]
     current_ids = {str(i) for i in ids}
     by_person = {str(p.get("sailor_id") or ""): p for p in people if p.get("sailor_id")}
-    evidence: list[int] = []
 
+    pairs = []
+    seen_pair = set()
+    for r in rows:
+        pair = (str(r.get("regatta_id") or ""), str(r.get("block_id") or ""))
+        if pair[0] and pair not in seen_pair:
+            seen_pair.add(pair)
+            pairs.append(pair)
+    fleet_map: dict[tuple[str, str], int] = {}
+    if pairs:
+        try:
+            cur.execute(
+                """
+                SELECT regatta_id::text AS regatta_id,
+                       COALESCE(block_id::text, '') AS block_id,
+                       COUNT(*)::int AS n
+                FROM results
+                WHERE rank IS NOT NULL
+                  AND regatta_id = ANY(%s)
+                GROUP BY 1, 2
+                """,
+                ([p[0] for p in pairs],),
+            )
+            for fr in cur.fetchall() or []:
+                fleet_map[(str(fr.get("regatta_id") or ""), str(fr.get("block_id") or ""))] = int(fr.get("n") or 0)
+        except Exception:
+            try:
+                cur.connection.rollback()
+            except Exception:
+                pass
+
+    facts: list[dict] = []
     titles: dict[str, list[dict]] = {}
     for r in rows:
-        if int(r.get("rank") or 0) != 1:
+        en = str(r.get("event_name") or "")
+        rk = int(r.get("rank") or 0)
+        if rk <= 0:
             continue
-        if not _is_title_event(str(r.get("event_name") or "")):
+        is_nat = _is_national_event(en)
+        is_reg = _is_regional_event(en)
+        if rk == 1 and _is_title_event(en):
+            for sid in (r.get("helm_id"), r.get("crew_id")):
+                sid = str(sid or "").strip()
+                if sid not in current_ids:
+                    continue
+                titles.setdefault(sid, []).append(
+                    {
+                        "url": f"/regatta/{r['regatta_id']}",
+                        "label": _class_event_label(en, r.get("start_date"), class_name, str(r.get("fleet_label") or "")),
+                        "year": (_as_date(r.get("start_date")) or date.min).year,
+                        "regatta_id": r["regatta_id"],
+                        "result_id": r.get("result_id"),
+                    }
+                )
+        fleet_n = fleet_map.get((str(r.get("regatta_id") or ""), str(r.get("block_id") or "")), 0)
+        worthwhile = False
+        if is_nat and rk <= 3:
+            worthwhile = True
+        elif is_nat and rk <= 8 and (fleet_n >= 8 or not fleet_n):
+            worthwhile = True
+        elif is_reg and rk == 1:
+            worthwhile = True
+        elif _is_title_event(en) and rk == 1:
+            worthwhile = True
+        if not worthwhile:
             continue
-        if not _same_class(
-            [r.get("fleet_label"), r.get("class_canonical"), r.get("class_original")],
-            keys,
-        ):
-            continue
-        for sid in (r.get("helm_id"), r.get("crew_id")):
-            sid = str(sid or "").strip()
-            if sid not in current_ids:
-                continue
-            titles.setdefault(sid, []).append(
-                {
-                    "url": f"/regatta/{r['regatta_id']}",
-                    "label": _class_event_label(
-                        str(r.get("event_name") or ""),
-                        r.get("start_date"),
-                        class_name,
-                        str(r.get("fleet_label") or ""),
-                    ),
-                    "year": (_as_date(r.get("start_date")) or date.min).year,
-                    "regatta_id": r["regatta_id"],
-                    "result_id": r.get("result_id"),
-                }
-            )
+        wins, seconds, thirds = _score_places(r.get("race_scores"))
+        age = _age_years(r.get("start_date"), ref)
+        rec = _recency_weight(age)
+        q = _quality_bonus(rk, is_nat, is_reg, wins, fleet_n)
+        facts.append(
+            {
+                "score": rec + q,
+                "age": age,
+                "recency": rec,
+                "row": r,
+                "fleet_n": fleet_n,
+                "wins": wins,
+                "seconds": seconds,
+                "thirds": thirds,
+                "rank": rk,
+            }
+        )
+
     for sid, lst in list(titles.items()):
         seen_rid = set()
         seen_lab = set()
@@ -1702,72 +1893,20 @@ def fetch_same_class_form_html(
             uniq.append(t)
         titles[sid] = uniq
 
-    title_sid = ""
-    if titles:
-        title_sid = sorted(titles.keys(), key=lambda s: (-len(titles[s]), s))[0]
+    lead = None
+    if facts:
+        lead = max(facts, key=lambda f: (f["score"], -f["age"], -f["rank"]))
 
-    nats_row = None
-    for r in rows:
-        if not re.search(r"national", str(r.get("event_name") or ""), re.I):
-            continue
-        if re.search(r"regional|6hr|9hr|endurance|challenge", str(r.get("event_name") or ""), re.I):
-            continue
-        if not _same_class(
-            [r.get("fleet_label"), r.get("class_canonical"), r.get("class_original")],
-            keys,
-        ):
-            continue
-        if r.get("rank") is None:
-            continue
-        nats_row = r
-        break
-
-    fleet_n = 0
-    if nats_row:
-        try:
-            cur.execute(
-                """
-                SELECT COUNT(*)::int AS n
-                FROM results
-                WHERE regatta_id = %s AND block_id = %s AND rank IS NOT NULL
-                """,
-                (nats_row["regatta_id"], nats_row.get("block_id")),
-            )
-            fleet_n = int((cur.fetchone() or {}).get("n") or 0)
-        except Exception:
-            try:
-                cur.connection.rollback()
-            except Exception:
-                pass
-            fleet_n = 0
-
-    bits = []
-    if title_sid and titles.get(title_sid):
-        person = by_person.get(title_sid) or {"name": "", "href": ""}
-        who = _person_html({"name": person.get("name"), "href": person.get("href")})
-        named = []
-        for t in titles[title_sid]:
-            named.append(f'<a href="{_esc(t["url"])}">{_esc_text(t["label"])}</a>')
-            if t.get("result_id"):
-                evidence.append(int(t["result_id"]))
-        if who and named:
-            if len(named) == 1:
-                bits.append(f"{who} has won the {named[0]}")
-            elif len(named) == 2:
-                bits.append(f"{who} has won the {named[0]} and the {named[1]}")
-            else:
-                bits.append(f"{who} has won the {', the '.join(named[:-1])} and the {named[-1]}")
-
-    worthwhile_recent = bool(
-        nats_row
-        and int(nats_row.get("rank") or 99) <= 8
-        and (fleet_n >= 8 or int(nats_row.get("rank") or 99) <= 3)
-    )
-    if worthwhile_recent:
-        helm_id = str(nats_row.get("helm_id") or "").strip()
-        crew_id = str(nats_row.get("crew_id") or "").strip()
-        helm_nm = str(nats_row.get("helm_name") or "").strip()
-        crew_nm = str(nats_row.get("crew_name") or "").strip()
+    bits: list[str] = []
+    evidence: list[int] = []
+    lead_ids: set[str] = set()
+    lead_rid = ""
+    if lead:
+        r = lead["row"]
+        helm_id = str(r.get("helm_id") or "").strip()
+        crew_id = str(r.get("crew_id") or "").strip()
+        helm_nm = str(r.get("helm_name") or "").strip()
+        crew_nm = str(r.get("crew_name") or "").strip()
         if "," in crew_nm:
             crew_nm = crew_nm.split(",")[0].strip()
         helm_p = by_person.get(helm_id) or {"name": helm_nm, "href": ""}
@@ -1780,42 +1919,72 @@ def fetch_same_class_form_html(
                 "crew_href": (crew_p or {}).get("href") or "",
             }
         )
-        label = _class_event_label(
-            str(nats_row.get("event_name") or ""),
-            nats_row.get("start_date"),
+        ev_label = _class_event_label(
+            str(r.get("event_name") or ""),
+            r.get("start_date"),
             class_name,
-            str(nats_row.get("fleet_label") or ""),
+            str(r.get("fleet_label") or ""),
         )
-        url = f"/regatta/{nats_row['regatta_id']}"
-        rk = int(nats_row.get("rank") or 0)
-        wins, seconds, thirds = _score_places(nats_row.get("race_scores"))
-        place = _place_phrase(wins, seconds, thirds)
-        of = f" of {fleet_n}" if fleet_n else ""
-        if rk % 10 == 1 and rk % 100 != 11:
-            ordinal = f"{rk}st"
-        elif rk % 10 == 2 and rk % 100 != 12:
-            ordinal = f"{rk}nd"
-        elif rk % 10 == 3 and rk % 100 != 13:
-            ordinal = f"{rk}rd"
-        else:
-            ordinal = f"{rk}th"
+        url = f"/regatta/{r['regatta_id']}"
+        rk = lead["rank"]
+        fleet_n = lead["fleet_n"]
+        place = _place_phrase(lead["wins"], lead["seconds"], lead["thirds"])
+        finish = f"{_ordinal(rk)} of {fleet_n}" if fleet_n else _ordinal(rk)
+        extra = f", taking {place}" if place else ""
         if team and rk:
-            extra = f", with {place}" if place else ""
-            boats = f"{of} boats" if fleet_n else of
-            verb = "arrive" if " / " in team else "arrives"
             bits.append(
-                f"{team} {verb} after finishing {ordinal}{boats} at the "
-                f'<a href="{_esc(url)}">{_esc_text(label)}</a>{extra}'
+                f"{team} finished {_mark(finish)} at the "
+                f'<a href="{_esc(url)}">{_esc_text(ev_label)}</a>{extra}.'
             )
-            if nats_row.get("result_id"):
-                evidence.append(int(nats_row["result_id"]))
+            if r.get("result_id"):
+                evidence.append(int(r["result_id"]))
+            lead_ids = {x for x in (helm_id, crew_id) if x}
+            lead_rid = str(r.get("regatta_id") or "")
+
+    pedigree_sid = ""
+    pedigree_titles: list[dict] = []
+    best_pedigree = None
+    for sid, lst in titles.items():
+        kept = [t for t in lst if t["regatta_id"] != lead_rid]
+        if not kept:
+            continue
+        if sid in lead_ids and lead:
+            continue
+        newest = min(_age_years(date(t["year"], 7, 1), ref) for t in kept)
+        score = (len(kept), -newest)
+        if best_pedigree is None or score > best_pedigree:
+            best_pedigree = score
+            pedigree_sid = sid
+            pedigree_titles = kept
+    if pedigree_sid and pedigree_titles and len(bits) < 2:
+        person = by_person.get(pedigree_sid) or {"name": "", "href": ""}
+        who = _person_html({"name": person.get("name"), "href": person.get("href")})
+        summary = _summarize_title_kinds([t["label"] for t in pedigree_titles])
+        cls = class_name or "class"
+        if who and summary:
+            bits.append(f"{who} brings proven {_esc_text(cls)} pedigree, with {summary} on record.")
+            for t in pedigree_titles:
+                if t.get("result_id"):
+                    evidence.append(int(t["result_id"]))
+
+    if not bits and titles:
+        sid = sorted(titles.keys(), key=lambda s: (-len(titles[s]), s))[0]
+        person = by_person.get(sid) or {"name": "", "href": ""}
+        who = _person_html({"name": person.get("name"), "href": person.get("href")})
+        summary = _summarize_title_kinds([t["label"] for t in titles[sid]])
+        if who and summary:
+            bits.append(f"{who} brings proven {_esc_text(class_name or 'class')} pedigree, with {summary} on record.")
+            for t in titles[sid]:
+                if t.get("result_id"):
+                    evidence.append(int(t["result_id"]))
 
     if not bits:
         return "", []
-    body = ". ".join(bits) + "."
-    label = _esc_text(class_name) if class_name else "Class"
-    title = f'<span class="landing-event-last-label">🏆 {label} form</span>'
-    return _story_wrap(logo, title, body, class_name or "Class"), evidence
+    body = " ".join(bits[:2])
+    recent = bool(lead and lead["recency"] >= 40)
+    head = f"Recent {class_name} form" if recent and class_name else (f"{class_name} record" if class_name else "Class record")
+    kind = "trend" if recent else "cal"
+    return _story_wrap(kind, _esc_text(head), body), evidence
 
 
 def card_from_row(row: dict, *, cur=None, today: Optional[date] = None, idx: Optional[dict] = None) -> dict:
@@ -1858,6 +2027,7 @@ def card_from_row(row: dict, *, cur=None, today: Optional[date] = None, idx: Opt
             classes=classes,
             entered=entered,
             current_rid=rid,
+            upcoming_start=start,
             logo=class_logo or logo,
         )
     state = derive_event_lifecycle(
