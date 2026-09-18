@@ -24637,6 +24637,11 @@ def _render_result_sheet_fleet(
     show_bow = _optional_col_visible("bow", has_bow_no)
     show_hull = _optional_col_visible("hull", has_hull_no)
     show_crew_col = _optional_col_visible("crew", has_crew)
+    # MIDMAR_STD_COLS_MP_SCROLL_v1: always show Bow No + Boat Name; keep Crew for MP scroll.
+    if str(fleet.get("regatta_id") or "").strip() == "2026-09-19-hmyc-midmar-cup":
+        show_boat = True
+        show_bow = True
+        show_crew_col = True
     show_races = bool(race_columns)
 
     thead = ""
