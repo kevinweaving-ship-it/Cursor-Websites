@@ -385,6 +385,19 @@ def _fmt_nett(v: Any) -> str:
         return str(v).strip()
 
 
+def _pts(v: Any) -> str:
+    n = _fmt_nett(v)
+    return f"{n} pts" if n else ""
+
+
+def _n_scores(scores: Any) -> int:
+    if isinstance(scores, dict):
+        return len(scores)
+    if isinstance(scores, list):
+        return len(scores)
+    return 0
+
+
 def _story_wrap(logo: str, title_html: str, body_html: str, alt: str = "History") -> str:
     head = f"{_inline_logo(logo, alt)}{title_html}"
     return (
@@ -393,8 +406,27 @@ def _story_wrap(logo: str, title_html: str, body_html: str, alt: str = "History"
     )
 
 
+def _podium_medal_line(row: dict) -> str:
+    medal = _MEDAL.get(int(row.get("place") or 0), "")
+    person = _person_html(row)
+    pts = _pts(row.get("nett"))
+    if not person:
+        return ""
+    if medal and pts:
+        return f"{medal} {person} — {pts}"
+    if medal:
+        return f"{medal} {person}"
+    if pts:
+        return f"{person} — {pts}"
+    return person
+
+
+def _third_verb(row: dict) -> str:
+    return "were" if str(row.get("crew_name") or "").strip() else "was"
+
+
 def build_previous_overall_story_html(card: dict) -> str:
-    """Previous-edition overall championship, helm/crew, never category ranks."""
+    """Previous-edition overall championship. Units always pts. No category mix."""
     logo = card.get("class_logo") or card.get("logo") or ((card.get("series") or {}).get("logo")) or ""
     prevs = [
         p
@@ -417,40 +449,51 @@ def build_previous_overall_story_html(card: dict) -> str:
     a = _person_html(first)
     b = _person_html(second) if second else ""
     c = _person_html(third) if third else ""
-    n1 = _fmt_nett(first.get("nett"))
-    n2 = _fmt_nett((second or {}).get("nett")) if second else ""
-    n3 = _fmt_nett((third or {}).get("nett")) if third else ""
+    p1 = _pts(first.get("nett"))
+    p2 = _pts((second or {}).get("nett")) if second else ""
+    p3 = _pts((third or {}).get("nett")) if third else ""
     title = (
         f'🏆 <a href="{_esc(url)}">{_esc_text(year)} Champions</a>'
         if year and url
         else "🏆 Champions"
     )
-    if n1 and n2:
+    gap = None
+    if first.get("nett") is not None and second is not None and second.get("nett") is not None:
         try:
             gap = abs(float(first.get("nett")) - float(second.get("nett")))
         except (TypeError, ValueError):
             gap = None
-        if gap == 1:
-            body = (
-                f"{a} took the title on {n1} nett, just one point ahead of {b}"
-            )
-            if c and n3:
-                body += f", with {c} third on {n3}"
-            body += "."
-        else:
-            body = f"{a} took the title on {n1} nett"
-            if b and n2:
-                body += f", ahead of {b} on {n2}"
-            if c and n3:
-                body += f", with {c} third on {n3}"
-            body += "."
-    else:
-        body = a
-        if b:
-            body += f", {b}"
-        if c:
-            body += f", {c}"
-        body += "."
+    wins, _s, _t = _score_places(first.get("race_scores"))
+    races = int(first.get("races_sailed") or 0) or _n_scores(first.get("race_scores"))
+    dominant = bool(races and wins >= max(3, (races + 1) // 2))
+    human = False
+    body = ""
+    if p1 and p2 and gap == 1:
+        human = True
+        body = f"{a} won on {p1}, just 1 point ahead of {b}."
+        if c and p3:
+            body += f" {c} {_third_verb(third)} 3rd on {p3}."
+    elif p1 and p2 and gap is not None and 0 < gap <= 2:
+        human = True
+        pts_word = "point" if gap == 1 else "points"
+        body = f"{a} won on {p1}, {_fmt_nett(gap)} {pts_word} ahead of {b}."
+        if c and p3:
+            body += f" {c} {_third_verb(third)} 3rd on {p3}."
+    elif dominant and p1:
+        human = True
+        body = f"{a} won on {p1}, taking {wins} of {races} races."
+        if b and p2:
+            body += f" {b} {_third_verb(second)} 2nd on {p2}."
+        if c and p3:
+            body += f" {c} {_third_verb(third)} 3rd on {p3}."
+    if not human:
+        medals = [_podium_medal_line(row) for row in podium if _podium_medal_line(row)]
+        if not medals:
+            return ""
+        body = " ".join(medals)
+    returning = (card.get("returning") or "").strip()
+    if returning:
+        body = f"{body} {returning}".strip()
     return _story_wrap(logo, title, body, "Results")
 
 
@@ -1102,6 +1145,8 @@ def fetch_overall_podium(cur, regatta_id: str) -> list[dict]:
     extra += ", crew_sa_sailing_id::text AS crew_id" if "crew_sa_sailing_id" in cols else ", NULL::text AS crew_id"
     extra += ", nett_points_raw AS nett" if "nett_points_raw" in cols else ", NULL::numeric AS nett"
     extra += ", result_id" if "result_id" in cols else ", NULL::bigint AS result_id"
+    extra += ", race_scores" if "race_scores" in cols else ", NULL::jsonb AS race_scores"
+    extra += ", races_sailed" if "races_sailed" in cols else ", NULL::int AS races_sailed"
     try:
         cur.execute(
             f"""
@@ -1150,6 +1195,9 @@ def fetch_overall_podium(cur, regatta_id: str) -> list[dict]:
                 "crew_href": "",
                 "nett": r.get("nett"),
                 "block_id": str(r.get("block_id") or ""),
+                "result_id": r.get("result_id"),
+                "race_scores": r.get("race_scores"),
+                "races_sailed": r.get("races_sailed"),
             }
         )
     resolve_podium_hrefs(cur, out)
@@ -1268,26 +1316,34 @@ def resolve_podium_hrefs(cur, podium: list[dict]) -> list[dict]:
     return podium
 
 
-_MIDMAR_CUP_ID = re.compile(r"midmar[\s_-]*cup", re.I)
-_NOT_MIDMAR_CUP = re.compile(
-    r"\b(nationals?|regionals?|championships?|champs?|grand\s*slam|triple\s*crown|6hr)\b",
-    re.I,
-)
+_EVENT_MARK = re.compile(r"\b(cup|nationals?|championships?|champs?|open|week)\b", re.I)
 
 
-def is_midmar_cup_event(name: str, rid: str) -> bool:
-    """True only for Midmar Cup identity — not HMYC hosting or Hunter Nationals."""
-    blob = f"{name or ''} {rid or ''}"
-    if not _MIDMAR_CUP_ID.search(blob):
-        return False
-    if _NOT_MIDMAR_CUP.search(name or "") and not _MIDMAR_CUP_ID.search(name or ""):
-        return False
-    return True
+def _event_identity_key(name: str) -> str:
+    """Year-stripped event identity. Dates/years never participate in the match."""
+    s = re.sub(r"^\d{4}-\d{2}-\d{2}\s+", "", (name or "").strip())
+    return _canon_series_key(s)
 
 
 def find_same_event_editions(cur, name: str, rid: str) -> list[dict]:
-    """Previous editions of the same named cup. Empty when identity is not established."""
-    if cur is None or not is_midmar_cup_event(name, rid):
+    """Previous editions of the same named event. Exact identity key only — no fuzzy titles."""
+    key = _event_identity_key(name)
+    tokens = key.split()
+    generic = {
+        "cup",
+        "national",
+        "nationals",
+        "championship",
+        "championships",
+        "champs",
+        "open",
+        "week",
+        "sailing",
+        "regatta",
+        "event",
+    }
+    distinctive = [t for t in tokens if t not in generic]
+    if cur is None or not key or len(tokens) < 2 or not _EVENT_MARK.search(key) or not distinctive:
         return []
     try:
         cur.execute(
@@ -1296,15 +1352,11 @@ def find_same_event_editions(cur, name: str, rid: str) -> list[dict]:
                    (SELECT COUNT(*) FROM results res WHERE res.regatta_id = r.regatta_id) AS n
             FROM regattas r
             WHERE r.regatta_id <> %s
-              AND (
-                r.event_name ILIKE %s
-                OR r.event_name ILIKE %s
-                OR r.regatta_id ILIKE %s
-                OR r.regatta_id ILIKE %s
-              )
+              AND r.event_name IS NOT NULL
+              AND BTRIM(r.event_name) <> ''
             ORDER BY r.start_date DESC NULLS LAST
             """,
-            (rid, "%midmar%cup%", "%cup%midmar%", "%midmar-cup%", "%midmar_cup%"),
+            (rid,),
         )
     except Exception:
         try:
@@ -1316,7 +1368,7 @@ def find_same_event_editions(cur, name: str, rid: str) -> list[dict]:
     for r in cur.fetchall() or []:
         prid = str(r.get("regatta_id") or "").strip()
         en = str(r.get("event_name") or "")
-        if not prid or not is_midmar_cup_event(en, prid):
+        if not prid or _event_identity_key(en) != key:
             continue
         if int(r.get("n") or 0) <= 0:
             continue
@@ -1429,9 +1481,9 @@ def returning_line(podium: list[dict], current_ids: set[str]) -> str:
         href = str(p.get("href") or "").strip()
         nm = html_module.escape(p["name"])
         if href.startswith("/sailor/"):
-            names.append(f'<a href="{html_module.escape(href, quote=True)}">{nm}</a> returns in 2026')
+            names.append(f'<a href="{html_module.escape(href, quote=True)}">{nm}</a> returns')
         else:
-            names.append(f"{nm} returns in 2026")
+            names.append(f"{nm} returns")
     return names[0] if names else ""
 
 
@@ -1459,12 +1511,35 @@ def _score_places(scores: Any) -> tuple[int, int, int]:
     return wins, seconds, thirds
 
 
-def _is_hunter_class_blob(*parts: Any) -> bool:
-    blob = " ".join(str(p or "") for p in parts).lower()
-    return "hunter" in blob
+def _class_key(name: str) -> str:
+    s = re.sub(r"\s+", " ", (name or "").strip().lower())
+    s = re.sub(r"\s+(fleet|class)$", "", s).strip()
+    return s
 
 
-def _is_hunter_title_event(event_name: str) -> bool:
+def _class_keys(classes: list[str]) -> list[str]:
+    keys = []
+    for c in classes or []:
+        k = _class_key(c)
+        if k and k not in {"fleet", "event", "open"} and k not in keys:
+            keys.append(k)
+    return keys
+
+
+def _same_class(fields: list[Any], keys: list[str]) -> bool:
+    blobs = [_class_key(str(f or "")) for f in fields if f]
+    for key in keys:
+        if not key:
+            continue
+        for blob in blobs:
+            if not blob:
+                continue
+            if key == blob or key in blob or blob in key:
+                return True
+    return False
+
+
+def _is_title_event(event_name: str) -> bool:
     en = (event_name or "").lower()
     if re.search(
         r"\b(6hr|9hr|endurance|grand\s*slam|triple\s*crown|azalea|memorial|vulcan|leopard|challenge)\b",
@@ -1474,20 +1549,23 @@ def _is_hunter_title_event(event_name: str) -> bool:
     return bool(re.search(r"national|regional", en))
 
 
-def _hunter_event_label(event_name: str, start: Any, fleet_label: str = "") -> str:
+def _class_event_label(event_name: str, start: Any, class_name: str = "", fleet_label: str = "") -> str:
     sd = _as_date(start)
     year = sd.year if sd else None
     en = (event_name or "").strip()
     low = en.lower()
+    cls = (class_name or fleet_label or "").strip()
+    cls = re.sub(r"\s+(fleet|class)$", "", cls, flags=re.I).strip()
     if year and re.search(r"regional", low):
-        if "kzn" in low:
-            return f"{year} KZN Hunter 19 Regionals"
-        return f"{year} Hunter 19 Regionals"
-    if year and re.search(r"national", low):
-        if re.match(r"^\d{4}\s+Hunters?\s+Nationals", en):
-            return en
-        return f"{year} Hunter Nationals"
-    return en or (fleet_label or "Hunter 19")
+        region = "KZN " if re.search(r"\bkzn\b", low) else ""
+        if cls:
+            return f"{year} {region}{cls} Regionals".replace("  ", " ").strip()
+    if year and re.search(r"national", low) and cls:
+        return f"{year} {cls} Nationals"
+    cleaned = re.sub(r"^\d{4}-\d{2}-\d{2}\s+", "", en)
+    if year and cleaned and not cleaned.startswith(str(year)):
+        return f"{year} {cleaned}"
+    return cleaned or en or cls
 
 
 def _place_phrase(wins: int, seconds: int, thirds: int) -> str:
@@ -1514,13 +1592,14 @@ def fetch_same_class_form_html(
     entered: list[dict],
     current_rid: str,
     logo: str = "",
-) -> str:
-    """Same-class history of current entrants. Hunter-only when the card is Hunter. No entry dump."""
+) -> tuple[str, list[int]]:
+    """Same-class history of current entrants. Empty if nothing worthwhile. Never dumps entries."""
     if cur is None or not entered:
-        return ""
-    class_blob = " ".join(classes or []).lower()
-    if "hunter" not in class_blob and "midmar" not in (current_rid or "").lower():
-        return ""
+        return "", []
+    keys = _class_keys(classes)
+    if not keys:
+        return "", []
+    class_name = classes[0]
     people: list[dict] = []
     ids: list[int] = []
     for e in entered:
@@ -1536,12 +1615,19 @@ def fetch_same_class_form_html(
         if cid.isdigit():
             ids.append(int(cid))
     if not ids:
-        return ""
+        return "", []
+    like_clauses = []
+    like_args: list[Any] = []
+    for k in keys:
+        like_clauses.append(
+            "(res.class_canonical ILIKE %s OR res.class_original ILIKE %s OR res.fleet_label ILIKE %s)"
+        )
+        like_args.extend([f"%{k}%", f"%{k}%", f"%{k}%"])
     try:
         cur.execute(
-            """
-            SELECT res.regatta_id, r.event_name, r.start_date, res.block_id, res.fleet_label,
-                   res.class_canonical, res.class_original, res.rank,
+            f"""
+            SELECT res.result_id, res.regatta_id, r.event_name, r.start_date, res.block_id,
+                   res.fleet_label, res.class_canonical, res.class_original, res.rank,
                    res.helm_name, res.helm_sa_sailing_id::text AS helm_id,
                    res.crew_name, res.crew_sa_sailing_id::text AS crew_id,
                    res.boat_name, res.race_scores
@@ -1549,13 +1635,10 @@ def fetch_same_class_form_html(
             JOIN regattas r ON r.regatta_id = res.regatta_id
             WHERE res.regatta_id <> %s
               AND (res.helm_sa_sailing_id = ANY(%s) OR res.crew_sa_sailing_id = ANY(%s))
-              AND (
-                res.class_canonical ILIKE %s OR res.class_original ILIKE %s
-                OR res.fleet_label ILIKE %s
-              )
+              AND ({" OR ".join(like_clauses)})
             ORDER BY r.start_date DESC NULLS LAST, res.result_id
             """,
-            (current_rid, ids, ids, "%hunter%", "%hunter%", "%hunter%"),
+            [current_rid, ids, ids, *like_args],
         )
         rows = list(cur.fetchall() or [])
     except Exception:
@@ -1563,52 +1646,65 @@ def fetch_same_class_form_html(
             cur.connection.rollback()
         except Exception:
             pass
-        return ""
+        return "", []
     rows = [
         r
         for r in rows
-        if _is_hunter_class_blob(r.get("class_canonical"), r.get("class_original"), r.get("fleet_label"))
+        if _same_class(
+            [r.get("class_canonical"), r.get("class_original"), r.get("fleet_label")],
+            keys,
+        )
         and not _CATEGORY_BLOCK_RE.search(str(r.get("block_id") or ""))
     ]
     current_ids = {str(i) for i in ids}
     by_person = {str(p.get("sailor_id") or ""): p for p in people if p.get("sailor_id")}
+    evidence: list[int] = []
 
     titles: dict[str, list[dict]] = {}
     for r in rows:
         if int(r.get("rank") or 0) != 1:
             continue
-        if not _is_hunter_title_event(str(r.get("event_name") or "")):
+        if not _is_title_event(str(r.get("event_name") or "")):
             continue
-        if not _is_hunter_class_blob(r.get("fleet_label"), r.get("class_canonical"), r.get("event_name")):
+        if not _same_class(
+            [r.get("fleet_label"), r.get("class_canonical"), r.get("class_original")],
+            keys,
+        ):
             continue
-        for role, sid in (("helm", r.get("helm_id")), ("crew", r.get("crew_id"))):
+        for sid in (r.get("helm_id"), r.get("crew_id")):
             sid = str(sid or "").strip()
             if sid not in current_ids:
                 continue
             titles.setdefault(sid, []).append(
                 {
                     "url": f"/regatta/{r['regatta_id']}",
-                    "label": _hunter_event_label(str(r.get("event_name") or ""), r.get("start_date"), str(r.get("fleet_label") or "")),
+                    "label": _class_event_label(
+                        str(r.get("event_name") or ""),
+                        r.get("start_date"),
+                        class_name,
+                        str(r.get("fleet_label") or ""),
+                    ),
                     "year": (_as_date(r.get("start_date")) or date.min).year,
                     "regatta_id": r["regatta_id"],
+                    "result_id": r.get("result_id"),
                 }
             )
-    # de-dupe titles per sailor by regatta
     for sid, lst in list(titles.items()):
-        seen = set()
+        seen_rid = set()
+        seen_lab = set()
         uniq = []
         for t in sorted(lst, key=lambda x: x["year"]):
-            if t["regatta_id"] in seen:
+            lab = (t["year"], t["label"])
+            if t["regatta_id"] in seen_rid or lab in seen_lab:
                 continue
-            seen.add(t["regatta_id"])
+            seen_rid.add(t["regatta_id"])
+            seen_lab.add(lab)
             uniq.append(t)
         titles[sid] = uniq
 
     title_sid = ""
     if titles:
         title_sid = sorted(titles.keys(), key=lambda s: (-len(titles[s]), s))[0]
-        if len(titles[title_sid]) < 1:
-            title_sid = ""
 
     nats_row = None
     for r in rows:
@@ -1616,7 +1712,10 @@ def fetch_same_class_form_html(
             continue
         if re.search(r"regional|6hr|9hr|endurance|challenge", str(r.get("event_name") or ""), re.I):
             continue
-        if not _is_hunter_class_blob(r.get("fleet_label"), r.get("class_canonical"), r.get("event_name")):
+        if not _same_class(
+            [r.get("fleet_label"), r.get("class_canonical"), r.get("class_original")],
+            keys,
+        ):
             continue
         if r.get("rank") is None:
             continue
@@ -1649,6 +1748,8 @@ def fetch_same_class_form_html(
         named = []
         for t in titles[title_sid]:
             named.append(f'<a href="{_esc(t["url"])}">{_esc_text(t["label"])}</a>')
+            if t.get("result_id"):
+                evidence.append(int(t["result_id"]))
         if who and named:
             if len(named) == 1:
                 bits.append(f"{who} has won the {named[0]}")
@@ -1657,7 +1758,12 @@ def fetch_same_class_form_html(
             else:
                 bits.append(f"{who} has won the {', the '.join(named[:-1])} and the {named[-1]}")
 
-    if nats_row:
+    worthwhile_recent = bool(
+        nats_row
+        and int(nats_row.get("rank") or 99) <= 8
+        and (fleet_n >= 8 or int(nats_row.get("rank") or 99) <= 3)
+    )
+    if worthwhile_recent:
         helm_id = str(nats_row.get("helm_id") or "").strip()
         crew_id = str(nats_row.get("crew_id") or "").strip()
         helm_nm = str(nats_row.get("helm_name") or "").strip()
@@ -1674,9 +1780,10 @@ def fetch_same_class_form_html(
                 "crew_href": (crew_p or {}).get("href") or "",
             }
         )
-        label = _hunter_event_label(
+        label = _class_event_label(
             str(nats_row.get("event_name") or ""),
             nats_row.get("start_date"),
+            class_name,
             str(nats_row.get("fleet_label") or ""),
         )
         url = f"/regatta/{nats_row['regatta_id']}"
@@ -1694,16 +1801,21 @@ def fetch_same_class_form_html(
             ordinal = f"{rk}th"
         if team and rk:
             extra = f", with {place}" if place else ""
+            boats = f"{of} boats" if fleet_n else of
+            verb = "arrive" if "/" in team else "arrives"
             bits.append(
-                f"{team} arrive after finishing {ordinal}{of} at the "
+                f"{team} {verb} after finishing {ordinal}{boats} at the "
                 f'<a href="{_esc(url)}">{_esc_text(label)}</a>{extra}'
             )
+            if nats_row.get("result_id"):
+                evidence.append(int(nats_row["result_id"]))
 
     if not bits:
-        return ""
+        return "", []
     body = ". ".join(bits) + "."
-    title = '<span class="landing-event-last-label">🏆 Hunter pedigree</span>'
-    return _story_wrap(logo, title, body, "Hunter")
+    label = _esc_text(class_name) if class_name else "Class"
+    title = f'<span class="landing-event-last-label">🏆 {label} form</span>'
+    return _story_wrap(logo, title, body, class_name or "Class"), evidence
 
 
 def card_from_row(row: dict, *, cur=None, today: Optional[date] = None, idx: Optional[dict] = None) -> dict:
@@ -1739,8 +1851,9 @@ def card_from_row(row: dict, *, cur=None, today: Optional[date] = None, idx: Opt
         podium = fetch_overall_podium(cur, prev_rid)
         returning = returning_line(podium, fetch_current_sailor_ids(cur, rid))
     class_form_html = ""
+    class_form_ids: list[int] = []
     if cur is not None and not podium:
-        class_form_html = fetch_same_class_form_html(
+        class_form_html, class_form_ids = fetch_same_class_form_html(
             cur,
             classes=classes,
             entered=entered,
@@ -1780,6 +1893,7 @@ def card_from_row(row: dict, *, cur=None, today: Optional[date] = None, idx: Opt
         "returning": returning,
         "entered": entered,
         "class_form_html": class_form_html,
+        "source_result_ids": [int(p["result_id"]) for p in podium if p.get("result_id")] + class_form_ids,
         "scored_races": scored,
         "result_status": row.get("result_status") or "",
         "countdown": countdown_label(
@@ -1835,6 +1949,51 @@ def _previous_editions_from_catalogue(slug: str, current_rid: str) -> list[dict]
             continue
         out.append({"url": url, "year": year})
     return out
+
+
+def fetch_regatta_row(cur, regatta_id: str) -> Optional[dict]:
+    if cur is None or not regatta_id:
+        return None
+    cur.execute(
+        """
+        SELECT r.regatta_id, r.event_name, r.start_date, r.end_date, r.result_status,
+               r.as_at_time, r.host_club_id,
+               TRIM(COALESCE(c.club_abbrev, '')) AS club_abbrev,
+               TRIM(COALESCE(c.club_fullname, '')) AS club_fullname
+        FROM regattas r
+        LEFT JOIN clubs c ON c.club_id = r.host_club_id
+        WHERE r.regatta_id = %s
+        """,
+        (regatta_id,),
+    )
+    row = cur.fetchone()
+    return dict(row) if row else None
+
+
+def generate_story_for_regatta(cur, regatta_id: str, *, today: Optional[date] = None, idx: Optional[dict] = None) -> dict:
+    """Reusable packet: story HTML + source result IDs. No event-specific branches."""
+    row = fetch_regatta_row(cur, regatta_id)
+    if not row:
+        return {"regatta_id": regatta_id, "story_html": "", "story_text": "", "source_result_ids": [], "path": "none"}
+    card = card_from_row(row, cur=cur, today=today or date.today(), idx=idx if idx is not None else load_catalogue_index())
+    html = build_story_html(card)
+    text = re.sub(r"<[^>]+>", " ", html)
+    text = re.sub(r"\s+", " ", text).strip()
+    path = "none"
+    if card.get("podium"):
+        path = "previous_overall"
+    elif card.get("class_form_html"):
+        path = "same_class"
+    return {
+        "regatta_id": regatta_id,
+        "event_name": card.get("name"),
+        "classes": card.get("classes") or [],
+        "story_html": html,
+        "story_text": text,
+        "source_result_ids": card.get("source_result_ids") or [],
+        "path": path,
+        "previous": card.get("previous") or [],
+    }
 
 
 def wrap_section(slot: int, inner: str, aria: str, section_id: str, section_class: str) -> str:
