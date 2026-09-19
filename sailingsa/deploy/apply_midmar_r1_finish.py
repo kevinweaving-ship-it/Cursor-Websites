@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Midmar R1 finish through Penny 9 / Dani 10 / Jethro RET.
+"""Midmar R1: 11 entries after Megan DNS/DNC arrival scratch.
 
-Appendix A low-point + auto rank. Unfinished boats stay unscored. No invented DNC.
-Bryan = Paige Smith boat. Jethro = 297 boat. 200 = unused sail 200/2000.
+Appendix A low-point. RET = entries+1, ranked last.
+6th other Craig (Sheba), 8th Craig Millar. Bryan = Paige 741. Jethro = 297 RET.
 """
 import json
 from datetime import datetime
@@ -23,8 +23,9 @@ PLACES = [
     (1218, "Paul Changuion", "3"),
     (1221, "Tony Cockerill", "4"),
     (21715, "Gust Funke", "5"),
-    (177, "Craig Millar", "6"),
+    (14193, "Shalin Naidoo", "6"),  # Craig Deverson boat — not Craig Millar
     (22984, "Paige Smith", "7"),  # Bryan Paxman boat
+    (177, "Craig Millar", "8"),
     (18659, "Penny Macpherson", "9"),
     (15579, "Daniela Cantarelli", "10"),
 ]
@@ -115,6 +116,46 @@ def main() -> None:
     rows = cur.fetchall()
     if not rows:
         raise SystemExit("NO_RESULTS")
+
+    megan = [
+        r
+        for r in rows
+        if int(r["helm_sa_sailing_id"] or 0) == 14790
+        or (
+            "megan" in (r["helm_name"] or "").casefold()
+            and "gauld" in (r["helm_name"] or "").casefold()
+        )
+    ]
+    if len(megan) != 1:
+        raise SystemExit("REFUSE Megan Gauld row count " + str(len(megan)))
+    mg = megan[0]
+    live_m = (mg["helm_name"] or "").strip()
+    if "megan" not in live_m.casefold() or "gauld" not in live_m.casefold():
+        raise SystemExit("REFUSE Megan name mismatch " + live_m)
+    cur.execute("DELETE FROM results WHERE result_id=%s AND regatta_id=%s", (mg["result_id"], RID))
+    print("DELETED_RESULT", mg["result_id"], live_m, mg.get("sail_number"), cur.rowcount)
+    try:
+        cur.execute(
+            "DELETE FROM entries WHERE regatta_id=%s AND helm_sas_id::text = '14790'",
+            (RID,),
+        )
+        print("DELETED_ENTRY", cur.rowcount)
+    except Exception as e:
+        conn.rollback()
+        print("ENTRY_DELETE_SKIP", type(e).__name__, e)
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute(
+        """
+        SELECT result_id, helm_name, helm_sa_sailing_id, sail_number, boat_name,
+               crew_name, crew2_name, race_scores
+        FROM results WHERE regatta_id=%s ORDER BY result_id
+        """,
+        (RID,),
+    )
+    rows = cur.fetchall()
+    print("ENTRIES_NOW", len(rows))
+    if len(rows) != 11:
+        raise SystemExit("REFUSE expected 11 results after Megan delete, got " + str(len(rows)))
     by_sid = {int(r["helm_sa_sailing_id"]): r for r in rows if r["helm_sa_sailing_id"] is not None}
 
     for sid, name, _place in PLACES:
@@ -134,16 +175,39 @@ def main() -> None:
         raise SystemExit("REFUSE Bryan boat missing Bryan crew: " + crew_blob)
     print("BRYAN_BOAT", bryan_row["helm_name"], bryan_row["sail_number"])
 
-    used_ids = {by_sid[sid]["result_id"] for sid, _, _ in PLACES}
-    eighth = resolve_sail_200(rows, used_ids)
-    places = list(PLACES)
-    if eighth:
-        helm = (eighth["helm_name"] or "").strip() or "sail 200"
-        places.append((int(eighth["helm_sa_sailing_id"]), helm, "8"))
-        print("8TH_SAIL", eighth["sail_number"], helm, eighth["boat_name"])
-    else:
-        print("8TH_SAIL_200_ALREADY_PLACED_OR_MISSING")
+    millar = by_sid[177]
+    print("MILLAR_8TH", millar["helm_name"], millar["sail_number"], millar["boat_name"])
 
+    sixth = by_sid[14193]
+    sixth_blob = " ".join(
+        str(sixth.get(k) or "") for k in ("helm_name", "crew_name", "crew2_name")
+    ).casefold()
+    if "craig" not in sixth_blob:
+        other = []
+        for row in rows:
+            if int(row["helm_sa_sailing_id"] or 0) == 177:
+                continue
+            blob = " ".join(
+                str(row.get(k) or "") for k in ("helm_name", "crew_name", "crew2_name")
+            ).casefold()
+            if "craig" in blob:
+                other.append(row)
+        print("SIXTH_NO_CRAIG_ON_SHALIN", sixth["helm_name"], sixth.get("crew_name"), sixth.get("crew2_name"))
+        if len(other) == 1:
+            sixth = other[0]
+            print("SIXTH_OTHER_CRAIG", sixth["helm_name"], sixth["sail_number"])
+        else:
+            print("SIXTH_KEEP_SHALIN_748")
+    else:
+        print("SIXTH_CRAIG_BOAT", sixth["helm_name"], sixth["sail_number"], sixth.get("crew_name"), sixth.get("crew2_name"))
+
+    places = []
+    for sid, name, place in PLACES:
+        if place == "6":
+            sid = int(sixth["helm_sa_sailing_id"])
+            name = (sixth["helm_name"] or name).strip()
+            by_sid[sid] = sixth
+        places.append((sid, name, place))
     used_ids = {by_sid[sid]["result_id"] for sid, _, _ in places}
     jethro = resolve_jethro_ret(rows, used_ids)
     jethro_sid = int(jethro["helm_sa_sailing_id"])
@@ -162,7 +226,10 @@ def main() -> None:
         if isinstance(scores, str):
             scores = json.loads(scores)
         scores = dict(scores)
-        scores[RACE] = place
+        store = place
+        if place == "RET":
+            store = str(int(entries_plus_one)) + "\nRET"
+        scores[RACE] = store
         n_races = len([k for k in scores if str(k).upper().startswith("R") and scores[k]])
         discard = n_races // 5
         total, nett, sailed = score_totals(scores, discard, entries_plus_one)
@@ -234,7 +301,12 @@ def main() -> None:
         WITH ranked AS (
             SELECT result_id,
                    ROW_NUMBER() OVER (
-                       ORDER BY COALESCE(NULLIF(nett_points_raw, 0), 999999) ASC,
+                       ORDER BY CASE
+                                    WHEN COALESCE(race_scores->>'R1', '') ~* 'RET' THEN 2
+                                    WHEN nett_points_raw IS NULL OR nett_points_raw = 0 THEN 1
+                                    ELSE 0
+                                END ASC,
+                                COALESCE(NULLIF(nett_points_raw, 0), 999998) ASC,
                                 result_id ASC
                    ) AS new_rank
             FROM results
