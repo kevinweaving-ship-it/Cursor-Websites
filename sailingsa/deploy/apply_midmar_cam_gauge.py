@@ -7,14 +7,14 @@ import time
 API = Path("/var/www/sailingsa/api/api.py")
 JS_DEST = Path("/var/www/sailingsa/js/midmar-live-media.js")
 JS_SRC = Path("/tmp/midmar-live-media.js")
-MARK = "midmarwx8"
+MARK = "midmarwx9"
 
 
 def main() -> None:
     if not JS_SRC.is_file():
         raise SystemExit("MISSING_JS")
     js = JS_SRC.read_text()
-    if 'var JS_VER = "midmarwx8"' not in js or "width:54px" not in js:
+    if 'var JS_VER = "midmarwx9"' not in js or "width:54px" not in js:
         raise SystemExit("JS_BAD")
     if JS_DEST.is_file():
         ts = time.strftime("%Y%m%d_%H%M%S")
@@ -35,6 +35,7 @@ def main() -> None:
     print("BACKUP_API", bak)
     updated = api
     for old in (
+        "midmar-live-media.js?v=midmarwx8",
         "midmar-live-media.js?v=midmarwx7",
         "midmar-live-media.js?v=midmarwx6",
         "midmar-live-media.js?v=midmarwx5",
@@ -44,7 +45,7 @@ def main() -> None:
         "midmar-live-media.js?v=midmarwx1",
     ):
         if old in updated:
-            updated = updated.replace(old, "midmar-live-media.js?v=midmarwx8")
+            updated = updated.replace(old, "midmar-live-media.js?v=midmarwx9")
             print("API_VER", old, "->", MARK)
             break
     if updated == api:

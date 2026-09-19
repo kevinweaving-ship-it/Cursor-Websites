@@ -15,7 +15,7 @@
   var WX_ID = "ssa-regatta-slot-card";
   var CAM_ID = "midmar-hmyc-cam";
   var CSS_ID = "midmar-live-media-css";
-  var JS_VER = "midmarwx8";
+  var JS_VER = "midmarwx9";
   var EVENT_PATH = "/regatta/" + RID;
   var STILL = "https://hmyccam1.nwsza.net/latest.jpg";
   var POLL_MS = 60000;
@@ -51,17 +51,17 @@
       ".midmar-hmyc-cam .mm-lipton-reels-cam-stamp [data-mm-cam-stamp-label]{font-weight:800;letter-spacing:.03em;}",
       ".midmar-hmyc-cam .mm-lipton-reels-cam-stamp [data-mm-cam-stamp-time]{font-weight:700;opacity:.95;}",
       ".midmar-hmyc-cam .midmar-cam-wx{display:none;}",
-      ".midmar-hmyc-cam.is-open .midmar-cam-wx{position:absolute;top:52px;right:28px;z-index:4;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:2px;min-width:0;padding:0;border:0;border-radius:0;background:none;color:#fff;text-align:center;text-shadow:0 1px 2px rgba(0,0,0,.85);box-sizing:border-box;}",
-      ".midmar-hmyc-cam .midmar-cam-wx-temp,.midmar-hmyc-cam .midmar-cam-wx-kn{display:block;width:100%;margin:0;padding:0;text-align:center;font:800 12px/1.1 Arial,Helvetica,sans-serif;letter-spacing:.02em;}",
+      ".midmar-hmyc-cam.is-open .midmar-cam-wx{position:absolute;top:52px;right:28px;z-index:4;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:2px;min-width:0;padding:0;border:0;border-radius:0;background:none;color:#000;text-align:center;text-shadow:0 0 3px #fff,0 1px 2px #fff;box-sizing:border-box;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-temp,.midmar-hmyc-cam .midmar-cam-wx-kn{display:block;width:100%;margin:0;padding:0;text-align:center;font:800 12px/1.1 Arial,Helvetica,sans-serif;letter-spacing:.02em;color:#000;}",
       ".midmar-hmyc-cam .midmar-cam-wx-gauge{display:block;width:54px;height:54px;margin:0 auto;}",
       ".midmar-hmyc-cam .midmar-cam-wx-gauge svg{display:block;width:54px;height:54px;}",
-      ".midmar-hmyc-cam .midmar-cam-wx-gauge .dt{stroke:#cbd5e1;stroke-width:1;}",
-      ".midmar-hmyc-cam .midmar-cam-wx-gauge .dt.card{stroke:#fff;stroke-width:1.4;}",
-      ".midmar-hmyc-cam .midmar-cam-wx-gauge .darc{fill:none;stroke:#93c5fd;stroke-width:5;}",
-      ".midmar-hmyc-cam .midmar-cam-wx-gauge .dhead{fill:#3b82f6;}",
-      ".midmar-hmyc-cam .midmar-cam-wx-gauge .dpt{font:700 16px Arial,Helvetica,sans-serif;fill:#fff;}",
-      ".midmar-hmyc-cam .midmar-cam-wx-gauge .ddeg{font:700 12px Arial,Helvetica,sans-serif;fill:#fff;}",
-      ".midmar-hmyc-cam .midmar-cam-wx-gauge .dcard{font:700 10px Arial,Helvetica,sans-serif;fill:#e2e8f0;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-gauge .dt{stroke:#000;stroke-width:1;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-gauge .dt.card{stroke:#000;stroke-width:1.4;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-gauge .darc{fill:none;stroke:#12b028;stroke-width:5;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-gauge .dhead{fill:#000;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-gauge .dpt{font:700 16px Arial,Helvetica,sans-serif;fill:#000;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-gauge .ddeg{font:700 12px Arial,Helvetica,sans-serif;fill:#000;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-gauge .dcard{font:700 10px Arial,Helvetica,sans-serif;fill:#000;}",
       "@media screen and (orientation:portrait) and (max-width:767px){",
       ".regatta-page > .midmar-live-media .midmar-hmyc-cam:not(.is-open){width:100vw;max-width:100vw;margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw);border-left:0;border-right:0;border-radius:0;}",
       "}",
@@ -290,9 +290,7 @@
         hp[1].toFixed(1) +
         ") rotate(" +
         (d + 180) +
-        ')"><path class="dhead" style="fill:' +
-        col +
-        '" d="M0 -10L8 5L0 2L-8 5Z"/></g>';
+        ')"><path class="dhead" d="M0 -10L8 5L0 2L-8 5Z"/></g>';
     }
     svg +=
       '<text class="dpt" x="50" y="46" text-anchor="middle" dominant-baseline="central">' +
