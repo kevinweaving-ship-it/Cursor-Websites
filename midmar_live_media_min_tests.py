@@ -7,12 +7,16 @@ ROOT = Path(__file__).resolve().parent
 
 def test_midmar_cam_expands_not_redirects():
     js = (ROOT / "js/midmar-live-media.js").read_text(encoding="utf-8")
-    assert "midmarwx3" in js
+    assert "midmarwx4" in js
     assert "hmyccam1.nwsza.net/latest.jpg" in js
     assert "button type=\"button\" class=\"cam-frame\"" in js
     assert "is-open" in js
-    assert "orientation:landscape" in js
     assert "position:fixed" in js
+    assert "mm-lipton-reels-hide" in js
+    assert "data-mm-hide" in js
+    assert ">Hide<" in js
+    assert "site-header{display:none!important;}" in js
+    assert "backToEvent" in js
     assert "agromet.ukzn.ac.za" not in js
     assert "target=\"_blank\"" not in js
     assert "<a class=\"cam-frame\"" not in js

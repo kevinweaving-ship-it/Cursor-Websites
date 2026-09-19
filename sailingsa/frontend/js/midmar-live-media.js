@@ -2,8 +2,8 @@
  * Midmar Cup Event URL — HMYC venue weather + club camera.
  * Place: between event header and fleet header.
  * Weather is identical to /club/hmyc (agromet-midmar).
- * Camera is the HMYC JPEG snapshot. Click expands to view; landscape = fullscreen.
- * Do not link out to the Agromet weather page.
+ * Camera is the HMYC JPEG snapshot. Click = fullscreen cam only (no header).
+ * Hide (top right) returns to the event page. Do not link out to Agromet.
  */
 (function () {
   "use strict";
@@ -15,7 +15,8 @@
   var WX_ID = "ssa-regatta-slot-card";
   var CAM_ID = "midmar-hmyc-cam";
   var CSS_ID = "midmar-live-media-css";
-  var JS_VER = "midmarwx3";
+  var JS_VER = "midmarwx4";
+  var EVENT_PATH = "/regatta/" + RID;
   var STILL = "https://hmyccam1.nwsza.net/latest.jpg";
   var POLL_MS = 60000;
 
@@ -36,18 +37,21 @@
       ".regatta-page > .midmar-live-media .midmar-hmyc-cam{order:1;margin-top:10px;width:100%;max-width:100%;padding:0!important;overflow:hidden;background:#000;}",
       ".midmar-hmyc-cam .cam-frame{position:relative;display:block;width:100%;aspect-ratio:16/9;background:#000;overflow:hidden;margin:0;padding:0;border:0;cursor:pointer;-webkit-tap-highlight-color:transparent;}",
       ".midmar-hmyc-cam .cam-frame img{display:block;width:100%;height:118%;margin-top:-10%;object-fit:cover;object-position:center bottom;background:#000;}",
-      ".midmar-hmyc-cam.is-open .cam-frame img{height:100%;margin-top:0;object-fit:contain;object-position:center center;}",
+      "body:has(.midmar-hmyc-cam.is-open) .site-header{display:none!important;}",
+      "body.midmar-cam-open{overflow:hidden;}",
+      ".midmar-hmyc-cam.is-open{position:fixed;inset:0;z-index:2147483000;width:100vw;max-width:100vw;height:100vh;height:100dvh;margin:0;border:0;border-radius:0;background:#000;overflow:hidden;}",
+      ".midmar-hmyc-cam.is-open .cam-frame{height:100%;aspect-ratio:auto;cursor:default;}",
+      ".midmar-hmyc-cam.is-open .cam-frame img{width:100%;height:100%;margin:0;object-fit:contain;object-position:center center;}",
+      ".midmar-hmyc-cam .mm-lipton-reels-expanded-bar{display:none;}",
+      ".midmar-hmyc-cam.is-open .mm-lipton-reels-expanded-bar{display:flex;position:absolute;top:0;right:0;z-index:6;justify-content:flex-end;align-items:flex-start;margin:0;padding:0;pointer-events:none;}",
+      ".midmar-hmyc-cam .mm-lipton-reels-hide{display:none;}",
+      ".midmar-hmyc-cam.is-open .mm-lipton-reels-hide{display:flex;align-items:center;justify-content:center;min-height:44px;min-width:44px;padding:10px 12px;margin:0;border:0;background:transparent;cursor:pointer;pointer-events:auto;color:#dc2626!important;font-size:0.95rem!important;font-weight:800!important;letter-spacing:.02em;font-family:Arial,Helvetica,sans-serif;}",
       ".midmar-hmyc-cam .mm-lipton-reels-cam-stamp{position:absolute;left:8px;top:8px;z-index:3;pointer-events:none;display:flex;flex-direction:row;align-items:center;gap:5px;padding:2px 8px;border-radius:4px;background:rgba(0,16,24,.72);color:#fff;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.85);font:700 11px/1.2 Arial,Helvetica,sans-serif;}",
       ".midmar-hmyc-cam .mm-lipton-reels-cam-stamp-dot{flex:0 0 auto;width:8px;height:8px;border-radius:50%;background:#94a3b8;}",
       ".midmar-hmyc-cam .mm-lipton-reels-cam-stamp [data-mm-cam-stamp-label]{font-weight:800;letter-spacing:.03em;}",
       ".midmar-hmyc-cam .mm-lipton-reels-cam-stamp [data-mm-cam-stamp-time]{font-weight:700;opacity:.95;}",
       "@media screen and (orientation:portrait) and (max-width:767px){",
-      ".regatta-page > .midmar-live-media .midmar-hmyc-cam{width:100vw;max-width:100vw;margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw);border-left:0;border-right:0;border-radius:0;}",
-      "}",
-      "@media screen and (orientation:landscape){",
-      ".midmar-hmyc-cam.is-open{position:fixed;inset:0;z-index:3600;width:100vw;max-width:100vw;height:100vh;margin:0;border:0;border-radius:0;background:#000;}",
-      ".midmar-hmyc-cam.is-open .cam-frame{height:100%;aspect-ratio:auto;}",
-      ".midmar-hmyc-cam.is-open .cam-frame img{width:100%;height:100%;margin:0;object-fit:contain;object-position:center center;}",
+      ".regatta-page > .midmar-live-media .midmar-hmyc-cam:not(.is-open){width:100vw;max-width:100vw;margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw);border-left:0;border-right:0;border-radius:0;}",
       "}",
       "@media print{.midmar-live-media{display:none!important}}",
     ].join("");
@@ -87,8 +91,26 @@
   function setOpen(cam, open) {
     cam.classList.toggle("is-open", !!open);
     cam.setAttribute("aria-expanded", open ? "true" : "false");
+    document.body.classList.toggle("midmar-cam-open", !!open);
     var frame = cam.querySelector(".cam-frame");
     if (frame) frame.setAttribute("aria-pressed", open ? "true" : "false");
+  }
+
+  function backToEvent(cam) {
+    setOpen(cam, false);
+    var path = EVENT_PATH;
+    var here = String((window.location && window.location.pathname) || "").replace(/\/+$/, "");
+    if (here !== path) {
+      window.location.href = path;
+      return;
+    }
+    if (window.location.hash) {
+      try {
+        window.history.replaceState(null, "", path);
+      } catch (e) {}
+    }
+    var host = document.getElementById(HOST_ID);
+    if (host && host.scrollIntoView) host.scrollIntoView({ block: "start" });
   }
 
   function makeCam() {
@@ -102,6 +124,9 @@
     cam.setAttribute("data-mm-cam-status", "/api/club-cam/hmyc");
     setOpen(cam, false);
     cam.innerHTML =
+      '<div class="mm-lipton-reels-expanded-bar">' +
+      '<button type="button" class="mm-lipton-reels-hide" data-mm-hide>Hide</button>' +
+      "</div>" +
       '<button type="button" class="cam-frame" aria-label="View HMYC club cam" aria-pressed="false">' +
       '<img alt="HMYC club cam" width="1600" height="900" decoding="async">' +
       '<div class="mm-lipton-reels-cam-stamp mm-lipton-reels-cam-stamp--off" data-mm-cam-stamp>' +
@@ -128,11 +153,19 @@
       frame.addEventListener("click", function (ev) {
         ev.preventDefault();
         ev.stopPropagation();
-        setOpen(cam, !cam.classList.contains("is-open"));
+        if (!cam.classList.contains("is-open")) setOpen(cam, true);
+      });
+    }
+    var hide = cam.querySelector("[data-mm-hide]");
+    if (hide) {
+      hide.addEventListener("click", function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        backToEvent(cam);
       });
     }
     document.addEventListener("keydown", function (ev) {
-      if (ev.key === "Escape" && cam.classList.contains("is-open")) setOpen(cam, false);
+      if (ev.key === "Escape" && cam.classList.contains("is-open")) backToEvent(cam);
     });
     paintCam(cam);
     window.setInterval(function () {
