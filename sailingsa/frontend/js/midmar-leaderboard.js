@@ -11,7 +11,7 @@
 
   var RID = '2026-09-19-hmyc-midmar-cup';
   var CARD_ID = 'midmar-leaderboard';
-  var CSS_ID = 'midmar-leaderboard-css-v8';
+  var CSS_ID = 'midmar-leaderboard-css-v9';
   var POLL_MS = 15000;
   /* Historical Hunter names, temp until confirmed. 2013 Essex Girl + 442 Scout confirmed. */
   var TEMP_BOATS = {
@@ -155,7 +155,12 @@
   function sailHtml(row) {
     var sn = String(row.sail_number || row.sail_no || row.sail || '').trim();
     if (!sn) return '';
-    return '<span class="midmar-lb-sail" title="Sail number">' + esc(sn) + '</span>';
+    var sl = slug(row.helm_name);
+    var href = sl ? '/sailor/' + sl : boatHref(row);
+    var inner = href
+      ? '<a href="' + esc(href) + '" title="Sail number">' + esc(sn) + '</a>'
+      : esc(sn);
+    return '<span class="midmar-lb-sail">' + inner + '</span>';
   }
 
   function sepHtml() {
@@ -201,7 +206,7 @@
   }
 
   function injectCss() {
-    ['midmar-leaderboard-css', 'midmar-leaderboard-css-v4', 'midmar-leaderboard-css-v5', 'midmar-leaderboard-css-v6', 'midmar-leaderboard-css-v7'].forEach(function (id) {
+    ['midmar-leaderboard-css', 'midmar-leaderboard-css-v4', 'midmar-leaderboard-css-v5', 'midmar-leaderboard-css-v6', 'midmar-leaderboard-css-v7', 'midmar-leaderboard-css-v8'].forEach(function (id) {
       var prev = document.getElementById(id);
       if (prev && prev.parentNode) prev.parentNode.removeChild(prev);
     });
@@ -249,9 +254,12 @@
       '.midmar-lb-medal{font-size:1rem;line-height:1;}' +
       '.midmar-lb-boat{flex:0 1 auto;font-weight:700;color:#001f3f;min-width:0;}' +
       '.midmar-lb-boat-temp,.midmar-lb-boat-temp a,.fleet-results-table td.midmar-boat-temp,' +
-      '.fleet-results-table td.midmar-boat-temp a{color:#94a3b8!important;font-weight:600;}' +
+      '.fleet-results-table td.midmar-boat-temp a{color:#94a3b8!important;font-weight:600;text-decoration:underline;}' +
       '.midmar-lb-sail{flex:0 0 auto;font-weight:800;color:#001f3f;white-space:nowrap;font-variant-numeric:tabular-nums;}' +
-      '.midmar-lb-boat a,.midmar-lb-club a,.midmar-lb-people a{color:#001f3f;text-decoration:none;}' +
+      '.midmar-lb-boat a,.midmar-lb-club a,.midmar-lb-people a,.midmar-lb-sail a,' +
+      '.midmar-lb .rs-club-with-logo a{color:#0000ee;text-decoration:underline;font-weight:600;}' +
+      '.midmar-lb-boat a:visited,.midmar-lb-club a:visited,.midmar-lb-people a:visited,' +
+      '.midmar-lb-sail a:visited,.midmar-lb .rs-club-with-logo a:visited{color:#0000ee;}' +
       '.midmar-lb-club{flex:0 0 auto;}' +
       '.midmar-lb-sep{flex:0 0 auto;align-self:stretch;width:0;margin:0 1px;' +
       'border-left:1px solid rgba(26,39,80,0.22);}' +
