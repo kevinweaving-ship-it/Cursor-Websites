@@ -17,15 +17,17 @@ def main() -> None:
     print("JS_OK", DEST.stat().st_size)
 
     mm = MM.read_text()
-    mm2 = mm.replace("midmar-leaderboard.js?v=mmlb6", "midmar-leaderboard.js?v=mmlb7")
+    mm2 = mm.replace("midmar-leaderboard.js?v=mmlb6", "midmar-leaderboard.js?v=mmlb8")
+    mm2 = mm2.replace("midmar-leaderboard.js?v=mmlb7", "midmar-leaderboard.js?v=mmlb8")
     if mm2 != mm:
         MM.write_text(mm2)
-        print("MM_VER mmlb7")
+        print("MM_VER mmlb8")
     else:
-        print("MM_VER_ALREADY", "mmlb7" in mm)
+        print("MM_VER_ALREADY", "mmlb8" in mm)
 
     api = API.read_text()
-    api2 = api.replace("midmar-leaderboard.js?v=mmlb6", "midmar-leaderboard.js?v=mmlb7")
+    api2 = api.replace("midmar-leaderboard.js?v=mmlb6", "midmar-leaderboard.js?v=mmlb8")
+    api2 = api2.replace("midmar-leaderboard.js?v=mmlb7", "midmar-leaderboard.js?v=mmlb8")
     if api2 != api:
         API.write_text(api2)
         print("API_TAG_OK")
