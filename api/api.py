@@ -23726,6 +23726,19 @@ def _wc_fleet_editable_cell(
     return f'<span class="wc-sa-edit-hide">{public_inner_html}</span>' + inp
 
 
+_MIDMAR_CUP_REGATTA_ID = "2026-09-19-hmyc-midmar-cup"
+
+
+def _midmar_fleet_header_results_status_html(regatta_id) -> str:
+    """Midmar fleet header, under sailed-line: Results are Provisional + date, no time."""
+    if str(regatta_id or "").strip() != _MIDMAR_CUP_REGATTA_ID:
+        return ""
+    return (
+        '<div class="sailed-line fleet-results-status">Results are Provisional</div>'
+        '<div class="sailed-line fleet-results-as-at">19 Sep 2026</div>'
+    )
+
+
 def _render_result_sheet_fleet(
     fleet: dict,
     standalone_class_page: bool = False,
@@ -24050,7 +24063,8 @@ def _render_result_sheet_fleet(
     return (
         f'<div class="fleet-section">'
         f'<div class="class-header"><div class="fleet-title-row">{fleet_header_html}</div>'
-        f'<div class="sailed-line">{html_module.escape(sailed_line)}</div></div>'
+        f'<div class="sailed-line">{html_module.escape(sailed_line)}</div>'
+        f"{_midmar_fleet_header_results_status_html(regatta_id)}</div>"
         f'<div class="table-wrapper">{table_html}</div></div>'
     )
 

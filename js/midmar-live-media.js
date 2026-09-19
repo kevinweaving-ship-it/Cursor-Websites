@@ -15,7 +15,7 @@
   var WX_ID = "ssa-regatta-slot-card";
   var CAM_ID = "midmar-hmyc-cam";
   var CSS_ID = "midmar-live-media-css";
-  var JS_VER = "midmarwx13";
+  var JS_VER = "midmarwx14";
   var EVENT_PATH = "/regatta/" + RID;
   var STILL = "https://hmyccam1.nwsza.net/latest.jpg";
   var POLL_MS = 60000;
@@ -69,8 +69,26 @@
       ".regatta-page > .midmar-live-media .midmar-hmyc-cam:not(.is-open){width:100vw;max-width:100vw;margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw);border-left:0;border-right:0;border-radius:0;}",
       "}",
       "@media print{.midmar-live-media{display:none!important}}",
+      ".class-header .fleet-results-status{margin-top:6px}",
+      ".class-header .fleet-results-as-at{margin-top:2px}",
     ].join("");
     document.head.appendChild(s);
+  }
+
+  function injectFleetResultsStatus() {
+    document.querySelectorAll(".class-header").forEach(function (hdr) {
+      if (hdr.querySelector(".fleet-results-status")) return;
+      var line = hdr.querySelector(".sailed-line");
+      if (!line) return;
+      var status = document.createElement("div");
+      status.className = "sailed-line fleet-results-status";
+      status.textContent = "Results are Provisional";
+      var date = document.createElement("div");
+      date.className = "sailed-line fleet-results-as-at";
+      date.textContent = "19 Sep 2026";
+      line.insertAdjacentElement("afterend", date);
+      line.insertAdjacentElement("afterend", status);
+    });
   }
 
   function fmtHm(ms) {
@@ -451,6 +469,7 @@
   function boot() {
     if (!onMidmar()) return;
     injectCss();
+    injectFleetResultsStatus();
     if (!placeHost()) return;
     loadScript("/js/regatta-slot-card.js?v=" + JS_VER).then(function () {
       var wx = document.getElementById(WX_ID);

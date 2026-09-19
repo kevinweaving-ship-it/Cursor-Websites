@@ -7,7 +7,12 @@ ROOT = Path(__file__).resolve().parent
 
 def test_midmar_cam_expands_not_redirects():
     js = (ROOT / "js/midmar-live-media.js").read_text(encoding="utf-8")
-    assert "midmarwx13" in js
+    assert "midmarwx14" in js
+    assert "injectFleetResultsStatus" in js
+    assert "Results are Provisional" in js
+    assert "19 Sep 2026" in js
+    assert "fleet-results-status" in js
+    assert "fleet-results-as-at" in js
     assert "hmyccam1.nwsza.net/latest.jpg" in js
     assert "button type=\"button\" class=\"cam-frame\"" in js
     assert 'class="cam-shot"' in js
@@ -44,6 +49,28 @@ def test_midmar_cam_expands_not_redirects():
     assert frontend.read_text(encoding="utf-8") == js
 
 
+def test_midmar_fleet_header_results_status_helper():
+    import re
+
+    api = (ROOT / "api.py").read_text(encoding="utf-8")
+    m = re.search(
+        r"_MIDMAR_CUP_REGATTA_ID = .*?\ndef _midmar_fleet_header_results_status_html.*?(?=\ndef )",
+        api,
+        re.S,
+    )
+    assert m, "helper missing from api.py"
+    ns = {}
+    exec(m.group(0), ns)
+    fn = ns["_midmar_fleet_header_results_status_html"]
+    html = fn("2026-09-19-hmyc-midmar-cup")
+    assert "Results are Provisional" in html
+    assert "19 Sep 2026" in html
+    assert " at " not in html
+    assert fn("other-regatta") == ""
+    assert "_midmar_fleet_header_results_status_html(regatta_id)" in api
+
+
 if __name__ == "__main__":
     test_midmar_cam_expands_not_redirects()
+    test_midmar_fleet_header_results_status_helper()
     print("midmar_live_media_min_tests: ok")
