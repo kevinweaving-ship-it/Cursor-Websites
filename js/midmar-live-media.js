@@ -15,7 +15,7 @@
   var WX_ID = "ssa-regatta-slot-card";
   var CAM_ID = "midmar-hmyc-cam";
   var CSS_ID = "midmar-live-media-css";
-  var JS_VER = "midmarwx21";
+  var JS_VER = "midmarwx22";
   var EVENT_PATH = "/regatta/" + RID;
   var STILL = "https://hmyccam1.nwsza.net/latest.jpg";
   var POLL_MS = 60000;
@@ -37,13 +37,14 @@
     s.textContent = [
       ".regatta-page > .midmar-live-media{width:100%;max-width:100%;box-sizing:border-box;display:flex;flex-direction:column;gap:0;margin:0;padding:0;border:0;background:transparent;box-shadow:none;}",
       ".regatta-page > .midmar-live-media .ssa-regatta-slot-card{order:0;margin-top:10px;width:100%;max-width:100%;padding:0!important;}",
-      ".regatta-page > .midmar-live-media .mm-lipton-reels{order:1;margin-top:10px;width:100vw;max-width:100vw;margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw);border-left:0;border-right:0;border-radius:0;box-sizing:border-box;}",
+      ".regatta-page > .midmar-live-media .mm-lipton-reels{order:1;margin-top:10px;width:100%;max-width:100%;box-sizing:border-box;padding:6px!important;}",
       ".regatta-page > .midmar-live-media .mm-lipton-reels .mm-lipton-reels-brand{display:none!important;}",
-      ".regatta-page > .midmar-live-media .mm-lipton-reels .mm-lipton-reels-rail-wrap{order:0;min-width:0;width:100%;}",
-      ".midmar-live-media .mm-lipton-reels:not(.mm-lipton-reels--expanded){max-height:148px;}",
-      ".midmar-live-media .mm-lipton-reels-compact{max-height:136px;}",
-      ".midmar-live-media .mm-lipton-reels-thumb,.midmar-live-media .mm-lipton-reels-tile{max-height:132px;}",
-      ".midmar-live-media .mm-lipton-reels .mm-lipton-reels-thumb img{display:block;width:100%;height:100%;object-fit:contain;object-position:center;}",
+      ".regatta-page > .midmar-live-media .mm-lipton-reels .mm-lipton-reels-rail-wrap{order:0;min-width:0;width:100%;height:84px;}",
+      ".midmar-live-media .mm-lipton-reels:not(.mm-lipton-reels--expanded){height:auto;max-height:none;}",
+      ".midmar-live-media .mm-lipton-reels-compact{height:84px;max-height:84px;overflow:hidden;}",
+      ".midmar-live-media .mm-lipton-reels-rail,.midmar-live-media .mm-lipton-reels-rail-wrap{height:84px!important;max-height:84px;}",
+      ".midmar-live-media .mm-lipton-reels-thumb,.midmar-live-media .mm-lipton-reels-tile{height:84px!important;max-height:84px!important;aspect-ratio:16 / 9;}",
+      ".midmar-live-media .mm-lipton-reels .mm-lipton-reels-thumb img{display:block;width:100%;height:100%;object-fit:cover;object-position:center;}",
       ".midmar-live-media .mm-lipton-reels-play,.midmar-live-media .mm-lipton-reels-player-ui,.midmar-live-media .mm-lipton-reels-player-toggle,.midmar-live-media .mm-lipton-reels-skip{display:none!important;}",
       ".midmar-live-media .mm-lipton-reels-clip-chrome{display:none!important;}",
       ".midmar-live-media .mm-lipton-reels-thumb .mm-lipton-reels-cam-stamp{position:absolute;left:6px;top:6px;z-index:3;pointer-events:none;display:flex;flex-direction:column;align-items:flex-start;gap:2px;max-width:92%;padding:2px 8px;border-radius:4px;background:rgba(0,16,24,.72);color:#fff;white-space:normal;text-shadow:0 1px 2px rgba(0,0,0,.85);font:700 11px/1.2 Arial,Helvetica,sans-serif;}",

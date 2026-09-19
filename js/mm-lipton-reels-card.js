@@ -2051,6 +2051,7 @@
     if (cols < 1) cols = 1;
     var innerH = (avail - GAP * Math.max(cols - (art ? 0 : 1), 0) - border * (art ? 1 + cols : cols)) / ((art || 0) + cols * vid);
     if (innerH < 40) innerH = 40;
+    if (isMidmar()) innerH = 80;
     var outerH = innerH + border;
     var thumbW = singleCamRoot(root) ? Math.max(0, avail - border) : innerH * vid + border;
     if (brand) {
