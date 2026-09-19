@@ -406,15 +406,53 @@
     return max;
   }
 
-  function titleAfter(n) {
+  function ymdSlice(v) {
+    var m = String(v || '').match(/(\d{4}-\d{2}-\d{2})/);
+    return m ? m[1] : '';
+  }
+
+  function todayYmdSast() {
+    try {
+      return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Africa/Johannesburg',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date());
+    } catch (e) {
+      var d = new Date();
+      var mo = d.getMonth() + 1;
+      var da = d.getDate();
+      return d.getFullYear() + '-' + (mo < 10 ? '0' : '') + mo + '-' + (da < 10 ? '0' : '') + da;
+    }
+  }
+
+  function eventDay(rows) {
+    var start = '';
+    (rows || []).some(function (r) {
+      start = ymdSlice(r.start_date || r.startDate);
+      return !!start;
+    });
+    if (!start) return 0;
+    var d0 = new Date(start + 'T12:00:00');
+    var d1 = new Date(todayYmdSast() + 'T12:00:00');
+    if (isNaN(d0.getTime()) || isNaN(d1.getTime())) return 0;
+    var diff = Math.round((d1.getTime() - d0.getTime()) / 86400000);
+    if (diff < 0) return 0;
+    return diff + 1;
+  }
+
+  function titleAfter(n, day) {
     if (n < 1) return 'Leader Board';
-    return 'Leader Board after ' + n + (n === 1 ? ' Race' : ' Races');
+    var t = 'Leader Board after ' + n + (n === 1 ? ' Race' : ' Races');
+    if (day >= 1) t += ' on Day ' + day;
+    return t;
   }
 
   function paint(card, rows) {
     var title = card.querySelector('.section-title');
     if (title) {
-      title.textContent = titleAfter(racesAfter(rows));
+      title.textContent = titleAfter(racesAfter(rows), eventDay(rows));
       title.setAttribute('data-mm-lb-title', '1');
       card.setAttribute('aria-label', title.textContent);
     }
