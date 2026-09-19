@@ -1,94 +1,50 @@
-/* MM reels + ZVYC live cam — shared with Cape Classic live event card */
-.mm-lipton-reels{display:block!important;width:100%;margin:10px 0 0 0;padding:6px;background:#dce6ef!important;border:2px solid #001f3f;border-radius:8px;box-shadow:0 1px 3px rgba(0,31,63,0.08);box-sizing:border-box;overflow-anchor:none}
-.mm-lipton-reels:not(.mm-lipton-reels--expanded) .mm-lipton-reels-expanded,.mm-lipton-reels:not(.mm-lipton-reels--expanded) .mm-lipton-reels-hide,.mm-lipton-reels:not(.mm-lipton-reels--expanded) .mm-lipton-reels-expanded-bar,.mm-lipton-reels:not(.mm-lipton-reels--expanded) .mm-lipton-reels-player-wrap,.mm-lipton-reels:not(.mm-lipton-reels--expanded) .mm-lipton-reels-stage{display:none!important}
-.mm-lipton-reels--expanded .mm-lipton-reels-compact{display:none!important}
-.mm-lipton-reels--expanded .mm-lipton-reels-expanded{display:block!important}
-.mm-lipton-reels-compact{display:flex;flex-wrap:nowrap;align-items:stretch;justify-content:flex-start;gap:6px;min-width:0;overflow:hidden}
-.mm-lipton-reels-brand{display:block;flex:0 0 auto;line-height:0;overflow:hidden;border:2px solid #001f3f;border-radius:8px;background:#001f3f;box-shadow:0 1px 3px rgba(0,31,63,0.14);box-sizing:border-box}
-.mm-lipton-reels-brand img{display:block;width:100%;height:100%;object-fit:contain;object-position:center;border:0}
-.mm-lipton-reels-rail-wrap{position:relative;flex:1 1 auto;min-width:0;height:100%;overflow:hidden}
-.mm-lipton-reels-rail,.mm-lipton-reels-compact [data-mm-compact]{display:flex;flex-wrap:nowrap;align-items:stretch;gap:6px;min-width:0;height:100%;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;scrollbar-width:none;overscroll-behavior-x:contain}
-.mm-lipton-reels-compact [data-mm-compact]::-webkit-scrollbar{display:none}
-.mm-lipton-reels-rail-btn{position:absolute;top:50%;transform:translateY(-50%);z-index:4;width:44px;height:44px;margin:0;padding:0;border:0;border-radius:0;background:none!important;color:#fff;font-size:2rem;line-height:1;font-weight:700;cursor:pointer;text-shadow:0 1px 3px rgba(0,0,0,.9);-webkit-appearance:none;appearance:none;box-shadow:none}
-.mm-lipton-reels-rail-btn--prev{left:4px}
-.mm-lipton-reels-rail-btn--next{right:4px}
-.mm-lipton-reels-rail-btn[hidden]{display:none!important}
-.mm-lipton-reels-tile{display:block;flex:0 0 auto;min-width:0;scroll-snap-align:start}
-.mm-lipton-reels-thumb{position:relative;display:block;width:100%;height:100%;padding:0;border:2px solid #001f3f;border-radius:8px;background:#0b1c33;overflow:hidden;cursor:pointer;min-height:44px;box-shadow:0 1px 3px rgba(0,31,63,0.14);box-sizing:border-box}
-.mm-lipton-reels-thumb iframe{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none;display:block}
-.mm-lipton-reels-thumb img{position:absolute;inset:0;width:100%;height:100%;border:0;object-fit:contain;object-position:center;pointer-events:none;display:block}
-.mm-lipton-reels-thumb--latest{container-type:size;display:flex;flex-direction:column}
-.mm-lipton-reels-clip-chrome{position:relative;top:auto;left:auto;right:auto;width:100%;flex:0 0 auto;z-index:1;display:flex;align-items:flex-start;gap:clamp(4px,4cqh,8px);padding:clamp(4px,5cqh,8px) clamp(6px,5cqw,10px);box-sizing:border-box;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.58) 0%,rgba(0,0,0,.2) 72%,rgba(0,0,0,0) 100%)}
-.mm-lipton-reels-thumb--latest .mm-lipton-reels-owner-logo{position:relative!important;inset:auto!important;flex:0 0 auto;width:clamp(14px,20cqh,28px)!important;height:clamp(14px,20cqh,28px)!important;max-width:none;max-height:none;border:0;border-radius:50%;object-fit:cover!important;object-position:center;display:block}
-.mm-lipton-reels-clip-chrome--zvyc .mm-lipton-reels-owner-logo{width:clamp(28px,40cqh,56px)!important;height:clamp(28px,40cqh,56px)!important;border-radius:4px!important;object-fit:contain!important;object-position:center;background:#fff;padding:2px;box-sizing:border-box}
-.mm-lipton-reels-clip-copy{min-width:0;flex:1 1 auto;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.85);line-height:1.15}
-.mm-lipton-reels-clip-title{font-size:clamp(8px,8cqh,13px);font-weight:700;white-space:normal;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;line-height:1.2;max-height:2.4em;max-width:14ch}
-.mm-lipton-reels-clip-sub{font-size:clamp(7px,6.5cqh,11px);font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.95}
-.mm-lipton-reels-clip-chrome--overlay{position:absolute!important;top:0;left:0;right:auto;bottom:auto;z-index:5;width:auto;max-width:none;flex:0 0 auto;gap:var(--mm-chrome-gap,4px);padding:var(--mm-chrome-pad,4px 6px);pointer-events:none;background:none!important;background-image:none!important;box-shadow:none!important}
-.mm-lipton-reels-clip-chrome--overlay .mm-lipton-reels-owner-logo{position:relative!important;inset:auto!important;flex:0 0 auto;width:var(--mm-chrome-logo,20px)!important;height:var(--mm-chrome-logo,20px)!important;max-width:none;max-height:none;border:0;border-radius:50%;object-fit:cover!important;object-position:center;display:block}
-.mm-lipton-reels-clip-chrome--overlay .mm-lipton-reels-clip-title{font-size:var(--mm-chrome-title,11px)!important;max-width:14ch}
-.mm-lipton-reels-clip-chrome--overlay .mm-lipton-reels-clip-sub{font-size:var(--mm-chrome-sub,9px)!important}
-.mm-lipton-reels-hud{position:absolute;inset:0;z-index:5;pointer-events:none}
-.mm-lipton-reels-player-ui{position:absolute;inset:0;z-index:4;background:none!important;background-image:none!important;pointer-events:auto}
-.mm-lipton-reels-player-hud{position:absolute;inset:0;opacity:0;transition:opacity .28s ease;pointer-events:none;background:none!important}
-.mm-lipton-reels-player-ui--on .mm-lipton-reels-player-hud{opacity:1;pointer-events:auto}
-.mm-lipton-reels-player-toggle{position:absolute;left:50%;top:50%;z-index:1;display:flex;align-items:center;justify-content:center;width:44px;height:44px;margin:0;padding:0;transform:translate(-50%,-50%);border-radius:50%;background:transparent;-webkit-appearance:none;appearance:none;border:3px solid #00B4FF;cursor:pointer;box-sizing:border-box;box-shadow:0 0 8px #00B4FF}
-.mm-lipton-reels-icon-play{display:block;width:0;height:0;margin:0 0 0 3px;border-style:solid;border-width:10px 0 10px 16px;border-color:transparent transparent transparent #fff}
-.mm-lipton-reels-icon-pause{display:none;align-items:stretch;justify-content:center;gap:4px;width:14px;height:16px}
-.mm-lipton-reels-icon-pause>span{display:block;width:4px;height:16px;background:#fff;border-radius:1px}
-.mm-lipton-reels-player-toggle.is-playing .mm-lipton-reels-icon-play{display:none}
-.mm-lipton-reels-player-toggle.is-playing .mm-lipton-reels-icon-pause{display:flex}
-.mm-lipton-reels-player-bar{position:absolute;left:8px;right:8px;bottom:8px;display:flex;align-items:center;gap:8px;background:none!important}
-.mm-lipton-reels-player-time{color:#fff;font-size:12px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.85);min-width:4.8em;white-space:nowrap}
-.mm-lipton-reels-player-seek{flex:1 1 auto;min-width:0;height:18px;margin:0;padding:0;background:none;accent-color:#00B4FF}
-.mm-lipton-reels-player-mute{min-width:44px;min-height:44px;margin:0;padding:0;border:0;background:none;color:#fff;font-size:18px;line-height:1;cursor:pointer;text-shadow:0 1px 2px rgba(0,0,0,.85)}
-.mm-lipton-reels-skip{position:absolute;top:50%;z-index:3;width:44px;height:44px;margin:0;padding:0;border:0;background:none!important;color:#fff;font-size:2rem;font-weight:700;line-height:1;cursor:pointer;text-shadow:0 1px 3px rgba(0,0,0,.9);-webkit-appearance:none;appearance:none;transform:translateY(-50%);pointer-events:auto;opacity:1}
-.mm-lipton-reels-skip--prev{left:4px}
-.mm-lipton-reels-skip--next{right:4px}
-.mm-lipton-reels-skip[hidden]{display:none!important}
-.mm-lipton-reels-thumb--latest .mm-lipton-reels-play{position:relative;left:auto;top:auto;z-index:1;width:44px;height:44px;margin:auto;padding:0;transform:none;border-radius:50%;background:transparent;border:3px solid #00B4FF;pointer-events:none;box-sizing:border-box;box-shadow:0 0 8px #00B4FF;flex:0 0 auto}
-.mm-lipton-reels-thumb--latest .mm-lipton-reels-play:after{content:"";position:absolute;left:54%;top:50%;width:0;height:0;border-style:solid;border-width:10px 0 10px 16px;border-color:transparent transparent transparent #fff;transform:translate(-30%,-50%)}
-.mm-lipton-reels-thumb-ph{display:block;width:100%;height:100%;background:#0b1c33}
-.mm-lipton-reels-tile--slot .mm-lipton-reels-thumb{cursor:default;background:#0b1c33}
-.mm-lipton-reels-thumb-hit{position:absolute;inset:0;z-index:2;margin:0;padding:0;border:0;background:transparent;cursor:pointer;min-height:44px}
-.mm-lipton-reels-expanded{position:relative}
-.mm-lipton-reels-expanded-bar{position:absolute;top:0;right:0;z-index:6;display:flex;justify-content:flex-end;align-items:flex-start;margin:0;padding:0;min-height:0;pointer-events:none}
-.mm-lipton-reels-hide{pointer-events:auto;min-height:44px;min-width:44px;margin:0;padding:0 6px;border:0;background:none;color:#dc2626;font-size:0.95rem;font-weight:800;letter-spacing:0.02em;line-height:1;cursor:pointer;-webkit-appearance:none;appearance:none}
-.mm-lipton-reels-player-wrap{position:relative;width:100%;aspect-ratio:var(--mm-aspect,16/9);overflow:hidden;border-radius:8px;background:#001018;border:2px solid #001f3f;scroll-margin-top:72px}
-.mm-lipton-reels-stage{position:absolute;inset:0;width:100%;height:100%;overflow:hidden;background:#001018;transition:transform .28s ease}
-.mm-lipton-reels-stage iframe,.mm-lipton-reels-stage video,.mm-lipton-reels-stage img{position:absolute;inset:0;z-index:0;width:100%;height:100%;border:0;object-fit:cover;background:#001018;filter:none;opacity:1}
-.mm-lipton-reels-stage img[data-mm-webcam-live]{z-index:1}
-@keyframes mm-cam-spin{to{transform:rotate(360deg)}}
-.mm-lipton-reels-cam-load{position:absolute;inset:0;z-index:4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;pointer-events:none;background:none}
-.mm-lipton-reels-cam-load[hidden]{display:none!important}
-.mm-lipton-reels-cam-spin{width:44px;height:44px;border:3px solid rgba(0,180,255,.28);border-top-color:#00B4FF;border-radius:50%;box-sizing:border-box;box-shadow:0 0 8px #00B4FF;animation:mm-cam-spin .8s linear infinite}
-.mm-lipton-reels-cam-load-txt{color:#fff;font-size:12px;font-weight:700;letter-spacing:.04em;text-shadow:0 1px 2px rgba(0,0,0,.85)}
-.mm-lipton-reels-thumb .mm-lipton-reels-cam-load{z-index:3}
-.mm-lipton-reels-thumb .mm-lipton-reels-cam-load-txt{display:none}
-.mm-lipton-reels-thumb--cam-load .mm-lipton-reels-play{opacity:0}
-.mm-lipton-reels-stage video::-webkit-media-controls,.mm-lipton-reels-stage video::-webkit-media-controls-enclosure,.mm-lipton-reels-stage video::-webkit-media-controls-overlay-enclosure,.mm-lipton-reels-stage video::-webkit-media-controls-panel,.mm-lipton-reels-stage video::-webkit-media-controls-start-playback-button,.mm-lipton-reels-stage video::-webkit-media-controls-overlay-play-fill{display:none!important;opacity:0!important;-webkit-appearance:none}
-.mm-lipton-reels-video-hold{position:absolute;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none}
-.mm-lipton-reels-track{position:absolute;left:0;right:0;bottom:0;height:var(--mm-track-h,58%);z-index:3;pointer-events:none;display:none;background:none}
-.mm-lipton-reels-track[data-mm-track-on]{display:block}
-.mm-lipton-reels-track canvas{display:block;width:100%;height:100%}
-.mm-lipton-reels-hero-ui{position:absolute;inset:0;z-index:2}
-.mm-lipton-reels-hero-poster{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center;pointer-events:none;border:0;display:block;background:#0b1c33}
-.mm-lipton-reels-stage .mm-lipton-reels-play{position:absolute;left:50%;top:50%;z-index:3;width:44px;height:44px;margin:0;padding:0;transform:translate(-50%,-50%);border-radius:50%;background:transparent;border:3px solid #00B4FF;pointer-events:none;box-sizing:border-box;box-shadow:0 0 8px #00B4FF}
-.mm-lipton-reels-stage .mm-lipton-reels-play:after{content:"";position:absolute;left:54%;top:50%;width:0;height:0;border-style:solid;border-width:10px 0 10px 16px;border-color:transparent transparent transparent #fff;transform:translate(-30%,-50%)}
-.mm-lipton-reels-stage--playing .mm-lipton-reels-hero-ui{display:none!important}
-.mm-lipton-reels-days{margin-top:6px;overflow-anchor:none}
-.mm-lipton-reels-day{margin:0;padding:0}
-.mm-lipton-reels-day+.mm-lipton-reels-day{margin-top:10px;padding-top:10px;border-top:4px solid #001f3f}
-.mm-lipton-reels-day-label,.mm-lipton-reels-race-label{margin:0 0 6px;color:#001f3f;font-size:0.72rem;font-weight:800;letter-spacing:0.04em;text-transform:uppercase;line-height:1.2}
-.mm-lipton-reels-race{margin:0;padding:0}
-.mm-lipton-reels-race+.mm-lipton-reels-race{margin-top:10px;padding-top:10px;border-top:4px solid #001f3f}
-.mm-lipton-reels-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;margin-top:0;overflow-anchor:none}
-.mm-lipton-reels-grid-item{min-width:0}
-.mm-lipton-reels-waiting{margin:0;font-size:0.85rem;color:#334155}
-@media (orientation:landscape) and (max-height:540px){body:has(.mm-lipton-reels--expanded) .site-header{display:none!important}.mm-lipton-reels--expanded .mm-lipton-reels-days,.mm-lipton-reels--expanded .mm-lipton-reels-grid{display:none!important}.mm-lipton-reels--expanded .mm-lipton-reels-expanded-bar,.mm-lipton-reels--expanded .mm-lipton-reels-hide{display:none!important}.mm-lipton-reels--expanded .mm-lipton-reels-player-wrap{position:fixed;inset:0;z-index:2147483000;width:100vw;height:100dvh;max-width:none;border-radius:0;border:0;aspect-ratio:auto}.mm-lipton-reels--expanded .mm-lipton-reels-stage{position:absolute;inset:0;z-index:0}.mm-lipton-reels--expanded .mm-lipton-reels-stage video{z-index:0}.mm-lipton-reels--expanded .mm-lipton-reels-hud{position:fixed;inset:0;z-index:2147483000;-webkit-transform:translate3d(0,0,0);transform:translate3d(0,0,0)}}
-@media (min-width:720px){.mm-lipton-reels-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
-@media (min-width:1024px){.mm-lipton-reels-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
-@media print{.mm-lipton-reels{display:none!important}}
+"""Compact portrait print stylesheet for standalone /regatta result sheets.
+
+Print test / example sheet:
+https://sailingsa.co.za/regatta/2025-12-19-hyc-youth-nationals
+(7 fleets, 12 races, Age + Crew — A4 landscape so the race grid fits, SA.)
+
+Print and Save-as-PDF both use this CSS on the live HTML tables so sailor / club /
+class / sail links stay real hyperlinks in the PDF (not a screenshot).
+
+Pagination (A4):
+- Cape Classic (URL is truth): A4 **portrait** — the grid fits P. Do not flip to landscape.
+- Page 1 always starts with the event header + first fleet.
+- The next fleet stays on that page only if the whole fleet (header + full table) fits;
+  otherwise the entire fleet moves to the next page.
+- A fleet header must never sit on one page with its results table on the next.
+- A fleet is never split across two pages.
+- Every page footer (one small line): event name + the results URL.
+"""
+
+from pathlib import Path
+import base64
+
+_FONT_DIR = Path(__file__).resolve().parent / "fonts"
+
+
+def _woff2_data_uri(name: str) -> str:
+    raw = (_FONT_DIR / name).read_bytes()
+    return "data:font/woff2;base64," + base64.b64encode(raw).decode("ascii")
+
+
+def ibm_plex_print_font_css() -> str:
+    """Do not embed IBM Plex variable fonts.
+
+    Chrome headless print-to-PDF double-paints variable-font glyphs
+    (Hostost / TheMidmarcuppionship). Liberation Sans is metric-stable.
+    """
+    return ""
+
+
+IBM_PLEX_PRINT_FONT_CSS = ibm_plex_print_font_css()
+_PRINT_SANS = '"Liberation Sans", Arial, Helvetica, sans-serif'
+
+PRINT_COMPACT_CSS = (
+    IBM_PLEX_PRINT_FONT_CSS
+    + """
+@page { size: A4 portrait; margin: 8mm 9mm 14mm 8mm; }
+.ssa-print-page-footer { display: none !important; }
 html.ssa-printing .site-header, html.ssa-printing footer, html.ssa-printing .site-footer,
 html.ssa-printing .app-footer, html.ssa-printing .action-buttons, html.ssa-printing .back-to-home,
 html.ssa-printing .regatta-back-row, html.ssa-printing .regatta-source-banner,
@@ -96,10 +52,104 @@ html.ssa-printing .regatta-sa-mode-wrap, html.ssa-printing .regatta-live-wx,
 html.ssa-printing .regatta-live-track, html.ssa-printing .regatta-live-clip,
 html.ssa-printing .mm-lipton-reels, html.ssa-printing #mmLiptonReels,
 html.ssa-printing .cape-crew { display: none !important; }
+html.ssa-printing .header, html.ssa-printing .header.header--lipton {
+  display: grid !important;
+  grid-template-columns: auto minmax(0,1fr) auto !important;
+  grid-template-rows: auto !important;
+}
+html.ssa-printing th.class-col, html.ssa-printing td.class-col { display: none !important; }
+html.ssa-printing .fleet-results-table.rs-compact-row-logos th.class-col,
+html.ssa-printing .fleet-results-table.rs-compact-row-logos td.class-col { display: table-cell !important; }
+html.ssa-printing .ssa-print-page-footer { display: flex !important; position: static !important; margin-top: 8px !important; }
+/* Race codes stay overlaid (no extra row height). Centre under score; lift off bottom. */
+.fleet-results-table.rs-compact-row-logos td.race-col {
+  position: relative !important;
+}
+.fleet-results-table.rs-compact-row-logos .wc-score {
+  font-size: 1em !important;
+  font-weight: 600 !important;
+}
+.fleet-results-table.rs-compact-row-logos .wc-code,
+.fleet-results-table.rs-compact-row-logos span.code .wc-code,
+.fleet-results-table.rs-compact-row-logos span.disc .wc-code {
+  font-size: 50% !important;
+  font-weight: 700 !important;
+  position: absolute !important;
+  left: 50% !important;
+  right: auto !important;
+  top: auto !important;
+  bottom: 4px !important;
+  transform: translateX(-50%) !important;
+  margin: 0 !important;
+  line-height: 1 !important;
+  vertical-align: baseline !important;
+  letter-spacing: 0.08em !important;
+  opacity: 1 !important;
+  width: auto !important;
+  text-align: center !important;
+}
+/* Club col: logo | light rule | code. Codes start in one column. Col shrinks. */
+.fleet-results-table.rs-compact-row-logos td.club-col,
+.fleet-results-table.rs-compact-row-logos th.club-col {
+  text-align: left !important;
+  width: auto !important;
+  max-width: none !important;
+  white-space: nowrap !important;
+}
+.fleet-results-table.rs-compact-row-logos td.club-col .rs-club-with-logo {
+  display: inline-flex !important;
+  width: auto !important;
+  justify-content: flex-start !important;
+  align-items: center !important;
+  gap: 0 !important;
+}
+.fleet-results-table.rs-compact-row-logos td.club-col .rs-club-row-logo-sm {
+  flex: 0 0 22px !important;
+  width: 22px !important;
+  max-width: 22px !important;
+  object-fit: contain !important;
+  box-sizing: content-box !important;
+  padding-right: 4px !important;
+  margin-right: 4px !important;
+  border-right: 1px solid rgba(26, 39, 80, 0.22) !important;
+}
+.fleet-results-table.rs-compact-row-logos td.club-col .rs-club-with-logo > a {
+  margin-left: 0 !important;
+  text-align: left !important;
+}
+/* Title-row fleet logos: same height as the word Fleet. No max-width (that
+   squashed Extra / ILCA / Open). 420 and Optimist already filled the height. */
+.fleet-title-with-logo {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  flex-wrap: nowrap !important;
+}
+.fleet-title-with-logo .rs-fleet-title-logo {
+  height: 1.1em !important;
+  width: auto !important;
+  max-height: 1.1em !important;
+  max-width: none !important;
+  object-fit: contain !important;
+  flex: 0 0 auto !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
+}
+/* Class column logos: Sonnet is the tallest (16px). All class marks match that. */
+.fleet-results-table.rs-compact-row-logos .rs-class-row-logo {
+  height: 16px !important;
+  width: auto !important;
+  max-height: 16px !important;
+  max-width: none !important;
+  object-fit: contain !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
+  flex: 0 0 auto !important;
+}
 @media print {
   html, body { background: #fff !important; color: #1a2750 !important; margin: 0 !important; padding: 0 !important; }
   html, body, .regatta-page, .class-header, .sailed-line, table, th, td {
-    font-family: "IBM Plex Sans", "Liberation Sans", "Noto Sans", "Segoe UI", Calibri, Arial, Helvetica, sans-serif !important;
+    font-family: """ + _PRINT_SANS + """ !important;
     font-variant-numeric: tabular-nums lining-nums !important;
     font-feature-settings: "tnum" 1, "lnum" 1 !important;
   }
@@ -168,7 +218,13 @@ html.ssa-printing .cape-crew { display: none !important; }
     width: 88px !important;
     min-width: 88px !important;
   }
-  .regatta-header-logo-img, .regatta-header-left-logo-img { max-height: 56px !important; max-width: none !important; height: auto !important; width: auto !important; }
+  .regatta-header-logo-img, .regatta-header-left-logo-img {
+    max-height: 48px !important;
+    max-width: 48px !important;
+    height: 48px !important;
+    width: auto !important;
+    object-fit: contain !important;
+  }
   .regatta-header-club-logo-img { max-height: 56px !important; max-width: none !important; height: auto !important; width: auto !important; }
   .regatta-name { font-size: 13pt !important; line-height: 1.15 !important; margin: 0 0 1px 0 !important; text-align: center !important; width: 100% !important; }
   .host-club, .regatta-venue, .regatta-lipton-venue-line, .regatta-lipton-host-line { font-size: 8pt !important; line-height: 1.2 !important; margin: 0 0 1px 0 !important; text-align: center !important; width: 100% !important; }
@@ -367,20 +423,20 @@ html.ssa-printing .cape-crew { display: none !important; }
     border: 0.7pt solid #1a2750 !important;
   }
   th, td {
-    padding: 2.5px 3px !important;
+    padding: 2.5px 4px !important;
     font-size: 8.5pt !important;
-    font-weight: 500 !important;
+    font-weight: 400 !important;
     line-height: 1.25 !important;
     white-space: nowrap !important;
     overflow: visible !important;
-    letter-spacing: 0.01em !important;
+    letter-spacing: 0 !important;
     box-sizing: border-box !important;
     border: 0.5pt solid #1a2750 !important;
     background: #fff !important;
   }
   th {
     background: #e9eefb !important;
-    font-weight: 600 !important;
+    font-weight: 700 !important;
     text-align: center !important;
   }
   td { text-align: center !important; }
@@ -388,9 +444,22 @@ html.ssa-printing .cape-crew { display: none !important; }
   tr.medal-gold td { background: #D4AF37 !important; }
   tr.medal-silver td { background: #D7D7D7 !important; }
   tr.medal-bronze td { background: #CE8946 !important; }
-  html.ssa-print-landscape th, html.ssa-print-landscape td { font-size: 9pt !important; width: auto !important; white-space: nowrap !important; overflow: visible !important; }
+  html.ssa-print-landscape .table-wrapper table,
+  html.ssa-print-landscape table.fleet-results-table,
+  html.ssa-print-landscape .fleet-section .table-wrapper table.fleet-results-table {
+    table-layout: auto !important;
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+  }
+  html.ssa-print-landscape th, html.ssa-print-landscape td {
+    font-size: 9pt !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    width: auto !important;
+  }
   html.ssa-print-landscape .race-col { font-size: 8.5pt !important; width: auto !important; }
-  html.ssa-print-landscape .helm-col { width: auto !important; }
+  html.ssa-print-landscape .helm-col,
   html.ssa-print-landscape .fleet-section:has(th.crew-col) .helm-col { width: auto !important; }
   html.ssa-print-landscape .fleet-section:has(th.crew-col) .race-col { width: auto !important; }
   .fleet-results-table th.class-col, .fleet-results-table td.class-col,
@@ -405,7 +474,7 @@ html.ssa-printing .cape-crew { display: none !important; }
     text-align: center !important;
   }
   .fleet-results-table.rs-compact-row-logos .club-col {
-    width: 7.2% !important;
+    width: auto !important;
     white-space: nowrap !important;
     overflow: visible !important;
     text-align: left !important;
@@ -433,16 +502,28 @@ html.ssa-printing .cape-crew { display: none !important; }
     vertical-align: middle !important;
     flex: 0 0 auto !important;
   }
-  .rs-class-with-logo, .fleet-results-table.rs-compact-row-logos .rs-club-with-logo {
+  .rs-class-with-logo {
     display: inline-flex !important;
     align-items: center !important;
     gap: 2px !important;
     flex-wrap: nowrap !important;
   }
+  .fleet-results-table.rs-compact-row-logos .rs-club-with-logo {
+    display: inline-flex !important;
+    width: auto !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    gap: 4px !important;
+    flex-wrap: nowrap !important;
+  }
+  .fleet-results-table.rs-compact-row-logos td.club-col .rs-club-with-logo > a {
+    margin-left: 0 !important;
+    text-align: left !important;
+  }
   .rank-col, .total-col, .nett-col { width: 3.3% !important; }
   .wc-meta-col { width: 3% !important; }
   .sail-col { width: 5.4% !important; }
-  .club-col { width: 4.2% !important; }
+  .club-col { width: auto !important; white-space: nowrap !important; }
   .helm-col { width: 16.5% !important; }
   th.crew-col, td.crew-col { width: 12.5% !important; }
   .fleet-section:has(th.crew-col) .helm-col { width: 12.5% !important; }
@@ -462,15 +543,17 @@ html.ssa-printing .cape-crew { display: none !important; }
   }
   .fleet-results-table .wc-code,
   .fleet-results-table.rs-compact-row-logos .wc-code {
-    font-size: 33% !important;
+    font-size: 50% !important;
     font-weight: 700 !important;
     position: absolute !important;
-    right: 1px !important;
-    bottom: 0 !important;
+    left: 50% !important;
+    right: auto !important;
+    bottom: 3px !important;
+    transform: translateX(-50%) !important;
     margin: 0 !important;
     line-height: 1 !important;
     vertical-align: baseline !important;
-    letter-spacing: 0.02em !important;
+    letter-spacing: 0.08em !important;
     opacity: 1 !important;
   }
   .fleet-results-table tbody tr, .fleet-results-table tbody td,
@@ -556,3 +639,180 @@ html.ssa-printing .cape-crew { display: none !important; }
     overflow: hidden !important;
   }
 }
+#ssaPrintChooser { display: none; position: fixed; inset: 0; z-index: 2147483000; align-items: flex-end; justify-content: center; background: rgba(0,31,63,.45); }
+#ssaPrintChooser.is-open { display: flex !important; }
+#ssaPrintChooser .card {
+  max-width: 40rem; width: min(96%, 40rem); padding: 14px 14px 16px; margin: 0 0 18px;
+  background: #fff !important; border: 2px solid #001f3f; overflow: hidden;
+  border-radius: 8px; box-shadow: 0 8px 28px rgba(0,31,63,.18);
+}
+#ssaPrintChooser .ssa-print-chooser-note { font-size: 12px; color: #001f3f; margin: 0 0 8px; line-height: 1.35; text-align: center; }
+#ssaPrintChooser .ssa-pdf-frame { width: 100%; height: 52vh; border: 2px solid #001f3f; background: #fff; margin: 0; border-radius: 8px; overflow: auto; padding: 0; }
+#ssaPdfView { min-height: 100%; padding: 0; box-sizing: border-box; background: #fff; }
+#ssaPdfView iframe, #ssaPdfView embed, #ssaPdfView object {
+  display: block; width: 100%; height: 52vh; border: 0; background: #fff;
+}
+#ssaPdfView canvas, #ssaPdfView img.ssa-pdf-page {
+  display: block; width: 100%; height: auto; margin: 0; background: #fff;
+}
+#ssaPdfView .ssa-pdf-status { margin: 24px 12px; text-align: center; color: #001f3f; font-size: 13px; }
+#ssaPrintChooser .ssa-print-chooser-actions {
+  display: flex; gap: 6px; flex-wrap: nowrap; justify-content: space-between;
+  align-items: flex-start; margin-top: 14px; padding: 0 2px;
+}
+#ssaPrintChooser .ssa-ios-share-item {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  gap: 6px; min-width: 52px; min-height: 44px; padding: 0; margin: 0;
+  border: 0; background: transparent; box-shadow: none; cursor: pointer;
+  text-decoration: none; color: #1a2750; font: inherit; -webkit-tap-highlight-color: transparent;
+}
+#ssaPrintChooser .ssa-ios-share-icon {
+  width: 56px; height: 56px; border-radius: 50%; display: inline-flex;
+  align-items: center; justify-content: center; flex: 0 0 auto;
+  isolation: isolate; box-shadow: 0 1px 3px rgba(0,31,63,.2);
+}
+#ssaPrintChooser .ssa-ios-share-icon svg { width: 26px; height: 26px; display: block; }
+#ssaPrintChooser .ssa-ios-share-icon--wa { background: #25D366; }
+#ssaPrintChooser .ssa-ios-share-icon--mail { background: #007AFF; }
+#ssaPrintChooser .ssa-ios-share-icon--down { background: #34C759; }
+#ssaPrintChooser .ssa-ios-share-icon--print { background: #001f3f; }
+#ssaPrintChooser .ssa-ios-share-icon--close { background: #DC143C; }
+#ssaPrintChooser .ssa-ios-share-label {
+  font-size: 11px; font-weight: 600; line-height: 1.15; text-align: center;
+  color: #001f3f; max-width: 64px;
+}
+#ssaPrintChooser a.ssa-ios-share-item { color: #001f3f; }
+@media (min-width: 700px) {
+  #ssaPrintChooser { align-items: center; }
+  #ssaPrintChooser .card { max-width: 44rem; width: min(96%, 44rem); margin: 0; }
+  #ssaPrintChooser .ssa-pdf-frame, #ssaPdfView iframe { height: 62vh; }
+}
+@media print {
+  #ssaPrintChooser, #ssaPrintChooser.is-open { display: none !important; }
+}
+"""
+).strip()
+
+def _document_css() -> str:
+    text = PRINT_COMPACT_CSS
+    start = text.find("@media print {")
+    end = text.find("\n#ssaPrintChooser")
+    inner = text[start + len("@media print {") : end if end > 0 else None].rstrip()
+    if inner.endswith("}"):
+        inner = inner[: inner.rfind("}")].rstrip()
+    return (
+        IBM_PLEX_PRINT_FONT_CSS
+        + "\n@page { size: A4 portrait; margin: 8mm 9mm 14mm 8mm; }\n"
+        + inner
+    )
+
+
+PRINT_DOCUMENT_CSS = _document_css()
+
+# Minimum readable print widths (mm) at ~6.5pt.
+# Class is hidden on most sheets; Cape Classic compact tables keep it.
+PRINT_COL_MIN_MM = {
+    "class": 0,
+    "race": 11,
+    "helm": 30,
+    "crew": 26,
+    "sail": 12,
+    "club": 11,
+    "rank": 8,
+    "total": 8,
+    "nett": 8,
+    "disc": 8,
+    "boat": 22,
+    "meta": 9,
+}
+PRINT_COL_OTHER_MM = 10
+PRINT_A4_PORTRAIT_CONTENT_MM = 193  # 210mm minus 8mm left + 9mm right
+
+
+def print_col_need_mm(kind: str) -> int:
+    return PRINT_COL_MIN_MM.get(kind, PRINT_COL_OTHER_MM)
+
+
+def print_table_need_mm(kinds: list) -> int:
+    return sum(print_col_need_mm(k) for k in kinds)
+
+
+def print_orientation_for_tables(tables: list) -> str:
+    worst = max((print_table_need_mm(cols) for cols in tables), default=0)
+    return "landscape" if worst > PRINT_A4_PORTRAIT_CONTENT_MM else "portrait"
+
+
+PDF_SHARE_JS_SRC = "/js/regatta-pdf-share.js?v=20260919print9"
+
+
+def _ios_share_svg(name: str) -> str:
+    icons = {
+        "wa": '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M12.04 2c-5.46 0-9.91 4.4-9.91 9.83 0 1.73.46 3.43 1.33 4.93L2 22l5.39-1.41A10 10 0 0 0 12.04 22c5.46 0 9.91-4.4 9.91-9.83C21.95 6.4 17.5 2 12.04 2zm5.76 14.12c-.24.68-1.39 1.25-1.91 1.33-.49.08-1.1.11-1.77-.11-.41-.13-.93-.31-1.61-.61-2.83-1.23-4.67-4.09-4.81-4.28-.14-.19-1.15-1.53-1.15-2.92 0-1.39.71-2.07.96-2.35.24-.28.53-.35.7-.35h.5c.16 0 .37-.02.57.44.22.5.74 1.73.8 1.86.07.13.11.28.02.45-.09.18-.14.28-.27.44l-.4.48c-.13.16-.27.33-.12.64.15.31.67 1.1 1.44 1.78.99.87 1.8 1.14 2.07 1.27.27.13.43.11.59-.07.16-.18.67-.78.85-1.05.18-.27.36-.22.6-.13.24.09 1.54.73 1.8.86.27.13.44.2.51.31.07.11.07.64-.17 1.32z"/></svg>',
+        "mail": '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5v-11zm1.7.5 6.05 4.32L17.3 7H5.7zM18 8.54l-6.06 4.33a.9.9 0 0 1-1.08 0L4.8 8.54V17.5c0 .28.22.5.5.5h11.4c.28 0 .5-.22.5-.5V8.54z"/></svg>',
+        "down": '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M11 3h2v10.2l3.4-3.4 1.4 1.4L12 17 6.2 11.2l1.4-1.4L11 13.2V3zm-6 16h14v2H5v-2z"/></svg>',
+        "print": '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M8 3h8v4H8V3zm-3 6h14a2 2 0 0 1 2 2v6h-4v4H8v-4H4v-6a2 2 0 0 1 2-2zm3 10h8v-4H8v4zm9-8.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/></svg>',
+        "close": '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M6.7 6.7 12 12l5.3-5.3 1.4 1.4L13.4 13.4l5.3 5.3-1.4 1.4L12 14.8l-5.3 5.3-1.4-1.4 5.3-5.3-5.3-5.3z"/></svg>',
+    }
+    return icons[name]
+
+
+def _ios_item(
+    action: str,
+    label: str,
+    icon: str,
+    *,
+    href: bool = False,
+    link_id: str = "",
+    download: bool = False,
+    target: str = "",
+) -> str:
+    glyph = _ios_share_svg(icon)
+    inner = (
+        f'<span class="ssa-ios-share-icon ssa-ios-share-icon--{icon}">{glyph}</span>'
+        f'<span class="ssa-ios-share-label">{label}</span>'
+    )
+    if href:
+        extra = f' id="{link_id}"' if link_id else ""
+        if download:
+            extra += " download"
+        if target:
+            extra += f' target="{target}" rel="noopener"'
+        return (
+            f'<a class="ssa-ios-share-item"{extra} href="#"'
+            f' data-ssa-print="{action}" aria-label="{label}">{inner}</a>'
+        )
+    return (
+        f'<button type="button" class="ssa-ios-share-item" data-ssa-print="{action}" '
+        f'aria-label="{label}">{inner}</button>'
+    )
+
+
+def print_share_bar_html() -> str:
+    """Print / share use the stored PDF file. Preview is an iframe of that file."""
+    actions = (
+        _ios_item("whatsapp", "WhatsApp", "wa")
+        + _ios_item("email", "Email", "mail")
+        + _ios_item("download", "Download", "down", href=True, link_id="ssaPdfDownload", download=True)
+        + _ios_item("printer", "Print", "print", href=True, link_id="ssaPdfPrint", target="_blank")
+        + _ios_item("cancel", "Close", "close")
+    )
+    fallback = (
+        "(window.ssaRegattaPrint||function(){var p=(location.pathname||'').replace(/\\/+$/,'');"
+        "if(p.indexOf('/regatta/')===0)window.open(p+'/results.pdf','_blank');})()"
+    )
+    return (
+        '<style id="ssa-print-compact">' + PRINT_COMPACT_CSS + "</style>"
+        '<div id="ssaPrintChooser" role="dialog" aria-label="Results PDF">'
+        '<div class="card">'
+        '<div class="section-title">Results PDF</div>'
+        '<p class="ssa-print-chooser-note">WhatsApp, Email, Download and Print send this PDF file.</p>'
+        '<div id="ssaPdfView" class="ssa-pdf-frame" role="document" aria-label="PDF preview"></div>'
+        '<div class="ssa-print-chooser-actions">'
+        + actions
+        + "</div></div></div>"
+        '<div class="action-buttons">'
+        f'<button type="button" class="action-button" id="regattaPrintBtn" onclick="{fallback}">Print</button>'
+        '<button type="button" class="action-button" id="regattaShareBtn">Share</button>'
+        "</div>"
+        '<script src="' + PDF_SHARE_JS_SRC + '" defer></script>'
+    )

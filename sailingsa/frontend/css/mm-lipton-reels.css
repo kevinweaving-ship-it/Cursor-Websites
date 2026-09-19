@@ -388,11 +388,11 @@ html.ssa-printing .cape-crew { display: none !important; }
   tr.medal-gold td { background: #D4AF37 !important; }
   tr.medal-silver td { background: #D7D7D7 !important; }
   tr.medal-bronze td { background: #CE8946 !important; }
-  html.ssa-print-landscape th, html.ssa-print-landscape td { font-size: 9pt !important; }
-  html.ssa-print-landscape .race-col { font-size: 8.5pt !important; width: 4.15% !important; }
-  html.ssa-print-landscape .helm-col { width: 17% !important; }
-  html.ssa-print-landscape .fleet-section:has(th.crew-col) .helm-col { width: 13% !important; }
-  html.ssa-print-landscape .fleet-section:has(th.crew-col) .race-col { width: 3.65% !important; }
+  html.ssa-print-landscape th, html.ssa-print-landscape td { font-size: 9pt !important; width: auto !important; white-space: nowrap !important; overflow: visible !important; }
+  html.ssa-print-landscape .race-col { font-size: 8.5pt !important; width: auto !important; }
+  html.ssa-print-landscape .helm-col { width: auto !important; }
+  html.ssa-print-landscape .fleet-section:has(th.crew-col) .helm-col { width: auto !important; }
+  html.ssa-print-landscape .fleet-section:has(th.crew-col) .race-col { width: auto !important; }
   .fleet-results-table th.class-col, .fleet-results-table td.class-col,
   th.class-col, td.class-col { display: none !important; }
   /* Cape Classic compact sheets: Class column stays; logo stands in for the name. */
