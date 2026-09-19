@@ -95,7 +95,7 @@
       clubSurface: 'mm-snapshot',
       mmSurface: true,
       statusApi: '/api/club-cam/hmyc',
-      href: 'https://agromet.ukzn.ac.za/midmar/index.html#canvas_container',
+      href: '',
     },
   };
   SOURCES['hyc-club'] = SOURCES.hyc;
