@@ -2041,18 +2041,21 @@
         wireWebcamThumbLoad(root, (videos || []).filter(isWebcam)[0]);
       }
     }
-    var art = singleCamRoot(root) ? 0 : ART_W / ART_H;
-    var vid = VID_W / VID_H;
-    if (isMidmar() && isMobilePortrait()) vid = 3 / 4;
+    var hideBrand = singleCamRoot(root) || isMidmar();
+    var art = hideBrand ? 0 : ART_W / ART_H;
+    var vid = isMidmar() ? 3 / 4 : VID_W / VID_H;
     var border = 4;
     var cols = nFit + liveN;
     if (cols < 1) cols = 1;
     var innerH = (avail - GAP * Math.max(cols - (art ? 0 : 1), 0) - border * (art ? 1 + cols : cols)) / ((art || 0) + cols * vid);
     if (innerH < 40) innerH = 40;
     var outerH = innerH + border;
-    var thumbW = singleCamRoot(root) ? Math.max(0, avail - border) : innerH * vid + border;
+    var thumbW =
+      singleCamRoot(root) || (isMidmar() && isMobilePortrait())
+        ? Math.max(0, avail - border)
+        : innerH * vid + border;
     if (brand) {
-      if (singleCamRoot(root)) {
+      if (hideBrand) {
         brand.style.display = 'none';
         brand.style.width = '0';
         brand.style.height = '0';

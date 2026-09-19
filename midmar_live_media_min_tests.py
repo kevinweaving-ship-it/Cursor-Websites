@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parent
 
 def test_midmar_cam_expands_not_redirects():
     js = (ROOT / "js/midmar-live-media.js").read_text(encoding="utf-8")
-    assert "midmarwx18" in js
+    assert "midmarwx19" in js
     assert "placeCup" not in js
     assert "makeMmCard" in js
     assert "mmLiptonReels" in js
@@ -16,8 +16,9 @@ def test_midmar_cam_expands_not_redirects():
     assert ".mm-lipton-reels{order:1" in js
     assert "mmLiptonReelsInit" in js
     assert "aspect-ratio:3 / 4" in js
-    assert "mm-lipton-reels-brand{order:0" in js
-    assert js.index("mm-lipton-reels-brand") < js.index('data-mm-vid="midmar-cup-1"')
+    assert "mm-lipton-reels-brand{display:none!important;}" in js
+    assert 'data-mm-vid="midmar-cup-1"' in js
+    assert "Midmar-Cup-Event.jpg" in js
     assert js.index('data-mm-vid="midmar-cup-1"') < js.index('data-mm-vid="midmar-train-1"')
     assert "Last minute Training and Setup" in js
     assert "Fri 18 Sep 2026 - 14:59" in js
@@ -68,7 +69,8 @@ def test_midmar_cam_expands_not_redirects():
     card = (ROOT / "js/mm-lipton-reels-card.js").read_text(encoding="utf-8")
     assert "function isMidmar()" in card
     assert "window.mmLiptonReelsInit = init" in card
-    assert "if (isMidmar() && isMobilePortrait()) vid = 3 / 4" in card
+    assert "var hideBrand = singleCamRoot(root) || isMidmar();" in card
+    assert "var vid = isMidmar() ? 3 / 4 : VID_W / VID_H;" in card
     assert "if (isMidmar()) return list;" in card
     assert "function midmarThumbStamp" in card
     assert (ROOT / "sailingsa/frontend/js/mm-lipton-reels-card.js").read_text(
