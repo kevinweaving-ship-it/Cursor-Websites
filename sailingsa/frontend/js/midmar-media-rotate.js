@@ -256,6 +256,27 @@
     });
   }
 
+  var nativeFetch = window.fetch;
+  if (nativeFetch && !window.__SSA_MM_ROT_FETCH__) {
+    window.__SSA_MM_ROT_FETCH__ = true;
+    window.fetch = function (url, opts) {
+      try {
+        if (
+          typeof url === 'string' &&
+          url.indexOf('/mm-clips') !== -1 &&
+          opts &&
+          opts.body &&
+          typeof FormData !== 'undefined' &&
+          opts.body instanceof FormData &&
+          !opts.body.has('rotation')
+        ) {
+          opts.body.append('rotation', String(window.__mmSaRotation || 0));
+        }
+      } catch (e) {}
+      return nativeFetch.apply(this, arguments);
+    };
+  }
+
   window.mmApplyClipRotations = function (videos) {
     injectCss();
     if (videos && videos.length) {
