@@ -11,7 +11,7 @@
 
   var RID = '2026-09-19-hmyc-midmar-cup';
   var CARD_ID = 'midmar-leaderboard';
-  var CSS_ID = 'midmar-leaderboard-css-v10';
+  var CSS_ID = 'midmar-leaderboard-css-v11';
   var POLL_MS = 15000;
   /* Historical Hunter names, temp until confirmed. 2013 Essex Girl + 442 Scout confirmed. */
   var TEMP_BOATS = {
@@ -218,7 +218,7 @@
   }
 
   function injectCss() {
-    ['midmar-leaderboard-css', 'midmar-leaderboard-css-v4', 'midmar-leaderboard-css-v5', 'midmar-leaderboard-css-v6', 'midmar-leaderboard-css-v7', 'midmar-leaderboard-css-v8', 'midmar-leaderboard-css-v9'].forEach(function (id) {
+    ['midmar-leaderboard-css', 'midmar-leaderboard-css-v4', 'midmar-leaderboard-css-v5', 'midmar-leaderboard-css-v6', 'midmar-leaderboard-css-v7', 'midmar-leaderboard-css-v8', 'midmar-leaderboard-css-v9', 'midmar-leaderboard-css-v10'].forEach(function (id) {
       var prev = document.getElementById(id);
       if (prev && prev.parentNode) prev.parentNode.removeChild(prev);
     });
@@ -259,7 +259,7 @@
       '.midmar-lb-list{margin:0;padding:0;}' +
       /* MP first: wrap. A rank may use two lines (meta + helm/crew). */
       '.midmar-lb-row{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;' +
-      'padding:4px 0;border-bottom:1px solid #e0e0e0;font-size:0.85rem;line-height:1.25;color:#1e293b;}' +
+      'padding:4px 0;border-bottom:1px solid #000;font-size:0.85rem;line-height:1.25;color:#1e293b;}' +
       '.midmar-lb-row:last-child{border-bottom:0;}' +
       '.midmar-lb-rank{flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;font-weight:700;color:#001f3f;white-space:nowrap;}' +
       '.midmar-lb-nett{flex:0 0 auto;font-weight:800;color:#001f3f;white-space:nowrap;font-variant-numeric:tabular-nums;}' +
