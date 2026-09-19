@@ -141,6 +141,11 @@
     return !!(root && root.getAttribute('data-regatta-id') === '2026-09-13-zvyc-cape-classic');
   }
 
+  function isMidmar() {
+    var root = cardEl();
+    return !!(root && root.getAttribute('data-regatta-id') === '2026-09-19-hmyc-midmar-cup');
+  }
+
   function isClubPage() {
     var root = cardEl();
     return !!(root && root.getAttribute('data-mm-club-page') === '1');
@@ -1149,8 +1154,11 @@
 
   function latestThumbHtml(v, videos, skipHit) {
     var cam = isWebcam(v);
+    var ratio = isMidmar() ? aspectCss(v) : '16 / 9';
     return (
-      '<div class="mm-lipton-reels-thumb mm-lipton-reels-thumb--latest" style="aspect-ratio:16 / 9">' +
+      '<div class="mm-lipton-reels-thumb mm-lipton-reels-thumb--latest" style="aspect-ratio:' +
+      ratio +
+      '">' +
       posterHtml(v) +
       (isSnapshotCam(v) ? '' : latestChromeHtml(chromeSource(v, videos), cam ? 'mm-lipton-reels-clip-chrome--zvyc' : '')) +
       (isSnapshotCam(v) ? '' : '<span class="mm-lipton-reels-play" aria-hidden="true"></span>') +
@@ -2016,6 +2024,7 @@
     }
     var art = singleCamRoot(root) ? 0 : ART_W / ART_H;
     var vid = VID_W / VID_H;
+    if (isMidmar() && isMobilePortrait()) vid = 3 / 4;
     var border = 4;
     var cols = nFit + liveN;
     if (cols < 1) cols = 1;
@@ -2450,6 +2459,13 @@
   function init() {
     var root = cardEl();
     if (!root) return;
+    if (root.getAttribute('data-mm-inited') === '1') {
+      if (!root.classList.contains('mm-lipton-reels--expanded')) {
+        layoutCompactStrip(root, sortVideos(readPayload(root).videos || []));
+      }
+      return;
+    }
+    root.setAttribute('data-mm-inited', '1');
     injectHideCss();
     var payload = readPayload(root);
     var state = { expanded: false, currentId: '', chromeSnap: null, hideTimer: null, playerWired: false, sliding: false, didSwipe: false };
@@ -2614,6 +2630,8 @@
       else if (mq.addListener) mq.addListener(afterRotate);
     }
   }
+
+  window.mmLiptonReelsInit = init;
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);

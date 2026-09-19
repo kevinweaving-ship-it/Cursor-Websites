@@ -15,7 +15,7 @@
   var WX_ID = "ssa-regatta-slot-card";
   var CAM_ID = "midmar-hmyc-cam";
   var CSS_ID = "midmar-live-media-css";
-  var JS_VER = "midmarwx16";
+  var JS_VER = "midmarwx17";
   var EVENT_PATH = "/regatta/" + RID;
   var STILL = "https://hmyccam1.nwsza.net/latest.jpg";
   var POLL_MS = 60000;
@@ -37,7 +37,10 @@
     s.textContent = [
       ".regatta-page > .midmar-live-media{width:100%;max-width:100%;box-sizing:border-box;display:flex;flex-direction:column;gap:0;margin:0;padding:0;border:0;background:transparent;box-shadow:none;}",
       ".regatta-page > .midmar-live-media .ssa-regatta-slot-card{order:0;margin-top:10px;width:100%;max-width:100%;padding:0!important;}",
-      ".regatta-page > .midmar-live-media .mm-lipton-reels{order:1;margin-top:10px;width:100%;max-width:100%;}",
+      ".regatta-page > .midmar-live-media .mm-lipton-reels{order:1;margin-top:10px;width:100vw;max-width:100vw;margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw);border-left:0;border-right:0;border-radius:0;box-sizing:border-box;}",
+      ".regatta-page > .midmar-live-media .mm-lipton-reels .mm-lipton-reels-brand{order:0;flex:0 0 auto;}",
+      ".regatta-page > .midmar-live-media .mm-lipton-reels .mm-lipton-reels-rail-wrap{order:1;min-width:0;}",
+      ".regatta-page > .midmar-live-media .mm-lipton-reels .mm-lipton-reels-thumb img{object-fit:contain;object-position:center;}",
       ".regatta-page > .midmar-live-media .midmar-hmyc-cam{order:2;margin-top:10px;width:100%;max-width:100%;padding:0!important;overflow:hidden;background:#000;}",
       ".midmar-hmyc-cam .cam-frame{position:relative;display:block;width:100%;aspect-ratio:16/9;background:#000;overflow:hidden;margin:0;padding:0;border:0;cursor:pointer;-webkit-tap-highlight-color:transparent;}",
       ".midmar-hmyc-cam .cam-shot{position:relative;display:block;width:100%;height:100%;overflow:hidden;}",
@@ -69,7 +72,11 @@
       ".midmar-hmyc-cam .midmar-cam-wx-gauge .dpt{font:700 16px Arial,Helvetica,sans-serif;fill:#000;}",
       ".midmar-hmyc-cam .midmar-cam-wx-gauge .ddeg{font:700 12px Arial,Helvetica,sans-serif;fill:#000;}",
       ".midmar-hmyc-cam .midmar-cam-wx-gauge .dcard{font:700 10px Arial,Helvetica,sans-serif;fill:#000;}",
+      "@media screen and (min-width:768px){",
+      ".regatta-page > .midmar-live-media .mm-lipton-reels{width:100%;max-width:100%;margin-left:0;margin-right:0;border-left:2px solid #001f3f;border-right:2px solid #001f3f;border-radius:8px;}",
+      "}",
       "@media screen and (orientation:portrait) and (max-width:767px){",
+      ".regatta-page > .midmar-live-media .ssa-regatta-slot-card{width:100vw;max-width:100vw;margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw);}",
       ".regatta-page > .midmar-live-media .midmar-hmyc-cam:not(.is-open){width:100vw;max-width:100vw;margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw);border-left:0;border-right:0;border-radius:0;}",
       "}",
       "@media print{.midmar-live-media,.mm-lipton-reels{display:none!important}}",
@@ -456,7 +463,13 @@
       "</a>" +
       '<div class="mm-lipton-reels-rail-wrap">' +
       '<button type="button" class="mm-lipton-reels-rail-btn mm-lipton-reels-rail-btn--prev" data-mm-rail-prev aria-label="Previous clips" hidden>‹</button>' +
-      '<div class="mm-lipton-reels-rail" data-mm-compact></div>' +
+      '<div class="mm-lipton-reels-rail" data-mm-compact>' +
+      '<button type="button" class="mm-lipton-reels-tile mm-lipton-reels-tile--reel mm-lipton-reels-tile--latest" data-mm-vid="midmar-cup-1" aria-label="Midmar Cup">' +
+      '<div class="mm-lipton-reels-thumb mm-lipton-reels-thumb--latest" style="aspect-ratio:3 / 4">' +
+      '<img src="' +
+      CUP_SRC +
+      '" alt="Midmar Cup" width="720" height="960" loading="lazy" decoding="async">' +
+      "</div></button></div>" +
       '<button type="button" class="mm-lipton-reels-rail-btn mm-lipton-reels-rail-btn--next" data-mm-rail-next aria-label="Next clips" hidden>›</button>' +
       "</div></div>";
     return mm;
@@ -530,7 +543,9 @@
     injectFleetResultsStatus();
     if (!placeHost()) return;
     loadCss("/css/mm-lipton-reels.css?v=" + JS_VER);
-    loadScript("/js/mm-lipton-reels-card.js?v=" + JS_VER);
+    loadScript("/js/mm-lipton-reels-card.js?v=" + JS_VER).then(function () {
+      if (typeof window.mmLiptonReelsInit === "function") window.mmLiptonReelsInit();
+    });
     loadScript("/js/regatta-slot-card.js?v=" + JS_VER).then(function () {
       var wx = document.getElementById(WX_ID);
       if (wx && typeof window.ssaMountWeatherCard === "function") {
