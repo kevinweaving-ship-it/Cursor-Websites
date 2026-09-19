@@ -15,7 +15,7 @@
   var WX_ID = "ssa-regatta-slot-card";
   var CAM_ID = "midmar-hmyc-cam";
   var CSS_ID = "midmar-live-media-css";
-  var JS_VER = "midmarwx17";
+  var JS_VER = "midmarwx18";
   var EVENT_PATH = "/regatta/" + RID;
   var STILL = "https://hmyccam1.nwsza.net/latest.jpg";
   var POLL_MS = 60000;
@@ -427,6 +427,8 @@
     });
   }
 
+  var TRAIN_SRC = "/artwork/Event Logo/Midmar-Last-Minute-Training.mp4";
+
   function cupVideos() {
     return [
       {
@@ -440,6 +442,19 @@
         aspect: "3 / 4",
         width: 3,
         height: 4,
+      },
+      {
+        id: "midmar-train-1",
+        kind: "video",
+        title: "Last minute Training and Setup",
+        fb_title: "Last minute Training and Setup",
+        fb_sub: "Fri 18 Sep 2026 - 14:59",
+        started_at: "2026-09-18T14:59:00+02:00",
+        thumb: "",
+        play_url: TRAIN_SRC,
+        aspect: "16 / 9",
+        width: 16,
+        height: 9,
       },
     ];
   }
@@ -469,6 +484,15 @@
       '<img src="' +
       CUP_SRC +
       '" alt="Midmar Cup" width="720" height="960" loading="lazy" decoding="async">' +
+      "</div></button>" +
+      '<button type="button" class="mm-lipton-reels-tile mm-lipton-reels-tile--reel" data-mm-vid="midmar-train-1" aria-label="Last minute Training and Setup">' +
+      '<div class="mm-lipton-reels-thumb" style="aspect-ratio:16 / 9">' +
+      '<span class="mm-lipton-reels-thumb-ph" aria-hidden="true"></span>' +
+      '<div class="mm-lipton-reels-clip-chrome" aria-hidden="true"><div class="mm-lipton-reels-clip-copy">' +
+      '<div class="mm-lipton-reels-clip-title">Last minute Training and Setup</div>' +
+      '<div class="mm-lipton-reels-clip-sub">Fri 18 Sep 2026 - 14:59</div>' +
+      "</div></div>" +
+      '<span class="mm-lipton-reels-play" aria-hidden="true"></span>' +
       "</div></button></div>" +
       '<button type="button" class="mm-lipton-reels-rail-btn mm-lipton-reels-rail-btn--next" data-mm-rail-next aria-label="Next clips" hidden>›</button>' +
       "</div></div>";

@@ -67,7 +67,17 @@ def midmar_event_mm_videos() -> list:
             "thumb": MIDMAR_CUP_EVENT_IMG_SRC,
             "play_url": MIDMAR_CUP_EVENT_IMG_SRC,
             "aspect": "3 / 4",
-        }
+        },
+        {
+            "id": "midmar-train-1",
+            "kind": "video",
+            "title": "Last minute Training and Setup",
+            "fb_title": "Last minute Training and Setup",
+            "fb_sub": "Fri 18 Sep 2026 - 14:59",
+            "started_at": "2026-09-18T14:59:00+02:00",
+            "play_url": "/artwork/Event Logo/Midmar-Last-Minute-Training.mp4",
+            "aspect": "16 / 9",
+        },
     ]
 
 

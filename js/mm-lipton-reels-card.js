@@ -45,6 +45,7 @@
       if (bl !== al) return bl - al;
       return String((b && b.started_at) || '').localeCompare(String((a && a.started_at) || ''));
     }
+    if (isMidmar()) return list;
     if (!isCapeClassic()) {
       list.sort(byRecent);
       return list;

@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parent
 
 def test_midmar_cam_expands_not_redirects():
     js = (ROOT / "js/midmar-live-media.js").read_text(encoding="utf-8")
-    assert "midmarwx17" in js
+    assert "midmarwx18" in js
     assert "placeCup" not in js
     assert "makeMmCard" in js
     assert "mmLiptonReels" in js
@@ -18,6 +18,10 @@ def test_midmar_cam_expands_not_redirects():
     assert "aspect-ratio:3 / 4" in js
     assert "mm-lipton-reels-brand{order:0" in js
     assert js.index("mm-lipton-reels-brand") < js.index('data-mm-vid="midmar-cup-1"')
+    assert js.index('data-mm-vid="midmar-cup-1"') < js.index('data-mm-vid="midmar-train-1"')
+    assert "Last minute Training and Setup" in js
+    assert "Fri 18 Sep 2026 - 14:59" in js
+    assert "Midmar-Last-Minute-Training.mp4" in js
     assert ".midmar-hmyc-cam{order:2" in js
     assert "injectFleetResultsStatus" in js
     assert "Results are Provisional" in js
@@ -63,6 +67,7 @@ def test_midmar_cam_expands_not_redirects():
     assert "function isMidmar()" in card
     assert "window.mmLiptonReelsInit = init" in card
     assert "if (isMidmar() && isMobilePortrait()) vid = 3 / 4" in card
+    assert "if (isMidmar()) return list;" in card
     assert (ROOT / "sailingsa/frontend/js/mm-lipton-reels-card.js").read_text(
         encoding="utf-8"
     ) == card
