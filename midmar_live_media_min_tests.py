@@ -7,7 +7,10 @@ ROOT = Path(__file__).resolve().parent
 
 def test_midmar_cam_expands_not_redirects():
     js = (ROOT / "js/midmar-live-media.js").read_text(encoding="utf-8")
-    assert "midmarwx14" in js
+    assert "midmarwx15" in js
+    assert "placeCup" in js
+    assert "Midmar-Cup-Event.jpg" in js
+    assert "/artwork/Event Logo/Midmar-Cup.jpg\"" not in js
     assert "injectFleetResultsStatus" in js
     assert "Results are Provisional" in js
     assert "19 Sep 2026" in js

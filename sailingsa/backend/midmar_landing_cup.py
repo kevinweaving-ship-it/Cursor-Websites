@@ -2,6 +2,7 @@
 
 MIDMAR_CUP_RID = "2026-09-19-hmyc-midmar-cup"
 MIDMAR_CUP_IMG_SRC = "/artwork/Event Logo/Midmar-Cup.jpg"
+MIDMAR_CUP_EVENT_IMG_SRC = "/artwork/Event Logo/Midmar-Cup-Event.jpg"
 
 MIDMAR_CUP_CSS = """
 .landing-event-card-story-wrap--with-cup {
@@ -28,6 +29,26 @@ MIDMAR_CUP_CSS = """
     float: none !important;
     background: transparent;
     flex: 0 0 auto;
+}
+.landing-event-card--live:has(a[href*="hmyc-midmar-cup"]) .landing-event-card-count {
+    animation: midmar-live-invert 2.8s ease-in-out infinite alternate;
+}
+@keyframes midmar-live-invert {
+    from {
+        background: #fff1e6;
+        border-color: #f5ac86;
+        color: #9a3412;
+    }
+    to {
+        background: #9a3412;
+        border-color: #9a3412;
+        color: #fff1e6;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .landing-event-card--live:has(a[href*="hmyc-midmar-cup"]) .landing-event-card-count {
+        animation: none;
+    }
 }
 """
 

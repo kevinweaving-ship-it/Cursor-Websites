@@ -15,10 +15,12 @@
   var WX_ID = "ssa-regatta-slot-card";
   var CAM_ID = "midmar-hmyc-cam";
   var CSS_ID = "midmar-live-media-css";
-  var JS_VER = "midmarwx14";
+  var JS_VER = "midmarwx15";
   var EVENT_PATH = "/regatta/" + RID;
   var STILL = "https://hmyccam1.nwsza.net/latest.jpg";
   var POLL_MS = 60000;
+  var CUP_ID = "midmar-event-cup";
+  var CUP_SRC = "/artwork/Event Logo/Midmar-Cup-Event.jpg";
 
   function onMidmar() {
     var path = String((window.location && window.location.pathname) || "")
@@ -68,9 +70,11 @@
       "@media screen and (orientation:portrait) and (max-width:767px){",
       ".regatta-page > .midmar-live-media .midmar-hmyc-cam:not(.is-open){width:100vw;max-width:100vw;margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw);border-left:0;border-right:0;border-radius:0;}",
       "}",
-      "@media print{.midmar-live-media{display:none!important}}",
+      "@media print{.midmar-live-media,.midmar-event-cup{display:none!important}}",
       ".class-header .fleet-results-status{margin-top:6px}",
       ".class-header .fleet-results-as-at{margin-top:2px}",
+      ".regatta-page > .midmar-event-cup{width:100%;max-width:100%;box-sizing:border-box;margin:16px 0 0;padding:0.5rem 0.75rem;text-align:center;}",
+      ".regatta-page > .midmar-event-cup img{display:block;margin:0 auto;width:auto;height:auto;max-width:min(220px,42vw);max-height:220px;object-fit:contain;background:transparent;}",
     ].join("");
     document.head.appendChild(s);
   }
@@ -416,6 +420,27 @@
     });
   }
 
+  function placeCup() {
+    var existing = document.getElementById(CUP_ID);
+    var wrap = existing || document.createElement("div");
+    wrap.id = CUP_ID;
+    wrap.className = "card midmar-event-cup";
+    if (!wrap.querySelector("img")) {
+      wrap.innerHTML =
+        '<img src="' +
+        CUP_SRC +
+        '" alt="Midmar Cup" width="160" height="256" loading="lazy" decoding="async">';
+    }
+    var page = document.querySelector(".regatta-page");
+    if (!page) return;
+    var actions = page.querySelector(".action-buttons");
+    if (actions && actions.parentNode === page) {
+      if (wrap.previousSibling !== actions) page.insertBefore(wrap, actions.nextSibling);
+    } else if (wrap.parentNode !== page) {
+      page.appendChild(wrap);
+    }
+  }
+
   function placeHost() {
     var existing = document.getElementById(HOST_ID);
     var host = existing || document.createElement("div");
@@ -470,6 +495,7 @@
     if (!onMidmar()) return;
     injectCss();
     injectFleetResultsStatus();
+    placeCup();
     if (!placeHost()) return;
     loadScript("/js/regatta-slot-card.js?v=" + JS_VER).then(function () {
       var wx = document.getElementById(WX_ID);
