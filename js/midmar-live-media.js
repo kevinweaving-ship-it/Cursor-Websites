@@ -15,7 +15,7 @@
   var WX_ID = "ssa-regatta-slot-card";
   var CAM_ID = "midmar-hmyc-cam";
   var CSS_ID = "midmar-live-media-css";
-  var JS_VER = "midmarwx7";
+  var JS_VER = "midmarwx11";
   var EVENT_PATH = "/regatta/" + RID;
   var STILL = "https://hmyccam1.nwsza.net/latest.jpg";
   var POLL_MS = 60000;
