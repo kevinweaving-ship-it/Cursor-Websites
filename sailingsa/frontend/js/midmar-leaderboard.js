@@ -11,7 +11,7 @@
 
   var RID = '2026-09-19-hmyc-midmar-cup';
   var CARD_ID = 'midmar-leaderboard';
-  var CSS_ID = 'midmar-leaderboard-css-v9';
+  var CSS_ID = 'midmar-leaderboard-css-v10';
   var POLL_MS = 15000;
   /* Historical Hunter names, temp until confirmed. 2013 Essex Girl + 442 Scout confirmed. */
   var TEMP_BOATS = {
@@ -57,18 +57,29 @@
     if (!n) return '';
     var sl = slug(n);
     if (!sl) return esc(n);
-    return '<a href="/sailor/' + esc(sl) + '">' + esc(n) + '</a>';
+    return '<a class="class-link-valid" href="/sailor/' + esc(sl) + '">' + esc(n) + '</a>';
   }
 
-  function logoChip(src, title, href, label) {
+  function logoChip(src, title, href, label, logoHref) {
     var img =
       '<img class="rs-club-row-logo-sm" src="' +
       src +
       '" alt="" title="' +
       esc(title) +
       '" loading="lazy" decoding="async">';
+    var imgHref = logoHref || href;
+    if (imgHref) {
+      img =
+        '<a class="midmar-lb-logo-link" href="' +
+        esc(imgHref) +
+        '" title="' +
+        esc(title) +
+        '">' +
+        img +
+        '</a>';
+    }
     var text = href
-      ? '<a href="' + esc(href) + '" title="' + esc(title) + '">' + esc(label) + '</a>'
+      ? '<a class="class-link-valid" href="' + esc(href) + '" title="' + esc(label) + '">' + esc(label) + '</a>'
       : esc(label);
     return '<span class="rs-club-with-logo">' + img + text + '</span>';
   }
@@ -122,11 +133,12 @@
       ? logoChip(
           '/artwork/Sponsor%20Logo/' + encodeURIComponent(sp.file) + '?v=20260912c',
           sp.alt,
-          href || sp.href,
-          bn
+          href,
+          bn,
+          sp.href
         )
       : href
-        ? '<a href="' + esc(href) + '" title="' + esc(bn) + '">' + esc(bn) + '</a>'
+        ? '<a class="class-link-valid" href="' + esc(href) + '" title="' + esc(bn) + '">' + esc(bn) + '</a>'
         : esc(bn);
     if (!isTempBoat(row)) return inner;
     return (
@@ -158,7 +170,7 @@
     var sl = slug(row.helm_name);
     var href = sl ? '/sailor/' + sl : boatHref(row);
     var inner = href
-      ? '<a href="' + esc(href) + '" title="Sail number">' + esc(sn) + '</a>'
+      ? '<a class="class-link-valid" href="' + esc(href) + '" title="Sail number">' + esc(sn) + '</a>'
       : esc(sn);
     return '<span class="midmar-lb-sail">' + inner + '</span>';
   }
@@ -206,7 +218,7 @@
   }
 
   function injectCss() {
-    ['midmar-leaderboard-css', 'midmar-leaderboard-css-v4', 'midmar-leaderboard-css-v5', 'midmar-leaderboard-css-v6', 'midmar-leaderboard-css-v7', 'midmar-leaderboard-css-v8'].forEach(function (id) {
+    ['midmar-leaderboard-css', 'midmar-leaderboard-css-v4', 'midmar-leaderboard-css-v5', 'midmar-leaderboard-css-v6', 'midmar-leaderboard-css-v7', 'midmar-leaderboard-css-v8', 'midmar-leaderboard-css-v9'].forEach(function (id) {
       var prev = document.getElementById(id);
       if (prev && prev.parentNode) prev.parentNode.removeChild(prev);
     });
@@ -257,9 +269,13 @@
       '.fleet-results-table td.midmar-boat-temp a{color:#94a3b8!important;font-weight:600;text-decoration:underline;}' +
       '.midmar-lb-sail{flex:0 0 auto;font-weight:800;color:#001f3f;white-space:nowrap;font-variant-numeric:tabular-nums;}' +
       '.midmar-lb-boat a,.midmar-lb-club a,.midmar-lb-people a,.midmar-lb-sail a,' +
-      '.midmar-lb .rs-club-with-logo a{color:#0000ee;text-decoration:underline;font-weight:600;}' +
+      '.midmar-lb .rs-club-with-logo a,.midmar-lb a.class-link-valid{' +
+      'color:#0000ee!important;text-decoration:underline!important;font-weight:600!important;}' +
       '.midmar-lb-boat a:visited,.midmar-lb-club a:visited,.midmar-lb-people a:visited,' +
-      '.midmar-lb-sail a:visited,.midmar-lb .rs-club-with-logo a:visited{color:#0000ee;}' +
+      '.midmar-lb-sail a:visited,.midmar-lb .rs-club-with-logo a:visited,' +
+      '.midmar-lb a.class-link-valid:visited{color:#0000ee!important;}' +
+      '.midmar-lb-logo-link,.midmar-lb-logo-link:visited{display:inline-flex;align-items:center;text-decoration:none!important;}' +
+      '.midmar-lb-logo-link img{cursor:pointer;}' +
       '.midmar-lb-club{flex:0 0 auto;}' +
       '.midmar-lb-sep{flex:0 0 auto;align-self:stretch;width:0;margin:0 1px;' +
       'border-left:1px solid rgba(26,39,80,0.22);}' +
