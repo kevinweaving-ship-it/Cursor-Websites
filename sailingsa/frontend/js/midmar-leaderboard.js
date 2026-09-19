@@ -11,8 +11,14 @@
 
   var RID = '2026-09-19-hmyc-midmar-cup';
   var CARD_ID = 'midmar-leaderboard';
-  var CSS_ID = 'midmar-leaderboard-css-v5';
+  var CSS_ID = 'midmar-leaderboard-css-v6';
   var POLL_MS = 15000;
+  /* Historical Hunter names, temp until confirmed. 442 has no history. */
+  var TEMP_BOATS = {
+    '2013': 'Essex Girl',
+    '741': 'Bueno Vento',
+    '40': "Odin's Eye",
+  };
   var MEDAL = { 1: '\uD83E\uDD47', 2: '\uD83E\uDD48', 3: '\uD83E\uDD49' };
   var ORD = { 1: '1st', 2: '2nd', 3: '3rd' };
   var SPONSORS = [
@@ -92,16 +98,30 @@
     return null;
   }
 
+  function isTempBoat(row) {
+    var sn = String(row.sail_number || row.sail_no || row.sail || '').trim();
+    var bn = String(row.boat_name || '').trim();
+    var expected = TEMP_BOATS[sn];
+    return !!(expected && bn && expected.toLowerCase() === bn.toLowerCase());
+  }
+
   function boatHtml(row) {
     var bn = String(row.boat_name || '').trim();
     if (!bn) return '';
     var sp = sponsorFor(bn);
-    if (!sp) return esc(bn);
-    return logoChip(
-      '/artwork/Sponsor%20Logo/' + encodeURIComponent(sp.file) + '?v=20260912c',
-      sp.alt,
-      sp.href,
-      bn
+    var inner = sp
+      ? logoChip(
+          '/artwork/Sponsor%20Logo/' + encodeURIComponent(sp.file) + '?v=20260912c',
+          sp.alt,
+          sp.href,
+          bn
+        )
+      : esc(bn);
+    if (!isTempBoat(row)) return inner;
+    return (
+      '<span class="midmar-lb-boat-temp" title="Temporary name — unconfirmed">' +
+      inner +
+      '</span>'
     );
   }
 
@@ -154,7 +174,7 @@
   }
 
   function injectCss() {
-    ['midmar-leaderboard-css', 'midmar-leaderboard-css-v4'].forEach(function (id) {
+    ['midmar-leaderboard-css', 'midmar-leaderboard-css-v4', 'midmar-leaderboard-css-v5'].forEach(function (id) {
       var prev = document.getElementById(id);
       if (prev && prev.parentNode) prev.parentNode.removeChild(prev);
     });
@@ -200,6 +220,8 @@
       '.midmar-lb-rank{flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;font-weight:700;color:#001f3f;white-space:nowrap;}' +
       '.midmar-lb-medal{font-size:1rem;line-height:1;}' +
       '.midmar-lb-boat{flex:0 1 auto;font-weight:700;color:#001f3f;min-width:0;}' +
+      '.midmar-lb-boat-temp,.midmar-lb-boat-temp a,.fleet-results-table td.midmar-boat-temp,' +
+      '.fleet-results-table td.midmar-boat-temp a{color:#94a3b8!important;font-weight:600;}' +
       '.midmar-lb-sail{flex:0 0 auto;font-weight:800;color:#001f3f;white-space:nowrap;font-variant-numeric:tabular-nums;}' +
       '.midmar-lb-boat a,.midmar-lb-club a,.midmar-lb-people a{color:#001f3f;text-decoration:none;}' +
       '.midmar-lb-club{flex:0 0 auto;}' +
@@ -257,6 +279,57 @@
     return card;
   }
 
+  function ensureTempCss(doc) {
+    if (!doc || doc.getElementById('midmar-boat-temp-css')) return;
+    var s = doc.createElement('style');
+    s.id = 'midmar-boat-temp-css';
+    s.textContent =
+      '.fleet-results-table td.midmar-boat-temp,.fleet-results-table td.midmar-boat-temp a{' +
+      'color:#94a3b8!important;font-weight:600;}';
+    (doc.head || doc.documentElement).appendChild(s);
+  }
+
+  function eachFleetTable(fn) {
+    document.querySelectorAll('.fleet-results-table').forEach(fn);
+    document.querySelectorAll('iframe').forEach(function (fr) {
+      try {
+        var doc = fr.contentDocument;
+        if (!doc) return;
+        ensureTempCss(doc);
+        doc.querySelectorAll('.fleet-results-table').forEach(fn);
+      } catch (e) {}
+    });
+  }
+
+  function greyFleetTemps() {
+    eachFleetTable(function (table) {
+      var headers = table.querySelectorAll('thead th');
+      var boatIdx = -1;
+      var sailIdx = -1;
+      headers.forEach(function (th, i) {
+        var t = String(th.textContent || '')
+          .trim()
+          .toLowerCase();
+        if (t === 'boat name' || t === 'boat') boatIdx = i;
+        if (t === 'sail no' || t === 'sail' || t === 'sail number') sailIdx = i;
+      });
+      if (boatIdx < 0) return;
+      Array.prototype.forEach.call(table.querySelectorAll('tbody tr'), function (tr) {
+        var tds = tr.children;
+        if (!tds[boatIdx]) return;
+        var bn = String(tds[boatIdx].textContent || '').trim();
+        var sn = sailIdx >= 0 ? String(tds[sailIdx].textContent || '').trim() : '';
+        var expected = TEMP_BOATS[sn];
+        if (expected && bn && expected.toLowerCase() === bn.toLowerCase()) {
+          tds[boatIdx].classList.add('midmar-boat-temp');
+          tds[boatIdx].setAttribute('title', 'Temporary name — unconfirmed');
+        } else {
+          tds[boatIdx].classList.remove('midmar-boat-temp');
+        }
+      });
+    });
+  }
+
   function paint(card, rows) {
     var list = card.querySelector('[data-mm-lb-list]');
     if (!list) return;
@@ -310,6 +383,7 @@
       .then(function (data) {
         var rows = Array.isArray(data) ? data : (data && data.results) || [];
         paint(card, rows);
+        greyFleetTemps();
       })
       .catch(function () {});
   }
@@ -320,6 +394,7 @@
     var card = placeCard();
     if (!card) return;
     load(card);
+    greyFleetTemps();
     if (card.getAttribute('data-mm-lb-bound') === '1') return;
     card.setAttribute('data-mm-lb-bound', '1');
     window.setInterval(function () {
