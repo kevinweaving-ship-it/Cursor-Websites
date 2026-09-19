@@ -1,6 +1,7 @@
 /**
  * Midmar Cup — compact live Leader Board between event header and weather.
- * Same card border + width as the weather card. MP first: a rank may wrap to 2 lines.
+ * Same card chrome as weather: 2px #001f3f, 8px corners. MP first: a rank may wrap to 2 lines.
+ * Each dataset (rank | boat | sail | club | helm & crew) is separated by a divider.
  * Boat name uses sponsor logo | divider | name when a brand is known (same as results).
  */
 (function () {
@@ -10,7 +11,7 @@
 
   var RID = '2026-09-19-hmyc-midmar-cup';
   var CARD_ID = 'midmar-leaderboard';
-  var CSS_ID = 'midmar-leaderboard-css';
+  var CSS_ID = 'midmar-leaderboard-css-v5';
   var POLL_MS = 15000;
   var MEDAL = { 1: '\uD83E\uDD47', 2: '\uD83E\uDD48', 3: '\uD83E\uDD49' };
   var ORD = { 1: '1st', 2: '2nd', 3: '3rd' };
@@ -104,6 +105,20 @@
     );
   }
 
+  function sailHtml(row) {
+    var sn = String(row.sail_number || row.sail_no || row.sail || '').trim();
+    if (!sn) return '';
+    return '<span class="midmar-lb-sail" title="Sail number">' + esc(sn) + '</span>';
+  }
+
+  function sepHtml() {
+    return '<span class="midmar-lb-sep" aria-hidden="true"></span>';
+  }
+
+  function joinSets(parts) {
+    return parts.filter(Boolean).join(sepHtml());
+  }
+
   function peopleHtml(row) {
     var helm = String(row.helm_name || '').trim();
     var parts = [];
@@ -139,20 +154,44 @@
   }
 
   function injectCss() {
+    ['midmar-leaderboard-css', 'midmar-leaderboard-css-v4'].forEach(function (id) {
+      var prev = document.getElementById(id);
+      if (prev && prev.parentNode) prev.parentNode.removeChild(prev);
+    });
     if (document.getElementById(CSS_ID)) return;
     var s = document.createElement('style');
     s.id = CSS_ID;
     s.textContent =
-      /* Same parent + width/border as weather: full host width, .card 2px #001f3f. */
-      '.regatta-page > .midmar-live-media .midmar-lb.card{' +
-      'order:0;margin:10px 0 0;width:100%;max-width:100%;box-sizing:border-box;' +
-      'padding:6px 10px;border:2px solid #001f3f;background:#fff;}' +
-      '.regatta-page > .midmar-live-media .ssa-regatta-slot-card{order:1;}' +
-      '.regatta-page > .midmar-live-media .midmar-mm-row{order:2;}' +
-      '.regatta-page > .midmar-lb.card{' +
-      'margin:10px 0 0;width:100%;max-width:100%;box-sizing:border-box;' +
-      'padding:6px 10px;border:2px solid #001f3f;background:#fff;}' +
-      '.midmar-lb .section-title{margin:0 0 4px;padding:0 0 3px;font-size:0.75rem;line-height:1.2;}' +
+      /* Undo the extra wrap border. Event header card keeps its own chrome. */
+      '.regatta-page > .regatta-header-wrap{' +
+      'border:0!important;box-shadow:none!important;border-radius:0!important;' +
+      'background:transparent!important;}' +
+      /* One navy card each: Leader Board, Weather, Media. Do not style header/admin. */
+      '.regatta-page > .midmar-live-media > #midmar-leaderboard.card,' +
+      '.regatta-page > .midmar-live-media > #ssa-regatta-slot-card,' +
+      '.regatta-page > .midmar-live-media > .mm-lipton-reels{' +
+      'border:2px solid #001f3f!important;border-radius:8px!important;' +
+      'box-shadow:0 1px 3px rgba(0,31,63,0.08)!important;' +
+      'width:100%!important;max-width:100%!important;box-sizing:border-box!important;' +
+      'margin-left:0!important;margin-right:0!important;}' +
+      '.regatta-page > .midmar-live-media > #midmar-leaderboard.card{' +
+      'order:0;margin:10px 0 0;padding:6px 10px;background:#fff;overflow:hidden;}' +
+      '.regatta-page > .midmar-live-media > #ssa-regatta-slot-card{order:1;margin-top:10px;padding:0!important;}' +
+      '.regatta-page > .midmar-live-media > .mm-lipton-reels{order:2;margin-top:10px;overflow:hidden;}' +
+      '.regatta-page > .midmar-live-media .ssa-wx-card .card,' +
+      '.regatta-page > .midmar-live-media .mm-lipton-reels .card,' +
+      '.regatta-page > .midmar-live-media .mm-lipton-reels-compact{' +
+      'border:0!important;box-shadow:none!important;}' +
+      '@media screen and (orientation:portrait) and (max-width:767px){' +
+      '.regatta-page > .midmar-live-media > #ssa-regatta-slot-card,' +
+      '.regatta-page > .midmar-live-media > .mm-lipton-reels,' +
+      '.regatta-page > .midmar-live-media > .midmar-hmyc-cam:not(.is-open){' +
+      'width:100%!important;max-width:100%!important;' +
+      'margin-left:0!important;margin-right:0!important;}' +
+      '}' +
+      '.midmar-lb .section-title{margin:0 0 2px;padding:0 0 2px;font-size:0.75rem;line-height:1.2;}' +
+      '.midmar-lb-sheet-note{margin:0 0 4px;font-size:0.7rem;line-height:1.2;font-weight:500;' +
+      'color:#334155;text-transform:none;letter-spacing:0;}' +
       '.midmar-lb-list{margin:0;padding:0;}' +
       /* MP first: wrap. A rank may use two lines (meta + helm/crew). */
       '.midmar-lb-row{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;' +
@@ -161,8 +200,11 @@
       '.midmar-lb-rank{flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;font-weight:700;color:#001f3f;white-space:nowrap;}' +
       '.midmar-lb-medal{font-size:1rem;line-height:1;}' +
       '.midmar-lb-boat{flex:0 1 auto;font-weight:700;color:#001f3f;min-width:0;}' +
+      '.midmar-lb-sail{flex:0 0 auto;font-weight:800;color:#001f3f;white-space:nowrap;font-variant-numeric:tabular-nums;}' +
       '.midmar-lb-boat a,.midmar-lb-club a,.midmar-lb-people a{color:#001f3f;text-decoration:none;}' +
       '.midmar-lb-club{flex:0 0 auto;}' +
+      '.midmar-lb-sep{flex:0 0 auto;align-self:stretch;width:0;margin:0 1px;' +
+      'border-left:1px solid rgba(26,39,80,0.22);}' +
       '.midmar-lb .rs-club-with-logo{display:inline-flex;align-items:center;}' +
       '.midmar-lb .rs-club-row-logo-sm{flex:0 0 22px;width:22px;max-width:22px;height:auto;max-height:16px;' +
       'object-fit:contain;box-sizing:content-box;padding-right:4px;margin-right:4px;' +
@@ -185,7 +227,18 @@
       card.setAttribute('aria-label', 'Leader Board');
       card.innerHTML =
         '<h2 class="section-title">Leader Board</h2>' +
+        '<p class="midmar-lb-sheet-note">Full Results sheet below on page</p>' +
         '<div class="midmar-lb-list" data-mm-lb-list></div>';
+    } else {
+      var title = card.querySelector('.section-title');
+      if (title) title.textContent = 'Leader Board';
+      if (!card.querySelector('.midmar-lb-sheet-note')) {
+        var note = document.createElement('p');
+        note.className = 'midmar-lb-sheet-note';
+        note.textContent = 'Full Results sheet below on page';
+        if (title && title.nextSibling) title.parentNode.insertBefore(note, title.nextSibling);
+        else card.insertBefore(note, card.firstChild);
+      }
     }
     var host = document.getElementById('midmar-live-media');
     var wx = document.getElementById('ssa-regatta-slot-card');
@@ -223,21 +276,24 @@
       .map(function (row) {
         var n = Number(row.rank);
         var boat = boatHtml(row);
+        var sail = sailHtml(row);
         var club = clubChip(row.club_abbrev || row.club_raw);
         return (
           '<div class="midmar-lb-row" data-rank="' +
           n +
           '">' +
-          '<span class="midmar-lb-rank"><span class="midmar-lb-medal" aria-hidden="true">' +
-          (MEDAL[n] || '') +
-          '</span> ' +
-          ORD[n] +
-          '</span>' +
-          (boat ? '<span class="midmar-lb-boat">' + boat + '</span>' : '') +
-          (club ? '<span class="midmar-lb-club">' + club + '</span>' : '') +
-          '<span class="midmar-lb-people">' +
-          peopleHtml(row) +
-          '</span></div>'
+          joinSets([
+            '<span class="midmar-lb-rank"><span class="midmar-lb-medal" aria-hidden="true">' +
+              (MEDAL[n] || '') +
+              '</span> ' +
+              ORD[n] +
+              '</span>',
+            boat ? '<span class="midmar-lb-boat">' + boat + '</span>' : '',
+            sail,
+            club ? '<span class="midmar-lb-club">' + club + '</span>' : '',
+            '<span class="midmar-lb-people">' + peopleHtml(row) + '</span>',
+          ]) +
+          '</div>'
         );
       })
       .join('');
