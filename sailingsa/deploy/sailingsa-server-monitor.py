@@ -384,7 +384,29 @@ def metric_pg():
     return {"up": act == "active" and ok, "active": act, "conns": total, "idle_xact": idle}
 
 
-def metric_5xx(window_s: int) -> int:
+GATEWAY_5XX = {502, 503, 504}
+
+
+def last_api_restart_epoch() -> float | None:
+    """When sailingsa-api last entered active (systemd restart)."""
+    _c, out, _ = run(
+        ["systemctl", "show", "-p", "ActiveEnterTimestamp", "--value", "sailingsa-api"]
+    )
+    raw = (out or "").strip()
+    if not raw or raw in ("n/a", "0"):
+        return None
+    parts = raw.split()
+    if len(parts) < 3:
+        return None
+    try:
+        body = " ".join(parts[1:3])
+        t = dt.datetime.strptime(body, "%Y-%m-%d %H:%M:%S").replace(tzinfo=SAST)
+        return t.timestamp()
+    except Exception:
+        return None
+
+
+def metric_5xx(window_s: int, skip_gateway_after: float | None = None) -> int:
     path = Path("/var/log/nginx/access.log")
     if not path.is_file():
         return 0
@@ -416,8 +438,17 @@ def metric_5xx(window_s: int) -> int:
             continue
         try:
             t = dt.datetime.strptime(tm.group(1), "%d/%b/%Y:%H:%M:%S").replace(tzinfo=SAST)
-            if t.timestamp() >= cutoff:
-                count += 1
+            ts = t.timestamp()
+            if ts < cutoff:
+                continue
+            # Nginx 502/503/504 during a normal API restart are not an outage.
+            if (
+                skip_gateway_after is not None
+                and code in GATEWAY_5XX
+                and ts >= skip_gateway_after
+            ):
+                continue
+            count += 1
         except Exception:
             count += 1
     return count
@@ -547,7 +578,12 @@ def collect() -> dict:
     hk = metric_housekeeping()
     bak = metric_backup()
     svc = metric_services()
-    five_5m = metric_5xx(300)
+    restart_ts = last_api_restart_epoch()
+    skip_gateway_after = None
+    if restart_ts is not None and (time.time() - restart_ts) < 300:
+        # Include the Stopping window just before ActiveEnter.
+        skip_gateway_after = restart_ts - 60
+    five_5m = metric_5xx(300, skip_gateway_after)
     five_24h = metric_5xx(86400)
     pool_hits = metric_journal_hits(POOL_ERR_RE, "5 min ago")
     return {
@@ -565,6 +601,7 @@ def collect() -> dict:
         "pool_hits": pool_hits,
         "nproc": nproc(),
         "ts": now_sast(),
+        "api_restart_age_s": (time.time() - restart_ts) if restart_ts else None,
     }
 
 
@@ -811,11 +848,37 @@ def main(argv=None) -> int:
             rec_ok = recovered.get("up") is True
             still_ok = still.get("up") is False
             already_ok = already.get("up") is True
+            skip_ok = True
+            # 502 during a restart window must not count; a 500 still must.
+            now = time.time()
+            restart_ts = now - 30
+            sample = [
+                f'1.1.1.1 - - [{now_sast().strftime("%d/%b/%Y:%H:%M:%S")}] '
+                f'"GET /x HTTP/1.1" 502 0 "-" "-"',
+                f'1.1.1.1 - - [{now_sast().strftime("%d/%b/%Y:%H:%M:%S")}] '
+                f'"GET /x HTTP/1.1" 500 0 "-" "-"',
+            ]
+            counted_all = 0
+            counted_skip = 0
+            ts_re = re.compile(r"\[(\d{2}/[A-Za-z]{3}/\d{4}:\d{2}:\d{2}:\d{2})")
+            st_re = re.compile(r'"\s(\d{3})\s')
+            for line in sample:
+                code = int(st_re.search(line).group(1))
+                t = dt.datetime.strptime(
+                    ts_re.search(line).group(1), "%d/%b/%Y:%H:%M:%S"
+                ).replace(tzinfo=SAST)
+                ts = t.timestamp()
+                counted_all += 1
+                if code in GATEWAY_5XX and ts >= (restart_ts - 60):
+                    continue
+                counted_skip += 1
+            skip_ok = counted_all == 2 and counted_skip == 1
             print("restart_grace recovered_mid_restart", rec_ok)
             print("restart_grace still_down_after_grace", still_ok)
             print("restart_grace already_up_no_wait", already_ok)
+            print("restart_grace skip_restart_502", skip_ok)
             print("restart_grace notes", notes)
-            return 0 if rec_ok and still_ok and already_ok else 1
+            return 0 if rec_ok and still_ok and already_ok and skip_ok else 1
 
         if args.dedupe_test:
             printed = []

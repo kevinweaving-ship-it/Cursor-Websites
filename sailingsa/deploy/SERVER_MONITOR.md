@@ -60,8 +60,8 @@ Log: `/var/log/sailingsa-server-monitor.log` (no tokens / no phone numbers)
 |---|---|---|
 | Disk | ≥75% | ≥85% |
 | API down | — | HTTP still down **after 120s restart grace** |
+| 5xx spike | — | ≥10 in 5 min (**500s only** if API restarted in that window; 502/503/504 during restart ignored) |
 | PG down | — | unresponsive |
-| 5xx spike | — | ≥10 in 5 min (nginx access) |
 | pool / too-many-clients | — | any match in last 5 min journal |
 | idle-in-transaction | ≥3 | ≥8 |
 | API workers | — | &lt;3 while service active |
@@ -80,6 +80,7 @@ A normal `systemctl restart sailingsa-api` takes well under **120 seconds** (4 u
 - Recovered inside that window → **no WhatsApp** (and no RECOVERED, because nothing was sent).
 - Still down after 120s → CRITICAL. That is longer than a normal restart.
 - Worker-count CRITICAL is suppressed while the API is down/restarting (avoids a second false alert).
+- Nginx **502/503/504** in the 5 minutes around a restart do not count toward the 5xx spike. Real **500** app errors still count. Sustained 502s after the API has been up >5 min still alert.
 
 Every deploy / Event URL / live-edit task that restarts the API is covered by this grace. Do not expect a CRITICAL for a clean restart.
 
