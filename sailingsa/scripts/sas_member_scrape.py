@@ -129,7 +129,11 @@ def sync_sailed_no_sas(conn) -> int:
     )
     conn.commit()
     promoted = promote_exact_no_sas(conn)
+    renamed = apply_sas_names_on_linked_seats(conn)
+    promoted += promote_nickname_no_sas(conn)
+    renamed += apply_sas_names_on_linked_seats(conn)
     cur.close()
+    print(f"[sas_member_scrape] sas-truth names rewritten={renamed}", file=sys.stderr)
     return inserted + promoted
 
 
@@ -161,6 +165,101 @@ def promote_exact_no_sas(conn) -> int:
             conn.rollback()
             print(f"[sas_member_scrape] promote failed {norm}: {e}", file=sys.stderr)
     return linked
+
+
+def _add_nickname(cur, sas_id: int, nick: str) -> None:
+    nick = (nick or "").strip()
+    if len(nick) < 2 or len(nick) > 40:
+        return
+    cur.execute(
+        "SELECT first_name, nickname FROM sas_id_personal WHERE sa_sailing_id::text = %s",
+        (str(sas_id),),
+    )
+    row = cur.fetchone()
+    if not row:
+        return
+    if _norm_person(row[0] or "") == _norm_person(nick):
+        return
+    parts = [p.strip() for p in (row[1] or "").split(",") if p.strip()]
+    if any(_norm_person(p) == _norm_person(nick) for p in parts):
+        return
+    merged = ", ".join(parts + [nick])
+    if len(merged) > 100:
+        return
+    cur.execute(
+        "UPDATE sas_id_personal SET nickname = %s WHERE sa_sailing_id::text = %s",
+        (merged, str(sas_id)),
+    )
+
+
+def _sheet_first_if_nickname(sheet_name: str, first_name: str, last_name: str) -> str | None:
+    """Sheet first name is a nickname only when the surname already matches SAS."""
+    if not sheet_name or "&" in sheet_name or "," in sheet_name:
+        return None
+    parts = _norm_person(sheet_name).split()
+    if len(parts) < 2:
+        return None
+    if parts[-1] != _norm_person(last_name or ""):
+        return None
+    if parts[0] == _norm_person(first_name or ""):
+        return None
+    raw = sheet_name.strip().split()[0]
+    return raw if raw else None
+
+
+def apply_sas_names_on_linked_seats(conn) -> int:
+    """Published result names are SAS first name + surname. Sheet nicknames are stored, not shown."""
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT sa_sailing_id::text, first_name, last_name
+        FROM sas_id_personal
+        WHERE sa_sailing_id ~ '^[0-9]+$'
+          AND NULLIF(TRIM(first_name), '') IS NOT NULL
+          AND NULLIF(TRIM(last_name), '') IS NOT NULL
+        """
+    )
+    people = {str(r[0]): (r[1], r[2]) for r in cur.fetchall()}
+    renamed = 0
+    for name_col, id_col in (
+        ("helm_name", "helm_sa_sailing_id"),
+        ("crew_name", "crew_sa_sailing_id"),
+        ("crew2_name", "crew2_sa_sailing_id"),
+        ("crew3_name", "crew3_sa_sailing_id"),
+    ):
+        cur.execute(
+            f"""
+            SELECT {id_col}::text, {name_col}
+            FROM results
+            WHERE {id_col} IS NOT NULL AND NULLIF(TRIM({name_col}), '') IS NOT NULL
+            """
+        )
+        seen = set()
+        for sid, sheet in cur.fetchall():
+            person = people.get(str(sid))
+            if not person:
+                continue
+            nick = _sheet_first_if_nickname(sheet, person[0], person[1])
+            if nick and (str(sid), _norm_person(nick)) not in seen:
+                seen.add((str(sid), _norm_person(nick)))
+                _add_nickname(cur, int(sid), nick)
+        truth = "TRIM(s.first_name) || ' ' || TRIM(s.last_name)"
+        cur.execute(
+            f"""
+            UPDATE results r
+            SET {name_col} = {truth}
+            FROM sas_id_personal s
+            WHERE r.{id_col}::text = s.sa_sailing_id::text
+              AND NULLIF(TRIM(s.first_name), '') IS NOT NULL
+              AND NULLIF(TRIM(s.last_name), '') IS NOT NULL
+              AND POSITION('&' IN COALESCE(r.{name_col}, '')) = 0
+              AND BTRIM(r.{name_col}) IS DISTINCT FROM ({truth})
+            """
+        )
+        renamed += cur.rowcount
+    conn.commit()
+    cur.close()
+    return renamed
 
 
 def attach_new_sas_to_sailed(conn, sas_id: int, full_name: str) -> int:
@@ -204,12 +303,42 @@ def attach_new_sas_to_sailed(conn, sas_id: int, full_name: str) -> int:
     ):
         cur.execute(
             f"""
-            UPDATE results
-            SET {id_col} = %s, {temp_col} = NULL
+            SELECT DISTINCT {name_col}
+            FROM results
             WHERE {id_col} IS NULL
               AND lower(trim(regexp_replace(replace(replace(coalesce({name_col}, ''), '&#039;', ''''), '’', ''''), '\\s+', ' ', 'g'))) = %s
             """,
-            (int(sas_id), norm),
+            (norm,),
+        )
+        sheets = [r[0] for r in cur.fetchall() if r and r[0]]
+        cur.execute(
+            "SELECT first_name, last_name FROM sas_id_personal WHERE sa_sailing_id::text = %s",
+            (str(sas_id),),
+        )
+        person = cur.fetchone()
+        if person:
+            for sheet in sheets:
+                nick = _sheet_first_if_nickname(sheet, person[0] or "", person[1] or "")
+                if nick:
+                    _add_nickname(cur, int(sas_id), nick)
+        cur.execute(
+            f"""
+            UPDATE results r
+            SET {id_col} = %s,
+                {temp_col} = NULL,
+                {name_col} = CASE
+                    WHEN POSITION('&' IN COALESCE(r.{name_col}, '')) = 0
+                     AND NULLIF(TRIM(s.first_name), '') IS NOT NULL
+                     AND NULLIF(TRIM(s.last_name), '') IS NOT NULL
+                    THEN TRIM(s.first_name) || ' ' || TRIM(s.last_name)
+                    ELSE r.{name_col}
+                END
+            FROM sas_id_personal s
+            WHERE s.sa_sailing_id::text = %s
+              AND r.{id_col} IS NULL
+              AND lower(trim(regexp_replace(replace(replace(coalesce(r.{name_col}, ''), '&#039;', ''''), '’', ''''), '\\s+', ' ', 'g'))) = %s
+            """,
+            (int(sas_id), str(sas_id), norm),
         )
         linked += cur.rowcount
     if linked < 1:
@@ -231,6 +360,39 @@ def attach_new_sas_to_sailed(conn, sas_id: int, full_name: str) -> int:
         file=sys.stderr,
     )
     return linked
+
+
+def promote_nickname_no_sas(conn) -> int:
+    """Match a sheet nickname only when the SAS surname matches and only one card has that nickname."""
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT p.normalized_name, min(s.sa_sailing_id::int)
+        FROM identity_pending_sailors p
+        JOIN sas_id_personal s
+          ON lower(trim(s.last_name)) = regexp_replace(p.normalized_name, '^.* ', '')
+         AND EXISTS (
+              SELECT 1
+              FROM unnest(string_to_array(lower(coalesce(s.nickname, '')), ',')) AS nick
+              WHERE trim(nick) = split_part(p.normalized_name, ' ', 1)
+         )
+        WHERE p.status IN ('pending', 'admin_confirmed_no_sas')
+          AND array_length(regexp_split_to_array(p.normalized_name, ' '), 1) >= 2
+        GROUP BY p.normalized_name
+        HAVING count(DISTINCT s.sa_sailing_id) = 1
+        """
+    )
+    pairs = cur.fetchall()
+    cur.close()
+    linked = 0
+    for norm, sas_id in pairs:
+        try:
+            linked += attach_new_sas_to_sailed(conn, int(sas_id), norm)
+        except Exception as e:
+            conn.rollback()
+            print(f"[sas_member_scrape] nickname promote failed {norm}: {e}", file=sys.stderr)
+    return linked
+
 
 def _get_db_url() -> str:
     url = os.environ.get("DB_URL") or os.environ.get("DATABASE_URL")
