@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Midmar R4 places 1–5 only. Rest to follow — do not invent RET/DNS/DNC."""
+"""Midmar R4 finish places 1–5 only (not a lap). Rest to follow — do not invent RET/DNS/DNC."""
 import json
 import re
 from datetime import datetime
