@@ -15,7 +15,7 @@
   var WX_ID = "ssa-regatta-slot-card";
   var CAM_ID = "midmar-hmyc-cam";
   var CSS_ID = "midmar-live-media-css";
-  var JS_VER = "midmarwx4";
+  var JS_VER = "midmarwx5";
   var EVENT_PATH = "/regatta/" + RID;
   var STILL = "https://hmyccam1.nwsza.net/latest.jpg";
   var POLL_MS = 60000;
@@ -50,6 +50,16 @@
       ".midmar-hmyc-cam .mm-lipton-reels-cam-stamp-dot{flex:0 0 auto;width:8px;height:8px;border-radius:50%;background:#94a3b8;}",
       ".midmar-hmyc-cam .mm-lipton-reels-cam-stamp [data-mm-cam-stamp-label]{font-weight:800;letter-spacing:.03em;}",
       ".midmar-hmyc-cam .mm-lipton-reels-cam-stamp [data-mm-cam-stamp-time]{font-weight:700;opacity:.95;}",
+      ".midmar-hmyc-cam .midmar-cam-wx{position:absolute;top:8px;right:8px;z-index:4;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:2px;min-width:72px;padding:6px 6px 5px;border-radius:6px;background:rgba(0,16,24,.72);color:#fff;text-align:center;text-shadow:0 1px 2px rgba(0,0,0,.85);box-sizing:border-box;}",
+      ".midmar-hmyc-cam.is-open .midmar-cam-wx{top:48px;right:8px;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-temp,.midmar-hmyc-cam .midmar-cam-wx-kn{display:block;width:100%;margin:0;padding:0;text-align:center;font:800 12px/1.15 Arial,Helvetica,sans-serif;letter-spacing:.02em;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-temp{font-size:13px;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-gauge{display:block;width:56px;height:56px;margin:0 auto;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-gauge svg{display:block;width:56px;height:56px;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-gauge .dt{stroke:#cbd5e1;stroke-width:1;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-gauge .dt.card{stroke:#fff;stroke-width:1.4;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-gauge .darc{fill:none;stroke:#93c5fd;stroke-width:5;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-gauge .dhead{fill:#3b82f6;}",
       "@media screen and (orientation:portrait) and (max-width:767px){",
       ".regatta-page > .midmar-live-media .midmar-hmyc-cam:not(.is-open){width:100vw;max-width:100vw;margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw);border-left:0;border-right:0;border-radius:0;}",
       "}",
@@ -133,8 +143,121 @@
       '<span class="mm-lipton-reels-cam-stamp-dot" aria-hidden="true"></span>' +
       '<span data-mm-cam-stamp-label>SNAPSHOT</span>' +
       '<span data-mm-cam-stamp-time></span>' +
+      "</div>" +
+      '<div class="midmar-cam-wx" data-mm-cam-wx aria-hidden="true">' +
+      '<div class="midmar-cam-wx-temp" data-mm-cam-wx-temp>—</div>' +
+      '<div class="midmar-cam-wx-gauge" data-mm-cam-wx-gauge></div>' +
+      '<div class="midmar-cam-wx-kn" data-mm-cam-wx-kn>— kn</div>' +
       "</div></button>";
     return cam;
+  }
+
+  var BANDS = [[0, 5, "#12b028"], [5, 11, "#2563eb"], [11, 17, "#e67e00"], [17, 23, "#7c3aed"], [23, 60, "#DC143C"]];
+
+  function bandCol(kn) {
+    if (kn == null || isNaN(kn)) return "#94a3b8";
+    var i;
+    for (i = 0; i < BANDS.length; i += 1) {
+      if (kn < BANDS[i][1]) return BANDS[i][2];
+    }
+    return "#DC143C";
+  }
+
+  function pol(cx, cy, r, a) {
+    var t = ((a - 90) * Math.PI) / 180;
+    return [cx + r * Math.cos(t), cy + r * Math.sin(t)];
+  }
+
+  function n1(x) {
+    return x == null || isNaN(x) ? "—" : String(Math.round(Number(x) * 10) / 10);
+  }
+
+  function drawMiniGauge(deg, kn) {
+    var CX = 50;
+    var CY = 50;
+    var R = 40;
+    var col = bandCol(kn);
+    var svg = '<svg viewBox="0 0 100 100" aria-hidden="true">';
+    var k;
+    for (k = 0; k < 72; k += 1) {
+      var card = k % 18 === 0;
+      var q0 = pol(CX, CY, R - (card ? 7 : 4), k * 5);
+      var q1 = pol(CX, CY, R + (card ? 1 : 0), k * 5);
+      svg +=
+        '<line class="' +
+        (card ? "dt card" : "dt") +
+        '" x1="' +
+        q0[0].toFixed(1) +
+        '" y1="' +
+        q0[1].toFixed(1) +
+        '" x2="' +
+        q1[0].toFixed(1) +
+        '" y2="' +
+        q1[1].toFixed(1) +
+        '"/>';
+    }
+    if (deg != null && !isNaN(deg)) {
+      var d = ((Number(deg) % 360) + 360) % 360;
+      var a0 = d - 11.25;
+      var a1 = d + 11.25;
+      var p0 = pol(CX, CY, R - 3, a0);
+      var p1 = pol(CX, CY, R - 3, a1);
+      svg +=
+        '<path class="darc" style="stroke:' +
+        col +
+        '" d="M' +
+        p0[0].toFixed(1) +
+        " " +
+        p0[1].toFixed(1) +
+        " A" +
+        (R - 3) +
+        " " +
+        (R - 3) +
+        " 0 0 1 " +
+        p1[0].toFixed(1) +
+        " " +
+        p1[1].toFixed(1) +
+        '"/>';
+      var hp = pol(CX, CY, R + 2, d);
+      svg +=
+        '<g transform="translate(' +
+        hp[0].toFixed(1) +
+        " " +
+        hp[1].toFixed(1) +
+        ") rotate(" +
+        (d + 180) +
+        ')"><path class="dhead" style="fill:' +
+        col +
+        '" d="M0 -10L8 5L0 2L-8 5Z"/></g>';
+    }
+    svg += "</svg>";
+    return svg;
+  }
+
+  function paintWx(cam) {
+    var tempEl = cam.querySelector("[data-mm-cam-wx-temp]");
+    var knEl = cam.querySelector("[data-mm-cam-wx-kn]");
+    var gaugeEl = cam.querySelector("[data-mm-cam-wx-gauge]");
+    if (!tempEl || !knEl || !gaugeEl) return;
+    fetch("/api/weather/agromet-midmar/history?hours=1&_=" + Date.now(), {
+      cache: "no-store",
+      credentials: "same-origin",
+    })
+      .then(function (r) {
+        if (!r.ok) throw new Error("wx");
+        return r.json();
+      })
+      .then(function (body) {
+        var rows = (body && body.readings) || [];
+        var last = rows.length ? rows[rows.length - 1] : {};
+        var kn = last.wind_kt != null ? last.wind_kt : last.wind_avg_kt;
+        var deg = last.wind_dir_deg != null ? last.wind_dir_deg : last.wind_dir_avg_deg;
+        var temp = last.temp_c;
+        tempEl.textContent = temp == null || isNaN(temp) ? "—" : n1(temp) + "°C";
+        knEl.textContent = kn == null || isNaN(kn) ? "— kn" : n1(kn) + " kn";
+        gaugeEl.innerHTML = drawMiniGauge(deg, kn);
+      })
+      .catch(function () {});
   }
 
   function paintCam(cam) {
@@ -168,11 +291,18 @@
       if (ev.key === "Escape" && cam.classList.contains("is-open")) backToEvent(cam);
     });
     paintCam(cam);
+    paintWx(cam);
     window.setInterval(function () {
-      if (!document.hidden) paintCam(cam);
+      if (!document.hidden) {
+        paintCam(cam);
+        paintWx(cam);
+      }
     }, POLL_MS);
     document.addEventListener("visibilitychange", function () {
-      if (!document.hidden) paintCam(cam);
+      if (!document.hidden) {
+        paintCam(cam);
+        paintWx(cam);
+      }
     });
   }
 
