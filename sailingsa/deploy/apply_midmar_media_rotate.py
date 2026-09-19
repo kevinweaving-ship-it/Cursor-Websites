@@ -131,13 +131,21 @@ def main() -> None:
     if "api_super_admin_mm_clips_rotate" not in api:
         if POST_OLD not in api or CALL_OLD not in api:
             raise SystemExit("API_UPLOAD_ANCHOR_MISSING")
-        needle = '@app.post("/api/super-admin/regatta/{regatta_id}/mm-clips")'
-        end = api.find("@app.get(\"/api/admin/hub/assets\")")
-        if needle not in api or end < 0:
-            raise SystemExit("API_PATCH_ANCHOR_MISSING")
         api = api.replace(POST_OLD, POST_NEW, 1)
         api = api.replace(CALL_OLD, CALL_NEW, 1)
-        api = api[:end] + PATCH + "\n" + api[end:]
+        close = (
+            '    return {"ok": True, "clip": clip, "videos": _mm_clips.public_payload(regatta_id, Path(_static_dir()))["videos"]}\n'
+            '\n'
+            '@app.get("/api/admin/hub/assets")'
+        )
+        close_new = (
+            '    return {"ok": True, "clip": clip, "videos": _mm_clips.public_payload(regatta_id, Path(_static_dir()))["videos"]}\n'
+            + PATCH
+            + '\n@app.get("/api/admin/hub/assets")'
+        )
+        if close not in api:
+            raise SystemExit("API_CLOSE_ANCHOR_MISSING")
+        api = api.replace(close, close_new, 1)
         print("API_PATCH_OK")
     else:
         print("API_PATCH_ALREADY")
