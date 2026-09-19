@@ -60,9 +60,9 @@ Log: `/var/log/sailingsa-server-monitor.log` (no tokens / no phone numbers)
 |---|---|---|
 | Disk | ≥75% | ≥85% |
 | API down | — | HTTP still down **after 120s restart grace** |
-| 5xx spike | — | ≥10 in 5 min (**500s only** if API restarted in that window; 502/503/504 during restart ignored) |
+| 5xx spike | — | ≥10 in 5 min (**500s only** for **10 min after any API restart**; all 502/503/504 in that settle window ignored) |
 | PG down | — | unresponsive |
-| pool / too-many-clients | — | any match in last 5 min journal |
+| pool / too-many-clients | — | any match in last 5 min journal (**ignored for 10 min after an API restart**) |
 | idle-in-transaction | ≥3 | ≥8 |
 | API workers | — | &lt;3 while service active |
 | housekeeping | fail/stale &gt;36h | — |
@@ -80,18 +80,21 @@ A normal `systemctl restart sailingsa-api` takes well under **120 seconds** (4 u
 - Recovered inside that window → **no WhatsApp** (and no RECOVERED, because nothing was sent).
 - Still down after 120s → CRITICAL. That is longer than a normal restart.
 - Worker-count CRITICAL is suppressed while the API is down/restarting (avoids a second false alert).
-- Nginx **502/503/504** in the 5 minutes around a restart do not count toward the 5xx spike. Real **500** app errors still count. Sustained 502s after the API has been up >5 min still alert.
+- Nginx **502/503/504** for **10 minutes after any API restart** do not count toward the 5xx spike. Earlier restart 502s in the same 5-min window are also ignored (staggered deploys). Real **500** app errors still count.
+- Cold-pool / too-many-clients journal lines in that same **10 min settle** are not a CRITICAL. Sustained pool errors after the API has been up >10 min still alert.
+- Sustained 502s after the API has been up >10 min still alert.
 
-Every deploy / Event URL / live-edit task that restarts the API is covered by this grace. Do not expect a CRITICAL for a clean restart.
+Every deploy / Event URL / live-edit task that restarts the API is covered by this grace. Do not expect a CRITICAL for a clean restart or a normal multi-restart deploy.
 
 Override on the box if needed (`/etc/sailingsa/server-monitor.conf` or env):
 
 ```
 API_RESTART_GRACE_S=120
 API_RESTART_PROBE_S=15
+API_RESTART_SETTLE_S=600
 ```
 
-`SAILINGSA_API_RESTART_GRACE_S` / `SAILINGSA_API_RESTART_PROBE_S` win over conf.
+`SAILINGSA_API_RESTART_GRACE_S` / `SAILINGSA_API_RESTART_PROBE_S` / `SAILINGSA_API_RESTART_SETTLE_S` win over conf.
 
 Prove locally: `/usr/local/sbin/sailingsa-server-monitor --restart-grace-test`
 

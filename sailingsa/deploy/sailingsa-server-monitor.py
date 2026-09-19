@@ -43,6 +43,9 @@ EXPECTED_API_WORKERS = 4
 # WhatsApp only if HTTP stays down after the grace. Mid-restart cron must not alert.
 API_RESTART_GRACE_S = 120
 API_RESTART_PROBE_S = 15
+# After a restart, nginx 502/503/504 and cold-pool journal lines are deploy noise.
+# 10 min covers the 5-min 5xx window plus staggered multi-restart deploys.
+API_RESTART_SETTLE_S = 600
 LOAD_WARN_MULT = 3
 LOAD_CRIT_MULT = 6
 SWAP_WARN_PCT = 80
@@ -92,6 +95,7 @@ def load_conf() -> dict:
         "WAPOC_PORT": "8009",
         "API_RESTART_GRACE_S": str(API_RESTART_GRACE_S),
         "API_RESTART_PROBE_S": str(API_RESTART_PROBE_S),
+        "API_RESTART_SETTLE_S": str(API_RESTART_SETTLE_S),
     }
     if CONF.is_file():
         for line in CONF.read_text(errors="replace").splitlines():
@@ -247,6 +251,30 @@ def api_restart_windows(conf: dict | None = None) -> tuple[int, int]:
     if probe is None:
         probe = cfg.get("API_RESTART_PROBE_S", API_RESTART_PROBE_S)
     return _positive_int(grace, API_RESTART_GRACE_S), _positive_int(probe, API_RESTART_PROBE_S)
+
+
+def api_restart_settle_s(conf: dict | None = None) -> int:
+    """Seconds after an API restart to ignore deploy 502s and cold-pool lines."""
+    cfg = conf if conf is not None else load_conf()
+    raw = os.environ.get("SAILINGSA_API_RESTART_SETTLE_S")
+    if raw is None:
+        raw = cfg.get("API_RESTART_SETTLE_S", API_RESTART_SETTLE_S)
+    return _positive_int(raw, API_RESTART_SETTLE_S)
+
+
+def in_api_restart_settle(
+    restart_ts: float | None,
+    now: float | None = None,
+    settle_s: int | None = None,
+) -> bool:
+    """True while a normal deploy restart is still settling."""
+    if restart_ts is None:
+        return False
+    window = API_RESTART_SETTLE_S if settle_s is None else settle_s
+    if window <= 0:
+        return False
+    clock = time.time() if now is None else now
+    return (clock - restart_ts) < window
 
 
 def wait_out_api_restart(
@@ -406,7 +434,7 @@ def last_api_restart_epoch() -> float | None:
         return None
 
 
-def metric_5xx(window_s: int, skip_gateway_after: float | None = None) -> int:
+def metric_5xx(window_s: int, skip_gateway: bool = False) -> int:
     path = Path("/var/log/nginx/access.log")
     if not path.is_file():
         return 0
@@ -441,12 +469,8 @@ def metric_5xx(window_s: int, skip_gateway_after: float | None = None) -> int:
             ts = t.timestamp()
             if ts < cutoff:
                 continue
-            # Nginx 502/503/504 during a normal API restart are not an outage.
-            if (
-                skip_gateway_after is not None
-                and code in GATEWAY_5XX
-                and ts >= skip_gateway_after
-            ):
+            # Nginx 502/503/504 during a normal API deploy restart are not an outage.
+            if skip_gateway and code in GATEWAY_5XX:
                 continue
             count += 1
         except Exception:
@@ -579,13 +603,18 @@ def collect() -> dict:
     bak = metric_backup()
     svc = metric_services()
     restart_ts = last_api_restart_epoch()
-    skip_gateway_after = None
-    if restart_ts is not None and (time.time() - restart_ts) < 300:
-        # Include the Stopping window just before ActiveEnter.
-        skip_gateway_after = restart_ts - 60
-    five_5m = metric_5xx(300, skip_gateway_after)
+    restart_age = (time.time() - restart_ts) if restart_ts else None
+    settle = in_api_restart_settle(restart_ts, settle_s=api_restart_settle_s())
+    five_5m = metric_5xx(300, skip_gateway=settle)
     five_24h = metric_5xx(86400)
-    pool_hits = metric_journal_hits(POOL_ERR_RE, "5 min ago")
+    pool_hits_raw = metric_journal_hits(POOL_ERR_RE, "5 min ago")
+    # Cold workers after a deploy restart log pool-exhausted; that is not a leak.
+    pool_hits = 0 if settle else pool_hits_raw
+    if settle:
+        log(
+            f"api restart settle age={int(restart_age or 0)}s "
+            f"skip gateway 5xx; ignore pool hits={pool_hits_raw}"
+        )
     return {
         "disk_pct": disk_pct,
         "free_gb": free_gb,
@@ -599,9 +628,11 @@ def collect() -> dict:
         "five_5m": five_5m,
         "five_24h": five_24h,
         "pool_hits": pool_hits,
+        "pool_hits_raw": pool_hits_raw,
         "nproc": nproc(),
         "ts": now_sast(),
-        "api_restart_age_s": (time.time() - restart_ts) if restart_ts else None,
+        "api_restart_age_s": restart_age,
+        "api_restart_settle": settle,
     }
 
 
@@ -848,13 +879,18 @@ def main(argv=None) -> int:
             rec_ok = recovered.get("up") is True
             still_ok = still.get("up") is False
             already_ok = already.get("up") is True
-            skip_ok = True
-            # 502 during a restart window must not count; a 500 still must.
+            # Earlier restart 502s must also be ignored while a later restart is settling.
             now = time.time()
-            restart_ts = now - 30
+            settle_ok = in_api_restart_settle(now - 30, now=now, settle_s=600)
+            stale_ok = not in_api_restart_settle(now - 601, now=now, settle_s=600)
+            none_ok = not in_api_restart_settle(None, now=now, settle_s=600)
+            skip_ok = True
+            # 502 during settle must not count; a 500 still must.
             sample = [
                 f'1.1.1.1 - - [{now_sast().strftime("%d/%b/%Y:%H:%M:%S")}] '
                 f'"GET /x HTTP/1.1" 502 0 "-" "-"',
+                f'1.1.1.1 - - [{now_sast().strftime("%d/%b/%Y:%H:%M:%S")}] '
+                f'"GET /x HTTP/1.1" 503 0 "-" "-"',
                 f'1.1.1.1 - - [{now_sast().strftime("%d/%b/%Y:%H:%M:%S")}] '
                 f'"GET /x HTTP/1.1" 500 0 "-" "-"',
             ]
@@ -868,17 +904,22 @@ def main(argv=None) -> int:
                     ts_re.search(line).group(1), "%d/%b/%Y:%H:%M:%S"
                 ).replace(tzinfo=SAST)
                 ts = t.timestamp()
+                if ts < now - 300:
+                    continue
                 counted_all += 1
-                if code in GATEWAY_5XX and ts >= (restart_ts - 60):
+                if code in GATEWAY_5XX:
                     continue
                 counted_skip += 1
-            skip_ok = counted_all == 2 and counted_skip == 1
+            skip_ok = counted_all == 3 and counted_skip == 1
             print("restart_grace recovered_mid_restart", rec_ok)
             print("restart_grace still_down_after_grace", still_ok)
             print("restart_grace already_up_no_wait", already_ok)
+            print("restart_grace settle_active", settle_ok)
+            print("restart_grace settle_expired", stale_ok)
+            print("restart_grace settle_none", none_ok)
             print("restart_grace skip_restart_502", skip_ok)
             print("restart_grace notes", notes)
-            return 0 if rec_ok and still_ok and already_ok and skip_ok else 1
+            return 0 if rec_ok and still_ok and already_ok and settle_ok and stale_ok and none_ok and skip_ok else 1
 
         if args.dedupe_test:
             printed = []
