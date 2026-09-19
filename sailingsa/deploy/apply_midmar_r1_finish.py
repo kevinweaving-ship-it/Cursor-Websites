@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Midmar R1 finish: Luke Hayden Paul Tony Gust Craig Bryan, then sail 200 if unused.
+"""Midmar R1 finish through Penny 9 / Dani 10 / Jethro RET.
 
 Appendix A low-point + auto rank. Unfinished boats stay unscored. No invented DNC.
-Bryan = Paige Smith boat (Bryan Paxman crew). 200 = unused sail 200/2000.
+Bryan = Paige Smith boat. Jethro = 297 boat. 200 = unused sail 200/2000.
 """
 import json
 from datetime import datetime
@@ -25,6 +25,8 @@ PLACES = [
     (21715, "Gust Funke", "5"),
     (177, "Craig Millar", "6"),
     (22984, "Paige Smith", "7"),  # Bryan Paxman boat
+    (18659, "Penny Macpherson", "9"),
+    (15579, "Daniela Cantarelli", "10"),
 ]
 
 
@@ -62,6 +64,25 @@ def score_totals(scores, discard_count, entries_plus_one):
             discard_idxs.add(i)
     nett = total - sum(items[i][2]["val"] for i in discard_idxs)
     return total, nett, len(items)
+
+
+def resolve_jethro_ret(rows, used_ids):
+    hits = []
+    for row in rows:
+        if row["result_id"] in used_ids:
+            continue
+        blob = " ".join(
+            str(row.get(k) or "")
+            for k in ("helm_name", "crew_name", "crew2_name", "sail_number", "boat_name")
+        ).casefold()
+        sn = str(row.get("sail_number") or "").strip()
+        if sn == "297" or "jethro" in blob:
+            hits.append(row)
+    if len(hits) == 1:
+        return hits[0]
+    if not hits:
+        raise SystemExit("REFUSE Jethro/297 boat missing")
+    raise SystemExit("REFUSE ambiguous Jethro boat: " + ", ".join(str(r["sail_number"]) for r in hits))
 
 
 def resolve_sail_200(rows, used_ids):
@@ -122,6 +143,13 @@ def main() -> None:
         print("8TH_SAIL", eighth["sail_number"], helm, eighth["boat_name"])
     else:
         print("8TH_SAIL_200_ALREADY_PLACED_OR_MISSING")
+
+    used_ids = {by_sid[sid]["result_id"] for sid, _, _ in places}
+    jethro = resolve_jethro_ret(rows, used_ids)
+    jethro_sid = int(jethro["helm_sa_sailing_id"])
+    by_sid[jethro_sid] = jethro
+    places.append((jethro_sid, (jethro["helm_name"] or "Jethro").strip(), "RET"))
+    print("JETHRO_RET", jethro["helm_name"], jethro["sail_number"], jethro["boat_name"])
 
     entries = len(rows)
     entries_plus_one = entries + 1
