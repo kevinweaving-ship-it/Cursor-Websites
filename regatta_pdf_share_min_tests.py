@@ -24,6 +24,7 @@ def test_stored_pdf_landscape_and_inverted_favicon():
     assert "left_src = abs_asset_url(_SSA_FAVICON_INVERT)" in src
     assert 'orient = "portrait" if cc_portrait else "landscape"' in src
     assert "--font-render-hinting=none" in src
+    assert "--disable-lcd-text" in src
     css = (ROOT / "sailingsa/backend/regatta_print_compact_css.py").read_text(encoding="utf-8")
     assert "IBM Plex Sans" not in css
     assert '"Liberation Sans", Arial, Helvetica, sans-serif' in css

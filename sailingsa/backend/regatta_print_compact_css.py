@@ -150,8 +150,13 @@ html.ssa-printing .ssa-print-page-footer { display: flex !important; position: s
   html, body { background: #fff !important; color: #1a2750 !important; margin: 0 !important; padding: 0 !important; }
   html, body, .regatta-page, .class-header, .sailed-line, table, th, td {
     font-family: """ + _PRINT_SANS + """ !important;
-    font-variant-numeric: tabular-nums lining-nums !important;
-    font-feature-settings: "tnum" 1, "lnum" 1 !important;
+    -webkit-font-smoothing: none !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: geometricPrecision !important;
+    -webkit-text-stroke: 0 !important;
+    text-shadow: none !important;
+    filter: none !important;
+    font-synthesis: none !important;
   }
   .site-header, footer, .site-footer, .app-footer, .action-buttons, .back-to-home,
   .regatta-back-row, .regatta-source-banner, #ssaPrintChooser,

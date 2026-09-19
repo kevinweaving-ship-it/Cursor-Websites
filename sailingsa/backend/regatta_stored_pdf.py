@@ -314,6 +314,7 @@ def html_to_pdf(html: str, dest: Path, timeout_sec: int = 90) -> Path:
             "--hide-scrollbars",
             "--prefer-css-page-size",
             "--font-render-hinting=none",
+            "--disable-lcd-text",
             "--run-all-compositor-stages-before-draw",
             f"--user-data-dir={user_data}",
             f"--timeout={max(5000, int(timeout_sec * 1000))}",
