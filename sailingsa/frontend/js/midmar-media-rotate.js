@@ -57,7 +57,17 @@
       'min-height:44px;min-width:44px;margin:8px 8px 0 0;padding:0 12px;border:1.5px solid #001f3f;' +
       'border-radius:8px;background:#fff;color:#001f3f;font:700 12px/1 Arial,Helvetica,sans-serif;cursor:pointer;}' +
       '.midmar-mm-sa-drop-visual img.mm-sa-rotating,.midmar-mm-sa-drop-visual video.mm-sa-rotating{' +
-      'transform-origin:center center;}';
+      'transform-origin:center center;}' +
+      /* Keep the media card / thumbs 16:9. Rotate must not collapse the grid. */
+      '.midmar-live-media .mm-lipton-reels-grid .mm-lipton-reels-thumb,' +
+      '.midmar-live-media .mm-lipton-reels-days .mm-lipton-reels-thumb{' +
+      'aspect-ratio:16/9!important;height:auto!important;}' +
+      '.regatta-page > .midmar-live-media .midmar-mm-row{' +
+      'flex-direction:column;align-items:stretch;}' +
+      '.regatta-page > .midmar-live-media .midmar-mm-row > .mm-lipton-reels{' +
+      'flex:1 1 auto;width:100%!important;max-width:100%!important;}' +
+      '.regatta-page > .midmar-live-media .midmar-mm-row > .midmar-mm-sa{' +
+      'flex:0 0 auto;width:100%;max-width:100%;}';
     document.head.appendChild(s);
   }
 
@@ -102,26 +112,8 @@
 
   function swapAspect(box, clip, deg) {
     if (!box || !clip) return;
-    var w = parseInt(clip.width, 10) || 0;
-    var h = parseInt(clip.height, 10) || 0;
-    if (w < 1 || h < 1) {
-      var a = String(clip.aspect || '');
-      var m = a.match(/(\d+)\s*[/\:]\s*(\d+)/);
-      if (m) {
-        w = parseInt(m[1], 10);
-        h = parseInt(m[2], 10);
-      }
-    }
-    if (w < 1 || h < 1) {
-      w = 16;
-      h = 9;
-    }
-    if (deg === 90 || deg === 270) {
-      var t = w;
-      w = h;
-      h = t;
-    }
-    box.style.aspectRatio = w + ' / ' + h;
+    /* Card stays 16:9. Rotation is visual only — do not squash the thumb. */
+    box.style.aspectRatio = '16 / 9';
     box.setAttribute('data-mm-rot', String(deg));
   }
 
@@ -147,7 +139,7 @@
 
   function revertBox(box) {
     if (!box) return;
-    box.style.aspectRatio = '';
+    box.style.aspectRatio = '16 / 9';
     box.style.position = '';
     box.style.overflow = '';
     box.removeAttribute('data-mm-rot');
