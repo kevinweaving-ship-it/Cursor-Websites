@@ -15,7 +15,7 @@
   var WX_ID = "ssa-regatta-slot-card";
   var CAM_ID = "midmar-hmyc-cam";
   var CSS_ID = "midmar-live-media-css";
-  var JS_VER = "midmarwx7";
+  var JS_VER = "midmarwx8";
   var EVENT_PATH = "/regatta/" + RID;
   var STILL = "https://hmyccam1.nwsza.net/latest.jpg";
   var POLL_MS = 60000;
@@ -40,8 +40,8 @@
       "body:has(.midmar-hmyc-cam.is-open) .site-header{display:none!important;}",
       "body.midmar-cam-open{overflow:hidden;}",
       ".midmar-hmyc-cam.is-open{position:fixed;inset:0;z-index:2147483000;width:100vw;max-width:100vw;height:100vh;height:100dvh;margin:0;border:0;border-radius:0;background:#000;overflow:hidden;}",
-      ".midmar-hmyc-cam.is-open .cam-frame{height:100%;aspect-ratio:auto;cursor:default;}",
-      ".midmar-hmyc-cam.is-open .cam-frame img{width:100%;height:100%;margin:0;object-fit:contain;object-position:center center;}",
+      ".midmar-hmyc-cam.is-open .cam-frame{height:100%;aspect-ratio:auto;cursor:default;overflow:hidden;}",
+      ".midmar-hmyc-cam.is-open .cam-frame img{width:100%;height:118%;margin-top:-10%;object-fit:cover;object-position:center bottom;}",
       ".midmar-hmyc-cam .mm-lipton-reels-expanded-bar{display:none;}",
       ".midmar-hmyc-cam.is-open .mm-lipton-reels-expanded-bar{display:flex;position:absolute;top:8px;right:28px;z-index:6;justify-content:flex-end;align-items:flex-start;margin:0;padding:0;pointer-events:none;}",
       ".midmar-hmyc-cam .mm-lipton-reels-hide{display:none;}",
@@ -70,19 +70,38 @@
     document.head.appendChild(s);
   }
 
-  function fmtHm(ms) {
+  function fmtStamp(ms) {
     try {
-      return new Date(ms).toLocaleTimeString("en-GB", {
+      var raw = new Date(ms).toLocaleString("en-GB", {
         timeZone: "Africa/Johannesburg",
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
         hour: "2-digit",
         minute: "2-digit",
         hour12: false,
       });
+      return String(raw).replace(",", "");
     } catch (e) {
       var d = new Date(ms);
+      var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      var dd = d.getDate();
       var h = d.getHours();
       var m = d.getMinutes();
-      return (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
+      return (
+        (dd < 10 ? "0" : "") +
+        dd +
+        " " +
+        months[d.getMonth()] +
+        " " +
+        d.getFullYear() +
+        " " +
+        (h < 10 ? "0" : "") +
+        h +
+        ":" +
+        (m < 10 ? "0" : "") +
+        m
+      );
     }
   }
 
@@ -100,49 +119,21 @@
     return wx;
   }
 
-  function containedImageBox(cam, img) {
-    var box = cam.getBoundingClientRect();
-    var nw = img.naturalWidth || 16;
-    var nh = img.naturalHeight || 9;
-    var ir = nw / Math.max(nh, 1);
-    var cr = box.width / Math.max(box.height, 1);
-    var w;
-    var h;
-    var left;
-    var top;
-    if (ir > cr) {
-      w = box.width;
-      h = box.width / ir;
-      left = 0;
-      top = (box.height - h) / 2;
-    } else {
-      h = box.height;
-      w = box.height * ir;
-      top = 0;
-      left = (box.width - w) / 2;
-    }
-    return { left: left, top: top, width: w, height: h, camW: box.width };
-  }
-
   function layoutCamChrome(cam) {
     var hideBar = cam.querySelector(".mm-lipton-reels-expanded-bar");
     var wx = cam.querySelector(".midmar-cam-wx");
-    var img = cam.querySelector("img");
     if (!hideBar || !wx) return;
-    if (!cam.classList.contains("is-open") || !img) {
+    if (!cam.classList.contains("is-open")) {
       hideBar.style.top = "";
       hideBar.style.right = "";
       wx.style.top = "";
       wx.style.right = "";
       return;
     }
-    var b = containedImageBox(cam, img);
-    var inset = 16;
-    var right = Math.max(8, Math.round(b.camW - b.left - b.width + inset));
-    hideBar.style.top = Math.round(b.top + 8) + "px";
-    hideBar.style.right = right + "px";
-    wx.style.top = Math.round(b.top + 44) + "px";
-    wx.style.right = right + "px";
+    hideBar.style.top = "8px";
+    hideBar.style.right = "16px";
+    wx.style.top = "44px";
+    wx.style.right = "16px";
   }
 
   function setOpen(cam, open) {
@@ -349,7 +340,7 @@
     var timeEl = cam.querySelector("[data-mm-cam-stamp-time]");
     var now = Date.now();
     if (img) img.src = STILL + "?t=" + now;
-    if (timeEl) timeEl.textContent = "as at " + fmtHm(now);
+    if (timeEl) timeEl.textContent = "as at " + fmtStamp(now);
   }
 
   function bindCam(cam) {
