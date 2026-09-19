@@ -305,7 +305,7 @@
         '<div class="midmar-lb-list" data-mm-lb-list></div>';
     } else {
       var title = card.querySelector('.section-title');
-      if (title) title.textContent = 'Leader Board';
+      if (title && !title.getAttribute('data-mm-lb-title')) title.textContent = 'Leader Board';
       if (!card.querySelector('.midmar-lb-sheet-note')) {
         var note = document.createElement('p');
         note.className = 'midmar-lb-sheet-note';
@@ -382,7 +382,42 @@
     });
   }
 
+  function racesAfter(rows) {
+    var max = 0;
+    (rows || []).forEach(function (r) {
+      var rs = r.race_scores;
+      if (typeof rs === 'string') {
+        try {
+          rs = JSON.parse(rs);
+        } catch (e) {
+          rs = null;
+        }
+      }
+      if (rs && typeof rs === 'object') {
+        Object.keys(rs).forEach(function (k) {
+          if (!/^R\d+$/i.test(k) || !String(rs[k] || '').trim()) return;
+          var num = parseInt(k.slice(1), 10);
+          if (num > max) max = num;
+        });
+      }
+      var sailed = Number(r.races_sailed);
+      if (sailed > max) max = sailed;
+    });
+    return max;
+  }
+
+  function titleAfter(n) {
+    if (n < 1) return 'Leader Board';
+    return 'Leader Board after ' + n + (n === 1 ? ' Race' : ' Races');
+  }
+
   function paint(card, rows) {
+    var title = card.querySelector('.section-title');
+    if (title) {
+      title.textContent = titleAfter(racesAfter(rows));
+      title.setAttribute('data-mm-lb-title', '1');
+      card.setAttribute('aria-label', title.textContent);
+    }
     var list = card.querySelector('[data-mm-lb-list]');
     if (!list) return;
     var board = (rows || [])
