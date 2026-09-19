@@ -15108,7 +15108,7 @@ def run_daily_scrape():
 
                 new_records = []
                 consecutive_no_record = 0
-                max_consecutive_no_record = 10
+                max_consecutive_no_record = 5
                 current_id = start_id
 
                 while consecutive_no_record < max_consecutive_no_record:
@@ -15120,67 +15120,67 @@ def run_daily_scrape():
                     url = f"https://www.sailing.org.za/member-finder?parentBodyID={current_id}&firstname=&surname="
                     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
                     try:
-                        response = requests.get(url, headers=headers, timeout=10)
+                        response = requests.get(url, headers=headers, timeout=20)
                         response.raise_for_status()
-                        soup = BeautifulSoup(response.content, "html.parser")
-
-                        if "SA Sailing ID:" in response.text and str(current_id) in response.text:
-                            for elem in soup.find_all("b"):
-                                name_text = elem.get_text().strip()
-                                if not name_text or name_text == str(current_id) or "SA Sailing ID:" in name_text:
-                                    continue
-                                name_text = name_text.replace(",,", ",")
+                        # Card must contain this exact ID. Title text "SA Sailing ID finder"
+                        # is not a member. Do not take the first <b> on the page.
+                        import re as _sas_re
+                        _card = _sas_re.search(
+                            r"<b>\s*([^<]+?)\s*</b>\s*(?:<div[^>]*>\s*)?SA Sailing ID:\s*<b>\s*(\d+)\s*</b>(.{0,400})",
+                            response.text,
+                            _sas_re.I | _sas_re.S,
+                        )
+                        _parsed = None
+                        if _card and int(_card.group(2)) == int(current_id):
+                            name_text = _card.group(1).replace(",,", ",").strip()
+                            if name_text and name_text.lower() not in {"no record found", "no results found", "not found"}:
                                 if "," in name_text:
-                                    parts = name_text.split(",", 1)
-                                    last_name = parts[0].strip()
-                                    first_name = parts[1].strip().split()[0] if parts[1].strip() else ""
+                                    last_name, given = [p.strip() for p in name_text.split(",", 1)]
+                                    first_name = given.split()[0] if given else ""
+                                    full_name = f"{given} {last_name}".strip()
                                 else:
                                     name_parts = name_text.split()
                                     first_name = name_parts[0] if name_parts else name_text
                                     last_name = name_parts[-1] if len(name_parts) >= 2 else ""
+                                    full_name = name_text
                                 birth_year = None
-                                for born_text in soup.find_all(string=lambda t: t and "Born" in str(t)):
-                                    try:
-                                        birth_year = int(str(born_text).strip().split("Born")[-1].strip()[:4])
-                                        break
-                                    except (ValueError, IndexError):
-                                        pass
-
-                                if use_sas_id_personal:
-                                    cur.execute("""
-                                        INSERT INTO sas_id_personal (sa_sailing_id, first_name, last_name, full_name, year_of_birth)
-                                        VALUES (%s, %s, %s, %s, %s)
-                                        ON CONFLICT (sa_sailing_id) DO UPDATE SET
-                                            first_name = EXCLUDED.first_name,
-                                            last_name = EXCLUDED.last_name,
-                                            full_name = EXCLUDED.full_name,
-                                            year_of_birth = EXCLUDED.year_of_birth
-                                    """, (str(current_id), first_name, last_name, name_text, birth_year))
-                                else:
-                                    cur.execute("""
-                                        INSERT INTO sailing_id (sa_sailing_id, first_name, last_name, birth_year, display_name)
-                                        VALUES (%s, %s, %s, %s, %s)
-                                    """, (current_id, first_name, last_name, birth_year, name_text))
-
-                                new_records.append({
-                                    "sa_sailing_id": current_id,
-                                    "first_name": first_name,
-                                    "last_name": last_name,
-                                    "display_name": name_text,
-                                    "birth_year": birth_year,
-                                })
-                                consecutive_no_record = 0
-                                break
+                                _born = _sas_re.search(r"Born\s*(\d{4})", _card.group(3))
+                                if _born:
+                                    birth_year = int(_born.group(1))
+                                _parsed = (first_name, last_name, full_name, birth_year, name_text)
+                        if _parsed:
+                            first_name, last_name, full_name, birth_year, name_text = _parsed
+                            if use_sas_id_personal:
+                                cur.execute("""
+                                    INSERT INTO sas_id_personal (sa_sailing_id, first_name, last_name, full_name, year_of_birth)
+                                    VALUES (%s, %s, %s, %s, %s)
+                                    ON CONFLICT (sa_sailing_id) DO UPDATE SET
+                                        first_name = EXCLUDED.first_name,
+                                        last_name = EXCLUDED.last_name,
+                                        full_name = EXCLUDED.full_name,
+                                        year_of_birth = EXCLUDED.year_of_birth
+                                """, (str(current_id), first_name, last_name, full_name, birth_year))
                             else:
-                                consecutive_no_record += 1
+                                cur.execute("""
+                                    INSERT INTO sailing_id (sa_sailing_id, first_name, last_name, birth_year, display_name)
+                                    VALUES (%s, %s, %s, %s, %s)
+                                """, (current_id, first_name, last_name, birth_year, full_name))
+
+                            new_records.append({
+                                "sa_sailing_id": current_id,
+                                "first_name": first_name,
+                                "last_name": last_name,
+                                "display_name": full_name,
+                                "birth_year": birth_year,
+                            })
+                            consecutive_no_record = 0
                         else:
                             consecutive_no_record += 1
                         time.sleep(0.5)
                         current_id += 1
                     except Exception as e:
                         print(f"Error scraping {current_id}: {e}")
-                        consecutive_no_record += 1
-                        current_id += 1
+                        break
 
                 cur.execute(f"SELECT COUNT(*) FROM {target_table}")
                 after_count = cur.fetchone()[0]
