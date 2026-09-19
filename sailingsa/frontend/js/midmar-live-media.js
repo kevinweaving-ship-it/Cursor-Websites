@@ -15,7 +15,7 @@
   var WX_ID = "ssa-regatta-slot-card";
   var CAM_ID = "midmar-hmyc-cam";
   var CSS_ID = "midmar-live-media-css";
-  var JS_VER = "midmarwx9";
+  var JS_VER = "midmarwx10";
   var EVENT_PATH = "/regatta/" + RID;
   var STILL = "https://hmyccam1.nwsza.net/latest.jpg";
   var POLL_MS = 60000;
@@ -36,12 +36,18 @@
       ".regatta-page > .midmar-live-media .ssa-regatta-slot-card{order:0;margin-top:10px;width:100%;max-width:100%;padding:0!important;}",
       ".regatta-page > .midmar-live-media .midmar-hmyc-cam{order:1;margin-top:10px;width:100%;max-width:100%;padding:0!important;overflow:hidden;background:#000;}",
       ".midmar-hmyc-cam .cam-frame{position:relative;display:block;width:100%;aspect-ratio:16/9;background:#000;overflow:hidden;margin:0;padding:0;border:0;cursor:pointer;-webkit-tap-highlight-color:transparent;}",
+      ".midmar-hmyc-cam .cam-photo{display:block;width:100%;height:100%;overflow:hidden;}",
       ".midmar-hmyc-cam .cam-frame img{display:block;width:100%;height:118%;margin-top:-10%;object-fit:cover;object-position:center bottom;background:#000;}",
       "body:has(.midmar-hmyc-cam.is-open) .site-header{display:none!important;}",
       "body.midmar-cam-open{overflow:hidden;}",
       ".midmar-hmyc-cam.is-open{position:fixed;inset:0;z-index:2147483000;width:100vw;max-width:100vw;height:100vh;height:100dvh;margin:0;border:0;border-radius:0;background:#000;overflow:hidden;}",
-      ".midmar-hmyc-cam.is-open .cam-frame{height:100%;aspect-ratio:auto;cursor:default;overflow:hidden;}",
-      ".midmar-hmyc-cam.is-open .cam-frame img{width:100%;height:118%;margin-top:-10%;object-fit:cover;object-position:center bottom;}",
+      ".midmar-hmyc-cam.is-open .cam-frame{display:flex;align-items:center;justify-content:center;height:100%;aspect-ratio:auto;cursor:default;overflow:hidden;}",
+      ".midmar-hmyc-cam.is-open .cam-photo{width:100%;height:auto;flex:0 0 auto;overflow:hidden;}",
+      ".midmar-hmyc-cam.is-open .cam-photo img{width:100%;height:auto;max-width:100%;margin-top:-5.625%;object-fit:fill;object-position:center center;}",
+      "@media screen and (orientation:landscape){",
+      ".midmar-hmyc-cam.is-open .cam-photo{width:auto;height:100%;max-width:100%;}",
+      ".midmar-hmyc-cam.is-open .cam-photo img{width:auto;height:111%;max-width:none;margin-top:-8%;}",
+      "}",
       ".midmar-hmyc-cam .mm-lipton-reels-expanded-bar{display:none;}",
       ".midmar-hmyc-cam.is-open .mm-lipton-reels-expanded-bar{display:flex;position:absolute;top:8px;right:28px;z-index:6;justify-content:flex-end;align-items:flex-start;margin:0;padding:0;pointer-events:none;}",
       ".midmar-hmyc-cam .mm-lipton-reels-hide{display:none;}",
@@ -122,18 +128,32 @@
   function layoutCamChrome(cam) {
     var hideBar = cam.querySelector(".mm-lipton-reels-expanded-bar");
     var wx = cam.querySelector(".midmar-cam-wx");
+    var stamp = cam.querySelector("[data-mm-cam-stamp]");
+    var photo = cam.querySelector(".cam-photo");
     if (!hideBar || !wx) return;
-    if (!cam.classList.contains("is-open")) {
+    if (!cam.classList.contains("is-open") || !photo) {
       hideBar.style.top = "";
       hideBar.style.right = "";
       wx.style.top = "";
       wx.style.right = "";
+      if (stamp) {
+        stamp.style.top = "";
+        stamp.style.left = "";
+      }
       return;
     }
-    hideBar.style.top = "8px";
-    hideBar.style.right = "16px";
-    wx.style.top = "44px";
-    wx.style.right = "16px";
+    var camBox = cam.getBoundingClientRect();
+    var p = photo.getBoundingClientRect();
+    var right = Math.max(8, Math.round(camBox.right - p.right + 16));
+    var top = Math.max(8, Math.round(p.top - camBox.top + 8));
+    hideBar.style.top = top + "px";
+    hideBar.style.right = right + "px";
+    wx.style.top = top + 36 + "px";
+    wx.style.right = right + "px";
+    if (stamp) {
+      stamp.style.top = top + "px";
+      stamp.style.left = Math.max(8, Math.round(p.left - camBox.left + 8)) + "px";
+    }
   }
 
   function setOpen(cam, open) {
@@ -183,7 +203,7 @@
       '<button type="button" class="mm-lipton-reels-hide" data-mm-hide>Hide</button>' +
       "</div>" +
       '<button type="button" class="cam-frame" aria-label="View HMYC club cam" aria-pressed="false">' +
-      '<img alt="HMYC club cam" width="1600" height="900" decoding="async">' +
+      '<span class="cam-photo"><img alt="HMYC club cam" width="1600" height="900" decoding="async"></span>' +
       '<div class="mm-lipton-reels-cam-stamp mm-lipton-reels-cam-stamp--off" data-mm-cam-stamp>' +
       '<span class="mm-lipton-reels-cam-stamp-dot" aria-hidden="true"></span>' +
       '<span data-mm-cam-stamp-label>SNAPSHOT</span>' +
