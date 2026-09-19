@@ -14,7 +14,7 @@ RID = "2026-09-19-hmyc-midmar-cup"
 # helm_sa_sailing_id currently on the boat -> sail number
 SAILS = {
     1218: "2013",   # Paul Changuion
-    177: "2000",    # Craig Millar
+    177: "200",     # Craig Millar — Smoke & Oakum (was mistyped 2000)
     1221: "2019",   # Tony Cockerill
     22984: "741",   # Paige Smith (Bryan Paxman boat)
     15579: "442",   # Daniela Cantarelli (Nick Somerville boat)
