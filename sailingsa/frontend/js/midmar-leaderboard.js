@@ -11,7 +11,7 @@
 
   var RID = '2026-09-19-hmyc-midmar-cup';
   var CARD_ID = 'midmar-leaderboard';
-  var CSS_ID = 'midmar-leaderboard-css-v7';
+  var CSS_ID = 'midmar-leaderboard-css-v8';
   var POLL_MS = 15000;
   /* Historical Hunter names, temp until confirmed. 2013 Essex Girl + 442 Scout confirmed. */
   var TEMP_BOATS = {
@@ -201,7 +201,7 @@
   }
 
   function injectCss() {
-    ['midmar-leaderboard-css', 'midmar-leaderboard-css-v4', 'midmar-leaderboard-css-v5', 'midmar-leaderboard-css-v6'].forEach(function (id) {
+    ['midmar-leaderboard-css', 'midmar-leaderboard-css-v4', 'midmar-leaderboard-css-v5', 'midmar-leaderboard-css-v6', 'midmar-leaderboard-css-v7'].forEach(function (id) {
       var prev = document.getElementById(id);
       if (prev && prev.parentNode) prev.parentNode.removeChild(prev);
     });
@@ -364,7 +364,7 @@
     var board = (rows || [])
       .filter(function (r) {
         var n = Number(r.rank);
-        return n >= 1 && hasScore(r);
+        return n >= 1 && n <= 3 && hasScore(r);
       })
       .sort(function (a, b) {
         return Number(a.rank) - Number(b.rank);
