@@ -15,12 +15,13 @@
   var WX_ID = "ssa-regatta-slot-card";
   var CAM_ID = "midmar-hmyc-cam";
   var CSS_ID = "midmar-live-media-css";
-  var JS_VER = "midmarwx15";
+  var JS_VER = "midmarwx16";
   var EVENT_PATH = "/regatta/" + RID;
   var STILL = "https://hmyccam1.nwsza.net/latest.jpg";
   var POLL_MS = 60000;
-  var CUP_ID = "midmar-event-cup";
+  var MM_ID = "mmLiptonReels";
   var CUP_SRC = "/artwork/Event Logo/Midmar-Cup-Event.jpg";
+  var MM_BRAND = "/assets/adverts/mm-powered-by-event-reels.png?v=mmr2";
 
   function onMidmar() {
     var path = String((window.location && window.location.pathname) || "")
@@ -36,7 +37,8 @@
     s.textContent = [
       ".regatta-page > .midmar-live-media{width:100%;max-width:100%;box-sizing:border-box;display:flex;flex-direction:column;gap:0;margin:0;padding:0;border:0;background:transparent;box-shadow:none;}",
       ".regatta-page > .midmar-live-media .ssa-regatta-slot-card{order:0;margin-top:10px;width:100%;max-width:100%;padding:0!important;}",
-      ".regatta-page > .midmar-live-media .midmar-hmyc-cam{order:1;margin-top:10px;width:100%;max-width:100%;padding:0!important;overflow:hidden;background:#000;}",
+      ".regatta-page > .midmar-live-media .mm-lipton-reels{order:1;margin-top:10px;width:100%;max-width:100%;}",
+      ".regatta-page > .midmar-live-media .midmar-hmyc-cam{order:2;margin-top:10px;width:100%;max-width:100%;padding:0!important;overflow:hidden;background:#000;}",
       ".midmar-hmyc-cam .cam-frame{position:relative;display:block;width:100%;aspect-ratio:16/9;background:#000;overflow:hidden;margin:0;padding:0;border:0;cursor:pointer;-webkit-tap-highlight-color:transparent;}",
       ".midmar-hmyc-cam .cam-shot{position:relative;display:block;width:100%;height:100%;overflow:hidden;}",
       ".midmar-hmyc-cam .cam-shot img{display:block;width:100%;height:118%;margin-top:-10%;object-fit:cover;object-position:center bottom;background:#000;}",
@@ -70,11 +72,9 @@
       "@media screen and (orientation:portrait) and (max-width:767px){",
       ".regatta-page > .midmar-live-media .midmar-hmyc-cam:not(.is-open){width:100vw;max-width:100vw;margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw);border-left:0;border-right:0;border-radius:0;}",
       "}",
-      "@media print{.midmar-live-media,.midmar-event-cup{display:none!important}}",
+      "@media print{.midmar-live-media,.mm-lipton-reels{display:none!important}}",
       ".class-header .fleet-results-status{margin-top:6px}",
       ".class-header .fleet-results-as-at{margin-top:2px}",
-      ".regatta-page > .midmar-event-cup{width:100%;max-width:100%;box-sizing:border-box;margin:16px 0 0;padding:0.5rem 0.75rem;text-align:center;}",
-      ".regatta-page > .midmar-event-cup img{display:block;margin:0 auto;width:auto;height:auto;max-width:min(220px,42vw);max-height:220px;object-fit:contain;background:transparent;}",
     ].join("");
     document.head.appendChild(s);
   }
@@ -420,25 +420,55 @@
     });
   }
 
-  function placeCup() {
-    var existing = document.getElementById(CUP_ID);
-    var wrap = existing || document.createElement("div");
-    wrap.id = CUP_ID;
-    wrap.className = "card midmar-event-cup";
-    if (!wrap.querySelector("img")) {
-      wrap.innerHTML =
-        '<img src="' +
-        CUP_SRC +
-        '" alt="Midmar Cup" width="160" height="256" loading="lazy" decoding="async">';
-    }
-    var page = document.querySelector(".regatta-page");
-    if (!page) return;
-    var actions = page.querySelector(".action-buttons");
-    if (actions && actions.parentNode === page) {
-      if (wrap.previousSibling !== actions) page.insertBefore(wrap, actions.nextSibling);
-    } else if (wrap.parentNode !== page) {
-      page.appendChild(wrap);
-    }
+  function cupVideos() {
+    return [
+      {
+        id: "midmar-cup-1",
+        kind: "photo",
+        title: "Midmar Cup",
+        fb_title: "Midmar Cup",
+        fb_sub: "Henley Midmar Yacht Club",
+        thumb: CUP_SRC,
+        play_url: CUP_SRC,
+        aspect: "3 / 4",
+        width: 3,
+        height: 4,
+      },
+    ];
+  }
+
+  function makeMmCard() {
+    var mm = document.getElementById(MM_ID) || document.createElement("section");
+    mm.id = MM_ID;
+    mm.className = "card mm-lipton-reels mm-lipton-reels--compact";
+    mm.setAttribute("data-regatta-id", RID);
+    mm.setAttribute("data-mm-brand-soon", MM_BRAND);
+    mm.setAttribute(
+      "data-mm-initial",
+      JSON.stringify({ enabled: true, feed_source: "midmar", videos: cupVideos() })
+    );
+    mm.innerHTML =
+      '<div class="mm-lipton-reels-compact">' +
+      '<a class="mm-lipton-reels-brand" href="https://www.marinemegastore.co.za/" target="_blank" rel="noopener noreferrer">' +
+      '<img src="' +
+      MM_BRAND +
+      '" alt="Powered by Marine Megastore Event Reels" width="320" height="213" loading="lazy" decoding="async">' +
+      "</a>" +
+      '<div class="mm-lipton-reels-rail-wrap">' +
+      '<button type="button" class="mm-lipton-reels-rail-btn mm-lipton-reels-rail-btn--prev" data-mm-rail-prev aria-label="Previous clips" hidden>‹</button>' +
+      '<div class="mm-lipton-reels-rail" data-mm-compact></div>' +
+      '<button type="button" class="mm-lipton-reels-rail-btn mm-lipton-reels-rail-btn--next" data-mm-rail-next aria-label="Next clips" hidden>›</button>' +
+      "</div></div>";
+    return mm;
+  }
+
+  function loadCss(href) {
+    var base = href.split("?")[0];
+    if (document.querySelector('link[href*="' + base + '"]')) return;
+    var l = document.createElement("link");
+    l.rel = "stylesheet";
+    l.href = href;
+    document.head.appendChild(l);
   }
 
   function placeHost() {
@@ -462,10 +492,13 @@
     }
 
     var wx = makeWx();
+    var mm = makeMmCard();
     var cam = makeCam();
     if (wx.parentNode !== host) host.appendChild(wx);
+    if (mm.parentNode !== host) host.appendChild(mm);
     if (cam.parentNode !== host) host.appendChild(cam);
-    if (wx.nextSibling !== cam) host.insertBefore(wx, cam);
+    if (wx.nextSibling !== mm) host.insertBefore(mm, wx.nextSibling);
+    if (mm.nextSibling !== cam) host.insertBefore(cam, mm.nextSibling);
     bindCam(cam);
     return host;
   }
@@ -495,8 +528,9 @@
     if (!onMidmar()) return;
     injectCss();
     injectFleetResultsStatus();
-    placeCup();
     if (!placeHost()) return;
+    loadCss("/css/mm-lipton-reels.css?v=" + JS_VER);
+    loadScript("/js/mm-lipton-reels-card.js?v=" + JS_VER);
     loadScript("/js/regatta-slot-card.js?v=" + JS_VER).then(function () {
       var wx = document.getElementById(WX_ID);
       if (wx && typeof window.ssaMountWeatherCard === "function") {

@@ -57,6 +57,20 @@ def is_midmar_cup_card(url_or_id: str) -> bool:
     return MIDMAR_CUP_RID in str(url_or_id or "")
 
 
+def midmar_event_mm_videos() -> list:
+    """Seed MM reels payload for the Midmar event URL. More clips can be appended later."""
+    return [
+        {
+            "id": "midmar-cup-1",
+            "kind": "photo",
+            "title": "Midmar Cup",
+            "thumb": MIDMAR_CUP_EVENT_IMG_SRC,
+            "play_url": MIDMAR_CUP_EVENT_IMG_SRC,
+            "aspect": "3 / 4",
+        }
+    ]
+
+
 def midmar_cup_img_html() -> str:
     return (
         f'<img class="landing-event-cup-img" src="{MIDMAR_CUP_IMG_SRC}" '

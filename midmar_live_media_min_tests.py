@@ -7,10 +7,14 @@ ROOT = Path(__file__).resolve().parent
 
 def test_midmar_cam_expands_not_redirects():
     js = (ROOT / "js/midmar-live-media.js").read_text(encoding="utf-8")
-    assert "midmarwx15" in js
-    assert "placeCup" in js
+    assert "midmarwx16" in js
+    assert "placeCup" not in js
+    assert "makeMmCard" in js
+    assert "mmLiptonReels" in js
     assert "Midmar-Cup-Event.jpg" in js
-    assert "/artwork/Event Logo/Midmar-Cup.jpg\"" not in js
+    assert "mm-lipton-reels-card.js" in js
+    assert ".mm-lipton-reels{order:1" in js
+    assert ".midmar-hmyc-cam{order:2" in js
     assert "injectFleetResultsStatus" in js
     assert "Results are Provisional" in js
     assert "19 Sep 2026" in js
@@ -27,8 +31,9 @@ def test_midmar_cam_expands_not_redirects():
     assert "site-header{display:none!important;}" in js
     assert "backToEvent" in js
     assert "agromet.ukzn.ac.za" not in js
-    assert "target=\"_blank\"" not in js
     assert "<a class=\"cam-frame\"" not in js
+    assert js.count('target="_blank"') == 1
+    assert "mm-lipton-reels-brand" in js
     assert "midmar-cam-wx" in js
     assert "data-mm-cam-wx-temp" in js
     assert "data-mm-cam-wx-kn" in js
