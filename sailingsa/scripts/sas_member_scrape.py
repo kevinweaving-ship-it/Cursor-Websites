@@ -5,13 +5,232 @@ SAS ID scraper. Writes a row only when sailing.org.za returns a member card for 
 Empty pages are not inserted. After a few confirmed empties in a row, the run stops.
 That last real ID is the end of the issued range. The next run starts at last real ID + 1.
 A fetch error is not an empty page and does not move the cursor past that ID.
+
+Sailors who raced with no SAS ID stay in identity_pending_sailors (status pending).
+When this tool inserts one new real card, it checks that list. If exactly one
+no-SAS sailor has the same full name, and no other SAS card has that name,
+past helm/crew/crew2/crew3 seats are linked to the new ID and the no-SAS row
+is removed. A second sailor row is never created.
 """
 from __future__ import annotations
 
 import os
+import re
 import sys
 import time
-from pathlib import Path
+
+
+def _norm_person(name: str) -> str:
+    s = (name or "").replace("&#039;", "'").replace("’", "'")
+    return re.sub(r"\s+", " ", s).strip().lower()
+
+
+def sync_sailed_no_sas(conn) -> int:
+    """Record every helm/crew seat that has a name and no SAS ID.
+
+    One row per name and role. Crew, crew2 and crew3 share the crew role
+    so the same person is not stored three times. Club codes and combined
+    names (Lucy & Andy) are not sailors. Existing admin_confirmed rows are
+    kept; their counts are refreshed. Rows whose seats now have a SAS ID
+    are removed.
+    """
+    cur = conn.cursor()
+    cur.execute(
+        """
+        WITH seats AS (
+            SELECT 'helm'::text AS role, btrim(helm_name) AS display_name, regatta_id::text AS regatta_id
+            FROM results
+            WHERE helm_sa_sailing_id IS NULL AND NULLIF(btrim(coalesce(helm_name, '')), '') IS NOT NULL
+            UNION ALL
+            SELECT 'crew', btrim(crew_name), regatta_id::text
+            FROM results
+            WHERE crew_sa_sailing_id IS NULL AND NULLIF(btrim(coalesce(crew_name, '')), '') IS NOT NULL
+            UNION ALL
+            SELECT 'crew', btrim(crew2_name), regatta_id::text
+            FROM results
+            WHERE crew2_sa_sailing_id IS NULL AND NULLIF(btrim(coalesce(crew2_name, '')), '') IS NOT NULL
+            UNION ALL
+            SELECT 'crew', btrim(crew3_name), regatta_id::text
+            FROM results
+            WHERE crew3_sa_sailing_id IS NULL AND NULLIF(btrim(coalesce(crew3_name, '')), '') IS NOT NULL
+        ),
+        clean AS (
+            SELECT role, display_name, regatta_id,
+                   lower(trim(regexp_replace(replace(replace(display_name, '&#039;', ''''), '’', ''''), '\\s+', ' ', 'g'))) AS normalized_name
+            FROM seats
+            WHERE position('&' IN display_name) = 0
+              AND lower(trim(display_name)) NOT IN (
+                    SELECT lower(trim(club_abbrev)) FROM clubs WHERE NULLIF(trim(club_abbrev), '') IS NOT NULL
+                    UNION
+                    SELECT lower(trim(club_fullname)) FROM clubs WHERE NULLIF(trim(club_fullname), '') IS NOT NULL
+              )
+        ),
+        picked AS (
+            SELECT DISTINCT ON (normalized_name, role)
+                   normalized_name, role, display_name
+            FROM (
+                SELECT normalized_name, role, display_name, count(*) AS n
+                FROM clean
+                GROUP BY 1, 2, 3
+            ) c
+            ORDER BY normalized_name, role, n DESC, display_name
+        ),
+        agg AS (
+            SELECT p.normalized_name, p.role, p.display_name,
+                   (SELECT count(*) FROM clean c
+                     WHERE c.normalized_name = p.normalized_name AND c.role = p.role) AS result_row_count,
+                   (SELECT COALESCE(array_agg(DISTINCT c.regatta_id), '{}')
+                      FROM clean c
+                     WHERE c.normalized_name = p.normalized_name AND c.role = p.role) AS regatta_ids
+            FROM picked p
+        )
+        INSERT INTO identity_pending_sailors
+            (display_name, role, normalized_name, result_row_count, regatta_ids, status)
+        SELECT display_name, role, normalized_name, result_row_count, regatta_ids, 'pending'
+        FROM agg
+        ON CONFLICT (normalized_name, role) DO UPDATE SET
+            result_row_count = EXCLUDED.result_row_count,
+            regatta_ids = EXCLUDED.regatta_ids,
+            updated_at = now()
+        WHERE identity_pending_sailors.status IN ('pending', 'admin_confirmed_no_sas')
+        """
+    )
+    inserted = cur.rowcount
+    cur.execute(
+        """
+        DELETE FROM identity_pending_sailors
+        WHERE status IN ('pending', 'admin_confirmed_no_sas')
+          AND normalized_name IN (
+                SELECT lower(trim(club_abbrev)) FROM clubs WHERE NULLIF(trim(club_abbrev), '') IS NOT NULL
+                UNION
+                SELECT lower(trim(club_fullname)) FROM clubs WHERE NULLIF(trim(club_fullname), '') IS NOT NULL
+          )
+        """
+    )
+    # Same person, same role, no unmatched seat left: they are no longer on the no-SAS list.
+    cur.execute(
+        """
+        DELETE FROM identity_pending_sailors p
+        WHERE p.status IN ('pending', 'admin_confirmed_no_sas')
+          AND NOT EXISTS (
+                SELECT 1 FROM results r
+                WHERE (
+                    (p.role = 'helm' AND r.helm_sa_sailing_id IS NULL
+                     AND lower(trim(regexp_replace(replace(replace(coalesce(r.helm_name, ''), '&#039;', ''''), '’', ''''), '\\s+', ' ', 'g'))) = p.normalized_name)
+                    OR
+                    (p.role = 'crew' AND (
+                        (r.crew_sa_sailing_id IS NULL AND lower(trim(regexp_replace(replace(replace(coalesce(r.crew_name, ''), '&#039;', ''''), '’', ''''), '\\s+', ' ', 'g'))) = p.normalized_name)
+                        OR (r.crew2_sa_sailing_id IS NULL AND lower(trim(regexp_replace(replace(replace(coalesce(r.crew2_name, ''), '&#039;', ''''), '’', ''''), '\\s+', ' ', 'g'))) = p.normalized_name)
+                        OR (r.crew3_sa_sailing_id IS NULL AND lower(trim(regexp_replace(replace(replace(coalesce(r.crew3_name, ''), '&#039;', ''''), '’', ''''), '\\s+', ' ', 'g'))) = p.normalized_name)
+                    ))
+                )
+          )
+        """
+    )
+    conn.commit()
+    promoted = promote_exact_no_sas(conn)
+    cur.close()
+    return inserted + promoted
+
+
+def promote_exact_no_sas(conn) -> int:
+    """Move a no-SAS sailor onto an existing card only when the full name is unique.
+
+    Does not insert a sailor. Nickname-only or two-card names stay on the no-SAS list.
+    """
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT p.normalized_name, min(s.sa_sailing_id::int)
+        FROM identity_pending_sailors p
+        JOIN sas_id_personal s
+          ON lower(trim(regexp_replace(replace(replace(coalesce(s.full_name, ''), '&#039;', ''''), '’', ''''), '\\s+', ' ', 'g'))) = p.normalized_name
+        WHERE p.status IN ('pending', 'admin_confirmed_no_sas')
+          AND array_length(regexp_split_to_array(p.normalized_name, ' '), 1) >= 2
+        GROUP BY p.normalized_name
+        HAVING count(DISTINCT s.sa_sailing_id) = 1
+        """
+    )
+    pairs = cur.fetchall()
+    cur.close()
+    linked = 0
+    for norm, sas_id in pairs:
+        try:
+            linked += attach_new_sas_to_sailed(conn, int(sas_id), norm)
+        except Exception as e:
+            conn.rollback()
+            print(f"[sas_member_scrape] promote failed {norm}: {e}", file=sys.stderr)
+    return linked
+
+
+def attach_new_sas_to_sailed(conn, sas_id: int, full_name: str) -> int:
+    """Link past results only when this new card is the one no-SAS sailor.
+
+    Requires a surname (two name tokens), one matching no-SAS name, and no
+    second SAS card with that full name. Does not insert another sailor.
+    """
+    norm = _norm_person(full_name)
+    if len(norm.split()) < 2:
+        return 0
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT COUNT(*) FROM sas_id_personal
+        WHERE lower(trim(regexp_replace(replace(replace(coalesce(full_name, ''), '&#039;', ''''), '’', ''''), '\\s+', ' ', 'g'))) = %s
+          AND sa_sailing_id::text <> %s
+        """,
+        (norm, str(sas_id)),
+    )
+    if int(cur.fetchone()[0] or 0) > 0:
+        cur.close()
+        return 0
+    cur.execute(
+        """
+        SELECT COUNT(*) FROM identity_pending_sailors
+        WHERE normalized_name = %s
+          AND status IN ('pending', 'admin_confirmed_no_sas')
+        """,
+        (norm,),
+    )
+    if int(cur.fetchone()[0] or 0) < 1:
+        cur.close()
+        return 0
+    linked = 0
+    for seat, name_col, id_col, temp_col in (
+        ("helm", "helm_name", "helm_sa_sailing_id", "helm_temp_id"),
+        ("crew", "crew_name", "crew_sa_sailing_id", "crew_temp_id"),
+        ("crew2", "crew2_name", "crew2_sa_sailing_id", "crew2_temp_id"),
+        ("crew3", "crew3_name", "crew3_sa_sailing_id", "crew3_temp_id"),
+    ):
+        cur.execute(
+            f"""
+            UPDATE results
+            SET {id_col} = %s, {temp_col} = NULL
+            WHERE {id_col} IS NULL
+              AND lower(trim(regexp_replace(replace(replace(coalesce({name_col}, ''), '&#039;', ''''), '’', ''''), '\\s+', ' ', 'g'))) = %s
+            """,
+            (int(sas_id), norm),
+        )
+        linked += cur.rowcount
+    if linked < 1:
+        conn.rollback()
+        cur.close()
+        return 0
+    cur.execute(
+        """
+        DELETE FROM identity_pending_sailors
+        WHERE normalized_name = %s
+          AND status IN ('pending', 'admin_confirmed_no_sas')
+        """,
+        (norm,),
+    )
+    conn.commit()
+    cur.close()
+    print(
+        f"[sas_member_scrape] linked sailed-no-sas {full_name} -> {sas_id} seats={linked}",
+        file=sys.stderr,
+    )
+    return linked
 
 def _get_db_url() -> str:
     url = os.environ.get("DB_URL") or os.environ.get("DATABASE_URL")
@@ -90,6 +309,12 @@ def main() -> None:
         print("sas_member_scrape: psycopg2 required", file=sys.stderr)
         sys.exit(1)
     conn = psycopg2.connect(db_url)
+    try:
+        recorded = sync_sailed_no_sas(conn)
+        print(f"[sas_member_scrape] sailed-no-sas recorded/updated={recorded}", file=sys.stderr)
+    except Exception as e:
+        conn.rollback()
+        print(f"[sas_member_scrape] sailed-no-sas sync failed: {e}", file=sys.stderr)
     cur = conn.cursor()
     # Next run starts at the last real member + 1. Blank / "No Record Found" rows are not real.
     cur.execute("""
@@ -164,6 +389,12 @@ def main() -> None:
                     except Exception:
                         conn.rollback()
                 print(f"[sas_member_scrape] added {current_id} {data.get('full_name', '')}", file=sys.stderr)
+                if not existed:
+                    try:
+                        attach_new_sas_to_sailed(conn, current_id, data.get("full_name") or "")
+                    except Exception as link_err:
+                        conn.rollback()
+                        print(f"[sas_member_scrape] no-sas link failed {current_id}: {link_err}", file=sys.stderr)
             except Exception as e:
                 # Try without year_of_birth if column missing
                 try:
@@ -189,6 +420,13 @@ def main() -> None:
                             conn.commit()
                         except Exception:
                             conn.rollback()
+                    print(f"[sas_member_scrape] added {current_id} {data.get('full_name', '')}", file=sys.stderr)
+                    if not existed:
+                        try:
+                            attach_new_sas_to_sailed(conn, current_id, data.get("full_name") or "")
+                        except Exception as link_err:
+                            conn.rollback()
+                            print(f"[sas_member_scrape] no-sas link failed {current_id}: {link_err}", file=sys.stderr)
                 except Exception as e2:
                     print(f"[sas_member_scrape] insert error {current_id}: {e2}", file=sys.stderr)
         else:
