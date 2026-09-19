@@ -15,7 +15,7 @@
   var WX_ID = "ssa-regatta-slot-card";
   var CAM_ID = "midmar-hmyc-cam";
   var CSS_ID = "midmar-live-media-css";
-  var JS_VER = "midmarwx11";
+  var JS_VER = "midmarwx12";
   var EVENT_PATH = "/regatta/" + RID;
   var STILL = "https://hmyccam1.nwsza.net/latest.jpg";
   var POLL_MS = 60000;
@@ -51,10 +51,10 @@
       ".midmar-hmyc-cam .mm-lipton-reels-cam-stamp [data-mm-cam-stamp-label]{font-weight:800;letter-spacing:.03em;}",
       ".midmar-hmyc-cam .mm-lipton-reels-cam-stamp [data-mm-cam-stamp-time]{font-weight:700;opacity:.95;}",
       ".midmar-hmyc-cam .midmar-cam-wx{display:none;}",
-      ".midmar-hmyc-cam.is-open .midmar-cam-wx{position:absolute;top:48px;right:8px;z-index:4;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:1px;min-width:0;padding:0;border:0;border-radius:0;background:none;color:#fff;text-align:center;text-shadow:0 1px 2px rgba(0,0,0,.85);box-sizing:border-box;}",
-      ".midmar-hmyc-cam .midmar-cam-wx-temp,.midmar-hmyc-cam .midmar-cam-wx-kn{display:block;width:100%;margin:0;padding:0;text-align:center;font:800 8px/1.1 Arial,Helvetica,sans-serif;letter-spacing:.02em;}",
-      ".midmar-hmyc-cam .midmar-cam-wx-gauge{display:block;width:36px;height:36px;margin:0 auto;}",
-      ".midmar-hmyc-cam .midmar-cam-wx-gauge svg{display:block;width:36px;height:36px;}",
+      ".midmar-hmyc-cam.is-open .midmar-cam-wx{position:absolute;z-index:4;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:2px;min-width:0;padding:0;border:0;border-radius:0;background:none;color:#fff;text-align:center;text-shadow:0 1px 2px rgba(0,0,0,.85);box-sizing:border-box;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-temp,.midmar-hmyc-cam .midmar-cam-wx-kn{display:block;width:100%;margin:0;padding:0;text-align:center;font:800 16px/1.1 Arial,Helvetica,sans-serif;letter-spacing:.02em;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-gauge{display:block;width:72px;height:72px;margin:0 auto;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-gauge svg{display:block;width:72px;height:72px;}",
       ".midmar-hmyc-cam .midmar-cam-wx-gauge .dt{stroke:#cbd5e1;stroke-width:1;}",
       ".midmar-hmyc-cam .midmar-cam-wx-gauge .dt.card{stroke:#fff;stroke-width:1.4;}",
       ".midmar-hmyc-cam .midmar-cam-wx-gauge .darc{fill:none;stroke:#93c5fd;stroke-width:5;}",
@@ -101,12 +101,53 @@
     return wx;
   }
 
+  function imageContainBox(img) {
+    var fr = img.getBoundingClientRect();
+    var nw = img.naturalWidth || 1600;
+    var nh = img.naturalHeight || 900;
+    var ir = nw / nh;
+    var box;
+    if (fr.width / fr.height > ir) {
+      var h = fr.height;
+      var w = h * ir;
+      box = { left: fr.left + (fr.width - w) / 2, top: fr.top, width: w, height: h };
+    } else {
+      var w2 = fr.width;
+      var h2 = w2 / ir;
+      box = { left: fr.left, top: fr.top + (fr.height - h2) / 2, width: w2, height: h2 };
+    }
+    return box;
+  }
+
+  function placeWxOnImage(cam) {
+    var img = cam.querySelector("img");
+    var wx = cam.querySelector("[data-mm-cam-wx]");
+    var frame = cam.querySelector(".cam-frame");
+    if (!img || !wx || !frame) return;
+    if (!cam.classList.contains("is-open")) {
+      wx.style.top = "";
+      wx.style.right = "";
+      return;
+    }
+    var box = imageContainBox(img);
+    var fr = frame.getBoundingClientRect();
+    var inset = 10;
+    wx.style.top = Math.max(0, box.top - fr.top + inset) + "px";
+    wx.style.right = Math.max(0, fr.right - box.right + inset) + "px";
+    wx.style.left = "auto";
+  }
+
   function setOpen(cam, open) {
     cam.classList.toggle("is-open", !!open);
     cam.setAttribute("aria-expanded", open ? "true" : "false");
     document.body.classList.toggle("midmar-cam-open", !!open);
     var frame = cam.querySelector(".cam-frame");
     if (frame) frame.setAttribute("aria-pressed", open ? "true" : "false");
+    if (open) {
+      window.requestAnimationFrame(function () {
+        placeWxOnImage(cam);
+      });
+    }
   }
 
   function backToEvent(cam) {
@@ -344,6 +385,7 @@
         tempEl.textContent = temp == null || isNaN(temp) ? "—" : n1(temp) + "°C";
         knEl.textContent = kn == null || isNaN(kn) ? "— kn" : n1(kn) + " kn";
         gaugeEl.innerHTML = drawMiniGauge(data);
+        placeWxOnImage(cam);
       })
       .catch(function () {});
   }
@@ -380,6 +422,20 @@
     }
     document.addEventListener("keydown", function (ev) {
       if (ev.key === "Escape" && cam.classList.contains("is-open")) backToEvent(cam);
+    });
+    var img = cam.querySelector("img");
+    if (img) {
+      img.addEventListener("load", function () {
+        placeWxOnImage(cam);
+      });
+    }
+    window.addEventListener("resize", function () {
+      placeWxOnImage(cam);
+    });
+    window.addEventListener("orientationchange", function () {
+      window.setTimeout(function () {
+        placeWxOnImage(cam);
+      }, 200);
     });
     paintCam(cam);
     paintWx(cam);

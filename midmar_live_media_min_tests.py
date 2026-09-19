@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parent
 
 def test_midmar_cam_expands_not_redirects():
     js = (ROOT / "js/midmar-live-media.js").read_text(encoding="utf-8")
-    assert "midmarwx11" in js
+    assert "midmarwx12" in js
     assert "hmyccam1.nwsza.net/latest.jpg" in js
     assert "button type=\"button\" class=\"cam-frame\"" in js
     assert "is-open" in js
@@ -28,6 +28,9 @@ def test_midmar_cam_expands_not_redirects():
     assert "darc.prev" in js
     assert "viewFromReadings" in js
     assert "uniq" in js
+    assert "placeWxOnImage" in js
+    assert "imageContainBox" in js
+    assert "width:72px" in js
     assert " kn" in js
     assert ".midmar-hmyc-cam .midmar-cam-wx{display:none;}" in js
     assert ".midmar-hmyc-cam.is-open .midmar-cam-wx{" in js
