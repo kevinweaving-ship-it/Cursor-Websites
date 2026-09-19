@@ -14,7 +14,7 @@ BOOT_OLD = """    loadScript("/js/regatta-slot-card.js?v=" + JS_VER).then(functi
 """
 
 BOOT_NEW = """    // MIDMAR_LEADERBOARD_v1: compact 1st/2nd/3rd between header and weather.
-    loadScript("/js/midmar-leaderboard.js?v=mmlb1");
+    loadScript("/js/midmar-leaderboard.js?v=mmlb2");
     loadScript("/js/regatta-slot-card.js?v=" + JS_VER).then(function () {
 """
 
@@ -23,7 +23,7 @@ TAG_OLD = (
 )
 TAG_NEW = (
     "mm_card_script = '<script src=\"/js/midmar-live-media.js?v=midmarwx41\" defer></script>"
-    "<script src=\"/js/midmar-leaderboard.js?v=mmlb1\" defer></script>'"
+    "<script src=\"/js/midmar-leaderboard.js?v=mmlb2\" defer></script>'"
 )
 
 
@@ -38,6 +38,11 @@ def main() -> None:
     print("JS_OK", DEST, DEST.stat().st_size)
 
     mm = MM.read_text()
+    if "midmar-leaderboard.js?v=mmlb1" in mm:
+        mm = mm.replace("midmar-leaderboard.js?v=mmlb1", "midmar-leaderboard.js?v=mmlb2")
+        MM.write_text(mm)
+        print("MM_VER mmlb2")
+        mm = MM.read_text()
     if MARK in mm:
         print("MM_ALREADY", MARK)
     else:
@@ -55,33 +60,31 @@ def main() -> None:
 
     if not API.is_file():
         return
+    import re
+
     api = API.read_text()
-    if "midmar-leaderboard.js" in api:
-        print("API_ALREADY")
-        return
-    n = 0
-    if TAG_OLD in api:
-        api = api.replace(TAG_OLD, TAG_NEW, 1)
-        n += 1
-    else:
-        for ver in ("midmarwx40", "midmarwx39", "midmarwx38", "midmarwx37", "midmarwx36"):
-            needle = (
-                "mm_card_script = '<script src=\"/js/midmar-live-media.js?v="
-                + ver
-                + "\" defer></script>'"
-            )
-            if needle in api:
-                api = api.replace(needle, TAG_NEW, 1)
-                n += 1
-                break
-    if n:
+    api2 = api.replace("midmar-leaderboard.js?v=mmlb1", "midmar-leaderboard.js?v=mmlb2")
+
+    def _pin(m: re.Match) -> str:
+        tag = m.group(0)
+        rest = api2[m.end() : m.end() + 90]
+        if "midmar-leaderboard.js" in rest:
+            return tag
+        return tag + '<script src="/js/midmar-leaderboard.js?v=mmlb2" defer></script>'
+
+    api2 = re.sub(
+        r'<script src="/js/midmar-live-media\.js\?v=midmarwx\d+" defer></script>',
+        _pin,
+        api2,
+    )
+    if api2 != api:
         try:
-            API.write_text(api)
-            print("API_OK tag+leaderboard")
+            API.write_text(api2)
+            print("API_OK scripts", api2.count("midmar-leaderboard.js"))
         except OSError as e:
             print("API_SKIP", e)
     else:
-        print("API_TAG_MISSING")
+        print("API_UNCHANGED", "lb" if "midmar-leaderboard.js" in api else "NO_LB")
 
 
 if __name__ == "__main__":

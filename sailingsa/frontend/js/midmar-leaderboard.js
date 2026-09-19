@@ -1,7 +1,7 @@
 /**
  * Midmar Cup — compact live Leader Board between event header and weather.
- * 1st / 2nd / 3rd lines: medal, boat, club logo | code, helm & crew.
- * Polls /api/regatta/{id} so ranks stay current as scores arrive.
+ * Same card border + width as the weather card. MP first: a rank may wrap to 2 lines.
+ * Boat name uses sponsor logo | divider | name when a brand is known (same as results).
  */
 (function () {
   'use strict';
@@ -14,6 +14,15 @@
   var POLL_MS = 15000;
   var MEDAL = { 1: '\uD83E\uDD47', 2: '\uD83E\uDD48', 3: '\uD83E\uDD49' };
   var ORD = { 1: '1st', 2: '2nd', 3: '3rd' };
+  var SPONSORS = [
+    { test: function (n) { return n === 'puffin'; }, file: 'Ullman-Sails.png', alt: 'Ullman Sails', href: '/sponsors/ullman' },
+    { re: /ullman(\s+sails)?/, file: 'Ullman-Sails.png', alt: 'Ullman Sails', href: '/sponsors/ullman' },
+    { re: /north\s+sails/, file: 'North-Sails.png', alt: 'North Sails', href: '/sponsors/north' },
+    { re: /cell\s*c\b/, file: 'Cell-C.png', alt: 'Cell C', href: '/sponsors/cell-c' },
+    { re: /\bamtec\b/, file: 'AMTEC.png', alt: 'AMTEC', href: '/sponsors/amtec' },
+    { re: /nitro/, file: 'Nitro.png', alt: 'Nitro', href: '/sponsors/nitro' },
+    { re: /\bh2[0o]\b/, file: 'H2O.png', alt: 'H2O', href: '/sponsors/h2o' },
+  ];
 
   function onMidmar() {
     var path = String((window.location && window.location.pathname) || '')
@@ -46,23 +55,52 @@
     return '<a href="/sailor/' + esc(sl) + '">' + esc(n) + '</a>';
   }
 
-  function clubChip(code) {
-    var c = String(code || '').trim().toUpperCase();
-    if (!c) return '';
-    var src = '/artwork/Club%20Logo/' + encodeURIComponent(c) + '.png?v=20260912c';
-    var href = '/club/' + encodeURIComponent(c.toLowerCase());
-    return (
-      '<span class="rs-club-with-logo">' +
+  function logoChip(src, title, href, label) {
+    var img =
       '<img class="rs-club-row-logo-sm" src="' +
       src +
       '" alt="" title="' +
-      esc(c) +
-      '" loading="lazy" decoding="async">' +
-      '<a href="' +
-      href +
-      '">' +
-      esc(c) +
-      '</a></span>'
+      esc(title) +
+      '" loading="lazy" decoding="async">';
+    var text = href
+      ? '<a href="' + esc(href) + '" title="' + esc(title) + '">' + esc(label) + '</a>'
+      : esc(label);
+    return '<span class="rs-club-with-logo">' + img + text + '</span>';
+  }
+
+  function clubChip(code) {
+    var c = String(code || '').trim().toUpperCase();
+    if (!c) return '';
+    return logoChip(
+      '/artwork/Club%20Logo/' + encodeURIComponent(c) + '.png?v=20260912c',
+      c,
+      '/club/' + encodeURIComponent(c.toLowerCase()),
+      c
+    );
+  }
+
+  function sponsorFor(name) {
+    var n = String(name || '').trim();
+    var low = n.toLowerCase();
+    var i;
+    for (i = 0; i < SPONSORS.length; i++) {
+      var s = SPONSORS[i];
+      if (s.test && s.test(low)) return s;
+      if (s.re && s.re.test(low)) return s;
+    }
+    return null;
+  }
+
+  function boatHtml(row) {
+    var bn = String(row.boat_name || '').trim();
+    if (!bn) return '';
+    var sp = sponsorFor(bn);
+    if (!sp) return esc(bn);
+    return logoChip(
+      '/artwork/Sponsor%20Logo/' + encodeURIComponent(sp.file) + '?v=20260912c',
+      sp.alt,
+      sp.href,
+      bn
     );
   }
 
@@ -72,16 +110,11 @@
     if (row.crew_name) parts.push(String(row.crew_name).trim());
     if (row.crew2_name) parts.push(String(row.crew2_name).trim());
     if (row.crew3_name) parts.push(String(row.crew3_name).trim());
-    var crew = parts.filter(Boolean).join(', ');
+    var crew = parts.filter(Boolean);
     var html = sailorLink(helm);
-    if (crew) {
+    if (crew.length) {
       html +=
-        ' <span class="midmar-lb-amp">&amp;</span> ' +
-        crew
-          .split(/\s*,\s*/)
-          .filter(Boolean)
-          .map(sailorLink)
-          .join(', ');
+        ' <span class="midmar-lb-amp">&amp;</span> ' + crew.map(sailorLink).join(', ');
     }
     return html;
   }
@@ -110,21 +143,35 @@
     var s = document.createElement('style');
     s.id = CSS_ID;
     s.textContent =
-      '.regatta-page > .midmar-lb.card{margin:8px 0 0;padding:6px 10px;}' +
-      '.regatta-page > .midmar-lb .section-title{margin:0 0 4px;padding:0 0 3px;font-size:0.75rem;line-height:1.2;}' +
+      /* Same parent + width/border as weather: full host width, .card 2px #001f3f. */
+      '.regatta-page > .midmar-live-media .midmar-lb.card{' +
+      'order:0;margin:10px 0 0;width:100%;max-width:100%;box-sizing:border-box;' +
+      'padding:6px 10px;border:2px solid #001f3f;background:#fff;}' +
+      '.regatta-page > .midmar-live-media .ssa-regatta-slot-card{order:1;}' +
+      '.regatta-page > .midmar-live-media .midmar-mm-row{order:2;}' +
+      '.regatta-page > .midmar-lb.card{' +
+      'margin:10px 0 0;width:100%;max-width:100%;box-sizing:border-box;' +
+      'padding:6px 10px;border:2px solid #001f3f;background:#fff;}' +
+      '.midmar-lb .section-title{margin:0 0 4px;padding:0 0 3px;font-size:0.75rem;line-height:1.2;}' +
       '.midmar-lb-list{margin:0;padding:0;}' +
-      '.midmar-lb-row{display:flex;align-items:center;gap:8px;min-height:26px;padding:2px 0;border-bottom:1px solid #e0e0e0;font-size:0.85rem;line-height:1.2;color:#1e293b;}' +
+      /* MP first: wrap. A rank may use two lines (meta + helm/crew). */
+      '.midmar-lb-row{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;' +
+      'padding:4px 0;border-bottom:1px solid #e0e0e0;font-size:0.85rem;line-height:1.25;color:#1e293b;}' +
       '.midmar-lb-row:last-child{border-bottom:0;}' +
       '.midmar-lb-rank{flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;font-weight:700;color:#001f3f;white-space:nowrap;}' +
       '.midmar-lb-medal{font-size:1rem;line-height:1;}' +
       '.midmar-lb-boat{flex:0 1 auto;font-weight:700;color:#001f3f;min-width:0;}' +
-      '.midmar-lb-boat a{color:#001f3f;text-decoration:none;}' +
+      '.midmar-lb-boat a,.midmar-lb-club a,.midmar-lb-people a{color:#001f3f;text-decoration:none;}' +
       '.midmar-lb-club{flex:0 0 auto;}' +
-      '.midmar-lb-club .rs-club-with-logo{display:inline-flex;align-items:center;}' +
-      '.midmar-lb-club .rs-club-row-logo-sm{flex:0 0 22px;width:22px;max-width:22px;height:auto;max-height:16px;object-fit:contain;box-sizing:content-box;padding-right:4px;margin-right:4px;border-right:1px solid rgba(26,39,80,0.22);}' +
-      '.midmar-lb-people{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
-      '.midmar-lb-people a{color:#001f3f;text-decoration:none;}' +
+      '.midmar-lb .rs-club-with-logo{display:inline-flex;align-items:center;}' +
+      '.midmar-lb .rs-club-row-logo-sm{flex:0 0 22px;width:22px;max-width:22px;height:auto;max-height:16px;' +
+      'object-fit:contain;box-sizing:content-box;padding-right:4px;margin-right:4px;' +
+      'border-right:1px solid rgba(26,39,80,0.22);}' +
+      '.midmar-lb-people{flex:1 1 100%;min-width:0;white-space:normal;}' +
       '.midmar-lb-empty{margin:0;font-size:0.8rem;color:#334155;}' +
+      '@media screen and (orientation:landscape) and (min-width:768px){' +
+      '.midmar-lb-people{flex:1 1 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
+      '}' +
       '@media print{.midmar-lb.card{break-inside:avoid}}';
     document.head.appendChild(s);
   }
@@ -140,13 +187,14 @@
         '<h2 class="section-title">Leader Board</h2>' +
         '<div class="midmar-lb-list" data-mm-lb-list></div>';
     }
-    var header = document.querySelector('.regatta-header-wrap');
     var host = document.getElementById('midmar-live-media');
     var wx = document.getElementById('ssa-regatta-slot-card');
+    var header = document.querySelector('.regatta-header-wrap');
     var page = document.querySelector('.regatta-page');
-    if (host && host.parentNode) {
-      if (card.nextSibling !== host) host.parentNode.insertBefore(card, host);
-    } else if (wx && wx.parentNode && wx.parentNode !== host) {
+    if (host) {
+      if (card.parentNode !== host) host.insertBefore(card, host.firstChild);
+      if (wx && wx.parentNode === host && card.nextSibling !== wx) host.insertBefore(card, wx);
+    } else if (wx && wx.parentNode) {
       if (card.nextSibling !== wx) wx.parentNode.insertBefore(card, wx);
     } else if (header && header.parentNode) {
       if (card.previousSibling !== header) header.parentNode.insertBefore(card, header.nextSibling);
@@ -154,15 +202,6 @@
       page.insertBefore(card, page.firstChild);
     }
     return card;
-  }
-
-  function boatHtml(row) {
-    var bn = String(row.boat_name || '').trim();
-    if (!bn) return '';
-    if (bn.toLowerCase() === 'puffin') {
-      return '<a href="/sponsors/ullman" title="Ullman Sails">' + esc(bn) + '</a>';
-    }
-    return esc(bn);
   }
 
   function paint(card, rows) {
