@@ -14,7 +14,7 @@ BOOT_OLD = """    loadScript("/js/regatta-slot-card.js?v=" + JS_VER).then(functi
 """
 
 BOOT_NEW = """    // MIDMAR_LEADERBOARD_v1: compact 1st/2nd/3rd between header and weather.
-    loadScript("/js/midmar-leaderboard.js?v=mmlb2");
+    loadScript("/js/midmar-leaderboard.js?v=mmlb3");
     loadScript("/js/regatta-slot-card.js?v=" + JS_VER).then(function () {
 """
 
@@ -23,7 +23,7 @@ TAG_OLD = (
 )
 TAG_NEW = (
     "mm_card_script = '<script src=\"/js/midmar-live-media.js?v=midmarwx41\" defer></script>"
-    "<script src=\"/js/midmar-leaderboard.js?v=mmlb2\" defer></script>'"
+    "<script src=\"/js/midmar-leaderboard.js?v=mmlb3\" defer></script>'"
 )
 
 
@@ -38,11 +38,14 @@ def main() -> None:
     print("JS_OK", DEST, DEST.stat().st_size)
 
     mm = MM.read_text()
-    if "midmar-leaderboard.js?v=mmlb1" in mm:
-        mm = mm.replace("midmar-leaderboard.js?v=mmlb1", "midmar-leaderboard.js?v=mmlb2")
-        MM.write_text(mm)
-        print("MM_VER mmlb2")
-        mm = MM.read_text()
+    for old_ver in ("mmlb1", "mmlb2"):
+        needle = "midmar-leaderboard.js?v=" + old_ver
+        if needle in mm:
+            mm = mm.replace(needle, "midmar-leaderboard.js?v=mmlb3")
+            MM.write_text(mm)
+            print("MM_VER mmlb3")
+            break
+    mm = MM.read_text()
     if MARK in mm:
         print("MM_ALREADY", MARK)
     else:
@@ -63,14 +66,15 @@ def main() -> None:
     import re
 
     api = API.read_text()
-    api2 = api.replace("midmar-leaderboard.js?v=mmlb1", "midmar-leaderboard.js?v=mmlb2")
+    api2 = api.replace("midmar-leaderboard.js?v=mmlb1", "midmar-leaderboard.js?v=mmlb3")
+    api2 = api2.replace("midmar-leaderboard.js?v=mmlb2", "midmar-leaderboard.js?v=mmlb3")
 
     def _pin(m: re.Match) -> str:
         tag = m.group(0)
         rest = api2[m.end() : m.end() + 90]
         if "midmar-leaderboard.js" in rest:
             return tag
-        return tag + '<script src="/js/midmar-leaderboard.js?v=mmlb2" defer></script>'
+        return tag + '<script src="/js/midmar-leaderboard.js?v=mmlb3" defer></script>'
 
     api2 = re.sub(
         r'<script src="/js/midmar-live-media\.js\?v=midmarwx\d+" defer></script>',
