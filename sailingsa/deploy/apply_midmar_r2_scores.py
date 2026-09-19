@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Midmar R2 places 1–10 + 11th RET. Appendix A. Do not invent IDs."""
+"""Midmar R2 places 1–10 + 11th Caitlin DNS. Appendix A. Do not invent IDs."""
 import json
 import re
 from datetime import datetime
@@ -26,7 +26,7 @@ PLACES = [
     (14193, "Shalin Naidoo", "9"),  # Craig Deverson boat
     (18659, "Penny Macpherson", "10"),
 ]
-RET_SID = 28155  # Caitlin / Jethro 297 — no finish, RET for now
+DNS_SID = 28155  # Caitlin 297 — 11th last, DNS
 
 
 def parse_score(val, entries_plus_one):
@@ -114,14 +114,14 @@ def main() -> None:
     deverson = by_sid[14193]
     print("DEVERSON_9TH", deverson["helm_name"], deverson["sail_number"], deverson["boat_name"])
 
-    caitlin = by_sid.get(RET_SID)
+    caitlin = by_sid.get(DNS_SID)
     if not caitlin:
         raise SystemExit("REFUSE Caitlin SAS 28155 missing")
     if "caitlin" not in (caitlin["helm_name"] or "").casefold():
-        raise SystemExit("REFUSE RET helm not Caitlin: " + str(caitlin["helm_name"]))
+        raise SystemExit("REFUSE DNS helm not Caitlin: " + str(caitlin["helm_name"]))
     if str(caitlin["sail_number"] or "").strip() != "297":
-        raise SystemExit("REFUSE RET sail not 297: " + str(caitlin["sail_number"]))
-    print("CAITLIN_RET", caitlin["helm_name"], caitlin["sail_number"])
+        raise SystemExit("REFUSE DNS sail not 297: " + str(caitlin["sail_number"]))
+    print("CAITLIN_DNS", caitlin["helm_name"], caitlin["sail_number"])
 
     # 422 is not in this fleet. Dani 442 is the only nameless boat — Scout goes there.
     sails = {str(r["sail_number"] or "").strip(): r for r in rows}
@@ -146,7 +146,7 @@ def main() -> None:
     scored = []
     for sid, name, place in PLACES:
         scored.append((by_sid[sid], place))
-    scored.append((caitlin, "RET"))
+    scored.append((caitlin, "DNS"))
 
     scored_ids = set()
     for row, place in scored:
@@ -155,8 +155,8 @@ def main() -> None:
             scores = json.loads(scores)
         scores = dict(scores)
         store = place
-        if place == "RET":
-            store = str(int(entries_plus_one)) + "\nRET"
+        if place in ("RET", "DNS"):
+            store = str(int(entries_plus_one)) + "\n" + place
         scores[RACE] = store
         n_races = len([k for k in scores if str(k).upper().startswith("R") and scores[k]])
         discard = n_races // 5
