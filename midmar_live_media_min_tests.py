@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parent
 
 def test_midmar_cam_expands_not_redirects():
     js = (ROOT / "js/midmar-live-media.js").read_text(encoding="utf-8")
-    assert "midmarwx5" in js
+    assert "midmarwx6" in js
     assert "hmyccam1.nwsza.net/latest.jpg" in js
     assert "button type=\"button\" class=\"cam-frame\"" in js
     assert "is-open" in js
@@ -26,6 +26,13 @@ def test_midmar_cam_expands_not_redirects():
     assert "data-mm-cam-wx-gauge" in js
     assert "/api/weather/agromet-midmar/history" in js
     assert " kn" in js
+    assert ".midmar-hmyc-cam .midmar-cam-wx{display:none;}" in js
+    assert ".midmar-hmyc-cam.is-open .midmar-cam-wx{" in js
+    assert "background:none" in js
+    assert '["N", "NNE"' in js or "NNE" in js
+    assert "dpt" in js
+    assert "ddeg" in js
+    assert '["N", "E"' in js or '"N"], [90, "E"]' in js
     frontend = ROOT / "sailingsa/frontend/js/midmar-live-media.js"
     assert frontend.is_file()
     assert frontend.read_text(encoding="utf-8") == js

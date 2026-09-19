@@ -15,7 +15,7 @@
   var WX_ID = "ssa-regatta-slot-card";
   var CAM_ID = "midmar-hmyc-cam";
   var CSS_ID = "midmar-live-media-css";
-  var JS_VER = "midmarwx5";
+  var JS_VER = "midmarwx6";
   var EVENT_PATH = "/regatta/" + RID;
   var STILL = "https://hmyccam1.nwsza.net/latest.jpg";
   var POLL_MS = 60000;
@@ -50,16 +50,18 @@
       ".midmar-hmyc-cam .mm-lipton-reels-cam-stamp-dot{flex:0 0 auto;width:8px;height:8px;border-radius:50%;background:#94a3b8;}",
       ".midmar-hmyc-cam .mm-lipton-reels-cam-stamp [data-mm-cam-stamp-label]{font-weight:800;letter-spacing:.03em;}",
       ".midmar-hmyc-cam .mm-lipton-reels-cam-stamp [data-mm-cam-stamp-time]{font-weight:700;opacity:.95;}",
-      ".midmar-hmyc-cam .midmar-cam-wx{position:absolute;top:8px;right:8px;z-index:4;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:2px;min-width:72px;padding:6px 6px 5px;border-radius:6px;background:rgba(0,16,24,.72);color:#fff;text-align:center;text-shadow:0 1px 2px rgba(0,0,0,.85);box-sizing:border-box;}",
-      ".midmar-hmyc-cam.is-open .midmar-cam-wx{top:48px;right:8px;}",
-      ".midmar-hmyc-cam .midmar-cam-wx-temp,.midmar-hmyc-cam .midmar-cam-wx-kn{display:block;width:100%;margin:0;padding:0;text-align:center;font:800 12px/1.15 Arial,Helvetica,sans-serif;letter-spacing:.02em;}",
-      ".midmar-hmyc-cam .midmar-cam-wx-temp{font-size:13px;}",
-      ".midmar-hmyc-cam .midmar-cam-wx-gauge{display:block;width:56px;height:56px;margin:0 auto;}",
-      ".midmar-hmyc-cam .midmar-cam-wx-gauge svg{display:block;width:56px;height:56px;}",
+      ".midmar-hmyc-cam .midmar-cam-wx{display:none;}",
+      ".midmar-hmyc-cam.is-open .midmar-cam-wx{position:absolute;top:48px;right:8px;z-index:4;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:1px;min-width:0;padding:0;border:0;border-radius:0;background:none;color:#fff;text-align:center;text-shadow:0 1px 2px rgba(0,0,0,.85);box-sizing:border-box;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-temp,.midmar-hmyc-cam .midmar-cam-wx-kn{display:block;width:100%;margin:0;padding:0;text-align:center;font:800 8px/1.1 Arial,Helvetica,sans-serif;letter-spacing:.02em;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-gauge{display:block;width:36px;height:36px;margin:0 auto;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-gauge svg{display:block;width:36px;height:36px;}",
       ".midmar-hmyc-cam .midmar-cam-wx-gauge .dt{stroke:#cbd5e1;stroke-width:1;}",
       ".midmar-hmyc-cam .midmar-cam-wx-gauge .dt.card{stroke:#fff;stroke-width:1.4;}",
       ".midmar-hmyc-cam .midmar-cam-wx-gauge .darc{fill:none;stroke:#93c5fd;stroke-width:5;}",
       ".midmar-hmyc-cam .midmar-cam-wx-gauge .dhead{fill:#3b82f6;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-gauge .dpt{font:700 16px Arial,Helvetica,sans-serif;fill:#fff;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-gauge .ddeg{font:700 12px Arial,Helvetica,sans-serif;fill:#fff;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-gauge .dcard{font:700 10px Arial,Helvetica,sans-serif;fill:#e2e8f0;}",
       "@media screen and (orientation:portrait) and (max-width:767px){",
       ".regatta-page > .midmar-live-media .midmar-hmyc-cam:not(.is-open){width:100vw;max-width:100vw;margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw);border-left:0;border-right:0;border-radius:0;}",
       "}",
@@ -153,6 +155,12 @@
   }
 
   var BANDS = [[0, 5, "#12b028"], [5, 11, "#2563eb"], [11, 17, "#e67e00"], [17, 23, "#7c3aed"], [23, 60, "#DC143C"]];
+  var PTS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+
+  function dirIdx(deg) {
+    if (deg == null || isNaN(deg)) return null;
+    return Math.round((((Number(deg) % 360) + 360) % 360) / 22.5) % 16;
+  }
 
   function bandCol(kn) {
     if (kn == null || isNaN(kn)) return "#94a3b8";
@@ -177,6 +185,9 @@
     var CY = 50;
     var R = 40;
     var col = bandCol(kn);
+    var d = deg != null && !isNaN(deg) ? ((Number(deg) % 360) + 360) % 360 : null;
+    var di = dirIdx(d);
+    var pt = di != null ? PTS[di] : "";
     var svg = '<svg viewBox="0 0 100 100" aria-hidden="true">';
     var k;
     for (k = 0; k < 72; k += 1) {
@@ -196,8 +207,18 @@
         q1[1].toFixed(1) +
         '"/>';
     }
-    if (deg != null && !isNaN(deg)) {
-      var d = ((Number(deg) % 360) + 360) % 360;
+    [[0, "N"], [90, "E"], [180, "S"], [270, "W"]].forEach(function (c) {
+      var lp = pol(CX, CY, 28, c[0]);
+      svg +=
+        '<text class="dcard" x="' +
+        lp[0].toFixed(1) +
+        '" y="' +
+        lp[1].toFixed(1) +
+        '" text-anchor="middle" dominant-baseline="central">' +
+        c[1] +
+        "</text>";
+    });
+    if (d != null) {
       var a0 = d - 11.25;
       var a1 = d + 11.25;
       var p0 = pol(CX, CY, R - 3, a0);
@@ -230,11 +251,22 @@
         col +
         '" d="M0 -10L8 5L0 2L-8 5Z"/></g>';
     }
+    svg +=
+      '<text class="dpt" x="50" y="46" text-anchor="middle" dominant-baseline="central">' +
+      (pt || "—") +
+      "</text>";
+    if (d != null) {
+      svg +=
+        '<text class="ddeg" x="50" y="64" text-anchor="middle">' +
+        Math.round(d) +
+        "°</text>";
+    }
     svg += "</svg>";
     return svg;
   }
 
   function paintWx(cam) {
+    if (!cam.classList.contains("is-open")) return;
     var tempEl = cam.querySelector("[data-mm-cam-wx-temp]");
     var knEl = cam.querySelector("[data-mm-cam-wx-kn]");
     var gaugeEl = cam.querySelector("[data-mm-cam-wx-gauge]");
@@ -276,7 +308,10 @@
       frame.addEventListener("click", function (ev) {
         ev.preventDefault();
         ev.stopPropagation();
-        if (!cam.classList.contains("is-open")) setOpen(cam, true);
+        if (!cam.classList.contains("is-open")) {
+          setOpen(cam, true);
+          paintWx(cam);
+        }
       });
     }
     var hide = cam.querySelector("[data-mm-hide]");
