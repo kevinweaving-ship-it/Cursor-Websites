@@ -7,9 +7,10 @@ ROOT = Path(__file__).resolve().parent
 
 def test_midmar_cam_expands_not_redirects():
     js = (ROOT / "js/midmar-live-media.js").read_text(encoding="utf-8")
-    assert "midmarwx12" in js
+    assert "midmarwx13" in js
     assert "hmyccam1.nwsza.net/latest.jpg" in js
     assert "button type=\"button\" class=\"cam-frame\"" in js
+    assert 'class="cam-shot"' in js
     assert "is-open" in js
     assert "position:fixed" in js
     assert "mm-lipton-reels-hide" in js
@@ -28,17 +29,16 @@ def test_midmar_cam_expands_not_redirects():
     assert "darc.prev" in js
     assert "viewFromReadings" in js
     assert "uniq" in js
-    assert "placeWxOnImage" in js
-    assert "imageContainBox" in js
+    assert "placeWxOnImage" not in js
     assert "width:72px" in js
+    assert "top:8px;right:8px" in js
+    assert ".cam-shot .midmar-cam-wx" in js
+    assert "color:#000" in js
+    assert "fill:#000" in js
+    assert ".dhead{fill:#000!important;}" in js
     assert " kn" in js
     assert ".midmar-hmyc-cam .midmar-cam-wx{display:none;}" in js
-    assert ".midmar-hmyc-cam.is-open .midmar-cam-wx{" in js
-    assert "background:none" in js
-    assert '["N", "NNE"' in js or "NNE" in js
-    assert "dpt" in js
-    assert "ddeg" in js
-    assert '["N", "E"' in js or '"N"], [90, "E"]' in js
+    assert "NNE" in js
     frontend = ROOT / "sailingsa/frontend/js/midmar-live-media.js"
     assert frontend.is_file()
     assert frontend.read_text(encoding="utf-8") == js

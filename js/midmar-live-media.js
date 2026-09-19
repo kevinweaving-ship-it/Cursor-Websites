@@ -15,7 +15,7 @@
   var WX_ID = "ssa-regatta-slot-card";
   var CAM_ID = "midmar-hmyc-cam";
   var CSS_ID = "midmar-live-media-css";
-  var JS_VER = "midmarwx12";
+  var JS_VER = "midmarwx13";
   var EVENT_PATH = "/regatta/" + RID;
   var STILL = "https://hmyccam1.nwsza.net/latest.jpg";
   var POLL_MS = 60000;
@@ -36,12 +36,14 @@
       ".regatta-page > .midmar-live-media .ssa-regatta-slot-card{order:0;margin-top:10px;width:100%;max-width:100%;padding:0!important;}",
       ".regatta-page > .midmar-live-media .midmar-hmyc-cam{order:1;margin-top:10px;width:100%;max-width:100%;padding:0!important;overflow:hidden;background:#000;}",
       ".midmar-hmyc-cam .cam-frame{position:relative;display:block;width:100%;aspect-ratio:16/9;background:#000;overflow:hidden;margin:0;padding:0;border:0;cursor:pointer;-webkit-tap-highlight-color:transparent;}",
-      ".midmar-hmyc-cam .cam-frame img{display:block;width:100%;height:118%;margin-top:-10%;object-fit:cover;object-position:center bottom;background:#000;}",
+      ".midmar-hmyc-cam .cam-shot{position:relative;display:block;width:100%;height:100%;overflow:hidden;}",
+      ".midmar-hmyc-cam .cam-shot img{display:block;width:100%;height:118%;margin-top:-10%;object-fit:cover;object-position:center bottom;background:#000;}",
       "body:has(.midmar-hmyc-cam.is-open) .site-header{display:none!important;}",
       "body.midmar-cam-open{overflow:hidden;}",
       ".midmar-hmyc-cam.is-open{position:fixed;inset:0;z-index:2147483000;width:100vw;max-width:100vw;height:100vh;height:100dvh;margin:0;border:0;border-radius:0;background:#000;overflow:hidden;}",
-      ".midmar-hmyc-cam.is-open .cam-frame{height:100%;aspect-ratio:auto;cursor:default;}",
-      ".midmar-hmyc-cam.is-open .cam-frame img{width:100%;height:100%;margin:0;object-fit:contain;object-position:center center;}",
+      ".midmar-hmyc-cam.is-open .cam-frame{display:flex;align-items:center;justify-content:center;height:100%;aspect-ratio:auto;cursor:default;overflow:hidden;}",
+      ".midmar-hmyc-cam.is-open .cam-shot{width:auto;height:auto;max-width:100%;max-height:100%;overflow:visible;}",
+      ".midmar-hmyc-cam.is-open .cam-shot img{width:auto;height:auto;max-width:100vw;max-height:100vh;max-height:100dvh;margin:0;object-fit:contain;object-position:center center;}",
       ".midmar-hmyc-cam .mm-lipton-reels-expanded-bar{display:none;}",
       ".midmar-hmyc-cam.is-open .mm-lipton-reels-expanded-bar{display:flex;position:absolute;top:0;right:0;z-index:6;justify-content:flex-end;align-items:flex-start;margin:0;padding:0;pointer-events:none;}",
       ".midmar-hmyc-cam .mm-lipton-reels-hide{display:none;}",
@@ -51,18 +53,18 @@
       ".midmar-hmyc-cam .mm-lipton-reels-cam-stamp [data-mm-cam-stamp-label]{font-weight:800;letter-spacing:.03em;}",
       ".midmar-hmyc-cam .mm-lipton-reels-cam-stamp [data-mm-cam-stamp-time]{font-weight:700;opacity:.95;}",
       ".midmar-hmyc-cam .midmar-cam-wx{display:none;}",
-      ".midmar-hmyc-cam.is-open .midmar-cam-wx{position:absolute;z-index:4;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:2px;min-width:0;padding:0;border:0;border-radius:0;background:none;color:#fff;text-align:center;text-shadow:0 1px 2px rgba(0,0,0,.85);box-sizing:border-box;}",
-      ".midmar-hmyc-cam .midmar-cam-wx-temp,.midmar-hmyc-cam .midmar-cam-wx-kn{display:block;width:100%;margin:0;padding:0;text-align:center;font:800 16px/1.1 Arial,Helvetica,sans-serif;letter-spacing:.02em;}",
+      ".midmar-hmyc-cam.is-open .cam-shot .midmar-cam-wx{position:absolute;top:8px;right:8px;left:auto;bottom:auto;z-index:5;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:2px;min-width:0;padding:0;border:0;background:none;color:#000;text-align:center;text-shadow:none;box-sizing:border-box;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-temp,.midmar-hmyc-cam .midmar-cam-wx-kn{display:block;width:100%;margin:0;padding:0;text-align:center;color:#000;font:800 16px/1.1 Arial,Helvetica,sans-serif;letter-spacing:.02em;}",
       ".midmar-hmyc-cam .midmar-cam-wx-gauge{display:block;width:72px;height:72px;margin:0 auto;}",
-      ".midmar-hmyc-cam .midmar-cam-wx-gauge svg{display:block;width:72px;height:72px;}",
-      ".midmar-hmyc-cam .midmar-cam-wx-gauge .dt{stroke:#cbd5e1;stroke-width:1;}",
-      ".midmar-hmyc-cam .midmar-cam-wx-gauge .dt.card{stroke:#fff;stroke-width:1.4;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-gauge svg{display:block;width:72px;height:72px;overflow:visible;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-gauge .dt{stroke:#000;stroke-width:1;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-gauge .dt.card{stroke:#000;stroke-width:1.4;}",
       ".midmar-hmyc-cam .midmar-cam-wx-gauge .darc{fill:none;stroke:#93c5fd;stroke-width:5;}",
       ".midmar-hmyc-cam .midmar-cam-wx-gauge .darc.prev{opacity:.45;}",
-      ".midmar-hmyc-cam .midmar-cam-wx-gauge .dhead{fill:#3b82f6;}",
-      ".midmar-hmyc-cam .midmar-cam-wx-gauge .dpt{font:700 16px Arial,Helvetica,sans-serif;fill:#fff;}",
-      ".midmar-hmyc-cam .midmar-cam-wx-gauge .ddeg{font:700 12px Arial,Helvetica,sans-serif;fill:#fff;}",
-      ".midmar-hmyc-cam .midmar-cam-wx-gauge .dcard{font:700 10px Arial,Helvetica,sans-serif;fill:#e2e8f0;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-gauge .dhead{fill:#000!important;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-gauge .dpt{font:700 16px Arial,Helvetica,sans-serif;fill:#000;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-gauge .ddeg{font:700 12px Arial,Helvetica,sans-serif;fill:#000;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-gauge .dcard{font:700 10px Arial,Helvetica,sans-serif;fill:#000;}",
       "@media screen and (orientation:portrait) and (max-width:767px){",
       ".regatta-page > .midmar-live-media .midmar-hmyc-cam:not(.is-open){width:100vw;max-width:100vw;margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw);border-left:0;border-right:0;border-radius:0;}",
       "}",
@@ -101,53 +103,12 @@
     return wx;
   }
 
-  function imageContainBox(img) {
-    var fr = img.getBoundingClientRect();
-    var nw = img.naturalWidth || 1600;
-    var nh = img.naturalHeight || 900;
-    var ir = nw / nh;
-    var box;
-    if (fr.width / fr.height > ir) {
-      var h = fr.height;
-      var w = h * ir;
-      box = { left: fr.left + (fr.width - w) / 2, top: fr.top, width: w, height: h };
-    } else {
-      var w2 = fr.width;
-      var h2 = w2 / ir;
-      box = { left: fr.left, top: fr.top + (fr.height - h2) / 2, width: w2, height: h2 };
-    }
-    return box;
-  }
-
-  function placeWxOnImage(cam) {
-    var img = cam.querySelector("img");
-    var wx = cam.querySelector("[data-mm-cam-wx]");
-    var frame = cam.querySelector(".cam-frame");
-    if (!img || !wx || !frame) return;
-    if (!cam.classList.contains("is-open")) {
-      wx.style.top = "";
-      wx.style.right = "";
-      return;
-    }
-    var box = imageContainBox(img);
-    var fr = frame.getBoundingClientRect();
-    var inset = 10;
-    wx.style.top = Math.max(0, box.top - fr.top + inset) + "px";
-    wx.style.right = Math.max(0, fr.right - box.right + inset) + "px";
-    wx.style.left = "auto";
-  }
-
   function setOpen(cam, open) {
     cam.classList.toggle("is-open", !!open);
     cam.setAttribute("aria-expanded", open ? "true" : "false");
     document.body.classList.toggle("midmar-cam-open", !!open);
     var frame = cam.querySelector(".cam-frame");
     if (frame) frame.setAttribute("aria-pressed", open ? "true" : "false");
-    if (open) {
-      window.requestAnimationFrame(function () {
-        placeWxOnImage(cam);
-      });
-    }
   }
 
   function backToEvent(cam) {
@@ -182,17 +143,18 @@
       '<button type="button" class="mm-lipton-reels-hide" data-mm-hide>Hide</button>' +
       "</div>" +
       '<button type="button" class="cam-frame" aria-label="View HMYC club cam" aria-pressed="false">' +
+      '<span class="cam-shot">' +
       '<img alt="HMYC club cam" width="1600" height="900" decoding="async">' +
-      '<div class="mm-lipton-reels-cam-stamp mm-lipton-reels-cam-stamp--off" data-mm-cam-stamp>' +
+      '<span class="mm-lipton-reels-cam-stamp mm-lipton-reels-cam-stamp--off" data-mm-cam-stamp>' +
       '<span class="mm-lipton-reels-cam-stamp-dot" aria-hidden="true"></span>' +
       '<span data-mm-cam-stamp-label>SNAPSHOT</span>' +
       '<span data-mm-cam-stamp-time></span>' +
-      "</div>" +
-      '<div class="midmar-cam-wx" data-mm-cam-wx aria-hidden="true">' +
-      '<div class="midmar-cam-wx-temp" data-mm-cam-wx-temp>—</div>' +
-      '<div class="midmar-cam-wx-gauge" data-mm-cam-wx-gauge></div>' +
-      '<div class="midmar-cam-wx-kn" data-mm-cam-wx-kn>— kn</div>' +
-      "</div></button>";
+      "</span>" +
+      '<span class="midmar-cam-wx" data-mm-cam-wx aria-hidden="true">' +
+      '<span class="midmar-cam-wx-temp" data-mm-cam-wx-temp>—</span>' +
+      '<span class="midmar-cam-wx-gauge" data-mm-cam-wx-gauge></span>' +
+      '<span class="midmar-cam-wx-kn" data-mm-cam-wx-kn>— kn</span>' +
+      "</span></span></button>";
     return cam;
   }
 
@@ -346,9 +308,7 @@
         hp[1].toFixed(1) +
         ") rotate(" +
         (d + 180) +
-        ')"><path class="dhead" style="fill:' +
-        col +
-        '" d="M0 -10L8 5L0 2L-8 5Z"/></g>';
+        ')"><path class="dhead" d="M0 -10L8 5L0 2L-8 5Z"/></g>';
     }
     svg +=
       '<text class="dpt" x="50" y="46" text-anchor="middle" dominant-baseline="central">' +
@@ -385,7 +345,6 @@
         tempEl.textContent = temp == null || isNaN(temp) ? "—" : n1(temp) + "°C";
         knEl.textContent = kn == null || isNaN(kn) ? "— kn" : n1(kn) + " kn";
         gaugeEl.innerHTML = drawMiniGauge(data);
-        placeWxOnImage(cam);
       })
       .catch(function () {});
   }
@@ -422,20 +381,6 @@
     }
     document.addEventListener("keydown", function (ev) {
       if (ev.key === "Escape" && cam.classList.contains("is-open")) backToEvent(cam);
-    });
-    var img = cam.querySelector("img");
-    if (img) {
-      img.addEventListener("load", function () {
-        placeWxOnImage(cam);
-      });
-    }
-    window.addEventListener("resize", function () {
-      placeWxOnImage(cam);
-    });
-    window.addEventListener("orientationchange", function () {
-      window.setTimeout(function () {
-        placeWxOnImage(cam);
-      }, 200);
     });
     paintCam(cam);
     paintWx(cam);
