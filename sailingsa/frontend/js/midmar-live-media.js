@@ -15,7 +15,7 @@
   var WX_ID = "ssa-regatta-slot-card";
   var CAM_ID = "midmar-hmyc-cam";
   var CSS_ID = "midmar-live-media-css";
-  var JS_VER = "midmarwx19";
+  var JS_VER = "midmarwx20";
   var EVENT_PATH = "/regatta/" + RID;
   var STILL = "https://hmyccam1.nwsza.net/latest.jpg";
   var POLL_MS = 60000;
@@ -40,11 +40,11 @@
       ".regatta-page > .midmar-live-media .mm-lipton-reels{order:1;margin-top:10px;width:100vw;max-width:100vw;margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw);border-left:0;border-right:0;border-radius:0;box-sizing:border-box;}",
       ".regatta-page > .midmar-live-media .mm-lipton-reels .mm-lipton-reels-brand{display:none!important;}",
       ".regatta-page > .midmar-live-media .mm-lipton-reels .mm-lipton-reels-rail-wrap{order:0;min-width:0;width:100%;}",
-      ".regatta-page > .midmar-live-media .mm-lipton-reels .mm-lipton-reels-tile[data-mm-vid=\"midmar-cup-1\"],.regatta-page > .midmar-live-media .mm-lipton-reels .mm-lipton-reels-tile[data-mm-vid=\"midmar-cup-1\"] .mm-lipton-reels-thumb{width:100%;max-width:100%;aspect-ratio:3 / 4;}",
       ".regatta-page > .midmar-live-media .mm-lipton-reels .mm-lipton-reels-thumb img{display:block;width:100%;height:100%;object-fit:contain;object-position:center;}",
       ".regatta-page > .midmar-live-media .mm-lipton-reels:not(.mm-lipton-reels--expanded) .mm-lipton-reels-play{display:none!important;}",
       ".regatta-page > .midmar-live-media .mm-lipton-reels:not(.mm-lipton-reels--expanded) .mm-lipton-reels-clip-chrome{display:none!important;}",
-      ".regatta-page > .midmar-live-media .mm-lipton-reels-thumb .mm-lipton-reels-cam-stamp{position:absolute;left:6px;top:6px;z-index:3;pointer-events:none;display:flex;align-items:center;gap:5px;padding:2px 8px;border-radius:4px;background:rgba(0,16,24,.72);color:#fff;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.85);font:700 11px/1.2 Arial,Helvetica,sans-serif;}",
+      ".regatta-page > .midmar-live-media .mm-lipton-reels-thumb .mm-lipton-reels-cam-stamp{position:absolute;left:6px;top:6px;z-index:3;pointer-events:none;display:flex;flex-direction:column;align-items:flex-start;gap:2px;max-width:92%;padding:2px 8px;border-radius:4px;background:rgba(0,16,24,.72);color:#fff;white-space:normal;text-shadow:0 1px 2px rgba(0,0,0,.85);font:700 11px/1.2 Arial,Helvetica,sans-serif;}",
+      ".regatta-page > .midmar-live-media .mm-lipton-reels-thumb .mm-lipton-reels-cam-stamp [data-mm-cam-stamp-label]{font-weight:800;}",
       ".regatta-page > .midmar-live-media .midmar-hmyc-cam{order:2;margin-top:10px;width:100%;max-width:100%;padding:0!important;overflow:hidden;background:#000;}",
       ".midmar-hmyc-cam .cam-frame{position:relative;display:block;width:100%;aspect-ratio:16/9;background:#000;overflow:hidden;margin:0;padding:0;border:0;cursor:pointer;-webkit-tap-highlight-color:transparent;}",
       ".midmar-hmyc-cam .cam-shot{position:relative;display:block;width:100%;height:100%;overflow:hidden;}",
@@ -81,7 +81,6 @@
       "}",
       "@media screen and (orientation:portrait) and (max-width:767px){",
       ".regatta-page > .midmar-live-media .ssa-regatta-slot-card{width:100vw;max-width:100vw;margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw);}",
-      ".regatta-page > .midmar-live-media .mm-lipton-reels .mm-lipton-reels-rail-wrap,.regatta-page > .midmar-live-media .mm-lipton-reels .mm-lipton-reels-rail,.regatta-page > .midmar-live-media .mm-lipton-reels .mm-lipton-reels-tile[data-mm-vid=\"midmar-cup-1\"],.regatta-page > .midmar-live-media .mm-lipton-reels .mm-lipton-reels-tile[data-mm-vid=\"midmar-cup-1\"] .mm-lipton-reels-thumb{width:100%!important;max-width:100%!important;height:auto!important;}",
       ".regatta-page > .midmar-live-media .midmar-hmyc-cam:not(.is-open){width:100vw;max-width:100vw;margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw);border-left:0;border-right:0;border-radius:0;}",
       "}",
       "@media print{.midmar-live-media,.mm-lipton-reels{display:none!important}}",
@@ -487,7 +486,7 @@
       '<button type="button" class="mm-lipton-reels-rail-btn mm-lipton-reels-rail-btn--prev" data-mm-rail-prev aria-label="Previous clips" hidden>‹</button>' +
       '<div class="mm-lipton-reels-rail" data-mm-compact>' +
       '<button type="button" class="mm-lipton-reels-tile mm-lipton-reels-tile--reel mm-lipton-reels-tile--latest" data-mm-vid="midmar-cup-1" aria-label="Midmar Cup">' +
-      '<div class="mm-lipton-reels-thumb mm-lipton-reels-thumb--latest" style="aspect-ratio:3 / 4">' +
+      '<div class="mm-lipton-reels-thumb mm-lipton-reels-thumb--latest" style="aspect-ratio:16 / 9">' +
       '<img src="' +
       CUP_SRC +
       '" alt="Midmar Cup" width="720" height="960" loading="lazy" decoding="async">' +
@@ -496,8 +495,10 @@
       '<button type="button" class="mm-lipton-reels-tile mm-lipton-reels-tile--reel" data-mm-vid="midmar-train-1" aria-label="Last minute Training and Setup">' +
       '<div class="mm-lipton-reels-thumb" style="aspect-ratio:16 / 9">' +
       '<span class="mm-lipton-reels-thumb-ph" aria-hidden="true"></span>' +
-      '<span class="mm-lipton-reels-cam-stamp" aria-hidden="true"><span data-mm-cam-stamp-time>Fri 18 Sep 2026 - 14:59</span></span>' +
-      "</div></button></div>" +
+      '<span class="mm-lipton-reels-cam-stamp" aria-hidden="true">' +
+      '<span data-mm-cam-stamp-label>Last minute Training and Setup</span>' +
+      '<span data-mm-cam-stamp-time>Fri 18 Sep 2026 - 14:59</span>' +
+      "</span></div></button></div>" +
       '<button type="button" class="mm-lipton-reels-rail-btn mm-lipton-reels-rail-btn--next" data-mm-rail-next aria-label="Next clips" hidden>›</button>' +
       "</div></div>";
     return mm;

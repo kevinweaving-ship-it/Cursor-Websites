@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parent
 
 def test_midmar_cam_expands_not_redirects():
     js = (ROOT / "js/midmar-live-media.js").read_text(encoding="utf-8")
-    assert "midmarwx19" in js
+    assert "midmarwx20" in js
     assert "placeCup" not in js
     assert "makeMmCard" in js
     assert "mmLiptonReels" in js
@@ -15,7 +15,7 @@ def test_midmar_cam_expands_not_redirects():
     assert "mm-lipton-reels-card.js" in js
     assert ".mm-lipton-reels{order:1" in js
     assert "mmLiptonReelsInit" in js
-    assert "aspect-ratio:3 / 4" in js
+    assert "aspect-ratio:16 / 9" in js
     assert "mm-lipton-reels-brand{display:none!important;}" in js
     assert 'data-mm-vid="midmar-cup-1"' in js
     assert "Midmar-Cup-Event.jpg" in js
@@ -70,7 +70,7 @@ def test_midmar_cam_expands_not_redirects():
     assert "function isMidmar()" in card
     assert "window.mmLiptonReelsInit = init" in card
     assert "var hideBrand = singleCamRoot(root) || isMidmar();" in card
-    assert "var vid = isMidmar() ? 3 / 4 : VID_W / VID_H;" in card
+    assert "if (isMidmar()) nFit = Math.min(tileCount, 2);" in card
     assert "if (isMidmar()) return list;" in card
     assert "function midmarThumbStamp" in card
     assert (ROOT / "sailingsa/frontend/js/mm-lipton-reels-card.js").read_text(

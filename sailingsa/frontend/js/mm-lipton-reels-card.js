@@ -1154,19 +1154,20 @@
   }
 
   function midmarThumbStamp(v) {
+    var title = String((v && v.id) === 'midmar-train-1' ? (v.fb_title || v.title || '') : '').trim();
     var text = String((v && (v.stamp || v.fb_sub)) || '').trim();
-    if (!text) return '';
+    if (!title && !text) return '';
     return (
       '<span class="mm-lipton-reels-cam-stamp" aria-hidden="true">' +
-      '<span data-mm-cam-stamp-time>' +
-      esc(text) +
-      '</span></span>'
+      (title ? '<span data-mm-cam-stamp-label>' + esc(title) + '</span>' : '') +
+      (text ? '<span data-mm-cam-stamp-time>' + esc(text) + '</span>' : '') +
+      '</span>'
     );
   }
 
   function latestThumbHtml(v, videos, skipHit) {
     var cam = isWebcam(v);
-    var ratio = isMidmar() ? aspectCss(v) : '16 / 9';
+    var ratio = '16 / 9';
     var extra = isMidmar()
       ? midmarThumbStamp(v)
       : isSnapshotCam(v)
@@ -2028,6 +2029,7 @@
     var tileCount = (reels.length || 1) + extra;
     var nFit = thumbsThatFit(avail, tileCount, liveN);
     if (isCapeClassic() && !hasRealReels(reels) && !isMobilePortrait()) nFit = 5;
+    if (isMidmar()) nFit = Math.min(tileCount, 2);
     var wrap = root.querySelector('.mm-lipton-reels-rail-wrap');
     if (wrap) wrap.style.display = '';
     var countKey =
@@ -2043,17 +2045,14 @@
     }
     var hideBrand = singleCamRoot(root) || isMidmar();
     var art = hideBrand ? 0 : ART_W / ART_H;
-    var vid = isMidmar() ? 3 / 4 : VID_W / VID_H;
+    var vid = VID_W / VID_H;
     var border = 4;
     var cols = nFit + liveN;
     if (cols < 1) cols = 1;
     var innerH = (avail - GAP * Math.max(cols - (art ? 0 : 1), 0) - border * (art ? 1 + cols : cols)) / ((art || 0) + cols * vid);
     if (innerH < 40) innerH = 40;
     var outerH = innerH + border;
-    var thumbW =
-      singleCamRoot(root) || (isMidmar() && isMobilePortrait())
-        ? Math.max(0, avail - border)
-        : innerH * vid + border;
+    var thumbW = singleCamRoot(root) ? Math.max(0, avail - border) : innerH * vid + border;
     if (brand) {
       if (hideBrand) {
         brand.style.display = 'none';
