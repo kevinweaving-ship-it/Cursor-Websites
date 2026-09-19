@@ -41,6 +41,9 @@
       ".regatta-page > .midmar-live-media .mm-lipton-reels .mm-lipton-reels-brand{order:0;flex:0 0 auto;}",
       ".regatta-page > .midmar-live-media .mm-lipton-reels .mm-lipton-reels-rail-wrap{order:1;min-width:0;}",
       ".regatta-page > .midmar-live-media .mm-lipton-reels .mm-lipton-reels-thumb img{object-fit:contain;object-position:center;}",
+      ".regatta-page > .midmar-live-media .mm-lipton-reels:not(.mm-lipton-reels--expanded) .mm-lipton-reels-play{display:none!important;}",
+      ".regatta-page > .midmar-live-media .mm-lipton-reels:not(.mm-lipton-reels--expanded) .mm-lipton-reels-clip-chrome{display:none!important;}",
+      ".regatta-page > .midmar-live-media .mm-lipton-reels-thumb .mm-lipton-reels-cam-stamp{position:absolute;left:6px;top:6px;z-index:3;pointer-events:none;display:flex;align-items:center;gap:5px;padding:2px 8px;border-radius:4px;background:rgba(0,16,24,.72);color:#fff;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.85);font:700 11px/1.2 Arial,Helvetica,sans-serif;}",
       ".regatta-page > .midmar-live-media .midmar-hmyc-cam{order:2;margin-top:10px;width:100%;max-width:100%;padding:0!important;overflow:hidden;background:#000;}",
       ".midmar-hmyc-cam .cam-frame{position:relative;display:block;width:100%;aspect-ratio:16/9;background:#000;overflow:hidden;margin:0;padding:0;border:0;cursor:pointer;-webkit-tap-highlight-color:transparent;}",
       ".midmar-hmyc-cam .cam-shot{position:relative;display:block;width:100%;height:100%;overflow:hidden;}",
@@ -437,6 +440,7 @@
         title: "Midmar Cup",
         fb_title: "Midmar Cup",
         fb_sub: "Henley Midmar Yacht Club",
+        stamp: "19 Sep 2026",
         thumb: CUP_SRC,
         play_url: CUP_SRC,
         aspect: "3 / 4",
@@ -449,6 +453,7 @@
         title: "Last minute Training and Setup",
         fb_title: "Last minute Training and Setup",
         fb_sub: "Fri 18 Sep 2026 - 14:59",
+        stamp: "Fri 18 Sep 2026 - 14:59",
         started_at: "2026-09-18T14:59:00+02:00",
         thumb: "",
         play_url: TRAIN_SRC,
@@ -484,15 +489,12 @@
       '<img src="' +
       CUP_SRC +
       '" alt="Midmar Cup" width="720" height="960" loading="lazy" decoding="async">' +
+      '<span class="mm-lipton-reels-cam-stamp" aria-hidden="true"><span data-mm-cam-stamp-time>19 Sep 2026</span></span>' +
       "</div></button>" +
       '<button type="button" class="mm-lipton-reels-tile mm-lipton-reels-tile--reel" data-mm-vid="midmar-train-1" aria-label="Last minute Training and Setup">' +
       '<div class="mm-lipton-reels-thumb" style="aspect-ratio:16 / 9">' +
       '<span class="mm-lipton-reels-thumb-ph" aria-hidden="true"></span>' +
-      '<div class="mm-lipton-reels-clip-chrome" aria-hidden="true"><div class="mm-lipton-reels-clip-copy">' +
-      '<div class="mm-lipton-reels-clip-title">Last minute Training and Setup</div>' +
-      '<div class="mm-lipton-reels-clip-sub">Fri 18 Sep 2026 - 14:59</div>' +
-      "</div></div>" +
-      '<span class="mm-lipton-reels-play" aria-hidden="true"></span>' +
+      '<span class="mm-lipton-reels-cam-stamp" aria-hidden="true"><span data-mm-cam-stamp-time>Fri 18 Sep 2026 - 14:59</span></span>' +
       "</div></button></div>" +
       '<button type="button" class="mm-lipton-reels-rail-btn mm-lipton-reels-rail-btn--next" data-mm-rail-next aria-label="Next clips" hidden>›</button>' +
       "</div></div>";

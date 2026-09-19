@@ -1153,16 +1153,34 @@
     );
   }
 
+  function midmarThumbStamp(v) {
+    var text = String((v && (v.stamp || v.fb_sub)) || '').trim();
+    if (!text) return '';
+    return (
+      '<span class="mm-lipton-reels-cam-stamp" aria-hidden="true">' +
+      '<span data-mm-cam-stamp-time>' +
+      esc(text) +
+      '</span></span>'
+    );
+  }
+
   function latestThumbHtml(v, videos, skipHit) {
     var cam = isWebcam(v);
     var ratio = isMidmar() ? aspectCss(v) : '16 / 9';
+    var extra = isMidmar()
+      ? midmarThumbStamp(v)
+      : isSnapshotCam(v)
+      ? ''
+      : latestChromeHtml(chromeSource(v, videos), cam ? 'mm-lipton-reels-clip-chrome--zvyc' : '');
+    var play =
+      isSnapshotCam(v) || isMidmar() ? '' : '<span class="mm-lipton-reels-play" aria-hidden="true"></span>';
     return (
       '<div class="mm-lipton-reels-thumb mm-lipton-reels-thumb--latest" style="aspect-ratio:' +
       ratio +
       '">' +
       posterHtml(v) +
-      (isSnapshotCam(v) ? '' : latestChromeHtml(chromeSource(v, videos), cam ? 'mm-lipton-reels-clip-chrome--zvyc' : '')) +
-      (isSnapshotCam(v) ? '' : '<span class="mm-lipton-reels-play" aria-hidden="true"></span>') +
+      extra +
+      play +
       (skipHit ? '' : thumbHit(v)) +
       '</div>'
     );

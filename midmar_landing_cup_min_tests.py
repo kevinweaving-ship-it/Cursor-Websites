@@ -30,7 +30,9 @@ def test_midmar_cup_left_history_right():
     vids = midmar_event_mm_videos()
     assert vids and vids[0]["thumb"] == MIDMAR_CUP_EVENT_IMG_SRC
     assert vids[1]["title"] == "Last minute Training and Setup"
+    assert vids[0]["stamp"] == "19 Sep 2026"
     assert vids[1]["fb_sub"] == "Fri 18 Sep 2026 - 14:59"
+    assert vids[1]["stamp"] == "Fri 18 Sep 2026 - 14:59"
     assert vids[1]["play_url"].endswith("Midmar-Last-Minute-Training.mp4")
     assert MIDMAR_CUP_IMG_SRC != MIDMAR_CUP_EVENT_IMG_SRC
     css = (ROOT / "sailingsa/backend/midmar_landing_cup.py").read_text(encoding="utf-8")

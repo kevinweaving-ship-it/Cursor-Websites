@@ -22,6 +22,8 @@ def test_midmar_cam_expands_not_redirects():
     assert "Last minute Training and Setup" in js
     assert "Fri 18 Sep 2026 - 14:59" in js
     assert "Midmar-Last-Minute-Training.mp4" in js
+    assert ".mm-lipton-reels-play{display:none!important;}" in js
+    assert "19 Sep 2026" in js
     assert ".midmar-hmyc-cam{order:2" in js
     assert "injectFleetResultsStatus" in js
     assert "Results are Provisional" in js
@@ -68,6 +70,7 @@ def test_midmar_cam_expands_not_redirects():
     assert "window.mmLiptonReelsInit = init" in card
     assert "if (isMidmar() && isMobilePortrait()) vid = 3 / 4" in card
     assert "if (isMidmar()) return list;" in card
+    assert "function midmarThumbStamp" in card
     assert (ROOT / "sailingsa/frontend/js/mm-lipton-reels-card.js").read_text(
         encoding="utf-8"
     ) == card
