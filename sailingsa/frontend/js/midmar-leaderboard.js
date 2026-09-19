@@ -11,7 +11,7 @@
 
   var RID = '2026-09-19-hmyc-midmar-cup';
   var CARD_ID = 'midmar-leaderboard';
-  var CSS_ID = 'midmar-leaderboard-css-v4';
+  var CSS_ID = 'midmar-leaderboard-css-v5';
   var POLL_MS = 15000;
   var MEDAL = { 1: '\uD83E\uDD47', 2: '\uD83E\uDD48', 3: '\uD83E\uDD49' };
   var ORD = { 1: '1st', 2: '2nd', 3: '3rd' };
@@ -154,39 +154,40 @@
   }
 
   function injectCss() {
-    var prev = document.getElementById('midmar-leaderboard-css');
-    if (prev && prev.parentNode) prev.parentNode.removeChild(prev);
+    ['midmar-leaderboard-css', 'midmar-leaderboard-css-v4'].forEach(function (id) {
+      var prev = document.getElementById(id);
+      if (prev && prev.parentNode) prev.parentNode.removeChild(prev);
+    });
     if (document.getElementById(CSS_ID)) return;
     var s = document.createElement('style');
     s.id = CSS_ID;
     s.textContent =
-      /* One chrome for all 4 Midmar cards: Event Header, Leader Board, Weather, Media. */
-      '.regatta-page .regatta-header-wrap,' +
-      '.regatta-page .regatta-header-wrap .card,' +
-      '.regatta-page #midmar-leaderboard.card,' +
-      '.regatta-page #ssa-regatta-slot-card,' +
-      '.regatta-page #ssa-regatta-slot-card.card,' +
-      '.regatta-page .ssa-wx-card,' +
-      '.regatta-page .mm-lipton-reels.card,' +
-      '.regatta-page .midmar-live-media .mm-lipton-reels{' +
+      /* Undo the extra wrap border. Event header card keeps its own chrome. */
+      '.regatta-page > .regatta-header-wrap{' +
+      'border:0!important;box-shadow:none!important;border-radius:0!important;' +
+      'background:transparent!important;}' +
+      /* One navy card each: Leader Board, Weather, Media. Do not style header/admin. */
+      '.regatta-page > .midmar-live-media > #midmar-leaderboard.card,' +
+      '.regatta-page > .midmar-live-media > #ssa-regatta-slot-card,' +
+      '.regatta-page > .midmar-live-media > .mm-lipton-reels{' +
       'border:2px solid #001f3f!important;border-radius:8px!important;' +
       'box-shadow:0 1px 3px rgba(0,31,63,0.08)!important;' +
       'width:100%!important;max-width:100%!important;box-sizing:border-box!important;' +
       'margin-left:0!important;margin-right:0!important;}' +
-      '.regatta-page > .midmar-live-media .midmar-lb.card{' +
+      '.regatta-page > .midmar-live-media > #midmar-leaderboard.card{' +
       'order:0;margin:10px 0 0;padding:6px 10px;background:#fff;overflow:hidden;}' +
-      '.regatta-page > .midmar-live-media .ssa-regatta-slot-card{order:1;margin-top:10px;padding:0!important;}' +
-      '.regatta-page > .midmar-live-media .midmar-mm-row{order:2;}' +
-      '.regatta-page > .midmar-live-media .mm-lipton-reels{order:2;margin-top:10px;overflow:hidden;}' +
-      '.regatta-page > .midmar-lb.card{' +
-      'margin:10px 0 0;padding:6px 10px;background:#fff;overflow:hidden;}' +
+      '.regatta-page > .midmar-live-media > #ssa-regatta-slot-card{order:1;margin-top:10px;padding:0!important;}' +
+      '.regatta-page > .midmar-live-media > .mm-lipton-reels{order:2;margin-top:10px;overflow:hidden;}' +
+      '.regatta-page > .midmar-live-media .ssa-wx-card .card,' +
+      '.regatta-page > .midmar-live-media .mm-lipton-reels .card,' +
+      '.regatta-page > .midmar-live-media .mm-lipton-reels-compact{' +
+      'border:0!important;box-shadow:none!important;}' +
       '@media screen and (orientation:portrait) and (max-width:767px){' +
-      '.regatta-page > .midmar-live-media .ssa-regatta-slot-card,' +
-      '.regatta-page > .midmar-live-media .mm-lipton-reels,' +
-      '.regatta-page > .midmar-live-media .midmar-hmyc-cam:not(.is-open){' +
+      '.regatta-page > .midmar-live-media > #ssa-regatta-slot-card,' +
+      '.regatta-page > .midmar-live-media > .mm-lipton-reels,' +
+      '.regatta-page > .midmar-live-media > .midmar-hmyc-cam:not(.is-open){' +
       'width:100%!important;max-width:100%!important;' +
-      'margin-left:0!important;margin-right:0!important;' +
-      'border:2px solid #001f3f!important;border-radius:8px!important;}' +
+      'margin-left:0!important;margin-right:0!important;}' +
       '}' +
       '.midmar-lb .section-title{margin:0 0 2px;padding:0 0 2px;font-size:0.75rem;line-height:1.2;}' +
       '.midmar-lb-sheet-note{margin:0 0 4px;font-size:0.7rem;line-height:1.2;font-weight:500;' +
