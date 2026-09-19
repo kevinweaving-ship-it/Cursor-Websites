@@ -2299,6 +2299,7 @@
   }
 
   function openClip(root, payload, state, id) {
+    if (isMidmar()) return;
     var prevId = state.currentId;
     var wasExpanded = !!state.expanded && root.classList.contains('mm-lipton-reels--expanded');
     state.chromeSnap = snapshotChromeSize(root) || state.chromeSnap;
@@ -2443,6 +2444,11 @@
       '.mm-lipton-reels[data-mm-live-still] .mm-lipton-reels-player-wrap{width:100%}' +
       '.mm-lipton-reels[data-mm-live-still] .mm-lipton-reels-brand{display:none!important;width:0!important;height:0!important;overflow:hidden}' +
       '.mm-lipton-reels[data-mm-live-still] .mm-lipton-reels-clip-chrome{display:none!important}' +
+      '.mm-lipton-reels[data-regatta-id="2026-09-19-hmyc-midmar-cup"] .mm-lipton-reels-play,' +
+      '.mm-lipton-reels[data-regatta-id="2026-09-19-hmyc-midmar-cup"] .mm-lipton-reels-player-ui,' +
+      '.mm-lipton-reels[data-regatta-id="2026-09-19-hmyc-midmar-cup"] .mm-lipton-reels-player-toggle,' +
+      '.mm-lipton-reels[data-regatta-id="2026-09-19-hmyc-midmar-cup"] .mm-lipton-reels-skip{display:none!important}' +
+      '.mm-lipton-reels[data-regatta-id="2026-09-19-hmyc-midmar-cup"] .mm-lipton-reels-clip-chrome{display:none!important}' +
       '.mm-lipton-reels-cam-stamp[hidden]{display:none!important}' +
       '.mm-lipton-reels-cam-stamp-dot{flex:0 0 auto;width:8px;height:8px;border-radius:50%;background:#94a3b8}' +
       '.mm-lipton-reels-cam-stamp--live .mm-lipton-reels-cam-stamp-dot{background:#ef4444;box-shadow:0 0 6px #ef4444;' +

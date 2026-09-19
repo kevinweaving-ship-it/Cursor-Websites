@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parent
 
 def test_midmar_cam_expands_not_redirects():
     js = (ROOT / "js/midmar-live-media.js").read_text(encoding="utf-8")
-    assert "midmarwx20" in js
+    assert "midmarwx21" in js
     assert "placeCup" not in js
     assert "makeMmCard" in js
     assert "mmLiptonReels" in js
@@ -23,7 +23,9 @@ def test_midmar_cam_expands_not_redirects():
     assert "Last minute Training and Setup" in js
     assert "Fri 18 Sep 2026 - 14:59" in js
     assert "Midmar-Last-Minute-Training.mp4" in js
-    assert ".mm-lipton-reels-play{display:none!important;}" in js
+    assert "data-mm-stills" in js
+    assert ".mm-lipton-reels-play,.midmar-live-media .mm-lipton-reels-player-ui" in js
+    assert "max-height:148px" in js
     assert "19 Sep 2026" in js
     assert ".midmar-hmyc-cam{order:2" in js
     assert "injectFleetResultsStatus" in js
@@ -71,6 +73,7 @@ def test_midmar_cam_expands_not_redirects():
     assert "window.mmLiptonReelsInit = init" in card
     assert "var hideBrand = singleCamRoot(root) || isMidmar();" in card
     assert "if (isMidmar()) nFit = Math.min(tileCount, 2);" in card
+    assert "if (isMidmar()) return;" in card
     assert "if (isMidmar()) return list;" in card
     assert "function midmarThumbStamp" in card
     assert (ROOT / "sailingsa/frontend/js/mm-lipton-reels-card.js").read_text(
