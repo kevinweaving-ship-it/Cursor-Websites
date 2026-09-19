@@ -28,34 +28,33 @@ def _norm_person(name: str) -> str:
 def sync_sailed_no_sas(conn) -> int:
     """Record every helm/crew seat that has a name and no SAS ID.
 
-    One row per name and role. Crew, crew2 and crew3 share the crew role
-    so the same person is not stored three times. Club codes and combined
-    names (Lucy & Andy) are not sailors. Existing admin_confirmed rows are
-    kept; their counts are refreshed. Rows whose seats now have a SAS ID
-    are removed.
+    One row per person. Helm and crew are not two sailors. Club codes and
+    combined names (Lucy & Andy) are not sailors. They are not given a SAS
+    ID. Existing admin_confirmed rows are kept. Rows whose seats now have
+    a SAS ID are removed.
     """
     cur = conn.cursor()
     cur.execute(
         """
         WITH seats AS (
-            SELECT 'helm'::text AS role, btrim(helm_name) AS display_name, regatta_id::text AS regatta_id
+            SELECT btrim(helm_name) AS display_name, regatta_id::text AS regatta_id
             FROM results
             WHERE helm_sa_sailing_id IS NULL AND NULLIF(btrim(coalesce(helm_name, '')), '') IS NOT NULL
             UNION ALL
-            SELECT 'crew', btrim(crew_name), regatta_id::text
+            SELECT btrim(crew_name), regatta_id::text
             FROM results
             WHERE crew_sa_sailing_id IS NULL AND NULLIF(btrim(coalesce(crew_name, '')), '') IS NOT NULL
             UNION ALL
-            SELECT 'crew', btrim(crew2_name), regatta_id::text
+            SELECT btrim(crew2_name), regatta_id::text
             FROM results
             WHERE crew2_sa_sailing_id IS NULL AND NULLIF(btrim(coalesce(crew2_name, '')), '') IS NOT NULL
             UNION ALL
-            SELECT 'crew', btrim(crew3_name), regatta_id::text
+            SELECT btrim(crew3_name), regatta_id::text
             FROM results
             WHERE crew3_sa_sailing_id IS NULL AND NULLIF(btrim(coalesce(crew3_name, '')), '') IS NOT NULL
         ),
         clean AS (
-            SELECT role, display_name, regatta_id,
+            SELECT display_name, regatta_id,
                    lower(trim(regexp_replace(replace(replace(display_name, '&#039;', ''''), '’', ''''), '\\s+', ' ', 'g'))) AS normalized_name
             FROM seats
             WHERE position('&' IN display_name) = 0
@@ -66,27 +65,27 @@ def sync_sailed_no_sas(conn) -> int:
               )
         ),
         picked AS (
-            SELECT DISTINCT ON (normalized_name, role)
-                   normalized_name, role, display_name
+            SELECT DISTINCT ON (normalized_name)
+                   normalized_name, display_name
             FROM (
-                SELECT normalized_name, role, display_name, count(*) AS n
+                SELECT normalized_name, display_name, count(*) AS n
                 FROM clean
-                GROUP BY 1, 2, 3
+                GROUP BY 1, 2
             ) c
-            ORDER BY normalized_name, role, n DESC, display_name
+            ORDER BY normalized_name, n DESC, display_name
         ),
         agg AS (
-            SELECT p.normalized_name, p.role, p.display_name,
+            SELECT p.normalized_name, p.display_name,
                    (SELECT count(*) FROM clean c
-                     WHERE c.normalized_name = p.normalized_name AND c.role = p.role) AS result_row_count,
+                     WHERE c.normalized_name = p.normalized_name) AS result_row_count,
                    (SELECT COALESCE(array_agg(DISTINCT c.regatta_id), '{}')
                       FROM clean c
-                     WHERE c.normalized_name = p.normalized_name AND c.role = p.role) AS regatta_ids
+                     WHERE c.normalized_name = p.normalized_name) AS regatta_ids
             FROM picked p
         )
         INSERT INTO identity_pending_sailors
             (display_name, role, normalized_name, result_row_count, regatta_ids, status)
-        SELECT display_name, role, normalized_name, result_row_count, regatta_ids, 'pending'
+        SELECT display_name, 'helm', normalized_name, result_row_count, regatta_ids, 'pending'
         FROM agg
         ON CONFLICT (normalized_name, role) DO UPDATE SET
             result_row_count = EXCLUDED.result_row_count,
@@ -107,7 +106,32 @@ def sync_sailed_no_sas(conn) -> int:
           )
         """
     )
-    # Same person, same role, no unmatched seat left: they are no longer on the no-SAS list.
+    # One person, one row. Keep admin-confirmed if either old row had it.
+    cur.execute(
+        """
+        UPDATE identity_pending_sailors s
+        SET status = 'admin_confirmed_no_sas'
+        WHERE s.role = 'helm'
+          AND EXISTS (
+                SELECT 1 FROM identity_pending_sailors o
+                WHERE o.normalized_name = s.normalized_name
+                  AND o.role <> 'helm'
+                  AND o.status = 'admin_confirmed_no_sas'
+          )
+        """
+    )
+    cur.execute(
+        """
+        DELETE FROM identity_pending_sailors o
+        WHERE o.role <> 'helm'
+          AND EXISTS (
+                SELECT 1 FROM identity_pending_sailors s
+                WHERE s.normalized_name = o.normalized_name
+                  AND s.role = 'helm'
+          )
+        """
+    )
+    # No unmatched seat left: they are no longer on the no-SAS list.
     cur.execute(
         """
         DELETE FROM identity_pending_sailors p
@@ -115,14 +139,14 @@ def sync_sailed_no_sas(conn) -> int:
           AND NOT EXISTS (
                 SELECT 1 FROM results r
                 WHERE (
-                    (p.role = 'helm' AND r.helm_sa_sailing_id IS NULL
+                    (r.helm_sa_sailing_id IS NULL
                      AND lower(trim(regexp_replace(replace(replace(coalesce(r.helm_name, ''), '&#039;', ''''), '’', ''''), '\\s+', ' ', 'g'))) = p.normalized_name)
-                    OR
-                    (p.role = 'crew' AND (
-                        (r.crew_sa_sailing_id IS NULL AND lower(trim(regexp_replace(replace(replace(coalesce(r.crew_name, ''), '&#039;', ''''), '’', ''''), '\\s+', ' ', 'g'))) = p.normalized_name)
-                        OR (r.crew2_sa_sailing_id IS NULL AND lower(trim(regexp_replace(replace(replace(coalesce(r.crew2_name, ''), '&#039;', ''''), '’', ''''), '\\s+', ' ', 'g'))) = p.normalized_name)
-                        OR (r.crew3_sa_sailing_id IS NULL AND lower(trim(regexp_replace(replace(replace(coalesce(r.crew3_name, ''), '&#039;', ''''), '’', ''''), '\\s+', ' ', 'g'))) = p.normalized_name)
-                    ))
+                    OR (r.crew_sa_sailing_id IS NULL
+                     AND lower(trim(regexp_replace(replace(replace(coalesce(r.crew_name, ''), '&#039;', ''''), '’', ''''), '\\s+', ' ', 'g'))) = p.normalized_name)
+                    OR (r.crew2_sa_sailing_id IS NULL
+                     AND lower(trim(regexp_replace(replace(replace(coalesce(r.crew2_name, ''), '&#039;', ''''), '’', ''''), '\\s+', ' ', 'g'))) = p.normalized_name)
+                    OR (r.crew3_sa_sailing_id IS NULL
+                     AND lower(trim(regexp_replace(replace(replace(coalesce(r.crew3_name, ''), '&#039;', ''''), '’', ''''), '\\s+', ' ', 'g'))) = p.normalized_name)
                 )
           )
         """
