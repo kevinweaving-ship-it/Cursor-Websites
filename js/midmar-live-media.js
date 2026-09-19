@@ -15,7 +15,7 @@
   var WX_ID = "ssa-regatta-slot-card";
   var CAM_ID = "midmar-hmyc-cam";
   var CSS_ID = "midmar-live-media-css";
-  var JS_VER = "midmarwx6";
+  var JS_VER = "midmarwx7";
   var EVENT_PATH = "/regatta/" + RID;
   var STILL = "https://hmyccam1.nwsza.net/latest.jpg";
   var POLL_MS = 60000;
@@ -58,6 +58,7 @@
       ".midmar-hmyc-cam .midmar-cam-wx-gauge .dt{stroke:#cbd5e1;stroke-width:1;}",
       ".midmar-hmyc-cam .midmar-cam-wx-gauge .dt.card{stroke:#fff;stroke-width:1.4;}",
       ".midmar-hmyc-cam .midmar-cam-wx-gauge .darc{fill:none;stroke:#93c5fd;stroke-width:5;}",
+      ".midmar-hmyc-cam .midmar-cam-wx-gauge .darc.prev{opacity:.45;}",
       ".midmar-hmyc-cam .midmar-cam-wx-gauge .dhead{fill:#3b82f6;}",
       ".midmar-hmyc-cam .midmar-cam-wx-gauge .dpt{font:700 16px Arial,Helvetica,sans-serif;fill:#fff;}",
       ".midmar-hmyc-cam .midmar-cam-wx-gauge .ddeg{font:700 12px Arial,Helvetica,sans-serif;fill:#fff;}",
@@ -180,14 +181,66 @@
     return x == null || isNaN(x) ? "—" : String(Math.round(Number(x) * 10) / 10);
   }
 
-  function drawMiniGauge(deg, kn) {
+  function parseMs(t) {
+    if (t == null || t === "") return NaN;
+    if (typeof t === "number" && isFinite(t)) return t < 1e12 ? t * 1000 : t;
+    var ms = Date.parse(String(t));
+    return isNaN(ms) ? NaN : ms;
+  }
+
+  function viewFromReadings(readings) {
+    var pts = (readings || []).slice().sort(function (a, b) {
+      return parseMs(a.observed_at) - parseMs(b.observed_at);
+    });
+    var last = pts.length ? pts[pts.length - 1] : {};
+    var nowMs = parseMs(last.observed_at);
+    if (isNaN(nowMs)) nowMs = Date.now();
+    var wds = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    var i;
+    var r;
+    var ms;
+    var di;
+    for (i = 0; i < pts.length; i += 1) {
+      r = pts[i];
+      ms = parseMs(r.observed_at);
+      if (!isNaN(ms) && nowMs - ms <= 3600000) {
+        di = dirIdx(r.wind_dir_deg != null ? r.wind_dir_deg : r.wind_dir_avg_deg);
+        if (di != null) wds[di] += 1;
+      }
+    }
+    var deg = last.wind_dir_deg != null ? last.wind_dir_deg : last.wind_dir_avg_deg;
+    var lastDi = dirIdx(deg);
+    var uniq = [];
+    for (i = 0; i < 16; i += 1) {
+      if (wds[i] > 0) uniq.push(i);
+    }
+    if (lastDi != null && uniq.indexOf(lastDi) === -1) uniq.push(lastDi);
+    return {
+      wind_kt: last.wind_kt != null ? last.wind_kt : last.wind_avg_kt,
+      wind_dir: deg,
+      wind_dir_name: lastDi != null ? PTS[lastDi] : "",
+      last_di: lastDi,
+      uniq: uniq,
+      temp_c: last.temp_c,
+    };
+  }
+
+  function drawMiniGauge(data) {
     var CX = 50;
     var CY = 50;
     var R = 40;
+    var kn = data.wind_kt;
     var col = bandCol(kn);
-    var d = deg != null && !isNaN(deg) ? ((Number(deg) % 360) + 360) % 360 : null;
-    var di = dirIdx(d);
-    var pt = di != null ? PTS[di] : "";
+    var lastDi = data.last_di;
+    var lastDeg = data.wind_dir;
+    var deg =
+      lastDeg != null && !isNaN(lastDeg)
+        ? Number(lastDeg)
+        : lastDi != null
+        ? lastDi * 22.5
+        : null;
+    var pt = data.wind_dir_name || (lastDi != null ? PTS[lastDi] : "");
+    var uniq = data.uniq || [];
     var svg = '<svg viewBox="0 0 100 100" aria-hidden="true">';
     var k;
     for (k = 0; k < 72; k += 1) {
@@ -218,13 +271,15 @@
         c[1] +
         "</text>";
     });
-    if (d != null) {
-      var a0 = d - 11.25;
-      var a1 = d + 11.25;
+    uniq.forEach(function (idx) {
+      var a0 = idx * 22.5 - 11.25;
+      var a1 = idx * 22.5 + 11.25;
       var p0 = pol(CX, CY, R - 3, a0);
       var p1 = pol(CX, CY, R - 3, a1);
       svg +=
-        '<path class="darc" style="stroke:' +
+        '<path class="darc' +
+        (idx === lastDi ? "" : " prev") +
+        '" style="stroke:' +
         col +
         '" d="M' +
         p0[0].toFixed(1) +
@@ -239,6 +294,9 @@
         " " +
         p1[1].toFixed(1) +
         '"/>';
+    });
+    if (deg != null && !isNaN(deg)) {
+      var d = ((Number(deg) % 360) + 360) % 360;
       var hp = pol(CX, CY, R + 2, d);
       svg +=
         '<g transform="translate(' +
@@ -255,10 +313,10 @@
       '<text class="dpt" x="50" y="46" text-anchor="middle" dominant-baseline="central">' +
       (pt || "—") +
       "</text>";
-    if (d != null) {
+    if (deg != null && !isNaN(deg)) {
       svg +=
         '<text class="ddeg" x="50" y="64" text-anchor="middle">' +
-        Math.round(d) +
+        Math.round(Number(deg)) +
         "°</text>";
     }
     svg += "</svg>";
@@ -271,7 +329,7 @@
     var knEl = cam.querySelector("[data-mm-cam-wx-kn]");
     var gaugeEl = cam.querySelector("[data-mm-cam-wx-gauge]");
     if (!tempEl || !knEl || !gaugeEl) return;
-    fetch("/api/weather/agromet-midmar/history?hours=1&_=" + Date.now(), {
+    fetch("/api/weather/agromet-midmar/history?hours=12&_=" + Date.now(), {
       cache: "no-store",
       credentials: "same-origin",
     })
@@ -280,14 +338,12 @@
         return r.json();
       })
       .then(function (body) {
-        var rows = (body && body.readings) || [];
-        var last = rows.length ? rows[rows.length - 1] : {};
-        var kn = last.wind_kt != null ? last.wind_kt : last.wind_avg_kt;
-        var deg = last.wind_dir_deg != null ? last.wind_dir_deg : last.wind_dir_avg_deg;
-        var temp = last.temp_c;
+        var data = viewFromReadings((body && body.readings) || []);
+        var kn = data.wind_kt;
+        var temp = data.temp_c;
         tempEl.textContent = temp == null || isNaN(temp) ? "—" : n1(temp) + "°C";
         knEl.textContent = kn == null || isNaN(kn) ? "— kn" : n1(kn) + " kn";
-        gaugeEl.innerHTML = drawMiniGauge(deg, kn);
+        gaugeEl.innerHTML = drawMiniGauge(data);
       })
       .catch(function () {});
   }
