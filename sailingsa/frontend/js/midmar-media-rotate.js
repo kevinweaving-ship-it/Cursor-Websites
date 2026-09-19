@@ -29,10 +29,18 @@
   }
 
   function isAdmin() {
-    return !!(
-      document.querySelector('.regatta-page--super-admin, .regatta-page--su, #midmar-mm-sa:not([hidden])') ||
-      (window.sailingSessionIsSuperAdmin && window.__ssaSession && window.sailingSessionIsSuperAdmin(window.__ssaSession))
-    );
+    return !!document.querySelector('.regatta-page--super-admin-edit');
+  }
+
+  function rotBox(el) {
+    if (!el || (el.closest && el.closest('#midmar-mm-sa'))) return null;
+    if (el.classList && el.classList.contains('mm-lipton-reels-thumb-hit')) {
+      el = el.parentNode;
+    }
+    if (el.classList && (el.classList.contains('mm-lipton-reels-thumb') || el.classList.contains('mm-lipton-reels-stage'))) {
+      return el;
+    }
+    return (el.querySelector && (el.querySelector('.mm-lipton-reels-thumb') || el.querySelector('.mm-lipton-reels-stage'))) || null;
   }
 
   function injectCss() {
@@ -43,7 +51,9 @@
       '.mm-rot-btn{position:absolute;right:6px;bottom:6px;z-index:6;min-width:44px;min-height:44px;' +
       'padding:0 8px;border:1.5px solid #001f3f;border-radius:8px;background:rgba(255,255,255,.92);' +
       'color:#001f3f;font:700 11px/1 Arial,Helvetica,sans-serif;cursor:pointer;}' +
-      '.mm-lipton-reels-thumb,.mm-lipton-reels-stage{position:relative;}' +
+      '.regatta-page:not(.regatta-page--super-admin-edit) .mm-rot-btn{display:none!important;}' +
+      '.mm-lipton-reels-thumb,.mm-lipton-reels-stage{position:relative;overflow:hidden;}' +
+      '.mm-lipton-reels-thumb-hit{aspect-ratio:auto!important;}' +
       '.mm-rot-media{transform-origin:center center;}' +
       '.midmar-mm-sa-rot{display:inline-flex;align-items:center;justify-content:center;' +
       'min-height:44px;min-width:44px;margin:8px 8px 0 0;padding:0 12px;border:1.5px solid #001f3f;' +
@@ -55,6 +65,22 @@
 
   function fitRotated(box, media, deg) {
     if (!box || !media) return;
+    box.style.position = 'relative';
+    box.style.overflow = 'hidden';
+    if (!deg) {
+      media.classList.remove('mm-rot-media');
+      media.style.position = '';
+      media.style.left = '';
+      media.style.top = '';
+      media.style.margin = '';
+      media.style.maxWidth = '';
+      media.style.maxHeight = '';
+      media.style.width = '';
+      media.style.height = '';
+      media.style.transform = '';
+      media.style.objectFit = '';
+      return;
+    }
     var bw = box.clientWidth || 0;
     var bh = box.clientHeight || 0;
     if (bw < 8 || bh < 8) return;
@@ -164,15 +190,25 @@
     list.forEach(function (v) {
       if (v && v.id) byId[String(v.id)] = v;
     });
+    document.querySelectorAll('.mm-lipton-reels-thumb-hit').forEach(function (hit) {
+      hit.style.aspectRatio = '';
+      hit.style.position = '';
+      hit.style.width = '';
+      hit.style.height = '';
+      hit.style.inset = '';
+      hit.removeAttribute('data-mm-rot');
+      var stray = hit.querySelector('[data-mm-rot-btn], img, video');
+      if (stray && stray.hasAttribute && stray.hasAttribute('data-mm-rot-btn') && stray.parentNode) {
+        stray.parentNode.removeChild(stray);
+      }
+    });
     document.querySelectorAll('[data-mm-vid]').forEach(function (el) {
       var id = el.getAttribute('data-mm-vid');
       var clip = byId[id] || clipById(id);
-      var box = el.classList.contains('mm-lipton-reels-thumb')
-        ? el
-        : el.querySelector('.mm-lipton-reels-thumb') || el;
-      applyOne(box, clip);
+      var box = rotBox(el);
+      if (box) applyOne(box, clip);
     });
-    var stage = document.querySelector('[data-mm-stage]');
+    var stage = document.querySelector('#mmLiptonReels [data-mm-stage], .mm-lipton-reels-stage[data-mm-stage]');
     if (stage) {
       var playing = document.querySelector('.mm-lipton-reels-tile--on[data-mm-vid], [data-mm-current]');
       var pid = playing ? playing.getAttribute('data-mm-vid') : '';
@@ -220,25 +256,16 @@
   function bindSaCard() {
     var sa = document.getElementById('midmar-mm-sa');
     if (!sa || sa.getAttribute('data-mm-rot-bound') === '1') return;
-    sa.setAttribute('data-mm-rot-bound', '1');
-    var saveBtn = sa.querySelector('[data-mm-sa-save]');
-    if (!sa.querySelector('[data-mm-sa-rot]') && saveBtn) {
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'midmar-mm-sa-rot';
-      btn.setAttribute('data-mm-sa-rot', '');
-      btn.setAttribute('title', 'Rotate 90 degrees');
-      btn.textContent = 'Rotate 90°';
-      saveBtn.parentNode.insertBefore(btn, saveBtn);
-    }
     var rotBtn = sa.querySelector('[data-mm-sa-rot]');
     if (!rotBtn) return;
+    sa.setAttribute('data-mm-rot-bound', '1');
     rotBtn.addEventListener('click', function (e) {
       e.preventDefault();
       e.stopPropagation();
-      var cur = normRot(sa.getAttribute('data-mm-sa-rot') || 0);
+      var cur = normRot(sa.getAttribute('data-mm-sa-rot') || window.__mmSaRotation || 0);
       var next = (cur + 90) % 360;
       sa.setAttribute('data-mm-sa-rot', String(next));
+      window.__mmSaRotation = next;
       rotBtn.textContent = 'Rotate ' + next + '°';
       var drop = sa.querySelector('[data-mm-sa-drop], .midmar-mm-sa-drop');
       var media = sa.querySelector('.midmar-mm-sa-drop-visual img, .midmar-mm-sa-drop-visual video');
@@ -252,29 +279,7 @@
           drop.setAttribute('data-mm-sa-orient', orient === 'portrait' ? 'landscape' : 'portrait');
         }
       }
-      window.__mmSaRotation = next;
     });
-  }
-
-  var nativeFetch = window.fetch;
-  if (nativeFetch && !window.__SSA_MM_ROT_FETCH__) {
-    window.__SSA_MM_ROT_FETCH__ = true;
-    window.fetch = function (url, opts) {
-      try {
-        if (
-          typeof url === 'string' &&
-          url.indexOf('/mm-clips') !== -1 &&
-          opts &&
-          opts.body &&
-          typeof FormData !== 'undefined' &&
-          opts.body instanceof FormData &&
-          !opts.body.has('rotation')
-        ) {
-          opts.body.append('rotation', String(window.__mmSaRotation || 0));
-        }
-      } catch (e) {}
-      return nativeFetch.apply(this, arguments);
-    };
   }
 
   window.mmApplyClipRotations = function (videos) {
@@ -307,18 +312,38 @@
     var host = document.getElementById('mmLiptonReels');
     if (host && host.getAttribute('data-mm-rot-obs') !== '1') {
       host.setAttribute('data-mm-rot-obs', '1');
+      var t = 0;
       var obs = new MutationObserver(function () {
-        paint();
-        bindSaCard();
+        window.clearTimeout(t);
+        t = window.setTimeout(function () {
+          paint();
+          bindSaCard();
+        }, 80);
       });
       obs.observe(host, { childList: true, subtree: true });
     }
-    window.setInterval(function () {
-      if (!document.hidden) {
-        paint();
-        bindSaCard();
-      }
-    }, 4000);
+    var page = document.querySelector('.regatta-page');
+    if (page && page.getAttribute('data-mm-rot-tog') !== '1') {
+      page.setAttribute('data-mm-rot-tog', '1');
+      new MutationObserver(function () {
+        if (!isAdmin()) {
+          document.querySelectorAll('[data-mm-rot-btn]').forEach(function (b) {
+            if (b.parentNode) b.parentNode.removeChild(b);
+          });
+        }
+      }).observe(page, { attributes: true, attributeFilter: ['class'] });
+    }
+    var tog = document.getElementById('regattaSaEditToggle');
+    if (tog && tog.getAttribute('data-mm-rot-tog') !== '1') {
+      tog.setAttribute('data-mm-rot-tog', '1');
+      tog.addEventListener('change', function () {
+        if (!tog.checked) {
+          document.querySelectorAll('[data-mm-rot-btn]').forEach(function (b) {
+            if (b.parentNode) b.parentNode.removeChild(b);
+          });
+        }
+      });
+    }
   }
 
   if (document.readyState === 'loading') {
