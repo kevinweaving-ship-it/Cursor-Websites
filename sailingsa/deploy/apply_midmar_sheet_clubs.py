@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Align Midmar clubs to the HMYC entry sheet.
 
-Only write a club when the sheet code exists in clubs.
-Already-correct rows stay. Unknown codes (DRYC, PRSC) stay as-is.
-Does not invent clubs. Does not change Hayden 403. Megan stays deleted.
+One boat per club. Sheet codes are written even when the club is not
+yet in clubs (club_id NULL, club_raw = sheet code). Do not invent
+club rows or full names. Hayden 403 stays RNYC. Megan stays deleted.
 """
 import psycopg2
 import psycopg2.extras
@@ -74,10 +74,7 @@ def main() -> None:
         if live == want:
             skipped.append((r["helm_name"], want, "already"))
             continue
-        cid = clubs.get(want)
-        if cid is None:
-            skipped.append((r["helm_name"], want, "missing_from_clubs", live))
-            continue
+        cid = clubs.get(want)  # None if not in clubs — still write the sheet code
         cur.execute(
             """
             UPDATE results
@@ -112,6 +109,19 @@ def main() -> None:
         print(dict(r))
     print("APPLIED", applied)
     print("SKIPPED", skipped)
+    cur.execute(
+        """
+        SELECT UPPER(TRIM(club_raw)) AS club, COUNT(*) AS n,
+               array_agg(helm_name ORDER BY helm_name) AS helms
+        FROM results WHERE regatta_id=%s
+        GROUP BY 1 HAVING COUNT(*) > 1
+        """,
+        (RID,),
+    )
+    dups = [dict(r) for r in cur.fetchall()]
+    print("DUP_CLUBS", dups)
+    if dups:
+        raise SystemExit("REFUSE: more than one boat on a club")
     cur.close()
     conn.close()
 
