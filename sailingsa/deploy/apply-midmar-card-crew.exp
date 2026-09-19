@@ -1,0 +1,19 @@
+#!/usr/bin/expect -f
+set timeout 90
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+
+spawn scp -o StrictHostKeyChecking=no /workspace/sailingsa/deploy/apply_midmar_card_crew.py ${user}@${server}:/tmp/apply_midmar_card_crew.py
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
+
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} {TS=$(date +%Y%m%d_%H%M%S); tar -czf /root/backup_midmar_card_crew_${TS}.tar.gz /var/www/sailingsa/api/api.py; echo BACKUP:/root/backup_midmar_card_crew_${TS}.tar.gz; chattr -i /var/www/sailingsa/api/api.py; python3 /tmp/apply_midmar_card_crew.py; python3 -m py_compile /var/www/sailingsa/api/api.py; echo API_COMPILE:$?; if python3 -m py_compile /var/www/sailingsa/api/api.py; then systemctl restart sailingsa-api; sleep 6; systemctl is-active sailingsa-api; else echo COMPILE_FAIL_NO_RESTART; fi; chattr +i /var/www/sailingsa/api/api.py; echo DONE}
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
