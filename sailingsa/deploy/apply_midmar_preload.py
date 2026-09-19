@@ -41,7 +41,7 @@ PEOPLE = {
     "megan": {
         "label": "Megan Guald",
         "role": "helm",
-        "variants": [("Megan", "Guald"), ("Megan", "Gould")],
+        "variants": [("Megan", "Guald"), ("Megan", "Gauld"), ("Megan", "Gould")],
     },
     "bryan": {
         "label": "Bryan Paxman",
