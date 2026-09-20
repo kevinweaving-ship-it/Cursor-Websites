@@ -9,7 +9,7 @@ When creating or preloading a **new Event URL**, do not invent a new card layout
 4. **Copy that club’s card stack** onto the new page:
    - Main header **Leader Board** (empty until scores)
    - **Weather** card (same station as that club)
-   - **Media** card (**empty** on a new event)
+   - **Media** card (**empty** on a new event — that event’s own `/mm-clips` only, never Midmar leftovers)
    - **Fleet header** for this event’s class
    - **Live camera** if that club already has one
 5. Add a fleet block so the fleet header renders before results exist.
