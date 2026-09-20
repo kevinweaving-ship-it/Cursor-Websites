@@ -41,6 +41,8 @@ Use these names to scope work and split agents:
 
 - **News Feed** — Landing-page "Latest News" section (Local / International), 16:9 thumb cards, fetch from `/api/news/latest`. In scope: `sailingsa/frontend/index.html` (`#landing-news-embed`, `#landing-news-list`, `.news-feed-*` CSS, `loadLandingNews()`), optional `sailingsa/news/index.html`, and in `api.py` only `GET /api/news/latest`, `POST /api/news/refresh`, and the news cache/pipeline. **Full scope:** **`docs/NEWS_FEED_AGENT.md`**. When the user says "News Feed", limit changes to this scope only.
 
+- **New Event URL** — Preload / match / Event URL + same-club cards. **Must read `docs/CLUB_EVENT_LIVE_CARDS.md` first.** SSH live (not repo-only). Landing hero is `/` `landing-event-card`; search is `/api/regattas/with-counts`. **Do not** edit `blank69.html` or `js/breaking-news-card.js`. Media empty on the new slug (no Midmar leftovers). No Venue line unless host and venue are different clubs.
+
 ## UI / design system — hard rules (do not break pages)
 
 **`docs/UI_COMPONENTS_README.md`** — Hard rules for layout and components. **Store in Cursor memory for easy access.**
