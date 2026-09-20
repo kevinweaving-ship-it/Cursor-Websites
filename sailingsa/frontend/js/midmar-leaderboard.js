@@ -11,16 +11,14 @@
 
   var RID = '2026-09-19-hmyc-midmar-cup';
   var CARD_ID = 'midmar-leaderboard';
-  var CSS_ID = 'midmar-leaderboard-css-v6';
+  var CSS_ID = 'midmar-leaderboard-css-v9';
   var POLL_MS = 15000;
-  /* Historical Hunter names, temp until confirmed. 442 has no history. */
+  /* Historical Hunter names, temp until confirmed. 2013 Essex Girl + 442 Scout confirmed. */
   var TEMP_BOATS = {
-    '2013': 'Essex Girl',
     '741': 'Bueno Vento',
     '40': "Odin's Eye",
   };
   var MEDAL = { 1: '\uD83E\uDD47', 2: '\uD83E\uDD48', 3: '\uD83E\uDD49' };
-  var ORD = { 1: '1st', 2: '2nd', 3: '3rd' };
   var SPONSORS = [
     { test: function (n) { return n === 'puffin'; }, file: 'Ullman-Sails.png', alt: 'Ullman Sails', href: '/sponsors/ullman' },
     { re: /ullman(\s+sails)?/, file: 'Ullman-Sails.png', alt: 'Ullman Sails', href: '/sponsors/ullman' },
@@ -105,18 +103,31 @@
     return !!(expected && bn && expected.toLowerCase() === bn.toLowerCase());
   }
 
+  function boatHref(row) {
+    var sn = String(row.sail_number || row.sail_no || row.sail || '').trim();
+    var bn = String(row.boat_name || '').trim();
+    if (!sn && !bn) return '';
+    var q = 'class=' + encodeURIComponent('Hunter 19');
+    if (sn) q += '&sail=' + encodeURIComponent(sn);
+    if (bn) q += '&name=' + encodeURIComponent(bn);
+    return '/boat_pedigree.html?' + q;
+  }
+
   function boatHtml(row) {
     var bn = String(row.boat_name || '').trim();
     if (!bn) return '';
+    var href = boatHref(row);
     var sp = sponsorFor(bn);
     var inner = sp
       ? logoChip(
           '/artwork/Sponsor%20Logo/' + encodeURIComponent(sp.file) + '?v=20260912c',
           sp.alt,
-          sp.href,
+          href || sp.href,
           bn
         )
-      : esc(bn);
+      : href
+        ? '<a href="' + esc(href) + '" title="' + esc(bn) + '">' + esc(bn) + '</a>'
+        : esc(bn);
     if (!isTempBoat(row)) return inner;
     return (
       '<span class="midmar-lb-boat-temp" title="Temporary name — unconfirmed">' +
@@ -125,10 +136,31 @@
     );
   }
 
+  function ord(n) {
+    var v = Number(n);
+    if (v === 1) return '1st';
+    if (v === 2) return '2nd';
+    if (v === 3) return '3rd';
+    if (!v) return '';
+    return v + 'th';
+  }
+
+  function nettHtml(row) {
+    var n = Number(row.nett_points_raw);
+    if (!isFinite(n) || n <= 0) return '';
+    var shown = Math.abs(n - Math.round(n)) < 0.05 ? String(Math.round(n)) : String(n);
+    return '<span class="midmar-lb-nett">' + esc(shown) + 'pt</span>';
+  }
+
   function sailHtml(row) {
     var sn = String(row.sail_number || row.sail_no || row.sail || '').trim();
     if (!sn) return '';
-    return '<span class="midmar-lb-sail" title="Sail number">' + esc(sn) + '</span>';
+    var sl = slug(row.helm_name);
+    var href = sl ? '/sailor/' + sl : boatHref(row);
+    var inner = href
+      ? '<a href="' + esc(href) + '" title="Sail number">' + esc(sn) + '</a>'
+      : esc(sn);
+    return '<span class="midmar-lb-sail">' + inner + '</span>';
   }
 
   function sepHtml() {
@@ -174,7 +206,7 @@
   }
 
   function injectCss() {
-    ['midmar-leaderboard-css', 'midmar-leaderboard-css-v4', 'midmar-leaderboard-css-v5'].forEach(function (id) {
+    ['midmar-leaderboard-css', 'midmar-leaderboard-css-v4', 'midmar-leaderboard-css-v5', 'midmar-leaderboard-css-v6', 'midmar-leaderboard-css-v7', 'midmar-leaderboard-css-v8'].forEach(function (id) {
       var prev = document.getElementById(id);
       if (prev && prev.parentNode) prev.parentNode.removeChild(prev);
     });
@@ -218,12 +250,16 @@
       'padding:4px 0;border-bottom:1px solid #e0e0e0;font-size:0.85rem;line-height:1.25;color:#1e293b;}' +
       '.midmar-lb-row:last-child{border-bottom:0;}' +
       '.midmar-lb-rank{flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;font-weight:700;color:#001f3f;white-space:nowrap;}' +
+      '.midmar-lb-nett{flex:0 0 auto;font-weight:800;color:#001f3f;white-space:nowrap;font-variant-numeric:tabular-nums;}' +
       '.midmar-lb-medal{font-size:1rem;line-height:1;}' +
       '.midmar-lb-boat{flex:0 1 auto;font-weight:700;color:#001f3f;min-width:0;}' +
       '.midmar-lb-boat-temp,.midmar-lb-boat-temp a,.fleet-results-table td.midmar-boat-temp,' +
-      '.fleet-results-table td.midmar-boat-temp a{color:#94a3b8!important;font-weight:600;}' +
+      '.fleet-results-table td.midmar-boat-temp a{color:#94a3b8!important;font-weight:600;text-decoration:underline;}' +
       '.midmar-lb-sail{flex:0 0 auto;font-weight:800;color:#001f3f;white-space:nowrap;font-variant-numeric:tabular-nums;}' +
-      '.midmar-lb-boat a,.midmar-lb-club a,.midmar-lb-people a{color:#001f3f;text-decoration:none;}' +
+      '.midmar-lb-boat a,.midmar-lb-club a,.midmar-lb-people a,.midmar-lb-sail a,' +
+      '.midmar-lb .rs-club-with-logo a{color:#0000ee;text-decoration:underline;font-weight:600;}' +
+      '.midmar-lb-boat a:visited,.midmar-lb-club a:visited,.midmar-lb-people a:visited,' +
+      '.midmar-lb-sail a:visited,.midmar-lb .rs-club-with-logo a:visited{color:#0000ee;}' +
       '.midmar-lb-club{flex:0 0 auto;}' +
       '.midmar-lb-sep{flex:0 0 auto;align-self:stretch;width:0;margin:0 1px;' +
       'border-left:1px solid rgba(26,39,80,0.22);}' +
@@ -333,7 +369,7 @@
   function paint(card, rows) {
     var list = card.querySelector('[data-mm-lb-list]');
     if (!list) return;
-    var podium = (rows || [])
+    var board = (rows || [])
       .filter(function (r) {
         var n = Number(r.rank);
         return n >= 1 && n <= 3 && hasScore(r);
@@ -341,26 +377,26 @@
       .sort(function (a, b) {
         return Number(a.rank) - Number(b.rank);
       });
-    if (!podium.length) {
+    if (!board.length) {
       list.innerHTML = '<p class="midmar-lb-empty">Waiting for race scores</p>';
       return;
     }
-    list.innerHTML = podium
+    list.innerHTML = board
       .map(function (row) {
         var n = Number(row.rank);
         var boat = boatHtml(row);
         var sail = sailHtml(row);
         var club = clubChip(row.club_abbrev || row.club_raw);
+        var medal = MEDAL[n]
+          ? '<span class="midmar-lb-medal" aria-hidden="true">' + MEDAL[n] + '</span> '
+          : '';
         return (
           '<div class="midmar-lb-row" data-rank="' +
           n +
           '">' +
           joinSets([
-            '<span class="midmar-lb-rank"><span class="midmar-lb-medal" aria-hidden="true">' +
-              (MEDAL[n] || '') +
-              '</span> ' +
-              ORD[n] +
-              '</span>',
+            '<span class="midmar-lb-rank">' + medal + ord(n) + '</span>',
+            nettHtml(row),
             boat ? '<span class="midmar-lb-boat">' + boat + '</span>' : '',
             sail,
             club ? '<span class="midmar-lb-club">' + club + '</span>' : '',
