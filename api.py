@@ -885,6 +885,14 @@ def _yearly_event_series_key(name: str) -> str:
         return "sa sailing youth nationals"
     if "29er" in s and ("national" in s or "yn" in s):
         return "29er nationals"
+    # Dart 18 Nationals — calendar titles add "incorporating the KZN provincials"
+    # and result sheets prefix YYYY-MM-DD. Keep Single-Handed / SH as its own series.
+    if (
+        ("dart 18" in s or "dart18" in s.replace(" ", ""))
+        and "national" in s
+        and not re.search(r"single[\s-]*handed|\bsinglehanded\b|\bsh\b", s)
+    ):
+        return "dart 18 nationals"
     # MACS @ ZVYC club champs — calendar titles often drop "Shipping" / wording differs.
     if "macs" in s and "zvyc" in s and ("champ" in s or "club" in s):
         return "macs zvyc club champs"
@@ -16283,10 +16291,18 @@ def api_regattas_with_counts(
         """ + exclude_series + """
         """
         
-        # Include regattas with 0 results when they matched by name, or when regatta_number >= 375 (recent batch: 377-385)
-        having_clause = "HAVING (COUNT(DISTINCT res.result_id) > 0 OR r.regatta_number >= 375)"
+        # Include 0-result rows when they matched by name, are a recent numbered import
+        # (>= 375), or are a preloaded upcoming Event URL (start_date still in the future).
+        having_clause = (
+            "HAVING (COUNT(DISTINCT res.result_id) > 0 OR r.regatta_number >= 375 "
+            "OR r.start_date >= CURRENT_DATE)"
+        )
         if name_match_sql is not None:
-            having_clause = "HAVING (COUNT(DISTINCT res.result_id) > 0 OR " + name_match_sql + " OR r.regatta_number >= 375)"
+            having_clause = (
+                "HAVING (COUNT(DISTINCT res.result_id) > 0 OR "
+                + name_match_sql
+                + " OR r.regatta_number >= 375 OR r.start_date >= CURRENT_DATE)"
+            )
             params.extend(name_match_params)
         # Sort best match (regatta name matches all terms) first, then by regatta number/date
         order_best_first = ""

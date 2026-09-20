@@ -25,7 +25,15 @@ Code: `sailingsa/backend/club_live_cards.py` — any later date-first HMYC Event
 
 Dart 18 Nationals 2026 preload (This Mac / live DB, not Cloud):
 
+Event URL: `/regatta/2026-09-24-hmyc-dart-18-nationals`
+
+Landing **Regatta Search** lists `public.regattas` via `/api/regattas/with-counts`. Hub upcoming cards with “YYYY: N entries” need `events.regatta_id` **and** a series key that merges prior years (420 Nationals already does this; 2026 Dart title does not until `_yearly_event_series_key` aliases it to `dart 18 nationals`).
+
+Until the apply below runs on live, search will not list 2026 Dart and the hub row stays unlinked with `series_years_count=1`.
+
 ```bash
 export DB_URL="postgresql://sailors_user:SailSA_Pg_Beta2026@localhost:5432/sailors_master"
 python3 sailingsa/deploy/create_2026_hmyc_dart_18_nationals.py --apply
 ```
+
+Then deploy API per `sailingsa/deploy/SSH_LIVE.md` so the series-key alias is live.

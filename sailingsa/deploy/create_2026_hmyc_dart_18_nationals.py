@@ -5,10 +5,17 @@ Event URL: /regatta/2026-09-24-hmyc-dart-18-nationals
 Source: https://www.hmyc.org.za/events/367984
 Inherits HMYC cards from /regatta/2026-09-19-hmyc-midmar-cup
 
+Landing search reads public.regattas (GET /api/regattas/with-counts).
+Hub upcoming-with-history needs events.regatta_id plus series key
+"dart 18 nationals" (same pattern as 420 Nationals → 2026-09-25-tsc-420-nationals).
+
+Until this script is applied on live, the calendar row stays rid=null,
+search misses 2026, and the hub card has no Event URL / prior-year entries.
+
 On the live box (see sailingsa/deploy/SSH_LIVE.md):
 
   export DB_URL="postgresql://sailors_user:SailSA_Pg_Beta2026@localhost:5432/sailors_master"
-  python3 /var/www/sailingsa/deploy/create_2026_hmyc_dart_18_nationals.py
+  python3 /var/www/sailingsa/deploy/create_2026_hmyc_dart_18_nationals.py --apply
 """
 
 from __future__ import annotations
@@ -33,7 +40,8 @@ INSERT INTO public.regattas (
     result_status,
     host_club_id,
     province_name,
-    import_status
+    import_status,
+    regatta_number
 )
 SELECT
     '2026-09-24-hmyc-dart-18-nationals',
@@ -45,7 +53,8 @@ SELECT
     'Provisional',
     c.club_id,
     COALESCE(NULLIF(TRIM(c.province), ''), 'KZN'),
-    'manual'
+    'manual',
+    999010
 FROM public.clubs c
 WHERE UPPER(TRIM(c.club_abbrev)) = 'HMYC'
 ORDER BY c.club_id
@@ -59,7 +68,8 @@ SET
     as_at_time = EXCLUDED.as_at_time,
     result_status = EXCLUDED.result_status,
     host_club_id = EXCLUDED.host_club_id,
-    province_name = EXCLUDED.province_name;
+    province_name = EXCLUDED.province_name,
+    regatta_number = COALESCE(public.regattas.regatta_number, EXCLUDED.regatta_number);
 
 DO $$
 DECLARE
@@ -133,6 +143,10 @@ WHERE (
     CAST(source_event_id AS TEXT) = '367984'
     OR COALESCE(source_url, '') ILIKE '%/events/367984%'
     OR COALESCE(event_name, '') ILIKE 'Dart 18 Nationals incorporating the KZN provincials'
+    OR (
+        COALESCE(event_name, '') ILIKE '%Dart 18 Nationals%'
+        AND start_date = DATE '2026-09-24'
+    )
 )
 AND (regatta_id IS NULL OR BTRIM(regatta_id) = '');
 
