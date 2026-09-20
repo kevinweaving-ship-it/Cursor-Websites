@@ -4,9 +4,11 @@ This project uses **split tasks** to avoid agent resource limits and crashes.
 
 ## SSH / deploy / live — MUST use readme
 
-**`sailingsa/deploy/SSH_LIVE.md`** is the primary source for deploy, fix, sync, and SSH. Use it for any live-server work. **Never** say "SSH is blocked", "can't SSH", or "run from your machine" — when asked to deploy or fix live, give the exact commands from the readme (deploy code, sync 385, etc.).
+**The user only vibe-codes. The agent’s job is server SSH.** Do the live apply yourself. Do **not** skip SSH, do **not** leave “run this on This Mac”, do **not** wait to be told “you have full SSH”. If sailingsa.co.za must change, SSH per **`sailingsa/deploy/SSH_LIVE.md`** in the same turn.
 
-**Production:** All fixes (sailor URLs, regatta links, 385 data, no broken URLs) must be deployed to **live** via the SSH readme — deploy code (push-to-cloud-expect.exp) and sync 385 (sync-385-local-to-live.sh). Local-only changes do not affect https://sailingsa.co.za.
+**`sailingsa/deploy/SSH_LIVE.md`** is the primary source for deploy, fix, sync, and SSH. Use it for any live-server work. **Never** say "SSH is blocked", "can't SSH", or "run from your machine" — when asked to deploy or fix live, give the exact commands from the readme (deploy code, sync 385, etc.) **and run them**.
+
+**Production:** All fixes (sailor URLs, regatta links, 385 data, no broken URLs, new Event URLs) must be deployed to **live** via the SSH readme — deploy code (push-to-cloud-expect.exp) and sync 385 (sync-385-local-to-live.sh). Local-only changes do not affect https://sailingsa.co.za.
 
 ## Avoid frontend drift / wrong-layer fixes
 
@@ -41,7 +43,7 @@ Use these names to scope work and split agents:
 
 - **News Feed** — Landing-page "Latest News" section (Local / International), 16:9 thumb cards, fetch from `/api/news/latest`. In scope: `sailingsa/frontend/index.html` (`#landing-news-embed`, `#landing-news-list`, `.news-feed-*` CSS, `loadLandingNews()`), optional `sailingsa/news/index.html`, and in `api.py` only `GET /api/news/latest`, `POST /api/news/refresh`, and the news cache/pipeline. **Full scope:** **`docs/NEWS_FEED_AGENT.md`**. When the user says "News Feed", limit changes to this scope only.
 
-- **New Event URL** — Preload / match / Event URL + same-club cards. **Must read `docs/CLUB_EVENT_LIVE_CARDS.md` first.** SSH live (not repo-only). Landing hero is `/` `landing-event-card`; search is `/api/regattas/with-counts`. **Do not** edit `blank69.html` or `js/breaking-news-card.js`. Media empty on the new slug (no Midmar leftovers). No Venue line unless host and venue are different clubs.
+- **New Event URL** — Preload / match / Event URL + same-club cards. **Must read `docs/CLUB_EVENT_LIVE_CARDS.md` first.** User vibe-codes; **agent SSHs live** (not repo-only, not “run this on Mac”). Landing hero is `/` `landing-event-card`; search is `/api/regattas/with-counts`. **Do not** edit `blank69.html` or `js/breaking-news-card.js`. Media empty on the new slug (no Midmar leftovers). No Venue line unless host and venue are different clubs.
 
 ## UI / design system — hard rules (do not break pages)
 

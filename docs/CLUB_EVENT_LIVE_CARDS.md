@@ -14,7 +14,7 @@ When creating or preloading a **new Event URL**, do not invent a new card layout
    - **Live camera** if that club already has one
 5. Add a fleet block so the fleet header renders before results exist.
 6. Set **`host_club_id` + `host_club_name` + `host_club_code`** on the `regattas` row (from `clubs`). Link `events.regatta_id`.
-7. **SSH deploy to live** (`sailingsa/deploy/SSH_LIVE.md`). Repo-only or “run SQL on This Mac” does **not** create the Event URL, landing hero, or search hit.
+7. **You SSH the server.** The user only vibe-codes. Do not skip SSH, do not hand back SQL/deploy for them to run. Repo-only does **not** create the Event URL, landing hero, or search hit. See `sailingsa/deploy/SSH_LIVE.md`.
 8. **Prove it on live:** Event URL 200, landing hero card, landing Regatta Search.
 
 HMYC source event: `/regatta/2026-09-19-hmyc-midmar-cup`  
@@ -56,7 +56,9 @@ Do not add Event URL fallbacks, cache-busts, or search merges in those files.
 
 ---
 
-## Live deploy (SSH) — required
+## Live deploy (SSH) — required (agent job, not the user’s)
+
+**Why no SSH last time:** that was a fuckup. The user only vibe-codes. Creating a new Event URL **is** server SSH. Do it. Do not ask them to apply SQL, restart the API, or “run from This Mac”.
 
 `sailingsa/deploy/SSH_LIVE.md`. Production is `root@102.218.215.253`.
 
@@ -79,7 +81,7 @@ python3 sailingsa/deploy/create_2026_hmyc_dart_18_nationals.py --apply
 
 Creating `/regatta/2026-09-24-hmyc-dart-18-nationals` went wrong in this order. Next Event URL must not.
 
-1. **Failed to deploy / no SSH** — first pass stayed in repo (`preloaded_event_urls.py`, hub JS fallbacks) and said “apply SQL on This Mac”. Live had no row, so there was **no Event URL, no landing hero, not in Regatta Search**. User had to grant full SSH. **Always SSH live first** for Event URL + landing card + search.
+1. **Failed to deploy / no SSH** — first pass stayed in repo and told the user to apply SQL. Live had no row, so there was **no Event URL, no landing hero, not in Regatta Search**. User only vibe-codes; **SSH is the agent’s job**. Do not wait to be told “you have full SSH”.
 2. **blank69** — Dart fallback / search merge / cache-bust was patched into `blank69.html` (repo + live). Unused QA hub. Reverted. **Never open blank69 for Event URL work.**
 3. **Old breaking-news / news cards** — same fallback went into `js/breaking-news-card.js` and old hub `blank.html`. Those cards have not been the landing for months. Reverted. **Landing hero is `landing-event-card` on `/` / `index.html`.**
 4. **No hero + not in list** — landing Upcoming and search only see a calendar row with `events.regatta_id` / a `regattas` row. 420 already had `2026-09-25-tsc-420-nationals`. Dart did not until live SQL + cache clear. Code fallbacks on leftover hubs do not count.

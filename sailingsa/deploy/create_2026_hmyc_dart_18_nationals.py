@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Create / match HMYC Dart 18 Nationals Event URL (live DB).
 
-Read docs/CLUB_EVENT_LIVE_CARDS.md first (SSH live, landing-event-card,
-no blank69 / breaking-news, empty own media, no Venue if same as Host).
+Read docs/CLUB_EVENT_LIVE_CARDS.md first. User vibe-codes; agent SSHs live.
+landing-event-card, no blank69 / breaking-news, empty own media,
+no Venue if same as Host.
 
 Event URL: /regatta/2026-09-24-hmyc-dart-18-nationals
 Source: https://www.hmyc.org.za/events/367984
