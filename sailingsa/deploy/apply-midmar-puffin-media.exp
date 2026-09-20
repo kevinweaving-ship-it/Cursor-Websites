@@ -1,0 +1,19 @@
+#!/usr/bin/expect -f
+set timeout 120
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+
+spawn scp -o StrictHostKeyChecking=no /workspace/sailingsa/deploy/apply_midmar_rm_score_media3.py /workspace/sailingsa/deploy/apply_midmar_puffin_right.py /workspace/sailingsa/deploy/puffin-logo.svg ${user}@${server}:/tmp/
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
+
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} {cp /tmp/puffin-logo.svg /tmp/Puffin.svg; python3 /tmp/apply_midmar_rm_score_media3.py; echo MEDIA_DONE; chattr -i /var/www/sailingsa/api/api.py; python3 /tmp/apply_midmar_puffin_right.py; python3 -m py_compile /var/www/sailingsa/api/api.py; echo API_COMPILE:$?; systemctl restart sailingsa-api; sleep 5; systemctl is-active sailingsa-api; chattr +i /var/www/sailingsa/api/api.py}
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
