@@ -9793,6 +9793,9 @@ def api_events_public_list(
                 item["prior_year"] = py
                 item["entries_prior_year"] = pe
                 item["entries_for_sort"] = max(int(item.get("entries") or 0), emax)
+            from sailingsa.backend.preloaded_event_urls import attach_preloaded_regatta_ids
+
+            attach_preloaded_regatta_ids(out)
             hub_window = _compute_hub_upcoming_window_payload(out, today_iso=date.today().isoformat(), window_days=5, limit=10)
             return {"events": out, "hub_upcoming_window": hub_window}
         return out
@@ -16126,7 +16129,9 @@ def api_regattas_with_counts(
             else:
                 d["slug"] = ""
 
-        return out
+        from sailingsa.backend.preloaded_event_urls import inject_preloaded_into_search
+
+        return inject_preloaded_into_search(out, search_q)
     except Exception as e:
         print(f"Error fetching regattas: {e}")
         traceback.print_exc()
@@ -22446,7 +22451,9 @@ def _get_regatta_by_regatta_id(param: str):
             cur.close()
             conn.close()
         if not row:
-            return None
+            from sailingsa.backend.preloaded_event_urls import preloaded_slug_tuple
+
+            return preloaded_slug_tuple(param)
         return (
             str(row.get("regatta_id") or ""),
             (row.get("event_name") or "").strip(),
@@ -22457,6 +22464,9 @@ def _get_regatta_by_regatta_id(param: str):
         )
     except Exception as e:
         print(f"[SEO] _get_regatta_by_regatta_id: {e}")
+        from sailingsa.backend.preloaded_event_urls import preloaded_slug_tuple
+
+        return preloaded_slug_tuple(param)
     return None
 
 
@@ -22619,7 +22629,9 @@ def _get_regatta_full_page_data(regatta_id: str):
                 """, (regatta_id,))
             row = cur.fetchone()
             if not row:
-                return None
+                from sailingsa.backend.preloaded_event_urls import preloaded_full_page_data
+
+                return preloaded_full_page_data(regatta_id)
             event_name = (row.get("event_name") or "").strip()
             host_club_name = (row.get("host_club_name") or "").strip()
             host_club_abbrev = (row.get("host_club_abbrev") or "").strip()

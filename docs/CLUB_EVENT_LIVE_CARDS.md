@@ -29,7 +29,10 @@ Event URL: `/regatta/2026-09-24-hmyc-dart-18-nationals`
 
 Landing **Regatta Search** lists `public.regattas` via `/api/regattas/with-counts`. Hub upcoming cards with “YYYY: N entries” need `events.regatta_id` **and** a series key that merges prior years (420 Nationals already does this; 2026 Dart title does not until `_yearly_event_series_key` aliases it to `dart 18 nationals`).
 
-Until the apply below runs on live, search will not list 2026 Dart and the hub row stays unlinked with `series_years_count=1`.
+Landing upcoming cards and Regatta Search now attach this Event URL from
+`sailingsa/backend/preloaded_event_urls.py` even before the SQL apply, so Dart
+shows the same way 420 Nationals already does (`regatta_id` on the calendar row
++ a with-counts search hit). SQL apply still persists the live DB row.
 
 ```bash
 export DB_URL="postgresql://sailors_user:SailSA_Pg_Beta2026@localhost:5432/sailors_master"

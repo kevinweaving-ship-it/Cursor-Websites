@@ -302,6 +302,16 @@
         var n = String(e.event_name || '').toLowerCase();
         return /\b29er\b/.test(n) && (n.indexOf('national') !== -1 || n.indexOf('sa ') !== -1 || n.indexOf('championship') !== -1);
       }
+    },
+    {
+      regatta_id: '2026-09-24-hmyc-dart-18-nationals',
+      match: function (e) {
+        var n = String(e.event_name || e.regatta_event_name || '').toLowerCase();
+        if (n.indexOf('dart 18') === -1 || n.indexOf('national') === -1) return false;
+        if (n.indexOf('single') !== -1 && n.indexOf('handed') !== -1) return false;
+        if (/\bsh\b/.test(n)) return false;
+        return true;
+      }
     }
   ];
 
