@@ -13,9 +13,8 @@
   var CARD_ID = 'midmar-leaderboard';
   var CSS_ID = 'midmar-leaderboard-css-v11';
   var POLL_MS = 15000;
-  /* Historical Hunter names, temp until confirmed. 2013 Essex Girl + 442 Scout + 741 Bueno Vento confirmed. */
+  /* Historical Hunter names, temp until confirmed. 2013 Essex Girl + 442 Scout + 741 Bueno Vento + 40 Work in Progress confirmed. */
   var TEMP_BOATS = {
-    '40': "Odin's Eye",
   };
   var MEDAL = { 1: '\uD83E\uDD47', 2: '\uD83E\uDD48', 3: '\uD83E\uDD49' };
   var SPONSORS = [
