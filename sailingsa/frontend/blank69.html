@@ -4646,7 +4646,7 @@
   </nav>
 
   <script src="/js/blank-landing-header.js?v=20260412auth9"></script>
-  <script src="/js/breaking-news-card.js?v=20260920dart1" defer></script>
+  <script src="/js/breaking-news-card.js?v=20260412header1" defer></script>
   <script>
 (function () {
   /** Top live-with-results event: headline/teaser defaults + photo upload merge. */
@@ -5620,16 +5620,6 @@
       match: function (e) {
         var n = String(e.event_name || '').toLowerCase();
         return /\b29er\b/.test(n) && (n.indexOf('national') !== -1 || n.indexOf('sa ') !== -1 || n.indexOf('championship') !== -1);
-      }
-    },
-    {
-      regatta_id: '2026-09-24-hmyc-dart-18-nationals',
-      match: function (e) {
-        var n = String(e.event_name || e.regatta_event_name || '').toLowerCase();
-        if (n.indexOf('dart 18') === -1 || n.indexOf('national') === -1) return false;
-        if (n.indexOf('single') !== -1 && n.indexOf('handed') !== -1) return false;
-        if (/\bsh\b/.test(n)) return false;
-        return true;
       }
     }
   ];
@@ -10145,25 +10135,6 @@
     }
     if (!Array.isArray(sailors)) sailors = [];
     if (!Array.isArray(regattas)) regattas = [];
-    (function mergePreloadedDart(list, q) {
-      var hay = String(q || '').toLowerCase();
-      if (!hay) return;
-      if (hay.indexOf('dart') === -1 && hay.indexOf('hmyc') === -1 && hay.indexOf('nationals') === -1 && hay.indexOf('kzn') === -1) return;
-      var rid = '2026-09-24-hmyc-dart-18-nationals';
-      if (list.some(function (r) { return String((r && r.regatta_id) || '') === rid; })) return;
-      list.unshift({
-        regatta_id: rid,
-        event_name: 'Dart 18 Nationals incorporating the KZN provincials',
-        year: 2026,
-        start_date: '2026-09-24',
-        end_date: '2026-09-27',
-        host_club_code: 'HMYC',
-        host_club_name: 'Henley Midmar Yacht Club',
-        entries_count: 0,
-        match_reason: 'Best match',
-        slug: rid
-      });
-    })(regattas, trimmed);
 
     var clubs = filterClubs(trimmed);
     var classes = filterClasses(trimmed);
