@@ -9,7 +9,9 @@ results-only.
 
 HMYC profile (from Midmar Cup): Leader Board, weather, media, live camera.
 New HMYC events get the same stack; media starts empty unless that slug already
-has seeded clips.
+has seeded clips. When the event opens, entries are updated on this Event URL
+and WhatsApp group photos/video are dropped onto the media card (same Midmar
+`/mm-clips` path).
 """
 
 from __future__ import annotations

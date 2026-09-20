@@ -17,6 +17,10 @@ When creating or preloading a **new Event URL**, do not invent a new card layout
 HMYC source event: `/regatta/2026-09-19-hmyc-midmar-cup`  
 Profile: Leader Board + Agromet Midmar weather + media + HMYC camera.
 
+**When the event opens (HMYC Dart Nationals and later club preloads):**
+- **Entries** — update the fleet / entry list on this Event URL; do not change the slug.
+- **WhatsApp group** — add the official event group to our WhatsApp. Super-admin drop on the media card already accepts WhatsApp photos/video (`VID_…` / WhatsApp files → `/mm-clips`). Media stays empty until those clips are saved.
+
 Code: `sailingsa/backend/club_live_cards.py` — any later date-first HMYC Event URL inherits this stack automatically. Add a new club profile only when that club’s first live Event URL is set up.
 
 Dart 18 Nationals 2026 preload (This Mac / live DB, not Cloud):
