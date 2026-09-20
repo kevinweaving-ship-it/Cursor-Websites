@@ -54,6 +54,43 @@ def _looks_garbage(url: str) -> bool:
     return False
 
 
+FETCH_TO_ISSUE = {
+    "NOT_FOUND": "not_found_404",
+    "SERVER_ERROR": "server_error_5xx",
+    "ACCESS_FORBIDDEN": "forbidden_403",
+    "SOFT_404": "soft_404",
+    "REDIRECT_ERROR": "redirect_error",
+    "BLOCKED_4XX": "other_4xx",
+    "ACCESS_DENIED": "other_4xx",
+    "BLOCKED_ROBOTS_TXT": "excluded_noindex",
+}
+
+
+def issue_key_from_inspect(index_status: dict | None, probe: dict) -> str:
+    """Map URL Inspection pageFetchState to a Page Indexing-like key."""
+    st = index_status or {}
+    fetch = (st.get("pageFetchState") or "").upper()
+    indexing = (st.get("indexingState") or "").upper()
+    if indexing in ("BLOCKED_BY_META_TAG", "BLOCKED_BY_HTTP_HEADER"):
+        return "excluded_noindex"
+    if fetch in FETCH_TO_ISSUE:
+        return FETCH_TO_ISSUE[fetch]
+    if probe.get("redirects"):
+        return "page_with_redirect"
+    status = probe.get("first_status") or probe.get("status") or 0
+    if status == 404:
+        return "not_found_404"
+    if status == 403:
+        return "forbidden_403"
+    if 500 <= int(status or 0) < 600:
+        return "server_error_5xx"
+    if status in (301, 302, 307, 308):
+        return "page_with_redirect"
+    if int(status or 0) == 200 or fetch in ("SUCCESSFUL", ""):
+        return "indexed_ok"
+    return "not_found_404"
+
+
 def classify(issue_key: str, probe: dict) -> str:
     status = probe.get("first_status") or probe.get("status") or 0
     final = probe.get("status") or 0
@@ -63,6 +100,15 @@ def classify(issue_key: str, probe: dict) -> str:
     url = probe.get("url") or ""
     final_url = probe.get("final_url") or ""
     in_sitemap = bool(probe.get("in_sitemap"))
+
+    if issue_key == "indexed_ok":
+        if int(final or 0) == 200 and not noindex:
+            return OK
+        if 500 <= int(status or 0) < 600 or 500 <= int(final or 0) < 600:
+            return REAL
+        if int(status or 0) in (403, 404) or int(final or 0) in (403, 404):
+            return REAL if _looks_indexable_entity(url) else HUMAN
+        return HUMAN
 
     if status == 0:
         return HUMAN
