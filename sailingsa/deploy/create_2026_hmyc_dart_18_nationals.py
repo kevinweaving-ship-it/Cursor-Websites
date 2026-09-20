@@ -39,6 +39,8 @@ INSERT INTO public.regattas (
     as_at_time,
     result_status,
     host_club_id,
+    host_club_name,
+    host_club_code,
     province_name,
     import_status,
     regatta_number
@@ -52,7 +54,9 @@ SELECT
     TIMESTAMPTZ '2026-09-24 11:00:00+02',
     'Provisional',
     c.club_id,
-    COALESCE(NULLIF(TRIM(c.province), ''), 'KZN'),
+    c.club_fullname,
+    c.club_abbrev,
+    COALESCE(NULLIF(TRIM(c.province_code), ''), 'KZN'),
     'manual',
     999010
 FROM public.clubs c
@@ -68,6 +72,8 @@ SET
     as_at_time = EXCLUDED.as_at_time,
     result_status = EXCLUDED.result_status,
     host_club_id = EXCLUDED.host_club_id,
+    host_club_name = EXCLUDED.host_club_name,
+    host_club_code = EXCLUDED.host_club_code,
     province_name = EXCLUDED.province_name,
     regatta_number = COALESCE(public.regattas.regatta_number, EXCLUDED.regatta_number);
 
