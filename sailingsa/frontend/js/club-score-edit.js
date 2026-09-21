@@ -373,7 +373,17 @@
     setPlain(tr.querySelector("td.nett-col"), row.nett_points_raw);
     var rankTd = tr.querySelector("td.rank-col") || tr.children[0];
     if (rankTd && row.rank != null && row.rank !== "") {
+      tr.setAttribute("data-official-rank", String(row.rank));
       rankTd.textContent = rankLabel(row.rank);
+      tr.classList.remove("medal-gold", "medal-silver", "medal-bronze");
+      var painted = parseInt(row.rank, 10);
+      if (painted === 1) tr.classList.add("medal-gold");
+      else if (painted === 2) tr.classList.add("medal-silver");
+      else if (painted === 3) tr.classList.add("medal-bronze");
+    } else {
+      tr.removeAttribute("data-official-rank");
+      if (rankTd) rankTd.textContent = "";
+      tr.classList.remove("medal-gold", "medal-silver", "medal-bronze");
     }
     if (row.race_scores && typeof row.race_scores === "object") {
       tr.querySelectorAll(".club-score-input").forEach(function (box) {
@@ -412,10 +422,19 @@
     });
   }
 
+  function liveFleetsUrl() {
+    var m = path.match(/\/regatta\/([^/?#]+)/);
+    var slug = m ? m[1] : "";
+    if (!slug) return "";
+    return "/api/regatta/" + encodeURIComponent(slug) + "/cape-live-fleets";
+  }
+
   function pollLive() {
     if (document.hidden) return;
     if (document.activeElement && document.activeElement.classList.contains("club-score-input")) return;
-    fetch("/api/regatta/2026-09-13-zvyc-cape-classic/cape-live-fleets", {
+    var url = liveFleetsUrl();
+    if (!url) return;
+    fetch(url, {
       credentials: "include",
       cache: "no-store",
     })
@@ -510,20 +529,53 @@
     return va - vb;
   }
 
+  function fleetHasScores(table) {
+    if (!table) return false;
+    var any = false;
+    table.querySelectorAll(".club-score-input, td.race-col[data-race-key]").forEach(function (el) {
+      if (cellScore(el)) any = true;
+    });
+    return any;
+  }
+
+  function paintOfficialRanks(tb) {
+    var locked = Array.prototype.slice.call(tb.querySelectorAll("tr[data-official-rank]"));
+    locked.sort(function (a, b) {
+      return (Number(a.getAttribute("data-official-rank")) || 9999) -
+        (Number(b.getAttribute("data-official-rank")) || 9999);
+    });
+    locked.forEach(function (tr) {
+      var rankTd = tr.querySelector("td.rank-col") || tr.children[0];
+      var n = Number(tr.getAttribute("data-official-rank"));
+      tr.classList.remove("medal-gold", "medal-silver", "medal-bronze");
+      if (rankTd) {
+        rankTd.textContent = n >= 1 ? rankLabel(n) : "";
+      }
+      if (n === 1) tr.classList.add("medal-gold");
+      else if (n === 2) tr.classList.add("medal-silver");
+      else if (n === 3) tr.classList.add("medal-bronze");
+      tb.appendChild(tr);
+    });
+  }
+
   function rerankFleet(table) {
     if (!table) return;
     var tb = table.tBodies && table.tBodies[0];
     if (!tb) return;
     var official = tb.querySelectorAll("tr[data-official-rank]");
-    if (official.length) {
-      /* Rule-compliant ranks already on the URL. Reject any other order. */
-      var locked = Array.prototype.slice.call(official);
-      locked.sort(function (a, b) {
-        return (Number(a.getAttribute("data-official-rank")) || 9999) -
-          (Number(b.getAttribute("data-official-rank")) || 9999);
-      });
-      locked.forEach(function (tr) { tb.appendChild(tr); });
+    if (official.length && fleetHasScores(table)) {
+      /* Server A8 order — still paint 1st/2nd. Empty rank cells were the Dart bug. */
+      paintOfficialRanks(tb);
       return;
+    }
+    if (official.length && !fleetHasScores(table)) {
+      /* Entry list / empty R1 must not lock Rank blank. */
+      Array.prototype.forEach.call(official, function (tr) {
+        tr.removeAttribute("data-official-rank");
+        var rankTd = tr.querySelector("td.rank-col") || tr.children[0];
+        if (rankTd) rankTd.textContent = "";
+        tr.classList.remove("medal-gold", "medal-silver", "medal-bronze");
+      });
     }
     var busy = busyRaceKey(table);
     var items = Array.prototype.map.call(tb.querySelectorAll("tr[data-result-id]"), function (tr) {
