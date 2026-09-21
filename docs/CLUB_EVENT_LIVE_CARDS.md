@@ -21,7 +21,7 @@ HMYC source event: `/regatta/2026-09-19-hmyc-midmar-cup`
 Profile: Leader Board + Agromet Midmar weather + media + HMYC camera.
 
 **When the event opens:**
-- **Entries** — update the fleet / entry list on this Event URL; do not change the slug. Dart 2026 is **two fleets: DH and SH** (`:dart-18-dh` / `:dart-18-sh`).
+- **Entries** — update the fleet / entry list on this Event URL; do not change the slug. Dart 2026 is **two fleets: DH and SH** (`:dart-18-dh` / `:dart-18-sh`). Fleet header is class logo + **DH Fleet** / **SH Fleet**, not logo + the word Fleet alone.
 - **WhatsApp group** — add the official event group. Super-admin drop on the media card accepts WhatsApp photos/video (`VID_…` → `/mm-clips`). Media stays empty until those clips are saved to **this** slug.
 
 Code: `sailingsa/backend/club_live_cards.py` — later date-first Event URLs at the same club inherit the stack. Add a new club profile only when that club’s first live Event URL is set up.
