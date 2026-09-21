@@ -45,6 +45,8 @@ FORCE_HELM = {
 FORCE_CREW = {
     ("bradley stemmett", "saskia"): 271,
     ("owen hemingway", "ian hemingway"): 17876,
+    ("ben mienie", "ciara"): 21650,
+    ("benjamin mienie", "ciara"): 21650,
 }
 
 ALIASES = {
