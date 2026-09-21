@@ -1,5 +1,22 @@
 # class_canonical - Validation Rules
 
+---
+
+## PERMANENT RULE: Optimist Fleets
+
+**Never assume only Optimist A/B exist. Optimist C is a VALID FIRST-CLASS FLEET.**
+
+Valid Optimist fleets in `classes` table:
+- `Optimist A`
+- `Optimist B`
+- `Optimist C`
+
+All share the same hull_family (Optimist) but are **separate class entries**.
+
+If source data contains "Optimist C", it is **VALID**—not an anomaly or fallback.
+
+---
+
 ## Purpose
 This document explains **how `class_canonical` is validated** against the `classes` table and why it is **CRITICAL** for HTML filtering/searching. Invalid `class_canonical` values break filtering - results won't be found when searching for the same class.
 
