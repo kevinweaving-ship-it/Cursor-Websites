@@ -106,10 +106,50 @@ RANK_NEW = '''        fleet_for_rank = cur.fetchall() or []
                 (block_id,),
             )
         else:
+            scored = [row for row in fleet_for_rank if _legacy_row_has_score(row)]
+            unscored = [row for row in fleet_for_rank if not _legacy_row_has_score(row)]
+            for i, row in enumerate(sort_result_rows_appendix_a(scored), 1):
+                cur.execute(
+                    "UPDATE results SET rank = %s WHERE result_id = %s AND block_id = %s",
+                    (i, row["result_id"], block_id),
+                )
+            for row in unscored:
+                cur.execute(
+                    "UPDATE results SET rank = NULL WHERE result_id = %s AND block_id = %s",
+                    (row["result_id"], block_id),
+                )
+'''
+
+RANK_EVERYONE_OLD = '''        if not any(_legacy_row_has_score(row) for row in fleet_for_rank):
+            cur.execute(
+                "UPDATE results SET rank = NULL WHERE block_id = %s",
+                (block_id,),
+            )
+        else:
             for i, row in enumerate(sort_result_rows_appendix_a(fleet_for_rank), 1):
                 cur.execute(
                     "UPDATE results SET rank = %s WHERE result_id = %s AND block_id = %s",
                     (i, row["result_id"], block_id),
+                )
+'''
+
+RANK_SCORED_ONLY = '''        if not any(_legacy_row_has_score(row) for row in fleet_for_rank):
+            cur.execute(
+                "UPDATE results SET rank = NULL WHERE block_id = %s",
+                (block_id,),
+            )
+        else:
+            scored = [row for row in fleet_for_rank if _legacy_row_has_score(row)]
+            unscored = [row for row in fleet_for_rank if not _legacy_row_has_score(row)]
+            for i, row in enumerate(sort_result_rows_appendix_a(scored), 1):
+                cur.execute(
+                    "UPDATE results SET rank = %s WHERE result_id = %s AND block_id = %s",
+                    (i, row["result_id"], block_id),
+                )
+            for row in unscored:
+                cur.execute(
+                    "UPDATE results SET rank = NULL WHERE result_id = %s AND block_id = %s",
+                    (row["result_id"], block_id),
                 )
 '''
 
@@ -120,16 +160,19 @@ def main() -> int:
         (OFFICIAL_OLD, OFFICIAL_NEW, "official-rank"),
         (LIVE_OLD, LIVE_NEW, "cape-live-fleets"),
         (RANK_OLD, RANK_NEW, "empty-score ranks"),
+        (RANK_EVERYONE_OLD, RANK_SCORED_ONLY, "scored-only ranks"),
     ):
         if new in text and old not in text:
             print("already", label)
             continue
         if old not in text:
-            raise SystemExit(f"pattern not found: {label}")
+            print("skip missing", label)
+            continue
         text = text.replace(old, new, 1)
         print("patched", label)
-    text = text.replace("club-score-edit.js?v=ccr21", "club-score-edit.js?v=ccr23")
-    text = text.replace("club-score-edit.js?v=ccr22", "club-score-edit.js?v=ccr23")
+    text = text.replace("club-score-edit.js?v=ccr21", "club-score-edit.js?v=ccr24")
+    text = text.replace("club-score-edit.js?v=ccr22", "club-score-edit.js?v=ccr24")
+    text = text.replace("club-score-edit.js?v=ccr23", "club-score-edit.js?v=ccr24")
     API.write_text(text)
     print("ok", API)
     return 0

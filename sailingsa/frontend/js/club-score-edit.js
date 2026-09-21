@@ -539,7 +539,9 @@
   }
 
   function paintOfficialRanks(tb) {
-    var locked = Array.prototype.slice.call(tb.querySelectorAll("tr[data-official-rank]"));
+    var all = Array.prototype.slice.call(tb.querySelectorAll("tr[data-result-id]"));
+    var locked = all.filter(function (tr) { return tr.hasAttribute("data-official-rank"); });
+    var rest = all.filter(function (tr) { return !tr.hasAttribute("data-official-rank"); });
     locked.sort(function (a, b) {
       return (Number(a.getAttribute("data-official-rank")) || 9999) -
         (Number(b.getAttribute("data-official-rank")) || 9999);
@@ -554,6 +556,12 @@
       if (n === 1) tr.classList.add("medal-gold");
       else if (n === 2) tr.classList.add("medal-silver");
       else if (n === 3) tr.classList.add("medal-bronze");
+      tb.appendChild(tr);
+    });
+    rest.forEach(function (tr) {
+      var rankTd = tr.querySelector("td.rank-col") || tr.children[0];
+      tr.classList.remove("medal-gold", "medal-silver", "medal-bronze");
+      if (rankTd) rankTd.textContent = "";
       tb.appendChild(tr);
     });
   }
