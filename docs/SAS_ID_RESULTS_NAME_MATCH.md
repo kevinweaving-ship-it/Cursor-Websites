@@ -72,6 +72,8 @@
 
 (Canonical name = `COALESCE(TRIM(full_name), TRIM(first_name || ' ' || COALESCE(last_name, '')))` from `sas_id_personal`.)
 
+**Format (locked):** SAS ID is the name. Display is **Title Case** (`Ciara Neumann`, `Tristan Elliott`). Never copy a sheet’s typing and never leave ALL CAPS (`TRISTAN ELLIOTT`) on a result or in `sas_id_personal`. If SAS `full_name` / `first_name` / `last_name` is ALL CAPS, amend that row to Title Case first, then copy it onto results.
+
 ---
 
 ## Fix (run once)

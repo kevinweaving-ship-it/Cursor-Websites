@@ -5,6 +5,8 @@ CSV Entry Type:
   Dart 18 Single          -> SH
   Dart 18 Double / Youth  -> DH
 
+Names: SAS ID is the person. Format is Title Case (Ciara Neumann). Never ALL CAPS.
+
 Apply on live (agent SSH, not the user):
 
   python3 sailingsa/deploy/preload_2026_hmyc_dart_18_entries.py --apply
@@ -64,6 +66,17 @@ def norm(s: str) -> str:
 
 def title_name(s: str) -> str:
     return " ".join(w[:1].upper() + w[1:] if w else "" for w in str(s or "").split())
+
+
+def standard_person_name(s: str) -> str:
+    """SAS ID is the name. Display format is Title Case, never ALL CAPS from the sheet or SAS."""
+    raw = " ".join(str(s or "").split())
+    if not raw:
+        return raw
+    letters = [c for c in raw if c.isalpha()]
+    if letters and (all(c.isupper() for c in letters) or all(c.islower() for c in letters)):
+        return title_name(raw.lower())
+    return raw
 
 
 def clean_crew(s: str) -> str:
@@ -218,13 +231,13 @@ def resolve_sailor(cur, name: str, club: str, forced: int | None, tmp_n: list[in
         )
         hit = cur.fetchone()
         if hit:
-            return _sid(hit["sid"]), hit["full_name"], None
+            return _sid(hit["sid"]), standard_person_name(hit["full_name"]), None
     hit = find_person(cur, name, club)
     if hit:
-        return _sid(hit["sid"]), hit["full_name"], None
+        return _sid(hit["sid"]), standard_person_name(hit["full_name"]), None
     tid = f"TMP:{tmp_n[0]}"
     tmp_n[0] += 1
-    return None, title_name(name), tid
+    return None, standard_person_name(name), tid
 
 
 def apply(url: str, csv_path: Path) -> int:
