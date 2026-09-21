@@ -34,7 +34,7 @@ Code: `sailingsa/backend/club_live_cards.py` — later date-first Event URLs at 
 | --- | --- |
 | Event URL | `/regatta/{YYYY-MM-DD-club-slug}` |
 | Upcoming hero | `/` / `index.html` **`landing-event-card`** / `sa-home-regatta-card` (same slot as 420 Nationals) |
-| Regatta Search | `GET /api/regattas/with-counts` (live disk cache `/var/tmp/sailingsa_regatta_with_counts.json` — clear it after insert) |
+| Regatta Search | `GET /api/regattas/with-counts` (live disk cache `/var/tmp/sailingsa_regatta_with_counts.json` — clear it after insert). Search row pill is **Upcoming Event** until the event is live or has Race 1 scores; then Live / Racing / Full Results. |
 
 Landing search needs a real `public.regattas` row. Hub history needs `events.regatta_id` **and** a series key that merges prior years (`_yearly_event_series_key`, same idea as 420 → `2026-09-25-tsc-420-nationals`).
 

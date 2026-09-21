@@ -11223,7 +11223,7 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                     '.sa-home-regatta-single-class{display:inline-flex;align-items:center;justify-content:center;line-height:0;text-decoration:none;flex:0 0 auto;}' +
                     '.sa-home-regatta-single-class .sa-home-regatta-chip-logo{width:52px;height:28px;max-width:52px;visibility:visible;}' +
                     '.sa-home-regatta-single-class .sa-home-regatta-chip-text{font:800 11px/1 system-ui,-apple-system,sans-serif;color:#1e3a8a;white-space:nowrap;padding:0 2px;}' +
-                    '.sa-home-regatta-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 14px;border-radius:6px;border:1px solid #a5d7de;background:#f9ffff;color:#0f6d7a;font-weight:900;font-size:12px;text-decoration:none;white-space:nowrap;min-width:126px;box-shadow:0 1px 0 rgba(15,109,122,.08);}' +
+                    '.sa-home-regatta-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 14px;border-radius:6px;border:1px solid #a5d7de;background:#f9ffff;color:#0f6d7a;font-weight:900;font-size:12px;text-decoration:none;white-space:nowrap;min-width:148px;box-shadow:0 1px 0 rgba(15,109,122,.08);}' +
                     '.sa-home-regatta-btn--live{background:#ea580c;border-color:#c2410c;color:#fff;}' +
                     '.sa-home-regatta-btn--racing{background:#15803d;border-color:#166534;color:#fff;}' +
                     '.sa-home-regatta-btn--postponed{background:#b91c1c;border-color:#991b1b;color:#fff;}' +
@@ -11849,6 +11849,13 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                 var fullBtn = document.createElement('a');
                 fullBtn.className = 'sa-home-regatta-btn';
                 fullBtn.href = parentResultsHref;
+                var raceN = Number(r.races_sailed || r.race_count || 0);
+                var hasRace1 = raceN >= 1 || r.has_results === true || r.has_results === 'true';
+                var endIso = String(r.end_date || r.start_date || '').slice(0, 10);
+                var now = new Date();
+                var p2 = function (n) { return n < 10 ? '0' + n : String(n); };
+                var todayIso = now.getFullYear() + '-' + p2(now.getMonth() + 1) + '-' + p2(now.getDate());
+                var isPastEvent = !!(endIso && endIso < todayIso);
                 var btnLabel = 'Full Results';
                 if (isLiveWindow && boardSt === 'POSTPONED') {
                     fullBtn.className = 'sa-home-regatta-btn sa-home-regatta-btn--postponed';
@@ -11859,6 +11866,8 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                 } else if (isLiveWindow) {
                     fullBtn.className = 'sa-home-regatta-btn sa-home-regatta-btn--live';
                     btnLabel = 'Live Event';
+                } else if (!hasRace1 && !isPastEvent) {
+                    btnLabel = 'Upcoming Event';
                 }
                 if (isLiveWindow) {
                     fullBtn.setAttribute('data-live-board-rid', rid);
