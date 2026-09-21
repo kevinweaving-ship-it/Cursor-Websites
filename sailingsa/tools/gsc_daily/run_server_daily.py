@@ -164,7 +164,7 @@ def main(argv: list[str] | None = None) -> int:
 
     cls = class_counts(probes)
     real_urls = [p["url"] for p in probes if p.get("classification") == REAL]
-    persist_reals(root / "watchlist_real.json", real_urls)
+    persist_reals(root / "watchlist_real.json", real_urls, sitemap)
 
     pass_n = sum(1 for p in probes if p.get("google_verdict") == "PASS")
     not_idx = sum(

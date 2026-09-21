@@ -31,8 +31,24 @@ def load_seed() -> dict:
     return json.loads(_SEED.read_text(encoding="utf-8"))
 
 
-def persist_reals(dest: Path, urls: list[str]) -> None:
-    dest.write_text(json.dumps({"prior_real": urls}, indent=2) + "\n", encoding="utf-8")
+def persist_reals(
+    dest: Path, urls: list[str], sitemap: set[str] | None = None
+) -> None:
+    """Keep only current REAL URLs that are still in the live sitemap.
+
+    Dead aliases (404/301 not in sitemap) must not re-seed tomorrow's watchlist.
+    """
+    keep: list[str] = []
+    seen: set[str] = set()
+    for u in urls:
+        u = _norm(u)
+        if not u or u in seen:
+            continue
+        if sitemap is not None and u not in sitemap:
+            continue
+        seen.add(u)
+        keep.append(u)
+    dest.write_text(json.dumps({"prior_real": keep}, indent=2) + "\n", encoding="utf-8")
 
 
 def _sitemap_sample(sitemap: set[str]) -> list[str]:
