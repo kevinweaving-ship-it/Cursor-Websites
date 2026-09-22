@@ -103,4 +103,12 @@ What went wrong: live `api.py` was replaced with the repo snapshot. The old left
 
 Do not use or reintroduce `(snapshot time not recorded)`, `.entry-sas`, `.entry-pending`, `.entry-unresolved`, or any preload legend on the sailed line. If `as_at_time` is NULL, omit the status line.
 
-When the Event URL exists: write `public.results` only. Do not edit `api.py`, headers, or the sheet.
+When the Event URL exists: write `public.results` only for entry-list work. Do not edit headers or the locked iframe sheets.
+
+**420 card stack (TSC — first date-first Event URL at this club):**
+- **Leader Board** placeholder (`Waiting for race scores`) — same Midmar/Dart shell
+- **Media** placeholder (`No media yet`) — empty until a WhatsApp / `/mm-clips` feed is identified
+- **No Weather** — TSC has no live station
+- **No live camera** — TSC has no cam
+
+Do **not** load HMYC weather/cam on 420 (`hasWxCam()` is Midmar + Dart only). Restore via `sailingsa/deploy/restore_tsc_420_event_cards.py` on live (surgical `api.py` + JS allowlist). Never scp the repo `api.py`.
