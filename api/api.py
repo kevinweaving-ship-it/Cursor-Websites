@@ -16658,9 +16658,10 @@ def api_sailor_resolve(
                 SELECT sa_sailing_id::text AS sas_id,
                     COALESCE(TRIM(full_name), TRIM(first_name || ' ' || COALESCE(last_name, ''))) AS full_name
                 FROM public.sas_id_personal
-                WHERE TRIM(REGEXP_REPLACE(REGEXP_REPLACE(LOWER(TRIM(REPLACE(REPLACE(COALESCE(full_name, first_name || ' ' || COALESCE(last_name, '')), '&', ' and '), '-', ' '))), '[^a-z0-9 ]', '', 'g'), '\\s+', ' ', 'g')) = %s
+                WHERE REPLACE(REPLACE(LOWER(TRIM(COALESCE(last_name, ''))), CHR(39), ''), '’', '') = split_part(%s, ' ', -1)
+                   OR REPLACE(REPLACE(LOWER(TRIM(COALESCE(full_name, ''))), CHR(39), ''), '’', '') LIKE ('%' || split_part(%s, ' ', -1) || '%')
                 LIMIT 2
-            """, (name_from_slug,))
+            """, (name_from_slug, name_from_slug))
             rows = cur.fetchall()
             if not rows:
                 # Fallback: name-only slug from results (regatta page links)
@@ -16870,9 +16871,10 @@ def _get_sas_id_by_slug(slug: str):
                 return None
             cur.execute("""
                 SELECT sa_sailing_id::text AS sas_id FROM public.sas_id_personal
-                WHERE TRIM(REGEXP_REPLACE(REGEXP_REPLACE(LOWER(TRIM(REPLACE(REPLACE(COALESCE(full_name, first_name || ' ' || COALESCE(last_name, '')), '&', ' and '), '-', ' '))), '[^a-z0-9 ]', '', 'g'), '\\s+', ' ', 'g')) = %s
+                WHERE REPLACE(REPLACE(LOWER(TRIM(COALESCE(last_name, ''))), CHR(39), ''), '’', '') = split_part(%s, ' ', -1)
+                   OR REPLACE(REPLACE(LOWER(TRIM(COALESCE(full_name, ''))), CHR(39), ''), '’', '') LIKE ('%' || split_part(%s, ' ', -1) || '%')
                 LIMIT 1
-            """, (name_from_slug,))
+            """, (name_from_slug, name_from_slug))
             row = cur.fetchone()
             if row:
                 return str(row.get("sas_id") or "")
@@ -21363,14 +21365,26 @@ def _get_sailor_name_by_slug(slug: str):
             name_from_slug = _normalize_name_for_slug_match(slug.replace("-", " "))
             if not name_from_slug:
                 return None, None
+            last_tok = (name_from_slug.split() or [name_from_slug])[-1]
             cur.execute("""
                 SELECT sa_sailing_id::text AS sas_id,
-                    COALESCE(TRIM(full_name), TRIM(first_name || ' ' || COALESCE(last_name, ''))) AS full_name
+                    COALESCE(TRIM(full_name), TRIM(first_name || ' ' || COALESCE(last_name, ''))) AS full_name,
+                    COALESCE(NULLIF(TRIM(first_name), ''), '') AS first_name,
+                    COALESCE(NULLIF(TRIM(last_name), ''), '') AS last_name
                 FROM public.sas_id_personal
-                WHERE TRIM(REGEXP_REPLACE(REGEXP_REPLACE(LOWER(TRIM(REPLACE(REPLACE(COALESCE(full_name, first_name || ' ' || COALESCE(last_name, '')), '&', ' and '), '-', ' '))), '[^a-z0-9 ]', '', 'g'), '\\s+', ' ', 'g')) = %s
-                LIMIT 2
-            """, (name_from_slug,))
-            rows = cur.fetchall()
+                WHERE REPLACE(REPLACE(LOWER(TRIM(COALESCE(last_name, ''))), CHR(39), ''), '’', '') = %s
+                   OR REPLACE(REPLACE(LOWER(TRIM(COALESCE(full_name, ''))), CHR(39), ''), '’', '') LIKE %s
+                LIMIT 250
+            """, (last_tok, "%" + last_tok + "%"))
+            rows = []
+            for r in (cur.fetchall() or []):
+                name = (r.get("full_name") or "").strip()
+                key = _normalize_name_for_slug_match(name.replace("-", " "))
+                ln_key = _normalize_name_for_slug_match((r.get("last_name") or "").replace("-", " "))
+                if key == name_from_slug or (ln_key == name_from_slug and key == ln_key):
+                    rows.append(r)
+                    if len(rows) >= 2:
+                        break
             if not rows:
                 # Fallback: name-only slug from results (regatta page links)
                 name_from_res, sid_from_res = _get_sailor_by_name_slug_from_results(slug)
@@ -22070,9 +22084,10 @@ def _get_sailor_sas_id_from_slug(slug: str) -> str:
             name_from_slug = _normalize_name_for_slug_match(slug.replace("-", " "))
             cur.execute("""
                 SELECT sa_sailing_id::text FROM sas_id_personal
-                WHERE TRIM(REGEXP_REPLACE(REGEXP_REPLACE(LOWER(TRIM(REPLACE(REPLACE(COALESCE(full_name, first_name || ' ' || COALESCE(last_name, '')), '&', ' and '), '-', ' '))), '[^a-z0-9 ]', '', 'g'), '\\s+', ' ', 'g')) = %s
+                WHERE REPLACE(REPLACE(LOWER(TRIM(COALESCE(last_name, ''))), CHR(39), ''), '’', '') = split_part(%s, ' ', -1)
+                   OR REPLACE(REPLACE(LOWER(TRIM(COALESCE(full_name, ''))), CHR(39), ''), '’', '') LIKE ('%' || split_part(%s, ' ', -1) || '%')
                 LIMIT 1
-            """, (name_from_slug,))
+            """, (name_from_slug, name_from_slug))
             row = cur.fetchone()
             if row:
                 return (row.get("sa_sailing_id") or "")
