@@ -44,8 +44,11 @@ NOT_ENTERED = "NOT_ENTERED"
 # Names are sas_id_personal first_name + last_name only. Informal list spellings are not stored.
 # helm_sas / crew_sas from live SAS table 22 Sep 2026. Do not invent IDs. TBA crew is omitted
 # unless a prior 420 team (or current same-club team that has sailed 420) uniquely identifies them.
-# Sheet order: 2025 420 Nationals overall rank (best rank of anyone on the 2026 boat),
-# then new boats A–Z by helm surname. Source: /regatta/2025-10-04-420-national-championship.
+# Sheet order: sailors who did 2025 420 Nationals first. If the 2026 pair is not the
+# same as last year, use the average of each sailor's 2025 overall rank. New boats
+# (nobody at 2025 Nationals) A–Z by helm surname.
+# 2025 1st Dominique Provoyeur / Alex Falcon are not in this list.
+# Source: /regatta/2025-10-04-420-national-championship overall.
 
 
 def _helm_surname(name: str) -> str:
@@ -67,8 +70,8 @@ ENTRIES = [
         "club_raw": "ZVYC",
         "club_abbrev": "ZVYC",
         "flag": NOT_ENTERED,
-        "nationals_2025_best": None,
-        "nationals_2025_helm": None,
+        "helm_2025_rank": None,
+        "crew_2025_rank": None,
         "issues": [
             "Partial 'Scheder Bischein' matched via SAS surname + prior 420 + current ZVYC team. "
             "Theodor 9515 helm (ZVYC; 420 Nationals 2018/2020/2021). "
@@ -83,8 +86,8 @@ ENTRIES = [
         "club_raw": "Izivungu",
         "club_abbrev": "IZI",
         "flag": SAS_PORTAL,
-        "nationals_2025_best": None,
-        "nationals_2025_helm": None,
+        "helm_2025_rank": None,
+        "crew_2025_rank": None,
         "issues": ["Club Izivungu → IZI."],
     },
     {
@@ -95,8 +98,8 @@ ENTRIES = [
         "club_raw": "ZVSC",
         "club_abbrev": "ZVSC",
         "flag": SAS_PORTAL,
-        "nationals_2025_best": None,
-        "nationals_2025_helm": None,
+        "helm_2025_rank": None,
+        "crew_2025_rank": None,
         "issues": ["SAS home club is ZVYC; entry club left as listed ZVSC."],
     },
     {
@@ -107,9 +110,9 @@ ENTRIES = [
         "club_raw": "ZVYC",
         "club_abbrev": "ZVYC",
         "flag": SAS_PORTAL,
-        "nationals_2025_best": 3,
-        "nationals_2025_helm": 3,
-        "issues": ["2025 420 Nationals 3rd (Dillan Swarts crew last year)."],
+        "helm_2025_rank": 3,
+        "crew_2025_rank": None,
+        "issues": ["2025 420 Nationals 3rd with Dillan Swarts; crew TBA this year. Sort rank 3."],
     },
     {
         "helm_list": "Nathan McCombe",
@@ -119,11 +122,11 @@ ENTRIES = [
         "club_raw": "HYC",
         "club_abbrev": "HYC",
         "flag": SAS_PORTAL,
-        "nationals_2025_best": 5,
-        "nationals_2025_helm": 5,
+        "helm_2025_rank": 5,
+        "crew_2025_rank": None,
         "issues": [
-            "AMENDED: Nathan McCombe 21517 helm, Liam Geldenhuys 25653 crew. "
-            "2025 420 Nationals 5th as crew to Timothy Weaving. Dirty Nathan dup 28587 unused."
+            "AMENDED: Nathan McCombe 21517 helm, Liam Geldenhuys 25653 crew (new pair). "
+            "Nathan 2025 5th crew to Timothy. Sort rank 5. Dirty Nathan dup 28587 unused."
         ],
     },
     {
@@ -134,11 +137,11 @@ ENTRIES = [
         "club_raw": "MAC",
         "club_abbrev": "MAC",
         "flag": SAS_PORTAL,
-        "nationals_2025_best": 4,
-        "nationals_2025_helm": None,
+        "helm_2025_rank": None,
+        "crew_2025_rank": 4,
         "issues": [
-            "AMENDED: one MAC boat. Maddison Smit 2025 420 Nationals 4th (crew to Athenkosi Vena). "
-            "Prior 420 WC Dinghy Champs 2026 rank 2 (Kamva helm / Maddison crew)."
+            "AMENDED: one MAC boat (new pair vs 2025). Maddison 2025 4th crew to Athenkosi Vena. "
+            "Kamva did not do 2025 Nationals. Sort rank 4."
         ],
     },
     {
@@ -149,8 +152,8 @@ ENTRIES = [
         "club_raw": "ZVYC",
         "club_abbrev": "ZVYC",
         "flag": SAS_PORTAL,
-        "nationals_2025_best": None,
-        "nationals_2025_helm": None,
+        "helm_2025_rank": None,
+        "crew_2025_rank": None,
         "issues": [],
     },
     {
@@ -161,11 +164,10 @@ ENTRIES = [
         "club_raw": "MAC",
         "club_abbrev": "MAC",
         "flag": SAS_PORTAL,
-        "nationals_2025_best": 8,
-        "nationals_2025_helm": None,
+        "helm_2025_rank": 8,
+        "crew_2025_rank": None,
         "issues": [
-            "2025 420 Nationals 8th as crew to Tristan Gress. "
-            "Crew Sphelele: no unique SAS. Not assigned."
+            "Aisha 2025 8th crew to Tristan Gress; new crew Sphelele (no SAS). Sort rank 8."
         ],
     },
     {
@@ -176,8 +178,8 @@ ENTRIES = [
         "club_raw": "HYC",
         "club_abbrev": "HYC",
         "flag": SAS_PORTAL,
-        "nationals_2025_best": None,
-        "nationals_2025_helm": None,
+        "helm_2025_rank": None,
+        "crew_2025_rank": None,
         "issues": [],
     },
     {
@@ -188,8 +190,8 @@ ENTRIES = [
         "club_raw": "HYC",
         "club_abbrev": "HYC",
         "flag": SAS_PORTAL,
-        "nationals_2025_best": None,
-        "nationals_2025_helm": None,
+        "helm_2025_rank": None,
+        "crew_2025_rank": None,
         "issues": [],
     },
     {
@@ -200,8 +202,8 @@ ENTRIES = [
         "club_raw": "MAC",
         "club_abbrev": "MAC",
         "flag": NOT_ENTERED,
-        "nationals_2025_best": None,
-        "nationals_2025_helm": None,
+        "helm_2025_rank": None,
+        "crew_2025_rank": None,
         "issues": [
             "No SAS surname Winzel. Only MAC Alexa is Alexa Aab 22974 (ILCA 4.7 / Optimist, no 420). Not assigned."
         ],
@@ -214,8 +216,8 @@ ENTRIES = [
         "club_raw": "HYC",
         "club_abbrev": "HYC",
         "flag": NOT_ENTERED,
-        "nationals_2025_best": None,
-        "nationals_2025_helm": None,
+        "helm_2025_rank": None,
+        "crew_2025_rank": None,
         "issues": ["Thomas Henshilwood 9612 (2009), not Thomas 7352 (1976)."],
     },
     {
@@ -226,8 +228,8 @@ ENTRIES = [
         "club_raw": "MAC",
         "club_abbrev": "MAC",
         "flag": NOT_ENTERED,
-        "nationals_2025_best": None,
-        "nationals_2025_helm": None,
+        "helm_2025_rank": None,
+        "crew_2025_rank": None,
         "issues": [],
     },
     {
@@ -238,10 +240,10 @@ ENTRIES = [
         "club_raw": "HYC",
         "club_abbrev": "HYC",
         "flag": NOT_ENTERED,
-        "nationals_2025_best": 2,
-        "nationals_2025_helm": 5,
+        "helm_2025_rank": 5,
+        "crew_2025_rank": 2,
         "issues": [
-            "2025 420 Nationals: Timothy 5th helm / Nathan McCombe. Hayden Miller was 2nd crew to Howard Leoto."
+            "New pair. Timothy 2025 5th helm, Hayden 2025 2nd crew to Howard. Sort avg (5+2)/2 = 3.5."
         ],
     },
     {
@@ -252,24 +254,31 @@ ENTRIES = [
         "club_raw": "RNYC",
         "club_abbrev": "RNYC",
         "flag": NOT_ENTERED,
-        "nationals_2025_best": 2,
-        "nationals_2025_helm": 2,
+        "helm_2025_rank": 2,
+        "crew_2025_rank": None,
         "issues": [
-            "AMENDED: Howard Leoto 3709 / Lebogang January 1485, RNYC. "
-            "2025 420 Nationals 2nd (Hayden Miller crew last year). Lebogang SAS home club is RCYC."
+            "New pair. Howard 2025 2nd helm (Hayden last year); Lebogang did not do 2025 Nationals. Sort rank 2."
         ],
     },
 ]
 
 
+def _entry_2025_avg(entry: dict) -> float | None:
+    """Average of each sailor's 2025 overall rank. Same pair would share one rank; new pairs average."""
+    ranks = [entry.get("helm_2025_rank"), entry.get("crew_2025_rank")]
+    ranks = [int(r) for r in ranks if r is not None]
+    if not ranks:
+        return None
+    return sum(ranks) / len(ranks)
+
+
 def _entry_sheet_order(entry: dict) -> tuple:
-    """Last year's 420 Nationals first (best rank, then helm's own rank), then new A–Z by surname."""
-    best = entry.get("nationals_2025_best")
-    helm_r = entry.get("nationals_2025_helm")
+    """2025 sailors first by avg last-year rank (new teammates averaged), then new A–Z by surname."""
+    avg = _entry_2025_avg(entry)
     name = entry.get("helm_list") or ""
-    if best is not None:
-        return (0, int(best), int(helm_r) if helm_r is not None else 99, _helm_surname(name), _helm_first(name))
-    return (1, 99, 99, _helm_surname(name), _helm_first(name))
+    if avg is not None:
+        return (0, avg, _helm_surname(name), _helm_first(name))
+    return (1, 99.0, _helm_surname(name), _helm_first(name))
 
 
 ENTRIES.sort(key=_entry_sheet_order)
