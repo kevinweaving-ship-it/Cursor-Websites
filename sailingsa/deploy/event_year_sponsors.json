@@ -1,0 +1,163 @@
+{
+  "comment": "Per yearly event, per year. Never copy a sponsor from one year onto another. Headline = brand in THAT edition's title. Tier2 = proof they sponsored that year, name not in the title. This is a web/Google starting list; clubs/hosts will later link sponsors to events they held.",
+  "series": [
+    {
+      "series_key": "w cape championships dinghy classes",
+      "display_name": "Western Cape Dinghy Championships",
+      "match_keys": [
+        "w cape championships dinghy classes",
+        "western cape dinghy championships"
+      ],
+      "match_names": [
+        "western cape dinghy",
+        "wc dinghy champs",
+        "w. cape championships - dinghy",
+        "wcdc"
+      ],
+      "years": {
+        "2026": {
+          "headline": [],
+          "tier2": [
+            {
+              "slug": "albion",
+              "proof_urls": [
+                "https://www.sbyc.co.za/western-cape-dinghy-championships-2026/"
+              ]
+            },
+            {
+              "slug": "aquelle",
+              "proof_urls": [
+                "https://www.sbyc.co.za/western-cape-dinghy-championships-2026/"
+              ]
+            },
+            {
+              "slug": "blue-bay-lodge",
+              "proof_urls": [
+                "https://www.sbyc.co.za/western-cape-dinghy-championships-2026/"
+              ]
+            },
+            {
+              "slug": "brights",
+              "proof_urls": [
+                "https://www.sbyc.co.za/western-cape-dinghy-championships-2026/"
+              ]
+            },
+            {
+              "slug": "cam-ra",
+              "proof_urls": [
+                "https://www.sbyc.co.za/western-cape-dinghy-championships-2026/"
+              ]
+            },
+            {
+              "slug": "central-boating",
+              "proof_urls": [
+                "https://www.sbyc.co.za/western-cape-dinghy-championships-2026/"
+              ]
+            },
+            {
+              "slug": "jonsson",
+              "proof_urls": [
+                "https://www.sbyc.co.za/western-cape-dinghy-championships-2026/"
+              ]
+            },
+            {
+              "slug": "north-sails",
+              "proof_urls": [
+                "https://www.sbyc.co.za/western-cape-dinghy-championships-2026/"
+              ]
+            },
+            {
+              "slug": "ropeworx",
+              "proof_urls": [
+                "https://www.sbyc.co.za/western-cape-dinghy-championships-2026/"
+              ]
+            },
+            {
+              "slug": "saldanha-bay-hotel",
+              "proof_urls": [
+                "https://www.sbyc.co.za/western-cape-dinghy-championships-2026/"
+              ]
+            },
+            {
+              "slug": "southern-ropes",
+              "proof_urls": [
+                "https://www.sbyc.co.za/western-cape-dinghy-championships-2026/"
+              ]
+            },
+            {
+              "slug": "intasure",
+              "proof_urls": [
+                "https://www.sbyc.co.za/western-cape-dinghy-championships-2026/"
+              ]
+            },
+            {
+              "slug": "ullman",
+              "proof_urls": [
+                "https://www.sbyc.co.za/western-cape-dinghy-championships-2026/"
+              ]
+            },
+            {
+              "slug": "viking",
+              "proof_urls": [
+                "https://www.sbyc.co.za/western-cape-dinghy-championships-2026/"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "series_key": "j22 nationals",
+      "display_name": "J22 Nationals",
+      "match_keys": [
+        "j22 nationals"
+      ],
+      "match_names": [
+        "j22 nationals",
+        "north sails j22",
+        "j22 championship",
+        "j22 regatta"
+      ],
+      "years": {
+        "2026": {
+          "headline": [
+            {
+              "slug": "north-sails",
+              "proof_urls": [
+                "https://rcyc.co.za/event/j22-regatta/",
+                "https://rcyc.co.za/website/wp-content/uploads/2026/06/RCYC-J22-Regatta-NOR-1.pdf"
+              ]
+            }
+          ],
+          "tier2": []
+        }
+      }
+    },
+    {
+      "series_key": "420 nationals",
+      "display_name": "420 Nationals",
+      "match_keys": [
+        "420 nationals",
+        "420-nationals"
+      ],
+      "match_names": [
+        "420 nationals",
+        "420 national",
+        "420 class national"
+      ],
+      "years": {
+        "2026": {
+          "headline": [
+            {
+              "slug": "miller-gold",
+              "proof_urls": [
+                "https://sailingsa.co.za/regatta/2026-09-25-tsc-420-nationals"
+              ]
+            }
+          ],
+          "tier2": []
+        }
+      }
+    }
+  ]
+}

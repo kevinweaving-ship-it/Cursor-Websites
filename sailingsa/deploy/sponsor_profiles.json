@@ -1,0 +1,557 @@
+{
+  "profiles": [
+    {
+      "slug": "ullman",
+      "display_name": "Ullman Sails",
+      "short_name": "Ullman",
+      "logo_path": "/artwork/Sponsor Logo/Ullman-Sails.png",
+      "about_text": "Generic sponsor profile system first production example. This profile automatically aggregates linked events, result pages, sailors and classes using sponsor match terms plus optional explicit regatta links.",
+      "website_url": "https://ullmansails.com/lofts/south-africa/",
+      "email": "tony@ullmansailsrsa.com",
+      "phone": "+27 (0)21 593 1620",
+      "contact_name": "Tony Strutt",
+      "contact_title": "Chief of General Operations",
+      "city": "Cape Town",
+      "country": "South Africa",
+      "source_urls": [
+        "https://ullmansails.com/lofts/south-africa/"
+      ],
+      "match_terms": [
+        "ullman sails",
+        "ullman",
+        "ullman sails womens series",
+        "ullman sails women's series",
+        "ullman sails women s series"
+      ],
+      "preferred_email": "tony@ullmansailsrsa.com",
+      "preferred_phone": "+27 (0)21 593 1620",
+      "preferred_contact_name": "Tony Strutt",
+      "preferred_contact_title": "Chief of General Operations",
+      "external_search_queries": [
+        "\"Ullman Sails\" South Africa sailor event boat regatta -site:sailingsa.co.za",
+        "\"Ullman Sails\" South Africa yacht club sailor boat results -site:sailingsa.co.za",
+        "\"Ullman Sails\" South Africa instagram facebook regatta sailor -site:sailingsa.co.za"
+      ],
+      "ranked_sailor_proof_scan": {
+        "enabled": true,
+        "rank_limit": 100,
+        "results_per_sailor": 5
+      },
+      "proof_social_sources": {
+        "facebook_page_ids": [
+          "193506997475304"
+        ]
+      },
+      "mention_targets": [
+        {
+          "first_name": "Howard",
+          "last_name": "Leoto",
+          "status": "Official Team Helm",
+          "primary_classes": [
+            "Mirror",
+            "420",
+            "J22"
+          ]
+        },
+        {
+          "first_name": "Hayden",
+          "last_name": "Miller",
+          "status": "Sponsored Youth Ambassador",
+          "primary_classes": [
+            "Mirror",
+            "420",
+            "J22"
+          ]
+        },
+        {
+          "first_name": "Thomas",
+          "last_name": "Funke",
+          "status": "Sponsored Fleet Racer",
+          "primary_classes": [
+            "Mirror"
+          ]
+        },
+        {
+          "first_name": "Kai",
+          "last_name": "Funke",
+          "status": "Sponsored Fleet Racer",
+          "primary_classes": [
+            "Mirror"
+          ]
+        },
+        {
+          "first_name": "Matthew",
+          "last_name": "Trautman",
+          "status": "Sponsored Offshore Ambassador",
+          "primary_classes": [
+            "Endurance",
+            "Offshore"
+          ]
+        },
+        {
+          "first_name": "Sean",
+          "last_name": "Kavanagh",
+          "status": "Sponsored National Athlete",
+          "primary_classes": [
+            "Dabchick",
+            "Optimist",
+            "J22"
+          ]
+        },
+        {
+          "first_name": "Unam",
+          "last_name": "Lubhelwana",
+          "status": "Grassroots Sponsored Development",
+          "primary_classes": [
+            "Optimist"
+          ]
+        },
+        {
+          "first_name": "Mike",
+          "last_name": "Farrington",
+          "status": "Campaign Skipper",
+          "primary_classes": [
+            "J22"
+          ]
+        },
+        {
+          "first_name": "Andrea",
+          "last_name": "Giovannini",
+          "aliases": [
+            "Andrea \"Dre\" Giovannini",
+            "Dre Giovannini"
+          ],
+          "status": "Technical Designer / Crew",
+          "primary_classes": [
+            "J22",
+            "Offshore"
+          ]
+        },
+        {
+          "first_name": "Asenathi",
+          "last_name": "Jim",
+          "status": "Branded Boat Skipper",
+          "primary_classes": [
+            "J22"
+          ]
+        },
+        {
+          "first_name": "Lisl",
+          "last_name": "England",
+          "status": "Team Manager",
+          "primary_classes": [
+            "J22"
+          ]
+        },
+        {
+          "first_name": "Morgan",
+          "last_name": "Evans",
+          "status": "Skipper",
+          "primary_classes": [
+            "Pacer 27 Club",
+            "Sport"
+          ]
+        },
+        {
+          "first_name": "Allyssa",
+          "last_name": "van Rensburg",
+          "status": "Crew / Marketing Liaison",
+          "primary_classes": [
+            "Pacer 27 Club",
+            "Sport"
+          ]
+        },
+        {
+          "first_name": "Matthys",
+          "last_name": "Lourens",
+          "status": "Offshore Skipper",
+          "primary_classes": [
+            "Jeanneau Sun Fast 3200"
+          ]
+        },
+        {
+          "first_name": "Susan",
+          "last_name": "Holloway",
+          "aliases": [
+            "Dr Susan Holloway"
+          ],
+          "status": "Women's Series Skipper",
+          "primary_classes": [
+            "Women's Series"
+          ]
+        },
+        {
+          "first_name": "Belinda",
+          "last_name": "Hayward",
+          "status": "Women's Series Skipper",
+          "primary_classes": [
+            "Women's Series"
+          ]
+        },
+        {
+          "first_name": "Maria",
+          "last_name": "Seitz",
+          "status": "Women's Series Skipper",
+          "primary_classes": [
+            "Women's Series"
+          ]
+        }
+      ],
+      "boat_targets": [
+        {
+          "boat_name": "Ullman Racing",
+          "sail_numbers": [
+            "RSA 768",
+            "SA 159",
+            "RSA-4159"
+          ],
+          "class_category": "J22 / Pacer 27 Club / Sport",
+          "status": "Branded racing entry"
+        },
+        {
+          "boat_name": "Ullman Sails Camissa",
+          "sail_numbers": [
+            "SA 1169"
+          ],
+          "class_category": "J22 One-Design",
+          "status": "Active national regatta challenger"
+        },
+        {
+          "boat_name": "Ullman Sails Yolo",
+          "sail_numbers": [
+            "RSA-6130"
+          ],
+          "class_category": "Jeanneau Sun Fast 3200",
+          "status": "Double handed series competitor"
+        },
+        {
+          "boat_name": "Ullman Ray of Light",
+          "sail_numbers": [
+            "RSA-84"
+          ],
+          "class_category": "Beneteau First 44.7",
+          "status": "Regional non-spinnaker fleet competitor"
+        }
+      ],
+      "event_targets": [
+        {
+          "event_name": "Ullman Sails Women's Series",
+          "host_organization": "Royal Cape Yacht Club",
+          "scheduled_window": "May through October",
+          "notes": "Includes the Ullman Sails Women's Cruise around early August."
+        },
+        {
+          "event_name": "Ullman Sails Double Handed Series",
+          "host_organization": "Royal Cape Yacht Club",
+          "scheduled_window": "Multi-month endurance series",
+          "notes": "Supported alongside Seaport Supply and linked offshore race tracking."
+        }
+      ],
+      "explicit_regatta_ids": [
+        "2024-05-25-ullman-sails-womens-series-1",
+        "2024-08-03-ullman-sails-womens-series-day-2",
+        "2024-08-17-ullman-sails-womens-cruise",
+        "2024-08-17-ullman-sails-women-039-s-series",
+        "219-2024-ullman-sails-womens-series-1",
+        "246-2024-ullman-sails-women-039-s-series-results",
+        "2025-05-31-ullman-sails-womens-series-day-1",
+        "2025-08-09-ullman-sails-womens-cruise",
+        "2025-10-25-ullman-sails-womens-series-day-2",
+        "2025-10-25-ullman-sails-womens-series-results",
+        "2026-05-23-ullman-sails-womens-series-day-1",
+        "2026-05-23-ullman-sails-womens-series-day-1-results",
+        "2026-08-01-ullman-sails-womens-cruise",
+        "2026-10-24-ullman-sails-womens-series-day-2"
+      ]
+    },
+    {
+      "slug": "north-sails",
+      "display_name": "North Sails",
+      "short_name": "North",
+      "logo_path": "/artwork/Sponsor Logo/North-Sails.png",
+      "tier": "headline",
+      "about_text": "North Sails is a global sailmaker with a Cape Town loft serving racing, cruising, sail care and repair in South Africa.",
+      "website_url": "https://www.northsails.com/sailing/en/locations/capetown-south-africa-2",
+      "phone": "+27 21 511 2154",
+      "city": "Cape Town",
+      "province": "Western Cape",
+      "country": "South Africa",
+      "source_urls": [
+        "https://www.northsails.com/sailing/en/locations/capetown-south-africa-2",
+        "https://www.northsails.com/pages/sailloft-cape-town-south-africa"
+      ],
+      "match_terms": [
+        "north sails",
+        "north sails south africa",
+        "north sails cape town"
+      ],
+      "external_search_queries": [
+        "\"North Sails\" South Africa sailor event boat regatta -site:sailingsa.co.za",
+        "\"North Sails\" Cape Town sailing results regatta -site:sailingsa.co.za"
+      ],
+      "mention_targets": [],
+      "boat_targets": [],
+      "event_targets": [
+        {
+          "event_name": "The North Sails J/22 Championships",
+          "year": 2026,
+          "host_organization": "Royal Cape Yacht Club",
+          "scheduled_window": "15-16 August 2026",
+          "tier": "headline",
+          "notes": "Headline: brand is in the event name (The North Sails J/22 Championships). SSOT yearly series is J22 Nationals. NOR names no other sponsors.",
+          "proof_urls": [
+            "https://rcyc.co.za/event/j22-regatta/",
+            "https://rcyc.co.za/website/wp-content/uploads/2026/06/RCYC-J22-Regatta-NOR-1.pdf",
+            "https://www.sailing.org.za/events/"
+          ]
+        }
+      ],
+      "explicit_regatta_ids": []
+    },
+    {
+      "slug": "nitro",
+      "display_name": "Nitro",
+      "short_name": "Nitro",
+      "logo_path": "/artwork/Sponsor Logo/Nitro.png",
+      "tier": "headline",
+      "about_text": "NITRO Sailing Team is a Cape Town based team of sailors racing on Nitro Yachts.\nLive like there is no tomorrow!",
+      "website_url": "https://www.facebook.com/NitroSailingTeam",
+      "city": "Cape Town",
+      "province": "Western Cape",
+      "country": "South Africa",
+      "social_json": {
+        "facebook": "https://www.facebook.com/NitroSailingTeam"
+      },
+      "source_urls": [
+        "https://www.facebook.com/NitroSailingTeam"
+      ],
+      "match_terms": [
+        "nitro",
+        "nitro sailing",
+        "nitro sailing team",
+        "nitro yachts"
+      ],
+      "external_search_queries": [
+        "\"Nitro Sailing Team\" Cape Town sailing -site:sailingsa.co.za",
+        "\"Nitro\" J22 South Africa regatta -site:sailingsa.co.za"
+      ],
+      "mention_targets": [],
+      "boat_targets": [
+        {
+          "boat_name": "Nitro Juice",
+          "sail_numbers": [
+            "1571"
+          ],
+          "class_category": "J22",
+          "status": "Branded racing entry"
+        },
+        {
+          "boat_name": "AMTEC NITRO",
+          "sail_numbers": [
+            "776"
+          ],
+          "class_category": "J22",
+          "status": "Branded racing entry"
+        },
+        {
+          "boat_name": "Nitro Monkey",
+          "sail_numbers": [
+            "1175"
+          ],
+          "class_category": "J22",
+          "status": "Branded racing entry"
+        },
+        {
+          "boat_name": "Nitro Maverick",
+          "sail_numbers": [
+            "774"
+          ],
+          "class_category": "J22",
+          "status": "Branded racing entry"
+        }
+      ],
+      "event_targets": [],
+      "explicit_regatta_ids": [
+        "2026-08-29-lipton-challenge-cup"
+      ]
+    },
+    {
+      "slug": "cell-c",
+      "display_name": "Cell C",
+      "short_name": "Cell C",
+      "logo_path": "/artwork/Sponsor Logo/Cell-C.png",
+      "about_text": "Cell C branded J22 racing entry on SailingSA result sheets.",
+      "website_url": "https://www.cellc.co.za/",
+      "country": "South Africa",
+      "match_terms": [
+        "cell c",
+        "cell-c"
+      ],
+      "boat_targets": [
+        {
+          "boat_name": "Cell C",
+          "sail_numbers": [
+            "1116"
+          ],
+          "class_category": "J22",
+          "status": "Branded racing entry"
+        }
+      ],
+      "event_targets": [],
+      "explicit_regatta_ids": [
+        "2026-08-29-lipton-challenge-cup"
+      ]
+    },
+    {
+      "slug": "h2o",
+      "display_name": "H2O",
+      "short_name": "H2O",
+      "logo_path": "/artwork/Sponsor Logo/H2O.png",
+      "tier": "headline",
+      "about_text": "Established in 1994 as H2O International South Africa, we are without a doubt the industry leading force in water purification on the African continent. Today, we are known as BWT and with a team of passionate Head office staff and franchisees. BWT has a proven track record for many years of unmatched expertise and product range stretching not only throughout South Africa, but also into Namibia, Botswana, Mozambique and Nigeria.",
+      "website_url": "https://bwtshop.co.za/",
+      "country": "South Africa",
+      "source_urls": [
+        "https://bwtshop.co.za/"
+      ],
+      "match_terms": [
+        "h2o",
+        "h20",
+        "bwt",
+        "h2o international"
+      ],
+      "boat_targets": [
+        {
+          "boat_name": "H20 Bumbo",
+          "sail_numbers": [],
+          "class_category": "J22",
+          "status": "Branded racing entry"
+        }
+      ],
+      "event_targets": [],
+      "explicit_regatta_ids": [
+        "2026-08-29-lipton-challenge-cup"
+      ]
+    },
+    {
+      "slug": "amtec",
+      "display_name": "AMTEC",
+      "short_name": "AMTEC",
+      "logo_path": "/artwork/Sponsor Logo/AMTEC.png",
+      "tier": "headline",
+      "about_text": "Founded in 2000, AMTEC has grown into a trusted leader in construction and engineering services for the mining, materials handling, heavy industrial, water treatment and paper & pulp sectors across Southern Africa. Proudly Level 1 B-BBEE certified, AMTEC is a people-first, purpose-driven company.",
+      "website_url": "https://amtec.co.za/",
+      "email": "info@amtec.co.za",
+      "phone": "013 650 2270",
+      "city": "eMalahleni",
+      "province": "Mpumalanga",
+      "country": "South Africa",
+      "source_urls": [
+        "https://amtec.co.za/",
+        "https://amtec.co.za/about/"
+      ],
+      "match_terms": [
+        "amtec",
+        "amtec racing"
+      ],
+      "boat_targets": [
+        {
+          "boat_name": "AMTEC NITRO",
+          "sail_numbers": [
+            "776"
+          ],
+          "class_category": "J22",
+          "status": "Branded racing entry"
+        },
+        {
+          "boat_name": "Amtec Racing",
+          "sail_numbers": [
+            "766"
+          ],
+          "class_category": "J22",
+          "status": "Branded racing entry"
+        }
+      ],
+      "event_targets": [],
+      "explicit_regatta_ids": [
+        "2026-08-29-lipton-challenge-cup"
+      ]
+    },
+    {
+      "slug": "miller-gold",
+      "display_name": "Miller Gold & Co",
+      "short_name": "Miller Gold",
+      "logo_path": "/artwork/Sponsor Logo/Miller-Gold.png",
+      "about_text": "Miller Gold & Co (Miller Gold House (Pty) Ltd) was established in 1992 by Sindy Miller, a GIA and Jewellery Council SA jewellery professional with 34 years' industry experience.\n\nThe house specialises in premium new and pre-owned jewellery, vintage and antique jewellery, natural diamonds, gemstones, watches, Krugerrands, engagement rings, valuations and bespoke / design-a-ring work.\n\nEvery showcased piece is specifically selected for uniqueness, quality and authenticity. Pre-owned jewellery and gold coins are authenticated by expert gemologists. Miller Gold is FICA registered and FICA compliant.\n\nMiller Gold is primarily an online retailer, not a walk-in showroom. Private viewing and collection are by appointment in Cape Town, Sandton / Johannesburg and Durban. Headline sponsor of the 2026 TSC 420 Nationals.",
+      "website_url": "https://mgandco.co.za/",
+      "email": "info@mgandco.co.za",
+      "phone": "+27 73 039 5280",
+      "contact_name": "Sindy Miller",
+      "contact_title": "Member / Founder",
+      "address": "14th Floor, 1 Thibault Square, corner Hans Strijdom Avenue & Long Street",
+      "city": "Cape Town",
+      "country": "South Africa",
+      "location_url": "https://www.google.com/maps/search/?api=1&query=14th+Floor%2C+1+Thibault+Square%2C+corner+Hans+Strijdom+Avenue+and+Long+Street%2C+Cape+Town+8001",
+      "source_urls": [
+        "https://mgandco.co.za/",
+        "https://mgandco.co.za/pages/about-us",
+        "https://mgandco.co.za/pages/contact",
+        "https://www.instagram.com/millergoldandco/",
+        "https://www.facebook.com/Miller-Gold-Co-103655218496198"
+      ],
+      "source_urls_json": [
+        "https://mgandco.co.za/",
+        "https://mgandco.co.za/pages/about-us",
+        "https://mgandco.co.za/pages/contact",
+        "https://www.instagram.com/millergoldandco/",
+        "https://www.facebook.com/Miller-Gold-Co-103655218496198"
+      ],
+      "match_terms": [
+        "miller gold",
+        "miller gold & co",
+        "miller gold and co"
+      ],
+      "social_json": {
+        "instagram": "https://www.instagram.com/millergoldandco/",
+        "facebook": "https://www.facebook.com/Miller-Gold-Co-103655218496198"
+      },
+      "services_json": [
+        "Premium new jewellery",
+        "Pre-owned jewellery",
+        "Vintage / antique jewellery",
+        "Natural diamonds",
+        "Loose diamonds",
+        "Gemstones",
+        "Watches",
+        "Krugerrands",
+        "Engagement rings",
+        "Bespoke / design-a-ring",
+        "Valuations",
+        "Authentication",
+        "Private viewing (appointment)",
+        "Collections (appointment)"
+      ],
+      "team_json": [
+        {
+          "name": "Sindy Miller",
+          "title": "Member / Founder",
+          "bio": "Sindy Miller is the name behind Miller Gold (est. 1992). She is a GIA and Jewellery Council SA jewellery professional for diamonds, vintage and antique jewellery, and jewellery buying, with 34 years in the industry.",
+          "email": "info@mgandco.co.za",
+          "phone": "+27 73 039 5280"
+        }
+      ],
+      "event_targets": [
+        {
+          "event_name": "2026 420 Nationals",
+          "host_organization": "TSC - Theewater Sports Club",
+          "scheduled_window": "25\u201327 September 2026",
+          "notes": "Confirmed Headline sponsor of the 2026 TSC 420 Nationals.",
+          "role": "headline"
+        }
+      ],
+      "explicit_regatta_ids": [
+        "2026-09-25-tsc-420-nationals"
+      ]
+    }
+  ]
+}
