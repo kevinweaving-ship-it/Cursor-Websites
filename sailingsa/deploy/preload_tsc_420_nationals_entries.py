@@ -6,7 +6,8 @@ Fleet URL:  https://sailingsa.co.za/regatta/2026-09-25-tsc-420-nationals/class-4
 
 Rows go into public.results on the existing :420 block so the Event / fleet
 sheets can show them. raced is NULL (does not inflate stats, no strike-out).
-No rank (no medals). validation_flag is SAS_PORTAL or NOT_ENTERED.
+Rank is NULL — blank on the sheet, list order is staging only. First race sorts.
+No ">" placeholder. validation_flag is SAS_PORTAL or NOT_ENTERED.
 
 Names stored are sas_id_personal first_name + last_name (not the informal list).
 
@@ -44,26 +45,8 @@ NOT_ENTERED = "NOT_ENTERED"
 # Names are sas_id_personal first_name + last_name only. Informal list spellings are not stored.
 # helm_sas / crew_sas from live SAS table 22 Sep 2026. Do not invent IDs. TBA crew is omitted
 # unless a prior 420 team (or current same-club team that has sailed 420) uniquely identifies them.
-# Sheet order: sailors who did 2025 420 Nationals first. New 2026 pairs average
-# each sailor's 2025 overall rank. A named/TBA teammate who did not sail 2025
-# counts as DNC (entries+1 = 13). So Howard/Lebogang is (2+13)/2, not 2 —
-# last year's 2nd was Howard/Hayden, and Hayden is now with Timothy.
-# Identical last-year pairs would keep that shared rank. New boats A–Z by surname.
-# 2025 1st Dominique Provoyeur / Alex Falcon are not in this list.
-# Source: /regatta/2025-10-04-420-national-championship overall.
-
-DNC_2025 = 13  # 12-boat overall + 1
-
-
-def _helm_surname(name: str) -> str:
-    parts = (name or "").strip().split()
-    return parts[-1].lower() if parts else ""
-
-
-def _helm_first(name: str) -> str:
-    parts = (name or "").strip().split()
-    return " ".join(parts[:-1]).lower() if len(parts) > 1 else (parts[0].lower() if parts else "")
-
+# Sheet order = this list (staging only). Rank stays NULL / blank. First race sorts.
+# 2025 ranks below are notes only — they are not written and do not sort the sheet.
 
 ENTRIES = [
     {
@@ -266,32 +249,6 @@ ENTRIES = [
 ]
 
 
-def _entry_2025_avg(entry: dict) -> float | None:
-    """Avg of current pair's 2025 ranks. Teammate who did not sail last year = DNC 13.
-
-    A 2025 result belonged to last year's pair. Howard/Hayden 2nd is not Howard/Lebogang's rank.
-    """
-    helm_r = entry.get("helm_2025_rank")
-    crew_r = entry.get("crew_2025_rank")
-    if helm_r is None and crew_r is None:
-        return None
-    h = int(helm_r) if helm_r is not None else DNC_2025
-    c = int(crew_r) if crew_r is not None else DNC_2025
-    return (h + c) / 2.0
-
-
-def _entry_sheet_order(entry: dict) -> tuple:
-    """2025 sailors first by avg last-year rank (new teammates averaged), then new A–Z by surname."""
-    avg = _entry_2025_avg(entry)
-    name = entry.get("helm_list") or ""
-    if avg is not None:
-        return (0, avg, _helm_surname(name), _helm_first(name))
-    return (1, 99.0, _helm_surname(name), _helm_first(name))
-
-
-ENTRIES.sort(key=_entry_sheet_order)
-
-
 def get_db_url() -> str:
     url = (os.getenv("DATABASE_URL") or os.getenv("DB_URL") or "").strip()
     if not url:
@@ -327,10 +284,10 @@ def official_name(cur, sas_id: int | None, fallback: str | None) -> str | None:
                TRIM(last_name) AS last_name,
                TRIM(full_name) AS full_name
         FROM sas_id_personal
-        WHERE sa_sailing_id = %s
+        WHERE sa_sailing_id::text = %s
         LIMIT 1
         """,
-        (sas_id,),
+        (str(sas_id),),
     )
     if not row:
         raise SystemExit(f"ERROR: no sas_id_personal row for SA ID {sas_id}. Do not invent a name.")
@@ -427,10 +384,10 @@ def find_existing(cur, block_id: str, entry: dict) -> dict | None:
             cur,
             """
             SELECT * FROM results
-            WHERE regatta_id = %s AND block_id = %s AND helm_sa_sailing_id = %s
+            WHERE regatta_id = %s AND block_id = %s AND helm_sa_sailing_id::text = %s
             ORDER BY result_id LIMIT 1
             """,
-            (REGATTA_ID, block_id, helm_sas),
+            (REGATTA_ID, block_id, str(helm_sas)),
         )
         if row:
             return dict(row)
@@ -442,13 +399,13 @@ def find_existing(cur, block_id: str, entry: dict) -> dict | None:
                 SELECT * FROM results
                 WHERE regatta_id = %s AND block_id = %s
                   AND (
-                    helm_sa_sailing_id = %s
-                    OR crew_sa_sailing_id = %s
-                    OR (helm_sa_sailing_id = %s AND crew_sa_sailing_id = %s)
+                    helm_sa_sailing_id::text = %s
+                    OR crew_sa_sailing_id::text = %s
+                    OR (helm_sa_sailing_id::text = %s AND crew_sa_sailing_id::text = %s)
                   )
                 ORDER BY result_id LIMIT 1
                 """,
-                (REGATTA_ID, block_id, crew_sas, helm_sas, crew_sas, helm_sas),
+                (REGATTA_ID, block_id, str(crew_sas), str(helm_sas), str(crew_sas), str(helm_sas)),
             )
             if row:
                 return dict(row)
@@ -473,7 +430,7 @@ def build_row_values(entry: dict, block: dict, class_420: dict, club: dict, cols
     values = {
         "regatta_id": REGATTA_ID,
         "block_id": block["block_id"],
-        "rank": None,
+        "rank": None,  # blank staging; first race will sort
         "fleet_label": (block.get("fleet_label") or class_name).strip() or class_name,
         "class_original": class_name,
         "class_canonical": class_name,
@@ -500,6 +457,41 @@ def build_row_values(entry: dict, block: dict, class_420: dict, club: dict, cols
         ),
     }
     return {k: values[k] for k in cols if k in values}
+
+
+def clear_preload_rows(cur, block_id: str, dry_run: bool) -> int:
+    """Remove unscored preload rows so re-insert follows list order. Rank stays NULL."""
+    cur.execute(
+        """
+        SELECT result_id, helm_name, rank, raced, race_scores, validation_flag
+        FROM results
+        WHERE regatta_id = %s AND block_id = %s
+        ORDER BY result_id
+        """,
+        (REGATTA_ID, block_id),
+    )
+    rows = [dict(r) for r in (cur.fetchall() or [])]
+    to_delete = []
+    for r in rows:
+        scores = r.get("race_scores")
+        has_scores = bool(scores) and str(scores).strip() not in ("{}", "null", "None")
+        if r.get("raced") is True or r.get("raced") == 1 or has_scores:
+            continue
+        flag = (r.get("validation_flag") or "").strip().upper()
+        rank = r.get("rank")
+        rank_blank = rank is None or str(rank).strip() in ("", ">", "—", "-", "–")
+        if flag in (SAS_PORTAL, NOT_ENTERED, "UNRESOLVED") or (rank_blank and r.get("raced") is None):
+            to_delete.append(r)
+    ids = [r["result_id"] for r in to_delete]
+    print(f"Clear {len(ids)} preload row(s) so sheet order = list order (rank blank).")
+    for r in to_delete:
+        print(f"  DELETE result_id={r.get('result_id')} {r.get('helm_name')}")
+    if ids and not dry_run:
+        cur.execute(
+            "DELETE FROM results WHERE result_id = ANY(%s) AND regatta_id = %s AND block_id = %s",
+            (ids, REGATTA_ID, block_id),
+        )
+    return len(ids)
 
 
 def upsert_entry(cur, entry: dict, block: dict, class_420: dict, club: dict, cols: list[str], dry_run: bool) -> str:
@@ -603,6 +595,9 @@ def main() -> int:
         print(f"Status:  {block.get('result_status')} (unchanged)")
         print(f"Event:   https://sailingsa.co.za/regatta/{REGATTA_ID}")
         print(f"Fleet:   https://sailingsa.co.za/regatta/{REGATTA_ID}/class-420")
+        print("Rank:    blank (staging order = list order; first race sorts)")
+        print()
+        clear_preload_rows(cur, block["block_id"], args.dry_run)
         print()
 
         for i, raw in enumerate(ENTRIES, start=1):
@@ -629,7 +624,7 @@ def main() -> int:
             """
             SELECT result_id, helm_name FROM results
             WHERE regatta_id = %s AND block_id = %s
-              AND helm_sa_sailing_id = 21052
+              AND helm_sa_sailing_id::text = '21052'
               AND raced IS NULL AND rank IS NULL
             ORDER BY result_id LIMIT 1
             """,
