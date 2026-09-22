@@ -23477,7 +23477,8 @@ def _get_regatta_full_page_data(regatta_id: str):
                        res.helm_sa_sailing_id, res.crew_sa_sailing_id,
                        res.total_points_raw, res.nett_points_raw, res.race_scores, res.raced,
                        COALESCE(TRIM(c_res.class_name), TRIM(res.class_original), '') AS class_name,
-                       COALESCE(res.class_id, rb.class_id) AS result_class_id
+                       COALESCE(res.class_id, rb.class_id) AS result_class_id,
+                       res.validation_flag
                 FROM regatta_blocks rb
                 JOIN results res ON res.block_id = rb.block_id AND res.regatta_id = rb.regatta_id
                 LEFT JOIN clubs c ON c.club_id = res.club_id
@@ -23598,6 +23599,7 @@ def _get_regatta_full_page_data(regatta_id: str):
             "raced": r.get("raced"),
             "class_name": (r.get("class_name") or "").strip(),
             "result_class_id": r.get("result_class_id"),
+            "validation_flag": r.get("validation_flag"),
         })
     for bid in sorted(by_block.keys()):
         bl = by_block[bid]
@@ -24388,6 +24390,8 @@ _RESULT_SHEET_CSS = (
     ".medal-gold{background-color:#D4AF37}"
     ".medal-silver{background-color:#D7D7D7}"
     ".medal-bronze{background-color:#CE8946}"
+    ".entry-sas{background-color:#d6e6f5}"
+    ".entry-pending{background-color:#ffffff}"
     ".code{color:#c62828;font-weight:bold}"
     ".code.disc{color:#c62828;font-weight:bold}"
     ".disc{color:#6a1b9a;font-weight:bold;text-decoration:line-through;opacity:0.8}"
@@ -24580,6 +24584,20 @@ def _wc_fleet_editable_cell(
     return f'<span class="wc-sa-edit-hide">{public_inner_html}</span>' + inp
 
 
+def _result_sheet_entry_row_class(row: dict) -> str:
+    """Light blue = entered on SAS portal; white = listed but not entered yet.
+
+    Medals win when a row is already ranked. raced IS NULL (preload) is not
+    struck out; only explicit raced=FALSE / 0 is.
+    """
+    flag = (row.get("validation_flag") or "").strip().upper()
+    if flag == "SAS_PORTAL":
+        return "entry-sas"
+    if flag == "NOT_ENTERED":
+        return "entry-pending"
+    return ""
+
+
 def _render_result_sheet_fleet(
     fleet: dict,
     standalone_class_page: bool = False,
@@ -24672,6 +24690,9 @@ def _render_result_sheet_fleet(
     entries = fleet.get("entries") or 0
     scoring_system = fleet.get("scoring_system") or "Appendix A"
     sailed_line = f"Sailed: {races_sailed}, Discards: {discard_count}, To count: {to_count}, Entries: {entries}, Scoring system: {scoring_system}"
+    entry_flags = {(r.get("validation_flag") or "").strip().upper() for r in rows}
+    if "SAS_PORTAL" in entry_flags or "NOT_ENTERED" in entry_flags:
+        sailed_line += ". Light blue = entered on SAS portal; white = not entered yet. Initial list — incomplete"
 
     def _row_has_crew(row):
         if (row.get("crew_name") or "").strip():
@@ -24747,7 +24768,8 @@ def _render_result_sheet_fleet(
             medal_class = "medal-bronze"
         did_not_race = r.get("raced") is False or r.get("raced") == 0
         strike_class = "strike-out" if did_not_race else ""
-        row_classes = " ".join(c for c in (medal_class, strike_class) if c)
+        entry_class = "" if medal_class else _result_sheet_entry_row_class(r)
+        row_classes = " ".join(c for c in (medal_class, strike_class, entry_class) if c)
         rank_str = _format_rank(r.get("rank"))
         fleet_str = html_module.escape(fleet_label)
         class_str = html_module.escape(r.get("class_name") or "")
@@ -26392,7 +26414,8 @@ def _get_regatta_class_page_data(regatta_id: str, class_id: int):
                        res.helm_sa_sailing_id, res.crew_sa_sailing_id,
                        res.total_points_raw, res.nett_points_raw, res.race_scores, res.raced,
                        COALESCE(TRIM(c_res.class_name), TRIM(res.class_original), '') AS class_name,
-                       COALESCE(res.class_id, rb.class_id) AS result_class_id
+                       COALESCE(res.class_id, rb.class_id) AS result_class_id,
+                       res.validation_flag
                 FROM regatta_blocks rb
                 JOIN results res ON res.block_id = rb.block_id AND res.regatta_id = rb.regatta_id
                 LEFT JOIN clubs c ON c.club_id = res.club_id
@@ -26513,6 +26536,7 @@ def _get_regatta_class_page_data(regatta_id: str, class_id: int):
             "raced": r.get("raced"),
             "class_name": (r.get("class_name") or "").strip(),
             "result_class_id": r.get("result_class_id"),
+            "validation_flag": r.get("validation_flag"),
         })
     fleets = []
     for bid in sorted(by_block.keys()):
