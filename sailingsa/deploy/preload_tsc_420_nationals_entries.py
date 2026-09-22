@@ -8,7 +8,10 @@ Rows go into public.results on the existing :420 block so the Event / fleet
 sheets can show them. raced is NULL (does not inflate stats, no strike-out).
 No rank (no medals). validation_flag is SAS_PORTAL or NOT_ENTERED.
 
-Helm/crew amend: Nathan McCombe helm, Liam Geldenhuys crew (list had Liam first).
+Helm/crew amends:
+  Nathan McCombe helm, Liam Geldenhuys crew (list had Liam first).
+  Kamva Mgcubhe helm, Maddison Smit crew (MAC) — one boat, not two TBA rows.
+  Howard Leoto helm, Lebogang January (Lebo) crew, club RNYC.
 
 Idempotent. Default is apply; use --dry-run to print the plan only.
 
@@ -97,12 +100,17 @@ ENTRIES = [
     {
         "helm_list": "Kamva Mgcubhe",
         "helm_sas": 13516,
-        "crew_list": None,
-        "crew_sas": None,
+        "crew_list": "Maddie",
+        "crew_sas": 21052,
         "club_raw": "MAC",
         "club_abbrev": "MAC",
         "flag": SAS_PORTAL,
-        "issues": [],
+        "issues": [
+            "AMENDED: Kamva + Maddison Smit 21052 are one MAC boat (list had two TBA rows). "
+            "Kamva SAS 13516 confirmed. Prior 420: WC Dinghy Champs 2026 rank 2 "
+            "(Kamva helm / Maddie crew); Port Owen 2026 (Maddie helm / Kamva crew). "
+            "Nationals uses Kamva helm / Maddie crew."
+        ],
     },
     {
         "helm_list": "Joshua Nankin",
@@ -143,16 +151,6 @@ ENTRIES = [
         "club_abbrev": "HYC",
         "flag": SAS_PORTAL,
         "issues": [],
-    },
-    {
-        "helm_list": "Maddion Smit",
-        "helm_sas": 21052,
-        "crew_list": None,
-        "crew_sas": None,
-        "club_raw": "MAC",
-        "club_abbrev": "MAC",
-        "flag": SAS_PORTAL,
-        "issues": ["List Maddion → SAS Maddison Smit 21052."],
     },
     {
         "helm_list": "Alexa Winzel",
@@ -199,12 +197,16 @@ ENTRIES = [
     {
         "helm_list": "Howard Leoto",
         "helm_sas": 3709,
-        "crew_list": None,
-        "crew_sas": None,
-        "club_raw": "HBYC",
-        "club_abbrev": "HBYC",
+        "crew_list": "Lebo",
+        "crew_sas": 1485,
+        "club_raw": "RNYC",
+        "club_abbrev": "RNYC",
         "flag": NOT_ENTERED,
-        "issues": [],
+        "issues": [
+            "AMENDED: Howard Leoto 3709 (SAS club RNYC, not HBYC) with Lebo = "
+            "Lebogang January 1485. Prior 420: 2023 WC Dinghy Champs rank 1. "
+            "Lebogang home club in SAS is RCYC; this entry uses RNYC as listed."
+        ],
     },
 ]
 
@@ -534,8 +536,25 @@ def main() -> int:
             else:
                 updated += 1
 
+        leftover = fetch_one(
+            cur,
+            """
+            SELECT result_id, helm_name FROM results
+            WHERE regatta_id = %s AND block_id = %s
+              AND helm_sa_sailing_id = 21052
+              AND raced IS NULL AND rank IS NULL
+            ORDER BY result_id LIMIT 1
+            """,
+            (REGATTA_ID, block["block_id"]),
+        )
+        if leftover:
+            issues.append(
+                f"Leftover standalone Maddison helm row result_id={leftover.get('result_id')} "
+                "— she is now crew on Kamva; do not keep a second boat."
+            )
+
         print()
-        print(f"Rows: {inserted} insert, {updated} update. List is initial / incomplete (16 boats).")
+        print(f"Rows: {inserted} insert, {updated} update. List is initial / incomplete ({len(ENTRIES)} boats).")
         print("Class /class/420 sailors list is raced=TRUE only — these rows will not appear there yet.")
         print("Locked iframe sheets (class-results.html / results.html) are not styled.")
         if issues:
