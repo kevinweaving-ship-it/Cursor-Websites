@@ -36,15 +36,14 @@ API_ELIF = (
     '<p class="midmar-lb-sheet-note">Full Results sheet below on page</p>'
     '<div class="midmar-lb-list" data-mm-lb-list>'
     '<p class="midmar-lb-empty">Waiting for race scores</p></div></section>'
-    '<div class="midmar-mm-row">'
     f'<section id="mmLiptonReels" class="card mm-lipton-reels mm-lipton-reels--compact" '
     f'data-regatta-id="{SLUG}" data-media-wait="whatsapp">'
     '<div class="mm-lipton-reels-compact mm-lipton-reels-empty">'
     '<h2 class="section-title">Media</h2>'
-    '<p class="midmar-lb-empty">No media yet</p></div></section></div></div>\'\n'
+    '<p class="midmar-lb-empty">No media yet</p></div></section></div>\'\n'
     "            mm_card_script = ("
-    '\'<script src="/js/midmar-live-media.js?v=midmarwx55tsc420" defer></script>\''
-    '\'<script src="/js/midmar-leaderboard.js?v=mmlb16tsc420" defer></script>\')\n'
+    '\'<script src="/js/midmar-live-media.js?v=midmarwx55tsc420b" defer></script>\''
+    '\'<script src="/js/midmar-leaderboard.js?v=mmlb16tsc420b" defer></script>\')\n'
 )
 
 
@@ -68,10 +67,37 @@ def patch_leaderboard(text: str) -> str:
         "    return rid === RID || rid === '2026-09-24-hmyc-dart-18-nationals' "
         f"|| rid === '{SLUG}';"
     )
-    if f"|| rid === '{SLUG}'" in text:
-        return text
-    must_contain(text, old, "midmar-leaderboard.js onMidmar")
-    return text.replace(old, new, 1)
+    if f"|| rid === '{SLUG}'" not in text:
+        must_contain(text, old, "midmar-leaderboard.js onMidmar")
+        text = text.replace(old, new, 1)
+    # Media outline is the same navy card as Leader Board. Nested .midmar-mm-row
+    # used to miss the direct-child selector.
+    old_css = (
+        ".regatta-page > .midmar-live-media > #midmar-leaderboard.card,' +\n"
+        "      '.regatta-page > .midmar-live-media > #ssa-regatta-slot-card,' +\n"
+        "      '.regatta-page > .midmar-live-media > .mm-lipton-reels{' +"
+    )
+    new_css = (
+        ".regatta-page > .midmar-live-media > #midmar-leaderboard.card,' +\n"
+        "      '.regatta-page > .midmar-live-media > #ssa-regatta-slot-card,' +\n"
+        "      '.regatta-page > .midmar-live-media > .mm-lipton-reels,' +\n"
+        "      '.regatta-page > .midmar-live-media .midmar-mm-row > .mm-lipton-reels{' +"
+    )
+    if ".midmar-mm-row > .mm-lipton-reels{" not in text:
+        must_contain(text, old_css, "midmar-leaderboard.js media outline")
+        text = text.replace(old_css, new_css, 1)
+    old_order = (
+        "'.regatta-page > .midmar-live-media > .mm-lipton-reels{order:2;margin-top:10px;overflow:hidden;}' +"
+    )
+    new_order = (
+        "'.regatta-page > .midmar-live-media > .mm-lipton-reels,' +\n"
+        "      '.regatta-page > .midmar-live-media .midmar-mm-row > .mm-lipton-reels{"
+        "order:2;margin-top:10px;overflow:hidden;}' +"
+    )
+    if ".midmar-mm-row > .mm-lipton-reels{order:2" not in text:
+        must_contain(text, old_order, "midmar-leaderboard.js media order")
+        text = text.replace(old_order, new_order, 1)
+    return text
 
 
 def patch_live_media(text: str) -> str:
@@ -128,15 +154,27 @@ def patch_live_media(text: str) -> str:
       bindCam(cam);
     } else {
       host.setAttribute("aria-label", "Event media");
-      if (row.parentNode !== host) host.appendChild(row);
-      if (mm.parentNode !== row) row.appendChild(mm);
-      if (sa.parentNode !== row) row.appendChild(sa);
+      if (mm.parentNode !== host) host.appendChild(mm);
+      if (sa.parentNode !== host) host.appendChild(sa);
     }
     mountSa(host, sa);
     return host;"""
     if "if (hasWxCam()) {" not in text:
         must_contain(text, old_place, "midmar-live-media.js placeHost")
         text = text.replace(old_place, new_place, 1)
+    old_else = """    } else {
+      host.setAttribute("aria-label", "Event media");
+      if (row.parentNode !== host) host.appendChild(row);
+      if (mm.parentNode !== row) row.appendChild(mm);
+      if (sa.parentNode !== row) row.appendChild(sa);
+    }"""
+    new_else = """    } else {
+      host.setAttribute("aria-label", "Event media");
+      if (mm.parentNode !== host) host.appendChild(mm);
+      if (sa.parentNode !== host) host.appendChild(sa);
+    }"""
+    if old_else in text:
+        text = text.replace(old_else, new_else, 1)
 
     old_boot = """    loadScript("/js/midmar-leaderboard.js?v=mmlb16");
     loadScript("/js/midmar-media-rotate.js?v=mmrot4");
@@ -164,6 +202,18 @@ def patch_live_media(text: str) -> str:
 
 def patch_api(text: str) -> str:
     if f'str(regatta_id) == "{SLUG}"' in text:
+        text = text.replace(
+            '</section><div class="midmar-mm-row"><section id="mmLiptonReels"',
+            '</section><section id="mmLiptonReels"',
+            1,
+        )
+        text = text.replace(
+            "No media yet</p></div></section></div></div>'",
+            "No media yet</p></div></section></div>'",
+            1,
+        )
+        text = text.replace("midmarwx55tsc420\"", "midmarwx55tsc420b\"")
+        text = text.replace("mmlb16tsc420\"", "mmlb16tsc420b\"")
         return text
     dart = (
         f'        elif str(regatta_id).startswith("{DART}"):\n'
