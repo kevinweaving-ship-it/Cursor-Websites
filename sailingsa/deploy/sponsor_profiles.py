@@ -2749,6 +2749,66 @@ def _count_list(value: Any) -> int:
     return len(_json_list(value))
 
 
+_MEDIA_ICON_PATHS = {
+    "website": "M12 3a9 9 0 1 0 9 9 9 9 0 0 0-9-9zm6.9 8h-3.17a15.4 15.4 0 0 0-1.14-5 7.05 7.05 0 0 1 4.31 5zM12 5c.7 1.18 1.23 2.55 1.52 4H10.48C10.77 7.55 11.3 6.18 12 5zM5.1 13h3.17a15.4 15.4 0 0 0 1.14 5A7.05 7.05 0 0 1 5.1 13zm3.17-2H5.1a7.05 7.05 0 0 1 4.31-5 15.4 15.4 0 0 0-1.14 5zM12 19c-.7-1.18-1.23-2.55-1.52-4h3.04C13.23 16.45 12.7 17.82 12 19zm1.73-6H10.27a13.6 13.6 0 0 1-.07-2h3.6a13.6 13.6 0 0 1-.07 2zm2 2h3.17a7.05 7.05 0 0 1-4.31 5 15.4 15.4 0 0 0 1.14-5z",
+    "instagram": "M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4zm10 2H7a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm-5 3.2A3.8 3.8 0 1 1 8.2 12 3.8 3.8 0 0 1 12 8.2zm0 1.6A2.2 2.2 0 1 0 14.2 12 2.2 2.2 0 0 0 12 9.8zM17.35 6.4a1.05 1.05 0 1 1-1.05 1.05 1.05 1.05 0 0 1 1.05-1.05z",
+    "facebook": "M14 9h3V6h-3c-2.2 0-4 1.8-4 4v2H8v3h2v7h3v-7h2.6L16 12h-3V10c0-.6.4-1 1-1z",
+    "whatsapp": "M12.04 3C7.3 3 3.45 6.8 3.45 11.5c0 1.5.4 2.95 1.15 4.24L3 21l5.4-1.42A8.5 8.5 0 0 0 12.04 20C16.78 20 20.6 16.2 20.6 11.5 20.6 6.8 16.78 3 12.04 3zm0 15.5c-1.35 0-2.67-.36-3.82-1.04l-.27-.16-3.2.84.86-3.12-.18-.29A6.95 6.95 0 0 1 5.1 11.5c0-3.82 3.12-6.93 6.94-6.93 3.83 0 6.94 3.11 6.94 6.93 0 3.82-3.11 6.93-6.94 6.93zm3.82-5.2c-.21-.1-1.24-.61-1.43-.68-.19-.07-.33-.1-.47.1-.14.21-.54.68-.66.82-.12.14-.24.16-.45.05-.21-.1-.88-.32-1.68-1.03-.62-.55-1.04-1.23-1.16-1.44-.12-.21-.01-.32.09-.42.09-.09.21-.24.32-.36.1-.12.14-.21.21-.35.07-.14.03-.26-.02-.36-.05-.1-.47-1.13-.64-1.55-.17-.41-.34-.35-.47-.36h-.4c-.14 0-.36.05-.55.26-.19.21-.72.7-.72 1.71s.74 1.98.84 2.12c.1.14 1.45 2.21 3.51 3.1.49.21.87.34 1.17.43.49.16.94.14 1.29.08.39-.06 1.24-.51 1.41-.99.17-.49.17-.9.12-.99-.05-.08-.19-.14-.4-.24z",
+    "map": "M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 14.5 9 2.5 2.5 0 0 1 12 11.5z",
+    "email": "M3 6.5A1.5 1.5 0 0 1 4.5 5h15A1.5 1.5 0 0 1 21 6.5v11A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5zm1.7.5 7.3 5.1L19.3 7zM5 17.2h14V8.6l-7 4.9-7-4.9z",
+    "phone": "M6.6 10.8c1.3 2.6 3.5 4.8 6.1 6.1l2-2a1 1 0 0 1 1-.24 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.7a1 1 0 0 1 1 1 11.4 11.4 0 0 0 .57 3.6 1 1 0 0 1-.24 1z",
+    "youtube": "M21 8.2a2.7 2.7 0 0 0-1.9-1.9C17.4 6 12 6 12 6s-5.4 0-7.1.3A2.7 2.7 0 0 0 3 8.2 28 28 0 0 0 2.7 12 28 28 0 0 0 3 15.8a2.7 2.7 0 0 0 1.9 1.9C6.6 18 12 18 12 18s5.4 0 7.1-.3a2.7 2.7 0 0 0 1.9-1.9A28 28 0 0 0 21.3 12 28 28 0 0 0 21 8.2zM10 15V9l5.2 3z",
+    "linkedin": "M6.5 9H3.7v12h2.8zm.2-4.1A1.6 1.6 0 1 1 5.1 3.3a1.6 1.6 0 0 1 1.6 1.6zM20.3 21h-2.8v-5.8c0-1.4 0-3.2-2-3.2s-2.3 1.5-2.3 3.1V21H10.4V9h2.7v1.6h.1a2.9 2.9 0 0 1 2.6-1.4c2.8 0 3.3 1.8 3.3 4.2z",
+    "x": "M4 4h3.4l5 6.6L17.8 4H21l-7.2 8.4L21 20h-3.4l-5.3-7L6.2 20H3l7.5-8.7z",
+}
+
+
+def _media_icon_svg(kind: str) -> str:
+    path = _MEDIA_ICON_PATHS.get(kind) or _MEDIA_ICON_PATHS["website"]
+    return f'<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="{path}"/></svg>'
+
+
+def _media_kind_and_label(url: Any, *, default_kind: str = "website", default_label: str = "") -> tuple[str, str]:
+    raw = _safe_text(url)
+    low = raw.lower()
+    if raw.startswith("mailto:") or default_kind == "email":
+        return "email", default_label or "Email"
+    if raw.startswith("tel:") or default_kind == "phone":
+        return "phone", default_label or "Phone"
+    if "instagram.com" in low:
+        return "instagram", "Instagram"
+    if "facebook.com" in low or "fb.com/" in low or "fb.me/" in low:
+        return "facebook", "Facebook"
+    if "wa.me/" in low or "whatsapp.com" in low or default_kind == "whatsapp":
+        return "whatsapp", "WhatsApp"
+    if "youtube.com" in low or "youtu.be/" in low:
+        return "youtube", "YouTube"
+    if "linkedin.com" in low:
+        return "linkedin", "LinkedIn"
+    if "twitter.com" in low or "x.com/" in low or default_kind in {"x", "twitter"}:
+        return "x", "X"
+    if "google.com/maps" in low or "maps.google." in low or "maps.app.goo.gl" in low or default_kind == "map":
+        return "map", "Google Maps"
+    path = urlparse(raw).path.lower().strip("/")
+    if path.endswith("about-us") or path.endswith("about"):
+        return "website", "About"
+    if path.endswith("contact"):
+        return "website", "Contact"
+    kind = default_kind if default_kind in _MEDIA_ICON_PATHS else "website"
+    return kind, default_label or "Website"
+
+
+def _media_anchor(href: str, kind: str, label: str, *, variant: str = "hero") -> str:
+    cls = "sp-link" if variant == "hero" else "sp-media-link"
+    safe_href = html_module.escape(href, quote=True)
+    safe_label = html_module.escape(label)
+    target = ' target="_blank" rel="noopener noreferrer"' if href.startswith(("http://", "https://")) else ""
+    return (
+        f'<a class="{cls}" href="{safe_href}" title="{safe_label}" aria-label="{safe_label}"{target}>'
+        f"{_media_icon_svg(kind)}{safe_label}</a>"
+    )
+
+
 def _hero_links(profile: dict[str, Any]) -> list[dict[str, str]]:
     out: list[dict[str, str]] = []
     website = _safe_url(profile.get("website_url"))
@@ -2758,20 +2818,21 @@ def _hero_links(profile: dict[str, Any]) -> list[dict[str, str]]:
     social = _json_dict(profile.get("social_json"))
 
     if website:
-        out.append({"href": website, "label": "Website", "kind": "link"})
+        kind, label = _media_kind_and_label(website, default_kind="website", default_label="Website")
+        out.append({"href": website, "label": label, "kind": kind})
     if email:
         out.append({"href": f"mailto:{email}", "label": email, "kind": "email"})
     if phone:
         tel = "tel:" + re.sub(r"[^\d+]+", "", phone)
         out.append({"href": tel, "label": phone, "kind": "phone"})
     if location:
-        out.append({"href": location, "label": "Map", "kind": "map"})
+        out.append({"href": location, "label": "Google Maps", "kind": "map"})
 
-    for key in ("facebook", "instagram", "youtube", "x", "twitter", "linkedin"):
+    for key in ("facebook", "instagram", "youtube", "x", "twitter", "linkedin", "whatsapp"):
         href = _safe_url(social.get(key))
         if href:
-            label = key.title() if key != "x" else "X"
-            out.append({"href": href, "label": label, "kind": "social"})
+            kind, label = _media_kind_and_label(href, default_kind=key if key != "twitter" else "x")
+            out.append({"href": href, "label": label, "kind": kind})
 
     dedup = []
     seen = set()
@@ -2792,12 +2853,14 @@ def _hero(profile: dict[str, Any], *, meta_line: str) -> str:
 
     link_html = ""
     if links:
-        link_html = '<div class="sp-links">' + "".join(
-            f'<a class="sp-link" href="{html_module.escape(item["href"])}" target="_blank" rel="noopener noreferrer">{html_module.escape(item["label"])}</a>'
-            if item["href"].startswith(("http://", "https://"))
-            else f'<a class="sp-link" href="{html_module.escape(item["href"])}">{html_module.escape(item["label"])}</a>'
-            for item in links
-        ) + "</div>"
+        link_html = (
+            '<div class="sp-links" aria-label="Website and social links">'
+            + "".join(
+                _media_anchor(item["href"], item.get("kind") or "website", item["label"], variant="hero")
+                for item in links
+            )
+            + "</div>"
+        )
 
     about_html = f'<p class="sp-hero-blurb">{html_module.escape(about)}</p>' if about else ""
     logo_html = ""
@@ -2897,16 +2960,25 @@ def _team_section(profile: dict[str, Any]) -> str:
 
 
 def _source_links_section(profile: dict[str, Any]) -> str:
-    items = [str(x).strip() for x in _json_list(profile.get("source_urls_json")) if str(x).strip()]
-    if not items:
+    raw_items = list(_json_list(profile.get("source_urls_json"))) + list(_json_list(profile.get("source_urls")))
+    links: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for raw in raw_items:
+        href = _safe_url(raw) if str(raw).strip().startswith(("http://", "https://")) else _safe_text(raw)
+        href = _safe_url(href) or _safe_text(href)
+        if not href or href in seen:
+            continue
+        seen.add(href)
+        kind, label = _media_kind_and_label(href)
+        links.append({"href": href, "kind": kind, "label": label})
+    if not links:
         return ""
-    links = "".join(
-        '<article class="sp-card">'
-        f'<p class="sp-card-body"><a href="{html_module.escape(item)}" target="_blank" rel="noopener noreferrer">{html_module.escape(item)}</a></p>'
-        "</article>"
-        for item in items
+    row = (
+        '<div class="sp-media-links" aria-label="Media and source links">'
+        + "".join(_media_anchor(item["href"], item["kind"], item["label"], variant="media") for item in links)
+        + "</div>"
     )
-    return _section("Media & Sources", f'<div class="sp-grid">{links}</div>', section_id="media")
+    return _section("Media & Sources", row, section_id="media")
 
 
 def _mentions_section(mentions: list[dict[str, Any]]) -> str:
@@ -3463,9 +3535,14 @@ body.sp-body a:hover{color:var(--sp-accent);}
 .sp-title{margin:0;font-size:1.45rem;line-height:1.2;font-weight:800;}
 .sp-meta{margin:4px 0 0;color:rgba(255,255,255,.85);font-weight:650;font-size:0.92rem;}
 .sp-hero-blurb{margin:12px 0 0;color:rgba(255,255,255,.9);font-size:0.95rem;line-height:1.45;}
-.sp-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
-.sp-link{display:inline-flex;align-items:center;justify-content:center;min-height:var(--sp-touch);padding:0 12px;border-radius:999px;border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.10);color:#fff !important;text-decoration:none;font-weight:700;font-size:0.9rem;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sp-links,.sp-media-links{display:flex;flex-wrap:wrap;gap:8px;}
+.sp-links{margin-top:12px;}
+.sp-link,.sp-media-link{display:inline-flex;align-items:center;justify-content:center;min-height:var(--sp-touch);padding:0 12px;border-radius:999px;text-decoration:none;font-weight:700;font-size:0.9rem;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sp-link{border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.10);color:#fff !important;}
 .sp-link:hover,.sp-link:focus-visible{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.5);text-decoration:underline;}
+.sp-link svg,.sp-media-link svg{width:18px;height:18px;margin-right:6px;flex:0 0 auto;}
+.sp-media-link{border:1px solid var(--sp-navy);background:var(--sp-white);color:var(--sp-navy) !important;}
+.sp-media-link:hover,.sp-media-link:focus-visible{background:var(--sp-soft);text-decoration:underline;}
 .sp-stats{display:flex;gap:8px;overflow-x:auto;padding:12px 2px 18px;margin:12px 0 8px;-webkit-overflow-scrolling:touch;position:relative;z-index:24;transition:padding-bottom .15s ease;}
 .sp-stats:has(.sp-stat:hover),.sp-stats:has(.sp-stat:focus-visible),.sp-stats:has(.sp-stat.is-open){padding-bottom:88px;}
 .sp-stat{position:relative;flex:0 0 auto;min-width:138px;border:1px solid var(--sp-line);border-radius:14px;background:var(--sp-white);padding:10px 34px 10px 12px;text-align:left;appearance:none;-webkit-appearance:none;cursor:pointer;}
