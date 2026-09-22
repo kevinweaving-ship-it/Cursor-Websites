@@ -195,6 +195,18 @@
           "primary_classes": [
             "Women's Series"
           ]
+        },
+        {
+          "first_name": "Timothy",
+          "last_name": "Weaving",
+          "sas_id": "21172",
+          "status": "Identified sailor",
+          "primary_classes": [
+            "Hunter 19",
+            "420",
+            "Optimist",
+            "Dabchick"
+          ]
         }
       ],
       "boat_targets": [
@@ -231,6 +243,14 @@
           ],
           "class_category": "Beneteau First 44.7",
           "status": "Regional non-spinnaker fleet competitor"
+        },
+        {
+          "boat_name": "Puffin",
+          "sail_numbers": [
+            "403"
+          ],
+          "class_category": "Hunter 19",
+          "status": "Identified Hunter 19 entry"
         }
       ],
       "event_targets": [
@@ -245,6 +265,17 @@
           "host_organization": "Royal Cape Yacht Club",
           "scheduled_window": "Multi-month endurance series",
           "notes": "Supported alongside Seaport Supply and linked offshore race tracking."
+        },
+        {
+          "event_name": "The Midmar Cup",
+          "year": 2026,
+          "host_organization": "Henley Midmar Yacht Club",
+          "scheduled_window": "19-20 September 2026",
+          "tier": "tier2",
+          "notes": "2nd-tier: Ullman-identified sailors race this event more than Ullman sponsors it. Not a title/headline sponsorship.",
+          "proof_urls": [
+            "https://sailingsa.co.za/regatta/2026-09-19-hmyc-midmar-cup"
+          ]
         }
       ],
       "explicit_regatta_ids": [

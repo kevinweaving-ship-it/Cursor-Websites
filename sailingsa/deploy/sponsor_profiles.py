@@ -75,6 +75,19 @@ def _norm_sail_digits(value: Any) -> str:
     return re.sub(r"[^0-9]+", "", _safe_text(value))
 
 
+def _boat_keys_align(boat_key: Any, target_key: Any) -> bool:
+    left = _safe_text(boat_key)
+    right = _safe_text(target_key)
+    if not left or not right:
+        return False
+    return left == right or left.endswith(right) or right.endswith(left)
+
+
+def _is_generic_sail_number(value: Any) -> bool:
+    cleaned = _norm_sail_number(value)
+    return bool(cleaned) and cleaned.isdigit() and len(cleaned) < 4
+
+
 def _looks_like_division(label: Any) -> bool:
     low = _norm_text_key(label)
     if not low:
@@ -1632,6 +1645,9 @@ def _direct_targets(profile: dict[str, Any], mentions: list[dict[str, Any]]) -> 
         full_name = " ".join([x for x in [first, last] if x]).strip()
         if full_name:
             sailor_names.append(_norm_text_key(full_name))
+        sid = _safe_text(row.get("sas_id") or row.get("sa_sailing_id"))
+        if sid:
+            sailor_ids.append(sid)
         for alias in _json_list(row.get("aliases")):
             alias_name = _safe_text(alias)
             if alias_name:
@@ -1645,8 +1661,12 @@ def _direct_targets(profile: dict[str, Any], mentions: list[dict[str, Any]]) -> 
             boat_names.append(_norm_text_key(boat_name))
         for sail_no in _json_list(row.get("sail_numbers")):
             cleaned = _norm_sail_number(sail_no)
-            if cleaned:
-                sail_numbers.append(cleaned)
+            if not cleaned:
+                continue
+            # Short numeric-only sails like 403 collide across classes; match those by boat name.
+            if boat_name and _is_generic_sail_number(cleaned):
+                continue
+            sail_numbers.append(cleaned)
 
     for item in mentions:
         for sailor in _json_list(item.get("resolved_sailors")):
@@ -2326,21 +2346,25 @@ def _canonical_boat_meta(row: dict[str, Any], target_rows: list[dict[str, Any]])
     sail_digits = _norm_sail_digits(sail_number)
     class_name = _safe_text(row.get("class_name"))
     for target in target_rows:
-        if sail_key and sail_key in target["sail_keys"]:
-            return {
-                "boat_name": _safe_text(target.get("boat_name")) or boat_name,
-                "sail_number": sail_number,
-                "class_name": _safe_text(target.get("class_category")) or class_name,
-            }
-        if sail_digits and sail_digits in target["sail_digit_keys"]:
-            return {
-                "boat_name": _safe_text(target.get("boat_name")) or boat_name,
-                "sail_number": sail_number,
-                "class_name": _safe_text(target.get("class_category")) or class_name,
-            }
         target_name = _safe_text(target.get("boat_name"))
         target_key = _safe_text(target.get("boat_key"))
-        if boat_key and target_key and (boat_key == target_key or boat_key.endswith(target_key) or target_key.endswith(boat_key)):
+        generic_sails = bool(target.get("sail_keys")) and all(
+            _is_generic_sail_number(s) for s in _json_list(target.get("sail_numbers"))
+        )
+        names_align = (not boat_key) or _boat_keys_align(boat_key, target_key)
+        if sail_key and sail_key in target["sail_keys"] and (names_align or not generic_sails):
+            return {
+                "boat_name": target_name or boat_name,
+                "sail_number": sail_number,
+                "class_name": _safe_text(target.get("class_category")) or class_name,
+            }
+        if sail_digits and sail_digits in target["sail_digit_keys"] and (names_align or not generic_sails):
+            return {
+                "boat_name": target_name or boat_name,
+                "sail_number": sail_number,
+                "class_name": _safe_text(target.get("class_category")) or class_name,
+            }
+        if _boat_keys_align(boat_key, target_key):
             inferred_class = class_name
             if not inferred_class and len(_json_list(target.get("sail_numbers"))) == 1:
                 inferred_class = _safe_text(target.get("class_category"))
@@ -2356,11 +2380,30 @@ def _canonical_boat_meta(row: dict[str, Any], target_rows: list[dict[str, Any]])
     }
 
 
+def _row_fits_boat_target_sails(row: dict[str, Any], target_rows: list[dict[str, Any]]) -> bool:
+    boat_key = _norm_text_key(row.get("boat_name"))
+    sail_key = _norm_sail_number(row.get("sail_number"))
+    sail_digits = _norm_sail_digits(row.get("sail_number"))
+    for target in target_rows:
+        if not _boat_keys_align(boat_key, target.get("boat_key")):
+            continue
+        keys = target.get("sail_keys") or set()
+        digit_keys = target.get("sail_digit_keys") or set()
+        if not keys and not digit_keys:
+            return True
+        if not sail_key and not sail_digits:
+            return True
+        return bool((sail_key and sail_key in keys) or (sail_digits and sail_digits in digit_keys))
+    return True
+
+
 def _direct_boats(rows: list[dict[str, Any]], profile: dict[str, Any]) -> list[dict[str, Any]]:
     target_rows = _boat_target_rows(profile)
     agg: dict[str, dict[str, Any]] = {}
     for row in rows:
         if not (bool(row.get("matched_by_boat")) or bool(row.get("matched_by_sail_number"))):
+            continue
+        if not _row_fits_boat_target_sails(row, target_rows):
             continue
         meta = _canonical_boat_meta(row, target_rows)
         boat_name = _safe_text(meta.get("boat_name"))
@@ -2417,6 +2460,26 @@ def _direct_boats(rows: list[dict[str, Any]], profile: dict[str, Any]) -> list[d
         item.pop("_regattas", None)
         item.pop("_seen_sailors", None)
         out.append(item)
+    present = {_norm_text_key(item.get("boat_name")) for item in out}
+    for target in target_rows:
+        key = _safe_text(target.get("boat_key"))
+        if not key or key in present:
+            continue
+        sails = [_safe_text(x) for x in _json_list(target.get("sail_numbers")) if _safe_text(x)]
+        out.append(
+            {
+                "boat_name": _safe_text(target.get("boat_name")) or "Unnamed boat",
+                "sail_number": sails[0] if sails else "",
+                "class_name": _safe_text(target.get("class_category")),
+                "class_id": "",
+                "event_count": 0,
+                "latest_event_name": "",
+                "latest_event_date": "",
+                "latest_regatta_id": "",
+                "sailors": [],
+            }
+        )
+        present.add(key)
     out.sort(
         key=lambda row: (
             -int(row.get("event_count") or 0),
@@ -3031,7 +3094,7 @@ def _history_section(regattas: list[dict[str, Any]], *, with_results: set[str]) 
         parts.append(
             _section(
                 "2nd-tier events",
-                '<p class="sp-section-blurb">Sponsored that year only. Name is not in the title. Not copied from other years.</p>' + t_cards,
+                '<p class="sp-section-blurb">Name is not in the event title. Includes events they supported that year, and events raced by their identified sailors. Not copied from other years.</p>' + t_cards,
                 section_id="tier2-history",
             )
         )

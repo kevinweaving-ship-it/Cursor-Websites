@@ -158,6 +158,31 @@
           "tier2": []
         }
       }
+    },
+    {
+      "series_key": "the midmar cup",
+      "display_name": "The Midmar Cup",
+      "match_keys": [
+        "the midmar cup",
+        "midmar cup"
+      ],
+      "match_names": [
+        "midmar cup"
+      ],
+      "years": {
+        "2026": {
+          "headline": [],
+          "tier2": [
+            {
+              "slug": "ullman",
+              "proof_urls": [
+                "https://sailingsa.co.za/regatta/2026-09-19-hmyc-midmar-cup"
+              ],
+              "notes": "2nd-tier because Ullman-identified sailors race this event more than Ullman sponsors it."
+            }
+          ]
+        }
+      }
     }
   ]
 }
