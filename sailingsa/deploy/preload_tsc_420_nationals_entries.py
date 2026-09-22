@@ -30,9 +30,10 @@ import sys
 
 try:
     import psycopg2
-    from psycopg2.extras import RealDictCursor
+    from psycopg2.extras import Json, RealDictCursor
 except ImportError:
     psycopg2 = None
+    Json = None
     RealDictCursor = None
 
 REGATTA_ID = "2026-09-25-tsc-420-nationals"
@@ -448,7 +449,7 @@ def build_row_values(entry: dict, block: dict, class_420: dict, club: dict, cols
         "event_name": block.get("event_name") or EVENT_NAME,
         "start_date": block.get("start_date"),
         "end_date": block.get("end_date"),
-        "race_scores": None,
+        "race_scores": Json({}) if Json is not None else {},  # NOT NULL; empty = no races yet
         "total_points_raw": None,
         "nett_points_raw": None,
         "match_status_helm": "matched" if entry.get("helm_sas") else "unmatched",
@@ -502,7 +503,11 @@ def upsert_entry(cur, entry: dict, block: dict, class_420: dict, club: dict, col
     flag = values.get("validation_flag")
     if existing:
         rid = existing.get("result_id")
-        has_scores = bool(existing.get("race_scores")) or existing.get("rank") is not None
+        scores = existing.get("race_scores")
+        has_real_scores = bool(scores) and str(scores).strip() not in ("{}", "null", "None")
+        if isinstance(scores, dict):
+            has_real_scores = any(str(v).strip() for v in scores.values())
+        has_scores = has_real_scores or existing.get("rank") is not None
         if has_scores:
             safe_cols = [
                 c
