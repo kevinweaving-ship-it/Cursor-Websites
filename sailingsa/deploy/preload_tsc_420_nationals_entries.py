@@ -39,8 +39,8 @@ CLASS_NAME = "420"
 SAS_PORTAL = "SAS_PORTAL"
 NOT_ENTERED = "NOT_ENTERED"
 
-# List order. helm_sas / crew_sas are live sas_id_personal matches from 22 Sep 2026.
-# Do not invent IDs. TBA crew is omitted (None). Official names are loaded at runtime.
+# Names are sas_id_personal first_name + last_name only. Informal list spellings are not stored.
+# helm_sas / crew_sas from live SAS table 22 Sep 2026. Do not invent IDs. TBA crew is omitted.
 ENTRIES = [
     {
         "helm_list": "Scheder Bischein",
@@ -51,18 +51,18 @@ ENTRIES = [
         "club_abbrev": "ZVYC",
         "flag": NOT_ENTERED,
         "issues": [
-            "No unique SAS match. Family Scheder-Bieschin exists; do not assign Theodor 9515."
+            "No SAS row. Family Scheder-Bieschin exists; do not assign Theodor 9515."
         ],
     },
     {
-        "helm_list": "Kenwyn Daniels",
+        "helm_list": "Kenwin Daniels",
         "helm_sas": 3184,
         "crew_list": None,
         "crew_sas": None,
         "club_raw": "Izivungu",
         "club_abbrev": "IZI",
         "flag": SAS_PORTAL,
-        "issues": ["List Kenwyn → SAS Kenwin Daniels 3184. Club Izivungu → IZI."],
+        "issues": ["Club Izivungu → IZI."],
     },
     {
         "helm_list": "Amir Yaghya",
@@ -72,7 +72,7 @@ ENTRIES = [
         "club_raw": "ZVSC",
         "club_abbrev": "ZVSC",
         "flag": SAS_PORTAL,
-        "issues": [],
+        "issues": ["SAS home club is ZVYC; entry club left as listed ZVSC."],
     },
     {
         "helm_list": "Jemayne Wolmarans",
@@ -85,42 +85,39 @@ ENTRIES = [
         "issues": [],
     },
     {
-        "helm_list": "Nathan Mc Combe",
+        "helm_list": "Nathan McCombe",
         "helm_sas": 21517,
-        "crew_list": "Liam Geldenhuyss",
+        "crew_list": "Liam Geldenhuys",
         "crew_sas": 25653,
         "club_raw": "HYC",
         "club_abbrev": "HYC",
         "flag": SAS_PORTAL,
         "issues": [
-            "AMENDED: list had Liam helm / Nathan crew. Now Nathan McCombe 21517 helm, "
-            "Liam Geldenhuys 25653 crew. Dirty Nathan dup 28587 not used."
+            "AMENDED: Nathan McCombe 21517 helm, Liam Geldenhuys 25653 crew. Dirty Nathan dup 28587 unused."
         ],
     },
     {
         "helm_list": "Kamva Mgcubhe",
         "helm_sas": 13516,
-        "crew_list": "Maddie",
+        "crew_list": "Maddison Smit",
         "crew_sas": 21052,
         "club_raw": "MAC",
         "club_abbrev": "MAC",
         "flag": SAS_PORTAL,
         "issues": [
-            "AMENDED: Kamva + Maddison Smit 21052 are one MAC boat (list had two TBA rows). "
-            "Kamva SAS 13516 confirmed. Prior 420: WC Dinghy Champs 2026 rank 2 "
-            "(Kamva helm / Maddie crew); Port Owen 2026 (Maddie helm / Kamva crew). "
-            "Nationals uses Kamva helm / Maddie crew."
+            "AMENDED: one MAC boat. Prior 420 WC Dinghy Champs 2026 rank 2 "
+            "(Kamva Mgcubhe helm / Maddison Smit crew)."
         ],
     },
     {
         "helm_list": "Joshua Nankin",
         "helm_sas": 8704,
-        "crew_list": "Josh Keytel",
+        "crew_list": "Joshua Keytel",
         "crew_sas": 13522,
         "club_raw": "ZVYC",
         "club_abbrev": "ZVYC",
         "flag": SAS_PORTAL,
-        "issues": ["List Josh Keytel → SAS Joshua Keytel 13522."],
+        "issues": [],
     },
     {
         "helm_list": "Aisha Knobloch",
@@ -130,7 +127,7 @@ ENTRIES = [
         "club_raw": "MAC",
         "club_abbrev": "MAC",
         "flag": SAS_PORTAL,
-        "issues": ["Crew Sphelele: no last name, no SAS match. Stored as listed, no crew ID."],
+        "issues": ["Crew Sphelele: no SAS row (no surname). Stored as given, no crew ID."],
     },
     {
         "helm_list": "Hayley Rae",
@@ -160,52 +157,49 @@ ENTRIES = [
         "club_raw": "MAC",
         "club_abbrev": "MAC",
         "flag": NOT_ENTERED,
-        "issues": ["No SAS match. Helm has neither SA ID nor temp ID."],
+        "issues": ["No SAS row. Helm has neither SA ID nor temp ID."],
     },
     {
         "helm_list": "Ben Henshilwood",
         "helm_sas": 18020,
-        "crew_list": "Tom Henshilwood",
+        "crew_list": "Thomas Henshilwood",
         "crew_sas": 9612,
         "club_raw": "HYC",
         "club_abbrev": "HYC",
         "flag": NOT_ENTERED,
-        "issues": [
-            "List Tom → SAS Thomas Henshilwood 9612. Dual Thomas IDs 9612 and 7352; 9612 used."
-        ],
+        "issues": ["Thomas Henshilwood 9612 (2009), not Thomas 7352 (1976)."],
     },
     {
-        "helm_list": "Chira Fruet",
+        "helm_list": "Chiara Fruet",
         "helm_sas": 6497,
         "crew_list": None,
         "crew_sas": None,
         "club_raw": "MAC",
         "club_abbrev": "MAC",
         "flag": NOT_ENTERED,
-        "issues": ["List Chira → SAS Chiara Fruet 6497."],
+        "issues": [],
     },
     {
-        "helm_list": "Tim Weaving",
+        "helm_list": "Timothy Weaving",
         "helm_sas": 21172,
         "crew_list": "Hayden Miller",
         "crew_sas": 8683,
         "club_raw": "HYC",
         "club_abbrev": "HYC",
         "flag": NOT_ENTERED,
-        "issues": ["List Tim → SAS Timothy Weaving 21172."],
+        "issues": [],
     },
     {
         "helm_list": "Howard Leoto",
         "helm_sas": 3709,
-        "crew_list": "Lebo",
+        "crew_list": "Lebogang January",
         "crew_sas": 1485,
         "club_raw": "RNYC",
         "club_abbrev": "RNYC",
         "flag": NOT_ENTERED,
         "issues": [
-            "AMENDED: Howard Leoto 3709 (SAS club RNYC, not HBYC) with Lebo = "
-            "Lebogang January 1485. Prior 420: 2023 WC Dinghy Champs rank 1. "
-            "Lebogang home club in SAS is RCYC; this entry uses RNYC as listed."
+            "AMENDED: Howard Leoto 3709 / Lebogang January 1485, RNYC. "
+            "Prior 420: 2023 WC Dinghy Champs rank 1. Lebogang SAS home club is RCYC."
         ],
     },
 ]
@@ -236,26 +230,33 @@ def fetch_one(cur, sql: str, args=()):
 
 
 def official_name(cur, sas_id: int | None, fallback: str | None) -> str | None:
+    """SAS table is truth: first_name + last_name. List spelling is only used when there is no SAS ID."""
     if sas_id is None:
         return (fallback or "").strip() or None
     row = fetch_one(
         cur,
         """
-        SELECT COALESCE(TRIM(full_name), TRIM(first_name || ' ' || COALESCE(last_name, ''))) AS full_name
+        SELECT TRIM(first_name) AS first_name,
+               TRIM(last_name) AS last_name,
+               TRIM(full_name) AS full_name
         FROM sas_id_personal
         WHERE sa_sailing_id = %s
         LIMIT 1
         """,
         (sas_id,),
     )
-    name = (row.get("full_name") if row else None) or ""
-    name = name.strip()
-    if not name:
-        raise SystemExit(
-            f"ERROR: sas_id_personal has no name for SA ID {sas_id} "
-            f"(list name {fallback!r}). Do not invent an ID."
-        )
-    return name
+    if not row:
+        raise SystemExit(f"ERROR: no sas_id_personal row for SA ID {sas_id}. Do not invent a name.")
+    first = (row.get("first_name") or "").strip()
+    last = (row.get("last_name") or "").strip()
+    if first and last:
+        return f"{first} {last}"
+    full = (row.get("full_name") or "").strip()
+    if full:
+        return full
+    raise SystemExit(
+        f"ERROR: sas_id_personal {sas_id} has no first_name/last_name. Do not use the informal list."
+    )
 
 
 def resolve_club(cur, abbrev: str) -> dict:
