@@ -24696,7 +24696,7 @@ def _render_result_sheet_fleet(
     sailed_line = f"Sailed: {races_sailed}, Discards: {discard_count}, To count: {to_count}, Entries: {entries}, Scoring system: {scoring_system}"
     entry_flags = {(r.get("validation_flag") or "").strip().upper() for r in rows}
     if "SAS_PORTAL" in entry_flags or "NOT_ENTERED" in entry_flags:
-        sailed_line += ". Blue = SAS matched; grey = not resolved. Order: 2025 420 Nationals avg rank (new pairs averaged), then new A–Z. Initial list — incomplete"
+        sailed_line += ". Blue = SAS matched; grey = not resolved. Order: 2025 420 Nationals pair avg (missing teammate = DNC), then new A–Z. Initial list — incomplete"
 
     def _row_has_crew(row):
         if (row.get("crew_name") or "").strip():
